@@ -1,4 +1,4 @@
-# WinUI Test Plan: P0-P4
+# WinUI Test Plan: P0-P5
 
 This document describes the manual UI test steps for the apps in `testapp`. The goal is to quickly reproduce and verify WinUIBackend-related issues.
 
@@ -223,6 +223,41 @@ Expected results:
 - When the row count is large, visible row callbacks should still update quickly.
 - If callbacks point to the wrong row after many updates, record it as a #190 (Fixed) regression.
 - If WinUI backdrop diagnostic noise appears in the console again, record it as a #204 (Fixed) regression.
+
+## P5: Multi-Window Alerts
+
+Run:
+
+```powershell
+.\P5.exe
+```
+
+Covered issues:
+
+- #675 (Fixed): WinUIBackend could only show one dialog at a time app-wide (alerts queued across windows and couldn't stack within a window)
+
+Test steps:
+
+1. Launch `P5.exe`.
+2. Confirm that the main window `P5: Main window` appears.
+3. Click `Open another window` to open a secondary window; confirm that a second window `P5: Secondary window` appears.
+4. In the main window, click `Show Alert A`; confirm that `Alert A (Main)` appears.
+5. While `Alert A (Main)` is still open, switch to the secondary window and click `Show Alert A`; confirm that `Alert A (Secondary)` appears immediately, without waiting for the main window's alert to close, to verify #675 (Fixed).
+6. Dismiss both alerts.
+7. In the main window, click `Show Alert A`, then click `Show Alert B (stacks on A)` without dismissing Alert A; confirm that `Alert B (Main)` replaces `Alert A (Main)` on screen to verify #675 (Fixed).
+8. Click `Show Alert C (stacks on A+B)` without dismissing Alert B; confirm that `Alert C (Main)` appears on top to verify #675 (Fixed).
+9. Dismiss `Alert C (Main)`; confirm that `Alert B (Main)` reappears to verify #675 (Fixed).
+10. Dismiss `Alert B (Main)`; confirm that `Alert A (Main)` reappears to verify #675 (Fixed).
+11. Dismiss `Alert A (Main)`; confirm that no alert remains and the window is interactive again.
+12. Repeat steps 7-11 in the secondary window to confirm the same stacking/restoring behavior on a non-main window.
+13. Click `Open another window` again from either window; confirm that a third window opens and all three windows can independently show/stack alerts at the same time.
+
+Expected results:
+
+- Alerts on different windows should be able to show at the same time; if the second window's alert does not appear until the first window's alert is dismissed, record it as a #675 (Fixed) regression.
+- Stacking Alert B (or C) on the same window while an earlier alert is still open should hide the earlier alert and show the new one on top; if both appear at once in the same window, or the app crashes, record it as a #675 (Fixed) regression.
+- Dismissing a stacked alert should restore the alert underneath it in the same window, in the correct order (C -> B -> A); if a restored alert is skipped or restored out of order, record it as a #675 (Fixed) regression.
+- Closing one window should not affect alerts in other windows.
 
 ## Test Record Template
 
