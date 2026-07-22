@@ -1,4 +1,4 @@
-# WinUI Test Plan: P0-P5
+# WinUI Test Plan: P0-P6
 
 This document describes the manual UI test steps for the apps in `testapp`. The goal is to quickly reproduce and verify WinUIBackend-related issues.
 
@@ -258,6 +258,65 @@ Expected results:
 - Stacking Alert B (or C) on the same window while an earlier alert is still open should hide the earlier alert and show the new one on top; if both appear at once in the same window, or the app crashes, record it as a #675 (Fixed) regression.
 - Dismissing a stacked alert should restore the alert underneath it in the same window, in the correct order (C -> B -> A); if a restored alert is skipped or restored out of order, record it as a #675 (Fixed) regression.
 - Closing one window should not affect alerts in other windows.
+
+## P6: Zstd Stream Player
+
+Build and run:
+
+```sh
+zsh testapp/compile.sh P6
+./testapp/output/P6.exe
+```
+
+On macOS the output binary name may be `P6` instead of `P6.exe`:
+
+```sh
+zsh testapp/compile.sh P6
+./testapp/output/P6
+```
+
+Runtime tools:
+
+- `ffmpeg` and `ffprobe` must be available on `PATH`.
+- `zstd` must be available on `PATH` when selecting a `.zst` file.
+- `ffplay` must be available on `PATH` for audio playback.
+- LZFSE2/swift_tar `.zst` storybook streams are treated as zstd level 9 sources.
+- macOS tool lookup also checks `/opt/homebrew/bin`, `/usr/local/bin`,
+  `/opt/local/bin`, `/usr/bin`, and `/bin`, covering Apple Silicon Homebrew,
+  Intel Homebrew, MacPorts, and system tools even when the app launches with a
+  minimal GUI environment.
+- The default file dialog directory checks both `~/proj/LZFSE2/swift_tar/images`
+  and `~/proj/lzfse2/swift_tar/images`.
+
+Test steps:
+
+1. Launch `P6.exe` and click `Choose file`.
+2. Select `storybook-1min-4k60.mp4` or `storybook-1min-4k60.y4m.zst`.
+3. Confirm that the first frame appears and the duration is shown when the sibling MP4 exists.
+4. Click `Show resolution`; confirm that the status line reports input resolution, output resolution, and the 960x540 viewport.
+5. Click `Play`; confirm that video playback starts and that audio starts too for inputs with an audio track when `ffplay` is available.
+6. Click `Sound on` / `Sound off`; confirm that audio can be toggled without disrupting video playback.
+7. Click `Stop`; confirm that Stop preserves the current position and Play resumes it.
+8. Drag the timeline slider to a specific time and confirm that `Seek target` updates.
+9. Click `Seek`; confirm that the displayed frame/time jumps to the slider target, and that playback continues from that target when playback was already running.
+10. Click `-5s` and `+5s`; confirm that the displayed frame and time move by five seconds and clamp at zero/end.
+11. Select `1x`, `2x`, and `3x`; confirm that selecting a speed does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new speed.
+12. Select `30`, `45`, and `60` FPS; confirm that selecting FPS does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new presentation rate.
+13. Select `Preview 960x540`, `1080p 1920x1080`, and `4K 3840x2160`; confirm that selecting resolution does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new output mode.
+14. On macOS, select `4K 3840x2160` and `60` FPS; confirm that the preview remains 960x540 while logs report `metal frame ... 3840x2160`.
+15. Close the window during playback and confirm that FFmpeg/Zstd/FFplay child processes exit.
+
+Expected results:
+
+- MP4, Y4M, and Y4M.ZST inputs decode at the selected output resolution.
+- Direct inputs with audio tracks can play sound through `ffplay`; Y4M / `.zst` video-only paths should not crash.
+- The timeline slider can quickly choose a target time, and `Seek` displays or plays from that target.
+- Selecting speed, FPS, or output resolution should not switch focus to another terminal, steal focus, or immediately restart the decoder.
+- The visible viewport remains 960x540 and scales the decoded frame down for operation in a normal test window.
+- macOS renders decoded RGBA frames through a persistent Metal texture instead of rebuilding a SwiftCrossUI image for every frame.
+- Playback controls remain responsive while decoding runs off the UI thread.
+- Repeated static frames do not force redundant image uploads.
+- Missing tools or malformed input produce an error in the status line instead of crashing.
 
 ## Test Record Template
 

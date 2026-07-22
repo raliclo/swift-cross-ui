@@ -1,8 +1,19 @@
 #!/usr/bin/env sh
 set -euo pipefail
 
+# zsh does not split unquoted scalar expansions by default, while this POSIX
+# script uses whitespace-delimited app name lists below.
+if [ -n "${ZSH_VERSION:-}" ]; then
+    setopt SH_WORD_SPLIT
+fi
+
 windows_path() {
     case "$1" in
+        /?/*)
+            drive="$(printf '%s' "$1" | cut -c 2 | tr '[:lower:]' '[:upper:]')"
+            rest="$(printf '%s' "$1" | cut -c 4-)"
+            printf '%s:/%s\n' "$drive" "$rest"
+            ;;
         /cygdrive/?/*)
             drive="$(printf '%s' "$1" | cut -c 11 | tr '[:lower:]' '[:upper:]')"
             rest="$(printf '%s' "$1" | cut -c 13-)"
@@ -112,6 +123,7 @@ import PackageDescription
 let testAppDependencies: [Target.Dependency] = [
     .product(name: "SwiftCrossUI", package: "swift-cross-ui"),
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
+    .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
     .product(name: "WinUIBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
     $image_formats_product
     .product(name: "WinUI", package: "swift-winui", condition: .when(platforms: [.windows])),
