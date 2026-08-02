@@ -132,7 +132,7 @@ let testAppDependencies: [Target.Dependency] = [
 
 let package = Package(
     name: "TestApps",
-    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .macCatalyst(.v13), .visionOS(.v1)],
+    platforms: [.macOS(.v11), .iOS(.v13), .tvOS(.v13), .macCatalyst(.v13), .visionOS(.v1)],
     dependencies: [
         .package(path: "$repo_root"),
         $image_formats_package

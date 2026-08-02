@@ -1,7 +1,7 @@
 import DefaultBackend
 import Foundation
 import ImageFormats
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 #if os(macOS)
 import AppKit
@@ -11,7 +11,7 @@ import MetalKit
 #endif
 
 // P6 stream player test app:
-// - Select MP4, Y4M, or Y4M.ZST input.
+// - Select MP4, WebM, Y4M, or Y4M.ZST input.
 // - Decode through FFmpeg; Zstd input is streamed through zstd first.
 // - Exercise playback, stop, timeline seek, speed, output FPS, output
 //   resolution controls, and audio playback for inputs with audio tracks.
@@ -19,6 +19,34 @@ import MetalKit
 // Runtime dependencies: ffmpeg, ffprobe, and (for .zst input) zstd on PATH.
 // On macOS, Homebrew and MacPorts tool paths are searched even when PATH is
 // minimal.
+// Renderer flags: Metal is the default; -core selects Core Animation. If both
+// flags are present, the last renderer flag wins.
+// 渲染旗標：Metal 為預設值；-core 選擇 Core Animation。若同時提供兩者，
+// 最後一個渲染旗標會生效。
+
+enum P6RenderingBackend: String, Sendable {
+    case metal
+    case core
+
+    // The last rendering flag wins; Metal is the default.
+    // 最後一個渲染旗標會生效；Metal 是預設值。
+    static func selected(from arguments: [String]) -> Self {
+        arguments.reduce(.metal) { selected, argument in
+            switch argument {
+                case "-metal": .metal
+                case "-core": .core
+                default: selected
+            }
+        }
+    }
+
+    var label: String {
+        switch self {
+            case .metal: "Metal (default, -metal)"
+            case .core: "Core Animation (-core)"
+        }
+    }
+}
 
 @main
 @HotReloadable
@@ -39,6 +67,14 @@ struct P6StreamPlayerView: View {
 
     @Environment(\.chooseFile) var chooseFile
 
+    #if os(macOS)
+    // The backend-owned window comes from the environment. This is reliable
+    // during onAppear, unlike NSApp.keyWindow which may still be nil.
+    // backend 所管理的視窗由 environment 提供；onAppear 執行時此方式可靠，
+    // 不會遇到 NSApp.keyWindow 仍為 nil 的時序問題。
+    @Environment(\.window) var enclosingWindow
+    #endif
+
     let speedOptions = ["1x", "2x", "3x"]
     let fpsOptions = ["30", "45", "60"]
     let resolutionOptions = P6OutputResolution.allCases.map(\.label)
@@ -52,6 +88,9 @@ struct P6StreamPlayerView: View {
 
                     Text(player.selectedFileName)
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text("Renderer: \(player.renderingBackend.label)")
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Spacer()
@@ -59,7 +98,7 @@ struct P6StreamPlayerView: View {
                 Button("Choose file") {
                     Task {
                         guard let file = await chooseFile(
-                            title: "Choose MP4, Y4M, or Y4M.ZST stream",
+                            title: "Choose MP4, WebM, Y4M, or Y4M.ZST stream",
                             defaultButtonLabel: "Open",
                             initialDirectory: P6StreamPlayerModel.suggestedInputDirectory,
                             allowSelectingFiles: true,
@@ -77,9 +116,14 @@ struct P6StreamPlayerView: View {
                     .frame(width: 960, height: 540)
 
                 #if os(macOS)
-                if let frame = player.metalFrame {
-                    P6MetalVideoView(frame: frame)
-                        .frame(width: 960, height: 540)
+                if player.hasVideoFrame {
+                    if player.renderingBackend == .metal {
+                        P6MetalVideoView(store: player.frameStore)
+                            .frame(width: 960, height: 540)
+                    } else {
+                        P6CoreVideoView(store: player.frameStore)
+                            .frame(width: 960, height: 540)
+                    }
                 } else if player.isLoading {
                     ProgressView("Decoding frame...")
                 } else {
@@ -102,8 +146,8 @@ struct P6StreamPlayerView: View {
 
             VStack(spacing: 4) {
                 Slider(
-                    value: player.$seekPosition.onChange { _ in
-                        player.seekPositionChanged()
+                    value: player.$seekPosition.onChange { value in
+                        player.seekPositionChanged(to: value)
                     },
                     in: 0...player.seekUpperBound
                 )
@@ -198,8 +242,13 @@ struct P6StreamPlayerView: View {
             guard !didLoadStartupInput else { return }
             didLoadStartupInput = true
 
+            #if os(macOS)
+            player.installCloseConfirmation(on: enclosingWindow)
+            P6Diagnostics.write("renderer \(player.renderingBackend.rawValue)")
+            #endif
+
             if let inputPath = CommandLine.arguments.dropFirst().first(where: {
-                !$0.hasPrefix("--")
+                !$0.hasPrefix("-")
             }) {
                 player.load(URL(fileURLWithPath: inputPath))
             }
@@ -231,8 +280,15 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
     #if os(macOS)
     @SwiftCrossUI.Published
-    var metalFrame: P6MetalFrame?
-    #endif
+    // Publish only the empty/non-empty transition. Publishing every large frame
+    // would repeatedly rebuild the view graph and can leave the native view stale.
+    // 只發布「沒有影格／已有影格」的狀態轉換。若每個大型影格都發布，會反覆
+    // 重建 view graph，並可能讓原生 view 停留在舊影格。
+    var hasVideoFrame = false
+
+    let renderingBackend = P6RenderingBackend.selected(from: CommandLine.arguments)
+    let frameStore = P6FrameStore()
+#endif
 
     @SwiftCrossUI.Published
     var selectedURL: URL?
@@ -336,7 +392,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         detectedInputResolution = nil
         frame = nil
         #if os(macOS)
-        metalFrame = nil
+        hasVideoFrame = false
+        frameStore.clear()
         #endif
         startDecoder(at: 0, shouldPlay: false, singleFrame: true)
     }
@@ -370,21 +427,36 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         startDecoder(at: clampedTarget, shouldPlay: shouldPlay, singleFrame: !shouldPlay)
     }
 
-    func seekPositionChanged() {
+    // A slider change is a seek request, not merely a visual update. Rebuilding
+    // the decoder keeps video and the separately running ffplay process aligned.
+    // 滑桿變更代表真正的 seek 請求，不只是更新畫面；重建解碼器可讓影片與
+    // 分開執行的 ffplay 音訊程序保持同步。
+    func seekPositionChanged(to target: Double) {
         guard selectedURL != nil else { return }
-        seekPosition = clampedSeekTime(seekPosition)
-        if !isPlaying && !isLoading {
-            status = "Seek target set to \(Self.formatTime(seekPosition))."
-        }
+        let clampedTarget = clampedSeekTime(target)
+        seekPosition = clampedTarget
+        startDecoder(
+            at: clampedTarget,
+            shouldPlay: isPlaying,
+            singleFrame: !isPlaying
+        )
     }
 
+    // Playback settings belong to the next decoder session. Restarting at the
+    // current timestamp applies the new speed, FPS, and resolution immediately.
+    // 播放設定會套用到下一個解碼工作；從目前時間戳重啟即可立即套用新的速度、
+    // FPS 與解析度。
     func playbackSettingsChanged() {
         guard selectedURL != nil else { return }
         let resolution = outputResolution
-        let suffix = isPlaying
-            ? " Stop and play, or seek, to apply to the decoder."
-            : " Press Play or Seek to apply."
-        status = "Selected \(speedSelection ?? "1x"), \(framesPerSecond) FPS, \(resolution.label).\(suffix)"
+        let position = currentTime
+        if isPlaying {
+            startDecoder(at: position, shouldPlay: true, singleFrame: false)
+        } else if !isLoading {
+            startDecoder(at: position, shouldPlay: false, singleFrame: true)
+        } else {
+            status = "Selected \(speedSelection ?? "1x"), \(framesPerSecond) FPS, \(resolution.label). Press Play to apply."
+        }
     }
 
     func toggleSound() {
@@ -416,6 +488,52 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         isPlaying = false
         isLoading = false
     }
+
+    #if os(macOS)
+    // The synchronous handler asks first, then waits for the retained ffplay
+    // Process to exit before AppKit is allowed to destroy the window.
+    // 同步 handler 會先詢問使用者，接著等待所保留的 ffplay Process 結束，
+    // 最後才允許 AppKit 銷毀視窗。
+    func installCloseConfirmation(on enclosingWindow: Any?) {
+        guard let window = enclosingWindow as? NSCustomWindow else {
+            P6Diagnostics.write("close confirmation not installed: window unavailable")
+            return
+        }
+        AppKitBackend().setShouldCloseHandler(ofWindow: window) { [weak self] in
+            guard let self else { return true }
+
+            let pidText = self.audioSession
+                .map { String($0.processIdentifier) } ?? "none"
+            P6Diagnostics.write("close requested ffplay pid \(pidText)")
+
+            let alert = NSAlert()
+            alert.messageText = "Close P6? / 關閉 P6？"
+            if let ffplayPID = self.audioSession?.processIdentifier {
+                alert.informativeText = "ffplay PID \(ffplayPID) is still active. Close and stop it? / ffplay PID \(ffplayPID) 仍在執行，是否關閉並停止它？"
+            } else {
+                alert.informativeText = "Close the P6 window? / 是否關閉 P6 視窗？"
+            }
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Close / 關閉")
+            alert.addButton(withTitle: "Cancel / 取消")
+
+            guard alert.runModal() == .alertFirstButtonReturn else { return false }
+            self.shutdownAndWait()
+            return true
+        }
+        P6Diagnostics.write("close confirmation installed")
+    }
+
+    private func shutdownAndWait() {
+        // Window closing is the one lifecycle point where waiting is intentional:
+        // it guarantees that the known ffplay PID is reaped before close returns.
+        // 視窗關閉是刻意等待的生命週期節點：可保證已知的 ffplay PID 在關閉
+        // callback 回傳前完成回收。
+        invalidateCurrentDecoder(waitForAudioExit: true)
+        isPlaying = false
+        isLoading = false
+    }
+    #endif
 
     private func startDecoder(at startTime: Double, shouldPlay: Bool, singleFrame: Bool) {
         guard let selectedURL else { return }
@@ -457,6 +575,10 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 }
 
                 if shouldPlay {
+                    // Audio is intentionally a separate ffplay process because
+                    // P6 renders video frames itself instead of using ffplay's UI.
+                    // 音訊刻意由獨立的 ffplay 程序播放，因為 P6 自己渲染影片影格，
+                    // 不使用 ffplay 的畫面介面。
                     await self.startAudioIfNeeded(at: startTime, token: token)
                 }
 
@@ -527,11 +649,15 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         }
     }
 
-    private func invalidateCurrentDecoder() {
+    private func invalidateCurrentDecoder(waitForAudioExit: Bool = false) {
         generation &+= 1
         decoderSession?.terminate()
         decoderSession = nil
-        audioSession?.terminate()
+        if waitForAudioExit {
+            audioSession?.terminateAndWait()
+        } else {
+            audioSession?.terminate()
+        }
         audioSession = nil
         playbackTask?.cancel()
         playbackTask = nil
@@ -560,14 +686,18 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         #if os(macOS)
         if let rawFrame {
             frameSerial &+= 1
-            metalFrame = P6MetalFrame(
+            let newFrame = P6VideoFrame(
                 width: resolution.width,
                 height: resolution.height,
                 rgbaBytes: rawFrame,
                 serial: frameSerial
             )
+            frameStore.update(newFrame)
+            if !hasVideoFrame {
+                hasVideoFrame = true
+            }
             P6Diagnostics.write(
-                "metal frame \(Self.formatTime(position)) \(resolution.width)x\(resolution.height)"
+                "video frame \(Self.formatTime(position)) \(resolution.width)x\(resolution.height)"
             )
         }
         #else
@@ -659,29 +789,178 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 }
 
 #if os(macOS)
-struct P6MetalFrame: Sendable, Equatable {
+struct P6VideoFrame: Sendable, Equatable {
     let width: Int
     let height: Int
     let rgbaBytes: Data
     let serial: Int
-}
 
-struct P6MetalVideoView: NSViewRepresentable {
-    let frame: P6MetalFrame
-
-    @MainActor
-    func makeNSView(context _: Context) -> P6MetalVideoNSView {
-        P6MetalVideoNSView(frame: .zero, device: nil)
-    }
-
-    @MainActor
-    func updateNSView(_ nsView: P6MetalVideoNSView, context _: Context) {
-        nsView.update(frame)
+    // Sample the frame for diagnostics without hashing every pixel.
+    // 診斷時以間隔取樣影格，避免對每個像素進行雜湊。
+    var diagnosticChecksum: UInt64 {
+        rgbaBytes.withUnsafeBytes { bytes in
+            guard let baseAddress = bytes.bindMemory(to: UInt8.self).baseAddress else {
+                return 0
+            }
+            var hash: UInt64 = 14_695_981_039_346_656_037
+            let step = max(1, bytes.count / 4_096)
+            var index = 0
+            while index < bytes.count {
+                hash ^= UInt64(baseAddress[index])
+                hash &*= 1_099_511_628_211
+                index += step
+            }
+            return hash
+        }
     }
 }
 
 @MainActor
-final class P6MetalVideoNSView: MTKView {
+protocol P6FrameDisplaying: AnyObject {
+    func update(_ frame: P6VideoFrame)
+    func clearFrame()
+}
+
+@MainActor
+final class P6FrameStore {
+    // SwiftCrossUI may not rebuild a representable view for every large frame.
+    // This store keeps the selected native renderer alive and pushes later frames directly.
+    // SwiftCrossUI 不一定會為每個大型影格重建 representable view；此儲存器讓
+    // 選定的原生 renderer 持續存在，並直接推送後續影格。
+    private weak var view: (any P6FrameDisplaying)?
+    private var pendingFrame: P6VideoFrame?
+
+    func attach(_ view: any P6FrameDisplaying) {
+        self.view = view
+        if let pendingFrame {
+            view.update(pendingFrame)
+        }
+    }
+
+    func update(_ frame: P6VideoFrame) {
+        // Keep the newest frame when the view has not been attached yet.
+        // 若 view 尚未附加，先保留最新影格，之後 attach 時立即補送。
+        pendingFrame = frame
+        view?.update(frame)
+        if frame.serial == 1 || frame.serial % 60 == 0 {
+            P6Diagnostics.write("frame store pushed serial \(frame.serial)")
+        }
+    }
+
+    func clear() {
+        pendingFrame = nil
+        view?.clearFrame()
+    }
+}
+
+struct P6CoreVideoView: NSViewRepresentable {
+    let store: P6FrameStore
+
+    @MainActor
+    func makeNSView(context _: Context) -> P6CoreVideoNSView {
+        let view = P6CoreVideoNSView(frame: .zero)
+        store.attach(view)
+        return view
+    }
+
+    @MainActor
+    func updateNSView(_ nsView: P6CoreVideoNSView, context _: Context) {
+        store.attach(nsView)
+    }
+}
+
+@MainActor
+final class P6CoreVideoNSView: NSImageView, P6FrameDisplaying {
+    private var lastFrameSerial: Int?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    func update(_ frame: P6VideoFrame) {
+        guard lastFrameSerial != frame.serial else { return }
+        guard let nextImage = makeImage(from: frame) else {
+            P6Diagnostics.write("core graphics image failed serial \(frame.serial)")
+            return
+        }
+
+        lastFrameSerial = frame.serial
+        // NSImageView owns the immutable image and displayIfNeeded performs the
+        // AppKit redraw immediately instead of waiting for a layer transaction.
+        // NSImageView 會持有不可變影像，displayIfNeeded 則立即執行 AppKit
+        // 重繪，不等待 layer transaction。
+        image = nextImage
+        needsDisplay = true
+        displayIfNeeded()
+        if frame.serial == 1 || frame.serial % 60 == 0 {
+            let checksum = String(frame.diagnosticChecksum, radix: 16)
+            P6Diagnostics.write(
+                "core graphics displayed serial \(frame.serial) checksum \(checksum)"
+            )
+        }
+    }
+
+    func clearFrame() {
+        lastFrameSerial = nil
+        image = nil
+    }
+
+    private func configure() {
+        imageAlignment = .alignCenter
+        imageScaling = .scaleProportionallyUpOrDown
+        imageFrameStyle = .none
+    }
+
+    private func makeImage(from frame: P6VideoFrame) -> NSImage? {
+        guard let provider = CGDataProvider(data: frame.rgbaBytes as CFData) else {
+            return nil
+        }
+        guard let image = CGImage(
+            width: frame.width,
+            height: frame.height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: frame.width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: true,
+            intent: .defaultIntent
+        ) else {
+            return nil
+        }
+        return NSImage(
+            cgImage: image,
+            size: NSSize(width: frame.width, height: frame.height)
+        )
+    }
+}
+
+struct P6MetalVideoView: NSViewRepresentable {
+    let store: P6FrameStore
+
+    @MainActor
+    func makeNSView(context _: Context) -> P6MetalVideoNSView {
+        let view = P6MetalVideoNSView(frame: .zero, device: nil)
+        store.attach(view)
+        return view
+    }
+
+    @MainActor
+    func updateNSView(_ nsView: P6MetalVideoNSView, context _: Context) {
+        store.attach(nsView)
+    }
+}
+
+@MainActor
+final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
     private var commandQueue: MTLCommandQueue?
     private var pipelineState: MTLRenderPipelineState?
     private var samplerState: MTLSamplerState?
@@ -689,8 +968,7 @@ final class P6MetalVideoNSView: MTKView {
     private var lastFrameSerial: Int?
 
     override init(frame frameRect: NSRect, device: MTLDevice?) {
-        let metalDevice = device ?? MTLCreateSystemDefaultDevice()
-        super.init(frame: frameRect, device: metalDevice)
+        super.init(frame: frameRect, device: device ?? MTLCreateSystemDefaultDevice())
         configure()
     }
 
@@ -700,57 +978,67 @@ final class P6MetalVideoNSView: MTKView {
         configure()
     }
 
-    func update(_ frame: P6MetalFrame) {
+    func update(_ frame: P6VideoFrame) {
         guard lastFrameSerial != frame.serial else { return }
+        guard replaceTexture(with: frame) else { return }
         lastFrameSerial = frame.serial
-        replaceTexture(with: frame)
-        draw()
+        setNeedsDisplay(bounds)
+        if frame.serial == 1 || frame.serial % 60 == 0 {
+            let checksum = String(frame.diagnosticChecksum, radix: 16)
+            P6Diagnostics.write(
+                "metal texture uploaded serial \(frame.serial) checksum \(checksum)"
+            )
+        }
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    func clearFrame() {
+        lastFrameSerial = nil
+        videoTexture = nil
+        setNeedsDisplay(bounds)
+    }
+
+    func draw(in view: MTKView) {
         renderCurrentTexture()
     }
 
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+
     private func configure() {
         guard let device else { return }
-
         colorPixelFormat = .bgra8Unorm
         framebufferOnly = true
+        delegate = self
         isPaused = true
-        enableSetNeedsDisplay = false
+        enableSetNeedsDisplay = true
         clearColor = MTLClearColorMake(0, 0, 0, 1)
         commandQueue = device.makeCommandQueue()
         samplerState = makeSampler(device: device)
         pipelineState = makePipeline(device: device)
     }
 
-    private func replaceTexture(with frame: P6MetalFrame) {
-        guard let device else { return }
-
-        if videoTexture == nil
-            || videoTexture?.width != frame.width
-            || videoTexture?.height != frame.height
-        {
-            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                pixelFormat: .rgba8Unorm,
-                width: frame.width,
-                height: frame.height,
-                mipmapped: false
-            )
-            descriptor.usage = [.shaderRead]
-            videoTexture = device.makeTexture(descriptor: descriptor)
+    private func replaceTexture(with frame: P6VideoFrame) -> Bool {
+        guard let device else { return false }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: frame.width,
+            height: frame.height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead]
+        guard let texture = device.makeTexture(descriptor: descriptor) else {
+            return false
         }
-
-        guard let videoTexture else { return }
         frame.rgbaBytes.withUnsafeBytes { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
-            videoTexture.replace(
+            texture.replace(
                 region: MTLRegionMake2D(0, 0, frame.width, frame.height),
                 mipmapLevel: 0,
                 withBytes: baseAddress,
                 bytesPerRow: frame.width * 4
             )
         }
+        videoTexture = texture
+        return true
     }
 
     private func renderCurrentTexture() {
@@ -773,6 +1061,11 @@ final class P6MetalVideoNSView: MTKView {
         encoder.endEncoding()
         commandBuffer.present(currentDrawable)
         commandBuffer.commit()
+        if let serial = lastFrameSerial,
+           serial == 1 || serial % 60 == 0
+        {
+            P6Diagnostics.write("metal presented serial \(serial)")
+        }
     }
 
     private func makeSampler(device: MTLDevice) -> MTLSamplerState? {
@@ -796,18 +1089,13 @@ final class P6MetalVideoNSView: MTKView {
 
         vertex VertexOut vertex_main(uint vertexID [[vertex_id]]) {
             float2 positions[4] = {
-                float2(-1.0, -1.0),
-                float2( 1.0, -1.0),
-                float2(-1.0,  1.0),
-                float2( 1.0,  1.0)
+                float2(-1.0, -1.0), float2(1.0, -1.0),
+                float2(-1.0, 1.0), float2(1.0, 1.0)
             };
             float2 texCoords[4] = {
-                float2(0.0, 1.0),
-                float2(1.0, 1.0),
-                float2(0.0, 0.0),
-                float2(1.0, 0.0)
+                float2(0.0, 1.0), float2(1.0, 1.0),
+                float2(0.0, 0.0), float2(1.0, 0.0)
             };
-
             VertexOut out;
             out.position = float4(positions[vertexID], 0.0, 1.0);
             out.texCoord = texCoords[vertexID];
@@ -817,8 +1105,8 @@ final class P6MetalVideoNSView: MTKView {
         fragment float4 fragment_main(
             VertexOut in [[stage_in]],
             texture2d<float> imageTexture [[texture(0)]],
-            sampler imageSampler [[sampler(0)]]
-        ) {
+            sampler imageSampler [[sampler(0)]])
+        {
             return imageTexture.sample(imageSampler, in.texCoord);
         }
         """
@@ -1010,6 +1298,13 @@ final class P6AudioSession: @unchecked Sendable {
     private let stateLock = NSLock()
     private var terminated = false
 
+    var processIdentifier: Int32 {
+        // Keep PID access tied to the retained Process instead of searching the
+        // global process table, which could match an unrelated ffplay instance.
+        // PID 直接取自所保留的 Process，不搜尋全域程序表，避免誤認其他 ffplay。
+        ffplay.processIdentifier
+    }
+
     init(
         inputURL: URL,
         startTime: Double,
@@ -1038,7 +1333,6 @@ final class P6AudioSession: @unchecked Sendable {
             inputURL.path,
             "-vn",
             "-sn",
-            "-dn",
             "-af",
             "atempo=\(speed)",
         ]
@@ -1060,6 +1354,14 @@ final class P6AudioSession: @unchecked Sendable {
     }
 
     func terminate() {
+        terminate(waitForExit: false)
+    }
+
+    func terminateAndWait() {
+        terminate(waitForExit: true)
+    }
+
+    private func terminate(waitForExit: Bool) {
         stateLock.lock()
         if terminated {
             stateLock.unlock()
@@ -1069,7 +1371,26 @@ final class P6AudioSession: @unchecked Sendable {
         stateLock.unlock()
 
         if ffplay.isRunning {
+            // Send SIGTERM first. Window closing waits synchronously so AppKit
+            // cannot close before ffplay exits; normal restarts reap it in the background.
+            // 先送出 SIGTERM。關閉視窗時會同步等待，避免 AppKit 在 ffplay 結束前
+            // 關閉；一般重啟時則由背景工作回收程序。
+            P6Diagnostics.write("ffplay terminating pid \(ffplay.processIdentifier)")
             ffplay.terminate()
+            let process = ffplay
+            if waitForExit {
+                process.waitUntilExit()
+                P6Diagnostics.write(
+                    "ffplay exited status \(process.terminationStatus)"
+                )
+            } else {
+                DispatchQueue.global(qos: .utility).async {
+                    process.waitUntilExit()
+                    P6Diagnostics.write(
+                        "ffplay exited status \(process.terminationStatus)"
+                    )
+                }
+            }
         }
     }
 }

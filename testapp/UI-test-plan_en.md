@@ -273,7 +273,12 @@ On macOS the output binary name may be `P6` instead of `P6.exe`:
 ```sh
 zsh testapp/compile.sh P6
 ./testapp/output/P6
+./testapp/output/P6 -core
 ```
+
+Metal is the default macOS renderer. Pass `-core` to use the Core Animation
+fallback, or `-metal` to select Metal explicitly. If both flags are present,
+the last renderer flag wins.
 
 Runtime tools:
 
@@ -291,7 +296,7 @@ Runtime tools:
 Test steps:
 
 1. Launch `P6.exe` and click `Choose file`.
-2. Select `storybook-1min-4k60.mp4` or `storybook-1min-4k60.y4m.zst`.
+2. Select `storybook-1min-4k60.mp4`, a WebM input, or `storybook-1min-4k60.y4m.zst`.
 3. Confirm that the first frame appears and the duration is shown when the sibling MP4 exists.
 4. Click `Show resolution`; confirm that the status line reports input resolution, output resolution, and the 960x540 viewport.
 5. Click `Play`; confirm that video playback starts and that audio starts too for inputs with an audio track when `ffplay` is available.
@@ -308,12 +313,13 @@ Test steps:
 
 Expected results:
 
-- MP4, Y4M, and Y4M.ZST inputs decode at the selected output resolution.
+- MP4, WebM, Y4M, and Y4M.ZST inputs decode at the selected output resolution.
 - Direct inputs with audio tracks can play sound through `ffplay`; Y4M / `.zst` video-only paths should not crash.
 - The timeline slider can quickly choose a target time, and `Seek` displays or plays from that target.
 - Selecting speed, FPS, or output resolution should not switch focus to another terminal, steal focus, or immediately restart the decoder.
 - The visible viewport remains 960x540 and scales the decoded frame down for operation in a normal test window.
 - macOS renders decoded RGBA frames through a persistent Metal texture instead of rebuilding a SwiftCrossUI image for every frame.
+- Audio is currently played by a separate `ffplay` process and may drift from video; audio/video synchronization remains future work.
 - Playback controls remain responsive while decoding runs off the UI thread.
 - Repeated static frames do not force redundant image uploads.
 - Missing tools or malformed input produce an error in the status line instead of crashing.
