@@ -237,6 +237,15 @@ public final class AppKitBackend: FullAppBackend {
         window.customDelegate.setCloseHandler(action)
     }
 
+    /// Installs a synchronous close-veto callback. AppKit calls this before
+    /// `windowWillClose`, allowing applications to ask for confirmation first.
+    public func setShouldCloseHandler(
+        ofWindow window: Window,
+        to action: @escaping () -> Bool
+    ) {
+        window.customDelegate.setShouldCloseHandler(action)
+    }
+
     public func openExternalURL(_ url: URL) throws {
         NSWorkspace.shared.open(url)
     }
@@ -1829,6 +1838,9 @@ public class NSCustomWindow: NSWindow {
     class Delegate: NSObject, NSWindowDelegate {
         var resizeHandler: ((SIMD2<Int>) -> Void)?
         var closeHandler: (() -> Void)?
+        // Returning false keeps the window open; returning true lets AppKit
+        // continue with its normal close sequence.
+        var shouldCloseHandler: (() -> Bool)?
 
         func setResizeHandler(_ resizeHandler: @escaping (SIMD2<Int>) -> Void) {
             self.resizeHandler = resizeHandler
@@ -1836,6 +1848,16 @@ public class NSCustomWindow: NSWindow {
 
         func setCloseHandler(_ closeHandler: @escaping () -> Void) {
             self.closeHandler = closeHandler
+        }
+
+        func setShouldCloseHandler(_ shouldCloseHandler: @escaping () -> Bool) {
+            self.shouldCloseHandler = shouldCloseHandler
+        }
+
+        // `windowShouldClose` runs early enough to present a confirmation dialog.
+        // `windowWillClose` is too late because the close decision is already made.
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            shouldCloseHandler?() ?? true
         }
 
         func windowWillClose(_ notification: Notification) {

@@ -10,7 +10,7 @@ SwiftCrossUI's native macOS backend built on top of AppKit.
 ## Overview
 
 `AppKitBackend` is the default backend on macOS, supports all current SwiftCrossUI features, and
-targets macOS 10.15+. It doesn't have any system dependencies other than a few system frameworks
+targets macOS 11+. It doesn't have any system dependencies other than a few system frameworks
 included on all Macs.
 
 ## Usage
