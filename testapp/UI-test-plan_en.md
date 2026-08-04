@@ -377,7 +377,7 @@ Verification status:
 
 RSS stress record:
 
-- `p6-debug-events-rss-speed3x,fps60,4k_3840x2160_sound_on_frame_drop.log` records P6 at 3x speed, 60 FPS, 3840x2160 output, Sound On, and Frame Drop enabled.
+- `p6-debug-events-rss-8845476c-speed3x,fps60,4k_3840x2160_sound_on_frame_drop.log` records P6 commit `8845476c` at 3x speed, 60 FPS, 3840x2160 output, Sound On, and Frame Drop enabled.
 - The run lasted from 2026-08-04 18:25:39 UTC through 18:28:58 UTC, collected 196 valid one-second samples, and exited successfully with status 0.
 - P6 peak RSS was 2,398,896 KiB (approximately 2.29 GiB), and average sampled RSS was approximately 1.92 GiB. These values exclude FFmpeg, ffplay, and zstd child processes.
 
