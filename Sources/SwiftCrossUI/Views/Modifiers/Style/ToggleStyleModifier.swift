@@ -7,4 +7,13 @@ extension View {
             return environment.with(\.toggleStyle, toggleStyle)
         }
     }
+
+    /// Sets the active background color of button-style toggles in this view.
+    ///
+    /// - Parameter color: The background color used while the toggle is on.
+    public func toggleColor(_ color: Color?) -> some View {
+        return EnvironmentModifier(self) { environment in
+            return environment.with(\.toggleColor, color)
+        }
+    }
 }

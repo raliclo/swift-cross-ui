@@ -729,7 +729,7 @@ public final class AppKitBackend: FullAppBackend {
     }
 
     public func createToggle() -> Widget {
-        let toggle = NSButton()
+        let toggle = NSCustomToggleButton()
         toggle.setButtonType(.pushOnPushOff)
         return toggle
     }
@@ -740,11 +740,13 @@ public final class AppKitBackend: FullAppBackend {
         environment: EnvironmentValues,
         onChange: @escaping (Bool) -> Void
     ) {
-        let toggle = toggle as! NSButton
+        let toggle = toggle as! NSCustomToggleButton
         toggle.attributedTitle = Self.attributedString(
             for: label,
             in: environment.with(\.multilineTextAlignment, .center)
         )
+        toggle.onStateBezelColor = environment.toggleColor?
+            .resolve(in: environment).nsColor
         toggle.isEnabled = environment.isEnabled
         toggle.onAction = { toggle in
             let toggle = toggle as! NSButton
@@ -753,8 +755,9 @@ public final class AppKitBackend: FullAppBackend {
     }
 
     public func setState(ofToggle toggle: Widget, to state: Bool) {
-        let toggle = toggle as! NSButton
+        let toggle = toggle as! NSCustomToggleButton
         toggle.state = state ? .on : .off
+        toggle.bezelColor = state ? toggle.onStateBezelColor : nil
     }
 
     public func createCheckbox() -> Widget {
@@ -1554,6 +1557,10 @@ public final class AppKitBackend: FullAppBackend {
                     .clockAndCalendar
             }
     }
+}
+
+final class NSCustomToggleButton: NSButton {
+    var onStateBezelColor: NSColor?
 }
 
 final class NSCustomMenuItem: NSMenuItem {

@@ -28,3 +28,9 @@
 - ``SegmentedPickerStyle``
 - ``RadioGroupPickerStyle``
 - ``WheelPickerStyle``
+
+### Toggle styles
+
+- ``View/toggleStyle(_:)``
+- ``View/toggleColor(_:)``
+- ``ToggleStyle``

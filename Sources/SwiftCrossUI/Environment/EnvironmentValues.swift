@@ -304,6 +304,9 @@ extension EnvironmentValues {
     /// The style of toggle to use.
     @Entry public var toggleStyle: ToggleStyle = .button
 
+    /// The active background color of button-style toggles.
+    @Entry public var toggleColor: Color?
+
     /// Whether the text should be selectable.
     ///
     /// Set by ``View/textSelectionEnabled(_:)``.
