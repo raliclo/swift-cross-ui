@@ -274,11 +274,17 @@ On macOS the output binary name may be `P6` instead of `P6.exe`:
 zsh testapp/compile.sh P6
 ./testapp/output/P6
 ./testapp/output/P6 -core
+./testapp/output/P6 --debug
+./testapp/test_P6.sh /path/to/video.webm
 ```
 
 Metal is the default macOS renderer. Pass `-core` to use the Core Animation
 fallback, or `-metal` to select Metal explicitly. If both flags are present,
 the last renderer flag wins.
+The default output rate is 30 FPS. Pass `--debug` to enable full-frame duplicate
+comparisons and detailed frame diagnostics; normal playback omits both costs.
+`test_P6.sh` prints its usage when no arguments are provided and otherwise
+forwards renderer flags, `--debug`, and the media path to the compiled P6 binary.
 
 Runtime tools:
 
@@ -293,23 +299,34 @@ Runtime tools:
 - The default file dialog directory checks both `~/proj/LZFSE2/swift_tar/images`
   and `~/proj/lzfse2/swift_tar/images`.
 
+Diagnostics:
+
+- P6 writes lifecycle and error messages to stderr and appends them to
+  `p6-debug-events.log` in the current working directory. Detailed frame upload,
+  presentation, and per-frame timing messages require `--debug`.
+- `testapp/.compile-work/` and `testapp/output/` are scratch: `compile.sh` copies
+  the selected source to `.compile-work/TestApps/Sources/<name>/main.swift` and
+  generates its `Package.swift`, so neither directory belongs in a commit.
+
 Test steps:
 
 1. Launch `P6.exe` and click `Choose file`.
 2. Select `storybook-1min-4k60.mp4`, a WebM input, or `storybook-1min-4k60.y4m.zst`.
 3. Confirm that the first frame appears and the duration is shown when the sibling MP4 exists.
 4. Click `Show resolution`; confirm that the status line reports input resolution, output resolution, and the 960x540 viewport.
-5. Click `Play`; confirm that video playback starts and that audio starts too for inputs with an audio track when `ffplay` is available.
-6. Click `Sound on` / `Sound off`; confirm that audio can be toggled without disrupting video playback.
-7. Click `Stop`; confirm that Stop preserves the current position and Play resumes it.
-8. Drag the timeline slider to a specific time and confirm that `Seek target` updates.
-9. Click `Seek`; confirm that the displayed frame/time jumps to the slider target, and that playback continues from that target when playback was already running.
-10. Click `-5s` and `+5s`; confirm that the displayed frame and time move by five seconds and clamp at zero/end.
-11. Select `1x`, `2x`, and `3x`; confirm that selecting a speed does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new speed.
-12. Select `30`, `45`, and `60` FPS; confirm that selecting FPS does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new presentation rate.
-13. Select `Preview 960x540`, `1080p 1920x1080`, and `4K 3840x2160`; confirm that selecting resolution does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new output mode.
-14. On macOS, select `4K 3840x2160` and `60` FPS; confirm that the preview remains 960x540 while logs report `metal frame ... 3840x2160`.
-15. Close the window during playback and confirm that FFmpeg/Zstd/FFplay child processes exit.
+5. Click `Play`; confirm that video playback starts and that audio starts too for inputs with an audio track when `ffplay` is available. Confirm that the log reports `playback clock started <time>` with an interpolated media timestamp such as `00:12`.
+6. Click `Sound off`, then `Sound on` during playback; confirm that enabling sound restarts decoding from the current media timestamp so audio and video share one starting point, and that playback continues from where it was rather than jumping to zero.
+7. With an audio track playing, let a direct MP4/WebM input run for at least three minutes; measure and record whether video progressively falls behind audio at each output resolution.
+8. Click `Stop`; confirm that Stop preserves the current position and Play resumes it.
+9. Drag the timeline slider to a specific time and confirm that `Seek target` updates.
+10. Click `Seek`; confirm that the displayed frame/time jumps to the slider target, and that playback continues from that target when playback was already running.
+11. Click `-5s` and `+5s`; confirm that the displayed frame and time move by five seconds and clamp at zero/end.
+12. Select `1x`, `2x`, and `3x`; confirm that selecting a speed does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new speed.
+13. Confirm that `30` FPS is selected by default. Select `45` and `60` FPS; confirm that selecting FPS does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new presentation rate.
+14. Select `Preview 960x540`, `1080p 1920x1080`, and `4K 3840x2160`; confirm that selecting resolution does not switch focus to another terminal and does not immediately restart the decoder. Press Play or Seek to apply the new output mode.
+15. On macOS, relaunch with `--debug`, select `4K 3840x2160` and `60` FPS, and confirm that the preview remains 960x540 while detailed logs report 3840x2160 frame uploads.
+16. Load a file, then seek or load another file; confirm that the terminal shows no `Broken pipe`, `Error muxing a packet`, or `Error writing trailer` output from ffmpeg when the previous decoder is stopped.
+17. Close the window during playback, confirm the close prompt, and confirm that FFmpeg/Zstd/FFplay child processes exit and that the `P6` process itself also exits, returning the shell prompt.
 
 Expected results:
 
@@ -318,11 +335,18 @@ Expected results:
 - The timeline slider can quickly choose a target time, and `Seek` displays or plays from that target.
 - Selecting speed, FPS, or output resolution should not switch focus to another terminal, steal focus, or immediately restart the decoder.
 - The visible viewport remains 960x540 and scales the decoded frame down for operation in a normal test window.
-- macOS renders decoded RGBA frames through a persistent Metal texture instead of rebuilding a SwiftCrossUI image for every frame.
-- Audio is currently played by a separate `ffplay` process and may drift from video; audio/video synchronization remains future work.
+- macOS renders decoded RGBA frames through a reusable three-texture Metal pool instead of allocating a texture or rebuilding a SwiftCrossUI image for every frame.
+- Audio starts only after the first video frame is decoded, and video pacing uses an absolute monotonic clock to reduce accumulated per-frame timing drift.
+- Enabling sound mid-playback restarts decoding at the current media timestamp so the new `ffplay` process and the video stream share one starting point instead of running on unrelated clocks.
 - Playback controls remain responsive while decoding runs off the UI thread.
-- Repeated static frames do not force redundant image uploads.
+- Normal playback does not scan complete RGBA frames for equality or synchronously log every frame; `--debug` enables those diagnostics when needed.
+- Stopping a decoder early is a normal operation and must stay silent: child stderr is buffered rather than forwarded to the terminal, so ffmpeg's expected EPIPE reports do not appear. A genuine decode failure still surfaces the buffered tool output in the status line.
+- Closing the window terminates the `P6` process itself, not just its child processes, so the shell prompt returns without a manual `Ctrl-C`.
 - Missing tools or malformed input produce an error in the status line instead of crashing.
+
+Known limitation:
+
+- At 4K 3840x2160, video has been observed to remain approximately two seconds behind audio. The reusable Metal texture pool and 30 FPS default reduce rendering overhead, but late-frame dropping and audio-master clock correction still require investigation.
 
 ## Test Record Template
 

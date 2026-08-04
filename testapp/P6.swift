@@ -23,6 +23,8 @@ import MetalKit
 // flags are present, the last renderer flag wins.
 // 渲染旗標：Metal 為預設值；-core 選擇 Core Animation。若同時提供兩者，
 // 最後一個渲染旗標會生效。
+// --debug enables full-frame duplicate checks and detailed frame diagnostics.
+// --debug 會啟用完整影格重複檢查與詳細的逐幀診斷。
 
 enum P6RenderingBackend: String, Sendable {
     case metal
@@ -315,7 +317,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     var speedSelection: String? = "1x"
 
     @SwiftCrossUI.Published
-    var fpsSelection: String? = "60"
+    var fpsSelection: String? = "30"
 
     @SwiftCrossUI.Published
     var resolutionSelection: String? = P6OutputResolution.preview.label
@@ -468,7 +470,11 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         } else {
             status = "Sound enabled. Audio starts on Play for inputs with audio tracks."
             if isPlaying {
-                restartAudio(at: currentTime)
+                // Restart both streams from one media timestamp so a newly
+                // enabled audio process does not begin on an unrelated clock.
+                // 從同一媒體時間戳重新啟動影音，避免新開啟的音訊程序使用
+                // 與既有視訊無關的時鐘。
+                startDecoder(at: currentTime, shouldPlay: true, singleFrame: false)
             }
         }
     }
@@ -519,6 +525,18 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
             guard alert.runModal() == .alertFirstButtonReturn else { return false }
             self.shutdownAndWait()
+
+            // AppKit keeps the process alive after the last window closes, which
+            // leaves P6 running in the terminal. P6 is a single-window player, so
+            // closing the window means quitting. Terminate on the next runloop
+            // pass, once AppKit has finished destroying the window.
+            // AppKit 在最後一個視窗關閉後仍會保留行程，導致 P6 留在終端機中執行。
+            // P6 是單視窗播放器，關閉視窗即代表結束程式。待 AppKit 完成銷毀視窗後，
+            // 於下一輪 runloop 終止。
+            DispatchQueue.main.async {
+                P6Diagnostics.write("window closed, terminating app")
+                NSApplication.shared.terminate(nil)
+            }
             return true
         }
         P6Diagnostics.write("close confirmation installed")
@@ -550,6 +568,10 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         let requestedFPS = framesPerSecond
         let requestedResolution = outputResolution
         let knownDuration = duration
+        // Format on the main actor; the detached decode task below cannot reach
+        // main actor-isolated helpers.
+        // 在主執行者上先格式化；下方的分離解碼任務無法存取主執行者隔離的輔助方法。
+        let startTimeLabel = Self.formatTime(startTime)
 
         playbackTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
@@ -574,29 +596,64 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                     return
                 }
 
-                if shouldPlay {
-                    // Audio is intentionally a separate ffplay process because
-                    // P6 renders video frames itself instead of using ffplay's UI.
-                    // 音訊刻意由獨立的 ffplay 程序播放，因為 P6 自己渲染影片影格，
-                    // 不使用 ffplay 的畫面介面。
-                    await self.startAudioIfNeeded(at: startTime, token: token)
-                }
-
-                var position = startTime
                 var previousFrame: Data?
+                var frameIndex = 0
+                var playbackStartUptime: TimeInterval?
                 let displayInterval = 1 / Double(requestedFPS)
                 let sourceAdvance = requestedSpeed / Double(requestedFPS)
 
                 while !Task.isCancelled {
-                    let iterationStart = Date()
                     guard let frameData = try session.readFrame() else {
                         await self.finish(token: token, reachedEnd: true, error: nil)
                         return
                     }
 
+                    if shouldPlay {
+                        if let playbackStartUptime {
+                            // Use one absolute monotonic timeline. Relative
+                            // per-frame sleeps accumulate decode and render time,
+                            // which eventually leaves video behind audio.
+                            // 使用單一絕對單調時間軸。逐幀相對休眠會累積解碼與
+                            // 渲染時間，最終造成畫面落後音訊。
+                            let deadline = playbackStartUptime
+                                + Double(frameIndex) * displayInterval
+                            let remaining = deadline
+                                - ProcessInfo.processInfo.systemUptime
+                            if remaining > 0 {
+                                try await Task.sleep(
+                                    nanoseconds: UInt64(remaining * 1_000_000_000)
+                                )
+                            }
+                        } else {
+                            // Decode the first frame before starting ffplay, then
+                            // anchor both streams at the same media timestamp.
+                            // 先解出第一幀才啟動 ffplay，再以相同媒體時間戳建立
+                            // 影音共用起點。
+                            await self.startAudioIfNeeded(at: startTime, token: token)
+                            playbackStartUptime = ProcessInfo.processInfo.systemUptime
+                            P6Diagnostics.write(
+                                "playback clock started \(startTimeLabel)"
+                            )
+                        }
+                    }
+
+                    let position = startTime + Double(frameIndex) * sourceAdvance
+
+                    // Full Data equality scans every RGBA byte. Keep it out of
+                    // normal playback and enable it only for explicit diagnostics.
+                    // 完整 Data 相等比較會掃描每個 RGBA 位元組；一般播放不執行，
+                    // 僅在明確要求診斷時啟用。
+                    let isDuplicateFrame: Bool
+                    if P6Diagnostics.isDebugEnabled {
+                        isDuplicateFrame = previousFrame == frameData
+                        previousFrame = frameData
+                    } else {
+                        isDuplicateFrame = false
+                    }
+
                     var rawFrame: Data?
                     var image: ImageFormats.Image<RGBA>?
-                    if previousFrame == frameData {
+                    if isDuplicateFrame {
                         rawFrame = nil
                         image = nil
                     } else {
@@ -611,7 +668,6 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                             bytes: Array(frameData)
                         )
                         #endif
-                        previousFrame = frameData
                     }
 
                     await self.acceptFrame(
@@ -628,14 +684,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         return
                     }
 
-                    position += sourceAdvance
-                    let elapsed = Date().timeIntervalSince(iterationStart)
-                    let remaining = displayInterval - elapsed
-                    if remaining > 0 {
-                        try await Task.sleep(
-                            nanoseconds: UInt64(remaining * 1_000_000_000)
-                        )
-                    }
+                    frameIndex += 1
                 }
             } catch is CancellationError {
                 return
@@ -696,14 +745,14 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
             if !hasVideoFrame {
                 hasVideoFrame = true
             }
-            P6Diagnostics.write(
+            P6Diagnostics.writeFrame(
                 "video frame \(Self.formatTime(position)) \(resolution.width)x\(resolution.height)"
             )
         }
         #else
         if let image {
             frame = image
-            P6Diagnostics.write(
+            P6Diagnostics.writeFrame(
                 "frame \(Self.formatTime(position)) \(resolution.width)x\(resolution.height)"
             )
         }
@@ -843,7 +892,7 @@ final class P6FrameStore {
         pendingFrame = frame
         view?.update(frame)
         if frame.serial == 1 || frame.serial % 60 == 0 {
-            P6Diagnostics.write("frame store pushed serial \(frame.serial)")
+            P6Diagnostics.writeFrame("frame store pushed serial \(frame.serial)")
         }
     }
 
@@ -898,9 +947,11 @@ final class P6CoreVideoNSView: NSImageView, P6FrameDisplaying {
         image = nextImage
         needsDisplay = true
         displayIfNeeded()
-        if frame.serial == 1 || frame.serial % 60 == 0 {
+        if P6Diagnostics.isDebugEnabled,
+           frame.serial == 1 || frame.serial % 60 == 0
+        {
             let checksum = String(frame.diagnosticChecksum, radix: 16)
-            P6Diagnostics.write(
+            P6Diagnostics.writeFrame(
                 "core graphics displayed serial \(frame.serial) checksum \(checksum)"
             )
         }
@@ -961,9 +1012,13 @@ struct P6MetalVideoView: NSViewRepresentable {
 
 @MainActor
 final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
+    private static let texturePoolSize = 3
+
     private var commandQueue: MTLCommandQueue?
     private var pipelineState: MTLRenderPipelineState?
     private var samplerState: MTLSamplerState?
+    private var videoTextures: [MTLTexture] = []
+    private var nextTextureIndex = 0
     private var videoTexture: MTLTexture?
     private var lastFrameSerial: Int?
 
@@ -983,9 +1038,11 @@ final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
         guard replaceTexture(with: frame) else { return }
         lastFrameSerial = frame.serial
         setNeedsDisplay(bounds)
-        if frame.serial == 1 || frame.serial % 60 == 0 {
+        if P6Diagnostics.isDebugEnabled,
+           frame.serial == 1 || frame.serial % 60 == 0
+        {
             let checksum = String(frame.diagnosticChecksum, radix: 16)
-            P6Diagnostics.write(
+            P6Diagnostics.writeFrame(
                 "metal texture uploaded serial \(frame.serial) checksum \(checksum)"
             )
         }
@@ -993,6 +1050,8 @@ final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
 
     func clearFrame() {
         lastFrameSerial = nil
+        videoTextures.removeAll(keepingCapacity: false)
+        nextTextureIndex = 0
         videoTexture = nil
         setNeedsDisplay(bounds)
     }
@@ -1018,16 +1077,36 @@ final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
 
     private func replaceTexture(with frame: P6VideoFrame) -> Bool {
         guard let device else { return false }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba8Unorm,
-            width: frame.width,
-            height: frame.height,
-            mipmapped: false
-        )
-        descriptor.usage = [.shaderRead]
-        guard let texture = device.makeTexture(descriptor: descriptor) else {
-            return false
+
+        if videoTextures.count != Self.texturePoolSize
+            || videoTextures.first?.width != frame.width
+            || videoTextures.first?.height != frame.height
+        {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .rgba8Unorm,
+                width: frame.width,
+                height: frame.height,
+                mipmapped: false
+            )
+            descriptor.usage = [.shaderRead]
+
+            var replacementPool: [MTLTexture] = []
+            replacementPool.reserveCapacity(Self.texturePoolSize)
+            for _ in 0..<Self.texturePoolSize {
+                guard let texture = device.makeTexture(descriptor: descriptor) else {
+                    return false
+                }
+                replacementPool.append(texture)
+            }
+            videoTextures = replacementPool
+            nextTextureIndex = 0
         }
+
+        // Rotate through three reusable textures instead of allocating roughly
+        // 31.6 MiB for every 4K RGBA frame.
+        // 循環使用三個紋理，避免每個 4K RGBA 影格都重新配置約 31.6 MiB。
+        let texture = videoTextures[nextTextureIndex]
+        nextTextureIndex = (nextTextureIndex + 1) % videoTextures.count
         frame.rgbaBytes.withUnsafeBytes { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
             texture.replace(
@@ -1061,10 +1140,11 @@ final class P6MetalVideoNSView: MTKView, MTKViewDelegate, P6FrameDisplaying {
         encoder.endEncoding()
         commandBuffer.present(currentDrawable)
         commandBuffer.commit()
-        if let serial = lastFrameSerial,
+        if P6Diagnostics.isDebugEnabled,
+           let serial = lastFrameSerial,
            serial == 1 || serial % 60 == 0
         {
-            P6Diagnostics.write("metal presented serial \(serial)")
+            P6Diagnostics.writeFrame("metal presented serial \(serial)")
         }
     }
 
@@ -1148,10 +1228,42 @@ struct P6OutputResolution: Sendable, Equatable {
     }
 }
 
+/// Buffers a child process's stderr instead of letting it reach the terminal.
+/// Stopping the decoder early makes ffmpeg fail its pending writes with EPIPE,
+/// which is expected noise, so the text is only surfaced for real failures.
+/// 將子程序的 stderr 緩衝起來而不直接輸出到終端機。提早停止解碼會讓 ffmpeg 的
+/// 待寫入資料以 EPIPE 失敗，那是預期中的雜訊，因此只在真正失敗時才顯示內容。
+final class P6ProcessErrorLog: @unchecked Sendable {
+    private static let byteLimit = 8192
+
+    private let lock = NSLock()
+    private var buffer = Data()
+
+    func append(_ data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        buffer.append(data)
+        // A failing tool can emit output without bound; keep only the tail.
+        // 失敗的工具可能無上限地輸出，因此只保留尾端。
+        if buffer.count > Self.byteLimit {
+            buffer.removeFirst(buffer.count - Self.byteLimit)
+        }
+    }
+
+    var text: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return String(data: buffer, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+}
+
 final class P6DecoderSession: @unchecked Sendable {
     private let ffmpeg: Process
     private let zstd: Process?
     private let outputHandle: FileHandle
+    private let errorHandle: FileHandle
+    private let errorLog: P6ProcessErrorLog
     private let frameByteCount: Int
     private let stateLock = NSLock()
     private var terminated = false
@@ -1171,10 +1283,24 @@ final class P6DecoderSession: @unchecked Sendable {
 
         let compressed = inputURL.pathExtension.lowercased() == "zst"
         let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        let errorLog = P6ProcessErrorLog()
+        // Capture the local log, not self, so the handler cannot retain the
+        // session and prevent deinit from terminating the child processes.
+        // 捕捉區域變數而非 self，避免 handler 保留 session 而讓 deinit 無法終止子程序。
+        errorPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
+            errorLog.append(data)
+        }
+
         let ffmpeg = Process()
         ffmpeg.executableURL = ffmpegURL
         ffmpeg.standardOutput = outputPipe
-        ffmpeg.standardError = FileHandle.standardError
+        ffmpeg.standardError = errorPipe
 
         let seekValue = String(format: "%.6f", max(0, startTime))
         let filter = [
@@ -1205,7 +1331,7 @@ final class P6DecoderSession: @unchecked Sendable {
             process.executableURL = zstdURL
             process.arguments = ["-q", "-d", "-c", inputURL.path]
             process.standardOutput = pipe
-            process.standardError = FileHandle.standardError
+            process.standardError = errorPipe
             zstdProcess = process
         } else {
             if startTime > 0 {
@@ -1232,7 +1358,15 @@ final class P6DecoderSession: @unchecked Sendable {
                 try zstdProcess.run()
                 sourcePipe?.fileHandleForWriting.closeFile()
             }
+
+            // Close the parent's write end last, once every child that inherits
+            // it has spawned; otherwise the read end never sees EOF.
+            // 待所有繼承此描述符的子程序都啟動後才關閉父程序的寫入端，
+            // 否則讀取端永遠等不到 EOF。
+            errorPipe.fileHandleForWriting.closeFile()
         } catch {
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForWriting.closeFile()
             if ffmpeg.isRunning {
                 ffmpeg.terminate()
             }
@@ -1245,6 +1379,8 @@ final class P6DecoderSession: @unchecked Sendable {
         self.ffmpeg = ffmpeg
         self.zstd = zstdProcess
         self.outputHandle = outputPipe.fileHandleForReading
+        self.errorHandle = errorPipe.fileHandleForReading
+        self.errorLog = errorLog
     }
 
     deinit {
@@ -1260,7 +1396,11 @@ final class P6DecoderSession: @unchecked Sendable {
             let remaining = frameByteCount - data.count
             guard let chunk = try outputHandle.read(upToCount: remaining), !chunk.isEmpty else {
                 if data.isEmpty { return nil }
-                throw P6PlayerError.incompleteFrame(data.count, frameByteCount)
+                throw P6PlayerError.incompleteFrame(
+                    data.count,
+                    frameByteCount,
+                    errorLog.text
+                )
             }
             data.append(chunk)
         }
@@ -1277,13 +1417,40 @@ final class P6DecoderSession: @unchecked Sendable {
         terminated = true
         stateLock.unlock()
 
-        outputHandle.closeFile()
+        // Signal the children before closing the read end. Closing first makes
+        // ffmpeg's in-flight writes fail with EPIPE, which it reports as
+        // "Broken pipe" muxer/trailer errors even though the shutdown is ours.
+        // 先向子程序送出訊號再關閉讀取端。若先關閉，ffmpeg 進行中的寫入會以 EPIPE
+        // 失敗，即使關閉是我方主動發起，它仍會回報 "Broken pipe" 的 muxer/trailer 錯誤。
         if ffmpeg.isRunning {
             ffmpeg.terminate()
         }
         if let zstd, zstd.isRunning {
             zstd.terminate()
         }
+
+        // Drain the read end in the background so a child blocked writing into a
+        // full pipe can observe the signal and exit. Waiting here would stall the
+        // UI, because invalidateCurrentDecoder() calls terminate() on the main
+        // actor. The handler closes the descriptor once the child reaches EOF.
+        // 於背景排空讀取端，讓因管線寫滿而阻塞的子程序能收到訊號並結束。在此等待會
+        // 卡住 UI，因為 invalidateCurrentDecoder() 是在主執行者上呼叫 terminate()。
+        // handler 會在子程序送出 EOF 後關閉該描述符。
+        outputHandle.readabilityHandler = { handle in
+            if handle.availableData.isEmpty {
+                handle.readabilityHandler = nil
+                try? handle.close()
+            }
+        }
+
+        errorHandle.readabilityHandler = nil
+        try? errorHandle.close()
+    }
+
+    /// Buffered stderr from the child tools, used to explain real failures.
+    /// 子工具緩衝後的 stderr，用於說明真正的失敗原因。
+    var errorOutput: String {
+        errorLog.text
     }
 
     private var isTerminated: Bool {
@@ -1548,15 +1715,22 @@ enum P6ToolLocator {
 
 enum P6PlayerError: LocalizedError {
     case missingTool(String)
-    case incompleteFrame(Int, Int)
+    case incompleteFrame(Int, Int, String)
     case unsupportedAudioInput
 
     var errorDescription: String? {
         switch self {
             case .missingTool(let tool):
                 return "Required tool '\(tool)' was not found on PATH."
-            case .incompleteFrame(let actual, let expected):
-                return "Decoder returned an incomplete RGBA frame (\(actual) of \(expected) bytes)."
+            case .incompleteFrame(let actual, let expected, let toolOutput):
+                let summary =
+                    "Decoder returned an incomplete RGBA frame (\(actual) of \(expected) bytes)."
+                // Child stderr is buffered rather than printed, so a genuine
+                // decode failure has to carry it here to stay diagnosable.
+                // 子程序的 stderr 是緩衝而非直接輸出，因此真正的解碼失敗必須在此
+                // 一併帶出，才不會失去可診斷性。
+                guard !toolOutput.isEmpty else { return summary }
+                return "\(summary) \(toolOutput)"
             case .unsupportedAudioInput:
                 return "This input is treated as video-only."
         }
@@ -1564,6 +1738,13 @@ enum P6PlayerError: LocalizedError {
 }
 
 enum P6Diagnostics {
+    static let isDebugEnabled = CommandLine.arguments.contains("--debug")
+
+    static func writeFrame(_ message: @autoclosure () -> String) {
+        guard isDebugEnabled else { return }
+        write(message())
+    }
+
     static func write(_ message: String) {
         guard let data = "P6 \(Date()) \(message)\n".data(using: .utf8) else { return }
         try? FileHandle.standardError.write(contentsOf: data)
