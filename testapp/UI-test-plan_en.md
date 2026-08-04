@@ -277,6 +277,7 @@ zsh testapp/compile.sh P6
 ./testapp/output/P6 --debug
 ./testapp/output/P6 --frame-drop
 ./testapp/test_P6.sh /path/to/video.webm
+./testapp/test_P6.sh -rss --debug /path/to/video.webm
 ```
 
 Metal is the default macOS renderer. Pass `-core` to use the Core Animation
@@ -290,7 +291,10 @@ playback, changing the toggle restarts video and audio from the current timestam
 so the new setting takes effect immediately.
 `test_P6.sh` prints its usage when no arguments are provided and otherwise
 forwards renderer flags, `--debug`, `--frame-drop`, and the media path to the
-compiled P6 binary.
+compiled P6 binary. Its wrapper-only `-rss` option samples the P6 process RSS
+once per second and appends `rss_kb`, `peak_rss_kb`, and the final exit status to
+the separate `p6-debug-events-rss.log`; every `-rss` launch clears that file
+before recording the new run, and `-rss` is not forwarded to P6.
 
 Runtime tools:
 
@@ -337,6 +341,7 @@ Test steps:
 18. Load a file, then seek or load another file; confirm that the terminal shows no `Broken pipe`, `Error muxing a packet`, or `Error writing trailer` output from ffmpeg when the previous decoder is stopped.
 19. Close the window during playback, confirm the close prompt, and confirm that FFmpeg/Zstd/FFplay child processes exit and that the `P6` process itself also exits, returning the shell prompt.
 20. Start playback from `test_P6.sh`, obtain the ffplay PID from `p6-debug-events.log`, and press Ctrl-C in that terminal. Confirm in the log file that P6 received the signal, waited for ffplay to exit, and left no matching ffplay process running. Confirm that P6 diagnostic lines were not printed in the terminal. Because the script no longer uses `exec`, its observed exit status is shell-dependent when both zsh and P6 receive Ctrl-C.
+21. Put a recognizable old line in `p6-debug-events-rss.log`, then relaunch through `test_P6.sh -rss`, play and seek for at least one minute, and close P6 or press Ctrl-C. Confirm that the old line was cleared and the file contains only the new run's start line, one RSS sample per second, final sample count, peak RSS in KiB, and P6 exit status. Confirm that the terminal contains no RSS diagnostic lines and `p6-debug-events.log` remains reserved for P6 diagnostics.
 
 Expected results:
 
@@ -362,12 +367,19 @@ Expected results:
 - Stopping a decoder early is a normal operation and must stay silent: child stderr is buffered rather than forwarded to the terminal, so ffmpeg's expected EPIPE reports do not appear. A genuine decode failure still surfaces the buffered tool output in the status line.
 - Closing the window terminates the `P6` process itself, not just its child processes, so the shell prompt returns without a manual `Ctrl-C`.
 - Terminal SIGINT and SIGTERM handlers terminate and synchronously reap the retained ffplay process before P6 exits. Without `exec` in the wrapper script, the final shell-visible Ctrl-C status is not guaranteed to be P6's internal status 130.
+- `test_P6.sh -rss` clears `p6-debug-events-rss.log` at launch, then measures only the P6 process resident memory once per second and records samples and peak RSS there; FFmpeg, ffplay, and zstd child RSS are not included.
 - Missing tools or malformed input produce an error in the status line instead of crashing.
 
 Verification status:
 
 - The previously reported A/V desynchronization after timeline seeking is confirmed resolved with the supplied WebM sample. At a requested 00:50 seek, default ffplay demuxer seeking started audio near 46.05 seconds, while `-seek2any 1` starts it near 50.01 seconds. The visible subtitle and spoken phrase around that point are both `卻看我是祂的孩子`.
 - The confirmation covers normal playback and timeline seeking without `--debug`. Extended 4K playback at every speed and Frame Drop combination remains a separate stress-test scenario rather than a confirmed regression.
+
+RSS stress record:
+
+- `p6-debug-events-rss-speed3x,fps60,4k_3840x2160_sound_on_frame_drop.log` records P6 at 3x speed, 60 FPS, 3840x2160 output, Sound On, and Frame Drop enabled.
+- The run lasted from 2026-08-04 18:25:39 UTC through 18:28:58 UTC, collected 196 valid one-second samples, and exited successfully with status 0.
+- P6 peak RSS was 2,398,896 KiB (approximately 2.29 GiB), and average sampled RSS was approximately 1.92 GiB. These values exclude FFmpeg, ffplay, and zstd child processes.
 
 ## Test Record Template
 
