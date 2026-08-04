@@ -10,9 +10,9 @@ p6_executable="$script_dir/output/P6"
 usage() {
     command_name=$(basename -- "$0")
     printf '%s\n' \
-        "Usage: $command_name [-metal|-core] [--debug] <media-file>" \
-        "用法：$command_name [-metal|-core] [--debug] <媒體檔案>" \
-        "Example: $command_name --debug '/path/to/video.webm'" \
+        "Usage: $command_name [-metal|-core] [--debug] [--frame-drop] <media-file>" \
+        "用法：$command_name [-metal|-core] [--debug] [--frame-drop] <媒體檔案>" \
+        "Example: $command_name --debug --frame-drop '/path/to/video.webm'" \
         "Build first if needed: zsh testapp/compile.sh P6"
 }
 
@@ -29,4 +29,4 @@ if [ ! -x "$p6_executable" ]; then
     exit 1
 fi
 
-exec "$p6_executable" "$@"
+"$p6_executable" "$@"

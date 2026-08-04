@@ -1,4 +1,5 @@
 import DefaultBackend
+import Dispatch
 import Foundation
 import ImageFormats
 @_spi(Backends) import SwiftCrossUI
@@ -6,6 +7,7 @@ import ImageFormats
 #if os(macOS)
 import AppKit
 import AppKitBackend
+import Darwin
 import Metal
 import MetalKit
 #endif
@@ -25,6 +27,9 @@ import MetalKit
 // 最後一個渲染旗標會生效。
 // --debug enables full-frame duplicate checks and detailed frame diagnostics.
 // --debug 會啟用完整影格重複檢查與詳細的逐幀診斷。
+// --frame-drop drops video frames that miss the audio-anchored deadline.
+// Frame dropping is disabled by default.
+// --frame-drop 會丟棄錯過音訊基準期限的視訊影格；預設不丟棄影格。
 
 enum P6RenderingBackend: String, Sendable {
     case metal
@@ -59,7 +64,7 @@ struct P6StreamPlayerApp: App {
                 P6StreamPlayerView()
             }
         }
-        .defaultSize(width: 1_060, height: 820)
+        .defaultSize(width: 1_120, height: 850)
     }
 }
 
@@ -157,19 +162,18 @@ struct P6StreamPlayerView: View {
                 .disabled(!player.hasInput || player.seekUpperBound <= 0)
 
                 HStack {
-                    Text("Current: \(player.timeDescription)")
+                    Text(
+                        "Current: \(player.timeDescription) "
+                            + "(\(player.progressDescription))"
+                    )
+                    .textSelectionEnabled()
                     Spacer()
                     Text("Seek target: \(player.seekDescription)")
                 }
                 .frame(width: 960)
             }
 
-            HStack(spacing: 10) {
-                Text(player.progressDescription)
-                    .frame(width: 132, alignment: .leading)
-
-                Spacer()
-
+            HStack(spacing: 6) {
                 Button("-5s") {
                     player.seek(by: -5)
                 }
@@ -224,20 +228,44 @@ struct P6StreamPlayerView: View {
                 .pickerStyle(.menu)
                 .frame(width: 142)
 
-                Button(player.soundEnabled ? "Sound on" : "Sound off") {
-                    player.toggleSound()
-                }
+                Toggle(
+                    "Sound",
+                    isOn: player.$soundEnabled.onChange { isEnabled in
+                        player.soundSettingChanged(isEnabled: isEnabled)
+                    }
+                )
+                .toggleStyle(.button)
+                .toggleColor(.blue)
                 .disabled(!player.hasInput)
 
-                Button("Show resolution") {
-                    player.displayResolution()
-                }
-                .disabled(!player.hasInput)
+                Toggle(
+                    "Frame drop",
+                    isOn: player.$frameDropEnabled.onChange { isEnabled in
+                        player.frameDropSettingChanged(isEnabled: isEnabled)
+                    }
+                )
+                .toggleStyle(.button)
+                .toggleColor(.blue)
+
+                Toggle(
+                    "Show resolution",
+                    isOn: player.$showsResolution.onChange { isShowing in
+                        player.resolutionDisplayChanged(isShowing: isShowing)
+                    }
+                )
+                .toggleStyle(.button)
+                .toggleColor(.blue)
+                .disabled(!player.hasInput || player.frameDropEnabled)
             }
-            .frame(width: 960)
+            .frame(width: 1_040)
 
-            Text(player.status)
+            Text(player.statusDescription)
                 .frame(width: 960, alignment: .leading)
+
+            if player.showsResolution {
+                Text(player.resolutionDescription)
+                    .frame(width: 960, alignment: .leading)
+            }
         }
         .padding(18)
         .onAppear {
@@ -246,6 +274,7 @@ struct P6StreamPlayerView: View {
 
             #if os(macOS)
             player.installCloseConfirmation(on: enclosingWindow)
+            player.installTerminationSignalHandlers()
             P6Diagnostics.write("renderer \(player.renderingBackend.rawValue)")
             #endif
 
@@ -290,6 +319,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
     let renderingBackend = P6RenderingBackend.selected(from: CommandLine.arguments)
     let frameStore = P6FrameStore()
+    private var terminationSignalSources: [DispatchSourceSignal] = []
 #endif
 
     @SwiftCrossUI.Published
@@ -328,8 +358,18 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published
     var detectedInputResolution: SIMD2<Int>?
 
+    @SwiftCrossUI.Published
+    var showsResolution = P6Diagnostics.isFrameDropEnabled
+
+    @SwiftCrossUI.Published
+    var frameDropEnabled = P6Diagnostics.isFrameDropEnabled
+
+    @SwiftCrossUI.Published
+    var droppedFramesPerSecond = 0
+
     private var generation = 0
     private var frameSerial = 0
+    private var seekDebounceTask: Task<Void, Never>?
     private var playbackTask: Task<Void, Never>?
     private var decoderSession: P6DecoderSession?
     private var audioSession: P6AudioSession?
@@ -358,6 +398,21 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
     var outputResolution: P6OutputResolution {
         P6OutputResolution(label: resolutionSelection)
+    }
+
+    var resolutionDescription: String {
+        let inputText = detectedInputResolution
+            .map { "\($0.x)x\($0.y)" } ?? "unknown"
+        let output = outputResolution
+        var description = "Input: \(inputText). Output: \(output.width)x\(output.height). Viewport: 960x540."
+        if frameDropEnabled {
+            description += " Dropped frames/sec: \(droppedFramesPerSecond)."
+        }
+        return description
+    }
+
+    var statusDescription: String {
+        "\(status) Frame drop \(frameDropEnabled ? "on" : "off")."
     }
 
     var progress: Double? {
@@ -391,7 +446,12 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         currentTime = 0
         seekPosition = 0
         duration = nil
-        detectedInputResolution = nil
+        detectedInputResolution = showsResolution
+            ? P6MediaProbe.resolution(for: url)
+            : nil
+        if frameDropEnabled {
+            droppedFramesPerSecond = 0
+        }
         frame = nil
         #if os(macOS)
         hasVideoFrame = false
@@ -429,19 +489,31 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         startDecoder(at: clampedTarget, shouldPlay: shouldPlay, singleFrame: !shouldPlay)
     }
 
-    // A slider change is a seek request, not merely a visual update. Rebuilding
-    // the decoder keeps video and the separately running ffplay process aligned.
-    // 滑桿變更代表真正的 seek 請求，不只是更新畫面；重建解碼器可讓影片與
-    // 分開執行的 ffplay 音訊程序保持同步。
+    // Debounce continuous slider updates so one drag creates one decoder session.
+    // The last target is applied after the slider has been still for 200 ms.
+    // 對連續滑桿更新進行 debounce，讓一次拖曳只建立一個解碼工作；滑桿停止
+    // 200 毫秒後才套用最後的目標時間。
     func seekPositionChanged(to target: Double) {
         guard selectedURL != nil else { return }
         let clampedTarget = clampedSeekTime(target)
         seekPosition = clampedTarget
-        startDecoder(
-            at: clampedTarget,
-            shouldPlay: isPlaying,
-            singleFrame: !isPlaying
-        )
+        let resumePlayback = isPlaying
+
+        seekDebounceTask?.cancel()
+        seekDebounceTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 200_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, let self else { return }
+            self.seekDebounceTask = nil
+            self.startDecoder(
+                at: clampedTarget,
+                shouldPlay: resumePlayback,
+                singleFrame: !resumePlayback
+            )
+        }
     }
 
     // Playback settings belong to the next decoder session. Restarting at the
@@ -461,9 +533,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         }
     }
 
-    func toggleSound() {
-        soundEnabled.toggle()
-        if !soundEnabled {
+    func soundSettingChanged(isEnabled: Bool) {
+        if !isEnabled {
             audioSession?.terminate()
             audioSession = nil
             status = "Sound disabled."
@@ -479,14 +550,39 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         }
     }
 
-    func displayResolution() {
-        guard let selectedURL else { return }
-        let inputResolution = detectedInputResolution ?? P6MediaProbe.resolution(for: selectedURL)
-        detectedInputResolution = inputResolution
-        let inputText = inputResolution
-            .map { "\($0.x)x\($0.y)" } ?? "unknown"
-        let output = outputResolution
-        status = "Input resolution: \(inputText). Output resolution: \(output.width)x\(output.height). Viewport: 960x540."
+    func resolutionDisplayChanged(isShowing: Bool) {
+        if !isShowing, frameDropEnabled {
+            showsResolution = true
+            return
+        }
+        guard isShowing, let selectedURL else { return }
+        detectedInputResolution = detectedInputResolution
+            ?? P6MediaProbe.resolution(for: selectedURL)
+    }
+
+    // Apply frame dropping immediately during playback by restarting both media
+    // processes from the current timestamp. When stopped, the next Play applies it.
+    // 播放中從目前時間戳重新啟動兩個媒體程序，立即套用丟幀設定；停止時則由
+    // 下一次 Play 套用。
+    func frameDropSettingChanged(isEnabled: Bool) {
+        droppedFramesPerSecond = 0
+        let settingText = isEnabled ? "on" : "off"
+        P6Diagnostics.write("runtime frame-drop \(settingText)")
+
+        if isEnabled {
+            showsResolution = true
+            if let selectedURL {
+                detectedInputResolution = detectedInputResolution
+                    ?? P6MediaProbe.resolution(for: selectedURL)
+            }
+        }
+
+        if isPlaying {
+            startDecoder(at: currentTime, shouldPlay: true, singleFrame: false)
+            status = "Restarting playback with the updated setting."
+        } else {
+            status = "Playback setting updated."
+        }
     }
 
     func shutdown() {
@@ -542,6 +638,40 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         P6Diagnostics.write("close confirmation installed")
     }
 
+    // Retain Dispatch signal sources so terminal SIGINT/SIGTERM can stop and
+    // reap the retained ffplay Process before P6 exits.
+    // 保留 Dispatch 訊號來源，讓終端機 SIGINT／SIGTERM 能在 P6 結束前停止並
+    // 回收所保存的 ffplay Process。
+    func installTerminationSignalHandlers() {
+        guard terminationSignalSources.isEmpty else { return }
+
+        for signalNumber in [SIGINT, SIGTERM] {
+            Darwin.signal(signalNumber, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(
+                signal: signalNumber,
+                queue: .main
+            )
+            source.setEventHandler { [weak self] in
+                guard let self else {
+                    Darwin.exit(128 + signalNumber)
+                }
+
+                let pidText = self.audioSession
+                    .map { String($0.processIdentifier) } ?? "none"
+                P6Diagnostics.write(
+                    "received signal \(signalNumber), terminating ffplay pid \(pidText)"
+                )
+                self.shutdownAndWait()
+                P6Diagnostics.write("signal cleanup complete")
+                Darwin.exit(128 + signalNumber)
+            }
+            source.resume()
+            terminationSignalSources.append(source)
+        }
+
+        P6Diagnostics.write("SIGINT/SIGTERM cleanup installed")
+    }
+
     private func shutdownAndWait() {
         // Window closing is the one lifecycle point where waiting is intentional:
         // it guarantees that the known ffplay PID is reaped before close returns.
@@ -567,11 +697,22 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         let requestedSpeed = speed
         let requestedFPS = framesPerSecond
         let requestedResolution = outputResolution
+        let dropsLateFrames = frameDropEnabled
+        if dropsLateFrames {
+            droppedFramesPerSecond = 0
+        }
         let knownDuration = duration
         // Format on the main actor; the detached decode task below cannot reach
         // main actor-isolated helpers.
         // 在主執行者上先格式化；下方的分離解碼任務無法存取主執行者隔離的輔助方法。
         let startTimeLabel = Self.formatTime(startTime)
+        P6Diagnostics.write(
+            "session token \(token) start seek \(String(format: "%.3f", startTime))s "
+                + "speed \(requestedSpeed)x fps \(requestedFPS) "
+                + "resolution \(requestedResolution.width)x\(requestedResolution.height) "
+                + "mode \(shouldPlay ? "play" : "frame") "
+                + "frame-drop \(dropsLateFrames ? "on" : "off")"
+        )
 
         playbackTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
@@ -599,6 +740,9 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 var previousFrame: Data?
                 var frameIndex = 0
                 var playbackStartUptime: TimeInterval?
+                var droppedFrameCount = 0
+                var droppedFramesInSample = 0
+                var dropRateSampleStart = ProcessInfo.processInfo.systemUptime
                 let displayInterval = 1 / Double(requestedFPS)
                 let sourceAdvance = requestedSpeed / Double(requestedFPS)
 
@@ -607,6 +751,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         await self.finish(token: token, reachedEnd: true, error: nil)
                         return
                     }
+
+                    let position = startTime + Double(frameIndex) * sourceAdvance
 
                     if shouldPlay {
                         if let playbackStartUptime {
@@ -617,8 +763,49 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                             // 渲染時間，最終造成畫面落後音訊。
                             let deadline = playbackStartUptime
                                 + Double(frameIndex) * displayInterval
-                            let remaining = deadline
-                                - ProcessInfo.processInfo.systemUptime
+                            let now = ProcessInfo.processInfo.systemUptime
+                            let remaining = deadline - now
+                            var shouldDropFrame = false
+                            // Keep lateness checks, counters, sampling, and UI
+                            // publication entirely out of the default path.
+                            // 將逾期判斷、計數、取樣與 UI 發布完全排除於預設路徑。
+                            if dropsLateFrames {
+                                shouldDropFrame = remaining <= -displayInterval
+                                if shouldDropFrame {
+                                    // Audio is the practical master clock. Do not
+                                    // enqueue an obsolete 4K frame when video falls
+                                    // behind; consume it and continue toward the frame
+                                    // that belongs at the current wall-clock time.
+                                    // 音訊是實際主時鐘。視訊落後時不將過期的 4K 影格
+                                    // 排入佇列；讀取消耗後繼續追趕目前牆鐘應顯示的影格。
+                                    droppedFrameCount += 1
+                                    droppedFramesInSample += 1
+                                    if droppedFrameCount == 1
+                                        || droppedFrameCount % requestedFPS == 0
+                                    {
+                                        P6Diagnostics.writeFrame(
+                                            "session token \(token) dropped \(droppedFrameCount) "
+                                                + "late frames at \(String(format: "%.3f", position))s"
+                                        )
+                                    }
+                                }
+                                if now - dropRateSampleStart >= 1 {
+                                    let elapsed = now - dropRateSampleStart
+                                    let droppedPerSecond = Int(
+                                        (Double(droppedFramesInSample) / elapsed).rounded()
+                                    )
+                                    await self.acceptDroppedFramesPerSecond(
+                                        droppedPerSecond,
+                                        token: token
+                                    )
+                                    droppedFramesInSample = 0
+                                    dropRateSampleStart = now
+                                }
+                            }
+                            if shouldDropFrame {
+                                frameIndex += 1
+                                continue
+                            }
                             if remaining > 0 {
                                 try await Task.sleep(
                                     nanoseconds: UInt64(remaining * 1_000_000_000)
@@ -629,15 +816,21 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                             // anchor both streams at the same media timestamp.
                             // 先解出第一幀才啟動 ffplay，再以相同媒體時間戳建立
                             // 影音共用起點。
-                            await self.startAudioIfNeeded(at: startTime, token: token)
-                            playbackStartUptime = ProcessInfo.processInfo.systemUptime
+                            await self.startAudioIfNeeded(
+                                at: startTime,
+                                speed: requestedSpeed,
+                                token: token
+                            )
+                            let clockStart = ProcessInfo.processInfo.systemUptime
+                            playbackStartUptime = clockStart
+                            dropRateSampleStart = clockStart
                             P6Diagnostics.write(
-                                "playback clock started \(startTimeLabel)"
+                                "playback clock token \(token) started \(startTimeLabel) "
+                                    + "speed \(requestedSpeed)x fps \(requestedFPS) "
+                                    + "frame-drop \(dropsLateFrames ? "on" : "off")"
                             )
                         }
                     }
-
-                    let position = startTime + Double(frameIndex) * sourceAdvance
 
                     // Full Data equality scans every RGBA byte. Keep it out of
                     // normal playback and enable it only for explicit diagnostics.
@@ -699,6 +892,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     }
 
     private func invalidateCurrentDecoder(waitForAudioExit: Bool = false) {
+        seekDebounceTask?.cancel()
+        seekDebounceTask = nil
         generation &+= 1
         decoderSession?.terminate()
         decoderSession = nil
@@ -722,6 +917,14 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         guard generation == token else { return }
         duration = value
         seekPosition = min(seekPosition, value)
+    }
+
+    // Update the optional diagnostic at most once per sampling interval so the
+    // UI is not rebuilt for every dropped frame.
+    // 每個取樣區間最多更新一次選用診斷，避免每丟棄一幀就重建 UI。
+    private func acceptDroppedFramesPerSecond(_ value: Int, token: Int) {
+        guard generation == token else { return }
+        droppedFramesPerSecond = value
     }
 
     private func acceptFrame(
@@ -758,7 +961,13 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         }
         #endif
         currentTime = position
-        if isPlaying || abs(seekPosition - position) < 0.5 {
+        // Preserve the user's final slider target while its debounce timer is
+        // pending; playback progress must not overwrite that target first.
+        // debounce 計時尚未完成時保留使用者最後的滑桿目標，避免播放進度先將
+        // 該目標覆寫回舊時間。
+        if seekDebounceTask == nil,
+           isPlaying || abs(seekPosition - position) < 0.5
+        {
             seekPosition = position
         }
         isLoading = false
@@ -805,12 +1014,16 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         return lowerBound
     }
 
-    private func startAudioIfNeeded(at startTime: Double, token: Int) {
+    private func startAudioIfNeeded(
+        at startTime: Double,
+        speed requestedSpeed: Double,
+        token: Int
+    ) {
         guard generation == token else { return }
-        restartAudio(at: startTime)
+        restartAudio(at: startTime, speed: requestedSpeed, token: token)
     }
 
-    private func restartAudio(at startTime: Double) {
+    private func restartAudio(at startTime: Double, speed requestedSpeed: Double, token: Int) {
         audioSession?.terminate()
         audioSession = nil
 
@@ -819,9 +1032,12 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
             audioSession = try P6AudioSession(
                 inputURL: selectedURL,
                 startTime: startTime,
-                speed: speed
+                speed: requestedSpeed
             )
-            P6Diagnostics.write("audio started \(Self.formatTime(startTime))")
+            P6Diagnostics.write(
+                "audio token \(token) started \(Self.formatTime(startTime)) "
+                    + "speed \(requestedSpeed)x"
+            )
         } catch P6PlayerError.unsupportedAudioInput {
             P6Diagnostics.write("audio skipped for \(selectedURL.lastPathComponent)")
         } catch {
@@ -1494,6 +1710,13 @@ final class P6AudioSession: @unchecked Sendable {
             "-hide_banner",
             "-loglevel",
             "error",
+            // WebM's default demuxer seek can fall back several seconds to the
+            // preceding indexed video keyframe even though ffplay outputs audio
+            // only. Allow seeking to an audio packet near the requested time.
+            // WebM 預設 demuxer seek 可能退回數秒前的視訊索引關鍵影格，即使
+            // ffplay 只輸出音訊亦然；允許定位至接近要求時間的音訊封包。
+            "-seek2any",
+            "1",
             "-ss",
             String(format: "%.6f", max(0, startTime)),
             "-i",
@@ -1739,6 +1962,7 @@ enum P6PlayerError: LocalizedError {
 
 enum P6Diagnostics {
     static let isDebugEnabled = CommandLine.arguments.contains("--debug")
+    static let isFrameDropEnabled = CommandLine.arguments.contains("--frame-drop")
 
     static func writeFrame(_ message: @autoclosure () -> String) {
         guard isDebugEnabled else { return }
@@ -1747,7 +1971,6 @@ enum P6Diagnostics {
 
     static func write(_ message: String) {
         guard let data = "P6 \(Date()) \(message)\n".data(using: .utf8) else { return }
-        try? FileHandle.standardError.write(contentsOf: data)
 
         let logURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("p6-debug-events.log")
