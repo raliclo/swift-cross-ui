@@ -96,8 +96,10 @@ struct P6StreamPlayerView: View {
                     Text(player.selectedFileName)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                    #if os(macOS)
                     Text("Renderer: \(player.renderingBackend.label)")
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    #endif
                 }
 
                 Spacer()
