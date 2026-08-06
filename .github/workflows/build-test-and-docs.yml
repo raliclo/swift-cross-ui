@@ -117,6 +117,11 @@ jobs:
     needs: check_file_changes
     if: ${{ needs.check_file_changes.outputs.android == 'true' }}
     env:
+      # Opts AndroidBackend and AndroidBackendShim into the package. They are
+      # excluded by default because AndroidBackendShim includes <android/log.h>,
+      # which only the NDK provides, and the build system scans every C target
+      # regardless of the platform being built for. See Package.swift.
+      SCUI_ANDROID: "1"
       # Release and checksum retrieved from https://www.swift.org/api/v1/install/dev/6.3/android-sdk.json
       SWIFT_RELEASE: swift-6.3-DEVELOPMENT-SNAPSHOT-2026-05-01-a
       SWIFT_ANDROID_SDK_CHECKSUM: 27a0e63264d1b8512522d3a07407ae3d2774eb07d28279ef58e96d1dc2ab720d

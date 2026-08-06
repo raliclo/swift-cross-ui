@@ -18,6 +18,11 @@ import PackageDescription
 // - SCUI_BENCHMARK_VIZ : If `1`, LayoutPerformanceBenchmark gets compiled in
 //     visualization mode instead of benchmarking mode. It will use DefaultBackend
 //     to visualize a benchmark layout of your choosing (chosen at runtime via stdin).
+// - SCUI_ANDROID : If `1`, includes AndroidBackend and AndroidBackendShim in the
+//     package. Set it alongside `--swift-sdk <android-triple>` when cross-compiling
+//     for Android. It is off by default because AndroidBackendShim is a C target
+//     that includes <android/log.h>, which only the Android NDK provides: leaving
+//     it in the package makes every non-Android build fail while scanning it.
 
 let invokedByXcode: Bool
 #if os(macOS)
@@ -37,10 +42,17 @@ let invokedByXcode: Bool
 let env = ProcessInfo.processInfo.environment
 let androidBackendSupported: Bool
 #if compiler(>=6.2)
+    // A manifest can't observe the target platform: when SwiftPM compiles it, the
+    // arguments hold only -fileno/-context and the environment exposes just a host
+    // SDKROOT, so `--swift-sdk aarch64-unknown-linux-android28` is invisible here.
+    // Android targets are therefore opt-in. Including them unconditionally breaks
+    // every other platform, because AndroidBackendShim is a C target including
+    // <android/log.h>, and the build system scans C targets it will never link.
+    //
     // xcodebuild can't handle non-Apple platform conditional dependencies for some weird
     // reason, so we have to remove AndroidBackend when we detect that we're being built
     // by xcodebuild.
-    androidBackendSupported = !invokedByXcode
+    androidBackendSupported = !invokedByXcode && env["SCUI_ANDROID"] == "1"
 #else
     androidBackendSupported = false
 #endif

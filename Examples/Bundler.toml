@@ -1,9 +1,27 @@
 format_version = 2
 
+# Every app compiles against Android API 36. AndroidBackendHelpers.kt calls
+# TimeZone.getIanaID, added in API 36, behind a SDK_INT >= 36 runtime check;
+# resolving the symbol still needs API 36 at compile time, and Swift Bundler
+# defaults compile_sdk to 34.
+#
+# target_sdk is pinned to 34 so that raising compile_sdk stays a compile-time
+# change only. Swift Bundler derives targetSDK as `targetSDK ?? compileSDK`, so
+# without this it would follow compile_sdk to 36, and Android applies stricter
+# runtime policies at higher target levels.
+#
+# Verified with `aapt2 dump badging`:
+#   compileSdkVersion='36'  targetSdkVersion='34'  sdkVersion:'28'
+#
+# minSdk stays at Swift Bundler's default of 28, so the set of devices that can
+# install these apps is unchanged.
+
 [apps.ControlsExample]
 identifier = 'dev.swiftcrossui.ControlsExample'
 product = 'ControlsExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [[apps.ControlsExample.overlays]]
 condition = 'platform(macCatalyst)'
@@ -13,31 +31,43 @@ interface_idiom = 'mac'
 identifier = 'dev.swiftcrossui.CounterExample'
 product = 'CounterExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.RandomNumberGeneratorExample]
 identifier = 'dev.swiftcrossui.RandomNumberGeneratorExample'
 product = 'RandomNumberGeneratorExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.WindowingExample]
 identifier = 'dev.swiftcrossui.WindowingExample'
 product = 'WindowingExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.GreetingGeneratorExample]
 identifier = 'dev.swiftcrossui.GreetingGeneratorExample'
 product = 'GreetingGeneratorExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.NavigationExample]
 identifier = 'dev.swiftcrossui.NavigationExample'
 product = 'NavigationExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.SplitExample]
 identifier = 'dev.swiftcrossui.SplitExample'
 product = 'SplitExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [[apps.SplitExample.overlays]]
 condition = "platform(macCatalyst)"
@@ -47,65 +77,91 @@ interface_idiom = "mac"
 identifier = 'dev.swiftcrossui.SpreadsheetExample'
 product = 'SpreadsheetExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.StressTestExample]
 identifier = 'dev.swiftcrossui.StressTestExample'
 product = 'StressTestExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.NotesExample]
 identifier = 'dev.swiftcrossui.NotesExample'
 product = 'NotesExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.PathsExample]
 identifier = 'dev.swiftcrossui.PathsExample'
 product = 'PathsExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.WebViewExample]
 identifier = 'dev.swiftcrossui.WebViewExample'
 product = 'WebViewExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 android.permissions = ['INTERNET']
 
 [apps.HoverExample]
 identifier = 'dev.swiftcrossui.HoverExample'
 product = 'HoverExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.FontsExample]
 identifier = 'dev.swiftcrossui.FontsExample'
 product = 'FontsExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.ForEachExample]
 identifier = 'dev.swiftcrossui.ForEachExample'
 product = 'ForEachExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.AdvancedCustomizationExample]
 identifier = 'dev.swiftcrossui.AdvancedCustomizationExample'
 product = 'AdvancedCustomizationExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.ColorsExample]
 identifier = 'dev.swiftcrossui.ColorsExample'
 product = 'ColorsExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 
 [apps.MusicPlayerExample]
 identifier = 'dev.swiftcrossui.MusicPlayerExample'
 product = 'MusicPlayerExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
 icon = 'Icons/MusicPlayerExample.png'
 
 [apps.GradientsExample]
 identifier = 'dev.swiftcrossui.GradientsExample'
 product = 'GradientsExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
     
 [apps.TapGesturesExample]
 identifier = 'dev.swiftcrossui.TapGesturesExample'
 product = 'TapGesturesExample'
 version = '0.1.0'
+android.compile_sdk = 36
+android.target_sdk = 34
