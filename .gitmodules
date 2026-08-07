@@ -1,3 +1,11 @@
 [submodule "Sources/GtkCodeGen/GirFiles"]
 	path = Sources/GtkCodeGen/GirFiles
 	url = https://github.com/moreSwift/gir-files
+[submodule "Vendor/ZIPFoundationModern"]
+	path = Vendor/ZIPFoundationModern
+	url = https://github.com/raliclo/ZIPFoundationModern.git
+	branch = swift-6.3-type-inference-fix
+[submodule "Vendor/swift-bundler"]
+	path = Vendor/swift-bundler
+	url = https://github.com/moreSwift/swift-bundler.git
+	ignore = dirty

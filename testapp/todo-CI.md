@@ -37,13 +37,18 @@ locally do not automatically apply to CI, and vice versa.
       $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
       ```
 
+- [ ] **Submodule checkout.** Swift Bundler and its patched ZIPFoundationModern
+      now live in `Vendor/` as submodules, so the android job needs
+      `submodules: recursive` on its `actions/checkout` step. Without it the
+      directories are empty and the bundler cannot be built. The job currently
+      clones the bundler itself, which the submodule now supersedes.
+
 - [ ] **Swift Bundler build.** Its `ZIPFoundationModern` dependency fails to
       compile under Swift 6.3+ (`data.append(contentsOf: .init(repeating:count:))`
       can no longer have its type inferred; still broken in upstream 0.0.9).
-      CI builds the bundler with Swift 6.1.2, where this compiles, so CI is
-      probably unaffected — but this has not been confirmed by an actual run.
-      If it does break, the local workaround was a patched checkout injected via
-      `swift package edit`; see `Scripts/build-tool-install-android-on-Mac.sh`.
+      `Vendor/ZIPFoundationModern` tracks a fork carrying the one-line fix.
+      CI builds the bundler with Swift 6.1.2, where the original compiles, so
+      the fork is harmless there — but this has not been confirmed by a run.
 
 - [ ] **The remaining examples.** Only CounterExample, WebViewExample and
       ControlsExample were bundled locally. CI builds 11. The other 8 received

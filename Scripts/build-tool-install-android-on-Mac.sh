@@ -169,42 +169,31 @@ install_android_sdk() {
 # ==============================================================================
 # 5. Swift Bundler (optional -- only needed to produce an APK)
 #
-# Its ZIPFoundationModern dependency does not compile under Swift 6.3+: it uses
-# `.append(contentsOf: .init(repeating:count:))`, whose implicit type can no
-# longer be inferred. Upstream 0.0.9 still has the bug, so a local patched copy
-# is injected with `swift package edit`, which leaves the manifest untouched.
+# Both sources live in Vendor/ as submodules, so the versions are pinned by this
+# repository rather than resolved at install time.
+#
+# Swift Bundler's ZIPFoundationModern dependency does not compile under Swift
+# 6.3+: it uses `.append(contentsOf: .init(repeating:count:))`, whose implicit
+# type can no longer be inferred. Upstream 0.0.9 still has the bug, so
+# Vendor/ZIPFoundationModern tracks a fork carrying the one-line fix, and it is
+# injected with `swift package edit`, which leaves Swift Bundler's manifest
+# untouched.
 # ==============================================================================
 install_swift_bundler() {
-    local bundler_dir="$repo_root/../swift-bundler"
-    local zip_dir="$repo_root/../ZIPFoundationModern"
+    local bundler_dir="$repo_root/Vendor/swift-bundler"
+    local zip_dir="$repo_root/Vendor/ZIPFoundationModern"
 
     if [ -x "$repo_root/swift-bundler" ]; then
         log "Swift Bundler already built"
         return
     fi
 
-    if [ ! -d "$bundler_dir" ]; then
-        log "Cloning Swift Bundler"
-        git clone -q https://github.com/moreSwift/swift-bundler "$bundler_dir"
+    if [ ! -f "$bundler_dir/Package.swift" ] || [ ! -f "$zip_dir/Package.swift" ]; then
+        log "Checking out Vendor submodules"
+        (cd "$repo_root" && git submodule update --init --recursive Vendor)
     fi
 
-    if [ ! -d "$zip_dir" ]; then
-        log "Patching ZIPFoundationModern for Swift 6.3+"
-        git clone -q --branch 0.0.9 https://github.com/gregcotten/ZIPFoundationModern "$zip_dir"
-        python3 - "$zip_dir" <<'PYTHON'
-import io, sys
-path = sys.argv[1] + '/Sources/ZIPFoundation/Archive+MemoryFile.swift'
-source = io.open(path, encoding='utf-8').read()
-old = 'data.append(contentsOf: .init(repeating: 0, count:'
-new = 'data.append(contentsOf: [UInt8](repeating: 0, count:'
-count = source.count(old)
-if count == 0:
-    print('  already patched, or fixed upstream')
-else:
-    io.open(path, 'w', encoding='utf-8').write(source.replace(old, new))
-    print('  patched %d occurrence(s)' % count)
-PYTHON
-    fi
+    [ -f "$bundler_dir/Package.swift" ] || die "Vendor/swift-bundler is empty; run: git submodule update --init --recursive"
 
     log "Building Swift Bundler"
     (
