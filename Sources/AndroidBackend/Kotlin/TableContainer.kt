@@ -7,38 +7,32 @@ import android.view.ViewGroup
 /**
  * `Table` on Android.
  *
- * Before this class `BackendFeatures.Tables` was unimplemented and the modifier
- * went through `@CastBackend`, which expands to `fatalError`. P23 and P26 did
- * not render a table badly -- they died at launch with
- * "'AndroidBackend' does not implement 'BackendFeatures.Tables'".
+ * Before this class `BackendFeatures.Tables` was unimplemented and the modifier went through
+ * `@CastBackend`, which expands to `fatalError`. P23 and P26 did not render a table badly -- they
+ * died at launch with "'AndroidBackend' does not implement 'BackendFeatures.Tables'".
  *
- * A grid rather than a `TableLayout`. Android's `TableLayout` sizes its columns
- * from their contents, and the layout system above this has already decided
- * every cell's size and expects the columns to be equal -- which is what
- * UIKitBackend's `TableWidget` does, and taking the same rule means the two
- * phone platforms draw the same table. A `TableLayout` would produce a
- * different geometry from the same view tree, and a screenshot that could not
- * be read against the other one.
+ * A grid rather than a `TableLayout`. Android's `TableLayout` sizes its columns from their
+ * contents, and the layout system above this has already decided every cell's size and expects the
+ * columns to be equal -- which is what UIKitBackend's `TableWidget` does, and taking the same rule
+ * means the two phone platforms draw the same table. A `TableLayout` would produce a different
+ * geometry from the same view tree, and a screenshot that could not be read against the other one.
  *
- * Headers and cells are separate lists rather than one child list with the
- * first N treated as headers, because `setColumnLabels` and `setCells` are
- * separate calls that arrive in either order, and a single list would make each
- * one need to know what the other had most recently done.
+ * Headers and cells are separate lists rather than one child list with the first N treated as
+ * headers, because `setColumnLabels` and `setCells` are separate calls that arrive in either order,
+ * and a single list would make each one need to know what the other had most recently done.
  *
  * Android 上的 `Table`。
  *
- * 在本類別存在之前，`BackendFeatures.Tables` 是未實作的，而相關 modifier 走的是 `@CastBackend`
- * ——該 macro 會展開為 `fatalError`。P23 與 P26 並不是「表格畫得不好」，而是直接在啟動時死於
- * 「'AndroidBackend' does not implement 'BackendFeatures.Tables'」。
+ * 在本類別存在之前，`BackendFeatures.Tables` 是未實作的，而相關 modifier 走的是 `@CastBackend` ——該 macro 會展開為
+ * `fatalError`。P23 與 P26 並不是「表格畫得不好」，而是直接在啟動時死於 「'AndroidBackend' does not implement
+ * 'BackendFeatures.Tables'」。
  *
- * 採用格線而非 `TableLayout`。Android 的 `TableLayout` 會依內容決定各欄寬度，而其上的版面系統早已
- * 決定了每一個 cell 的尺寸，並預期各欄等寬——那正是 UIKitBackend 的 `TableWidget` 所做的，而採用
- * 同一條規則意味著兩個手機平台會畫出同樣的表格。`TableLayout` 會從同一棵 view tree 產生不同的幾何，
- * 於是它的截圖無法與另一張對照著讀。
+ * 採用格線而非 `TableLayout`。Android 的 `TableLayout` 會依內容決定各欄寬度，而其上的版面系統早已 決定了每一個 cell 的尺寸，並預期各欄等寬——那正是
+ * UIKitBackend 的 `TableWidget` 所做的，而採用 同一條規則意味著兩個手機平台會畫出同樣的表格。`TableLayout` 會從同一棵 view tree
+ * 產生不同的幾何， 於是它的截圖無法與另一張對照著讀。
  *
- * header 與 cell 分成兩個清單，而不是「用單一子元件清單、把前 N 個當作 header」，因為
- * `setColumnLabels` 與 `setCells` 是兩個獨立的呼叫、抵達順序不定，而單一清單會使兩者都必須知道
- * 對方最近做了什麼。
+ * header 與 cell 分成兩個清單，而不是「用單一子元件清單、把前 N 個當作 header」，因為 `setColumnLabels` 與 `setCells`
+ * 是兩個獨立的呼叫、抵達順序不定，而單一清單會使兩者都必須知道 對方最近做了什麼。
  */
 class TableContainer(val activity: Activity) : ViewGroup(activity) {
     private val headers = mutableListOf<View>()
@@ -92,8 +86,7 @@ class TableContainer(val activity: Activity) : ViewGroup(activity) {
         val requestedWidth = layoutParams?.width ?: -1
         val requestedHeight = layoutParams?.height ?: -1
         val width =
-            if (requestedWidth >= 0) requestedWidth
-            else View.MeasureSpec.getSize(widthMeasureSpec)
+            if (requestedWidth >= 0) requestedWidth else View.MeasureSpec.getSize(widthMeasureSpec)
         val height =
             if (requestedHeight >= 0) requestedHeight
             else View.MeasureSpec.getSize(heightMeasureSpec)

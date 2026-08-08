@@ -15,52 +15,45 @@ import android.view.WindowManager
 /**
  * Keeps a `windowLevel(.floating)` window on screen after the activity stops.
  *
- * **The overlay window was never the hard part.** Three things were tried
- * before this, and the third is why the service exists:
+ * **The overlay window was never the hard part.** Three things were tried before this, and the
+ * third is why the service exists:
  *
- * 1. `Window.setType(TYPE_APPLICATION_OVERLAY)` on the activity's own window.
- *    No effect at all -- an activity's window type is assigned when it is
- *    attached.
- * 2. Adding the content to the WindowManager as `TYPE_APPLICATION_OVERLAY`.
- *    This works: measured 2026-09-04, the view laid out at 1080x2209, attached,
- *    and drew P37's text above everything -- until the activity stopped, at
- *    which point `dumpsys` reported `Surface: shown=false mLastHidden=true`
- *    with the view still VISIBLE and HAS_DRAWN, and the process listed as
- *    `prev /LAST`.
- * 3. The same through `applicationContext`'s WindowManager, in case the window
- *    was following the activity's token. Identical result. So it follows the
- *    *process* state, not the token.
+ * 1. `Window.setType(TYPE_APPLICATION_OVERLAY)` on the activity's own window. No effect at all --
+ *    an activity's window type is assigned when it is attached.
+ * 2. Adding the content to the WindowManager as `TYPE_APPLICATION_OVERLAY`. This works: measured
+ *    2026-09-04, the view laid out at 1080x2209, attached, and drew P37's text above everything --
+ *    until the activity stopped, at which point `dumpsys` reported `Surface: shown=false
+ *    mLastHidden=true` with the view still VISIBLE and HAS_DRAWN, and the process listed as `prev
+ *    /LAST`.
+ * 3. The same through `applicationContext`'s WindowManager, in case the window was following the
+ *    activity's token. Identical result. So it follows the *process* state, not the token.
  *
- * A foreground service is what keeps a process out of the cached state. That is
- * the whole of what this class is for; it draws nothing itself.
+ * A foreground service is what keeps a process out of the cached state. That is the whole of what
+ * this class is for; it draws nothing itself.
  *
- * **The notification is not optional and is not decoration.** A foreground
- * service must post one within a few seconds or the system kills the process,
- * and from API 34 it must also declare a `foregroundServiceType`. So an app
- * that floats on Android shows a notification. That is Android's price for the
- * feature rather than a choice made here, and it is why `.floating` is
- * expensive enough that `WindowLevel`'s own documentation says so.
+ * **The notification is not optional and is not decoration.** A foreground service must post one
+ * within a few seconds or the system kills the process, and from API 34 it must also declare a
+ * `foregroundServiceType`. So an app that floats on Android shows a notification. That is Android's
+ * price for the feature rather than a choice made here, and it is why `.floating` is expensive
+ * enough that `WindowLevel`'s own documentation says so.
  *
  * 讓一個 `windowLevel(.floating)` 的視窗在 activity 停止之後仍留在畫面上。
  *
  * **難的從來不是那個 overlay 視窗。** 在此之前試過三件事，而第三件正是本類別存在的理由：
  *
- * 1. 在 activity 自己的視窗上呼叫 `Window.setType(TYPE_APPLICATION_OVERLAY)`。毫無作用
- *    ——activity 的視窗型別是在它被 attach 時指派的。
- * 2. 把內容以 `TYPE_APPLICATION_OVERLAY` 加入 WindowManager。這是可行的：2026-09-04 實測，該 view
- *    以 1080x2209 完成佈局、已 attach，並把 P37 的文字畫在一切之上——直到 activity 停止為止；那一刻
- *    `dumpsys` 回報 `Surface: shown=false mLastHidden=true`，而該 view 仍是 VISIBLE 且 HAS_DRAWN，
- *    行程則被列為 `prev /LAST`。
+ * 1. 在 activity 自己的視窗上呼叫 `Window.setType(TYPE_APPLICATION_OVERLAY)`。毫無作用 ——activity 的視窗型別是在它被
+ *    attach 時指派的。
+ * 2. 把內容以 `TYPE_APPLICATION_OVERLAY` 加入 WindowManager。這是可行的：2026-09-04 實測，該 view 以 1080x2209 完成佈局、已
+ *    attach，並把 P37 的文字畫在一切之上——直到 activity 停止為止；那一刻 `dumpsys` 回報 `Surface: shown=false
+ *    mLastHidden=true`，而該 view 仍是 VISIBLE 且 HAS_DRAWN， 行程則被列為 `prev /LAST`。
  * 3. 同樣的做法，但改用 `applicationContext` 的 WindowManager，以防該視窗是在跟隨 activity 的
  *    token。結果完全相同。因此它跟隨的是**行程**狀態，不是 token。
  *
- * 而讓一個行程不進入 cached 狀態的東西，就是 foreground service。那就是本類別的全部用途；它自己
- * 不繪製任何東西。
+ * 而讓一個行程不進入 cached 狀態的東西，就是 foreground service。那就是本類別的全部用途；它自己 不繪製任何東西。
  *
- * **那則通知不是選配，也不是裝飾。** foreground service 必須在數秒內發出一則通知，否則系統會終結
- * 該行程；而自 API 34 起，它還必須宣告 `foregroundServiceType`。因此一支在 Android 上浮動的 app
- * 會顯示一則通知。那是 Android 對這項功能的定價，而非此處所做的選擇——也正是為什麼 `.floating`
- * 昂貴到 `WindowLevel` 自己的文件要特別說明。
+ * **那則通知不是選配，也不是裝飾。** foreground service 必須在數秒內發出一則通知，否則系統會終結 該行程；而自 API 34 起，它還必須宣告
+ * `foregroundServiceType`。因此一支在 Android 上浮動的 app 會顯示一則通知。那是 Android 對這項功能的定價，而非此處所做的選擇——也正是為什麼
+ * `.floating` 昂貴到 `WindowLevel` 自己的文件要特別說明。
  */
 class OverlayService : Service() {
     companion object {
@@ -74,10 +67,9 @@ class OverlayService : Service() {
         /**
          * Hands the view to the service and starts it.
          *
-         * The view is passed through a static rather than an Intent extra
-         * because a View is not parcelable and this is the same process either
-         * way -- a service in its own process could not hold another process's
-         * view at all.
+         * The view is passed through a static rather than an Intent extra because a View is not
+         * parcelable and this is the same process either way -- a service in its own process could
+         * not hold another process's view at all.
          *
          * 透過 static 而非 Intent extra 把該 view 交給 service，因為 View 並非 parcelable，
          * 而兩者本來就在同一個行程中——一個位於自身行程中的 service，根本不可能持有另一個行程的 view。
@@ -139,9 +131,7 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
-        attached?.let { view ->
-            getSystemService(WindowManager::class.java).removeView(view)
-        }
+        attached?.let { view -> getSystemService(WindowManager::class.java).removeView(view) }
         attached = null
         super.onDestroy()
     }

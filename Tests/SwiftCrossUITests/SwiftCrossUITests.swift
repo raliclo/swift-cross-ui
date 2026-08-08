@@ -24,7 +24,7 @@ struct CounterStack: View {
 
     var body: some View {
         VStack {
-            Button("Decrease") { count -= 1 }
+            Text("Decrease")
             Text("Count: 1")
             Button("Increase") { count += 1 }
         }

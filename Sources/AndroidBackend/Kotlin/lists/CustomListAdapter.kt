@@ -14,40 +14,32 @@ class CustomListAdapter : BaseAdapter() {
         /**
          * The highlight a selected row wears.
          *
-         * `AbsListView` calls `setActivated(true)` on a checked row's view when
-         * that view is not `Checkable`, and these views are plain containers, so
-         * the flag arrived and nothing drew it: a row selected from code
-         * measured pure white, while the same row selected by a tap measured 237
-         * -- a tap is the ListView's own selector and takes a different path.
+         * `AbsListView` calls `setActivated(true)` on a checked row's view when that view is not
+         * `Checkable`, and these views are plain containers, so the flag arrived and nothing drew
+         * it: a row selected from code measured pure white, while the same row selected by a tap
+         * measured 237 -- a tap is the ListView's own selector and takes a different path.
          *
-         * The same 0x32a1a1a1 the selector uses, so a row selected from code and
-         * a row under the finger look alike rather than merely both looking
-         * selected.
+         * The same 0x32a1a1a1 the selector uses, so a row selected from code and a row under the
+         * finger look alike rather than merely both looking selected.
          *
-         * Applied as the foreground, not the background. A row's background
-         * belongs to whatever `.background()` the app put there, and taking it
-         * would make selection and styling the same property. The colour is
-         * translucent by design: a wash over the row, not a fill.
+         * Applied as the foreground, not the background. A row's background belongs to whatever
+         * `.background()` the app put there, and taking it would make selection and styling the
+         * same property. The colour is translucent by design: a wash over the row, not a fill.
          *
          * 一個被選取的列所穿戴的高亮。
          *
-         * 當某列的 view 並非 `Checkable` 時，`AbsListView` 會對它呼叫 `setActivated(true)`；而這些
-         * view 是普通容器，因此那個旗標抵達了、卻沒有任何東西把它畫出來：以程式選取的列量得純白，
-         * 而同一列以點擊選取則量得 237——點擊走的是 ListView 自己的 selector，那是另一條路徑。
+         * 當某列的 view 並非 `Checkable` 時，`AbsListView` 會對它呼叫 `setActivated(true)`；而這些 view
+         * 是普通容器，因此那個旗標抵達了、卻沒有任何東西把它畫出來：以程式選取的列量得純白， 而同一列以點擊選取則量得 237——點擊走的是 ListView 自己的
+         * selector，那是另一條路徑。
          *
-         * 採用與 selector 相同的 0x32a1a1a1，使「以程式選取的列」與「手指底下的列」看起來一樣，
-         * 而不只是兩者都看起來「像被選取了」。
+         * 採用與 selector 相同的 0x32a1a1a1，使「以程式選取的列」與「手指底下的列」看起來一樣， 而不只是兩者都看起來「像被選取了」。
          *
          * 施加於 foreground 而非 background。一列的 background 屬於 app 以 `.background()` 放在
-         * 那裡的東西，佔用它會讓「選取」與「樣式」變成同一個屬性。這個顏色刻意是半透明的：它是
-         * 覆蓋在該列之上的一層薄色，不是填充。
+         * 那裡的東西，佔用它會讓「選取」與「樣式」變成同一個屬性。這個顏色刻意是半透明的：它是 覆蓋在該列之上的一層薄色，不是填充。
          */
         private fun selectionOverlay(): StateListDrawable {
             val drawable = StateListDrawable()
-            drawable.addState(
-                intArrayOf(android.R.attr.state_activated),
-                ColorDrawable(0x32a1a1a1),
-            )
+            drawable.addState(intArrayOf(android.R.attr.state_activated), ColorDrawable(0x32a1a1a1))
             drawable.addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
             return drawable
         }

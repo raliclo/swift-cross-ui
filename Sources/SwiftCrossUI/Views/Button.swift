@@ -1,89 +1,157 @@
 /// A control that initiates an action.
-public struct Button: Sendable {
+public struct Button<Label: View> {
+    public typealias Content = TupleView1<Label>
     /// The label to show on the button.
-    @_spi(Backends) public var label: String
+    @_spi(Backends) public var label: () -> Label
     /// The action to be performed when the button is clicked.
     @_spi(Backends) public var action: @MainActor @Sendable () -> Void
     /// What the button is for, when that changes how it should look.
+    ///
+    /// Kept across upstream's move to arbitrary view labels (#590). `width` went
+    /// with that change -- `_buttonWidth` is now a frame on the label -- but
+    /// `role` is orthogonal to what the label is, and nothing about a generic
+    /// label makes a destructive button less destructive.
+    ///
+    /// 這個按鈕是做什麼用的——當它會改變外觀時。
+    ///
+    /// 在 upstream 改為任意 view label(#590)之後保留。`width` 隨那次改動一併移除
+    /// ——`_buttonWidth` 現在是套在 label 上的一個 frame——但 `role` 與「label 是什麼」正交,
+    /// 而「label 是泛型的」這件事不會讓一個破壞性按鈕變得比較不破壞性。
     @_spi(Backends) public var role: ButtonRole?
-    /// The button's forced width if provided.
-    var width: Int?
 
-    /// Creates a button that displays a custom label.
+    /// Creates a button that displays a text label.
     ///
     /// - Parameters:
     ///   - label: The label to show on the button.
     ///   - action: The action to be performed when the button is clicked.
-    public init(_ label: String, action: @escaping @MainActor @Sendable () -> Void = {}) {
+    public init(
+        _ label: String,
+        action: @escaping @MainActor @Sendable () -> Void = {}
+    ) where Label == TupleView1<Text> {
+        self.label = { TupleView1(Text(label)) }
+        self.action = action
+    }
+
+    /// Creates a button that displays a custom view as label.
+    ///
+    /// - Parameters:
+    ///   - label: The label to show on the button.
+    ///   - action: The action to be performed when the button is clicked.
+    @MainActor
+    public init (
+        action: @escaping @MainActor @Sendable () -> Void = {},
+        @ViewBuilder label: @escaping @MainActor @Sendable () -> Label
+    ) {
         self.label = label
         self.action = action
     }
 
     /// Creates a button with a role, which platforms may render differently.
     ///
-    /// - Parameters:
-    ///   - label: The label to show on the button.
-    ///   - role: What the button is for. `.destructive` marks an action that is
-    ///     hard to undo.
-    ///   - action: The action to be performed when the button is clicked.
+    /// SwiftUI spells this `Button(_:role:action:)` and this matches. Separate
+    /// from the string initialiser above rather than a defaulted parameter,
+    /// because a default would change that one's signature for no benefit.
     ///
-    /// SwiftUI spells this `Button(_:role:action:)`, and this matches. It is
-    /// separate from the initialiser above rather than a defaulted parameter
-    /// because adding a default would change the existing one's signature for
-    /// no benefit.
+    /// Constrained to a `Text` label like its sibling: a role is about what
+    /// pressing the button does, and every platform that renders one differently
+    /// does so by restyling text. A role on an arbitrary view label has no
+    /// agreed meaning, so it is not offered rather than being offered and
+    /// ignored.
     ///
-    /// 建立一個帶有 role 的按鈕，各平台可能會以不同方式繪製它。
+    /// 建立一個帶有 role 的按鈕,各平台可能會以不同方式繪製它。
     ///
-    /// SwiftUI 中寫作 `Button(_:role:action:)`，此處與之一致。之所以獨立為另一個建構式而非在原有
-    /// 建構式上加預設參數，是因為加上預設值會改動既有建構式的簽名，卻換不到任何好處。
+    /// SwiftUI 中寫作 `Button(_:role:action:)`,此處與之一致。之所以獨立於上方的字串建構式而非加上
+    /// 預設參數,是因為預設值會改動那一個的簽名,卻換不到任何好處。
+    ///
+    /// 與其兄弟一樣限定為 `Text` label:role 講的是「按下去會做什麼」,而每一個會據此改變繪製方式的
+    /// 平台,都是透過重新設定文字樣式來做到的。role 套在任意 view label 上並沒有公認的意義,因此
+    /// 此處不提供它——而不是提供了卻忽略它。
     public init(
         _ label: String,
         role: ButtonRole?,
         action: @escaping @MainActor @Sendable () -> Void = {}
-    ) {
-        self.label = label
+    ) where Label == TupleView1<Text> {
+        self.label = { TupleView1(Text(label)) }
         self.role = role
         self.action = action
     }
 
-    /// A temporary button width solution until arbitrary labels are supported.
-    public func _buttonWidth(_ width: Int?) -> Button {
-        var button = self
-        button.width = width
-        return button
+    private struct ConstrainedButtonLabel<ConstrainedLabel: View>: View {
+        @Environment(\.buttonPadding.x) var horizontalPadding
+
+        var content: ConstrainedLabel
+        var width: Int?
+
+        var body: some View {
+            content.ifLet(width) { view, width in
+                view.frame(width: Double(width - horizontalPadding))
+            }
+        }
+    }
+
+    @MainActor
+    @available(
+        *,
+        deprecated,
+        message: "Use @ViewBuilder init of Button instead and apply a frame modifier to the label."
+    )
+    public func _buttonWidth(_ width: Int?) -> Button<some View> {
+        return Button<TupleView1<ConstrainedButtonLabel<TupleView1<Label>>>>(
+            action: action,
+            label: { ConstrainedButtonLabel(content: body, width: width) }
+        )
     }
 }
 
-extension Button: View {
-    public var _asMenuItems: [MenuItem] {
-        [.button(self)]
-    }
-}
-
-extension Button: ElementaryView {
-    public func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
-        return backend.createButton()
+@MainActor
+extension Button: TypeSafeView {
+    public var body: TupleView1<Label> {
+        label()
     }
 
-    public func computeLayout<Backend: BaseAppBackend>(
+    typealias Children = TupleViewChildren1<Label>
+
+    func children<Backend: BaseAppBackend>(
+        backend: Backend,
+        snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,
+        environment: EnvironmentValues
+    ) -> Children {
+        Children(label(), backend: backend, snapshots: snapshots, environment: environment)
+    }
+
+    func asWidget<Backend: BaseAppBackend>(
+        _ children: Children,
+        backend: Backend
+    ) -> Backend.Widget {
+        backend.createButton(wrapping: children.child0.widget.into())
+    }
+
+    func computeLayout<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
+        children: Children,
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        // TODO: Implement button sizing within SwiftCrossUI so that we can move this to
-        //   commit. Relying on the backend for button sizing also makes the Gtk 3 backend
-        //   basically impossible to implement correctly, hence the
-        //   `finalContentSize != contentSize` check in WindowGroupNode to catch any weird
-        //   behaviour. Without that extra safety net logic, buttons all end up label-less
-        //   whenever the window grows due to a view containing buttons appearing. Not sure
-        //   why all buttons lose their labels (until you click off the window, forcing it to
-        //   refresh), but the reason Gtk 3 doesn't like it is that the window gets set smaller
-        //   than its content I think.
-        //   See: https://github.com/moreSwift/swift-cross-ui/blob/27f50579c52e79323c3c368512d37e95af576c25/Sources/SwiftCrossUI/Scenes/WindowGroupNode.swift#L140
+        let buttonPadding = backend.buttonPadding(in: environment)
+        let childEnvironment = backend.computeButtonLabelEnvironment(from: environment)
+
+        var childProposal = proposedSize
+        if let proposedWidth = proposedSize.width {
+            childProposal.width = max(proposedWidth - Double(buttonPadding.x), 0)
+        }
+        if let proposedHeight = proposedSize.height {
+            childProposal.height = max(proposedHeight - Double(buttonPadding.y), 0)
+        }
+
+        let childResult = children.child0.computeLayout(
+            with: body.view0,
+            proposedSize: childProposal,
+            environment: childEnvironment
+        )
+
         backend.updateButton(
             widget,
-            label: label,
             // The role rides in on the environment rather than as a parameter,
             // so that adding it does not change `updateButton`'s signature and
             // break every backend at once. Written unconditionally, including
@@ -95,21 +163,32 @@ extension Button: ElementaryView {
             environment: environment.with(\.buttonRole, role),
             action: action
         )
-        let naturalSize = backend.naturalSize(of: widget)
+
+        // Buttons should always be set to label size + padding.
+        // The backend representation of a button is expected not to have a minSize.
         let size = SIMD2(
-            width ?? naturalSize.x,
-            naturalSize.y
+            Int(childResult.size.width) + buttonPadding.x,
+            Int(childResult.size.height) + buttonPadding.y
         )
 
         return ViewLayoutResult.leafView(size: ViewSize(size))
     }
 
-    public func commit<Backend: BaseAppBackend>(
+    func commit<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
+        children: Children,
         layout: ViewLayoutResult,
         environment: EnvironmentValues,
         backend: Backend
     ) {
+        _ = children.child0.commit()
         backend.setSize(of: widget, to: layout.size.vector)
+    }
+}
+
+@MainActor
+extension Button where Label == TupleView1<Text> {
+    public var _asMenuItems: [MenuItem] {
+        [.button(self)]
     }
 }

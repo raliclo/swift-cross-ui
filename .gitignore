@@ -144,3 +144,4 @@ p*-startup.log
 actionfile-replay.log
 splitview-debug.log
 decoration-debug.log
+._*

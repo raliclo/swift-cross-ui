@@ -266,7 +266,7 @@ final class DatePickerWidget: WrapperWidget<UIDatePicker> {
 }
 
 extension UIKitBackend {
-    public func createButton() -> Widget {
+    public func createSimpleButton() -> Widget {
         ButtonWidget()
     }
 
@@ -279,7 +279,7 @@ extension UIKitBackend {
     ///
     /// `ToggleWidget` 同樣是 `WrapperWidget<UIButton>`，但並非 `ButtonWidget`；而下方的標題處理
     /// 邏輯——尤其是 tvOS 那一支——值得只存在一處，而非兩處。
-    func setButtonTitle(
+    func setSimpleButtonTitle(
         _ buttonWidget: ButtonWidget,
         _ label: String,
         environment: EnvironmentValues
@@ -314,7 +314,7 @@ extension UIKitBackend {
         #endif
     }
 
-    public func updateButton(
+    public func updateSimpleButton(
         _ button: Widget,
         label: String,
         environment: EnvironmentValues,
@@ -322,7 +322,7 @@ extension UIKitBackend {
     ) {
         let buttonWidget = button as! ButtonWidget
 
-        setButtonTitle(buttonWidget, label, environment: environment)
+        setSimpleButtonTitle(buttonWidget, label, environment: environment)
 
         buttonWidget.onTap = action
         buttonWidget.child.isEnabled = environment.isEnabled

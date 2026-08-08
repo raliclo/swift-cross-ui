@@ -13,79 +13,66 @@ import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 
 /**
- * The two ways to look at content that does not fit the phone, and the control
- * that switches between them.
+ * The two ways to look at content that does not fit the phone, and the control that switches
+ * between them.
  *
- * This is UIKitBackend's `RootScrollHost` on Android. It was missing here, and
- * the absence did not look like an absence: the previous version wrapped the
- * content in a `HorizontalScrollView` around a `ScrollView` and added it with
- * `MATCH_PARENT` in both axes, so the content was pinned to exactly the
- * viewport and there was never anything to scroll. Both scroll views reported
- * `scrollable=false` on every app measured -- P35, P39, P41, P43 -- and a
- * 900-pixel swipe on P35 moved zero pixels. A scroll view that cannot scroll is
- * indistinguishable from no scroll view at all, which is why this went
- * unnoticed for three days.
+ * This is UIKitBackend's `RootScrollHost` on Android. It was missing here, and the absence did not
+ * look like an absence: the previous version wrapped the content in a `HorizontalScrollView` around
+ * a `ScrollView` and added it with `MATCH_PARENT` in both axes, so the content was pinned to
+ * exactly the viewport and there was never anything to scroll. Both scroll views reported
+ * `scrollable=false` on every app measured -- P35, P39, P41, P43 -- and a 900-pixel swipe on P35
+ * moved zero pixels. A scroll view that cannot scroll is indistinguishable from no scroll view at
+ * all, which is why this went unnoticed for three days.
  *
- * **actualView** lays the content out at its natural size and lets you reach the
- * overflow by scrolling. **rwdView** scales it down until the width fits. The
- * names are UIKitBackend's, deliberately: the same control on two platforms
- * should not need two vocabularies.
+ * **actualView** lays the content out at its natural size and lets you reach the overflow by
+ * scrolling. **rwdView** scales it down until the width fits. The names are UIKitBackend's,
+ * deliberately: the same control on two platforms should not need two vocabularies.
  *
- * **rwdView is a scale, not a re-layout.** A real responsive layout would
- * propose a narrower width and let every container lay itself out again; that
- * belongs to the shared layout system and would touch all five backends. This
- * applies a transform to a finished layout, and the button says `rwdView`
- * rather than `responsive` for the same reason.
+ * **rwdView is a scale, not a re-layout.** A real responsive layout would propose a narrower width
+ * and let every container lay itself out again; that belongs to the shared layout system and would
+ * touch all five backends. This applies a transform to a finished layout, and the button says
+ * `rwdView` rather than `responsive` for the same reason.
  *
  * 兩種觀看「塞不進手機的內容」的方式，以及在兩者之間切換的控制項。
  *
  * 這是 UIKitBackend 的 `RootScrollHost` 在 Android 上的對應物。此處原本沒有它，而那個缺席看起來
- * 並不像缺席：先前的版本把內容包進「`HorizontalScrollView` 包 `ScrollView`」，並以兩軸皆
- * `MATCH_PARENT` 加入，於是內容被釘死在視口大小上，永遠沒有任何東西可捲。所量測的每一支 app
- * ——P35、P39、P41、P43——兩層捲動視圖都回報 `scrollable=false`，而在 P35 上滑動 900 像素，畫面
- * 一個像素也沒有改變。一個捲不動的捲動視圖，與根本沒有捲動視圖是分辨不出來的，這正是它被忽略了
- * 三天的原因。
+ * 並不像缺席：先前的版本把內容包進「`HorizontalScrollView` 包 `ScrollView`」，並以兩軸皆 `MATCH_PARENT`
+ * 加入，於是內容被釘死在視口大小上，永遠沒有任何東西可捲。所量測的每一支 app ——P35、P39、P41、P43——兩層捲動視圖都回報 `scrollable=false`，而在 P35
+ * 上滑動 900 像素，畫面 一個像素也沒有改變。一個捲不動的捲動視圖，與根本沒有捲動視圖是分辨不出來的，這正是它被忽略了 三天的原因。
  *
- * **actualView** 讓內容以自然尺寸排版，並以捲動觸及溢出的部分。**rwdView** 則將其縮小直到寬度
- * 塞得下。名稱刻意沿用 UIKitBackend 的：同一個控制項在兩個平台上不應該需要兩套詞彙。
+ * **actualView** 讓內容以自然尺寸排版，並以捲動觸及溢出的部分。**rwdView** 則將其縮小直到寬度 塞得下。名稱刻意沿用 UIKitBackend
+ * 的：同一個控制項在兩個平台上不應該需要兩套詞彙。
  *
- * **rwdView 是縮放，不是重新排版。** 真正的響應式版面會重新提出一個較窄的寬度、讓每個容器重新
- * 排版，那屬於共用版面系統的工作，會同時影響五個 backend。此處是對「已完成的版面」施加變換——
- * 這也是該按鈕標示為 `rwdView` 而非 `responsive` 的理由。
+ * **rwdView 是縮放，不是重新排版。** 真正的響應式版面會重新提出一個較窄的寬度、讓每個容器重新 排版，那屬於共用版面系統的工作，會同時影響五個
+ * backend。此處是對「已完成的版面」施加變換—— 這也是該按鈕標示為 `rwdView` 而非 `responsive` 的理由。
  */
 class RootScrollHost(context: Context) : FrameLayout(context) {
     companion object {
         const val MODE_ACTUAL_VIEW = 0
         const val MODE_RWD_VIEW = 1
 
-        fun titleFor(mode: Int): String =
-            if (mode == MODE_RWD_VIEW) "rwdView" else "actualView"
+        fun titleFor(mode: Int): String = if (mode == MODE_RWD_VIEW) "rwdView" else "actualView"
 
         /**
-         * The full bounding box of a view and its descendants, negative
-         * coordinates included.
+         * The full bounding box of a view and its descendants, negative coordinates included.
          *
-         * The negative half is the point. `CustomContainer.onLayout` places
-         * each child at the `x` and `y` SwiftCrossUI assigned it, and a view
-         * wider than its container is centred, so half of the overflow is at
-         * negative x. A version that took the largest `x + width` would report
-         * the container's own width and find nothing to scroll to -- which is
-         * exactly what UIKitBackend measured on P10 before its own version was
-         * corrected.
+         * The negative half is the point. `CustomContainer.onLayout` places each child at the `x`
+         * and `y` SwiftCrossUI assigned it, and a view wider than its container is centred, so half
+         * of the overflow is at negative x. A version that took the largest `x + width` would
+         * report the container's own width and find nothing to scroll to -- which is exactly what
+         * UIKitBackend measured on P10 before its own version was corrected.
          *
-         * `x` and `y` rather than `left` and `top`, because
-         * `AndroidBackend+GeometricEffects` moves views with `translationX` and
-         * `translationY` and only `x`/`y` include that.
+         * `x` and `y` rather than `left` and `top`, because `AndroidBackend+GeometricEffects` moves
+         * views with `translationX` and `translationY` and only `x`/`y` include that.
          *
          * 一個 view 及其所有後代的完整外接矩形，包含負座標。
          *
-         * 負的那一半正是重點。`CustomContainer.onLayout` 會把每個子元件放在 SwiftCrossUI 指派給它的
-         * `x` 與 `y` 上，而比容器寬的 view 是置中的，因此有一半的溢出位於負 x。若某個版本取的是最大的
-         * `x + width`，它回報的就會是容器自身的寬度，並且找不到任何可捲之處——那正是 UIKitBackend 在
+         * 負的那一半正是重點。`CustomContainer.onLayout` 會把每個子元件放在 SwiftCrossUI 指派給它的 `x` 與 `y` 上，而比容器寬的 view
+         * 是置中的，因此有一半的溢出位於負 x。若某個版本取的是最大的 `x + width`，它回報的就會是容器自身的寬度，並且找不到任何可捲之處——那正是 UIKitBackend 在
          * 修正它自己的版本之前，於 P10 上量到的結果。
          *
-         * 使用 `x`/`y` 而非 `left`/`top`，因為 `AndroidBackend+GeometricEffects` 是以
-         * `translationX` 與 `translationY` 移動 view 的，而只有 `x`/`y` 會計入那個位移。
+         * 使用 `x`/`y` 而非 `left`/`top`，因為 `AndroidBackend+GeometricEffects` 是以 `translationX` 與
+         * `translationY` 移動 view 的，而只有 `x`/`y` 會計入那個位移。
          */
         fun contentBounds(view: View, into: Rect) {
             into.set(0, 0, view.width, view.height)
@@ -140,10 +127,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
-        addView(
-            horizontal,
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
-        )
+        addView(horizontal, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private var positioned = false
@@ -206,23 +190,20 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
     /**
      * Adds the floating control.
      *
-     * Called only when `DebugFeatures.allowsRootScrollControl` is true; the
-     * decision is Swift's, because that flag is Swift's. A shipped application
-     * does not float a control over its own content -- that is the difference
-     * between a test affordance and a feature.
+     * Called only when `DebugFeatures.allowsRootScrollControl` is true; the decision is Swift's,
+     * because that flag is Swift's. A shipped application does not float a control over its own
+     * content -- that is the difference between a test affordance and a feature.
      *
-     * Top left by default, and draggable from there. It sits over the content
-     * wherever it starts, so the default is a choice about which corner is
-     * least likely to matter rather than one that avoids the problem.
+     * Top left by default, and draggable from there. It sits over the content wherever it starts,
+     * so the default is a choice about which corner is least likely to matter rather than one that
+     * avoids the problem.
      *
      * 加入那個浮動控制項。
      *
-     * 僅在 `DebugFeatures.allowsRootScrollControl` 為真時呼叫；該判斷屬於 Swift 那一側，因為那個
-     * 旗標是 Swift 的。已出貨的應用程式不會在自己的內容之上浮著一個控制項——那正是「測試用輔助」與
-     * 「產品功能」之間的分別。
+     * 僅在 `DebugFeatures.allowsRootScrollControl` 為真時呼叫；該判斷屬於 Swift 那一側，因為那個 旗標是 Swift
+     * 的。已出貨的應用程式不會在自己的內容之上浮著一個控制項——那正是「測試用輔助」與 「產品功能」之間的分別。
      *
-     * 預設位於左上角，並可自該處拖曳。無論從哪裡開始，它都會蓋在內容之上；因此這個預設值是「選一個
-     * 最不可能造成妨礙的角落」，而不是一個能迴避該問題的位置。
+     * 預設位於左上角，並可自該處拖曳。無論從哪裡開始，它都會蓋在內容之上；因此這個預設值是「選一個 最不可能造成妨礙的角落」，而不是一個能迴避該問題的位置。
      */
     fun installModeButton(activity: Activity) {
         if (button != null) return
@@ -274,20 +255,18 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
 }
 
 /**
- * The view the content actually sits in, sized to the content rather than to
- * the window.
+ * The view the content actually sits in, sized to the content rather than to the window.
  *
- * Separate from `RootScrollHost` because a `ScrollView` measures its one child
- * and then scrolls it; the child has to report the size of the *content*, and
- * the content's own root reports the size of the *window* -- SwiftCrossUI gives
- * it `MATCH_PARENT` so that `size(ofWindow:)` and the layout agree. This view
- * sits between them and reports the union.
+ * Separate from `RootScrollHost` because a `ScrollView` measures its one child and then scrolls it;
+ * the child has to report the size of the *content*, and the content's own root reports the size of
+ * the *window* -- SwiftCrossUI gives it `MATCH_PARENT` so that `size(ofWindow:)` and the layout
+ * agree. This view sits between them and reports the union.
  *
  * 內容實際所在的那個 view，其尺寸取自內容而非視窗。
  *
  * 之所以與 `RootScrollHost` 分開，是因為 `ScrollView` 會量測它唯一的子元件然後捲動它；那個子元件
- * 必須回報**內容**的尺寸，而內容自己的根回報的是**視窗**的尺寸——SwiftCrossUI 給了它
- * `MATCH_PARENT`，好讓 `size(ofWindow:)` 與版面一致。本 view 位於兩者之間，回報兩者的聯集。
+ * 必須回報**內容**的尺寸，而內容自己的根回報的是**視窗**的尺寸——SwiftCrossUI 給了它 `MATCH_PARENT`，好讓 `size(ofWindow:)` 與版面一致。本
+ * view 位於兩者之間，回報兩者的聯集。
  */
 private class Stage(context: Context) : ViewGroup(context) {
     init {
@@ -389,18 +368,17 @@ private class Stage(context: Context) : ViewGroup(context) {
         RootScrollHost.contentBounds(child, box)
 
         scale =
-            if (mode == RootScrollHost.MODE_RWD_VIEW && box.width() > viewportWidth &&
-                viewportWidth > 0
+            if (
+                mode == RootScrollHost.MODE_RWD_VIEW &&
+                    box.width() > viewportWidth &&
+                    viewportWidth > 0
             ) {
                 viewportWidth.toFloat() / box.width().toFloat()
             } else {
                 1f
             }
 
-        setMeasuredDimension(
-            (box.width() * scale).toInt(),
-            (box.height() * scale).toInt(),
-        )
+        setMeasuredDimension((box.width() * scale).toInt(), (box.height() * scale).toInt())
         // Logged when it changes, not on every measure pass. `onMeasure` runs
         // several times per layout -- fillViewport alone causes a second pass --
         // and a line per pass buries whatever else the app is saying. What this
@@ -456,16 +434,13 @@ private class Stage(context: Context) : ViewGroup(context) {
 }
 
 /**
- * The floating control that switches between the two, draggable so it can be
- * moved off whatever it is covering.
+ * The floating control that switches between the two, draggable so it can be moved off whatever it
+ * is covering.
  *
  * 在兩者之間切換的浮動控制項，可拖曳，以便從它所遮蓋的東西上移開。
  */
-private class ViewModeButton(
-    context: Context,
-    initial: Int,
-    private val onToggle: (Int) -> Unit,
-) : Button(context) {
+private class ViewModeButton(context: Context, initial: Int, private val onToggle: (Int) -> Unit) :
+    Button(context) {
     private var mode = initial
     private var downX = 0f
     private var downY = 0f
@@ -516,10 +491,16 @@ private class ViewModeButton(
                 // Clamped to the parent. A button dragged past the edge cannot
                 // be dragged back, and it is the only way to change the mode.
                 // 夾在父容器範圍內。被拖出邊界的按鈕就拖不回來了，而它是改變模式的唯一途徑。
-                translationX = (translationX + dx)
-                    .coerceIn(0f, (parent.width - width - left).toFloat().coerceAtLeast(0f))
-                translationY = (translationY + dy)
-                    .coerceIn(0f, (parent.height - height - top).toFloat().coerceAtLeast(0f))
+                translationX =
+                    (translationX + dx).coerceIn(
+                        0f,
+                        (parent.width - width - left).toFloat().coerceAtLeast(0f),
+                    )
+                translationY =
+                    (translationY + dy).coerceIn(
+                        0f,
+                        (parent.height - height - top).toFloat().coerceAtLeast(0f),
+                    )
                 downX = event.rawX
                 downY = event.rawY
                 return true

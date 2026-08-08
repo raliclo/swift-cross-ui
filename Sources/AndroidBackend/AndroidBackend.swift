@@ -758,7 +758,7 @@ public final class AndroidBackend: BaseAppBackend {
         points < 0 ? Int32(points) : Int32(Float(points) * density)
     }
 
-    public func createButton() -> Widget {
+    public func createSimpleButton() -> Widget {
         AndroidKit.Button(Self.activity, environment: Self.env)
     }
 
@@ -768,7 +768,7 @@ public final class AndroidBackend: BaseAppBackend {
         return jstring.as(CharSequence.self)!
     }
 
-    public func updateButton(
+    public func updateSimpleButton(
         _ button: Widget,
         label: String,
         environment: EnvironmentValues,

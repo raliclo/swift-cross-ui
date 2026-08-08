@@ -1320,7 +1320,7 @@ public final class WinUIBackend:
         environment.apply(to: block)
     }
 
-    public func createButton() -> Widget {
+    public func createSimpleButton() -> Widget {
         let button = CustomButton()
         button.content = button.label
         button.click.addHandler { [weak internalState] _, _ in
@@ -1330,7 +1330,7 @@ public final class WinUIBackend:
         return button
     }
 
-    public func updateButton(
+    public func updateSimpleButton(
         _ button: Widget,
         label: String,
         environment: EnvironmentValues,

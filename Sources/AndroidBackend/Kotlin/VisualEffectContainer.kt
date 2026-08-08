@@ -110,11 +110,12 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
         grayscale: Float,
         hueRotationDegrees: Float,
     ): ColorMatrix? {
-        if (saturation == 1f &&
-            brightness == 0f &&
-            contrast == 1f &&
-            grayscale == 0f &&
-            hueRotationDegrees == 0f
+        if (
+            saturation == 1f &&
+                brightness == 0f &&
+                contrast == 1f &&
+                grayscale == 0f &&
+                hueRotationDegrees == 0f
         ) {
             return null
         }
@@ -148,10 +149,26 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
             result.postConcat(
                 ColorMatrix(
                     floatArrayOf(
-                        contrast, 0f, 0f, 0f, shift,
-                        0f, contrast, 0f, 0f, shift,
-                        0f, 0f, contrast, 0f, shift,
-                        0f, 0f, 0f, 1f, 0f,
+                        contrast,
+                        0f,
+                        0f,
+                        0f,
+                        shift,
+                        0f,
+                        contrast,
+                        0f,
+                        0f,
+                        shift,
+                        0f,
+                        0f,
+                        contrast,
+                        0f,
+                        shift,
+                        0f,
+                        0f,
+                        0f,
+                        1f,
+                        0f,
                     )
                 )
             )
@@ -167,10 +184,26 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
             result.postConcat(
                 ColorMatrix(
                     floatArrayOf(
-                        1f, 0f, 0f, 0f, offset,
-                        0f, 1f, 0f, 0f, offset,
-                        0f, 0f, 1f, 0f, offset,
-                        0f, 0f, 0f, 1f, 0f,
+                        1f,
+                        0f,
+                        0f,
+                        0f,
+                        offset,
+                        0f,
+                        1f,
+                        0f,
+                        0f,
+                        offset,
+                        0f,
+                        0f,
+                        1f,
+                        0f,
+                        offset,
+                        0f,
+                        0f,
+                        0f,
+                        1f,
+                        0f,
                     )
                 )
             )
@@ -200,16 +233,23 @@ class VisualEffectContainer(activity: Activity) : FrameLayout(activity) {
                 lumR + cos * (1 - lumR) - sin * lumR,
                 lumG - cos * lumG - sin * lumG,
                 lumB - cos * lumB + sin * (1 - lumB),
-                0f, 0f,
+                0f,
+                0f,
                 lumR - cos * lumR + sin * 0.143f,
                 lumG + cos * (1 - lumG) + sin * 0.140f,
                 lumB - cos * lumB - sin * 0.283f,
-                0f, 0f,
+                0f,
+                0f,
                 lumR - cos * lumR - sin * (1 - lumR),
                 lumG - cos * lumG + sin * lumG,
                 lumB + cos * (1 - lumB) + sin * lumB,
-                0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
+                0f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
             )
         )
     }

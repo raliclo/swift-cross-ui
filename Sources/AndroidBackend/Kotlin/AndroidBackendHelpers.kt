@@ -274,8 +274,7 @@ class AndroidBackendHelpers {
     // 資源——而它無法編譯，因為那是框架的私有資源。此處寫下它的名字，以免下一個人再花一次建置去
     // 發現這件事。
     fun setButtonColorScheme(button: android.widget.Button, dark: Boolean) {
-        val resource =
-            if (dark) R.color.system_neutral1_700 else R.color.system_neutral1_100
+        val resource = if (dark) R.color.system_neutral1_700 else R.color.system_neutral1_100
         button.backgroundTintList =
             android.content.res.ColorStateList.valueOf(button.context.getColor(resource))
     }
@@ -325,8 +324,7 @@ class AndroidBackendHelpers {
         }
 
         val content =
-            activity.findViewById<android.view.ViewGroup>(android.R.id.content)
-                ?: return false
+            activity.findViewById<android.view.ViewGroup>(android.R.id.content) ?: return false
         val child = content.getChildAt(0) ?: return false
         return OverlayService.start(activity, child)
     }

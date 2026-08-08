@@ -60,11 +60,7 @@ class GeometricEffectContainer(activity: Activity) : FrameLayout(activity) {
         translateY: Float,
     ) {
         matrix.setValues(
-            floatArrayOf(
-                scaleX, skewX, translateX,
-                skewY, scaleY, translateY,
-                0f, 0f, 1f,
-            )
+            floatArrayOf(scaleX, skewX, translateX, skewY, scaleY, translateY, 0f, 0f, 1f)
         )
         animationMatrix = matrix
 

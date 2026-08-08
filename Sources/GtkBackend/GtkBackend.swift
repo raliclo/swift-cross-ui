@@ -232,6 +232,8 @@ public final class GtkBackend:
 
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
+    var borderedButtonPadding: SIMD2<Int>?
+
     private struct LogLocation: Hashable, Equatable {
         let file: String
         let line: Int
@@ -3065,11 +3067,11 @@ public final class GtkBackend:
 
     // MARK: Controls
 
-    public func createButton() -> Widget {
+    public func createSimpleButton() -> Widget {
         return Button()
     }
 
-    public func updateButton(
+    public func updateSimpleButton(
         _ button: Widget,
         label: String,
         environment: EnvironmentValues,
@@ -4597,6 +4599,15 @@ public final class GtkBackend:
         }
 
         return properties
+    }
+
+    static func controlBackgroundColor(for environment: borrowing EnvironmentValues) -> Gtk.Color {
+        switch environment.colorScheme {
+            case .light:
+                Color(0.9, 0.9, 0.9, 1)
+            case .dark:
+                Color(1, 1, 1, 0.1)
+        }
     }
 
     public func createSheet(content: Widget) -> Sheet {

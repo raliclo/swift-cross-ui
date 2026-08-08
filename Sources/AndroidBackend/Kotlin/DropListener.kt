@@ -8,36 +8,31 @@ import android.view.View
 /**
  * `onDrop(of:isTargeted:perform:)` on Android.
  *
- * `BackendFeatures.DragAndDrop` has a default implementation that returns the
- * child unwrapped and ignores the request, so a backend can conform without
- * accepting anything. Conforming that way would have stopped P25 dying at
- * launch and left it unable to receive a drop, which is the shape this
- * repository's rules exist to prevent: the report would say "supported" and
- * nothing would arrive.
+ * `BackendFeatures.DragAndDrop` has a default implementation that returns the child unwrapped and
+ * ignores the request, so a backend can conform without accepting anything. Conforming that way
+ * would have stopped P25 dying at launch and left it unable to receive a drop, which is the shape
+ * this repository's rules exist to prevent: the report would say "supported" and nothing would
+ * arrive.
  *
- * **The return value of `ACTION_DRAG_STARTED` is the whole contract.** A view
- * that returns false there is not offered the drag again -- no ENTERED, no
- * DROP -- so the accepted-type check has to happen at the start of the gesture
- * and not at the end of it. `acceptedTypes` is set from Swift before the
- * listener is attached for that reason.
+ * **The return value of `ACTION_DRAG_STARTED` is the whole contract.** A view that returns false
+ * there is not offered the drag again -- no ENTERED, no DROP -- so the accepted-type check has to
+ * happen at the start of the gesture and not at the end of it. `acceptedTypes` is set from Swift
+ * before the listener is attached for that reason.
  *
- * `requestDragAndDropPermissions` on drop, because a URI from another app is
- * not readable without it. Skipping it produces the failure that looks like an
- * empty drop: the item arrives, its URI is present, and opening it fails.
+ * `requestDragAndDropPermissions` on drop, because a URI from another app is not readable without
+ * it. Skipping it produces the failure that looks like an empty drop: the item arrives, its URI is
+ * present, and opening it fails.
  *
  * Android 上的 `onDrop(of:isTargeted:perform:)`。
  *
- * `BackendFeatures.DragAndDrop` 具備一個預設實作：它原封不動地回傳子元件並忽略請求，因此一個
- * backend 可以在「什麼都不接受」的情況下宣稱符合該 conformance。以那種方式符合，確實能讓 P25 不再
- * 在啟動時死掉，卻會讓它無法接收任何 drop——而那正是本倉庫的規則所要防止的形狀：報告會寫著
- * 「已支援」，而什麼都不會抵達。
+ * `BackendFeatures.DragAndDrop` 具備一個預設實作：它原封不動地回傳子元件並忽略請求，因此一個 backend 可以在「什麼都不接受」的情況下宣稱符合該
+ * conformance。以那種方式符合，確實能讓 P25 不再 在啟動時死掉，卻會讓它無法接收任何 drop——而那正是本倉庫的規則所要防止的形狀：報告會寫著 「已支援」，而什麼都不會抵達。
  *
- * **`ACTION_DRAG_STARTED` 的回傳值就是整份契約。** 在該事件回傳 false 的 view 不會再被提供這次
- * 拖曳——沒有 ENTERED、沒有 DROP——因此「接受哪些型別」的檢查必須發生在手勢的**開始**，而不是
- * 結束。`acceptedTypes` 之所以在附加此 listener 之前就由 Swift 設定好，原因即在此。
+ * **`ACTION_DRAG_STARTED` 的回傳值就是整份契約。** 在該事件回傳 false 的 view 不會再被提供這次 拖曳——沒有 ENTERED、沒有
+ * DROP——因此「接受哪些型別」的檢查必須發生在手勢的**開始**，而不是 結束。`acceptedTypes` 之所以在附加此 listener 之前就由 Swift 設定好，原因即在此。
  *
- * drop 時呼叫 `requestDragAndDropPermissions`，因為來自其他 app 的 URI 若不如此便無法讀取。
- * 略過它會產生一種「看起來像空白 drop」的失敗：項目抵達了、它的 URI 也在，然後開啟失敗。
+ * drop 時呼叫 `requestDragAndDropPermissions`，因為來自其他 app 的 URI 若不如此便無法讀取。 略過它會產生一種「看起來像空白
+ * drop」的失敗：項目抵達了、它的 URI 也在，然後開啟失敗。
  */
 class DropListener(val activity: Activity) : View.OnDragListener {
     var hoverAction: SwiftAction? = null
