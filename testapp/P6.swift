@@ -1657,7 +1657,17 @@ final class P6DecoderSession: @unchecked Sendable {
         outputHandle.readabilityHandler = { handle in
             if handle.availableData.isEmpty {
                 handle.readabilityHandler = nil
-                try? handle.close()
+                // Closing synchronously here would call FileHandle.close(),
+                // which dispatches a barrier sync onto this same handle's
+                // internal source queue -- but we're currently running on
+                // that queue, inside its own readability callback. That
+                // self-sync is a deadlock; dispatch detects it and traps
+                // (observed as an illegal instruction in dispatch.dll on
+                // Windows) instead of actually hanging. Close from a
+                // different queue so it isn't a same-queue sync.
+                DispatchQueue.global().async {
+                    try? handle.close()
+                }
             }
         }
 

@@ -374,6 +374,8 @@ Verification status:
 
 - The previously reported A/V desynchronization after timeline seeking is confirmed resolved with the supplied WebM sample. At a requested 00:50 seek, default ffplay demuxer seeking started audio near 46.05 seconds, while `-seek2any 1` starts it near 50.01 seconds. The visible subtitle and spoken phrase around that point are both `卻看我是祂的孩子`.
 - The confirmation covers normal playback and timeline seeking without `--debug`. Extended 4K playback at every speed and Frame Drop combination remains a separate stress-test scenario rather than a confirmed regression.
+- 2026-08-11: fixed a reproducible Windows-only crash (exception `0xc000001d`, illegal instruction in `dispatch.dll`) that occurred at first-frame publish, most reliably when a single-frame seek immediately terminates the decoder session. Root-caused via a `cdb` crash-dump stack trace to `P6DecoderSession.terminate()` closing `outputHandle` synchronously from inside its own `readabilityHandler` callback, a same-queue `dispatch_sync` self-deadlock that `dispatch.dll` traps instead of hanging. Fixed by moving the close onto a different queue (`DispatchQueue.global().async`). Confirmed fixed by repeated single-frame seeks and normal playback launches with no further crash or new crash dump.
+- 2026-08-11: normal playback at default settings (30 FPS, Frame Drop off) was observed dropping approximately 17 frames/sec on Windows. Not yet root-caused; tracked as a separate open item from the crash fix above.
 
 RSS stress record:
 

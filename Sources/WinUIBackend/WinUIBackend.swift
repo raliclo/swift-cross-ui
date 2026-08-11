@@ -1359,7 +1359,13 @@ public final class WinUIBackend:
     ) {
         let imageView = imageView as! WinUI.Image
         let bitmap = WriteableBitmap(Int32(width), Int32(height))
-        let buffer = try! bitmap.pixelBuffer.buffer!
+        guard let buffer = try? bitmap.pixelBuffer.buffer else {
+            // This used to be `try! bitmap.pixelBuffer.buffer!`, which crashed
+            // with no diagnostic when it failed. Skip the frame instead so a
+            // failure here is visible (via the console) rather than fatal.
+            print("WinUIBackend: WriteableBitmap.pixelBuffer.buffer unavailable, skipping frame update")
+            return
+        }
         memcpy(buffer, rgbaData, min(Int(bitmap.pixelBuffer.length), rgbaData.count))
 
         // Convert RGBA to BGRA in-place, and apply janky transparency fix until we
