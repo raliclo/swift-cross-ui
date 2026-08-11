@@ -78,6 +78,36 @@ enum P6WindowFlags {
     /// `-calib` 會以可量測的圖樣填滿 swap chain 而非影片，單張截圖即可得知 swap
     /// chain 像素與螢幕像素的精確對應；這是 viewport 計算的迴歸檢查方式。
     static let isCalibration = CommandLine.arguments.contains("-calib")
+
+    /// `-amd` / `-nvidia` / `-both-gpu` select which GPU does what.
+    ///
+    /// `-both-gpu` decodes on the Nvidia card and presents on the display's
+    /// adapter, which is the only split that makes sense here: the swap chain
+    /// has to be composed where the display is, and decoding is the only other
+    /// stage that can move.
+    /// `-amd`／`-nvidia`／`-both-gpu` 決定哪張 GPU 負責什麼。`-both-gpu` 由 Nvidia
+    /// 解碼、由顯示器所屬的介面卡呈現，這也是此處唯一合理的分工：swap chain 必須
+    /// 在顯示器所在的介面卡上合成，而解碼是唯一能搬動的另一個階段。
+    static let isBothGPU = CommandLine.arguments.contains("-both-gpu")
+
+    static var presentationGPU: P6GPUPreference {
+        if CommandLine.arguments.contains("-no-gpu") { return .software }
+        if isBothGPU { return .display }
+        if CommandLine.arguments.contains("-nvidia") { return .nvidia }
+        if CommandLine.arguments.contains("-amd") { return .amd }
+        return .display
+    }
+
+    /// The ffmpeg hardware decoder to request, if any. Frames still come back
+    /// to system memory because they leave through a pipe, so this only moves
+    /// the decode itself off the CPU.
+    /// 要求 ffmpeg 使用的硬體解碼器（若有）。影格仍會回到系統記憶體，因為它們要
+    /// 經由管線送出，因此這只是把「解碼」本身移出 CPU。
+    static var decodeHardwareAcceleration: String? {
+        if isBothGPU || CommandLine.arguments.contains("-nvidia") { return "cuda" }
+        if CommandLine.arguments.contains("-amd") { return "d3d11va" }
+        return nil
+    }
     private static var didLogMetrics = false
 
     /// Retried on every layout pass until it takes: the backend applies its
@@ -314,9 +344,13 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
                 try panel.setSize(width: Double(width), height: Double(height))
                 try panel.attach(to: winUIElement)
                 coordinator.panel = panel
-                coordinator.surface = try P6D3D11VideoSurface(panel: panel)
+                let surface = try P6D3D11VideoSurface(
+                    panel: panel, gpu: P6WindowFlags.presentationGPU
+                )
+                coordinator.surface = surface
                 P6Diagnostics.write(
-                    "d3d11 surface: panel attached \(width)x\(height)"
+                    "d3d11 surface: panel attached \(width)x\(height), "
+                        + surface.adapterReport
                 )
             }
             guard let surface = coordinator.surface else { return }
@@ -929,7 +963,17 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     var speedSelection: String? = "1x"
 
     @SwiftCrossUI.Published
-    var fpsSelection: String? = "30"
+    /// `-fps <30|45|60>` preselects the output frame rate for unattended runs.
+    /// `-fps <30|45|60>` 可預先選定輸出影格率，供無人值守的測試使用。
+    var fpsSelection: String? = {
+        guard let index = CommandLine.arguments.firstIndex(of: "-fps"),
+              index + 1 < CommandLine.arguments.count,
+              ["30", "45", "60"].contains(CommandLine.arguments[index + 1])
+        else {
+            return "30"
+        }
+        return CommandLine.arguments[index + 1]
+    }()
 
     @SwiftCrossUI.Published
     /// `-res <substring>` preselects an output resolution, so the 1080p and 4K
@@ -1363,6 +1407,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 var frameIndex = 0
                 var playbackStartUptime: TimeInterval?
                 var didLogFirstPresent = false
+                var stageTimings = P6StageTimings()
                 var didLogPresentError = false
                 var droppedFrameCount = 0
                 var droppedFramesInSample = 0
@@ -1380,6 +1425,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                     // 不複製任何緩衝區，且因 ffmpeg 的 rgba 輸出已符合
                     // DXGI_FORMAT_R8G8B8A8_UNORM，無需像素格式轉換。
                     var zeroCopyFrameRead: Bool?
+                    let readStart = ProcessInfo.processInfo.systemUptime
                     try surfaceBox.withSurface { surface in
                         // The swap chain is created on the UI thread, so this
                         // only checks; a mismatch means the view has not caught
@@ -1403,6 +1449,9 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         }
                         zeroCopyFrameRead = didRead
                     }
+                    stageTimings.addRead(
+                        ProcessInfo.processInfo.systemUptime - readStart
+                    )
 
                     if let zeroCopyFrameRead {
                         guard zeroCopyFrameRead else {
@@ -1474,6 +1523,9 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                                         droppedPerSecond,
                                         token: token
                                     )
+                                    P6Diagnostics.write(
+                                        "dropped frames/sec \(droppedPerSecond)"
+                                    )
                                     droppedFramesInSample = 0
                                     dropRateSampleStart = now
                                 }
@@ -1517,12 +1569,15 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         // 影格已位於 GPU 記憶體，呈現只需 CopyResource 與 Present，
                         // 不再有資料回到 CPU。仍以無影像參數呼叫 acceptFrame，
                         // 讓時間軸與狀態文字持續更新。
+                        let presentStart = ProcessInfo.processInfo.systemUptime
                         surfaceBox.withSurface { surface in
                             do {
                                 try surface.present()
                                 if !didLogFirstPresent {
                                     didLogFirstPresent = true
-                                    P6Diagnostics.write("d3d11 surface: first present ok")
+                                    P6Diagnostics.write(
+                                        "d3d11 surface: first present ok"
+                                    )
                                 }
                             } catch {
                                 if !didLogPresentError {
@@ -1531,6 +1586,10 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                                 }
                             }
                         }
+                        stageTimings.addPresent(
+                            ProcessInfo.processInfo.systemUptime - presentStart
+                        )
+                        stageTimings.flushIfDue()
                         await self.acceptFrame(
                             nil,
                             rawFrame: nil,
@@ -2193,10 +2252,73 @@ final class P6ProcessErrorLog: @unchecked Sendable {
     }
 }
 
+#if os(Windows)
+/// A Win32 pipe with a large buffer whose read end stays available as a raw
+/// `HANDLE`.
+///
+/// Foundation's `Pipe` leaves the buffer at the system default of a few
+/// kilobytes, so an 8 MB frame arrives in thousands of reads, and it will not
+/// hand out a handle (`FileHandle.fileDescriptor` is unavailable on Windows),
+/// which forces every frame through an accumulating `Data` and a second copy.
+/// Measured at 1080p that cost 100-160 ms per frame against a 33 ms budget,
+/// while presenting cost 0-4 ms. Owning the pipe fixes both: one big buffer,
+/// and `ReadFile` straight into mapped GPU memory.
+/// Foundation 的 `Pipe` 使用系統預設的數 KB 緩衝區，因此一張 8MB 影格會被拆成數
+/// 千次讀取；它也不提供 handle（Windows 上 `FileHandle.fileDescriptor` 不可用），
+/// 使得每張影格都得經過不斷增長的 `Data` 與第二次複製。實測 1080p 下這耗費每幀
+/// 100–160 ms，而預算只有 33 ms，呈現則只花 0–4 ms。自行建立管線可同時解決兩者：
+/// 大緩衝區，以及用 `ReadFile` 直接寫入已對映的 GPU 記憶體。
+final class P6WideWin32Pipe {
+    let readHandle: HANDLE
+    /// Handed to the child as its stdout; the parent closes its copy once the
+    /// child is running, otherwise end-of-stream never arrives.
+    /// 交給子程序作為 stdout；子程序啟動後父程序必須關閉自己的副本，否則永遠不會
+    /// 收到串流結束。
+    let writeHandle: FileHandle
+
+    init?(bufferBytes: DWORD = 8 << 20) {
+        var readRaw: HANDLE?
+        var writeRaw: HANDLE?
+        var attributes = SECURITY_ATTRIBUTES(
+            nLength: DWORD(MemoryLayout<SECURITY_ATTRIBUTES>.size),
+            lpSecurityDescriptor: nil,
+            bInheritHandle: true
+        )
+        guard CreatePipe(&readRaw, &writeRaw, &attributes, bufferBytes),
+              let readRaw, let writeRaw
+        else {
+            return nil
+        }
+        // Only the write end is meant to reach the child.
+        // 只有寫入端需要傳給子程序。
+        _ = SetHandleInformation(readRaw, DWORD(HANDLE_FLAG_INHERIT), 0)
+
+        let descriptor = _open_osfhandle(Int(bitPattern: writeRaw), 0)
+        guard descriptor >= 0 else {
+            CloseHandle(readRaw)
+            CloseHandle(writeRaw)
+            return nil
+        }
+
+        readHandle = readRaw
+        writeHandle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    }
+
+    deinit {
+        CloseHandle(readHandle)
+    }
+}
+#endif
+
 final class P6DecoderSession: @unchecked Sendable {
     private let ffmpeg: Process
     private let zstd: Process?
     private let outputHandle: FileHandle
+    #if os(Windows)
+    /// Set when the wide pipe was created; nil falls back to Foundation's.
+    /// 成功建立大緩衝管線時才會設定；為 nil 時回退到 Foundation 的實作。
+    private let widePipe: P6WideWin32Pipe?
+    #endif
     private let errorHandle: FileHandle
     private let errorLog: P6ProcessErrorLog
     private let frameByteCount: Int
@@ -2234,7 +2356,13 @@ final class P6DecoderSession: @unchecked Sendable {
 
         let ffmpeg = Process()
         ffmpeg.executableURL = ffmpegURL
+        #if os(Windows)
+        let widePipe = P6WideWin32Pipe()
+        self.widePipe = widePipe
+        ffmpeg.standardOutput = widePipe?.writeHandle ?? outputPipe
+        #else
         ffmpeg.standardOutput = outputPipe
+        #endif
         ffmpeg.standardError = errorPipe
 
         let seekValue = String(format: "%.6f", max(0, startTime))
@@ -2246,6 +2374,16 @@ final class P6DecoderSession: @unchecked Sendable {
         ].joined(separator: ",")
 
         var arguments = ["-nostdin", "-hide_banner", "-loglevel", "error"]
+        // Requested before the input so it applies to the decoder. Without
+        // -hwaccel_output_format the frames are downloaded back to system
+        // memory, which they have to be anyway to leave through the pipe, so
+        // the filter chain is unaffected.
+        // 需放在輸入之前才會套用到解碼器。未指定 -hwaccel_output_format 時，影格
+        // 會被下載回系統記憶體；反正它們要經由管線送出，本來就必須如此，因此濾鏡
+        // 鏈不受影響。
+        if let acceleration = P6WindowFlags.decodeHardwareAcceleration {
+            arguments += ["-hwaccel", acceleration]
+        }
         var zstdProcess: Process?
         var sourcePipe: Pipe?
 
@@ -2283,6 +2421,9 @@ final class P6DecoderSession: @unchecked Sendable {
             "pipe:1",
         ]
         ffmpeg.arguments = arguments
+        // Logged in full so a recorded measurement can be reproduced exactly.
+        // 完整記錄下來，讓已留存的量測結果能被完全重現。
+        P6Diagnostics.write("ffmpeg args: \(arguments.joined(separator: " "))")
 
         do {
             try ffmpeg.run()
@@ -2301,6 +2442,9 @@ final class P6DecoderSession: @unchecked Sendable {
             // 待所有繼承此描述符的子程序都啟動後才關閉父程序的寫入端，
             // 否則讀取端永遠等不到 EOF。
             errorPipe.fileHandleForWriting.closeFile()
+            #if os(Windows)
+            widePipe?.writeHandle.closeFile()
+            #endif
         } catch {
             errorPipe.fileHandleForReading.readabilityHandler = nil
             errorPipe.fileHandleForWriting.closeFile()
@@ -2355,6 +2499,16 @@ final class P6DecoderSession: @unchecked Sendable {
         width: Int,
         height: Int
     ) throws -> Bool {
+        if let widePipe {
+            return try readFrame(
+                from: widePipe.readHandle,
+                into: destination,
+                rowPitch: rowPitch,
+                width: width,
+                height: height
+            )
+        }
+
         guard let data = try readFrame() else { return false }
         let bytesPerRow = width * 4
 
@@ -2370,6 +2524,64 @@ final class P6DecoderSession: @unchecked Sendable {
                         bytesPerRow
                     )
                 }
+            }
+        }
+        return true
+    }
+
+    /// Reads one frame straight from the pipe into mapped GPU memory.
+    ///
+    /// Row by row, because the mapped row pitch is usually wider than the
+    /// frame's own rows. Nothing is allocated and nothing is copied twice:
+    /// `ReadFile` writes the decoder's bytes at their final address.
+    /// 逐列讀取，因為對映後的列間距通常大於影格本身的列長度。過程中不配置任何
+    /// 記憶體、也不會複製第二次：`ReadFile` 直接把解碼器的位元組寫到最終位址。
+    private func readFrame(
+        from handle: HANDLE,
+        into destination: UnsafeMutableRawPointer,
+        rowPitch: Int,
+        width: Int,
+        height: Int
+    ) throws -> Bool {
+        let bytesPerRow = width * 4
+        var isFirstRead = true
+
+        // When the mapped pitch matches the frame's rows the whole frame is one
+        // contiguous span, so it can be read in as few calls as the pipe
+        // allows instead of one per row.
+        // 對映的列間距與影格列長相同時，整張影格是一段連續記憶體，可用最少的呼叫
+        // 次數讀入，而不必每列一次。
+        let spans: [(offset: Int, count: Int)] =
+            rowPitch == bytesPerRow
+            ? [(0, bytesPerRow * height)]
+            : (0..<height).map { (offset: $0 * rowPitch, count: bytesPerRow) }
+
+        for span in spans {
+            var filled = 0
+            while filled < span.count {
+                if isTerminated { return false }
+                var read: DWORD = 0
+                let ok = ReadFile(
+                    handle,
+                    destination.advanced(by: span.offset + filled),
+                    DWORD(span.count - filled),
+                    &read,
+                    nil
+                )
+                guard ok, read > 0 else {
+                    // End of stream is only clean before any byte of the frame
+                    // has arrived; anything later is a truncated frame.
+                    // 只有在整張影格尚未讀到任何位元組時，串流結束才算正常結束；
+                    // 之後才結束就是影格被截斷。
+                    if isFirstRead { return false }
+                    throw P6PlayerError.incompleteFrame(
+                        span.offset + filled,
+                        bytesPerRow * height,
+                        errorLog.text
+                    )
+                }
+                filled += Int(read)
+                isFirstRead = false
             }
         }
         return true
@@ -2791,6 +3003,59 @@ enum P6ChildProcessReaper {
             P6Diagnostics.write("child reaper could not adopt pid \(pid)")
         }
         #endif
+    }
+}
+
+/// Per-stage frame timings, summarised once a second.
+///
+/// Which stage costs what has been argued about from first principles more
+/// than once in this app; this measures it instead. `read` covers the pipe
+/// read into mapped GPU memory, `present` the copy into the back buffer plus
+/// `Present`, which blocks on vblank.
+/// 逐階段的影格計時，每秒彙總一次。此 app 曾多次以推論爭論哪個階段最貴，這裡改為
+/// 直接量測：`read` 涵蓋「自管線讀入已對映的 GPU 記憶體」，`present` 涵蓋「複製到
+/// back buffer 與 Present」，後者會等待垂直同步。
+struct P6StageTimings {
+    private var readTotal = 0.0
+    private var readMax = 0.0
+    private var presentTotal = 0.0
+    private var presentMax = 0.0
+    private var frames = 0
+    private var windowStart = ProcessInfo.processInfo.systemUptime
+
+    mutating func addRead(_ seconds: Double) {
+        readTotal += seconds
+        readMax = max(readMax, seconds)
+    }
+
+    mutating func addPresent(_ seconds: Double) {
+        presentTotal += seconds
+        presentMax = max(presentMax, seconds)
+        frames += 1
+    }
+
+    mutating func flushIfDue() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = now - windowStart
+        guard elapsed >= 1, frames > 0 else { return }
+
+        let count = Double(frames)
+        P6Diagnostics.write(
+            String(
+                format:
+                    "stage timings: %d frames in %.2fs, "
+                    + "read avg %.1fms max %.1fms, present avg %.1fms max %.1fms",
+                frames, elapsed,
+                readTotal / count * 1000, readMax * 1000,
+                presentTotal / count * 1000, presentMax * 1000
+            )
+        )
+        readTotal = 0
+        readMax = 0
+        presentTotal = 0
+        presentMax = 0
+        frames = 0
+        windowStart = now
     }
 }
 
