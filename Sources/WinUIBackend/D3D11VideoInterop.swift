@@ -24,54 +24,6 @@ public class SwiftISwapChainPanelNative: WindowsFoundation.IUnknown {
     }
 }
 
-/// `WinUI.SwapChainPanel` isn't projected by swift-winui. Activate the native
-/// WinRT control directly and wrap the resulting ABI object as a
-/// `FrameworkElement`, matching the technique documented in
-/// C:\Users\lowei\.claude\plans\quizzical-jingling-music.md.
-public enum P6D3D11SwapChainPanelActivation {
-    /// Split into individual steps so callers can log between them and see
-    /// exactly which one fails. swift-winui's wrapper classes do their COM
-    /// QueryInterface lazily, so simply constructing a wrapper proves
-    /// nothing -- the QI only happens when a wrapped-type-specific property
-    /// is first touched, and traps there if the interface isn't supported.
-    public static func activateInspectable() throws -> WindowsFoundation.IInspectable {
-        try RoActivateInstance(HString("Microsoft.UI.Xaml.Controls.SwapChainPanel"))
-    }
-
-    public static func queryNative(
-        _ inspectable: WindowsFoundation.IInspectable
-    ) throws -> SwiftISwapChainPanelNative {
-        try inspectable.QueryInterface()
-    }
-
-    /// Reports whether the activated object actually supports the interface
-    /// behind a given wrapper, without trapping. Returns the runtime class
-    /// name too, which tells us whether RoActivateInstance really produced a
-    /// SwapChainPanel.
-    public static func describe(_ inspectable: WindowsFoundation.IInspectable) -> String {
-        var raw: HSTRING?
-        do {
-            try inspectable.GetRuntimeClassName(&raw)
-        } catch {
-            return "runtimeClass=<GetRuntimeClassName failed: \(error)>"
-        }
-        guard let raw else { return "runtimeClass=<null>" }
-        let name = String(from: raw)
-        _ = WindowsDeleteString(raw)
-        return "runtimeClass=\(name)"
-    }
-
-    public static func wrapAsPanel(_ inspectable: WindowsFoundation.IInspectable) -> WinUI.Panel {
-        WinUI.Panel(fromAbi: inspectable)
-    }
-
-    public static func wrapAsFrameworkElement(
-        _ inspectable: WindowsFoundation.IInspectable
-    ) -> WinUI.FrameworkElement {
-        WinUI.FrameworkElement(fromAbi: inspectable)
-    }
-}
-
 enum P6D3D11Error: Swift.Error {
     case failed(String, HRESULT)
 }
@@ -88,6 +40,136 @@ extension P6D3D11Error: CustomStringConvertible {
 private func D3D11_CHECK(_ step: String, _ hr: HRESULT) throws {
     if hr < 0 {
         throw P6D3D11Error.failed(step, hr)
+    }
+}
+
+/// A live `Microsoft.UI.Xaml.Controls.SwapChainPanel`, driven entirely through
+/// the C ABI.
+///
+/// XAML composes its own content through DirectComposition, which draws over
+/// any plain child `HWND` of the same window, so a child-window swap chain
+/// stays invisible no matter where it is positioned. A SwapChainPanel is the
+/// supported way in: it hands its own composition visual to DXGI.
+///
+/// swift-winui does not project SwapChainPanel, and its generated wrapper
+/// classes resolve their COM interface lazily behind a `try!`, so wrapping the
+/// activated object as `WinUI.Panel` traps as soon as any property is touched.
+/// Every call here goes through a vtable instead, so a failure surfaces as an
+/// HRESULT rather than an illegal instruction.
+///
+/// XAML 透過 DirectComposition 合成自身內容，會蓋掉同一視窗中的一般子 HWND，
+/// 因此子視窗上的 swap chain 無論擺在哪裡都看不到。SwapChainPanel 是官方支援的
+/// 途徑：它會把自己的合成 visual 交給 DXGI。
+/// swift-winui 未投影 SwapChainPanel，且其產生的包裝類別以 `try!` 延後解析 COM
+/// 介面，所以一旦碰到任何屬性就會中止。此處全部改走 vtable，失敗會以 HRESULT
+/// 呈現而非非法指令。
+public final class P6SwapChainPanel {
+    /// Deliberately kept as `IInspectable`: constructing any swift-winui
+    /// wrapper around this object is exactly what traps.
+    private let inspectable: WindowsFoundation.IInspectable
+    private let uiElement: __ABI_Microsoft_UI_Xaml.IUIElement
+    private let frameworkElement: __ABI_Microsoft_UI_Xaml.IFrameworkElement
+
+    /// `ISwapChainPanelNative::SetSwapChain` lives here.
+    public let native: SwiftISwapChainPanelNative
+
+    /// All four QueryInterface calls happen up front rather than lazily, so a
+    /// missing interface is reported at creation time instead of trapping
+    /// somewhere later.
+    public init() throws {
+        inspectable = try RoActivateInstance(
+            HString("Microsoft.UI.Xaml.Controls.SwapChainPanel")
+        )
+        native = try inspectable.QueryInterface()
+        uiElement = try inspectable.QueryInterface()
+        frameworkElement = try inspectable.QueryInterface()
+    }
+
+    /// The runtime class name, which confirms `RoActivateInstance` really
+    /// produced a SwapChainPanel.
+    public var runtimeClassName: String {
+        var raw: HSTRING?
+        do {
+            try inspectable.GetRuntimeClassName(&raw)
+        } catch {
+            return "<GetRuntimeClassName failed: \(error)>"
+        }
+        guard let raw else { return "<null>" }
+        let name = String(from: raw)
+        _ = WindowsDeleteString(raw)
+        return name
+    }
+
+    /// Sets the layout size in DIPs. A `Canvas` child gets no size from
+    /// layout, and a SwapChainPanel has no natural size, so without this it
+    /// measures as zero and never composes.
+    /// 設定版面配置尺寸（DIP）。Canvas 的子元件不會由版面配置取得尺寸，而
+    /// SwapChainPanel 本身也沒有自然尺寸，未設定時會量測為零而不會被合成。
+    public func setSize(width: Double, height: Double) throws {
+        try frameworkElement.perform(
+            as: __x_ABI_CMicrosoft_CUI_CXaml_CIFrameworkElement.self
+        ) { pThis in
+            try D3D11_CHECK(
+                "IFrameworkElement::put_Width",
+                pThis.pointee.lpVtbl.pointee.put_Width(pThis, width)
+            )
+            try D3D11_CHECK(
+                "IFrameworkElement::put_Height",
+                pThis.pointee.lpVtbl.pointee.put_Height(pThis, height)
+            )
+        }
+    }
+
+    /// The laid-out size in DIPs, or zero before the first layout pass.
+    public func actualSize() throws -> SIMD2<Double> {
+        try frameworkElement.perform(
+            as: __x_ABI_CMicrosoft_CUI_CXaml_CIFrameworkElement.self
+        ) { pThis in
+            var width: DOUBLE = 0
+            var height: DOUBLE = 0
+            try D3D11_CHECK(
+                "IFrameworkElement::get_ActualWidth",
+                pThis.pointee.lpVtbl.pointee.get_ActualWidth(pThis, &width)
+            )
+            try D3D11_CHECK(
+                "IFrameworkElement::get_ActualHeight",
+                pThis.pointee.lpVtbl.pointee.get_ActualHeight(pThis, &height)
+            )
+            return SIMD2(width, height)
+        }
+    }
+
+    /// Appends the panel to a projected parent's `Children`. The parent is a
+    /// normal projected type, so only the child side needs raw COM.
+    public func attach(to parent: WinUI.Panel) throws {
+        let parentPanel: __ABI_Microsoft_UI_Xaml_Controls.IPanel =
+            try parent.thisPtr.QueryInterface()
+
+        try parentPanel.perform(
+            as: __x_ABI_CMicrosoft_CUI_CXaml_CControls_CIPanel.self
+        ) { pParent in
+            var children:
+                UnsafeMutablePointer<
+                    __x_ABI_C__FIVector_1___x_ABI_CMicrosoft__CUI__CXaml__CUIElement
+                >?
+            try D3D11_CHECK(
+                "IPanel::get_Children",
+                pParent.pointee.lpVtbl.pointee.get_Children(pParent, &children)
+            )
+            guard let children else {
+                throw P6D3D11Error.failed("IPanel::get_Children returned null", S_OK)
+            }
+            defer { _ = children.pointee.lpVtbl.pointee.Release(children) }
+
+            try uiElement.perform(
+                as: __x_ABI_CMicrosoft_CUI_CXaml_CIUIElement.self
+            ) { pChild in
+                try D3D11_CHECK(
+                    "IVector<UIElement>::Append",
+                    children.pointee.lpVtbl.pointee.Append(children, pChild)
+                )
+            }
+        }
     }
 }
 
@@ -112,6 +194,16 @@ private enum P6IID {
             Data2: 0xE072,
             Data3: 0x4C48,
             Data4: (0x87, 0xB0, 0x36, 0x30, 0xFA, 0x36, 0xA6, 0xD0)
+        )
+    }
+
+    // a8be2ac4-199f-4946-b331-79599fb98de7
+    static var IDXGISwapChain2: WinUIInterop.IID {
+        WinUIInterop.IID(
+            Data1: 0xA8BE_2AC4,
+            Data2: 0x199F,
+            Data3: 0x4946,
+            Data4: (0xB3, 0x31, 0x79, 0x59, 0x9F, 0xB9, 0x8D, 0xE7)
         )
     }
 
@@ -316,10 +408,43 @@ public final class P6D3D11Device {
     }
 }
 
-// MARK: - Zero-copy HWND video surface
+// MARK: - Zero-copy composition video surface
 
-/// A child window hosting a D3D11 swap chain, plus a rotating pool of
-/// CPU-writable staging textures that decoded frames are written into
+/// The on-screen area a video is presented into.
+///
+/// A SwapChainPanel composes one swap chain pixel per DIP, so the swap chain
+/// has to be sized in the display's physical pixels to stay sharp, and then
+/// mapped back down onto the viewport. Both numbers live here so a window
+/// resize, a display-scale change, and a decoder resolution change all go
+/// through the same path.
+/// SwapChainPanel 以「一個 swap chain 像素對一個 DIP」的方式合成，因此 swap chain
+/// 必須以顯示器的實體像素建立才能維持清晰，再映射回 viewport。兩個數值都放在
+/// 這裡，讓視窗縮放、顯示器縮放比例變更與解碼解析度變更走同一條路徑。
+public struct P6VideoViewport: Equatable, Sendable {
+    /// The visible area in DIPs, which is what XAML lays out in.
+    public var width: Double
+    public var height: Double
+    /// How many physical pixels one DIP is, i.e. `XamlRoot.rasterizationScale`.
+    public var pixelsPerDIP: Double
+
+    public init(width: Double, height: Double, pixelsPerDIP: Double) {
+        self.width = width
+        self.height = height
+        self.pixelsPerDIP = pixelsPerDIP
+    }
+
+    /// The viewport in physical pixels: the swap chain resolution that maps
+    /// one buffer pixel to one screen pixel.
+    public var pixelSize: SIMD2<UInt32> {
+        SIMD2(
+            UInt32(max(1, (width * pixelsPerDIP).rounded())),
+            UInt32(max(1, (height * pixelsPerDIP).rounded()))
+        )
+    }
+}
+
+/// A D3D11 composition swap chain bound to a `SwapChainPanel`, plus a rotating
+/// pool of CPU-writable staging textures that decoded frames are written into
 /// directly.
 ///
 /// This mirrors the macOS Metal path: a fixed pool of GPU textures updated in
@@ -338,7 +463,7 @@ public final class P6D3D11VideoSurface {
     /// can fill one while the GPU still reads another.
     private static let poolSize = 3
 
-    public let hwnd: HWND
+    private let panel: P6SwapChainPanel
     private let device: UnsafeMutablePointer<ID3D11Device>
     private let context: UnsafeMutablePointer<ID3D11DeviceContext>
     private let factory: UnsafeMutablePointer<IDXGIFactory2>
@@ -348,11 +473,11 @@ public final class P6D3D11VideoSurface {
     private var poolIndex = 0
     private var frameWidth: UInt32 = 0
     private var frameHeight: UInt32 = 0
+    private var bufferWidth: UInt32 = 0
+    private var bufferHeight: UInt32 = 0
 
-    public init(parent: HWND, width: Int32, height: Int32) throws {
-        hwnd = try P6D3D11VideoSurface.makeChildWindow(
-            parent: parent, width: width, height: height
-        )
+    public init(panel: P6SwapChainPanel) throws {
+        self.panel = panel
 
         var device: UnsafeMutablePointer<ID3D11Device>?
         var context: UnsafeMutablePointer<ID3D11DeviceContext>?
@@ -376,67 +501,94 @@ public final class P6D3D11VideoSurface {
         self.factory = try P6D3D11Device.makeFactory(from: device)
     }
 
-    private static var registeredClass = false
-
-    private static func makeChildWindow(
-        parent: HWND, width: Int32, height: Int32
-    ) throws -> HWND {
-        try "P6D3D11Surface".withCString(encodedAs: UTF16.self) { className in
-            let instance = GetModuleHandleW(nil)
-            if !registeredClass {
-                var windowClass = WNDCLASSEXW()
-                windowClass.cbSize = UINT(MemoryLayout<WNDCLASSEXW>.size)
-                windowClass.lpfnWndProc = { hwnd, message, wParam, lParam in
-                    DefWindowProcW(hwnd, message, wParam, lParam)
-                }
-                windowClass.hInstance = instance
-                windowClass.lpszClassName = className
-                if RegisterClassExW(&windowClass) == 0 {
-                    let error = GetLastError()
-                    if error != ERROR_CLASS_ALREADY_EXISTS {
-                        throw P6D3D11Error.failed(
-                            "RegisterClassExW (GetLastError \(error))", S_OK
-                        )
-                    }
-                }
-                registeredClass = true
-            }
-
-            guard let hwnd = CreateWindowExW(
-                0, className, nil, DWORD(WS_CHILD | WS_VISIBLE),
-                0, 0, width, height, parent, nil, instance, nil
-            ) else {
-                throw P6D3D11Error.failed(
-                    "CreateWindowExW (GetLastError \(GetLastError()))", S_OK
-                )
-            }
-            return hwnd
-        }
+    /// Whether the pool and swap chain already match a given frame size.
+    /// The decode thread checks this instead of configuring, because
+    /// `configure` has to run on the UI thread.
+    public func isConfigured(frameWidth: UInt32, frameHeight: UInt32) -> Bool {
+        swapChain != nil && frameWidth == self.frameWidth && frameHeight == self.frameHeight
     }
 
-    /// Moves/resizes the child window to sit exactly over the video viewport.
-    public func setBounds(x: Int32, y: Int32, width: Int32, height: Int32) {
-        _ = SetWindowPos(
-            hwnd, nil, x, y, width, height, UINT(SWP_NOZORDER | SWP_NOACTIVATE)
+    /// Presents `frameWidth`x`frameHeight` frames into `viewport`.
+    ///
+    /// This is the single entry point for every geometry change: a decoder
+    /// resolution change, a window resize, or a move to a display with a
+    /// different scale all just pass a new viewport or frame size. The swap
+    /// chain and staging pool are rebuilt only when their sizes actually
+    /// change; the mapping onto the viewport is re-applied either way.
+    ///
+    /// Sizing rules:
+    /// - The buffer is the larger of the viewport and the frame, so a frame
+    ///   smaller than the viewport is stretched up by DXGI (`SetSourceSize`)
+    ///   and a larger one keeps its full resolution.
+    /// - The transform is `viewport DIPs / buffer pixels`, which lands the
+    ///   buffer exactly on the viewport at any resolution, including a 4K
+    ///   frame scaled down into a small viewport, with no shader pass.
+    ///
+    /// **Must be called on the UI thread**: `ISwapChainPanelNative::SetSwapChain`
+    /// is documented as UI-thread only. Map/CopyResource/Present stay callable
+    /// from the decode thread.
+    ///
+    /// 這是所有幾何變更的唯一入口：解碼解析度變更、視窗縮放、移到不同縮放比例的
+    /// 顯示器，都只是傳入新的 viewport 或影格尺寸。只有尺寸真的改變時才重建 swap
+    /// chain 與 staging pool，映射則一律重新套用。
+    /// 尺寸規則：buffer 取 viewport 與影格中較大者，較小的影格由 DXGI
+    /// （`SetSourceSize`）拉伸，較大的則保留完整解析度；變換為「viewport DIP ÷
+    /// buffer 像素」，任何解析度都能精準落在 viewport 上，包含 4K 影格縮入小
+    /// viewport，且不需要 shader 階段。
+    /// **必須在 UI 執行緒呼叫**：`ISwapChainPanelNative::SetSwapChain` 依文件僅能
+    /// 於 UI 執行緒使用；Map/CopyResource/Present 仍可由解碼執行緒呼叫。
+    public func setViewport(
+        _ viewport: P6VideoViewport,
+        frameWidth: UInt32,
+        frameHeight: UInt32
+    ) throws {
+        let viewportPixels = viewport.pixelSize
+        let bufferWidth = max(viewportPixels.x, frameWidth)
+        let bufferHeight = max(viewportPixels.y, frameHeight)
+
+        if !isConfigured(frameWidth: frameWidth, frameHeight: frameHeight)
+            || bufferWidth != self.bufferWidth || bufferHeight != self.bufferHeight
+        {
+            try rebuild(
+                frameWidth: frameWidth,
+                frameHeight: frameHeight,
+                bufferWidth: bufferWidth,
+                bufferHeight: bufferHeight
+            )
+        }
+
+        try setSourceSize(width: frameWidth, height: frameHeight)
+        try setMatrixTransform(
+            x: Float(viewport.width / Double(bufferWidth)),
+            y: Float(viewport.height / Double(bufferHeight))
         )
     }
 
-    /// (Re)creates the swap chain and staging pool for a given frame size.
-    ///
-    /// The swap chain is sized to the *frame*, not the window, so DXGI scales
-    /// on present and CopyResource can move a whole frame in one call without
-    /// needing a shader pass.
-    /// swap chain 依「影格」尺寸建立而非視窗尺寸，讓 DXGI 於 present 時縮放，
-    /// CopyResource 便能一次搬移整張影格，不需額外的 shader 階段。
-    public func configure(frameWidth: UInt32, frameHeight: UInt32) throws {
-        guard frameWidth != self.frameWidth || frameHeight != self.frameHeight else {
-            return
-        }
+    /// Whether the swap chain and pool have to be recreated for these sizes.
+    /// Callers use it to know when to detach the surface from the decode
+    /// thread first.
+    /// swap chain 與 pool 是否需要為這組尺寸重建；呼叫端據此判斷是否要先把表面
+    /// 自解碼執行緒卸離。
+    public func needsRebuild(
+        for viewport: P6VideoViewport, frameWidth: UInt32, frameHeight: UInt32
+    ) -> Bool {
+        let viewportPixels = viewport.pixelSize
+        return !isConfigured(frameWidth: frameWidth, frameHeight: frameHeight)
+            || max(viewportPixels.x, frameWidth) != bufferWidth
+            || max(viewportPixels.y, frameHeight) != bufferHeight
+    }
+
+    private func rebuild(
+        frameWidth: UInt32,
+        frameHeight: UInt32,
+        bufferWidth: UInt32,
+        bufferHeight: UInt32
+    ) throws {
         releaseFrameResources()
 
         var desc = DXGI_SWAP_CHAIN_DESC1()
-        desc.Width = frameWidth
-        desc.Height = frameHeight
+        desc.Width = bufferWidth
+        desc.Height = bufferHeight
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM
         desc.SampleDesc.Count = 1
         desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT
@@ -447,20 +599,23 @@ public final class P6D3D11VideoSurface {
 
         var created: UnsafeMutablePointer<IDXGISwapChain1>?
         try D3D11_CHECK(
-            "IDXGIFactory2::CreateSwapChainForHwnd",
+            "IDXGIFactory2::CreateSwapChainForComposition",
             withUnsafeMutablePointer(to: &desc) { descPtr in
-                factory.pointee.lpVtbl.pointee.CreateSwapChainForHwnd(
+                factory.pointee.lpVtbl.pointee.CreateSwapChainForComposition(
                     factory,
                     UnsafeMutableRawPointer(device).assumingMemoryBound(
                         to: WinUIInterop.IUnknown.self
                     ),
-                    hwnd, descPtr, nil, nil, &created
+                    descPtr, nil, &created
                 )
             }
         )
         guard let created else {
-            throw P6D3D11Error.failed("CreateSwapChainForHwnd returned null", S_OK)
+            throw P6D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
         }
+        try panel.native.setSwapChain(
+            UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
+        )
         swapChain = created
 
         // Staging usage keeps the texture CPU-writable and legal as a
@@ -496,6 +651,67 @@ public final class P6D3D11VideoSurface {
 
         self.frameWidth = frameWidth
         self.frameHeight = frameHeight
+        self.bufferWidth = bufferWidth
+        self.bufferHeight = bufferHeight
+    }
+
+    /// Scales the swap chain's contents as they are composed. Kept alongside
+    /// `setSourceSize` because the two act at different points and only a
+    /// measurement can say which one the panel actually honours.
+    /// 與 `setSourceSize` 並存：兩者作用的階段不同，只有實測才能得知面板實際採用
+    /// 的是哪一個。
+    private func setMatrixTransform(x: Float, y: Float) throws {
+        try withSwapChain2 { swapChain2 in
+            var matrix = DXGI_MATRIX_3X2_F()
+            matrix._11 = x
+            matrix._22 = y
+            try D3D11_CHECK(
+                "IDXGISwapChain2::SetMatrixTransform",
+                withUnsafePointer(to: &matrix) { matrixPtr in
+                    swapChain2.pointee.lpVtbl.pointee.SetMatrixTransform(swapChain2, matrixPtr)
+                }
+            )
+        }
+    }
+
+    private func withSwapChain2(
+        _ body: (UnsafeMutablePointer<IDXGISwapChain2>) throws -> Void
+    ) throws {
+        guard let swapChain else { return }
+
+        var swapChain2IID = P6IID.IDXGISwapChain2
+        var raw: UnsafeMutableRawPointer?
+        try D3D11_CHECK(
+            "IDXGISwapChain1::QueryInterface(IDXGISwapChain2)",
+            swapChain.pointee.lpVtbl.pointee.QueryInterface(
+                swapChain, &swapChain2IID, &raw
+            )
+        )
+        guard let raw else {
+            throw P6D3D11Error.failed("QueryInterface(IDXGISwapChain2) returned null", S_OK)
+        }
+        let swapChain2 = raw.assumingMemoryBound(to: IDXGISwapChain2.self)
+        defer { _ = swapChain2.pointee.lpVtbl.pointee.Release(swapChain2) }
+        try body(swapChain2)
+    }
+
+    /// Restricts presentation to the frame-sized top-left corner of a larger
+    /// back buffer, which DXGI then stretches over the whole swap chain.
+    ///
+    /// This is what makes a 960x540 frame cover a panel that is far more
+    /// pixels wide: the buffer is sized to the panel, the frame is copied into
+    /// its corner, and `DXGI_SCALING_STRETCH` scales that region up on present
+    /// with no shader pass of our own.
+    /// 這就是讓 960x540 的影格能覆蓋像素數大得多的面板的方法：buffer 依面板尺寸
+    /// 建立，影格複製到左上角，`DXGI_SCALING_STRETCH` 在 present 時把該區域放大，
+    /// 不需要自己寫 shader。
+    private func setSourceSize(width: UInt32, height: UInt32) throws {
+        try withSwapChain2 { swapChain2 in
+            try D3D11_CHECK(
+                "IDXGISwapChain2::SetSourceSize",
+                swapChain2.pointee.lpVtbl.pointee.SetSourceSize(swapChain2, width, height)
+            )
+        }
     }
 
     /// Maps the next staging texture and hands its memory to `body`, which
@@ -556,11 +772,17 @@ public final class P6D3D11VideoSurface {
         let backBuffer = backBufferRaw.assumingMemoryBound(to: ID3D11Texture2D.self)
         defer { _ = backBuffer.pointee.lpVtbl.pointee.Release(backBuffer) }
 
-        context.pointee.lpVtbl.pointee.CopyResource(
+        // The back buffer is sized to the panel, which is usually larger than
+        // the frame, so the frame goes into its top-left corner and the source
+        // region set at configure time is what actually gets presented.
+        // back buffer 依面板尺寸建立，通常大於影格，因此影格放在左上角，實際呈現
+        // 的是 configure 時設定的來源區域。
+        context.pointee.lpVtbl.pointee.CopySubresourceRegion(
             context,
             UnsafeMutableRawPointer(backBuffer)
                 .assumingMemoryBound(to: ID3D11Resource.self),
-            source
+            0, 0, 0, 0,
+            source, 0, nil
         )
         try D3D11_CHECK(
             "IDXGISwapChain1::Present",
@@ -580,6 +802,8 @@ public final class P6D3D11VideoSurface {
         swapChain = nil
         frameWidth = 0
         frameHeight = 0
+        bufferWidth = 0
+        bufferHeight = 0
     }
 
     deinit {
@@ -587,6 +811,5 @@ public final class P6D3D11VideoSurface {
         _ = context.pointee.lpVtbl.pointee.Release(context)
         _ = device.pointee.lpVtbl.pointee.Release(device)
         _ = factory.pointee.lpVtbl.pointee.Release(factory)
-        _ = DestroyWindow(hwnd)
     }
 }

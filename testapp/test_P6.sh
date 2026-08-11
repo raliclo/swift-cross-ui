@@ -20,15 +20,16 @@ usage() {
         "Usage: $command_name [-rss] [-win] [-metal|-core] [--debug] [--frame-drop] [<media-file>]" \
         "用法：$command_name [-rss] [-win] [-metal|-core] [--debug] [--frame-drop] [<媒體檔案>]" \
         "" \
-        "  -win  Windows quick run: auto-selects the file, starts playback, and" \
-        "        enables frame dropping (-f -autoplay -enable-dropframe)." \
+        "  -win  Windows quick run: auto-selects the file, starts playback," \
+        "        enables frame dropping, and maximizes the window" \
+        "        (-f -autoplay -enable-dropframe -maximized)." \
         "        No media file needed." \
-        "  -win  Windows 快速測試：自動選檔、自動播放並開啟丟幀" \
-        "        （-f -autoplay -enable-dropframe），不需指定媒體檔案。" \
+        "  -win  Windows 快速測試：自動選檔、自動播放、開啟丟幀並最大化視窗" \
+        "        （-f -autoplay -enable-dropframe -maximized），不需指定媒體檔案。" \
         "" \
         "Examples 範例:" \
         "  $command_name -win" \
-        "  $command_name -win 撒迦利亞" \
+        "  $command_name -win 耶利米" \
         "  $command_name -rss --debug --frame-drop '/path/to/video.webm'" \
         "Build first if needed: zsh testapp/compile.sh P6"
 }
@@ -63,7 +64,7 @@ done
 # -win 會提供預設值，因此媒體檔案變成選用；命令列上剩下的檔名會交給 -f 作為搜尋關鍵字。
 if [ "$win_enabled" -eq 1 ]; then
     typeset -a win_defaults
-    win_defaults=(-autoplay -enable-dropframe -f)
+    win_defaults=(-autoplay -enable-dropframe -maximized -topmost -f)
     if [ "${#p6_arguments[@]}" -gt 0 ] && [ "${p6_arguments[1]#-}" = "${p6_arguments[1]}" ]; then
         win_defaults+=("${p6_arguments[1]}")
         shift p6_arguments

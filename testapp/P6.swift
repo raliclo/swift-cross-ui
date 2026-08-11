@@ -55,67 +55,174 @@ final class P6VideoSurfaceBox: @unchecked Sendable {
     }
 }
 
-final class P6D3D11SpikeCoordinator {
-    var device: P6D3D11Device?
-    var panel: SwiftISwapChainPanelNative?
-    var presentCount = 0
-}
-
-/// Result holder for the EnumThreadWindows callback.
+/// Result holder for the EnumThreadWindows callback, which is a C function
+/// pointer and so cannot capture anything.
+/// EnumThreadWindows 的 callback 是 C 函式指標、無法捕捉外部變數，因此用它來
+/// 承接結果。
 final class P6WindowSearch {
     var hwnd: HWND?
 }
 
-final class P6D3D11VideoCoordinator {
-    var surface: P6D3D11VideoSurface?
-    /// Stops retrying after a genuine failure, so the log is not spammed on
-    /// every layout pass.
-    /// 真正失敗後不再重試，避免每次版面配置都寫入相同的 log。
-    var creationFailed = false
-    var lastBounds: SIMD2<Int32>?
-    var observingLayout = false
-}
-
-/// Hosts the D3D11 child window over the video viewport.
+/// Applies `-maximized` once the XAML window exists.
 ///
-/// A plain `WinUI.Canvas` acts as the layout placeholder -- it is a projected
-/// swift-winui type, so unlike SwapChainPanel its wrapper works. The child
-/// HWND is then positioned over wherever that placeholder ends up.
-/// 以一般的 `WinUI.Canvas` 作為版面配置佔位元件：它是 swift-winui 已投影的型別，
-/// 因此不像 SwapChainPanel 那樣包裝失敗。子視窗再依佔位元件的位置擺放。
-struct P6D3D11VideoView: WinUIElementRepresentable {
-    typealias WinUIElementType = WinUI.Canvas
-    typealias Coordinator = P6D3D11VideoCoordinator
+/// There is no window handle at app start, so this is driven from the video
+/// view's first update, which runs on the main actor after the window is up.
+/// App 啟動當下還沒有視窗控制代碼，因此改由影片 view 的首次更新觸發：該時點在
+/// 主執行者上執行，視窗已經存在。
+enum P6WindowFlags {
+    static let isMaximizedRequested = CommandLine.arguments.contains("-maximized")
 
-    var surfaceBox: P6VideoSurfaceBox
-    var width: Int32
-    var height: Int32
+    /// `-calib` fills the swap chain with a measurable pattern instead of
+    /// video, so one screenshot gives the exact mapping from swap chain pixels
+    /// to screen pixels. This is the regression check for the viewport maths.
+    /// `-calib` 會以可量測的圖樣填滿 swap chain 而非影片，單張截圖即可得知 swap
+    /// chain 像素與螢幕像素的精確對應；這是 viewport 計算的迴歸檢查方式。
+    static let isCalibration = CommandLine.arguments.contains("-calib")
+    private static var didLogMetrics = false
 
-    func makeCoordinator() -> Coordinator {
-        P6D3D11VideoCoordinator()
+    /// Retried on every layout pass until it takes: the backend applies its
+    /// own size after the window appears, which undoes an early maximize.
+    /// 每次版面配置都重試直到生效：視窗出現後 backend 會再套用自己的尺寸，
+    /// 過早的最大化會被蓋掉。
+    /// `-topmost` keeps the window above others without needing focus, which
+    /// is what makes an unattended screenshot capture it: a background process
+    /// cannot take the foreground on Windows, so activating the window from a
+    /// script does not work.
+    /// `-topmost` 讓視窗不需焦點也保持在最上層，無人值守的螢幕擷取才能拍到它：
+    /// Windows 不允許背景行程搶前景，因此由指令稿啟動視窗是行不通的。
+    static let isTopmostRequested = CommandLine.arguments.contains("-topmost")
+
+    static func applyIfNeeded() {
+        guard let hwnd = topLevelWindow() else { return }
+        logMetricsOnce(hwnd)
+        if isTopmostRequested {
+            // Re-applied every time rather than once: the backend resizes the
+            // window with its own SetWindowPos, which drops the topmost state.
+            // HWND_TOPMOST is `((HWND)-1)`, a macro Swift does not import.
+            // 每次都重新套用而非只做一次：backend 會以自己的 SetWindowPos 調整
+            // 視窗尺寸，那會清掉置頂狀態。
+            // HWND_TOPMOST 是 `((HWND)-1)` 巨集，Swift 不會匯入。
+            _ = SetWindowPos(
+                hwnd, HWND(bitPattern: -1), 0, 0, 0, 0,
+                UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+            )
+        }
+        // Retried until it takes, then latched: the backend applies its own
+        // size after the window appears, which undoes a maximize done too
+        // early. Latching on the first pass that observes it stick is what
+        // leaves the user free to restore the window afterwards.
+        // 重試到生效為止，之後就閂住：視窗出現後 backend 會套用自己的尺寸，太早
+        // 最大化會被蓋掉。在觀察到生效的第一輪就閂住，使用者之後才還原得了視窗。
+        guard isMaximizedRequested, !didMaximize else { return }
+        if IsZoomed(hwnd) {
+            didMaximize = true
+        } else {
+            _ = ShowWindow(hwnd, SW_MAXIMIZE)
+        }
     }
 
-    func makeWinUIElement(context: Context) -> WinUI.Canvas {
-        // The surface is created lazily in updateWinUIElement: at make time
-        // the XAML window is not active yet, so no parent HWND exists.
-        // 表面延後到 updateWinUIElement 建立：make 階段 XAML 視窗尚未啟用，
-        // 此時還取不到父視窗的 HWND。
-        WinUI.Canvas()
+    private static var didMaximize = false
+
+    /// The numbers needed to work out how a swap chain's pixels map onto the
+    /// panel: the window's DPI, its client size in physical pixels, and the
+    /// screen size this process sees (which is the virtualised size if the
+    /// process is not per-monitor DPI aware).
+    /// 用來推算 swap chain 像素如何對應到面板的數據：視窗 DPI、client 區的實體
+    /// 像素尺寸，以及本行程看到的螢幕尺寸（若行程非 per-monitor DPI aware，這會
+    /// 是虛擬化後的尺寸）。
+    private static func logMetricsOnce(_ hwnd: HWND) {
+        guard !didLogMetrics else { return }
+        didLogMetrics = true
+        var client = RECT()
+        _ = GetClientRect(hwnd, &client)
+        P6Diagnostics.write(
+            "window metrics: dpi \(GetDpiForWindow(hwnd)) "
+                + "client \(client.right - client.left)x\(client.bottom - client.top) px, "
+                + "screen \(GetSystemMetrics(SM_CXSCREEN))x\(GetSystemMetrics(SM_CYSCREEN)) px, "
+                + "systemDpi \(GetDpiForSystem()), "
+                + "display mode \(displayMode().x)x\(displayMode().y) px, "
+                + "virtualization \(virtualizationFactor), "
+                + "monitor dpi \(monitorDPI(for: hwnd).map(String.init) ?? "unknown")"
+        )
     }
 
-    /// Finds this process's top-level window. GetActiveWindow returns nil
-    /// during early layout, so fall back to enumerating the UI thread's own
-    /// windows, which exist by then.
-    /// 尋找本行程的頂層視窗。版面配置初期 GetActiveWindow 會回傳 nil，
-    /// 因此改為列舉 UI 執行緒自己的視窗，該時點它們已經存在。
-    private static func findParentWindow() -> HWND? {
+    /// The display's real pixel mode, which `EnumDisplaySettingsW` reports
+    /// regardless of the process's DPI awareness.
+    /// `EnumDisplaySettingsW` 回報的是顯示器真實的像素模式，不受行程 DPI
+    /// awareness 影響。
+    private static func displayMode() -> SIMD2<Int> {
+        // ENUM_CURRENT_SETTINGS is `((DWORD)-1)`, which Swift imports as an
+        // unsigned constant while the parameter is signed, so spell it out.
+        // ENUM_CURRENT_SETTINGS 是 `((DWORD)-1)`，Swift 會匯入成無號常數，但參數
+        // 是有號型別，因此直接寫出數值。
+        let currentSettings = DWORD.max
+        var mode = DEVMODEW()
+        mode.dmSize = WORD(MemoryLayout<DEVMODEW>.size)
+        guard EnumDisplaySettingsW(nil, currentSettings, &mode) else {
+            return SIMD2(0, 0)
+        }
+        return SIMD2(Int(mode.dmPelsWidth), Int(mode.dmPelsHeight))
+    }
+
+    /// How much DWM stretches this process's output to reach real pixels.
+    ///
+    /// A process that is only system-DPI aware is handed a virtualised screen
+    /// size and its output is stretched to the monitor's real scaling. XAML's
+    /// `rasterizationScale` describes DIPs to *process* pixels, while a D3D
+    /// swap chain is composed in *real* pixels, so a swap chain has to be this
+    /// much larger again to cover the same area.
+    /// 僅具 system DPI awareness 的行程會拿到虛擬化的螢幕尺寸，其輸出再由 DWM
+    /// 拉伸到顯示器真實的縮放比例。XAML 的 `rasterizationScale` 描述的是 DIP 對
+    /// 「行程像素」，而 D3D swap chain 是以「真實像素」合成，因此 swap chain 還
+    /// 要再放大這個倍率才能覆蓋同一塊區域。
+    static var virtualizationFactor: Double {
+        let real = Double(displayMode().x)
+        let seen = Double(GetSystemMetrics(SM_CXSCREEN))
+        guard real > 0, seen > 0 else { return 1 }
+        return real / seen
+    }
+
+    /// The monitor's own effective DPI.
+    ///
+    /// `GetDpiForWindow` reports the DPI the *process* works in, which for a
+    /// system-DPI-aware process is the system setting rather than the
+    /// monitor's. A composition swap chain is composed against the monitor, so
+    /// this is the number its pixels are measured in.
+    ///
+    /// Loaded from shcore.dll at runtime, matching how `HWNDInterop.swift`
+    /// reaches APIs that aren't in a linked import library.
+    /// `GetDpiForWindow` 回報的是「行程」所使用的 DPI；對僅具 system DPI
+    /// awareness 的行程來說那是系統設定值，而非顯示器的值。composition swap
+    /// chain 是對著顯示器合成，因此其像素是以此為單位。
+    /// 以執行期載入 shcore.dll 取得，作法與 `HWNDInterop.swift` 取用未連結匯入
+    /// 函式庫之 API 的方式一致。
+    static func monitorDPI(for hwnd: HWND) -> UInt32? {
+        typealias GetDpiForMonitor = @convention(c) (
+            HMONITOR?, Int32, UnsafeMutablePointer<UINT>?, UnsafeMutablePointer<UINT>?
+        ) -> HRESULT
+
+        guard let library = "shcore.dll".withCString(encodedAs: UTF16.self, LoadLibraryW) else {
+            return nil
+        }
+        defer { FreeLibrary(library) }
+        guard let symbol = GetProcAddress(library, "GetDpiForMonitor") else { return nil }
+        let getDpiForMonitor = unsafeBitCast(symbol, to: GetDpiForMonitor.self)
+
+        guard let monitor = MonitorFromWindow(hwnd, DWORD(MONITOR_DEFAULTTONEAREST)) else {
+            return nil
+        }
+        var x: UINT = 0
+        var y: UINT = 0
+        // MDT_EFFECTIVE_DPI == 0
+        guard getDpiForMonitor(monitor, 0, &x, &y) >= 0, x > 0 else { return nil }
+        return x
+    }
+
+
+    private static func topLevelWindow() -> HWND? {
         if let active = GetActiveWindow() { return active }
 
         let search = P6WindowSearch()
-        // The enumeration callback is a C function pointer and cannot capture,
-        // so pass the result holder through lParam.
-        // 列舉用的 callback 是 C 函式指標、無法捕捉外部變數，因此透過 lParam
-        // 傳遞結果容器。
         _ = EnumThreadWindows(
             GetCurrentThreadId(),
             { hwnd, lParam in
@@ -132,117 +239,236 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
         )
         return search.hwnd ?? GetForegroundWindow()
     }
+}
+
+final class P6D3D11SpikeCoordinator {
+    var device: P6D3D11Device?
+    var panel: P6SwapChainPanel?
+    var presentCount = 0
+}
+
+final class P6D3D11VideoCoordinator {
+    var panel: P6SwapChainPanel?
+    var surface: P6D3D11VideoSurface?
+    /// Stops retrying after a genuine failure, so the log is not spammed on
+    /// every layout pass.
+    /// 真正失敗後不再重試，避免每次版面配置都寫入相同的 log。
+    var setupFailed = false
+    var configuredSize: SIMD2<UInt32>?
+    var configuredViewport: P6VideoViewport?
+}
+
+/// Hosts the video SwapChainPanel over the video viewport.
+///
+/// A plain `WinUI.Canvas` is the representable element -- it is a projected
+/// swift-winui type, so its wrapper works -- and the SwapChainPanel is added
+/// as its child through raw COM.
+/// 代表元件使用一般的 `WinUI.Canvas`：它是 swift-winui 已投影的型別，包裝可正常
+/// 運作；SwapChainPanel 則以原始 COM 加入為其子元件。
+struct P6D3D11VideoView: WinUIElementRepresentable {
+    typealias WinUIElementType = WinUI.Canvas
+    typealias Coordinator = P6D3D11VideoCoordinator
+
+    var surfaceBox: P6VideoSurfaceBox
+    var width: Int32
+    var height: Int32
+    /// The decoder's output size, which is what the swap chain has to match.
+    /// 解碼輸出尺寸，swap chain 必須與其一致。
+    var frameWidth: UInt32
+    var frameHeight: UInt32
+
+    func makeCoordinator() -> Coordinator {
+        P6D3D11VideoCoordinator()
+    }
+
+    func makeWinUIElement(context: Context) -> WinUI.Canvas {
+        WinUI.Canvas()
+    }
+
+    /// A `Canvas` never measures its children, so the default implementation
+    /// -- which asks the element for its desired size -- reports 0x0 here.
+    /// The layout then centres a zero-sized view, which put the top-left of
+    /// the swap chain in the middle of the video area and let the rest be
+    /// clipped away.
+    /// `Canvas` 不會量測子元件，因此預設實作（詢問元件的 desired size）在此會回報
+    /// 0x0。版面配置便把一個零尺寸的 view 置中，導致 swap chain 的左上角落在影片
+    /// 區域的正中央，其餘部分則被裁切掉。
+    func sizeThatFits(
+        _ proposal: ProposedViewSize, winUIElement: WinUI.Canvas, context: Context
+    ) -> ViewSize {
+        ViewSize(Double(width), Double(height))
+    }
 
     func updateWinUIElement(_ winUIElement: WinUI.Canvas, context: Context) {
-        if context.coordinator.surface == nil, !context.coordinator.creationFailed {
-            guard let parent = Self.findParentWindow() else { return }
-            do {
-                let surface = try P6D3D11VideoSurface(
-                    parent: parent, width: width, height: height
-                )
-                context.coordinator.surface = surface
-                surfaceBox.set(surface)
-                P6Diagnostics.write("d3d11 surface: child window created \(width)x\(height)")
-            } catch {
-                context.coordinator.creationFailed = true
-                P6Diagnostics.write(
-                    "d3d11 surface: creation failed (\(error)); using image path"
-                )
-                return
-            }
-        }
-
-        guard context.coordinator.surface != nil else { return }
-
-        // Position from a LayoutUpdated handler rather than here: this runs
-        // during layout computation, before the backend commits sizes and
-        // positions, so the placeholder is still zero-sized and centred and
-        // reports the middle of the window instead of the video area.
-        // 改由 LayoutUpdated 事件定位，而非在此處理：此處於版面配置「計算」階段
-        // 執行，backend 尚未套用尺寸與位置，佔位元件仍是零尺寸並被置中，
-        // 因此量到的是視窗中心而非影片區域。
-        guard !context.coordinator.observingLayout else { return }
-        context.coordinator.observingLayout = true
+        P6WindowFlags.applyIfNeeded()
 
         let coordinator = context.coordinator
-        let width = width
-        let height = height
-        _ = try? winUIElement.layoutUpdated.addHandler { [weak winUIElement] _, _ in
-            guard let winUIElement, let surface = coordinator.surface else { return }
-            guard let transform = try? winUIElement.transformToVisual(nil),
-                  let origin = try? transform.transformPoint(
-                      WindowsFoundation.Point(x: 0, y: 0)
-                  )
+        guard !coordinator.setupFailed else { return }
+
+        do {
+            if coordinator.surface == nil {
+                let panel = try P6SwapChainPanel()
+                P6Diagnostics.write(
+                    "d3d11 surface: activated \(panel.runtimeClassName)"
+                )
+                try panel.setSize(width: Double(width), height: Double(height))
+                try panel.attach(to: winUIElement)
+                coordinator.panel = panel
+                coordinator.surface = try P6D3D11VideoSurface(panel: panel)
+                P6Diagnostics.write(
+                    "d3d11 surface: panel attached \(width)x\(height)"
+                )
+            }
+            guard let surface = coordinator.surface else { return }
+
+            // The swap chain is bound to the panel here, on the UI thread,
+            // because SetSwapChain is UI-thread only. The decode thread only
+            // maps textures and presents.
+            // swap chain 在此處（UI 執行緒）綁定到面板，因為 SetSwapChain 僅能於
+            // UI 執行緒呼叫；解碼執行緒只負責對映 texture 與呈現。
+            // The swap chain is composed in the display's real pixels, so the
+            // buffer has to be the panel's size in those, not in DIPs.
+            // swap chain 以顯示器的真實像素合成，因此 buffer 要用面板在真實像素下
+            // 的尺寸，而不是 DIP。
+            guard let rasterizationScale = winUIElement.xamlRoot?.rasterizationScale,
+                  rasterizationScale > 0
             else {
                 return
             }
-            let x = Int32(origin.x)
-            let y = Int32(origin.y)
-            guard coordinator.lastBounds != SIMD2(x, y) else { return }
-            coordinator.lastBounds = SIMD2(x, y)
-            P6Diagnostics.write("d3d11 surface: bounds \(x),\(y) \(width)x\(height)")
-            surface.setBounds(x: x, y: y, width: width, height: height)
+            let viewport = P6VideoViewport(
+                width: Double(width),
+                height: Double(height),
+                pixelsPerDIP: rasterizationScale
+            )
+
+            let size = SIMD2(frameWidth, frameHeight)
+            guard coordinator.configuredSize != size
+                || coordinator.configuredViewport != viewport
+            else {
+                return
+            }
+
+            let needsRebuild = surface.needsRebuild(
+                for: viewport, frameWidth: frameWidth, frameHeight: frameHeight
+            )
+            if needsRebuild {
+                // Detach first: withSurface holds a lock the decode thread also
+                // takes, so this waits for any frame currently being written
+                // before the pool is torn down.
+                // 先解除掛載：withSurface 與解碼執行緒共用同一把鎖，因此這裡會等待
+                // 正在寫入的影格完成，才會釋放舊的 texture pool。
+                surfaceBox.set(nil)
+            }
+            try surface.setViewport(
+                viewport, frameWidth: frameWidth, frameHeight: frameHeight
+            )
+            coordinator.configuredSize = size
+            coordinator.configuredViewport = viewport
+            surfaceBox.set(surface)
+
+            let actual = (try? coordinator.panel?.actualSize()) ?? SIMD2(0, 0)
+            P6Diagnostics.write(
+                "d3d11 surface: frame \(frameWidth)x\(frameHeight), "
+                    + "viewport \(viewport.width)x\(viewport.height) dip "
+                    + "(\(viewport.pixelSize.x)x\(viewport.pixelSize.y) px), "
+                    + "panel actual \(actual.x)x\(actual.y) dip, "
+                    + "rasterization scale \(rasterizationScale)"
+            )
+
+            if P6WindowFlags.isCalibration, needsRebuild {
+                drawCalibrationPattern(
+                    surface: surface, width: Int(frameWidth), height: Int(frameHeight)
+                )
+            }
+        } catch {
+            coordinator.setupFailed = true
+            coordinator.surface = nil
+            surfaceBox.set(nil)
+            P6Diagnostics.write("d3d11 surface: setup failed (\(error))")
+        }
+    }
+
+    /// Fills the swap chain with a pattern whose geometry is known exactly, so
+    /// a single screenshot measures how swap chain pixels land on screen: the
+    /// red edge marks the buffer's bounds, the green cross its centre, and the
+    /// corner blocks say which corner survived any clipping.
+    /// 以幾何完全已知的圖樣填滿 swap chain，單張截圖即可量出 swap chain 像素如何
+    /// 落在螢幕上：紅色邊框標示 buffer 邊界、綠色十字標示中心，角落色塊則指出被
+    /// 裁切後保留的是哪一角。
+    private func drawCalibrationPattern(
+        surface: P6D3D11VideoSurface, width: Int, height: Int
+    ) {
+        let edge = 8
+        let corner = min(width, height) / 8
+        do {
+            try surface.writeFrame { destination, rowPitch in
+                for y in 0..<height {
+                    let row = destination.advanced(by: y * rowPitch)
+                        .assumingMemoryBound(to: UInt8.self)
+                    for x in 0..<width {
+                        var color: (UInt8, UInt8, UInt8) = (40, 40, 40)
+                        if x < edge || y < edge || x >= width - edge || y >= height - edge {
+                            color = (255, 0, 0)
+                        } else if abs(x - width / 2) < edge || abs(y - height / 2) < edge {
+                            color = (0, 255, 0)
+                        } else if x < corner, y < corner {
+                            color = (255, 255, 255)
+                        } else if x >= width - corner, y >= height - corner {
+                            color = (0, 160, 255)
+                        }
+                        let pixel = row + x * 4
+                        pixel[0] = color.0
+                        pixel[1] = color.1
+                        pixel[2] = color.2
+                        pixel[3] = 255
+                    }
+                }
+            }
+            try surface.present()
+            P6Diagnostics.write("d3d11 surface: calibration pattern presented")
+        } catch {
+            P6Diagnostics.write("d3d11 surface: calibration failed (\(error))")
         }
     }
 
     static func dismantleWinUIElement(_: WinUI.Canvas, coordinator: Coordinator) {
         coordinator.surface = nil
+        coordinator.panel = nil
     }
 }
 
 struct P6D3D11SpikeView: WinUIElementRepresentable {
-    typealias WinUIElementType = WinUI.Panel
+    typealias WinUIElementType = WinUI.Canvas
     typealias Coordinator = P6D3D11SpikeCoordinator
 
     func makeCoordinator() -> Coordinator {
         P6D3D11SpikeCoordinator()
     }
 
-    func makeWinUIElement(context: Context) -> WinUI.Panel {
-        // Log between every step: swift-winui's wrappers QI lazily, so a
-        // wrapper that constructs fine can still trap the moment a
-        // wrapped-type property is touched. Step-by-step logging shows
-        // exactly where that happens.
+    func makeWinUIElement(context: Context) -> WinUI.Canvas {
+        let canvas = WinUI.Canvas()
+
+        // Log between every step so a failure is attributable to one call.
         P6Diagnostics.write("d3d11 spike step 1: activating SwapChainPanel")
-        let inspectable = try! P6D3D11SwapChainPanelActivation.activateInspectable()
+        let panel = try! P6SwapChainPanel()
+        P6Diagnostics.write("d3d11 spike step 2: activated \(panel.runtimeClassName)")
 
-        P6Diagnostics.write(
-            "d3d11 spike step 2: activated, "
-                + P6D3D11SwapChainPanelActivation.describe(inspectable)
-        )
-
-        let native = try! P6D3D11SwapChainPanelActivation.queryNative(inspectable)
-        P6Diagnostics.write("d3d11 spike step 3: ISwapChainPanelNative QI ok")
-
-        let element = P6D3D11SwapChainPanelActivation.wrapAsPanel(inspectable)
-        P6Diagnostics.write("d3d11 spike step 4: wrapped as Panel (QI still lazy)")
-
-        // Split into sub-steps: the trap between step 4 and step 5 could be
-        // brush activation, the color set, or the Panel property assignment
-        // (the latter being the first thing that forces the wrapper's lazy
-        // QI for IPanel). Only 5c failing would mean the wrapper itself is
-        // the blocker.
-        let green = WinUI.SolidColorBrush()
-        P6Diagnostics.write("d3d11 spike step 5a: SolidColorBrush activated")
-
-        green.color = UWP.Color(a: 255, r: 0, g: 200, b: 0)
-        P6Diagnostics.write("d3d11 spike step 5b: brush color set")
-
-        element.background = green
-        P6Diagnostics.write("d3d11 spike step 5c: background assigned (IPanel QI ok)")
+        try! panel.setSize(width: 120, height: 90)
+        try! panel.attach(to: canvas)
+        P6Diagnostics.write("d3d11 spike step 3: panel added to canvas")
 
         let device = try! P6D3D11Device()
-        P6Diagnostics.write("d3d11 spike step 6: D3D11 device created")
+        P6Diagnostics.write("d3d11 spike step 4: D3D11 device created")
 
-        try! device.attachSwapChain(to: native, width: 120, height: 90)
-        P6Diagnostics.write("d3d11 spike step 7: swap chain attached to panel")
+        try! device.attachSwapChain(to: panel.native, width: 120, height: 90)
+        P6Diagnostics.write("d3d11 spike step 5: swap chain attached to panel")
 
         context.coordinator.device = device
-        context.coordinator.panel = native
-        return element
+        context.coordinator.panel = panel
+        return canvas
     }
 
-    func updateWinUIElement(_ winUIElement: WinUI.Panel, context: Context) {
+    func updateWinUIElement(_ winUIElement: WinUI.Canvas, context: Context) {
         // Present after layout rather than during creation: at creation time
         // the panel isn't in the visual tree yet, so a composition swap
         // chain presented then may never reach the screen.
@@ -401,11 +627,16 @@ struct P6StreamPlayerView: View {
                     Text("Choose a stream to begin")
                 }
                 #elseif os(Windows)
-                // The D3D11 child window draws the video itself; this view
-                // only reserves and tracks the region it should cover.
-                // 影片由 D3D11 子視窗自行繪製，此 view 僅保留並追蹤其應覆蓋的區域。
+                // The SwapChainPanel draws the video itself; this view only
+                // hosts it and keeps its swap chain sized to the decoder.
+                // 影片由 SwapChainPanel 自行繪製，此 view 僅負責承載它，並讓其
+                // swap chain 與解碼輸出尺寸保持一致。
                 P6D3D11VideoView(
-                    surfaceBox: player.surfaceBox, width: 960, height: 540
+                    surfaceBox: player.surfaceBox,
+                    width: 960,
+                    height: 540,
+                    frameWidth: UInt32(player.outputResolution.width),
+                    frameHeight: UInt32(player.outputResolution.height)
                 )
                 .frame(width: 960, height: 540)
                 #else
@@ -597,7 +828,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     ///   substring, searched in the current directory, then the default input
     ///   directory.
     /// - `-f` with no value falls back to `defaultFilePattern`.
-    static let defaultFilePattern = "恩典365"
+    static let defaultFilePattern = "耶利米"
 
     static func fileFromCommandLine() -> URL? {
         let arguments = CommandLine.arguments.dropFirst()
@@ -701,7 +932,21 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     var fpsSelection: String? = "30"
 
     @SwiftCrossUI.Published
-    var resolutionSelection: String? = P6OutputResolution.preview.label
+    /// `-res <substring>` preselects an output resolution, so the 1080p and 4K
+    /// paths can be exercised in an unattended run.
+    /// `-res <關鍵字>` 可預先選定輸出解析度，讓 1080p 與 4K 路徑能在無人值守的
+    /// 測試中被涵蓋。
+    var resolutionSelection: String? = {
+        guard let index = CommandLine.arguments.firstIndex(of: "-res"),
+              index + 1 < CommandLine.arguments.count
+        else {
+            return P6OutputResolution.preview.label
+        }
+        let pattern = CommandLine.arguments[index + 1].lowercased()
+        return P6OutputResolution.allCases
+            .first { $0.label.lowercased().contains(pattern) }?
+            .label ?? P6OutputResolution.preview.label
+    }()
 
     @SwiftCrossUI.Published
     var soundEnabled = true
@@ -1136,10 +1381,17 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                     // DXGI_FORMAT_R8G8B8A8_UNORM，無需像素格式轉換。
                     var zeroCopyFrameRead: Bool?
                     try surfaceBox.withSurface { surface in
-                        try surface.configure(
+                        // The swap chain is created on the UI thread, so this
+                        // only checks; a mismatch means the view has not caught
+                        // up with a resolution change yet.
+                        // swap chain 由 UI 執行緒建立，此處僅檢查；尺寸不符代表
+                        // view 尚未跟上解析度變更。
+                        guard surface.isConfigured(
                             frameWidth: UInt32(requestedResolution.width),
                             frameHeight: UInt32(requestedResolution.height)
-                        )
+                        ) else {
+                            return
+                        }
                         var didRead = false
                         try surface.writeFrame { destination, rowPitch in
                             didRead = try session.readFrame(

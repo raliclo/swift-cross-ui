@@ -35,7 +35,7 @@ usage() {
         "" \
         "Examples 範例:" \
         "  $command_name" \
-        "  $command_name 撒迦利亞" \
+        "  $command_name 耶利米" \
         "  $command_name 恩典365 --debug" \
         "  $command_name '/path/to/video.webm'"
 }

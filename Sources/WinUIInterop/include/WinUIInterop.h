@@ -2,6 +2,9 @@
 #include <ShObjIdl.h>
 #include <d3d11.h>
 #include <dxgi1_2.h>
+// IDXGISwapChain2::SetMatrixTransform, used to scale a frame-sized composition
+// swap chain up to the panel it is presented in.
+#include <dxgi1_3.h>
 
 // ISwapChainPanelNative is declared by WinAppSDK's
 // microsoft.ui.xaml.media.dxinterop.h (part of the swift-winui package's
