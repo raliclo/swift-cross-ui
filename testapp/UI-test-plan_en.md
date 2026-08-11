@@ -289,6 +289,18 @@ Late-frame dropping is disabled by default. Pass `--frame-drop` to start with it
 enabled, or use the runtime `Frame drop` toggle button to change it. During
 playback, changing the toggle restarts video and audio from the current timestamp
 so the new setting takes effect immediately.
+For unattended runs, `-f` selects the input without the file dialog: `-f` alone
+picks the first media file whose name contains `恩典365`, `-f <substring>`
+matches any other name, and `-f <path>` takes a path directly. The search covers
+the current directory, the directory holding the executable, and the default
+input directory. `-autoplay` starts playback immediately and
+`-enable-dropframe` turns on frame dropping, so
+`P6.exe -f -autoplay -enable-dropframe` needs no clicks at all.
+`test_P6.sh -win` and `P6-test.sh` both wrap that combination;
+`P6-test.sh [file-pattern]` is the shorter form.
+`compile.sh` builds debug by default and accepts `BUILD_CONFIG=release` for an
+optimised build.
+
 `test_P6.sh` prints its usage when no arguments are provided and otherwise
 forwards renderer flags, `--debug`, `--frame-drop`, and the media path to the
 compiled P6 binary. Its wrapper-only `-rss` option samples the P6 process RSS
@@ -375,7 +387,15 @@ Verification status:
 - The previously reported A/V desynchronization after timeline seeking is confirmed resolved with the supplied WebM sample. At a requested 00:50 seek, default ffplay demuxer seeking started audio near 46.05 seconds, while `-seek2any 1` starts it near 50.01 seconds. The visible subtitle and spoken phrase around that point are both `卻看我是祂的孩子`.
 - The confirmation covers normal playback and timeline seeking without `--debug`. Extended 4K playback at every speed and Frame Drop combination remains a separate stress-test scenario rather than a confirmed regression.
 - 2026-08-11: fixed a reproducible Windows-only crash (exception `0xc000001d`, illegal instruction in `dispatch.dll`) that occurred at first-frame publish, most reliably when a single-frame seek immediately terminates the decoder session. Root-caused via a `cdb` crash-dump stack trace to `P6DecoderSession.terminate()` closing `outputHandle` synchronously from inside its own `readabilityHandler` callback, a same-queue `dispatch_sync` self-deadlock that `dispatch.dll` traps instead of hanging. Fixed by moving the close onto a different queue (`DispatchQueue.global().async`). Confirmed fixed by repeated single-frame seeks and normal playback launches with no further crash or new crash dump.
-- 2026-08-11: normal playback at default settings (30 FPS, Frame Drop off) was observed dropping approximately 17 frames/sec on Windows. Not yet root-caused; tracked as a separate open item from the crash fix above.
+- 2026-08-11: normal playback at default settings (30 FPS, Frame Drop off) was observed dropping approximately 17 frames/sec on Windows, rising to roughly 25 frames/sec at 4K where playback nearly stops. Investigation results:
+  - ffmpeg is **not** the bottleneck. Running P6's exact 4K filter chain standalone decoded 20 seconds of video in 5 seconds (about 4x realtime).
+  - A release build (`BUILD_CONFIG=release`) did not fix it, so the cost is not merely unoptimised code.
+  - The bottleneck is the Windows display path. Each 4K frame previously cost: a 33 MB pipe read, a 33 MB `Array` copy, an `ImageFormats.Image`, a fresh 33 MB `WriteableBitmap` allocation, a 33 MB `memcpy`, an 8.3-million-iteration per-pixel RGBA→BGRA loop, and a SwiftCrossUI view-graph update -- roughly 4 GB/s of memory traffic at 30 FPS.
+- 2026-08-11: a GPU presentation path was built for Windows, mirroring the macOS Metal design (`P6D3D11VideoSurface` in `Sources/WinUIBackend/D3D11VideoInterop.swift`): a D3D11 swap chain plus a rotating pool of three staging textures, presentation driven by frame arrival, with frames written straight into mapped GPU memory. No `Array`, no `ImageFormats.Image`, no `WriteableBitmap`, and no pixel conversion (ffmpeg's `rgba` output is byte-identical to `DXGI_FORMAT_R8G8B8A8_UNORM`). One `memcpy` remains, because `FileHandle.fileDescriptor` is unavailable on Windows; removing it needs a named pipe read via `ReadFile` in place of Foundation's `Pipe`.
+- 2026-08-11: **the GPU path is not yet usable.** Two hosting approaches were tried and both are blocked:
+  - `SwapChainPanel`: not projected by swift-winui. Activating it via `RoActivateInstance` works (`GetRuntimeClassName` confirms the correct runtime class, and `ISwapChainPanelNative` QI succeeds), but the generated wrapper classes resolve their COM interface lazily through a `try!`, so the process traps with an illegal instruction the moment a wrapped property is touched.
+  - Child `HWND` + `CreateSwapChainForHwnd`: the swap chain is created and `Present` succeeds, yet nothing is visible. Since the child window overlaps the visible client area even when mispositioned, the video being entirely absent points to WinUI 3's airspace behaviour -- XAML composes through DirectComposition and occludes plain child windows.
+  - Remaining options: host the swap chain on a DirectComposition visual, or create the `SwapChainPanel` and attach it to the visual tree from a C++/WinRT shim so no Swift wrapper is ever constructed.
 
 RSS stress record:
 

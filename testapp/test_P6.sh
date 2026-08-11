@@ -3,16 +3,33 @@
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-p6_executable="$script_dir/output/P6"
 command_name=$(basename -- "$0")
+
+# Windows produces P6.exe, other platforms produce P6.
+# Windows 產生 P6.exe，其他平台產生 P6。
+if [ -x "$script_dir/output/P6.exe" ]; then
+    p6_executable="$script_dir/output/P6.exe"
+else
+    p6_executable="$script_dir/output/P6"
+fi
 
 # Show the complete command shape before requiring a media path.
 # 在要求媒體路徑前，先顯示完整的命令格式。
 usage() {
     printf '%s\n' \
-        "Usage: $command_name [-rss] [-metal|-core] [--debug] [--frame-drop] <media-file>" \
-        "用法：$command_name [-rss] [-metal|-core] [--debug] [--frame-drop] <媒體檔案>" \
-        "Example: $command_name -rss --debug --frame-drop '/path/to/video.webm'" \
+        "Usage: $command_name [-rss] [-win] [-metal|-core] [--debug] [--frame-drop] [<media-file>]" \
+        "用法：$command_name [-rss] [-win] [-metal|-core] [--debug] [--frame-drop] [<媒體檔案>]" \
+        "" \
+        "  -win  Windows quick run: auto-selects the file, starts playback, and" \
+        "        enables frame dropping (-f -autoplay -enable-dropframe)." \
+        "        No media file needed." \
+        "  -win  Windows 快速測試：自動選檔、自動播放並開啟丟幀" \
+        "        （-f -autoplay -enable-dropframe），不需指定媒體檔案。" \
+        "" \
+        "Examples 範例:" \
+        "  $command_name -win" \
+        "  $command_name -win 撒迦利亞" \
+        "  $command_name -rss --debug --frame-drop '/path/to/video.webm'" \
         "Build first if needed: zsh testapp/compile.sh P6"
 }
 
@@ -30,15 +47,29 @@ if [ ! -x "$p6_executable" ]; then
 fi
 
 rss_enabled=0
+win_enabled=0
 typeset -a p6_arguments
 p6_arguments=()
 for argument in "$@"; do
-    if [ "$argument" = "-rss" ]; then
-        rss_enabled=1
-    else
-        p6_arguments+=("$argument")
-    fi
+    case "$argument" in
+        -rss) rss_enabled=1 ;;
+        -win) win_enabled=1 ;;
+        *) p6_arguments+=("$argument") ;;
+    esac
 done
+
+# -win supplies the defaults, so a media file becomes optional. A bare file
+# name left on the command line is handed to -f as a search pattern.
+# -win 會提供預設值，因此媒體檔案變成選用；命令列上剩下的檔名會交給 -f 作為搜尋關鍵字。
+if [ "$win_enabled" -eq 1 ]; then
+    typeset -a win_defaults
+    win_defaults=(-autoplay -enable-dropframe -f)
+    if [ "${#p6_arguments[@]}" -gt 0 ] && [ "${p6_arguments[1]#-}" = "${p6_arguments[1]}" ]; then
+        win_defaults+=("${p6_arguments[1]}")
+        shift p6_arguments
+    fi
+    p6_arguments=("${win_defaults[@]}" "${p6_arguments[@]}")
+fi
 
 if [ "${#p6_arguments[@]}" -eq 0 ]; then
     usage >&2

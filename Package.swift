@@ -323,6 +323,10 @@ let package = Package(
                 .product(name: "WinAppSDK", package: "swift-winui"),
                 .product(name: "WindowsFoundation", package: "swift-winui"),
                 .product(name: "Mutex", package: "swift-mutex"),
+            ],
+            linkerSettings: [
+                .linkedLibrary("d3d11", .when(platforms: [.windows])),
+                .linkedLibrary("dxgi", .when(platforms: [.windows])),
             ]
         ),
         .target(

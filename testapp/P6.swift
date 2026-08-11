@@ -12,6 +12,251 @@ import Metal
 import MetalKit
 #endif
 
+#if os(Windows)
+import UWP
+import WinSDK
+import WinUI
+import WinUIBackend
+import WindowsFoundation
+
+/// Phase 0/1 spike view: activates a native `SwapChainPanel`, attaches a
+/// D3D11 composition swap chain, and presents a solid clear color. This
+/// exists only to visually confirm WinUI's compositor actually renders a
+/// SwapChainPanel obtained via `RoActivateInstance` before real video frames
+/// are wired in. See the plan at
+/// C:\Users\lowei\.claude\plans\quizzical-jingling-music.md.
+/// Shared handle to the D3D11 surface so the background decode task can write
+/// frames into it directly.
+///
+/// D3D11 devices serialise immediate-context calls internally unless created
+/// with SINGLETHREADED, so Map/CopyResource/Present are safe from the decode
+/// thread. Keeping them off the main actor is deliberate: it removes the
+/// per-frame main-thread hop and the view-graph update that the old
+/// ImageFormats path required.
+/// D3D11 裝置預設會在內部序列化 immediate context 的呼叫（除非以 SINGLETHREADED
+/// 建立），因此可安全地從解碼執行緒呼叫 Map/CopyResource/Present。刻意不放在
+/// 主執行者上：可省去每幀切回主執行緒，以及舊 ImageFormats 路徑所需的 view
+/// graph 更新。
+final class P6VideoSurfaceBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var surface: P6D3D11VideoSurface?
+
+    func set(_ surface: P6D3D11VideoSurface?) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.surface = surface
+    }
+
+    func withSurface<T>(_ body: (P6D3D11VideoSurface) throws -> T) rethrows -> T? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let surface else { return nil }
+        return try body(surface)
+    }
+}
+
+final class P6D3D11SpikeCoordinator {
+    var device: P6D3D11Device?
+    var panel: SwiftISwapChainPanelNative?
+    var presentCount = 0
+}
+
+/// Result holder for the EnumThreadWindows callback.
+final class P6WindowSearch {
+    var hwnd: HWND?
+}
+
+final class P6D3D11VideoCoordinator {
+    var surface: P6D3D11VideoSurface?
+    /// Stops retrying after a genuine failure, so the log is not spammed on
+    /// every layout pass.
+    /// 真正失敗後不再重試，避免每次版面配置都寫入相同的 log。
+    var creationFailed = false
+    var lastBounds: SIMD2<Int32>?
+    var observingLayout = false
+}
+
+/// Hosts the D3D11 child window over the video viewport.
+///
+/// A plain `WinUI.Canvas` acts as the layout placeholder -- it is a projected
+/// swift-winui type, so unlike SwapChainPanel its wrapper works. The child
+/// HWND is then positioned over wherever that placeholder ends up.
+/// 以一般的 `WinUI.Canvas` 作為版面配置佔位元件：它是 swift-winui 已投影的型別，
+/// 因此不像 SwapChainPanel 那樣包裝失敗。子視窗再依佔位元件的位置擺放。
+struct P6D3D11VideoView: WinUIElementRepresentable {
+    typealias WinUIElementType = WinUI.Canvas
+    typealias Coordinator = P6D3D11VideoCoordinator
+
+    var surfaceBox: P6VideoSurfaceBox
+    var width: Int32
+    var height: Int32
+
+    func makeCoordinator() -> Coordinator {
+        P6D3D11VideoCoordinator()
+    }
+
+    func makeWinUIElement(context: Context) -> WinUI.Canvas {
+        // The surface is created lazily in updateWinUIElement: at make time
+        // the XAML window is not active yet, so no parent HWND exists.
+        // 表面延後到 updateWinUIElement 建立：make 階段 XAML 視窗尚未啟用，
+        // 此時還取不到父視窗的 HWND。
+        WinUI.Canvas()
+    }
+
+    /// Finds this process's top-level window. GetActiveWindow returns nil
+    /// during early layout, so fall back to enumerating the UI thread's own
+    /// windows, which exist by then.
+    /// 尋找本行程的頂層視窗。版面配置初期 GetActiveWindow 會回傳 nil，
+    /// 因此改為列舉 UI 執行緒自己的視窗，該時點它們已經存在。
+    private static func findParentWindow() -> HWND? {
+        if let active = GetActiveWindow() { return active }
+
+        let search = P6WindowSearch()
+        // The enumeration callback is a C function pointer and cannot capture,
+        // so pass the result holder through lParam.
+        // 列舉用的 callback 是 C 函式指標、無法捕捉外部變數，因此透過 lParam
+        // 傳遞結果容器。
+        _ = EnumThreadWindows(
+            GetCurrentThreadId(),
+            { hwnd, lParam in
+                guard let hwnd, IsWindowVisible(hwnd) else { return true }
+                guard let raw = UnsafeMutableRawPointer(bitPattern: Int(lParam)) else {
+                    return true
+                }
+                Unmanaged<P6WindowSearch>.fromOpaque(raw)
+                    .takeUnretainedValue()
+                    .hwnd = hwnd
+                return false
+            },
+            LPARAM(Int(bitPattern: Unmanaged.passUnretained(search).toOpaque()))
+        )
+        return search.hwnd ?? GetForegroundWindow()
+    }
+
+    func updateWinUIElement(_ winUIElement: WinUI.Canvas, context: Context) {
+        if context.coordinator.surface == nil, !context.coordinator.creationFailed {
+            guard let parent = Self.findParentWindow() else { return }
+            do {
+                let surface = try P6D3D11VideoSurface(
+                    parent: parent, width: width, height: height
+                )
+                context.coordinator.surface = surface
+                surfaceBox.set(surface)
+                P6Diagnostics.write("d3d11 surface: child window created \(width)x\(height)")
+            } catch {
+                context.coordinator.creationFailed = true
+                P6Diagnostics.write(
+                    "d3d11 surface: creation failed (\(error)); using image path"
+                )
+                return
+            }
+        }
+
+        guard context.coordinator.surface != nil else { return }
+
+        // Position from a LayoutUpdated handler rather than here: this runs
+        // during layout computation, before the backend commits sizes and
+        // positions, so the placeholder is still zero-sized and centred and
+        // reports the middle of the window instead of the video area.
+        // 改由 LayoutUpdated 事件定位，而非在此處理：此處於版面配置「計算」階段
+        // 執行，backend 尚未套用尺寸與位置，佔位元件仍是零尺寸並被置中，
+        // 因此量到的是視窗中心而非影片區域。
+        guard !context.coordinator.observingLayout else { return }
+        context.coordinator.observingLayout = true
+
+        let coordinator = context.coordinator
+        let width = width
+        let height = height
+        _ = try? winUIElement.layoutUpdated.addHandler { [weak winUIElement] _, _ in
+            guard let winUIElement, let surface = coordinator.surface else { return }
+            guard let transform = try? winUIElement.transformToVisual(nil),
+                  let origin = try? transform.transformPoint(
+                      WindowsFoundation.Point(x: 0, y: 0)
+                  )
+            else {
+                return
+            }
+            let x = Int32(origin.x)
+            let y = Int32(origin.y)
+            guard coordinator.lastBounds != SIMD2(x, y) else { return }
+            coordinator.lastBounds = SIMD2(x, y)
+            P6Diagnostics.write("d3d11 surface: bounds \(x),\(y) \(width)x\(height)")
+            surface.setBounds(x: x, y: y, width: width, height: height)
+        }
+    }
+
+    static func dismantleWinUIElement(_: WinUI.Canvas, coordinator: Coordinator) {
+        coordinator.surface = nil
+    }
+}
+
+struct P6D3D11SpikeView: WinUIElementRepresentable {
+    typealias WinUIElementType = WinUI.Panel
+    typealias Coordinator = P6D3D11SpikeCoordinator
+
+    func makeCoordinator() -> Coordinator {
+        P6D3D11SpikeCoordinator()
+    }
+
+    func makeWinUIElement(context: Context) -> WinUI.Panel {
+        // Log between every step: swift-winui's wrappers QI lazily, so a
+        // wrapper that constructs fine can still trap the moment a
+        // wrapped-type property is touched. Step-by-step logging shows
+        // exactly where that happens.
+        P6Diagnostics.write("d3d11 spike step 1: activating SwapChainPanel")
+        let inspectable = try! P6D3D11SwapChainPanelActivation.activateInspectable()
+
+        P6Diagnostics.write(
+            "d3d11 spike step 2: activated, "
+                + P6D3D11SwapChainPanelActivation.describe(inspectable)
+        )
+
+        let native = try! P6D3D11SwapChainPanelActivation.queryNative(inspectable)
+        P6Diagnostics.write("d3d11 spike step 3: ISwapChainPanelNative QI ok")
+
+        let element = P6D3D11SwapChainPanelActivation.wrapAsPanel(inspectable)
+        P6Diagnostics.write("d3d11 spike step 4: wrapped as Panel (QI still lazy)")
+
+        // Split into sub-steps: the trap between step 4 and step 5 could be
+        // brush activation, the color set, or the Panel property assignment
+        // (the latter being the first thing that forces the wrapper's lazy
+        // QI for IPanel). Only 5c failing would mean the wrapper itself is
+        // the blocker.
+        let green = WinUI.SolidColorBrush()
+        P6Diagnostics.write("d3d11 spike step 5a: SolidColorBrush activated")
+
+        green.color = UWP.Color(a: 255, r: 0, g: 200, b: 0)
+        P6Diagnostics.write("d3d11 spike step 5b: brush color set")
+
+        element.background = green
+        P6Diagnostics.write("d3d11 spike step 5c: background assigned (IPanel QI ok)")
+
+        let device = try! P6D3D11Device()
+        P6Diagnostics.write("d3d11 spike step 6: D3D11 device created")
+
+        try! device.attachSwapChain(to: native, width: 120, height: 90)
+        P6Diagnostics.write("d3d11 spike step 7: swap chain attached to panel")
+
+        context.coordinator.device = device
+        context.coordinator.panel = native
+        return element
+    }
+
+    func updateWinUIElement(_ winUIElement: WinUI.Panel, context: Context) {
+        // Present after layout rather than during creation: at creation time
+        // the panel isn't in the visual tree yet, so a composition swap
+        // chain presented then may never reach the screen.
+        guard let device = context.coordinator.device else { return }
+        try? device.clearAndPresent(r: 1, g: 0, b: 1, a: 1)
+        context.coordinator.presentCount += 1
+        P6Diagnostics.write(
+            "d3d11 spike: present #\(context.coordinator.presentCount) "
+                + "actualSize \(winUIElement.actualWidth)x\(winUIElement.actualHeight)"
+        )
+    }
+}
+#endif
+
 // P6 stream player test app:
 // - Select MP4, WebM, Y4M, or Y4M.ZST input.
 // - Decode through FFmpeg; Zstd input is streamed through zstd first.
@@ -64,7 +309,7 @@ struct P6StreamPlayerApp: App {
                 P6StreamPlayerView()
             }
         }
-        .defaultSize(width: 1_120, height: 850)
+        .defaultSize(width: 1_120, height: 800)
     }
 }
 
@@ -102,6 +347,23 @@ struct P6StreamPlayerView: View {
                     #endif
                 }
 
+                #if os(Windows)
+                // Phase 0/1 spike: confirms the SwapChainPanel activation +
+                // D3D11 device/swapchain/present path actually renders,
+                // before wiring real video frames into it. Should show as a
+                // solid magenta rectangle. See plan at
+                // C:\Users\lowei\.claude\plans\quizzical-jingling-music.md.
+                //
+                // Gated behind -d3d-spike (default off): a crash was observed
+                // right at first-frame publish while this was always-on, so
+                // it's opt-in until the interaction with the normal video
+                // path is root-caused.
+                if CommandLine.arguments.contains("-d3d-spike") {
+                    P6D3D11SpikeView()
+                        .frame(width: 120, height: 90)
+                }
+                #endif
+
                 Spacer()
 
                 Button("Choose file") {
@@ -138,6 +400,14 @@ struct P6StreamPlayerView: View {
                 } else {
                     Text("Choose a stream to begin")
                 }
+                #elseif os(Windows)
+                // The D3D11 child window draws the video itself; this view
+                // only reserves and tracks the region it should cover.
+                // 影片由 D3D11 子視窗自行繪製，此 view 僅保留並追蹤其應覆蓋的區域。
+                P6D3D11VideoView(
+                    surfaceBox: player.surfaceBox, width: 960, height: 540
+                )
+                .frame(width: 960, height: 540)
                 #else
                 if let frame = player.frame {
                     SwiftCrossUI.Image(frame)
@@ -280,10 +550,16 @@ struct P6StreamPlayerView: View {
             P6Diagnostics.write("renderer \(player.renderingBackend.rawValue)")
             #endif
 
-            if let inputPath = CommandLine.arguments.dropFirst().first(where: {
-                !$0.hasPrefix("-")
-            }) {
-                player.load(URL(fileURLWithPath: inputPath))
+            if let inputFile = P6StreamPlayerModel.fileFromCommandLine() {
+                P6Diagnostics.write(
+                    "auto-load \(inputFile.path) "
+                        + "autoplay \(P6Diagnostics.isAutoplayEnabled ? "on" : "off") "
+                        + "frame-drop \(P6Diagnostics.isFrameDropEnabled ? "on" : "off")"
+                )
+                player.load(inputFile)
+                if P6Diagnostics.isAutoplayEnabled {
+                    player.play()
+                }
             }
         }
         .onDisappear {
@@ -303,6 +579,79 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 .appendingPathComponent("images")
             if FileManager.default.fileExists(atPath: candidate.path) {
                 return candidate
+            }
+        }
+        return nil
+    }
+
+    /// Media extensions `-f` will match when searching by substring.
+    private static let mediaExtensions: Set<String> = [
+        "mp4", "webm", "y4m", "zst", "mkv", "mov",
+    ]
+
+    /// Resolves the `-f` flag, which avoids re-picking the same file through
+    /// the file dialog on every launch.
+    ///
+    /// - `-f <path>` loads that path directly.
+    /// - `-f <substring>` loads the first media file whose name contains that
+    ///   substring, searched in the current directory, then the default input
+    ///   directory.
+    /// - `-f` with no value falls back to `defaultFilePattern`.
+    static let defaultFilePattern = "恩典365"
+
+    static func fileFromCommandLine() -> URL? {
+        let arguments = CommandLine.arguments.dropFirst()
+        guard let flagIndex = arguments.firstIndex(of: "-f") else {
+            // No -f: keep supporting a bare positional path.
+            guard let path = arguments.first(where: { !$0.hasPrefix("-") }) else {
+                return nil
+            }
+            return URL(fileURLWithPath: path)
+        }
+
+        let next = arguments.index(after: flagIndex)
+        let value: String
+        if next < arguments.endIndex, !arguments[next].hasPrefix("-") {
+            value = arguments[next]
+        } else {
+            value = defaultFilePattern
+        }
+
+        if FileManager.default.fileExists(atPath: value) {
+            return URL(fileURLWithPath: value)
+        }
+        return findMediaFile(containing: value)
+    }
+
+    private static func findMediaFile(containing substring: String) -> URL? {
+        var directories = [
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        ]
+        // Also look beside the executable, so -f works no matter which
+        // directory P6 was launched from (test_P6.sh runs it from the repo
+        // root, while the sample videos live next to the binary).
+        // 同時搜尋執行檔所在目錄，讓 -f 不受啟動目錄影響（test_P6.sh 由 repo
+        // 根目錄啟動，但範例影片放在執行檔旁邊）。
+        if let executablePath = CommandLine.arguments.first {
+            let executableDirectory = URL(fileURLWithPath: executablePath)
+                .deletingLastPathComponent()
+            directories.append(executableDirectory)
+        }
+        if let suggested = suggestedInputDirectory {
+            directories.append(suggested)
+        }
+
+        for directory in directories {
+            let contents = try? FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil
+            )
+            let match = contents?
+                .filter { mediaExtensions.contains($0.pathExtension.lowercased()) }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                .first { $0.lastPathComponent.contains(substring) }
+            if let match {
+                return match
             }
         }
         return nil
@@ -371,6 +720,19 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
     private var generation = 0
     private var frameSerial = 0
+    /// Whether playback stopped because the stream ended, so Play restarts
+    /// from the beginning instead of resuming at the final frame.
+    /// 是否因串流播畢而停止；若是，按下播放應從頭開始，而非停在最後一張影格。
+    private var reachedEndOfStream = false
+
+    #if os(Windows)
+    /// Set once the D3D11 child-window surface exists. While it is nil the
+    /// decoder falls back to the old image path, so the app still runs before
+    /// the surface is created (or if creating it fails).
+    /// 建立 D3D11 子視窗表面後才會設定；為 nil 時解碼器沿用舊的影像路徑，
+    /// 因此在表面建立前（或建立失敗時）程式仍可運作。
+    let surfaceBox = P6VideoSurfaceBox()
+    #endif
     private var seekDebounceTask: Task<Void, Never>?
     private var playbackTask: Task<Void, Never>?
     private var decoderSession: P6DecoderSession?
@@ -464,7 +826,16 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
     func play() {
         guard selectedURL != nil else { return }
-        if let duration, currentTime >= duration {
+        // At end of stream currentTime holds the last decoded frame's
+        // timestamp, which is slightly *below* the probed duration, so a
+        // `currentTime >= duration` test misses and playback would restart
+        // at the very end -- decoding nothing and immediately ending again,
+        // which looks like Play doing nothing. Track the end explicitly.
+        // 播放結束時 currentTime 是最後一張影格的時間戳，會略小於探測到的總長，
+        // 因此 `currentTime >= duration` 判斷不會成立，導致從結尾重新開始播放：
+        // 解不到任何影格便立刻再次結束，看起來就像按下播放沒有反應。
+        // 改為明確記錄是否已播放到結尾。
+        if reachedEndOfStream {
             currentTime = 0
             seekPosition = 0
         }
@@ -689,6 +1060,10 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
         guard let selectedURL else { return }
 
         invalidateCurrentDecoder()
+        // Any new decode session (play, seek, or single-frame scrub) means we
+        // are no longer parked at the end of the stream.
+        // 任何新的解碼工作（播放、seek、單張影格預覽）都代表已離開串流結尾。
+        reachedEndOfStream = false
         currentTime = max(0, startTime)
         seekPosition = currentTime
         isPlaying = shouldPlay
@@ -742,6 +1117,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 var previousFrame: Data?
                 var frameIndex = 0
                 var playbackStartUptime: TimeInterval?
+                var didLogFirstPresent = false
+                var didLogPresentError = false
                 var droppedFrameCount = 0
                 var droppedFramesInSample = 0
                 var dropRateSampleStart = ProcessInfo.processInfo.systemUptime
@@ -749,10 +1126,55 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 let sourceAdvance = requestedSpeed / Double(requestedFPS)
 
                 while !Task.isCancelled {
-                    guard let frameData = try session.readFrame() else {
+                    #if os(Windows)
+                    // Zero-copy path: read the frame straight into mapped GPU
+                    // memory. Nothing is allocated or copied per frame, and no
+                    // pixel conversion is needed because ffmpeg's rgba output
+                    // already matches DXGI_FORMAT_R8G8B8A8_UNORM.
+                    // 零複製路徑：影格直接讀入已對映的 GPU 記憶體。每幀不配置也
+                    // 不複製任何緩衝區，且因 ffmpeg 的 rgba 輸出已符合
+                    // DXGI_FORMAT_R8G8B8A8_UNORM，無需像素格式轉換。
+                    var zeroCopyFrameRead: Bool?
+                    try surfaceBox.withSurface { surface in
+                        try surface.configure(
+                            frameWidth: UInt32(requestedResolution.width),
+                            frameHeight: UInt32(requestedResolution.height)
+                        )
+                        var didRead = false
+                        try surface.writeFrame { destination, rowPitch in
+                            didRead = try session.readFrame(
+                                into: destination,
+                                rowPitch: rowPitch,
+                                width: requestedResolution.width,
+                                height: requestedResolution.height
+                            )
+                        }
+                        zeroCopyFrameRead = didRead
+                    }
+
+                    if let zeroCopyFrameRead {
+                        guard zeroCopyFrameRead else {
+                            await self.finish(token: token, reachedEnd: true, error: nil)
+                            return
+                        }
+                    }
+                    let frameData: Data?
+                    if zeroCopyFrameRead == nil {
+                        guard let data = try session.readFrame() else {
+                            await self.finish(token: token, reachedEnd: true, error: nil)
+                            return
+                        }
+                        frameData = data
+                    } else {
+                        frameData = nil
+                    }
+                    #else
+                    guard let readData = try session.readFrame() else {
                         await self.finish(token: token, reachedEnd: true, error: nil)
                         return
                     }
+                    let frameData: Data? = readData
+                    #endif
 
                     let position = startTime + Double(frameIndex) * sourceAdvance
 
@@ -834,6 +1256,46 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         }
                     }
 
+                    #if os(Windows)
+                    if zeroCopyFrameRead != nil {
+                        // The frame is already in GPU memory; presenting is a
+                        // CopyResource plus Present, with nothing crossing the
+                        // CPU again. acceptFrame is still called with no image
+                        // so the timeline and status text keep updating.
+                        // 影格已位於 GPU 記憶體，呈現只需 CopyResource 與 Present，
+                        // 不再有資料回到 CPU。仍以無影像參數呼叫 acceptFrame，
+                        // 讓時間軸與狀態文字持續更新。
+                        surfaceBox.withSurface { surface in
+                            do {
+                                try surface.present()
+                                if !didLogFirstPresent {
+                                    didLogFirstPresent = true
+                                    P6Diagnostics.write("d3d11 surface: first present ok")
+                                }
+                            } catch {
+                                if !didLogPresentError {
+                                    didLogPresentError = true
+                                    P6Diagnostics.write("d3d11 surface: present failed \(error)")
+                                }
+                            }
+                        }
+                        await self.acceptFrame(
+                            nil,
+                            rawFrame: nil,
+                            at: position,
+                            resolution: requestedResolution,
+                            token: token
+                        )
+                        if singleFrame {
+                            session.terminate()
+                            await self.finish(token: token, reachedEnd: false, error: nil)
+                            return
+                        }
+                        frameIndex += 1
+                        continue
+                    }
+                    #endif
+
                     // Full Data equality scans every RGBA byte. Keep it out of
                     // normal playback and enable it only for explicit diagnostics.
                     // 完整 Data 相等比較會掃描每個 RGBA 位元組；一般播放不執行，
@@ -848,7 +1310,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
 
                     var rawFrame: Data?
                     var image: ImageFormats.Image<RGBA>?
-                    if isDuplicateFrame {
+                    if isDuplicateFrame || frameData == nil {
                         rawFrame = nil
                         image = nil
                     } else {
@@ -857,11 +1319,13 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         image = nil
                         #else
                         rawFrame = nil
-                        image = ImageFormats.Image(
-                            width: requestedResolution.width,
-                            height: requestedResolution.height,
-                            bytes: Array(frameData)
-                        )
+                        image = frameData.map {
+                            ImageFormats.Image(
+                                width: requestedResolution.width,
+                                height: requestedResolution.height,
+                                bytes: Array($0)
+                            )
+                        }
                         #endif
                     }
 
@@ -993,6 +1457,7 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
             if duration == nil {
                 duration = currentTime
             }
+            reachedEndOfStream = true
             status = "End of stream."
             P6Diagnostics.write(status)
         } else {
@@ -1569,11 +2034,13 @@ final class P6DecoderSession: @unchecked Sendable {
 
         do {
             try ffmpeg.run()
+            P6ChildProcessReaper.adopt(ffmpeg)
             outputPipe.fileHandleForWriting.closeFile()
             sourcePipe?.fileHandleForReading.closeFile()
 
             if let zstdProcess {
                 try zstdProcess.run()
+                P6ChildProcessReaper.adopt(zstdProcess)
                 sourcePipe?.fileHandleForWriting.closeFile()
             }
 
@@ -1604,6 +2071,58 @@ final class P6DecoderSession: @unchecked Sendable {
     deinit {
         terminate()
     }
+
+    #if os(Windows)
+    /// Reads exactly one frame straight into caller-provided memory.
+    ///
+    /// This is the zero-copy path: `destination` is a mapped D3D11 staging
+    /// texture, so bytes go from the pipe into GPU-visible memory with no
+    /// intermediate Data, Array, or image object. `rowPitch` is the mapped
+    /// texture's stride, which may exceed the frame's own row length, so rows
+    /// are read one at a time.
+    /// 這是零複製路徑：`destination` 是已對映的 D3D11 staging texture，位元組
+    /// 直接從 pipe 進入 GPU 可見記憶體，中間不產生 Data、Array 或影像物件。
+    /// `rowPitch` 為對映後的列間距，可能大於影格本身的列長度，因此逐列讀取。
+    ///
+    /// NOTE: this still performs one memcpy from Foundation's buffer into the
+    /// mapped texture. Reading the pipe *directly* into GPU memory needs a
+    /// Win32 HANDLE, but Foundation on Windows refuses to expose one
+    /// (`FileHandle.fileDescriptor` is unavailable: "Cannot perform
+    /// non-owning handle to fd conversion"), so eliminating this last copy
+    /// requires replacing Foundation's Pipe with a named pipe read via
+    /// ReadFile. Everything else on the old path -- the Array copy, the
+    /// ImageFormats.Image, the per-frame WriteableBitmap allocation, the
+    /// 8.3M-pixel conversion loop and the view-graph update -- is already gone.
+    /// 註：此處仍有一次從 Foundation 緩衝區複製到已對映 texture 的 memcpy。
+    /// 若要直接從 pipe 讀入 GPU 記憶體需要 Win32 HANDLE，但 Windows 上的
+    /// Foundation 不提供（`FileHandle.fileDescriptor` 不可用），因此要消除最後
+    /// 這次複製，必須改以具名管線搭配 ReadFile 取代 Foundation 的 Pipe。
+    func readFrame(
+        into destination: UnsafeMutableRawPointer,
+        rowPitch: Int,
+        width: Int,
+        height: Int
+    ) throws -> Bool {
+        guard let data = try readFrame() else { return false }
+        let bytesPerRow = width * 4
+
+        data.withUnsafeBytes { source in
+            guard let base = source.baseAddress else { return }
+            if rowPitch == bytesPerRow {
+                memcpy(destination, base, bytesPerRow * height)
+            } else {
+                for row in 0..<height {
+                    memcpy(
+                        destination.advanced(by: row * rowPitch),
+                        base.advanced(by: row * bytesPerRow),
+                        bytesPerRow
+                    )
+                }
+            }
+        }
+        return true
+    }
+    #endif
 
     func readFrame() throws -> Data? {
         var data = Data()
@@ -1748,6 +2267,7 @@ final class P6AudioSession: @unchecked Sendable {
             throw error
         }
 
+        P6ChildProcessReaper.adopt(process)
         ffplay = process
     }
 
@@ -1972,9 +2492,66 @@ enum P6PlayerError: LocalizedError {
     }
 }
 
+/// Guarantees child tools (ffmpeg/ffplay/zstd) die with P6.
+///
+/// On macOS the close-confirmation and signal handlers already reap them, but
+/// those are AppKit-only, so on Windows a closed window could leave ffplay
+/// still playing audio. A Job Object with KILL_ON_JOB_CLOSE makes Windows
+/// itself terminate every adopted child as soon as the P6 process exits --
+/// including on a crash or force-kill, which no in-process handler can cover.
+enum P6ChildProcessReaper {
+    #if os(Windows)
+    private static let job: HANDLE? = {
+        guard let job = CreateJobObjectW(nil, nil) else { return nil }
+        var limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+        limits.BasicLimitInformation.LimitFlags =
+            DWORD(JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
+        let ok = withUnsafeMutablePointer(to: &limits) { pointer in
+            SetInformationJobObject(
+                job,
+                JobObjectExtendedLimitInformation,
+                pointer,
+                DWORD(MemoryLayout<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>.size)
+            )
+        }
+        guard ok else {
+            CloseHandle(job)
+            return nil
+        }
+        return job
+    }()
+    #endif
+
+    static func adopt(_ process: Process) {
+        #if os(Windows)
+        guard let job else {
+            P6Diagnostics.write("child reaper unavailable; job object not created")
+            return
+        }
+        let pid = DWORD(process.processIdentifier)
+        guard let handle = OpenProcess(DWORD(PROCESS_SET_QUOTA | PROCESS_TERMINATE), false, pid)
+        else {
+            P6Diagnostics.write("child reaper could not open pid \(pid)")
+            return
+        }
+        defer { CloseHandle(handle) }
+        if !AssignProcessToJobObject(job, handle) {
+            P6Diagnostics.write("child reaper could not adopt pid \(pid)")
+        }
+        #endif
+    }
+}
+
 enum P6Diagnostics {
     static let isDebugEnabled = CommandLine.arguments.contains("--debug")
-    static let isFrameDropEnabled = CommandLine.arguments.contains("--frame-drop")
+    /// `-enable-dropframe` is the short spelling used alongside `-f` for
+    /// unattended test runs.
+    static let isFrameDropEnabled =
+        CommandLine.arguments.contains("--frame-drop")
+        || CommandLine.arguments.contains("-enable-dropframe")
+    /// Starts playback immediately after `-f` auto-loads a file, so a test
+    /// run needs no clicks at all.
+    static let isAutoplayEnabled = CommandLine.arguments.contains("-autoplay")
 
     static func writeFrame(_ message: @autoclosure () -> String) {
         guard isDebugEnabled else { return }

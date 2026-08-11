@@ -38,6 +38,9 @@ package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"
 
 swift_bin="${SWIFT_BIN:-swift}"
+# Per-pixel work such as P6's RGBA conversion is dramatically slower without
+# optimisation, so allow release builds: BUILD_CONFIG=release sh compile.sh P6
+build_config="${BUILD_CONFIG:-debug}"
 needs_image_formats=0
 
 mkdir -p "$output_dir" "$sources_root"
@@ -120,6 +123,13 @@ cat > "$package_dir/Package.swift" <<EOF_PACKAGE
 
 import PackageDescription
 
+// swift-winui ships several separate products (WinUI, UWP, WindowsFoundation,
+// WinAppSDK, CWinRT, ...). A test app can only import the ones listed here, so
+// adding an import to P*.swift is not enough on its own -- the product has to
+// be added below as well.
+// swift-winui 提供數個獨立的 product（WinUI、UWP、WindowsFoundation、
+// WinAppSDK、CWinRT 等）。測試程式只能 import 此處列出的模組，因此僅在
+// P*.swift 加上 import 並不足夠，必須同時把該 product 加進下方清單。
 let testAppDependencies: [Target.Dependency] = [
     .product(name: "SwiftCrossUI", package: "swift-cross-ui"),
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
@@ -128,6 +138,7 @@ let testAppDependencies: [Target.Dependency] = [
     $image_formats_product
     .product(name: "WinUI", package: "swift-winui", condition: .when(platforms: [.windows])),
     .product(name: "UWP", package: "swift-winui", condition: .when(platforms: [.windows])),
+    .product(name: "WindowsFoundation", package: "swift-winui", condition: .when(platforms: [.windows])),
 ]
 
 let package = Package(
@@ -151,21 +162,21 @@ for app_name in $app_names; do
     "$swift_bin" build \
         --package-path "$package_dir" \
         --product "$app_name" \
-        -c debug
+        -c "$build_config"
 
     exe_path=""
     triple_dir="$(find "$package_dir/.build" -maxdepth 1 -type d -name '*-*-*' | head -n 1 || true)"
-    if [ -n "$triple_dir" ] && [ -f "$triple_dir/debug/$app_name.exe" ]; then
-        exe_path="$triple_dir/debug/$app_name.exe"
+    if [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name.exe" ]; then
+        exe_path="$triple_dir/$build_config/$app_name.exe"
         output_path="$output_dir/$app_name.exe"
-    elif [ -n "$triple_dir" ] && [ -f "$triple_dir/debug/$app_name" ]; then
-        exe_path="$triple_dir/debug/$app_name"
+    elif [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name" ]; then
+        exe_path="$triple_dir/$build_config/$app_name"
         output_path="$output_dir/$app_name"
-    elif [ -f "$package_dir/.build/debug/$app_name.exe" ]; then
-        exe_path="$package_dir/.build/debug/$app_name.exe"
+    elif [ -f "$package_dir/.build/$build_config/$app_name.exe" ]; then
+        exe_path="$package_dir/.build/$build_config/$app_name.exe"
         output_path="$output_dir/$app_name.exe"
-    elif [ -f "$package_dir/.build/debug/$app_name" ]; then
-        exe_path="$package_dir/.build/debug/$app_name"
+    elif [ -f "$package_dir/.build/$build_config/$app_name" ]; then
+        exe_path="$package_dir/.build/$build_config/$app_name"
         output_path="$output_dir/$app_name"
     else
         echo "Build succeeded but executable was not found for $app_name" >&2
@@ -177,10 +188,10 @@ for app_name in $app_names; do
     echo "    -> $output_path"
 
     for resource_dir in \
-        "$triple_dir/debug/swift-winui_CWinAppSDK.resources" \
-        "$triple_dir/debug/swift-winui_CWinAppSDK.bundle" \
-        "$package_dir/.build/debug/swift-winui_CWinAppSDK.resources" \
-        "$package_dir/.build/debug/swift-winui_CWinAppSDK.bundle"
+        "$triple_dir/$build_config/swift-winui_CWinAppSDK.resources" \
+        "$triple_dir/$build_config/swift-winui_CWinAppSDK.bundle" \
+        "$package_dir/.build/$build_config/swift-winui_CWinAppSDK.resources" \
+        "$package_dir/.build/$build_config/swift-winui_CWinAppSDK.bundle"
     do
         if [ -d "$resource_dir" ]; then
             resource_name="$(basename "$resource_dir")"

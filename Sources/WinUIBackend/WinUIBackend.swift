@@ -1358,7 +1358,22 @@ public final class WinUIBackend:
         environment: EnvironmentValues
     ) {
         let imageView = imageView as! WinUI.Image
-        let bitmap = WriteableBitmap(Int32(width), Int32(height))
+
+        // Reuse the existing bitmap whenever the size matches. Allocating a
+        // fresh WriteableBitmap per update costs width*height*4 bytes every
+        // time, which for video-rate 4K updates is a 33 MB allocation per
+        // frame and dominates the update.
+        let bitmap: WriteableBitmap
+        if let existing = imageView.source as? WriteableBitmap,
+           existing.pixelWidth == Int32(width),
+           existing.pixelHeight == Int32(height)
+        {
+            bitmap = existing
+        } else {
+            bitmap = WriteableBitmap(Int32(width), Int32(height))
+            imageView.source = bitmap
+        }
+
         guard let buffer = try? bitmap.pixelBuffer.buffer else {
             // This used to be `try! bitmap.pixelBuffer.buffer!`, which crashed
             // with no diagnostic when it failed. Skip the frame instead so a
@@ -1372,22 +1387,26 @@ public final class WinUIBackend:
         // figure out how to fix WinUI image blending (non-black transparent pixels
         // just don't seem to get blended at all, or at least pixels that are white
         // enough, haven't tested many colours).
+        //
+        // Swap whole pixels as UInt32 words rather than three byte accesses:
+        // at 4K this loop runs 8.3 million times per frame.
+        let pixels = UnsafeMutableRawPointer(buffer)
+            .assumingMemoryBound(to: UInt32.self)
         for i in 0..<(width * height) {
-            let offset = i * 4
-            if buffer[offset + 3] == 0 {
+            let pixel = pixels[i]
+            if pixel & 0xFF00_0000 == 0 {
                 // If transparent, make the pixel black (this is the janky blending fix).
-                buffer[offset] = 0
-                buffer[offset + 1] = 0
-                buffer[offset + 2] = 0
+                pixels[i] = pixel & 0xFF00_0000
             } else {
-                // Swap R and B (RGBA to BGRA)
-                let tmp = buffer[offset]
-                buffer[offset] = buffer[offset + 2]
-                buffer[offset + 2] = tmp
+                // Swap R and B (RGBA to BGRA), keeping G and A in place.
+                pixels[i] =
+                    (pixel & 0xFF00_FF00)
+                    | ((pixel & 0x00FF_0000) >> 16)
+                    | ((pixel & 0x0000_00FF) << 16)
             }
         }
 
-        imageView.source = bitmap
+        try? bitmap.invalidate()
     }
 
     public func createSplitView(leadingChild: Widget, trailingChild: Widget) -> Widget {
