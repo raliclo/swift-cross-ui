@@ -177,6 +177,16 @@ public final class P6SwapChainPanel {
 /// `SwiftISwapChainPanelNative.IID` approach above) rather than linking
 /// against dxguid.lib, so no extra linker settings are needed.
 private enum P6IID {
+    // 770aae78-f26f-4dba-a829-253c83d1b387
+    static var IDXGIFactory1: WinUIInterop.IID {
+        WinUIInterop.IID(
+            Data1: 0x770A_AE78,
+            Data2: 0xF26F,
+            Data3: 0x4DBA,
+            Data4: (0xA8, 0x29, 0x25, 0x3C, 0x83, 0xD1, 0xB3, 0x87)
+        )
+    }
+
     // 54ec77fa-1377-44e6-8c32-88fd5f44c84c
     static var IDXGIDevice: WinUIInterop.IID {
         WinUIInterop.IID(
@@ -410,6 +420,36 @@ public final class P6D3D11Device {
 
 // MARK: - Zero-copy composition video surface
 
+/// Which GPU the presentation device is created on.
+///
+/// A composition swap chain is composed by DWM on the adapter that drives the
+/// display. Presenting from any other adapter makes DXGI copy every frame
+/// across the PCIe bus first, so `.display` is the right choice unless you are
+/// deliberately measuring the difference.
+/// composition swap chain 由 DWM 在「驅動該顯示器的介面卡」上合成。若從其他介面卡
+/// 呈現，DXGI 必須先把每一張影格跨 PCIe 複製過去，因此除非是刻意量測差異，否則
+/// 應使用 `.display`。
+public enum P6GPUPreference: String, Sendable {
+    /// DXGI's default adapter, which is the one driving the primary display.
+    case display
+    case amd
+    case nvidia
+    /// Microsoft's Basic Render Driver (WARP), which rasterises on the CPU.
+    /// Useful as a no-GPU baseline.
+    /// Microsoft 的 Basic Render Driver（WARP），以 CPU 進行光柵化，可作為「不用
+    /// GPU」的基準線。
+    case software
+
+    var vendorID: UInt32? {
+        switch self {
+        case .display: return nil
+        case .amd: return 0x1002
+        case .nvidia: return 0x10DE
+        case .software: return 0x1414
+        }
+    }
+}
+
 /// The on-screen area a video is presented into.
 ///
 /// A SwapChainPanel composes one swap chain pixel per DIP, so the swap chain
@@ -476,8 +516,18 @@ public final class P6D3D11VideoSurface {
     private var bufferWidth: UInt32 = 0
     private var bufferHeight: UInt32 = 0
 
-    public init(panel: P6SwapChainPanel) throws {
+    /// A human-readable description of every adapter, and which one this
+    /// surface ended up on.
+    public private(set) var adapterReport = ""
+
+    public init(panel: P6SwapChainPanel, gpu: P6GPUPreference = .display) throws {
         self.panel = panel
+
+        let (adapter, report) = P6D3D11VideoSurface.selectAdapter(for: gpu)
+        adapterReport = report
+        defer {
+            if let adapter { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
+        }
 
         var device: UnsafeMutablePointer<ID3D11Device>?
         var context: UnsafeMutablePointer<ID3D11DeviceContext>?
@@ -486,8 +536,14 @@ public final class P6D3D11VideoSurface {
         try D3D11_CHECK(
             "D3D11CreateDevice",
             levels.withUnsafeBufferPointer { levelsPtr in
+                // An explicit adapter requires DRIVER_TYPE_UNKNOWN; passing
+                // HARDWARE with an adapter is an invalid-argument error.
+                // 指定介面卡時必須用 DRIVER_TYPE_UNKNOWN；同時傳入 HARDWARE 與
+                // 介面卡會得到參數錯誤。
                 D3D11CreateDevice(
-                    nil, D3D_DRIVER_TYPE_HARDWARE, nil, 0,
+                    adapter,
+                    adapter == nil ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN,
+                    nil, 0,
                     levelsPtr.baseAddress, UINT32(levelsPtr.count),
                     UINT32(D3D11_SDK_VERSION), &device, &obtainedLevel, &context
                 )
@@ -499,6 +555,54 @@ public final class P6D3D11VideoSurface {
         self.device = device
         self.context = context
         self.factory = try P6D3D11Device.makeFactory(from: device)
+    }
+
+    /// Finds the adapter matching `gpu`, and describes every adapter found.
+    /// Returns nil for `.display` (and when nothing matches), which leaves
+    /// `D3D11CreateDevice` to pick DXGI's default.
+    /// 依 `gpu` 找出對應的介面卡並描述所有介面卡。`.display`（以及找不到對應者時）
+    /// 回傳 nil，交由 `D3D11CreateDevice` 選擇 DXGI 的預設介面卡。
+    private static func selectAdapter(
+        for gpu: P6GPUPreference
+    ) -> (UnsafeMutablePointer<IDXGIAdapter>?, String) {
+        var factoryIID = P6IID.IDXGIFactory1
+        var factoryRaw: UnsafeMutableRawPointer?
+        guard CreateDXGIFactory1(&factoryIID, &factoryRaw) >= 0, let factoryRaw else {
+            return (nil, "adapters=<CreateDXGIFactory1 failed>")
+        }
+        let factory = factoryRaw.assumingMemoryBound(to: IDXGIFactory1.self)
+        defer { _ = factory.pointee.lpVtbl.pointee.Release(factory) }
+
+        var descriptions: [String] = []
+        var selected: UnsafeMutablePointer<IDXGIAdapter>?
+        var index: UINT = 0
+        while true {
+            var adapter: UnsafeMutablePointer<IDXGIAdapter1>?
+            guard factory.pointee.lpVtbl.pointee.EnumAdapters1(factory, index, &adapter) >= 0,
+                  let adapter
+            else {
+                break
+            }
+            var desc = DXGI_ADAPTER_DESC1()
+            if adapter.pointee.lpVtbl.pointee.GetDesc1(adapter, &desc) >= 0 {
+                let name = withUnsafeBytes(of: desc.Description) { raw in
+                    String(decodingCString: raw.baseAddress!.assumingMemoryBound(to: UInt16.self),
+                           as: UTF16.self)
+                }
+                descriptions.append("[\(index)] \(name) (vendor 0x\(String(desc.VendorId, radix: 16)))")
+                if selected == nil, let wanted = gpu.vendorID, desc.VendorId == wanted {
+                    selected = UnsafeMutableRawPointer(adapter)
+                        .assumingMemoryBound(to: IDXGIAdapter.self)
+                    index += 1
+                    continue  // keep this one; do not release it
+                }
+            }
+            _ = adapter.pointee.lpVtbl.pointee.Release(adapter)
+            index += 1
+        }
+
+        let chosen = selected == nil ? "default" : gpu.rawValue
+        return (selected, "adapters=\(descriptions.joined(separator: ", ")) using=\(chosen)")
     }
 
     /// Whether the pool and swap chain already match a given frame size.
