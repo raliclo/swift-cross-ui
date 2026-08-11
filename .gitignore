@@ -16,3 +16,6 @@ notes.json
 /Tools
 .docc-build/
 .idea
+
+# P6 writes this into whatever directory it is launched from.
+p6-debug-events.log
