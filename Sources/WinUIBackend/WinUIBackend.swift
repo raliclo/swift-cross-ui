@@ -1627,6 +1627,7 @@ public final class WinUIBackend:
                 } onFailure: {
                     return .cancelled
                 }
+                Self.restoreForeground(of: hwnd)
                 handleResult(result)
             }
         } else {
@@ -1641,6 +1642,7 @@ public final class WinUIBackend:
                 } onFailure: {
                     return .cancelled
                 }
+                Self.restoreForeground(of: hwnd)
                 handleResult(result)
             }
         }
@@ -1678,6 +1680,7 @@ public final class WinUIBackend:
             } onFailure: {
                 return .cancelled
             }
+            Self.restoreForeground(of: hwnd)
             handleResult(result)
         }
     }
@@ -1707,8 +1710,25 @@ public final class WinUIBackend:
             } onFailure: {
                 return .cancelled
             }
+            Self.restoreForeground(of: hwnd)
             handleResult(result)
         }
+    }
+
+    /// Returns activation to the window that owned a file dialog.
+    ///
+    /// Windows does not always hand the foreground back when a picker closes;
+    /// it goes to the next window in the z-order instead, which for an app
+    /// launched from a terminal is the terminal. The owner has to ask for it
+    /// back, which this process is allowed to do because it still owns the
+    /// foreground at that moment. Without this, choosing a file leaves the app
+    /// behind whatever was underneath it.
+    /// 把啟動狀態交還給擁有該檔案對話框的視窗。Windows 在 picker 關閉後不一定會把
+    /// 前景交還，而是給 z-order 中的下一個視窗；對於從終端機啟動的 app 來說那就是
+    /// 終端機。擁有者必須主動要回來，而此時本行程仍持有前景，因此是被允許的。
+    /// 少了這步，選完檔案後 app 會留在原本壓在它上面的視窗後面。
+    private static func restoreForeground(of hwnd: HWND) {
+        _ = SetForegroundWindow(hwnd)
     }
 
     /// A helper method that abstracts out the common failure case handling code
