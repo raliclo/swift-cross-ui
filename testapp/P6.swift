@@ -79,9 +79,65 @@ enum P6WindowFlags {
     /// chain 像素與螢幕像素的精確對應；這是 viewport 計算的迴歸檢查方式。
     static let isCalibration = CommandLine.arguments.contains("-calib")
 
+    /// `-pipe-mb <n>` overrides the decoder pipe's buffer size, to measure what
+    /// the buffer is actually worth. Default is two frames, capped at 32 MB.
+    /// `-pipe-mb <n>` 可覆寫解碼管線的緩衝區大小，用來實測緩衝區究竟值多少。
+    /// 預設為兩張影格，上限 32 MB。
+    static let pipeBufferBytes: Int? = {
+        guard let index = CommandLine.arguments.firstIndex(of: "-pipe-mb"),
+              index + 1 < CommandLine.arguments.count,
+              let megabytes = Int(CommandLine.arguments[index + 1]),
+              megabytes > 0
+        else {
+            return nil
+        }
+        return megabytes << 20
+    }()
+
     /// `-pace` caps the decoder at playback speed with ffmpeg's `-readrate`.
     /// `-pace` 以 ffmpeg 的 `-readrate` 把解碼器限制在播放速度。
     static let isDecodePaced = CommandLine.arguments.contains("-pace")
+
+    /// `-seek <seconds>` starts playback partway in, so the same moment can be
+    /// compared across runs without dragging the timeline by hand.
+    /// `-seek <秒數>` 讓播放從中途開始，便於在不手動拖動時間軸的情況下比較不同執行
+    /// 之間的同一個時間點。
+    static let seekSeconds: Double? = {
+        guard let index = CommandLine.arguments.firstIndex(of: "-seek"),
+              index + 1 < CommandLine.arguments.count,
+              let seconds = Double(CommandLine.arguments[index + 1]),
+              seconds > 0
+        else {
+            return nil
+        }
+        return seconds
+    }()
+
+    /// The pixel format for the whole session, decided once because the
+    /// decoder has to be told before it emits a single frame and the surface
+    /// has to agree with it.
+    ///
+    /// NV12 is chosen automatically wherever the machine can convert it, which
+    /// is a capability probe rather than a check for a particular GPU vendor.
+    /// `-rgba` forces the old path as the A/B control; `-nv12` states the
+    /// intent explicitly but still defers to the probe, because forcing a
+    /// format the GPU cannot convert would only produce a black window.
+    /// 整個 session 的像素格式只決定一次，因為解碼器在輸出任何影格之前就必須被
+    /// 告知，且表面也必須與之一致。只要本機能轉換就自動採用 NV12 —— 這是能力
+    /// 探測，而非判斷 GPU 廠商。`-rgba` 可強制走舊路徑作為對照組；`-nv12` 用來
+    /// 明示意圖，但仍以探測結果為準，因為強制使用 GPU 無法轉換的格式只會得到
+    /// 一片黑。
+    static let pixelFormat: P6VideoPixelFormat = {
+        // Calibration writes RGBA bytes by hand to measure geometry, which is
+        // format-independent, so it stays on the simple path.
+        // 校準圖樣是手寫 RGBA 位元組來量測幾何，而幾何與格式無關，因此維持在簡單
+        // 的路徑上。
+        if isCalibration || CommandLine.arguments.contains("-rgba") {
+            return .rgba
+        }
+        return P6D3D11VideoSurface.nv12Support(for: presentationGPU).isSupported
+            ? .nv12 : .rgba
+    }()
 
     /// `-amd` / `-nvidia` / `-both-gpu` select which GPU does what.
     ///
@@ -141,21 +197,79 @@ enum P6WindowFlags {
                 UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
             )
         }
-        // Retried until it takes, then latched: the backend applies its own
-        // size after the window appears, which undoes a maximize done too
-        // early. Latching on the first pass that observes it stick is what
-        // leaves the user free to restore the window afterwards.
-        // 重試到生效為止，之後就閂住：視窗出現後 backend 會套用自己的尺寸，太早
-        // 最大化會被蓋掉。在觀察到生效的第一輪就閂住，使用者之後才還原得了視窗。
-        guard isMaximizedRequested, !didMaximize else { return }
-        if IsZoomed(hwnd) {
-            didMaximize = true
-        } else {
-            _ = ShowWindow(hwnd, SW_MAXIMIZE)
+        // Re-applied for the first few seconds rather than latched on the
+        // first success: the backend applies its own window size a moment
+        // after the window appears, which un-maximizes it again, and latching
+        // as soon as IsZoomed was once true left the window at that size.
+        // The window is stable by then, so after the grace period the user is
+        // free to restore it without the app fighting back.
+        // 在最初幾秒內持續重新套用，而不是成功一次就閂住：視窗出現後不久 backend
+        // 會套用自己的尺寸而再次取消最大化，若在 IsZoomed 第一次為真時就閂住，
+        // 視窗就會停在那個尺寸。過了寬限期視窗已經穩定，使用者要還原視窗時
+        // app 也不會再跟他搶。
+        hideOwnConsoleOnce()
+
+        // The grace period runs from the moment the window first exists, not
+        // from process start: the window takes several seconds to appear, so a
+        // clock started at launch had already expired by the time there was
+        // anything to activate or maximise.
+        // 寬限期自「視窗首次存在」開始計時，而非從行程啟動：視窗要數秒才會出現，
+        // 若從啟動就計時，等到有東西可以啟動或最大化時早已過期。
+        let now = ProcessInfo.processInfo.systemUptime
+        if windowFoundUptime == nil {
+            windowFoundUptime = now
         }
+        guard let since = windowFoundUptime, now - since < 5 else { return }
+
+        // Retried until the window actually holds the foreground, then left
+        // alone. Asserting it continuously (as -topmost does) breaks clicking
+        // controls and puts the file picker behind the window.
+        // 重試到視窗真正取得前景為止，之後不再干涉。持續強制（如 -topmost 的作法）
+        // 會讓控制項無法點選，也會讓檔案對話框跑到視窗後面。
+        if GetForegroundWindow() != hwnd {
+            _ = SetForegroundWindow(hwnd)
+            _ = BringWindowToTop(hwnd)
+        }
+
+        // Re-applied through the grace period rather than latched on the first
+        // success: the backend applies its own window size a moment after the
+        // window appears, which un-maximizes it again.
+        // 在寬限期內持續重新套用，而非成功一次就閂住：視窗出現後不久 backend 會
+        // 套用自己的尺寸，那會再次取消最大化。
+        guard isMaximizedRequested, !IsZoomed(hwnd) else { return }
+        _ = ShowWindow(hwnd, SW_MAXIMIZE)
     }
 
-    private static var didMaximize = false
+    private static var windowFoundUptime: Double?
+    private static var didHideConsole = false
+
+    /// Hides the console window, but only when this process owns it.
+    ///
+    /// SwiftPM builds a console-subsystem executable, so launching P6 from
+    /// Explorer gives it a console window of its own. That window belongs to
+    /// P6 and competes with the player for activation, which is what "it
+    /// changed to the terminal" is: the terminal is P6's own console. When P6
+    /// is started from a shell the console is the shell's, shared with other
+    /// processes, and hiding it would take the user's terminal away -- so the
+    /// process list decides.
+    /// 隱藏主控台視窗，但僅限本行程擁有它時。SwiftPM 產生的是 console 子系統的執行
+    /// 檔，因此從檔案總管啟動 P6 會給它一個自己的主控台視窗；該視窗屬於 P6，會與
+    /// 播放器爭奪啟動狀態 —— 所謂「跳到 terminal」指的就是 P6 自己的主控台。若 P6
+    /// 是從 shell 啟動，主控台是該 shell 的、且由多個行程共用，隱藏它等於奪走使用者
+    /// 的終端機，因此以附加於主控台的行程數量來判斷。
+    private static func hideOwnConsoleOnce() {
+        guard !didHideConsole else { return }
+        didHideConsole = true
+
+        guard let console = GetConsoleWindow() else { return }
+        var processes: [DWORD] = Array(repeating: 0, count: 4)
+        let count = processes.withUnsafeMutableBufferPointer { buffer in
+            GetConsoleProcessList(buffer.baseAddress, DWORD(buffer.count))
+        }
+        guard count == 1 else { return }
+        _ = ShowWindow(console, SW_HIDE)
+        P6Diagnostics.write("window: hid this process's own console")
+    }
 
     /// The numbers needed to work out how a swap chain's pixels map onto the
     /// panel: the window's DPI, its client size in physical pixels, and the
@@ -253,9 +367,16 @@ enum P6WindowFlags {
     }
 
 
-    private static func topLevelWindow() -> HWND? {
-        if let active = GetActiveWindow() { return active }
+    /// The player window's title, which is what identifies it. Matching by
+    /// title rather than taking the thread's first visible window is what makes
+    /// this reliable: the process owns other windows, and picking the wrong one
+    /// meant maximising and activating something that was not the player.
+    /// 播放器視窗的標題，用來辨識它。以標題比對、而非取執行緒的第一個可見視窗，才
+    /// 是可靠的作法：本行程還擁有其他視窗，挑錯的結果就是把不是播放器的東西最大化
+    /// 並帶到前景。
+    static let windowTitle = "P6 stream player"
 
+    private static func topLevelWindow() -> HWND? {
         let search = P6WindowSearch()
         _ = EnumThreadWindows(
             GetCurrentThreadId(),
@@ -264,6 +385,16 @@ enum P6WindowFlags {
                 guard let raw = UnsafeMutableRawPointer(bitPattern: Int(lParam)) else {
                     return true
                 }
+
+                var title = [WCHAR](repeating: 0, count: 256)
+                let length = GetWindowTextW(hwnd, &title, Int32(title.count))
+                guard length > 0,
+                      String(decodingCString: title, as: UTF16.self)
+                        == P6WindowFlags.windowTitle
+                else {
+                    return true
+                }
+
                 Unmanaged<P6WindowSearch>.fromOpaque(raw)
                     .takeUnretainedValue()
                     .hwnd = hwnd
@@ -271,7 +402,15 @@ enum P6WindowFlags {
             },
             LPARAM(Int(bitPattern: Unmanaged.passUnretained(search).toOpaque()))
         )
-        return search.hwnd ?? GetForegroundWindow()
+        // Never fall back to GetForegroundWindow: before the XAML window
+        // exists that is whatever the user was using -- the terminal that
+        // launched P6 -- and maximising or activating it is exactly what this
+        // was meant to do to P6's own window. Returning nil just means trying
+        // again on the next layout pass, by which time the window exists.
+        // 絕不退回 GetForegroundWindow：XAML 視窗尚未建立時，那是使用者當下正在用的
+        // 視窗 —— 也就是啟動 P6 的終端機 —— 而最大化與啟動本來是要作用在 P6 自己的
+        // 視窗上。回傳 nil 只代表下一次版面配置再試一次，屆時視窗已經存在。
+        return search.hwnd
     }
 }
 
@@ -349,12 +488,16 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
                 try panel.attach(to: winUIElement)
                 coordinator.panel = panel
                 let surface = try P6D3D11VideoSurface(
-                    panel: panel, gpu: P6WindowFlags.presentationGPU
+                    panel: panel,
+                    gpu: P6WindowFlags.presentationGPU,
+                    format: P6WindowFlags.pixelFormat
                 )
                 coordinator.surface = surface
                 P6Diagnostics.write(
                     "d3d11 surface: panel attached \(width)x\(height), "
                         + surface.adapterReport
+                        + ", format \(surface.format.rawValue) "
+                        + "(\(P6D3D11VideoSurface.nv12Support(for: P6WindowFlags.presentationGPU).report))"
                 )
             }
             guard let surface = coordinator.surface else { return }
@@ -439,7 +582,7 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
         let edge = 8
         let corner = min(width, height) / 8
         do {
-            try surface.writeFrame { destination, rowPitch in
+            try surface.writeFrame { destination, rowPitch, _ in
                 for y in 0..<height {
                     let row = destination.advanced(by: y * rowPitch)
                         .assumingMemoryBound(to: UInt8.self)
@@ -826,6 +969,23 @@ struct P6StreamPlayerView: View {
                         + "frame-drop \(P6Diagnostics.isFrameDropEnabled ? "on" : "off")"
                 )
                 player.load(inputFile)
+                #if os(Windows)
+                // Applied after load, which resets the position, and before
+                // play so the first decoded frame is already at the requested
+                // moment.
+                // 在 load 之後套用（load 會重設位置），並在 play 之前完成，讓第一張
+                // 解碼出來的影格就位於指定的時間點。
+                // Set directly rather than through seekPositionChanged, which
+                // clamps against the duration -- and the duration is probed
+                // asynchronously, so at this point it is still nil and the
+                // clamp collapsed every requested time to zero.
+                // 直接設定而不經過 seekPositionChanged：後者會依總長度做 clamp，而
+                // 總長度是非同步探測的，此刻仍為 nil，於是任何指定時間都會被壓成 0。
+                if let seconds = P6WindowFlags.seekSeconds {
+                    player.seekPosition = seconds
+                    player.currentTime = seconds
+                }
+                #endif
                 if P6Diagnostics.isAutoplayEnabled {
                     player.play()
                 }
@@ -1432,7 +1592,12 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                     // DXGI_FORMAT_R8G8B8A8_UNORM，無需像素格式轉換。
                     var zeroCopyFrameRead: Bool?
                     let readStart = ProcessInfo.processInfo.systemUptime
-                    try surfaceBox.withSurface { surface in
+                    // Calibration owns the swap chain: decoded frames would
+                    // overwrite the pattern on the first present, leaving a
+                    // black window and nothing to measure.
+                    // 校準模式獨佔 swap chain：解碼影格會在第一次呈現時覆蓋圖樣，
+                    // 只留下一片黑、沒有東西可量。
+                    try P6WindowFlags.isCalibration ? nil : surfaceBox.withSurface { surface in
                         // The swap chain is created on the UI thread, so this
                         // only checks; a mismatch means the view has not caught
                         // up with a resolution change yet.
@@ -1445,10 +1610,11 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                             return
                         }
                         var didRead = false
-                        try surface.writeFrame { destination, rowPitch in
+                        try surface.writeFrame { destination, rowPitch, mappedSize in
                             didRead = try session.readFrame(
                                 into: destination,
                                 rowPitch: rowPitch,
+                                mappedSize: mappedSize,
                                 width: requestedResolution.width,
                                 height: requestedResolution.height
                             )
@@ -1657,6 +1823,25 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                         #if os(macOS)
                         rawFrame = frameData
                         image = nil
+                        #elseif os(Windows)
+                        rawFrame = nil
+                        // NV12 bytes are 12 bits per pixel; handing them to an
+                        // RGBA image would be a size mismatch, and did trap.
+                        // There is no image path for NV12 anyway -- those frames
+                        // can only be shown through the surface -- so the read
+                        // above just keeps the stream advancing.
+                        // NV12 每像素 12 位元，交給 RGBA 影像會造成尺寸不符，實測
+                        // 會直接中止。NV12 本來也沒有影像路徑（只能經由表面顯示），
+                        // 因此上面那次讀取只是讓串流繼續前進。
+                        image = P6WindowFlags.pixelFormat == .nv12
+                            ? nil
+                            : frameData.map {
+                                ImageFormats.Image(
+                                    width: requestedResolution.width,
+                                    height: requestedResolution.height,
+                                    bytes: Array($0)
+                                )
+                            }
                         #else
                         rawFrame = nil
                         image = frameData.map {
@@ -2303,7 +2488,15 @@ final class P6WideWin32Pipe {
     /// child is running, otherwise end-of-stream never arrives.
     /// 交給子程序作為 stdout；子程序啟動後父程序必須關閉自己的副本，否則永遠不會
     /// 收到串流結束。
-    let writeHandle: FileHandle
+    private(set) var writeHandle: HANDLE?
+
+    /// Closes the parent's copy of the write end. Safe to call more than once.
+    /// 關閉父行程持有的寫入端副本；可安全重複呼叫。
+    func closeWriteEnd() {
+        guard let handle = writeHandle else { return }
+        writeHandle = nil
+        CloseHandle(handle)
+    }
 
     /// `bufferBytes` should hold at least one whole frame. A buffer smaller
     /// than a frame forces the decoder and the reader to hand off several times
@@ -2312,7 +2505,7 @@ final class P6WideWin32Pipe {
     /// `bufferBytes` 至少要能容納一整張影格。緩衝區小於影格時，解碼器與讀取端每張
     /// 影格都得交握數次，每次交握都是一次執行緒喚醒：4K 下 33 MB 的影格搭配 8 MB
     /// 緩衝區，實測每幀要花 1 秒。
-    init?(bufferBytes: DWORD) {
+    init?(bufferBytes: DWORD, inheritableRead: Bool = false) {
         var readRaw: HANDLE?
         var writeRaw: HANDLE?
         var attributes = SECURITY_ATTRIBUTES(
@@ -2325,30 +2518,221 @@ final class P6WideWin32Pipe {
         else {
             return nil
         }
-        // Only the write end is meant to reach the child.
-        // 只有寫入端需要傳給子程序。
-        _ = SetHandleInformation(readRaw, DWORD(HANDLE_FLAG_INHERIT), 0)
-
-        let descriptor = _open_osfhandle(Int(bitPattern: writeRaw), 0)
-        guard descriptor >= 0 else {
-            CloseHandle(readRaw)
-            CloseHandle(writeRaw)
-            return nil
-        }
+        // Only the write end is meant to reach the child, unless the caller is
+        // wiring this pipe's read end into another child's stdin.
+        // 只有寫入端需要傳給子程序，除非呼叫端要把本管線的讀取端接到另一個子行程的
+        // stdin。
+        _ = SetHandleInformation(
+            readRaw,
+            DWORD(HANDLE_FLAG_INHERIT),
+            inheritableRead ? DWORD(HANDLE_FLAG_INHERIT) : 0
+        )
 
         readHandle = readRaw
-        writeHandle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        writeHandle = writeRaw
     }
 
     deinit {
+        closeWriteEnd()
         CloseHandle(readHandle)
     }
 }
 #endif
 
+#if os(Windows)
+/// Spawns a child process without giving it a console window.
+///
+/// Foundation's `Process` passes only `CREATE_UNICODE_ENVIRONMENT` to
+/// `CreateProcessW` and offers no way to add `CREATE_NO_WINDOW`. A console
+/// child inherits its parent's console when there is one and opens a window of
+/// its own when there is not, and P6 has no console to inherit when it is
+/// launched from Explorer or from a pty-based terminal. Every resolution or
+/// frame-rate change restarts the decoder, so ffmpeg and ffplay kept opening
+/// console windows as the user worked.
+/// Foundation 的 `Process` 只把 `CREATE_UNICODE_ENVIRONMENT` 傳給
+/// `CreateProcessW`，且無從加上 `CREATE_NO_WINDOW`。主控台子行程在父行程有主控台
+/// 時會繼承，沒有時則自行開一個視窗；而 P6 從檔案總管或以 pty 為基礎的終端機啟動
+/// 時並沒有可繼承的主控台。每次變更解析度或影格率都會重啟解碼器，因此 ffmpeg 與
+/// ffplay 會隨著使用者操作不斷開出主控台視窗。
+final class P6WindowlessProcess: @unchecked Sendable {
+    private let lock = NSLock()
+    private var processHandle: HANDLE?
+    let processID: DWORD
+
+    /// `standardInput`, `standardOutput` and `standardError` are inherited by
+    /// the child. Pass nil for a stream the child should not see; it is given
+    /// the null device rather than an invalid handle, which some tools treat as
+    /// a fatal error.
+    /// `standardInput`、`standardOutput`、`standardError` 會被子行程繼承。不希望
+    /// 子行程看到的串流傳 nil，該串流會接到 null 裝置而非無效的 handle：後者會被
+    /// 某些工具視為致命錯誤。
+    init(
+        executable: URL,
+        arguments: [String],
+        standardInput: HANDLE? = nil,
+        standardOutput: HANDLE? = nil,
+        standardError: HANDLE? = nil
+    ) throws {
+        let nullDevice = try Self.openNullDevice()
+        defer { CloseHandle(nullDevice) }
+
+        var startupInfo = STARTUPINFOW()
+        startupInfo.cb = DWORD(MemoryLayout<STARTUPINFOW>.size)
+        startupInfo.dwFlags = DWORD(STARTF_USESTDHANDLES)
+        startupInfo.hStdInput = standardInput ?? nullDevice
+        startupInfo.hStdOutput = standardOutput ?? nullDevice
+        startupInfo.hStdError = standardError ?? nullDevice
+
+        for handle in [startupInfo.hStdInput, startupInfo.hStdOutput, startupInfo.hStdError] {
+            _ = SetHandleInformation(
+                handle, DWORD(HANDLE_FLAG_INHERIT), DWORD(HANDLE_FLAG_INHERIT)
+            )
+        }
+
+        let commandLine = Self.commandLine(executable: executable, arguments: arguments)
+        var information = PROCESS_INFORMATION()
+        let created = commandLine.withCString(encodedAs: UTF16.self) { commandLinePtr in
+            // The command line has to be mutable: CreateProcessW may write to
+            // it. withCString hands out a temporary buffer, so copy it.
+            // 命令列必須可寫入：CreateProcessW 可能會修改它。withCString 給的是暫時
+            // 緩衝區，因此先複製一份。
+            var mutableCommandLine = Array(
+                UnsafeBufferPointer(
+                    start: commandLinePtr, count: wcslen(commandLinePtr) + 1
+                )
+            )
+            return mutableCommandLine.withUnsafeMutableBufferPointer { buffer in
+                CreateProcessW(
+                    nil,
+                    buffer.baseAddress,
+                    nil,
+                    nil,
+                    true,
+                    DWORD(CREATE_NO_WINDOW) | DWORD(CREATE_UNICODE_ENVIRONMENT),
+                    nil,
+                    nil,
+                    &startupInfo,
+                    &information
+                )
+            }
+        }
+
+        guard created else {
+            throw P6PlayerError.processFailed(
+                executable.lastPathComponent, Int32(bitPattern: GetLastError())
+            )
+        }
+        CloseHandle(information.hThread)
+        processHandle = information.hProcess
+        processID = information.dwProcessId
+    }
+
+    /// Windows takes a single command line rather than an argument vector, and
+    /// the child splits it again with CommandLineToArgvW's rules: quotes group,
+    /// backslashes only escape when they precede a quote.
+    /// Windows 接受的是單一命令列字串而非引數陣列，子行程再依 CommandLineToArgvW
+    /// 的規則拆解：引號用於分組，反斜線僅在其後緊接引號時才有跳脫作用。
+    private static func commandLine(executable: URL, arguments: [String]) -> String {
+        ([executable.path] + arguments).map(quoted).joined(separator: " ")
+    }
+
+    private static func quoted(_ argument: String) -> String {
+        guard argument.isEmpty || argument.contains(where: { " \t\n\"".contains($0) }) else {
+            return argument
+        }
+        var result = "\""
+        var pendingBackslashes = 0
+        for character in argument {
+            switch character {
+            case "\\":
+                pendingBackslashes += 1
+            case "\"":
+                result += String(repeating: "\\", count: pendingBackslashes * 2 + 1)
+                pendingBackslashes = 0
+                result.append(character)
+            default:
+                result += String(repeating: "\\", count: pendingBackslashes)
+                pendingBackslashes = 0
+                result.append(character)
+            }
+        }
+        result += String(repeating: "\\", count: pendingBackslashes * 2)
+        return result + "\""
+    }
+
+    private static func openNullDevice() throws -> HANDLE {
+        var attributes = SECURITY_ATTRIBUTES(
+            nLength: DWORD(MemoryLayout<SECURITY_ATTRIBUTES>.size),
+            lpSecurityDescriptor: nil,
+            bInheritHandle: true
+        )
+        let handle = "NUL".withCString(encodedAs: UTF16.self) { path in
+            CreateFileW(
+                path,
+                DWORD(GENERIC_READ) | DWORD(GENERIC_WRITE),
+                DWORD(FILE_SHARE_READ) | DWORD(FILE_SHARE_WRITE),
+                &attributes,
+                DWORD(OPEN_EXISTING),
+                0,
+                nil
+            )
+        }
+        guard let handle, handle != INVALID_HANDLE_VALUE else {
+            throw P6PlayerError.processFailed("NUL", Int32(bitPattern: GetLastError()))
+        }
+        return handle
+    }
+
+    var isRunning: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let processHandle else { return false }
+        var code: DWORD = 0
+        guard GetExitCodeProcess(processHandle, &code) else { return false }
+        return code == STILL_ACTIVE
+    }
+
+    func terminate() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let processHandle else { return }
+        _ = TerminateProcess(processHandle, 1)
+    }
+
+    /// Waits for exit and returns the exit code, or -1 if it cannot be read.
+    @discardableResult
+    func waitUntilExit() -> Int32 {
+        lock.lock()
+        let handle = processHandle
+        lock.unlock()
+        guard let handle else { return -1 }
+        _ = WaitForSingleObject(handle, INFINITE)
+        var code: DWORD = 0
+        guard GetExitCodeProcess(handle, &code) else { return -1 }
+        return Int32(bitPattern: code)
+    }
+
+    deinit {
+        if let processHandle {
+            CloseHandle(processHandle)
+        }
+    }
+}
+#endif
+
 final class P6DecoderSession: @unchecked Sendable {
+    #if os(Windows)
+    // Spawned without console windows; see P6WindowlessProcess. Both types
+    // offer isRunning and terminate(), so the shutdown path is shared.
+    // 以無主控台視窗的方式生成，見 P6WindowlessProcess。兩種型別都提供 isRunning
+    // 與 terminate()，因此關閉流程可共用。
+    private let ffmpeg: P6WindowlessProcess
+    private let zstd: P6WindowlessProcess?
+    private let errorPipe: P6WideWin32Pipe?
+    #else
     private let ffmpeg: Process
     private let zstd: Process?
+    #endif
     private let outputHandle: FileHandle
     #if os(Windows)
     /// Set when the wide pipe was created; nil falls back to Foundation's.
@@ -2372,7 +2756,13 @@ final class P6DecoderSession: @unchecked Sendable {
             throw P6PlayerError.missingTool("ffmpeg")
         }
 
+        #if os(Windows)
+        self.frameByteCount = P6WindowFlags.pixelFormat.frameByteCount(
+            width: outputResolution.width, height: outputResolution.height
+        )
+        #else
         self.frameByteCount = outputResolution.width * outputResolution.height * 4
+        #endif
 
         let compressed = inputURL.pathExtension.lowercased() == "zst"
         let outputPipe = Pipe()
@@ -2390,27 +2780,44 @@ final class P6DecoderSession: @unchecked Sendable {
             errorLog.append(data)
         }
 
-        let ffmpeg = Process()
-        ffmpeg.executableURL = ffmpegURL
         #if os(Windows)
         // Two frames where that is reasonable, capped: a 4K frame is 33 MB and
         // asking the kernel for a buffer that large has its own cost.
         // 在合理範圍內容納兩張影格並設上限：4K 單張影格就有 33 MB，向核心索求過大
         // 的緩衝區本身也有代價。
-        let widePipe = P6WideWin32Pipe(
-            bufferBytes: DWORD(clamping: min(frameByteCount * 2, 32 << 20))
-        )
-        P6Diagnostics.write(
-            widePipe == nil
-                ? "decoder pipe: falling back to Foundation's Pipe"
-                : "decoder pipe: own pipe, buffer \(min(frameByteCount * 2, 32 << 20)) bytes"
-        )
+        let requestedBuffer =
+            P6WindowFlags.pipeBufferBytes ?? min(frameByteCount * 2, 32 << 20)
+        guard let widePipe = P6WideWin32Pipe(bufferBytes: DWORD(clamping: requestedBuffer))
+        else {
+            throw P6PlayerError.processFailed("decoder pipe", Int32(bitPattern: GetLastError()))
+        }
+        P6Diagnostics.write("decoder pipe: own pipe, buffer \(requestedBuffer) bytes")
         self.widePipe = widePipe
-        ffmpeg.standardOutput = widePipe?.writeHandle ?? outputPipe
-        #else
-        ffmpeg.standardOutput = outputPipe
+
+        // The child's stderr needs a handle too, so Foundation's Pipe cannot be
+        // used for it either. Drained on a thread rather than a readability
+        // handler, which is a Foundation FileHandle feature.
+        // 子行程的 stderr 同樣需要 handle，因此也不能用 Foundation 的 Pipe。改以
+        // 執行緒排空，而非 Foundation FileHandle 專有的 readability handler。
+        let windowsErrorPipe = P6WideWin32Pipe(bufferBytes: 64 << 10)
+        self.errorPipe = windowsErrorPipe
+        if let windowsErrorPipe {
+            let handle = windowsErrorPipe.readHandle
+            let thread = Thread {
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while true {
+                    var read: DWORD = 0
+                    let ok = buffer.withUnsafeMutableBytes { raw in
+                        ReadFile(handle, raw.baseAddress, DWORD(raw.count), &read, nil)
+                    }
+                    guard ok, read > 0 else { return }
+                    errorLog.append(Data(buffer[0..<Int(read)]))
+                }
+            }
+            thread.stackSize = 1 << 19
+            thread.start()
+        }
         #endif
-        ffmpeg.standardError = errorPipe
 
         let seekValue = String(format: "%.6f", max(0, startTime))
         let filter = [
@@ -2447,28 +2854,50 @@ final class P6DecoderSession: @unchecked Sendable {
                 "-readrate_initial_burst", "2",
             ]
         }
+        #if os(Windows)
+        var zstdArguments: [String]?
+        var zstdURL: URL?
+        var sourcePipe: P6WideWin32Pipe?
+        #else
         var zstdProcess: Process?
         var sourcePipe: Pipe?
+        #endif
 
         if compressed {
-            guard let zstdURL = P6ToolLocator.find("zstd") else {
+            guard let foundZstd = P6ToolLocator.find("zstd") else {
                 throw P6PlayerError.missingTool("zstd")
             }
 
+            #if os(Windows)
+            // The read end has to reach ffmpeg as its stdin, so unlike the
+            // decoder pipe this one is inheritable on both ends.
+            // 讀取端必須作為 ffmpeg 的 stdin 傳給它，因此與解碼管線不同，這條管線
+            // 兩端都必須可被繼承。
+            guard let pipe = P6WideWin32Pipe(bufferBytes: 1 << 20, inheritableRead: true)
+            else {
+                throw P6PlayerError.processFailed(
+                    "zstd pipe", Int32(bitPattern: GetLastError())
+                )
+            }
+            sourcePipe = pipe
+            zstdURL = foundZstd
+            zstdArguments = ["-q", "-d", "-c", inputURL.path]
+            #else
             let pipe = Pipe()
             sourcePipe = pipe
             ffmpeg.standardInput = pipe
-            arguments += ["-f", "yuv4mpegpipe", "-i", "pipe:0"]
-            if startTime > 0 {
-                arguments += ["-ss", seekValue]
-            }
-
             let process = Process()
-            process.executableURL = zstdURL
+            process.executableURL = foundZstd
             process.arguments = ["-q", "-d", "-c", inputURL.path]
             process.standardOutput = pipe
             process.standardError = errorPipe
             zstdProcess = process
+            #endif
+
+            arguments += ["-f", "yuv4mpegpipe", "-i", "pipe:0"]
+            if startTime > 0 {
+                arguments += ["-ss", seekValue]
+            }
         } else {
             if startTime > 0 {
                 arguments += ["-ss", seekValue]
@@ -2479,15 +2908,59 @@ final class P6DecoderSession: @unchecked Sendable {
         arguments += [
             "-an", "-sn", "-dn",
             "-vf", filter,
-            "-pix_fmt", "rgba",
+            "-pix_fmt", Self.outputPixelFormat,
             "-f", "rawvideo",
             "pipe:1",
         ]
-        ffmpeg.arguments = arguments
         // Logged in full so a recorded measurement can be reproduced exactly.
         // 完整記錄下來，讓已留存的量測結果能被完全重現。
         P6Diagnostics.write("ffmpeg args: \(arguments.joined(separator: " "))")
 
+        #if os(Windows)
+        do {
+            let decoder = try P6WindowlessProcess(
+                executable: ffmpegURL,
+                arguments: arguments,
+                standardInput: sourcePipe?.readHandle,
+                standardOutput: widePipe.writeHandle,
+                standardError: windowsErrorPipe?.writeHandle
+            )
+            P6ChildProcessReaper.adopt(pid: decoder.processID)
+            self.ffmpeg = decoder
+
+            if let zstdURL, let zstdArguments, let sourcePipe {
+                let compressor = try P6WindowlessProcess(
+                    executable: zstdURL,
+                    arguments: zstdArguments,
+                    standardOutput: sourcePipe.writeHandle,
+                    standardError: windowsErrorPipe?.writeHandle
+                )
+                P6ChildProcessReaper.adopt(pid: compressor.processID)
+                self.zstd = compressor
+                sourcePipe.closeWriteEnd()
+            } else {
+                self.zstd = nil
+            }
+
+            // Closed only once every child that inherits them has spawned;
+            // otherwise the read ends never see end of stream.
+            // 待所有會繼承這些 handle 的子行程都啟動後才關閉，否則讀取端永遠收不到
+            // 串流結束。
+            widePipe.closeWriteEnd()
+            windowsErrorPipe?.closeWriteEnd()
+        } catch {
+            widePipe.closeWriteEnd()
+            windowsErrorPipe?.closeWriteEnd()
+            throw error
+        }
+        outputPipe.fileHandleForWriting.closeFile()
+        errorPipe.fileHandleForWriting.closeFile()
+        #else
+        let ffmpeg = Process()
+        ffmpeg.executableURL = ffmpegURL
+        ffmpeg.standardOutput = outputPipe
+        ffmpeg.standardError = errorPipe
+        ffmpeg.arguments = arguments
         do {
             try ffmpeg.run()
             P6ChildProcessReaper.adopt(ffmpeg)
@@ -2499,15 +2972,7 @@ final class P6DecoderSession: @unchecked Sendable {
                 P6ChildProcessReaper.adopt(zstdProcess)
                 sourcePipe?.fileHandleForWriting.closeFile()
             }
-
-            // Close the parent's write end last, once every child that inherits
-            // it has spawned; otherwise the read end never sees EOF.
-            // 待所有繼承此描述符的子程序都啟動後才關閉父程序的寫入端，
-            // 否則讀取端永遠等不到 EOF。
             errorPipe.fileHandleForWriting.closeFile()
-            #if os(Windows)
-            widePipe?.writeHandle.closeFile()
-            #endif
         } catch {
             errorPipe.fileHandleForReading.readabilityHandler = nil
             errorPipe.fileHandleForWriting.closeFile()
@@ -2519,9 +2984,10 @@ final class P6DecoderSession: @unchecked Sendable {
             }
             throw error
         }
-
         self.ffmpeg = ffmpeg
         self.zstd = zstdProcess
+        #endif
+
         self.outputHandle = outputPipe.fileHandleForReading
         self.errorHandle = errorPipe.fileHandleForReading
         self.errorLog = errorLog
@@ -2559,6 +3025,7 @@ final class P6DecoderSession: @unchecked Sendable {
     func readFrame(
         into destination: UnsafeMutableRawPointer,
         rowPitch: Int,
+        mappedSize: Int,
         width: Int,
         height: Int
     ) throws -> Bool {
@@ -2567,6 +3034,7 @@ final class P6DecoderSession: @unchecked Sendable {
                 from: widePipe.readHandle,
                 into: destination,
                 rowPitch: rowPitch,
+                mappedSize: mappedSize,
                 width: width,
                 height: height
             )
@@ -2592,6 +3060,78 @@ final class P6DecoderSession: @unchecked Sendable {
         return true
     }
 
+    /// Where each plane's rows land inside the mapped texture.
+    ///
+    /// RGBA is one plane of `width * 4` bytes per row. NV12 is two: full
+    /// resolution luma, then half-height interleaved chroma at the same row
+    /// length. The chroma plane's offset is taken from the mapped size rather
+    /// than assumed to be `rowPitch * height`, because the driver decides where
+    /// the second plane starts and only the mapping knows.
+    ///
+    /// Rows that are contiguous are merged into one span, so a frame whose
+    /// pitch matches its row length is read in as few calls as the pipe allows
+    /// rather than one per row.
+    /// 決定每個平面的列落在對映記憶體的哪裡。RGBA 是單一平面，每列 `width * 4`
+    /// 位元組；NV12 是兩個平面：全解析度的亮度，接著是高度減半、列長相同的交錯
+    /// 色度。色度平面的偏移量取自對映大小，而非假設為 `rowPitch * height`，因為
+    /// 第二個平面從哪裡開始是由驅動決定，只有對映本身知道。連續的列會合併成一段，
+    /// 讓列間距與列長相同的影格能以最少的呼叫次數讀入。
+    /// What ffmpeg is told to emit. On Windows it follows the session's chosen
+    /// format; every other platform still consumes RGBA.
+    /// 告知 ffmpeg 要輸出的格式。Windows 上跟隨本 session 選定的格式，其他平台
+    /// 仍然使用 RGBA。
+    static var outputPixelFormat: String {
+        #if os(Windows)
+        return P6WindowFlags.pixelFormat.ffmpegPixelFormat
+        #else
+        return "rgba"
+        #endif
+    }
+
+    /// Logged once so the mapped layout is a measurement, not an assumption.
+    /// 只記錄一次，讓對映後的配置是量測結果而非假設。
+    nonisolated(unsafe) static var didLogMapping = false
+
+    static func planeSpans(
+        format: P6VideoPixelFormat,
+        rowPitch: Int,
+        mappedSize: Int,
+        width: Int,
+        height: Int
+    ) -> [(offset: Int, count: Int)] {
+        func spans(rowBytes: Int, rows: Int, start: Int) -> [(offset: Int, count: Int)] {
+            rowPitch == rowBytes
+                ? [(offset: start, count: rowBytes * rows)]
+                : (0..<rows).map { (offset: start + $0 * rowPitch, count: rowBytes) }
+        }
+
+        switch format {
+        case .rgba:
+            return spans(rowBytes: width * 4, rows: height, start: 0)
+        case .nv12:
+            // The luma plane always starts at zero. For chroma, prefer what the
+            // mapping reports: a mapped NV12 texture is luma plus half-height
+            // chroma, so the total minus the chroma half gives the offset.
+            // 亮度平面一律從 0 開始。色度則以對映回報的數值為準：已對映的 NV12
+            // texture 是亮度加上高度減半的色度，因此總大小減去色度的一半即為偏移。
+            // The chroma plane starts immediately after the luma rows. This is
+            // the documented layout for a mapped NV12 texture, and deriving it
+            // from the mapped size instead was wrong: drivers here report
+            // DepthPitch as rowPitch * height, not rowPitch * height * 3/2, so
+            // the subtraction landed chroma in the middle of the luma plane.
+            // The visible result was a green picture with a corrupted bottom
+            // half.
+            // 色度平面緊接在亮度列之後。這是已對映 NV12 texture 的文件化配置；改用
+            // 對映大小回推是錯的：此處驅動回報的 DepthPitch 是 rowPitch * height，
+            // 而非 rowPitch * height * 3/2，於是相減後色度被放進亮度平面中間，畫面
+            // 呈現為整片綠色且下半部損壞。
+            let chromaRows = height / 2
+            let chromaStart = rowPitch * height
+            return spans(rowBytes: width, rows: height, start: 0)
+                + spans(rowBytes: width, rows: chromaRows, start: chromaStart)
+        }
+    }
+
     /// Reads one frame straight from the pipe into mapped GPU memory.
     ///
     /// Row by row, because the mapped row pitch is usually wider than the
@@ -2603,21 +3143,33 @@ final class P6DecoderSession: @unchecked Sendable {
         from handle: HANDLE,
         into destination: UnsafeMutableRawPointer,
         rowPitch: Int,
+        mappedSize: Int,
         width: Int,
-        height: Int
+        height: Int,
+        contiguousBytes: Int? = nil
     ) throws -> Bool {
-        let bytesPerRow = width * 4
-        var isFirstRead = true
+        if !Self.didLogMapping {
+            Self.didLogMapping = true
+            P6Diagnostics.write(
+                "mapped texture: rowPitch \(rowPitch), depthPitch \(mappedSize), "
+                    + "height \(height), rowPitch*height \(rowPitch * height)"
+            )
+        }
 
-        // When the mapped pitch matches the frame's rows the whole frame is one
-        // contiguous span, so it can be read in as few calls as the pipe
-        // allows instead of one per row.
-        // 對映的列間距與影格列長相同時，整張影格是一段連續記憶體，可用最少的呼叫
-        // 次數讀入，而不必每列一次。
-        let spans: [(offset: Int, count: Int)] =
-            rowPitch == bytesPerRow
-            ? [(0, bytesPerRow * height)]
-            : (0..<height).map { (offset: $0 * rowPitch, count: bytesPerRow) }
+        let spans: [(offset: Int, count: Int)]
+        if let contiguousBytes {
+            spans = [(offset: 0, count: contiguousBytes)]
+        } else {
+            spans = Self.planeSpans(
+                format: P6WindowFlags.pixelFormat,
+                rowPitch: rowPitch,
+                mappedSize: mappedSize,
+                width: width,
+                height: height
+            )
+        }
+        let expected = spans.reduce(0) { $0 + $1.count }
+        var isFirstRead = true
 
         for span in spans {
             var filled = 0
@@ -2639,7 +3191,7 @@ final class P6DecoderSession: @unchecked Sendable {
                     if isFirstRead { return false }
                     throw P6PlayerError.incompleteFrame(
                         span.offset + filled,
-                        bytesPerRow * height,
+                        expected,
                         errorLog.text
                     )
                 }
@@ -2652,6 +3204,32 @@ final class P6DecoderSession: @unchecked Sendable {
     #endif
 
     func readFrame() throws -> Data? {
+        #if os(Windows)
+        // ffmpeg writes to the wide pipe when there is one, so Foundation's
+        // read end never sees a byte. Reading it would report end of stream on
+        // the first frame -- which it did, silently, whenever the surface was
+        // not configured yet.
+        // 有自建的大緩衝管線時，ffmpeg 只寫入該管線，Foundation 的讀取端永遠收不到
+        // 任何位元組；去讀它會在第一張影格就回報串流結束 —— 這正是先前只要表面尚未
+        // 設定完成就會靜默發生的狀況。
+        if let widePipe {
+            var data = Data(count: frameByteCount)
+            let complete = try data.withUnsafeMutableBytes { buffer -> Bool in
+                guard let base = buffer.baseAddress else { return false }
+                return try readFrame(
+                    from: widePipe.readHandle,
+                    into: base,
+                    rowPitch: 0,
+                    mappedSize: 0,
+                    width: 0,
+                    height: 0,
+                    contiguousBytes: frameByteCount
+                )
+            }
+            return complete ? data : nil
+        }
+        #endif
+
         var data = Data()
         data.reserveCapacity(frameByteCount)
 
@@ -2735,15 +3313,28 @@ final class P6DecoderSession: @unchecked Sendable {
 }
 
 final class P6AudioSession: @unchecked Sendable {
+    #if os(Windows)
+    // Windowless, like the decoder: ffplay restarts on every playback start,
+    // seek and speed change, and each restart would otherwise open a console
+    // window.
+    // 與解碼器一樣採無視窗方式：每次開始播放、跳轉、變速都會重啟 ffplay，否則每次
+    // 重啟都會開出一個主控台視窗。
+    private let ffplay: P6WindowlessProcess
+    #else
     private let ffplay: Process
+    #endif
     private let stateLock = NSLock()
     private var terminated = false
 
     var processIdentifier: Int32 {
-        // Keep PID access tied to the retained Process instead of searching the
+        // Keep PID access tied to the retained process instead of searching the
         // global process table, which could match an unrelated ffplay instance.
-        // PID 直接取自所保留的 Process，不搜尋全域程序表，避免誤認其他 ffplay。
-        ffplay.processIdentifier
+        // PID 直接取自所保留的行程，不搜尋全域程序表，避免誤認其他 ffplay。
+        #if os(Windows)
+        return Int32(bitPattern: ffplay.processID)
+        #else
+        return ffplay.processIdentifier
+        #endif
     }
 
     init(
@@ -2788,6 +3379,13 @@ final class P6AudioSession: @unchecked Sendable {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.standardError
 
+        #if os(Windows)
+        let audio = try P6WindowlessProcess(
+            executable: ffplayURL, arguments: process.arguments ?? []
+        )
+        P6ChildProcessReaper.adopt(pid: audio.processID)
+        ffplay = audio
+        #else
         do {
             try process.run()
         } catch {
@@ -2796,6 +3394,7 @@ final class P6AudioSession: @unchecked Sendable {
 
         P6ChildProcessReaper.adopt(process)
         ffplay = process
+        #endif
     }
 
     deinit {
@@ -2819,32 +3418,66 @@ final class P6AudioSession: @unchecked Sendable {
         terminated = true
         stateLock.unlock()
 
-        if ffplay.isRunning {
-            // Send SIGTERM first. Window closing waits synchronously so AppKit
-            // cannot close before ffplay exits; normal restarts reap it in the background.
-            // 先送出 SIGTERM。關閉視窗時會同步等待，避免 AppKit 在 ffplay 結束前
-            // 關閉；一般重啟時則由背景工作回收程序。
-            P6Diagnostics.write("ffplay terminating pid \(ffplay.processIdentifier)")
-            ffplay.terminate()
-            let process = ffplay
-            if waitForExit {
-                process.waitUntilExit()
-                P6Diagnostics.write(
-                    "ffplay exited status \(process.terminationStatus)"
-                )
-            } else {
-                DispatchQueue.global(qos: .utility).async {
-                    process.waitUntilExit()
-                    P6Diagnostics.write(
-                        "ffplay exited status \(process.terminationStatus)"
-                    )
-                }
-            }
+        guard ffplay.isRunning else { return }
+        // Signal first. Window closing waits synchronously so the app cannot
+        // close before ffplay exits; normal restarts reap it in the background.
+        // 先送出訊號。關閉視窗時會同步等待，避免程式在 ffplay 結束前關閉；一般重啟
+        // 時則由背景工作回收行程。
+        P6Diagnostics.write("ffplay terminating pid \(processIdentifier)")
+        ffplay.terminate()
+        let process = ffplay
+        #if os(Windows)
+        let report = { P6Diagnostics.write("ffplay exited status \(process.waitUntilExit())") }
+        #else
+        let report = {
+            process.waitUntilExit()
+            P6Diagnostics.write("ffplay exited status \(process.terminationStatus)")
+        }
+        #endif
+        if waitForExit {
+            report()
+        } else {
+            DispatchQueue.global(qos: .utility).async(execute: report)
         }
     }
 }
 
 enum P6MediaProbe {
+    #if os(Windows)
+    /// Runs a tool windowless and returns its trimmed standard output with the
+    /// exit code. ffprobe runs whenever a file is loaded, so it would flash a
+    /// console window like the decoder did.
+    /// 以無視窗方式執行工具，回傳其標準輸出（已去除前後空白）與結束碼。載入檔案時
+    /// 都會執行 ffprobe，否則它會像解碼器一樣閃出主控台視窗。
+    static func capturedOutput(
+        executable: URL, arguments: [String]
+    ) -> (output: String, exitCode: Int32)? {
+        guard let pipe = P6WideWin32Pipe(bufferBytes: 64 << 10) else { return nil }
+        guard let process = try? P6WindowlessProcess(
+            executable: executable,
+            arguments: arguments,
+            standardOutput: pipe.writeHandle
+        ) else {
+            return nil
+        }
+        pipe.closeWriteEnd()
+
+        var output = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while true {
+            var read: DWORD = 0
+            let ok = buffer.withUnsafeMutableBytes { raw in
+                ReadFile(pipe.readHandle, raw.baseAddress, DWORD(raw.count), &read, nil)
+            }
+            guard ok, read > 0 else { break }
+            output.append(contentsOf: buffer[0..<Int(read)])
+        }
+        let code = process.waitUntilExit()
+        let text = String(data: output, encoding: .utf8) ?? ""
+        return (text.trimmingCharacters(in: .whitespacesAndNewlines), code)
+    }
+    #endif
+
     static func duration(for inputURL: URL) -> Double? {
         guard let probeInput = probeInput(for: inputURL),
               let ffprobeURL = P6ToolLocator.find("ffprobe")
@@ -2852,15 +3485,28 @@ enum P6MediaProbe {
             return nil
         }
 
-        let outputPipe = Pipe()
-        let process = Process()
-        process.executableURL = ffprobeURL
-        process.arguments = [
+        let probeArguments = [
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
             probeInput.path,
         ]
+
+        #if os(Windows)
+        guard let result = capturedOutput(executable: ffprobeURL, arguments: probeArguments),
+              result.exitCode == 0,
+              let value = Double(result.output),
+              value.isFinite,
+              value > 0
+        else {
+            return nil
+        }
+        return value
+        #else
+        let outputPipe = Pipe()
+        let process = Process()
+        process.executableURL = ffprobeURL
+        process.arguments = probeArguments
         process.standardOutput = outputPipe
         process.standardError = FileHandle.standardError
 
@@ -2881,6 +3527,7 @@ enum P6MediaProbe {
         } catch {
             return nil
         }
+        #endif
     }
 
     static func resolution(for inputURL: URL) -> SIMD2<Int>? {
@@ -2890,16 +3537,35 @@ enum P6MediaProbe {
             return nil
         }
 
-        let outputPipe = Pipe()
-        let process = Process()
-        process.executableURL = ffprobeURL
-        process.arguments = [
+        let probeArguments = [
             "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
             "-of", "csv=s=x:p=0",
             probeInput.path,
         ]
+
+        #if os(Windows)
+        guard let result = capturedOutput(executable: ffprobeURL, arguments: probeArguments),
+              result.exitCode == 0
+        else {
+            return nil
+        }
+        let parts = result.output.split(separator: "x")
+        guard parts.count == 2,
+              let width = Int(parts[0]),
+              let height = Int(parts[1]),
+              width > 0,
+              height > 0
+        else {
+            return nil
+        }
+        return SIMD2(width, height)
+        #else
+        let outputPipe = Pipe()
+        let process = Process()
+        process.executableURL = ffprobeURL
+        process.arguments = probeArguments
         process.standardOutput = outputPipe
         process.standardError = FileHandle.standardError
 
@@ -2929,6 +3595,7 @@ enum P6MediaProbe {
         } catch {
             return nil
         }
+        #endif
     }
 
     private static func probeInput(for inputURL: URL) -> URL? {
@@ -2999,11 +3666,14 @@ enum P6PlayerError: LocalizedError {
     case missingTool(String)
     case incompleteFrame(Int, Int, String)
     case unsupportedAudioInput
+    case processFailed(String, Int32)
 
     var errorDescription: String? {
         switch self {
             case .missingTool(let tool):
                 return "Required tool '\(tool)' was not found on PATH."
+            case .processFailed(let tool, let code):
+                return "Could not start '\(tool)' (Windows error \(code))."
             case .incompleteFrame(let actual, let expected, let toolOutput):
                 let summary =
                     "Decoder returned an incomplete RGBA frame (\(actual) of \(expected) bytes)."
@@ -3049,13 +3719,24 @@ enum P6ChildProcessReaper {
     }()
     #endif
 
+    #if os(Windows)
+    static func adopt(pid: DWORD) {
+        adoptPID(pid)
+    }
+    #endif
+
     static func adopt(_ process: Process) {
         #if os(Windows)
+        adoptPID(DWORD(process.processIdentifier))
+        #endif
+    }
+
+    #if os(Windows)
+    private static func adoptPID(_ pid: DWORD) {
         guard let job else {
             P6Diagnostics.write("child reaper unavailable; job object not created")
             return
         }
-        let pid = DWORD(process.processIdentifier)
         guard let handle = OpenProcess(DWORD(PROCESS_SET_QUOTA | PROCESS_TERMINATE), false, pid)
         else {
             P6Diagnostics.write("child reaper could not open pid \(pid)")
@@ -3065,8 +3746,8 @@ enum P6ChildProcessReaper {
         if !AssignProcessToJobObject(job, handle) {
             P6Diagnostics.write("child reaper could not adopt pid \(pid)")
         }
-        #endif
     }
+    #endif
 }
 
 /// Per-stage frame timings, summarised once a second.
