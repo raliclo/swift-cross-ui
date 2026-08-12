@@ -207,6 +207,26 @@ private enum P6IID {
         )
     }
 
+    // 10ec4d5b-975a-4689-b9e4-d0aac30fe333
+    static var ID3D11VideoDevice: WinUIInterop.IID {
+        WinUIInterop.IID(
+            Data1: 0x10EC_4D5B,
+            Data2: 0x975A,
+            Data3: 0x4689,
+            Data4: (0xB9, 0xE4, 0xD0, 0xAA, 0xC3, 0x0F, 0xE3, 0x33)
+        )
+    }
+
+    // a7f026da-a5f8-4487-a564-15e34357651e
+    static var ID3D11VideoContext1: WinUIInterop.IID {
+        WinUIInterop.IID(
+            Data1: 0xA7F0_26DA,
+            Data2: 0xA5F8,
+            Data3: 0x4487,
+            Data4: (0xA5, 0x64, 0x15, 0xE3, 0x43, 0x57, 0x65, 0x1E)
+        )
+    }
+
     // a8be2ac4-199f-4946-b331-79599fb98de7
     static var IDXGISwapChain2: WinUIInterop.IID {
         WinUIInterop.IID(
@@ -450,6 +470,42 @@ public enum P6GPUPreference: String, Sendable {
     }
 }
 
+/// The pixel format frames are delivered and uploaded in.
+///
+/// Despite the name, NV12 has nothing to do with Nvidia -- "NV" is the FourCC,
+/// and the D3D11 video processor that converts it is available on integrated
+/// GPUs too. What it buys is size: NV12 stores full-resolution luma and
+/// quarter-resolution chroma, 12 bits per pixel against RGBA's 32, so a 4K
+/// frame is 12.4 MB instead of 33.2 MB. That matters because the decoder's
+/// frames reach this process through a pipe, and at 4K60 the RGBA path needs
+/// about 2 GB/s through it, which is past what it can carry.
+/// NV12 與 Nvidia 無關 —— "NV" 是 FourCC，而負責轉換的 D3D11 video processor 在
+/// 內顯上同樣可用。它換到的是尺寸：NV12 以全解析度儲存亮度、四分之一解析度儲存
+/// 色度，每像素 12 位元，而 RGBA 是 32 位元，因此一張 4K 影格是 12.4 MB 而非
+/// 33.2 MB。這很重要，因為解碼器的影格是經由管線送進本行程的，4K60 下 RGBA 需要
+/// 約 2 GB/s，已超過管線能承載的量。
+public enum P6VideoPixelFormat: String, Sendable {
+    case rgba
+    case nv12
+
+    /// What ffmpeg's `-pix_fmt` has to be set to.
+    public var ffmpegPixelFormat: String { rawValue }
+
+    public var dxgiFormat: DXGI_FORMAT {
+        switch self {
+        case .rgba: return DXGI_FORMAT_R8G8B8A8_UNORM
+        case .nv12: return DXGI_FORMAT_NV12
+        }
+    }
+
+    public func frameByteCount(width: Int, height: Int) -> Int {
+        switch self {
+        case .rgba: return width * height * 4
+        case .nv12: return width * height * 3 / 2
+        }
+    }
+}
+
 /// The on-screen area a video is presented into.
 ///
 /// A SwapChainPanel composes one swap chain pixel per DIP, so the swap chain
@@ -516,12 +572,156 @@ public final class P6D3D11VideoSurface {
     private var bufferWidth: UInt32 = 0
     private var bufferHeight: UInt32 = 0
 
+    /// The format frames arrive in. Fixed for the surface's lifetime because
+    /// the decoder is told the same thing when it starts.
+    /// 影格送達時的格式。在此表面的生命週期內固定不變，因為解碼器啟動時也被告知
+    /// 同一個格式。
+    public let format: P6VideoPixelFormat
+
+    /// NV12 only: the video processor converts to RGB on the way to the back
+    /// buffer. A video input view cannot be created on a STAGING resource, so
+    /// each pool slot has a DEFAULT twin that the staging texture is copied
+    /// into first.
+    /// 僅 NV12 使用：video processor 會在送往 back buffer 的途中轉成 RGB。
+    /// STAGING 資源無法建立 video input view，因此每個 pool slot 都有一個 DEFAULT
+    /// 對應 texture，staging 會先複製過去。
+    private var defaultPool: [UnsafeMutablePointer<ID3D11Texture2D>] = []
+    private var inputViews: [UnsafeMutablePointer<ID3D11VideoProcessorInputView>] = []
+    private var videoDevice: UnsafeMutablePointer<ID3D11VideoDevice>?
+    private var videoContext: UnsafeMutablePointer<ID3D11VideoContext1>?
+    private var processorEnumerator: UnsafeMutablePointer<ID3D11VideoProcessorEnumerator>?
+    private var processor: UnsafeMutablePointer<ID3D11VideoProcessor>?
+
     /// A human-readable description of every adapter, and which one this
     /// surface ended up on.
     public private(set) var adapterReport = ""
 
-    public init(panel: P6SwapChainPanel, gpu: P6GPUPreference = .display) throws {
+    /// Whether this machine can convert NV12 to RGB with the D3D11 video
+    /// processor, probed once against a throwaway device so the answer is
+    /// available before any panel exists -- the decoder has to be told which
+    /// pixel format to emit before the first frame.
+    ///
+    /// This is a capability probe rather than a check for a particular vendor:
+    /// the video processor is a Direct3D feature, not an Nvidia one, and the
+    /// software rasteriser is the case that actually lacks it.
+    /// 以一個拋棄式裝置探測一次「本機能否用 D3D11 video processor 把 NV12 轉成
+    /// RGB」，讓答案在任何面板存在之前就可取得 —— 解碼器必須在第一張影格之前就
+    /// 知道要輸出哪種像素格式。這是能力探測而非廠商判斷：video processor 是
+    /// Direct3D 的功能而非 Nvidia 的功能，真正缺少它的是軟體光柵化裝置。
+    ///
+    /// The probe runs on the adapter the surface will actually present from,
+    /// because the answer differs per adapter: the hardware GPUs here support
+    /// it and the software rasteriser does not, so probing the default adapter
+    /// and then presenting from another one reports a capability that is not
+    /// there.
+    /// 探測必須在「表面實際用來呈現的那張介面卡」上進行，因為答案因卡而異：本機的
+    /// 硬體 GPU 支援、軟體光柵化裝置不支援；若在預設介面卡上探測卻從另一張卡呈現，
+    /// 回報的就會是一個並不存在的能力。
+    public static func nv12Support(
+        for gpu: P6GPUPreference = .display
+    ) -> (isSupported: Bool, report: String) {
+        let (adapter, _) = selectAdapter(for: gpu)
+        defer {
+            if let adapter { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
+        }
+
+        var device: UnsafeMutablePointer<ID3D11Device>?
+        var context: UnsafeMutablePointer<ID3D11DeviceContext>?
+        var obtainedLevel = D3D_FEATURE_LEVEL_11_0
+        let levels: [D3D_FEATURE_LEVEL] = [D3D_FEATURE_LEVEL_11_0]
+        let created = levels.withUnsafeBufferPointer { levelsPtr in
+            D3D11CreateDevice(
+                adapter,
+                adapter == nil ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN,
+                nil, 0,
+                levelsPtr.baseAddress, UINT32(levelsPtr.count),
+                UINT32(D3D11_SDK_VERSION), &device, &obtainedLevel, &context
+            )
+        }
+        guard created >= 0, let device, let context else {
+            return (false, "nv12: no D3D11 device")
+        }
+        defer {
+            _ = context.pointee.lpVtbl.pointee.Release(context)
+            _ = device.pointee.lpVtbl.pointee.Release(device)
+        }
+
+        var videoDeviceIID = P6IID.ID3D11VideoDevice
+        var videoDeviceRaw: UnsafeMutableRawPointer?
+        guard device.pointee.lpVtbl.pointee.QueryInterface(
+            device, &videoDeviceIID, &videoDeviceRaw
+        ) >= 0, let videoDeviceRaw else {
+            return (false, "nv12: no ID3D11VideoDevice")
+        }
+        let videoDevice = videoDeviceRaw.assumingMemoryBound(to: ID3D11VideoDevice.self)
+        defer { _ = videoDevice.pointee.lpVtbl.pointee.Release(videoDevice) }
+
+        // A representative size; the enumerator is per content description, so
+        // this only answers "does the format pair work at all".
+        // 使用具代表性的尺寸；enumerator 依內容描述建立，因此這裡只回答「這組格式
+        // 是否可行」。
+        guard let enumerator = makeProcessorEnumerator(
+            videoDevice: videoDevice,
+            inputWidth: 1920, inputHeight: 1080,
+            outputWidth: 1920, outputHeight: 1080
+        ) else {
+            return (false, "nv12: no video processor enumerator")
+        }
+        defer { _ = enumerator.pointee.lpVtbl.pointee.Release(enumerator) }
+
+        let inputSupported = formatSupport(enumerator, DXGI_FORMAT_NV12) & 0x1 != 0
+        let outputSupported =
+            formatSupport(enumerator, DXGI_FORMAT_R8G8B8A8_UNORM) & 0x2 != 0
+        let supported = inputSupported && outputSupported
+        return (
+            supported,
+            "nv12: input \(inputSupported), output \(outputSupported)"
+        )
+    }
+
+    /// D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT is 1, _OUTPUT is 2.
+    private static func formatSupport(
+        _ enumerator: UnsafeMutablePointer<ID3D11VideoProcessorEnumerator>,
+        _ format: DXGI_FORMAT
+    ) -> UINT {
+        var flags: UINT = 0
+        guard enumerator.pointee.lpVtbl.pointee.CheckVideoProcessorFormat(
+            enumerator, format, &flags
+        ) >= 0 else {
+            return 0
+        }
+        return flags
+    }
+
+    fileprivate static func makeProcessorEnumerator(
+        videoDevice: UnsafeMutablePointer<ID3D11VideoDevice>,
+        inputWidth: UInt32, inputHeight: UInt32,
+        outputWidth: UInt32, outputHeight: UInt32
+    ) -> UnsafeMutablePointer<ID3D11VideoProcessorEnumerator>? {
+        var contentDesc = D3D11_VIDEO_PROCESSOR_CONTENT_DESC()
+        contentDesc.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE
+        contentDesc.InputWidth = inputWidth
+        contentDesc.InputHeight = inputHeight
+        contentDesc.OutputWidth = outputWidth
+        contentDesc.OutputHeight = outputHeight
+        contentDesc.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL
+
+        var enumerator: UnsafeMutablePointer<ID3D11VideoProcessorEnumerator>?
+        let result = withUnsafePointer(to: &contentDesc) { descPtr in
+            videoDevice.pointee.lpVtbl.pointee.CreateVideoProcessorEnumerator(
+                videoDevice, descPtr, &enumerator
+            )
+        }
+        return result >= 0 ? enumerator : nil
+    }
+
+    public init(
+        panel: P6SwapChainPanel,
+        gpu: P6GPUPreference = .display,
+        format: P6VideoPixelFormat = .rgba
+    ) throws {
         self.panel = panel
+        self.format = format
 
         let (adapter, report) = P6D3D11VideoSurface.selectAdapter(for: gpu)
         adapterReport = report
@@ -661,7 +861,24 @@ public final class P6D3D11VideoSurface {
             )
         }
 
-        try setSourceSize(width: frameWidth, height: frameHeight)
+        // The presented region differs per path. RGBA copies the frame into the
+        // buffer's corner and lets DXGI stretch that region out, so the source
+        // is the frame. NV12 goes through the video processor, which scales the
+        // frame across the whole buffer, so the source is the whole buffer --
+        // asking for the frame region there would present only its top-left
+        // corner, stretched. That is invisible whenever the frame is at least
+        // as large as the viewport, because the buffer is then the frame size;
+        // it shows up at 960x540 into a 1200x675 viewport.
+        // 兩條路徑呈現的區域不同。RGBA 是把影格複製到 buffer 的角落，再交給 DXGI
+        // 把該區域拉伸開，因此來源是「影格」。NV12 走 video processor，它會把影格
+        // 縮放填滿整個 buffer，因此來源是「整個 buffer」；若在此仍指定影格區域，
+        // 呈現出來的只會是其左上角並被拉伸。影格不小於檢視區時看不出差異（此時
+        // buffer 就等於影格尺寸），只有像 960x540 進 1200x675 檢視區時才會顯現。
+        if format == .nv12 {
+            try setSourceSize(width: bufferWidth, height: bufferHeight)
+        } else {
+            try setSourceSize(width: frameWidth, height: frameHeight)
+        }
         try setMatrixTransform(
             x: Float(viewport.width / Double(bufferWidth)),
             y: Float(viewport.height / Double(bufferHeight))
@@ -732,7 +949,7 @@ public final class P6D3D11VideoSurface {
         textureDesc.Height = frameHeight
         textureDesc.MipLevels = 1
         textureDesc.ArraySize = 1
-        textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM
+        textureDesc.Format = format.dxgiFormat
         textureDesc.SampleDesc.Count = 1
         textureDesc.Usage = D3D11_USAGE_STAGING
         textureDesc.CPUAccessFlags = UINT(D3D11_CPU_ACCESS_WRITE.rawValue)
@@ -751,6 +968,16 @@ public final class P6D3D11VideoSurface {
                 throw P6D3D11Error.failed("CreateTexture2D returned null", S_OK)
             }
             pool.append(texture)
+        }
+
+        if format == .nv12 {
+            try buildVideoProcessor(
+                frameWidth: frameWidth,
+                frameHeight: frameHeight,
+                bufferWidth: bufferWidth,
+                bufferHeight: bufferHeight,
+                textureDesc: textureDesc
+            )
         }
 
         self.frameWidth = frameWidth
@@ -799,6 +1026,134 @@ public final class P6D3D11VideoSurface {
         try body(swapChain2)
     }
 
+    /// Builds the GPU-side half of the NV12 path: a DEFAULT texture per pool
+    /// slot, an input view on each, and the processor that converts NV12 to the
+    /// back buffer's RGB while scaling frame size to buffer size.
+    /// 建立 NV12 路徑的 GPU 端：每個 pool slot 一張 DEFAULT texture、各自的 input
+    /// view，以及負責把 NV12 轉成 back buffer 的 RGB 並同時把影格尺寸縮放到 buffer
+    /// 尺寸的 processor。
+    private func buildVideoProcessor(
+        frameWidth: UInt32,
+        frameHeight: UInt32,
+        bufferWidth: UInt32,
+        bufferHeight: UInt32,
+        textureDesc: D3D11_TEXTURE2D_DESC
+    ) throws {
+        var videoDeviceIID = P6IID.ID3D11VideoDevice
+        var videoDeviceRaw: UnsafeMutableRawPointer?
+        try D3D11_CHECK(
+            "ID3D11Device::QueryInterface(ID3D11VideoDevice)",
+            device.pointee.lpVtbl.pointee.QueryInterface(
+                device, &videoDeviceIID, &videoDeviceRaw
+            )
+        )
+        guard let videoDeviceRaw else {
+            throw P6D3D11Error.failed("QueryInterface(ID3D11VideoDevice) null", S_OK)
+        }
+        let videoDevice = videoDeviceRaw.assumingMemoryBound(to: ID3D11VideoDevice.self)
+        self.videoDevice = videoDevice
+
+        var videoContextIID = P6IID.ID3D11VideoContext1
+        var videoContextRaw: UnsafeMutableRawPointer?
+        try D3D11_CHECK(
+            "ID3D11DeviceContext::QueryInterface(ID3D11VideoContext1)",
+            context.pointee.lpVtbl.pointee.QueryInterface(
+                context, &videoContextIID, &videoContextRaw
+            )
+        )
+        guard let videoContextRaw else {
+            throw P6D3D11Error.failed("QueryInterface(ID3D11VideoContext1) null", S_OK)
+        }
+        let videoContext = videoContextRaw.assumingMemoryBound(to: ID3D11VideoContext1.self)
+        self.videoContext = videoContext
+
+        guard let enumerator = Self.makeProcessorEnumerator(
+            videoDevice: videoDevice,
+            inputWidth: frameWidth, inputHeight: frameHeight,
+            outputWidth: bufferWidth, outputHeight: bufferHeight
+        ) else {
+            throw P6D3D11Error.failed("CreateVideoProcessorEnumerator", S_OK)
+        }
+        processorEnumerator = enumerator
+
+        var processor: UnsafeMutablePointer<ID3D11VideoProcessor>?
+        try D3D11_CHECK(
+            "ID3D11VideoDevice::CreateVideoProcessor",
+            videoDevice.pointee.lpVtbl.pointee.CreateVideoProcessor(
+                videoDevice, enumerator, 0, &processor
+            )
+        )
+        guard let processor else {
+            throw P6D3D11Error.failed("CreateVideoProcessor returned null", S_OK)
+        }
+        self.processor = processor
+
+        // Stated rather than left to the driver's default: getting this wrong
+        // is silent, and shows up as washed-out or green-tinted video rather
+        // than as an error. ffmpeg's rgba/nv12 output for HD is BT.709 with
+        // studio range, and the swap chain is full-range sRGB.
+        // 明確指定而非交給驅動預設：設錯不會報錯，只會讓畫面泛白或偏綠。ffmpeg 對
+        // HD 的 nv12 輸出是 BT.709、studio range，而 swap chain 是 full range sRGB。
+        videoContext.pointee.lpVtbl.pointee.VideoProcessorSetStreamColorSpace1(
+            videoContext, processor, 0, DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709
+        )
+        videoContext.pointee.lpVtbl.pointee.VideoProcessorSetOutputColorSpace1(
+            videoContext, processor, DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
+        )
+
+        // A video processor input has to be bound as decoder output, not as a
+        // shader resource: the video engine reads it, the shader units do not.
+        // Using D3D11_BIND_SHADER_RESOURCE here fails CreateVideoProcessorInputView
+        // with E_INVALIDARG.
+        // video processor 的輸入必須以 decoder 輸出的身分繫結，而非 shader
+        // resource：讀取它的是視訊引擎而非著色器單元。此處若用
+        // D3D11_BIND_SHADER_RESOURCE，CreateVideoProcessorInputView 會回
+        // E_INVALIDARG。
+        var defaultDesc = textureDesc
+        defaultDesc.Usage = D3D11_USAGE_DEFAULT
+        defaultDesc.CPUAccessFlags = 0
+        defaultDesc.BindFlags = UINT(D3D11_BIND_DECODER.rawValue)
+
+        for _ in 0..<Self.poolSize {
+            var texture: UnsafeMutablePointer<ID3D11Texture2D>?
+            try D3D11_CHECK(
+                "ID3D11Device::CreateTexture2D(default NV12)",
+                withUnsafeMutablePointer(to: &defaultDesc) { descPtr in
+                    device.pointee.lpVtbl.pointee.CreateTexture2D(
+                        device, descPtr, nil, &texture
+                    )
+                }
+            )
+            guard let texture else {
+                throw P6D3D11Error.failed("CreateTexture2D(default) null", S_OK)
+            }
+            defaultPool.append(texture)
+
+            var viewDesc = D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC()
+            viewDesc.FourCC = 0
+            viewDesc.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D
+            viewDesc.Texture2D.MipSlice = 0
+            viewDesc.Texture2D.ArraySlice = 0
+
+            var view: UnsafeMutablePointer<ID3D11VideoProcessorInputView>?
+            try D3D11_CHECK(
+                "ID3D11VideoDevice::CreateVideoProcessorInputView",
+                withUnsafePointer(to: &viewDesc) { descPtr in
+                    videoDevice.pointee.lpVtbl.pointee.CreateVideoProcessorInputView(
+                        videoDevice,
+                        UnsafeMutableRawPointer(texture)
+                            .assumingMemoryBound(to: ID3D11Resource.self),
+                        enumerator, descPtr, &view
+                    )
+                }
+            )
+            guard let view else {
+                throw P6D3D11Error.failed("CreateVideoProcessorInputView null", S_OK)
+            }
+            inputViews.append(view)
+        }
+    }
+
     /// Restricts presentation to the frame-sized top-left corner of a larger
     /// back buffer, which DXGI then stretches over the whole swap chain.
     ///
@@ -827,8 +1182,14 @@ public final class P6D3D11VideoSurface {
     /// pitch does not match.
     /// `body` 取得目的地指標與每列位元組數（row pitch）；pitch 可能大於
     /// width*4，不相符時必須逐列寫入。
+    /// `body` receives the destination, the row pitch, and the total mapped
+    /// size. The size matters for NV12: the chroma plane follows the luma
+    /// plane in the same mapping, and its offset has to be derived rather than
+    /// assumed.
+    /// `body` 會取得目的地位址、列間距與整段對映的大小。大小對 NV12 很重要：色度
+    /// 平面接在亮度平面之後、位於同一段對映中，其偏移量必須推算而非假設。
     public func writeFrame(
-        _ body: (UnsafeMutableRawPointer, Int) throws -> Void
+        _ body: (UnsafeMutableRawPointer, Int, Int) throws -> Void
     ) throws {
         guard !pool.isEmpty else {
             throw P6D3D11Error.failed("writeFrame called before configure", S_OK)
@@ -850,7 +1211,7 @@ public final class P6D3D11VideoSurface {
         guard let destination = mapped.pData else {
             throw P6D3D11Error.failed("Map returned null pData", S_OK)
         }
-        try body(destination, Int(mapped.RowPitch))
+        try body(destination, Int(mapped.RowPitch), Int(mapped.DepthPitch))
     }
 
     /// Copies the most recently written staging texture to the back buffer and
@@ -876,21 +1237,90 @@ public final class P6D3D11VideoSurface {
         let backBuffer = backBufferRaw.assumingMemoryBound(to: ID3D11Texture2D.self)
         defer { _ = backBuffer.pointee.lpVtbl.pointee.Release(backBuffer) }
 
-        // The back buffer is sized to the panel, which is usually larger than
-        // the frame, so the frame goes into its top-left corner and the source
-        // region set at configure time is what actually gets presented.
-        // back buffer 依面板尺寸建立，通常大於影格，因此影格放在左上角，實際呈現
-        // 的是 configure 時設定的來源區域。
-        context.pointee.lpVtbl.pointee.CopySubresourceRegion(
-            context,
-            UnsafeMutableRawPointer(backBuffer)
-                .assumingMemoryBound(to: ID3D11Resource.self),
-            0, 0, 0, 0,
-            source, 0, nil
-        )
+        if format == .nv12 {
+            try convertToBackBuffer(lastIndex: lastIndex, backBuffer: backBuffer)
+        } else {
+            // The back buffer is sized to the panel, which is usually larger
+            // than the frame, so the frame goes into its top-left corner and
+            // the source region set at configure time is what actually gets
+            // presented.
+            // back buffer 依面板尺寸建立，通常大於影格，因此影格放在左上角，實際
+            // 呈現的是 configure 時設定的來源區域。
+            context.pointee.lpVtbl.pointee.CopySubresourceRegion(
+                context,
+                UnsafeMutableRawPointer(backBuffer)
+                    .assumingMemoryBound(to: ID3D11Resource.self),
+                0, 0, 0, 0,
+                source, 0, nil
+            )
+        }
         try D3D11_CHECK(
             "IDXGISwapChain1::Present",
             swapChain.pointee.lpVtbl.pointee.Present(swapChain, 1, 0)
+        )
+    }
+
+    /// NV12: copy the written staging texture to its DEFAULT twin, then let the
+    /// video processor convert and scale it into the back buffer. The blt does
+    /// the scaling, so the source-region stretch used by the RGBA path is not
+    /// needed here.
+    /// NV12：把寫好的 staging texture 複製到對應的 DEFAULT texture，再由 video
+    /// processor 轉換並縮放進 back buffer。縮放由 blt 完成，因此不需要 RGBA 路徑
+    /// 使用的來源區域拉伸。
+    private func convertToBackBuffer(
+        lastIndex: Int,
+        backBuffer: UnsafeMutablePointer<ID3D11Texture2D>
+    ) throws {
+        guard let videoDevice, let videoContext, let processor, let processorEnumerator,
+              lastIndex < defaultPool.count, lastIndex < inputViews.count
+        else {
+            throw P6D3D11Error.failed("NV12 present before the processor was built", S_OK)
+        }
+
+        context.pointee.lpVtbl.pointee.CopyResource(
+            context,
+            UnsafeMutableRawPointer(defaultPool[lastIndex])
+                .assumingMemoryBound(to: ID3D11Resource.self),
+            UnsafeMutableRawPointer(pool[lastIndex])
+                .assumingMemoryBound(to: ID3D11Resource.self)
+        )
+
+        // Created per present: with a flip-model swap chain the back buffer
+        // rotates, so a cached view would target the wrong texture.
+        // 每次呈現時建立：flip model 的 back buffer 會輪替，快取的 view 會指到
+        // 錯誤的 texture。
+        var outputDesc = D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC()
+        outputDesc.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D
+        outputDesc.Texture2D.MipSlice = 0
+
+        var outputView: UnsafeMutablePointer<ID3D11VideoProcessorOutputView>?
+        try D3D11_CHECK(
+            "ID3D11VideoDevice::CreateVideoProcessorOutputView",
+            withUnsafePointer(to: &outputDesc) { descPtr in
+                videoDevice.pointee.lpVtbl.pointee.CreateVideoProcessorOutputView(
+                    videoDevice,
+                    UnsafeMutableRawPointer(backBuffer)
+                        .assumingMemoryBound(to: ID3D11Resource.self),
+                    processorEnumerator, descPtr, &outputView
+                )
+            }
+        )
+        guard let outputView else {
+            throw P6D3D11Error.failed("CreateVideoProcessorOutputView null", S_OK)
+        }
+        defer { _ = outputView.pointee.lpVtbl.pointee.Release(outputView) }
+
+        var stream = D3D11_VIDEO_PROCESSOR_STREAM()
+        stream.Enable = true
+        stream.pInputSurface = inputViews[lastIndex]
+
+        try D3D11_CHECK(
+            "ID3D11VideoContext::VideoProcessorBlt",
+            withUnsafePointer(to: &stream) { streamPtr in
+                videoContext.pointee.lpVtbl.pointee.VideoProcessorBlt(
+                    videoContext, processor, outputView, 0, 1, streamPtr
+                )
+            }
         )
     }
 
@@ -900,6 +1330,31 @@ public final class P6D3D11VideoSurface {
         }
         pool.removeAll()
         poolIndex = 0
+
+        for view in inputViews {
+            _ = view.pointee.lpVtbl.pointee.Release(view)
+        }
+        inputViews.removeAll()
+        for texture in defaultPool {
+            _ = texture.pointee.lpVtbl.pointee.Release(texture)
+        }
+        defaultPool.removeAll()
+        if let processor {
+            _ = processor.pointee.lpVtbl.pointee.Release(processor)
+        }
+        processor = nil
+        if let processorEnumerator {
+            _ = processorEnumerator.pointee.lpVtbl.pointee.Release(processorEnumerator)
+        }
+        processorEnumerator = nil
+        if let videoContext {
+            _ = videoContext.pointee.lpVtbl.pointee.Release(videoContext)
+        }
+        videoContext = nil
+        if let videoDevice {
+            _ = videoDevice.pointee.lpVtbl.pointee.Release(videoDevice)
+        }
+        videoDevice = nil
         if let swapChain {
             _ = swapChain.pointee.lpVtbl.pointee.Release(swapChain)
         }
