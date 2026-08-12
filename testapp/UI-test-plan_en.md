@@ -414,6 +414,18 @@ Verification status:
 
   Presenting measured 0-6 ms in every mode at every resolution and frame rate. **The GPU choice makes no measurable difference, and neither does using no GPU at all.** Full results, including 60 FPS and the exact ffmpeg arguments per run, are in `testapp/P6_findings/gpu-modes.csv` (written by `gpu-matrix.sh`); see `testapp/P6_findings/README.md`.
 - 2026-08-12: **the decoder is not the bottleneck either.** Running the same filter chain standalone (`ffmpeg ... -f rawvideo -pix_fmt rgba -y NUL`) produced 4K60 frames at about 123 fps, roughly 2.1x realtime, while P6 consumed 1.1-2.3 fps. The same 33 MB frame reads in 58 ms at 4K30 and ten times slower at 4K60, which points at CPU contention: ffmpeg saturates the machine producing frames nothing is waiting for. Pacing the decoder to the playback rate (`-re` / `-readrate`) is the next thing to try.
+- 2026-08-12: **the real ceiling was publishing, not the pipe.** After the pipe fix every configuration still sat at 7-8 frames/sec regardless of resolution or frame rate, which is the signature of a fixed per-frame cost rather than a bandwidth limit. Timing the main-actor hop showed it: `acceptFrame` sets `currentTime`, `seekPosition` and `status`, all `@Published`, so **every frame rebuilt the view graph and ran a WinUI layout pass, measured at 97 ms per frame** against budgets of 16-33 ms. The video never goes through the view graph, so the timeline and status text are now published at 2 Hz instead of per frame. Results, 20 s per configuration:
+
+  | Configuration | Before | After |
+  |---|---|---|
+  | 1080p @ 30 | 7.8 fps | **26.6-29.2 fps**, 0.7-2.9 dropped/s |
+  | 1080p @ 60 | 7.7 fps | **49.5-50.8 fps**, 7.9-10.1 dropped/s |
+  | 4K @ 30 | 6.9 fps | **27.5-28.2 fps**, 1.2-2.1 dropped/s |
+  | 4K @ 60 | 1.1 fps | 0.9-25.7 fps, 33-57 dropped/s |
+
+  A single state update costing ~100 ms is a WinUIBackend finding in its own right and is worth investigating separately.
+- 2026-08-12: two corrections to earlier entries. The dropped-frame figures reported as 0.0 were a bug in `gpu-matrix.sh`, which summed the wrong awk field; drops were always in the tens per second at 4K. And pacing the decoder with ffmpeg's `-readrate` (the `-pace` flag) made no measurable difference, so the CPU-contention theory was wrong.
+- 2026-08-12: **4K @ 60 is transport-bound and stays broken.** It needs about 2 GB/s of RGBA through the pipe, and frame dropping cannot help because a pipe cannot seek -- every frame to be dropped must still be read in full. 4K @ 30 is 1 GB/s and reaches 28 fps, which puts the measured ceiling near 1 GB/s. Across three repeats the five GPU modes vary wildly (`-both-gpu` measured 25.7, 10.2 and 5.6 fps) with no reproducible ordering, except that `-no-gpu` is consistently worst because CPU rasterising competes with the reader. The way out is fewer bytes: NV12 is 12 bpp against RGBA's 32, taking 4K @ 60 from 2 GB/s to 750 MB/s.
 - Windows P6 follow-ups (not implemented yet):
   - The video area is fixed at 960x540 and **does not resize with the window**. `setViewport` is already the entry point for that -- it just needs the window size wired into it -- and the test steps should gain a "drag the window edge; the video area scales with it without distortion" check.
   - **4K playback still does not advance on its own** (about 20 dropped frames/sec, the progress bar stalls). Dragging the progress bar shows the frame correctly, so the bottleneck is not the presentation path but the 33 MB per frame read through Foundation's `Pipe`. Fixing it needs a named pipe read via `ReadFile`, or hardware decoding/CUDA.

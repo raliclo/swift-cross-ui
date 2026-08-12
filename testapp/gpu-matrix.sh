@@ -52,7 +52,7 @@ for mode in default amd nvidia both-gpu no-gpu; do
     grep -m 1 "adapters=" p6-debug-events.log | sed 's/^P6 [^ ]* [^ ]* [^ ]* //' || true
 
     dropped="$({ grep -o "dropped frames/sec [0-9]*" p6-debug-events.log || true; } \
-        | awk '{s+=$4; n++} END {if (n) printf "%.1f", s/n; else printf "NA"}')"
+        | awk '{s+=$3; n++} END {if (n) printf "%.1f", s/n; else printf "NA"}')"
 
     # One "stage timings" line per second: frames and elapsed give the measured
     # frame rate, the averages give where the time went.

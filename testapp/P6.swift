@@ -79,6 +79,10 @@ enum P6WindowFlags {
     /// chain 像素與螢幕像素的精確對應；這是 viewport 計算的迴歸檢查方式。
     static let isCalibration = CommandLine.arguments.contains("-calib")
 
+    /// `-pace` caps the decoder at playback speed with ffmpeg's `-readrate`.
+    /// `-pace` 以 ffmpeg 的 `-readrate` 把解碼器限制在播放速度。
+    static let isDecodePaced = CommandLine.arguments.contains("-pace")
+
     /// `-amd` / `-nvidia` / `-both-gpu` select which GPU does what.
     ///
     /// `-both-gpu` decodes on the Nvidia card and presents on the display's
@@ -1408,6 +1412,8 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                 var playbackStartUptime: TimeInterval?
                 var didLogFirstPresent = false
                 var stageTimings = P6StageTimings()
+                var lastPublish = 0.0
+                var didPublish = false
                 var didLogPresentError = false
                 var droppedFrameCount = 0
                 var droppedFramesInSample = 0
@@ -1590,13 +1596,36 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
                             ProcessInfo.processInfo.systemUptime - presentStart
                         )
                         stageTimings.flushIfDue()
-                        await self.acceptFrame(
-                            nil,
-                            rawFrame: nil,
-                            at: position,
-                            resolution: requestedResolution,
-                            token: token
-                        )
+                        // Publishing is rate-limited because it is by far the
+                        // most expensive stage: it sets three @Published
+                        // properties, so every call rebuilds the view graph and
+                        // runs a WinUI layout pass, measured at ~97 ms per
+                        // frame against budgets of 16-33 ms. The video itself
+                        // does not go through the view graph at all, so this
+                        // only governs how often the timeline and status text
+                        // refresh, and a human cannot read them faster.
+                        // publish 有速率限制，因為它是目前最貴的階段：它會設定三個
+                        // @Published 屬性，每次呼叫都重建 view graph 並執行一次
+                        // WinUI 版面配置，實測每幀約 97 ms，而預算只有 16–33 ms。
+                        // 影片本身完全不經過 view graph，因此這只決定時間軸與狀態
+                        // 文字的更新頻率，而人眼也讀不了更快。每秒兩次即可，因為
+                        // 每次呼叫的成本高到只要放行十次就會用光一整秒。
+                        let now = ProcessInfo.processInfo.systemUptime
+                        if singleFrame || !didPublish || now - lastPublish >= 0.5 {
+                            lastPublish = now
+                            didPublish = true
+                            let publishStart = now
+                            await self.acceptFrame(
+                                nil,
+                                rawFrame: nil,
+                                at: position,
+                                resolution: requestedResolution,
+                                token: token
+                            )
+                            stageTimings.addPublish(
+                                ProcessInfo.processInfo.systemUptime - publishStart
+                            )
+                        }
                         if singleFrame {
                             session.terminate()
                             await self.finish(token: token, reachedEnd: false, error: nil)
@@ -2276,7 +2305,14 @@ final class P6WideWin32Pipe {
     /// 收到串流結束。
     let writeHandle: FileHandle
 
-    init?(bufferBytes: DWORD = 8 << 20) {
+    /// `bufferBytes` should hold at least one whole frame. A buffer smaller
+    /// than a frame forces the decoder and the reader to hand off several times
+    /// per frame, and each handoff is a thread wake-up: at 4K a 33 MB frame
+    /// against an 8 MB buffer measured 1 second per frame.
+    /// `bufferBytes` 至少要能容納一整張影格。緩衝區小於影格時，解碼器與讀取端每張
+    /// 影格都得交握數次，每次交握都是一次執行緒喚醒：4K 下 33 MB 的影格搭配 8 MB
+    /// 緩衝區，實測每幀要花 1 秒。
+    init?(bufferBytes: DWORD) {
         var readRaw: HANDLE?
         var writeRaw: HANDLE?
         var attributes = SECURITY_ATTRIBUTES(
@@ -2357,7 +2393,18 @@ final class P6DecoderSession: @unchecked Sendable {
         let ffmpeg = Process()
         ffmpeg.executableURL = ffmpegURL
         #if os(Windows)
-        let widePipe = P6WideWin32Pipe()
+        // Two frames where that is reasonable, capped: a 4K frame is 33 MB and
+        // asking the kernel for a buffer that large has its own cost.
+        // 在合理範圍內容納兩張影格並設上限：4K 單張影格就有 33 MB，向核心索求過大
+        // 的緩衝區本身也有代價。
+        let widePipe = P6WideWin32Pipe(
+            bufferBytes: DWORD(clamping: min(frameByteCount * 2, 32 << 20))
+        )
+        P6Diagnostics.write(
+            widePipe == nil
+                ? "decoder pipe: falling back to Foundation's Pipe"
+                : "decoder pipe: own pipe, buffer \(min(frameByteCount * 2, 32 << 20)) bytes"
+        )
         self.widePipe = widePipe
         ffmpeg.standardOutput = widePipe?.writeHandle ?? outputPipe
         #else
@@ -2383,6 +2430,22 @@ final class P6DecoderSession: @unchecked Sendable {
         // 鏈不受影響。
         if let acceleration = P6WindowFlags.decodeHardwareAcceleration {
             arguments += ["-hwaccel", acceleration]
+        }
+
+        // Paces the decoder to playback speed. Unpaced, ffmpeg produces 4K60
+        // frames about twice as fast as realtime and saturates the machine
+        // making frames nothing is waiting for, which starves the reader: the
+        // same 33 MB frame that takes 58 ms to read at 4K30 took ten times
+        // longer at 4K60. The initial burst keeps startup and seeking prompt.
+        // 讓解碼器以播放速度前進。不加限制時 ffmpeg 產生 4K60 影格的速度約為即時
+        // 的兩倍，會佔滿整台機器去做沒人等待的影格，反而餓死讀取端：同一張 33 MB
+        // 影格在 4K30 只需 58 ms，在 4K60 卻要十倍時間。初始爆發量則讓啟動與跳轉
+        // 依然即時。
+        if P6WindowFlags.isDecodePaced {
+            arguments += [
+                "-readrate", String(format: "%.2f", speed),
+                "-readrate_initial_burst", "2",
+            ]
         }
         var zstdProcess: Process?
         var sourcePipe: Pipe?
@@ -3020,6 +3083,8 @@ struct P6StageTimings {
     private var readMax = 0.0
     private var presentTotal = 0.0
     private var presentMax = 0.0
+    private var publishTotal = 0.0
+    private var publishMax = 0.0
     private var frames = 0
     private var windowStart = ProcessInfo.processInfo.systemUptime
 
@@ -3034,6 +3099,13 @@ struct P6StageTimings {
         frames += 1
     }
 
+    /// The hop to the main actor that updates the timeline and status text.
+    /// 更新時間軸與狀態文字時切換到主執行者的往返時間。
+    mutating func addPublish(_ seconds: Double) {
+        publishTotal += seconds
+        publishMax = max(publishMax, seconds)
+    }
+
     mutating func flushIfDue() {
         let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - windowStart
@@ -3044,16 +3116,20 @@ struct P6StageTimings {
             String(
                 format:
                     "stage timings: %d frames in %.2fs, "
-                    + "read avg %.1fms max %.1fms, present avg %.1fms max %.1fms",
+                    + "read avg %.1fms max %.1fms, present avg %.1fms max %.1fms, "
+                    + "publish avg %.1fms max %.1fms",
                 frames, elapsed,
                 readTotal / count * 1000, readMax * 1000,
-                presentTotal / count * 1000, presentMax * 1000
+                presentTotal / count * 1000, presentMax * 1000,
+                publishTotal / count * 1000, publishMax * 1000
             )
         )
         readTotal = 0
         readMax = 0
         presentTotal = 0
         presentMax = 0
+        publishTotal = 0
+        publishMax = 0
         frames = 0
         windowStart = now
     }
