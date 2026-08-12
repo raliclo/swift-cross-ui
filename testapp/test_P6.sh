@@ -23,9 +23,11 @@ usage() {
         "  -win  Windows quick run: auto-selects the file, starts playback," \
         "        enables frame dropping, and maximizes the window" \
         "        (-f -autoplay -enable-dropframe -maximized)." \
-        "        No media file needed." \
+        "        No media file needed. -topmost is left out on purpose: it" \
+        "        breaks clicking controls and the file picker." \
         "  -win  Windows 快速測試：自動選檔、自動播放、開啟丟幀並最大化視窗" \
         "        （-f -autoplay -enable-dropframe -maximized），不需指定媒體檔案。" \
+        "        刻意不含 -topmost：它會讓點選控制項與檔案選取對話框失效。" \
         "" \
         "Examples 範例:" \
         "  $command_name -win" \
@@ -64,7 +66,14 @@ done
 # -win 會提供預設值，因此媒體檔案變成選用；命令列上剩下的檔名會交給 -f 作為搜尋關鍵字。
 if [ "$win_enabled" -eq 1 ]; then
     typeset -a win_defaults
-    win_defaults=(-autoplay -enable-dropframe -maximized -topmost -f)
+    # Deliberately without -topmost. It keeps the window above others without
+    # activating it, which breaks interactive use two ways: clicking a control
+    # hands focus back to the shell that launched the app, and a modal file
+    # picker opens behind the window. Screenshot automation passes it itself.
+    # 刻意不含 -topmost。它讓視窗置頂但不啟動，會以兩種方式破壞互動操作：點選控制項
+    # 時焦點回到啟動它的 shell，且模態的檔案選取對話框會開在視窗後面。自動擷圖的
+    # 腳本會自行加上該旗標。
+    win_defaults=(-autoplay -enable-dropframe -maximized -f)
     if [ "${#p6_arguments[@]}" -gt 0 ] && [ "${p6_arguments[1]#-}" = "${p6_arguments[1]}" ]; then
         win_defaults+=("${p6_arguments[1]}")
         shift p6_arguments

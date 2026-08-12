@@ -157,6 +157,24 @@ let package = Package(
 )
 EOF_PACKAGE
 
+# NOTE: linking these as GUI-subsystem executables
+# (-Xlinker /SUBSYSTEM:WINDOWS -Xlinker /ENTRY:mainCRTStartup) removes the
+# console window that Explorer opens alongside the app, but it makes things
+# worse rather than better while the app still spawns children through
+# Foundation's Process: that passes only CREATE_UNICODE_ENVIRONMENT, never
+# CREATE_NO_WINDOW, and offers no way to change it. A console child inherits its
+# parent's console when there is one and creates its own window when there is
+# not, so removing P6's console gives ffmpeg and ffplay a console window each,
+# visible for as long as they run. Suppressing those needs the children to be
+# spawned with CreateProcessW and CREATE_NO_WINDOW instead of Foundation.
+# 註：把這些連結成 GUI 子系統的執行檔
+# （-Xlinker /SUBSYSTEM:WINDOWS -Xlinker /ENTRY:mainCRTStartup）雖然可以消掉檔案
+# 總管啟動時一併開出的主控台視窗，但只要程式仍以 Foundation 的 Process 產生子行程，
+# 結果反而更糟：它只傳 CREATE_UNICODE_ENVIRONMENT、不傳 CREATE_NO_WINDOW，也沒有
+# 提供修改的途徑。主控台子行程在父行程有主控台時會繼承，沒有時則自己開一個視窗；
+# 因此拿掉 P6 的主控台，會讓 ffmpeg 與 ffplay 各自開出一個、且在其執行期間都存在的
+# 主控台視窗。要抑制它們，必須改以 CreateProcessW 搭配 CREATE_NO_WINDOW 產生子行程，
+# 而非使用 Foundation。
 for app_name in $app_names; do
     echo "==> Compiling $app_name"
     "$swift_bin" build \
