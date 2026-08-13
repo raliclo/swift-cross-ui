@@ -60,6 +60,27 @@ locally do not automatically apply to CI, and vice versa.
       ControlsExample were bundled locally. CI builds 11. The other 8 received
       the same mechanical `Bundler.toml` edit and are unverified.
 
+## Examples/Package.resolved still drifts
+
+The unconditional Android dependencies fixed the root `Package.resolved`, but
+not `Examples/`, which is a separate package with its own lockfile. Resolving
+there without `SCUI_ANDROID=1` still prunes the same Android pins:
+
+```
+androidkit, swift-android-native, swift-java, swift-java-jni-core,
+swift-subprocess, ...
+```
+
+The root package keeps its 24 pins because the dependencies are declared there
+directly. Examples reaches them transitively through `.package(path: "..")`, and
+without the variable no target in the graph uses them, so they are dropped.
+
+- [ ] Decide whether Examples should declare the Android dependencies itself, or
+      whether its lockfile is simply expected to differ by build mode.
+- [ ] Until then: `git checkout -- Examples/Package.resolved` after building or
+      resolving there without `SCUI_ANDROID=1`. Observed while running
+      `xcodebuild -list` in that directory.
+
 ## Cleanups
 
 - [ ] The comment above `SWIFT_RELEASE` points at the API level 24 SDK, but the

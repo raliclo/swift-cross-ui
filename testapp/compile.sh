@@ -127,6 +127,28 @@ for app_name in $app_names; do
         ),"
 done
 
+# xcodebuild derives the scheme name from the package name, and Swift Bundler
+# builds iOS targets by invoking `xcodebuild -scheme <product>`. A package named
+# TestApps therefore has no scheme matching the app, and bundling fails with
+# "does not contain a scheme named P12" -- which sounds like a missing target
+# but is only a name mismatch. Naming the package after the app lines them up.
+# The host path keeps the shared TestApps package, where one build covers every
+# requested app.
+# xcodebuild 依套件名稱推導 scheme 名稱，而 Swift Bundler 建置 iOS target 時會呼叫
+# `xcodebuild -scheme <product>`。因此名為 TestApps 的套件不會有與 app 同名的
+# scheme，打包時會失敗並顯示「does not contain a scheme named P12」；該訊息聽起來
+# 像缺少 target，實際上只是名稱不一致。將套件以 app 命名即可對齊。
+# 主機路徑仍使用共用的 TestApps 套件，一次建置即涵蓋所有請求的 app。
+package_name="TestApps"
+if [ "$target_platform" = "ios" ]; then
+    ios_app_count="$(printf '%s' "$app_names" | wc -w | tr -d ' ')"
+    if [ "$ios_app_count" -ne 1 ]; then
+        echo "-ios builds one app at a time (the package is named after it); got:$app_names" >&2
+        exit 1
+    fi
+    package_name="$(printf '%s' "$app_names" | tr -d ' ')"
+fi
+
 image_formats_product=""
 image_formats_package=""
 if [ "$needs_image_formats" -eq 1 ]; then
@@ -163,7 +185,7 @@ let testAppDependencies: [Target.Dependency] = [
 ]
 
 let package = Package(
-    name: "TestApps",
+    name: "$package_name",
     platforms: [.macOS(.v11), .iOS(.v13), .tvOS(.v13), .macCatalyst(.v13), .visionOS(.v1)],
     dependencies: [
         .package(path: "$repo_root"),
@@ -177,6 +199,23 @@ let package = Package(
     ]
 )
 EOF_PACKAGE
+
+# Swift Bundler needs a Bundler.toml to turn an executable target into an app
+# bundle: a SwiftPM executable has no Info.plist or bundle identifier, so
+# `simctl install` cannot accept it on its own. Generated alongside
+# Package.swift so both stay in step with whichever apps were requested.
+# Swift Bundler 需要 Bundler.toml 才能把可執行 target 打包成 app bundle：SwiftPM 的
+# 可執行檔本身沒有 Info.plist 與 bundle identifier，simctl install 無法直接安裝。
+# 此檔與 Package.swift 一同產生，確保兩者與所請求的 app 清單保持一致。
+{
+    printf 'format_version = 2\n'
+    for app_name in $app_names; do
+        printf '\n[apps.%s]\n' "$app_name"
+        printf "identifier = 'dev.swiftcrossui.testapp.%s'\n" "$app_name"
+        printf "product = '%s'\n" "$app_name"
+        printf "version = '0.1.0'\n"
+    done
+} > "$package_dir/Bundler.toml"
 
 # NOTE: linking these as GUI-subsystem executables
 # (-Xlinker /SUBSYSTEM:WINDOWS -Xlinker /ENTRY:mainCRTStartup) removes the
@@ -213,60 +252,54 @@ if [ "$target_platform" = "ios" ]; then
         exit 1
     fi
 
+    # Swift Bundler produces the .app bundle that a bare xcodebuild cannot: it
+    # writes the Info.plist and bundle identifier that simctl requires. It lives
+    # in Vendor/swift-bundler as a submodule; build it via the Android installer
+    # script, which already knows how to patch its ZIPFoundationModern
+    # dependency for Swift 6.3+.
+    # Swift Bundler 能產生單靠 xcodebuild 無法得到的 .app bundle：它會寫入 simctl
+    # 所需的 Info.plist 與 bundle identifier。它以 submodule 形式位於
+    # Vendor/swift-bundler，可透過 Android 安裝腳本建置，該腳本已知道如何為
+    # Swift 6.3+ 修補其 ZIPFoundationModern 依賴。
     sim_device="${IOS_SIM_DEVICE:-swift-cross-ui}"
-    ios_config="$(printf '%s' "$build_config" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
-    ios_derived="$compile_work_dir/ios-build"
+    bundler_bin="$repo_root/swift-bundler"
+    if [ ! -x "$bundler_bin" ]; then
+        echo "Swift Bundler is required to build an installable iOS app." >&2
+        echo "Build it with:" >&2
+        echo "  bash Scripts/build-tool-install-android-on-Mac.sh" >&2
+        exit 1
+    fi
 
-    # A SwiftPM package exposes one scheme named after the package, not one per
-    # executable target, so every app in Sources/ is compiled together. Passing
-    # an app name as -scheme fails with "Supported platforms for the buildables
-    # in the current scheme is empty", which reads like a platform problem but
-    # only means the scheme does not exist.
-    # SwiftPM package 只會提供一個與套件同名的 scheme，而非每個可執行 target 各一個，
-    # 因此 Sources/ 下的所有 app 會一起編譯。若把 app 名稱當作 -scheme 傳入，會出現
-    # 「Supported platforms for the buildables in the current scheme is empty」，
-    # 該訊息看似平台問題，實際上只代表該 scheme 不存在。
-    # xcodebuild resolves the scheme from the working directory, so it has to run
-    # inside the generated package. From the repo root it finds the swift-cross-ui
-    # workspace instead and reports that no TestApps scheme exists.
-    # xcodebuild 會依工作目錄解析 scheme，因此必須在產生出來的套件目錄內執行。
-    # 若從專案根目錄執行，它會找到 swift-cross-ui 的 workspace，並回報找不到
-    # TestApps scheme。
-    echo "==> Compiling for the iOS Simulator:$app_names"
-    (
-        cd "$package_dir"
-        xcodebuild \
-            -scheme TestApps \
-            -destination "platform=iOS Simulator,name=$sim_device" \
-            -derivedDataPath "$ios_derived" \
-            -configuration "$ios_config" \
-            build \
-            | grep -E "error:|BUILD" || true
-    )
-
-    products="$ios_derived/Build/Products/${ios_config}-iphonesimulator"
     for app_name in $app_names; do
-        if [ -d "$products/$app_name.app" ]; then
+        echo "==> Bundling $app_name for the iOS Simulator"
+        (
+            cd "$package_dir"
+            "$bundler_bin" bundle "$app_name" \
+                --platform iOSSimulator \
+                -c "$build_config"
+        )
+
+        app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
+        if [ -d "$app_bundle" ]; then
             rm -rf "$output_dir/$app_name.app"
-            cp -R "$products/$app_name.app" "$output_dir/$app_name.app"
+            cp -R "$app_bundle" "$output_dir/$app_name.app"
             echo "    -> $output_dir/$app_name.app"
-        elif [ -f "$products/$app_name" ]; then
-            # Compiled, but a bare Mach-O executable rather than a bundle. A
-            # SwiftPM executableTarget has no Info.plist or bundle identifier,
-            # so simctl cannot install it. Say so instead of implying otherwise.
-            # 已編譯，但產物是裸的 Mach-O 執行檔而非 bundle。SwiftPM 的
-            # executableTarget 沒有 Info.plist 與 bundle identifier，simctl 無法安裝，
-            # 因此據實說明而非含混帶過。
-            cp "$products/$app_name" "$output_dir/$app_name-ios"
-            echo "    -> $output_dir/$app_name-ios (executable, not an installable .app)"
-            echo "       To install on the simulator, bundle it:" >&2
-            echo "         ./swift-bundler bundle $app_name --platform iOS" >&2
         else
-            echo "    No product found for $app_name in $products" >&2
+            echo "    Bundling reported success but no .app was found at $app_bundle" >&2
+            exit 1
         fi
     done
 
-    echo "Done. Output directory: $output_dir"
+    cat <<EOF_IOS
+Done. Output directory: $output_dir
+
+Install and launch on the simulator:
+
+  xcrun simctl boot "$sim_device"
+  open -a Simulator
+  xcrun simctl install "$sim_device" "$output_dir/<app>.app"
+  xcrun simctl launch "$sim_device" dev.swiftcrossui.testapp.<app>
+EOF_IOS
     exit 0
 fi
 
