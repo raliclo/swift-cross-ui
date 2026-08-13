@@ -1,0 +1,183 @@
+issue,categories,backend,status,comments,opened,title
+660,enhancement,WinUIBackend,fixed-p1,0,2026-07-02,WinUIBackend: Sheets have default padding
+659,enhancement;feature parity,WinUIBackend,fixed-p1,0,2026-07-02,WinUIBackend: Nested sheets not supported
+556,bug;layout,GtkBackend,repro-p7,0,2026-05-06,[Bug] Gtk List NavigationSplitView makes weird size decisions
+548,bug;crash,WinUIBackend,fixed-p0,0,2026-05-04,[BUG] @AppStorage crashes on Windows
+523,performance,WinUIBackend,fixed-p1,1,2026-04-16,Windows File Open/Save dialog slow to appear
+504,bug;layout,GtkBackend,repro-p9,0,2026-03-25,GtkBackend: TextField/SecureField shrinks in height after first update
+493,bug;crash,WinUIBackend,fixed-p0,0,2026-03-17,WinUIBackend: Crashes if environment action called too early
+478,enhancement,GtkBackend,repro-p10,1,2026-03-09,[GtkBackend] Ctrl-Q/Cmd-Q does not quit application
+476,enhancement;feature parity,GtkBackend,repro-p7,0,2026-03-06,The List control starts with the first item already selected on the GTK Backend
+471,bug,WinUIBackend,fixed-p2,0,2026-03-05,WinUIBackend: TextEditor has thin border when not focused
+470,developer experience,WinUIBackend,fixed-p4,8,2026-03-04,Regenerate WinUI bindings with latest swift-winrt
+454,bug,AppKitBackend;GtkBackend,repro-p10,2,2026-02-21,"[BUG] Transparent Containers consume click events (AppKitBackend, GtkBackend)"
+449,bug,WinUIBackend,fixed-p2,0,2026-02-17,Fix WinUIBackend Picker option updating code
+426,bug,Gtk3Backend;GtkBackend,repro-p8,2,2026-02-07,[GtkBackend][Gtk3Backend] Horizontal ScrollView swallows scroll wheel inputs for parent vertical ScrollView
+417,bug,GtkBackend,repro-p8,1,2026-02-06,[GtkBackend] Giving a ScrollView a cornerRadius does not affect its children
+401,bug,WinUIBackend,fixed-p2,0,2026-02-04,WinUIBackend: Disable full screen button when window resizing behaviour is `disabled`
+390,enhancement,GtkBackend;WinUIBackend,fixed-p2,4,2026-01-22,[GTK][WinUI] Disabled buttons don't appear disabled
+389,bug;feature parity,GtkBackend;WinUIBackend,fixed-p3,1,2026-01-22,[GTK][WinUI] Images aren't clipped
+295,feature parity,GtkBackend,repro-p9,0,2026-01-01,Gtk[3]Backend: Clip Text when necessary to reach zero width
+204,enhancement,WinUIBackend,fixed-p2,4,2025-06-27,WinUIBackend: Update to latest stable WinUI
+190,enhancement,WinUIBackend,fixed-p4,0,2025-06-23,WinUIBackend: Store callbacks in subclasses instead of global hashmaps
+156,feature,WinUIBackend,fixed-p4,3,2025-05-16,Needs for WinUI
+707,untriaged,core/unspecified,unaddressed,1,2026-08-12,Win32Backend
+706,untriaged,core/unspecified,unaddressed,0,2026-08-11,Update PickerStyle documentation to reference AndroidBackend
+702,untriaged,core/unspecified,unaddressed,0,2026-08-08,Older Gtk4 Version breaks Button Label centering for slim Text labels
+695,untriaged,core/unspecified,unaddressed,0,2026-08-04,"AppKitBackend: NSString.boundingRect treats 0 as unbounded, size(of:proposedWidth:) expects it to be ""minimum-width"" not greedy"
+694,untriaged,core/unspecified,unaddressed,0,2026-08-04,LayoutSystem: sequential equal-split on commit-phase redistribution truncates later stack children
+692,untriaged,core/unspecified,unaddressed,0,2026-08-03,"Table bodies should auto-size, not clip (unimplemented case)"
+688,untriaged,core/unspecified,unaddressed,2,2026-08-01,Add ComboBox View
+687,untriaged,core/unspecified,unaddressed,1,2026-08-01,Feature Proposal: render swift-cross-ui components in Xcode Previews
+684,untriaged,core/unspecified,unaddressed,5,2026-08-01,AppKitBackend dimensions test fails on macOS 26+: hardcoded expectation pins NSButton intrinsic metrics
+674,untriaged,core/unspecified,unaddressed,0,2026-07-13,Add AndroidBackend to hosted documentation
+671,untriaged,core/unspecified,unaddressed,1,2026-07-11,"@Entry macro expansion fails on Ubuntu 26.04 with ""extensions must not contain stored properties"" (works fine on Ubuntu 24.04, identical toolchain)"
+645,bug,core/unspecified,unaddressed,3,2026-06-22,Make new buttons match underlying platforms (#590 continuation)
+639,untriaged,core/unspecified,unaddressed,0,2026-06-13,Gaps between adjacent views on Android
+636,untriaged,core/unspecified,unaddressed,0,2026-06-11,Add support for Swift/C++ enabled projects.
+632,bug;layout,AndroidBackend,unaddressed,4,2026-06-10,AndroidBackend: Buttons have an unnecessary margin
+617,enhancement;good first issue;layout,core/unspecified,unaddressed,0,2026-06-03,Update size(of text:…) to return a Double
+616,enhancement,core/unspecified,unaddressed,0,2026-06-03,Buttons on tvOS should use a different foreground color when highlighted.
+610,bug;layout,AndroidBackend,unaddressed,1,2026-06-01,Fix sheet sizing on Android
+605,enhancement,AndroidBackend,unaddressed,1,2026-06-01,Update file open/save dialogs to use importer/exporters rather than URLs
+597,untriaged,core/unspecified,unaddressed,2,2026-05-28,Checkbox polyfill on iOS changes size when on/off
+595,bug;layout,core/unspecified,unaddressed,0,2026-05-27,Texts inside scrollview getting unnecessarily cut off?
+594,bug;help wanted,GtkBackend,unaddressed,1,2026-05-26,[BUG] Generated EventControllerKey.keyPressed doesn’t support returning Bool
+580,bug,AndroidBackend,unaddressed,1,2026-05-15,[BUG] Rotating the screen on AndroidBackend resets State
+572,untriaged,core/unspecified,unaddressed,0,2026-05-13,Shouldnt the NavigationSplitView use liquid glass ?
+562,developer experience,core/unspecified,unaddressed,0,2026-05-08,Resolve SwiftFormat issues and reformat
+561,feature parity,AndroidBackend,unaddressed,0,2026-05-08,[AndroidBackend] Line limit and ellipsization
+551,feature parity,AndroidBackend,unaddressed,0,2026-05-05,AndroidBackend: Update button implementation to respect isEnabled
+546,feature,core/unspecified,unaddressed,7,2026-05-04,Drag and drop between applications
+544,bug,AndroidBackend,unaddressed,0,2026-05-04,AndroidBackend: Indicate toggle button state visually
+530,enhancement;feature parity,UIKitBackend,unaddressed,0,2026-04-29,Support NavigationSplitView on iOS
+521,feature,core/unspecified,unaddressed,1,2026-04-10,Bring `QtBackend` back up to speed
+510,enhancement,core/unspecified,unaddressed,0,2026-03-27,Reimplement View.inspect(_:) modifiers for Pickers
+502,feature,core/unspecified,unaddressed,0,2026-03-24,DummyBackend: Implement lineLimit modifier
+491,API;feature,core/unspecified,unaddressed,0,2026-03-16,Custom DatePickerStyles
+485,bug,AppKitBackend,unaddressed,3,2026-03-11,[AppKitBackend] Scrollbar renders pointing the wrong way?
+479,feature,core/unspecified,unaddressed,0,2026-03-10,`ViewModifier` protocol
+475,API;feature,core/unspecified,unaddressed,0,2026-03-06,Add closeSubpath() method to Path
+473,bug,AppKitBackend,unaddressed,1,2026-03-06,[AppKitBackend] Compact DatePicker sizing is off with Liquid Glass
+457,feature,core/unspecified,unaddressed,3,2026-02-22,contentShape and clipShape
+451,feature,core/unspecified,unaddressed,1,2026-02-17,Image alt/accessibility text
+443,feature,core/unspecified,unaddressed,4,2026-02-10,Map View
+441,feature,core/unspecified,unaddressed,1,2026-02-10,Native hosting views like UIHostingController
+439,feature,core/unspecified,unaddressed,0,2026-02-09,[FEAT] Customize Line Spacing / .lineSpacing(_) modifier
+436,feature,core/unspecified,unaddressed,8,2026-02-09,[FeatureReq] Add ToolPallete window support with tweakable window level.
+428,untriaged,core/unspecified,unaddressed,0,2026-02-07,Request: Add bridge libraries for .NET languages & Remobjects Elements Silver
+427,feature,core/unspecified,unaddressed,0,2026-02-07,[FEAT] Gradients and use in Shapes
+425,bug,AppKitBackend,unaddressed,3,2026-02-06,Window doesn't have focus on launch
+424,feature,core/unspecified,unaddressed,0,2026-02-06,WindowStyle
+423,feature,core/unspecified,unaddressed,0,2026-02-06,SceneRestorationBehavior
+422,enhancement,core/unspecified,unaddressed,1,2026-02-06,No window appears on launch
+421,feature,core/unspecified,unaddressed,0,2026-02-06,Settings scene
+419,feature,core/unspecified,unaddressed,1,2026-02-06,Support Markdown in labels
+415,bug,core/unspecified,unaddressed,0,2026-02-06,Message list benchmark crashes with AppKitBackend
+413,developer experience;enhancement,core/unspecified,unaddressed,5,2026-02-05,[Discussion] remove non-critical unimplemented/unsupported warnings spam
+412,feature parity,core/unspecified,unaddressed,0,2026-02-05,Implement tables for non-AppKit backends
+407,feature,core/unspecified,unaddressed,19,2026-02-04,Add compatibilty with Swift's `@Observable` macro
+405,enhancement,core/unspecified,unaddressed,0,2026-02-04,Windowing: Support cmd+n (or equivalent) to open a new instance of current WindowGroup
+404,bug,AppKitBackend,unaddressed,0,2026-02-04,AppKitBackend: Update Window content size when user toggles `View > Show Tab Bar`
+403,enhancement,core/unspecified,unaddressed,0,2026-02-04,Windowing: create default window when app is activated without any open windows
+386,enhancement,Gtk3Backend;GtkBackend,unaddressed,2,2026-01-22,[GTK] Support dark mode
+385,enhancement,core/unspecified,unaddressed,1,2026-01-22,Views consumes tap events in empty areas
+382,feature,core/unspecified,unaddressed,1,2026-01-21,Support button styles
+380,feature,core/unspecified,unaddressed,1,2026-01-21,Form containers
+377,enhancement,core/unspecified,unaddressed,1,2026-01-20,Improved save dialog
+375,feature,core/unspecified,unaddressed,2,2026-01-20,Keyboard shortcuts
+374,enhancement;feature,core/unspecified,unaddressed,2,2026-01-20,Unable to disable menu bar commands
+373,feature,core/unspecified,unaddressed,0,2026-01-20,Improved menu bar commands
+372,enhancement,core/unspecified,unaddressed,1,2026-01-20,List vertical sizing
+370,feature,core/unspecified,unaddressed,0,2026-01-20,Alert detail messages
+369,feature,core/unspecified,unaddressed,6,2026-01-20,Toolbars
+368,feature,core/unspecified,unaddressed,0,2026-01-20,NavigationSplitViewVisibility
+367,enhancement,core/unspecified,unaddressed,1,2026-01-20,Vertical spacing in VStack
+363,feature,core/unspecified,unaddressed,0,2026-01-20,FocusedValue
+362,feature,core/unspecified,unaddressed,6,2026-01-20,SF Symbols replacement
+361,feature,core/unspecified,unaddressed,1,2026-01-20,Improved Button support
+359,feature,core/unspecified,unaddressed,0,2026-01-20,navigationTitle and navigationSubtitle
+358,feature,core/unspecified,unaddressed,1,2026-01-20,draggable modifier
+357,layout,core/unspecified,unaddressed,1,2026-01-20,Image scaling
+355,feature,core/unspecified,unaddressed,1,2026-01-20,Secondary styles
+353,untriaged,core/unspecified,unaddressed,0,2026-01-20,Sample app: Comic Viewer [WIP]
+349,developer experience;enhancement,core/unspecified,unaddressed,0,2026-01-15,Hot reloading: Fix duplicate symbol warnings
+344,feature,core/unspecified,unaddressed,1,2026-01-13,Create view for custom rendering
+337,feature parity,core/unspecified,unaddressed,0,2026-01-11,DatePicker: Improve platform support parity
+332,performance,core/unspecified,unaddressed,0,2026-01-09,Can ErasedViewGraphNode be a struct instead?
+324,bug,UIKitBackend,unaddressed,0,2026-01-08,UIKitBackend: Content gets given incorrect size proposal on orientation change
+322,untriaged,UIKitBackend,unaddressed,3,2026-01-08,UIKitBackend: Update to use UIScene lifecycle
+301,untriaged,core/unspecified,unaddressed,0,2026-01-03,Backend Preferences
+293,feature,core/unspecified,unaddressed,4,2025-12-30,Support clip shapes
+292,feature,core/unspecified,unaddressed,0,2025-12-30,Implement View.border modifier
+291,bug,core/unspecified,unaddressed,0,2025-12-29,NavigationSplitView: Fix minimum width sizing
+289,bug,core/unspecified,unaddressed,0,2025-12-29,GtkBackend: Fix window minimum height on distros with gtk-rendered toolbar
+288,enhancement,core/unspecified,unaddressed,0,2025-12-29,WinUIBackend: Set window minimum size
+287,feature,core/unspecified,unaddressed,0,2025-12-29,Introduce API for wrapping text around and within shapes
+286,bug,Gtk3Backend,unaddressed,0,2025-12-29,Gtk3Backend: Fix window minimum height handling
+277,enhancement;layout,core/unspecified,unaddressed,0,2025-12-11,Avoid creating widgets for Spacers
+275,untriaged,core/unspecified,unaddressed,0,2025-12-10,Investigate WinUIBackend title bar colour not matching system sometimes
+274,documentation,core/unspecified,unaddressed,0,2025-12-10,Update quick start docs to discuss distribution
+271,developer experience;enhancement,core/unspecified,unaddressed,1,2025-12-10,Look into distributing SwiftCrossUI prebuilts
+266,layout,core/unspecified,unaddressed,5,2025-12-04,Layout correctness
+265,feature,core/unspecified,unaddressed,2,2025-12-03,is SwiftUI canvas supported?
+264,enhancement;layout,core/unspecified,unaddressed,0,2025-12-03,Make frame(idealWidth:idealHeight:) set idealWidthForHeight and idealHeightForWidth
+261,feature,core/unspecified,unaddressed,1,2025-12-02,Support pickerStyle modifier
+259,enhancement,core/unspecified,unaddressed,0,2025-11-28,"GtkCodeGen: Add gir files to repo (if allowed), and regenerate bindings in CI to ensure properly generated"
+258,enhancement,core/unspecified,unaddressed,0,2025-11-28,Update backends to avoid use of dictionaries for auxiliary data storage
+257,feature parity,UIKitBackend,unaddressed,0,2025-11-28,UIKitBackend: Implement slider for tvOS
+254,bug,UIKitBackend,unaddressed,0,2025-11-28,UIKitBackend: Update app background colour when system theme changes
+251,bug,core/unspecified,unaddressed,0,2025-11-27,Propagate preference values up the view hierarchy when they change
+250,enhancement,core/unspecified,unaddressed,0,2025-11-26,Add a way for window groups to be reopened
+248,enhancement,core/unspecified,unaddressed,1,2025-11-26,Update force casts and force unwraps in backend impls to print custom messages on failure
+246,feature,core/unspecified,unaddressed,1,2025-11-12,[FEAT] TimelineView
+240,documentation,core/unspecified,unaddressed,1,2025-11-01,Add images to docs
+239,untriaged,core/unspecified,unaddressed,0,2025-11-01,Make AppKitBackend Picker Item have a higher contrast color in darkmode
+235,untriaged,core/unspecified,unaddressed,0,2025-10-25,Allow Limiting File Extensions in pickFile() function
+234,enhancement,AppKitBackend,unaddressed,0,2025-10-24,[AppKitBackend] give windows a controller
+231,bug,core/unspecified,unaddressed,6,2025-10-22,Error building on Windows
+227,bug;layout,UIKitBackend,unaddressed,0,2025-10-20,Fix Mac Catalyst button sizing
+226,bug;feature parity,core/unspecified,unaddressed,0,2025-10-18,TextEditor doesn't render on tvOS
+222,API;feature,core/unspecified,unaddressed,0,2025-10-16,onKeyPress modifier
+221,feature,core/unspecified,unaddressed,7,2025-10-14,Feature request - focusing between widgets using tab
+217,feature,core/unspecified,unaddressed,1,2025-09-30,VideoPlayer
+216,untriaged,UIKitBackend,unaddressed,34,2025-09-26,Create compatibility with legacy iOS versions (big developments)
+207,enhancement,AppKitBackend,unaddressed,1,2025-07-11,Improve AppKitBackend layout system integration
+206,untriaged,core/unspecified,unaddressed,11,2025-07-06,Is there support for qt as a backend?
+201,enhancement,core/unspecified,unaddressed,1,2025-06-25,Fix release build speed
+192,enhancement,core/unspecified,unaddressed,0,2025-06-23,Improve Gtk bindings generator
+191,enhancement,core/unspecified,unaddressed,0,2025-06-23,TextEditor: scroll containing ScrollView's to keep cursor in-view
+189,bug,Gtk3Backend;GtkBackend,unaddressed,0,2025-06-23,Gtk[3]Backend: Fix TextEditor height calculation on macOS
+184,feature,core/unspecified,unaddressed,0,2025-06-11,Implement rich text editing
+180,feature parity,core/unspecified,unaddressed,2,2025-06-07,UIKitBackend: Implement toggle button and checkbox polyfills
+179,bug;feature parity;good first issue,core/unspecified,unaddressed,0,2025-06-07,Gtk3Backend: Implement `Picker` support again
+176,feature;layout,core/unspecified,unaddressed,1,2025-06-03,"Alternatives for SwiftUI's Grid, LazyVGrid, and LazyHGrid"
+173,feature,core/unspecified,unaddressed,3,2025-06-02,Alternatives for multi-select Picker
+171,feature,core/unspecified,unaddressed,0,2025-05-27,Implement view to image rendering (snapshotting)
+166,bug,Gtk3Backend,unaddressed,0,2025-05-22,Fix Gtk3Backend window height resizing
+165,feature,core/unspecified,unaddressed,0,2025-05-22,Sqlite/CoreData wrapper
+164,documentation,core/unspecified,unaddressed,1,2025-05-21,Get source code links working for non-SwiftCrossUI doc targets
+163,enhancement,core/unspecified,unaddressed,0,2025-05-21,Fix clash with Foundation's Combine typealiases
+162,enhancement,UIKitBackend,unaddressed,1,2025-05-21,Update UIKitBackend Picker implementation to match .menu style
+161,layout,core/unspecified,unaddressed,0,2025-05-20,Make Picker sizing more consistent across backends
+160,bug;layout,WinUIBackend,unaddressed,0,2025-05-20,Fix WinUIBackend NavigationSplitView initial layout
+159,feature,core/unspecified,unaddressed,0,2025-05-20,Implement a localization system
+158,bug;enhancement;layout,core/unspecified,unaddressed,0,2025-05-20,Fix Group behaviour in ZStacks
+152,feature,core/unspecified,unaddressed,0,2025-05-14,Double-ended slider control
+148,feature,core/unspecified,unaddressed,2,2025-05-13,Implement a WebView
+146,untriaged,core/unspecified,unaddressed,11,2025-05-10,Web support (not a priority yet)
+128,untriaged,core/unspecified,unaddressed,8,2025-04-27,Windows 11 ARM issue
+110,untriaged,core/unspecified,unaddressed,0,2025-03-03,onUserInteraction
+107,untriaged,core/unspecified,unaddressed,0,2025-02-27,Account for safe area insets
+85,API;enhancement;good first issue,core/unspecified,unaddressed,0,2024-04-09,Create API for limiting sliders to ranges within their set bounds
+83,API;enhancement,core/unspecified,unaddressed,0,2024-04-09,Create a way to control whether a scroll view resets scroll position on update
+82,bug,AppKitBackend,unaddressed,0,2024-04-08,[AppKitBackend] Stop sliders jittering in RandomNumberGeneratorExample
+71,enhancement,core/unspecified,unaddressed,2,2023-12-10,Drop gyb in favor of swift macros
+63,documentation,core/unspecified,unaddressed,1,2023-10-23,Create a documentation article on creating a basic app
+52,untriaged,GtkBackend,unaddressed,6,2023-07-30,Support for libadwaita?
+44,untriaged,GtkBackend,unaddressed,0,2023-06-11,Support Gtk+ version detection for arbitrary installation method on Windows
+39,API;enhancement,core/unspecified,unaddressed,0,2023-06-07,Move to using Double and safely converting to correct Int
+29,feature,core/unspecified,unaddressed,6,2023-05-15,Saving State between launches
+27,enhancement,core/unspecified,unaddressed,11,2023-05-11,Layout performance (optimize view updates)
+26,untriaged,core/unspecified,unaddressed,23,2023-02-27,CombineX support
+7,enhancement,core/unspecified,unaddressed,0,2022-03-20,Don't update a widget unless its state has changed
