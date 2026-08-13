@@ -24,8 +24,10 @@ issue,categories,backend,status,comments,opened,title
 401,bug,WinUIBackend,fixed-p2,0,2026-02-04,WinUIBackend: Disable full screen button when window resizing behaviour is `disabled`
 390,enhancement,GtkBackend;WinUIBackend,fixed-winui-p2;open-gtk,4,2026-01-22,[GTK][WinUI] Disabled buttons don't appear disabled
 389,bug;feature parity,GtkBackend;WinUIBackend,fixed-winui-p3;open-gtk,1,2026-01-22,[GTK][WinUI] Images aren't clipped
+324,bug,UIKitBackend,repro-p14,0,2026-01-08,UIKitBackend: Content gets given incorrect size proposal on orientation change
 295,feature parity,GtkBackend,repro-p9,0,2026-01-01,Gtk[3]Backend: Clip Text when necessary to reach zero width
 291,bug,core/unspecified,repro-p13,0,2025-12-29,NavigationSplitView: Fix minimum width sizing
+254,bug,UIKitBackend,repro-p14,0,2025-11-28,UIKitBackend: Update app background colour when system theme changes
 204,enhancement,WinUIBackend,fixed-p2,4,2025-06-27,WinUIBackend: Update to latest stable WinUI
 190,enhancement,WinUIBackend,fixed-p4,0,2025-06-23,WinUIBackend: Store callbacks in subclasses instead of global hashmaps
 158,bug;enhancement;layout,core/unspecified,repro-p13,0,2025-05-20,Fix Group behaviour in ZStacks
@@ -108,7 +110,6 @@ issue,categories,backend,status,comments,opened,title
 344,feature,core/unspecified,unaddressed,1,2026-01-13,Create view for custom rendering
 337,feature parity,core/unspecified,unaddressed,0,2026-01-11,DatePicker: Improve platform support parity
 332,performance,core/unspecified,unaddressed,0,2026-01-09,Can ErasedViewGraphNode be a struct instead?
-324,bug,UIKitBackend,unaddressed,0,2026-01-08,UIKitBackend: Content gets given incorrect size proposal on orientation change
 322,untriaged,UIKitBackend,unaddressed,3,2026-01-08,UIKitBackend: Update to use UIScene lifecycle
 301,untriaged,core/unspecified,unaddressed,0,2026-01-03,Backend Preferences
 293,feature,core/unspecified,unaddressed,4,2025-12-30,Support clip shapes
@@ -128,7 +129,6 @@ issue,categories,backend,status,comments,opened,title
 259,enhancement,core/unspecified,unaddressed,0,2025-11-28,"GtkCodeGen: Add gir files to repo (if allowed), and regenerate bindings in CI to ensure properly generated"
 258,enhancement,core/unspecified,unaddressed,0,2025-11-28,Update backends to avoid use of dictionaries for auxiliary data storage
 257,feature parity,UIKitBackend,unaddressed,0,2025-11-28,UIKitBackend: Implement slider for tvOS
-254,bug,UIKitBackend,unaddressed,0,2025-11-28,UIKitBackend: Update app background colour when system theme changes
 251,bug,core/unspecified,unaddressed,0,2025-11-27,Propagate preference values up the view hierarchy when they change
 250,enhancement,core/unspecified,unaddressed,0,2025-11-26,Add a way for window groups to be reopened
 248,enhancement,core/unspecified,unaddressed,1,2025-11-26,Update force casts and force unwraps in backend impls to print custom messages on failure

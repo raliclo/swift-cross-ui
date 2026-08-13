@@ -22,6 +22,7 @@ rather than infer, and record what was actually observed.
 | P12 | AndroidBackend | #632, #580, #544 | Android device or emulator |
 | P13 | core layout / view graph | #595, #291, #158 | any backend |
 | P13 | AppKitBackend | #415 | macOS, natively |
+| P14 | UIKitBackend | #324, #254 | iOS Simulator |
 
 P13 is split across two rows on purpose. `issues.csv` files #595, #291 and #158
 under `core/unspecified`, not under a backend, so they are testable wherever the
@@ -41,7 +42,6 @@ Recorded so the gaps are visible rather than forgotten:
 | --- | --- |
 | #289, #179, #594, #286, #166, #189 | Linux / WSL, for Gtk and Gtk3 |
 | #160, #231 | Windows, for WinUI |
-| #324, #254 | An iOS repro app, not the simulator. `simctl list devices available` reports none, but that only means no device has been created: `simctl runtime list` shows iOS 18.4 installed and ready, and a device created from it boots. Building SwiftCrossUI for the simulator is untested. |
 | #227 | A Mac Catalyst build target, not yet set up |
 | #226 | tvOS |
 | #645 | Comparison against several platforms at once, so it needs the others first |
@@ -235,6 +235,67 @@ Expected results:
 - Rendering the non-Identifiable list does not crash. A crash is #415, and the
   identifiable list beside it is the control showing the same data is fine when
   identity is explicit.
+
+---
+
+## P14: Rotation Size Proposals And Theme (iOS Simulator)
+
+Build, install and run:
+
+```sh
+zsh testapp/compile.sh -ios P14
+xcrun simctl boot swift-cross-ui
+open -a Simulator
+xcrun simctl install swift-cross-ui testapp/output/P14.app
+xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+```
+
+`compile.sh -ios` provisions the simulator itself via `install_tools_ios.sh`, so
+a missing device is created rather than reported.
+
+Covered issues:
+
+- #324 (Open): Content gets an incorrect size proposal on orientation change
+- #254 (Open): App background colour is not updated when the system theme changes
+
+Both are about a value rather than an appearance, so P14 records what it was
+given instead of asking you to catch a flicker. #324 corrects itself on the next
+layout pass, and #254 is one surface disagreeing with others.
+
+Test steps:
+
+1. Launch `P14` in portrait. Note the reported proposed width; it should match
+   the device's portrait width.
+2. Click `Clear history`.
+3. Rotate the simulator to landscape (Cmd-Left Arrow), to verify #324.
+4. Read `Width history`. It records up to eight width changes in order.
+5. Confirm the history goes straight from the portrait width to the landscape
+   width. An intermediate entry **wider than the landscape width**, followed by
+   the correct one, is #324 -- the app was proposed more space than exists and
+   then corrected.
+6. Rotate back to portrait and read the history again.
+7. With the app open, switch the system appearance, to verify #254. In the
+   simulator use Features > Toggle Appearance, or from a terminal:
+   `xcrun simctl ui swift-cross-ui appearance dark`.
+8. Compare the three numbered surfaces. The text, the button and the adaptive
+   colour block should all change together with the window background behind
+   them.
+9. Switch back to light and compare again.
+
+Expected results:
+
+- Width history contains only the portrait and landscape widths, in order. An
+  extra oversized entry between them is #324.
+- Every surface follows the theme. If the controls and the adaptive block
+  change while the background behind them stays the previous theme's colour,
+  that is #254. The adaptive block is the control here: it proves the theme
+  change arrived, so a background that ignores it is the app's own bug.
+
+Not covered by P14:
+
+- **#227** (Mac Catalyst button sizing) shares UIKitBackend but needs a Catalyst
+  destination rather than an iOS Simulator one, and upstream supplies only a
+  screenshot with no description, so the reproduction conditions are unclear.
 
 ---
 
