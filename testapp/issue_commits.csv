@@ -41,6 +41,7 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 ,P11-P13 repro apps,5fa5f44f,testapp: add P11 and P12 to reproduce the reachable open bugs,fork,local,,testapp only; does not exist upstream.
 ,P11-P13 repro apps,aa2aad76,testapp: add P13 for the layout and view-graph bugs,fork,local,,testapp only.
 ,P11-P13 repro apps,ed004d0d,testapp: apply SwiftFormat to P13,fork,local,,testapp only.
-,P11-P13 repro apps,6dfc68c7,testapp: fix review findings in the P11-P13 repro apps,fork,local,,testapp only.
+,P11-P13 repro apps,b886c37a,testapp: fix review findings in the P11-P13 repro apps,fork,local,,testapp only.
 ,Issue tracking tables,c1e4e72b,testapp: inventory the open upstream issues,fork,local,,testapp only.
-,Issue tracking tables,ceec7369,testapp: stop the issue tables claiming more than was fixed,fork,local,,testapp only.
+,Issue tracking tables,40e69264,testapp: stop the issue tables claiming more than was fixed,fork,local,,testapp only.
+,Issue tracking tables,219ebc9f,testapp: bring the tracking docs up to what has actually been done,fork,local,,testapp only.
