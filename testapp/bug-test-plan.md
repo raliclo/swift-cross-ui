@@ -1,9 +1,15 @@
 # Bug test plan: AppKitBackend and AndroidBackend
 
 Covers the open upstream bugs that can be reproduced from this machine. The
-selection comes from `issues.csv`: of the 27 unaddressed bugs, these are the
-ones whose backend is reachable here. Gtk, Gtk3 and WinUI bugs are left for the
-Windows and WSL sessions.
+selection comes from `issues.csv`: 33 rows are tagged `bug` and are not yet
+fixed, and these are the ten whose backend is reachable here. Gtk, Gtk3 and
+WinUI bugs are left for the Windows and WSL sessions.
+
+The count is checkable rather than remembered:
+
+```sh
+awk -F, 'NR>1 && $2 ~ /bug/ && $4 !~ /^fixed-p/' testapp/issues.csv | wc -l
+```
 
 Same working style as the WinUI and Linux plans: reproduce first, measure
 rather than infer, and record what was actually observed.
@@ -14,7 +20,15 @@ rather than infer, and record what was actually observed.
 | --- | --- | --- | --- |
 | P11 | AppKitBackend | #82, #485, #473 | macOS, natively |
 | P12 | AndroidBackend | #632, #580, #544 | Android device or emulator |
-| P13 | layout / view graph | #415, #595, #291, #158 | macOS, natively |
+| P13 | core layout / view graph | #595, #291, #158 | any backend |
+| P13 | AppKitBackend | #415 | macOS, natively |
+
+P13 is split across two rows on purpose. `issues.csv` files #595, #291 and #158
+under `core/unspecified`, not under a backend, so they are testable wherever the
+app runs; only #415 is reported against AppKitBackend. Measured, not assumed:
+P13 builds and links under GtkBackend in WSL, so those three can be checked
+without waiting for a Mac, and a backend that does *not* show them is a useful
+result too.
 
 Bugs from the same set that are deliberately excluded appear under "Not
 covered" in each section, with the reason.
@@ -157,24 +171,32 @@ Not covered by P12:
 
 ---
 
-## P13: Layout And View Graph (macOS)
+## P13: Layout And View Graph (any backend, plus one macOS-only check)
 
 Build and run:
 
 ```sh
 zsh testapp/compile.sh P13
-./testapp/output/P13
+./testapp/output/P13          # .exe on Windows
 ```
 
-Covered issues:
+Covered issues, by where they have to be checked:
 
-- #415 (Open): Message list benchmark crashes with AppKitBackend
+Any backend:
+
 - #595 (Open): Texts inside a ScrollView get unnecessarily cut off
 - #291 (Open): NavigationSplitView minimum width sizing
 - #158 (Open): Group behaviour in ZStacks
 
+macOS only:
+
+- #415 (Open): Message list benchmark crashes with AppKitBackend
+
 #415 crashes on purpose, so it is behind a button. Do the other three checks
-first, then trigger it last.
+first, then trigger it last. Steps 1-8 are worth running on every backend
+available, recording each separately: #291 in particular is reported upstream as
+affecting AppKitBackend and not GtkBackend, so agreement between the two is
+itself the finding.
 
 Test steps:
 
@@ -196,11 +218,13 @@ Test steps:
    stops moving and the detail pane is squeezed out or clipped while the
    sidebar keeps its width, that is #291.
 8. Click `Wider` and confirm the split recovers.
-9. Now `More duplicates` a few times, then click `Show unidentified list`, to
-   verify #415. This renders a `ForEach` over elements that are not
+9. On macOS: `More duplicates` a few times, then click `Show unidentified list`,
+   to verify #415. This renders a `ForEach` over elements that are not
    `Identifiable` and all compare equal.
 10. Record whether the app crashes, and if so capture the message. Upstream
-    attributes it to the backend receiving duplicate child views.
+    attributes it to the backend receiving duplicate child views. On other
+    backends this step is not expected to crash; run it anyway and record that,
+    since it bounds the bug to AppKitBackend.
 
 Expected results:
 

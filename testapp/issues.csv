@@ -22,8 +22,8 @@ issue,categories,backend,status,comments,opened,title
 417,bug,GtkBackend,repro-p8,1,2026-02-06,[GtkBackend] Giving a ScrollView a cornerRadius does not affect its children
 415,bug,core/unspecified,repro-p13,0,2026-02-06,Message list benchmark crashes with AppKitBackend
 401,bug,WinUIBackend,fixed-p2,0,2026-02-04,WinUIBackend: Disable full screen button when window resizing behaviour is `disabled`
-390,enhancement,GtkBackend;WinUIBackend,fixed-p2,4,2026-01-22,[GTK][WinUI] Disabled buttons don't appear disabled
-389,bug;feature parity,GtkBackend;WinUIBackend,fixed-p3,1,2026-01-22,[GTK][WinUI] Images aren't clipped
+390,enhancement,GtkBackend;WinUIBackend,fixed-winui-p2;open-gtk,4,2026-01-22,[GTK][WinUI] Disabled buttons don't appear disabled
+389,bug;feature parity,GtkBackend;WinUIBackend,fixed-winui-p3;open-gtk,1,2026-01-22,[GTK][WinUI] Images aren't clipped
 295,feature parity,GtkBackend,repro-p9,0,2026-01-01,Gtk[3]Backend: Clip Text when necessary to reach zero width
 291,bug,core/unspecified,repro-p13,0,2025-12-29,NavigationSplitView: Fix minimum width sizing
 204,enhancement,WinUIBackend,fixed-p2,4,2025-06-27,WinUIBackend: Update to latest stable WinUI
