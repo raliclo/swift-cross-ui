@@ -26,7 +26,20 @@ script_dir="${0:a:h}"
 repo_root="${script_dir:h:h}"
 csv="$repo_root/testapp/issue_commits.csv"
 
-upstream="origin/develop"
+# The fork's remote is not necessarily called origin -- here it is Ralic -- so
+# prefer whatever the current branch tracks and fall back to a remote that
+# actually exists. Hardcoding origin made the script fail with "'origin' does
+# not appear to be a git repository" before it checked anything.
+upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+if [ -z "$upstream" ]; then
+    for remote in Ralic origin; do
+        if git remote get-url "$remote" >/dev/null 2>&1; then
+            upstream="$remote/develop"
+            break
+        fi
+    done
+fi
+: "${upstream:=origin/develop}"
 do_rebase=1
 
 while [ $# -gt 0 ]; do
