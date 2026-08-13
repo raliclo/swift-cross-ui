@@ -45,3 +45,8 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 ,Issue tracking tables,c1e4e72b,testapp: inventory the open upstream issues,fork,local,,testapp only.
 ,Issue tracking tables,40e69264,testapp: stop the issue tables claiming more than was fixed,fork,local,,testapp only.
 ,Issue tracking tables,219ebc9f,testapp: bring the tracking docs up to what has actually been done,fork,local,,testapp only.
+386,[GTK] Support dark mode,,,upstream,unresolved,,"P15 exercises it. Test with GTK_THEME=Adwaita:dark; the scheme buttons are a control, since GtkBackend declares canOverrideWindowColorScheme = false."
+289,GtkBackend: Fix window minimum height on distros with gtk-rendered toolbar,,,upstream,unresolved,,P15 exercises it. Needs client-side decorations; Gtk uses them under WSLg's Wayland compositor.
+160,Fix WinUIBackend NavigationSplitView initial layout,,,upstream,unresolved,,"P16 exercises it. Read the pane sizes before touching the window: resizing is one of the two things that fixes it."
+,GeometryReader doc example does not compile,9ac01c11,SwiftCrossUI: fix the GeometryReader doc example,upstream,ready,,"No upstream issue. Smallest PR candidate on the branch: two comment lines, documentation only, no dependency on anything else here."
+,P15 and P16 repro apps,34e83abb,testapp: add P15 and P16 for the uncovered Gtk and WinUI issues,fork,local,,testapp only; does not exist upstream.
