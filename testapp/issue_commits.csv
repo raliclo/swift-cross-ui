@@ -1,0 +1,30 @@
+issue,issue_title,commit,subject,scope,status,pr,notes
+,WinUIBackend loses the foreground after a file dialog,b35939f1,WinUIBackend: return activation to the window that owned a file dialog,upstream,ready,,"No upstream issue yet; found while testing P6. Smallest PR candidate: one file, ~20 lines, no P6 naming."
+,Composition swap chain could only present RGBA,84718ee6,WinUIBackend: present NV12 frames through the D3D11 video processor,upstream,blocked,,"Blocked on naming: six public types in Sources/WinUIBackend/D3D11VideoInterop.swift are P6-prefixed. Rename before submitting."
+,Composition swap chain could only present RGBA,b250da26,WinUIBackend: let a D3D11 video surface pick its adapter,upstream,blocked,,Same file and same naming problem; cherry-pick together with 84718ee6.
+,Composition swap chain could only present RGBA,8dc6380b,WinUIBackend: fix P6 self-deadlock crash at first-frame publish,upstream,ready,,Predates this session. Independent of the NV12 work.
+,A single @Published update costs ~97 ms on WinUIBackend,,,upstream,unresolved,,"Measured, not fixed. P6 worked around it by publishing at 2 Hz. Worth an upstream issue before any code."
+,WinUIElementRepresentable measures 0x0 when rooted at a Canvas,,,upstream,unresolved,,"Default sizeThatFits asks the element; a Canvas never measures children. Caused the video to be centred as a zero-size view."
+,P6 Windows video path,584df8f4,P6: add Windows GPU presentation path and unattended test flags,fork,local,,testapp only; does not exist upstream.
+,P6 Windows video path,360bcad2,P6: make the Windows GPU video path visible and correctly placed,fork,local,,testapp only.
+,P6 Windows video path,bafbc949,"P6: own the decoder pipe, and measure where the time goes",fork,local,,testapp only.
+,P6 Windows video path,7697dbe6,P6: stop republishing the view graph on every frame,fork,local,,testapp only.
+,P6 Windows video path,30f1d69c,testapp: spawn P6's decoder tools without console windows,fork,local,,testapp only.
+,P6 Windows video path,6c96d95d,testapp: keep -topmost out of the interactive quick run,fork,local,,testapp only.
+,P6 Windows video path,e3779468,testapp: record the Windows measurements and Foundation gaps,fork,local,,testapp only.
+389,[GTK][WinUI] Images aren't clipped,,,upstream,unresolved,,Tier 1. P3 already exercises it; WinUI half already fixed.
+390,[GTK][WinUI] Disabled buttons don't appear disabled,,,upstream,unresolved,,Tier 1. P2 already exercises it; WinUI half already fixed.
+417,[GtkBackend] ScrollView cornerRadius does not affect children,,,upstream,unresolved,,Tier 1.
+426,Horizontal ScrollView swallows parent's scroll wheel,,,upstream,unresolved,,Tier 1. Gtk3Backend half out of scope.
+454,Transparent containers consume click events,,,upstream,unresolved,,Tier 1. Also affects AppKitBackend.
+476,List starts with the first item already selected,,,upstream,unresolved,,Tier 1.
+478,[GtkBackend] Ctrl-Q/Cmd-Q does not quit application,,,upstream,unresolved,,Tier 1.
+504,GtkBackend: TextField/SecureField shrinks in height after first update,,,upstream,unresolved,,Tier 1.
+556,[Bug] Gtk List NavigationSplitView makes weird size decisions,,,upstream,unresolved,,Tier 2. WSLg is Wayland; sizing results need that caveat.
+295,Gtk[3]Backend: Clip Text when necessary to reach zero width,,,upstream,unresolved,,Tier 2. Gtk3Backend half out of scope.
+702,Older Gtk4 breaks Button Label centering,,,upstream,wont-test,,Needs an older GTK 4 than the 4.22.4 in this WSL.
+386,[GTK] Support dark mode,,,upstream,unresolved,,Feature. Needs a dark theme configured.
+594,EventControllerKey.keyPressed cannot return Bool,,,upstream,unresolved,,Binding generation; testable without a GUI.
+52,Support for libadwaita?,,,upstream,unresolved,,Feature request.
+286,Gtk3Backend: Fix window minimum height handling,,,upstream,dropped,,Gtk3Backend only; out of scope.
+166,Fix Gtk3Backend window height resizing,,,upstream,dropped,,Gtk3Backend only; out of scope.
