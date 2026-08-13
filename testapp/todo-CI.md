@@ -54,6 +54,31 @@ locally do not automatically apply to CI, and vice versa.
       ControlsExample were bundled locally. CI builds 11. The other 8 received
       the same mechanical `Bundler.toml` edit and are unverified.
 
+## Package.resolved drifts with SCUI_ANDROID
+
+Measured, not inferred: `swift package resolve` **without** `SCUI_ANDROID=1`
+drops nine Android transitive pins from `Package.resolved`, taking it from 24
+pins to 15:
+
+```
+androidkit, swift-android-native, swift-collections, swift-java,
+swift-java-jni-core, swift-subprocess, swift-system, swiftjavalang, swiftkotlin
+```
+
+This follows from the opt-in gate: without the variable the manifest omits
+AndroidBackend, so those dependencies are genuinely unreachable and SwiftPM
+prunes them. Re-running with the variable set restores them.
+
+- [ ] Decide which resolution is canonical. The file currently committed is the
+      24-pin one, which matches the android job. Every other job resolves the
+      15-pin set, so any of them could rewrite the file.
+- [ ] Guard against an accidental commit of the pruned file. It would not break
+      the build -- SwiftPM re-resolves -- but the lockfile stops pinning the
+      Android graph, and the android job silently loses reproducibility.
+
+The practical rule for now: `git checkout -- Package.resolved` after building
+without `SCUI_ANDROID=1`, and never stage it unless the change was intended.
+
 ## Cleanups
 
 - [ ] The comment above `SWIFT_RELEASE` points at the API level 24 SDK, but the

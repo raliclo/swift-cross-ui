@@ -14,9 +14,23 @@ rather than infer, and record what was actually observed.
 | --- | --- | --- | --- |
 | P11 | AppKitBackend | #82, #485, #473 | macOS, natively |
 | P12 | AndroidBackend | #632, #580, #544 | Android device or emulator |
+| P13 | layout / view graph | #415, #595, #291, #158 | macOS, natively |
 
-Two bugs from the same set are deliberately excluded, and are listed under
-"Not covered" below with the reason.
+Bugs from the same set that are deliberately excluded appear under "Not
+covered" in each section, with the reason.
+
+### Still unreachable from this machine
+
+Recorded so the gaps are visible rather than forgotten:
+
+| Issues | Blocked on |
+| --- | --- |
+| #289, #179, #594, #286, #166, #189 | Linux / WSL, for Gtk and Gtk3 |
+| #160, #231 | Windows, for WinUI |
+| #324, #254 | An iOS simulator runtime -- `simctl list devices available` reports none installed |
+| #227 | A Mac Catalyst build target, not yet set up |
+| #226 | tvOS |
+| #645 | Comparison against several platforms at once, so it needs the others first |
 
 ---
 
@@ -140,6 +154,63 @@ Not covered by P12:
   reporting the wrong size in the first place. Distinguishing them needs
   measured sizes from both layers rather than a visual check, so it needs its
   own instrumented app rather than a step here.
+
+---
+
+## P13: Layout And View Graph (macOS)
+
+Build and run:
+
+```sh
+zsh testapp/compile.sh P13
+./testapp/output/P13
+```
+
+Covered issues:
+
+- #415 (Open): Message list benchmark crashes with AppKitBackend
+- #595 (Open): Texts inside a ScrollView get unnecessarily cut off
+- #291 (Open): NavigationSplitView minimum width sizing
+- #158 (Open): Group behaviour in ZStacks
+
+#415 crashes on purpose, so it is behind a button. Do the other three checks
+first, then trigger it last.
+
+Test steps:
+
+1. Launch `P13`. Confirm the window opens and the identifiable list on the left
+   renders three identical rows.
+2. Compare the two ScrollViews. The left one is plain, the right one applies
+   `.fixedSize(horizontal: false, vertical: true)`, which upstream reports as
+   the workaround, to verify #595.
+3. Confirm the plain ScrollView shows the whole wrapped sentence. If its last
+   line is clipped while the `.fixedSize()` one is not, that is #595.
+4. Look at the ZStack section, to verify #158. The red, green and blue blocks
+   are inside a `Group` inside a `ZStack`, at decreasing sizes.
+5. Confirm they overlap, smallest on top, so all three are visible as nested
+   rectangles. Laid out side by side or stacked vertically means the Group took
+   the container's orientation instead of the z axis, which is #158.
+6. Click `Narrower` repeatedly and watch the NavigationSplitView, to verify
+   #291. The frame shrinks in 60 px steps.
+7. Confirm the detail pane stays visible as the frame narrows. If the split
+   stops moving and the detail pane is squeezed out or clipped while the
+   sidebar keeps its width, that is #291.
+8. Click `Wider` and confirm the split recovers.
+9. Now `More duplicates` a few times, then click `Show unidentified list`, to
+   verify #415. This renders a `ForEach` over elements that are not
+   `Identifiable` and all compare equal.
+10. Record whether the app crashes, and if so capture the message. Upstream
+    attributes it to the backend receiving duplicate child views.
+
+Expected results:
+
+- The plain ScrollView does not clip its text. Needing `.fixedSize()` is #595.
+- The Group's children overlap along z. Any side-by-side or vertical layout is
+  #158.
+- The detail pane survives narrowing. Being squeezed out is #291.
+- Rendering the non-Identifiable list does not crash. A crash is #415, and the
+  identifiable list beside it is the control showing the same data is fine when
+  identity is explicit.
 
 ---
 
