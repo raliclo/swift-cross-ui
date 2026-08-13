@@ -395,19 +395,25 @@ let package = Package(
     )
 #endif
 
+// Declared unconditionally, unlike the Android targets below. SwiftPM prunes
+// Package.resolved to the dependencies the manifest actually reaches, so gating
+// these too made the lockfile depend on SCUI_ANDROID: resolving without it
+// dropped nine Android pins (24 -> 15), and resolving with it put them back.
+// Every ordinary build rewrote the file. Keeping the declarations here costs an
+// unused dependency on non-Android hosts and keeps the lockfile stable.
+package.dependencies += [
+    .package(
+        url: "https://github.com/moreSwift/AndroidKit",
+        .upToNextMinor(from: "0.8.1")
+    ),
+    .package(
+        url: "https://github.com/stackotter/swift-java",
+        .upToNextMinor(from: "0.5.1")
+    ),
+]
+
 // Add AndroidBackend if the Swift version is new enough and we're not using xcodebuild
 if androidBackendSupported {
-    package.dependencies += [
-        .package(
-            url: "https://github.com/moreSwift/AndroidKit",
-            .upToNextMinor(from: "0.8.1")
-        ),
-        .package(
-            url: "https://github.com/stackotter/swift-java",
-            .upToNextMinor(from: "0.5.1")
-        ),
-    ]
-
     package.products.append(
         .library(name: "AndroidBackend", type: libraryType, targets: ["AndroidBackend"])
     )

@@ -15,13 +15,24 @@ locally do not automatically apply to CI, and vice versa.
 | Runner / host | macos-15 | macOS 27 |
 | Xcode | 16.4 (Swift 6.1.2) | 27 (Swift 6.4) |
 | Cross-compile toolchain | swift-6.3-DEVELOPMENT-SNAPSHOT-2026-05-01-a | ...-2026-06-07-a |
-| Swift Bundler | pinned to `e6909f16` | latest `4ad3f14` + patched dependency |
+| Swift Bundler | `Vendor/swift-bundler` | same submodule |
 
 ## Done
 
 - [x] `SCUI_ANDROID: "1"` added to the android job's `env` block. Without it the
       package no longer contains AndroidBackend or AndroidBackendShim, so the
       examples would fail to link against the backend.
+
+- [x] The job checks out submodules recursively and builds Swift Bundler from
+      `Vendor/` instead of cloning it, so CI exercises the commits this
+      repository pins. `SWIFT_BUNDLER_REVISION` is gone; the cache key is now
+      derived from the two Vendor commits.
+
+- [x] Package.resolved no longer drifts. The Android dependencies are declared
+      unconditionally in Package.swift, so resolving with or without
+      SCUI_ANDROID leaves the same 24 pins. Only the targets stay gated, which
+      is what keeps non-Android builds off AndroidBackendShim's
+      `<android/log.h>`.
 
 ## Needs verifying on CI
 
@@ -37,47 +48,17 @@ locally do not automatically apply to CI, and vice versa.
       $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
       ```
 
-- [ ] **Submodule checkout.** Swift Bundler and its patched ZIPFoundationModern
-      now live in `Vendor/` as submodules, so the android job needs
-      `submodules: recursive` on its `actions/checkout` step. Without it the
-      directories are empty and the bundler cannot be built. The job currently
-      clones the bundler itself, which the submodule now supersedes.
-
 - [ ] **Swift Bundler build.** Its `ZIPFoundationModern` dependency fails to
       compile under Swift 6.3+ (`data.append(contentsOf: .init(repeating:count:))`
       can no longer have its type inferred; still broken in upstream 0.0.9).
-      `Vendor/ZIPFoundationModern` tracks a fork carrying the one-line fix.
-      CI builds the bundler with Swift 6.1.2, where the original compiles, so
-      the fork is harmless there — but this has not been confirmed by a run.
+      `Vendor/ZIPFoundationModern` tracks a fork carrying the one-line fix, and
+      the job now injects it with `swift package edit`. CI builds the bundler
+      with Swift 6.1.2, where even the unpatched version compiles, so the fork
+      should be harmless there — but no run has confirmed it.
 
 - [ ] **The remaining examples.** Only CounterExample, WebViewExample and
       ControlsExample were bundled locally. CI builds 11. The other 8 received
       the same mechanical `Bundler.toml` edit and are unverified.
-
-## Package.resolved drifts with SCUI_ANDROID
-
-Measured, not inferred: `swift package resolve` **without** `SCUI_ANDROID=1`
-drops nine Android transitive pins from `Package.resolved`, taking it from 24
-pins to 15:
-
-```
-androidkit, swift-android-native, swift-collections, swift-java,
-swift-java-jni-core, swift-subprocess, swift-system, swiftjavalang, swiftkotlin
-```
-
-This follows from the opt-in gate: without the variable the manifest omits
-AndroidBackend, so those dependencies are genuinely unreachable and SwiftPM
-prunes them. Re-running with the variable set restores them.
-
-- [ ] Decide which resolution is canonical. The file currently committed is the
-      24-pin one, which matches the android job. Every other job resolves the
-      15-pin set, so any of them could rewrite the file.
-- [ ] Guard against an accidental commit of the pruned file. It would not break
-      the build -- SwiftPM re-resolves -- but the lockfile stops pinning the
-      Android graph, and the android job silently loses reproducibility.
-
-The practical rule for now: `git checkout -- Package.resolved` after building
-without `SCUI_ANDROID=1`, and never stage it unless the change was intended.
 
 ## Cleanups
 

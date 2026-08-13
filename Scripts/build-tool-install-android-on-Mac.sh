@@ -214,15 +214,33 @@ install_swift_bundler() {
 
     (
         cd "$bundler_dir"
+
+        # `swift package edit` and the build both rewrite Package.resolved.
+        # Snapshot it and put the snapshot back on the way out, rather than
+        # running `git checkout --`: the file may already carry edits that are
+        # not ours, and discarding those would be silent data loss. The trap
+        # also covers a failed build, which an unconditional restore after the
+        # build would skip.
+        resolved_backup=""
+        if [ -f Package.resolved ]; then
+            resolved_backup="$(mktemp)"
+            cp Package.resolved "$resolved_backup"
+        fi
+        restore_resolved() {
+            if [ -n "$resolved_backup" ] && [ -f "$resolved_backup" ]; then
+                if ! cmp -s "$resolved_backup" Package.resolved; then
+                    cp "$resolved_backup" Package.resolved
+                fi
+                rm -f "$resolved_backup"
+            fi
+        }
+        trap restore_resolved EXIT
+
         # Uses the host Swift (Xcode) on purpose: Swift Bundler is a macOS tool,
         # only the cross-compilation itself needs the open source toolchain.
         [ -L Packages/ZIPFoundationModern ] || swift package edit ZIPFoundationModern --path "$zip_dir"
         swift build -c debug --product swift-bundler
         cp .build/debug/swift-bundler "$repo_root/swift-bundler"
-        # `swift package edit` rewrites Package.resolved. Restore it so the
-        # submodule does not report as modified; the Packages/ symlink that
-        # actually drives the override is covered by the submodule's .gitignore.
-        git checkout -- Package.resolved 2>/dev/null || true
     )
 
     printf '%s\n' "$want" >"$bundler_stamp"

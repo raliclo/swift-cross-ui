@@ -125,7 +125,8 @@ jobs:
       # Release and checksum retrieved from https://www.swift.org/api/v1/install/dev/6.3/android-sdk.json
       SWIFT_RELEASE: swift-6.3-DEVELOPMENT-SNAPSHOT-2026-05-01-a
       SWIFT_ANDROID_SDK_CHECKSUM: 27a0e63264d1b8512522d3a07407ae3d2774eb07d28279ef58e96d1dc2ab720d
-      SWIFT_BUNDLER_REVISION: e6909f16ae8b06dc956ba09a3cee1c4863c165bd
+      # Swift Bundler's revision now comes from Vendor/swift-bundler, so there
+      # is no pinned SHA to keep in sync here.
     steps:
     - name: Setup Xcode 16.4 (Swift 6.1.2)
       uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -135,27 +136,40 @@ jobs:
     - name: Swift version
       run: swift --version
 
+    # Vendor/ carries Swift Bundler and its patched ZIPFoundationModern, so the
+    # submodules have to come down with the checkout.
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Resolve Vendor commits
+      id: vendor
+      shell: bash
+      run: |
+        set -eux
+        echo "bundler=$(git -C Vendor/swift-bundler rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        echo "zip=$(git -C Vendor/ZIPFoundationModern rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
     - name: Restore Swift Bundler
       id: restore-swift-bundler
       uses: actions/cache/restore@v5
       with:
         path: ./swift-bundler
-        key: swift-bundler-${{ env.SWIFT_BUNDLER_REVISION }}
+        key: swift-bundler-${{ steps.vendor.outputs.bundler }}-${{ steps.vendor.outputs.zip }}
 
+    # Built from Vendor/ rather than a fresh clone, so CI exercises the commits
+    # this repository pins. ZIPFoundationModern is injected from Vendor because
+    # upstream 0.0.9 does not compile under Swift 6.3+; the fork carries the fix.
     - name: Build Swift Bundler
       if: steps.restore-swift-bundler.outputs.cache-hit != 'true'
       shell: bash
       run: |
         set -eux
         checkout="$(pwd)"
-        cd ../
-        git clone https://github.com/moreSwift/swift-bundler
-        cd swift-bundler
-        git checkout $SWIFT_BUNDLER_REVISION
+        cd Vendor/swift-bundler
+        swift package edit ZIPFoundationModern --path "$checkout/Vendor/ZIPFoundationModern"
         swift build -c debug --product swift-bundler
-        cp .build/debug/swift-bundler $checkout/swift-bundler
+        cp .build/debug/swift-bundler "$checkout/swift-bundler"
 
     - name: Cache Swift Bundler
       id: cache-swift-bundler
