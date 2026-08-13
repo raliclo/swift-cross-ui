@@ -28,3 +28,19 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 52,Support for libadwaita?,,,upstream,unresolved,,Feature request.
 286,Gtk3Backend: Fix window minimum height handling,,,upstream,dropped,,Gtk3Backend only; out of scope.
 166,Fix Gtk3Backend window height resizing,,,upstream,dropped,,Gtk3Backend only; out of scope.
+82,[AppKitBackend] Stop sliders jittering in RandomNumberGeneratorExample,,,upstream,unresolved,,P11 exercises it. macOS only; not yet run.
+485,[AppKitBackend] Scrollbar renders pointing the wrong way?,,,upstream,unresolved,,P11 exercises it. macOS only; not yet run.
+473,[AppKitBackend] Compact DatePicker sizing is off with Liquid Glass,,,upstream,unresolved,,"P11 exercises it, with .datePickerStyle(.compact) set explicitly. macOS only; not yet run."
+632,AndroidBackend: Buttons have an unnecessary margin,,,upstream,unresolved,,P12 exercises it. Needs an Android device or emulator.
+580,[BUG] Rotating the screen on AndroidBackend resets State,,,upstream,unresolved,,P12 exercises it. Needs an Android device or emulator.
+544,AndroidBackend: Indicate toggle button state visually,,,upstream,unresolved,,P12 exercises it. Needs an Android device or emulator.
+415,Message list benchmark crashes with AppKitBackend,,,upstream,unresolved,,"P13 exercises it, behind a button because it crashes. macOS only."
+595,Texts inside scrollview getting unnecessarily cut off?,,,upstream,unresolved,,P13 exercises it. Filed as core/unspecified so it is reachable on any backend; P13 builds under GtkBackend in WSL.
+291,NavigationSplitView: Fix minimum width sizing,,,upstream,unresolved,,"P13 exercises it. Reported as affecting AppKitBackend and not GtkBackend, so run both and compare."
+158,Fix Group behaviour in ZStacks,,,upstream,unresolved,,P13 exercises it. Reachable on any backend.
+,P11-P13 repro apps,5fa5f44f,testapp: add P11 and P12 to reproduce the reachable open bugs,fork,local,,testapp only; does not exist upstream.
+,P11-P13 repro apps,aa2aad76,testapp: add P13 for the layout and view-graph bugs,fork,local,,testapp only.
+,P11-P13 repro apps,ed004d0d,testapp: apply SwiftFormat to P13,fork,local,,testapp only.
+,P11-P13 repro apps,6dfc68c7,testapp: fix review findings in the P11-P13 repro apps,fork,local,,testapp only.
+,Issue tracking tables,c1e4e72b,testapp: inventory the open upstream issues,fork,local,,testapp only.
+,Issue tracking tables,ceec7369,testapp: stop the issue tables claiming more than was fixed,fork,local,,testapp only.
