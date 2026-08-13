@@ -8,8 +8,8 @@
 /// struct MeasurementView: View {
 ///     var body: some View {
 ///         GeometryReader { proxy in
-///             Text("Width: \(proxy.size.x)")
-///             Text("Height: \(proxy.size.y)")
+///             Text("Width: \(proxy.size.width)")
+///             Text("Height: \(proxy.size.height)")
 ///         }
 ///     }
 /// }
