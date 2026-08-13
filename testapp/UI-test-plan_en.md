@@ -371,6 +371,100 @@ Expected results:
 - A transparent overlay does not block clicks. If the covered button only works once the overlay is removed, that is #454.
 - Ctrl-Q quits the app. If the window stays open, that is #478.
 
+## P15: Colour Scheme And Window Height (Linux)
+
+Run:
+
+```sh
+./P15                                   # inherit the system theme
+GTK_THEME=Adwaita:dark ./P15            # the real test for #386
+```
+
+Covered issues:
+
+- #386 (Open): GTK dark mode is unsupported; text keeps its light-mode colours
+- #289 (Open): the window's minimum height is wrong where Gtk draws its own title bar (client-side decorations)
+
+Checked in the source before writing these steps: `GtkBackend.swift` declares
+`canOverrideWindowColorScheme = false`, and line 200 carries a
+`TODO(stackotter): Support preferredColorScheme`. The scheme buttons are
+therefore expected to do nothing on GtkBackend. They are the control group: the
+same build on WinUIBackend does honour them, which separates "the override is
+missing" from "the colours are computed wrongly".
+
+Test steps:
+
+1. Launch with `GTK_THEME=Adwaita:dark ./P15`.
+2. Look at "Plain text on the default background" and the labels around it, to
+   verify #386. Check whether text stays dark on a dark background.
+3. Compare the foreground colours of the `TextField`, `Toggle` and `Button`
+   against the theme.
+4. Note the `Requested` and `Resolved` values shown on screen.
+5. Press `Dark`, `Light` and `System`, and watch `Resolved`. It is expected not
+   to change on GtkBackend.
+6. Run the same binary on Windows under WinUIBackend and repeat step 5 as the
+   control.
+7. Drag the bottom edge of the window up until it stops shrinking, to verify
+   #289.
+8. Note the `Content area` size, and check whether anything is cut off at that
+   smallest height.
+9. Press `Use tall content` and repeat steps 7-8: the minimum height should
+   grow with the content.
+10. Press `Use short content` and confirm the window shrinks again.
+
+Expected results:
+
+- Text and controls follow the theme in dark mode. Keeping light-mode colours
+  is #386.
+- Nothing is clipped at the smallest height the window allows. A minimum that
+  does not account for Gtk's own title bar is #289.
+- WSLg is Wayland and Gtk uses client-side decorations there, so #289's
+  precondition holds. That is not the same as Fedora with GNOME, so a negative
+  result bounds the bug rather than closing it.
+
+## P16: Split View Initial Layout (Windows)
+
+Run:
+
+```sh
+./P16.exe
+```
+
+Covered issues:
+
+- #160 (Open): WinUIBackend lays out NavigationSplitView incorrectly on the
+  initial load, and it snaps to a correct layout on any state change or resize
+
+**Read the numbers before touching anything.** The bug is defined by the first
+render, and resizing the window is one of the two things that fixes it, so any
+interaction destroys the evidence.
+
+Test steps:
+
+1. Launch `P16.exe`. Do not move or resize the window.
+2. Immediately note the sizes reported by the `sidebar` and `detail` panes.
+3. Judge by eye whether the layout is visibly wrong -- sidebar filling the
+   window, detail squeezed out, and so on.
+4. Press `Force update`, which changes a counter unrelated to the layout.
+5. Note the two pane sizes again. The difference between step 2 and step 5 is
+   #160.
+6. Relaunch and trigger the snap by resizing the window instead, to confirm
+   both routes fix it.
+7. Relaunch, press `Switch to 3 column`, and repeat steps 2-5 for the
+   three-column layout.
+8. Run the same app on Linux under GtkBackend as the control.
+
+Expected results:
+
+- The pane sizes at first render are already correct, and match the sizes after
+  a forced update.
+- Different numbers at step 2 and step 5 are #160, and the difference is how
+  wrong "very incorrectly" actually is.
+- Sizes are displayed live rather than captured into state at first render:
+  writing state during a layout pass feeds back into the layout it is
+  measuring, and `GeometryReader`'s own documentation warns that content may be
+  evaluated several times with different sizes before the layout settles.
+
 ## P6: Zstd Stream Player
 
 Build and run:
