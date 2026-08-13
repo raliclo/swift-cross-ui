@@ -259,6 +259,118 @@ Expected results:
 - Dismissing a stacked alert should restore the alert underneath it in the same window, in the correct order (C -> B -> A); if a restored alert is skipped or restored out of order, record it as a #675 (Fixed) regression.
 - Closing one window should not affect alerts in other windows.
 
+## P7: Lists And Split Views (Linux)
+
+Run:
+
+```sh
+./P7
+```
+
+Covered issues:
+
+- #476 (Open): The List control starts with the first item already selected on the GTK backend
+- #556 (Open): Gtk List NavigationSplitView makes weird size decisions
+
+Test steps:
+
+1. Launch `P7`.
+2. **Before clicking anything**, look at the plain List and the status line. The selection binding starts as nil, so no row should be highlighted and the status should read `Selection: none`, to verify #476.
+3. Click `Cherry` in the plain List; confirm the status updates and only that row is highlighted.
+4. Click `Clear selection`; confirm both lists show nothing selected.
+5. Click `Select Cherry`; confirm the List highlights it when the selection is set from code.
+6. Look at the NavigationSplitView: the sidebar and the detail pane should each keep a sensible share of the 420 px width, to verify #556.
+7. Click `Add a fruit's worth of text`, which grows the text above the split view; confirm the split view does not jump to a different division.
+8. Resize the window and confirm the split stays proportionate.
+
+Expected results:
+
+- Nothing is selected at launch. A highlighted first row is #476.
+- The detail pane is visible and does not collapse to nothing, and the division does not change when unrelated text changes. Either is #556.
+
+## P8: Scroll Views (Linux)
+
+Run:
+
+```sh
+./P8
+```
+
+Covered issues:
+
+- #417 (Open): Giving a ScrollView a cornerRadius does not affect its children
+- #426 (Open): Horizontal ScrollView swallows scroll wheel inputs for parent vertical ScrollView
+
+Test steps:
+
+1. Launch `P8`.
+2. Look at the four corners of the red block in the first ScrollView. The frame has `cornerRadius(20)`, so the red should be rounded off at each corner, to verify #417.
+3. Put the pointer over the second ScrollView, away from the horizontal strip, and scroll. Confirm the outer rows move.
+4. Put the pointer **over the horizontal strip** and scroll vertically. Confirm the outer view still scrolls, to verify #426.
+5. Over the strip, scroll horizontally; confirm the strip itself moves.
+6. Scroll the strip to its right-hand end, then keep scrolling; confirm the outer view takes over rather than everything stopping.
+
+Expected results:
+
+- Red does not reach a square corner. If it does, that is #417.
+- Vertical scrolling works with the pointer anywhere, including over the horizontal strip. If the outer view freezes there, that is #426.
+
+## P9: Text And Field Sizing (Linux)
+
+Run:
+
+```sh
+./P9
+```
+
+Covered issues:
+
+- #504 (Open): GtkBackend TextField/SecureField shrinks in height after first update
+- #295 (Open): Clip Text when necessary to reach zero width
+
+Test steps:
+
+1. Launch `P9`. Note the height of the text field, the secure field and the `Reference` button next to them; at launch they should match.
+2. Click `Force update` once. The button only increments a counter and does not touch the fields.
+3. Compare the field heights against the `Reference` button again, to verify #504.
+4. Click `Force update` several more times and confirm the heights do not keep shrinking.
+5. Type into both fields and confirm text is still fully visible.
+6. In the lower section, click `Narrower` repeatedly. The blue band marks the frame the label was given; the text must stay inside it, to verify #295.
+7. Click `Zero width`; confirm the label takes no width rather than refusing to shrink.
+8. Click `Wider` and confirm the text reappears as the frame grows.
+
+Expected results:
+
+- Field heights are unchanged by an unrelated update. Any shrink is #504.
+- Text never spills past the blue band, and reaches zero width when asked. Spilling is #295.
+
+## P10: Hit Testing And Shortcuts (Linux)
+
+Run:
+
+```sh
+./P10
+```
+
+Covered issues:
+
+- #454 (Open): Transparent containers consume click events (AppKitBackend, GtkBackend)
+- #478 (Open): GtkBackend Ctrl-Q/Cmd-Q does not quit application
+
+Test steps:
+
+1. Launch `P10`.
+2. Click `Click me` several times and confirm `Direct clicks` increments.
+3. With `Transparent overlay present` checked, click `Click me too`, which sits under a transparent `Color.clear` layer. Confirm `Covered clicks` increments, to verify #454.
+4. Uncheck `Transparent overlay present` and click it again; confirm it increments now.
+5. Compare: if the covered button only responds with the overlay removed, that is #454.
+6. Press Ctrl-Q (Cmd-Q on macOS), to verify #478.
+
+Expected results:
+
+- A transparent overlay does not block clicks. If the covered button only works once the overlay is removed, that is #454.
+- Ctrl-Q quits the app. If the window stays open, that is #478.
+
 ## P6: Zstd Stream Player
 
 Build and run:
