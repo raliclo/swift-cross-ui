@@ -8,4 +8,3 @@
 [submodule "Vendor/swift-bundler"]
 	path = Vendor/swift-bundler
 	url = https://github.com/moreSwift/swift-bundler.git
-	ignore = dirty

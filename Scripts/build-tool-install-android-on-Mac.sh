@@ -41,6 +41,9 @@ ANDROID_SDK_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 work_dir="${TMPDIR:-/tmp}/scui-android-install"
+# Records which Vendor commits the checked-in swift-bundler binary was built
+# from, so a submodule bump forces a rebuild instead of reusing a stale binary.
+bundler_stamp="$repo_root/.swift-bundler-stamp"
 
 log()  { printf '\033[36m==>\033[0m %s\n' "$1"; }
 warn() { printf '\033[33m[warn]\033[0m %s\n' "$1" >&2; }
@@ -183,11 +186,8 @@ install_swift_bundler() {
     local bundler_dir="$repo_root/Vendor/swift-bundler"
     local zip_dir="$repo_root/Vendor/ZIPFoundationModern"
 
-    if [ -x "$repo_root/swift-bundler" ]; then
-        log "Swift Bundler already built"
-        return
-    fi
-
+    # Check out the submodules first: the staleness check below reads their
+    # commits, so it cannot run against empty directories.
     if [ ! -f "$bundler_dir/Package.swift" ] || [ ! -f "$zip_dir/Package.swift" ]; then
         log "Checking out Vendor submodules"
         (cd "$repo_root" && git submodule update --init --recursive Vendor)
@@ -195,7 +195,23 @@ install_swift_bundler() {
 
     [ -f "$bundler_dir/Package.swift" ] || die "Vendor/swift-bundler is empty; run: git submodule update --init --recursive"
 
-    log "Building Swift Bundler"
+    # The binary is only reusable if it was built from the Vendor commits that
+    # are checked out right now. Testing for mere existence would silently keep
+    # a stale binary after a submodule bump.
+    local want
+    want="$(git -C "$bundler_dir" rev-parse HEAD)+$(git -C "$zip_dir" rev-parse HEAD)"
+
+    if [ -x "$repo_root/swift-bundler" ] && [ "$(cat "$bundler_stamp" 2>/dev/null)" = "$want" ]; then
+        log "Swift Bundler already built from the current Vendor commits"
+        return
+    fi
+
+    if [ -x "$repo_root/swift-bundler" ]; then
+        log "Vendor commits changed, rebuilding Swift Bundler"
+    else
+        log "Building Swift Bundler"
+    fi
+
     (
         cd "$bundler_dir"
         # Uses the host Swift (Xcode) on purpose: Swift Bundler is a macOS tool,
@@ -203,7 +219,13 @@ install_swift_bundler() {
         [ -L Packages/ZIPFoundationModern ] || swift package edit ZIPFoundationModern --path "$zip_dir"
         swift build -c debug --product swift-bundler
         cp .build/debug/swift-bundler "$repo_root/swift-bundler"
+        # `swift package edit` rewrites Package.resolved. Restore it so the
+        # submodule does not report as modified; the Packages/ symlink that
+        # actually drives the override is covered by the submodule's .gitignore.
+        git checkout -- Package.resolved 2>/dev/null || true
     )
+
+    printf '%s\n' "$want" >"$bundler_stamp"
 }
 
 # ==============================================================================
@@ -229,9 +251,10 @@ verify() {
     fi
     log "Compiled:$(file "$binary" | cut -d: -f2- | cut -c1-58)"
 
+    # Failing here rather than warning: a --verify run that silently skips APK
+    # packaging would report success while having proven only half the pipeline.
     if [ ! -x "$repo_root/swift-bundler" ]; then
-        warn "Swift Bundler missing, skipping APK packaging"
-        return
+        die "Swift Bundler is missing, so the APK step cannot run. Re-run without --verify to build it."
     fi
 
     log "Bundling APK"

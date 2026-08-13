@@ -17,7 +17,7 @@ jobs:
         platform: [android, linux, macos, uikit, windows]
         include:
           - platform: android
-            paths: 'Sources/AndroidBackend/ Sources/AndroidBackendShim/'
+            paths: 'Sources/AndroidBackend/ Sources/AndroidBackendShim/ Vendor/ .gitmodules Examples/Bundler.toml Scripts/build-tool-install-android-on-Mac.sh'
           - platform: linux
             paths: 'Sources/*Gtk*/ Tests/ Scripts/test.sh'
           - platform: macos

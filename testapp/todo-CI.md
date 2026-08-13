@@ -1,6 +1,6 @@
 # CI TODO: Android build
 
-Tracks what the Android opt-in change (`39e98ca1`) requires from CI, and what
+Tracks what the Android opt-in change (`0c90f3fc`) requires from CI, and what
 still needs verifying there. None of the items below could be checked locally,
 because the CI environment differs from this machine in ways that matter.
 
