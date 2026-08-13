@@ -85,7 +85,9 @@ struct P13RootView: View {
                         status = "Now \(duplicateCount) identical elements."
                     }
 
-                    Button(showsUnidentifiedList ? "Hide unidentified list" : "Show unidentified list (may crash)") {
+                    Button(showsUnidentifiedList ? "Hide unidentified list" :
+                        "Show unidentified list (may crash)")
+                    {
                         showsUnidentifiedList.toggle()
                         status = showsUnidentifiedList
                             ? "Rendering non-Identifiable ForEach: this is the #415 path."
