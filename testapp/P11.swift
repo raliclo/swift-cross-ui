@@ -115,7 +115,7 @@ struct P11RootView: View {
                 // small thumb near the top: easy to see which way it points.
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(1...40)) { index in
+                        ForEach(Array(1...40), id: \.self) { index in
                             Text("Row \(index) of 40")
                         }
                     }
@@ -129,7 +129,12 @@ struct P11RootView: View {
                 Text("Compact DatePicker sizing (#473)")
 
                 HStack(spacing: 10) {
+                    // The issue names the compact style specifically. AppKitBackend
+                    // currently maps .automatic and .compact to the same
+                    // NSDatePicker style, so this is explicit for the sake of the
+                    // repro rather than because it changes anything today.
                     DatePicker("Pick a date", selection: $date)
+                        .datePickerStyle(.compact)
 
                     // A plain button as a height reference: the picker should
                     // not be visibly taller or shorter than neighbouring

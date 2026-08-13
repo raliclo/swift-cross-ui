@@ -108,7 +108,10 @@ struct P13RootView: View {
                         Text("Non-Identifiable (#415)")
                         if showsUnidentifiedList {
                             // The fallback codepath: no id keypath, and every
-                            // element compares equal.
+                            // element compares equal. That init is deprecated,
+                            // so this line warns at build time on purpose --
+                            // adding `id:` to silence the warning takes the
+                            // Identifiable path and removes the repro.
                             ForEach(duplicatedMessages) { message in
                                 Text("\(message.author): \(message.body)")
                             }

@@ -69,7 +69,7 @@ struct P12RootView: View {
                 Text("Selected tab: \(tab.rawValue)   counter: \(counter)")
 
                 HStack(spacing: 8) {
-                    ForEach(P12Tab.allCases.map(\.rawValue)) { name in
+                    ForEach(P12Tab.allCases.map(\.rawValue), id: \.self) { name in
                         Button(name) {
                             tab = P12Tab(rawValue: name) ?? .first
                             status = "Now on \(name). Rotate without touching anything."
