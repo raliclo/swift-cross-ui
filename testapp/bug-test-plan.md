@@ -27,7 +27,7 @@ Recorded so the gaps are visible rather than forgotten:
 | --- | --- |
 | #289, #179, #594, #286, #166, #189 | Linux / WSL, for Gtk and Gtk3 |
 | #160, #231 | Windows, for WinUI |
-| #324, #254 | An iOS simulator runtime -- `simctl list devices available` reports none installed |
+| #324, #254 | An iOS repro app, not the simulator. `simctl list devices available` reports none, but that only means no device has been created: `simctl runtime list` shows iOS 18.4 installed and ready, and a device created from it boots. Building SwiftCrossUI for the simulator is untested. |
 | #227 | A Mac Catalyst build target, not yet set up |
 | #226 | tvOS |
 | #645 | Comparison against several platforms at once, so it needs the others first |
