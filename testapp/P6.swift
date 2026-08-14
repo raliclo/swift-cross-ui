@@ -12,6 +12,42 @@ import Metal
 import MetalKit
 #endif
 
+/// Command-line flags that drive the ffmpeg invocation rather than the window,
+/// so they apply on every platform.
+///
+/// These used to live in ``P6WindowFlags``, which is inside `#if os(Windows)`
+/// because most of it touches HWNDs, `VideoPixelFormat` and `GPUPreference` --
+/// all Windows-only. The decoder arguments are built unconditionally, so
+/// reading them from there stopped P6 compiling anywhere else with
+/// "cannot find 'P6WindowFlags' in scope".
+/// 這些是驅動 ffmpeg 呼叫（而非視窗）的命令列旗標，因此在所有平台皆適用。
+/// 它們原本位於 ``P6WindowFlags``，而該 enum 因大量使用 HWND、`VideoPixelFormat`
+/// 與 `GPUPreference` 等 Windows 專屬型別而被包在 `#if os(Windows)` 內。解碼器
+/// 參數是無條件組出來的，從該處讀取會導致 P6 在其他平台無法編譯，錯誤為
+/// 「cannot find 'P6WindowFlags' in scope」。
+enum P6DecoderFlags {
+    /// `-both-gpu` decodes on Nvidia and presents on whichever adapter owns the
+    /// display. Only the decode half is meaningful off Windows.
+    /// `-both-gpu` 由 Nvidia 解碼、由顯示器所屬的介面卡呈現。在非 Windows 平台上，
+    /// 只有解碼那一半有意義。
+    static let isBothGPU = CommandLine.arguments.contains("-both-gpu")
+
+    /// `-pace` caps the decoder at playback speed with ffmpeg's `-readrate`.
+    /// `-pace` 以 ffmpeg 的 `-readrate` 把解碼器限制在播放速度。
+    static let isDecodePaced = CommandLine.arguments.contains("-pace")
+
+    /// The ffmpeg hardware decoder to request, if any. Frames still come back
+    /// to system memory because they leave through a pipe, so this only moves
+    /// the decode itself off the CPU.
+    /// 要求 ffmpeg 使用的硬體解碼器（若有）。影格仍會回到系統記憶體，因為它們要
+    /// 經由管線送出，因此這只是把「解碼」本身移出 CPU。
+    static var decodeHardwareAcceleration: String? {
+        if isBothGPU || CommandLine.arguments.contains("-nvidia") { return "cuda" }
+        if CommandLine.arguments.contains("-amd") { return "d3d11va" }
+        return nil
+    }
+}
+
 #if os(Windows)
 import UWP
 import WinSDK
@@ -94,10 +130,6 @@ enum P6WindowFlags {
         return megabytes << 20
     }()
 
-    /// `-pace` caps the decoder at playback speed with ffmpeg's `-readrate`.
-    /// `-pace` 以 ffmpeg 的 `-readrate` 把解碼器限制在播放速度。
-    static let isDecodePaced = CommandLine.arguments.contains("-pace")
-
     /// `-seek <seconds>` starts playback partway in, so the same moment can be
     /// compared across runs without dragging the timeline by hand.
     /// `-seek <秒數>` 讓播放從中途開始，便於在不手動拖動時間軸的情況下比較不同執行
@@ -148,7 +180,12 @@ enum P6WindowFlags {
     /// `-amd`／`-nvidia`／`-both-gpu` 決定哪張 GPU 負責什麼。`-both-gpu` 由 Nvidia
     /// 解碼、由顯示器所屬的介面卡呈現，這也是此處唯一合理的分工：swap chain 必須
     /// 在顯示器所在的介面卡上合成，而解碼是唯一能搬動的另一個階段。
-    static let isBothGPU = CommandLine.arguments.contains("-both-gpu")
+    /// Kept as an alias so the Windows-only members below read as before; the
+    /// flag itself lives in ``P6DecoderFlags`` because the decoder needs it on
+    /// every platform.
+    /// 保留為別名，讓下方 Windows 專屬成員的寫法維持不變；旗標本身位於
+    /// ``P6DecoderFlags``，因為解碼器在所有平台都需要它。
+    static var isBothGPU: Bool { P6DecoderFlags.isBothGPU }
 
     static var presentationGPU: GPUPreference {
         if CommandLine.arguments.contains("-no-gpu") { return .software }
@@ -158,16 +195,6 @@ enum P6WindowFlags {
         return .display
     }
 
-    /// The ffmpeg hardware decoder to request, if any. Frames still come back
-    /// to system memory because they leave through a pipe, so this only moves
-    /// the decode itself off the CPU.
-    /// 要求 ffmpeg 使用的硬體解碼器（若有）。影格仍會回到系統記憶體，因為它們要
-    /// 經由管線送出，因此這只是把「解碼」本身移出 CPU。
-    static var decodeHardwareAcceleration: String? {
-        if isBothGPU || CommandLine.arguments.contains("-nvidia") { return "cuda" }
-        if CommandLine.arguments.contains("-amd") { return "d3d11va" }
-        return nil
-    }
     private static var didLogMetrics = false
 
     /// Retried on every layout pass until it takes: the backend applies its
@@ -415,7 +442,7 @@ enum P6WindowFlags {
 }
 
 final class P6D3D11SpikeCoordinator {
-    var device: D3D11Device?
+    var device: RawD3D11Device?
     var panel: RawSwapChainPanel?
     var presentCount = 0
 }
@@ -638,7 +665,7 @@ struct P6D3D11SpikeView: WinUIElementRepresentable {
         try! panel.attach(to: canvas)
         P6Diagnostics.write("d3d11 spike step 3: panel added to canvas")
 
-        let device = try! D3D11Device()
+        let device = try! RawD3D11Device()
         P6Diagnostics.write("d3d11 spike step 4: D3D11 device created")
 
         try! device.attachSwapChain(to: panel.native, width: 120, height: 90)
@@ -2721,6 +2748,24 @@ final class P6WindowlessProcess: @unchecked Sendable {
 #endif
 
 final class P6DecoderSession: @unchecked Sendable {
+    /// What ffmpeg is told to emit. On Windows it follows the session's chosen
+    /// format; every other platform still consumes RGBA.
+    ///
+    /// Declared here rather than beside the Windows-only members: the decoder
+    /// arguments are assembled unconditionally, so a definition inside
+    /// `#if os(Windows)` left every other platform without it.
+    /// 告知 ffmpeg 要輸出的格式。Windows 上跟隨本 session 選定的格式，其他平台
+    /// 仍然使用 RGBA。
+    /// 宣告於此而非與 Windows 專屬成員並列：解碼器參數是無條件組出來的，若定義在
+    /// `#if os(Windows)` 內，其他平台就取用不到。
+    static var outputPixelFormat: String {
+        #if os(Windows)
+        return P6WindowFlags.pixelFormat.ffmpegPixelFormat
+        #else
+        return "rgba"
+        #endif
+    }
+
     #if os(Windows)
     // Spawned without console windows; see P6WindowlessProcess. Both types
     // offer isRunning and terminate(), so the shutdown path is shared.
@@ -2835,7 +2880,7 @@ final class P6DecoderSession: @unchecked Sendable {
         // 需放在輸入之前才會套用到解碼器。未指定 -hwaccel_output_format 時，影格
         // 會被下載回系統記憶體；反正它們要經由管線送出，本來就必須如此，因此濾鏡
         // 鏈不受影響。
-        if let acceleration = P6WindowFlags.decodeHardwareAcceleration {
+        if let acceleration = P6DecoderFlags.decodeHardwareAcceleration {
             arguments += ["-hwaccel", acceleration]
         }
 
@@ -2848,7 +2893,7 @@ final class P6DecoderSession: @unchecked Sendable {
         // 的兩倍，會佔滿整台機器去做沒人等待的影格，反而餓死讀取端：同一張 33 MB
         // 影格在 4K30 只需 58 ms，在 4K60 卻要十倍時間。初始爆發量則讓啟動與跳轉
         // 依然即時。
-        if P6WindowFlags.isDecodePaced {
+        if P6DecoderFlags.isDecodePaced {
             arguments += [
                 "-readrate", String(format: "%.2f", speed),
                 "-readrate_initial_burst", "2",
@@ -2885,7 +2930,13 @@ final class P6DecoderSession: @unchecked Sendable {
             #else
             let pipe = Pipe()
             sourcePipe = pipe
-            ffmpeg.standardInput = pipe
+            // ffmpeg's stdin is wired up after the process exists, further
+            // down. Assigning it here resolved to the not-yet-initialised
+            // stored property rather than a local, which the Windows branch
+            // avoids by passing sourcePipe along instead.
+            // ffmpeg 的 stdin 於稍後、程序建立之後才接上。在此賦值會解析到尚未
+            // 初始化的儲存屬性而非區域變數；Windows 分支則是改以傳遞 sourcePipe
+            // 來迴避這個問題。
             let process = Process()
             process.executableURL = foundZstd
             process.arguments = ["-q", "-d", "-c", inputURL.path]
@@ -2961,6 +3012,13 @@ final class P6DecoderSession: @unchecked Sendable {
         ffmpeg.standardOutput = outputPipe
         ffmpeg.standardError = errorPipe
         ffmpeg.arguments = arguments
+        // Set only for zstd input, where sourcePipe carries the decompressed
+        // stream; nil for direct input, which ffmpeg opens by path.
+        // 僅在 zstd 輸入時設定，此時 sourcePipe 承載解壓後的串流；直接輸入時為 nil，
+        // ffmpeg 會自行依路徑開啟。
+        if let sourcePipe {
+            ffmpeg.standardInput = sourcePipe
+        }
         do {
             try ffmpeg.run()
             P6ChildProcessReaper.adopt(ffmpeg)
@@ -3076,18 +3134,6 @@ final class P6DecoderSession: @unchecked Sendable {
     /// 色度。色度平面的偏移量取自對映大小，而非假設為 `rowPitch * height`，因為
     /// 第二個平面從哪裡開始是由驅動決定，只有對映本身知道。連續的列會合併成一段，
     /// 讓列間距與列長相同的影格能以最少的呼叫次數讀入。
-    /// What ffmpeg is told to emit. On Windows it follows the session's chosen
-    /// format; every other platform still consumes RGBA.
-    /// 告知 ffmpeg 要輸出的格式。Windows 上跟隨本 session 選定的格式，其他平台
-    /// 仍然使用 RGBA。
-    static var outputPixelFormat: String {
-        #if os(Windows)
-        return P6WindowFlags.pixelFormat.ffmpegPixelFormat
-        #else
-        return "rgba"
-        #endif
-    }
-
     /// Logged once so the mapped layout is a measurement, not an assumption.
     /// 只記錄一次，讓對映後的配置是量測結果而非假設。
     nonisolated(unsafe) static var didLogMapping = false

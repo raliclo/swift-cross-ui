@@ -252,7 +252,15 @@ private enum D3D11IID {
 /// viewport, and a small pool of `ID3D11Texture2D`s that frames are copied
 /// into before `Present()`, mirroring the macOS Metal path's fixed texture
 /// pool (see plan §Phase 1).
-public final class D3D11Device {
+///
+/// `Raw` marks this as our own low-level wrapper, the same way
+/// ``RawSwapChainPanel`` does. Without it the name sits one `I` away from the
+/// SDK's `ID3D11Device`, which it holds a pointer to, in a file where nearly
+/// every other type is a COM interface.
+/// `Raw` 表示這是我方的低階包裝，與 ``RawSwapChainPanel`` 一致。若省略，名稱會與
+/// 其所持有指標的 SDK 型別 `ID3D11Device` 僅差一個 `I`，而本檔案中幾乎其他所有
+/// 型別都是 COM 介面。
+public final class RawD3D11Device {
     public let device: UnsafeMutablePointer<ID3D11Device>
     public let context: UnsafeMutablePointer<ID3D11DeviceContext>
     private let factory: UnsafeMutablePointer<IDXGIFactory2>
@@ -289,7 +297,7 @@ public final class D3D11Device {
         }
         self.device = device
         self.context = context
-        self.factory = try D3D11Device.obtainFactory(from: device)
+        self.factory = try RawD3D11Device.obtainFactory(from: device)
     }
 
     /// Walks device -> DXGI adapter -> DXGI factory, the standard way to get
@@ -754,7 +762,7 @@ public final class D3D11VideoSurface {
         }
         self.device = device
         self.context = context
-        self.factory = try D3D11Device.makeFactory(from: device)
+        self.factory = try RawD3D11Device.makeFactory(from: device)
     }
 
     /// Finds the adapter matching `gpu`, and describes every adapter found.
