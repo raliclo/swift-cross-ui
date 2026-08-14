@@ -8,7 +8,7 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 ,WinUIElementRepresentable measures 0x0 when rooted at a Canvas,,,upstream,unresolved,,"Default sizeThatFits asks the element; a Canvas never measures children. Caused the video to be centred as a zero-size view."
 ,P6 Windows video path,584df8f4,P6: add Windows GPU presentation path and unattended test flags,fork,local,,testapp only; does not exist upstream.
 ,P6 Windows video path,360bcad2,P6: make the Windows GPU video path visible and correctly placed,fork,local,,testapp only.
-,P6 Windows video path,bafbc949,"P6: own the decoder pipe, and measure where the time goes",fork,local,,testapp only.
+,P6 Windows video path,bafbc949,P6: own the decoder pipe and measure where the time goes,fork,local,,"testapp only. Subject drops a comma the git subject has, so this column stays comma-free."
 ,P6 Windows video path,7697dbe6,P6: stop republishing the view graph on every frame,fork,local,,testapp only.
 ,P6 Windows video path,30f1d69c,testapp: spawn P6's decoder tools without console windows,fork,local,,testapp only.
 ,P6 Windows video path,6c96d95d,testapp: keep -topmost out of the interactive quick run,fork,local,,testapp only.
