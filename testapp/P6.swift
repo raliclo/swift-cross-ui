@@ -3118,6 +3118,10 @@ final class P6DecoderSession: @unchecked Sendable {
         return true
     }
 
+    /// Logged once so the mapped layout is a measurement, not an assumption.
+    /// 只記錄一次，讓對映後的配置是量測結果而非假設。
+    nonisolated(unsafe) static var didLogMapping = false
+
     /// Where each plane's rows land inside the mapped texture.
     ///
     /// RGBA is one plane of `width * 4` bytes per row. NV12 is two: full
@@ -3134,10 +3138,6 @@ final class P6DecoderSession: @unchecked Sendable {
     /// 色度。色度平面的偏移量取自對映大小，而非假設為 `rowPitch * height`，因為
     /// 第二個平面從哪裡開始是由驅動決定，只有對映本身知道。連續的列會合併成一段，
     /// 讓列間距與列長相同的影格能以最少的呼叫次數讀入。
-    /// Logged once so the mapped layout is a measurement, not an assumption.
-    /// 只記錄一次，讓對映後的配置是量測結果而非假設。
-    nonisolated(unsafe) static var didLogMapping = false
-
     static func planeSpans(
         format: VideoPixelFormat,
         rowPitch: Int,
