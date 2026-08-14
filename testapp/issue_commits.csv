@@ -55,3 +55,5 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 161,Make Picker sizing more consistent across backends,,,upstream,unresolved,,"P17 exercises it. Must be run on both backends: the issue is that they disagree, so one backend cannot answer it."
 266,Layout correctness,,,upstream,unresolved,,"P17 exercises the two edge cases upstream wrote down: aspect ratio inside a ScrollView, and an ideal-width VStack given a proposed height."
 ,P17 repro app,ea69ca2c,testapp: add P17 for the cross-backend layout issues,fork,local,,testapp only; does not exist upstream.
+324,UIKitBackend: Content gets given incorrect size proposal on orientation change,,,upstream,unresolved,,"P14 exercises it. GeometryReader logs each proposed width and keeps the last eight, since the wrong value is transient and corrected on the next layout pass. iOS Simulator only."
+254,UIKitBackend: Update app background colour when system theme changes,,,upstream,unresolved,,"P14 exercises it. Three surfaces compared side by side, including a Color.adaptive block as the control that proves the theme change arrived. iOS Simulator only; simctl ui appearance switches it."
