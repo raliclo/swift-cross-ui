@@ -465,6 +465,69 @@ Expected results:
   measuring, and `GeometryReader`'s own documentation warns that content may be
   evaluated several times with different sizes before the layout settles.
 
+## P17: Cross-Backend Layout Comparison (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P17          # GtkBackend, in WSL
+./testapp/output/P17.exe      # WinUIBackend, on Windows
+```
+
+Covered issues:
+
+- #264 (Open): `frame(idealWidth:idealHeight:)` does not set
+  `idealWidthForHeight` / `idealHeightForWidth`, which is what
+  `fixedSize(horizontal:vertical:)` reads
+- #161 (Open): backends disagree on whether a `Picker` is sized from its
+  selected item or its largest item
+- #266 (Open): two layout edge cases upstream wrote down while specifying the
+  layout algorithm
+
+Unlike P7-P16 this app is not aimed at one backend. **Every check is a
+comparison**: run the same build under both backends and compare the numbers.
+For #161 the comparison is the issue itself -- it is about backends disagreeing,
+so a single-backend result cannot answer it.
+
+Each measured view reports its own size, drawn on top of a blue box that shows
+the view's extent. The readout deliberately covers the subject: what is under
+test is the subject's box, not its contents.
+
+Test steps:
+
+1. Launch `P17` under one backend and record every reported size before
+   changing anything.
+2. Compare `subject` against `control` in the first section, to verify #264.
+   Both are the same text with `idealWidth: 160`; only the subject also has
+   `fixedSize(horizontal: true, vertical: false)`.
+3. A subject width near 160 means the ideal width reached `fixedSize`. A width
+   matching the control, or the full natural width of the text, is #264.
+4. Note the `picker` width, then press `Shortest`, `Medium` and `Longest`,
+   noting the width after each, to verify #161.
+5. A width that changes with the selection means the picker is sized from the
+   selected item; a constant width means it is sized from the largest item.
+   Record which, because the issue is that the two backends differ.
+6. Step the aspect-ratio scroll view through its heights with `Shorter` and
+   `Taller`, to verify #266a. The content is a 2:1 box, so showing a scroll bar
+   narrows it and therefore shortens it.
+7. Watch for the height at which the scroll bar appears and disappears. It may
+   do either, but it must settle. Flickering between the two states without
+   settling is the failure.
+8. In the last section, compare the three coloured bands, to verify #266b. They
+   are a `VStack` of three different natural widths given a fixed height.
+9. Press `Less height` and `More height` and check the bands stay equal in
+   width at each step.
+10. Repeat every step on the other backend and compare the two records.
+
+Expected results:
+
+- #264: the subject is about 160 wide. Matching the control instead means the
+  ideal width never reached `fixedSize`.
+- #161: whichever sizing rule applies, both backends apply the same one.
+  Different rules on the two backends is the issue.
+- #266a: the scroll bar settles at every height.
+- #266b: all three bands share the widest child's width, at every stack height.
+
 ## P6: Zstd Stream Player
 
 Build and run:

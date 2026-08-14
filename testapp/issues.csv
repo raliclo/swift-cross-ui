@@ -122,9 +122,9 @@ issue,categories,backend,status,comments,opened,title
 275,untriaged,core/unspecified,unaddressed,0,2025-12-10,Investigate WinUIBackend title bar colour not matching system sometimes
 274,documentation,core/unspecified,unaddressed,0,2025-12-10,Update quick start docs to discuss distribution
 271,developer experience;enhancement,core/unspecified,unaddressed,1,2025-12-10,Look into distributing SwiftCrossUI prebuilts
-266,layout,core/unspecified,unaddressed,5,2025-12-04,Layout correctness
+266,layout,core/unspecified,repro-p17,5,2025-12-04,Layout correctness
 265,feature,core/unspecified,unaddressed,2,2025-12-03,is SwiftUI canvas supported?
-264,enhancement;layout,core/unspecified,unaddressed,0,2025-12-03,Make frame(idealWidth:idealHeight:) set idealWidthForHeight and idealHeightForWidth
+264,enhancement;layout,core/unspecified,repro-p17,0,2025-12-03,Make frame(idealWidth:idealHeight:) set idealWidthForHeight and idealHeightForWidth
 261,feature,core/unspecified,unaddressed,1,2025-12-02,Support pickerStyle modifier
 259,enhancement,core/unspecified,unaddressed,0,2025-11-28,"GtkCodeGen: Add gir files to repo (if allowed), and regenerate bindings in CI to ensure properly generated"
 258,enhancement,core/unspecified,unaddressed,0,2025-11-28,Update backends to avoid use of dictionaries for auxiliary data storage
@@ -161,7 +161,7 @@ issue,categories,backend,status,comments,opened,title
 164,documentation,core/unspecified,unaddressed,1,2025-05-21,Get source code links working for non-SwiftCrossUI doc targets
 163,enhancement,core/unspecified,unaddressed,0,2025-05-21,Fix clash with Foundation's Combine typealiases
 162,enhancement,UIKitBackend,unaddressed,1,2025-05-21,Update UIKitBackend Picker implementation to match .menu style
-161,layout,core/unspecified,unaddressed,0,2025-05-20,Make Picker sizing more consistent across backends
+161,layout,core/unspecified,repro-p17,0,2025-05-20,Make Picker sizing more consistent across backends
 160,bug;layout,WinUIBackend,repro-p16,0,2025-05-20,Fix WinUIBackend NavigationSplitView initial layout
 159,feature,core/unspecified,unaddressed,0,2025-05-20,Implement a localization system
 152,feature,core/unspecified,unaddressed,0,2025-05-14,Double-ended slider control
