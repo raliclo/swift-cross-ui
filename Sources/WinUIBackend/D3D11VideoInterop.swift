@@ -24,11 +24,11 @@ public class SwiftISwapChainPanelNative: WindowsFoundation.IUnknown {
     }
 }
 
-enum P6D3D11Error: Swift.Error {
+enum D3D11Error: Swift.Error {
     case failed(String, HRESULT)
 }
 
-extension P6D3D11Error: CustomStringConvertible {
+extension D3D11Error: CustomStringConvertible {
     var description: String {
         switch self {
         case .failed(let step, let hr):
@@ -39,7 +39,7 @@ extension P6D3D11Error: CustomStringConvertible {
 
 private func D3D11_CHECK(_ step: String, _ hr: HRESULT) throws {
     if hr < 0 {
-        throw P6D3D11Error.failed(step, hr)
+        throw D3D11Error.failed(step, hr)
     }
 }
 
@@ -63,7 +63,7 @@ private func D3D11_CHECK(_ step: String, _ hr: HRESULT) throws {
 /// swift-winui 未投影 SwapChainPanel，且其產生的包裝類別以 `try!` 延後解析 COM
 /// 介面，所以一旦碰到任何屬性就會中止。此處全部改走 vtable，失敗會以 HRESULT
 /// 呈現而非非法指令。
-public final class P6SwapChainPanel {
+public final class RawSwapChainPanel {
     /// Deliberately kept as `IInspectable`: constructing any swift-winui
     /// wrapper around this object is exactly what traps.
     private let inspectable: WindowsFoundation.IInspectable
@@ -157,7 +157,7 @@ public final class P6SwapChainPanel {
                 pParent.pointee.lpVtbl.pointee.get_Children(pParent, &children)
             )
             guard let children else {
-                throw P6D3D11Error.failed("IPanel::get_Children returned null", S_OK)
+                throw D3D11Error.failed("IPanel::get_Children returned null", S_OK)
             }
             defer { _ = children.pointee.lpVtbl.pointee.Release(children) }
 
@@ -176,7 +176,7 @@ public final class P6SwapChainPanel {
 /// Well-known public COM interface IIDs, hand-declared (matching the
 /// `SwiftISwapChainPanelNative.IID` approach above) rather than linking
 /// against dxguid.lib, so no extra linker settings are needed.
-private enum P6IID {
+private enum D3D11IID {
     // 770aae78-f26f-4dba-a829-253c83d1b387
     static var IDXGIFactory1: WinUIInterop.IID {
         WinUIInterop.IID(
@@ -252,7 +252,7 @@ private enum P6IID {
 /// viewport, and a small pool of `ID3D11Texture2D`s that frames are copied
 /// into before `Present()`, mirroring the macOS Metal path's fixed texture
 /// pool (see plan §Phase 1).
-public final class P6D3D11Device {
+public final class D3D11Device {
     public let device: UnsafeMutablePointer<ID3D11Device>
     public let context: UnsafeMutablePointer<ID3D11DeviceContext>
     private let factory: UnsafeMutablePointer<IDXGIFactory2>
@@ -285,11 +285,11 @@ public final class P6D3D11Device {
             }
         )
         guard let device, let context else {
-            throw P6D3D11Error.failed("D3D11CreateDevice returned a null device", S_OK)
+            throw D3D11Error.failed("D3D11CreateDevice returned a null device", S_OK)
         }
         self.device = device
         self.context = context
-        self.factory = try P6D3D11Device.obtainFactory(from: device)
+        self.factory = try D3D11Device.obtainFactory(from: device)
     }
 
     /// Walks device -> DXGI adapter -> DXGI factory, the standard way to get
@@ -298,14 +298,14 @@ public final class P6D3D11Device {
     private static func obtainFactory(
         from device: UnsafeMutablePointer<ID3D11Device>
     ) throws -> UnsafeMutablePointer<IDXGIFactory2> {
-        var dxgiDeviceIID = P6IID.IDXGIDevice
+        var dxgiDeviceIID = D3D11IID.IDXGIDevice
         var dxgiDeviceRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "ID3D11Device::QueryInterface(IDXGIDevice)",
             device.pointee.lpVtbl.pointee.QueryInterface(device, &dxgiDeviceIID, &dxgiDeviceRaw)
         )
         guard let dxgiDeviceRaw else {
-            throw P6D3D11Error.failed("QueryInterface(IDXGIDevice) returned null", S_OK)
+            throw D3D11Error.failed("QueryInterface(IDXGIDevice) returned null", S_OK)
         }
         let dxgiDevice = dxgiDeviceRaw.assumingMemoryBound(to: IDXGIDevice.self)
         defer { _ = dxgiDevice.pointee.lpVtbl.pointee.Release(dxgiDevice) }
@@ -316,18 +316,18 @@ public final class P6D3D11Device {
             dxgiDevice.pointee.lpVtbl.pointee.GetAdapter(dxgiDevice, &adapter)
         )
         guard let adapter else {
-            throw P6D3D11Error.failed("GetAdapter returned null", S_OK)
+            throw D3D11Error.failed("GetAdapter returned null", S_OK)
         }
         defer { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
 
-        var factoryIID = P6IID.IDXGIFactory2
+        var factoryIID = D3D11IID.IDXGIFactory2
         var factoryRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "IDXGIAdapter::GetParent(IDXGIFactory2)",
             adapter.pointee.lpVtbl.pointee.GetParent(adapter, &factoryIID, &factoryRaw)
         )
         guard let factoryRaw else {
-            throw P6D3D11Error.failed("GetParent(IDXGIFactory2) returned null", S_OK)
+            throw D3D11Error.failed("GetParent(IDXGIFactory2) returned null", S_OK)
         }
         return factoryRaw.assumingMemoryBound(to: IDXGIFactory2.self)
     }
@@ -371,7 +371,7 @@ public final class P6D3D11Device {
             }
         )
         guard let created else {
-            throw P6D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
+            throw D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
         }
 
         try panel.setSwapChain(
@@ -388,17 +388,17 @@ public final class P6D3D11Device {
     /// composited by WinUI before wiring in real frame uploads.
     public func clearAndPresent(r: Float, g: Float, b: Float, a: Float) throws {
         guard let swapChain else {
-            throw P6D3D11Error.failed("clearAndPresent called before attachSwapChain", S_OK)
+            throw D3D11Error.failed("clearAndPresent called before attachSwapChain", S_OK)
         }
 
-        var textureIID = P6IID.ID3D11Texture2D
+        var textureIID = D3D11IID.ID3D11Texture2D
         var backBufferRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "IDXGISwapChain1::GetBuffer",
             swapChain.pointee.lpVtbl.pointee.GetBuffer(swapChain, 0, &textureIID, &backBufferRaw)
         )
         guard let backBufferRaw else {
-            throw P6D3D11Error.failed("GetBuffer returned null", S_OK)
+            throw D3D11Error.failed("GetBuffer returned null", S_OK)
         }
         let backBuffer = backBufferRaw.assumingMemoryBound(to: ID3D11Texture2D.self)
         defer { _ = backBuffer.pointee.lpVtbl.pointee.Release(backBuffer) }
@@ -414,7 +414,7 @@ public final class P6D3D11Device {
             )
         )
         guard let rtv else {
-            throw P6D3D11Error.failed("CreateRenderTargetView returned null", S_OK)
+            throw D3D11Error.failed("CreateRenderTargetView returned null", S_OK)
         }
         defer { _ = rtv.pointee.lpVtbl.pointee.Release(rtv) }
 
@@ -449,7 +449,7 @@ public final class P6D3D11Device {
 /// composition swap chain 由 DWM 在「驅動該顯示器的介面卡」上合成。若從其他介面卡
 /// 呈現，DXGI 必須先把每一張影格跨 PCIe 複製過去，因此除非是刻意量測差異，否則
 /// 應使用 `.display`。
-public enum P6GPUPreference: String, Sendable {
+public enum GPUPreference: String, Sendable {
     /// DXGI's default adapter, which is the one driving the primary display.
     case display
     case amd
@@ -484,7 +484,7 @@ public enum P6GPUPreference: String, Sendable {
 /// 色度，每像素 12 位元，而 RGBA 是 32 位元，因此一張 4K 影格是 12.4 MB 而非
 /// 33.2 MB。這很重要，因為解碼器的影格是經由管線送進本行程的，4K60 下 RGBA 需要
 /// 約 2 GB/s，已超過管線能承載的量。
-public enum P6VideoPixelFormat: String, Sendable {
+public enum VideoPixelFormat: String, Sendable {
     case rgba
     case nv12
 
@@ -516,7 +516,7 @@ public enum P6VideoPixelFormat: String, Sendable {
 /// SwapChainPanel 以「一個 swap chain 像素對一個 DIP」的方式合成，因此 swap chain
 /// 必須以顯示器的實體像素建立才能維持清晰，再映射回 viewport。兩個數值都放在
 /// 這裡，讓視窗縮放、顯示器縮放比例變更與解碼解析度變更走同一條路徑。
-public struct P6VideoViewport: Equatable, Sendable {
+public struct VideoViewport: Equatable, Sendable {
     /// The visible area in DIPs, which is what XAML lays out in.
     public var width: Double
     public var height: Double
@@ -554,12 +554,12 @@ public struct P6VideoViewport: Equatable, Sendable {
 /// 呈現，完全繞開 UI 框架的影像路徑。影格不經過 Data、Array 或 WriteableBitmap，
 /// 解碼器直接把位元組寫入已對映的 GPU 記憶體，因此 CPU 端零複製，也不需要像素
 /// 格式轉換（ffmpeg 的 `rgba` 與 DXGI_FORMAT_R8G8B8A8_UNORM 位元組完全相同）。
-public final class P6D3D11VideoSurface {
+public final class D3D11VideoSurface {
     /// Matches the macOS Metal path's pool size: enough buffers that the CPU
     /// can fill one while the GPU still reads another.
     private static let poolSize = 3
 
-    private let panel: P6SwapChainPanel
+    private let panel: RawSwapChainPanel
     private let device: UnsafeMutablePointer<ID3D11Device>
     private let context: UnsafeMutablePointer<ID3D11DeviceContext>
     private let factory: UnsafeMutablePointer<IDXGIFactory2>
@@ -576,7 +576,7 @@ public final class P6D3D11VideoSurface {
     /// the decoder is told the same thing when it starts.
     /// 影格送達時的格式。在此表面的生命週期內固定不變，因為解碼器啟動時也被告知
     /// 同一個格式。
-    public let format: P6VideoPixelFormat
+    public let format: VideoPixelFormat
 
     /// NV12 only: the video processor converts to RGB on the way to the back
     /// buffer. A video input view cannot be created on a STAGING resource, so
@@ -618,7 +618,7 @@ public final class P6D3D11VideoSurface {
     /// 硬體 GPU 支援、軟體光柵化裝置不支援；若在預設介面卡上探測卻從另一張卡呈現，
     /// 回報的就會是一個並不存在的能力。
     public static func nv12Support(
-        for gpu: P6GPUPreference = .display
+        for gpu: GPUPreference = .display
     ) -> (isSupported: Bool, report: String) {
         let (adapter, _) = selectAdapter(for: gpu)
         defer {
@@ -646,7 +646,7 @@ public final class P6D3D11VideoSurface {
             _ = device.pointee.lpVtbl.pointee.Release(device)
         }
 
-        var videoDeviceIID = P6IID.ID3D11VideoDevice
+        var videoDeviceIID = D3D11IID.ID3D11VideoDevice
         var videoDeviceRaw: UnsafeMutableRawPointer?
         guard device.pointee.lpVtbl.pointee.QueryInterface(
             device, &videoDeviceIID, &videoDeviceRaw
@@ -716,14 +716,14 @@ public final class P6D3D11VideoSurface {
     }
 
     public init(
-        panel: P6SwapChainPanel,
-        gpu: P6GPUPreference = .display,
-        format: P6VideoPixelFormat = .rgba
+        panel: RawSwapChainPanel,
+        gpu: GPUPreference = .display,
+        format: VideoPixelFormat = .rgba
     ) throws {
         self.panel = panel
         self.format = format
 
-        let (adapter, report) = P6D3D11VideoSurface.selectAdapter(for: gpu)
+        let (adapter, report) = D3D11VideoSurface.selectAdapter(for: gpu)
         adapterReport = report
         defer {
             if let adapter { _ = adapter.pointee.lpVtbl.pointee.Release(adapter) }
@@ -750,11 +750,11 @@ public final class P6D3D11VideoSurface {
             }
         )
         guard let device, let context else {
-            throw P6D3D11Error.failed("D3D11CreateDevice returned null", S_OK)
+            throw D3D11Error.failed("D3D11CreateDevice returned null", S_OK)
         }
         self.device = device
         self.context = context
-        self.factory = try P6D3D11Device.makeFactory(from: device)
+        self.factory = try D3D11Device.makeFactory(from: device)
     }
 
     /// Finds the adapter matching `gpu`, and describes every adapter found.
@@ -763,9 +763,9 @@ public final class P6D3D11VideoSurface {
     /// 依 `gpu` 找出對應的介面卡並描述所有介面卡。`.display`（以及找不到對應者時）
     /// 回傳 nil，交由 `D3D11CreateDevice` 選擇 DXGI 的預設介面卡。
     private static func selectAdapter(
-        for gpu: P6GPUPreference
+        for gpu: GPUPreference
     ) -> (UnsafeMutablePointer<IDXGIAdapter>?, String) {
-        var factoryIID = P6IID.IDXGIFactory1
+        var factoryIID = D3D11IID.IDXGIFactory1
         var factoryRaw: UnsafeMutableRawPointer?
         guard CreateDXGIFactory1(&factoryIID, &factoryRaw) >= 0, let factoryRaw else {
             return (nil, "adapters=<CreateDXGIFactory1 failed>")
@@ -842,7 +842,7 @@ public final class P6D3D11VideoSurface {
     /// **必須在 UI 執行緒呼叫**：`ISwapChainPanelNative::SetSwapChain` 依文件僅能
     /// 於 UI 執行緒使用；Map/CopyResource/Present 仍可由解碼執行緒呼叫。
     public func setViewport(
-        _ viewport: P6VideoViewport,
+        _ viewport: VideoViewport,
         frameWidth: UInt32,
         frameHeight: UInt32
     ) throws {
@@ -891,7 +891,7 @@ public final class P6D3D11VideoSurface {
     /// swap chain 與 pool 是否需要為這組尺寸重建；呼叫端據此判斷是否要先把表面
     /// 自解碼執行緒卸離。
     public func needsRebuild(
-        for viewport: P6VideoViewport, frameWidth: UInt32, frameHeight: UInt32
+        for viewport: VideoViewport, frameWidth: UInt32, frameHeight: UInt32
     ) -> Bool {
         let viewportPixels = viewport.pixelSize
         return !isConfigured(frameWidth: frameWidth, frameHeight: frameHeight)
@@ -932,7 +932,7 @@ public final class P6D3D11VideoSurface {
             }
         )
         guard let created else {
-            throw P6D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
+            throw D3D11Error.failed("CreateSwapChainForComposition returned null", S_OK)
         }
         try panel.native.setSwapChain(
             UnsafeMutableRawPointer(created).assumingMemoryBound(to: IDXGISwapChain.self)
@@ -965,7 +965,7 @@ public final class P6D3D11VideoSurface {
                 }
             )
             guard let texture else {
-                throw P6D3D11Error.failed("CreateTexture2D returned null", S_OK)
+                throw D3D11Error.failed("CreateTexture2D returned null", S_OK)
             }
             pool.append(texture)
         }
@@ -1010,7 +1010,7 @@ public final class P6D3D11VideoSurface {
     ) throws {
         guard let swapChain else { return }
 
-        var swapChain2IID = P6IID.IDXGISwapChain2
+        var swapChain2IID = D3D11IID.IDXGISwapChain2
         var raw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "IDXGISwapChain1::QueryInterface(IDXGISwapChain2)",
@@ -1019,7 +1019,7 @@ public final class P6D3D11VideoSurface {
             )
         )
         guard let raw else {
-            throw P6D3D11Error.failed("QueryInterface(IDXGISwapChain2) returned null", S_OK)
+            throw D3D11Error.failed("QueryInterface(IDXGISwapChain2) returned null", S_OK)
         }
         let swapChain2 = raw.assumingMemoryBound(to: IDXGISwapChain2.self)
         defer { _ = swapChain2.pointee.lpVtbl.pointee.Release(swapChain2) }
@@ -1039,7 +1039,7 @@ public final class P6D3D11VideoSurface {
         bufferHeight: UInt32,
         textureDesc: D3D11_TEXTURE2D_DESC
     ) throws {
-        var videoDeviceIID = P6IID.ID3D11VideoDevice
+        var videoDeviceIID = D3D11IID.ID3D11VideoDevice
         var videoDeviceRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "ID3D11Device::QueryInterface(ID3D11VideoDevice)",
@@ -1048,12 +1048,12 @@ public final class P6D3D11VideoSurface {
             )
         )
         guard let videoDeviceRaw else {
-            throw P6D3D11Error.failed("QueryInterface(ID3D11VideoDevice) null", S_OK)
+            throw D3D11Error.failed("QueryInterface(ID3D11VideoDevice) null", S_OK)
         }
         let videoDevice = videoDeviceRaw.assumingMemoryBound(to: ID3D11VideoDevice.self)
         self.videoDevice = videoDevice
 
-        var videoContextIID = P6IID.ID3D11VideoContext1
+        var videoContextIID = D3D11IID.ID3D11VideoContext1
         var videoContextRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "ID3D11DeviceContext::QueryInterface(ID3D11VideoContext1)",
@@ -1062,7 +1062,7 @@ public final class P6D3D11VideoSurface {
             )
         )
         guard let videoContextRaw else {
-            throw P6D3D11Error.failed("QueryInterface(ID3D11VideoContext1) null", S_OK)
+            throw D3D11Error.failed("QueryInterface(ID3D11VideoContext1) null", S_OK)
         }
         let videoContext = videoContextRaw.assumingMemoryBound(to: ID3D11VideoContext1.self)
         self.videoContext = videoContext
@@ -1072,7 +1072,7 @@ public final class P6D3D11VideoSurface {
             inputWidth: frameWidth, inputHeight: frameHeight,
             outputWidth: bufferWidth, outputHeight: bufferHeight
         ) else {
-            throw P6D3D11Error.failed("CreateVideoProcessorEnumerator", S_OK)
+            throw D3D11Error.failed("CreateVideoProcessorEnumerator", S_OK)
         }
         processorEnumerator = enumerator
 
@@ -1084,7 +1084,7 @@ public final class P6D3D11VideoSurface {
             )
         )
         guard let processor else {
-            throw P6D3D11Error.failed("CreateVideoProcessor returned null", S_OK)
+            throw D3D11Error.failed("CreateVideoProcessor returned null", S_OK)
         }
         self.processor = processor
 
@@ -1125,7 +1125,7 @@ public final class P6D3D11VideoSurface {
                 }
             )
             guard let texture else {
-                throw P6D3D11Error.failed("CreateTexture2D(default) null", S_OK)
+                throw D3D11Error.failed("CreateTexture2D(default) null", S_OK)
             }
             defaultPool.append(texture)
 
@@ -1148,7 +1148,7 @@ public final class P6D3D11VideoSurface {
                 }
             )
             guard let view else {
-                throw P6D3D11Error.failed("CreateVideoProcessorInputView null", S_OK)
+                throw D3D11Error.failed("CreateVideoProcessorInputView null", S_OK)
             }
             inputViews.append(view)
         }
@@ -1192,7 +1192,7 @@ public final class P6D3D11VideoSurface {
         _ body: (UnsafeMutableRawPointer, Int, Int) throws -> Void
     ) throws {
         guard !pool.isEmpty else {
-            throw P6D3D11Error.failed("writeFrame called before configure", S_OK)
+            throw D3D11Error.failed("writeFrame called before configure", S_OK)
         }
         let texture = pool[poolIndex]
         poolIndex = (poolIndex + 1) % pool.count
@@ -1209,7 +1209,7 @@ public final class P6D3D11VideoSurface {
         defer { context.pointee.lpVtbl.pointee.Unmap(context, resource, 0) }
 
         guard let destination = mapped.pData else {
-            throw P6D3D11Error.failed("Map returned null pData", S_OK)
+            throw D3D11Error.failed("Map returned null pData", S_OK)
         }
         try body(destination, Int(mapped.RowPitch), Int(mapped.DepthPitch))
     }
@@ -1223,7 +1223,7 @@ public final class P6D3D11VideoSurface {
         let source = UnsafeMutableRawPointer(pool[lastIndex])
             .assumingMemoryBound(to: ID3D11Resource.self)
 
-        var textureIID = P6IID.ID3D11Texture2D
+        var textureIID = D3D11IID.ID3D11Texture2D
         var backBufferRaw: UnsafeMutableRawPointer?
         try D3D11_CHECK(
             "IDXGISwapChain1::GetBuffer",
@@ -1232,7 +1232,7 @@ public final class P6D3D11VideoSurface {
             )
         )
         guard let backBufferRaw else {
-            throw P6D3D11Error.failed("GetBuffer returned null", S_OK)
+            throw D3D11Error.failed("GetBuffer returned null", S_OK)
         }
         let backBuffer = backBufferRaw.assumingMemoryBound(to: ID3D11Texture2D.self)
         defer { _ = backBuffer.pointee.lpVtbl.pointee.Release(backBuffer) }
@@ -1274,7 +1274,7 @@ public final class P6D3D11VideoSurface {
         guard let videoDevice, let videoContext, let processor, let processorEnumerator,
               lastIndex < defaultPool.count, lastIndex < inputViews.count
         else {
-            throw P6D3D11Error.failed("NV12 present before the processor was built", S_OK)
+            throw D3D11Error.failed("NV12 present before the processor was built", S_OK)
         }
 
         context.pointee.lpVtbl.pointee.CopyResource(
@@ -1306,7 +1306,7 @@ public final class P6D3D11VideoSurface {
             }
         )
         guard let outputView else {
-            throw P6D3D11Error.failed("CreateVideoProcessorOutputView null", S_OK)
+            throw D3D11Error.failed("CreateVideoProcessorOutputView null", S_OK)
         }
         defer { _ = outputView.pointee.lpVtbl.pointee.Release(outputView) }
 

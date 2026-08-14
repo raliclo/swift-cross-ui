@@ -39,15 +39,15 @@ import WindowsFoundation
 /// graph 更新。
 final class P6VideoSurfaceBox: @unchecked Sendable {
     private let lock = NSLock()
-    private var surface: P6D3D11VideoSurface?
+    private var surface: D3D11VideoSurface?
 
-    func set(_ surface: P6D3D11VideoSurface?) {
+    func set(_ surface: D3D11VideoSurface?) {
         lock.lock()
         defer { lock.unlock() }
         self.surface = surface
     }
 
-    func withSurface<T>(_ body: (P6D3D11VideoSurface) throws -> T) rethrows -> T? {
+    func withSurface<T>(_ body: (D3D11VideoSurface) throws -> T) rethrows -> T? {
         lock.lock()
         defer { lock.unlock() }
         guard let surface else { return nil }
@@ -127,7 +127,7 @@ enum P6WindowFlags {
     /// 探測，而非判斷 GPU 廠商。`-rgba` 可強制走舊路徑作為對照組；`-nv12` 用來
     /// 明示意圖，但仍以探測結果為準，因為強制使用 GPU 無法轉換的格式只會得到
     /// 一片黑。
-    static let pixelFormat: P6VideoPixelFormat = {
+    static let pixelFormat: VideoPixelFormat = {
         // Calibration writes RGBA bytes by hand to measure geometry, which is
         // format-independent, so it stays on the simple path.
         // 校準圖樣是手寫 RGBA 位元組來量測幾何，而幾何與格式無關，因此維持在簡單
@@ -135,7 +135,7 @@ enum P6WindowFlags {
         if isCalibration || CommandLine.arguments.contains("-rgba") {
             return .rgba
         }
-        return P6D3D11VideoSurface.nv12Support(for: presentationGPU).isSupported
+        return D3D11VideoSurface.nv12Support(for: presentationGPU).isSupported
             ? .nv12 : .rgba
     }()
 
@@ -150,7 +150,7 @@ enum P6WindowFlags {
     /// 在顯示器所在的介面卡上合成，而解碼是唯一能搬動的另一個階段。
     static let isBothGPU = CommandLine.arguments.contains("-both-gpu")
 
-    static var presentationGPU: P6GPUPreference {
+    static var presentationGPU: GPUPreference {
         if CommandLine.arguments.contains("-no-gpu") { return .software }
         if isBothGPU { return .display }
         if CommandLine.arguments.contains("-nvidia") { return .nvidia }
@@ -415,20 +415,20 @@ enum P6WindowFlags {
 }
 
 final class P6D3D11SpikeCoordinator {
-    var device: P6D3D11Device?
-    var panel: P6SwapChainPanel?
+    var device: D3D11Device?
+    var panel: RawSwapChainPanel?
     var presentCount = 0
 }
 
 final class P6D3D11VideoCoordinator {
-    var panel: P6SwapChainPanel?
-    var surface: P6D3D11VideoSurface?
+    var panel: RawSwapChainPanel?
+    var surface: D3D11VideoSurface?
     /// Stops retrying after a genuine failure, so the log is not spammed on
     /// every layout pass.
     /// 真正失敗後不再重試，避免每次版面配置都寫入相同的 log。
     var setupFailed = false
     var configuredSize: SIMD2<UInt32>?
-    var configuredViewport: P6VideoViewport?
+    var configuredViewport: VideoViewport?
 }
 
 /// Hosts the video SwapChainPanel over the video viewport.
@@ -480,14 +480,14 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
 
         do {
             if coordinator.surface == nil {
-                let panel = try P6SwapChainPanel()
+                let panel = try RawSwapChainPanel()
                 P6Diagnostics.write(
                     "d3d11 surface: activated \(panel.runtimeClassName)"
                 )
                 try panel.setSize(width: Double(width), height: Double(height))
                 try panel.attach(to: winUIElement)
                 coordinator.panel = panel
-                let surface = try P6D3D11VideoSurface(
+                let surface = try D3D11VideoSurface(
                     panel: panel,
                     gpu: P6WindowFlags.presentationGPU,
                     format: P6WindowFlags.pixelFormat
@@ -497,7 +497,7 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
                     "d3d11 surface: panel attached \(width)x\(height), "
                         + surface.adapterReport
                         + ", format \(surface.format.rawValue) "
-                        + "(\(P6D3D11VideoSurface.nv12Support(for: P6WindowFlags.presentationGPU).report))"
+                        + "(\(D3D11VideoSurface.nv12Support(for: P6WindowFlags.presentationGPU).report))"
                 )
             }
             guard let surface = coordinator.surface else { return }
@@ -516,7 +516,7 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
             else {
                 return
             }
-            let viewport = P6VideoViewport(
+            let viewport = VideoViewport(
                 width: Double(width),
                 height: Double(height),
                 pixelsPerDIP: rasterizationScale
@@ -577,7 +577,7 @@ struct P6D3D11VideoView: WinUIElementRepresentable {
     /// 落在螢幕上：紅色邊框標示 buffer 邊界、綠色十字標示中心，角落色塊則指出被
     /// 裁切後保留的是哪一角。
     private func drawCalibrationPattern(
-        surface: P6D3D11VideoSurface, width: Int, height: Int
+        surface: D3D11VideoSurface, width: Int, height: Int
     ) {
         let edge = 8
         let corner = min(width, height) / 8
@@ -631,14 +631,14 @@ struct P6D3D11SpikeView: WinUIElementRepresentable {
 
         // Log between every step so a failure is attributable to one call.
         P6Diagnostics.write("d3d11 spike step 1: activating SwapChainPanel")
-        let panel = try! P6SwapChainPanel()
+        let panel = try! RawSwapChainPanel()
         P6Diagnostics.write("d3d11 spike step 2: activated \(panel.runtimeClassName)")
 
         try! panel.setSize(width: 120, height: 90)
         try! panel.attach(to: canvas)
         P6Diagnostics.write("d3d11 spike step 3: panel added to canvas")
 
-        let device = try! P6D3D11Device()
+        let device = try! D3D11Device()
         P6Diagnostics.write("d3d11 spike step 4: D3D11 device created")
 
         try! device.attachSwapChain(to: panel.native, width: 120, height: 90)
@@ -3093,7 +3093,7 @@ final class P6DecoderSession: @unchecked Sendable {
     nonisolated(unsafe) static var didLogMapping = false
 
     static func planeSpans(
-        format: P6VideoPixelFormat,
+        format: VideoPixelFormat,
         rowPitch: Int,
         mappedSize: Int,
         width: Int,
