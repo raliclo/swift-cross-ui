@@ -60,7 +60,7 @@ workstation, and #289 and #160 already have repro apps there:
 Build and run:
 
 ```sh
-zsh testapp/compile.sh P11
+zsh testapp/compile.zsh P11
 ./testapp/output/P11
 ```
 
@@ -183,7 +183,7 @@ Not covered by P12:
 Build and run:
 
 ```sh
-zsh testapp/compile.sh P13
+zsh testapp/compile.zsh P13
 ./testapp/output/P13          # .exe on Windows
 ```
 
@@ -250,14 +250,14 @@ Expected results:
 Build, install and run:
 
 ```sh
-zsh testapp/compile.sh -ios P14
+zsh testapp/compile.zsh -ios P14
 xcrun simctl boot swift-cross-ui
 open -a Simulator
 xcrun simctl install swift-cross-ui testapp/output/P14.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 ```
 
-`compile.sh -ios` provisions the simulator itself via `install_tools_ios.sh`, so
+`compile.zsh -ios` provisions the simulator itself via `install_tools_ios.sh`, so
 a missing device is created rather than reported.
 
 Covered issues:

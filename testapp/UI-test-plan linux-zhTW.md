@@ -48,11 +48,11 @@ swift build --target GtkBackend      # not --product
 
 `--target GtkBackend` 不是偏好，而是必要。單純 `swift build` 或 `--product SwiftCrossUI` 會讓 SwiftPM 建置 default target set，其中包含 `WinUIInterop` C target，Linux 上會因 `'Windows.h' file not found` 失敗。直接指定 target 才能繞過。
 
-本機量測：clean 狀態下 `--target GtkBackend` 需要 61.7 秒；warm 後 `testapp/compile.sh` 建一個 repro app 約 5-15 秒。
+本機量測：clean 狀態下 `--target GtkBackend` 需要 61.7 秒；warm 後 `testapp/compile.zsh` 建一個 repro app 約 5-15 秒。
 
 ## Phase 2 -- 既有 test apps 提供的免費覆蓋率
 
-`testapp` 中每個 app 都使用 `DefaultBackend`，Linux 上會選 GtkBackend；`testapp/compile.sh` 已處理非 `.exe` 輸出。P0-P3 與 P5 應可不改直接 build/run；P4 和 P6 的 Windows-specific sections 都包在 `#if os(Windows)` 後面。
+`testapp` 中每個 app 都使用 `DefaultBackend`，Linux 上會選 GtkBackend；`testapp/compile.zsh` 已處理非 `.exe` 輸出。P0-P3 與 P5 應可不改直接 build/run；P4 和 P6 的 Windows-specific sections 都包在 `#if os(Windows)` 後面。
 
 這很重要，因為 **P2 和 P3 已經有兩個 open issues 的測試步驟**，那些步驟是在 WinUI 版本修正時寫的：
 

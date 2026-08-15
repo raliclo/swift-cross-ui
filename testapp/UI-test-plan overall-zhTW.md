@@ -13,7 +13,7 @@
 2. 編譯測試程式：
 
    ```powershell
-   sh testapp/compile.sh
+   sh testapp/compile.zsh
    ```
 
 3. 進入輸出目錄：
@@ -494,14 +494,14 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 編譯與執行：
 
 ```sh
-zsh testapp/compile.sh P6
+zsh testapp/compile.zsh P6
 ./testapp/output/P6.exe
 ```
 
 macOS 的輸出檔名可能是 `P6` 而不是 `P6.exe`：
 
 ```sh
-zsh testapp/compile.sh P6
+zsh testapp/compile.zsh P6
 ./testapp/output/P6
 ./testapp/output/P6 -core
 ./testapp/output/P6 --debug
@@ -524,7 +524,7 @@ Late-frame dropping 預設為關閉。加上 `--frame-drop` 可在啟動時就�
 `P6.exe -f -autoplay -enable-dropframe` 完全不需要點擊任何按鈕。
 `test_P6.sh -win` 與 `P6-test.sh` 都封裝了這組參數，其中
 `P6-test.sh [檔名關鍵字]` 是較精簡的寫法。
-`compile.sh` 預設以 debug 編譯，可用 `BUILD_CONFIG=release` 進行最佳化編譯。
+`compile.zsh` 預設以 debug 編譯，可用 `BUILD_CONFIG=release` 進行最佳化編譯。
 
 `test_P6.sh` 在未帶任何參數時會印出使用說明，否則會把 renderer flags、
 `--debug`、`--frame-drop` 與媒體路徑轉送給編譯好的 P6 binary。它專屬的
@@ -549,7 +549,7 @@ Runtime tools：
 - P6 只把生命週期與錯誤訊息寫入目前工作目錄下的 `p6-debug-events.log`，
   終端機輸出維持安靜。詳細的 frame upload、呈現與逐格計時訊息需要 `--debug`，
   且同樣只會寫入該檔案。
-- `testapp/.compile-work/` 與 `testapp/output/` 屬於暫存區：`compile.sh` 會把
+- `testapp/.compile-work/` 與 `testapp/output/` 屬於暫存區：`compile.zsh` 會把
   選定的原始碼複製到 `.compile-work/TestApps/Sources/<name>/main.swift` 並
   產生對應的 `Package.swift`，因此這兩個目錄都不應納入 commit。
 
@@ -836,7 +836,7 @@ Runtime tools：
 - 2026-08-13：曾嘗試把各 app 連結成 GUI 子系統執行檔，已收回。它雖能消掉檔案總管
   開啟時附帶的主控台，但只要子行程仍由 Foundation 生成就會更糟：沒有可繼承的主控台
   時，ffmpeg 與 ffplay 會各自開出一個、且在其執行期間都存在的主控台視窗。理由已記在
-  `compile.sh`，避免在未先修好子行程生成方式前又再嘗試一次。
+  `compile.zsh`，避免在未先修好子行程生成方式前又再嘗試一次。
 - 2026-08-13：**`-maximized` 與將視窗帶到前景現在都正常了**，關鍵是改以「視窗標題」
   辨識目標視窗。先前的作法是取呼叫執行緒的第一個可見視窗，找不到就退回
   `GetForegroundWindow()`；因此在 XAML 視窗尚未建立前，被最大化與啟動的是使用者當下

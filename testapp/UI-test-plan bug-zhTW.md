@@ -47,7 +47,7 @@ P13 刻意分成兩列。`issues.csv` 把 #595、#291、#158 歸在 `core/unspec
 Build and run：
 
 ```sh
-zsh testapp/compile.sh P11
+zsh testapp/compile.zsh P11
 ./testapp/output/P11
 ```
 
@@ -131,7 +131,7 @@ P12 未涵蓋：
 Build and run：
 
 ```sh
-zsh testapp/compile.sh P13
+zsh testapp/compile.zsh P13
 ./testapp/output/P13          # .exe on Windows
 ```
 
@@ -176,14 +176,14 @@ macOS only：
 Build、install、run：
 
 ```sh
-zsh testapp/compile.sh -ios P14
+zsh testapp/compile.zsh -ios P14
 xcrun simctl boot swift-cross-ui
 open -a Simulator
 xcrun simctl install swift-cross-ui testapp/output/P14.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 ```
 
-`compile.sh -ios` 會透過 `install_tools_ios.sh` 自行 provision simulator，所以缺少 device 時會建立，而不是直接報錯。
+`compile.zsh -ios` 會透過 `install_tools_ios.sh` 自行 provision simulator，所以缺少 device 時會建立，而不是直接報錯。
 
 涵蓋 issues：
 

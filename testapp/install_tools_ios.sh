@@ -4,9 +4,9 @@
 #
 #   bash testapp/install_tools_ios.sh              # check, install what is missing
 #   bash testapp/install_tools_ios.sh --check       # report only, change nothing
-#   bash testapp/install_tools_ios.sh --print-env   # print the values compile.sh uses
+#   bash testapp/install_tools_ios.sh --print-env   # print the values compile.zsh uses
 #
-# compile.sh calls this automatically when given -ios, so running it by hand is
+# compile.zsh calls this automatically when given -ios, so running it by hand is
 # only needed to see what is missing or to install ahead of time.
 #
 # Everything here is idempotent, so re-running it is safe.
@@ -144,7 +144,7 @@ ensure_device
 udid="$(device_udid || true)"
 if [ -z "$udid" ]; then
     # Only reachable under --check, where ensure_device declines to create one.
-    # Reporting "ready" here would be a false pass: compile.sh -ios needs the
+    # Reporting "ready" here would be a false pass: compile.zsh -ios needs the
     # device to install onto.
     warn "No device yet, so the environment is not ready. Re-run without --check."
     exit 1
@@ -158,7 +158,7 @@ $(printf '\033[32m')iOS build environment ready$(printf '\033[0m')
 
 Build a test app for the simulator:
 
-  sh testapp/compile.sh -ios P11
+  sh testapp/compile.zsh -ios P11
 
 Run it:
 

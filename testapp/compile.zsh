@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env zsh
 set -euo pipefail
 
 # zsh does not split unquoted scalar expansions by default, while this POSIX
@@ -7,7 +7,17 @@ if [ -n "${ZSH_VERSION:-}" ]; then
     setopt SH_WORD_SPLIT
 fi
 
+host_uname="$(uname -s 2>/dev/null || printf unknown)"
+
 windows_path() {
+    case "$host_uname" in
+        MINGW*|MSYS*|CYGWIN*) ;;
+        *)
+            printf '%s\n' "$1"
+            return
+            ;;
+    esac
+
     case "$1" in
         /?/*)
             drive="$(printf '%s' "$1" | cut -c 2 | tr '[:lower:]' '[:upper:]')"
@@ -39,7 +49,7 @@ sources_root="$package_dir/Sources"
 
 swift_bin="${SWIFT_BIN:-swift}"
 # Per-pixel work such as P6's RGBA conversion is dramatically slower without
-# optimisation, so allow release builds: BUILD_CONFIG=release sh compile.sh P6
+# optimisation, so allow release builds: BUILD_CONFIG=release sh compile.zsh P6
 build_config="${BUILD_CONFIG:-debug}"
 needs_image_formats=0
 target_platform="host"

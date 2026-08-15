@@ -2,9 +2,9 @@
 # Rebases the current branch onto its upstream, then checks that every commit
 # hash recorded in testapp/issue_commits.csv still exists on the branch.
 #
-#   zsh testapp/todo/rebase.sh              # rebase onto origin/develop, then check
-#   zsh testapp/todo/rebase.sh --check      # check only, do not rebase
-#   zsh testapp/todo/rebase.sh --onto main  # rebase onto a different upstream
+#   zsh testapp/rebase.zsh              # rebase onto origin/develop, then check
+#   zsh testapp/rebase.zsh --check      # check only, do not rebase
+#   zsh testapp/rebase.zsh --onto main  # rebase onto a different upstream
 #
 # Why this exists: issue_commits.csv records hashes so commits can be
 # cherry-picked per issue later. A rebase rewrites them, and the recorded ones
@@ -23,7 +23,7 @@
 set -euo pipefail
 
 script_dir="${0:a:h}"
-repo_root="${script_dir:h:h}"
+repo_root="${script_dir:h}"
 csv="$repo_root/testapp/issue_commits.csv"
 
 # The fork's remote is not necessarily called origin -- here it is Ralic -- so

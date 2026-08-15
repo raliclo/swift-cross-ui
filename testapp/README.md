@@ -31,8 +31,8 @@ AndroidBackend, P14 UIKitBackend, and P13, P16 and P17 cover core layout and
 split-view behaviour. `UI-test-plan platform-en.md` has the full mapping.
 
 ```sh
-zsh testapp/compile.sh P7 P15 P17     # build a subset
-zsh testapp/compile.sh                # build everything
+zsh testapp/compile.zsh P7 P15 P17     # build a subset
+zsh testapp/compile.zsh                # build everything
 ```
 
 Output lands in `testapp/output/` -- `PN` on Linux and macOS, `PN.exe` on
@@ -44,7 +44,7 @@ tracked.
 | Script | For |
 | --- | --- |
 | `install_tool_wsl.sh` | WSL: GTK 4, the Swift tarball, and the libxml2/ICU shims Ubuntu 26.04 needs |
-| `install_tools_ios.sh` | macOS: the iOS Simulator toolchain, called automatically by `compile.sh -ios` |
+| `install_tools_ios.sh` | macOS: the iOS Simulator toolchain, called automatically by `compile.zsh -ios` |
 
 ## Other scripts
 
@@ -52,9 +52,9 @@ tracked.
 | --- | --- |
 | `screenshot.sh` | Captures the composited desktop, which is the only way to see D3D/DirectComposition content |
 | `gpu-matrix.sh`, `P6-test.sh`, `test_P6.sh` | P6's throughput matrix and its unattended runs |
-| `todo/rebase.sh` | Rebases, then checks that the hashes in `issue_commits.csv` still exist on the branch |
+| `rebase.zsh` | Rebases, then checks that the hashes in `issue_commits.csv` still exist on the branch |
 
-`todo/rebase.sh` exists because a rebase silently orphans recorded hashes: they
+`rebase.zsh` exists because a rebase silently orphans recorded hashes: they
 keep resolving from the reflog, so nothing looks wrong until the next clone.
 
 ## Records

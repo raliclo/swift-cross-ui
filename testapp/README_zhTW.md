@@ -22,8 +22,8 @@
 P0-P17 每個都是一個 Swift 檔，會建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。完整對照在 `UI-test-plan platform-en.md`。
 
 ```sh
-zsh testapp/compile.sh P7 P15 P17     # 只建部分 app
-zsh testapp/compile.sh                # 建全部 app
+zsh testapp/compile.zsh P7 P15 P17     # 只建部分 app
+zsh testapp/compile.zsh                # 建全部 app
 ```
 
 輸出會放在 `testapp/output/`：Linux/macOS 上是 `PN`，Windows 上是 `PN.exe`。`output` 目錄和 `.compile-work` 建置樹都不追蹤。
@@ -33,7 +33,7 @@ zsh testapp/compile.sh                # 建全部 app
 | Script | 用途 |
 | --- | --- |
 | `install_tool_wsl.sh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
-| `install_tools_ios.sh` | macOS：iOS Simulator toolchain，會由 `compile.sh -ios` 自動呼叫 |
+| `install_tools_ios.sh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
 
 ## 其他 scripts
 
@@ -41,9 +41,9 @@ zsh testapp/compile.sh                # 建全部 app
 | --- | --- |
 | `screenshot.sh` | 擷取合成後的桌面畫面；這是唯一能看到 D3D/DirectComposition 內容的方式 |
 | `gpu-matrix.sh`, `P6-test.sh`, `test_P6.sh` | P6 throughput matrix 與無人值守測試 |
-| `todo/rebase.sh` | rebase 後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上 |
+| `rebase.zsh` | rebase 後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上 |
 
-`todo/rebase.sh` 存在是因為 rebase 會靜默孤立已記錄的 hash：它們仍可能從 reflog resolve，所以直到下一次 clone 前都看不出問題。
+`rebase.zsh` 存在是因為 rebase 會靜默孤立已記錄的 hash：它們仍可能從 reflog resolve，所以直到下一次 clone 前都看不出問題。
 
 ## 紀錄
 

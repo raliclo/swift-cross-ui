@@ -17,7 +17,7 @@ import SwiftCrossUI
 // visible, rather than asking the tester to catch a flicker.
 //
 // Build and run:
-//   zsh testapp/compile.sh -ios P14
+//   zsh testapp/compile.zsh -ios P14
 //   xcrun simctl install swift-cross-ui testapp/output/P14.app
 //   xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 

@@ -13,7 +13,7 @@ This document describes the manual UI test steps for the apps in `testapp`. The 
 2. Compile the test apps:
 
    ```powershell
-   sh testapp/compile.sh
+   sh testapp/compile.zsh
    ```
 
 3. Go to the output directory:
@@ -533,14 +533,14 @@ Expected results:
 Build and run:
 
 ```sh
-zsh testapp/compile.sh P6
+zsh testapp/compile.zsh P6
 ./testapp/output/P6.exe
 ```
 
 On macOS the output binary name may be `P6` instead of `P6.exe`:
 
 ```sh
-zsh testapp/compile.sh P6
+zsh testapp/compile.zsh P6
 ./testapp/output/P6
 ./testapp/output/P6 -core
 ./testapp/output/P6 --debug
@@ -567,7 +567,7 @@ input directory. `-autoplay` starts playback immediately and
 `P6.exe -f -autoplay -enable-dropframe` needs no clicks at all.
 `test_P6.sh -win` and `P6-test.sh` both wrap that combination;
 `P6-test.sh [file-pattern]` is the shorter form.
-`compile.sh` builds debug by default and accepts `BUILD_CONFIG=release` for an
+`compile.zsh` builds debug by default and accepts `BUILD_CONFIG=release` for an
 optimised build.
 
 `test_P6.sh` prints its usage when no arguments are provided and otherwise
@@ -596,7 +596,7 @@ Diagnostics:
   current working directory, keeping normal terminal output quiet. Detailed frame
   upload, presentation, and per-frame timing messages require `--debug` and are
   also written only to that file.
-- `testapp/.compile-work/` and `testapp/output/` are scratch: `compile.sh` copies
+- `testapp/.compile-work/` and `testapp/output/` are scratch: `compile.zsh` copies
   the selected source to `.compile-work/TestApps/Sources/<name>/main.swift` and
   generates its `Package.swift`, so neither directory belongs in a commit.
 
@@ -712,7 +712,7 @@ Verification status:
   - The NV12 capability probe has to run on the adapter that will present. Probing the default adapter and then presenting from the software one chose NV12 on a device that cannot convert it, and the NV12 bytes then reached the RGBA image fallback and trapped. The probe is adapter-aware now and the fallback never builds an RGBA image from NV12 bytes.
 - 2026-08-12: a bigger decoder pipe buffer does not help. At 4K@60: 25 MB (two frames, the default) gave 49.9 fps, 128 MB gave 51.6, 512 MB gave 48.2, and **2 GB gave 45.3** -- slightly worse than the default. `CreatePipe` accepts 2 GB, but a pipe buffer absorbs jitter rather than raising throughput, and letting the decoder run seconds ahead only wastes memory and has to be discarded on a seek. The earlier 8 MB fix mattered only because the buffer was smaller than a single frame. `-pipe-mb <n>` re-runs this.
 - 2026-08-13: **the decoder no longer opens console windows.** P6 spawns ffmpeg, ffplay, zstd and two ffprobes, and restarts the decoder on every resolution or frame-rate change; each spawn opened a console window whenever P6 had no console to inherit, which is the case when it is launched from Explorer or from a pty-based terminal. Foundation's `Process` passes only `CREATE_UNICODE_ENVIRONMENT` and offers no way to add `CREATE_NO_WINDOW`, so all five spawns now go through `P6WindowlessProcess`, which calls `CreateProcessW` directly. That also meant reimplementing argument quoting, handle inheritance, termination and exit codes; other platforms keep the Foundation path. See `testapp/todo-foundation.md`.
-- 2026-08-13: linking the apps as GUI-subsystem executables was tried and reverted. It removes the console Explorer opens, but with children still spawned through Foundation it makes things worse: with no console to inherit, ffmpeg and ffplay get a console window each for as long as they run. The reasoning is recorded in `compile.sh` so it is not attempted again without fixing the spawning first.
+- 2026-08-13: linking the apps as GUI-subsystem executables was tried and reverted. It removes the console Explorer opens, but with children still spawned through Foundation it makes things worse: with no console to inherit, ffmpeg and ffplay get a console window each for as long as they run. The reasoning is recorded in `compile.zsh` so it is not attempted again without fixing the spawning first.
 - 2026-08-13: **`-maximized` and bringing the window to the front now work**, and the fix was to identify the window by its title. The previous lookup took the calling thread's first visible window and fell back to `GetForegroundWindow()`, so before the XAML window existed it maximised and activated whatever the user was using -- the terminal that launched P6. It also timed the retry window from process start, which had already expired by the time the window appeared several seconds later. Both are fixed: matched by title, retried for five seconds from the moment the window is first found.
 - 2026-08-13: **960x540 was cropped on the NV12 path** while 1080p and 4K were correct. The two paths present different regions: RGBA copies the frame into the buffer's corner and lets DXGI stretch that region, so the source is the frame; NV12 goes through the video processor, which scales the frame across the whole buffer, so the source is the whole buffer. Asking for the frame region there presented only its top-left corner, stretched. It is invisible whenever the frame is at least as large as the viewport, because the buffer is then the frame size -- which is why only the smallest preset showed it. Re-calibrated after the fix: the video spans `x=360..1559`, 1200 px, at every preset.
 - Windows P6 follow-ups (not implemented yet):

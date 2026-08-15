@@ -71,12 +71,12 @@ includes the `WinUIInterop` C target, and that fails on Linux with
 `'Windows.h' file not found`. Naming the target directly is the way past it.
 
 Measured on this machine: 61.7 s from clean for `--target GtkBackend`, and
-`testapp/compile.sh` builds a repro app in 5-15 s once that is warm.
+`testapp/compile.zsh` builds a repro app in 5-15 s once that is warm.
 
 ## Phase 2 -- free coverage from the existing test apps
 
 Every app in `testapp` uses `DefaultBackend`, which selects GtkBackend on Linux,
-and `testapp/compile.sh` already handles non-`.exe` output. P0-P3 and P5 should
+and `testapp/compile.zsh` already handles non-`.exe` output. P0-P3 and P5 should
 build and run unchanged; P4 and P6 contain Windows-specific sections behind
 `#if os(Windows)`.
 

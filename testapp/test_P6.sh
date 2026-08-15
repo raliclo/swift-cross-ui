@@ -33,7 +33,7 @@ usage() {
         "  $command_name -win" \
         "  $command_name -win 耶利米" \
         "  $command_name -rss --debug --frame-drop '/path/to/video.webm'" \
-        "Build first if needed: zsh testapp/compile.sh P6"
+        "Build first if needed: zsh testapp/compile.zsh P6"
 }
 
 if [ "$#" -eq 0 ]; then
@@ -45,7 +45,7 @@ if [ ! -x "$p6_executable" ]; then
     printf '%s\n' \
         "P6 executable not found: $p6_executable" \
         "找不到 P6 執行檔：$p6_executable" \
-        "Build it with: zsh testapp/compile.sh P6" >&2
+        "Build it with: zsh testapp/compile.zsh P6" >&2
     exit 1
 fi
 

@@ -45,7 +45,7 @@ WSLg 和 Linux 分成不同欄位，因為兩者會有差異。WSLg 是 Wayland 
 Windows workstation 可達的兩個平台都已建置全部 18 個 apps：🌊 WSLg 下是 `testapp/output/PN`，🪟 Windows 下是 `testapp/output/PN.exe`。目前沒有任何東西在 🐧 下建置過，所以該欄沒有結果。重新建置：
 
 ```sh
-zsh testapp/compile.sh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
+zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
 ```
 
 ## 矩陣
