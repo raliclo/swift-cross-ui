@@ -1,9 +1,12 @@
 # Bug test plan: AppKitBackend and AndroidBackend
 
-Covers the open upstream bugs that can be reproduced from this machine. The
+Covers the open upstream bugs reachable from the macOS workstation. The
 selection comes from `issues.csv`: 33 rows are tagged `bug` and are not yet
-fixed, and these are the ten whose backend is reachable here. Gtk, Gtk3 and
-WinUI bugs are left for the Windows and WSL sessions.
+fixed, and these are the ten whose backend is reachable there. Gtk, Gtk3 and
+WinUI bugs belong to the Windows workstation instead.
+
+`platform-test-plan.md` is the cross-platform view of the same data, and is the
+place to look for which app covers which issue on which platform.
 
 The count is checkable rather than remembered:
 
@@ -34,14 +37,18 @@ result too.
 Bugs from the same set that are deliberately excluded appear under "Not
 covered" in each section, with the reason.
 
-### Still unreachable from this machine
+### Not reachable from the macOS workstation
 
-Recorded so the gaps are visible rather than forgotten:
+Recorded so the gaps are visible rather than forgotten. "Blocked" here means
+blocked *from macOS* -- the first two rows are routine work on the Windows
+workstation, and #289 and #160 already have repro apps there:
 
-| Issues | Blocked on |
+| Issues | Where it belongs instead |
 | --- | --- |
-| #289, #179, #594, #286, #166, #189 | Linux / WSL, for Gtk and Gtk3 |
-| #160, #231 | Windows, for WinUI |
+| #289, #594 | The Windows workstation, under WSLg. #289 is covered by P15 |
+| #160, #231 | The Windows workstation. #160 is covered by P16 |
+| #286, #166, #179 | Gtk3Backend, which is out of scope everywhere |
+| #189 | GtkBackend *on macOS*, which neither workstation runs -- the Gtk3 half is out of scope as well |
 | #227 | A Mac Catalyst build target, not yet set up |
 | #226 | tvOS |
 | #645 | Comparison against several platforms at once, so it needs the others first |

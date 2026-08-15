@@ -4,6 +4,12 @@ Goal: reproduce the open GtkBackend/Gtk3Backend issues on this machine, fix what
 we can, and submit the fixes upstream. Same working style as the WinUI work:
 reproduce first, measure rather than infer, and keep the evidence.
 
+For which app covers which issue, and whether a WSLg run settles it or only
+shows the symptom, see `platform-test-plan.md`. The Tier 1 and Tier 2 split
+below is where that distinction comes from -- but note that Tier 2 is not a
+synonym for "WSLg distorts it": read the caveat column, since only #556 is
+about window sizing itself.
+
 ## Environment as it stands
 
 Checked, not assumed:
