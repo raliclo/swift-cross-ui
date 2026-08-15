@@ -17,7 +17,7 @@ else
         "P6 executable not found in: $output_dir" \
         "在此找不到 P6 執行檔：$output_dir" \
         "Build it with: zsh testapp/compile.zsh P6" \
-        "或使用 release 版本：BUILD_CONFIG=release zsh testapp/compile.zsh P6" >&2
+        "需要未最佳化 build 時：BUILD_CONFIG=debug zsh testapp/compile.zsh P6" >&2
     exit 1
 fi
 

@@ -25,11 +25,10 @@
 
 ### P7: Lists And Split Views
 
-- #476 (Open): Windows `P7.exe` starts with no selected plain-list row, and the status line shows `Selection: none` as expected.
-- #476 (Open): WSLg/GTK `P7` reproduces the issue at launch: the `Apple` row is already selected even though the selection binding starts as `nil`, and the status line shows `Selection: Apple`.
-- #476 (Open): Running WSLg/GTK with `GTK_THEME=Adwaita:dark ./testapp/output/P7` still reproduces the initial `Apple` selection, so the selection issue is not caused only by the default light theme.
-- #476: Clicking `Cherry` updates the status to `Selection: Cherry` and highlights `Cherry` in the plain List on both Windows and WSLg/GTK. This part of the selection binding works correctly after user interaction.
-- #476: Test 4 works correctly. Clicking `Clear selection` clears the selected row state as expected.
+- #476 (Fixed): Windows `P7.exe` starts with no selected plain-list row, and the status line shows `Selection: none` as expected.
+- #476 (Fixed): WSLg/GTK4 `P7` now starts with the selection binding still `nil`; no plain-list row is highlighted and the status line shows `Selection: none`.
+- #476 (Fixed): WSLg/Gtk3 was also confirmed after installing `libgtk-3-dev`; `swift build -c release --target Gtk3Backend` succeeds, and the Gtk3 P7 run no longer starts with `Apple` selected.
+- #476 (Fixed): Clicking `Cherry`, `Clear selection`, and `Select Cherry` still updates or clears the selected row correctly after the fix.
 - #386 / GTK theme observation: WSLg/GTK uses native GTK theme metrics and colors, so its background, text contrast, spacing, and selected-row styling differ from WinUI. Under `GTK_THEME=Adwaita:dark`, the app background becomes darker, but some text contrast remains poor in the captured screenshot and should be considered when validating GTK theme behavior.
 - #556 (Open): The `NavigationSplitView` region is visible on both Windows and WSLg/GTK, but the pane aspect / split ratio differs between backends. This matches the reported GTK NavigationSplitView sizing issue, so #556 remains open even though the detail pane does not collapse.
 - #556: After clicking `Cherry` in the plain List, the NavigationSplitView detail pane still shows `No sidebar selection`. This appears expected for the current P7 test because the plain List selection is separate from the NavigationSplitView sidebar selection, but it is worth keeping in mind when reading the comparison screenshots.

@@ -25,11 +25,10 @@
 
 ### P7：Lists And Split Views
 
-- #476 (Open)：Windows `P7.exe` 啟動時 plain list 沒有任何列被選取，狀態列顯示 `Selection: none`，符合預期。
-- #476 (Open)：WSLg/GTK `P7` 啟動時可重現問題：selection binding 初始為 `nil`，但 `Apple` 列已被選取，狀態列顯示 `Selection: Apple`。
-- #476 (Open)：使用 `GTK_THEME=Adwaita:dark ./testapp/output/P7` 執行 WSLg/GTK 時，初始 `Apple` selection 仍會重現，因此此 selection 問題不只是預設 light theme 造成。
-- #476：點選 `Cherry` 後，Windows 與 WSLg/GTK 的狀態列都更新為 `Selection: Cherry`，plain List 也會標示 `Cherry`。使用者互動後，這部分 selection binding 正常。
-- #476：Test 4 正常。按 `Clear selection` 後，選取列狀態會如預期被清除。
+- #476 (Fixed)：Windows `P7.exe` 啟動時 plain list 沒有任何列被選取，狀態列顯示 `Selection: none`，符合預期。
+- #476 (Fixed)：WSLg/GTK4 `P7` 現在啟動時 selection binding 仍維持 `nil`；plain List 沒有 highlighted row，狀態列顯示 `Selection: none`。
+- #476 (Fixed)：安裝 `libgtk-3-dev` 後也已確認 WSLg/Gtk3；`swift build -c release --target Gtk3Backend` 通過，Gtk3 P7 執行時也不再於啟動時選取 `Apple`。
+- #476 (Fixed)：修正後點選 `Cherry`、`Clear selection`、`Select Cherry` 仍會正確更新或清除選取列。
 - #386 / GTK theme 觀察：WSLg/GTK 使用原生 GTK theme metrics 與顏色，因此背景、文字對比、間距、selected row 樣式會和 WinUI 不同。在 `GTK_THEME=Adwaita:dark` 下，app 背景變深，但截圖中仍可看到部分文字對比偏低，後續驗證 GTK theme 行為時應一併注意。
 - #556 (Open)：Windows 與 WSLg/GTK 截圖中都能看到 `NavigationSplitView` 區域，但兩個 backend 的 pane aspect / split ratio 不一致。這符合 GTK NavigationSplitView 尺寸判斷異常的回報，因此即使 detail pane 沒有塌陷，#556 仍維持 open。
 - #556：點選 plain List 的 `Cherry` 後，NavigationSplitView 的 detail pane 仍顯示 `No sidebar selection`。以目前 P7 測試內容來看，plain List selection 與 NavigationSplitView sidebar selection 是分開的，這應屬預期；但閱讀對照截圖時需要注意這點。

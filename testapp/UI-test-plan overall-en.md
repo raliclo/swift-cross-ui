@@ -269,7 +269,7 @@ Run:
 
 Covered issues:
 
-- #476 (Open): The List control starts with the first item already selected on the GTK backend
+- #476 (Fixed): The List control starts with the first item already selected on the GTK backend
 - #556 (Open): Gtk List NavigationSplitView makes weird size decisions
 
 Test steps:
@@ -285,7 +285,7 @@ Test steps:
 
 Expected results:
 
-- Nothing is selected at launch. A highlighted first row is #476.
+- Nothing is selected at launch. A highlighted first row is a #476 regression. Verified fixed on GTK4 and GTK3 under WSLg.
 - The detail pane is visible and does not collapse to nothing, and the division does not change when unrelated text changes. Either is #556.
 
 ## P8: Scroll Views (Linux)
@@ -567,8 +567,9 @@ input directory. `-autoplay` starts playback immediately and
 `P6.exe -f -autoplay -enable-dropframe` needs no clicks at all.
 `test_P6.sh -win` and `P6-test.sh` both wrap that combination;
 `P6-test.sh [file-pattern]` is the shorter form.
-`compile.zsh` builds debug by default and accepts `BUILD_CONFIG=release` for an
-optimised build.
+`compile.zsh` builds release by default so GUI timing reflects normal usage. Use
+`BUILD_CONFIG=debug` only when unoptimised compiler-level debugging is needed;
+app diagnostics should be controlled by app flags such as `--debug`.
 
 `test_P6.sh` prints its usage when no arguments are provided and otherwise
 forwards renderer flags, `--debug`, `--frame-drop`, and the media path to the

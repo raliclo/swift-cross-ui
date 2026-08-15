@@ -74,13 +74,13 @@ zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P1
 
 ## The matrix
 
-### Open issues -- desktop
+### Open issues and fixed regression coverage -- desktop
 
 | Issue | App | 🪟 | 🌊 | 🐧 | 🍎 | What it is |
 | --- | --- | :-: | :-: | :-: | :-: | --- |
 | #389 | P3 | ✅ | 🎯 | 🎯 | ⬜ | Images aren't clipped -- WinUI half fixed, GTK half open |
 | #390 | P2 | ✅ | 🎯 | 🎯 | ⬜ | Disabled buttons don't look disabled -- same split |
-| #476 | P7 | ⬜ | 🎯 | 🎯 | ⬜ | List starts with the first item selected |
+| #476 (Fixed) | P7 | ⬜ | ✅ | ✅ | ⬜ | List starts with the first item selected -- verified fixed on GTK4 and Gtk3 |
 | #556 | P7 | ⬜ | 〰️ | 🎯 | ⬜ | NavigationSplitView makes weird size decisions |
 | #417 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | ScrollView cornerRadius does not clip children |
 | #426 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | Horizontal ScrollView swallows the parent's scroll wheel |
@@ -135,8 +135,8 @@ Windows GPU video path that the NV12 work came out of.
 ## What to run, by machine
 
 🌊 **WSLg**, on the Windows workstation -- 17 issues, plus #291 and #415 as
-comparisons. None run yet. Results for the 〰️ rows stay provisional until 🐧
-exists:
+comparisons. #476 has been verified fixed on GTK4 and Gtk3. Results for the
+〰️ rows stay provisional until 🐧 exists:
 
 ```sh
 ./testapp/output/P2                            # 390

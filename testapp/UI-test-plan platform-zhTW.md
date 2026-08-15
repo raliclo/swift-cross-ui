@@ -50,13 +50,13 @@ zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P1
 
 ## 矩陣
 
-### Open issues -- desktop
+### Open issues 與 fixed regression coverage -- desktop
 
 | Issue | App | 🪟 | 🌊 | 🐧 | 🍎 | 內容 |
 | --- | --- | :-: | :-: | :-: | :-: | --- |
 | #389 | P3 | ✅ | 🎯 | 🎯 | ⬜ | Images aren't clipped -- WinUI 半邊已修，GTK 半邊仍 open |
 | #390 | P2 | ✅ | 🎯 | 🎯 | ⬜ | Disabled buttons 看起來不像 disabled -- 同樣是 split 狀態 |
-| #476 | P7 | ⬜ | 🎯 | 🎯 | ⬜ | List 啟動時第一項已被選取 |
+| #476 (Fixed) | P7 | ⬜ | ✅ | ✅ | ⬜ | List 啟動時第一項已被選取 -- 已在 GTK4 與 Gtk3 確認修正 |
 | #556 | P7 | ⬜ | 〰️ | 🎯 | ⬜ | NavigationSplitView size decisions 異常 |
 | #417 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | ScrollView cornerRadius 沒有裁切 children |
 | #426 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | Horizontal ScrollView 吞掉 parent 的 scroll wheel |
@@ -108,7 +108,7 @@ P5 和 P6 沒有 upstream issue number：P5 是 multi-window alerts，P6 是 Win
 
 ## 依機器列出的執行項目
 
-🌊 **WSLg**，在 Windows workstation 上 -- 17 個 issues，加上 #291 和 #415 作比較。尚未全部執行。〰️ rows 的結果在 🐧 存在前都維持 provisional：
+🌊 **WSLg**，在 Windows workstation 上 -- 17 個 issues，加上 #291 和 #415 作比較。#476 已在 GTK4 與 Gtk3 確認修正。〰️ rows 的結果在 🐧 存在前都維持 provisional：
 
 ```sh
 ./testapp/output/P2                            # 390

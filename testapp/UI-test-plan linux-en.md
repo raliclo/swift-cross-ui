@@ -114,7 +114,7 @@ than checking it on one.
 | 417 | ScrollView cornerRadius doesn't affect children | P8 | |
 | 426 | Horizontal ScrollView swallows parent's scroll wheel | P8 | nested-scroll case |
 | 454 | Transparent containers consume click events | P10 | also affects AppKitBackend |
-| 476 | List starts with the first item selected | P7 | |
+| 476 | List starts with the first item selected | P7 | Fixed on GTK4 and Gtk3 under WSLg |
 | 478 | Ctrl-Q does not quit | P10 | keyboard handling, WSLg passes keys through |
 | 504 | TextField/SecureField shrinks in height after first update | P9 | |
 

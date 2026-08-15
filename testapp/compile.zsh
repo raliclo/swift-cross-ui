@@ -48,9 +48,10 @@ package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"
 
 swift_bin="${SWIFT_BIN:-swift}"
-# Per-pixel work such as P6's RGBA conversion is dramatically slower without
-# optimisation, so allow release builds: BUILD_CONFIG=release sh compile.zsh P6
-build_config="${BUILD_CONFIG:-debug}"
+# Test apps default to release so GUI startup and interaction latency reflect
+# normal usage. App-specific diagnostics should be controlled with flags such
+# as --debug instead of relying on unoptimized debug builds.
+build_config="${BUILD_CONFIG:-release}"
 needs_image_formats=0
 target_platform="host"
 

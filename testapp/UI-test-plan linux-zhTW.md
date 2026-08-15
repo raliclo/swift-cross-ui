@@ -76,7 +76,7 @@ swift build --target GtkBackend      # not --product
 | 417 | ScrollView cornerRadius doesn't affect children | P8 | |
 | 426 | Horizontal ScrollView swallows parent's scroll wheel | P8 | nested-scroll case |
 | 454 | Transparent containers consume click events | P10 | 也影響 AppKitBackend |
-| 476 | List starts with the first item selected | P7 | |
+| 476 | List starts with the first item selected | P7 | 已在 WSLg 下以 GTK4 與 Gtk3 確認修正 |
 | 478 | Ctrl-Q does not quit | P10 | keyboard handling，WSLg 會傳遞 keys |
 | 504 | TextField/SecureField shrinks in height after first update | P9 | |
 

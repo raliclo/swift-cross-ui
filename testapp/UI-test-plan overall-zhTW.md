@@ -269,7 +269,7 @@
 
 涵蓋 issues：
 
-- #476 (Open)：GTK backend 上 List 一啟動就已選取第一項
+- #476 (Fixed)：GTK backend 上 List 一啟動就已選取第一項
 - #556 (Open)：Gtk List 的 NavigationSplitView 尺寸判斷異常
 
 測試步驟：
@@ -285,7 +285,7 @@
 
 預期結果：
 
-- 啟動時沒有任何選取項目；若第一列已被標示，即為 #476。
+- 啟動時沒有任何選取項目；若第一列已被標示，即為 #476 regression。已在 WSLg 下以 GTK4 與 GTK3 確認修正。
 - detail 區可見且不會塌成零寬，且不因無關文字變動而改變分割；任一項不符即為 #556。
 
 ## P8：Scroll Views（Linux）
@@ -524,7 +524,9 @@ Late-frame dropping 預設為關閉。加上 `--frame-drop` 可在啟動時就�
 `P6.exe -f -autoplay -enable-dropframe` 完全不需要點擊任何按鈕。
 `test_P6.sh -win` 與 `P6-test.sh` 都封裝了這組參數，其中
 `P6-test.sh [檔名關鍵字]` 是較精簡的寫法。
-`compile.zsh` 預設以 debug 編譯，可用 `BUILD_CONFIG=release` 進行最佳化編譯。
+`compile.zsh` 預設以 release 編譯，讓 GUI timing 更接近一般使用情境。只有需要
+未最佳化的 compiler-level debugging 時才使用 `BUILD_CONFIG=debug`；app 診斷應由
+`--debug` 等 app flag 控制。
 
 `test_P6.sh` 在未帶任何參數時會印出使用說明，否則會把 renderer flags、
 `--debug`、`--frame-drop` 與媒體路徑轉送給編譯好的 P6 binary。它專屬的
