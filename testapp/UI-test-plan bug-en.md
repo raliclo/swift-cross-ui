@@ -5,7 +5,7 @@ selection comes from `issues.csv`: 33 rows are tagged `bug` and are not yet
 fixed, and these are the ten whose backend is reachable there. Gtk, Gtk3 and
 WinUI bugs belong to the Windows workstation instead.
 
-`platform-test-plan.md` is the cross-platform view of the same data, and is the
+`UI-test-plan platform-en.md` is the cross-platform view of the same data, and is the
 place to look for which app covers which issue on which platform.
 
 The count is checkable rather than remembered:

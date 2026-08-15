@@ -5,7 +5,7 @@ we can, and submit the fixes upstream. Same working style as the WinUI work:
 reproduce first, measure rather than infer, and keep the evidence.
 
 For which app covers which issue, and whether a WSLg run settles it or only
-shows the symptom, see `platform-test-plan.md`. The Tier 1 and Tier 2 split
+shows the symptom, see `UI-test-plan platform-en.md`. The Tier 1 and Tier 2 split
 below is where that distinction comes from -- but note that Tier 2 is not a
 synonym for "WSLg distorts it": read the caveat column, since only #556 is
 about window sizing itself.
@@ -88,7 +88,7 @@ issues**, written when the WinUI versions were fixed:
 
 So the first real test run costs nothing to write. Run P0-P3 and P5, and record
 which of the WinUI-fixed behaviours are still broken on GTK. Extend
-`UI-test-plan.md` / `UI-test-plan_en.md` with a Linux column or section rather
+`UI-test-plan overall-zhTW.md` / `UI-test-plan overall-en.md` with a Linux column or section rather
 than starting a separate document.
 
 Since this plan was written, P7-P10 have been added for the Tier 1 and Tier 2

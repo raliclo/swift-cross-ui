@@ -63,8 +63,9 @@ struct P7RootView: View {
                     .frame(width: 200, height: 180)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("NavigationSplitView with a List (#556)")
+                        .frame(width: 420, height: 24, alignment: .leading)
                     NavigationSplitView {
                         List(fruits, selection: $sidebarSelection) { fruit in
                             Text(fruit.name)
@@ -78,6 +79,7 @@ struct P7RootView: View {
                     }
                     .frame(width: 420, height: 180)
                 }
+                .padding(.leading, 32)
             }
 
             HStack(spacing: 8) {

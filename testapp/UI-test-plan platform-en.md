@@ -1,8 +1,8 @@
 # Platform test matrix
 
 Which repro app tests which issue, and what running it on each platform tells
-you. The per-app steps live in `UI-test-plan_en.md`; the strategy behind the
-Linux work lives in `linux-test-plan.md`. This file answers one question only:
+you. The per-app steps live in `UI-test-plan overall-en.md`; the strategy behind the
+Linux work lives in `UI-test-plan linux-en.md`. This file answers one question only:
 *where do I run this, and does the answer count?*
 
 Derived from `issues.csv`, which is the source of truth. To regenerate the
@@ -30,7 +30,7 @@ Wayland compositor) · 🐧 Linux (GtkBackend on a real desktop session) ·
 
 WSLg and Linux are separate columns because they disagree. WSLg is a Wayland
 compositor rather than a desktop session, so window sizing, minimum sizes and
-decorations behave differently -- the split that `linux-test-plan.md` already
+decorations behave differently -- the split that `UI-test-plan linux-en.md` already
 records as Tier 1 versus Tier 2. The two rows that are 〰️ under 🌊 but 🎯
 under 🐧 are the whole reason for keeping them apart: WSLg can show you the
 symptom, but only a desktop session settles it. 〰️ never appears under 🐧 --
