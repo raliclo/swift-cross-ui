@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P8 Linux (GtkBackend) repro app: scroll views.
@@ -15,6 +16,70 @@ import SwiftCrossUI
 // it.
 //
 // Build this file as a standalone app target.
+//
+// Run with `--debug` to write geometry and render readiness to
+// `p8-debug-events.log`. The dry-run script waits for that marker instead of
+// guessing with a fixed sleep.
+
+enum P8Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+
+    nonisolated(unsafe) private static var lastReported: [String: String] = [:]
+    nonisolated(unsafe) private static var measuredRoles: Set<P8Probe.Role> = []
+    nonisolated(unsafe) private static var hasAnnouncedRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P8] \(message)")
+
+        guard let data = "P8 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let logURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p8-debug-events.log")
+        if FileManager.default.fileExists(atPath: logURL.path),
+            let handle = try? FileHandle(forWritingTo: logURL)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: logURL)
+        }
+    }
+
+    static func record(role: P8Probe.Role, size: ViewSize) {
+        guard isEnabled else { return }
+
+        let line = String(format: "%.0fx%.0f", size.width, size.height)
+        guard lastReported[role.rawValue] != line else { return }
+        lastReported[role.rawValue] = line
+        measuredRoles.insert(role)
+        write("\(role.rawValue): \(line)")
+
+        if measuredRoles.isSuperset(of: Set(P8Probe.Role.allCases)),
+            !hasAnnouncedRender
+        {
+            hasAnnouncedRender = true
+            write("RENDER COMPLETE -- all P8 probes measured, safe to capture")
+        }
+    }
+}
+
+struct P8Probe: View {
+    enum Role: String, CaseIterable {
+        case cornerScroll
+        case redChild
+        case outerScroll
+        case innerStrip
+    }
+
+    init(role: Role, size: ViewSize) {
+        P8Diagnostics.record(role: role, size: size)
+    }
+
+    var body: some View {
+        EmptyView()
+    }
+}
 
 @main
 @HotReloadable
@@ -46,9 +111,19 @@ struct P8RootView: View {
                 ScrollView {
                     Color.red
                         .frame(width: 260, height: 300)
+                        .overlay(alignment: .topLeading) {
+                            GeometryReader { proxy in
+                                P8Probe(role: .redChild, size: proxy.size)
+                            }
+                        }
                 }
                 .frame(width: 260, height: 120)
                 .cornerRadius(20)
+                .overlay(alignment: .topLeading) {
+                    GeometryReader { proxy in
+                        P8Probe(role: .cornerScroll, size: proxy.size)
+                    }
+                }
             }
 
             // #426: the outer vertical ScrollView contains a horizontal one.
@@ -69,6 +144,11 @@ struct P8RootView: View {
                                     }
                                 }
                                 .frame(height: 48)
+                                .overlay(alignment: .topLeading) {
+                                    GeometryReader { proxy in
+                                        P8Probe(role: .innerStrip, size: proxy.size)
+                                    }
+                                }
                             } else {
                                 Text("Outer row \(row)")
                                     .padding(6)
@@ -77,6 +157,11 @@ struct P8RootView: View {
                     }
                 }
                 .frame(width: 420, height: 220)
+                .overlay(alignment: .topLeading) {
+                    GeometryReader { proxy in
+                        P8Probe(role: .outerScroll, size: proxy.size)
+                    }
+                }
             }
         }
         .padding(12)
