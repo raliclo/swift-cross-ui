@@ -131,6 +131,47 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
         let trailingResult = children.trailingChild.commit()
 
         backend.setSize(of: widget, to: layout.size.vector)
+
+        // Temporary: set SCUI_DEBUG_SPLIT to see the bounds this hands the
+        // backend, and where the divider ended up. A backend can only report
+        // the width it settled on, and the app can only measure content, so
+        // these are the numbers that decide the layout and they are otherwise
+        // invisible. Reading a content width as a pane width produced two
+        // confident, wrong diagnoses of #556.
+        // 臨時診斷：設定 SCUI_DEBUG_SPLIT 可看到傳給 backend 的上下界與分隔線最後
+        // 的位置。backend 只能回報它採用的寬度，app 只能量到內容尺寸，因此這些真正
+        // 決定版面的數字在別處都看不到。把內容寬度誤讀為 pane 寬度，曾對 #556 造成
+        // 兩次自信但錯誤的判斷。
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_SPLIT"] != nil {
+            let maximum = LayoutSystem.roundSize(
+                max(
+                    children.minimumLeadingWidth,
+                    layout.size.width - children.minimumTrailingWidth
+                )
+            )
+            let line =
+                "[SplitView] total=\(layout.size.width)"
+                + " minLeading=\(children.minimumLeadingWidth)"
+                + " minTrailing=\(children.minimumTrailingWidth)"
+                + " -> bounds min=\(LayoutSystem.roundSize(children.minimumLeadingWidth))"
+                + " max=\(maximum)"
+                + " currentSidebar=\(leadingWidth)"
+            print(line)
+            // Also to a file: a WinUI app has no console, so stdout is lost
+            // there and this comparison needs both backends.
+            if let data = "\(line)\n".data(using: .utf8) {
+                let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                    .appendingPathComponent("splitview-debug.log")
+                if let handle = try? FileHandle(forWritingTo: url) {
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: data)
+                    try? handle.close()
+                } else {
+                    try? data.write(to: url)
+                }
+            }
+        }
+
         backend.setSidebarWidthBounds(
             ofSplitView: widget,
             minimum: LayoutSystem.roundSize(children.minimumLeadingWidth),
@@ -142,21 +183,38 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
             )
         )
 
-        // Center pane children
+        // Center pane children, but never at a negative offset.
+        //
+        // Centring assumes the child fits. When it does not, half the overflow
+        // becomes a negative origin and the content is clipped at its leading
+        // edge as well as its trailing one: a sidebar list rendered
+        // "Elderberry" as "berry", losing the same number of pixels from the
+        // start of every row.
+        //
+        // Widening the pane does not remove the need for this. With the sidebar
+        // opened at 200 instead of 87, the list still measures wider than its
+        // pane on some layout passes, so the negative origin still happens --
+        // just less often. Clipping is unavoidable once the child is too big;
+        // which end gets clipped is not, and the start of the content is the
+        // part worth keeping.
+        // 置中的前提是子元件放得下。放不下時，溢出的一半會變成負的原點，內容的
+        // 開頭與結尾都被裁掉——sidebar 清單會把 "Elderberry" 畫成 "berry"，每一列
+        // 都從開頭少掉同樣的像素寬。加寬 pane 並不能取代這個修正：sidebar 開在 200
+        // 而非 87 之後，清單在某些 layout pass 仍然寬於它的 pane。
         backend.setPosition(
             ofChildAt: 0,
             in: children.leadingPaneContainer.into(),
             to: SIMD2(
-                leadingWidth - leadingResult.size.vector.x,
-                layout.size.vector.y - leadingResult.size.vector.y
+                max(0, leadingWidth - leadingResult.size.vector.x),
+                max(0, layout.size.vector.y - leadingResult.size.vector.y)
             ) / 2
         )
         backend.setPosition(
             ofChildAt: 0,
             in: children.trailingPaneContainer.into(),
             to: SIMD2(
-                layout.size.vector.x - leadingWidth - trailingResult.size.vector.x,
-                layout.size.vector.y - trailingResult.size.vector.y
+                max(0, layout.size.vector.x - leadingWidth - trailingResult.size.vector.x),
+                max(0, layout.size.vector.y - trailingResult.size.vector.y)
             ) / 2
         )
     }

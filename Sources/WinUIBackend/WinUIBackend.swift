@@ -1435,13 +1435,37 @@ public final class WinUIBackend:
         return Int(splitView.openPaneLength.rounded(.towardZero))
     }
 
+    /// The sidebar width to open at when the content does not ask for more.
+    ///
+    /// Matches `defaultLeadingWidth` in AppKitBackend and `defaultSidebarWidth`
+    /// in GtkBackend, so the three agree on what a navigation sidebar looks
+    /// like before anyone resizes it.
+    static let defaultSidebarWidth = 200
+
     public func setSidebarWidthBounds(
         ofSplitView splitView: Widget,
         minimum minimumWidth: Int,
         maximum maximumWidth: Int
     ) {
         let splitView = splitView as! CustomSplitView
-        let newWidth = Double(max(minimumWidth, 10))
+
+        // maximumWidth used to be ignored entirely: the signature took it and
+        // the body never read it, so the sidebar could exceed what the layout
+        // system allowed without anything noticing.
+        let maximumWidth = max(minimumWidth, maximumWidth)
+
+        // The minimum is the width the content cannot go below; it is not a
+        // width worth opening at. Pinning the sidebar to it made a list of
+        // short labels 87px wide, which clipped every row -- "Elderberry"
+        // rendered as "berry". What to open at is what the content would like,
+        // floored by the platform's navigation width.
+        // `pane` is typed as UIElement, but createSplitView only ever puts a
+        // Widget in it; the fallback keeps a surprise from silently sizing the
+        // sidebar to zero.
+        let naturalWidth = (splitView.pane as? Widget).map { Self.naturalSize(of: $0).x } ?? 0
+        let defaultWidth = max(naturalWidth, Self.defaultSidebarWidth)
+
+        let newWidth = Double(min(max(defaultWidth, minimumWidth), maximumWidth))
         if newWidth != splitView.openPaneLength {
             splitView.openPaneLength = newWidth
             splitView.sidebarResizeHandler?()

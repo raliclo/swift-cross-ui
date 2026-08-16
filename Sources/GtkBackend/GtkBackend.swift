@@ -634,8 +634,14 @@ public final class GtkBackend:
         widget.setSizeRequest(width: size.x, height: size.y)
     }
 
+    /// The sidebar width to open at when the content does not ask for more.
+    ///
+    /// Matches `defaultLeadingWidth` in AppKitBackend, so the two agree on what
+    /// a navigation sidebar looks like before anyone drags it.
+    static let defaultSidebarWidth = 200
+
     public func createSplitView(leadingChild: Widget, trailingChild: Widget) -> Widget {
-        let widget = Paned(orientation: .horizontal)
+        let widget = CustomPaned(orientation: .horizontal)
         let leadingContainer = wrapInCustomRootContainer(leadingChild)
         let trailingContainer = wrapInCustomRootContainer(trailingChild)
 
@@ -644,7 +650,11 @@ public final class GtkBackend:
         widget.shrinkStartChild = false
         widget.shrinkEndChild = false
 
-        widget.position = 200
+        // A starting guess only. The layout system reads sidebarWidth(ofSplitView:)
+        // during layout, which runs before the first commit, so the divider needs
+        // some value; setSidebarWidthBounds replaces it as soon as the sidebar's
+        // real minimum and natural widths are known.
+        widget.position = Self.defaultSidebarWidth
         return widget
     }
 
@@ -659,7 +669,7 @@ public final class GtkBackend:
     }
 
     public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
-        let splitView = splitView as! Paned
+        let splitView = splitView as! CustomPaned
         return splitView.position
     }
 
@@ -668,11 +678,43 @@ public final class GtkBackend:
         minimum minimumWidth: Int,
         maximum maximumWidth: Int
     ) {
-        let splitView = splitView as! Paned
+        let splitView = splitView as! CustomPaned
         show(widget: splitView.startChild!)
-        let width = splitView.getNaturalSize().width
+
+        // Measured before the size requests below, which would otherwise floor
+        // the natural width at whatever we just asked for and make it useless
+        // as a measure of what the content wants.
+        let naturalSidebarWidth = splitView.startChild?.getNaturalSize().width ?? 0
+
+        // The caller derives the maximum from the total width minus the
+        // trailing pane's minimum, which can fall below the leading pane's
+        // minimum when the split view is cramped.
+        let maximumWidth = max(minimumWidth, maximumWidth)
+
+        // SplitView.commit calls setSize(of:to:) immediately before this, and
+        // that writes layout.size into the widget's size request, so reading it
+        // back gives the width the two panes have to divide up. getNaturalSize()
+        // answers a different question -- what the content would like -- so
+        // using it here made the trailing pane's minimum wrong, and negative
+        // whenever the natural width came out under the maximum.
+        let requestedWidth = splitView.getSizeRequest().width
+        let totalWidth = requestedWidth > 0 ? requestedWidth : splitView.getNaturalSize().width
+
         splitView.startChild?.setSizeRequest(width: minimumWidth, height: 0)
-        splitView.endChild?.setSizeRequest(width: width - maximumWidth, height: 0)
+        splitView.endChild?.setSizeRequest(width: max(0, totalWidth - maximumWidth), height: 0)
+
+        if splitView.hasEstablishedPosition {
+            // Respect a divider the user has dragged, but keep it in range.
+            splitView.position = min(max(splitView.position, minimumWidth), maximumWidth)
+        } else {
+            // First layout with real numbers. The minimum is what the content
+            // cannot go below; the width to *open* at is what it would like,
+            // floored by the platform's navigation width so a sidebar of short
+            // labels still looks like a sidebar rather than a sliver.
+            let defaultWidth = max(naturalSidebarWidth, Self.defaultSidebarWidth)
+            splitView.position = min(max(defaultWidth, minimumWidth), maximumWidth)
+            splitView.hasEstablishedPosition = true
+        }
     }
 
     public func createScrollContainer(for child: Widget) -> Widget {
@@ -2105,6 +2147,18 @@ private final class SelectableListState {
 /// A custom label subclass that supports ellipsizing multi-line text. Regular
 /// `Label`s only display a single line of text when ellipsizing is enabled
 /// because they don't pass their size request to their underlying Pango layout.
+/// A `Paned` that remembers whether its divider has been placed using real
+/// layout numbers yet.
+///
+/// The layout system treats the sidebar width as backend-owned state: it reads
+/// `sidebarWidth(ofSplitView:)` and lays the panes out around whatever comes
+/// back, only ever passing bounds the other way. Without this flag there is no
+/// telling the initial guess apart from a width the user chose, so the divider
+/// would either ignore its content forever or fight every drag.
+class CustomPaned: Paned {
+    var hasEstablishedPosition = false
+}
+
 class CustomLabel: Label {
     override func setSizeRequest(width: Int, height: Int) {
         super.setSizeRequest(width: width, height: height)
