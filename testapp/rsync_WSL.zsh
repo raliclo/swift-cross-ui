@@ -93,7 +93,7 @@ rsync -a \
     --exclude='*' \
     '$source_root/' \
     '$wsl_project_root/'
-chmod +x '$wsl_project_root/testapp/'*.zsh
+find '$wsl_project_root/testapp' -type f -name '*.zsh' -exec chmod +x {} +
 "
 
-printf 'Synced all *.swift and testapp/*.zsh to %s\n' "$wsl_project_root"
+printf 'Synced all *.swift and testapp/**/*.zsh to %s\n' "$wsl_project_root"

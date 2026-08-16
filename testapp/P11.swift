@@ -18,6 +18,35 @@ import SwiftCrossUI
 //
 // Build this file as a standalone app target.
 
+enum P11Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P11] \(message)")
+
+        guard let data = "P11 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p11-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P11 ready for #82, #485, and #473 checks")
+    }
+}
+
 @main
 @HotReloadable
 struct P11AppKitSizingApp: App {
@@ -147,5 +176,8 @@ struct P11RootView: View {
             }
         }
         .padding(18)
+        .onAppear {
+            P11Diagnostics.renderComplete()
+        }
     }
 }

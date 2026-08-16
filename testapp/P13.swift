@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P13 layout and view-graph repro app: ForEach identity, scroll view text
@@ -20,6 +21,35 @@ import SwiftCrossUI
 // path: everything else stays testable in the same run.
 //
 // Build this file as a standalone app target.
+
+enum P13Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P13] \(message)")
+
+        guard let data = "P13 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p13-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P13 ready for #415, #595, #291, and #158 checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -206,5 +236,8 @@ struct P13RootView: View {
             }
         }
         .padding(18)
+        .onAppear {
+            P13Diagnostics.renderComplete()
+        }
     }
 }

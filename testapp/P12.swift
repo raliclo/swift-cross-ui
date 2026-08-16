@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P12 Android (AndroidBackend) repro app: button margins, state across
@@ -20,6 +21,35 @@ import SwiftCrossUI
 // platform, so the layout can be sanity-checked before deploying.
 //
 // Build this file as a standalone app target.
+
+enum P12Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P12] \(message)")
+
+        guard let data = "P12 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p12-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P12 ready for #632, #580, and #544 checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -152,5 +182,8 @@ struct P12RootView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            P12Diagnostics.renderComplete()
+        }
     }
 }

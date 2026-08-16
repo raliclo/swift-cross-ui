@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P16 Windows (WinUIBackend) repro app: NavigationSplitView initial layout.
@@ -27,6 +28,44 @@ import SwiftCrossUI
 // layout settles.
 //
 // Build this file as a standalone app target.
+
+enum P16Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+    nonisolated(unsafe) private static var lastReported: [String: String] = [:]
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P16] \(message)")
+
+        guard let data = "P16 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p16-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func recordPane(label: String, size: ViewSize) {
+        guard isEnabled else { return }
+        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        guard lastReported[label] != line else { return }
+        lastReported[label] = line
+        write(line)
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P16 ready for #160 initial-layout checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -87,6 +126,9 @@ struct P16RootView: View {
             }
         }
         .padding(10)
+        .onAppear {
+            P16Diagnostics.renderComplete()
+        }
     }
 
     var doubleColumn: some View {
@@ -147,6 +189,7 @@ struct P16PaneSize: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let _ = P16Diagnostics.recordPane(label: label, size: proxy.size)
             Text("\(label): \(Int(proxy.size.width)) x \(Int(proxy.size.height))")
         }
         .frame(height: 22)

@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P14 iOS (UIKitBackend) repro app: size proposals across rotation, and the
@@ -20,6 +21,35 @@ import SwiftCrossUI
 //   zsh testapp/compile.zsh -ios P14
 //   xcrun simctl install swift-cross-ui testapp/output/P14.app
 //   xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+
+enum P14Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P14] \(message)")
+
+        guard let data = "P14 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p14-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P14 ready for #324 and #254 checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -129,5 +159,8 @@ struct P14RootView: View {
             )
         }
         .padding(16)
+        .onAppear {
+            P14Diagnostics.renderComplete()
+        }
     }
 }

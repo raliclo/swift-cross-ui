@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P15 Linux (GtkBackend) repro app: colour scheme and window minimum height.
@@ -32,6 +33,35 @@ import SwiftCrossUI
 // with GNOME, so a negative result bounds the bug rather than closing it.
 //
 // Build this file as a standalone app target.
+
+enum P15Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P15] \(message)")
+
+        guard let data = "P15 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p15-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P15 ready for #386 and #289 checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -135,6 +165,9 @@ struct P15RootView: View {
         }
         .padding(14)
         .preferredColorScheme(scheme)
+        .onAppear {
+            P15Diagnostics.renderComplete()
+        }
     }
 
     var requestedName: String {

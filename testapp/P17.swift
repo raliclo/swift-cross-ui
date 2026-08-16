@@ -1,4 +1,5 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 // P17 cross-backend layout comparison: ideal sizing, picker sizing, and two
@@ -31,6 +32,44 @@ import SwiftCrossUI
 // backends disagreeing, so a single-backend result cannot answer it.
 //
 // Build this file as a standalone app target.
+
+enum P17Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+    nonisolated(unsafe) private static var lastReported: [String: String] = [:]
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P17] \(message)")
+
+        guard let data = "P17 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p17-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func record(label: String, size: ViewSize) {
+        guard isEnabled else { return }
+        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        guard lastReported[label] != line else { return }
+        lastReported[label] = line
+        write(line)
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P17 ready for #264, #161, and #266 checks")
+    }
+}
 
 @main
 @HotReloadable
@@ -187,6 +226,9 @@ struct P17RootView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            P17Diagnostics.renderComplete()
+        }
     }
 }
 
@@ -214,6 +256,7 @@ struct P17Measured<Content: View>: View {
             .background(Color.blue)
             .overlay(alignment: .topLeading) {
                 GeometryReader { proxy in
+                    let _ = P17Diagnostics.record(label: label, size: proxy.size)
                     Text("\(label): \(Int(proxy.size.width)) x \(Int(proxy.size.height))")
                 }
             }
