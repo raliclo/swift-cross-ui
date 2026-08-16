@@ -1,4 +1,22 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
+# Interactive P6 launcher: pick the renderer, the window mode and the media
+# file by hand. Use this while investigating something; use P6-test.zsh when a
+# run needs to happen without anyone watching.
+#
+#   zsh testapp/test_P6.zsh -win          # Windows quick run, no media argument
+#   zsh testapp/test_P6.zsh -metal clip.mp4
+#
+# 互動式的 P6 啟動器：由使用者指定 renderer、視窗模式與媒體檔案。調查問題時用這支；
+# 需要無人值守執行時用 P6-test.zsh。
+#
+# The flag combinations matter more than they look. -metal and -core select
+# different presentation paths on macOS and answer different questions, and
+# -win deliberately leaves -topmost out: a window forced above everything else
+# cannot be screenshotted alongside anything else, which is what these runs are
+# usually for.
+# 旗標組合的差異比表面上大。-metal 與 -core 在 macOS 上走不同的呈現路徑、回答不同
+# 的問題；而 -win 刻意不帶 -topmost——被強制置頂的視窗無法與其他視窗並排截圖，而那
+# 正是這些執行通常的目的。
 
 set -eu
 
@@ -15,6 +33,11 @@ fi
 
 # Show the complete command shape before requiring a media path.
 # 在要求媒體路徑前，先顯示完整的命令格式。
+# Answer --help before anything else. Without this branch the flag fell through
+# to the launcher and started P6 instead, which on Windows means a video window
+# and a five-minute wait for whoever expected a page of text.
+# 先處理 --help。少了這個分支時，該旗標會落到啟動流程並直接執行 P6——在 Windows 上
+# 就是開出一個影片視窗，讓原本只想看說明的人等上五分鐘。
 usage() {
     printf '%s\n' \
         "Usage: $command_name [-rss] [-win] [-metal|-core] [--debug] [--frame-drop] [<media-file>]" \
@@ -55,6 +78,7 @@ typeset -a p6_arguments
 p6_arguments=()
 for argument in "$@"; do
     case "$argument" in
+        -h|--help) usage; exit 0 ;;
         -rss) rss_enabled=1 ;;
         -win) win_enabled=1 ;;
         *) p6_arguments+=("$argument") ;;

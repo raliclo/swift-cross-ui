@@ -1,11 +1,11 @@
 # P6 Windows performance findings
 
-`gpu-modes.csv` is written by `testapp/gpu-matrix.sh`, one row per GPU mode
+`gpu-modes.csv` is written by `testapp/gpu-matrix.zsh`, one row per GPU mode
 per run:
 
 ```
-zsh testapp/gpu-matrix.sh <resolution> <target fps> <seconds>
-zsh testapp/gpu-matrix.sh 4k 60 20
+zsh testapp/gpu-matrix.zsh <resolution> <target fps> <seconds>
+zsh testapp/gpu-matrix.zsh 4k 60 20
 ```
 
 Columns are `date_tested, mode, resolution, target_fps, measured_fps,

@@ -183,7 +183,7 @@ xcrun simctl install swift-cross-ui testapp/output/P14.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 ```
 
-`compile.zsh -ios` 會透過 `install_tools_ios.sh` 自行 provision simulator，所以缺少 device 時會建立，而不是直接報錯。
+`compile.zsh -ios` 會透過 `install_tools_ios.zsh` 自行 provision simulator，所以缺少 device 時會建立，而不是直接報錯。
 
 涵蓋 issues：
 

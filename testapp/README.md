@@ -44,14 +44,14 @@ tracked.
 | Script | For |
 | --- | --- |
 | `install_tool_wsl.sh` | WSL: GTK 4, the Swift tarball, and the libxml2/ICU shims Ubuntu 26.04 needs |
-| `install_tools_ios.sh` | macOS: the iOS Simulator toolchain, called automatically by `compile.zsh -ios` |
+| `install_tools_ios.zsh` | macOS: the iOS Simulator toolchain, called automatically by `compile.zsh -ios` |
 
 ## Other scripts
 
 | Script | For |
 | --- | --- |
-| `screenshot.sh` | Captures the composited desktop, which is the only way to see D3D/DirectComposition content |
-| `gpu-matrix.sh`, `P6-test.sh`, `test_P6.sh` | P6's throughput matrix and its unattended runs |
+| `screenshot.zsh` | Captures the composited desktop, which is the only way to see D3D/DirectComposition content |
+| `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6's throughput matrix and its unattended runs |
 | `rebase.zsh` | Rebases, then checks that the hashes in `issue_commits.csv` still exist on the branch |
 
 `rebase.zsh` exists because a rebase silently orphans recorded hashes: they

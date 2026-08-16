@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 # Prepares a macOS environment for building and running swift-cross-ui test apps
 # on the iOS Simulator.
 #
-#   bash testapp/install_tools_ios.sh              # check, install what is missing
-#   bash testapp/install_tools_ios.sh --check       # report only, change nothing
-#   bash testapp/install_tools_ios.sh --print-env   # print the values compile.zsh uses
+#   bash testapp/install_tools_ios.zsh              # check, install what is missing
+#   bash testapp/install_tools_ios.zsh --check       # report only, change nothing
+#   bash testapp/install_tools_ios.zsh --print-env   # print the values compile.zsh uses
 #
 # compile.zsh calls this automatically when given -ios, so running it by hand is
 # only needed to see what is missing or to install ahead of time.
@@ -29,17 +29,53 @@ set -euo pipefail
 DEVICE_NAME="${IOS_SIM_DEVICE:-swift-cross-ui}"
 DEVICE_TYPE="${IOS_SIM_DEVICE_TYPE:-iPhone 16}"
 
-log()  { printf '\033[36m==>\033[0m %s\n' "$1"; }
-warn() { printf '\033[33m[warn]\033[0m %s\n' "$1" >&2; }
-die()  { printf '\033[31m[error]\033[0m %s\n' "$1" >&2; exit 1; }
+# Captured at top level. zsh sets FUNCTION_ARGZERO by default, so inside a
+# function $0 is the function's own name, not this file -- reading the header
+# through $0 from a helper would try to open a file named after the function.
+# 在頂層取得。zsh 預設啟用 FUNCTION_ARGZERO，函式內的 $0 是函式名稱而非本檔；
+# 若從輔助函式以 $0 讀取檔頭，會去開一個以函式為名的檔案。
+script_path="${0:a}"
+
+# Named `note`, not `log`. `log` is a zsh builtin belonging to the zsh/watch
+# module, so defining a function over it makes zsh try to load that module --
+# and a relocatable zsh sets module_path from .zshenv, which any startup-file-
+# skipping mode (`zsh -f`, `zsh -n`, a sandboxed run) never reads. It then
+# falls back to the compile-time default path and reports
+# "failed to load module `zsh/watch'". The module is present; the path is not.
+#
+# Installing anything does not fix it. Not colliding with the name does, and
+# without depending on how the environment happens to be set up. The same rule
+# applies to zsh's special parameters -- `path`, `status`, `options`, `watch`:
+# pick `watch_list` over `watch`.
+# 取名 note 而非 log。`log` 是 zsh/watch 模組的內建指令，覆寫它會使 zsh 嘗試載入
+# 該模組；而可重定位的 zsh 由 .zshenv 設定 module_path，任何跳過啟動檔的模式
+# （`zsh -f`、`zsh -n`、沙箱執行）都讀不到，於是退回編譯期預設路徑並報錯。模組是
+# 存在的，缺的是路徑——所以裝模組解決不了，改名才能一勞永逸，且不依賴環境條件。
+#
+# Colour comes from `print -P`, zsh's own prompt expansion, rather than hand
+# written ANSI escapes. The message itself goes through `print -r --` so a `%`
+# in a device name or path is printed literally instead of being read as a
+# prompt sequence.
+# 顏色使用 zsh 自身的 prompt 展開 `print -P`，而非手寫 ANSI escape；訊息本體改走
+# `print -r --`，讓裝置名稱或路徑中的 `%` 原樣輸出，不被當成 prompt 序列解讀。
+note() { print -Pn '%F{cyan}==>%f ';    print -r -- "$1"; }
+warn() { print -Pn '%F{yellow}[warn]%f ' >&2;  print -r -- "$1" >&2; }
+die()  { print -Pn '%F{red}[error]%f ' >&2;    print -r -- "$1" >&2; exit 1; }
 
 check_only=0
 print_env=0
 case "${1:-}" in
+    -h|--help)
+        # Printed from the header block, so the synopsis has one home and
+        # cannot drift out of step with what the script accepts.
+        # 由檔頭區塊印出，讓用法只有一個來源，不會與腳本實際接受的參數脫節。
+        sed -n '2,12p' "$script_path" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
     --check) check_only=1 ;;
     --print-env) print_env=1 ;;
     "") ;;
-    *) die "usage: $(basename "$0") [--check|--print-env]" ;;
+    *) die "usage: $(basename "$0") [--check|--print-env|--help]" ;;
 esac
 
 # ==============================================================================
@@ -56,7 +92,7 @@ require_xcode() {
             "  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer")"
     fi
 
-    log "Xcode: $(xcodebuild -version 2>/dev/null | head -1) at $dir"
+    note "Xcode: $(xcodebuild -version 2>/dev/null | head -1) at $dir"
 }
 
 # ==============================================================================
@@ -66,7 +102,7 @@ require_sdk() {
     local sdk
     sdk="$(xcrun --sdk iphonesimulator --show-sdk-path 2>/dev/null || true)"
     [ -n "$sdk" ] || die "No iphonesimulator SDK. Install the iOS platform in Xcode."
-    log "SDK: $(basename "$sdk")"
+    note "SDK: $(basename "$sdk")"
 }
 
 # ==============================================================================
@@ -87,7 +123,7 @@ require_runtime() {
             "(several GB; check 'xcrun simctl runtime list' afterwards)")"
     fi
 
-    log "Runtime: $(printf '%s' "$runtimes" | tail -1 | sed 's/ *(Ready)//')"
+    note "Runtime: $(printf '%s' "$runtimes" | tail -1 | sed 's/ *(Ready)//')"
 }
 
 # ==============================================================================
@@ -101,7 +137,7 @@ ensure_device() {
     existing="$(xcrun simctl list devices 2>/dev/null | grep -F "$DEVICE_NAME (" | head -1 || true)"
 
     if [ -n "$existing" ]; then
-        log "Device: $DEVICE_NAME already exists"
+        note "Device: $DEVICE_NAME already exists"
         return
     fi
 
@@ -117,7 +153,7 @@ ensure_device() {
         | tail -1)"
     [ -n "$runtime" ] || die "Could not determine a runtime identifier"
 
-    log "Creating device '$DEVICE_NAME' ($DEVICE_TYPE on ${runtime##*.})"
+    note "Creating device '$DEVICE_NAME' ($DEVICE_TYPE on ${runtime##*.})"
     xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$runtime" >/dev/null \
         || die "Failed to create the device. Try a different IOS_SIM_DEVICE_TYPE; see 'xcrun simctl list devicetypes'."
 }
@@ -150,7 +186,7 @@ if [ -z "$udid" ]; then
     exit 1
 fi
 
-log "Ready. Device UDID: $udid"
+note "Ready. Device UDID: $udid"
 
 cat <<EOF
 

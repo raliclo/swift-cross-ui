@@ -1,4 +1,20 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
+# Runs P6 unattended: autoplay on, frame dropping on, so a throughput run needs
+# no clicks. Give it a file-name fragment and it picks the matching media out of
+# testapp/output; anything else on the line is passed through to P6.
+#
+#   zsh testapp/P6-test.zsh 4k            # first file whose name contains "4k"
+#   zsh testapp/P6-test.zsh 4k -nv12      # and hand -nv12 to P6
+#
+# 以無人值守方式執行 P6：自動播放與丟棄延遲影格皆開啟，量測吞吐量不需要任何點擊。
+# 傳入檔名片段即可從 testapp/output 挑出對應媒體，其餘參數原樣轉交給 P6。
+#
+# The sibling script is test_P6.zsh, which is the interactive counterpart: it
+# takes explicit flags and an explicit media path. This one exists for the
+# repeated runs behind gpu-matrix.zsh, where every prompt is a run that did not
+# happen.
+# 姊妹腳本是 test_P6.zsh，屬互動用途，需明確給定旗標與媒體路徑。本腳本則是為
+# gpu-matrix.zsh 的重複執行而存在——在那裡，每一次提示都代表一次沒跑成的量測。
 
 set -eu
 

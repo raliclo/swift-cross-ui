@@ -506,8 +506,8 @@ zsh testapp/compile.zsh P6
 ./testapp/output/P6 -core
 ./testapp/output/P6 --debug
 ./testapp/output/P6 --frame-drop
-./testapp/test_P6.sh /path/to/video.webm
-./testapp/test_P6.sh -rss --debug /path/to/video.webm
+./testapp/test_P6.zsh /path/to/video.webm
+./testapp/test_P6.zsh -rss --debug /path/to/video.webm
 ```
 
 Metal 是 macOS 預設的 renderer。加上 `-core` 可改用 Core Animation fallback，
@@ -522,13 +522,13 @@ Late-frame dropping 預設為關閉。加上 `--frame-drop` 可在啟動時就�
 指定路徑。搜尋範圍包含目前目錄、執行檔所在目錄與預設輸入目錄。`-autoplay`
 會立即開始播放，`-enable-dropframe` 會開啟丟幀，因此
 `P6.exe -f -autoplay -enable-dropframe` 完全不需要點擊任何按鈕。
-`test_P6.sh -win` 與 `P6-test.sh` 都封裝了這組參數，其中
-`P6-test.sh [檔名關鍵字]` 是較精簡的寫法。
+`test_P6.zsh -win` 與 `P6-test.zsh` 都封裝了這組參數，其中
+`P6-test.zsh [檔名關鍵字]` 是較精簡的寫法。
 `compile.zsh` 預設以 release 編譯，讓 GUI timing 更接近一般使用情境。只有需要
 未最佳化的 compiler-level debugging 時才使用 `BUILD_CONFIG=debug`；app 診斷應由
 `--debug` 等 app flag 控制。
 
-`test_P6.sh` 在未帶任何參數時會印出使用說明，否則會把 renderer flags、
+`test_P6.zsh` 在未帶任何參數時會印出使用說明，否則會把 renderer flags、
 `--debug`、`--frame-drop` 與媒體路徑轉送給編譯好的 P6 binary。它專屬的
 `-rss` 選項會每秒取樣一次 P6 process 的 RSS，並把 `rss_kb`、`peak_rss_kb`
 與最終結束狀態附加到獨立的 `p6-debug-events-rss.log`；每次帶 `-rss` 啟動
@@ -607,13 +607,13 @@ Runtime tools：
     或 `Error writing trailer` 輸出。
 19. 播放中關閉視窗，確認出現關閉提示，並確認 FFmpeg/Zstd/FFplay 子程序都會
     結束，`P6` 程序本身也會結束並歸還 shell prompt。
-20. 從 `test_P6.sh` 啟動播放，從 `p6-debug-events.log` 取得 ffplay 的 PID，
+20. 從 `test_P6.zsh` 啟動播放，從 `p6-debug-events.log` 取得 ffplay 的 PID，
     在該終端機按 Ctrl-C。確認 log 檔中記錄 P6 收到訊號、等待 ffplay 結束，
     且沒有殘留對應的 ffplay 程序。確認終端機沒有印出 P6 的診斷行。由於腳本
     不再使用 `exec`，當 zsh 與 P6 同時收到 Ctrl-C 時，觀察到的結束狀態會因
     shell 而異。
 21. 先在 `p6-debug-events-rss.log` 放一行可辨識的舊內容，再透過
-    `test_P6.sh -rss` 重新啟動，播放並 seek 至少一分鐘，然後關閉 P6 或按
+    `test_P6.zsh -rss` 重新啟動，播放並 seek 至少一分鐘，然後關閉 P6 或按
     Ctrl-C。確認舊內容已被清空，檔案只包含新一次執行的起始行、每秒一筆的
     RSS 取樣、最終取樣筆數、峰值 RSS（KiB）與 P6 結束狀態。確認終端機沒有
     RSS 診斷行，且 `p6-debug-events.log` 仍只保留給 P6 診斷訊息使用。
@@ -665,7 +665,7 @@ Runtime tools：
 - 終端機的 SIGINT 與 SIGTERM handler 會在 P6 結束前終止並同步 reap 保留的
   ffplay 程序。由於 wrapper script 不再使用 `exec`，最終 shell 看到的
   Ctrl-C 結束狀態不保證就是 P6 內部的 130 狀態。
-- `test_P6.sh -rss` 會在啟動時清空 `p6-debug-events-rss.log`，之後每秒只
+- `test_P6.zsh -rss` 會在啟動時清空 `p6-debug-events-rss.log`，之後每秒只
   測量 P6 process 本身的 resident memory，並記錄取樣值與峰值 RSS；FFmpeg、
   ffplay 與 zstd 子程序的 RSS 不會被計入。
 - 缺少 tools 或 malformed input 應在 status line 顯示錯誤，不應 crash。
@@ -756,7 +756,7 @@ Runtime tools：
   0–17 ms，**1080p 在所有 GPU 模式下皆為 0 dropped frames/sec**。
 - 2026-08-12：新增 GPU 選擇旗標 `-amd`／`-nvidia`／`-both-gpu`／`-no-gpu`
   （`-both-gpu` 由 Nvidia 解碼、由顯示器所屬介面卡呈現；`-no-gpu` 走 Microsoft
-  Basic Render Driver 作為 CPU 基準線），以及 `testapp/gpu-matrix.sh`：逐一執行所有
+  Basic Render Driver 作為 CPU 基準線），以及 `testapp/gpu-matrix.zsh`：逐一執行所有
   模式並把結果寫入 `testapp/P6_findings/gpu-modes.csv`（含 date_tested、mode、
   resolution、target_fps、measured_fps、dropped/s、逐階段耗時與完整 ffmpeg 參數，
   確保可重現）。本機 adapter 0 是 AMD Radeon iGPU、adapter 1 是 Nvidia RTX 4060。
@@ -782,7 +782,7 @@ Runtime tools：
   | 4K @ 60 | 1.1 fps | 0.9–25.7 fps，丟幀 33–57/s |
 
   「單次狀態更新要花約 100 ms」本身就是 WinUIBackend 的一項發現，值得另案追查。
-- 2026-08-12：修正兩則先前的紀錄。回報為 0.0 的丟幀數是 `gpu-matrix.sh` 的 bug
+- 2026-08-12：修正兩則先前的紀錄。回報為 0.0 的丟幀數是 `gpu-matrix.zsh` 的 bug
   （awk 取錯欄位），實際上 4K 一直都是每秒數十幀。另外以 ffmpeg 的 `-readrate`
   限制解碼速率（`-pace` 旗標）並無可量測的差異，因此先前的 CPU 競爭推論是錯的。
 - 2026-08-12：**4K @ 60 受限於傳輸量，仍然不可用。** 它需要約 2 GB/s 的 RGBA 穿過

@@ -1,10 +1,10 @@
 # P6 Windows 效能觀察
 
-`gpu-modes.csv` 由 `testapp/gpu-matrix.sh` 寫入，每次執行、每種 GPU 模式各一列：
+`gpu-modes.csv` 由 `testapp/gpu-matrix.zsh` 寫入，每次執行、每種 GPU 模式各一列：
 
 ```sh
-zsh testapp/gpu-matrix.sh <resolution> <target fps> <seconds>
-zsh testapp/gpu-matrix.sh 4k 60 20
+zsh testapp/gpu-matrix.zsh <resolution> <target fps> <seconds>
+zsh testapp/gpu-matrix.zsh 4k 60 20
 ```
 
 欄位為 `date_tested, mode, resolution, target_fps, measured_fps, frames_dropped_per_sec, read_avg_ms, present_avg_ms, seconds, ffmpeg_args`。`ffmpeg_args` 是 P6 該次傳給 ffmpeg 的完整引數，因此每一列都能不靠猜測重現。

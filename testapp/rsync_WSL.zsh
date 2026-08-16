@@ -12,8 +12,8 @@ wsl_exe="${WSL_EXE:-wsl.exe}"
 
 usage() {
     printf '%s\n' \
-        "Usage: zsh testapp/rsync_WSL.sh [--target <wsl-project-root>]" \
-        "用法：zsh testapp/rsync_WSL.sh [--target <WSL 專案根目錄>]" \
+        "Usage: zsh testapp/rsync_WSL.zsh [--target <wsl-project-root>]" \
+        "用法：zsh testapp/rsync_WSL.zsh [--target <WSL 專案根目錄>]" \
         "" \
         "Only syncs:" \
         "  **/*.swift" \
@@ -58,6 +58,23 @@ to_wsl_path() {
 
 source_root="$(to_wsl_path "$repo_root")"
 
+# The include/exclude order below is rsync's, and it is not intuitive: the
+# first matching rule wins, so the `--include='*/'` that lets rsync walk into
+# directories has to come before the file patterns, and the closing
+# `--exclude='*'` has to come last or it would swallow everything.
+#
+# Only sources are copied, never build output. The WSL checkout keeps its own
+# .build and .compile-work; overwriting them from Windows would mean shipping
+# object files built for the wrong platform. `output/` is excluded for the same
+# reason -- the two sides produce P7 and P7.exe from the same source and both
+# must survive.
+# 下方 include/exclude 的順序是 rsync 的規則，並不直觀：先命中者勝，因此讓 rsync
+# 能進入目錄的 `--include='*/'` 必須排在檔案樣式之前，而收尾的 `--exclude='*'`
+# 必須放最後，否則會把所有東西一併排除。
+#
+# 只複製原始碼、不複製建置產物。WSL 端有自己的 .build 與 .compile-work，從 Windows
+# 覆蓋過去等於送進為錯誤平台編譯的目的檔；`output/` 同理——兩邊由同一份原始碼分別
+# 產出 P7 與 P7.exe，兩者都必須保留。
 "$wsl_exe" -e zsh -lc "
 set -euo pipefail
 command -v rsync >/dev/null || { echo 'rsync is required in WSL.' >&2; exit 127; }

@@ -12,6 +12,22 @@ script_dir="${0:a:h}"
 output_dir="$script_dir/output"
 findings_dir="$script_dir/P6_findings"
 csv="$findings_dir/gpu-modes.csv"
+# Answered before any measurement starts. This script runs P6 once per GPU
+# mode, so a mistyped argument would otherwise cost several minutes of runs
+# before anything said what the arguments were.
+# 在任何量測開始前先回答。本腳本每個 GPU 模式各跑一次 P6，若不先處理，打錯的參數
+# 會先耗掉數分鐘的執行時間，才有人告訴你參數該怎麼寫。
+case "${1:-}" in
+    -h|--help)
+        sed -n '2,7p' "${0:a}" | sed 's/^# \{0,1\}//'
+        printf '\n%s\n' \
+            "Usage: gpu-matrix.zsh [resolution] [fps] [seconds]" \
+            "用法：gpu-matrix.zsh [解析度] [fps] [秒數]" \
+            "Defaults / 預設值: 1080p 30 25"
+        exit 0
+        ;;
+esac
+
 resolution="${1:-1080p}"
 target_fps="${2:-30}"
 seconds="${3:-25}"

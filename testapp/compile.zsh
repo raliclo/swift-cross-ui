@@ -63,6 +63,27 @@ target_platform="host"
 # -ios 會切換為 iOS 模擬器建置。此路徑無法使用 `swift build`：以 -Xswiftc 傳入
 # iOS SDK 會套用到所有 target，包含必須為主機建置的編譯期工具
 # SwiftCrossUIMacrosPlugin，連結因而失敗。xcodebuild 能區分兩者，故 iOS 路徑改用它。
+# Answered before the toolchain is touched. A full build is minutes on Windows,
+# so a wrong flag should cost a line of output rather than a compile.
+# 在動用工具鏈之前先回答。Windows 上一次完整建置要數分鐘，打錯旗標應該只花一行輸出
+# 的代價，而不是一次編譯。
+case "${1:-}" in
+    -h|--help)
+        printf '%s\n' \
+            "Usage: compile.zsh [-ios] [P0 P1 ... Pn]" \
+            "用法：compile.zsh [-ios] [P0 P1 ... Pn]" \
+            "" \
+            "  -ios  Build for the iOS Simulator via xcodebuild." \
+            "  -ios  透過 xcodebuild 為 iOS 模擬器建置。" \
+            "" \
+            "With no app names, every P*.swift is built." \
+            "未指定 app 名稱時，會建置所有 P*.swift。" \
+            "Release by default; BUILD_CONFIG=debug for an unoptimised build." \
+            "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。"
+        exit 0
+        ;;
+esac
+
 remaining_args=""
 for arg in "$@"; do
     case "$arg" in
@@ -258,7 +279,7 @@ if [ "$target_platform" = "ios" ]; then
     # 先備妥模擬器再建置：全新機器上最常見的情況就是尚無裝置，若等到建置完成才
     # 發現，會白白浪費數分鐘。
     echo "==> Checking the iOS build environment"
-    if ! sh "$script_dir/install_tools_ios.sh"; then
+    if ! sh "$script_dir/install_tools_ios.zsh"; then
         echo "iOS environment is not ready; see the messages above" >&2
         exit 1
     fi

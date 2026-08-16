@@ -1,9 +1,18 @@
 #!/usr/bin/env zsh
 # Records the composited desktop to testapp/output/videoshots/videoshot.webm.
 #
-# This intentionally mirrors screenshot.sh and uses ffmpeg's gdigrab. Capturing
+# This intentionally mirrors screenshot.zsh and uses ffmpeg's gdigrab. Capturing
 # the composited desktop is the reliable path for WinUI/D3D/DirectComposition
 # debugging; window-only capture can come back black.
+# 刻意與 screenshot.zsh 採同一套做法，使用 ffmpeg 的 gdigrab。擷取「已合成」的桌面
+# 對 WinUI/D3D/DirectComposition 除錯才可靠；只擷取單一視窗可能得到全黑畫面。
+#
+# Video rather than a screenshot when the question is about change over time:
+# a layout that settles late, a flicker between two states, a divider that
+# snaps after the first render. A still frame cannot distinguish "wrong" from
+# "not finished yet".
+# 當問題與「隨時間變化」有關時才用錄影而非截圖：例如版面很晚才穩定、在兩個狀態間
+# 閃爍、或分隔線在首次 render 之後才跳位。單張靜態畫面無法區分「錯誤」與「尚未完成」。
 
 set -euo pipefail
 
@@ -108,7 +117,7 @@ if [ "$delay" -gt 0 ]; then
 fi
 
 # Windows has no built-in command that activates a window, so drive WSH's
-# AppActivate, matching screenshot.sh.
+# AppActivate, matching screenshot.zsh.
 if [ -n "$window" ]; then
     activate_script="$(mktemp -t activate-XXXXXX).vbs"
     printf 'CreateObject("WScript.Shell").AppActivate "%s"\n' "$window" \

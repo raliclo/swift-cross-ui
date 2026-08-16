@@ -1084,9 +1084,9 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         ]
         // Also look beside the executable, so -f works no matter which
-        // directory P6 was launched from (test_P6.sh runs it from the repo
+        // directory P6 was launched from (test_P6.zsh runs it from the repo
         // root, while the sample videos live next to the binary).
-        // 同時搜尋執行檔所在目錄，讓 -f 不受啟動目錄影響（test_P6.sh 由 repo
+        // 同時搜尋執行檔所在目錄，讓 -f 不受啟動目錄影響（test_P6.zsh 由 repo
         // 根目錄啟動，但範例影片放在執行檔旁邊）。
         if let executablePath = CommandLine.arguments.first {
             let executableDirectory = URL(fileURLWithPath: executablePath)

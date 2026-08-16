@@ -545,8 +545,8 @@ zsh testapp/compile.zsh P6
 ./testapp/output/P6 -core
 ./testapp/output/P6 --debug
 ./testapp/output/P6 --frame-drop
-./testapp/test_P6.sh /path/to/video.webm
-./testapp/test_P6.sh -rss --debug /path/to/video.webm
+./testapp/test_P6.zsh /path/to/video.webm
+./testapp/test_P6.zsh -rss --debug /path/to/video.webm
 ```
 
 Metal is the default macOS renderer. Pass `-core` to use the Core Animation
@@ -565,13 +565,13 @@ the current directory, the directory holding the executable, and the default
 input directory. `-autoplay` starts playback immediately and
 `-enable-dropframe` turns on frame dropping, so
 `P6.exe -f -autoplay -enable-dropframe` needs no clicks at all.
-`test_P6.sh -win` and `P6-test.sh` both wrap that combination;
-`P6-test.sh [file-pattern]` is the shorter form.
+`test_P6.zsh -win` and `P6-test.zsh` both wrap that combination;
+`P6-test.zsh [file-pattern]` is the shorter form.
 `compile.zsh` builds release by default so GUI timing reflects normal usage. Use
 `BUILD_CONFIG=debug` only when unoptimised compiler-level debugging is needed;
 app diagnostics should be controlled by app flags such as `--debug`.
 
-`test_P6.sh` prints its usage when no arguments are provided and otherwise
+`test_P6.zsh` prints its usage when no arguments are provided and otherwise
 forwards renderer flags, `--debug`, `--frame-drop`, and the media path to the
 compiled P6 binary. Its wrapper-only `-rss` option samples the P6 process RSS
 once per second and appends `rss_kb`, `peak_rss_kb`, and the final exit status to
@@ -622,8 +622,8 @@ Test steps:
 17. Relaunch with `--debug --frame-drop`, select `4K 3840x2160` and `60` FPS, and confirm that Frame Drop and Show Resolution both start enabled, the preview remains 960x540, the bottom information line reports dropped frames per second, and detailed logs report 3840x2160 frame uploads and cumulative late-frame drops.
 18. Load a file, then seek or load another file; confirm that the terminal shows no `Broken pipe`, `Error muxing a packet`, or `Error writing trailer` output from ffmpeg when the previous decoder is stopped.
 19. Close the window during playback, confirm the close prompt, and confirm that FFmpeg/Zstd/FFplay child processes exit and that the `P6` process itself also exits, returning the shell prompt.
-20. Start playback from `test_P6.sh`, obtain the ffplay PID from `p6-debug-events.log`, and press Ctrl-C in that terminal. Confirm in the log file that P6 received the signal, waited for ffplay to exit, and left no matching ffplay process running. Confirm that P6 diagnostic lines were not printed in the terminal. Because the script no longer uses `exec`, its observed exit status is shell-dependent when both zsh and P6 receive Ctrl-C.
-21. Put a recognizable old line in `p6-debug-events-rss.log`, then relaunch through `test_P6.sh -rss`, play and seek for at least one minute, and close P6 or press Ctrl-C. Confirm that the old line was cleared and the file contains only the new run's start line, one RSS sample per second, final sample count, peak RSS in KiB, and P6 exit status. Confirm that the terminal contains no RSS diagnostic lines and `p6-debug-events.log` remains reserved for P6 diagnostics.
+20. Start playback from `test_P6.zsh`, obtain the ffplay PID from `p6-debug-events.log`, and press Ctrl-C in that terminal. Confirm in the log file that P6 received the signal, waited for ffplay to exit, and left no matching ffplay process running. Confirm that P6 diagnostic lines were not printed in the terminal. Because the script no longer uses `exec`, its observed exit status is shell-dependent when both zsh and P6 receive Ctrl-C.
+21. Put a recognizable old line in `p6-debug-events-rss.log`, then relaunch through `test_P6.zsh -rss`, play and seek for at least one minute, and close P6 or press Ctrl-C. Confirm that the old line was cleared and the file contains only the new run's start line, one RSS sample per second, final sample count, peak RSS in KiB, and P6 exit status. Confirm that the terminal contains no RSS diagnostic lines and `p6-debug-events.log` remains reserved for P6 diagnostics.
 
 Expected results:
 
@@ -649,7 +649,7 @@ Expected results:
 - Stopping a decoder early is a normal operation and must stay silent: child stderr is buffered rather than forwarded to the terminal, so ffmpeg's expected EPIPE reports do not appear. A genuine decode failure still surfaces the buffered tool output in the status line.
 - Closing the window terminates the `P6` process itself, not just its child processes, so the shell prompt returns without a manual `Ctrl-C`.
 - Terminal SIGINT and SIGTERM handlers terminate and synchronously reap the retained ffplay process before P6 exits. Without `exec` in the wrapper script, the final shell-visible Ctrl-C status is not guaranteed to be P6's internal status 130.
-- `test_P6.sh -rss` clears `p6-debug-events-rss.log` at launch, then measures only the P6 process resident memory once per second and records samples and peak RSS there; FFmpeg, ffplay, and zstd child RSS are not included.
+- `test_P6.zsh -rss` clears `p6-debug-events-rss.log` at launch, then measures only the P6 process resident memory once per second and records samples and peak RSS there; FFmpeg, ffplay, and zstd child RSS are not included.
 - Missing tools or malformed input produce an error in the status line instead of crashing.
 
 Verification status:
@@ -672,7 +672,7 @@ Verification status:
 - 2026-08-11: the geometry is verified with `-calib`, which fills the swap chain with a red border, a green centre cross and corner blocks, and is then measured by scanning the screenshot's pixels rather than by eye. Both 960x540 and 4K measure as `x=360..1559` = 1200 px = the 960 DIP viewport, with the borders and centre cross where they should be.
 - 2026-08-12: **the Windows bottleneck was the pipe, not the GPU, and it is now measured rather than inferred.** Per-stage timings are logged once a second (`stage timings:` lines). At 1080p the read stage cost 102-164 ms per frame against a 33 ms budget, while presenting cost 0-4 ms. The cause is Foundation's `Pipe`: swift-corelibs-foundation calls `CreatePipe(..., 0)` on Windows, so the buffer is the system default of a few kilobytes and an 8 MB frame arrives in thousands of reads, each allocating a `Data` that is then appended into a growing 8 MB buffer and copied a second time into the mapped texture. There is no API to configure that buffer size.
 - 2026-08-12: P6 now creates its own Win32 pipe with an 8 MB buffer and reads frames with `ReadFile` straight into the mapped staging texture, in one call when the mapped row pitch matches the frame's rows. The read stage dropped to 0-17 ms per frame and **1080p reports 0 dropped frames/sec in every GPU mode**.
-- 2026-08-12: GPU selection flags (`-amd`, `-nvidia`, `-both-gpu`, `-no-gpu`; `-both-gpu` decodes on the Nvidia card and presents on the display's adapter, `-no-gpu` presents through Microsoft's Basic Render Driver as a CPU baseline) plus `testapp/gpu-matrix.sh`, which runs every mode and reports dropped frames/sec and stage timings. This machine has an AMD Radeon iGPU as adapter 0 and an Nvidia RTX 4060 as adapter 1. Measured over 25 s per mode:
+- 2026-08-12: GPU selection flags (`-amd`, `-nvidia`, `-both-gpu`, `-no-gpu`; `-both-gpu` decodes on the Nvidia card and presents on the display's adapter, `-no-gpu` presents through Microsoft's Basic Render Driver as a CPU baseline) plus `testapp/gpu-matrix.zsh`, which runs every mode and reports dropped frames/sec and stage timings. This machine has an AMD Radeon iGPU as adapter 0 and an Nvidia RTX 4060 as adapter 1. Measured over 25 s per mode:
 
   | Mode | 1080p read | 1080p dropped/s | 4K read | 4K dropped/s |
   |---|---|---|---|---|
@@ -682,7 +682,7 @@ Verification status:
   | `-both-gpu` | 7-16 ms | 0.0 | 33-47 ms | 0.0 |
   | `-no-gpu` (WARP) | 2-3 ms | 0.0 | 43-51 ms | 0.0 |
 
-  Presenting measured 0-6 ms in every mode at every resolution and frame rate. **The GPU choice makes no measurable difference, and neither does using no GPU at all.** Full results, including 60 FPS and the exact ffmpeg arguments per run, are in `testapp/P6_findings/gpu-modes.csv` (written by `gpu-matrix.sh`); see `testapp/P6_findings/README.md`.
+  Presenting measured 0-6 ms in every mode at every resolution and frame rate. **The GPU choice makes no measurable difference, and neither does using no GPU at all.** Full results, including 60 FPS and the exact ffmpeg arguments per run, are in `testapp/P6_findings/gpu-modes.csv` (written by `gpu-matrix.zsh`); see `testapp/P6_findings/README.md`.
 - 2026-08-12: **the decoder is not the bottleneck either.** Running the same filter chain standalone (`ffmpeg ... -f rawvideo -pix_fmt rgba -y NUL`) produced 4K60 frames at about 123 fps, roughly 2.1x realtime, while P6 consumed 1.1-2.3 fps. The same 33 MB frame reads in 58 ms at 4K30 and ten times slower at 4K60, which points at CPU contention: ffmpeg saturates the machine producing frames nothing is waiting for. Pacing the decoder to the playback rate (`-re` / `-readrate`) is the next thing to try.
 - 2026-08-12: **the real ceiling was publishing, not the pipe.** After the pipe fix every configuration still sat at 7-8 frames/sec regardless of resolution or frame rate, which is the signature of a fixed per-frame cost rather than a bandwidth limit. Timing the main-actor hop showed it: `acceptFrame` sets `currentTime`, `seekPosition` and `status`, all `@Published`, so **every frame rebuilt the view graph and ran a WinUI layout pass, measured at 97 ms per frame** against budgets of 16-33 ms. The video never goes through the view graph, so the timeline and status text are now published at 2 Hz instead of per frame. Results, 20 s per configuration:
 
@@ -694,7 +694,7 @@ Verification status:
   | 4K @ 60 | 1.1 fps | 0.9-25.7 fps, 33-57 dropped/s |
 
   A single state update costing ~100 ms is a WinUIBackend finding in its own right and is worth investigating separately.
-- 2026-08-12: two corrections to earlier entries. The dropped-frame figures reported as 0.0 were a bug in `gpu-matrix.sh`, which summed the wrong awk field; drops were always in the tens per second at 4K. And pacing the decoder with ffmpeg's `-readrate` (the `-pace` flag) made no measurable difference, so the CPU-contention theory was wrong.
+- 2026-08-12: two corrections to earlier entries. The dropped-frame figures reported as 0.0 were a bug in `gpu-matrix.zsh`, which summed the wrong awk field; drops were always in the tens per second at 4K. And pacing the decoder with ffmpeg's `-readrate` (the `-pace` flag) made no measurable difference, so the CPU-contention theory was wrong.
 - 2026-08-12: **4K @ 60 is transport-bound and stays broken.** It needs about 2 GB/s of RGBA through the pipe, and frame dropping cannot help because a pipe cannot seek -- every frame to be dropped must still be read in full. 4K @ 30 is 1 GB/s and reaches 28 fps, which puts the measured ceiling near 1 GB/s. Across three repeats the five GPU modes vary wildly (`-both-gpu` measured 25.7, 10.2 and 5.6 fps) with no reproducible ordering, except that `-no-gpu` is consistently worst because CPU rasterising competes with the reader. The way out is fewer bytes: NV12 is 12 bpp against RGBA's 32, taking 4K @ 60 from 2 GB/s to 750 MB/s.
 - 2026-08-12: **4K@60 is fixed by decoding to NV12 and converting on the GPU.** ffmpeg now emits `-pix_fmt nv12` (12 bpp against RGBA's 32), and a D3D11 video processor converts and scales it into the back buffer, replacing the `SetSourceSize` stretch on that path. NV12 has nothing to do with Nvidia -- "NV" is the FourCC -- so the choice is made by probing whether the presenting adapter can create the conversion, not by looking for a vendor. `-rgba` forces the old path as a control. Measured at 4K@60, 20 s per mode:
 

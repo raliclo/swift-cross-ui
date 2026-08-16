@@ -21,8 +21,8 @@ output_dir="$script_dir/output/screenshots"
 
 usage() {
     printf '%s\n' \
-        "Usage: screenshot.sh [-d <seconds>] [-w <window title>] [<label>]" \
-        "用法：screenshot.sh [-d <秒數>] [-w <視窗標題>] [<標籤>]" \
+        "Usage: screenshot.zsh [-d <seconds>] [-w <window title>] [<label>]" \
+        "用法：screenshot.zsh [-d <秒數>] [-w <視窗標題>] [<標籤>]" \
         "" \
         "  -d  Wait this many seconds before capturing (default 0)." \
         "  -d  擷取前先等待的秒數（預設 0）。" \
@@ -30,7 +30,7 @@ usage() {
         "  -w  擷取前先把這個視窗帶到最前面。" \
         "" \
         "Example 範例:" \
-        "  zsh testapp/screenshot.sh -d 15 -w 'P6 stream player' p6-960x540"
+        "  zsh testapp/screenshot.zsh -d 15 -w 'P6 stream player' p6-960x540"
 }
 
 delay=0

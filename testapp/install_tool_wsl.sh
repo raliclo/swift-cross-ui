@@ -1,4 +1,14 @@
 #!/bin/bash
+# The one script here that is deliberately not zsh.
+#
+# It is the bootstrap: it runs against a stock Ubuntu where zsh is not
+# installed yet, and installing zsh is one of the things it does. A zsh
+# shebang would make it unable to run on exactly the machine it exists to set
+# up. Everything it starts afterwards can be, and is, zsh.
+# 本目錄唯一刻意不用 zsh 的腳本。
+#
+# 它是 bootstrap：執行時面對的是尚未安裝 zsh 的原生 Ubuntu，而安裝 zsh 正是它的
+# 工作之一。若用 zsh shebang，它就無法在它存在的目的所指向的那台機器上執行。
 # Prepares a WSL (or plain Linux) environment for building and testing
 # swift-cross-ui's GtkBackend.
 #
@@ -45,7 +55,7 @@ log "Installing GTK 4 and build dependencies"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends \
-    libgtk-4-dev pkg-config curl ca-certificates git \
+    zsh libgtk-4-dev pkg-config curl ca-certificates git \
     binutils libcurl4-openssl-dev libedit2 libncurses-dev \
     libpython3-dev libsqlite3-0 libz3-dev tzdata unzip
 

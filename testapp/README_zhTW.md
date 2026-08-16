@@ -33,14 +33,14 @@ zsh testapp/compile.zsh                # 建全部 app
 | Script | 用途 |
 | --- | --- |
 | `install_tool_wsl.sh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
-| `install_tools_ios.sh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
+| `install_tools_ios.zsh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
 
 ## 其他 scripts
 
 | Script | 用途 |
 | --- | --- |
-| `screenshot.sh` | 擷取合成後的桌面畫面；這是唯一能看到 D3D/DirectComposition 內容的方式 |
-| `gpu-matrix.sh`, `P6-test.sh`, `test_P6.sh` | P6 throughput matrix 與無人值守測試 |
+| `screenshot.zsh` | 擷取合成後的桌面畫面；這是唯一能看到 D3D/DirectComposition 內容的方式 |
+| `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6 throughput matrix 與無人值守測試 |
 | `rebase.zsh` | rebase 後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上 |
 
 `rebase.zsh` 存在是因為 rebase 會靜默孤立已記錄的 hash：它們仍可能從 reflog resolve，所以直到下一次 clone 前都看不出問題。

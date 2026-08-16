@@ -62,7 +62,7 @@ Apple 官方參考：
 
 後半段 RSS 大致維持在 2.2 GiB 左右，沒有在這段短測試中呈現明顯的無限制成長。因此可以說暫時沒有發現明顯的持續性記憶體洩漏，但不足以證明完全沒有 leak。以一般影片播放器而言，P6 本體約 2.29 GiB RSS 仍偏高。
 
-`test_P6.sh` 只使用 `ps` 取樣 P6 的 PID，並未包含 `ffmpeg`、`ffplay` 或 `zstd` 子程序的 RSS。因此開啟音訊所增加的 `ffplay` 記憶體並沒有反映在這份紀錄內。
+`test_P6.zsh` 只使用 `ps` 取樣 P6 的 PID，並未包含 `ffmpeg`、`ffplay` 或 `zstd` 子程序的 RSS。因此開啟音訊所增加的 `ffplay` 記憶體並沒有反映在這份紀錄內。
 
 業界沒有「300 MB 至 800 MB 即為合格」這種通用標準。RSS 也會受到 allocator 保留、Metal shared memory 與記憶體映射影響。應進一步使用 Xcode Memory Report、Metal System Trace、Metal Resource Allocations 與 Memory Graph 分析真正的資源占用。
 
