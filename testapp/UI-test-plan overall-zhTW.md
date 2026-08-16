@@ -1,34 +1,42 @@
-# WinUI 測試計畫：P0-P6
+# UI 測試計畫：P0-P17
 
-本文件整理 `testapp` 測試程式的手動 UI 測試步驟。測試目標是快速重現與確認 WinUIBackend 相關 issues。
+本文件整理 `testapp` 測試程式的手動與輔助 UI 測試步驟。測試目標是快速重現與確認 WinUIBackend、GtkBackend、AppKitBackend、UIKitBackend 與 AndroidBackend 的 backend-specific issues。
 
 ## 測試前準備
 
 1. 進入專案根目錄：
 
-   ```powershell
-   cd C:\Users\lowei\proj\swift-cross-ui
+   ```zsh
+   cd /c/Users/lowei/proj/swift-cross-ui
    ```
 
 2. 編譯測試程式：
 
-   ```powershell
-   sh testapp/compile.zsh
+   ```zsh
+   zsh testapp/compile.zsh
    ```
 
 3. 進入輸出目錄：
 
-   ```powershell
-   cd testapp\output
+   ```zsh
+   cd testapp/output
    ```
 
 4. 確認 runtime resource 存在：
 
-   ```powershell
-   Test-Path .\swift-winui_CWinAppSDK.resources\Microsoft.WindowsAppRuntime.Bootstrap.dll
+   ```zsh
+   test -f swift-winui_CWinAppSDK.resources/Microsoft.WindowsAppRuntime.Bootstrap.dll && echo ok
    ```
 
-   預期結果：輸出 `True`。
+   預期結果：輸出 `ok`。
+
+## 跨平台測試流程
+
+- Linux / GtkBackend 相關 issues 一律先測 WSLg，再用 Windows 作為對照（若該 app 支援）。
+- 不要在 WSL 內從 `/mnt/c` 編譯。先同步 `testapp` 的 Swift/zsh 檔案，再於 `~/proj/swift-cross-ui` 下建置。
+- 只使用 zsh scripts。目前 helper scripts 包含 `compile.zsh`、`rsync_WSL.zsh`、`screenshot.zsh`、`videoshot.zsh`、`test_p7.zsh` 與 `test_p8.zsh`。
+- P8 的自動 dry-run 預設會在每個平台 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
+- 截圖會寫到 `testapp/output/screenshots`，檔名含平台與階段，例如 `p8-wslg-1s-...png`、`p8-wslg-final-...png`、`p8-windows-1s-...png`、`p8-windows-final-...png`。
 
 ## 共通觀察項目
 
@@ -267,6 +275,12 @@
 ./P7
 ```
 
+輔助 WSLg/Windows 對照流程：
+
+```zsh
+zsh testapp/test_p7.zsh --both
+```
+
 涵蓋 issues：
 
 - #476 (Fixed)：GTK backend 上 List 一啟動就已選取第一項
@@ -295,6 +309,18 @@
 ```sh
 ./P8
 ```
+
+輔助 WSLg-first 流程：
+
+```zsh
+zsh testapp/test_p8.zsh --both
+zsh testapp/test_p8.zsh --both --showtime 60
+zsh testapp/test_p8.zsh --both --no-showtime
+```
+
+輔助流程會等待 P8 的 `RENDER COMPLETE` marker，預設讓 WSLg 視窗保留 30 秒，
+拍下 final screenshot 後，再用同樣流程測 Windows。當 tester 需要即時觀察視窗、
+共同回報可見問題時，使用這個流程。
 
 涵蓋 issues：
 
@@ -370,6 +396,123 @@
 
 - 透明圖層不應阻擋點擊；若被覆蓋的按鈕需移除圖層才有反應，即為 #454。
 - Ctrl-Q 應結束程式；若視窗仍開著即為 #478。
+
+## P11：AppKit Sliders, Scrollbars And Pickers（macOS）
+
+執行：
+
+```sh
+./P11
+```
+
+涵蓋 issues：
+
+- #82 (Open)：AppKitBackend 中兩個互相限制的 sliders 會 jitter
+- #485 (Open)：AppKitBackend scrollbar 方向顯示錯誤
+- #473 (Open)：Liquid Glass 下 compact DatePicker 尺寸錯誤
+- #404 (Open，僅記錄)：View > Show Tab Bar 會影響 window content size
+- #425 (Open，僅記錄)：window 啟動時 focus 狀態不穩定
+
+測試步驟：
+
+1. 啟動 `P11`。
+2. 將 minimum slider 拖過 maximum slider，觀察兩邊 write counters 是否在數值幾乎不動時仍一起增加，確認 #82。
+3. 按 `Separate them` 後正常拖曳，再按 `Collide them` 後重測，比對穩定路徑與受限制路徑。
+4. 觀察 scroll section 的垂直 scrollbar，確認 thumb 方向與移動方向正確，確認 #485。
+5. 比對 compact DatePicker 與旁邊 reference button 的高度，確認 #473。
+6. #404 需手動使用 app menu：View > Show Tab Bar，記錄 content size 是否異常改變。
+7. #425 需多次重新啟動，記錄 window 是否有啟動時未 focus 的情況。
+
+預期結果：
+
+- Slider writes 應跟隨正在拖曳的 slider，不應進入明顯 feedback loop。
+- Scrollbar thumb 方向與移動方向應符合預期。
+- Compact DatePicker 應與鄰近控制項視覺對齊。
+- #404 與 #425 僅列為手動觀察，不作為嚴格 pass/fail。
+
+## P12：Android Margins, Rotation State And Toggles（Android）
+
+在 Android backend 建置並部署到 Android device/emulator 後執行。Host build 仍可用來快速檢查 layout。
+
+涵蓋 issues：
+
+- #632 (Open)：AndroidBackend buttons 有不必要 margin
+- #580 (Open)：旋轉螢幕會重置 `@State`
+- #544 (Open)：button-style Toggle 沒有明顯表示 on/off 狀態
+- #610 (Open，僅記錄)：sheet sizing 需要更深入量測
+
+測試步驟：
+
+1. 在 Android device 或 emulator 啟動 `P12`。
+2. 切換 tab 並增加 counter，接著旋轉裝置，確認 #580。
+3. 比對 button 背景與綠色 reference bands；任何可見縫隙即為 #632。
+4. 並排比較 forced-on 與 forced-off 的 button-style toggles，確認 #544。
+5. 按 toggle state buttons，確認視覺狀態跟著 forced values 改變。
+6. 若正在調查 #610，另外記錄 sheet sizing；P12 不把它簡化成單一 pass/fail。
+
+預期結果：
+
+- 旋轉不應重置 selected tab 或 counter。
+- Button 背景應延伸到 button bounds，不應有額外 margin。
+- Toggle 的 on/off 狀態應有明顯視覺差異。
+
+## P13：Layout And View Graph（AppKit/Gtk）
+
+執行：
+
+```sh
+./P13
+```
+
+涵蓋 issues：
+
+- #415 (Open)：non-Identifiable `ForEach` elements 可能讓 AppKitBackend crash
+- #595 (Open)：ScrollView 內的 Text 被裁切
+- #291 (Open)：NavigationSplitView 推導出 minimum width 但沒有移動 split 以符合它
+- #158 (Open)：ZStack 內的 Group 沿錯誤軸向排版
+
+測試步驟：
+
+1. 啟動 `P13`；先不要按會 crash 的路徑。
+2. 比對 Identifiable list 與 hidden non-Identifiable section；只有準備測 #415 時才按 `Show unidentified list (may crash)`。
+3. 在 ScrollView text section 比對 plain text 與 `.fixedSize()` control，確認 #595。
+4. 調整 split width，確認 sidebar minimum width 有反映到可見 divider 位置，而不是讓 pane collapse，確認 #291。
+5. 觀察 Group-in-ZStack section，確認 children 疊在 z 軸上，而不是沿垂直或水平軸排列，確認 #158。
+
+預期結果：
+
+- Identifiable list 應保持穩定；non-Identifiable 路徑若 crash，記錄為 #415。
+- ScrollView text 應換行且不被裁切。
+- Split view minimum widths 應反映到可見 divider 位置。
+- ZStack 中的 Group content 應重疊，而不是沿 container orientation 排列。
+
+## P14：UIKit Rotation And Theme（iOS）
+
+編譯與執行：
+
+```sh
+zsh testapp/compile.zsh -ios P14
+xcrun simctl install swift-cross-ui testapp/output/P14.app
+xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+```
+
+涵蓋 issues：
+
+- #324 (Open)：旋轉時 content 會短暫收到錯誤 size proposal
+- #254 (Open)：UIKitBackend 在系統主題變更後會重設 controls，但 app background 未同步更新
+
+測試步驟：
+
+1. 在 iOS simulator 啟動 `P14`。
+2. 旋轉裝置後立即讀取 width history，確認 #324。
+3. 按 `Clear history`，旋轉一次，確認 settled width 前是否出現短暫過寬 proposal。
+4. App 開啟時切換系統 appearance，可用 simulator menu 或 `xcrun simctl ui <device> appearance dark`。
+5. 比對 app background、controls 與 explicit adaptive colour block，確認 #254。
+
+預期結果：
+
+- Width history 不應在旋轉後顯示比 settled layout 更寬的短暫 proposal。
+- 系統主題變更時，app background 應與 controls、adaptive colours 一起更新。
 
 ## P15：Colour Scheme And Window Height（Linux）
 

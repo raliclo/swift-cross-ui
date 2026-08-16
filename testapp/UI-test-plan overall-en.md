@@ -1,34 +1,42 @@
-# WinUI Test Plan: P0-P6
+# UI Test Plan: P0-P17
 
-This document describes the manual UI test steps for the apps in `testapp`. The goal is to quickly reproduce and verify WinUIBackend-related issues.
+This document describes the manual and assisted UI test steps for the apps in `testapp`. The goal is to quickly reproduce and verify backend-specific issues across WinUIBackend, GtkBackend, AppKitBackend, UIKitBackend, and AndroidBackend.
 
 ## Preparation
 
 1. Go to the project root:
 
-   ```powershell
-   cd C:\Users\lowei\proj\swift-cross-ui
+   ```zsh
+   cd /c/Users/lowei/proj/swift-cross-ui
    ```
 
 2. Compile the test apps:
 
-   ```powershell
-   sh testapp/compile.zsh
+   ```zsh
+   zsh testapp/compile.zsh
    ```
 
 3. Go to the output directory:
 
-   ```powershell
-   cd testapp\output
+   ```zsh
+   cd testapp/output
    ```
 
 4. Confirm that the runtime resource exists:
 
-   ```powershell
-   Test-Path .\swift-winui_CWinAppSDK.resources\Microsoft.WindowsAppRuntime.Bootstrap.dll
+   ```zsh
+   test -f swift-winui_CWinAppSDK.resources/Microsoft.WindowsAppRuntime.Bootstrap.dll && echo ok
    ```
 
-   Expected result: `True`.
+   Expected result: `ok`.
+
+## Cross-Platform Flow
+
+- For Linux / GtkBackend issues, test WSLg first, then Windows only as a comparison if the app supports it.
+- Do not compile from `/mnt/c` inside WSL. Sync the `testapp` Swift/zsh files first, then build under `~/proj/swift-cross-ui`.
+- Use zsh scripts only. The current helper scripts are `compile.zsh`, `rsync_WSL.zsh`, `screenshot.zsh`, `videoshot.zsh`, `test_p7.zsh`, and `test_p8.zsh`.
+- P8 automated dry-runs keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
+- Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
 
 ## Common Checks
 
@@ -267,6 +275,12 @@ Run:
 ./P7
 ```
 
+Assisted WSLg/Windows comparison:
+
+```zsh
+zsh testapp/test_p7.zsh --both
+```
+
 Covered issues:
 
 - #476 (Fixed): The List control starts with the first item already selected on the GTK backend
@@ -295,6 +309,19 @@ Run:
 ```sh
 ./P8
 ```
+
+Assisted WSLg-first flow:
+
+```zsh
+zsh testapp/test_p8.zsh --both
+zsh testapp/test_p8.zsh --both --showtime 60
+zsh testapp/test_p8.zsh --both --no-showtime
+```
+
+The assisted flow waits for P8's `RENDER COMPLETE` marker, keeps the WSLg
+window open for 30 seconds by default, captures a final screenshot, then repeats
+the same sequence on Windows. Use this when the tester needs to inspect the
+window live and report the visible problem.
 
 Covered issues:
 
@@ -370,6 +397,124 @@ Expected results:
 
 - A transparent overlay does not block clicks. If the covered button only works once the overlay is removed, that is #454.
 - Ctrl-Q quits the app. If the window stays open, that is #478.
+
+## P11: AppKit Sliders, Scrollbars And Pickers (macOS)
+
+Run:
+
+```sh
+./P11
+```
+
+Covered issues:
+
+- #82 (Open): AppKitBackend sliders jitter when two sliders constrain each other
+- #485 (Open): AppKitBackend scrollbar renders in the wrong direction
+- #473 (Open): compact DatePicker sizing is off with Liquid Glass
+- #404 (Open, noted only): View > Show Tab Bar affects window content size
+- #425 (Open, noted only): window focus at launch is intermittent
+
+Test steps:
+
+1. Launch `P11`.
+2. Drag the minimum slider past the maximum slider and watch whether both write counters climb while the values barely move, to verify #82.
+3. Press `Separate them`, drag each slider normally, then press `Collide them` and drag again to compare the stable and constrained paths.
+4. Inspect the vertical scrollbar in the scroll section and confirm the thumb direction is visually correct, to verify #485.
+5. Compare the compact DatePicker height against the neighbouring reference button, to verify #473.
+6. For #404, use the app menu manually: View > Show Tab Bar, then note whether the content size changes unexpectedly.
+7. For #425, relaunch several times and record whether the window starts unfocused.
+
+Expected results:
+
+- Slider writes should track the slider being dragged, not enter a visible feedback loop.
+- The scrollbar thumb should point and move in the expected direction.
+- The compact DatePicker should align visually with neighbouring controls.
+- #404 and #425 are noted as manual observations rather than strict pass/fail checks.
+
+## P12: Android Margins, Rotation State And Toggles (Android)
+
+Run on Android after building/deploying the app target for the Android backend.
+The host build can still be used for a quick layout sanity check.
+
+Covered issues:
+
+- #632 (Open): AndroidBackend buttons have unnecessary margins
+- #580 (Open): rotating the screen resets `@State`
+- #544 (Open): button-style Toggle does not indicate on/off state visually
+- #610 (Open, noted only): sheet sizing needs deeper measurement
+
+Test steps:
+
+1. Launch `P12` on an Android device or emulator.
+2. Change the selected tab and increment the counter, then rotate the device to verify #580.
+3. Compare the button backgrounds against the green reference bands; any visible gap is #632.
+4. Compare the forced-on and forced-off button-style toggles side by side, to verify #544.
+5. Press the toggle state buttons and confirm the visual state follows the forced values.
+6. Note #610 separately if sheet sizing is being investigated; P12 does not turn it into a simple pass/fail check.
+
+Expected results:
+
+- Rotation should not reset the selected tab or counter.
+- Button backgrounds should reach the button bounds without extra margins.
+- On and off toggle states should be visually distinct.
+
+## P13: Layout And View Graph (AppKit/Gtk)
+
+Run:
+
+```sh
+./P13
+```
+
+Covered issues:
+
+- #415 (Open): non-Identifiable `ForEach` elements can crash AppKitBackend
+- #595 (Open): Text inside a ScrollView is cut off
+- #291 (Open): NavigationSplitView minimum width is deduced but the split is not moved to honour it
+- #158 (Open): Group inside ZStack lays children out in the wrong axis
+
+Test steps:
+
+1. Launch `P13`; do not press the crash path first.
+2. Compare the Identifiable list and hidden non-Identifiable section. Press `Show unidentified list (may crash)` only when ready to test #415.
+3. In the ScrollView text section, compare the plain text and `.fixedSize()` control, to verify #595.
+4. Adjust the split width and confirm the sidebar minimum width is honoured rather than letting the pane collapse, to verify #291.
+5. Inspect the Group-in-ZStack section and confirm children overlap on the z axis rather than stacking vertically or horizontally, to verify #158.
+
+Expected results:
+
+- The Identifiable list should remain stable; the non-Identifiable path documents #415 if it crashes.
+- ScrollView text should wrap without being clipped.
+- Split view minimum widths should be reflected in the visible divider position.
+- Group content inside ZStack should overlay, not stack along the container orientation.
+
+## P14: UIKit Rotation And Theme (iOS)
+
+Build and run:
+
+```sh
+zsh testapp/compile.zsh -ios P14
+xcrun simctl install swift-cross-ui testapp/output/P14.app
+xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+```
+
+Covered issues:
+
+- #324 (Open): rotation temporarily gives content a wrong size proposal
+- #254 (Open): UIKitBackend restyles controls after a system theme change but leaves the app background behind
+
+Test steps:
+
+1. Launch `P14` in an iOS simulator.
+2. Rotate the device and read the width history immediately after rotation, to verify #324.
+3. Press `Clear history`, rotate once, and confirm whether a transient too-wide proposal appears before the final width.
+4. Switch system appearance while the app is open, using the simulator menu or `xcrun simctl ui <device> appearance dark`.
+5. Compare the app background, controls, and explicit adaptive colour block, to verify #254.
+
+Expected results:
+
+- Width history should not show a transient proposal wider than the settled layout after rotation.
+- The app background should update together with controls and adaptive colours when the system theme changes.
 
 ## P15: Colour Scheme And Window Height (Linux)
 
