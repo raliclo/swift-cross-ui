@@ -19,6 +19,25 @@ set -euo pipefail
 script_dir="${0:a:h}"
 output_dir="$script_dir/output/screenshots"
 
+windows_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+        return
+    fi
+
+    case "$1" in
+        /?/*)
+            local drive rest
+            drive="$(printf '%s' "$1" | cut -c 2 | tr '[:lower:]' '[:upper:]')"
+            rest="$(printf '%s' "$1" | cut -c 4- | tr '/' '\\')"
+            printf '%s:\\%s\n' "$drive" "$rest"
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
+
 usage() {
     printf '%s\n' \
         "Usage: screenshot.zsh [-d <seconds>] [-w <window title>] [<label>]" \
@@ -84,10 +103,10 @@ fi
 # Windows 沒有內建可啟動視窗的命令，因此改用 WSH 的 AppActivate；cscript 是系統
 # 內建工具，呼叫方式與本專案從 shell 呼叫其他原生工具一致。
 if [ -n "$window" ]; then
-    activate_script="$(mktemp -t activate-XXXXXX).vbs"
+    activate_script="$output_dir/activate-$$.vbs"
     printf 'CreateObject("WScript.Shell").AppActivate "%s"\n' "$window" \
         > "$activate_script"
-    cscript.exe //nologo "$(cygpath -w "$activate_script")" > /dev/null || true
+    cscript.exe //nologo "$(windows_path "$activate_script")" > /dev/null || true
     rm -f "$activate_script"
     # One discarded frame gives the window a second to come forward.
     # 丟棄一張影格，讓視窗有一秒的時間浮到最前面。
