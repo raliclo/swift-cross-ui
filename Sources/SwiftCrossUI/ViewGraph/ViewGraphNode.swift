@@ -133,7 +133,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             }
 
             guard let value = fieldValue as? any ObservableProperty else {
-                return  // i.e. continue
+                return // i.e. continue
             }
 
             let cancellable = value.didChange.observeAsUIUpdater(backend: backend) { [weak self] in
