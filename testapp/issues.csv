@@ -19,7 +19,7 @@ issue,categories,backend,status,comments,opened,title
 454,bug,AppKitBackend;GtkBackend,repro-p10,2,2026-02-21,"[BUG] Transparent Containers consume click events (AppKitBackend, GtkBackend)"
 449,bug,WinUIBackend,fixed-p2,0,2026-02-17,Fix WinUIBackend Picker option updating code
 426,bug,Gtk3Backend;GtkBackend,repro-p8,2,2026-02-07,[GtkBackend][Gtk3Backend] Horizontal ScrollView swallows scroll wheel inputs for parent vertical ScrollView
-417,bug,GtkBackend,repro-p8,1,2026-02-06,[GtkBackend] Giving a ScrollView a cornerRadius does not affect its children
+417,bug,GtkBackend,repro-p8;not-reproduced-wslg,1,2026-02-06,[GtkBackend] Giving a ScrollView a cornerRadius does not affect its children
 415,bug,core/unspecified,repro-p13,0,2026-02-06,Message list benchmark crashes with AppKitBackend
 401,bug,WinUIBackend,fixed-p2,0,2026-02-04,WinUIBackend: Disable full screen button when window resizing behaviour is `disabled`
 390,enhancement,GtkBackend;WinUIBackend,fixed-winui-p2;open-gtk,4,2026-01-22,[GTK][WinUI] Disabled buttons don't appear disabled
@@ -122,7 +122,7 @@ issue,categories,backend,status,comments,opened,title
 275,untriaged,core/unspecified,unaddressed,0,2025-12-10,Investigate WinUIBackend title bar colour not matching system sometimes
 274,documentation,core/unspecified,unaddressed,0,2025-12-10,Update quick start docs to discuss distribution
 271,developer experience;enhancement,core/unspecified,unaddressed,1,2025-12-10,Look into distributing SwiftCrossUI prebuilts
-266,layout,core/unspecified,repro-p17,5,2025-12-04,Layout correctness
+266,layout,core/unspecified,repro-p17;repro-p8,5,2025-12-04,Layout correctness
 265,feature,core/unspecified,unaddressed,2,2025-12-03,is SwiftUI canvas supported?
 264,enhancement;layout,core/unspecified,repro-p17,0,2025-12-03,Make frame(idealWidth:idealHeight:) set idealWidthForHeight and idealHeightForWidth
 261,feature,core/unspecified,unaddressed,1,2025-12-02,Support pickerStyle modifier
