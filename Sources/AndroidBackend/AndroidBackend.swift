@@ -567,11 +567,11 @@ public final class AndroidBackend: BaseAppBackend {
             .getConfiguration()
             .isScreenRound()
 
-        if let identifier = helpers.getTimeZoneIdentifier()?.toString(),
-           let timeZone = Foundation.TimeZone(identifier: identifier)
-        {
-            environment.timeZone = timeZone
-            environment.calendar = getCurrentCalendar(timeZone: timeZone)
+        var timeZone: Foundation.TimeZone?
+
+        if let identifier = helpers.getTimeZoneIdentifier()?.toString() {
+            timeZone = Foundation.TimeZone(identifier: identifier)
+        }
 
             // Foundation's own default as well, not only the environment's.
             //
@@ -606,10 +606,14 @@ public final class AndroidBackend: BaseAppBackend {
             // `CommandLine.arguments` 相同：平台沒有填入某個「每一支 Swift 程式都預期已被填入」的
             // 東西，而 backend 是唯一知道真實值的那段程式碼；另一種做法是讓每一支 app 各自攜帶
             // 這個變通。
+        if let timeZone {
+            environment.timeZone = timeZone
             NSTimeZone.default = timeZone
-        } else {
-            environment.calendar = getCurrentCalendar(timeZone: nil)
         }
+
+        let (calendar, locale) = getCurrentCalendarAndLocale(timeZone: timeZone)
+        environment.calendar = calendar
+        environment.locale = locale
 
         environment
             .appStorageProvider = SharedPreferencesAppStorageProvider(activity: Self.activity)
