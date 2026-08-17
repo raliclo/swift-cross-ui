@@ -21,6 +21,48 @@ do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
 
+# Environment the app is launched with, as `NAME=value` pairs separated by
+# spaces. Empty for most apps.
+#
+# Some diagnostics live in SwiftCrossUI itself rather than in the test app, and
+# those are gated on an environment variable because the library has no
+# command line to read. P7 needs SCUI_DEBUG_SPLIT: without it the run still
+# reports every content size, but not the bounds the layout system hands the
+# backend nor where the divider actually ended up -- and content width is not
+# pane width. Reading one as the other produced two confident, wrong diagnoses
+# of #556 before the variable existed.
+# app 啟動時附帶的環境變數，格式為以空白分隔的 `NAME=value`，多數 app 為空。
+#
+# 部分診斷位於 SwiftCrossUI 本身而非測試 app，只能以環境變數開關，因為函式庫讀不到
+# 命令列。P7 需要 SCUI_DEBUG_SPLIT：少了它仍會回報所有內容尺寸，但看不到 layout
+# 系統交給 backend 的上下界，也看不到分隔線最後停在哪——而內容寬度並不等於 pane
+# 寬度，把兩者混為一談曾對 #556 造成兩次自信但錯誤的判斷。
+app_env="${TEST_APP_ENV:-}"
+
+# An optional second log to clear before the run and include in the summary.
+# Diagnostics that live in the library write their own file rather than the
+# app's, so without this the run would silently report only half of what it
+# collected -- and a summary that looks complete while missing the deciding
+# numbers is worse than one that is obviously empty.
+# 可選的第二個 log：執行前一併清空，摘要時一併納入。位於函式庫的診斷會寫自己的檔案
+# 而非 app 的，若不處理，執行結果會靜默地只呈現一半——而看起來完整卻缺少關鍵數字的
+# 摘要，比明顯空白的摘要更危險。
+extra_log="${TEST_EXTRA_LOG:-}"
+
+# The remote command is assembled here rather than tested inside the string
+# sent to WSL. A conditional written there is parsed before it is evaluated, so
+# an empty name still leaves `: >` with nothing to redirect into and the whole
+# command dies with `parse error near ';'` -- before the app is ever launched.
+# Building the fragment in advance means the empty case contributes no text.
+# 遠端指令在此組好，而不是在送往 WSL 的字串內做條件判斷。字串裡的條件式會先被解析
+# 再求值，因此名稱為空時 `: >` 仍然沒有重導向目標，整條指令會以
+# `parse error near ';'` 失敗——而且是在 app 啟動之前。事先組好片段，空值就不會
+# 產生任何文字。
+clear_extra_fragment=""
+if [ -n "$extra_log" ]; then
+    clear_extra_fragment=" && : > $extra_log"
+fi
+
 usage() {
     cat <<EOF_USAGE
 Usage: ${script_path:t} [--wsl|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime]
@@ -143,14 +185,14 @@ print_summary_windows() {
     local out="$script_dir/output"
 
     printf '\n==> Windows %s diagnostics\n' "$app"
-    grep -hE "$summary_pattern" "$out/$log_name" 2>/dev/null \
+    grep -hE "$summary_pattern" "$out/$log_name" ${extra_log:+"$out/$extra_log"} 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
 }
 
 print_summary_wsl() {
     printf '\n==> WSLg %s diagnostics\n' "$app"
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-        "cd ~/proj/swift-cross-ui/testapp/output && grep -hE '$summary_pattern' $log_name 2>/dev/null | sed 's/^$app [0-9-]* [0-9:]* +0000 //' | sort -u" || true
+        "cd ~/proj/swift-cross-ui/testapp/output && grep -hE '$summary_pattern' $log_name $extra_log 2>/dev/null | sed 's/^$app [0-9-]* [0-9:]* +0000 //' | sort -u" || true
 }
 
 run_windows() {
@@ -164,8 +206,14 @@ run_windows() {
 
     mkdir -p "$out"
     : > "$out/$log_name"
+    # `if`, not `[ -n ... ] && ...`: under `set -e` a false test as the last
+    # command in the list aborts the script.
+    # 用 `if` 而非 `[ -n ... ] && ...`：在 `set -e` 下，測試為假會使整個腳本中止。
+    if [ -n "$extra_log" ]; then
+        : > "$out/$extra_log"
+    fi
     printf '==> Launching %s.exe\n' "$app"
-    ( cd "$out" && "./$app.exe" ${(z)app_args} >/dev/null 2>&1 & )
+    ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)app_args} >/dev/null 2>&1 & )
 
     zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-1s" || true
     if wait_for_marker_windows "$out"; then
@@ -196,11 +244,11 @@ run_wsl() {
     fi
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-        "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name"
+        "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment"
 
     printf '==> Launching %s under WSLg\n' "$app"
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui/testapp/output -- \
-        zsh -lc "./$app ${(q)app_args} >/dev/null 2>&1" \
+        zsh -lc "env $app_env ./$app ${(q)app_args} >/dev/null 2>&1" \
         >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
