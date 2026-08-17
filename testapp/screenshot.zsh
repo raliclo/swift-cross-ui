@@ -104,10 +104,41 @@ fi
 # 內建工具，呼叫方式與本專案從 shell 呼叫其他原生工具一致。
 if [ -n "$window" ]; then
     activate_script="$output_dir/activate-$$.vbs"
-    printf 'CreateObject("WScript.Shell").AppActivate "%s"\n' "$window" \
-        > "$activate_script"
-    cscript.exe //nologo "$(windows_path "$activate_script")" > /dev/null || true
+    # AppActivate returns whether it found and raised the window. That answer
+    # used to be discarded, which made the one failure mode that matters
+    # invisible: a locked session, or a window that never opened, still
+    # produced a screenshot file and a run that looked entirely successful.
+    # One such capture in this repo was of the Windows lock screen, and only a
+    # human looking at the image noticed.
+    #
+    # A false is not proof the session is locked -- a wrong title or an app
+    # that died gives the same answer. All three mean the same thing for the
+    # caller: the picture does not show what was asked for.
+    # AppActivate 會回報是否找到並喚起了視窗。先前這個答案被丟棄，使得唯一真正要緊
+    # 的失敗模式變得不可見：工作階段被鎖定、或視窗根本沒開，仍然會產生截圖檔，執行
+    # 結果也看起來完全成功。本專案就發生過一次，拍到的是 Windows 鎖定畫面，而且是靠
+    # 人看圖才發現。
+    #
+    # 回傳 false 並不足以證明是鎖定：標題打錯或 app 已結束也會得到同樣結果。但對呼叫
+    # 端而言三者意義相同——這張圖並未呈現所要求的內容。
+    # The script emits a word rather than the boolean itself. `WScript.Echo`
+    # given a Boolean prints `-1`, not `True` -- a first version compared
+    # against "True" and so reported failure on every capture, including the
+    # ones that worked. A warning that fires every time teaches the reader to
+    # ignore it, which is worse than having none.
+    # 這段腳本輸出的是字串而非布林值本身。`WScript.Echo` 印布林時會印出 `-1` 而非
+    # `True`——第一版拿 "True" 比對，於是每次擷取都回報失敗，包含成功的那些。每次
+    # 都響的警告只會訓練讀者忽略它，比沒有更糟。
+    printf 'If CreateObject("WScript.Shell").AppActivate("%s") Then\n  WScript.Echo "ACTIVATED"\nElse\n  WScript.Echo "NOTFOUND"\nEnd If\n' \
+        "$window" > "$activate_script"
+    activated="$(cscript.exe //nologo "$(windows_path "$activate_script")" 2>/dev/null | tr -d '\r\n ')"
     rm -f "$activate_script"
+    if [ "$activated" != "ACTIVATED" ]; then
+        printf '!! screenshot.zsh: could not bring "%s" to the front.\n' "$window" >&2
+        printf '!! The capture below is of whatever was on screen instead --\n' >&2
+        printf '!! a locked session, another window, or nothing at all.\n' >&2
+        printf '!! 無法將「%s」帶到前景；以下截圖拍到的是當時螢幕上的其他內容。\n' "$window" >&2
+    fi
     # One discarded frame gives the window a second to come forward.
     # 丟棄一張影格，讓視窗有一秒的時間浮到最前面。
     grab -frames:v 1 -f null - </dev/null
