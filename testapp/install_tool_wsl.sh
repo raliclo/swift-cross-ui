@@ -175,6 +175,38 @@ gpu_ok=1
 [ -e /dev/dxg ] || { echo "  /dev/dxg missing: GPU support is off for this distribution" >&2; gpu_ok=0; }
 ls /dev/dri/renderD* >/dev/null 2>&1 \
     || { echo "  /dev/dri render node missing: EGL cannot initialise, GTK will use llvmpipe" >&2; gpu_ok=0; }
+
+# Where to look next when the render node is missing, and what it means.
+#
+# WSL mounts the Windows DriverStore read-only at /usr/lib/wsl/drivers, and the
+# GPU's user-mode D3D12 driver has to be among those entries. If it is not,
+# dxgkrnl has no adapter to describe, and `dmesg | grep dxgk` fills with
+# `dxgkio_query_adapter_info: Ioctl failed: -22`. That message is the one to
+# search for; it appears within the first few seconds of boot and is the
+# earliest point in the chain that says anything at all.
+#
+# Deliberately not checked programmatically. Matching driver directories by
+# vendor prefix looked easy and was wrong on the first real run: `^nv` matches
+# `nvami.inf` and `nvdimm.inf`, which are NVDIMM storage drivers, so the check
+# reported a graphics driver on a machine that plainly had none. The two device
+# node tests above are direct evidence and do not need a heuristic behind them.
+#
+# The fix is on the Windows side -- reinstall the GPU driver so the DriverStore
+# entry is restored, and reboot. Nothing inside the distribution can supply it.
+# render node 缺席時該往哪裡看，以及那代表什麼。
+#
+# WSL 會把 Windows 的 DriverStore 唯讀掛載於 /usr/lib/wsl/drivers，GPU 的 D3D12
+# 使用者模式驅動必須在其中。若不在，dxgkrnl 就沒有介面卡可描述，`dmesg | grep dxgk`
+# 會出現 `dxgkio_query_adapter_info: Ioctl failed: -22`。那行訊息就是該搜尋的目標，
+# 它在開機後數秒內出現，是整條鏈上最早會發聲的位置。
+#
+# 刻意不做程式化判斷。以廠商前綴比對驅動目錄看似容易，卻在第一次真實執行就出錯：
+# `^nv` 會匹配到 `nvami.inf` 與 `nvdimm.inf`——那是 NVDIMM 儲存驅動，於是檢查在一台
+# 明顯沒有顯示卡驅動的機器上回報「找到了」。上方兩項裝置節點檢查是直接證據，不需要
+# 這種啟發式。
+#
+# 修復屬於 Windows 端：重新安裝顯示卡驅動讓 DriverStore 項目回來，然後重開機。
+# 發行版內部無法提供它。
 if [ "$gpu_ok" -eq 1 ]; then
     echo "  device nodes present; confirm with: GSK_DEBUG=renderer <app>"
 else
