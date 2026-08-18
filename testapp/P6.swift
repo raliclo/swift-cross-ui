@@ -4,6 +4,16 @@ import Foundation
 import ImageFormats
 @_spi(Backends) import SwiftCrossUI
 
+#if os(Linux)
+// Imported so `-maximized` can reach the backend's own window object, which
+// arrives through the environment as `Any?`. `import DefaultBackend` alone is
+// not enough: naming `Gtk.ApplicationWindow` in a cast requires the module.
+// 為了讓 `-maximized` 能取用 backend 自己的視窗物件而 import；該物件經由 environment
+// 以 `Any?` 傳入。僅有 `import DefaultBackend` 並不足夠：在轉型中指名
+// `Gtk.ApplicationWindow` 需要該模組本身。
+import Gtk
+#endif
+
 #if os(macOS)
 import AppKit
 import AppKitBackend
@@ -46,6 +56,62 @@ enum P6DecoderFlags {
         if CommandLine.arguments.contains("-amd") { return "d3d11va" }
         return nil
     }
+
+    /// `-seek <seconds>` starts playback partway in, so the same moment can be
+    /// compared across runs without dragging the timeline by hand.
+    /// `-seek <秒數>` 讓播放從中途開始，便於在不手動拖動時間軸的情況下比較不同執行
+    /// 之間的同一個時間點。
+    ///
+    /// Lives here rather than in ``P6WindowFlags`` for the reason given above:
+    /// it sets the decoder's start time, which is not a window concern. While
+    /// it sat in the Windows-only enum it was never parsed off Windows and its
+    /// one use site had to be wrapped in `#if os(Windows)`, so `-seek 90` was
+    /// taken without complaint on Linux and macOS and then did nothing --
+    /// unlike `-maximized`, `-topmost` and `-calib`, which are genuinely
+    /// Windows-only and are absent on both sides.
+    /// 放在此處而非 ``P6WindowFlags``，理由同上：它設定的是解碼器起始時間，並非視窗
+    /// 層面的事。當它還在 Windows 專屬的 enum 裡時，在非 Windows 平台上根本不會被
+    /// 解析，其唯一的使用處也必須包在 `#if os(Windows)` 內，因此 `-seek 90` 在 Linux
+    /// 與 macOS 上會被照單全收卻毫無作用——這與 `-maximized`、`-topmost`、`-calib`
+    /// 不同，那三者確實是 Windows 專屬，定義與使用處都不存在於其他平台。
+    static let seekSeconds: Double? = {
+        guard let index = CommandLine.arguments.firstIndex(of: "-seek"),
+              index + 1 < CommandLine.arguments.count,
+              let seconds = Double(CommandLine.arguments[index + 1]),
+              seconds > 0
+        else {
+            return nil
+        }
+        return seconds
+    }()
+}
+
+/// Window flags that more than one platform can act on.
+///
+/// Separate from ``P6DecoderFlags``, which is explicitly about the ffmpeg
+/// invocation rather than the window, and from ``P6WindowFlags``, which cannot
+/// be compiled off Windows because it also holds `VideoPixelFormat` and
+/// `GPUPreference`. ``P6WindowFlags/isMaximizedRequested`` forwards here so the
+/// argument is parsed in one place.
+///
+/// `-topmost` is deliberately absent. It is not an oversight or a gap left for
+/// later: GTK4 has no always-on-top API at all -- `gtk_window_set_keep_above`
+/// was GTK3 and was dropped, and under Wayland, which is what WSLg runs, a
+/// client cannot raise itself above other windows by design. So `-topmost`
+/// stays Windows-only rather than being given a Linux path that could not work.
+/// 可由多個平台實際處理的視窗旗標。
+///
+/// 與 ``P6DecoderFlags`` 分開，因為後者明確只涵蓋 ffmpeg 呼叫而非視窗；也與
+/// ``P6WindowFlags`` 分開，因為後者同時持有 `VideoPixelFormat` 與 `GPUPreference`，
+/// 無法在非 Windows 平台編譯。``P6WindowFlags/isMaximizedRequested`` 轉發至此，
+/// 使該引數只解析一次。
+///
+/// 此處刻意不含 `-topmost`。這不是疏漏、也不是留待日後補上：GTK4 根本沒有置頂
+/// API——`gtk_window_set_keep_above` 屬於 GTK3 且已被移除——而在 WSLg 所使用的
+/// Wayland 下，client 依設計無法把自己抬到其他視窗之上。因此 `-topmost` 維持
+/// Windows 專屬，而不是給它一條無法運作的 Linux 路徑。
+enum P6WindowRequests {
+    static let isMaximized = CommandLine.arguments.contains("-maximized")
 }
 
 #if os(Windows)
@@ -106,7 +172,11 @@ final class P6WindowSearch {
 /// App 啟動當下還沒有視窗控制代碼，因此改由影片 view 的首次更新觸發：該時點在
 /// 主執行者上執行，視窗已經存在。
 enum P6WindowFlags {
-    static let isMaximizedRequested = CommandLine.arguments.contains("-maximized")
+    /// Forwarded from ``P6WindowRequests`` so both platforms read one parse,
+    /// the same arrangement ``isBothGPU`` uses for ``P6DecoderFlags``.
+    /// 由 ``P6WindowRequests`` 轉發，讓兩個平台共用同一次解析；``isBothGPU`` 對
+    /// ``P6DecoderFlags`` 也是相同安排。
+    static var isMaximizedRequested: Bool { P6WindowRequests.isMaximized }
 
     /// `-calib` fills the swap chain with a measurable pattern instead of
     /// video, so one screenshot gives the exact mapping from swap chain pixels
@@ -128,21 +198,6 @@ enum P6WindowFlags {
             return nil
         }
         return megabytes << 20
-    }()
-
-    /// `-seek <seconds>` starts playback partway in, so the same moment can be
-    /// compared across runs without dragging the timeline by hand.
-    /// `-seek <秒數>` 讓播放從中途開始，便於在不手動拖動時間軸的情況下比較不同執行
-    /// 之間的同一個時間點。
-    static let seekSeconds: Double? = {
-        guard let index = CommandLine.arguments.firstIndex(of: "-seek"),
-              index + 1 < CommandLine.arguments.count,
-              let seconds = Double(CommandLine.arguments[index + 1]),
-              seconds > 0
-        else {
-            return nil
-        }
-        return seconds
     }()
 
     /// The pixel format for the whole session, decided once because the
@@ -753,11 +808,19 @@ struct P6StreamPlayerView: View {
 
     @Environment(\.chooseFile) var chooseFile
 
-    #if os(macOS)
+    #if os(macOS) || os(Linux)
     // The backend-owned window comes from the environment. This is reliable
     // during onAppear, unlike NSApp.keyWindow which may still be nil.
     // backend 所管理的視窗由 environment 提供；onAppear 執行時此方式可靠，
     // 不會遇到 NSApp.keyWindow 仍為 nil 的時序問題。
+    //
+    // Linux uses it for `-maximized`. Windows cannot: its window is found by
+    // enumerating the thread's windows and matching the title, because the
+    // maximize has to be re-applied for several seconds after the window
+    // appears and so cannot hang off a single view update.
+    // Linux 用它來處理 `-maximized`。Windows 無法沿用：該平台是列舉執行緒視窗並比對
+    // 標題來取得視窗，因為最大化必須在視窗出現後持續重試數秒，無法只掛在單次 view
+    // 更新上。
     @Environment(\.window) var enclosingWindow
     #endif
 
@@ -989,6 +1052,28 @@ struct P6StreamPlayerView: View {
             P6Diagnostics.write("renderer \(player.renderingBackend.rawValue)")
             #endif
 
+            #if os(Linux)
+            // Logged either way, including the type actually found, because a
+            // silently ignored flag is what this replaces: `-maximized` was
+            // accepted on Linux and did nothing, since it lived in the
+            // Windows-only P6WindowFlags. If the cast ever fails the log says
+            // so rather than the window merely staying small.
+            // 無論成功與否都記錄，並附上實際取得的型別，因為這正是要取代的情況：
+            // `-maximized` 過去在 Linux 上被接受卻毫無作用，原因是它位於 Windows 專屬
+            // 的 P6WindowFlags。若轉型失敗，日誌會明講，而不是只讓視窗維持原尺寸。
+            if P6WindowRequests.isMaximized {
+                if let window = enclosingWindow as? Gtk.ApplicationWindow {
+                    window.maximize()
+                    P6Diagnostics.write("maximize requested")
+                } else {
+                    P6Diagnostics.write(
+                        "maximize skipped: window is "
+                            + String(describing: enclosingWindow.map { type(of: $0) })
+                    )
+                }
+            }
+            #endif
+
             if let inputFile = P6StreamPlayerModel.fileFromCommandLine() {
                 P6Diagnostics.write(
                     "auto-load \(inputFile.path) "
@@ -996,7 +1081,6 @@ struct P6StreamPlayerView: View {
                         + "frame-drop \(P6Diagnostics.isFrameDropEnabled ? "on" : "off")"
                 )
                 player.load(inputFile)
-                #if os(Windows)
                 // Applied after load, which resets the position, and before
                 // play so the first decoded frame is already at the requested
                 // moment.
@@ -1008,11 +1092,21 @@ struct P6StreamPlayerView: View {
                 // clamp collapsed every requested time to zero.
                 // 直接設定而不經過 seekPositionChanged：後者會依總長度做 clamp，而
                 // 總長度是非同步探測的，此刻仍為 nil，於是任何指定時間都會被壓成 0。
-                if let seconds = P6WindowFlags.seekSeconds {
+                //
+                // This was wrapped in `#if os(Windows)` only because the flag
+                // used to live in the Windows-only ``P6WindowFlags``; it has
+                // moved to ``P6DecoderFlags``. The surrounding code was always
+                // platform-neutral -- `seekPosition` and `currentTime` are
+                // ordinary properties and `play()` starts the decoder at
+                // `currentTime` on every platform.
+                // 這裡原本包在 `#if os(Windows)` 內，純粹是因為該旗標過去位於
+                // Windows 專屬的 ``P6WindowFlags``；現已移至 ``P6DecoderFlags``。
+                // 周圍的程式碼一向是平台中立的——`seekPosition` 與 `currentTime` 只是
+                // 一般屬性，而 `play()` 在所有平台上都從 `currentTime` 啟動解碼器。
+                if let seconds = P6DecoderFlags.seekSeconds {
                     player.seekPosition = seconds
                     player.currentTime = seconds
                 }
-                #endif
                 if P6Diagnostics.isAutoplayEnabled {
                     player.play()
                 }
@@ -3424,6 +3518,41 @@ final class P6AudioSession: @unchecked Sendable {
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.standardError
+
+        #if os(Linux)
+        // ffplay plays through SDL, and SDL picks ALSA before PulseAudio. WSL
+        // has no sound card, so ALSA fails -- measured: 32 error lines starting
+        // with `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'` on
+        // four runs out of four, and zero on four out of four once the driver
+        // is pulse. WSLg's audio is a PulseAudio server, which is what
+        // PULSE_SERVER points at.
+        //
+        // Conditional on PULSE_SERVER rather than applied always: on a Linux
+        // box with only ALSA, forcing pulse would break audio that currently
+        // works. An SDL_AUDIODRIVER already in the environment is left alone so
+        // it stays overridable from the command line.
+        // ffplay 透過 SDL 播放，而 SDL 會優先選擇 ALSA 而非 PulseAudio。WSL 沒有音效
+        // 卡，因此 ALSA 失敗——實測：四次執行皆出現 32 行錯誤，開頭為
+        // `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`；改用 pulse 後
+        // 四次皆為 0 錯誤。WSLg 的音訊是 PulseAudio server，也就是 PULSE_SERVER 所指。
+        //
+        // 以 PULSE_SERVER 是否存在為條件、而非無條件套用：在只有 ALSA 的 Linux 機器上
+        // 強制 pulse 反而會弄壞原本正常的音訊。若環境已設定 SDL_AUDIODRIVER 則不覆寫，
+        // 保留由命令列調整的空間。
+        var environment = ProcessInfo.processInfo.environment
+        if environment["SDL_AUDIODRIVER"] == nil,
+           environment["PULSE_SERVER"] != nil
+        {
+            environment["SDL_AUDIODRIVER"] = "pulse"
+        }
+        process.environment = environment
+        P6Diagnostics.write(
+            "audio driver: SDL_AUDIODRIVER="
+                + (environment["SDL_AUDIODRIVER"] ?? "(unset, SDL chooses)")
+                + " PULSE_SERVER="
+                + (environment["PULSE_SERVER"] ?? "(unset)")
+        )
+        #endif
 
         #if os(Windows)
         let audio = try P6WindowlessProcess(

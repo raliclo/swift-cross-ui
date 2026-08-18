@@ -210,6 +210,14 @@ let testAppDependencies: [Target.Dependency] = [
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
     .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
     .product(name: "WinUIBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
+    // Gtk, not GtkBackend: what a test app needs on Linux is the window type
+    // itself, to cast the backend's window out of the environment. DefaultBackend
+    // already pulls GtkBackend in, but a cast has to name Gtk.ApplicationWindow
+    // and that needs this module imported directly.
+    // 這裡是 Gtk 而非 GtkBackend：測試 app 在 Linux 上需要的是視窗型別本身，用來把
+    // backend 的視窗自 environment 轉型出來。DefaultBackend 已經帶入 GtkBackend，但
+    // 轉型必須指名 Gtk.ApplicationWindow，因此需要直接 import 此模組。
+    .product(name: "Gtk", package: "swift-cross-ui", condition: .when(platforms: [.linux])),
     $image_formats_product
     .product(name: "WinUI", package: "swift-winui", condition: .when(platforms: [.windows])),
     .product(name: "UWP", package: "swift-winui", condition: .when(platforms: [.windows])),
