@@ -1615,6 +1615,35 @@ public final class GtkBackend:
             // immediately if we don't do this in the response signal handler).
             chooser.response = nil
 
+            // Destroyed explicitly, because dropping the last Swift reference
+            // is not enough to take the dialog off the screen. `GObject.init`
+            // calls `g_object_ref` on everything it wraps, which is right for
+            // widgets -- their container owns them -- but wrong here:
+            // `gtk_file_chooser_native_new` already returns a reference the
+            // caller owns, so the wrapper holds two and its `deinit` releases
+            // one. The GtkFileChooserNative is never finalised and the window
+            // it owns stays up. That is the reported symptom: on WSLg the
+            // chooser did not close after a file was picked.
+            //
+            // `gtk_native_dialog_destroy` is the documented way to be finished
+            // with one and does not depend on the reference count coming out
+            // right. It matters most exactly here, because with no
+            // xdg-desktop-portal installed -- as on WSLg -- GtkFileChooserNative
+            // has no portal to hand the dialog to and runs its own
+            // GtkFileChooserDialog in-process.
+            // 明確銷毀，因為只丟掉 Swift 端的最後一個參考並不足以讓對話框離開畫面。
+            // `GObject.init` 會對它包裝的每個物件呼叫 `g_object_ref`，這對 widget 是
+            // 正確的（其 container 擁有它們），但在此處是錯的：
+            // `gtk_file_chooser_native_new` 回傳的參考本就由呼叫者持有，於是 wrapper
+            // 持有兩個而其 `deinit` 只釋放一個。GtkFileChooserNative 永遠不會被終結，
+            // 它所擁有的視窗也就留在畫面上。這正是回報的症狀：在 WSLg 上選完檔案後
+            // 選擇器不會關閉。
+            //
+            // `gtk_native_dialog_destroy` 是文件所載「用完它」的方式，且不依賴參考
+            // 計數是否恰好正確。它在此處尤其重要，因為在沒有安裝 xdg-desktop-portal
+            // 的環境（例如 WSLg），GtkFileChooserNative 沒有 portal 可以託付對話框，
+            // 只能在行程內自行執行一個 GtkFileChooserDialog。
+
             let response = Int32(bitPattern: UInt32(UInt(response)))
             if response == Int(ResponseType.accept.toGtk().rawValue) {
                 let files = chooser.getFiles()
@@ -1625,8 +1654,10 @@ public final class GtkBackend:
                     )
                     urls.append(url)
                 }
+                gtk_native_dialog_destroy(chooser.gobjectPointer.cast())
                 handleResult(.success(urls))
             } else {
+                gtk_native_dialog_destroy(chooser.gobjectPointer.cast())
                 handleResult(.cancelled)
             }
         }

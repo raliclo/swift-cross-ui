@@ -151,6 +151,86 @@ apt-get install -y --no-install-recommends fonts-noto-cjk
 # 中加入了一個什麼也沒修好的 SDL_AUDIODRIVER 覆寫，該改動已撤除。
 apt-get install -y --no-install-recommends pulseaudio-utils
 
+# GUI automation and window capture, for driving the Pn test apps without a
+# person at the keyboard.
+#
+# These only work against XWayland, reached with GDK_BACKEND=x11. WSLg's default
+# is Wayland, where a client cannot be driven by another process by design, so
+# xdotool sees nothing. That makes the two backends genuinely different test
+# targets rather than an implementation detail: a bug reproduced under one is
+# not evidence about the other. A GTK file chooser that would not close was
+# reported on the Wayland path and did not reproduce under XWayland at all.
+#
+# xwd lives in x11-apps, not x11-utils -- installing the latter alone leaves
+# `xwd: command not found`. netpbm converts its output, since a capture nobody
+# can open is not evidence.
+# GUI 自動化與視窗擷取，用於在無人操作鍵盤的情況下驅動 Pn 測試 app。
+#
+# 這些工具僅在 XWayland 下有效（以 GDK_BACKEND=x11 進入）。WSLg 預設使用 Wayland，
+# 而 Wayland 依設計不允許一個行程驅動另一個 client，因此 xdotool 什麼也看不到。這使得
+# 兩個 backend 是真正不同的測試目標，而非實作細節：在其中一邊重現的錯誤，並不能作為
+# 另一邊的證據。曾有一個「GTK 檔案選擇器不會關閉」的回報發生在 Wayland 路徑上，而在
+# XWayland 下完全無法重現。
+#
+# xwd 位於 x11-apps 而非 x11-utils——只裝後者會得到 `xwd: command not found`。
+# netpbm 用於轉換其輸出，因為沒人打得開的擷取檔算不上證據。
+apt-get install -y --no-install-recommends xdotool x11-utils x11-apps netpbm
+
+# The NVIDIA CUDA repository, if present, must be signed or apt stops working.
+#
+# This machine had one added by hand with no keyring, so every `apt-get update`
+# failed with `NO_PUBKEY A4B469963BF863CC`. cuda-keyring installs the key and
+# its own signed sources entry; the unsigned duplicate then has to go, or apt
+# keeps reporting the same error against the same repository twice over. It is
+# renamed rather than deleted, and apt reads only *.list and *.sources, so the
+# original is still there to restore.
+#
+# Nothing here adds the repository. It is only repaired when someone else has
+# already added it.
+# 若系統中存在 NVIDIA CUDA 套件庫，它必須經過簽署，否則 apt 會停止運作。
+#
+# 本機曾以手動方式加入該套件庫卻未安裝 keyring，導致每次 `apt-get update` 都以
+# `NO_PUBKEY A4B469963BF863CC` 失敗。cuda-keyring 會安裝金鑰及其自身已簽署的來源項目；
+# 此時未簽署的重複項目必須移除，否則 apt 會對同一個套件庫重複回報相同錯誤。此處採用
+# 改名而非刪除，且 apt 只讀取 *.list 與 *.sources，因此原檔仍在、隨時可還原。
+#
+# 本腳本不會新增該套件庫，只有在他人已經加入時才進行修復。
+# `u` deduplicates. Both patterns match the name apt generates for a manually
+# added CUDA repo, so without it the same file appears twice and the second
+# pass fails on the file the first pass has already renamed.
+# `u` 用於去重。手動加入 CUDA 套件庫時 apt 產生的檔名會同時符合兩個樣式，少了它同一個
+# 檔案會出現兩次，第二輪便會對第一輪已改名的檔案操作而失敗。
+cuda_unsigned=(/etc/apt/sources.list.d/*nvidia*cuda*.list(N) /etc/apt/sources.list.d/*cuda*repos*.list(N))
+cuda_unsigned=(${(u)cuda_unsigned})
+if [ ${#cuda_unsigned} -gt 0 ]; then
+    section "Repairing the unsigned NVIDIA CUDA repository"
+    cuda_base=https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64
+    if [ ! -f /usr/share/keyrings/cuda-archive-keyring.gpg ]; then
+        tmp_keyring="$(mktemp -d)"
+        if curl -fsSL -o "$tmp_keyring/cuda-keyring.deb" "$cuda_base/cuda-keyring_1.1-1_all.deb"; then
+            dpkg -i "$tmp_keyring/cuda-keyring.deb" >/dev/null 2>&1 || true
+            printf '  installed cuda-keyring\n'
+        else
+            printf '  could not download cuda-keyring; leaving the repo alone\n' >&2
+        fi
+        rm -rf "$tmp_keyring"
+    fi
+    # Only disable an entry that lacks signed-by, and only once the signed
+    # replacement exists, so a working setup is never broken by this.
+    # 只停用缺少 signed-by 的項目，且必須在已簽署的替代項目存在之後，
+    # 以免破壞原本正常的設定。
+    if [ -f /etc/apt/sources.list.d/cuda-wsl-ubuntu-x86_64.list ]; then
+        for entry in "${cuda_unsigned[@]}"; do
+            [ "${entry:t}" = "cuda-wsl-ubuntu-x86_64.list" ] && continue
+            if ! grep -q 'signed-by=' "$entry"; then
+                mv "$entry" "$entry.bak"
+                printf '  disabled unsigned duplicate: %s\n' "${entry:t}"
+            fi
+        done
+    fi
+    apt-get update -qq || printf '  apt-get update still reports errors\n' >&2
+fi
+
 # Ubuntu 26.04 renamed the sonames the 24.04 toolchain was linked against. The
 # replacements are taken from 24.04's own packages and kept in their own
 # directory, ahead of nothing else on the search path, so the distribution's

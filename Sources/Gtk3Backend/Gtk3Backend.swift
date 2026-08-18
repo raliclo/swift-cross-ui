@@ -1473,6 +1473,15 @@ public final class Gtk3Backend:
             // immediately if we don't do this in the response signal handler).
             chooser.response = nil
 
+            // Destroyed explicitly, for the reason spelled out in GtkBackend's
+            // copy of this: the wrapper takes a reference the constructor has
+            // already handed over, so the dialog outlives its last Swift
+            // reference and stays on screen. Fixed in both backends because the
+            // code is the same in both; reproduced only on GTK 4.
+            // 明確銷毀，理由詳見 GtkBackend 中的同一段：wrapper 會再取得一個建構函式
+            // 早已交付的參考，因此對話框在最後一個 Swift 參考消失後仍存活並留在畫面上。
+            // 兩個 backend 都修正，因為程式碼相同；但僅在 GTK 4 上重現過。
+
             let response = Int32(bitPattern: UInt32(UInt(response)))
             if response == Int(ResponseType.accept.toGtk().rawValue) {
                 let files = chooser.getFiles()
@@ -1483,8 +1492,10 @@ public final class Gtk3Backend:
                     )
                     urls.append(url)
                 }
+                gtk_native_dialog_destroy(chooser.gobjectPointer.cast())
                 handleResult(.success(urls))
             } else {
+                gtk_native_dialog_destroy(chooser.gobjectPointer.cast())
                 handleResult(.cancelled)
             }
         }
