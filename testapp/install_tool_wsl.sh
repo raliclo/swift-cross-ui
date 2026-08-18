@@ -185,6 +185,16 @@ ls /dev/dri/renderD* >/dev/null 2>&1 \
 # search for; it appears within the first few seconds of boot and is the
 # earliest point in the chain that says anything at all.
 #
+# "Not among the entries" is not the same as "no directory". On the machine
+# this was diagnosed on, the AMD entry `u0407959.inf_amd64_*` was present and
+# contained zero files, while the NVIDIA entry was absent entirely: the mount
+# and the directory names were there, the payload was not. Check the contents,
+# not the listing -- `ls /usr/lib/wsl/drivers/<entry>/ | wc -l`.
+# 「不在項目之中」與「沒有目錄」是兩回事。在診斷這台機器時，AMD 的
+# `u0407959.inf_amd64_*` 項目存在但裡面有 0 個檔案，NVIDIA 的項目則完全不在：
+# 掛載與目錄名都在，酬載卻不在。要看的是內容而非清單——
+# `ls /usr/lib/wsl/drivers/<entry>/ | wc -l`。
+#
 # Deliberately not checked programmatically. Matching driver directories by
 # vendor prefix looked easy and was wrong on the first real run: `^nv` matches
 # `nvami.inf` and `nvdimm.inf`, which are NVDIMM storage drivers, so the check
