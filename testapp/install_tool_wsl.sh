@@ -59,6 +59,55 @@ apt-get install -y --no-install-recommends \
     binutils libcurl4-openssl-dev libedit2 libncurses-dev \
     libpython3-dev libsqlite3-0 libz3-dev tzdata unzip
 
+# CJK fonts, needed because this project's UI text and test media names are in
+# Traditional Chinese. A stock WSL image has none: measured here, fontconfig saw
+# 89 fonts and 0 for zh-TW, and fc-match for zh-TW answered "DejaVu Sans", which
+# has no Han glyphs. GTK then draws every Chinese character as a tofu box while
+# the app itself is working perfectly -- P6 showed its media filename as boxes
+# in the same screenshot where the video's own burned-in Chinese subtitles were
+# sharp, because those are pixels rather than text. Nothing errors, so this
+# reads as a rendering bug in the backend rather than a missing package.
+# The Windows side is unaffected: it uses the system fonts, which include CJK.
+# CJK 字型。本專案的 UI 文字與測試媒體檔名皆為繁體中文，而原始的 WSL 映像完全沒有
+# 中文字型：實測 fontconfig 只看到 89 個字型、zh-TW 為 0，且 zh-TW 的 fc-match 回答
+# 「DejaVu Sans」——該字型不含漢字。於是 GTK 會把每個中文字畫成豆腐框，即使 app 本身
+# 運作完全正常——P6 就曾在同一張截圖中把媒體檔名顯示為方框，而影片本身壓製的中文字幕
+# 卻清晰可辨，因為後者是像素而非文字。整個過程不會有任何錯誤訊息，因此這會被誤讀成
+# backend 的算繪缺陷，而非缺少套件。Windows 端不受影響，因為它使用含 CJK 的系統字型。
+apt-get install -y --no-install-recommends fonts-noto-cjk
+
+# PulseAudio client tools. Not needed to play audio -- libpulse is already
+# pulled in by ffmpeg -- but without them there is no way to ask whether the
+# audio server is even reachable, and that is the question that matters here.
+#
+# WSLg supplies audio as a PulseAudio server bridged to Windows over RDP, at the
+# socket PULSE_SERVER points to (/mnt/wslg/PulseServer). Two things go wrong:
+#
+#   1. ffplay plays through SDL, and SDL tries ALSA before PulseAudio. WSL has
+#      no sound card, so ALSA fails with 32 lines of
+#      `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`. P6 sets
+#      SDL_AUDIODRIVER=pulse for its ffplay child when PULSE_SERVER exists.
+#   2. The WSLg PulseAudio server can stop listening while the socket file stays
+#      in place, so everything looks configured and nothing plays. `pactl info`
+#      answers "Connection refused" -- the one command that distinguishes this
+#      from a client-side misconfiguration. Restarting WSLg (`wsl --shutdown`
+#      from Windows, then reopen) brings the server back.
+# PulseAudio client 工具。播放音訊本身不需要它（libpulse 已由 ffmpeg 帶入），但少了
+# 它就無從得知音訊伺服器是否真的連得上，而那正是此處的關鍵問題。
+#
+# WSLg 以 PulseAudio server 形式提供音訊，並經 RDP 橋接至 Windows，socket 位置即
+# PULSE_SERVER 所指（/mnt/wslg/PulseServer）。有兩件事會出錯：
+#
+#   1. ffplay 透過 SDL 播放，而 SDL 會先嘗試 ALSA 再嘗試 PulseAudio。WSL 沒有音效卡，
+#      因此 ALSA 失敗並輸出 32 行
+#      `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`。P6 在
+#      PULSE_SERVER 存在時，會為其 ffplay 子行程設定 SDL_AUDIODRIVER=pulse。
+#   2. WSLg 的 PulseAudio server 可能停止監聽，但 socket 檔案仍留在原處，於是一切看
+#      起來設定正確卻沒有聲音。此時 `pactl info` 會回報 "Connection refused"——這是唯一
+#      能把此情況與 client 端設定錯誤區分開來的指令。重啟 WSLg（於 Windows 執行
+#      `wsl --shutdown` 後重新開啟）可讓伺服器恢復。
+apt-get install -y --no-install-recommends pulseaudio-utils
+
 # Ubuntu 26.04 renamed the sonames the 24.04 toolchain was linked against. The
 # replacements are taken from 24.04's own packages and kept in their own
 # directory, ahead of nothing else on the search path, so the distribution's
