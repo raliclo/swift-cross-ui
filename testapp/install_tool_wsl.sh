@@ -81,17 +81,19 @@ apt-get install -y --no-install-recommends fonts-noto-cjk
 # audio server is even reachable, and that is the question that matters here.
 #
 # WSLg supplies audio as a PulseAudio server bridged to Windows over RDP, at the
-# socket PULSE_SERVER points to (/mnt/wslg/PulseServer). Two things go wrong:
+# socket PULSE_SERVER points to (/mnt/wslg/PulseServer). It can stop listening
+# while the socket file stays in place, so everything looks configured and
+# nothing plays. `pactl info` answers "Connection refused" -- the one command
+# that distinguishes this from a client-side misconfiguration. Restarting WSLg
+# (`wsl --shutdown` from Windows, then reopen) brings the server back, verified
+# by ear on this machine.
 #
-#   1. ffplay plays through SDL, and SDL tries ALSA before PulseAudio. WSL has
-#      no sound card, so ALSA fails with 32 lines of
-#      `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`. P6 sets
-#      SDL_AUDIODRIVER=pulse for its ffplay child when PULSE_SERVER exists.
-#   2. The WSLg PulseAudio server can stop listening while the socket file stays
-#      in place, so everything looks configured and nothing plays. `pactl info`
-#      answers "Connection refused" -- the one command that distinguishes this
-#      from a client-side misconfiguration. Restarting WSLg (`wsl --shutdown`
-#      from Windows, then reopen) brings the server back.
+# The 32 lines of `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`
+# that appear alongside this are a symptom, not the cause: SDL only falls back
+# to ALSA when it cannot reach pulse, and WSL has no sound card for ALSA to
+# find. With a healthy server SDL picks pulse on its own and prints nothing.
+# Chasing those lines led to an SDL_AUDIODRIVER override in P6 that fixed
+# nothing and has since been reverted.
 # PulseAudio client 工具。播放音訊本身不需要它（libpulse 已由 ffmpeg 帶入），但少了
 # 它就無從得知音訊伺服器是否真的連得上，而那正是此處的關鍵問題。
 #

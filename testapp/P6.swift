@@ -3519,41 +3519,6 @@ final class P6AudioSession: @unchecked Sendable {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.standardError
 
-        #if os(Linux)
-        // ffplay plays through SDL, and SDL picks ALSA before PulseAudio. WSL
-        // has no sound card, so ALSA fails -- measured: 32 error lines starting
-        // with `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'` on
-        // four runs out of four, and zero on four out of four once the driver
-        // is pulse. WSLg's audio is a PulseAudio server, which is what
-        // PULSE_SERVER points at.
-        //
-        // Conditional on PULSE_SERVER rather than applied always: on a Linux
-        // box with only ALSA, forcing pulse would break audio that currently
-        // works. An SDL_AUDIODRIVER already in the environment is left alone so
-        // it stays overridable from the command line.
-        // ffplay 透過 SDL 播放，而 SDL 會優先選擇 ALSA 而非 PulseAudio。WSL 沒有音效
-        // 卡，因此 ALSA 失敗——實測：四次執行皆出現 32 行錯誤，開頭為
-        // `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'`；改用 pulse 後
-        // 四次皆為 0 錯誤。WSLg 的音訊是 PulseAudio server，也就是 PULSE_SERVER 所指。
-        //
-        // 以 PULSE_SERVER 是否存在為條件、而非無條件套用：在只有 ALSA 的 Linux 機器上
-        // 強制 pulse 反而會弄壞原本正常的音訊。若環境已設定 SDL_AUDIODRIVER 則不覆寫，
-        // 保留由命令列調整的空間。
-        var environment = ProcessInfo.processInfo.environment
-        if environment["SDL_AUDIODRIVER"] == nil,
-           environment["PULSE_SERVER"] != nil
-        {
-            environment["SDL_AUDIODRIVER"] = "pulse"
-        }
-        process.environment = environment
-        P6Diagnostics.write(
-            "audio driver: SDL_AUDIODRIVER="
-                + (environment["SDL_AUDIODRIVER"] ?? "(unset, SDL chooses)")
-                + " PULSE_SERVER="
-                + (environment["PULSE_SERVER"] ?? "(unset)")
-        )
-        #endif
-
         #if os(Windows)
         let audio = try P6WindowlessProcess(
             executable: ffplayURL, arguments: process.arguments ?? []
