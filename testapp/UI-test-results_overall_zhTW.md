@@ -35,7 +35,7 @@
 - #556：Step 7 功能上穩定。按 `Add a fruit's worth of text` 後，上方較長文字出現，split view 沒有跳動或塌陷，但 Windows 與 WSLg/GTK 的 pane ratio 仍不一致。
 - #556：Step 8 功能上穩定。調整視窗大小後，包含大幅加寬視窗的情境，Windows 與 WSLg/GTK 的 detail pane 都保持可見。不過 WSLg/GTK 的 split-view aspect / pane ratio 仍明顯不同於 Windows，因此仍屬 #556。
 - #556 / Windows Light mode：Windows Light mode 下，右側第三 pane 沒有顯示預期的垂直分隔線（`|`）；相較之下，WSLg/GTK 對照截圖中可看到 pane boundary。先記錄為 split-view detail pane 的 Windows/GTK 視覺一致性問題。
-- WSL/Windows GUI comparison：同一個 P7 測試情境下，Windows `P7.exe` 與 WSLg/GTK `P7` 的視窗尺寸理論上應該一致，但截圖對照顯示兩者有明顯尺寸差異。這需要進一步調查，否則不能直接把跨 backend 的 layout screenshot 視為等比例比較；後續需確認差異來自 requested content size、backend window-sizing semantics、DPI scaling、window decorations，或 WSLg compositor 行為。
+- WSL/Windows GUI comparison：同一個 P7 測試情境下，Windows `P7.exe` 與 WSLg/GTK `P7` 的視窗尺寸理論上應該一致，但截圖對照顯示兩者有明顯尺寸差異。這需要進一步調查，否則不能直接把跨 backend 的 layout screenshot 視為等比例比較；後續需確認差異來自 requested content size、backend window-sizing semantics、DPI scaling、window decorations，或 WSLg compositor 行為。**（已於 2026-08-18 以 P6 解答：成因為 DPI scaling，詳見該日紀錄。）**
 
 ### P8：Scroll Views
 
@@ -43,3 +43,15 @@
 - #426：後續修正應優先在 WSLg / GtkBackend 上重現與驗證，再用 Windows / WinUIBackend 作為 non-regression 對照。可使用 `zsh testapp/test_p8.zsh --both`；腳本會先跑 WSLg、render 後保留 30 秒並拍 final screenshot，再跑 Windows。
 - #417（WSLg/GtkBackend 未重現）：紅色子元件明顯被 `cornerRadius(20)` 裁切——WSLg 截圖中四個角都是圓的，與「內容從圓角穿出」的回報症狀相反。同時量到 `cornerScroll: 260x120` 對 `redChild: 260x300`，子元件確實超出容器 180px，也就是說有東西可被裁切。僅在 WSLg 下以靜態截圖確認；未檢視 Windows，也未在真實 Linux 桌面工作階段驗證。
 - #266（附帶重現，僅 WinUIBackend）：內層水平長條在 Windows 上被量到兩次，先 `420x48` 後 `408x48`；WSLg 只量到一次 `420x48` 且維持不變。那 12px 是**外層** ScrollView 的垂直捲軸：WinUI 在後續的 layout pass 從內容寬度扣除，GTK 則以 overlay 呈現而不佔寬度。這正是 #266 描述的取捨——顯示捲軸會改變內容可用寬度，寬度改變可能改變內容高度，進而改變是否還需要捲軸。此處無害，因為沒有東西依賴該寬度，且 P8 並非為 #266 設計；記錄下來是因為若要處理 #266，這是現成的重現點。
+
+## 2026-08-18
+
+### P6：Stream Player
+
+- P6 首次在 WSLg 上實際執行。先前從未跑過的原因不是 Linux 呈現路徑缺失，而是 `testapp/output/` 同時被 git 與 rsync 排除（該目錄屬各機器自有），因此 WSL 端沒有媒體檔可播。複製媒體檔後，ffmpeg 解碼管線、視窗、播放控制與版面皆正常，00:24 的截圖畫面完整正確。
+- 判讀提醒：測試用影片開頭數秒為淡入，畫面接近全黑，僅右緣有轉場內容。單看該時段的截圖會誤判為呈現異常（本次即發生過一次）。判讀 P6 截圖應取播放中段而非開頭。
+- `-seek`（已修正）：該旗標原本定義於 Windows 專屬的 `P6WindowFlags`，唯一使用處也包在 `#if os(Windows)` 內，因此在 Linux 與 macOS 上會被接受卻毫無作用。移至平台中立的 `P6DecoderFlags` 後，以同一個 binary 對照：無 `-seek` 時 play session 起始 `0.000s`、第一格 00:00；`-seek 90` 時起始 `90.000s`、第一格 01:30。Windows 端重建後仍為 `90.000s`，無回歸。
+- `-maximized`（已修正）：原本同樣只存在於 Windows。GTK 端改由 `@Environment(\.window)` 取得 backend 視窗、轉型為 `Gtk.ApplicationWindow` 並呼叫新增的 `Gtk.Window.maximize()`；截圖確認 WSLg 視窗滿版 1920x1080。SwiftCrossUI 先前在任何 backend 都沒有 maximize 概念。
+- `-topmost`（維持 Windows 專屬）：GTK4 沒有置頂 API（`gtk_window_set_keep_above` 屬 GTK3 且已移除），Wayland 亦依設計不允許 client 自我抬升，因此刻意不提供 Linux 路徑，而非留待日後補上。
+- WSL 缺少 CJK 字型（已修正）：原始 WSL 映像的 `fc-list :lang=zh-tw` 為 0，zh-TW 的 fc-match 回退到不含漢字的 DejaVu Sans，GTK 因而把中文 UI 文字畫成豆腐框。此症狀極易被誤判為 backend 的算繪缺陷——同一張截圖中，影片壓製的中文字幕清晰可辨（那是像素），只有 UI 文字是方框（那是文字），且全程沒有任何錯誤訊息。安裝 `fonts-noto-cjk` 後 zh-TW 字型由 0 增為 30，檔名完整顯示；已寫入 `install_tool_wsl.sh`。Windows 端不受影響，因為它使用含 CJK 的系統字型。
+- WSL/Windows GUI comparison（2026-08-16 該項的解答）：兩端的尺寸差異來自 **DPI scaling**，而非 requested content size、backend window-sizing semantics、window decorations 或 WSLg compositor 行為。在同一台 1920x1080 螢幕、兩端皆 `-maximized` 的條件下量到：Windows 影片區為 1200x675 px，WSLg/GTK 為 960x540 px。Windows 日誌本身即記錄 `viewport 960.0x540.0 dip (1200x675 px), panel actual 960.0x540.0 dip, rasterization scale 1.25`，並有 `window metrics: dpi 120`。亦即 WinUIBackend 套用了 1.25 的 rasterization scale，GtkBackend 則以 1:1 呈現。因此跨 backend 的 layout 截圖在換算 DPI 之前，不可直接視為等比例比較。
