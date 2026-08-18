@@ -176,47 +176,53 @@ gpu_ok=1
 ls /dev/dri/renderD* >/dev/null 2>&1 \
     || { echo "  /dev/dri render node missing: EGL cannot initialise, GTK will use llvmpipe" >&2; gpu_ok=0; }
 
-# Where to look next when the render node is missing, and what it means.
+# Where to look next when the render node is missing.
 #
-# WSL mounts the Windows DriverStore read-only at /usr/lib/wsl/drivers, and the
-# GPU's user-mode D3D12 driver has to be among those entries. If it is not,
-# dxgkrnl has no adapter to describe, and `dmesg | grep dxgk` fills with
-# `dxgkio_query_adapter_info: Ioctl failed: -22`. That message is the one to
-# search for; it appears within the first few seconds of boot and is the
-# earliest point in the chain that says anything at all.
+# `dmesg | grep dxgk` is the earliest thing in the chain that speaks. On the
+# machine this was diagnosed on it reported
+# `dxgkio_query_adapter_info: Ioctl failed: -22` within three seconds of boot,
+# and every symptom above it -- no /dev/dri, "device is CPU", llvmpipe --
+# follows from that without naming it.
 #
-# "Not among the entries" is not the same as "no directory". On the machine
-# this was diagnosed on, the AMD entry `u0407959.inf_amd64_*` was present and
-# contained zero files, while the NVIDIA entry was absent entirely: the mount
-# and the directory names were there, the payload was not. Check the contents,
-# not the listing -- `ls /usr/lib/wsl/drivers/<entry>/ | wc -l`.
-# 「不在項目之中」與「沒有目錄」是兩回事。在診斷這台機器時，AMD 的
-# `u0407959.inf_amd64_*` 項目存在但裡面有 0 個檔案，NVIDIA 的項目則完全不在：
-# 掛載與目錄名都在，酬載卻不在。要看的是內容而非清單——
-# `ls /usr/lib/wsl/drivers/<entry>/ | wc -l`。
+# What it is NOT, established by getting it wrong three times in one sitting:
 #
-# Deliberately not checked programmatically. Matching driver directories by
-# vendor prefix looked easy and was wrong on the first real run: `^nv` matches
-# `nvami.inf` and `nvdimm.inf`, which are NVDIMM storage drivers, so the check
-# reported a graphics driver on a machine that plainly had none. The two device
-# node tests above are direct evidence and do not need a heuristic behind them.
+#   It is not a missing or outdated GPU driver. `pnputil /enum-drivers` showed
+#   the NVIDIA display driver installed and current, published as oem109.inf
+#   from nvami.inf, and its WSL mount at
+#   /usr/lib/wsl/drivers/nvami.inf_amd64_*/ held 165 files including
+#   libcuda.so. The payload is there.
 #
-# The fix is on the Windows side -- reinstall the GPU driver so the DriverStore
-# entry is restored, and reboot. Nothing inside the distribution can supply it.
-# render node 缺席時該往哪裡看，以及那代表什麼。
+#   `nvami.inf` is NVIDIA's display driver, whatever the name suggests. A
+#   check that dismissed it as NVDIMM storage was written, committed, and
+#   pushed before `pnputil` was consulted.
 #
-# WSL 會把 Windows 的 DriverStore 唯讀掛載於 /usr/lib/wsl/drivers，GPU 的 D3D12
-# 使用者模式驅動必須在其中。若不在，dxgkrnl 就沒有介面卡可描述，`dmesg | grep dxgk`
-# 會出現 `dxgkio_query_adapter_info: Ioctl failed: -22`。那行訊息就是該搜尋的目標，
-# 它在開機後數秒內出現，是整條鏈上最早會發聲的位置。
+#   Reinstalling the driver, `wsl --shutdown` and `wsl --update` were all
+#   tried and changed nothing; WSL 2.7.11 with WSLg 1.0.73.2 is current.
 #
-# 刻意不做程式化判斷。以廠商前綴比對驅動目錄看似容易，卻在第一次真實執行就出錯：
-# `^nv` 會匹配到 `nvami.inf` 與 `nvdimm.inf`——那是 NVDIMM 儲存驅動，於是檢查在一台
-# 明顯沒有顯示卡驅動的機器上回報「找到了」。上方兩項裝置節點檢查是直接證據，不需要
-# 這種啟發式。
+# So the cause is still open. Ask dxgk what it could not enumerate before
+# assuming anything about drivers -- three guesses were spent on the driver
+# because it was the plausible answer, and each one was checked against a
+# proxy that happened to agree.
+# render node 缺席時該往哪裡看。
 #
-# 修復屬於 Windows 端：重新安裝顯示卡驅動讓 DriverStore 項目回來，然後重開機。
-# 發行版內部無法提供它。
+# `dmesg | grep dxgk` 是整條鏈上最早發聲的地方。在診斷這台機器時，它於開機三秒內
+# 報出 `dxgkio_query_adapter_info: Ioctl failed: -22`，而其上的所有症狀（沒有
+# /dev/dri、「device is CPU」、llvmpipe）都源自於此，卻都不會提到它。
+#
+# 以下是「不是」什麼，代價是同一次作業中連錯三次：
+#
+#   不是驅動缺失或過舊。`pnputil /enum-drivers` 顯示 NVIDIA 顯示驅動已安裝且為新版
+#   （oem109.inf，源自 nvami.inf），其 WSL 掛載
+#   /usr/lib/wsl/drivers/nvami.inf_amd64_*/ 內有 165 個檔案，包含 libcuda.so。
+#
+#   `nvami.inf` 就是 NVIDIA 的顯示驅動，名稱容易誤導。曾有一個把它當成 NVDIMM 儲存
+#   驅動而排除的檢查被寫下、提交並推送——在查 `pnputil` 之前。
+#
+#   重裝驅動、`wsl --shutdown`、`wsl --update` 都試過且無效；WSL 2.7.11 與
+#   WSLg 1.0.73.2 皆為最新。
+#
+# 因此成因仍未確定。在對驅動做出任何假設之前，先問 dxgk 它究竟列舉不到什麼——
+# 前三次猜測都押在驅動上，因為那是看似合理的答案，而每次驗證用的代理指標又剛好同意。
 if [ "$gpu_ok" -eq 1 ]; then
     echo "  device nodes present; confirm with: GSK_DEBUG=renderer <app>"
 else
