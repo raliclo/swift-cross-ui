@@ -130,4 +130,56 @@ else
     echo "display: none found -- GUI tests cannot run in this session" >&2
 fi
 
+# GPU acceleration: reported, not fixed. Nothing here can install it.
+#
+# GTK renders through GSK, which tries Vulkan, then GL, then falls back to
+# llvmpipe -- a CPU rasteriser. The fallback is silent: windows appear, tests
+# pass, screenshots look right, and every frame was drawn on the CPU. Anything
+# measuring GPU presentation is then measuring nothing, which is why this
+# prints the answer rather than leaving it to be discovered.
+#
+# The chain that has to hold, in order:
+#
+#   /dev/dxg          WSL's GPU device. Present whenever GPU support is on.
+#   /dev/dri/renderD* The DRM render node. EGL opens this and nothing else;
+#                     without it eglInitialize fails with "failed to get
+#                     driver name for fd -1" no matter which Mesa driver is
+#                     selected. /dev/dxg alone is not enough.
+#   a non-CPU Vulkan  Otherwise GSK reports "device is CPU" and gives up. On
+#     device          WSL that means the dzn (D3D12 -> Vulkan) ICD; the stock
+#                     mesa-vulkan-drivers package here ships lavapipe, which
+#                     is software.
+#
+# Measured on this machine, 2026-08-18: /dev/dxg present, /dev/dri absent,
+# only lavapipe, so GTK ran on llvmpipe. Overriding GALLIUM_DRIVER,
+# MESA_LOADER_DRIVER_OVERRIDE or GSK_RENDERER changes nothing, because the
+# missing piece is the render node rather than the driver choice. Fixing it is
+# a WSL-side concern -- kernel with the dxgkrnl DRM shim, GPU support enabled
+# in .wslconfig -- not an apt install.
+# GPU 加速：只回報、不修復，這裡沒有任何 apt 套件能補上。
+#
+# GTK 透過 GSK 繪製，依序嘗試 Vulkan、GL，最後退回 llvmpipe（CPU 光柵化器）。這個
+# 退回是「靜默」的：視窗照常出現、測試照常通過、截圖看起來正確，而每一格都是 CPU
+# 畫的。任何量測 GPU 呈現的工作到那時都在量空氣，因此這裡直接把答案印出來。
+#
+# 必須依序成立的條件：/dev/dxg（WSL 的 GPU 裝置）、/dev/dri/renderD*（DRM render
+# node，EGL 只認這個，缺了它無論選哪個 Mesa 驅動都會失敗）、以及非 CPU 的 Vulkan
+# 裝置（WSL 上需要 dzn ICD；本機 mesa-vulkan-drivers 只提供軟體的 lavapipe）。
+#
+# 2026-08-18 於本機實測：/dev/dxg 有、/dev/dri 無、只有 lavapipe，因此 GTK 跑在
+# llvmpipe 上。覆寫 GALLIUM_DRIVER、MESA_LOADER_DRIVER_OVERRIDE 或 GSK_RENDERER
+# 都無效，因為缺的是 render node 而非驅動選擇。要修屬於 WSL 端的事——具備 dxgkrnl
+# DRM shim 的核心、以及 .wslconfig 中啟用 GPU 支援——不是安裝套件能解決的。
+log "Checking GPU acceleration"
+gpu_ok=1
+[ -e /dev/dxg ] || { echo "  /dev/dxg missing: GPU support is off for this distribution" >&2; gpu_ok=0; }
+ls /dev/dri/renderD* >/dev/null 2>&1 \
+    || { echo "  /dev/dri render node missing: EGL cannot initialise, GTK will use llvmpipe" >&2; gpu_ok=0; }
+if [ "$gpu_ok" -eq 1 ]; then
+    echo "  device nodes present; confirm with: GSK_DEBUG=renderer <app>"
+else
+    echo "  GTK will fall back to llvmpipe (CPU). UI tests still work;" >&2
+    echo "  anything measuring GPU presentation does not." >&2
+fi
+
 log "Done. Open a new shell, or run: export PATH=\"$SWIFT_PREFIX/usr/bin:\$PATH\""
