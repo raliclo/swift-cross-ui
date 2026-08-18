@@ -90,10 +90,18 @@ rsync -a \
     --include='*.swift' \
     --include='testapp/*.zsh' \
     --include='testapp/**/*.zsh' \
+    `# The one .sh worth copying: it is the bootstrap that installs zsh, so it` \
+    `# has to reach a machine that cannot yet run the .zsh files above. Without` \
+    `# this line the WSL copy stayed at whatever version was there when the` \
+    `# directory was first created -- found still on an August 16 build.` \
+    `# 唯一值得複製的 .sh：它是安裝 zsh 的引導程式，因此必須送達一台尚無法執行上述` \
+    `# .zsh 檔案的機器。少了這一行，WSL 端的副本會停留在該目錄初次建立時的版本——` \
+    `# 實際發現它仍是 8 月 16 日的版本。` \
+    --include='testapp/install_tool_wsl.sh' \
     --exclude='*' \
     '$source_root/' \
     '$wsl_project_root/'
 find '$wsl_project_root/testapp' -type f -name '*.zsh' -exec chmod +x {} +
 "
 
-printf 'Synced all *.swift and testapp/**/*.zsh to %s\n' "$wsl_project_root"
+printf 'Synced *.swift, testapp/**/*.zsh and install_tool_wsl.sh to %s\n' "$wsl_project_root"
