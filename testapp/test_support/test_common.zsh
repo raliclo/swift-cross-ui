@@ -247,8 +247,39 @@ run_wsl() {
         "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment"
 
     printf '==> Launching %s under WSLg\n' "$app"
+    # Plain `$app_args`, deliberately unadorned. Unlike the Windows branch just
+    # above -- which passes real argv words and so wants `(z)` -- this builds a
+    # single command *string* for `zsh -lc`, and the inner shell does its own
+    # parsing. Both parameter flags break that, in opposite directions:
+    #
+    #   (q)  escapes the spaces, so the inner shell sees one argument:
+    #        P6 received `-f -autoplay --debug` whole and matched no flag.
+    #   (z)  splits into separate words even inside double quotes, so `-lc`
+    #        took `env ./P6 -f` as the command and quietly dropped the rest
+    #        into its positional parameters. Measured: P6 logged
+    #        `autoplay off` and never started playback.
+    #
+    # Every wrapper before P6 passed the single word `--debug`, where `(q)` is
+    # a no-op -- which is why the original went unnoticed for so long, and why
+    # the first attempt at a fix reproduced the same class of bug.
+    # A value containing a space must be quoted inside TEST_APP_ARGS
+    # (`-f "/path/with a space.webm"`); the quotes travel as literal text and
+    # the inner shell honours them. Verified both ways.
+    # 刻意使用未加任何旗標的 `$app_args`。與上方 Windows 分支不同——那裡傳遞的是真正
+    # 的 argv 詞，因此需要 `(z)`——這裡組出的是給 `zsh -lc` 的單一命令「字串」，由內層
+    # shell 自行解析。兩個參數旗標都會破壞它，且方向相反：
+    #
+    #   (q)  跳脫空白，內層 shell 只看到一個參數：P6 收到完整的
+    #        `-f -autoplay --debug`，任何旗標都比對不到。
+    #   (z)  即使在雙引號內仍會拆成多個詞，於是 `-lc` 把 `env ./P6 -f` 當成命令，
+    #        其餘的靜靜落入位置參數。實測：P6 記錄 `autoplay off`，從未開始播放。
+    #
+    # P6 之前的每個 wrapper 都只傳單一詞 `--debug`，該情況下 `(q)` 等同無作用——這正是
+    # 原本的問題長期未被發現的原因，也是第一次嘗試修正時又重現同類錯誤的原因。
+    # 含空白的值必須在 TEST_APP_ARGS 內自行加引號（`-f "/path/with a space.webm"`）；
+    # 引號會以字面文字傳遞，由內層 shell 解讀。兩種情況皆已驗證。
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui/testapp/output -- \
-        zsh -lc "env $app_env ./$app ${(q)app_args} >/dev/null 2>&1" \
+        zsh -lc "env $app_env ./$app $app_args >/dev/null 2>&1" \
         >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
