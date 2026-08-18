@@ -23,6 +23,21 @@ open class Window: Widget {
         gtk_window_is_active(castedPointer()).toBool()
     }
 
+    public var isMaximized: Bool {
+        gtk_window_is_maximized(castedPointer()).toBool()
+    }
+
+    /// Asks the window manager to maximize the window. It is a request, not a
+    /// command: the window manager may ignore it, and it does not take effect
+    /// synchronously, so ``isMaximized`` can still be false immediately after.
+    public func maximize() {
+        gtk_window_maximize(castedPointer())
+    }
+
+    public func unmaximize() {
+        gtk_window_unmaximize(castedPointer())
+    }
+
     public func setTransient(for other: Window) {
         gtk_window_set_transient_for(castedPointer(), other.castedPointer())
     }
