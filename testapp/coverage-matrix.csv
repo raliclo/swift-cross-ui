@@ -38,10 +38,12 @@ feature,Windowing / Colors / Paths / Tooltips / Gestures / CornerRadius / gradie
 testapp,flat menu — one level with every MenuItem kind,🔨,➖,⚠️,P19,built on Linux; Windows build not completed yet; nobody has opened the menu
 testapp,nested menus — three levels with an item at each,🔨,➖,⚠️,P20,built on Linux; Windows build not completed yet; nobody has opened the menu
 feature,menu style — AttachedMenus against PopoverMenus,⚠️,⚠️,⚠️,P19 P20,two implementations of one feature not a capability gap; the app cannot choose so the backend decides. Split by menu shape instead: flat in P19 nested in P20
-proposed,input controls — Button / Toggle* / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,⚠️,⚠️,⚠️,P20,widest surface; disabled and indeterminate states usually differ
-proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P21,font metrics are the measuring stick for other layout comparisons
-proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P22,column widths and selection never compared
-proposed,navigation and split views,➖,➖,➖,none,deliberately not proposed; P7 and P16 already cover this
+proposed,input controls — Button / Toggle / ToggleSwitch / ToggleButton / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,⚠️,⚠️,⚠️,P21,widest surface; disabled and indeterminate states usually differ. ToggleSwitch ToggleButton and Checkbox appear in no test app at all
+proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P22,font metrics are the measuring stick for other layout comparisons
+proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P23,neither type appears in any test app; column widths and selection never compared
+proposed,navigation stack — NavigationStack / NavigationLink,⚠️,⚠️,⚠️,P24,neither appears in any test app. P7 and P16 cover NavigationSplitView which is a different type
+proposed,WebView,⚠️,⚠️,⚠️,none,appears in no test app; no proposal yet because it is unclear what a cross-backend comparison of it would assert
+proposed,ContentUnavailableView,⚠️,⚠️,⚠️,none,appears in no test app; small surface so it could fold into P21 rather than get its own
 gap,GtkBackend library target on Windows,➖,✅,➖,none,swift build --target GtkBackend exits 0 — this is the library only
 gap,any Pn.exe linked against GtkBackend on Windows,➖,⛔,➖,none,never produced; every Pn.exe in output links WinAppSDK and no GTK. The library building is not the same as an app linking it
 gap,GtkBackend runtime on Windows,➖,⛔,➖,none,cannot be attempted while no app links it; no window has ever been seen
