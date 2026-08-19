@@ -1,5 +1,6 @@
 import CGtk
 import Dispatch
+import Foundation
 import GtkCHelpers
 
 /// A `GtkGLArea` that draws NV12 video frames, converting them to RGB on the
@@ -18,6 +19,81 @@ import GtkCHelpers
 /// this widget's context is current. It is created before realize and its GL
 /// side is set up on the first render, because a widget has no context when it
 /// is constructed.
+/// One-slot mailbox between the decode thread and the widget.
+///
+/// One slot, not a queue: a frame that has not been drawn yet is stale the
+/// moment a newer one arrives, and queueing them would trade latency for
+/// nothing. Overwrites are counted by the widget so the loss is visible.
+///
+/// 解碼執行緒與 widget 之間的單格信箱。
+///
+/// 只有一格而非佇列：尚未繪製的幀，在更新的一幀抵達的當下就已過期，將它們排入佇列只會以延遲
+/// 換取毫無價值的東西。覆蓋次數由 widget 計數，使該項損失可見。
+private final class FrameInbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var slot: (y: [UInt8], uv: [UInt8], width: Int, height: Int)?
+    private var discarded = 0
+
+    /// Frames replaced here before anyone took them.
+    ///
+    /// Counted because moving the handover to `g_idle_add` moved the discard
+    /// point with it. The widget's own overwrite counter then reported 16 while
+    /// 509 frames were being dropped in this slot -- a counter that no longer
+    /// covered the place the loss happens, which is the same defect twice.
+    ///
+    /// 在此被取代、且無人取走的幀數。
+    ///
+    /// 之所以計數，是因為把交遞改到 `g_idle_add` 的同時，也把丟棄點一併移了過來。當時 widget
+    /// 自身的覆蓋計數器回報 16，而實際上有 509 幀正在這一格中被丟棄——一個不再涵蓋「損失實際
+    /// 發生之處」的計數器，是同一個缺陷犯了第二次。
+    var discardedCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return discarded
+    }
+
+    func store(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
+        lock.lock()
+        if slot != nil { discarded += 1 }
+        slot = (y, uv, width, height)
+        lock.unlock()
+    }
+
+    private var scheduled = false
+
+    /// True when the caller should add an idle source; false when one is already
+    /// in flight.
+    /// 回傳 true 表示呼叫端應加入 idle source；false 表示已有一個在途。
+    func markScheduled() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if scheduled { return false }
+        scheduled = true
+        return true
+    }
+
+    func clearScheduled() {
+        lock.lock()
+        scheduled = false
+        lock.unlock()
+    }
+
+    func take() -> (y: [UInt8], uv: [UInt8], width: Int, height: Int)? {
+        lock.lock()
+        defer { lock.unlock() }
+        let value = slot
+        slot = nil
+        return value
+    }
+}
+
+/// Carries a weak view reference through a C callback's void pointer.
+/// 透過 C callback 的 void 指標攜帶對 view 的弱參照。
+private final class WeakViewBox {
+    weak var view: NV12GLView?
+    init(_ view: NV12GLView?) { self.view = view }
+}
+
 public class NV12GLView: GLArea {
     // A var set after `self.init`, not a `let` set in a designated init.
     // GLArea's `init()` is a convenience initialiser, so it cannot be
@@ -52,6 +128,8 @@ public class NV12GLView: GLArea {
             guard let self else { return }
             self.drawFrame(area)
         }
+
+        installTickCallback()
     }
 
     deinit {
@@ -65,6 +143,96 @@ public class NV12GLView: GLArea {
     /// The upload happens inside the render pass rather than here, because a
     /// GL call without a current context is undefined and the decode thread has
     /// none. The frame is copied so the caller may reuse its buffer.
+    /// Hands over a frame from any thread.
+    ///
+    /// Use this from a decode thread rather than hopping through
+    /// `DispatchQueue.main.async`. A GTK app runs GTK's main loop, and nothing
+    /// in GtkBackend drains libdispatch's main queue, so blocks posted there are
+    /// serviced late and erratically. Measured: with `DispatchQueue.main.async`
+    /// the decode loop spent 28 ms per frame waiting for those blocks to run
+    /// against 8.4 ms actually reading, capping throughput at about 25 fps while
+    /// the widget's own upload cost 0.3 ms.
+    ///
+    /// `g_idle_add` is GTK's own scheduling primitive and runs in the loop that
+    /// is actually turning.
+    ///
+    /// 從任意執行緒交遞一幀。
+    ///
+    /// 請在解碼執行緒上使用本方法，而非繞經 `DispatchQueue.main.async`。GTK app 執行的是 GTK
+    /// 自己的 main loop，而 GtkBackend 中沒有任何東西在抽取 libdispatch 的 main queue，因此投遞
+    /// 至該處的區塊會被延遲且不規律地執行。實測：使用 `DispatchQueue.main.async` 時，解碼迴圈
+    /// 每幀花費 28 ms 等待這些區塊執行，而真正的讀取只需 8.4 ms，使吞吐量被限制在約 25 fps；
+    /// 同時 widget 自身的上傳成本僅 0.3 ms。
+    ///
+    /// `g_idle_add` 是 GTK 自己的排程原語，執行於真正在運轉的那個迴圈中。
+    public nonisolated func submitFrame(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
+        inbox.store(y: y, uv: uv, width: width, height: height)
+
+        // Nothing is scheduled here. A tick callback installed at construction
+        // drains the slot once per frame clock tick, which is exactly the
+        // cadence a video widget wants.
+        //
+        // Two idle-based attempts failed in opposite directions, and both were
+        // guesses about GLib priorities rather than measurements:
+        //
+        //   g_idle_add_full at priority 0 (G_PRIORITY_DEFAULT) is *higher* than
+        //   GTK's redraw at G_PRIORITY_HIGH_IDLE + 20, so 52 submissions a
+        //   second starved the frame clock: `render` fired about 10 times a
+        //   second while the widget's own upload cost 0.3 ms.
+        //
+        //   Priority 200 (G_PRIORITY_DEFAULT_IDLE) is below the redraw and never
+        //   ran at all -- accepted and rendered both stayed at 0 while the slot
+        //   discarded every frame.
+        //
+        // The frame clock is not a priority to be picked; it is the thing to
+        // synchronise with.
+        //
+        // 此處不做任何排程。建構時安裝的 tick callback 會在每次 frame clock tick 時抽取該格位，
+        // 而那正是影片 widget 所需的節奏。
+        //
+        // 先前兩次以 idle 為基礎的嘗試朝相反方向失敗，且兩者都是對 GLib 優先權的臆測而非量測：
+        //
+        //   priority 0（G_PRIORITY_DEFAULT）的 g_idle_add_full *高於* GTK 位於
+        //   G_PRIORITY_HIGH_IDLE + 20 的重繪，因此每秒 52 次提交餓死了 frame clock：
+        //   `render` 每秒僅觸發約 10 次，而 widget 自身的上傳只需 0.3 ms。
+        //
+        //   priority 200（G_PRIORITY_DEFAULT_IDLE）低於重繪，結果完全不曾執行——accepted 與
+        //   rendered 皆維持為 0，而該格位丟棄了每一幀。
+        //
+        // frame clock 不是一個「要挑選的優先權」，而是「應該與之同步」的對象。
+    }
+
+    /// Installs the frame-clock tick callback. Called once, at construction.
+    /// 安裝 frame clock 的 tick callback。僅於建構時呼叫一次。
+    private func installTickCallback() {
+        let box = Unmanaged.passRetained(WeakViewBox(self)).toOpaque()
+        gtk_widget_add_tick_callback(
+            castedPointer(),
+            { _, _, pointer in
+                guard let pointer else { return 0 }
+                let box = Unmanaged<WeakViewBox>.fromOpaque(pointer).takeUnretainedValue()
+                MainActor.assumeIsolated {
+                    box.view?.drainInbox()
+                }
+                // G_SOURCE_CONTINUE: stay installed for the widget's lifetime.
+                // G_SOURCE_CONTINUE：在 widget 的生命週期內持續安裝。
+                return 1
+            },
+            box,
+            { pointer in
+                guard let pointer else { return }
+                Unmanaged<WeakViewBox>.fromOpaque(pointer).release()
+            }
+        )
+    }
+
+    private let inbox = FrameInbox()
+
+    private func drainInbox() {
+        guard let frame = inbox.take() else { return }
+        setFrame(y: frame.y, uv: frame.uv, width: frame.width, height: frame.height)
+    }
+
     public func setFrame(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
         // A frame still waiting here is one the widget never drew. It is
         // overwritten, and it has to be counted, because from the decoder's side
@@ -109,9 +277,21 @@ public class NV12GLView: GLArea {
     /// ——僅靠繪製次數無法分辨這兩者。
     public private(set) var lastUploadNanoseconds: UInt64 = 0
 
+    /// Every time GTK emitted `render`, with or without a frame waiting.
+    /// Separates "GTK rarely asks us to draw" from "we rarely have anything to
+    /// draw when it does".
+    /// GTK 每次發出 `render` 的次數，無論當時是否有幀在等待。用以區分「GTK 很少要求我們繪製」
+    /// 與「它要求時我們很少有東西可畫」。
+    public private(set) var renderCallbacks = 0
+
+    /// Frames discarded in the cross-thread slot before the widget took them.
+    /// 在跨執行緒的暫存格中、於 widget 取走之前即被丟棄的幀數。
+    public nonisolated var framesDiscardedInInbox: Int { inbox.discardedCount }
+
     private var pendingFrame: (y: [UInt8], uv: [UInt8], width: Int, height: Int)?
 
     private func drawFrame(_ area: GLArea) {
+        renderCallbacks += 1
         guard let handle = renderer else { return }
 
         if !didRealize {

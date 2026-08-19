@@ -326,6 +326,46 @@ final class P6v2Stats: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Where the rest of the loop's time goes.
+    ///
+    /// Added because the arithmetic did not close: reads averaged 8.47 ms, which
+    /// allows 118 iterations a second, and the loop managed 23. Roughly 35 ms per
+    /// iteration was unaccounted for, and attributing it to GTK would have been a
+    /// guess -- the widget's own upload measures 0.3 ms.
+    ///
+    /// 迴圈其餘時間的去向。
+    ///
+    /// 之所以加入，是因為算術對不上：讀取平均 8.47 ms，理論上每秒可跑 118 次迭代，實際卻只有
+    /// 23 次。每次迭代約有 35 ms 去向不明，而把它歸咎於 GTK 只會是臆測——widget 自身的上傳
+    /// 量得 0.3 ms。
+    private var waitNanosTotal: UInt64 = 0
+    private var splitNanosTotal: UInt64 = 0
+
+    func recordWait(nanoseconds: UInt64) {
+        lock.lock()
+        waitNanosTotal += nanoseconds
+        lock.unlock()
+    }
+
+    func recordSplit(nanoseconds: UInt64) {
+        lock.lock()
+        splitNanosTotal += nanoseconds
+        lock.unlock()
+    }
+
+    var phaseBreakdown: String {
+        lock.lock()
+        defer { lock.unlock() }
+        guard readSamples > 0 else { return "no samples" }
+        let samples = Double(readSamples)
+        return String(
+            format: "read %.2fms wait %.2fms split %.2fms",
+            Double(readNanosTotal) / samples / 1_000_000,
+            Double(waitNanosTotal) / samples / 1_000_000,
+            Double(splitNanosTotal) / samples / 1_000_000
+        )
+    }
+
     /// Rolls the one-second window. Returns true when the window closed, so the
     /// caller knows the published rates changed.
     /// 推進一秒的取樣視窗。視窗結束時回傳 true，讓呼叫端知道已發布的速率有所變動。
@@ -791,26 +831,27 @@ final class P6v2SurfaceBox: @unchecked Sendable {
     /// 覆蓋它——解碼工作、管線頻寬與 CPU 全都花在沒有任何人看見的畫面上。
     ///
     /// 在此計數而非直接讀取 view，是因為解碼執行緒不得觸碰 @MainActor 物件。
-    private let lock = NSLock()
-    private var pending = 0
-
-    func handedOver() {
-        lock.lock()
-        pending += 1
-        lock.unlock()
+    /// Hands a frame to the widget from the decode thread.
+    ///
+    /// The widget owns the handover now, through `g_idle_add`, so this class no
+    /// longer counts pending frames itself. The counter it used to keep drove a
+    /// wait loop that cost 28 ms a frame -- it was measuring congestion in a
+    /// queue nothing was draining, not congestion in the widget.
+    ///
+    /// 由解碼執行緒將一幀交給 widget。
+    ///
+    /// 交遞現在由 widget 透過 `g_idle_add` 自行負責，因此本類別不再自行計算待處理幀數。它先前
+    /// 維護的計數器驅動了一個每幀耗費 28 ms 的等待迴圈——它量到的是「一個無人抽取的佇列」的
+    /// 壅塞，而非 widget 的壅塞。
+    func submit(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
+        viewForSubmission?.submitFrame(y: y, uv: uv, width: width, height: height)
     }
 
-    func drawn() {
-        lock.lock()
-        if pending > 0 { pending -= 1 }
-        lock.unlock()
-    }
-
-    var pendingCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return pending
-    }
+    /// Read without the main-actor hop, because the decode thread has to reach
+    /// it. `submitFrame` is nonisolated and thread-safe by construction.
+    /// 不經 main actor 轉場即可讀取，因為解碼執行緒必須觸及它。`submitFrame` 為 nonisolated，
+    /// 且其設計本身即為執行緒安全。
+    nonisolated(unsafe) var viewForSubmission: NV12GLView?
 }
 
 /// Wraps `NV12GLView` so it can sit in a SwiftCrossUI hierarchy.
@@ -823,11 +864,13 @@ struct P6v2VideoView: GtkWidgetRepresentable {
     func makeGtkWidget(context: Context) -> NV12GLView {
         let view = NV12GLView()
         box.view = view
+        box.viewForSubmission = view
         return view
     }
 
     func updateGtkWidget(_ gtkWidget: NV12GLView, context: Context) {
         box.view = gtkWidget
+        box.viewForSubmission = gtkWidget
     }
 
     /// Fixed, not the natural size. A `GtkGLArea` that has never rendered
@@ -1239,29 +1282,27 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         var isFirstFrame = true
 
         while !shouldStop {
-            // Wait for the widget to catch up before pulling another frame.
-            // Not reading is what throttles ffmpeg: the pipe fills, ffmpeg
-            // blocks on write, and the decode stops costing anything. Reading
-            // ahead and overwriting would cost the same CPU to produce pictures
-            // that are then discarded.
+            // No wait loop here any more.
             //
-            // Two frames of slack rather than one, so a single late render does
-            // not stall the pipeline; more than that and the discard starts
-            // again.
+            // There was one, gated on how many frames the widget had not drawn,
+            // and it cost 28 ms per frame against 8.4 ms of actual reading. It
+            // was not measuring the widget: the counter it watched was decremented
+            // from a `DispatchQueue.main.async` block, and nothing in GtkBackend
+            // drains that queue, so it was measuring a queue nobody was serving.
             //
-            // 在取下一幀之前，先等待 widget 跟上。「不讀取」正是節流 ffmpeg 的手段：管線填滿後
-            // ffmpeg 會在寫入時阻塞，解碼隨即不再消耗任何資源。若搶先讀取並覆蓋，則會花費同樣
-            // 的 CPU 去產生隨後即被丟棄的畫面。
+            // The widget throttles itself now. `submitFrame` keeps one slot and
+            // counts what it overwrites, so frames the display cannot take are
+            // dropped there and reported, instead of being waited for here.
             //
-            // 保留兩幀而非一幀的餘裕，使單次延遲的繪製不至於讓整條管線停頓；超過此數量，丟棄
-            // 就會重新開始發生。
-            var waited = 0.0
-            while !shouldStop, surfaceBox.pendingCount >= 2, waited < 0.25 {
-                Thread.sleep(forTimeInterval: 0.001)
-                waited += 0.001
-            }
-            if shouldStop { break }
-
+            // 此處已不再有等待迴圈。
+            //
+            // 先前有一個，以「widget 尚未繪製的幀數」為條件，而它每幀耗費 28 ms，相對於真正讀取
+            // 所需的 8.4 ms。它量到的並不是 widget：它所監看的計數器是在
+            // `DispatchQueue.main.async` 區塊中遞減的，而 GtkBackend 中沒有任何東西在抽取該佇列，
+            // 因此它量的是一個無人服務的佇列。
+            //
+            // 現在由 widget 自行節流。`submitFrame` 只保留一格並計算其覆蓋次數，因此顯示端來不及
+            // 接收的幀會在該處被丟棄並回報，而不是在此空等。
             let readStart = DispatchTime.now().uptimeNanoseconds
             let nextFrame =
                 isFirstFrame
@@ -1315,9 +1356,11 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             // place.
             // 只做切分，不做轉換。兩個平面在一幀之內連續排列，並以兩張材質送往 GPU；此處不對
             // 任何像素進行處理，而這正是一開始選擇 NV12 的目的。
+            let splitStart = DispatchTime.now().uptimeNanoseconds
             let lumaCount = resolution.lumaByteCount
             let luma = [UInt8](data[..<lumaCount])
             let chroma = [UInt8](data[lumaCount...])
+            stats.recordSplit(nanoseconds: DispatchTime.now().uptimeNanoseconds - splitStart)
             stats.recordPresented()
 
             let rolled = stats.rollWindowIfDue()
@@ -1326,16 +1369,17 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             let frameWidth = resolution.width
             let frameHeight = resolution.height
 
-            surfaceBox.handedOver()
+            // submitFrame, not DispatchQueue.main.async. The frame goes through
+            // g_idle_add, which runs in the loop GTK is actually turning; the
+            // dispatch main queue is not drained by anything in GtkBackend and
+            // cost 28 ms a frame in waiting.
+            // 使用 submitFrame 而非 DispatchQueue.main.async。該幀會經由 g_idle_add 交遞，執行於
+            // GTK 真正在運轉的迴圈中；dispatch 的 main queue 在 GtkBackend 中無人抽取，每幀為此
+            // 付出 28 ms 的等待。
+            surfaceBox.submit(y: luma, uv: chroma, width: frameWidth, height: frameHeight)
+
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                self.surfaceBox.view?.setFrame(
-                    y: luma,
-                    uv: chroma,
-                    width: frameWidth,
-                    height: frameHeight
-                )
-                self.surfaceBox.drawn()
                 if rolled {
                     self.fpsText = "\(fpsValue) fps"
                     self.dropText = "\(dropValue) skipped/sec"
@@ -1360,7 +1404,10 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
                         "fps=\(fpsValue) target=\(targetRate) skipped/sec=\(dropValue)"
                             + " accepted=\(accepted) rendered=\(rendered)"
                             + " overwritten=\(overwritten)"
+                            + " inbox-discarded=\(self.surfaceBox.view?.framesDiscardedInInbox ?? 0)"
+                            + " render-callbacks=\(self.surfaceBox.view?.renderCallbacks ?? 0)"
                             + String(format: " upload=%.2fms", uploadMs)
+                            + " | " + self.stats.phaseBreakdown
                     )
                 }
             }
