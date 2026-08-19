@@ -994,7 +994,17 @@ struct P6v2App: App {
                 P6v2RootView()
             }
         }
-        .defaultSize(width: 1040, height: 760)
+        // 800, not 760. At 760 the content needs 733 and the window's content
+        // area is 721, and GTK says so once per run:
+        //   Allocation height too small. Tried to allocate 1040x721, but
+        //   GtkFixed needs at least 1040x733.
+        // That is this app declaring a window 12px too short for what it packs
+        // into it, not a backend fault, so it is fixed here rather than by
+        // making the backend grow windows behind the app's back.
+        // 使用 800 而非 760。在 760 時內容需要 733，而視窗的內容區域為 721，GTK 會於每次執行
+        // 回報一次（如上）。那是本 app 宣告的視窗比它自己塞入的內容矮了 12px，並非 backend
+        // 的缺陷，因此在此修正，而不是讓 backend 在 app 不知情的情況下自行放大視窗。
+        .defaultSize(width: 1040, height: 800)
     }
 }
 

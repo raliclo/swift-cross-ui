@@ -44,6 +44,37 @@ void gtk_custom_root_widget_allocate(
     int baseline
 ) {
     GtkCustomRootWidget *root_widget = GTK_CUSTOM_ROOT_WIDGET(widget);
+
+    // GTK 4 requires a container to measure a child before allocating it, and
+    // this went straight to gtk_widget_allocate. The result was a warning on
+    // every single layout pass:
+    //
+    //   Allocating size to GtkFixed without calling gtk_widget_measure().
+    //   How does the code know the size to allocate?
+    //
+    // The measurements are discarded here on purpose. SwiftCrossUI has already
+    // decided the layout and this widget's job is to hand that decision down;
+    // the call exists because GTK caches the result and refuses to allocate
+    // sensibly without it, not because the numbers are wanted.
+    //
+    // GTK 4 要求容器在配置子元件之前必須先量測它，而此處先前直接呼叫了
+    // gtk_widget_allocate。結果是每一次 layout pass 都會產生警告（如上）。
+    //
+    // 此處刻意捨棄量測結果。SwiftCrossUI 早已決定好版面，本 widget 的職責只是把該決定往下
+    // 傳遞；這次呼叫的存在是因為 GTK 會快取其結果、且少了它便無法正常配置，而非因為需要
+    // 這些數值。
+    int ignored_minimum, ignored_natural, ignored_min_baseline, ignored_nat_baseline;
+    gtk_widget_measure(
+        root_widget->child, GTK_ORIENTATION_HORIZONTAL, -1,
+        &ignored_minimum, &ignored_natural,
+        &ignored_min_baseline, &ignored_nat_baseline
+    );
+    gtk_widget_measure(
+        root_widget->child, GTK_ORIENTATION_VERTICAL, width,
+        &ignored_minimum, &ignored_natural,
+        &ignored_min_baseline, &ignored_nat_baseline
+    );
+
     gtk_widget_allocate(root_widget->child, width, height, 0, NULL);
 
     root_widget->has_been_allocated = true;
