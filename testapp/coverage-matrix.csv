@@ -40,7 +40,9 @@ proposed,input controls — Button / Toggle* / Checkbox / Slider / ProgressView 
 proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P21,font metrics are the measuring stick for other layout comparisons
 proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P22,column widths and selection never compared
 proposed,navigation and split views,➖,➖,➖,none,deliberately not proposed; P7 and P16 already cover this
-gap,GtkBackend runtime on Windows,➖,⚠️,➖,none,builds but has never been launched; no window has been seen
+gap,GtkBackend library target on Windows,➖,✅,➖,none,swift build --target GtkBackend exits 0 — this is the library only
+gap,any Pn.exe linked against GtkBackend on Windows,➖,⛔,➖,none,never produced; every Pn.exe in output links WinAppSDK and no GTK. The library building is not the same as an app linking it
+gap,GtkBackend runtime on Windows,➖,⛔,➖,none,cannot be attempted while no app links it; no window has ever been seen
 gap,compile.zsh -gtk4 on Windows,✅,⛔,➖,none,swift build --target GtkBackend works by hand but the test app fails with missing required modules CGtk / GtkCHelpers — SwiftPM does not pass the module map search paths to DefaultBackend on Windows
 gap,compile.zsh -gtk4 on Linux,✅,➖,➖,P18,verified at 8.31s
 gap,file chooser on Wayland after the GtkFileDialog migration,⚠️,➖,➖,P18,the original bug was Wayland-only and the migration is verified on XWayland only
