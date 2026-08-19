@@ -102,7 +102,56 @@ fi
 # this repo calls other native tools from the shell.
 # Windows 沒有內建可啟動視窗的命令，因此改用 WSH 的 AppActivate；cscript 是系統
 # 內建工具，呼叫方式與本專案從 shell 呼叫其他原生工具一致。
+# WSLg does not present a Linux window to Windows under the title the app set.
+# It appends the distribution -- "P6 stream player (Ubuntu)" -- and prefixes a
+# warning when its own rendering path has degraded:
+#
+#   [WARN:COPY MODE] P6 stream player (Ubuntu)
+#
+# AppActivate matches the beginning or the end of a title, so that prefix breaks
+# a search for "P6 stream player" while the suffix alone does not. Measured: a
+# WSL self-update from 2.7.11 to 2.7.12 left the running WSLg in COPY MODE, and
+# from then on every capture reported "could not bring the window to the front"
+# and photographed whatever else was on screen. The window was there the whole
+# time, under a name nobody was looking for.
+#
+# So the requested name is treated as a substring, resolved against the real
+# titles, and COPY MODE is called out rather than left to be discovered.
+# WSLg 不會以 app 自己設定的標題把 Linux 視窗呈現給 Windows。它會附加發行版名稱——
+# 「P6 stream player (Ubuntu)」——並在自身的算繪路徑降級時加上前綴：
+#
+#   [WARN:COPY MODE] P6 stream player (Ubuntu)
+#
+# AppActivate 比對的是標題的開頭或結尾，因此該前綴會使「P6 stream player」的搜尋失敗，
+# 而僅有後綴時則不會。實測：WSL 從 2.7.11 自我更新至 2.7.12 後，執行中的 WSLg 陷入
+# COPY MODE，自此每次擷取都回報「無法將視窗帶到前景」並拍下當時螢幕上的其他內容。
+# 視窗自始至終都在，只是名字不是任何人在找的那個。
+#
+# 因此把傳入的名稱視為子字串、對照真實標題解析，並主動點出 COPY MODE，而不是留給人去發現。
+resolve_window_title() {
+    local wanted="$1"
+    MSYS2_ARG_CONV_EXCL='*' tasklist.exe /v /fo csv 2>/dev/null \
+        | tr -d '\0\r' \
+        | sed 's/^"//; s/"$//' \
+        | awk -F'","' -v want="$wanted" \
+            'NR>1 && $9 != "N/A" && index($9, want) { print $9; exit }'
+}
+
 if [ -n "$window" ]; then
+    resolved="$(resolve_window_title "$window")"
+    if [ -n "$resolved" ] && [ "$resolved" != "$window" ]; then
+        case "$resolved" in
+            *"COPY MODE"*)
+                printf '!! screenshot.zsh: WSLg is in COPY MODE -- its rendering path has\n' >&2
+                printf '!! degraded and the window will not come to the front. Run\n' >&2
+                printf '!! `wsl --shutdown` on Windows and reopen WSL, then retry.\n' >&2
+                printf '!! WSLg 目前處於 COPY MODE，算繪路徑已降級，視窗無法帶到前景。\n' >&2
+                printf '!! 請於 Windows 執行 `wsl --shutdown` 後重開 WSL，再重試。\n' >&2
+                ;;
+        esac
+        window="$resolved"
+    fi
+
     activate_script="$output_dir/activate-$$.vbs"
     # AppActivate returns whether it found and raised the window. That answer
     # used to be discarded, which made the one failure mode that matters
