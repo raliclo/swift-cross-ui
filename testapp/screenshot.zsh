@@ -145,6 +145,14 @@ if [ -n "$window" ]; then
                 printf '!! screenshot.zsh: WSLg is in COPY MODE -- its rendering path has\n' >&2
                 printf '!! degraded and the window will not come to the front. Run\n' >&2
                 printf '!! `wsl --shutdown` on Windows and reopen WSL, then retry.\n' >&2
+                # Printed for a person to act on, never run from here. A
+                # shutdown kills everything in the distribution, including
+                # long-running services that have nothing to do with this
+                # project -- multisshd was killed twice that way. Whoever is at
+                # the keyboard decides when that is acceptable.
+                # 此訊息供人判斷後自行執行，絕不由腳本代為執行。關閉 WSL 會終止該發行版中
+                # 的一切，包含與本專案無關的長時間執行服務——multisshd 就曾因此被殺掉兩次。
+                # 何時可以接受，由當下操作的人決定。
                 printf '!! WSLg 目前處於 COPY MODE，算繪路徑已降級，視窗無法帶到前景。\n' >&2
                 printf '!! 請於 Windows 執行 `wsl --shutdown` 後重開 WSL，再重試。\n' >&2
                 ;;
