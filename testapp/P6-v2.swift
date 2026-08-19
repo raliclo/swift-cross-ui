@@ -1378,9 +1378,22 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             // 付出 28 ms 的等待。
             surfaceBox.submit(y: luma, uv: chroma, width: frameWidth, height: frameHeight)
 
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                if rolled {
+            // Only when the one-second window closed, not every frame. This
+            // posted 52 blocks a second that did nothing 51 times, and anything
+            // competing with GDK's redraw timeout at G_PRIORITY_HIGH_IDLE + 20
+            // delays it -- the frame clock is a timeout, not a hardware
+            // interrupt, so it only fires when the loop gets to it.
+            // 僅在一秒的取樣視窗結束時執行，而非每一幀。先前這裡每秒投遞 52 個區塊，其中 51 次
+            // 什麼都不做；而任何與 GDK 位於 G_PRIORITY_HIGH_IDLE + 20 的重繪 timeout 競爭的東西
+            // 都會延遲它——frame clock 是一個 timeout，而非硬體中斷，只有在迴圈輪到它時才會觸發。
+            // `if`, not `guard ... else { continue }`. Skipping the rest of the
+            // iteration would skip the pacing sleep below and leave the loop
+            // spinning flat out.
+            // 使用 `if` 而非 `guard ... else { continue }`。跳過該次迭代的其餘部分會連下方的調速
+            // sleep 一併跳過，使迴圈全速空轉。
+            if rolled {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
                     self.fpsText = "\(fpsValue) fps"
                     self.dropText = "\(dropValue) skipped/sec"
 
@@ -1405,6 +1418,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
                             + " accepted=\(accepted) rendered=\(rendered)"
                             + " overwritten=\(overwritten)"
                             + " inbox-discarded=\(self.surfaceBox.view?.framesDiscardedInInbox ?? 0)"
+                            + " ticks=\(self.surfaceBox.view?.tickCallbacks ?? 0)"
                             + " render-callbacks=\(self.surfaceBox.view?.renderCallbacks ?? 0)"
                             + String(format: " upload=%.2fms", uploadMs)
                             + " | " + self.stats.phaseBreakdown

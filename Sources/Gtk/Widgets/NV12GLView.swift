@@ -229,6 +229,7 @@ public class NV12GLView: GLArea {
     private let inbox = FrameInbox()
 
     private func drainInbox() {
+        tickCallbacks += 1
         guard let frame = inbox.take() else { return }
         setFrame(y: frame.y, uv: frame.uv, width: frame.width, height: frame.height)
     }
@@ -283,6 +284,15 @@ public class NV12GLView: GLArea {
     /// GTK 每次發出 `render` 的次數，無論當時是否有幀在等待。用以區分「GTK 很少要求我們繪製」
     /// 與「它要求時我們很少有東西可畫」。
     public private(set) var renderCallbacks = 0
+
+    /// Frame clock ticks seen. Distinct from `renderCallbacks`: the tick is GTK
+    /// offering us a slot, the render is GTK asking us to draw. Conflating them
+    /// made "the clock is slow" and "the redraw is slow" indistinguishable, and
+    /// a vsync experiment was run against the wrong one.
+    /// 已觀察到的 frame clock tick 次數。與 `renderCallbacks` 不同：tick 是 GTK 提供給我們的時機，
+    /// render 則是 GTK 要求我們繪製。把兩者混為一談，會使「時鐘慢」與「重繪慢」無從分辨，而先前
+    /// 那次 vsync 實驗正是針對了錯誤的那一個。
+    public private(set) var tickCallbacks = 0
 
     /// Frames discarded in the cross-thread slot before the widget took them.
     /// 在跨執行緒的暫存格中、於 widget 取走之前即被丟棄的幀數。
