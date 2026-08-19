@@ -8,20 +8,93 @@ baseline. Nothing is removed by this plan.
 
 ## Why
 
-Compile time, measured on this machine during the P6 work:
+Compile time. The figures that started this were wrong and are corrected below,
+because they were used to justify the work and would otherwise keep being cited.
 
-| Build | Backend | Time |
+**The wrong comparison.** Early in the P6 work these two numbers were put side
+by side: P6 on Windows at 95-103s against P6 in WSL at 13-22s, called a 5x
+difference and attributed to WinAppSDK. They confound three variables at once —
+operating system, backend, and whether the build was incremental or from
+scratch — so they cannot support a claim about any one of them.
+
+**The measured comparison.** One source file changed, both trees already warm:
+
+| Platform | Config | Incremental build |
 |---|---|---|
-| P6 on Windows | WinUIBackend (+ swift-winui, WinAppSDK) | 95s, 103s |
-| P6 in WSL | GtkBackend | 13s, 16s, 18s, 20s, 22s |
+| Windows | debug | **38s** |
+| Linux | release | **14s** |
 
-Roughly a 5x difference, and the cost is WinAppSDK, not the app. That is a
-developer-experience problem rather than a runtime one, which is worth stating
-plainly because it changes what the comparison below has to prove.
+About 2.7x, not 15x. WinAppSDK's cost falls almost entirely on the first build,
+not on day-to-day iteration.
 
-編譯時間，取自 P6 工作期間於本機的實測（如上表）。差距約 5 倍，成本來自 WinAppSDK 而
-非 app 本身。這是開發體驗問題而非執行期問題，必須先講明，因為它決定了下方對照實驗要
-證明什麼。
+**First builds, for contrast:**
+
+| Platform | Config | From scratch |
+|---|---|---|
+| Windows | release | 20-30 min, and killed at 97% several times, producing nothing |
+| Windows | debug | 848s (14 min), produced a binary |
+| Linux | release | 590s for a fresh tree |
+
+編譯時間。當初據以啟動這項工作的數字是錯的，以下更正，否則它會一再被引用。
+
+**錯誤的比較**：P6 工作初期把「Windows 95-103 秒」與「WSL 13-22 秒」並列，稱為 5 倍差距
+並歸因於 WinAppSDK。這組數字同時混淆了三個變數——作業系統、backend，以及該次是增量還是
+從零建置——因此無法支持關於其中任一項的結論。
+
+**實測的比較**（改動單一原始檔、兩邊目錄樹皆已溫熱）：如上表，約 2.7 倍而非 15 倍。
+WinAppSDK 的成本幾乎全部落在首次建置，而非日常迭代。
+
+## Build configuration decision
+
+Windows builds default to debug; Linux stays on release. Set in
+`testapp/compile.zsh`, overridable with `BUILD_CONFIG`.
+
+**Why Windows departs from the project's release-by-default rule.** Release
+means whole-module optimisation across WinAppSDK and the whole Gtk module. A
+from-scratch build ran 20-30 minutes and was killed at 97% more than once, so
+the practical outcome of keeping release was no binary at all. Debug produced
+one in 14 minutes and rebuilds in 38s.
+
+**Why release cannot simply be made incremental.** In release SwiftPM uses
+whole-module optimisation, where the compilation unit is the entire module so
+the optimiser can inline and specialise across files. File-level incrementality
+does not exist there by construction: change one file and the module recompiles.
+`Sources/Gtk` is roughly 180 generated files, and in release that is one unit —
+which is why a single `swift-frontend` was seen holding 2.9 GB. Debug compiles
+per file with dependency tracking. If optimised *and* incremental is ever wanted,
+`-Xswiftc -no-whole-module-optimization` is the middle ground.
+
+**Why Linux keeps release.** Its incremental build is already 14s, so debug
+would save little, and the cost is the same on both platforms: an unoptimised
+app. Windows was worth changing because the alternative there was no binary;
+Linux has no such problem.
+
+**What this costs, and it is not free.** A Windows build is no longer valid for
+measuring startup or interaction latency, and the binary is larger — P19.exe is
+333 MB in debug against roughly 167 MB in release. Any run whose numbers matter
+must set `BUILD_CONFIG=release` explicitly, and any figure recorded from Windows
+must say which configuration produced it.
+
+建置組態決定：Windows 預設 debug，Linux 維持 release，設定於 `testapp/compile.zsh`，
+可由 `BUILD_CONFIG` 覆寫。
+
+Windows 偏離「預設 release」規則的理由：release 意味著對 WinAppSDK 與整個 Gtk 模組進行
+whole-module 最佳化，從零建置需 20-30 分鐘，且曾多次在 97% 被終止而未產出任何檔案；改用
+debug 後 14 分鐘完成，增量重建僅 38 秒。
+
+release 無法直接改為增量的原因：release 使用 whole-module 最佳化，其編譯單位是整個模組，
+以便最佳化器跨檔案內聯與特化。檔案層級的增量在該模式下依定義不存在——改一個檔案即重編整個
+模組。`Sources/Gtk` 約有 180 個生成檔案，在 release 下屬同一個編譯單位，這正是曾觀察到單一
+`swift-frontend` 佔用 2.9 GB 的原因。若日後需要「已最佳化且可增量」，
+`-Xswiftc -no-whole-module-optimization` 是折衷選項。
+
+Linux 維持 release 的理由：其增量建置已為 14 秒，改用 debug 節省有限，而代價與 Windows
+相同——app 未經最佳化。Windows 值得更改，是因為那裡的替代方案是「沒有二進位檔」；Linux
+不存在此問題。
+
+代價（並非沒有）：Windows 的建置不再適用於量測啟動或互動延遲，且檔案更大——P19.exe 在
+debug 下為 333 MB，release 約 167 MB。凡數字有意義的執行，必須明確設定
+`BUILD_CONFIG=release`；任何來自 Windows 的數據都必須註明所用組態。
 
 ## The ABI constraint
 
@@ -75,12 +148,15 @@ part of the plan most likely to produce a confusing failure.
    → verify: it builds. If it does not, the error decides whether this plan is
    viable at all; record it and stop rather than working around it.
 
-3. **Compile-time comparison** — build P6 three times each way from clean:
-   WinUIBackend (baseline) and GtkBackend. Report each run, not just a mean;
-   the WSL numbers above varied between 13s and 49s depending on how much was
-   already built, and a single number would hide that.
-   → verify: three runs recorded per configuration, with whether the build was
-   incremental or clean stated for each.
+3. **Compile-time comparison** — done for the platforms, not yet for the
+   backends. The incremental figures above are Windows/WinUI against
+   Linux/Gtk, which still mixes platform with backend. The comparison this plan
+   actually needs is WinUI against Gtk **on Windows**, and it is blocked until
+   an app can link GtkBackend there — see step 2.
+   → verify: when it runs, state for each figure whether the build was clean or
+   incremental, and which configuration produced it. Report each run rather than
+   a mean; the numbers here have ranged from 14s to 30 minutes depending on those
+   two facts alone, and a single number hides exactly the thing being measured.
 
 4. **Runtime comparison** — run the same P6 scenario on both. What is
    comparable: window layout, controls, file dialogs, decode throughput of the

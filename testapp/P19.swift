@@ -118,6 +118,7 @@ struct P19RootView: View {
 
             Text("last action -> \(lastAction)")
             Text("toggle item -> \(toggleItem)")
+            Text("backend -> \(String(describing: DefaultBackend.self))")
 
             Text(
                 "Worth comparing: whether the text item and separator render at "

@@ -54,7 +54,31 @@ swift_bin="${SWIFT_BIN:-swift}"
 # Test apps default to release so GUI startup and interaction latency reflect
 # normal usage. App-specific diagnostics should be controlled with flags such
 # as --debug instead of relying on unoptimized debug builds.
-build_config="${BUILD_CONFIG:-release}"
+#
+# Windows is the exception, and it is a deliberate departure from that rule.
+# Release there means whole-module optimisation over WinAppSDK and the whole
+# Gtk module, and a build runs 20-30 minutes. Several were killed at 97% before
+# producing anything, so the practical result of keeping release was no binary
+# at all. Debug trades the latency fidelity for builds that finish.
+#
+# What this costs: a Windows build is no longer valid for measuring startup or
+# interaction latency. Set BUILD_CONFIG=release explicitly for any run whose
+# numbers matter, and say which configuration produced any figure recorded from
+# Windows.
+# Windows 是例外，且是對上述規則的刻意偏離。在該平台上，release 意味著對 WinAppSDK 與
+# 整個 Gtk 模組進行 whole-module 最佳化，一次建置需 20-30 分鐘。曾有數次在 97% 進度被
+# 終止而未產出任何檔案，因此「維持 release」的實際結果是根本沒有二進位檔。改用 debug
+# 是以延遲的真實度，換取建置能夠完成。
+#
+# 代價：Windows 上的建置不再適用於量測啟動或互動延遲。凡是數字有意義的執行，請明確設定
+# BUILD_CONFIG=release，並在記錄任何來自 Windows 的數據時註明所用的組態。
+if [ -n "${BUILD_CONFIG:-}" ]; then
+    build_config="$BUILD_CONFIG"
+elif [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+    build_config="debug"
+else
+    build_config="release"
+fi
 needs_image_formats=0
 target_platform="host"
 
