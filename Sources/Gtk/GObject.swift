@@ -27,7 +27,9 @@ open class GObject: GObjectRepresentable {
         g_object_unref(gobjectPointer)
     }
 
-    private var signals: [(UInt, Any)] = []
+    // `gulong`, not `UInt`: they differ on Windows, where `long` is 32 bits.
+    // See the note in Callbacks/Signals.swift.
+    private var signals: [(gulong, Any)] = []
 
     /// GObject signals sometimes get invoked when you programmatically set
     /// something. If you don't want them to, you can temporarily disable
@@ -44,7 +46,7 @@ open class GObject: GObjectRepresentable {
 
     /// Stores the signal handler ID of the handler that we have registered for
     /// a given signal name.
-    private var blockableSignalIDs: [String: UInt] = [:]
+    private var blockableSignalIDs: [String: gulong] = [:]
 
     open func registerSignals() {}
 
@@ -173,7 +175,7 @@ open class GObject: GObjectRepresentable {
         storeHandler(handlerId, box: box, for: name)
     }
 
-    private func storeHandler(_ id: UInt, box: Any, for signalName: String) {
+    private func storeHandler(_ id: gulong, box: Any, for signalName: String) {
         signals.append((id, box))
         if Self.blockableSignalNames.contains(signalName) {
             blockableSignalIDs[signalName] = id

@@ -1542,19 +1542,20 @@ public final class GtkBackend:
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
     ) {
-        let action: FileChooserAction = switch openDialogOptions.singleKindSelectionMode {
+        // GtkFileDialog picks the call rather than a mode flag: selecting
+        // several files is a different entry point from selecting one, and
+        // folders are a third.
+        let kind: FileDialogKind = switch openDialogOptions.singleKindSelectionMode {
             case .files:
-                .open
+                openDialogOptions.allowMultipleSelections ? .openMultiple : .openSingle
             case .directories:
                 .selectFolder
         }
 
         showFileChooserDialog(
             fileDialogOptions: fileDialogOptions,
-            action: action,
-            configure: { chooser in
-                chooser.selectMultiple = openDialogOptions.allowMultipleSelections
-            },
+            kind: kind,
+            defaultFileName: nil,
             window: window ?? windows[0],
             resultHandler: handleResult
         )
@@ -1568,12 +1569,8 @@ public final class GtkBackend:
     ) {
         showFileChooserDialog(
             fileDialogOptions: fileDialogOptions,
-            action: .save,
-            configure: { chooser in
-                if let defaultFileName = saveDialogOptions.defaultFileName {
-                    chooser.setCurrentName(defaultFileName)
-                }
-            },
+            kind: .save,
+            defaultFileName: saveDialogOptions.defaultFileName,
             window: window ?? windows[0]
         ) { result in
             switch result {
@@ -1586,52 +1583,138 @@ public final class GtkBackend:
 
     }
 
+    /// Which GtkFileDialog call a request maps to.
+    private enum FileDialogKind {
+        case openSingle
+        case openMultiple
+        case selectFolder
+        case save
+    }
+
+    /// Carries the Swift result handler through GtkFileDialog's C callback.
+    ///
+    /// The async calls take a `gpointer` of user data, so the closure is boxed,
+    /// passed as an opaque pointer and taken back out with a matching
+    /// `takeRetainedValue`. That keeps it alive for exactly as long as the
+    /// dialog is open, without the retain cycle the old GtkFileChooserNative
+    /// code needed for the same purpose.
+    private final class FileDialogRequest {
+        let kind: FileDialogKind
+        let handleResult: (DialogResult<[URL]>) -> Void
+
+        init(kind: FileDialogKind, handleResult: @escaping (DialogResult<[URL]>) -> Void) {
+            self.kind = kind
+            self.handleResult = handleResult
+        }
+    }
+
     private func showFileChooserDialog(
         fileDialogOptions: FileDialogOptions,
-        action: FileChooserAction,
-        configure: (Gtk.FileChooserNative) -> Void,
+        kind: FileDialogKind,
+        defaultFileName: String?,
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
     ) {
-        let chooser = Gtk.FileChooserNative(
-            title: fileDialogOptions.title,
-            parent: window?.widgetPointer.cast(),
-            action: action.toGtk(),
-            acceptLabel: fileDialogOptions.defaultButtonLabel,
-            cancelLabel: "Cancel"
-        )
+        // GtkFileDialog rather than GtkFileChooserNative, which the GIR marks
+        // deprecated. The old API also does not close its dialog on Wayland
+        // when no xdg-desktop-portal is present, as under WSLg: the response
+        // arrives and the app gets the file, but the window stays on screen.
+        // A stock GTK4 app using GtkFileDialog closes correctly in the same
+        // session, which is what identified the API rather than our use of it.
+        let dialog = gtk_file_dialog_new()
+        gtk_file_dialog_set_title(dialog, fileDialogOptions.title)
+        gtk_file_dialog_set_accept_label(dialog, fileDialogOptions.defaultButtonLabel)
+        gtk_file_dialog_set_modal(dialog, 1)
 
         if let initialDirectory = fileDialogOptions.initialDirectory {
-            chooser.setCurrentFolder(initialDirectory)
+            let folder = g_file_new_for_path(initialDirectory.path)
+            gtk_file_dialog_set_initial_folder(dialog, folder)
+            g_object_unref(UnsafeMutableRawPointer(folder))
         }
 
-        configure(chooser)
+        if let defaultFileName {
+            gtk_file_dialog_set_initial_name(dialog, defaultFileName)
+        }
 
-        chooser.registerSignals()
-        chooser.response = { (_: NativeDialog, response: Int) -> Void in
-            // Release our intentional retain cycle which ironically only exists
-            // because of this line. The retain cycle keeps the file chooser
-            // around long enough for the user to respond (it gets released
-            // immediately if we don't do this in the response signal handler).
-            chooser.response = nil
+        let request = FileDialogRequest(kind: kind, handleResult: handleResult)
+        let userData = Unmanaged.passRetained(request).toOpaque()
+        let parent: UnsafeMutablePointer<GtkWindow>? = (window ?? windows.first)?
+            .widgetPointer.cast()
 
-            let response = Int32(bitPattern: UInt32(UInt(response)))
-            if response == Int(ResponseType.accept.toGtk().rawValue) {
-                let files = chooser.getFiles()
-                var urls: [URL] = []
-                for i in 0..<files.count {
-                    let url = URL(
-                        fileURLWithPath: GFile(files[i]).path
-                    )
-                    urls.append(url)
-                }
-                handleResult(.success(urls))
+        let callback: GAsyncReadyCallback = { source, result, userData in
+            guard let userData else { return }
+            let request = Unmanaged<FileDialogRequest>.fromOpaque(userData)
+                .takeRetainedValue()
+            // GtkFileDialog has no named Swift type; it arrives as an opaque
+            // pointer, which is what the _finish calls expect.
+            let dialog = OpaquePointer(source)
+
+            var error: UnsafeMutablePointer<GError>? = nil
+            var urls: [URL] = []
+
+            switch request.kind {
+                case .openMultiple:
+                    if let list = gtk_file_dialog_open_multiple_finish(dialog, result, &error) {
+                        let count = g_list_model_get_n_items(list)
+                        for index in 0..<count {
+                            guard let item = g_list_model_get_item(list, index) else { continue }
+                            if let path = g_file_get_path(OpaquePointer(item)) {
+                                urls.append(URL(fileURLWithPath: String(cString: path)))
+                                g_free(path)
+                            }
+                            g_object_unref(item)
+                        }
+                        g_object_unref(UnsafeMutableRawPointer(list))
+                    }
+                case .openSingle, .selectFolder, .save:
+                    let file =
+                        switch request.kind {
+                            case .selectFolder:
+                                gtk_file_dialog_select_folder_finish(dialog, result, &error)
+                            case .save:
+                                gtk_file_dialog_save_finish(dialog, result, &error)
+                            default:
+                                gtk_file_dialog_open_finish(dialog, result, &error)
+                        }
+                    if let file {
+                        if let path = g_file_get_path(file) {
+                            urls.append(URL(fileURLWithPath: String(cString: path)))
+                            g_free(path)
+                        }
+                        g_object_unref(UnsafeMutableRawPointer(file))
+                    }
+            }
+
+            // A dismissed dialog reports an error rather than an empty result,
+            // so anything that produced no URLs is treated as a cancellation.
+            // That covers the dismissal case and any failure to read the
+            // selection back, neither of which the caller can act on
+            // differently.
+            if let error {
+                g_error_free(error)
+            }
+
+            if urls.isEmpty {
+                request.handleResult(.cancelled)
             } else {
-                handleResult(.cancelled)
+                request.handleResult(.success(urls))
             }
         }
 
-        gtk_native_dialog_show(chooser.gobjectPointer.cast())
+        switch kind {
+            case .openSingle:
+                gtk_file_dialog_open(dialog, parent, nil, callback, userData)
+            case .openMultiple:
+                gtk_file_dialog_open_multiple(dialog, parent, nil, callback, userData)
+            case .selectFolder:
+                gtk_file_dialog_select_folder(dialog, parent, nil, callback, userData)
+            case .save:
+                gtk_file_dialog_save(dialog, parent, nil, callback, userData)
+        }
+
+        // The dialog holds itself for the duration of the async call, so the
+        // reference taken by `new` can go now.
+        g_object_unref(UnsafeMutableRawPointer(dialog))
     }
 
     public func createTapGestureTarget(wrapping child: Widget, gesture: TapGesture) -> Widget {

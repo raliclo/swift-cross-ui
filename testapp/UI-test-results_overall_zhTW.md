@@ -105,6 +105,18 @@
 - **rsync 不會傳播刪除，且建置成功會掩蓋這件事**：`rsync_WSL.zsh` 刻意不使用 `--delete`（WSL 端的 `output/`、build 快取與本地修改應保留）。因此本機刪除 193 個 GTK3 檔案後，WSL 端**全部仍在**；而 SwiftPM 會忽略 `Package.swift` 不再宣告的目錄，所以 WSL 上四個 target 依然建置成功——一棵已經與本機不一致的樹，看起來完全正常。已手動清除 WSL 端並重新驗證，同時把這個後果寫進 `rsync_WSL.zsh` 的標頭。
 - 驗證：`Gtk`、`GtkBackend`、`DefaultBackend`、`GtkExample` 四個 target 皆建置成功；所有編輯過的檔案通過 `swiftc -parse`。整包 `swift build` 與 `Examples` 在 Linux 上仍會停在 `WinUIInterop`／`swift-winui` 缺 `Windows.h`、`wtypesbase.h`——那是既有的平台限制，與本次移除無關。
 
+### GtkBackend 已能在 Windows 上建置
+
+- 動機是編譯時間：Windows 上以 WinUIBackend 建置 P6 需 95-103 秒，WSL 上以 GtkBackend 僅需 13-22 秒，成本來自 WinAppSDK。WinUIBackend **維持為 baseline**，不移除。
+- ABI 是前提：Swift on Windows 以 MSVC ABI 為目標並連結 UCRT。MSYS2 的 GTK 4 是 MinGW 建置，不列入考慮；改用 gvsbuild 的 MSVC 建置版本（`testapp/install_gtk4_windows.zsh`，來源與授權記於 `Acknowledgements/gvsbuild/`）。
+- gvsbuild 套件**無法直接重新定位**：302 個 `.pc` 檔中有 301 個硬編碼建置機器的 `C:/gtk-build/gtk/x64/release`，且全部使用 CRLF。
+- **SwiftPM 的 `.pc` 解析器會被 Windows 磁碟機代號打斷**：它先以第一個冒號切分 keyword，因此 `prefix=C:/gtk4` 被讀成 keyword `prefix=C`，變數 `prefix` 從未定義，回報 `Expected a value for variable 'prefix'`。改寫為不含冒號的 `prefix=${pcfiledir}/../..` 後即可解析；其餘殘留路徑一律代入 `${prefix}`，同樣是為了不引入冒號。
+- **SwiftPM 在 Windows 上不套用 systemLibrary 的 pkgConfig cflags**：實測 `GtkCHelpers` 的 clang 呼叫只帶自身 include 目錄，`gtk4.pc` 的內容一項也沒有，即使 `PKG_CONFIG_PATH` 已設定且 pkg-config 回報正確。必須以 `-Xcc -I…` 明確傳入；安裝腳本會印出現成的指令。
+- 兩個真正的可攜性缺陷（皆為 Linux/Windows 的 C 型別匯入差異，修法不需要 `#if os(Windows)`）：
+  - `gulong` 在 Linux 為 64 位元、Windows 為 **32** 位元（LLP64）。`connectSignal` 原本把它轉成 `UInt` 回傳，於是 disconnect／block／unblock 全部無法編譯。改為全程保持 `gulong`。
+  - `gsize` 在 Linux 匯入為 `UInt`、Windows 為 `UInt64`，寬度相同但在 Swift 是不同的具名型別。改為直接以 `gsize(...)` 轉換。
+- 結果：`swift build --target GtkBackend` 於 Windows 上 exit code 0。Linux 端同步驗證無回歸。尚未做的是執行期驗證與編譯時間對照，計畫見 `testapp/plan/plan-windows-gtk-backend.md`。
+
 ### WSLg 幽靈視窗
 
 - `gtk4-widget-factory` 行程結束後，Windows 端的 `msrdc.exe` 仍持續顯示 `GTK Widget Factory (Ubuntu)` 視窗。WSL 內 `pgrep` 確認無任何對應行程。

@@ -105,6 +105,18 @@
 - **rsync does not propagate deletions, and a passing build hides it**: `rsync_WSL.zsh` deliberately omits `--delete`, so that the WSL side keeps its `output/`, build caches and local edits. The result is that after 193 GTK3 files were deleted here, **every one of them was still in WSL**; and because SwiftPM ignores directories `Package.swift` no longer declares, all four targets kept building there -- on a tree that no longer matched this one, looking entirely healthy. The WSL copy was cleaned by hand and re-verified, and the consequence is now written into `rsync_WSL.zsh`'s header.
 - Verified: the `Gtk`, `GtkBackend`, `DefaultBackend` and `GtkExample` targets all build, and every edited file passes `swiftc -parse`. A whole-package `swift build`, and the `Examples` package, still stop on `WinUIInterop`/`swift-winui` missing `Windows.h` and `wtypesbase.h` -- a pre-existing platform limit on Linux, unrelated to this removal.
 
+### GtkBackend now builds on Windows
+
+- The motivation is compile time: P6 takes 95-103s to build on Windows against WinUIBackend and 13-22s in WSL against GtkBackend, and the cost is WinAppSDK. WinUIBackend **stays as the baseline** and is not removed.
+- The ABI decides the source: Swift on Windows targets the MSVC ABI and links the UCRT. MSYS2's GTK 4 is MinGW-built and is not a candidate; the bundle comes from gvsbuild, which builds with MSVC (`testapp/install_gtk4_windows.zsh`, with source and licensing recorded under `Acknowledgements/gvsbuild/`).
+- The gvsbuild bundle is **not relocatable as shipped**: 301 of its 302 `.pc` files hardcode the build machine's `C:/gtk-build/gtk/x64/release`, and all of them use CRLF.
+- **SwiftPM's `.pc` parser breaks on Windows drive letters**: it splits keyword lines on the first colon, so `prefix=C:/gtk4` is read as the keyword `prefix=C`, the variable `prefix` is never defined, and it reports `Expected a value for variable 'prefix'`. Rewriting to the colon-free `prefix=${pcfiledir}/../..` parses; every other remaining path is substituted with `${prefix}` for the same reason.
+- **SwiftPM does not apply a systemLibrary's pkgConfig cflags on Windows**: measured, the clang invocation for `GtkCHelpers` carried only its own include directory and nothing from `gtk4.pc`, even with `PKG_CONFIG_PATH` set and pkg-config reporting correctly. The flags have to be passed as `-Xcc -I…`; the installer prints a ready-made command.
+- Two genuine portability defects, both Linux/Windows differences in how C types import, and both fixed without any `#if os(Windows)`:
+  - `gulong` is 64 bits on Linux and **32** on Windows (LLP64). `connectSignal` converted it to `UInt` on the way out, after which disconnect, block and unblock all failed to compile. It now stays `gulong` throughout.
+  - `gsize` imports as `UInt` on Linux and `UInt64` on Windows -- same width, different nominal types in Swift. Now converted explicitly with `gsize(...)`.
+- Result: `swift build --target GtkBackend` exits 0 on Windows, with Linux re-verified for regressions. Runtime verification and the compile-time comparison are still to do; the plan is in `testapp/plan/plan-windows-gtk-backend.md`.
+
 ### WSLg ghost windows
 
 - After the `gtk4-widget-factory` process exited, `msrdc.exe` on the Windows side kept showing a `GTK Widget Factory (Ubuntu)` window, while `pgrep` inside WSL confirmed no such process was left.
