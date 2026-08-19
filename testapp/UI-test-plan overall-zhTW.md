@@ -1013,6 +1013,91 @@ RSS 壓力測試紀錄：
 - P6 的峰值 RSS 為 2,398,896 KiB（約 2.29 GiB），平均取樣 RSS 約為 1.92 GiB。
   這些數值不包含 FFmpeg、ffplay 與 zstd 子程序。
 
+## P18：File Dialogs（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P18          # GtkBackend，於 WSL
+./testapp/output/P18.exe      # WinUIBackend，於 Windows
+```
+
+不對應特定 issue。GtkBackend 已從 `GtkFileChooserNative`（GIR 標記
+`deprecated="1"`，且在無 xdg-desktop-portal 的 Wayland 下不會關閉對話框）遷移至
+`GtkFileDialog`。該遷移改寫了四條路徑，而其中只有「單檔開啟」執行過。本 app 負責跑
+其餘幾條，並與 WinUIBackend 對照。
+
+未涵蓋：多重選取。`PresentSingleFileOpenDialogAction` 將
+`allowMultipleSelections` 寫死為 false，因此任何應用程式都無法觸達
+`gtk_file_dialog_open_multiple`。
+
+測試步驟：
+
+1. 於其中一個 backend 啟動 P18。每個按鈕開啟一個對話框，並在其下方那一行回報結果。
+2. 按 `Open a file`，選擇任一檔案，確認**對話框關閉**且該行顯示路徑。
+   **對話框是否關閉本身就是結果的一部分**——原始缺陷正是「檔案已交回、視窗卻留在畫面上」。
+3. 以 Cancel 重複一次，確認對話框關閉且該行顯示 `cancelled`。
+4. 按 `Choose a folder`，選擇一個目錄，確認同樣兩件事。這是與檔案開啟不同的 GTK 呼叫。
+5. 按 `Choose a save destination`，確認檔名欄位已預填 `p18-example.txt`——這是唯一會
+   用到初始檔名的路徑。
+6. 於另一個 backend 重複所有步驟並比較。重點在於兩邊是否都交回路徑、都關閉對話框，
+   而非兩者外觀是否相同。
+
+## P19：Flat Menus（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P19          # GtkBackend，於 WSL
+./testapp/output/P19.exe      # WinUIBackend，於 Windows
+```
+
+兩個 backend 以不同機制呈現同一個 `Menu`，而 app 端無法選擇。GtkBackend 符合
+`PopoverMenus`，自行建立並定位一個獨立的選單 widget；WinUIBackend 符合
+`AttachedMenus`，把選單交給按鈕、由平台建構。兩者是同一功能的兩種實作，並非任一方
+缺少能力。
+
+P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目如何呈現」。巢狀屬於 P20。
+
+測試步驟：
+
+1. 啟動 P19，按 `Open the menu`。
+2. 確認五個項目全部出現：兩個按鈕、一個不可點的文字項目、一個分隔線、一個切換項。
+3. 留意文字項目與分隔線是否確實出現。若某個 backend 略過其一，那就是發現。
+4. 按 `Button item`，確認 `last action` 更新。
+5. 再次開啟選單並操作切換項，確認 `toggle item` 反映新狀態。同時留意操作切換項後
+   選單是保持開啟或關閉。
+6. 記錄選單相對於按鈕的出現位置。兩種機制的定位方式不同，這正是對照的重點。
+7. 於另一個 backend 重複。
+
+## P20：Nested Menus（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P20          # GtkBackend，於 WSL
+./testapp/output/P20.exe      # WinUIBackend，於 Windows
+```
+
+刻意與 P19 分開。巢狀是兩種機制分歧空間最大之處：一邊由平台提供整棵樹，另一邊必須
+自行建立並定位每一層。
+
+每一層都放置可點擊的項目，如此才能區分「第二層打得開但按鈕沒有反應」與「第三層根本
+不出現」這兩種不同的缺陷。
+
+測試步驟：
+
+1. 啟動 P20，按 `Open the menu`。
+2. 按 `Level 1 item`，確認 `last action` 顯示 `level 1`。
+3. 再次開啟選單，以滑鼠停留或點擊 `Level 2 submenu`。記錄是哪一種方式開啟——
+   停留與點擊都屬合理行為，兩個 backend 可能不同。
+4. 按 `Level 2 item`，確認 `last action` 顯示 `level 2`。
+5. 開啟 `Level 3 submenu`，確認它確實出現。這是最可能在其中一邊失敗的步驟。
+6. 按 `Level 3 item`，再操作 `Level 3 toggle`，確認兩者都傳達到 app：
+   `last action` 顯示 `level 3`，且 `level 3 toggle` 翻轉。
+7. 記錄每個子選單相對於其父層的落點，特別是靠近螢幕邊緣時。
+8. 於另一個 backend 重複。
+
 ## 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：

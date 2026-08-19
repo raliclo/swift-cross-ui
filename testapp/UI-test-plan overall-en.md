@@ -872,6 +872,106 @@ RSS stress record:
 - The run lasted from 2026-08-04 18:25:39 UTC through 18:28:58 UTC, collected 196 valid one-second samples, and exited successfully with status 0.
 - P6 peak RSS was 2,398,896 KiB (approximately 2.29 GiB), and average sampled RSS was approximately 1.92 GiB. These values exclude FFmpeg, ffplay, and zstd child processes.
 
+## P18: File Dialogs (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P18          # GtkBackend, in WSL
+./testapp/output/P18.exe      # WinUIBackend, on Windows
+```
+
+Not tied to an issue. GtkBackend moved off `GtkFileChooserNative`, which the
+GIR marks `deprecated="1"` and which did not close its dialog on Wayland
+without an xdg-desktop-portal, onto `GtkFileDialog`. The migration rewrote four
+paths and only a plain single-file open had ever been run. This app runs the
+rest and compares them against WinUIBackend.
+
+Not covered: multiple selection. `PresentSingleFileOpenDialogAction` hardcodes
+`allowMultipleSelections: false`, so `gtk_file_dialog_open_multiple` cannot be
+reached from any application.
+
+Test steps:
+
+1. Launch P18 under one backend. Each button opens one dialog and reports what
+   came back on the line beneath it.
+2. Press `Open a file`, choose any file, and confirm the dialog closes and the
+   line shows the path. **The dialog closing is itself part of the result** --
+   the original defect was a dialog that stayed on screen after delivering the
+   file.
+3. Repeat with Cancel and confirm the dialog closes and the line reads
+   `cancelled`.
+4. Press `Choose a folder`, select a directory, and confirm the same two things.
+   This is a different GTK call from the file open.
+5. Press `Choose a save destination`. Confirm the name field is prefilled with
+   `p18-example.txt`, which is the only path that exercises the initial name.
+6. Repeat every step under the other backend and compare. What matters is
+   whether both deliver a path and both dismiss the dialog, not that the
+   dialogs look alike.
+
+## P19: Flat Menus (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P19          # GtkBackend, in WSL
+./testapp/output/P19.exe      # WinUIBackend, on Windows
+```
+
+The two backends render the same `Menu` through different mechanisms and the
+app cannot choose between them. GtkBackend conforms to `PopoverMenus`, creating
+and positioning a separate menu widget; WinUIBackend conforms to
+`AttachedMenus`, handing a menu to a button and letting the platform build it.
+These are two implementations of one feature, not a capability either lacks.
+
+P19 keeps to a single flat level so that any difference is unambiguously about
+how items render. Nesting is P20.
+
+Test steps:
+
+1. Launch P19 and press `Open the menu`.
+2. Confirm all five entries appear: two buttons, a non-clickable text item, a
+   separator, and a toggle.
+3. Note whether the text item and the separator render at all. A backend that
+   drops either is the finding.
+4. Press `Button item` and confirm `last action` updates.
+5. Open the menu again, use the toggle, and confirm `toggle item` reflects the
+   new state. Note whether the menu stays open or closes when a toggle is used.
+6. Note where the menu appears relative to the button, and record it. The two
+   mechanisms position menus differently and this is the comparison.
+7. Repeat under the other backend.
+
+## P20: Nested Menus (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P20          # GtkBackend, in WSL
+./testapp/output/P20.exe      # WinUIBackend, on Windows
+```
+
+Separate from P19 on purpose. Nesting is where the two mechanisms have the most
+room to diverge: one gets the whole tree from the platform, the other builds and
+positions every level itself.
+
+Every level carries a clickable item, so `level 2 opens but its button does
+nothing` can be told apart from `level 3 never appears`.
+
+Test steps:
+
+1. Launch P20 and press `Open the menu`.
+2. Press `Level 1 item` and confirm `last action` reads `level 1`.
+3. Open the menu again and hover or click `Level 2 submenu`. Record which one
+   opens it -- hover and click are both legitimate and the backends may differ.
+4. Press `Level 2 item` and confirm `last action` reads `level 2`.
+5. Open `Level 3 submenu` and confirm it appears at all. This is the step most
+   likely to fail on one side.
+6. Press `Level 3 item`, then use `Level 3 toggle`, and confirm both reach the
+   app: `last action` reads `level 3` and `level 3 toggle` flips.
+7. Note where each submenu lands relative to its parent, especially near a
+   screen edge.
+8. Repeat under the other backend.
+
 ## Test Record Template
 
 Use this format after each test run:
