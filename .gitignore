@@ -2,6 +2,12 @@
 /.build
 /.index-build
 /Examples/.build
+
+# Generated test app packages and their build trees. One per backend: the
+# default build and a -gtk4 build cannot share a tree, because SwiftPM's
+# incremental state records module dependencies and they contradict each other.
+/testapp/.compile-work
+/testapp/.compile-work-*
 /Packages
 /*.xcodeproj
 xcuserdata/

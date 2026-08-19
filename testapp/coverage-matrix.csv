@@ -28,14 +28,16 @@ filedialog,gtk_file_dialog_select_folder,🔨,🔨,➖,P18,
 filedialog,gtk_file_dialog_save,🔨,🔨,➖,P18,also the only path exercising set_initial_name
 filedialog,gtk_file_dialog_open_multiple,⛔,⛔,➖,none,PresentSingleFileOpenDialogAction hardcodes allowMultipleSelections false so no app can reach it
 feature,Sheets,✅,🔨,⛔,P1,WinUI does not declare Sheets; P1 covers the WinUI side only
-feature,PopoverMenus,⚠️,⚠️,⛔,none,Gtk declares it and WinUI does not — a difference is certain
-feature,AttachedMenus,⛔,⛔,⚠️,none,WinUI declares it and Gtk does not
+feature,PopoverMenus,➖,➖,➖,P19 P20,not a capability — one of two ways to implement menus. Gtk uses this one. Earlier rows here framed it as WinUI lacking a feature which was wrong
+feature,AttachedMenus,➖,➖,➖,P19 P20,the other way. WinUI uses this one. A backend conforms to exactly one and menuImplementationStyle selects
 feature,RevealFiles,⚠️,⚠️,⛔,none,
 feature,Alerts,⚠️,⚠️,⛔,P5,WinUI does not declare Alerts; P5 covers the WinUI side only
 feature,FileDialogs,🔨,🔨,🔨,P18,
 feature,DatePickers,⚠️,⚠️,⚠️,P11,only covered on AppKit
 feature,Windowing / Colors / Paths / Tooltips / Gestures / CornerRadius / gradients,⚠️,⚠️,⚠️,scattered,no single app compares these
-proposed,menus and context menus — Menu / MenuItem,⚠️,⚠️,⚠️,P19,highest value: the feature lists already disagree so a difference is certain
+testapp,flat menu — one level with every MenuItem kind,🔨,➖,⚠️,P19,built on Linux; Windows build not completed yet; nobody has opened the menu
+testapp,nested menus — three levels with an item at each,🔨,➖,⚠️,P20,built on Linux; Windows build not completed yet; nobody has opened the menu
+feature,menu style — AttachedMenus against PopoverMenus,⚠️,⚠️,⚠️,P19 P20,two implementations of one feature not a capability gap; the app cannot choose so the backend decides. Split by menu shape instead: flat in P19 nested in P20
 proposed,input controls — Button / Toggle* / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,⚠️,⚠️,⚠️,P20,widest surface; disabled and indeterminate states usually differ
 proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P21,font metrics are the measuring stick for other layout comparisons
 proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P22,column widths and selection never compared

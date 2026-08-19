@@ -43,9 +43,12 @@ windows_path() {
 script_dir="$(windows_path "$(cd "$(dirname "$0")" && pwd)")"
 repo_root="$(windows_path "$(cd "$script_dir/.." && pwd)")"
 output_dir="$(windows_path "$script_dir/output")"
-compile_work_dir="$(windows_path "${COMPILE_WORK_DIR:-$script_dir/.compile-work}")"
-package_dir="$compile_work_dir/TestApps"
-sources_root="$package_dir/Sources"
+# Set after the flags are parsed, because -gtk4 needs its own tree. See the
+# note there.
+# 於旗標解析之後設定，因為 -gtk4 需要自己的目錄樹，理由見該處說明。
+compile_work_dir=""
+package_dir=""
+sources_root=""
 
 swift_bin="${SWIFT_BIN:-swift}"
 # Test apps default to release so GUI startup and interaction latency reflect
@@ -83,6 +86,15 @@ force_gtk4=0
 # so a wrong flag should cost a line of output rather than a compile.
 # 在動用工具鏈之前先回答。Windows 上一次完整建置要數分鐘，打錯旗標應該只花一行輸出
 # 的代價，而不是一次編譯。
+# Matched anywhere in the arguments, not just first. `compile.zsh -gtk4 --help`
+# used to fall past this, set up the GTK toolchain and then treat --help as an
+# app name; the flag has to answer wherever it appears.
+# 在所有引數中比對，而非僅限第一個。`compile.zsh -gtk4 --help` 過去會略過此處、先完成
+# GTK 工具鏈設定，再把 --help 當成 app 名稱；此旗標無論出現在何處都必須先回答。
+for arg in "$@"; do
+    case "$arg" in -h|--help) set -- --help; break ;; esac
+done
+
 case "${1:-}" in
     -h|--help)
         printf '%s\n' \
@@ -127,6 +139,28 @@ fi
 # 路徑。SwiftPM 在 Windows 上不會套用 systemLibrary 的 pkgConfig cflags——實測
 # GtkCHelpers 的 clang 呼叫只帶了自身的 include 目錄——因此在此收集並以 -Xcc 傳入。
 # Linux 上由 SwiftPM 自行處理，不需額外動作。
+# Each backend gets its own build tree. Sharing one is not merely slower, it is
+# wrong: SwiftPM's incremental state records which modules a target depended on,
+# so a -gtk4 build leaves references to GtkBackend behind and the next default
+# build fails with `missing required modules: 'CGtk', 'GtkCHelpers'` even though
+# its own Package.swift never mentions them. Measured on this machine, and it
+# takes a `rm -rf .build` to clear. Separate trees also keep both warm, which is
+# what makes an incremental comparison between the two possible at all.
+# 每個 backend 使用各自的建置目錄樹。共用一個不只是比較慢，而是錯的：SwiftPM 的增量狀態
+# 會記錄每個 target 曾依賴哪些模組，因此 -gtk4 的建置會留下對 GtkBackend 的參照，使下一次
+# 預設建置以 `missing required modules: 'CGtk', 'GtkCHelpers'` 失敗——即使它自己的
+# Package.swift 從未提及那些模組。本機實測如此，且必須 `rm -rf .build` 才能清除。分開的
+# 目錄樹也讓兩者都保持溫熱，這正是兩個 backend 之間得以進行增量比較的前提。
+if [ -n "${COMPILE_WORK_DIR:-}" ]; then
+    compile_work_dir="$(windows_path "$COMPILE_WORK_DIR")"
+elif [ "$force_gtk4" -eq 1 ]; then
+    compile_work_dir="$(windows_path "$script_dir/.compile-work-gtk4")"
+else
+    compile_work_dir="$(windows_path "$script_dir/.compile-work")"
+fi
+package_dir="$compile_work_dir/TestApps"
+sources_root="$package_dir/Sources"
+
 windows_gtk_product=""
 gtk_build_flags=()
 if [ "$force_gtk4" -eq 1 ]; then
