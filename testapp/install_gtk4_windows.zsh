@@ -3,6 +3,7 @@
 #
 #   zsh testapp/install_gtk4_windows.zsh
 #   zsh testapp/install_gtk4_windows.zsh --prefix C:/gtk4 --version 2026.8.0
+#   zsh testapp/install_gtk4_windows.zsh --show-changes   # audit the .pc edits
 #   zsh testapp/install_gtk4_windows.zsh --help
 #
 # 在 Windows 上安裝以 MSVC 建置的 GTK 4，使 GtkBackend 得以在該平台建置。
@@ -34,9 +35,23 @@
 
 set -euo pipefail
 
+# A patch file was considered for the .pc rewriting and rejected on measurement.
+# Because the CR removal touches every line of every file, a unified diff of the
+# change is 8397 lines and 382 KB across all 302 files -- almost entirely line
+# endings, and pinned to one gvsbuild release. Nobody reviews that, and a
+# version bump silently invalidates it. The transformation below is two rules
+# that hold for any release, and `--show-changes` gives the same auditability
+# without shipping the noise.
+# 曾考慮以 patch 檔處理 .pc 的改寫，實測後放棄。由於移除 CR 會動到每個檔案的每一行，
+# 該變更的 unified diff 在 302 個檔案上共 8397 行、382 KB，其中絕大部分是行尾差異，
+# 且鎖定於單一 gvsbuild 發行版。這種內容沒有人會審，而版本一旦更新即靜默失效。下方的
+# 轉換只有兩條規則、適用於任何發行版，而 `--show-changes` 能提供同等的可稽核性，
+# 且不必附帶那些雜訊。
+
 script_path="${0:a}"
 prefix="C:/gtk4"
 version="2026.8.0"
+show_changes=0
 
 usage() {
     sed -n '2,8p' "$script_path" | sed 's/^# \{0,1\}//'
@@ -50,6 +65,7 @@ while [ "$#" -gt 0 ]; do
         --version)
             [ "$#" -ge 2 ] || { printf -- '--version needs a value\n' >&2; exit 64; }
             version="$2"; shift 2 ;;
+        --show-changes) show_changes=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 64 ;;
     esac
@@ -127,22 +143,68 @@ fi
 printf '\n==> Making .pc files relocatable\n'
 built_prefix="C:/gtk-build/gtk/x64/release"
 rewritten=0
+
+# Two separate concerns, deliberately not mixed.
+#
+# The line endings go first, with one `tr` across every file. They have to be
+# first rather than last, even though doing them last would keep the patch
+# closer to the shipped bytes: MSYS tools read in text mode and drop CR whether
+# asked to or not. Measured -- a `sed -i` that only touched the prefix line took
+# gtk4.pc from 14 CR bytes to 0. So nothing downstream can preserve CRLF, and
+# normalising up front is the only order that leaves the patch applying to
+# content that actually matches.
+#
+# The path substitutions then come from a checked-in patch rather than more
+# in-line substitution, so the change is reviewable as a diff. Keeping CR out of
+# it is what makes that worthwhile: with line endings in the same step the diff
+# was 8397 lines, because every line of every file differed. Separated, it is
+# 2745, of which roughly 600 are real changes and the rest is 302 files' worth
+# of headers.
+# 兩件事刻意分開處理。
+#
+# 行尾先處理，以單一 `tr` 掃過所有檔案。必須放在最前而非最後——儘管放最後能讓 patch
+# 更貼近套件出廠的位元組：MSYS 工具以文字模式讀檔，無論是否要求都會丟棄 CR。實測：一個
+# 只改 prefix 那一行的 `sed -i`，就讓 gtk4.pc 的 CR 從 14 個變成 0 個。因此下游沒有任何
+# 環節能保留 CRLF，先行正規化是唯一能讓 patch 套用在「內容真的相符」之上的順序。
+#
+# 路徑替換則改由簽入的 patch 提供，而非繼續用行內替換，使該變更能以 diff 形式被審閱。
+# 把 CR 排除在外正是這麼做的價值所在：若與行尾同一步處理，diff 會是 8397 行，因為每個
+# 檔案的每一行都不同；分開之後是 2745 行，其中約 600 行是實際變更，其餘為 302 個檔案的
+# 標頭。
+patch_file="${script_path:h}/patches/gtk4-pkgconfig-relocate.patch"
+
+printf '    normalising line endings\n'
 for pc in "$prefix"/lib/pkgconfig/*.pc; do
-    # Two substitutions. The first makes `prefix` relocatable. The second
-    # catches everything else that still names the build machine's path --
-    # sysconfdir, confdir, and the absolute .lib paths in Libs.private -- and
-    # points them at ${prefix} instead. Substituting ${prefix} rather than the
-    # real path matters for the same parser reason: it introduces no colon.
-    # 兩次替換。第一次讓 `prefix` 可重新定位；第二次處理其餘仍指向建置機器路徑的項目
-    # ——sysconfdir、confdir，以及 Libs.private 中的絕對 .lib 路徑——改為指向 ${prefix}。
-    # 這裡代入 ${prefix} 而非真實路徑，理由與解析器相同：不引入任何冒號。
-    tr -d '\r' < "$pc" \
-        | sed 's|^prefix=.*|prefix=${pcfiledir}/../..|' \
-        | sed "s|$built_prefix|\${prefix}|g" > "$pc.tmp"
-    mv "$pc.tmp" "$pc"
-    rewritten=$((rewritten + 1))
+    tr -d '\r' < "$pc" > "$pc.tmp" && mv "$pc.tmp" "$pc"
 done
-printf '    %s files\n' "$rewritten"
+
+if [ "$show_changes" -eq 1 ]; then
+    printf '    the patch changes these lines:\n'
+    grep -E '^[+-](prefix=|.*gtk-build)' "$patch_file" | head -12 | sed 's/^/      /'
+    printf '      ... (%s lines total)\n' "$(wc -l < "$patch_file")"
+fi
+if [ -f "$patch_file" ] \
+    && (cd "$prefix/lib/pkgconfig" && patch -p1 --forward --silent < "$patch_file") 2>/dev/null; then
+    rewritten="$(grep -c '^diff ' "$patch_file")"
+    printf '    patch applied to %s files\n' "$rewritten"
+else
+    # The patch is generated from one gvsbuild release, so a different one will
+    # not match. Falling back keeps the installer working across versions; the
+    # two rules are the same ones the patch encodes. `${prefix}` is substituted
+    # rather than the real path for the parser reason above: it has no colon.
+    # 該 patch 由單一 gvsbuild 發行版產生，換一個版本便無法相符。此處退回以規則處理，
+    # 使安裝程式跨版本仍可運作；這兩條規則與 patch 所編碼的完全相同。此處代入
+    # `${prefix}` 而非真實路徑，理由同上：它不含冒號。
+    printf '    patch did not apply; falling back to substitution\n' >&2
+    printf '    (expected when the gvsbuild version differs from the patch)\n' >&2
+    for pc in "$prefix"/lib/pkgconfig/*.pc; do
+        sed -e 's|^prefix=.*|prefix=${pcfiledir}/../..|' \
+            -e "s|$built_prefix|\${prefix}|g" "$pc" > "$pc.tmp"
+        mv "$pc.tmp" "$pc"
+        rewritten=$((rewritten + 1))
+    done
+    printf '    %s files rewritten\n' "$rewritten"
+fi
 
 if grep -rq "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null; then
     printf 'Some .pc files still reference %s after rewriting.\n' "$built_prefix" >&2

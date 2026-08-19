@@ -1,0 +1,2745 @@
+diff -ruN -U3 lf_before/DirectX-Headers.pc lf_after/DirectX-Headers.pc
+--- lf_before/DirectX-Headers.pc	2026-08-19 17:02:06.079291600 +0800
++++ lf_after/DirectX-Headers.pc	2026-08-19 17:02:19.756671500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/abseil_dll.pc lf_after/abseil_dll.pc
+--- lf_before/abseil_dll.pc	2026-08-19 17:02:06.110427100 +0800
++++ lf_after/abseil_dll.pc	2026-08-19 17:02:19.790291600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_absl_check.pc lf_after/absl_absl_check.pc
+--- lf_before/absl_absl_check.pc	2026-08-19 17:02:06.148087700 +0800
++++ lf_after/absl_absl_check.pc	2026-08-19 17:02:19.825946400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_absl_log.pc lf_after/absl_absl_log.pc
+--- lf_before/absl_absl_log.pc	2026-08-19 17:02:06.181100500 +0800
++++ lf_after/absl_absl_log.pc	2026-08-19 17:02:19.861365600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_absl_vlog_is_on.pc lf_after/absl_absl_vlog_is_on.pc
+--- lf_before/absl_absl_vlog_is_on.pc	2026-08-19 17:02:06.213461000 +0800
++++ lf_after/absl_absl_vlog_is_on.pc	2026-08-19 17:02:19.903923800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_algorithm.pc lf_after/absl_algorithm.pc
+--- lf_before/absl_algorithm.pc	2026-08-19 17:02:06.246445100 +0800
++++ lf_after/absl_algorithm.pc	2026-08-19 17:02:19.942633900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_algorithm_container.pc lf_after/absl_algorithm_container.pc
+--- lf_before/absl_algorithm_container.pc	2026-08-19 17:02:06.281353700 +0800
++++ lf_after/absl_algorithm_container.pc	2026-08-19 17:02:19.979234600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_any.pc lf_after/absl_any.pc
+--- lf_before/absl_any.pc	2026-08-19 17:02:06.314396500 +0800
++++ lf_after/absl_any.pc	2026-08-19 17:02:20.017193800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_any_invocable.pc lf_after/absl_any_invocable.pc
+--- lf_before/absl_any_invocable.pc	2026-08-19 17:02:06.351116200 +0800
++++ lf_after/absl_any_invocable.pc	2026-08-19 17:02:20.057712900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_any_span.pc lf_after/absl_any_span.pc
+--- lf_before/absl_any_span.pc	2026-08-19 17:02:06.385030500 +0800
++++ lf_after/absl_any_span.pc	2026-08-19 17:02:20.092696200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_atomic_hook.pc lf_after/absl_atomic_hook.pc
+--- lf_before/absl_atomic_hook.pc	2026-08-19 17:02:06.469969300 +0800
++++ lf_after/absl_atomic_hook.pc	2026-08-19 17:02:20.133025600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bad_any_cast.pc lf_after/absl_bad_any_cast.pc
+--- lf_before/absl_bad_any_cast.pc	2026-08-19 17:02:06.501474100 +0800
++++ lf_after/absl_bad_any_cast.pc	2026-08-19 17:02:20.170357900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bad_optional_access.pc lf_after/absl_bad_optional_access.pc
+--- lf_before/absl_bad_optional_access.pc	2026-08-19 17:02:06.535152500 +0800
++++ lf_after/absl_bad_optional_access.pc	2026-08-19 17:02:20.208418200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bad_variant_access.pc lf_after/absl_bad_variant_access.pc
+--- lf_before/absl_bad_variant_access.pc	2026-08-19 17:02:06.566458300 +0800
++++ lf_after/absl_bad_variant_access.pc	2026-08-19 17:02:20.295950800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_base.pc lf_after/absl_base.pc
+--- lf_before/absl_base.pc	2026-08-19 17:02:06.602393500 +0800
++++ lf_after/absl_base.pc	2026-08-19 17:02:20.335574700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_base_internal.pc lf_after/absl_base_internal.pc
+--- lf_before/absl_base_internal.pc	2026-08-19 17:02:06.638362500 +0800
++++ lf_after/absl_base_internal.pc	2026-08-19 17:02:20.373094100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bind_back.pc lf_after/absl_bind_back.pc
+--- lf_before/absl_bind_back.pc	2026-08-19 17:02:06.674152300 +0800
++++ lf_after/absl_bind_back.pc	2026-08-19 17:02:20.411993900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bind_front.pc lf_after/absl_bind_front.pc
+--- lf_before/absl_bind_front.pc	2026-08-19 17:02:06.704369100 +0800
++++ lf_after/absl_bind_front.pc	2026-08-19 17:02:20.446829400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bits.pc lf_after/absl_bits.pc
+--- lf_before/absl_bits.pc	2026-08-19 17:02:06.736373300 +0800
++++ lf_after/absl_bits.pc	2026-08-19 17:02:20.481688700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_bounded_utf8_length_sequence.pc lf_after/absl_bounded_utf8_length_sequence.pc
+--- lf_before/absl_bounded_utf8_length_sequence.pc	2026-08-19 17:02:06.767996300 +0800
++++ lf_after/absl_bounded_utf8_length_sequence.pc	2026-08-19 17:02:20.535982600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_btree.pc lf_after/absl_btree.pc
+--- lf_before/absl_btree.pc	2026-08-19 17:02:06.799286500 +0800
++++ lf_after/absl_btree.pc	2026-08-19 17:02:20.574138600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_charset.pc lf_after/absl_charset.pc
+--- lf_before/absl_charset.pc	2026-08-19 17:02:06.831959100 +0800
++++ lf_after/absl_charset.pc	2026-08-19 17:02:20.610933600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_check.pc lf_after/absl_check.pc
+--- lf_before/absl_check.pc	2026-08-19 17:02:06.869099000 +0800
++++ lf_after/absl_check.pc	2026-08-19 17:02:20.648217900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_chunked_queue.pc lf_after/absl_chunked_queue.pc
+--- lf_before/absl_chunked_queue.pc	2026-08-19 17:02:06.901087300 +0800
++++ lf_after/absl_chunked_queue.pc	2026-08-19 17:02:20.699791100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_city.pc lf_after/absl_city.pc
+--- lf_before/absl_city.pc	2026-08-19 17:02:06.935391700 +0800
++++ lf_after/absl_city.pc	2026-08-19 17:02:20.739092600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_civil_time.pc lf_after/absl_civil_time.pc
+--- lf_before/absl_civil_time.pc	2026-08-19 17:02:06.967125700 +0800
++++ lf_after/absl_civil_time.pc	2026-08-19 17:02:20.774375600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cleanup.pc lf_after/absl_cleanup.pc
+--- lf_before/absl_cleanup.pc	2026-08-19 17:02:06.998046400 +0800
++++ lf_after/absl_cleanup.pc	2026-08-19 17:02:20.810088000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cleanup_internal.pc lf_after/absl_cleanup_internal.pc
+--- lf_before/absl_cleanup_internal.pc	2026-08-19 17:02:07.078931600 +0800
++++ lf_after/absl_cleanup_internal.pc	2026-08-19 17:02:20.863228200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_clock_interface.pc lf_after/absl_clock_interface.pc
+--- lf_before/absl_clock_interface.pc	2026-08-19 17:02:07.110259300 +0800
++++ lf_after/absl_clock_interface.pc	2026-08-19 17:02:20.897444100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_common_policy_traits.pc lf_after/absl_common_policy_traits.pc
+--- lf_before/absl_common_policy_traits.pc	2026-08-19 17:02:07.141018500 +0800
++++ lf_after/absl_common_policy_traits.pc	2026-08-19 17:02:21.008695700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_compare.pc lf_after/absl_compare.pc
+--- lf_before/absl_compare.pc	2026-08-19 17:02:07.172716700 +0800
++++ lf_after/absl_compare.pc	2026-08-19 17:02:21.045472500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_compressed_tuple.pc lf_after/absl_compressed_tuple.pc
+--- lf_before/absl_compressed_tuple.pc	2026-08-19 17:02:07.205619900 +0800
++++ lf_after/absl_compressed_tuple.pc	2026-08-19 17:02:21.082413000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_config.pc lf_after/absl_config.pc
+--- lf_before/absl_config.pc	2026-08-19 17:02:07.240346800 +0800
++++ lf_after/absl_config.pc	2026-08-19 17:02:21.117176300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_constexpr_testing_internal.pc lf_after/absl_constexpr_testing_internal.pc
+--- lf_before/absl_constexpr_testing_internal.pc	2026-08-19 17:02:07.273534300 +0800
++++ lf_after/absl_constexpr_testing_internal.pc	2026-08-19 17:02:21.152324300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_container_common.pc lf_after/absl_container_common.pc
+--- lf_before/absl_container_common.pc	2026-08-19 17:02:07.305316000 +0800
++++ lf_after/absl_container_common.pc	2026-08-19 17:02:21.189954400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_container_memory.pc lf_after/absl_container_memory.pc
+--- lf_before/absl_container_memory.pc	2026-08-19 17:02:07.386038100 +0800
++++ lf_after/absl_container_memory.pc	2026-08-19 17:02:21.226617100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cord.pc lf_after/absl_cord.pc
+--- lf_before/absl_cord.pc	2026-08-19 17:02:07.418142800 +0800
++++ lf_after/absl_cord.pc	2026-08-19 17:02:21.261281800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cord_internal.pc lf_after/absl_cord_internal.pc
+--- lf_before/absl_cord_internal.pc	2026-08-19 17:02:07.448099400 +0800
++++ lf_after/absl_cord_internal.pc	2026-08-19 17:02:21.357371100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_functions.pc lf_after/absl_cordz_functions.pc
+--- lf_before/absl_cordz_functions.pc	2026-08-19 17:02:07.479960100 +0800
++++ lf_after/absl_cordz_functions.pc	2026-08-19 17:02:21.389970400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_handle.pc lf_after/absl_cordz_handle.pc
+--- lf_before/absl_cordz_handle.pc	2026-08-19 17:02:07.562367200 +0800
++++ lf_after/absl_cordz_handle.pc	2026-08-19 17:02:21.424082300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_info.pc lf_after/absl_cordz_info.pc
+--- lf_before/absl_cordz_info.pc	2026-08-19 17:02:07.591957500 +0800
++++ lf_after/absl_cordz_info.pc	2026-08-19 17:02:21.460096300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_sample_token.pc lf_after/absl_cordz_sample_token.pc
+--- lf_before/absl_cordz_sample_token.pc	2026-08-19 17:02:07.675963100 +0800
++++ lf_after/absl_cordz_sample_token.pc	2026-08-19 17:02:21.555819300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_statistics.pc lf_after/absl_cordz_statistics.pc
+--- lf_before/absl_cordz_statistics.pc	2026-08-19 17:02:07.760644000 +0800
++++ lf_after/absl_cordz_statistics.pc	2026-08-19 17:02:21.591089900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_update_scope.pc lf_after/absl_cordz_update_scope.pc
+--- lf_before/absl_cordz_update_scope.pc	2026-08-19 17:02:07.894859500 +0800
++++ lf_after/absl_cordz_update_scope.pc	2026-08-19 17:02:21.735835600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_cordz_update_tracker.pc lf_after/absl_cordz_update_tracker.pc
+--- lf_before/absl_cordz_update_tracker.pc	2026-08-19 17:02:07.928469900 +0800
++++ lf_after/absl_cordz_update_tracker.pc	2026-08-19 17:02:21.781443800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_core_headers.pc lf_after/absl_core_headers.pc
+--- lf_before/absl_core_headers.pc	2026-08-19 17:02:07.962958200 +0800
++++ lf_after/absl_core_headers.pc	2026-08-19 17:02:21.816989200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_crc32c.pc lf_after/absl_crc32c.pc
+--- lf_before/absl_crc32c.pc	2026-08-19 17:02:07.993961000 +0800
++++ lf_after/absl_crc32c.pc	2026-08-19 17:02:21.868515600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_crc_cord_state.pc lf_after/absl_crc_cord_state.pc
+--- lf_before/absl_crc_cord_state.pc	2026-08-19 17:02:08.027188500 +0800
++++ lf_after/absl_crc_cord_state.pc	2026-08-19 17:02:21.909202600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_crc_cpu_detect.pc lf_after/absl_crc_cpu_detect.pc
+--- lf_before/absl_crc_cpu_detect.pc	2026-08-19 17:02:08.059310300 +0800
++++ lf_after/absl_crc_cpu_detect.pc	2026-08-19 17:02:21.945615200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_crc_internal.pc lf_after/absl_crc_internal.pc
+--- lf_before/absl_crc_internal.pc	2026-08-19 17:02:08.091180700 +0800
++++ lf_after/absl_crc_internal.pc	2026-08-19 17:02:21.999741700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_debugging.pc lf_after/absl_debugging.pc
+--- lf_before/absl_debugging.pc	2026-08-19 17:02:08.123172500 +0800
++++ lf_after/absl_debugging.pc	2026-08-19 17:02:22.039314200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_debugging_internal.pc lf_after/absl_debugging_internal.pc
+--- lf_before/absl_debugging_internal.pc	2026-08-19 17:02:08.159996700 +0800
++++ lf_after/absl_debugging_internal.pc	2026-08-19 17:02:22.085495400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_decode_rust_punycode.pc lf_after/absl_decode_rust_punycode.pc
+--- lf_before/absl_decode_rust_punycode.pc	2026-08-19 17:02:08.192911700 +0800
++++ lf_after/absl_decode_rust_punycode.pc	2026-08-19 17:02:22.121389200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_demangle_internal.pc lf_after/absl_demangle_internal.pc
+--- lf_before/absl_demangle_internal.pc	2026-08-19 17:02:08.238147900 +0800
++++ lf_after/absl_demangle_internal.pc	2026-08-19 17:02:22.160952800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_demangle_rust.pc lf_after/absl_demangle_rust.pc
+--- lf_before/absl_demangle_rust.pc	2026-08-19 17:02:08.270953600 +0800
++++ lf_after/absl_demangle_rust.pc	2026-08-19 17:02:22.194961000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_die_if_null.pc lf_after/absl_die_if_null.pc
+--- lf_before/absl_die_if_null.pc	2026-08-19 17:02:08.303883700 +0800
++++ lf_after/absl_die_if_null.pc	2026-08-19 17:02:22.234060600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_dynamic_annotations.pc lf_after/absl_dynamic_annotations.pc
+--- lf_before/absl_dynamic_annotations.pc	2026-08-19 17:02:08.336267100 +0800
++++ lf_after/absl_dynamic_annotations.pc	2026-08-19 17:02:22.272435300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_endian.pc lf_after/absl_endian.pc
+--- lf_before/absl_endian.pc	2026-08-19 17:02:08.367109000 +0800
++++ lf_after/absl_endian.pc	2026-08-19 17:02:22.324982200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_errno_saver.pc lf_after/absl_errno_saver.pc
+--- lf_before/absl_errno_saver.pc	2026-08-19 17:02:08.401062300 +0800
++++ lf_after/absl_errno_saver.pc	2026-08-19 17:02:22.359360200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_examine_stack.pc lf_after/absl_examine_stack.pc
+--- lf_before/absl_examine_stack.pc	2026-08-19 17:02:08.430399400 +0800
++++ lf_after/absl_examine_stack.pc	2026-08-19 17:02:22.394519100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_exponential_biased.pc lf_after/absl_exponential_biased.pc
+--- lf_before/absl_exponential_biased.pc	2026-08-19 17:02:08.460450700 +0800
++++ lf_after/absl_exponential_biased.pc	2026-08-19 17:02:22.426393200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_failure_signal_handler.pc lf_after/absl_failure_signal_handler.pc
+--- lf_before/absl_failure_signal_handler.pc	2026-08-19 17:02:08.490968900 +0800
++++ lf_after/absl_failure_signal_handler.pc	2026-08-19 17:02:22.462360100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_fast_type_id.pc lf_after/absl_fast_type_id.pc
+--- lf_before/absl_fast_type_id.pc	2026-08-19 17:02:08.523068900 +0800
++++ lf_after/absl_fast_type_id.pc	2026-08-19 17:02:22.494092600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_fixed_array.pc lf_after/absl_fixed_array.pc
+--- lf_before/absl_fixed_array.pc	2026-08-19 17:02:08.553961800 +0800
++++ lf_after/absl_fixed_array.pc	2026-08-19 17:02:22.527986400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags.pc lf_after/absl_flags.pc
+--- lf_before/absl_flags.pc	2026-08-19 17:02:08.586120000 +0800
++++ lf_after/absl_flags.pc	2026-08-19 17:02:22.564224100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_commandlineflag.pc lf_after/absl_flags_commandlineflag.pc
+--- lf_before/absl_flags_commandlineflag.pc	2026-08-19 17:02:08.620123000 +0800
++++ lf_after/absl_flags_commandlineflag.pc	2026-08-19 17:02:22.604845100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_commandlineflag_internal.pc lf_after/absl_flags_commandlineflag_internal.pc
+--- lf_before/absl_flags_commandlineflag_internal.pc	2026-08-19 17:02:08.653737300 +0800
++++ lf_after/absl_flags_commandlineflag_internal.pc	2026-08-19 17:02:22.639249900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_config.pc lf_after/absl_flags_config.pc
+--- lf_before/absl_flags_config.pc	2026-08-19 17:02:08.683387500 +0800
++++ lf_after/absl_flags_config.pc	2026-08-19 17:02:22.675643000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_internal.pc lf_after/absl_flags_internal.pc
+--- lf_before/absl_flags_internal.pc	2026-08-19 17:02:08.716878400 +0800
++++ lf_after/absl_flags_internal.pc	2026-08-19 17:02:22.710340800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_marshalling.pc lf_after/absl_flags_marshalling.pc
+--- lf_before/absl_flags_marshalling.pc	2026-08-19 17:02:08.753216600 +0800
++++ lf_after/absl_flags_marshalling.pc	2026-08-19 17:02:22.749931800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_parse.pc lf_after/absl_flags_parse.pc
+--- lf_before/absl_flags_parse.pc	2026-08-19 17:02:08.792378100 +0800
++++ lf_after/absl_flags_parse.pc	2026-08-19 17:02:22.788123900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_path_util.pc lf_after/absl_flags_path_util.pc
+--- lf_before/absl_flags_path_util.pc	2026-08-19 17:02:08.828189000 +0800
++++ lf_after/absl_flags_path_util.pc	2026-08-19 17:02:22.826343000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_private_handle_accessor.pc lf_after/absl_flags_private_handle_accessor.pc
+--- lf_before/absl_flags_private_handle_accessor.pc	2026-08-19 17:02:08.865841100 +0800
++++ lf_after/absl_flags_private_handle_accessor.pc	2026-08-19 17:02:22.913322100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_program_name.pc lf_after/absl_flags_program_name.pc
+--- lf_before/absl_flags_program_name.pc	2026-08-19 17:02:08.912156200 +0800
++++ lf_after/absl_flags_program_name.pc	2026-08-19 17:02:22.952050100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_reflection.pc lf_after/absl_flags_reflection.pc
+--- lf_before/absl_flags_reflection.pc	2026-08-19 17:02:08.944987700 +0800
++++ lf_after/absl_flags_reflection.pc	2026-08-19 17:02:22.990966300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_usage.pc lf_after/absl_flags_usage.pc
+--- lf_before/absl_flags_usage.pc	2026-08-19 17:02:09.032955700 +0800
++++ lf_after/absl_flags_usage.pc	2026-08-19 17:02:23.028747300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flags_usage_internal.pc lf_after/absl_flags_usage_internal.pc
+--- lf_before/absl_flags_usage_internal.pc	2026-08-19 17:02:09.072076800 +0800
++++ lf_after/absl_flags_usage_internal.pc	2026-08-19 17:02:23.069368300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flat_hash_map.pc lf_after/absl_flat_hash_map.pc
+--- lf_before/absl_flat_hash_map.pc	2026-08-19 17:02:09.109171300 +0800
++++ lf_after/absl_flat_hash_map.pc	2026-08-19 17:02:23.113570300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_flat_hash_set.pc lf_after/absl_flat_hash_set.pc
+--- lf_before/absl_flat_hash_set.pc	2026-08-19 17:02:09.143246900 +0800
++++ lf_after/absl_flat_hash_set.pc	2026-08-19 17:02:23.147659100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_function_ref.pc lf_after/absl_function_ref.pc
+--- lf_before/absl_function_ref.pc	2026-08-19 17:02:09.177305800 +0800
++++ lf_after/absl_function_ref.pc	2026-08-19 17:02:23.188854600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_generic_printer_internal.pc lf_after/absl_generic_printer_internal.pc
+--- lf_before/absl_generic_printer_internal.pc	2026-08-19 17:02:09.211963400 +0800
++++ lf_after/absl_generic_printer_internal.pc	2026-08-19 17:02:23.225392500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_graphcycles_internal.pc lf_after/absl_graphcycles_internal.pc
+--- lf_before/absl_graphcycles_internal.pc	2026-08-19 17:02:09.245963100 +0800
++++ lf_after/absl_graphcycles_internal.pc	2026-08-19 17:02:23.262833000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hardening.pc lf_after/absl_hardening.pc
+--- lf_before/absl_hardening.pc	2026-08-19 17:02:09.287246900 +0800
++++ lf_after/absl_hardening.pc	2026-08-19 17:02:23.300765000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_has_ostream_operator.pc lf_after/absl_has_ostream_operator.pc
+--- lf_before/absl_has_ostream_operator.pc	2026-08-19 17:02:09.324355000 +0800
++++ lf_after/absl_has_ostream_operator.pc	2026-08-19 17:02:23.349499800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hash.pc lf_after/absl_hash.pc
+--- lf_before/absl_hash.pc	2026-08-19 17:02:09.359559400 +0800
++++ lf_after/absl_hash.pc	2026-08-19 17:02:23.390625900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hash_container_defaults.pc lf_after/absl_hash_container_defaults.pc
+--- lf_before/absl_hash_container_defaults.pc	2026-08-19 17:02:09.393376000 +0800
++++ lf_after/absl_hash_container_defaults.pc	2026-08-19 17:02:23.425950900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hash_function_defaults.pc lf_after/absl_hash_function_defaults.pc
+--- lf_before/absl_hash_function_defaults.pc	2026-08-19 17:02:09.427290800 +0800
++++ lf_after/absl_hash_function_defaults.pc	2026-08-19 17:02:23.461093200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hash_policy_traits.pc lf_after/absl_hash_policy_traits.pc
+--- lf_before/absl_hash_policy_traits.pc	2026-08-19 17:02:09.480440200 +0800
++++ lf_after/absl_hash_policy_traits.pc	2026-08-19 17:02:23.498635900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hashtable_control_bytes.pc lf_after/absl_hashtable_control_bytes.pc
+--- lf_before/absl_hashtable_control_bytes.pc	2026-08-19 17:02:09.513147100 +0800
++++ lf_after/absl_hashtable_control_bytes.pc	2026-08-19 17:02:23.533444600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hashtable_debug.pc lf_after/absl_hashtable_debug.pc
+--- lf_before/absl_hashtable_debug.pc	2026-08-19 17:02:09.546226400 +0800
++++ lf_after/absl_hashtable_debug.pc	2026-08-19 17:02:23.622393800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hashtable_debug_hooks.pc lf_after/absl_hashtable_debug_hooks.pc
+--- lf_before/absl_hashtable_debug_hooks.pc	2026-08-19 17:02:09.580523000 +0800
++++ lf_after/absl_hashtable_debug_hooks.pc	2026-08-19 17:02:23.660022700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hashtable_profiler.pc lf_after/absl_hashtable_profiler.pc
+--- lf_before/absl_hashtable_profiler.pc	2026-08-19 17:02:09.665213200 +0800
++++ lf_after/absl_hashtable_profiler.pc	2026-08-19 17:02:23.696653400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_hashtablez_sampler.pc lf_after/absl_hashtablez_sampler.pc
+--- lf_before/absl_hashtablez_sampler.pc	2026-08-19 17:02:09.700095400 +0800
++++ lf_after/absl_hashtablez_sampler.pc	2026-08-19 17:02:23.731132900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_inlined_vector.pc lf_after/absl_inlined_vector.pc
+--- lf_before/absl_inlined_vector.pc	2026-08-19 17:02:09.733434400 +0800
++++ lf_after/absl_inlined_vector.pc	2026-08-19 17:02:23.768161400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_inlined_vector_internal.pc lf_after/absl_inlined_vector_internal.pc
+--- lf_before/absl_inlined_vector_internal.pc	2026-08-19 17:02:09.770424800 +0800
++++ lf_after/absl_inlined_vector_internal.pc	2026-08-19 17:02:23.807363200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_int128.pc lf_after/absl_int128.pc
+--- lf_before/absl_int128.pc	2026-08-19 17:02:09.807986400 +0800
++++ lf_after/absl_int128.pc	2026-08-19 17:02:23.845824000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_internal_optional_ref.pc lf_after/absl_internal_optional_ref.pc
+--- lf_before/absl_internal_optional_ref.pc	2026-08-19 17:02:09.844016200 +0800
++++ lf_after/absl_internal_optional_ref.pc	2026-08-19 17:02:23.880622200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_iterator_traits_internal.pc lf_after/absl_iterator_traits_internal.pc
+--- lf_before/absl_iterator_traits_internal.pc	2026-08-19 17:02:09.878122200 +0800
++++ lf_after/absl_iterator_traits_internal.pc	2026-08-19 17:02:23.936363800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_iterator_traits_test_helper_internal.pc lf_after/absl_iterator_traits_test_helper_internal.pc
+--- lf_before/absl_iterator_traits_test_helper_internal.pc	2026-08-19 17:02:09.912315700 +0800
++++ lf_after/absl_iterator_traits_test_helper_internal.pc	2026-08-19 17:02:24.029649600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_kernel_timeout_internal.pc lf_after/absl_kernel_timeout_internal.pc
+--- lf_before/absl_kernel_timeout_internal.pc	2026-08-19 17:02:09.995827600 +0800
++++ lf_after/absl_kernel_timeout_internal.pc	2026-08-19 17:02:24.065947500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_layout.pc lf_after/absl_layout.pc
+--- lf_before/absl_layout.pc	2026-08-19 17:02:10.030463700 +0800
++++ lf_after/absl_layout.pc	2026-08-19 17:02:24.105844100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_leak_check.pc lf_after/absl_leak_check.pc
+--- lf_before/absl_leak_check.pc	2026-08-19 17:02:10.066997900 +0800
++++ lf_after/absl_leak_check.pc	2026-08-19 17:02:24.144093200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_linked_hash_map.pc lf_after/absl_linked_hash_map.pc
+--- lf_before/absl_linked_hash_map.pc	2026-08-19 17:02:10.103006700 +0800
++++ lf_after/absl_linked_hash_map.pc	2026-08-19 17:02:24.233061300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_linked_hash_set.pc lf_after/absl_linked_hash_set.pc
+--- lf_before/absl_linked_hash_set.pc	2026-08-19 17:02:10.192982300 +0800
++++ lf_after/absl_linked_hash_set.pc	2026-08-19 17:02:24.275162500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log.pc lf_after/absl_log.pc
+--- lf_before/absl_log.pc	2026-08-19 17:02:10.284863700 +0800
++++ lf_after/absl_log.pc	2026-08-19 17:02:24.362326900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_entry.pc lf_after/absl_log_entry.pc
+--- lf_before/absl_log_entry.pc	2026-08-19 17:02:10.378809000 +0800
++++ lf_after/absl_log_entry.pc	2026-08-19 17:02:24.453356200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_flags.pc lf_after/absl_log_flags.pc
+--- lf_before/absl_log_flags.pc	2026-08-19 17:02:10.464410300 +0800
++++ lf_after/absl_log_flags.pc	2026-08-19 17:02:24.599971200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_globals.pc lf_after/absl_log_globals.pc
+--- lf_before/absl_log_globals.pc	2026-08-19 17:02:10.609205100 +0800
++++ lf_after/absl_log_globals.pc	2026-08-19 17:02:24.640597600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_initialize.pc lf_after/absl_log_initialize.pc
+--- lf_before/absl_log_initialize.pc	2026-08-19 17:02:10.643403500 +0800
++++ lf_after/absl_log_initialize.pc	2026-08-19 17:02:24.678433800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_append_truncated.pc lf_after/absl_log_internal_append_truncated.pc
+--- lf_before/absl_log_internal_append_truncated.pc	2026-08-19 17:02:10.679559900 +0800
++++ lf_after/absl_log_internal_append_truncated.pc	2026-08-19 17:02:24.714008300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_check_impl.pc lf_after/absl_log_internal_check_impl.pc
+--- lf_before/absl_log_internal_check_impl.pc	2026-08-19 17:02:10.715238900 +0800
++++ lf_after/absl_log_internal_check_impl.pc	2026-08-19 17:02:24.755020900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_check_op.pc lf_after/absl_log_internal_check_op.pc
+--- lf_before/absl_log_internal_check_op.pc	2026-08-19 17:02:10.757981500 +0800
++++ lf_after/absl_log_internal_check_op.pc	2026-08-19 17:02:24.802380400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_conditions.pc lf_after/absl_log_internal_conditions.pc
+--- lf_before/absl_log_internal_conditions.pc	2026-08-19 17:02:10.793132900 +0800
++++ lf_after/absl_log_internal_conditions.pc	2026-08-19 17:02:24.840643500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_config.pc lf_after/absl_log_internal_config.pc
+--- lf_before/absl_log_internal_config.pc	2026-08-19 17:02:10.826178400 +0800
++++ lf_after/absl_log_internal_config.pc	2026-08-19 17:02:24.895154300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_container.pc lf_after/absl_log_internal_container.pc
+--- lf_before/absl_log_internal_container.pc	2026-08-19 17:02:10.863717500 +0800
++++ lf_after/absl_log_internal_container.pc	2026-08-19 17:02:24.932429500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_flags.pc lf_after/absl_log_internal_flags.pc
+--- lf_before/absl_log_internal_flags.pc	2026-08-19 17:02:10.900456600 +0800
++++ lf_after/absl_log_internal_flags.pc	2026-08-19 17:02:24.972436300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_fnmatch.pc lf_after/absl_log_internal_fnmatch.pc
+--- lf_before/absl_log_internal_fnmatch.pc	2026-08-19 17:02:10.937548600 +0800
++++ lf_after/absl_log_internal_fnmatch.pc	2026-08-19 17:02:25.012507600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_format.pc lf_after/absl_log_internal_format.pc
+--- lf_before/absl_log_internal_format.pc	2026-08-19 17:02:10.970102200 +0800
++++ lf_after/absl_log_internal_format.pc	2026-08-19 17:02:25.064467200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_globals.pc lf_after/absl_log_internal_globals.pc
+--- lf_before/absl_log_internal_globals.pc	2026-08-19 17:02:11.004676100 +0800
++++ lf_after/absl_log_internal_globals.pc	2026-08-19 17:02:25.105930300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_log_impl.pc lf_after/absl_log_internal_log_impl.pc
+--- lf_before/absl_log_internal_log_impl.pc	2026-08-19 17:02:11.041843200 +0800
++++ lf_after/absl_log_internal_log_impl.pc	2026-08-19 17:02:25.145524300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_log_sink_set.pc lf_after/absl_log_internal_log_sink_set.pc
+--- lf_before/absl_log_internal_log_sink_set.pc	2026-08-19 17:02:11.078554500 +0800
++++ lf_after/absl_log_internal_log_sink_set.pc	2026-08-19 17:02:25.195417500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_message.pc lf_after/absl_log_internal_message.pc
+--- lf_before/absl_log_internal_message.pc	2026-08-19 17:02:11.113546300 +0800
++++ lf_after/absl_log_internal_message.pc	2026-08-19 17:02:25.230546600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_nullguard.pc lf_after/absl_log_internal_nullguard.pc
+--- lf_before/absl_log_internal_nullguard.pc	2026-08-19 17:02:11.145953400 +0800
++++ lf_after/absl_log_internal_nullguard.pc	2026-08-19 17:02:25.269725100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_nullstream.pc lf_after/absl_log_internal_nullstream.pc
+--- lf_before/absl_log_internal_nullstream.pc	2026-08-19 17:02:11.181418200 +0800
++++ lf_after/absl_log_internal_nullstream.pc	2026-08-19 17:02:25.309539900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_proto.pc lf_after/absl_log_internal_proto.pc
+--- lf_before/absl_log_internal_proto.pc	2026-08-19 17:02:11.217978400 +0800
++++ lf_after/absl_log_internal_proto.pc	2026-08-19 17:02:25.346486400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_strip.pc lf_after/absl_log_internal_strip.pc
+--- lf_before/absl_log_internal_strip.pc	2026-08-19 17:02:11.254257900 +0800
++++ lf_after/absl_log_internal_strip.pc	2026-08-19 17:02:25.399128500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_structured.pc lf_after/absl_log_internal_structured.pc
+--- lf_before/absl_log_internal_structured.pc	2026-08-19 17:02:11.288475200 +0800
++++ lf_after/absl_log_internal_structured.pc	2026-08-19 17:02:25.439610900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_structured_proto.pc lf_after/absl_log_internal_structured_proto.pc
+--- lf_before/absl_log_internal_structured_proto.pc	2026-08-19 17:02:11.322506700 +0800
++++ lf_after/absl_log_internal_structured_proto.pc	2026-08-19 17:02:25.477224500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_internal_voidify.pc lf_after/absl_log_internal_voidify.pc
+--- lf_before/absl_log_internal_voidify.pc	2026-08-19 17:02:11.360139700 +0800
++++ lf_after/absl_log_internal_voidify.pc	2026-08-19 17:02:25.516976400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_severity.pc lf_after/absl_log_severity.pc
+--- lf_before/absl_log_severity.pc	2026-08-19 17:02:11.395814100 +0800
++++ lf_after/absl_log_severity.pc	2026-08-19 17:02:25.568542700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_sink.pc lf_after/absl_log_sink.pc
+--- lf_before/absl_log_sink.pc	2026-08-19 17:02:11.429104200 +0800
++++ lf_after/absl_log_sink.pc	2026-08-19 17:02:25.607062200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_sink_registry.pc lf_after/absl_log_sink_registry.pc
+--- lf_before/absl_log_sink_registry.pc	2026-08-19 17:02:11.459885400 +0800
++++ lf_after/absl_log_sink_registry.pc	2026-08-19 17:02:25.704774300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_streamer.pc lf_after/absl_log_streamer.pc
+--- lf_before/absl_log_streamer.pc	2026-08-19 17:02:11.494271600 +0800
++++ lf_after/absl_log_streamer.pc	2026-08-19 17:02:25.754202900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_log_structured.pc lf_after/absl_log_structured.pc
+--- lf_before/absl_log_structured.pc	2026-08-19 17:02:11.528306300 +0800
++++ lf_after/absl_log_structured.pc	2026-08-19 17:02:25.789677700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_malloc_internal.pc lf_after/absl_malloc_internal.pc
+--- lf_before/absl_malloc_internal.pc	2026-08-19 17:02:11.563671500 +0800
++++ lf_after/absl_malloc_internal.pc	2026-08-19 17:02:25.840115200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_memory.pc lf_after/absl_memory.pc
+--- lf_before/absl_memory.pc	2026-08-19 17:02:11.599676800 +0800
++++ lf_after/absl_memory.pc	2026-08-19 17:02:25.880381000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_meta.pc lf_after/absl_meta.pc
+--- lf_before/absl_meta.pc	2026-08-19 17:02:11.634743400 +0800
++++ lf_after/absl_meta.pc	2026-08-19 17:02:25.918766700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_no_destructor.pc lf_after/absl_no_destructor.pc
+--- lf_before/absl_no_destructor.pc	2026-08-19 17:02:11.672060400 +0800
++++ lf_after/absl_no_destructor.pc	2026-08-19 17:02:25.955806500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_node_hash_map.pc lf_after/absl_node_hash_map.pc
+--- lf_before/absl_node_hash_map.pc	2026-08-19 17:02:11.706173200 +0800
++++ lf_after/absl_node_hash_map.pc	2026-08-19 17:02:25.991918000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_node_hash_set.pc lf_after/absl_node_hash_set.pc
+--- lf_before/absl_node_hash_set.pc	2026-08-19 17:02:11.816528900 +0800
++++ lf_after/absl_node_hash_set.pc	2026-08-19 17:02:26.043748300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_node_slot_policy.pc lf_after/absl_node_slot_policy.pc
+--- lf_before/absl_node_slot_policy.pc	2026-08-19 17:02:11.855155600 +0800
++++ lf_after/absl_node_slot_policy.pc	2026-08-19 17:02:26.078851800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_non_temporal_arm_intrinsics.pc lf_after/absl_non_temporal_arm_intrinsics.pc
+--- lf_before/absl_non_temporal_arm_intrinsics.pc	2026-08-19 17:02:11.891340900 +0800
++++ lf_after/absl_non_temporal_arm_intrinsics.pc	2026-08-19 17:02:26.118299000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_non_temporal_memcpy.pc lf_after/absl_non_temporal_memcpy.pc
+--- lf_before/absl_non_temporal_memcpy.pc	2026-08-19 17:02:11.926526500 +0800
++++ lf_after/absl_non_temporal_memcpy.pc	2026-08-19 17:02:26.156679600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_nullability.pc lf_after/absl_nullability.pc
+--- lf_before/absl_nullability.pc	2026-08-19 17:02:11.964499300 +0800
++++ lf_after/absl_nullability.pc	2026-08-19 17:02:26.194095100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_nullability_traits_internal.pc lf_after/absl_nullability_traits_internal.pc
+--- lf_before/absl_nullability_traits_internal.pc	2026-08-19 17:02:12.001396700 +0800
++++ lf_after/absl_nullability_traits_internal.pc	2026-08-19 17:02:26.232745300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_numeric.pc lf_after/absl_numeric.pc
+--- lf_before/absl_numeric.pc	2026-08-19 17:02:12.037818500 +0800
++++ lf_after/absl_numeric.pc	2026-08-19 17:02:26.272720900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_numeric_representation.pc lf_after/absl_numeric_representation.pc
+--- lf_before/absl_numeric_representation.pc	2026-08-19 17:02:12.074442200 +0800
++++ lf_after/absl_numeric_representation.pc	2026-08-19 17:02:26.310844100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_optional.pc lf_after/absl_optional.pc
+--- lf_before/absl_optional.pc	2026-08-19 17:02:12.113437300 +0800
++++ lf_after/absl_optional.pc	2026-08-19 17:02:26.405931300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_overload.pc lf_after/absl_overload.pc
+--- lf_before/absl_overload.pc	2026-08-19 17:02:12.147673800 +0800
++++ lf_after/absl_overload.pc	2026-08-19 17:02:26.444148900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_periodic_sampler.pc lf_after/absl_periodic_sampler.pc
+--- lf_before/absl_periodic_sampler.pc	2026-08-19 17:02:12.183414400 +0800
++++ lf_after/absl_periodic_sampler.pc	2026-08-19 17:02:26.482133500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_poison.pc lf_after/absl_poison.pc
+--- lf_before/absl_poison.pc	2026-08-19 17:02:12.219062700 +0800
++++ lf_after/absl_poison.pc	2026-08-19 17:02:26.518261000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_prefetch.pc lf_after/absl_prefetch.pc
+--- lf_before/absl_prefetch.pc	2026-08-19 17:02:12.253410200 +0800
++++ lf_after/absl_prefetch.pc	2026-08-19 17:02:26.557640600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_pretty_function.pc lf_after/absl_pretty_function.pc
+--- lf_before/absl_pretty_function.pc	2026-08-19 17:02:12.342008100 +0800
++++ lf_after/absl_pretty_function.pc	2026-08-19 17:02:26.608594700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_profile_builder.pc lf_after/absl_profile_builder.pc
+--- lf_before/absl_profile_builder.pc	2026-08-19 17:02:12.376432400 +0800
++++ lf_after/absl_profile_builder.pc	2026-08-19 17:02:26.645072300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_bit_gen_ref.pc lf_after/absl_random_bit_gen_ref.pc
+--- lf_before/absl_random_bit_gen_ref.pc	2026-08-19 17:02:12.410986100 +0800
++++ lf_after/absl_random_bit_gen_ref.pc	2026-08-19 17:02:26.687219000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_distributions.pc lf_after/absl_random_distributions.pc
+--- lf_before/absl_random_distributions.pc	2026-08-19 17:02:12.444961900 +0800
++++ lf_after/absl_random_distributions.pc	2026-08-19 17:02:26.782270100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_distribution_caller.pc lf_after/absl_random_internal_distribution_caller.pc
+--- lf_before/absl_random_internal_distribution_caller.pc	2026-08-19 17:02:12.477044300 +0800
++++ lf_after/absl_random_internal_distribution_caller.pc	2026-08-19 17:02:26.819383900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_distribution_test_util.pc lf_after/absl_random_internal_distribution_test_util.pc
+--- lf_before/absl_random_internal_distribution_test_util.pc	2026-08-19 17:02:12.509158200 +0800
++++ lf_after/absl_random_internal_distribution_test_util.pc	2026-08-19 17:02:26.860468100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_entropy_pool.pc lf_after/absl_random_internal_entropy_pool.pc
+--- lf_before/absl_random_internal_entropy_pool.pc	2026-08-19 17:02:12.544563500 +0800
++++ lf_after/absl_random_internal_entropy_pool.pc	2026-08-19 17:02:26.897833600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_fast_uniform_bits.pc lf_after/absl_random_internal_fast_uniform_bits.pc
+--- lf_before/absl_random_internal_fast_uniform_bits.pc	2026-08-19 17:02:12.577796700 +0800
++++ lf_after/absl_random_internal_fast_uniform_bits.pc	2026-08-19 17:02:26.995007500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_fastmath.pc lf_after/absl_random_internal_fastmath.pc
+--- lf_before/absl_random_internal_fastmath.pc	2026-08-19 17:02:12.661436200 +0800
++++ lf_after/absl_random_internal_fastmath.pc	2026-08-19 17:02:27.030226100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_generate_real.pc lf_after/absl_random_internal_generate_real.pc
+--- lf_before/absl_random_internal_generate_real.pc	2026-08-19 17:02:12.694020700 +0800
++++ lf_after/absl_random_internal_generate_real.pc	2026-08-19 17:02:27.119704800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_iostream_state_saver.pc lf_after/absl_random_internal_iostream_state_saver.pc
+--- lf_before/absl_random_internal_iostream_state_saver.pc	2026-08-19 17:02:12.729805900 +0800
++++ lf_after/absl_random_internal_iostream_state_saver.pc	2026-08-19 17:02:27.211204500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_mock_helpers.pc lf_after/absl_random_internal_mock_helpers.pc
+--- lf_before/absl_random_internal_mock_helpers.pc	2026-08-19 17:02:12.765095600 +0800
++++ lf_after/absl_random_internal_mock_helpers.pc	2026-08-19 17:02:27.250526700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_nonsecure_base.pc lf_after/absl_random_internal_nonsecure_base.pc
+--- lf_before/absl_random_internal_nonsecure_base.pc	2026-08-19 17:02:12.800940700 +0800
++++ lf_after/absl_random_internal_nonsecure_base.pc	2026-08-19 17:02:27.290994300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_pcg_engine.pc lf_after/absl_random_internal_pcg_engine.pc
+--- lf_before/absl_random_internal_pcg_engine.pc	2026-08-19 17:02:12.895260900 +0800
++++ lf_after/absl_random_internal_pcg_engine.pc	2026-08-19 17:02:27.328970400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_platform.pc lf_after/absl_random_internal_platform.pc
+--- lf_before/absl_random_internal_platform.pc	2026-08-19 17:02:12.929410900 +0800
++++ lf_after/absl_random_internal_platform.pc	2026-08-19 17:02:27.366685400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_randen.pc lf_after/absl_random_internal_randen.pc
+--- lf_before/absl_random_internal_randen.pc	2026-08-19 17:02:13.017552800 +0800
++++ lf_after/absl_random_internal_randen.pc	2026-08-19 17:02:27.405880200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_randen_engine.pc lf_after/absl_random_internal_randen_engine.pc
+--- lf_before/absl_random_internal_randen_engine.pc	2026-08-19 17:02:13.103085200 +0800
++++ lf_after/absl_random_internal_randen_engine.pc	2026-08-19 17:02:27.444702000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_randen_hwaes.pc lf_after/absl_random_internal_randen_hwaes.pc
+--- lf_before/absl_random_internal_randen_hwaes.pc	2026-08-19 17:02:13.244880100 +0800
++++ lf_after/absl_random_internal_randen_hwaes.pc	2026-08-19 17:02:27.479109500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_randen_hwaes_impl.pc lf_after/absl_random_internal_randen_hwaes_impl.pc
+--- lf_before/absl_random_internal_randen_hwaes_impl.pc	2026-08-19 17:02:13.278632500 +0800
++++ lf_after/absl_random_internal_randen_hwaes_impl.pc	2026-08-19 17:02:27.523445300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_randen_slow.pc lf_after/absl_random_internal_randen_slow.pc
+--- lf_before/absl_random_internal_randen_slow.pc	2026-08-19 17:02:13.311448500 +0800
++++ lf_after/absl_random_internal_randen_slow.pc	2026-08-19 17:02:27.563962000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_salted_seed_seq.pc lf_after/absl_random_internal_salted_seed_seq.pc
+--- lf_before/absl_random_internal_salted_seed_seq.pc	2026-08-19 17:02:13.343989600 +0800
++++ lf_after/absl_random_internal_salted_seed_seq.pc	2026-08-19 17:02:27.599753400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_seed_material.pc lf_after/absl_random_internal_seed_material.pc
+--- lf_before/absl_random_internal_seed_material.pc	2026-08-19 17:02:13.378433700 +0800
++++ lf_after/absl_random_internal_seed_material.pc	2026-08-19 17:02:27.639427200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_traits.pc lf_after/absl_random_internal_traits.pc
+--- lf_before/absl_random_internal_traits.pc	2026-08-19 17:02:13.414663500 +0800
++++ lf_after/absl_random_internal_traits.pc	2026-08-19 17:02:27.675016600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_uniform_helper.pc lf_after/absl_random_internal_uniform_helper.pc
+--- lf_before/absl_random_internal_uniform_helper.pc	2026-08-19 17:02:13.446250700 +0800
++++ lf_after/absl_random_internal_uniform_helper.pc	2026-08-19 17:02:27.710963400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_internal_wide_multiply.pc lf_after/absl_random_internal_wide_multiply.pc
+--- lf_before/absl_random_internal_wide_multiply.pc	2026-08-19 17:02:13.476968600 +0800
++++ lf_after/absl_random_internal_wide_multiply.pc	2026-08-19 17:02:27.751016400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_mocking_access.pc lf_after/absl_random_mocking_access.pc
+--- lf_before/absl_random_mocking_access.pc	2026-08-19 17:02:13.509182000 +0800
++++ lf_after/absl_random_mocking_access.pc	2026-08-19 17:02:27.788951500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_random.pc lf_after/absl_random_random.pc
+--- lf_before/absl_random_random.pc	2026-08-19 17:02:13.544727300 +0800
++++ lf_after/absl_random_random.pc	2026-08-19 17:02:27.826183700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_seed_gen_exception.pc lf_after/absl_random_seed_gen_exception.pc
+--- lf_before/absl_random_seed_gen_exception.pc	2026-08-19 17:02:13.576514500 +0800
++++ lf_after/absl_random_seed_gen_exception.pc	2026-08-19 17:02:27.862590700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_random_seed_sequences.pc lf_after/absl_random_seed_sequences.pc
+--- lf_before/absl_random_seed_sequences.pc	2026-08-19 17:02:13.610955200 +0800
++++ lf_after/absl_random_seed_sequences.pc	2026-08-19 17:02:27.900558700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_raw_hash_map.pc lf_after/absl_raw_hash_map.pc
+--- lf_before/absl_raw_hash_map.pc	2026-08-19 17:02:13.647546200 +0800
++++ lf_after/absl_raw_hash_map.pc	2026-08-19 17:02:27.939317800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_raw_hash_set.pc lf_after/absl_raw_hash_set.pc
+--- lf_before/absl_raw_hash_set.pc	2026-08-19 17:02:13.679110500 +0800
++++ lf_after/absl_raw_hash_set.pc	2026-08-19 17:02:27.992644000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_raw_hash_set_resize_impl.pc lf_after/absl_raw_hash_set_resize_impl.pc
+--- lf_before/absl_raw_hash_set_resize_impl.pc	2026-08-19 17:02:13.712197000 +0800
++++ lf_after/absl_raw_hash_set_resize_impl.pc	2026-08-19 17:02:28.032322100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_raw_logging_internal.pc lf_after/absl_raw_logging_internal.pc
+--- lf_before/absl_raw_logging_internal.pc	2026-08-19 17:02:13.744455500 +0800
++++ lf_after/absl_raw_logging_internal.pc	2026-08-19 17:02:28.071501700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_requires_internal.pc lf_after/absl_requires_internal.pc
+--- lf_before/absl_requires_internal.pc	2026-08-19 17:02:13.781039900 +0800
++++ lf_after/absl_requires_internal.pc	2026-08-19 17:02:28.112460900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_sample_recorder.pc lf_after/absl_sample_recorder.pc
+--- lf_before/absl_sample_recorder.pc	2026-08-19 17:02:13.814985200 +0800
++++ lf_after/absl_sample_recorder.pc	2026-08-19 17:02:28.162325300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_scoped_set_env.pc lf_after/absl_scoped_set_env.pc
+--- lf_before/absl_scoped_set_env.pc	2026-08-19 17:02:13.852439000 +0800
++++ lf_after/absl_scoped_set_env.pc	2026-08-19 17:02:28.211826800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_source_location.pc lf_after/absl_source_location.pc
+--- lf_before/absl_source_location.pc	2026-08-19 17:02:13.889371600 +0800
++++ lf_after/absl_source_location.pc	2026-08-19 17:02:28.252708900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_span.pc lf_after/absl_span.pc
+--- lf_before/absl_span.pc	2026-08-19 17:02:13.923932500 +0800
++++ lf_after/absl_span.pc	2026-08-19 17:02:28.306181400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_spinlock_wait.pc lf_after/absl_spinlock_wait.pc
+--- lf_before/absl_spinlock_wait.pc	2026-08-19 17:02:13.960694700 +0800
++++ lf_after/absl_spinlock_wait.pc	2026-08-19 17:02:28.344955200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_stacktrace.pc lf_after/absl_stacktrace.pc
+--- lf_before/absl_stacktrace.pc	2026-08-19 17:02:13.995131000 +0800
++++ lf_after/absl_stacktrace.pc	2026-08-19 17:02:28.379274700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_status.pc lf_after/absl_status.pc
+--- lf_before/absl_status.pc	2026-08-19 17:02:14.029914300 +0800
++++ lf_after/absl_status.pc	2026-08-19 17:02:28.416383800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_status_builder.pc lf_after/absl_status_builder.pc
+--- lf_before/absl_status_builder.pc	2026-08-19 17:02:14.061021800 +0800
++++ lf_after/absl_status_builder.pc	2026-08-19 17:02:28.454290100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_status_macros.pc lf_after/absl_status_macros.pc
+--- lf_before/absl_status_macros.pc	2026-08-19 17:02:14.097246000 +0800
++++ lf_after/absl_status_macros.pc	2026-08-19 17:02:28.560552200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_statusor.pc lf_after/absl_statusor.pc
+--- lf_before/absl_statusor.pc	2026-08-19 17:02:14.136539500 +0800
++++ lf_after/absl_statusor.pc	2026-08-19 17:02:28.597316400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_str_format.pc lf_after/absl_str_format.pc
+--- lf_before/absl_str_format.pc	2026-08-19 17:02:14.171735000 +0800
++++ lf_after/absl_str_format.pc	2026-08-19 17:02:28.637613500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_str_format_internal.pc lf_after/absl_str_format_internal.pc
+--- lf_before/absl_str_format_internal.pc	2026-08-19 17:02:14.208977000 +0800
++++ lf_after/absl_str_format_internal.pc	2026-08-19 17:02:28.675002800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_strerror.pc lf_after/absl_strerror.pc
+--- lf_before/absl_strerror.pc	2026-08-19 17:02:14.243421400 +0800
++++ lf_after/absl_strerror.pc	2026-08-19 17:02:28.711344800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_string_view.pc lf_after/absl_string_view.pc
+--- lf_before/absl_string_view.pc	2026-08-19 17:02:14.280601200 +0800
++++ lf_after/absl_string_view.pc	2026-08-19 17:02:28.761755800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_stringify_stream.pc lf_after/absl_stringify_stream.pc
+--- lf_before/absl_stringify_stream.pc	2026-08-19 17:02:14.318412300 +0800
++++ lf_after/absl_stringify_stream.pc	2026-08-19 17:02:28.797304500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_strings.pc lf_after/absl_strings.pc
+--- lf_before/absl_strings.pc	2026-08-19 17:02:14.402531200 +0800
++++ lf_after/absl_strings.pc	2026-08-19 17:02:28.831202300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_strings_append_and_overwrite.pc lf_after/absl_strings_append_and_overwrite.pc
+--- lf_before/absl_strings_append_and_overwrite.pc	2026-08-19 17:02:14.442082300 +0800
++++ lf_after/absl_strings_append_and_overwrite.pc	2026-08-19 17:02:28.880729000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_strings_internal.pc lf_after/absl_strings_internal.pc
+--- lf_before/absl_strings_internal.pc	2026-08-19 17:02:14.477483400 +0800
++++ lf_after/absl_strings_internal.pc	2026-08-19 17:02:28.939223800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_strings_resize_and_overwrite.pc lf_after/absl_strings_resize_and_overwrite.pc
+--- lf_before/absl_strings_resize_and_overwrite.pc	2026-08-19 17:02:14.510192800 +0800
++++ lf_after/absl_strings_resize_and_overwrite.pc	2026-08-19 17:02:28.975050400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_symbolize.pc lf_after/absl_symbolize.pc
+--- lf_before/absl_symbolize.pc	2026-08-19 17:02:14.545648900 +0800
++++ lf_after/absl_symbolize.pc	2026-08-19 17:02:29.029791700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_synchronization.pc lf_after/absl_synchronization.pc
+--- lf_before/absl_synchronization.pc	2026-08-19 17:02:14.579233600 +0800
++++ lf_after/absl_synchronization.pc	2026-08-19 17:02:29.063220100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_throw_delegate.pc lf_after/absl_throw_delegate.pc
+--- lf_before/absl_throw_delegate.pc	2026-08-19 17:02:14.614123700 +0800
++++ lf_after/absl_throw_delegate.pc	2026-08-19 17:02:29.100219100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_time.pc lf_after/absl_time.pc
+--- lf_before/absl_time.pc	2026-08-19 17:02:14.646829000 +0800
++++ lf_after/absl_time.pc	2026-08-19 17:02:29.139190500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_time_zone.pc lf_after/absl_time_zone.pc
+--- lf_before/absl_time_zone.pc	2026-08-19 17:02:14.679497200 +0800
++++ lf_after/absl_time_zone.pc	2026-08-19 17:02:29.179260500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_tracing_internal.pc lf_after/absl_tracing_internal.pc
+--- lf_before/absl_tracing_internal.pc	2026-08-19 17:02:14.713939600 +0800
++++ lf_after/absl_tracing_internal.pc	2026-08-19 17:02:29.267269000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_type_traits.pc lf_after/absl_type_traits.pc
+--- lf_before/absl_type_traits.pc	2026-08-19 17:02:14.750584100 +0800
++++ lf_after/absl_type_traits.pc	2026-08-19 17:02:29.308211100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_utf8_for_code_point.pc lf_after/absl_utf8_for_code_point.pc
+--- lf_before/absl_utf8_for_code_point.pc	2026-08-19 17:02:14.784589900 +0800
++++ lf_after/absl_utf8_for_code_point.pc	2026-08-19 17:02:29.344250300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_utility.pc lf_after/absl_utility.pc
+--- lf_before/absl_utility.pc	2026-08-19 17:02:14.820786000 +0800
++++ lf_after/absl_utility.pc	2026-08-19 17:02:29.377687600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_variant.pc lf_after/absl_variant.pc
+--- lf_before/absl_variant.pc	2026-08-19 17:02:14.857801200 +0800
++++ lf_after/absl_variant.pc	2026-08-19 17:02:29.418574500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_vlog_config_internal.pc lf_after/absl_vlog_config_internal.pc
+--- lf_before/absl_vlog_config_internal.pc	2026-08-19 17:02:14.897189100 +0800
++++ lf_after/absl_vlog_config_internal.pc	2026-08-19 17:02:29.456778700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_vlog_is_on.pc lf_after/absl_vlog_is_on.pc
+--- lf_before/absl_vlog_is_on.pc	2026-08-19 17:02:14.932983500 +0800
++++ lf_after/absl_vlog_is_on.pc	2026-08-19 17:02:29.511682500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/absl_weakly_mixed_integer.pc lf_after/absl_weakly_mixed_integer.pc
+--- lf_before/absl_weakly_mixed_integer.pc	2026-08-19 17:02:15.021993900 +0800
++++ lf_after/absl_weakly_mixed_integer.pc	2026-08-19 17:02:29.545969400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/abseil-cpp-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=C:/gtk-build/build/x64/release/abseil-cpp-rel/lib
+ includedir=C:/gtk-build/build/x64/release/abseil-cpp-rel/include
+diff -ruN -U3 lf_before/cairo-dwrite-font.pc lf_after/cairo-dwrite-font.pc
+--- lf_before/cairo-dwrite-font.pc	2026-08-19 17:02:15.058838500 +0800
++++ lf_after/cairo-dwrite-font.pc	2026-08-19 17:02:29.584509200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairo-fc.pc lf_after/cairo-fc.pc
+--- lf_before/cairo-fc.pc	2026-08-19 17:02:15.094310200 +0800
++++ lf_after/cairo-fc.pc	2026-08-19 17:02:29.678948800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-fc
+diff -ruN -U3 lf_before/cairo-ft.pc lf_after/cairo-ft.pc
+--- lf_before/cairo-ft.pc	2026-08-19 17:02:15.128637100 +0800
++++ lf_after/cairo-ft.pc	2026-08-19 17:02:29.717555800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-ft
+diff -ruN -U3 lf_before/cairo-gobject.pc lf_after/cairo-gobject.pc
+--- lf_before/cairo-gobject.pc	2026-08-19 17:02:15.161326600 +0800
++++ lf_after/cairo-gobject.pc	2026-08-19 17:02:29.757295100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairo-pdf.pc lf_after/cairo-pdf.pc
+--- lf_before/cairo-pdf.pc	2026-08-19 17:02:15.194212600 +0800
++++ lf_after/cairo-pdf.pc	2026-08-19 17:02:29.795385500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-pdf
+diff -ruN -U3 lf_before/cairo-png.pc lf_after/cairo-png.pc
+--- lf_before/cairo-png.pc	2026-08-19 17:02:15.226965700 +0800
++++ lf_after/cairo-png.pc	2026-08-19 17:02:29.885151200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-png
+diff -ruN -U3 lf_before/cairo-ps.pc lf_after/cairo-ps.pc
+--- lf_before/cairo-ps.pc	2026-08-19 17:02:15.259712800 +0800
++++ lf_after/cairo-ps.pc	2026-08-19 17:02:29.933003000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-ps
+diff -ruN -U3 lf_before/cairo-script-interpreter.pc lf_after/cairo-script-interpreter.pc
+--- lf_before/cairo-script-interpreter.pc	2026-08-19 17:02:15.345499600 +0800
++++ lf_after/cairo-script-interpreter.pc	2026-08-19 17:02:30.029471300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairo-script.pc lf_after/cairo-script.pc
+--- lf_before/cairo-script.pc	2026-08-19 17:02:15.378008600 +0800
++++ lf_after/cairo-script.pc	2026-08-19 17:02:30.116671900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-script
+diff -ruN -U3 lf_before/cairo-svg.pc lf_after/cairo-svg.pc
+--- lf_before/cairo-svg.pc	2026-08-19 17:02:15.412968200 +0800
++++ lf_after/cairo-svg.pc	2026-08-19 17:02:30.273824400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-svg
+diff -ruN -U3 lf_before/cairo-tee.pc lf_after/cairo-tee.pc
+--- lf_before/cairo-tee.pc	2026-08-19 17:02:15.448555000 +0800
++++ lf_after/cairo-tee.pc	2026-08-19 17:02:30.310283300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairo-tee
+diff -ruN -U3 lf_before/cairo-win32-font.pc lf_after/cairo-win32-font.pc
+--- lf_before/cairo-win32-font.pc	2026-08-19 17:02:15.534111500 +0800
++++ lf_after/cairo-win32-font.pc	2026-08-19 17:02:30.345417600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairo-win32.pc lf_after/cairo-win32.pc
+--- lf_before/cairo-win32.pc	2026-08-19 17:02:15.622893800 +0800
++++ lf_after/cairo-win32.pc	2026-08-19 17:02:30.393181000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairo.pc lf_after/cairo.pc
+--- lf_before/cairo.pc	2026-08-19 17:02:15.763514800 +0800
++++ lf_after/cairo.pc	2026-08-19 17:02:30.441284000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/cairomm-1.16.pc lf_after/cairomm-1.16.pc
+--- lf_before/cairomm-1.16.pc	2026-08-19 17:02:15.817431100 +0800
++++ lf_after/cairomm-1.16.pc	2026-08-19 17:02:30.477723100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/cairomm-ft-1.16.pc lf_after/cairomm-ft-1.16.pc
+--- lf_before/cairomm-ft-1.16.pc	2026-08-19 17:02:15.858061600 +0800
++++ lf_after/cairomm-ft-1.16.pc	2026-08-19 17:02:30.517298600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-ft
+diff -ruN -U3 lf_before/cairomm-pdf-1.16.pc lf_after/cairomm-pdf-1.16.pc
+--- lf_before/cairomm-pdf-1.16.pc	2026-08-19 17:02:15.895053700 +0800
++++ lf_after/cairomm-pdf-1.16.pc	2026-08-19 17:02:30.555965500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-pdf
+diff -ruN -U3 lf_before/cairomm-png-1.16.pc lf_after/cairomm-png-1.16.pc
+--- lf_before/cairomm-png-1.16.pc	2026-08-19 17:02:15.937954300 +0800
++++ lf_after/cairomm-png-1.16.pc	2026-08-19 17:02:30.595285100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-png
+diff -ruN -U3 lf_before/cairomm-ps-1.16.pc lf_after/cairomm-ps-1.16.pc
+--- lf_before/cairomm-ps-1.16.pc	2026-08-19 17:02:15.985103500 +0800
++++ lf_after/cairomm-ps-1.16.pc	2026-08-19 17:02:30.629612900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-ps
+diff -ruN -U3 lf_before/cairomm-svg-1.16.pc lf_after/cairomm-svg-1.16.pc
+--- lf_before/cairomm-svg-1.16.pc	2026-08-19 17:02:16.027763600 +0800
++++ lf_after/cairomm-svg-1.16.pc	2026-08-19 17:02:30.668573100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-svg
+diff -ruN -U3 lf_before/cairomm-win32-1.16.pc lf_after/cairomm-win32-1.16.pc
+--- lf_before/cairomm-win32-1.16.pc	2026-08-19 17:02:16.062975300 +0800
++++ lf_after/cairomm-win32-1.16.pc	2026-08-19 17:02:30.707584600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-win32
+diff -ruN -U3 lf_before/cairomm-win32-font-1.16.pc lf_after/cairomm-win32-font-1.16.pc
+--- lf_before/cairomm-win32-font-1.16.pc	2026-08-19 17:02:16.101326700 +0800
++++ lf_after/cairomm-win32-font-1.16.pc	2026-08-19 17:02:30.743160800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: cairomm-win32-font
+diff -ruN -U3 lf_before/epoxy.pc lf_after/epoxy.pc
+--- lf_before/epoxy.pc	2026-08-19 17:02:16.142319700 +0800
++++ lf_after/epoxy.pc	2026-08-19 17:02:30.778224400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/fontconfig.pc lf_after/fontconfig.pc
+--- lf_before/fontconfig.pc	2026-08-19 17:02:16.183022900 +0800
++++ lf_after/fontconfig.pc	2026-08-19 17:02:30.817057700 +0800
+@@ -1,10 +1,10 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+-sysconfdir=C:/gtk-build/gtk/x64/release/etc
+-localstatedir=C:/gtk-build/gtk/x64/release/var
+-confdir=C:/gtk-build/gtk/x64/release/etc/fonts
++sysconfdir=${prefix}/etc
++localstatedir=${prefix}/var
++confdir=${prefix}/etc/fonts
+ cachedir=LOCAL_APPDATA_FONTCONFIG_CACHE
+ 
+ Name: Fontconfig
+@@ -12,5 +12,5 @@
+ Version: 2.18.2
+ Requires.private: freetype2 >=  21.0.15
+ Libs: -L${libdir} -lfontconfig
+-Libs.private: C:/gtk-build/gtk/x64/release/lib/libexpat.lib -lintl C:/gtk-build/gtk/x64/release/lib/libexpat.lib
++Libs.private: ${prefix}/lib/libexpat.lib -lintl ${prefix}/lib/libexpat.lib
+ Cflags: -I${includedir}
+diff -ruN -U3 lf_before/freetype2.pc lf_after/freetype2.pc
+--- lf_before/freetype2.pc	2026-08-19 17:02:16.220762400 +0800
++++ lf_after/freetype2.pc	2026-08-19 17:02:30.865943700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/fribidi.pc lf_after/fribidi.pc
+--- lf_before/fribidi.pc	2026-08-19 17:02:16.259174600 +0800
++++ lf_after/fribidi.pc	2026-08-19 17:02:30.909506400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/gdk-pixbuf-2.0.pc lf_after/gdk-pixbuf-2.0.pc
+--- lf_before/gdk-pixbuf-2.0.pc	2026-08-19 17:02:16.292991900 +0800
++++ lf_after/gdk-pixbuf-2.0.pc	2026-08-19 17:02:30.947257100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+@@ -17,5 +17,5 @@
+ Requires: gobject-2.0 >=  2.56.0
+ Requires.private: glib-2.0 >=  2.56.0, gmodule-no-export-2.0 >=  2.56.0, gio-2.0 >=  2.56.0
+ Libs: -L${libdir} -lgdk_pixbuf-2.0
+-Libs.private: -lintl C:/gtk-build/gtk/x64/release/lib/libpng16.lib C:/gtk-build/gtk/x64/release/lib/zlib1.lib C:/gtk-build/gtk/x64/release/lib/jpeg.lib C:/gtk-build/gtk/x64/release/lib/tiff.lib C:/gtk-build/gtk/x64/release/lib/libpng16.lib C:/gtk-build/gtk/x64/release/lib/zlib1.lib C:/gtk-build/gtk/x64/release/lib/jpeg.lib C:/gtk-build/gtk/x64/release/lib/tiff.lib C:/gtk-build/gtk/x64/release/lib/libpng16.lib C:/gtk-build/gtk/x64/release/lib/zlib1.lib C:/gtk-build/gtk/x64/release/lib/jpeg.lib C:/gtk-build/gtk/x64/release/lib/tiff.lib C:/gtk-build/gtk/x64/release/lib/libpng16.lib C:/gtk-build/gtk/x64/release/lib/zlib1.lib C:/gtk-build/gtk/x64/release/lib/jpeg.lib C:/gtk-build/gtk/x64/release/lib/tiff.lib
++Libs.private: -lintl ${prefix}/lib/libpng16.lib ${prefix}/lib/zlib1.lib ${prefix}/lib/jpeg.lib ${prefix}/lib/tiff.lib ${prefix}/lib/libpng16.lib ${prefix}/lib/zlib1.lib ${prefix}/lib/jpeg.lib ${prefix}/lib/tiff.lib ${prefix}/lib/libpng16.lib ${prefix}/lib/zlib1.lib ${prefix}/lib/jpeg.lib ${prefix}/lib/tiff.lib ${prefix}/lib/libpng16.lib ${prefix}/lib/zlib1.lib ${prefix}/lib/jpeg.lib ${prefix}/lib/tiff.lib
+ Cflags: -I${includedir}/gdk-pixbuf-2.0
+diff -ruN -U3 lf_before/gio-2.0.pc lf_after/gio-2.0.pc
+--- lf_before/gio-2.0.pc	2026-08-19 17:02:16.327796100 +0800
++++ lf_after/gio-2.0.pc	2026-08-19 17:02:30.984944900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/gio-windows-2.0.pc lf_after/gio-windows-2.0.pc
+--- lf_before/gio-windows-2.0.pc	2026-08-19 17:02:16.362031300 +0800
++++ lf_after/gio-windows-2.0.pc	2026-08-19 17:02:31.023314100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: GIO Windows specific APIs
+diff -ruN -U3 lf_before/giomm-2.68.pc lf_after/giomm-2.68.pc
+--- lf_before/giomm-2.68.pc	2026-08-19 17:02:16.403906100 +0800
++++ lf_after/giomm-2.68.pc	2026-08-19 17:02:31.060071200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/girepository-2.0.pc lf_after/girepository-2.0.pc
+--- lf_before/girepository-2.0.pc	2026-08-19 17:02:16.443253700 +0800
++++ lf_after/girepository-2.0.pc	2026-08-19 17:02:31.110599700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/glib-2.0.pc lf_after/glib-2.0.pc
+--- lf_before/glib-2.0.pc	2026-08-19 17:02:16.490935500 +0800
++++ lf_after/glib-2.0.pc	2026-08-19 17:02:31.146796200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/glibmm-2.68.pc lf_after/glibmm-2.68.pc
+--- lf_before/glibmm-2.68.pc	2026-08-19 17:02:16.525132100 +0800
++++ lf_after/glibmm-2.68.pc	2026-08-19 17:02:31.187231700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/gmodule-2.0.pc lf_after/gmodule-2.0.pc
+--- lf_before/gmodule-2.0.pc	2026-08-19 17:02:16.561018700 +0800
++++ lf_after/gmodule-2.0.pc	2026-08-19 17:02:31.230953400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ gmodule_supported=true
+diff -ruN -U3 lf_before/gmodule-export-2.0.pc lf_after/gmodule-export-2.0.pc
+--- lf_before/gmodule-export-2.0.pc	2026-08-19 17:02:16.654541600 +0800
++++ lf_after/gmodule-export-2.0.pc	2026-08-19 17:02:31.265487800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ gmodule_supported=true
+diff -ruN -U3 lf_before/gmodule-no-export-2.0.pc lf_after/gmodule-no-export-2.0.pc
+--- lf_before/gmodule-no-export-2.0.pc	2026-08-19 17:02:16.693052800 +0800
++++ lf_after/gmodule-no-export-2.0.pc	2026-08-19 17:02:31.304299000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/gobject-2.0.pc lf_after/gobject-2.0.pc
+--- lf_before/gobject-2.0.pc	2026-08-19 17:02:16.728316700 +0800
++++ lf_after/gobject-2.0.pc	2026-08-19 17:02:31.340289700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/gobject-introspection-1.0.pc lf_after/gobject-introspection-1.0.pc
+--- lf_before/gobject-introspection-1.0.pc	2026-08-19 17:02:16.762001200 +0800
++++ lf_after/gobject-introspection-1.0.pc	2026-08-19 17:02:31.377582700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/gobject-introspection-no-export-1.0.pc lf_after/gobject-introspection-no-export-1.0.pc
+--- lf_before/gobject-introspection-no-export-1.0.pc	2026-08-19 17:02:16.797242300 +0800
++++ lf_after/gobject-introspection-no-export-1.0.pc	2026-08-19 17:02:31.415282600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ bindir=${prefix}/bin
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/graphene-1.0.pc lf_after/graphene-1.0.pc
+--- lf_before/graphene-1.0.pc	2026-08-19 17:02:16.831492700 +0800
++++ lf_after/graphene-1.0.pc	2026-08-19 17:02:31.454817700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/graphene-gobject-1.0.pc lf_after/graphene-gobject-1.0.pc
+--- lf_before/graphene-gobject-1.0.pc	2026-08-19 17:02:16.864083000 +0800
++++ lf_after/graphene-gobject-1.0.pc	2026-08-19 17:02:31.491422200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ graphene_has_sse2=1
+diff -ruN -U3 lf_before/gthread-2.0.pc lf_after/gthread-2.0.pc
+--- lf_before/gthread-2.0.pc	2026-08-19 17:02:16.899235800 +0800
++++ lf_after/gthread-2.0.pc	2026-08-19 17:02:31.577616100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/gtk4-win32.pc lf_after/gtk4-win32.pc
+--- lf_before/gtk4-win32.pc	2026-08-19 17:02:16.944095900 +0800
++++ lf_after/gtk4-win32.pc	2026-08-19 17:02:31.616060800 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ targets=win32
+diff -ruN -U3 lf_before/gtk4.pc lf_after/gtk4.pc
+--- lf_before/gtk4.pc	2026-08-19 17:02:16.978289000 +0800
++++ lf_after/gtk4.pc	2026-08-19 17:02:31.653291000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/gtkmm-4.0.pc lf_after/gtkmm-4.0.pc
+--- lf_before/gtkmm-4.0.pc	2026-08-19 17:02:17.011949100 +0800
++++ lf_after/gtkmm-4.0.pc	2026-08-19 17:02:31.691416500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/gtksourceview-5.pc lf_after/gtksourceview-5.pc
+--- lf_before/gtksourceview-5.pc	2026-08-19 17:02:17.043952800 +0800
++++ lf_after/gtksourceview-5.pc	2026-08-19 17:02:31.728248400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-cairo.pc lf_after/harfbuzz-cairo.pc
+--- lf_before/harfbuzz-cairo.pc	2026-08-19 17:02:17.079749300 +0800
++++ lf_after/harfbuzz-cairo.pc	2026-08-19 17:02:31.762375000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-gobject.pc lf_after/harfbuzz-gobject.pc
+--- lf_before/harfbuzz-gobject.pc	2026-08-19 17:02:17.113635100 +0800
++++ lf_after/harfbuzz-gobject.pc	2026-08-19 17:02:31.797726400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-gpu.pc lf_after/harfbuzz-gpu.pc
+--- lf_before/harfbuzz-gpu.pc	2026-08-19 17:02:17.144998600 +0800
++++ lf_after/harfbuzz-gpu.pc	2026-08-19 17:02:31.839928700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-raster.pc lf_after/harfbuzz-raster.pc
+--- lf_before/harfbuzz-raster.pc	2026-08-19 17:02:17.176753100 +0800
++++ lf_after/harfbuzz-raster.pc	2026-08-19 17:02:31.876804700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-subset.pc lf_after/harfbuzz-subset.pc
+--- lf_before/harfbuzz-subset.pc	2026-08-19 17:02:17.256463300 +0800
++++ lf_after/harfbuzz-subset.pc	2026-08-19 17:02:31.913341300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz-vector.pc lf_after/harfbuzz-vector.pc
+--- lf_before/harfbuzz-vector.pc	2026-08-19 17:02:17.294998100 +0800
++++ lf_after/harfbuzz-vector.pc	2026-08-19 17:02:31.950103000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/harfbuzz.pc lf_after/harfbuzz.pc
+--- lf_before/harfbuzz.pc	2026-08-19 17:02:17.330007400 +0800
++++ lf_after/harfbuzz.pc	2026-08-19 17:02:31.989557100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libadwaita-1.pc lf_after/libadwaita-1.pc
+--- lf_before/libadwaita-1.pc	2026-08-19 17:02:17.361953000 +0800
++++ lf_after/libadwaita-1.pc	2026-08-19 17:02:32.027948000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libffi.pc lf_after/libffi.pc
+--- lf_before/libffi.pc	2026-08-19 17:02:17.398984200 +0800
++++ lf_after/libffi.pc	2026-08-19 17:02:32.065241600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libjpeg.pc lf_after/libjpeg.pc
+--- lf_before/libjpeg.pc	2026-08-19 17:02:17.434166100 +0800
++++ lf_after/libjpeg.pc	2026-08-19 17:02:32.110623700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/libjpeg-turbo-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/libjpeg-turbo-rel
+ libdir=C:/gtk-build/build/x64/release/libjpeg-turbo-rel/lib
+ includedir=C:/gtk-build/build/x64/release/libjpeg-turbo-rel/include
+diff -ruN -U3 lf_before/libpcre2-16.pc lf_after/libpcre2-16.pc
+--- lf_before/libpcre2-16.pc	2026-08-19 17:02:17.468471600 +0800
++++ lf_after/libpcre2-16.pc	2026-08-19 17:02:32.147849600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libpcre2-32.pc lf_after/libpcre2-32.pc
+--- lf_before/libpcre2-32.pc	2026-08-19 17:02:17.503595600 +0800
++++ lf_after/libpcre2-32.pc	2026-08-19 17:02:32.244778300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libpcre2-8.pc lf_after/libpcre2-8.pc
+--- lf_before/libpcre2-8.pc	2026-08-19 17:02:17.590012900 +0800
++++ lf_after/libpcre2-8.pc	2026-08-19 17:02:32.280049100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libpkgconf.pc lf_after/libpkgconf.pc
+--- lf_before/libpkgconf.pc	2026-08-19 17:02:17.627761700 +0800
++++ lf_after/libpkgconf.pc	2026-08-19 17:02:32.315601600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libpng.pc lf_after/libpng.pc
+--- lf_before/libpng.pc	2026-08-19 17:02:17.665127500 +0800
++++ lf_after/libpng.pc	2026-08-19 17:02:32.357028400 +0800
+@@ -1,5 +1,5 @@
+ # On windows, the prefix is automagically build from the location of the .pc file
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${prefix}/lib
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/libpng16.pc lf_after/libpng16.pc
+--- lf_before/libpng16.pc	2026-08-19 17:02:17.700237500 +0800
++++ lf_after/libpng16.pc	2026-08-19 17:02:32.394774200 +0800
+@@ -1,5 +1,5 @@
+ # On windows, the prefix is automagically build from the location of the .pc file
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${prefix}/lib
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/libprotobuf-c.pc lf_after/libprotobuf-c.pc
+--- lf_before/libprotobuf-c.pc	2026-08-19 17:02:17.787469900 +0800
++++ lf_after/libprotobuf-c.pc	2026-08-19 17:02:32.431307700 +0800
+@@ -1,5 +1,5 @@
+ # On windows, the prefix is automagically build from the location of the .pc file
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${prefix}/lib
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/librsvg-2.0.pc lf_after/librsvg-2.0.pc
+--- lf_before/librsvg-2.0.pc	2026-08-19 17:02:17.824178400 +0800
++++ lf_after/librsvg-2.0.pc	2026-08-19 17:02:32.469905600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/libsass.pc lf_after/libsass.pc
+--- lf_before/libsass.pc	2026-08-19 17:02:17.914962900 +0800
++++ lf_after/libsass.pc	2026-08-19 17:02:32.509493500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:\gtk-build\gtk\x64\release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${exec_prefix}/lib
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/libtiff-4.pc lf_after/libtiff-4.pc
+--- lf_before/libtiff-4.pc	2026-08-19 17:02:18.003445900 +0800
++++ lf_after/libtiff-4.pc	2026-08-19 17:02:32.594955600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/libtiff-4-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${exec_prefix}/lib
+ includedir=${prefix}/include
+diff -ruN -U3 lf_before/libturbojpeg.pc lf_after/libturbojpeg.pc
+--- lf_before/libturbojpeg.pc	2026-08-19 17:02:18.147950500 +0800
++++ lf_after/libturbojpeg.pc	2026-08-19 17:02:32.630052400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/libjpeg-turbo-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/libjpeg-turbo-rel
+ libdir=C:/gtk-build/build/x64/release/libjpeg-turbo-rel/lib
+ includedir=C:/gtk-build/build/x64/release/libjpeg-turbo-rel/include
+diff -ruN -U3 lf_before/libxml-2.0.pc lf_after/libxml-2.0.pc
+--- lf_before/libxml-2.0.pc	2026-08-19 17:02:18.184100600 +0800
++++ lf_after/libxml-2.0.pc	2026-08-19 17:02:32.680276600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/pango.pc lf_after/pango.pc
+--- lf_before/pango.pc	2026-08-19 17:02:18.215715300 +0800
++++ lf_after/pango.pc	2026-08-19 17:02:32.720635500 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/pangocairo.pc lf_after/pangocairo.pc
+--- lf_before/pangocairo.pc	2026-08-19 17:02:18.252444100 +0800
++++ lf_after/pangocairo.pc	2026-08-19 17:02:32.807275000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/pangofc.pc lf_after/pangofc.pc
+--- lf_before/pangofc.pc	2026-08-19 17:02:18.287425100 +0800
++++ lf_after/pangofc.pc	2026-08-19 17:02:32.842054600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: Pango FC
+diff -ruN -U3 lf_before/pangoft2.pc lf_after/pangoft2.pc
+--- lf_before/pangoft2.pc	2026-08-19 17:02:18.323944900 +0800
++++ lf_after/pangoft2.pc	2026-08-19 17:02:32.930022200 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/pangomm-2.48.pc lf_after/pangomm-2.48.pc
+--- lf_before/pangomm-2.48.pc	2026-08-19 17:02:18.361061600 +0800
++++ lf_after/pangomm-2.48.pc	2026-08-19 17:02:33.021927700 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/pangoot.pc lf_after/pangoot.pc
+--- lf_before/pangoot.pc	2026-08-19 17:02:18.395167000 +0800
++++ lf_after/pangoot.pc	2026-08-19 17:02:33.119850100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: Pango OT
+diff -ruN -U3 lf_before/pangowin32.pc lf_after/pangowin32.pc
+--- lf_before/pangowin32.pc	2026-08-19 17:02:18.432070400 +0800
++++ lf_after/pangowin32.pc	2026-08-19 17:02:33.156658900 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/pixman-1.pc lf_after/pixman-1.pc
+--- lf_before/pixman-1.pc	2026-08-19 17:02:18.469479400 +0800
++++ lf_after/pixman-1.pc	2026-08-19 17:02:33.197093300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+ 
+diff -ruN -U3 lf_before/protobuf-lite.pc lf_after/protobuf-lite.pc
+--- lf_before/protobuf-lite.pc	2026-08-19 17:02:18.504491700 +0800
++++ lf_after/protobuf-lite.pc	2026-08-19 17:02:33.231348000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/protobuf-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/protobuf-rel
+ libdir=C:/gtk-build/build/x64/release/protobuf-rel/lib
+ includedir=C:/gtk-build/build/x64/release/protobuf-rel/include
+diff -ruN -U3 lf_before/protobuf.pc lf_after/protobuf.pc
+--- lf_before/protobuf.pc	2026-08-19 17:02:18.540389600 +0800
++++ lf_after/protobuf.pc	2026-08-19 17:02:33.272880600 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/protobuf-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/protobuf-rel
+ libdir=C:/gtk-build/build/x64/release/protobuf-rel/lib
+ includedir=C:/gtk-build/build/x64/release/protobuf-rel/include
+diff -ruN -U3 lf_before/py3cairo.pc lf_after/py3cairo.pc
+--- lf_before/py3cairo.pc	2026-08-19 17:02:18.576099600 +0800
++++ lf_after/py3cairo.pc	2026-08-19 17:02:33.309709000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ includedir=${prefix}/include
+ 
+ Name: py3cairo
+diff -ruN -U3 lf_before/pygobject-3.0.pc lf_after/pygobject-3.0.pc
+--- lf_before/pygobject-3.0.pc	2026-08-19 17:02:18.612215800 +0800
++++ lf_after/pygobject-3.0.pc	2026-08-19 17:02:33.349019000 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ includedir=${prefix}/include
+ datarootdir=${prefix}/share
+diff -ruN -U3 lf_before/sigc++-3.0.pc lf_after/sigc++-3.0.pc
+--- lf_before/sigc++-3.0.pc	2026-08-19 17:02:18.644936400 +0800
++++ lf_after/sigc++-3.0.pc	2026-08-19 17:02:33.390486100 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ datadir=${prefix}/share
+ includedir=${prefix}/include
+ libdir=${prefix}/lib
+diff -ruN -U3 lf_before/upb.pc lf_after/upb.pc
+--- lf_before/upb.pc	2026-08-19 17:02:18.678150300 +0800
++++ lf_after/upb.pc	2026-08-19 17:02:33.427186300 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/protobuf-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/protobuf-rel
+ libdir=C:/gtk-build/build/x64/release/protobuf-rel/lib
+ includedir=C:/gtk-build/build/x64/release/protobuf-rel/include
+diff -ruN -U3 lf_before/utf8_range.pc lf_after/utf8_range.pc
+--- lf_before/utf8_range.pc	2026-08-19 17:02:18.713336400 +0800
++++ lf_after/utf8_range.pc	2026-08-19 17:02:33.462020400 +0800
+@@ -1,4 +1,4 @@
+-prefix=C:/gtk-build/build/x64/release/protobuf-rel
++prefix=${pcfiledir}/../..
+ exec_prefix=C:/gtk-build/build/x64/release/protobuf-rel
+ libdir=C:/gtk-build/build/x64/release/protobuf-rel/lib
+ includedir=C:/gtk-build/build/x64/release/protobuf-rel/include
+diff -ruN -U3 lf_before/zlib.pc lf_after/zlib.pc
+--- lf_before/zlib.pc	2026-08-19 17:02:18.750420500 +0800
++++ lf_after/zlib.pc	2026-08-19 17:02:33.500346700 +0800
+@@ -1,5 +1,5 @@
+ # On windows, the prefix is automagically build from the location of the .pc file
+-prefix=C:/gtk-build/gtk/x64/release
++prefix=${pcfiledir}/../..
+ exec_prefix=${prefix}
+ libdir=${prefix}/lib
+ includedir=${prefix}/include

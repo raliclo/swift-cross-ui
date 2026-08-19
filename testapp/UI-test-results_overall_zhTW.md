@@ -109,6 +109,9 @@
 
 - 動機是編譯時間：Windows 上以 WinUIBackend 建置 P6 需 95-103 秒，WSL 上以 GtkBackend 僅需 13-22 秒，成本來自 WinAppSDK。WinUIBackend **維持為 baseline**，不移除。
 - ABI 是前提：Swift on Windows 以 MSVC ABI 為目標並連結 UCRT。MSYS2 的 GTK 4 是 MinGW 建置，不列入考慮；改用 gvsbuild 的 MSVC 建置版本（`testapp/install_gtk4_windows.zsh`，來源與授權記於 `Acknowledgements/gvsbuild/`）。
+- 路徑改寫改由**簽入的 patch** 提供（`testapp/patches/gtk4-pkgconfig-relocate.patch`），行尾則由單一 `tr` 另外處理。分開的理由可量化：兩者混在同一步時，diff 為 8397 行 / 391 KB，因為每個檔案的每一行都因 CR 而不同；分開後是 2745 行，其中約 600 行是實際變更，其餘為 302 個檔案的 diff 標頭。
+- 順序被工具鏈決定，而非由設計選擇：**MSYS 工具以文字模式讀檔，只要碰到檔案就會丟棄 CR**。實測一個「只改 prefix 那一行」的 `sed -i`，就讓 gtk4.pc 的 CR 由 14 個變為 0 個。因此行尾無法留到最後處理——必須先正規化，patch 才會套用在內容確實相符的檔案上。
+- patch 綁定於單一 gvsbuild 發行版，因此保留規則式的 fallback：若 `patch` 無法套用（換版本時的預期情況），安裝腳本會回退到與 patch 相同的兩條替換規則並明講。實測：patch 乾淨套用至 302 個檔案，`swift build --target GtkBackend` 於 Windows exit code 0。
 - gvsbuild 套件**無法直接重新定位**：302 個 `.pc` 檔中有 301 個硬編碼建置機器的 `C:/gtk-build/gtk/x64/release`，且全部使用 CRLF。
 - **SwiftPM 的 `.pc` 解析器會被 Windows 磁碟機代號打斷**：它先以第一個冒號切分 keyword，因此 `prefix=C:/gtk4` 被讀成 keyword `prefix=C`，變數 `prefix` 從未定義，回報 `Expected a value for variable 'prefix'`。改寫為不含冒號的 `prefix=${pcfiledir}/../..` 後即可解析；其餘殘留路徑一律代入 `${prefix}`，同樣是為了不引入冒號。
 - **SwiftPM 在 Windows 上不套用 systemLibrary 的 pkgConfig cflags**：實測 `GtkCHelpers` 的 clang 呼叫只帶自身 include 目錄，`gtk4.pc` 的內容一項也沒有，即使 `PKG_CONFIG_PATH` 已設定且 pkg-config 回報正確。必須以 `-Xcc -I…` 明確傳入；安裝腳本會印出現成的指令。
