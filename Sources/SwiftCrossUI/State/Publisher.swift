@@ -69,7 +69,7 @@ public class Publisher {
     }
 
     /// A specialized version of ``observe(with:)`` designed to mitigate main thread
-    /// starvation issues observed on weaker systems when using the Gtk3Backend.
+    /// starvation issues observed on weaker systems when using a Gtk backend.
     ///
     /// If observations are produced faster than the update handler (`closure`) can
     /// run, then the main thread quickly saturates and there's not enough time
@@ -86,7 +86,7 @@ public class Publisher {
     /// be a new update waiting before the the running update completes). In this
     /// situation we introduce a sleep after handling each update to give the backend
     /// time to catch up. Heuristically I've found that a delay of 1.5x the length of
-    /// the update is required on my old Linux laptop using ``Gtk3Backend``, so I'm
+    /// the update is required on my old Linux laptop using a Gtk backend, so I'm
     /// going with that for now. Importantly, this delay is only used whenever updates
     /// start running back-to-back with no gap so it shouldn't affect fast systems
     /// like my Mac under any usual circumstances.

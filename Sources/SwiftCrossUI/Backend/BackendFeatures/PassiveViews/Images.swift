@@ -8,10 +8,9 @@ extension BackendFeatures {
         /// scale factor changes (``EnvironmentValues/windowScaleFactor``).
         ///
         /// Backends based on modern UI frameworks can usually get away with setting
-        /// this to `false`, but backends such as `Gtk3Backend` have to set this to
-        /// `true` to properly support HiDPI (aka Retina) displays because they
-        /// manually rescale the image meaning that it must get rescaled when the
-        /// scale factor changes.
+        /// this to `false`. A backend that rescales images manually has to set it
+        /// to `true` to properly support HiDPI (aka Retina) displays, because the
+        /// image must be rescaled again whenever the scale factor changes.
         var requiresImageUpdateOnScaleFactorChange: Bool { get }
 
         /// Creates an image view.

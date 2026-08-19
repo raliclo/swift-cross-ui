@@ -80,8 +80,8 @@ extension View {
     /// Sets the preferred color scheme for the nearest enclosing presentation,
     /// such as a sheet or window.
     ///
-    /// > Note: Not supported by GtkBackend or Gtk3Backend. When targeting those
-    /// > platforms this modifier has no effect.
+    /// > Note: Not supported by GtkBackend. When targeting that platform this
+    /// > modifier has no effect.
     ///
     /// - Parameter colorScheme: The preferred color scheme for the nearest
     ///   enclosing presentation.

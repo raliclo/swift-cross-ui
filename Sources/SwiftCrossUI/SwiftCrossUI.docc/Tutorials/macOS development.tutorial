@@ -87,8 +87,8 @@
             And that's it! If you're only using <doc:AppKitBackend> and <doc:UIKitBackend> when
             targeting Apple platforms, then you're good to go.
             
-            If you'd like to test your app with <doc:GtkBackend> or <doc:Gtk3Backend> without
-            leaving your Mac, visit the backends' respective documentation pages for detailed
+            If you'd like to test your app with <doc:GtkBackend> without
+            leaving your Mac, visit the backend's documentation page for detailed
             dependency installation instructions.
         }
     }

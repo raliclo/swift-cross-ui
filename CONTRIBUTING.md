@@ -54,15 +54,6 @@ To run the tests, run `./Scripts/test.sh` in the root of the repository.
 
 The script is required due to limitations of SwiftPM and the way this project is structured. Running `swift test` without any arguments causes SwiftPM to build all backends, even those not supported on the current platform. 
 
-### Backend-specific tests
-
-The project has some Gtk3Backend-specific tests which are disabled by default given that many contributors don't have Gtk 3 installed. We recommend running these tests if you are working on the layout system or Gtk3Backend. CI will always run these tests, so that you don't have to worry about missing these tests locally. 
-
-```sh
-# Run Gtk3Backend tests alongside default tests
-SCUI_TEST_GTK3BACKEND=1 ./Scripts/test.sh
-```
-
 ## 5. Special files
 
 Here are a few rules regarding special files;
@@ -71,12 +62,12 @@ Here are a few rules regarding special files;
    same directory). Instead, modify the template file and then run `./Scripts/generate_gyb.sh`
    to build all of the templates. To learn more about gyb
    [read this post](https://nshipster.com/swift-gyb/)
-2. Do not directly modify files in `Sources/Gtk/Generated` or `Sources/Gtk3/Generated`. Update the
+2. Do not directly modify files in `Sources/Gtk/Generated`. Update the
    generator at `Sources/GtkCodeGen` instead and run `./Scripts/generate_gtk.sh` to regenerate the
-   Gtk 3 and Gtk 4 bindings. If the changes can not be made by updating the generator, pull the
-   target file out of `Sources/{Gtk,Gtk3}/Generated` and into `Sources/{Gtk,Gtk3}/Widgets` and
-   modify it however you want. Remember to remove the class from `allowListedClasses`,
-   `gtk3AllowListedClasses` or `gtk4AllowListedClasses` so that it doesn't get regenerated the
+   Gtk 4 bindings. If the changes can not be made by updating the generator, pull the
+   target file out of `Sources/Gtk/Generated` and into `Sources/Gtk/Widgets` and
+   modify it however you want. Remember to remove the class from `allowListedClasses`
+   or `gtk4AllowListedClasses` so that it doesn't get regenerated the
    next time someone runs `./Scripts/generate_gtk.sh`. Alternatively, if possible, add
    code to the generated classes via extensions outside of the Generated directories. I usually
    name these extension files `ClassName+ManualAdditions.swift`.

@@ -18,4 +18,3 @@ For this reason we recommend using `DefaultBackend` unless you have particular c
 - <doc:UIKitBackend>
 - <doc:WinUIBackend>
 - <doc:GtkBackend>
-- <doc:Gtk3Backend>

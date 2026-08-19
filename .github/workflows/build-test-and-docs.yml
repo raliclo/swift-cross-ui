@@ -90,7 +90,6 @@ jobs:
         swift build --target GtkCodeGen && \
         cd Examples && \
         swift build --target GtkBackend && \
-        swift build --target Gtk3Backend && \
         swift build --target GtkExample && \
         # Work around SwiftPM incremental build issue
         swift package clean && \
@@ -480,21 +479,9 @@ jobs:
       run: swift build --target GtkBackend
       working-directory: ./Examples
 
-    - name: Build Gtk3Backend and extract symbol graphs
-      if: ${{ matrix.os == 'ubuntu-24.04' }}
-      uses: ./.github/actions/extract-symbol-graphs
-      with:
-        target: Gtk3Backend
-        upload: true
-        working-directory: ./Examples
-    - name: Build Gtk3Backend
-      if: ${{ matrix.os != 'ubuntu-24.04' }}
-      run: swift build --target Gtk3Backend
-      working-directory: ./Examples
-
     - name: Test
-      # Use xvfb to get a virtual x11 context for the Gtk3Backend tests
-      run: SCUI_TEST_GTK3BACKEND=1 xvfb-run --auto-servernum ./Scripts/test.sh
+      # Use xvfb to get a virtual x11 context for the Gtk backend tests
+      run: xvfb-run --auto-servernum ./Scripts/test.sh
 
     - name: Build examples
       working-directory: ./Examples
@@ -560,12 +547,6 @@ jobs:
         target: GtkBackend
         use-symbol-graph-artifact: true
 
-    - name: Compile Gtk3Backend docs
-      uses: ./.github/actions/compile-docs
-      with:
-        target: Gtk3Backend
-        use-symbol-graph-artifact: true
-
     - name: Compile WinUIBackend docs
       uses: ./.github/actions/compile-docs
       with:
@@ -580,7 +561,6 @@ jobs:
           AppKitBackend.doccarchive \
           UIKitBackend.doccarchive \
           GtkBackend.doccarchive \
-          Gtk3Backend.doccarchive \
           WinUIBackend.doccarchive \
           --output-path DocsBuild
 

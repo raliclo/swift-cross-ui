@@ -13,8 +13,6 @@ While Gtk isn't the preferred UI framework on every Linux distro, it's the close
 SwiftCrossUI has to a native Linux backend for now. The Qt backend may be brought back to life at
 some point to cover the rest of Linux distros.
 
-For targetting older, pre-Gtk-4 Linux distros, see the secondary <doc:Gtk3Backend>.
-
 This backend supports Linux, macOS, and Windows, but its support for macOS has a few known issues
 due to underlying bugs in Gtk (and its support for Windows isn't well tested).
 
@@ -198,7 +196,7 @@ section.
             // var backend = GtkBackend()
             //
             // If you aren't using Swift Bundler, you may have to explicitly provide
-            // your app's identifier for some Gtk3Backend features to work correctly
+            // your app's identifier for some GtkBackend features to work correctly
             // (such as handling custom URL schemes).
             //
             // var backend = GtkBackend(appIdentifier: "com.example.YourApp")

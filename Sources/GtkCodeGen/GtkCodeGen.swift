@@ -44,9 +44,10 @@ struct GtkCodeGen {
     /// pointer (which it won't because our signal handlers never return
     /// values with the current implementation).
     ///
-    /// `populate-popup` is problematic because it crashes Gtk3 on Rocky
-    /// Linux 8 whenever a user right clicks an Entry. Not sure why but
-    /// we don't need this signal for now so I've disabled it.
+    /// `populate-popup` was disabled because it crashed Gtk3 on Rocky
+    /// Linux 8 whenever a user right clicked an Entry. Gtk3 support has since
+    /// been dropped, so that reason no longer applies, but the signal is still
+    /// unused and re-enabling it has not been tested against Gtk4.
     ///
     /// `select-all` and `unselect-all` are problematic because they
     /// clash with the methods of the same name that actually perform the
@@ -138,7 +139,6 @@ struct GtkCodeGen {
             "Calendar",
             "SpinButton",
         ]
-        let gtk3AllowListedClasses = ["MenuShell", "EventBox"]
         let gtk4AllowListedClasses = [
             "Picture",
             "DropDown",
@@ -151,8 +151,6 @@ struct GtkCodeGen {
         for class_ in gir.namespace.classes {
             guard
                 allowListedClasses.contains(class_.name)
-                || (gir.namespace.version == "3.0"
-                    && gtk3AllowListedClasses.contains(class_.name))
                 || (gir.namespace.version == "4.0"
                     && gtk4AllowListedClasses.contains(class_.name))
             else {

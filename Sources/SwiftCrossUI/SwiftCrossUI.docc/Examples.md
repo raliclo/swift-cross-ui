@@ -44,7 +44,7 @@ swift-bundler run CounterExample --simulator "iPhone 16"
 If you want to try out an example with a backend other than the default, you can do that too;
 
 ```sh
-SCUI_DEFAULT_BACKEND=Gtk3Backend swift-bundler run ExampleToRun
+SCUI_DEFAULT_BACKEND=GtkBackend swift-bundler run ExampleToRun
 ```
 
 These examples may also be run using SwiftPM. However, resources may not be loaded as expected, and features such as deep linking may not work. You also won't be able to run the examples on iOS or tvOS using this method.

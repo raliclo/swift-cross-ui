@@ -1970,9 +1970,9 @@ public final class GtkBackend:
             case .system:
                 properties.append(.fontSize(font.pointSize))
                 // For some reason I had to tweak these a bit to make them match
-                // up with AppKit's font weights. I didn't have to do that for
-                // Gtk3Backend (which matches SwiftUI's text layout and rendering
-                // remarkbly well).
+                // up with AppKit's font weights. The Gtk3 backend, since
+                // removed, needed no such tweaking; it matched SwiftUI's text
+                // layout and rendering remarkably well.
                 let weightNumber =
                     switch font.weight {
                         case .ultraLight:

@@ -89,7 +89,6 @@ struct CounterApp: App {
 
                     // TODO(stackotter): Repair Picker.inspect implementations post
                     //   PickerStyle refactor
-                    // #if !canImport(Gtk3Backend)
                     //     Picker(of: ["Red", "Green", "Blue"], selection: $color)
                     //         .inspect(.afterUpdate) { picker in
                     //             #if canImport(AppKitBackend)
@@ -111,7 +110,6 @@ struct CounterApp: App {
                     //                 picker.enableSearch = true
                     //             #endif
                     //         }
-                    // #endif
 
                     TextField("Name", text: $name)
                         .inspect(.afterUpdate) { textField in

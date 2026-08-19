@@ -69,17 +69,12 @@
         @ContentAndMedia {
             The final step is to install the dependencies for the backend you'll be using.
             
-            On Linux you're limited to <doc:GtkBackend> and <doc:Gtk3Backend>. We recommend using
-            <doc:GtkBackend> unless you have a really good reason not to; <doc:Gtk3Backend> exists
-            solely to support older Linux distributions, and doesn't support as many features.
+            On Linux the backend to use is <doc:GtkBackend>, which requires Gtk 4.10 or newer.
         }
-        
+
         @Steps {
-            > Tip: Some distributions such as Ubuntu 22.04 allow you to install both Gtk 3 and
-            Gtk 4. This can come in handy when you have to target both backends.
-            
             @Step {
-                Check the documentation for either <doc:GtkBackend> or <doc:Gtk3Backend> for
+                Check the documentation for <doc:GtkBackend> for
                 detailed installation instructions.
             }
         }

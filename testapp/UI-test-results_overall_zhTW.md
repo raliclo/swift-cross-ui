@@ -100,6 +100,8 @@
 - 已移除 `Sources/Gtk3`（179 檔／16,365 行）、`Sources/Gtk3Backend`（2,448 行）、`Sources/CGtk3`、`Sources/Gtk3CHelpers`、`Sources/Gtk3Example`、`Tests/Gtk3BackendTests`、`Scripts/generate_gtk3.sh` 與 docc 的 Gtk3Backend 頁面。
 - 實際的程式碼依賴**只有兩處**：`Package.swift`（products／targets／測試開關 `SCUI_TEST_GTK3BACKEND`）與 `Sources/DefaultBackend`（`#elseif canImport(Gtk3Backend)` 的後備選擇）。其餘散落的引用全是註解或條件編譯分支。
 - `Examples` 內的 `#if canImport(Gtk3Backend)` 分支在模組消失後會自動編譯掉，不會破壞建置，但仍一併移除；`ControlsApp.swift` 的 `#if !canImport(Gtk3Backend)` 則相反——它在移除後永遠為真，因此拆掉包裹讓內容無條件編譯。
+- 文件與註解清理另外揪出**兩個真正的破損**，不只是文字：`Scripts/generate_gtk.sh` 仍呼叫已刪除的 `./generate_gtk3.sh`；`GtkCodeGen` 的 `gtk3AllowListedClasses` 與 `version == "3.0"` 分支是實際的產生邏輯。CI workflow 也還在建置與產生 `Gtk3Backend` 的文件（三個步驟＋docc 合併清單）。`Publisher.swift` 另有一個 ``` ``Gtk3Backend`` ``` 的 DocC 符號連結，目標消失後會變成無法解析的連結。
+- 刻意**保留**的三處：`gtk_helpers.h` 中作者記述某次 macOS 建置異常的第一人稱說明、`AppBackend refactor.md`（開頭即言明是某 PR 的變更清單，本質為歷史文件），以及 `GtkCodeGen` 中 `populate-popup` 的停用理由——後者已改寫為「GTK3 已移除故該理由不再適用，但尚未在 GTK4 上驗證重新啟用」，而不是直接開啟該訊號，因為那是行為變更。改寫歷史記述等同偽造記錄。
 - **rsync 不會傳播刪除，且建置成功會掩蓋這件事**：`rsync_WSL.zsh` 刻意不使用 `--delete`（WSL 端的 `output/`、build 快取與本地修改應保留）。因此本機刪除 193 個 GTK3 檔案後，WSL 端**全部仍在**；而 SwiftPM 會忽略 `Package.swift` 不再宣告的目錄，所以 WSL 上四個 target 依然建置成功——一棵已經與本機不一致的樹，看起來完全正常。已手動清除 WSL 端並重新驗證，同時把這個後果寫進 `rsync_WSL.zsh` 的標頭。
 - 驗證：`Gtk`、`GtkBackend`、`DefaultBackend`、`GtkExample` 四個 target 皆建置成功；所有編輯過的檔案通過 `swiftc -parse`。整包 `swift build` 與 `Examples` 在 Linux 上仍會停在 `WinUIInterop`／`swift-winui` 缺 `Windows.h`、`wtypesbase.h`——那是既有的平台限制，與本次移除無關。
 

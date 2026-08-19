@@ -111,7 +111,7 @@ public struct EnvironmentValues {
     /// can decide whether to make it an app modal, a standalone window, or a
     /// modal for a window of its choosing).
     ///
-    /// - Important: GtkBackend, Gtk3Backend, and WinUIBackend will only
+    /// - Important: GtkBackend and WinUIBackend will only
     ///   enable _either_ files or directories for selection, but won't
     ///   enable both types in a single dialog.
     @MainActor
