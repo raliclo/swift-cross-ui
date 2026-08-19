@@ -4,6 +4,17 @@ set -euo pipefail
 # Sync all Swift sources and testapp zsh helper scripts into the WSL copy.
 # This intentionally does not delete files on the WSL side: output, build
 # caches, and local WSL edits should be left alone.
+#
+# The consequence is that deletions do not propagate. Removing a file here
+# leaves it in place over there, and SwiftPM ignores source directories that
+# Package.swift no longer declares, so the WSL build keeps succeeding on a tree
+# that no longer matches this one. Measured: dropping GTK3 removed 193 files
+# locally and every one of them was still in WSL afterwards, with all targets
+# still building. Delete them in WSL by hand after removing anything here.
+# 由此產生的後果是：刪除不會傳播。在此處移除檔案，對面仍會留著，而 SwiftPM 會忽略
+# Package.swift 不再宣告的原始碼目錄，因此 WSL 端會在一棵已經與此處不一致的樹上持續
+# 建置成功。實測：移除 GTK3 在本機刪掉 193 個檔案，事後那些檔案全部仍在 WSL，且所有
+# target 依然建置通過。在此處刪除任何東西之後，請手動清除 WSL 端的對應檔案。
 
 script_dir="${0:a:h}"
 repo_root="${script_dir:h}"
