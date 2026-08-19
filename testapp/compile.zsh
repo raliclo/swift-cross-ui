@@ -55,6 +55,22 @@ build_config="${BUILD_CONFIG:-release}"
 needs_image_formats=0
 target_platform="host"
 
+# -gtk4 forces GtkBackend everywhere, including Windows, where WinUIBackend is
+# otherwise the default. It is opt-in rather than automatic because P0-P16 are
+# WinUI repro apps: switching them silently would make them reproduce nothing.
+# WinUIBackend stays the baseline.
+#
+# DefaultBackend already prefers Gtk over WinUI, so the flag does not select a
+# backend directly -- it makes GtkBackend importable on Windows, and the
+# existing preference order does the rest.
+# -gtk4 會在所有平台強制使用 GtkBackend，包含原本預設為 WinUIBackend 的 Windows。此為
+# 選擇性加入而非自動，因為 P0-P16 是 WinUI 的重現 app：若靜默切換，它們將什麼也重現不了。
+# WinUIBackend 維持為 baseline。
+#
+# DefaultBackend 本來就把 Gtk 排在 WinUI 之前，因此本旗標並非直接選擇 backend——它讓
+# GtkBackend 在 Windows 上成為可 import，其餘交由既有的優先順序決定。
+force_gtk4=0
+
 # -ios switches to an iOS Simulator build. It cannot go through `swift build`:
 # passing an iOS SDK with -Xswiftc applies it to every target, including
 # SwiftCrossUIMacrosPlugin, which is a compile-time tool that has to be built
@@ -70,11 +86,15 @@ target_platform="host"
 case "${1:-}" in
     -h|--help)
         printf '%s\n' \
-            "Usage: compile.zsh [-ios] [P0 P1 ... Pn]" \
-            "用法：compile.zsh [-ios] [P0 P1 ... Pn]" \
+            "Usage: compile.zsh [-ios] [-gtk4] [P0 P1 ... Pn]" \
+            "用法：compile.zsh [-ios] [-gtk4] [P0 P1 ... Pn]" \
             "" \
-            "  -ios  Build for the iOS Simulator via xcodebuild." \
-            "  -ios  透過 xcodebuild 為 iOS 模擬器建置。" \
+            "  -ios   Build for the iOS Simulator via xcodebuild." \
+            "  -ios   透過 xcodebuild 為 iOS 模擬器建置。" \
+            "  -gtk4  Force GtkBackend on every platform, Windows included." \
+            "         Needs GTK 4; on Windows run install_gtk4_windows.zsh first." \
+            "  -gtk4  在所有平台強制使用 GtkBackend，包含 Windows。" \
+            "         需要 GTK 4；Windows 上請先執行 install_gtk4_windows.zsh。" \
             "" \
             "With no app names, every P*.swift is built." \
             "未指定 app 名稱時，會建置所有 P*.swift。" \
@@ -85,15 +105,49 @@ case "${1:-}" in
 esac
 
 remaining_args=""
+saw_flag=0
 for arg in "$@"; do
     case "$arg" in
-        -ios) target_platform="ios" ;;
+        -ios) target_platform="ios"; saw_flag=1 ;;
+        -gtk4) force_gtk4=1; saw_flag=1 ;;
         *) remaining_args="$remaining_args $arg" ;;
     esac
 done
-if [ "$target_platform" = "ios" ]; then
+if [ "$saw_flag" -eq 1 ]; then
     # shellcheck disable=SC2086
     set -- $remaining_args
+fi
+
+# With -gtk4 the Windows build needs GtkBackend in the package and the GTK
+# include paths on the command line. SwiftPM does not apply a systemLibrary's
+# pkgConfig cflags on Windows -- measured, the clang invocation for GtkCHelpers
+# carried only its own include directory -- so they are collected here and
+# passed with -Xcc. On Linux SwiftPM handles it and nothing extra is needed.
+# 使用 -gtk4 時，Windows 建置需要在套件中加入 GtkBackend，並在命令列提供 GTK 的 include
+# 路徑。SwiftPM 在 Windows 上不會套用 systemLibrary 的 pkgConfig cflags——實測
+# GtkCHelpers 的 clang 呼叫只帶了自身的 include 目錄——因此在此收集並以 -Xcc 傳入。
+# Linux 上由 SwiftPM 自行處理，不需額外動作。
+windows_gtk_product=""
+gtk_build_flags=()
+if [ "$force_gtk4" -eq 1 ]; then
+    windows_gtk_product='.product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),'
+
+    if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+        gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
+        gtk_pkgconfig="$gtk_prefix/bin/pkg-config.exe"
+        if [ ! -x "$gtk_pkgconfig" ]; then
+            printf 'GTK 4 not found at %s\n' "$gtk_prefix" >&2
+            printf 'Run: zsh testapp/install_gtk4_windows.zsh\n' >&2
+            exit 1
+        fi
+        for flag in $(PKG_CONFIG_PATH="$gtk_prefix/lib/pkgconfig" "$gtk_pkgconfig" --cflags gtk4 2>/dev/null); do
+            case "$flag" in -I*) gtk_build_flags+=(-Xcc "$flag") ;; esac
+        done
+        printf '==> Forcing GtkBackend with %s include flags from %s\n' \
+            "$((${#gtk_build_flags[@]} / 2))" "$gtk_prefix"
+    else
+        printf '==> Forcing GtkBackend\n'
+    fi
 fi
 
 mkdir -p "$output_dir" "$sources_root"
@@ -210,6 +264,7 @@ let testAppDependencies: [Target.Dependency] = [
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
     .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
     .product(name: "WinUIBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
+    $windows_gtk_product
     // Gtk, not GtkBackend: what a test app needs on Linux is the window type
     // itself, to cast the backend's window out of the environment. DefaultBackend
     // already pulls GtkBackend in, but a cast has to name Gtk.ApplicationWindow
@@ -348,7 +403,8 @@ for app_name in $app_names; do
     "$swift_bin" build \
         --package-path "$package_dir" \
         --product "$app_name" \
-        -c "$build_config"
+        -c "$build_config" \
+        "${gtk_build_flags[@]}"
 
     exe_path=""
     triple_dir="$(find "$package_dir/.build" -maxdepth 1 -type d -name '*-*-*' | head -n 1 || true)"

@@ -1,0 +1,46 @@
+area,item,gtk_linux,gtk_windows,winui_windows,covered_by,note
+legend,✅ run — executed and observed,,,,,
+legend,🔨 built — compiles but never executed,,,,,
+legend,⛔ blocked — cannot be reached; note says why,,,,,
+legend,➖ not applicable or out of scope,,,,,
+legend,⚠️ known gap,,,,,
+testapp,#493 early environment action / #548 @AppStorage,➖,➖,✅,P0,
+testapp,#523 dialog latency / #659 nested sheets / #660 sheet padding,➖,➖,✅,P1,
+testapp,#449 Picker updates / #471 TextEditor border / #401 full screen,➖,➖,✅,P2,
+testapp,#389 image clipping / #160 split view initial layout,➖,➖,✅,P3,
+testapp,#190 callback storage / #156 native escape hatches,➖,➖,✅,P4,
+testapp,#675 multiple simultaneous alerts,➖,➖,✅,P5,
+testapp,stream player / ffmpeg pipeline / D3D11 NV12 presentation,✅,➖,✅,P6,GPU presentation path exists only under WinUI
+testapp,#476 list selection / #556 split view ratio,✅,➖,✅,P7,
+testapp,#426 scroll wheel / #417 corner radius / #266 inner strip,✅,➖,✅,P8,
+testapp,text and field sizing,✅,➖,➖,P9,
+testapp,hit testing and shortcuts,✅,➖,➖,P10,
+testapp,sliders / scrollbars / date pickers,➖,➖,➖,P11,AppKit target; out of scope on this machine
+testapp,button margins and state,➖,➖,➖,P12,Android target; out of scope on this machine
+testapp,ForEach identity / scroll view text,✅,➖,➖,P13,
+testapp,size proposals across rotation,➖,➖,➖,P14,UIKit target; out of scope on this machine
+testapp,colour scheme / window minimum height,✅,➖,➖,P15,
+testapp,#160 split view initial layout,➖,➖,✅,P16,
+testapp,#264 ideal sizing / #161 picker sizing / #266 edge cases,✅,➖,✅,P17,
+testapp,file dialogs — open / folder / save,🔨,🔨,🔨,P18,built on both platforms; not yet clicked on either
+filedialog,gtk_file_dialog_open — single file,✅,🔨,➖,P18,run under XWayland only; never on Wayland
+filedialog,gtk_file_dialog_select_folder,🔨,🔨,➖,P18,
+filedialog,gtk_file_dialog_save,🔨,🔨,➖,P18,also the only path exercising set_initial_name
+filedialog,gtk_file_dialog_open_multiple,⛔,⛔,➖,none,PresentSingleFileOpenDialogAction hardcodes allowMultipleSelections false so no app can reach it
+feature,Sheets,✅,🔨,⛔,P1,WinUI does not declare Sheets; P1 covers the WinUI side only
+feature,PopoverMenus,⚠️,⚠️,⛔,none,Gtk declares it and WinUI does not — a difference is certain
+feature,AttachedMenus,⛔,⛔,⚠️,none,WinUI declares it and Gtk does not
+feature,RevealFiles,⚠️,⚠️,⛔,none,
+feature,Alerts,⚠️,⚠️,⛔,P5,WinUI does not declare Alerts; P5 covers the WinUI side only
+feature,FileDialogs,🔨,🔨,🔨,P18,
+feature,DatePickers,⚠️,⚠️,⚠️,P11,only covered on AppKit
+feature,Windowing / Colors / Paths / Tooltips / Gestures / CornerRadius / gradients,⚠️,⚠️,⚠️,scattered,no single app compares these
+proposed,menus and context menus — Menu / MenuItem,⚠️,⚠️,⚠️,P19,highest value: the feature lists already disagree so a difference is certain
+proposed,input controls — Button / Toggle* / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,⚠️,⚠️,⚠️,P20,widest surface; disabled and indeterminate states usually differ
+proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P21,font metrics are the measuring stick for other layout comparisons
+proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P22,column widths and selection never compared
+proposed,navigation and split views,➖,➖,➖,none,deliberately not proposed; P7 and P16 already cover this
+gap,GtkBackend runtime on Windows,➖,⚠️,➖,none,builds but has never been launched; no window has been seen
+gap,file chooser on Wayland after the GtkFileDialog migration,⚠️,➖,➖,P18,the original bug was Wayland-only and the migration is verified on XWayland only
+gap,Chinese paths through g_file_get_path on Windows,➖,⚠️,➖,none,reasoned from GLib using UTF-8 rather than measured; the test media filename would expose a fault
+gap,incremental build time — Gtk against WinUI on Windows,➖,⚠️,⚠️,none,needs two COMPILE_WORK_DIR trees so neither backend invalidates the other; clean builds are out of scope
