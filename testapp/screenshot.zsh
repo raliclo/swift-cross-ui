@@ -1,12 +1,34 @@
 #!/usr/bin/env zsh
-# Captures the desktop to testapp/output/screenshots/<label>-<timestamp>.png.
+# Captures to testapp/output/screenshots/<label>-<timestamp>.png, in two
+# priorities.
 #
-# Uses ffmpeg's gdigrab, which reads the already-composited screen. Capturing a
-# single window instead goes through BitBlt, which comes back black for
-# D3D/DirectComposition content -- exactly the content this is used to check.
-# 使用 ffmpeg 的 gdigrab 擷取「已合成」的螢幕畫面。若改為擷取單一視窗會走
-# BitBlt，對 D3D/DirectComposition 內容只會得到全黑，而那正是本工具要檢查的
-# 內容。
+#   priority 1  with -w, gdigrab reads that window directly, whatever is in
+#               front of it
+#   priority 2  gdigrab reads the composited desktop
+#
+# Priority 2 is used when no -w is given, and as the fallback when the named
+# window cannot be captured. Which one produced the file is printed, because it
+# changes what the image proves.
+#
+# Window capture goes through BitBlt, which returns black for D3D and
+# DirectComposition content, and that is why the desktop path exists and stays
+# the fallback. It is not a reason to avoid window capture generally: GTK 4 on
+# Windows draws through OpenGL/WGL and captures perfectly, while its windows do
+# not respond to AppActivate at all, so for those the desktop path is the one
+# that fails -- silently, by photographing whatever was in front instead.
+#
+# 擷取結果輸出至 testapp/output/screenshots/<label>-<timestamp>.png，分為兩個優先序。
+#
+#   優先序 1  指定 -w 時，gdigrab 直接讀取該視窗，不受前方遮擋影響
+#   優先序 2  gdigrab 讀取合成後的桌面
+#
+# 未指定 -w 時使用優先序 2；當指定的視窗無法擷取時，亦以其作為回退。實際由哪一級產生檔案
+# 會被印出，因為這會改變該圖所能證明的內容。
+#
+# 視窗擷取走 BitBlt，對 D3D 與 DirectComposition 內容會回傳全黑，這正是桌面路徑存在並作為
+# 回退的理由。但它不構成「普遍避免視窗擷取」的理由：Windows 上的 GTK 4 透過 OpenGL/WGL
+# 繪製，擷取完全正常，而其視窗根本不回應 AppActivate——對這類視窗而言，失敗的反而是桌面
+# 路徑，且是靜默失敗：它會改拍下當時位於前方的任何內容。
 #
 # The wait before capturing is done by grabbing one frame per second and
 # overwriting the same file, so no sleep is needed and the file always holds
@@ -45,8 +67,11 @@ usage() {
         "" \
         "  -d  Wait this many seconds before capturing (default 0)." \
         "  -d  擷取前先等待的秒數（預設 0）。" \
-        "  -w  Raise this window to the front just before capturing." \
-        "  -w  擷取前先把這個視窗帶到最前面。" \
+        "  -w  Capture this window directly (priority 1), whatever is in front" \
+        "      of it. Falls back to the whole desktop (priority 2) if that" \
+        "      window cannot be captured. Which one was used is printed." \
+        "  -w  直接擷取此視窗（優先序 1），不受前方遮擋影響。若無法擷取該視窗，" \
+        "      則回退為擷取整個桌面（優先序 2）。實際使用哪一級會被印出。" \
         "" \
         "Example 範例:" \
         "  zsh testapp/screenshot.zsh -d 15 -w 'P6 stream player' p6-960x540"
@@ -137,7 +162,21 @@ resolve_window_title() {
             'NR>1 && $9 != "N/A" && index($9, want) { print $9; exit }'
 }
 
-if [ -n "$window" ]; then
+# Raising the window is only needed by priority 2, which photographs the screen
+# and therefore needs the window to be on top of it. Priority 1 reads the window
+# directly and does not care what is in front, so this whole block is deferred
+# into the fallback rather than run first.
+#
+# Running it first was worse than redundant: with -w it printed "could not bring
+# the window to the front" on the exact runs where priority 1 then captured that
+# window perfectly, which is a warning that contradicts the result beneath it.
+#
+# 把視窗帶到前景只有優先序 2 需要——它拍的是螢幕，因此該視窗必須位於最上層。優先序 1 直接
+# 讀取視窗本身，不在意前方有什麼，所以整段延後至回退分支才執行，而非一開始就跑。
+#
+# 一開始就跑不只是多餘：指定 -w 時，它會在「優先序 1 隨後完美擷取到該視窗」的那些執行中，
+# 印出「無法將視窗帶到前景」——一則與其下方結果自相矛盾的警告。
+raise_window() {
     resolved="$(resolve_window_title "$window")"
     if [ -n "$resolved" ] && [ "$resolved" != "$window" ]; then
         case "$resolved" in
@@ -188,22 +227,168 @@ if [ -n "$window" ]; then
     # 都響的警告只會訓練讀者忽略它，比沒有更糟。
     printf 'If CreateObject("WScript.Shell").AppActivate("%s") Then\n  WScript.Echo "ACTIVATED"\nElse\n  WScript.Echo "NOTFOUND"\nEnd If\n' \
         "$window" > "$activate_script"
-    activated="$(cscript.exe //nologo "$(windows_path "$activate_script")" 2>/dev/null | tr -d '\r\n ')"
+    # Bounded, because cscript can block indefinitely. Measured: asked to
+    # activate a window that does not exist, it never returned, and since this
+    # runs under `set -e` inside a function whose output is not checked, the whole
+    # capture hung with the last thing printed being an unrelated warning. Ten
+    # seconds is far longer than AppActivate needs when it is going to answer.
+    # 加上時間上限，因為 cscript 可能無限期阻塞。實測：要求它啟動一個不存在的視窗時，它從未
+    # 返回；而本段在 `set -e` 下、位於一個輸出未被檢查的函式中執行，導致整個擷取流程掛住，
+    # 最後印出的卻是一則不相干的警告。十秒遠長於 AppActivate 會回應時所需的時間。
+    activated="$(timeout 10 cscript.exe //nologo "$(windows_path "$activate_script")" 2>/dev/null | tr -d '\r\n ' || true)"
     rm -f "$activate_script"
     if [ "$activated" != "ACTIVATED" ]; then
-        printf '!! screenshot.zsh: could not bring "%s" to the front.\n' "$window" >&2
+        printf '!! screenshot.zsh: could not bring "%s" to the front either.\n' "$window" >&2
         printf '!! The capture below is of whatever was on screen instead --\n' >&2
         printf '!! a locked session, another window, or nothing at all.\n' >&2
-        printf '!! 無法將「%s」帶到前景；以下截圖拍到的是當時螢幕上的其他內容。\n' "$window" >&2
+        printf '!! 亦無法將「%s」帶到前景；以下截圖拍到的是當時螢幕上的其他內容。\n' "$window" >&2
     fi
-    # One discarded frame gives the window a second to come forward.
-    # 丟棄一張影格，讓視窗有一秒的時間浮到最前面。
-    grab -frames:v 1 -f null - </dev/null
-fi
+    # Deliberately no discard-frame grab here.
+    #
+    # This used to run `grab -frames:v 1 -f null -` to give the window a second
+    # to come forward, which put two gdigrab desktop sessions back to back with
+    # the real capture. That pair hangs: a single desktop capture returns in
+    # about a second, while the -w path had to be killed by hand on four separate
+    # runs today, each time leaving an ffmpeg holding the device. A plain capture
+    # with no -w, which runs one gdigrab, never did.
+    #
+    # AppActivate has already returned by this point, so the window is raised or
+    # it never will be; the wait was insurance against a race that costs a
+    # screenshot, paid for with a hang that costs the run.
+    #
+    # 此處刻意不做丟棄影格的擷取。
+    #
+    # 先前這裡會執行 `grab -frames:v 1 -f null -`，讓視窗有一秒時間浮到最前面，結果是把兩個
+    # gdigrab 桌面工作階段與真正的擷取連續排在一起。這個組合會卡住：單次桌面擷取約一秒即返回，
+    # 而 -w 路徑今天有四次執行必須手動終止，每次都留下一個佔住裝置的 ffmpeg；未指定 -w、
+    # 只執行一次 gdigrab 的一般擷取則從未發生此情況。
+    #
+    # 執行到此處時 AppActivate 已經返回，視窗要嘛已被喚起、要嘛永遠不會；那段等待是為了防範
+    # 一個「頂多損失一張截圖」的競態，代價卻是「整次執行卡死」。
+}
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 target="$output_dir/$label-$timestamp.png"
 
-grab -frames:v 1 -y "$target" </dev/null
+# Priority 1: the window itself, by title. Priority 2: the composited desktop.
+#
+# The desktop capture used to be the only path, and it fails in a way that looks
+# like success. GTK 4 windows on Windows do not respond to AppActivate -- measured
+# with the title resolved exactly, `P6-v2 GTK playback`, three times -- so the
+# window stayed behind a terminal and three consecutive captures photographed the
+# terminal. Each produced a valid PNG and a zero exit code. Capturing the window
+# directly returned the player, its controls, its statistics and the video frame,
+# from the same run.
+#
+# The file header long said window capture goes through BitBlt and comes back
+# black for D3D and DirectComposition content. That is true and is why the
+# desktop path exists, but it was over-generalised into "never capture a window":
+# GTK draws through OpenGL/WGL here and captures perfectly. So the rule is a
+# preference with a fallback, not a prohibition.
+#
+# The fallback triggers on a missing or suspiciously small file rather than on
+# ffmpeg's exit code, which is 0 when gdigrab finds no window with that title.
+#
+# 優先序 1：依標題擷取視窗本身。優先序 2：擷取合成後的桌面。
+#
+# 桌面擷取原本是唯一路徑，而它失敗的方式看起來就像成功。Windows 上的 GTK 4 視窗不回應
+# AppActivate——在標題完全正確（`P6-v2 GTK playback`）的情況下實測三次皆然——因此視窗一直
+# 留在終端機後方，連續三次擷取拍到的都是終端機。每一次都產生了有效的 PNG 與 0 的結束碼。
+# 而直接擷取該視窗，在同一次執行中就取得了播放器、其控制項、統計數據與影片畫面。
+#
+# 本檔開頭長期寫著：單一視窗擷取走 BitBlt，對 D3D 與 DirectComposition 內容會回傳全黑。
+# 那是事實，也是桌面路徑存在的理由，但它被過度推廣成「永遠不要擷取視窗」：此處 GTK 透過
+# OpenGL/WGL 繪製，擷取結果完全正常。因此這條規則是「有回退的偏好」，而非禁令。
+#
+# 回退的判斷依據是檔案不存在或小得可疑，而非 ffmpeg 的結束碼——當 gdigrab 找不到該標題的
+# 視窗時，結束碼仍是 0。
+captured_from=""
+if [ -n "$window" ]; then
+    # Resolve to the real title before priority 1, not only before the raise.
+    # gdigrab matches a title exactly, and WSLg renames windows -- an app asking
+    # for "P6 stream player" is presented as "P6 stream player (Ubuntu)". Looking
+    # up the true title first is what makes priority 1 work on WSL at all;
+    # resolving it only inside the fallback, as an earlier version did, left the
+    # direct capture failing on every WSLg window for a reason that has nothing
+    # to do with the window.
+    # 在優先序 1 之前就解析出真實標題，而不只是在喚起視窗前才解析。gdigrab 進行的是標題的
+    # 精確比對，而 WSLg 會替視窗改名——app 要求的「P6 stream player」會被呈現為
+    # 「P6 stream player (Ubuntu)」。先查出真實標題，正是讓優先序 1 在 WSL 上得以運作的關鍵；
+    # 若如先前版本那樣僅在回退分支中解析，直接擷取會在每個 WSLg 視窗上失敗，而原因與該視窗
+    # 本身毫無關係。
+    # The lookup also decides whether priority 1 is attempted at all. gdigrab
+    # asked for a title that does not exist behaves badly from a script: run by
+    # hand it prints `Can't find window` and exits, but inside this file it did
+    # not return, and with output buffered to a redirect the script died at its
+    # timeout having printed nothing -- no warning, no path, no clue which line.
+    # Asking tasklist first costs one call and removes that case entirely.
+    # 這次查詢同時決定是否要嘗試優先序 1。以不存在的標題呼叫 gdigrab 在腳本中的表現很糟：
+    # 手動執行時它會印出 `Can't find window` 並結束，但在本檔內它並未返回；而當輸出被重導向
+    # 而遭緩衝時，腳本會在逾時後死去且什麼都沒印出——沒有警告、沒有路徑、也沒有任何線索指出
+    # 是哪一行。先問 tasklist 只需一次呼叫，即可完全消除這種情況。
+    resolved_title="$(resolve_window_title "$window" || true)"
+    if [ -z "$resolved_title" ]; then
+        printf '!! screenshot.zsh: priority 1 skipped -- no window whose title\n' >&2
+        printf '!! contains "%s" is open. Using priority 2, the whole desktop,\n' "$window" >&2
+        printf '!! which shows that window only if it is in front.\n' >&2
+        printf '!! 優先序 1 略過：沒有任何標題包含「%s」的視窗開啟中。改用優先序 2\n' "$window" >&2
+        printf '!!（整個桌面），該圖僅在此視窗位於最上層時才會包含它。\n' >&2
+        window_missing=1
+    elif [ "$resolved_title" != "$window" ]; then
+        printf 'resolved window title to "%s"\n' "$resolved_title" >&2
+        window="$resolved_title"
+    fi
+
+    # `|| true` because this file runs under `set -e` and gdigrab can still exit
+    # non-zero even for a window that tasklist just reported -- it can close
+    # between the two calls. Without it the script aborts here having printed
+    # nothing: no warning, no file, and exit 127, which reads like a missing
+    # interpreter rather than a missing window.
+    # `|| true`：本檔在 `set -e` 下執行，而即使是 tasklist 剛回報過的視窗，gdigrab 仍可能以
+    # 非零狀態結束——該視窗可能在兩次呼叫之間關閉。少了它，腳本會在此中止且什麼都沒印出：
+    # 沒有警告、沒有檔案，只有 exit 127，看起來像是直譯器缺失而非視窗缺失。
+    if [ "${window_missing:-0}" -eq 0 ]; then
+        ffmpeg -hide_banner -loglevel error -f gdigrab -framerate 1 \
+            -i "title=$window" -frames:v 1 -y "$target" </dev/null 2>/dev/null || true
+    fi
+    if [ -f "$target" ] && [ "$(stat -c%s "$target" 2>/dev/null || echo 0)" -gt 5000 ]; then
+        captured_from="priority 1: window \"$window\""
+    else
+        rm -f "$target"
+        # Said out loud, because the fallback changes what the image means. A
+        # priority 1 capture shows the requested window whatever is in front of
+        # it; a priority 2 capture shows the screen, which contains the window
+        # only if it happened to be raised. Reading the second as the first is
+        # how three captures of a terminal were taken for captures of a player.
+        # 明確說出，因為回退會改變這張圖的意義。優先序 1 的擷取無論前方有什麼，呈現的都是
+        # 所指定的視窗；優先序 2 呈現的是整個螢幕，只有在該視窗剛好位於最上層時才會包含它。
+        # 把後者當成前者，正是三張終端機截圖被誤認為播放器截圖的原因。
+        #
+        # Not repeated when the window was already reported missing above; two
+        # warnings for one cause reads as two problems.
+        # 若上方已回報該視窗不存在，則不重複輸出；同一個成因印出兩則警告，會被讀成兩個問題。
+        if [ "${window_missing:-0}" -eq 0 ]; then
+            printf '!! screenshot.zsh: priority 1 failed -- the window titled\n' >&2
+            printf '!! "%s" could not be captured. Falling back to priority 2,\n' "$window" >&2
+            printf '!! the whole desktop, which shows it only if it is in front.\n' >&2
+            printf '!! 優先序 1 失敗：無法擷取標題為「%s」的視窗。改用優先序 2（整個桌面），\n' "$window" >&2
+            printf '!! 該圖僅在此視窗位於最上層時才會包含它。\n' >&2
+        fi
+    fi
+fi
+
+if [ -z "$captured_from" ]; then
+    [ -n "$window" ] && raise_window
+    grab -frames:v 1 -y "$target" </dev/null
+    if [ -n "$window" ]; then
+        captured_from="priority 2: desktop (window capture failed)"
+    else
+        # No -w was given, so the desktop is what was asked for rather than a
+        # fallback, and calling it one would be misleading.
+        # 未指定 -w，因此桌面正是所要求的目標而非回退；把它稱為回退會造成誤導。
+        captured_from="desktop"
+    fi
+fi
 
 printf '%s\n' "$target"
+printf 'captured from %s\n' "$captured_from"

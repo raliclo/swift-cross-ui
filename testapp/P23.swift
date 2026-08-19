@@ -1,0 +1,165 @@
+import DefaultBackend
+import Foundation
+import SwiftCrossUI
+
+// P23 tables, for comparing WinUIBackend against GtkBackend.
+//
+// Table and TableColumn appear in no other test app. The equivalent in
+// gtk4-widget-factory is its column view, and the questions are the same ones:
+// how are column widths decided, what happens when the content is wider than
+// the column, and does the table scroll or clip when there are more rows than
+// space.
+//
+// Column width is the interesting part. Nothing in the API states a width, so
+// each backend picks: from the header, from the widest cell, from the first
+// screenful of cells, or by dividing the available space. Those choices give
+// visibly different tables from identical code, and the deliberately uneven
+// column contents below are there to make which one is in use obvious.
+//
+// P23 表格，用於比較 WinUIBackend 與 GtkBackend。
+//
+// Table 與 TableColumn 未出現在任何其他測試 app 中。gtk4-widget-factory 的對應項目是它的
+// column view，而要問的問題相同：欄寬如何決定、內容寬於欄位時會發生什麼、以及列數超過可用
+// 空間時表格是捲動還是裁切。
+//
+// 欄寬是有趣之處。API 中並未指定寬度，因此各 backend 自行決定：依標題、依最寬的儲存格、依
+// 第一屏的儲存格，或平分可用空間。這些選擇會讓相同的程式碼產生外觀明顯不同的表格，而下方
+// 刻意設計成長短不一的欄位內容，正是為了讓當前採用哪一種變得顯而易見。
+//
+// Build this file as a standalone app target.
+
+enum P23Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+    nonisolated(unsafe) private static var lastReported: [String: String] = [:]
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P23] \(message)")
+
+        guard let data = "P23 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p23-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func record(label: String, size: ViewSize) {
+        guard isEnabled else { return }
+        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        guard lastReported[label] != line else { return }
+        lastReported[label] = line
+        write(line)
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P23 ready for table checks")
+    }
+}
+
+struct P23Row {
+    var id: Int
+    var short: String
+    var long: String
+    var number: String
+}
+
+// Column two is deliberately far wider than its header and column three far
+// narrower, so a backend sizing from the header looks different from one sizing
+// from the cells at a glance.
+// 第二欄刻意遠寬於其標題，第三欄則遠窄於標題，如此「依標題決定寬度」與「依儲存格決定寬度」
+// 的 backend 一眼即可分辨。
+let p23Rows: [P23Row] = (1...24).map { index in
+    P23Row(
+        id: index,
+        short: "r\(index)",
+        long: index == 3
+            ? "a considerably longer cell than any header would suggest"
+            : "row \(index) content",
+        number: "\(index * 1117)"
+    )
+}
+
+@main
+@HotReloadable
+struct P23TablesApp: App {
+    var body: some Scene {
+        WindowGroup("P23 tables") {
+            #hotReloadable {
+                P23RootView()
+            }
+        }
+        .defaultSize(width: 820, height: 620)
+    }
+}
+
+struct P23RootView: View {
+    @State var rowCount = 8
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("P23: tables")
+                .font(.system(size: 20))
+
+            Text("backend -> \(String(describing: DefaultBackend.self))")
+
+            Text(
+                "Column 2 is wider than its header and column 3 is narrower. "
+                    + "Compare where the boundaries land and what happens as "
+                    + "rows are added."
+            )
+
+            HStack(spacing: 8) {
+                Button("Fewer rows") { rowCount = max(1, rowCount - 4) }
+                Button("More rows") { rowCount = min(p23Rows.count, rowCount + 4) }
+                Text("rows: \(rowCount)")
+            }
+
+            P23Measured(label: "table") {
+                Table(Array(p23Rows.prefix(rowCount))) {
+                    TableColumn("ID") { (row: P23Row) in Text("\(row.id)") }
+                    TableColumn("A much longer header than its cells") { (row: P23Row) in
+                        Text(row.short)
+                    }
+                    TableColumn("Short") { (row: P23Row) in Text(row.long) }
+                    TableColumn("Number") { (row: P23Row) in Text(row.number) }
+                }
+            }
+
+            Text(
+                "Worth comparing: whether the long cell in row 3 widens its "
+                    + "column or is truncated, and whether adding rows past the "
+                    + "window height scrolls or clips."
+            )
+        }
+        .padding(18)
+        .onAppear {
+            P23Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+            P23Diagnostics.renderComplete()
+        }
+    }
+}
+
+struct P23Measured<Content: View>: View {
+    var label: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        content()
+            .overlay(alignment: .topTrailing) {
+                GeometryReader { proxy in
+                    let _ = P23Diagnostics.record(label: label, size: proxy.size)
+                    EmptyView()
+                }
+            }
+    }
+}

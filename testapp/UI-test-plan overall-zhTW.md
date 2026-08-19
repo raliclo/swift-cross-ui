@@ -1098,6 +1098,141 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 7. 記錄每個子選單相對於其父層的落點，特別是靠近螢幕邊緣時。
 8. 於另一個 backend 重複。
 
+## P6-v2：Video Playback on GtkBackend（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P6-v2 -i <檔案> -autoplay              # GtkBackend，於 WSL
+./testapp/output/P6-v2.exe -i <檔案> -autoplay          # GtkBackend，於 Windows
+```
+
+請以 `-gtk4` 建置。在 Windows 上，P6 **不是**一般意義下的比較對象：P6 是 WinUI/D3D11 的
+實作，而 `compile.zsh -gtk4` 會直接拒絕建置它，因為 SwapChainPanel 與 D3D11 composition
+swap chain 在 GtkBackend 中沒有對應物。P6-v2 是同一個問題的 GTK 答案，採全新撰寫，並保留
+P6 的量測語彙，使兩者的數字可以對齊。
+
+重要旗標：
+
+| 旗標 | 作用 |
+|---|---|
+| `-cpu` | 強制軟體解碼 |
+| `-gpu` | 強制硬體解碼；若無可用者則拒絕啟動 |
+|（預設） | 嘗試硬體，失敗則回退軟體，並明白說出實際執行者 |
+| `-mute` | 不啟動 ffplay；量測執行時使用 |
+| `-seconds N` | N 秒後結束並印出摘要 |
+| `-speed` `-fps` `-res` | 預設各選單，使執行無需點擊 |
+
+測試步驟：
+
+1. 以 `-autoplay -seconds 20 --debug` 啟動，確認視窗有繪製。Windows 上該視窗不回應
+   AppActivate，因此請以
+   `zsh testapp/screenshot.zsh -w "P6-v2 GTK playback" <標籤>` 擷取——它直接讀取視窗本身，
+   而非桌面。
+2. 閱讀狀態列。它會分別陳述解碼路徑與呈現路徑——`decode d3d11va, present memory-texture
+   (CPU)`。目前所有模式的呈現都是 CPU 路徑；旗標只切換解碼。
+3. 確認音訊。它是獨立的 ffplay 行程，因此不保證同步：1x 時貼合到足以觀看，3x 時會飄移。
+   這是預期行為。
+4. 在相同速度、幀率與解析度下連續執行 `-cpu` 與 `-gpu`，比較兩份摘要。在本機上兩者的差距
+   落在雜訊範圍內，因為瓶頸是 RGBA 管線的讀取，而非解碼。
+5. 將速度推到 `3x` 並觀察 `dropped/sec`。只有當幀的到達速度快於可顯示速度時才會掉幀；單純
+   慢於目標速率的解碼器會把每一幀都顯示出來，並回報較低的 fps。
+6. 於另一平台重複並比較。WSL 完全沒有 GPU 路徑——缺少 render node，因此 GTK 跑在 llvmpipe
+   上——所以此處的 Windows 對 WSL 比較，量的是兩套不同的繪製堆疊，而非兩個作業系統。
+
+## P21：Input Controls（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P21          # GtkBackend，於 WSL
+./testapp/output/P21.exe      # WinUIBackend，於 Windows
+```
+
+目前未涵蓋範圍中最廣的一塊。ToggleSwitch、ToggleButton 與 Checkbox 完全沒有出現在任何其他
+測試 app 中。每個控制項都出現兩次：啟用與停用。
+
+測試步驟：
+
+1. 按下 Button 區的 `Enabled`，確認 `clicks` 增加。
+2. 按下 `Disabled`，確認 `clicks` **沒有**增加。「已停用卻仍接受輸入」正是此處要抓的發現，
+   而它在截圖上看起來完全正確。
+3. 逐一操作各種 toggle 樣式——一般、`.switch`、`.button`、`.checkbox`——操作啟用的那個，並
+   確認停用的那個拒絕輸入。
+4. 比較兩個 backend 如何呈現停用狀態：標籤變灰、整個 widget 變暗，或外觀完全不變。
+5. 拖曳兩個 slider；停用的那個不得移動。
+6. 於 `TextField`、`SecureField` 與 `TextEditor` 輸入文字，再試其停用版本。
+7. 確認 `ContentUnavailableView` 同時顯示標題與說明文字。
+8. 於另一個 backend 重複上述步驟。
+
+## P22：Text Styles（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P22 --debug          # GtkBackend，於 WSL
+./testapp/output/P22.exe --debug      # WinUIBackend，於 Windows
+```
+
+值得優先進行，因為字型度量是其他所有版面比較的量尺。若某個 backend 的文字系統性地較寬，它
+會在 P17 的尺寸檢查與 P7 的 split 比例中產生不同結果；少了這支 app，該差異會被歸咎於版面
+程式碼而非字型。
+
+測試步驟：
+
+1. 以 `--debug` 執行，蒐集八個樣本各自回報的尺寸。這些是數字，而非對截圖的印象。
+2. 逐一樣本比較兩個 backend。八個樣本呈現一致比例代表字型差異；只有單一字級不同則是版面
+   缺陷。
+3. 按 `Narrower` 與 `Wider`，記錄各寬度下的斷行位置。
+4. 檢查固定 320pt 框內的三列對齊。
+5. 於另一個 backend 重複上述步驟。
+
+## P23：Tables（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P23 --debug          # GtkBackend，於 WSL
+./testapp/output/P23.exe --debug      # WinUIBackend，於 Windows
+```
+
+欄寬是有趣之處。API 中並未指定寬度，因此各 backend 自行決定：依標題、依最寬的儲存格、依第
+一屏，或平分可用空間。第二欄刻意寬於其標題、第三欄則較窄，使當前採用哪一種規則一眼即可
+分辨。
+
+測試步驟：
+
+1. 記錄各欄邊界落點，並判斷這代表四種規則中的哪一種。
+2. 觀察第 3 列，其儲存格遠長於任何標題。記錄它是撐寬該欄，還是被截斷。
+3. 按 `More rows` 超過視窗高度，確認表格是捲動還是裁切。
+4. 按 `Fewer rows`，確認版面能恢復而非留下空缺。
+5. 於另一個 backend 重複上述步驟。
+
+## P24：Navigation Stack（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P24 --debug          # GtkBackend，於 WSL
+./testapp/output/P24.exe --debug      # WinUIBackend，於 Windows
+```
+
+`NavigationStack` 與 `NavigationLink` 未出現在任何其他測試 app 中。此缺口先前被以「P7 與
+P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `NavigationSplitView`，屬於不同型別、不同
+的版面模型。側邊欄加詳細內容的分割，並不等同於推入與彈出的堆疊。
+
+堆疊有而分割檢視沒有的東西是「歷史」。
+
+測試步驟：
+
+1. 以 `Push level N` 推入三層，確認每一畫面都出現。
+2. 逐層返回，確認依序退回。
+3. 於每一層按下 `Record a push`，並將 `pushes recorded` 與畫面顯示的層級比對。該計數器刻意
+   置於堆疊之外：若畫面顯示第 2 層而計數器顯示 3，該不一致就是發現。
+4. 在深層按下 `Increment counter`，再返回，確認路徑在狀態變更後仍然存續。
+5. 按 `Pop to root`，確認畫面與計數器同時歸零。
+6. 於另一個 backend 重複上述步驟。
+
 ## 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：

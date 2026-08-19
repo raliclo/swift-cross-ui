@@ -38,17 +38,19 @@ feature,Windowing / Colors / Paths / Tooltips / Gestures / CornerRadius / gradie
 testapp,flat menu — one level with every MenuItem kind,🔨,➖,⚠️,P19,built on Linux; Windows build not completed yet; nobody has opened the menu
 testapp,nested menus — three levels with an item at each,🔨,➖,⚠️,P20,built on Linux; Windows build not completed yet; nobody has opened the menu
 feature,menu style — AttachedMenus against PopoverMenus,⚠️,⚠️,⚠️,P19 P20,two implementations of one feature not a capability gap; the app cannot choose so the backend decides. Split by menu shape instead: flat in P19 nested in P20
-proposed,input controls — Button / Toggle / ToggleSwitch / ToggleButton / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,⚠️,⚠️,⚠️,P21,widest surface; disabled and indeterminate states usually differ. ToggleSwitch ToggleButton and Checkbox appear in no test app at all
-proposed,text styles — size scale / wrapping / alignment,⚠️,⚠️,⚠️,P22,font metrics are the measuring stick for other layout comparisons
-proposed,column view — Table / TableColumn,⚠️,⚠️,⚠️,P23,neither type appears in any test app; column widths and selection never compared
-proposed,navigation stack — NavigationStack / NavigationLink,⚠️,⚠️,⚠️,P24,neither appears in any test app. P7 and P16 cover NavigationSplitView which is a different type
+testapp,input controls — Button / Toggle / ToggleSwitch / ToggleButton / Checkbox / Slider / ProgressView / TextField / SecureField / TextEditor,🔨,⚠️,⚠️,P21,widest surface; disabled and indeterminate states usually differ. ToggleSwitch ToggleButton and Checkbox appear in no test app at all
+testapp,text styles — size scale / wrapping / alignment,🔨,⚠️,⚠️,P22,font metrics are the measuring stick for other layout comparisons
+testapp,column view — Table / TableColumn,🔨,⚠️,⚠️,P23,neither type appears in any test app; column widths and selection never compared
+testapp,navigation stack — NavigationStack / NavigationLink,🔨,⚠️,⚠️,P24,neither appears in any test app. P7 and P16 cover NavigationSplitView which is a different type
 proposed,WebView,⚠️,⚠️,⚠️,none,appears in no test app; no proposal yet because it is unclear what a cross-backend comparison of it would assert
-proposed,ContentUnavailableView,⚠️,⚠️,⚠️,none,appears in no test app; small surface so it could fold into P21 rather than get its own
+testapp,ContentUnavailableView,🔨,⚠️,⚠️,P21,appears in no test app; small surface so it could fold into P21 rather than get its own
 gap,GtkBackend library target on Windows,➖,✅,➖,none,swift build --target GtkBackend exits 0 — this is the library only
-gap,any Pn.exe linked against GtkBackend on Windows,➖,⛔,➖,none,never produced; every Pn.exe in output links WinAppSDK and no GTK. The library building is not the same as an app linking it
-gap,GtkBackend runtime on Windows,➖,⛔,➖,none,cannot be attempted while no app links it; no window has ever been seen
-gap,compile.zsh -gtk4 on Windows,✅,⛔,➖,none,swift build --target GtkBackend works by hand but the test app fails with missing required modules CGtk / GtkCHelpers — SwiftPM does not pass the module map search paths to DefaultBackend on Windows
+gap,any Pn.exe linked against GtkBackend on Windows,➖,✅,➖,P0 P6-v2,"P0.exe and P6-v2.exe link GtkBackend and no WinUI at all; verified with a symbol scan — 2488 GtkBackend, 0 WinUIBackend"
+gap,GtkBackend runtime on Windows,➖,✅,➖,P6-v2,window opens and renders on Windows; captured with gdigrab title= while it played video. GTK layout warnings about GtkFixed allocation are still open
+gap,compile.zsh -gtk4 on Windows,✅,✅,➖,P0 P6-v2,"needed two fixes: export PKG_CONFIG_PATH so SwiftPM resolves CGtk, and export SCUI_DEFAULT_BACKEND plus drop the WinUI products so the app actually uses Gtk"
 gap,compile.zsh -gtk4 on Linux,✅,➖,➖,P18,verified at 8.31s
 gap,file chooser on Wayland after the GtkFileDialog migration,⚠️,➖,➖,P18,the original bug was Wayland-only and the migration is verified on XWayland only
 gap,Chinese paths through g_file_get_path on Windows,➖,⚠️,➖,none,reasoned from GLib using UTF-8 rather than measured; the test media filename would expose a fault
-gap,incremental build time — Gtk against WinUI on Windows,➖,⚠️,⚠️,none,needs two COMPILE_WORK_DIR trees so neither backend invalidates the other; clean builds are out of scope
+gap,incremental build time — Gtk against WinUI on Windows,➖,⚠️,⚠️,none,"full build measured 2026-08-20 on P0: 788s with WinUI against 115s GTK-only, 342 MB against 73 MB. Incremental still unmeasured — that is the number that matters day to day"
+testapp,video playback on GtkBackend — decode / present / fps / dropped frames,🔨,✅,➖,P6-v2,"P6 stays WinUI/D3D11 and -gtk4 refuses to build it; P6-v2 is the GTK counterpart. Windows run observed: window renders, video plays, decode d3d11va, present memory-texture (CPU), 30-43 fps at 1080p60"
+gap,GPU presentation path on GtkBackend — zero-copy D3D11 to GL,⚠️,⚠️,➖,none,present is memory-texture (CPU) in every mode; needs a GtkGLArea binding plus glImportMemoryWin32HandleEXT. external-objects-win32 confirmed present on this machine

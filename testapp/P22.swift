@@ -1,0 +1,190 @@
+import DefaultBackend
+import Foundation
+import SwiftCrossUI
+
+// P22 text styles, for comparing WinUIBackend against GtkBackend.
+//
+// Modelled on the Text Styles panel in gtk4-widget-factory: a size scale from
+// large title down to caption, shown together so the steps between them can be
+// compared rather than each size in isolation.
+//
+// This one is worth doing early because font metrics are the measuring stick
+// for every other layout comparison. A backend whose text is systematically
+// wider will produce different results in P17's sizing checks, in P7's split
+// view ratios and in anything else measured in pixels, and without this app
+// that difference gets attributed to the layout code instead of the font.
+//
+// Each sample reports the size the layout system gave it, so the comparison is
+// numbers rather than an impression of the screenshots.
+//
+// P22 文字排版，用於比較 WinUIBackend 與 GtkBackend。
+//
+// 形式參考 gtk4-widget-factory 的 Text Styles 面板：從大標題到說明文字的字級階梯，並列
+// 呈現，使各級之間的級距可供比較，而非孤立地看單一字級。
+//
+// 這一項值得優先進行，因為字型度量是其他所有版面比較的量尺。若某個 backend 的文字系統性
+// 地較寬，它會在 P17 的尺寸檢查、P7 的 split view 比例，以及任何以像素量測的項目中產生
+// 不同結果；少了這支 app，該差異會被歸咎於版面程式碼而非字型。
+//
+// 每個樣本都會回報 layout 系統給予它的尺寸，因此比較的是數字，而非對截圖的印象。
+//
+// Build this file as a standalone app target.
+
+enum P22Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
+    nonisolated(unsafe) private static var lastReported: [String: String] = [:]
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P22] \(message)")
+
+        guard let data = "P22 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p22-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    // Only logged when it changes. A size that is reported on every layout pass
+    // buries the one line that matters under hundreds of identical ones.
+    // 僅在變動時記錄。若每次 layout 都回報尺寸，真正重要的那一行會被數百行相同內容淹沒。
+    static func record(label: String, size: ViewSize) {
+        guard isEnabled else { return }
+        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        guard lastReported[label] != line else { return }
+        lastReported[label] = line
+        write(line)
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        write("RENDER COMPLETE -- P22 ready for text style checks")
+    }
+}
+
+@main
+@HotReloadable
+struct P22TextStylesApp: App {
+    var body: some Scene {
+        WindowGroup("P22 text styles") {
+            #hotReloadable {
+                P22RootView()
+            }
+        }
+        .defaultSize(width: 760, height: 700)
+    }
+}
+
+// The same string at every size, so a width difference is the font and nothing
+// else. Mixed content would make it ambiguous.
+// 每個字級都使用同一個字串，如此寬度差異就只可能來自字型。若內容不同，差異的來源便無法確定。
+let p22Sample = "Hamburgefonstiv 123"
+
+struct P22RootView: View {
+    @State var wrapWidth = 300.0
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("P22: text styles")
+                    .font(.system(size: 20))
+
+                Text("backend -> \(String(describing: DefaultBackend.self))")
+
+                Text(
+                    "The same string at each size. Compare the reported widths "
+                        + "across backends, not the appearance."
+                )
+
+                Divider()
+
+                P22Sample(label: "34 large title", size: 34)
+                P22Sample(label: "28 title 1", size: 28)
+                P22Sample(label: "22 title 2", size: 22)
+                P22Sample(label: "20 title 3", size: 20)
+                P22Sample(label: "17 body", size: 17)
+                P22Sample(label: "15 subheadline", size: 15)
+                P22Sample(label: "13 footnote", size: 13)
+                P22Sample(label: "11 caption", size: 11)
+
+                Divider()
+
+                // Wrapping at a fixed width. Where the break lands is decided by
+                // the font's metrics, so this is the same question as the sizes
+                // above asked a different way.
+                // 於固定寬度換行。斷行位置由字型度量決定，因此這與上方的字級問題是同一件事
+                // 的另一種問法。
+                Text("Wrapping at \(Int(wrapWidth))pt")
+                P22Measured(label: "wrapped") {
+                    Text(
+                        "The quick brown fox jumps over the lazy dog while the "
+                            + "typesetter counts every advance width."
+                    )
+                    .frame(width: wrapWidth)
+                }
+
+                HStack(spacing: 8) {
+                    Button("Narrower") { wrapWidth = max(150, wrapWidth - 50) }
+                    Button("Wider") { wrapWidth = min(600, wrapWidth + 50) }
+                }
+
+                Divider()
+
+                Text("Alignment inside a fixed width")
+                VStack(spacing: 4) {
+                    Text("leading").frame(width: 320, alignment: .leading)
+                    Text("center").frame(width: 320, alignment: .center)
+                    Text("trailing").frame(width: 320, alignment: .trailing)
+                }
+            }
+            .padding(18)
+        }
+        .onAppear {
+            P22Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+            P22Diagnostics.renderComplete()
+        }
+    }
+}
+
+struct P22Sample: View {
+    var label: String
+    var size: Double
+
+    var body: some View {
+        P22Measured(label: label) {
+            Text("\(label): \(p22Sample)")
+                .font(.system(size: size))
+        }
+    }
+}
+
+// The same measuring wrapper P17 uses: a GeometryReader in an overlay, which
+// reports the size the layout system actually gave the content. There is no
+// onResize modifier in SwiftCrossUI -- assuming one existed cost a compile
+// error here.
+// 與 P17 相同的量測包裝：置於 overlay 中的 GeometryReader，回報 layout 系統實際給予內容的
+// 尺寸。SwiftCrossUI 並沒有 onResize 這類 modifier——先前誤以為存在，代價是此處一個編譯
+// 錯誤。
+struct P22Measured<Content: View>: View {
+    var label: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        content()
+            .overlay(alignment: .topTrailing) {
+                GeometryReader { proxy in
+                    let _ = P22Diagnostics.record(label: label, size: proxy.size)
+                    EmptyView()
+                }
+            }
+    }
+}

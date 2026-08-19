@@ -87,15 +87,20 @@ target_platform="host"
 # WinUI repro apps: switching them silently would make them reproduce nothing.
 # WinUIBackend stays the baseline.
 #
-# DefaultBackend already prefers Gtk over WinUI, so the flag does not select a
-# backend directly -- it makes GtkBackend importable on Windows, and the
-# existing preference order does the rest.
+# There is no preference order to rely on. An earlier version of this comment
+# claimed DefaultBackend already prefers Gtk over WinUI and that the flag merely
+# made GtkBackend importable; that was wrong, and believing it is what made the
+# flag ineffective for two full builds. Package.swift hard-codes one backend per
+# platform -- WinUIBackend on Windows, GtkBackend on Linux -- so the flag has to
+# do the selecting itself, which is what SCUI_DEFAULT_BACKEND below is for.
 # -gtk4 會在所有平台強制使用 GtkBackend，包含原本預設為 WinUIBackend 的 Windows。此為
 # 選擇性加入而非自動，因為 P0-P16 是 WinUI 的重現 app：若靜默切換，它們將什麼也重現不了。
 # WinUIBackend 維持為 baseline。
 #
-# DefaultBackend 本來就把 Gtk 排在 WinUI 之前，因此本旗標並非直接選擇 backend——它讓
-# GtkBackend 在 Windows 上成為可 import，其餘交由既有的優先順序決定。
+# 並不存在可供依賴的優先順序。本註解的舊版本宣稱 DefaultBackend 本來就把 Gtk 排在 WinUI
+# 之前、而本旗標只是讓 GtkBackend 可被 import；那是錯的，且正是這個誤信讓該旗標連續兩次
+# 完整建置都未生效。Package.swift 是依平台寫死單一 backend——Windows 為 WinUIBackend、
+# Linux 為 GtkBackend——因此旗標必須自行完成選擇，那正是下方 SCUI_DEFAULT_BACKEND 的用途。
 force_gtk4=0
 
 # -ios switches to an iOS Simulator build. It cannot go through `swift build`:
@@ -187,8 +192,52 @@ sources_root="$package_dir/Sources"
 
 windows_gtk_product=""
 gtk_build_flags=()
+
+# The WinUI products a test app depends on directly, dropped entirely under
+# -gtk4. Redirecting DefaultBackend is not enough on its own: the app names
+# these four in its own dependency list, so they are pulled in regardless of
+# what DefaultBackend resolves to. Measured -- with SCUI_DEFAULT_BACKEND set
+# and these still listed, the app ran on GtkBackend while the build compiled 73
+# WinUI steps and produced a 342 MB binary, so the flag delivered the backend
+# switch without either of the savings that motivated it.
+# 測試 app 直接依賴的 WinUI product，於 -gtk4 時整組移除。單靠改變 DefaultBackend 的解析
+# 並不足夠：app 在自己的依賴清單中點名了這四個，因此無論 DefaultBackend 解析到誰，它們都
+# 會被帶入。實測顯示：已設定 SCUI_DEFAULT_BACKEND 但仍列出這四項時，app 確實跑在
+# GtkBackend 上，但建置仍編譯了 73 個 WinUI 步驟並產生 342 MB 的執行檔——該旗標達成了
+# backend 切換，卻沒有帶來當初採用它的兩項效益中的任何一項。
+windows_winui_products='.product(name: "WinUIBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
+    .product(name: "WinUI", package: "swift-winui", condition: .when(platforms: [.windows])),
+    .product(name: "UWP", package: "swift-winui", condition: .when(platforms: [.windows])),
+    .product(name: "WindowsFoundation", package: "swift-winui", condition: .when(platforms: [.windows])),'
+
+# Dropped as well under -gtk4, not just its products. A package dependency with
+# nothing depending on it is still resolved and fetched.
+# -gtk4 時連同套件依賴一起移除，而不只是它的 product。無人依賴的套件依賴仍會被解析與取回。
+winui_package='.package(
+            url: "https://github.com/moreSwift/swift-winui",
+            .upToNextMinor(from: "0.2.1")
+        ),'
+
 if [ "$force_gtk4" -eq 1 ]; then
     windows_gtk_product='.product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),'
+    windows_winui_products=""
+    winui_package=""
+
+    # This is what actually redirects the backend. Adding GtkBackend as a product
+    # above only makes it available to link; it does not change what
+    # `import DefaultBackend` resolves to, which Package.swift hard-codes per
+    # platform (WinUIBackend on Windows, GtkBackend on Linux). Without this
+    # export, -gtk4 on Windows linked *both* backends and the app still ran on
+    # WinUI -- so the flag made the build slower rather than faster, and it died
+    # emitting the WindowsFoundation module, a target the flag exists to avoid.
+    # SCUI_DEFAULT_BACKEND is the hook Package.swift already provides for this.
+    # 真正切換 backend 的是這一行。上方將 GtkBackend 加為 product 只是讓它可供連結，並不會
+    # 改變 `import DefaultBackend` 解析到哪個 backend——那在 Package.swift 中依平台寫死
+    # （Windows 為 WinUIBackend、Linux 為 GtkBackend）。少了這個 export，Windows 上的
+    # -gtk4 會同時連結*兩個* backend，而 app 仍然跑在 WinUI 上——因此該旗標讓建置變慢而非
+    # 變快，並且會在產生 WindowsFoundation 模組時失敗，而那正是此旗標意在避開的 target。
+    # SCUI_DEFAULT_BACKEND 是 Package.swift 既有的鉤子。
+    export SCUI_DEFAULT_BACKEND=GtkBackend
 
     if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
         gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
@@ -235,6 +284,25 @@ compile_app() {
 
     if [ ! -f "$source_path" ]; then
         echo "Missing source file: $source_path" >&2
+        exit 1
+    fi
+
+    # Refused up front rather than left to fail at compile time. -gtk4 removes the
+    # WinUI products, so an app importing them cannot build under it; without this
+    # the failure arrives as `no such module 'UWP'` well into a build that costs
+    # about thirteen minutes on this machine. P6 is the only such app today, and
+    # it is Windows-specific by construction -- SwapChainPanel and a D3D11
+    # composition swap chain have no GtkBackend equivalent, so this is a real
+    # exclusion rather than a gap to close.
+    # 提前拒絕，而非留到編譯時才失敗。-gtk4 會移除 WinUI 的 product，因此 import 它們的 app
+    # 無法在該模式下建置；少了這道檢查，錯誤會以 `no such module 'UWP'` 的形式出現在一次
+    # 於本機約需十三分鐘的建置中途。目前只有 P6 屬於此類，而它在設計上即為 Windows 專屬——
+    # SwapChainPanel 與 D3D11 composition swap chain 在 GtkBackend 中沒有對應物，因此這是
+    # 一項真實的排除，而非有待補上的缺口。
+    if [ "$force_gtk4" -eq 1 ] \
+        && grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path"; then
+        printf '%s needs the WinUI products, which -gtk4 removes.\n' "$app_file" >&2
+        printf 'Build it without -gtk4.\n' >&2
         exit 1
     fi
 
@@ -340,7 +408,7 @@ let testAppDependencies: [Target.Dependency] = [
     .product(name: "SwiftCrossUI", package: "swift-cross-ui"),
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
     .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
-    .product(name: "WinUIBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
+    $windows_winui_products
     $windows_gtk_product
     // Gtk, not GtkBackend: what a test app needs on Linux is the window type
     // itself, to cast the backend's window out of the environment. DefaultBackend
@@ -351,9 +419,6 @@ let testAppDependencies: [Target.Dependency] = [
     // 轉型必須指名 Gtk.ApplicationWindow，因此需要直接 import 此模組。
     .product(name: "Gtk", package: "swift-cross-ui", condition: .when(platforms: [.linux])),
     $image_formats_product
-    .product(name: "WinUI", package: "swift-winui", condition: .when(platforms: [.windows])),
-    .product(name: "UWP", package: "swift-winui", condition: .when(platforms: [.windows])),
-    .product(name: "WindowsFoundation", package: "swift-winui", condition: .when(platforms: [.windows])),
 ]
 
 let package = Package(
@@ -362,10 +427,7 @@ let package = Package(
     dependencies: [
         .package(path: "$repo_root"),
         $image_formats_package
-        .package(
-            url: "https://github.com/moreSwift/swift-winui",
-            .upToNextMinor(from: "0.2.1")
-        ),
+        $winui_package
     ],
     targets: [$targets
     ]

@@ -1,10 +1,133 @@
 # Windows: GtkBackend alongside WinUIBackend
 
-Evaluating GtkBackend as the Windows default, with WinUIBackend kept as the
-baseline. Nothing is removed by this plan.
+GtkBackend is the Windows target; WinUIBackend is frozen as the baseline.
+Nothing is removed by this plan.
 
-在 Windows 上評估以 GtkBackend 作為預設，並保留 WinUIBackend 作為 baseline。本計畫
-不移除任何既有實作。
+在 Windows 上以 GtkBackend 為目標，WinUIBackend 凍結為 baseline。本計畫不移除任何
+既有實作。
+
+## Decision: WinUIBackend is frozen, GtkBackend is the target
+
+Taken 2026-08-19. This supersedes the "evaluating" framing this document opened
+with; the evaluation is over.
+
+**Frozen means:** no new Pn apps target WinUIBackend, no further measurement
+runs against it, and no build waits on it. The 20 existing `.exe` files stay as
+the comparison set, which is what "keep the Windows backend as baseline" asked
+for. The backend source is untouched and still builds.
+
+**What decided it** — compile time was the original complaint; binary size is
+the evidence added on the day of the decision:
+
+| | Binary | Incremental build |
+|---|---|---|
+| GTK, Linux release | **51 MB** | **14s** |
+| WinUI, Windows release | 167 MB (3.3x) | — |
+| WinUI, Windows debug | 332 MB (6.5x) | 38s (2.7x) |
+
+Size is the more honest of the two numbers. The 2.7x on incremental builds is
+real but survivable; a binary that is 3.3x larger in release and 6.5x in debug
+is WinAppSDK's static content, and no build-configuration change reaches it.
+
+**The blocker this decision does not remove.** GtkBackend's *library* compiles
+on Windows, but no `Pn.exe` has ever linked against it and the `-gtk4` work
+directory has produced zero binaries. Until that link succeeds, every runnable
+Windows binary is a WinUI one. So the freeze is a decision about where new work
+goes, not a claim that the replacement is ready. Do not delete or break
+WinUIBackend on the strength of this section.
+
+Two causes have been found and fixed so far, both of which wasted a full build
+each before announcing themselves:
+
+1. `missing required modules: 'CGtk', 'GtkCHelpers'` — SwiftPM resolves the
+   `CGtk` systemLibrary itself and needs `PKG_CONFIG_PATH` to find `gtk4.pc`.
+   The `-Xcc` include flags are a separate mechanism and do not cover it. Fixed
+   by exporting the variable in `compile.zsh`.
+2. `-gtk4` did not change the backend at all. It added GtkBackend as a linkable
+   product, but `import DefaultBackend` resolves through a hard-coded
+   per-platform list in `Package.swift` (WinUIBackend on Windows). The flag
+   therefore linked *both* backends, ran on WinUI, built *more* than the default
+   rather than less, and died emitting `WindowsFoundation` — a target the flag
+   exists to avoid. Fixed by exporting `SCUI_DEFAULT_BACKEND=GtkBackend`, the
+   hook `Package.swift` already provides.
+
+The second one is worth remembering as a shape: a flag that appears to work
+because the build changes, while the thing it was meant to select never
+changed.
+
+**Result, measured on P0 the same day.** Redirecting `DefaultBackend` was not
+enough on its own: the app still named `WinUIBackend`, `WinUI`, `UWP` and
+`WindowsFoundation` in its own dependency list, so WinUI was pulled in
+regardless. Dropping those four products, and the `swift-winui` package
+dependency with them:
+
+| | with WinUI | GTK only | |
+|---|---|---|---|
+| build | 788s | **115s** | 6.9x |
+| binary | 342 MB | **73 MB** | 4.7x |
+| WinUI compile steps | 73 | **0** | — |
+
+For scale, the Linux release binary is 51 MB, so Windows debug at 73 MB is 1.4x
+rather than the 6.5x it was.
+
+The backend switch and the savings are separate achievements, and the first
+happened a build before the second. An `-gtk4` run that reports
+`backend GtkBackend` proves only the first.
+
+**結果，同日於 P0 上實測。** 單靠改變 `DefaultBackend` 的解析並不足夠：app 在自己的依賴清單中
+仍點名了 `WinUIBackend`、`WinUI`、`UWP` 與 `WindowsFoundation`，因此 WinUI 照樣被帶入。移除
+這四個 product，以及連同的 `swift-winui` 套件依賴之後，結果如上表。
+
+作為對照，Linux 的 release 執行檔為 51 MB，因此 Windows debug 的 73 MB 是 1.4 倍，而非先前的
+6.5 倍。
+
+「切換 backend」與「取得效益」是兩項各自獨立的成果，而前者比後者早了一次建置達成。一次回報
+`backend GtkBackend` 的 `-gtk4` 執行，只證明了前者。
+
+目前已找到並修正兩項成因，且兩者都各浪費了一次完整建置才顯現：
+
+1. `missing required modules: 'CGtk', 'GtkCHelpers'`——SwiftPM 會自行解析 `CGtk` 這個
+   systemLibrary，需要 `PKG_CONFIG_PATH` 才能找到 `gtk4.pc`。`-Xcc` 的 include 旗標是
+   另一套機制，並不涵蓋此需求。已於 `compile.zsh` 中 export 該變數修正。
+2. `-gtk4` 根本沒有切換 backend。它只是把 GtkBackend 加為可連結的 product，但
+   `import DefaultBackend` 是透過 `Package.swift` 中依平台寫死的清單解析（Windows 為
+   WinUIBackend）。因此該旗標同時連結了*兩個* backend、實際跑在 WinUI 上、建置的東西比
+   預設*更多*而非更少，並在產生 `WindowsFoundation` 時失敗——而那正是此旗標意在避開的
+   target。已透過 export `SCUI_DEFAULT_BACKEND=GtkBackend` 修正，那是 `Package.swift`
+   既有的鉤子。
+
+第二項的形態值得記住：一個旗標因為建置行為確實改變了而看似生效，但它原本要選擇的東西
+從未改變。
+
+**Why GTK4 is not a submodule.** Windows gets GTK4 from
+`testapp/install_gtk4_windows.zsh`, which downloads a gvsbuild release zip and
+patches its `.pc` files. gvsbuild is a build system of Python recipes, not a
+binary distribution, so a submodule would pull in recipes and still require a
+local multi-hour MSVC build; the release artefacts are what is actually wanted.
+GTK4 upstream has the same problem. The pinning that a submodule would give is
+instead the version string in that script.
+
+2026-08-19 決定。本節取代文件開頭的「評估中」框架；評估已結束。
+
+**凍結的意思**：不再有新的 Pn app 以 WinUIBackend 為目標、不再對其進行量測、建置流程也
+不再等待它。既有的 20 支 `.exe` 保留作為對照組，這正是「保留 Windows backend 作為
+baseline」所要求的。該 backend 的原始碼不動，且仍可建置。
+
+**決定的依據**：編譯時間是最初的抱怨，而檔案大小是決定當日新增的證據（如上表）。大小是
+兩者中較誠實的數字。增量建置的 2.7 倍雖屬實但尚可忍受；release 下大 3.3 倍、debug 下大
+6.5 倍的執行檔則是 WinAppSDK 的靜態內容，任何建置組態的調整都碰不到它。
+
+**本決定並未解除的阻擋點**：GtkBackend 的*函式庫*可在 Windows 編譯，但從未有任何
+`Pn.exe` 成功連結它——最後一次嘗試以 `missing required modules: 'CGtk', 'GtkCHelpers'`
+失敗，且 `-gtk4` 的工作目錄至今產出零個執行檔。在該連結成功之前，Windows 上每一支可執行
+的二進位檔都仍是 WinUI 產物。因此本次凍結是關於「新工作往哪裡去」的決定，而非宣稱替代方案
+已就緒。請勿以本節為由刪除或破壞 WinUIBackend。
+
+**為何 GTK4 不做成 submodule**：Windows 端的 GTK4 來自
+`testapp/install_gtk4_windows.zsh`，它下載 gvsbuild 的 release zip 並修補其 `.pc` 檔。
+gvsbuild 是一套由 Python recipes 構成的建置系統，而非二進位發行版；做成 submodule 只會
+取得那些 recipes，仍須在本機執行數小時的 MSVC 建置，而我們真正需要的是它的 release
+產物。GTK4 上游也有相同問題。submodule 所能提供的版本鎖定，改由該腳本中的版本字串負責。
 
 ## Why
 
@@ -115,28 +238,73 @@ MinGW 建置，import library 無法乾淨連結進 MSVC 二進位檔，因此�
 
 ## What switching costs
 
-`DefaultBackend` already prefers Gtk over WinUI:
+**Corrected 2026-08-20.** This section used to say `DefaultBackend` already
+prefers Gtk over WinUI, quoting a `canImport` chain, and concluded that
+installing GTK 4 on Windows switches the default with no source change — calling
+the silent switch the main risk.
+
+That is not what happens. The `canImport` chain governs which backends are
+*importable*; which one `DefaultBackend` resolves to comes from
+`Package.swift`, which hard-codes it per platform:
 
 ```swift
-#if canImport(AppKitBackend)      → AppKitBackend
-#elseif canImport(GtkBackend)     → GtkBackend
-#elseif canImport(WinUIBackend)   → WinUIBackend
+.target(name: "WinUIBackend", condition: .when(platforms: [.windows])),
+.target(name: "GtkBackend",   condition: .when(platforms: [.linux])),
 ```
 
-So installing GTK 4 on Windows switches the default with no source change. That
-is convenient and also the risk: it switches silently.
+There is no preference order to inherit. Installing GTK 4 changes nothing by
+itself; `compile.zsh -gtk4` does the switching, by exporting
+`SCUI_DEFAULT_BACKEND=GtkBackend` and dropping the WinUI products from the
+generated manifest.
 
-P6 carries 35 `#if os(Windows)` blocks that assume WinUIBackend — the D3D11
+The risk is therefore the opposite of what was written. Nothing switches
+silently — the failure mode is a flag that appears to work while the backend
+never changes, which is what happened twice before it was caught.
+
+**2026-08-20 更正。** 本節原本寫著 `DefaultBackend` 本來就把 Gtk 排在 WinUI 之前，並引用一段
+`canImport` 鏈，據此推論在 Windows 安裝 GTK 4 即可在不改動原始碼的情況下切換預設，還把
+「靜默切換」列為主要風險。
+
+實際情況並非如此。`canImport` 鏈決定的是哪些 backend「可被 import」；`DefaultBackend` 實際
+解析到哪一個，取決於 `Package.swift`，而它是依平台寫死的（如上）。
+
+並不存在可繼承的優先順序。單獨安裝 GTK 4 不會改變任何事；真正完成切換的是
+`compile.zsh -gtk4`——它 export `SCUI_DEFAULT_BACKEND=GtkBackend`，並從產生的 manifest 中
+移除 WinUI 的 product。
+
+因此風險與原文所寫的正好相反。沒有任何東西會靜默切換——真正的失敗模式是「旗標看似生效，
+backend 卻從未改變」，而這在被發現之前已經發生過兩次。
+
+P6 carries 38 `#if os(Windows)` blocks that assume WinUIBackend — the D3D11
 video interop, the SwapChainPanel, the NV12 presentation path. Those are
-compiled on `os(Windows)`, not on which backend is active, so after the switch
-they would still compile while the backend underneath them changed. This is the
-part of the plan most likely to produce a confusing failure.
+compiled on `os(Windows)`, not on which backend is active, so under `-gtk4` they
+would still compile while the backend underneath them changed.
 
-`DefaultBackend` 本來就把 Gtk 排在 WinUI 之前，因此在 Windows 安裝 GTK 4 即可切換預設，
-無需改動原始碼。方便，同時也是風險——它是靜默切換的。P6 有 35 個 `#if os(Windows)`
-區塊假設 WinUIBackend（D3D11 video interop、SwapChainPanel、NV12 呈現路徑）。這些以
-`os(Windows)` 為條件，而非以「哪個 backend 生效」為條件，因此切換後它們仍會被編譯，
-底下的 backend 卻已改變。這是本計畫最可能產生費解失敗的地方。
+This was the part expected to produce a confusing failure, and it is now closed
+rather than open. `-gtk4` removes the WinUI products, so P6 cannot link at all,
+and `compile.zsh` refuses it up front with a stated reason instead of failing
+thirteen minutes into a build with `no such module 'UWP'`. The exclusion is
+permanent, not a gap: a SwapChainPanel and a D3D11 composition swap chain have
+no GtkBackend equivalent.
+
+P6's GTK counterpart is **P6-v2**, written fresh rather than copied. It keeps
+P6's measurement vocabulary — the same 1x/2x/3x speeds, 30/45/60 frame rates,
+resolutions and dropped-frame accounting — so the two produce comparable
+numbers, and drops the D3D11 apparatus, the macOS Metal and CoreVideo paths and
+the stream fetching, which is roughly 2700 of P6's 3990 lines.
+
+P6 有 38 個 `#if os(Windows)` 區塊假設 WinUIBackend（D3D11 video interop、SwapChainPanel、
+NV12 呈現路徑）。這些以 `os(Windows)` 為條件，而非以「哪個 backend 生效」為條件，因此在
+`-gtk4` 下它們仍會被編譯，底下的 backend 卻已改變。
+
+這原本被列為最可能產生費解失敗之處，現在則已關閉而非仍然開放。`-gtk4` 會移除 WinUI 的
+product，因此 P6 根本無法連結，而 `compile.zsh` 會在一開始就以明確理由拒絕它，而不是在建置
+進行十三分鐘後才以 `no such module 'UWP'` 失敗。此項排除是永久性的，而非缺口：
+SwapChainPanel 與 D3D11 composition swap chain 在 GtkBackend 中沒有對應物。
+
+P6 的 GTK 對應版本是 **P6-v2**，採全新撰寫而非複製。它保留 P6 的量測語彙——相同的 1x/2x/3x
+速度、30/45/60 幀率、解析度與掉幀計算方式——使兩者產生可比較的數字；並捨棄 D3D11 設施、
+macOS 的 Metal 與 CoreVideo 路徑，以及串流取得，這些約佔 P6 3990 行中的 2700 行。
 
 ## Steps
 

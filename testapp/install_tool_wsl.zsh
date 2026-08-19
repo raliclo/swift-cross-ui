@@ -440,4 +440,51 @@ else
     printf '  anything measuring GPU presentation does not.\n' >&2
 fi
 
+# Native Windows, for contrast, because the comparison inverts what this project
+# assumed. WSL is the side without a GPU: no render node, so GTK is on llvmpipe.
+# GTK built for Windows gets a real GPU, measured 2026-08-20 with
+# `GDK_DEBUG=opengl P0.exe`: OpenGL 4.6 core over native WGL.
+#
+# Which GPU it gets is a Windows setting, not a GTK one. On a hybrid-graphics
+# laptop an app with no recorded preference is given the integrated GPU, and
+# nothing announces this -- the first measurement here reported
+# `AMD Radeon(TM) Graphics`, the Ryzen APU, on a machine whose discrete GPU is an
+# RTX 4060. The name has no model number, which is the only hint that it is the
+# integrated one.
+#
+#   HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences
+#     <full path to the .exe>  REG_SZ  GpuPreference=1;   power saving  / integrated
+#     <full path to the .exe>  REG_SZ  GpuPreference=2;   high performance / discrete
+#
+# Setting 2 for P0.exe switched the reported renderer to
+# `NVIDIA GeForce RTX 4060 Laptop GPU/PCIe/SSE2`. The alternative is exporting
+# NvOptimusEnablement from the executable, which needs a C shim; the registry
+# route needs no code.
+#
+# The entry is keyed by full executable path, so every Pn.exe needs its own. That
+# is the part worth remembering: without it a comparison silently runs two
+# binaries on two different GPUs and the numbers look reasonable either way.
+#
+# There is no WSL equivalent to set here. Adapter choice inside WSL goes through
+# MESA_D3D12_DEFAULT_ADAPTER_NAME, and it is moot while the render node is
+# missing -- there is no GPU path to choose between.
+#
+# 原生 Windows 的對照，因為這項比較推翻了本專案原先的假設。沒有 GPU 的那一側是 WSL：缺少
+# render node，因此 GTK 跑在 llvmpipe 上。為 Windows 建置的 GTK 則取得真正的 GPU，
+# 2026-08-20 以 `GDK_DEBUG=opengl P0.exe` 實測：經原生 WGL 的 OpenGL 4.6 core。
+#
+# 取得哪一顆 GPU 是 Windows 的設定，而非 GTK 的設定。在混合顯示卡筆電上，未登記偏好的程式
+# 會被指派內顯，且沒有任何提示——此處第一次量測回報 `AMD Radeon(TM) Graphics`，即 Ryzen
+# APU，而該機器的獨顯是 RTX 4060。該名稱不含型號，是判斷它為內顯的唯一線索。
+#
+# 將 P0.exe 設為 2 之後，回報的 renderer 變為
+# `NVIDIA GeForce RTX 4060 Laptop GPU/PCIe/SSE2`。另一種做法是從執行檔匯出
+# NvOptimusEnablement，但那需要 C shim；註冊表這條路則完全不需改動程式碼。
+#
+# 該設定以執行檔完整路徑為鍵，因此每支 Pn.exe 都需各自登記。這正是最值得記住的一點：少了它，
+# 一次比較會在兩顆不同的 GPU 上靜默執行兩個二進位檔，而兩邊的數字看起來都很合理。
+#
+# 此處沒有對應的 WSL 設定可加。WSL 內部的介面卡選擇透過 MESA_D3D12_DEFAULT_ADAPTER_NAME，
+# 而在 render node 缺失的情況下這一點沒有意義——根本不存在可供選擇的 GPU 路徑。
+
 section "Done. Open a new shell, or run: export PATH=\"$SWIFT_PREFIX/usr/bin:\$PATH\""

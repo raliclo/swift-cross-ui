@@ -24,14 +24,46 @@
 # GTK 4，這就是本腳本從該處取得套件、而非使用套件管理員的原因。
 #
 # Why this matters here: building the WinUI backend pulls in WinAppSDK, which
-# dominates compile time. Measured on this machine, P6 takes 95-103s to build on
-# Windows against WinUIBackend and 13-22s in WSL against GtkBackend. With GTK 4
-# present, `canImport(GtkBackend)` succeeds and DefaultBackend already prefers
-# it over WinUIBackend, so no source change is needed to switch.
-# 為何在此專案重要：建置 WinUI backend 會帶入 WinAppSDK，而它主導了編譯時間。本機實測：
-# P6 在 Windows 上以 WinUIBackend 建置需 95-103 秒，在 WSL 上以 GtkBackend 建置僅需
-# 13-22 秒。裝好 GTK 4 之後 `canImport(GtkBackend)` 即成立，而 DefaultBackend 本來就
-# 把它排在 WinUIBackend 之前，因此無需改動任何原始碼即可切換。
+# dominates both compile time and binary size. Measured on 2026-08-20, building
+# P0 on Windows with and without the WinUI products:
+#
+#            with WinUI    GTK only
+#   build        788s        115s
+#   binary      342 MB       73 MB
+#
+# Two earlier claims in this comment were wrong and are corrected rather than
+# deleted, because both were cited to justify work:
+#
+#   "P6 takes 95-103s on Windows against WinUIBackend and 13-22s in WSL against
+#   GtkBackend" confounded operating system, backend, and whether the build was
+#   incremental, so it supported no conclusion about any of them. Like for like,
+#   the incremental gap is about 2.7x.
+#
+#   "DefaultBackend already prefers GtkBackend over WinUIBackend, so no source
+#   change is needed to switch" is false. Package.swift hard-codes one backend
+#   per platform and there is no preference order. Installing GTK 4 changes
+#   nothing on its own; `compile.zsh -gtk4` does the switching, by exporting
+#   SCUI_DEFAULT_BACKEND and by dropping the WinUI products from the generated
+#   manifest. Believing this sentence cost two complete Windows builds.
+#
+# 為何在此專案重要：建置 WinUI backend 會帶入 WinAppSDK，而它同時主導了編譯時間與執行檔
+# 大小。2026-08-20 實測，在含與不含 WinUI product 的情況下建置 P0：
+#
+#              含 WinUI    僅 GTK
+#   建置          788 秒     115 秒
+#   執行檔       342 MB      73 MB
+#
+# 本註解先前有兩項錯誤陳述，此處選擇更正而非刪除，因為兩者都曾被引用來支持相關工作：
+#
+#   「P6 在 Windows 上以 WinUIBackend 需 95-103 秒，在 WSL 上以 GtkBackend 僅需 13-22 秒」
+#   同時混淆了作業系統、backend，以及該次是否為增量建置，因此無法支持關於其中任一項的結論。
+#   在條件對等的比較下，增量建置的差距約為 2.7 倍。
+#
+#   「DefaultBackend 本來就把 GtkBackend 排在 WinUIBackend 之前，因此無需改動原始碼即可
+#   切換」是錯的。Package.swift 依平台寫死單一 backend，並不存在任何優先順序。單獨安裝
+#   GTK 4 不會改變任何事；真正完成切換的是 `compile.zsh -gtk4`——它會 export
+#   SCUI_DEFAULT_BACKEND，並從產生的 manifest 中移除 WinUI 的 product。誤信這句話的代價
+#   是兩次完整的 Windows 建置。
 
 set -euo pipefail
 

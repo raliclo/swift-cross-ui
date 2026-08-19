@@ -972,6 +972,158 @@ Test steps:
    screen edge.
 8. Repeat under the other backend.
 
+## P6-v2: Video Playback on GtkBackend (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P6-v2 -i <file> -autoplay              # GtkBackend, in WSL
+./testapp/output/P6-v2.exe -i <file> -autoplay          # GtkBackend, on Windows
+```
+
+Build it with `-gtk4`. P6 is **not** the comparison target on Windows in the
+usual sense: P6 is the WinUI/D3D11 implementation and `compile.zsh -gtk4`
+refuses to build it, because a SwapChainPanel and a D3D11 composition swap chain
+have no GtkBackend equivalent. P6-v2 is the GTK answer to the same question,
+written fresh, keeping P6's measurement vocabulary so the numbers line up.
+
+Flags that matter:
+
+| flag | effect |
+|---|---|
+| `-cpu` | force software decode |
+| `-gpu` | force hardware decode; refuses to start if none is available |
+| (default) | try hardware, fall back to software, and say which ran |
+| `-mute` | no ffplay; use this for measurement runs |
+| `-seconds N` | exit after N seconds and print the summary |
+| `-speed` `-fps` `-res` | preset the pickers so a run needs no clicking |
+
+Test steps:
+
+1. Launch with `-autoplay -seconds 20 --debug` and confirm the window renders.
+   On Windows the window does not respond to AppActivate, so capture it with
+   `zsh testapp/screenshot.zsh -w "P6-v2 GTK playback" <label>`, which reads the
+   window directly rather than the desktop.
+2. Read the status line. It states the decode path and the presentation path
+   separately -- `decode d3d11va, present memory-texture (CPU)`. Presentation is
+   the CPU path in every mode today; the flag switches decode only.
+3. Confirm audio. It is a separate ffplay process, so sync is not enforced: at
+   1x it tracks well enough to watch, at 3x it drifts. That is expected.
+4. Run `-cpu` and `-gpu` back to back at the same speed, fps and resolution, and
+   compare the summary lines. On this machine they came out within noise of each
+   other, because the bottleneck is the RGBA pipe read, not decode.
+5. Push the speed to `3x` and watch `dropped/sec`. Dropping only happens when
+   frames arrive faster than they can be shown; a decoder that is simply slower
+   than the target presents everything and reports a lower fps instead.
+6. Repeat on the other platform and compare. WSL has no GPU path at all -- no
+   render node, so GTK is on llvmpipe -- so a Windows-against-WSL comparison here
+   measures two different rendering stacks, not two operating systems.
+
+## P21: Input Controls (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P21          # GtkBackend, in WSL
+./testapp/output/P21.exe      # WinUIBackend, on Windows
+```
+
+The widest uncovered surface. ToggleSwitch, ToggleButton and Checkbox appear in
+no other test app. Every control appears twice, enabled and disabled.
+
+Test steps:
+
+1. Press `Enabled` under Button and confirm `clicks` rises.
+2. Press `Disabled` and confirm `clicks` does **not** rise. A disabled control
+   that still accepts input is the finding here, and it looks correct in a
+   screenshot.
+3. Work down each toggle style -- plain, `.switch`, `.button`, `.checkbox` --
+   operating the enabled one and confirming the disabled one refuses.
+4. Compare how each backend renders the disabled state: greyed label, dimmed
+   widget, or no change at all.
+5. Drag both sliders; the disabled one must not move.
+6. Type into `TextField`, `SecureField` and `TextEditor`, then try their
+   disabled counterparts.
+7. Confirm `ContentUnavailableView` shows both its title and description.
+8. Repeat under the other backend.
+
+## P22: Text Styles (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P22 --debug          # GtkBackend, in WSL
+./testapp/output/P22.exe --debug      # WinUIBackend, on Windows
+```
+
+Worth doing early, because font metrics are the measuring stick for every other
+layout comparison. A backend whose text is systematically wider will produce
+different results in P17's sizing checks and P7's split ratios, and without this
+app that difference gets attributed to the layout code instead of the font.
+
+Test steps:
+
+1. Run with `--debug` and collect the reported sizes for each of the eight
+   samples. These are numbers, not impressions of a screenshot.
+2. Compare the two backends sample by sample. A consistent ratio across all
+   eight is a font difference; a difference at one size only is a layout bug.
+3. Press `Narrower` and `Wider` and record where the wrap lands at each width.
+4. Check the three alignment rows inside their fixed 320pt frames.
+5. Repeat under the other backend.
+
+## P23: Tables (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P23 --debug          # GtkBackend, in WSL
+./testapp/output/P23.exe --debug      # WinUIBackend, on Windows
+```
+
+Column width is the interesting part. Nothing in the API states a width, so each
+backend picks: from the header, from the widest cell, from the first screenful,
+or by dividing the available space. Column 2 is deliberately wider than its
+header and column 3 narrower, so which rule is in use is visible at a glance.
+
+Test steps:
+
+1. Note where each column boundary lands, and which of the four rules that
+   implies.
+2. Look at row 3, whose cell is far longer than any header. Record whether it
+   widens its column or is truncated.
+3. Press `More rows` past the window height and confirm whether the table
+   scrolls or clips.
+4. Press `Fewer rows` and confirm the layout recovers rather than leaving a gap.
+5. Repeat under the other backend.
+
+## P24: Navigation Stack (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P24 --debug          # GtkBackend, in WSL
+./testapp/output/P24.exe --debug      # WinUIBackend, on Windows
+```
+
+`NavigationStack` and `NavigationLink` appear in no other test app. This gap was
+once dismissed on the grounds that P7 and P16 cover navigation, which was wrong:
+those exercise `NavigationSplitView`, a different type with a different layout
+model. A sidebar-and-detail split is not a push-and-pop stack.
+
+What a stack has that a split view does not is history.
+
+Test steps:
+
+1. Push three levels with `Push level N` and confirm each screen appears.
+2. Go back through them and confirm they return in order.
+3. At each level press `Record a push` and compare `pushes recorded` against the
+   level shown. The counter lives outside the stack on purpose: if the screen
+   says level 2 while the counter says 3, that disagreement is the finding.
+4. Press `Increment counter` at depth, then go back, and confirm the path
+   survived the state change.
+5. Press `Pop to root` and confirm both the screen and the counter reset.
+6. Repeat under the other backend.
+
 ## Test Record Template
 
 Use this format after each test run:
