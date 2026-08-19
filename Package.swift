@@ -267,7 +267,17 @@ let package = Package(
         // or impossible to recreate in Swift
         .target(
             name: "GtkCHelpers",
-            dependencies: ["CGtk"]
+            dependencies: ["CGtk"],
+            // libepoxy, for the NV12 shader in gtk_nv12_gl.c. Not a new
+            // dependency: GTK 4 already links it for its own renderer, so it is
+            // present wherever GTK is. It is named explicitly because gtk4.pc
+            // lists it as a private requirement, which pkg-config does not put
+            // into --libs for a dynamically linked consumer.
+            // libepoxy，供 gtk_nv12_gl.c 中的 NV12 shader 使用。這並非新的依賴：GTK 4 本身
+            // 就為其算繪器連結它，因此凡有 GTK 之處必有它。此處明確指名，是因為 gtk4.pc 將
+            // 它列為 private requirement，而 pkg-config 不會把這類項目放進動態連結消費者的
+            // --libs 中。
+            linkerSettings: [.linkedLibrary("epoxy")]
         ),
         .executableTarget(
             name: "GtkCodeGen",

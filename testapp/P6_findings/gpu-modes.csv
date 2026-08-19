@@ -42,3 +42,4 @@ date_tested,mode,resolution,target_fps,measured_fps,frames_dropped_per_sec,read_
 2026-08-20,gtk-cpu,1080p,60,43.5,0,19.49,,10,"P6-v2 on GtkBackend Windows -cpu: -hide_banner -loglevel error -i <webm> -an -sn -dn -vf scale=1920:1080,fps=60 -pix_fmt rgba -f rawvideo pipe:1"
 2026-08-20,gtk-d3d11va,1080p,60,42.3,0,19.87,,10,"P6-v2 on GtkBackend Windows auto -> d3d11va: same args with -hwaccel d3d11va before -i. Within noise of gtk-cpu -- the RGBA pipe read is the ceiling, not decode"
 2026-08-20,gtk-d3d11va,1080p,60,23.1,0,32.41,,60,"P6-v2 60s run. fps falls with sample length as read_avg_ms rises 19->32; present is memory-texture (CPU) in every mode, no GPU presentation path exists yet"
+2026-08-20,gtk-nv12-gl,1080p,60,51.9,0,8.55,,20,P6-v2 NV12 to two GL textures with a fragment shader in Gtk.NV12GLView; decode d3d11va. Peaks at 61fps. Read time fell 19-32ms to 8.55 because the pipe carries 12 bits per pixel instead of 32

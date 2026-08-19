@@ -1,5 +1,7 @@
 import DefaultBackend
 import Foundation
+import Gtk
+import GtkBackend
 import ImageFormats
 import SwiftCrossUI
 
@@ -19,9 +21,12 @@ import SwiftCrossUI
 // accounting. A comparison against differently-defined numbers is not a
 // comparison.
 //
-// What it deliberately drops is audio. Audio is orthogonal to which backend
-// draws the frames, and SDL would be a large dependency for something that
-// cannot differentiate the two.
+// Audio is a separate ffplay process, the arrangement P6 uses. Not decoded in
+// process: it says nothing about which backend draws faster, so an SDL
+// dependency and a second buffering model would buy no signal. The cost is that
+// sync is not enforced -- fine at 1x, visibly adrift at 3x -- and `-mute` turns
+// it off for measurement runs, where a second process reading the same file
+// competes for the disk.
 //
 // P6-v2 於 GtkBackend 上的影片播放，用於與 WinUIBackend 上的 P6 對照。
 //
@@ -35,18 +40,35 @@ import SwiftCrossUI
 // 30/45/60 幀率、相同的解析度，以及相同的掉幀計算方式。以定義不同的數字進行比較，並不算
 // 比較。
 //
-// 刻意捨棄的是音訊。音訊與「由哪個 backend 繪製畫面」無關，而 SDL 對於一個無法區分兩者的
-// 目的而言是過大的依賴。
+// 音訊採用獨立的 ffplay 行程，與 P6 的做法相同。不在行程內解碼：它無法說明哪個 backend 繪製
+// 較快，因此一個 SDL 依賴加上第二套緩衝模型換不到任何訊號。代價是不保證同步——1x 時無妨，
+// 3x 時會明顯飄移——而 `-mute` 可在量測執行中關閉它，因為第二個讀取同一檔案的行程會與之
+// 爭搶磁碟。
 //
-// Whether GTK itself renders on the GPU is not measured in here, because the app
-// cannot see it. Ask GTK directly instead:
+// Which GPU GTK draws on is not measured in here, because the app cannot see it.
+// Ask GTK directly:
 //     GDK_DEBUG=opengl ./P6-v2.exe
-// which on this machine reports `Renderer: AMD Radeon(TM) Graphics`, OpenGL 4.6
-// core over native WGL. A software fallback would name llvmpipe or similar.
-// GTK 本身是否以 GPU 繪製並未在此量測，因為 app 看不到這項資訊。請直接詢問 GTK：
+// A software fallback names llvmpipe or similar.
+//
+// On a hybrid-graphics laptop the answer also depends on a Windows setting the
+// app has no part in. With no entry under
+// HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences an executable is given the
+// integrated GPU, and this reported `AMD Radeon(TM) Graphics` -- the Ryzen APU,
+// identifiable only by the absence of a model number -- on a machine whose
+// discrete GPU is an RTX 4060. Setting `GpuPreference=2;` for the full .exe path
+// switched it to `NVIDIA GeForce RTX 4060 Laptop GPU`. The entry is keyed by
+// path, so every binary needs its own, and without one a comparison silently
+// runs two builds on two different GPUs.
+// GTK 在哪一顆 GPU 上繪製並未在此量測，因為 app 看不到這項資訊。請直接詢問 GTK：
 //     GDK_DEBUG=opengl ./P6-v2.exe
-// 在本機上它回報 `Renderer: AMD Radeon(TM) Graphics`，即經由原生 WGL 的 OpenGL 4.6 core。
-// 若是軟體回退路徑，則會顯示 llvmpipe 之類的名稱。
+// 若是軟體回退路徑，會顯示 llvmpipe 之類的名稱。
+//
+// 在混合顯示卡筆電上，答案還取決於一項 app 無從參與的 Windows 設定。若
+// HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences 下沒有對應項目，執行檔會被指派內顯；
+// 本機因此回報 `AMD Radeon(TM) Graphics`——即 Ryzen APU，唯一的辨識線索是它不含型號——
+// 而該機器的獨顯其實是 RTX 4060。為完整的 .exe 路徑設定 `GpuPreference=2;` 之後，它切換為
+// `NVIDIA GeForce RTX 4060 Laptop GPU`。該設定以路徑為鍵，因此每個二進位檔都需各自登記；
+// 少了它，一次比較會靜默地在兩顆不同的 GPU 上執行兩個建置版本。
 //
 // Build this file as a standalone app target.
 
@@ -127,12 +149,19 @@ enum P6v2Flags {
 
 /// Which decoder ffmpeg is asked to use.
 ///
-/// This switches **decode only**. Presentation goes through GdkMemoryTexture in
-/// every mode, because the GPU presentation path needs a GtkGLArea binding that
-/// does not exist in Sources/Gtk yet. Naming a flag `-gpu` while half the
-/// pipeline stays on the CPU is exactly the kind of thing that gets misread six
-/// months later, so the app reports the presentation path in its own status line
-/// rather than leaving it to be inferred from the flag.
+/// This switches **decode only**. Presentation is always the GL path now --
+/// NV12 straight to two textures and a fragment shader -- so `-cpu` means
+/// software decode, not software drawing. The status line names both stages
+/// separately for that reason, rather than letting the flag imply either.
+///
+/// An earlier version of this comment said presentation went through
+/// GdkMemoryTexture in every mode because no GtkGLArea binding existed. That
+/// was true when written and is not now; the binding is `Gtk.NV12GLView`.
+///
+/// The switch turned out to matter far less than the format. Measured at
+/// 1080p60 on RGBA, software decode gave 43.5 fps and d3d11va 42.3 -- within
+/// noise, because the decoder pipe was the ceiling either way. Moving to NV12
+/// took the same run to 51.9 fps with read time falling from 19-32 ms to 8.55.
 ///
 /// `.auto` falls back silently in the sense that it does not fail, but never in
 /// the sense that it hides what happened -- the mode that actually ran is in the
@@ -140,10 +169,16 @@ enum P6v2Flags {
 ///
 /// 決定 ffmpeg 使用哪種解碼器。
 ///
-/// 此旗標**僅切換解碼**。呈現在所有模式下都經由 GdkMemoryTexture，因為 GPU 呈現路徑需要
-/// 一個 Sources/Gtk 中尚不存在的 GtkGLArea 綁定。把旗標命名為 `-gpu`、卻讓管線的一半仍留在
-/// CPU 上，正是那種六個月後會被誤讀的設計，因此本 app 在自己的狀態列中回報呈現路徑，而不是
-/// 留給旗標名稱去暗示。
+/// 此旗標**僅切換解碼**。呈現現在一律走 GL 路徑——NV12 直接送入兩張材質並由 fragment shader
+/// 處理——因此 `-cpu` 指的是軟體解碼，而非軟體繪製。狀態列正是為此分別標示兩個階段，而不讓
+/// 旗標名稱去暗示其中任何一個。
+///
+/// 本註解的舊版本曾說呈現在所有模式下都經由 GdkMemoryTexture，因為當時不存在 GtkGLArea
+/// 綁定。那在撰寫當時屬實，現在則否；該綁定即為 `Gtk.NV12GLView`。
+///
+/// 結果顯示，這個切換的重要性遠低於格式本身。1080p60 於 RGBA 下實測，軟體解碼為 43.5 fps、
+/// d3d11va 為 42.3——差距落在雜訊內，因為兩者的上限都是解碼管線。改用 NV12 後，同樣的執行
+/// 達到 51.9 fps，讀取時間也從 19–32 ms 降至 8.55 ms。
 ///
 /// `.auto` 的回退是「不會失敗」意義上的靜默，但絕非「隱藏發生了什麼」——實際執行的模式會
 /// 出現在狀態列與摘要中。
@@ -184,7 +219,34 @@ enum P6v2Resolution: String, CaseIterable, Sendable {
         }
     }
 
-    var frameByteCount: Int { width * height * 4 }
+    /// NV12: a full-resolution luma plane followed by a half-resolution
+    /// interleaved chroma plane, so 12 bits per pixel against RGBA's 32.
+    ///
+    /// This is the whole point of the format choice and it is transport, not
+    /// drawing. At 1080p60 RGBA needs 475 MB/s through the decoder pipe while
+    /// the pipe measures 247-416 MB/s, which held playback at 30-43 fps with
+    /// zero dropped frames and made hardware decode worth nothing -- 43.5 fps
+    /// software against 42.3 with d3d11va. NV12 needs 178 MB/s.
+    ///
+    /// P6 reached the same conclusion first and already defaults to NV12,
+    /// keeping `-rgba` only as an A/B control. P6-v2 was written with RGBA and
+    /// so began on the path P6 had already abandoned.
+    ///
+    /// NV12：一個全解析度的亮度平面，後接一個半解析度、交錯排列的色度平面，因此每像素 12
+    /// 位元，相對於 RGBA 的 32 位元。
+    ///
+    /// 這正是選擇此格式的全部理由，而理由在於傳輸而非繪製。1080p60 下，RGBA 需要 475 MB/s
+    /// 通過解碼管線，而管線實測為 247–416 MB/s，這使播放停在 30–43 fps 且掉幀為零，也讓硬體
+    /// 解碼毫無價值——軟體 43.5 fps 對上 d3d11va 的 42.3 fps。NV12 只需要 178 MB/s。
+    ///
+    /// P6 更早得出相同結論，且早已預設使用 NV12，僅保留 `-rgba` 作為 A/B 對照。P6-v2 起初
+    /// 以 RGBA 撰寫，因而一開始就走在 P6 已經放棄的那條路上。
+    var frameByteCount: Int { width * height * 3 / 2 }
+
+    /// Byte count of the luma plane, which is also where the chroma plane
+    /// starts within a frame.
+    /// 亮度平面的位元組數，同時也是色度平面在一幀之內的起始位移。
+    var lumaByteCount: Int { width * height }
 
     static func named(_ label: String) -> P6v2Resolution {
         allCases.first { $0.rawValue == label } ?? .fhd
@@ -346,7 +408,7 @@ final class P6v2Decoder: @unchecked Sendable {
             "-i", input.path,
             "-an", "-sn", "-dn",
             "-vf", "scale=\(resolution.width):\(resolution.height),fps=\(fps)",
-            "-pix_fmt", "rgba",
+            "-pix_fmt", "nv12",
             "-f", "rawvideo",
             "pipe:1",
         ]
@@ -599,10 +661,62 @@ final class P6v2Audio: @unchecked Sendable {
     }
 }
 
+// MARK: - Surface
+
+/// Holds the GL view so the decode side can reach it without the view
+/// hierarchy owning the decoder or the other way round.
+///
+/// A box rather than a `@Published` frame. Publishing the frame would push
+/// every decoded frame through the view graph, which for 60 frames a second of
+/// 1080p means the diffing machinery runs on a 3 MB value it cannot do anything
+/// useful with. The GL view wants the bytes, not a state change.
+///
+/// 持有 GL view，使解碼端能觸及它，而不必讓視圖樹擁有解碼器、或反過來。
+///
+/// 使用 box 而非 `@Published` 的 frame。若改為發布 frame，每一張解碼出的畫面都會被推入
+/// view graph；以 1080p、每秒 60 幀計算，這代表 diffing 機制要對一個它無法有效處理的 3 MB
+/// 值反覆運作。GL view 需要的是位元組，而非一次狀態變更。
+final class P6v2SurfaceBox: @unchecked Sendable {
+    @MainActor weak var view: NV12GLView?
+}
+
+/// Wraps `NV12GLView` so it can sit in a SwiftCrossUI hierarchy.
+/// 包裝 `NV12GLView`，使其能置於 SwiftCrossUI 的視圖樹中。
+struct P6v2VideoView: GtkWidgetRepresentable {
+    var box: P6v2SurfaceBox
+    var width: Double
+    var height: Double
+
+    func makeGtkWidget(context: Context) -> NV12GLView {
+        let view = NV12GLView()
+        box.view = view
+        return view
+    }
+
+    func updateGtkWidget(_ gtkWidget: NV12GLView, context: Context) {
+        box.view = gtkWidget
+    }
+
+    /// Fixed, not the natural size. A `GtkGLArea` that has never rendered
+    /// reports a natural size of essentially nothing, and the default
+    /// implementation would then lay it out at 10x10 -- a working GL path that
+    /// looks like a blank window.
+    /// 使用固定尺寸而非自然尺寸。從未算繪過的 `GtkGLArea` 回報的自然尺寸幾乎為零，此時預設
+    /// 實作會把它排版成 10x10——一條運作正常的 GL 路徑，看起來卻像一個空白視窗。
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        gtkWidget: NV12GLView,
+        context: Context
+    ) -> ViewSize {
+        ViewSize(width, height)
+    }
+}
+
 // MARK: - Model
 
 final class P6v2Model: SwiftCrossUI.ObservableObject {
-    @SwiftCrossUI.Published var frame: ImageFormats.Image<RGBA>?
+    let surfaceBox = P6v2SurfaceBox()
+
     @SwiftCrossUI.Published var status = "Idle"
     @SwiftCrossUI.Published var isPlaying = false
     @SwiftCrossUI.Published var fpsText = "-- fps"
@@ -674,7 +788,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         let audioText = P6v2Flags.isMuted ? "muted" : (audio == nil ? "no ffplay" : "ffplay")
         status =
             "Playing \(speedSelection ?? "1x") at \(requestedFPS) fps, \(resolution.rawValue)"
-            + " -- decode \(decodePath), present memory-texture (CPU), audio \(audioText)"
+            + " -- decode \(decodePath), present gl-nv12 (GPU), audio \(audioText)"
         P6v2Diagnostics.write(
             "start speed=\(speedSelection ?? "1x") fps=\(requestedFPS)"
                 + " res=\(resolution.rawValue) mode=\(P6v2Flags.acceleration.label)"
@@ -712,7 +826,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         // 解碼路徑一併寫入摘要，而不只出現在狀態列。一個沒有註明產生模式的數字，日後無法與
         // 任何結果進行比較。
         let summary =
-            "mode=\(P6v2Flags.acceleration.label) decode=\(decodePath) present=memory-texture  "
+            "mode=\(P6v2Flags.acceleration.label) decode=\(decodePath) present=gl-nv12  "
             + stats.summary
         status = summary
         P6v2Diagnostics.write("SUMMARY \(summary)")
@@ -826,20 +940,31 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
                 nextDeadline = now
             }
 
-            let image = ImageFormats.Image<RGBA>(
-                width: resolution.width,
-                height: resolution.height,
-                bytes: Array(data)
-            )
+            // Split rather than convert. The two planes arrive contiguously in
+            // one frame and go to the GPU as two textures; nothing here touches
+            // the pixels, which is the point of choosing NV12 in the first
+            // place.
+            // 只做切分，不做轉換。兩個平面在一幀之內連續排列，並以兩張材質送往 GPU；此處不對
+            // 任何像素進行處理，而這正是一開始選擇 NV12 的目的。
+            let lumaCount = resolution.lumaByteCount
+            let luma = [UInt8](data[..<lumaCount])
+            let chroma = [UInt8](data[lumaCount...])
             stats.recordPresented()
 
             let rolled = stats.rollWindowIfDue()
             let fpsValue = stats.currentFPS
             let dropValue = stats.currentDropsPerSecond
+            let frameWidth = resolution.width
+            let frameHeight = resolution.height
 
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                self.frame = image
+                self.surfaceBox.view?.setFrame(
+                    y: luma,
+                    uv: chroma,
+                    width: frameWidth,
+                    height: frameHeight
+                )
                 if rolled {
                     self.fpsText = "\(fpsValue) fps"
                     self.dropText = "\(dropValue) dropped/sec"
@@ -923,16 +1048,13 @@ struct P6v2RootView: View {
             // backends at different window sizes would measure the window.
             // 固定呈現尺寸，使解析度變更改變的是解碼與推送的資料量，而非視窗大小。若在不同
             // 視窗尺寸下比較兩個 backend，量到的會是視窗本身。
-            Group {
-                if let frame = player.frame {
-                    SwiftCrossUI.Image(frame)
-                        .resizable()
-                        .frame(width: 960, height: 540)
-                } else {
-                    Text(player.hasInput ? "Press Play" : "Pass -i <file> to choose a video")
-                        .frame(width: 960, height: 540)
-                }
-            }
+            // Always present, not swapped for a placeholder. A GtkGLArea that is
+            // created and destroyed as frames come and go loses its GL context
+            // and its compiled shader with it, so the first frame after every
+            // gap pays for a recompile.
+            // 始終存在，不與佔位視圖互換。若 GtkGLArea 隨著畫面有無而反覆建立與銷毀，它會連同
+            // GL context 一併失去已編譯的 shader，使每次中斷後的第一幀都要付出重新編譯的代價。
+            P6v2VideoView(box: player.surfaceBox, width: 960, height: 540)
 
             Text(player.status)
         }

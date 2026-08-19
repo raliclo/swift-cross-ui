@@ -219,7 +219,15 @@ winui_package='.package(
         ),'
 
 if [ "$force_gtk4" -eq 1 ]; then
-    windows_gtk_product='.product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),'
+    # Gtk as well as GtkBackend. An app that only draws through SwiftCrossUI
+    # needs neither, but one embedding a raw widget needs both: GtkBackend for
+    # GtkWidgetRepresentable and Gtk for the widget type it wraps. P6-v2 wraps
+    # NV12GLView to get the video onto the GPU.
+    # 除了 GtkBackend 之外還需要 Gtk。若 app 僅透過 SwiftCrossUI 繪製則兩者皆不需要；但要嵌入
+    # 原生 widget 的 app 兩者都要：GtkBackend 提供 GtkWidgetRepresentable，Gtk 提供被包裝的
+    # widget 型別。P6-v2 即是包裝 NV12GLView 以將影像送上 GPU。
+    windows_gtk_product='.product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
+    .product(name: "Gtk", package: "swift-cross-ui", condition: .when(platforms: [.windows])),'
     windows_winui_products=""
     winui_package=""
 
@@ -418,6 +426,13 @@ let testAppDependencies: [Target.Dependency] = [
     // backend 的視窗自 environment 轉型出來。DefaultBackend 已經帶入 GtkBackend，但
     // 轉型必須指名 Gtk.ApplicationWindow，因此需要直接 import 此模組。
     .product(name: "Gtk", package: "swift-cross-ui", condition: .when(platforms: [.linux])),
+    // GtkBackend on Linux for the same reason it is added on Windows under
+    // -gtk4: GtkWidgetRepresentable lives there, and an app embedding a raw
+    // widget cannot reach it through DefaultBackend alone.
+    // Linux 上加入 GtkBackend 的理由與 Windows 在 -gtk4 下相同：
+    // GtkWidgetRepresentable 位於該模組，而嵌入原生 widget 的 app 無法僅透過
+    // DefaultBackend 取得它。
+    .product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.linux])),
     $image_formats_product
 ]
 
