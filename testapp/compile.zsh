@@ -143,6 +143,25 @@ if [ "$force_gtk4" -eq 1 ]; then
         for flag in $(PKG_CONFIG_PATH="$gtk_prefix/lib/pkgconfig" "$gtk_pkgconfig" --cflags gtk4 2>/dev/null); do
             case "$flag" in -I*) gtk_build_flags+=(-Xcc "$flag") ;; esac
         done
+
+        # Exported, not just used for the line above. SwiftPM resolves the CGtk
+        # systemLibrary itself and needs to find gtk4.pc, which is a separate
+        # thing from the -Xcc include paths. Without it the build runs to
+        # completion and then fails at the end with `couldn't find pc file for
+        # gtk4` and `missing required modules: 'CGtk', 'GtkCHelpers'` -- 29
+        # minutes on this machine before anything said so.
+        # 必須 export，而不只是供上一行使用。SwiftPM 會自行解析 CGtk 這個 systemLibrary，
+        # 因而需要找到 gtk4.pc，這與 -Xcc 的 include 路徑是兩回事。少了它，建置會一路跑完
+        # 才在最後失敗，訊息為 `couldn't find pc file for gtk4` 與
+        # `missing required modules: 'CGtk', 'GtkCHelpers'`——本機為此花了 29 分鐘才得知。
+        export PKG_CONFIG_PATH="$gtk_prefix/lib/pkgconfig"
+
+        # The GTK DLLs have to be findable when the app is launched, and putting
+        # them on PATH here means a build and a run from the same shell agree.
+        # 執行 app 時必須找得到 GTK 的 DLL；在此加入 PATH 可讓同一個 shell 中的建置與執行
+        # 使用一致的設定。
+        export PATH="$gtk_prefix/bin:$PATH"
+
         printf '==> Forcing GtkBackend with %s include flags from %s\n' \
             "$((${#gtk_build_flags[@]} / 2))" "$gtk_prefix"
     else
