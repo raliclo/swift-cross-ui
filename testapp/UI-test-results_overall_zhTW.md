@@ -60,7 +60,16 @@
 - WSL 安裝腳本從未被同步到 WSL：`rsync_WSL.zsh` 的 include 樣式只涵蓋 `*.swift` 與 `testapp/**/*.zsh`，因此 `install_tool_wsl.sh` 從未送達 WSL。實際發現 WSL 端的副本仍停留在 8 月 16 日的版本，而本機已改過多次。已於 include 清單加入該檔並註明理由。
 - 安裝腳本已拆分：`install_tool_wsl.sh` 僅保留引導職責（檢查 root、安裝 zsh、交棒），實際邏輯移入新的 `install_tool_wsl.zsh`。維持 `.sh` 進入點的理由無法迴避——該腳本面對的是尚未安裝 zsh 的機器，而安裝 zsh 正是它的工作；若用 zsh shebang，核心會因找不到直譯器而使它完全無法啟動。形狀與「自我提權後立刻交棒」的 `.ps1` launcher 相同。兩個進入點的 `--help` 皆在 0.2 秒內回應且不安裝任何東西。
 - 第三方套件庫會中止整個安裝：本機於 2026-08-17 的 GPU 調查期間加入了 NVIDIA CUDA repo 卻沒有一併安裝 keyring，`apt-get update` 因而以 `NO_PUBKEY A4B469963BF863CC` 失敗；在 `set -e` 下安裝腳本在裝任何東西之前就中止——而它需要的每個套件其實都取得得到。已改為「回報但繼續」，讓真正找不到套件時由安裝指令自行失敗。該 repo 本身仍待處理：補上金鑰或移除（GPU 調查已確認問題不在驅動）。
-- GTK 檔案選擇器（Open，**在 XWayland 下無法重現**）：以 xdotool 自動化實測，開啟選擇器後不論點 Cancel 或選檔後點 Open，視窗數都由 2 回到 1，對話框正常關閉。更關鍵的是**移除修正後的對照組行為完全相同**，因此目前沒有任何證據支持我先前提出的 refcount 假說（`GObject.init` 對 `gtk_file_chooser_native_new` 已交付的參考再 `g_object_ref` 一次，導致物件永不終結）。回報發生在預設的 Wayland 路徑，而自動化必須以 `GDK_BACKEND=x11` 走 XWayland 才能驅動，兩者是不同的程式路徑。`gtk_native_dialog_destroy()` 的呼叫已加入 GtkBackend 與 Gtk3Backend，但**尚未經證實有效**，仍需在 Wayland 下人工驗證。
+- GTK 檔案選擇器不關閉（Open，**僅限 Wayland**）：完整 2×2 對照如下，四格皆為實測。
+
+  | | Wayland | XWayland |
+  |---|---|---|
+  | 無修正 | **不關閉** | 關閉 |
+  | 加上 `gtk_native_dialog_destroy()` | **不關閉** | 關閉 |
+
+  結論：**`gtk_native_dialog_destroy()` 沒有任何作用，該修正已撤除。** 先前提出的 refcount 假說（`GObject.init` 對 `gtk_file_chooser_native_new` 已交付的參考再 `g_object_ref` 一次，使物件永不終結）**已被推翻**——若成立，加上明確 destroy 應當有效。
+- 檔案選擇器：已確認 response handler 有正常觸發。日誌顯示使用者選檔後出現 `load /mnt/c/.../20260721 …`、`session token 2`、`frame 00:00`、`Frame ready`，亦即 URL 有交回、檔案有載入、影格有解出。**只有對話框沒有消失**，因此問題不在 signal 傳遞，而在對話框視窗的生命週期，且僅發生於 Wayland。XWayland 下同一份程式碼完全正常。
+- 檢驗方法備忘：判斷「是否為本專案的缺陷」的下一步，是拿一個非 SwiftCrossUI 的原生 GTK4 app（例如 `gtk4-demo` 的檔案選擇器）在 WSLg Wayland 下測試。若它同樣不關閉，則問題屬於 GTK 或 WSLg，與 GtkBackend 無關；若它正常關閉，才需要回頭查 backend。尚未執行。
 - Wayland 與 XWayland 必須分開驗證：Wayland 依設計不允許一個行程驅動另一個 client，因此 xdotool 在預設的 WSLg 工作階段中看不到任何視窗。這代表兩者是真正不同的測試目標——在其中一邊重現的錯誤不能作為另一邊的證據，上述檔案選擇器即為實例。
 - WSL GUI 自動化已可用：`xdotool` 搭配 `xwd`／`netpbm` 可在 XWayland 下點擊控制項並擷取視窗內容，且不依賴 Windows 端解鎖。座標須使用 `xdotool mousemove --window`（視窗相對），絕對座標會因視窗裝飾而失準——實測絕對座標點擊完全沒有反應，改為相對座標後立即成功。注意 `xwd` 位於 `x11-apps` 而非 `x11-utils`。
 - WSLg 視窗完全不出現（已解決，成因為 COPY MODE）：回報症狀是「P6 啟動後點工作列圖示也不會到前景，甚至根本看不到視窗」。App 本身完全正常——日誌有 `auto-load`、`frame 00:00`、`Frame ready`，代表 `onAppear` 已執行、視窗已建立、影格持續解碼；`/mnt/wslg/weston.log` 也顯示視窗已註冊給 RDP peer（`associateWindowId: 1`、`appWindowId: 0x10`）。真正的原因是 **WSLg 處於 COPY MODE**：其算繪路徑降級，視窗雖存在卻無法被帶到前景。於 Windows 執行 `wsl --shutdown` 後重開即恢復，視窗立即正常顯示。
