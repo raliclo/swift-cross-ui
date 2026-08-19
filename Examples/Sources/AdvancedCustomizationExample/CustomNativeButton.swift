@@ -26,27 +26,6 @@ struct CustomNativeButton {
     }
 #endif
 
-#if canImport(Gtk3Backend)
-    import Gtk3Backend
-    import Gtk3
-
-    extension CustomNativeButton: Gtk3WidgetRepresentable {
-        func makeGtk3Widget(context: Context) -> Gtk3.Button {
-            Gtk3.Button()
-        }
-
-        func updateGtk3Widget(
-            _ button: Gtk3.Button,
-            context: Context
-        ) {
-            button.label = label
-            button.expandHorizontally = true
-            button.useExpandHorizontally = true
-            button.css.clear()
-            button.css.set(properties: [.backgroundColor(.init(1, 0, 1, 1))])
-        }
-    }
-#endif
 
 #if canImport(AppKitBackend)
     import AppKitBackend

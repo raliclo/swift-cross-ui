@@ -13,8 +13,6 @@ import PackageDescription
 // - SCUI_HOT_RELOADING/SWIFT_BUNDLER_HOT_RELOADING : Enables hot reloading
 //     support code if `1`. If not present then the output of the #hotReloadable and
 //     @HotReloadable gets compiled out.
-// - SCUI_TEST_GTK3BACKEND : If `1`, enables the Gtk3Backend-specific tests (in the
-//     Tests/Gtk3BackendTests directory). Without this they're entirely skipped
 // - SCUI_BENCHMARK_VIZ : If `1`, LayoutPerformanceBenchmark gets compiled in
 //     visualization mode instead of benchmarking mode. It will use DefaultBackend
 //     to visualize a benchmark layout of your choosing (chosen at runtime via stdin).
@@ -97,8 +95,6 @@ let hotReloadingEnabled: Bool
             || env["SCUI_HOT_RELOADING"] == "1"
 #endif
 
-let testGtk3Backend = env["SCUI_TEST_GTK3BACKEND"] == "1"
-
 var swiftSettings: [SwiftSetting] = []
 if hotReloadingEnabled {
     swiftSettings += [
@@ -144,12 +140,10 @@ let package = Package(
         .library(name: "SwiftCrossUI", type: libraryType, targets: ["SwiftCrossUI"]),
         .library(name: "AppKitBackend", type: libraryType, targets: ["AppKitBackend"]),
         .library(name: "GtkBackend", type: libraryType, targets: ["GtkBackend"]),
-        .library(name: "Gtk3Backend", type: libraryType, targets: ["Gtk3Backend"]),
         .library(name: "WinUIBackend", type: libraryType, targets: ["WinUIBackend"]),
         .library(name: "DefaultBackend", type: libraryType, targets: ["DefaultBackend"]),
         .library(name: "UIKitBackend", type: libraryType, targets: ["UIKitBackend"]),
         .library(name: "Gtk", type: libraryType, targets: ["Gtk"]),
-        .library(name: "Gtk3", type: libraryType, targets: ["Gtk3"]),
         .executable(name: "GtkExample", targets: ["GtkExample"]),
         // .library(name: "CursesBackend", type: libraryType, targets: ["CursesBackend"]),
         // .library(name: "QtBackend", type: libraryType, targets: ["QtBackend"]),
@@ -251,10 +245,6 @@ let package = Package(
             name: "GtkBackend",
             dependencies: ["SwiftCrossUI", "Gtk", "CGtk"]
         ),
-        .target(
-            name: "Gtk3Backend",
-            dependencies: ["SwiftCrossUI", "Gtk3", "CGtk3"]
-        ),
         .systemLibrary(
             name: "CGtk",
             pkgConfig: "gtk4",
@@ -286,30 +276,6 @@ let package = Package(
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
             ],
             exclude: ["GirFiles"]
-        ),
-        .systemLibrary(
-            name: "CGtk3",
-            pkgConfig: "gtk+-3.0",
-            providers: [
-                .brew(["gtk+3"]),
-                .apt(["libgtk-3-dev clang"]),
-            ]
-        ),
-        .target(
-            name: "Gtk3",
-            dependencies: ["CGtk3", "Gtk3CHelpers"],
-            exclude: ["LICENSE.md"]
-        ),
-        .executableTarget(
-            name: "Gtk3Example",
-            dependencies: ["Gtk3"],
-            resources: [.copy("GTK.png")]
-        ),
-        // Gtk3 helpers that we've implemented in C because they'd be difficult
-        // or impossible to recreate in Swift
-        .target(
-            name: "Gtk3CHelpers",
-            dependencies: ["CGtk3"]
         ),
         .target(name: "UIKitBackend", dependencies: ["SwiftCrossUI"]),
         .target(
@@ -447,15 +413,3 @@ if androidBackendSupported {
     ]
 }
 
-if testGtk3Backend {
-    package.targets.append(
-        .testTarget(
-            name: "Gtk3BackendTests",
-            dependencies: [
-                "SwiftCrossUI",
-                "Gtk3Backend",
-                "CGtk3",
-            ]
-        )
-    )
-}

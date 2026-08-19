@@ -78,3 +78,31 @@
 - P6 在 Linux 上不會回收 ffplay 子行程：關閉 P6 後仍留下三個各約 8.3 小時的 ffplay 孤兒行程。`P6ChildProcessReaper` 的 job object 機制是 `#if os(Windows)` 專屬，Linux 側沒有對應實作。尚未修正。
 - GTK 檔案選擇器（Open，未修正）：在 WSLg 上，`Choose file` 選好檔案後對話框不會關閉。程式位置為 `Sources/GtkBackend/GtkBackend.swift` 的 `showFileChooserDialog`：它呼叫 `gtk_native_dialog_show()`，但 response handler 只處理結果，沒有任何 hide 或 destroy。`Sources/Gtk3Backend/Gtk3Backend.swift` 的同一段結構相同。尚未實地驗證修法。
 - WSL/Windows GUI comparison（2026-08-16 該項的解答）：兩端的尺寸差異來自 **DPI scaling**，而非 requested content size、backend window-sizing semantics、window decorations 或 WSLg compositor 行為。在同一台 1920x1080 螢幕、兩端皆 `-maximized` 的條件下量到：Windows 影片區為 1200x675 px，WSLg/GTK 為 960x540 px。Windows 日誌本身即記錄 `viewport 960.0x540.0 dip (1200x675 px), panel actual 960.0x540.0 dip, rasterization scale 1.25`，並有 `window metrics: dpi 120`。亦即 WinUIBackend 套用了 1.25 的 rasterization scale，GtkBackend 則以 1:1 呈現。因此跨 backend 的 layout 截圖在換算 DPI 之前，不可直接視為等比例比較。
+
+## 2026-08-19
+
+### GTK 檔案選擇器：根因確認
+
+- **根因是所使用的 API，而非我們的用法。** 判別方式是拿一個完全不含 SwiftCrossUI 的原生 GTK4 app（`gtk4-node-editor`）在同一個 WSLg Wayland 工作階段下測試：它的檔案對話框**正常關閉**。以 `nm -D --undefined-only` 比對兩者實際連結的符號：
+
+  | | 使用的 API | Wayland 結果 |
+  |---|---|---|
+  | `gtk4-node-editor` | `gtk_file_dialog_new` / `gtk_file_dialog_open`（**GtkFileDialog**） | 關閉 |
+  | SwiftCrossUI GtkBackend | `gtk_file_chooser_native_new` / `gtk_native_dialog_show`（**GtkFileChooserNative**） | 不關閉 |
+
+  同一台機器、同一個 GTK 4.22、同一個 compositor，差別只在 API。
+- `GtkFileChooserNative` 在 GIR 中標記為 `deprecated="1"`（`Gtk-4.0.gir`）。標頭檔本身沒有 `GDK_DEPRECATED` 巨集，因此以標頭檔查詢會得到「未標記淘汰」的錯誤結論——GIR 才是權威來源，也正是 `GtkCodeGen` 產生 Swift 綁定所依據的同一份資料。
+- 取代用的 `GtkFileDialog` 自 **GTK 4.10** 起提供（`GDK_AVAILABLE_IN_4_10`），系統標頭中所需函式齊備：`open`／`open_multiple`／`save`／`select_folder` 及各自的 `_finish`，加上 `set_title`、`set_initial_folder`、`set_filters`、`set_accept_label`。它是**非同步 API**（`GAsyncResult` callback），與現行以 `response` signal 為中心的實作模型不同，因此遷移需要改寫而非替換函式名稱。
+- 方法備忘：先前三次嘗試修正都失敗，因為都在假設「我們用錯了」。真正有效的一步是**切開責任歸屬**——用原生 app 做對照，確認同一環境下別人做得到。這比任何一個新假說都便宜。
+
+### 放棄 GTK3 支援
+
+- 已移除 `Sources/Gtk3`（179 檔／16,365 行）、`Sources/Gtk3Backend`（2,448 行）、`Sources/CGtk3`、`Sources/Gtk3CHelpers`、`Sources/Gtk3Example`、`Tests/Gtk3BackendTests`、`Scripts/generate_gtk3.sh` 與 docc 的 Gtk3Backend 頁面。
+- 實際的程式碼依賴**只有兩處**：`Package.swift`（products／targets／測試開關 `SCUI_TEST_GTK3BACKEND`）與 `Sources/DefaultBackend`（`#elseif canImport(Gtk3Backend)` 的後備選擇）。其餘散落的引用全是註解或條件編譯分支。
+- `Examples` 內的 `#if canImport(Gtk3Backend)` 分支在模組消失後會自動編譯掉，不會破壞建置，但仍一併移除；`ControlsApp.swift` 的 `#if !canImport(Gtk3Backend)` 則相反——它在移除後永遠為真，因此拆掉包裹讓內容無條件編譯。
+- 驗證：`Gtk`、`GtkBackend`、`DefaultBackend`、`GtkExample` 四個 target 皆建置成功；所有編輯過的檔案通過 `swiftc -parse`。整包 `swift build` 與 `Examples` 在 Linux 上仍會停在 `WinUIInterop`／`swift-winui` 缺 `Windows.h`、`wtypesbase.h`——那是既有的平台限制，與本次移除無關。
+
+### WSLg 幽靈視窗
+
+- `gtk4-widget-factory` 行程結束後，Windows 端的 `msrdc.exe` 仍持續顯示 `GTK Widget Factory (Ubuntu)` 視窗。WSL 內 `pgrep` 確認無任何對應行程。
+- 這是繼 PulseAudio 停止監聽、COPY MODE 之後，**WSLg 橋接第三種靜默失效**：視窗已無擁有者卻不被移除。判讀 WSL GUI 測試結果時，「Windows 上看得到視窗」不足以證明該 app 仍在執行。

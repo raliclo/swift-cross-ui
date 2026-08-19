@@ -44,8 +44,6 @@ struct CounterApp: App {
                                     text.isTextSelectionEnabled = true
                                 #elseif canImport(GtkBackend)
                                     text.selectable = true
-                                #elseif canImport(Gtk3Backend)
-                                    text.selectable = true
                                 #elseif canImport(AndroidBackend)
                                     text.setTextIsSelectable(true)
                                 #endif
@@ -68,8 +66,6 @@ struct CounterApp: App {
                                 button.background = brush
                             #elseif canImport(GtkBackend)
                                 button.css.set(property: .backgroundColor(.init(1, 0, 0)))
-                            #elseif canImport(Gtk3Backend)
-                                button.css.set(property: .backgroundColor(.init(1, 0, 0)))
                             #elseif canImport(AndroidBackend)
                                 button.setBackgroundColor(Int32(bitPattern: 0xffff0000))
                             #endif
@@ -86,8 +82,6 @@ struct CounterApp: App {
                                 #elseif canImport(WinUIBackend)
                                     slider.isThumbToolTipEnabled = true
                                 #elseif canImport(GtkBackend)
-                                    slider.drawValue = true
-                                #elseif canImport(Gtk3Backend)
                                     slider.drawValue = true
                                 #endif
                             }
@@ -138,9 +132,6 @@ struct CounterApp: App {
                             #elseif canImport(GtkBackend)
                                 textField.xalign = 1
                                 textField.css.set(property: .backgroundColor(.init(0, 0, 1)))
-                            #elseif canImport(Gtk3Backend)
-                                textField.hasFrame = false
-                                textField.css.set(property: .backgroundColor(.init(0, 0, 1)))
                             #elseif canImport(AndroidBackend)
                                 textField.setBackgroundColor(Int32(bitPattern: 0xff0000ff))
                             #endif
@@ -167,8 +158,6 @@ struct CounterApp: App {
                             )
                         #elseif canImport(GtkBackend)
                             scrollView.css.set(property: .border(color: .init(1, 0, 0), width: 2))
-                        #elseif canImport(Gtk3Backend)
-                            scrollView.css.set(property: .border(color: .init(1, 0, 0), width: 2))
                         #endif
                     }.frame(height: 200)
 
@@ -191,8 +180,6 @@ struct CounterApp: App {
                             )
                         #elseif canImport(GtkBackend)
                             table.showSeparators = true
-                        #elseif canImport(Gtk3Backend)
-                            table.selectionMode = .multiple
                         #elseif canImport(AndroidBackend)
                             table.setDividerHeight(2)
                         #endif
@@ -221,11 +208,6 @@ struct CounterApp: App {
                                         color: .init(0, 1, 0),
                                         width: 2
                                     ))
-                                #elseif canImport(Gtk3Backend)
-                                    image.css.set(property: .border(
-                                        color: .init(0, 1, 0),
-                                        width: 2
-                                    ))
                                 #endif
                             }
                             .aspectRatio(contentMode: .fit)
@@ -235,7 +217,7 @@ struct CounterApp: App {
                 .inspectWindow { window in
                     #if canImport(AppKitBackend)
                         window.backgroundColor = .black
-                    #elseif canImport(GtkBackend) || canImport(Gtk3Backend)
+                    #elseif canImport(GtkBackend)
                         window.title = "Overridden title"
                     #elseif canImport(WinUIBackend)
                         // Only works on Windows 11+

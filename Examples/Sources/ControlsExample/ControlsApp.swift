@@ -133,54 +133,52 @@ struct ControlsApp: App {
                             }
                         #endif
 
-                        #if !canImport(Gtk3Backend)
-                            VStack {
-                                Text("Picker")
+                        VStack {
+                            Text("Picker")
 
-                                HStack {
-                                    Text("Picker Style:")
-                                    Picker(
-                                        of: BuiltInPickerStyle.allCases.filter {
-                                            isPickerStyleSupported($0.asPickerStyle)
-                                        },
-                                        selection: $pickerStyle
-                                    )
-                                }
-
-                                HStack {
-                                    Text("Flavor: ")
-
-                                    Picker(
-                                        of: ["Vanilla", "Chocolate", "Strawberry"],
-                                        selection: $flavor
-                                    )
-                                    .pickerStyle(
-                                        pickerStyle?.asPickerStyle ?? DefaultPickerStyle()
-                                    )
-                                }
-                                Text("You chose: \(flavor ?? "Nothing yet!")")
+                            HStack {
+                                Text("Picker Style:")
+                                Picker(
+                                    of: BuiltInPickerStyle.allCases.filter {
+                                        isPickerStyleSupported($0.asPickerStyle)
+                                    },
+                                    selection: $pickerStyle
+                                )
                             }
 
-                            #if !os(tvOS)
-                                VStack {
-                                    Text("Selected date: \(date)")
+                            HStack {
+                                Text("Flavor: ")
 
-                                    HStack {
-                                        Text("Date picker style: ")
-                                        Picker(
-                                            of: supportedDatePickerStyles,
-                                            selection: $datePickerStyle
-                                        )
-                                    }
+                                Picker(
+                                    of: ["Vanilla", "Chocolate", "Strawberry"],
+                                    selection: $flavor
+                                )
+                                .pickerStyle(
+                                    pickerStyle?.asPickerStyle ?? DefaultPickerStyle()
+                                )
+                            }
+                            Text("You chose: \(flavor ?? "Nothing yet!")")
+                        }
 
-                                    DatePicker(selection: $date) {}
-                                        .datePickerStyle(datePickerStyle ?? .automatic)
+                        #if !os(tvOS)
+                            VStack {
+                                Text("Selected date: \(date)")
 
-                                    Button("Reset date to now") {
-                                        date = Date()
-                                    }
+                                HStack {
+                                    Text("Date picker style: ")
+                                    Picker(
+                                        of: supportedDatePickerStyles,
+                                        selection: $datePickerStyle
+                                    )
                                 }
-                            #endif
+
+                                DatePicker(selection: $date) {}
+                                    .datePickerStyle(datePickerStyle ?? .automatic)
+
+                                Button("Reset date to now") {
+                                    date = Date()
+                                }
+                            }
                         #endif
                     }.padding().disabled(!enabled)
 

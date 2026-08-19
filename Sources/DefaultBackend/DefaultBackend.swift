@@ -4,9 +4,6 @@
 #elseif canImport(GtkBackend)
     import GtkBackend
     public typealias DefaultBackend = GtkBackend
-#elseif canImport(Gtk3Backend)
-    import Gtk3Backend
-    public typealias DefaultBackend = Gtk3Backend
 #elseif canImport(WinUIBackend)
     import WinUIBackend
     public typealias DefaultBackend = WinUIBackend

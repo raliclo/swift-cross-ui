@@ -78,3 +78,31 @@
 - P6 does not reap its ffplay children on Linux: three orphaned ffplay processes, each about 8.3 hours old, were still running after P6 had exited. The `P6ChildProcessReaper` job-object mechanism is `#if os(Windows)` only and has no Linux counterpart. Not yet fixed.
 - GTK file chooser (Open, not fixed): on WSLg the `Choose file` dialog does not close after a file is selected. The code is `showFileChooserDialog` in `Sources/GtkBackend/GtkBackend.swift`: it calls `gtk_native_dialog_show()`, but the response handler only handles the result and never hides or destroys the dialog. The same block in `Sources/Gtk3Backend/Gtk3Backend.swift` is structured identically. No fix has been verified on a machine yet.
 - WSL/Windows GUI comparison (answer to the 2026-08-16 entry): the size difference comes from **DPI scaling**, not from requested content size, backend window-sizing semantics, window decorations or WSLg compositor behavior. Measured on the same 1920x1080 screen with both sides `-maximized`: the Windows video area is 1200x675 px and the WSLg/GTK one is 960x540 px. The Windows log records this itself as `viewport 960.0x540.0 dip (1200x675 px), panel actual 960.0x540.0 dip, rasterization scale 1.25`, alongside `window metrics: dpi 120`. So WinUIBackend applies a 1.25 rasterization scale and GtkBackend renders 1:1. Cross-backend layout screenshots therefore cannot be treated as directly comparable until the DPI scale is factored out.
+
+## 2026-08-19
+
+### GTK file chooser: root cause found
+
+- **The cause is the API in use, not how we use it.** Established by running a native GTK4 app with no SwiftCrossUI in it (`gtk4-node-editor`) in the same WSLg Wayland session: its file dialog **closes normally**. Comparing the symbols each actually links against, via `nm -D --undefined-only`:
+
+  | | API used | Wayland |
+  |---|---|---|
+  | `gtk4-node-editor` | `gtk_file_dialog_new` / `gtk_file_dialog_open` (**GtkFileDialog**) | closes |
+  | SwiftCrossUI GtkBackend | `gtk_file_chooser_native_new` / `gtk_native_dialog_show` (**GtkFileChooserNative**) | stays open |
+
+  Same machine, same GTK 4.22, same compositor; the API is the only difference.
+- `GtkFileChooserNative` is marked `deprecated="1"` in the GIR (`Gtk-4.0.gir`). The header carries no `GDK_DEPRECATED` macro, so checking the header alone gives the wrong answer -- the GIR is authoritative, and it is the same data `GtkCodeGen` generates the Swift bindings from.
+- The replacement, `GtkFileDialog`, has been available since **GTK 4.10** (`GDK_AVAILABLE_IN_4_10`), and the system headers carry everything needed: `open`/`open_multiple`/`save`/`select_folder` with their `_finish` counterparts, plus `set_title`, `set_initial_folder`, `set_filters` and `set_accept_label`. It is an **async API** (`GAsyncResult` callbacks) rather than the `response`-signal model the current code is built around, so migrating means rewriting the flow, not renaming calls.
+- Method note: three attempted fixes failed because each assumed we were using the API wrongly. What worked was **separating ownership** -- using a native app as a control to see whether anyone can do this in the same environment. That is cheaper than any further theory.
+
+### Dropping GTK3
+
+- Removed `Sources/Gtk3` (179 files, 16,365 lines), `Sources/Gtk3Backend` (2,448 lines), `Sources/CGtk3`, `Sources/Gtk3CHelpers`, `Sources/Gtk3Example`, `Tests/Gtk3BackendTests`, `Scripts/generate_gtk3.sh` and the Gtk3Backend docc page.
+- The real code dependencies were **only two**: `Package.swift` (products, targets and the `SCUI_TEST_GTK3BACKEND` switch) and `Sources/DefaultBackend` (the `#elseif canImport(Gtk3Backend)` fallback). Everything else scattered around was comments or conditional-compilation branches.
+- The `#if canImport(Gtk3Backend)` branches in `Examples` compile out by themselves once the module is gone and would not have broken the build, but were removed anyway. `ControlsApp.swift`'s `#if !canImport(Gtk3Backend)` is the opposite case -- it becomes permanently true, so the wrapper was unwrapped and its contents now compile unconditionally.
+- Verified: the `Gtk`, `GtkBackend`, `DefaultBackend` and `GtkExample` targets all build, and every edited file passes `swiftc -parse`. A whole-package `swift build`, and the `Examples` package, still stop on `WinUIInterop`/`swift-winui` missing `Windows.h` and `wtypesbase.h` -- a pre-existing platform limit on Linux, unrelated to this removal.
+
+### WSLg ghost windows
+
+- After the `gtk4-widget-factory` process exited, `msrdc.exe` on the Windows side kept showing a `GTK Widget Factory (Ubuntu)` window, while `pgrep` inside WSL confirmed no such process was left.
+- This is the third way a WSLg bridge fails silently, after PulseAudio ceasing to listen and COPY MODE: a window with no owner is left on screen. When reading WSL GUI test results, "the window is visible on Windows" is not evidence that the app is still running.
