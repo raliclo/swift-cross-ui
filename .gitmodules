@@ -8,3 +8,6 @@
 [submodule "Vendor/swift-bundler"]
 	path = Vendor/swift-bundler
 	url = https://github.com/moreSwift/swift-bundler.git
+[submodule "testapp/gtk4-source"]
+	path = testapp/gtk4-source
+	url = https://gitlab.gnome.org/GNOME/gtk.git
