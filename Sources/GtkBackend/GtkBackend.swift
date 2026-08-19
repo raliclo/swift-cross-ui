@@ -286,7 +286,27 @@ public final class GtkBackend:
     }
 
     public func show(window: Window) {
-        window.show()
+        // present(), not show(). `Widget.show()` is gtk_widget_set_visible,
+        // which maps the window without raising it or giving it focus; GTK 4
+        // documents gtk_window_present as the way to show a window, and on
+        // Windows it is what makes it the foreground window.
+        //
+        // Observed with set_visible: the window appeared but never became
+        // foreground, so AppActivate could not raise it and screenshots of the
+        // "whole desktop" photographed whatever was in front instead. Worse, a
+        // GtkDropDown's popover opened from an unfocused window read as a
+        // detached window that would not come forward and did not dismiss on
+        // selection.
+        //
+        // 使用 present() 而非 show()。`Widget.show()` 實為 gtk_widget_set_visible，它只會把視窗
+        // map 出來，不會將其提到最上層、也不會給予焦點；GTK 4 明確以 gtk_window_present 作為
+        // 顯示視窗的方式，而在 Windows 上它正是使視窗成為前景視窗的呼叫。
+        //
+        // 使用 set_visible 時的實際觀察：視窗會出現但從未成為前景，因此 AppActivate 無法喚起
+        // 它，而「整個桌面」的截圖只會拍到當時位於前方的其他內容。更嚴重的是，從一個未取得焦點
+        // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
+        // 分離視窗。
+        window.present()
     }
 
     public func activate(window: Window) {

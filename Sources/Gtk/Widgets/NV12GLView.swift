@@ -1,4 +1,5 @@
 import CGtk
+import Dispatch
 import GtkCHelpers
 
 /// A `GtkGLArea` that draws NV12 video frames, converting them to RGB on the
@@ -65,9 +66,48 @@ public class NV12GLView: GLArea {
     /// GL call without a current context is undefined and the decode thread has
     /// none. The frame is copied so the caller may reuse its buffer.
     public func setFrame(y: [UInt8], uv: [UInt8], width: Int, height: Int) {
+        // A frame still waiting here is one the widget never drew. It is
+        // overwritten, and it has to be counted, because from the decoder's side
+        // the handover looked like a success.
+        //
+        // Without this counter the app reported "0 dropped" while running below
+        // its target rate, which is not a contradiction so much as a measurement
+        // that was never taken: the only drop path counted was an explicit skip
+        // in the decode loop, and that is off by default.
+        //
+        // 若此處仍有一幀在等待，代表該幀從未被本 widget 繪製。它會被覆蓋，而且必須被計數，
+        // 因為從解碼端看來，這次交遞看起來是成功的。
+        //
+        // 少了這個計數器，app 會在低於目標速率執行的同時回報「0 dropped」；與其說是矛盾，
+        // 不如說那是一項從未被進行的量測：唯一被計數的丟棄路徑是解碼迴圈中的明確略過，
+        // 而該路徑預設是關閉的。
+        if pendingFrame != nil {
+            framesOverwritten += 1
+        }
+        framesAccepted += 1
         pendingFrame = (y, uv, width, height)
         queueRender()
     }
+
+    /// Frames handed to the widget.
+    /// 交給本 widget 的幀數。
+    public private(set) var framesAccepted = 0
+
+    /// Frames handed over that were replaced before the widget drew them. These
+    /// reached the GPU never; they were discarded in this object.
+    /// 已交遞但在本 widget 繪製之前即被取代的幀數。這些幀從未抵達 GPU，而是在此物件中被丟棄。
+    public private(set) var framesOverwritten = 0
+
+    /// Frames actually uploaded and drawn.
+    /// 實際上傳並繪製的幀數。
+    public private(set) var framesRendered = 0
+
+    /// Time spent uploading the last frame's two planes. Separates "the widget
+    /// is slow to upload" from "the widget is rarely asked to draw", which the
+    /// render count alone cannot.
+    /// 上傳最後一幀兩個平面所耗費的時間。用以區分「widget 上傳很慢」與「widget 很少被要求繪製」
+    /// ——僅靠繪製次數無法分辨這兩者。
+    public private(set) var lastUploadNanoseconds: UInt64 = 0
 
     private var pendingFrame: (y: [UInt8], uv: [UInt8], width: Int, height: Int)?
 
@@ -86,6 +126,11 @@ public class NV12GLView: GLArea {
 
         if let frame = pendingFrame {
             pendingFrame = nil
+            framesRendered += 1
+            let uploadStart = DispatchTime.now().uptimeNanoseconds
+            defer {
+                lastUploadNanoseconds = DispatchTime.now().uptimeNanoseconds - uploadStart
+            }
             frame.y.withUnsafeBufferPointer { yBuffer in
                 frame.uv.withUnsafeBufferPointer { uvBuffer in
                     scui_nv12_renderer_upload(

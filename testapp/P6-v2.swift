@@ -140,6 +140,27 @@ enum P6v2Flags {
     /// 關閉 ffplay 行程。量測執行時需要此選項，因為第二個讀取同一檔案的行程會與之爭搶磁碟。
     static let isMuted = CommandLine.arguments.contains("-mute")
 
+    /// `--frame-drop`, spelled as P6 spells it so a command line copied from one
+    /// works on the other.
+    /// `--frame-drop`，拼法與 P6 一致，使從其中一支複製的命令列可直接用於另一支。
+    static let isFrameDropEnabled = CommandLine.arguments.contains("--frame-drop")
+
+    /// `-pace`, as P6 spells it: caps ffmpeg at playback speed with `-readrate`
+    /// so the decoder does not run ahead of the clock.
+    ///
+    /// Opt-in for the same reason it is in P6 -- with it on, the maximum
+    /// throughput cannot be measured, because the decoder is deliberately being
+    /// held back. Back-pressure from the widget is always on and is a different
+    /// thing: that stops work nobody will see, this stops work that is simply
+    /// early.
+    ///
+    /// `-pace`，拼法與 P6 一致：以 `-readrate` 將 ffmpeg 限制在播放速度，使解碼器不會超前時鐘。
+    ///
+    /// 採用選用制的理由與 P6 相同——開啟時無法量測最大吞吐量，因為解碼器正被刻意抑制。來自
+    /// widget 的背壓則一律開啟，且是另一回事：後者阻止的是「沒有人會看到」的工作，前者阻止的
+    /// 是「只是太早」的工作。
+    static let isDecodePaced = CommandLine.arguments.contains("-pace")
+
     static let acceleration: P6v2Acceleration = {
         if CommandLine.arguments.contains("-cpu") { return .forceCPU }
         if CommandLine.arguments.contains("-gpu") { return .forceGPU }
@@ -375,7 +396,9 @@ final class P6v2Decoder: @unchecked Sendable {
         input: URL,
         resolution: P6v2Resolution,
         fps: Int,
-        acceleration: P6v2Acceleration
+        acceleration: P6v2Acceleration,
+        startSeconds: Double = 0,
+        speed: Double = 1
     ) throws {
         frameByteCount = resolution.frameByteCount
 
@@ -404,6 +427,24 @@ final class P6v2Decoder: @unchecked Sendable {
         // 置於 -i 之前而非之後。hwaccel 作用於「即將開啟的輸入」，若放在其後，ffmpeg 會接受
         // 該旗標並忽略它——結果是軟體解碼，既無警告也無錯誤。
         if let chosen { arguments += ["-hwaccel", chosen] }
+        // -ss before -i so ffmpeg seeks by keyframe rather than decoding from
+        // the start and discarding. The difference is seconds on a long clip.
+        // -ss 置於 -i 之前，使 ffmpeg 依關鍵影格跳轉，而非從頭解碼再丟棄。在長片段上，兩者差
+        // 距達數秒。
+        if startSeconds > 0 {
+            arguments += ["-ss", String(format: "%.3f", startSeconds)]
+        }
+        // Also before -i: -readrate governs how fast the input is consumed.
+        // The initial burst lets playback start without waiting a full second
+        // for the first frames.
+        // 同樣置於 -i 之前：-readrate 管的是輸入被消耗的速度。初始 burst 讓播放能立即開始，
+        // 不必為了最初幾幀等上整整一秒。
+        if P6v2Flags.isDecodePaced {
+            arguments += [
+                "-readrate", String(format: "%.2f", speed),
+                "-readrate_initial_burst", "2",
+            ]
+        }
         arguments += [
             "-i", input.path,
             "-an", "-sn", "-dn",
@@ -591,10 +632,55 @@ enum P6v2Error: Error {
 /// 因此 1x 時兩者貼合到足以觀看，3x 時則不然。這是雙行程設計的誠實限制，且明白說出而非隱藏：
 /// app 會在狀態列回報 `audio ffplay`，而 `-mute` 可在量測執行中關閉它——在那種情況下，
 /// 第二個行程爭搶磁碟只會是雜訊。
+/// Kills ffplay however the app exits.
+///
+/// `stop()` on the model covers the Stop button and the `-seconds` timeout, and
+/// covers neither of the ways a person actually leaves: closing the window, or
+/// Ctrl-C in the terminal. Both end the process without unwinding through the
+/// model, and ffplay is a separate process, so it kept playing the clip with no
+/// window left to stop it from. P6 had the same defect and fixed it with
+/// Darwin signal sources, which is a macOS-only answer.
+///
+/// `atexit` is the one hook that fires for a normal exit whatever triggered it,
+/// including the GTK main loop ending on window close. Signals are handled too,
+/// because a signal terminates without running atexit handlers.
+///
+/// 無論 app 以何種方式結束，都確保 ffplay 被終止。
+///
+/// model 上的 `stop()` 涵蓋 Stop 按鈕與 `-seconds` 逾時，卻沒有涵蓋任何一種人們實際離開的
+/// 方式：關閉視窗，或在終端機按 Ctrl-C。兩者都會在不經過 model 的情況下結束行程，而 ffplay
+/// 是獨立行程，於是它會繼續播放，卻已沒有任何視窗可用來停止它。P6 有相同缺陷，並以 Darwin
+/// 的訊號來源修正，那是僅適用於 macOS 的解法。
+///
+/// `atexit` 是唯一在正常結束時必定觸發的鉤子，無論起因為何，包括 GTK main loop 因視窗關閉而
+/// 結束。訊號則另外處理，因為訊號會直接終止行程而不執行 atexit handler。
+enum P6v2Cleanup {
+    nonisolated(unsafe) static var audio: P6v2Audio?
+    nonisolated(unsafe) private static var installed = false
+
+    static func install() {
+        guard !installed else { return }
+        installed = true
+
+        atexit {
+            P6v2Cleanup.audio?.stop()
+            P6v2Cleanup.audio = nil
+        }
+
+        for signalNumber in [SIGINT, SIGTERM] {
+            signal(signalNumber) { received in
+                P6v2Cleanup.audio?.stop()
+                P6v2Cleanup.audio = nil
+                _exit(128 + received)
+            }
+        }
+    }
+}
+
 final class P6v2Audio: @unchecked Sendable {
     private let process = Process()
 
-    init?(input: URL, speed: Double) {
+    init?(input: URL, speed: Double, startSeconds: Double = 0) {
         guard let ffplay = P6v2Audio.locateFFplay() else {
             P6v2Diagnostics.write("ffplay not found, running silent")
             return nil
@@ -606,6 +692,14 @@ final class P6v2Audio: @unchecked Sendable {
             "-nodisp",
             "-autoexit",
         ]
+        // Before -i, like the decoder's hwaccel. After it, ffplay accepts -ss
+        // and seeks by decoding from the start, which for a seek near the end of
+        // a clip is a long silent pause rather than an error.
+        // 置於 -i 之前，與解碼器的 hwaccel 相同。若置於其後，ffplay 仍會接受 -ss，但會從頭解碼
+        // 來達成跳轉；對於接近片尾的跳轉，這表現為一段漫長的無聲等待，而非一則錯誤。
+        if startSeconds > 0 {
+            arguments += ["-ss", String(format: "%.3f", startSeconds)]
+        }
         if let filter = P6v2Audio.atempoChain(for: speed) {
             arguments += ["-af", filter]
         }
@@ -678,6 +772,45 @@ final class P6v2Audio: @unchecked Sendable {
 /// 值反覆運作。GL view 需要的是位元組，而非一次狀態變更。
 final class P6v2SurfaceBox: @unchecked Sendable {
     @MainActor weak var view: NV12GLView?
+
+    /// Frames handed over but not yet drawn.
+    ///
+    /// This is back-pressure, and it is why the decode loop can stop rather than
+    /// run flat out. Without it the loop read and handed over as fast as the
+    /// pipe allowed while the widget drew what it could, and every frame that
+    /// arrived before the previous one was drawn simply overwrote it: decode
+    /// work, pipe bandwidth and CPU all spent on pictures nobody ever saw.
+    ///
+    /// Counted here rather than read off the view because the decode thread must
+    /// not touch a @MainActor object.
+    ///
+    /// 已交遞但尚未繪製的幀數。
+    ///
+    /// 這就是背壓機制，也是解碼迴圈能夠停下來、而非全速空轉的原因。少了它，該迴圈會以管線允許
+    /// 的最快速度讀取並交遞，而 widget 只能盡力繪製；任何在前一幀被繪製之前抵達的幀都會直接
+    /// 覆蓋它——解碼工作、管線頻寬與 CPU 全都花在沒有任何人看見的畫面上。
+    ///
+    /// 在此計數而非直接讀取 view，是因為解碼執行緒不得觸碰 @MainActor 物件。
+    private let lock = NSLock()
+    private var pending = 0
+
+    func handedOver() {
+        lock.lock()
+        pending += 1
+        lock.unlock()
+    }
+
+    func drawn() {
+        lock.lock()
+        if pending > 0 { pending -= 1 }
+        lock.unlock()
+    }
+
+    var pendingCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return pending
+    }
 }
 
 /// Wraps `NV12GLView` so it can sit in a SwiftCrossUI hierarchy.
@@ -725,6 +858,84 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var fpsSelection: String? = P6v2Flags.fps
     @SwiftCrossUI.Published var resolutionSelection: String? = P6v2Flags.resolution
 
+    /// Matches P6's `--frame-drop`, which defaults to off there too.
+    ///
+    /// With it off nothing is ever skipped: a decoder that cannot keep up shows
+    /// every frame and reports a lower rate, which is the honest reading of what
+    /// the pipe can carry. With it on, frames that arrive faster than they can
+    /// be drawn are discarded to hold the target rate, and `dropped/sec` becomes
+    /// the number worth watching. Comparing a run with it on against one with it
+    /// off compares two different questions.
+    ///
+    /// 對應 P6 的 `--frame-drop`，該處預設同樣為關閉。
+    ///
+    /// 關閉時不會略過任何一幀：跟不上的解碼器會顯示每一幀並回報較低的速率，而那正是「管線能
+    /// 承載多少」的誠實讀數。開啟時，到達速度快於可繪製速度的幀會被丟棄以維持目標速率，此時
+    /// `dropped/sec` 才是值得關注的數字。把開啟的執行與關閉的執行相比，比較的是兩個不同的問題。
+    @SwiftCrossUI.Published var frameDropEnabled = P6v2Flags.isFrameDropEnabled
+
+    /// The remaining P6 controls, kept to the same names and defaults so a
+    /// person moving between the two apps is not learning a second vocabulary.
+    /// 其餘的 P6 控制項，維持相同的名稱與預設值，使在兩支 app 之間切換的人不必再學一套語彙。
+    @SwiftCrossUI.Published var soundEnabled = !P6v2Flags.isMuted
+    @SwiftCrossUI.Published var showsResolution = false
+    @SwiftCrossUI.Published var seekPosition = 0.0
+    @SwiftCrossUI.Published var selectedFileName = "No file chosen"
+    @SwiftCrossUI.Published var chosenPath: String? = P6v2Flags.inputPath
+
+    /// Clip length, probed with ffprobe so the seek slider spans the real
+    /// duration rather than a guess. Nil until a file is chosen, and the slider
+    /// is disabled while it is.
+    /// 片長，以 ffprobe 探測，使 seek 滑桿的範圍對應真實長度而非估計值。在選擇檔案之前為 nil，
+    /// 此期間滑桿為停用狀態。
+    @SwiftCrossUI.Published var duration: Double?
+
+    var seekDescription: String {
+        guard let duration else { return "--:-- / --:--" }
+        return "\(Self.formatTime(seekPosition)) / \(Self.formatTime(duration))"
+    }
+
+    var statusDescription: String {
+        status
+    }
+
+    var resolutionDescription: String {
+        let resolution = P6v2Resolution.named(resolutionSelection ?? "1080p")
+        return "Output \(resolution.width)x\(resolution.height), "
+            + "\(fpsText), \(dropText), decode \(decodePath), present gl-nv12 (GPU)"
+    }
+
+    /// The three ways a frame fails to reach the screen, kept apart because
+    /// they have different causes and only one of them is a "drop" in P6's
+    /// sense.
+    ///
+    ///   shortfall  the target rate minus the rate achieved. These frames were
+    ///              never produced -- the pipe could not carry them. Not a drop.
+    ///   skipped    read in full, then deliberately not drawn to catch up.
+    ///              Only ever non-zero with Frame drop on.
+    ///   overwritten  handed to the GL view and replaced before it drew them.
+    ///              This was invisible until it was counted, and it is the one
+    ///              that explains "52 fps with 0 dropped".
+    ///
+    /// 一幀無法抵達螢幕的三種方式，分開列出，因為它們成因不同，且其中只有一種符合 P6 所謂的
+    /// 「掉幀」。
+    ///
+    ///   shortfall   目標速率減去實際達成的速率。這些幀從未被產生——管線無法承載。不算掉幀。
+    ///   skipped     已完整讀取，但為了追上進度而刻意不繪製。僅在 Frame drop 開啟時才可能非零。
+    ///   overwritten 已交給 GL view，但在它繪製之前就被取代。這一項在被計數之前完全不可見，
+    ///               而它正是「52 fps 卻 0 dropped」的解釋。
+    @SwiftCrossUI.Published var frameAccountingText = "no frames yet"
+
+    var rendererLabel: String {
+        "gl-nv12 (GPU shader)"
+    }
+
+    static func formatTime(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "--:--" }
+        let total = Int(seconds.rounded())
+        return String(format: "%02d:%02d", total / 60, total % 60)
+    }
+
     private var decoder: P6v2Decoder?
     /// What decode actually ran as, kept so the summary can state it too. The
     /// status line is overwritten when playback stops.
@@ -739,11 +950,113 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
     private var decodeThread: Thread?
     private var shouldStop = false
 
+    /// From `chosenPath`, not the flag directly, so the file dialog and `-i`
+    /// feed the same place. Reading the flag here would make a file chosen in
+    /// the UI silently ignored.
+    /// 取自 `chosenPath` 而非直接讀取旗標，使檔案對話框與 `-i` 進入同一個來源。若在此直接讀取
+    /// 旗標，透過 UI 選擇的檔案會被靜默忽略。
     var inputURL: URL? {
-        P6v2Flags.inputPath.map { URL(fileURLWithPath: $0) }
+        chosenPath.map { URL(fileURLWithPath: $0) }
     }
 
     var hasInput: Bool { inputURL != nil }
+
+    /// Probes the clip so the seek slider has a real range.
+    /// 探測片段長度，使 seek 滑桿具備真實範圍。
+    func adoptInput(path: String) {
+        chosenPath = path
+        selectedFileName = URL(fileURLWithPath: path).lastPathComponent
+        seekPosition = 0
+        duration = Self.probeDuration(path: path)
+        status = duration == nil
+            ? "Chosen \(selectedFileName); duration unknown"
+            : "Chosen \(selectedFileName), \(Self.formatTime(duration ?? 0))"
+        P6v2Diagnostics.write("input \(selectedFileName) duration \(duration ?? -1)")
+    }
+
+    private static func probeDuration(path: String) -> Double? {
+        #if os(Windows)
+        let executable = "ffprobe.exe"
+        let separator: Character = ";"
+        #else
+        let executable = "ffprobe"
+        let separator: Character = ":"
+        #endif
+        guard let pathValue = ProcessInfo.processInfo.environment["PATH"] else { return nil }
+        var ffprobe: URL?
+        for directory in pathValue.split(separator: separator) {
+            let candidate = URL(fileURLWithPath: String(directory))
+                .appendingPathComponent(executable)
+            if FileManager.default.isExecutableFile(atPath: candidate.path) {
+                ffprobe = candidate
+                break
+            }
+        }
+        guard let ffprobe else { return nil }
+
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = ffprobe
+        process.arguments = [
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=nw=1:nk=1",
+            path,
+        ]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+        let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
+        process.waitUntilExit()
+
+        // isNewline again, not "\n". ffprobe on Windows ends the line with CRLF,
+        // and Swift treats that pair as one Character that is not equal to "\n",
+        // so splitting on the literal returns the text with the CR still on it
+        // and Double(_:) then yields nil. Same trap as the hwaccel list.
+        // 同樣使用 isNewline 而非 "\n"。Windows 上的 ffprobe 以 CRLF 結尾，而 Swift 將該組合
+        // 視為單一 Character 且不等於 "\n"，因此以字面量切分會得到仍帶著 CR 的文字，Double(_:)
+        // 隨即回傳 nil。與 hwaccel 清單是同一個陷阱。
+        return (String(data: data, encoding: .utf8) ?? "")
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map { String($0.filter { !$0.isWhitespace }) }
+            .flatMap(Double.init)
+    }
+
+    func seek(to seconds: Double) {
+        let wasPlaying = isPlaying
+        seekPosition = max(0, min(seconds, duration ?? seconds))
+        if wasPlaying {
+            stop()
+            play()
+        }
+        P6v2Diagnostics.write("seek to \(seekPosition)")
+    }
+
+    func nudge(by delta: Double) {
+        seek(to: seekPosition + delta)
+    }
+
+    /// Starts or stops ffplay without touching the video path, so the toggle
+    /// takes effect during playback rather than only at the next start.
+    /// 在不影響視訊路徑的情況下啟動或停止 ffplay，使該開關於播放期間即時生效，而非僅在下次
+    /// 開始播放時才作用。
+    func soundSettingChanged(isEnabled: Bool) {
+        guard isPlaying, let input = inputURL else { return }
+        if isEnabled {
+            guard audio == nil else { return }
+            audio = P6v2Audio(
+                input: input,
+                speed: Self.speedFactor(speedSelection ?? "1x"),
+                startSeconds: seekPosition
+            )
+            P6v2Cleanup.audio = audio
+        } else {
+            audio?.stop()
+            audio = nil
+            P6v2Cleanup.audio = nil
+        }
+    }
 
     func play() {
         guard !isPlaying else { return }
@@ -762,7 +1075,9 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
                 input: input,
                 resolution: resolution,
                 fps: requestedFPS,
-                acceleration: P6v2Flags.acceleration
+                acceleration: P6v2Flags.acceleration,
+                startSeconds: seekPosition,
+                speed: speedFactor
             )
         } catch P6v2Error.noHardwareDecoder {
             // -gpu was explicit, so refuse rather than quietly doing the other
@@ -779,7 +1094,16 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             return
         }
 
-        audio = P6v2Flags.isMuted ? nil : P6v2Audio(input: input, speed: speedFactor)
+        // The toggle, not the flag. `-mute` sets the toggle's initial value and
+        // the toggle decides from then on, so turning sound back on in the UI
+        // works even in a run started muted.
+        // 依開關而非旗標決定。`-mute` 只設定該開關的初始值，之後一律由開關決定；因此即使是以
+        // 靜音啟動的執行，在 UI 中重新開啟聲音仍然有效。
+        audio = soundEnabled
+            ? P6v2Audio(input: input, speed: speedFactor, startSeconds: seekPosition)
+            : nil
+        P6v2Cleanup.audio = audio
+        let dropEnabled = frameDropEnabled
 
         stats = P6v2Stats()
         shouldStop = false
@@ -801,7 +1125,17 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         // 使用一般的 Thread 而非 Task。解碼迴圈是不含 await 的緊密「讀取並調速」迴圈，若放在
         // 協作式執行緒池上，會在整段執行期間佔住一條池中執行緒。
         let thread = Thread { [weak self] in
-            self?.decodeLoop(resolution: resolution, fps: requestedFPS, speed: speedFactor)
+            // Read once at start rather than each iteration. Flipping the toggle
+            // mid-run would otherwise change what the numbers mean partway
+            // through a sample, and the summary has one line for the whole run.
+            // 於開始時讀取一次，而非每次迭代都讀。否則在執行途中切換該開關，會使同一份取樣的
+            // 前後段數字意義不同，而摘要對整段執行只有一行。
+            self?.decodeLoop(
+                resolution: resolution,
+                fps: requestedFPS,
+                speed: speedFactor,
+                dropEnabled: dropEnabled
+            )
         }
         thread.name = "P6-v2 decode"
         decodeThread = thread
@@ -819,6 +1153,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         // 音訊，卻沒有任何視窗可用來停止它。
         audio?.stop()
         audio = nil
+        P6v2Cleanup.audio = nil
         isPlaying = false
         // The decode path goes in the summary, not just the status line. A
         // recorded number without the mode that produced it cannot be compared
@@ -883,16 +1218,50 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
         return decoder?.readFrame()
     }
 
-    private func decodeLoop(resolution: P6v2Resolution, fps: Int, speed: Double) {
+    private func decodeLoop(
+        resolution: P6v2Resolution,
+        fps: Int,
+        speed: Double,
+        dropEnabled: Bool
+    ) {
         // The pace we are trying to hold. 60 fps at 3x means presenting 180
         // frames per second, which is the stress the flag combination is for.
         // 我們嘗試維持的節奏。60 fps 於 3x 表示每秒需呈現 180 幀，而這正是該旗標組合所要
         // 施加的壓力。
         let targetInterval = 1.0 / (Double(fps) * speed)
+        // The rate actually being asked for. 60 fps at 3x is 180 frames a
+        // second, and comparing the achieved rate against 60 there would call a
+        // run successful when it is delivering a third of what was requested.
+        // 實際被要求的速率。60 fps 於 3x 即為每秒 180 幀；若在該情況下仍以 60 作為比較基準，
+        // 會把一次只交付了所要求三分之一的執行判定為成功。
+        let targetRate = Int((Double(fps) * speed).rounded())
         var nextDeadline = Date().timeIntervalSince1970
         var isFirstFrame = true
 
         while !shouldStop {
+            // Wait for the widget to catch up before pulling another frame.
+            // Not reading is what throttles ffmpeg: the pipe fills, ffmpeg
+            // blocks on write, and the decode stops costing anything. Reading
+            // ahead and overwriting would cost the same CPU to produce pictures
+            // that are then discarded.
+            //
+            // Two frames of slack rather than one, so a single late render does
+            // not stall the pipeline; more than that and the discard starts
+            // again.
+            //
+            // 在取下一幀之前，先等待 widget 跟上。「不讀取」正是節流 ffmpeg 的手段：管線填滿後
+            // ffmpeg 會在寫入時阻塞，解碼隨即不再消耗任何資源。若搶先讀取並覆蓋，則會花費同樣
+            // 的 CPU 去產生隨後即被丟棄的畫面。
+            //
+            // 保留兩幀而非一幀的餘裕，使單次延遲的繪製不至於讓整條管線停頓；超過此數量，丟棄
+            // 就會重新開始發生。
+            var waited = 0.0
+            while !shouldStop, surfaceBox.pendingCount >= 2, waited < 0.25 {
+                Thread.sleep(forTimeInterval: 0.001)
+                waited += 0.001
+            }
+            if shouldStop { break }
+
             let readStart = DispatchTime.now().uptimeNanoseconds
             let nextFrame =
                 isFirstFrame
@@ -932,7 +1301,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             // 否則瓶頸在來源：顯示該幀並重新對時，使回報的實際速率是解碼器真正能維持的速率。
             let sourceIsAhead = readMilliseconds < targetInterval * 1000 * 0.25
 
-            if isBehind && sourceIsAhead {
+            if dropEnabled && isBehind && sourceIsAhead {
                 stats.recordDropped()
                 continue
             }
@@ -957,6 +1326,7 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
             let frameWidth = resolution.width
             let frameHeight = resolution.height
 
+            surfaceBox.handedOver()
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.surfaceBox.view?.setFrame(
@@ -965,10 +1335,33 @@ final class P6v2Model: SwiftCrossUI.ObservableObject {
                     width: frameWidth,
                     height: frameHeight
                 )
+                self.surfaceBox.drawn()
                 if rolled {
                     self.fpsText = "\(fpsValue) fps"
-                    self.dropText = "\(dropValue) dropped/sec"
-                    P6v2Diagnostics.write("fps=\(fpsValue) dropped/sec=\(dropValue)")
+                    self.dropText = "\(dropValue) skipped/sec"
+
+                    // Read from the view, which is the only place that knows.
+                    // The decode side cannot tell a frame it handed over from a
+                    // frame that was drawn.
+                    // 由 view 讀取，因為只有它知道。解碼端無法區分「已交遞的幀」與
+                    // 「已繪製的幀」。
+                    let accepted = self.surfaceBox.view?.framesAccepted ?? 0
+                    let rendered = self.surfaceBox.view?.framesRendered ?? 0
+                    let overwritten = self.surfaceBox.view?.framesOverwritten ?? 0
+                    let shortfall = max(0, targetRate - fpsValue)
+                    self.frameAccountingText =
+                        "target \(targetRate)/s, shown \(fpsValue)/s"
+                        + " — short \(shortfall) (never produced),"
+                        + " skipped \(dropValue) (deliberate),"
+                        + " overwritten \(overwritten) (handed over, never drawn)"
+                    let uploadMs =
+                        Double(self.surfaceBox.view?.lastUploadNanoseconds ?? 0) / 1_000_000
+                    P6v2Diagnostics.write(
+                        "fps=\(fpsValue) target=\(targetRate) skipped/sec=\(dropValue)"
+                            + " accepted=\(accepted) rendered=\(rendered)"
+                            + " overwritten=\(overwritten)"
+                            + String(format: " upload=%.2fms", uploadMs)
+                    )
                 }
             }
 
@@ -1015,21 +1408,59 @@ struct P6v2RootView: View {
     //能處理 observable object，P6 也是以相同方式宣告其 model。
     @State var player = P6v2Model()
 
+    // An environment action, not a free function. `chooseFile` is provided
+    // through the environment by the backend that supports file dialogs; calling
+    // it as a global gives `argument passed to call that takes no arguments`,
+    // because the name then resolves to something else entirely.
+    // 這是 environment action，而非自由函式。`chooseFile` 由支援檔案對話框的 backend 透過
+    // environment 提供；若當成全域函式呼叫，會得到
+    // `argument passed to call that takes no arguments`，因為該名稱此時解析到了完全不同的東西。
+    @Environment(\.chooseFile) var chooseFile
+
     let speedOptions = ["1x", "2x", "3x"]
     let fpsOptions = ["30", "45", "60"]
     let resolutionOptions = P6v2Resolution.allCases.map(\.rawValue)
 
     var body: some View {
+        // Laid out to match P6 control for control, in the same order, with the
+        // same labels and the same disabled rules. The point of P6-v2 is a
+        // side-by-side comparison, and a different arrangement makes a reader
+        // hunt for the equivalent instead of looking at the difference.
+        // 逐項對應 P6 的控制項編排：相同順序、相同標籤、相同的停用規則。P6-v2 的目的是並排
+        // 比較，若採用不同的排列方式，讀者會忙於尋找對應項目，而非直接觀察差異。
         VStack(alignment: .leading, spacing: 10) {
-            Text("P6-v2: playback on \(String(describing: DefaultBackend.self))")
-                .font(.system(size: 18))
+            Group {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("P6-v2: GTK stream player")
+                            .font(.system(size: 18))
+                        Text(player.selectedFileName)
+                        Text("Renderer: \(player.rendererLabel)")
+                    }
+
+                    Button("Choose file") { presentFileChooser() }
+                }
+
+                Slider(value: player.$seekPosition, in: 0...max(player.duration ?? 1, 1))
+                    .frame(width: 960)
+                Text("Seek target: \(player.seekDescription)")
+            }
 
             Group {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Button("-5s") { player.nudge(by: -5) }
+                        .disabled(!player.hasInput)
+
                     Button(player.isPlaying ? "Stop" : "Play") {
                         if player.isPlaying { player.stop() } else { player.play() }
                     }
                     .disabled(!player.hasInput)
+
+                    Button("+5s") { player.nudge(by: 5) }
+                        .disabled(!player.hasInput)
+
+                    Button("Seek") { player.seek(to: player.seekPosition) }
+                        .disabled(!player.hasInput)
 
                     Text("Speed")
                     Picker(of: speedOptions, selection: player.$speedSelection)
@@ -1047,7 +1478,23 @@ struct P6v2RootView: View {
                         .frame(width: 96)
                 }
 
-                HStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Toggle(
+                        "Sound",
+                        isOn: player.$soundEnabled.onChange { isEnabled in
+                            player.soundSettingChanged(isEnabled: isEnabled)
+                        }
+                    )
+                    .toggleStyle(.button)
+                    .disabled(!player.hasInput)
+
+                    Toggle("Frame drop", isOn: player.$frameDropEnabled)
+                        .toggleStyle(.button)
+
+                    Toggle("Show resolution", isOn: player.$showsResolution)
+                        .toggleStyle(.button)
+                        .disabled(!player.hasInput)
+
                     Text(player.fpsText)
                     Text(player.dropText)
                 }
@@ -1066,13 +1513,34 @@ struct P6v2RootView: View {
             // GL context 一併失去已編譯的 shader，使每次中斷後的第一幀都要付出重新編譯的代價。
             P6v2VideoView(box: player.surfaceBox, width: 960, height: 540)
 
-            Text(player.status)
+            Text(player.statusDescription)
+
+            // Always shown, not behind the toggle. This line is the answer to
+            // "is it really 60 fps with nothing dropped", and hiding it behind a
+            // switch is how "0 dropped" got believed in the first place.
+            // 一律顯示，不置於開關之後。這一行正是「它真的是 60 fps 且沒有掉幀嗎」的答案；把它
+            // 藏在開關後面，正是「0 dropped」最初被採信的原因。
+            Text(player.frameAccountingText)
+
+            if player.showsResolution {
+                Text(player.resolutionDescription)
+            }
         }
         .padding(16)
         .onAppear {
             P6v2Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P6v2Diagnostics.renderComplete()
 
+            // Installed before anything can start ffplay. Registering it later
+            // leaves a window where a crash or a close orphans the audio
+            // process, which is the defect this exists to prevent.
+            // 於任何可能啟動 ffplay 的動作之前安裝。若延後註冊，會留下一段空窗期，此期間的崩潰
+            // 或關閉都會遺留孤兒音訊行程，而那正是此機制要防止的缺陷。
+            P6v2Cleanup.install()
+
+            if let path = P6v2Flags.inputPath {
+                player.adoptInput(path: path)
+            }
             if P6v2Flags.autoplay { player.play() }
 
             if let seconds = P6v2Flags.runSeconds {
@@ -1081,6 +1549,33 @@ struct P6v2RootView: View {
                     exit(0)
                 }
             }
+        }
+    }
+
+    /// Opens the file dialog and adopts the choice.
+    ///
+    /// Not named `chooseFile`: that is the environment action this calls, and
+    /// having both gives `invalid redeclaration of 'chooseFile()'`.
+    /// 不命名為 `chooseFile`：那是本方法所呼叫的 environment action，兩者同名會導致
+    /// `invalid redeclaration of 'chooseFile()'`。
+    private func presentFileChooser() {
+        // `chooseFile`, the same free function P6 calls. This is the GtkFileDialog
+        // path since the migration off the deprecated GtkFileChooserNative, and
+        // P6-v2 exercising it on Windows is worth having: the original bug was a
+        // dialog that would not close, and it was Wayland-only.
+        // 使用 `chooseFile`，即 P6 所呼叫的同一個自由函式。自從自已淘汰的 GtkFileChooserNative
+        // 遷移之後，這條路徑即為 GtkFileDialog；而讓 P6-v2 在 Windows 上實際走過它是有價值的：
+        // 最初的缺陷是對話框無法關閉，且僅出現在 Wayland。
+        Task {
+            guard let file = await chooseFile(
+                title: "Choose MP4, WebM, or Y4M stream",
+                defaultButtonLabel: "Open",
+                allowSelectingFiles: true,
+                allowSelectingDirectories: false
+            ) else {
+                return
+            }
+            player.adoptInput(path: file.path)
         }
     }
 }
