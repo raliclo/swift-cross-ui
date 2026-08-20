@@ -3,7 +3,18 @@
 #
 #   zsh testapp/drive_xdotool.zsh P19
 #   zsh testapp/drive_xdotool.zsh P19 --keep     # leave the app running
+#   zsh testapp/drive_xdotool.zsh P19 --click 80,120 --click 80,180
+#   zsh testapp/drive_xdotool.zsh P21 --key Tab --key space --pause 2
 #   zsh testapp/drive_xdotool.zsh --help
+#
+# --click X,Y  window-relative click, then capture
+# --key KEYS   xdotool key syntax, then capture
+# --pause SECS wait, then capture
+# Steps run in the order given, each leaving its own numbered screenshot.
+# --click X,Y  以視窗相對座標點擊，然後擷取
+# --key KEYS   xdotool 的按鍵語法，然後擷取
+# --pause SECS 等待，然後擷取
+# 各步驟依給定順序執行，每一步各自留下一張編號的截圖。
 #
 # 於 WSLg 下以 xdotool 驅動測試 app，並擷取其結果。
 #
@@ -39,10 +50,28 @@ usage() {
     sed -n '2,8p' "$script_path" | sed 's/^# \{0,1\}//'
 }
 
+# Steps to perform after the initial capture, in order. Each one acts and then
+# captures, so a run leaves a numbered trail rather than a single before-and-
+# after; when a control does nothing, the shot that matters is the one taken
+# immediately after the click that should have worked.
+# 於初始擷取之後依序執行的步驟。每個步驟先動作、再擷取，因此一次執行會留下編號連續的軌跡，
+# 而非僅有前後兩張；當某個控制項毫無反應時，真正有用的是「本應生效的那次點擊」之後緊接的
+# 那一張截圖。
+typeset -a steps=()
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
         --keep) keep=1; shift ;;
+        --click)
+            if [ "$#" -lt 2 ]; then usage >&2; exit 64; fi
+            steps+=("click:$2"); shift 2 ;;
+        --key)
+            if [ "$#" -lt 2 ]; then usage >&2; exit 64; fi
+            steps+=("key:$2"); shift 2 ;;
+        --pause)
+            if [ "$#" -lt 2 ]; then usage >&2; exit 64; fi
+            steps+=("pause:$2"); shift 2 ;;
         *) app="$1"; shift ;;
     esac
 done
@@ -146,6 +175,44 @@ printf '==> Capturing initial state\n'
 xdotool windowactivate "$wid" 2>/dev/null || true
 sleep 1
 capture "initial"
+
+# Each step acts, waits a beat for the UI to settle, then captures.
+#
+# Clicks are window-relative, as the header explains: absolute coordinates
+# computed from the window geometry landed nowhere, because they do not account
+# for decorations. `mousemove --window` does.
+#
+# 每個步驟先動作，稍候讓 UI 穩定，然後擷取。
+#
+# 點擊採視窗相對座標，理由如檔頭所述：依視窗幾何計算出的絕對座標會落在錯誤位置，因為它未計入
+# 視窗裝飾；`mousemove --window` 則會。
+step_number=0
+for step in $steps; do
+    step_number=$((step_number + 1))
+    action="${step%%:*}"
+    value="${step#*:}"
+
+    case "$action" in
+        click)
+            x="${value%%,*}"
+            y="${value##*,}"
+            printf '\n==> Step %s: click at %s,%s\n' "$step_number" "$x" "$y"
+            xdotool mousemove --window "$wid" "$x" "$y" click 1 2>/dev/null || true
+            ;;
+        key)
+            printf '\n==> Step %s: key %s\n' "$step_number" "$value"
+            xdotool windowfocus "$wid" 2>/dev/null || true
+            xdotool key --window "$wid" "$value" 2>/dev/null || true
+            ;;
+        pause)
+            printf '\n==> Step %s: pause %ss\n' "$step_number" "$value"
+            sleep "$value"
+            ;;
+    esac
+
+    sleep 1
+    capture "step$step_number-$action"
+done
 
 printf '\n==> Window list\n'
 xdotool search --onlyvisible --name ".+" 2>/dev/null | while read -r id; do
