@@ -14,6 +14,32 @@ public enum InputAction: Equatable, Sendable {
     case keyDown(Key)
     case keyUp(Key)
     case key(Key)
+
+    /// Turns the wheel, in notches, wherever the pointer currently is.
+    ///
+    /// Positive `dy` scrolls down and positive `dx` scrolls right, which is the
+    /// sign convention of every scroll-delta API involved: GDK's
+    /// `GdkScrollEvent` deltas, and Windows' horizontal wheel. Vertical on
+    /// Windows is the exception -- there positive means *up* -- and that
+    /// inversion is handled in the synthesiser rather than left for a file to
+    /// know about.
+    ///
+    /// It takes no position of its own, deliberately. A wheel event goes to
+    /// whatever is under the pointer, so a file that scrolls has to put the
+    /// pointer somewhere first, and `move` already does that. Giving `scroll` a
+    /// position too would make it possible to write a row that says one place
+    /// and scrolls another.
+    ///
+    /// 以「格」為單位轉動滾輪，作用於指標當下所在之處。
+    ///
+    /// `dy` 為正代表向下捲動，`dx` 為正代表向右，這是所有相關 scroll-delta API 的符號慣例：
+    /// GDK 的 `GdkScrollEvent` delta，以及 Windows 的水平滾輪。Windows 的垂直方向是例外——該處
+    /// 正值代表**向上**——這項反轉在 synthesiser 內處理，而非留給動作檔去理解。
+    ///
+    /// 它刻意不帶自己的位置。滾輪事件會送往指標下方的元件，因此會捲動的檔案必須先把指標移到某處，
+    /// 而 `move` 已能做到。若讓 `scroll` 也帶位置，就可能寫出「宣稱在某處、實際捲動另一處」的一列。
+    case scroll(dx: Int, dy: Int)
+
     case sleep(microseconds: Int)
 }
 

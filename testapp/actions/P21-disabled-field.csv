@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note
+# P21 step 6, the half that matters: does the *disabled* TextField refuse input?
+#
+# It is bound to the same `text` as the enabled one, so if two keystrokes reach
+# it the readout above changes and the defect is unmissable. A disabled control
+# that only looks disabled is exactly what step 2 warns about, and it is
+# invisible in a still screenshot unless something types into it.
+#
+# The field sits at y=341 after scrolling 12 notches; taken from the screenshot
+# of P21-text-fields.csv, which scrolls by the same amount.
+#
+# P21 步驟 6 中真正關鍵的那一半：**停用的** TextField 是否確實拒絕輸入？
+#
+# 它與啟用的那一個綁定同一個 `text`，因此只要有兩次按鍵抵達它，上方的顯示就會改變，缺陷無所遁形。
+# 「只是看起來被停用」的控制項正是步驟 2 所警告的情況，而除非有人真的對它輸入，否則在靜態截圖中
+# 完全看不出來。
+#
+# 該欄位在捲動 12 格後位於 y=341；此座標取自 P21-text-fields.csv 的截圖，該檔的捲動量相同。
+move,410,400,,,,,over the scroll view
+sleep,,,,,,400000,
+# To the bottom, in paced bursts rather than one long run of notches.
+#
+# A single `scroll,0,40` travelled a different distance on each of three runs.
+# xdotool sends the notches as `click --repeat`, back to back with no gap, and
+# GTK coalesces a rapid burst into one kinetic gesture whose distance depends on
+# timing rather than on the count. Pausing between bursts makes each one land,
+# and ending at the hard stop of the scroll range removes the last of the
+# variation.
+#
+# 分段捲到底，而非一口氣送出一長串格數。
+#
+# 單一的 `scroll,0,40` 在三次執行中各走了不同距離。xdotool 是以 `click --repeat` 背靠背地送出
+# 這些格數、中間毫無間隔，而 GTK 會把急促的連發併為單一 kinetic 手勢，其距離取決於時序而非次數。
+# 在各段之間暫停可使每一段都確實生效，而以捲動範圍的硬性盡頭作結，則消除了最後的變異。
+scroll,0,6,,,,,
+sleep,,,,,,350000,
+scroll,0,6,,,,,
+sleep,,,,,,350000,
+scroll,0,6,,,,,
+sleep,,,,,,350000,
+scroll,0,6,,,,,
+sleep,,,,,,350000,
+scroll,0,6,,,,,
+sleep,,,,,,350000,
+scroll,0,6,,,,,at the bottom by now
+sleep,,,,,,1200000,
+click,410,341,,left,,,"the disabled TextField -- the second, borderless box"
+sleep,,,,,,400000,
+key,,,,,z,,
+key,,,,,z,,
+sleep,,,,,,1200000,hold for the screenshot

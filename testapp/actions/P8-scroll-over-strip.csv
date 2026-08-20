@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note
+# P8 step 4, which is #426 itself: scroll vertically with the pointer over the
+# horizontal strip. The outer view must still move.
+#
+# Run P8-scroll-outer.csv first if in doubt -- it is the control, and it now
+# passes, so a difference here belongs to the strip rather than to the input.
+#
+# The strip sits at row 4 of the unscrolled outer view, which is the "... ... H"
+# band; the coordinate below is taken from a launch screenshot, not from one
+# after scrolling.
+#
+# P8 步驟 4，也就是 #426 本身：指標置於水平長條之上進行垂直捲動，外層視圖必須仍會移動。
+#
+# 若有疑慮，請先執行 P8-scroll-outer.csv——那是對照組，且現在會通過，因此此處的差異屬於長條本身，
+# 而非輸入方式。
+#
+# 該長條位於未捲動外層視圖的第 4 列，即「... ... H」那一帶；下方座標取自啟動時的截圖，而非捲動後
+# 的截圖。
+move,320,453,,,,,over the horizontal strip
+sleep,,,,,,400000,
+scroll,0,4,,,,,four notches down, same as the control
+sleep,,,,,,1200000,hold for the screenshot

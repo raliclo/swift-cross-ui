@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note
+# P8 steps 5 and 6: scroll the strip sideways to its right-hand end, keep going,
+# then scroll vertically.
+#
+# Step 5 passes if the strip's contents move. Step 6 passes if the outer view
+# still responds afterwards -- the failure it guards against is everything
+# freezing once the inner view has nowhere left to go, so the vertical scroll at
+# the end is the check, not an extra.
+#
+# P8 步驟 5 與 6：將長條向右捲到底、繼續捲，然後改為垂直捲動。
+#
+# 步驟 5 通過的條件是長條內容有移動。步驟 6 通過的條件是其後外層視圖仍有反應——它所要防範的失敗
+# 是「內層視圖捲到盡頭後一切都凍結」，因此結尾的垂直捲動正是該項檢查，而非附加動作。
+move,320,453,,,,,over the horizontal strip
+sleep,,,,,,400000,
+scroll,10,0,,,,,ten notches right -- past the strip's end
+sleep,,,,,,800000,
+scroll,4,0,,,,,keep going with nowhere left to go
+sleep,,,,,,800000,
+scroll,0,3,,,,,now vertically -- the outer view must still move
+sleep,,,,,,1200000,hold for the screenshot

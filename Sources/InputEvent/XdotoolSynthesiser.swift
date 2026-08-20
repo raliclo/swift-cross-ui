@@ -168,6 +168,19 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
             case .key(let key):
                 try run(["key", Self.keysym(for: key)])
 
+            case .scroll(let dx, let dy):
+                // X11 has no scroll axis: the wheel arrives as button presses,
+                // 4 up, 5 down, 6 left, 7 right. One press per notch, which is
+                // what `--repeat` does.
+                // X11 沒有捲動軸：滾輪是以按鍵事件形式送達，4 為上、5 為下、6 為左、7 為右。
+                // 每一格對應一次按壓，而 `--repeat` 正是如此運作。
+                if dy != 0 {
+                    try run(["click", "--repeat", "\(abs(dy))", dy > 0 ? "5" : "4"])
+                }
+                if dx != 0 {
+                    try run(["click", "--repeat", "\(abs(dx))", dx > 0 ? "7" : "6"])
+                }
+
             case .sleep(let microseconds):
                 usleep(UInt32(max(0, microseconds)))
         }

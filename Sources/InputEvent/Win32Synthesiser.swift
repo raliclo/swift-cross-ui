@@ -103,6 +103,24 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 try send(key: key, up: false)
                 try send(key: key, up: true)
 
+            case .scroll(let dx, let dy):
+                // Vertical is inverted here and nowhere else. Windows counts a
+                // positive wheel delta as rotation *away* from the user, which
+                // scrolls up; our `dy` is positive downwards, matching GDK and
+                // the horizontal wheel. Negating here rather than in the format
+                // keeps a file meaning the same thing on both platforms, which
+                // is the whole point of having one.
+                //
+                // 只有垂直方向在此處反轉。Windows 將正的滾輪 delta 視為「遠離使用者」的轉動，
+                // 亦即向上捲動；而我們的 `dy` 以向下為正，與 GDK 及水平滾輪一致。在此處取負而非
+                // 在格式層面處理，可使同一個檔案在兩個平台上意義相同——而那正是統一格式的目的。
+                if dy != 0 {
+                    try send(wheelFlags: MOUSEEVENTF_WHEEL, delta: -dy * Int(WHEEL_DELTA))
+                }
+                if dx != 0 {
+                    try send(wheelFlags: MOUSEEVENTF_HWHEEL, delta: dx * Int(WHEEL_DELTA))
+                }
+
             case .sleep(let microseconds):
                 // Sleep takes milliseconds. A file asking for 500 microseconds
                 // gets 1ms rather than 0, because rounding a sub-millisecond
@@ -187,6 +205,19 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         input.mi.dx = LONG(normalisedX.rounded())
         input.mi.dy = LONG(normalisedY.rounded())
         input.mi.dwFlags = DWORD(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK)
+        try dispatch(&input)
+    }
+
+    /// One wheel event carrying the whole delta.
+    ///
+    /// Not one event per notch: `mouseData` is a signed multiple of
+    /// `WHEEL_DELTA`, and sending the total in a single event is what a real
+    /// wheel with a high-resolution driver produces.
+    private func send(wheelFlags: Int32, delta: Int) throws {
+        var input = INPUT()
+        input.type = DWORD(INPUT_MOUSE)
+        input.mi.mouseData = DWORD(bitPattern: Int32(delta))
+        input.mi.dwFlags = DWORD(wheelFlags)
         try dispatch(&input)
     }
 

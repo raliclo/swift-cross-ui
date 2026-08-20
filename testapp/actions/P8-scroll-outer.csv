@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note
+# P8 step 3: the control. Pointer over the outer scroll view, away from the
+# horizontal strip, then scroll down. The `Outer row N` labels must move.
+#
+# This is the row that makes step 4 mean anything. The previous sweep could not
+# tell "#426 freezes the view" from "the input never arrived", because it had no
+# working control -- so this file is run first and on its own.
+#
+# P8 步驟 3：對照組。指標置於外層捲動視圖、避開水平長條，然後向下捲動，`Outer row N` 標籤應該
+# 要移動。
+#
+# 這一列正是使步驟 4 具有意義的前提。上一輪無法區分「#426 凍結了該視圖」與「輸入根本沒有送達」，
+# 因為當時沒有可用的對照組——因此本檔案先行、且單獨執行。
+move,320,340,,,,,over "Outer row 1", clear of the strip
+sleep,,,,,,400000,
+scroll,0,4,,,,,four notches down
+sleep,,,,,,1200000,hold for the screenshot

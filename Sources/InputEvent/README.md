@@ -58,10 +58,45 @@ action,x,y,origin,button,key,micros,note
 | `doubleclick` | `button`, optional `x`, `y` | two press-release pairs inside the platform's double-click time |
 | `mousedown` | `button`, optional `x`, `y` | press and hold |
 | `mouseup` | `button`, optional `x`, `y` | release |
+| `scroll` | `x`, `y` as **wheel notches** | turn the wheel where the pointer is |
 | `keydown` | `key` | press and hold |
 | `keyup` | `key` | release |
 | `key` | `key` | press and release once |
 | `sleep` | `micros` | wait |
+
+### `scroll` reads `x` and `y` as a delta, not a position
+
+`scroll,0,3` means three notches down. Positive `y` scrolls down, positive `x`
+scrolls right.
+
+It takes no position of its own, deliberately: a wheel event goes to whatever is
+under the pointer, so a file that scrolls has to put the pointer somewhere first,
+and `move` already does that. Giving `scroll` a position too would make it
+possible to write a row that names one place and scrolls another.
+
+```csv
+move,400,300,,,,,put the pointer over the table
+scroll,0,3,,,,,three notches down
+```
+
+The sign convention is GDK's, and Windows' horizontal wheel agrees with it.
+Windows' *vertical* wheel does not — there a positive delta means rotation away
+from the user, which scrolls up — and that inversion is handled inside the
+synthesiser so the same file means the same thing on both platforms.
+
+`origin` is meaningless on a scroll row. A `frame` there is a sign the writer
+expected the verb to move the pointer.
+
+`scroll,0,3` 代表向下三格。`y` 為正是向下，`x` 為正是向右。
+
+它刻意不帶自己的位置：滾輪事件會送往指標下方的元件，因此會捲動的檔案必須先把指標移到某處，而
+`move` 已能做到。若讓 `scroll` 也帶位置，就可能寫出「宣稱在某處、實際捲動另一處」的一列。
+
+符號慣例採用 GDK 的定義，Windows 的水平滾輪與之一致。Windows 的**垂直**滾輪則不然——該處正的
+delta 代表遠離使用者的轉動，亦即向上捲動——此項反轉在 synthesiser 內部處理，使同一個檔案在兩個
+平台上意義相同。
+
+`origin` 在 scroll 列上毫無意義。若該處出現 `frame`，即代表撰寫者誤以為此動作會移動指標。
 
 `mousedown` and `mouseup` exist so a drag can be written. `click` is a press and
 a release with nothing between them, which cannot move a window by its title bar

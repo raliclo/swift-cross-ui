@@ -595,7 +595,15 @@ public final class GtkBackend:
     // MARK: Containers
 
     public func createContainer() -> Widget {
-        return Fixed()
+        // Passthrough, not a plain Fixed. These containers draw nothing, and a
+        // plain GtkFixed claims every point its children do not cover -- so an
+        // overlay made everything beneath it unreachable by the pointer. See
+        // gtk_passthrough_fixed.c.
+        //
+        // 使用 passthrough 而非一般的 Fixed。這些容器不繪製任何內容，而一般的 GtkFixed 會攔截
+        // 其子元件未覆蓋的每一個點——因此 overlay 會使其下方的一切都無法被指標觸及。
+        // 詳見 gtk_passthrough_fixed.c。
+        return PassthroughFixed()
     }
 
     public func removeAllChildren(of container: Widget) {

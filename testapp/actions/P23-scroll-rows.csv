@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note
+# P23 step 3, decided rather than inferred: grow the table past the window, then
+# actually turn the wheel over it.
+#
+# GTK 4 draws overlay scrollbars, invisible until something scrolls, so a
+# screenshot showing no scrollbar does not distinguish a table that clips from
+# one that scrolls and was never scrolled. Only a wheel event separates them --
+# which is why this file exists and why `scroll` was added to the format.
+#
+# If the table scrolls, the first visible row after this is not row 1.
+#
+# P23 步驟 3，以判定取代推論：先把表格加長到超出視窗，再真正在其上轉動滾輪。
+#
+# GTK 4 使用 overlay 捲軸，未發生捲動時是隱形的，因此「截圖中看不到捲軸」無法區分「會裁切的
+# 表格」與「能捲動但從未被捲動的表格」。唯有滾輪事件能區分兩者——這正是本檔存在的理由，也是
+# 格式中新增 `scroll` 的理由。
+#
+# 若該表格確實會捲動，此檔執行後第一個可見列就不會是第 1 列。
+click,181,140,,left,,,More rows 1
+sleep,,,,,,300000,
+click,181,140,,left,,,More rows 2
+sleep,,,,,,300000,
+click,181,140,,left,,,More rows 3
+sleep,,,,,,300000,
+click,181,140,,left,,,More rows 4 -- 24 rows now
+sleep,,,,,,1000000,let the table settle
+move,400,350,,,,,put the pointer in the middle of the table
+sleep,,,,,,300000,
+scroll,0,5,,,,,five notches down
+sleep,,,,,,1200000,hold for the screenshot

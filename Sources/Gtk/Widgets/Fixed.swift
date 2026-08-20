@@ -45,6 +45,16 @@ open class Fixed: Widget {
         super.init(gtk_fixed_new())
     }
 
+    /// Wraps an existing `GtkFixed`, or one of a type derived from it.
+    ///
+    /// Exposed so that a subclass can supply its own instance. `Fixed`
+    /// previously declared `init()` as a designated initialiser, which stopped
+    /// `GObject`'s pointer-taking ones from being inherited, so a subclass had
+    /// no way to hand up the widget it created.
+    public override init<T>(_ pointer: UnsafeMutablePointer<T>?) {
+        super.init(pointer)
+    }
+
     public func put(_ child: Widget, x: Double, y: Double) {
         gtk_fixed_put(castedPointer(), child.widgetPointer, x, y)
         children.append(child)

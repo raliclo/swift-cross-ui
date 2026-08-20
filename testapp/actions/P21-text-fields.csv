@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note
+# P21 steps 6 and 7: scroll down to the text controls, type into the enabled
+# TextField, then try the disabled one beside it.
+#
+# These steps were previously recorded as "blocked by window height". They were
+# not: P21's root is a ScrollView, and the format simply had no way to turn a
+# wheel. Nothing about the app changed.
+#
+# Step 7's ContentUnavailableView is below the text controls and is checked from
+# the same screenshot.
+#
+# P21 步驟 6 與 7：向下捲動至文字控制項，於啟用的 TextField 中輸入，再嘗試其旁停用的那一個。
+#
+# 這兩個步驟先前被記為「受視窗高度阻擋」。並非如此：P21 的根層本就是 ScrollView，只是當時的格式
+# 沒有任何轉動滾輪的方式。app 本身未作任何更動。
+#
+# 步驟 7 的 ContentUnavailableView 位於文字控制項下方，由同一張截圖一併檢查。
+move,410,400,,,,,over the scroll view
+sleep,,,,,,400000,
+scroll,0,12,,,,,down to the text controls
+sleep,,,,,,1000000,
+click,200,300,,left,,,focus whatever field is there -- position checked below
+sleep,,,,,,400000,
+# The key name goes in the `key` column, which is the sixth. Writing `key,h`
+# puts an `h` in `x` and the parser rejects it as "x given without y" -- which is
+# the right error, just not an obvious one to read the first time.
+# 鍵名應置於 `key` 欄，也就是第六欄。寫成 `key,h` 會把 `h` 放進 `x`，解析器會以
+# 「x given without y」拒絕——這是正確的錯誤訊息，只是第一次讀到時不甚直觀。
+key,,,,,h,,
+key,,,,,i,,
+sleep,,,,,,1200000,hold for the screenshot

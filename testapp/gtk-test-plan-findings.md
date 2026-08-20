@@ -532,29 +532,64 @@ tested -- see below.
 | step | result |
 |---|---|
 | 2: red block corners rounded (#417) | does not reproduce -- the red block's four corners are visibly rounded in the screenshot, not square |
-| 3-6: scroll wheel over/off the horizontal strip (#426) | not tested -- see below |
+| 3: scroll off the strip, outer rows move | **pass** -- four notches takes `Outer row 0..3` to `Outer row 5..9` |
+| 4: scroll **over** the strip, outer still moves (#426) | **pass, #426 does not reproduce** -- identical result to step 3, same rows, same position |
+| 5: scroll the strip sideways | **pass** -- the strip goes from its first cells to `H10 H11 H12` |
+| 6: strip at its end, outer takes over | **pass** -- after the strip runs out, a vertical scroll still moves the outer view |
 
-**Scroll-wheel step could not be tried.** `xdotool click --window $wid 5`
-(mouse button 5 = wheel down) produced no visible change even as a **control**
-scrolled over plain, unambiguously-scrollable `Outer row N` content, 8 clicks
-in a row. Since the control also did nothing, the horizontal-strip test result
-would be meaningless -- there is no way to tell "the view is frozen because of
-#426" from "this input method does not reach the view at all" with the tools
-on hand. `drive_xdotool.zsh` itself only issues button-1 clicks; getting a
-real scroll to a GTK `ScrolledWindow` under XWayland needs either
-`xdotool`'s `--clearmodifiers`/different button mapping tried, or a
-different tool (e.g. `xdotool behave_screen_edge`-adjacent scroll support, or
-driving it through `wmctrl`/an accessibility bridge), which was not chased
-down further given the time this sweep had left. Recorded as an open gap in
-tooling, not a product result.
+**Why this was "not tested" before, and what it was not.** The previous sweep
+recorded that a scroll wheel produced no visible change even as a control, and
+concluded the tooling could not deliver a scroll to a GTK `ScrolledWindow`. That
+was wrong twice over.
 
-**滾輪步驟未能嘗試。** `xdotool click --window $wid 5`（滑鼠按鍵 5 = 滾輪向下）連續點擊 8
-次，即使作為**對照組**、滾動在明確可捲動的一般 `Outer row N` 內容上方，也沒有產生任何可見變化。
-既然對照組本身也毫無反應，橫向 strip 的測試結果就沒有意義——手邊工具無法區分「因 #426 導致該
-view 被凍結」與「這種輸入方式根本沒有傳到該 view」。`drive_xdotool.zsh` 本身只會送出滑鼠左鍵
-點擊；要讓真正的滾動事件傳到 XWayland 下的 GTK `ScrolledWindow`，需要嘗試 `xdotool` 的
-`--clearmodifiers`／不同按鍵對應，或改用其他工具（例如透過 accessibility bridge 或
-`wmctrl`），本輪時間有限、未再深入追查。記為工具面的未決缺口，而非產品層級的結果。
+The input was fine. `.overlay` was swallowing it: P8 wraps its outer ScrollView
+in `.overlay { GeometryReader { P8Probe(...) } }`, and on GtkBackend that overlay
+was a real widget that GTK returned from hit testing for every point its own
+children did not cover -- so nothing beneath it, control included, ever saw a
+pointer event. The same defect made P23's table cells unselectable. Fixed with
+`PassthroughFixed`; see the entry below.
+
+The format also had no verb for a wheel, which is why nothing could be driven
+from an action file. `scroll` now exists.
+
+Neither cause had anything to do with XWayland, `--clearmodifiers`, or button
+mappings, which is where the earlier note pointed. Recorded because the wrong
+lead was written down confidently.
+
+**先前為何被記為「未測試」，以及它其實不是什麼。** 上一輪記錄「即使作為對照組，滾輪也未產生任何
+可見變化」，並推論工具無法將捲動事件送達 GTK 的 `ScrolledWindow`。這個結論錯了兩層。
+
+輸入本身沒有問題，是 `.overlay` 吞掉了它：P8 以 `.overlay { GeometryReader { P8Probe(...) } }`
+包裹其外層 ScrollView，而在 GtkBackend 上該 overlay 是一個實際的 widget，GTK 對於其自身子元件
+未覆蓋的每一個位置都會回傳它——因此其下方的一切（包含對照組）從未收到任何指標事件。同一個缺陷
+也使 P23 的儲存格無法選取。已以 `PassthroughFixed` 修正，見下方條目。
+
+此外，該格式當時也沒有任何轉動滾輪的動作，因此無法由動作檔驅動。`scroll` 現已存在。
+
+兩個成因都與 XWayland、`--clearmodifiers` 或按鍵對應無關，而那正是先前那則註記所指的方向。此處
+記錄下來，是因為那條錯誤的線索當時被寫得相當肯定。
+
+**Superseded.** The paragraph that stood here recorded the wheel as undeliverable
+and pointed at `--clearmodifiers`, button mappings and XWayland. It is kept only
+in git history: none of those was the cause, and leaving a confident wrong lead
+in place is worse than deleting it.
+
+**已作廢。** 此處原本的段落把滾輪記為「無法送達」，並將矛頭指向 `--clearmodifiers`、按鍵對應與
+XWayland。該段僅保留於 git 歷史中：以上皆非成因，而把一條寫得肯定卻錯誤的線索留在原地，比刪除
+它更糟。
+
+**One real constraint did come out of this, and it is about pacing.** A single
+`scroll,0,40` travelled a different distance on each of three runs. xdotool sends
+notches as `click --repeat`, back to back with no gap, and GTK coalesces a rapid
+burst into one kinetic gesture whose distance depends on timing rather than on
+the count. Split a long scroll into bursts with a sleep between them, and end at
+the hard stop of the scroll range if the position has to be reproducible.
+`testapp/actions/P21-disabled-field.csv` is written that way and says so.
+
+**此過程確實產生了一項真實的限制，且與節奏有關。** 單一的 `scroll,0,40` 在三次執行中各走了不同
+距離。xdotool 是以 `click --repeat` 背靠背送出格數、中間毫無間隔，而 GTK 會把急促的連發併為單一
+kinetic 手勢，其距離取決於時序而非次數。若需要可重現的位置，請將長距離捲動拆成數段、段間加入
+sleep，並以捲動範圍的硬性盡頭作結。`testapp/actions/P21-disabled-field.csv` 即依此撰寫並註明。
 
 ## P9: text and field sizing -- all steps pass, neither issue reproduces
 
@@ -731,7 +766,7 @@ This sweep ran the aspect-ratio scroll view steps.
 |---|---|
 | 6-7: step the 2:1 box through `Shorter`/`Taller`, scroll bar appears and disappears without flickering (#266a) | does not reproduce -- the scroll bar's appear/disappear transition settled cleanly at every height tried, no flicker observed |
 
-## P21: remaining step (5, sliders) -- passes; steps 6-7 blocked by window height
+## P21: remaining steps (5-7) -- all pass
 
 Steps 1-4 (Button, Toggle/`.switch`/`.button`/`.checkbox` disabled-refuses-
 input, and the HStack-squeezes-first-child defect) were covered in an
@@ -743,28 +778,39 @@ HStack 擠壓第一個子元件的缺陷）已於先前的執行中涵蓋——�
 | step | result |
 |---|---|
 | 5: drag both sliders, disabled must not move | pass -- dragging the enabled slider moved it `0.40 -> 0.88`; the same drag gesture attempted on the disabled slider directly below left it unchanged, both before and after |
-| 6: TextField/SecureField/TextEditor enabled vs disabled | not run -- see below |
-| 7: `ContentUnavailableView` title and description | not run -- see below |
+| 6: TextField/SecureField/TextEditor enabled vs disabled | **pass** -- typing `hi` into the enabled `TextField` gives `TextField -- editablehi`; scrolled to the bottom and clicking the disabled one below it, two `z` keystrokes leave it at `editable`. `SecureField` masks, `TextEditor` shows both lines |
+| 7: `ContentUnavailableView` title and description | **pass** -- both `Nothing here` and `The description line` render |
 
-**Steps 6-7 could not be reached.** P21's content is a plain `VStack`, not
-inside a `ScrollView`, and it is taller than any window this machine could
-produce: `xdotool windowsize` clamps at the screen height (1080px here)
-regardless of the value requested, and moving the window off-screen first
-(`windowmove 0 -600`) did not lift the clamp -- GTK still caps the window
-livelihood at 1080. The visible content at that height reaches
-`TextField -- editable` and stops there; `SecureField`, `TextEditor`,
-their disabled counterparts, and `ContentUnavailableView` are further down
-and never entered the capturable frame. Would need either a taller virtual
-display/lower DPI, or driving actual mouse-wheel/keyboard scrolling within
-the window (see the P8 scroll-wheel gap above -- the same tooling limit).
+**"Blocked by window height" was wrong, and the correction matters more than the
+result.** The note that stood here said P21's content is a plain `VStack` not
+inside a `ScrollView`, and that the steps needed a taller display.
 
-**步驟 6-7 無法觸及。** P21 的內容是一般 `VStack`、並非放在 `ScrollView` 內，且比這台機器
-能產生的任何視窗都高：`xdotool windowsize` 無論指定何值都會被夾在螢幕高度（此處為
-1080px），先把視窗移到螢幕外（`windowmove 0 -600`）也未能解除此上限——GTK 仍把視窗高度
-限制在 1080。在此高度下可見內容到 `TextField -- editable` 為止；`SecureField`、
-`TextEditor`、它們的 disabled 對應版本，以及 `ContentUnavailableView` 都在更下方，從未
-進入可擷取的畫面範圍。需要更高的虛擬顯示器／更低的 DPI，或是在視窗內實際驅動滑鼠滾輪／鍵盤
-捲動（見上方 P8 的滾輪缺口——同一項工具限制）。
+`P21.swift:86` is `ScrollView {`. It has always been the root of that view. The
+steps needed a wheel, and the action file format had no verb for one; with
+`scroll` added they are reachable in a normal 820x720 window and both pass.
+
+The earlier note also went further than what had been observed -- `windowsize`
+clamping and DPI are real, but they were offered as the *reason* the steps could
+not run, and that reason was never checked against the app's own source. It cost
+this a second sweep.
+
+**「受視窗高度阻擋」是錯的，而這項更正比結果本身更重要。** 此處原本的註記說 P21 的內容是一般
+`VStack`、並未放在 `ScrollView` 內，且這些步驟需要更高的顯示器。
+
+`P21.swift:86` 就是 `ScrollView {`，它一直都是該視圖的根層。這些步驟需要的是滾輪，而當時的動作檔
+格式沒有對應的動作；加入 `scroll` 之後，在一般的 820x720 視窗中即可觸及，且兩個步驟皆通過。
+
+先前那則註記也超出了實際觀察到的範圍——`windowsize` 的夾制與 DPI 確有其事，但它們被當成了「步驟
+無法執行的原因」提出，而該原因從未與 app 自身的原始碼對照過。這使本項多花了一輪。
+
+**Reproducibility note.** Scrolling to a *measured* position is not repeatable:
+see the P8 entry on GTK coalescing rapid wheel notches. `P21-disabled-field.csv`
+scrolls in paced bursts to the hard stop at the bottom, which is why its click
+coordinates hold across runs.
+
+**可重現性註記。** 捲動到某個「量測出來的位置」並不可重複：見 P8 條目中關於 GTK 會合併急促滾輪
+格數的說明。`P21-disabled-field.csv` 以分段節奏捲動至底部的硬性邊界，這正是其點擊座標能跨執行
+保持有效的原因。
 
 ## P22: remaining steps (3-4) -- pass
 
@@ -778,34 +824,40 @@ covered by the earlier instrumentation-defect entry above.
 | 3: `Narrower`/`Wider`, wrap point | pass -- at 150pt the sample sentence wraps cleanly into five lines with no overflow past the frame |
 | 4: three alignment rows in the 320pt frame | pass -- `leading`, `center`, `trailing` land at the expected left/middle/right positions |
 
-## P23: remaining steps (3-4) -- clips rather than scrolls
+## P23: remaining steps (3-4) -- both pass; the table scrolls
 
 | step | result |
 |---|---|
-| 3: `More rows` past the window height | the window does not grow and no scrollbar is visible. Re-run after the measuring overlay was removed: 24 rows renders 12 and stops cleanly at row 12 with the footer text intact, so rows 13-24 are unreachable. Read as **clips** — but see the caveat below, which this sweep still could not close |
+| 3: `More rows` past the window height | **scrolls** -- decided with a wheel, not inferred from a screenshot. At 24 rows, five notches down over the table leaves row 9 at the top and rows 9-21 visible |
 | 4: `Fewer rows` recovers | pass -- back down to `rows: 1` shows a single clean row with no leftover gap or stale row |
 
-**The caveat, and why it is still open.** GTK 4 draws overlay scrollbars: they are
-invisible until the pointer hovers the edge or a scroll actually happens. "No
-scrollbar is visible" therefore does not distinguish a table that clips from one
-that scrolls perfectly well and simply is not being scrolled. The same gap is
-recorded against P8 and P21.
+**It was read as "clips" twice, and both readings were wrong the same way.** GTK 4
+draws overlay scrollbars: invisible until something scrolls. "No scrollbar is
+visible" does not distinguish a table that clips from one that scrolls perfectly
+well and is simply not being scrolled. Two sweeps concluded "clips" from exactly
+that non-evidence -- the second one even re-ran the step after removing the
+measuring overlay, and reported the same wrong answer more confidently.
 
-Closing it needs a scroll gesture, and the action-file format has no verb for
-one — `move`, `click`, `doubleclick`, `mousedown`, `mouseup`, `keydown`,
-`keyup`, `key`, `sleep`, and nothing for the wheel. Until that exists, "clips"
-is the honest reading of the screenshot rather than a confirmed diagnosis.
+What settled it was a wheel event, which the action-file format had no verb for
+until `scroll` was added. The same gap had stalled P8 and P21.
 
-**表格會裁切而非捲動。** 步驟 3 於量測用 overlay 移除後重新執行：24 列僅繪出 12 列，乾淨地停在
-第 12 列且頁尾文字完好，因此第 13-24 列無法觸及。
+**One real difference did show up, and it is not the one being looked for.** The
+header row scrolls away with the content, where AppKit and WinUI keep a table's
+header pinned. Not chased here: it is a design question about what a
+`BackendFeatures.Tables` table should do, not a defect against a stated
+expectation, and the plan does not ask.
 
-**但仍未結案的保留條件。** GTK 4 使用 overlay 捲軸：除非指標移至邊緣或實際發生捲動，否則它是
-隱形的。因此「看不到捲軸」並不能區分「會裁切的表格」與「其實能正常捲動、只是沒有人去捲它的
-表格」。P8 與 P21 也記錄了同一項缺口。
+**曾兩度被判讀為「裁切」，而兩次都錯在同一處。** GTK 4 使用 overlay 捲軸：未發生捲動時是隱形的。
+「看不到捲軸」並不能區分「會裁切的表格」與「其實能正常捲動、只是沒有人去捲它的表格」。有兩輪測試
+正是從這種「非證據」推出了「裁切」的結論——第二輪甚至在移除量測 overlay 後重跑了該步驟，然後以更
+篤定的語氣回報了同一個錯誤答案。
 
-要結案需要一個捲動手勢，而動作檔格式並無對應的動作——`move`、`click`、`doubleclick`、
-`mousedown`、`mouseup`、`keydown`、`keyup`、`key`、`sleep`，就是沒有滾輪。在該動作存在之前，
-「裁切」只是對截圖最誠實的判讀，而非已確認的診斷。
+真正定案的是一個滾輪事件，而在 `scroll` 加入之前，動作檔格式並無對應的動作。P8 與 P21 也曾卡在
+同一個缺口上。
+
+**確實浮現了一項真實差異，但並非原本要找的那項。** 標題列會隨內容一起捲走，而 AppKit 與 WinUI
+會將表格標題固定。此處未再深入：那是「`BackendFeatures.Tables` 的表格應當如何」的設計問題，而非
+違反既定預期的缺陷，且計畫中並未詢問。
 
 ## P23: text selection is opt-in and works — and an overlay swallows pointer events
 
@@ -830,11 +882,33 @@ unreachable by the pointer**. Removing the wrapper made selection work
 immediately, with no other change.
 
 In SwiftUI an overlay of `EmptyView` is hit-transparent: hit testing finds the
-topmost view that actually draws or is interactive. This is a genuine defect and
-it is not confined to P23 — it is a strong candidate for P10's #454 and #478, and
-it silently invalidates any check whose subject sits under a measuring overlay.
-Tracked separately; P23's table is no longer wrapped, and the reason is in the
-source.
+topmost view that actually draws or is interactive.
+
+**Fixed, in the backend rather than in the apps.** `GtkBackend.createContainer()`
+now returns a `PassthroughFixed` — a `GtkFixed` subclass whose `contains` vfunc
+returns `FALSE` unless the widget has an event controller attached. GTK asks
+`contains` only after it has already offered the point to every child, so
+children stay reachable and only an empty structural container becomes
+transparent. A container something made interactive still claims its points,
+which is what keeps `.onTapGesture` on a stack working: `createTapGestureTarget`
+attaches the gesture as a controller on that very widget.
+
+Verified by what it unblocked, not only by the case that found it: P8's scroll
+wheel now reaches the outer scroll view (steps 3-6 all pass, and #426 turns out
+not to reproduce), and P23's cells select.
+
+在 SwiftUI 中，內容為 `EmptyView` 的 overlay 對點擊是穿透的：hit testing 會找出最上層「確實有
+繪製或可互動」的 view。
+
+**已修正，且修在 backend 而非各個 app。** `GtkBackend.createContainer()` 現在回傳
+`PassthroughFixed`——一個 `GtkFixed` 子類別，其 `contains` vfunc 在該 widget 未掛有任何 event
+controller 時回傳 `FALSE`。GTK 只在把該點提供給所有子元件之後才會詢問 `contains`，因此子元件仍
+可觸及，只有純結構性的空容器變為透明。已被賦予互動能力的容器仍會攔截其範圍內的點，這正是讓
+stack 上的 `.onTapGesture` 持續有效的關鍵：`createTapGestureTarget` 會把該手勢以 controller 的
+形式掛在該 widget 本身。
+
+驗證方式不只是發現它的那個案例，還包括它所解除的阻塞：P8 的滾輪現在能抵達外層捲動視圖（步驟 3-6
+全部通過，且 #426 結果並不重現），而 P23 的儲存格可以選取。
 
 表格內容現在可透過 `.tableTextSelection()` 設為可選取與可複製，**預設關閉**。已於 WSL 驗證：
 開啟時拖曳 `row 2 content` 會反白，關閉時同一個拖曳毫無作用。

@@ -147,6 +147,17 @@ public enum ActionFile {
             case "doubleclick": return .doubleClick(try button(), at: point)
             case "mousedown": return .mouseDown(try button(), at: point)
             case "mouseup": return .mouseUp(try button(), at: point)
+            case "scroll":
+                // x and y are wheel notches here, not a position. The verb
+                // scrolls wherever the pointer already is -- see InputAction --
+                // so `origin` is meaningless for it and a `frame` on a scroll
+                // row is a sign the writer expected it to move the pointer.
+                // 此處的 x 與 y 是滾輪格數而非位置。此動作作用於指標當下所在之處（見 InputAction），
+                // 因此 `origin` 對它毫無意義；scroll 列上出現 `frame` 即代表撰寫者誤以為它會移動指標。
+                guard let point else {
+                    throw ActionFileError.missingPosition(verb: verb, line: line)
+                }
+                return .scroll(dx: Int(point.x), dy: Int(point.y))
             case "keydown": return .keyDown(try key())
             case "keyup": return .keyUp(try key())
             case "key": return .key(try key())
