@@ -79,6 +79,10 @@ public struct VStack<Content: View>: View {
             proposedSize: proposedSize,
             environment: environment
                 .with(\.layoutOrientation, .vertical)
+                // Cleared, not merely left alone: this stack arranges along an
+                // axis, so a `Group` below it must too even when a `ZStack`
+                // further up set the flag.
+                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend
@@ -102,6 +106,10 @@ public struct VStack<Content: View>: View {
             layout: layout,
             environment: environment
                 .with(\.layoutOrientation, .vertical)
+                // Cleared, not merely left alone: this stack arranges along an
+                // axis, so a `Group` below it must too even when a `ZStack`
+                // further up set the flag.
+                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend

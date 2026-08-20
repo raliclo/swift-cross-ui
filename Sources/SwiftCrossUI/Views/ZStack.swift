@@ -43,17 +43,13 @@ public struct ZStack<Content: View>: View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        let childResults = layoutableChildren(backend: backend, children: children)
-            .map { child in
-                child.computeLayout(
-                    proposedSize: proposedSize,
-                    environment: environment
-                )
-            }
-
-        let size = ViewSize(
-            childResults.map(\.size.width).max() ?? 0,
-            childResults.map(\.size.height).max() ?? 0
+        let result = LayoutSystem.computeOverlapLayout(
+            children: layoutableChildren(backend: backend, children: children),
+            proposedSize: proposedSize,
+            // Told to the children, so that a `Group` or `ForEach` between this
+            // stack and the views it holds overlaps them too instead of
+            // arranging them along an axis it inherited from further up.
+            environment: environment.with(\.layoutOverlapsChildren, true)
         )
 
         if !(children is TupleViewChildren || children is EmptyViewChildren) {
@@ -75,7 +71,7 @@ public struct ZStack<Content: View>: View {
             redistributeSpaceOnCommit: proposedSize.width == nil || proposedSize.height == nil
         )
 
-        return ViewLayoutResult(size: size, childResults: childResults)
+        return result
     }
 
     public func commit<Backend: BaseAppBackend>(
@@ -85,31 +81,14 @@ public struct ZStack<Content: View>: View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let cache = (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial
-        let children = layoutableChildren(backend: backend, children: children)
-
-        if cache.redistributeSpaceOnCommit {
-            for child in children {
-                _ = child.computeLayout(
-                    proposedSize: ProposedViewSize(layout.size),
-                    environment: environment
-                )
-            }
-        }
-
-        let size = layout.size
-        let layoutResults = children.map { child in
-            child.commit()
-        }
-
-        for (i, layoutResult) in layoutResults.enumerated() {
-            let position = alignment.position(
-                ofChild: layoutResult.size.vector,
-                in: size.vector
-            )
-            backend.setPosition(ofChildAt: i, in: widget, to: position)
-        }
-
-        backend.setSize(of: widget, to: size.vector)
+        LayoutSystem.commitOverlapLayout(
+            container: widget,
+            children: layoutableChildren(backend: backend, children: children),
+            cache: (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial,
+            layout: layout,
+            alignment: alignment,
+            environment: environment.with(\.layoutOverlapsChildren, true),
+            backend: backend
+        )
     }
 }

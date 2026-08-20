@@ -35,30 +35,89 @@ another, and the shapes rhyme.
 三種容器型別各自把子元件的尺寸算錯，分別出現在三支不同的 app 中。此處分列，是因為它們是分別被
 發現的；但應合併調查：逐一修正有以彼換此的風險，而且它們的形態相似。
 
-### ZStack does not overlap — #158, P13 step 5
+### ZStack does not overlap — #158, P13 step 5 — **fixed**
 
 The plan requires the children of a `Group` inside a `ZStack` to overlap on the
-z axis. They stack vertically instead: the red, green and blue rectangles appear
-one below another with no overlap at all.
+z axis. They stacked vertically instead: the red, green and blue rectangles
+appeared one below another with no overlap at all.
 
-Reproduces. This is the clearest of the three because the intended behaviour is
-unambiguous.
+**Cause.** `Group` is meant to be invisible to the layout system, and the way it
+manages that is by inheriting how its parent arranges things — `layoutOrientation`,
+`layoutAlignment` and `layoutSpacing` exist for exactly this. A `ZStack` sets
+none of them, because it does not arrange along an axis at all. So a `Group`
+inside one fell through to whatever orientation the *grandparent* had set, and in
+P13 that is a `VStack`. The three colours were laid out in a column.
+
+Not a GtkBackend defect. `createContainer()` returns a `Fixed`, which positions
+children exactly as asked; the wrong positions were computed above it.
+
+**Fix.** A new environment entry, `layoutOverlapsChildren`, set by `ZStack` and
+cleared by `VStack` and `HStack`, with `Group` honouring it. `ZStack`'s overlap
+algorithm moved into `LayoutSystem.computeOverlapLayout` / `commitOverlapLayout`
+so the two cannot drift apart — they already had, which is how this happened.
+
+Verified on WSL: the three rectangles now overlap concentrically, only the
+smallest fully visible on top.
+
+**Known limitation, stated rather than hidden:** a `Group` inside a `ZStack`
+centres its children even when the `ZStack` has a non-default alignment. `Group`
+carries no alignment of its own and the parent's is not reachable, because
+`layoutAlignment` is a `StackAlignment` and describes a single axis. A direct
+child of the `ZStack` aligns correctly; a grouped one does not.
 
 計畫要求 `ZStack` 內 `Group` 的子元件在 z 軸上重疊。實際卻是垂直堆疊：紅、綠、藍三個矩形上下排列，
 完全沒有任何重疊。
 
-重現。三者中最明確的一項，因為其預期行為毫無歧義。
+**成因。** `Group` 的設計目標是對 layout 系統完全隱形，而它達成此目標的方式，是繼承父層的排列方式
+——`layoutOrientation`、`layoutAlignment` 與 `layoutSpacing` 正是為此而存在。但 `ZStack` 三者皆不
+設定，因為它根本不沿任何軸向排列。於是 `ZStack` 內的 `Group` 便沿用了**祖父層**所設定的方向，而
+在 P13 中那是一個 `VStack`，三個顏色因此排成一列。
 
-### VStack bands not equal width — #266b, P17 step 8
+這不是 GtkBackend 的缺陷。`createContainer()` 回傳 `Fixed`，它會完全依照指示放置子元件；算錯位置的
+是其上層。
+
+**修正。** 新增環境項目 `layoutOverlapsChildren`，由 `ZStack` 設定、`VStack` 與 `HStack` 清除，並由
+`Group` 遵循。同時將 `ZStack` 的重疊演算法移入 `LayoutSystem.computeOverlapLayout` /
+`commitOverlapLayout`，使兩者無法各自漂移——它們原本就已經漂移了，而這正是本問題的成因。
+
+已於 WSL 驗證：三個矩形現在同心重疊，只有最小的一個完整顯示於最上層。
+
+**已知限制，明言而不隱藏：** 位於 `ZStack` 內的 `Group`，即使該 `ZStack` 設定了非預設對齊，仍會將
+其子元件置中。`Group` 本身不帶對齊資訊，而父層的對齊在該處取不到，因為 `layoutAlignment` 的型別是
+`StackAlignment`，只描述單一軸向。`ZStack` 的直接子元件會正確對齊，被 Group 包住的則不會。
+
+### VStack bands not equal width — #266b, P17 step 8 — **not a defect**
 
 Three coloured bands of different natural widths, given a fixed height, are
-required to end up the same width. They do not.
+required by the test plan to end up the same width. They do not.
 
-Reproduces.
+Measured on WSL: the widest child ("A somewhat longer line", green) sets the
+stack's width at 154px and the other two keep their natural widths. **That is
+what SwiftUI does** — a `VStack` sizes itself to its widest child; it does not
+stretch the others, and a `Text`'s background follows the `Text`.
 
-三條自然寬度不同的色帶，在被賦予固定高度後，應最終等寬。實際並非如此。
+#266 is an open upstream *design* question — the plan itself describes it as
+"two layout edge cases upstream wrote down while specifying the layout
+algorithm". The expectation written into step 8 encodes one unratified
+resolution of it. Making `VStack` stretch its children would diverge from
+SwiftUI on a point upstream has not decided, so nothing was changed.
 
-重現。
+The step is left in the plan: it is still a useful cross-backend comparison, and
+that is what P17 is for. What changed is that a difference here is now recorded
+as a finding rather than as a failure.
+
+測試計畫要求三條自然寬度不同的色帶，在被賦予固定高度後最終等寬。實際並非如此。
+
+於 WSL 實測：最寬的子元件（綠色的「A somewhat longer line」）以 154px 決定 stack 寬度，其餘兩者
+維持各自的自然寬度。**這正是 SwiftUI 的行為**——`VStack` 依其最寬子元件決定自身寬度，並不會拉伸
+其餘子元件，而 `Text` 的背景則依附於 `Text` 本身。
+
+#266 是 upstream 一個尚未定案的**設計**問題——計畫本身即描述其為「upstream 在制定 layout 演算法
+規格時記下的兩個邊界案例」。步驟 8 所寫入的預期，只是該問題其中一種未經確認的解法。若讓 `VStack`
+拉伸其子元件，等於在 upstream 尚未決定的議題上背離 SwiftUI，因此未作任何更動。
+
+該步驟仍保留在計畫中：它依然是有用的跨 backend 比較，而那正是 P17 的目的。改變的是：此處的差異
+現在被記錄為一項發現，而非一次失敗。
 
 ### HStack squeezes its first child — P21 step 3
 

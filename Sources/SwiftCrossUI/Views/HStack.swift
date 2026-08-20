@@ -56,6 +56,10 @@ public struct HStack<Content: View>: View {
             proposedSize: proposedSize,
             environment: environment
                 .with(\.layoutOrientation, .horizontal)
+                // Cleared, not merely left alone: this stack arranges along an
+                // axis, so a `Group` below it must too even when a `ZStack`
+                // further up set the flag.
+                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend
@@ -79,6 +83,10 @@ public struct HStack<Content: View>: View {
             layout: layout,
             environment: environment
                 .with(\.layoutOrientation, .horizontal)
+                // Cleared, not merely left alone: this stack arranges along an
+                // axis, so a `Group` below it must too even when a `ZStack`
+                // further up set the flag.
+                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend

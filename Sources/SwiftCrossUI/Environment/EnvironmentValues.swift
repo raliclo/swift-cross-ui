@@ -254,6 +254,20 @@ extension EnvironmentValues {
     /// affecting layout.
     @Entry public var layoutSpacing: Int = 10
 
+    /// Whether the enclosing stack overlaps its children instead of arranging
+    /// them along an axis.
+    ///
+    /// Set by ``ZStack`` and cleared by ``VStack`` and ``HStack``, for the same
+    /// reason ``layoutOrientation`` exists: ``Group`` and ``ForEach`` are meant
+    /// to be transparent, and each builds a real container rather than being
+    /// flattened away, so they have to be told how their parent arranges things.
+    ///
+    /// Without it a `Group` inside a `ZStack` inherited only an orientation,
+    /// which a `ZStack` never sets -- so it laid its children out along whatever
+    /// axis the grandparent used. Three colours that were meant to overlap
+    /// appeared one below another instead.
+    @Entry public var layoutOverlapsChildren: Bool = false
+
     /// The current font.
     @Entry public var font: Font = .body
 

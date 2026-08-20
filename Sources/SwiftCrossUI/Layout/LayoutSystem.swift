@@ -101,6 +101,65 @@ public enum LayoutSystem {
         }
     }
 
+    /// Sizes a container that overlaps its children rather than arranging them
+    /// along an axis.
+    ///
+    /// Shared by ``ZStack`` and by ``Group`` when it finds itself inside one.
+    /// `Group` is meant to be invisible to the layout system, so the two have to
+    /// agree exactly; they disagreed while `ZStack` kept its own copy, and a
+    /// `Group` inside a `ZStack` laid its children out vertically.
+    @MainActor
+    static func computeOverlapLayout(
+        children: [LayoutableChild],
+        proposedSize: ProposedViewSize,
+        environment: EnvironmentValues
+    ) -> ViewLayoutResult {
+        let childResults = children.map { child in
+            child.computeLayout(
+                proposedSize: proposedSize,
+                environment: environment
+            )
+        }
+
+        let size = ViewSize(
+            childResults.map(\.size.width).max() ?? 0,
+            childResults.map(\.size.height).max() ?? 0
+        )
+        return ViewLayoutResult(size: size, childResults: childResults)
+    }
+
+    /// Positions overlapping children, each aligned within the container.
+    @MainActor
+    static func commitOverlapLayout<Backend: BaseAppBackend>(
+        container: Backend.Widget,
+        children: [LayoutableChild],
+        cache: StackLayoutCache,
+        layout: ViewLayoutResult,
+        alignment: Alignment,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) {
+        if cache.redistributeSpaceOnCommit {
+            for child in children {
+                _ = child.computeLayout(
+                    proposedSize: ProposedViewSize(layout.size),
+                    environment: environment
+                )
+            }
+        }
+
+        let size = layout.size
+        for (index, childLayout) in children.map({ $0.commit() }).enumerated() {
+            let position = alignment.position(
+                ofChild: childLayout.size.vector,
+                in: size.vector
+            )
+            backend.setPosition(ofChildAt: index, in: container, to: position)
+        }
+
+        backend.setSize(of: container, to: size.vector)
+    }
+
     /// - Parameter inheritStackLayoutParticipation: If `true`, the stack layout
     ///   will have ``ViewSize/participateInStackLayoutsWhenEmpty`` set to `true`
     ///   if all of its children have it set to true. This allows views such as
