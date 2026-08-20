@@ -32,17 +32,18 @@ window before replaying anything.
 
 ## File format
 
-RFC 4180 CSV, one header row, LF line endings. Seven columns, always in this
+RFC 4180 CSV, one header row, LF line endings. Eight columns, always in this
 order. Unused columns are left empty rather than omitted.
 
 ```
-action,x,y,button,key,micros,note
+action,x,y,origin,button,key,micros,note
 ```
 
 | column | meaning |
 |---|---|
 | `action` | one of the verbs below |
-| `x`, `y` | window-relative, origin at the top-left of the client area; see below |
+| `x`, `y` | window-relative; see Coordinates |
+| `origin` | `client` (default, may be left empty) or `frame` |
 | `button` | `left`, `right` or `middle` |
 | `key` | a key name from the table below |
 | `micros` | microseconds |
@@ -55,23 +56,61 @@ action,x,y,button,key,micros,note
 | `move` | `x`, `y` | move the pointer, no button change |
 | `click` | `button`, optional `x`, `y` | press and release once; moves first if a position is given |
 | `doubleclick` | `button`, optional `x`, `y` | two press-release pairs inside the platform's double-click time |
+| `mousedown` | `button`, optional `x`, `y` | press and hold |
+| `mouseup` | `button`, optional `x`, `y` | release |
 | `keydown` | `key` | press and hold |
 | `keyup` | `key` | release |
 | `key` | `key` | press and release once |
 | `sleep` | `micros` | wait |
 
+`mousedown` and `mouseup` exist so a drag can be written. `click` is a press and
+a release with nothing between them, which cannot move a window by its title bar
+or drag a slider — both need the button held down across a `move`.
+
+### Dragging is not drag and drop
+
+Holding a button across a move gets you a drag: moving a window by its title
+bar, moving a slider's thumb, sweeping a text selection. That is what these
+verbs are for and it is all they promise.
+
+Drag and drop is a different thing. At the operating system level it is a
+negotiation — XDND on X11, OLE on Windows — in which a source announces the
+types it can provide, a target accepts or refuses, and data is transferred. It
+is not "the button was down while the pointer moved". Synthesised mouse events
+may set it off if an application implements the protocol, and may not; the
+format does not promise either.
+
+The question does not arise for this project yet in any case. SwiftCrossUI has
+no drag-and-drop API — the only gesture a backend is asked for is a tap, through
+`createTapGestureTarget` — so there is nothing above these verbs to exercise.
+
 A `#` in the first column marks a comment row. Blank rows are skipped.
 
 ### Coordinates
 
-`0,0` is the top-left of the **client area** — below the title bar, inside the
-border. Not the top-left of the window frame.
+Two origins, chosen per row by the `origin` column.
 
-The distinction is the whole reason an earlier external driver clicked on
-nothing: it computed absolute screen positions from the window geometry, which
-includes the decorations, so every click landed by however tall the title bar
-happened to be. Naming the client area removes the decorations from the problem
-entirely, and an app driving itself never has to measure them.
+**`client`** — the default. `0,0` is the top-left of the client area, below the
+title bar and inside the border. Use it for everything the app draws.
+
+**`frame`** — `0,0` is the top-left of the window frame, including the title bar
+and border. Use it only for the decorations: dragging the window by its title
+bar, or pressing close, minimise and maximise.
+
+The default is `client` because getting this wrong is what made an earlier
+external driver click on nothing. It computed absolute positions from window
+geometry, which includes the decorations, so every click missed by the height of
+the title bar. An app driving itself against client coordinates never has to
+measure them.
+
+`frame` is deliberately the opt-in, and it is less portable than `client` in a
+way worth knowing before writing a file that uses it. Title bar height is not a
+constant: it varies with the platform, the theme, and the display scale, and
+under GTK's client-side decorations the title bar is drawn by the app itself
+rather than by the window manager — so the frame and client origins can coincide
+on one machine and differ by 37 pixels on another. A `frame` row records a
+position on the machine it was written on. Prefer `client` wherever the target
+is something the app drew.
 
 Values are in **logical points**, the same unit the app's own layout uses — not
 physical pixels.
@@ -89,16 +128,28 @@ saying so.
 ### Example
 
 ```csv
-action,x,y,button,key,micros,note
+action,x,y,origin,button,key,micros,note
 # P21 test plan steps 1 and 2
-click,60,181,left,,,press Enabled under Button
-sleep,,,,,500000,let the click register
-click,157,181,left,,,press Disabled; clicks must not rise
-sleep,,,,,500000,
-key,,,,Tab,,move focus to the next control
-keydown,,,,shift,,hold shift
-key,,,,Tab,,shift-Tab moves focus back
-keyup,,,,shift,,release shift
+click,60,181,,left,,,press Enabled under Button
+sleep,,,,,,500000,let the click register
+click,157,181,,left,,,press Disabled; clicks must not rise
+sleep,,,,,,500000,
+key,,,,,tab,,move focus to the next control
+keydown,,,,,shift,,hold shift
+key,,,,,tab,,shift-tab moves focus back
+keyup,,,,,shift,,release shift
+```
+
+Dragging the window by its title bar, which is what `frame` and the mouse
+press/release pair are for:
+
+```csv
+action,x,y,origin,button,key,micros,note
+mousedown,200,18,frame,left,,,grab the title bar
+move,400,300,frame,,,,drag
+sleep,,,,,,100000,let the window manager follow
+move,600,400,frame,,,,keep dragging
+mouseup,600,400,frame,left,,,let go
 ```
 
 ## Key names

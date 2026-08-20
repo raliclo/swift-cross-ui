@@ -71,9 +71,24 @@ moment.** Both `SendInput` and XTEST are system-wide — they post to whatever i
 focused, not to a chosen window. The conversion is the adapter's job and the
 file never mentions screen space.
 
-Origin is the top-left of the client area, not the window frame. The earlier
-external driver computed absolute positions from window geometry, which includes
-the decorations, and every click missed by the height of the title bar.
+**Two origins, `client` by default and `frame` on request.** Client coordinates
+cover everything the app draws, and defaulting to them is what stops the mistake
+the earlier external driver made — it computed absolute positions from window
+geometry, which includes the decorations, so every click missed by the height of
+the title bar.
+
+`frame` exists because the decorations are a legitimate target: dragging a
+window by its title bar, pressing close or minimise or maximise. It is opt-in
+because it is less portable. Title bar height varies with platform, theme and
+display scale, and under GTK's client-side decorations the title bar is drawn by
+the app rather than the window manager, so the two origins can coincide on one
+machine and differ by 37 pixels on another. A `frame` row records a position on
+the machine it was written on.
+
+**`mousedown` and `mouseup` are separate verbs, not just `click`.** A drag needs
+the button held across a move, and `click` is a press and a release with nothing
+between them. Without the pair there is no way to move a window by its title bar
+or to drag a slider, which the `frame` origin would otherwise be useless for.
 
 Units are logical points, not physical pixels, so a file survives being run at a
 different display scale. This costs one division when reading coordinates off a
@@ -118,25 +133,30 @@ is one.
 
 ## Steps
 
-1. `InputAction` and the key-name table. → verify: a unit test parses every verb
-   and rejects a row with an unknown key name, rather than skipping it silently.
+1. `InputAction` and the key-name table. → verify: a unit test parses all nine
+   verbs and both origins, and rejects an unknown key name rather than skipping
+   the row silently.
 2. `ActionFile`, parsing with the same RFC 4180 rules `csv2` uses. → verify:
-   the example file in the README round-trips, and a malformed row reports its
-   line number.
+   both README examples round-trip, and a malformed row reports its line number.
 3. `XTestSynthesiser` against `libxdo`. → verify: replay P19's menu sequence and
-   get the same `last action -> button item` that the manual `xdotool` run
-   produced.
+   get the same `last action -> button item` the manual `xdotool` run produced.
 4. `Win32Synthesiser` against `SendInput`. → verify: the same file, the same
    result, on Windows.
-5. `replayActionFile` on GtkBackend, and `-actionfile` in one Pn. → verify: P19
+5. Agreement between the two on the three things they define differently:
+   double-click interval, drag, and where the frame origin sits. → verify: one
+   file that double-clicks, drags a window by its title bar and returns it,
+   producing the same end state on both platforms.
+6. `replayActionFile` on GtkBackend, and `-actionfile` in one Pn. → verify: P19
    on both platforms from one file.
-6. The remaining Pn get the flag. → verify: an action file per app in
+7. The remaining Pn get the flag. → verify: an action file per app in
    `testapp/actions/`, matching the test plan's numbered steps.
 
-Steps 3 and 4 are where this either works or does not, and they are worth doing
-before step 5 rather than after: if XTEST and SendInput cannot be made to agree
-on what a double click is, the format needs to change and everything above it
-is rework.
+Steps 3 to 5 are where this works or does not, and they come before anything is
+wired into an app on purpose. If XTEST and SendInput cannot be made to agree on
+what a double click is, or on where the frame origin sits, the format changes
+and everything above it is rework. Step 5 is called out separately because
+agreement is not implied by each adapter working on its own — each can be
+correct against its own platform and still disagree with the other.
 
 ## Risks
 
