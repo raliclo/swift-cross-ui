@@ -24,6 +24,7 @@ public final class GtkBackend:
     BackendFeatures.CornerRadius,
     BackendFeatures.Gestures,
     BackendFeatures.PopoverMenus,
+    BackendFeatures.Tables,
     BackendFeatures.Paths,
     BackendFeatures.Tooltips,
     BackendFeatures.Colors,
@@ -2018,6 +2019,42 @@ public final class GtkBackend:
                     renderPathActions(subpathActions, to: cairo)
             }
         }
+    }
+
+    // MARK: Tables
+
+    // defaultTableRowContentHeight and defaultTableCellVerticalPadding are
+    // already declared near the top of this type, alongside the other backend
+    // constants -- they were there before Tables was conformed to, waiting for
+    // the rest.
+    // defaultTableRowContentHeight 與 defaultTableCellVerticalPadding 已在本型別開頭、與其他
+    // backend 常數一同宣告——它們在 Tables 被實作之前就已存在，等著其餘部分補上。
+
+    public func createTable() -> Widget {
+        Gtk.Table()
+    }
+
+    public func setRowCount(ofTable table: Widget, to rows: Int) {
+        (table as! Gtk.Table).setRowCount(rows)
+    }
+
+    public func setColumnLabels(
+        ofTable table: Widget,
+        to labels: [String],
+        environment: EnvironmentValues
+    ) {
+        let table = table as! Gtk.Table
+        table.setColumnLabels(labels)
+        table.css.clear()
+        table.css.set(properties: Self.cssProperties(for: environment))
+    }
+
+    public func setCells(
+        ofTable table: Widget,
+        to cells: [Widget],
+        withRowHeights rowHeights: [Int]
+    ) {
+        (table as! Gtk.Table).setCells(cells, rowHeights: rowHeights)
     }
 
     public func createDatePicker() -> Widget {

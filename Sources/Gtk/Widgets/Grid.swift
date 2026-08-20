@@ -62,6 +62,33 @@ public class Grid: Widget, Orientable {
         gtk_grid_insert_row(castedPointer(), gint(position))
     }
 
+    /// Detaches one child, and forgets it.
+    ///
+    /// `removeRow` and `removeColumn` shift everything after them, which is
+    /// wrong for a table that rebuilds its whole contents: the caller wants an
+    /// empty grid, not a grid with its geometry rearranged. This removes a
+    /// specific child and leaves the rest where they are.
+    /// 卸下單一子元件，並將其自紀錄中移除。
+    ///
+    /// `removeRow` 與 `removeColumn` 會使其後的所有內容位移，這對「整份重建內容」的表格而言是
+    /// 錯的：呼叫端要的是一個空的 grid，而非一個幾何結構被重新排列過的 grid。本方法移除指定的
+    /// 子元件，其餘維持原位。
+    public func remove(child: Widget) {
+        gtk_grid_remove(castedPointer(), child.widgetPointer)
+        child.parentWidget = nil
+        widgets.removeAll { $0 === child }
+    }
+
+    /// Detaches every child.
+    /// 卸下所有子元件。
+    public func removeAllChildren() {
+        for child in widgets {
+            gtk_grid_remove(castedPointer(), child.widgetPointer)
+            child.parentWidget = nil
+        }
+        widgets.removeAll()
+    }
+
     public func removeRow(position: Int) {
         gtk_grid_remove_row(castedPointer(), gint(position))
     }

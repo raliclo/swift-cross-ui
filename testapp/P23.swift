@@ -51,9 +51,28 @@ enum P23Diagnostics {
         }
     }
 
+    /// Formats a dimension that may not be finite.
+    ///
+    /// `Int(_:)` traps on infinity and NaN, and a GeometryReader over a table
+    /// gets exactly that: the table proposes an unbounded size, so the width
+    /// arrives as infinity. Once GtkBackend implemented Tables and this app got
+    /// past its startup fatalError, that trap was the next thing it hit --
+    /// reported as `Double value cannot be converted to Int`, in this file
+    /// rather than in the backend that had just been fixed.
+    ///
+    /// 格式化一個可能非有限的尺寸值。
+    ///
+    /// `Int(_:)` 對無限大與 NaN 會 trap，而套在表格上的 GeometryReader 得到的正是這種值：
+    /// 表格提出的是無上限的尺寸，因此寬度會以無限大的形式傳入。當 GtkBackend 實作了 Tables、
+    /// 本 app 越過其啟動時的 fatalError 之後，這個 trap 就是它撞上的下一件事——回報為
+    /// `Double value cannot be converted to Int`，且發生在本檔中，而非剛被修好的那個 backend。
+    private static func describe(_ value: Double) -> String {
+        value.isFinite ? "\(Int(value))" : "unbounded"
+    }
+
     static func record(label: String, size: ViewSize) {
         guard isEnabled else { return }
-        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        let line = "\(label): \(describe(size.width)) x \(describe(size.height))"
         guard lastReported[label] != line else { return }
         lastReported[label] = line
         write(line)

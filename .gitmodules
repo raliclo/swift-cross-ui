@@ -11,3 +11,6 @@
 [submodule "testapp/gtk4-source"]
 	path = testapp/gtk4-source
 	url = https://gitlab.gnome.org/GNOME/gtk.git
+[submodule "testapp/xdotool-source"]
+	path = testapp/xdotool-source
+	url = https://github.com/jordansissel/xdotool

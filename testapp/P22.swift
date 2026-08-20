@@ -56,9 +56,21 @@ enum P22Diagnostics {
     // Only logged when it changes. A size that is reported on every layout pass
     // buries the one line that matters under hundreds of identical ones.
     // 僅在變動時記錄。若每次 layout 都回報尺寸，真正重要的那一行會被數百行相同內容淹沒。
+    /// Same guard as P23's, for the same reason: `Int(_:)` traps on infinity
+    /// and NaN, and a proposed size can be unbounded. P22's samples are all
+    /// bounded today, so this has never fired here -- it is here because the
+    /// identical line in P23 did, and leaving one of a pair unfixed is how it
+    /// comes back.
+    /// 與 P23 相同的防護，理由相同：`Int(_:)` 對無限大與 NaN 會 trap，而提出的尺寸可能無上限。
+    /// P22 目前的樣本都是有界的，因此此處從未觸發——它存在的理由是 P23 中完全相同的那一行確實
+    /// 觸發過，而修了一對中的其中一個，正是它捲土重來的方式。
+    private static func describe(_ value: Double) -> String {
+        value.isFinite ? "\(Int(value))" : "unbounded"
+    }
+
     static func record(label: String, size: ViewSize) {
         guard isEnabled else { return }
-        let line = "\(label): \(Int(size.width)) x \(Int(size.height))"
+        let line = "\(label): \(describe(size.width)) x \(describe(size.height))"
         guard lastReported[label] != line else { return }
         lastReported[label] = line
         write(line)
