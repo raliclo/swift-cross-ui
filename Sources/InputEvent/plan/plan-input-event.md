@@ -71,6 +71,28 @@ moment.** Both `SendInput` and XTEST are system-wide — they post to whatever i
 focused, not to a chosen window. The conversion is the adapter's job and the
 file never mentions screen space.
 
+Origin is the top-left of the client area, not the window frame. The earlier
+external driver computed absolute positions from window geometry, which includes
+the decorations, and every click missed by the height of the title bar.
+
+Units are logical points, not physical pixels, so a file survives being run at a
+different display scale. This costs one division when reading coordinates off a
+screenshot, which is in physical pixels; the alternative costs correctness on
+any machine that is not at 100%, and fails by clicking somewhere plausible
+rather than by reporting anything.
+
+**Key names come from macOS.** Carbon's `kVK_*` constants, prefix dropped. A
+real specification with documentation beats a set invented here, it is already
+complete down to the keypad and the right-hand modifiers, and it belongs to the
+third backend so neither of the two platforms this runs on wins by default.
+
+It imports two Mac assumptions that have to be stated rather than discovered.
+`delete` is Backspace and `forwardDelete` is the other one. And `command` is the
+physical key in that position — the Windows key, or Super — not "the shortcut
+modifier", which means an action file exercising a shortcut cannot be identical
+across platforms even though its key names are. Replaying input reproduces
+keystrokes, not intent.
+
 **The window is presented before replay.** Both injection paths follow focus.
 `GtkBackend.show(window:)` now calls `gtk_window_present`, which is what made
 the window come to the front on Windows at all; without that this feature would

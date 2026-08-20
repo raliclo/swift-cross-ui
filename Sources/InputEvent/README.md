@@ -42,7 +42,7 @@ action,x,y,button,key,micros,note
 | column | meaning |
 |---|---|
 | `action` | one of the verbs below |
-| `x`, `y` | window-relative pixels, origin at the top-left of the client area |
+| `x`, `y` | window-relative, origin at the top-left of the client area; see below |
 | `button` | `left`, `right` or `middle` |
 | `key` | a key name from the table below |
 | `micros` | microseconds |
@@ -62,6 +62,30 @@ action,x,y,button,key,micros,note
 
 A `#` in the first column marks a comment row. Blank rows are skipped.
 
+### Coordinates
+
+`0,0` is the top-left of the **client area** — below the title bar, inside the
+border. Not the top-left of the window frame.
+
+The distinction is the whole reason an earlier external driver clicked on
+nothing: it computed absolute screen positions from the window geometry, which
+includes the decorations, so every click landed by however tall the title bar
+happened to be. Naming the client area removes the decorations from the problem
+entirely, and an app driving itself never has to measure them.
+
+Values are in **logical points**, the same unit the app's own layout uses — not
+physical pixels.
+
+On a display at 100% these are the same number and the distinction is invisible.
+On a scaled display they are not, and a screenshot is in physical pixels: a
+button read off a capture at 150% is at 1.5× the coordinate the file should
+carry. Divide by the scale factor when reading positions from a screenshot.
+
+Points rather than pixels because a file is meant to survive being run
+somewhere else. A file in physical pixels is correct only on the display scale
+it was written at, and fails by clicking somewhere plausible rather than by
+saying so.
+
 ### Example
 
 ```csv
@@ -79,22 +103,59 @@ keyup,,,,shift,,release shift
 
 ## Key names
 
-One name per key, mapped to a keysym on Linux and a virtual-key code on Windows.
-Neither platform's native spelling is used directly, because they disagree and a
-file written against one would silently do nothing on the other.
+Names follow macOS. They are Carbon's `kVK_*` constants from
+`HIToolbox/Events.h` — the codes `NSEvent.keyCode` returns — with the `kVK_`
+prefix and the `ANSI_` infix dropped, and the first letter lowercased.
+
+macOS is used as the source rather than a set invented here, or either of the
+two platforms this actually runs on, for three reasons. It is a real
+specification with real documentation, so an argument about what a name means
+has somewhere to go. It is complete, including the keypad and the right-hand
+modifiers, which an invented list would have discovered it needed later. And it
+belongs to the third backend, so neither Linux nor Windows spelling wins by
+default and neither file reads as the native one.
 
 | name | notes |
 |---|---|
-| `a`–`z`, `0`–`9` | unshifted characters |
-| `space`, `tab`, `enter`, `escape`, `backspace`, `delete` | |
-| `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown` | |
-| `shift`, `ctrl`, `alt`, `super` | modifiers, for use with `keydown`/`keyup` |
-| `f1`–`f12` | |
+| `a`–`z` | from `kVK_ANSI_A`–`Z` |
+| `0`–`9` | from `kVK_ANSI_0`–`9` |
+| `return`, `tab`, `space`, `escape` | |
+| `delete`, `forwardDelete` | **read the warning below** |
+| `leftArrow`, `rightArrow`, `upArrow`, `downArrow` | |
+| `home`, `end`, `pageUp`, `pageDown` | |
+| `shift`, `control`, `option`, `command` | left-hand; `rightShift`, `rightControl`, `rightOption`, `rightCommand` exist too |
+| `capsLock`, `function` | |
+| `f1`–`f20` | |
+| `keypad0`–`keypad9`, `keypadDecimal`, `keypadPlus`, `keypadMinus`, `keypadMultiply`, `keypadDivide`, `keypadEnter`, `keypadEquals`, `keypadClear` | from `kVK_ANSI_Keypad*` |
 
-Combinations are expressed as `keydown` / `key` / `keyup` triples rather than as
-`ctrl+a`, so that a file records exactly what was pressed and when. A single
-token with a `+` in it hides the timing, and timing is the thing these files are
-for.
+### `delete` is Backspace
+
+This is Mac's meaning and adopting Mac names adopts it. `kVK_Delete` is the key
+above Return that deletes backwards; `kVK_ForwardDelete` is the one usually
+labelled Delete elsewhere. A file that says `delete` and means the forward one
+will erase the wrong character, quietly, on every platform at once — the format
+is consistent here, it is just consistently surprising if you learned the names
+somewhere else.
+
+### `command` is a physical key, not "the shortcut modifier"
+
+`command` maps to the Windows key on Windows and to Super on Linux, because that
+is the key in the same place. It does not mean "whatever this platform uses for
+shortcuts".
+
+That distinction matters and it is a real limit. A Mac shortcut is
+Command-based where the same shortcut is Control-based elsewhere, so an action
+file that exercises a shortcut cannot be identical across platforms even though
+the key names are. Replaying input reproduces keystrokes, not intent. Where a
+file needs the platform's shortcut modifier, write `control` and accept that the
+Mac run differs — or keep shortcut checks out of action files and drive them
+from the app's own key handling.
+
+### Combinations
+
+Expressed as `keydown` / `key` / `keyup` triples rather than as `command+a`, so
+that a file records exactly what was pressed and when. A single token with a `+`
+in it hides the timing, and timing is the thing these files are for.
 
 ## Timing
 
