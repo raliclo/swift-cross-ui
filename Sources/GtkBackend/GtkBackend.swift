@@ -122,7 +122,15 @@ public final class GtkBackend:
     /// `ActionFileReplay.swift`.
     var hasReplayedActionFile = false
 
+    /// Kept alive for as long as the backend is. A `GSimpleAction` added to the
+    /// application is referenced by it, but the Swift wrapper holds the closure,
+    /// and letting it go would leave the accelerator firing into freed memory.
+    /// 需與 backend 同壽。加入 application 的 `GSimpleAction` 會被其持有，但 Swift wrapper 才是
+    /// 持有 closure 的一方；若讓它被釋放，加速鍵便會觸發到已釋放的記憶體。
+    private var quitAction: GSimpleAction?
+
     public func runMainLoop(_ callback: @escaping @MainActor () -> Void) {
+        installQuitShortcut()
         gtkApp.run { window in
             self.measurementCustomLabel = (self.createTextView() as! CustomLabel)
             self.precreatedWindow = window
@@ -288,6 +296,39 @@ public final class GtkBackend:
                 action(SIMD2(size.width, size.height))
             }
         }
+    }
+
+    /// Ctrl-Q quits, which is the GTK convention and issue #478.
+    ///
+    /// Nothing provided this before. On macOS Cmd-Q comes free with AppKit's
+    /// standard application menu; GTK has no equivalent, so an app built on this
+    /// backend simply had no quit shortcut and the window stayed open.
+    ///
+    /// A `GAction` plus an accelerator rather than a key controller on each
+    /// window: an accelerator is application-wide, so it works whichever window
+    /// has focus and keeps working for windows created later.
+    ///
+    /// `g_application_quit` rather than closing windows one by one. Closing them
+    /// runs each close handler, and an app that vetoes a close would refuse the
+    /// shortcut -- which is the behaviour of a close request, not of a quit.
+    ///
+    /// Ctrl-Q 結束程式，這是 GTK 的慣例，也是 issue #478。
+    ///
+    /// 此前並無任何機制提供它。在 macOS 上，Cmd-Q 隨 AppKit 的標準應用程式選單而來；GTK 沒有對應
+    /// 機制，因此以此 backend 建置的 app 根本沒有結束捷徑，視窗會一直開著。
+    ///
+    /// 使用 `GAction` 加上加速鍵，而非在每個視窗掛上 key controller：加速鍵是應用程式層級的，因此
+    /// 無論哪個視窗取得焦點都有效，對日後才建立的視窗亦然。
+    ///
+    /// 使用 `g_application_quit` 而非逐一關閉視窗。逐一關閉會執行每個 close handler，而會否決關閉
+    /// 的 app 將因此拒絕此捷徑——那是「關閉請求」的行為，不是「結束程式」的行為。
+    private func installQuitShortcut() {
+        let action = GSimpleAction(name: "quit") { [weak self] in
+            self?.gtkApp.quit()
+        }
+        gtkApp.addAction(action)
+        quitAction = action
+        gtkApp.setAccelerators(["<Control>q"], forAction: "app.quit")
     }
 
     public func show(window: Window) {
@@ -646,6 +687,39 @@ public final class GtkBackend:
         to color: SwiftCrossUI.Color.Resolved
     ) {
         widget.css.set(property: .backgroundColor(color.gtkColor))
+
+        // A fully transparent rectangle stops being a pointer target.
+        //
+        // Same rule as PassthroughFixed: something that draws nothing does not
+        // claim the points it covers. Without this, `Color.clear` in a ZStack
+        // above a button swallows every click -- measured on P10, where
+        // `Direct clicks` reached 2 while `Covered clicks` stayed at 0 with the
+        // overlay present, and the button worked the moment it was removed.
+        // That is issue #454.
+        //
+        // SwiftUI does let `Color.clear` take hits, and the escape hatch there
+        // is `allowsHitTesting(false)`. SwiftCrossUI has no such modifier, so
+        // matching SwiftUI here would leave no way at all to put a transparent
+        // layer over something interactive. Deliberate divergence, and it is
+        // reversible: if `allowsHitTesting` ever lands, this belongs behind it.
+        //
+        // Set on every call rather than only when clear, because a colour that
+        // animates from transparent to opaque has to become clickable again.
+        //
+        // 完全透明的矩形不再作為指標目標。
+        //
+        // 與 PassthroughFixed 同一條規則：不繪製任何內容的東西，不應攔截其所覆蓋的點。若無此段，
+        // ZStack 中位於按鈕上方的 `Color.clear` 會吞掉每一次點擊——在 P10 實測，overlay 存在時
+        // `Direct clicks` 達到 2 而 `Covered clicks` 停在 0，而移除 overlay 的當下按鈕即恢復
+        // 正常。這就是 issue #454。
+        //
+        // SwiftUI 確實讓 `Color.clear` 接收點擊，其逃生口是 `allowsHitTesting(false)`。而
+        // SwiftCrossUI 並無此 modifier，因此在此處與 SwiftUI 一致，等於完全沒有辦法把透明圖層
+        // 疊在可互動的元件之上。這是刻意的分歧，且可回復：若日後加入 `allowsHitTesting`，此邏輯
+        // 應改置於其之下。
+        //
+        // 每次呼叫都設定，而非僅在透明時設定，因為由透明漸變為不透明的顏色必須重新變得可點擊。
+        gtk_widget_set_can_target(widget.widgetPointer, color.opacity > 0 ? 1 : 0)
     }
 
     public func createCornerRadiusContainer(wrapping child: Widget) -> Widget {

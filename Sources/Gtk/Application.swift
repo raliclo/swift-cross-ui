@@ -33,6 +33,45 @@ public class Application: GObject, GActionMap {
 
     @GObjectProperty(named: "register-session") public var registerSession: Bool
 
+    /// Binds keyboard accelerators to an action, e.g. `["<Control>q"]` for
+    /// `"app.quit"`.
+    ///
+    /// Application-wide, so it fires whichever window has focus and keeps
+    /// working for windows created later -- unlike a key controller, which has
+    /// to be attached to each window as it appears.
+    ///
+    /// 將鍵盤加速鍵繫結至某個動作，例如以 `["<Control>q"]` 繫結 `"app.quit"`。
+    ///
+    /// 其作用範圍為整個應用程式，因此無論哪個視窗取得焦點都會觸發，對日後才建立的視窗亦然——這與
+    /// key controller 不同，後者必須在每個視窗出現時逐一掛載。
+    public func setAccelerators(_ accelerators: [String], forAction action: String) {
+        // A NULL-terminated array of C strings, which is what GTK wants and what
+        // Swift's automatic `[String]` bridging does not produce.
+        // GTK 要求的是以 NULL 結尾的 C 字串陣列，而 Swift 對 `[String]` 的自動橋接不會產生這種形式。
+        let owned: [UnsafeMutablePointer<CChar>?] = accelerators.map { strdup($0) }
+        var pointers: [UnsafePointer<CChar>?] = owned.map { pointer in
+            pointer.map { UnsafePointer<CChar>($0) }
+        }
+        pointers.append(nil)
+        gtk_application_set_accels_for_action(applicationPointer, action, &pointers)
+        for pointer in owned {
+            free(pointer)
+        }
+    }
+
+    /// Ends the application's main loop.
+    ///
+    /// Not the same as closing every window: closing runs each window's close
+    /// handler, and an application that vetoes a close would refuse to quit.
+    ///
+    /// 結束應用程式的 main loop。
+    ///
+    /// 這與「關閉所有視窗」不同：關閉會執行每個視窗的 close handler，而會否決關閉的應用程式將
+    /// 因此拒絕結束。
+    public func quit() {
+        g_application_quit(UnsafeMutablePointer(OpaquePointer(applicationPointer)))
+    }
+
     public init(applicationId: String, flags: GApplicationFlags = .init(rawValue: 0)) {
         super.init(
             gtk_application_new(applicationId, flags)

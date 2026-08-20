@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note
+# P10 steps 2 and 3, which together are #454: click the plain button, then the
+# one sitting under a transparent Color.clear layer.
+#
+# Both counters are on screen at once, so one screenshot decides it. `Direct
+# clicks` rising while `Covered clicks` stays at 0 is #454 reproducing; both
+# rising is the transparent overlay no longer consuming the click.
+#
+# The overlay is left checked. Step 4 removes it, and that is a separate file --
+# the A/B is only worth anything if each half is run on its own.
+#
+# P10 步驟 2 與 3，兩者合起來即為 #454：先點擊一般按鈕，再點擊位於透明 Color.clear 圖層之下的
+# 那一個。
+#
+# 兩個計數器同時顯示於畫面上，因此一張截圖即可判定。`Direct clicks` 上升而 `Covered clicks`
+# 停在 0，代表 #454 重現；兩者皆上升，代表透明 overlay 不再吞掉點擊。
+#
+# overlay 維持勾選狀態。步驟 4 才會移除它，且置於另一個檔案——A/B 比較唯有在兩半各自獨立執行時
+# 才具有意義。
+click,206,239,,left,,,Click me -- the plain one
+sleep,,,,,,400000,
+click,206,239,,left,,,again, so Direct clicks reads 2
+sleep,,,,,,600000,
+click,366,239,,left,,,Click me too -- under the transparent overlay
+sleep,,,,,,1200000,hold for the screenshot

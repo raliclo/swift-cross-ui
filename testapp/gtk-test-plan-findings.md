@@ -615,21 +615,80 @@ finding above reflects the correct (isolated) runs.
 仍沿用同一組座標。改為每個按鈕各自從重新啟動／短序列測試後，三者均正確運作；上方結果反映的是
 正確（各自獨立）的測試。
 
-## P10: hit testing and shortcuts -- both tracked issues reproduce
+## P10: hit testing and shortcuts -- both tracked issues fixed
 
 | step | result |
 |---|---|
 | 2: Direct clicks increments | pass -- 2 clicks -> `Direct clicks: 2` |
-| 3: covered button with overlay present | fails -- **#454 reproduces**: `Covered clicks` stayed `0` and the status text did not change after clicking `Click me too` while `Transparent overlay present` was checked |
-| 4-5: uncheck overlay, click again | pass -- `Covered clicks: 1`, status reads `Covered button received a click.`, confirming the click lands correctly once the overlay is removed and isolating the overlay as the cause |
-| 6: Ctrl-Q quits (#478) | fails -- **#478 reproduces**: the window is still present in the window list after `xdotool key ctrl+q`, the app did not quit |
+| 3: covered button with overlay present | **pass, #454 fixed** -- `Covered clicks: 1` and `Covered button received a click.` with `Transparent overlay present` still checked. Previously stayed at `0` |
+| 4-5: uncheck overlay, click again | pass -- unchanged, and no longer the only way the button works |
+| 6: Ctrl-Q quits (#478) | **pass, #478 fixed** -- the process is gone within two seconds of the keystroke, against a control run with no input that is still alive at ten seconds, and its log ends with `RENDER COMPLETE` and no fatal error, so it quit rather than crashed |
 
-Both are clean, unambiguous reproductions -- direct A/B comparison for #454
-(same button, same click, overlay present vs absent) and a simple presence
-check for #478.
+### #454 -- transparent colours consumed clicks
 
-兩者皆為乾淨、明確的重現——#454 為直接的 A/B 比較（同一按鈕、同一點擊，有無 overlay 的差異），
-#478 則是單純的視窗存在性檢查。
+`Color.clear` becomes a `GtkBox` with a transparent CSS background. A GtkBox is
+a pointer target whatever it is painted, so a clear one in a `ZStack` above a
+button swallowed every click.
+
+Not the same defect as the overlay one recorded under P23, and the fix for that
+one did not touch this: `PassthroughFixed` makes *empty containers* transparent
+to hit testing, and a `Color` is a drawn view rather than a container. Retested
+after that landed and #454 still reproduced, which is what separated the two.
+
+Fixed in `setColor(ofColorableRectangle:)`: a rectangle with zero opacity gets
+`can-target = FALSE`, restored the moment it is given any opacity, so a colour
+animating from transparent to opaque becomes clickable again.
+
+**A deliberate divergence from SwiftUI, stated rather than hidden.** SwiftUI does
+let `Color.clear` take hits; the escape hatch there is `allowsHitTesting(false)`.
+SwiftCrossUI has no such modifier -- there is no `allowsHitTesting`,
+`contentShape` or `hitTest` anywhere in the source -- so matching SwiftUI would
+leave no way at all to put a transparent layer over something interactive. If
+`allowsHitTesting` is ever added, this belongs behind it.
+
+### #478 -- no quit shortcut existed
+
+Nothing in GtkBackend handled Ctrl-Q, and nothing else provided it. On macOS
+Cmd-Q comes free with AppKit's standard application menu; GTK has no equivalent,
+so an app built on this backend simply had no quit shortcut.
+
+Added as a `GAction` plus an application-wide accelerator, so it works whichever
+window has focus and keeps working for windows created later -- unlike a key
+controller, which would have to be attached to each window as it appears. It
+calls `g_application_quit` rather than closing windows one at a time, because
+closing runs each close handler and an app that vetoes a close would refuse the
+shortcut, which is the behaviour of a close request rather than of a quit.
+
+| 步驟 | 結果 |
+|---|---|
+| 2 | 通過 |
+| 3：overlay 存在時點擊被覆蓋的按鈕 | **通過，#454 已修正**——在 `Transparent overlay present` 仍勾選的情況下得到 `Covered clicks: 1`。此前停在 `0` |
+| 4-5 | 通過，且不再是該按鈕唯一能運作的方式 |
+| 6：Ctrl-Q 結束程式（#478） | **通過，#478 已修正**——按鍵後兩秒內行程即消失，而不送任何輸入的對照組在十秒時仍存活；其 log 以 `RENDER COMPLETE` 作結且無致命錯誤，故為正常結束而非崩潰 |
+
+**#454——透明顏色會吞掉點擊。** `Color.clear` 會成為一個帶透明 CSS 背景的 `GtkBox`。無論如何繪製，
+GtkBox 都是指標目標，因此位於 `ZStack` 中按鈕上方的透明色塊會吞掉每一次點擊。
+
+這與 P23 條目下記錄的 overlay 缺陷並非同一件事，且該次修正也未涵蓋此處：`PassthroughFixed` 使
+**空容器**對 hit testing 透明，而 `Color` 是「有繪製的 view」而非容器。該修正落地後重測，#454
+依然重現，正是這一點區分了兩者。
+
+修正位於 `setColor(ofColorableRectangle:)`：不透明度為零的矩形會被設為 `can-target = FALSE`，
+一旦被賦予任何不透明度即恢復，因此由透明漸變為不透明的顏色會重新變得可點擊。
+
+**一項刻意的、明言而非隱藏的 SwiftUI 分歧。** SwiftUI 確實讓 `Color.clear` 接收點擊，其逃生口是
+`allowsHitTesting(false)`。而 SwiftCrossUI 並無此 modifier——整份原始碼中沒有 `allowsHitTesting`、
+`contentShape` 或 `hitTest`——因此與 SwiftUI 保持一致，等於完全沒有辦法把透明圖層疊在可互動的元件
+之上。若日後加入 `allowsHitTesting`，此邏輯應改置於其之下。
+
+**#478——根本不存在結束捷徑。** GtkBackend 中沒有任何程式碼處理 Ctrl-Q，其他地方也未提供。在
+macOS 上，Cmd-Q 隨 AppKit 的標準應用程式選單而來；GTK 沒有對應機制，因此以此 backend 建置的 app
+根本沒有結束捷徑。
+
+現以 `GAction` 加上應用程式層級的加速鍵實作，因此無論哪個視窗取得焦點都有效，對日後才建立的視窗
+亦然——這與 key controller 不同，後者必須在每個視窗出現時逐一掛載。它呼叫 `g_application_quit`
+而非逐一關閉視窗，因為關閉會執行每個 close handler，而會否決關閉的 app 將因此拒絕此捷徑——那是
+「關閉請求」的行為，不是「結束程式」的行為。
 
 ## P15: colour scheme and window minimum height
 
