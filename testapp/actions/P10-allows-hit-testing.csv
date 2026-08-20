@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note
+# allowsHitTesting(false): click the middle of an opaque orange block and expect
+# the button underneath it to respond.
+#
+# The block is fully opaque, so nothing about how it is drawn could let the
+# click through -- unlike the transparent overlay in P10-hit-testing.csv, where
+# a pass could be explained by the colour rather than by the modifier. If
+# `Hidden clicks` rises, the click reached a button that is not visible at all,
+# which is the only thing this modifier claims to do.
+#
+# allowsHitTesting(false)：點擊一塊不透明橘色方塊的中央，並預期其下方的按鈕會有反應。
+#
+# 該方塊完全不透明，因此其繪製方式不可能讓點擊穿透——這與 P10-hit-testing.csv 中的透明 overlay
+# 不同，那裡的通過有可能是顏色造成的、而非該 modifier 造成的。若 `Hidden clicks` 上升，代表點擊
+# 抵達了一個完全看不見的按鈕，而那正是此 modifier 唯一宣稱能做到的事。
+click,458,226,,left,,,the middle of the orange block
+sleep,,,,,,400000,
+click,458,226,,left,,,again, so a single stray click cannot explain it
+sleep,,,,,,1200000,hold for the screenshot

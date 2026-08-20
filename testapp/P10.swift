@@ -60,6 +60,7 @@ struct P10HitTestingApp: App {
 struct P10RootView: View {
     @State var directClicks = 0
     @State var coveredClicks = 0
+    @State var hiddenClicks = 0
     @State var overlayEnabled = true
     @State var eventLog = "Ready. Ctrl-Q should quit the app."
 
@@ -97,7 +98,39 @@ struct P10RootView: View {
                     }
                     .frame(width: 160, height: 60)
                 }
+
+                // allowsHitTesting: the layer here is fully opaque, so nothing
+                // about how it is drawn could let a click through. Only the
+                // modifier can, which is what makes this a test of the modifier
+                // rather than of transparency again.
+                //
+                // The button underneath is invisible on purpose. If the counter
+                // rises, the click reached a button nobody could see, which is
+                // the whole claim.
+                //
+                // allowsHitTesting：此處的圖層完全不透明，因此其繪製方式不可能讓點擊穿透，唯有該
+                // modifier 能做到——這正是使本項成為「對該 modifier 的測試」而非又一次透明度測試的
+                // 原因。
+                //
+                // 下方的按鈕刻意是看不見的。若計數上升，代表點擊抵達了一個沒有人看得見的按鈕，
+                // 而那正是此項主張的全部內容。
+                VStack(spacing: 6) {
+                    Text("Under an opaque allowsHitTesting(false)")
+                    ZStack {
+                        Button("Hidden button") {
+                            hiddenClicks += 1
+                            eventLog = "Hidden button received a click."
+                        }
+
+                        Color.orange
+                            .frame(width: 200, height: 60)
+                            .allowsHitTesting(false)
+                    }
+                    .frame(width: 200, height: 60)
+                }
             }
+
+            Text("Hidden clicks: \(hiddenClicks)")
 
             Toggle("Transparent overlay present", active: $overlayEnabled)
                 .frame(width: 260)

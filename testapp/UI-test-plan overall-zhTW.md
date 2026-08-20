@@ -390,11 +390,13 @@ zsh testapp/test_p8.zsh --both --no-showtime
 3. 在 `Transparent overlay present` 勾選的狀態下，點擊位於透明 `Color.clear` 圖層下方的 `Click me too`，確認 `Covered clicks` 會增加，確認 #454。
 4. 取消勾選 `Transparent overlay present` 後再點一次，確認此時會增加。
 5. 兩者對照：若被覆蓋的按鈕只有在移除透明圖層後才有反應，即為 #454。
-6. 按 Ctrl-Q（macOS 為 Cmd-Q），確認 #478。
+6. 點擊右側橘色方塊的中央，確認 `Hidden clicks` 會增加。該方塊完全**不透明**、將按鈕完全遮住，唯有 `allowsHitTesting(false)` 能讓點擊穿透——這正是使本步驟成為「對該 modifier 的測試」而非又一次透明度測試的原因。
+7. 按 Ctrl-Q（macOS 為 Cmd-Q），確認 #478。
 
 預期結果：
 
 - 透明圖層不應阻擋點擊；若被覆蓋的按鈕需移除圖層才有反應，即為 #454。
+- 套用 `allowsHitTesting(false)` 的不透明圖層同樣不應阻擋點擊；若 `Hidden clicks` 停在 0，代表該 modifier 沒有傳達到 backend。
 - Ctrl-Q 應結束程式；若視窗仍開著即為 #478。
 
 ## P11：AppKit Sliders, Scrollbars And Pickers（macOS）

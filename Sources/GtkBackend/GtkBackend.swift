@@ -31,7 +31,8 @@ public final class GtkBackend:
     BackendFeatures.DatePickers,
     BackendFeatures.Windowing,
     BackendFeatures.LinearGradients,
-    BackendFeatures.RadialGradients
+    BackendFeatures.RadialGradients,
+    BackendFeatures.HitTesting
 {
     public typealias Window = Gtk.ApplicationWindow
     public typealias Widget = Gtk.Widget
@@ -679,7 +680,11 @@ public final class GtkBackend:
     }
 
     public func createColorableRectangle() -> Widget {
-        return Box()
+        // The same passthrough widget the containers use, so a fully
+        // transparent rectangle can decline the points it covers. See setColor.
+        // 與各容器所使用的同一個 passthrough widget，如此完全透明的矩形便能放棄其所覆蓋的點。
+        // 詳見 setColor。
+        return PassthroughFixed()
     }
 
     public func setColor(
@@ -688,38 +693,58 @@ public final class GtkBackend:
     ) {
         widget.css.set(property: .backgroundColor(color.gtkColor))
 
-        // A fully transparent rectangle stops being a pointer target.
+        // A fully transparent rectangle stops claiming the points it covers.
         //
-        // Same rule as PassthroughFixed: something that draws nothing does not
-        // claim the points it covers. Without this, `Color.clear` in a ZStack
-        // above a button swallows every click -- measured on P10, where
-        // `Direct clicks` reached 2 while `Covered clicks` stayed at 0 with the
-        // overlay present, and the button worked the moment it was removed.
-        // That is issue #454.
+        // Same rule as the containers: something that draws nothing does not
+        // take the pointer from what is behind it. Without this, `Color.clear`
+        // in a ZStack above a button swallows every click -- measured on P10,
+        // where `Direct clicks` reached 2 while `Covered clicks` stayed at 0
+        // with the overlay present, and the button worked the moment it was
+        // removed. That is issue #454.
         //
-        // SwiftUI does let `Color.clear` take hits, and the escape hatch there
-        // is `allowsHitTesting(false)`. SwiftCrossUI has no such modifier, so
-        // matching SwiftUI here would leave no way at all to put a transparent
-        // layer over something interactive. Deliberate divergence, and it is
-        // reversible: if `allowsHitTesting` ever lands, this belongs behind it.
+        // Through the widget's own flag rather than `can-target`. `can-target`
+        // belongs to `allowsHitTesting`, and having two things write it would
+        // make the last writer win. The flag is read at hit time and combines
+        // with the event-controller test, so `Color.clear` carrying a tap
+        // gesture stays clickable whichever order the two are applied in.
         //
-        // Set on every call rather than only when clear, because a colour that
-        // animates from transparent to opaque has to become clickable again.
+        // Set on every call rather than only when clear, because a colour
+        // animating from transparent to opaque has to take clicks again.
         //
-        // 完全透明的矩形不再作為指標目標。
+        // SwiftUI does let `Color.clear` take hits, with
+        // `allowsHitTesting(false)` as the escape hatch. Diverging here is
+        // deliberate and is what #454 asks for: a transparent layer that
+        // silently eats input is the more surprising of the two behaviours, and
+        // `allowsHitTesting` now exists for anyone who wants the other one.
         //
-        // 與 PassthroughFixed 同一條規則：不繪製任何內容的東西，不應攔截其所覆蓋的點。若無此段，
+        // 完全透明的矩形不再攔截其所覆蓋的點。
+        //
+        // 與各容器同一條規則：不繪製任何內容的東西，不應從其後方的元件手中奪走指標。若無此段，
         // ZStack 中位於按鈕上方的 `Color.clear` 會吞掉每一次點擊——在 P10 實測，overlay 存在時
-        // `Direct clicks` 達到 2 而 `Covered clicks` 停在 0，而移除 overlay 的當下按鈕即恢復
-        // 正常。這就是 issue #454。
+        // `Direct clicks` 達到 2 而 `Covered clicks` 停在 0，而移除 overlay 的當下按鈕即恢復正常。
+        // 這就是 issue #454。
         //
-        // SwiftUI 確實讓 `Color.clear` 接收點擊，其逃生口是 `allowsHitTesting(false)`。而
-        // SwiftCrossUI 並無此 modifier，因此在此處與 SwiftUI 一致，等於完全沒有辦法把透明圖層
-        // 疊在可互動的元件之上。這是刻意的分歧，且可回復：若日後加入 `allowsHitTesting`，此邏輯
-        // 應改置於其之下。
+        // 透過該 widget 自身的旗標而非 `can-target`。`can-target` 屬於 `allowsHitTesting`，若有
+        // 兩處都寫入它，結果將取決於誰最後寫。此旗標於 hit 時讀取，並與 event controller 的判斷
+        // 組合運作，因此帶有 tap gesture 的 `Color.clear` 無論兩者以何順序套用都仍可點擊。
         //
-        // 每次呼叫都設定，而非僅在透明時設定，因為由透明漸變為不透明的顏色必須重新變得可點擊。
-        gtk_widget_set_can_target(widget.widgetPointer, color.opacity > 0 ? 1 : 0)
+        // 每次呼叫都設定，而非僅在透明時設定，因為由透明漸變為不透明的顏色必須重新接收點擊。
+        //
+        // SwiftUI 確實讓 `Color.clear` 接收點擊，其逃生口是 `allowsHitTesting(false)`。此處刻意
+        // 分歧，而這正是 #454 所要求的：「靜默吞掉輸入的透明圖層」是兩種行為中較令人意外的那一個，
+        // 而想要另一種行為的人，現在已有 `allowsHitTesting` 可用。
+        gtk_passthrough_fixed_set_opaque(widget.widgetPointer, color.opacity > 0 ? 1 : 0)
+    }
+
+    /// `can-target`, which GTK already defines as subtree-wide: hit testing
+    /// skips a widget that cannot be targeted and does not descend into it.
+    /// That is exactly `allowsHitTesting`'s meaning, so there is nothing to
+    /// emulate.
+    ///
+    /// 使用 `can-target`，GTK 對它的定義本就及於整個子樹：hit testing 會略過無法被指定為目標的
+    /// widget，也不會往其內部遞迴。這正是 `allowsHitTesting` 的語意，因此無需任何模擬。
+    public func setHitTesting(of widget: Widget, to allowsHitTesting: Bool) {
+        gtk_widget_set_can_target(widget.widgetPointer, allowsHitTesting ? 1 : 0)
     }
 
     public func createCornerRadiusContainer(wrapping child: Widget) -> Widget {

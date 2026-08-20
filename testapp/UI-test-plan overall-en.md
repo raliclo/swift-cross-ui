@@ -391,11 +391,13 @@ Test steps:
 3. With `Transparent overlay present` checked, click `Click me too`, which sits under a transparent `Color.clear` layer. Confirm `Covered clicks` increments, to verify #454.
 4. Uncheck `Transparent overlay present` and click it again; confirm it increments now.
 5. Compare: if the covered button only responds with the overlay removed, that is #454.
-6. Press Ctrl-Q (Cmd-Q on macOS), to verify #478.
+6. Click the middle of the orange block on the right and confirm `Hidden clicks` rises. The block is fully **opaque** and hides the button completely; only `allowsHitTesting(false)` can let the click through, which is what makes this a test of the modifier rather than of transparency.
+7. Press Ctrl-Q (Cmd-Q on macOS), to verify #478.
 
 Expected results:
 
 - A transparent overlay does not block clicks. If the covered button only works once the overlay is removed, that is #454.
+- An opaque layer with `allowsHitTesting(false)` does not block clicks either. If `Hidden clicks` stays at 0, the modifier is not reaching the backend.
 - Ctrl-Q quits the app. If the window stays open, that is #478.
 
 ## P11: AppKit Sliders, Scrollbars And Pickers (macOS)

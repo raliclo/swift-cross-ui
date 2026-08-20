@@ -639,12 +639,47 @@ Fixed in `setColor(ofColorableRectangle:)`: a rectangle with zero opacity gets
 `can-target = FALSE`, restored the moment it is given any opacity, so a colour
 animating from transparent to opaque becomes clickable again.
 
-**A deliberate divergence from SwiftUI, stated rather than hidden.** SwiftUI does
-let `Color.clear` take hits; the escape hatch there is `allowsHitTesting(false)`.
-SwiftCrossUI has no such modifier -- there is no `allowsHitTesting`,
-`contentShape` or `hitTest` anywhere in the source -- so matching SwiftUI would
-leave no way at all to put a transparent layer over something interactive. If
-`allowsHitTesting` is ever added, this belongs behind it.
+**A deliberate divergence from SwiftUI, and the escape hatch now exists.**
+SwiftUI does let `Color.clear` take hits, with `allowsHitTesting(false)` as the
+way out. SwiftCrossUI had no such modifier at all -- no `allowsHitTesting`,
+`contentShape` or `hitTest` anywhere -- so matching SwiftUI would have left no
+way to put a transparent layer over something interactive.
+
+`allowsHitTesting(_:)` has since been added: `BackendFeatures.HitTesting` with a
+no-op default, GtkBackend mapping it to `can-target`, which GTK already defines
+as subtree-wide and so needs no emulation. The transparent-colour default stays
+as #454 asks -- a layer that silently eats input is the more surprising of the
+two behaviours -- and anyone wanting the other one can now ask for it.
+
+The colour rule moved onto the same machinery rather than staying a bespoke
+`can-target` call, because two things writing that one flag would have made the
+last writer win. A colour rectangle is now a `PassthroughFixed` carrying an
+`opaque` flag read at hit time, which also fixes a regression the first version
+would have introduced: `Color.clear` with a tap gesture stays clickable, because
+`contains` checks for event controllers as well as opacity, whichever order the
+colour and the gesture are applied in.
+
+Verified with a case that transparency cannot explain: P10 step 6 clicks the
+middle of a fully **opaque** orange block and `Hidden clicks` reaches 2, so the
+click reached a button that is not visible at all.
+
+**一項刻意的 SwiftUI 分歧，而其逃生口現已存在。** SwiftUI 確實讓 `Color.clear` 接收點擊，其解法
+是 `allowsHitTesting(false)`。而 SwiftCrossUI 當時完全沒有這個 modifier——沒有
+`allowsHitTesting`、`contentShape`，也沒有 `hitTest`——因此與 SwiftUI 保持一致，等於完全沒有辦法
+把透明圖層疊在可互動的元件之上。
+
+`allowsHitTesting(_:)` 其後已加入：`BackendFeatures.HitTesting` 帶有 no-op 預設實作，GtkBackend
+將其對映至 `can-target`，而 GTK 對後者的定義本就及於整個子樹，因此無需任何模擬。透明顏色的預設
+維持 #454 所要求的行為——「靜默吞掉輸入的圖層」是兩者中較令人意外的那一個——而想要另一種行為的人，
+現在可以自行指定。
+
+顏色的處理也一併移到同一套機制上，而非停留在一次專屬的 `can-target` 呼叫，因為兩處都寫入同一個
+旗標會使結果取決於誰最後寫。色塊現在是帶有 `opaque` 旗標的 `PassthroughFixed`，該旗標於 hit 時
+讀取；這同時修正了第一版本會引入的一項回歸：帶有 tap gesture 的 `Color.clear` 仍可點擊，因為
+`contains` 除了不透明度之外也會檢查 event controller，且不受「顏色與手勢的套用順序」影響。
+
+驗證方式採用了「透明度無法解釋」的案例：P10 步驟 6 點擊一塊完全**不透明**的橘色方塊中央，
+`Hidden clicks` 達到 2，代表該點擊抵達了一個完全看不見的按鈕。
 
 ### #478 -- no quit shortcut existed
 

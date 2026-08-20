@@ -5,8 +5,24 @@
 
 #define GTK_TYPE_PASSTHROUGH_FIXED (gtk_passthrough_fixed_get_type())
 
+// Spelled out because G_DEFINE_TYPE generates the get_type function but not the
+// checking macros -- those come from the G_DECLARE_* family, which needs the
+// struct in a header, and this type's struct is deliberately private to this
+// file.
+// 手動定義，因為 G_DEFINE_TYPE 只產生 get_type 函式，不產生型別檢查巨集——後者出自 G_DECLARE_*
+// 系列，而該系列需要把 struct 放在標頭檔中，但此型別的 struct 刻意只存在於本檔案內。
+#define GTK_IS_PASSTHROUGH_FIXED(obj) \
+    (G_TYPE_CHECK_INSTANCE_TYPE((obj), GTK_TYPE_PASSTHROUGH_FIXED))
+
 typedef struct _GtkPassthroughFixed {
     GtkFixed parent_instance;
+
+    // Whether this one draws something. False for the structural containers
+    // SwiftCrossUI's layout is built from, and set from the alpha channel for a
+    // colour rectangle.
+    // 此元件是否有繪製內容。SwiftCrossUI 版面所使用的結構性容器為 false；色塊則依其 alpha 通道
+    // 設定。
+    gboolean opaque;
 } GtkPassthroughFixed;
 
 typedef struct _GtkPassthroughFixedClass {
@@ -36,15 +52,26 @@ G_DEFINE_TYPE(GtkPassthroughFixed, gtk_passthrough_fixed, GTK_TYPE_FIXED)
 // 點擊的那個 widget 上，因此帶有 `.onTapGesture` 的 stack 會有 controller，其整個範圍仍可點擊；
 // 而純粹作為結構的 stack 則沒有，點擊會穿透至其後方的元件。
 static gboolean gtk_passthrough_fixed_contains(GtkWidget *widget, double x, double y) {
-    GListModel *controllers = gtk_widget_observe_controllers(widget);
-    guint count = g_list_model_get_n_items(controllers);
-    g_object_unref(controllers);
+    GtkPassthroughFixed *self = (GtkPassthroughFixed *)widget;
 
-    if (count == 0) {
-        return FALSE;
+    if (!self->opaque) {
+        GListModel *controllers = gtk_widget_observe_controllers(widget);
+        guint count = g_list_model_get_n_items(controllers);
+        g_object_unref(controllers);
+
+        if (count == 0) {
+            return FALSE;
+        }
     }
 
     return GTK_WIDGET_CLASS(gtk_passthrough_fixed_parent_class)->contains(widget, x, y);
+}
+
+void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque) {
+    if (widget == NULL || !GTK_IS_PASSTHROUGH_FIXED(widget)) {
+        return;
+    }
+    ((GtkPassthroughFixed *)widget)->opaque = opaque;
 }
 
 static void gtk_passthrough_fixed_class_init(GtkPassthroughFixedClass *klass) {
