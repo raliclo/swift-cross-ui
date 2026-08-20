@@ -22,6 +22,45 @@ public final class Win32Synthesiser: Synthesiser {
     /// behave differently on two machines.
     public var doubleClickInterval: Int { Int(GetDoubleClickTime()) * 1000 }
 
+    /// Asks Windows for the foreground window's frame and client origins.
+    ///
+    /// `GetWindowRect` gives the frame, decorations included. The client origin
+    /// is found by mapping the client area's own `(0,0)` into screen space with
+    /// `ClientToScreen`, rather than by subtracting a title bar height --
+    /// there is no reliable constant for that, and a window with client-side
+    /// decorations has none at all.
+    ///
+    /// The scale comes from `GetDpiForWindow`, which is per-monitor: a window
+    /// dragged to a differently scaled display reports a different value, which
+    /// is why it is read here rather than once at startup.
+    public func currentWindowGeometry() throws -> WindowGeometry {
+        guard let window = GetForegroundWindow() else {
+            throw SynthesiserError.unsupported("no foreground window")
+        }
+
+        var frame = RECT()
+        guard GetWindowRect(window, &frame) else {
+            throw SynthesiserError.toolFailed("GetWindowRect", status: Int32(GetLastError()))
+        }
+
+        var clientOrigin = POINT(x: 0, y: 0)
+        guard ClientToScreen(window, &clientOrigin) else {
+            throw SynthesiserError.toolFailed("ClientToScreen", status: Int32(GetLastError()))
+        }
+
+        let dpi = GetDpiForWindow(window)
+        let scale = dpi == 0 ? 1.0 : Double(dpi) / 96.0
+
+        // Divided by the scale so both origins are in logical points, which is
+        // what an action file's coordinates are. screenPosition multiplies back
+        // by the same scale; doing it in one place keeps the round trip honest.
+        return WindowGeometry(
+            frameOrigin: (Double(frame.left) / scale, Double(frame.top) / scale),
+            clientOrigin: (Double(clientOrigin.x) / scale, Double(clientOrigin.y) / scale),
+            scale: scale
+        )
+    }
+
     public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
         switch action {
             case .move(let point):

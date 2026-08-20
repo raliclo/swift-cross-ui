@@ -51,6 +51,19 @@ public struct WindowGeometry: Equatable, Sendable {
 public protocol Synthesiser {
     func perform(_ action: InputAction, in geometry: WindowGeometry) throws
 
+    /// The geometry of whatever window currently has focus.
+    ///
+    /// Asked of the operating system rather than of the UI toolkit, for two
+    /// reasons. GTK 4 does not expose a window's position at all -- Wayland has
+    /// no such concept, so the API does not offer one on any backend -- and both
+    /// injection paths already target the focused window, so the focused
+    /// window's geometry is exactly the frame of reference an action file is
+    /// written against.
+    ///
+    /// Keeping it here also keeps this module independent of any backend, which
+    /// is what lets it be tested without a running application.
+    func currentWindowGeometry() throws -> WindowGeometry
+
     /// The platform's double-click interval, in microseconds.
     ///
     /// Read rather than hard-coded. Neither `SendInput` nor XTEST bundles
@@ -72,6 +85,21 @@ extension Synthesiser {
         for action in actions {
             try perform(action, in: geometry)
         }
+    }
+
+    /// Replays a file against the focused window.
+    ///
+    /// Geometry is read once, at the start, not per action. Re-reading it would
+    /// make a file that moves the window by its title bar measure every
+    /// subsequent click against the window's new position, so a drag followed
+    /// by a click would land somewhere the file never named.
+    public func replay(_ actions: [InputAction]) throws {
+        try replay(actions, in: currentWindowGeometry())
+    }
+
+    /// Loads a file and replays it against the focused window.
+    public func replayFile(at url: URL) throws {
+        try replay(ActionFile.load(contentsOf: url))
     }
 
     /// Two press-release pairs inside the platform's interval, shared by both

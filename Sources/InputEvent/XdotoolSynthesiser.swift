@@ -31,6 +31,36 @@ public final class XdotoolSynthesiser: Synthesiser {
     /// nowhere.
     public let doubleClickInterval = 400_000
 
+    /// Asks X for the active window's geometry.
+    ///
+    /// `getwindowgeometry --shell` prints `X=`, `Y=`, `WIDTH=`, `HEIGHT=`. The
+    /// position it reports is the frame's, decorations included.
+    ///
+    /// Client and frame origins are reported as the same point. Under GTK's
+    /// client-side decorations that is literally true -- the title bar is drawn
+    /// by the application, inside what X considers the window -- and this is a
+    /// GTK app. It would be wrong for a server-side-decorated window, and is
+    /// noted rather than hidden because a `frame` row in an action file is
+    /// relying on it.
+    public func currentWindowGeometry() throws -> WindowGeometry {
+        let output = try capture(["getactivewindow", "getwindowgeometry", "--shell"])
+        func value(_ name: String) -> Double? {
+            for line in output.split(whereSeparator: \.isNewline)
+            where line.hasPrefix("\(name)=") {
+                return Double(line.dropFirst(name.count + 1))
+            }
+            return nil
+        }
+        guard let x = value("X"), let y = value("Y") else {
+            throw SynthesiserError.toolFailed("xdotool getwindowgeometry", status: 0)
+        }
+        // X reports pixels and has no notion of a logical point, so the scale
+        // is 1 and a point is a pixel. On a scaled Wayland session under
+        // XWayland the app is scaled by the compositor rather than by X, so
+        // this stays true from XTEST's side.
+        return WindowGeometry(frameOrigin: (x, y), clientOrigin: (x, y), scale: 1)
+    }
+
     public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
         switch action {
             case .move(let point):
@@ -86,6 +116,25 @@ public final class XdotoolSynthesiser: Synthesiser {
                 status: process.terminationStatus
             )
         }
+    }
+
+    private func capture(_ arguments: [String]) throws -> String {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw SynthesiserError.toolFailed(
+                "xdotool \(arguments.joined(separator: " "))",
+                status: process.terminationStatus
+            )
+        }
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     private static func number(for button: MouseButton) -> String {
