@@ -9,6 +9,11 @@ extern "C" {
 
 GtkWidget *wrapped_gtk_message_dialog_new(void);
 
+// GTK_IS_LABEL is a macro, so Swift cannot see it. Needed to walk a widget tree
+// and act only on the labels in it: a table cell holds an arbitrary view, and
+// text selection is a property of GtkLabel rather than of a container.
+GtkLabel *wrapped_gtk_widget_as_label(GtkWidget *widget);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the

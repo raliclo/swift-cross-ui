@@ -782,8 +782,78 @@ covered by the earlier instrumentation-defect entry above.
 
 | step | result |
 |---|---|
-| 3: `More rows` past the window height | the window does not grow and no scrollbar is visible; going from 8 to 24 rows leaves row 13 cut off mid-line at the window's bottom edge, with rows 14-24 not reachable in the captured frame. Read as **clips**, though this sweep did not confirm whether a scrollbar is genuinely absent or simply not rendered in this window manager -- see the P8/P21 note about not having a reliable scroll-wheel test method |
+| 3: `More rows` past the window height | the window does not grow and no scrollbar is visible. Re-run after the measuring overlay was removed: 24 rows renders 12 and stops cleanly at row 12 with the footer text intact, so rows 13-24 are unreachable. Read as **clips** — but see the caveat below, which this sweep still could not close |
 | 4: `Fewer rows` recovers | pass -- back down to `rows: 1` shows a single clean row with no leftover gap or stale row |
+
+**The caveat, and why it is still open.** GTK 4 draws overlay scrollbars: they are
+invisible until the pointer hovers the edge or a scroll actually happens. "No
+scrollbar is visible" therefore does not distinguish a table that clips from one
+that scrolls perfectly well and simply is not being scrolled. The same gap is
+recorded against P8 and P21.
+
+Closing it needs a scroll gesture, and the action-file format has no verb for
+one — `move`, `click`, `doubleclick`, `mousedown`, `mouseup`, `keydown`,
+`keyup`, `key`, `sleep`, and nothing for the wheel. Until that exists, "clips"
+is the honest reading of the screenshot rather than a confirmed diagnosis.
+
+**表格會裁切而非捲動。** 步驟 3 於量測用 overlay 移除後重新執行：24 列僅繪出 12 列，乾淨地停在
+第 12 列且頁尾文字完好，因此第 13-24 列無法觸及。
+
+**但仍未結案的保留條件。** GTK 4 使用 overlay 捲軸：除非指標移至邊緣或實際發生捲動，否則它是
+隱形的。因此「看不到捲軸」並不能區分「會裁切的表格」與「其實能正常捲動、只是沒有人去捲它的
+表格」。P8 與 P21 也記錄了同一項缺口。
+
+要結案需要一個捲動手勢，而動作檔格式並無對應的動作——`move`、`click`、`doubleclick`、
+`mousedown`、`mouseup`、`keydown`、`keyup`、`key`、`sleep`，就是沒有滾輪。在該動作存在之前，
+「裁切」只是對截圖最誠實的判讀，而非已確認的診斷。
+
+## P23: text selection is opt-in and works — and an overlay swallows pointer events
+
+Tables can now be made selectable and copyable with `.tableTextSelection()`,
+**off by default**. Verified on WSL: with it on, dragging across `row 2 content`
+highlights it; with it off, the same drag does nothing.
+
+Getting there uncovered a larger defect, and the shape of it is worth recording
+because it wasted the first four attempts.
+
+Selection appeared not to work at all. `SCUI_DEBUG_TABLE` showed the property
+was being applied correctly — `selectable=true cells=32 labels=32 headers=4`, so
+the widget walk was reaching every label — and yet neither a cell nor a column
+header could be selected by drag or by double click. Buttons elsewhere in the
+same window responded to the same synthesised clicks.
+
+The cause is `.overlay`. P23 wrapped its table in `P23Measured`, which overlays a
+`GeometryReader` containing an `EmptyView`. On GtkBackend that overlay is a real
+widget covering the content, and GTK returns it from hit testing for every point
+where it has no child of its own — so **everything under an overlay is
+unreachable by the pointer**. Removing the wrapper made selection work
+immediately, with no other change.
+
+In SwiftUI an overlay of `EmptyView` is hit-transparent: hit testing finds the
+topmost view that actually draws or is interactive. This is a genuine defect and
+it is not confined to P23 — it is a strong candidate for P10's #454 and #478, and
+it silently invalidates any check whose subject sits under a measuring overlay.
+Tracked separately; P23's table is no longer wrapped, and the reason is in the
+source.
+
+表格內容現在可透過 `.tableTextSelection()` 設為可選取與可複製，**預設關閉**。已於 WSL 驗證：
+開啟時拖曳 `row 2 content` 會反白，關閉時同一個拖曳毫無作用。
+
+達成此結果的過程中發現了一個更大的缺陷，其形態值得記錄，因為它讓前四次嘗試全部落空。
+
+選取看起來完全無效。`SCUI_DEBUG_TABLE` 顯示屬性其實正確套用了——`selectable=true cells=32
+labels=32 headers=4`，代表 widget 走訪確實觸及了每一個 label——然而無論拖曳或雙擊，儲存格與欄位
+標題都無法選取；而同一視窗中其他位置的按鈕，對同樣的合成點擊卻有反應。
+
+成因是 `.overlay`。P23 原本以 `P23Measured` 包裝其表格，而後者會疊上一個內含 `EmptyView` 的
+`GeometryReader`。在 GtkBackend 上，該 overlay 是一個實際覆蓋內容的 widget，且對於所有其自身沒有
+子元件的位置，GTK 的 hit testing 都會回傳它——因此**位於 overlay 之下的一切都無法被指標觸及**。
+移除該包裝後，選取立即可用，其餘一律未動。
+
+在 SwiftUI 中，內容為 `EmptyView` 的 overlay 對點擊是穿透的：hit testing 會找出最上層「確實有繪製
+或可互動」的 view。這是一個真實的缺陷，且不限於 P23——它是 P10 的 #454 與 #478 的有力候選成因，
+並且會靜默地使任何「測試對象位於量測 overlay 之下」的檢查失效。此問題另行追蹤；P23 的表格已不再
+被包裝，理由記於原始碼中。
 
 ## P24: remaining steps (2-5)
 

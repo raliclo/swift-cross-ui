@@ -2062,6 +2062,10 @@ public final class GtkBackend:
         (table as! Gtk.Table).setCells(cells, rowHeights: rowHeights)
     }
 
+    public func setTextSelectability(ofTable table: Widget, to isSelectable: Bool) {
+        (table as! Gtk.Table).setTextSelectable(isSelectable)
+    }
+
     public func createDatePicker() -> Widget {
         let widget = Gtk.Calendar()
         widget.date = Date()

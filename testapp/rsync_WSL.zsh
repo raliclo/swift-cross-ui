@@ -99,6 +99,18 @@ rsync -a \
     --exclude='output/' \
     --include='*/' \
     --include='*.swift' \
+    `# C sources and headers. Swift is not the whole of this package: GtkCHelpers` \
+    `# and CGtk are C, and without these lines the WSL copy kept whatever C files` \
+    `# were there when the directory was created. Found when a new shim in` \
+    `# gtk_helpers.c failed as "cannot find ... in scope" on WSL while compiling` \
+    `# on Windows -- which reads as a Swift visibility problem, not a missing file.` \
+    `# C 原始碼與標頭檔。本套件並非全由 Swift 構成：GtkCHelpers 與 CGtk 都是 C，若缺少這幾行，` \
+    `# WSL 端的副本會停留在該目錄建立當時的 C 檔案。此問題是在 gtk_helpers.c 新增 shim 後被發現的` \
+    `# ——它在 Windows 上編譯正常，在 WSL 上卻報 "cannot find ... in scope"，而該訊息看起來像是` \
+    `# Swift 的可見性問題，而非檔案缺失。` \
+    --include='*.c' \
+    --include='*.h' \
+    --include='*.modulemap' \
     --include='testapp/*.zsh' \
     --include='testapp/**/*.zsh' \
     `# The one .sh worth copying: it is the bootstrap that installs zsh, so it` \

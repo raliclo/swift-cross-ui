@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note
+# Same gesture as P23-select-a-cell.csv, on a column header instead.
+#
+# A discriminator, not a separate test. A header is a Label attached straight to
+# the grid; a cell is a Label inside a container SwiftCrossUI wraps it in. Both
+# have `selectable` set -- the diagnostic under SCUI_DEBUG_TABLE confirms 4
+# headers and 32 cell labels -- so if the header selects and the cell does not,
+# the wrapper is what swallows the gesture, and if neither does, the property is
+# not the thing that is missing.
+#
+# 與 P23-select-a-cell.csv 相同的手勢，但作用於欄位標題。
+#
+# 這是一項鑑別實驗，而非另一項獨立測試。標題是直接掛在 grid 上的 Label；儲存格則是被
+# SwiftCrossUI 包進容器內的 Label。兩者都已設定 `selectable`——SCUI_DEBUG_TABLE 的診斷確認為
+# 4 個標題與 32 個儲存格 label——因此若標題可選取而儲存格不行，吞掉手勢的就是那層包裝；若兩者
+# 皆不行，則缺的並不是這個屬性。
+click,74,184,,left,,,turn selection on
+sleep,,,,,,600000,
+move,64,220,,,,,start of the second column's header
+sleep,,,,,,150000,
+mousedown,64,220,,left,,,
+sleep,,,,,,150000,
+move,100,220,,,,,
+sleep,,,,,,80000,
+move,150,220,,,,,
+sleep,,,,,,80000,
+move,200,220,,,,,
+sleep,,,,,,150000,
+mouseup,200,220,,left,,,release, leaving the header text selected
+sleep,,,,,,800000,hold the selection for the screenshot

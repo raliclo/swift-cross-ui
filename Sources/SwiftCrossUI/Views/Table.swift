@@ -143,6 +143,9 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         let columnLabels = columns.labels
         backend.setRowCount(ofTable: widget, to: rows.count)
         backend.setColumnLabels(ofTable: widget, to: columnLabels, environment: environment)
+        // Before the cells, so that a backend applying selectability as cells
+        // arrive sees the setting rather than having to revisit them.
+        backend.setTextSelectability(ofTable: widget, to: environment.tableTextSelection)
 
         // TODO: Avoid overhead of converting `cellContainerWidgets` to
         //   `[AnyWidget]` and back again all the time.

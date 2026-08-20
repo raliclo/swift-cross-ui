@@ -1,4 +1,6 @@
 import CGtk
+import Foundation
+import GtkCHelpers
 
 /// A scrollable grid of cells with a header row, for `BackendFeatures.Tables`.
 ///
@@ -30,6 +32,7 @@ public class Table: ScrolledWindow {
     private var cellWidgets: [Widget] = []
     private var columnCount = 0
     private var rowCount = 0
+    private var isTextSelectable = false
 
     public convenience init() {
         self.init(gtk_scrolled_window_new())
@@ -94,6 +97,89 @@ public class Table: ScrolledWindow {
             // 第 0 列是標題，因此資料自第 1 列開始。
             grid.attach(child: cell, left: column, top: row + 1, width: 1, height: 1)
         }
+
+        // Reapplied here, not only when the setting changes. Every `setCells`
+        // replaces the widgets, so a table rebuilt after selection was turned on
+        // would come back unselectable -- and P23's `More rows` rebuilds it.
+        // 於此處重新套用，而非僅在設定變更時。每次 `setCells` 都會替換 widget，因此在啟用選取之後
+        // 重建的表格會變回不可選取——而 P23 的 `More rows` 正是會重建它。
+        applyTextSelectability()
+    }
+
+    /// Sets whether the user can select and copy the table's text.
+    ///
+    /// GTK offers selection on `GtkLabel`, not on a container, so this walks the
+    /// cells and applies it to every label found. Cells are arbitrary widgets --
+    /// SwiftCrossUI wraps each one in a container and the view inside may not be
+    /// text at all -- so the walk descends rather than assuming a shape, and
+    /// leaves anything that is not a label alone.
+    ///
+    /// The header row is included. A column title is as worth copying as a cell,
+    /// and excluding it would be a distinction the caller never asked for.
+    ///
+    /// 設定使用者是否能選取並複製表格中的文字。
+    ///
+    /// GTK 的選取功能位於 `GtkLabel` 而非容器上，因此此處會走訪各儲存格，並套用至所找到的每一個
+    /// label。儲存格是任意的 widget——SwiftCrossUI 會將每個儲存格包進容器，其中的 view 也未必是
+    /// 文字——因此此走訪採用遞迴下降而非假設固定結構，並對非 label 的元件不做任何處理。
+    ///
+    /// 標題列亦包含在內。欄位標題與儲存格同樣值得複製，將其排除等於做出一個呼叫端從未要求的區分。
+    public func setTextSelectable(_ isSelectable: Bool) {
+        isTextSelectable = isSelectable
+        applyTextSelectability()
+    }
+
+    private func applyTextSelectability() {
+        for label in headerLabels {
+            label.selectable = isTextSelectable
+        }
+        var reached = 0
+        for cell in cellWidgets {
+            reached += Self.setLabelsSelectable(under: cell.widgetPointer, to: isTextSelectable)
+        }
+
+        // Set SCUI_DEBUG_TABLE to see how many labels the walk actually reached.
+        // Zero and "nothing is selectable" look identical on screen, and they
+        // have different causes: zero means the walk never found the text, while
+        // a non-zero count means it did and GTK declined.
+        // 設定 SCUI_DEBUG_TABLE 可看到此走訪實際觸及了多少個 label。「0」與「沒有任何內容可選取」
+        // 在畫面上看起來完全相同，但成因不同：0 代表走訪根本沒找到文字，而非 0 的計數代表找到了，
+        // 是 GTK 拒絕了。
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_TABLE"] != nil {
+            let line =
+                "table: selectable=\(isTextSelectable) cells=\(cellWidgets.count) "
+                + "labels=\(reached) headers=\(headerLabels.count)\n"
+            FileHandle.standardError.write(Data(line.utf8))
+        }
+    }
+
+    /// Walks the GTK widget tree and sets `selectable` on every label.
+    ///
+    /// Through the C API rather than the Swift wrappers: the wrappers only know
+    /// about widgets this package created, and a cell's contents arrive as an
+    /// opaque `Widget`. `gtk_widget_get_first_child` and `get_next_sibling` see
+    /// the real tree whatever built it.
+    ///
+    /// 透過 C API 而非 Swift wrapper：wrapper 只認得本套件所建立的 widget，而儲存格的內容是以
+    /// 不透明的 `Widget` 形式抵達。`gtk_widget_get_first_child` 與 `get_next_sibling` 則無論該樹
+    /// 由何者建立，都能看見真實結構。
+    @discardableResult
+    private static func setLabelsSelectable(
+        under widget: UnsafeMutablePointer<GtkWidget>,
+        to isSelectable: Bool
+    ) -> Int {
+        var reached = 0
+        if let label = wrapped_gtk_widget_as_label(widget) {
+            gtk_label_set_selectable(label, isSelectable.toGBoolean())
+            reached += 1
+        }
+
+        var child = gtk_widget_get_first_child(widget)
+        while let current = child {
+            reached += setLabelsSelectable(under: current, to: isSelectable)
+            child = gtk_widget_get_next_sibling(current)
+        }
+        return reached
     }
 
     /// Sets how many data rows the table has. Cells already placed below the new

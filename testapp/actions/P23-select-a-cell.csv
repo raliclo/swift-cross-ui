@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note
+# P23 text selection: turn the option on, then drag across a cell to select it.
+# Selection is off by default, so the first click is what makes the second
+# meaningful -- run this file without it and the drag does nothing, which is the
+# behaviour being checked rather than a failure.
+# P23 文字選取：先開啟該選項，再拖曳跨越一個儲存格以選取其內容。選取預設為關閉，因此第一次點擊
+# 正是讓第二個動作具有意義的前提——若不執行該點擊，拖曳將毫無作用，而那正是本項要驗證的行為，
+# 並非失敗。
+click,74,184,,left,,,turn selection on -- the button centre, not its top edge
+sleep,,,,,,600000,let the table rebuild with selectable labels
+# A drag with intermediate positions. GTK recognises a drag from a sequence of
+# motion events, not from a jump: press, one move to the far end, release can
+# look like a click that happened to end elsewhere. The steps in between are
+# what make it a drag.
+# 帶有中間位置的拖曳。GTK 是從一連串 motion 事件辨識拖曳，而非從單次跳躍：按下、直接移到終點、
+# 放開，看起來可能只是一次「碰巧在別處結束」的點擊。中間那些步驟才是使其成為拖曳的關鍵。
+move,324,270,,,,,put the pointer at the start of "row 2 content"
+sleep,,,,,,150000,
+mousedown,324,270,,left,,,
+sleep,,,,,,150000,
+move,345,270,,,,,
+sleep,,,,,,80000,
+move,370,270,,,,,
+sleep,,,,,,80000,
+move,395,270,,,,,
+sleep,,,,,,80000,
+move,410,270,,,,,
+sleep,,,,,,150000,
+mouseup,410,270,,left,,,release, leaving the text selected
+sleep,,,,,,800000,hold the selection for the screenshot

@@ -123,6 +123,7 @@ struct P23TablesApp: App {
 
 struct P23RootView: View {
     @State var rowCount = 8
+    @State var isSelectable = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -143,7 +144,33 @@ struct P23RootView: View {
                 Text("rows: \(rowCount)")
             }
 
-            P23Measured(label: "table") {
+            // Selection is opt-in and off by default, so the toggle is the only
+            // way to see the difference -- and having both states in one run is
+            // the point: a table that is selectable when nobody asked for it is
+            // as much a defect as one that is not when somebody did.
+            //
+            // 選取功能為 opt-in 且預設關閉，因此此開關是唯一能看出差異的方式——而讓兩種狀態出現在
+            // 同一次執行中正是重點：沒有人要求卻可選取的表格，與有人要求卻不可選取的表格，同樣是
+            // 缺陷。
+            HStack(spacing: 8) {
+                Button(isSelectable ? "Selection on" : "Selection off") {
+                    isSelectable.toggle()
+                }
+                Text("drag across a cell to check")
+            }
+
+            // Deliberately not wrapped in P23Measured. The measuring overlay sits
+            // on top of what it measures, and a table under it never sees a
+            // pointer event -- neither a header nor a cell could be selected
+            // while it was there, even with `selectable` confirmed set on all 36
+            // labels. Column widths are still readable from the screenshot,
+            // which is what steps 1 and 2 actually compare.
+            //
+            // 刻意不使用 P23Measured 包裝。量測用的 overlay 位於其所量測對象的上方，位於其下的
+            // 表格收不到任何指標事件——在 overlay 存在時，即使已確認全部 36 個 label 都設定了
+            // `selectable`，標題與儲存格都無法被選取。欄寬仍可由截圖判讀，而那正是步驟 1 與 2
+            // 實際要比較的內容。
+            Group {
                 Table(Array(p23Rows.prefix(rowCount))) {
                     TableColumn("ID") { (row: P23Row) in Text("\(row.id)") }
                     TableColumn("A much longer header than its cells") { (row: P23Row) in
@@ -152,6 +179,7 @@ struct P23RootView: View {
                     TableColumn("Short") { (row: P23Row) in Text(row.long) }
                     TableColumn("Number") { (row: P23Row) in Text(row.number) }
                 }
+                .tableTextSelection(isSelectable)
             }
 
             Text(

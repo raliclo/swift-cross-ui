@@ -268,6 +268,13 @@ extension EnvironmentValues {
     /// appeared one below another instead.
     @Entry public var layoutOverlapsChildren: Bool = false
 
+    /// Whether the text in a ``Table`` can be selected and copied.
+    ///
+    /// Off by default, and set with ``View/tableTextSelection(_:)``. Selection
+    /// changes how a table behaves under the pointer and the keyboard, so a
+    /// read-only table should not acquire it because another table wanted it.
+    @Entry public var tableTextSelection: Bool = false
+
     /// The current font.
     @Entry public var font: Font = .body
 
