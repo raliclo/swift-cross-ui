@@ -86,9 +86,24 @@ struct P11AppKitSizingApp: App {
         P11Startup.trace("App.init")
     }
 
+    // No trace in `body`. Putting one there broke P7 completely: the same
+    // pattern -- a statement before an explicit `return` -- left its window
+    // blank except for a single small box, with not even the title text
+    // rendering, and it was reported as a severe backend defect before being
+    // traced back to the trace itself. `body` is a result-builder property and
+    // adding a statement to it changes how it is built, so it is not a free
+    // place to observe from.
+    //
+    // `init` is safe and is where the one surviving trace lives.
+    //
+    // body 中不放追蹤。把追蹤放進 body 曾把 P7 完全弄壞：同樣的模式——在明確的 `return` 之前
+    // 加入一道陳述式——使其視窗除了一個小方塊之外一片空白，連標題文字都沒有繪製，並且在被追溯到
+    // 追蹤本身之前，一度被回報為嚴重的 backend 缺陷。`body` 是 result-builder 屬性，往其中加入
+    // 陳述式會改變它的建構方式，因此它並不是一個可以隨意觀察的位置。
+    //
+    // `init` 是安全的，也是唯一保留的追蹤所在之處。
     var body: some Scene {
-        P11Startup.trace("App.body evaluated")
-        return WindowGroup("P11 sliders, scrollbars and pickers") {
+        WindowGroup("P11 sliders, scrollbars and pickers") {
             #hotReloadable {
                 P11RootView()
             }
@@ -118,8 +133,7 @@ struct P11RootView: View {
     @Environment(\.supportedDatePickerStyles) var supportedDatePickerStyles
 
     var body: some View {
-        P11Startup.trace("RootView.body evaluated")
-        return VStack(spacing: 14) {
+        VStack(spacing: 14) {
             Text("P11: AppKitBackend sliders, scrollbars and pickers")
                 .font(.system(size: 20))
 

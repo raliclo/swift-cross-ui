@@ -135,63 +135,11 @@ enum P7Diagnostics {
     }
 }
 
-/// Writes a trace line to a file, unconditionally, from the earliest points the
-/// app reaches.
-///
-/// Needed because nothing else survives. P7 starts on Windows/GtkBackend and is
-/// gone within seconds, and none of the usual evidence exists: stdout and stderr
-/// reach nobody, `P7Diagnostics` only writes when `--debug` is passed *and*
-/// `onAppear` runs, and the Windows event log records no application error.
-/// Running it from a shell looks like an instant clean exit, but that is only
-/// how cmd launches a GUI-subsystem binary -- P18, which works, reports exit 0
-/// the same way.
-///
-/// So the trace is unconditional, goes straight to a file, and is placed at
-/// three points. Which of them appears says where it died: none means before
-/// Swift ran at all, and the last one present is the last thing that worked.
-///
-/// 在 app 所能抵達的最早幾個時點，無條件將追蹤訊息寫入檔案。
-///
-/// 之所以必要，是因為其他證據全都留不下來。P7 在 Windows/GtkBackend 上啟動後數秒內即消失，而
-/// 平常可用的線索一項都不存在：stdout 與 stderr 無人收到；`P7Diagnostics` 只有在同時傳入
-/// `--debug` *且* `onAppear` 執行時才會寫入；Windows 事件記錄中也沒有任何應用程式錯誤。從
-/// shell 執行看起來像是立即乾淨結束，但那只是 cmd 啟動 GUI subsystem 執行檔的方式——能正常運作
-/// 的 P18 也同樣回報 exit 0。
-///
-/// 因此這個追蹤是無條件的、直接寫入檔案，並放置於三個時點。哪幾個出現即說明它死在何處：一個都
-/// 沒有代表 Swift 根本尚未執行，而最後出現的那一個就是最後一件成功的事。
-enum P7Startup {
-    static func trace(_ stage: String) {
-        let line = "P7 \(Date()) startup: \(stage)\n"
-        guard let data = line.data(using: .utf8) else { return }
-        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("p7-startup.log")
-        if FileManager.default.fileExists(atPath: url.path),
-            let handle = try? FileHandle(forWritingTo: url)
-        {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-            try? handle.close()
-        } else {
-            try? data.write(to: url)
-        }
-    }
-}
-
 @main
 @HotReloadable
 struct P7ListsApp: App {
-    // In `init`, which runs before `body` is ever asked for. If this line is
-    // missing the app never got as far as constructing its App type.
-    // 置於 `init`，它先於任何對 `body` 的求值執行。若此行缺席，代表 app 從未進行到建構其 App
-    // 型別的階段。
-    init() {
-        P7Startup.trace("App.init")
-    }
-
     var body: some Scene {
-        P7Startup.trace("App.body evaluated")
-        return WindowGroup("P7 lists and split views") {
+        WindowGroup("P7 lists and split views") {
             #hotReloadable {
                 P7RootView()
             }
@@ -245,13 +193,7 @@ struct P7RootView: View {
     ]
 
     var body: some View {
-        // Third trace point. Reaching this means the App type built, the scene
-        // built, and the root view is being asked to describe itself -- so a
-        // failure after it is in the view tree or the backend, not in startup.
-        // 第三個追蹤點。抵達此處代表 App 型別已建構、scene 已建構，且根視圖正被要求描述自身
-        // ——因此在此之後的失敗屬於視圖樹或 backend，而非啟動階段。
-        P7Startup.trace("RootView.body evaluated")
-        return VStack(spacing: 12) {
+        VStack(spacing: 12) {
             Text("P7: lists and split views")
                 .font(.system(size: 20))
 
