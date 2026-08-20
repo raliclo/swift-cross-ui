@@ -1,5 +1,11 @@
 import Benchmark
-import SwiftCrossUI
+
+// @_spi(Backends), as the tests import it. EnvironmentValues(backend:) and the
+// `window` key path are both behind that SPI, so a plain import left this file
+// failing to compile with `initializer is inaccessible due to '@_spi'
+// protection level` -- which stopped `swift test` for the whole package,
+// because SwiftPM builds every target.
+@_spi(Backends) import SwiftCrossUI
 import DummyBackend
 import Foundation
 

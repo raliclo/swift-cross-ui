@@ -144,10 +144,18 @@ let package = Package(
         .library(name: "DefaultBackend", type: libraryType, targets: ["DefaultBackend"]),
         .library(name: "UIKitBackend", type: libraryType, targets: ["UIKitBackend"]),
         .library(name: "Gtk", type: libraryType, targets: ["Gtk"]),
+        .library(name: "InputEvent", type: libraryType, targets: ["InputEvent"]),
         .executable(name: "GtkExample", targets: ["GtkExample"]),
-        // .library(name: "CursesBackend", type: libraryType, targets: ["CursesBackend"]),
-        // .library(name: "QtBackend", type: libraryType, targets: ["QtBackend"]),
-        // .library(name: "LVGLBackend", type: libraryType, targets: ["LVGLBackend"]),
+        // CursesBackend, QtBackend and LVGLBackend were commented out here and
+        // in the target list. Removed rather than left as text: a commented
+        // declaration reads as "temporarily disabled" and invites someone to
+        // uncomment it, and none of the three can be: their package
+        // dependencies -- TermKit, qlift, LVGLSwift -- are not declared either,
+        // so uncommenting produces an unresolvable manifest rather than a
+        // build.
+        //
+        // Their source directories are still in Sources/ and are untouched by
+        // this. Deleting them is a separate decision.
     ],
     dependencies: [
         .package(
@@ -225,6 +233,10 @@ let package = Package(
             swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
         ),
         .testTarget(
+            name: "InputEventTests",
+            dependencies: ["InputEvent"]
+        ),
+        .testTarget(
             name: "SwiftCrossUITests",
             dependencies: [
                 "SwiftCrossUI",
@@ -279,6 +291,17 @@ let package = Package(
             // --libs 中。
             linkerSettings: [.linkedLibrary("epoxy")]
         ),
+        // Synthesised input, driven from a CSV file. Depends on nothing in this
+        // package: it takes a window origin and a size and posts events, which
+        // keeps it testable without a running app and stops backend concepts
+        // leaking into it.
+        //
+        // README.md and plan/ are excluded because SwiftPM treats unrecognised
+        // files in a target directory as resources and warns about them.
+        .target(
+            name: "InputEvent",
+            exclude: ["README.md", "plan"]
+        ),
         .executableTarget(
             name: "GtkCodeGen",
             dependencies: [
@@ -293,6 +316,12 @@ let package = Package(
             dependencies: [
                 "SwiftCrossUI",
                 "WinUIInterop",
+                // Conditioning these on Windows was tried and did not help:
+                // `swift test` builds every target in the package, so
+                // WinUIBackend itself is compiled on Linux and swift-winui is
+                // pulled in whatever the dependency conditions say. Tests run
+                // on Windows instead. Left unconditional rather than carrying a
+                // change that only looks like it does something.
                 .product(name: "WinUI", package: "swift-winui"),
                 .product(name: "UWP", package: "swift-winui"),
                 .product(name: "CWinRT", package: "swift-winui"),
@@ -332,22 +361,6 @@ let package = Package(
             swiftSettings: swiftSettings
         ),
 
-        // .target(
-        //     name: "CursesBackend",
-        //     dependencies: ["SwiftCrossUI", "TermKit"]
-        // ),
-        // .target(
-        //     name: "QtBackend",
-        //     dependencies: ["SwiftCrossUI", .product(name: "Qlift", package: "qlift")]
-        // ),
-        // .target(
-        //     name: "LVGLBackend",
-        //     dependencies: [
-        //         "SwiftCrossUI",
-        //         .product(name: "LVGL", package: "LVGLSwift"),
-        //         .product(name: "CLVGL", package: "LVGLSwift"),
-        //     ]
-        // ),
     ]
 )
 

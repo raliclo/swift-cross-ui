@@ -1,3 +1,16 @@
+// Everything here is Windows-only, and SwiftPM has no way to make a target
+// itself conditional -- only a dependency on one. So this target is in the
+// build graph on every platform, and unguarded it stopped `swift test` on Linux
+// at `'Windows.h' file not found`.
+//
+// Necessary but not sufficient: with this guard the build gets further and then
+// stops inside the swift-winui package at `'wtypesbase.h' file not found`,
+// because `swift test` compiles every target including WinUIBackend. Adding
+// platform conditions to WinUIBackend's product dependencies was tried and does
+// not help for the same reason. Tests therefore run on Windows; this guard is
+// the first of the two changes Linux would need, not a fix on its own.
+#ifdef _WIN32
+
 #include <Windows.h>
 #include <ShObjIdl.h>
 #include <d3d11.h>
@@ -49,3 +62,5 @@ interface ISwapChainPanelNative {
 };
 
 #endif
+
+#endif  // _WIN32
