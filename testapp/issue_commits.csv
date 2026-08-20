@@ -18,9 +18,9 @@ issue,issue_title,commit,subject,scope,status,pr,notes
 390,[GTK][WinUI] Disabled buttons don't appear disabled,,,upstream,unresolved,,Tier 1. P2 already exercises it; WinUI half already fixed.
 417,[GtkBackend] ScrollView cornerRadius does not affect children,,,upstream,unresolved,,Tier 1.
 426,Horizontal ScrollView swallows parent's scroll wheel,,,upstream,unresolved,,Tier 1. Gtk3Backend half out of scope.
-454,Transparent containers consume click events,,,upstream,unresolved,,Tier 1. Also affects AppKitBackend.
+454,Transparent containers consume click events,a4cdaca1,"GtkBackend: transparent colours no longer eat clicks, and Ctrl-Q quits",upstream,ready,,"Tier 1. Also affects AppKitBackend, which this does not touch. P10 verifies. Color.clear is a GtkBox with a transparent background and a GtkBox is a pointer target however it is painted; setColor now sets can-target from the resolved opacity. Deliberately diverges from SwiftUI, where Color.clear does take hits -- SwiftCrossUI has no allowsHitTesting, so matching it would leave no way to put a transparent layer over anything interactive. Same commit carries #478; split them for an upstream PR."
 476,List starts with the first item already selected,,,upstream,unresolved,,Tier 1.
-478,[GtkBackend] Ctrl-Q/Cmd-Q does not quit application,,,upstream,unresolved,,Tier 1.
+478,[GtkBackend] Ctrl-Q/Cmd-Q does not quit application,a4cdaca1,"GtkBackend: transparent colours no longer eat clicks, and Ctrl-Q quits",upstream,ready,,"Tier 1. P10 step 6 verifies, with a control run that sends no input so a startup crash cannot pass as a quit. A GAction plus an application-wide accelerator, calling g_application_quit rather than closing windows -- closing runs each close handler and an app that vetoes a close would refuse the shortcut. Adds Application.setAccelerators(_:forAction:) and quit(). Same commit carries #454; split them for an upstream PR."
 504,GtkBackend: TextField/SecureField shrinks in height after first update,,,upstream,unresolved,,Tier 1.
 556,[Bug] Gtk List NavigationSplitView makes weird size decisions,,,upstream,unresolved,,Tier 2. WSLg is Wayland; sizing results need that caveat.
 295,Gtk[3]Backend: Clip Text when necessary to reach zero width,,,upstream,unresolved,,Tier 2. Gtk3Backend half out of scope.
