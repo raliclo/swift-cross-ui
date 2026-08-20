@@ -109,6 +109,14 @@ rsync -a \
     `# .zsh 檔案的機器。少了這一行，WSL 端的副本會停留在該目錄初次建立時的版本——` \
     `# 實際發現它仍是 8 月 16 日的版本。` \
     --include='testapp/install_tool_wsl.sh' \
+    `# Action files for -actionfile. Not covered by the patterns above, and the` \
+    `# failure is quiet in the wrong way: the app launches, renders, and reports` \
+    `# only that a file it was told to replay does not exist -- while the same` \
+    `# file sits in the Windows checkout, edited a moment earlier.` \
+    `# 供 -actionfile 使用的動作檔。上述樣式並未涵蓋，而其失敗方式的安靜之處正在於：app 會啟動、` \
+    `# 繪製，只回報「被指定重放的檔案不存在」——而同一個檔案就在 Windows 端的 checkout 裡，` \
+    `# 且是片刻之前才編輯過的。` \
+    --include='testapp/actions/*.csv' \
     --exclude='*' \
     '$source_root/' \
     '$wsl_project_root/'

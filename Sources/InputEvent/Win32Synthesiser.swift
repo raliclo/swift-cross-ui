@@ -13,7 +13,7 @@ import WinSDK
 /// pixels: it takes a position on a 0-65535 grid spanning the virtual desktop.
 /// Passing pixels there is a mistake that produces a cursor near the top-left
 /// corner rather than an error.
-public final class Win32Synthesiser: Synthesiser {
+public final class Win32Synthesiser: Synthesiser, Sendable {
     public init() {}
 
     /// The user's setting, read from the system rather than assumed.
@@ -22,7 +22,7 @@ public final class Win32Synthesiser: Synthesiser {
     /// behave differently on two machines.
     public var doubleClickInterval: Int { Int(GetDoubleClickTime()) * 1000 }
 
-    /// Asks Windows for the foreground window's frame and client origins.
+    /// Asks Windows for our own window's frame and client origins.
     ///
     /// `GetWindowRect` gives the frame, decorations included. The client origin
     /// is found by mapping the client area's own `(0,0)` into screen space with
@@ -33,10 +33,21 @@ public final class Win32Synthesiser: Synthesiser {
     /// The scale comes from `GetDpiForWindow`, which is per-monitor: a window
     /// dragged to a differently scaled display reports a different value, which
     /// is why it is read here rather than once at startup.
+    ///
+    /// Our own window, not `GetForegroundWindow`'s. `SendInput` posts to
+    /// whatever is in front, so measuring a different window would compute
+    /// coordinates in one frame of reference and deliver clicks in another. The
+    /// equivalent assumption on Linux was measured to be wrong -- a window
+    /// presented at startup was not focused a second later, and a replay
+    /// reported success while driving something else.
+    ///
+    /// 使用自己的視窗，而非 `GetForegroundWindow` 的。`SendInput` 會投遞至位於前方的任何視窗，
+    /// 因此量測另一個視窗會導致「在某個參考座標系中計算座標，卻在另一個座標系中投遞點擊」。
+    /// Linux 上的同一項假設已實測為錯誤——啟動時 present 的視窗一秒後並未取得焦點，而重放回報
+    /// 成功，實際驅動的卻是別的程式。
     public func currentWindowGeometry() throws -> WindowGeometry {
-        guard let window = GetForegroundWindow() else {
-            throw SynthesiserError.unsupported("no foreground window")
-        }
+        let window = try ownWindow()
+        SetForegroundWindow(window)
 
         var frame = RECT()
         guard GetWindowRect(window, &frame) else {
@@ -99,6 +110,59 @@ public final class Win32Synthesiser: Synthesiser {
                 // at all.
                 Sleep(DWORD(max(1, microseconds / 1000)))
         }
+    }
+
+    /// This process's own visible top-level window, largest by area.
+    ///
+    /// Largest for the same reason as on Linux: a toolkit owns more than one
+    /// top-level window and the first one enumerated can be an invisible helper
+    /// or a tooltip host rather than the one the action file was written
+    /// against.
+    ///
+    /// `EnumWindows` takes a C function pointer, which cannot capture, so the
+    /// collector is passed through `LPARAM` -- the standard shape for this call
+    /// and the reason for the `Unmanaged` round trip.
+    ///
+    /// 取面積最大者，理由與 Linux 相同：一個 toolkit 會擁有多個 top-level 視窗，而列舉到的第一個
+    /// 可能是隱形的輔助視窗或 tooltip host，而非動作檔所針對的那一個。
+    ///
+    /// `EnumWindows` 接受的是 C function pointer，無法捕獲外部變數，因此收集器透過 `LPARAM`
+    /// 傳入——這是此呼叫的標準寫法，也是使用 `Unmanaged` 來回轉換的原因。
+    private func ownWindow() throws -> HWND {
+        let collector = WindowCollector()
+        let context = Unmanaged.passUnretained(collector).toOpaque()
+        EnumWindows(
+            { window, parameter in
+                guard let window,
+                    let context = UnsafeRawPointer(bitPattern: Int(parameter))
+                else { return true }
+                var processID: DWORD = 0
+                GetWindowThreadProcessId(window, &processID)
+                guard processID == GetCurrentProcessId(), IsWindowVisible(window) else {
+                    return true
+                }
+                Unmanaged<WindowCollector>.fromOpaque(context)
+                    .takeUnretainedValue()
+                    .windows.append(window)
+                return true
+            },
+            LPARAM(Int(bitPattern: context))
+        )
+
+        var best: (window: HWND, area: Int)?
+        for window in collector.windows {
+            var rect = RECT()
+            guard GetWindowRect(window, &rect) else { continue }
+            let area = Int(rect.right - rect.left) * Int(rect.bottom - rect.top)
+            if best == nil || area > best!.area {
+                best = (window, area)
+            }
+        }
+
+        guard let best else {
+            throw SynthesiserError.unsupported("no visible window for this process")
+        }
+        return best.window
     }
 
     private func move(to point: Point, in geometry: WindowGeometry) throws {
@@ -290,6 +354,18 @@ public final class Win32Synthesiser: Synthesiser {
             case .keypadClear: VK_CLEAR
         }
     }
+}
+
+/// Somewhere for the `EnumWindows` callback to put what it finds.
+///
+/// A class rather than an inout array because the callback is a C function
+/// pointer and receives only an opaque `LPARAM`; a reference type is what can
+/// survive that round trip.
+///
+/// 供 `EnumWindows` callback 存放其結果之處。使用 class 而非 inout array，是因為該 callback
+/// 是 C function pointer，只能收到一個不透明的 `LPARAM`；能通過這趟轉換的只有 reference type。
+private final class WindowCollector {
+    var windows: [HWND] = []
 }
 
 #endif

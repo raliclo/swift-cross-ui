@@ -35,8 +35,16 @@ case "$test_name" in
     p*) test_name="${test_name:u}" ;;
 esac
 
+# Any P followed by digits. The list used to be spelled out as P0..P17 and so
+# rejected P18, P19 and P20 although their scripts existed -- the wrapper has to
+# be edited every time an app is added, and the one time it was not, three
+# working tests were unreachable through the loader. The missing-script check
+# below already reports an app that has no test.
+# 接受任何「P + 數字」。此處原本逐一列出 P0..P17，因而在 P18、P19、P20 的腳本確實存在的情況下
+# 仍將其拒絕——每新增一支 app 就得改一次這個 wrapper，而只要有一次沒改，就有三支可用的測試無法
+# 透過 loader 觸及。下方既有的「腳本不存在」檢查已能回報沒有測試的 app。
 case "$test_name" in
-    P<0-9>|P1<0-7>) ;;
+    P<->) ;;
     *)
         printf 'Unknown test: %s\n' "$test_name" >&2
         usage >&2

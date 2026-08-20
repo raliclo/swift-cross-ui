@@ -4,6 +4,13 @@ import SwiftCrossUI
 
 // P19 flat menus, for comparing WinUIBackend against GtkBackend.
 //
+// `-actionfile` needs nothing here. The backend handles the flag when it shows
+// the window, which is the only place that knows the window is on screen.
+// See `Sources/GtkBackend/ActionFileReplay.swift`.
+//
+// `-actionfile` 在此不需要任何程式碼。該旗標由 backend 在顯示視窗時處理，那是唯一知道「視窗已
+// 出現在螢幕上」的地方。詳見 `Sources/GtkBackend/ActionFileReplay.swift`。
+//
 // The two backends render the same `Menu` through different mechanisms. A
 // backend conforms to one of two protocols and `menuImplementationStyle`
 // selects between them:

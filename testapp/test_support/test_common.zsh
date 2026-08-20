@@ -63,13 +63,51 @@ if [ -n "$extra_log" ]; then
     clear_extra_fragment=" && : > $extra_log"
 fi
 
+# A CSV action file to replay once the window is up, for `--actionfile`.
+#
+# Handled by the backend rather than by the app, so it works for every Pn
+# without any of them knowing about it -- see Sources/GtkBackend/
+# ActionFileReplay.swift and the format in Sources/InputEvent/README.md.
+#
+# `--actionfile` with no path uses testapp/actions/<app>-*.csv, because the
+# common case is one file per app named after it and typing the path each time
+# invites the wrong one being replayed against the right app.
+#
+# 供 `--actionfile` 使用：待視窗出現後重放的 CSV 動作檔。
+#
+# 由 backend 而非 app 處理，因此每一支 Pn 都不需要知道它的存在——詳見
+# Sources/GtkBackend/ActionFileReplay.swift，格式見 Sources/InputEvent/README.md。
+#
+# `--actionfile` 未帶路徑時使用 testapp/actions/<app>-*.csv：常見情況是每支 app 一個以其命名的
+# 檔案，而每次都手打路徑，只會招來「對正確的 app 重放了錯誤的檔案」。
+action_file="${TEST_ACTION_FILE:-}"
+actionfile_log="${app:l}-actionfile.log"
+
+default_action_file() {
+    local candidates=("$script_dir/actions/$app"-*.csv(N))
+    if [ "${#candidates}" -eq 0 ]; then
+        printf 'No action file for %s in %s/actions\n' "$app" "$script_dir" >&2
+        exit 66
+    fi
+    if [ "${#candidates}" -gt 1 ]; then
+        printf 'Several action files for %s; name one:\n' "$app" >&2
+        printf '  %s\n' "${candidates[@]:t}" >&2
+        exit 64
+    fi
+    printf '%s' "${candidates[1]}"
+}
+
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} [--wsl|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime]
+Usage: ${script_path:t} [--wsl|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
 Default target: $target
 Default showtime: ${showtime_seconds}s
+
+--actionfile replays a CSV of synthesised clicks and keystrokes once the window
+is up. With no path, testapp/actions/$app-*.csv is used. The format is
+documented in Sources/InputEvent/README.md.
 EOF_USAGE
 }
 
@@ -97,6 +135,16 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         --no-showtime) showtime_seconds=0; shift ;;
+        --actionfile)
+            if [ "$#" -gt 1 ] && [ "${2#-}" = "$2" ]; then
+                action_file="$2"
+                shift 2
+            else
+                action_file="$(default_action_file)"
+                shift
+            fi
+            ;;
+        --actionfile=*) action_file="${1#*=}"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 64 ;;
     esac
@@ -187,12 +235,51 @@ print_summary_windows() {
     printf '\n==> Windows %s diagnostics\n' "$app"
     grep -hE "$summary_pattern" "$out/$log_name" ${extra_log:+"$out/$extra_log"} 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
+    print_actionfile_report "$out/$actionfile_log"
+}
+
+# What the backend said about the replay, if one was asked for.
+#
+# Printed unconditionally when --actionfile was passed, including when the file
+# produced no line at all -- silence there means the app died before the replay
+# or the backend never saw the flag, and both look identical to a replay that
+# ran and did nothing.
+#
+# 傳入 --actionfile 時一律印出 backend 對重放的說明，即使該檔案完全沒有產生任何一行——那種沉默
+# 代表 app 在重放之前就結束了，或 backend 根本沒看到該旗標，而這兩者與「重放執行了卻毫無作用」
+# 在外觀上完全相同。
+print_actionfile_report() {
+    local path="$1"
+    if [ -z "$action_file" ]; then
+        return 0
+    fi
+    printf '==> Action file report\n'
+    if grep -a actionfile "$path" 2>/dev/null | sed 's/^/    /'; then
+        return 0
+    fi
+    printf '    no report -- the app exited before replaying, or never saw the flag\n'
 }
 
 print_summary_wsl() {
     printf '\n==> WSLg %s diagnostics\n' "$app"
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
         "cd ~/proj/swift-cross-ui/testapp/output && grep -hE '$summary_pattern' $log_name $extra_log 2>/dev/null | sed 's/^$app [0-9-]* [0-9:]* +0000 //' | sort -u" || true
+    # Read through WSL: the app ran from the rsync'd Linux copy, so its stderr
+    # landed in the Linux output directory, not the Windows one.
+    # 透過 WSL 讀取：app 是從 rsync 過去的 Linux 副本啟動的，其 stderr 落在 Linux 端的 output
+    # 目錄，而非 Windows 端。
+    if [ -n "$action_file" ]; then
+        printf '==> Action file report\n'
+        local report
+        report="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
+            "grep -a actionfile ~/proj/swift-cross-ui/testapp/output/$actionfile_log 2>/dev/null" \
+            || true)"
+        if [ -n "$report" ]; then
+            printf '%s\n' "$report" | sed 's/^/    /'
+        else
+            printf '    no report -- the app exited before replaying, or never saw the flag\n'
+        fi
+    fi
 }
 
 run_windows() {
@@ -212,8 +299,34 @@ run_windows() {
     if [ -n "$extra_log" ]; then
         : > "$out/$extra_log"
     fi
+    local args="$app_args"
+    if [ -n "$action_file" ]; then
+        # cygpath -m, because the app is a Windows binary and cannot open an
+        # MSYS path such as /c/Users/... . Nothing reports this: Foundation
+        # returns nil, the backend logs that the file could not be read, and
+        # the window sits there looking like the replay did nothing.
+        # 使用 cygpath -m：該 app 是 Windows 原生執行檔，無法開啟 /c/Users/... 這類 MSYS 路徑。
+        # 沒有任何機制會回報此事：Foundation 回傳 nil，backend 記錄檔案無法讀取，而視窗就這樣停在
+        # 那裡，看起來就像重放什麼都沒做。
+        args="$args -actionfile $(cygpath -m "$action_file")"
+        printf '==> Action file: %s\n' "${action_file:t}"
+    fi
+
     printf '==> Launching %s.exe\n' "$app"
-    ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)app_args} >/dev/null 2>&1 & )
+    # stderr kept, not discarded, when a file is being replayed. The backend
+    # reports there whether the replay ran, and a failed replay leaves a window
+    # that looks untouched -- indistinguishable from the app ignoring the input,
+    # and the wrong thing to go looking for. Measured: the first run through
+    # this script dropped the line and the failure read as a product defect.
+    # 重放動作檔時保留 stderr 而不丟棄。backend 在該處回報重放是否執行；失敗的重放會留下一個看似
+    # 未被觸碰的視窗，與「app 忽略了輸入」無法區分，而那是錯誤的追查方向。實測：本腳本的第一次
+    # 執行丟掉了這行訊息，於是該失敗看起來像是產品缺陷。
+    if [ -n "$action_file" ]; then
+        ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)args} \
+            >/dev/null 2>"$actionfile_log" & )
+    else
+        ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)args} >/dev/null 2>&1 & )
+    fi
 
     zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-1s" || true
     if wait_for_marker_windows "$out"; then
@@ -245,6 +358,44 @@ run_wsl() {
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
         "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment"
+
+    local args="$app_args"
+    local redirection=">/dev/null 2>&1"
+    if [ -n "$action_file" ]; then
+        # Re-rooted onto the WSL copy of the repo. The file lives in the
+        # Windows checkout, which WSL can reach as /mnt/c -- but the app is
+        # launched from the rsync'd Linux copy, and giving it a /mnt/c path
+        # would replay whichever version happened to be on the Windows side.
+        # A path outside the repo is rejected rather than guessed at.
+        # 重新指向 repo 的 WSL 副本。該檔案位於 Windows 端的 checkout，WSL 可透過 /mnt/c 存取
+        # ——但 app 是由 rsync 過去的 Linux 副本啟動的，給它 /mnt/c 路徑等於重放「Windows 端當下
+        # 恰好是哪個版本」。位於 repo 之外的路徑一律拒絕，而不做猜測。
+        local relative="${action_file#$script_dir/}"
+        if [ "$relative" = "$action_file" ]; then
+            printf 'Action file must be inside %s: %s\n' "$script_dir" "$action_file" >&2
+            exit 64
+        fi
+        args="$args -actionfile /home/lowei/proj/swift-cross-ui/testapp/$relative"
+        # X11, not Wayland. xdotool speaks XTEST, which is an X11 extension; a
+        # GTK 4 app left to its own devices under WSLg becomes a Wayland client
+        # with no X window at all, and Wayland deliberately does not let one
+        # client drive another. Forced here rather than left to the tester,
+        # because the failure is a replay that reports it could not find the
+        # app's own window -- which reads as a bug in the finding, not as the
+        # session being the wrong kind.
+        # 強制使用 X11 而非 Wayland。xdotool 使用的 XTEST 是 X11 擴充；在 WSLg 下放任不管的 GTK 4
+        # app 會成為 Wayland client，根本沒有 X window，而 Wayland 也刻意不允許一個 client 驅動
+        # 另一個。在此強制而非交由測試者設定，是因為其失敗表現為「重放回報找不到 app 自己的視窗」
+        # ——那看起來像是尋找邏輯的 bug，而不像是 session 型別不對。
+        app_env="GDK_BACKEND=x11 $app_env"
+        # See the Windows branch: stderr carries the backend's report of whether
+        # the replay ran, and discarding it makes a failed replay look like a
+        # product defect.
+        # 見 Windows 分支：stderr 承載 backend 對「重放是否執行」的回報，丟棄它會使失敗的重放
+        # 看起來像產品缺陷。
+        redirection=">/dev/null 2>$actionfile_log"
+        printf '==> Action file: %s\n' "${action_file:t}"
+    fi
 
     printf '==> Launching %s under WSLg\n' "$app"
     # Plain `$app_args`, deliberately unadorned. Unlike the Windows branch just
@@ -279,7 +430,7 @@ run_wsl() {
     # 含空白的值必須在 TEST_APP_ARGS 內自行加引號（`-f "/path/with a space.webm"`）；
     # 引號會以字面文字傳遞，由內層 shell 解讀。兩種情況皆已驗證。
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui/testapp/output -- \
-        zsh -lc "env $app_env ./$app $app_args >/dev/null 2>&1" \
+        zsh -lc "env $app_env ./$app $args $redirection" \
         >/dev/null 2>&1 &
     disown 2>/dev/null || true
 

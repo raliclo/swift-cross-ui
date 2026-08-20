@@ -415,6 +415,12 @@ import PackageDescription
 let testAppDependencies: [Target.Dependency] = [
     .product(name: "SwiftCrossUI", package: "swift-cross-ui"),
     .product(name: "DefaultBackend", package: "swift-cross-ui"),
+    // Synthesised input from a CSV file, for -actionfile. Available to every
+    // Pn rather than to a chosen few: which app needs driving next is not
+    // knowable in advance, and the module costs nothing to link when unused.
+    // 由 CSV 檔驅動的合成輸入，供 -actionfile 使用。開放給每一支 Pn 而非少數幾支：下一支需要被
+    // 驅動的是哪一個無法事先得知，而未使用時連結此模組並無成本。
+    .product(name: "InputEvent", package: "swift-cross-ui"),
     .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
     $windows_winui_products
     $windows_gtk_product

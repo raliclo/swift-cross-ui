@@ -118,6 +118,10 @@ public final class GtkBackend:
 
     var globalCSSProvider: CSSProvider?
 
+    /// Guards `-actionfile` against replaying once per window. See
+    /// `ActionFileReplay.swift`.
+    var hasReplayedActionFile = false
+
     public func runMainLoop(_ callback: @escaping @MainActor () -> Void) {
         gtkApp.run { window in
             self.measurementCustomLabel = (self.createTextView() as! CustomLabel)
@@ -308,6 +312,7 @@ public final class GtkBackend:
         // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
         // 分離視窗。
         window.present()
+        replayActionFileIfRequested()
     }
 
     public func activate(window: Window) {

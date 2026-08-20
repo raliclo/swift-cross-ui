@@ -14,7 +14,7 @@ import Foundation
 /// to a chosen window -- hence the caller presenting its window first. It also
 /// means this only works under X11 or XWayland: a Wayland client cannot be
 /// driven by another process at all.
-public final class XdotoolSynthesiser: Synthesiser {
+public final class XdotoolSynthesiser: Synthesiser, Sendable {
     private let executable: URL
 
     public init() throws {
@@ -31,34 +31,111 @@ public final class XdotoolSynthesiser: Synthesiser {
     /// nowhere.
     public let doubleClickInterval = 400_000
 
-    /// Asks X for the active window's geometry.
+    /// Asks X where our own window is.
     ///
-    /// `getwindowgeometry --shell` prints `X=`, `Y=`, `WIDTH=`, `HEIGHT=`. The
-    /// position it reports is the frame's, decorations included.
+    /// Not `getwindowgeometry`. Under a reparenting window manager xdotool
+    /// reports a position that is neither origin: measured on the same window,
+    /// `getwindowgeometry` said `X=1021 Y=348` while the true screen position
+    /// was `983,289` and the window's offset inside its frame was `38,59` --
+    /// xdotool had added the frame offset to a position that already included
+    /// it. A click computed from that number missed by exactly the decoration,
+    /// which is why the first two replays reported success and changed nothing.
     ///
-    /// Client and frame origins are reported as the same point. Under GTK's
-    /// client-side decorations that is literally true -- the title bar is drawn
-    /// by the application, inside what X considers the window -- and this is a
-    /// GTK app. It would be wrong for a server-side-decorated window, and is
-    /// noted rather than hidden because a `frame` row in an action file is
-    /// relying on it.
+    /// The client origin is instead obtained by asking xdotool to move the
+    /// pointer to the window's own `0,0` and reading back where it landed. That
+    /// is definitional rather than derived: it measures the very transform
+    /// `mousemove --window` applies, so the numbers cannot disagree with the
+    /// mechanism they are computed for. The cost is that the pointer moves to
+    /// the window's corner before a replay begins, which is harmless because
+    /// every replay moves it anyway.
+    ///
+    /// 不使用 `getwindowgeometry`。在 reparenting 視窗管理員之下，xdotool 回報的位置兩種原點
+    /// 都不是：對同一個視窗實測，`getwindowgeometry` 給出 `X=1021 Y=348`，而真正的螢幕位置是
+    /// `983,289`、該視窗在其框架內的偏移是 `38,59`——xdotool 把框架偏移加到了一個已經包含它的
+    /// 位置上。由該數字算出的點擊恰好偏離了裝飾的大小，這正是前兩次重放回報成功卻毫無變化的原因。
+    ///
+    /// 改以「請 xdotool 將指標移至該視窗自身的 `0,0`，再讀回落點」取得 client origin。這是定義性
+    /// 而非推導性的：它量測的正是 `mousemove --window` 所套用的那個轉換，因此數字不可能與其服務的
+    /// 機制相牴觸。代價是重放開始前指標會移到視窗角落，而這無害——任何重放本來就會移動指標。
     public func currentWindowGeometry() throws -> WindowGeometry {
-        let output = try capture(["getactivewindow", "getwindowgeometry", "--shell"])
+        // Our own window, found by process id, and raised before anything is
+        // measured or posted.
+        //
+        // Not `getactivewindow`. XTEST posts to whatever the X server has
+        // focused, and a window presented at startup is not reliably focused a
+        // second later under a window manager -- measured: the first replay ran
+        // without error, reported success, and left `last action -> nothing
+        // yet` because every click went to another window. Reading geometry
+        // from `getactivewindow` compounds it, since the coordinates would then
+        // be relative to that other window too.
+        //
+        // 依 process id 找到自己的視窗，並在任何量測或投遞之前將其提升至前景。
+        //
+        // 不使用 `getactivewindow`。XTEST 會投遞至 X server 當前聚焦的視窗，而在視窗管理員之下，
+        // 啟動時 present 過的視窗並不保證一秒後仍具焦點——實測：第一次重放未報錯、回報成功，卻
+        // 留下 `last action -> nothing yet`，因為每一次點擊都送到了別的視窗。若再以
+        // `getactivewindow` 讀取幾何，問題會加倍，因為座標也會變成相對於那個別的視窗。
+        let window = try ownWindow()
+        try run(["windowactivate", "--sync", window])
+
+        try run(["mousemove", "--window", window, "0", "0"])
+        let landed = try capture(["getmouselocation", "--shell"])
         func value(_ name: String) -> Double? {
-            for line in output.split(whereSeparator: \.isNewline)
+            for line in landed.split(whereSeparator: \.isNewline)
             where line.hasPrefix("\(name)=") {
                 return Double(line.dropFirst(name.count + 1))
             }
             return nil
         }
         guard let x = value("X"), let y = value("Y") else {
-            throw SynthesiserError.toolFailed("xdotool getwindowgeometry", status: 0)
+            throw SynthesiserError.toolFailed("xdotool getmouselocation", status: 0)
         }
+
+        let inset = frameInset(of: window)
         // X reports pixels and has no notion of a logical point, so the scale
         // is 1 and a point is a pixel. On a scaled Wayland session under
         // XWayland the app is scaled by the compositor rather than by X, so
         // this stays true from XTEST's side.
-        return WindowGeometry(frameOrigin: (x, y), clientOrigin: (x, y), scale: 1)
+        return WindowGeometry(
+            frameOrigin: (x - inset.left, y - inset.top),
+            clientOrigin: (x, y),
+            scale: 1
+        )
+    }
+
+    /// How far the client area sits inside the window manager's frame.
+    ///
+    /// From `_NET_FRAME_EXTENTS`, which the window manager sets to `left,
+    /// right, top, bottom`. Absent for an undecorated window, and for one under
+    /// GTK's client-side decorations, where the title bar is drawn by the
+    /// application inside the client area and the two origins genuinely
+    /// coincide -- so a missing property means a zero inset, not a failure.
+    ///
+    /// `xwininfo`'s "Relative upper-left" is not usable here even though it
+    /// carries the same numbers under this window manager: for a window that is
+    /// not reparented it degrades to the absolute position, which would be
+    /// reported as an enormous frame rather than as none.
+    ///
+    /// 客戶區位於視窗管理員框架內部多遠，取自 `_NET_FRAME_EXTENTS`（視窗管理員設定為
+    /// `left, right, top, bottom`）。未加裝飾的視窗，以及採用 GTK client-side decorations 的
+    /// 視窗（標題列由應用程式繪製於客戶區內部，兩種原點確實重合），皆無此屬性——因此屬性不存在
+    /// 代表偏移為零，而非失敗。
+    ///
+    /// 此處不能改用 `xwininfo` 的「Relative upper-left」，即使在此視窗管理員下它帶有相同數值：
+    /// 對於未被 reparent 的視窗，它會退化為絕對位置，於是「沒有框架」會被回報成「巨大的框架」。
+    private func frameInset(of window: String) -> (left: Double, top: Double) {
+        guard let xprop = Self.locate("xprop"),
+            let output = try? Self.capture(xprop, ["-id", window, "_NET_FRAME_EXTENTS"])
+        else {
+            return (0, 0)
+        }
+        // `_NET_FRAME_EXTENTS(CARDINAL) = 38, 38, 59, 38`
+        guard let equals = output.firstIndex(of: "=") else { return (0, 0) }
+        let numbers = output[output.index(after: equals)...]
+            .split(separator: ",")
+            .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        guard numbers.count == 4 else { return (0, 0) }
+        return (numbers[0], numbers[2])
     }
 
     public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
@@ -118,7 +195,72 @@ public final class XdotoolSynthesiser: Synthesiser {
         }
     }
 
+    /// This process's own visible window, largest first.
+    ///
+    /// Largest because a GTK app owns more than one X window and the first
+    /// match can be a 1x1 helper -- `drive_xdotool.zsh` hit exactly that and
+    /// captured a single pixel until it started picking by area.
+    private func ownWindow() throws -> String {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        // `search` exits 1 when it matches nothing, so the empty case arrives
+        // as a thrown error rather than as an empty list. Both are handled
+        // below, and both mean the same thing.
+        // `search` 找不到任何匹配時會以狀態 1 結束，因此「空結果」是以擲出錯誤的形式抵達，而非
+        // 空清單。以下兩種情形都會處理，且兩者意義相同。
+        let listing = (try? capture(["search", "--onlyvisible", "--pid", "\(pid)"])) ?? ""
+        let candidates = listing.split(whereSeparator: \.isNewline).map(String.init)
+        guard !candidates.isEmpty else {
+            // Almost always Wayland rather than a genuinely missing window.
+            // XTEST is an X11 extension, and a GTK 4 app on a Wayland session
+            // is a Wayland client with no X window for xdotool to find -- by
+            // design, since Wayland does not let one client drive another.
+            // Measured under WSLg, which offers both: the app rendered, the
+            // replay reported a bare `xdotool search ... exited with status 1`,
+            // and nothing in that named the cause.
+            //
+            // 幾乎必然是 Wayland，而非真的沒有視窗。XTEST 是 X11 的擴充，而 Wayland session 上的
+            // GTK 4 app 是 Wayland client，沒有任何 X window 可供 xdotool 尋找——這是刻意的設計，
+            // 因為 Wayland 不允許一個 client 驅動另一個。在同時提供兩者的 WSLg 上實測：app 正常
+            // 繪製，重放卻只回報一句 `xdotool search ... exited with status 1`，完全沒有指出原因。
+            if ProcessInfo.processInfo.environment["WAYLAND_DISPLAY"] != nil {
+                throw SynthesiserError.unsupported(
+                    "no X window for pid \(pid); this looks like a Wayland session "
+                        + "and XTEST is X11-only -- relaunch with GDK_BACKEND=x11"
+                )
+            }
+            throw SynthesiserError.unsupported("no visible window for pid \(pid)")
+        }
+
+        var best: (id: String, area: Int)?
+        for candidate in candidates {
+            guard let geometry = try? capture(["getwindowgeometry", "--shell", candidate]) else {
+                continue
+            }
+            func value(_ name: String) -> Int? {
+                for line in geometry.split(whereSeparator: \.isNewline)
+                where line.hasPrefix("\(name)=") {
+                    return Int(line.dropFirst(name.count + 1))
+                }
+                return nil
+            }
+            guard let width = value("WIDTH"), let height = value("HEIGHT") else { continue }
+            let area = width * height
+            if best == nil || area > best!.area {
+                best = (candidate, area)
+            }
+        }
+
+        guard let best else {
+            throw SynthesiserError.unsupported("no measurable window for pid \(pid)")
+        }
+        return best.id
+    }
+
     private func capture(_ arguments: [String]) throws -> String {
+        try Self.capture(executable, arguments)
+    }
+
+    private static func capture(_ executable: URL, _ arguments: [String]) throws -> String {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = executable
@@ -130,7 +272,7 @@ public final class XdotoolSynthesiser: Synthesiser {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             throw SynthesiserError.toolFailed(
-                "xdotool \(arguments.joined(separator: " "))",
+                "\(executable.lastPathComponent) \(arguments.joined(separator: " "))",
                 status: process.terminationStatus
             )
         }

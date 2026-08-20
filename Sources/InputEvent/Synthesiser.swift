@@ -47,8 +47,22 @@ public struct WindowGeometry: Equatable, Sendable {
 /// Both implementations are system-wide: `SendInput` posts to the foreground
 /// window and XTEST to the X server's focus. Neither targets a chosen window,
 /// which is why the caller presents its window before replaying anything.
-@MainActor
-public protocol Synthesiser {
+///
+/// Deliberately not `@MainActor`, and a replay must not be run on the main
+/// thread. A replay spends nearly all its time asleep -- waiting for a process,
+/// waiting out a `sleep` row -- and on the main thread that sleep is the UI's
+/// too. Measured: a two-click file that opens a menu and presses an item ran
+/// without error and changed nothing, because the application never got to
+/// process the first click and map the popover before the second click was
+/// posted at where the popover should have been. Both implementations are
+/// thread-safe: one runs a subprocess, the other calls `SendInput`.
+///
+/// 刻意不標記 `@MainActor`，且重放不得在主執行緒上執行。重放的絕大部分時間都在睡眠——等待行程、
+/// 等待某個 `sleep` 列——而在主執行緒上，那份睡眠同時也是 UI 的睡眠。實測：一個「開啟選單、按下
+/// 項目」的兩步動作檔未報任何錯誤卻毫無變化，因為應用程式根本來不及處理第一次點擊並將 popover
+/// map 出來，第二次點擊就已經投遞到「popover 應該在」的位置了。兩個實作都是執行緒安全的：一個
+/// 執行子行程，另一個呼叫 `SendInput`。
+public protocol Synthesiser: Sendable {
     func perform(_ action: InputAction, in geometry: WindowGeometry) throws
 
     /// The geometry of whatever window currently has focus.

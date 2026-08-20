@@ -98,19 +98,21 @@ and border. Use it only for the decorations: dragging the window by its title
 bar, or pressing close, minimise and maximise.
 
 The default is `client` because getting this wrong is what made an earlier
-external driver click on nothing. It computed absolute positions from window
-geometry, which includes the decorations, so every click missed by the height of
-the title bar. An app driving itself against client coordinates never has to
-measure them.
+external driver click on nothing. It computed absolute positions from
+`xdotool getwindowgeometry`, which under a reparenting window manager reports
+the true position **plus** the frame offset that position already includes — so
+every click missed by exactly the decoration. An app driving itself against
+client coordinates never has to measure them.
 
 `frame` is deliberately the opt-in, and it is less portable than `client` in a
 way worth knowing before writing a file that uses it. Title bar height is not a
 constant: it varies with the platform, the theme, and the display scale, and
-under GTK's client-side decorations the title bar is drawn by the app itself
-rather than by the window manager — so the frame and client origins can coincide
-on one machine and differ by 37 pixels on another. A `frame` row records a
-position on the machine it was written on. Prefer `client` wherever the target
-is something the app drew.
+under client-side decorations the title bar is drawn by the app itself rather
+than by the window manager — so the frame and client origins coincide on one
+machine and differ on another. Measured under WSLg's window manager, which
+decorates server-side, the offset is 38 across and 59 down. A `frame` row
+records a position on the machine it was written on. Prefer `client` wherever
+the target is something the app drew.
 
 Values are in **logical points**, the same unit the app's own layout uses — not
 physical pixels.
@@ -215,6 +217,28 @@ timers with roughly millisecond granularity, and a sleep of 500 microseconds
 will usually take at least a millisecond. The column is microseconds so that a
 file can state its intent precisely; do not read the unit as a promise about
 what the operating system will deliver.
+
+## Using it from an app
+
+Three things, and the third is not optional:
+
+```swift
+DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
+    let synthesiser = try XdotoolSynthesiser()   // Win32Synthesiser on Windows
+    try synthesiser.replayFile(at: file)
+}
+```
+
+1. **A flag** — `-actionfile <path>`, parsed from `CommandLine.arguments`.
+2. **A delay** — both injection paths post to the focused window, and at
+   `onAppear` the window has been created but not necessarily presented and
+   focused. A file replayed then drives whatever was in front.
+3. **A background queue** — never the main one. `Synthesiser` is deliberately
+   not `@MainActor`. A replay is nearly all sleeping, and on the main thread
+   that sleep is the UI's: posted events queue up unprocessed, so a menu never
+   opens and the click meant for its item lands on the window behind. Measured,
+   with the failure looking exactly like a product defect — the replay reported
+   success and the screen had not changed.
 
 ## What this is not
 

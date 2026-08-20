@@ -255,7 +255,7 @@ let package = Package(
         .target(name: "AppKitBackend", dependencies: ["SwiftCrossUI"]),
         .target(
             name: "GtkBackend",
-            dependencies: ["SwiftCrossUI", "Gtk", "CGtk"]
+            dependencies: ["SwiftCrossUI", "Gtk", "CGtk", "InputEvent"]
         ),
         .systemLibrary(
             name: "CGtk",
