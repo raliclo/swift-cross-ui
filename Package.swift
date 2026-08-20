@@ -225,6 +225,7 @@ let package = Package(
         .library(name: "WinUIBackend", type: libraryType, targets: ["WinUIBackend"]),
         .library(name: "DefaultBackend", type: libraryType, targets: ["DefaultBackend"]),
         .library(name: "UIKitBackend", type: libraryType, targets: ["UIKitBackend"]),
+        .library(name: "_SwiftCrossUIPortingKit", type: libraryType, targets: ["_SwiftCrossUIPortingKit"]),
         .library(name: "Gtk", type: libraryType, targets: ["Gtk"]),
         .library(name: "InputEvent", type: libraryType, targets: ["InputEvent"]),
         .library(name: "DebugFeatures", type: libraryType, targets: ["DebugFeatures"]),
@@ -360,6 +361,10 @@ let package = Package(
                 "Scenes/TupleScene.swift.gyb",
             ],
             swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+        ),
+        .target(
+            name: "_SwiftCrossUIPortingKit",
+            dependencies: ["SwiftCrossUI"]
         ),
         .testTarget(
             name: "InputEventTests",
