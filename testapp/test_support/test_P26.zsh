@@ -47,8 +47,26 @@ done
 
 failures=0
 
+# An empty expectation is refused outright.
+#
+# `check "the same artifact" "$first" "$(artifact_name)"` compared two empty
+# strings and passed when nothing had been fetched at all -- a test reporting
+# success because both sides were equally absent. Measured: a build without
+# SCUI_DEBUG produced no artifacts, and this printed PASS.
+#
+# 空的預期值一律直接拒絕。
+#
+# `check "the same artifact" "$first" "$(artifact_name)"` 曾在「根本沒有抓取任何東西」時比較兩個
+# 空字串而判定通過——一個因為「兩邊同樣不存在」而回報成功的測試。實測：未帶 SCUI_DEBUG 的建置沒有
+# 產生任何 artifact，而此處印出了 PASS。
 check() {
     local label="$1" expected="$2" actual="$3"
+    if [ -z "$expected" ]; then
+        printf '    FAIL  %s\n' "$label"
+        printf '          nothing to compare against; an earlier step produced no value\n'
+        failures=$((failures + 1))
+        return
+    fi
     if [ "$expected" = "$actual" ]; then
         printf '    PASS  %s\n' "$label"
     else
@@ -69,7 +87,7 @@ wsl() {
 
 cache_dir='$HOME/.cache/P26/appCache'
 app_dir='$HOME/proj/swift-cross-ui/testapp/output'
-actions='$HOME/proj/swift-cross-ui/testapp/actions/P26-swiftcrossui-tab.csv'
+actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
 
 # The action file switches to the SwiftCrossUI tab, and without it nothing is
 # fetched at all: TabView builds only the selected tab and AsyncImage is on the
@@ -99,8 +117,16 @@ index_lines() {
 if [ "$run_cache" -eq 1 ]; then
     printf '==> P26 appCache\n'
 
-    printf '  building P26\n'
-    wsl "cd \$HOME/proj/swift-cross-ui && zsh testapp/compile.zsh P26 2>&1 \
+    # SCUI_DEBUG=1 is not optional here. Without it -actionfile is not compiled
+    # into the binary, the tab is never switched, AsyncImage never runs, and
+    # every check below examines a cache nobody asked for anything. That is not
+    # hypothetical: it happened, and the run reported PASS on two of the checks
+    # because both sides of the comparison were equally empty.
+    # 此處的 SCUI_DEBUG=1 並非可選。少了它，-actionfile 不會被編入執行檔，分頁不會切換，AsyncImage
+    # 不會執行，而下方每一項檢查所檢視的，都是一個沒有人向它要過任何東西的快取。這並非假設：它確實
+    # 發生過，且該次執行有兩項檢查回報 PASS——因為比較的兩邊同樣是空的。
+    printf '  building P26 with SCUI_DEBUG=1\n'
+    wsl "cd \$HOME/proj/swift-cross-ui && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 \
         | grep -E 'error:|complete!'" | sed 's/^/    /'
 
     printf '\n  1. an empty cache fills itself on the first fetch\n'

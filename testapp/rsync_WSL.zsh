@@ -128,7 +128,7 @@ rsync -a \
     `# 供 -actionfile 使用的動作檔。上述樣式並未涵蓋，而其失敗方式的安靜之處正在於：app 會啟動、` \
     `# 繪製，只回報「被指定重放的檔案不存在」——而同一個檔案就在 Windows 端的 checkout 裡，` \
     `# 且是片刻之前才編輯過的。` \
-    --include='testapp/actions/*.csv' \
+    --include='testapp/actions/**/*.csv' \
     --exclude='*' \
     '$source_root/' \
     '$wsl_project_root/'

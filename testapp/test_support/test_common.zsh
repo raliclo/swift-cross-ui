@@ -83,10 +83,31 @@ fi
 action_file="${TEST_ACTION_FILE:-}"
 actionfile_log="${app:l}-actionfile.log"
 
+# The platform folder, not the whole tree.
+#
+# Action files are filed by the platform they passed on, because a list of
+# coordinates does not travel: fonts, decorations and display scale all move
+# things. Looking in every folder would find a file that works somewhere else
+# and run it here, which fails as a series of clicks landing on nothing.
+#
+# 只在該平台的資料夾中尋找，而非整棵樹。
+#
+# 動作檔依「通過驗證的平台」歸檔，因為一串座標無法跨平台：字型、視窗裝飾與顯示縮放都會使位置改變。
+# 若在所有資料夾中尋找，會找到一個「在別處可用」的檔案並在此執行，其失敗形式是一連串點擊全部落空。
+platform_folder() {
+    case "$target" in
+        windows) printf 'win' ;;
+        *) printf 'wsl' ;;
+    esac
+}
+
 default_action_file() {
-    local candidates=("$script_dir/actions/$app"-*.csv(N))
+    local folder
+    folder="$(platform_folder)"
+    local candidates=("$script_dir/actions/$folder/$app"-*.csv(N))
     if [ "${#candidates}" -eq 0 ]; then
-        printf 'No action file for %s in %s/actions\n' "$app" "$script_dir" >&2
+        printf 'No action file for %s in %s/actions/%s\n' "$app" "$script_dir" "$folder" >&2
+        printf 'A file appears there once it has been verified on that platform.\n' >&2
         exit 66
     fi
     if [ "${#candidates}" -gt 1 ]; then
@@ -254,10 +275,22 @@ print_actionfile_report() {
         return 0
     fi
     printf '==> Action file report\n'
-    if grep -a actionfile "$path" 2>/dev/null | sed 's/^/    /'; then
-        return 0
+
+    # Captured and split with zsh's own `${(f)…}` rather than piped through
+    # sed. Two reasons, both measured here: `sed` was not on PATH in this
+    # context and the function died with `command not found`, and `if grep |
+    # sed` tests *sed's* status -- so a grep that found nothing still reported
+    # success and printed nothing at all.
+    # 以 zsh 自身的 `${(f)…}` 擷取並分行，而非透過管線交給 sed。兩個理由都是在此處實測到的：
+    # `sed` 不在此情境的 PATH 上，該函式因而以 `command not found` 中止；而 `if grep | sed`
+    # 判斷的是 **sed** 的結束狀態——因此即使 grep 一無所獲，仍會回報成功且什麼都不印。
+    local report
+    report="$(grep -a actionfile "$path" 2>/dev/null)"
+    if [ -n "$report" ]; then
+        printf '    %s\n' ${(f)report}
+    else
+        printf '    no report -- the app exited before replaying, or never saw the flag\n'
     fi
-    printf '    no report -- the app exited before replaying, or never saw the flag\n'
 }
 
 print_summary_wsl() {
@@ -288,7 +321,16 @@ run_windows() {
 
     if [ "$do_build" -eq 1 ]; then
         printf '==> Building %s for Windows\n' "$app"
-        zsh "$script_dir/compile.zsh" "$app" | grep -E 'error:|Build of product' || true
+        # SCUI_DEBUG=1 whenever an action file is being replayed, because
+        # without it the flag does not exist in the binary. A build that omits
+        # it produces an executable that ignores -actionfile entirely -- which
+        # is the whole point of DebugFeatures, and which this script then
+        # reported as "the app never saw the flag". Correct, and useless.
+        # 只要要重放動作檔就帶上 SCUI_DEBUG=1，因為少了它，該旗標根本不存在於執行檔中。省略它的
+        # 建置會產生一個完全忽略 -actionfile 的執行檔——那正是 DebugFeatures 的目的，而本腳本當時
+        # 把它回報為「app 從未看到該旗標」。正確，但毫無用處。
+        SCUI_DEBUG="${action_file:+1}" \
+            zsh "$script_dir/compile.zsh" "$app" | grep -E 'error:|Build of product' || true
     fi
 
     mkdir -p "$out"
@@ -352,8 +394,12 @@ run_wsl() {
         printf '==> Syncing sources to WSL\n'
         zsh "$script_dir/rsync_WSL.zsh" >/dev/null
         printf '==> Building %s for WSLg\n' "$app"
+        # See the Windows branch: without SCUI_DEBUG=1 the -actionfile flag is
+        # not compiled into the binary at all.
+        # 見 Windows 分支：少了 SCUI_DEBUG=1，-actionfile 旗標根本不會被編入執行檔。
         MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui -- \
-            zsh testapp/compile.zsh "$app" 2>&1 | grep -E 'error:|Build of product' || true
+            zsh -lc "SCUI_DEBUG='${action_file:+1}' zsh testapp/compile.zsh $app" 2>&1 \
+            | grep -E 'error:|Build of product' || true
     fi
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
