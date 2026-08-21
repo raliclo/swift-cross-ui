@@ -319,6 +319,45 @@ run_windows() {
     local out="$script_dir/output"
     local label="${app:l}-windows"
 
+    # GTK's bin directory on PATH for the launch, not only for the build.
+    #
+    # compile.zsh exports it, but that only lasts for the build shell -- so an
+    # app built with -gtk4 and launched from here died before main with
+    # `api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file`. The
+    # missing library is the UCRT rather than GTK, which sends the reader
+    # looking for a broken Visual C++ install; what is actually missing is the
+    # whole directory that would have satisfied both.
+    #
+    # This was invisible until an action file forced stderr to be kept. Every
+    # earlier Windows run sent it to /dev/null, so a -gtk4 build that never
+    # started looked exactly like one that started and rendered nothing.
+    #
+    # 讓 GTK 的 bin 目錄在「啟動」時也位於 PATH 上，而不只是在「建置」時。
+    #
+    # compile.zsh 有 export 它，但那只在建置的 shell 中有效——因此以 -gtk4 建置、再由此處啟動的
+    # app，會在進入 main 之前就以
+    # `api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file` 死掉。缺少的那個函式庫是
+    # UCRT 而非 GTK，這會把讀者引向「Visual C++ 安裝損壞」的方向；但真正缺少的，是那個原本能同時
+    # 滿足兩者的整個目錄。
+    #
+    # 在動作檔迫使 stderr 被保留之前，此問題完全不可見。先前每一次 Windows 執行都把 stderr 送進
+    # /dev/null，因此「一個從未啟動的 -gtk4 建置」與「一個啟動了卻什麼都沒繪製的建置」看起來
+    # 一模一樣。
+    # Converted to POSIX form before it goes anywhere near PATH. `:` is the
+    # separator here, so `C:/gtk4/bin` is not one entry -- it is `C` and
+    # `/gtk4/bin`, neither of which exists, and the entry that was supposed to
+    # fix the launch instead adds two broken ones. The first attempt at this fix
+    # did exactly that and changed nothing.
+    # 在放進 PATH 之前先轉為 POSIX 形式。此處的 `:` 是分隔符，因此 `C:/gtk4/bin` 並非單一項目——
+    # 它是 `C` 與 `/gtk4/bin` 兩項，兩者都不存在；原本要修好啟動問題的那一項，反而新增了兩個壞掉的
+    # 項目。本修正的第一次嘗試正是如此，且毫無作用。
+    local gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
+    local gtk_bin
+    gtk_bin="$(cygpath -u "$gtk_prefix/bin" 2>/dev/null || printf '%s' "$gtk_prefix/bin")"
+    if [ -d "$gtk_bin" ]; then
+        export PATH="$gtk_bin:$PATH"
+    fi
+
     if [ "$do_build" -eq 1 ]; then
         printf '==> Building %s for Windows\n' "$app"
         # SCUI_DEBUG=1 whenever an action file is being replayed, because
