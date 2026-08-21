@@ -121,7 +121,9 @@ public final class GtkBackend:
 
     /// Guards `-actionfile` against replaying once per window. See
     /// `ActionFileReplay.swift`.
+    #if SCUI_DEBUG
     var hasReplayedActionFile = false
+    #endif
 
     /// Kept alive for as long as the backend is. A `GSimpleAction` added to the
     /// application is referenced by it, but the Swift wrapper holds the closure,
@@ -354,7 +356,9 @@ public final class GtkBackend:
         // 的視窗開啟的 GtkDropDown popover，表現為一個無法被帶到前面、且選取後不會關閉的
         // 分離視窗。
         window.present()
+        #if SCUI_DEBUG
         replayActionFileIfRequested()
+        #endif
     }
 
     public func activate(window: Window) {

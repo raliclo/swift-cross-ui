@@ -102,6 +102,25 @@ if hotReloadingEnabled {
     ]
 }
 
+// SCUI_DEBUG decides whether a binary can be debugged and driven at all: the
+// `--debug` flag, the diagnostic messages, and action-file replay.
+//
+// Off by default, and off means absent rather than disabled. See
+// Sources/DebugFeatures/README.md -- the size saving is the lesser reason; the
+// point is that a shipped application should not carry a way to synthesise
+// clicks and keystrokes into whatever window is in front of it.
+//
+// SCUI_DEBUG 決定一個執行檔究竟能否被除錯與驅動：`--debug` 旗標、診斷訊息，以及動作檔重放。
+//
+// 預設為關閉，而「關閉」意味著「不存在」而非「已停用」。詳見
+// Sources/DebugFeatures/README.md——體積是次要理由；重點在於，已出貨的應用程式不應該攜帶一套
+// 「向當下位於前方的任何視窗合成點擊與按鍵」的手段。
+let debugFeaturesEnabled = env["SCUI_DEBUG"] == "1" || env["SCUI_DEBUG"] == "true"
+var debugSwiftSettings: [SwiftSetting] = swiftSettings
+if debugFeaturesEnabled {
+    debugSwiftSettings += [.define("SCUI_DEBUG")]
+}
+
 var libraryType: Product.Library.LibraryType?
 switch env["SCUI_LIBRARY_TYPE"] {
     case "static":
@@ -145,6 +164,7 @@ let package = Package(
         .library(name: "UIKitBackend", type: libraryType, targets: ["UIKitBackend"]),
         .library(name: "Gtk", type: libraryType, targets: ["Gtk"]),
         .library(name: "InputEvent", type: libraryType, targets: ["InputEvent"]),
+        .library(name: "DebugFeatures", type: libraryType, targets: ["DebugFeatures"]),
         .executable(name: "GtkExample", targets: ["GtkExample"]),
         // CursesBackend, QtBackend and LVGLBackend were commented out here and
         // in the target list. Removed rather than left as text: a commented
@@ -255,7 +275,17 @@ let package = Package(
         .target(name: "AppKitBackend", dependencies: ["SwiftCrossUI"]),
         .target(
             name: "GtkBackend",
-            dependencies: ["SwiftCrossUI", "Gtk", "CGtk", "InputEvent"]
+            // InputEvent only when the debug features are on. Dropping the
+            // dependency rather than only the code is the whole reason this
+            // lives in the manifest: SwiftPM cannot make a target conditional,
+            // but the manifest is Swift, so the list is built from the
+            // environment and a release build does not link the module at all.
+            // 僅在 debug 功能開啟時才依賴 InputEvent。「連依賴一起移除」而非「只移除程式碼」，
+            // 正是此邏輯必須位於 manifest 中的全部理由：SwiftPM 無法讓 target 帶條件，但 manifest
+            // 本身就是 Swift，因此該清單可由環境變數建構，release 建置根本不會連結該模組。
+            dependencies: ["SwiftCrossUI", "Gtk", "CGtk", "DebugFeatures"]
+                + (debugFeaturesEnabled ? ["InputEvent"] : []),
+            swiftSettings: debugSwiftSettings
         ),
         .systemLibrary(
             name: "CGtk",
@@ -301,6 +331,11 @@ let package = Package(
         .target(
             name: "InputEvent",
             exclude: ["README.md", "plan"]
+        ),
+        .target(
+            name: "DebugFeatures",
+            exclude: ["README.md"],
+            swiftSettings: debugSwiftSettings
         ),
         .executableTarget(
             name: "GtkCodeGen",

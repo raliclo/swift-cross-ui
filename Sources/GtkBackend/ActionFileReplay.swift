@@ -1,3 +1,12 @@
+// The whole file is behind SCUI_DEBUG. Not a runtime check: without it,
+// `InputEvent` is not a dependency of this target at all, so the import below
+// would not resolve. See Sources/DebugFeatures/README.md for why the switch is
+// in the manifest rather than here.
+// 整個檔案位於 SCUI_DEBUG 之下。這不是執行期檢查：若未定義它，`InputEvent` 根本不是本 target 的
+// 依賴，因此下方的 import 無法解析。該開關為何置於 manifest 而非此處，詳見
+// Sources/DebugFeatures/README.md。
+#if SCUI_DEBUG
+
 import Foundation
 import InputEvent
 
@@ -89,3 +98,5 @@ extension GtkBackend {
         FileHandle.standardError.write(Data("-actionfile: \(message)\n".utf8))
     }
 }
+
+#endif
