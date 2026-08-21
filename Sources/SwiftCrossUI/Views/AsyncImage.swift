@@ -66,6 +66,7 @@ public enum AsyncImagePhase {
 /// `appCache` 目錄，快取即為關閉，此處便是一次單純的抓取。
 public struct AsyncImage<Content: View>: View {
     var url: URL?
+    var policy: AppCache.CachePolicy
     var content: (AsyncImagePhase) -> Content
 
     @State private var phase = AsyncImagePhase.empty
@@ -77,12 +78,28 @@ public struct AsyncImage<Content: View>: View {
     ///   - url: The URL to load from. A `nil` URL never loads, matching
     ///     SwiftUI, so a value that is not ready yet needs no branch at the
     ///     call site.
+    ///   - policy: How much of the cache to trust. Defaulted, so a call written
+    ///     the SwiftUI way is unchanged; pass
+    ///     ``AppCache/CachePolicy/reloadRevalidatingCacheData`` for something
+    ///     that changes often, or
+    ///     ``AppCache/CachePolicy/reloadIgnoringLocalCacheData`` for something
+    ///     that must never be stale.
     ///   - content: Builds the view for the current phase.
+    ///
+    /// SwiftUI's `AsyncImage` has no such parameter -- it takes whatever
+    /// `URLCache` decides. Added here because this cache is the framework's
+    /// own, and a caller with a resource that must not be stale would otherwise
+    /// have no way to say so.
+    ///
+    /// SwiftUI 的 `AsyncImage` 並無此參數——它接受 `URLCache` 的決定。此處新增，是因為這個快取
+    /// 屬於框架自身；若不提供，一個持有「絕不容許過期」資源的呼叫端將無從表達此事。
     public init(
         url: URL?,
+        policy: AppCache.CachePolicy = .useProtocolCachePolicy,
         @ViewBuilder content: @escaping (AsyncImagePhase) -> Content
     ) {
         self.url = url
+        self.policy = policy
         self.content = content
     }
 
@@ -97,7 +114,7 @@ public struct AsyncImage<Content: View>: View {
                 guard let url else { return }
                 phase = .empty
                 do {
-                    let data = try await AppCache.shared.data(for: url)
+                    let data = try await AppCache.shared.data(for: url, policy: policy)
                     phase = .success(
                         Image(try ImageFormats.Image<RGBA>.load(from: Array(data)))
                     )
@@ -133,10 +150,11 @@ extension AsyncImage {
     /// 得來，而非猜測。
     public init<I: View, P: View>(
         url: URL?,
+        policy: AppCache.CachePolicy = .useProtocolCachePolicy,
         @ViewBuilder content imageContent: @escaping (Image) -> I,
         @ViewBuilder placeholder: @escaping () -> P
     ) where Content == TupleView1<EitherView<TupleView1<I>, TupleView1<P>>> {
-        self.init(url: url) { phase in
+        self.init(url: url, policy: policy) { phase in
             if let image = phase.image {
                 imageContent(image)
             } else {

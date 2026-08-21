@@ -11,36 +11,54 @@ import Foundation
 import FoundationNetworking
 #endif
 
-/// An on-disk cache for things fetched over the network, next to the executable.
+/// An on-disk cache for things fetched over the network.
 ///
-/// Off unless the application asks for it, and it asks by creating an
-/// `appCache` directory beside its executable. Nothing else switches it on.
-/// A UI framework that started writing to the user's disk because a view was
-/// given an `https` URL would be doing something the author never agreed to;
-/// requiring the directory makes it a decision someone made on purpose, and
-/// deleting the directory is how it is turned off again.
+/// On by default, creating its directory on the first remote fetch, and turned
+/// off with ``disable()``.
 ///
-/// Inside it:
+/// In the platform's cache directory, under the executable's name:
 ///
 /// ```
-/// appCache/
-///   appCache.csv2      the index -- RFC 4180 CSV, one row per URL
+/// <caches>/<executable>/appCache/
+///   appCache.csv2      the index -- RFC 4180 CSV with two header rows
 ///   artifacts/
 ///     <uuid>.<suffix>  the payload, named so nothing collides
 /// ```
 ///
-/// Artifacts are named by UUID rather than by anything derived from the URL.
-/// A URL is not a filename: it can be longer than the filesystem allows,
-/// contain separators, differ from another only in case, or be the same
-/// resource spelled two ways. The index is what maps one to the other, and the
-/// suffix is kept so the file is still openable by hand.
+/// `<caches>` is `Library/Caches` on Apple's platforms, `~/.cache` on Linux and
+/// `%LOCALAPPDATA%` on Windows. **Not beside the executable**, which was the
+/// first design and does not work on iOS at all: an app bundle is signed and
+/// read-only, so writing into it fails and would break the signature even if it
+/// did not. Apple's storage guidelines also require regenerable data to live
+/// here, and put it outside the device backup.
 ///
-/// 位於執行檔旁的網路資源磁碟快取。
+/// Not the temporary directory either, though that is writable on every
+/// platform too. iOS purges `tmp` whenever the app is not running, and most
+/// Linux distributions clear `/tmp` on boot -- so a cache kept there is emptied
+/// by the system at exactly the moments this one is careful not to empty it.
+/// The point of surviving a failed fetch is lost if the files are gone anyway.
 ///
-/// 除非應用程式主動要求，否則不啟用；而要求的方式是在其執行檔旁建立一個 `appCache` 目錄。除此
-/// 之外沒有任何開關。一個 UI 框架若只因某個 view 收到 `https` URL 就開始寫入使用者的磁碟，等於
-/// 做了作者從未同意的事；要求該目錄存在，使這件事成為某人刻意做出的決定，而刪除該目錄就是關閉
-/// 它的方式。
+/// Artifacts are named by UUID rather than by anything derived from the URL. A
+/// URL is not a filename: it can be longer than the filesystem allows, contain
+/// separators, differ from another only in case, or be the same resource spelled
+/// two ways. The index maps one to the other, and the suffix is kept so the file
+/// is still openable by hand.
+///
+/// 網路資源的磁碟快取。
+///
+/// 在應用程式呼叫 ``enable()`` 之前不啟用。一個 UI 框架若只因某個 view 收到 `https` URL 就開始
+/// 寫入使用者的磁碟，等於做了作者從未同意的事。
+///
+/// 位置為平台的快取目錄，並以執行檔名稱作為子目錄（如上）。
+///
+/// `<caches>` 在 Apple 平台為 `Library/Caches`，Linux 為 `~/.cache`，Windows 為
+/// `%LOCALAPPDATA%`。**不放在執行檔旁邊**——那是最初的設計，而它在 iOS 上根本行不通：app bundle
+/// 已簽章且唯讀，寫入會失敗；即使寫得進去也會破壞簽章。Apple 的儲存指引亦要求可重新產生的資料放在
+/// 此處，並將其排除於裝置備份之外。
+///
+/// 也不使用暫存目錄，儘管它在每個平台上同樣可寫。iOS 會在 app 未執行時清除 `tmp`，而多數 Linux
+/// 發行版會在開機時清空 `/tmp`——因此放在那裡的快取，會被系統在「本實作正小心翼翼不去清空它」的
+/// 那些時刻清空。若檔案終究會消失，「撐過一次失敗的抓取」也就失去了意義。
 ///
 /// artifact 以 UUID 命名，而非由 URL 衍生。URL 不是檔名：它可能超過檔案系統允許的長度、含有分隔
 /// 字元、與另一個僅大小寫不同，或是同一資源的兩種寫法。索引負責兩者之間的對應，而保留副檔名是為了
@@ -64,6 +82,38 @@ public actor AppCache {
 
     private var index: [String: Entry]?
     private var directory: URL?
+    /// On by default. The directory is created on the first remote fetch.
+    ///
+    /// Two earlier designs made this opt-in -- a directory the developer
+    /// created by hand, then an explicit call -- on the grounds that a UI
+    /// framework should not write to the user's disk unbidden. That argument
+    /// held while the cache lived beside the executable. It does not hold here:
+    /// the platform's cache directory exists for exactly this, the operating
+    /// system manages and purges it, and an application that fetches a remote
+    /// image has already asked for the network.
+    ///
+    /// ``disable()`` is still there for a test that wants a cold fetch every
+    /// time, or an application that would rather not keep anything.
+    ///
+    /// 預設開啟。目錄於第一次遠端抓取時建立。
+    ///
+    /// 先前兩版設計都是 opt-in——先是由開發者手動建立目錄，後是顯式呼叫——理由是「UI 框架不應不問
+    /// 自明地寫入使用者的磁碟」。當快取位於執行檔旁時，該理由成立；在此處則否：平台的快取目錄正是
+    /// 為此而存在，由作業系統管理與清除，而一個會去抓取遠端影像的應用程式，本來就已經要求了網路。
+    ///
+    /// ``disable()`` 仍然保留，供「每次都要冷抓取」的測試，或不願保留任何東西的應用程式使用。
+    private var isEnabled = true
+
+    /// Switches the cache on again after ``disable()``.
+    public func enable() {
+        isEnabled = true
+    }
+
+    /// Switches the cache off. Files already written stay; this stops new ones.
+    /// 關閉快取。已寫入的檔案會保留，此方法只是停止寫入新的檔案。
+    public func disable() {
+        isEnabled = false
+    }
 
     private struct Entry {
         var artifact: String
@@ -78,6 +128,102 @@ public actor AppCache {
         /// The server's `ETag`, verbatim, for `If-None-Match`.
         var etag: String
         var bytes: Int
+
+        /// Whether the server gave us anything to ask with.
+        ///
+        /// Decides what ``AppCache/maximumAge`` does to this entry: an entry
+        /// that can be revalidated is re-checked past the ceiling, and one that
+        /// cannot is deleted, because there is no other way to tell whether it
+        /// is still right.
+        ///
+        /// 伺服器是否給了我們任何可據以詢問的依據。
+        ///
+        /// 這決定了 ``AppCache/maximumAge`` 對此項目的作用：可重新驗證者在超過上限後會被重新
+        /// 檢查，不可者則刪除——因為除此之外，沒有任何方式能判斷它是否仍然正確。
+        var canBeRevalidated: Bool {
+            !etag.isEmpty || !lastModified.isEmpty
+        }
+
+        /// Past ``AppCache/maximumAge``, so not to be served without a
+        /// successful round trip first.
+        ///
+        /// Expired is not the same as deleted. An expired entry stays on disk
+        /// until something replaces it, which is what keeps a cache useful to
+        /// an application that has lost its network.
+        ///
+        /// 已超過 ``AppCache/maximumAge``，因此未經一次成功的往返便不應被提供。
+        ///
+        /// 「過期」不等於「已刪除」。過期項目會留在磁碟上直到有東西取代它——這正是讓快取對一個
+        /// 失去網路連線的應用程式仍然有用的關鍵。
+        var isExpired: Bool {
+            Date().timeIntervalSince(fetchedAt) > AppCache.maximumAge
+        }
+
+        /// This copy was served without the server confirming it.
+        ///
+        /// Set when a fetch was attempted and failed -- offline, a timeout, a
+        /// server error -- and the cached bytes were handed over anyway. Not
+        /// set for an entry served inside its freshness window, which is the
+        /// arrangement rather than a compromise, nor after a `304`, which is
+        /// the server saying the copy is right.
+        ///
+        /// Named for what it is rather than for how it feels. `warning` would
+        /// describe the reader's reaction; `not_latest` describes the data, and
+        /// a developer scanning the index wants to know which rows are behind,
+        /// not which rows once produced a message.
+        ///
+        /// Persisted rather than kept in memory so it survives the process. A
+        /// stale copy is still stale on the next launch, and the whole point is
+        /// that someone can open the index afterwards and see which rows were
+        /// not current.
+        ///
+        /// 此副本在未經伺服器確認的情況下被提供。
+        ///
+        /// 當「嘗試抓取但失敗」——離線、逾時、伺服器錯誤——而仍將快取內容交出時設定。若項目是在其
+        /// 新鮮度視窗內被提供則不設定，那是既定安排而非妥協；`304` 之後亦不設定，因為那是伺服器
+        /// 表示該副本正確。
+        ///
+        /// 命名依據「它是什麼」而非「它讓人感覺如何」。`warning` 描述的是讀者的反應；`not_latest`
+        /// 描述的是資料本身，而一位瀏覽索引的開發者想知道的是「哪幾列落後了」，不是「哪幾列曾經
+        /// 產生過訊息」。
+        ///
+        /// 予以持久化而非僅存於記憶體，使其能跨行程存活。過期的副本在下次啟動時依然過期，而此欄位
+        /// 的全部意義正在於：日後有人打開索引時，能看出哪幾列並非最新。
+        var notLatest: Bool = false
+    }
+
+    /// How much of the cache a request is willing to trust.
+    ///
+    /// Named after `URLRequest.CachePolicy` rather than invented, because a
+    /// reader who knows Foundation already knows what these mean and a new
+    /// vocabulary would only make them check.
+    ///
+    /// 一次請求願意信任快取到什麼程度。
+    ///
+    /// 命名沿用 `URLRequest.CachePolicy` 而非自創，因為熟悉 Foundation 的讀者已經知道這些名稱的
+    /// 意義，另立一套詞彙只會讓他們得回頭查證。
+    public enum CachePolicy {
+        /// Serve from disk while an entry is current, revalidating when the
+        /// server gave us something to revalidate with. The default, and what
+        /// a cache is for.
+        /// 在項目仍為最新期間由磁碟提供，並在伺服器給了可據以驗證的依據時重新驗證。此為預設值，
+        /// 也是快取存在的目的。
+        case useProtocolCachePolicy
+
+        /// Always ask the server, but ask conditionally: a `304` still serves
+        /// the payload from disk. For something that changes often, where the
+        /// window would hide an update but the body is not worth re-downloading
+        /// when it has not changed.
+        /// 一律詢問伺服器，但採條件式詢問：`304` 仍由磁碟提供內容。適用於經常變動的資源——時間窗
+        /// 會遮蔽更新，但在內容未變時又不值得重新下載整個 body。
+        case reloadRevalidatingCacheData
+
+        /// Fetch the whole body and replace what is there. For a resource whose
+        /// server offers no validators and which must not be stale -- the only
+        /// case where paying for the body every time is the right answer.
+        /// 抓取整個 body 並取代既有內容。適用於「伺服器不提供任何驗證標頭、且絕不容許過期」的
+        /// 資源——那是唯一「每次都付出整個 body 代價」屬於正確答案的情形。
+        case reloadIgnoringLocalCacheData
     }
 
     private init() {}
@@ -105,7 +251,10 @@ public actor AppCache {
     /// 代表副本仍為最新，於是由磁碟提供內容並重置其年齡；`200` 則將其替換。其他任何情況（包括
     /// 完全沒有網路）都會退回使用既有的快取副本——一個應用程式不該因為一次請求逾時，就失去它一分鐘
     /// 前還顯示得出來的內容。
-    public func data(for url: URL) async throws -> Data {
+    public func data(
+        for url: URL,
+        policy: CachePolicy = .useProtocolCachePolicy
+    ) async throws -> Data {
         if url.isFileURL {
             return try Data(contentsOf: url)
         }
@@ -143,22 +292,37 @@ public actor AppCache {
         // 「沒有驗證標頭也沒有 `Cache-Control` 的回應」所採用的啟發式相同——超過期限則該項目已在
         // 開啟時被清除。代價是：若某資源在此期限內變更，而其伺服器又不提供任何察覺的方式，便無從
         // 察覺。
-        if let existing, existing.etag.isEmpty, existing.lastModified.isEmpty,
+        if policy == .useProtocolCachePolicy,
+            let existing, !existing.canBeRevalidated, !existing.isExpired,
             let artifactURL, let data = try? Data(contentsOf: artifactURL)
         {
             return data
         }
 
         do {
-            let response = try await fetch(url, validating: existing)
+            // `reloadIgnoringLocalCacheData` sends no validators, so the server
+            // has nothing to answer 304 with and returns the body. That is the
+            // point of asking for it, and the only way to be current against a
+            // server that offers no validators at all.
+            // `reloadIgnoringLocalCacheData` 不送出任何驗證標頭，伺服器因此無從以 304 作答，只能
+            // 回傳整個 body。這正是指定該政策的目的，也是面對「完全不提供驗證標頭的伺服器」時，
+            // 唯一能保持最新的方式。
+            let validators = policy == .reloadIgnoringLocalCacheData ? nil : existing
+            let response = try await fetch(url, validating: validators)
 
             if response.notModified, let artifactURL,
                 let data = try? Data(contentsOf: artifactURL)
             {
-                // Current after all. Only the age moves.
-                // 確實仍為最新。只更新年齡。
+                // Current after all. The age moves, and the flag clears --
+                // the server has just said this copy is right, so a row that
+                // was behind is not behind any more. Leaving it set would make
+                // the column mean "was stale once", which nobody can act on.
+                // 確實仍為最新。年齡更新，旗標清除——伺服器剛剛表示此副本正確，因此原本落後的列
+                // 已不再落後。若保留該旗標，此欄的意義會變成「曾經過期」，而那是沒有人能據以行動
+                // 的資訊。
                 var entry = existing!
                 entry.fetchedAt = Date()
+                entry.notLatest = false
                 index?[key] = entry
                 try? writeIndex()
                 return data
@@ -167,12 +331,50 @@ public actor AppCache {
             try store(response, for: key, in: directory, replacing: existing)
             return response.data
         } catch {
-            if let artifactURL, let data = try? Data(contentsOf: artifactURL) {
+            if var entry = existing, let artifactURL,
+                let data = try? Data(contentsOf: artifactURL)
+            {
+                // Served without confirmation. Recorded in the index so it can
+                // be reviewed later, and announced so an application can tell
+                // the person looking at the screen.
+                //
+                // Announced rather than presented. A cache putting a dialog on
+                // screen would be a utility deciding how an application talks
+                // to its user -- wrong, and untestable without a window. The
+                // application decides; ``staleServeHandler`` is where it says
+                // how.
+                //
+                // 在未經確認的情況下提供。此事會記錄於索引以供日後檢視，並對外公告，使應用程式能
+                // 告知正在看螢幕的人。
+                //
+                // 採「公告」而非「呈現」。若由快取自行在畫面上彈出對話框，等於一個工具程式替應用
+                // 程式決定它該如何與使用者對話——那是錯的，而且沒有視窗就無法測試。決定權在應用
+                // 程式；``staleServeHandler`` 正是它表達方式的地方。
+                entry.notLatest = true
+                index?[key] = entry
+                try? writeIndex()
+
+                let handler = Self.staleServeHandler
+                Task { @MainActor in handler?(url, error) }
+
                 return data
             }
             throw error
         }
     }
+
+    /// Called when a cached copy was served because the fetch failed.
+    ///
+    /// Set it to show the person a warning; leave it and nothing is shown, and
+    /// the `not_latest` column in the index is the only record. It is called on
+    /// the main actor with the URL and the error that caused the fallback.
+    ///
+    /// 當「因抓取失敗而改用快取副本」時呼叫。
+    ///
+    /// 設定它即可向使用者顯示警告；不設定則不顯示任何內容，索引中的 `not_latest` 欄位便是唯一的
+    /// 紀錄。呼叫發生於 main actor 上，並帶入該 URL 與導致退回的錯誤。
+    public nonisolated(unsafe) static var staleServeHandler:
+        (@MainActor @Sendable (URL, any Error) -> Void)?
 
     // MARK: - Directory and index
 
@@ -182,18 +384,11 @@ public actor AppCache {
     /// 快取目錄；若應用程式未建立則擲出錯誤。會在其中建立 `appCache.csv2` 與 `artifacts/`，並在
     /// 過程中清除所有超過 ``maximumAge`` 的項目。
     private func openDirectory() throws -> URL {
+        guard isEnabled else { throw AppCacheError.disabled }
         if let directory, index != nil { return directory }
 
-        guard let executable = Self.executableDirectory() else {
+        guard let directory = Self.cacheDirectory() else {
             throw AppCacheError.locationUnknown
-        }
-        let directory = executable.appendingPathComponent("appCache")
-
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-            isDirectory.boolValue
-        else {
-            throw AppCacheError.disabled
         }
 
         try FileManager.default.createDirectory(
@@ -208,29 +403,48 @@ public actor AppCache {
         return directory
     }
 
-    /// Deletes every entry past ``maximumAge``, and every artifact the index
-    /// does not name.
+    /// Deletes the artifacts the index does not name. **Nothing else.**
     ///
-    /// The second half matters as much as the first: a run that was killed
-    /// between writing a payload and writing the index leaves a file nothing
-    /// refers to, and without this the directory would grow forever with
-    /// exactly the files the age rule can never see.
+    /// Age does not delete anything here, and that is the whole point. This
+    /// runs when the directory is opened, which is the one moment that knows
+    /// nothing about whether the network is reachable -- and deleting an
+    /// expired entry offline destroys the only copy the application has, with
+    /// no way to fetch another. The user is left with less than they had a
+    /// moment earlier, because of a clock.
     ///
-    /// 刪除所有超過 ``maximumAge`` 的項目，以及所有索引未指名的 artifact。
+    /// ``maximumAge`` is enforced in ``data(for:)`` instead, where the answer
+    /// is known: past the ceiling an entry is not served without a successful
+    /// round trip, and the old payload is removed by ``store(_:for:in:replacing:)``
+    /// only once a replacement is in hand. Deletion is a consequence of
+    /// succeeding, never of failing.
     ///
-    /// 後半與前半同等重要：若某次執行在「寫入內容」與「寫入索引」之間被中止，便會留下一個無人指涉
-    /// 的檔案；少了這一步，該目錄會無止境地累積正好是年齡規則永遠看不見的那些檔案。
+    /// So an expired entry outlives 7 days while offline. That is deliberate:
+    /// the alternative is a cache that empties itself exactly when it is the
+    /// only thing left.
+    ///
+    /// The orphan sweep is safe to do here because an artifact the index does
+    /// not name cannot be served to anyone. It is what a run killed between
+    /// writing a payload and writing the index leaves behind, and without this
+    /// the directory would grow forever with files no rule can see.
+    ///
+    /// 刪除索引未指名的 artifact。**僅此而已。**
+    ///
+    /// 此處不因年齡刪除任何東西，而這正是重點。本函式在開啟目錄時執行，而那恰是唯一「對網路是否
+    /// 可用一無所知」的時刻——在離線狀態下刪除過期項目，等於銷毀應用程式手上唯一的副本，且無從再
+    /// 取得另一份。使用者會因為一個時鐘，而擁有比片刻之前更少的東西。
+    ///
+    /// ``maximumAge`` 改由 ``data(for:)`` 執行，因為在那裡答案是已知的：超過上限的項目，未經一次
+    /// 成功的往返便不會被提供；而舊有內容只在替代品到手之後，才由
+    /// ``store(_:for:in:replacing:)`` 移除。刪除永遠是「成功」的後果，絕不是「失敗」的後果。
+    ///
+    /// 因此離線時，過期項目會存活超過 7 天。這是刻意的：另一個選項是「快取恰好在它成為唯一依靠時
+    /// 清空自己」。
+    ///
+    /// 孤兒檔案的清掃可以安全地放在此處，因為索引未指名的 artifact 不可能被提供給任何人。它正是
+    /// 某次執行在「寫入內容」與「寫入索引」之間被中止所遺留的產物；少了這一步，該目錄會無止境地
+    /// 累積任何規則都看不見的檔案。
     private func prune(in directory: URL) {
-        let cutoff = Date().addingTimeInterval(-Self.maximumAge)
         let artifacts = directory.appendingPathComponent("artifacts")
-
-        for (key, entry) in index ?? [:] where entry.fetchedAt < cutoff {
-            try? FileManager.default.removeItem(
-                at: artifacts.appendingPathComponent(entry.artifact)
-            )
-            index?[key] = nil
-        }
-
         let named = Set((index ?? [:]).values.map(\.artifact))
         let onDisk =
             (try? FileManager.default.contentsOfDirectory(atPath: artifacts.path)) ?? []
@@ -299,8 +513,8 @@ public actor AppCache {
     /// `fetched_at` 採 ISO 8601，如此既能以文字排序、又能被當作日期閱讀。所有欄位一律加引號：
     /// URL 可能含有逗號，`ETag` 亦然。
     private static let headers = [
-        "url,artifact,fetched_at,last_modified,etag,bytes",
-        "網址,檔案,取得時間,最後修改,實體標籤,位元組",
+        "url,artifact,fetched_at,last_modified,etag,bytes,not_latest",
+        "網址,檔案,取得時間,最後修改,實體標籤,位元組,非最新",
     ]
 
     private func writeIndex() throws {
@@ -315,6 +529,13 @@ public actor AppCache {
                     entry.lastModified,
                     entry.etag,
                     "\(entry.bytes)",
+                    // "Y" or empty rather than true/false. The column is read
+                    // by a person scanning for problems, and an empty cell
+                    // disappears while "N" would be one more thing to skim
+                    // past on every healthy row.
+                    // 使用 "Y" 或留空，而非 true/false。此欄是供人掃視以尋找問題之用；空白儲存格
+                    // 會自然隱去，而 "N" 只會在每一列正常資料上多出一個需要略過的東西。
+                    entry.notLatest ? "Y" : "",
                 ]
                 .map(Self.quote)
                 .joined(separator: ",")
@@ -350,7 +571,16 @@ public actor AppCache {
                 fetchedAt: fetchedAt,
                 lastModified: fields[3],
                 etag: fields[4],
-                bytes: Int(fields[5]) ?? 0
+                bytes: Int(fields[5]) ?? 0,
+                // Column added after the first release of this format, so a
+                // row written before it exists is short. Read positionally with
+                // a default rather than requiring the column, because an index
+                // that refused to load would throw away every cached artifact
+                // to gain one flag.
+                // 此欄位於本格式首次釋出之後才加入，因此更早寫入的列會較短。以位置讀取並帶預設值，
+                // 而非強制要求該欄存在——因為一個「拒絕載入」的索引，等於為了取得一個旗標而丟棄
+                // 所有已快取的 artifact。
+                notLatest: fields.count > 6 && fields[6] == "Y"
             )
         }
         return index
@@ -412,6 +642,36 @@ public actor AppCache {
 
     private func fetch(_ url: URL, validating existing: Entry?) async throws -> Response {
         var request = URLRequest(url: url)
+
+        // A short timeout when there is something to fall back to.
+        //
+        // URLRequest defaults to 60 seconds. With a cached copy in hand that is
+        // a minute of `loading...` before showing a picture that was on disk
+        // the whole time -- and the offline case, which is the one the fallback
+        // exists for, is exactly the case that waits the full minute.
+        //
+        // Measured while trying to test the fallback: a request pointed at a
+        // dead proxy was still in flight after fourteen seconds, and the test
+        // concluded nothing had happened because nothing had yet.
+        //
+        // With no cached copy the default stands. There is nothing better to
+        // show, so giving up early only turns a slow success into a failure.
+        //
+        // 當有東西可退回時，使用較短的逾時。
+        //
+        // URLRequest 預設為 60 秒。在手上已有快取副本的情況下，那意味著一分鐘的 `loading...`，
+        // 之後才顯示一張自始至終都在磁碟上的圖片——而離線情境，正是此退回機制存在的理由，也正是
+        // 會完整等滿那一分鐘的情境。
+        //
+        // 此數值是在嘗試測試該退回機制時量到的：一個指向無效 proxy 的請求在十四秒後仍在進行中，
+        // 而測試因此認定「什麼都沒發生」——其實只是還沒發生。
+        //
+        // 若沒有快取副本則沿用預設值。此時並沒有更好的東西可顯示，提早放棄只會把「較慢的成功」
+        // 變成「失敗」。
+        if existing != nil {
+            request.timeoutInterval = 10
+        }
+
         if let existing {
             if !existing.etag.isEmpty {
                 request.setValue(existing.etag, forHTTPHeaderField: "If-None-Match")
@@ -423,6 +683,27 @@ public actor AppCache {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let http = response as? HTTPURLResponse
+
+        // A 404 body is not the resource. Without this check an error page was
+        // written to the cache as if it were the payload and served for the
+        // next seven days -- and an image view would show a broken decode with
+        // nothing to say why.
+        //
+        // Thrown rather than returned, so it joins the same path as a timeout:
+        // the caller falls back to the cached copy if there is one, marks it
+        // `not_latest`, and only fails outright when there is nothing to fall
+        // back to. A server that is briefly returning 500 should not cost an
+        // application the content it already had.
+        //
+        // 404 的內容不是該資源。若無此檢查，錯誤頁會被當成內容寫入快取，並在往後七天內持續被提供
+        // ——而影像視圖只會顯示一個解碼失敗，且無從說明原因。
+        //
+        // 採用擲出而非回傳，使其與逾時走同一條路徑：呼叫端若有快取副本便退回使用，並標記為
+        // `not_latest`，唯有在無可退回時才真正失敗。一台短暫回傳 500 的伺服器，不該讓應用程式
+        // 失去它原本就已擁有的內容。
+        if let status = http?.statusCode, status != 304, !(200..<300).contains(status) {
+            throw AppCacheError.httpStatus(status)
+        }
 
         // The suffix comes from the URL path, not from the content type. A
         // mapping from MIME type to extension would be another table to keep
@@ -439,9 +720,35 @@ public actor AppCache {
         )
     }
 
-    private static func executableDirectory() -> URL? {
-        guard let path = Bundle.main.executablePath else { return nil }
-        return URL(fileURLWithPath: path).deletingLastPathComponent()
+    /// `<platform caches>/<executable name>/appCache`.
+    ///
+    /// The executable's name, not its directory: the cache goes in the
+    /// platform's place and is merely *named* after the application, so two
+    /// applications on the same machine do not share an index.
+    ///
+    /// A fixed name is used if the executable cannot be identified. Failing to
+    /// cache would be a worse answer than sharing a directory, and the index is
+    /// keyed by URL either way.
+    ///
+    /// `<平台快取目錄>/<執行檔名稱>/appCache`。
+    ///
+    /// 取執行檔的「名稱」而非其所在目錄：快取存放於平台指定的位置，僅以應用程式*命名*，使同一台
+    /// 機器上的兩個應用程式不會共用同一份索引。
+    ///
+    /// 若無法辨識執行檔，則使用固定名稱。「無法快取」是比「共用目錄」更糟的結果，而無論如何索引
+    /// 都是以 URL 作為鍵。
+    private static func cacheDirectory() -> URL? {
+        guard
+            let caches = FileManager.default.urls(
+                for: .cachesDirectory,
+                in: .userDomainMask
+            ).first
+        else { return nil }
+
+        let name =
+            Bundle.main.executableURL?.deletingPathExtension().lastPathComponent
+            ?? "SwiftCrossUIApp"
+        return caches.appendingPathComponent(name).appendingPathComponent("appCache")
     }
 }
 
@@ -450,13 +757,16 @@ public enum AppCacheError: Error, CustomStringConvertible {
     /// failure: it is how the cache stays opt-in.
     case disabled
     case locationUnknown
+    case httpStatus(Int)
 
     public var description: String {
         switch self {
             case .disabled:
-                "no appCache directory beside the executable; caching is off"
+                "the cache is disabled"
             case .locationUnknown:
-                "could not determine the executable's directory"
+                "could not determine the platform's cache directory"
+            case .httpStatus(let status):
+                "the server answered \(status)"
         }
     }
 }

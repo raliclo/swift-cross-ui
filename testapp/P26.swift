@@ -64,14 +64,41 @@ enum P26Diagnostics {
 /// 與 `AppCache` 讀取同一處，因此兩者不可能不一致。一份宣稱「已啟用」但快取實際上另尋他處的報告，
 /// 比沒有報告更糟。
 enum P26Cache {
+    /// `<platform caches>/<executable>/appCache`, mirroring `AppCache`.
+    ///
+    /// Not beside the executable, which is where an earlier version put it and
+    /// where iOS cannot write at all -- the bundle is signed and read-only.
+    ///
+    /// 與 `AppCache` 一致：`<平台快取目錄>/<執行檔>/appCache`。
+    ///
+    /// 不在執行檔旁邊——早先的版本放在那裡，而 iOS 根本無法寫入該處：bundle 已簽章且唯讀。
     static var directory: URL? {
-        guard let path = Bundle.main.executablePath else { return nil }
-        return URL(fileURLWithPath: path)
-            .deletingLastPathComponent()
-            .appendingPathComponent("appCache")
+        guard
+            let caches = FileManager.default.urls(
+                for: .cachesDirectory,
+                in: .userDomainMask
+            ).first
+        else { return nil }
+
+        let name =
+            Bundle.main.executableURL?.deletingPathExtension().lastPathComponent
+            ?? "SwiftCrossUIApp"
+        return caches.appendingPathComponent(name).appendingPathComponent("appCache")
     }
 
-    static var isEnabled: Bool {
+    /// Whether the directory exists yet.
+    ///
+    /// Not the same as whether caching is on: the cache is on by default and
+    /// creates this on the first remote fetch, so a run reports `false` here
+    /// until something has actually been fetched. Reporting it as "off" would
+    /// be wrong; reporting the directory is the honest thing to show.
+    ///
+    /// 該目錄是否已存在。
+    ///
+    /// 這與「快取是否開啟」並非同一件事：快取預設開啟，並於第一次遠端抓取時建立此目錄，因此在真正
+    /// 抓取任何東西之前，此處都會回報 `false`。把它說成「已關閉」是錯的；如實回報「目錄狀態」才是
+    /// 誠實的呈現。
+    static var exists: Bool {
         guard let directory else { return false }
         var isDirectory: ObjCBool = false
         return FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory)
@@ -208,7 +235,8 @@ struct P26RootView: View {
             }
         }
         .onAppear {
-            P26Diagnostics.write("cache enabled \(P26Cache.isEnabled)")
+            P26Diagnostics.write("cache dir \(P26Cache.directory?.path ?? "unknown")")
+            P26Diagnostics.write("cache dir exists \(P26Cache.exists)")
             P26Diagnostics.write(
                 "index rows \(P26Cache.indexRowCount), artifacts \(P26Cache.artifactCount)"
             )
@@ -287,8 +315,10 @@ struct P26SwiftUITab: View {
             Divider()
 
             Text("Where SwiftCrossUI differs, and why:")
-            Text("   the cache is off unless an appCache directory exists")
-            Text("   entries are dropped after 7 days rather than by size")
+            Text("   the cache lives under the platform caches directory")
+            Text("   entries expire after 7 days rather than being evicted by size")
+            Text("   an expired entry is kept until a fetch succeeds, so offline keeps working")
+            Text("   AsyncImage takes a cache policy; SwiftUI's does not")
             Text("   .refreshable has no equivalent yet")
         }
         .padding(14)
@@ -308,6 +338,12 @@ struct P26SwiftCrossUITab: View {
         return URL(string: "https://httpbin.org/image/png")
     }
 
+    var policy: AppCache.CachePolicy {
+        CommandLine.arguments.contains("-force")
+            ? .reloadIgnoringLocalCacheData
+            : .useProtocolCachePolicy
+    }
+
     static func describe(_ phase: AsyncImagePhase) -> String {
         switch phase {
             case .empty: "loading..."
@@ -323,12 +359,18 @@ struct P26SwiftCrossUITab: View {
 
             Text("backend -> \(String(describing: DefaultBackend.self))")
             Text("url -> \(url?.absoluteString ?? "none")")
+            // The path, not a yes/no. The cache is on by default and creates
+            // the directory on the first fetch, so "off" would be wrong before
+            // anything has been fetched -- and the path is what a tester
+            // actually needs in order to go and look.
+            // 顯示路徑而非是/否。快取預設開啟，並於第一次抓取時建立目錄，因此在抓取任何東西之前
+            // 顯示「已關閉」是錯的——而測試者真正需要的，正是那個可以前往查看的路徑。
+            Text("cache dir -> \(P26Cache.directory?.path ?? "unknown")")
             Text(
-                P26Cache.isEnabled
-                    ? "cache -> ON (appCache exists beside the executable)"
-                    : "cache -> OFF (no appCache directory beside the executable)"
+                "dir exists -> \(P26Cache.exists)   "
+                    + "index rows -> \(P26Cache.indexRowCount)   "
+                    + "artifacts -> \(P26Cache.artifactCount)"
             )
-            Text("index rows -> \(P26Cache.indexRowCount)   artifacts -> \(P26Cache.artifactCount)")
 
             // Press this while the image is loading. A response means the fetch
             // is not on the layout path, which is the whole difference between
@@ -338,7 +380,12 @@ struct P26SwiftCrossUITab: View {
             // AsyncImage 與舊的 Image(url:) 行為之間的全部差異，也是截圖唯一無法呈現的東西。
             Button("Clicks during load: \(clicks)") { clicks += 1 }
 
-            AsyncImage(url: url) { phase in
+            // `-force` picks the policy that always fetches the body, so a
+            // tester can see the difference between a cached run and a forced
+            // one without editing anything.
+            // `-force` 會選用「一律抓取完整 body」的政策，使測試者無須修改任何內容，即可看出
+            // 「使用快取的執行」與「強制更新的執行」之間的差異。
+            AsyncImage(url: url, policy: policy) { phase in
                 if let image = phase.image {
                     image.resizable()
                 } else {
