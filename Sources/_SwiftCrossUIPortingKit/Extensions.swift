@@ -1,22 +1,25 @@
-import CoreFoundation
+import Foundation
 
-extension CoreFoundation.CGRect: Swift.Equatable {
-    public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
-        lhs.origin == rhs.origin && lhs.size == rhs.size
+// These types are already Equatable on non-Apple platforms
+#if canImport(Darwin)
+    extension Foundation.CGRect: Swift.Equatable {
+        public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
+            lhs.origin == rhs.origin && lhs.size == rhs.size
+        }
     }
-}
 
-extension CoreFoundation.CGPoint: Swift.Equatable {
-    public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
-        lhs.x == rhs.x && lhs.y == rhs.y
+    extension Foundation.CGPoint: Swift.Equatable {
+        public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
+            lhs.x == rhs.x && lhs.y == rhs.y
+        }
     }
-}
 
-extension CoreFoundation.CGSize: Swift.Equatable {
-    public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
-        lhs.width == rhs.width && lhs.height == rhs.height
+    extension Foundation.CGSize: Swift.Equatable {
+        public static func == (_ lhs: Self, _ rhs: Self) -> Bool {
+            lhs.width == rhs.width && lhs.height == rhs.height
+        }
     }
-}
+#endif
 
 @available(iOS 15.0, macOS 10.15, tvOS 15.0, visionOS 1.0, watchOS 9.0, *)
 extension ControlSize {
