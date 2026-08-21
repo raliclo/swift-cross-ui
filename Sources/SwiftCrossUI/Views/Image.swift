@@ -86,7 +86,25 @@ extension Image: TypeSafeView {
                 case .url(let url, let useFileExtension):
                     // TODO: Propagate these errors somewhere. Maybe even just as trace
                     //   log messages.
-                    if let data = try? Data(contentsOf: url) {
+                    //
+                    // File URLs only. `Data(contentsOf:)` will happily fetch an
+                    // `https` URL, synchronously, and this runs inside
+                    // `computeLayout` -- so a remote image stalled the whole
+                    // interface for the length of the request, on every layout
+                    // pass, with no cancellation and no way to show anything
+                    // meanwhile. It looked supported, which is worse than not
+                    // being supported.
+                    //
+                    // ``AsyncImage`` is the remote one. It fetches off the
+                    // layout path and caches to disk.
+                    //
+                    // 僅限 file URL。`Data(contentsOf:)` 會毫不猶豫地同步抓取 `https` URL，而
+                    // 此處位於 `computeLayout` 之內——因此遠端影像會在每一次 layout pass 中，以
+                    // 整個請求的時間長度凍結整個介面，既無法取消，期間也無從顯示任何內容。它看起來
+                    // 像是受支援的，而那比不支援更糟。
+                    //
+                    // 遠端影像請用 ``AsyncImage``：它在 layout 路徑之外抓取，並快取至磁碟。
+                    if url.isFileURL, let data = try? Data(contentsOf: url) {
                         let bytes = Array(data)
                         if useFileExtension {
                             image = try? ImageFormats.Image<RGBA>.load(
