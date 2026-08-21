@@ -9,6 +9,72 @@ struct NavigationStackRootPath: Codable {}
 /// children, unlike Apple's SwiftUI API.
 public struct NavigationStack<Detail: View>: View {
     public var body: some View {
+        // Default alignment, deliberately. Forcing `.leading` here put the bar
+        // where it belongs but also dragged every existing stack's content to
+        // the left edge -- measured on P24, whose centred content moved. The
+        // bar's own `Spacer` already makes it fill the width and hold the
+        // button at the leading edge, so the wrapper does not need an opinion
+        // and should not have one.
+        //
+        // 刻意使用預設對齊。在此強制 `.leading` 雖能把返回列放到正確位置，卻同時把所有既有堆疊的
+        // 內容一併拉到左緣——於 P24 實測，其原本置中的內容位移了。返回列自身的 `Spacer` 已使其撐滿
+        // 寬度並將按鈕固定在前緣，因此外層包裝不需要、也不應該有自己的對齊主張。
+        VStack(spacing: 0) {
+            if elements.count > 1 {
+                navigationBar
+            }
+            currentDestination
+        }
+    }
+
+    /// A back control, shown whenever anything has been pushed.
+    ///
+    /// Built from ordinary views rather than asked of the backend, so every
+    /// backend gets it and none has to implement anything. A navigation bar is
+    /// a button and a label; there is nothing here a backend could do better,
+    /// and a `BackendFeatures` protocol for it would mean a stack with no way
+    /// back on any backend that had not implemented it yet.
+    ///
+    /// Until this existed a `NavigationStack` could be pushed but never popped:
+    /// `body` rendered only `elements.last`, on every backend, so the only way
+    /// back was whatever the application happened to provide. Measured on P24,
+    /// which pushed to level 3 and then had nowhere to go.
+    ///
+    /// The label matches SwiftUI's fallback. SwiftUI shows the previous view's
+    /// title and says "Back" when there is none; there are no navigation titles
+    /// here yet, so the fallback is the whole of it. When
+    /// ``View/navigationTitle(_:)`` lands, this is where it reads from.
+    ///
+    /// 只要曾經推入任何內容，就會顯示的返回控制項。
+    ///
+    /// 由一般 view 組成，而非向 backend 索取，因此每個 backend 都能取得，且無需任何實作。導覽列
+    /// 不過是一個按鈕加一段文字，此處沒有任何 backend 能做得更好之處；而若為它另立
+    /// `BackendFeatures` 協定，只會導致「在尚未實作它的 backend 上，堆疊完全無法返回」。
+    ///
+    /// 在此之前，`NavigationStack` 只能推入、無法彈出：`body` 在所有 backend 上都只繪製
+    /// `elements.last`，因此唯一的返回途徑是應用程式自行提供的。此問題於 P24 實測發現——推入至
+    /// 第 3 層後便無路可退。
+    ///
+    /// 標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時則顯示「Back」；
+    /// 此處尚無導覽標題，因此後備文字即為全部。待 ``View/navigationTitle(_:)`` 加入後，此處便是
+    /// 它的讀取點。
+    @ViewBuilder
+    private var navigationBar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                Button("‹ Back") {
+                    path.wrappedValue.removeLast()
+                }
+                Spacer()
+            }
+            .padding(8)
+
+            Divider()
+        }
+    }
+
+    @ViewBuilder
+    private var currentDestination: some View {
         if let element = elements.last {
             if let content = child(element) {
                 content

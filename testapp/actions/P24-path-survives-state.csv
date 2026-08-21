@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note
+# P24 step 4 on its own: does the path survive a state change?
+#
+# Split out from P24-record-and-pop.csv because that file ends at the root, and
+# the root looks the same whether the path survived or was rebuilt. This one
+# stops one Back after the counter change, so the screenshot has to read
+# `Level 2` -- anything else means the state change disturbed the history.
+#
+# `counter -> 2` in the same frame is what makes it a state change rather than
+# an idle pause.
+#
+# P24 步驟 4 單獨執行：路徑能否在狀態變更後存活？
+#
+# 從 P24-record-and-pop.csv 拆出，因為該檔結束於根層，而無論路徑是存活或被重建，根層看起來都一樣。
+# 本檔在計數器變更後只按一次 Back 便停下，因此截圖必須顯示 `Level 2`——若非如此，代表該次狀態變更
+# 擾動了歷史。
+#
+# 同一畫面中的 `counter -> 2` 正是使其成為「狀態變更」而非「閒置等待」的依據。
+click,293,362,,left,,,Push level 1
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 2
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 3
+sleep,,,,,,700000,
+click,94,231,,left,,,Increment counter
+sleep,,,,,,400000,
+click,94,231,,left,,,again
+sleep,,,,,,600000,
+click,63,282,,left,,,one Back -- must land on Level 2
+sleep,,,,,,1500000,hold for the screenshot

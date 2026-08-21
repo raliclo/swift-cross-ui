@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note
+# P24 step 2: push three levels, then go back through them.
+#
+# The screenshot at the end is taken at what should be level 0 -- root text,
+# and no back bar, since the bar only exists when something is pushed. That the
+# bar disappears is itself part of the check: a bar still showing at the root
+# would mean the path emptied but the view did not notice.
+#
+# The debug log carries the ordering. This file only proves where it ended up;
+# `Level 3` -> `Level 2` -> `Level 1` -> `Level 0` in between is what step 2
+# actually asks for, and a run that skipped a level would still finish here.
+#
+# P24 步驟 2：推入三層，再依序返回。
+#
+# 結尾的截圖應停在第 0 層——根層文字，且沒有返回列，因為該列只有在有推入內容時才存在。「返回列
+# 消失」本身也是檢查的一部分：若根層仍顯示該列，代表路徑已清空但視圖並未察覺。
+#
+# 順序由 debug log 承載。本檔僅證明最終停在何處；中間的 `Level 3` -> `Level 2` -> `Level 1`
+# -> `Level 0` 才是步驟 2 真正要求的內容，而一次跳過某層的執行同樣會停在這裡。
+click,293,362,,left,,,Push level 1
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 2
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 3
+sleep,,,,,,900000,
+click,63,282,,left,,,Back to level 2
+sleep,,,,,,700000,
+click,63,282,,left,,,Back to level 1
+sleep,,,,,,700000,
+click,63,282,,left,,,Back to level 0
+sleep,,,,,,1200000,hold for the screenshot

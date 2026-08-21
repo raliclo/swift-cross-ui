@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note
+# P24 step 1: push three levels.
+#
+# Also the reconnaissance for steps 2-5. The plan asks to "go back through
+# them", and nothing in the root screenshot says how -- whether GtkBackend gives
+# a NavigationStack a back button, and where it puts it, is what the screenshot
+# at the end of this answers.
+#
+# The push button keeps its position between levels because every level renders
+# the same shape, so one coordinate serves all three.
+#
+# P24 步驟 1：推入三層。
+#
+# 同時也是步驟 2-5 的先期偵察。計畫要求「依序返回」，但根層的截圖並未說明如何返回——GtkBackend
+# 是否為 NavigationStack 提供返回按鈕、以及放在哪裡，正是本檔結尾的截圖要回答的。
+#
+# 由於每一層都繪製相同的結構，推入按鈕在各層之間位置不變，因此單一座標即可服務三層。
+# The first push is aimed at the root layout and the rest at the pushed one.
+# They differ because the back bar only exists once something has been pushed,
+# and its full-width row makes the stack fill the window -- so the content
+# reflows once, between level 0 and level 1, and then stays put.
+# 第一次推入對準的是根層版面，其餘則對準推入後的版面。兩者不同，是因為返回列只有在推入之後才
+# 存在，而其全寬的橫列會使堆疊撐滿視窗——因此內容會在第 0 層與第 1 層之間重排一次，之後便固定。
+click,293,362,,left,,,Push level 1 -- root layout
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 2 -- with the bar present
+sleep,,,,,,700000,
+click,353,386,,left,,,Push level 3
+sleep,,,,,,1200000,hold for the screenshot

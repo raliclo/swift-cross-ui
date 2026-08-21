@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note
+# P24 steps 3, 4 and 5 in one run, because each depends on the state the last
+# one left.
+#
+# 3: press `Record a push` at every level. `pushes recorded` is kept outside the
+#    stack on purpose, so it disagreeing with the level shown is the finding.
+#    Three pushes and three presses should end at `pushes recorded -> 3` beside
+#    `Level 3`.
+# 4: `Increment counter` at depth, then one `Back`. The path must survive a
+#    state change -- landing anywhere but `Level 2` means the push history was
+#    rebuilt rather than kept.
+# 5: `Pop to root` resets the screen and `pushes recorded`. The app resets
+#    `pushCount` but deliberately does *not* reset `counter`, so the screenshot
+#    should show `counter -> 2` at the root. A counter of 0 there would mean
+#    something reset more than it was asked to.
+#
+# P24 步驟 3、4、5 合併於一次執行，因為每一步都依賴前一步留下的狀態。
+#
+# 3：在每一層按 `Record a push`。`pushes recorded` 刻意置於堆疊之外，因此它與畫面所示層級不一致
+#    即為發現。三次推入加三次按下，應在 `Level 3` 旁得到 `pushes recorded -> 3`。
+# 4：於深層按 `Increment counter`，再按一次 `Back`。路徑必須能在狀態變更後存活——若停在 `Level 2`
+#    以外的任何地方，代表推入歷史是被重建而非被保留。
+# 5：`Pop to root` 會重置畫面與 `pushes recorded`。該 app 會重置 `pushCount`，但刻意**不**重置
+#    `counter`，因此截圖在根層應顯示 `counter -> 2`。若該處為 0，代表某個東西重置的範圍超出了
+#    被要求的範圍。
+click,300,402,,left,,,Record a push at level 0 -- root layout
+sleep,,,,,,500000,
+click,293,362,,left,,,Push level 1
+sleep,,,,,,700000,
+click,360,426,,left,,,Record a push at level 1
+sleep,,,,,,500000,
+click,353,386,,left,,,Push level 2
+sleep,,,,,,700000,
+click,360,426,,left,,,Record a push at level 2
+sleep,,,,,,500000,
+click,353,386,,left,,,Push level 3
+sleep,,,,,,700000,
+click,94,231,,left,,,Increment counter at depth
+sleep,,,,,,400000,
+click,94,231,,left,,,again -- counter reads 2
+sleep,,,,,,500000,
+click,63,282,,left,,,Back -- the path must have survived the state change
+sleep,,,,,,900000,
+click,230,231,,left,,,Pop to root
+sleep,,,,,,1500000,hold for the screenshot

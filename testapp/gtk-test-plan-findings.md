@@ -1023,21 +1023,78 @@ labels=32 headers=4`，代表 widget 走訪確實觸及了每一個 label——�
 並且會靜默地使任何「測試對象位於量測 overlay 之下」的檢查失效。此問題另行追蹤；P23 的表格已不再
 被包裝，理由記於原始碼中。
 
-## P24: remaining steps (2-5)
+## P24: all steps pass -- after fixing a core defect that made step 2 impossible
 
-Not run this sweep, time did not allow: go back through pushed levels in
-order, `Record a push` counter against the displayed level, `Increment
-counter` surviving a pop, and `Pop to root` resetting both. Step 1 (push
-three levels) was already confirmed working in an earlier sweep.
+| step | result |
+|---|---|
+| 1: push three levels | pass -- `Level 3` reached |
+| 2: go back through them in order | **pass, once a back control existed at all** -- three presses return `Level 2`, `Level 1`, `Level 0`, and the bar disappears at the root, which is itself part of the check: a bar still showing there would mean the path emptied and the view did not notice |
+| 3: `Record a push` against the level shown | pass -- three presses at levels 0, 1, 2 give `pushes 3` in the same log line as `Level 3` on screen; the counter lives outside the stack, so agreement is the finding |
+| 4: `Increment counter` at depth, then back | pass -- one `Back` after two increments lands on `Level 2` with `counter -> 2` in the same frame, so the state change did not disturb the history |
+| 5: `Pop to root` resets | pass -- `pushes recorded -> 0` and the root screen, with `counter -> 2` still showing. The app resets `pushCount` and deliberately not `counter`; a 0 there would have meant something reset more than it was asked to |
 
-本輪因時間不足未執行：依序返回已推入的層級、`Record a push` 計數器與畫面顯示層級的比對、
-`Increment counter` 在 pop 後是否留存、以及 `Pop to root` 是否同時重置兩者。步驟 1（推入
-三層）已於先前的執行中確認可運作。
+### Step 2 could not be performed at all, and it was not a GtkBackend defect
+
+`NavigationStack.body` rendered only `elements.last`. There was no navigation
+bar and no back control **on any backend** -- a stack could be pushed and never
+popped, and the only way back was whatever the application happened to provide.
+P24 pushed to level 3 and had nowhere to go.
+
+Fixed in core, not in GtkBackend, and built from ordinary views rather than
+asked of the backend. A navigation bar is a button and a label; there is nothing
+a backend could do better with it, and a `BackendFeatures` protocol would have
+meant a stack with no way back on every backend that had not implemented it yet.
+So every backend gets this at once.
+
+The label matches SwiftUI's fallback. SwiftUI shows the previous view's title
+and says "Back" when there is none; there are no navigation titles here yet, so
+the fallback is the whole of it, and `navigationTitle` is where this reads from
+when it lands.
+
+**Known consequence, recorded rather than discovered later.** The bar spans the
+full width, as SwiftUI's does, so the stack fills its container once something
+is pushed. The content therefore reflows once between the root and the first
+pushed level, and then stays put. A first attempt also set the wrapper to
+`alignment: .leading`, which put the bar in the right place and dragged every
+existing stack's content to the left edge; the bar's own `Spacer` already fills
+the width, so the wrapper carries no alignment opinion now.
+
+| 步驟 | 結果 |
+|---|---|
+| 1：推入三層 | 通過——抵達 `Level 3` |
+| 2：依序返回 | **通過，前提是先讓返回控制項存在**——三次按下依序回到 `Level 2`、`Level 1`、`Level 0`，且返回列在根層消失；這一點本身也是檢查的一部分：若根層仍顯示該列，代表路徑已清空而視圖並未察覺 |
+| 3：`Record a push` 與畫面層級比對 | 通過——於第 0、1、2 層各按一次，log 中 `pushes 3` 與畫面上的 `Level 3` 出現在同一行。該計數器位於堆疊之外，因此「一致」正是此處要的結果 |
+| 4：於深層 `Increment counter` 後返回 | 通過——兩次遞增後按一次 `Back` 停在 `Level 2`，同一畫面顯示 `counter -> 2`，故該狀態變更並未擾動歷史 |
+| 5：`Pop to root` 重置 | 通過——`pushes recorded -> 0` 且回到根層畫面，而 `counter -> 2` 仍在。該 app 會重置 `pushCount` 但刻意不重置 `counter`；若該處為 0，即代表某個東西重置的範圍超出了被要求的範圍 |
+
+**步驟 2 當時根本無法執行，且這不是 GtkBackend 的缺陷。** `NavigationStack.body` 只繪製
+`elements.last`。**所有 backend 上**都沒有導覽列、也沒有返回控制項——堆疊只能推入、永遠無法彈出，
+唯一的返回途徑是應用程式自行提供的。P24 推到第 3 層後便無路可退。
+
+修正落在 core 而非 GtkBackend，且以一般 view 組成而非向 backend 索取。導覽列不過是一個按鈕加一段
+文字，沒有任何 backend 能做得更好；而若為它另立 `BackendFeatures` 協定，只會導致「在尚未實作它的
+每一個 backend 上，堆疊都無法返回」。因此所有 backend 一次獲得此功能。
+
+標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時顯示「Back」；此處尚無
+導覽標題，因此後備文字即為全部，而 `navigationTitle` 加入後即由此處讀取。
+
+**已知後果，事先記錄而非日後才發現。** 該列與 SwiftUI 的導覽列一樣為全寬，因此一旦有推入內容，
+堆疊便會撐滿其容器。內容會在根層與第一個推入層之間重排一次，之後固定。第一版還曾將外層包裝設為
+`alignment: .leading`，那雖把列放到正確位置，卻同時把所有既有堆疊的內容拉到左緣；由於該列自身的
+`Spacer` 已能撐滿寬度，現在的包裝不帶任何對齊主張。
 
 ## Not yet run
 
-P24 steps 2-5 (P11, P12, P14 are out of scope on this Windows/WSL machine).
-Roughly 4 of the 190 steps.
+None. P24 steps 2-5 were the last, and closing them needed a core fix rather
+than more time: `NavigationStack` had no back control on any backend, so step 2
+was not a step anyone could have performed.
 
-尚未執行：P24 步驟 2-5（P11、P12、P14 在本 Windows/WSL 機器上超出範圍）。約當 190 步中的
-4 步。
+P11, P12 and P14 remain out of scope on this Windows/WSL machine -- 18 steps
+across macOS, Android and iOS. Of the 190 in the plan, the 172 that are
+reachable here have all been run.
+
+尚未執行：無。P24 步驟 2-5 是最後幾項，而要結案它們需要的是一項 core 修正而非更多時間：
+`NavigationStack` 在所有 backend 上都沒有返回控制項，因此步驟 2 根本不是任何人能執行的步驟。
+
+P11、P12、P14 在本 Windows/WSL 機器上仍屬範圍之外——橫跨 macOS、Android 與 iOS 共 18 步。計畫中
+的 190 步裡，此處可觸及的 172 步已全部執行。
