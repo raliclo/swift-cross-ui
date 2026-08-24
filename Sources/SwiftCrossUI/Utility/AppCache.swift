@@ -202,7 +202,13 @@ public actor AppCache {
     ///
     /// 命名沿用 `URLRequest.CachePolicy` 而非自創，因為熟悉 Foundation 的讀者已經知道這些名稱的
     /// 意義，另立一套詞彙只會讓他們得回頭查證。
-    public enum CachePolicy {
+    /// Declared `Sendable` because it is: a plain enum with no associated
+    /// values. Without it, passing a policy into `AsyncImage`'s `.task` was a
+    /// data-race warning at the isolation boundary, even though there is
+    /// nothing to race on.
+    /// 宣告為 `Sendable`，因為它本來就是：不帶關聯值的單純 enum。若不宣告，將 policy
+    /// 傳入 `AsyncImage` 的 `.task` 會在隔離邊界產生資料競爭警告，儘管根本無物可競爭。
+    public enum CachePolicy: Sendable {
         /// Serve from disk while an entry is current, revalidating when the
         /// server gave us something to revalidate with. The default, and what
         /// a cache is for.
@@ -519,13 +525,16 @@ public actor AppCache {
 
     private func writeIndex() throws {
         guard let directory, let index else { return }
+        // Hoisted out of the loop: one formatter per write, not one per row.
+        // 提到迴圈外：每次寫入建立一個 formatter，而非每列一個。
+        let formatter = Self.makeFormatter()
         var lines = Self.headers
         for (url, entry) in index.sorted(by: { $0.key < $1.key }) {
             lines.append(
                 [
                     url,
                     entry.artifact,
-                    Self.formatter.string(from: entry.fetchedAt),
+                    formatter.string(from: entry.fetchedAt),
                     entry.lastModified,
                     entry.etag,
                     "\(entry.bytes)",
@@ -562,6 +571,9 @@ public actor AppCache {
         // cached URL that happened to read "網址" would otherwise be dropped.
         // 略過兩列標頭而非一列。以位置而非文字比對來丟棄：一列之所以是標頭，取決於它的位置；
         // 否則若某個被快取的 URL 恰好是「網址」，該列便會被丟掉。
+        // Hoisted out of the loop: one formatter per read, not one per row.
+        // 提到迴圈外：每次讀取建立一個 formatter，而非每列一個。
+        let formatter = makeFormatter()
         for line in text.split(whereSeparator: \.isNewline).dropFirst(2) {
             let fields = parseRow(String(line))
             guard fields.count >= 6 else { continue }
@@ -624,11 +636,29 @@ public actor AppCache {
         return fields
     }
 
-    private static let formatter: ISO8601DateFormatter = {
+    /// A fresh formatter per call rather than one shared instance.
+    ///
+    /// `ISO8601DateFormatter` is a class with mutable state, and `static`
+    /// members sit outside actor isolation, so the two callers were not
+    /// serialised with respect to each other: `writeIndex()` runs on the actor
+    /// while `readIndex(at:)` is `static` and runs wherever it is called from.
+    /// Sharing it was a data race, not merely a warning.
+    ///
+    /// Creating one costs far less than the file I/O on either side of it, and
+    /// both callers make a single call per index rather than one per row.
+    /// 每次呼叫都建立新的 formatter，而非共用單一實例。
+    ///
+    /// `ISO8601DateFormatter` 是具有可變狀態的 class，而 `static` 成員位於 actor
+    /// 隔離之外，因此兩個呼叫端彼此並未被序列化：`writeIndex()` 在 actor 上執行，
+    /// 而 `readIndex(at:)` 是 `static`，會在其呼叫處執行。共用它是真正的資料競爭，
+    /// 而不只是一個警告。
+    ///
+    /// 建立成本遠低於其前後的檔案 I/O，且兩個呼叫端都是每個索引呼叫一次，而非每列一次。
+    private static func makeFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
-    }()
+    }
 
     // MARK: - Fetching
 
