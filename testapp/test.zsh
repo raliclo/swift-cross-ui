@@ -3,8 +3,13 @@
 #
 # Examples:
 #   zsh testapp/test.zsh P8 --both
-#   zsh testapp/test.zsh P8 --both --showtime 60
+#   zsh testapp/test.zsh P19 -win --actionfile     Windows only
 #   zsh testapp/test.zsh P7 --wsl -n
+#
+# Ctrl-C during a run closes the app rather than leaving it open; the target
+# and flags are parsed in test_support/test_common.zsh.
+# 執行期間按下 Ctrl-C 會關閉該 app，而非留下它開著；target 與旗標在
+# test_support/test_common.zsh 中解析。
 
 set -euo pipefail
 
@@ -16,7 +21,7 @@ Usage: test.zsh <P0..P17> [test options]
 
 Examples:
   zsh testapp/test.zsh P8 --both
-  zsh testapp/test.zsh P8 --both --showtime 60
+  zsh testapp/test.zsh P19 -win --actionfile
   zsh testapp/test.zsh P7 --wsl -n
 
 Single-test scripts live in testapp/test_support/test_Pn.zsh.

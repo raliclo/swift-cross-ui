@@ -120,7 +120,7 @@ default_action_file() {
 
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} [--wsl|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
+Usage: ${script_path:t} [--wsl|-win|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
 Default target: $target
@@ -135,7 +135,7 @@ EOF_USAGE
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -w|--wsl) target="wsl"; shift ;;
-        --windows) target="windows"; shift ;;
+        -win|--windows) target="windows"; shift ;;
         -b|--both) target="both"; shift ;;
         -n|--no-build) do_build=0; shift ;;
         --showtime)
@@ -531,6 +531,28 @@ run_wsl() {
     printf '==> Closed %s under WSLg\n' "$app"
     print_summary_wsl
 }
+
+# Ctrl-C closes the app rather than orphaning it.
+#
+# The app is launched detached -- a subshell on Windows, `disown` under WSLg --
+# so it outlives this script's own process group. Without this trap, Ctrl-C
+# during the showtime wait killed the runner and left the window open, and the
+# next run's `kill_existing` was the only thing that ever closed it. `kill_existing`
+# already knows how to close it on both platforms, so the trap reuses it and
+# exits with the conventional 130.
+#
+# Ctrl-C 會關閉該 app，而非使其成為孤兒行程。
+#
+# 該 app 以分離方式啟動——Windows 上是子 shell，WSLg 下是 `disown`——因此它的生命週期超出本腳本
+# 自身的行程群組。若無此 trap，在 showtime 等待期間按下 Ctrl-C 會結束執行器卻留下視窗開著，而唯一
+# 會關掉它的，是下一次執行的 `kill_existing`。`kill_existing` 本就知道如何在兩個平台上關閉它，因此
+# 此 trap 直接沿用，並以慣例的 130 結束。
+on_interrupt() {
+    printf '\n==> Interrupted; closing %s\n' "$app"
+    kill_existing
+    exit 130
+}
+trap on_interrupt INT
 
 kill_existing
 
