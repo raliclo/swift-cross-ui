@@ -214,14 +214,17 @@ public enum LayoutSystem {
             cache = StackLayoutCache(
                 priorityGroups: [group],
                 isHidden: results.map(\.participatesInStackLayouts).map(!),
-                // TODO(stackotter): How does SwiftUI handle space reservation during
-                //   relayouts? I feel like it probably doesn't use minimum lengths if
-                //   it didn't already have to during the initial layout pass because
-                //   the alternative would be expensive, but that approach would also
-                //   be a bit inconsistent
+                // A TODO stood here asking how SwiftUI handles space reservation
+                // during relayouts, and guessing that it probably does not use
+                // minimum lengths. The guess was right, and the question no
+                // longer arises: computeLayouts reserves only the spacing, so
+                // there is no reservation for a relayout to be inconsistent
+                // about. See the note at the share calculation.
+                // 此處原有一則 TODO，詢問 SwiftUI 在重新佈局時如何處理空間保留，並推測它多半
+                // 不使用 minimum 長度。該推測是對的，而這個問題也已不復存在：computeLayouts
+                // 只保留 spacing，因此不存在任何可能在重新佈局時前後不一致的保留量。
+                // 詳見份額計算處的說明。
                 totalSpacing: totalSpacing,
-                totalReservedSpace: totalSpacing,
-                minimumLengths: [Double](repeating: 0, count: children.count),
                 redistributeSpaceOnCommit: shouldRedistributeSpaceOnCommit(
                     proposedSize: proposedSize,
                     orientation: orientation
@@ -307,8 +310,6 @@ public enum LayoutSystem {
         maximumProposedSize[component: orientation] = .infinity
         var isHidden = [Bool](repeating: false, count: children.count)
         var priorities = [Double](repeating: 0, count: children.count)
-        var minimums = [Double](repeating: 0, count: children.count)
-        var totalReservedSpace = 0.0
         let flexibilities = children.enumerated().map { i, child in
             let minimumResult = child.computeLayout(
                 proposedSize: minimumProposedSize,
@@ -322,15 +323,12 @@ public enum LayoutSystem {
             priorities[i] = minimumResult.preferences.layoutPriority
             let maximum = maximumResult.size[component: orientation]
             let minimum = minimumResult.size[component: orientation]
-            totalReservedSpace += minimum
-            minimums[i] = minimum
             return maximum - minimum
         }
         let visibleChildrenCount = isHidden.filter { hidden in
             !hidden
         }.count
         let totalSpacing = Double(max(visibleChildrenCount - 1, 0) * spacing)
-        totalReservedSpace += totalSpacing
 
         let sortedChildren = zip(children.indices, zip(priorities.map(-), flexibilities))
             .sorted { first, second in
@@ -371,8 +369,6 @@ public enum LayoutSystem {
             priorityGroups: priorityGroups,
             isHidden: isHidden,
             totalSpacing: totalSpacing,
-            totalReservedSpace: totalReservedSpace,
-            minimumLengths: minimums,
             redistributeSpaceOnCommit: shouldRedistributeSpaceOnCommit(
                 proposedSize: proposedSize,
                 orientation: orientation

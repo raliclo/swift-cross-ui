@@ -11,11 +11,6 @@ struct StackLayoutCache {
     let isHidden: [Bool]
     /// The total amount of spacing used by the stack.
     let totalSpacing: Double
-    /// The total amount of space reserved. Equal to the total amount of spacing
-    /// plus the sum of the minimum length of each view.
-    let totalReservedSpace: Double
-    /// The minimum length of each view.
-    let minimumLengths: [Double]
     /// Whether to redistribute space on commit or not. `true` if and only if the
     /// stack was provided a proposed size with an unspecified perpendicular axis.
     let redistributeSpaceOnCommit: Bool
@@ -25,8 +20,6 @@ struct StackLayoutCache {
         priorityGroups: [],
         isHidden: [],
         totalSpacing: 0,
-        totalReservedSpace: 0,
-        minimumLengths: [],
         redistributeSpaceOnCommit: false
     )
 }
