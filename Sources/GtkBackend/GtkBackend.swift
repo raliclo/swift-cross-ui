@@ -32,7 +32,8 @@ public final class GtkBackend:
     BackendFeatures.Windowing,
     BackendFeatures.LinearGradients,
     BackendFeatures.RadialGradients,
-    BackendFeatures.HitTesting
+    BackendFeatures.HitTesting,
+    BackendFeatures.DragAndDrop
 {
     public typealias Window = Gtk.ApplicationWindow
     public typealias Widget = Gtk.Widget
@@ -1934,6 +1935,52 @@ public final class GtkBackend:
         gesture.leave = { _ in
             guard environment.isEnabled else { return }
             action(false)
+        }
+    }
+
+    // MARK: Drag and drop
+
+    public func createDropTarget(wrapping child: Widget) -> Widget {
+        child.addEventController(DropTarget())
+        return child
+    }
+
+    public func updateDropTarget(
+        _ dropTarget: Widget,
+        acceptedTypes: [DropType],
+        environment: EnvironmentValues,
+        onHover: @escaping (Bool) -> Void,
+        onDrop: @escaping ([DropItem]) -> Bool
+    ) {
+        let target =
+            dropTarget.eventControllers.first { $0 is DropTarget } as! DropTarget
+
+        // Map the cross-platform type identifiers onto the two GTypes the GTK
+        // drop target negotiates over. An unknown identifier is simply not
+        // offered, so a drag of that type is refused rather than mishandled.
+        let acceptsFiles = acceptedTypes.contains(.fileURL)
+        let acceptsText = acceptedTypes.contains(.plainText)
+        target.setAcceptedTypes(fileURLs: acceptsFiles, text: acceptsText)
+
+        target.onHover = { hovering in
+            guard environment.isEnabled else { return }
+            onHover(hovering)
+        }
+
+        // GTK delivers the payload as one value of the negotiated type. Rebuild
+        // the DropItem with the matching identifier and the bytes verbatim -- a
+        // file drop keeps its text/uri-list form, which is the platform
+        // difference P25 exists to show.
+        target.onDrop = { kind, contents in
+            guard environment.isEnabled else { return false }
+            let item: DropItem
+            switch kind {
+                case .fileURIList:
+                    item = DropItem(type: .fileURL, data: Data(contents.utf8))
+                case .text:
+                    item = DropItem(type: .plainText, data: Data(contents.utf8))
+            }
+            return onDrop([item])
         }
     }
 

@@ -1262,6 +1262,100 @@ reachable here have all been run.
 P11、P12、P14 在本 Windows/WSL 機器上仍屬範圍之外——橫跨 macOS、Android 與 iOS 共 18 步。計畫中
 的 190 步裡，此處可觸及的 172 步已全部執行。
 
+## P25: drag and drop -- feature added, compiles and renders; live drop needs a drag source
+
+SwiftCrossUI had no drag-and-drop API, so P25 could not exist. The feature was
+added rather than the app worked around a gap:
+
+- **SwiftCrossUI**: `View.onDrop(of:isTargeted:perform:)` in two forms -- a
+  typed-data core delivering `[DropItem]` and a URL convenience layer delivering
+  `[URL]` -- over a new `BackendFeatures.DragAndDrop`. The payload model is
+  typed data with URL/text convenience accessors, chosen so files (the case
+  everyone asks for first) are easy while text and other types are not shut out;
+  `DropItem` keeps the bytes verbatim rather than normalising a path into a URL,
+  because that difference across platforms is what the app exists to show.
+- **GtkBackend**: conforms to `DragAndDrop` over a hand-written `GtkDropTarget`
+  wrapper (`Sources/Gtk/Widgets/DropTarget.swift`) and C helpers
+  (`Sources/GtkCHelpers/gtk_dnd.c`). Hover feedback comes from the
+  `current-drop` property rather than the `enter`/`leave` signals, whose
+  `GdkDragAction` return decides acceptance and would be clobbered by a plain
+  observer; the `drop` signal is connected directly because it returns a
+  gboolean the `addSignal` helpers cannot express. The C side unpacks the
+  dropped `GValue` (a `GdkFileList` becomes a `text/uri-list`) since the GTypes
+  and `G_VALUE_HOLDS` macros are unreachable from Swift.
+- **P25**: two equally-sized areas. The accepting one offers files; the
+  refusing one offers a type nothing is dragged as, so the GTK target accepts no
+  matching gtype and the drag is refused -- visible only by contrast, since a
+  refused drag does not even highlight. Both show `state`/`received`/`type`/
+  `count` on separate lines, and colour-change on hover makes the feedback stage
+  observable before the drop.
+
+A runtime check of the parsing logic caught a real bug before it shipped: Swift
+treats a `"\r\n"` pair as a single grapheme cluster, so a `whereSeparator` test
+for `"\r"` or `"\n"` never matched it and a dropped `file://…\r\n` came back with
+the CRLF embedded as `%0D%0A`. Fixed by splitting on `Character.isNewline`, plus
+a `scheme != nil` filter so a plain-text line is not mistaken for a relative URL.
+
+**Verified**: all three parts compile on WSL against the real code (an earlier
+"pass" turned out to be a stale WSL checkout compiling old sources -- see the
+note below); the `DropItem` parsing is runtime-checked; P25 launches and renders
+both areas with no crash. **Not yet verified**: the live drop and hover, because
+a drag *source* is needed and WSL has no file manager installed, while `xdotool`
+cannot synthesise XDND (drag and drop is an OS negotiation, not the mouse events
+`InputEvent` sends). The `DummyBackend` unit test drives the protocol
+synthetically -- accept, refuse, hover, payload -- but cannot be executed here:
+neither platform runs the full `swift test`, WSL failing to build WinUIBackend
+(`wtypesbase.h`) and Windows failing to build GtkCHelpers (no GTK installed).
+The remaining verification is a hand-drag on Linux, and then Windows through
+GTK's OLE path.
+
+## P25：拖放——功能已加入，可編譯且能渲染；實際放置需要拖曳來源
+
+SwiftCrossUI 原本沒有拖放 API，因此 P25 無從存在。此處是把功能加上，而非讓 app 繞過缺口：
+
+- **SwiftCrossUI**：`View.onDrop(of:isTargeted:perform:)` 兩種形式——交付 `[DropItem]` 的
+  具型別核心，與交付 `[URL]` 的 URL 便利層——底層為新的 `BackendFeatures.DragAndDrop`。酬載模型
+  採具型別資料加上 URL/文字便利存取，使檔案（最先被要求的情境）容易處理，同時不排除文字等型別；
+  `DropItem` 原樣保留位元組而不把路徑正規化為 URL，因為跨平台的該項差異正是這支 app 要呈現的。
+- **GtkBackend**：以手寫的 `GtkDropTarget` 包裝（`Sources/Gtk/Widgets/DropTarget.swift`）與 C
+  輔助（`Sources/GtkCHelpers/gtk_dnd.c`）實作 `DragAndDrop`。懸停回饋取自 `current-drop` 屬性，
+  而非 `enter`/`leave` signal——後者回傳的 `GdkDragAction` 決定是否接受，會被單純的觀察者覆蓋；
+  `drop` signal 直接連接，因它回傳 `addSignal` 輔助無法表達的 gboolean。C 端解包放下的 `GValue`
+  （`GdkFileList` 轉為 `text/uri-list`），因為相關 GType 與 `G_VALUE_HOLDS` 巨集 Swift 看不到。
+- **P25**：兩個大小相同的區域。接受區宣告接受檔案；拒絕區宣告一種不會被拖入的型別，因此 GTK
+  target 不接受任何相符 gtype 而拖曳被拒——只能藉由對照而可見，因為被拒的拖曳連高亮都不會。兩區皆
+  以獨立行顯示 `state`/`received`/`type`/`count`，並於懸停時變色，使回饋階段在放置前即可觀察。
+
+對解析邏輯的一次執行期檢查，在出貨前抓到一個真實 bug：Swift 把 `"\r\n"` 視為單一 grapheme
+cluster，因此以 `whereSeparator` 比對 `"\r"` 或 `"\n"` 永不匹配，導致放下的 `file://…\r\n` 回來時
+CRLF 以 `%0D%0A` 內嵌其中。改以 `Character.isNewline` 切分，並加上 `scheme != nil` 過濾，使純文字
+一行不會被誤認為相對 URL。
+
+**已驗證**：三個部分皆在 WSL 上以真實程式碼編譯通過（先前一次「通過」其實是 WSL 舊 checkout 編到舊
+碼——見下方註記）；`DropItem` 解析已執行期檢查；P25 能啟動並渲染兩個區域、無 crash。**尚未驗證**：
+實際放置與懸停，因為需要拖曳*來源*，而 WSL 未安裝檔案管理員，`xdotool` 也無法合成 XDND（拖放是
+作業系統層級的協商，而非 `InputEvent` 送出的滑鼠事件）。`DummyBackend` 單元測試以合成方式驅動協定
+——接受、拒絕、懸停、酬載——但此處無法執行：兩個平台都跑不了完整的 `swift test`，WSL 建不了
+WinUIBackend（`wtypesbase.h`），Windows 建不了 GtkCHelpers（未安裝 GTK）。剩餘驗證為 Linux 上的手動
+拖曳，其後再走 Windows 的 GTK OLE 路徑。
+
+### Note: the WSL checkout is a separate, stale copy
+
+The build machine has two checkouts. `C:\…\swift-cross-ui` is the git repo the
+edits land in; `/home/lowei/proj/swift-cross-ui` is a non-git copy (restored by
+rsync after an earlier incident) that carries the 1.2G Linux `.build`, and is
+where Gtk builds run. Edits on the Windows side do **not** appear on the WSL copy
+on their own, so a WSL build can compile the *old* sources and report success --
+which happened once here before the sources were rsynced across. Sync first,
+then trust the build.
+
+### 註記：WSL 的 checkout 是另一份、且會過期的複本
+
+建置機器有兩個 checkout。`C:\…\swift-cross-ui` 是編輯落地的 git repo；
+`/home/lowei/proj/swift-cross-ui` 是非 git 複本（先前事件後以 rsync 還原），存放 1.2G 的 Linux
+`.build`，也是 Gtk 建置執行之處。Windows 端的編輯不會自動出現在 WSL 複本上，因此 WSL 建置可能編到
+*舊*程式碼卻回報成功——此處在把程式碼 rsync 過去之前就發生過一次。先同步，再信任建置結果。
+
 ## Win32Synthesiser on Windows -- movement and replay verified, clicks do not activate
 
 The action-file machinery runs on Windows once two environment problems are out

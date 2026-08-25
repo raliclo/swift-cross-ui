@@ -60,6 +60,45 @@ extern const GConnectFlags SHIM_G_CONNECT_AFTER;
 extern const GConnectFlags SHIM_G_CONNECT_SWAPPED;
 extern const GApplicationFlags SHIM_G_APPLICATION_HANDLES_OPEN;
 
+// Drag-and-drop (drop target) helpers. GtkDropTarget negotiates over GTypes,
+// but the ones we want -- a string and a list of files -- are only reachable in
+// C via macros (G_TYPE_STRING) or per-instance getters (GDK_TYPE_FILE_LIST),
+// neither of which Swift can see. And a dropped GValue has to be turned into
+// bytes, which means touching GdkFileList/GFile and the G_VALUE_HOLDS macros.
+// All of that lives here so the Swift side deals only in GType and char*.
+//
+// Declared in this existing header, not a new one, for the umbrella-module
+// reason noted above.
+//
+// 拖放（drop target）輔助函式。GtkDropTarget 以 GType 進行協商，但我們要的兩種——字串與檔案清單
+// ——在 C 中只能透過巨集（G_TYPE_STRING）或每實例的 getter（GDK_TYPE_FILE_LIST）取得，兩者 Swift
+// 都看不到。而放下的 GValue 也必須轉為位元組，這需碰觸 GdkFileList/GFile 與 G_VALUE_HOLDS 巨集。
+// 這些全放在此處，讓 Swift 端只需處理 GType 與 char*。
+//
+// 宣告放於此既有標頭而非新標頭，理由同上方的 umbrella 模組註記。
+
+// The GType a drop target should accept for plain UTF-8 text.
+GType scui_gtype_string(void);
+
+// The GType a drop target should accept for one or more files.
+GType scui_gtype_file_list(void);
+
+// The GdkDragAction bitmask for a copy -- the only action we request.
+GdkDragAction scui_drag_action_copy(void);
+
+// What kind of payload a dropped GValue carries: 1 = file list, 2 = string,
+// 0 = neither (a type we did not offer, so the caller should refuse it).
+int scui_drop_value_kind(const GValue *value);
+
+// For a file-list value, a newly-allocated text/uri-list: CRLF-separated
+// file:// URIs, one per file. NULL if the value is not a file list. The caller
+// owns the result and must g_free it.
+char *scui_drop_value_uri_list(const GValue *value);
+
+// For a string value, a newly-allocated copy of it. NULL if the value is not a
+// string. The caller owns the result and must g_free it.
+char *scui_drop_value_string(const GValue *value);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

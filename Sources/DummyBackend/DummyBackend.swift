@@ -7,7 +7,8 @@ public final class DummyBackend:
     BackendFeatures.CornerRadius,
     BackendFeatures.Tables,
     BackendFeatures.Colors,
-    BackendFeatures.Windowing
+    BackendFeatures.Windowing,
+    BackendFeatures.DragAndDrop
 {
     public class Window {
         static let defaultSize = SIMD2<Int>(400, 200)
@@ -158,6 +159,30 @@ public final class DummyBackend:
 
         public override func getChildren() -> [Widget] {
             children.map(\.widget)
+        }
+    }
+
+    public class DropTarget: Widget {
+        public var child: Widget
+        public var acceptedTypes: [DropType] = []
+        public var onHover: ((Bool) -> Void)?
+        public var onDrop: (([DropItem]) -> Bool)?
+
+        public init(child: Widget) {
+            self.child = child
+        }
+
+        public override func getChildren() -> [Widget] {
+            [child]
+        }
+
+        /// Simulates a drop, so a test can drive the target without a window.
+        /// Returns the target's own accept/refuse result, or `false` if none of
+        /// the dropped items' types are accepted (the refusal path).
+        public func simulateDrop(_ items: [DropItem]) -> Bool {
+            let accepts = items.contains { acceptedTypes.contains($0.type) }
+            guard accepts, let onDrop else { return false }
+            return onDrop(items)
         }
     }
 
@@ -425,6 +450,23 @@ public final class DummyBackend:
 
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
         widget.size = size
+    }
+
+    public func createDropTarget(wrapping child: Widget) -> Widget {
+        DropTarget(child: child)
+    }
+
+    public func updateDropTarget(
+        _ dropTarget: Widget,
+        acceptedTypes: [DropType],
+        environment: EnvironmentValues,
+        onHover: @escaping (Bool) -> Void,
+        onDrop: @escaping ([DropItem]) -> Bool
+    ) {
+        let dropTarget = dropTarget as! DropTarget
+        dropTarget.acceptedTypes = acceptedTypes
+        dropTarget.onHover = onHover
+        dropTarget.onDrop = onDrop
     }
 
     public func createScrollContainer(for child: Widget) -> Widget {
