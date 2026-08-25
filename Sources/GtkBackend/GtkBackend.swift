@@ -33,7 +33,8 @@ public final class GtkBackend:
     BackendFeatures.LinearGradients,
     BackendFeatures.RadialGradients,
     BackendFeatures.HitTesting,
-    BackendFeatures.DragAndDrop
+    BackendFeatures.DragAndDrop,
+    BackendFeatures.Clipping
 {
     public typealias Window = Gtk.ApplicationWindow
     public typealias Widget = Gtk.Widget
@@ -772,10 +773,30 @@ public final class GtkBackend:
     }
 
     public func createCornerRadiusContainer(wrapping child: Widget) -> Widget {
-        child
+        // SwiftUI's cornerRadius rounds *and* clips: a child larger than the box
+        // is cut to it. AppKit does this with clipsToBounds and WinUI with a
+        // geometric clip; GtkBackend was the one backend that only styled and
+        // never clipped, which is #389. Clip through the same ClipFixed the
+        // explicit clipped() uses -- a plain overflow: hidden does not work here
+        // because a GtkFixed over-allocates to an oversized child and then clips
+        // the wrong box; the P17-DOE experiment showed this. ClipFixed clips to
+        // the size SwiftCrossUI decided instead.
+        let container = ClipFixed()
+        container.put(child, x: 0, y: 0)
+        return container
+    }
+
+    // The explicit counterpart, clipped(), through the same clipping container.
+    public func createClippedContainer() -> Widget {
+        ClipFixed()
     }
 
     public func setCornerRadius(of widget: Widget, to radius: Int) {
+        // Rounds the corners of the ClipFixed the container wraps content in; the
+        // clip itself is handled by ClipFixed. A rounded radius rounds the border
+        // visually while the clip stays rectangular -- exact for radius 0 (P3's
+        // case) and a strict improvement for larger radii, where the old code did
+        // not clip at all. A rounded clip would need gtk_snapshot_push_rounded_clip.
         widget.css.set(property: .cornerRadius(radius))
     }
 

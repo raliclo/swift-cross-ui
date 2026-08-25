@@ -51,6 +51,20 @@ GtkWidget *gtk_passthrough_fixed_new(void);
 // 都仍可點擊。
 void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque);
 
+// A GtkFixed that clips its children to its own size request rather than letting
+// them draw past it. This is the #389 clip: a plain GtkFixed measures to the
+// bounding box of its children, so a child larger than the frame makes the
+// container get allocated the child's size, and overflow: hidden then clips to
+// that larger box -- i.e. not at all. This widget's measure returns its
+// size request instead, so the allocation is the frame, and it also pushes a
+// clip in snapshot so the cut happens regardless.
+//
+// 一個會將子元件裁切至「自身 size request」的 GtkFixed,而非任由子元件畫到框外。此即 #389 的裁切:
+// 一般 GtkFixed 會 measure 成其子元件的外接框,因此比框更大的子元件會使容器被 allocate 成子元件的
+// 尺寸,overflow: hidden 便裁到那個較大的框——形同沒裁。此 widget 的 measure 改為回傳其 size
+// request,使 allocation 即為該框,並於 snapshot 中推入 clip,確保裁切確實發生。
+GtkWidget *scui_clip_fixed_new(void);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the
