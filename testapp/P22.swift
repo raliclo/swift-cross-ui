@@ -68,18 +68,48 @@ enum P22Diagnostics {
         value.isFinite ? "\(Int(value))" : "unbounded"
     }
 
+    // Stored, not written. A GeometryReader's closure runs on every layout
+    // pass, and the layout system probes each view's flexibility by proposing
+    // it width 0 and width infinity before the real layout. Under those probes
+    // the wrapping sample text collapses to a tall thin strip or stretches wide,
+    // so writing on every change produced two contradictory lines per sample --
+    // one real, one degenerate. P22 exists to compare the real widths, and two
+    // numbers per sample leave nothing to compare.
+    //
+    // Keeping only the latest value per label and flushing once, after the
+    // window has settled, reports the committed layout: the real distribution
+    // runs after the flexibility probes, so the last size recorded for a label
+    // is the one on screen.
+    //
+    // 只儲存、不即時寫入。GeometryReader 的 closure 在每一次 layout pass 都會執行，而 layout
+    // 系統會在真正布局之前，以寬度 0 與寬度無限大探測每個 view 的彈性。在這些探測之下，會換行的
+    // 樣本文字會塌縮成細高長條或被拉寬，因此「每次變動就寫入」會使每個樣本產生兩行互相矛盾的結果
+    // ——一行真實、一行退化。P22 的目的是比較真實寬度，而每個樣本兩個數字等於沒有東西可比。
+    //
+    // 只保留每個 label 的最新值、並於視窗穩定後一次輸出，即可回報已提交的布局：真正的分配發生於
+    // 彈性探測之後，因此某個 label 最後被記錄的尺寸，正是螢幕上的那一個。
     static func record(label: String, size: ViewSize) {
         guard isEnabled else { return }
-        let line = "\(label): \(describe(size.width)) x \(describe(size.height))"
-        guard lastReported[label] != line else { return }
-        lastReported[label] = line
-        write(line)
+        lastReported[label] = "\(describe(size.width)) x \(describe(size.height))"
     }
 
+    // Deferred, because onAppear fires before layout has recorded anything.
+    // onAppear runs when the view is added, and the sample sizes are recorded
+    // during the layout passes that follow -- so flushing immediately reported
+    // an empty set. A second is long after the window has settled; by then each
+    // label holds its committed size.
+    // 延後執行，因為 onAppear 在 layout 記錄任何內容之前就會觸發。onAppear 在 view 被加入時執行，
+    // 而樣本尺寸是在其後的 layout pass 中記錄的——因此立即輸出會回報一組空值。一秒遠在視窗穩定
+    // 之後；屆時每個 label 都已持有其已提交的尺寸。
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P22 ready for text style checks")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            for label in lastReported.keys.sorted() {
+                write("\(label): \(lastReported[label]!)")
+            }
+            write("RENDER COMPLETE -- P22 ready for text style checks")
+        }
     }
 }
 

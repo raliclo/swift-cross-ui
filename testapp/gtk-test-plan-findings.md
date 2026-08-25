@@ -174,9 +174,9 @@ HStack 子元件排序一文）。在 172 之下，第一個子元件現在被�
 
 ## Instrumentation defect
 
-### P22 reports two sizes per sample
+### P22 reports two sizes per sample — **fixed**
 
-Each of the eight font samples reports two different measurements, one sensible
+Each of the eight font samples reported two different measurements, one sensible
 and one not:
 
 ```
@@ -186,17 +186,45 @@ and one not:
 17 body:      23 x 555     the same wrong shape
 ```
 
-The rendering is correct -- the size ladder, the wrapping and the three
-alignment rows all look right. But P22 exists to compare reported widths rather
-than appearance, and two contradictory numbers per sample leave nothing to
-compare. The measuring overlay is being asked for a size under a second,
-degenerate proposal and records both.
+The rendering was correct. But P22 exists to compare reported widths, and two
+contradictory numbers per sample left nothing to compare.
 
-八個字型樣本各回報兩組不同的量測值，其一合理、其一不合理（如上）。
+**Cause.** An instrumentation artifact, not a backend defect. The measuring
+wrapper reads its size from a `GeometryReader`, whose closure runs on every
+layout pass -- and the layout system probes each view's flexibility by proposing
+it width 0 and width infinity before the real layout. Under those probes the
+wrapping sample text collapses to a tall thin strip (`15 x 397`) or stretches,
+and the wrapper wrote both the probe size and the real one.
 
-繪製本身是正確的——字級階梯、換行與三列對齊看起來都無誤。但 P22 的存在目的是比較「回報的寬度」
-而非外觀，而每個樣本兩個互相矛盾的數字，等於沒有東西可比。量測用的 overlay 在第二次、退化的尺寸
-提議下被詢問，並將兩者都記錄了下來。
+**Fix, app-side.** The wrapper now keeps only the latest size per label and
+writes them once, a second after `onAppear`. The real distribution runs after
+the flexibility probes, so the last size recorded for a label is the committed
+one. The delay matters: `onAppear` fires before layout has recorded anything, so
+flushing immediately reported an empty set.
+
+Verified: one plausible line per sample, widths and heights rising monotonically
+with font size, the degenerate strips gone.
+
+```
+11 caption: 185 x 13    17 body: 264 x 20    28 title 1: 449 x 33
+13 footnote: 226 x 16   20 title 3: 321 x 24  34 large title: 609 x 40
+15 subheadline: 288 x 18 22 title 2: 353 x 26  wrapped: 300 x 46
+```
+
+八個字型樣本原本各回報兩組不同的量測值，其一合理、其一不合理（如上）。
+
+繪製本身是正確的，但 P22 的目的是比較回報的寬度，而每個樣本兩個互相矛盾的數字等於沒有東西可比。
+
+**成因。** 這是量測的 artifact，而非 backend 缺陷。量測包裝從 `GeometryReader` 讀取尺寸，其 closure
+在每一次 layout pass 都會執行——而 layout 系統會在真正布局之前，以寬度 0 與寬度無限大探測每個 view
+的彈性。在這些探測之下，會換行的樣本文字會塌縮成細高長條（`15 x 397`）或被拉伸，而包裝把探測尺寸
+與真實尺寸都寫了下來。
+
+**修正，app 端。** 包裝現在只保留每個 label 的最新尺寸，並於 `onAppear` 之後一秒一次寫出。真正的
+分配發生於彈性探測之後，因此某個 label 最後被記錄的尺寸即為已提交的那一個。延遲是關鍵：`onAppear`
+在 layout 記錄任何內容之前就會觸發，因此立即輸出會回報一組空值。
+
+已驗證：每個樣本一行合理值，寬高皆隨字級單調遞增，退化的長條消失（如上）。
 
 ## Checks that pass
 
