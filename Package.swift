@@ -21,6 +21,10 @@ import PackageDescription
 //     for Android. It is off by default because AndroidBackendShim is a C target
 //     that includes <android/log.h>, which only the Android NDK provides: leaving
 //     it in the package makes every non-Android build fail while scanning it.
+// - SCUI_HOST_BACKENDS_ONLY : If `1`, drops the backends that cannot compile for
+//     the host (WinUIBackend and UIKitBackend on macOS) from the package. For
+//     running the test suite on a host that is not the target platform; see the
+//     note beside the flag below.
 
 let invokedByXcode: Bool
 #if os(macOS)
@@ -55,6 +59,40 @@ let androidBackendSupported: Bool
     androidBackendSupported = false
 #endif
 
+// `swift test` builds every target in the package, not just the test bundle and
+// what it imports, so a target that cannot compile for the host stops the suite
+// before a single test runs. On macOS two cannot: WinUIBackend pulls in
+// swift-winui, whose CWinRT needs the Windows SDK's <wtypesbase.h>, and
+// UIKitBackend imports UIKit, which has no macOS slice. Neither is fixable by
+// installing anything.
+//
+// Conditioning their *dependencies* on a platform does not help -- that was
+// tried, and the note on the WinUIBackend target below records why. What does
+// help is not declaring the targets at all, which is what this gate does.
+//
+// It is opt-in, like SCUI_ANDROID above, and for the same reason: a gate that
+// changes the manifest by default would change it for Windows, Linux, CI and
+// the iOS build too, all of which need these targets. Set it only for a host
+// test run:
+//
+//   SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I$(brew --prefix)/include
+//
+// testapp/install_tool_mac.zsh prints that command and explains the -Xcc flag.
+//
+// `swift test` 會建置套件中的每一個 target，而非僅測試 bundle 及其 import 的部分，
+// 因此只要有一個 target 無法為主機平台編譯，整個測試套件在任何測試執行之前就會中止。
+// 在 macOS 上有兩個屬於此類：WinUIBackend 會引入 swift-winui，其 CWinRT 需要 Windows
+// SDK 的 <wtypesbase.h>；UIKitBackend 則 import UIKit，而 UIKit 沒有 macOS 切片。
+// 這兩者都不是靠安裝任何東西能解決的。
+//
+// 為其「依賴項」加上平台條件並無幫助——這已試過，下方 WinUIBackend target 處的註解記錄了
+// 原因。真正有效的是根本不宣告這些 target，而這正是本開關的作用。
+//
+// 它採用 opt-in，與上方的 SCUI_ANDROID 相同，理由也相同：預設就改變 manifest 會連
+// Windows、Linux、CI 與 iOS 建置一併改變，而那些場合都需要這些 target。僅在主機端執行
+// 測試時設定它（指令見上）。testapp/install_tool_mac.zsh 會印出該指令並說明 -Xcc 旗標。
+let hostBackendsOnly = env["SCUI_HOST_BACKENDS_ONLY"] == "1"
+
 var defaultBackendDependencies: [Target.Dependency]
 if let backend = env["SCUI_DEFAULT_BACKEND"] {
     defaultBackendDependencies = [.target(name: backend)]
@@ -64,11 +102,20 @@ if let backend = env["SCUI_DEFAULT_BACKEND"] {
     #if os(macOS)
         defaultBackendDependencies = [
             .target(name: "AppKitBackend", condition: .when(platforms: [.macOS])),
-            .target(
-                name: "UIKitBackend",
-                condition: .when(platforms: [.iOS, .tvOS, .macCatalyst, .visionOS])
-            ),
         ]
+        // Named here only when the target still exists. A dependency on a target
+        // the manifest has removed is a hard error, so the gate has to reach the
+        // dependency list as well as the target list.
+        // 僅在該 target 仍存在時才列出。依賴一個已被 manifest 移除的 target 會直接報錯，
+        // 因此此開關必須同時作用於依賴清單與 target 清單。
+        if !hostBackendsOnly {
+            defaultBackendDependencies += [
+                .target(
+                    name: "UIKitBackend",
+                    condition: .when(platforms: [.iOS, .tvOS, .macCatalyst, .visionOS])
+                )
+            ]
+        }
     #else
         defaultBackendDependencies = [
             .target(name: "WinUIBackend", condition: .when(platforms: [.windows])),
@@ -471,3 +518,25 @@ if androidBackendSupported {
     ]
 }
 
+// Remove the backends this host cannot compile. See SCUI_HOST_BACKENDS_ONLY at
+// the top of this file for what this is for and why it is opt-in.
+//
+// Done here rather than by editing the literals above because `Package` is a
+// class whose members are mutable, and the AndroidBackend block directly above
+// already establishes that shape -- the arrays are built once and adjusted
+// afterwards. The package *dependencies* are deliberately left in place: they
+// are what Package.resolved is computed from, and dropping them here would make
+// the resolved file drift between a normal build and a host test run. Nothing
+// is built from a dependency no target names.
+//
+// 移除本主機無法編譯的 backend。用途與為何採 opt-in，見本檔開頭的 SCUI_HOST_BACKENDS_ONLY。
+//
+// 於此處處理而非直接修改上方的字面陣列，是因為 `Package` 是類別且其成員可變，而正上方的
+// AndroidBackend 區塊已確立此種寫法——陣列先建好，之後再調整。套件層級的 dependencies 則
+// 刻意保留：Package.resolved 是由它們計算而來，在此移除會使該檔在一般建置與主機測試執行
+// 之間產生漂移。沒有任何 target 指名的 dependency 不會被建置。
+if hostBackendsOnly {
+    let unbuildableOnHost: Set<String> = ["WinUIBackend", "UIKitBackend"]
+    package.targets.removeAll { unbuildableOnHost.contains($0.name) }
+    package.products.removeAll { unbuildableOnHost.contains($0.name) }
+}
