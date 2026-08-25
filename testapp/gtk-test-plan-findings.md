@@ -119,31 +119,58 @@ as a finding rather than as a failure.
 該步驟仍保留在計畫中：它依然是有用的跨 backend 比較，而那正是 P17 的目的。改變的是：此處的差異
 現在被記錄為一項發現，而非一次失敗。
 
-### HStack squeezes its first child — P21 step 3
+### HStack squeezes its first child — P21 step 3 — **fixed**
 
-The `.switch` row renders its "Enabled" label as `...` and the `.checkbox` row
-as `En...`, while the "Disabled" toggle beside each renders in full.
+The `.switch` row rendered its "Enabled" label as `...` and the `.checkbox` row
+as `En...`, while the "Disabled" toggle beside each rendered in full.
 
-Two explanations are eliminated by measurement and should not be re-derived:
+The earlier notes eliminated space shortage and the toggle spacer, and located
+it in the nested-HStack width distribution: `Toggle(.switch)` is itself an
+`HStack` of `Text` plus `ToggleSwitch`, and P21 puts two of those in an outer
+`HStack`; the first inner stack's `Text` was the one squeezed.
 
-- Not a space shortage. The row occupies about 220px of an 820px window.
-- Not the toggle spacer. `Toggle(.switch)` inserts a `Spacer()` only when
-  `backend.requiresToggleSwitchSpacer` is true, and GtkBackend sets it false --
-  only UIKitBackend sets it true.
+**Cause, measured with SCUI_DEBUG_STACK.** `LayoutSystem.computeLayouts`
+distributes an HStack's width by offering each child, in least-flexible-first
+order, a share of the space that is left. The share reserved not only the
+remaining spacing but also the *minimum lengths* of the children not yet placed
+-- and then divided by how many remained. That double-reserved. The outer
+HStack, proposed 172, offered its first child 60.5 against a natural width of
+79, so the child rendered at its minimum and its `Text` truncated; the second
+child was offered 101 and rendered in full. The asymmetry was the reservation,
+not the content.
 
-What remains is width distribution across nested HStacks: `Toggle(.switch)` is
-itself an `HStack` of `Text` plus `ToggleSwitch`, and P21 puts two of those
-inside an outer `HStack`. The first inner stack's `Text` is the one squeezed.
+**Fix.** Reserve only the spacing, not the children's minimum lengths. The
+children are already sorted least-flexible-first, so a rigid child takes its
+small natural size and a flexible child last absorbs the leftover -- nothing has
+to hold back space for a minimum a later child will claim, and a child that
+genuinely cannot fit still enforces its own minimum by returning it. This is the
+algorithm the ordering is taken from (objc.io's HStack child-ordering piece).
+At 172 the first child is now offered 81 and renders in full.
 
-`.switch` 那列的「Enabled」標籤顯示為 `...`，`.checkbox` 那列顯示為 `En...`，而其旁的「Disabled」
+This is a core-layout change and touches every stack, so it was regression-
+checked: P21 (both labels full), P0, P2 and P17 all render as before, with no
+row newly truncated or over-wide.
+
+`.switch` 那列的「Enabled」標籤曾顯示為 `...`，`.checkbox` 那列顯示為 `En...`，而其旁的「Disabled」
 則完整呈現。
 
-有兩種解釋已由量測排除，不應重新推導：非空間不足（該列僅佔 820px 視窗中的約 220px）；亦非 toggle
-的 spacer（`Toggle(.switch)` 僅在 `backend.requiresToggleSwitchSpacer` 為真時插入 `Spacer()`，而
-GtkBackend 設為 false，僅 UIKitBackend 為真）。
+先前的紀錄已排除空間不足與 toggle spacer，並定位於巢狀 HStack 的寬度分配：`Toggle(.switch)` 本身
+即為 `Text` 加 `ToggleSwitch` 的 `HStack`，而 P21 又把兩個這樣的結構放進外層 `HStack`；被擠壓的
+正是第一個內層堆疊中的 `Text`。
 
-剩下的是巢狀 HStack 之間的寬度分配：`Toggle(.switch)` 本身即為 `Text` 加 `ToggleSwitch` 的
-`HStack`，而 P21 又把兩個這樣的結構放進外層 `HStack`；被擠壓的正是第一個內層堆疊中的 `Text`。
+**成因，以 SCUI_DEBUG_STACK 量測得出。** `LayoutSystem.computeLayouts` 依「最不彈性優先」的順序，
+逐一提議每個子元件一份「剩餘空間」。該份額不僅保留了剩餘的 spacing，還保留了「尚未放置之子元件的
+minimum 長度」——然後再除以剩餘數量。這是雙重保留。外層 HStack 在提議寬度 172 之下，只提議其第一個
+子元件 60.5，而其自然寬度為 79，於是該子元件以最小尺寸呈現、其 `Text` 遭截斷；第二個子元件被提議
+101 而完整呈現。造成不對稱的是這項保留，而非內容。
+
+**修正。** 只保留 spacing，不保留子元件的 minimum 長度。子元件早已依「最不彈性優先」排序，因此剛性
+元件取其較小的自然尺寸，最後的彈性元件吸收剩餘——無需為某個後續元件反正會取用的 minimum 預留，而
+確實放不下的子元件仍會以回傳自身 minimum 的方式強制其下限。這與排序所依據的演算法一致（objc.io 的
+HStack 子元件排序一文）。在 172 之下，第一個子元件現在被提議 81，得以完整呈現。
+
+這是 core layout 的更動，影響每一個 stack，因此已做迴歸檢查：P21（兩個標籤皆完整）、P0、P2、P17
+的呈現皆與先前相同，沒有任何一列出現新的截斷或過寬。
 
 ## Instrumentation defect
 

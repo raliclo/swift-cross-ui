@@ -459,7 +459,6 @@ public enum LayoutSystem {
         let orientation = environment.layoutOrientation
         let perpendicularOrientation = orientation.perpendicular
         var spaceUsedAlongStackAxis = 0.0
-        var reservedSpace = cache.totalReservedSpace
         for group in cache.priorityGroups {
             var childrenRemaining = group.children.count { index in
                 !cache.isHidden[index]
@@ -495,13 +494,48 @@ public enum LayoutSystem {
                     continue
                 }
 
-                reservedSpace -= cache.minimumLengths[index]
-
+                // Each child's share is the space left for children, divided by
+                // how many are still to be placed. "Left for children" is the
+                // proposal minus the fixed spacing and minus what earlier
+                // children took -- and nothing else.
+                //
+                // It used to also subtract the *minimum lengths* of the children
+                // not yet placed. That double-reserved: the children are already
+                // sorted least-flexible first, so a rigid child takes its small
+                // natural size and leaves the rest, and a flexible child last
+                // absorbs the leftover -- there is no need to hold back space for
+                // a minimum a later child will claim anyway. Reserving it as well
+                // shrank every child's share, and the first (least flexible) one
+                // was pushed below its own natural width and truncated while a
+                // later child rendered in full. Measured on P21: an outer HStack
+                // of two toggle switches, proposed 172, offered its first child
+                // 60.5 against a natural of 79 -- the "Enabled" label became "...".
+                // Reserving only the spacing offers 81 instead, and it renders.
+                //
+                // This matches the algorithm the ordering is taken from:
+                // https://www.objc.io/blog/2020/11/10/hstacks-child-ordering/
+                // A child that genuinely cannot fit still enforces its own
+                // minimum by returning it, so nothing here has to reserve it.
+                //
+                // 每個子元件的份額，是「留給子元件的空間」除以「尚未放置的子元件數」。「留給子元件的
+                // 空間」是提議寬度減去固定的 spacing、再減去先前子元件已取用的量——僅此而已。
+                //
+                // 此處原本還會扣掉「尚未放置之子元件的 minimum 長度」。那是雙重保留：子元件早已依
+                // 「最不彈性優先」排序，因此剛性元件取其較小的自然尺寸後即讓出其餘，而最後的彈性元件
+                // 會吸收剩餘空間——無需為某個後續元件反正會取用的 minimum 預留空間。額外保留它會縮減
+                // 每個子元件的份額，使排在最前（最不彈性）的那個被壓到低於自身自然寬度而遭截斷，後面
+                // 的元件卻完整呈現。於 P21 實測：一個包含兩個 toggle switch 的外層 HStack，提議寬度
+                // 172，其第一個子元件在自然寬度為 79 的情況下只被提議 60.5——「Enabled」標籤變成
+                // 「...」。改為只保留 spacing 後，該子元件被提議 81，得以完整呈現。
+                //
+                // 這與排序所依據的演算法一致（如上連結）。確實放不下的子元件仍會以回傳自身 minimum 的
+                // 方式強制其下限，因此此處無需為其預留。
                 var proposedChildSize = ProposedViewSize.unspecified
-                proposedChildSize[component: orientation] = max(
-                    proposedLength - spaceUsedAlongStackAxis - reservedSpace,
+                let share = max(
+                    proposedLength - spaceUsedAlongStackAxis - cache.totalSpacing,
                     0
                 ) / Double(childrenRemaining)
+                proposedChildSize[component: orientation] = share
                 proposedChildSize[component: perpendicularOrientation] = proposedPerpendicular
 
                 let childResult = child.computeLayout(
