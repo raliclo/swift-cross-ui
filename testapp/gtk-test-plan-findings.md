@@ -478,16 +478,35 @@ per backend and only the callback-storage half applies to GTK.
 | 13: re-click an existing row button after count change | pass -- second click on `Run 0` moved `callbacks` from 1 to 2 with `Selected row: 0` still correct |
 | 14: no `BVI-*`/backdrop console noise | n/a on GTK -- that diagnostic path is WinUI-specific (#204); GTK's own stdout only ever showed libEGL/DRI3 warnings across every P4 run this sweep |
 
-## P5: multi-window alerts -- cross-window passes, same-window stacking regresses
+## P5: multi-window alerts -- cross-window passes; same-window stacking is blocked by modality, by design tension
 
 #675 has two halves, and GtkBackend only holds one of them. Alerts on
 *different* windows do show simultaneously (the original bug -- second
 window's alert waiting for the first to close -- stays fixed). But stacking a
 second alert on the *same* window while the first is still open, which steps
-7-11 depend on, cannot be reached through the UI at all: GtkBackend's alert is
-an application-modal `Gtk.MessageDialog` (`alert.isModal = true`,
-`setTransient(for:)`) that blocks all further input to its parent window, so
-clicking `Show Alert B (stacks on A)` while `Alert A (Main)` is open does
+7-11 depend on, cannot be reached through the UI at all.
+
+**Root cause, and why it is not a surgical fix.** The trigger for stacking is a
+button *in the main window* (`Show Alert B (stacks on A)`), and GtkBackend's
+alert is a window-modal `Gtk.MessageDialog` (`isModal = true`,
+`setTransient(for: window)`) that blocks all input to that window while it is
+open. So the button that would add the second alert to the stack cannot be
+clicked while the first alert is showing -- the two requirements are in direct
+tension. The plan's own expected result for step 7 is that B *replaces* A (only
+the top of the stack is visible) and dismissing restores the one beneath, so the
+intended behaviour is a per-window stack showing one at a time; but the only way
+to add to that stack through the UI is a window button, which modality blocks.
+
+Making it work needs alerts to be non-modal so the window stays interactive,
+plus a backend-managed per-window alert stack that hides the current alert when a
+new one is pushed and restores it on dismiss. That is a global change to alert
+semantics -- a non-modal alert lets the user touch the window behind it -- with
+its own correctness implications for every app that shows an alert, not a
+GtkBackend tweak scoped to P5. The actual #675 bug (cross-window serialisation)
+is already fixed here; this half is left for a deliberate decision about alert
+modality rather than changed under a test app's assumptions.
+
+Clicking `Show Alert B (stacks on A)` while `Alert A (Main)` is open does
 nothing -- not "shows both", not "replaces A with B", nothing. The main
 window's own status text (`Main: showing Alert A`) is unchanged by the click,
 and a sanity click on the same coordinate with no alert open correctly opens
