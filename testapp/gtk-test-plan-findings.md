@@ -429,47 +429,72 @@ ring（在視窗顯示時任意落在 `Always enabled` 上）而非 enabled/disa
 #401 真正關注的全螢幕／最大化按鈕的證據。本次亦未確認 WSLg 的 XWayland session 是否會為此視窗繪製
 最大化按鈕。記為本輪工具無法有效測試，而非通過或回歸。
 
-## P3: layout and clipping -- two defects reproduce, one severely
+## P3: layout and clipping -- image clipping fixed; the "layout failure" was a misread
 
-Both issues P3 exists to check are open regressions on GtkBackend, and the
-three-column layout defect is worse than its (Fixed) description: it does not
-self-correct on either a state update or a window resize.
+Of the two things P3 checks, image clipping (#389) was a real GtkBackend defect,
+now fixed. The "three-column layout failure" turned out **not to be a layout bug
+at all** -- the layout is correct; the earlier reading of it was wrong.
 
-P3 存在要檢查的兩個 issue，在 GtkBackend 上皆為開放中的回歸，且三欄式版面配置缺陷比其
-（Fixed）描述更嚴重：無論是 state update 或視窗 resize 都無法自我修正。
+P3 檢查的兩件事中，圖片裁切（#389）是真實的 GtkBackend 缺陷，現已修正。「三欄版面失敗」則
+**根本不是版面 bug**——版面是正確的，先前對它的判讀有誤。
 
-### Three-column initial layout -- reproduces, does not self-correct
+### Three-column initial layout -- correct; the earlier reading was dark-text-on-black
 
-At launch (960x600, before any interaction) the sidebar and middle columns
-show almost none of their content: no `P3 sidebar` / `Middle column` headers,
-no `Split layout` / `Details` / `Detail B` / `Detail C` list rows -- only
-`Image clipping` and `Detail A` (each a `List` row) float at irregular
-positions over a mostly-black window, with `Force state update` far below
-where the sidebar's layout would place it. This is worse than steps 2-3 ask
-for (fully visible sidebar/middle/detail columns): here the `List` content
-inside the two fixed-width (220pt) `VStack`s is largely missing, not merely
-mis-sized.
+The earlier finding here was wrong, and is corrected rather than deleted because
+it was cited to justify work. It claimed the sidebar/middle headers and most
+`List` rows were "largely missing" and the visible ones "float at irregular
+positions", concluding the `List` content inside the 220pt `VStack`s was gone.
 
-Step 4 (`Force state update`) and step 5 (resize the window to 1100x700 via
-`xdotool windowsize`) were both tried. Neither changes anything -- pixel-
-identical before and after in both cases. The documented (Fixed) P3 rergression
-was that the initial layout is wrong but corrects on any state change or
-resize; what reproduces here does not correct on either, so it is a
-distinct, currently-worse failure mode, not simply the old bug come back.
+A one-change experiment disproved it: P3's three columns each set
+`.background(Color.black)`, and re-running with that swapped for a light grey made
+**everything appear** -- the `P3 sidebar` / `Middle column` headers, all three
+sidebar rows (`Image clipping` / `Split layout` / `Details`) and all three middle
+rows (`Detail A` / `B` / `C`), the `Expected:` lines, `Tick: off`, and the rest --
+all at the right positions. The visible-in-black elements had not moved between
+the two runs; `Force state update` sat at the same y (below the three rows, which
+is correct) in both. So nothing floats and nothing is missing: the layout is
+right, and what was invisible was **default-dark text and unselected rows drawn on
+the black backgrounds**. Only the selected row (`Image clipping`, `Detail A`)
+showed in the black version because a selected row gets a light background.
 
-啟動時（960x600，尚未有任何互動）sidebar 與 middle column 幾乎不顯示任何內容：沒有
-`P3 sidebar` / `Middle column` 標頭，沒有 `Split layout` / `Details` / `Detail B` /
-`Detail C` 這些 list 列——只有 `Image clipping` 與 `Detail A`（皆為 `List` 的列）漂浮在
-大片黑色視窗中的不規則位置，`Force state update` 則遠低於 sidebar 版面配置本應放置的位置。
-這比步驟 2-3 所要求的（sidebar／middle／detail 三欄完全可見）更嚴重：兩個固定寬度（220pt）
-`VStack` 內的 `List` 內容大多整個消失，而不僅僅是尺寸算錯。
+This is a text-contrast matter (the #386 family), not a layout or `List` defect,
+and it is not GtkBackend-specific: SwiftUI in light mode also leaves default
+(primary) text dark, so `.background(Color.black)` without a white foreground or
+`.preferredColorScheme(.dark)` would be just as unreadable there. To make P3
+legible on GtkBackend the app needs a light foreground on its dark columns, or
+GtkBackend needs `preferredColorScheme` support (#386, still open). The `List`
+content-rendering rewrite the earlier finding implied is **not needed** -- a probe
+that applied `withRowHeights` in `setItems` changed nothing, consistent with the
+rows already being laid out correctly.
 
-步驟 4（`Force state update`）與步驟 5（以 `xdotool windowsize` 將視窗 resize 為
-1100x700）皆已嘗試。兩者都沒有造成任何改變——前後畫面逐像素相同。文件記載的（Fixed）P3
-回歸是「初始版面配置錯誤，但在任何 state 變化或 resize 後會自我修正」；此處重現的版本
-兩者都無法修正，因此是另一種、目前更嚴重的失敗模式，而非舊錯誤單純復發。
+此處先前的發現有誤，予以更正而非刪除，因為它曾被引用作為工作的依據。它宣稱 sidebar／middle
+標頭與大多數 `List` 列「大多消失」、可見者「漂浮於不規則位置」，並斷定 220pt `VStack` 內的
+`List` 內容整個不見。
 
-### Image clipping (#389) -- reproduces at Large, does not at Small
+一次單一改動的實驗推翻了它：P3 的三欄各自設定 `.background(Color.black)`，把它換成淺灰重跑後
+**一切都出現了**——`P3 sidebar` / `Middle column` 標頭、三個 sidebar 列（`Image clipping` /
+`Split layout` / `Details`）與三個 middle 列（`Detail A` / `B` / `C`）、`Expected:` 各行、
+`Tick: off` 等等——全都在正確位置。黑底版中可見的元素在兩次執行間並未移動；`Force state
+update` 在兩版都位於相同 y（三列之下，正確）。因此沒有東西漂浮、也沒有東西消失：版面是對的，
+看不見的是**畫在黑底上的預設深色文字與未選取的列**。黑底版中只有被選取的列（`Image clipping`、
+`Detail A`）可見，是因為被選取的列會有淺色背景。
+
+這是文字對比的問題（#386 一類），並非版面或 `List` 缺陷，也非 GtkBackend 獨有：SwiftUI 在
+light mode 同樣讓預設（primary）文字維持深色，因此 `.background(Color.black)` 若未搭配白色前景或
+`.preferredColorScheme(.dark)`，在那裡一樣看不清。要讓 P3 在 GtkBackend 上清晰可讀，app 需在其深色
+欄位使用淺色前景，或 GtkBackend 需支援 `preferredColorScheme`（#386，仍開放中）。先前發現所暗示的
+`List` 內容渲染改寫**並不需要**——一個在 `setItems` 中套用 `withRowHeights` 的探測毫無改變，與
+「列本就已正確排版」一致。
+
+### Image clipping (#389) -- was reproducing at Large; **fixed** (538df31b)
+
+`.cornerRadius(0)` now clips on GtkBackend, so the oversized image is cut to its
+220x140 frame like every other backend (AppKit clips with `clipsToBounds`, WinUI
+with a geometric clip; GtkBackend was the lone holdout). The fix wraps content in
+a `ClipFixed` -- a GtkFixed that measures to its size request and clips to it,
+because a plain `overflow: hidden` does not work when the container over-allocates
+to an oversized child. The `testapp/P17-DOE` design-of-experiments app drove that
+choice. The reproduction that follows is the pre-fix behaviour, kept for the record.
 
 `Small` (scale 1.0x) renders the test image cleanly inside its 220x140 black
 frame with no overflow. `Large` (scale 2.4x) overflows the 220x140 frame
