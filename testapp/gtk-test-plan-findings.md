@@ -333,6 +333,44 @@ is inconclusive rather than a confirmed pass or a confirmed #390 regression.
 Picker 與 TextEditor 步驟通過；disabled 按鈕視覺區別那一步無法下定論，既非確認通過，也非確認
 #390 回歸。
 
+### Picker popover, after the present() fix -- verified working
+
+The `show(window:)` change from `set_visible` to `present()` was made partly
+because a `GtkDropDown`'s popover opened from an unfocused window read as a
+detached surface that would not come forward and did not dismiss on selection.
+That is now confirmed fixed, driven end to end on WSL:
+
+- The popover opens as its own visible X window (`122x94`, listing `Vanilla`
+  with a check and `Chocolate` -- captured directly by its window id).
+- Clicking `Chocolate` in it changes the selection: the main window reads
+  `Selected: Chocolate, options: 2, changes: 1`, and the picker button now shows
+  `Chocolate`.
+- The popover dismisses on selection: the capture of the main window afterwards
+  has no popover overlay.
+
+One test-harness note, not a product finding: the popover is a *separate* X
+window, so an action file targeting a main-window-relative coordinate cannot
+reach it reliably -- its position relative to the main window is not stable
+enough. Clicking it needs `xdotool --window <popover-id>`, which converts to the
+popover's own geometry. The item is at roughly 55% across and 70% down the
+popover.
+
+### Picker popover，present() 修正之後——已驗證可運作
+
+`show(window:)` 從 `set_visible` 改為 `present()`，部分原因是：從未取得焦點的視窗開啟的
+`GtkDropDown` popover，表現為一個無法被帶到前面、且選取後不會關閉的分離 surface。此問題現已確認
+修正，並於 WSL 上端到端驅動驗證：
+
+- popover 以自身的可見 X 視窗開啟（`122x94`，列出打勾的 `Vanilla` 與 `Chocolate`——直接以其
+  window id 擷取）。
+- 於其中點擊 `Chocolate` 會變更選取：主視窗顯示 `Selected: Chocolate, options: 2, changes: 1`，
+  且 picker 按鈕現在顯示 `Chocolate`。
+- popover 於選取後關閉：其後對主視窗的擷取中不再有 popover overlay。
+
+一則測試工具的註記，非產品發現：popover 是**獨立**的 X 視窗，因此以主視窗相對座標為目標的動作檔
+無法穩定觸及它——其相對主視窗的位置不夠穩定。點擊它需使用 `xdotool --window <popover-id>`，由
+popover 自身幾何換算。項目約位於 popover 橫向 55%、縱向 70% 處。
+
 | step | result |
 |---|---|
 | 2: initial Picker options are Vanilla/Chocolate only | pass |
