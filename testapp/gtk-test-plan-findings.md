@@ -1098,3 +1098,112 @@ reachable here have all been run.
 
 P11、P12、P14 在本 Windows/WSL 機器上仍屬範圍之外——橫跨 macOS、Android 與 iOS 共 18 步。計畫中
 的 190 步裡，此處可觸及的 172 步已全部執行。
+
+## Win32Synthesiser on Windows -- movement and replay verified, clicks do not activate
+
+The action-file machinery runs on Windows once two environment problems are out
+of the way, and the synthesiser's cursor movement is correct -- but a
+synthesised click does not activate a GtkBackend control, and the cause is not
+yet isolated.
+
+### What was fixed to get this far
+
+A `-gtk4` Windows build died before `main` with
+`api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file`. `C:/gtk4/bin`
+holds both the GTK DLLs and the UCRT the error names, and it was on PATH only for
+the build shell. Both the runner (`test_common.zsh`) and a new `testapp/run.zsh`
+now put it on PATH for the launch, via `cygpath -u` so the `:` in `C:/gtk4/bin`
+is not read as two PATH entries.
+
+This failure had been invisible: every earlier Windows run sent stderr to
+`/dev/null`, so a build that never started looked identical to one that started
+and rendered nothing -- which is how P19 was once recorded as rendering on
+Windows on the strength of a WinUI build from a different code path.
+
+### What is verified
+
+With a fresh `SCUI_DEBUG=1` build, P19 launches, the backend logs
+`-actionfile: replayed`, and the cursor lands **exactly on the target button**
+-- visible on "Open the menu" in the capture, which confirms the
+`MOUSEEVENTF_ABSOLUTE` virtual-desktop conversion and the frame-origin
+coordinates are right. The `-win` alias and the priority-1 window capture both
+work.
+
+### What does not work, and what was ruled out
+
+The menu never opens. `last action -> nothing yet` after the full replay, and an
+open-only file with a 3s hold shows no popover. The click reaches the right
+pixel and does nothing. Ruled out, each by a test rather than by reasoning:
+
+- **Coordinates** -- the cursor is provably on the button.
+- **First-click-activation** -- two clicks in a row did not help.
+- **Foreground** -- an `AttachThreadInput` + `SetForegroundWindow` version (the
+  documented way past a silent `SetForegroundWindow` failure) changed nothing.
+- **Timing** -- 20ms gaps between move, press and release changed nothing.
+
+The last two were reverted rather than left in: neither was shown to help, and
+unverified code that claims to fix a problem it does not is worse than its
+absence.
+
+The remaining candidate is GTK4's own Windows input path -- whether it accepts
+`SendInput`-injected pointer events at all, or requires a focus/grab state that
+a background-thread replay does not establish. That is a real investigation, not
+a tweak, and is where #26 stands.
+
+The coordinates worked out for P19 on Windows, recorded here so the effort
+survives the uncommitted file: frame origin, 125% display scale already divided
+out, `click 77,180` to open the menu and `click 77,212` for the item. They place
+the cursor correctly; they are waiting on the click activating.
+
+### Consequence for the action folders
+
+`actions/win/` stays empty. `P19-open-and-select.csv` was written and its
+coordinates are correct, but it does not pass -- the clicks do not activate the
+control -- so by the folder's own rule (a file appears only once it has been
+seen to work here) it is not committed.
+
+## Win32Synthesiser 在 Windows -- 移動與重放已驗證，點擊無法觸發控制項
+
+動作檔機制在排除兩個環境問題後可於 Windows 執行，synthesiser 的游標移動也正確——但合成點擊無法
+觸發 GtkBackend 的控制項，且成因尚未查明。
+
+### 為抵達此處所修正的問題
+
+`-gtk4` 的 Windows 建置會在進入 `main` 之前以
+`api-ms-win-crt-locale-l1-1-0.dll: cannot open shared object file` 死掉。`C:/gtk4/bin` 同時存放
+GTK 的 DLL 與錯誤所指名的 UCRT，而它僅在建置的 shell 中位於 PATH。現在執行器（`test_common.zsh`）
+與新增的 `testapp/run.zsh` 都會在啟動時把它加進 PATH，並透過 `cygpath -u`，使 `C:/gtk4/bin` 中的
+`:` 不會被解讀為兩個 PATH 項目。
+
+此失敗先前不可見：早先每一次 Windows 執行都把 stderr 送進 `/dev/null`，因此「從未啟動的建置」與
+「啟動了卻毫無繪製的建置」看起來一模一樣——P19 曾因此被記為「在 Windows 上正常繪製」，而其依據
+其實是另一條程式碼路徑產生的 WinUI 建置。
+
+### 已驗證的部分
+
+以全新的 `SCUI_DEBUG=1` 建置，P19 會啟動，backend 記錄 `-actionfile: replayed`，而游標**精確落在
+目標按鈕上**——在截圖中清楚位於「Open the menu」之上，這確認了 `MOUSEEVENTF_ABSOLUTE` 的虛擬桌面
+換算與 frame 原點座標皆正確。`-win` 別名與優先序 1 的視窗擷取也都可用。
+
+### 無法運作的部分，以及已排除的原因
+
+選單從未開啟。完整重放後仍為 `last action -> nothing yet`，而只開選單、持有 3 秒的檔案也顯示不出
+任何 popover。點擊抵達正確的像素卻毫無作用。以下各項皆以測試而非推論排除：
+
+- **座標**——游標可證明位於按鈕上。
+- **首次點擊啟動**——連續兩次點擊並無幫助。
+- **前景**——採用 `AttachThreadInput` + `SetForegroundWindow` 的版本（繞過 `SetForegroundWindow`
+  靜默失敗的文件記載做法）毫無改變。
+- **時序**——在 move、按下、放開之間加入 20ms 間隔亦無改變。
+
+後兩者已還原而非保留：兩者皆未被證明有幫助，而「宣稱修正卻其實無效的未驗證程式碼」比其不存在
+更糟。
+
+剩下的候選成因是 GTK4 自身的 Windows 輸入路徑——它究竟是否接受 `SendInput` 注入的指標事件，或
+需要背景執行緒重放所未建立的某種 focus/grab 狀態。那是一項真正的調查，而非小幅調整，也正是 #26
+目前所在之處。
+
+### 對動作資料夾的影響
+
+`actions/win/` 維持空的。`P19-open-and-select.csv` 已撰寫且座標正確，但它並未通過——點擊無法觸發
+控制項——因此依該資料夾自身的規則（檔案唯有在此平台實際運作過才會出現），它不予提交。
