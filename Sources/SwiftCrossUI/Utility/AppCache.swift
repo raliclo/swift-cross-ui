@@ -606,7 +606,7 @@ public actor AppCache {
         var fields: [String] = []
         var current = ""
         var inQuotes = false
-        var characters = Array(row)
+        let characters = Array(row)
         var index = 0
 
         while index < characters.count {
