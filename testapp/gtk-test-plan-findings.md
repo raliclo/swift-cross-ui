@@ -1262,6 +1262,100 @@ reachable here have all been run.
 P11、P12、P14 在本 Windows/WSL 機器上仍屬範圍之外——橫跨 macOS、Android 與 iOS 共 18 步。計畫中
 的 190 步裡，此處可觸及的 172 步已全部執行。
 
+## P15: window minimum height (#289) -- fixed, the minimum now tracks content
+
+The window could be dragged below its content and clip it, and taller content did
+not raise the floor. `WindowReference.update` was already recomputing the content
+minimum on every update and calling `setSizeLimits`, so the SwiftCrossUI side was
+fine. The gap was in GtkBackend: `setSizeLimits` only set a size request on the
+toplevel, which GTK treats as a launch hint and stops enforcing once the window
+is realised. What GTK keeps enforcing is the *child's* measured minimum, and that
+child -- the custom root widget -- always reported a minimum of zero because
+nothing drove `gtk_custom_root_widget_set_minimum_size`.
+
+The fix drives it from `setSizeLimits` alongside the toplevel request. Because
+that runs on every window update, the minimum now tracks the content as it grows.
+This follows SwiftUI, where a window will not shrink below its content's minimum.
+
+Verified on WSL by reading `WM_NORMAL_HINTS`: the program-specified minimum height
+is **472** with the short content and rises to **584** once the tall content is
+toggled in (the window itself grew to 584 to match). Before the fix the minimum
+did not move. Whether the WSLg compositor then refuses a forced shrink is a
+separate, environment-specific matter -- WSLg/XWayland does not enforce the hint,
+but a compliant WM (the Fedora/GNOME setup #289 was reported on) honours it.
+
+One follow-on defect this surfaced and fixed: once the child's minimum was
+non-zero, the custom root widget's `measure` reported a natural size of 0 while
+the minimum was larger, and GTK warned `natural size must be >= min size` on every
+layout pass. `measure` now reports the natural size equal to the minimum;
+SwiftCrossUI decides the real allocation separately, so the value only has to
+satisfy the invariant. The warnings are gone (grep of the P15/P0 logs: zero).
+
+## P15：視窗最小高度（#289）——已修，最小值現在隨內容變化
+
+視窗可被拖到低於內容而裁切內容,且較高的內容不會抬高下限。`WindowReference.update` 其實每次更新
+都會重算內容最小值並呼叫 `setSizeLimits`,SwiftCrossUI 側沒問題。缺口在 GtkBackend:`setSizeLimits`
+只對 toplevel 設 size request,GTK 視之為啟動提示,視窗 realize 後便不再強制。GTK 真正持續強制的是
+*子元件*量測出的最小值,而該子元件——自訂 root widget——因為沒有任何東西驅動
+`gtk_custom_root_widget_set_minimum_size`,一直回報最小值為零。
+
+修正是在 `setSizeLimits` 中連同 toplevel request 一起驅動它。因為這在每次視窗更新時執行,最小值
+現在會隨內容成長而變化。這與 SwiftUI 一致——視窗不會縮到低於其內容的最小值。
+
+於 WSL 以讀取 `WM_NORMAL_HINTS` 驗證:program-specified 最小高度在短內容時為 **472**,切換到高
+內容後升為 **584**(視窗本身也長到 584 以配合)。修正前該最小值不會變動。WSLg 合成器是否會拒絕
+強制縮小是另一件與環境相關的事——WSLg/XWayland 不強制該 hint,但合規的 WM(回報 #289 的
+Fedora/GNOME 環境)會遵守。
+
+此修正順帶揭露並修掉一個衍生缺陷:一旦子元件最小值非零,自訂 root widget 的 `measure` 回報的
+natural 為 0 而 minimum 較大,GTK 於每次 layout pass 警告 `natural size must be >= min size`。
+`measure` 現在回報 natural 等於 minimum;SwiftCrossUI 另行決定真正的配置,故此值只需滿足該不變式。
+警告已消失(grep P15/P0 日誌:零筆)。
+
+## P5: same-window alerts -- queued one at a time, SwiftUI-style
+
+Three `.alert` modifiers on one view are three independent `AlertModifierView`s,
+each with its own `children.alert`. When more than one becomes presented in the
+same update, each calls `backend.showAlert` on the same window, and GtkBackend
+made each modal and transient to that window -- several modal dialogs fighting
+over one window.
+
+SwiftUI shows one alert at a time per window; a second requested while one is up
+waits and appears when the first is dismissed. GtkBackend now does the same, with
+a per-window queue: `showAlert` presents immediately if the window has no alert
+up, otherwise it enqueues; each dismissal presents the next. `dismissAlert`
+handles both the shown alert and one still waiting in the queue.
+
+A modal alert blocks its window, so the queue cannot be driven by clicking the
+A/B/C buttons in turn -- the second click never lands. P5 gained a **Show A+B+C
+at once** button that sets all three `isPresented` in one action, which is the
+only way to request several from the UI. Verified on WSL: pressing it shows a
+single dialog (not three stacked), and dismissing each reveals the next --
+**Alert A, then Alert B, then Alert C** (captured), with one dialog on screen at
+every step and none left at the end.
+
+Note this is the SwiftUI-faithful behaviour for a modal backend, and is distinct
+from WinUIBackend's #675 goal of showing several at once; on GtkBackend "follow
+SwiftUI" means queue, not stack.
+
+## P5：同視窗 alert——依 SwiftUI 方式,一次排隊顯示一個
+
+同一 view 上三個 `.alert` modifier 是三個獨立的 `AlertModifierView`,各有自己的 `children.alert`。
+當多於一個在同一次更新中變為 presented,每個都對同一視窗呼叫 `backend.showAlert`,而 GtkBackend
+會讓每個都 modal 且 transient 於該視窗——多個 modal 對話框爭奪一個視窗。
+
+SwiftUI 每個視窗一次顯示一個 alert;在一個顯示時請求的第二個會等待,並於第一個關閉時出現。
+GtkBackend 現在以 per-window 佇列做同樣的事:`showAlert` 若該視窗沒有 alert 便立即顯示,否則入列;
+每次關閉便顯示下一個。`dismissAlert` 同時處理已顯示的與仍在佇列中的 alert。
+
+modal alert 會封鎖其視窗,因此佇列無法藉由依序點擊 A/B/C 按鈕來驅動——第二次點擊永遠落不了地。
+P5 因此新增一個 **Show A+B+C at once** 按鈕,一個動作設定三個 `isPresented`,這是從 UI 請求多個的
+唯一方式。於 WSL 驗證:按下它只顯示單一對話框(而非三個疊放),逐一關閉則揭露下一個——**Alert A、
+接著 Alert B、再接著 Alert C**(已擷取),每一步畫面上只有一個對話框,結束時無殘留。
+
+注意這是 modal backend 依 SwiftUI 的忠實行為,與 WinUIBackend 的 #675「同時顯示多個」目標不同;
+在 GtkBackend 上「follow SwiftUI」意即佇列,而非疊放。
+
 ## P25: drag and drop -- feature added, compiles and renders; live drop needs a drag source
 
 SwiftCrossUI had no drag-and-drop API, so P25 could not exist. The feature was

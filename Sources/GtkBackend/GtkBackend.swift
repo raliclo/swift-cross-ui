@@ -77,6 +77,15 @@ public final class GtkBackend:
     /// precreated window until it gets 'created' via `createWindow`.
     var windows: [Window] = []
 
+    /// The alert currently on screen for a window, keyed by window identity, and
+    /// the alerts waiting behind it. SwiftUI shows one alert at a time per
+    /// window; a second requested while one is up waits and appears when the
+    /// first is dismissed, rather than a pile of modal dialogs fighting over the
+    /// window (the P5 regression).
+    private var shownAlert: [ObjectIdentifier: Alert] = [:]
+    private var pendingAlerts:
+        [ObjectIdentifier: [(alert: Alert, window: Window, handler: (Int) -> Void)]] = [:]
+
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
     private var measurementCustomLabel: CustomLabel!
@@ -282,6 +291,16 @@ public final class GtkBackend:
         maximum maximumSize: SIMD2<Int>?
     ) {
         window.setMinimumSize(to: Size(width: minimumSize.x, height: minimumSize.y))
+
+        // A size request on the toplevel is only honoured as a launch hint; once
+        // the window is realised GTK lets the user drag it below that, and the
+        // content is clipped. What GTK does keep enforcing is the *child's*
+        // measured minimum, so the enforced minimum has to live on the custom
+        // root widget too -- and because this runs on every window update, it
+        // tracks the content as it grows (the #289 case: taller content did not
+        // raise the floor, so the window shrank into it).
+        let root = window.getChild() as! CustomRootWidget
+        root.setMinimumSize(minimumWidth: minimumSize.x, minimumHeight: minimumSize.y)
 
         // NB: GTK does not support setting maximum sizes for widgets. It just doesn't.
         // https://discourse.gnome.org/t/how-to-build-fixed-size-windows-in-gtk-4/22807/10
@@ -1652,7 +1671,27 @@ public final class GtkBackend:
         window: Window?,
         responseHandler handleResponse: @escaping (Int) -> Void
     ) {
-        alert.response = { _, responseId in
+        let target = window ?? windows[0]
+        let key = ObjectIdentifier(target)
+
+        // One alert per window at a time. If this window already has one up,
+        // queue this behind it instead of stacking a second modal dialog.
+        guard shownAlert[key] == nil else {
+            pendingAlerts[key, default: []].append((alert, target, handleResponse))
+            return
+        }
+
+        present(alert, on: target, key: key, responseHandler: handleResponse)
+    }
+
+    private func present(
+        _ alert: Alert,
+        on target: Window,
+        key: ObjectIdentifier,
+        responseHandler handleResponse: @escaping (Int) -> Void
+    ) {
+        shownAlert[key] = alert
+        alert.response = { [weak self] _, responseId in
             guard responseId != Int(UInt32(bitPattern: -4)) else {
                 // Ignore escape key for now. Once we support detecting
                 // the primary and secondary actions of alerts we can wire
@@ -1662,15 +1701,40 @@ public final class GtkBackend:
             }
 
             alert.destroy()
+            self?.advanceAlerts(for: key)
             handleResponse(responseId)
         }
         alert.isModal = true
         alert.isDecorated = false
-        alert.setTransient(for: window ?? windows[0])
+        alert.setTransient(for: target)
         alert.show()
     }
 
+    /// Clears the shown alert for a window and presents the next one waiting on
+    /// it, if any.
+    private func advanceAlerts(for key: ObjectIdentifier) {
+        shownAlert[key] = nil
+        guard var queue = pendingAlerts[key], !queue.isEmpty else { return }
+        let next = queue.removeFirst()
+        pendingAlerts[key] = queue.isEmpty ? nil : queue
+        present(next.alert, on: next.window, key: key, responseHandler: next.handler)
+    }
+
     public func dismissAlert(_ alert: Alert, window: Window?) {
+        // The alert may be the one on screen or still waiting in a queue.
+        if let key = shownAlert.first(where: { $0.value === alert })?.key {
+            alert.destroy()
+            advanceAlerts(for: key)
+            return
+        }
+        for (key, queue) in pendingAlerts {
+            if let index = queue.firstIndex(where: { $0.alert === alert }) {
+                var queue = queue
+                queue.remove(at: index)
+                pendingAlerts[key] = queue.isEmpty ? nil : queue
+                break
+            }
+        }
         alert.destroy()
     }
 

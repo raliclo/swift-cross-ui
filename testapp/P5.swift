@@ -73,6 +73,21 @@ struct P5AlertWindowView: View {
                 }
             }
 
+            // Requests all three in one action, so all three isPresented are
+            // true in the same update. A modal backend cannot show a second
+            // alert while the first is up, so this is the only way to exercise
+            // the queue from the UI: A shows, B and C wait, and each appears as
+            // the one above it is dismissed.
+            // 一個動作同時請求三個,使三個 isPresented 在同一次更新中皆為真。modal backend 無法在
+            // 第一個顯示時再顯示第二個,因此這是從 UI 驅動佇列的唯一方式:A 顯示,B 與 C 等待,並在
+            // 其上者關閉時各自出現。
+            Button("Show A+B+C at once") {
+                eventLog = "\(windowLabel): requesting A, B and C together"
+                showAlertA = true
+                showAlertB = true
+                showAlertC = true
+            }
+
             Text(eventLog)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

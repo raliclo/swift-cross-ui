@@ -25,14 +25,20 @@ void gtk_custom_root_widget_measure(
     int *natural_baseline
 ) {
     GtkCustomRootWidget *root_widget = GTK_CUSTOM_ROOT_WIDGET(widget);
+    // Natural must be >= minimum, or GTK warns on every measure pass. It used to
+    // be safe to report 0 because the minimum was also 0; now that the minimum
+    // carries the window's content minimum (so the window cannot be shrunk into
+    // its content), the natural size has to match it. SwiftCrossUI decides the
+    // real allocation separately via preempt_allocated_size, so the value here
+    // only needs to satisfy the invariant.
     switch (orientation) {
         case GTK_ORIENTATION_HORIZONTAL:
             *minimum = root_widget->minimum_width;
-            *natural = 0;
+            *natural = root_widget->minimum_width;
             break;
         case GTK_ORIENTATION_VERTICAL:
             *minimum = root_widget->minimum_height;
-            *natural = 0;
+            *natural = root_widget->minimum_height;
             break;
     }
 }
