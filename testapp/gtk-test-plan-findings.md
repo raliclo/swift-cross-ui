@@ -813,7 +813,58 @@ design), but that did not translate into unreadable colours in this build.
 因此計畫區分的兩個部分都已確認：override 確實缺失（依設計預期），但在此建置中並未造成配色
 不可讀。
 
-### #289 -- reproduces, and taller content makes it worse
+### #289 -- reproduces; root cause found, fix is architectural
+
+**Root cause, measured with SCUI_DEBUG_MINSIZE.** `setSizeLimits` fires only
+twice, both at launch (`328x474` then `328x472`). Toggling `Use tall content`
+does **not** call it again -- so the window's minimum is never recomputed when
+the content grows. The window still grows to 584 on the toggle, but that is
+GTK re-measuring the content's natural size on its own; SwiftCrossUI's
+window-minimum path is not on that route.
+
+`WindowReference.update`, which is what computes the minimum from a
+`proposedSize: .zero` probe and calls `setSizeLimits`, runs on a scene update, a
+window resize, or an environment change -- not on a content `@State` change
+inside the window. So a state toggle that changes how tall the content needs to
+be leaves the window minimum stale.
+
+Two fixes were tried on the GtkBackend side and neither is the answer, so both
+were reverted rather than left in:
+
+- Setting the minimum on the `CustomRootWidget` (whose `measure` returns it, and
+  which GTK enforces structurally) as well as on the toplevel. Correct mechanism
+  in principle, but it changes nothing here because `setSizeLimits` is not called
+  on the content change, so the structural minimum is never updated either.
+- Confirmed the same either way: short content snaps back to 472 (its launch
+  minimum holds), tall content drops to 100.
+
+The fix belongs in the scene/view-graph update pipeline: a content update that
+can change the content's minimum size has to trigger a window-minimum
+recomputation, the same way a resize or an environment change does. That is a
+framework-wide change to how view-level updates propagate to the window, not a
+GtkBackend tweak, and is left for a focused change rather than bundled here.
+
+**成因，以 SCUI_DEBUG_MINSIZE 量測得出。** `setSizeLimits` 僅觸發兩次，皆在啟動時（`328x474`
+接著 `328x472`）。切換 `Use tall content` **不會**再次呼叫它——因此內容變高時，視窗的最小值從未
+被重算。視窗在切換時仍長到 584，但那是 GTK 自行依內容的自然尺寸重量測；SwiftCrossUI 的視窗最小值
+路徑並不在該路線上。
+
+`WindowReference.update`（負責以 `proposedSize: .zero` 探測算出最小值並呼叫 `setSizeLimits`）
+只在場景更新、視窗 resize、或環境變化時執行——而非在視窗內容的 `@State` 變化時。因此一次改變
+「內容需要多高」的狀態切換，會使視窗最小值停留在過時的值。
+
+在 GtkBackend 端嘗試了兩種修法，皆非正解，故一併還原而不留下：
+
+- 除了 toplevel，也在 `CustomRootWidget`（其 `measure` 會回傳該值、且 GTK 會結構性強制）上設定
+  最小值。機制原則上正確，但在此毫無作用，因為 `setSizeLimits` 在內容變化時根本沒被呼叫，結構性
+  最小值同樣從未更新。
+- 兩種情況結果相同：短內容彈回 472（其啟動最小值有守住），高內容掉到 100。
+
+正解屬於場景／view-graph 的更新管線：一次「可能改變內容最小尺寸」的內容更新，必須像 resize 或
+環境變化那樣觸發視窗最小值的重算。那是「view 層更新如何傳播至視窗」的框架級更動，而非 GtkBackend
+的小調整，留待一次專注的更動處理，而不在此處綑綁。
+
+---
 
 Before touching `Use tall content`, `xdotool windowsize` could not force the
 window below roughly 472-560px tall (it kept snapping back), so some minimum
