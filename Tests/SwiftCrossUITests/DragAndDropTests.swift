@@ -60,7 +60,22 @@ struct DragAndDropTests {
     @Test("A type the target does not accept is refused, not swallowed")
     func unacceptedTypeIsRefused() {
         let fired = Box(false)
-        let view = Text("drop here").onDrop(of: [.fileURL]) { _ in
+        // The parameter type is spelled out. `onDrop(of:isTargeted:perform:)` has
+        // two overloads that differ only in the closure's parameter -- [DropItem]
+        // and [URL] -- so a closure that names neither its parameter nor its type
+        // matches both, and the call fails to compile with "ambiguous use of
+        // onDrop". The tests either side of this one get away with it because
+        // their bodies touch the parameter and inference has something to work
+        // from; the two that ignore it entirely have to say which overload they
+        // mean. That is a property of the API, not of the tests: any caller
+        // writing `{ _ in true }` meets the same error.
+        //
+        // 此處明確寫出參數型別。`onDrop(of:isTargeted:perform:)` 有兩個多載，差異僅在 closure
+        // 的參數為 [DropItem] 或 [URL]，因此既不具名參數也不標註型別的 closure 會同時符合兩者，
+        // 呼叫端會以「ambiguous use of onDrop」編譯失敗。本檔其他測試之所以無此問題，是因為其
+        // body 用到了該參數，型別推論有依據可循；完全不使用該參數的兩個測試則必須指明所要的多載。
+        // 這是 API 本身的性質，而非測試的問題：任何寫下 `{ _ in true }` 的呼叫端都會遇到同樣的錯誤。
+        let view = Text("drop here").onDrop(of: [.fileURL]) { (_: [DropItem]) in
             fired.value = true
             return true
         }
@@ -78,7 +93,13 @@ struct DragAndDropTests {
     func isTargetedTracksHover() {
         let box = Box(false)
         let binding = Binding(get: { box.value }, set: { box.value = $0 })
-        let view = Text("drop here").onDrop(of: [.fileURL], isTargeted: binding) { _ in true }
+        // Parameter type spelled out for the reason given in
+        // `unacceptedTypeIsRefused` above: this test never touches the dropped
+        // items, so nothing else tells the two overloads apart.
+        // 標註參數型別的理由見上方 `unacceptedTypeIsRefused`：本測試從不觸及 dropped items，
+        // 沒有其他線索可區分兩個多載。
+        let view = Text("drop here")
+            .onDrop(of: [.fileURL], isTargeted: binding) { (_: [DropItem]) in true }
         let target = dropTarget(of: view)
 
         target.onHover?(true)
