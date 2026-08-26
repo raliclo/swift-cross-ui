@@ -1,0 +1,84 @@
+#!/usr/bin/env zsh
+# Prepare an Android SDK and ARM64 emulator on macOS.
+#
+#   zsh testapp/install_tools_android.zsh              # install missing tools
+#   zsh testapp/install_tools_android.zsh --check       # report only
+#   zsh testapp/install_tools_android.zsh --print-env   # print environment
+#
+# The SDK is kept on the project volume by default. This script prepares an
+# emulator for running an already-built APK; it intentionally does not install
+# the Android NDK. Rebuilding Swift Android code still requires the NDK and the
+# separate Swift Android toolchain installer.
+#
+# 在 macOS 準備 Android SDK 與 ARM64 emulator。預設將 SDK 放在 project volume；此腳本只準備
+# 執行既有 APK 所需的工具，不安裝 Android NDK。若要重新編譯 Swift Android 程式，仍須另外
+# 使用 Swift Android toolchain installer 安裝 NDK。
+
+set -euo pipefail
+
+script_path="${0:a}"
+android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${script_path:h:h:h}/.android-sdk}}"
+sdkmanager="${ANDROID_SDKMANAGER:-/opt/homebrew/share/android-commandlinetools/cmdline-tools/latest/bin/sdkmanager}"
+avdmanager="$android_root/cmdline-tools/latest/bin/avdmanager"
+emulator="$android_root/emulator/emulator"
+avd_name="${ANDROID_AVD_NAME:-swift-cross-ui-api36}"
+system_image="system-images;android-36;google_apis;arm64-v8a"
+
+check_only=0
+print_env=0
+case "${1:-}" in
+    --check) check_only=1 ;;
+    --print-env) print_env=1 ;;
+    -h|--help) sed -n '2,14p' "$script_path" | sed 's/^# *//'; exit 0 ;;
+    "") ;;
+    *) print -u2 "usage: ${script_path:t} [--check|--print-env|--help]"; exit 64 ;;
+esac
+
+note() { print -r -- "==> $1"; }
+die() { print -u2 -r -- "[error] $1"; exit 1; }
+
+if [ "$print_env" -eq 1 ]; then
+    print "export ANDROID_HOME=\"$android_root\""
+    print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'
+    print 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"'
+    exit 0
+fi
+
+[ -x "$sdkmanager" ] || die "找不到 sdkmanager：$sdkmanager"
+
+if [ "$check_only" -eq 0 ]; then
+    mkdir -p "$android_root"
+    yes 2>/dev/null | "$sdkmanager" --sdk_root="$android_root" --licenses >/dev/null 2>&1 || true
+    ANDROID_HOME="$android_root" "$sdkmanager" --sdk_root="$android_root" \
+        emulator platform-tools "$system_image"
+fi
+
+[ -x "$emulator" ] || die "缺少 Android emulator：$emulator"
+[ -x "$android_root/platform-tools/adb" ] || die "缺少 platform-tools/adb"
+[ -d "$android_root/system-images/android-36/google_apis/arm64-v8a" ] \
+    || die "缺少 system image：$system_image"
+
+if [ "$check_only" -eq 1 ]; then
+    note "Android SDK ready at $android_root"
+else
+    note "Android SDK installed at $android_root"
+fi
+
+if [ -x "$avdmanager" ]; then
+    if "$avdmanager" list avd 2>/dev/null | grep -q "Name: $avd_name"; then
+        note "AVD already exists: $avd_name"
+    elif [ "$check_only" -eq 1 ]; then
+        note "AVD missing: $avd_name (run without --check to create it)"
+    else
+        printf 'no\n' | ANDROID_HOME="$android_root" "$avdmanager" create avd \
+            --force --name "$avd_name" --package "$system_image" --device "pixel_6" >/dev/null
+        note "Created AVD: $avd_name"
+    fi
+else
+    die "找不到 avdmanager：$avdmanager"
+fi
+
+print ""
+print "export ANDROID_HOME=\"$android_root\""
+print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'
+print 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"'

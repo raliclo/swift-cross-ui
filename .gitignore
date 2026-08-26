@@ -13,6 +13,7 @@
 # template is tracked; the copied debugTarget executable and its signature are
 # local build output.
 /testapp/.bundledApp/
+/testapp/.android-sdk/
 
 # Held while one Pn is under test, so two tests cannot produce screenshots of
 # each other. Runtime state, never committed. See testapp/ui-lock.zsh.
