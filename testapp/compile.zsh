@@ -329,7 +329,14 @@ compile_app() {
     app_name="${app_file%.swift}"
     target_dir="$sources_root/$app_name"
     mkdir -p "$target_dir"
-    cp "$source_path" "$target_dir/main.swift"
+    # Only when the content differs. An unconditional cp gives an unchanged file
+    # a new mtime, and SwiftPM decides from mtimes -- see the note beside the
+    # manifest write below, where the same mistake cost far more.
+    # 僅在內容不同時才複製。無條件的 cp 會給未變更的檔案一個新的 mtime，而 SwiftPM 是依 mtime
+    # 判斷的——見下方 manifest 寫入處的說明，同樣的錯誤在該處代價高得多。
+    if ! cmp -s "$source_path" "$target_dir/main.swift" 2>/dev/null; then
+        cp "$source_path" "$target_dir/main.swift"
+    fi
 
     if grep -q '^import ImageFormats' "$source_path"; then
         needs_image_formats=1
@@ -412,7 +419,33 @@ if [ "$needs_image_formats" -eq 1 ]; then
         ),'
 fi
 
-cat > "$package_dir/Package.swift" <<EOF_PACKAGE
+# Written to a temporary file and moved into place only when it differs.
+#
+# This manifest's content is the same on almost every run -- same apps, same
+# flags -- but writing it unconditionally gave it a new mtime every time, and
+# SwiftPM decides what to rebuild from mtimes. So a run that changed nothing
+# still re-planned the build and re-emitted every module. Measured on this
+# machine: a -gtk4 rebuild of P24 with no source change took 118s, of which
+# emitting the Gtk module alone -- the large GIR-generated bindings, which the
+# WinUI path never builds -- was 16s. Confirmed by hashing: identical MD5 before
+# and after a rerun, different mtime.
+#
+# That is also most of the answer to why -gtk4 looks so much slower than the
+# WinUI path on Windows. Some of it is real (Gtk is a big module), and some of
+# it was this.
+#
+# 先寫入暫存檔，僅在內容不同時才移入定位。
+#
+# 此 manifest 的內容在幾乎每一次執行中都相同——相同的 app、相同的旗標——但無條件寫入會使它每次都
+# 取得新的 mtime，而 SwiftPM 正是依 mtime 決定要重建什麼。因此一次什麼都沒改的執行，仍會重新規劃
+# 建置並重新 emit 每一個 module。本機實測：在原始碼未變更的情況下，-gtk4 重建 P24 耗時 118 秒，
+# 其中光是 emit `Gtk` 模組——那個 GIR 產生的大型綁定模組，WinUI 路徑根本不會建它——就佔了 16 秒。
+# 已以雜湊確認：重跑前後 MD5 完全相同，mtime 卻不同。
+#
+# 這也是「為何 -gtk4 在 Windows 上看起來比 WinUI 路徑慢這麼多」的大部分答案。其中一部分是真實的
+# （Gtk 本來就是大模組），另一部分則是此處造成的。
+package_manifest_tmp="$package_dir/.Package.swift.new"
+cat > "$package_manifest_tmp" <<EOF_PACKAGE
 // swift-tools-version:5.10
 
 import PackageDescription
@@ -466,6 +499,12 @@ let package = Package(
     ]
 )
 EOF_PACKAGE
+
+if cmp -s "$package_manifest_tmp" "$package_dir/Package.swift" 2>/dev/null; then
+    rm -f "$package_manifest_tmp"
+else
+    mv "$package_manifest_tmp" "$package_dir/Package.swift"
+fi
 
 # Swift Bundler needs a Bundler.toml to turn an executable target into an app
 # bundle: a SwiftPM executable has no Info.plist or bundle identifier, so
