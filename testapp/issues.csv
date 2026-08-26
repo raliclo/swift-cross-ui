@@ -34,15 +34,15 @@ issue,categories,backend,status,comments,opened,title
 156,feature,WinUIBackend,fixed-p4,3,2025-05-16,Needs for WinUI
 82,bug,AppKitBackend,repro-p11,0,2024-04-08,[AppKitBackend] Stop sliders jittering in RandomNumberGeneratorExample
 707,untriaged,core/unspecified,unaddressed,1,2026-08-12,Win32Backend
-706,untriaged,core/unspecified,unaddressed,0,2026-08-11,Update PickerStyle documentation to reference AndroidBackend
+706,documentation,AndroidBackend,unaddressed,0,2026-08-11,Update PickerStyle documentation to reference AndroidBackend
 702,untriaged,core/unspecified,unaddressed,0,2026-08-08,Older Gtk4 Version breaks Button Label centering for slim Text labels
 695,untriaged,core/unspecified,unaddressed,0,2026-08-04,"AppKitBackend: NSString.boundingRect treats 0 as unbounded, size(of:proposedWidth:) expects it to be ""minimum-width"" not greedy"
 694,untriaged,core/unspecified,unaddressed,0,2026-08-04,LayoutSystem: sequential equal-split on commit-phase redistribution truncates later stack children
 692,untriaged,core/unspecified,unaddressed,0,2026-08-03,"Table bodies should auto-size, not clip (unimplemented case)"
 688,untriaged,core/unspecified,unaddressed,2,2026-08-01,Add ComboBox View
-687,untriaged,core/unspecified,unaddressed,1,2026-08-01,Feature Proposal: render swift-cross-ui components in Xcode Previews
+687,feature,AppKitBackend;UIKitBackend,unaddressed,1,2026-08-01,Feature Proposal: render swift-cross-ui components in Xcode Previews
 684,untriaged,core/unspecified,fixed,5,2026-08-01,AppKitBackend dimensions test fails on macOS 26+: hardcoded expectation pins NSButton intrinsic metrics
-674,untriaged,core/unspecified,unaddressed,0,2026-07-13,Add AndroidBackend to hosted documentation
+674,untriaged,core/unspecified,closed-upstream,0,2026-07-13,Add AndroidBackend to hosted documentation
 671,untriaged,core/unspecified,unaddressed,1,2026-07-11,"@Entry macro expansion fails on Ubuntu 26.04 with ""extensions must not contain stored properties"" (works fine on Ubuntu 24.04, identical toolchain)"
 645,bug,core/unspecified,unaddressed,3,2026-06-22,Make new buttons match underlying platforms (#590 continuation)
 639,untriaged,core/unspecified,unaddressed,0,2026-06-13,Gaps between adjacent views on Android
@@ -181,3 +181,4 @@ issue,categories,backend,status,comments,opened,title
 27,enhancement,core/unspecified,unaddressed,11,2023-05-11,Layout performance (optimize view updates)
 26,untriaged,core/unspecified,unaddressed,23,2023-02-27,CombineX support
 7,enhancement,core/unspecified,unaddressed,0,2022-03-20,Don't update a widget unless its state has changed
+711,enhancement,AppKitBackend;UIKitBackend,unaddressed,2,2026-08-16,Dropping support for older versions of Apple platforms
