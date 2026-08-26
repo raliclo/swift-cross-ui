@@ -10,7 +10,13 @@ import WinUIInterop
 import Mutex
 
 #if SCUI_DEBUG
-    import InputEvent
+    // The one symbol, not the whole module. InputEvent declares a `Point`, and so
+    // does WindowsFoundation; a plain `import InputEvent` makes every unqualified
+    // `Point` in this file ambiguous, which is 21 errors across the path-geometry
+    // code that has nothing to do with action files. Narrowing the import is the
+    // fix rather than qualifying twelve use sites, because only this one symbol
+    // was ever wanted.
+    import enum InputEvent.ActionFileReplay
 #endif
 
 // Many force tries are required for the WinUI backend but we don't really want them
