@@ -392,7 +392,15 @@ let package = Package(
             // 就為其算繪器連結它，因此凡有 GTK 之處必有它。此處明確指名，是因為 gtk4.pc 將
             // 它列為 private requirement，而 pkg-config 不會把這類項目放進動態連結消費者的
             // --libs 中。
-            linkerSettings: [.linkedLibrary("epoxy")]
+            linkerSettings: [
+                .linkedLibrary("epoxy"),
+                // dwmapi, for the dark title bar in gtk_titlebar_theme.c. Windows
+                // only, and not a new dependency there either -- it ships with the
+                // OS and every windowed app already loads it through the shell.
+                // dwmapi，供 gtk_titlebar_theme.c 中的深色標題列使用。僅限 Windows，且在該處也不是
+                // 新的相依：它隨作業系統提供，任何具視窗的 app 都已透過 shell 載入它。
+                .linkedLibrary("dwmapi", .when(platforms: [.windows])),
+            ]
         ),
         // Synthesised input, driven from a CSV file. Depends on nothing in this
         // package: it takes a window origin and a size and posts events, which

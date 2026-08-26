@@ -296,6 +296,29 @@ public final class GtkBackend:
         // 相反配色的視窗無法同時如願。這是在 GTK 上實作的真實限制，AppKit 因具備 per-window
         // appearance 而無此問題。常見情境（整個 app 偏好單一配色）可正常運作。
         let requested = environment.colorScheme
+
+        // Before the guard below, deliberately. On Windows a GTK window wears a
+        // native Win32 title bar, which follows neither GTK's theme nor the
+        // override underneath -- so it needs telling on every update, not only
+        // on the updates where the app is asking for something other than the
+        // ambient scheme. Skipping it there would leave the common case, an app
+        // that simply follows the system, with a light bar over dark content.
+        //
+        // No API of its own, because SwiftUI has none: a window's chrome there
+        // follows the app's colour scheme and there is nothing to call. The
+        // return value is ignored for the same reason as in setLevel -- it is
+        // false before the window is realized, and the next update is the retry.
+        //
+        // 刻意置於下方 guard 之前。在 Windows 上，GTK 視窗配戴的是原生 Win32 標題列，它既不跟隨
+        // GTK 的主題、也不跟隨其下的 override——因此每次更新都必須告知它，而非僅在「app 要求了與
+        // 環境不同的配色」的那些更新。若略過，最常見的情境（app 單純跟隨系統）就會得到淺色標題列
+        // 配深色內容。
+        //
+        // 刻意不提供專屬 API，因為 SwiftUI 也沒有：在 SwiftUI 中視窗裝飾跟隨 app 的色彩配置，沒有
+        // 任何東西可呼叫。回傳值被忽略的理由與 setLevel 相同——視窗完成 realize 之前它會是 false，
+        // 而下一次更新即是重試。
+        _ = scui_window_set_dark_titlebar(window.widgetPointer, requested == .dark ? 1 : 0)
+
         guard requested != ambientColorScheme else { return }
         Gtk.Settings.default?.preferDarkTheme = (requested == .dark)
     }

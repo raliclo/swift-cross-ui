@@ -106,6 +106,38 @@ void scui_clip_fixed_set_corner_radius(GtkWidget *widget, int radius);
 // 支援」的桌面 Linux 上亦然之前，請以 `xprop -root _NET_SUPPORTED` 重新確認。
 gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
 
+// Asks Windows for a dark or light title bar. Returns whether the platform
+// could honour it.
+//
+// Only Windows needs this, and only because a GTK window there wears a native
+// Win32 title bar that knows nothing about GTK's theme. So a dark GTK app gets
+// a light bar with dark buttons -- the one part of the window that visibly did
+// not get the message. `DwmSetWindowAttribute` with
+// DWMWA_USE_IMMERSIVE_DARK_MODE is what tells the compositor otherwise.
+//
+// The attribute is 20 on Windows 10 2004 and later, and was 19 on 1809. Both
+// are tried, cheaply, because passing an unsupported attribute is an error
+// return rather than a crash, and getting it wrong on an older build would show
+// up as "the setting silently does nothing" -- which is the failure mode this
+// whole area keeps producing.
+//
+// On Linux this returns FALSE and does nothing: GTK draws its own decorations
+// there and they already follow the theme variant GtkBackend sets.
+//
+// 要求 Windows 使用深色或淺色標題列。回傳該平台是否能夠實現此請求。
+//
+// 只有 Windows 需要它，原因是 GTK 視窗在該處配戴的是原生 Win32 標題列，而後者對 GTK 的主題一無所知。
+// 因此深色的 GTK app 會得到一條淺色標題列與深色按鈕——成為整個視窗中唯一「顯然沒有收到通知」的部分。
+// 帶 DWMWA_USE_IMMERSIVE_DARK_MODE 的 `DwmSetWindowAttribute` 正是用來告知合成器的手段。
+//
+// 該屬性在 Windows 10 2004 及之後為 20，在 1809 為 19。兩者都會嘗試，成本極低，因為傳入不支援的
+// 屬性只會得到錯誤回傳而非崩潰；而在較舊的組建上弄錯，症狀會是「該設定悄悄地毫無作用」——正是這個
+// 領域不斷產生的那種失敗模式。
+//
+// 在 Linux 上此函式回傳 FALSE 且不做任何事：GTK 於該處自行繪製視窗裝飾，而它們已經跟隨 GtkBackend
+// 所設定的主題變體。
+gboolean scui_window_set_dark_titlebar(GtkWidget *window, gboolean dark);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the

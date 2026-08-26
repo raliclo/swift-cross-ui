@@ -304,6 +304,79 @@ public final class WinUIBackend:
         let brush = WinUI.SolidColorBrush()
         brush.color = backgroundColor.resolve(in: environment).uwpColor
         window.grid.background = brush
+
+        applyTitleBarColors(to: window, environment: environment)
+    }
+
+    /// Makes the title bar follow the same colour scheme as the content.
+    ///
+    /// Without this a dark app keeps a light title bar with dark buttons, which
+    /// is the one part of the window that visibly did not get the message.
+    ///
+    /// No API of its own, deliberately, because SwiftUI has none: a window's
+    /// chrome there follows the app's colour scheme and there is nothing to
+    /// call. So this reads the scheme SwiftCrossUI has already resolved --
+    /// including `preferredColorScheme` and the ambient system one -- rather
+    /// than adding a modifier for it.
+    ///
+    /// The same `.white`/`.black` the content background uses, so the bar and
+    /// the view under it cannot disagree. The button colours have to be set
+    /// separately: the title bar does not derive them from its own background,
+    /// and left alone they stay at the system default, which is the light pair.
+    ///
+    /// 讓標題列跟隨與內容相同的色彩配置。
+    ///
+    /// 若不這麼做，深色 app 會維持一條淺色標題列與深色按鈕，成為整個視窗中唯一「顯然沒有收到通知」
+    /// 的部分。
+    ///
+    /// 刻意不提供專屬 API，因為 SwiftUI 也沒有：在 SwiftUI 中，視窗裝飾會跟隨 app 的色彩配置，沒有
+    /// 任何東西可呼叫。因此此處讀取 SwiftCrossUI 已解析完成的配置——包含 `preferredColorScheme`
+    /// 與環境系統配置——而非為它新增一個修飾器。
+    ///
+    /// 使用與內容背景相同的 `.white`/`.black`，使標題列與其下方的視圖不可能不一致。按鈕色彩必須另外
+    /// 設定：標題列不會從自身背景推導它們，放著不管就會停留在系統預設，也就是淺色那一組。
+    private func applyTitleBarColors(to window: Window, environment: EnvironmentValues) {
+        window.grid.requestedTheme = switch environment.colorScheme {
+            case .light: .light
+            case .dark: .dark
+        }
+
+        // Cleared, not set. Every colour here is left at the system default so
+        // Windows draws its own chrome for that theme -- #202020 and its own
+        // hover and pressed shades -- rather than whatever this file thought a
+        // dark title bar looks like.
+        //
+        // The first version painted them explicitly, in pure black and white,
+        // and it worked: the bar went dark. It was still wrong. Pure black is
+        // not the colour Windows uses, and a title bar that is blacker than
+        // every other window's is a thing an app has decided rather than a thing
+        // it has inherited. AppKitBackend and GtkBackend both already leave the
+        // window background to the platform; WinUIBackend hardcoding `.white`
+        // and `.black` for its own is the odd one out, and this at least does
+        // not extend that to the chrome.
+        //
+        // 是「清除」而非「設定」。此處每一個顏色都保持系統預設，好讓 Windows 為該主題繪製它自己的
+        // 視窗裝飾——#202020 及其自有的 hover 與 pressed 色階——而不是由本檔認定「深色標題列該長
+        // 什麼樣」。
+        //
+        // 第一版是明確指定顏色的，用純黑與純白，而且它確實有效：標題列變深色了。但它仍然是錯的。
+        // 純黑並非 Windows 所使用的顏色，而一條比其他所有視窗都更黑的標題列，是 app「決定」出來的，
+        // 而非「繼承」而來的。AppKitBackend 與 GtkBackend 本來就把視窗背景交給平台；
+        // WinUIBackend 為自身視窗寫死 `.white` 與 `.black` 是其中的異類，而此處至少不把那份異類
+        // 延伸到視窗裝飾上。
+        guard let titleBar = window.appWindow.titleBar else { return }
+        titleBar.backgroundColor = nil
+        titleBar.foregroundColor = nil
+        titleBar.inactiveBackgroundColor = nil
+        titleBar.inactiveForegroundColor = nil
+        titleBar.buttonBackgroundColor = nil
+        titleBar.buttonForegroundColor = nil
+        titleBar.buttonInactiveBackgroundColor = nil
+        titleBar.buttonInactiveForegroundColor = nil
+        titleBar.buttonHoverBackgroundColor = nil
+        titleBar.buttonHoverForegroundColor = nil
+        titleBar.buttonPressedBackgroundColor = nil
+        titleBar.buttonPressedForegroundColor = nil
     }
 
     public func size(ofWindow window: Window) -> SIMD2<Int> {
