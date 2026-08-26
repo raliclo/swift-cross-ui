@@ -121,7 +121,7 @@ default_action_file() {
 
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
+Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--ios|--android|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
 Default target: $target
@@ -138,6 +138,15 @@ while [ "$#" -gt 0 ]; do
         -w|--wsl) target="wsl"; shift ;;
         -win|--windows) target="windows"; shift ;;
         -mac|--macos) target="macos"; shift ;;
+        # iOS and Android arrived as their own top-level scripts, so reaching
+        # them meant knowing a different command and a different flag spelling
+        # for the same act -- run this app on that platform. They are targets
+        # here like the rest; the scripts stay where they are and do the work.
+        # iOS 與 Android 原本各自是頂層腳本，因此要用到它們就得記住另一個命令與另一套旗標寫法，
+        # 而所做的其實是同一件事——在某個平台上執行這支 app。此處將它們與其他平台一視同仁地列為
+        # target；那兩支腳本仍留在原處並負責實際工作。
+        -ios|--ios) target="ios"; shift ;;
+        -android|--android) target="android"; shift ;;
         -b|--both) target="both"; shift ;;
         -n|--no-build) do_build=0; shift ;;
         --showtime)
@@ -624,19 +633,98 @@ print_summary_macos() {
 # 自身的行程群組。若無此 trap，在 showtime 等待期間按下 Ctrl-C 會結束執行器卻留下視窗開著，而唯一
 # 會關掉它的，是下一次執行的 `kill_existing`。`kill_existing` 本就知道如何在兩個平台上關閉它，因此
 # 此 trap 直接沿用，並以慣例的 130 結束。
+# One UI test at a time, taken here rather than left to whoever is running one.
+#
+# A mutex nobody calls is not a mutex. ui-lock.zsh was added so two tests could
+# not screenshot each other, and then every test runner went on launching apps
+# without asking for it -- so it only worked when a person or an agent
+# remembered, which is the failure mode it exists to remove. Acquiring it here
+# means every path through test.zsh is serialised, including the ones nobody
+# thought about.
+#
+# It also waits while the workstation is locked, because a locked desktop makes
+# capture return bare wallpaper and synthesised input reach nothing, with no
+# error anywhere.
+#
+# SCUI_NO_UI_LOCK=1 skips it. A developer running one test on their own machine
+# should not be blocked for up to 60 seconds by a lock left over from something
+# they are not running, and a gate with no way past it gets deleted rather than
+# fixed.
+#
+# 一次只跑一個 UI 測試，且由此處取得，而非交給執行測試的人自行處理。
+#
+# 沒有人呼叫的互斥鎖不是互斥鎖。當初加入 ui-lock.zsh 是為了讓兩個測試不會互相截圖，然而每一支
+# 測試 runner 依舊照常啟動 app 而不去索取它——於是它只在人或 agent 記得時才生效，而那正是它要
+# 消除的失敗模式。在此取得，代表經過 test.zsh 的每一條路徑都被序列化，包含沒人想到的那些。
+#
+# 它同時會在工作站鎖定期間等待，因為鎖定的桌面會讓擷取只得到桌布、讓合成輸入什麼也碰不到，而且
+# 任何地方都不會報錯。
+#
+# SCUI_NO_UI_LOCK=1 可略過。開發者在自己機器上跑單一測試，不該被一個與他無關的殘留鎖擋上 60 秒；
+# 而一個沒有繞道的閘門，最終會被刪掉而不是被修好。
+ui_lock_script="$script_dir/ui-lock.zsh"
+ui_lock_holder="test-${app:l}"
+ui_lock_held=0
+
+release_ui_lock() {
+    [ "$ui_lock_held" -eq 1 ] || return 0
+    ui_lock_held=0
+    zsh "$ui_lock_script" release "$ui_lock_holder" >/dev/null 2>&1 || true
+}
+
 on_interrupt() {
     printf '\n==> Interrupted; closing %s\n' "$app"
     kill_existing
+    release_ui_lock
     exit 130
 }
 trap on_interrupt INT
 
+# Not for the delegated targets: `exec` replaces this process, so neither the
+# release below nor an EXIT trap would ever run, and the lock would be held by
+# nobody until it went stale.
+# 不套用於委派的 target：`exec` 會取代本行程，因此下方的釋放與 EXIT trap 都不會執行，該鎖將由
+# 「沒有人」持有，直到它過期為止。
+case "$target" in
+    ios|android) ;;
+    *)
+        if [ "${SCUI_NO_UI_LOCK:-0}" != "1" ]; then
+            zsh "$ui_lock_script" acquire "$ui_lock_holder"
+            ui_lock_held=1
+            trap release_ui_lock EXIT
+        fi
+        ;;
+esac
+
 kill_existing
+
+# iOS and Android delegate rather than reimplement. Their scripts already take a
+# Pn as their first argument, so the only thing missing was a way to reach them
+# through the same command and the same flag as every other platform.
+#
+# `exec` so the delegate's exit status is this script's, and so the trap above
+# does not outlive it -- the delegate owns the app it launches and does its own
+# cleanup.
+#
+# iOS 與 Android 採「轉呼叫」而非重新實作。那兩支腳本本來就以 Pn 作為第一個引數，因此唯一缺少的，
+# 只是一條「用與其他平台相同的命令與相同的旗標」抵達它們的途徑。
+#
+# 使用 `exec`，讓委派對象的結束狀態即為本腳本的結束狀態，且上方的 trap 不會存活超過它——啟動的
+# app 由委派對象自己擁有，也由它自己清理。
+run_ios() {
+    exec zsh "$script_dir/test_ios.zsh" "$app" "$@"
+}
+
+run_android() {
+    exec zsh "$script_dir/test_android.zsh" "$app" "$@"
+}
 
 case "$target" in
     wsl) run_wsl ;;
     windows) run_windows ;;
     macos) run_macos ;;
+    ios) run_ios ;;
+    android) run_android ;;
     both) run_wsl; printf '\n'; run_windows ;;
     *) printf 'Unknown target: %s\n' "$target" >&2; exit 64 ;;
 esac
