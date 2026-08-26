@@ -1,6 +1,4 @@
 /// An angular gradient, often referred to as a conic gradient.
-///
-/// Currently unsupported on WinUIBackend and GtkBackend.
 public struct AngularGradient: ElementaryView {
     /// The gradient represented as an array of color stops, each having a parametric location value.
     public let gradient: Gradient

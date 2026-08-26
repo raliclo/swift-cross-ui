@@ -94,6 +94,7 @@ public final class WinUIBackend:
     BackendFeatures.Colors,
     BackendFeatures.DatePickers,
     BackendFeatures.Windowing,
+    BackendFeatures.WindowLevels,
     BackendFeatures.LinearGradients,
     BackendFeatures.RadialGradients
 {
@@ -376,6 +377,24 @@ public final class WinUIBackend:
 
         (window.appWindow.presenter as? OverlappedPresenter)?.isMinimizable = minimizable
         (window.appWindow.presenter as? OverlappedPresenter)?.isResizable = resizable
+    }
+
+    /// Every level, because WinUI has an API for the only one that is hard.
+    ///
+    /// `OverlappedPresenter.isAlwaysOnTop` is the framework's own switch for it,
+    /// so no `SetWindowPos` and no `HWND` are needed here -- and unlike a raw
+    /// `HWND_TOPMOST`, the presenter reapplies it when it re-places the window,
+    /// so it does not have to be re-asserted after a resize.
+    ///
+    /// 支援全部 level，因為 WinUI 為其中唯一困難的那一個提供了 API。
+    ///
+    /// `OverlappedPresenter.isAlwaysOnTop` 就是該框架自己的開關，因此此處不需要 `SetWindowPos`，
+    /// 也不需要 `HWND`——而且與裸的 `HWND_TOPMOST` 不同，presenter 會在重新擺放視窗時一併重新套用，
+    /// 因此無需在調整尺寸後再次宣告。
+    public let supportedWindowLevels: [WindowLevel] = [.automatic, .normal, .floating]
+
+    public func setLevel(ofWindow window: Window, to level: WindowLevel) {
+        (window.appWindow.presenter as? OverlappedPresenter)?.isAlwaysOnTop = level == .floating
     }
 
     public func setChild(ofWindow window: Window, to widget: Widget) {
