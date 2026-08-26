@@ -41,7 +41,7 @@ issue,categories,backend,status,comments,opened,title
 692,untriaged,core/unspecified,unaddressed,0,2026-08-03,"Table bodies should auto-size, not clip (unimplemented case)"
 688,untriaged,core/unspecified,unaddressed,2,2026-08-01,Add ComboBox View
 687,untriaged,core/unspecified,unaddressed,1,2026-08-01,Feature Proposal: render swift-cross-ui components in Xcode Previews
-684,untriaged,core/unspecified,unaddressed,5,2026-08-01,AppKitBackend dimensions test fails on macOS 26+: hardcoded expectation pins NSButton intrinsic metrics
+684,untriaged,core/unspecified,fixed,5,2026-08-01,AppKitBackend dimensions test fails on macOS 26+: hardcoded expectation pins NSButton intrinsic metrics
 674,untriaged,core/unspecified,unaddressed,0,2026-07-13,Add AndroidBackend to hosted documentation
 671,untriaged,core/unspecified,unaddressed,1,2026-07-11,"@Entry macro expansion fails on Ubuntu 26.04 with ""extensions must not contain stored properties"" (works fine on Ubuntu 24.04, identical toolchain)"
 645,bug,core/unspecified,unaddressed,3,2026-06-22,Make new buttons match underlying platforms (#590 continuation)
