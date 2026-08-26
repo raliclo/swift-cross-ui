@@ -22,6 +22,30 @@ What each of them found, and what happened on the apps that have no file, is in
 
 各檔案的發現，以及那些沒有動作檔的 app 上發生了什麼，記錄於 `testapp/P0-P26-windows-findings.md`。
 
+## A file here is for one backend, not for Windows
+
+Windows runs two backends, and a Pn built for each puts its controls in
+different places. `P24-push-one-level.csv` and `P24-push-one-level-winui.csv`
+are the same app and the same first click at different coordinates, measured
+2026-08-27. So a file without a backend suffix was written against GtkBackend
+(`-gtk4`), which is what most of this folder was driven with; a `-winui` suffix
+means the other one.
+
+Reaching for the wrong one does not fail loudly. The click lands somewhere
+inside the window and nothing happens, which reads as the app ignoring input —
+the same appearance that made a coordinate mistake look like a defect in
+`P24-push-one-level.csv`.
+
+## 此處的檔案針對某一個 backend，而非針對 Windows
+
+Windows 上有兩個 backend，同一支 Pn 分別建置後，控制項的位置並不相同。
+`P24-push-one-level.csv` 與 `P24-push-one-level-winui.csv` 是同一支 app、同一次的第一個點擊，座標
+卻不同，量測於 2026-08-27。因此沒有 backend 後綴的檔案是針對 GtkBackend（`-gtk4`）而寫的——本資料夾
+大多數檔案都是以它驅動的；帶 `-winui` 後綴者則是另一個。
+
+取錯檔案不會大聲失敗。點擊會落在視窗內的某處而什麼也沒發生，看起來就像 app 忽略了輸入——正是那個
+讓 `P24-push-one-level.csv` 把座標錯誤誤判成缺陷的外觀。
+
 ## Two things every file here has to get right
 
 Both were paid for in a failed run rather than in an error message.

@@ -51,5 +51,46 @@ action,x,y,origin,button,key,micros,note
 #
 # WSL 資料夾中有 `P24-push-three.csv`，在單一檔案中推入三層。這不是座標差異，而是同一串動作在那邊
 # 可行、在這邊不可行。
+#
+# ---------------------------------------------------------------------------
+# CORRECTION, 2026-08-27. Everything above this line is kept because it is a
+# good example of a confident and wrong finding, and deleting it would hide the
+# shape of the mistake. The conclusion -- "after the push, a click anywhere in
+# this window stops arriving" -- is FALSE.
+#
+# It IS a coordinate difference, exactly the one the note above rules out.
+# Pushing a level re-lays out the whole window, and the controls outside the
+# stack move with it. Measured on WSL/GtkBackend with xdotool, a different
+# synthesiser and a different window system:
+#
+#   push, then click "Increment counter" at its PRE-push (302,256)  -> counter 0
+#   push, then click it at its POST-push (94,231)                   -> counter 1
+#
+# The same relayout happens on WinUIBackend, so it is SwiftCrossUI's navigation
+# layout rather than either backend's: content sits ~305px inside the frame at
+# level 0 and ~22px inside it at level 1. Recorded as #57.
+#
+# Why the original measurement missed it: the note says both targets were taken
+# "on a capture of the app in exactly that state". That is the right method, and
+# something about the application of it went wrong -- most likely the capture
+# used was the pre-push one, since the coordinates it reached are consistent
+# with that. The method was not at fault; believing it had been followed was.
+#
+# ---------------------------------------------------------------------------
+# 更正，2026-08-27。此線以上的內容全部保留，因為它是「自信而錯誤的發現」的良好範例，刪掉它會使這個
+# 錯誤的形狀一併消失。其結論——「推入之後，這個視窗內任何位置的點擊都不再送達」——是**錯的**。
+#
+# 它就是座標差異，正是上方註記所排除的那一種。推入一層會使整個視窗重新排版，堆疊之外的控制項也隨之
+# 移動。以 WSL/GtkBackend 搭配 xdotool 實測——那是不同的 synthesiser、也是不同的視窗系統：
+#
+#   推入後，以「推入前」的 (302,256) 點擊 Increment counter   -> counter 為 0
+#   推入後，以「推入後」的 (94,231)  點擊同一個按鈕            -> counter 為 1
+#
+# 同樣的重新排版在 WinUIBackend 上也會發生，因此這是 SwiftCrossUI 的導覽佈局，而非任一 backend 的：
+# level 0 時內容距 frame 左緣約 305px，level 1 時約 22px。已記錄為 #57。
+#
+# 原始量測為何會漏掉：該註記寫著兩個目標都是「在 app 正處於該狀態時的截圖上」量得的。那是正確的方法，
+# 而在套用該方法的過程中出了差錯——最可能是所用的截圖其實是推入前的那一張，因為它所抵達的座標與此
+# 一致。有問題的不是方法，而是「相信方法已被遵循」這件事。
 click,251,321,frame,left,,,Push level 1 -- root layout
 sleep,,,,,,10000000,hold long enough for a capture

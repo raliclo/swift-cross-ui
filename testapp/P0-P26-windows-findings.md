@@ -43,11 +43,21 @@ are specific and neither is in the pin:
    `#478 Ctrl-Q` half of P10 and every text-entry check are out of reach from an
    action file here. Mouse-only files are unaffected.
 
-2. **Clicks stop arriving once SwiftCrossUI replaces a subtree.** P24 pushes one
+2. ~~**Clicks stop arriving once SwiftCrossUI replaces a subtree.** P24 pushes one
    navigation level and then ignores everything, including a button in the root
    layout outside the stack. P20 opens its level 2 menu page, which is drawn
    correctly and then responds to nothing. Apps whose view tree stays put — P19,
-   P21, P8 — take a whole file of clicks without trouble.
+   P21, P8 — take a whole file of clicks without trouble.~~
+
+   **Wrong, corrected 2026-08-27.** Struck through rather than deleted: it was
+   the sweep's most serious-looking finding and what a confident wrong finding
+   reads like is worth keeping. The clicks arrive. They were landing on empty
+   space, because pushing a level re-lays out the whole window and the controls
+   outside the stack move with it. Proved on WSL with xdotool — a different
+   synthesiser and a different window system — where the same click at the
+   post-push coordinate increments the counter. The relayout itself is real and
+   is now #57; the P20 half is not re-tested and is marked suspect, not
+   corrected. See the correction block in `actions/win/P24-push-one-level.csv`.
 
 `Win32Synthesiser` 可用。指標移動、單次點擊與滾輪都能抵達 Windows 上的 GtkBackend 視窗；重放期間
 置頂釘選維持有效，結束後視窗會回到正常的 z 順序。找到的兩項失敗都很具體，且都不在釘選機制上：
@@ -57,9 +67,16 @@ are specific and neither is in the pin:
    `testapp/run.zsh` 之下，任何含 `key`、`keydown` 或 `keyup` 的檔案在 Windows 上都不可用**，因此
    P10 的「#478 Ctrl-Q」那一半，以及所有文字輸入檢查，在此都無法以動作檔進行。純滑鼠的檔案不受影響。
 
-2. **一旦 SwiftCrossUI 替換了某個子樹，點擊就不再送達。** P24 推入一層之後便對一切無反應，連堆疊
+2. ~~**一旦 SwiftCrossUI 替換了某個子樹，點擊就不再送達。** P24 推入一層之後便對一切無反應，連堆疊
    之外、位於根層版面的按鈕也一樣。P20 的第二層選單頁面有被正確繪出，然後對任何東西都沒有反應。
-   而視圖樹維持不變的 app——P19、P21、P8——可以承受整份檔案的點擊而毫無問題。
+   而視圖樹維持不變的 app——P19、P21、P8——可以承受整份檔案的點擊而毫無問題。~~
+
+   **此項為誤，已於 2026-08-27 更正。** 採刪除線而非直接移除：它是本次巡檢中看起來最嚴重的發現，而
+   「一個自信而錯誤的發現長什麼樣」值得保留。點擊其實有送達，只是落在空白處——推入一層會使整個視窗
+   重新排版，堆疊之外的控制項也隨之移動。已在 WSL 上以 xdotool 證實（不同的 synthesiser、不同的視窗
+   系統）：以推入後的座標點擊同一個按鈕，counter 確實增加。重新排版本身確有其事，現記錄為 #57；
+   P20 的那一半尚未重測，僅標記為存疑而非更正。詳見
+   `actions/win/P24-push-one-level.csv` 中的更正區塊。
 
 ---
 

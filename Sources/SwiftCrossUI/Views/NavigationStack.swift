@@ -19,12 +19,49 @@ public struct NavigationStack<Detail: View>: View {
         // 刻意使用預設對齊。在此強制 `.leading` 雖能把返回列放到正確位置，卻同時把所有既有堆疊的
         // 內容一併拉到左緣——於 P24 實測，其原本置中的內容位移了。返回列自身的 `Spacer` 已使其撐滿
         // 寬度並將按鈕固定在前緣，因此外層包裝不需要、也不應該有自己的對齊主張。
+        // Greedy in both axes at every depth, which is what makes a push not
+        // move anything outside the stack.
+        //
+        // Without this the stack's footprint depended on whether it had a back
+        // bar. At the root there is none, so the stack sized to its content and
+        // an enclosing centred layout placed it accordingly; after one push the
+        // bar appeared, its `Spacer` claimed the whole width, and the stack --
+        // and therefore every sibling above it -- jumped. Measured on P24 in a
+        // 720-wide window: content at x 225..492 at the root, x 16..704 after
+        // one push. Identical on WinUIBackend, ~305px inside the frame becoming
+        // ~22px, which is what showed it was here rather than in a backend.
+        //
+        // Height for the same reason, and it is the same bug in the other axis:
+        // the bar and its divider make the stack taller, and a vertically
+        // centred enclosing layout then moved everything up. Measured after the
+        // width fix alone -- P24's title sat at y 141 at the root and y 116
+        // after a push, while x had stopped moving.
+        //
+        // SwiftUI's NavigationStack fills the space it is offered whatever its
+        // depth; a push replaces what is inside that footprint and moves
+        // nothing around it. This is that.
+        //
+        // 高度亦然，且那是同一個 bug 在另一個軸上的表現：返回列與其分隔線使堆疊變高，而外層垂直置中
+        // 的版面便將所有東西上移。此為僅修正寬度之後所實測——P24 的標題在根層位於 y 141，推入一層後
+        // 位於 y 116，而此時 x 已不再移動。
+        //
+        // 在任何深度都貪婪地佔滿寬度，這正是「推入不會移動堆疊外任何東西」的關鍵。
+        //
+        // 沒有這一行時，堆疊的佔位取決於它是否帶有返回列。位於根層時沒有返回列，因此堆疊依內容縮放，
+        // 外層的置中版面便據此擺放它；推入一層後返回列出現，其 `Spacer` 索取了整個寬度，於是堆疊
+        // ——連同其上方的每一個同層視圖——整個跳位。於 P24、720 寬的視窗中實測：根層時內容位於
+        // x 225..492，推入一層後位於 x 16..704。WinUIBackend 上完全相同，距 frame 左緣由約 305px
+        // 變為約 22px，正是這一點顯示問題在此處而非某個 backend。
+        //
+        // SwiftUI 的 NavigationStack 不論深度都會填滿被給予的空間；推入只替換該佔位內的內容，不會
+        // 移動其周圍的任何東西。此處即是如此。
         VStack(spacing: 0) {
             if elements.count > 1 {
                 navigationBar
             }
             currentDestination
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// A back control, shown whenever anything has been pushed.

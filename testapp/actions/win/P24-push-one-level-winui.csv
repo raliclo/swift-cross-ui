@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note
+# P24 on Windows, WinUIBackend. The GtkBackend file for the same app and the
+# same first click is `P24-push-one-level.csv`, and its coordinates are
+# different -- that is the reason this file exists separately rather than the
+# two being merged.
+#
+# Verified 2026-08-27: the click pushes, the pane reads "Level 1 / Pushed to
+# level 1.", and a desktop capture confirms it.
+#
+# Measured (417,526) on a desktop capture with the window frame at (40,36), so
+# (377,490) physical, and (302,392) after dividing by the 125% display scale.
+#
+# What it was written for: settling whether the relayout that moves the
+# out-of-stack controls is GtkBackend's doing or SwiftCrossUI's. It is
+# SwiftCrossUI's -- WinUI moves them the same way, from ~305px inside the frame
+# at level 0 to ~22px at level 1, and draws the same full-width rule the app
+# never declared. See #57.
+#
+# P24 於 Windows，WinUIBackend。同一支 app、同一個第一次點擊的 GtkBackend 版本是
+# `P24-push-one-level.csv`，而兩者座標並不相同——這正是本檔獨立存在、而非與該檔合併的理由。
+#
+# 已於 2026-08-27 驗證：該次點擊確實推入，面板顯示「Level 1 / Pushed to level 1.」，並有桌面截圖
+# 佐證。
+#
+# 量測方式：在桌面截圖上量得 (417,526)，視窗 frame 位於 (40,36)，因此為 (377,490) 實體像素，再除以
+# 125% 的顯示縮放得到 (302,392)。
+#
+# 撰寫此檔的目的：釐清「移動堆疊外控制項的重新排版」究竟出自 GtkBackend 還是 SwiftCrossUI。答案是
+# SwiftCrossUI——WinUI 以相同方式移動它們（level 0 時距 frame 左緣約 305px，level 1 時約 22px），
+# 並且畫出同一條 app 從未宣告過的全寬分隔線。詳見 #57。
+click,332,392,frame,left,,,push level 1
+sleep,,,,,,900000,let the relayout settle

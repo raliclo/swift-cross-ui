@@ -28,6 +28,31 @@ action,x,y,origin,button,key,micros,note
 # 判斷選單請看**桌面**截圖，而非 `screenshot.zsh -w`。Windows 上的 GTK popover 是自己的 top-level
 # 視窗，因此對「P20 nested menus」做視窗擷取，得到的是一個沒有選單的 app 畫面——看起來與「點擊落空」
 # 一模一樣。這件事花了兩次執行才弄清楚，也正是下方各列止於「app 自己會印出的狀態」的理由。
+# ---------------------------------------------------------------------------
+# SUSPECT, 2026-08-27, and deliberately not corrected. The level-2 finding above
+# has the same shape as the one in `P24-push-one-level.csv`, which turned out to
+# be wrong: there, the clicks were landing on empty space because SwiftCrossUI
+# re-laid out the window when a level was pushed, and the targets had been
+# measured before that happened.
+#
+# The same explanation is plausible here and is NOT established. A menu page is
+# not a navigation push, and this one slides in place rather than reflowing the
+# window, so the P24 cause may not apply at all. Re-measure the level-2 targets
+# on a desktop capture taken while that page is showing, and only then decide.
+#
+# Left as a suspicion rather than folded into the note above, because a finding
+# that is probably wrong is still a finding until somebody checks.
+#
+# ---------------------------------------------------------------------------
+# 存疑，2026-08-27，且刻意不予更正。上方關於第二層的發現，與
+# `P24-push-one-level.csv` 中的發現形狀相同，而後者已證實為錯：該處點擊落在空白處，是因為
+# SwiftCrossUI 在推入一層時重新排版了整個視窗，而目標座標是在那之前量得的。
+#
+# 同樣的解釋在此處也說得通，但**尚未**被確立。選單頁面並非導覽推入，而且此處的選單是就地滑動、
+# 並未使視窗重排，因此 P24 的成因未必適用。請在該頁面顯示時取得桌面截圖、重新量測第二層的目標，
+# 之後再下判斷。
+#
+# 保留為「存疑」而非併入上方註記，是因為一個很可能是錯的發現，在有人查證之前仍然是一個發現。
 click,86,193,frame,left,,,open the menu
 sleep,,,,,,1200000,let the popover appear
 click,113,223,frame,left,,,press Level 1 item
