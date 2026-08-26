@@ -9,6 +9,10 @@
 /testapp/.compile-work
 /testapp/.compile-work-*
 
+# Held while one Pn is under test, so two tests cannot produce screenshots of
+# each other. Runtime state, never committed. See testapp/ui-lock.zsh.
+/testapp/.ui-lock
+
 # The tree SCUI_HOST_BACKENDS_ONLY=1 swift test builds into, for the same reason
 # as the two above: it declares a different set of targets, so it cannot share
 # /.build. See the note beside the flag in Package.swift.
@@ -28,5 +32,7 @@ notes.json
 .docc-build/
 .idea
 
-# P6 writes this into whatever directory it is launched from.
-p6-debug-events.log
+# A Pn writes this into whatever directory it is launched from. Widened from
+# p6-debug-events.log when a P19 run produced p19-debug-events.log -- the name
+# is built from the app, so the pattern has to be too.
+p*-debug-events.log
