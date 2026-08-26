@@ -1,12 +1,17 @@
 # ios
 
-Empty. No action file has been verified on this platform yet.
+`test_ios.zsh --actionfile` replays these CSV files through XCUITest. The
+current runner supports `click`, `doubleclick`, `move`, `sleep`, and a
+`mousedown`/`mouseup` drag pair. Keyboard and scroll rows are rejected because
+XCUITest does not provide an equivalent operation with the same semantics.
 
-A file appears here only after it has been run here and seen to work. An empty
-folder is an honest gap; a copy of another platform's file would be a claim
-nobody checked.
+The sample file is a smoke case only; its coordinates still need visual
+verification on the intended Simulator device before it is used as a product
+regression test.
 
-空的。此平台尚無任何經過驗證的動作檔。
+`test_ios.zsh --actionfile` 會透過 XCUITest 重放這裡的 CSV。現行 runner 支援
+`click`、`doubleclick`、`move`、`sleep`，以及以 `mousedown`／`mouseup` 組成的拖曳。
+鍵盤與 scroll 列會被拒絕，因為 XCUITest 沒有提供語意相同的等價操作。
 
-檔案唯有在此平台實際執行過並確認可運作之後才會出現於此。空資料夾是誠實的缺口；而從其他平台複製
-過來的檔案，則是一項無人查證過的主張。
+目前的 sample 只用於 smoke test；在作為正式 regression test 前，仍須於指定的
+Simulator 裝置上目視確認座標。

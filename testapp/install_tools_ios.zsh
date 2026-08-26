@@ -2,9 +2,9 @@
 # Prepares a macOS environment for building and running swift-cross-ui test apps
 # on the iOS Simulator.
 #
-#   bash testapp/install_tools_ios.zsh              # check, install what is missing
-#   bash testapp/install_tools_ios.zsh --check       # report only, change nothing
-#   bash testapp/install_tools_ios.zsh --print-env   # print the values compile.zsh uses
+#   zsh testapp/install_tools_ios.zsh              # check, install what is missing
+#   zsh testapp/install_tools_ios.zsh --check       # report only, change nothing
+#   zsh testapp/install_tools_ios.zsh --print-env   # print the values compile.zsh uses
 #
 # compile.zsh calls this automatically when given -ios, so running it by hand is
 # only needed to see what is missing or to install ahead of time.
@@ -194,7 +194,7 @@ $(printf '\033[32m')iOS build environment ready$(printf '\033[0m')
 
 Build a test app for the simulator:
 
-  sh testapp/compile.zsh -ios P11
+  zsh testapp/compile.zsh -ios P11
 
 Run it:
 

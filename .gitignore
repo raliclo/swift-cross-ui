@@ -9,6 +9,11 @@
 /testapp/.compile-work
 /testapp/.compile-work-*
 
+# Reusable iOS Simulator bundle assembled by testapp/test_ios.zsh. The
+# template is tracked; the copied debugTarget executable and its signature are
+# local build output.
+/testapp/.bundledApp/
+
 # Held while one Pn is under test, so two tests cannot produce screenshots of
 # each other. Runtime state, never committed. See testapp/ui-lock.zsh.
 /testapp/.ui-lock

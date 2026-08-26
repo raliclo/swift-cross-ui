@@ -35,6 +35,7 @@ zsh testapp/compile.zsh                # 建全部 app
 | `install_tool_wsl.sh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
 | `install_tools_ios.zsh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
 | `install_tool_mac.zsh` | macOS：以 Homebrew 安裝 GTK 4，以及讓 `swift test` 在 Mac 上得以執行所需的兩件事；`--test` 會直接跑測試套件 |
+| `test_ios.zsh` | macOS：將 Pn 放入固定的 `debugTarget` iOS Bundle，安裝並啟動 Simulator；可選用 XCUITest 重放 action file |
 
 ## 其他 scripts
 

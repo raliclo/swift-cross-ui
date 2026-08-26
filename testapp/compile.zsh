@@ -502,7 +502,12 @@ if [ "$target_platform" = "ios" ]; then
     # 先備妥模擬器再建置：全新機器上最常見的情況就是尚無裝置，若等到建置完成才
     # 發現，會白白浪費數分鐘。
     echo "==> Checking the iOS build environment"
-    if ! sh "$script_dir/install_tools_ios.zsh"; then
+    # This helper is a zsh script: it uses zsh path modifiers and zsh arrays.
+    # Invoke it with its declared interpreter instead of `sh`, which makes
+    # `${0:a}` fail under shells that do not support zsh modifiers.
+    # 此輔助腳本是 zsh 腳本：使用 zsh 路徑修飾語與 zsh 陣列。必須使用其宣告的
+    # interpreter，不可用 `sh`，否則不支援 zsh 修飾語的 shell 會讓 `${0:a}` 失敗。
+    if ! zsh "$script_dir/install_tools_ios.zsh"; then
         echo "iOS environment is not ready; see the messages above" >&2
         exit 1
     fi

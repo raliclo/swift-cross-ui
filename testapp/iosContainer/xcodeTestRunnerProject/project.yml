@@ -1,0 +1,34 @@
+name: iOSActionFileRunner
+options:
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  iOSActionHost:
+    type: application
+    platform: iOS
+    sources:
+      - path: Host
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: dev.swiftcrossui.testapp.actionHost
+      INFOPLIST_FILE: Host/Info.plist
+      CODE_SIGNING_ALLOWED: NO
+  iOSActionFileRunner:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ../xcodeTestRunner/Tests
+    dependencies:
+      - target: iOSActionHost
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: dev.swiftcrossui.testapp.actionFileRunner
+      TEST_TARGET_NAME: iOSActionHost
+      CODE_SIGNING_ALLOWED: NO
+schemes:
+  iOSActionFileRunner:
+    build:
+      targets:
+        iOSActionHost: all
+        iOSActionFileRunner: all
+    test:
+      targets:
+        - name: iOSActionFileRunner
