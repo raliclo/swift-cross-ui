@@ -18,8 +18,8 @@ gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost) {
 
     // The surface exists only once the window has been realized, so a call
     // before the window is shown has nothing to act on. Reporting FALSE rather
-    // than silently succeeding lets the caller retry, which it does: the level
-    // is applied on every update, not once.
+    // than silently succeeding lets the caller distinguish that from a platform
+    // API call that actually succeeded.
     GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(window));
     if (surface == NULL) {
         return FALSE;

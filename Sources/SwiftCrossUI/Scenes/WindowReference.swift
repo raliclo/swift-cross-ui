@@ -19,17 +19,17 @@ final class WindowReference<SceneType: WindowingScene> {
     private var preferredColorScheme: ColorScheme?
     /// The window levels already reported as unsupported for this window.
     ///
-    /// The level is re-applied on every update, so without this the warning
-    /// would be emitted on every layout pass and bury whatever the app itself
-    /// logs. Keyed by level rather than a plain flag so a scene that later asks
-    /// for a *different* unsupported level still says so.
-    ///
-    /// 已針對此視窗回報過「不支援」的 window level。
-    ///
-    /// 由於每次更新都會重新套用 level，若無此集合，該警告會在每一次版面配置時發出，把 app 自己的
-    /// 日誌淹沒。以 level 為鍵而非單一旗標，是為了讓「之後改為要求另一個同樣不支援的 level」的場景
-    /// 仍然會出聲。
+    /// Keyed by level rather than a plain flag so a scene that later asks for a
+    /// *different* unsupported level still says so.
     private var reportedUnsupportedWindowLevels: Set<WindowLevel> = []
+    /// The window level last requested by the environment.
+    ///
+    /// Starts as `nil` rather than `.automatic` so that the first update does
+    /// apply, which is what puts a scene declaring `.floating` in front at
+    /// launch. After that unchanged non-floating levels are not handed over
+    /// again, because `.automatic` and `.normal` can map to a platform-level
+    /// "not topmost" call that would undo temporary external pins.
+    private var lastRequestedWindowLevel: WindowLevel?
 
     /// - Parameters:
     ///   - closeHandler: The action to perform when the window is closed. Should
@@ -327,25 +327,6 @@ final class WindowReference<SceneType: WindowingScene> {
             setBehaviors(backend: backend)
         }
 
-        // Applied on every update, not once. A backend re-places a window as
-        // part of resizing it, which on Windows drops the topmost flag -- the
-        // same reason testapp/P6.swift re-asserts its own.
-        // 每次更新都套用，而非只做一次。backend 在調整視窗尺寸時會重新擺放視窗，在 Windows 上這會
-        // 清掉置頂旗標——與 testapp/P6.swift 必須反覆重新宣告其置頂狀態的理由相同。
-        if let levelBackend = backend as? any BackendFeatures.WindowLevels {
-            func setLevel<NewBackend: BackendFeatures.WindowLevels>(backend: NewBackend) {
-                var level = environment.windowLevel
-                if !backend.supportedWindowLevels.contains(level) {
-                    warnAboutWindowLevelOnce(level, backend: NewBackend.self)
-                    level = .normal
-                }
-                backend.setLevel(ofWindow: window as! NewBackend.Window, to: level)
-            }
-            setLevel(backend: levelBackend)
-        } else if environment.windowLevel != .automatic {
-            warnAboutWindowLevelOnce(environment.windowLevel, backend: Backend.self)
-        }
-
         // Generally just used to update the window color scheme
         backend.updateWindow(window, environment: environment)
 
@@ -356,6 +337,35 @@ final class WindowReference<SceneType: WindowingScene> {
         if isFirstUpdate {
             backend.show(window: window)
             isFirstUpdate = false
+        }
+
+        // Apply after the first show, not before it. GTK's platform handle does
+        // not exist until the window is realized, so the old "apply before
+        // show, then remember it as applied" path could silently drop an
+        // initial `.floating` request. Keep reasserting `.floating`, because a
+        // backend resize may replace the platform window and lose topmost
+        // state. Do not reassert unchanged `.automatic` or `.normal`: on
+        // Windows those can map to `HWND_NOTOPMOST`, which undoes the temporary
+        // topmost pin used by `-actionfile` replays.
+        if let levelBackend = backend as? any BackendFeatures.WindowLevels {
+            func setLevel<NewBackend: BackendFeatures.WindowLevels>(backend: NewBackend) {
+                var level = environment.windowLevel
+                if !backend.supportedWindowLevels.contains(level) {
+                    warnAboutWindowLevelOnce(level, backend: NewBackend.self)
+                    level = .normal
+                }
+
+                let shouldApply =
+                    environment.windowLevel != lastRequestedWindowLevel
+                    || level == .floating
+
+                guard shouldApply else { return }
+                backend.setLevel(ofWindow: window as! NewBackend.Window, to: level)
+                lastRequestedWindowLevel = environment.windowLevel
+            }
+            setLevel(backend: levelBackend)
+        } else if environment.windowLevel != .automatic {
+            warnAboutWindowLevelOnce(environment.windowLevel, backend: Backend.self)
         }
     }
 

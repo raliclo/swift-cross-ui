@@ -352,11 +352,8 @@ public final class GtkBackend:
 
     public func setLevel(ofWindow window: Window, to level: WindowLevel) {
         // Only `.floating` needs anything done, and only the platforms that
-        // listed it above get here with it. The return value is ignored on
-        // purpose: it is false before the window is realized, and the level is
-        // re-applied on every update, so the next pass is the retry.
-        // 只有 `.floating` 需要做事，而且只有在上方列出它的平台才會帶著它走到這裡。回傳值刻意忽略：
-        // 在視窗完成 realize 之前它會是 false，而 level 每次更新都會重新套用，因此下一輪即是重試。
+        // listed it above get here with it. The caller applies the level after
+        // the window is shown, when the platform handle exists.
         _ = scui_window_set_topmost(window.widgetPointer, level == .floating ? 1 : 0)
     }
 
