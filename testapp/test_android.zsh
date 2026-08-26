@@ -77,7 +77,18 @@ done
 [ "$(uname -s)" = Darwin ] || die "test_android.zsh requires macOS"
 
 android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
-bundler_bin="${SWIFT_BUNDLER:-$repo_root/swift-bundler}"
+if [ -n "${SWIFT_BUNDLER:-}" ]; then
+    bundler_bin="$SWIFT_BUNDLER"
+elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler" ]; then
+    # Use the build-tree executable because ErrorKit's resource bundle is kept
+    # beside it. The copied root binary may fail before parsing arguments when
+    # that resource bundle is absent.
+    # 使用 build tree 的執行檔，因為 ErrorKit resource bundle 會與它放在一起；若缺少該
+    # resource bundle，複製到 repository root 的 binary 可能在解析引數前就失敗。
+    bundler_bin="$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler"
+else
+    bundler_bin="$repo_root/swift-bundler"
+fi
 android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
 android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
 android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
@@ -106,7 +117,7 @@ if [ "$do_apk" -eq 1 ]; then
     mkdir -p "$apk_dir"
     (
         cd "$package_dir"
-        ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
+        SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
             "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}"
     )

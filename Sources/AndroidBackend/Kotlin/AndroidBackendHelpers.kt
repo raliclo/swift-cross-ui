@@ -192,16 +192,12 @@ class AndroidBackendHelpers {
     fun getTimeZoneIdentifier(): String? {
         val tz = TimeZone.getDefault()
 
-        // getCanonicalID uses outdated information. In Android 16, instead of updating it, they
-        // added a whole new method that uses up-to-date information. The new method returns
-        // TimeZone.UNKNOWN_ZONE_ID on error; the old method returns null on error.
-        if (Build.VERSION.SDK_INT >= 36) {
-            val id = TimeZone.getIanaID(tz.getID())
-
-            return if (id == TimeZone.UNKNOWN_ZONE_ID) null else id
-        } else {
-            return TimeZone.getCanonicalID(tz.getID())
-        }
+        // Keep the helper compatible with the Android API used by the current
+        // Swift Android SDK. Android 16 adds getIanaID, but compiling against an
+        // older SDK cannot resolve that symbol even when guarded by SDK_INT.
+        // 使用目前 Swift Android SDK 支援的 API，確保相容性。Android 16 雖新增
+        // getIanaID，但即使以 SDK_INT 保護，舊版 compile SDK 仍無法解析該符號。
+        return TimeZone.getCanonicalID(tz.getID())
     }
 
     private lateinit var filesLauncher: ActivityResultLauncher<FilesActivityContract.Options>

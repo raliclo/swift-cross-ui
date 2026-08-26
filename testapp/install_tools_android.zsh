@@ -22,6 +22,8 @@ emulator="$android_root/emulator/emulator"
 avd_name="${ANDROID_AVD_NAME:-swift-cross-ui-api36}"
 system_image="system-images;android-36;google_apis;arm64-v8a"
 android_platform="platforms;android-36"
+android_build_tools_version="${ANDROID_BUILD_TOOLS_VERSION:-34.0.0}"
+android_build_tools="build-tools;$android_build_tools_version"
 android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
 android_ndk="ndk;$android_ndk_version"
 
@@ -52,11 +54,13 @@ if [ "$check_only" -eq 0 ]; then
     mkdir -p "$android_root"
     yes 2>/dev/null | "$sdkmanager" --sdk_root="$android_root" --licenses >/dev/null 2>&1 || true
     ANDROID_HOME="$android_root" "$sdkmanager" --sdk_root="$android_root" \
-        emulator platform-tools "$android_platform" "$system_image" "$android_ndk"
+        emulator platform-tools "$android_platform" "$android_build_tools" "$system_image" "$android_ndk"
 fi
 
 [ -x "$emulator" ] || die "缺少 Android emulator：$emulator"
 [ -x "$android_root/platform-tools/adb" ] || die "缺少 platform-tools/adb"
+[ -x "$android_root/build-tools/$android_build_tools_version/aapt2" ] \
+    || die "缺少 Android build-tools：$android_build_tools"
 [ -x "$android_root/ndk/$android_ndk_version/ndk-build" ] \
     || die "缺少 Android NDK：$android_ndk"
 [ -d "$android_root/system-images/android-36/google_apis/arm64-v8a" ] \

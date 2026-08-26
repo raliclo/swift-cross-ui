@@ -542,7 +542,7 @@ if androidBackendSupported {
                     condition: .when(platforms: [.android])
                 ),
                 .product(
-                    name: "SwiftJava",
+                    name: "SwiftJavaStatic",
                     package: "swift-java",
                     condition: .when(platforms: [.android])
                 ),
