@@ -170,6 +170,22 @@ public final class GtkBackend:
                     .navigation-sidebar > row { margin: 0;
                         padding: 0;
                     }
+
+                    /* #390: make disabled controls clearly distinct. GTK's
+                       default theme dims an insensitive widget only subtly --
+                       mostly its label colour -- so a disabled button reads as
+                       enabled at a glance. SwiftUI fades the whole control;
+                       fade it here too. sensitive = false is already set on
+                       each control (see updateButton et al.), which is what
+                       :disabled matches. */
+                    button:disabled,
+                    checkbutton:disabled,
+                    switch:disabled,
+                    entry:disabled,
+                    scale:disabled,
+                    spinbutton:disabled {
+                        opacity: 0.5;
+                    }
                     """
             )
 

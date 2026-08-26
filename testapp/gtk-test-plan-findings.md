@@ -328,10 +328,9 @@ alert.
 ## P2: controls and styling
 
 Picker and TextEditor steps pass; the disabled-button visual-distinction step
-is inconclusive rather than a confirmed pass or a confirmed #390 regression.
+(#390) was inconclusive and is now **fixed**.
 
-Picker 與 TextEditor 步驟通過；disabled 按鈕視覺區別那一步無法下定論，既非確認通過，也非確認
-#390 回歸。
+Picker 與 TextEditor 步驟通過；disabled 按鈕視覺區別那一步（#390）先前無法下定論，現已**修正**。
 
 ### Picker popover, after the present() fix -- verified working
 
@@ -395,13 +394,22 @@ and becomes indistinguishable from the disabled controls, and stays that way
 through further clicks of `Enable button row` in either direction. That is
 consistent with the initial border being GTK's default first-focus ring
 (landing arbitrarily on `Always enabled` at window map) rather than an
-enabled/disabled style, in which case P2 provides no visual distinction
-between enabled and disabled buttons once focus has moved -- which would be a
-#390 regression -- but it is also consistent with `Enable button row`'s click
-simply not reaching the `enabled` binding, which this app cannot distinguish
-from the outside. Needs an app change (a visible counter on one of these
-buttons) or a different measurement method to resolve; recorded as
-characterised, not filed as a defect.
+enabled/disabled style, in which case P2 provided no reliable visual distinction
+between enabled and disabled buttons once focus had moved.
+
+**Fixed.** `sensitive = false` was already being set on each disabled control,
+but GTK's default theme dims an insensitive widget only subtly -- mostly its
+label colour -- so at a glance a disabled button read as enabled. A global CSS
+rule now fades disabled controls (`button:disabled`, `checkbutton:disabled`,
+`switch:disabled`, `entry:disabled`, `scale:disabled`, `spinbutton:disabled` ->
+`opacity: 0.5`), matching SwiftUI, which fades the whole control rather than only
+its text. Verified on WSL: `Disabled action` and `Disabled toggle` are now clearly
+faded next to `Always enabled`.
+
+**已修**。每個 disabled 控制項其實早已設定 `sensitive = false`，但 GTK 預設主題只微幅淡化
+insensitive widget（主要是標籤顏色），因此一眼看去 disabled 按鈕仍像 enabled。現在以一條全域 CSS
+規則淡化 disabled 控制項（上列選擇器 -> `opacity: 0.5`），對齊 SwiftUI（淡化整個控制項而非只有文字）。
+於 WSL 驗證：`Disabled action` 與 `Disabled toggle` 現在明顯淡於 `Always enabled`。
 
 **Window resizing step (#401) detail.** `xdotool windowsize` forced the
 window from 620x643 to 900x700 while `windowResizable` was at its default
