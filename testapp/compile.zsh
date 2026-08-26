@@ -50,6 +50,8 @@ output_dir="$(windows_path "$script_dir/output")"
 # 設定 ANDROID_HOME，仍優先使用它；ANDROID_SDK_ROOT 則視為相同設定。
 android_sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
 android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
+android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
+android_ndk_home="${ANDROID_NDK_HOME:-$android_sdk_root/ndk/$android_ndk_version}"
 # Set after the flags are parsed, because -gtk4 needs its own tree. See the
 # note there.
 # 於旗標解析之後設定，因為 -gtk4 需要自己的目錄樹，理由見該處說明。
@@ -526,6 +528,8 @@ fi
 if [ "$target_platform" = "android" ]; then
     export ANDROID_HOME="$android_sdk_root"
     export ANDROID_SDK_ROOT="$android_sdk_root"
+    export ANDROID_NDK_HOME="$android_ndk_home"
+    export ANDROID_NDK_ROOT="$android_ndk_home"
     for app_name in $app_names; do
         echo "==> Compiling $app_name for Android ($android_triple)"
         SCUI_ANDROID=1 "$swift_bin" build \

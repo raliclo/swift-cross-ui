@@ -5,14 +5,12 @@
 #   zsh testapp/install_tools_android.zsh --check       # report only
 #   zsh testapp/install_tools_android.zsh --print-env   # print environment
 #
-# The SDK is kept on the project volume by default. This script prepares an
-# emulator for running an already-built APK; it intentionally does not install
-# the Android NDK. Rebuilding Swift Android code still requires the NDK and the
-# separate Swift Android toolchain installer.
+# The SDK is kept on the project volume by default. This script prepares the
+# platform-tools/adb, Android NDK, and emulator components required to build and
+# deliver the test apps. The Swift Android toolchain itself remains separate.
 #
-# 在 macOS 準備 Android SDK 與 ARM64 emulator。預設將 SDK 放在 project volume；此腳本只準備
-# 執行既有 APK 所需的工具，不安裝 Android NDK。若要重新編譯 Swift Android 程式，仍須另外
-# 使用 Swift Android toolchain installer 安裝 NDK。
+# 在 macOS 準備 Android SDK、platform-tools/adb、Android NDK 與 ARM64 emulator。預設將 SDK
+# 放在 project volume；Swift Android toolchain 本身仍由另一個安裝腳本負責。
 
 set -euo pipefail
 
@@ -24,6 +22,8 @@ emulator="$android_root/emulator/emulator"
 avd_name="${ANDROID_AVD_NAME:-swift-cross-ui-api36}"
 system_image="system-images;android-36;google_apis;arm64-v8a"
 android_platform="platforms;android-36"
+android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
+android_ndk="ndk;$android_ndk_version"
 
 check_only=0
 print_env=0
@@ -41,6 +41,7 @@ die() { print -u2 -r -- "[error] $1"; exit 1; }
 if [ "$print_env" -eq 1 ]; then
     print "export ANDROID_HOME=\"$android_root\""
     print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'
+    print "export ANDROID_NDK_HOME=\"$android_root/ndk/$android_ndk_version\""
     print 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"'
     exit 0
 fi
@@ -51,11 +52,13 @@ if [ "$check_only" -eq 0 ]; then
     mkdir -p "$android_root"
     yes 2>/dev/null | "$sdkmanager" --sdk_root="$android_root" --licenses >/dev/null 2>&1 || true
     ANDROID_HOME="$android_root" "$sdkmanager" --sdk_root="$android_root" \
-        emulator platform-tools "$android_platform" "$system_image"
+        emulator platform-tools "$android_platform" "$system_image" "$android_ndk"
 fi
 
 [ -x "$emulator" ] || die "缺少 Android emulator：$emulator"
 [ -x "$android_root/platform-tools/adb" ] || die "缺少 platform-tools/adb"
+[ -x "$android_root/ndk/$android_ndk_version/ndk-build" ] \
+    || die "缺少 Android NDK：$android_ndk"
 [ -d "$android_root/system-images/android-36/google_apis/arm64-v8a" ] \
     || die "缺少 system image：$system_image"
 
@@ -89,4 +92,5 @@ fi
 print ""
 print "export ANDROID_HOME=\"$android_root\""
 print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'
+print "export ANDROID_NDK_HOME=\"$android_root/ndk/$android_ndk_version\""
 print 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"'

@@ -79,6 +79,8 @@ done
 android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
 bundler_bin="${SWIFT_BUNDLER:-$repo_root/swift-bundler}"
 android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
+android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
+android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
 swift_snapshot="${SWIFT_ANDROID_SNAPSHOT:-swift-6.3-DEVELOPMENT-SNAPSHOT-2026-06-07-a}"
 swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_snapshot}.xctoolchain/usr/bin/swift}"
 package_dir="$script_dir/.compile-work-android/TestApps"
@@ -96,6 +98,7 @@ if [ "$do_apk" -eq 1 ]; then
 
     print "==> Building $app for Android"
     ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
+        ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
         ANDROID_TRIPLE="$android_triple" SWIFT_BIN="$swift_bin" \
         SCUI_ANDROID=1 zsh "$script_dir/compile.zsh" -android "$app"
 
@@ -104,6 +107,7 @@ if [ "$do_apk" -eq 1 ]; then
     (
         cd "$package_dir"
         ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
+            ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
             "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}"
     )
     generated_apk="$package_dir/.build/bundler/apps/$app/$app.apk"
