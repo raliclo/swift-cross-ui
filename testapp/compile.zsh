@@ -43,6 +43,13 @@ windows_path() {
 script_dir="$(windows_path "$(cd "$(dirname "$0")" && pwd)")"
 repo_root="$(windows_path "$(cd "$script_dir/.." && pwd)")"
 output_dir="$(windows_path "$script_dir/output")"
+# Android builds use the project volume by default, matching
+# testapp/install_tools_android.zsh. Explicit ANDROID_HOME remains the first
+# choice; ANDROID_SDK_ROOT is accepted as the equivalent spelling.
+# Android build 預設使用 project volume，與 testapp/install_tools_android.zsh 一致；若使用者明確
+# 設定 ANDROID_HOME，仍優先使用它；ANDROID_SDK_ROOT 則視為相同設定。
+android_sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
+android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
 # Set after the flags are parsed, because -gtk4 needs its own tree. See the
 # note there.
 # 於旗標解析之後設定，因為 -gtk4 需要自己的目錄樹，理由見該處說明。
@@ -384,20 +391,6 @@ done
 # 像缺少 target，實際上只是名稱不一致。將套件以 app 命名即可對齊。
 # 主機路徑仍使用共用的 TestApps 套件，一次建置即涵蓋所有請求的 app。
 package_name="TestApps"
-if [ "$target_platform" = "android" ]; then
-    android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
-    for app_name in $app_names; do
-        echo "==> Compiling $app_name for Android ($android_triple)"
-        SCUI_ANDROID=1 "$swift_bin" build \
-            --package-path "$package_dir" \
-            --product "$app_name" \
-            --swift-sdk "$android_triple" \
-            -c "$build_config"
-    done
-    echo "Done. Android build tree: $package_dir/.build"
-    exit 0
-fi
-
 if [ "$target_platform" = "ios" ]; then
     ios_app_count="$(printf '%s' "$app_names" | wc -w | tr -d ' ')"
     if [ "$ios_app_count" -ne 1 ]; then
@@ -490,6 +483,21 @@ EOF_PACKAGE
         printf "version = '0.1.0'\n"
     done
 } > "$package_dir/Bundler.toml"
+
+if [ "$target_platform" = "android" ]; then
+    export ANDROID_HOME="$android_sdk_root"
+    export ANDROID_SDK_ROOT="$android_sdk_root"
+    for app_name in $app_names; do
+        echo "==> Compiling $app_name for Android ($android_triple)"
+        SCUI_ANDROID=1 "$swift_bin" build \
+            --package-path "$package_dir" \
+            --product "$app_name" \
+            --swift-sdk "$android_triple" \
+            -c "$build_config"
+    done
+    echo "Done. Android build tree: $package_dir/.build"
+    exit 0
+fi
 
 # NOTE: linking these as GUI-subsystem executables
 # (-Xlinker /SUBSYSTEM:WINDOWS -Xlinker /ENTRY:mainCRTStartup) removes the
