@@ -2,6 +2,16 @@ import Logging
 @_spi(Backends) import SwiftCrossUI
 import UIKit
 
+/// ## Features deliberately not conformed to
+///
+/// - ``BackendFeatures/WindowLevels``: there is no level for a UIKit app to be
+///   at. `UIWindow.windowLevel` orders an app's own windows against each other,
+///   not against another application's, and this backend reports
+///   `supportsMultipleWindows == false` anyway, so the only levels it could
+///   honestly list are ``WindowLevel/automatic`` and ``WindowLevel/normal`` --
+///   which is exactly what SwiftCrossUI already assumes for a backend that does
+///   not conform. Conforming would add a method that changes nothing and a list
+///   that says nothing.
 public final class UIKitBackend:
     BaseAppBackend,
     BackendFeatures.ExternalURLs,

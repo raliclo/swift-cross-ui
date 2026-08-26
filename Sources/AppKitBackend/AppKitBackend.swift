@@ -14,7 +14,12 @@ extension App {
     }
 }
 
-public final class AppKitBackend: FullAppBackend {
+/// ## Features conformed to but not implemented
+///
+/// - ``BackendFeatures/HitTesting``: see `AppKitBackend+HitTesting.swift`. The
+///   conformance is real and the method does nothing, which is what the protocol
+///   asks a backend in this position to do.
+public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public typealias Window = NSCustomWindow
     public typealias Widget = NSView
     public typealias Alert = NSAlert
@@ -208,6 +213,20 @@ public final class AppKitBackend: FullAppBackend {
         } else {
             window.styleMask.remove(.resizable)
         }
+    }
+
+    /// Every level: `NSWindow.level` is the whole feature on macOS.
+    ///
+    /// Unlike Wayland, which refuses to let a client raise itself above another
+    /// application, the window server honours a floating level from any app, so
+    /// there is no platform on which this backend runs that has to answer with a
+    /// shorter list.
+    public let supportedWindowLevels: [WindowLevel] = [.automatic, .normal, .floating]
+
+    public func setLevel(ofWindow window: Window, to level: WindowLevel) {
+        // `.floating` is the only level that is not the default, and only levels
+        // listed above ever reach here.
+        window.level = level == .floating ? .floating : .normal
     }
 
     public func setChild(ofWindow window: Window, to child: Widget) {
