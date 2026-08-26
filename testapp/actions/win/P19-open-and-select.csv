@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note
+# P19 test plan steps 1 and 2, on Windows.
+#
+# The WSL file cannot be reused: its coordinates describe a WSLg window, and on
+# Windows the same interface sits elsewhere -- different font metrics, different
+# decorations, different scale. Replaying the WSL one here moved the cursor into
+# the window and hit nothing, which is what the separate folders are for.
+#
+# `frame` origin, not `client`. testapp/screenshot.zsh captures the window
+# including its title bar, so a pixel measured on that image is a frame
+# coordinate. Using `client` would mean subtracting a title bar height that
+# nothing here knows -- and getting it wrong by that amount is exactly the
+# failure the origins exist to prevent.
+#
+# P19 測試計畫的步驟 1 與 2，Windows 版。
+#
+# 無法沿用 WSL 的檔案：其座標描述的是 WSLg 的視窗，而在 Windows 上同一個介面位於別處——字型度量
+# 不同、視窗裝飾不同、縮放也不同。在此重放 WSL 版的結果是「游標移入視窗但什麼都沒命中」，而這正是
+# 分開資料夾的理由。
+#
+# 使用 `frame` 原點而非 `client`。testapp/screenshot.zsh 擷取的視窗包含標題列，因此在該影像上量到
+# 的像素就是 frame 座標。若改用 `client`，就必須減去一個此處無人知曉的標題列高度——而差錯正好是那
+# 個高度，恰恰是「原點」這個概念要防範的失敗。
+# Divided by the display scale, which is 125% here.
+#
+# A screenshot is in physical pixels and this format is in logical points. The
+# first version of this file used the pixels straight off the capture, and the
+# cursor landed at (122,340) for a target of (96,265) -- ratios of 1.27 and
+# 1.28, which is the 1.25 scale showing up as a miss that grows with distance
+# from the origin.
+#
+# So: measure on the capture, then divide. 96/1.25 = 77, 225/1.25 = 180,
+# 265/1.25 = 212.
+#
+# 除以顯示縮放比例，此處為 125%。
+#
+# 截圖以實體像素為單位，而本格式以邏輯點為單位。本檔的第一版直接使用了從截圖上量到的像素，結果
+# 目標 (96,265) 的游標落在 (122,340)——比值為 1.27 與 1.28，正是 1.25 的縮放以「離原點越遠、
+# 偏差越大」的形式顯現出來。
+#
+# 因此：先在截圖上量測，再相除。96/1.25 = 77、225/1.25 = 180、265/1.25 = 212。
+click,77,180,frame,left,,,step 1 open the menu
+sleep,,,,,,800000,let the popover appear
+click,77,212,frame,left,,,step 2 press Button item
+sleep,,,,,,500000,let last action update
