@@ -61,35 +61,20 @@
 #   SDK 的 <wtypesbase.h>）與 UIKitBackend（UIKit 沒有 macOS 切片）。SCUI_HOST_BACKENDS_ONLY=1
 #   會將兩者自 manifest 中移除；其為何採 opt-in 而非自動，見 Package.swift 中該旗標旁的說明。
 #
-# One test fails afterwards, and it is not a regression:
+# The suite is expected to be fully green: 44 tests in 9 suites, plus 10 in
+# InputEvent. If exactly one AppKit test fails, that is a known shape of problem
+# rather than a new one -- "basic view has the expected dimensions under
+# AppKitBackend" used to assert hard-coded control metrics, ViewSize(92, 96),
+# which macOS 27 broke by making an NSButton 82x24 where the expectation was
+# written against 72x20. It now derives its numbers from the backend, so it
+# should survive an OS change; see the comment on that test for what it asserts
+# instead. Nothing else has ever failed here.
 #
-#   "Ensure that a basic view has the expected dimensions under AppKitBackend"
-#   expects ViewSize(92, 96) and gets ViewSize(102, 104).
-#
-# The numbers are AppKit's, not SwiftCrossUI's. That test lays out
-# VStack { Button("Decrease"); Text("Count: 1"); Button("Increase") }.padding(),
-# and on macOS 27 an NSButton with bezelStyle .regularSquare measures 82x24 for
-# "Decrease" where the expectation was written against 72x20. The arithmetic
-# closes exactly both ways: 82 + 10 + 10 = 102 wide, and 24 + 16 + 24 + 10 + 10
-# (spacing) + 10 + 10 (padding) = 104 tall. The layout is doing the right thing
-# with the sizes AppKit reports; the sizes changed underneath it. The test is
-# upstream's and is skipped everywhere except macOS -- `#if canImport(AppKitBackend)`
-# -- so no CI has ever caught this. The expectation is left alone here: editing
-# it would make the suite pass on this machine and fail on an older one.
-#
-# 之後會有一個測試失敗，而那並非退步：
-#
-#   「Ensure that a basic view has the expected dimensions under AppKitBackend」
-#   期望 ViewSize(92, 96)，實得 ViewSize(102, 104)。
-#
-# 這些數字屬於 AppKit，而非 SwiftCrossUI。該測試佈局的是
-# VStack { Button("Decrease"); Text("Count: 1"); Button("Increase") }.padding()，
-# 而在 macOS 27 上，bezelStyle 為 .regularSquare 的 NSButton 就「Decrease」而言量得 82x24，
-# 當初撰寫期望值時則是 72x20。兩邊的算術都恰好吻合：寬 82 + 10 + 10 = 102；高
-# 24 + 16 + 24 + 10 + 10（間距）+ 10 + 10（padding）= 104。佈局系統依 AppKit 回報的尺寸做出了
-# 正確的結果，是尺寸在其底下改變了。該測試屬於 upstream，且除 macOS 外一律略過
-# （`#if canImport(AppKitBackend)`），因此沒有任何 CI 曾經發現它。此處不更動該期望值：改了
-# 會讓套件在這台機器上通過，卻在較舊的機器上失敗。
+# 此測試套件預期應全數通過：9 個 suite 共 44 個測試，另加 InputEvent 的 10 個。若恰好有一個
+# AppKit 測試失敗，那屬於已知的問題型態而非新問題——「basic view has the expected dimensions
+# under AppKitBackend」原本斷言寫死的控制項度量 ViewSize(92, 96)，而 macOS 27 使 NSButton
+# 變為 82x24（該期望值是依 72x20 寫成的），因而破壞了它。該測試現已改為向 backend 取得數字，
+# 應能承受 OS 改版；它改為斷言什麼，見該測試上方的註解。除此之外此處從未有其他測試失敗。
 
 set -euo pipefail
 
@@ -217,15 +202,12 @@ test_command=(env SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc "-I$brew_prefix/incl
 if [ "$run_tests" -eq 1 ]; then
     note "Running: ${test_command[*]}"
     cd "$repo_root"
-    # Not exec'd. The suite is expected to report one failure (the AppKit
-    # dimensions test explained in the header), so the reminder below has to be
-    # printed after it, where it will be read.
-    # 不使用 exec。測試套件預期會回報一項失敗（檔頭說明的 AppKit 尺寸測試），因此下方的
-    # 提醒必須印在其後，才會被看見。
-    "${test_command[@]}" || true
-    print
-    note "A failing \"basic view has the expected dimensions\" test is expected here; see the header of this script."
-    exit 0
+    # exec, so the suite's exit status is this script's. A wrapper that swallows
+    # a test failure is worse than no wrapper: it makes a red suite look green to
+    # anything that checks the status.
+    # 使用 exec，讓測試套件的結束狀態即為本腳本的結束狀態。會吞掉測試失敗的包裝層比沒有包裝
+    # 更糟：它會讓紅色的測試結果，對任何檢查結束狀態的東西看起來都是綠的。
+    exec "${test_command[@]}"
 fi
 
 cat <<EOF
@@ -239,9 +221,5 @@ Run the package test suite:
 Build a GTK app on this Mac:
 
   swift build -Xcc -I$brew_prefix/include
-
-One failure is expected in the suite -- "basic view has the expected
-dimensions" -- and is an AppKit metrics change, not a regression. Run this
-script with --help for the arithmetic.
 
 EOF
