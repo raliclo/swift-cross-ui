@@ -6,7 +6,49 @@ extension BackendFeatures {
     /// ### Constituent Protocols
     /// - ``WindowBehaviors``
     /// - ``WindowClosing``
+    ///
+    /// ### See Also
+    /// - ``WindowLevels``, which is deliberately not part of this typealias --
+    ///   see the note on it.
     public typealias Windowing = WindowBehaviors & WindowClosing
+
+    /// Backend methods for placing a window in the stack of windows on screen.
+    ///
+    /// Its own protocol rather than another parameter on
+    /// ``WindowBehaviors/setBehaviors(ofWindow:closable:minimizable:resizable:)``,
+    /// and not folded into the ``Windowing`` typealias, because unlike closable,
+    /// minimizable and resizable this is a capability a backend may genuinely
+    /// not have. GTK 4 is that backend: `gtk_window_set_keep_above` was GTK 3
+    /// and was removed, and under Wayland a client cannot raise itself above
+    /// another application's window by design. Adding a parameter would have
+    /// forced every conformer to answer a question one of them cannot.
+    ///
+    /// The support list is a property rather than a fixed fact about a backend
+    /// because it is not one. A GTK window on Windows is an ordinary `HWND` and
+    /// can float; the same backend on Linux cannot. So the answer is computed
+    /// per platform, as ``supportedPickerStyles`` and
+    /// ``supportedDatePickerStyles`` already are.
+    @MainActor
+    public protocol WindowLevels<Window>: Core {
+        /// The levels this backend can actually place a window at, on the
+        /// platform it is currently running on.
+        ///
+        /// ``WindowLevel/automatic`` and ``WindowLevel/normal`` are expected of
+        /// every conformer; a backend that supports neither has no reason to
+        /// conform at all.
+        nonisolated var supportedWindowLevels: [WindowLevel] { get }
+
+        /// Places a window at a level.
+        ///
+        /// Only called with a level this backend listed in
+        /// ``supportedWindowLevels``, so an implementation does not need to
+        /// handle the others. SwiftCrossUI substitutes ``WindowLevel/normal``
+        /// for an unsupported level and logs it once, rather than crashing: a
+        /// window level is a hint with a working fallback, unlike a missing
+        /// widget, and an app should still run on a platform that cannot
+        /// provide it.
+        func setLevel(ofWindow window: Window, to level: WindowLevel)
+    }
 
     /// Backend methods for setting window behaviors.
     @MainActor

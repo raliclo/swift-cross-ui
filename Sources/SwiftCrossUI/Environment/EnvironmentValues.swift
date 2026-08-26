@@ -193,6 +193,14 @@ public struct EnvironmentValues {
     /// The display styles supported by ``DatePicker``. ``datePickerStyle`` must be one of these.
     public let supportedDatePickerStyles: [DatePickerStyle]
 
+    /// The window levels the current backend can actually place a window at.
+    ///
+    /// Asking is only necessary for an app that wants to do something different
+    /// where a level is unavailable. Simply setting one is safe: an unsupported
+    /// level falls back to ``WindowLevel/normal`` and is logged. See
+    /// ``Scene/windowLevel(_:)``.
+    public let supportedWindowLevels: [WindowLevel]
+
     /// Checks whether a picker style is supported by the current backend.
     @MainActor
     public var isPickerStyleSupported: PickerSupportedAction {
@@ -214,6 +222,17 @@ public struct EnvironmentValues {
             self.supportedDatePickerStyles = backend.supportedDatePickerStyles
         } else {
             self.supportedDatePickerStyles = [.automatic]
+        }
+
+        // A backend that does not conform still supports `.normal`: an ordinary
+        // window is what it produces without being asked. Only `.floating`
+        // needs an implementation.
+        // 未實作此協定的 backend 仍然支援 `.normal`：不特別要求時，它產生的本來就是一般視窗。
+        // 只有 `.floating` 才需要實作。
+        if let backend = backend as? any BackendFeatures.WindowLevels {
+            self.supportedWindowLevels = backend.supportedWindowLevels
+        } else {
+            self.supportedWindowLevels = [.automatic, .normal]
         }
     }
 
@@ -337,6 +356,11 @@ extension EnvironmentValues {
     ///
     /// Set by ``Window/windowResizability(_:)->Scene``.
     @Entry internal var windowResizability: WindowResizability = .automatic
+
+    /// Where windows sit in the stack of windows on screen.
+    ///
+    /// Set by ``Scene/windowLevel(_:)``.
+    @Entry internal var windowLevel: WindowLevel = .automatic
 
     /// The default launch behavior of windows.
     ///

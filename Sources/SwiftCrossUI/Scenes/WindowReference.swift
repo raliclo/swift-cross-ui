@@ -17,6 +17,19 @@ final class WindowReference<SceneType: WindowingScene> {
     private let containerWidget: AnyWidget
     /// The window's preferred color scheme, cached from the last update.
     private var preferredColorScheme: ColorScheme?
+    /// The window levels already reported as unsupported for this window.
+    ///
+    /// The level is re-applied on every update, so without this the warning
+    /// would be emitted on every layout pass and bury whatever the app itself
+    /// logs. Keyed by level rather than a plain flag so a scene that later asks
+    /// for a *different* unsupported level still says so.
+    ///
+    /// 已針對此視窗回報過「不支援」的 window level。
+    ///
+    /// 由於每次更新都會重新套用 level，若無此集合，該警告會在每一次版面配置時發出，把 app 自己的
+    /// 日誌淹沒。以 level 為鍵而非單一旗標，是為了讓「之後改為要求另一個同樣不支援的 level」的場景
+    /// 仍然會出聲。
+    private var reportedUnsupportedWindowLevels: Set<WindowLevel> = []
 
     /// - Parameters:
     ///   - closeHandler: The action to perform when the window is closed. Should
@@ -82,6 +95,30 @@ final class WindowReference<SceneType: WindowingScene> {
                 windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
             )
         }
+    }
+
+    /// Says once that a window level could not be honoured, and why it matters.
+    ///
+    /// A warning rather than a crash. A window level is a hint with a working
+    /// fallback -- the window still opens, and everything in it still works --
+    /// unlike a missing widget, which leaves nothing to show. But not silence
+    /// either: a `.floating` window that is not floating looks like the app
+    /// ignoring its own code, and the platform reason is not guessable from the
+    /// outside.
+    ///
+    /// 針對「某個 window level 無法被實現」發出一次說明，並指出其重要性。
+    ///
+    /// 採警告而非崩潰。window level 是一個帶有可用退路的提示——視窗照樣開啟，其中的一切照樣運作
+    /// ——這與「缺少某個 widget」不同，後者根本無物可顯示。但也不採靜默：一個並未浮動的 `.floating`
+    /// 視窗，看起來就像 app 忽略了自己的程式碼，而平台層面的原因從外部是猜不出來的。
+    private func warnAboutWindowLevelOnce(_ level: WindowLevel, backend: Any.Type) {
+        guard reportedUnsupportedWindowLevels.insert(level).inserted else { return }
+        logger.warning(
+            """
+            window level \(String(describing: level)) is not supported by \
+            \(String(describing: backend)) on this platform; using .normal
+            """
+        )
     }
 
     func update<Backend: BaseAppBackend>(
@@ -288,6 +325,25 @@ final class WindowReference<SceneType: WindowingScene> {
                 )
             }
             setBehaviors(backend: backend)
+        }
+
+        // Applied on every update, not once. A backend re-places a window as
+        // part of resizing it, which on Windows drops the topmost flag -- the
+        // same reason testapp/P6.swift re-asserts its own.
+        // 每次更新都套用，而非只做一次。backend 在調整視窗尺寸時會重新擺放視窗，在 Windows 上這會
+        // 清掉置頂旗標——與 testapp/P6.swift 必須反覆重新宣告其置頂狀態的理由相同。
+        if let levelBackend = backend as? any BackendFeatures.WindowLevels {
+            func setLevel<NewBackend: BackendFeatures.WindowLevels>(backend: NewBackend) {
+                var level = environment.windowLevel
+                if !backend.supportedWindowLevels.contains(level) {
+                    warnAboutWindowLevelOnce(level, backend: NewBackend.self)
+                    level = .normal
+                }
+                backend.setLevel(ofWindow: window as! NewBackend.Window, to: level)
+            }
+            setLevel(backend: levelBackend)
+        } else if environment.windowLevel != .automatic {
+            warnAboutWindowLevelOnce(environment.windowLevel, backend: Backend.self)
         }
 
         // Generally just used to update the window color scheme

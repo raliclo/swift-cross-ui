@@ -1533,6 +1533,64 @@ Planned test steps:
    other is a backend-conditional API, which is a separate finding from
    everything else in this section.
 
+## P37: Window Level (Linux and Windows)
+
+Run:
+
+```sh
+zsh testapp/run.zsh P37                    # GtkBackend on Windows
+./testapp/output/P37.exe                   # WinUIBackend on Windows
+./testapp/output/P37                       # GtkBackend, in WSL
+```
+
+The one Pn that cannot be judged from a picture of its own window. Every other
+app is assessed by what its window contains; this one is assessed by what is
+*not* covering it. So the test needs a second window, and the interesting
+outcome is the boring one, where nothing changed.
+
+The app applies `.topmost()`, which is `.windowLevel(.floating)` under the name
+the platform APIs use. Both go through `BackendFeatures.WindowLevels`, and a
+backend that cannot honour a level falls back to `.normal` and logs it once
+rather than crashing or going quiet.
+
+The two platforms genuinely differ, and a tester who does not know that will
+file the Linux result as a defect:
+
+- **Windows** supports it on both backends. WinUIBackend uses
+  `OverlappedPresenter.isAlwaysOnTop`; GtkBackend goes through
+  `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)` on the `HWND` underneath the GTK
+  window. `SWP_NOACTIVATE` matters: this must not steal focus, and taking the
+  foreground is a separate thing Windows only allows the process already in
+  front.
+- **Linux does not.** GTK 4 removed `gtk_window_set_keep_above` and has no
+  replacement, so the answer would have to come from the window manager. Under
+  Wayland a client cannot raise itself above another application by design. X11
+  has `_NET_WM_STATE_ABOVE`, but WSLg's window manager does not advertise it:
+  measured 2026-08-26, its root `_NET_SUPPORTED` lists only
+  `_NET_WM_MOVERESIZE`, `_NET_WM_STATE`, `_NET_WM_STATE_FULLSCREEN` and the two
+  `MAXIMIZED` atoms. Re-check with `xprop -root _NET_SUPPORTED` before treating
+  that as still true, and expect a different answer on a desktop Linux, where
+  `_NET_WM_STATE_ABOVE` usually is implemented.
+
+Test steps:
+
+1. Launch P37 and read the `supported levels` line it prints in its window.
+   On Windows it should list `automatic, normal, floating`; in WSL, only the
+   first two. That line is the app telling you which of the next two steps
+   applies.
+2. Where floating is supported: click another application's window so that
+   application takes focus, then look again. P37 must still be visible on top
+   of it. Capture the desktop, not the window -- a window capture cannot show
+   what is *not* covering it.
+3. Where floating is unsupported: P37 goes behind, which is the correct result
+   there. Confirm the app said so in step 1 rather than leaving you to guess.
+4. Check the log for the fallback line. On a backend without floating,
+   SwiftCrossUI should have logged `window level floating is not supported by
+   ... using .normal` exactly once, not once per layout pass.
+5. Close P37 and confirm nothing else on the desktop has been left pinned above
+   its neighbours. A window level that outlives its window would cover whatever
+   the user does next.
+
 ## Test Record Template
 
 Use this format after each test run:

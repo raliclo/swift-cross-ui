@@ -1541,6 +1541,51 @@ scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`Sce
 6. 於另一個 backend 重複。凡是在其中一邊能編譯、另一邊不能的東西，都是依 backend 而定的 API，與本節
    其餘內容屬於不同的發現。
 
+## P37：視窗層級（Linux 與 Windows）
+
+執行：
+
+```sh
+zsh testapp/run.zsh P37                    # Windows 上的 GtkBackend
+./testapp/output/P37.exe                   # Windows 上的 WinUIBackend
+./testapp/output/P37                       # WSL 中的 GtkBackend
+```
+
+唯一一個「看它自己視窗的圖也判斷不出來」的 Pn。其他每個 app 都以「其視窗內含什麼」來評判；
+這一個則以「什麼沒有蓋住它」來評判。因此測試需要第二個視窗，而值得注意的結果正是那個乏味的
+結果：什麼都沒變。
+
+此 app 套用 `.topmost()`，它就是 `.windowLevel(.floating)`，只是採用平台 API 慣用的名稱。兩者都
+經由 `BackendFeatures.WindowLevels`；無法實現某個 level 的 backend 會退回 `.normal` 並記錄一次，
+而非崩潰或悄無聲息。
+
+兩個平台確實不同，不知情的測試者會把 Linux 的結果當成缺陷回報：
+
+- **Windows** 上兩個 backend 都支援。WinUIBackend 使用
+  `OverlappedPresenter.isAlwaysOnTop`；GtkBackend 則對 GTK 視窗底層的 `HWND` 呼叫
+  `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`。`SWP_NOACTIVATE` 很重要：此操作不得竊取焦點，
+  而「取得前景」是另一件事，Windows 只允許已在前方的行程進行。
+- **Linux 不支援。** GTK 4 移除了 `gtk_window_set_keep_above` 且無替代品，因此答案只能來自窗口
+  管理員。在 Wayland 下，client 依設計無法把自己抬到其他應用程式之上。X11 有
+  `_NET_WM_STATE_ABOVE`，但 WSLg 的窗口管理員並未宣告支援它：實測於 2026-08-26，其 root 的
+  `_NET_SUPPORTED` 只列出 `_NET_WM_MOVERESIZE`、`_NET_WM_STATE`、`_NET_WM_STATE_FULLSCREEN`
+  與兩個 `MAXIMIZED` atom。在把此事視為仍然成立之前，請以 `xprop -root _NET_SUPPORTED` 重新
+  確認；在桌面 Linux 上答案通常不同，該處一般是有實作 `_NET_WM_STATE_ABOVE` 的。
+
+測試步驟：
+
+1. 啟動 P37，讀取它在視窗中印出的 `supported levels` 那一行。在 Windows 上應列出
+   `automatic, normal, floating`；在 WSL 中則只有前兩者。該行等於是 app 在告訴你，接下來的兩個
+   步驟該套用哪一個。
+2. 支援 floating 之處：點擊另一個應用程式的視窗使其取得焦點，然後再看一次。P37 必須仍然可見且
+   位於其上。請擷取「桌面」而非「視窗」——視窗擷取無法呈現「什麼沒有蓋住它」。
+3. 不支援 floating 之處：P37 會跑到後方，此為該平台的正確結果。請確認 app 在步驟 1 已明說此事，
+   而不是留給你去猜。
+4. 檢查日誌中的退回訊息。在沒有 floating 的 backend 上，SwiftCrossUI 應恰好記錄一次
+   `window level floating is not supported by ... using .normal`，而非每一次版面配置都記錄一次。
+5. 關閉 P37，並確認桌面上沒有任何東西被遺留在「釘選於其他視窗之上」的狀態。一個比其視窗更長壽的
+   window level，會壓在使用者接下來所做的每一件事上。
+
 ## 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：

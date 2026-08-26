@@ -74,6 +74,38 @@ GtkWidget *scui_clip_fixed_new(void);
 // 圓角邊框進行，因此 `cornerRadius(r)` 會將子元件裁成圓角形狀，而非在其下留下方形的角。
 void scui_clip_fixed_set_corner_radius(GtkWidget *widget, int radius);
 
+// Pins a window above every other window, or releases it. Returns whether the
+// platform could honour the request at all.
+//
+// GTK 4 has no always-on-top API of its own: gtk_window_set_keep_above was GTK 3
+// and was removed. On Windows that does not matter, because a GTK window is an
+// ordinary HWND underneath and SetWindowPos works on it -- but reaching the HWND
+// means gdk_win32_surface_get_handle, which lives behind a platform header Swift
+// cannot see. Hence a helper: Swift passes a widget and a bool.
+//
+// On every other platform this returns FALSE and does nothing. Under Wayland a
+// client cannot raise itself above another application by design. X11 has
+// _NET_WM_STATE_ABOVE, which would work where the window manager implements it
+// -- but WSLg's does not: measured 2026-08-26, its root _NET_SUPPORTED lists
+// only _NET_WM_MOVERESIZE, _NET_WM_STATE, _NET_WM_STATE_FULLSCREEN and the two
+// MAXIMIZED atoms. Re-check with `xprop -root _NET_SUPPORTED` before assuming
+// that is still true, or before assuming it holds on a desktop Linux where it
+// usually would.
+//
+// 將視窗釘在所有視窗之上，或解除之。回傳該平台是否有能力實現此請求。
+//
+// GTK 4 本身沒有置頂 API：gtk_window_set_keep_above 屬於 GTK 3 且已被移除。在 Windows 上這無妨，
+// 因為 GTK 視窗底層就是一個普通的 HWND，SetWindowPos 對它有效——但要取得該 HWND 需要
+// gdk_win32_surface_get_handle，而它位於 Swift 看不到的平台專屬標頭之後。因此設此輔助函式：
+// Swift 只需傳入一個 widget 與一個 bool。
+//
+// 在其他所有平台上，此函式回傳 FALSE 且不做任何事。Wayland 依設計不允許 client 把自己抬到其他
+// 應用程式之上。X11 有 _NET_WM_STATE_ABOVE，在窗口管理員有實作之處是可行的——但 WSLg 的並沒有：
+// 實測於 2026-08-26，其 root 的 _NET_SUPPORTED 只列出 _NET_WM_MOVERESIZE、_NET_WM_STATE、
+// _NET_WM_STATE_FULLSCREEN 與兩個 MAXIMIZED atom。在假定此事仍然成立之前，或在假定它於「通常會
+// 支援」的桌面 Linux 上亦然之前，請以 `xprop -root _NET_SUPPORTED` 重新確認。
+gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the
