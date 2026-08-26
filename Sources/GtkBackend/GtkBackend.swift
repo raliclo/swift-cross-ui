@@ -1010,12 +1010,24 @@ public final class GtkBackend:
     }
 
     public func setCornerRadius(of widget: Widget, to radius: Int) {
-        // Rounds the corners of the ClipFixed the container wraps content in; the
-        // clip itself is handled by ClipFixed. A rounded radius rounds the border
-        // visually while the clip stays rectangular -- exact for radius 0 (P3's
-        // case) and a strict improvement for larger radii, where the old code did
-        // not clip at all. A rounded clip would need gtk_snapshot_push_rounded_clip.
+        // Two halves. The CSS rounds the border that is drawn, and the clip is
+        // told to follow the same radius so the child is actually cut to the
+        // rounded shape.
+        //
+        // The clip used to be rectangular whatever the radius, which was exact
+        // only at radius 0 (P3's case): at any larger radius an oversized child
+        // kept square corners showing underneath a rounded border. AppKit cuts
+        // to the shape with clipsToBounds plus a layer corner radius, and WinUI
+        // with a rounded-rectangle geometric clip.
+        //
+        // 分為兩半。CSS 負責把「繪製出來的邊框」變圓，而裁切則被告知依循同一個半徑，使子元件
+        // 真的被裁成圓角形狀。
+        //
+        // 先前不論半徑為何，裁切一律為矩形，那只有在半徑為 0 時才是正確的（P3 的情況）：只要
+        // 半徑更大，超尺寸的子元件就會在圓角邊框之下留下方形的角。AppKit 以 clipsToBounds 搭配
+        // layer 的圓角半徑裁成該形狀，WinUI 則以圓角矩形的幾何裁切為之。
         widget.css.set(property: .cornerRadius(radius))
+        scui_clip_fixed_set_corner_radius(widget.widgetPointer, gint(radius))
     }
 
     public func naturalSize(of widget: Widget) -> SIMD2<Int> {
@@ -1685,6 +1697,18 @@ public final class GtkBackend:
         onChange: @escaping (String) -> Void
     ) {
         let textEditor = textEditor as! Gtk.TextView
+
+        // Every other control honours `.disabled` through `sensitive` (see
+        // updateTextField, updateButton, updateDatePicker); the text editor was
+        // the one that did not, so a TextEditor inside a `.disabled(true)`
+        // subtree stayed editable on GtkBackend while looking the same as one
+        // that was not.
+        //
+        // 其他每一個控制項都透過 `sensitive` 遵從 `.disabled`（見 updateTextField、updateButton、
+        // updateDatePicker）；唯獨 text editor 沒有，因此位於 `.disabled(true)` 子樹中的
+        // TextEditor 在 GtkBackend 上仍可編輯，外觀卻與未被 disable 者相同。
+        textEditor.sensitive = environment.isEnabled
+
         textEditor.buffer.changed = { buffer in
             onChange(buffer.text)
         }
@@ -1788,13 +1812,103 @@ public final class GtkBackend:
         ProgressBar()
     }
 
+    /// The pulse timers driving indeterminate progress bars, by widget.
+    /// 驅動不確定進度條的 pulse 計時器，以 widget 為索引。
+    private var progressPulseTimers: [ObjectIdentifier: guint] = [:]
+
+    /// Carries a progress bar into a C callback without keeping it alive.
+    ///
+    /// Weak on purpose: the timer outlives the widget if the view goes away
+    /// before the timer is cancelled, and a strong reference would both leak the
+    /// widget and let the callback pulse something no longer on screen.
+    ///
+    /// 將進度條帶入 C callback，但不延長其生命週期。
+    ///
+    /// 刻意使用弱引用：若 view 在計時器被取消前就消失，計時器會比 widget 活得更久，而強引用會
+    /// 同時造成 widget 洩漏，並讓 callback 對一個已不在畫面上的東西呼叫 pulse。
+    private final class ProgressBarBox {
+        weak var progressBar: ProgressBar?
+
+        init(_ progressBar: ProgressBar) {
+            self.progressBar = progressBar
+        }
+    }
+
+    /// Starts pulsing a progress bar, if it is not already.
+    /// 開始 pulse 某個進度條（若尚未在 pulse）。
+    private func startPulsing(_ progressBar: ProgressBar) {
+        let key = ObjectIdentifier(progressBar)
+        guard progressPulseTimers[key] == nil else { return }
+
+        // 100ms is GTK's own cadence for this in its demos: fast enough to read
+        // as motion, slow enough not to spend the frame budget on a widget that
+        // is only saying "still working".
+        // 100ms 是 GTK 自身範例採用的節奏：快到足以被讀成「在動」，又慢到不會為一個只是在說
+        // 「還在處理」的 widget 耗掉繪製預算。
+        let timer = g_timeout_add_full(
+            0,
+            100,
+            { context in
+                guard let context else { return 0 }
+                let box = Unmanaged<ProgressBarBox>.fromOpaque(context).takeUnretainedValue()
+                guard let progressBar = box.progressBar else {
+                    // The widget is gone, so stop the timer rather than pulse a
+                    // freed pointer. Weakly held for exactly this reason.
+                    // widget 已不存在，因此停止計時器，而非對已釋放的指標呼叫 pulse。以弱引用持有
+                    // 正是為了這個原因。
+                    return 0
+                }
+                gtk_progress_bar_pulse(progressBar.opaquePointer)
+                return 1
+            },
+            Unmanaged.passRetained(ProgressBarBox(progressBar)).toOpaque(),
+            { context in
+                guard let context else { return }
+                Unmanaged<ProgressBarBox>.fromOpaque(context).release()
+            }
+        )
+        progressPulseTimers[key] = timer
+    }
+
+    /// Stops pulsing a progress bar, so a determinate fraction can be shown.
+    /// 停止 pulse 某個進度條，使其可顯示確定的進度值。
+    private func stopPulsing(_ progressBar: ProgressBar) {
+        let key = ObjectIdentifier(progressBar)
+        guard let timer = progressPulseTimers.removeValue(forKey: key) else { return }
+        g_source_remove(timer)
+    }
+
     public func updateProgressBar(
         _ widget: Widget,
         progressFraction: Double?,
         environment: EnvironmentValues
     ) {
         let progressBar = widget as! ProgressBar
-        progressBar.fraction = progressFraction ?? 0
+
+        // An indeterminate ProgressView -- one with no value -- has to animate,
+        // or it reads as a bar stuck at zero rather than as work in progress.
+        // GTK does not animate on its own: gtk_progress_bar_pulse moves the
+        // block one step per call, so an indeterminate bar needs something
+        // calling it on a timer. Setting `fraction` at all switches the widget
+        // out of activity mode, so the two are mutually exclusive.
+        //
+        // AppKit flips isIndeterminate and calls startAnimation; WinUI sets
+        // isIndeterminate. GtkBackend previously did `fraction = fraction ?? 0`,
+        // which is a filled-in 0% bar in both cases.
+        //
+        // 不確定進度的 ProgressView（沒有值的那一種）必須要有動畫，否則看起來會像「卡在 0%」而
+        // 非「進行中」。GTK 不會自行動畫：gtk_progress_bar_pulse 每呼叫一次才移動一格，因此不確定
+        // 進度的 bar 需要有東西以計時器持續呼叫它。而只要設定了 `fraction`，該 widget 就會離開
+        // activity mode，因此兩者互斥。
+        //
+        // AppKit 會切換 isIndeterminate 並呼叫 startAnimation；WinUI 設定 isIndeterminate。
+        // GtkBackend 先前的做法是 `fraction = fraction ?? 0`，那在兩種情況下都是一條填滿 0% 的 bar。
+        if let progressFraction {
+            stopPulsing(progressBar)
+            progressBar.fraction = progressFraction
+        } else {
+            startPulsing(progressBar)
+        }
         let backgroundColor: Gtk.Color
         switch environment.colorScheme {
             case .light:

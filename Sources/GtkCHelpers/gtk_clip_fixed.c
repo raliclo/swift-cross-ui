@@ -6,8 +6,21 @@
 
 #define GTK_TYPE_SCUI_CLIP_FIXED (scui_clip_fixed_get_type())
 
+// Spelled out for the same reason as in gtk_passthrough_fixed.c: G_DEFINE_TYPE
+// generates get_type but not the checking macros.
+// 手動定義，理由同 gtk_passthrough_fixed.c：G_DEFINE_TYPE 只產生 get_type，不產生型別檢查巨集。
+#define GTK_IS_SCUI_CLIP_FIXED(obj) \
+    (G_TYPE_CHECK_INSTANCE_TYPE((obj), GTK_TYPE_SCUI_CLIP_FIXED))
+
 typedef struct _ScuiClipFixed {
     GtkFixed parent_instance;
+
+    // Corner radius for the clip. Zero means a plain rectangle, which is what
+    // .clipped() asks for; cornerRadius(r) sets it so the clip follows the
+    // rounded border rather than cutting a square through it.
+    // 裁切的圓角半徑。零代表純矩形，即 .clipped() 所要求者；cornerRadius(r) 會設定它，使裁切
+    // 沿著圓角邊框進行，而非從中切出一個方角。
+    float corner_radius;
 } ScuiClipFixed;
 
 typedef struct _ScuiClipFixedClass {
@@ -51,9 +64,40 @@ static void scui_clip_fixed_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
     float width = req_width > 0 ? (float)req_width : (float)gtk_widget_get_width(widget);
     float height = req_height > 0 ? (float)req_height : (float)gtk_widget_get_height(widget);
     graphene_rect_t bounds = GRAPHENE_RECT_INIT(0.0f, 0.0f, width, height);
-    gtk_snapshot_push_clip(snapshot, &bounds);
+
+    ScuiClipFixed *self = (ScuiClipFixed *)widget;
+    if (self->corner_radius > 0.0f) {
+        // A rounded clip, so cornerRadius(r) actually cuts the child to the
+        // rounded shape. Clipping to a rectangle left square corners showing
+        // underneath a rounded border -- AppKit (clipsToBounds + layer
+        // cornerRadius) and WinUI (a rounded-rectangle geometric clip) both cut
+        // to the shape.
+        //
+        // 圓角裁切，使 cornerRadius(r) 真的把子元件裁成圓角形狀。先前裁成矩形，會在圓角邊框
+        // 之下留下方形的角——AppKit（clipsToBounds 加上 layer 的 cornerRadius）與 WinUI（圓角
+        // 矩形的幾何裁切）都是裁成該形狀。
+        GskRoundedRect rounded;
+        gsk_rounded_rect_init_from_rect(&rounded, &bounds, self->corner_radius);
+        gtk_snapshot_push_rounded_clip(snapshot, &rounded);
+    } else {
+        gtk_snapshot_push_clip(snapshot, &bounds);
+    }
+
     GTK_WIDGET_CLASS(scui_clip_fixed_parent_class)->snapshot(widget, snapshot);
     gtk_snapshot_pop(snapshot);
+}
+
+void scui_clip_fixed_set_corner_radius(GtkWidget *widget, int radius) {
+    if (widget == NULL || !GTK_IS_SCUI_CLIP_FIXED(widget)) {
+        return;
+    }
+    ScuiClipFixed *self = (ScuiClipFixed *)widget;
+    float value = radius > 0 ? (float)radius : 0.0f;
+    if (self->corner_radius == value) {
+        return;
+    }
+    self->corner_radius = value;
+    gtk_widget_queue_draw(widget);
 }
 
 static void scui_clip_fixed_class_init(ScuiClipFixedClass *klass) {

@@ -65,6 +65,15 @@ void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque);
 // request,使 allocation 即為該框,並於 snapshot 中推入 clip,確保裁切確實發生。
 GtkWidget *scui_clip_fixed_new(void);
 
+// Sets the corner radius the clip follows. Zero, the default, clips to a plain
+// rectangle -- what `clipped()` asks for. A positive radius makes the clip follow
+// the rounded border, so `cornerRadius(r)` cuts the child to the rounded shape
+// instead of leaving square corners showing underneath it.
+//
+// 設定裁切所依循的圓角半徑。預設為零，裁切為純矩形——即 `clipped()` 所要求者。正值會使裁切沿著
+// 圓角邊框進行，因此 `cornerRadius(r)` 會將子元件裁成圓角形狀，而非在其下留下方形的角。
+void scui_clip_fixed_set_corner_radius(GtkWidget *widget, int radius);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the
