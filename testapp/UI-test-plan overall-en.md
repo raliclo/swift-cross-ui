@@ -1274,6 +1274,265 @@ Planned test steps:
 3. Insert and remove a view with `.transition(...)`.
 4. Compare each against the same code under AppKit.
 
+## P31: Focus and Keyboard (Linux and Windows)
+
+**Partly writable today, not yet written.** Roughly half of what this app has to
+check can be written now; the other half is a list of calls that do not compile.
+
+Nothing in SwiftCrossUI names focus. There is no `@FocusState`, no
+`.focused(_:)` and no `.focusable()`, so an app cannot say which field starts
+focused, cannot move focus after a button is pressed, and cannot read where
+focus currently is. Whatever the platform does by default is the entire
+behaviour.
+
+Keyboard shortcuts have the same shape. There is no `.keyboardShortcut`, no
+`KeyEquivalent` and no `EventModifiers`. `Commands` and `CommandMenu` do build a
+menu bar, but they resolve to `ResolvedMenu.Item`, whose `button` case carries a
+label and an action and nothing else -- there is no field a key equivalent could
+travel in, so the gap is in the data structure, not only in the modifier.
+`CommandGroup` does not exist at all.
+
+Two backend behaviours are worth measuring on their own. GtkBackend installs
+exactly one accelerator, `<Control>q` bound to `app.quit`, in
+`installQuitShortcut()`; it is the only key binding the toolkit creates.
+`createAlert()` then attaches a shortcut controller that consumes `Escape` so it
+cannot close the dialog, and the response handler discards GTK's delete-event
+response. Both are deliberate, and both are invisible until an app presses the
+key and reports what happened.
+
+Test steps:
+
+1. Tab through a window holding a `TextField`, a `Button`, a `Toggle` and a
+   `Slider`, and record the order focus visits them and whether the focused
+   control is visibly marked. This is entirely the platform's doing, so a
+   difference here is a GTK-against-WinUI difference and not a SwiftCrossUI one.
+2. Press Space and Return on each focused control and record which ones
+   activate. A control that is reachable but not operable from the keyboard
+   looks correct in a screenshot.
+3. Press Ctrl+Q. Under GtkBackend the app must exit. Under WinUIBackend nothing
+   should happen, because no equivalent binding is installed; that asymmetry is
+   the finding, not a bug in either backend.
+4. Open an alert, press Escape, and confirm the dialog stays open. Then press
+   one of its buttons and confirm the response arrives. Escape doing nothing and
+   Escape dismissing while reporting no response are different failures, and
+   only pressing a button afterwards separates them.
+5. Reach a `CommandMenu` item using the keyboard alone, through the menu bar's
+   own traversal, since no item can declare a shortcut. Record how many
+   keystrokes it takes.
+6. Keep the list of calls that do not compile in the app itself: `@FocusState`,
+   `.focused($field)`, `.focusable()`,
+   `.keyboardShortcut("s", modifiers: .command)`,
+   `CommandGroup(replacing: .newItem) { ... }`. Each line that starts compiling
+   is the progress report.
+7. Repeat under the other backend.
+
+## P32: Accessibility (Linux and Windows)
+
+**Writable today, not yet written.** The app calls nothing that is missing. It
+exists to be inspected from outside.
+
+SwiftCrossUI has no accessibility API. There is no `.accessibilityLabel`,
+`.accessibilityHint`, `.accessibilityValue`, `.accessibilityAddTraits`,
+`.accessibilityHidden`, `.accessibilityElement` or `.accessibilityIdentifier`,
+and no backend protocol for any of them, so no backend can be asked to set one.
+The nearest thing is `.help(_:)`, which goes through `BackendFeatures.Tooltips`
+and sets a hover tooltip; UIKitBackend also assigns `accessibilityHint` from it,
+and GTK and WinUI do not.
+
+That does not mean the tree is empty. GTK exposes AT-SPI, WinUI exposes UI
+Automation and AppKit exposes NSAccessibility, and each hands a widget a default
+role and often a default name taken from its label. So the question here is not
+whether accessibility exists but how much of it survives without an API: which
+elements appear, which carry a usable name, and which are anonymous boxes. That
+baseline is what any future labelling API gets measured against, and it has to
+be recorded before the API exists or there is nothing to compare against.
+
+Test steps:
+
+1. Build a window holding a labelled `Button`, an icon-only `Button` with no
+   text, a `TextField` with placeholder text, a `Toggle`, a `Slider`, a
+   `ProgressView` and an `Image`.
+2. On Linux, read the tree with Accerciser and record each element's role and
+   name.
+3. On Windows, read the same window with Accessibility Insights or
+   `inspect.exe` and record each element's control type and Name.
+4. Compare the two lists element by element. An element present on one platform
+   and absent on the other is a backend gap; an element present on both with an
+   empty name is the API gap this section is about, and the two want different
+   fixes.
+5. Apply `.help("...")` to the icon-only button and record whether the text
+   reaches the accessibility tree, the tooltip only, or neither. Check both
+   platforms; the code paths are not shared.
+6. Drive the window with a screen reader -- Orca on Linux, Narrator on Windows
+   -- and write down verbatim what it announces for the icon-only button. "Button"
+   with no name is the expected result today; record the exact announcement
+   rather than a summary of it.
+7. Confirm the announced order matches the visual order. A layout container can
+   reorder its children in the tree without changing what is drawn, and nothing
+   on screen would show it.
+
+## P33: Missing Views (Linux and Windows)
+
+**Planned, not yet written.** Covers the SwiftUI views with no SwiftCrossUI
+equivalent at all, where ported code fails to compile rather than rendering
+differently.
+
+None of `Form`, `Section`, `Label(_:systemImage:)`, `Stepper`, `Gauge`,
+`DisclosureGroup`, `LabeledContent`, `ColorPicker` or `Link` exists under
+`Sources/SwiftCrossUI/Views`. `Section` is the one that matters most: in SwiftUI
+it is less a view in its own right than the structuring element that `List`,
+`Form`, `Picker` and `Menu` all accept, so its absence breaks call sites that do
+not look like they are about sections. The others each cost one call site.
+
+Planned test steps:
+
+1. Show one instance of each missing view and record which compile. The app
+   begins as a file that does not build, and the list of lines that had to be
+   commented out is the measurement.
+2. For `Section`, test all four containers separately -- `List`, `Form`,
+   `Picker`, `Menu`. A `Section` that works in one and not the others is a
+   different result from one that works nowhere.
+3. Where a view can be approximated by hand -- a `Stepper` as two buttons and a
+   label, `LabeledContent` as an `HStack` -- build the approximation beside the
+   gap and record how many lines it takes and what it still fails to do:
+   keyboard reachability, alignment with neighbouring rows, disabled state.
+4. `Label(_:systemImage:)` needs a system image, and `Image(systemName:)` does
+   not exist either (see P36). Record whether a text-only fallback is acceptable
+   or whether the two gaps have to be closed together.
+5. Compare each against the same code under AppKit.
+
+## P34: Lazy Containers and Large Collections (Linux and Windows)
+
+**Planned, not yet written.** Covers what happens when a collection is larger
+than the window that shows it.
+
+There is no `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` or `Grid`, and
+no `ScrollViewReader` or `ScrollViewProxy`. `VStack` and `HStack` build every
+child, and `ScrollView` scrolls whatever it was handed, so a collection inside a
+`ScrollView` is fully realised: 10,000 rows means 10,000 widgets, whether or not
+any of them is on screen. Nor is there a way to scroll to a particular row
+programmatically, which is what `ScrollViewProxy.scrollTo` is for in SwiftUI.
+
+"Feels slow" is not a finding. The app takes a row count on the command line and
+prints numbers, so the result is a table rather than an impression.
+
+Planned test steps:
+
+1. Run with 100, 1,000, 10,000 and 100,000 rows and record the time from launch
+   to first paint at each. Four points are enough to see the shape: growth
+   proportional to row count is full realisation, flat is laziness that has come
+   from somewhere unexpected and should be located.
+2. Record peak resident set size on the same runs. Time alone cannot separate
+   "builds everything slowly" from "builds everything and keeps it", and the
+   memory figure is what distinguishes them.
+3. Measure scroll latency at 10,000 rows -- the time from a scroll event to the
+   frame that reflects it -- and compare it against 100 rows. Eager building
+   costs launch time; it does not necessarily cost scrolling, and conflating the
+   two assigns the cost to the wrong cause.
+4. Find the row count at which the app fails, and record how it fails: refusing
+   to start, an allocation failure, a widget-count limit in X11 or WinUI, or a
+   launch time long enough to be unusable. The remedies differ, so the mode
+   matters as much as the number.
+5. Write `ScrollViewReader { proxy in ... }` and record the compiler error, then
+   jump to row 5,000 by whatever means the toolkit does offer and record what
+   that costs.
+6. Repeat under the other backend. GTK and WinUI have different widget-creation
+   costs, so the two curves are expected to differ in slope, not only in offset.
+
+## P35: State and Scene Composition (Linux and Windows)
+
+**Planned, not yet written.** Covers the gaps that stop a SwiftUI app's
+structure from being expressed, as distinct from its appearance.
+
+`@State`, `@Binding`, `@Environment` and `ObservableObject` all exist.
+`@StateObject` and `@ObservedObject` do not, so a reference-type model has no
+property wrapper to be observed through. Neither does `@SceneStorage`, nor
+`Binding.constant(_:)`, and `.environmentObject(_:)` is not offered as an alias
+for the environment modifier.
+
+The scene side is more structural. `Scene` declares only `associatedtype Node`
+-- there is no `var body: some Scene`, so a scene cannot be composed out of other
+scenes the way a view is composed out of views. `SceneBuilder` provides
+`buildBlock` only: no `buildIf`, no `buildOptional`, no `buildEither`. An `if`
+inside `App.body` therefore does not compile, which rules out the ordinary
+SwiftUI pattern of opening a window conditionally. `ViewBuilder` does have
+`buildIf` and `buildEither`, but no `buildLimitedAvailability`, so `if #available`
+does not work inside a view body either.
+
+Planned test steps:
+
+1. Declare a class conforming to `ObservableObject` with a `@Published`
+   property and try to hold it with `@StateObject`, then with `@ObservedObject`.
+   Record what compiles and, for anything that does, whether changing the
+   published property redraws the view.
+2. Write an `App` whose `body` contains `if showSecondWindow { WindowGroup ... }`
+   and record the compiler error. The failure is in `SceneBuilder`, not in the
+   window type, and the error text should be checked to say so -- an error that
+   blames the wrong type sends the next person to the wrong file.
+3. Write `if #available(macOS 14, *) { ... }` inside a view body and record that
+   error too. It is a different missing requirement from step 2's, in a
+   different builder, and the two should not be filed as one issue.
+4. Pass `Binding.constant(true)` to a `Toggle` and record the error, then pass
+   `Binding(get: { true }, set: { _ in })` and confirm it works. The second is
+   the workaround, and its existence is what makes this a convenience gap rather
+   than a functional one.
+5. Set a value, close the window, reopen it, and record whether the value
+   survives. With no `@SceneStorage` nothing restores it; confirm that is what
+   actually happens rather than assuming it from the missing API.
+6. Repeat under the other backend. These are compile-time gaps, so the results
+   should be identical. A difference means something here is conditional on the
+   backend, which is worth locating.
+
+## P36: API-Shape Compatibility (Linux and Windows)
+
+**Planned, not yet written.** Covers views that exist but whose SwiftUI call
+sites do not compile. Every gap in this section is invisible on a feature
+checklist, because the type is present and only the initialiser is missing.
+
+- `Picker` is `Picker(of: [Value], selection: Binding<Value?>)`. There is no
+  label argument, no `@ViewBuilder` content and no `.tag`, and the selection
+  must be `Optional`, so a picker over a non-optional `@State` needs a bridging
+  binding.
+- `Button` is `Button(_ label: String, action:)`. There is no trailing-closure
+  label, so `Button { ... } label: { Image(...) }` cannot be written, and there
+  is no `ButtonRole`, so `.destructive` cannot be expressed at all.
+- `Text` takes a `String`. There is no `LocalizedStringKey`, therefore no
+  markdown, and no `Text` + `Text` concatenation.
+- `Image` takes a `URL` or an `ImageFormats.Image<RGBA>`. There is no
+  `Image(systemName:)` and no bundle asset lookup, so every image in a ported
+  app needs a file path.
+- `List` requires `selection:` on every initialiser and constrains
+  `Data.Index == Int`. There is no `Section`, no `.onDelete` and no
+  `.swipeActions`.
+- `TextField` has no `axis:`, no `prompt:` and no `value:format:`.
+- Geometry is `Int`: `padding(_ amount: Int?)`, `cornerRadius(_ radius: Int)`,
+  `HStack(spacing: Int?)`. SwiftUI uses `CGFloat` throughout, so `.padding(8.5)`
+  in ported code is a compile error rather than a rounding difference.
+
+Planned test steps:
+
+1. Put each SwiftUI declaration above into the app verbatim and record the
+   compiler error it produces. The error text is the deliverable; "does not
+   compile" is not specific enough for anyone to act on.
+2. Beside each, write the SwiftCrossUI form that does compile and gets nearest
+   to the same result, and record the line-count difference. That difference is
+   the porting cost, and it is the number this section exists to produce.
+3. For `Picker`, hold a non-optional selection in `@State` and record what the
+   bridging binding has to do when the picker's selection becomes `nil`. With no
+   `.tag`, confirm what identity the selection is actually matched on -- the
+   `Equatable` conformance of the value itself.
+4. For the integer geometry, set a spacing of `8` and one of `9` and measure the
+   rendered gap under each backend. If a backend scales by a display factor then
+   the integer is not a pixel count and the rounding is happening somewhere
+   else; record where, because a test that only checks `8 < 9` would pass either
+   way.
+5. Record whether `Image(systemName: "gear")` is a compile error or a runtime
+   blank. A checklist cannot tell the two apart, and the silent blank is the
+   worse of them.
+6. Repeat under the other backend. Anything that compiles under one and not the
+   other is a backend-conditional API, which is a separate finding from
+   everything else in this section.
+
 ## Test Record Template
 
 Use this format after each test run:

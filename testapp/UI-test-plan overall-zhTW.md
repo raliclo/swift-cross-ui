@@ -1357,6 +1357,190 @@ modifier。
 3. 以 `.transition(...)` 插入與移除一個 view。
 4. 將每一項與 AppKit 下的相同程式碼比較。
 
+## P31：焦點與鍵盤（Linux 與 Windows）
+
+**部分可於今日撰寫，尚未撰寫。** 本 app 要檢查的內容約有一半現在就能寫；另一半是一份「無法
+編譯的呼叫清單」。
+
+SwiftCrossUI 中沒有任何東西提到焦點。沒有 `@FocusState`、沒有 `.focused(_:)`、也沒有
+`.focusable()`，因此 app 無法指定哪個欄位起始取得焦點、無法在按下按鈕後移動焦點，也無法讀取
+焦點目前落在何處。平台預設怎麼做，就是全部的行為。
+
+鍵盤捷徑是同樣的形狀。沒有 `.keyboardShortcut`、沒有 `KeyEquivalent`、也沒有 `EventModifiers`。
+`Commands` 與 `CommandMenu` 確實能建出選單列，但它們會解析成 `ResolvedMenu.Item`，其 `button`
+case 只帶有一個標籤與一個 action，別無其他——沒有任何欄位可以承載 key equivalent，所以這個缺口
+在資料結構，而不只在 modifier。`CommandGroup` 則完全不存在。
+
+有兩項 backend 行為值得單獨量測。GtkBackend 只安裝了一個加速鍵：`installQuitShortcut()` 中將
+`<Control>q` 綁定至 `app.quit`；那是整個工具組唯一建立的按鍵綁定。而 `createAlert()` 會掛上一個
+shortcut controller 來吃掉 `Escape`，使其無法關閉對話框，回應處理器也會丟棄 GTK 的 delete-event
+回應。兩者都是刻意為之，而且在 app 真正按下該鍵並回報結果之前，兩者都不可見。
+
+測試步驟：
+
+1. 在一個含 `TextField`、`Button`、`Toggle` 與 `Slider` 的視窗中按 Tab 巡覽，記錄焦點造訪的順序，
+   以及取得焦點的控制項是否有可見標示。這完全是平台自身的行為，因此此處的差異是 GTK 對 WinUI 的
+   差異，而非 SwiftCrossUI 的差異。
+2. 對每個取得焦點的控制項按 Space 與 Return，記錄哪些會被觸發。「可到達但無法用鍵盤操作」的控制項
+   在截圖上看起來完全正確。
+3. 按 Ctrl+Q。在 GtkBackend 下 app 必須結束。在 WinUIBackend 下應該毫無反應，因為沒有安裝對應的
+   綁定；該不對稱本身就是發現，而不是任一 backend 的缺陷。
+4. 開啟 alert 並按 Escape，確認對話框仍然開著。接著按下它的其中一個按鈕，確認回應有抵達。
+   「Escape 毫無作用」與「Escape 關掉了對話框卻沒有回報任何回應」是不同的失敗，唯有事後再按一次
+   按鈕才能把兩者分開。
+5. 僅用鍵盤到達某個 `CommandMenu` 項目——透過選單列自身的巡覽，因為沒有任何項目能宣告捷徑。記錄
+   需要幾次按鍵。
+6. 把無法編譯的呼叫清單留在 app 之中：`@FocusState`、`.focused($field)`、`.focusable()`、
+   `.keyboardShortcut("s", modifiers: .command)`、`CommandGroup(replacing: .newItem) { ... }`。
+   每有一行開始能夠編譯，即為進度報告。
+7. 於另一個 backend 重複上述步驟。
+
+## P32：無障礙（Linux 與 Windows）
+
+**今日即可撰寫，尚未撰寫。** 本 app 不呼叫任何缺席的東西，它存在的目的是被外部工具檢視。
+
+SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilityHint`、
+`.accessibilityValue`、`.accessibilityAddTraits`、`.accessibilityHidden`、`.accessibilityElement`
+或 `.accessibilityIdentifier`，也沒有任何對應的 backend 協定，因此沒有任何 backend 能被要求設定
+其中之一。最接近的是 `.help(_:)`，它經由 `BackendFeatures.Tooltips` 設定滑鼠停留提示；UIKitBackend
+會額外由它指派 `accessibilityHint`，GTK 與 WinUI 則不會。
+
+這並不代表無障礙樹是空的。GTK 提供 AT-SPI、WinUI 提供 UI Automation、AppKit 提供 NSAccessibility，
+三者都會給 widget 一個預設角色，而且通常會由其標籤取得預設名稱。因此本 app 要回答的問題不是「有沒有
+無障礙」，而是「在沒有 API 的情況下還剩多少」：哪些元素會出現、哪些帶有可用的名稱、哪些只是匿名的
+方框。這份基線正是日後任何標示 API 的比較對象，而且必須在該 API 出現之前先記錄下來，否則將無可比對。
+
+測試步驟：
+
+1. 建一個視窗，內含一個有標籤的 `Button`、一個沒有文字的純圖示 `Button`、一個帶提示文字的
+   `TextField`、一個 `Toggle`、一個 `Slider`、一個 `ProgressView` 與一個 `Image`。
+2. 在 Linux 上以 Accerciser 讀取該樹，記錄每個元素的角色與名稱。
+3. 在 Windows 上以 Accessibility Insights 或 `inspect.exe` 讀取同一個視窗，記錄每個元素的控制項型別
+   與 Name。
+4. 逐一元素比較兩份清單。只出現在其中一個平台的元素是 backend 缺口；兩邊都出現但名稱為空的元素，
+   才是本節所談的 API 缺口，兩者需要的修法並不相同。
+5. 對純圖示按鈕套用 `.help("...")`，記錄該文字是抵達無障礙樹、僅止於提示框，還是兩者皆非。兩個平台
+   都要檢查；它們的程式路徑並不共用。
+6. 以螢幕閱讀器操作該視窗——Linux 用 Orca、Windows 用 Narrator——並逐字寫下它對純圖示按鈕的朗讀
+   內容。今日的預期結果是「Button」而沒有名稱；請記錄確切的朗讀字串，而非它的摘要。
+7. 確認朗讀順序與視覺順序一致。版面容器可能在樹中重排子元素而完全不改變繪製結果，畫面上看不出來。
+
+## P33：缺席的 Views（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋在 SwiftCrossUI 中完全沒有對應物的 SwiftUI views——移植過來的程式碼
+是無法編譯，而非渲染不同。
+
+`Sources/SwiftCrossUI/Views` 底下沒有 `Form`、`Section`、`Label(_:systemImage:)`、`Stepper`、
+`Gauge`、`DisclosureGroup`、`LabeledContent`、`ColorPicker` 或 `Link` 之中的任何一個。其中最要緊的
+是 `Section`：在 SwiftUI 中它與其說是一個獨立的 view，不如說是 `List`、`Form`、`Picker` 與 `Menu`
+共同接受的結構元素，因此它的缺席會弄壞那些「看起來與 section 無關」的呼叫點。其餘各自只影響一個
+呼叫點。
+
+規劃的測試步驟：
+
+1. 每個缺席的 view 各顯示一個實例，記錄哪些能通過編譯。本 app 一開始就是一個無法 build 的檔案，
+   而「被迫註解掉的行」的清單就是量測結果。
+2. 對 `Section`，分別測試全部四種容器——`List`、`Form`、`Picker`、`Menu`。「在其中一種可用、其餘
+   不可用」與「哪一種都不可用」是不同的結果。
+3. 對可以手工近似的 view——`Stepper` 以兩個按鈕加一個標籤、`LabeledContent` 以一個 `HStack`——在缺口
+   旁邊做出近似版本，記錄它要花幾行，以及它仍然做不到什麼：鍵盤可達性、與相鄰列的對齊、停用狀態。
+4. `Label(_:systemImage:)` 需要一個系統圖示，而 `Image(systemName:)` 同樣不存在（見 P36）。記錄
+   「只有文字的退路」是否可接受，或這兩個缺口必須一起補上。
+5. 將每一項與 AppKit 下的相同程式碼比較。
+
+## P34：Lazy 容器與大型集合（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋「集合大於顯示它的視窗」時會發生什麼事。
+
+沒有 `LazyVStack`、`LazyHStack`、`LazyVGrid`、`LazyHGrid` 或 `Grid`，也沒有 `ScrollViewReader` 或
+`ScrollViewProxy`。`VStack` 與 `HStack` 會建出每一個子項，而 `ScrollView` 只捲動交給它的東西，因此
+放在 `ScrollView` 內的集合是完全實體化的：10,000 列就是 10,000 個 widget，無論其中有沒有任何一個
+在畫面上。同樣也沒有以程式捲動至特定列的方法，那正是 SwiftUI 中 `ScrollViewProxy.scrollTo` 的用途。
+
+「感覺很慢」不是發現。本 app 由命令列接收列數並印出數字，因此結果是一張表格，而不是一種印象。
+
+規劃的測試步驟：
+
+1. 以 100、1,000、10,000 與 100,000 列各執行一次，記錄各自從啟動到首次繪製的時間。四個點足以看出
+   形狀：與列數成正比的成長代表完全實體化；持平則代表某處出現了預期之外的 lazy 行為，應該找出它。
+2. 於同一批執行中記錄尖峰 resident set size。單看時間無法分辨「把全部東西慢慢建出來」與「把全部
+   東西建出來並且留著」，而記憶體數字正是區分兩者的依據。
+3. 量測 10,000 列時的捲動延遲——從捲動事件到反映該事件的那一幀之間的時間——並與 100 列比較。積極
+   建構付出的是啟動時間；它未必付出捲動成本，把兩者混為一談會把成本歸給錯誤的原因。
+4. 找出 app 開始失敗的列數，並記錄它「如何」失敗：拒絕啟動、配置記憶體失敗、X11 或 WinUI 的 widget
+   數量上限，或單純是長到無法使用的啟動時間。各種情況的解法不同，因此失敗模式與那個數字同樣重要。
+5. 寫下 `ScrollViewReader { proxy in ... }` 並記錄編譯錯誤，接著以工具組現有的任何手段跳至第 5,000
+   列，並記錄那樣做的代價。
+6. 於另一個 backend 重複。GTK 與 WinUI 的 widget 建立成本不同，因此兩條曲線預期會在斜率上有差異，
+   而不只是整體偏移。
+
+## P35：狀態與 Scene 組合（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋那些讓 SwiftUI app 的「結構」無法被表達的缺口——與外觀無關。
+
+`@State`、`@Binding`、`@Environment` 與 `ObservableObject` 都存在。`@StateObject` 與 `@ObservedObject`
+不存在，因此參考型別的 model 沒有可用來觀察它的 property wrapper。`@SceneStorage` 同樣不存在，
+`Binding.constant(_:)` 也沒有，而 `.environmentObject(_:)` 亦未作為環境 modifier 的別名提供。
+
+Scene 這一側更偏結構。`Scene` 只宣告了 `associatedtype Node`——沒有 `var body: some Scene`，因此
+scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`SceneBuilder` 僅提供 `buildBlock`：
+沒有 `buildIf`、沒有 `buildOptional`、沒有 `buildEither`。因此 `App.body` 中的 `if` 無法編譯，這排除了
+「有條件地開啟視窗」這個 SwiftUI 常見寫法。`ViewBuilder` 確實有 `buildIf` 與 `buildEither`，但沒有
+`buildLimitedAvailability`，所以 `if #available` 在 view body 中同樣不可用。
+
+規劃的測試步驟：
+
+1. 宣告一個符合 `ObservableObject` 且帶有 `@Published` 屬性的 class，試著先以 `@StateObject`、再以
+   `@ObservedObject` 持有它。記錄哪些能編譯；對能編譯者，記錄變更該 published 屬性是否會重繪 view。
+2. 寫一個 `body` 中含有 `if showSecondWindow { WindowGroup ... }` 的 `App`，記錄編譯錯誤。失敗點在
+   `SceneBuilder`，不在視窗型別，錯誤訊息是否如此陳述必須確認——把責任指向錯誤型別的訊息，會把下一個
+   人送去錯誤的檔案。
+3. 在 view body 中寫 `if #available(macOS 14, *) { ... }`，同樣記錄其錯誤。它與步驟 2 缺少的是不同的
+   需求、位於不同的 builder，兩者不應被歸成同一個 issue。
+4. 將 `Binding.constant(true)` 傳給 `Toggle` 並記錄錯誤，再傳 `Binding(get: { true }, set: { _ in })`
+   並確認可用。後者就是替代寫法，而它的存在正是使這成為便利性缺口、而非功能性缺口的原因。
+5. 設定一個值，關閉視窗再重新開啟，記錄該值是否存續。既然沒有 `@SceneStorage`，就沒有東西會還原它；
+   請確認實際情況確實如此，而不是由「API 缺席」直接推論。
+6. 於另一個 backend 重複。這些都是編譯期缺口，因此結果應該完全相同。若有差異，代表此處有東西是依
+   backend 而定的，值得把它找出來。
+
+## P36：API 形狀相容性（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋「view 存在，但 SwiftUI 的呼叫點無法編譯」的情況。本節中的每個缺口在功能
+清單上都不可見，因為型別在，只有 initialiser 不在。
+
+- `Picker` 是 `Picker(of: [Value], selection: Binding<Value?>)`。沒有 label 參數、沒有 `@ViewBuilder`
+  內容、也沒有 `.tag`，而且 selection 必須是 `Optional`，因此對非 optional 的 `@State` 做選取需要一個
+  橋接用的 binding。
+- `Button` 是 `Button(_ label: String, action:)`。沒有 trailing-closure 形式的 label，因此
+  `Button { ... } label: { Image(...) }` 寫不出來；也沒有 `ButtonRole`，因此 `.destructive` 根本無從
+  表達。
+- `Text` 接受 `String`。沒有 `LocalizedStringKey`，因此沒有 markdown，也沒有 `Text` + `Text` 串接。
+- `Image` 接受 `URL` 或 `ImageFormats.Image<RGBA>`。沒有 `Image(systemName:)`，也沒有 bundle 資產查找，
+  因此移植後的 app 中每一張圖片都需要一個檔案路徑。
+- `List` 的每一個 initialiser 都要求 `selection:`，並限制 `Data.Index == Int`。沒有 `Section`、沒有
+  `.onDelete`、也沒有 `.swipeActions`。
+- `TextField` 沒有 `axis:`、沒有 `prompt:`、也沒有 `value:format:`。
+- 幾何量是 `Int`：`padding(_ amount: Int?)`、`cornerRadius(_ radius: Int)`、`HStack(spacing: Int?)`。
+  SwiftUI 全程使用 `CGFloat`，因此移植程式中的 `.padding(8.5)` 是編譯錯誤，而不是捨入差異。
+
+規劃的測試步驟：
+
+1. 把上述每一段 SwiftUI 宣告原封不動放入 app，記錄它產生的編譯錯誤。錯誤訊息本身就是產出；「無法編譯」
+   不足以讓任何人據以行動。
+2. 在每一項旁邊，寫出確實能編譯、且最接近同樣結果的 SwiftCrossUI 寫法，並記錄行數差。該差值即為移植
+   成本，也是本節存在所要產出的數字。
+3. 對 `Picker`，以 `@State` 持有一個非 optional 的 selection，記錄當 picker 的 selection 變成 `nil` 時
+   橋接 binding 必須做什麼。既然沒有 `.tag`，請確認 selection 實際上是依什麼身分比對的——值本身的
+   `Equatable` conformance。
+4. 對整數幾何量，分別設定 spacing 為 `8` 與 `9`，量測各 backend 下渲染出的間距。若某個 backend 會依
+   display factor 縮放，那麼該整數就不是像素數，捨入發生在別處；請記錄發生於何處，因為只檢查「8 小於 9」
+   的測試在兩種情況下都會通過。
+5. 記錄 `Image(systemName: "gear")` 究竟是編譯錯誤，還是執行期的一片空白。功能清單無法分辨兩者，而
+   「無聲的空白」是其中較糟的一種。
+6. 於另一個 backend 重複。凡是在其中一邊能編譯、另一邊不能的東西，都是依 backend 而定的 API，與本節
+   其餘內容屬於不同的發現。
+
 ## 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：
