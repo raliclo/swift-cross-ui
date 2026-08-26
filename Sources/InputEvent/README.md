@@ -5,7 +5,7 @@ Synthesised input, driven from a CSV file, with one format for every platform.
 An app built with SwiftCrossUI can be handed `-actionfile <path>` and will
 replay the actions in that file against its own window: move the pointer, click,
 hold a key, release it, wait. The point is a UI test that runs the same way on
-Windows and on Linux, written once.
+Windows, Linux and macOS, written once.
 
 ## Why this exists
 
@@ -16,8 +16,18 @@ the gvsbuild GTK 4 for Windows has no x11 backend compiled in, and
 `GDK_BACKEND=x11` answers `No such backend: x11`.
 
 So Windows needs `SendInput`, which is a Win32 function in `user32.dll` rather
-than anything to install, and the two platforms need a shared vocabulary above
-them. That vocabulary is this file format.
+than anything to install, and the platforms need a shared vocabulary above them.
+That vocabulary is this file format.
+
+macOS came third and took a different route. It has the system-wide equivalent
+-- `CGEvent.post` -- and it is unusable in practice, because it silently
+delivers nothing until somebody grants the process Accessibility permission in
+System Settings. Measured on macOS 27 with the terminal untrusted: `CGEvent.post`
+and `CGEvent.postToPid(getpid())` both delivered zero events, with no error;
+`NSApp.postEvent` delivered, and a real `NSButton` fired. So `AppKitSynthesiser`
+posts into the app's own event queue instead. It needs no permission, addresses
+its window by number rather than by whoever is in front, and works while the app
+is in the background.
 
 ## The app drives itself
 
@@ -259,15 +269,18 @@ Three things, and the third is not optional:
 
 ```swift
 DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
-    let synthesiser = try XdotoolSynthesiser()   // Win32Synthesiser on Windows
+    // Win32Synthesiser on Windows, AppKitSynthesiser on macOS
+    let synthesiser = try XdotoolSynthesiser()
     try synthesiser.replayFile(at: file)
 }
 ```
 
 1. **A flag** — `-actionfile <path>`, parsed from `CommandLine.arguments`.
-2. **A delay** — both injection paths post to the focused window, and at
+2. **A delay** — the Windows and Linux paths post to the focused window, and at
    `onAppear` the window has been created but not necessarily presented and
-   focused. A file replayed then drives whatever was in front.
+   focused. A file replayed then drives whatever was in front. macOS addresses
+   its own window by number and cannot make that mistake, but still needs the
+   window laid out before a coordinate means anything.
 3. **A background queue** — never the main one. `Synthesiser` is deliberately
    not `@MainActor`. A replay is nearly all sleeping, and on the main thread
    that sleep is the UI's: posted events queue up unprocessed, so a menu never

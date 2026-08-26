@@ -319,7 +319,17 @@ let package = Package(
             name: "DefaultBackend",
             dependencies: defaultBackendDependencies
         ),
-        .target(name: "AppKitBackend", dependencies: ["SwiftCrossUI"]),
+        // InputEvent only when the debug features are on, exactly as
+        // GtkBackend does below and for the same reason -- see the note there.
+        // AppKitBackend gained the dependency when -actionfile learned to
+        // replay on macOS.
+        // 僅在 debug 功能開啟時才依賴 InputEvent，與下方 GtkBackend 的做法及理由完全相同——見該處
+        // 的說明。AppKitBackend 是在 -actionfile 學會於 macOS 上重放時取得此依賴的。
+        .target(
+            name: "AppKitBackend",
+            dependencies: ["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : []),
+            swiftSettings: debugSwiftSettings
+        ),
         .target(
             name: "GtkBackend",
             // InputEvent only when the debug features are on. Dropping the

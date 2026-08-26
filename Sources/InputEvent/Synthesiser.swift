@@ -44,9 +44,12 @@ public struct WindowGeometry: Equatable, Sendable {
 
 /// Posts input events to the system.
 ///
-/// Both implementations are system-wide: `SendInput` posts to the foreground
-/// window and XTEST to the X server's focus. Neither targets a chosen window,
-/// which is why the caller presents its window before replaying anything.
+/// Two of the three implementations are system-wide: `SendInput` posts to the
+/// foreground window and XTEST to the X server's focus. Neither targets a chosen
+/// window, which is why the caller presents its window before replaying
+/// anything. ``AppKitSynthesiser`` is the exception -- it posts into the app's
+/// own event queue and addresses its window by number -- and the reason is in
+/// that type's own documentation.
 ///
 /// Deliberately not `@MainActor`, and a replay must not be run on the main
 /// thread. A replay spends nearly all its time asleep -- waiting for a process,
@@ -55,7 +58,9 @@ public struct WindowGeometry: Equatable, Sendable {
 /// without error and changed nothing, because the application never got to
 /// process the first click and map the popover before the second click was
 /// posted at where the popover should have been. Both implementations are
-/// thread-safe: one runs a subprocess, the other calls `SendInput`.
+/// thread-safe: one runs a subprocess, the other calls `SendInput`. The macOS one
+/// hops each individual post to the main queue, since AppKit may only be touched
+/// there, and leaves the sleeping on the replay's own thread.
 ///
 /// 刻意不標記 `@MainActor`，且重放不得在主執行緒上執行。重放的絕大部分時間都在睡眠——等待行程、
 /// 等待某個 `sleep` 列——而在主執行緒上，那份睡眠同時也是 UI 的睡眠。實測：一個「開啟選單、按下

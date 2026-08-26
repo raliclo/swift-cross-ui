@@ -14,6 +14,16 @@ public final class AppKitBackend: FullAppBackend {
     public typealias Widget = NSView
     public typealias Alert = NSAlert
 
+    #if SCUI_DEBUG
+        /// Whether `-actionfile` has already been replayed this run.
+        ///
+        /// Static, not per-instance, so a second backend would not replay the
+        /// file again. See ActionFileReplay.swift.
+        /// 為 static 而非每個實例各自持有，如此即使建立第二個 backend 也不會再次重放該檔。
+        /// 詳見 ActionFileReplay.swift。
+        nonisolated(unsafe) static var hasReplayedActionFile = false
+    #endif
+
     public let defaultTableRowContentHeight = 20
     public let defaultTableCellVerticalPadding = 4
     public let defaultPaddingAmount = 10
@@ -211,6 +221,13 @@ public final class AppKitBackend: FullAppBackend {
 
     public func show(window: Window) {
         window.makeKeyAndOrderFront(nil)
+
+        #if SCUI_DEBUG
+            // Only ever fires for the first window, and only when -actionfile
+            // was passed. See ActionFileReplay.swift.
+            // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 ActionFileReplay.swift。
+            replayActionFileIfRequested()
+        #endif
     }
 
     public func activate(window: Window) {
