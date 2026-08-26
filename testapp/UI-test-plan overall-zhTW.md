@@ -1235,6 +1235,128 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 5. 按 `Pop to root`，確認畫面與計數器同時歸零。
 6. 於另一個 backend 重複上述步驟。
 
+## P25：拖放（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P25 --debug          # WSL 中的 GtkBackend
+./testapp/output/P25.exe --debug      # Windows 上的 -gtk4 build
+```
+
+拖放未出現在任何其他測試 app，因為在 `onDrop(of:isTargeted:perform:)` 加入之前，SwiftCrossUI
+並沒有相應的 API。值得詢問的是「兩平台有分歧空間」的問題，而非「拖放到底會不會抵達」：Windows
+透過 `CF_HDROP` 傳遞路徑，X11 傳遞 `text/uri-list`，因此 `received` 一律原樣印出、永不正規化。
+
+測試步驟：
+
+1. 自檔案管理員拖曳一個檔案至接受區上方，確認它在**放開按鍵之前**即高亮。僅在放開後才反應的
+   backend 雖可使用但並不正確，而少了可供對照之處便無從察覺。
+2. 放下該檔案，確認 `state` 顯示 `accepted`、`count` 為 1，且 `received` 以平台原本交付的形式
+   顯示酬載。
+3. 將同一檔案拖至拒絕區上方，確認它**不會**高亮、也不回報任何內容。這正是設置兩個區域的理由：
+   一個「默默吞掉無法處理之物」的放置區，與一個明確拒絕的放置區，在並排之前看起來完全相同。
+4. 一次放下多個檔案，記錄它們是以多個項目抵達，還是合併為單一字串。
+5. 於另一個平台重複，並比較兩者的 `received` 值。
+
+註記：此項無法以動作檔驅動。拖放是作業系統層級的協商，而非一連串滑鼠事件，`InputEvent` 無法合成
+它；步驟 1 起皆需要一次真實的拖曳。
+
+## P26：網路與 App Cache（Linux 與 Windows）
+
+執行：
+
+```sh
+./testapp/output/P26 --debug
+zsh testapp/test.zsh P26 --cache-only   # 不開視窗，只做快取斷言
+```
+
+涵蓋 `AsyncImage`、`appCache` 與網路功能比較表。與其他每一個 Pn 不同，本項有一半的行為唯有跨多次
+執行才觀察得到——快取要證明自己，靠的是「第二次抓取時什麼都沒下載」。
+
+測試步驟：
+
+1. 在沒有快取的情況下啟動，確認圖片載入，且快取目錄於首次抓取時建立。
+2. 重新啟動，確認沒有任何下載，且圖片仍然出現。
+3. 檢查 `not_latest` 欄位回報的是「過期」而非刪除該項目——快取副本必須能在抓取失敗後存活，否則
+   一旦離線，便會失去它原本要保護的內容。
+4. 切換至 SwiftUI 分頁，確認它在 Linux 上不渲染任何內容，這是正確的：SwiftUI 在該平台不存在。
+5. 確認 Summary 表格的儲存格可被選取與複製。
+
+## P27：Backend 功能覆蓋（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋兩個「在 GtkBackend 上缺席即為硬性崩潰、而非降級」的功能。
+
+缺少的 backend conformance 會經由 `@CastBackend`，被轉為
+`fatalError("'GtkBackend' does not implement ...")`。因此含有 `WebView` 的 app 會在該 view 進行
+版面配置的當下中止，`AngularGradient` 亦然——在 Linux 與 Windows `-gtk4` 上皆如此。AppKit 兩者
+皆有實作。
+
+規劃的測試步驟：
+
+1. 顯示一個 `WebView`，確認 app 不會中止。
+2. 將 `AngularGradient` 與 `LinearGradient`、`RadialGradient` 並排顯示，確認三者皆能渲染。
+3. 於 WinUIBackend 與 AppKit 重複並比較。
+4. 確認「backend 確實無法提供的功能」會以可見的方式降級（例如空白區域）而非中止——這正是本 app
+   存在所要迫使做出的決定。
+
+## P28：控制項樣式（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋「在 debug build 中觸發 assert、在 release 中悄悄降級」的樣式。
+
+GtkBackend 的 `supportedPickerStyles` 僅為 `[.menu]`，而 AppKit 為
+`[.menu, .segmented, .radioGroup]`；`supportedDatePickerStyles` 則缺少 `.compact`。樣式 modifier
+會觸發 `assertionFailure` 並退回 `.automatic`，因此 `.pickerStyle(.segmented)` 會使 debug 的 GTK
+build 崩潰，並在 release 中悄悄變成下拉選單——一個與其他所有平台外觀都不同的控制項。
+
+規劃的測試步驟：
+
+1. 每種樣式各顯示一個 picker——`.menu`、`.segmented`、`.radioGroup`、`.palette`——記錄哪些如實
+   渲染、哪些悄悄變成下拉選單。
+2. 對 `.datePickerStyle(.compact)` 與 `.graphical` 做相同比對。
+3. 確認 debug build 不會因不支援的樣式而中止。
+4. 設定 `displayedComponents: .hourAndMinute`，確認出現時間輸入。GtkBackend 目前會記錄
+   `time picker is unimplemented` 並顯示一個純月曆格線，且使用錯誤的曆法與時區。
+5. 將以上全部與 WinUIBackend 比較。
+
+## P29：視覺保真度（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋「在 GtkBackend 上輸出錯誤、卻完全沒有任何診斷訊息」的情況——那是
+日誌永遠不會揭露的失敗。
+
+規劃的測試步驟：
+
+1. 顯示一個沒有值的不確定進度 `ProgressView()`。GtkBackend 會把 fraction 設為零且從不 pulse，
+   因此渲染為靜止的空白進度條，看起來像「卡住」；AppKit 與 WinUI 會使其動態呈現。
+2. 將一張超尺寸圖片放入 `.cornerRadius(20)`。GtkBackend 的裁切為矩形，因此圓角邊框之下的角落
+   仍是方的；AppKit 與 WinUI 會裁切成圓角形狀。
+3. 顯示一個各列具明確 `.frame(height:)` 的 `List`，比較渲染高度與版面配置。GtkBackend 會丟棄
+   收到的列高，並回報零基礎內距，而主題實際上加了真實的內距，因此該 list 的量測與其繪製並不一致。
+4. 將 `TextEditor` 置於 `.disabled(true)` 之中，確認無法輸入。GtkBackend 從未對它設定
+   `sensitive`。
+5. 比較 `.fontWeight(.semibold)` 與 `.bold`；在 GtkBackend 上兩者對應到相同的 CSS 字重。
+
+## P30：效果與動畫（Linux 與 Windows）
+
+**已規劃，尚未撰寫。** 涵蓋協定層最大的缺口：SwiftCrossUI 完全沒有動畫層，也沒有視覺效果
+modifier。
+
+沒有 `Animation`、`withAnimation`、`.animation(_:value:)`、`.transition` 或 `Namespace`，也沒有
+任何相應的 backend 協定。同樣沒有 `.opacity`、`.shadow`、`.blur`、`.rotationEffect`、
+`.scaleEffect`、`.offset`、`.zIndex`、`.clipShape` 或 `.mask`——現存的只有 `.clipped()` 與
+`.cornerRadius()` 兩者。SwiftUI 中每一次狀態變更都隱含可動畫化，因此這是本工具組中最大的行為分歧。
+
+本 app 刻意寫在功能**之前**：它一開始就是一份「無法編譯的清單」，而每一行開始能夠編譯，即為進度
+報告。在那之前，它把邊界記錄於同一處，而非散落在十幾個 issue 之中。
+
+規劃的測試步驟：
+
+1. 切換一個會改變 frame 的 `@State` 值，確認該變更是瞬間完成（目前行為）還是帶有動畫。
+2. 套用 `.opacity(0.5)`、`.shadow(...)`、`.rotationEffect(...)`、`.scaleEffect(...)` 與
+   `.offset(...)`，記錄哪些能通過編譯。
+3. 以 `.transition(...)` 插入與移除一個 view。
+4. 將每一項與 AppKit 下的相同程式碼比較。
+
 ## 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：

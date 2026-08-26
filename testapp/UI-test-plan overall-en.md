@@ -1126,6 +1126,154 @@ Test steps:
 5. Press `Pop to root` and confirm both the screen and the counter reset.
 6. Repeat under the other backend.
 
+## P25: Drag and Drop (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P25 --debug          # GtkBackend, in WSL
+./testapp/output/P25.exe --debug      # -gtk4 build, on Windows
+```
+
+Drag and drop appears in no other test app because SwiftCrossUI had no API for it
+until `onDrop(of:isTargeted:perform:)` was added. The questions worth asking are
+the ones where the platforms have room to disagree, not whether a drop arrives:
+Windows delivers a path through `CF_HDROP` and X11 delivers a `text/uri-list`, so
+`received` is printed verbatim and never normalised.
+
+Test steps:
+
+1. Drag a file from the file manager over the accepting area and confirm it
+   highlights **before** the button is released. A backend that only reacts on
+   release is usable but wrong, and invisible without somewhere to look.
+2. Drop the file and confirm `state` reads `accepted`, `count` is 1, and
+   `received` shows the payload as the platform delivered it.
+3. Drag the same file over the refusing area and confirm it does **not**
+   highlight and reports nothing. This is why there are two areas: a drop zone
+   that silently swallows what it cannot handle looks identical to one that
+   rejects it, until they are side by side.
+4. Drop several files at once and record whether they arrive as several items or
+   as one string.
+5. Repeat on the other platform and compare the two `received` values.
+
+Note: this cannot be driven by an action file. Drag and drop is an OS-level
+negotiation, not a sequence of mouse events, so `InputEvent` cannot synthesise
+it; step 1 onwards needs a real drag.
+
+## P26: Networking and the App Cache (Linux and Windows)
+
+Run:
+
+```sh
+./testapp/output/P26 --debug
+zsh testapp/test.zsh P26 --cache-only   # cache assertions without the window
+```
+
+Covers `AsyncImage`, the `appCache` and the networking comparison table. Unlike
+every other Pn, half of this is observable only across runs -- a cache proves
+itself by the second fetch not downloading anything.
+
+Test steps:
+
+1. Launch with no cache present and confirm the images load and the cache
+   directory is created on first fetch.
+2. Relaunch and confirm nothing is downloaded and the images still appear.
+3. Check the `not_latest` column reports staleness rather than deleting the
+   entry -- a cached copy has to survive a failed fetch, or going offline loses
+   the content it was meant to protect.
+4. Switch to the SwiftUI tab and confirm it renders nothing on Linux, which is
+   correct: SwiftUI is not available there.
+5. Confirm the Summary table's cells can be selected and copied.
+
+## P27: Backend Feature Coverage (Linux and Windows)
+
+**Planned, not yet written.** Covers the two features whose absence on
+GtkBackend is a hard crash rather than a degradation.
+
+A missing backend conformance goes through `@CastBackend`, which turns it into
+`fatalError("'GtkBackend' does not implement ...")`. So an app containing a
+`WebView` aborts on GTK the moment that view is laid out, and `AngularGradient`
+does the same -- both on Linux and on Windows `-gtk4`. AppKit implements both.
+
+Planned test steps:
+
+1. Show a `WebView` and confirm the app does not abort.
+2. Show an `AngularGradient` beside a `LinearGradient` and a `RadialGradient`
+   and confirm all three render.
+3. Repeat under WinUIBackend and AppKit and compare.
+4. Confirm that a feature a backend genuinely cannot provide degrades visibly
+   (a blank area) rather than aborting -- the decision this app exists to force.
+
+## P28: Control Styles (Linux and Windows)
+
+**Planned, not yet written.** Covers styles that assert in a debug build and
+silently downgrade in release.
+
+`supportedPickerStyles` is `[.menu]` on GtkBackend against `[.menu, .segmented,
+.radioGroup]` on AppKit, and `supportedDatePickerStyles` lacks `.compact`. The
+style modifiers hit `assertionFailure` and fall back to `.automatic`, so
+`.pickerStyle(.segmented)` crashes a debug GTK build and quietly becomes a
+dropdown in release -- a different-looking control from every other platform.
+
+Planned test steps:
+
+1. Show one picker per style -- `.menu`, `.segmented`, `.radioGroup`, `.palette`
+   -- and record which render as asked and which silently become a dropdown.
+2. Same for `.datePickerStyle(.compact)` against `.graphical`.
+3. Confirm a debug build does not abort on an unsupported style.
+4. Set `displayedComponents: .hourAndMinute` and confirm time entry appears.
+   GtkBackend currently logs `time picker is unimplemented` and shows a bare
+   month grid, in the wrong calendar and timezone.
+5. Compare all of the above against WinUIBackend.
+
+## P29: Visual Fidelity (Linux and Windows)
+
+**Planned, not yet written.** Covers output that is wrong on GtkBackend with no
+diagnostic at all -- the failures a log will never reveal.
+
+Planned test steps:
+
+1. Show an indeterminate `ProgressView()` with no value. GtkBackend sets the
+   fraction to zero and never pulses, so it renders as a static empty bar and
+   reads as "stuck"; AppKit and WinUI animate it.
+2. Put an oversized image inside `.cornerRadius(20)`. The clip is rectangular on
+   GtkBackend, so the corners stay square underneath a rounded border; AppKit
+   and WinUI clip to the rounded shape.
+3. Show a `List` whose rows have an explicit `.frame(height:)` and compare the
+   rendered heights against the layout. GtkBackend discards the row heights it
+   is handed and reports zero base padding while the theme adds real padding, so
+   the list is measured differently from how it draws.
+4. Put a `TextEditor` inside `.disabled(true)` and confirm it cannot be typed
+   into. GtkBackend never sets `sensitive` on it.
+5. Compare `.fontWeight(.semibold)` against `.bold`; they map to the same CSS
+   weight on GtkBackend.
+
+## P30: Effects and Animation (Linux and Windows)
+
+**Planned, not yet written.** Covers the largest protocol-level gap: SwiftCrossUI
+has no animation layer at all, and no visual-effect modifiers.
+
+There is no `Animation`, `withAnimation`, `.animation(_:value:)`, `.transition`
+or `Namespace`, and no backend protocol for any of them. Nor is there `.opacity`,
+`.shadow`, `.blur`, `.rotationEffect`, `.scaleEffect`, `.offset`, `.zIndex`,
+`.clipShape` or `.mask` -- `.clipped()` and `.cornerRadius()` are the only two
+that exist. Every SwiftUI state change is implicitly animatable, so this is the
+widest behavioural divergence in the toolkit.
+
+This app is written **before** the feature, deliberately: it starts as a list of
+things that do not compile, and each line that starts compiling is the progress
+report. Until then it documents the boundary in one place instead of a dozen
+issues.
+
+Planned test steps:
+
+1. Toggle a `@State` value that changes a frame and confirm whether the change is
+   instant (current behaviour) or animated.
+2. Apply `.opacity(0.5)`, `.shadow(...)`, `.rotationEffect(...)`,
+   `.scaleEffect(...)` and `.offset(...)` and record which compile at all.
+3. Insert and remove a view with `.transition(...)`.
+4. Compare each against the same code under AppKit.
+
 ## Test Record Template
 
 Use this format after each test run:
