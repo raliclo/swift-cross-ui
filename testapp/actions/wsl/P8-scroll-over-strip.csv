@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P8 step 4, which is #426 itself: scroll vertically with the pointer over the
 # horizontal strip. The outer view must still move.
 #
@@ -16,7 +16,7 @@ action,x,y,origin,button,key,micros,note
 #
 # 該長條位於未捲動外層視圖的第 4 列，即「... ... H」那一帶；下方座標取自啟動時的截圖，而非捲動後
 # 的截圖。
-move,320,453,,,,,over the horizontal strip
-sleep,,,,,,400000,
-scroll,0,4,,,,,four notches down, same as the control
-sleep,,,,,,1200000,hold for the screenshot
+move,320,453,,,,,over the horizontal strip,gtk
+sleep,,,,,,400000,,gtk
+scroll,0,4,,,,,four notches down, same as the control,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

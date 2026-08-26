@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P23 step 3, decided rather than inferred: grow the table past the window, then
 # actually turn the wheel over it.
 #
@@ -16,15 +16,15 @@ action,x,y,origin,button,key,micros,note
 # 格式中新增 `scroll` 的理由。
 #
 # 若該表格確實會捲動，此檔執行後第一個可見列就不會是第 1 列。
-click,181,140,,left,,,More rows 1
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 2
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 3
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 4 -- 24 rows now
-sleep,,,,,,1000000,let the table settle
-move,400,350,,,,,put the pointer in the middle of the table
-sleep,,,,,,300000,
-scroll,0,5,,,,,five notches down
-sleep,,,,,,1200000,hold for the screenshot
+click,181,140,,left,,,More rows 1,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 2,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 3,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 4 -- 24 rows now,gtk
+sleep,,,,,,1000000,let the table settle,gtk
+move,400,350,,,,,put the pointer in the middle of the table,gtk
+sleep,,,,,,300000,,gtk
+scroll,0,5,,,,,five notches down,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

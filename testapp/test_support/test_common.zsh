@@ -97,6 +97,7 @@ actionfile_log="${app:l}-actionfile.log"
 platform_folder() {
     case "$target" in
         windows) printf 'win' ;;
+        macos) printf 'mac' ;;
         *) printf 'wsl' ;;
     esac
 }
@@ -120,7 +121,7 @@ default_action_file() {
 
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} [--wsl|-win|--windows|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
+Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
 Default target: $target
@@ -136,6 +137,7 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         -w|--wsl) target="wsl"; shift ;;
         -win|--windows) target="windows"; shift ;;
+        -mac|--macos) target="macos"; shift ;;
         -b|--both) target="both"; shift ;;
         -n|--no-build) do_build=0; shift ;;
         --showtime)
@@ -185,6 +187,12 @@ showtime() {
 
 kill_existing() {
     printf '==> Closing any running %s\n' "$app"
+
+    if [ "$target" = "macos" ]; then
+        pkill -TERM -x "$app" 2>/dev/null || true
+        printf '    macOS: clear\n'
+        return 0
+    fi
 
     if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq $app.exe" 2>/dev/null \
         | grep -qi "$app.exe"; then
@@ -532,6 +540,75 @@ run_wsl() {
     print_summary_wsl
 }
 
+# macOS uses AppKitSynthesiser, which posts directly into the app's own event
+# queue and therefore does not need System Events Accessibility permission.
+# macOS 使用 AppKitSynthesiser，直接把事件送入 app 自己的 event queue，因此不需要
+# System Events 的輔助使用權限。
+run_macos() {
+    local out="$script_dir/output"
+    local label="${app:l}-macos"
+
+    if [ "$do_build" -eq 1 ]; then
+        printf '==> Building %s for macOS\n' "$app"
+        SCUI_DEBUG="${action_file:+1}" \
+            zsh "$script_dir/compile.zsh" "$app" | grep -E 'error:|Build complete|Build of product' || true
+    fi
+
+    mkdir -p "$out"
+    : > "$out/$log_name"
+    local action_log="$out/$actionfile_log"
+    : > "$action_log"
+    local args=( ${(z)app_args} )
+    if [ -n "$action_file" ]; then
+        action_file="${action_file:A}"
+        args+=( -actionfile "$action_file" )
+        printf '==> Action file: %s\n' "${action_file:t}"
+    fi
+
+    printf '==> Launching %s on macOS\n' "$app"
+    ( cd "$out" && env ${(z)app_env} "./$app" ${(q)args} >"$action_log" 2>&1 & )
+
+    if wait_for_marker_macos; then
+        showtime "macOS $app"
+    fi
+
+    pkill -TERM -x "$app" 2>/dev/null || true
+    printf '==> Closed %s on macOS\n' "$app"
+    print_summary_macos
+}
+
+wait_for_marker_macos() {
+    local waited=0
+
+    if [ -z "$marker" ]; then
+        printf '==> No render marker configured; using launch timing\n'
+        sleep 1
+        return 0
+    fi
+
+    printf '==> Waiting for "%s"' "$marker"
+    while [ "$waited" -lt "$timeout_seconds" ]; do
+        if [ -f "$script_dir/output/$log_name" ] \
+            && grep -q "$marker" "$script_dir/output/$log_name" 2>/dev/null; then
+            printf ' -- rendered after %ss\n' "$waited"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        printf '.'
+    done
+
+    printf '\n==> Timed out after %ss\n' "$timeout_seconds"
+    return 1
+}
+
+print_summary_macos() {
+    local out="$script_dir/output"
+    printf '\n==> macOS %s diagnostics\n' "$app"
+    grep -hE "$summary_pattern" "$out/$log_name" "$out/$actionfile_log" 2>/dev/null \
+        | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
+}
+
 # Ctrl-C closes the app rather than orphaning it.
 #
 # The app is launched detached -- a subshell on Windows, `disown` under WSLg --
@@ -559,6 +636,7 @@ kill_existing
 case "$target" in
     wsl) run_wsl ;;
     windows) run_windows ;;
+    macos) run_macos ;;
     both) run_wsl; printf '\n'; run_windows ;;
     *) printf 'Unknown target: %s\n' "$target" >&2; exit 64 ;;
 esac

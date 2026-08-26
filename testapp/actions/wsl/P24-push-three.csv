@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P24 step 1: push three levels.
 #
 # Also the reconnaissance for steps 2-5. The plan asks to "go back through
@@ -21,9 +21,9 @@ action,x,y,origin,button,key,micros,note
 # reflows once, between level 0 and level 1, and then stays put.
 # 第一次推入對準的是根層版面，其餘則對準推入後的版面。兩者不同，是因為返回列只有在推入之後才
 # 存在，而其全寬的橫列會使堆疊撐滿視窗——因此內容會在第 0 層與第 1 層之間重排一次，之後便固定。
-click,293,362,,left,,,Push level 1 -- root layout
-sleep,,,,,,700000,
-click,353,386,,left,,,Push level 2 -- with the bar present
-sleep,,,,,,700000,
-click,353,386,,left,,,Push level 3
-sleep,,,,,,1200000,hold for the screenshot
+click,293,362,,left,,,Push level 1 -- root layout,gtk
+sleep,,,,,,700000,,gtk
+click,353,386,,left,,,Push level 2 -- with the bar present,gtk
+sleep,,,,,,700000,,gtk
+click,353,386,,left,,,Push level 3,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

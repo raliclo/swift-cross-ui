@@ -159,4 +159,38 @@ struct ActionFileTests {
             )
         }
     }
+
+    @Test("a platform column rejects a file verified for another backend")
+    func platformIsValidated() throws {
+        let file = """
+            action,x,y,origin,button,key,micros,note,platform
+            click,10,20,,left,,,,macos
+            """
+        #expect(try ActionFile.parse(file, platform: .macos).count == 1)
+        #expect(throws: ActionFileError.wrongPlatform("macos", expected: .gtk, line: 2)) {
+            try ActionFile.parse(file, platform: .gtk)
+        }
+    }
+
+    @Test("a platform column accepts any matching platform in a pipe-separated list")
+    func multiplePlatformsAreAccepted() throws {
+        let file = """
+            action,x,y,origin,button,key,micros,note,platform
+            click,10,20,,left,,,,macos|gtk
+            """
+        #expect(try ActionFile.parse(file, platform: .gtk).count == 1)
+        #expect(try ActionFile.parse(file, platform: .macos).count == 1)
+        #expect(throws: ActionFileError.wrongPlatform("macos|gtk", expected: .ios, line: 2)) {
+            try ActionFile.parse(file, platform: .ios)
+        }
+    }
+
+    @Test("an unknown platform is rejected with its line")
+    func unknownPlatformIsRejected() {
+        #expect(throws: ActionFileError.unknownPlatform("solaris", line: 2)) {
+            try ActionFile.parse(
+                "action,x,y,origin,button,key,micros,note,platform\nclick,1,2,,left,,,,solaris"
+            )
+        }
+    }
 }

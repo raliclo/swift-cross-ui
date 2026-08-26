@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P24 step 4 on its own: does the path survive a state change?
 #
 # Split out from P24-record-and-pop.csv because that file ends at the root, and
@@ -16,15 +16,15 @@ action,x,y,origin,button,key,micros,note
 # 擾動了歷史。
 #
 # 同一畫面中的 `counter -> 2` 正是使其成為「狀態變更」而非「閒置等待」的依據。
-click,293,362,,left,,,Push level 1
-sleep,,,,,,700000,
-click,353,386,,left,,,Push level 2
-sleep,,,,,,700000,
-click,353,386,,left,,,Push level 3
-sleep,,,,,,700000,
-click,94,231,,left,,,Increment counter
-sleep,,,,,,400000,
-click,94,231,,left,,,again
-sleep,,,,,,600000,
-click,63,282,,left,,,one Back -- must land on Level 2
-sleep,,,,,,1500000,hold for the screenshot
+click,293,362,,left,,,Push level 1,gtk
+sleep,,,,,,700000,,gtk
+click,353,386,,left,,,Push level 2,gtk
+sleep,,,,,,700000,,gtk
+click,353,386,,left,,,Push level 3,gtk
+sleep,,,,,,700000,,gtk
+click,94,231,,left,,,Increment counter,gtk
+sleep,,,,,,400000,,gtk
+click,94,231,,left,,,again,gtk
+sleep,,,,,,600000,,gtk
+click,63,282,,left,,,one Back -- must land on Level 2,gtk
+sleep,,,,,,1500000,hold for the screenshot,gtk

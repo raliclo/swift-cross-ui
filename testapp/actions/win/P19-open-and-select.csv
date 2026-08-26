@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P19 test plan steps 1 and 2, on Windows.
 #
 # The WSL file cannot be reused: its coordinates describe a WSLg window, and on
@@ -39,7 +39,7 @@ action,x,y,origin,button,key,micros,note
 # 偏差越大」的形式顯現出來。
 #
 # 因此：先在截圖上量測，再相除。96/1.25 = 77、225/1.25 = 180、265/1.25 = 212。
-click,77,180,frame,left,,,step 1 open the menu
-sleep,,,,,,800000,let the popover appear
-click,77,212,frame,left,,,step 2 press Button item
-sleep,,,,,,500000,let last action update
+click,77,180,frame,left,,,step 1 open the menu,windows
+sleep,,,,,,800000,let the popover appear,windows
+click,77,212,frame,left,,,step 2 press Button item,windows
+sleep,,,,,,500000,let last action update,windows

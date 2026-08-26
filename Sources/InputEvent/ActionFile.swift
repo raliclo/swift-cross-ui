@@ -2,15 +2,18 @@ import Foundation
 
 /// Reads an action file into ``InputAction`` values.
 ///
-/// The format is in this module's README: RFC 4180 CSV, one header row, eight
-/// columns `action,x,y,origin,button,key,micros,note`.
+/// The format is in this module's README: RFC 4180 CSV, one header row, nine
+/// columns `action,x,y,origin,button,key,micros,note,platform`.
 public enum ActionFile {
     public static func load(contentsOf url: URL) throws -> [InputAction] {
         let text = try String(contentsOf: url, encoding: .utf8)
         return try parse(text)
     }
 
-    public static func parse(_ text: String) throws -> [InputAction] {
+    public static func parse(
+        _ text: String,
+        platform: ActionFilePlatform = .current
+    ) throws -> [InputAction] {
         // Split on `isNewline` rather than the literal "\n". Swift treats
         // "\r\n" as a single extended grapheme cluster, so it is one Character
         // and it is not equal to "\n" -- a CRLF file split on the literal
@@ -37,7 +40,7 @@ public enum ActionFile {
             // header treated as data.
             if fields.first == "action" { continue }
 
-            guard let action = try parseRow(fields, line: number) else { continue }
+            guard let action = try parseRow(fields, line: number, platform: platform) else { continue }
             actions.append(action)
         }
         return actions
@@ -80,12 +83,32 @@ public enum ActionFile {
         return fields.map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
-    private static func parseRow(_ fields: [String], line: Int) throws -> InputAction? {
+    private static func parseRow(
+        _ fields: [String],
+        line: Int,
+        platform: ActionFilePlatform
+    ) throws -> InputAction? {
         guard let verb = fields.first, !verb.isEmpty else { return nil }
 
         func value(_ index: Int) -> String? {
             guard index < fields.count, !fields[index].isEmpty else { return nil }
             return fields[index]
+        }
+
+        if let rawPlatform = value(8), !rawPlatform.isEmpty {
+            let labels = rawPlatform.split(separator: "|").map(String.init)
+            guard !labels.isEmpty else {
+                throw ActionFileError.unknownPlatform(rawPlatform, line: line)
+            }
+            let platforms = try labels.map { label in
+                guard let actionPlatform = ActionFilePlatform(rawValue: label) else {
+                    throw ActionFileError.unknownPlatform(label, line: line)
+                }
+                return actionPlatform
+            }
+            guard platforms.contains(where: { $0.matches(platform) }) else {
+                throw ActionFileError.wrongPlatform(rawPlatform, expected: platform, line: line)
+            }
         }
 
         let origin: Origin
@@ -179,6 +202,8 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
     case unknownKey(String, line: Int)
     case unknownButton(String, line: Int)
     case unknownOrigin(String, line: Int)
+    case unknownPlatform(String, line: Int)
+    case wrongPlatform(String, expected: ActionFilePlatform, line: Int)
     case missingKey(verb: String, line: Int)
     case missingButton(verb: String, line: Int)
     case missingPosition(verb: String, line: Int)
@@ -195,6 +220,10 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
                 "line \(line): unknown button '\(name)'; expected left, right or middle"
             case .unknownOrigin(let name, let line):
                 "line \(line): unknown origin '\(name)'; expected client or frame"
+            case .unknownPlatform(let name, let line):
+                "line \(line): unknown platform '\(name)'; expected any, macos, windows, gtk, ios or android"
+            case .wrongPlatform(let actual, let expected, let line):
+                "line \(line): action file is for \(actual), current backend is \(expected.rawValue)"
             case .missingKey(let verb, let line):
                 "line \(line): '\(verb)' needs a key"
             case .missingButton(let verb, let line):

@@ -1,11 +1,11 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P19 test plan steps 1 and 2, as an action file.
 # Coordinates read from a window capture, which is in window space already --
 # xwd -id captures the window, not the desktop, so its 0,0 is the window's.
 # P19 測試計畫的步驟 1 與 2，寫成動作檔。
 # 座標讀自視窗擷取，該擷取本身即為視窗座標空間——xwd -id 擷取的是視窗而非桌面，因此其 0,0
 # 即為視窗的 0,0。
-click,86,203,,left,,,step 1 open the menu
-sleep,,,,,,800000,let the popover appear
-click,76,242,,left,,,step 2 press Button item
-sleep,,,,,,500000,let last action update
+click,86,203,,left,,,step 1 open the menu,gtk
+sleep,,,,,,800000,let the popover appear,gtk
+click,76,242,,left,,,step 2 press Button item,gtk
+sleep,,,,,,500000,let last action update,gtk

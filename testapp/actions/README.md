@@ -3,8 +3,17 @@
 One folder per platform. A file lives where it has actually been run and seen
 to work — not where it might work.
 
+When the default action sequence is not suitable for another platform, create a
+new file in that platform's folder with a `-{platform}` suffix, for example
+`P12-android-smoke.csv`, `P14-ios-smoke.csv`, or `P28-macos-hit-testing.csv`.
+Do not copy a coordinate sequence across platforms without re-verifying it.
+
 每個平台一個資料夾。檔案存放於「它確實被執行過、且確認可運作」的平台之下——而非「它或許可行」
 之處。
+
+若預設動作流程不適合另一個平台，應在該平台資料夾建立新檔案，並加上 `-{platform}` suffix，例如
+`P12-android-smoke.csv`、`P14-ios-smoke.csv` 或 `P28-macos-hit-testing.csv`。不可未重新驗證就把
+含座標的動作流程直接跨平台複製。
 
 ```
 actions/
@@ -27,6 +36,13 @@ which platform only by running it. A file under `win/` is a claim about
 Windows, and one that is missing is a gap rather than a silent failure waiting
 to happen.
 
+The CSV repeats that boundary in its final `platform` column. The runner rejects
+`macos` files on GTK or WinUI, and rejects `gtk` or `windows` files on AppKit;
+multiple verified platforms may be written with `|` such as `macos|gtk`, and an
+old eight-column file has no claim and is treated as `any` for compatibility.
+The filename suffix is descriptive and does not replace the `platform` column;
+the column remains the machine-checked declaration.
+
 They also record different things. `wsl/P8-scroll-outer.csv` proved a scroll
 reaches a GTK `ScrolledWindow`; the Windows equivalent, when it exists, will be
 proving that `SendInput`'s wheel does, which is a different mechanism entirely.
@@ -42,6 +58,8 @@ proving that `SendInput`'s wheel does, which is a different mechanism entirely.
 
 它們記錄的事情也不同。`wsl/P8-scroll-outer.csv` 證明的是「捲動事件能抵達 GTK 的 `ScrolledWindow`」；
 而 Windows 的對應檔案在存在之後，證明的將是「`SendInput` 的滾輪能抵達」——那是完全不同的機制。
+
+檔名 suffix 只是說明，不會取代 `platform` 欄位；真正由 parser 檢查的平台宣告仍然是該欄位。
 
 ## Using one
 
@@ -63,5 +81,9 @@ looking like it had run.
 `Sources/InputEvent/README.md`. Nine verbs, coordinates in logical points, and
 a `scroll` that reads its `x` and `y` as wheel notches rather than a position.
 
-格式見 `Sources/InputEvent/README.md`。九個動作、以邏輯點為單位的座標，以及一個把 `x`、`y` 讀作
-滾輪格數而非位置的 `scroll`。
+格式見 `Sources/InputEvent/README.md`。九個動作、以邏輯點為單位的座標、把 `x`、`y` 讀作滾輪格數
+而非位置的 `scroll`，以及記錄驗證 backend 的 `platform` 欄位。
+
+CSV 會在最後的 `platform` 欄位再次表達這個界線。runner 會拒絕在 GTK 或 WinUI 上使用 `macos`
+檔案，也會拒絕在 AppKit 上使用 `gtk` 或 `windows` 檔案；舊有八欄檔案沒有平台宣告，為相容性會視為
+`any`。若同一檔案已在多個平台驗證，可使用 `|`，例如 `macos|gtk`。

@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P21 step 6, the half that matters: does the *disabled* TextField refuse input?
 #
 # It is bound to the same `text` as the enabled one, so if two keystrokes reach
@@ -16,8 +16,8 @@ action,x,y,origin,button,key,micros,note
 # 完全看不出來。
 #
 # 該欄位在捲動 12 格後位於 y=341；此座標取自 P21-text-fields.csv 的截圖，該檔的捲動量相同。
-move,410,400,,,,,over the scroll view
-sleep,,,,,,400000,
+move,410,400,,,,,over the scroll view,gtk
+sleep,,,,,,400000,,gtk
 # To the bottom, in paced bursts rather than one long run of notches.
 #
 # A single `scroll,0,40` travelled a different distance on each of three runs.
@@ -32,20 +32,20 @@ sleep,,,,,,400000,
 # 單一的 `scroll,0,40` 在三次執行中各走了不同距離。xdotool 是以 `click --repeat` 背靠背地送出
 # 這些格數、中間毫無間隔，而 GTK 會把急促的連發併為單一 kinetic 手勢，其距離取決於時序而非次數。
 # 在各段之間暫停可使每一段都確實生效，而以捲動範圍的硬性盡頭作結，則消除了最後的變異。
-scroll,0,6,,,,,
-sleep,,,,,,350000,
-scroll,0,6,,,,,
-sleep,,,,,,350000,
-scroll,0,6,,,,,
-sleep,,,,,,350000,
-scroll,0,6,,,,,
-sleep,,,,,,350000,
-scroll,0,6,,,,,
-sleep,,,,,,350000,
-scroll,0,6,,,,,at the bottom by now
-sleep,,,,,,1200000,
-click,410,341,,left,,,"the disabled TextField -- the second, borderless box"
-sleep,,,,,,400000,
-key,,,,,z,,
-key,,,,,z,,
-sleep,,,,,,1200000,hold for the screenshot
+scroll,0,6,,,,,,gtk
+sleep,,,,,,350000,,gtk
+scroll,0,6,,,,,,gtk
+sleep,,,,,,350000,,gtk
+scroll,0,6,,,,,,gtk
+sleep,,,,,,350000,,gtk
+scroll,0,6,,,,,,gtk
+sleep,,,,,,350000,,gtk
+scroll,0,6,,,,,,gtk
+sleep,,,,,,350000,,gtk
+scroll,0,6,,,,,at the bottom by now,gtk
+sleep,,,,,,1200000,,gtk
+click,410,341,,left,,,"the disabled TextField -- the second, borderless box",gtk
+sleep,,,,,,400000,,gtk
+key,,,,,z,,,gtk
+key,,,,,z,,,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

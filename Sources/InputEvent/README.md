@@ -36,17 +36,38 @@ knows where its window is, so coordinates need no window search and no guessing
 about decorations — the mistake that made an earlier external driver click on
 nothing until it was switched to window-relative positions.
 
+Action files are platform-specific. The repository folders are the first visual
+boundary (`actions/mac`, `actions/wsl`, `actions/win`, and so on), and the CSV
+also records the verified backend in its final `platform` column. A file marked
+`macos` is accepted by AppKit only; `gtk` covers both WSLg and native Linux;
+`windows` is for WinUI; `ios` and `android` identify their native test runners.
+Multiple verified platforms may be separated with `|`, such as `macos|gtk`.
+If a platform needs a different coordinate sequence, keep it in that platform's
+folder and give it a `-{platform}` filename suffix; the suffix is documentation,
+while the CSV column is the enforced declaration.
+The old eight-column format remains valid and means `any`, so existing files
+fail neither parsing nor replay, but new files should always state their
+platform.
+
+動作檔是平台特定的。repository 資料夾是第一層明確界線（`actions/mac`、
+`actions/wsl`、`actions/win` 等），CSV 最後的 `platform` 欄位也會記錄已驗證的
+backend。標記為 `macos` 的檔案只接受 AppKit；`gtk` 同時涵蓋 WSLg 與原生 Linux；
+`windows` 則代表 WinUI；`ios` 與 `android` 代表各自的原生測試執行器。若同一檔案已在多個平台驗證，
+可用 `|` 分隔，例如 `macos|gtk`。若某平台需要不同的座標流程，應放在該平台資料夾並使用
+`-{platform}` 檔名 suffix；suffix 只是文件說明，真正強制檢查的仍是 CSV 欄位。舊有八欄格式仍然有效
+並視為 `any`，因此不會因 parser 或 replay 而失敗；但新檔案應一律填寫 platform。
+
 Both injection paths are system-wide: `SendInput` posts to the foreground
 window, and XTEST posts to the X server's focus. The app therefore presents its
 window before replaying anything.
 
 ## File format
 
-RFC 4180 CSV, one header row, LF line endings. Eight columns, always in this
+RFC 4180 CSV, one header row, LF line endings. Nine columns, always in this
 order. Unused columns are left empty rather than omitted.
 
 ```
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 ```
 
 | column | meaning |
@@ -58,6 +79,7 @@ action,x,y,origin,button,key,micros,note
 | `key` | a key name from the table below |
 | `micros` | microseconds |
 | `note` | free text, ignored; write down what the step is checking |
+| `platform` | `any`, `macos`, `windows`, `gtk`, `ios` or `android`; use `|` for multiple platforms; blank means `any` |
 
 ### Verbs
 
@@ -175,28 +197,28 @@ saying so.
 ### Example
 
 ```csv
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P21 test plan steps 1 and 2
-click,60,181,,left,,,press Enabled under Button
-sleep,,,,,,500000,let the click register
-click,157,181,,left,,,press Disabled; clicks must not rise
-sleep,,,,,,500000,
-key,,,,,tab,,move focus to the next control
-keydown,,,,,shift,,hold shift
-key,,,,,tab,,shift-tab moves focus back
-keyup,,,,,shift,,release shift
+click,60,181,,left,,,press Enabled under Button,gtk
+sleep,,,,,,500000,let the click register,gtk
+click,157,181,,left,,,press Disabled; clicks must not rise,gtk
+sleep,,,,,,500000,,gtk
+key,,,,,tab,,move focus to the next control,gtk
+keydown,,,,,shift,,hold shift,gtk
+key,,,,,tab,,shift-tab moves focus back,gtk
+keyup,,,,,shift,,release shift,gtk
 ```
 
 Dragging the window by its title bar, which is what `frame` and the mouse
 press/release pair are for:
 
 ```csv
-action,x,y,origin,button,key,micros,note
-mousedown,200,18,frame,left,,,grab the title bar
-move,400,300,frame,,,,drag
-sleep,,,,,,100000,let the window manager follow
-move,600,400,frame,,,,keep dragging
-mouseup,600,400,frame,left,,,let go
+action,x,y,origin,button,key,micros,note,platform
+mousedown,200,18,frame,left,,,grab the title bar,macos
+move,400,300,frame,,,,drag,macos
+sleep,,,,,,100000,let the window manager follow,macos
+move,600,400,frame,,,,keep dragging,macos
+mouseup,600,400,frame,left,,,let go,macos
 ```
 
 ## Key names

@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P24 steps 3, 4 and 5 in one run, because each depends on the state the last
 # one left.
 #
@@ -23,23 +23,23 @@ action,x,y,origin,button,key,micros,note
 # 5：`Pop to root` 會重置畫面與 `pushes recorded`。該 app 會重置 `pushCount`，但刻意**不**重置
 #    `counter`，因此截圖在根層應顯示 `counter -> 2`。若該處為 0，代表某個東西重置的範圍超出了
 #    被要求的範圍。
-click,300,402,,left,,,Record a push at level 0 -- root layout
-sleep,,,,,,500000,
-click,293,362,,left,,,Push level 1
-sleep,,,,,,700000,
-click,360,426,,left,,,Record a push at level 1
-sleep,,,,,,500000,
-click,353,386,,left,,,Push level 2
-sleep,,,,,,700000,
-click,360,426,,left,,,Record a push at level 2
-sleep,,,,,,500000,
-click,353,386,,left,,,Push level 3
-sleep,,,,,,700000,
-click,94,231,,left,,,Increment counter at depth
-sleep,,,,,,400000,
-click,94,231,,left,,,again -- counter reads 2
-sleep,,,,,,500000,
-click,63,282,,left,,,Back -- the path must have survived the state change
-sleep,,,,,,900000,
-click,230,231,,left,,,Pop to root
-sleep,,,,,,1500000,hold for the screenshot
+click,300,402,,left,,,Record a push at level 0 -- root layout,gtk
+sleep,,,,,,500000,,gtk
+click,293,362,,left,,,Push level 1,gtk
+sleep,,,,,,700000,,gtk
+click,360,426,,left,,,Record a push at level 1,gtk
+sleep,,,,,,500000,,gtk
+click,353,386,,left,,,Push level 2,gtk
+sleep,,,,,,700000,,gtk
+click,360,426,,left,,,Record a push at level 2,gtk
+sleep,,,,,,500000,,gtk
+click,353,386,,left,,,Push level 3,gtk
+sleep,,,,,,700000,,gtk
+click,94,231,,left,,,Increment counter at depth,gtk
+sleep,,,,,,400000,,gtk
+click,94,231,,left,,,again -- counter reads 2,gtk
+sleep,,,,,,500000,,gtk
+click,63,282,,left,,,Back -- the path must have survived the state change,gtk
+sleep,,,,,,900000,,gtk
+click,230,231,,left,,,Pop to root,gtk
+sleep,,,,,,1500000,hold for the screenshot,gtk

@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P10 steps 2 and 3, which together are #454: click the plain button, then the
 # one sitting under a transparent Color.clear layer.
 #
@@ -17,9 +17,9 @@ action,x,y,origin,button,key,micros,note
 #
 # overlay 維持勾選狀態。步驟 4 才會移除它，且置於另一個檔案——A/B 比較唯有在兩半各自獨立執行時
 # 才具有意義。
-click,74,232,,left,,,Click me -- the plain one
-sleep,,,,,,400000,
-click,74,232,,left,,,again, so Direct clicks reads 2
-sleep,,,,,,600000,
-click,221,232,,left,,,Click me too -- under the transparent overlay
-sleep,,,,,,1200000,hold for the screenshot
+click,74,232,,left,,,Click me -- the plain one,gtk
+sleep,,,,,,400000,,gtk
+click,74,232,,left,,,again, so Direct clicks reads 2,gtk
+sleep,,,,,,600000,,gtk
+click,221,232,,left,,,Click me too -- under the transparent overlay,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

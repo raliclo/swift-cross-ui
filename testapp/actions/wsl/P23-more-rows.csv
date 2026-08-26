@@ -1,14 +1,14 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P23 steps 3 and 4: grow the table past the window height, then shrink it back.
 # `More rows` adds four at a time, so four presses take 8 rows to 24 -- well past
 # what fits -- and four `Fewer rows` presses return it.
 # P23 步驟 3 與 4：先把表格加長到超出視窗高度，再縮回。`More rows` 每次加四列，因此按四次會由
 # 8 列增至 24 列，遠超過可容納的範圍；再按四次 `Fewer rows` 即可回復。
-click,181,140,,left,,,More rows 1
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 2
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 3
-sleep,,,,,,300000,
-click,181,140,,left,,,More rows 4
-sleep,,,,,,1200000,let the table settle at 24 rows for the screenshot
+click,181,140,,left,,,More rows 1,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 2,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 3,gtk
+sleep,,,,,,300000,,gtk
+click,181,140,,left,,,More rows 4,gtk
+sleep,,,,,,1200000,let the table settle at 24 rows for the screenshot,gtk

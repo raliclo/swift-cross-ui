@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P28: the opaque blue overlay is disabled for hit testing.
+# P28：不透明藍色 overlay 已停用 hit testing。
+click,168,151,,left,,,click through the overlay to the button,macos
+sleep,,,,,,500000,wait for the click counter and debug log,macos

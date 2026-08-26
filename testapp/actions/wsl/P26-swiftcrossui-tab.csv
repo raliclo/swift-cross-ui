@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P26: switch to the SwiftCrossUI tab and let AsyncImage finish.
 #
 # The live tab. The image has to arrive without the tab strip going dead, which
@@ -11,9 +11,9 @@ action,x,y,origin,button,key,micros,note
 # 這是實際執行的分頁。影像必須在分頁列不失去反應的前提下抵達，而其旁的點擊計數器正是為此而設——
 # 在載入期間按下它並看到數字上升，即為「該次抓取不在 layout 路徑上」的證明，也是截圖本身唯一無法
 # 呈現的東西。
-click,262,21,,left,,,the SwiftCrossUI tab
-sleep,,,,,,300000,
-click,357,309,,left,,,press the counter while the image is still loading
-sleep,,,,,,200000,
-click,357,309,,left,,,and again
-sleep,,,,,,3000000,let the fetch finish
+click,262,21,,left,,,the SwiftCrossUI tab,gtk
+sleep,,,,,,300000,,gtk
+click,357,309,,left,,,press the counter while the image is still loading,gtk
+sleep,,,,,,200000,,gtk
+click,357,309,,left,,,and again,gtk
+sleep,,,,,,3000000,let the fetch finish,gtk

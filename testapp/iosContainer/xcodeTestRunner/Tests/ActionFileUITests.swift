@@ -103,6 +103,11 @@ private enum ActionFile {
             guard !fields.isEmpty, !fields[0].isEmpty, fields[0].first != "#" else { return nil }
             guard fields[0] != "action" else { return nil }
             guard fields.count >= 7 else { throw ActionFileError.malformed(line) }
+            if fields.count > 8, !fields[8].isEmpty,
+                fields[8] != "any", fields[8] != "ios"
+            {
+                throw ActionFileError.wrongPlatform(fields[8], line)
+            }
 
             let hasPosition = !fields[1].isEmpty || !fields[2].isEmpty
             let x = CGFloat(Double(fields[1]) ?? 0)
@@ -149,12 +154,15 @@ private enum ActionFileError: Error, CustomStringConvertible {
     case malformed(Int)
     case invalidCoordinate(Int)
     case unsupported(String, Int)
+    case wrongPlatform(String, Int)
 
     var description: String {
         switch self {
         case .malformed(let line): return "Malformed action file row at line \(line)"
         case .invalidCoordinate(let line): return "Invalid iOS coordinate at line \(line)"
         case .unsupported(let action, let line): return "Unsupported iOS action '\(action)' at line \(line)"
+        case .wrongPlatform(let platform, let line):
+            return "Action file platform '\(platform)' is not valid for iOS at line \(line)"
         }
     }
 }

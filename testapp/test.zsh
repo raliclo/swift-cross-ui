@@ -4,6 +4,7 @@
 # Examples:
 #   zsh testapp/test.zsh P8 --both
 #   zsh testapp/test.zsh P19 -win --actionfile     Windows only
+#   zsh testapp/test.zsh P28 --macos --actionfile  macOS only
 #   zsh testapp/test.zsh P7 --wsl -n
 #
 # Ctrl-C during a run closes the app rather than leaving it open; the target
@@ -22,6 +23,7 @@ Usage: test.zsh <P0..P17> [test options]
 Examples:
   zsh testapp/test.zsh P8 --both
   zsh testapp/test.zsh P19 -win --actionfile
+  zsh testapp/test.zsh P28 --macos --actionfile
   zsh testapp/test.zsh P7 --wsl -n
 
 Single-test scripts live in testapp/test_support/test_Pn.zsh.

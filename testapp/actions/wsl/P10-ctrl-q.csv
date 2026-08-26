@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P10 step 6, which is #478: Ctrl-Q must quit the application.
 #
 # There is nothing to see in a screenshot here -- the check is whether the
@@ -9,8 +9,8 @@ action,x,y,origin,button,key,micros,note
 #
 # 此處截圖無從判讀——真正的檢查是「之後該行程是否仍在執行」，由執行器回報。若視窗仍留在視窗清單
 # 中，即為失敗。
-sleep,,,,,,500000,let the window settle and take focus
-keydown,,,,,control,,
-key,,,,,q,,
-keyup,,,,,control,,
-sleep,,,,,,1500000,give it time to quit, or to fail to
+sleep,,,,,,500000,let the window settle and take focus,gtk
+keydown,,,,,control,,,gtk
+key,,,,,q,,,gtk
+keyup,,,,,control,,,gtk
+sleep,,,,,,1500000,give it time to quit, or to fail to,gtk

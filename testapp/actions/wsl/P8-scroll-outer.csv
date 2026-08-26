@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P8 step 3: the control. Pointer over the outer scroll view, away from the
 # horizontal strip, then scroll down. The `Outer row N` labels must move.
 #
@@ -11,7 +11,7 @@ action,x,y,origin,button,key,micros,note
 #
 # 這一列正是使步驟 4 具有意義的前提。上一輪無法區分「#426 凍結了該視圖」與「輸入根本沒有送達」，
 # 因為當時沒有可用的對照組——因此本檔案先行、且單獨執行。
-move,320,340,,,,,over "Outer row 1", clear of the strip
-sleep,,,,,,400000,
-scroll,0,4,,,,,four notches down
-sleep,,,,,,1200000,hold for the screenshot
+move,320,340,,,,,over "Outer row 1", clear of the strip,gtk
+sleep,,,,,,400000,,gtk
+scroll,0,4,,,,,four notches down,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk

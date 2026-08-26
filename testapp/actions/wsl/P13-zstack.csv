@@ -1,8 +1,8 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P13 step 5 needs no input at all -- the ZStack is on screen from launch. The
 # file exists so the run is driven the same way as every other, and so the
 # screenshot is taken at a defined moment rather than whenever the script got
 # round to it.
 # P13 步驟 5 完全不需要輸入——ZStack 自啟動起就在畫面上。此檔存在的目的，是讓這次執行與其他所有
 # 執行以相同方式驅動，並使截圖發生在一個明確的時點，而非腳本恰好輪到的時候。
-sleep,,,,,,1500000,let the window settle before the screenshot
+sleep,,,,,,1500000,let the window settle before the screenshot,gtk

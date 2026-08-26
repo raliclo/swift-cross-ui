@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P21 steps 6 and 7: scroll down to the text controls, type into the enabled
 # TextField, then try the disabled one beside it.
 #
@@ -15,17 +15,17 @@ action,x,y,origin,button,key,micros,note
 # 沒有任何轉動滾輪的方式。app 本身未作任何更動。
 #
 # 步驟 7 的 ContentUnavailableView 位於文字控制項下方，由同一張截圖一併檢查。
-move,410,400,,,,,over the scroll view
-sleep,,,,,,400000,
-scroll,0,12,,,,,down to the text controls
-sleep,,,,,,1000000,
-click,200,300,,left,,,focus whatever field is there -- position checked below
-sleep,,,,,,400000,
+move,410,400,,,,,over the scroll view,gtk
+sleep,,,,,,400000,,gtk
+scroll,0,12,,,,,down to the text controls,gtk
+sleep,,,,,,1000000,,gtk
+click,200,300,,left,,,focus whatever field is there -- position checked below,gtk
+sleep,,,,,,400000,,gtk
 # The key name goes in the `key` column, which is the sixth. Writing `key,h`
 # puts an `h` in `x` and the parser rejects it as "x given without y" -- which is
 # the right error, just not an obvious one to read the first time.
 # 鍵名應置於 `key` 欄，也就是第六欄。寫成 `key,h` 會把 `h` 放進 `x`，解析器會以
 # 「x given without y」拒絕——這是正確的錯誤訊息，只是第一次讀到時不甚直觀。
-key,,,,,h,,
-key,,,,,i,,
-sleep,,,,,,1200000,hold for the screenshot
+key,,,,,h,,,gtk
+key,,,,,i,,,gtk
+sleep,,,,,,1200000,hold for the screenshot,gtk
