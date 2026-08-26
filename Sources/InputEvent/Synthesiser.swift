@@ -140,6 +140,40 @@ extension Synthesiser {
     }
 }
 
+/// The synthesiser for the platform this was built for.
+///
+/// One place, and it is this module -- the one that has all three
+/// implementations. The choice used to be written inside `GtkBackend`, which
+/// meant the Windows synthesiser was reachable only through the GTK backend,
+/// and any other backend wanting a replay had to restate the same `#if` and get
+/// it right again. `AppKitBackend` restated it and then hard-coded one answer.
+///
+/// A platform with no implementation throws rather than returning something
+/// that quietly does nothing. iOS is that platform today: `UIKitBackend` has no
+/// synthesiser, so an `-actionfile` run there says so on stderr instead of
+/// leaving a window that looks as though it ignored its input.
+///
+/// 此建置所對應之平台的 synthesiser。
+///
+/// 只有一處，且就在本模組——擁有全部三個實作的那一個。此項選擇過去寫在 `GtkBackend` 內，導致
+/// Windows 的 synthesiser 只能透過 GTK backend 取得；而任何其他想要重放功能的 backend，都必須重述
+/// 同一組 `#if` 並再次把它寫對。`AppKitBackend` 重述了它，然後寫死了單一答案。
+///
+/// 沒有實作的平台會拋出錯誤，而非回傳一個安靜地什麼也不做的東西。iOS 目前正是這樣的平台：
+/// `UIKitBackend` 沒有 synthesiser，因此在該處執行 `-actionfile` 會於 stderr 明說，而不是留下一個
+/// 看似忽略了輸入的視窗。
+public func makeSynthesiser() throws -> any Synthesiser {
+    #if os(Windows)
+        return Win32Synthesiser()
+    #elseif os(Linux)
+        return try XdotoolSynthesiser()
+    #elseif os(macOS)
+        return AppKitSynthesiser()
+    #else
+        throw SynthesiserError.unsupported("input synthesis on this platform")
+    #endif
+}
+
 public enum SynthesiserError: Error, CustomStringConvertible {
     case toolMissing(String)
     case toolFailed(String, status: Int32)

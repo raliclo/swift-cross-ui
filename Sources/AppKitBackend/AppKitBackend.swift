@@ -1,5 +1,10 @@
 import AppKit
+
 @_spi(Backends) import SwiftCrossUI
+
+#if SCUI_DEBUG
+    import InputEvent
+#endif
 
 extension App {
     public typealias Backend = AppKitBackend
@@ -13,16 +18,6 @@ public final class AppKitBackend: FullAppBackend {
     public typealias Window = NSCustomWindow
     public typealias Widget = NSView
     public typealias Alert = NSAlert
-
-    #if SCUI_DEBUG
-        /// Whether `-actionfile` has already been replayed this run.
-        ///
-        /// Static, not per-instance, so a second backend would not replay the
-        /// file again. See ActionFileReplay.swift.
-        /// 為 static 而非每個實例各自持有，如此即使建立第二個 backend 也不會再次重放該檔。
-        /// 詳見 ActionFileReplay.swift。
-        nonisolated(unsafe) static var hasReplayedActionFile = false
-    #endif
 
     public let defaultTableRowContentHeight = 20
     public let defaultTableCellVerticalPadding = 4
@@ -224,9 +219,9 @@ public final class AppKitBackend: FullAppBackend {
 
         #if SCUI_DEBUG
             // Only ever fires for the first window, and only when -actionfile
-            // was passed. See ActionFileReplay.swift.
-            // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 ActionFileReplay.swift。
-            replayActionFileIfRequested()
+            // was passed. See InputEvent's ActionFileReplay.
+            // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
+            ActionFileReplay.replayIfRequested()
         #endif
     }
 

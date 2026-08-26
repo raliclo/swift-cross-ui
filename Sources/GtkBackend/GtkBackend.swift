@@ -8,6 +8,10 @@ import GtkCHelpers
     import WinSDK
 #endif
 
+#if SCUI_DEBUG
+    import InputEvent
+#endif
+
 extension App {
     public typealias Backend = GtkBackend
 
@@ -140,12 +144,6 @@ public final class GtkBackend:
     }
 
     var globalCSSProvider: CSSProvider?
-
-    /// Guards `-actionfile` against replaying once per window. See
-    /// `ActionFileReplay.swift`.
-    #if SCUI_DEBUG
-    var hasReplayedActionFile = false
-    #endif
 
     /// Kept alive for as long as the backend is. A `GSimpleAction` added to the
     /// application is referenced by it, but the Swift wrapper holds the closure,
@@ -441,7 +439,7 @@ public final class GtkBackend:
         // 分離視窗。
         window.present()
         #if SCUI_DEBUG
-        replayActionFileIfRequested()
+        ActionFileReplay.replayIfRequested()
         #endif
     }
 

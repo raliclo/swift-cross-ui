@@ -263,21 +263,26 @@ will usually take at least a millisecond. The column is microseconds so that a
 file can state its intent precisely; do not read the unit as a promise about
 what the operating system will deliver.
 
-## Using it from an app
+## Using it from a backend
 
-Three things, and the third is not optional:
+One call, from wherever the backend shows a window:
 
 ```swift
-DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
-    // Win32Synthesiser on Windows, AppKitSynthesiser on macOS
-    let synthesiser = try XdotoolSynthesiser()
-    try synthesiser.replayFile(at: file)
-}
+#if SCUI_DEBUG
+    ActionFileReplay.replayIfRequested()
+#endif
 ```
 
-1. **A flag** — `-actionfile <path>`, parsed from `CommandLine.arguments`.
-2. **A delay** — the Windows and Linux paths post to the focused window, and at
-   `onAppear` the window has been created but not necessarily presented and
+That is the whole integration. `AppKitBackend`, `GtkBackend` and `WinUIBackend`
+each contain exactly that and nothing else.
+
+It used to be three things a backend had to get right for itself, and the three
+are still worth knowing because `ActionFileReplay` is doing them on your behalf:
+
+1. **A flag** — `-actionfile <path>`, parsed from `CommandLine.arguments`, and
+   guarded so it replays once per process rather than once per window.
+2. **A delay** — the Windows and Linux paths post to the focused window, and
+   when a window has just been shown it is not necessarily presented and
    focused. A file replayed then drives whatever was in front. macOS addresses
    its own window by number and cannot make that mistake, but still needs the
    window laid out before a coordinate means anything.
@@ -287,6 +292,15 @@ DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
    opens and the click meant for its item lands on the window behind. Measured,
    with the failure looking exactly like a product defect — the replay reported
    success and the screen had not changed.
+
+Two backends did reimplement all of it, and the copies had already started to
+disagree in their documentation about a delay both of them set to one second.
+That is why it lives here now.
+
+`makeSynthesiser()` picks the implementation for the platform, and is the only
+place that choice is written down. A platform without one throws rather than
+returning something that quietly does nothing — iOS today, since `UIKitBackend`
+has no synthesiser.
 
 ## What this is not
 

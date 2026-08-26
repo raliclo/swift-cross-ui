@@ -9,6 +9,10 @@ import WinUIInterop
 @preconcurrency import WindowsFoundation
 import Mutex
 
+#if SCUI_DEBUG
+    import InputEvent
+#endif
+
 // Many force tries are required for the WinUI backend but we don't really want them
 // anywhere else so just disable the lint rule at a file level.
 // swiftlint:disable force_try
@@ -380,6 +384,29 @@ public final class WinUIBackend:
 
     public func show(window: Window) {
         try! window.activate()
+
+        #if SCUI_DEBUG
+            // Only ever fires for the first window, and only when -actionfile
+            // was passed. See InputEvent's ActionFileReplay.
+            //
+            // WinUIBackend had no -actionfile support at all. The flag was
+            // parsed inside GtkBackend, so Win32Synthesiser -- a Windows
+            // implementation -- was reachable only by running the GTK backend
+            // on Windows, and an app on this backend ignored the flag in
+            // silence. Which backend a Windows build defaults to does not
+            // change that: a backend that quietly does nothing with a flag it
+            // was given is the inconsistency, whether or not it is the one
+            // usually chosen.
+            //
+            // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
+            //
+            // WinUIBackend 過去完全沒有 -actionfile 支援。該旗標是在 GtkBackend 內解析的，因此
+            // Win32Synthesiser——一個 Windows 實作——只能透過「在 Windows 上執行 GTK backend」才取用
+            // 得到，而在本 backend 上執行的 app 會靜默地忽略該旗標。Windows 建置預設採用哪個
+            // backend 並不改變這件事：一個 backend 收到旗標卻安靜地什麼也不做，本身就是不一致，
+            // 無論它是不是通常被選用的那一個。
+            ActionFileReplay.replayIfRequested()
+        #endif
     }
 
     public func activate(window: Window) {
