@@ -129,16 +129,16 @@ open class GLArea: Widget {
 
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, OpaquePointer, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, data in
-            SignalBox1<OpaquePointer>.run(data, value1)
+        ) -> Bool = { _, value1, data in
+            ReturningSignalBox1<OpaquePointer, Bool>.run(data, value1)
         }
 
-        addSignal(
+        addReturningSignal(
             name: "render",
             handler: gCallback(handler1)
-        ) { [weak self] (param0: OpaquePointer) in
-            guard let self else { return }
-            self.render?(self, param0)
+        ) { [weak self] (param0: OpaquePointer) -> Bool in
+            guard let self, let handler = self.render else { return false }
+            return handler(self, param0)
         }
 
         let handler2: @convention(c) (
@@ -304,7 +304,7 @@ open class GLArea: Widget {
     ///
     /// The @context is bound to the @area prior to emitting this function,
     /// and the buffers are painted to the window once the emission terminates.
-    public var render: ((GLArea, OpaquePointer) -> Void)?
+    public var render: ((GLArea, OpaquePointer) -> Bool)?
 
     /// Emitted once when the widget is realized, and then each time the widget
     /// is changed while realized.

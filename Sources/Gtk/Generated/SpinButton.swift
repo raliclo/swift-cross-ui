@@ -177,18 +177,27 @@ open class SpinButton: Widget, CellEditable, Editable, Orientable {
 
         let handler2: @convention(c) (
             UnsafeMutableRawPointer, gpointer, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, data in
-            SignalBox1<gpointer>.run(data, value1)
+        ) -> Int = { _, value1, data in
+            ReturningSignalBox1<gpointer, Int>.run(data, value1)
         }
 
-        addSignal(name: "input", handler: gCallback(handler2)) { [weak self] (param0: gpointer) in
-            guard let self else { return }
-            self.input?(self, param0)
+        addReturningSignal(
+            name: "input",
+            handler: gCallback(handler2)
+        ) { [weak self] (param0: gpointer) -> Int in
+            guard let self, let handler = self.input else { return 0 }
+            return handler(self, param0)
         }
 
-        addSignal(name: "output") { [weak self] () in
-            guard let self else { return }
-            self.output?(self)
+        let handler3: @convention(c) (
+            UnsafeMutableRawPointer, UnsafeMutableRawPointer
+        ) -> Bool = { _, data in
+            ReturningSignalBox0<Bool>.run(data)
+        }
+
+        addReturningSignal(name: "output", handler: gCallback(handler3)) { [weak self] () -> Bool in
+            guard let self, let handler = self.output else { return false }
+            return handler(self)
         }
 
         addSignal(name: "value-changed") { [weak self] () in
@@ -588,7 +597,7 @@ open class SpinButton: Widget, CellEditable, Editable, Orientable {
     /// new value.
     ///
     /// The default conversion uses g_strtod().
-    public var input: ((SpinButton, gpointer) -> Void)?
+    public var input: ((SpinButton, gpointer) -> Int)?
 
     /// Emitted to tweak the formatting of the value for display.
     ///
@@ -609,7 +618,7 @@ open class SpinButton: Widget, CellEditable, Editable, Orientable {
     /// return TRUE;
     /// }
     /// ```
-    public var output: ((SpinButton) -> Void)?
+    public var output: ((SpinButton) -> Bool)?
 
     /// Emitted when the value is changed.
     ///

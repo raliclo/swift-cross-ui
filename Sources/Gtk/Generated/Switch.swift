@@ -60,13 +60,16 @@ open class Switch: Widget, Actionable {
 
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, Bool, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, data in
-            SignalBox1<Bool>.run(data, value1)
+        ) -> Bool = { _, value1, data in
+            ReturningSignalBox1<Bool, Bool>.run(data, value1)
         }
 
-        addSignal(name: "state-set", handler: gCallback(handler1)) { [weak self] (param0: Bool) in
-            guard let self else { return }
-            self.stateSet?(self, param0)
+        addReturningSignal(
+            name: "state-set",
+            handler: gCallback(handler1)
+        ) { [weak self] (param0: Bool) -> Bool in
+            guard let self, let handler = self.stateSet else { return false }
+            return handler(self, param0)
         }
 
         let handler2: @convention(c) (
@@ -158,7 +161,7 @@ open class Switch: Widget, Actionable {
     /// [method@Gtk.Switch.set_state] when the underlying state change is
     /// complete. The signal handler should return %TRUE to prevent the
     /// default handler from running.
-    public var stateSet: ((Switch, Bool) -> Void)?
+    public var stateSet: ((Switch, Bool) -> Bool)?
 
     public var notifyActive: ((Switch, OpaquePointer) -> Void)?
 

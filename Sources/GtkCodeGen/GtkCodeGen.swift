@@ -553,6 +553,56 @@ struct GtkCodeGen {
         try alteredSource.write(to: file, atomically: false, encoding: .utf8)
     }
 
+    /// The Swift type a signal's handler should return, or `nil` for the void
+    /// signals, which are most of them.
+    ///
+    /// Emitting `-> Void` for a signal that returns a value -- which is all this
+    /// generator used to do -- means GTK reads whatever the ABI left behind, so a
+    /// `gboolean` handler can never report "handled, stop propagating". That is
+    /// issue #594; see `ReturningSignalBox0` in the Gtk target.
+    ///
+    /// signal 的處理常式應回傳的 Swift 型別；對多數的 void signal 則為 `nil`。
+    ///
+    /// 對「有回傳值」的 signal 輸出 `-> Void`——那正是本產生器過去的唯一行為——會使 GTK 讀到 ABI
+    /// 遺留的內容，因此 `gboolean` 的處理常式永遠無法回報「已處理、停止傳播」。此即 issue #594；
+    /// 參見 Gtk target 中的 `ReturningSignalBox0`。
+    static func signalReturnType(_ signal: Signal, namespace: Namespace) -> String? {
+        // `notify::` signals are synthesised from properties by this generator
+        // (see the TODO about that hack), and the Signal they are handed carries
+        // the *property's* type in returnValue rather than a signal return type.
+        // They all return void, so reading that field would turn every property
+        // notification into a bogus returning signal.
+        //
+        // `notify::` signal 是本產生器由屬性合成的（見關於該 hack 的 TODO），其 Signal 的
+        // returnValue 帶的是*屬性*的型別，而非 signal 的回傳型別。它們全都回傳 void，因此讀取該
+        // 欄位會使每一個屬性通知都變成錯誤的 returning signal。
+        guard !signal.name.hasPrefix("notify::") else { return nil }
+
+        return signal.returnValue.type.flatMap { girType -> String? in
+            let type = swiftType(girType, namespace: namespace)
+            // GIR's `none` comes through as `void` (lowercase, the C spelling)
+            // as well as `Void`; neither is a return type worth emitting.
+            // GIR 的 `none` 會以 `void`（小寫，即 C 的寫法）或 `Void` 的形式出現，兩者皆非值得
+            // 輸出的回傳型別。
+            guard type != "Void", type != "void" else { return nil }
+
+            // Only types with an obvious "no answer" value, because a signal
+            // that returns something has to return it even when the app set no
+            // handler. `false` and `0` are what GTK saw before any of this
+            // existed, so they change nothing for an unhandled signal. A pointer
+            // return (GLArea's `create-context`) has no such value -- null would
+            // be a claim, not an absence -- so it keeps the void form it always
+            // had rather than inventing an answer.
+            //
+            // 僅限具有明確「無答案」值的型別，因為有回傳值的 signal 即使 app 未設定處理常式也必須
+            // 回傳一個值。`false` 與 `0` 正是此機制存在之前 GTK 所讀到的內容，因此對未處理的 signal
+            // 而言毫無改變。回傳指標者（GLArea 的 `create-context`）沒有這樣的值——null 是一種
+            // 主張而非「沒有答案」——因此維持它原本就有的 void 形式，而不憑空給出一個答案。
+            let hasUnhandledValue = ["Bool", "Int", "UInt", "Int32", "UInt32"].contains(type)
+            return hasUnhandledValue ? type : nil
+        }
+    }
+
     static func generateSignalRegistrationMethod(
         _ signals: [Signal],
         namespace: Namespace
@@ -597,15 +647,92 @@ struct GtkCodeGen {
             }
             let arguments = (["self"] + extraArguments).joined(separator: ", ")
 
-            let closure = ExprSyntax(
-                """
-                { [weak self] (\(raw: parameters)) in
-                    guard let self else { return }
-                    self.\(raw: name)?(\(raw: arguments))
-                }
-                """
-            )
+            // Signals that return a value get a handler that actually returns
+            // it. Emitting `-> Void` for these -- which is all the generator used
+            // to do -- meant GTK read whatever the ABI left behind, so a
+            // `gboolean` handler could never report "handled, stop propagating".
+            // That is issue #594; see ReturningSignalBox0 in the Gtk target.
+            //
+            // Only where a returning box exists for the arity (0-3, which covers
+            // every returning signal in the allow-listed classes). Anything else
+            // keeps the void form, which is no worse than before.
+            //
+            // 有回傳值的 signal 會取得真正回傳該值的處理常式。過去產生器一律輸出 `-> Void`，
+            // 使 GTK 讀到 ABI 遺留的內容，因此 `gboolean` 的處理常式永遠無法回報「已處理、停止
+            // 傳播」。此即 issue #594；參見 Gtk target 中的 ReturningSignalBox0。
+            //
+            // 僅在該 arity 存在對應的 returning box 時採用（0-3，已涵蓋 allow-list 類別中每一個
+            // 有回傳值的 signal）。其餘情況維持 void 形式，不會比先前更差。
+            let returnType = signalReturnType(signal, namespace: namespace)
+            let returnsValue = returnType != nil && parameterCount <= 3
+
+            let closure: ExprSyntax
+            if let returnType, returnsValue {
+                // A signal that returns a value has to produce one even when the
+                // app set no handler. `false`/zero is the "not handled, carry on"
+                // answer for every returning signal here, and matches what GTK
+                // saw before this existed.
+                //
+                // 有回傳值的 signal 即使 app 未設定處理常式也必須產生一個值。對此處每一個有回傳值
+                // 的 signal 而言，`false`／零即代表「未處理，請繼續」，也與此機制存在之前 GTK 所
+                // 讀到的結果一致。
+                let fallback = returnType == "Bool" ? "false" : "0"
+                closure = ExprSyntax(
+                    """
+                    { [weak self] (\(raw: parameters)) -> \(raw: returnType) in
+                        guard let self, let handler = self.\(raw: name) else { return \(
+                            raw: fallback
+                        ) }
+                        return handler(\(raw: arguments))
+                    }
+                    """
+                )
+            } else {
+                closure = ExprSyntax(
+                    """
+                    { [weak self] (\(raw: parameters)) in
+                        guard let self else { return }
+                        self.\(raw: name)?(\(raw: arguments))
+                    }
+                    """
+                )
+            }
             let expr: ExprSyntax
+            if returnsValue, let returnType {
+                let typeParameters = parameterTypes.joined(separator: ", ")
+                let boxTypeParameters =
+                    (parameterTypes + [returnType]).joined(separator: ", ")
+                let cParameters =
+                    (["UnsafeMutableRawPointer"] + parameterTypes
+                        + ["UnsafeMutableRawPointer"]).joined(separator: ", ")
+                let values = (1...max(parameterCount, 1)).prefix(parameterCount)
+                    .map { "value\($0)" }
+                let cArguments = (["_"] + values + ["data"]).joined(separator: ", ")
+                let runArguments = (["data"] + values).joined(separator: ", ")
+                _ = typeParameters
+                exprs.append(
+                    DeclSyntax(
+                        """
+                        let handler\(raw: signalIndex): @convention(c) (
+                            \(raw: cParameters)
+                        ) -> \(raw: returnType) = { \(raw: cArguments) in
+                            ReturningSignalBox\(raw: parameterCount)<\(
+                                raw: boxTypeParameters
+                            )>.run(\(raw: runArguments))
+                        }
+                        """
+                    ).description
+                )
+                expr = ExprSyntax(
+                    """
+                    addReturningSignal(name: \(literal: signal.name), handler: gCallback(handler\(
+                        raw: signalIndex
+                    ))) \(raw: closure)
+                    """
+                )
+                exprs.append(expr.description)
+                continue
+            }
             if parameterCount == 0 {
                 expr = ExprSyntax(
                     """
@@ -687,10 +814,24 @@ struct GtkCodeGen {
         } else {
             prefix = "public "
         }
+        // The handler's return type mirrors the signal's, so a caller can answer
+        // a `gboolean` signal with "handled, stop propagating" -- see issue #594
+        // and ReturningSignalBox0. Kept in step with the arities the registration
+        // side can emit a returning handler for.
+        //
+        // 處理常式的回傳型別與 signal 一致，使呼叫端能對 `gboolean` signal 回答「已處理、停止
+        // 傳播」——見 issue #594 與 ReturningSignalBox0。與註冊端能輸出 returning 處理常式的
+        // arity 保持一致。
+        let parameterCount = signal.parameters?.parameters.count ?? 0
+        let returnType = signalReturnType(signal, namespace: namespace)
+        let handlerReturnType = (parameterCount <= 3 ? returnType : nil) ?? "Void"
+
         return DeclSyntax(
             """
             \(raw: docComment(signal.doc))
-            \(raw: prefix)var \(raw: name): ((\(raw: parameters)) -> Void)?\(raw: suffix)
+            \(raw: prefix)var \(raw: name): ((\(raw: parameters)) -> \(raw: handlerReturnType))?\(
+                raw: suffix
+            )
             """
         )
     }

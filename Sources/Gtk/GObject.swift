@@ -124,6 +124,76 @@ open class GObject: GObjectRepresentable {
         storeHandler(handlerId, box: box, for: name)
     }
 
+    // Signals that return a value. Separate from the void overloads above
+    // because the box has to keep a callback with a return type -- see the note
+    // on ReturningSignalBox0 (issue #594). Named distinctly rather than
+    // overloaded on the callback's return type, which Swift cannot disambiguate
+    // at the call sites the generator emits.
+    //
+    // 有回傳值的 signal。與上方的 void 多載分開，因為其 box 必須保存一個帶有回傳型別的 callback
+    // ——見 ReturningSignalBox0 的說明（issue #594）。採用不同名稱而非以 callback 回傳型別多載，
+    // 因為 Swift 無法在產生器所輸出的呼叫端消解該多載。
+
+    func addReturningSignal<R>(
+        name: String,
+        handler: GCallback,
+        callback: @escaping () -> R
+    ) {
+        let box = ReturningSignalBox0(callback: callback)
+        let handlerId = connectSignal(
+            gobjectPointer,
+            name: name,
+            data: Unmanaged.passUnretained(box).toOpaque(),
+            handler: handler
+        )
+        storeHandler(handlerId, box: box, for: name)
+    }
+
+    func addReturningSignal<T1, R>(
+        name: String,
+        handler: GCallback,
+        callback: @escaping (T1) -> R
+    ) {
+        let box = ReturningSignalBox1(callback: callback)
+        let handlerId = connectSignal(
+            gobjectPointer,
+            name: name,
+            data: Unmanaged.passUnretained(box).toOpaque(),
+            handler: handler
+        )
+        storeHandler(handlerId, box: box, for: name)
+    }
+
+    func addReturningSignal<T1, T2, R>(
+        name: String,
+        handler: GCallback,
+        callback: @escaping (T1, T2) -> R
+    ) {
+        let box = ReturningSignalBox2(callback: callback)
+        let handlerId = connectSignal(
+            gobjectPointer,
+            name: name,
+            data: Unmanaged.passUnretained(box).toOpaque(),
+            handler: handler
+        )
+        storeHandler(handlerId, box: box, for: name)
+    }
+
+    func addReturningSignal<T1, T2, T3, R>(
+        name: String,
+        handler: GCallback,
+        callback: @escaping (T1, T2, T3) -> R
+    ) {
+        let box = ReturningSignalBox3(callback: callback)
+        let handlerId = connectSignal(
+            gobjectPointer,
+            name: name,
+            data: Unmanaged.passUnretained(box).toOpaque(),
+            handler: handler
+        )
+        storeHandler(handlerId, box: box, for: name)
+    }
+
     func addSignal<T1, T2, T3, T4>(
         name: String,
         handler: GCallback,

@@ -40,16 +40,16 @@ open class Range: Widget, Orientable {
 
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, GtkScrollType, Double, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, value2, data in
-            SignalBox2<GtkScrollType, Double>.run(data, value1, value2)
+        ) -> Bool = { _, value1, value2, data in
+            ReturningSignalBox2<GtkScrollType, Double, Bool>.run(data, value1, value2)
         }
 
-        addSignal(name: "change-value", handler: gCallback(handler1)) { [weak self] (
+        addReturningSignal(name: "change-value", handler: gCallback(handler1)) { [weak self] (
             param0: GtkScrollType,
             param1: Double
-        ) in
-            guard let self else { return }
-            self.changeValue?(self, param0, param1)
+        ) -> Bool in
+            guard let self, let handler = self.changeValue else { return false }
+            return handler(self, param0, param1)
         }
 
         let handler2: @convention(c) (
@@ -209,7 +209,7 @@ open class Range: Widget, Orientable {
     /// the ::change-value signal is responsible for clamping the value
     /// to the desired number of decimal digits; the default GTK
     /// handler clamps the value based on [property@Gtk.Range:round-digits].
-    public var changeValue: ((Range, GtkScrollType, Double) -> Void)?
+    public var changeValue: ((Range, GtkScrollType, Double) -> Bool)?
 
     /// Virtual function that moves the slider.
     ///

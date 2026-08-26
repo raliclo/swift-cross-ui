@@ -125,8 +125,14 @@ public class NV12GLView: GLArea {
         renderer = scui_nv12_renderer_new()
 
         render = { [weak self] area, _ in
-            guard let self else { return }
+            // GLArea's render signal returns whether the frame was drawn; true
+            // stops GTK drawing over it. It could not say so until the generated
+            // signals carried a return type (#594).
+            // GLArea 的 render signal 回傳「該幀是否已繪製」；true 會使 GTK 不再於其上繪製。
+            // 在產生的 signal 具備回傳型別之前（#594），它無法表達這一點。
+            guard let self else { return false }
             self.drawFrame(area)
+            return true
         }
 
         installTickCallback()

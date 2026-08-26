@@ -117,8 +117,16 @@ open class Window: Widget {
 
         let keyEventController = EventControllerKey()
         keyEventController.keyPressed = { [weak self] _, keyval, _, _ in
-            guard keyval == GDK_KEY_Escape else { return }
+            // Returning true stops the key propagating, which is the point of
+            // handling it: before the generated signal could return a value
+            // (#594) Escape was handled here *and* passed on to everything below.
+            // Anything else returns false so it carries on as normal.
+            // 回傳 true 會停止該按鍵繼續傳播，而這正是「處理它」的意義：在產生的 signal 能夠回傳值
+            // （#594）之前，Escape 會在此被處理，同時仍被往下傳給其他所有元件。其餘按鍵回傳 false，
+            // 使其照常繼續傳播。
+            guard keyval == GDK_KEY_Escape else { return false }
             self?.escapeKeyPressed?()
+            return true
         }
         escapeKeyEventController = keyEventController
         addEventController(keyEventController)

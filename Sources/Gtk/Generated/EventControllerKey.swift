@@ -24,17 +24,17 @@ open class EventControllerKey: EventController {
 
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, UInt, UInt, GdkModifierType, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, value2, value3, data in
-            SignalBox3<UInt, UInt, GdkModifierType>.run(data, value1, value2, value3)
+        ) -> Bool = { _, value1, value2, value3, data in
+            ReturningSignalBox3<UInt, UInt, GdkModifierType, Bool>.run(data, value1, value2, value3)
         }
 
-        addSignal(name: "key-pressed", handler: gCallback(handler1)) { [weak self] (
+        addReturningSignal(name: "key-pressed", handler: gCallback(handler1)) { [weak self] (
             param0: UInt,
             param1: UInt,
             param2: GdkModifierType
-        ) in
-            guard let self else { return }
-            self.keyPressed?(self, param0, param1, param2)
+        ) -> Bool in
+            guard let self, let handler = self.keyPressed else { return false }
+            return handler(self, param0, param1, param2)
         }
 
         let handler2: @convention(c) (
@@ -54,16 +54,16 @@ open class EventControllerKey: EventController {
 
         let handler3: @convention(c) (
             UnsafeMutableRawPointer, GdkModifierType, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, data in
-            SignalBox1<GdkModifierType>.run(data, value1)
+        ) -> Bool = { _, value1, data in
+            ReturningSignalBox1<GdkModifierType, Bool>.run(data, value1)
         }
 
-        addSignal(
+        addReturningSignal(
             name: "modifiers",
             handler: gCallback(handler3)
-        ) { [weak self] (param0: GdkModifierType) in
-            guard let self else { return }
-            self.modifiers?(self, param0)
+        ) { [weak self] (param0: GdkModifierType) -> Bool in
+            guard let self, let handler = self.modifiers else { return false }
+            return handler(self, param0)
         }
     }
 
@@ -75,11 +75,11 @@ open class EventControllerKey: EventController {
     public var imUpdate: ((EventControllerKey) -> Void)?
 
     /// Emitted whenever a key is pressed.
-    public var keyPressed: ((EventControllerKey, UInt, UInt, GdkModifierType) -> Void)?
+    public var keyPressed: ((EventControllerKey, UInt, UInt, GdkModifierType) -> Bool)?
 
     /// Emitted whenever a key is released.
     public var keyReleased: ((EventControllerKey, UInt, UInt, GdkModifierType) -> Void)?
 
     /// Emitted whenever the state of modifier keys and pointer buttons change.
-    public var modifiers: ((EventControllerKey, GdkModifierType) -> Void)?
+    public var modifiers: ((EventControllerKey, GdkModifierType) -> Bool)?
 }

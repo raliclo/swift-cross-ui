@@ -253,16 +253,16 @@ open class Label: Widget {
 
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, UnsafePointer<CChar>, UnsafeMutableRawPointer
-        ) -> Void = { _, value1, data in
-            SignalBox1<UnsafePointer<CChar>>.run(data, value1)
+        ) -> Bool = { _, value1, data in
+            ReturningSignalBox1<UnsafePointer<CChar>, Bool>.run(data, value1)
         }
 
-        addSignal(
+        addReturningSignal(
             name: "activate-link",
             handler: gCallback(handler1)
-        ) { [weak self] (param0: UnsafePointer<CChar>) in
-            guard let self else { return }
-            self.activateLink?(self, param0)
+        ) { [weak self] (param0: UnsafePointer<CChar>) -> Bool in
+            guard let self, let handler = self.activateLink else { return false }
+            return handler(self, param0)
         }
 
         addSignal(name: "copy-clipboard") { [weak self] () in
@@ -672,7 +672,7 @@ open class Label: Widget {
     ///
     /// Applications may connect to it to override the default behaviour,
     /// which is to call [method@Gtk.FileLauncher.launch].
-    public var activateLink: ((Label, UnsafePointer<CChar>) -> Void)?
+    public var activateLink: ((Label, UnsafePointer<CChar>) -> Bool)?
 
     /// Gets emitted to copy the selection to the clipboard.
     ///
