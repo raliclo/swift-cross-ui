@@ -127,8 +127,8 @@ done
 case "${1:-}" in
     -h|--help)
         printf '%s\n' \
-            "Usage: compile.zsh [-ios] [-gtk4] [P0 P1 ... Pn]" \
-            "用法：compile.zsh [-ios] [-gtk4] [P0 P1 ... Pn]" \
+            "Usage: compile.zsh [-ios|-android] [-gtk4] [P0 P1 ... Pn]" \
+            "用法：compile.zsh [-ios|-android] [-gtk4] [P0 P1 ... Pn]" \
             "" \
             "  -ios   Build for the iOS Simulator via xcodebuild." \
             "  -ios   透過 xcodebuild 為 iOS 模擬器建置。" \
@@ -136,6 +136,8 @@ case "${1:-}" in
             "         Needs GTK 4; on Windows run install_gtk4_windows.zsh first." \
             "  -gtk4  在所有平台強制使用 GtkBackend，包含 Windows。" \
             "         需要 GTK 4；Windows 上請先執行 install_gtk4_windows.zsh。" \
+            "  -android  Build for Android with the Swift Android SDK." \
+            "  -android  使用 Swift Android SDK 建置 Android。" \
             "" \
             "With no app names, every P*.swift is built." \
             "未指定 app 名稱時，會建置所有 P*.swift。" \
@@ -150,6 +152,7 @@ saw_flag=0
 for arg in "$@"; do
     case "$arg" in
         -ios) target_platform="ios"; saw_flag=1 ;;
+        -android) target_platform="android"; saw_flag=1 ;;
         -gtk4) force_gtk4=1; saw_flag=1 ;;
         *) remaining_args="$remaining_args $arg" ;;
     esac
@@ -184,6 +187,8 @@ if [ -n "${COMPILE_WORK_DIR:-}" ]; then
     compile_work_dir="$(windows_path "$COMPILE_WORK_DIR")"
 elif [ "$force_gtk4" -eq 1 ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-gtk4")"
+elif [ "$target_platform" = "android" ]; then
+    compile_work_dir="$(windows_path "$script_dir/.compile-work-android")"
 else
     compile_work_dir="$(windows_path "$script_dir/.compile-work")"
 fi
@@ -379,6 +384,20 @@ done
 # 像缺少 target，實際上只是名稱不一致。將套件以 app 命名即可對齊。
 # 主機路徑仍使用共用的 TestApps 套件，一次建置即涵蓋所有請求的 app。
 package_name="TestApps"
+if [ "$target_platform" = "android" ]; then
+    android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
+    for app_name in $app_names; do
+        echo "==> Compiling $app_name for Android ($android_triple)"
+        SCUI_ANDROID=1 "$swift_bin" build \
+            --package-path "$package_dir" \
+            --product "$app_name" \
+            --swift-sdk "$android_triple" \
+            -c "$build_config"
+    done
+    echo "Done. Android build tree: $package_dir/.build"
+    exit 0
+fi
+
 if [ "$target_platform" = "ios" ]; then
     ios_app_count="$(printf '%s' "$app_names" | wc -w | tr -d ' ')"
     if [ "$ios_app_count" -ne 1 ]; then
