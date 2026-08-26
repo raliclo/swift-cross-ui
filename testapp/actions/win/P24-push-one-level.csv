@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note
+# P24 on Windows: push one level, and stop there.
+#
+# One, not the three the test plan asks for, and that is the finding. The first
+# click pushes: the window reflows, a "< Back" bar appears above the stack, and
+# the pane reads "Level 1 / Pushed to level 1." From that point on nothing in
+# the app responds to this replay again.
+#
+# Measured twice, 2026-08-26, GtkBackend `-gtk4`:
+#
+#   push, wait 0.9 s, click "Push level 2" twice   -> still Level 1
+#   push, wait 3.0 s, click "Increment counter",
+#                     then click "Push level 2"    -> still Level 1, counter 0
+#
+# The second run is the one that matters. "Increment counter" is in the root
+# layout *outside* the stack, so its failure is not about the pushed view: after
+# the push, a click anywhere in this window stops arriving. Both targets were
+# measured on a capture of the app in exactly that state, so they are not
+# stale coordinates.
+#
+# What this does not distinguish: whether synthesised clicks stop arriving, or
+# whether the app stops responding to clicks at all. Telling those apart needs
+# somebody to click the button by hand, which no action file can do. The same
+# shape appears in `P20-open-level-1.csv`, where the menu's second page is drawn
+# and then ignores everything -- both are cases where SwiftCrossUI has just
+# replaced a subtree.
+#
+# The WSL folder has `P24-push-three.csv`, which pushes three levels in one
+# file. That is not a coordinate difference; it is the same sequence working
+# there and not here.
+#
+# P24 於 Windows：推入一層，然後就到此為止。
+#
+# 只有一層，而非測試計畫要求的三層——而這正是發現本身。第一次點擊確實推入：視窗重新排版、堆疊上方
+# 出現「< Back」列、面板顯示「Level 1 / Pushed to level 1.」。但自此之後，這場重放對 app 中的任何
+# 東西都不再有作用。
+#
+# 於 2026-08-26 以 GtkBackend `-gtk4` 實測兩次：
+#
+#   推入後等 0.9 秒，點擊「Push level 2」兩次        -> 仍停在 Level 1
+#   推入後等 3.0 秒，點擊「Increment counter」，
+#                    再點擊「Push level 2」          -> 仍停在 Level 1，counter 為 0
+#
+# 第二次執行才是關鍵。「Increment counter」位於堆疊**之外**的根層版面，因此它的失敗與被推入的視圖
+# 無關：推入之後，這個視窗內任何位置的點擊都不再送達。兩個目標座標都是在 app 正處於該狀態時的截圖上
+# 量得的，並非過期的座標。
+#
+# 本檔無法區分的是：究竟是合成點擊不再送達，還是 app 根本不再回應任何點擊。要分辨這兩者，需要有人
+# 親手去按那個按鈕，而任何動作檔都做不到。同樣的形狀也出現在 `P20-open-level-1.csv`：選單的第二頁
+# 有被畫出來，卻對一切都沒有反應——兩者都是 SwiftCrossUI 剛剛替換過某個子樹的情況。
+#
+# WSL 資料夾中有 `P24-push-three.csv`，在單一檔案中推入三層。這不是座標差異，而是同一串動作在那邊
+# 可行、在這邊不可行。
+click,251,321,frame,left,,,Push level 1 -- root layout
+sleep,,,,,,10000000,hold long enough for a capture

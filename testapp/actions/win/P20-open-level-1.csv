@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note
+# P20 on Windows: open the menu and press the item on its first level.
+#
+# The first level only, and that is the finding rather than a shortcut. The
+# level 2 submenu row opens -- a desktop capture during the replay shows GTK's
+# menu sliding in place to a page headed "< Level 2 submenu", with "Level 2
+# item" and "Level 3 submenu" under it -- but a click on anything on that page
+# does nothing and leaves `last action` at its previous value. Tried five times
+# with settle times from 0.8 s to 3.5 s and two different x positions inside the
+# row. `testapp/P0-P26-windows-findings.md` records the attempts; the cause is
+# not isolated, so no file here claims level 2 works.
+#
+# Judge a menu by a **desktop** capture, not `screenshot.zsh -w`. A GTK popover
+# on Windows is its own top-level window, so a window capture of "P20 nested
+# menus" shows the app with no menu in it -- which reads exactly like a click
+# that missed. That cost two runs before it was understood, and it is why the
+# rows below end at a state the app itself prints.
+#
+# P20 於 Windows：開啟選單，並按下第一層的項目。
+#
+# 只做第一層，而這本身就是發現，不是便宜行事。Level 2 submenu 那一列確實會展開——重放期間的桌面
+# 截圖顯示 GTK 的選單就地滑動至一個標題為「< Level 2 submenu」的頁面，其下有「Level 2 item」與
+# 「Level 3 submenu」——但在該頁面上點擊任何東西都毫無作用，`last action` 維持原值。以 0.8 秒到
+# 3.5 秒之間的等待時間、以及該列內兩個不同的 x 位置，共嘗試五次。
+# `testapp/P0-P26-windows-findings.md` 記錄了這些嘗試；由於成因尚未釐清，此處不會有任何檔案宣稱
+# 第二層可用。
+#
+# 判斷選單請看**桌面**截圖，而非 `screenshot.zsh -w`。Windows 上的 GTK popover 是自己的 top-level
+# 視窗，因此對「P20 nested menus」做視窗擷取，得到的是一個沒有選單的 app 畫面——看起來與「點擊落空」
+# 一模一樣。這件事花了兩次執行才弄清楚，也正是下方各列止於「app 自己會印出的狀態」的理由。
+click,86,193,frame,left,,,open the menu
+sleep,,,,,,1200000,let the popover appear
+click,113,223,frame,left,,,press Level 1 item
+sleep,,,,,,1500000,let last action update
