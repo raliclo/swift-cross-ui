@@ -60,6 +60,9 @@ open class GObject: GObjectRepresentable {
     }
 
     /// Adds a signal that is not carrying any additional information.
+    ///
+    /// Not for `notify::` -- those carry a GParamSpec even when the callback
+    /// ignores it, so they need ``addNotificationSignal(name:callback:)``.
     func addSignal(name: String, callback: @escaping () -> Void) {
         let box = SignalBox0(callback: callback)
         let handler:
@@ -67,6 +70,48 @@ open class GObject: GObjectRepresentable {
                 UnsafeMutableRawPointer,
                 UnsafeMutableRawPointer
             ) -> Void = { _, data in
+                let box = Unmanaged<SignalBox0>.fromOpaque(data).takeUnretainedValue()
+                box.callback()
+            }
+
+        let handlerId = connectSignal(
+            gobjectPointer,
+            name: name,
+            data: Unmanaged.passUnretained(box).toOpaque(),
+            handler: unsafeBitCast(handler, to: GCallback.self)
+        )
+
+        storeHandler(handlerId, box: box, for: name)
+    }
+
+    /// Subscribes to a `notify::<property>` signal.
+    ///
+    /// Separate from ``addSignal(name:callback:)`` because the two do not have
+    /// the same C signature, even though both take a callback that receives
+    /// nothing. A signal with no parameters marshals as
+    /// `(instance, user_data)`, but `notify` marshals as
+    /// `(instance, pspec, user_data)` -- the property spec sits between them.
+    ///
+    /// Subscribing to `notify::` through the parameterless form therefore reads
+    /// the GParamSpec pointer as the box pointer, because that is what lands in
+    /// the second argument. `Unmanaged.fromOpaque` then reinterprets a live
+    /// GParamSpec as a SignalBox0 and calls whatever its memory happens to hold
+    /// as the closure, which crashes rather than failing to fire. That is the
+    /// crash reported when GtkSettings notifications were tried for issue #27.
+    ///
+    /// ``ApplicationWindow`` escapes this only by accident: it subscribes to
+    /// `notify::is-active` through the one-parameter overload, whose handler has
+    /// three C parameters, so `user_data` arrives in the right place. Its
+    /// `gboolean` argument is really the GParamSpec pointer, which is why the
+    /// value it reports is not the property value.
+    func addNotificationSignal(name: String, callback: @escaping () -> Void) {
+        let box = SignalBox0(callback: callback)
+        let handler:
+            @convention(c) (
+                UnsafeMutableRawPointer,
+                UnsafeMutableRawPointer,
+                UnsafeMutableRawPointer
+            ) -> Void = { _, _, data in
                 let box = Unmanaged<SignalBox0>.fromOpaque(data).takeUnretainedValue()
                 box.callback()
             }
