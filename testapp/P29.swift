@@ -111,23 +111,22 @@ struct P29RootView: View {
             //    而外觀不變，因此唯一的判別方式是實際去輸入。
             Text("3. TextEditor honours .disabled")
                 .font(.system(size: 15))
-            // No `.frame(width:height:)` on the editor, deliberately. A
-            // TextEditor with an explicit frame makes the app exit at launch on
-            // Windows -gtk4 -- cleanly, exit code 0, no window and no output.
-            // Bisected: P29 without the editor runs, P29 with a framed editor
-            // does not, and P2 (which has an unframed TextEditor and the same
-            // backend build) runs, so it is the framing rather than the editor
-            // or the `sensitive` fix. Recorded as its own finding; this app
-            // avoids the shape so it can test what it is here to test.
+            // A note for anyone testing this on Windows, because it cost an hour
+            // here: a GTK app is single-instance by application ID, so if an
+            // earlier run is still alive the next launch hands its request to
+            // that instance and exits 0 with no window and no output. It looks
+            // exactly like a launch failure, and it invalidates bisection -- two
+            // separate "findings" in this app's history turned out to be leftover
+            // processes rather than anything in the code. Kill leftovers first.
             //
-            // 刻意不對編輯器使用 `.frame(width:height:)`。帶有明確 frame 的 TextEditor 會使 app 在
-            // Windows -gtk4 上啟動即退出——乾淨地、結束碼 0、沒有視窗也沒有輸出。以二分法確認：
-            // 不含編輯器的 P29 可執行、含有帶 frame 編輯器的 P29 不行，而 P2（含未加 frame 的
-            // TextEditor，且使用同一份 backend 建置）可執行，因此問題出在「加 frame」，而非編輯器
-            // 本身或 `sensitive` 的修正。此事另行記錄為一項發現；本 app 避開該寫法，以便測試它真正
-            // 要測的東西。
+            // 給在 Windows 上測試此項的人一則提醒，因為它在此處耗掉了一小時：GTK app 以
+            // application ID 實施單一實例，因此若先前的執行仍存活，下一次啟動會把請求交給該實例，
+            // 並以結束碼 0 退出，沒有視窗也沒有輸出。它看起來與啟動失敗一模一樣，而且會使二分法
+            // 失效——此 app 歷史上兩則各自獨立的「發現」，最後都證實是殘留的行程而非程式碼問題。
+            // 請先清除殘留行程。
             HStack(spacing: 12) {
                 TextEditor(text: $editorText)
+                    .frame(width: 300, height: 60)
                     .disabled(!enabled)
                 Button(enabled ? "Disable it" : "Enable it") {
                     enabled.toggle()
