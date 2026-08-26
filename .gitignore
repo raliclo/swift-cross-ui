@@ -8,6 +8,11 @@
 # incremental state records module dependencies and they contradict each other.
 /testapp/.compile-work
 /testapp/.compile-work-*
+
+# The tree SCUI_HOST_BACKENDS_ONLY=1 swift test builds into, for the same reason
+# as the two above: it declares a different set of targets, so it cannot share
+# /.build. See the note beside the flag in Package.swift.
+/.build-hosttest
 /Packages
 /*.xcodeproj
 xcuserdata/

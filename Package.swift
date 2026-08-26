@@ -22,9 +22,8 @@ import PackageDescription
 //     that includes <android/log.h>, which only the Android NDK provides: leaving
 //     it in the package makes every non-Android build fail while scanning it.
 // - SCUI_HOST_BACKENDS_ONLY : If `1`, drops the backends that cannot compile for
-//     the host (WinUIBackend and UIKitBackend on macOS) from the package. For
-//     running the test suite on a host that is not the target platform; see the
-//     note beside the flag below.
+//     the host from the package -- which backends those are depends on the host.
+//     For running the test suite; see the note beside the flag below.
 
 let invokedByXcode: Bool
 #if os(macOS)
@@ -61,10 +60,12 @@ let androidBackendSupported: Bool
 
 // `swift test` builds every target in the package, not just the test bundle and
 // what it imports, so a target that cannot compile for the host stops the suite
-// before a single test runs. On macOS two cannot: WinUIBackend pulls in
-// swift-winui, whose CWinRT needs the Windows SDK's <wtypesbase.h>, and
-// UIKitBackend imports UIKit, which has no macOS slice. Neither is fixable by
-// installing anything.
+// before a single test runs. Every host has some: WinUIBackend pulls in
+// swift-winui, whose CWinRT needs the Windows SDK's <wtypesbase.h>; UIKitBackend
+// imports UIKit; AppKitBackend imports AppKit; and GtkCHelpers includes
+// <gtk/gtk.h>, which a bare `swift test` on Windows has no paths for. None of
+// those headers is ours to supply -- they belong to the Windows SDK, to Apple's
+// SDKs and to GTK -- so none of it is fixable by adding a file to this repo.
 //
 // Conditioning their *dependencies* on a platform does not help -- that was
 // tried, and the note on the WinUIBackend target below records why. What does
@@ -75,22 +76,38 @@ let androidBackendSupported: Bool
 // the iOS build too, all of which need these targets. Set it only for a host
 // test run:
 //
-//   SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I$(brew --prefix)/include
+//   macOS    SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I$(brew --prefix)/include
+//   Linux    SCUI_HOST_BACKENDS_ONLY=1 swift test
+//   Windows  SCUI_HOST_BACKENDS_ONLY=1 swift test --scratch-path C:\scui-ht
 //
-// testapp/install_tool_mac.zsh prints that command and explains the -Xcc flag.
+// testapp/install_tool_mac.zsh prints the macOS command and explains its -Xcc
+// flag. The Windows one needs a scratch path of its own for a reason unrelated
+// to this gate: a -gtk4 build leaves GtkBackend in SwiftPM's incremental state,
+// and the next default build in that same tree fails with `missing required
+// modules: 'CGtk', 'GtkCHelpers'`. testapp/compile.zsh documents that and gives
+// each backend its own tree for the same reason. Keep the path short -- an
+// absolute --scratch-path deep under AppData came back as
+// `\\?\C:\?\C:\Users\...` and every input file failed to open.
 //
 // `swift test` 會建置套件中的每一個 target，而非僅測試 bundle 及其 import 的部分，
 // 因此只要有一個 target 無法為主機平台編譯，整個測試套件在任何測試執行之前就會中止。
-// 在 macOS 上有兩個屬於此類：WinUIBackend 會引入 swift-winui，其 CWinRT 需要 Windows
-// SDK 的 <wtypesbase.h>；UIKitBackend 則 import UIKit，而 UIKit 沒有 macOS 切片。
-// 這兩者都不是靠安裝任何東西能解決的。
+// 每個主機都有這樣的 target：WinUIBackend 會引入 swift-winui，其 CWinRT 需要 Windows SDK
+// 的 <wtypesbase.h>；UIKitBackend import UIKit；AppKitBackend import AppKit；而 GtkCHelpers
+// include 了 <gtk/gtk.h>，未經設定的 Windows `swift test` 並沒有其路徑。這些標頭都不是我們
+// 該提供的——它們分別屬於 Windows SDK、Apple 的 SDK 與 GTK——因此都不是在本 repo 新增檔案
+// 所能解決的。
 //
 // 為其「依賴項」加上平台條件並無幫助——這已試過，下方 WinUIBackend target 處的註解記錄了
 // 原因。真正有效的是根本不宣告這些 target，而這正是本開關的作用。
 //
 // 它採用 opt-in，與上方的 SCUI_ANDROID 相同，理由也相同：預設就改變 manifest 會連
 // Windows、Linux、CI 與 iOS 建置一併改變，而那些場合都需要這些 target。僅在主機端執行
-// 測試時設定它（指令見上）。testapp/install_tool_mac.zsh 會印出該指令並說明 -Xcc 旗標。
+// 測試時設定它（三個平台的指令見上）。testapp/install_tool_mac.zsh 會印出 macOS 的指令並
+// 說明其 -Xcc 旗標。Windows 之所以需要自己的 scratch path，理由與本開關無關：-gtk4 的建置
+// 會在 SwiftPM 的增量狀態中留下 GtkBackend，同一個目錄樹中的下一次預設建置便會以
+// `missing required modules: 'CGtk', 'GtkCHelpers'` 失敗；testapp/compile.zsh 記錄了此事，
+// 並基於同一理由讓每個 backend 各用一棵目錄樹。路徑請保持簡短——曾以 AppData 下的深層絕對
+// 路徑作為 --scratch-path，結果回傳成 `\\?\C:\?\C:\Users\...`，每個輸入檔都無法開啟。
 let hostBackendsOnly = env["SCUI_HOST_BACKENDS_ONLY"] == "1"
 
 var defaultBackendDependencies: [Target.Dependency]
@@ -100,22 +117,21 @@ if let backend = env["SCUI_DEFAULT_BACKEND"] {
     // With no #if here, Windows and Linux dependencies are also compiled when building for
     // UIKit platforms.
     #if os(macOS)
+        // No hostBackendsOnly guard here, or in the branch below. A dependency
+        // on a target the manifest has removed is a hard error, but the removal
+        // at the bottom of this file now sweeps every dependency list for
+        // mentions of what it dropped. Guarding a site by hand is what this
+        // used to do, and the site beside this one never got the guard.
+        // 此處與下方分支都不再有 hostBackendsOnly 防護。依賴一個已被 manifest 移除的 target
+        // 確實會直接報錯，但本檔結尾的移除邏輯現在會掃過每一份 dependency 清單，清除其所移除
+        // 者的所有提及。逐處手動防護正是此處原本的做法，而緊鄰的另一個分支從未被加上防護。
         defaultBackendDependencies = [
             .target(name: "AppKitBackend", condition: .when(platforms: [.macOS])),
+            .target(
+                name: "UIKitBackend",
+                condition: .when(platforms: [.iOS, .tvOS, .macCatalyst, .visionOS])
+            ),
         ]
-        // Named here only when the target still exists. A dependency on a target
-        // the manifest has removed is a hard error, so the gate has to reach the
-        // dependency list as well as the target list.
-        // 僅在該 target 仍存在時才列出。依賴一個已被 manifest 移除的 target 會直接報錯，
-        // 因此此開關必須同時作用於依賴清單與 target 清單。
-        if !hostBackendsOnly {
-            defaultBackendDependencies += [
-                .target(
-                    name: "UIKitBackend",
-                    condition: .when(platforms: [.iOS, .tvOS, .macCatalyst, .visionOS])
-                )
-            ]
-        }
     #else
         defaultBackendDependencies = [
             .target(name: "WinUIBackend", condition: .when(platforms: [.windows])),
@@ -547,7 +563,79 @@ if androidBackendSupported {
 // 刻意保留：Package.resolved 是由它們計算而來，在此移除會使該檔在一般建置與主機測試執行
 // 之間產生漂移。沒有任何 target 指名的 dependency 不會被建置。
 if hostBackendsOnly {
-    let unbuildableOnHost: Set<String> = ["WinUIBackend", "UIKitBackend"]
+    // Which targets the host cannot compile, per host. This used to be the
+    // macOS answer written as a constant, which is why the flag worked there
+    // and nowhere else. On Linux it left AppKitBackend in the package, and
+    // `import AppKit` is unguarded. On Windows it removed WinUIBackend -- the
+    // one backend that host actually builds -- while leaving GtkCHelpers to
+    // look for <gtk/gtk.h>, which is where a Windows `swift test` stops.
+    //
+    // Neither of those headers is ours to supply. <wtypesbase.h> comes with the
+    // Windows SDK and <gtk/gtk.h> with GTK 4; vendoring either would mean
+    // shipping someone else's SDK, and a lone header would not compile anyway.
+    // The fix is to not build the target on a host that cannot.
+    //
+    // 本主機無法編譯的 target，依主機而定。此處原本寫死的是 macOS 的答案，這正是該旗標只在
+    // macOS 有效的原因。在 Linux 上它會把 AppKitBackend 留在套件中，而其 `import AppKit`
+    // 並無條件防護；在 Windows 上它移除的是 WinUIBackend——該主機唯一真正會建置的 backend
+    // ——卻留下 GtkCHelpers 去尋找 <gtk/gtk.h>，而 Windows 上的 `swift test` 正是停在該處。
+    //
+    // 這兩個標頭都不是我們該提供的：<wtypesbase.h> 隨 Windows SDK 發布、<gtk/gtk.h> 隨 GTK 4
+    // 發布，內建任一個都等同散布他人的 SDK，而且單獨一個標頭本來也無法編譯。正確的做法是
+    // 不要在無法編譯它的主機上建置該 target。
+    #if os(macOS)
+        let unbuildableOnHost: Set<String> = ["WinUIBackend", "UIKitBackend"]
+    #elseif os(Windows)
+        // GTK can be installed on Windows and testapp/compile.zsh -gtk4 does
+        // exactly that, so these are not unbuildable in principle -- they are
+        // unbuildable for a bare `swift test`, which sets none of the pkg-config
+        // and -Xcc paths that build needs. Dropping them is what this flag is
+        // for: the host backend here is WinUIBackend.
+        //
+        // GTK 在 Windows 上是可以安裝的，testapp/compile.zsh -gtk4 正是在做這件事，因此這些
+        // target 並非原理上無法建置——它們是對「未經設定的 `swift test`」而言無法建置，因為
+        // 該指令不會設定建置所需的 pkg-config 與 -Xcc 路徑。移除它們正是此旗標的用途：此處的
+        // 主機 backend 是 WinUIBackend。
+        let unbuildableOnHost: Set<String> = [
+            "AppKitBackend", "UIKitBackend",
+            "GtkBackend", "Gtk", "GtkExample", "GtkCHelpers", "CGtk",
+        ]
+    #else
+        let unbuildableOnHost: Set<String> = [
+            "AppKitBackend", "UIKitBackend", "WinUIBackend",
+        ]
+    #endif
+
     package.targets.removeAll { unbuildableOnHost.contains($0.name) }
     package.products.removeAll { unbuildableOnHost.contains($0.name) }
+
+    // Then drop every dependency naming one of them, wherever it appears.
+    //
+    // A dependency on a target the manifest does not declare is a hard error,
+    // so removing a target means finding its every mention. That was done by
+    // hand, at one site, guarded by `if !hostBackendsOnly` -- and the guard was
+    // written into the macOS branch of defaultBackendDependencies and not the
+    // branch beside it, so on Linux the flag failed with "Source files for
+    // target WinUIBackend should be located under 'Sources/WinUIBackend'". A
+    // sweep cannot miss a site the way a hand-written guard can, and it is why
+    // no such guard is needed above.
+    //
+    // 接著移除任何指名這些 target 的 dependency，無論它出現在何處。
+    //
+    // 依賴一個 manifest 未宣告的 target 會直接報錯，因此移除 target 就必須找出它的每一處提及。
+    // 該工作原本是手動完成的，只處理了一個位置，以 `if !hostBackendsOnly` 防護——而該防護寫在
+    // defaultBackendDependencies 的 macOS 分支中，卻沒有寫進緊鄰的另一個分支，於是在 Linux 上
+    // 此旗標會以「Source files for target WinUIBackend should be located under
+    // 'Sources/WinUIBackend'」失敗。全面掃過一遍不會像手寫防護那樣漏掉某處，這也是上方不再
+    // 需要任何此類防護的原因。
+    for target in package.targets {
+        target.dependencies.removeAll { dependency in
+            switch dependency {
+                case .targetItem(let name, _), .byNameItem(let name, _):
+                    return unbuildableOnHost.contains(name)
+                default:
+                    return false
+            }
+        }
+    }
 }

@@ -111,6 +111,44 @@ These examples may also be run using SwiftPM. However, resources may not be load
 swift run CounterExample
 ```
 
+## Running the tests
+
+`swift test` on its own fails on every platform, and not because of the tests.
+SwiftPM builds *every* target in the package before running any of them, and
+each host has targets it cannot build: `WinUIBackend` pulls in a package whose C
+target needs the Windows SDK's `<wtypesbase.h>`, `AppKitBackend` and
+`UIKitBackend` import Apple frameworks, and `GtkCHelpers` includes
+`<gtk/gtk.h>`. None of those headers ship with this repository — they belong to
+the Windows SDK, to Apple's SDKs and to GTK — so the answer is to leave the
+target out on a host that cannot build it.
+
+`SCUI_HOST_BACKENDS_ONLY=1` does that. Set it only for a test run: it changes
+which targets the manifest declares, which is not what you want for a build.
+
+```sh
+# macOS
+SCUI_HOST_BACKENDS_ONLY=1 swift test -Xcc -I$(brew --prefix)/include
+
+# Linux
+SCUI_HOST_BACKENDS_ONLY=1 swift test
+
+# Windows
+SCUI_HOST_BACKENDS_ONLY=1 swift test --scratch-path .build-hosttest
+```
+
+> [!NOTE]
+> The separate build directory on Windows is unrelated to the flag. SwiftPM's
+> incremental state records which modules each target depended on, so a GTK
+> build of a Windows app leaves `GtkBackend` behind and the next default build
+> in that same tree fails with `missing required modules: 'CGtk',
+> 'GtkCHelpers'` — even though its manifest never mentions them. `.build-hosttest`
+> is gitignored for this reason, as `testapp/.compile-work-*` is.
+
+> [!TIP]
+> Keep a `--scratch-path` short and relative. An absolute one nested deeply
+> under `AppData` came back from SwiftPM as `\\?\C:\?\C:\Users\...`, and every
+> input file then failed to open with `invalid argument`.
+
 ## Backends
 
 SwiftCrossUI has a variety of backends tailored to different operating systems. The beauty of SwiftCrossUI is that you can write your app once and have it look native everywhere. For this reason I recommend using [DefaultBackend](https://docs.swiftcrossui.dev/documentation/swiftcrossui/defaultbackend) unless you've got particular constraints.
