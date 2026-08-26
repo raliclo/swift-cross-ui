@@ -47,7 +47,6 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 成功，實際驅動的卻是別的程式。
     public func currentWindowGeometry() throws -> WindowGeometry {
         let window = try ownWindow()
-        SetForegroundWindow(window)
 
         var frame = RECT()
         guard GetWindowRect(window, &frame) else {
@@ -69,6 +68,121 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             frameOrigin: (Double(frame.left) / scale, Double(frame.top) / scale),
             clientOrigin: (Double(clientOrigin.x) / scale, Double(clientOrigin.y) / scale),
             scale: scale
+        )
+    }
+
+    /// Pins our window above every other window, and takes focus if the file
+    /// needs it.
+    ///
+    /// Measuring the right window is not enough on its own. `SendInput` posts to
+    /// whatever is on top at the point it names, so a window that is behind
+    /// another one gets a replay delivered to that other application: correct
+    /// coordinates, computed from the correct window, wrong target. Nothing
+    /// reports it -- `SendInput` accepts the events and returns success.
+    ///
+    /// Measured 2026-08-26, twice, against a real desktop. This was a bare
+    /// `SetForegroundWindow(window)` with its result discarded, while every
+    /// other Win32 call in this file is guarded, and both runs clicked into the
+    /// editor covering the app instead: the first collapsed two tree items in
+    /// it, the second opened a new document. Both runs reported success.
+    ///
+    /// `SetForegroundWindow` cannot be the mechanism. Windows refuses a
+    /// foreground change asked for by a process that is neither already in front
+    /// nor the owner of the last input event, and flashes the taskbar button
+    /// instead -- so an app launched from a background shell can never take it.
+    /// `testapp/P6.swift` recorded exactly this and solved it with
+    /// `SetWindowPos(HWND_TOPMOST)`, which is subject to no such rule: any
+    /// process may raise its own window, and `SWP_NOACTIVATE` means it does not
+    /// even ask for focus. Same remedy here.
+    ///
+    /// Focus is a separate question, and only a keyboard event needs it -- those
+    /// go to whatever holds focus, wherever the pointer is. So focus is
+    /// attempted, and its failure is fatal only for a file that presses keys. A
+    /// mouse-only file is safe on the topmost pin alone, and refusing to run it
+    /// would be refusing something that works.
+    ///
+    /// 將我方視窗釘在所有視窗之上；若動作檔需要，再取得焦點。
+    ///
+    /// 光是「量對視窗」並不足夠。`SendInput` 投遞至其所指定座標上方的視窗，因此位於他人之後的
+    /// 視窗，會把整場重放交給那個應用程式：座標正確、來源視窗也正確，目標卻是錯的。而且沒有任何
+    /// 東西會回報——`SendInput` 會接受這些事件並回報成功。
+    ///
+    /// 於 2026-08-26 對真實桌面實測兩次。此處原本是一行捨棄回傳值的 `SetForegroundWindow(window)`
+    /// ——而本檔其他每個 Win32 呼叫都有防護——兩次都改而點進了覆蓋在 app 上方的編輯器：第一次摺疊了
+    /// 其中兩個樹狀項目，第二次開了一份新文件。兩次都回報成功。
+    ///
+    /// `SetForegroundWindow` 不能作為此處的機制。Windows 會拒絕「既不在前方、也不擁有最後一個輸入
+    /// 事件」之行程所提出的前景切換，改為閃爍其工作列按鈕——因此由背景 shell 啟動的 app 永遠拿不到
+    /// 前景。`testapp/P6.swift` 記錄過的正是此事，並以 `SetWindowPos(HWND_TOPMOST)` 解決；後者不受
+    /// 該規則約束：任何行程都可以抬升自己的視窗，而 `SWP_NOACTIVATE` 代表它甚至不會索取焦點。此處
+    /// 採用相同的解法。
+    ///
+    /// 焦點是另一個問題，且只有鍵盤事件需要它——按鍵會送往持有焦點者，與指標位置無關。因此焦點是
+    /// 「嘗試取得」，而其失敗僅對「會按鍵的動作檔」才是致命的。只用滑鼠的檔案單靠置頂即可安全執行，
+    /// 拒絕執行它等於拒絕了一件本來可行的事。
+    public func prepareForReplay(_ actions: [InputAction]) throws {
+        let window = try ownWindow()
+
+        if IsIconic(window) {
+            ShowWindow(window, SW_RESTORE)
+        }
+
+        // HWND_TOPMOST is `((HWND)-1)`, a macro Swift does not import -- the
+        // same bit-pattern construction testapp/P6.swift uses.
+        // HWND_TOPMOST 是 `((HWND)-1)` 巨集，Swift 不會匯入——此處採用與 testapp/P6.swift 相同的
+        // bit-pattern 構造方式。
+        guard
+            SetWindowPos(
+                window, HWND(bitPattern: -1), 0, 0, 0, 0,
+                UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+            )
+        else {
+            throw SynthesiserError.toolFailed(
+                "SetWindowPos(HWND_TOPMOST)", status: Int32(GetLastError())
+            )
+        }
+
+        guard actions.contains(where: \.needsKeyboardFocus) else { return }
+
+        SetForegroundWindow(window)
+        BringWindowToTop(window)
+
+        // The foreground change is asynchronous, so reading it back immediately
+        // can miss a switch that is about to happen. Half a second is far longer
+        // than it takes whenever it works at all.
+        // 前景切換是非同步的，因此立刻讀回可能會錯過一個即將發生的切換。半秒遠長於它在任何能夠
+        // 成功的情況下所需的時間。
+        for _ in 0..<50 {
+            if GetForegroundWindow() == window {
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+
+        throw SynthesiserError.windowNotForeground(
+            "this file presses keys, and a key event goes to whichever window has focus"
+        )
+    }
+
+    /// Lets the window fall back into the normal z-order.
+    ///
+    /// Not left pinned. Topmost is a state other windows cannot escape, and a
+    /// test app that keeps it after its replay sits over everything the user
+    /// does next. `testapp/P6.swift` notes the same cost from the other side:
+    /// asserting it continuously breaks clicking controls and puts a file
+    /// picker behind the window.
+    ///
+    /// 讓視窗回到正常的 z 順序。
+    ///
+    /// 不保持釘選狀態。置頂是其他視窗無法擺脫的狀態，一個在重放結束後仍維持置頂的測試 app，會壓在
+    /// 使用者接下來所做的每一件事之上。`testapp/P6.swift` 從另一個角度記錄了相同的代價：持續強制
+    /// 置頂會使控制項無法點選，也會讓檔案選取對話框跑到視窗後面。
+    public func finishReplay() {
+        guard let window = try? ownWindow() else { return }
+        // HWND_NOTOPMOST is `((HWND)-2)`.
+        _ = SetWindowPos(
+            window, HWND(bitPattern: -2), 0, 0, 0, 0,
+            UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
         )
     }
 

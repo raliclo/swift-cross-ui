@@ -91,9 +91,51 @@ public protocol Synthesiser: Sendable {
     /// fixed gap would produce a double click on one machine and two single
     /// clicks on another from the same file.
     var doubleClickInterval: Int { get }
+
+    /// Puts the window this replay drives where the events will reach it, and
+    /// refuses if it cannot.
+    ///
+    /// Called once, before the first action. It takes the action list because
+    /// what "reachable" means depends on what the file does: a mouse event goes
+    /// to whatever is on top at that point, a key event to whatever holds focus,
+    /// and on Windows those are two different things a caller can obtain
+    /// separately.
+    ///
+    /// 在重放開始前，將受驅動的視窗置於事件能夠抵達之處；若做不到則拒絕執行。
+    ///
+    /// 於第一個動作之前呼叫一次。它接收動作清單，因為「可抵達」的意義取決於該檔案做些什麼：滑鼠
+    /// 事件送往該點上方的視窗，按鍵事件送往持有焦點的視窗，而在 Windows 上這兩者是可以分別取得
+    /// 的兩件事。
+    func prepareForReplay(_ actions: [InputAction]) throws
+
+    /// Undoes whatever ``prepareForReplay(_:)`` did.
+    ///
+    /// Called after the last action, and after a failure too. Not throwing: a
+    /// cleanup that can fail the run it is cleaning up after replaces the real
+    /// error with its own.
+    ///
+    /// 復原 ``prepareForReplay(_:)`` 所做的一切。
+    ///
+    /// 於最後一個動作之後呼叫，失敗時亦然。不會拋出錯誤：一個能讓「它所善後的那次執行」失敗的
+    /// 清理程序，只會用自己的錯誤取代掉真正的錯誤。
+    func finishReplay()
 }
 
 extension Synthesiser {
+    /// Nothing to do, which is the case wherever the windowing system does not
+    /// let one client outrank another.
+    ///
+    /// X11 through XTEST and AppKit both deliver to a window this process
+    /// already owns or names, so neither has the Windows problem of events
+    /// silently landing in a different application.
+    ///
+    /// 無需任何動作，凡是「視窗系統不容許某個 client 凌駕於另一個之上」的平台皆然。
+    ///
+    /// 透過 XTEST 的 X11 與 AppKit，都會投遞至本行程已擁有或已指名的視窗，因此兩者都沒有 Windows
+    /// 上「事件靜默落入另一個應用程式」的問題。
+    public func prepareForReplay(_ actions: [InputAction]) throws {}
+
+    public func finishReplay() {}
     /// Replays a whole file.
     ///
     /// Stops at the first failure rather than continuing. A synthesiser that
@@ -113,6 +155,15 @@ extension Synthesiser {
     /// subsequent click against the window's new position, so a drag followed
     /// by a click would land somewhere the file never named.
     public func replay(_ actions: [InputAction]) throws {
+        // Bracketed around the geometry read as well as the actions: reading it
+        // is what raises the window on the platforms that need raising, and a
+        // window put in front only to be measured, then left to fall behind
+        // before the first click, is the failure this pair exists to prevent.
+        // 括住的範圍包含幾何量測而不只是動作：在需要抬升視窗的平台上，正是「量測」這一步把視窗
+        // 帶到前面；而一個「被抬到前面只為了被量測、接著在第一次點擊之前又落回背後」的視窗，
+        // 正是這組成對呼叫所要防止的失敗。
+        try prepareForReplay(actions)
+        defer { finishReplay() }
         try replay(actions, in: currentWindowGeometry())
     }
 
@@ -179,6 +230,16 @@ public enum SynthesiserError: Error, CustomStringConvertible {
     case toolFailed(String, status: Int32)
     case unsupported(String)
 
+    /// The window to replay against could not be brought to the front.
+    ///
+    /// Its own case because the consequence is specific and worth naming: on a
+    /// platform whose injection is system-wide, a replay that runs anyway does
+    /// not fail, it drives whichever application is in front.
+    ///
+    /// 用於「無法將待重放的視窗提到最前」。獨立成一個 case，是因為其後果具體且值得指名：在注入
+    /// 方式為系統層級的平台上，仍然繼續執行的重放不會失敗，而是會去驅動位於前方的那個應用程式。
+    case windowNotForeground(String)
+
     public var description: String {
         switch self {
             case .toolMissing(let name):
@@ -187,6 +248,8 @@ public enum SynthesiserError: Error, CustomStringConvertible {
                 "\(name) exited with status \(status)"
             case .unsupported(let what):
                 "\(what) is not supported on this platform"
+            case .windowNotForeground(let why):
+                "could not bring our window to the front: \(why)"
         }
     }
 }

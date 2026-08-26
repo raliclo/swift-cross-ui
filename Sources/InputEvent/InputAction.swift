@@ -15,6 +15,29 @@ public enum InputAction: Equatable, Sendable {
     case keyUp(Key)
     case key(Key)
 
+    /// Whether this action is delivered by focus rather than by position.
+    ///
+    /// A mouse event goes to whatever is on top at the point it names, so a
+    /// window raised above the others receives it. A key event ignores the
+    /// pointer entirely and goes to whichever window holds focus -- which a
+    /// synthesiser cannot always obtain, and on Windows often cannot. Telling
+    /// the two apart is what lets a mouse-only file run where a file that types
+    /// has to be refused.
+    ///
+    /// 此動作是依「焦點」而非依「位置」投遞的。
+    ///
+    /// 滑鼠事件送往其所指定座標上方的視窗，因此被抬升至他人之上的視窗即可收到。按鍵事件則完全
+    /// 忽略指標，送往持有焦點的視窗——而 synthesiser 並非總能取得焦點，在 Windows 上更是經常
+    /// 取不到。能夠分辨兩者，才使得「只用滑鼠的檔案照常執行、會打字的檔案必須拒絕」成為可能。
+    public var needsKeyboardFocus: Bool {
+        switch self {
+            case .keyDown, .keyUp, .key:
+                true
+            default:
+                false
+        }
+    }
+
     /// Turns the wheel, in notches, wherever the pointer currently is.
     ///
     /// Positive `dy` scrolls down and positive `dx` scrolls right, which is the
