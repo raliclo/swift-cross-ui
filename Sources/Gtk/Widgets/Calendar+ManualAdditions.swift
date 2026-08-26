@@ -2,6 +2,24 @@ import CGtk
 import Foundation
 
 extension Calendar {
+    /// The instant the calendar is holding.
+    ///
+    /// Beware that a `GtkCalendar` is a day picker wearing a `GDateTime`, and
+    /// only the year, month and day survive a round trip. Measured on GTK
+    /// 4.22.4 and confirmed in `gtk/gtkcalendar.c`:
+    ///
+    /// - The setter is a no-op unless the year, month or day differs
+    ///   (`calendar_select_day_internal` returns early), so setting the same
+    ///   day at a different time, or in a different time zone, silently does
+    ///   nothing at all.
+    /// - Clicking a day rebuilds the value as
+    ///   `g_date_time_new_local(year, month, day, 0, 0, 0)`
+    ///   (`calendar_select_and_focus_day`), discarding the time of day and
+    ///   forcing the machine's time zone whatever was set.
+    ///
+    /// Use ``selectedDay`` and ``selectDay(year:month:day:)`` where the time of
+    /// day or the time zone matters; they say what the widget can actually
+    /// store, so nothing goes missing without the caller deciding it should.
     public var date: Date {
         get {
             GDateTime(gtk_calendar_get_date(opaquePointer)).toDate()
@@ -28,6 +46,39 @@ extension Calendar {
             withExtendedLifetime(gDateTime) {
                 gtk_calendar_select_day(opaquePointer, gDateTime.pointer)
             }
+        }
+    }
+
+    /// The day the calendar is showing, with the month numbered from 1 as
+    /// `Foundation.DateComponents` numbers it. GTK's own `month` property
+    /// counts from zero, which is the off-by-one this exists to contain.
+    ///
+    /// This is the whole of what a `GtkCalendar` stores that can be trusted;
+    /// see ``date`` for what happens to the rest.
+    public var selectedDay: DateComponents {
+        DateComponents(year: year, month: month + 1, day: day)
+    }
+
+    /// Shows `year`-`month`-`day`, with the month numbered from 1.
+    ///
+    /// Builds the value exactly the way GTK builds it for a click on a day
+    /// (`g_date_time_new_local`, midnight), so a date set from code and a date
+    /// the user picked leave the widget in identical states.
+    ///
+    /// Emits `day-selected` if the day changes, the same as a click does --
+    /// GTK draws no distinction, so a caller that needs one has to draw it
+    /// itself.
+    public func selectDay(year: Int, month: Int, day: Int) {
+        guard
+            let gDateTime = GDateTime(
+                g_date_time_new_local(gint(year), gint(month), gint(day), 0, 0, 0)
+            )
+        else {
+            print("Gtk: could not build a GDateTime for \(year)-\(month)-\(day), ignoring")
+            return
+        }
+        withExtendedLifetime(gDateTime) {
+            gtk_calendar_select_day(opaquePointer, gDateTime.pointer)
         }
     }
 }

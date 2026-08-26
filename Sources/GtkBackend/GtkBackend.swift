@@ -38,6 +38,7 @@ public final class GtkBackend:
     BackendFeatures.Colors,
     BackendFeatures.DatePickers,
     BackendFeatures.Windowing,
+    BackendFeatures.WindowLevels,
     BackendFeatures.LinearGradients,
     BackendFeatures.RadialGradients,
     BackendFeatures.AngularGradients,
@@ -69,7 +70,14 @@ public final class GtkBackend:
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
-    public let supportedDatePickerStyles: [DatePickerStyle] = [.automatic, .graphical]
+    // `.wheel` is absent because GTK has no wheel widget of any kind, and
+    // faking one out of a scrolled list would be a worse lie than the fallback.
+    // Note that a style left out of this list is downgraded to `.automatic` by
+    // `datePickerStyle(_:)` without a word in a release build, so the list is
+    // the only place the omission is visible.
+    public let supportedDatePickerStyles: [DatePickerStyle] = [
+        .automatic, .graphical, .compact,
+    ]
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
     // a picker with no style of its own.
@@ -309,6 +317,47 @@ public final class GtkBackend:
         //   in a framework where the minimize button usually doesn't even exist
 
         window.resizable = resizable
+    }
+
+    /// `.floating` only where the platform underneath GTK can provide it.
+    ///
+    /// GTK 4 removed `gtk_window_set_keep_above` and has no replacement, so the
+    /// answer is never GTK's -- it is the platform's. On Windows a GTK window is
+    /// an ordinary `HWND` and `SetWindowPos` works on it. Elsewhere it does not:
+    /// Wayland forbids a client raising itself above another application by
+    /// design, and while X11's `_NET_WM_STATE_ABOVE` would serve where a window
+    /// manager implements it, WSLg's does not advertise it (measured
+    /// 2026-08-26 -- see `scui_window_set_topmost` for the atom list and how to
+    /// re-check).
+    ///
+    /// A property rather than a constant because it is genuinely not one: this
+    /// same backend answers differently on two platforms.
+    ///
+    /// 僅在 GTK 底下的平台能夠提供時才支援 `.floating`。
+    ///
+    /// GTK 4 移除了 `gtk_window_set_keep_above` 且無替代品，因此答案從來不由 GTK 決定——而是由平台
+    /// 決定。在 Windows 上，GTK 視窗底層就是普通的 `HWND`，`SetWindowPos` 對它有效。在其他平台則
+    /// 不然：Wayland 依設計禁止 client 把自己抬到其他應用程式之上；而 X11 的 `_NET_WM_STATE_ABOVE`
+    /// 雖然在窗口管理員有實作之處可用，WSLg 的並未宣告支援它（實測於 2026-08-26——atom 清單與重新
+    /// 確認的方式見 `scui_window_set_topmost`）。
+    ///
+    /// 採用 property 而非常數，是因為它確實不是常數：同一個 backend 在兩個平台上的答案並不相同。
+    public var supportedWindowLevels: [WindowLevel] {
+        #if os(Windows)
+            [.automatic, .normal, .floating]
+        #else
+            [.automatic, .normal]
+        #endif
+    }
+
+    public func setLevel(ofWindow window: Window, to level: WindowLevel) {
+        // Only `.floating` needs anything done, and only the platforms that
+        // listed it above get here with it. The return value is ignored on
+        // purpose: it is false before the window is realized, and the level is
+        // re-applied on every update, so the next pass is the retry.
+        // 只有 `.floating` 需要做事，而且只有在上方列出它的平台才會帶著它走到這裡。回傳值刻意忽略：
+        // 在視窗完成 realize 之前它會是 false，而 level 每次更新都會重新套用，因此下一輪即是重試。
+        _ = scui_window_set_topmost(window.widgetPointer, level == .floating ? 1 : 0)
     }
 
     public func setChild(ofWindow window: Window, to child: Widget) {
@@ -2681,9 +2730,7 @@ public final class GtkBackend:
     }
 
     public func createDatePicker() -> Widget {
-        let widget = Gtk.Calendar()
-        widget.date = Date()
-        return widget
+        DatePickerWidget()
     }
 
     public func updateDatePicker(
@@ -2694,20 +2741,31 @@ public final class GtkBackend:
         components: DatePickerComponents,
         onChange: @escaping (Date) -> Void
     ) {
-        if components.contains(.hourAndMinute) {
-            debugLogOnce("Warning: time picker is unimplemented on GtkBackend")
-        }
+        let datePicker = datePicker as! DatePickerWidget
+        datePicker.update(
+            date: date,
+            range: range,
+            style: environment.datePickerStyle,
+            components: components,
+            displayCalendar: environment.calendar,
+            timeZone: environment.timeZone,
+            isEnabled: environment.isEnabled,
+            onChange: onChange
+        )
 
-        let calendarWidget = datePicker as! Gtk.Calendar
-        calendarWidget.date = date
-        calendarWidget.daySelected = { calendarWidget in
-            let date = max(range.lowerBound, min(calendarWidget.date, range.upperBound))
-            calendarWidget.date = date
-            onChange(date)
-        }
-        calendarWidget.sensitive = environment.isEnabled
-        calendarWidget.css.clear()
-        calendarWidget.css.set(properties: Self.cssProperties(for: environment, isControl: true))
+        // The grid keeps the `isControl` treatment it has always had, which
+        // flattens the border and box-shadow away. The compact button does not
+        // get it: it is a button, and stripping its border and shadow would
+        // leave a floating word that does not look pressable.
+        datePicker.applyStyles(
+            toGrid: Self.cssProperties(for: environment, isControl: true),
+            toButton: Self.cssProperties(for: environment)
+        )
+
+        // The font and foreground belong on the labels GTK draws inside, not on
+        // the container, which draws none of the text. Hence the descendant
+        // selector, the same one the pickers use.
+        applyLabelStyles(to: datePicker, environment: environment)
     }
 
     // MARK: Helpers
@@ -3353,5 +3411,540 @@ final class RadioGroupPicker: Box {
 
         selectedIndex = index
         onChange?(index)
+    }
+}
+
+/// The widget `createDatePicker()` hands back, whichever style the picker ends
+/// up wearing.
+///
+/// `createDatePicker()` is given no style. The style arrives later, through
+/// `environment.datePickerStyle` on the update path, by which point the widget
+/// is already in the view tree -- so what `createDatePicker()` returns has to
+/// be a container able to swap its contents when the style changes. That is the
+/// shape WinUIBackend uses for the same reason
+/// (`CustomDatePicker.changeDateView(to:)`).
+///
+/// It holds up to two things, per `DatePickerComponents`: the date, as either a
+/// `GtkCalendar` grid or a ``CompactDatePicker``, and the time, as a
+/// ``TimeRow``. Either may be absent, and a picker asked for neither is empty,
+/// which is what was asked for.
+///
+/// # What a GtkCalendar can actually hold
+///
+/// The obvious implementation -- hand GTK a `GDateTime` and read one back -- is
+/// wrong in three separate ways. All three were measured against GTK 4.22.4 and
+/// then confirmed in `gtk/gtkcalendar.c`:
+///
+/// - `gtk_calendar_select_day` returns early unless the year, month or day
+///   differs (`calendar_select_day_internal`). Setting the same day at a
+///   different time of day, or in a different time zone, silently does nothing,
+///   so the widget cannot be used to carry a time of day.
+/// - Clicking a day rebuilds the value as
+///   `g_date_time_new_local(year, month, day, 0, 0, 0)`
+///   (`calendar_select_and_focus_day`): the time of day is discarded and the
+///   *machine's* time zone is forced, whatever was set.
+/// - `day-selected` fires for a programmatic set exactly as for a click, so a
+///   handler that does not tell the two apart reports the app's own writes back
+///   into the binding.
+///
+/// The way past all three is to treat a `GtkCalendar` as storing a year, month
+/// and day and nothing else. This class keeps the bound `Date` itself and
+/// rebuilds it from the widget's day plus its own time of day, resolved in
+/// `environment.timeZone`. Nothing reads an instant back out of GTK.
+///
+/// # Where GTK's model does not reach
+///
+/// - `environment.calendar` cannot reach the grid. A `GtkCalendar` is
+///   Gregorian, with no calendar-system property among its 43 properties, and
+///   its month names come from the C locale rather than from anything the
+///   caller passes. The grid is therefore always Gregorian; only the compact
+///   style's label, which goes through a `DateFormatter`, honours the
+///   environment's calendar.
+/// - `range` cannot be enforced. `GtkCalendar` has no minimum or maximum date,
+///   so out-of-range days stay clickable and the picker clamps afterwards --
+///   which is what the protocol asks for anyway, since it calls `range` a hint.
+/// - GTK keeps the browsed month in the very same field as the selection, and
+///   emits no `day-selected` when the header arrows move it. Browsing is
+///   therefore invisible to SwiftCrossUI, which is right -- browsing is not
+///   choosing -- but it also means the widget's idea of "the date" drifts away
+///   from the binding while a user is looking around. Measured: browse to
+///   February, change some unrelated state, and the next layout pass writes the
+///   binding back and returns the grid to March mid-decision. There is no fix
+///   short of not using `GtkCalendar`, because one field is being asked to hold
+///   two things. Browsing away from the 31st is the same fault with teeth: GTK
+///   clamps the day (`g_date_time_add_months`) and emits nothing, so the widget
+///   is showing a day nobody chose.
+final class DatePickerWidget: Box {
+    /// Reports a date the user picked. Deliberately not called for one applied
+    /// by ``update(date:range:style:components:displayCalendar:timeZone:isEnabled:onChange:)``:
+    /// SwiftCrossUI writes the date it already holds back into the picker on
+    /// every layout pass, and GTK emits `day-selected` for that write just as it
+    /// does for a click.
+    private var onChange: ((Date) -> Void)?
+
+    /// The shapes this picker knows how to wear. Narrower than `DatePickerStyle`
+    /// on purpose: several styles land on the same widget, and resolving them
+    /// once keeps the swap keyed on what is actually built.
+    private enum Presentation {
+        /// A whole calendar grid, always visible.
+        case grid
+        /// A small button that opens the grid in a popover.
+        case button
+    }
+
+    /// What the picker is currently built out of. Compared as a whole so that
+    /// one comparison decides whether anything has to be torn down.
+    private struct Contents: Equatable {
+        /// How the date is shown, or nil when `.date` was not asked for.
+        var presentation: Presentation?
+        /// Whether the time row is shown, and whether it has seconds.
+        var time: TimeRow.Precision?
+        /// The calendar the time row was built for. Part of the identity of the
+        /// contents rather than something updated in place, because whether the
+        /// row has an AM/PM dropdown at all depends on the calendar's locale.
+        var calendar: Foundation.Calendar?
+    }
+
+    private var contents: Contents?
+    private var grid: Gtk.Calendar?
+    private var button: CompactDatePicker?
+    private var timeRow: TimeRow?
+
+    /// The bound date, as last handed in or last reported. The picker's own
+    /// copy, because the widget cannot hold the time of day (see above).
+    private var date = Date()
+
+    private var range = Date.distantPast...Date.distantFuture
+
+    /// Used for every conversion between ``date`` and the widget's day.
+    /// Gregorian regardless of `environment.calendar`, because the grid is:
+    /// feeding it, say, a Buddhist year would print 2569 over a Gregorian
+    /// month.
+    private var gregorian = Foundation.Calendar(identifier: .gregorian)
+
+    /// Used only for the compact button's label, where a `DateFormatter` can
+    /// honour a non-Gregorian calendar even though the grid cannot.
+    private var displayCalendar = Foundation.Calendar.current
+    private var timeZone = TimeZone.current
+
+    /// Set while a date is being written into the widget. GTK emits
+    /// `day-selected` for such a write exactly as it does for a click, so this
+    /// is what tells the two apart.
+    private var isApplyingDate = false
+
+    private var labelFormatter: DateFormatter?
+
+    init() {
+        super.init(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6))
+        gregorian.timeZone = timeZone
+    }
+
+    func update(
+        date: Date,
+        range: ClosedRange<Date>,
+        style: DatePickerStyle,
+        components: DatePickerComponents,
+        displayCalendar: Foundation.Calendar,
+        timeZone: TimeZone,
+        isEnabled: Bool,
+        onChange: @escaping (Date) -> Void
+    ) {
+        self.onChange = onChange
+        self.date = date
+        self.range = range
+
+        // The formatter is rebuilt rather than reconfigured, and only when one
+        // of its inputs moves: `update` runs on every layout pass, and building
+        // a DateFormatter each time is not free.
+        if self.timeZone != timeZone || self.displayCalendar != displayCalendar {
+            labelFormatter = nil
+        }
+        self.timeZone = timeZone
+        self.displayCalendar = displayCalendar
+        gregorian.timeZone = timeZone
+
+        install(
+            Self.contents(for: style, components: components, calendar: displayCalendar)
+        )
+
+        sensitive = isEnabled
+        applyDate()
+    }
+
+    /// Applies the styling the backend computed. Two sets, because the grid and
+    /// the button want opposite things from the `isControl` treatment.
+    func applyStyles(toGrid gridProperties: [CSSProperty], toButton buttonProperties: [CSSProperty])
+    {
+        if let grid {
+            grid.css.clear()
+            grid.css.set(properties: gridProperties)
+        }
+        if let button {
+            button.css.clear()
+            button.css.set(properties: buttonProperties)
+            // The grid in the popover is a grid, and gets the grid's treatment.
+            button.grid.css.clear()
+            button.grid.css.set(properties: gridProperties)
+        }
+        if let timeRow {
+            // A spin button keeps its frame for the same reason the compact
+            // button does. The font and colour have to land here rather than on
+            // the container, because a spin button's text sits in a `text` node
+            // and the descendant `label` selector never reaches it.
+            timeRow.css.clear()
+            timeRow.css.set(properties: buttonProperties)
+        }
+    }
+
+    private static func contents(
+        for style: DatePickerStyle,
+        components: DatePickerComponents,
+        calendar: Foundation.Calendar
+    ) -> Contents {
+        let presentation: Presentation? =
+            switch style {
+                case .compact:
+                    .button
+                case .automatic, .graphical:
+                    .grid
+                // Unreachable through `datePickerStyle(_:)`, which downgrades
+                // any style missing from `supportedDatePickerStyles` to
+                // `.automatic`. Answered rather than trapped because a date
+                // picker is not worth an abort, and `.automatic` is where the
+                // modifier would have sent it anyway.
+                case .wheel:
+                    .grid
+            }
+
+        // `hourMinuteAndSecond` includes `hourAndMinute`, by SwiftUI's bitfield
+        // and by intent, so the wider one has to be tested first.
+        let time: TimeRow.Precision? =
+            if components.contains(.hourMinuteAndSecond) {
+                .hourMinuteSecond
+            } else if components.contains(.hourAndMinute) {
+                .hourMinute
+            } else {
+                nil
+            }
+
+        return Contents(
+            presentation: components.contains(.date) ? presentation : nil,
+            time: time,
+            calendar: time == nil ? nil : calendar
+        )
+    }
+
+    private func install(_ contents: Contents) {
+        guard contents != self.contents else { return }
+        self.contents = contents
+
+        removeAll()
+        grid = nil
+        button = nil
+        timeRow = nil
+
+        switch contents.presentation {
+            case .grid:
+                let grid = Gtk.Calendar()
+                grid.daySelected = { [weak self] grid in
+                    self?.daySelected(shownBy: grid)
+                }
+                // Adding is what registers the signal (see Widget.parentWidget),
+                // so the handler has to be in place first.
+                add(grid)
+                self.grid = grid
+            case .button:
+                let button = CompactDatePicker()
+                button.grid.daySelected = { [weak self] grid in
+                    self?.daySelected(shownBy: grid)
+                }
+                add(button)
+                self.button = button
+            case nil:
+                break
+        }
+
+        if let precision = contents.time {
+            let timeRow = TimeRow(precision: precision, calendar: contents.calendar ?? .current)
+            timeRow.onChange = { [weak self] hour, minute, second in
+                self?.timeEntered(hour: hour, minute: minute, second: second)
+            }
+            add(timeRow)
+            self.timeRow = timeRow
+        }
+    }
+
+    /// Writes ``date`` into whichever widgets are installed.
+    private func applyDate() {
+        let parts = gregorian.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: date
+        )
+        guard
+            let year = parts.year, let month = parts.month, let dayOfMonth = parts.day,
+            let hour = parts.hour, let minute = parts.minute, let second = parts.second
+        else {
+            return
+        }
+
+        let wanted = DateComponents(year: year, month: month, day: dayOfMonth)
+        if let grid = grid ?? button?.grid, grid.selectedDay != wanted {
+            // Only when it differs. GTK would ignore an identical write anyway
+            // -- `calendar_select_day_internal` returns early -- so this saves a
+            // GDateTime per layout pass rather than changing what happens.
+            //
+            // It does not, and cannot, spare a user who is browsing: the browsed
+            // month lives in the same field as the selection, so it genuinely
+            // does differ, and this write is what pulls them back. See the note
+            // on the class.
+            isApplyingDate = true
+            grid.selectDay(year: year, month: month, day: dayOfMonth)
+            isApplyingDate = false
+        }
+
+        button?.label = formatted(date)
+        timeRow?.show(hour: hour, minute: minute, second: second)
+    }
+
+    private func daySelected(shownBy grid: Gtk.Calendar) {
+        guard !isApplyingDate else { return }
+
+        let day = grid.selectedDay
+
+        // The time of day comes from the picker's own copy, not from the
+        // widget, which has just thrown its own away.
+        var components = gregorian.dateComponents(
+            [.hour, .minute, .second, .nanosecond],
+            from: date
+        )
+        components.year = day.year
+        components.month = day.month
+        components.day = day.day
+
+        report(components)
+    }
+
+    private func timeEntered(hour: Int, minute: Int, second: Int?) {
+        var components = gregorian.dateComponents(
+            [.year, .month, .day, .second, .nanosecond],
+            from: date
+        )
+        components.hour = hour
+        components.minute = minute
+        // A row with no second field is not a request to zero the seconds. The
+        // binding keeps its own, the same way the day click keeps the time of
+        // day: a picker should not throw away what it does not display.
+        if let second {
+            components.second = second
+        }
+
+        report(components)
+    }
+
+    /// Turns a set of components into the bound date, clamps it, pushes it back
+    /// into the widgets and tells SwiftCrossUI.
+    private func report(_ components: DateComponents) {
+        guard let picked = gregorian.date(from: components) else { return }
+
+        // Clamping after the fact, since neither GtkCalendar nor a spin button
+        // holding an hour knows anything about the range.
+        date = min(max(picked, range.lowerBound), range.upperBound)
+        applyDate()
+        onChange?(date)
+    }
+
+    private func formatted(_ date: Date) -> String {
+        let formatter: DateFormatter
+        if let labelFormatter {
+            formatter = labelFormatter
+        } else {
+            formatter = DateFormatter()
+            formatter.calendar = displayCalendar
+            formatter.locale = displayCalendar.locale ?? .current
+            formatter.timeZone = timeZone
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            labelFormatter = formatter
+        }
+        return formatter.string(from: date)
+    }
+}
+
+/// A date picker drawn as a small button that opens a calendar in a popover.
+///
+/// SwiftUI describes `.compact` as "a smaller date input ... a text field, or a
+/// button that opens a calendar pop-up". GTK has no compact date widget, but
+/// the second of those shapes is precisely `GtkMenuButton`: a button that owns
+/// a popover, draws its own disclosure arrow, and handles the toggling,
+/// keyboard activation and accessibility relationship itself.
+///
+/// It is genuinely the smaller input the style asks for, not merely a different
+/// one. Measured on GTK 4.22.4, the button asks for 127x34 where a bare
+/// `GtkCalendar` asks for 256x203.
+///
+/// The popover keeps GTK's default `autohide`, so a click outside it or Escape
+/// closes it. It deliberately does not close when a day is picked: `GtkPopover`
+/// pops down by itself only for menu items, and the popover is also where a
+/// user changes their mind about the month, so closing on the first click would
+/// take the grid away mid-decision.
+/// The hour and minute (and optionally second) half of a date picker.
+///
+/// GTK has no time widget at all -- not a `GtkTimePicker`, not a time mode on
+/// `GtkCalendar`. GNOME's own apps build one out of spin buttons, and so does
+/// this: `hh : mm` , plus `: ss` when asked, plus an AM/PM dropdown where the
+/// locale wants one.
+///
+/// This is not the first attempt in this file. The abandoned `TimePicker` above
+/// it recorded "I couldn't get the spin buttons to work"; two reasons it did
+/// not, both avoided here:
+///
+/// - It wrote `spinButton.text = "\(value)"`, which sets the entry's text
+///   without telling the underlying `GtkAdjustment` anything, so the value the
+///   widget reports back never moved. This writes `value`.
+/// - It rebuilt a date with `Foundation.Calendar.date(bySetting:value:of:)`,
+///   which searches for the *next* instant having that component and can land
+///   on another day. This reports the fields and lets ``DatePickerWidget``
+///   assemble them in one go, which is the only way the result is the date the
+///   user typed.
+///
+/// Programmatic writes go through `withBlockedSignal(named: "value-changed")`,
+/// so pushing the binding back in on every layout pass does not read as typing.
+final class TimeRow: Box {
+    enum Precision {
+        case hourMinute
+        case hourMinuteSecond
+    }
+
+    /// Reports a time the user typed or stepped, always on a 24-hour clock
+    /// whatever the locale draws. The second is nil when the row has no second
+    /// field, which is not the same as zero.
+    var onChange: ((_ hour: Int, _ minute: Int, _ second: Int?) -> Void)?
+
+    /// Whether the locale writes times as 1-12 with a meridiem. Decided with
+    /// `DateFormatter.dateFormat(fromTemplate: "j", ...)`, the skeleton whose
+    /// whole job is "however this locale writes an hour", rather than with
+    /// `Locale.hourCycle`, which is macOS 13 or newer and would drag an
+    /// availability annotation across this whole class.
+    ///
+    /// Fixed at construction, along with the meridiem symbols. A locale change
+    /// is a rebuild rather than an update, because it can add or remove the
+    /// dropdown -- see ``DatePickerWidget/Contents``.
+    private let isTwelveHour: Bool
+
+    private let hourField = SpinButton(range: 0, max: 23, step: 1)
+    private let minuteField = SpinButton(range: 0, max: 59, step: 1)
+    private let secondField: SpinButton?
+    private let meridiemField: DropDown?
+
+    /// Set while a time is being written in. `value-changed` fires for such a
+    /// write exactly as it does for typing, and this is what tells them apart.
+    /// Belt as well as braces alongside `withBlockedSignal`, which cannot cover
+    /// the dropdown -- `notify::selected` is not a blockable signal name.
+    private var isApplyingTime = false
+
+    init(precision: Precision, calendar: Foundation.Calendar) {
+        let locale = calendar.locale ?? .current
+        let template = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale)
+        isTwelveHour = template?.contains("a") ?? false
+
+        secondField = precision == .hourMinuteSecond ? SpinButton(range: 0, max: 59, step: 1) : nil
+        meridiemField =
+            isTwelveHour ? DropDown(strings: [calendar.amSymbol, calendar.pmSymbol]) : nil
+
+        super.init(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2))
+
+        if isTwelveHour {
+            hourField.setRange(min: 1, max: 12)
+        }
+
+        for field in [hourField, minuteField, secondField].compactMap({ $0 }) {
+            field.numeric = true
+            // Stepping past the end of a field carries no meaning here: a
+            // minute rolling from 59 to 0 must not take the hour, and an hour
+            // rolling past midnight must not take the day. The date is chosen
+            // in the grid.
+            field.wrap = true
+            field.widthChars = 2
+
+            // Spin buttons render a bare integer, so 09:05 would read "9:5"
+            // without this. Returning true tells GTK the text has been dealt
+            // with.
+            field.output = { field in
+                field.text = String(format: "%02d", Int(field.value))
+                return true
+            }
+            field.valueChanged = { [weak self] _ in self?.fieldChanged() }
+        }
+
+        add(hourField)
+        add(Label(string: ":"))
+        add(minuteField)
+        if let secondField {
+            add(Label(string: ":"))
+            add(secondField)
+        }
+        if let meridiemField {
+            meridiemField.notifySelected = { [weak self] _, _ in self?.fieldChanged() }
+            add(meridiemField)
+        }
+    }
+
+    /// Shows a 24-hour time, translating it into whatever the locale draws.
+    func show(hour: Int, minute: Int, second: Int) {
+        isApplyingTime = true
+        defer { isApplyingTime = false }
+
+        hourField.withBlockedSignal(named: "value-changed") {
+            self.hourField.value = Double(self.isTwelveHour ? (hour + 11) % 12 + 1 : hour)
+        }
+        minuteField.withBlockedSignal(named: "value-changed") {
+            self.minuteField.value = Double(minute)
+        }
+        secondField?.withBlockedSignal(named: "value-changed") {
+            self.secondField?.value = Double(second)
+        }
+        if let meridiemField {
+            let wanted = hour < 12 ? 0 : 1
+            if meridiemField.selected != wanted {
+                meridiemField.selected = wanted
+            }
+        }
+    }
+
+    private func fieldChanged() {
+        guard !isApplyingTime else { return }
+
+        var hour = Int(hourField.value)
+        if isTwelveHour {
+            // 12 AM is hour 0 and 12 PM is hour 12, which is the one case where
+            // the arithmetic is not "add twelve for the afternoon".
+            hour %= 12
+            if meridiemField?.selected == 1 {
+                hour += 12
+            }
+        }
+
+        onChange?(hour, Int(minuteField.value), secondField.map { Int($0.value) })
+    }
+}
+
+final class CompactDatePicker: MenuButton {
+    let grid = Gtk.Calendar()
+
+    init() {
+        super.init(gtk_menu_button_new())
+
+        let popover = Popover()
+        popover.setChild(grid)
+
+        // Acquiring a parent is what registers a widget's signals (see
+        // Widget.parentWidget). A Box does this for its children; a Popover has
+        // no such bookkeeping, so the grid would never hear `day-selected`
+        // without this line.
+        grid.parentWidget = popover
+
+        // MenuButton keeps the Swift-side reference that keeps the popover, and
+        // with it the grid's signal handlers, alive.
+        setPopover(popover)
     }
 }

@@ -30,19 +30,40 @@ public struct DatePickerComponents: OptionSet, Sendable {
     public static let hourMinuteAndSecond = DatePickerComponents(rawValue: 0xE0)
 }
 
+/// How a ``DatePicker`` presents itself.
+///
+/// A backend advertises what it can draw in `supportedDatePickerStyles`, and
+/// ``SwiftCrossUI/View/datePickerStyle(_:)`` quietly substitutes
+/// ``DatePickerStyle/automatic`` for anything missing from that list. The
+/// substitution carries an `assertionFailure`, which a release build does not
+/// run, so check the list rather than the screen when a style seems to have had
+/// no effect.
 public enum DatePickerStyle: Sendable, Hashable {
     /// A date input that adapts to the current platform and context.
+    ///
+    /// Supported by every backend, and the one anything unsupported falls back
+    /// to.
     case automatic
 
     /// A date input that shows a calendar grid.
+    ///
+    /// Supported by AppKitBackend, UIKitBackend, WinUIBackend and GtkBackend,
+    /// and by AndroidBackend on API levels that have the material date picker.
     @available(iOS 14, macCatalyst 14, *)
     case graphical
 
     /// A smaller date input. This may be a text field, or a button that opens a calendar pop-up.
+    ///
+    /// Supported by AppKitBackend, UIKitBackend, WinUIBackend, AndroidBackend
+    /// and GtkBackend. GtkBackend draws the second of those shapes: a
+    /// `GtkMenuButton` whose popover holds a `GtkCalendar`.
     @available(iOS 13.4, macCatalyst 13.4, *)
     case compact
 
     /// A set of scrollable inputs that can be used to select a date.
+    ///
+    /// Supported by UIKitBackend and WinUIBackend. Not by GtkBackend, which has
+    /// no wheel widget of any kind, nor by AppKitBackend or AndroidBackend.
     @available(iOS 13.4, macCatalyst 13.4, *)
     @available(macOS, unavailable)
     case wheel
