@@ -496,7 +496,7 @@ Build and run:
 
 ```sh
 zsh testapp/compile.zsh -ios P14
-xcrun simctl install swift-cross-ui testapp/output/P14.app
+xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 ```
 

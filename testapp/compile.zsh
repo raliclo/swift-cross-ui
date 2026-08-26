@@ -494,6 +494,16 @@ if [ "$target_platform" = "android" ]; then
             --product "$app_name" \
             --swift-sdk "$android_triple" \
             -c "$build_config"
+        android_binary="$package_dir/.build/$android_triple/$build_config/$app_name"
+        [ -f "$android_binary" ] || {
+            echo "Build succeeded but Android executable was not found: $android_binary" >&2
+            exit 1
+        }
+        android_output="$output_dir/${app_name}-android"
+        rm -f "$android_output"
+        cp "$android_binary" "$android_output"
+        chmod +x "$android_output"
+        echo "    -> $android_output"
     done
     echo "Done. Android build tree: $package_dir/.build"
     exit 0
@@ -568,9 +578,10 @@ if [ "$target_platform" = "ios" ]; then
 
         app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
         if [ -d "$app_bundle" ]; then
-            rm -rf "$output_dir/$app_name.app"
-            cp -R "$app_bundle" "$output_dir/$app_name.app"
-            echo "    -> $output_dir/$app_name.app"
+            ios_output="$output_dir/${app_name}-ios.app"
+            rm -rf "$ios_output"
+            cp -R "$app_bundle" "$ios_output"
+            echo "    -> $ios_output"
         else
             echo "    Bundling reported success but no .app was found at $app_bundle" >&2
             exit 1
@@ -584,7 +595,7 @@ Install and launch on the simulator:
 
   xcrun simctl boot "$sim_device"
   open -a Simulator
-  xcrun simctl install "$sim_device" "$output_dir/<app>.app"
+  xcrun simctl install "$sim_device" "$output_dir/<app>-ios.app"
   xcrun simctl launch "$sim_device" dev.swiftcrossui.testapp.<app>
 EOF_IOS
     exit 0

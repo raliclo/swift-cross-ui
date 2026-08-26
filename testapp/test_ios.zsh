@@ -36,7 +36,7 @@ Builds the selected Pn for the iOS Simulator, copies its executable into
 testapp/iosContainer/appTemplate.app as debugTarget, installs it, and launches it.
 
 Options:
-  -n, --no-build             Reuse output/<Pn>.app/<Pn> already built for iOS.
+  -n, --no-build             Reuse output/<Pn>-ios.app/<Pn> already built for iOS.
   --showtime <seconds>       Keep the app running for this long; default: 30.
   --no-showtime              Return immediately after launch.
   --device <name|UDID>       Simulator device; default: $device_name.
@@ -145,7 +145,7 @@ if [ "$do_build" -eq 1 ]; then
     zsh "$script_dir/compile.zsh" -ios "$target"
 fi
 
-source_app="$output_dir/$target.app/$target"
+source_app="$output_dir/${target}-ios.app/$target"
 if [ ! -f "$source_app" ]; then
     printf 'Missing iOS executable: %s\n' "$source_app" >&2
     printf 'Build it first with: zsh testapp/compile.zsh -ios %s\n' "$target" >&2

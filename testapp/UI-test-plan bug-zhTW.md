@@ -179,7 +179,7 @@ Build、install、run：
 zsh testapp/compile.zsh -ios P14
 xcrun simctl boot swift-cross-ui
 open -a Simulator
-xcrun simctl install swift-cross-ui testapp/output/P14.app
+xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 ```
 
