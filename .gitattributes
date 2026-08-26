@@ -1,1 +1,11 @@
 gyb/* linguist-vendored
+
+# Data files are LF, on every machine.
+#
+# testapp/issues.csv arrived with CRLF -- the only tracked file in the repo that
+# had it -- and the damage was not the line endings themselves. Any tool that
+# writes the file correctly normalises them, so a one-field edit came back as a
+# 183-line diff, and that diff is unreviewable: the one change that matters is
+# hidden among 182 that do not. The rule is here so the next file written from
+# the Windows side cannot reintroduce it.
+*.csv text eol=lf
