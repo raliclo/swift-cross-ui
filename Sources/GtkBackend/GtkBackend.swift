@@ -36,6 +36,8 @@ public final class GtkBackend:
     BackendFeatures.Windowing,
     BackendFeatures.LinearGradients,
     BackendFeatures.RadialGradients,
+    BackendFeatures.AngularGradients,
+    BackendFeatures.WebViews,
     BackendFeatures.HitTesting,
     BackendFeatures.DragAndDrop,
     BackendFeatures.Clipping
