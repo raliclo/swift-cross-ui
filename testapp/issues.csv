@@ -52,7 +52,7 @@ issue,categories,backend,status,comments,opened,title
 610,bug;layout,AndroidBackend,unaddressed,1,2026-06-01,Fix sheet sizing on Android
 605,enhancement,AndroidBackend,unaddressed,1,2026-06-01,Update file open/save dialogs to use importer/exporters rather than URLs
 597,untriaged,core/unspecified,unaddressed,2,2026-05-28,Checkbox polyfill on iOS changes size when on/off
-594,bug;help wanted,GtkBackend,unaddressed,1,2026-05-26,[BUG] Generated EventControllerKey.keyPressed doesn’t support returning Bool
+594,bug;help wanted,GtkBackend,fixed-gtk,1,2026-05-26,[BUG] Generated EventControllerKey.keyPressed doesn’t support returning Bool
 572,untriaged,core/unspecified,unaddressed,0,2026-05-13,Shouldnt the NavigationSplitView use liquid glass ?
 562,developer experience,core/unspecified,unaddressed,0,2026-05-08,Resolve SwiftFormat issues and reformat
 561,feature parity,AndroidBackend,unaddressed,0,2026-05-08,[AndroidBackend] Line limit and ellipsization
