@@ -46,4 +46,8 @@ open class Box: Widget, Orientable {
     @GObjectProperty(named: "spacing") open var spacing: Int
 
     @GObjectProperty(named: "orientation") open var orientation: Orientation
+
+    /// Whether every child gets the same amount of space along the box's
+    /// orientation.
+    @GObjectProperty(named: "homogeneous") open var homogeneous: Bool
 }

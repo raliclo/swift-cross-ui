@@ -3,7 +3,7 @@
 /// Depending on the backend, this may appear as a radio group, a wheel picker,
 /// or a segmented picker.
 ///
-/// Only supported by AppKitBackend, UIKitBackend, and WinUIBackend.
+/// Only supported by AppKitBackend, UIKitBackend, WinUIBackend, and GtkBackend.
 public struct InlinePickerStyle: PickerStyle, _BuiltinPickerStyle {
     public nonisolated init() {}
 
@@ -29,6 +29,6 @@ extension PickerStyle where Self == InlinePickerStyle {
     /// Depending on the backend, this may appear as a radio group, a wheel picker,
     /// or a segmented picker.
     ///
-    /// Only supported by AppKitBackend, UIKitBackend, and WinUIBackend.
+    /// Only supported by AppKitBackend, UIKitBackend, WinUIBackend, and GtkBackend.
     public static nonisolated var inline: Self { Self() }
 }

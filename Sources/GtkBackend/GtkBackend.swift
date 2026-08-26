@@ -70,7 +70,10 @@ public final class GtkBackend:
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
     public let supportedDatePickerStyles: [DatePickerStyle] = [.automatic, .graphical]
-    public let supportedPickerStyles: [BackendPickerStyle] = [.menu]
+    // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
+    // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
+    // a picker with no style of its own.
+    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .segmented, .radioGroup]
     // #386: preferredColorScheme is honoured (see updateWindow). The override is
     // per-display rather than per-window, since GTK has no per-window theme
     // variant, so two windows asking for opposite schemes cannot both win.
@@ -1730,13 +1733,18 @@ public final class GtkBackend:
     }
 
     public func createPicker(style: BackendPickerStyle) -> Widget {
-        if style != .menu {
-            let message = "unsupported picker style \(style)"
-            logger.critical("\(message)")
-            fatalError(message)
+        switch style {
+            case .menu:
+                return DropDown(strings: [])
+            case .segmented:
+                return SegmentedPicker()
+            case .radioGroup:
+                return RadioGroupPicker()
+            default:
+                let message = "unsupported picker style \(style)"
+                logger.critical("\(message)")
+                fatalError(message)
         }
-
-        return DropDown(strings: [])
     }
 
     public func updatePicker(
@@ -1745,6 +1753,20 @@ public final class GtkBackend:
         environment: EnvironmentValues,
         onChange: @escaping (Int?) -> Void
     ) {
+        if let picker = picker as? SegmentedPicker {
+            picker.sensitive = environment.isEnabled
+            picker.update(options: options)
+            applyLabelStyles(to: picker, environment: environment)
+            picker.onChange = onChange
+            return
+        } else if let picker = picker as? RadioGroupPicker {
+            picker.sensitive = environment.isEnabled
+            picker.update(options: options)
+            applyLabelStyles(to: picker, environment: environment)
+            picker.onChange = onChange
+            return
+        }
+
         let picker = picker as! DropDown
         picker.sensitive = environment.isEnabled
 
@@ -1793,7 +1815,26 @@ public final class GtkBackend:
         }
     }
 
+    /// Styles the labels GTK draws inside a picker's own widgets.
+    ///
+    /// The environment's font and foreground colour belong on the labels, not
+    /// on the picker itself, because the picker's node draws the control's
+    /// frame and none of the text. Hence the descendant selector.
+    private func applyLabelStyles(to picker: Widget, environment: EnvironmentValues) {
+        var block = CSSBlock(forClass: picker.css.cssClass + " label")
+        block.set(properties: Self.cssProperties(for: environment))
+        picker.cssProvider.loadCss(from: block.stringRepresentation)
+    }
+
     public func setSelectedOption(ofPicker picker: Widget, to selectedOption: Int?) {
+        if let picker = picker as? SegmentedPicker {
+            picker.setSelectedIndex(to: selectedOption)
+            return
+        } else if let picker = picker as? RadioGroupPicker {
+            picker.setSelectedIndex(to: selectedOption)
+            return
+        }
+
         let picker = picker as! DropDown
         if selectedOption != picker.selected {
             picker.selected = selectedOption ?? Int(Int32(bitPattern: GTK_INVALID_LIST_POSITION))
@@ -3114,5 +3155,203 @@ final class TimePicker: Box {
                 @unknown default: fatalError("Unrecognized hourCycle \(hourCycle)")
             #endif
         }
+    }
+}
+
+/// A picker drawn as one horizontal strip of buttons, of which exactly one is
+/// pressed -- SwiftUI's segmented control.
+///
+/// GTK has no segmented-control widget. What GNOME's own apps and the Adwaita
+/// stylesheet use instead is a horizontal box carrying the `linked` style
+/// class, which draws its children as a single continuous strip, filled with
+/// toggle buttons that are grouped so only one of them can be active.
+///
+/// Two things about a GTK group are worth knowing, both measured against GTK
+/// 4.22 rather than assumed, because the picker protocol asks about both:
+///
+/// - Switching selection emits `toggled` twice, first for the button being
+///   turned off and then for the one being turned on, so a handler that does
+///   not look at `active` reports the wrong index (or two indices).
+/// - GTK refuses to deactivate a group's active member in response to a click,
+///   but not in response to a programmatic `active = false`, which turns the
+///   whole group off. So `setSelectedIndex(to: nil)` is expressible, while a
+///   user clicking the selected segment to clear it is not -- and neither is
+///   re-picking the option that is already selected, which emits nothing at
+///   all. The dropdown style has the same blind spot for the same reason.
+final class SegmentedPicker: Box {
+    /// Reports a selection the user made. Deliberately not called for one
+    /// applied by ``setSelectedIndex(to:)``: SwiftCrossUI writes the selection
+    /// it already holds back into the picker on every layout pass, and
+    /// reporting that back as a fresh choice would fight anything else trying
+    /// to move the binding.
+    var onChange: ((Int?) -> Void)?
+
+    private var buttons: [ToggleButton] = []
+
+    /// The index the picker believes is selected. Kept here rather than read
+    /// back out of the buttons so that a redundant `setSelectedIndex(to:)` can
+    /// be skipped entirely.
+    private var selectedIndex: Int?
+
+    /// Set while a selection is being applied programmatically. GTK emits
+    /// `toggled` for such a change exactly as it does for a click, so this is
+    /// what tells the two apart.
+    private var isApplyingSelection = false
+
+    init() {
+        super.init(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0))
+        gtk_widget_add_css_class(widgetPointer, "linked")
+
+        // Equal-width segments, as every platform's segmented control has.
+        // Without this the widest label decides one segment's width and the
+        // rest shrink to their own text.
+        homogeneous = true
+    }
+
+    func update(options: [String]) {
+        for (button, option) in zip(buttons, options) {
+            button.label = option
+        }
+
+        if options.count > buttons.count {
+            for option in options[buttons.count...] {
+                let button = ToggleButton(label: option)
+
+                // Grouping is what makes the strip a picker rather than a row
+                // of independent toggles: GTK keeps at most one member active
+                // and turns the previous one off itself. Every button joins the
+                // group through the first one, which is the head that outlives
+                // the others (options are only ever dropped from the end).
+                button.setGroup(buttons.first)
+
+                let index = buttons.count
+                button.toggled = { [weak self] button in
+                    self?.buttonToggled(button, at: index)
+                }
+
+                // Adding is what registers the `toggled` signal (see
+                // Widget.parentWidget), so the handler has to be in place
+                // first.
+                add(button)
+                buttons.append(button)
+            }
+        } else if options.count < buttons.count {
+            for button in buttons[options.count...] {
+                remove(button)
+            }
+            buttons.removeSubrange(options.count...)
+
+            // The selected option may have been one of the removed ones, in
+            // which case GTK has already dropped the selection and the picker
+            // must agree, or the next setSelectedIndex(to:) would be skipped as
+            // redundant.
+            if let selectedIndex, selectedIndex >= buttons.count {
+                self.selectedIndex = nil
+            }
+        }
+    }
+
+    func setSelectedIndex(to index: Int?) {
+        guard index != selectedIndex else { return }
+        selectedIndex = index
+
+        isApplyingSelection = true
+        defer { isApplyingSelection = false }
+
+        if let index {
+            buttons[index].active = true
+        } else {
+            // Turning the active member off clears the group; nothing else
+            // expresses "no selection", which the picker protocol allows.
+            for button in buttons where button.active {
+                button.active = false
+            }
+        }
+    }
+
+    private func buttonToggled(_ button: ToggleButton, at index: Int) {
+        guard !isApplyingSelection else { return }
+
+        // The other half of the pair of signals a switch emits is the old
+        // segment going inactive, which is not a selection.
+        guard button.active else { return }
+
+        selectedIndex = index
+        onChange?(index)
+    }
+}
+
+/// A picker drawn as a vertical column of radio buttons.
+///
+/// GTK 4 has no radio button widget: a `GtkCheckButton` that has been put in a
+/// group draws a radio indicator instead of a check, and that is the whole of
+/// it. The grouping semantics, and this picker's handling of them, are the same
+/// as ``SegmentedPicker``'s -- see the notes there.
+final class RadioGroupPicker: Box {
+    /// Reports a selection the user made. Not called for one applied by
+    /// ``setSelectedIndex(to:)``; see ``SegmentedPicker/onChange``.
+    var onChange: ((Int?) -> Void)?
+
+    private var buttons: [CheckButton] = []
+
+    private var selectedIndex: Int?
+
+    private var isApplyingSelection = false
+
+    init() {
+        super.init(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0))
+    }
+
+    func update(options: [String]) {
+        for (button, option) in zip(buttons, options) {
+            button.label = option
+        }
+
+        if options.count > buttons.count {
+            for option in options[buttons.count...] {
+                let button = CheckButton(label: option)
+                button.setGroup(buttons.first)
+
+                let index = buttons.count
+                button.toggled = { [weak self] button in
+                    self?.buttonToggled(button, at: index)
+                }
+
+                add(button)
+                buttons.append(button)
+            }
+        } else if options.count < buttons.count {
+            for button in buttons[options.count...] {
+                remove(button)
+            }
+            buttons.removeSubrange(options.count...)
+
+            if let selectedIndex, selectedIndex >= buttons.count {
+                self.selectedIndex = nil
+            }
+        }
+    }
+
+    func setSelectedIndex(to index: Int?) {
+        guard index != selectedIndex else { return }
+        selectedIndex = index
+
+        isApplyingSelection = true
+        defer { isApplyingSelection = false }
+
+        if let index {
+            buttons[index].active = true
+        } else {
+            for button in buttons where button.active {
+                button.active = false
+            }
+        }
+    }
+
+    private func buttonToggled(_ button: CheckButton, at index: Int) {
+        guard !isApplyingSelection, button.active else { return }
+
+        selectedIndex = index
+        onChange?(index)
     }
 }

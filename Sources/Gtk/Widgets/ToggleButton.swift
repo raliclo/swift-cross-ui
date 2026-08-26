@@ -28,6 +28,17 @@ public class ToggleButton: Button {
         }
     }
 
+    /// Joins this button to `group`'s group, in which GTK keeps at most one
+    /// member active and turns the previous one off itself. Passing `nil`
+    /// leaves the button on its own.
+    ///
+    /// Note that GTK refuses to deactivate a group's active member in response
+    /// to a *click*, but not in response to a programmatic `active = false`,
+    /// which turns the whole group off.
+    public func setGroup(_ group: ToggleButton?) {
+        gtk_toggle_button_set_group(castedPointer(), group?.castedPointer())
+    }
+
     @GObjectProperty(named: "active") public var active: Bool
 
     public var toggled: ((ToggleButton) -> Void)?
