@@ -42,6 +42,7 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     exit 0
 fi
 app="${1:u}"
+app_id="${app:l}"
 shift
 [[ "$app" == P<-> ]] || die "Invalid test target: $app"
 
@@ -77,6 +78,12 @@ done
 [ "$(uname -s)" = Darwin ] || die "test_android.zsh requires macOS"
 
 android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
+# macOS 27 can block the legacy IOKit USB backend while adb starts its server.
+# libusb keeps emulator-only testing responsive and can still be overridden by
+# callers that need the legacy backend.
+# macOS 27 可能讓 adb 啟動 server 時卡在舊版 IOKit USB backend。libusb 可讓僅使用
+# emulator 的測試正常啟動；若有需要，呼叫端仍可覆寫此設定。
+export ADB_LIBUSB="${ADB_LIBUSB:-1}"
 if [ -n "${SWIFT_BUNDLER:-}" ]; then
     bundler_bin="$SWIFT_BUNDLER"
 elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler" ]; then
@@ -96,7 +103,12 @@ swift_snapshot="${SWIFT_ANDROID_SNAPSHOT:-swift-6.3-DEVELOPMENT-SNAPSHOT-2026-06
 swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_snapshot}.xctoolchain/usr/bin/swift}"
 package_dir="$script_dir/.compile-work-android/TestApps"
 apk_path="$apk_dir/$app.apk"
-package_id="dev.swiftcrossui.testapp.$app"
+# Lowercased. The APK's application id is lowercase, so `adb shell am start`
+# against "dev.swiftcrossui.testapp.P12" finds no such package while the install
+# reports success -- the failure looks like the app refusing to launch.
+# 轉為小寫。APK 的 application id 是小寫的，因此以 "dev.swiftcrossui.testapp.P12" 執行
+# `adb shell am start` 會找不到該套件，而安裝本身卻回報成功——該失敗看起來會像是 app 拒絕啟動。
+package_id="dev.swiftcrossui.testapp.$app_id"
 adb="$android_root/platform-tools/adb"
 emulator="$android_root/emulator/emulator"
 
@@ -162,7 +174,12 @@ ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || 
 print "==> Installing $apk_path"
 ANDROID_SERIAL="$serial" "$adb" install -r "$apk_path" >/dev/null
 ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
-ANDROID_SERIAL="$serial" "$adb" shell monkey -p "$package_id" 1 >/dev/null
+# Start the declared launcher activity directly. `monkey` can return a non-zero
+# status for emulator input limitations even when it does not provide a useful
+# readiness check for action-file replay.
+# 直接啟動 manifest 宣告的 launcher activity。`monkey` 可能因 emulator 輸入限制回傳
+# 非零狀態，無法作為 action file replay 的可靠 readiness check。
+ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" >/dev/null
 
 print "==> Launched $package_id on $serial"
 if [ "$showtime_seconds" -gt 0 ]; then

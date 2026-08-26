@@ -117,6 +117,14 @@ zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P1
 | #580 | P12 | ⬜ | 🎯 | Rotation resets @State |
 | #544 | P12 | ⬜ | 🎯 | Toggle state not shown visually |
 
+## Android action-file follow-up TODO
+
+The Android runner, APK delivery, emulator launch, and CSV action replay are
+verified with P12 on the API 36 emulator. TODO: investigate why a P12 button
+state update can leave the rendered surface blank, then add a screenshot or
+state assertion to the Android action test before treating #632, #580, or #544
+as a completed Android result.
+
 Core-layout issues appear in both tables: they are backend-independent, so a
 run anywhere counts, and disagreement between two platforms is the finding.
 

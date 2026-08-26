@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12 Android smoke sequence. Coordinates are logical points for the Android
+# emulator and must be rechecked against the launched screen.
+# P12 Android smoke sequence。座標使用 Android emulator 的 logical points，須依啟動畫面重新確認。
+sleep,,,,,,1500000,allow P12 to render,android
+click,90,260,,left,,,select the First tab,android
+sleep,,,,,,500000,allow the state update to settle,android
+click,128,306,,left,,,increment the counter,android
+sleep,,,,,,1000000,hold the launched app for inspection,android

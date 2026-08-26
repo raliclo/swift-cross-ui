@@ -93,6 +93,13 @@ zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P1
 | #580 | P12 | ⬜ | 🎯 | Rotation 會 reset @State |
 | #544 | P12 | ⬜ | 🎯 | Toggle state 沒有視覺呈現 |
 
+## Android action file 後續 TODO
+
+Android runner、APK 傳送、emulator 啟動及 CSV action replay 已在 API 36 emulator
+上以 P12 驗證。TODO：調查 P12 按鈕更新 state 後可能讓 render surface 變白的原因，並在 Android
+action test 加入 screenshot 或 state assertion；在此之前，不可把 #632、#580 或 #544 視為 Android
+已完成結果。
+
 Core-layout issues 同時出現在兩張表中：它們是 backend-independent，所以任何平台執行都算數，而兩個平台之間的不一致本身就是 finding。
 
 ### 已修正，保留作為 regression checks
