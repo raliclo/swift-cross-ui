@@ -297,15 +297,58 @@ public final class WinUIBackend:
             case .dark: .dark
         }
 
-        let backgroundColor: SwiftCrossUI.Color = switch environment.colorScheme {
+        window.grid.background = windowBackgroundBrush(for: environment)
+
+        applyTitleBarColors(to: window, environment: environment)
+    }
+
+    /// The platform's own window background, falling back to plain black or
+    /// white if it cannot be found.
+    ///
+    /// This used to be `.white` and `.black` unconditionally, and it made
+    /// WinUIBackend the odd one out: AppKitBackend and GtkBackend both leave a
+    /// window's background to the platform, which is also what SwiftUI does.
+    /// The mismatch became visible once the title bar started inheriting its
+    /// colours -- the bar came out at Windows' own #202020 while the content
+    /// behind it was pure black, two shades of "dark" in one window because one
+    /// was inherited and one was chosen here.
+    ///
+    /// `ApplicationPageBackgroundThemeBrush` is the resource WinUI's own pages
+    /// use, so it is the same surface colour every other Windows app has, and it
+    /// resolves per theme without this needing to know either value.
+    ///
+    /// The fallback is not defensive padding. A missing resource would otherwise
+    /// leave the Grid transparent -- WinUI gives it no background of its own --
+    /// and a window showing the desktop through its content is far worse than
+    /// one whose black is a shade off.
+    ///
+    /// 平台自身的視窗背景；若找不到，則退回純黑或純白。
+    ///
+    /// 此處原本無條件使用 `.white` 與 `.black`，而這使 WinUIBackend 成為異類：AppKitBackend 與
+    /// GtkBackend 都把視窗背景交給平台，SwiftUI 亦然。此一落差在標題列開始繼承其色彩之後便顯而易見
+    /// ——標題列呈現 Windows 自有的 #202020，而其後方的內容卻是純黑；同一個視窗中出現兩種「深色」，
+    /// 只因其一是繼承而來、其一是在此處選定的。
+    ///
+    /// `ApplicationPageBackgroundThemeBrush` 是 WinUI 自身頁面所使用的資源，因此它與 Windows 上
+    /// 其他每一個 app 的表面色相同，且會依主題自行解析，無需此處知道任何一個色值。
+    ///
+    /// 該退路並非防禦性的填充。若資源缺失而不予處理，Grid 會維持透明——WinUI 不會給它自己的背景
+    /// ——而一個「內容處可看見桌面」的視窗，遠比一個「黑得略有偏差」的視窗糟糕得多。
+    private func windowBackgroundBrush(for environment: EnvironmentValues) -> WinUI.Brush {
+        if let application = WinUI.Application.current,
+            let themed = application.resources.lookup("ApplicationPageBackgroundThemeBrush")
+                as? WinUI.Brush
+        {
+            return themed
+        }
+
+        let fallback: SwiftCrossUI.Color = switch environment.colorScheme {
             case .light: .white
             case .dark: .black
         }
         let brush = WinUI.SolidColorBrush()
-        brush.color = backgroundColor.resolve(in: environment).uwpColor
-        window.grid.background = brush
-
-        applyTitleBarColors(to: window, environment: environment)
+        brush.color = fallback.resolve(in: environment).uwpColor
+        return brush
     }
 
     /// Makes the title bar follow the same colour scheme as the content.
