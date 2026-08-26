@@ -148,6 +148,17 @@ public final class WinUIBackend:
     }
     private var rootEnvironmentChangeHandler: (@Sendable @MainActor () -> Void)?
 
+    /// The `UISettings` the system-theme subscription is registered on.
+    ///
+    /// Held for as long as the backend, because the registration lives on this
+    /// object: subscribing to a temporary means the only reference dies at the
+    /// end of the statement, and with it the notification that the user switched
+    /// the system between light and dark.
+    ///
+    /// 持有與 backend 同壽，因為該訂閱註冊在此物件上：對一個臨時物件訂閱，代表唯一的參照會在該
+    /// 陳述式結束時消失，而「使用者在系統的淺色與深色之間切換」的通知也隨之消失。
+    private var uiSettings: UWP.UISettings?
+
     var internalState: InternalState
     nonisolated(unsafe) private var dispatcherQueue: WinAppSDK.DispatcherQueue?
 
@@ -209,8 +220,23 @@ public final class WinUIBackend:
                 _ = application.resources.insert("ToggleSwitchPreContentMargin", 0.0 as Double)
                 _ = application.resources.insert("ToggleSwitchPostContentMargin", 0.0 as Double)
 
-                // Handle theme changes
-                UWP.UISettings().colorValuesChanged.addHandler { _, _ in
+                // Handle theme changes -- the user switching Windows between
+                // light and dark while the app is running.
+                //
+                // The UISettings is kept in a property rather than created
+                // inline. The subscription lives on the object, so a temporary
+                // one is released at the end of the statement and the app stops
+                // being told about theme changes; it then keeps whatever scheme
+                // it read at launch until it is restarted.
+                //
+                // 處理主題變更——使用者在 app 執行期間將 Windows 於淺色與深色之間切換。
+                //
+                // UISettings 存放於屬性中，而非內聯建立。訂閱寄生於該物件上，因此臨時物件會在該
+                // 陳述式結束時被釋放，app 便不再收到主題變更通知；此後它會一直沿用啟動時讀到的
+                // 配色，直到重新啟動為止。
+                let uiSettings = UWP.UISettings()
+                self.uiSettings = uiSettings
+                uiSettings.colorValuesChanged.addHandler { _, _ in
                     Task { @MainActor in
                         self.rootEnvironmentChangeHandler?()
                     }

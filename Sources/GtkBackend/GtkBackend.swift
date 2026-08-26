@@ -4,6 +4,10 @@ import Gtk
 @_spi(Backends) import SwiftCrossUI
 import GtkCHelpers
 
+#if os(Windows)
+    import WinSDK
+#endif
+
 extension App {
     public typealias Backend = GtkBackend
 
@@ -61,7 +65,12 @@ public final class GtkBackend:
     public let deviceClass = DeviceClass.desktop
     public let supportedDatePickerStyles: [DatePickerStyle] = [.automatic, .graphical]
     public let supportedPickerStyles: [BackendPickerStyle] = [.menu]
-    public let canOverrideWindowColorScheme = false
+    // #386: preferredColorScheme is honoured (see updateWindow). The override is
+    // per-display rather than per-window, since GTK has no per-window theme
+    // variant, so two windows asking for opposite schemes cannot both win.
+    // #386：preferredColorScheme 已被遵從（見 updateWindow）。該 override 為 per-display 而非
+    // per-window，因為 GTK 沒有 per-window 的主題變體，故兩個要求相反配色的視窗無法同時如願。
+    public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
     let defaultSheetCornerRadius = 10
@@ -148,6 +157,12 @@ public final class GtkBackend:
         gtkApp.run { window in
             self.measurementCustomLabel = (self.createTextView() as! CustomLabel)
             self.precreatedWindow = window
+
+            // #386: read the ambient theme here, where GTK is initialised and
+            // before anything has asked for an override. See ambientColorScheme.
+            // #386：於此讀取環境主題——此處 GTK 已初始化，且尚無任何 override 被要求。
+            self.sampleAmbientColorScheme()
+
             callback()
 
             let provider = CSSProvider()
@@ -241,7 +256,37 @@ public final class GtkBackend:
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
-        // TODO(stackotter): Support preferredColorScheme
+        // #386, the override half: honour preferredColorScheme by asking GTK for
+        // the matching theme variant, so the widgets GTK draws itself (buttons,
+        // entries, list rows) follow the app's request too, not just the text
+        // SwiftCrossUI colours.
+        //
+        // Only when the app asks for something other than the ambient theme.
+        // Setting it unconditionally feeds our own detection back into GTK, and
+        // the setting is global and sticky, so it would outlive the app: a run
+        // that requested dark leaves the next run reporting dark under a light
+        // theme, which is light text on a light background.
+        //
+        // The setting is per-display, not per-window -- GTK has no per-window
+        // theme variant -- so two windows asking for opposite schemes cannot both
+        // win. That is a real limitation of doing this on GTK, and one AppKit
+        // avoids by having a per-window appearance. The common case, an app that
+        // prefers one scheme, works.
+        //
+        // #386 的 override 部分：遵從 preferredColorScheme，向 GTK 要求對應的主題變體，使 GTK
+        // 自行繪製的 widget（按鈕、輸入框、清單列）也跟隨 app 的要求，而不僅是 SwiftCrossUI 自行
+        // 上色的文字。
+        //
+        // 僅在 app 要求了與環境主題不同的配色時才設定。無條件設定會把我們自己的偵測回饋給 GTK，
+        // 而該設定為全域且具黏性，其效果會比 app 存活更久：一次要求 dark 的執行，會使下一次在
+        // light 主題下的執行回報 dark，結果是淺色文字畫在淺色背景上。
+        //
+        // 此設定為 per-display 而非 per-window（GTK 沒有 per-window 的主題變體），因此兩個要求
+        // 相反配色的視窗無法同時如願。這是在 GTK 上實作的真實限制，AppKit 因具備 per-window
+        // appearance 而無此問題。常見情境（整個 app 偏好單一配色）可正常運作。
+        let requested = environment.colorScheme
+        guard requested != ambientColorScheme else { return }
+        Gtk.Settings.default?.preferDarkTheme = (requested == .dark)
     }
 
     public func setTitle(ofWindow window: Window, to title: String) {
@@ -632,14 +677,169 @@ public final class GtkBackend:
     }
 
     public func computeRootEnvironment(defaultEnvironment: EnvironmentValues) -> EnvironmentValues {
-        defaultEnvironment
+        // #386: report the ambient theme, so text drawn under a dark theme is
+        // light instead of staying at its light-mode colour and turning
+        // near-invisible. suggestedForegroundColor is
+        // colorScheme.defaultForegroundColor, so getting this right is what makes
+        // the rest follow.
+        //
+        // #386：回報環境主題，使在深色主題下繪製的文字為淺色，而非維持 light 模式的顏色而幾乎
+        // 不可見。suggestedForegroundColor 即 colorScheme.defaultForegroundColor，因此把這裡
+        // 弄對，其餘便隨之而正確。
+        return defaultEnvironment
             .with(\.appPhase, windows.contains(where: \.isActive) ? .active : .inactive)
+            .with(\.colorScheme, ambientColorScheme)
+    }
+
+    /// The colour scheme of the GTK theme the app started under.
+    ///
+    /// Read from the colour the theme gives a plain label, not from a settings
+    /// flag, because the flags do not carry the answer. Measured under GTK 4,
+    /// one process per theme:
+    ///
+    ///     GTK_THEME       label fg luma   gtk-theme-name   prefer-dark
+    ///     Adwaita         0.20 (light)    Default          false
+    ///     Adwaita:dark    0.93 (dark)     Default          false
+    ///     unset           0.20 (light)    Default          false
+    ///
+    /// The colour tracks the theme exactly, while `gtk-theme-name` and
+    /// `gtk-application-prefer-dark-theme` do not move at all -- so a backend
+    /// that trusts them reports "light" while the screen is dark, which is #386.
+    ///
+    /// Sampled once at the start of the main loop rather than on demand, for two
+    /// reasons. GTK has to be initialised before a label carries theme colours at
+    /// all. And honouring `preferredColorScheme` changes those colours, so a
+    /// later reading would report back whatever the app last asked for, losing
+    /// the ambient value an override is defined against.
+    ///
+    /// 由主題賦予一般 label 的顏色讀取，而非讀設定旗標，因為旗標並不帶有答案（上表為 GTK 4 實測，
+    /// 每個主題各一個獨立行程）：顏色完全跟隨主題，而 `gtk-theme-name` 與
+    /// `gtk-application-prefer-dark-theme` 完全不動——因此信任它們的 backend 會回報「light」而畫面
+    /// 是深色的，這正是 #386。
+    ///
+    /// 於主迴圈啟動時取樣一次而非即時讀取，有兩個理由：GTK 必須先初始化，label 才會帶有主題顏色；
+    /// 且遵從 `preferredColorScheme` 會改變那些顏色，因此較晚的讀取只會回報 app 最後一次的要求，
+    /// 使 override 所要對照的環境值遺失。
+    private var ambientColorScheme: ColorScheme = .light
+
+    /// The colour scheme the desktop itself is set to, where the platform has
+    /// one this backend can read and GTK does not already follow it.
+    ///
+    /// Only Windows: GTK there ships its own theme and does not track the system
+    /// light/dark setting, so an app would sit in Adwaita light on a dark
+    /// desktop. On Linux the GTK theme *is* the desktop setting, so reading the
+    /// theme's colour already answers the question and there is nothing separate
+    /// to consult.
+    ///
+    /// 平台自身所設定的配色，僅在「本 backend 讀得到、且 GTK 尚未跟隨」的情況下提供。
+    ///
+    /// 僅限 Windows：GTK 在該平台自帶主題，不會追蹤系統的淺色／深色設定，因此 app 會在深色桌面上
+    /// 停留於 Adwaita light。在 Linux 上，GTK 主題「就是」桌面的設定，因此讀取主題顏色便已回答了
+    /// 這個問題，無須另行查詢。
+    private var systemColorScheme: ColorScheme? {
+        #if os(Windows)
+            // HKCU\...\Themes\Personalize\AppsUseLightTheme, the value the
+            // Settings app writes for "Choose your default app mode": 0 is dark,
+            // 1 is light. Documented for exactly this purpose.
+            // 此即「Settings 中『選擇您的預設應用程式模式』」所寫入的值：0 為深色、1 為淺色。
+            var value: DWORD = 1
+            var size = DWORD(MemoryLayout<DWORD>.size)
+            let status = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"
+                .withCString(encodedAs: UTF16.self) { subKey in
+                    "AppsUseLightTheme".withCString(encodedAs: UTF16.self) { name in
+                        RegGetValueW(
+                            HKEY_CURRENT_USER,
+                            subKey,
+                            name,
+                            DWORD(RRF_RT_REG_DWORD),
+                            nil,
+                            &value,
+                            &size
+                        )
+                    }
+                }
+            guard status == ERROR_SUCCESS else { return nil }
+            return value == 0 ? .dark : .light
+        #else
+            return nil
+        #endif
+    }
+
+    /// Samples ``ambientColorScheme``. Must run with GTK initialised.
+    private func sampleAmbientColorScheme() {
+        // A throwaway label in a throwaway window, neither ever shown.
+        //
+        // Two things this has to get right, both measured rather than assumed.
+        // The widget must be one nothing has styled: reading a label
+        // SwiftCrossUI has already coloured (the measurement label, say) reads
+        // back what was last written to it rather than the theme -- a loop that
+        // returns the app's own last answer. And it must sit inside a window:
+        // GTK only resolves theme CSS for a widget that has a root, so a loose
+        // label reports the default white (measured: 1.0/1.0/1.0 under every
+        // theme, which reads as "dark" everywhere and is wrong everywhere).
+        // Being in a window is enough; the window need not be presented.
+        //
+        // 一個暫時性的 label 放在一個暫時性的視窗中，兩者皆不顯示。
+        //
+        // 此處有兩件事必須正確，且皆為實測而非假設。其一，該 widget 必須是沒有任何東西為其上色過
+        // 的：讀取 SwiftCrossUI 已上色的 label（例如測量用的那個）會讀回最後被寫入的顏色而非主題
+        // 色——該迴圈只會回傳 app 自己上次的答案。其二，它必須位於視窗之內：GTK 只會為「具有
+        // root」的 widget 解析主題 CSS，因此游離的 label 會回報預設的白色（實測：在每個主題下皆為
+        // 1.0/1.0/1.0，於是到處都判為「dark」，也就到處都是錯的）。置於視窗中即已足夠，該視窗
+        // 不需要被 present。
+        let probeWindow = Gtk.Window()
+        let probeLabel = Gtk.Label(string: "")
+        probeWindow.setChild(probeLabel)
+        let color = probeLabel.getColor()
+        probeWindow.destroy()
+
+        // Rec. 601 luma, the weighting used to decide whether text should be
+        // black or white on a background. A foreground lighter than mid-grey
+        // means the theme draws light text, so onto a dark background. The two
+        // measured values (0.20 and 0.93) are far from the midpoint.
+        let luma = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+        ambientColorScheme = luma > 0.5 ? .dark : .light
+
+        // Where the platform has a light/dark setting of its own that GTK does
+        // not follow -- Windows -- that setting wins, and GTK is asked for the
+        // matching variant so its own widgets match as well. Without this an app
+        // sits in GTK's light theme on a dark desktop, which is the same
+        // readability problem as #386 arriving from the other direction.
+        //
+        // 若平台本身有 GTK 不會跟隨的淺色／深色設定——即 Windows——則以該設定為準，並向 GTK 要求
+        // 對應的變體，使 GTK 自身的 widget 也一致。若無此段，app 會在深色桌面上停留於 GTK 的淺色
+        // 主題，那與 #386 是同一個可讀性問題、只是從另一個方向出現。
+        if let systemColorScheme, systemColorScheme != ambientColorScheme {
+            Gtk.Settings.default?.preferDarkTheme = (systemColorScheme == .dark)
+            ambientColorScheme = systemColorScheme
+        }
     }
 
     public func setRootEnvironmentChangeHandler(
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO: React to theme changes
+        // TODO: React to the desktop switching between light and dark while the
+        // app runs. The scheme is read once at launch (see
+        // sampleAmbientColorScheme), which covers the common case but means a
+        // running app keeps the scheme it started with.
+        //
+        // Subscribing to the GtkSettings notifications was tried and reverted:
+        // the notification arrives inside GTK's own property-change machinery,
+        // reached from a window update, and re-sampling has to build a window to
+        // read a themed colour from. Doing that there crashed, and deferring it
+        // to the next main-loop turn crashed as well. Whatever the fix is, it
+        // needs a way to read the theme without building a widget, or a safe
+        // point in the update cycle to re-read at -- neither of which is a small
+        // change, so it is left as a known gap rather than a half-working one.
+        //
+        // TODO：讓 app 在執行期間跟隨桌面於淺色與深色之間的切換。目前配色僅於啟動時讀取一次
+        //（見 sampleAmbientColorScheme），這涵蓋了常見情境，但執行中的 app 會維持啟動時的配色。
+        //
+        // 訂閱 GtkSettings 的通知曾經嘗試並已回退：該通知抵達於 GTK 自身的屬性變更流程之中，
+        // 而該流程由一次視窗更新所觸發，且重新取樣必須建立一個 widget 才能讀到主題顏色。在該處
+        // 建立會崩潰，延到主迴圈下一回合同樣崩潰。無論正確解法為何，都需要「不建立 widget 即可
+        // 讀取主題」的方法，或是更新週期中一個安全的重讀時點——兩者都不是小改動，因此將其記為
+        // 已知缺口，而非留下一個半可用的實作。
         self.rootEnvironmentChangeHandler = action
     }
 

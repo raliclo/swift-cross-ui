@@ -72,6 +72,15 @@ open class Widget: GObject {
         return Size(width: Int(width), height: Int(height))
     }
 
+    /// The foreground colour the current theme gives this widget.
+    ///
+    /// 目前主題賦予此 widget 的前景色。
+    public func getColor() -> Color {
+        var color = GdkRGBA()
+        gtk_widget_get_color(widgetPointer, &color)
+        return Color(color.red, color.green, color.blue, color.alpha)
+    }
+
     public func getNaturalSize() -> (width: Int, height: Int) {
         var minimumSize = GtkRequisition()
         var naturalSize = GtkRequisition()

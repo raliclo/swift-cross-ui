@@ -879,6 +879,96 @@ after switching to taller content.
 以 `GTK_THEME=Adwaita:dark ./P15` 執行。#386 並未如描述般重現；#289 明確重現，且切換為
 較高內容後不減反增。
 
+### #386 -- **fixed**: the scheme is now detected, overridable, and synced on Windows
+
+Three parts, each verified on WSL and on Windows.
+
+**Detection.** GtkBackend never reported a colour scheme at all, so
+`suggestedForegroundColor` stayed at its light-mode value whatever the desktop
+was doing. It now reads the colour the theme gives a plain label. The settings
+flags cannot answer this -- measured, one process per theme:
+
+| `GTK_THEME` | label fg luma | `gtk-theme-name` | `prefer-dark` |
+|---|---|---|---|
+| `Adwaita` | 0.20 (light) | `Default` | false |
+| `Adwaita:dark` | 0.93 (dark) | `Default` | false |
+| unset | 0.20 (light) | `Default` | false |
+
+The colour tracks the theme exactly while both flags sit still, so a backend
+trusting them reports "light" onto a dark screen -- which is #386.
+
+Two traps found by measuring rather than reasoning. The label must be one
+nothing has styled: reading SwiftCrossUI's own measurement label reads back the
+colour last written to it, a loop returning the app's previous answer. And it
+must sit **inside a window** -- GTK only resolves theme CSS for a widget with a
+root, so a loose label reports `1.0/1.0/1.0` under every theme (i.e. "dark"
+everywhere, wrong everywhere). It does not need to be presented.
+
+**Override.** `canOverrideWindowColorScheme` is now true and
+`preferredColorScheme` is honoured by asking GTK for the matching theme variant,
+so GTK's own widgets follow too, not just SwiftCrossUI-drawn text. Only when the
+app asks for something other than the ambient value: writing it unconditionally
+feeds the detection back into GTK, and the setting is global and sticky, so a run
+that asked for dark left the next run reporting dark under a light theme -- light
+text on a light background, worse than the original bug.
+
+**Windows system sync.** GTK on Windows ships its own theme and does not track
+the system light/dark setting, so an app sat in Adwaita light on a dark desktop.
+GtkBackend now reads `HKCU\...\Themes\Personalize\AppsUseLightTheme` and applies
+it. Verified both ways: with Windows in dark the window is dark and reports
+`Resolved: dark`; switching Windows to light and relaunching gives a light window
+reporting `Resolved: light`.
+
+Separately, WinUIBackend already read the system theme and subscribed to
+`colorValuesChanged` -- but on a temporary `UISettings`, released at the end of
+the statement, so the subscription died with it and a theme change while running
+was never noticed. It is now held for the life of the backend.
+
+**Known gap.** GtkBackend still reads the scheme once at launch; it does not
+follow the desktop switching light/dark while the app runs. Subscribing to the
+GtkSettings notifications was tried and reverted -- the notification arrives
+inside GTK's property-change machinery, reached from a window update, and
+re-sampling has to build a widget to read a themed colour from; doing that there
+crashed, and deferring to the next main-loop turn crashed too. It needs either a
+way to read the theme without building a widget or a safe point in the update
+cycle, so it is left as a documented gap rather than a half-working feature.
+Windows-side dynamic change is handled (WinUIBackend, above).
+
+### #386——**已修**：配色現在可偵測、可覆寫，且在 Windows 上與系統同步
+
+三個部分，皆於 WSL 與 Windows 驗證。
+
+**偵測**：GtkBackend 從不回報配色，因此無論桌面如何，`suggestedForegroundColor` 都停在 light 模式
+的值。現在改為讀取主題賦予一般 label 的顏色。設定旗標無法回答此問題——上表為實測（每個主題各一個
+獨立行程）：顏色完全跟隨主題，兩個旗標則毫不移動，因此信任它們的 backend 會在深色畫面上回報
+「light」，這正是 #386。
+
+兩個以量測而非推理找出的陷阱：該 label 必須是沒有任何東西為其上色過的——讀取 SwiftCrossUI 自己的
+測量 label 會讀回最後寫入它的顏色，形成回傳 app 前次答案的迴圈；且它必須位於**視窗之內**——GTK 只
+為具有 root 的 widget 解析主題 CSS，因此游離的 label 在每個主題下都回報 `1.0/1.0/1.0`（即到處都是
+「dark」、也到處都錯）。該視窗不需要被 present。
+
+**覆寫**：`canOverrideWindowColorScheme` 現為 true，並藉由向 GTK 要求對應的主題變體來遵從
+`preferredColorScheme`，使 GTK 自身的 widget 也跟隨，而不僅是 SwiftCrossUI 繪製的文字。僅在 app
+要求了與環境值不同的配色時才寫入：無條件寫入會把偵測結果回饋給 GTK，而該設定為全域且具黏性，
+因此一次要求 dark 的執行，會讓下一次在淺色主題下的執行回報 dark——淺色文字畫在淺色背景上，比原本的
+bug 更糟。
+
+**Windows 系統同步**：GTK 在 Windows 自帶主題，不會追蹤系統的淺色／深色設定，因此 app 會在深色桌面
+上停留於 Adwaita light。GtkBackend 現在讀取
+`HKCU\...\Themes\Personalize\AppsUseLightTheme` 並套用之。雙向驗證：Windows 為深色時視窗為深色且回報
+`Resolved: dark`；將 Windows 切為淺色並重新啟動後，視窗為淺色且回報 `Resolved: light`。
+
+另外，WinUIBackend 原本就會讀取系統主題並訂閱 `colorValuesChanged`——但訂閱建立在一個臨時的
+`UISettings` 上，該物件於陳述式結束時即被釋放，訂閱也隨之消失，因此執行期間的主題變更從未被察覺。
+現在改為與 backend 同壽持有。
+
+**已知缺口**：GtkBackend 仍只在啟動時讀取一次配色，不會在 app 執行期間跟隨桌面的淺色／深色切換。
+訂閱 GtkSettings 通知曾嘗試並已回退——該通知抵達於 GTK 的屬性變更流程之中，而該流程由一次視窗更新
+所觸發，且重新取樣必須建立 widget 才能讀到主題顏色；在該處建立會崩潰，延到主迴圈下一回合同樣崩潰。
+它需要「不建立 widget 即可讀取主題」的方法，或更新週期中一個安全的時點，因此將其記為有文件記載的
+缺口，而非留下半可用的功能。Windows 端的動態變更已處理（見上方 WinUIBackend）。
+
 ### #386 -- plain text stays legible against the dark background
 
 With the dark GTK theme applied, the window background is genuinely dark and
