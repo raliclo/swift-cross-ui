@@ -132,6 +132,11 @@ run anywhere counts, and disagreement between two platforms is the finding.
 P5 and P6 carry no upstream issue numbers: P5 is multi-window alerts, P6 is the
 Windows GPU video path that the NV12 work came out of.
 
+P25 covers cross-platform drag-and-drop, P28 covers AppKit hit-testing
+pass-through, P29 covers visual fidelity, and P37 covers window levels. These
+feature apps are included in the macOS source matrix even though they are not
+upstream issue rows.
+
 ## What to run, by machine
 
 🌊 **WSLg**, on the Windows workstation -- 17 issues, plus #291 and #415 as

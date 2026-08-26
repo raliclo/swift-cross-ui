@@ -487,7 +487,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public func show(widget: Widget) {}
 
     public func createContainer() -> Widget {
-        let container = NSView()
+        let container = AppKitHitTestingContainer()
         container.translatesAutoresizingMaskIntoConstraints = false
         return container
     }

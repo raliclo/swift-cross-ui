@@ -215,6 +215,21 @@ P14 未涵蓋：
 
 ---
 
+## 沒有 upstream issue 的 macOS 功能覆蓋
+
+下列 app 覆蓋尚未分配 upstream issue 的 AppKit 功能：
+
+| App | 功能 | macOS 檢查 |
+| --- | --- | --- |
+| P25 | Drag and drop | 將檔案拖到接受區，確認懸停回饋與收到的 file URL payload。 |
+| P28 | Hit testing | 點擊藍色 overlay；點擊必須穿透並增加下方按鈕的計數。 |
+| P29 | 視覺保真度 | 依文件中的對照項目檢查不確定進度條、裁切與停用 editor。 |
+| P37 | Window levels | 將另一個視窗覆蓋到 app 上，確認選定的 window-level 行為。 |
+
+P28 的可量測結果是 `Clicks received` 計數器，以及
+`p28-debug-events.log` 中的 `underlying button clicked` 記錄。若可見的 overlay
+吃掉點擊，即使 overlay 本身繪製正確，仍是 AppKit regression。
+
 ## 測試紀錄模板
 
 ```text

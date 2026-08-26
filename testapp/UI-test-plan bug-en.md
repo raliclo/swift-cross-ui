@@ -243,6 +243,22 @@ Expected results:
   identifiable list beside it is the control showing the same data is fine when
   identity is explicit.
 
+## macOS feature coverage without an upstream issue
+
+The following apps cover AppKit features that are not assigned an open issue:
+
+| App | Feature | macOS check |
+| --- | --- | --- |
+| P25 | Drag and drop | Drag a file onto the accepting area; verify hover feedback and the received file URL payload. |
+| P28 | Hit testing | Click the blue overlay; the click must pass through and increment the button below. |
+| P29 | Visual fidelity | Compare the indeterminate progress bar, clipping and disabled editor behaviour against the stated controls. |
+| P37 | Window levels | Place another window over the app and verify the selected window-level behaviour. |
+
+For P28, the measurable result is the `Clicks received` counter and the
+`underlying button clicked` entries in `p28-debug-events.log`. A visible overlay
+that consumes the click is an AppKit regression even if the overlay itself is
+drawn correctly.
+
 ---
 
 ## P14: Rotation Size Proposals And Theme (iOS Simulator)
