@@ -286,6 +286,49 @@ if [ -n "$host_default" ] && [[ ! " ${host_targets[*]} " == *" $target "* ]]; th
     target="$host_default"
 fi
 
+# Takes a screenshot and says so when it does not.
+#
+# The call sites used to end in `|| true`, which was accurate while
+# screenshot.zsh exited 0 whatever happened -- it could not fail, so there was
+# nothing to swallow. It can now: 1 when it produced no image, 3 when the host
+# has no capture path at all. `|| true` would discard exactly the signal that
+# was missing before.
+#
+# The run is not aborted. A screenshot is evidence, not the assertion, and a
+# window that rendered and logged its diagnostics is still worth reading. But
+# the failure is announced where it happens and counted for the summary, so a
+# run that produced no pictures cannot look like one that did.
+#
+# 擷取畫面；若未能擷取，就明白說出來。
+#
+# 各呼叫點原本以 `|| true` 結尾，而在 screenshot.zsh 無論如何都回傳 0 的年代，那是準確的——它不
+# 可能失敗，因此也沒有什麼可被吞掉。現在它會失敗了：未產生影像時回傳 1，主機根本沒有擷取路徑時
+# 回傳 3。`|| true` 會恰好丟棄那個先前一直欠缺的訊號。
+#
+# 執行不會因此中止。截圖是證據而非斷言，一個已完成繪製並寫下診斷的視窗仍然值得閱讀。但失敗會在
+# 它發生之處被公告，並計入摘要——如此一來，一次沒有產出任何圖片的執行，就不會看起來像有產出。
+screenshot_failures=0
+capture() {
+    zsh "$script_dir/screenshot.zsh" "$@"
+    # Not `status`. That is one of zsh's special parameters -- a read-only alias
+    # for $? -- so `local status=$?` aborts the run with
+    # "capture:2: read-only variable: status". The same family as `path`,
+    # `options` and `watch`; this file's own notes warn about it, and the warning
+    # was still not enough to avoid it.
+    # 不用 `status`。它是 zsh 的特殊參數之一——`$?` 的唯讀別名——因此 `local status=$?` 會以
+    # 「capture:2: read-only variable: status」中止執行。與 `path`、`options`、`watch` 同一族；
+    # 本檔自身的註解已提出警告，而該警告仍不足以讓人避開它。
+    local rc=$?
+    [ "$rc" -eq 0 ] && return 0
+
+    screenshot_failures=$(( screenshot_failures + 1 ))
+    case "$rc" in
+        3) printf '!! no screenshot: this host has no capture path (screenshot.zsh exited 3)\n' >&2 ;;
+        *) printf '!! no screenshot: screenshot.zsh exited %d and produced no image\n' "$rc" >&2 ;;
+    esac
+    return 0
+}
+
 showtime() {
     local label="$1"
 
@@ -530,12 +573,12 @@ run_windows() {
         ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)args} >/dev/null 2>&1 & )
     fi
 
-    zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-1s" || true
+    capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_windows "$out"; then
         showtime "Windows $app"
-        zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-final" || true
+        capture -d 1 -w "$title" "$label-final"
     else
-        zsh "$script_dir/screenshot.zsh" -d 0 -w "$title" "$label-timeout" || true
+        capture -d 0 -w "$title" "$label-timeout"
     fi
 
     if MSYS2_ARG_CONV_EXCL='*' taskkill.exe /F /IM "$app.exe" 2>&1 | grep -q SUCCESS; then
@@ -640,12 +683,12 @@ run_wsl() {
         >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
-    zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-1s" || true
+    capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_wsl; then
         showtime "WSLg $app"
-        zsh "$script_dir/screenshot.zsh" -d 1 -w "$title" "$label-final" || true
+        capture -d 1 -w "$title" "$label-final"
     else
-        zsh "$script_dir/screenshot.zsh" -d 0 -w "$title" "$label-timeout" || true
+        capture -d 0 -w "$title" "$label-timeout"
     fi
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "pkill -x '$app' 2>/dev/null" || true
@@ -681,8 +724,18 @@ run_macos() {
     printf '==> Launching %s on macOS\n' "$app"
     ( cd "$out" && env ${(z)app_env} "./$app" ${(q)args} >"$action_log" 2>&1 & )
 
+    # macOS took no screenshots at all until now -- not failed ones, none. The
+    # run announced "final screenshot follows" and then did not follow, because
+    # screenshot.zsh had no macOS path to call. It has one now.
+    # macOS 在此之前完全不曾截圖——不是失敗，而是根本沒有嘗試。執行過程會宣告
+    # 「final screenshot follows」，然後並未跟上，因為 screenshot.zsh 當時沒有 macOS 路徑可供
+    # 呼叫。現在它有了。
+    capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_macos; then
         showtime "macOS $app"
+        capture -d 1 -w "$title" "$label-final"
+    else
+        capture -d 0 -w "$title" "$label-timeout"
     fi
 
     pkill -TERM -x "$app" 2>/dev/null || true
