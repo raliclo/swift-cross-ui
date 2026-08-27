@@ -19,6 +19,18 @@ showtime_seconds="${TEST_SHOWTIME_SECONDS:-30}"
 target="${TEST_TARGET:-wsl}"
 target_explicit=0
 device_name=""
+
+# Where the macOS run assembles its .app, and what it assembles from.
+#
+# The bundle is kept out of Git and only the small template is tracked; each run
+# replaces one executable inside it. See run_macos for why it is built at all.
+# macOS 執行時所組出的 .app 位置，以及其來源。該 bundle 不納入 Git，僅追蹤小型 template；
+# 每次執行只替換其中的一個執行檔。為何要組 bundle，見 run_macos。
+mac_bundle_root="$script_dir/.macApp"
+mac_template_dir="$script_dir/macContainer/appTemplate.app"
+mac_bundle_dir="$mac_bundle_root/debugTarget.app"
+mac_bundle_executable="$mac_bundle_dir/debugTarget"
+mac_app_pid=""
 do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
@@ -345,7 +357,15 @@ kill_existing() {
     printf '==> Closing any running %s\n' "$app"
 
     if [ "$target" = "macos" ]; then
+        # Both names. A bundled run is a process called debugTarget whatever Pn
+        # it is -- that is the bundle's identity, not the app's -- so `pkill -x
+        # $app` alone would leave a previous run alive and the next one would
+        # screenshot the wrong window.
+        # 兩個名稱都要。經 bundle 的執行，無論是哪一支 Pn，行程名都是 debugTarget——那是 bundle
+        # 的身分而非 app 的——因此僅用 `pkill -x $app` 會讓前一次執行存活下來，而下一次執行就會
+        # 截到錯的視窗。
         pkill -TERM -x "$app" 2>/dev/null || true
+        pkill -TERM -x debugTarget 2>/dev/null || true
         printf '    macOS: clear\n'
         return 0
     fi
@@ -721,8 +741,43 @@ run_macos() {
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
 
-    printf '==> Launching %s on macOS\n' "$app"
-    ( cd "$out" && env ${(z)app_env} "./$app" ${(q)args} >"$action_log" 2>&1 & )
+    # Launched from a .app, not as a bare executable.
+    #
+    # SwiftPM produces a Mach-O with no Info.plist, so a bare launch has no
+    # bundle identifier -- measured: lsappinfo reports bundleID=[ NULL ]. Anything
+    # keyed on that identity behaves differently or not at all: NSWindow frame
+    # autosave (upstream #383), AppStorage and any UserDefaults suite, and the
+    # app's Dock and menu-bar identity. Copying the tracked template around the
+    # built executable gives it one -- measured on the same binary:
+    # bundleID="dev.swiftcrossui.testapp.debugTarget".
+    #
+    # The identity belongs to the bundle, so the process is called debugTarget
+    # whichever Pn it is. That is why the pid is kept and why kill_existing
+    # sweeps both names; killing by "$app" would miss it entirely.
+    #
+    # 以 .app 啟動，而非裸執行檔。
+    #
+    # SwiftPM 產出的是沒有 Info.plist 的 Mach-O，因此裸啟動不具 bundle identifier——實測：
+    # lsappinfo 回報 bundleID=[ NULL ]。任何以該身分為鍵的東西행為都會不同或根本失效：NSWindow
+    # 的 frame autosave（upstream #383）、AppStorage 與任何 UserDefaults suite，以及該 app 在
+    # Dock 與選單列上的身分。把已納入版本控制的 template 套在建置好的執行檔外層即可賦予它身分——
+    # 同一個 binary 實測：bundleID="dev.swiftcrossui.testapp.debugTarget"。
+    #
+    # 該身分屬於 bundle，因此無論是哪一支 Pn，行程名都是 debugTarget。這正是要保留 pid、且
+    # kill_existing 必須兩個名稱都掃的理由；只用 "$app" 去 kill 會完全落空。
+    if [ ! -d "$mac_template_dir" ]; then
+        printf 'Missing macOS app template: %s\n' "$mac_template_dir" >&2
+        return 1
+    fi
+    mkdir -p "$mac_bundle_dir"
+    cp "$mac_template_dir/Info.plist" "$mac_bundle_dir/Info.plist"
+    cp "$mac_template_dir/PkgInfo" "$mac_bundle_dir/PkgInfo"
+    rm -f "$mac_bundle_executable"
+    cp "$out/$app" "$mac_bundle_executable"
+    chmod +x "$mac_bundle_executable"
+
+    printf '==> Launching %s on macOS from .macApp/debugTarget.app\n' "$app"
+    ( cd "$out" && env ${(z)app_env} "$mac_bundle_executable" ${(q)args} >"$action_log" 2>&1 & )
 
     # macOS took no screenshots at all until now -- not failed ones, none. The
     # run announced "final screenshot follows" and then did not follow, because
@@ -738,6 +793,7 @@ run_macos() {
         capture -d 0 -w "$title" "$label-timeout"
     fi
 
+    pkill -TERM -x debugTarget 2>/dev/null || true
     pkill -TERM -x "$app" 2>/dev/null || true
     printf '==> Closed %s on macOS\n' "$app"
     print_summary_macos
