@@ -4,3 +4,6 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,control,P10,ok,ok,window,""
 2026-08-27,windows,gtk4,P10,ok,ok,window,""
 2026-08-27,windows,liststyle,P7,ok,ok,window,""
+2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 before the fix: Light then Dark left a light window with dark-scheme text"
+2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 after the fix: same action file, window is dark and legible"
+2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 control: Light alone still goes light, so the other direction is intact"

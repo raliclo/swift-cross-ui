@@ -15,18 +15,46 @@ import SwiftCrossUI
 // Two things worth knowing before reading the results, both checked in the
 // source rather than assumed:
 //
-// - GtkBackend.swift declares `canOverrideWindowColorScheme = false`, and
-//   GtkBackend.swift:200 carries a `TODO(stackotter): Support
-//   preferredColorScheme`. So the scheme buttons below are expected to do
-//   nothing on GtkBackend. They are here as the control: the same build on
-//   WinUIBackend does honour them, which separates "the override is missing"
-//   from "the colours are wrong".
-// - The real #386 test is therefore the ambient theme, not the override:
+// - GtkBackend now declares `canOverrideWindowColorScheme = true`, so the
+//   scheme buttons below do change what is drawn. Superseded 2026-08-27; the
+//   text kept below is what this header said until then, because it is the
+//   reason the app prints a `Requested:`/`Resolved:` pair at all and that line
+//   is still what makes a dead click distinguishable from an honoured one.
+//
+//       "GtkBackend.swift declares `canOverrideWindowColorScheme = false` [...]
+//        So the scheme buttons below are expected to do nothing on GtkBackend.
+//        They are here as the control: the same build on WinUIBackend does
+//        honour them, which separates 'the override is missing' from 'the
+//        colours are wrong'."
+//
+// - The ambient theme is still worth testing separately, since no click can set
+//   it:
 //
 //       GTK_THEME=Adwaita:dark ./testapp/output/P15
 //
 //   That makes Gtk render dark without the app asking, which is the situation
 //   the upstream screenshots were taken in.
+//
+// - Press Light and then Dark, in that order. Pressing Dark alone under a dark
+//   desktop proves nothing, because the window was already dark. The round trip
+//   is what found the bug: until 2026-08-27, GtkBackend compared the request
+//   against the *ambient* scheme, so returning to the ambient value wrote
+//   nothing and left Gtk in the overridden theme -- dark text colours over a
+//   light window.
+//
+// 讀結果之前值得知道的兩件事，皆查證於原始碼而非臆測：
+//
+// - GtkBackend 現在宣告 `canOverrideWindowColorScheme = true`，因此下方的配色按鈕確實會改變繪製
+//   結果。此處於 2026-08-27 被取代；上方保留的引文是在那之前本表頭的說法，因為它正是本 app 會
+//   印出 `Requested:`／`Resolved:` 這一組值的理由，而該行至今仍是「無效點擊」與「已被遵從的
+//   點擊」之間唯一的區別。
+//
+// - 環境主題仍值得單獨測試，因為沒有任何點擊能設定它（指令同上）。
+//
+// - 請依序按下 Light 再按 Dark。在深色桌面下單獨按 Dark 什麼也證明不了，因為視窗本來就是深色的。
+//   真正找出問題的是這趟來回：在 2026-08-27 之前，GtkBackend 是拿要求值與「環境」配色比較，
+//   因此「回到環境值」不會寫入任何東西，Gtk 便停留在被覆寫後的主題——深色的文字配色畫在淺色
+//   視窗上。
 //
 // WSLg runs a Wayland compositor, and Gtk draws client-side decorations under
 // Wayland, so #289's precondition holds here. That is not the same as Fedora
@@ -110,11 +138,11 @@ struct P15RootView: View {
                     }
                     Button("Light") {
                         scheme = .light
-                        status = "Requested light. GtkBackend is expected to ignore this."
+                        status = "Requested light. The window should follow, chrome included."
                     }
                     Button("Dark") {
                         scheme = .dark
-                        status = "Requested dark. GtkBackend is expected to ignore this."
+                        status = "Requested dark. The window should follow, chrome included."
                     }
                 }
 

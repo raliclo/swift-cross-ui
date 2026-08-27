@@ -346,6 +346,18 @@ gave -38,-59 at one and 154,-6 at the other.
   `gsettings set` produces zero notifications across all 55 `GtkSettings`
   properties, because WSLg has no `xdg-desktop-portal`, no XSettings manager and
   no libadwaita. Needs a real GNOME desktop.
+- **Done 2026-08-27: returning to the ambient colour scheme left Gtk in the
+  overridden one.** `updateWindow` compared `preferredColorScheme` against
+  `ambientColorScheme`, so a request that *matched* ambient wrote nothing — and
+  after an earlier request had already moved Gtk away, nothing moved it back.
+  Reproduced on Windows with the desktop in dark mode by driving
+  `actions/win/P15-colour-scheme.csv`, which presses Light then Dark: P15 ended
+  up reporting `Requested: dark  Resolved: dark` over a light window with
+  dark-scheme (light) text, almost entirely illegible. Now compared against what
+  the backend last told Gtk to draw, so the round trip writes. An app that never
+  overrides still writes nothing after the startup sample, which is the property
+  the old comparison was there for. Pressing Dark alone on a dark desktop passes
+  either way — the round trip is the test.
 - **`windowScaleFactor` never propagates**, and `WinUIBackend` has the identical
   gap. `computeWindowEnvironment` never computes it and the Gtk module has no
   binding for it. Window *activation* already propagates correctly — the issue's

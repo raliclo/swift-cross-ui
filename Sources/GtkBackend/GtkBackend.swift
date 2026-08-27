@@ -350,8 +350,39 @@ public final class GtkBackend:
         // 而下一次更新即是重試。
         _ = scui_window_set_dark_titlebar(window.widgetPointer, requested == .dark ? 1 : 0)
 
-        guard requested != ambientColorScheme else { return }
-        Gtk.Settings.default?.preferDarkTheme = (requested == .dark)
+        // Against what GTK is currently showing, not against the ambient scheme.
+        //
+        // Comparing with the ambient scheme was wrong in one direction only, and
+        // that direction is a round trip. Measured 2026-08-27 on Windows with the
+        // desktop in dark mode, driving actions/win/P15-colour-scheme.csv, which
+        // presses Light and then Dark: the Light press differs from ambient, so
+        // it writes `false` and GTK goes light; the Dark press equals ambient, so
+        // the guard returns and nothing writes `true` back. GTK stays light while
+        // the environment says dark, so SwiftCrossUI draws light text on it --
+        // P15 ends up reporting `Requested: dark  Resolved: dark` over a window
+        // that is almost entirely illegible.
+        //
+        // Tracking the write keeps the property the old guard was there for. An
+        // app that never overrides still writes nothing after the startup sample,
+        // so the "global and sticky, outlives the app" concern is unchanged; the
+        // only new write is the one that returns GTK to where it started.
+        //
+        // 與「GTK 目前實際顯示的狀態」比較，而非與環境配色比較。
+        //
+        // 與環境配色比較只在單一方向上是錯的，而那個方向就是「來回切換」。2026-08-27 於 Windows、
+        // 桌面為深色模式下實測，驅動 actions/win/P15-colour-scheme.csv（該檔先按 Light 再按 Dark）：
+        // Light 那次與 ambient 不同，於是寫入 `false`，GTK 轉為淺色；Dark 那次與 ambient 相同，
+        // guard 直接 return，沒有任何地方把 `true` 寫回去。GTK 停留在淺色，而 environment 說是深色，
+        // 於是 SwiftCrossUI 在其上繪製淺色文字——P15 最後回報 `Requested: dark  Resolved: dark`，
+        // 而視窗幾乎完全無法閱讀。
+        //
+        // 追蹤寫入值可保留舊 guard 所要維護的性質：從不覆寫配色的 app，在啟動取樣之後依然不會寫入
+        // 任何東西，因此「全域且具黏性、效果比 app 存活更久」這項顧慮並未改變；唯一新增的寫入，
+        // 正是那次「把 GTK 帶回它原本狀態」的寫入。
+        let wantsDarkTheme = (requested == .dark)
+        guard wantsDarkTheme != gtkPrefersDarkTheme else { return }
+        Gtk.Settings.default?.preferDarkTheme = wantsDarkTheme
+        gtkPrefersDarkTheme = wantsDarkTheme
     }
 
     public func setTitle(ofWindow window: Window, to title: String) {
@@ -838,6 +869,22 @@ public final class GtkBackend:
     /// 使 override 所要對照的環境值遺失。
     private var ambientColorScheme: ColorScheme = .light
 
+    /// Which variant GTK is currently drawing, as far as this backend knows.
+    ///
+    /// Not read back from `Gtk.Settings`, because the flag does not carry the
+    /// answer -- that is the measurement recorded on ``ambientColorScheme``,
+    /// where `Adwaita:dark` leaves `gtk-application-prefer-dark-theme` at false.
+    /// It does report a value this backend wrote, though, which is all
+    /// `updateWindow` needs to know: whether its own last write still stands.
+    ///
+    /// 就本 backend 所知，GTK 目前正在繪製的變體。
+    ///
+    /// 並非自 `Gtk.Settings` 讀回，因為該旗標並不帶有答案——這正是記錄於 ``ambientColorScheme``
+    /// 的實測結果：`Adwaita:dark` 之下 `gtk-application-prefer-dark-theme` 仍為 false。不過它確實
+    /// 能回報「本 backend 曾寫入的值」，而那正是 `updateWindow` 所需的全部資訊：它自己上一次的
+    /// 寫入是否仍然有效。
+    private var gtkPrefersDarkTheme = false
+
     /// The colour scheme the desktop itself is set to, where the platform has
     /// one this backend can read and GTK does not already follow it.
     ///
@@ -929,6 +976,15 @@ public final class GtkBackend:
             Gtk.Settings.default?.preferDarkTheme = (systemColorScheme == .dark)
             ambientColorScheme = systemColorScheme
         }
+
+        // Seeded from the scheme rather than from the branch above, because both
+        // paths end with GTK drawing `ambientColorScheme`: with the branch taken
+        // because it just wrote the flag, without it because the flag was never
+        // needed. `updateWindow` compares against this.
+        // 由配色本身設定，而非由上方分支設定，因為兩條路徑最終都是「GTK 正在繪製
+        // `ambientColorScheme`」：走進分支時是因為剛寫入旗標，未走進時則是因為根本不需要寫。
+        // `updateWindow` 即以此值作為比較對象。
+        gtkPrefersDarkTheme = (ambientColorScheme == .dark)
     }
 
     public func setRootEnvironmentChangeHandler(

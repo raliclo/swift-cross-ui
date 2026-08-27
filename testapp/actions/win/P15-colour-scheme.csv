@@ -2,25 +2,43 @@ action,x,y,origin,button,key,micros,note,platform
 # P15 on Windows, GtkBackend: press each colour-scheme button and watch the
 # "Requested:" line.
 #
-# GtkBackend declares `canOverrideWindowColorScheme = false`, so these buttons
-# are EXPECTED to change nothing visible. That is why the app prints
-# "Requested: X  Resolved: Y" -- `Requested` moves because the click landed,
-# `Resolved` stays because the backend does not honour it. Without that line a
-# working click and a dead one would look identical, which is the trap this
-# file exists to avoid.
+# GtkBackend declares `canOverrideWindowColorScheme = true`, so these buttons
+# are expected to change what is drawn -- window, widgets and, on Windows, the
+# native title bar. The app still prints "Requested: X  Resolved: Y" because
+# without it a working click and a dead one look identical, which is the trap
+# this file exists to avoid.
 #
-# The real #386 test is the ambient theme, not the override, and no action file
-# can set it: `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` is what the
-# upstream screenshots were taken under.
+# Corrected 2026-08-27. Until then this header said the opposite -- `= false`,
+# and "these buttons are EXPECTED to change nothing visible" -- which had been
+# true before #386 and was quietly false afterwards. Kept rather than replaced
+# because a file whose whole job is to say what should happen is exactly the
+# kind that goes stale without anything failing.
+#
+# The order below matters and is not decoration. Light then Dark is a round
+# trip back to the ambient scheme, and that second press is what #62 was: the
+# backend compared the request against the ambient value, so returning to it
+# wrote nothing, Gtk stayed light, and SwiftCrossUI drew dark-scheme text on it.
+# Pressing Dark alone on a dark desktop would have passed.
+#
+# The ambient theme is still worth testing separately, since no action file can
+# set it: `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` is what the upstream
+# screenshots were taken under.
 #
 # P15 於 Windows、GtkBackend：按下每個配色方案按鈕，並觀察「Requested:」那一行。
 #
-# GtkBackend 宣告 `canOverrideWindowColorScheme = false`，因此這些按鈕**預期**不會改變任何可見的
-# 東西。這正是本 app 印出「Requested: X  Resolved: Y」的理由——`Requested` 會變動代表點擊命中，
-# `Resolved` 不變則代表 backend 並不遵守它。少了那一行，「有效的點擊」與「無效的點擊」看起來
-# 一模一樣，而本檔正是為了避開這個陷阱而存在。
+# GtkBackend 宣告 `canOverrideWindowColorScheme = true`，因此這些按鈕預期會改變繪製結果——視窗、
+# widget，以及在 Windows 上的原生標題列。本 app 仍會印出「Requested: X  Resolved: Y」，因為少了
+# 那一行，「有效的點擊」與「無效的點擊」看起來一模一樣，而本檔正是為了避開這個陷阱而存在。
 #
-# 真正的 #386 測試是環境主題而非覆寫，且沒有任何動作檔能設定它：上游的截圖是在
+# 於 2026-08-27 更正。在此之前本表頭寫的是相反的內容——`= false`，以及「這些按鈕**預期**不會改變
+# 任何可見的東西」——那在 #386 之前為真，之後便悄悄變成假的。此處選擇保留原文而非直接抹去，因為
+# 「整份工作就是描述應該發生什麼」的檔案，正是最容易在無任何失敗的情況下過時的那一種。
+#
+# 下方的順序是有意義的，不是排版。先 Light 再 Dark 是一趟「回到環境配色」的來回，而第二次按下
+# 正是 #62 之所在：backend 拿要求值與環境值比較，因此回到環境值時不會寫入任何東西，Gtk 停留在
+# 淺色，而 SwiftCrossUI 在其上以深色配色繪製文字。若只單按 Dark，在深色桌面下會通過。
+#
+# 環境主題仍值得單獨測試，因為沒有任何動作檔能設定它：上游的截圖是在
 # `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` 之下取得的。
 #
 # Measured on a 748x558 window capture at 100% display scale.
