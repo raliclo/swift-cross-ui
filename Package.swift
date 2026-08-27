@@ -714,7 +714,11 @@ if hostBackendsOnly {
 // 採「掃描套用」而非逐 target 寫入，理由與上方的 dependency 掃描相同：有數個 target 根本不傳
 // swiftSettings，而那些正是逐一手動處理時會漏掉的。不接受 Swift 設定的 target（C 與
 // systemLibrary 類）則不予變更。
-let migratedToSwift6: Set<String> = ["SwiftCrossUI", "GtkBackend", "WinUIBackend"]
+let migratedToSwift6: Set<String> = [
+    "SwiftCrossUI", "GtkBackend", "WinUIBackend",
+    "DebugFeatures", "InputEvent", "DummyBackend", "DefaultBackend",
+    "SwiftCrossUIMacrosPlugin", "Gtk",
+]
 
 // A name that matches no target is a typo, and a typo here is silent: the
 // target stays on v5, the build passes, and the target reads as migrated when

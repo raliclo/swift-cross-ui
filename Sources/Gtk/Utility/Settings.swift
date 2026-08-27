@@ -21,7 +21,16 @@ public class Settings: GObject {
     /// `Settings.default?.registerNotification(...)` used to connect and
     /// disconnect in the same expression and could never fire. Caching removes
     /// that trap for every caller instead of asking each one to remember it.
-    private static var cachedDefault: Settings?
+    /// `nonisolated(unsafe)` because GTK is single-threaded by contract: every
+    /// GTK call, including the one that fills this cache, must happen on the
+    /// thread that ran `gtk_init`. That is a rule the compiler cannot see, and
+    /// it is the same reason `WinUIBackend`'s `windowsByHWND` carries the same
+    /// annotation.
+    ///
+    /// 標記 `nonisolated(unsafe)`，因為 GTK 依其約定是單執行緒的：所有 GTK 呼叫——包含填入此快取
+    /// 的那一次——都必須發生在執行 `gtk_init` 的那條執行緒上。這是編譯器看不到的規則，也正是
+    /// `WinUIBackend` 的 `windowsByHWND` 帶有相同標註的理由。
+    private nonisolated(unsafe) static var cachedDefault: Settings?
 
     /// The settings object for the default display, or `nil` if there is no
     /// display yet.

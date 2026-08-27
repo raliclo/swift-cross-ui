@@ -89,7 +89,36 @@ private final class FrameInbox: @unchecked Sendable {
 
 /// Carries a weak view reference through a C callback's void pointer.
 /// 透過 C callback 的 void 指標攜帶對 view 的弱參照。
-private final class WeakViewBox {
+/// `@unchecked Sendable` so the opaque pointer made from it can be handed to a
+/// C callback.
+///
+/// Region-based isolation is what needs convincing, not the pointer. A box
+/// holding a main-actor-isolated view is in that view's region, so passing the
+/// pointer into `gtk_widget_add_tick_callback` reads as sending `self` --
+/// "sending 'box' risks causing data races" under the Swift 6 language mode.
+///
+/// `nonisolated(unsafe)` on the local does **not** fix it, which is the second
+/// time that has been true today: it works for a reference being passed along,
+/// and not for a value whose region contains isolated state, nor for a closure's
+/// type. Both of those needed a type-level assertion instead.
+///
+/// What is asserted is GTK's own rule: the tick callback runs on the thread that
+/// ran `gtk_init`, which the callback body already states with
+/// `MainActor.assumeIsolated`.
+///
+/// 標記 `@unchecked Sendable`，如此由它產生的 opaque 指標才能交給 C callback。
+///
+/// 需要被說服的是 region-based isolation，而不是那個指標。一個持有 main-actor 隔離 view 的盒子，
+/// 位於該 view 的 region 之內，因此把指標傳入 `gtk_widget_add_tick_callback` 會被讀成「送出
+/// `self`」——在 Swift 6 語言模式下即為「sending 'box' risks causing data races」。
+///
+/// 在區域變數上標 `nonisolated(unsafe)` **無法**解決，而這已是今日第二次如此：它對「傳遞中的
+/// 參考」有效，但對「region 中含有受隔離狀態的值」無效，對 closure 的型別亦然。這兩者都改以
+/// 型別層級的擔保解決。
+///
+/// 此處擔保的是 GTK 自身的規則：tick callback 執行於執行 `gtk_init` 的那條執行緒上，而該 callback
+/// 的本體已以 `MainActor.assumeIsolated` 陳述了這一點。
+private final class WeakViewBox: @unchecked Sendable {
     weak var view: NV12GLView?
     init(_ view: NV12GLView?) { self.view = view }
 }
@@ -211,6 +240,10 @@ public class NV12GLView: GLArea {
     /// Installs the frame-clock tick callback. Called once, at construction.
     /// 安裝 frame clock 的 tick callback。僅於建構時呼叫一次。
     private func installTickCallback() {
+        // See `WeakViewBox` for why it is `@unchecked Sendable`; without that,
+        // this line is a `#SendingRisksDataRace` error under Swift 6.
+        // `WeakViewBox` 為何標記 `@unchecked Sendable`，見其宣告處；少了它，這一行在 Swift 6 下
+        // 會是一個 `#SendingRisksDataRace` 錯誤。
         let box = Unmanaged.passRetained(WeakViewBox(self)).toOpaque()
         gtk_widget_add_tick_callback(
             castedPointer(),
