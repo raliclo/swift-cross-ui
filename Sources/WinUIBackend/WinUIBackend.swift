@@ -706,10 +706,28 @@ public final class WinUIBackend:
         window: Window,
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
-        // TODO: Compute window scale factor (easy enough, but we would also have to keep
-        //   it up-to-date then, which is kinda annoying for now)
+        // `window.scaleFactor` already existed and was already computed from
+        // `GetDpiForMonitor`; it just was not being written anywhere. The TODO
+        // that used to be here said the value was easy but keeping it current
+        // was annoying, and stopped at neither -- so the environment carried 1
+        // on every display, which is not a stale value but a wrong one.
+        //
+        // Correct at window creation is strictly better than always 1: `Image`
+        // re-renders when this changes, so on a 150% display it was rendering
+        // at the wrong scale from the first frame rather than after a move.
+        // Keeping it current is the remaining half; see
+        // `setWindowEnvironmentChangeHandler` below.
+        //
+        // `window.scaleFactor` 早已存在，也早已由 `GetDpiForMonitor` 算好，只是從未被寫到任何地方。
+        // 原本此處的 TODO 說「值很好取，但要保持更新很麻煩」，結果兩件事都沒做——於是 environment
+        // 在任何顯示器上都帶著 1，那不是一個過期的值，而是一個錯的值。
+        //
+        // 「在建立視窗時正確」嚴格優於「永遠是 1」：`Image` 會在此值變動時重新繪製，因此在 150%
+        // 的顯示器上，它從第一個 frame 起就以錯誤的比例繪製，而不是在視窗被移動之後才出錯。保持
+        // 更新是剩下的那一半，見下方的 `setWindowEnvironmentChangeHandler`。
         rootEnvironment
             .with(\.scenePhase, window.isActive ? .active : .inactive)
+            .with(\.windowScaleFactor, window.scaleFactor)
     }
 
     public func setWindowEnvironmentChangeHandler(

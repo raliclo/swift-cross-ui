@@ -963,9 +963,29 @@ public final class GtkBackend:
         window: Window,
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
-        // TODO: Record window scale factor in here
+        // `gtk_widget_get_scale_factor`, which is the same number
+        // `ActionFileReplay` is handed for the synthesiser -- see
+        // InputEvent's `WindowGeometry.scale`. It is an integer by design: it
+        // is the buffer scale GTK rendered at, not the fraction the display
+        // reports, and on Windows those disagree at 125%.
+        //
+        // Using the toolkit's own answer rather than the display's is the same
+        // decision made there, for the same reason: `Image` re-renders when
+        // this changes, and rendering at a scale GTK did not lay out with
+        // produces an image that is crisp at the wrong size.
+        //
+        // 使用 `gtk_widget_get_scale_factor`，與 `ActionFileReplay` 交給 synthesiser 的是同一個數字
+        // ——見 InputEvent 的 `WindowGeometry.scale`。它依設計為整數：那是 GTK 實際繪製時所用的
+        // buffer scale，而非顯示器所回報的小數；在 Windows 上、125% 時兩者並不一致。
+        //
+        // 採用 toolkit 自己的答案而非顯示器的答案，與該處是同一項決定、同一個理由：`Image` 會在此值
+        // 變動時重新繪製，而以「GTK 並未據以排版的比例」繪製，會得到一張「在錯誤尺寸上很銳利」的圖。
         rootEnvironment
             .with(\.scenePhase, window.isActive ? .active : .inactive)
+            .with(
+                \.windowScaleFactor,
+                Double(gtk_widget_get_scale_factor(window.widgetPointer))
+            )
     }
 
     public func setWindowEnvironmentChangeHandler(
