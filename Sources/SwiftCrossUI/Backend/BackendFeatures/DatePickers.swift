@@ -8,8 +8,8 @@ extension BackendFeatures {
     public protocol DatePickers: Core {
         /// The supported date picker styles.
         ///
-        /// Must include ``DatePickerStyle/automatic``.
-        nonisolated var supportedDatePickerStyles: [DatePickerStyle] { get }
+        /// Must include ``BackendDatePickerStyle/automatic``.
+        nonisolated var supportedDatePickerStyles: [BackendDatePickerStyle] { get }
 
         func createDatePicker() -> Widget
 

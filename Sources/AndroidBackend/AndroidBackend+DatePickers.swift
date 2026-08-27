@@ -72,7 +72,7 @@ extension AndroidBackend: BackendFeatures.DatePickers {
         let frame = datePicker.as(AndroidKit.FrameLayout.self)!
         var datePicker = frame.getChildAt(0)?.as(AbstractDatePicker.self)
 
-        switch environment.datePickerStyle {
+        switch environment.backendDatePickerStyle {
             case .automatic, .compact:
                 var compactDatePicker = datePicker?.as(CompactDatePicker.self)
 

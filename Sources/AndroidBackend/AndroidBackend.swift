@@ -89,9 +89,9 @@ public final class AndroidBackend: BaseAppBackend {
     static let stdoutPipe = Pipe()
     static let stderrPipe = Pipe()
 
-    private let _supportedDatePickerStyles = Mutex<[DatePickerStyle]>([.automatic, .compact])
+    private let _supportedDatePickerStyles = Mutex<[BackendDatePickerStyle]>([.automatic, .compact])
 
-    public nonisolated var supportedDatePickerStyles: [DatePickerStyle] {
+    public nonisolated var supportedDatePickerStyles: [BackendDatePickerStyle] {
         _supportedDatePickerStyles.withLock { copy $0 }
     }
 

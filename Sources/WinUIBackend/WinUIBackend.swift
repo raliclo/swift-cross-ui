@@ -133,7 +133,7 @@ public final class WinUIBackend:
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
-    public let supportedDatePickerStyles: [DatePickerStyle] = [
+    public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
         .automatic,
         .graphical,
         .compact,
@@ -2386,7 +2386,7 @@ public final class WinUIBackend:
 
         let dateViewType: CustomDatePicker.DateViewType.Discriminator? =
             if components.contains(.date) {
-                switch environment.datePickerStyle {
+                switch environment.backendDatePickerStyle {
                     case .automatic, .wheel:
                         .datePicker
                     case .compact:

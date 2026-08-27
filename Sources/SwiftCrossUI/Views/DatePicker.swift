@@ -30,44 +30,13 @@ public struct DatePickerComponents: OptionSet, Sendable {
     public static let hourMinuteAndSecond = DatePickerComponents(rawValue: 0xE0)
 }
 
-/// How a ``DatePicker`` presents itself.
-///
-/// A backend advertises what it can draw in `supportedDatePickerStyles`, and
-/// ``SwiftCrossUI/View/datePickerStyle(_:)`` quietly substitutes
-/// ``DatePickerStyle/automatic`` for anything missing from that list. The
-/// substitution carries an `assertionFailure`, which a release build does not
-/// run, so check the list rather than the screen when a style seems to have had
-/// no effect.
-public enum DatePickerStyle: Sendable, Hashable {
-    /// A date input that adapts to the current platform and context.
-    ///
-    /// Supported by every backend, and the one anything unsupported falls back
-    /// to.
-    case automatic
-
-    /// A date input that shows a calendar grid.
-    ///
-    /// Supported by AppKitBackend, UIKitBackend, WinUIBackend and GtkBackend,
-    /// and by AndroidBackend on API levels that have the material date picker.
-    @available(iOS 14, macCatalyst 14, *)
-    case graphical
-
-    /// A smaller date input. This may be a text field, or a button that opens a calendar pop-up.
-    ///
-    /// Supported by AppKitBackend, UIKitBackend, WinUIBackend, AndroidBackend
-    /// and GtkBackend. GtkBackend draws the second of those shapes: a
-    /// `GtkMenuButton` whose popover holds a `GtkCalendar`.
-    @available(iOS 13.4, macCatalyst 13.4, *)
-    case compact
-
-    /// A set of scrollable inputs that can be used to select a date.
-    ///
-    /// Supported by UIKitBackend and WinUIBackend. Not by GtkBackend, which has
-    /// no wheel widget of any kind, nor by AppKitBackend or AndroidBackend.
-    @available(iOS 13.4, macCatalyst 13.4, *)
-    @available(macOS, unavailable)
-    case wheel
-}
+// `DatePickerStyle` used to be an enum here. It is now a protocol in
+// Views/Styles/DatePickerStyle/, and the enum it used to be lives on as
+// `BackendDatePickerStyle` in Backend/ -- the vocabulary a backend implements,
+// as distinct from the API an application writes against.
+// `DatePickerStyle` 過去是此處的一個 enum。它現已成為 Views/Styles/DatePickerStyle/ 中的
+// protocol，而它原本那個 enum 則以 `BackendDatePickerStyle` 之名存續於 Backend/ 之中——那是
+// backend 所實作的詞彙，與應用程式所面對的 API 有別。
 
 @available(tvOS, unavailable)
 public struct DatePicker<Label: View> {
@@ -75,7 +44,15 @@ public struct DatePicker<Label: View> {
     private var selection: Binding<Date>
     private var range: ClosedRange<Date>
     private var components: DatePickerComponents
-    private var style: DatePickerStyle = .automatic
+
+    // No stored `style`. There was one, defaulted to `.automatic`, and nothing
+    // ever read it -- `body` did not pass it on and no initialiser set it. The
+    // style has always come from the environment, which is what
+    // `datePickerStyle(_:)` writes to.
+    // 此處不保存 `style`。原本有一個、預設為 `.automatic`，但從來沒有任何地方讀取它——`body`
+    // 不會把它傳下去，也沒有任何 initialiser 設定它。樣式一向來自 environment，而那正是
+    // `datePickerStyle(_:)` 所寫入的位置。
+    @Environment(\.self) private var environment
 
     /// Displays a date input.
     /// - Parameters:
@@ -126,24 +103,52 @@ extension DatePicker: View {
         HStack {
             label
 
-            DatePickerImplementation(selection: selection, range: range, components: components)
+            // Routed through the style, exactly as `Picker` routes through
+            // `PickerStyle`. `AnyView` because the style is existential and its
+            // `Body` is not known here.
+            // 交由 style 繪製，與 `Picker` 交由 `PickerStyle` 的方式完全相同。使用 `AnyView`，
+            // 因為此處的 style 是 existential，其 `Body` 型別在這裡無從得知。
+            AnyView(
+                environment.datePickerStyle.makeView(
+                    selection: selection,
+                    range: range,
+                    components: components,
+                    environment: environment
+                )
+            )
         }
     }
 }
 
+/// The backend's own date input, as reached by the four built-in styles.
+///
+/// Public for the same reason ``_BuiltinPickerImplementation`` is: it is the
+/// return type of a public extension method on ``DatePickerStyle``. The
+/// underscore says the same thing that one's does -- an application should not
+/// name this type.
+///
+/// 之所以公開，理由與 ``_BuiltinPickerImplementation`` 相同：它是 ``DatePickerStyle`` 上某個公開
+/// extension 方法的回傳型別。底線所表達的與那一個相同——應用程式不應直接指名此型別。
 @available(tvOS, unavailable)
-internal struct DatePickerImplementation: ElementaryView {
+public struct _BuiltinDatePickerImplementation: ElementaryView {
+    private var style: BackendDatePickerStyle
     @Binding private var selection: Date
     private var range: ClosedRange<Date>
     private var components: DatePickerComponents
 
-    init(selection: Binding<Date>, range: ClosedRange<Date>, components: DatePickerComponents) {
+    init(
+        style: BackendDatePickerStyle,
+        selection: Binding<Date>,
+        range: ClosedRange<Date>,
+        components: DatePickerComponents
+    ) {
+        self.style = style
         self._selection = selection
         self.range = range
         self.components = components
     }
 
-    let body = EmptyView()
+    public let body = EmptyView()
 
     @CastBackend<BackendFeatures.DatePickers>(returnsWidget: true)
     func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {

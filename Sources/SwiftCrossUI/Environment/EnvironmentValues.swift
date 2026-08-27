@@ -190,8 +190,17 @@ public struct EnvironmentValues {
         backend.supportsMultipleWindows
     }
 
-    /// The display styles supported by ``DatePicker``. ``datePickerStyle`` must be one of these.
-    public let supportedDatePickerStyles: [DatePickerStyle]
+    /// The display styles supported by ``DatePicker``.
+    ///
+    /// In backend vocabulary, because that is what a backend can answer for.
+    /// A style written outside this module is not in this list and does not
+    /// need to be: it draws itself out of ordinary views, so
+    /// ``DatePickerStyle/isSupported(backend:)`` defaults to `true` for it.
+    ///
+    /// 以 backend 的詞彙表達，因為那才是 backend 答得出來的東西。在本模組之外撰寫的 style 不會
+    /// 出現在此清單中，也不需要出現：它是以一般的 view 自行繪製的，因此
+    /// ``DatePickerStyle/isSupported(backend:)`` 對它預設回傳 `true`。
+    public let supportedDatePickerStyles: [BackendDatePickerStyle]
 
     /// The window levels the current backend can actually place a window at.
     ///
@@ -475,7 +484,28 @@ extension EnvironmentValues {
     @Entry public var pickerStyle: any PickerStyle = .automatic
 
     /// The display style used by ``DatePicker``.
-    @Entry public var datePickerStyle: DatePickerStyle = .automatic
+    @Entry public var datePickerStyle: any DatePickerStyle = .automatic
+
+    /// The same style, already resolved to something a backend understands.
+    ///
+    /// Two entries rather than one because the two audiences want different
+    /// things. An application sets and reads ``datePickerStyle``, which may hold
+    /// a style this module has never heard of. A backend needs a value from its
+    /// own vocabulary, and `updateDatePicker` receives the environment rather
+    /// than the view, so this is where it can find one.
+    ///
+    /// It stays `.automatic` for a style that is not built in, which is correct:
+    /// such a style never reaches the backend's date input at all, having drawn
+    /// itself out of ordinary views instead.
+    ///
+    /// 分成兩個 entry 而非一個，因為兩邊的讀者要的東西不同。應用程式設定與讀取的是
+    /// ``datePickerStyle``，其中可能放著一個本模組從未聽過的 style。而 backend 需要的是出自它自己
+    /// 詞彙的值，且 `updateDatePicker` 收到的是 environment 而非 view，因此此處便是它取用之處。
+    ///
+    /// 對於非內建的 style，此值維持 `.automatic`，而這是正確的：那樣的 style 根本不會抵達 backend
+    /// 的日期輸入元件，它是以一般的 view 自行繪製的。
+    @_spi(Backends)
+    @Entry public var backendDatePickerStyle: BackendDatePickerStyle = .automatic
 
     /// Whether user interaction is enabled.
     ///

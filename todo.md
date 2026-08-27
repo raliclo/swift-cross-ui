@@ -37,7 +37,7 @@ and the rest do not:
 | SwiftUI has | ours | follows |
 |---|---|---|
 | `PickerStyle` protocol | `public protocol PickerStyle: Sendable`, with `Default`/`Inline`/`Menu`/`RadioGroup` structs and an internal `_BuiltinPickerStyle` | yes |
-| `DatePickerStyle` protocol | `public enum DatePickerStyle` | no |
+| `DatePickerStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendDatePickerStyle` | yes |
 | `ListStyle` protocol | `@_spi(Backends) public enum ListStyle` | no — and not public API at all |
 | `ButtonStyle`, `LabelStyle`, `ShapeStyle`, `ToggleStyle` | absent | no |
 

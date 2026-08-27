@@ -31,7 +31,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
-    public let supportedDatePickerStyles: [DatePickerStyle] = [.automatic, .graphical, .compact]
+    public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
+        .automatic, .graphical, .compact,
+    ]
     public let supportedPickerStyles: [BackendPickerStyle] = [
         .menu,
         .segmented,
@@ -1581,7 +1583,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         datePicker.maxDate = range.upperBound
 
         datePicker.datePickerStyle =
-            switch environment.datePickerStyle {
+            switch environment.backendDatePickerStyle {
                 case .automatic, .compact:
                     .textFieldAndStepper
                 case .graphical:

@@ -587,7 +587,7 @@ extension UIKitBackend: BackendFeatures.TapGestures {
     }
 
     extension UIKitBackend: BackendFeatures.DatePickers {
-        public nonisolated var supportedDatePickerStyles: [DatePickerStyle] {
+        public nonisolated var supportedDatePickerStyles: [BackendDatePickerStyle] {
             if #available(iOS 14, macCatalyst 14, *) {
                 [.automatic, .graphical, .compact, .wheel]
             } else if #available(iOS 13.4, macCatalyst 13.4, *) {
@@ -634,7 +634,7 @@ extension UIKitBackend: BackendFeatures.TapGestures {
                 }
 
             if #available(iOS 13.4, macCatalyst 13.4, *) {
-                switch environment.datePickerStyle {
+                switch environment.backendDatePickerStyle {
                     case .automatic:
                         datePickerWidget.child.preferredDatePickerStyle = .automatic
                     case .compact:

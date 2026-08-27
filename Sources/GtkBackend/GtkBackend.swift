@@ -75,7 +75,7 @@ public final class GtkBackend:
     // Note that a style left out of this list is downgraded to `.automatic` by
     // `datePickerStyle(_:)` without a word in a release build, so the list is
     // the only place the omission is visible.
-    public let supportedDatePickerStyles: [DatePickerStyle] = [
+    public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
         .automatic, .graphical, .compact,
     ]
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
@@ -2778,7 +2778,7 @@ public final class GtkBackend:
         datePicker.update(
             date: date,
             range: range,
-            style: environment.datePickerStyle,
+            style: environment.backendDatePickerStyle,
             components: components,
             displayCalendar: environment.calendar,
             timeZone: environment.timeZone,
@@ -3515,7 +3515,7 @@ final class DatePickerWidget: Box {
     /// does for a click.
     private var onChange: ((Date) -> Void)?
 
-    /// The shapes this picker knows how to wear. Narrower than `DatePickerStyle`
+    /// The shapes this picker knows how to wear. Narrower than `BackendDatePickerStyle`
     /// on purpose: several styles land on the same widget, and resolving them
     /// once keeps the swap keyed on what is actually built.
     private enum Presentation {
@@ -3575,7 +3575,7 @@ final class DatePickerWidget: Box {
     func update(
         date: Date,
         range: ClosedRange<Date>,
-        style: DatePickerStyle,
+        style: BackendDatePickerStyle,
         components: DatePickerComponents,
         displayCalendar: Foundation.Calendar,
         timeZone: TimeZone,
@@ -3630,7 +3630,7 @@ final class DatePickerWidget: Box {
     }
 
     private static func contents(
-        for style: DatePickerStyle,
+        for style: BackendDatePickerStyle,
         components: DatePickerComponents,
         calendar: Foundation.Calendar
     ) -> Contents {
