@@ -32,7 +32,41 @@ Measured 2026-08-27 with the mode actually on:
 | SwiftCrossUI | 1 site |
 | GtkBackend | 98 |
 | WinUIBackend | 1274 |
-| AppKitBackend, UIKitBackend | unmeasurable on a Windows host |
+| AppKitBackend | 5 |
+| UIKitBackend | still unmeasured |
+
+AppKitBackend measured 2026-08-27 on the Mac, by removing it alone from
+`stillOnSwift5` and building it. Five diagnostics, and they are one shape and a
+half rather than five problems:
+
+- three are the same conformance-isolation error, `AppKitBackend.swift:22:35`,
+  once each for `AngularGradients`, `LinearGradients` and `RadialGradients` --
+  the plain `public final class` conforming to `@MainActor` protocols, exactly
+  the shape GtkBackend's 98 and WinUI's 1274 mostly are;
+- two are `sendability of function types ... does not match requirement in
+  protocol 'Core'`, on `runMainLoop` and `runInMainThread(action:)`.
+
+So AppKitBackend is small, and it is small in the same way the others are large.
+It is a candidate for going first: whatever fixes those three conformances is
+the pattern the other two backends need hundreds of times.
+
+UIKitBackend is still unmeasured, and not for want of a Mac. A host build cannot
+resolve `import UIKit`, and `SCUI_HOST_BACKENDS_ONLY=1` -- which is what makes
+this package configure on macOS at all -- deletes the target outright. Measuring
+it needs an iOS-SDK build through xcodebuild with the target present, which is a
+different setup rather than a longer wait.
+
+**A second measurement trap, in the same family as the one below.** The first
+attempt at the number above used `swift build --target AppKitBackend -Xswiftc
+-swift-version -Xswiftc 6` and reported 8. That number was from `ImageFormats`,
+a dependency: `-Xswiftc` is global, so it flipped every target and the build
+failed before it reached AppKitBackend. Removing the target from
+`stillOnSwift5` is the mechanism that measures the target. Counting is its own
+trap -- grepping `error:` over the raw output gave 12, because the compiler's
+caret rows and the build system's two summary lines match too. Five is the
+count of lines naming a file in `Sources/AppKitBackend/`, and it equals the
+number of distinct diagnostics.
+
 
 The one SwiftCrossUI site is the hard one. `BaseStubsTest` in
 `Sources/SwiftCrossUI/Backend/BackendFeatures/BaseStubs.swift` is a DEBUG-only
