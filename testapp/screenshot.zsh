@@ -483,13 +483,64 @@ fi
 # 視窗自始至終都在，只是名字不是任何人在找的那個。
 #
 # 因此把傳入的名稱視為子字串、對照真實標題解析，並主動點出 COPY MODE，而不是留給人去發現。
-resolve_window_title() {
+#
+# `/v` is what costs, and it costs per process rather than per row. Measured
+# 2026-08-27 on this machine, 403 processes:
+#
+#   tasklist /v /fo csv                          47,000 ms
+#   tasklist /fo csv            (no titles)         556 ms
+#   tasklist /v /fi IMAGENAME eq explorer.exe       228 ms
+#
+# So resolving a window title costs roughly 115 ms per process, and asking for
+# all of them pays it 403 times -- almost certainly waiting out a timeout on
+# every process with no message loop. A `/fi "WINDOWTITLE ne N/A"` filter does
+# not help: it returns the same 403 rows in the same 47 s, so tasklist resolves
+# everything and filters afterwards.
+#
+# `screenshot.zsh -w` calls this before every window capture, so the sweep that
+# found it spent 21 minutes on 19 baselines, nearly all of it here.
+#
+# The fast path narrows to one process. Every window this script is pointed at
+# belongs to an executable named after the first word of its title -- "P19 flat
+# menus" is P19.exe -- so that candidate is tried first and costs one process's
+# worth of `/v`. The full scan stays as the fallback, so nothing that used to be
+# found stops being found; it is just no longer the first thing tried.
+#
+# `/v` 才是成本所在，且成本是「每個行程」而非「每一列」。於 2026-08-27 在本機、403 個行程下實測，
+# 數字見上方英文區塊。
+#
+# 亦即解析一個視窗標題約需 115 ms，而要求全部就等於付 403 次——幾乎可以確定是在每個沒有訊息迴圈的
+# 行程上等待逾時。`/fi "WINDOWTITLE ne N/A"` 過濾器沒有幫助：它回傳同樣的 403 列、耗時同樣的 47 秒，
+# 可見 tasklist 是先全部解析完才套用過濾。
+#
+# `screenshot.zsh -w` 在每次視窗擷取前都會呼叫本函式，因此發現此事的那一輪，19 張基準截圖花了
+# 21 分鐘，其中絕大部分都在這裡。
+#
+# 快路徑將範圍縮到單一行程。本腳本所指向的每個視窗，其執行檔名都與標題的第一個字相同——「P19 flat
+# menus」對應 P19.exe——因此先嘗試該候選者，成本僅為一個行程的 `/v`。全掃描保留為後備，因此原本找得到
+# 的東西不會變成找不到，只是不再是第一個嘗試的做法。
+scan_window_titles() {
     local wanted="$1"
-    MSYS2_ARG_CONV_EXCL='*' tasklist.exe /v /fo csv 2>/dev/null \
+    shift
+    MSYS2_ARG_CONV_EXCL='*' tasklist.exe /v /fo csv "$@" 2>/dev/null \
         | tr -d '\0\r' \
         | sed 's/^"//; s/"$//' \
         | awk -F'","' -v want="$wanted" \
             'NR>1 && $9 != "N/A" && index($9, want) { print $9; exit }'
+}
+
+resolve_window_title() {
+    local wanted="$1"
+
+    local candidate_exe="${wanted%% *}.exe"
+    local found
+    found="$(scan_window_titles "$wanted" /fi "IMAGENAME eq $candidate_exe")"
+    if [ -n "$found" ]; then
+        printf '%s' "$found"
+        return
+    fi
+
+    scan_window_titles "$wanted"
 }
 
 # Raising the window is only needed by priority 2, which photographs the screen
