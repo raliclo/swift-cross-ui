@@ -1212,7 +1212,44 @@ whole of what is missing there besides #11.
 
 ---
 
-## 17. `baseItemPadding(ofSelectableListView:)` returns all zeros — **refinement**, verify first **[src]**
+## 17. `baseItemPadding(ofSelectableListView:)` returns all zeros — **still unverified 2026-08-27; here is what would settle it** **[src]**
+
+Looked at and deliberately not changed. The CSS below is still installed, so the
+"zero may well be honest" reading stands, and nothing in this session moved it
+either way.
+
+**What will not settle it**, tried first and discarded: measuring a list row in
+a P7 capture. The gap between the selection rectangle and the glyphs is
+SwiftCrossUI's own layout padding plus GTK's, and a screenshot cannot separate
+them. A number that could be produced by either cause is not evidence for one.
+
+**What would**: a probe window holding a `GtkListBox` with one row, with the
+same CSS installed, comparing `gtk_widget_get_allocation` of the row against its
+child. Equal origins and sizes means the padding really is zero and this entry
+should be struck; any difference is the number `baseItemPadding` should return.
+Note the probe has to be inside a window — a loose widget gets no theme CSS at
+all, which this backend has now measured three separate times.
+
+Left open rather than guessed at, because the finding's own instruction is
+"verify before changing anything" and a plausible answer here would silently
+shift every list's layout.
+
+**17. `baseItemPadding(ofSelectableListView:)` 回傳全零 — 2026-08-27 仍未驗證；以下是能夠定案的方法 [src]**
+
+已查看，並刻意不做更動。下方的 CSS 仍然存在，因此「零很可能是誠實的」這個解讀依然成立，而本次工作
+階段沒有任何東西能把它推向任一邊。
+
+**無法定案的做法**（先試過並否決）：從 P7 的截圖量測某一列。選取矩形與字形之間的間距，是
+SwiftCrossUI 自身的版面 padding **加上** GTK 的，而截圖無法把兩者分開。一個「兩種原因都可能造成」
+的數字，並不構成支持其中任一者的證據。
+
+**能夠定案的做法**：建立一個探針視窗，內含一個只有一列的 `GtkListBox`，並安裝相同的 CSS，然後比較
+該列與其子元件的 `gtk_widget_get_allocation`。原點與尺寸相同，即代表 padding 確實為零，本條目應予
+劃除；若有任何差異，該差值就是 `baseItemPadding` 應該回傳的數字。請注意該探針必須置於視窗之內
+——游離的 widget 完全拿不到主題 CSS，這一點本 backend 至今已分別量測過三次。
+
+此處選擇留待驗證而非臆測，因為該發現自身的指示就是「在更動任何東西之前先驗證」，而在此給出一個
+看似合理的答案，會靜默地改變每一個清單的版面。
 
 `Sources/GtkBackend/GtkBackend.swift:1207`
 
