@@ -339,6 +339,61 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
+- **WinUIBackend's WebView: diagnosed, half fixed, and the remaining half is
+  characterised.** Investigated 2026-08-28 with P38.
+
+  **Wrong premise found and corrected.** The class documentation said the control
+  starts its rendering process on demand the first time it is asked to navigate,
+  so nothing had to call `EnsureCoreWebView2Async`. That is false, and it is why
+  the web view has drawn nothing for as long as it has existed. `updateWebView`
+  now calls it, once, and **observes the completion instead of discarding it** —
+  `_ = try? ensureCoreWebView2Async()` cannot fail visibly, which is how a
+  never-starting browser looked exactly like an empty rectangle.
+
+  **Still open: the async action never completes.** Measured with the element in
+  the tree, visible, and correctly arranged at 760x420: `coreWebView2` stays nil
+  at +2 s and +6 s, and the completion handler never fires with any status —
+  neither success nor failure. It hangs rather than fails. `WebView2` got far
+  enough to create `P38.exe.WebView2/EBWebView/EBWebViewMetrics` next to the
+  binary, 24 KB and no browser profile, so initialisation begins and stalls.
+  The Edge WebView2 runtime is installed (151.0.4129.107).
+
+  **Two measurement traps, both worth keeping:** a WinUI app's `releaseConsole()`
+  reopens stdout onto `NUL:` before anything runs, so the first version of the
+  diagnostic produced an empty log and read as "`updateWebView` is never called";
+  it has to write to a file. And `actualWidth` read inside `updateWebView` is 0
+  for *every* widget, because that runs in commit before WinUI arranges anything
+  — sampling it there nearly produced a confident wrong diagnosis of a sizing
+  bug. Sampled from a delayed `@MainActor` Task it reads 760x420.
+
+  Next: find why the action never completes. Likely candidates are the apartment
+  or message pump the WinRT async machinery needs, since the same
+  `promise.completed` pattern works for alerts and file dialogs elsewhere in this
+  backend.
+
+- **WinUIBackend 的 WebView：已診斷、修好一半，另一半已被刻畫清楚。** 2026-08-28 以 P38 調查。
+
+  **找到並更正了一個錯誤前提。** 該類別的文件說：控制項會在第一次被要求導覽時按需啟動其繪製行程，
+  因此無須任何人呼叫 `EnsureCoreWebView2Async`。那是錯的，而這正是這個 web view 自存在以來什麼都
+  畫不出來的原因。`updateWebView` 現在會呼叫它一次，並且**觀察其完成結果而非丟棄** ——
+  `_ = try? ensureCoreWebView2Async()` 不可能明顯地失敗，而那正是「永遠啟動不了的瀏覽器」看起來
+  與「一個空白矩形」一模一樣的原因。
+
+  **仍未解決：該非同步動作永遠不會完成。** 在元素已位於樹中、可見、且已正確排版為 760x420 的情況下
+  實測：`coreWebView2` 在 +2 秒與 +6 秒時皆為 nil，而完成處理器從未以任何狀態觸發——既非成功也非
+  失敗。它是卡住，而不是失敗。`WebView2` 進展到足以在執行檔旁建立
+  `P38.exe.WebView2/EBWebView/EBWebViewMetrics`（24 KB，且無瀏覽器設定檔），因此初始化確實開始了，
+  然後停滯。Edge WebView2 runtime 已安裝（151.0.4129.107）。
+
+  **兩個值得保留的量測陷阱：** WinUI app 的 `releaseConsole()` 會在任何程式碼執行前把 stdout 重新
+  導向到 `NUL:`，因此本診斷的第一版得到空白 log，讀起來像是「`updateWebView` 從未被呼叫」——它必須
+  寫入檔案。以及，在 `updateWebView` 內讀取的 `actualWidth` 對**每一個** widget 都是 0，因為該處在
+  commit 中執行、早於 WinUI 進行 arrange——在那裡取樣，差一點就給出一個自信而錯誤的「尺寸 bug」
+  診斷。改由延遲的 `@MainActor` Task 取樣，讀到的是 760x420。
+
+  下一步：找出該動作為何永不完成。可能的方向是 WinRT 非同步機制所需的 apartment 或訊息幫浦，因為
+  同樣的 `promise.completed` 模式在本 backend 的警示框與檔案對話框中都能正常運作。
+
 - **Follow the desktop's light/dark change while running.** The binding defects
   are fixed (`addNotificationSignal`, and `Settings.default` caching its
   wrapper). What remains is six changes in `GtkBackend.swift`, listed in the
