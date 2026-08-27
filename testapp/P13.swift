@@ -77,11 +77,45 @@ struct P13IdentifiableMessage: Identifiable {
     var body: String
 }
 
+/// One square of the z-order check.
+///
+/// `Identifiable` on purpose. `ForEach` reaches the backend's
+/// `swap(childAt:withChildAt:in:)` through its identity-diffing path; the
+/// fallback for non-`Identifiable` elements is the one #415 above is about, and
+/// it hands the backend duplicate child views instead of reordering them. A
+/// check of reordering has to take the path that reorders.
+///
+/// z 順序檢查中的一個方塊。
+///
+/// 刻意採用 `Identifiable`。`ForEach` 是經由其身分比對（identity diffing）路徑觸達 backend 的
+/// `swap(childAt:withChildAt:in:)`；而非 `Identifiable` 元素所走的退路，正是上方 #415 所述的那一條
+/// ——它交給 backend 的是重複的子 view，而非重新排序。要檢查「重新排序」，就必須走真正會重新排序的
+/// 那條路徑。
+struct P13ZSquare: Identifiable {
+    let id: String
+    let color: SwiftCrossUI.Color
+    let side: Int
+
+    /// Descending size, so the last one drawn is the smallest and sits fully
+    /// visible in the middle. That is what makes "which colour is in the
+    /// middle" a direct reading of "which child is on top".
+    /// 尺寸遞減，因此最後被繪製的最小、且完整可見地位於中央。這正是使「中央是什麼顏色」成為
+    /// 「哪個子元件在最上層」之直接讀數的原因。
+    static let forward = [
+        P13ZSquare(id: "red", color: .red, side: 150),
+        P13ZSquare(id: "green", color: .green, side: 100),
+        P13ZSquare(id: "blue", color: .blue, side: 50),
+    ]
+
+    static let reversed = Array(forward.reversed())
+}
+
 struct P13RootView: View {
     @State var showsUnidentifiedList = false
     @State var duplicateCount = 3
     @State var splitWidth = 400.0
     @State var status = "Ready. #415 is behind a button because it crashes."
+    @State var zOrderIsReversed = false
 
     // Every element is identical, which is what makes the non-Identifiable
     // fallback produce duplicate child views.
@@ -233,6 +267,57 @@ struct P13RootView: View {
                     }
                 }
                 .frame(width: 220, height: 110)
+            }
+
+            // ---- z-order after a ForEach reorder --------------------------
+            //
+            // The static ZStack above cannot catch this: it never reorders, so
+            // the backend's `swap(childAt:withChildAt:in:)` is never called.
+            // That method is reached only from `ForEach`, and only shows on
+            // screen when the reordered children overlap -- so a ForEach inside
+            // a ZStack is the one arrangement that can see it.
+            //
+            // GtkBackend used to swap only SwiftCrossUI's own bookkeeping array
+            // and leave GTK's sibling order alone, with a comment saying
+            // overlapping widgets "may end up with unexpected z ordering". The
+            // squares are sized so the answer is unambiguous: the last one in
+            // the array is drawn on top and is the smallest, so whichever
+            // colour is fully visible in the middle names the topmost child.
+            //
+            // Press Reverse. The middle square must change colour. If it does
+            // not, the array was swapped and the widgets were not.
+            //
+            // ---- ForEach 重新排序之後的 z 順序 ----
+            //
+            // 上方的靜態 ZStack 抓不到這件事：它從不重新排序，因此 backend 的
+            // `swap(childAt:withChildAt:in:)` 永遠不會被呼叫。該方法只會由 `ForEach` 觸達，且唯有
+            // 在被重排的子元件彼此重疊時才會顯現於畫面上——所以「ZStack 裡放 ForEach」是唯一看得見
+            // 它的排列方式。
+            //
+            // GtkBackend 過去只交換 SwiftCrossUI 自己的記帳陣列，完全不動 GTK 的兄弟順序，其註解
+            // 寫著重疊的 widget「可能得到非預期的 z 順序」。此處方塊的尺寸刻意使答案毫無歧義：陣列
+            // 中最後一個會畫在最上層，而它也是最小的，因此「中央完整可見的顏色」即指出了最上層的
+            // 子元件是誰。
+            //
+            // 按下 Reverse，中央方塊必須換色。若沒有換，代表陣列被交換了，而 widget 沒有。
+            VStack(alignment: .leading, spacing: 6) {
+                Text("z-order after a ForEach reorder")
+                Text("Top of the stack: \(zOrderIsReversed ? "red" : "blue")")
+
+                ZStack {
+                    ForEach(zOrderIsReversed ? P13ZSquare.reversed : P13ZSquare.forward) { square in
+                        square.color.frame(width: square.side, height: square.side)
+                    }
+                }
+                .frame(width: 220, height: 110)
+
+                Button("Reverse") {
+                    zOrderIsReversed.toggle()
+                    P13Diagnostics.write(
+                        "z-order reversed -- top should now be "
+                            + (zOrderIsReversed ? "red" : "blue")
+                    )
+                }
             }
         }
         .padding(18)

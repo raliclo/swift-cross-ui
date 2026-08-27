@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13 on Windows: does reordering a ForEach reorder the widgets, not just the array?
+#
+# One click, on Reverse. The squares in the ZStack above it are sized so the
+# smallest is drawn last and sits fully visible in the middle -- so the colour in
+# the middle names the topmost child, and no other reading is needed.
+#
+#   before   middle is blue   (forward order: red, green, blue)
+#   after    middle is red    (reversed:      blue, green, red)
+#
+# If the middle stays blue, SwiftCrossUI's bookkeeping array was swapped and the
+# real widgets were not. That was GtkBackend's behaviour until 2026-08-27:
+# `swap(childAt:withChildAt:in:)` reordered the array alone and its comment said
+# overlapping widgets "may end up with unexpected z ordering".
+#
+# The label above the squares reports what it believes the order to be, so a
+# disagreement between the label and the picture is the failure -- the label
+# comes from the app's own state and the picture from the widgets.
+#
+# P13 於 Windows：重新排序一個 ForEach，是否也重新排序了 widget，而不只是陣列？
+#
+# 只點一下 Reverse。其上方 ZStack 中的方塊尺寸經過安排，最小的最後被繪製、完整可見地位於中央
+# ——因此「中央的顏色」即指出最上層的子元件是誰，不需要其他判讀。
+#
+#   之前   中央為藍   （正序：紅、綠、藍）
+#   之後   中央為紅   （反序：藍、綠、紅）
+#
+# 若中央仍為藍色，代表 SwiftCrossUI 的記帳陣列被交換了，而真正的 widget 沒有。這正是 GtkBackend
+# 直到 2026-08-27 為止的行為：`swap(childAt:withChildAt:in:)` 只重排陣列，其註解寫著重疊的 widget
+# 「可能得到非預期的 z 順序」。
+#
+# 方塊上方的標籤會回報 app 自認的順序，因此「標籤與畫面不一致」即為失敗——標籤來自 app 自身的
+# state，畫面則來自 widget。
+sleep,,,,,,600000,let the window settle,windows
+click,392,958,frame,left,,,Reverse -- the middle square must change colour,windows
+sleep,,,,,,1200000,hold for the capture,windows

@@ -64,6 +64,35 @@ things that look like defects and are not.
 
 ---
 
+## 1. ~~`swap(childAt:withChildAt:in:)` never touches GTK's z-order~~ — **FIXED 2026-08-27** **[src] [hdr]**
+
+Fixed as described below, with `gtk_widget_insert_after`. The whole sibling
+order is re-established from the array rather than moving just the two, because
+computing each one's new anchor while the other is also moving is easy to get
+wrong when they are adjacent, and re-walking also repairs an order that drifted
+while the GTK half was missing.
+
+**Verifying it turned up a second defect that had been hiding this one.** There
+was no test for z-order because none could be written: `ForEach` inside a
+`ZStack` did not overlap at all. `layoutOverlapsChildren` was added when #158
+was fixed for `Group`, and its own documentation says it exists so that "`Group`
+and `ForEach`" can be transparent — but only `Group` ever read it. So a `ForEach`
+in a `ZStack` fell back to the *grandparent's* axis and laid its children out in
+a column, where z-order is invisible. Both are fixed; `testapp/actions/win/P13-zorder.csv`
+drives the check, and P13 gained the section it drives.
+
+已依下述方式修復，使用 `gtk_widget_insert_after`。此處是依陣列重建整個兄弟順序，而非只搬動那兩個
+——因為在「另一個也正在移動」時推算各自的新錨點，於兩者相鄰時很容易出錯；重新走訪同時也會修復
+「GTK 那一半缺席期間已經飄掉的順序」。
+
+**驗證它的過程中，挖出了另一個一直遮著它的缺陷。** 先前之所以沒有 z 順序的測試，是因為根本寫不
+出來：`ZStack` 中的 `ForEach` 完全不重疊。`layoutOverlapsChildren` 是在為 `Group` 修 #158 時加入的，
+其文件明寫此旗標的存在是為了讓「`Group` 與 `ForEach`」保持透明——但實際讀取它的只有 `Group`。
+於是 `ZStack` 中的 `ForEach` 退而採用**祖父層**的軸向，把子元件排成一欄，而 z 順序在那裡根本看不見。
+兩者皆已修復；`testapp/actions/win/P13-zorder.csv` 驅動該項檢查，P13 也新增了它所驅動的段落。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 1. `swap(childAt:withChildAt:in:)` never touches GTK's z-order — **broken**, cheap **[src] [hdr]**
 
 `Sources/GtkBackend/GtkBackend.swift:958`
@@ -116,6 +145,8 @@ already settled.
 而 API 的疑問已經解決。
 
 ---
+
+</details>
 
 ## 2. `isWindowProgrammaticallyResizable(_:)` always answers `true` — **wrong**, one line **[src] [hdr]**
 
@@ -324,6 +355,30 @@ collision looks like a slip.
 
 ---
 
+## 6. ~~META: every diagnostic this backend emits is compiled out of the builds it is tested in~~ — **FIXED 2026-08-27** **[src]**
+
+Fourteen sites audited, eleven changed, in two classes: an unconditional
+`logger.warning` where the message is for the author of an app, and
+`DebugFeatures.isEnabled` where the check costs something per event. Three were
+deliberately left alone — `Publisher.tag` and `Cancellable.tag` are write-only
+fields for a debugger with nothing to print, and `BaseStubs` is a compile-time
+conformance check. Verified by counting strings in a pure release binary before
+and after, not by reading the source.
+
+One correction to the finding below: GtkBackend has **one** `debugLogOnce` call
+site, not two. The second went with `da4720ab`, which added the compact date
+picker.
+
+已稽核 14 處、變更 11 處，分為兩類：訊息對象是「app 作者」者，改為無條件的 `logger.warning`；
+每次事件都要付出代價的檢查，則改用 `DebugFeatures.isEnabled`。三處刻意不動——`Publisher.tag` 與
+`Cancellable.tag` 是給 debugger 看的唯寫欄位，沒有東西可印；`BaseStubs` 則是編譯期的 conformance
+檢查。驗證方式是在純 release 二進位檔上比對改前改後的字串數量，而非閱讀原始碼。
+
+對下方發現的一項更正：GtkBackend 只有**一個** `debugLogOnce` 呼叫點，不是兩個。第二個隨
+`da4720ab`（加入 compact date picker 的那次）一併移除了。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 6. META: every diagnostic this backend emits is compiled out of the builds it is tested in — **wrong**, small **[src]**
 
 `Sources/GtkBackend/GtkBackend.swift:121-133`
@@ -384,6 +439,8 @@ compiler's optimisation level.
 最佳化等級為條件。
 
 ---
+
+</details>
 
 ## 7. `setBehaviors(…)` ignores `minimizable` — **wrong**, expensive on Linux, cheap on Windows **[src] [hdr]**
 
@@ -507,6 +564,36 @@ signal to connect. Cost is a `Gtk` wrapper addition, not one line.
 
 ---
 
+## 9. ~~`computeWindowEnvironment(…)` never reports the window scale factor~~ — **FIXED 2026-08-27** **[src] [hdr]**
+
+Both GtkBackend and WinUIBackend now write it.
+`gtk_widget_get_scale_factor` on one side and the already-computed
+`CustomWindow.scaleFactor` on the other — WinUI had the value and simply never
+used it. Deliberately the toolkit's answer rather than the display's, matching
+the decision in `InputEvent.WindowGeometry.scale`: GTK's is an integer and the
+two disagree at 125% on Windows.
+
+Verified on WSL, because on this machine GTK reports 1 either way and a working
+implementation is indistinguishable from the old hardcoded 1: `GDK_SCALE=1`
+gave 1.0 and `GDK_SCALE=2` gave 2.0 through the value actually written into the
+environment.
+
+Still open, and the harder half the original TODO named: neither backend
+notifies when the factor changes, so a window dragged between displays of
+different scale keeps the value it started with.
+
+GtkBackend 與 WinUIBackend 現在都會寫入此值：一邊用 `gtk_widget_get_scale_factor`，另一邊用早已
+算好、卻從未被使用的 `CustomWindow.scaleFactor`。刻意採用 toolkit 的答案而非顯示器的，與
+`InputEvent.WindowGeometry.scale` 的決定一致：GTK 的是整數，而在 Windows 的 125% 之下兩者並不一致。
+
+於 WSL 驗證，因為在這台機器上 GTK 兩種情況都回報 1，可運作的實作與舊有的寫死 1 無法區分：
+`GDK_SCALE=1` 得 1.0、`GDK_SCALE=2` 得 2.0，且量的是真正寫進 environment 的那個值。
+
+仍未處理、亦即原 TODO 所稱較難的那一半：兩個 backend 都不會在該比例變動時發出通知，因此視窗被拖到
+不同縮放的顯示器時，會保留它啟動時的值。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 9. `computeWindowEnvironment(…)` never reports the window scale factor — **refinement**, one line **[src] [hdr]**
 
 `Sources/GtkBackend/GtkBackend.swift:891`
@@ -558,6 +645,8 @@ GTK 專屬。
 處理 #8，則該值只在視窗建立時正確，換螢幕後就過時。
 
 ---
+
+</details>
 
 ## 10. The line-limit measurement label is never rooted — **wrong** if confirmed, one line **[?]**
 

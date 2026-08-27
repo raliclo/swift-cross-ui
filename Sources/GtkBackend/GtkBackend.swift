@@ -1046,14 +1046,58 @@ public final class GtkBackend:
         container.remove(child)
     }
 
+    /// Swaps two children, in GTK as well as in our own bookkeeping.
+    ///
+    /// The GTK half used to be missing. The comment here said "Gtk.Fixed
+    /// doesn't let us rearrange children, so we just swap them in our own list
+    /// so that at least everything works on the SCUI side", and named the
+    /// consequence: overlapping widgets end up with unexpected z ordering. That
+    /// is a `ZStack` whose order is driven by state drawing in the wrong order,
+    /// silently, and AppKitBackend and WinUIBackend both did the real thing --
+    /// `subviews.swapAt` and a remove/insert pair respectively -- so GtkBackend
+    /// was the only one faking it.
+    ///
+    /// The premise was out of date. `gtk_widget_insert_after` is GTK 4's way to
+    /// place a widget among its siblings, and passing `nil` for the sibling
+    /// makes it first.
+    ///
+    /// The whole order is re-established from the array rather than moving just
+    /// the two. Moving two requires working out each one's new anchor while the
+    /// other is also moving, which is easy to get subtly wrong for the case
+    /// where they are adjacent; walking the array is obviously correct by
+    /// inspection. It also repairs any order that drifted while the GTK half
+    /// was missing, rather than swapping two entries within a sequence that was
+    /// already wrong. A `Fixed` holds a handful of children, so the extra work
+    /// is not worth the sharper edge.
+    ///
+    /// 交換兩個子元件——在 GTK 中，以及在我方自己的記帳中。
+    ///
+    /// GTK 的那一半原本並不存在。此處的註解曾寫著「Gtk.Fixed 不允許我們重排子元件，因此我們只在
+    /// 自己的清單裡交換，至少讓 SCUI 這一側能運作」，並指出了後果：重疊的 widget 會得到非預期的
+    /// z 順序。那就是「順序由 state 決定的 `ZStack` 以錯誤的順序繪製」，而且是靜默的；
+    /// AppKitBackend 與 WinUIBackend 都做了真正的事——分別是 `subviews.swapAt` 與一組移除／插入
+    /// ——因此 GtkBackend 是唯一造假的那一個。
+    ///
+    /// 該前提已經過時。`gtk_widget_insert_after` 正是 GTK 4 用來在兄弟節點之間安置 widget 的方式，
+    /// 而 sibling 傳入 `nil` 即代表置於首位。
+    ///
+    /// 此處是依陣列重建整個順序，而非只搬動那兩個。搬動兩個時，必須在「另一個也正在移動」的情況下
+    /// 推算各自的新錨點，對於兩者相鄰的情形很容易出現細微的錯誤；而走訪整個陣列，正確與否一眼可
+    /// 判。它同時也會修復「GTK 那一半缺席期間已經飄掉的順序」，而不是在一個本來就錯的序列中交換
+    /// 兩個項目。一個 `Fixed` 只有寥寥數個子元件，因此這點額外成本不值得換取更鋒利的邊角。
     public func swap(childAt firstIndex: Int, withChildAt secondIndex: Int, in container: Widget) {
-        // Gtk.Fixed doesn't let us rearrange children, so we just swap them in
-        // our own list so that at least everything works on the SCUI side. The
-        // only side effect of this approach is that overlapping widgets may
-        // end up with unexpected z ordering. If that becomes an issue we may
-        // have to make a custom replacement for Gtk.Fixed.
         let container = container as! Fixed
         container.children.swapAt(firstIndex, secondIndex)
+
+        var previous: Widget?
+        for child in container.children {
+            gtk_widget_insert_after(
+                child.widgetPointer,
+                container.widgetPointer,
+                previous?.widgetPointer
+            )
+            previous = child
+        }
     }
 
     public func createColorableRectangle() -> Widget {

@@ -193,6 +193,50 @@ extension ForEach: TypeSafeView, View where Child: View {
             }
         }
 
+        // Overlapping, when the enclosing stack overlaps -- the same branch
+        // `Group` has, and for the same reason.
+        //
+        // `ForEach` is meant to be invisible to the layout system and can only
+        // manage that by arranging its children the way its parent would have.
+        // It inherits orientation, alignment and spacing for exactly that, but
+        // a `ZStack` sets no orientation, so without this branch a `ForEach`
+        // inside one fell back to whatever axis the *grandparent* used. Three
+        // squares that should have overlapped appeared in a column, and the
+        // enclosing frame did not even contain them.
+        //
+        // `layoutOverlapsChildren` was added when this was fixed for `Group`
+        // (#158), and its own documentation says it exists so that "`Group` and
+        // `ForEach`" can be transparent -- but only `Group` was ever wired up.
+        // Found 2026-08-27 while trying to build a z-order test out of a
+        // `ForEach` inside a `ZStack`, which could not work while the two were
+        // not overlapping in the first place.
+        //
+        // 當外層 stack 為重疊式時走重疊排版——與 `Group` 相同的分支，理由也相同。
+        //
+        // `ForEach` 本應對排版系統隱形，而它做到這件事的唯一方式，就是「以父層原本會採用的方式」
+        // 安排自己的子元件。它之所以繼承 orientation、alignment 與 spacing 正是為此；但 `ZStack`
+        // 不設定 orientation，因此少了這個分支，`ZStack` 中的 `ForEach` 會退而採用**祖父層**所用的
+        // 軸向。三個本應重疊的方塊變成排成一欄，甚至撐出了外層 frame。
+        //
+        // `layoutOverlapsChildren` 是在為 `Group` 修復此問題（#158）時加入的，其自身文件明寫此旗標
+        // 的存在是為了讓「`Group` 與 `ForEach`」保持透明——但實際接上的只有 `Group`。此事於
+        // 2026-08-27 被發現：當時正試圖以「`ZStack` 中的 `ForEach`」建立一項 z 順序測試，而在兩者
+        // 根本沒有重疊的情況下，那項測試不可能成立。
+        if environment.layoutOverlapsChildren {
+            let result = LayoutSystem.computeOverlapLayout(
+                children: children.layoutableChildren,
+                proposedSize: proposedSize,
+                environment: environment
+            )
+            children.stackLayoutCache = StackLayoutCache(
+                priorityGroups: [],
+                isHidden: [],
+                totalSpacing: 0,
+                redistributeSpaceOnCommit: proposedSize.width == nil || proposedSize.height == nil
+            )
+            return result
+        }
+
         return LayoutSystem.computeStackLayout(
             container: widget,
             children: children.layoutableChildren,
@@ -291,6 +335,37 @@ extension ForEach: TypeSafeView, View where Child: View {
             }
         }
         children.queuedChanges = []
+
+        // The commit half of the overlap branch in `computeLayout`. Both are
+        // needed: computing an overlap layout and then committing a stack one
+        // would size the children as though they overlapped and then place them
+        // in a column.
+        //
+        // `.center`, matching `Group`'s note on the same call: `layoutAlignment`
+        // is a `StackAlignment` and describes one axis, so the parent's
+        // alignment is not available here. A `ZStack` with a non-default
+        // alignment therefore aligns a direct child correctly and one inside a
+        // `ForEach` to the centre. Stated rather than left implicit.
+        //
+        // `computeLayout` 中重疊分支的 commit 那一半。兩者缺一不可：以重疊方式計算版面、卻以 stack
+        // 方式 commit，會得到「子元件依重疊計算尺寸、卻被排成一欄」的結果。
+        //
+        // 使用 `.center`，與 `Group` 在同一個呼叫處的註記一致：`layoutAlignment` 的型別是
+        // `StackAlignment`，只描述單一軸向，因此此處取不到父層的對齊方式。帶有非預設對齊的
+        // `ZStack`，對直接子元件會正確對齊，對包在 `ForEach` 內的則會置中。此處明言，不使其隱含。
+        if environment.layoutOverlapsChildren {
+            LayoutSystem.commitOverlapLayout(
+                container: widget,
+                children: children.layoutableChildren,
+                cache: children.stackLayoutCache,
+                layout: layout,
+                alignment: .center,
+                environment: environment,
+                backend: backend
+            )
+            children.layoutableChildren = []
+            return
+        }
 
         LayoutSystem.commitStackLayout(
             container: widget,
