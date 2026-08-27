@@ -34,7 +34,32 @@ extension App {
 class WinUIApplication: SwiftApplication, @unchecked Sendable {
     static let callback = Mutex<(@MainActor (WinUIApplication) -> Void)?>(nil)
     static let queuedURLs = Mutex<[URL]>([])
-    static let onReceiveURL = Mutex<((URL) -> Void)?>(nil)
+    /// Carries the incoming-URL handler across the `Mutex`.
+    ///
+    /// A box rather than the bare closure, because the closure is main-actor
+    /// isolated -- `setIncomingURLHandler` is on a `@MainActor` type -- and
+    /// `Mutex.withLock` hands out an `inout sending` parameter, which under the
+    /// Swift 6 language mode refuses to hold isolated state. `nonisolated(unsafe)`
+    /// on a local does not help here, which is worth recording: it works for a
+    /// reference being passed along, as it does for the drag-and-drop captures,
+    /// but it does not strip isolation from a function value's type.
+    ///
+    /// What the `@unchecked` asserts is the same invariant this file already
+    /// relies on: the handler is only ever called from `receive(_:)`, whose only
+    /// callers are WinUI application lifecycle callbacks on the UI thread.
+    ///
+    /// 用一個盒子而非裸露的 closure，因為該 closure 是 main-actor 隔離的——`setIncomingURLHandler`
+    /// 所在的型別即是——而 `Mutex.withLock` 交出的是 `inout sending` 參數，在 Swift 6 語言模式下拒絕
+    /// 持有受隔離的狀態。此處在區域變數上標 `nonisolated(unsafe)` 並無幫助，這點值得記錄：它對
+    /// 「傳遞中的參考」有效（drag-and-drop 的那些捕獲即是），但無法把隔離從一個函式值的型別上剝除。
+    ///
+    /// `@unchecked` 所擔保的，正是本檔已然依賴的同一項不變式：該 handler 只會由 `receive(_:)`
+    /// 呼叫，而其唯一的呼叫者是執行於 UI 執行緒的 WinUI application lifecycle callback。
+    struct IncomingURLHandler: @unchecked Sendable {
+        let handle: (URL) -> Void
+    }
+
+    static let onReceiveURL = Mutex<IncomingURLHandler?>(nil)
 
     override func onLaunched(_ args: WinUI.LaunchActivatedEventArgs) {
         if let url = Self.url(fromLaunchArguments: args.arguments) {
@@ -52,7 +77,7 @@ class WinUIApplication: SwiftApplication, @unchecked Sendable {
 
     private static func receive(_ url: URL) {
         if let handler = onReceiveURL.withLock({ $0 }) {
-            handler(url)
+            handler.handle(url)
         } else {
             queuedURLs.withLock { urls in
                 urls.append(url)
@@ -713,8 +738,12 @@ public final class WinUIBackend:
             urls = []
         }
 
+        // Boxed rather than stored bare; see `IncomingURLHandler` for why the
+        // closure cannot cross `Mutex.withLock` on its own.
+        // 以盒子包裝而非直接存入；closure 為何無法自行跨越 `Mutex.withLock`，見 `IncomingURLHandler`。
+        let boxed = WinUIApplication.IncomingURLHandler(handle: action)
         WinUIApplication.onReceiveURL.withLock { handler in
-            handler = action
+            handler = boxed
         }
     }
 
@@ -2597,7 +2626,30 @@ public class CustomWindow: WinUI.Window {
     var originalWindowProc: WNDPROC?
 
     private(set) var menuBarIsVisible = false
-    private static var windowsByHWND: [Int: CustomWindow] = [:]
+    /// Lets the window procedure find the window an `HWND` belongs to.
+    ///
+    /// `nonisolated(unsafe)` because the thing that keeps this safe is Win32's
+    /// rule rather than anything the compiler can see: a window's messages are
+    /// delivered only on the thread that created it, every window here is
+    /// created on the UI thread, and the two writers -- `attachWindowProc` and
+    /// the `WM_DESTROY` branch -- are on that thread too.
+    ///
+    /// Isolating it is not an option. The only reader is `windowProc`, which is
+    /// a `WNDPROC`: a C function pointer, which cannot carry actor isolation and
+    /// cannot await. Under the Swift 6 language mode this is one of ten errors
+    /// in this module, and it is the only one where the annotation is the answer
+    /// rather than a restructuring.
+    ///
+    /// 讓 window procedure 能由 `HWND` 找到對應的視窗。
+    ///
+    /// 標記 `nonisolated(unsafe)`，因為維持其安全的是 Win32 的規則，而非編譯器看得見的任何東西：
+    /// 視窗訊息只會投遞至建立該視窗的執行緒，此處每個視窗都建立於 UI 執行緒，而兩處寫入方
+    /// ——`attachWindowProc` 與 `WM_DESTROY` 分支——同樣位於該執行緒。
+    ///
+    /// 加上隔離並不可行。唯一的讀取方 `windowProc` 是一個 `WNDPROC`：C 函式指標無法攜帶 actor
+    /// 隔離，也無法 await。在 Swift 6 語言模式下，這是本模組十個錯誤之一，也是其中唯一「標註即是
+    /// 答案」而非需要重構的一個。
+    private nonisolated(unsafe) static var windowsByHWND: [Int: CustomWindow] = [:]
 
     /// The amount of height to subtract off the window height to obtain the
     /// window's available content height.

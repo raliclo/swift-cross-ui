@@ -553,6 +553,24 @@ if androidBackendSupported {
     ]
 }
 
+// Captured before anything is removed, for the `migratedToSwift6` check at the
+// bottom of this file. Taking it after the removal below would make that check
+// reject a perfectly good name: on Windows with SCUI_HOST_BACKENDS_ONLY=1,
+// GtkBackend is not a target, so "GtkBackend is not a target in this package" is
+// literally true and means nothing like a typo.
+//
+// Measured 2026-08-27, on the check's first real use: listing GtkBackend failed
+// the manifest on Windows and would have failed it for anyone who did the same.
+//
+// 在任何移除發生之前先行擷取，供本檔最下方的 `migratedToSwift6` 檢查使用。若在下方的移除之後才
+// 擷取，該檢查會拒絕一個完全正確的名稱：在 Windows 上帶著 SCUI_HOST_BACKENDS_ONLY=1 時，
+// GtkBackend 並不是一個 target，因此「GtkBackend 不是本套件的 target」字面上為真，但其意義與
+// 「打錯字」毫無關係。
+//
+// 於 2026-08-27、該檢查首次真正被使用時實測：列入 GtkBackend 會讓 manifest 在 Windows 上失敗，
+// 而任何人做同樣的事都會遇到同樣的結果。
+let allTargetNamesBeforeHostFilter = Set(package.targets.map(\.name))
+
 // Remove the backends this host cannot compile. See SCUI_HOST_BACKENDS_ONLY at
 // the top of this file for what this is for and why it is opt-in.
 //
@@ -696,7 +714,7 @@ if hostBackendsOnly {
 // 採「掃描套用」而非逐 target 寫入，理由與上方的 dependency 掃描相同：有數個 target 根本不傳
 // swiftSettings，而那些正是逐一手動處理時會漏掉的。不接受 Swift 設定的 target（C 與
 // systemLibrary 類）則不予變更。
-let migratedToSwift6: Set<String> = ["SwiftCrossUI"]
+let migratedToSwift6: Set<String> = ["SwiftCrossUI", "GtkBackend", "WinUIBackend"]
 
 // A name that matches no target is a typo, and a typo here is silent: the
 // target stays on v5, the build passes, and the target reads as migrated when
@@ -705,8 +723,7 @@ let migratedToSwift6: Set<String> = ["SwiftCrossUI"]
 // 對不上任何 target 的名稱就是打錯了，而此處的打錯是靜默的：該 target 仍留在 v5，建置照樣通過，
 // 於是它看起來像是已完成遷移，實際上什麼也沒變。讓 manifest 直接失敗，是 Package.swift 唯一
 // 能發出聲響的手段。
-let allTargetNames = Set(package.targets.map(\.name))
-for name in migratedToSwift6 where !allTargetNames.contains(name) {
+for name in migratedToSwift6 where !allTargetNamesBeforeHostFilter.contains(name) {
     fatalError("migratedToSwift6 names '\(name)', which is not a target in this package")
 }
 

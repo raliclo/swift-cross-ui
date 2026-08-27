@@ -139,15 +139,53 @@ instead of silently landing on v6 and breaking the build for whoever added it. A
 name in the list that matches no target now fails the manifest, because a typo
 there is otherwise silent: the target stays on v5 and reads as done.
 
-Measured 2026-08-27 with the mode actually on:
+| target | errors when first measured | now |
+|---|---|---|
+| SwiftCrossUI | 1 site | **migrated** |
+| GtkBackend | 98 | **migrated — 0, without touching the target at all** |
+| WinUIBackend | 1274 | **migrated — 10 real errors after the SwiftCrossUI fix, all fixed** |
+| AppKitBackend | 5 | still v5; needs a Mac |
+| UIKitBackend | still unmeasured | needs an iOS-SDK build |
 
-| target | errors |
-|---|---|
-| SwiftCrossUI | 1 site |
-| GtkBackend | 98 |
-| WinUIBackend | 1274 |
-| AppKitBackend | 5 |
-| UIKitBackend | still unmeasured |
+**The 98 and the 1274 were almost entirely one defect, in a third module.**
+`Core` declares `runInMainThread` `nonisolated` inside an otherwise `@MainActor`
+protocol and the default implementation in `BaseStubs` did not repeat the
+keyword, so every conformance in every backend reported the mismatch. Two
+`nonisolated` keywords in `SwiftCrossUI` took GtkBackend from 98 to **0** with
+no change to GtkBackend whatsoever, and WinUIBackend from 1274 to 10.
+
+That is worth remembering before sizing the two remaining backends. AppKitBackend's
+five were measured on the Mac *before* this fix, and two of them are named
+`runMainLoop` and `runInMainThread` — the same shape. The number to re-measure
+against is not 5.
+
+WinUIBackend's ten were four distinct problems, and the annotations are the
+answer for three of them because the invariant is Win32's rather than
+Swift's:
+
+- `windowsByHWND` is read from a `WNDPROC`, a C function pointer that cannot
+  carry isolation. `nonisolated(unsafe)`, because what keeps it safe is that
+  Win32 delivers a window's messages only on the thread that created it.
+- three drag-and-drop captures (`self`, `args`, `deferral`) cross into a
+  `Task { @MainActor }` from a WinRT completion handler. `nonisolated(unsafe)`
+  locals: the other thread only *captures* the references, every line that uses
+  them is inside the task.
+- the incoming-URL handler could not be stored in a `Mutex` at all.
+  **`nonisolated(unsafe)` on a local does not help for a closure** — it works
+  for a reference being passed along but does not strip isolation from a
+  function value's type. That one needed an `@unchecked Sendable` box.
+
+**Verify the mode is on before trusting a count of zero.** `swift build -v |
+grep -c "swift-version 6"` counts every invocation including dependencies —
+measured, a single build of this package showed 22 at v5 and 271 at v6. The
+question is what flag the *named module* got:
+
+    swift build --target <T> -v 2>&1 | grep -- "-module-name <T> " \
+      | grep -oE '\-swift-version [0-9]+' | sort | uniq -c
+
+Touch the target's sources first or the build is a no-op and prints nothing,
+which reads as "not found" rather than "not rebuilt". Check it against a target
+still on the pin, so a wrong answer cannot look like a right one.
 
 AppKitBackend measured 2026-08-27 on the Mac, by lifting it alone and building
 it. Five diagnostics, and they are one shape and a

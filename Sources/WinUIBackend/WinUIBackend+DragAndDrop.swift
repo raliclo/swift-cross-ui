@@ -139,6 +139,31 @@ final class DropTargetCanvas: WinUI.Canvas {
 
         let deferral = try? args.getDeferral()
 
+        // Captured through `nonisolated(unsafe)` locals so they can cross into
+        // the `Task` below. All three are non-Sendable -- two WinRT objects and
+        // this class -- and under the Swift 6 language mode capturing them
+        // directly is three `#SendingRisksDataRace` errors, which are three of
+        // this module's ten.
+        //
+        // The distinction the compiler cannot make is between *capturing* a
+        // reference and *using* it. A WinRT completion handler on some other
+        // thread only captures these into the task; every line that touches them
+        // is inside `@MainActor`, which is what the task is for. They are
+        // created on the UI thread and used on the UI thread, with a reference
+        // passed between the two.
+        //
+        // 透過 `nonisolated(unsafe)` 區域變數捕獲，才能跨進下方的 `Task`。三者皆非 Sendable
+        // ——兩個 WinRT 物件與本類別——在 Swift 6 語言模式下直接捕獲會產生三個
+        // `#SendingRisksDataRace` 錯誤，佔本模組十個錯誤中的三個。
+        //
+        // 編譯器分辨不出的，是「捕獲一個參考」與「使用它」之間的差別。位於其他執行緒上的 WinRT
+        // completion handler 只是把它們捕獲進 task；真正觸碰它們的每一行都在 `@MainActor` 之內
+        // ——而那正是這個 task 存在的理由。它們在 UI 執行緒被建立、在 UI 執行緒被使用，中間傳遞的
+        // 只是一個參考。
+        nonisolated(unsafe) let target = self
+        nonisolated(unsafe) let eventArgs = args
+        nonisolated(unsafe) let heldDeferral = deferral
+
         func finish(_ items: [DropItem]) {
             // The completion handlers below are called by WinRT, not necessarily
             // on the UI thread, and the drop handler runs SwiftCrossUI view code.
@@ -148,10 +173,10 @@ final class DropTargetCanvas: WinUI.Canvas {
                 // is documented as receiving the dropped items, and calling it
                 // with none would look to an app like a drop of nothing rather
                 // than a drop that could not be read.
-                if items.isEmpty || self.onDrop?(items) != true {
-                    args.acceptedOperation = .none
+                if items.isEmpty || target.onDrop?(items) != true {
+                    eventArgs.acceptedOperation = .none
                 }
-                try? deferral?.complete()
+                try? heldDeferral?.complete()
             }
         }
 
