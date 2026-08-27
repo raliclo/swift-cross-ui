@@ -13,12 +13,26 @@ import Gtk
 /// a scrolled list per component is not a fake of the wheel, it is the wheel.
 /// Neither AppKit nor UIKit has a single "wheel widget" either.
 ///
-/// What GTK genuinely lacks is the *momentum and snapping* -- there is no
-/// scroll-snap in GTK 4, so a column here settles wherever it is left rather
-/// than clicking to the nearest row, and the selected row is highlighted rather
-/// than sitting under a fixed centre bar. That is a cosmetic difference in the
-/// same widget, not a different control, and it is recorded rather than hidden
-/// because someone comparing screenshots across backends will see it.
+/// Two differences from the iOS wheel remain, and both are behavioural rather
+/// than a different control:
+///
+/// - **Selection is by click, not by what is centred.** On iOS you spin and the
+///   centred row becomes the value; here the selected row is highlighted and
+///   chosen by clicking it. That suits a pointer, and it is why full snapping is
+///   not load-bearing: there is never any doubt about which row is selected.
+/// - **Only the wheel snaps.** GTK 4 has no scroll-snap, but scrolling moves by
+///   the adjustment's step increment, so setting that to one row makes every
+///   notch land row-aligned. Dragging the scrollbar or flicking still moves the
+///   adjustment directly and can stop between rows.
+///
+/// 與 iOS 滾輪仍有兩點差異，且兩者都屬於行為差異而非不同的控制項：
+///
+/// - **以點擊選取，而非以「置中者」選取。** 在 iOS 上你旋轉它，置中的那一列即成為值；此處則是把
+///   選取的列高亮顯示，並以點擊來選定。這較適合指標裝置，也正是「完整吸附並非關鍵」的原因：哪一
+///   列被選取從來不存在疑義。
+/// - **只有滾輪會吸附。** GTK 4 沒有 scroll-snap，但捲動是依 adjustment 的 step increment 移動的，
+///   因此把它設為一列的高度，每個刻度都會對齊列。拖動捲軸或觸控滑動仍是直接改變 adjustment，
+///   可能停在兩列之間。
 ///
 /// 日期以三個可捲動的欄位呈現，每個組成部分一欄。
 ///
@@ -185,9 +199,67 @@ final class DateWheel: Box {
         guard contentHeight > 0 else { return }
 
         let rowHeight = contentHeight / Double(count)
-        let centred = (Double(index) + 0.5) * rowHeight - Double(Self.viewportHeight) / 2
-        let highest = max(0, contentHeight - Double(Self.viewportHeight))
-        gtk_adjustment_set_value(adjustment, min(max(0, centred), highest))
+        guard rowHeight > 0 else { return }
+
+        // Resize the viewport to a whole number of rows, once the row height is
+        // known -- it is a theme metric, so it cannot be known before layout.
+        //
+        // Without this the column is 7.33 rows tall and one edge always shows a
+        // sliver of a row, which reads as a rendering fault and also makes
+        // snapping impossible to see: a half-row at the bottom looks the same
+        // whether the offset is row-aligned or not. Measured at the fixed 132pt:
+        // rows came out about 18pt, so the eighth row was always cut.
+        //
+        // An odd count so the selected row has the same number of neighbours
+        // above and below, which is what makes it read as centred.
+        //
+        // 一旦得知列高，便把可視範圍調整為整數列——列高是主題度量，因此在 layout 之前無從得知。
+        //
+        // 若無此調整，欄位高度會是 7.33 列，某一邊緣永遠露出半列，看起來像繪製錯誤；同時也讓吸附
+        // 變得無從觀察：底部的半列，無論偏移是否對齊列，看起來都一樣。在原本固定的 132pt 下實測：
+        // 列高約為 18pt，因此第八列永遠被切掉。
+        //
+        // 取奇數列，使選取列上下的鄰居數量相同，那正是它讀起來「置中」的原因。
+        var visibleRows = Int((Double(Self.viewportHeight) / rowHeight).rounded())
+        if visibleRows.isMultiple(of: 2) { visibleRows -= 1 }
+        visibleRows = max(3, visibleRows)
+
+        let snappedHeight = Int((Double(visibleRows) * rowHeight).rounded())
+        if scroller.minimumContentHeight != snappedHeight {
+            scroller.minimumContentHeight = snappedHeight
+            scroller.maximumContentHeight = snappedHeight
+        }
+
+        // Snapping, such as GTK allows. There is no scroll-snap in GTK 4, but
+        // the wheel moves by the adjustment's step increment, so setting that to
+        // one row makes every notch land row-aligned by construction -- no
+        // timer, no settle detection, nothing to get wrong. A page moves a
+        // viewport's worth, still in whole rows.
+        //
+        // This does not snap a drag: dragging the scrollbar or a touch flick
+        // moves the adjustment directly and can stop anywhere. Saying so matters
+        // because "we added snapping" would otherwise read as covering both, and
+        // the wheel is the input this actually fixes.
+        //
+        // 在 GTK 允許的範圍內做吸附。GTK 4 沒有 scroll-snap，但滾輪是依 adjustment 的 step
+        // increment 移動的，因此把它設為一列的高度，每一個刻度就會在結構上對齊列——不需要計時器、
+        // 不需要偵測停止、也就沒有什麼會出錯。翻頁則移動一個可視高度，同樣以整列為單位。
+        //
+        // 這並不會吸附「拖曳」：拖動捲軸或觸控滑動是直接改變 adjustment 的，可以停在任何位置。
+        // 此處明說是必要的，否則「我們加了吸附」會被讀成兩者皆涵蓋，而滾輪才是這項改動真正解決的
+        // 輸入方式。
+        gtk_adjustment_set_step_increment(adjustment, rowHeight)
+        gtk_adjustment_set_page_increment(adjustment, rowHeight * Double(visibleRows))
+
+        // Centre by whole rows, not by pixels: put the selection's row index
+        // half the visible count from the top. Centring by pixel arithmetic
+        // would leave a fractional offset and undo the alignment this method
+        // just set up.
+        // 以整列而非像素進行置中：把選取列的索引放在距頂端「可見列數的一半」處。若以像素運算置中，
+        // 會留下小數偏移，反而抵銷此方法剛剛建立起來的對齊。
+        let topRow = Double(index - visibleRows / 2)
+        let highest = max(0, contentHeight - Double(visibleRows) * rowHeight)
+        gtk_adjustment_set_value(adjustment, min(max(0, topRow * rowHeight), highest))
     }
 
     /// Rebuilds the day column when the month's length changes.

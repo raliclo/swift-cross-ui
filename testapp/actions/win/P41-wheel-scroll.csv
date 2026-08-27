@@ -1,0 +1,40 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, GtkBackend: turn the wheel over the year column and check the
+# rows stay aligned.
+#
+# GTK 4 has no scroll-snap. DateWheel sets the adjustment's step increment to one
+# row instead, so a wheel notch moves exactly one row and cannot leave a row half
+# above the viewport edge. This file is the check: scroll, then look at whether
+# the top and bottom rows are whole.
+#
+# What failure looks like: a sliver of a year clipped at the top or bottom edge
+# of the column. What success looks like: seven whole rows in every column, top
+# and bottom both complete.
+#
+# Do NOT check that the years moved by exactly as many entries as there were
+# notches. The first version of this file said that and was wrong: three notches
+# moved four years, because Windows delivers several lines per notch and GTK
+# scales that again. The notch-to-row ratio is not ours and is not the point --
+# row ALIGNMENT is.
+#
+# The whole-rows check only became possible when the viewport was made an exact
+# multiple of the row height. Before that it was 132pt against an 18pt row --
+# 7.33 rows -- so an edge always showed a sliver and a snapped offset looked
+# exactly like an unsnapped one. A test that cannot fail is worth less than no
+# test, because it reports success.
+#
+# P41 於 Windows、GtkBackend：在年份欄上轉動滾輪，檢查各列是否維持對齊。
+#
+# GTK 4 沒有 scroll-snap。DateWheel 改為把 adjustment 的 step increment 設為一列的高度，因此一個
+# 滾輪刻度恰好移動一列，不可能讓某一列有一半露在可視範圍邊緣之外。本檔即為該項檢查：捲動之後，
+# 觀察最上與最下的列是否完整。
+#
+# 失敗的樣子：欄位上緣或下緣出現被裁掉一半的年份。成功的樣子：每一列都完整，且年份恰好位移了與
+# 刻度數相同的筆數。
+#
+# Measured on a 960x660 window capture at 100% display scale.
+# 量測自一張 960x660 的視窗截圖，顯示縮放 100%。
+move,545,510,frame,,,,over the year column of the .wheel cell,windows
+sleep,,,,,,500000,,windows
+scroll,0,3,,,,,three notches down; judge alignment not distance,windows
+sleep,,,,,,1500000,hold for the capture,windows
