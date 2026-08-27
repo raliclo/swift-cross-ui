@@ -38,8 +38,22 @@ and the rest do not:
 |---|---|---|
 | `PickerStyle` protocol | `public protocol PickerStyle: Sendable`, with `Default`/`Inline`/`Menu`/`RadioGroup` structs and an internal `_BuiltinPickerStyle` | yes |
 | `DatePickerStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendDatePickerStyle` | yes |
-| `ListStyle` protocol | `@_spi(Backends) public enum ListStyle` | no — and not public API at all |
-| `ButtonStyle`, `LabelStyle`, `ShapeStyle`, `ToggleStyle` | absent | no |
+| `ListStyle` protocol | `@_spi(Backends) public enum ListStyle` | no — and see below, it is inert |
+| `ToggleStyle` protocol | protocol since 2026-08-27 — the nested `Style` enum lives on as `BackendToggleStyle` | yes |
+| `ButtonStyle`, `LabelStyle`, `ShapeStyle` | absent — 0 declarations and 0 references each | no |
+
+**A correction, kept rather than quietly fixed.** The first version of this table
+said all four of `ButtonStyle`, `LabelStyle`, `ShapeStyle` and `ToggleStyle` were
+absent. `ToggleStyle` is not: it has one declaration and ten references, and
+`Toggle.body` switches on it. The audit that produced the row piped a `grep`
+through `head -10` and read the truncated output as the whole answer. Re-derive
+with counts, which cannot be truncated into looking complete:
+
+    for n in ButtonStyle LabelStyle ShapeStyle ToggleStyle ListStyle; do
+      printf '%-12s %s %s\n' "$n" \
+        "$(grep -rn "\(struct\|enum\|protocol\) $n\b" Sources/ --include=*.swift | wc -l)" \
+        "$(grep -rn "\b$n\b" Sources/ --include=*.swift | wc -l)"
+    done
 
 The cost is specific and easy to miss, which is why it belongs beside #34 rather
 than on a feature checklist. An enum keeps the *call sites* compiling —
@@ -51,6 +65,49 @@ Decided: follow the protocol shape everywhere, including adding the four that do
 not exist. `PickerStyle` is the worked example to copy — protocol, an internal
 `_Builtin` protocol for the cases a backend must recognise, and one named struct
 per style.
+
+`DatePickerStyle` and `ToggleStyle` are done (2026-08-27, Windows). `ListStyle`
+is deliberately not, for the reason below. `ButtonStyle` and `LabelStyle` are
+blocked, also below.
+
+**`ButtonStyle` cannot be written yet, and the blocker is `Button`.** SwiftUI's
+`ButtonStyle.makeBody(configuration:)` receives `configuration.label` as a
+*view* and `configuration.isPressed` as a Bool. Neither exists here.
+`Button.label` is a `String` — the codebase says so itself, in the comment on
+`Button._buttonWidth`: "a temporary button width solution until arbitrary labels
+are supported". And press state is nowhere: `grep -rn "isPressed" Sources/`
+returns nothing in any backend. A `ButtonStyle` built on top of today's `Button`
+would hand every style an empty label and an `isPressed` that is always false,
+which is a worse outcome than not having it. Arbitrary button labels first.
+
+**`LabelStyle` has nothing to style.** There is no `Label` view — it is one of
+the missing views under SwiftUI parity below.
+
+`ToggleStyle` was the one of the three that could be done, and it was the
+tidiest starting point of any style here: already a struct with `.switch`,
+`.button` and `.checkbox` statics and an `@_spi(Backends)` nested enum, so the
+split between application vocabulary and backend vocabulary predated the
+protocol. Its label is a `String` for the same reason `Button`'s is, and that is
+recorded on the protocol rather than worked around.
+
+**`ListStyle` is inert, and converting it first would publish a no-op.** Measured
+2026-08-27: `grep -rn listStyle Sources/ Tests/` returns exactly two lines —
+`EnvironmentValues` declaring the entry, and `SplitView` setting it to `.sidebar`
+for its sidebar column. **No backend reads it.** Not GtkBackend, not
+WinUIBackend, not AppKit, UIKit, Android or Dummy; the count across all six is
+zero.
+
+So the shape is not the first problem. Giving it SwiftUI's protocol shape and a
+public `.listStyle(_:)` modifier would hand applications a call that provably
+does nothing, which is worse than the enum: today it is at least hidden behind
+`@_spi(Backends)` and promises nobody anything. That is the exact failure
+`testapp/gtk-silent-noops.md` exists to catalogue.
+
+Do the two together instead — the conversion in the same change that makes at
+least one backend honour it, so the public API is real on the day it appears.
+For GtkBackend the likely mechanism is the `navigation-sidebar` CSS class that
+GTK 4 and libadwaita already style; check first whether `List` reaches a
+`GtkListBox` at all, since `SelectableListViews` is an opt-in feature.
 
 ### Swift 6 language mode, module by module (Windows)
 

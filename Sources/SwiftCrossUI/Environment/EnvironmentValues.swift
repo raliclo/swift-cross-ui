@@ -351,7 +351,7 @@ extension EnvironmentValues {
     @Entry @_spi(Backends) public var listStyle: ListStyle = .default
 
     /// The style of toggle to use.
-    @Entry public var toggleStyle: ToggleStyle = .button
+    @Entry public var toggleStyle: any ToggleStyle = .button
 
     /// The active background color of button-style toggles.
     @Entry public var toggleColor: Color?

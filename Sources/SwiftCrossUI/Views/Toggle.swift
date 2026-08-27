@@ -3,7 +3,7 @@
 /// Depending on the value of ``EnvironmentValues/toggleStyle``, this control
 /// can appear as a switch, a button, or a checkbox.
 public struct Toggle: View {
-    @Environment(\.backend) var backend
+    @Environment(\.self) var environment
     @Environment(\.toggleStyle) var toggleStyle
 
     /// The label to be shown on or beside the toggle.
@@ -27,26 +27,23 @@ public struct Toggle: View {
     }
 
     public var body: some View {
-        switch toggleStyle.style {
-            case .switch:
-                HStack {
-                    Text(label)
-
-                    if backend.requiresToggleSwitchSpacer {
-                        Spacer()
-                    }
-
-                    ToggleSwitch(isOn: active)
-                }
-            case .button:
-                ToggleButton(label, isOn: active)
-            case .checkbox:
-                HStack {
-                    Text(label)
-
-                    Checkbox(isOn: active)
-                }
-        }
+        // Routed through the style, as `Picker` and `DatePicker` are. What used
+        // to be here is now `_BuiltinToggleImplementation`, reached by the three
+        // built-in styles; a style written outside this module draws whatever it
+        // likes instead. `AnyView` because the style is existential and its
+        // `Body` is not known here.
+        //
+        // 交由 style 繪製，與 `Picker`、`DatePicker` 相同。原本位於此處的內容現在是
+        // `_BuiltinToggleImplementation`，由三個內建 style 取用；而在本模組之外撰寫的 style 則
+        // 想畫什麼就畫什麼。使用 `AnyView`，因為此處的 style 是 existential，其 `Body` 型別在這裡
+        // 無從得知。
+        AnyView(
+            toggleStyle.makeView(
+                label: label,
+                isOn: active,
+                environment: environment
+            )
+        )
     }
 
     public var _asMenuItems: [MenuItem] {
@@ -54,21 +51,10 @@ public struct Toggle: View {
     }
 }
 
-/// A style of toggle.
-public struct ToggleStyle: Sendable {
-    @_spi(Backends) public var style: Style
-
-    /// A toggle switch.
-    public static let `switch` = Self(style: .switch)
-    /// A toggle button. Generally looks like a regular button when off and an
-    /// accented button when on.
-    public static let button = Self(style: .button)
-    /// A checkbox.
-    public static let checkbox = Self(style: .checkbox)
-
-    @_spi(Backends) public enum Style: Sendable {
-        case `switch`
-        case button
-        case checkbox
-    }
-}
+// `ToggleStyle` used to be a struct here, with three static members and a
+// nested `@_spi(Backends) enum Style`. It is now a protocol in
+// Views/Styles/ToggleStyle/, and that nested enum lives on as
+// `BackendToggleStyle` in Backend/.
+// `ToggleStyle` 過去是此處的一個 struct，帶有三個 static 成員與一個巢狀的
+// `@_spi(Backends) enum Style`。它現已成為 Views/Styles/ToggleStyle/ 中的 protocol，而那個巢狀
+// enum 則以 `BackendToggleStyle` 之名存續於 Backend/ 之中。
