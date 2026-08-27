@@ -128,7 +128,8 @@ usage() {
         "       program that owns it, because macOS returns an empty title to" \
         "       any process without Screen Recording permission. Which one" \
         "       matched is printed. Capture needs that permission; without it" \
-        "       nothing is written and the exit code is 1." \
+        "       nothing is written and the exit code is 1. A sleeping display defeats" \
+        "       window capture entirely, so a fallback to the whole screen is a signal." \
         "macOS：-w 先比對視窗標題，比不到時改以擁有該視窗的程式名稱比對——未取得" \
         "       「螢幕錄製」權限的行程讀到的標題一律為空。實際以哪一種比中會被印出。" \
         "       擷取本身需要該權限；沒有時不會產生檔案，結束碼為 1。" \
@@ -209,19 +210,26 @@ if [ "$platform" = "macos" ]; then
     # 視窗清單來自 CGWindowListCopyWindowInfo，經 osascript 的 ObjC 橋接呼叫——不必編譯任何
     # 東西、不必安裝額外工具、也不需要輔助使用權限。
     #
-    # 但**視窗標題在未取得「螢幕錄製」權限時一律是空字串**（macOS 10.15 起）。實測：本機列出
-    # 28 個視窗，每一個 kCGWindowName 都是空的，而 kCGWindowOwnerName 全部有值。因此 -w 先比
-    # 標題、再比擁有該視窗的程式名稱，而**用哪一種比中會被印出**——程式名稱只能指認「哪個
-    # app」，不能指認「它的哪一個視窗」，兩者能證明的事情不同。
+    # 但**視窗標題是否讀得到，取決於呼叫端行程的「螢幕錄製」權限**（macOS 10.15 起）。這一點
+    # 在同一台機器上量到兩種相反的結果：在未取得權限的終端機裡，列出的 28 個視窗 kCGWindowName
+    # 全部是空字串；在另一個已取得權限的終端機裡，26 個視窗有 22 個標題讀得到。kCGWindowOwnerName
+    # 兩邊都有值。
+    #
+    # 因此 -w 先比標題、比不到再比擁有該視窗的程式名稱，而**用哪一種比中會被印出**——程式名稱
+    # 只能指認「哪個 app」，不能指認「它的哪一個視窗」，兩者能證明的事情不同。
     #
     # The window list comes from CGWindowListCopyWindowInfo through osascript's ObjC bridge:
     # nothing to compile, nothing to install, and no accessibility permission needed.
     #
-    # But **window titles are empty strings without Screen Recording permission** (macOS 10.15
-    # onwards). Measured here: 28 windows listed, every kCGWindowName empty, every
-    # kCGWindowOwnerName present. So -w matches the title first and the owning program's name
-    # second, and **which one matched is printed** -- a program name identifies which app, not
-    # which of its windows, and the two support different conclusions.
+    # But **whether a window title is readable depends on the calling process's Screen Recording
+    # permission** (macOS 10.15 onwards), and the two possible answers were both measured on this
+    # machine: from a terminal without the permission, all 28 listed windows had an empty
+    # kCGWindowName; from another terminal that had it, 22 of 26 titles were readable.
+    # kCGWindowOwnerName was present in both.
+    #
+    # So -w matches the title first and the owning program's name second, and **which one matched
+    # is printed** -- a program name identifies which app, not which of its windows, and the two
+    # support different conclusions.
     mac_windows() {
         osascript -l JavaScript <<'JXA'
 ObjC.import('CoreGraphics');
@@ -293,16 +301,23 @@ JXA
     # So this is printed once and says what to do, rather than repeating "capture failed".
     mac_no_image_hint() {
         printf '!! screenshot.zsh: screencapture 沒有產生任何影像。\n' >&2
-        printf '!! 在 macOS 上這幾乎都是「螢幕錄製」權限：系統設定 > 隱私權與安全性 >\n' >&2
-        printf '!! 螢幕與系統音訊錄製，勾選實際執行本腳本的那個程式（終端機、iTerm 或編輯器），\n' >&2
-        printf '!! 然後**結束並重新開啟它**——該權限是在啟動時讀取的。\n' >&2
-        printf '!! 螢幕被鎖定時會得到同一則訊息。\n' >&2
+        printf '!! 在 macOS 上這通常是「螢幕錄製」權限：系統設定 > 隱私權與安全性 >\n' >&2
+        printf '!! 螢幕與系統音訊錄製，勾選實際執行本腳本的那個程式（終端機、iTerm 或編輯器）。\n' >&2
+        printf '!! 勾選後通常立刻生效，不需要重開終端機——screencapture 每次都是新的子行程，\n' >&2
+        printf '!! 讀的是當下的權限狀態（實測：授權後未重啟即可擷取）。仍然失敗時才重開它。\n' >&2
+        printf '!! 另外兩種會得到同一則訊息的情況：螢幕被鎖定，以及**顯示器休眠**——後者連整個\n' >&2
+        printf '!! 螢幕都拍得到，只是拍回來一張全黑的圖，而視窗擷取則是直接失敗。\n' >&2
         printf '!! screencapture produced no image at all.\n' >&2
-        printf '!! On macOS this is almost always Screen Recording permission: System Settings >\n' >&2
+        printf '!! On macOS this is usually Screen Recording permission: System Settings >\n' >&2
         printf '!! Privacy & Security > Screen & System Audio Recording, tick the program that\n' >&2
-        printf '!! actually runs this script (Terminal, iTerm, or the editor), then QUIT AND\n' >&2
-        printf '!! REOPEN it -- the permission is read at launch.\n' >&2
-        printf '!! A locked screen gives the same message.\n' >&2
+        printf '!! actually runs this script (Terminal, iTerm, or the editor).\n' >&2
+        printf '!! That usually takes effect at once and needs no restart -- screencapture is a\n' >&2
+        printf '!! fresh subprocess each time and reads the current permission state (measured:\n' >&2
+        printf '!! captures worked after the grant with nothing restarted). Restart it only if\n' >&2
+        printf '!! this persists.\n' >&2
+        printf '!! Two other conditions give the same message: a locked screen, and a **sleeping\n' >&2
+        printf '!! display** -- the latter still photographs the whole screen, returning a black\n' >&2
+        printf '!! frame, while window capture fails outright.\n' >&2
     }
 
     captured_from=""
@@ -326,11 +341,25 @@ JXA
             else
                 printf 'resolved window title to "%s"\n' "$window_title" >&2
             fi
-            # -l 直接讀該視窗本身，前方有什麼都不影響——這與 Windows 的優先序 1 語意相同，
-            # 而在 macOS 上它不需要先把視窗帶到前景。
+            # -l 直接讀該視窗本身，被別的視窗蓋住也照樣拍得到——這與 Windows 的優先序 1 語意
+            # 相同，而在 macOS 上它不需要先把視窗帶到前景。
+            #
+            # 但它不是完全不受畫面狀態影響：**顯示器休眠時，-l 對每一個視窗都失敗**，包含當下
+            # 最前景的那一個。實測：整螢幕擷取仍以 0 結束並回來一張全黑的圖，而同一時刻對本行程
+            # 與對終端機自己的視窗各試一次 -l，兩次都是 could not create image from window。
+            # 因此「回退成整個螢幕」在呼叫端應視為訊號，而不只是次好結果。
+            #
+            # -l reads the window itself and captures it even when other windows cover it -- the
+            # same meaning as the Windows priority 1, and here it needs no raise.
+            #
+            # It is not indifferent to the state of the display, though: **while the display
+            # sleeps, -l fails for every window**, the frontmost included. Measured: a whole-screen
+            # capture still exited 0 and returned a black frame while, at the same moment, -l on
+            # this process's window and on the terminal's own both answered could not create image
+            # from window. So a caller should read a fallback to the whole screen as a signal
+            # rather than merely a lesser result.
+            #
             # -o 去掉視窗陰影：陰影是一圈半透明邊框，留著會讓兩張圖的像素邊界對不齊。
-            # -l reads the window itself and does not care what is in front -- the same meaning
-            # as the Windows priority 1, and here it needs no raise.
             # -o drops the window shadow, a translucent border that otherwise misaligns the pixel
             # edges between two captures.
             screencapture -x -o -l "$window_id" "${wait_args[@]}" "$target" 2>/dev/null || true
