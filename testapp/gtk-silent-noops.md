@@ -1452,6 +1452,34 @@ bug，而文字會說出缺少的是哪一個功能、以及原因。」
 
 ---
 
+## 21. ~~Dead code that reads like an unimplemented feature~~ — **HALF FIXED 2026-08-27** **[src]**
+
+The false one is deleted; the real one stays.
+
+**Deleted**: the 70-line commented-out table implementation and its
+`// TODO: Implement tables`. Tables are implemented, and have been for a while.
+71 lines removed, `git diff --stat` identical with and without
+`--ignore-all-space`, GtkBackend builds and 61 tests pass.
+
+**Kept**: `InspectionModifiers.swift`'s commented-out `Picker.inspect` behind
+`// TODO(stackotter): Repair Picker.inspect implementations post PickerStyle
+refactor`. That TODO is true — it is test support that genuinely does not work.
+Deleting a real TODO because it looks like the false one next to it would be the
+same mistake in the other direction.
+
+已刪除假的那一則，保留真的那一則。
+
+**刪除**：70 行被註解掉的表格實作，以及其上的 `// TODO: Implement tables`。表格早已實作完成。共移除
+71 行，`git diff --stat` 在加與不加 `--ignore-all-space` 之下結果相同，GtkBackend 建置通過、61 個
+測試通過。
+
+**保留**：`InspectionModifiers.swift` 中被註解掉的 `Picker.inspect`，其上的
+`// TODO(stackotter): Repair Picker.inspect implementations post PickerStyle refactor` 是**真的**
+——那是確實無法運作的測試支援。若因為它旁邊那一則是假的，就順手把真的 TODO 也刪掉，會是同一個錯誤
+的反方向。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 21. Dead code that reads like an unimplemented feature — **refinement**, deletion only **[src]**
 
 Two places will mislead the next person grepping this file for TODOs:
@@ -1535,3 +1563,5 @@ grep -n "TODO\|FIXME\|not supported\|no-op\|does nothing\|unimplemented" Sources
 
 At the time of writing that returns 19 lines across 4 files.
 撰寫當下該指令回傳 4 個檔案共 19 行。
+
+</details>
