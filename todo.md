@@ -22,8 +22,17 @@ the file it points at.
 
 `Package.swift` declares `swift-tools-version:6.0`, so an older toolchain is
 refused — that half is done. Every target is then pinned back to `.v5` by the
-sweep at the bottom of that file. Lifting a target means deleting it from
-`stillOnSwift5` and fixing what the compiler then says.
+sweep at the bottom of that file. Lifting a target means adding its name to
+`migratedToSwift6` and fixing what the compiler then says.
+
+**That instruction changed on 2026-08-27, and the old one never worked.** It
+used to say "delete it from `stillOnSwift5`", but `stillOnSwift5` was
+`Set(package.targets.map(\.name))` — a derived set with no entries to delete. So
+nobody could have followed it. The list is now the *migrated* targets rather
+than the remaining ones, which also means a target added later defaults to v5
+instead of silently landing on v6 and breaking the build for whoever added it. A
+name in the list that matches no target now fails the manifest, because a typo
+there is otherwise silent: the target stays on v5 and reads as done.
 
 Measured 2026-08-27 with the mode actually on:
 
@@ -35,8 +44,8 @@ Measured 2026-08-27 with the mode actually on:
 | AppKitBackend | 5 |
 | UIKitBackend | still unmeasured |
 
-AppKitBackend measured 2026-08-27 on the Mac, by removing it alone from
-`stillOnSwift5` and building it. Five diagnostics, and they are one shape and a
+AppKitBackend measured 2026-08-27 on the Mac, by lifting it alone and building
+it. Five diagnostics, and they are one shape and a
 half rather than five problems:
 
 - three are the same conformance-isolation error, `AppKitBackend.swift:22:35`,
@@ -60,8 +69,8 @@ different setup rather than a longer wait.
 attempt at the number above used `swift build --target AppKitBackend -Xswiftc
 -swift-version -Xswiftc 6` and reported 8. That number was from `ImageFormats`,
 a dependency: `-Xswiftc` is global, so it flipped every target and the build
-failed before it reached AppKitBackend. Removing the target from
-`stillOnSwift5` is the mechanism that measures the target. Counting is its own
+failed before it reached AppKitBackend. Lifting the one target in the manifest
+is the mechanism that measures that target. Counting is its own
 trap -- grepping `error:` over the raw output gave 12, because the compiler's
 caret rows and the build system's two summary lines match too. Five is the
 count of lines naming a file in `Sources/AppKitBackend/`, and it equals the
@@ -246,6 +255,29 @@ space -- but passing `point` instead makes it worse: the text field stops
 hit-testing too. So the container is self-consistent with a non-standard
 convention and breaks where it meets real AppKit views. The reverted experiment
 is recorded so nobody spends the same hour on it.
+
+**A fix is written and needs one command on a Mac to confirm or kill it.**
+`9623ad6` on the Windows side. There were two frame-of-reference errors at once,
+which is why the reverted experiment failed differently rather than worked:
+`hitTest(_:)` takes its point in the receiver's *superview* space, so
+`convert(point, to: child)` started from the wrong space, and
+`child.hitTest(childPoint)` then passed a point in the child's own space where
+the child's superview space was wanted. Passing `point` corrects the second and
+leaves the first, so it is right only while the container sits at its
+superview's origin.
+
+The numbers in the table above are what make it a diagnosis. Button frame
+(114, 212, 52, 27), point (140, 225): `childPoint` is (26, 13), genuinely inside
+the button's bounds — so the containment check passed and hid the problem —
+and then `button.hitTest((26, 13))` compared (26, 13) against x 114...166,
+y 212...239 and correctly said nil.
+
+Unverified from here: this is a Windows host and AppKitBackend does not compile
+on it. The prediction is specific — `test.zsh P28 --macos --actionfile` should
+put "clicked" into `p28-debug-events.log`, where it currently appears zero
+times. If it does not, the remaining suspect is the flippedness of the
+container relative to its children, which the measurements above cannot rule
+out.
 
 - **Benchmark Metal's feature set on macOS**, then implement the useful subset
   on GtkBackend through GSK render nodes and GLSL rather than Metal shaders.

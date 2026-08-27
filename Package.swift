@@ -660,9 +660,16 @@ if hostBackendsOnly {
 // it was in progress.
 //
 // So the mode is pinned back to v5 here and lifted per target as each one is
-// migrated -- delete a target's entry from `stillOnSwift5` and it goes to v6
-// alone, compiling and testing on its own. The list is the remaining work, and
-// an empty list is the end of it.
+// migrated -- add a target's name to `migratedToSwift6` and it goes to v6 alone,
+// compiling and testing on its own. The list is the work already done, and it is
+// finished when every target that takes Swift settings is in it.
+//
+// The list names what is *done*, not what is left, and that is deliberate. It
+// was the other way around until 2026-08-27, and the other way around did not
+// work: `stillOnSwift5` was `Set(package.targets.map(\.name))`, so the entry the
+// comment told you to delete did not exist, and a target added later would have
+// defaulted to v6 and broken the build for whoever added it. Naming the done
+// work means the default for anything new is the safe one.
 //
 // Applied as a sweep rather than written into each target for the same reason
 // the dependency sweep above exists: several targets pass no swiftSettings at
@@ -677,15 +684,33 @@ if hostBackendsOnly {
 // 錯誤、WinUIBackend 有 1274 個，而 AppKitBackend 與 UIKitBackend 在 Windows 主機上無從量測。
 // 若將其作為單一變更落地，過程中將出現一棵無人能建置的樹。
 //
-// 因此此處把模式釘回 v5，並在每個 target 完成遷移後逐一解除——從 `stillOnSwift5` 中刪掉某個
-// target，它便單獨切換為 v6，可獨立建置與測試。該清單即是剩餘的工作，清單清空之時即為完成之日。
+// 因此此處把模式釘回 v5，並在每個 target 完成遷移後逐一解除——把某個 target 的名稱加入
+// `migratedToSwift6`，它便單獨切換為 v6，可獨立建置與測試。該清單記錄的是已完成的工作，當所有
+// 接受 Swift 設定的 target 都列入其中時，即為完成之日。
+//
+// 清單所列的是「已完成」而非「待辦」，這是刻意的。在 2026-08-27 之前它是反過來的，而反過來根本
+// 行不通：`stillOnSwift5` 的值是 `Set(package.targets.map(\.name))`，因此註解要你刪掉的那個條目
+// 根本不存在；而日後新增的 target 會預設落入 v6，替新增它的人弄壞建置。改為記錄已完成的工作，
+// 任何新東西的預設值就會是安全的那一個。
 //
 // 採「掃描套用」而非逐 target 寫入，理由與上方的 dependency 掃描相同：有數個 target 根本不傳
 // swiftSettings，而那些正是逐一手動處理時會漏掉的。不接受 Swift 設定的 target（C 與
 // systemLibrary 類）則不予變更。
-let stillOnSwift5: Set<String> = Set(package.targets.map(\.name))
+let migratedToSwift6: Set<String> = []
 
-for target in package.targets where stillOnSwift5.contains(target.name) {
+// A name that matches no target is a typo, and a typo here is silent: the
+// target stays on v5, the build passes, and the target reads as migrated when
+// nothing about it changed. Failing the manifest is the only loud option a
+// Package.swift has.
+// 對不上任何 target 的名稱就是打錯了，而此處的打錯是靜默的：該 target 仍留在 v5，建置照樣通過，
+// 於是它看起來像是已完成遷移，實際上什麼也沒變。讓 manifest 直接失敗，是 Package.swift 唯一
+// 能發出聲響的手段。
+let allTargetNames = Set(package.targets.map(\.name))
+for name in migratedToSwift6 where !allTargetNames.contains(name) {
+    fatalError("migratedToSwift6 names '\(name)', which is not a target in this package")
+}
+
+for target in package.targets where !migratedToSwift6.contains(target.name) {
     switch target.type {
         case .system, .binary:
             continue
