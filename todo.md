@@ -616,7 +616,24 @@ window was not reachable from the Windows capture path.
   fix, `case .semibold: 600`, is wrong: `.medium` is already 600, so it moves
   the collision rather than removing it.
 
-### AppKit hit testing: nothing but text fields can be clicked
+### AppKit hit testing: ~~nothing but text fields can be clicked~~ — FIXED on the Mac side
+
+**Fixed 2026-08-27 by `e25b3a65 Fix AppKit hit testing and Swift 6 replay
+build`, on the Mac.** Not verified here and not verifiable here -- there is no
+macOS in this checkout's reach -- so this is recorded as reported by that side,
+not as something this session measured.
+
+The cause was two frame-of-reference errors at once, which is why fixing either
+alone made it fail differently rather than work: `point` arrives already in the
+container's own coordinate space, and each child needs it in the child's space,
+so exactly one conversion is needed and it belongs inside the child loop. The
+old code converted from the superview and then handed every child a
+container-space point.
+
+The investigation below is kept because it is what made the fix findable: the
+per-control probe table is the thing that separated "the container is wrong"
+from "the coordinates are wrong", and the arithmetic worked through for the
+button is what identified the second error rather than only the first.
 
 Measured on macOS 2026-08-27, after `882b43f8 Implement AppKit hit testing and
 add P28 coverage`. Handed over rather than fixed; the Mac side stopped here.

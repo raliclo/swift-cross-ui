@@ -15,3 +15,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,gtk4,P40,ok,n/a,window,"transform applied but content lost: every transformed tile flat hotpink rgb(255,105,180)"
 2026-08-27,windows,gtk4,P40,ok,n/a,window,"after declining to transform: 0 hotpink pixels sampled, content legible again"
 2026-08-27,windows,winui,P40,ok,n/a,desktop,"rotation, scale and offset all render correctly"
+2026-08-27,mac,appkit,P28,ok,ok,n/a,"AppKit hit testing fixed in e25b3a65; reported by the Mac side, not verified in this checkout"
