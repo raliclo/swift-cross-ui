@@ -3,3 +3,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,gtk4,P10,ok,ok,window,""
 2026-08-27,windows,control,P10,ok,ok,window,""
 2026-08-27,windows,gtk4,P10,ok,ok,window,""
+2026-08-27,windows,liststyle,P7,ok,ok,window,""

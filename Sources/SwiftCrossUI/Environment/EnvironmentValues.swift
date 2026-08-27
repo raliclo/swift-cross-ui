@@ -348,7 +348,19 @@ extension EnvironmentValues {
     @Entry public var scrollDismissesKeyboardMode: ScrollDismissesKeyboardMode = .automatic
 
     /// The style of list to use.
-    @Entry @_spi(Backends) public var listStyle: ListStyle = .default
+    @Entry public var listStyle: any ListStyle = .automatic
+
+    /// The same style, already resolved to something a backend understands.
+    ///
+    /// The same split as ``backendDatePickerStyle`` and for the same reason:
+    /// `updateSelectableListView` receives the environment rather than the
+    /// view, so this is where a backend can reach a value from its own
+    /// vocabulary.
+    ///
+    /// 與 ``backendDatePickerStyle`` 相同的拆分，理由也相同：`updateSelectableListView` 收到的是
+    /// environment 而非 view，因此此處便是 backend 能取到「出自其自身詞彙之值」的地方。
+    @_spi(Backends)
+    @Entry public var backendListStyle: BackendListStyle = .default
 
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button

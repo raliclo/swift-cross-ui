@@ -13,7 +13,18 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
     ///   - detail: The detail content.
     init(@ViewBuilder sidebar: () -> Sidebar, @ViewBuilder detail: () -> Detail) {
         body = TupleView2(
-            EnvironmentModifier(sidebar()) { $0.with(\.listStyle, .sidebar) },
+            // Both entries, because a backend reads the resolved one and an
+            // application reads the other. Written here rather than through
+            // `.listStyle(_:)` so the sidebar's own style is not something a
+            // caller can accidentally override by setting a style further out.
+            // 兩個條目都寫入，因為 backend 讀的是已解析的那個、應用程式讀的是另一個。此處直接寫入
+            // 而不透過 `.listStyle(_:)`，如此側邊欄自身的樣式便不會被「在更外層設定樣式」的呼叫端
+            // 意外覆蓋。
+            EnvironmentModifier(sidebar()) {
+                $0
+                    .with(\.listStyle, .sidebar)
+                    .with(\.backendListStyle, .sidebar)
+            },
             detail()
         )
     }

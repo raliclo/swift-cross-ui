@@ -38,7 +38,7 @@ and the rest do not:
 |---|---|---|
 | `PickerStyle` protocol | `public protocol PickerStyle: Sendable`, with `Default`/`Inline`/`Menu`/`RadioGroup` structs and an internal `_BuiltinPickerStyle` | yes |
 | `DatePickerStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendDatePickerStyle` | yes |
-| `ListStyle` protocol | `@_spi(Backends) public enum ListStyle` | no — and see below, it is inert |
+| `ListStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendListStyle`, and GtkBackend now reads it | yes |
 | `ToggleStyle` protocol | protocol since 2026-08-27 — the nested `Style` enum lives on as `BackendToggleStyle` | yes |
 | `ButtonStyle`, `LabelStyle`, `ShapeStyle` | absent — 0 declarations and 0 references each | no |
 
@@ -66,9 +66,8 @@ not exist. `PickerStyle` is the worked example to copy — protocol, an internal
 `_Builtin` protocol for the cases a backend must recognise, and one named struct
 per style.
 
-`DatePickerStyle` and `ToggleStyle` are done (2026-08-27, Windows). `ListStyle`
-is deliberately not, for the reason below. `ButtonStyle` and `LabelStyle` are
-blocked, also below.
+`DatePickerStyle`, `ToggleStyle` and `ListStyle` are done (2026-08-27, Windows).
+`ButtonStyle` and `LabelStyle` are blocked, below.
 
 **`ButtonStyle` cannot be written yet, and the blocker is `Button`.** SwiftUI's
 `ButtonStyle.makeBody(configuration:)` receives `configuration.label` as a
@@ -104,8 +103,12 @@ split between application vocabulary and backend vocabulary predated the
 protocol. Its label is a `String` for the same reason `Button`'s is, and that is
 recorded on the protocol rather than worked around.
 
-**`ListStyle` is inert, and converting it first would publish a no-op.** Measured
-2026-08-27: `grep -rn listStyle Sources/ Tests/` returns exactly two lines —
+**`ListStyle` was inert, and converting it first would have published a no-op.**
+Done 2026-08-27, both halves in one change, exactly as this section asked for.
+The paragraphs below are the reasoning as it stood before the work and are kept
+so the ordering argument survives; what changed is recorded after them.
+
+Measured 2026-08-27: `grep -rn listStyle Sources/ Tests/` returns exactly two lines —
 `EnvironmentValues` declaring the entry, and `SplitView` setting it to `.sidebar`
 for its sidebar column. **No backend reads it.** Not GtkBackend, not
 WinUIBackend, not AppKit, UIKit, Android or Dummy; the count across all six is
@@ -122,6 +125,50 @@ least one backend honour it, so the public API is real on the day it appears.
 For GtkBackend the likely mechanism is the `navigation-sidebar` CSS class that
 GTK 4 and libadwaita already style; check first whether `List` reaches a
 `GtkListBox` at all, since `SelectableListViews` is an opt-in feature.
+
+**What was found, and what it cost.** `navigation-sidebar` was the mechanism —
+but GtkBackend was *already* adding it, in `createSelectableListView`, to every
+list unconditionally. So the bug was not "the style does not reach the backend";
+it was that the backend had one hard-coded appearance and it was the sidebar
+one. Every `List` in every app was drawn as a sidebar, and nothing said so,
+because there was no second appearance to compare against. The styling moved to
+`updateSelectableListView`, which receives the environment and can switch on
+`backendListStyle`.
+
+Verified on Windows/GtkBackend by driving `actions/win/P7-list-selection.csv`,
+which selects a row in each of P7's two lists. Before, both selections were the
+same muted grey. After, the plain `List` fills the selected row with GTK's blue
+accent across the full row width, and the `NavigationSplitView` sidebar keeps
+the inset grey. Re-run with:
+
+    SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P7
+    ( cd testapp/output && ./P7.exe -actionfile "$(cygpath -m "$PWD/../actions/win/P7-list-selection.csv")" & )
+
+`SCUI_DEBUG=1` is not optional: without it `DebugFeatures` strips `-actionfile`,
+the app launches and ignores the flag in silence, and the capture shows the
+untouched baseline. That cost three launches here before the empty log was read
+as the answer rather than as a missing feature.
+
+The protocol half followed `PickerStyle`, with one departure recorded on the
+protocol itself: `ListStyle` has no `makeView`. A list style changes how the
+backend draws its own list widget rather than substituting a view for it, so
+there is no custom-style-out-of-ordinary-views case to support, and every
+conformer is a built-in.
+
+One build failure worth keeping, because the error names neither file:
+deleting the old `Environment/ListStyle.swift` was required, not tidiness.
+Emptying it to a pointer comment left two files named `ListStyle.swift` in one
+target, and SwiftPM derives object names from the basename —
+`couldn't build ListStyle.swift.o because of multiple producers`. `DatePickerStyle`
+and `ToggleStyle` never hit this: their old definitions lived inside
+`DatePicker.swift` and `Toggle.swift`.
+
+Still open, and not a blocker on the protocol: WinUIBackend builds and links
+against it but does not read `backendListStyle`, so a WinUI `List` looks the
+same either way. Same for AppKit, UIKit, Android and Dummy. `.listStyle(_:)` is
+therefore honest on GtkBackend and a no-op elsewhere — which is the ordinary
+state of a backend feature here, not the "public API that does nothing anywhere"
+this section was written to prevent.
 
 ### Swift 6 language mode, module by module (Windows)
 

@@ -1327,16 +1327,53 @@ public final class GtkBackend:
     public func createSelectableListView() -> Widget {
         let listView = ListBox()
         listView.selectionMode = .single
-        gtk_widget_add_css_class(listView.widgetPointer, "navigation-sidebar")
+        // No `navigation-sidebar` here. It used to be added unconditionally, so
+        // every `List` was drawn as a sidebar whether it was one or not --
+        // flat, no frame, sidebar row padding. The style now follows
+        // `listStyle`, in `updateSelectableListView` below, which is where the
+        // environment is available.
+        // 此處不加 `navigation-sidebar`。它原本是無條件加上的，因此每一個 `List` 都被畫成側邊欄
+        // ——無邊框、扁平、採用側邊欄的列距——無論它是不是側邊欄。樣式現改為跟隨 `listStyle`，
+        // 於下方的 `updateSelectableListView` 中處理，因為 environment 在那裡才取得到。
         return listView
     }
 
+    /// Applies `listStyle`, which until 2026-08-27 nothing read.
+    ///
+    /// `SplitView` set it on its sidebar column and no backend consulted it, so
+    /// it was inert -- and the reason nobody noticed is that
+    /// `createSelectableListView` added `navigation-sidebar` to *every* list, so
+    /// the sidebar case looked right and the default case was wrong in the same
+    /// way. Two defects that concealed each other.
+    ///
+    /// Set on every update rather than only when the value changes, because a
+    /// list whose style is bound to state has to lose the class as well as gain
+    /// it. `gtk_widget_remove_css_class` on a widget that does not have the
+    /// class is a no-op, so the unconditional pair is safe.
+    ///
+    /// 套用 `listStyle`——在 2026-08-27 之前，沒有任何東西讀取它。
+    ///
+    /// `SplitView` 會在其側邊欄那一欄設定它，卻沒有任何 backend 去查詢，因此它是 inert 的；而之所以
+    /// 沒人察覺，是因為 `createSelectableListView` 為**每一個** list 都加上了 `navigation-sidebar`
+    /// ——於是側邊欄的情況看起來是對的，而預設的情況以同樣的方式錯著。兩個缺陷互相遮掩。
+    ///
+    /// 每次更新都設定，而非僅在值變動時，因為樣式綁定於 state 的 list 不只要能取得該 class，也要能
+    /// 失去它。對未持有該 class 的 widget 呼叫 `gtk_widget_remove_css_class` 為 no-op，因此這組
+    /// 無條件的成對呼叫是安全的。
     public func updateSelectableListView(
         _ selectableListView: Widget,
         environment: EnvironmentValues
     ) {
         let selectableListView = selectableListView as! ListBox
         selectableListView.sensitive = environment.isEnabled
+
+        let pointer = selectableListView.widgetPointer
+        switch environment.backendListStyle {
+            case .sidebar:
+                gtk_widget_add_css_class(pointer, "navigation-sidebar")
+            case .default:
+                gtk_widget_remove_css_class(pointer, "navigation-sidebar")
+        }
     }
 
     public func baseItemPadding(
