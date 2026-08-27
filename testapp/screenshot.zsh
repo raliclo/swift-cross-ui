@@ -41,6 +41,57 @@ set -euo pipefail
 script_dir="${0:a:h}"
 output_dir="$script_dir/output/screenshots"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 平台 / Platform
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 偵測一次、存成一個名字，之後每個分支都問這個名字。
+#
+# 先前這個檔案沒有偵測，它**假設**自己在 Windows 上：整支腳本建立在 gdigrab 與 cygpath 之上。
+# 那個假設在 macOS 上以最糟的方式破掉——ffmpeg 印出 `Unknown input format: 'gdigrab'`，然後
+# **以 0 結束**。實測：`zsh testapp/screenshot.zsh -d 1 -w "P28 hit testing" probe-macos` 印出
+# 那三行錯誤、回報成功、沒有產生任何檔案，而 test_common.zsh 的六個呼叫點都帶著 `|| true`，
+# 於是 `test.zsh P28 --macos` 跑完後 output/screenshots 是空的，終端機上卻寫著
+# 「final screenshot follows」。
+#
+# 所以未知平台在這裡**硬性失敗**，而不是往下掉進 Windows 路徑。少了這一段，一台沒有 gdigrab
+# 的機器得到的是「成功但沒有圖」，而那要靠人去看目錄才會發現。
+#
+# Detected once, given a name, and asked by name from then on.
+#
+# This file previously did no detection and **assumed** Windows: the whole script is built on
+# gdigrab and cygpath. On macOS that assumption broke in the worst available way -- ffmpeg printed
+# `Unknown input format: 'gdigrab'` and then **exited 0**. Measured: the command above printed
+# three error lines, reported success, and produced no file; all six call sites in
+# test_common.zsh pass `|| true`, so after `test.zsh P28 --macos` the screenshots directory was
+# empty while the terminal said "final screenshot follows".
+#
+# So an unknown platform **fails hard** here rather than falling through into the Windows path.
+# Without this, a machine without gdigrab gets "succeeded, no picture", which is found only by a
+# person looking in a directory.
+case "$(uname -s)" in
+    Darwin)
+        platform="macos"
+        ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        platform="windows"
+        ;;
+    Linux)
+        # WSL 走的是 Windows 路徑：gdigrab 與 tasklist.exe 都是透過 interop 呼叫到 Windows 那側，
+        # 拍的也是 Windows 的桌面。沒有 interop 的一般 Linux 兩者都沒有。
+        # WSL takes the Windows path: gdigrab and tasklist.exe both reach the Windows side through
+        # interop, and what is photographed is the Windows desktop. Plain Linux has neither.
+        if grep -qi microsoft /proc/version 2>/dev/null; then
+            platform="windows"
+        else
+            platform="linux"
+        fi
+        ;;
+    *)
+        platform="unknown"
+        ;;
+esac
+
 windows_path() {
     if command -v cygpath >/dev/null 2>&1; then
         cygpath -w "$1"
@@ -73,6 +124,14 @@ usage() {
         "  -w  直接擷取此視窗（優先序 1），不受前方遮擋影響。若無法擷取該視窗，" \
         "      則回退為擷取整個桌面（優先序 2）。實際使用哪一級會被印出。" \
         "" \
+        "macOS: -w matches a window title, and falls back to the name of the" \
+        "       program that owns it, because macOS returns an empty title to" \
+        "       any process without Screen Recording permission. Which one" \
+        "       matched is printed. Capture needs that permission; without it" \
+        "       nothing is written and the exit code is 1." \
+        "macOS：-w 先比對視窗標題，比不到時改以擁有該視窗的程式名稱比對——未取得" \
+        "       「螢幕錄製」權限的行程讀到的標題一律為空。實際以哪一種比中會被印出。" \
+        "       擷取本身需要該權限；沒有時不會產生檔案，結束碼為 1。" \
         "Example 範例:" \
         "  zsh testapp/screenshot.zsh -d 15 -w 'P6 stream player' p6-960x540"
 }
@@ -111,6 +170,248 @@ while [ "$#" -gt 0 ]; do
 done
 
 mkdir -p "$output_dir"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# macOS
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 為什麼 macOS 自成一段，而不是與下方共用流程
+#
+# 兩邊唯一相同的只有輸出檔名。列出視窗、把視窗帶到前景、擷取本身、以及失敗時的表現，四件事
+# 都不一樣，其中最後一件差最多：gdigrab 找不到視窗時結束碼是 **0**，而 screencapture 失敗時
+# 結束碼是 **1 且不留下任何檔案**（兩者皆實測）。把它們折進同一組條件式，會讓下方關於 BitBlt、
+# AppActivate 與 WSLg 的註解看起來像是也適用於此，而它們一條都不適用。
+#
+# Why macOS is a self-contained section rather than sharing the flow below.
+#
+# The only thing the two share is the name of the output file. Listing windows, raising one, the
+# capture itself, and how failure presents all differ -- the last most of all: gdigrab exits **0**
+# when it cannot find the window, while screencapture exits **1 and leaves no file** (both
+# measured). Folding them into one branch would make the notes below about BitBlt, AppActivate
+# and WSLg read as though they applied here, and not one of them does.
+if [ "$platform" = "macos" ]; then
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    target="$output_dir/$label-$timestamp.png"
+
+    # screencapture 自己會等，因此既不需要 sleep，也不需要 Windows 路徑那種丟棄影格的做法。
+    # screencapture waits by itself, so neither a sleep nor the Windows path's discarded frames
+    # are needed here.
+    #
+    # 用陣列而不是字串：zsh 不對 `$var` 做字語分割，`-T 5` 會以**一個**參數送進去，而
+    # screencapture 對此的反應是把整串當成檔名。
+    # An array rather than a string: zsh does not word-split `$var`, so `-T 5` would arrive as a
+    # single argument, which screencapture treats as a file name.
+    wait_args=()
+    if [ "$delay" -gt 0 ]; then
+        wait_args=(-T "$delay")
+    fi
+
+    # 視窗清單來自 CGWindowListCopyWindowInfo，經 osascript 的 ObjC 橋接呼叫——不必編譯任何
+    # 東西、不必安裝額外工具、也不需要輔助使用權限。
+    #
+    # 但**視窗標題在未取得「螢幕錄製」權限時一律是空字串**（macOS 10.15 起）。實測：本機列出
+    # 28 個視窗，每一個 kCGWindowName 都是空的，而 kCGWindowOwnerName 全部有值。因此 -w 先比
+    # 標題、再比擁有該視窗的程式名稱，而**用哪一種比中會被印出**——程式名稱只能指認「哪個
+    # app」，不能指認「它的哪一個視窗」，兩者能證明的事情不同。
+    #
+    # The window list comes from CGWindowListCopyWindowInfo through osascript's ObjC bridge:
+    # nothing to compile, nothing to install, and no accessibility permission needed.
+    #
+    # But **window titles are empty strings without Screen Recording permission** (macOS 10.15
+    # onwards). Measured here: 28 windows listed, every kCGWindowName empty, every
+    # kCGWindowOwnerName present. So -w matches the title first and the owning program's name
+    # second, and **which one matched is printed** -- a program name identifies which app, not
+    # which of its windows, and the two support different conclusions.
+    mac_windows() {
+        osascript -l JavaScript <<'JXA'
+ObjC.import('CoreGraphics');
+// castRefToObject 是必要的：CGWindowListCopyWindowInfo 回傳 CFArrayRef，JXA 不會自動橋接它，
+// 直接 deepUnwrap 得到的是 undefined——而 undefined 傳到 shell 端，看起來與「一個視窗都沒開」
+// 完全一樣。實測過：少了這個轉換，輸出是空的而結束碼是 0。
+// The cast is required: the CFArrayRef is not bridged automatically and deepUnwrap returns
+// undefined, which reaches the shell looking exactly like "no windows are open". Measured:
+// without the cast the output is empty and the exit code is 0.
+var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)));
+// 分隔字元寫成 fromCharCode 而不是字面值：US 是控制字元，貼在原始碼裡看不見，而看不見的
+// 分隔字元被誰不小心刪掉時，沒有任何東西會報錯。
+// The separator is written as fromCharCode rather than a literal: US is a control character,
+// invisible in source, and nothing reports it when an invisible separator is deleted by accident.
+var SEP = String.fromCharCode(31);
+var out = [];
+for (var i = 0; i < list.length; i++) {
+    var w = list[i], b = w.kCGWindowBounds || {};
+    // layer 0 才是一般視窗。選單列、Dock 與各種浮層在別的 layer，而它們一樣有名字、有大小，
+    // 因此不濾掉的話會比中它們——那會得到一張拍到 Dock 的圖，而不是一次失敗。
+    // Layer 0 is an ordinary window. The menu bar, the Dock and assorted overlays sit on other
+    // layers and have names and sizes too, so without this filter they match -- yielding a
+    // photograph of the Dock rather than a failure.
+    if (w.kCGWindowLayer !== 0) continue;
+    if (b.Width < 100 || b.Height < 100) continue;
+    out.push([w.kCGWindowNumber, w.kCGWindowOwnerName || '', w.kCGWindowName || '',
+              Math.round(b.X), Math.round(b.Y), Math.round(b.Width), Math.round(b.Height),
+              w.kCGWindowOwnerPID].join(SEP));
+}
+out.join('\n');
+JXA
+    }
+
+    # 欄位以 US（八進位 \037）分隔，不是 tab 也不是逗號：視窗標題是任意字串，裡面可以有 tab、
+    # 逗號與引號，而這三個字元在任何一種「自己切欄位」的做法裡都會安靜地把欄位切錯位。
+    # Fields separated by US (octal \037) rather than tab or comma: a window title is an arbitrary
+    # string and may contain tabs, commas and quotes, each of which silently shifts fields in any
+    # hand-rolled split.
+    #
+    # 標題的比對優先於程式名稱，而且是看完整份清單才決定——單趟即決無法「偏好標題」，因為
+    # 標題可能出現在比較後面的一列。
+    # Titles are preferred over program names across the whole list rather than decided in one
+    # pass, because a title match may appear on a later row than a name match.
+    mac_resolve() {
+        mac_windows | awk -F'\037' -v want="$1" '
+            NF >= 8 {
+                if ($3 != "" && index($3, want) && by_title == "") { by_title = $0 }
+                else if (index($2, want) && by_owner == "") { by_owner = $0 }
+            }
+            END {
+                if (by_title != "") print by_title "\037title"
+                else if (by_owner != "") print by_owner "\037owner"
+            }
+        '
+    }
+
+    mac_field() { printf '%s' "$1" | awk -F'\037' -v n="$2" '{ print $n }'; }
+
+    # macOS 的 stat 沒有 -c。下方 Windows 路徑用的是 `stat -c%s ... || echo 0`，在這裡會走進
+    # `|| echo 0`——於是每一張成功的截圖都會被判定為「太小」而觸發回退。
+    # macOS's stat has no -c. The Windows path below uses `stat -c%s ... || echo 0`, which here
+    # takes the `|| echo 0` branch, so every successful capture would be judged too small and
+    # fall back.
+    mac_size() { stat -f%z "$1" 2>/dev/null || echo 0; }
+
+    # 螢幕錄製權限缺席時**兩級都會失敗**，因為兩級都要讀畫面。所以這段只印一次，而且講的是
+    # 怎麼修，不是重複「擷取失敗」。
+    # Without Screen Recording permission **both priorities fail**, since both read the screen.
+    # So this is printed once and says what to do, rather than repeating "capture failed".
+    mac_no_image_hint() {
+        printf '!! screenshot.zsh: screencapture 沒有產生任何影像。\n' >&2
+        printf '!! 在 macOS 上這幾乎都是「螢幕錄製」權限：系統設定 > 隱私權與安全性 >\n' >&2
+        printf '!! 螢幕與系統音訊錄製，勾選實際執行本腳本的那個程式（終端機、iTerm 或編輯器），\n' >&2
+        printf '!! 然後**結束並重新開啟它**——該權限是在啟動時讀取的。\n' >&2
+        printf '!! 螢幕被鎖定時會得到同一則訊息。\n' >&2
+        printf '!! screencapture produced no image at all.\n' >&2
+        printf '!! On macOS this is almost always Screen Recording permission: System Settings >\n' >&2
+        printf '!! Privacy & Security > Screen & System Audio Recording, tick the program that\n' >&2
+        printf '!! actually runs this script (Terminal, iTerm, or the editor), then QUIT AND\n' >&2
+        printf '!! REOPEN it -- the permission is read at launch.\n' >&2
+        printf '!! A locked screen gives the same message.\n' >&2
+    }
+
+    captured_from=""
+    resolved=""
+    if [ -n "$window" ]; then
+        resolved="$(mac_resolve "$window" || true)"
+        if [ -z "$resolved" ]; then
+            printf '!! screenshot.zsh: 優先序 1 略過——沒有任何視窗的標題或程式名稱包含\n' >&2
+            printf '!!「%s」。改用優先序 2（整個螢幕），該圖僅在此視窗位於最上層時才會包含它。\n' "$window" >&2
+            printf '!! priority 1 skipped -- no window whose title or owning program name\n' >&2
+            printf '!! contains "%s" is open. Using priority 2, the whole screen, which shows\n' "$window" >&2
+            printf '!! that window only if it is in front.\n' >&2
+        else
+            window_id="$(mac_field "$resolved" 1)"
+            window_owner="$(mac_field "$resolved" 2)"
+            window_title="$(mac_field "$resolved" 3)"
+            matched_by="$(mac_field "$resolved" 9)"
+            if [ "$matched_by" = "owner" ]; then
+                printf 'matched the owning program "%s", not a window title\n' "$window_owner" >&2
+                printf '（比中的是程式名稱「%s」而非視窗標題；未取得螢幕錄製權限時標題為空）\n' "$window_owner" >&2
+            else
+                printf 'resolved window title to "%s"\n' "$window_title" >&2
+            fi
+            # -l 直接讀該視窗本身，前方有什麼都不影響——這與 Windows 的優先序 1 語意相同，
+            # 而在 macOS 上它不需要先把視窗帶到前景。
+            # -o 去掉視窗陰影：陰影是一圈半透明邊框，留著會讓兩張圖的像素邊界對不齊。
+            # -l reads the window itself and does not care what is in front -- the same meaning
+            # as the Windows priority 1, and here it needs no raise.
+            # -o drops the window shadow, a translucent border that otherwise misaligns the pixel
+            # edges between two captures.
+            screencapture -x -o -l "$window_id" "${wait_args[@]}" "$target" 2>/dev/null || true
+            if [ -f "$target" ] && [ "$(mac_size "$target")" -gt 5000 ]; then
+                captured_from="priority 1: window $window_id (\"${window_title:-$window_owner}\")"
+            else
+                rm -f "$target"
+                printf '!! screenshot.zsh: 優先序 1 失敗——無法擷取視窗 %s。改用優先序 2\n' "$window_id" >&2
+                printf '!!（整個螢幕），該圖僅在此視窗位於最上層時才會包含它。\n' >&2
+                printf '!! priority 1 failed -- window %s could not be captured. Falling back to\n' "$window_id" >&2
+                printf '!! priority 2, the whole screen, which shows it only if it is in front.\n' >&2
+            fi
+        fi
+    fi
+
+    if [ -z "$captured_from" ]; then
+        if [ -n "$resolved" ]; then
+            # 帶到前景只有優先序 2 需要：它拍的是螢幕，視窗不在最上層就等於拍到別的東西，而
+            # 那張圖一樣是有效的 PNG、結束碼一樣是 0。這正是本檔開頭記載的那個「拍到鎖定畫面
+            # 卻回報成功」的形狀。
+            # Raising is needed only by priority 2: it photographs the screen, so a window that is
+            # not on top means photographing something else -- still a valid PNG, still a zero
+            # exit code. That is the shape this file's header records as a capture of the lock
+            # screen reported as a success.
+            #
+            # System Events 需要「輔助使用」權限，它與「螢幕錄製」是兩個不同的權限，可能只給了
+            # 其中一個。因此這裡不假設它會成功，失敗就說出來。
+            # System Events needs Accessibility permission, a different permission from Screen
+            # Recording that may be granted alone. So success is not assumed, and failure is said
+            # out loud.
+            window_pid="$(mac_field "$resolved" 8)"
+            if ! osascript -e "tell application \"System Events\" to set frontmost of (first application process whose unix id is $window_pid) to true" >/dev/null 2>&1; then
+                printf '!! screenshot.zsh: 亦無法將該視窗帶到前景（需要「輔助使用」權限）。\n' >&2
+                printf '!! 以下截圖拍到的是當時螢幕上的其他內容。\n' >&2
+                printf '!! could not bring the window to the front either (needs Accessibility\n' >&2
+                printf '!! permission). The capture below is of whatever was on screen instead.\n' >&2
+            fi
+        fi
+        screencapture -x "${wait_args[@]}" "$target" 2>/dev/null || true
+        if [ -n "$window" ]; then
+            captured_from="priority 2: screen (window capture failed)"
+        else
+            # 未指定 -w，因此整個螢幕正是所要求的目標而非回退。
+            # No -w was given, so the whole screen is what was asked for rather than a fallback.
+            captured_from="screen"
+        fi
+    fi
+
+    # 沒有檔案就不要印出檔名。印一個不存在的路徑再以 0 結束，正是本檔通篇在防的那種「看起來
+    # 成功」——而在 macOS 上它特別容易發生，因為權限被拒時 screencapture 什麼都不留下。
+    # No file, no file name. Printing a path that does not exist and exiting 0 is exactly the
+    # looks-like-success this file guards against throughout, and on macOS it is especially easy
+    # to hit, because a denied permission leaves screencapture with nothing to leave behind.
+    if [ ! -f "$target" ]; then
+        mac_no_image_hint
+        exit 1
+    fi
+
+    printf '%s\n' "$target"
+    printf 'captured from %s\n' "$captured_from"
+    exit 0
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 既不是 macOS 也不是 Windows / Neither macOS nor Windows
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 以下全部依賴 gdigrab 與 tasklist.exe。在沒有它們的主機上繼續往下走，得到的是三行 ffmpeg
+# 錯誤加上結束碼 0——一次看起來成功、卻沒有圖的執行。這裡直接停住並說明原因。
+# Everything below depends on gdigrab and tasklist.exe. Continuing on a host without them yields
+# three lines of ffmpeg error and exit code 0 -- a run that looks successful and has no picture.
+# This stops here and says why.
+if [ "$platform" != "windows" ]; then
+    printf '!! screenshot.zsh: 本平台（uname -s = %s）沒有擷取路徑。\n' "$(uname -s)" >&2
+    printf '!! 目前支援 macOS（screencapture）與 Windows／WSL（ffmpeg gdigrab）。\n' >&2
+    printf '!! 沒有產生任何檔案。\n' >&2
+    printf '!! no capture path on this platform (uname -s = %s).\n' "$(uname -s)" >&2
+    printf '!! Supported: macOS via screencapture, Windows and WSL via ffmpeg gdigrab.\n' >&2
+    printf '!! No file was produced.\n' >&2
+    exit 3
+fi
 
 grab() {
     ffmpeg -hide_banner -loglevel error -f gdigrab -framerate 1 -i desktop "$@"
