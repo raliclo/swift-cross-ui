@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10 on Windows: does Ctrl-Q reach the application? (#478)
+#
+# The instrument is the process, not a screenshot. P10 quits on Ctrl-Q, so
+# success is the process being gone afterwards and failure is it still running
+# -- there is nothing to read off an image and nothing to interpret.
+#
+# This file could not run at all on Windows until 2026-08-27. `prepareForReplay`
+# refuses a file containing key actions unless it can put the window in the
+# foreground, and `SetForegroundWindow` is refused to a process that is neither
+# already in front nor the owner of the last input event -- which an app
+# launched from a shell never is. `AttachThreadInput` is what makes the request
+# permissible; see Win32Synthesiser.
+#
+# No coordinates anywhere. A key event goes to whatever holds focus, wherever
+# the pointer happens to be, so this file is unaffected by the display scale
+# that every other file here had to be re-measured for.
+#
+# P10 於 Windows：Ctrl-Q 能否抵達應用程式？（#478）
+#
+# 量測儀器是行程本身，而非截圖。P10 會在 Ctrl-Q 時結束，因此「成功」即為事後該行程已不存在，
+# 「失敗」即為它仍在執行——沒有任何影像需要判讀，也沒有任何東西需要詮釋。
+#
+# 直到 2026-08-27 為止，本檔在 Windows 上根本無法執行。`prepareForReplay` 會拒絕任何含按鍵動作的
+# 檔案，除非它能把視窗帶到前景；而 `SetForegroundWindow` 會拒絕「既不在前景、也不擁有最後一個輸入
+# 事件」的行程——由 shell 啟動的 app 永遠不是。使該請求得以被允許的是 `AttachThreadInput`，
+# 詳見 Win32Synthesiser。
+#
+# 全檔沒有任何座標。按鍵事件送往持有焦點者，與指標位置無關，因此本檔不受顯示縮放影響——而此處
+# 其他每一個檔案都曾為此重新量測過。
+sleep,,,,,,800000,let the window settle and take focus,windows
+keydown,,,,,control,,,windows
+key,,,,,q,,,windows
+keyup,,,,,control,,,windows
+sleep,,,,,,1500000,"give it time to quit, or to fail to",windows

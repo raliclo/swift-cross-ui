@@ -169,6 +169,34 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
 
         guard actions.contains(where: \.needsKeyboardFocus) else { return }
 
+        // No `AttachThreadInput` here, and that is a measurement rather than an
+        // omission.
+        //
+        // The known problem is that Windows grants a foreground change only to
+        // a process already in front, owning the last input event, or with no
+        // foreground window -- and an app launched from a shell is none of
+        // those. `AttachThreadInput` to the foreground thread is the standard
+        // remedy, and it was written, tried, and taken out again on 2026-08-27
+        // because it changed nothing: P10 driven by a Ctrl-Q file quit with it
+        // and quit without it. What made this work is the
+        // `SetWindowPos(HWND_TOPMOST)` above, which landed after #52 was filed.
+        //
+        // Left out because unused code that looks load-bearing is worse than
+        // absent code. If a keyboard file ever fails here again, attaching to
+        // the foreground thread before this call is the thing to try, and this
+        // note is the record that it is not currently needed.
+        //
+        // 此處沒有 `AttachThreadInput`，而這是量測的結果，並非疏漏。
+        //
+        // 已知的問題是：Windows 只允許「已在前景」、「擁有最後一個輸入事件」或「沒有前景視窗」的
+        // 行程切換前景，而由 shell 啟動的 app 三者皆非。附加至前景執行緒是標準解法；它已於
+        // 2026-08-27 寫出、試過，然後又被移除，因為它什麼也沒改變：以 Ctrl-Q 動作檔驅動的 P10，
+        // 加不加它都同樣結束。真正讓此處可行的，是上方的 `SetWindowPos(HWND_TOPMOST)`——它是在
+        // #52 被提出之後才加入的。
+        //
+        // 之所以不留下，是因為「看起來承重、實則無用」的程式碼比「沒有程式碼」更糟。若日後鍵盤
+        // 動作檔在此再次失敗，「在此呼叫之前附加至前景執行緒」就是該試的東西，而本註解即是
+        // 「目前並不需要它」的紀錄。
         SetForegroundWindow(window)
         BringWindowToTop(window)
 

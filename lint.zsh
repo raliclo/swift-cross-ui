@@ -67,7 +67,31 @@ else
     # 只檢查納入版控的檔案。vendored 的目錄樹滿是這些寫法——.build 底下 libpng 的 ltmain.sh 有五處
     # `path=`，testapp/gtk4-source 底下 GTK 自己的 testsuite 使用 `status=`——而那些都不是我們該修
     # 的。用 `git ls-files` 即可免費排除。
-    files=(${(f)"$(cd "$repo" && git ls-files '*.zsh')"})
+    if git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
+        files=(${(f)"$(cd "$repo" && git ls-files '*.zsh')"})
+    else
+        # Outside a git repo -- which is the case when this file is dropped into
+        # a directory that merely holds several projects. `find` instead, minus
+        # the trees that are not ours to fix. Without this the script reported
+        # nothing at all from such a directory and exited 0, which reads as "all
+        # clean" rather than "scanned nothing".
+        #
+        # 不在 git repo 之中——當本檔被放進一個「僅僅收納數個專案」的目錄時即是如此。改用 `find`，
+        # 並排除那些不該由我們修的目錄樹。少了這一段，該處執行會什麼都沒回報並以 0 結束——那讀起來
+        # 像是「全部乾淨」，而不是「什麼都沒掃」。
+        files=(${(f)"$(cd "$repo" && find . -name '*.zsh' -type f \
+            -not -path '*/.git/*' \
+            -not -path '*/.build*/*' \
+            -not -path '*/node_modules/*' \
+            -not -path '*/.compile-work*/*' \
+            -not -path '*/gtk4-source/*' \
+            2>/dev/null | sed 's|^\./||')"})
+    fi
+
+    if [ "${#files}" -eq 0 ]; then
+        printf 'lint.zsh: no .zsh files found under %s\n' "$repo" >&2
+        exit 1
+    fi
 fi
 
 fatal_count=0

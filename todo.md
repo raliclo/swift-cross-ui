@@ -320,15 +320,28 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## Test infrastructure / 測試基礎設施
 
-- **Keyboard action files cannot run on Windows at all.** `prepareForReplay`
-  refuses any file containing `key`/`keydown`/`keyup`, and correctly: a key
-  event goes to whatever holds focus, and a background-launched process cannot
-  take the foreground. But that removes P10's Ctrl-Q, P21's tab traversal and
-  every text-entry check. Do not simply drop the refusal — typing into whatever
-  happens to be in front is how two runs ate the user's editor state. Options,
-  in order: `PostMessage` of `WM_KEYDOWN` straight to the window; retry
-  `AttachThreadInput` now that the window is pinned topmost (it was tried before
-  the pin existed); or make `run.zsh` say so up front rather than at the end.
+- ~~**Keyboard action files cannot run on Windows at all.** `prepareForReplay`
+  refuses any file containing `key`/`keydown`/`keyup` [...] Options, in order:
+  `PostMessage`; retry `AttachThreadInput` now that the window is pinned
+  topmost; or make `run.zsh` say so up front.~~ **Already working — the
+  description was stale in two ways.**
+
+  `prepareForReplay` does not refuse such a file. It attempts the foreground
+  and throws only if the window has not become foreground within 500 ms, and
+  here it does become foreground. What fixed it is the
+  `SetWindowPos(HWND_TOPMOST)` pin, which landed *after* this was written.
+
+  Measured 2026-08-27, with the control run rather than by reading the code.
+  `AttachThreadInput` was implemented as the task suggested and made no
+  difference: P10 driven by a new `P10-ctrl-q.csv` quit with it and quit
+  without it, so it was taken back out and the finding recorded in
+  `Win32Synthesiser` beside the call.
+
+  The real gap was that **no Windows keyboard action file existed** — the
+  capability was there and untested, and believed broken. `P10-ctrl-q.csv` now
+  exercises it, and the instrument is the process rather than a screenshot:
+  P10 quits on Ctrl-Q, so success is the process being gone. P21's tab
+  traversal and the text-entry checks are still unwritten.
 - **`ui-lock.zsh`'s locked-desktop gate reads `LogonUI.exe`**, which does not
   track lock state — it has been seen running while input was being delivered.
   The direct signal is `SendInput` failing with `ERROR_ACCESS_DENIED` (5), which
