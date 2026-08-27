@@ -761,7 +761,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 已在主執行緒上的重放會在此死鎖，因此該情況被實際處理而非假設不存在——那正是協定文件所警告的
     /// 錯誤，一旦發生就應該大聲失敗。
-    private func onMain<T>(_ body: @MainActor () throws -> T) rethrows -> T {
+    private func onMain<T: Sendable>(_ body: @MainActor () throws -> T) rethrows -> T {
         if Thread.isMainThread {
             return try MainActor.assumeIsolated(body)
         }
