@@ -60,15 +60,48 @@ zsh testapp/test.zsh P14 --ios
 zsh testapp/test.zsh P12 --android
 ```
 
+### Platforms
+
 The platform flag is optional. Each test declares the platform it was written
 for and most were written on Windows, so on a Mac the declared platform is
 usually one this host cannot drive; the run moves to one it can and says so.
 Naming a platform this host cannot drive is refused rather than redirected.
 
+| Host | Can drive |
+| --- | --- |
+| Windows | `--windows` (`-win`), `--wsl`, `--both` |
+| macOS | `--macos`, `--ios`, `--android` |
+
+`--wsl` and `--both` reach into WSL with `wsl.exe`, so they need a Windows host
+rather than a Linux one. `--ios` and `--android` need macOS.
+
+### Flags
+
+The same flags mean the same thing on every platform, iOS and Android included.
+
+| Flag | Effect |
+| --- | --- |
+| `-n`, `--no-build` | Reuse what is already built |
+| `--showtime <s>`, `--no-showtime` | How long to leave the app up after it renders |
+| `--actionfile [path]` | Replay a CSV of synthesised input once the window is up. Without a path, `testapp/actions/<platform>/<Pn>-*.csv` is used — one folder per platform, because a file verified elsewhere is not evidence here |
+| `--device <name>` | iOS and Android only; refused on the others |
+
+### Devices
+
+Neither iOS nor Android needs a device named or an environment variable set.
+
+`--ios` uses a Simulator called `swift-cross-ui`, which `install_tools_ios.zsh`
+creates as an iPhone 16. `--android` boots the first AVD `emulator -list-avds`
+reports, and says so if none exists rather than failing further in.
+
+`--device` overrides either: a Simulator name or UDID for iOS, an AVD name or an
+adb serial for Android. `IOS_SIM_DEVICE` and `ANDROID_AVD_NAME` do the same
+thing from the environment.
+
 | Script | For |
 | --- | --- |
 | `test.zsh` | The command. Finds `test_support/test_Pn.zsh`, which sets the app's details and hands over to `test_support/test_common.zsh` |
-| `test_common.zsh` | Parses the flags, resolves the platform, and runs WSLg, Windows or macOS directly; delegates iOS and Android to the two scripts below |
+| `test_common.zsh` | Parses the flags, resolves the platform, and runs WSLg, Windows or macOS directly; delegates iOS and Android to the two scripts below, rebuilding the flags in their spelling |
 | `test_ios.zsh` | macOS: installs a Pn through the fixed `debugTarget` iOS bundle and launches Simulator; optionally replays an action file through XCUITest. Reached as `test.zsh <Pn> --ios` |
 | `test_android.zsh` | macOS: builds and bundles a Pn as an APK, installs it on the emulator and launches it. Reached as `test.zsh <Pn> --android` |
 

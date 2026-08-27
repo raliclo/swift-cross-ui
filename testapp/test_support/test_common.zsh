@@ -18,6 +18,7 @@ timeout_seconds="${TEST_TIMEOUT_SECONDS:-30}"
 showtime_seconds="${TEST_SHOWTIME_SECONDS:-30}"
 target="${TEST_TARGET:-wsl}"
 target_explicit=0
+device_name=""
 do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
@@ -99,6 +100,14 @@ platform_folder() {
     case "$target" in
         windows) printf 'win' ;;
         macos) printf 'mac' ;;
+        # Named rather than left to the default. Falling through to `wsl` is how
+        # `--ios --actionfile` came to resolve a WSL file and replay it on the
+        # Simulator -- the failure the comment above describes, produced by the
+        # very function meant to prevent it.
+        # 明確列出，而非交給預設值。正是因為落入 `wsl`，`--ios --actionfile` 才會取得一個 WSL
+        # 的動作檔並在模擬器上重放——上方註解所描述的那種失敗，由本應防止它的函式親手造成。
+        ios) printf 'ios' ;;
+        android) printf 'android' ;;
         *) printf 'wsl' ;;
     esac
 }
@@ -153,6 +162,16 @@ while [ "$#" -gt 0 ]; do
         -android|--android) target="android"; target_explicit=1; shift ;;
         -b|--both) target="both"; target_explicit=1; shift ;;
         -n|--no-build) do_build=0; shift ;;
+        # Only iOS and Android have a device to choose. It lives here rather
+        # than only in those two scripts so that one vocabulary covers every
+        # platform; the resolution below refuses it where it means nothing.
+        # 只有 iOS 與 Android 有裝置可選。此旗標置於此處而非僅存在於那兩支腳本中，是為了讓同一套
+        # 詞彙涵蓋所有平台；下方的解析步驟會在它沒有意義之處拒絕它。
+        --device)
+            [ "$#" -gt 1 ] || { printf -- '--device requires a name or id\n' >&2; exit 64; }
+            device_name="$2"
+            shift 2
+            ;;
         --showtime)
             if [ "$#" -gt 1 ] && [[ "$2" == <-> ]]; then
                 showtime_seconds="$2"
@@ -250,6 +269,11 @@ case "$(host_platform)" in
         host_default=""
         ;;
 esac
+
+if [ -n "$device_name" ] && [[ "$target" != "ios" && "$target" != "android" ]]; then
+    printf -- '--device applies to --ios and --android only; target is "%s".\n' "$target" >&2
+    exit 64
+fi
 
 if [ -n "$host_default" ] && [[ ! " ${host_targets[*]} " == *" $target "* ]]; then
     if [ "$target_explicit" -eq 1 ]; then
@@ -791,12 +815,50 @@ kill_existing
 #
 # 使用 `exec`，讓委派對象的結束狀態即為本腳本的結束狀態，且上方的 trap 不會存活超過它——啟動的
 # app 由委派對象自己擁有，也由它自己清理。
+# The flags this run resolved to, in the delegate's spelling.
+#
+# `"$@"` was passed here before, and by this point the parse loop above has
+# shifted every argument away -- so the delegate received the app name and
+# nothing else. `test.zsh P14 --ios -n --showtime 5` reached test_ios.zsh as
+# `test_ios.zsh P14`: the build was performed anyway and showtime fell back to
+# 30. Traced with `zsh -x`; the exec line read `zsh …/test_ios.zsh P14`.
+#
+# Rebuilding the flags from the parsed state rather than forwarding raw
+# arguments also means the two vocabularies cannot drift: whatever spelling the
+# caller used, the delegate is handed the one it documents.
+#
+# 本次執行所解析出的旗標，以委派對象的寫法表達。
+#
+# 此處原本傳的是 `"$@"`，而到達這裡時，上方的解析迴圈已把每一個引數 shift 掉——因此委派對象收到
+# 的只有 app 名稱，其餘什麼都沒有。`test.zsh P14 --ios -n --showtime 5` 抵達 test_ios.zsh 時是
+# `test_ios.zsh P14`：建置照樣執行，showtime 也退回 30。以 `zsh -x` 追蹤確認，exec 那一行是
+# `zsh …/test_ios.zsh P14`。
+#
+# 由解析後的狀態重建旗標、而非轉送原始引數，也使兩套詞彙不會分歧：無論呼叫端用哪種寫法，交到委派
+# 對象手上的都是它自己文件所載的那一種。
+delegated_args() {
+    local -a args
+    [ "$do_build" -eq 0 ] && args+=(--no-build)
+    if [ "$showtime_seconds" -eq 0 ]; then
+        args+=(--no-showtime)
+    else
+        args+=(--showtime "$showtime_seconds")
+    fi
+    [ -n "$action_file" ] && args+=(--actionfile "${action_file:A}")
+    [ -n "$device_name" ] && args+=(--device "$device_name")
+    printf '%s\n' "${args[@]}"
+}
+
 run_ios() {
-    exec zsh "$script_dir/test_ios.zsh" "$app" "$@"
+    local -a args
+    args=("${(@f)$(delegated_args)}")
+    exec zsh "$script_dir/test_ios.zsh" "$app" "${args[@]}"
 }
 
 run_android() {
-    exec zsh "$script_dir/test_android.zsh" "$app" "$@"
+    local -a args
+    args=("${(@f)$(delegated_args)}")
+    exec zsh "$script_dir/test_android.zsh" "$app" "${args[@]}"
 }
 
 case "$target" in

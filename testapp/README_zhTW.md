@@ -49,14 +49,46 @@ zsh testapp/test.zsh P14 --ios
 zsh testapp/test.zsh P12 --android
 ```
 
+### 平台
+
 平台旗標為選用。每支測試都宣告了它當初所針對的平台，而多數是在 Windows 上寫成的，因此在 Mac 上
 所宣告的平台通常是本機無法驅動的；此時執行會轉往可行的平台並明白告知。若明確指定了本機無法驅動的
 平台，則會被拒絕，而不會被改導至他處。
 
+| 主機 | 可驅動 |
+| --- | --- |
+| Windows | `--windows`（`-win`）、`--wsl`、`--both` |
+| macOS | `--macos`、`--ios`、`--android` |
+
+`--wsl` 與 `--both` 是透過 `wsl.exe` 進入 WSL，因此需要 Windows 主機而非 Linux 主機；`--ios` 與
+`--android` 則需要 macOS。
+
+### 旗標
+
+同一組旗標在所有平台上意義相同，iOS 與 Android 也不例外。
+
+| 旗標 | 作用 |
+| --- | --- |
+| `-n`、`--no-build` | 重用既有的建置結果 |
+| `--showtime <秒>`、`--no-showtime` | 畫面繪製完成後讓 app 停留多久 |
+| `--actionfile [路徑]` | 視窗出現後重放一份合成輸入的 CSV。未給路徑時使用 `testapp/actions/<平台>/<Pn>-*.csv`——每個平台一個資料夾，因為在別處驗證過的檔案不構成此處的證據 |
+| `--device <名稱>` | 僅適用於 iOS 與 Android；用於其他平台會被拒絕 |
+
+### 裝置
+
+iOS 與 Android 都**不需要**指定裝置或設定環境變數。
+
+`--ios` 使用名為 `swift-cross-ui` 的模擬器，由 `install_tools_ios.zsh` 以 iPhone 16 建立。
+`--android` 會啟動 `emulator -list-avds` 回報的第一個 AVD；若一個都沒有，它會直接說明，而不是在
+更後面的步驟才失敗。
+
+`--device` 可覆寫兩者：iOS 接受模擬器名稱或 UDID，Android 接受 AVD 名稱或 adb serial。環境變數
+`IOS_SIM_DEVICE` 與 `ANDROID_AVD_NAME` 效果相同。
+
 | Script | 用途 |
 | --- | --- |
 | `test.zsh` | 實際使用的指令。它會找出 `test_support/test_Pn.zsh`，該檔設定該 app 的細節後交棒給 `test_support/test_common.zsh` |
-| `test_common.zsh` | 解析旗標、決定平台，並直接執行 WSLg、Windows 或 macOS；iOS 與 Android 則委派給下方兩支腳本 |
+| `test_common.zsh` | 解析旗標、決定平台，並直接執行 WSLg、Windows 或 macOS；iOS 與 Android 則委派給下方兩支腳本，並以它們的寫法重建旗標 |
 | `test_ios.zsh` | macOS：將 Pn 放入固定的 `debugTarget` iOS Bundle，安裝並啟動 Simulator；可選用 XCUITest 重放 action file。經由 `test.zsh <Pn> --ios` 抵達 |
 | `test_android.zsh` | macOS：將 Pn 建置並打包為 APK，安裝至 emulator 後啟動。經由 `test.zsh <Pn> --android` 抵達 |
 

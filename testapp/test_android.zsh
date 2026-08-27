@@ -3,8 +3,12 @@
 # emulator. The APK cache is deliberately separate from source and build trees.
 #
 #   zsh testapp/test_android.zsh P12
-#   zsh testapp/test_android.zsh P12 -noApk
-#   zsh testapp/test_android.zsh P12 -replay actions/android/P12-android-smoke.csv
+#   zsh testapp/test_android.zsh P12 --no-build
+#   zsh testapp/test_android.zsh P12 --actionfile actions/android/P12-android-smoke.csv
+#
+# Usually reached as `zsh testapp/test.zsh P12 --android`, which is the same
+# command and the same flags as every other platform.
+# 通常經由 `zsh testapp/test.zsh P12 --android` 抵達，該指令與旗標和其他平台完全相同。
 #
 # 在 Android emulator 上建置、打包、安裝並啟動一支 SwiftCrossUI 測試 app。APK 快取與原始碼及
 # build tree 分開；預設會重新建置 APK，`-noApk` 才重用既有 APK。
@@ -24,12 +28,18 @@ showtime_seconds="${ANDROID_SHOWTIME_SECONDS:-0}"
 
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} <P0..Pn> [-noApk] [-replay [path]] [--showtime seconds] [--device name|serial]
+Usage: ${script_path:t} <Pn> [--no-build] [--actionfile [path]] [--showtime seconds|--no-showtime] [--device name|serial]
+
+Usually reached as: zsh testapp/test.zsh <Pn> --android
+That uses the same flags as every other platform.
 
 Default: compile and bundle a fresh Android APK, then install and launch it.
--noApk: reuse testapp/.androidApk/<Pn>.apk and skip compile/bundle.
--replay: replay an Android action file after launch; without a path, use
+--no-build: reuse testapp/.androidApk/<Pn>.apk and skip compile/bundle.
+            Aliases: -noApk, --no-apk.
+--actionfile: replay an Android action file after launch; without a path, use
          testapp/actions/android/<Pn>-*.csv when exactly one file exists.
+         Aliases: -replay, --replay.
+--no-showtime: return as soon as the app is up.
 --device: use an existing adb serial; otherwise boot the selected AVD.
 EOF_USAGE
 }
@@ -48,8 +58,15 @@ shift
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        -noApk|--no-apk) do_apk=0; shift ;;
-        -replay|--replay)
+        # `--no-build` and `--actionfile` are the spellings test.zsh uses for
+        # every other platform, and they are what test_common.zsh hands over.
+        # The original `-noApk` and `-replay` stay as aliases so anything that
+        # calls this script directly keeps working.
+        # `--no-build` 與 `--actionfile` 是 test.zsh 在其他所有平台上使用的寫法，也是
+        # test_common.zsh 交付過來的形式。原本的 `-noApk` 與 `-replay` 保留為別名，讓任何直接
+        # 呼叫本腳本的既有做法仍然可用。
+        -n|--no-build|-noApk|--no-apk) do_apk=0; shift ;;
+        --actionfile|-replay|--replay)
             if [ "$#" -gt 1 ] && [[ "$2" != -* ]]; then
                 action_file="$2"
                 shift 2
@@ -65,6 +82,7 @@ while [ "$#" -gt 0 ]; do
             showtime_seconds="$2"
             shift 2
             ;;
+        --no-showtime) showtime_seconds=0; shift ;;
         --device)
             [ "$#" -gt 1 ] || die "--device requires an AVD name or adb serial"
             device_name="$2"
