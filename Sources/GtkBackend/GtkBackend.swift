@@ -1822,8 +1822,44 @@ public final class GtkBackend:
         button.sensitive = environment.isEnabled
         button.label = label
         button.clicked = { _ in action() }
+
+        // GTK's own class for a destructive action, so the button gets whatever
+        // the current theme uses to warn -- red on Adwaita -- rather than a
+        // colour this backend picked. `.cancel` gets nothing: GTK has no class
+        // for it and inventing one would be this backend's opinion rather than
+        // the platform's.
+        //
+        // Removed as well as added. The widget is reused across updates, so a
+        // button that stops being destructive has to stop looking destructive;
+        // only adding would make the styling a one-way door.
+        //
+        // 使用 GTK 自有的「破壞性動作」樣式類別，如此該按鈕便會採用當前主題用來示警的樣式——在
+        // Adwaita 上是紅色——而非由本 backend 自行挑選的顏色。`.cancel` 則不套用任何東西：GTK 沒有
+        // 對應的類別，而自行發明一個，那會是本 backend 的主張而非平台的主張。
+        //
+        // 此處會「移除」而不只是「加入」。widget 會在多次更新之間被重複使用，因此一個不再具有破壞性
+        // 的按鈕，也必須不再看起來具有破壞性；只加不移會讓這個樣式變成一扇單向門。
+        if environment.buttonRole == .destructive {
+            gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
+        } else {
+            gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
+        }
+
         button.css.clear()
-        button.css.set(properties: Self.cssProperties(for: environment, isControl: true))
+        button.css.set(
+            properties: Self.cssProperties(
+                for: environment,
+                isControl: true,
+                // Stand aside for a role, so GTK's own class can paint it. See
+                // the note in cssProperties: this backend's provider outranks
+                // the theme, so styling the button and adding a style class at
+                // the same time means the class loses silently.
+                // 為 role 讓路，使 GTK 自己的類別能夠繪製它。詳見 cssProperties 中的說明：本
+                // backend 的 provider 位階高於主題，因此「同時樣式化按鈕又加上樣式類別」會讓該類別
+                // 靜默落敗。
+                deferToThemeStyleClass: environment.buttonRole == .destructive
+            )
+        )
     }
 
     public func createToggle() -> Widget {
@@ -3045,14 +3081,17 @@ public final class GtkBackend:
 
     private static func cssProperties(
         for environment: EnvironmentValues,
-        isControl: Bool = false
+        isControl: Bool = false,
+        deferToThemeStyleClass: Bool = false
     ) -> [CSSProperty] {
         var properties: [CSSProperty] = []
-        properties.append(
-            .foregroundColor(
-                environment.suggestedForegroundColor.resolve(in: environment).gtkColor
+        if !deferToThemeStyleClass {
+            properties.append(
+                .foregroundColor(
+                    environment.suggestedForegroundColor.resolve(in: environment).gtkColor
+                )
             )
-        )
+        }
         let font = environment.resolvedFont
         switch font.identifier.kind {
             case .system:
@@ -3095,7 +3134,31 @@ public final class GtkBackend:
             properties.append(.fontStyle("italic"))
         }
 
-        if isControl {
+        // `deferToThemeStyleClass` stands this whole block down.
+        //
+        // The per-widget provider is installed at
+        // GTK_STYLE_PROVIDER_PRIORITY_APPLICATION, which outranks the theme, so
+        // this explicit background beats anything a GTK style class would paint.
+        // Measured 2026-08-28: a button carrying `suggested-action` -- which
+        // Adwaita paints blue -- rendered the same flat rgb(73,73,73) as a plain
+        // one, and `gtk_widget_has_css_class` confirmed the class really was on
+        // the widget. So the class was landing and this was overruling it.
+        //
+        // That is worth knowing beyond buttons: no GTK theme style class can
+        // change the look of any control this backend styles, unless the
+        // backend stands aside for it.
+        //
+        // `deferToThemeStyleClass` 會讓整個區塊退場。
+        //
+        // per-widget 的 provider 是以 GTK_STYLE_PROVIDER_PRIORITY_APPLICATION 安裝的，位階高於
+        // 主題，因此此處明確設定的背景色會蓋過任何 GTK 樣式類別所要繪製的顏色。2026-08-28 實測：
+        // 一顆帶有 `suggested-action`（Adwaita 會將其畫成藍色）的按鈕，呈現出與一般按鈕相同的
+        // 純色 rgb(73,73,73)，而 `gtk_widget_has_css_class` 確認該類別確實在該 widget 上。也就是說
+        // 類別有生效，是這裡把它壓過去了。
+        //
+        // 這一點的意義不止於按鈕：除非 backend 主動退讓，否則沒有任何 GTK 主題樣式類別能改變本
+        // backend 所樣式化的任何控制項之外觀。
+        if isControl && !deferToThemeStyleClass {
             switch environment.colorScheme {
                 case .light:
                     properties.append(.backgroundColor(Color(0.9, 0.9, 0.9, 1)))

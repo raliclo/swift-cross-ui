@@ -362,6 +362,29 @@ extension EnvironmentValues {
     @_spi(Backends)
     @Entry public var backendListStyle: BackendListStyle = .default
 
+    /// The role of the button currently being updated, if it has one.
+    ///
+    /// Carried through the environment rather than added to
+    /// ``BackendFeatures/Controls/updateButton(_:label:environment:action:)``
+    /// so that adding it does not break every backend at once. A backend that
+    /// ignores it draws an ordinary button, which is the correct degradation:
+    /// the action still works and only the warning colour is missing.
+    ///
+    /// Set by ``Button`` on the environment it hands the backend, not inherited
+    /// from an ancestor -- a role belongs to one button, unlike a style.
+    ///
+    /// 目前正在更新的按鈕之 role（若有）。
+    ///
+    /// 透過 environment 傳遞，而非加入
+    /// ``BackendFeatures/Controls/updateButton(_:label:environment:action:)``，如此新增它就不會
+    /// 一次弄壞所有 backend。忽略它的 backend 會畫出一般按鈕，而那正是正確的降級方式：動作照常
+    /// 運作，缺少的只是警示色。
+    ///
+    /// 此值由 ``Button`` 設定於它交給 backend 的 environment 上，而非自祖先繼承而來——role 屬於
+    /// 單一按鈕，這一點與 style 不同。
+    @_spi(Backends)
+    @Entry public var buttonRole: ButtonRole?
+
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button
 

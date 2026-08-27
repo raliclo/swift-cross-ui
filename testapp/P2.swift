@@ -112,6 +112,38 @@ struct P2ControlsAndStylingView: View {
                 }
 
                 Text("Expected: disabled controls should be visibly distinct.")
+
+                // Button roles, added 2026-08-28. Two buttons with the same
+                // label, differing only in role, so the platform's warning
+                // styling is the only thing that can distinguish them -- on GTK
+                // the `destructive-action` class, which Adwaita paints red.
+                //
+                // The plain one is the control, and it is what makes this a
+                // test: a red button alone proves nothing, since the theme could
+                // be painting every button that way.
+                //
+                // A backend with no notion of roles draws two identical buttons,
+                // and that is the correct degradation rather than a failure --
+                // the action still works, only the warning colour is missing.
+                //
+                // 按鈕 role，於 2026-08-28 加入。兩個標籤相同、僅 role 不同的按鈕，如此平台的示警
+                // 樣式就是唯一能區分它們的東西——在 GTK 上是 `destructive-action` 類別，Adwaita 會
+                // 把它畫成紅色。
+                //
+                // 那個沒有 role 的是對照組，也正是讓這成為一項測試的關鍵：單獨一顆紅色按鈕什麼也
+                // 證明不了，因為主題有可能把每一顆按鈕都畫成那樣。
+                //
+                // 沒有 role 概念的 backend 會畫出兩顆一模一樣的按鈕，而那是正確的降級而非失敗——
+                // 動作照常運作，缺少的只是警示色。
+                HStack {
+                    Button("Delete") {}
+
+                    Button("Delete", role: .destructive) {}
+
+                    Button("Cancel", role: .cancel) {}
+                }
+
+                Text("Expected: the second Delete warns; the first and Cancel do not.")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

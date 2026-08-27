@@ -4,6 +4,8 @@ public struct Button: Sendable {
     @_spi(Backends) public var label: String
     /// The action to be performed when the button is clicked.
     @_spi(Backends) public var action: @MainActor @Sendable () -> Void
+    /// What the button is for, when that changes how it should look.
+    @_spi(Backends) public var role: ButtonRole?
     /// The button's forced width if provided.
     var width: Int?
 
@@ -14,6 +16,33 @@ public struct Button: Sendable {
     ///   - action: The action to be performed when the button is clicked.
     public init(_ label: String, action: @escaping @MainActor @Sendable () -> Void = {}) {
         self.label = label
+        self.action = action
+    }
+
+    /// Creates a button with a role, which platforms may render differently.
+    ///
+    /// - Parameters:
+    ///   - label: The label to show on the button.
+    ///   - role: What the button is for. `.destructive` marks an action that is
+    ///     hard to undo.
+    ///   - action: The action to be performed when the button is clicked.
+    ///
+    /// SwiftUI spells this `Button(_:role:action:)`, and this matches. It is
+    /// separate from the initialiser above rather than a defaulted parameter
+    /// because adding a default would change the existing one's signature for
+    /// no benefit.
+    ///
+    /// 建立一個帶有 role 的按鈕，各平台可能會以不同方式繪製它。
+    ///
+    /// SwiftUI 中寫作 `Button(_:role:action:)`，此處與之一致。之所以獨立為另一個建構式而非在原有
+    /// 建構式上加預設參數，是因為加上預設值會改動既有建構式的簽名，卻換不到任何好處。
+    public init(
+        _ label: String,
+        role: ButtonRole?,
+        action: @escaping @MainActor @Sendable () -> Void = {}
+    ) {
+        self.label = label
+        self.role = role
         self.action = action
     }
 
@@ -55,7 +84,15 @@ extension Button: ElementaryView {
         backend.updateButton(
             widget,
             label: label,
-            environment: environment,
+            // The role rides in on the environment rather than as a parameter,
+            // so that adding it does not change `updateButton`'s signature and
+            // break every backend at once. Written unconditionally, including
+            // the nil case, because a widget is reused across updates and a
+            // button that stops being destructive has to stop looking it.
+            // role 是搭著 environment 傳入，而非作為參數，如此新增它便不會改動 `updateButton` 的
+            // 簽名、一次弄壞所有 backend。此處無條件寫入（包含 nil 的情況），因為 widget 會在多次
+            // 更新之間被重複使用，而一個不再具有破壞性的按鈕也必須不再看起來具有破壞性。
+            environment: environment.with(\.buttonRole, role),
             action: action
         )
         let naturalSize = backend.naturalSize(of: widget)

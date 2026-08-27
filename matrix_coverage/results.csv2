@@ -25,3 +25,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,winui,P41,ok,ok,desktop,".graphical now draws a month grid, but opens on today not the bound date"
 2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical now opens on the bound month with the bound day ringed
 2026-08-28,windows,winui,P38,ok,n/a,n/a,"WebView diagnosed: element arranged 760x420, ensureCoreWebView2Async never completes"
+2026-08-28,windows,gtk4,P2,ok,n/a,window,"ButtonRole: destructive Delete renders red, plain Delete and Cancel do not"
