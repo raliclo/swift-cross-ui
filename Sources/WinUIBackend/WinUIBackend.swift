@@ -1009,10 +1009,18 @@ public final class WinUIBackend:
             // hardcoded a value obtained from one of my example apps.
             adjustment = SIMD2(64, 32)
         } else if widget is CalendarView {
-            // I don't actually know why this is necessary, but without it the abbreviations for the
-            // weekdays wrap, making it taller than it says it is. Value was derived by trial and
-            // error.
-            adjustment = SIMD2(20, 0)
+            if computedSize.width == 0 && computedSize.height == 0 {
+                // CalendarView can report 0x0 before its template has been rendered.
+                // If SwiftCrossUI trusts that, the graphical DatePicker style gets
+                // committed as a blank sliver. The fallback is sized for the default
+                // month view: 7 columns, 6 weeks, and the header/navigation row.
+                adjustment = SIMD2(320, 300)
+            } else {
+                // I don't actually know why this is necessary, but without it the
+                // abbreviations for the weekdays wrap, making it taller than it says
+                // it is. Value was derived by trial and error.
+                adjustment = SIMD2(20, 0)
+            }
         } else if
             computedSize.width == 0 && computedSize.height == 0 && widget is CalendarDatePicker
         {

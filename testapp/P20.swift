@@ -69,6 +69,41 @@ struct P20NestedMenusApp: App {
             }
         }
         .defaultSize(width: 660, height: 460)
+        // An application menu bar, added 2026-08-27, and the reason is not the
+        // menu.
+        //
+        // No Pn declared `.commands` at all before this, so `showMenuBar` was
+        // false in every test app and `menubarHeight(ofWindow:)` returned 0
+        // without ever running its body. It had hardcoded 25 points with a TODO
+        // beside it saying a theme could change that, and nothing could have
+        // caught it either way -- the window would simply have been a few points
+        // out, which reads as a layout bug anywhere but there.
+        //
+        // P20 gets it rather than a new app because it is already the menus one.
+        // The items do nothing on purpose: what is under test is the bar's
+        // existence and its measured height, not what the entries do, and that
+        // is P20's popover section's job.
+        //
+        // 一列應用程式選單列，於 2026-08-27 加入，而理由並不是選單本身。
+        //
+        // 在此之前沒有任何 Pn 宣告過 `.commands`，因此每個測試 app 的 `showMenuBar` 都是 false，
+        // `menubarHeight(ofWindow:)` 回傳 0 而其主體從未執行過。該函式當時寫死 25 點，旁邊還有一則
+        // TODO 說主題可能會改變它——而無論對錯都不可能被抓到：視窗只會差個幾點，那在任何其他地方看
+        // 起來都像版面 bug，唯獨不像出在那裡。
+        //
+        // 由 P20 承接而非另開新 app，因為它本來就是「選單」那一支。其中的項目刻意什麼都不做：此處
+        // 受測的是選單列的存在與其被量測到的高度，而非各項目的行為——後者是 P20 popover 段落的職責。
+        .commands {
+            CommandMenu("P20") {
+                Button("Does nothing") {}
+
+                Divider()
+
+                Menu("Submenu") {
+                    Button("Also nothing") {}
+                }
+            }
+        }
     }
 }
 

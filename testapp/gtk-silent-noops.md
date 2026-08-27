@@ -1263,6 +1263,62 @@ suspicious.
 
 ---
 
+## 18. `menubarHeight(ofWindow:)` hardcodes 25 points — **CONFIRMED wrong, and NOT fixable where it is asked** **[src]**
+
+**Attempted and reverted 2026-08-27.** The finding is right that 25 is wrong; the
+proposed fix — "the menu bar is a widget; measure its natural height" — does not
+work at this call site, and that is worth recording so nobody spends the same
+afternoon on it.
+
+To test it at all, P20 had to be given an application menu: **no `Pn` declared
+`.commands`**, so `showMenuBar` was false everywhere and this branch had never
+executed. The 25 had never been exercised either.
+
+With the menu present, on Windows/GTK 4.22.4:
+
+- `menubarHeight` is called **exactly once per run**, from `setSize(ofWindow:)`
+  during initial sizing.
+- At that moment the bar **is not in the widget tree**. A depth-first walk from
+  the `ApplicationWindow` found `GtkCustomRootWidget` and three
+  `GtkPassthroughFixed`, and nothing else. GTK builds the bar later — the window
+  visibly has one by the time it is on screen.
+
+So there is nothing to measure when the one question is asked. A real fix has to
+measure *after* the bar appears and re-run the sizing: a change to **when** this
+is computed, not to **how**.
+
+**How wrong the constant is**, since the point of a finding is a number: the bar
+drew 23 pt of strip plus a 1 pt rule, sampled down a text-free column of the
+capture. 25 is one to two points too tall under this theme.
+
+The walk and its diagnostics were written, run, and then reverted rather than
+left in: code that can never succeed at its only call site is worse than the
+constant, because it looks like the problem is handled.
+
+**18. `menubarHeight(ofWindow:)` 寫死 25 點 — 已證實為錯，但在其被詢問之處無法修復 [src]**
+
+**2026-08-27 嘗試後回退。** 該發現指出 25 是錯的，這一點正確；但其所提的修法——「選單列是個 widget，
+量它的自然高度」——在這個呼叫點行不通，值得記錄下來，以免有人再花掉同樣的一個下午。
+
+為了能進行測試，必須先讓 P20 帶上應用程式選單：**沒有任何 `Pn` 宣告過 `.commands`**，因此各處的
+`showMenuBar` 都是 false，這條分支從未執行過，那個 25 也從未被實際使用過。
+
+在有選單的情況下，於 Windows/GTK 4.22.4 實測：`menubarHeight` **每次執行恰好被呼叫一次**，來自初始
+尺寸設定時的 `setSize(ofWindow:)`；而在那個時間點，選單列**並不在 widget 樹中**——自
+`ApplicationWindow` 進行深度優先走訪，只找到 `GtkCustomRootWidget` 與三個 `GtkPassthroughFixed`，
+別無其他。GTK 是稍後才建立該列的——視窗出現在螢幕上時，明明是有選單列的。
+
+因此在唯一被提問的時刻，根本沒有東西可以量測。真正的修法必須在選單列出現**之後**才量測並重新執行
+尺寸計算：那是改變**何時**計算，而非**如何**計算。
+
+**這個常數錯得多離譜**（發現的重點就在於一個數字）：該列畫出 23 pt 的橫條加上 1 pt 的分隔線，取樣
+自截圖中一條沒有文字的直線。在此主題下，25 高了一到兩點。
+
+那段走訪程式與其診斷確實寫過、跑過，然後被回退，而非留在原地：一段在其唯一呼叫點上永遠不會成功的
+程式碼，比那個常數更糟——因為它看起來像是問題已經被處理了。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 18. `menubarHeight(ofWindow:)` hardcodes 25 points — **refinement**, small **[src]**
 
 `Sources/GtkBackend/GtkBackend.swift:361`
@@ -1303,6 +1359,8 @@ rather than guessing. Small, but needs a handle on the widget from `Gtk.Window`.
 從 `Gtk.Window` 取得該 widget 的 handle。
 
 ---
+
+</details>
 
 ## 19. Escape on an alert does nothing at all — **refinement**, needs a design decision **[src]**
 

@@ -538,8 +538,48 @@ public final class GtkBackend:
             return 0
         #else
             if window.showMenuBar {
-                // TODO: Don't hardcode this (if possible), because some Gtk
-                //   themes may affect the height of the menu bar.
+                // Still hardcoded, and the TODO that used to sit here -- "don't
+                // hardcode this (if possible), because some Gtk themes may
+                // affect the height of the menu bar" -- has been tried. It is
+                // not possible at this call site, which is worth recording so
+                // the next person does not repeat the attempt.
+                //
+                // Measured 2026-08-27 on Windows/GTK 4.22.4, with P20 given an
+                // application menu for the purpose (no Pn had one before, so
+                // this whole branch had never executed):
+                //
+                //   * `menubarHeight` is called exactly ONCE per run, from
+                //     `setSize(ofWindow:)` during initial sizing.
+                //   * At that moment the menu bar is not in the widget tree. A
+                //     depth-first walk from the ApplicationWindow found only
+                //     `GtkCustomRootWidget` and three `GtkPassthroughFixed`.
+                //     GTK builds the bar later.
+                //
+                // So there is nothing to measure when the one question is asked.
+                // A real fix has to measure after the bar appears and then
+                // re-run the sizing, which is a change to when this is computed
+                // rather than to how.
+                //
+                // How wrong the constant is: the bar drew 23 pt of strip plus a
+                // 1 pt rule, sampled down a text-free column of the capture. So
+                // 25 is one or two points too tall under this theme, and the
+                // window is that much too tall with the content offset to match.
+                //
+                // 此處仍為寫死的值，而原本擺在這裡的 TODO——「盡可能不要寫死，因為某些 Gtk 主題會
+                // 影響選單列的高度」——已經嘗試過了。在這個呼叫點上做不到，此事值得記錄下來，以免
+                // 下一個人重複同樣的嘗試。
+                //
+                // 2026-08-27 於 Windows/GTK 4.22.4 實測（為此特地讓 P20 帶上應用程式選單——在那之前
+                // 沒有任何 Pn 有選單，因此這整條分支從未執行過）：`menubarHeight` 每次執行只會被呼叫
+                // **一次**，來自初始尺寸設定時的 `setSize(ofWindow:)`；而在那個時間點，選單列並不在
+                // widget 樹中——自 ApplicationWindow 進行深度優先走訪，只找到 `GtkCustomRootWidget`
+                // 與三個 `GtkPassthroughFixed`，GTK 是稍後才建立該列的。
+                //
+                // 因此在唯一被提問的時刻，根本沒有東西可以量測。真正的修法必須在選單列出現之後才
+                // 量測，並重新執行尺寸計算——那是改變「何時計算」，而非改變「如何計算」。
+                //
+                // 這個常數錯得多離譜：該列畫出 23 pt 的橫條加上 1 pt 的分隔線（取樣自截圖中一條沒有
+                // 文字的直線）。因此在此主題下，25 高了一到兩點，視窗也就高了那麼多，內容隨之偏移。
                 25
             } else {
                 0

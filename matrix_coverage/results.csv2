@@ -21,3 +21,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical renders nothing; .automatic and .wheel are the same control
 2026-08-27,windows,gtk4,P41,ok,ok,window,"wheel scroll: seven whole rows per column after three notches, no clipped sliver"
 2026-08-27,windows,gtk4,P22,ok,n/a,n/a,"finding 10 confirmed then fixed: lineLimit(2) was 35pt at both 13pt and 30pt, now 34 and 76"
+2026-08-27,windows,gtk4,P20,ok,n/a,window,"menu bar now present; menubarHeight called once, before the bar exists in the tree"
