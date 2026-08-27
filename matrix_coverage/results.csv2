@@ -10,3 +10,5 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,gtk4,P27,ok,n/a,window,"gradients 3+4 after the fix: ring has a solid centre, reversed sweep shows its colours"
 2026-08-27,windows,winui,P27,ok,n/a,window,"gradient control: agrees on both rings; its reversed sweep was flat until fixed here too"
 2026-08-27,windows,winui,P38,ok,n/a,window,"WebView frame stayed empty with 4 msedgewebview2.exe running; parked, not diagnosed"
+2026-08-27,windows,gtk4,P39,ok,n/a,window,"all seven compositing effects differ from the identity control"
+2026-08-27,windows,winui,P39,ok,n/a,desktop,"opacity applied, six filters warn and no-op as documented; no fatalError"

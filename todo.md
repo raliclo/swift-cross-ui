@@ -523,6 +523,44 @@ and container modifiers.
 The API-shape one is worth doing first and is the least visible: the types exist
 and only the initialisers differ, so the gap never shows on a feature checklist.
 
+Working order agreed 2026-08-27: protocol level first, then GtkBackend for
+WSL/Windows here; AppKit, UIKit and Android are done on the Mac side. So each
+item lands as a `BackendFeatures` protocol plus one implementation, and the
+other backends follow separately.
+
+### Compositing effects: done 2026-08-27 (opacity, blur, colour adjustment)
+
+`BackendFeatures.VisualEffects` plus `VisualEffect`, and the seven modifiers
+SwiftUI names: `.opacity`, `.blur(radius:)`, `.saturation`, `.brightness`,
+`.contrast`, `.grayscale`, `.hueRotation`. P39 is the app.
+
+**One value, not one method per effect.** Every backend has to turn the
+combination into a single thing -- GTK into one CSS `filter`, AppKit into one
+`CIFilter` chain -- so recombining them per backend would be the same work done
+six times. Composition comes from nesting containers, which is why
+`.opacity(0.5).opacity(0.5)` is 0.25 without anything multiplying it.
+
+**GtkBackend does all seven**, verified against an identity control in the same
+window. Opacity goes through `gtk_widget_set_opacity` rather than CSS `opacity`,
+because the widget property composites the subtree as a group the way SwiftUI
+does, while the CSS property is inherited per child and lets two overlapping
+half-transparent children show through each other.
+
+**WinUIBackend does opacity only, and says so**, via `logger.warning` naming the
+fields it dropped. Conforming with a partial implementation was deliberate:
+`@CastBackend` turns a *missing* conformance into `fatalError`, so declining
+would abort every app calling `.opacity(_:)` on the default Windows backend
+rather than render it un-blurred. The rest needs a `Microsoft.UI.Composition`
+effect graph.
+
+Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
+value type), `.blendMode`, and the geometric family -- `.rotationEffect`,
+`.scaleEffect`, `.offset`, `.position`, `.transformEffect`, `.zIndex`. The
+geometric ones are deliberately not part of `VisualEffect`: they change where a
+view is drawn rather than what its pixels look like, and they interact with hit
+testing. Also absent: `.clipShape`, `.mask`, `.border`, `.hidden`,
+`.compositingGroup`, `.drawingGroup`.
+
 ---
 
 ## Needs another machine / 需要另一台機器
