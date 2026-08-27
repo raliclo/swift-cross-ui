@@ -206,6 +206,47 @@ and only the initialisers differ, so the gap never shows on a feature checklist.
 - **AppKitBackend and UIKitBackend conformances written but never compiled.**
   Clipping, DragAndDrop, WindowLevels and HitTesting were added against
   documented APIs on a Windows host. Review-ready, not verified.
+  HitTesting has now been run on a Mac and does not work -- see below.
+
+### AppKit hit testing: nothing but text fields can be clicked
+
+Measured on macOS 2026-08-27, after `882b43f8 Implement AppKit hit testing and
+add P28 coverage`. Handed over rather than fixed; the Mac side stopped here.
+
+`AppKitHitTestingContainer.hitTest` returns nil for almost everything. Probed
+directly on a live window, points at the exact centre of each control:
+
+| window point | control there | hitTest |
+|---|---|---|
+| (140, 225) | NSButton "TOP" (114, 212, 52, 27) | nil |
+| (140, 195) | NSButton "BOTTOM" (99, 182, 82, 27) | nil |
+| (140, 165) | text field (40, 155, 200, 21) | NSTextView |
+| (140, 105) | NSScrollView (117, 65, 46, 80) | nil |
+
+Confirmed with the project's own test, not only a scratch app:
+`test.zsh P28 --macos --actionfile` replays
+`testapp/actions/mac/P28-hit-testing.csv`, whose single click is the one P28
+exists to check, and `p28-debug-events.log` contains "clicked" zero times.
+
+The coordinates are not the problem, which was checked before blaming the
+container. The full chain measured on the same window: screen 1920x1080 at
+backing 2.0, geometry frameOrigin (820, 193) and clientOrigin (820, 221) at
+scale 1, client (140, 105) resolving to screenPosition (960, 326) -- 820+140 and
+221+105 -- and then to windowPoint (140.0, 195.0), which is exactly right. The
+click lands where the file says and there is nothing there to receive it.
+
+Text still arrives, and that is the trap: key events go to the first responder
+without a hit test, so a file that clicks a field and types reports a partial
+success and looks like a coordinate problem.
+
+One fix was tried and is not the answer. `child.hitTest(childPoint)` looks wrong
+against Apple's contract -- `hitTest(_:)` takes a point in the receiver's
+*superview* coordinates, and childPoint has been converted into the child's own
+space -- but passing `point` instead makes it worse: the text field stops
+hit-testing too. So the container is self-consistent with a non-standard
+convention and breaks where it meets real AppKit views. The reverted experiment
+is recorded so nobody spends the same hour on it.
+
 - **Benchmark Metal's feature set on macOS**, then implement the useful subset
   on GtkBackend through GSK render nodes and GLSL rather than Metal shaders.
   Two things to settle first: which parts are reachable from GSK's public API at
