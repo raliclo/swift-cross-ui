@@ -85,7 +85,7 @@ issue,categories,backend,status,comments,opened,title
 405,enhancement,core/unspecified,unaddressed,0,2026-02-04,Windowing: Support cmd+n (or equivalent) to open a new instance of current WindowGroup
 404,bug,AppKitBackend,unaddressed,0,2026-02-04,AppKitBackend: Update Window content size when user toggles `View > Show Tab Bar`
 403,enhancement,core/unspecified,unaddressed,0,2026-02-04,Windowing: create default window when app is activated without any open windows
-386,enhancement,Gtk3Backend;GtkBackend,repro-p15,2,2026-01-22,[GTK] Support dark mode
+386,enhancement,Gtk3Backend;GtkBackend,fixed-gtk-p15,2,2026-01-22,[GTK] Support dark mode
 385,enhancement,core/unspecified,unaddressed,1,2026-01-22,Views consumes tap events in empty areas
 382,feature,core/unspecified,unaddressed,1,2026-01-21,Support button styles
 380,feature,core/unspecified,unaddressed,1,2026-01-21,Form containers
