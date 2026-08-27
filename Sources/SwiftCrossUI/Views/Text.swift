@@ -116,6 +116,46 @@ extension Text: ElementaryView {
             size.x = 0
         }
 
+        // The line limit, applied here rather than in each backend.
+        //
+        // It was in all four: AppKit, UIKit and WinUI each had these same three
+        // lines, and GtkBackend had a different implementation that was wrong.
+        // It built a synthetic "a\na" string and measured it through a spare
+        // label that was created and never added to a window -- and GTK resolves
+        // style only for a widget with a root, which this backend had already
+        // measured twice for other reasons. So the cap came out at GTK's default
+        // font size whatever font was asked for.
+        //
+        // Measured 2026-08-27 with P22's two-font check: `.lineLimit(2)` on the
+        // same paragraph reported 300x35 at 13pt and 300x35 at 30pt. Two lines of
+        // 30pt text is not the height of two lines of 13pt text.
+        //
+        // The cap needs no widget and no measurement -- it is the line height
+        // times the limit -- so a backend that reaches for a widget to compute it
+        // has already gone wrong. Doing it once here is what stops a fifth
+        // backend inventing a fifth version.
+        //
+        // 行數限制在此處套用，而非於每個 backend 各自處理。
+        //
+        // 先前四個 backend 都有：AppKit、UIKit 與 WinUI 各自有著相同的三行程式碼，而 GtkBackend
+        // 的實作不同、且是錯的。它組出一個 "a\na" 的合成字串，並透過一個「建立後從未加入任何視窗」
+        // 的備用 label 來量測——而 GTK 只會為具有 root 的 widget 解析樣式，這一點該 backend 早已
+        // 因其他理由量測過兩次。於是無論被要求何種字型，該上限都以 GTK 的預設字級算出。
+        //
+        // 2026-08-27 以 P22 的雙字級檢查實測：同一段文字加上 `.lineLimit(2)`，13pt 回報 300x35、
+        // 30pt 同樣回報 300x35。兩行 30pt 的文字不會等於兩行 13pt 文字的高度。
+        //
+        // 此上限不需要 widget、也不需要量測——它就是「行高 × 行數」——因此若某個 backend 為了計算
+        // 它而去取用 widget，那時就已經走錯了。在此處做一次，正是為了阻止第五個 backend 發明第五
+        // 種版本。
+        if let lineLimitSettings = environment.lineLimitSettings {
+            let limitedHeight =
+                Double(max(lineLimitSettings.limit, 1)) * environment.resolvedFont.lineHeight
+            if Double(size.y) > limitedHeight || lineLimitSettings.reservesSpace {
+                size.y = LayoutSystem.roundSize(limitedHeight)
+            }
+        }
+
         return ViewLayoutResult.leafView(size: ViewSize(size))
     }
 

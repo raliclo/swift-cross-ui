@@ -204,8 +204,6 @@ public final class GtkBackend:
 
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
-    private var measurementCustomLabel: CustomLabel!
-
     private struct LogLocation: Hashable, Equatable {
         let file: String
         let line: Int
@@ -286,7 +284,6 @@ public final class GtkBackend:
     public func runMainLoop(_ callback: @escaping @MainActor () -> Void) {
         installQuitShortcut()
         gtkApp.run { window in
-            self.measurementCustomLabel = (self.createTextView() as! CustomLabel)
             self.precreatedWindow = window
 
             // #386: read the ambient theme here, where GTK is initialised and
@@ -1716,32 +1713,15 @@ public final class GtkBackend:
             proposedHeight: proposedHeight.map(Double.init)
         )
 
-        var imposedHeight = height
-
-        if let lineLimitSettings = environment.lineLimitSettings {
-            let multilineString = [String](repeating: "a", count: lineLimitSettings.limit)
-                .joined(separator: "\n")
-            updateTextView(
-                measurementCustomLabel,
-                content: "",
-                environment: environment
-            )
-
-            let pango = Pango(for: measurementCustomLabel)
-
-            let (_, heightLimit) = pango.getTextSize(
-                multilineString,
-                ellipsize: .none,
-                proposedWidth: nil,
-                proposedHeight: nil
-            )
-
-            if heightLimit < imposedHeight || lineLimitSettings.reservesSpace {
-                imposedHeight = heightLimit
-            }
-        }
-
-        return SIMD2(width, imposedHeight)
+        // No line-limit handling here any more; `Text` applies it, for every
+        // backend, from the font's line height. What used to be here measured a
+        // synthetic string through a label that was never rooted, so the cap came
+        // out at GTK's default font size whatever font was asked for. See the
+        // note in Text.computeLayout.
+        // 此處不再處理行數限制；`Text` 會為所有 backend 依字型行高統一套用。原本在此的做法是透過
+        // 一個從未 root 的 label 量測合成字串，因此無論被要求何種字型，上限都以 GTK 的預設字級算出。
+        // 詳見 Text.computeLayout 中的說明。
+        return SIMD2(width, height)
     }
 
     public func createImageView() -> Widget {

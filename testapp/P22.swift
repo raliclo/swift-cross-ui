@@ -196,7 +196,17 @@ struct P22RootView: View {
                 // 此處收成一個 view，而非本段落原本想要的三個（分隔線、標題、階梯）。外層 VStack
                 // 原已有 19 個子項，而 SwiftCrossUI 的 ViewBuilder 上限為 20，因此加入三個會得到
                 // `extra arguments at positions #21, #22`——這個錯誤訊息指出的是呼叫本身，而非上限。
-                P22Weights()
+                // Both sections in one child. The enclosing VStack is at the
+                // ViewBuilder's 20-argument limit, and exceeding it reports
+                // `extra argument in call` against the call rather than naming
+                // the limit -- which is what adding the second section did.
+                // 兩個段落合為一個子項。外層 VStack 已達 ViewBuilder 的 20 個引數上限，而超過時的
+                // 錯誤是針對該呼叫回報「extra argument in call」，並不會指出上限為何——加入第二個
+                // 段落時得到的正是這個訊息。
+                VStack(alignment: .leading, spacing: 10) {
+                    P22Weights()
+                    P22LineLimit()
+                }
             }
             .padding(18)
         }
@@ -276,6 +286,65 @@ struct P22Weights: View {
                             .fontWeight(row.1)
                     }
                 }
+            }
+        }
+    }
+}
+
+/// The same text under the same line limit at two very different font sizes.
+///
+/// A discriminator for finding 10 of `testapp/gtk-silent-noops.md`, which
+/// suspects that GtkBackend computes the line-limit height cap at GTK's default
+/// font size whatever font was asked for. The cap is measured through a
+/// `measurementCustomLabel` that is created and never added to a window, and
+/// this backend has already measured -- twice, for the ambient colour scheme and
+/// for the scrollbar width -- that GTK resolves style only for a widget with a
+/// root. Whether that extends to the per-widget CSS provider is the open part.
+///
+/// **How to read it.** Both rows are capped at two lines. Two lines of 30pt text
+/// must be taller than two lines of 13pt text. If the two reported heights come
+/// out EQUAL, the cap was computed at one font size for both and the defect is
+/// real. If they differ roughly in proportion to the font sizes, it is not.
+///
+/// Nothing in `testapp/` used `lineLimit` before this, which is why the question
+/// had stayed open with a `[?]` against it.
+///
+/// 同一段文字、同樣的行數限制，在兩種差異極大的字級之下。
+///
+/// 這是 `testapp/gtk-silent-noops.md` 第 10 條發現的判別器——該條懷疑 GtkBackend 無論被要求何種
+/// 字型，都以 GTK 的預設字級計算行數限制的高度上限。該上限是透過一個「建立後從未加入任何視窗」
+/// 的 `measurementCustomLabel` 量測的，而本 backend 已經量測過兩次——環境配色與捲軸寬度——確認
+/// GTK 只會為具有 root 的 widget 解析樣式。這是否也適用於 per-widget 的 CSS provider，才是尚未
+/// 確認的部分。
+///
+/// **判讀方式。** 兩列都被限制為兩行。兩行 30pt 的文字必然高於兩行 13pt 的文字。若回報的兩個高度
+/// **相等**，代表上限是以同一個字級為兩者計算的，缺陷屬實；若兩者大致依字級比例不同，則否。
+///
+/// 在此之前 `testapp/` 中沒有任何地方使用過 `lineLimit`，這正是該問題一直掛著 `[?]` 的原因。
+struct P22LineLimit: View {
+    static let paragraph = """
+        The quick brown fox jumps over the lazy dog while the typesetter counts \
+        every advance width and then keeps going for long enough to wrap.
+        """
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+
+            Text("Line limit at two font sizes (equal heights = finding 10 confirmed)")
+
+            P22Measured(label: "lineLimit2-13pt") {
+                Text(Self.paragraph)
+                    .font(.system(size: 13))
+                    .lineLimit(2)
+                    .frame(width: 300)
+            }
+
+            P22Measured(label: "lineLimit2-30pt") {
+                Text(Self.paragraph)
+                    .font(.system(size: 30))
+                    .lineLimit(2)
+                    .frame(width: 300)
             }
         }
     }
