@@ -1,0 +1,35 @@
+date,host,target,scenario,seconds,note
+日期,主機,target,情境,秒數,備註
+2026-08-27,wsl,GtkBackend,no-op,0.83,"nothing changed; SwiftPM verifies and stops"
+2026-08-27,wsl,GtkBackend,single-file,1.44,"one line appended to DateWheel.swift"
+2026-08-27,wsl,GtkBackend,single-file,1.39,
+2026-08-27,wsl,GtkBackend,single-file,1.36,
+2026-08-27,wsl,GtkBackend,single-file,1.35,
+2026-08-27,wsl,GtkBackend,single-file,1.40,"content unchanged by touch; SwiftPM hashes content, so this relinked only"
+2026-08-27,wsl,GtkBackend,single-file,1.40,
+2026-08-27,wsl,GtkBackend,tree-sync,9.61,"first build after rsync --delete of the whole Sources tree"
+2026-08-27,wsl,GtkBackend,tree-sync,9.28,
+2026-08-27,wsl,GtkBackend,tree-sync,9.11,
+2026-08-27,wsl,GtkBackend,session-observed,19.60,"first GtkBackend build of the day; every later one was far lower"
+2026-08-27,wsl,GtkBackend,session-observed,12.18,"taken from the working session, not a controlled run; each followed an rsync"
+2026-08-27,wsl,GtkBackend,session-observed,12.14,
+2026-08-27,wsl,GtkBackend,session-observed,11.12,
+2026-08-27,wsl,GtkBackend,session-observed,9.92,
+2026-08-27,wsl,GtkBackend,session-observed,9.07,
+2026-08-27,wsl,GtkBackend,session-observed,9.03,
+2026-08-27,wsl,GtkBackend,session-observed,8.94,
+2026-08-27,wsl,GtkBackend,session-observed,8.92,
+2026-08-27,wsl,GtkBackend,session-observed,8.87,
+2026-08-27,windows,WinUIBackend,no-op,8.02,"nothing changed, and still ten times the GTK no-op"
+2026-08-27,windows,WinUIBackend,single-file,14.31,"one line appended to WinUIBackend+VisualEffects.swift"
+2026-08-27,windows,WinUIBackend,single-file,13.50,
+2026-08-27,windows,WinUIBackend,session-observed,7.76,"taken from the working session; edits confined to WinUIBackend"
+2026-08-27,windows,WinUIBackend,session-observed,7.74,
+2026-08-27,windows,WinUIBackend,session-observed,7.62,
+2026-08-27,windows,WinUIBackend,session-observed,7.53,
+2026-08-27,windows,WinUIBackend,session-observed,7.40,
+2026-08-27,windows,WinUIBackend,session-observed,7.36,
+2026-08-27,windows,WinUIBackend,after-shared-edit,110.61,"immediately after editing Sources/SwiftCrossUI/Views/Text.swift"
+2026-08-27,windows,WinUIBackend,after-shared-edit,72.06,"immediately after editing Sources/SwiftCrossUI"
+2026-08-27,windows,SwiftCrossUI,session-observed,7.55,"single sample; not characterised"
+2026-08-27,windows,P6-app,full-app,150.90,"cited from testapp/issue_commits.csv against a87d41ba, not re-measured"
