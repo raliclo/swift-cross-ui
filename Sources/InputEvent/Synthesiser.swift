@@ -13,9 +13,34 @@ public struct WindowGeometry: Equatable, Sendable {
     /// client-side decorations this can equal ``frameOrigin``.
     public var clientOrigin: (x: Double, y: Double)
 
-    /// Physical pixels per logical point. Action files are written in points so
-    /// they survive being replayed at a different display scale; the conversion
-    /// happens here, at the last moment.
+    /// Physical pixels per logical point, **as the toolkit laid the window
+    /// out** -- not as the display reports it. The two are not always the same
+    /// number, and where they differ it is the toolkit's that a coordinate
+    /// means.
+    ///
+    /// Action files are written in points so they survive being replayed at a
+    /// different display scale; the conversion happens here, at the last moment.
+    ///
+    /// Measured 2026-08-27, from this repository's own history rather than from
+    /// a fresh run. When this machine went from 125% to 100%, every Windows
+    /// action file had to be re-measured, and all 13 y coordinates changed by
+    /// exactly 1.25 -- P21 195 -> 244, P8 300 -> 375, P19 180 -> 225, without
+    /// one exception. So the widgets had not moved in *physical* pixels at all:
+    /// GTK 4 on Windows rounds the scale to an integer and laid out at 1 at both
+    /// DPIs. The synthesiser multiplied by 1.25 regardless, and the files
+    /// absorbed the error -- which is why a format meant to be scale
+    /// independent was not.
+    ///
+    /// 每個邏輯點所對應的實體像素數——以**該 toolkit 實際排版時所用的比例**為準，而非顯示器所
+    /// 回報的比例。兩者未必相同，而在兩者不同之處，座標所依據的是 toolkit 的那一個。
+    ///
+    /// 動作檔以「點」書寫，如此才能在不同的顯示縮放下重放；換算就發生在此處，且是最後一刻。
+    ///
+    /// 於 2026-08-27 自本專案自身的歷史量得，而非來自一次新的執行。這台機器由 125% 改為 100%
+    /// 時，所有 Windows 動作檔都必須重新測量，而 13 個 y 座標**無一例外**恰好變動 1.25 倍——
+    /// P21 195 -> 244、P8 300 -> 375、P19 180 -> 225。也就是說，widget 的**實體**像素位置根本
+    /// 沒有移動：Windows 上的 GTK 4 會將比例取整為整數，兩種 DPI 下都以 1 排版。而 synthesiser
+    /// 仍然照乘 1.25，誤差便由動作檔吸收了——這正是一個「本應與縮放無關」的格式並非如此的原因。
     public var scale: Double
 
     public init(
@@ -213,11 +238,22 @@ extension Synthesiser {
 /// 沒有實作的平台會拋出錯誤，而非回傳一個安靜地什麼也不做的東西。iOS 目前正是這樣的平台：
 /// `UIKitBackend` 沒有 synthesiser，因此在該處執行 `-actionfile` 會於 stderr 明說，而不是留下一個
 /// 看似忽略了輸入的視窗。
-public func makeSynthesiser() throws -> any Synthesiser {
+///
+/// `layoutScale` is how many physical pixels the toolkit put in a logical
+/// point. Only a caller that owns the widget can answer it, which is why it is
+/// a parameter rather than something this module works out: this module
+/// deliberately knows nothing about backends. Passing `nil` leaves each
+/// synthesiser to ask the operating system, which is right wherever the toolkit
+/// and the display agree.
+///
+/// `layoutScale` 是「該 toolkit 在一個邏輯點中放進了多少實體像素」。只有持有該 widget 的呼叫端
+/// 答得出來，因此它是一個參數，而非由本模組自行推導：本模組刻意對任何 backend 一無所知。傳入
+/// `nil` 則交由各 synthesiser 去問作業系統——凡 toolkit 與顯示器一致之處，那都是對的。
+public func makeSynthesiser(layoutScale: Double? = nil) throws -> any Synthesiser {
     #if os(Windows)
-        return Win32Synthesiser()
+        return Win32Synthesiser(layoutScale: layoutScale)
     #elseif os(Linux)
-        return try XdotoolSynthesiser()
+        return try XdotoolSynthesiser(layoutScale: layoutScale)
     #elseif os(macOS)
         return AppKitSynthesiser()
     #else

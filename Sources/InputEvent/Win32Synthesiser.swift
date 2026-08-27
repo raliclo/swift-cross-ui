@@ -14,7 +14,15 @@ import WinSDK
 /// Passing pixels there is a mistake that produces a cursor near the top-left
 /// corner rather than an error.
 public final class Win32Synthesiser: Synthesiser, Sendable {
-    public init() {}
+    /// What the toolkit laid out with, when the caller knows and Windows
+    /// disagrees. `nil` means ask `GetDpiForWindow`.
+    /// 當呼叫端知道 toolkit 用了什麼比例、而 Windows 的說法與之不同時，採用此值。`nil` 代表
+    /// 改問 `GetDpiForWindow`。
+    private let layoutScale: Double?
+
+    public init(layoutScale: Double? = nil) {
+        self.layoutScale = layoutScale
+    }
 
     /// The user's setting, read from the system rather than assumed.
     /// `GetDoubleClickTime` returns milliseconds and defaults to 500, but it is
@@ -58,8 +66,25 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             throw SynthesiserError.toolFailed("ClientToScreen", status: Int32(GetLastError()))
         }
 
+        // The caller's answer wins, because Windows answers a different
+        // question. `GetDpiForWindow` reports what the *display* is scaled to;
+        // what a coordinate needs is what the *toolkit* laid out with, and GTK 4
+        // on Windows rounds to an integer, so at 125% Windows says 1.25 and GTK
+        // used 1. See WindowGeometry.scale for the measurement.
+        //
+        // WinUIBackend passes nothing and so keeps the DPI, which is right for a
+        // framework whose own unit is the fractional DIP -- but say plainly that
+        // this is reasoning, not a measurement: nothing has ever been driven
+        // against WinUIBackend at a scale other than 100%.
+        //
+        // 呼叫端的答案優先，因為 Windows 回答的是另一個問題。`GetDpiForWindow` 回報的是**顯示器**
+        // 被縮放成多少；而座標所需要的，是**toolkit** 排版時所用的比例。Windows 上的 GTK 4 會取整，
+        // 因此在 125% 時 Windows 說 1.25、GTK 用的卻是 1。量測依據見 WindowGeometry.scale。
+        //
+        // WinUIBackend 不傳入任何值，因而沿用 DPI；對一個以小數 DIP 為單位的框架而言這是對的——
+        // 但必須明說這是推論而非量測：從來沒有人在 100% 以外的縮放下驅動過 WinUIBackend。
         let dpi = GetDpiForWindow(window)
-        let scale = dpi == 0 ? 1.0 : Double(dpi) / 96.0
+        let scale = layoutScale ?? (dpi == 0 ? 1.0 : Double(dpi) / 96.0)
 
         // Divided by the scale so both origins are in logical points, which is
         // what an action file's coordinates are. screenPosition multiplies back

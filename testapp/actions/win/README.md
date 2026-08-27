@@ -63,17 +63,38 @@ exactly as they were read off the capture. Verified 2026-08-27 on P0 before
 anything else was measured: a click written at the raw capture coordinate
 (238,184) pressed the button under it, and the app's counter moved.
 
-At any other scale a file here is wrong, and wrong in a way that reads as the
-app ignoring input. Between 2026-08-26 and 2026-08-27 this machine went from
-125% to 100%, and every file in this folder had to be **re-measured from fresh
-captures**. Multiplying the old numbers by 1.25 was deliberately not done: a
-factor is easy to apply twice or to the wrong axis, and the result looks exactly
-like a miss caused by anything else.
+That used to be a rule to follow. It was really a symptom, and as of 2026-08-27
+it is fixed: `GtkBackend` now hands the synthesiser GTK's own scale factor
+rather than letting it ask `GetDpiForWindow`, so a file here means the same
+thing whatever the display is set to. The history below is kept because it is
+the evidence, not because it is still a chore.
 
-GtkBackend is where the scale bites, because GTK 4 on Windows does not scale
-itself: its scale factor is an integer, 125% rounded to 1, and one GTK layout
-unit is one physical pixel. That is why the 125% files carried `physical / 1.25`
-and these carry `physical`.
+Between 2026-08-26 and 2026-08-27 this machine went from 125% to 100%, and every
+file in this folder had to be **re-measured from fresh captures** — and all 13 y
+coordinates changed by exactly 1.25, without one exception. That is the proof
+that nothing had moved: GTK 4 on Windows does not scale itself, its scale factor
+is an integer, 125% rounds to 1, and one GTK layout unit is one physical pixel
+at both settings. The synthesiser multiplied by 1.25 anyway, and the files
+absorbed it. Multiplying the old numbers by 1.25 was deliberately *not* how the
+new ones were produced: a factor is easy to apply twice or to the wrong axis,
+and the result looks exactly like a miss caused by anything else.
+
+**What is verified, and what is not.** The no-change case is verified here:
+P21's file drives its three enabled clicks and the counter reads 3, at 100%,
+with GTK reporting scale 1.0. The *differing* case — where the toolkit's scale
+and the platform's disagree — could not be reproduced on Windows at all. This
+machine is at 100%, and `GDK_SCALE`, the obvious way to manufacture a
+disagreement without touching the display setting, is **ignored by GTK 4 on
+Windows**: measured 2026-08-27, `GDK_SCALE=2` produced a pixel-identical window,
+and GTK went on reporting 1.0. So the differing case was verified on Linux,
+where `GDK_SCALE` is honoured — under `GDK_SCALE=2` GTK reports 2.0, lays out
+820x720 → 1640x1080, and the same one-line file lands 410,400 further into the
+window than at scale 1, which is the definition of the format working.
+
+The WinUI file is a separate matter and still carries the old risk: nothing has
+ever been driven against WinUIBackend at a scale other than 100%, and it is left
+on `GetDpiForWindow` on the reasoning that a DIP framework does scale
+fractionally. Reasoning, not a measurement.
 
 **So check the scale before trusting any of this.** Settings → System → Display
 → Scale, or `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings" /s` —
@@ -93,14 +114,27 @@ percentage, so `0xffffffff` is one step below recommended rather than 100%.
 之前先以 P0 驗證：以截圖原始座標 (238,184) 寫下的點擊，按到了該座標下方的按鈕，app 的計數器也隨之
 變動。
 
-在任何其他縮放比例下，本資料夾的檔案都是錯的，而且錯的樣子看起來就像 app 忽略了輸入。2026-08-26
-至 2026-08-27 之間，本機從 125% 改為 100%，此處每個檔案都必須**重新從新的截圖量測**。刻意不採用
-「把舊數字乘以 1.25」的做法：乘法係數很容易乘兩次、或乘錯軸，而結果看起來與任何其他原因造成的落空
-一模一樣。
+上面這件事過去是一條「必須遵守的規則」。它其實是一個症狀，而自 2026-08-27 起已經修好：`GtkBackend`
+現在會把 GTK 自己的 scale factor 交給 synthesiser，而不再讓它去問 `GetDpiForWindow`，因此無論顯示縮放
+設定為何，此處的檔案都代表同一件事。以下的歷史之所以保留，是因為它是證據，而不是因為它仍是一件待辦
+的雜務。
 
-會被縮放咬到的是 GtkBackend，因為 Windows 上的 GTK 4 並不自行縮放：它的 scale factor 是整數，
-125% 會取整為 1，一個 GTK 版面單位就等於一個實體像素。這正是 125% 時期的檔案寫 `實體像素 / 1.25`、
-而現在的檔案寫 `實體像素` 的原因。
+2026-08-26 至 2026-08-27 之間，本機從 125% 改為 100%，此處每個檔案都必須**重新從新的截圖量測**——而
+13 個 y 座標**無一例外**恰好變動 1.25 倍。這正是「什麼都沒有移動」的證明：Windows 上的 GTK 4 並不自行
+縮放，它的 scale factor 是整數，125% 會取整為 1，兩種設定下一個 GTK 版面單位都等於一個實體像素。而
+synthesiser 仍然照乘 1.25，誤差便由這些檔案吸收了。新的數字刻意**不是**用「把舊數字乘以 1.25」得到的：
+乘法係數很容易乘兩次、或乘錯軸，而結果看起來與任何其他原因造成的落空一模一樣。
+
+**哪些已驗證、哪些沒有。** 「不變」的情況已在此驗證：P21 的檔案在 100% 之下打完三次 enabled 點擊，
+計數器讀到 3，而 GTK 回報的 scale 為 1.0。但「有落差」的情況——toolkit 的比例與平台的比例不一致——
+在 Windows 上根本無法重現。本機為 100%，而 `GDK_SCALE`（在不動顯示設定的前提下製造落差最直接的辦法）
+在 **Windows 的 GTK 4 上完全無效**：2026-08-27 實測，`GDK_SCALE=2` 產生的視窗與原本逐像素相同，GTK
+也依然回報 1.0。因此「有落差」的情況是在 Linux 上驗證的——`GDK_SCALE` 在那裡確實生效：`GDK_SCALE=2`
+時 GTK 回報 2.0，版面由 820x720 變為 1640x1080，而同一個只有一行的檔案，落點比 scale 1 時**恰好**多深
+入視窗 410,400——這正是「此格式有在運作」的定義。
+
+WinUI 的檔案是另一回事，且仍帶有舊的風險：從來沒有人在 100% 以外的縮放下驅動過 WinUIBackend，而它
+之所以維持使用 `GetDpiForWindow`，依據的是「DIP 框架確實會以小數比例縮放」這個推論。是推論，不是量測。
 
 **因此，在相信這裡的任何內容之前，請先確認縮放比例。** 設定 → 系統 → 顯示器 → 縮放，或
 `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings" /s`——其中的 `DpiValue` 是相對於面板建議

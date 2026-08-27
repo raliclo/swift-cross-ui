@@ -511,7 +511,20 @@ public final class GtkBackend:
         // 分離視窗。
         window.present()
         #if SCUI_DEBUG
-        ActionFileReplay.replayIfRequested()
+        // GTK's own scale, not the display's. `gtk_widget_get_scale_factor` is
+        // an integer by design -- it is the buffer scale GTK rendered at -- and
+        // on Windows that is what makes it disagree with `GetDpiForWindow`: at
+        // 125% Windows reports 1.25 and GTK laid out at 1. Handing the number
+        // over here is what makes an action file mean the same thing at every
+        // display scale. See InputEvent's WindowGeometry.scale.
+        //
+        // 傳的是 GTK 自己的比例，而非顯示器的。`gtk_widget_get_scale_factor` 依設計即為整數——它
+        // 是 GTK 實際繪製時所用的 buffer scale——而在 Windows 上，這正是它與 `GetDpiForWindow`
+        // 產生分歧之處：125% 時 Windows 回報 1.25，GTK 卻是以 1 排版。在此把這個數字交出去，才
+        // 使得一個動作檔在任何顯示縮放下都代表同一件事。詳見 InputEvent 的 WindowGeometry.scale。
+        ActionFileReplay.replayIfRequested(
+            layoutScale: Double(gtk_widget_get_scale_factor(window.widgetPointer))
+        )
         #endif
     }
 

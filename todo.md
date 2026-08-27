@@ -87,22 +87,33 @@ recompiles dependencies too — the first probe reported 17 errors, every one of
 them inside `.build/checkouts/swift-image-formats` and none in our code. Size
 this job with `swiftLanguageMode`, never with `-Xswiftc`.
 
-### Action files are tied to the display scale, and should not be
+### Action files are tied to the display scale — done 2026-08-27
 
-`Win32Synthesiser` reads `GetDpiForWindow` and converts, so the file format is
-meant to be scale-independent logical points. It is not, because GTK 4 on
-Windows uses an *integer* scale factor: at 125% Windows reports 1.25 and GTK
-rounds to 1, so one GTK layout unit is one physical pixel and the two disagree.
+`GtkBackend` now passes `gtk_widget_get_scale_factor` to the synthesiser, so a
+coordinate is scaled by what the toolkit laid out with rather than by what
+`GetDpiForWindow` reports. Kept here as the record of what was and was not
+verified, because one half could not be.
 
-The cost is already paid once. When this machine went from 125% to 100% every
-file in `testapp/actions/win/` became wrong by a quarter and all 17 had to be
-re-measured from fresh captures. `testapp/actions/win/README.md` currently
-documents that as a rule to follow; it is really a symptom, and the note there
-should point here once this is fixed.
+Verified: no change at 100% on Windows (P21's counter reads 3, GTK reports 1.0),
+and the *differing* case on Linux, where `GDK_SCALE=2` makes GTK report 2.0 and
+lay out 820x720 → 1640x1080, and the same one-line file lands exactly 410,400
+further into the window than at scale 1.
 
-Fixing it means the synthesiser using the scale the app's toolkit actually laid
-out with, rather than the one Windows reports — which needs it to know which
-backend it is driving.
+Not verified: Windows at any scale other than 100%. `GDK_SCALE` cannot stand in
+for it — measured 2026-08-27, GTK 4 on Windows **ignores it entirely**, producing
+a pixel-identical window and still reporting 1.0. WinUIBackend keeps
+`GetDpiForWindow` on the reasoning that a DIP framework scales fractionally;
+nothing has ever been driven against it at another scale, so that is reasoning
+rather than a measurement.
+
+The Linux path needed a fix of its own to make this safe, and it was one this
+change introduced. `XdotoolSynthesiser` reported a *physical* window origin
+while `screenPosition` multiplies the whole sum by the scale, so passing a scale
+other than 1 doubled the origin along with the point. Invisible while the scale
+was hard-coded to 1. Found by solving for the origin under both models and
+seeing which reproduced the reparenting inset this file already documented:
+`(origin + point) * scale` gave -38,-59 at both scales, `origin + point * scale`
+gave -38,-59 at one and 154,-6 at the other.
 
 ---
 
@@ -149,10 +160,25 @@ backend it is driving.
   track lock state — it has been seen running while input was being delivered.
   The direct signal is `SendInput` failing with `ERROR_ACCESS_DENIED` (5), which
   is the capability actually being gated. That would also be cheaper: `tasklist`
-  costs ~195 ms and the gate runs it on every acquire.
+  costs ~195 ms and the gate runs it on every acquire. Seen again 2026-08-27:
+  the workstation locked itself mid-session and a replay reported
+  `SendInput exited with status 5`, with a desktop capture showing the PIN
+  screen — so the proposed signal does fire, and it named the cause where a
+  window capture did not. `screenshot.zsh -w` went on returning a correct
+  picture of the window throughout, because BitBlt reads a window that is not
+  on screen; only the desktop capture showed the lock.
 - **P10 launches on Windows, registers a title, and shows no window.** Not
   diagnosed. Rule out a leftover GTK process and a locked workstation before
   forming any hypothesis — both produce exactly this appearance.
+- **`swift test` does not run on Windows at all.** `SCUI_HOST_BACKENDS_ONLY=1
+  swift test` fails with `missing required modules: 'CGtk', 'GtkCHelpers'` while
+  emitting `DefaultBackend` — so the flag that deletes the unbuildable targets
+  does not stop `DefaultBackend` from importing GtkBackend. Measured
+  2026-08-27, with and without `PKG_CONFIG_PATH=/c/gtk4/lib/pkgconfig`, and
+  **verified pre-existing**: the same failure appears on a stashed, unmodified
+  tree, so it is not a consequence of any change made that day. The suite does
+  run on WSL, which is presumably why this went unnoticed — "55 tests in 10
+  suites pass" was true there and untested here.
 - **`testapp/run.zsh` documents an action-file path that does not work.** Its
   own example says `actions/win/...`; the app resolves against the repo root, so
   it must be `testapp/actions/win/...`. Consider making the script resolve the

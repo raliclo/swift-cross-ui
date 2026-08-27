@@ -17,11 +17,17 @@ import Foundation
 public final class XdotoolSynthesiser: Synthesiser, Sendable {
     private let executable: URL
 
-    public init() throws {
+    /// What the toolkit laid out with, when the caller knows. `nil` means 1,
+    /// which is what X itself implies.
+    /// 呼叫端知道 toolkit 用了什麼比例時，採用此值。`nil` 代表 1，也就是 X 自身所隱含的值。
+    private let layoutScale: Double?
+
+    public init(layoutScale: Double? = nil) throws {
         guard let found = Self.locate("xdotool") else {
             throw SynthesiserError.toolMissing("xdotool")
         }
         executable = found
+        self.layoutScale = layoutScale
     }
 
     /// X has no double-click interval of its own; the value lives in each
@@ -92,14 +98,54 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
         }
 
         let inset = frameInset(of: window)
-        // X reports pixels and has no notion of a logical point, so the scale
-        // is 1 and a point is a pixel. On a scaled Wayland session under
-        // XWayland the app is scaled by the compositor rather than by X, so
-        // this stays true from XTEST's side.
+        // X reports pixels and has no notion of a logical point, so 1 is the
+        // right default and a point is a pixel. On a scaled Wayland session
+        // under XWayland the app is scaled by the compositor rather than by X,
+        // so that stays true from XTEST's side.
+        //
+        // The caller can still override it, and the two cases collapse into one
+        // rule rather than needing to be told apart: whatever GTK reports as its
+        // scale factor is also the factor between a logical point and an X
+        // pixel. Compositor-scaled, GTK renders at 1 and reports 1; told
+        // `GDK_SCALE=2`, GTK renders at 2 and X sees 2 -- and reports 2.
+        //
+        // X 回報的是像素，且沒有邏輯點的概念，因此預設 1 是對的，一個點就是一個像素。在
+        // XWayland 之下、經過縮放的 Wayland session 中，app 是由 compositor 縮放而非由 X 縮放，
+        // 因此就 XTEST 這一側而言此事仍然成立。
+        //
+        // 呼叫端仍可覆寫，而且這兩種情況會收斂為同一條規則，不需要分辨：GTK 所回報的 scale
+        // factor，同時也就是「邏輯點」與「X 像素」之間的倍率。由 compositor 縮放時，GTK 以 1
+        // 繪製並回報 1；被指定 `GDK_SCALE=2` 時，GTK 以 2 繪製、X 也看到 2——而它回報 2。
+        // Divided by the scale, so that `screenPosition` multiplying the whole
+        // sum back leaves the origin where X put it and scales only the point.
+        // Win32Synthesiser has always done this; here it was invisible while
+        // the scale was hard-coded to 1, and became a bug the moment it was not.
+        //
+        // Measured 2026-08-27, before the division existed. A file saying
+        // `move,410,400` under `GDK_SCALE=2` put the cursor at 1204,906 when
+        // 1012,853 was right -- the window origin had been doubled along with
+        // the point. What identified it was that solving for the origin under
+        // `(origin + point) * scale` gave an inset of exactly -38,-59 at both
+        // scales, the same reparenting inset this file documents above, while
+        // solving under `origin + point * scale` gave -38,-59 at scale 1 and
+        // 154,-6 at scale 2. Four digits agreeing across two axes and two
+        // scales is what made that a diagnosis rather than a guess.
+        //
+        // 先除以該比例，如此 `screenPosition` 把整個總和乘回去時，原點會停在 X 所給的位置，只有
+        // 「點」被縮放。Win32Synthesiser 一向如此；此處在比例被寫死為 1 時看不出來，而一旦不再
+        // 是 1，它立刻成為 bug。
+        //
+        // 於 2026-08-27、在此除法尚不存在時實測。`GDK_SCALE=2` 下，一個寫著 `move,410,400` 的
+        // 檔案把游標放到了 1204,906，而正確答案是 1012,853——視窗原點連同該點一起被加倍了。
+        // 據以指認的關鍵是：以 `(origin + point) * scale` 反解原點，兩種縮放下都得到 -38,-59，
+        // 恰為本檔上方所記載的同一個 reparenting 偏移；而以 `origin + point * scale` 反解，
+        // scale 1 得 -38,-59、scale 2 卻得 154,-6。四個數字在兩個軸、兩種縮放下一致，才使這成為
+        // 一項診斷而非一個猜測。
+        let scale = layoutScale ?? 1
         return WindowGeometry(
-            frameOrigin: (x - inset.left, y - inset.top),
-            clientOrigin: (x, y),
-            scale: 1
+            frameOrigin: ((x - inset.left) / scale, (y - inset.top) / scale),
+            clientOrigin: (x / scale, y / scale),
+            scale: scale
         )
     }
 

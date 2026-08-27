@@ -52,7 +52,14 @@ public enum ActionFileReplay {
     /// 每個行程僅一次，而非每次呼叫一次。應用程式每開啟一個視窗都會執行 `show(window:)`，而第二次
     /// 重放所作用的，會是第一次所遺留下來的狀態。此處以鎖而非單純的旗標作為防護，因為 backend 可能
     /// 從多個執行緒顯示視窗。
-    public static func replayIfRequested() {
+    ///
+    /// `layoutScale` is how many physical pixels the backend's toolkit put in a
+    /// logical point, for the backends that know it and whose platform would
+    /// otherwise guess wrong. Omitting it keeps the platform's own answer.
+    ///
+    /// `layoutScale` 是該 backend 的 toolkit 在一個邏輯點中放進了多少實體像素——供那些「自己知道
+    /// 答案、且其平台若自行推測會猜錯」的 backend 使用。省略則沿用該平台自身的答案。
+    public static func replayIfRequested(layoutScale: Double? = nil) {
         guard let file = requestedFile else { return }
 
         lock.lock()
@@ -86,9 +93,23 @@ public enum ActionFileReplay {
         // 而在主執行緒上，那份睡眠同時也是 UI 的睡眠，於是已投遞的事件只能滯留在佇列中無法被處理。
         // 在 GTK 上實測：一個「開啟選單、再按下項目」的檔案回報成功卻毫無變化，因為第二次點擊投遞到
         // popover 位置時，該 popover 從未被 map 出來。
+        // Said before the replay, not after, because the case that most needs
+        // this number is the one where the replay fails or does nothing
+        // visible. A wrong scale does not error: every click lands, just not
+        // where the file said, and the window afterwards is indistinguishable
+        // from an app that ignored its input.
+        //
+        // 在重放之前輸出而非之後，因為最需要這個數字的情況，正是「重放失敗」或「什麼看得見的事
+        // 都沒發生」的那一種。比例取錯不會報錯：每一次點擊都會落下，只是沒落在檔案所指的位置，
+        // 而事後的視窗與一個忽略了輸入的 app 完全無法區分。
+        report(
+            "replaying \(file.lastPathComponent) at layout scale "
+                + (layoutScale.map { "\($0)" } ?? "the platform's own")
+        )
+
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
             do {
-                try makeSynthesiser().replayFile(at: file)
+                try makeSynthesiser(layoutScale: layoutScale).replayFile(at: file)
                 report("replayed \(file.lastPathComponent)")
             } catch {
                 report("failed: \(error)")
