@@ -85,6 +85,26 @@ iOS 與 Android 都**不需要**指定裝置或設定環境變數。
 `--device` 可覆寫兩者：iOS 接受模擬器名稱或 UDID，Android 接受 AVD 名稱或 adb serial。環境變數
 `IOS_SIM_DEVICE` 與 `ANDROID_AVD_NAME` 效果相同。
 
+### 截圖
+
+所有平台都會截圖，輸出至 `testapp/output/screenshots/<label>-<時間戳>.png`；每次執行會在啟動後
+不久拍一張、結束前再拍一張。
+
+| 平台 | 方式 | 拍攝對象 |
+| --- | --- | --- |
+| Windows、WSLg | `screenshot.zsh`，gdigrab | 指定的視窗，或整個桌面 |
+| macOS | `screenshot.zsh`，`screencapture` | 依 CGWindowID 指定的視窗，或整個顯示器 |
+| iOS | `simctl io ... screenshot` | 模擬器自身的 framebuffer |
+| Android | `adb exec-out screencap` | 裝置自身的 framebuffer |
+
+iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」，而裝置的 framebuffer 與「模擬器
+或 emulator 視窗在這台 Mac 上合成後的樣子」是不同的影像。這兩者也不需要螢幕錄製權限，macOS 路徑
+則需要。
+
+擷取失敗會被回報並計數，不會被吞掉，也絕不中止執行——截圖是證據，而非斷言。在 macOS 上，「由視窗
+退回整個顯示器」本身就是一個訊號：顯示器進入睡眠會使視窗擷取失效，而全螢幕擷取仍會成功並回傳一張
+全黑的畫面。
+
 | Script | 用途 |
 | --- | --- |
 | `test.zsh` | 實際使用的指令。它會找出 `test_support/test_Pn.zsh`，該檔設定該 app 的細節後交棒給 `test_support/test_common.zsh` |

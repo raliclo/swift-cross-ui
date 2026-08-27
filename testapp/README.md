@@ -98,6 +98,28 @@ reports, and says so if none exists rather than failing further in.
 adb serial for Android. `IOS_SIM_DEVICE` and `ANDROID_AVD_NAME` do the same
 thing from the environment.
 
+### Screenshots
+
+Every platform captures, into `testapp/output/screenshots/<label>-<timestamp>.png`.
+Each run takes one shortly after launch and one at the end.
+
+| Platform | How | Subject |
+| --- | --- | --- |
+| Windows, WSLg | `screenshot.zsh`, gdigrab | the named window, or the desktop |
+| macOS | `screenshot.zsh`, `screencapture` | the named window by CGWindowID, or the display |
+| iOS | `simctl io ... screenshot` | the Simulator's own framebuffer |
+| Android | `adb exec-out screencap` | the device's own framebuffer |
+
+iOS and Android do not go through `screenshot.zsh`: it captures a display, and
+the device's framebuffer is a different image from the Simulator or emulator
+window as composited on this Mac. They also need no Screen Recording permission,
+where the macOS path does.
+
+A failed capture is reported and counted, never swallowed, and never aborts the
+run -- a screenshot is evidence, not the assertion. On macOS a fallback from the
+window to the whole display is itself a signal: a sleeping display defeats window
+capture while a full-screen grab still succeeds and returns a black frame.
+
 | Script | For |
 | --- | --- |
 | `test.zsh` | The command. Finds `test_support/test_Pn.zsh`, which sets the app's details and hands over to `test_support/test_common.zsh` |
