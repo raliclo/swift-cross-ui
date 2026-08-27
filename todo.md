@@ -83,6 +83,20 @@ which is a worse outcome than not having it. Arbitrary button labels first.
 **`LabelStyle` has nothing to style.** There is no `Label` view — it is one of
 the missing views under SwiftUI parity below.
 
+**`ShapeStyle` is blocked below the protocol too, on what a backend can paint.**
+`BackendFeatures.Paths.renderPath` takes two resolved `Color`s —
+`strokeColor:` and `fillColor:` — and `StyledShape` stores `Color?` for each.
+`Shape.fill(_:)` and `Shape.stroke(_:style:)` take a concrete `Color`. The whole
+point of SwiftUI's `ShapeStyle` is that `Color`, `LinearGradient` and `Material`
+are interchangeable there, and nothing but a flat colour can reach a backend
+from here.
+
+A `ShapeStyle` that only `Color` conforms to would be `Color` with extra steps,
+and it would pin a `resolve(in:) -> Color` signature that has to break the day a
+gradient fill arrives. The real work is `renderPath` accepting something richer
+than two colours, across six backends, plus a gradient fill in each — which is
+its own project and not a matter of following a protocol shape.
+
 `ToggleStyle` was the one of the three that could be done, and it was the
 tidiest starting point of any style here: already a struct with `.switch`,
 `.button` and `.checkbox` statics and an `@_spi(Backends)` nested enum, so the
