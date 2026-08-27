@@ -197,11 +197,90 @@ log_file="$log_dir/ios-$target-debugTarget.log"
 log_pid=$!
 sleep 1
 
+
+# Screenshots, into the same place and with the same naming every other platform
+# uses -- testapp/output/screenshots/<label>-<timestamp>.png -- so a run's
+# evidence lands together whichever target produced it.
+#
+# Not through screenshot.zsh. That captures a display, and a display is the
+# wrong thing here: what matters is the device's own framebuffer, which is a
+# different image from "the Simulator window as composited on this Mac" and is
+# available without Screen Recording permission. `simctl io ... screenshot` is honest about
+# failing: measured exit 148 for an unknown device and 60 for a shut-down one,
+# with no file left behind in either case.
+#
+# Failure is reported and counted, never swallowed, and never aborts the run --
+# a screenshot is evidence, not the assertion. The file is checked for as well
+# as the exit code, because a redirect creates the file whether or not anything
+# was written to it.
+#
+# 截圖輸出至與其他所有平台相同的位置與命名方式——testapp/output/screenshots/<label>-<時間戳>.png
+# ——如此一來，無論由哪個 target 產生，一次執行的證據都會落在一起。
+#
+# 不經由 screenshot.zsh。該腳本擷取的是「顯示器」，而在此處那是錯的對象：真正重要的是裝置自身的
+# framebuffer，它與「Simulator 視窗在這台 Mac 上合成後的樣子」是不同的影像，且不需要螢幕錄製權限。
+#
+# 失敗會被回報並計數，不會被吞掉，也絕不中止執行——截圖是證據，而非斷言。除結束碼外亦檢查檔案是否
+# 存在，因為重導向無論是否真的寫入內容都會建立該檔。
+screenshot_failures=0
+capture() {
+    local label="$1"
+    local dir="$script_dir/output/screenshots"
+    mkdir -p "$dir"
+    # Not `path`. It is the zsh array tied to $PATH, so `local path=...` empties
+    # the command search path for the rest of the function: xcrun is not found,
+    # the capture "fails", and then `rm` is not found either -- the observed
+    # symptom was "capture:12: command not found: rm". Same family as `status`,
+    # which bit two commits ago, and this file's own notes name `path` first.
+    # 不用 `path`。它是 zsh 中與 $PATH 綁定的陣列，因此 `local path=...` 會清空該函式其餘部分的
+    # 命令搜尋路徑：找不到 xcrun，擷取遂「失敗」，接著連 `rm` 也找不到——實際觀察到的症狀是
+    # 「capture:12: command not found: rm」。與兩個 commit 前咬過人的 `status` 同一族，而本檔自身
+    # 的註解正是把 `path` 列在第一個。
+    local shot="$dir/${label}-$(date +%Y%m%d-%H%M%S).png"
+
+    # Captured to a temporary file and moved, never written straight into the
+    # repository.
+    #
+    # simctl does not write as this process. On a checkout under /Volumes it
+    # fails with "You don't have permission" / NSPOSIXErrorDomain code 1 --
+    # Operation not permitted -- while the same command writing to /private/tmp
+    # succeeds, and while this shell can create files in the destination
+    # perfectly well. The volume is reachable to us and not to CoreSimulator, so
+    # the move is done by the process that is allowed to do it.
+    #
+    # 先擷取至暫存檔再搬移，絕不直接寫入 repository。
+    #
+    # simctl 並非以本行程的身分寫入。當 checkout 位於 /Volumes 之下時，它會以
+    # 「You don't have permission」/ NSPOSIXErrorDomain code 1（Operation not permitted）失敗；
+    # 而同一道指令寫入 /private/tmp 則成功，且本 shell 在該目的地建立檔案毫無問題。該磁碟區對我們
+    # 可及、對 CoreSimulator 不可及，因此改由「被允許的那一方」執行搬移。
+    local staged
+    staged="$(mktemp -t scui-shot)" || return 0
+
+    if xcrun simctl io "$device_name" screenshot "$staged" >/dev/null 2>&1 \
+        && [ -s "$staged" ] \
+        && mv "$staged" "$shot"; then
+        # mktemp creates 0600; the other platforms' screenshots are 0644 and
+        # these sit in the same folder.
+        # mktemp 建立的權限是 0600，而其他平台的截圖是 0644，且兩者位於同一資料夾。
+        chmod 644 "$shot" 2>/dev/null || true
+        printf '==> Screenshot: %s\n' "${shot:t}"
+        return 0
+    fi
+
+    rm -f "$staged" "$shot"
+    screenshot_failures=$(( screenshot_failures + 1 ))
+    printf '!! no screenshot from %s\n' "$device_name" >&2
+    return 0
+}
+
 printf '==> Installing %s as %s\n' "$target" "$bundle_id"
 xcrun simctl install "$device_name" "$bundle_dir"
 if [ -z "$action_file" ]; then
     printf '==> Launching %s\n' "$bundle_id"
     xcrun simctl launch "$device_name" "$bundle_id" "${app_args[@]}"
+    sleep 1
+    capture "${target:l}-ios-1s"
 fi
 
 if [ -n "$action_file" ]; then
@@ -247,6 +326,11 @@ if [ "$showtime_seconds" -gt 0 ]; then
     sleep "$showtime_seconds"
 fi
 
+capture "${target:l}-ios-final"
+
 kill "$log_pid" 2>/dev/null || true
 wait "$log_pid" 2>/dev/null || true
 printf '==> Simulator log: %s\n' "$log_file"
+if [ "$screenshot_failures" -gt 0 ]; then
+    printf '!! %d screenshot(s) could not be taken\n' "$screenshot_failures" >&2
+fi

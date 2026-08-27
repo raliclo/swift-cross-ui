@@ -189,6 +189,61 @@ ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || 
 }
 ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || die "Android device did not finish booting"
 
+
+# Screenshots, into the same place and with the same naming every other platform
+# uses -- testapp/output/screenshots/<label>-<timestamp>.png -- so a run's
+# evidence lands together whichever target produced it.
+#
+# Not through screenshot.zsh. That captures a display, and a display is the
+# wrong thing here: what matters is the device's own framebuffer, which is a
+# different image from "the emulator window as composited on this Mac" and is
+# available without Screen Recording permission.
+#
+# The file is checked for content, not just the exit code. `adb exec-out` writes
+# through a shell redirect, so the file exists whether or not a single byte
+# arrived -- an empty PNG would otherwise be reported as a successful capture.
+#
+# Failure is reported and counted, never swallowed, and never aborts the run: a
+# screenshot is evidence, not the assertion.
+#
+# 截圖輸出至與其他所有平台相同的位置與命名方式——testapp/output/screenshots/<label>-<時間戳>.png
+# ——如此一來，無論由哪個 target 產生，一次執行的證據都會落在一起。
+#
+# 不經由 screenshot.zsh。該腳本擷取的是「顯示器」，而在此處那是錯的對象：真正重要的是裝置自身的
+# framebuffer，它與「emulator 視窗在這台 Mac 上合成後的樣子」是不同的影像，且不需要螢幕錄製權限。
+#
+# 此處檢查的是檔案是否有內容，而不僅是結束碼。`adb exec-out` 是透過 shell 重導向寫出的，因此無論
+# 是否真的收到任何位元組，該檔都會存在——否則一個空的 PNG 會被回報為擷取成功。
+#
+# 失敗會被回報並計數，不會被吞掉，也絕不中止執行：截圖是證據，而非斷言。
+screenshot_failures=0
+capture() {
+    local label="$1"
+    local dir="$script_dir/output/screenshots"
+    mkdir -p "$dir"
+    # Not `path`. It is the zsh array tied to $PATH, so `local path=...` empties
+    # the command search path for the rest of the function: xcrun is not found,
+    # the capture "fails", and then `rm` is not found either -- the observed
+    # symptom was "capture:12: command not found: rm". Same family as `status`,
+    # which bit two commits ago, and this file's own notes name `path` first.
+    # 不用 `path`。它是 zsh 中與 $PATH 綁定的陣列，因此 `local path=...` 會清空該函式其餘部分的
+    # 命令搜尋路徑：找不到 xcrun，擷取遂「失敗」，接著連 `rm` 也找不到——實際觀察到的症狀是
+    # 「capture:12: command not found: rm」。與兩個 commit 前咬過人的 `status` 同一族，而本檔自身
+    # 的註解正是把 `path` 列在第一個。
+    local shot="$dir/${label}-$(date +%Y%m%d-%H%M%S).png"
+
+    if ANDROID_SERIAL="$serial" "$adb" exec-out screencap -p > "$shot" 2>/dev/null \
+        && [ -s "$shot" ]; then
+        print "==> Screenshot: ${shot:t}"
+        return 0
+    fi
+
+    rm -f "$shot"
+    screenshot_failures=$(( screenshot_failures + 1 ))
+    print -u2 -r -- "!! no screenshot from $serial"
+    return 0
+}
+
 print "==> Installing $apk_path"
 ANDROID_SERIAL="$serial" "$adb" install -r "$apk_path" >/dev/null
 ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
@@ -200,6 +255,14 @@ ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
 ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" >/dev/null
 
 print "==> Launched $package_id on $serial"
+sleep 1
+capture "${app_id}-android-1s"
+
 if [ "$showtime_seconds" -gt 0 ]; then
     sleep "$showtime_seconds"
+fi
+
+capture "${app_id}-android-final"
+if [ "$screenshot_failures" -gt 0 ]; then
+    print -u2 -r -- "!! $screenshot_failures screenshot(s) could not be taken"
 fi
