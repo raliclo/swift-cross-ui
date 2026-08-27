@@ -554,12 +554,44 @@ rather than render it un-blurred. The rest needs a `Microsoft.UI.Composition`
 effect graph.
 
 Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
-value type), `.blendMode`, and the geometric family -- `.rotationEffect`,
-`.scaleEffect`, `.offset`, `.position`, `.transformEffect`, `.zIndex`. The
-geometric ones are deliberately not part of `VisualEffect`: they change where a
-view is drawn rather than what its pixels look like, and they interact with hit
-testing. Also absent: `.clipShape`, `.mask`, `.border`, `.hidden`,
-`.compositingGroup`, `.drawingGroup`.
+value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
+`.clipShape`, `.mask`, `.border`, `.hidden`, `.compositingGroup`,
+`.drawingGroup`.
+
+### Geometric effects: done 2026-08-27, and GTK cannot render them
+
+`BackendFeatures.GeometricEffects` plus `GeometricEffect`, and `.offset(x:y:)`,
+`.rotationEffect(_:anchor:)`, `.scaleEffect(_:anchor:)` and
+`.transformEffect(_:)`. P40 is the app. Separate from `VisualEffects` because
+these change *where* pixels land rather than what they look like, which also
+means they affect hit testing; a backend can support one family and not the
+other, and GTK is exactly that case.
+
+The anchor is resolved into an `AffineTransform` at commit time, where the
+view's size is known, so a backend receives one matrix about the widget's origin
+and never has to reproduce SwiftUI's anchor arithmetic.
+
+**WinUIBackend renders them correctly** -- rotation, scale and offset all
+verified in P40.
+
+**GtkBackend conforms and deliberately declines.** GTK 4 renders a transformed
+widget as a flat rectangle of hotpink, `rgb(255, 105, 180)`, losing its content
+completely; that is GSK's documented indicator for a render node it cannot
+handle. Four things were ruled out before blaming the platform: the mechanism
+(CSS `transform` and `gtk_fixed_set_child_transform` fail identically despite
+being unrelated paths), the renderer (`GSK_RENDERER=cairo` and the GL renderer
+agree), this backend's own code (a no-op control that built the container and
+skipped only the transform call rendered every tile perfectly), and the content
+(a bare `Text` goes hotpink too). Upgrading is not available: this is 4.22.4,
+the current stable, and Windows and WSL are on the same version.
+
+Declining beats applying it here. An untransformed view is legible and
+clickable; a hotpink rectangle has lost everything. This is the one case so far
+where "apply what you can and say so" loses to "apply nothing and say so".
+
+Untested: whether Linux GTK behaves the same. Same version, so probably, but
+nobody has run it -- the WSL box has no screenshot tool installed and the WSLg
+window was not reachable from the Windows capture path.
 
 ---
 
