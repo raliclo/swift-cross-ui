@@ -17,3 +17,5 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,winui,P40,ok,n/a,desktop,"rotation, scale and offset all render correctly"
 2026-08-27,mac,appkit,P28,ok,ok,n/a,"AppKit hit testing fixed in e25b3a65; reported by the Mac side, not verified in this checkout"
 2026-08-27,wsl,gtk4,P8,ok,n/a,n/a,"scrollBarWidth A/B: overlay scrolling off measures 14pt via debugLogOnce, on never enters the branch"
+2026-08-27,windows,gtk4,P41,ok,n/a,window,all four date picker styles distinct; .wheel is three columns centred on the selection
+2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical renders nothing; .automatic and .wheel are the same control

@@ -39,4 +39,18 @@ extension ListBox {
     public func unselectAll() {
         gtk_list_box_unselect_all(opaquePointer)
     }
+
+    /// The index of the selected row, or `nil` when nothing is selected.
+    ///
+    /// The counterpart to ``selectRow(at:)``, which had no way to ask what the
+    /// answer currently is. GTK returns the row widget rather than an index, and
+    /// the index lives on the row.
+    ///
+    /// ``selectRow(at:)`` 的對應項——先前無從詢問「目前的答案是什麼」。GTK 回傳的是那一列的
+    /// widget 而非索引，而索引位於該列之上。
+    public var selectedRowIndex: Int? {
+        guard let row = gtk_list_box_get_selected_row(opaquePointer) else { return nil }
+        let index = gtk_list_box_row_get_index(row)
+        return index < 0 ? nil : Int(index)
+    }
 }

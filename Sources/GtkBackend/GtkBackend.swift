@@ -147,13 +147,25 @@ public final class GtkBackend:
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
     public let deviceClass = DeviceClass.desktop
-    // `.wheel` is absent because GTK has no wheel widget of any kind, and
-    // faking one out of a scrolled list would be a worse lie than the fallback.
-    // Note that a style left out of this list is downgraded to `.automatic` by
+    // `.wheel` was absent here until 2026-08-27, with a comment saying GTK "has
+    // no wheel widget of any kind, and faking one out of a scrolled list would
+    // be a worse lie than the fallback". The premise was wrong. SwiftUI's own
+    // documentation describes `.wheel` as showing "each component as columns in
+    // a scrollable wheel", and on iOS it is a UIPickerView -- N columns of
+    // scrollable text. A scrolled list per component is not a fake of the wheel,
+    // it is the wheel. See ``DateWheel``.
+    //
+    // A style left out of this list is downgraded to `.automatic` by
     // `datePickerStyle(_:)` without a word in a release build, so the list is
-    // the only place the omission is visible.
+    // the only place an omission is visible.
+    //
+    // `.wheel` 在 2026-08-27 之前並不在此清單中，當時的註解說 GTK「沒有任何形式的滾輪 widget，
+    // 而用捲動清單假造一個，會是比退回預設更糟的謊言」。該前提是錯的。SwiftUI 自己的文件把
+    // `.wheel` 描述為「將每個組成部分顯示為可捲動滾輪中的欄位」，而在 iOS 上它就是
+    // UIPickerView——N 欄可捲動文字。每個組成部分一個捲動清單並非滾輪的贗品，它就是滾輪本身。
+    // 詳見 ``DateWheel``。
     public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
-        .automatic, .graphical, .compact,
+        .automatic, .graphical, .compact, .wheel,
     ]
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
@@ -3796,6 +3808,8 @@ final class DatePickerWidget: Box {
         case grid
         /// A small button that opens the grid in a popover.
         case button
+        /// One scrollable column per component. See ``DateWheel``.
+        case wheel
     }
 
     /// What the picker is currently built out of. Compared as a whole so that
@@ -3814,6 +3828,7 @@ final class DatePickerWidget: Box {
     private var contents: Contents?
     private var grid: Gtk.Calendar?
     private var button: CompactDatePicker?
+    private var wheel: DateWheel?
     private var timeRow: TimeRow?
 
     /// The bound date, as last handed in or last reported. The picker's own
@@ -3913,13 +3928,8 @@ final class DatePickerWidget: Box {
                     .button
                 case .automatic, .graphical:
                     .grid
-                // Unreachable through `datePickerStyle(_:)`, which downgrades
-                // any style missing from `supportedDatePickerStyles` to
-                // `.automatic`. Answered rather than trapped because a date
-                // picker is not worth an abort, and `.automatic` is where the
-                // modifier would have sent it anyway.
                 case .wheel:
-                    .grid
+                    .wheel
             }
 
         // `hourMinuteAndSecond` includes `hourAndMinute`, by SwiftUI's bitfield
@@ -3947,6 +3957,7 @@ final class DatePickerWidget: Box {
         removeAll()
         grid = nil
         button = nil
+        wheel = nil
         timeRow = nil
 
         switch contents.presentation {
@@ -3966,6 +3977,25 @@ final class DatePickerWidget: Box {
                 }
                 add(button)
                 self.button = button
+            case .wheel:
+                // The year span is fixed rather than taken from `range`, which
+                // the protocol calls a hint and which is unbounded by default --
+                // a column from .distantPast to .distantFuture is not a widget.
+                // Centred on the shown date so the current year is reachable
+                // without scrolling for the ordinary case.
+                // 年份範圍為固定值，而非取自 `range`：protocol 稱該範圍為「提示」，且預設是無界的
+                // ——一個從 .distantPast 排到 .distantFuture 的欄位不成其為 widget。此處以顯示中的
+                // 日期為中心，使一般情況下無須捲動即可看到當年。
+                let shownYear = gregorian.component(.year, from: date)
+                let wheel = DateWheel(
+                    calendar: contents.calendar ?? .current,
+                    yearRange: (shownYear - 100)...(shownYear + 100)
+                )
+                wheel.onChange = { [weak self] date in
+                    self?.wheelPicked(date)
+                }
+                add(wheel)
+                self.wheel = wheel
             case nil:
                 break
         }
@@ -4009,7 +4039,30 @@ final class DatePickerWidget: Box {
         }
 
         button?.label = formatted(date)
+        wheel?.apply(date)
         timeRow?.show(hour: hour, minute: minute, second: second)
+    }
+
+    /// Takes the day the wheel reports and keeps the time this picker holds.
+    ///
+    /// Same split as ``daySelected(shownBy:)``: the wheel chooses a day and
+    /// knows nothing about the time of day, so composing them here is what stops
+    /// picking a date from resetting the clock to midnight.
+    /// 與 ``daySelected(shownBy:)`` 相同的分工：滾輪選的是日期，對當日時間一無所知，因此在此處
+    /// 合成兩者，正是「選日期不會把時間重設為午夜」的原因。
+    private func wheelPicked(_ picked: Date) {
+        guard !isApplyingDate else { return }
+
+        let day = gregorian.dateComponents([.year, .month, .day], from: picked)
+        var components = gregorian.dateComponents(
+            [.hour, .minute, .second, .nanosecond],
+            from: date
+        )
+        components.year = day.year
+        components.month = day.month
+        components.day = day.day
+
+        report(components)
     }
 
     private func daySelected(shownBy grid: Gtk.Calendar) {

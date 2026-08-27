@@ -362,8 +362,39 @@ gave -38,-59 at one and 154,-6 at the other.
   gap. `computeWindowEnvironment` never computes it and the Gtk module has no
   binding for it. Window *activation* already propagates correctly — the issue's
   original "window environment changes never propagate" was too broad.
-- **DatePicker**: `.wheel` unsupported (GTK has no such widget). `.compact` and
-  the calendar/timezone handling are done.
+- **DatePicker `.wheel`: done 2026-08-27, and the reason it was skipped was
+  wrong.** The old comment said GTK "has no wheel widget of any kind, and faking
+  one out of a scrolled list would be a worse lie than the fallback". But
+  SwiftUI's own documentation describes `.wheel` as showing "each component as
+  columns in a scrollable wheel", and on iOS it is a `UIPickerView` — N columns
+  of scrollable text. A scrolled list per component is not a fake of the wheel,
+  it *is* the wheel; neither AppKit nor UIKit has a single "wheel widget"
+  either. `DateWheel` is three scrollable single-selection columns, and it
+  scrolls the selection to the middle, without which a hundred years of rows
+  opened showing 1925 while the date was 2025.
+
+  What GTK genuinely lacks is momentum and snapping: there is no scroll-snap in
+  GTK 4, so a column settles where it is left rather than clicking to the
+  nearest row. Cosmetic difference in the same widget, recorded rather than
+  hidden.
+
+  P41 is the app, and it did not exist before: **nothing on this side used
+  `DatePicker` at all** — only P11, which is macOS-scoped — so no date picker
+  question had a picture anywhere.
+
+- **WinUIBackend `.graphical` renders nothing.** Found 2026-08-27 with P41 on
+  WinUI: `.automatic`, `.compact` and `.wheel` all draw, and `.graphical` is a
+  blank sliver where the `CalendarView` should be. Not diagnosed. Likely the
+  same shape as the already-recorded "WinUIElementRepresentable measures 0x0
+  when rooted at a Canvas", since a `CalendarView` that measures zero would look
+  exactly like this.
+
+- **WinUIBackend `.automatic` and `.wheel` are the same control**, both
+  `CustomDatePicker.DateViewType.datePicker`. Arguably correct rather than a
+  defect: WinUI's `DatePicker` fields open looping selectors, so it *is* the
+  wheel, and it is also what a Windows app shows by default. Worth knowing when
+  comparing screenshots, since two styles being identical is elsewhere the
+  signature of a silent fallback.
 - **21 catalogued silent no-ops**, ranked by severity × cheapness in
   `testapp/gtk-silent-noops.md`, with a seven-entry appendix of things that look
   like no-ops and are not. Findings 1, 3, 4, 6 and 9 are fixed; each keeps its
