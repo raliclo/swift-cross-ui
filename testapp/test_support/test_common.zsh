@@ -454,7 +454,49 @@ print_summary_windows() {
 # 代表 app 在重放之前就結束了，或 backend 根本沒看到該旗標，而這兩者與「重放執行了卻毫無作用」
 # 在外觀上完全相同。
 print_actionfile_report() {
-    local path="$1"
+    # `log_path`, not `path`. In zsh `path` is the array tied to `PATH`, so
+    # `local path="$1"` -- which is what this line said until 2026-08-27 --
+    # replaced the whole of PATH with the name of a log file for the length of
+    # this function. Measured: 49 entries outside, one inside, and `command -v`
+    # answering NONE for `grep`, `sed` and `zsh` alike. Hashing does not save it
+    # either; a grep already run and hashed by print_summary_windows was still
+    # not found here.
+    #
+    # The comment below is kept as it was written, wrong, because what it looks
+    # like matters: it is a correct observation ("sed was not on PATH in this
+    # context") with the cause missing, and the workaround it justifies was
+    # never the fix. With PATH gone, `grep` was not found either, `report` was
+    # always empty, and this function printed "no report" for every run it has
+    # ever summarised -- including the ones whose replay had worked.
+    #
+    # What that invalidates is this function's own output, and nothing further:
+    # an absent `-actionfile:` line in a test.zsh summary never meant the log
+    # was silent. It does not reach testapp/sweep-test/sweep_drive.zsh, which
+    # greps those same logs itself, contains no `path` assignment anywhere, and
+    # so ran with an intact PATH. That sweep reported `replay ok` for 16 of 17
+    # gtk4 apps and no line for every WinUI one -- 16 successes are not
+    # something an inert grep can produce, which makes it a controlled
+    # comparison rather than an assumption. A retraction that reaches past its
+    # evidence costs as much as one that stops short of it.
+    #
+    # 這裡是 `log_path` 而非 `path`。在 zsh 中 `path` 是與 `PATH` 綁定的陣列，因此
+    # `local path="$1"`——直到 2026-08-27 為止這一行都是這樣寫的——會在本函式執行期間，把整個 PATH
+    # 換成一個 log 檔的檔名。實測：函式外 49 個項目，函式內剩 1 個，而 `command -v` 對 `grep`、
+    # `sed`、`zsh` 一律回答 NONE。命令雜湊也救不了：print_summary_windows 先前已執行並雜湊過的
+    # grep，在此處依然找不到。
+    #
+    # 下方那段註解保留原樣、連同它的錯誤一起，因為「它長什麼樣子」本身很重要：那是一個正確的觀察
+    # （「sed 不在此情境的 PATH 上」）卻缺了成因，而它所辯護的替代寫法從來就不是修正。PATH 既然不見了，
+    # `grep` 同樣找不到，`report` 永遠是空的，於是本函式對它所摘要過的每一次執行都印出「no report」
+    # ——包括那些重放其實成功的執行。
+    #
+    # 這件事作廢的是**本函式自身的輸出**，僅此而已：test.zsh 摘要中「沒有 `-actionfile:` 這行」，
+    # 從來就不代表 log 是空的。它波及不到 testapp/sweep-test/sweep_drive.zsh——那支腳本自己 grep
+    # 同一批 log，全檔沒有任何對 `path` 的指派，因此是在 PATH 完好的情況下執行的。該次 sweep 對 17 支
+    # gtk4 app 中的 16 支回報 `replay ok`，對每一支 WinUI app 回報 no line——一個從未真正執行的 grep
+    # 產不出 16 次成功，因此那是一組對照比較，而非假設。一份超出其證據範圍的撤回，代價與一份不足的
+    # 撤回相同。
+    local log_path="$1"
     if [ -z "$action_file" ]; then
         return 0
     fi
@@ -468,13 +510,45 @@ print_actionfile_report() {
     # 以 zsh 自身的 `${(f)…}` 擷取並分行，而非透過管線交給 sed。兩個理由都是在此處實測到的：
     # `sed` 不在此情境的 PATH 上，該函式因而以 `command not found` 中止；而 `if grep | sed`
     # 判斷的是 **sed** 的結束狀態——因此即使 grep 一無所獲，仍會回報成功且什麼都不印。
+    # `|| true` because a grep that matches nothing exits 1, and under `set -e`
+    # a failed command substitution in an assignment ends the script. The "no
+    # report" branch below could not be reached without it -- and that branch is
+    # the normal outcome for a WinUI build, whose stdout and stderr are closed
+    # before anything can be piped from them. Not noticed earlier only because
+    # the line above it was failing first, for the PATH reason described above.
+    # 加上 `|| true`：沒有命中的 grep 會以 1 結束，而在 `set -e` 下，指派中失敗的命令替換會終止整個
+    # 腳本。少了它，下方的「no report」分支永遠到不了——而那個分支正是 WinUI 建置的正常結果，因為它的
+    # stdout 與 stderr 在任何東西能從中導出之前就已被關閉。先前沒發現，只是因為上一行更早就先失敗了，
+    # 原因見上方關於 PATH 的說明。
     local report
-    report="$(grep -a actionfile "$path" 2>/dev/null)"
+    report="$(grep -a actionfile "$log_path" 2>/dev/null || true)"
     if [ -n "$report" ]; then
         printf '    %s\n' ${(f)report}
     else
         printf '    no report -- the app exited before replaying, or never saw the flag\n'
     fi
+
+    # What those lines say about the desktop, rather than about this app.
+    # `SendInput exited with status 5` there is Windows refusing our input
+    # outright -- locked, or an elevated window in front -- and every capture
+    # this run took is then evidence about nothing. ui-lock.zsh keeps the
+    # observation, so the next acquire waits instead of repeating this run
+    # blind. A detector nobody calls is worth as little as a mutex nobody
+    # takes, which is why the call is here and not left to the reader.
+    #
+    # Its status is deliberately dropped: this script's exit code means "the run
+    # happened", and a verdict on the desktop is a different claim. `check`
+    # states its own on the lines it prints.
+    #
+    # 那些訊息對「桌面」而非對「這支 app」說了什麼。其中的 `SendInput exited with status 5` 代表
+    # Windows 直接拒絕了我方輸入——鎖定中，或前方站著提權視窗——此時本次執行所取得的每一張截圖都
+    # 不構成任何證據。ui-lock.zsh 會保留這項觀察，好讓下一次 acquire 選擇等待，而不是盲目重演這次
+    # 執行。沒有人呼叫的偵測器，與沒有人取用的互斥鎖一樣不值錢，因此這個呼叫寫在這裡，而不是留給
+    # 讀者自行處理。
+    #
+    # 刻意捨棄它的結束狀態：本腳本的 exit code 表示「這次執行發生了」，而對桌面的判決是另一回事。
+    # `check` 會用它自己印出的訊息說明結論。
+    zsh "$ui_lock_script" check "$log_path" || true
 }
 
 print_summary_wsl() {
@@ -855,9 +929,12 @@ print_summary_macos() {
 # means every path through test.zsh is serialised, including the ones nobody
 # thought about.
 #
-# It also waits while the workstation is locked, because a locked desktop makes
-# capture return bare wallpaper and synthesised input reach nothing, with no
-# error anywhere.
+# It also waits while the desktop is known to be refusing synthesised input --
+# locked, or with an elevated window in front -- because such a desktop makes
+# input reach nothing while a window capture goes on returning the app drawn
+# correctly, with no error anywhere. "Known" is the whole difficulty: the answer
+# comes from a run that already tried, which is what the `check` call in
+# print_actionfile_report records.
 #
 # SCUI_NO_UI_LOCK=1 skips it. A developer running one test on their own machine
 # should not be blocked for up to 60 seconds by a lock left over from something
@@ -870,8 +947,9 @@ print_summary_macos() {
 # 測試 runner 依舊照常啟動 app 而不去索取它——於是它只在人或 agent 記得時才生效，而那正是它要
 # 消除的失敗模式。在此取得，代表經過 test.zsh 的每一條路徑都被序列化，包含沒人想到的那些。
 #
-# 它同時會在工作站鎖定期間等待，因為鎖定的桌面會讓擷取只得到桌布、讓合成輸入什麼也碰不到，而且
-# 任何地方都不會報錯。
+# 它同時會在「已知桌面正在拒絕合成輸入」時等待——鎖定中，或前方站著提權視窗——因為這樣的桌面會讓
+# 輸入什麼也碰不到，而視窗擷取仍持續回傳畫得正確的 app，且任何地方都不會報錯。困難之處全在「已知」
+# 二字：答案來自一次已經嘗試過的執行，也就是 print_actionfile_report 中那個 `check` 呼叫所記錄的東西。
 #
 # SCUI_NO_UI_LOCK=1 可略過。開發者在自己機器上跑單一測試，不該被一個與他無關的殘留鎖擋上 60 秒；
 # 而一個沒有繞道的閘門，最終會被刪掉而不是被修好。

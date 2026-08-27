@@ -18,8 +18,10 @@
 /testapp/.android-sdk/
 
 # Held while one Pn is under test, so two tests cannot produce screenshots of
-# each other. Runtime state, never committed. See testapp/ui-lock.zsh.
+# each other, plus .ui-lock-denied: the last thing the desktop did with our
+# synthesised input. Runtime state, never committed. See testapp/ui-lock.zsh.
 /testapp/.ui-lock
+/testapp/.ui-lock-denied
 
 # The tree SCUI_HOST_BACKENDS_ONLY=1 swift test builds into, for the same reason
 # as the two above: it declares a different set of targets, so it cannot share
