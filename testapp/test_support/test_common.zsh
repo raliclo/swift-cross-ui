@@ -17,6 +17,7 @@ marker="${TEST_MARKER:-}"
 timeout_seconds="${TEST_TIMEOUT_SECONDS:-30}"
 showtime_seconds="${TEST_SHOWTIME_SECONDS:-30}"
 target="${TEST_TARGET:-wsl}"
+target_explicit=0
 do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
@@ -124,7 +125,10 @@ usage() {
 Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--ios|--android|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
-Default target: $target
+
+The platform flag is optional. $app declares "$target"; on a host that cannot
+drive it, the run moves to one that can and says so. Naming a platform this host
+cannot drive is refused rather than redirected.
 Default showtime: ${showtime_seconds}s
 
 --actionfile replays a CSV of synthesised clicks and keystrokes once the window
@@ -135,9 +139,9 @@ EOF_USAGE
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        -w|--wsl) target="wsl"; shift ;;
-        -win|--windows) target="windows"; shift ;;
-        -mac|--macos) target="macos"; shift ;;
+        -w|--wsl) target="wsl"; target_explicit=1; shift ;;
+        -win|--windows) target="windows"; target_explicit=1; shift ;;
+        -mac|--macos) target="macos"; target_explicit=1; shift ;;
         # iOS and Android arrived as their own top-level scripts, so reaching
         # them meant knowing a different command and a different flag spelling
         # for the same act -- run this app on that platform. They are targets
@@ -145,9 +149,9 @@ while [ "$#" -gt 0 ]; do
         # iOS 與 Android 原本各自是頂層腳本，因此要用到它們就得記住另一個命令與另一套旗標寫法，
         # 而所做的其實是同一件事——在某個平台上執行這支 app。此處將它們與其他平台一視同仁地列為
         # target；那兩支腳本仍留在原處並負責實際工作。
-        -ios|--ios) target="ios"; shift ;;
-        -android|--android) target="android"; shift ;;
-        -b|--both) target="both"; shift ;;
+        -ios|--ios) target="ios"; target_explicit=1; shift ;;
+        -android|--android) target="android"; target_explicit=1; shift ;;
+        -b|--both) target="both"; target_explicit=1; shift ;;
         -n|--no-build) do_build=0; shift ;;
         --showtime)
             if [ "$#" -gt 1 ] && [[ "$2" == <-> ]]; then
@@ -181,6 +185,82 @@ while [ "$#" -gt 0 ]; do
         *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 64 ;;
     esac
 done
+
+# ==============================================================================
+# Which platform this run is for, when nobody said.
+#
+# Every test script declares a TEST_TARGET, and 23 of the 24 name a Windows or
+# WSL one -- they were written on the machine that could run them. On a Mac that
+# makes the bare command wrong by default: `zsh testapp/test.zsh P8` resolves to
+# `both`, reaches for `wsl.exe`, and fails for a reason that has nothing to do
+# with P8.
+#
+# So a target the host cannot drive is replaced by one it can. The declared
+# target is still honoured wherever it works, which matters on Windows: P8 says
+# `both` there and `both` is exactly right, so nothing changes for that machine.
+#
+# An explicitly requested target is never substituted. Asking for `--wsl` on a
+# Mac is refused rather than quietly redirected -- a flag that silently runs
+# somewhere else is worse than one that fails.
+#
+# 沒有人指定時，這次執行屬於哪個平台。
+#
+# 每一支測試腳本都宣告了 TEST_TARGET，而 24 支中有 23 支指定的是 Windows 或 WSL——它們是在能夠
+# 執行那些目標的機器上寫成的。在 Mac 上，這使得不帶旗標的指令預設就是錯的：
+# `zsh testapp/test.zsh P8` 會解析為 `both`、去呼叫 `wsl.exe`，然後以一個與 P8 毫無關係的理由失敗。
+#
+# 因此，主機無法驅動的 target 會被替換為它能驅動的。在可行之處仍尊重原宣告的 target，這對 Windows
+# 很重要：P8 在該處宣告 `both`，而 `both` 正是對的，因此那台機器上什麼也不會改變。
+#
+# 明確指定的 target 絕不會被替換。在 Mac 上要求 `--wsl` 會被拒絕，而非悄悄改到別處執行——一個
+# 安靜地跑到別的地方去的旗標，比一個直接失敗的旗標更糟。
+# ==============================================================================
+host_platform() {
+    # Same classification ui-lock.zsh uses, so the two cannot disagree about
+    # what machine this is.
+    # 與 ui-lock.zsh 採用相同的分類方式，兩者對「這是哪一台機器」不會有分歧。
+    case "$(uname -s 2>/dev/null || printf unknown)" in
+        Darwin) printf 'macos' ;;
+        MINGW*|MSYS*|CYGWIN*) printf 'windows' ;;
+        *) printf 'unknown' ;;
+    esac
+}
+
+# `wsl` and `both` drive WSL through `wsl.exe`, so they need a Windows host
+# rather than a Linux one -- running this from inside WSL, or on plain Linux,
+# is not the same thing. `ios` and `android` delegate to scripts that already
+# refuse to run anywhere but macOS.
+# `wsl` 與 `both` 是透過 `wsl.exe` 驅動 WSL，因此需要的是 Windows 主機而非 Linux 主機——從 WSL
+# 內部或在一般 Linux 上執行並非同一回事。`ios` 與 `android` 則委派給本就拒絕在 macOS 以外執行的
+# 腳本。
+case "$(host_platform)" in
+    macos)
+        host_targets=(macos ios android)
+        host_default="macos"
+        ;;
+    windows)
+        host_targets=(windows wsl both)
+        host_default="windows"
+        ;;
+    *)
+        # Unknown host: assume nothing and change nothing. A wrong guess here
+        # would send a run to a platform the caller never asked for.
+        # 未知主機：不做任何假設，也不做任何更動。此處猜錯會把一次執行送往呼叫者從未要求的平台。
+        host_targets=()
+        host_default=""
+        ;;
+esac
+
+if [ -n "$host_default" ] && [[ ! " ${host_targets[*]} " == *" $target "* ]]; then
+    if [ "$target_explicit" -eq 1 ]; then
+        printf 'Target "%s" cannot run on this host (%s).\n' "$target" "$(host_platform)" >&2
+        printf 'Available here: %s\n' "${host_targets[*]}" >&2
+        exit 64
+    fi
+    printf '==> %s defaults to "%s"; running "%s" on this host\n' \
+        "$app" "$target" "$host_default"
+    target="$host_default"
+fi
 
 showtime() {
     local label="$1"

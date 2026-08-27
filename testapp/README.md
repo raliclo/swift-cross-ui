@@ -46,7 +46,31 @@ tracked.
 | `install_tool_wsl.sh` | WSL: GTK 4, the Swift tarball, and the libxml2/ICU shims Ubuntu 26.04 needs |
 | `install_tools_ios.zsh` | macOS: the iOS Simulator toolchain, called automatically by `compile.zsh -ios` |
 | `install_tool_mac.zsh` | macOS: GTK 4 via Homebrew, and the two things `swift test` needs to run on a Mac at all. `--test` runs the suite |
-| `test_ios.zsh` | macOS: installs a Pn through the fixed `debugTarget` iOS bundle and launches Simulator; optionally replays an action file through XCUITest |
+| `install_tools_android.zsh` | macOS: the Android SDK, NDK and emulator the Android runner needs |
+
+## Running a test
+
+`test.zsh` is the entry point for every platform:
+
+```sh
+zsh testapp/test.zsh P8                 # this host's platform
+zsh testapp/test.zsh P8 --both          # WSLg, then Windows
+zsh testapp/test.zsh P28 --macos --actionfile
+zsh testapp/test.zsh P14 --ios
+zsh testapp/test.zsh P12 --android
+```
+
+The platform flag is optional. Each test declares the platform it was written
+for and most were written on Windows, so on a Mac the declared platform is
+usually one this host cannot drive; the run moves to one it can and says so.
+Naming a platform this host cannot drive is refused rather than redirected.
+
+| Script | For |
+| --- | --- |
+| `test.zsh` | The command. Finds `test_support/test_Pn.zsh`, which sets the app's details and hands over to `test_support/test_common.zsh` |
+| `test_common.zsh` | Parses the flags, resolves the platform, and runs WSLg, Windows or macOS directly; delegates iOS and Android to the two scripts below |
+| `test_ios.zsh` | macOS: installs a Pn through the fixed `debugTarget` iOS bundle and launches Simulator; optionally replays an action file through XCUITest. Reached as `test.zsh <Pn> --ios` |
+| `test_android.zsh` | macOS: builds and bundles a Pn as an APK, installs it on the emulator and launches it. Reached as `test.zsh <Pn> --android` |
 
 ## Other scripts
 

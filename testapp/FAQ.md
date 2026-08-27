@@ -258,7 +258,7 @@ traced to the trace. `init` is safe; `body` is not.
 
 ## How do I read an iOS Simulator app log?
 
-The iOS runner is `test_ios.zsh`. It installs the selected Pn into the
+The iOS runner is `test.zsh <Pn> --ios`, which delegates to `test_ios.zsh`. It installs the selected Pn into the
 reusable `testapp/.bundledApp/appTemplate.app` bundle. Its executable and
 bundle identifier are always `debugTarget`. The runner starts a Simulator
 unified-log stream filtered to that process and writes it to:
@@ -271,13 +271,13 @@ The Pn name changes with the target. To run a test and keep the app open for
 ten seconds:
 
 ```sh
-zsh testapp/test_ios.zsh P14 --showtime 10
+zsh testapp/test.zsh P14 --ios --showtime 10
 ```
 
 To replay an iOS action file through XCUITest:
 
 ```sh
-zsh testapp/test_ios.zsh P14 --actionfile testapp/actions/ios/P14-basic.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.csv
 ```
 
 For a live view of the same Simulator log, use the fixed executable name:
@@ -292,7 +292,7 @@ XCUITest action replay uses the standard Xcode UI-test runner generated from
 Windows input synthesiser. Run it with an explicit CSV path:
 
 ```sh
-zsh testapp/test_ios.zsh P14 --actionfile testapp/actions/ios/P14-smoke.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.csv
 ```
 
 The supported rows are `click`, `doubleclick`, `move`, `sleep`, and a
@@ -304,7 +304,7 @@ XCUITest action replay 使用由
 不使用 Linux 或 Windows 的 input synthesiser。請指定 CSV 路徑執行：
 
 ```sh
-zsh testapp/test_ios.zsh P14 --actionfile testapp/actions/ios/P14-smoke.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-smoke.csv
 ```
 
 目前支援的列為 `click`、`doubleclick`、`move`、`sleep`，以及
@@ -313,7 +313,7 @@ zsh testapp/test_ios.zsh P14 --actionfile testapp/actions/ios/P14-smoke.csv
 
 如何讀取 iOS Simulator app 的 log？
 
-iOS runner 是 `test_ios.zsh`。它會把指定的 Pn 安裝到可重複使用的
+iOS runner 是 `test.zsh <Pn> --ios`，實際工作委派給 `test_ios.zsh`。它會把指定的 Pn 安裝到可重複使用的
 `testapp/.bundledApp/appTemplate.app` Bundle。其執行檔與 Bundle identifier
 固定使用 `debugTarget`。runner 會啟動只篩選該 process 的 Simulator unified-log
 串流，並寫入：
@@ -325,13 +325,13 @@ testapp/output/ios-P14-debugTarget.log
 檔名中的 Pn 會隨測試目標改變。執行測試並讓 app 保持開啟 10 秒：
 
 ```sh
-zsh testapp/test_ios.zsh P14 --showtime 10
+zsh testapp/test.zsh P14 --ios --showtime 10
 ```
 
 透過 XCUITest 重放 iOS action file：
 
 ```sh
-zsh testapp/test_ios.zsh P14 --actionfile testapp/actions/ios/P14-basic.csv
+zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.csv
 ```
 
 若要即時查看同一份 Simulator log，請使用固定的執行檔名稱：

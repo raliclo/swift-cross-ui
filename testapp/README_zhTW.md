@@ -35,7 +35,30 @@ zsh testapp/compile.zsh                # 建全部 app
 | `install_tool_wsl.sh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
 | `install_tools_ios.zsh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
 | `install_tool_mac.zsh` | macOS：以 Homebrew 安裝 GTK 4，以及讓 `swift test` 在 Mac 上得以執行所需的兩件事；`--test` 會直接跑測試套件 |
-| `test_ios.zsh` | macOS：將 Pn 放入固定的 `debugTarget` iOS Bundle，安裝並啟動 Simulator；可選用 XCUITest 重放 action file |
+| `install_tools_android.zsh` | macOS：Android runner 所需的 SDK、NDK 與 emulator |
+
+## 執行測試
+
+`test.zsh` 是所有平台的統一進入點：
+
+```sh
+zsh testapp/test.zsh P8                 # 本機所屬平台
+zsh testapp/test.zsh P8 --both          # 先 WSLg，再 Windows
+zsh testapp/test.zsh P28 --macos --actionfile
+zsh testapp/test.zsh P14 --ios
+zsh testapp/test.zsh P12 --android
+```
+
+平台旗標為選用。每支測試都宣告了它當初所針對的平台，而多數是在 Windows 上寫成的，因此在 Mac 上
+所宣告的平台通常是本機無法驅動的；此時執行會轉往可行的平台並明白告知。若明確指定了本機無法驅動的
+平台，則會被拒絕，而不會被改導至他處。
+
+| Script | 用途 |
+| --- | --- |
+| `test.zsh` | 實際使用的指令。它會找出 `test_support/test_Pn.zsh`，該檔設定該 app 的細節後交棒給 `test_support/test_common.zsh` |
+| `test_common.zsh` | 解析旗標、決定平台，並直接執行 WSLg、Windows 或 macOS；iOS 與 Android 則委派給下方兩支腳本 |
+| `test_ios.zsh` | macOS：將 Pn 放入固定的 `debugTarget` iOS Bundle，安裝並啟動 Simulator；可選用 XCUITest 重放 action file。經由 `test.zsh <Pn> --ios` 抵達 |
+| `test_android.zsh` | macOS：將 Pn 建置並打包為 APK，安裝至 emulator 後啟動。經由 `test.zsh <Pn> --android` 抵達 |
 
 ## 其他 scripts
 

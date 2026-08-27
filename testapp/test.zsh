@@ -1,14 +1,31 @@
 #!/usr/bin/env zsh
 # Loader for one-file-per-test UI dry-runs.
 #
+# The entry point for every platform. iOS and Android have their own top-level
+# scripts, and this reaches them too, so one command and one set of flags covers
+# all of them.
+#
 # Examples:
-#   zsh testapp/test.zsh P8 --both
+#   zsh testapp/test.zsh P8                        this host's platform
+#   zsh testapp/test.zsh P8 --both                 WSLg then Windows
 #   zsh testapp/test.zsh P19 -win --actionfile     Windows only
 #   zsh testapp/test.zsh P28 --macos --actionfile  macOS only
-#   zsh testapp/test.zsh P7 --wsl -n
+#   zsh testapp/test.zsh P14 --ios                 iOS Simulator
+#   zsh testapp/test.zsh P12 --android             Android emulator
+#
+# The platform flag is optional. Each test declares the platform it was written
+# for, and most were written on Windows; on a host that cannot drive that
+# platform the run moves to one that can and says so.
 #
 # Ctrl-C during a run closes the app rather than leaving it open; the target
 # and flags are parsed in test_support/test_common.zsh.
+#
+# 涵蓋所有平台的統一進入點。iOS 與 Android 各有其頂層腳本，此處同樣可抵達它們，因此一個指令、
+# 一套旗標即可涵蓋全部。
+#
+# 平台旗標為選用。每支測試都宣告了它當初所針對的平台，而多數是在 Windows 上寫成的；在無法驅動該
+# 平台的主機上，執行會轉往可行的平台並明白告知。
+#
 # 執行期間按下 Ctrl-C 會關閉該 app，而非留下它開著；target 與旗標在
 # test_support/test_common.zsh 中解析。
 
@@ -18,13 +35,17 @@ script_dir="${0:a:h}"
 
 usage() {
     cat <<EOF_USAGE
-Usage: test.zsh <P0..P17> [test options]
+Usage: test.zsh <Pn> [test options]
+
+The platform flag is optional; without one, this host's platform is used.
 
 Examples:
+  zsh testapp/test.zsh P8
   zsh testapp/test.zsh P8 --both
   zsh testapp/test.zsh P19 -win --actionfile
   zsh testapp/test.zsh P28 --macos --actionfile
-  zsh testapp/test.zsh P7 --wsl -n
+  zsh testapp/test.zsh P14 --ios
+  zsh testapp/test.zsh P12 --android
 
 Single-test scripts live in testapp/test_support/test_Pn.zsh.
 EOF_USAGE
