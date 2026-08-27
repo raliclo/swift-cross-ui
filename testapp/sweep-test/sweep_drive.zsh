@@ -72,6 +72,31 @@ actions="$repo/testapp/actions/win"
 log_dir="/tmp/sweep_drive-$label"
 mkdir -p "$log_dir"
 
+# Where each run's rows are appended. The file is the history; coverage.zsh
+# renders the current matrix out of it. Rows accumulate -- nothing is ever
+# rewritten -- so an old result stays visible with its own date rather than
+# being replaced by a newer one that might have tested something different.
+#
+# `windows` is hard-coded because this script is the Windows driver: it uses
+# tasklist, taskkill and gdigrab. A WSL driver would append `wsl` rows to the
+# same file.
+#
+# 每次執行的資料列都追加至此。該檔案即是歷史；coverage.zsh 由它算繪出當前的矩陣。資料列只增不改
+# ——從不覆寫——因此舊的結果會連同它自己的日期一併留著，而不會被一個「可能測的是別的東西」的新結果
+# 取代。
+#
+# `windows` 寫死，因為本腳本就是 Windows 的驅動器：它使用 tasklist、taskkill 與 gdigrab。WSL 的
+# 驅動器會把 `wsl` 的資料列追加到同一個檔案。
+results="$repo/matrix_coverage/results.csv2"
+platform=windows
+run_date="$(date +%F)"
+
+if [ ! -f "$results" ]; then
+    printf 'sweep_drive.zsh: %s is missing; it is the history file and ships with the repo\n' \
+        "$results" >&2
+    exit 1
+fi
+
 export PATH="/c/gtk4/bin:$PATH"
 
 if [ "$#" -gt 0 ]; then
@@ -191,7 +216,28 @@ for app in $apps; do
     MSYS2_ARG_CONV_EXCL='*' taskkill /F /IM "$app.exe" >/dev/null 2>&1
 
     printf '%-6s %-8s %-9s %-9s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
+
+    # Appended so the matrix has evidence with a date on it. A hand-maintained
+    # Pn-versus-platform table drifts from reality silently, which is the exact
+    # failure this project spent a day chasing elsewhere; a table generated from
+    # rows that each carry the day they were measured cannot.
+    #
+    # Quoted with `""` doubling, per RFC 4180, because `note` regularly contains
+    # commas -- and splitting a CSV on `,` is what `csv2` exists in this project
+    # to stop people doing.
+    #
+    # 追加寫出，好讓矩陣擁有「帶日期的證據」。手動維護的 Pn × 平台表格會靜默地與現實脫節——這正是
+    # 本專案在別處花了一整天追查的同一種失敗；而由「每一列都記著自己是哪一天量到的」所生成的表格
+    # 不會。
+    #
+    # 依 RFC 4180 以 `""` 進行跳脫，因為 `note` 經常含有逗號——而「用 `,` 切 CSV」正是 `csv2` 在本
+    # 專案中存在的目的所要阻止的事。
+    printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
+        "$run_date" "$platform" "$label" "$app" \
+        "$launch" "$replay" "$capture" "${note//\"/\"\"}" \
+        >> "$results"
 done
 
 printf '\nlogs in %s ; captures in testapp/output/screenshots/%s-*.png\n' "$log_dir" "$label"
+printf 'results appended to %s -- run coverage.zsh to regenerate the matrix\n' "$results"
 exit 0
