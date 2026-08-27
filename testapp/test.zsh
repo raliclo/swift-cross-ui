@@ -71,8 +71,15 @@ esac
 # 接受任何「P + 數字」。此處原本逐一列出 P0..P17，因而在 P18、P19、P20 的腳本確實存在的情況下
 # 仍將其拒絕——每新增一支 app 就得改一次這個 wrapper，而只要有一次沒改，就有三支可用的測試無法
 # 透過 loader 觸及。下方既有的「腳本不存在」檢查已能回報沒有測試的 app。
+#
+# A trailing variant is accepted too, for the sake of P6-v2. Its wrapper
+# documents `zsh testapp/test.zsh P6-v2` and the digits-only pattern refused it,
+# so the one command that was supposed to reach it never could.
+# 也接受帶後綴的變體，這是為了 P6-v2。其 wrapper 的說明寫的是
+# `zsh testapp/test.zsh P6-v2`，而「僅限數字」的樣式會拒絕它——於是那個本應抵達它的唯一指令，
+# 從來就到不了。
 case "$test_name" in
-    P<->) ;;
+    P<->|P<->-*) ;;
     *)
         printf 'Unknown test: %s\n' "$test_name" >&2
         usage >&2
@@ -80,10 +87,26 @@ case "$test_name" in
         ;;
 esac
 
+# No special case for P6.
+#
+# There was one, sending P6 to the standalone testapp/test_P6.zsh, and it made
+# test_support/test_P6.zsh unreachable -- a wrapper written for exactly this
+# command, whose own header says so, and which exists because the standalone
+# script has no path that launches P6's WSL build. The loader routed around the
+# thing that filled the gap.
+#
+# The standalone script stays. It is what P6-test.zsh and the GPU matrix work
+# use, and the wrapper's header says to keep it for them.
+#
+# 此處不再為 P6 設特例。
+#
+# 原本有一個，會把 P6 導向獨立的 testapp/test_P6.zsh，因而使 test_support/test_P6.zsh 無法被
+# 觸及——那支 wrapper 正是為此指令而寫、其檔頭亦如此聲明，且它存在的理由是「獨立腳本沒有任何路徑
+# 能啟動 P6 的 WSL build」。loader 繞過了那個補上缺口的東西。
+#
+# 獨立腳本予以保留。P6-test.zsh 與 GPU matrix 相關工作使用的是它，wrapper 的檔頭也說明要為那些
+# 用途保留它。
 test_script="$script_dir/test_support/test_${test_name}.zsh"
-if [ "$test_name" = "P6" ]; then
-    test_script="$script_dir/test_P6.zsh"
-fi
 
 if [ ! -f "$test_script" ]; then
     printf 'Missing test script: %s\n' "$test_script" >&2

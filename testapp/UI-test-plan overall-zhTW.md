@@ -34,7 +34,7 @@
 
 - Linux / GtkBackend 相關 issues 一律先測 WSLg，再用 Windows 作為對照（若該 app 支援）。
 - 不要在 WSL 內從 `/mnt/c` 編譯。先同步 `testapp` 的 Swift/zsh 檔案，再於 `~/proj/swift-cross-ui` 下建置。
-- 只使用 zsh scripts。目前 helper scripts 包含 `compile.zsh`、`rsync_WSL.zsh`、`screenshot.zsh`、`videoshot.zsh`、`test_p7.zsh` 與 `test_p8.zsh`。
+- 只使用 zsh scripts。目前 helper scripts 包含 `compile.zsh`、`rsync_WSL.zsh`、`screenshot.zsh`、`videoshot.zsh` 與 `test.zsh`。
 - P8 的自動 dry-run 預設會在每個平台 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
 - 截圖會寫到 `testapp/output/screenshots`，檔名含平台與階段，例如 `p8-wslg-1s-...png`、`p8-wslg-final-...png`、`p8-windows-1s-...png`、`p8-windows-final-...png`。
 
@@ -278,7 +278,7 @@
 輔助 WSLg/Windows 對照流程：
 
 ```zsh
-zsh testapp/test_p7.zsh --both
+zsh testapp/test.zsh P7 --both
 ```
 
 涵蓋 issues：
@@ -313,9 +313,9 @@ zsh testapp/test_p7.zsh --both
 輔助 WSLg-first 流程：
 
 ```zsh
-zsh testapp/test_p8.zsh --both
-zsh testapp/test_p8.zsh --both --showtime 60
-zsh testapp/test_p8.zsh --both --no-showtime
+zsh testapp/test.zsh P8 --both
+zsh testapp/test.zsh P8 --both --showtime 60
+zsh testapp/test.zsh P8 --both --no-showtime
 ```
 
 輔助流程會等待 P8 的 `RENDER COMPLETE` marker，預設讓 WSLg 視窗保留 30 秒，

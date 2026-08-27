@@ -34,7 +34,7 @@ This document describes the manual and assisted UI test steps for the apps in `t
 
 - For Linux / GtkBackend issues, test WSLg first, then Windows only as a comparison if the app supports it.
 - Do not compile from `/mnt/c` inside WSL. Sync the `testapp` Swift/zsh files first, then build under `~/proj/swift-cross-ui`.
-- Use zsh scripts only. The current helper scripts are `compile.zsh`, `rsync_WSL.zsh`, `screenshot.zsh`, `videoshot.zsh`, `test_p7.zsh`, and `test_p8.zsh`.
+- Use zsh scripts only. The current helper scripts are `compile.zsh`, `rsync_WSL.zsh`, `screenshot.zsh`, `videoshot.zsh`, and `test.zsh`.
 - P8 automated dry-runs keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
 - Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
 
@@ -278,7 +278,7 @@ Run:
 Assisted WSLg/Windows comparison:
 
 ```zsh
-zsh testapp/test_p7.zsh --both
+zsh testapp/test.zsh P7 --both
 ```
 
 Covered issues:
@@ -313,9 +313,9 @@ Run:
 Assisted WSLg-first flow:
 
 ```zsh
-zsh testapp/test_p8.zsh --both
-zsh testapp/test_p8.zsh --both --showtime 60
-zsh testapp/test_p8.zsh --both --no-showtime
+zsh testapp/test.zsh P8 --both
+zsh testapp/test.zsh P8 --both --showtime 60
+zsh testapp/test.zsh P8 --both --no-showtime
 ```
 
 The assisted flow waits for P8's `RENDER COMPLETE` marker, keeps the WSLg
