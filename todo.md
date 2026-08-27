@@ -554,6 +554,89 @@ and container modifiers.
 The API-shape one is worth doing first and is the least visible: the types exist
 and only the initialisers differ, so the gap never shows on a feature checklist.
 
+### API shapes: audited 2026-08-27, all ten claims still stand
+
+Re-checked against the code rather than trusted, because several claims of this
+kind in this project have gone stale (`.wheel` was skipped for a reason that was
+wrong; `ToggleStyle` was reported absent when it had ten references). These did
+not: every one is still true.
+
+| # | claim | state |
+|---|---|---|
+| 1 | `Picker` has only `init(of:selection:)`, selection must be Optional, no label, no `.tag()` | still true |
+| 2 | `Button` is label-String only; no `ButtonRole` anywhere | still true |
+| 3 | `Text` is String only; no LocalizedStringKey, markdown, `+`, underline/strikethrough/kerning/textCase | still true |
+| 4 | `Image` has no `systemName:` and no bundle asset init | still true |
+| 5 | all six `List` inits require `selection:` and `Data.Index == Int`; no `Section`, `.onDelete`, `.onMove`, `.swipeActions`, `.listRow*` | still true |
+| 6 | `Table` has no selection, sortOrder or column width | still true |
+| 7 | `TextField` lacks `axis:`, `prompt:`, `value:format:`, `.textFieldStyle` | still true |
+| 8 | `Slider` lacks label, step, onEditingChanged | still true |
+| 9 | `GeometryProxy` has only `size` | still true |
+| 10 | `padding`/`cornerRadius`/stack `spacing`/`Spacer(minLength:)` are Int while `frame` is Double | still true |
+
+**Order to take them in.** 2 first — a `Button(action:label:)` plus a role that
+backends may ignore. Not 9, and not 10; both look cheap and are not, which is
+recorded below because "cheapest first" is exactly the judgement that gets made
+from a list without reading the code.
+
+**9 is not fields on a struct.** `frame(in:)` needs three things that do not
+exist. There is no `CoordinateSpace` type anywhere — 0 hits across `Sources/`.
+The proxy is built in `GeometryReader.computeLayout` from the **proposed size**,
+before the view has been placed, so no position is available to make `.global`
+mean anything; `.local` would be the only honest answer and a `frame(in:)` that
+silently gives local coordinates for a global request is worse than not having
+it. And `safeAreaInsets` has no route to the view layer: safe area exists only
+inside AndroidBackend and UIKitBackend, which apply it to the window themselves
+and never surface it. Doing 9 properly means a coordinate-space registry
+resolved after placement, which is a design, not an addition.
+
+**9 並非只是在 struct 上補欄位。** `frame(in:)` 需要三樣並不存在的東西。整個 `Sources/` 裡沒有任何
+`CoordinateSpace` 型別——0 次命中。該 proxy 是在 `GeometryReader.computeLayout` 中，由**被提議的
+尺寸**建立的，此時 view 尚未被放置，因此沒有任何位置資訊能讓 `.global` 具有意義；`.local` 會是唯一
+誠實的答案，而一個「對 global 請求默默回傳 local 座標」的 `frame(in:)`，比沒有它更糟。至於
+`safeAreaInsets`，它沒有通往 view 層的路徑：安全區域只存在於 AndroidBackend 與 UIKitBackend 之內，
+由它們自行套用到視窗上，從未向外揭露。要把第 9 項做對，意味著一套「在放置之後才解析」的座標空間
+註冊機制——那是一項設計，而非一項增補。
+
+**10 is NOT the mechanical one it looks like, and that is worth stating before
+someone starts it.** `frame` migrated cleanly because layout sizes are already
+`Double` end to end and only round at the widget boundary through
+`LayoutSystem.roundSize`. Padding does not have that property: `EdgeInsets` is a
+**public struct whose four fields are `Int`**, and `padding` feeds them into the
+layout as `Double(insets.leading + insets.trailing)`. So adding a `Double`
+overload that rounds immediately would accept fractional padding and silently
+discard it — the API would claim something it does not do, which is the exact
+failure this project keeps cataloguing.
+
+Real fractional padding means changing `EdgeInsets` to `Double`, which is a
+source-breaking change to a public type, and letting the fraction survive until
+`setPosition`/`setSize`, which take `SIMD2<Int>`. Feasible, and a different size
+of job from adding an overload. The pattern to copy either way is
+`FrameModifier`'s: `@available(*, deprecated, renamed:)` plus
+`@_disfavoredOverload` on the Int version, forwarding to the Double one, which
+also keeps a bare `.padding()` unambiguous.
+
+### API 形狀：2026-08-27 稽核，十項主張全部仍然成立
+
+此處是對照程式碼重新查證，而非直接採信——因為本專案這一類主張已經有數次過時（`.wheel` 當初被略過
+的理由是錯的；`ToggleStyle` 曾被回報為不存在，實際上有十處引用）。這一批則沒有：每一項都仍然成立
+（明細見上表）。
+
+**處理順序。** 先做第 9 項：`GeometryProxy` 只需從 `GeometryReader` 補上欄位，完全不需要動 backend。
+其次是第 2 項，需要 `Button(action:label:)` 與一個 backend 可忽略的 role。
+
+**第 10 項並不是它看起來的那種機械式工作，這一點必須在有人動手之前講明。** `frame` 能乾淨遷移，是
+因為版面尺寸本來就全程是 `Double`，只在 widget 邊界透過 `LayoutSystem.roundSize` 取整。padding 沒有
+這個性質：`EdgeInsets` 是一個**四個欄位皆為 `Int` 的公開 struct**，而 `padding` 是以
+`Double(insets.leading + insets.trailing)` 餵進版面。因此若加上一個「立即取整」的 `Double` 多載，
+等於接受了小數 padding 再默默丟棄它——API 宣稱了它做不到的事，而那正是本專案一再編錄的失敗樣態。
+
+真正的小數 padding 意味著把 `EdgeInsets` 改為 `Double`，那是對公開型別的破壞性變更，並讓小數一路
+存活到接受 `SIMD2<Int>` 的 `setPosition`／`setSize` 為止。可行，但與「加一個多載」是不同量級的工作。
+無論走哪條路，要照抄的樣板都是 `FrameModifier`：在 Int 版本加上
+`@available(*, deprecated, renamed:)` 與 `@_disfavoredOverload` 並轉呼叫 Double 版本——這同時也讓
+不帶引數的 `.padding()` 不致產生歧義。
+
 Working order agreed 2026-08-27: protocol level first, then GtkBackend for
 WSL/Windows here; AppKit, UIKit and Android are done on the Mac side. So each
 item lands as a `BackendFeatures` protocol plus one implementation, and the

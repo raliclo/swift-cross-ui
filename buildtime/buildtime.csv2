@@ -33,3 +33,7 @@ date,host,target,scenario,seconds,note
 2026-08-27,windows,WinUIBackend,after-shared-edit,72.06,"immediately after editing Sources/SwiftCrossUI"
 2026-08-27,windows,SwiftCrossUI,session-observed,7.55,"single sample; not characterised"
 2026-08-27,windows,P6-app,full-app,150.90,"cited from testapp/issue_commits.csv against a87d41ba, not re-measured"
+2026-08-27,windows,P41-gtk4,full-app,70,first app built after a Sources/ change; rebuilds the library too
+2026-08-27,windows,P41-winui,full-app,72,first app in the WinUI tree after a Sources/ change
+2026-08-27,windows,P39-gtk4,full-app,21,second app in the same tree; library already rebuilt
+2026-08-27,windows,P39-winui,full-app,22,second app in the same tree

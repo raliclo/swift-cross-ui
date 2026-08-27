@@ -8,7 +8,7 @@ zsh buildtime/buildtime.zsh
 
 由 `buildtime.csv2` 產生——請勿編輯本檔。
 
-**Samples recorded / 已記錄樣本數: 33**
+**Samples recorded / 已記錄樣本數: 37**
 
 | host | target | scenario | samples | min | mean | max |
 |---|---|---|---:|---:|---:|---:|
@@ -22,6 +22,10 @@ zsh buildtime/buildtime.zsh
 | windows | WinUIBackend | after-shared-edit | 2 | 72.06 s | 91.34 s | 110.61 s |
 | windows | SwiftCrossUI | session-observed | 1 | 7.55 s | 7.55 s | 7.55 s |
 | windows | P6-app | full-app | 1 | 150.90 s | 150.90 s | 150.90 s |
+| windows | P41-gtk4 | full-app | 1 | 70.00 s | 70.00 s | 70.00 s |
+| windows | P41-winui | full-app | 1 | 72.00 s | 72.00 s | 72.00 s |
+| windows | P39-gtk4 | full-app | 1 | 21.00 s | 21.00 s | 21.00 s |
+| windows | P39-winui | full-app | 1 | 22.00 s | 22.00 s | 22.00 s |
 
 ## Scenarios / 情境
 
