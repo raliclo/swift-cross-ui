@@ -343,6 +343,15 @@ gave -38,-59 at one and 154,-6 at the other.
 - **P10 launches on Windows, registers a title, and shows no window.** Not
   diagnosed. Rule out a leftover GTK process and a locked workstation before
   forming any hypothesis — both produce exactly this appearance.
+- **Not every Pn builds on every backend, and a sweep that assumes so reports a
+  false regression.** P4 fails a `-gtk4` build with `missing required module
+  'CWinRT'`, and that is by design: it is the WinUI escape-hatch app (#156,
+  #204, #470) and imports `WinUI` behind `#if canImport(WinUIBackend)`. That
+  condition is **true even in a `-gtk4` build** — the flag forces the default
+  backend, it does not remove the target — so the import happens and the gtk4
+  build tree has no swift-winui C module. Its WinUI build is fine. Measured
+  2026-08-27, found by a sweep that built all 25 apps both ways. A sweep needs a
+  per-app backend policy, not one flag for everything.
 - **`swift test` does not run on Windows at all.** `SCUI_HOST_BACKENDS_ONLY=1
   swift test` fails with `missing required modules: 'CGtk', 'GtkCHelpers'` while
   emitting `DefaultBackend` — so the flag that deletes the unbuildable targets
