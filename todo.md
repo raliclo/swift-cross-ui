@@ -343,6 +343,23 @@ gave -38,-59 at one and 154,-6 at the other.
 - **P10 launches on Windows, registers a title, and shows no window.** Not
   diagnosed. Rule out a leftover GTK process and a locked workstation before
   forming any hypothesis — both produce exactly this appearance.
+- **Refuted: `allowsHitTesting(false)` works on GtkBackend.** The task list
+  carried "P10 expects `Hidden clicks: 0` and gets `1`". That has the direction
+  backwards, and 1 is the working state.
+
+  P10 puts an opaque `Color.orange.allowsHitTesting(false)` over a Button in a
+  `ZStack`. The modifier means the orange layer does not take hits, so the click
+  passes through to the button and the counter rises — which is what SwiftUI
+  does, and what P10's own comment describes: "if the counter rises, the click
+  reached a button nobody could see, which is the whole claim". If the modifier
+  were ignored, the opaque layer on top would absorb the click and the counter
+  would stay at 0.
+
+  Measured 2026-08-27 with a control rather than by argument. `setHitTesting`
+  was temporarily replaced with a no-op, P10 rebuilt and driven, and the counter
+  read **0**; restored, it reads **1** again. So the modifier is causally
+  responsible and the working value is 1. `gtk_widget_set_can_target` needs no
+  change.
 - **The same diagnostics defect is still in UIKitBackend and WinUIBackend.**
   `Sources/SwiftCrossUI/` and `Sources/GtkBackend/` were done 2026-08-27;
   UIKitBackend still has three `debugLogOnce` call sites and two bare

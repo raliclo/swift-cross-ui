@@ -1,2 +1,5 @@
 date,platform,backend,app,launch,replay,capture,note
 日期,平台,backend,app,啟動,重放,擷取,備註
+2026-08-27,windows,gtk4,P10,ok,ok,window,""
+2026-08-27,windows,control,P10,ok,ok,window,""
+2026-08-27,windows,gtk4,P10,ok,ok,window,""
