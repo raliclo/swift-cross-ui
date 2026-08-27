@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 
 import CompilerPluginSupport
 import Foundation
@@ -645,5 +645,51 @@ if hostBackendsOnly {
                     return false
             }
         }
+    }
+}
+
+// Swift 5 language mode, for now, on every target that takes Swift settings.
+//
+// The manifest declares tools-version 6.0, which does two things. It refuses an
+// older toolchain outright -- the point of the upgrade -- and it makes Swift 6
+// the default language mode for every target in this package. The second is a
+// migration, not a flag: measured 2026-08-27 with the mode actually on, this
+// package has 1 site in SwiftCrossUI, 98 errors in GtkBackend and 1274 in
+// WinUIBackend, with AppKitBackend and UIKitBackend unmeasurable on a Windows
+// host. Landing that as one change would mean a tree nobody could build while
+// it was in progress.
+//
+// So the mode is pinned back to v5 here and lifted per target as each one is
+// migrated -- delete a target's entry from `stillOnSwift5` and it goes to v6
+// alone, compiling and testing on its own. The list is the remaining work, and
+// an empty list is the end of it.
+//
+// Applied as a sweep rather than written into each target for the same reason
+// the dependency sweep above exists: several targets pass no swiftSettings at
+// all, and those are exactly the ones a by-hand pass forgets. A target that
+// takes no Swift settings -- the C and systemLibrary ones -- is left alone.
+//
+// 暫時將所有可接受 Swift 設定的 target 固定為 Swift 5 語言模式。
+//
+// 本 manifest 宣告 tools-version 6.0，這做了兩件事：其一是直接拒絕較舊的工具鏈——正是本次升級的
+// 目的；其二是使 Swift 6 成為此套件中每個 target 的預設語言模式。後者是一場遷移，而非一個旗標：
+// 於 2026-08-27 在該模式確實開啟的情況下實測，本套件在 SwiftCrossUI 有 1 處、GtkBackend 有 98 個
+// 錯誤、WinUIBackend 有 1274 個，而 AppKitBackend 與 UIKitBackend 在 Windows 主機上無從量測。
+// 若將其作為單一變更落地，過程中將出現一棵無人能建置的樹。
+//
+// 因此此處把模式釘回 v5，並在每個 target 完成遷移後逐一解除——從 `stillOnSwift5` 中刪掉某個
+// target，它便單獨切換為 v6，可獨立建置與測試。該清單即是剩餘的工作，清單清空之時即為完成之日。
+//
+// 採「掃描套用」而非逐 target 寫入，理由與上方的 dependency 掃描相同：有數個 target 根本不傳
+// swiftSettings，而那些正是逐一手動處理時會漏掉的。不接受 Swift 設定的 target（C 與
+// systemLibrary 類）則不予變更。
+let stillOnSwift5: Set<String> = Set(package.targets.map(\.name))
+
+for target in package.targets where stillOnSwift5.contains(target.name) {
+    switch target.type {
+        case .system, .binary:
+            continue
+        default:
+            target.swiftSettings = (target.swiftSettings ?? []) + [.swiftLanguageMode(.v5)]
     }
 }
