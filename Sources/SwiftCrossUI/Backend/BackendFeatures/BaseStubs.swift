@@ -69,6 +69,20 @@ extension BackendFeatures {
     ///   3. **Make all declarations `public`.** This is important, and the
     ///      compiler likely won't help you here because this struct is `private`.
     ///   4. Write `todo()` in the bodies of every method and property.
+    /// Deliberately carries no isolation annotation, and needs none. Under the
+    /// Swift 6 language mode this reported `#ConformanceIsolation` -- "crosses
+    /// into main actor-isolated code" -- once per requirement, and the cause was
+    /// not here at all: `Core` declares `runInMainThread` `nonisolated` inside
+    /// an otherwise `@MainActor` protocol, and the default implementation below
+    /// did not say so, making the witness isolated where the requirement was
+    /// not. `@MainActor` on this struct was tried and does not help, because it
+    /// isolates that witness too.
+    ///
+    /// 刻意不加任何 isolation 標記，而且也不需要。在 Swift 6 語言模式下，此處每個 requirement 各
+    /// 報一次 `#ConformanceIsolation`——「crosses into main actor-isolated code」——而原因根本不在
+    /// 此：`Core` 在一個整體為 `@MainActor` 的 protocol 中將 `runInMainThread` 宣告為
+    /// `nonisolated`，而下方的預設實作沒有比照辦理，於是 witness 是隔離的、requirement 卻不是。
+    /// 曾試過在本結構上加 `@MainActor`，沒有幫助——因為那會連同該 witness 一起隔離。
     private struct BaseStubsTest: BackendFeatures.BaseStubs {
         struct Window {}
         struct Widget {}
@@ -79,7 +93,12 @@ extension BackendFeatures {
     @available(*, deprecated)
 #endif
 extension BackendFeatures.BaseStubs {
-    fileprivate func todo(function: String = #function) -> Never {
+    /// `nonisolated` so the `nonisolated` stubs can call it too. It only ever
+    /// traps, so it touches no isolated state and there is nothing for the
+    /// isolation to protect.
+    /// 標記 `nonisolated`，讓非隔離的 stub 也能呼叫它。它唯一做的事就是 trap，不觸及任何受隔離
+    /// 保護的狀態，因此此處的隔離沒有任何東西需要保護。
+    nonisolated fileprivate func todo(function: String = #function) -> Never {
         fatalError("\(Self.self): \(function) not implemented")
     }
 }
@@ -378,7 +397,18 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
-    public func runInMainThread(action: @escaping @MainActor () -> Void) {
+    /// `nonisolated`, to match the requirement. `Core` declares this one
+    /// `nonisolated` inside an otherwise `@MainActor` protocol -- deliberately,
+    /// since its whole purpose is to be callable from a thread that is not the
+    /// main one -- and this extension is on that `@MainActor` protocol, so
+    /// without the keyword the default implementation is main-actor isolated
+    /// and cannot witness it.
+    ///
+    /// 標記 `nonisolated` 以對應該需求。`Core` 在一個整體為 `@MainActor` 的 protocol 中，刻意將此
+    /// 項宣告為 `nonisolated`——因為它存在的意義正是「可從非主執行緒呼叫」——而本 extension 是掛在
+    /// 該 `@MainActor` protocol 上的，因此少了這個關鍵字，預設實作就是 main-actor 隔離的，無法作為
+    /// 它的 witness。
+    nonisolated public func runInMainThread(action: @escaping @MainActor () -> Void) {
         todo()
     }
 

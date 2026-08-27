@@ -14,11 +14,45 @@ the file it points at.
 每一項記錄的是「量到什麼」而非「假設什麼」，因為此處有數項之所以存在，正是因為某個看似有把握的猜測
 被查證後證實是錯的。凡出現數字之處，產生它的指令就在旁邊，或在它所指向的檔案裡。
 
+**Entries are tagged with the platform they were written on** — (Windows),
+(Mac), (WSL). Not for credit: this file is the only channel between two sessions
+that cannot talk to each other, and a measurement's platform is often the thing
+that decides whether it applies. "Cannot be verified here" means something
+different depending on where "here" was.
+
+**每一項條目都標記了它是在哪個平台上寫下的**——(Windows)、(Mac)、(WSL)。這不是為了記功：本檔是
+兩個無法互相通訊的 session 之間唯一的通道，而一項量測結果出自哪個平台，往往正是決定它適不適用的
+關鍵。「此處無法驗證」的意思，會隨著「此處」是哪裡而不同。
+
 ---
 
 ## Now / 現在
 
-### Swift 6 language mode, module by module
+### Style protocols: follow SwiftUI's shape wherever SwiftUI has one (Windows)
+
+Audited 2026-08-27. The project is not inconsistent with SwiftUI so much as
+inconsistent with itself — one style already follows SwiftUI's protocol shape
+and the rest do not:
+
+| SwiftUI has | ours | follows |
+|---|---|---|
+| `PickerStyle` protocol | `public protocol PickerStyle: Sendable`, with `Default`/`Inline`/`Menu`/`RadioGroup` structs and an internal `_BuiltinPickerStyle` | yes |
+| `DatePickerStyle` protocol | `public enum DatePickerStyle` | no |
+| `ListStyle` protocol | `@_spi(Backends) public enum ListStyle` | no — and not public API at all |
+| `ButtonStyle`, `LabelStyle`, `ShapeStyle`, `ToggleStyle` | absent | no |
+
+The cost is specific and easy to miss, which is why it belongs beside #34 rather
+than on a feature checklist. An enum keeps the *call sites* compiling —
+`.datePickerStyle(.compact)` is fine — and breaks only when someone writes their
+own style. `struct MyStyle: DatePickerStyle` compiles against SwiftUI and does
+not compile here, and nothing in the API surface hints at why.
+
+Decided: follow the protocol shape everywhere, including adding the four that do
+not exist. `PickerStyle` is the worked example to copy — protocol, an internal
+`_Builtin` protocol for the cases a backend must recognise, and one named struct
+per style.
+
+### Swift 6 language mode, module by module (Windows)
 
 `Package.swift` declares `swift-tools-version:6.0`, so an older toolchain is
 refused — that half is done. Every target is then pinned back to `.v5` by the
@@ -77,14 +111,35 @@ count of lines naming a file in `Sources/AppKitBackend/`, and it equals the
 number of distinct diagnostics.
 
 
-The one SwiftCrossUI site is the hard one. `BaseStubsTest` in
-`Sources/SwiftCrossUI/Backend/BackendFeatures/BaseStubs.swift` is a DEBUG-only
-empty struct that exists to prove `BaseStubs` supplies a default for every
-backend requirement. Both of the compiler's fix-its fail: an isolated
-conformance is rejected because the protocols inherit `SendableMetatype`, and
-marking the requirements `nonisolated` would be a false claim about the whole
-backend protocol. That one needs a decision about the protocols, not a local
-edit — do not read "1 error" as "1 minute".
+**SwiftCrossUI is migrated — done 2026-08-27, Windows.** It was two `nonisolated`
+keywords, and the paragraph below, which is kept because it was confidently
+wrong, predicted something else entirely:
+
+> The one SwiftCrossUI site is the hard one. [...] Both of the compiler's fix-its
+> fail: an isolated conformance is rejected because the protocols inherit
+> `SendableMetatype`, and marking the requirements `nonisolated` would be a false
+> claim about the whole backend protocol. That one needs a decision about the
+> protocols, not a local edit — do not read "1 error" as "1 minute".
+
+What was actually wrong had nothing to do with `BaseStubsTest`, which is why
+every fix aimed at `BaseStubsTest` failed. `Core` declares `runInMainThread`
+`nonisolated` inside an otherwise `@MainActor` protocol — correctly, since the
+point of that method is to be callable off the main thread — and the default
+implementation in `BaseStubs` did not repeat the keyword. An extension on a
+`@MainActor` protocol is main-actor isolated, so the witness was isolated where
+the requirement was not, and the diagnostic surfaced at the only conformance
+that exists.
+
+`@MainActor` on `BaseStubsTest` was tried and does not work, for a reason worth
+keeping: it isolates *that* witness too, so it moves the error rather than
+removing it. The reading that misled the earlier estimate was of the direction
+of the crossing — the type was assumed to be the un-isolated side.
+
+Two keywords: `nonisolated` on the `runInMainThread` default, and on the
+`todo()` helper it calls. Verified with `swift build --target SwiftCrossUI`
+under `migratedToSwift6: ["SwiftCrossUI"]`. A whole-package `swift build` is not
+the check on Windows — it fails on `DefaultBackend` for the pre-existing reason
+recorded under test infrastructure below.
 
 Most of GtkBackend's 98 and probably most of WinUI's 1274 come from one shape:
 the backends are plain `public final class`es with no isolation annotation
