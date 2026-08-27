@@ -63,6 +63,21 @@ public class Settings: GObject {
     @GObjectProperty(named: "gtk-application-prefer-dark-theme")
     public var preferDarkTheme: Bool
 
+    /// Whether scrollbars float over the content instead of taking layout width.
+    ///
+    /// On by default in GTK 4, which is why a backend can report a scrollbar
+    /// width of 0 and be right almost always. Desktops expose a matching
+    /// accessibility setting, and turning it off is what makes the 0 wrong:
+    /// the bars then occupy real width that the layout has not allowed for.
+    ///
+    /// 捲軸是否浮動於內容之上，而不佔用版面寬度。
+    ///
+    /// 在 GTK 4 中預設為開啟，這正是 backend 回報捲軸寬度為 0 卻幾乎總是正確的原因。桌面環境提供
+    /// 對應的無障礙設定，而把它關閉便會使那個 0 變成錯的：捲軸此時會佔用實際寬度，而版面並未為它
+    /// 預留空間。
+    @GObjectProperty(named: "gtk-overlay-scrolling")
+    public var overlayScrolling: Bool
+
     /// Calls `handler` whenever the named property changes, e.g.
     /// `notify::gtk-theme-name`.
     ///

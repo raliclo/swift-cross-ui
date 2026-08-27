@@ -65,7 +65,84 @@ public final class GtkBackend:
     public let defaultTableRowContentHeight = 20
     public let defaultTableCellVerticalPadding = 4
     public let defaultPaddingAmount = 10
-    public let scrollBarWidth = 0
+    /// 0 while GTK's scrollbars float over the content, which is its default.
+    ///
+    /// Computed rather than stored, because the answer is a user setting and can
+    /// change while the app runs. It was `let scrollBarWidth = 0`, and the 0 was
+    /// right for the default and unreachable for anything else: with overlay
+    /// scrolling off the bars take real width, SwiftCrossUI allots none, and the
+    /// content is over-allocated by about a scrollbar.
+    ///
+    /// The width is measured from a real GtkScrollbar rather than guessed,
+    /// because a theme decides it. AppKitBackend likewise asks
+    /// `NSScroller.preferredScrollerStyle`; WinUIBackend still returns a
+    /// constant 12.
+    ///
+    /// 當 GTK 的捲軸浮動於內容之上時為 0，而那是它的預設值。
+    ///
+    /// 此處改為計算屬性而非儲存屬性，因為答案取決於使用者設定，且可能在 app 執行期間改變。原本是
+    /// `let scrollBarWidth = 0`：該 0 對預設情況是正確的，對其餘情況則永遠到不了——關閉 overlay
+    /// scrolling 後捲軸會佔用實際寬度，而 SwiftCrossUI 未分配任何寬度給它，內容便會超額配置約一個
+    /// 捲軸的寬度。
+    ///
+    /// 寬度取自一個真實的 GtkScrollbar 實測，而非猜測，因為決定它的是主題。AppKitBackend 同樣會去
+    /// 詢問 `NSScroller.preferredScrollerStyle`；WinUIBackend 目前仍回傳固定的 12。
+    public var scrollBarWidth: Int {
+        if Settings.default?.overlayScrolling ?? true {
+            return 0
+        }
+        // Reported, because otherwise this branch is a number no one can see:
+        // it only runs on a desktop that has turned overlay scrolling off, and
+        // a wrong measurement there would show up as content over-allocated by
+        // a few points -- which reads as a layout bug anywhere but here.
+        // 此處會回報，否則這條分支就是一個沒人看得見的數字：它只在關閉了 overlay scrolling 的桌面
+        // 上執行，而該處若量錯了，症狀會是「內容超額配置了幾個點」——那在任何其他地方看起來都像
+        // 版面 bug，唯獨不像出在這裡。
+        debugLogOnce("overlay scrolling is off; scroll bars measure \(Self.measuredScrollBarWidth)pt")
+        return Self.measuredScrollBarWidth
+    }
+
+    /// Measured once. A scrollbar's width does not change without the theme
+    /// changing, and building a widget on every layout pass to ask would be a
+    /// lot of work for a number that almost never moves.
+    ///
+    /// The probe sits inside a window, for the reason recorded on
+    /// ``sampleAmbientColorScheme``: GTK resolves theme CSS only for a widget
+    /// that has a root, and a loose one reports built-in defaults rather than
+    /// what the theme would actually draw. Neither is presented.
+    ///
+    /// 只量測一次。捲軸寬度不會在主題不變的情況下改變，而為了一個幾乎不會變動的數字在每次 layout
+    /// 都建立一個 widget，代價過高。
+    ///
+    /// 探針置於一個視窗之內，理由記錄於 ``sampleAmbientColorScheme``：GTK 只會為「具有 root」的
+    /// widget 解析主題 CSS，游離的 widget 回報的是內建預設值，而非主題實際會繪製的樣子。兩者皆不
+    /// 會被顯示。
+    private nonisolated(unsafe) static let measuredScrollBarWidth: Int = {
+        // Rebound rather than cast: gtk_window_new hands back a GtkWidget * and
+        // gtk_window_set_child wants a GtkWindow *, which is the same object.
+        // 這裡是重新繫結而非型別轉換：gtk_window_new 交出的是 GtkWidget *，而 gtk_window_set_child
+        // 需要的是 GtkWindow *，兩者指的是同一個物件。
+        guard let probeWidget = gtk_window_new() else { return 0 }
+        let probeWindow = UnsafeMutableRawPointer(probeWidget)
+            .assumingMemoryBound(to: GtkWindow.self)
+        let scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, nil)
+        gtk_window_set_child(probeWindow, scrollbar)
+
+        var minimum: Int32 = 0
+        var natural: Int32 = 0
+        gtk_widget_measure(
+            scrollbar,
+            GTK_ORIENTATION_HORIZONTAL,
+            -1,
+            &minimum,
+            &natural,
+            nil,
+            nil
+        )
+
+        gtk_window_destroy(probeWindow)
+        return Int(natural)
+    }()
     public let requiresToggleSwitchSpacer = false
     public let requiresImageUpdateOnScaleFactorChange = false
     public let supportsMultipleWindows = true
@@ -468,8 +545,16 @@ public final class GtkBackend:
     }
 
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
-        // TODO: Detect whether window is fullscreen
-        return true
+        // A fullscreen window must answer false, or the layout system keeps
+        // proposing sizes the compositor will not grant and the two fight.
+        // AppKitBackend answers `!window.styleMask.contains(.fullScreen)` for
+        // the same reason; this was a constant `true` with a TODO next to it,
+        // which is the same bug WinUIBackend still carries.
+        //
+        // 全螢幕視窗必須回答 false，否則版面系統會不斷提出合成器不會允許的尺寸，兩者互相拉扯。
+        // AppKitBackend 基於相同理由回傳 `!window.styleMask.contains(.fullScreen)`；此處原本是一個
+        // 常數 `true` 加上一則 TODO，而 WinUIBackend 至今仍帶著同一個問題。
+        return !window.isFullscreen
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {

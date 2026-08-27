@@ -148,6 +148,21 @@ already settled.
 
 </details>
 
+## 2. ~~`isWindowProgrammaticallyResizable(_:)` always answers `true`~~ — **FIXED 2026-08-27** **[src] [hdr]**
+
+Fixed as described below: `Gtk.Window` gains an `isFullscreen` accessor over
+`gtk_window_is_fullscreen`, alongside the `isActive` and `isMaximized` that were
+already there in the same shape, and the method returns `!window.isFullscreen`.
+
+WinUIBackend still carries the identical constant and the identical TODO.
+
+已依下述方式修復：`Gtk.Window` 新增了包裝 `gtk_window_is_fullscreen` 的 `isFullscreen` 存取器——與
+早已存在且形狀相同的 `isActive`、`isMaximized` 並列——而該方法改為回傳 `!window.isFullscreen`。
+
+WinUIBackend 至今仍帶著一模一樣的常數與一模一樣的 TODO。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 2. `isWindowProgrammaticallyResizable(_:)` always answers `true` — **wrong**, one line **[src] [hdr]**
 
 `Sources/GtkBackend/GtkBackend.swift:381`
@@ -194,6 +209,8 @@ Swift 端的 `Gtk.Window` wrapper 目前尚未公開它（`Sources/Gtk/Widgets/W
 `resizable` 與 `deletable`），因此修復為「新增一個 accessor」加上 `return !window.isFullscreen`。
 
 ---
+
+</details>
 
 ## 3. ~~`updateRadialGradientWidget` ignores both radii~~ — **FIXED 2026-08-27** **[src]**
 
