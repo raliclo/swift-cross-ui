@@ -110,11 +110,70 @@ struct P27RootView: View {
                 }
             }
 
+            // The three cases the row above cannot see, added 2026-08-27 with
+            // the GtkBackend fixes for them. Each was drawn wrongly with no
+            // diagnostic, and each looks perfectly reasonable on its own -- the
+            // whole point is that they are only wrong *next to* the row above,
+            // or next to another backend.
+            //
+            // Read them as: a ring must have a solid centre and a flat outside,
+            // and both sweeps must show all four colours. A sample that fills
+            // its whole 160x120 box edge to edge, or that is one flat colour,
+            // is the defect rather than a bold design.
+            //
+            // 上排看不到的三個情形，於 2026-08-27 隨 GtkBackend 對應的修正一併加入。三者都曾被錯誤
+            // 繪製且無任何診斷訊息，而且單獨看每一個都相當合理——重點正在於，它們只有「與上排並列」
+            // 或「與另一個 backend 並列」時才顯得錯誤。
+            //
+            // 判讀方式：環必須有實心的中心與平坦的外圍，而兩個扇形都必須顯示全部四種顏色。若某個
+            // 樣本填滿了整個 160x120 的方框、或呈現單一平色，那是缺陷，不是大膽的設計。
+            HStack(spacing: 12) {
+                gradientSample("Ring (start 30)") {
+                    RadialGradient(
+                        colors: [.yellow, .red],
+                        center: UnitPoint(x: 0.5, y: 0.5),
+                        startRadius: 30,
+                        endRadius: 60
+                    )
+                }
+                gradientSample("Ring reversed") {
+                    RadialGradient(
+                        colors: [.yellow, .red],
+                        center: UnitPoint(x: 0.5, y: 0.5),
+                        startRadius: 60,
+                        endRadius: 20
+                    )
+                }
+                gradientSample("Sweep reversed") {
+                    AngularGradient(
+                        colors: [.red, .green, .blue, .red],
+                        center: UnitPoint(x: 0.5, y: 0.5),
+                        startAngle: .degrees(270),
+                        endAngle: .degrees(90)
+                    )
+                }
+            }
+
             // The web view. On a backend without one this is a labelled
             // placeholder rather than a crash or a silent blank -- a blank area
             // reads as a layout bug, whereas the text names the missing feature.
+            //
+            // It stays here as the abort guard only: this app's question is
+            // "did laying this out kill the process", and the answer is visible
+            // whether or not a page appears. Whether a page actually renders is
+            // P38's question, and it is a different one -- measured 2026-08-27
+            // on WinUIBackend, four `msedgewebview2.exe` processes were running
+            // while this frame stayed empty, so the control initialises and the
+            // browser host starts and nothing is painted.
+            //
             // web view。在沒有 web view 的 backend 上，此處是「有文字說明的佔位」，而非崩潰或
             // 靜默空白——空白區域看起來像版面 bug，而文字會指出缺少的是哪一個功能。
+            //
+            // 它留在此處僅作為「中止防護」：本 app 要問的是「把這個東西排版出來會不會殺掉行程」，
+            // 而無論頁面是否出現，該問題的答案都看得見。「頁面究竟有沒有被繪製」是 P38 的問題，
+            // 且是另一回事——2026-08-27 於 WinUIBackend 實測：此框保持空白的同時，有四個
+            // `msedgewebview2.exe` 行程正在執行，亦即控制項完成初始化、瀏覽器主機也啟動了，
+            // 但什麼都沒有被畫出來。
             Text("WebView")
                 .font(.system(size: 16))
 

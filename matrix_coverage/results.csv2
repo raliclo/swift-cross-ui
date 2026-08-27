@@ -7,3 +7,6 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 before the fix: Light then Dark left a light window with dark-scheme text"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 after the fix: same action file, window is dark and legible"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 control: Light alone still goes light, so the other direction is intact"
+2026-08-27,windows,gtk4,P27,ok,n/a,window,"gradients 3+4 after the fix: ring has a solid centre, reversed sweep shows its colours"
+2026-08-27,windows,winui,P27,ok,n/a,window,"gradient control: agrees on both rings; its reversed sweep was flat until fixed here too"
+2026-08-27,windows,winui,P38,ok,n/a,window,"WebView frame stayed empty with 4 msedgewebview2.exe running; parked, not diagnosed"

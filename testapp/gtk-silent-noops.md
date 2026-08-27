@@ -195,6 +195,34 @@ Swift 端的 `Gtk.Window` wrapper 目前尚未公開它（`Sources/Gtk/Widgets/W
 
 ---
 
+## 3. ~~`updateRadialGradientWidget` ignores both radii~~ — **FIXED 2026-08-27** **[src]**
+
+Fixed as described below: `gradient.adjustedStops` in place of the local
+`invertedStops`, which covered `startRadius`, and an explicit `circle <r>px`
+extent, which covered `endRadius`. The radius is `max(startRadius, endRadius)`
+rather than `endRadius`, because that is the edge `adjustedStops` normalises to
+when the radii are reversed; WinUI's `radiusX`/`radiusY` take the same `max`.
+`invertedStops` became dead and was removed.
+
+Verified with two samples added to P27 — `startRadius: 30, endRadius: 60` and
+the reversed `60, 20` — captured on Windows/GtkBackend and again on
+WinUIBackend, which has used `adjustedStops` all along and so is a real control
+rather than the same code twice. Both backends draw the same picture: a solid
+disc of the first colour, the gradient, then flat colour beyond. Before the fix
+GtkBackend filled its whole box with a gradient and had no disc at all.
+
+已依下述方式修復：以 `gradient.adjustedStops` 取代原有的 `invertedStops`（解決 `startRadius`），
+並明確寫出 `circle <r>px` 的 extent（解決 `endRadius`）。半徑取 `max(startRadius, endRadius)` 而非
+`endRadius`，因為當兩個半徑反轉時，那才是 `adjustedStops` 所歸一化到的邊界；WinUI 的
+`radiusX`／`radiusY` 也取相同的 `max`。`invertedStops` 因此成為死碼並已移除。
+
+驗證方式是在 P27 新增兩個樣本——`startRadius: 30, endRadius: 60` 以及反轉的 `60, 20`——分別在
+Windows/GtkBackend 與 WinUIBackend 上擷取；後者一直都在使用 `adjustedStops`，因此是真正的對照組，
+而非同一份程式碼跑兩次。兩個 backend 畫出相同的結果：第一個顏色的實心圓、漸層、然後是其外的
+平坦色。修復前，GtkBackend 以漸層填滿整個方框，且完全沒有實心圓。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 3. `updateRadialGradientWidget` ignores both radii — **broken**, two lines **[src]**
 
 `Sources/GtkBackend/GtkBackend+Gradient.swift:49`
@@ -261,6 +289,40 @@ backend 上畫成一個小圓環。
 
 ---
 
+---
+
+</details>
+
+## 4. ~~`updateAngularGradientWidget` mis-renders a reversed sweep~~ — **FIXED 2026-08-27, in two backends** **[src]**
+
+Fixed as described below, with `gradient.adjustedStops`.
+
+**The control turned out to have the same bug.** WinUIBackend was going to be
+the second opinion on this, the way it was for #3 — instead its "Sweep reversed"
+sample rasterised as one flat red block while the fixed GtkBackend drew the
+gradient. `WinUIBackend+AngularGradient.swift` had copied this exact
+computation, comment included: *"which is what the GTK backend does for the same
+reason"*. Its `color(at:)` finds no stop above any position once every location
+has gone negative, so it returns the last stop's colour for every pixel. Fixed
+there too, in the same way.
+
+Worth naming as a pattern rather than a coincidence: the note pointing at the
+other backend is what carried the defect across, and a backend that says it
+copied another is not a control for the thing it copied.
+
+已依下述方式修復，使用 `gradient.adjustedStops`。
+
+**對照組原來有著同一個 bug。** 本來要由 WinUIBackend 擔任第二意見，一如它在 #3 所扮演的角色——
+結果它的「Sweep reversed」樣本被光柵化成一整片平坦紅色，而修好的 GtkBackend 畫出了漸層。
+`WinUIBackend+AngularGradient.swift` 原封不動抄了這段計算，連註解都抄了：「這正是 GTK backend 為
+同樣理由所做的事」。當所有位置都變成負數之後，它的 `color(at:)` 在任何位置都找不到更上方的色標，
+於是每個像素都回傳最後一個色標的顏色。該處亦已以相同方式修復。
+
+這值得被稱為一種模式而非巧合：那句「指向另一個 backend」的註解，正是缺陷得以跨檔散布的載體；而
+一個自稱抄自他處的 backend，對它所抄的那件事而言並不構成對照組。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 4. `updateAngularGradientWidget` mis-renders a reversed sweep — **wrong**, one line **[src]**
 
 `Sources/GtkBackend/GtkBackend+Gradient.swift:82`
@@ -303,6 +365,8 @@ it is right and should stay.
 `fromDegrees` 四分之一圈修正是正確的，應予保留。
 
 ---
+
+</details>
 
 ## 5. `.semibold` and `.bold` render identically — **wrong**, one line **[src]**
 

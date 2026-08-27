@@ -70,17 +70,23 @@ final class AngularGradientCanvas: WinUI.Canvas {
         guard size.x > 0, size.y > 0 else { return }
 
         // A nil end angle means a full turn (the documented default). With an end
-        // angle the stops occupy only that sweep, so they are rescaled into it,
-        // which is what the GTK backend does for the same reason.
+        // angle the stops occupy only that sweep, so they are rescaled into it.
+        //
+        // `adjustedStops` does the rescaling. This used to do it inline -- and
+        // said so, citing the GTK backend, which had copied the same mistake:
+        // multiplying by `sweep / 360` without `abs` sends every location
+        // negative when the end angle precedes the start angle. `color(at:)`
+        // then finds no stop above any position in 0..<1 and returns the last
+        // stop's color for every pixel, so a reversed sweep rasterised as one
+        // flat block. Measured 2026-08-27 with P27's "Sweep reversed" sample,
+        // where GtkBackend drew the gradient and this drew flat red.
         let sweep = (gradient.endAngle?.degrees).map { $0 - gradient.startAngle.degrees } ?? 360
-        let stops = gradient.gradient.stops
-            .map {
-                Stop(
-                    location: $0.location * (sweep / 360),
-                    color: $0.color.resolve(in: environment)
-                )
-            }
-            .sorted { $0.location < $1.location }
+        let stops = gradient.adjustedStops.map {
+            Stop(
+                location: $0.location,
+                color: $0.color.resolve(in: environment)
+            )
+        }
 
         let key = Key(
             size: size,

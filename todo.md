@@ -366,7 +366,11 @@ gave -38,-59 at one and 154,-6 at the other.
   the calendar/timezone handling are done.
 - **21 catalogued silent no-ops**, ranked by severity × cheapness in
   `testapp/gtk-silent-noops.md`, with a seven-entry appendix of things that look
-  like no-ops and are not. The top three are ~5, 1 and 2 lines.
+  like no-ops and are not. Findings 1, 3, 4, 6 and 9 are fixed; each keeps its
+  original text behind a `<details>` so the ranking argument stays readable.
+  Re-derive the remaining count rather than trusting this sentence:
+  `grep -c '^## [0-9]' testapp/gtk-silent-noops.md` counts every heading, and
+  the fixed ones are the `~~struck~~` half of each pair.
 - **Diagnostics are compiled out of the builds this project tests.**
   `debugLogOnce` is `#if DEBUG` while `compile.zsh` builds release by default,
   so both of GtkBackend's diagnostic call sites print nothing in the one
