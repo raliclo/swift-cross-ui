@@ -382,12 +382,27 @@ gave -38,-59 at one and 154,-6 at the other.
   `DatePicker` at all** — only P11, which is macOS-scoped — so no date picker
   question had a picture anywhere.
 
-- **WinUIBackend `.graphical` renders nothing.** Found 2026-08-27 with P41 on
-  WinUI: `.automatic`, `.compact` and `.wheel` all draw, and `.graphical` is a
-  blank sliver where the `CalendarView` should be. Not diagnosed. Likely the
-  same shape as the already-recorded "WinUIElementRepresentable measures 0x0
-  when rooted at a Canvas", since a `CalendarView` that measures zero would look
-  exactly like this.
+- **WinUIBackend `.graphical`: fixed, and the fix exposed a second defect.**
+  Found 2026-08-27 with P41 on WinUI: `.graphical` was a blank sliver while the
+  other three styles drew. The cause was the guess in the earlier note — a
+  `CalendarView` reports 0x0 before its template has rendered, and SwiftCrossUI
+  committed that. `WinUIBackend.swift` now substitutes a default month-view size
+  in that case. Verified: the month grid draws.
+
+  **Still open, and only visible now that it draws: the calendar ignores its
+  binding.** It opens on August 2026 with the 27th selected — today — while the
+  bound date is 2025-08-24, which `.automatic`, `.compact` and `.wheel` all show
+  correctly in the same window. So the view renders and does not follow the
+  state it was given. Not diagnosed.
+
+- **WinUIBackend `.graphical`：已修復，而該修復暴露了第二個缺陷。** 2026-08-27 以 P41 於 WinUI
+  發現：`.graphical` 只是一條空白細條，而其餘三種樣式都能繪製。原因正如先前註記的猜測——
+  `CalendarView` 在其樣板尚未繪製前會回報 0x0，而 SwiftCrossUI 直接採信了。`WinUIBackend.swift`
+  現在會在該情況下代入預設的月曆尺寸。已驗證：月份格線可正常繪製。
+
+  **仍未解決，且唯有在它能繪製之後才看得見：該日曆忽略它的綁定值。** 它開在 2026 年 8 月並選取
+  27 日——也就是今天——而綁定的日期是 2025-08-24，同一個視窗中的 `.automatic`、`.compact` 與
+  `.wheel` 都正確顯示了該日期。也就是說，這個 view 畫得出來，卻不跟隨它被賦予的狀態。未診斷。
 
 - **WinUIBackend `.automatic` and `.wheel` are the same control**, both
   `CustomDatePicker.DateViewType.datePicker`. Arguably correct rather than a
