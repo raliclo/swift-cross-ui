@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16 on Windows, GtkBackend: force the snap that #160 is defined by.
+#
+# #160 is that a split view lays out very incorrectly on the first render and
+# then snaps to a correct layout as soon as any state changes. The app reports
+# each pane's measured size, so the bug becomes two numbers that can be
+# compared rather than an impression.
+#
+# Read the baseline capture FIRST. At launch on GtkBackend it says
+# `sidebar: 180 x 22` and `detail: 660 x 22` -- widths that look right and a
+# height of 22 that cannot be, since the panes fill the window. This file
+# presses "Force update" so the pair can be read again afterwards.
+#
+# The counter in the button label is what proves the click landed:
+# "Force update (0)" becomes "(1)" and "(2)".
+#
+# P16 於 Windows、GtkBackend：促使 #160 所定義的那次「跳正」發生。
+#
+# #160 是「分割視圖在第一次算繪時排版嚴重錯誤，之後只要有任何狀態改變就會跳成正確的排版」。
+# 本 app 會回報每個窗格量到的尺寸，因此這個 bug 變成兩個可比對的數字，而非一種印象。
+#
+# 請**先**讀基準截圖。在 GtkBackend 上啟動時它顯示 `sidebar: 180 x 22` 與 `detail: 660 x 22`
+# ——寬度看起來合理，而高度 22 不可能正確，因為窗格是填滿視窗的。本檔按下「Force update」，
+# 好讓這組數字在事後再讀一次。
+#
+# 按鈕標籤上的計數器就是「點擊命中」的證據：「Force update (0)」會變成「(1)」與「(2)」。
+#
+# Measured on a 928x638 window capture at 100% display scale.
+# 量測自一張 928x638 的視窗截圖，顯示縮放 100%。
+click,388,135,frame,left,,,"Force update (0)" -- the snap #160 is about,windows
+sleep,,,,,,1200000,,windows
+click,113,227,frame,left,,,"Science" in the sidebar List,windows
+sleep,,,,,,900000,,windows
+click,532,135,frame,left,,,"Switch to 3 column" -- the three-column case,windows
+sleep,,,,,,1500000,hold for the capture,windows

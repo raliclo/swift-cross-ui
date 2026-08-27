@@ -1,4 +1,21 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
+# STALE, 2026-08-27. Its coordinates were measured at 125% display scale and the
+# machine is now at 100%, so every click here misses. It is kept, unfixed, for
+# one reason: README.md cites it as the example of two backends needing
+# different coordinates for the same app and the same click, and deleting it
+# would leave that citation pointing at nothing.
+#
+# Re-measure before running it. Do not multiply by 1.25 -- the sweep that
+# re-measured every other file in this folder deliberately did not, because a
+# factor is easy to apply twice or to the wrong axis and the result looks
+# exactly like a miss caused by anything else.
+#
+# 已過期，2026-08-27。其座標量測於 125% 顯示縮放，而本機現已改為 100%，因此此處每一次點擊都會落空。
+# 保留且不修正，理由只有一個：README.md 引用它作為「同一支 app、同一次點擊，兩個 backend 需要不同
+# 座標」的範例，刪掉它會使該引用指向不存在的東西。
+#
+# 執行前請重新量測。不要乘以 1.25——重新量測本資料夾其他每個檔案的那一輪刻意沒有這麼做，因為乘法
+# 係數很容易乘兩次或乘錯軸，而結果看起來與任何其他原因造成的落空一模一樣。
 # P24 on Windows, WinUIBackend. The GtkBackend file for the same app and the
 # same first click is `P24-push-one-level.csv`, and its coordinates are
 # different -- that is the reason this file exists separately rather than the
@@ -28,5 +45,5 @@ action,x,y,origin,button,key,micros,note
 # 撰寫此檔的目的：釐清「移動堆疊外控制項的重新排版」究竟出自 GtkBackend 還是 SwiftCrossUI。答案是
 # SwiftCrossUI——WinUI 以相同方式移動它們（level 0 時距 frame 左緣約 305px，level 1 時約 22px），
 # 並且畫出同一條 app 從未宣告過的全寬分隔線。詳見 #57。
-click,332,392,frame,left,,,push level 1
-sleep,,,,,,900000,let the relayout settle
+click,332,392,frame,left,,,push level 1 -- STALE 125% coordinate,windows
+sleep,,,,,,900000,let the relayout settle,windows

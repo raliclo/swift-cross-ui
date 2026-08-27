@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P9 on Windows, GtkBackend: trigger #504 and then #295.
+#
+# #504 is that a TextField loses height after the first update. Nothing here
+# touches the fields; "Force update" changes unrelated state, and that alone is
+# supposed to be enough. So the test is: compare the field row in the baseline
+# capture with the one taken after this file, and see whether it shrank.
+#
+# #295 is that Text refuses to shrink past its own text. The blue band marks a
+# 200 pt frame; "Narrower", then "Zero width", ask for less. The text must not
+# spill past the band.
+#
+# Neither can be judged from a number the app prints, so both are read off the
+# two captures. `updates: N` in the header is the proof the clicks landed.
+#
+# P9 於 Windows、GtkBackend：觸發 #504，然後是 #295。
+#
+# #504 是「TextField 在第一次 update 之後高度變小」。此處沒有任何動作碰到那些欄位；
+# 「Force update」改變的是不相干的狀態，而光是如此就應足以觸發。因此測試方式是：比較基準截圖
+# 與執行本檔後的截圖中的欄位那一列，看它是否縮小了。
+#
+# #295 是「Text 不肯縮到比自己的文字更窄」。藍色色帶標出一個 200 pt 的 frame；「Narrower」與
+# 「Zero width」會要求更小的寬度。文字不得溢出該色帶。
+#
+# 兩者都無法從 app 印出的數字判定，因此都靠兩張截圖判讀。標題列的 `updates: N` 則是「點擊確實
+# 命中」的證據。
+#
+# Measured on a 668x558 window capture at 100% display scale.
+# 量測自一張 668x558 的視窗截圖，顯示縮放 100%。
+click,134,275,frame,left,,,"Force update" -- updates becomes 1,windows
+sleep,,,,,,800000,,windows
+click,134,275,frame,left,,,again -- updates becomes 2,windows
+sleep,,,,,,800000,,windows
+click,123,384,frame,left,,,"Narrower",windows
+sleep,,,,,,600000,,windows
+click,123,384,frame,left,,,"Narrower" again,windows
+sleep,,,,,,600000,,windows
+click,297,384,frame,left,,,"Zero width" -- the hardest case for #295,windows
+sleep,,,,,,1500000,hold for the capture,windows

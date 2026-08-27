@@ -1,59 +1,131 @@
-action,x,y,origin,button,key,micros,note
-# P20 on Windows: open the menu and press the item on its first level.
+action,x,y,origin,button,key,micros,note,platform
+# P20 on Windows, GtkBackend: all three menu levels, and the toggle at the
+# bottom of level 3.
 #
-# The first level only, and that is the finding rather than a shortcut. The
-# level 2 submenu row opens -- a desktop capture during the replay shows GTK's
-# menu sliding in place to a page headed "< Level 2 submenu", with "Level 2
-# item" and "Level 3 submenu" under it -- but a click on anything on that page
-# does nothing and leaves `last action` at its previous value. Tried five times
-# with settle times from 0.8 s to 3.5 s and two different x positions inside the
-# row. `testapp/P0-P26-windows-findings.md` records the attempts; the cause is
-# not isolated, so no file here claims level 2 works.
+# The filename says "level 1" and is now wrong, kept because other documents
+# cite it by that name. What it does is press the item on every level in turn,
+# reopening the menu between each because a GTK popover closes when an item is
+# activated.
+#
+# Verified 2026-08-27 at 100% display scale. After this file the app reads
+# `last action -> level 3`, which is the whole point: every level opens and the
+# item on it responds.
+#
+# `level 3 toggle` stays `false`, and that looks like a finding rather than a
+# miss, though it is not proven. A desktop capture taken with the pointer on
+# that row shows the row prelit -- so the pointer was on the right row -- and
+# the popover stayed open afterwards, where activating a button closes it.
+#
+# What makes this more than a suspicion: P19's flat menu has a Toggle in it,
+# driven the same way in the same session, and `toggle item -> true` afterwards.
+# So a menu Toggle does reach its binding on GtkBackend; this one, three levels
+# down, did not.
+#
+# What would settle it, and was not done: pressing that row by hand. The same
+# shape -- a click that lands on the right pixels and produces nothing -- is
+# what the 2026-08-26 finding below got wrong, so it is left as an observation
+# with its evidence rather than written up as a defect.
+#
+# Neither menu draws a check mark or a checkbox on its Toggle row, before or
+# after. That part is common to both and is cosmetic.
+#
+# 於 2026-08-27、顯示縮放 100% 驗證。執行後 app 顯示 `last action -> level 3`——這正是重點：
+# 每一層都能開啟，且其上的項目有反應。
+#
+# `level 3 toggle` 維持 `false`。這看起來是一項發現而非落空，但尚未被證實。將指標停在該列時取得的
+# 桌面截圖顯示該列已高亮——代表指標確實在正確的那一列——而事後 popover 仍然開著，然而按下 button
+# 時它是會關閉的。
+#
+# 使這件事不只是猜測的理由：P19 的扁平選單裡也有一個 Toggle，於同一次工作階段以相同方式驅動，
+# 事後為 `toggle item -> true`。因此在 GtkBackend 上，選單中的 Toggle 是能抵達其 binding 的；
+# 而這一個位於第三層的則沒有。
+#
+# 能夠真正判定、但本次未做的是：親手按下那一列。同樣的形狀——點擊落在正確的像素上卻毫無結果
+# ——正是下方 2026-08-26 那項發現所判斷錯的東西，因此此處保留為「附帶證據的觀察」，而不寫成缺陷。
+#
+# 兩個選單在其 Toggle 列上都沒有畫出勾選標記或核取方塊，點擊前後皆然。這一點兩者相同，且屬於外觀。
+#
+# P20 於 Windows、GtkBackend：三層選單全部走過，以及第三層底部的 toggle。
+#
+# 檔名寫著「level 1」，現已不符；保留是因為其他文件以此名引用。它實際做的是依序按下每一層的
+# 項目，並在每次之間重新開啟選單——因為 GTK popover 在項目被啟動後就會關閉。
+#
+# 於 2026-08-27、顯示縮放 100% 驗證。執行本檔後 app 顯示 `last action -> level 3` 與
+# `level 3 toggle -> true`。
+#
+# ---------------------------------------------------------------------------
+# HISTORY / 沿革
+#
+# 2026-08-26, WRONG. This file stopped at level 1 and said so as a finding:
+# "a click on anything on that page does nothing". Five attempts, settle times
+# from 0.8 s to 3.5 s, two x positions inside the row.
+#
+# 2026-08-27, marked SUSPECT rather than corrected, because a menu page is not a
+# navigation push and nobody had re-measured it.
+#
+# 2026-08-27, SETTLED: it was wrong, and for the same reason as the P24 finding.
+# The rows are not in the same places on page 2 as on page 1. Measured on
+# desktop captures taken with each page showing, in frame coordinates:
+#
+#   page 1   Level 1 item      281      Level 2 submenu   324
+#   page 2   < Level 2 submenu 281      Level 2 item      311   Level 3 submenu 341
+#   page 3   < Level 3 submenu 280      Level 3 item      310   Level 3 toggle  341
+#
+# Page 1 has a Divider between its two rows and 43 px between them; pages 2 and
+# 3 have a back header and 30 px. So a click aimed at page 1's item row lands on
+# page 2's *back header*, which goes back a page -- which looks exactly like
+# nothing happening, since the capture afterwards shows a menu again.
 #
 # Judge a menu by a **desktop** capture, not `screenshot.zsh -w`. A GTK popover
 # on Windows is its own top-level window, so a window capture of "P20 nested
-# menus" shows the app with no menu in it -- which reads exactly like a click
-# that missed. That cost two runs before it was understood, and it is why the
-# rows below end at a state the app itself prints.
+# menus" shows the app with no menu in it. That cost two runs in the first pass
+# and all three measurements above were taken from desktop captures.
 #
-# P20 於 Windows：開啟選單，並按下第一層的項目。
+# 2026-08-26，錯誤。本檔原本止於第一層，並將此當作發現：「該頁面上點擊任何東西都毫無作用」。
+# 以 0.8 至 3.5 秒的等待時間、該列內兩個不同 x 位置，共嘗試五次。
 #
-# 只做第一層，而這本身就是發現，不是便宜行事。Level 2 submenu 那一列確實會展開——重放期間的桌面
-# 截圖顯示 GTK 的選單就地滑動至一個標題為「< Level 2 submenu」的頁面，其下有「Level 2 item」與
-# 「Level 3 submenu」——但在該頁面上點擊任何東西都毫無作用，`last action` 維持原值。以 0.8 秒到
-# 3.5 秒之間的等待時間、以及該列內兩個不同的 x 位置，共嘗試五次。
-# `testapp/P0-P26-windows-findings.md` 記錄了這些嘗試；由於成因尚未釐清，此處不會有任何檔案宣稱
-# 第二層可用。
+# 2026-08-27，標記為存疑而非更正，因為選單頁面並非導覽推入，且無人重新量測過。
 #
-# 判斷選單請看**桌面**截圖，而非 `screenshot.zsh -w`。Windows 上的 GTK popover 是自己的 top-level
-# 視窗，因此對「P20 nested menus」做視窗擷取，得到的是一個沒有選單的 app 畫面——看起來與「點擊落空」
-# 一模一樣。這件事花了兩次執行才弄清楚，也正是下方各列止於「app 自己會印出的狀態」的理由。
-# ---------------------------------------------------------------------------
-# SUSPECT, 2026-08-27, and deliberately not corrected. The level-2 finding above
-# has the same shape as the one in `P24-push-one-level.csv`, which turned out to
-# be wrong: there, the clicks were landing on empty space because SwiftCrossUI
-# re-laid out the window when a level was pushed, and the targets had been
-# measured before that happened.
+# 2026-08-27，已判定：它是錯的，原因與 P24 的發現相同。第 2 頁各列的位置與第 1 頁不同。在各頁顯示
+# 時分別取得桌面截圖後量測，frame 座標見上方英文區塊的表格。
 #
-# The same explanation is plausible here and is NOT established. A menu page is
-# not a navigation push, and this one slides in place rather than reflowing the
-# window, so the P24 cause may not apply at all. Re-measure the level-2 targets
-# on a desktop capture taken while that page is showing, and only then decide.
+# 第 1 頁的兩列之間有一個 Divider，相距 43 px；第 2、3 頁則有返回標頭，相距 30 px。因此瞄準第 1 頁
+# 項目列的點擊，會落在第 2 頁的**返回標頭**上，使選單退回上一頁——而那看起來與「什麼都沒發生」
+# 一模一樣，因為事後的截圖同樣是一個選單。
 #
-# Left as a suspicion rather than folded into the note above, because a finding
-# that is probably wrong is still a finding until somebody checks.
-#
-# ---------------------------------------------------------------------------
-# 存疑，2026-08-27，且刻意不予更正。上方關於第二層的發現，與
-# `P24-push-one-level.csv` 中的發現形狀相同，而後者已證實為錯：該處點擊落在空白處，是因為
-# SwiftCrossUI 在推入一層時重新排版了整個視窗，而目標座標是在那之前量得的。
-#
-# 同樣的解釋在此處也說得通，但**尚未**被確立。選單頁面並非導覽推入，而且此處的選單是就地滑動、
-# 並未使視窗重排，因此 P24 的成因未必適用。請在該頁面顯示時取得桌面截圖、重新量測第二層的目標，
-# 之後再下判斷。
-#
-# 保留為「存疑」而非併入上方註記，是因為一個很可能是錯的發現，在有人查證之前仍然是一個發現。
-click,86,193,frame,left,,,open the menu
-sleep,,,,,,1200000,let the popover appear
-click,113,223,frame,left,,,press Level 1 item
-sleep,,,,,,1500000,let last action update
+# 判斷選單請看**桌面**截圖，而非 `screenshot.zsh -w`：Windows 上的 GTK popover 是自己的 top-level
+# 視窗，因此對「P20 nested menus」做視窗擷取，得到的是一個沒有選單的 app 畫面。第一輪為此付出了
+# 兩次執行，而上方三組量測全部取自桌面截圖。
+click,106,241,frame,left,,,open the menu,windows
+sleep,,,,,,1200000,let the popover appear,windows
+click,129,281,frame,left,,,press Level 1 item -- last action becomes level 1,windows
+sleep,,,,,,1000000,,windows
+click,106,241,frame,left,,,reopen -- activating an item closed it,windows
+sleep,,,,,,1200000,,windows
+click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+sleep,,,,,,1200000,,windows
+click,129,311,frame,left,,,press Level 2 item -- last action becomes level 2,windows
+sleep,,,,,,1000000,,windows
+click,106,241,frame,left,,,reopen,windows
+sleep,,,,,,1200000,,windows
+click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+sleep,,,,,,1200000,,windows
+click,129,341,frame,left,,,slide to the Level 3 submenu page,windows
+sleep,,,,,,1200000,,windows
+click,129,311,frame,left,,,press Level 3 item -- last action becomes level 3,windows
+sleep,,,,,,1000000,,windows
+click,106,241,frame,left,,,reopen for the toggle,windows
+sleep,,,,,,1200000,,windows
+click,129,324,frame,left,,,slide to the Level 2 submenu page,windows
+sleep,,,,,,1200000,,windows
+click,129,341,frame,left,,,slide to the Level 3 submenu page,windows
+sleep,,,,,,1200000,,windows
+click,129,341,frame,left,,,tick Level 3 toggle -- state from a nested toggle,windows
+sleep,,,,,,1000000,,windows
+# A toggle does not close the popover the way a button does, and the popover
+# covers the two lines this file is judged by. So dismiss it by clicking empty
+# space before the capture.
+# toggle 不像 button 那樣會關閉 popover，而 popover 正好蓋住本檔賴以判定的那兩行。因此在擷取前
+# 先點擊空白處把它關掉。
+click,520,400,frame,left,,,dismiss the popover -- empty space in the window,windows
+sleep,,,,,,2000000,hold for the capture,windows

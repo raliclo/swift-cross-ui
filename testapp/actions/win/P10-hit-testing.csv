@@ -1,0 +1,65 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10 on Windows, GtkBackend: the three hit-testing cases, one click each.
+#
+# The app counts them separately, which is the whole point: a bare button, the
+# same button under a transparent overlay, and an area under an opaque
+# `allowsHitTesting(false)` view.
+#
+# Expected:  Direct clicks: 1   Covered clicks: 1   Hidden clicks: 0
+# Measured:  Direct clicks: 1   Covered clicks: 1   Hidden clicks: 1
+#
+# The third one is a defect, found by this file on 2026-08-27, GtkBackend
+# `-gtk4` on Windows. The app also prints "Hidden button received a click." So
+# `allowsHitTesting(false)` is only affecting appearance here: the view still
+# lets a click through to what is behind it.
+#
+# The other two are the controls that make it a defect rather than a stray
+# click. All three clicks are the same shape at the same y, 145 px apart, and
+# the two whose behaviour is defined both did the defined thing.
+#
+# The #478 half of P10 -- press Ctrl-Q and the app should quit -- CANNOT be
+# driven here. `prepareForReplay` refuses any file containing `key`, `keydown`
+# or `keyup`, correctly: a key event goes to whatever holds focus, and a
+# process launched from a background shell cannot take the foreground on
+# Windows. So this file is mouse-only and #478 needs a person at the keyboard.
+#
+# P10 於 Windows、GtkBackend：三種命中測試情境，各點一次。
+#
+# app 分別計數這三者，而這正是重點：一個普通按鈕、同一個按鈕但被透明覆蓋層蓋住、以及位於不透明
+# `allowsHitTesting(false)` 視圖之下的區域。
+#
+# 預期：Direct clicks: 1、Covered clicks: 1、Hidden clicks: 0
+# 實測：Direct clicks: 1、Covered clicks: 1、Hidden clicks: 1
+#
+# 第三項是缺陷，由本檔於 2026-08-27、Windows 上的 GtkBackend `-gtk4` 建置中發現。app 同時印出
+# 「Hidden button received a click.」因此此處的 `allowsHitTesting(false)` 只影響了外觀：該視圖仍讓
+# 點擊穿透到它後方的東西。
+#
+# 另外兩項是使這件事成為「缺陷」而非「誤觸」的對照組。三次點擊形狀相同、y 相同、彼此相距 145 px，
+# 而其中行為有明確定義的那兩項，都做出了所定義的行為。
+#
+# P10 的 #478 那一半——按下 Ctrl-Q 後 app 應結束——在此**無法**驅動。`prepareForReplay` 會拒絕任何
+# 含 `key`、`keydown` 或 `keyup` 的檔案，而且拒絕得對：按鍵事件會送往持有焦點的視窗，而在 Windows
+# 上，由背景 shell 啟動的行程無法取得前景。因此本檔僅使用滑鼠，#478 需要有人在鍵盤前才能測。
+#
+# ---------------------------------------------------------------------------
+# The first pass recorded P10 as "launches, registers its title, and shows no
+# window at all", twice, and concluded it could not be driven. That is not what
+# happens now: a `-w` capture on 2026-08-27 returned the window fully drawn,
+# on the first attempt. Whether something was fixed in between or the earlier
+# runs hit the GTK single-instance handoff was not established.
+#
+# 第一輪把 P10 記為「會啟動、會註冊標題，卻完全沒有視窗」，重現兩次，並判定它無法驅動。現在
+# 並非如此：2026-08-27 的 `-w` 擷取第一次嘗試就取得了完整繪出的視窗。中間是否修好了什麼、
+# 或當時撞上的是 GTK 單一實例交接，並未確立。
+#
+# Measured on a 648x458 window capture at 100% display scale.
+# 量測自一張 648x458 的視窗截圖，顯示縮放 100%。
+click,104,259,frame,left,,,"Click me" -- no overlay; Direct clicks must reach 1,windows
+sleep,,,,,,700000,,windows
+click,249,259,frame,left,,,"Click me too" -- under a transparent overlay,windows
+sleep,,,,,,700000,,windows
+click,469,259,frame,left,,,the orange block -- opaque allowsHitTesting(false),windows
+sleep,,,,,,700000,,windows
+click,323,348,frame,left,,,"Transparent overlay present" -- an ordinary button below it all,windows
+sleep,,,,,,1500000,hold for the capture,windows

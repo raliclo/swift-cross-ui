@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P2 on Windows, GtkBackend: the TextEditor's length counter, the Picker's
+# option list, and the window's resize behaviour.
+#
+# #401 is the one this file settles outright. The app launches with
+# `windowResizeBehavior(.disabled)`, and the baseline capture shows a title bar
+# with a minimise and a close button and NO maximise button -- so the full
+# screen button really is disabled rather than merely inert. "Allow window
+# resizing" turns it back on, and the maximise button must reappear in the
+# capture afterwards.
+#
+# #449 is the Picker's options updating. "Use expanded Picker options" swaps
+# the option array under the selection; `options: N` in the status line is what
+# says the swap reached the control.
+#
+# "Set 12345" and "Clear" drive `Length: N`. Nothing here can TYPE into the
+# TextEditor -- a key event needs the foreground -- so #471's thin-border check
+# stays a matter for a person at the keyboard.
+#
+# P2 於 Windows、GtkBackend：TextEditor 的長度計數、Picker 的選項清單，以及視窗的縮放行為。
+#
+# #401 是本檔能直接判定的一項。本 app 以 `windowResizeBehavior(.disabled)` 啟動，而基準截圖顯示
+# 標題列只有最小化與關閉按鈕、**沒有**最大化按鈕——因此全螢幕按鈕是真的被停用，而非只是按了沒用。
+# 「Allow window resizing」會把它打開，事後的截圖中最大化按鈕必須重新出現。
+#
+# #449 是 Picker 選項的更新。「Use expanded Picker options」會在選取狀態之下抽換選項陣列；
+# 狀態列中的 `options: N` 就是「抽換確實抵達控制項」的證據。
+#
+# 「Set 12345」與「Clear」驅動 `Length: N`。此處無法對 TextEditor **打字**——按鍵事件需要前景
+# ——因此 #471 的細邊框檢查仍須由鍵盤前的人來做。
+#
+# Measured on a 648x726 window capture at 100% display scale.
+# 量測自一張 648x726 的視窗截圖，顯示縮放 100%。
+click,78,295,frame,left,,,"Set 12345" -- Length becomes 5,windows
+sleep,,,,,,800000,,windows
+click,163,295,frame,left,,,"Clear" -- Length becomes 0,windows
+sleep,,,,,,800000,,windows
+click,135,128,frame,left,,,"Use expanded Picker options" -- options must grow (#449),windows
+sleep,,,,,,900000,,windows
+click,103,528,frame,left,,,"Enable button row" -- the disabled row becomes live,windows
+sleep,,,,,,800000,,windows
+click,115,646,frame,left,,,"Allow window resizing" -- the maximise button must return (#401),windows
+sleep,,,,,,1800000,hold for the capture,windows

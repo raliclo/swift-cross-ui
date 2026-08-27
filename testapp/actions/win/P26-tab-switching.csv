@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P26 on Windows, GtkBackend: switch tabs, and land on the one that is actually
+# running something.
+#
+# The Summary tab is a table and shows at launch. The SwiftUI tab is a
+# description -- SwiftUI does not exist on this platform and the app says so
+# rather than leaving a blank. The SwiftCrossUI tab is the live one: it loads
+# images over the network and has a click counter that stays usable while a
+# load is in flight, which is what makes "the UI did not block" checkable.
+#
+# So the file ends on SwiftCrossUI and clicks its counter, twice. If the count
+# moves while a load is running, the load is not on the main thread.
+#
+# P26 於 Windows、GtkBackend：切換分頁，並停在真正有東西在跑的那一頁。
+#
+# Summary 分頁是一個表格，啟動時即顯示。SwiftUI 分頁是文字描述——SwiftUI 在本平台並不存在，
+# 而本 app 明說此事，而非留下空白。SwiftCrossUI 分頁才是活的那一個：它會透過網路載入圖片，
+# 並有一個在載入進行中仍可使用的點擊計數器——這正是「UI 沒有被卡住」得以查證的依據。
+#
+# 因此本檔最後停在 SwiftCrossUI，並點擊它的計數器兩次。若計數在載入進行中仍會增加，代表載入
+# 並未佔用主執行緒。
+#
+# Measured on a 928x688 window capture at 100% display scale.
+# 量測自一張 928x688 的視窗截圖，顯示縮放 100%。
+click,162,73,frame,left,,,the SwiftUI tab,windows
+sleep,,,,,,1200000,,windows
+click,255,73,frame,left,,,the SwiftCrossUI tab -- the live one,windows
+sleep,,,,,,2500000,let the first loads start,windows
+click,72,73,frame,left,,,back to Summary and out again -- tabs must not lose state,windows
+sleep,,,,,,1000000,,windows
+click,255,73,frame,left,,,SwiftCrossUI again,windows
+sleep,,,,,,3000000,hold for the capture,windows

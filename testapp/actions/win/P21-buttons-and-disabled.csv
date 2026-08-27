@@ -1,4 +1,4 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P21 on Windows: does a synthesised click reach a control, and does a disabled
 # control refuse one?
 #
@@ -8,16 +8,14 @@ action,x,y,origin,button,key,micros,note
 # distinguishes them, and it is also what makes the disabled half meaningful:
 # three clicks on Enabled then two on Disabled must read 3, not 5 and not 0.
 #
-# Verified 2026-08-26, GtkBackend `-gtk4` build, on an unlocked desktop: the app
-# afterwards read `Button — clicks: 3` and `Checkbox style — true`. Six clicks at
-# five different positions across five state changes, every one of them landing,
-# which is also what makes this file the control for the failures recorded in
-# `testapp/P0-P26-windows-findings.md`.
+# Re-measured 2026-08-27 at 100% display scale, on a fresh 848x746 window
+# capture. The 125% version of this file carried (56,195); the same button is
+# at (70,244) now. Those differ by exactly the scale, which is a check on the
+# measurement rather than the method used to get it -- the numbers below were
+# read off the new capture, not multiplied.
 #
 # `frame` origin, because testapp/screenshot.zsh -w captures the window with its
 # title bar and every coordinate below was measured on such a capture.
-# Divided by the display scale (125% here): the capture is in physical pixels,
-# this format is in logical points. See testapp/actions/win/README.md.
 #
 # P21 於 Windows：合成的點擊能否抵達控制項？被停用的控制項會不會拒絕它？
 #
@@ -25,35 +23,37 @@ action,x,y,origin,button,key,micros,note
 # ——兩者的按鈕外觀完全相同——因此「Button」旁邊的數字是唯一能分辨的依據，也正是它讓被停用
 # 的那一半具有意義：在 Enabled 上點三次、再於 Disabled 上點兩次，結果必須是 3，而非 5，也非 0。
 #
-# 於 2026-08-26 以 GtkBackend `-gtk4` 建置、在未鎖定的桌面上驗證：執行後 app 顯示
-# `Button — clicks: 3` 與 `Checkbox style — true`。跨越五次狀態變更、於五個不同位置點擊六次，
-# 每一次都命中——這也正是本檔成為
-# `testapp/P0-P26-windows-findings.md` 中所記錄那些失敗之對照組的原因。
+# 於 2026-08-27、顯示縮放 100%，在一張新的 848x746 視窗截圖上重新量測。125% 版本的本檔寫的是
+# (56,195)，同一個按鈕現在位於 (70,244)。兩者恰好差一個縮放比例——這是對「量測結果」的驗算，
+# 而非取得該結果的方法：下方數字是從新截圖上讀出來的，不是乘出來的。
 #
 # 使用 `frame` 原點，因為 testapp/screenshot.zsh -w 擷取的視窗含標題列，而下方每個座標都是在
-# 這樣的截圖上量得的。並已除以顯示縮放比例（此處為 125%）：截圖以實體像素計，本格式以邏輯點計。
-# 詳見 testapp/actions/win/README.md。
-move,56,195,frame,,,,hover the enabled Button first
-sleep,,,,,,500000,let the prelight settle so a miss is visible in the capture
-click,56,195,frame,left,,,enabled click 1
-sleep,,,,,,400000,
-click,56,195,frame,left,,,enabled click 2
-sleep,,,,,,400000,
-click,56,195,frame,left,,,enabled click 3 -- counter must now read 3
-sleep,,,,,,600000,
+# 這樣的截圖上量得的。
+move,70,244,frame,,,,hover the enabled Button first,windows
+sleep,,,,,,500000,let the prelight settle so a miss is visible in the capture,windows
+click,70,244,frame,left,,,enabled click 1,windows
+sleep,,,,,,400000,,windows
+click,70,244,frame,left,,,enabled click 2,windows
+sleep,,,,,,400000,,windows
+click,70,244,frame,left,,,enabled click 3 -- counter must now read 3,windows
+sleep,,,,,,600000,,windows
 # The disabled half. Same row, same size, same handler behind it; the only
 # difference is `.disabled(true)`. If the counter moves past 3 the disable is
 # cosmetic, which is the failure this app was written to catch.
 # 停用的那一半。同一列、同樣大小、背後同一個 handler，唯一差別是 `.disabled(true)`。若計數超過 3，
 # 代表該停用只是外觀上的——而這正是本 app 當初被寫出來要抓的失敗。
-click,128,195,frame,left,,,disabled click 1 -- must not count
-sleep,,,,,,400000,
-click,128,195,frame,left,,,disabled click 2 -- must not count
-sleep,,,,,,600000,
-# A different widget kind, because a Button is the easiest case for any
-# backend. A checkbox has its own hit area and its own state, so it fails
-# separately from the button above.
-# 換一種 widget，因為對任何 backend 而言，Button 都是最容易的情況。checkbox 有自己的命中範圍與
-# 自己的狀態，因此它的失敗與上方按鈕的失敗是各自獨立的。
-click,77,435,frame,left,,,tick the enabled checkbox -- the line above must read true
-sleep,,,,,,1200000,hold for the screenshot
+click,160,244,frame,left,,,disabled click 1 -- must not count,windows
+sleep,,,,,,400000,,windows
+click,160,244,frame,left,,,disabled click 2 -- must not count,windows
+sleep,,,,,,600000,,windows
+# Different widget kinds, because a Button is the easiest case for any backend.
+# A checkbox and a switch each have their own hit area and their own state, so
+# they fail separately from the button above.
+# 換上不同種類的 widget，因為對任何 backend 而言 Button 都是最容易的情況。checkbox 與 switch
+# 各有自己的命中範圍與狀態，因此它們的失敗與上方按鈕的失敗各自獨立。
+click,96,544,frame,left,,,tick the enabled checkbox -- Checkbox style must read true,windows
+sleep,,,,,,600000,,windows
+click,182,544,frame,left,,,the disabled checkbox -- must leave it true,windows
+sleep,,,,,,600000,,windows
+click,112,404,frame,left,,,flip the enabled switch -- ToggleSwitch style must read false,windows
+sleep,,,,,,1200000,hold for the screenshot,windows

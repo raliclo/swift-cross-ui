@@ -55,17 +55,30 @@ window including its title bar, so a pixel measured on that image is a frame
 coordinate. Using `client` would mean subtracting a title bar height that
 nothing here knows.
 
-**Divide by the display scale.** A screenshot is in physical pixels and this
-format is in logical points, and `Win32Synthesiser` multiplies back by
-`GetDpiForWindow`'s scale on the way out. On a 125% display, coordinates taken
-straight off a capture land 25% too far from the window's top-left — a miss that
-grows with distance from the origin, so a target near the title bar looks nearly
-right and one near the bottom of the window is nowhere near.
+**Divide by the display scale — which is 1 today, so today you do not.** A
+screenshot is in physical pixels and this format is in logical points, and
+`Win32Synthesiser` multiplies back by `GetDpiForWindow`'s scale on the way out.
+At 100% those are the same number, so every file here now carries the pixels
+exactly as they were read off the capture. Verified 2026-08-27 on P0 before
+anything else was measured: a click written at the raw capture coordinate
+(238,184) pressed the button under it, and the app's counter moved.
 
-GtkBackend is where this bites, because GTK 4 on Windows does not scale itself:
-its scale factor is an integer, 125% rounds to 1, and one GTK layout unit is one
-physical pixel. So `physical / 1.25` is what a file has to carry, and a file
-written here is correct for this machine's scale rather than for all of them.
+At any other scale a file here is wrong, and wrong in a way that reads as the
+app ignoring input. Between 2026-08-26 and 2026-08-27 this machine went from
+125% to 100%, and every file in this folder had to be **re-measured from fresh
+captures**. Multiplying the old numbers by 1.25 was deliberately not done: a
+factor is easy to apply twice or to the wrong axis, and the result looks exactly
+like a miss caused by anything else.
+
+GtkBackend is where the scale bites, because GTK 4 on Windows does not scale
+itself: its scale factor is an integer, 125% rounded to 1, and one GTK layout
+unit is one physical pixel. That is why the 125% files carried `physical / 1.25`
+and these carry `physical`.
+
+**So check the scale before trusting any of this.** Settings → System → Display
+→ Scale, or `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings" /s` —
+`DpiValue` there is a step offset from the panel's recommended scale, not a
+percentage, so `0xffffffff` is one step below recommended rather than 100%.
 
 ## 每個檔案都必須做對的兩件事
 
@@ -74,11 +87,21 @@ written here is correct for this machine's scale rather than for all of them.
 **使用 `frame` 原點，而非 `client`。** `testapp/screenshot.zsh -w` 擷取的視窗包含標題列，因此在該
 影像上量到的像素就是 frame 座標。若改用 `client`，就必須減去一個此處無人知曉的標題列高度。
 
-**要除以顯示縮放比例。** 截圖以實體像素為單位，本格式以邏輯點為單位，而 `Win32Synthesiser` 在送出
-時會再乘回 `GetDpiForWindow` 的縮放比例。在 125% 的顯示器上，直接從截圖取得的座標會落在距離視窗
-左上角遠 25% 之處——偏差隨著離原點的距離而放大，因此靠近標題列的目標看起來幾乎正確，而靠近視窗
-底部的目標則差得離譜。
+**要除以顯示縮放比例——而今天的比例是 1，所以今天不必除。** 截圖以實體像素為單位，本格式以邏輯點
+為單位，而 `Win32Synthesiser` 在送出時會再乘回 `GetDpiForWindow` 的縮放比例。在 100% 之下兩者是同一
+個數字，因此本資料夾中每個檔案現在都直接照截圖上量到的像素寫入。於 2026-08-27 在量測任何其他東西
+之前先以 P0 驗證：以截圖原始座標 (238,184) 寫下的點擊，按到了該座標下方的按鈕，app 的計數器也隨之
+變動。
 
-會被這件事咬到的是 GtkBackend，因為 Windows 上的 GTK 4 並不自行縮放：它的 scale factor 是整數，
-125% 會取整為 1，一個 GTK 版面單位就等於一個實體像素。因此檔案裡要寫的是 `實體像素 / 1.25`，而
-在此處寫成的檔案，只對本機的縮放比例正確，並非對所有機器都正確。
+在任何其他縮放比例下，本資料夾的檔案都是錯的，而且錯的樣子看起來就像 app 忽略了輸入。2026-08-26
+至 2026-08-27 之間，本機從 125% 改為 100%，此處每個檔案都必須**重新從新的截圖量測**。刻意不採用
+「把舊數字乘以 1.25」的做法：乘法係數很容易乘兩次、或乘錯軸，而結果看起來與任何其他原因造成的落空
+一模一樣。
+
+會被縮放咬到的是 GtkBackend，因為 Windows 上的 GTK 4 並不自行縮放：它的 scale factor 是整數，
+125% 會取整為 1，一個 GTK 版面單位就等於一個實體像素。這正是 125% 時期的檔案寫 `實體像素 / 1.25`、
+而現在的檔案寫 `實體像素` 的原因。
+
+**因此，在相信這裡的任何內容之前，請先確認縮放比例。** 設定 → 系統 → 顯示器 → 縮放，或
+`reg query "HKCU\Control Panel\Desktop\PerMonitorSettings" /s`——其中的 `DpiValue` 是相對於面板建議
+比例的「級距偏移量」，不是百分比，因此 `0xffffffff` 代表「比建議值低一級」，而非 100%。

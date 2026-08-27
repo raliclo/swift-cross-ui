@@ -1,0 +1,38 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17 on Windows, GtkBackend: change the Picker's selection and step the two
+# layout edge cases.
+#
+# #161 is that some backends size a Picker from the selected item and others
+# from the largest. This file selects the shortest option and then the longest;
+# if the control's width changes between the two captures it is sized from the
+# selection, and if it does not it is sized from the largest item. Either
+# answer is a result -- the app cannot report its own width, so the capture is
+# the instrument.
+#
+# #266a steps the aspect-ratio-in-a-ScrollView height. #266b steps the
+# ideal-width VStack's proposed height. Both must settle rather than flicker,
+# which a single capture cannot show; what it can show is the end state, and
+# the numbers in the button labels prove the clicks landed.
+#
+# P17 於 Windows、GtkBackend：改變 Picker 的選取，並逐步調整兩個版面邊界情況。
+#
+# #161 是「有些 backend 依目前選取項目決定 Picker 寬度，有些則依最長的項目」。本檔先選最短的
+# 選項、再選最長的；若該控制項的寬度在兩張截圖之間改變，代表它依選取項目決定寬度，若沒有改變，
+# 則代表依最長項目。兩種答案都是結果——app 無法回報自己的寬度，因此截圖就是量測儀器。
+#
+# #266a 逐步調整「ScrollView 內固定長寬比」的高度，#266b 逐步調整「ideal-width VStack」被提議的
+# 高度。兩者都必須穩定下來而非閃爍，這是單張截圖看不出來的；截圖能顯示的是最終狀態，而按鈕標籤
+# 上的數字則證明點擊命中。
+#
+# Measured on a 928x898 window capture at 100% display scale.
+# 量測自一張 928x898 的視窗截圖，顯示縮放 100%。
+click,334,320,frame,left,,,"Shortest" -- Selected becomes S,windows
+sleep,,,,,,900000,,windows
+click,510,320,frame,left,,,"Longest" -- the widest option,windows
+sleep,,,,,,900000,,windows
+click,356,564,frame,left,,,"Shorter (120)" -- #266a step down,windows
+sleep,,,,,,700000,,windows
+click,356,564,frame,left,,,"Shorter" again,windows
+sleep,,,,,,700000,,windows
+click,480,828,frame,left,,,"More height" -- #266b step up,windows
+sleep,,,,,,1500000,hold for the capture,windows

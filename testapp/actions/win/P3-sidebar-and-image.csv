@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P3 on Windows, GtkBackend: change the image size, then move through the
+# three-column sidebar.
+#
+# #389 -- an oversized image not clipped to its frame -- is already answered by
+# the baseline capture: at launch the app reports `Image size: Large, scale:
+# 2.4x` and the picture stops exactly at the 220x140 black frame. So GtkBackend
+# clips now. This file changes the size to Small and back to Large, which is
+# the case where the fix could still be one-directional: a frame that grows
+# after shrinking has to re-clip.
+#
+# #160 -- the split view laid out wrongly until something updates -- is what
+# "Force state update" and the sidebar rows are for. The sidebar selection is
+# printed, so a click that lands is distinguishable from one that does not.
+#
+# P3 於 Windows、GtkBackend：改變圖片尺寸，然後在三欄式 sidebar 中移動。
+#
+# #389——超框圖片未被裁切至其 frame——基準截圖已給出答案：啟動時 app 回報
+# `Image size: Large, scale: 2.4x`，而圖片恰好止於 220x140 的黑色框線。因此 GtkBackend 現在會裁切。
+# 本檔把尺寸改為 Small 再改回 Large，這正是「修正仍可能只有單向有效」的情況：縮小後又放大的
+# frame 必須重新裁切。
+#
+# #160——分割視圖在有東西更新之前排版錯誤——就是「Force state update」與 sidebar 各列的用途。
+# sidebar 的選取會被印出，因此命中的點擊與落空的點擊可以分辨。
+#
+# Measured on a 988x638 window capture at 100% display scale.
+# 量測自一張 988x638 的視窗截圖，顯示縮放 100%。
+click,632,341,frame,left,,,"Small" -- the image must shrink inside the same frame,windows
+sleep,,,,,,900000,,windows
+click,796,341,frame,left,,,"Large" again -- the frame must re-clip (#389),windows
+sleep,,,,,,900000,,windows
+click,277,334,frame,left,,,"Detail B" in the middle column,windows
+sleep,,,,,,800000,,windows
+click,66,327,frame,left,,,"Split layout" in the sidebar,windows
+sleep,,,,,,900000,,windows
+click,124,400,frame,left,,,"Force state update" -- the snap #160 is about,windows
+sleep,,,,,,1500000,hold for the capture,windows

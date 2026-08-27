@@ -1,0 +1,33 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, GtkBackend: add rows until the table has more than fits, and
+# see whether it scrolls or clips.
+#
+# The question the app was written for is column width -- nothing in the API
+# states one, so each backend picks, and the deliberately uneven contents make
+# the choice visible. That half needs no clicking and the baseline capture
+# answers it: at eight rows the long cell in row 3 is truncated with an
+# ellipsis rather than widening its column.
+#
+# This file drives the other half. `rows: N` beside the buttons proves the
+# clicks landed; the capture afterwards says whether the extra rows scroll,
+# clip, or push the window.
+#
+# P23 於 Windows、GtkBackend：不斷加列直到超出可視範圍，看表格是捲動還是裁切。
+#
+# 本 app 當初要問的是欄寬——API 並未指定寬度，因此各 backend 自行決定，而刻意設計成長短不一的
+# 內容讓這個選擇變得可見。那一半無需點擊，基準截圖即可回答：在八列時，第 3 列的長儲存格是以
+# 省略號截斷，而非把欄位撐寬。
+#
+# 本檔驅動的是另一半。按鈕旁的 `rows: N` 證明點擊命中；事後的截圖則說明多出來的列是捲動、
+# 裁切，還是把視窗撐大。
+#
+# Measured on an 848x648 window capture at 100% display scale.
+# 量測自一張 848x648 的視窗截圖，顯示縮放 100%。
+click,83,225,frame,left,,,"Selection off" -- turn selection on first,windows
+sleep,,,,,,800000,,windows
+click,183,184,frame,left,,,"More rows" -- 8 becomes 12,windows
+sleep,,,,,,800000,,windows
+click,183,184,frame,left,,,again -- 12 becomes 16,windows
+sleep,,,,,,800000,,windows
+click,183,184,frame,left,,,again -- past what the window height holds,windows
+sleep,,,,,,1500000,hold for the capture,windows

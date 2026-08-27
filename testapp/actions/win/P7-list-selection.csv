@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7 on Windows, GtkBackend: does a List report a selection the app asked for,
+# and does clicking a row change it?
+#
+# #476 is that the GTK List starts with the first item already selected even
+# though the binding is nil. The baseline capture settles that half without any
+# clicking: at launch this app reads `Selection: none` and `No sidebar
+# selection`. So the clicks below are about the other half -- whether selection
+# works at all once something asks for it.
+#
+# P7 於 Windows、GtkBackend：List 會回報 app 所要求的選取狀態嗎？點擊某一列會改變它嗎？
+#
+# #476 是「GTK 的 List 在 binding 為 nil 時，第一項就已被選取」。基準截圖無需任何點擊即可判定
+# 這一半：本 app 啟動時顯示 `Selection: none` 與 `No sidebar selection`。因此下方的點擊針對的是
+# 另一半——一旦有東西要求選取，選取功能究竟能不能運作。
+#
+# Measured on a 748x518 window capture at 100% display scale.
+# 量測自一張 748x518 的視窗截圖，顯示縮放 100%。
+click,343,433,frame,left,,,"Select Cherry" -- the app sets the binding itself,windows
+sleep,,,,,,900000,,windows
+click,65,250,frame,left,,,"Apple" in the plain List -- a click must override it,windows
+sleep,,,,,,900000,,windows
+click,317,285,frame,left,,,"Banana" in the split view's sidebar List,windows
+sleep,,,,,,900000,,windows
+click,495,433,frame,left,,,"Add a fruit's worth of text" -- grow the detail pane (#556),windows
+sleep,,,,,,1500000,hold for the capture,windows

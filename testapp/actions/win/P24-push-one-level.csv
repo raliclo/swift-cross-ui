@@ -1,96 +1,90 @@
-action,x,y,origin,button,key,micros,note
-# P24 on Windows: push one level, and stop there.
+action,x,y,origin,button,key,micros,note,platform
+# P24 on Windows, GtkBackend: push three levels, and click a control outside the
+# stack while it is three deep.
 #
-# One, not the three the test plan asks for, and that is the finding. The first
-# click pushes: the window reflows, a "< Back" bar appears above the stack, and
-# the pane reads "Level 1 / Pushed to level 1." From that point on nothing in
-# the app responds to this replay again.
+# The filename says "one level" and is now wrong. It is kept because two other
+# documents cite it by name, and a file that answers to its citations is worth
+# more than one with a tidy name -- see the history below for why one level was
+# ever the finding.
 #
-# Measured twice, 2026-08-26, GtkBackend `-gtk4`:
+# Verified 2026-08-27 on a 1920x1080 display at 100%, GtkBackend `-gtk4`. After
+# this file the app reads:
 #
-#   push, wait 0.9 s, click "Push level 2" twice   -> still Level 1
-#   push, wait 3.0 s, click "Increment counter",
-#                     then click "Push level 2"    -> still Level 1, counter 0
+#   pushes recorded (outside the stack) -> 1
+#   counter -> 1
+#   Level 3 / Pushed to level 3.
 #
-# The second run is the one that matters. "Increment counter" is in the root
-# layout *outside* the stack, so its failure is not about the pushed view: after
-# the push, a click anywhere in this window stops arriving. Both targets were
-# measured on a capture of the app in exactly that state, so they are not
-# stale coordinates.
+# P24 於 Windows、GtkBackend：推入三層，並在已深入三層時點擊堆疊之外的控制項。
 #
-# What this does not distinguish: whether synthesised clicks stop arriving, or
-# whether the app stops responding to clicks at all. Telling those apart needs
-# somebody to click the button by hand, which no action file can do. The same
-# shape appears in `P20-open-level-1.csv`, where the menu's second page is drawn
-# and then ignores everything -- both are cases where SwiftCrossUI has just
-# replaced a subtree.
+# 檔名寫著「one level」，現已不符。保留它是因為另有兩份文件以此名引用；一個「叫得出引用名」的檔案，
+# 價值高於一個名字漂亮的檔案——為何當初只有一層算是發現，見下方沿革。
 #
-# The WSL folder has `P24-push-three.csv`, which pushes three levels in one
-# file. That is not a coordinate difference; it is the same sequence working
-# there and not here.
-#
-# P24 於 Windows：推入一層，然後就到此為止。
-#
-# 只有一層，而非測試計畫要求的三層——而這正是發現本身。第一次點擊確實推入：視窗重新排版、堆疊上方
-# 出現「< Back」列、面板顯示「Level 1 / Pushed to level 1.」。但自此之後，這場重放對 app 中的任何
-# 東西都不再有作用。
-#
-# 於 2026-08-26 以 GtkBackend `-gtk4` 實測兩次：
-#
-#   推入後等 0.9 秒，點擊「Push level 2」兩次        -> 仍停在 Level 1
-#   推入後等 3.0 秒，點擊「Increment counter」，
-#                    再點擊「Push level 2」          -> 仍停在 Level 1，counter 為 0
-#
-# 第二次執行才是關鍵。「Increment counter」位於堆疊**之外**的根層版面，因此它的失敗與被推入的視圖
-# 無關：推入之後，這個視窗內任何位置的點擊都不再送達。兩個目標座標都是在 app 正處於該狀態時的截圖上
-# 量得的，並非過期的座標。
-#
-# 本檔無法區分的是：究竟是合成點擊不再送達，還是 app 根本不再回應任何點擊。要分辨這兩者，需要有人
-# 親手去按那個按鈕，而任何動作檔都做不到。同樣的形狀也出現在 `P20-open-level-1.csv`：選單的第二頁
-# 有被畫出來，卻對一切都沒有反應——兩者都是 SwiftCrossUI 剛剛替換過某個子樹的情況。
-#
-# WSL 資料夾中有 `P24-push-three.csv`，在單一檔案中推入三層。這不是座標差異，而是同一串動作在那邊
-# 可行、在這邊不可行。
+# 於 2026-08-27、1920x1080 顯示器、縮放 100%、GtkBackend `-gtk4` 驗證。執行本檔後 app 顯示上方三行。
 #
 # ---------------------------------------------------------------------------
-# CORRECTION, 2026-08-27. Everything above this line is kept because it is a
-# good example of a confident and wrong finding, and deleting it would hide the
-# shape of the mistake. The conclusion -- "after the push, a click anywhere in
-# this window stops arriving" -- is FALSE.
+# HISTORY, kept deliberately / 沿革，刻意保留
 #
-# It IS a coordinate difference, exactly the one the note above rules out.
-# Pushing a level re-lays out the whole window, and the controls outside the
-# stack move with it. Measured on WSL/GtkBackend with xdotool, a different
-# synthesiser and a different window system:
+# 2026-08-26, WRONG. This file used to push one level and stop, and said so as a
+# finding: "after the push, a click anywhere in this window stops arriving."
+# Measured twice, with the out-of-stack "Increment counter" button as the proof.
 #
-#   push, then click "Increment counter" at its PRE-push (302,256)  -> counter 0
-#   push, then click it at its POST-push (94,231)                   -> counter 1
+# 2026-08-27, CORRECTED. It was a coordinate difference. Pushing a level re-laid
+# out the whole window and the controls outside the stack moved with it, so the
+# clicks were landing on empty space. Recorded as #57 and fixed in 455d735e,
+# "SwiftCrossUI: a NavigationStack push no longer moves everything around it".
 #
-# The same relayout happens on WinUIBackend, so it is SwiftCrossUI's navigation
-# layout rather than either backend's: content sits ~305px inside the frame at
-# level 0 and ~22px inside it at level 1. Recorded as #57.
+# 2026-08-27, RE-DRIVEN here, and both halves now hold on Windows itself rather
+# than by analogy with WSL:
 #
-# Why the original measurement missed it: the note says both targets were taken
-# "on a capture of the app in exactly that state". That is the right method, and
-# something about the application of it went wrong -- most likely the capture
-# used was the pre-push one, since the coordinates it reached are consistent
-# with that. The method was not at fault; believing it had been followed was.
+#   - With the fix in, "Increment counter" is at (101,206) at level 0 and at
+#     (101,206) at level 3. It does not move. Row 7 below clicks it while three
+#     deep and `counter -> 1` afterwards, which is the retraction measured on
+#     the platform the wrong finding was made on.
+#   - Three pushes in one file work. The first pass never got past one.
+#
+# What made the original wrong is worth stating once more, because the method
+# was right and its application was not: the coordinates were taken from a
+# capture of the app before the push, not after.
+#
+# 2026-08-26，錯誤。本檔原本只推入一層便停止，並將此當作發現：「推入之後，這個視窗內任何位置的
+# 點擊都不再送達。」以堆疊之外的「Increment counter」按鈕為證，實測兩次。
+#
+# 2026-08-27，更正。那是座標差異。推入一層會使整個視窗重新排版，堆疊之外的控制項也隨之移動，
+# 因此點擊落在空白處。記錄為 #57，並由 455d735e 修正。
+#
+# 2026-08-27，於此重新驅動，兩半結論現在都成立於 Windows 本身，而非藉由與 WSL 的類比：
+#
+#   - 修正之後，「Increment counter」在 level 0 位於 (101,206)，在 level 3 也位於 (101,206)，
+#     並未移動。下方第 7 列在已深入三層時點擊它，之後 `counter -> 1`——這正是在「當初做出錯誤
+#     發現的那個平台」上量得的撤回證據。
+#   - 單一檔案推入三層可行。第一輪從未超過一層。
+#
+# 原始判斷之所以錯，值得再說一次：方法是對的，套用方法時出了錯——座標取自推入「之前」的截圖。
 #
 # ---------------------------------------------------------------------------
-# 更正，2026-08-27。此線以上的內容全部保留，因為它是「自信而錯誤的發現」的良好範例，刪掉它會使這個
-# 錯誤的形狀一併消失。其結論——「推入之後，這個視窗內任何位置的點擊都不再送達」——是**錯的**。
+# Coordinates / 座標
 #
-# 它就是座標差異，正是上方註記所排除的那一種。推入一層會使整個視窗重新排版，堆疊之外的控制項也隨之
-# 移動。以 WSL/GtkBackend 搭配 xdotool 實測——那是不同的 synthesiser、也是不同的視窗系統：
+# `frame` origin, measured on a 748x598 `screenshot.zsh -w` capture, at 100%
+# display scale, so the pixels are used as they were read. See
+# testapp/actions/win/README.md for why the 125% files divided and these do not.
 #
-#   推入後，以「推入前」的 (302,256) 點擊 Increment counter   -> counter 為 0
-#   推入後，以「推入後」的 (94,231)  點擊同一個按鈕            -> counter 為 1
+# The stack's own buttons DO move between level 0 and level 1 -- (353,401)
+# becomes (367,426) -- because the "< Back" bar appears above the pane. From
+# level 1 onwards they stay put, which is why rows 3 and 5 share a coordinate.
 #
-# 同樣的重新排版在 WinUIBackend 上也會發生，因此這是 SwiftCrossUI 的導覽佈局，而非任一 backend 的：
-# level 0 時內容距 frame 左緣約 305px，level 1 時約 22px。已記錄為 #57。
+# 使用 `frame` 原點，量測自一張 748x598 的 `screenshot.zsh -w` 截圖，顯示縮放為 100%，因此像素
+# 值即照量到的數字使用。125% 時期的檔案為何要相除、這些檔案為何不必，見
+# testapp/actions/win/README.md。
 #
-# 原始量測為何會漏掉：該註記寫著兩個目標都是「在 app 正處於該狀態時的截圖上」量得的。那是正確的方法，
-# 而在套用該方法的過程中出了差錯——最可能是所用的截圖其實是推入前的那一張，因為它所抵達的座標與此
-# 一致。有問題的不是方法，而是「相信方法已被遵循」這件事。
-click,251,321,frame,left,,,Push level 1 -- root layout
-sleep,,,,,,10000000,hold long enough for a capture
+# 堆疊「自己的」按鈕在 level 0 與 level 1 之間**確實**會移動——(353,401) 變成 (367,426)——因為
+# 面板上方多出了「< Back」列。從 level 1 之後便固定不變，這就是第 3 列與第 5 列共用同一座標的原因。
+click,353,401,frame,left,,,push level 1 -- the link at level 0,windows
+sleep,,,,,,1000000,let the push settle,windows
+click,367,426,frame,left,,,push level 2 -- the link at level 1,windows
+sleep,,,,,,1000000,,windows
+click,367,426,frame,left,,,push level 3 -- same place as level 1,windows
+sleep,,,,,,1000000,,windows
+click,101,206,frame,left,,,increment counter -- OUTSIDE the stack while three deep,windows
+sleep,,,,,,600000,,windows
+click,374,466,frame,left,,,record a push -- the plain button at level 3,windows
+sleep,,,,,,1500000,hold for the capture,windows

@@ -1,5 +1,24 @@
 # Driving P0–P26 with `-actionfile` on Windows
 
+> **This describes the first pass, at 125% display scale, and is superseded per
+> app.** A second pass on 2026-08-27 re-measured everything at 100% and took the
+> folder from 6 action files to 17. Each file's own header now records what it
+> drives, what it found and when it was verified, so **the file is the record
+> and this document is the history**. Read `testapp/actions/win/<app>.csv` before
+> anything here.
+>
+> Two findings below were retracted by that pass and are struck through where
+> they appear. Both were coordinate mistakes that read as the app ignoring
+> input, which is the failure this whole document keeps circling.
+>
+> **本文件描述的是第一輪、於 125% 顯示縮放下的結果，並已逐 app 被取代。** 2026-08-27 的第二輪在
+> 100% 之下重新量測了全部項目，並使該資料夾從 6 個動作檔增為 17 個。每個檔案的標頭現在都記錄了它
+> 驅動什麼、發現什麼、以及何時驗證，因此**檔案才是紀錄，本文件是沿革**。在相信此處任何內容之前，
+> 請先讀 `testapp/actions/win/<app>.csv`。
+>
+> 下方有兩項發現已被該輪撤回，並於其出現處以刪除線標示。兩者都是「看起來像 app 忽略輸入」的座標
+> 錯誤——正是本文件反覆繞回的那種失敗。
+
 What `Win32Synthesiser` does when it is pointed at each test app's own window,
 judged by a screenshot of that app afterwards. Issue #26.
 

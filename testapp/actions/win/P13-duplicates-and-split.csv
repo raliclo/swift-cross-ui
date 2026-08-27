@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13 on Windows, GtkBackend: ForEach identity (#415) and the split view's
+# minimum width (#291).
+#
+# "More duplicates" adds another element with the same content to both lists.
+# The Identifiable column is the control and must grow; the non-Identifiable
+# one is #415 and is hidden until the crash button is pressed.
+#
+# "Narrower" steps the split view's frame down. #291 is that the minimum width
+# is deduced correctly and then never honoured, so what to look at afterwards
+# is whether the sidebar keeps its own minimum or is squeezed past it.
+#
+# "Show unidentified list (may crash)" is DELIBERATELY NOT CLICKED. It crashes
+# on purpose, and a file that ends by killing its own app cannot be judged by a
+# screenshot afterwards. Its coordinate, for anyone who wants it, is (462,182).
+#
+# P13 於 Windows、GtkBackend：ForEach identity（#415）與分割視圖的最小寬度（#291）。
+#
+# 「More duplicates」會在兩份清單中各加入一個內容相同的元素。Identifiable 那一欄是對照組，
+# 應該要增長；non-Identifiable 那一欄即為 #415，在按下 crash 按鈕之前都是隱藏的。
+#
+# 「Narrower」會逐步縮小分割視圖的 frame。#291 是「最小寬度算得正確、卻從未被遵守」，因此事後
+# 要看的是：sidebar 是否守住自己的最小寬度，還是被壓得更窄。
+#
+# 「Show unidentified list (may crash)」**刻意不點**。它是故意會 crash 的，而一個結尾會殺掉自己
+# app 的檔案，事後無法用截圖判定。若有人需要，它的座標是 (462,182)。
+#
+# Measured on a 928x798 window capture at 100% display scale.
+# 量測自一張 928x798 的視窗截圖，顯示縮放 100%。
+click,267,182,frame,left,,,"More duplicates (3)" -- becomes 4,windows
+sleep,,,,,,800000,,windows
+click,267,182,frame,left,,,again -- becomes 5,windows
+sleep,,,,,,800000,,windows
+click,324,474,frame,left,,,"Narrower (400)",windows
+sleep,,,,,,700000,,windows
+click,324,474,frame,left,,,"Narrower" again,windows
+sleep,,,,,,700000,,windows
+click,324,474,frame,left,,,"Narrower" a third time -- past the deduced minimum,windows
+sleep,,,,,,1500000,hold for the capture,windows

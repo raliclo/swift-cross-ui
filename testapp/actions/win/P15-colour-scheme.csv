@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15 on Windows, GtkBackend: press each colour-scheme button and watch the
+# "Requested:" line.
+#
+# GtkBackend declares `canOverrideWindowColorScheme = false`, so these buttons
+# are EXPECTED to change nothing visible. That is why the app prints
+# "Requested: X  Resolved: Y" -- `Requested` moves because the click landed,
+# `Resolved` stays because the backend does not honour it. Without that line a
+# working click and a dead one would look identical, which is the trap this
+# file exists to avoid.
+#
+# The real #386 test is the ambient theme, not the override, and no action file
+# can set it: `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` is what the
+# upstream screenshots were taken under.
+#
+# P15 於 Windows、GtkBackend：按下每個配色方案按鈕，並觀察「Requested:」那一行。
+#
+# GtkBackend 宣告 `canOverrideWindowColorScheme = false`，因此這些按鈕**預期**不會改變任何可見的
+# 東西。這正是本 app 印出「Requested: X  Resolved: Y」的理由——`Requested` 會變動代表點擊命中，
+# `Resolved` 不變則代表 backend 並不遵守它。少了那一行，「有效的點擊」與「無效的點擊」看起來
+# 一模一樣，而本檔正是為了避開這個陷阱而存在。
+#
+# 真正的 #386 測試是環境主題而非覆寫，且沒有任何動作檔能設定它：上游的截圖是在
+# `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` 之下取得的。
+#
+# Measured on a 748x558 window capture at 100% display scale.
+# 量測自一張 748x558 的視窗截圖，顯示縮放 100%。
+click,349,213,frame,left,,,"Light" -- Requested must become light,windows
+sleep,,,,,,900000,,windows
+click,417,213,frame,left,,,"Dark" -- Requested must become dark,windows
+sleep,,,,,,900000,,windows
+click,373,338,frame,left,,,the "Toggle" button in the sample row,windows
+sleep,,,,,,600000,,windows
+click,265,479,frame,left,,,"Use tall content" -- changes the window's minimum height (#289),windows
+sleep,,,,,,1500000,hold for the capture,windows

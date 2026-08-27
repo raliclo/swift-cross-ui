@@ -1,45 +1,47 @@
-action,x,y,origin,button,key,micros,note
+action,x,y,origin,button,key,micros,note,platform
 # P8 step 3 on Windows: the control. Pointer over the outer scroll view, clear
 # of the horizontal strip, then scroll down. The `Outer row N` labels move.
 #
-# Verified 2026-08-26, GtkBackend `-gtk4` build: before the replay the window
-# shows `Outer row 0` through `Outer row 3` above the H0..H13 strip; after it,
-# the strip is at the top and `Outer row 5` through `Outer row 8` are below it.
+# Re-measured 2026-08-27 at 100% display scale on a fresh 668x598 window
+# capture. Before the replay the window shows `Outer row 0` through
+# `Outer row 3` above the H0..H13 strip.
 #
 # What this proves here is not what the WSL file proves. On WSLg the question
 # was whether a GTK `ScrolledWindow` receives a scroll at all; here it is
 # whether `SendInput`'s `MOUSEEVENTF_WHEEL` reaches it -- a different mechanism
 # with its own sign convention. Windows counts a positive wheel delta as
 # rotation *away* from the user, which scrolls up, so `Win32Synthesiser` negates
-# `dy` and `scroll,0,4` still means four notches **down**. The run above is what
-# says that negation is right; a file that scrolled up would look like a
-# perfectly ordinary scroll and prove the opposite.
+# `dy` and `scroll,0,4` still means four notches **down**. The run is what says
+# that negation is right; a file that scrolled up would look like a perfectly
+# ordinary scroll and prove the opposite.
 #
 # The pointer is placed by `move`, not by `scroll`: a wheel event goes wherever
 # the pointer already is, and the verb deliberately carries no position.
 #
 # The ten-second tail is there so a capture can be taken while the replay is
 # still running. Nothing needs it -- the scroll position survives the replay --
-# but a `screenshot.zsh` call takes the better part of a minute to return here,
-# and a run that has already exited cannot be photographed at all.
+# but a `screenshot.zsh -w` call takes about 55 seconds to return here, almost
+# all of it inside one `tasklist /v`, and a run that has already exited cannot
+# be photographed at all.
 #
 # P8 步驟 3 於 Windows：對照組。指標置於外層捲動視圖、避開水平長條，然後向下捲動，
 # `Outer row N` 標籤會移動。
 #
-# 於 2026-08-26 以 GtkBackend `-gtk4` 建置驗證：重放前，視窗顯示 `Outer row 0` 至 `Outer row 3`
-# 位於 H0..H13 長條之上；重放後，長條移到最上方，其下為 `Outer row 5` 至 `Outer row 8`。
+# 於 2026-08-27、顯示縮放 100%，在一張新的 668x598 視窗截圖上重新量測。重放前，視窗顯示
+# `Outer row 0` 至 `Outer row 3` 位於 H0..H13 長條之上。
 #
 # 本檔在此處證明的事情與 WSL 版不同。在 WSLg 上，問題是 GTK 的 `ScrolledWindow` 究竟收不收得到
 # 捲動事件；在此處，問題則是 `SendInput` 的 `MOUSEEVENTF_WHEEL` 能否抵達——那是另一套機制，並有
 # 自己的符號慣例。Windows 把正的滾輪 delta 視為「遠離使用者」的轉動，亦即向上捲動，因此
-# `Win32Synthesiser` 會對 `dy` 取負，使 `scroll,0,4` 仍然代表向**下**四格。上述那次執行正是「該
-# 取負是對的」的證據；若某個檔案實際上是向上捲動，看起來會像一次再普通不過的捲動，卻證明了相反的事。
+# `Win32Synthesiser` 會對 `dy` 取負，使 `scroll,0,4` 仍然代表向**下**四格。實際執行正是「該取負是
+# 對的」的證據；若某個檔案實際上是向上捲動，看起來會像一次再普通不過的捲動，卻證明了相反的事。
 #
 # 指標由 `move` 定位，而非由 `scroll`：滾輪事件會送往指標已在之處，而該動作刻意不帶位置。
 #
 # 結尾的十秒是為了讓截圖能在重放仍在進行時取得。這件事本身並非必要——捲動位置在重放結束後仍會保留
-# ——但此處呼叫一次 `screenshot.zsh` 要將近一分鐘才返回，而一個已經結束的執行根本無從拍攝。
-move,267,300,frame,,,,over "Outer row 1", clear of the strip
-sleep,,,,,,400000,
-scroll,0,4,,,,,four notches down
-sleep,,,,,,10000000,hold long enough for a capture
+# ——但此處呼叫一次 `screenshot.zsh -w` 約需 55 秒才返回，其中絕大部分耗在單次 `tasklist /v` 上，
+# 而一個已經結束的執行根本無從拍攝。
+move,334,375,frame,,,,over "Outer row 1" and clear of the strip,windows
+sleep,,,,,,400000,,windows
+scroll,0,4,,,,,four notches down,windows
+sleep,,,,,,10000000,hold long enough for a capture,windows
