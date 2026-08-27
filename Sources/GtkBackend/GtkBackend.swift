@@ -125,18 +125,49 @@ public final class GtkBackend:
 
     private var logsPerformed: Set<LogLocation> = []
 
+    /// Reports a backend limitation to the app author, once per call site.
+    ///
+    /// The body was wrapped in `#if DEBUG` and is no longer. This project builds
+    /// release by default -- see the `testapp/compile.zsh` policy in CLAUDE.md --
+    /// so the one message this method carries, "GTK does not support setting
+    /// maximum window sizes", printed in no configuration anything is actually
+    /// run in. A request the backend silently drops, with nothing said about it,
+    /// is #38's defect exactly.
+    ///
+    /// It is not gated on `SCUI_DEBUG` either: this is not a developer trace but
+    /// something the author of the app needs to be told, and needing a special
+    /// build to be told is how the silence happened in the first place.
+    /// `logger.notice` outranks the release log level (`.info`, set in
+    /// `App.logHandler`), and the once-per-location set is what stops a call made
+    /// every frame from repeating.
+    ///
+    /// The name is kept: `UIKitBackend` and `WinUIBackend` declare the same
+    /// method, and renaming it in one backend alone costs more than it buys.
+    ///
+    /// 向 app 作者回報 backend 的限制，每個呼叫點只回報一次。
+    ///
+    /// 本方法主體原先包在 `#if DEBUG` 之中，現已移除。本專案預設建置 release——見 CLAUDE.md 中的
+    /// `testapp/compile.zsh` 政策——因此它唯一攜帶的訊息「GTK does not support setting maximum
+    /// window sizes」，在任何實際執行的組態中都不會印出。backend 默默丟棄一項要求、且對此隻字
+    /// 未提，正是 #38 的缺陷。
+    ///
+    /// 它也不以 `SCUI_DEBUG` 為條件：這並非開發者用的追蹤訊息，而是 app 作者必須被告知的事；
+    /// 而「必須改用特殊建置才會被告知」，正是當初造成沉默的原因。`logger.notice` 高於 release 的
+    /// log 層級（`.info`，設定於 `App.logHandler`），而「每個位置只報一次」的集合則使得逐幀呼叫
+    /// 不會重複輸出。
+    ///
+    /// 名稱維持不變：`UIKitBackend` 與 `WinUIBackend` 都宣告了同名方法，只在單一 backend 改名，
+    /// 代價高於收益。
     func debugLogOnce(
         _ message: String,
         file: String = #file,
         line: Int = #line,
         column: Int = #column
     ) {
-        #if DEBUG
-            let location = LogLocation(file: file, line: line, column: column)
-            if logsPerformed.insert(location).inserted {
-                logger.notice("\(message)")
-            }
-        #endif
+        let location = LogLocation(file: file, line: line, column: column)
+        if logsPerformed.insert(location).inserted {
+            logger.notice("\(message)")
+        }
     }
 
     // A separate initializer to satisfy `BackendFeatures.Core`'s requirements.

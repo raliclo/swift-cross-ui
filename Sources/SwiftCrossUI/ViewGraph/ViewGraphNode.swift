@@ -110,17 +110,27 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
 
         // Update the view and its children when state changes (children are always updated first).
         forEachField(of: view) { name, _, fieldValue in
-            #if DEBUG
-                if name == "state", fieldValue is ObservableObject {
-                    logger.warning(
-                        """
-                        the View.state protocol requirement has been removed in favour of \
-                        SwiftUI-style @State annotations; decorate \(NodeView.self).state \
-                        with the @State property wrapper to restore previous behaviour
-                        """
-                    )
-                }
-            #endif
+            // Ungated, for the same reason as the `App.state` notice in
+            // `_App.swift`: a view whose `state` is no longer observed compiles
+            // and then stops updating, and `#if DEBUG` kept the explanation out
+            // of the release builds this project makes by default. This one runs
+            // per node creation rather than once, but the check is a string
+            // compare inside a reflection walk that happens anyway, and the
+            // warning itself only fires on code that is already broken.
+            //
+            // 不設條件，理由與 `_App.swift` 中的 `App.state` 提示相同：一個 `state` 不再被觀察的
+            // view 能夠編譯，然後就此停止更新，而 `#if DEBUG` 使這段說明不存在於本專案預設產生的
+            // release 建置中。此處是每次建立節點時執行、而非只執行一次，但該檢查只是一趟本來就
+            // 會發生的 reflection 走訪中的一次字串比較，而警告本身也只會對已經壞掉的程式碼觸發。
+            if name == "state", fieldValue is ObservableObject {
+                logger.warning(
+                    """
+                    the View.state protocol requirement has been removed in favour of \
+                    SwiftUI-style @State annotations; decorate \(NodeView.self).state \
+                    with the @State property wrapper to restore previous behaviour
+                    """
+                )
+            }
 
             guard let value = fieldValue as? any ObservableProperty else {
                 return  // i.e. continue

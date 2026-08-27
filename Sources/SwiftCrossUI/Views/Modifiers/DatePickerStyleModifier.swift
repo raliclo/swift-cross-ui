@@ -35,11 +35,11 @@ extension View {
                 // that is unsupported is a property of the backend, not of the
                 // moment, so saying it once is saying it.
                 //
-                // `PickerStyleModifier` still has only the `assertionFailure`,
-                // which is the same defect waiting in the same place.
+                // `PickerStyleModifier` carried the same defect and now carries
+                // the same fix; keep the two in step.
                 //
-                // `PickerStyleModifier` 目前仍只有 `assertionFailure`，那是同一個缺陷、
-                // 潛伏在同一個位置。
+                // `PickerStyleModifier` 曾有同一個缺陷，如今也套用了同一個修法；請讓兩者
+                // 保持一致。
                 if warnedDatePickerStyles.insert(resolved ?? .automatic).inserted {
                     logger.warning(
                         """

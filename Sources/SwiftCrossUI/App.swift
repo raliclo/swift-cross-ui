@@ -1,3 +1,4 @@
+import DebugFeatures
 import Foundation
 import Logging
 
@@ -133,7 +134,25 @@ extension App {
         #if DEBUG
             logHandler.logLevel = .debug
         #else
-            logHandler.logLevel = .info
+            // A release build floors out at `.info`, so every `logger.debug` and
+            // `logger.trace` in this package is discarded in the only
+            // configuration the project builds by default. That is not a level
+            // choice, it is the diagnostics being unreachable: there was no way
+            // to turn them on short of switching to a debug build, which changes
+            // the optimiser settings too and so is not the same program.
+            //
+            // `DebugFeatures.isEnabled` is the way to ask for them: build with
+            // `SCUI_DEBUG=1`, run with `--debug`. A build without the define
+            // initialises it to `false` and this stays exactly the old `.info`.
+            //
+            // release 建置的下限是 `.info`，因此本套件中所有的 `logger.debug` 與 `logger.trace`
+            // 在本專案唯一預設建置的組態中都會被丟棄。這並不是「層級選得不好」，而是這些診斷根本
+            // 無從觸及：除了改用 debug 建置別無他法，而 debug 建置連最佳化設定也一併改變，那已
+            // 不是同一個程式。
+            //
+            // `DebugFeatures.isEnabled` 就是索取它們的方式：以 `SCUI_DEBUG=1` 建置、以 `--debug`
+            // 執行。未定義該旗標的建置會將它初始化為 `false`，行為與原本的 `.info` 完全相同。
+            logHandler.logLevel = DebugFeatures.isEnabled ? .debug : .info
         #endif
         return logHandler
     }
@@ -164,6 +183,16 @@ extension App {
         _logger = Logger(label: "SwiftCrossUI", factory: logHandler(label:metadataProvider:))
         #if DEBUG
             _logger!.logLevel = .debug
+        #else
+            // Set on the `Logger` as well as on the handler, because an app that
+            // supplies its own `logHandler` never runs the branch above and would
+            // otherwise ignore `--debug` entirely.
+            //
+            // 除了 handler 之外也在 `Logger` 上設定，因為自備 `logHandler` 的 app 根本不會執行
+            // 上方那個分支，否則它將完全無視 `--debug`。
+            if DebugFeatures.isEnabled {
+                _logger!.logLevel = .debug
+            }
         #endif
 
         // Check for an error once the logger is ready.

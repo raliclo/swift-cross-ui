@@ -1,3 +1,5 @@
+import DebugFeatures
+
 /// A control for editing multiline text.
 public struct TextEditor: ElementaryView {
     /// The editor's content.
@@ -60,23 +62,27 @@ public struct TextEditor: ElementaryView {
         let content = self.text
 
         backend.updateTextEditor(widget, environment: environment) { newValue in
-            // We perform this check in debug mode to catch backends that cause
-            // unnecessary binding writes, but avoid doing so in release mode
-            // because comparing text may often be more expensive than just
-            // avoiding the additional write at the backend level. These
-            // additional writes are often the result of the handler being
-            // triggered when we call backend.setContent(ofTextEditor:to:)
-            #if DEBUG
-                if text == newValue {
-                    logger.warning(
-                        """
-                        Unnecessary write to text Binding of TextEditor detected, \
-                        please open an issue at \(Meta.issueReportingURL) \
-                        so we can fix it for \(type(of: backend)).
-                        """
-                    )
-                }
-            #endif
+            // We perform this check to catch backends that cause unnecessary
+            // binding writes, but not unconditionally, because comparing text
+            // may often be more expensive than just avoiding the additional
+            // write at the backend level. These additional writes are often the
+            // result of the handler being triggered when we call
+            // backend.setContent(ofTextEditor:to:)
+            //
+            // On `SCUI_DEBUG` rather than `#if DEBUG`, for the reasons set out
+            // at the matching check in `TextField.swift`.
+            //
+            // 改以 `SCUI_DEBUG` 為條件、而非 `#if DEBUG`，理由詳見 `TextField.swift` 中對應的
+            // 檢查。
+            if DebugFeatures.isEnabled, text == newValue {
+                logger.warning(
+                    """
+                    Unnecessary write to text Binding of TextEditor detected, \
+                    please open an issue at \(Meta.issueReportingURL) \
+                    so we can fix it for \(type(of: backend)).
+                    """
+                )
+            }
             self.text = newValue
         }
         if text != backend.getContent(ofTextEditor: widget) {

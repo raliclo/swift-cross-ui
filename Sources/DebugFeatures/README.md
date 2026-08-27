@@ -90,6 +90,45 @@ iteration even when the output is discarded.
 | `-actionfile <path>` | replays the file | not recognised |
 | `DebugFeatures.log` | writes to stderr | compiled out |
 | `InputEvent` module | linked | not a dependency |
+| log level (release) | `.debug` | `.info` |
+| the per-event checks below | run | folded away |
+
+SwiftCrossUI reads `isEnabled` at four places where a diagnostic costs something
+on every event: the unnecessary-binding-write checks in `TextField`,
+`SecureField` and `TextEditor` (a string compare per keystroke) and the
+stop-ordering check in `Gradient` (a `sorted(by:)` allocation per gradient
+constructed, during layout). It also decides the release log level in
+`App.logHandler`, which is what makes every `logger.debug` and `logger.trace` in
+the package reachable at all.
+
+SwiftCrossUI 在四個「每次事件都要付出代價」的診斷處讀取 `isEnabled`：`TextField`、`SecureField`
+與 `TextEditor` 中的「不必要 binding 寫入」檢查（每次按鍵一次字串比較），以及 `Gradient` 中的
+stop 排序檢查（每建構一個 gradient 就多配置一次 `sorted(by:)` 的陣列，且發生在排版期間）。它同時
+決定 `App.logHandler` 在 release 下的 log 層級，而那正是使本套件中所有 `logger.debug` 與
+`logger.trace` 得以被觸及的關鍵。
+
+## What is deliberately *not* gated on it
+
+A message telling the app author that something they asked for was not honoured
+is not a developer trace, and putting it behind a build flag is how it goes
+unnoticed. Those are plain `logger.warning`/`logger.notice` calls, visible in an
+ordinary release build with no flag at all, kept from repeating by a once-only
+set rather than by a compile-time switch: `datePickerStyle`/`pickerStyle`
+reporting a style the backend downgraded (#38), `dismiss()` called with no
+presentation context, the `App.state`/`View.state` migration notices, and
+`GtkBackend.debugLogOnce`. All of those were `#if DEBUG` or an `assertionFailure`
+alone, and so printed in no configuration this project builds -- `compile.zsh`
+builds release. See `Sources/SwiftCrossUI/Logging.swift` for `logger.warnOnce`,
+which does the once-only bookkeeping when keying by source location is enough.
+
+「告知 app 作者其要求未被滿足」的訊息並不是開發者用的追蹤訊息，而把它藏在建置旗標之後，正是它
+之所以沒人注意到的原因。這類訊息一律是單純的 `logger.warning`／`logger.notice`，在一般 release
+建置中不需任何旗標即可見，並以「只報一次」的集合而非編譯期開關來避免重複：
+`datePickerStyle`／`pickerStyle` 回報被 backend 降級的 style（#38）、在沒有 presentation context
+時呼叫 `dismiss()`、`App.state`／`View.state` 的遷移提示，以及 `GtkBackend.debugLogOnce`。上述
+全部原本都是 `#if DEBUG` 或僅有一個 `assertionFailure`，因此在本專案建置的任何組態中都不會印出
+——`compile.zsh` 建置的是 release。若以 source location 作為鍵已足夠，請見
+`Sources/SwiftCrossUI/Logging.swift` 中的 `logger.warnOnce`，它已代為處理「只報一次」的記帳。
 
 The last row is the reason this lives in the package manifest rather than
 being a plain `#if`. SwiftPM cannot make a *target* conditional, but the

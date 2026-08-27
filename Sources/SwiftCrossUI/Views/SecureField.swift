@@ -1,3 +1,5 @@
+import DebugFeatures
+
 /// A control that displays an editable text interface, hiding characters
 /// as they're typed.
 public struct SecureField: ElementaryView, View {
@@ -50,23 +52,24 @@ public struct SecureField: ElementaryView, View {
             placeholder: placeholder,
             environment: environment,
             onChange: { newValue in
-                #if DEBUG
-                    // We perform this check in debug mode to catch backends that cause
-                    // unnecessary binding writes, but avoid doing so in release mode
-                    // because comparing text may often be more expensive than just
-                    // avoiding the additional write at the backend level. These
-                    // additional writes are often the result of the handler being
-                    // triggered when we call backend.setContent(ofTextField:to:)
-                    if self.text == newValue {
-                        logger.warning(
-                            """
-                            Unnecessary write to text Binding of SecureField detected, \
-                            please open an issue at \(Meta.issueReportingURL) \
-                            so we can fix it for \(type(of: backend)).
-                            """
-                        )
-                    }
-                #endif
+                // On `SCUI_DEBUG` rather than `#if DEBUG`, for the reasons set
+                // out at the matching check in `TextField.swift`: the cost of
+                // comparing text on every keystroke is why it is conditional at
+                // all, and `#if DEBUG` made it conditional on a configuration
+                // this project never builds.
+                //
+                // 改以 `SCUI_DEBUG` 為條件、而非 `#if DEBUG`，理由詳見 `TextField.swift` 中對應
+                // 的檢查：每次按鍵都比較文字的代價，正是它必須帶條件的原因；而 `#if DEBUG` 讓它
+                // 取決於一個本專案從不建置的組態。
+                if DebugFeatures.isEnabled, self.text == newValue {
+                    logger.warning(
+                        """
+                        Unnecessary write to text Binding of SecureField detected, \
+                        please open an issue at \(Meta.issueReportingURL) \
+                        so we can fix it for \(type(of: backend)).
+                        """
+                    )
+                }
 
                 self.text = newValue
             },

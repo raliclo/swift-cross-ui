@@ -1,3 +1,5 @@
+import DebugFeatures
+
 /// A control that displays an editable text interface.
 public struct TextField: ElementaryView, View {
     /// The ideal width of a `TextField`.
@@ -109,23 +111,38 @@ public struct TextField: ElementaryView, View {
             placeholder: placeholder,
             environment: environment,
             onChange: { newValue in
-                #if DEBUG
-                    // We perform this check in debug mode to catch backends that cause
-                    // unnecessary binding writes, but avoid doing so in release mode
-                    // because comparing text may often be more expensive than just
-                    // avoiding the additional write at the backend level. These
-                    // additional writes are often the result of the handler being
-                    // triggered when we call backend.setContent(ofTextField:to:)
-                    if self.text == newValue {
-                        logger.warning(
-                            """
-                            Unnecessary write to text Binding of TextField detected, \
-                            please open an issue at \(Meta.issueReportingURL) \
-                            so we can fix it for \(type(of: backend)).
-                            """
-                        )
-                    }
-                #endif
+                // This check catches backends that cause unnecessary binding
+                // writes, usually the handler firing because we called
+                // backend.setContent(ofTextField:to:). Comparing text on every
+                // keystroke is often more expensive than the extra write it
+                // detects, so it is not done unconditionally.
+                //
+                // It was `#if DEBUG`, which put it in no configuration this
+                // project builds: `testapp/compile.zsh` builds release, so the
+                // very backends the check exists to catch were never checked.
+                // `DebugFeatures.isEnabled` keeps the cost argument intact -- it
+                // is a `static let` that is `false` and foldable in a build
+                // without `SCUI_DEBUG` -- while making the check reachable in a
+                // release binary built and run with the flag.
+                //
+                // 此檢查用於揪出會造成不必要 binding 寫入的 backend，通常是因為我們呼叫
+                // backend.setContent(ofTextField:to:) 而反過來觸發了 handler。每次按鍵都比較
+                // 文字，往往比它所偵測到的那次多餘寫入還昂貴，因此不無條件執行。
+                //
+                // 它原本是 `#if DEBUG`，而那讓它不存在於本專案建置的任何組態中：
+                // `testapp/compile.zsh` 建置的是 release，於是此檢查存在的目的——揪出有問題的
+                // backend——從來沒有被執行過。`DebugFeatures.isEnabled` 保留了原本的成本論證
+                // ——在未設定 `SCUI_DEBUG` 的建置中，它是一個為 `false` 且可被摺除的
+                // `static let`——同時使該檢查在「以該旗標建置並執行」的 release 執行檔中可觸及。
+                if DebugFeatures.isEnabled, self.text == newValue {
+                    logger.warning(
+                        """
+                        Unnecessary write to text Binding of TextField detected, \
+                        please open an issue at \(Meta.issueReportingURL) \
+                        so we can fix it for \(type(of: backend)).
+                        """
+                    )
+                }
 
                 self.text = newValue
             },

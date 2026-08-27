@@ -60,17 +60,29 @@ class _App<AppRoot: App> {
             dynamicPropertyUpdater.update(app, with: environment, previousValue: nil)
 
             forEachField(of: app) { name, _, fieldValue in
-                #if DEBUG
-                    if name == "state", fieldValue is ObservableObject {
-                        logger.warning(
-                            """
-                            the App.state protocol requirement has been removed in favour of \
-                            SwiftUI-style @State annotations; decorate \(AppRoot.self).state \
-                            with the @State property wrapper to restore previous behaviour
-                            """
-                        )
-                    }
-                #endif
+                // Ungated. This is a migration notice for code that compiles and
+                // then does nothing: an `App.state` that used to be observed no
+                // longer is, and the app simply stops updating. Under `#if DEBUG`
+                // it was missing from the release builds this project makes by
+                // default, so the one configuration a user is likely to hit the
+                // problem in was the one that would not explain it. The reflection
+                // walk runs regardless, so the added cost is a string compare per
+                // field, once, at startup.
+                //
+                // 不設條件。這是給「能編譯、但什麼也不做」的程式碼的遷移提示：原本會被觀察的
+                // `App.state` 不再被觀察，於是 app 就此停止更新。原本置於 `#if DEBUG` 之下時，
+                // 它在本專案預設產生的 release 建置中並不存在——也就是說，使用者最可能遇到此
+                // 問題的那個組態，正是不會給出解釋的那一個。這趟 reflection 走訪本來就會執行，
+                // 因此新增的代價只是啟動時每個欄位一次的字串比較。
+                if name == "state", fieldValue is ObservableObject {
+                    logger.warning(
+                        """
+                        the App.state protocol requirement has been removed in favour of \
+                        SwiftUI-style @State annotations; decorate \(AppRoot.self).state \
+                        with the @State property wrapper to restore previous behaviour
+                        """
+                    )
+                }
 
                 guard let value = fieldValue as? any ObservableProperty else {
                     return // i.e. continue

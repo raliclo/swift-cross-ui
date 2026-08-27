@@ -296,6 +296,25 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Mutex", package: "swift-mutex"),
 
+                // Unconditional, unlike the InputEvent dependencies below, and
+                // that is the point of the split. DebugFeatures is a leaf module
+                // with no dependencies of its own; what `SCUI_DEBUG` changes is
+                // what is inside it, not whether it is linked. So SwiftCrossUI
+                // reads `DebugFeatures.isEnabled` -- a `static let` that a build
+                // without the define initialises to `false` and the optimiser
+                // folds away -- instead of testing `#if SCUI_DEBUG`, which would
+                // require adding `debugSwiftSettings` to this target and is easy
+                // to get wrong silently: `#if` on an undefined flag is not an
+                // error, it is a branch that quietly never compiles.
+                //
+                // 與下方的 InputEvent 依賴不同，此處是無條件的，而這正是兩者分開的理由。
+                // DebugFeatures 是沒有任何自身依賴的葉節點模組；`SCUI_DEBUG` 改變的是它的內容，
+                // 而非它是否被連結。因此 SwiftCrossUI 讀取 `DebugFeatures.isEnabled`——一個在
+                // 未定義該旗標的建置中初始化為 `false`、並被最佳化器摺除的 `static let`——而不是
+                // 測試 `#if SCUI_DEBUG`；後者需要為本 target 加上 `debugSwiftSettings`，且很容易
+                // 靜默出錯：對未定義的旗標使用 `#if` 並不會報錯，只會安靜地永遠不編譯那個分支。
+                "DebugFeatures",
+
                 // This import is purely required to fix a linker issue and a plugin build
                 // error that occur on macOS when building for non-Android platforms now that
                 // we've added the AndroidBackend. Providing the '--disable-experimental-prebuilts'

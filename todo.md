@@ -343,6 +343,18 @@ gave -38,-59 at one and 154,-6 at the other.
 - **P10 launches on Windows, registers a title, and shows no window.** Not
   diagnosed. Rule out a leftover GTK process and a locked workstation before
   forming any hypothesis — both produce exactly this appearance.
+- **The same diagnostics defect is still in UIKitBackend and WinUIBackend.**
+  `Sources/SwiftCrossUI/` and `Sources/GtkBackend/` were done 2026-08-27;
+  UIKitBackend still has three `debugLogOnce` call sites and two bare
+  `assertionFailure`s, and WinUIBackend has a `debugLogOnce`. Same fix, same two
+  mechanisms: an unconditional `logger.warning` where the message is for the
+  author, `DebugFeatures.isEnabled` where the check costs something per event.
+- **`logger.warnOnce(...)` already exists** in `Sources/SwiftCrossUI/Logging.swift`
+  — release-visible, keyed by source location, Mutex-guarded. Prefer it to a
+  hand-rolled `Set` of already-warned values. The two style modifiers cannot use
+  it as-is because they must key by *style* rather than by call site (one call
+  site can be reached with several styles), which is worth fixing in the helper
+  rather than working around twice.
 - **A WinUI build cannot be tested through its own output, by construction.**
   `WinUIBackend.Console.attachToParentConsole()` calls `releaseConsole()` first,
   and that does `freopen_s(&fp, "NUL:", "w", stdout)` and the same for `stderr`
