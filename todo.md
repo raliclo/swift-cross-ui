@@ -343,6 +343,35 @@ gave -38,-59 at one and 154,-6 at the other.
 - **P10 launches on Windows, registers a title, and shows no window.** Not
   diagnosed. Rule out a leftover GTK process and a locked workstation before
   forming any hypothesis — both produce exactly this appearance.
+- **A WinUI build cannot be tested through its own output, by construction.**
+  `WinUIBackend.Console.attachToParentConsole()` calls `releaseConsole()` first,
+  and that does `freopen_s(&fp, "NUL:", "w", stdout)` and the same for `stderr`
+  before `FreeConsole()`; `redirectConsoleIO()` only runs if the following
+  `AttachConsole(-1)` succeeds. So `./Pn.exe > log 2>&1` is **guaranteed** empty
+  however much the app prints. Verified 2026-08-27 by driving all 25 apps: every
+  WinUI build reported "no line" for its `-actionfile:` result while launching
+  and running perfectly.
+
+  What this costs is the class of tests where the app's own *words* are the
+  instrument — the `-actionfile:` result line, P21's click counter, every `[Pn]`
+  diagnostic.
+
+  It does **not** cost the visual evidence, and the first reading of this run
+  said it did. The desktop fallback capture turns out to photograph the WinUI
+  window perfectly, because a freshly launched window is in front: P8's capture
+  shows the rendered app *and* shows the outer list at rows 5-8 rather than 0,
+  which is the scroll its action file performs. So the replay ran and had its
+  effect while reporting "no line". On WinUI the picture is the instrument and
+  the log is not.
+
+  The caveat that remains is that a desktop capture photographs whatever is in
+  front, so it is evidence only while nothing covers the window — which is why
+  the sweep drives one app at a time.
+
+  Worth fixing rather than working around, because it makes one of the two
+  Windows backends untestable. The narrow version is to keep the caller's
+  redirection when there is one: check whether stdout is already a file or pipe
+  before reopening it on `NUL:`.
 - **Not every Pn builds on every backend, and a sweep that assumes so reports a
   false regression.** P4 fails a `-gtk4` build with `missing required module
   'CWinRT'`, and that is by design: it is the WinUI escape-hatch app (#156,
@@ -352,6 +381,14 @@ gave -38,-59 at one and 154,-6 at the other.
   build tree has no swift-winui C module. Its WinUI build is fine. Measured
   2026-08-27, found by a sweep that built all 25 apps both ways. A sweep needs a
   per-app backend policy, not one flag for everything.
+- **`BackendFeatures.Tables` exists in GtkBackend alone, and two apps abort on
+  WinUI because of it.** Not WinUI, not AppKit, not UIKit. `@CastBackend`
+  expands to a `fatalError`, so P23 and P26 — both of which use `Table` — die on
+  launch under WinUIBackend. Measured 2026-08-27 across all 25 apps: 25 build,
+  23 launch and stay up, those two exit inside 14 seconds. Running them *without*
+  an action file is what ruled out the replay as the cause; they die either way.
+  Implementing Tables in WinUIBackend would make two more apps testable there,
+  and is the concrete price of the backend lag noted below.
 - **`swift test` does not run on Windows at all.** `SCUI_HOST_BACKENDS_ONLY=1
   swift test` fails with `missing required modules: 'CGtk', 'GtkCHelpers'` while
   emitting `DefaultBackend` — so the flag that deletes the unbuildable targets

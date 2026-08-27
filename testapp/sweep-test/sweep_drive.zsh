@@ -107,7 +107,33 @@ for app in $apps; do
         ( cd "$out" && ./"$app.exe" > "$log_dir/$app.log" 2>&1 & )
     fi
 
-    sleep 14
+    # Derived from the file rather than fixed, because a fixed wait silently
+    # truncates the long ones. Measured 2026-08-27: 14 seconds was hard-coded,
+    # P20-open-level-1.csv holds 16.8 s of sleeps, the replay starts 1 s after
+    # launch -- so P20 needed 17.8 s and was captured and killed at 14. Its log
+    # had `replaying` and no `replayed`, and the sweep reported it as though the
+    # app were at fault. Every other file is at or under 10.4 s, so P20 was the
+    # only one affected, which is exactly why it looked like an app defect.
+    #
+    # 由檔案本身推導而非固定，因為固定的等待會靜默截斷較長的動作檔。2026-08-27 實測：當時寫死
+    # 14 秒，而 P20-open-level-1.csv 的睡眠總長為 16.8 秒，重放又在啟動後 1 秒才開始——因此 P20
+    # 需要 17.8 秒，卻在第 14 秒就被擷取並終止。它的 log 有 `replaying`、沒有 `replayed`，而掃描
+    # 把它報成了 app 的問題。其餘每個檔案都在 10.4 秒以內，所以只有 P20 受影響——這正是它看起來
+    # 像 app 缺陷的原因。
+    wait_seconds=14
+    if [ -n "$action_file" ]; then
+        wait_seconds="$(
+            awk -F, '!/^#/ && !/^action,/ {s += $7}
+                     END {
+                         # the file, plus the replay delay, plus room for the
+                         # actions themselves
+                         # 檔案本身、加上重放延遲、再加上動作自身所需的餘裕
+                         want = (s / 1000000) + 5
+                         printf "%d", (want > 14 ? want : 14)
+                     }' "$action_file"
+        )"
+    fi
+    sleep "$wait_seconds"
 
     # No MSYS2_ARG_CONV_EXCL, and a doubled slash. The taskkill above wants the
     # opposite -- the exclusion and a single slash -- and mixing them up fails
@@ -144,9 +170,21 @@ for app in $apps; do
         elif grep -q 'actionfile: failed' "$log_dir/$app.log" 2>/dev/null; then
             replay=FAIL
             note="${note:+$note; }$(grep -m1 -oE 'failed: .*' "$log_dir/$app.log" | cut -c1-40)"
+        elif grep -q 'actionfile: replaying' "$log_dir/$app.log" 2>/dev/null; then
+            # Started and never finished. Distinguished from "no output at all"
+            # because they have different causes and the old script reported
+            # both as "built without SCUI_DEBUG?", which was wrong twice in one
+            # afternoon -- once for a WinUI build whose output cannot reach a
+            # file at all, and once for a wait that was too short.
+            #
+            # 開始了但沒跑完。與「完全沒有輸出」分開，因為兩者成因不同；舊版腳本把兩者都報成
+            # 「built without SCUI_DEBUG?」，而那在一個下午之內就錯了兩次——一次是 WinUI 建置的
+            # 輸出根本到不了檔案，一次是等待時間不足。
+            replay='running'
+            note="${note:+$note; }still replaying when captured"
         else
             replay='no line'
-            note="${note:+$note; }built without SCUI_DEBUG?"
+            note="${note:+$note; }no output at all -- WinUI build, or no SCUI_DEBUG"
         fi
     fi
 
