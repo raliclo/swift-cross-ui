@@ -531,6 +531,20 @@ and only the initialisers differ, so the gap never shows on a feature checklist.
   Clipping, DragAndDrop, WindowLevels and HitTesting were added against
   documented APIs on a Windows host. Review-ready, not verified.
   HitTesting has now been run on a Mac and does not work -- see below.
+- **GtkBackend's font weight table collapses nine weights into about five.**
+  Instrumented here and deliberately left unfixed, 2026-08-27. P22 gained a
+  nine-row weight ladder and `actions/win/P22-weights.csv`; measured on
+  Windows/GtkBackend, `light`/`regular` render byte-identically and so do
+  `semibold`/`bold`/`heavy`. Numbers and the full argument are in finding 5 of
+  `testapp/gtk-silent-noops.md`.
+
+  It needs a Mac because every available fix moves a weight the source comment
+  says was set by measuring against AppKit, and that measurement cannot be
+  redone here. The ladder runs 200...900 -- eight hundred-steps for nine weights
+  -- so some pair must collide unless the range extends to 1000 or the
+  deliberate +100 shift is dropped. Note the catalogue's own suggested one-line
+  fix, `case .semibold: 600`, is wrong: `.medium` is already 600, so it moves
+  the collision rather than removing it.
 
 ### AppKit hit testing: nothing but text fields can be clicked
 

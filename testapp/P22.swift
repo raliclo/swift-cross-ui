@@ -187,12 +187,96 @@ struct P22RootView: View {
                     Text("center").frame(width: 320, alignment: .center)
                     Text("trailing").frame(width: 320, alignment: .trailing)
                 }
+
+                // One view rather than the three this section wants to be
+                // (divider, caption, ladder). The enclosing VStack was already
+                // at 19 children and SwiftCrossUI's ViewBuilder stops at 20, so
+                // adding three produced `extra arguments at positions #21, #22`
+                // -- an error that names the call and not the limit.
+                // 此處收成一個 view，而非本段落原本想要的三個（分隔線、標題、階梯）。外層 VStack
+                // 原已有 19 個子項，而 SwiftCrossUI 的 ViewBuilder 上限為 20，因此加入三個會得到
+                // `extra arguments at positions #21, #22`——這個錯誤訊息指出的是呼叫本身，而非上限。
+                P22Weights()
             }
             .padding(18)
         }
         .onAppear {
             P22Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P22Diagnostics.renderComplete()
+        }
+    }
+}
+
+/// All nine font weights, one per row, heaviest last.
+///
+/// Added 2026-08-27. Same argument as the size scale above it: a weight is only
+/// judgeable against its neighbours. Nothing in `testapp/` rendered a single
+/// `fontWeight` before this, which is why GtkBackend mapping `.semibold` and
+/// `.bold` onto the same CSS number went unnoticed -- there was no picture in
+/// which they sat next to each other.
+///
+/// Read it as a ladder: every row must be at least as heavy as the one above,
+/// and no two adjacent rows may be identical. Two rows that match exactly is the
+/// defect. Note that a family without a face at some weight rounds to the
+/// nearest one it has, so identical rows do not by themselves prove the table is
+/// wrong -- they prove this platform cannot show a difference there, which is
+/// worth knowing either way.
+///
+/// The name sits in a fixed-width column at a fixed weight and only the sample
+/// carries the row's weight, so every row renders the *same glyphs*. The first
+/// version of this put the name inside the styled text, which reads well and
+/// measures nothing: "semibold — Hamburgefonstiv 123" is a longer string than
+/// "bold — ...", so the semibold row came out 242px wide against bold's 209px
+/// and the two could not be compared by width at all. Same glyphs in every row
+/// means equal width is equal weight, which a screenshot can be measured for
+/// rather than squinted at.
+///
+/// 全部九種字重，每列一種，最重者在最後。
+///
+/// 於 2026-08-27 加入。理由與其上方的尺寸級距相同：字重唯有與其鄰居並列才判斷得出來。在此之前，
+/// `testapp/` 裡沒有任何地方繪製過哪怕一次 `fontWeight`，這正是 GtkBackend 把 `.semibold` 與
+/// `.bold` 對映到同一個 CSS 數值卻無人察覺的原因——不存在一張讓它們彼此相鄰的畫面。
+///
+/// 判讀方式視為階梯：每一列都必須至少與其上一列同重，且相鄰兩列不得完全相同。兩列完全一致即是
+/// 缺陷。但請注意，若字族在某個字重上沒有對應的字面，會退到它最接近的那一個，因此「兩列相同」
+/// 本身並不足以證明對照表有錯——它證明的是「本平台在該處顯示不出差異」，而那無論如何都值得知道。
+///
+/// 名稱置於固定寬度、固定字重的欄位中，只有樣本本身帶有該列的字重，因此每一列繪製的都是**同一組
+/// 字形**。本段落的第一個版本把名稱寫在已套用樣式的文字之內——那樣好讀，卻量不出任何東西：
+/// 「semibold — Hamburgefonstiv 123」比「bold — ...」更長，於是 semibold 那列量得 242px、bold 那列
+/// 209px，兩者根本無法以寬度相比。每列都是同一組字形，才能讓「等寬即等重」成立，也才能對截圖進行
+/// 量測，而非瞇著眼睛猜。
+struct P22Weights: View {
+    static let ladder: [(String, Font.Weight)] = [
+        ("ultraLight", .ultraLight),
+        ("thin", .thin),
+        ("light", .light),
+        ("regular", .regular),
+        ("medium", .medium),
+        ("semibold", .semibold),
+        ("bold", .bold),
+        ("heavy", .heavy),
+        ("black", .black),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+
+            Text("Weights (all nine, heaviest last)")
+
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Self.ladder, id: \.0) { row in
+                    HStack(spacing: 0) {
+                        Text(row.0)
+                            .font(.system(size: 13))
+                            .frame(width: 90, alignment: .leading)
+                        Text(p22Sample)
+                            .font(.system(size: 15))
+                            .fontWeight(row.1)
+                    }
+                }
+            }
         }
     }
 }

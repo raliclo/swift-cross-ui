@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P22 on Windows: scroll to the weight ladder at the bottom of the page.
+#
+# The ladder is the only part of this app that needs driving. Everything above
+# it is visible at the default window size; the nine weights are not, and a
+# capture that stops at "trailing" looks like a complete screenshot of a
+# complete app, which is how the ladder's absence would go unnoticed twice.
+#
+# What to look for: nine rows, each setting its own name in its own weight. Every
+# row must be at least as heavy as the one above and no two adjacent rows may be
+# identical. Until 2026-08-27 `semibold` and `bold` were pixel-identical here,
+# because GtkBackend mapped both onto CSS 700.
+#
+# P22 於 Windows：捲動至頁面底部的字重階梯。
+#
+# 本 app 只有這個階梯需要被驅動。其上的所有內容在預設視窗尺寸下都看得見，九種字重則否；而一張
+# 停在「trailing」的截圖，看起來就像是一個完整 app 的完整截圖——這正是「階梯不見了」會被連續
+# 忽略兩次的原因。
+#
+# 觀察重點：九列，每一列都以其自身的字重排出自己的名稱。每一列都必須至少與其上一列同重，且相鄰
+# 兩列不得完全相同。在 2026-08-27 之前，此處的 `semibold` 與 `bold` 是像素完全相同的，因為
+# GtkBackend 把兩者都對映到 CSS 700。
+#
+# Measured on a 760x700 window capture at 100% display scale.
+# 量測自一張 760x700 的視窗截圖，顯示縮放 100%。
+move,380,500,frame,,,,over the scrolling content,windows
+sleep,,,,,,400000,,windows
+scroll,0,10,,,,,ten notches down -- the ladder is the last section,windows
+sleep,,,,,,1500000,hold for the capture,windows

@@ -368,6 +368,86 @@ it is right and should stay.
 
 </details>
 
+## 5. `.semibold` and `.bold` render identically — **wrong**, NOT one line, needs a Mac **[src]**
+
+**Measured 2026-08-27, and the original finding below is understated in two
+ways.** P22 gained a nine-row weight ladder and
+`testapp/actions/win/P22-weights.csv` to reach it; nothing in `testapp/` had
+rendered a single `fontWeight` before, which is why none of this was visible.
+Sample column measured off the capture, same glyphs in every row, on
+Windows/GtkBackend:
+
+| weight | CSS | width | ink |
+|---|---|---|---|
+| thin | 300 | 130 | 485 |
+| light | 400 | 140 | 680 |
+| regular | 500 | 140 | 680 |
+| medium | 600 | 143 | 799 |
+| semibold | 700 | 151 | 1008 |
+| bold | 700 | 151 | 1008 |
+| heavy | 800 | 151 | 1008 |
+| black | 900 | 157 | 1193 |
+
+**First: there are three collisions, not one.** `light`/`regular` and
+`semibold`/`bold`/`heavy` each render byte-identically. Nine weights arrive as
+about five distinguishable appearances.
+
+**Second, and why the proposed one-line fix below is wrong: `case .semibold: 600`
+collides with `.medium`, which is already 600.** It moves the collision rather
+than removing it. Two of the three collisions are also not table errors at all —
+`light` 400 and `regular` 500 are *different* CSS numbers that render the same,
+and so are `bold` 700 and `heavy` 800. That is the font resolving both to one
+face, so the claim below that this is "a table error, not a platform limit" holds
+only for the `semibold`/`bold` pair.
+
+The shape of the table makes a clean fix impossible on its own terms: the ladder
+runs 200…900, which is eight hundred-steps for nine weights, so *some* pair must
+collide unless the range is extended to 1000 or the deliberate +100 shift is
+removed. Both move weights whose values the source comment says were set by
+measuring against AppKit — and that measurement cannot be redone on this machine.
+
+**Deferred to a Mac** for that reason, rather than guessed at here. The ladder
+and the action file are in place, so the same measurement can be repeated on
+either side. Re-derive with:
+
+    zsh testapp/compile.zsh -gtk4 P22   # then drive actions/win/P22-weights.csv
+
+Unverified hypothesis, worth one command on the Mac or here: the face set implied
+by the numbers — distinct renderings at 300, 400, 600, 700 and 900 — is exactly
+Segoe UI's (Light, Regular, Semibold, Bold, Black), which is GTK's default family
+on Windows. If that is what is happening, the rendered collisions are the
+family's, and only the `semibold`/`bold` CSS duplicate is ours to fix.
+
+**5. `.semibold` 與 `.bold` 繪製結果完全相同 — 嚴重度 wrong，並非一行可解，需要 Mac [src]**
+
+**2026-08-27 實測，下方的原始發現在兩個地方都低估了問題。** P22 新增了九列的字重階梯，並以
+`testapp/actions/win/P22-weights.csv` 捲動至該處；在此之前，`testapp/` 裡沒有任何地方繪製過哪怕
+一次 `fontWeight`，這正是上述種種都看不見的原因。量測自截圖的樣本欄（每列皆為同一組字形），
+平台為 Windows/GtkBackend，數據見上表。
+
+**其一：碰撞有三組，而非一組。** `light`／`regular` 與 `semibold`／`bold`／`heavy` 各自完全相同。
+九種字重最終只到達約五種可區分的外觀。
+
+**其二，也是下方那個「一行修法」錯誤的原因：`case .semibold: 600` 會與已經是 600 的 `.medium`
+碰撞。** 那只是把碰撞搬家，而非消除它。而且三組碰撞中有兩組根本不是對照表的錯——`light` 400 與
+`regular` 500 是**不同的** CSS 數值卻繪製出相同結果，`bold` 700 與 `heavy` 800 亦然。那是字型把兩者
+解析到同一個字面，因此下方「這是對照表的錯誤而非平台限制」的說法，只對 `semibold`／`bold` 這一組
+成立。
+
+對照表自身的形狀使得「就地乾淨修復」不可能：階梯落在 200…900，是九種字重擠進八個百位刻度，因此
+除非把範圍延伸到 1000、或取消那個刻意的 +100 位移，**必然**有某一組會碰撞。而這兩種做法都會動到
+「原始碼註解表明是實測對齊 AppKit 而定」的數值——那項實測無法在本機重做。
+
+**因此本項延後至 Mac 處理**，而非在此臆測。階梯與動作檔都已就位，同一項量測在兩邊都可重複執行
+（指令見上）。
+
+一項尚未驗證的假設，在 Mac 或此處只需一道指令即可確認：由這些數據推得的字面集合——在 300、400、
+600、700、900 各有不同繪製結果——正好就是 Segoe UI 的字面集合（Light、Regular、Semibold、Bold、
+Black），而它是 GTK 在 Windows 上的預設字族。若事實如此，則那些「繪製上的碰撞」屬於字族，而真正
+屬於我們該修的，只有 `semibold`／`bold` 這個 CSS 數值重複。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 5. `.semibold` and `.bold` render identically — **wrong**, one line **[src]**
 
 `Sources/GtkBackend/GtkBackend.swift:2763`, weight table at `:2781-2802`
@@ -418,6 +498,8 @@ collision looks like a slip.
 `.semibold`／`.bold` 的碰撞看起來則像是筆誤。
 
 ---
+
+</details>
 
 ## 6. ~~META: every diagnostic this backend emits is compiled out of the builds it is tested in~~ — **FIXED 2026-08-27** **[src]**
 
