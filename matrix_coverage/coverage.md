@@ -17,8 +17,15 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 0**
+**Runs recorded / 已記錄的執行筆數: 16**
 
-_No runs recorded yet. Run a sweep and this table fills itself._
-
-_尚無任何執行紀錄。跑一次掃描，本表格便會自行填滿。_
+| app<br>app | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | note<br>備註 |
+|------------|------------------------------|--------------------------------|------------|------------------------------|------------------------|--------------------|--------------|
+| P7         | pass 2026-08-27              | -                              | -          | -                            | -                      | -                  |              |
+| P10        | pass 2026-08-27              | -                              | -          | -                            | -                      | -                  |              |
+| P15        | pass 2026-08-27              | -                              | -          | -                            | -                      | -                  |              |
+| P27        | pass 2026-08-27              | pass 2026-08-27                | -          | -                            | -                      | -                  |              |
+| P28        | -                            | -                              | -          | pass 2026-08-27              | -                      | -                  |              |
+| P38        | -                            | pass 2026-08-27                | -          | -                            | -                      | -                  |              |
+| P39        | pass 2026-08-27              | pass 2026-08-27                | -          | -                            | -                      | -                  |              |
+| P40        | pass 2026-08-27              | pass 2026-08-27                | -          | -                            | -                      | -                  |              |

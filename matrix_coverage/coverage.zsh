@@ -9,6 +9,25 @@
 # into a matrix -- apps down, platform/backend across -- showing the LATEST
 # result for each pair together with the date it was measured.
 #
+# The columns are Windows/gtk4, Windows/WinUI, WSL, macOS/AppKit, iOS/UIKit and
+# Android. To add another, add one line to the `key`/`en`/`zh` arrays in the awk
+# BEGIN block and raise `ncol`; the headers and the body are both built from
+# that one list, so they cannot disagree.
+#
+# A run whose `platform/backend` pair matches no column is REPORTED on stderr
+# rather than dropped in silence. That is not hypothetical: it caught two rows
+# in this project's own history recorded as `windows/liststyle` and
+# `windows/control` -- ad-hoc backend labels that were quietly missing from the
+# table, where they read as "never tested".
+#
+# 目前的欄位為 Windows/gtk4、Windows/WinUI、WSL、macOS/AppKit、iOS/UIKit 與 Android。若要新增，
+# 只需在 awk BEGIN 區塊的 `key`／`en`／`zh` 陣列各加一行並調高 `ncol`；標頭與內容都由這份清單產生，
+# 因此兩者不可能不一致。
+#
+# 若某筆執行的 `platform/backend` 配對不符合任何欄位，會在 stderr 上「回報」而非靜默捨棄。這並非
+# 假想情境：它抓到了本專案自身歷史中兩筆記為 `windows/liststyle` 與 `windows/control` 的資料——
+# 那是臨時起意的 backend 標籤，原本會悄悄從表格中消失，讀起來就成了「從未測試過」。
+#
 # The date is not decoration. A cell means "this is what happened on that day
 # with the code as it was", and this project has spent real time on claims that
 # were true when written and silently stopped being true. A pair with no row at
@@ -86,10 +105,44 @@ trap 'rm -f "$pivot"' EXIT
 # 那會把每一列都解析錯。`--json` 形式給出的是 `"name":"value"` 配對，因此 `note` 中的逗號無法把
 # 欄位推移——而這正是本專案一開始就採用 csv2 的全部理由。
 {
-    printf 'app,windows_gtk4,windows_winui,wsl,note\n'
-    printf 'app,Windows·gtk4,Windows·WinUI,WSL,備註\n'
-
     csv2 -r -i "$csv" --json 2>/dev/null | awk '
+        # The columns, defined once and used for both the headers and the body.
+        #
+        # They used to be written out twice -- a printf for the two header rows
+        # and a hand-rolled line per column in END -- which is two places to
+        # edit and no way for them to disagree loudly. Adding macOS, iOS and
+        # Android is what made that expensive enough to fix.
+        #
+        # A platform is a `platform/backend` pair from results.csv2, so a run
+        # recorded with any other pair belongs in no column. Those used to
+        # vanish; `dropped` below counts them and the script reports it, because
+        # a run silently missing from a coverage matrix reads as "never tested"
+        # and is exactly the wrong thing to be quiet about.
+        #
+        # 這些欄位只定義一次，同時供標頭與內容使用。
+        #
+        # 先前它們被寫了兩遍——兩列標頭各一個 printf，加上 END 之中每欄一行的手寫程式碼——那是兩處
+        # 要維護、且無法在不一致時大聲失敗。加入 macOS、iOS 與 Android 使得這個代價高到值得修正。
+        #
+        # 一個平台是 results.csv2 中的 `platform/backend` 配對，因此以其他配對記錄的執行不屬於任何
+        # 欄位。這些紀錄過去會直接消失；下方的 `dropped` 會計數，腳本並予以回報——因為一筆在覆蓋率
+        # 矩陣中悄悄消失的執行，讀起來就是「從未測試過」，而那正是最不該保持安靜的事。
+        BEGIN {
+            ncol = 6
+            key[1] = "windows/gtk4";     en[1] = "windows_gtk4";  zh[1] = "Windows·gtk4"
+            key[2] = "windows/winui";    en[2] = "windows_winui"; zh[2] = "Windows·WinUI"
+            key[3] = "wsl/gtk4";         en[3] = "wsl";           zh[3] = "WSL"
+            key[4] = "mac/appkit";       en[4] = "macos_appkit";  zh[4] = "macOS·AppKit"
+            key[5] = "ios/uikit";        en[5] = "ios_uikit";     zh[5] = "iOS·UIKit"
+            key[6] = "android/android";  en[6] = "android";       zh[6] = "Android"
+
+            line = "app"; for (c = 1; c <= ncol; c++) line = line "," en[c]
+            print line ",note"
+            line = "app"; for (c = 1; c <= ncol; c++) line = line "," zh[c]
+            print line ",備註"
+
+            for (c = 1; c <= ncol; c++) known[key[c]] = 1
+        }
         function field(name,   pattern, start, rest, end) {
             pattern = "\"" name "\":\""
             start = index($0, pattern)
@@ -105,12 +158,24 @@ trap 'rm -f "$pivot"' EXIT
             backend = field("backend"); app = field("app")
             launch = field("launch"); replay = field("replay")
 
-            key = platform "/" backend
-            verdict = (launch == "ok") ? (replay == "ok" || replay == "-" ? "pass" : replay) : launch
+            pair = platform "/" backend
+            # "n/a" counts as "no replay was expected", alongside "-". An app
+            # with no action file launches and is captured and is a perfectly
+            # good run; reporting the verdict as "n/a" made those look like
+            # something had gone wrong. Both spellings are in the file because
+            # the capture column already uses "n/a", so writing it in the replay
+            # column is the natural thing to do.
+            # 「n/a」與「-」同樣代表「本就不預期有重放」。沒有動作檔的 app，能啟動、能擷取，就是一次
+            # 完全合格的執行；把結論報成「n/a」會讓它看起來像出了什麼問題。兩種寫法都存在於檔案中，
+            # 因為 capture 欄本來就使用「n/a」，於是在 replay 欄照樣寫下它是很自然的事。
+            noReplayExpected = (replay == "-" || replay == "n/a" || replay == "")
+            verdict = (launch == "ok") ? (replay == "ok" || noReplayExpected ? "pass" : replay) : launch
+
+            if (!(pair in known)) { dropped[pair]++; next }
 
             # Latest wins, and rows are appended in time order.
             # 以最新者為準；資料列是依時間順序追加的。
-            cell[app, key] = verdict " " date
+            cell[app, pair] = verdict " " date
             seen[app] = 1
         }
         END {
@@ -126,11 +191,21 @@ trap 'rm -f "$pivot"' EXIT
                 }
             for (i = 0; i < n; i++) {
                 a = order[i]
-                g = (a SUBSEP "windows/gtk4")  in cell ? cell[a, "windows/gtk4"]  : "-"
-                w = (a SUBSEP "windows/winui") in cell ? cell[a, "windows/winui"] : "-"
-                l = (a SUBSEP "wsl/gtk4")      in cell ? cell[a, "wsl/gtk4"]      : "-"
-                printf "%s,%s,%s,%s,\n", a, g, w, l
+                line = a
+                for (c = 1; c <= ncol; c++)
+                    line = line "," ((a SUBSEP key[c]) in cell ? cell[a, key[c]] : "-")
+                print line ","
             }
+
+            # To stderr, so it reaches the operator without landing in the
+            # pivot. Named pairs rather than a bare count: "3 rows dropped" does
+            # not tell you whether a platform is missing from the table above or
+            # whether someone mistyped a backend.
+            # 輸出至 stderr，如此可傳達給操作者而不會混入 pivot。此處列出具體配對而非僅給總數：
+            # 「捨棄 3 列」無法告訴你究竟是上表少了一個平台，還是有人把 backend 名稱打錯了。
+            for (p in dropped)
+                printf "coverage.zsh: %d run(s) recorded as %s match no column\n", \
+                    dropped[p], p > "/dev/stderr"
         }
     '
 } > "$pivot"

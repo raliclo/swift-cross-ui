@@ -1,9 +1,9 @@
 date,platform,backend,app,launch,replay,capture,note
 日期,平台,backend,app,啟動,重放,擷取,備註
 2026-08-27,windows,gtk4,P10,ok,ok,window,""
-2026-08-27,windows,control,P10,ok,ok,window,""
+2026-08-27,windows,gtk4,P10,ok,ok,window,"#61 no-op control: modifier removed gives 0, present gives 1"
 2026-08-27,windows,gtk4,P10,ok,ok,window,""
-2026-08-27,windows,liststyle,P7,ok,ok,window,""
+2026-08-27,windows,gtk4,P7,ok,ok,window,"#64 liststyle: plain List selection is GTK's blue accent, sidebar keeps the inset grey"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 before the fix: Light then Dark left a light window with dark-scheme text"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 after the fix: same action file, window is dark and legible"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 control: Light alone still goes light, so the other direction is intact"

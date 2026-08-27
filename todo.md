@@ -553,10 +553,18 @@ would abort every app calling `.opacity(_:)` on the default Windows backend
 rather than render it un-blurred. The rest needs a `Microsoft.UI.Composition`
 effect graph.
 
+`.border(_:width:)` and `.hidden()` are done too, 2026-08-27, and needed **no
+backend protocol at all**. A border is an overlaid stroked `Rectangle`, inset by
+half the stroke width so the line falls inside the bounds rather than half
+outside where a clipping ancestor would eat it; `.hidden()` is
+`.opacity(0).allowsHitTesting(false)`, the second half being the one that is
+easy to forget — an invisible view that still swallows clicks is worse than
+either a visible or an absent one. Adding a protocol for either would have given
+six backends a method to implement for something they can all already express.
+
 Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
 value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
-`.clipShape`, `.mask`, `.border`, `.hidden`, `.compositingGroup`,
-`.drawingGroup`.
+`.clipShape`, `.mask`, `.compositingGroup`, `.drawingGroup`.
 
 ### Geometric effects: done 2026-08-27, and GTK cannot render them
 
