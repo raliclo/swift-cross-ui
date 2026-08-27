@@ -110,7 +110,7 @@ are specific and neither is in the pin:
 | P7 | none | not run | list selection; not reached |
 | P8 | **new** `P8-scroll-outer.csv` | yes | scrolled down four notches; `Outer row 0–3` became `Outer row 5–8` |
 | P9 | none | not run | buttons; not reached |
-| P10 | none — **cannot be driven** | n/a | launches, registers the title "P10 hit testing and shortcuts", and shows no window at all. Window capture failed twice and a desktop capture found nothing but the taskbar |
+| P10 | ~~none — **cannot be driven**~~ **superseded**, see below | ~~n/a~~ yes | ~~launches, registers the title "P10 hit testing and shortcuts", and shows no window at all. Window capture failed twice and a desktop capture found nothing but the taskbar~~ It has a window. See "P10 has a window after all" |
 | P13 | none | not run | buttons; not reached |
 | P15 | none | not run | scheme buttons; not reached |
 | P16 | none | not run | buttons; not reached |
@@ -481,3 +481,252 @@ P10 的無視窗狀態**不是**這一種：它在沒有其他實例的乾淨啟
   P15-DARK 與 P17-DOE 則是表中已列 app 的變體。
 - **P10 只是被觀察，並未被診斷**：它會啟動、持續執行、註冊自己的標題，然後不顯示任何視窗。這是否
   早於本工作樹中尚未提交的變更，並未查證。
+
+---
+
+# Second pass, 2026-08-27, at 100% / 第二輪，2026-08-27，於 100%
+
+Everything above this line is the 125% pass. What follows is what the second
+pass found that does not belong in any one action file: the per-app results are
+in `testapp/actions/win/<app>.csv` and are not repeated here.
+
+Seventeen apps have a verified file, against six before, and the twelve the
+first pass built and never replayed — P0, P2, P3, P5, P7, P9, P13, P15, P16,
+P17, P23, P26 — have all been replayed. P0 has no file of its own: it was the
+scale probe, driven from a throwaway file to establish that a raw capture pixel
+is a logical point at 100% before anything else was measured.
+
+Count them rather than trusting the number:
+
+```zsh
+ls testapp/actions/win/*.csv | wc -l     # one more than the app count:
+                                         # P24 has a second, stale, -winui file
+```
+
+此線以上是 125% 那一輪。以下是第二輪中「不屬於任何單一動作檔」的發現：逐 app 的結果放在
+`testapp/actions/win/<app>.csv`，此處不重複。十七支 app 有已驗證的動作檔，先前為六支；第一輪中
+「已建置但從未重放」的十二支已全部完成重放。P0 沒有自己的動作檔：它是縮放探測，以一個用完即丟的
+檔案驅動，用來在量測其他任何東西之前先確立「在 100% 之下，截圖上的一個像素就是一個邏輯點」。
+數字請以上方指令重新計算，不要直接相信。
+
+## Did the scale change alone account for the misses? / 縮放改變是否足以解釋那些落空？
+
+No, and the two questions are separate.
+
+The scale change (125% → 100%) is why **every file had to be rewritten**: a file
+carrying `physical / 1.25` aims a fifth short of its target on a 100% display.
+That would have broken all six existing files. It explains nothing about the
+first pass, which was internally consistent at its own scale.
+
+What the first pass actually got wrong was **coordinates measured on a capture
+its own earlier steps had invalidated** — a different mistake that survives any
+scale, and the one that keeps recurring. See the next section.
+
+不能，這是兩個不同的問題。縮放改變解釋的是**為何每個檔案都得重寫**；它完全無法解釋第一輪的問題
+——第一輪在它自己的縮放比例下是內部一致的。第一輪真正錯的是**座標量測自一張已被該檔自己較早步驟
+弄失效的截圖**，而那種錯誤在任何縮放比例下都會發生。
+
+## A file can invalidate its own coordinates / 一個檔案可以讓自己的座標失效
+
+This is the failure mode of the whole exercise. It produced both of the first
+pass's wrong findings and three more here, and every time it looks like the app
+ignoring input: the replay reports success, the capture shows an unchanged app.
+
+| app | what moved | cost |
+|---|---|---|
+| P24, first pass | pushing a level re-laid out the window, moving the controls outside the stack | the sweep's headline finding, wrong |
+| P20, first pass | page 2 of the menu has a back header and 30 px rows where page 1 has a divider and 43 px | a second wrong finding, and five attempts spent varying x when the error was in y |
+| P9 | narrowing a frame wraps the text onto more lines, which makes the band taller and pushes the button row from y 369–399 to y 388–417 | one click of three |
+| P13 | each added `ForEach` row pushes everything below it down 20 px; two rows put the button 25 px below the click | three clicks of five |
+| P26 | selecting a tab moves the tab bar 76 px, and returning to the first tab moves it back | three clicks of four, then one of four |
+
+The rule that follows: **a step that changes the layout must be the last step
+that uses that layout's coordinates.** Where a file needs several such steps,
+order them so the ones whose targets never move come last. `P13-duplicates-and-
+split.csv` now presses the split-view buttons first and the duplicate button
+afterwards, because the duplicate button sits above everything it moves.
+
+An action file cannot re-measure, and that is the whole constraint. It is less a
+limitation of the format than a reason to keep files short and to judge by the
+capture rather than by the exit code.
+
+這是本項工作的主要失敗模式。它造成了第一輪的兩項錯誤發現，本輪又造成三次，而每一次看起來都像
+app 忽略了輸入。由此得出的規則：**會改變版面的步驟，必須是使用該版面座標的最後一個步驟。** 若一個
+檔案必須做好幾個這種步驟，就把「目標永遠不動」的那些排在最後。動作檔無法重新量測，這就是全部的
+限制所在。
+
+## P10 has a window after all / P10 其實是有視窗的
+
+The first pass recorded P10 as launching, registering its title, and showing
+**no window at all**, reproduced twice from a clean start, and concluded it could
+not be driven. A `-w` capture on 2026-08-27 returned the window fully drawn on
+the first attempt, and `P10-hit-testing.csv` drives it.
+
+Whether something changed in between, or those runs hit the GTK single-instance
+handoff, was not established — so this corrects the conclusion without
+explaining the observation.
+
+P10 also produced the pass's clearest defect: `allowsHitTesting(false)` does not
+block a click. Expected `Direct 1, Covered 1, Hidden 0`; measured `1, 1, 1`,
+with the app printing "Hidden button received a click." The other two counters
+are the control — three clicks of the same shape at the same y, 145 px apart,
+and the two whose behaviour is defined both did the defined thing.
+
+第一輪把 P10 記為「會啟動、會註冊標題，卻完全沒有視窗」，重現兩次，並判定它無法驅動。2026-08-27 的
+`-w` 擷取第一次嘗試就取得了完整繪出的視窗。中間是否有東西改變、或當時撞上的是 GTK 單一實例交接，
+並未確立。P10 同時產出了本輪最明確的缺陷：`allowsHitTesting(false)` 沒有擋下點擊。
+
+## Things that did NOT reproduce / 未重現的項目
+
+Worth as much as the defects, and easier to lose track of. Each was judged from
+a capture taken after a file whose other clicks landed.
+
+- **#504**, a `TextField` losing height after the first update (P9): the field
+  row is 30 px tall in the baseline and 30 px tall after two `Force update`
+  clicks.
+- **#295**, `Text` refusing to shrink past its own text (P9): at `Zero width`
+  the text is clipped to a sliver, one character per line, and does not spill
+  past the frame.
+- **#595**, text cut off inside a `ScrollView` (P13): the plain column and the
+  `.fixedSize()` column show the same two wrapped lines.
+- **#158**, a `Group` inside a `ZStack` laying out along the container's
+  orientation (P13): the red, green and blue rectangles are drawn nested.
+- **#389**, an oversized image not clipped (P3 and P17-DOE): P3 clips to its
+  220×140 frame and still clips after the image is shrunk and regrown, and
+  P17-DOE's control column overflows while both fix directions confine it.
+- **#417**, `cornerRadius(20)` not clipping a `ScrollView`'s child (P8): the red
+  child's corners are rounded.
+- **#476**, a `List` starting with the first item selected (P7): at launch the
+  app reads `Selection: none` and `No sidebar selection`.
+- **#401**, the full screen button not disabled with resizing (P2): P2 launches
+  resize-disabled and its title bar has only a minimise and a close button. The
+  reverse — pressing "Allow window resizing" — did **not** bring the maximise
+  button back, but that button has no state readout, so treat it as weak until
+  somebody re-runs it deliberately.
+
+以上各項在本輪未重現，其價值不亞於缺陷，且更容易被遺忘。每一項都是依據「同一次執行中其他點擊皆
+命中」的檔案，事後的截圖判定。
+
+## Instrument problems found this pass / 本輪發現的儀器問題
+
+### `tasklist /v` takes 54 seconds on this machine
+
+Measured three times on 2026-08-27: 52.6 s, 54.7 s, 53.3 s, for 412 rows.
+`screenshot.zsh -w` calls it through `resolve_window_title` before every window
+capture, and again inside `raise_window` if it falls back — so a `-w` capture
+costs about a minute, and up to two. Nineteen baseline captures took 21 minutes,
+nearly all of it here. `screenshot.zsh` with no `-w` never calls it and returns
+in about two seconds.
+
+To re-derive: `time (MSYS2_ARG_CONV_EXCL='*' tasklist.exe /v /fo csv > /dev/null)`.
+
+This also explains an observation the first pass wrote down without diagnosing:
+`P8-scroll-outer.csv` already carried the note that "a `screenshot.zsh` call
+takes the better part of a minute to return here".
+
+`tasklist /v` 在本機需 54 秒（2026-08-27 三次量測：52.6、54.7、53.3 秒，412 列）。
+`screenshot.zsh -w` 每次都會呼叫它，因此一次視窗擷取約需一分鐘，最多兩分鐘；不加 `-w` 的桌面擷取
+則從不呼叫它，約兩秒返回。重新量測的指令見上方英文區塊。
+
+### `screenshot.zsh -w` sometimes writes its PNG and never returns
+
+Seen repeatedly on 2026-08-27: the file appears on disk with correct content,
+the path is never printed, and the caller waits indefinitely. The script's own
+comments already record gdigrab hangs on this path.
+
+Two practical consequences. **Time-box every call**, and **check for a PNG
+before concluding a killed run produced nothing** — several usable captures were
+nearly thrown away. Killing the caller is not enough either: an orphaned
+`screenshot.zsh` carries on and can take the UI lock later.
+
+`screenshot.zsh -w` 有時會寫出 PNG 卻不返回。因此：**每次呼叫都設時限**，並且**在斷定「被中止的
+執行什麼都沒產出」之前先檢查是否已有 PNG**。
+
+### A killed `ui-lock.zsh acquire` leaves the lock held by nobody
+
+`acquire` waits by polling, so it is exactly the process a tool timeout kills.
+On 2026-08-27 one killed waiter took the lock the moment the workstation
+unlocked and then had no parent to release it; `status` reported
+`held by pn-rescale for 156s` with nothing running. `release <holder>` clears it.
+
+For anything scripted, prefer `acquire <holder> --no-wait` and handle the
+failure rather than leaving a waiter to be killed.
+
+被中止的 `ui-lock.zsh acquire` 會留下無人持有的 lock。腳本化的情境請優先使用
+`acquire <holder> --no-wait` 並自行處理失敗。
+
+### A note field containing a comma is a parse error, not a warning
+
+    -actionfile: failed: line 44: unknown platform 'clear of the strip'
+
+The note column is free text and the format is RFC 4180 CSV, so an unquoted
+comma shifts every field after it and the platform column ends up holding half a
+sentence. It fails loudly, which is the good case — but the message names the
+platform column rather than the note, so it points at the wrong end of the row.
+
+note 欄位中的逗號是解析錯誤而非警告。它會大聲失敗（這是好事），但訊息指名的是 platform 欄位而非
+note 欄位，因此指向了那一列的錯誤那一端。
+
+### Converting a desktop capture to frame coordinates
+
+Menus need a desktop capture, because a GTK popover on Windows is its own
+top-level window and is absent from a `-w` capture. Converting back to frame
+coordinates needs the window's origin, and that is not fixed: three consecutive
+P20 launches put it at (104,104), (130,130) and (157,156).
+
+Find it by locating a control whose frame position is already known from a
+window capture — "Open the menu" at (106,241) for P20 — and subtracting. The row
+offsets relative to the window were identical across all three launches, which
+is what makes a frame coordinate usable at all.
+
+選單需要桌面截圖，因為 Windows 上的 GTK popover 是自己的 top-level 視窗。換算回 frame 座標需要視窗
+原點，而它並不固定：連續三次啟動分別為 (104,104)、(130,130)、(157,156)。做法是定位一個「frame 位置
+已由視窗擷取得知」的控制項再相減。
+
+### The workstation locks itself, and `acquire` correctly refuses
+
+This pass lost about 70 minutes to a locked workstation in one unbroken block.
+`ui-lock.zsh status` reported `LOCKED`, `acquire` blocked, and a desktop capture
+confirmed it independently: bare wallpaper, no taskbar, no windows. That
+independent check matters, because `LogonUI.exe` has been seen present while
+input was being delivered. Judge a lock by a **desktop** capture, and take it at
+the same moment as the result you intend to believe.
+
+工作站會自行鎖定，而 `acquire` 正確地拒絕交出 UI；本輪為此連續損失約 70 分鐘。請以**桌面**截圖判斷
+鎖定與否，且截圖要與「你打算相信的那個結果」取自同一時刻。
+
+## What the second pass did not do / 第二輪未完成的部分
+
+- **No WinUIBackend run, again.** `P24-push-one-level-winui.csv` is from the
+  125% era and was **not** re-measured, so it is stale in exactly the way this
+  pass existed to fix. It is marked so in its own header. Driving WinUI remains
+  the most valuable single thing left.
+- **P1's in-app sheet** was not driven. Its three native file dialogs were
+  skipped for the same reason P18 is: `prepareForReplay` pins the window topmost
+  for the whole replay and `testapp/P6.swift` records a pinned window putting a
+  file picker behind itself.
+- **P5's alerts reached the app and no dialog appeared.** The status line moved
+  to `Main: showing Alert A` and a desktop capture found no alert window
+  anywhere. Whether the pin is hiding it or GtkBackend is not presenting it was
+  not established; see the file's own header.
+- **P15's colour-scheme defect was not narrowed.** After `Light` then `Dark` the
+  app reads `Requested: dark`, `Resolved: dark`, and the window — title bar
+  included — is drawn light with the text still in its dark-mode colours, so
+  almost nothing is legible. Which click produced it, and whether the override
+  is honoured in one direction only, is open.
+- **Keyboard checks remain out of reach**, unchanged and by design: P10's #478
+  Ctrl-Q, P21's tab traversal, P2's #471 unfocused-border check, and anything
+  that types.
+- **P18, P22, P25 and P17-DOE** have no file on purpose. P22 and P17-DOE are
+  settled by a single screenshot, which the baseline captures provide; P25 needs
+  a real OLE drag; P18 needs a session where somebody can dismiss a modal dialog
+  by hand.
+
+- **仍未執行任何 WinUIBackend 的重放。** `P24-push-one-level-winui.csv` 屬於 125% 時期且**未**重新
+  量測，正是本輪要修的那種過期狀態，其標頭已如此標註。驅動 WinUI 仍是剩下最有價值的單一項目。
+- **P1 的 in-app sheet** 未驅動；其三個原生檔案對話框則與 P18 基於相同理由略過。
+- **P5 的 alert 有抵達 app，卻沒有對話框出現。** 是釘選把它藏起來、還是 GtkBackend 沒有呈現它，
+  並未確立；詳見該檔標頭。
+- **P15 的配色缺陷未被收斂。** 只確立了 `Requested`、`Resolved` 與螢幕上所見三者互相矛盾。
+- **鍵盤相關檢查仍然無法進行**，此點未變且屬設計使然。
+- **P18、P22、P25 與 P17-DOE** 刻意沒有動作檔，理由如上方英文區塊所列。

@@ -27,13 +27,34 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # Measured on a 668x558 window capture at 100% display scale.
 # 量測自一張 668x558 的視窗截圖，顯示縮放 100%。
+# ---------------------------------------------------------------------------
+# Only ONE click may use the row at y=384, and it has to be the last one.
+#
+# First version of this file clicked "Narrower" twice and then "Zero width".
+# The first two landed -- the header went from 200 px to 120 px -- and the third
+# did not, because narrowing the frame makes the text wrap onto more lines,
+# which makes the blue band taller, which pushes the button row down. Measured:
+# the row was at y 369-399 in the baseline and at y 388-417 afterwards, so a
+# click at 384 was inside the row before and on its top edge after.
+#
+# That is the same failure as the one the P24 file records, in miniature: a
+# coordinate measured on a capture that the file's own earlier steps have since
+# invalidated. A file that changes the layout it is aiming at has to re-measure,
+# and an action file cannot. So it stops at one.
+#
+# ---------------------------------------------------------------------------
+# 位於 y=384 的那一列，只能有**一次**點擊，而且必須是最後一次。
+#
+# 本檔的第一版點了兩次「Narrower」再點「Zero width」。前兩次命中——標頭從 200 px 變成 120 px
+# ——第三次沒有，因為把 frame 縮窄會使文字折成更多行，藍色色帶因此變高，把按鈕那一列往下推。
+# 實測：該列在基準截圖中位於 y 369-399，事後則位於 y 388-417，因此在 384 的點擊事前落在列內、
+# 事後落在列的上緣。
+#
+# 這與 P24 檔案所記錄的失敗是同一種，只是縮小版：座標量測自一張截圖，而該檔自己較早的步驟已經
+# 使它失效。一個會改變自己所瞄準版面的檔案必須重新量測，而動作檔做不到。因此它只做一次。
 click,134,275,frame,left,,,"Force update" -- updates becomes 1,windows
 sleep,,,,,,800000,,windows
-click,134,275,frame,left,,,again -- updates becomes 2,windows
+click,134,275,frame,left,,,again -- updates becomes 2; neither click moves the layout,windows
 sleep,,,,,,800000,,windows
-click,123,384,frame,left,,,"Narrower",windows
-sleep,,,,,,600000,,windows
-click,123,384,frame,left,,,"Narrower" again,windows
-sleep,,,,,,600000,,windows
 click,297,384,frame,left,,,"Zero width" -- the hardest case for #295,windows
 sleep,,,,,,1500000,hold for the capture,windows

@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P5 on Windows, GtkBackend: stack two alerts on one window and see whether the
+# first one comes back when the second closes.
+#
+# #675 is that alerts used to queue behind a single app-wide dialog. The two
+# checks are separate: alerts on DIFFERENT windows showing at the same time,
+# and alerts stacked on the SAME window restoring each earlier one as the top
+# one is dismissed. This file does the second, because it needs only the one
+# window whose frame coordinates are known.
+#
+# There is no OK button coordinate here, deliberately. An alert is a separate
+# top-level window, its position is decided by GTK rather than by this app, and
+# nothing has measured it. So the file opens the alerts and stops; judge it by
+# a DESKTOP capture, which is the only kind that shows a dialog at all.
+#
+# Risk, stated because P18 is deliberately skipped for it: `prepareForReplay`
+# pins the app window topmost for the whole replay, and testapp/P6.swift
+# records a pinned window putting a dialog behind itself. If the capture shows
+# no alert, that is the first thing to suspect rather than a click that missed.
+#
+# P5 於 Windows、GtkBackend：在同一個視窗上疊兩個 alert，看第二個關閉後第一個會不會回來。
+#
+# #675 是「alert 過去會排隊等在單一個 app 層級的對話框後面」。兩項檢查是分開的：**不同**視窗上的
+# alert 能否同時顯示，以及疊在**同一個**視窗上的 alert 能否在上層被關閉後逐一還原。本檔做的是
+# 第二項，因為它只需要那個已知 frame 座標的視窗。
+#
+# 此處刻意沒有 OK 按鈕的座標。alert 是獨立的 top-level 視窗，位置由 GTK 而非本 app 決定，而且
+# 無人量測過。因此本檔只負責開啟 alert 就停下；判定請用**桌面**截圖——那是唯一看得到對話框的擷取。
+#
+# 風險，特此註明（P18 正是為此被刻意略過）：`prepareForReplay` 在整場重放期間把 app 視窗釘在最上層，
+# 而 testapp/P6.swift 記錄過「被釘住的視窗會把對話框壓到自己後面」。若截圖中沒有 alert，應先懷疑
+# 這一點，而非「點擊落空」。
+#
+# Measured on a 578x398 window capture at 100% display scale.
+# 量測自一張 578x398 的視窗截圖，顯示縮放 100%。
+#
+# ---------------------------------------------------------------------------
+# RESULT, 2026-08-27, GtkBackend `-gtk4`. The clicks reach the app and no
+# dialog appears.
+#
+# The status line went from "Ready." to "Main: showing Alert A", so the app
+# knows it was asked. A desktop capture taken while both clicks had been made
+# shows the whole screen with the P5 window in front and NO alert window
+# anywhere on it.
+#
+# Which of the two explanations applies was not established:
+#   (a) the alert exists and the topmost pin is holding it behind the window,
+#       which is what testapp/P6.swift records happening to a file picker; or
+#   (b) GtkBackend does not present it.
+#
+# Telling them apart needs a run without the pin, which `prepareForReplay` does
+# not offer, or somebody pressing the button by hand. So this is an observation
+# and not a verdict on #675.
+#
+# ---------------------------------------------------------------------------
+# 結果，2026-08-27，GtkBackend `-gtk4`。點擊有抵達 app，但沒有任何對話框出現。
+#
+# 狀態列從「Ready.」變成「Main: showing Alert A」，代表 app 知道自己被要求了。在兩次點擊都已完成時
+# 取得的桌面截圖顯示整個螢幕上 P5 視窗位於最前方，而畫面上**沒有**任何 alert 視窗。
+#
+# 兩種解釋中何者成立，並未確立：
+#   (a) alert 存在，但置頂釘選把它壓在視窗後面——testapp/P6.swift 記錄過檔案選取對話框正是如此；或
+#   (b) GtkBackend 根本沒有把它呈現出來。
+#
+# 要分辨兩者，需要一次「沒有釘選」的執行（`prepareForReplay` 不提供），或有人親手按下按鈕。因此這是
+# 一項觀察，而非對 #675 的判定。
+click,87,255,frame,left,,,"Show Alert A",windows
+sleep,,,,,,1500000,,windows
+click,241,255,frame,left,,,"Show Alert B (stacks on A)",windows
+sleep,,,,,,8000000,hold both open for a desktop capture,windows

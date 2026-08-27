@@ -27,13 +27,37 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # Measured on a 928x798 window capture at 100% display scale.
 # 量測自一張 928x798 的視窗截圖，顯示縮放 100%。
-click,267,182,frame,left,,,"More duplicates (3)" -- becomes 4,windows
-sleep,,,,,,800000,,windows
-click,267,182,frame,left,,,again -- becomes 5,windows
-sleep,,,,,,800000,,windows
+# ---------------------------------------------------------------------------
+# Order matters, and getting it wrong cost a whole run.
+#
+# The first version pressed "More duplicates" twice and then "Narrower" three
+# times. The duplicates landed -- the app read "Now 5 identical elements" --
+# and none of the Narrower clicks did, because each new row pushes everything
+# below it down. Measured: the Narrower row sat at y 459-489 in the baseline
+# and at y 499-529 with two extra rows above it, so a click at 474 was inside
+# the button before and 25 px above it after.
+#
+# So the split-view half runs FIRST, from coordinates the baseline capture
+# still describes, and the duplicates run second because they are above
+# everything they would otherwise move.
+#
+# ---------------------------------------------------------------------------
+# 順序有影響，弄錯一次就報銷一整次執行。
+#
+# 第一版先按兩次「More duplicates」再按三次「Narrower」。duplicates 命中了——app 顯示
+# 「Now 5 identical elements」——而三次 Narrower 全部落空，因為每多一列就會把它下方的一切往下推。
+# 實測：Narrower 那一列在基準截圖中位於 y 459-489，上方多兩列之後位於 y 499-529，因此在 474 的
+# 點擊事前落在按鈕內、事後落在按鈕上方 25 px 處。
+#
+# 因此分割視圖那一半**先**執行，使用基準截圖仍然描述得準的座標；duplicates 後執行，因為它們位於
+# 它們會推動的一切之上。
 click,324,474,frame,left,,,"Narrower (400)",windows
 sleep,,,,,,700000,,windows
 click,324,474,frame,left,,,"Narrower" again,windows
 sleep,,,,,,700000,,windows
 click,324,474,frame,left,,,"Narrower" a third time -- past the deduced minimum,windows
+sleep,,,,,,800000,,windows
+click,267,182,frame,left,,,"More duplicates (3)" -- becomes 4; this button never moves,windows
+sleep,,,,,,800000,,windows
+click,267,182,frame,left,,,again -- becomes 5,windows
 sleep,,,,,,1500000,hold for the capture,windows

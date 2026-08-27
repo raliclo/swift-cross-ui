@@ -22,11 +22,45 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # Measured on a 928x688 window capture at 100% display scale.
 # 量測自一張 928x688 的視窗截圖，顯示縮放 100%。
-click,162,73,frame,left,,,the SwiftUI tab,windows
-sleep,,,,,,1200000,,windows
-click,255,73,frame,left,,,the SwiftCrossUI tab -- the live one,windows
-sleep,,,,,,2500000,let the first loads start,windows
-click,72,73,frame,left,,,back to Summary and out again -- tabs must not lose state,windows
-sleep,,,,,,1000000,,windows
-click,255,73,frame,left,,,SwiftCrossUI again,windows
+# ---------------------------------------------------------------------------
+# The tab bar MOVES when you leave the first tab, so only the first click uses
+# the baseline row.
+#
+# Measured 2026-08-27, over two runs. The bar's y depends on which tab is
+# selected, not on how many times it has been clicked:
+#
+#   Summary selected                  tabs at y 58-88   (centre 73)
+#   SwiftUI or SwiftCrossUI selected  tabs at y 134-164 (centre 149)
+#
+# So it moves down about 76 px on the way out of Summary and back up on the way
+# in. Both directions were paid for. Version one clicked y=73 four times: click
+# one selected SwiftUI and clicks two to four landed in the empty space above
+# the moved bar, so the app finished on SwiftUI. Version two used y=149 for all
+# three later clicks: the return to Summary landed, and the click after it
+# missed because the bar had already gone back up.
+#
+# The shift itself is worth writing down rather than just working around: a tab
+# bar is not supposed to move when its content changes.
+#
+# ---------------------------------------------------------------------------
+# 離開第一個分頁時，分頁列會**移動**，因此只有第一次點擊能使用基準位置那一列。
+#
+# 2026-08-27 實測，歷經兩次執行。分頁列的 y 取決於「目前選取哪一個分頁」，而非被點過幾次：
+#
+#   選取 Summary 時                     分頁列位於 y 58-88（中心 73）
+#   選取 SwiftUI 或 SwiftCrossUI 時     分頁列位於 y 134-164（中心 149）
+#
+# 亦即離開 Summary 時往下移約 76 px，回到 Summary 時再移回去。兩個方向都是付過代價才知道的。
+# 第一版在 y=73 點了四次：第一次選中 SwiftUI，第二至第四次都落在移走後的分頁列上方那片空白裡，
+# 因此 app 停在 SwiftUI。第二版把後三次全用 y=149：回到 Summary 那一次命中，其後那一次落空，
+# 因為分頁列已經移回上方了。
+#
+# 這個位移本身值得寫下來，而不只是繞過它：分頁列不應該因為內容改變而移動。
+click,162,73,frame,left,,,the SwiftUI tab -- the only click on the launch row,windows
+sleep,,,,,,1500000,let the tab bar settle at its new position,windows
+click,255,149,frame,left,,,the SwiftCrossUI tab -- the live one,windows
+sleep,,,,,,3000000,let the first loads start,windows
+click,63,149,frame,left,,,back to Summary -- the bar returns to the launch row,windows
+sleep,,,,,,1500000,,windows
+click,255,73,frame,left,,,SwiftCrossUI again -- from the launch row this time,windows
 sleep,,,,,,3000000,hold for the capture,windows
