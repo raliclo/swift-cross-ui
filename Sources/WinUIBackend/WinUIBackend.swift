@@ -3060,9 +3060,36 @@ final class CustomDatePicker: StackPanel {
                     case 1:
                         calendarView.selectedDates.setAt(0, dateTime)
                     default:
+                        // `append` after clearing, not `setAt(0,)`. The old line
+                        // wrote index 0 of a collection that had just been
+                        // emptied. Unreached in practice -- a single-selection
+                        // CalendarView never holds two dates -- which is why it
+                        // survived.
+                        // 清空之後要用 `append` 而非 `setAt(0,)`。原本那一行是在「剛被清空的集合」上
+                        // 寫入索引 0。實務上不會走到——單選的 CalendarView 不會同時持有兩個日期——
+                        // 這也正是它得以存活至今的原因。
                         calendarView.selectedDates.clear()
-                        calendarView.selectedDates.setAt(0, dateTime)
+                        calendarView.selectedDates.append(dateTime)
                 }
+
+                // Selecting a date does not scroll to it. Without this the view
+                // opens on the current month and the selection sits wherever it
+                // is -- a year away, in P41's case, and off screen. What looked
+                // like the bound date being ignored was the calendar's own
+                // "today" marker being the only thing visible.
+                //
+                // Measured 2026-08-27 with P41 on WinUI: bound to 2025-08-24,
+                // the grid opened on August 2026 with the 27th ringed, while
+                // .automatic, .compact and .wheel all showed 2025-08-24 in the
+                // same window.
+                //
+                // 選取某個日期並不會捲動到它。若無此呼叫，該 view 會停在當前月份，而選取項則留在它
+                // 原本的位置——以 P41 的情況而言是一年之外，落在畫面之外。看起來像是「綁定值被忽略」
+                // 的現象，其實是日曆自身的「今天」標記成了畫面上唯一看得見的東西。
+                //
+                // 2026-08-27 以 P41 於 WinUI 實測：綁定為 2025-08-24 時，格線開在 2026 年 8 月並圈出
+                // 27 日，而同一個視窗中的 .automatic、.compact 與 .wheel 都顯示 2025-08-24。
+                try? calendarView.setDisplayDate(dateTime)
             case .calendarDatePicker(let calendarDatePicker):
                 calendarDatePicker.calendarIdentifier = identifier(for: calendar)
                 calendarDatePicker.date = dateTime

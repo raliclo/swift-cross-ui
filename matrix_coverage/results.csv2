@@ -23,3 +23,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,gtk4,P22,ok,n/a,n/a,"finding 10 confirmed then fixed: lineLimit(2) was 35pt at both 13pt and 30pt, now 34 and 76"
 2026-08-27,windows,gtk4,P20,ok,n/a,window,"menu bar now present; menubarHeight called once, before the bar exists in the tree"
 2026-08-27,windows,winui,P41,ok,ok,desktop,".graphical now draws a month grid, but opens on today not the bound date"
+2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical now opens on the bound month with the bound day ringed
