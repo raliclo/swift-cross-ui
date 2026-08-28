@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on Windows/GtkBackend: do the non-interactive item kinds RENDER?
+#
+# Companion to P19-open-and-select.csv, which answers a different question. That
+# file clicks items and reads `last action` and `toggle item`, so it proves the
+# interactive kinds work -- but it ends with the menu closed, and a closed menu
+# cannot show whether the text item and the separator were drawn at all. Those
+# two have no click and no readout, so the picture is the only evidence there is.
+#
+# Capture the DESKTOP, not `-w "P19 ..."`. A GTK popover is its own top-level
+# window on Windows, so a window-scoped capture contains everything except the
+# menu, which looks exactly like a menu that failed to open.
+#
+# What to check, measured 2026-08-29 on GTK4/Windows, dark Adwaita:
+#   Button item           normal label
+#   Text item             DIMMED -- it is not clickable and reads that way
+#   Divider               a full-width line one row tall, rgb(35,35,35)
+#                         against the rgb(45,45,45) menu background
+#   Toggle item           normal label
+#   Second button item    normal label
+#
+# Measure the separator, do not look for it. Scanning rows for "the dominant
+# colour changes" flags every row containing glyphs and buries it; the separator
+# is the row whose dominant colour covers the FULL sampled width while differing
+# from the background.
+#
+# P19 於 Windows/GtkBackend：那些不可互動的項目種類，究竟畫不畫得出來？
+#
+# 本檔與 P19-open-and-select.csv 互補，兩者回答的問題不同。該檔會點擊項目並讀取 `last action`
+# 與 `toggle item`，因此能證明可互動的種類正常運作——但它結束時選單是關閉的，而一個關閉的選單
+# 無法顯示文字項目與分隔線究竟有沒有被畫出來。這兩者既沒有點擊、也沒有文字輸出，所以畫面就是
+# 唯一的證據。
+#
+# 請擷取整個**桌面**，不要用 `-w "P19 ..."`。GTK popover 在 Windows 上是它自己的 top-level 視窗，
+# 因此以視窗為範圍的擷取會包含除了選單以外的一切——那看起來與「選單開啟失敗」一模一樣。
+#
+# 該檢查什麼（2026-08-29 於 GTK4/Windows、深色 Adwaita 實測）：
+#   Button item           一般標籤
+#   Text item             **變淡**——它不可點擊，外觀也如實呈現這一點
+#   Divider               一條橫貫整個寬度、高度一列的線，rgb(35,35,35)，
+#                         襯在 rgb(45,45,45) 的選單背景上
+#   Toggle item           一般標籤
+#   Second button item    一般標籤
+#
+# 分隔線要用「量」的，不要用「找」的。以「主色改變」去掃描每一列，會把每一列有字的都標記出來、
+# 反而把它埋掉；分隔線是那條「主色覆蓋整個取樣寬度、且與背景不同」的列。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,96,225,frame,left,,,"""Open the menu""",windows
+sleep,,,,,,4000000,hold with the menu open -- capture the DESKTOP here,windows
