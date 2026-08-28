@@ -29,7 +29,7 @@ filedialog,gtk_file_dialog_open — single file,✅,🔨,➖,-,-,-,P18,run under
 filedialog,gtk_file_dialog_select_folder,🔨,🔨,➖,-,-,-,P18,
 filedialog,gtk_file_dialog_save,🔨,🔨,➖,-,-,-,P18,also the only path exercising set_initial_name
 filedialog,gtk_file_dialog_open_multiple,⛔,⛔,➖,-,-,-,none,PresentSingleFileOpenDialogAction hardcodes allowMultipleSelections false so no app can reach it
-feature,Sheets,✅,🔨,⛔,-,-,-,P1,WinUI does not declare Sheets; P1 covers the WinUI side only
+feature,Sheets,✅,✅,⛔,-,-,-,P1,"WinUI does not declare Sheets; P1 covers the WinUI side only. GTK/Windows went 🔨 -> ✅ on 2026-08-28: P1 driven to open its root sheet, which presents as its own top-level window with the app's green background and rounded corners, both buttons legible. Two things seen while doing it: the red bar does not reach the sheet's content edge, so #660's padding is present on GTK too and not only on WinUI; and the 1px grey border updateSheet draws unconditionally is NOT the same class as the styling overrides fixed that day -- a sheet is presented with isDecorated = false, so the border stands in for decoration the backend removed rather than overriding one the theme supplied. Left alone deliberately"
 feature,PopoverMenus,➖,➖,➖,-,-,-,P19 P20,not a capability — one of two ways to implement menus. Gtk uses this one. Earlier rows here framed it as WinUI lacking a feature which was wrong
 feature,AttachedMenus,➖,➖,➖,-,-,-,P19 P20,the other way. WinUI uses this one. A backend conforms to exactly one and menuImplementationStyle selects
 feature,RevealFiles,⚠️,⚠️,⛔,-,-,-,none,

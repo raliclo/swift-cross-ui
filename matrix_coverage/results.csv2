@@ -34,3 +34,8 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-28,windows,gtk4,P20,ok,ok,desktop,"popover follows the theme. Under GTK_THEME=HighContrast it was a dark rgb(44,44,44) menu on a white window; now white"
 2026-08-28,windows,winui,P21,ok,n/a,desktop,"disabled button label now dims to rgb(120,120,120); it was rgb(255,255,255), identical to enabled"
 2026-08-28,windows,winui,P15,ok,ok,desktop,requestedTheme carries the scheme override; explicit foreground stays blue after the foreground fix
+2026-08-28,windows,gtk4,P20,ok,ok,desktop,"new disabled menu item: dimmed rgb(145,145,144) vs enabled rgb(238,238,236); pre-10e7bead both were rgb(255,255,255). Click refused -- lastAction went to level 1 from the follow-up click"
+2026-08-28,windows,gtk4,P1,ok,ok,desktop,"first sheet ever run on GTK/Windows: root sheet presents as its own top-level window, green background, rounded corners, both buttons legible. #660 padding present here too"
+2026-08-28,windows,winui,P2,ok,ok,desktop,"TextEditor focus underline restored rgb(76,194,255) 2 rows 500px; dropdown bg now the acrylic brush rgb(45-46) not flat rgb(32,32,32)"
+2026-08-28,windows,winui,P9,ok,ok,desktop,"control for the focus test: TextField underline rgb(76,194,255) 2 rows 163px -- createTextField sets no overrides"
+2026-08-28,windows,winui,P23,ok,n/a,desktop,table headers unchanged after header labels stopped pinning a foreground
