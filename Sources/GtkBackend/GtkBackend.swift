@@ -266,6 +266,14 @@ public final class GtkBackend:
     /// Creates a backend instance. If `appIdentifier` is `nil`, the default
     /// identifier `com.example.SwiftCrossUIApp` is used.
     public init(appIdentifier: String?) {
+        #if os(Windows)
+            // Before anything touches GDK. This one may not return: applying a
+            // `-GPU N` preference means restarting the process, because Windows
+            // fixes the adapter at process creation.
+            // 在任何東西碰到 GDK 之前。這一項有可能不會返回：套用 `-GPU N` 偏好設定意味著重新
+            // 啟動行程，因為 Windows 是在行程建立時就決定了介面卡。
+            Self.ensureGpuPreference()
+        #endif
         Self.enableDirectCompositionIfRequested()
         gtkApp = Application(
             applicationId: appIdentifier ?? "com.example.SwiftCrossUIApp",
@@ -424,6 +432,203 @@ public final class GtkBackend:
                 }
             }
             return false
+        }
+
+        /// Every non-software display adapter, by name.
+        /// 所有非軟體的顯示介面卡名稱。
+        private static func hardwareAdapterNames() -> [String] {
+            var names: [String] = []
+            var index: DWORD = 0
+            while true {
+                var device = DISPLAY_DEVICEW()
+                device.cb = DWORD(MemoryLayout<DISPLAY_DEVICEW>.size)
+                guard EnumDisplayDevicesW(nil, index, &device, 0) else { break }
+                index += 1
+                let name = withUnsafeBytes(of: device.DeviceString) { raw -> String in
+                    guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt16.self) else {
+                        return ""
+                    }
+                    return String(decodingCString: base, as: UTF16.self)
+                }
+                if !name.isEmpty, !name.hasPrefix("Microsoft Basic"), !names.contains(name) {
+                    names.append(name)
+                }
+            }
+            return names
+        }
+
+        private static let gpuRelaunchMarker = "SCUI_GPU_RELAUNCHED"
+        private static let gpuPreferencesKey =
+            #"Software\Microsoft\DirectX\UserGpuPreferences"#
+
+        private static func wide(_ string: String) -> [UInt16] { Array(string.utf16) + [0] }
+
+        // Spelled out because these are C macros, and Swift imports values, not
+        // macros -- `KEY_READ` and friends are not in scope. Values from
+        // winnt.h; KEY_READ is STANDARD_RIGHTS_READ | KEY_QUERY_VALUE |
+        // KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY.
+        // 之所以寫成字面值，是因為這些是 C 巨集，而 Swift 匯入的是「值」而非「巨集」——
+        // `KEY_READ` 之類根本不在作用域內。數值取自 winnt.h；KEY_READ 為
+        // STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY。
+        private static let regKeyRead: DWORD = 0x2_0019
+        private static let regKeySetValue: DWORD = 0x0002
+        private static let regOptionNonVolatile: DWORD = 0
+        private static let regTypeSZ: DWORD = 1
+
+        private static func executablePath() -> String? {
+            var buffer = [UInt16](repeating: 0, count: 32768)
+            guard GetModuleFileNameW(nil, &buffer, DWORD(buffer.count)) > 0 else { return nil }
+            return String(decodingCString: buffer, as: UTF16.self)
+        }
+
+        private static func readGpuPreference(for executable: String) -> Int? {
+            var key: HKEY?
+            var path = wide(gpuPreferencesKey)
+            guard
+                RegOpenKeyExW(HKEY_CURRENT_USER, &path, 0, regKeyRead, &key) == ERROR_SUCCESS,
+                let key
+            else { return nil }
+            defer { RegCloseKey(key) }
+
+            var name = wide(executable)
+            var size: DWORD = 0
+            guard RegQueryValueExW(key, &name, nil, nil, nil, &size) == ERROR_SUCCESS, size > 0
+            else { return nil }
+            var data = [UInt8](repeating: 0, count: Int(size) + 2)
+            guard RegQueryValueExW(key, &name, nil, nil, &data, &size) == ERROR_SUCCESS
+            else { return nil }
+            let text = data.withUnsafeBytes { raw -> String in
+                guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt16.self) else {
+                    return ""
+                }
+                return String(decodingCString: base, as: UTF16.self)
+            }
+            guard let marker = text.range(of: "GpuPreference=") else { return nil }
+            return Int(text[marker.upperBound...].prefix { $0.isNumber })
+        }
+
+        private static func writeGpuPreference(_ value: Int, for executable: String) -> Bool {
+            var key: HKEY?
+            var path = wide(gpuPreferencesKey)
+            var disposition: DWORD = 0
+            guard
+                RegCreateKeyExW(
+                    HKEY_CURRENT_USER, &path, 0, nil, regOptionNonVolatile,
+                    regKeySetValue, nil, &key, &disposition
+                ) == ERROR_SUCCESS,
+                let key
+            else { return false }
+            defer { RegCloseKey(key) }
+            var name = wide(executable)
+            var data = wide("GpuPreference=\(value);")
+            let bytes = DWORD(data.count * MemoryLayout<UInt16>.size)
+            return data.withUnsafeBytes { raw in
+                RegSetValueExW(
+                    key, &name, 0, regTypeSZ,
+                    raw.baseAddress?.assumingMemoryBound(to: BYTE.self), bytes
+                ) == ERROR_SUCCESS
+            }
+        }
+
+        /// Applies `-GPU N` by pinning this executable, after asking.
+        ///
+        /// Windows fixes an OpenGL process's adapter **when the process is
+        /// created**, from `HKCU\Software\Microsoft\DirectX\UserGpuPreferences`.
+        /// Nothing a running process does changes its own adapter, so `-GPU 2`
+        /// cannot take effect in the run that asked for it -- the value has to
+        /// be written and the process started again.
+        ///
+        /// It asks first because it writes to the user's registry and then
+        /// replaces the running process, neither of which should happen merely
+        /// because a flag was passed. `-y` does not skip the prompt; it decides
+        /// which way a blank answer falls, and a blank answer is what a run with
+        /// nothing on stdin gets, so `-y` is also what makes this scriptable.
+        ///
+        /// 在詢問之後，透過釘定本執行檔來套用 `-GPU N`。
+        ///
+        /// Windows 是在**行程建立的當下**，依 `HKCU\Software\Microsoft\DirectX\UserGpuPreferences`
+        /// 決定一個 OpenGL 行程取得哪張介面卡。執行中的行程無法改變自己的介面卡，因此 `-GPU 2`
+        /// 不可能在「提出要求的那一次執行」中生效——必須先寫入該值，然後重新啟動行程。
+        ///
+        /// 之所以先詢問，是因為它會寫入使用者的登錄檔並取代正在執行的行程，這兩件事都不該只因為
+        /// 「傳了一個旗標」就發生。`-y` 並不會略過提示；它決定「空白回答」倒向哪一邊，而 stdin
+        /// 未接任何東西的執行所得到的正是空白回答，因此 `-y` 也是讓這件事可被腳本使用的關鍵。
+        static func ensureGpuPreference() {
+            let wanted = DebugFeatures.gpuSelection
+            // 0 is software and not an adapter choice; 1 is Windows' own default
+            // and needs no pinning.
+            // 0 是軟體繪製、並非選擇介面卡；1 是 Windows 自己的預設值，無須釘定。
+            guard wanted >= 2 else { return }
+            guard ProcessInfo.processInfo.environment[gpuRelaunchMarker] != "1" else {
+                logger.notice("Already relaunched once for -GPU \(wanted); not trying again.")
+                return
+            }
+            guard let executable = executablePath() else { return }
+            if readGpuPreference(for: executable) == wanted { return }
+
+            let adapters = hardwareAdapterNames()
+            guard adapters.count >= 2 else {
+                logger.notice(
+                    """
+                    -GPU \(wanted) asks for a high-performance adapter, but this machine \
+                    reports \(adapters.count) hardware adapter(s): \
+                    \(adapters.joined(separator: ", ")). Every preference resolves to the \
+                    same one, so nothing was changed.
+                    """
+                )
+                return
+            }
+
+            let current = readGpuPreference(for: executable).map(String.init) ?? "unset"
+            let defaultsToYes = CommandLine.arguments.contains("-y")
+            FileHandle.standardError.write(
+                Data(
+                    """
+
+                    -GPU \(wanted) needs a Windows setting this process cannot change while \
+                    running.
+
+                      registry  HKCU\\\(gpuPreferencesKey)
+                      value     \(executable)
+                      change    GpuPreference \(current) -> \(wanted)
+                      adapters  \(adapters.joined(separator: ", "))
+
+                    Windows picks the adapter when a process starts, so applying this means \
+                    writing the value and restarting this program.
+
+                    Write it and restart? \(defaultsToYes ? "[Y/n]" : "[y/N]")
+                    """.utf8
+                )
+            )
+
+            let typed = readLine(strippingNewline: true)?
+                .trimmingCharacters(in: .whitespaces).lowercased()
+            let answer = (typed?.isEmpty ?? true) ? (defaultsToYes ? "y" : "n") : typed!
+            guard answer == "y" || answer == "yes" else {
+                FileHandle.standardError.write(
+                    Data("Cancelled; continuing on the current adapter.\n".utf8)
+                )
+                return
+            }
+            guard writeGpuPreference(wanted, for: executable) else {
+                logger.notice("Could not write the GPU preference; continuing unchanged.")
+                return
+            }
+            FileHandle.standardError.write(Data("Written. Restarting.\n".utf8))
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executable)
+            process.arguments = Array(CommandLine.arguments.dropFirst())
+            var environment = ProcessInfo.processInfo.environment
+            environment[gpuRelaunchMarker] = "1"
+            process.environment = environment
+            do {
+                try process.run()
+            } catch {
+                logger.notice("Could not relaunch to apply the GPU preference: \(error)")
+                return
+            }
+            exit(0)
         }
     #endif
 
