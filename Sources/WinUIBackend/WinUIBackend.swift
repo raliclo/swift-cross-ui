@@ -2518,12 +2518,41 @@ extension EnvironmentValues {
         return brush
     }
 
+    /// A brush for the colour the application explicitly asked for, or `nil`
+    /// when it asked for none.
+    ///
+    /// `nil` means leave WinUI's own foreground alone. `apply(to:)` sets
+    /// `requestedTheme` from the colour scheme, so the theme resources already
+    /// resolve to the right light or dark value without help -- and unlike a
+    /// brush built here, they carry the disabled and pointer-over variants.
+    ///
+    /// A `TextBlock` inside a `Button` is what makes this matter. Button's
+    /// Disabled visual state sets the *ContentPresenter's* Foreground, which a
+    /// child carrying its own local value does not inherit, so a disabled button
+    /// kept a full-strength label. Measured on P21, 2026-08-28: the enabled and
+    /// disabled labels were both rgb(255,255,255), the two buttons differing
+    /// only by a 3-unit fill.
+    @MainActor
+    var explicitWinUIForegroundBrush: WinUI.Brush? {
+        guard let foregroundColor else { return nil }
+        let brush = SolidColorBrush()
+        brush.color = foregroundColor.resolve(in: self).uwpColor
+        return brush
+    }
+
     @MainActor
     func apply(to control: WinUI.Control) {
         let resolvedFont = resolvedFont
         control.fontSize = resolvedFont.pointSize
         control.fontWeight.weight = resolvedFont.winUIFontWeight
-        control.foreground = winUIForegroundBrush
+        // Cleared rather than skipped: a widget is reused across updates, so a
+        // control that stops carrying an explicit colour has to go back to the
+        // theme's rather than keep the last one it was given.
+        if let brush = explicitWinUIForegroundBrush {
+            control.foreground = brush
+        } else {
+            try! control.clearValue(WinUI.Control.foregroundProperty)
+        }
         control.isEnabled = isEnabled
         if resolvedFont.isItalic {
             control.fontStyle = .italic
@@ -2541,7 +2570,11 @@ extension EnvironmentValues {
         let resolvedFont = resolvedFont
         textBlock.fontSize = resolvedFont.pointSize
         textBlock.fontWeight.weight = resolvedFont.winUIFontWeight
-        textBlock.foreground = winUIForegroundBrush
+        if let brush = explicitWinUIForegroundBrush {
+            textBlock.foreground = brush
+        } else {
+            try! textBlock.clearValue(WinUI.TextBlock.foregroundProperty)
+        }
         textBlock.lineHeight = resolvedFont.lineHeight
 
         if resolvedFont.isItalic {
