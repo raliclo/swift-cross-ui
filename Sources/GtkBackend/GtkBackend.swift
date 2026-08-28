@@ -2338,6 +2338,21 @@ public final class GtkBackend:
         )
         menu.insertActionGroup("menu", actionGroup)
 
+        // These are Adwaita's own numbers, and they go on at
+        // GTK_STYLE_PROVIDER_PRIORITY_APPLICATION, so applying them
+        // unconditionally replaces every other theme's menu -- high contrast,
+        // Yaru, Breeze -- with a guess the theme cannot answer. Measured
+        // 2026-08-28 on P20: the popover interior was rgb(44,44,44), this
+        // backend's value rather than the theme's.
+        //
+        // Cleared rather than merely skipped, because the provider outlives a
+        // single update: a menu that stops needing the override has to stop
+        // carrying it.
+        guard !themeDraws(environment.colorScheme) else {
+            menu.cssProvider.loadCss(from: "")
+            return
+        }
+
         // Compute styles
         let menuBackground: Gtk.Color
         let menuItemHoverBackground: Gtk.Color
@@ -3079,6 +3094,20 @@ public final class GtkBackend:
         return container
     }
 
+    /// Whether the GTK theme on screen right now draws the colour scheme the
+    /// application asked for.
+    ///
+    /// When it does, this backend has nothing to add, and every property it
+    /// leaves unset is one the theme gets to decide. Compared against
+    /// `gtkPrefersDarkTheme`, which tracks what this backend last wrote into
+    /// GTK's settings, rather than the startup sample in `ambientColorScheme`:
+    /// the question is what is on screen now, not what was there at launch.
+    /// `updateWindow` switches the theme itself to honour a
+    /// `preferredColorScheme`, so the two normally agree.
+    private func themeDraws(_ colorScheme: ColorScheme) -> Bool {
+        (colorScheme == .dark) == gtkPrefersDarkTheme
+    }
+
     /// The CSS this backend puts directly on a widget.
     ///
     /// Only what the application actually asked for, plus what the GTK theme
@@ -3092,17 +3121,7 @@ public final class GtkBackend:
         isControl: Bool = false,
         deferToThemeStyleClass: Bool = false
     ) -> [CSSProperty] {
-        // Whether the scheme the application wants is the one GTK is drawing.
-        //
-        // Compared against `gtkPrefersDarkTheme`, which tracks what this backend
-        // last wrote into GTK's settings, so it is "what is on screen now"
-        // rather than the startup sample in `ambientColorScheme`. `updateWindow`
-        // switches the GTK theme itself to honour a `preferredColorScheme`, so
-        // the two normally agree and this backend has nothing to add; when they
-        // briefly do not, the theme's colours really are the wrong ones and
-        // supplying our own is the only way to stay readable.
-        let themeDrawsRequestedScheme =
-            (environment.colorScheme == .dark) == gtkPrefersDarkTheme
+        let themeDrawsRequestedScheme = themeDraws(environment.colorScheme)
 
         var properties: [CSSProperty] = []
         if !deferToThemeStyleClass {
