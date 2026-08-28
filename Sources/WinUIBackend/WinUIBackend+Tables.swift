@@ -133,7 +133,13 @@ final class WinUITable: WinUI.Grid {
             let block = WinUI.TextBlock()
             block.text = label
             block.textTrimming = .characterEllipsis
-            block.foreground = environment.winUIForegroundBrush
+            // Only when the application asked for a colour; otherwise the
+            // theme's own, which carries the disabled and high-contrast
+            // variants a brush built here cannot. A fresh TextBlock has no
+            // local value to clear.
+            if let brush = environment.explicitWinUIForegroundBrush {
+                block.foreground = brush
+            }
             block.fontSize = environment.resolvedFont.pointSize
             return block
         }

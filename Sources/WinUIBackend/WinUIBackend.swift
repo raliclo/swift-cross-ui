@@ -1383,9 +1383,17 @@ public final class WinUIBackend:
                 // that works is fully recreating the brush.
                 picker.pointerExited.addHandler { [weak picker] _, _ in
                     guard let picker else { return }
-                    let brush = SolidColorBrush()
-                    brush.color = picker.actualForegroundColor
-                    picker.foreground = brush
+                    // Restoring the theme's colour means clearing the property,
+                    // not writing a colour of our own over it. Writing one here
+                    // would put back, on the first hover, exactly the pinned
+                    // foreground that `apply(to:)` stopped setting.
+                    if let color = picker.actualForegroundColor {
+                        let brush = SolidColorBrush()
+                        brush.color = color
+                        picker.foreground = brush
+                    } else {
+                        try! picker.clearValue(WinUI.Control.foregroundProperty)
+                    }
                 }
 
                 return picker
@@ -1417,15 +1425,12 @@ public final class WinUIBackend:
             picker.onChangeSelection = onChange
             environment.apply(to: picker)
             picker.actualForegroundColor =
-                environment.suggestedForegroundColor.resolve(in: environment).uwpColor
-            let dropdownBackground = SolidColorBrush()
-            dropdownBackground.color = switch environment.colorScheme {
-                case .light:
-                    UWP.Color(a: 255, r: 255, g: 255, b: 255)
-                case .dark:
-                    UWP.Color(a: 255, r: 32, g: 32, b: 32)
-            }
-            _ = picker.resources.insert("ComboBoxDropDownBackground", dropdownBackground)
+                environment.foregroundColor?.resolve(in: environment).uwpColor
+            // ComboBoxDropDownBackground is left to the theme. It used to be
+            // forced to flat white or flat rgb(32,32,32), which is Windows 11's
+            // dark value written out by hand -- so it matched only the default
+            // theme, and replaced the acrylic brush everywhere else. The scheme
+            // is already carried by `requestedTheme`, set in `apply(to:)`.
 
             if picker.options != options {
                 // Keep the existing WinUI item objects where possible so
@@ -2627,7 +2632,14 @@ extension Font.Resolved {
 final class CustomComboBox: ComboBox {
     var options: [String] = []
     var onChangeSelection: ((Int?) -> Void)?
-    var actualForegroundColor: UWP.Color = UWP.Color(a: 255, r: 0, g: 0, b: 0)
+
+    /// The colour `pointerExited` restores, or `nil` to restore the theme's.
+    ///
+    /// Optional rather than a colour with a default, because no colour means
+    /// "whatever the theme would have used". It defaulted to opaque black,
+    /// which is the wrong answer under a dark theme and was only ever invisible
+    /// because `updatePicker` overwrote it before anyone could hover.
+    var actualForegroundColor: UWP.Color?
 }
 
 final class CustomButton: WinUI.Button {
