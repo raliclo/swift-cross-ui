@@ -41,3 +41,5 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-28,windows,winui,P23,ok,n/a,desktop,table headers unchanged after header labels stopped pinning a foreground
 2026-08-28,windows,gtk4,P18,ok,ok,window,"first file dialogs clicked on any platform: open/folder/save each open a native picker, Escape closes each, all three lines read cancelled"
 2026-08-29,windows,gtk4,P19,ok,ok,window,"flat menu passes: last action -> second button item, toggle item -> true; all four item kinds render, Text item dimmed, Divider a 1px rgb(35,35,35) full-width line"
+2026-08-29,windows,winui,P39,ok,n/a,desktop,opacity applied (delta 69.3); blur/saturation/brightness/contrast/grayscale/hueRotation all delta 0.0 against control -- confirms the recorded gap
+2026-08-29,windows,gtk4,P39,ok,n/a,window,"all seven applied: six by mean delta, blur by text edge energy 53.21 -> 1.76"
