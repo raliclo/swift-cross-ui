@@ -42,18 +42,81 @@ signal available.
 | ruled out | how |
 |---|---|
 | the mechanism | CSS `transform: matrix(...)` and `gtk_fixed_set_child_transform` with a `GskTransform` fail identically, and they are unrelated code paths |
-| the renderer | `GSK_RENDERER=cairo` and the default GL renderer produce the same hotpink |
+| the renderer | ~~`GSK_RENDERER=cairo` and the default GL renderer produce the same hotpink~~ **WRONG, and it was the whole answer — see below** |
 | our own code | a no-op control that built the container and skipped **only** the transform call rendered every tile perfectly, so the container, the modifier and the layout are all innocent |
 | the content | a bare `Text`, with no nested containers and no `Color` views inside the transformed subtree, goes hotpink too |
 | the version | 4.22.4 is current stable; there is no newer release to move to |
 
+### Correction, 2026-08-29: this is not a GTK transform bug
+
+The renderer row above is false, and everything built on it was wrong. There is
+no GL renderer on this machine to compare cairo against:
+
+    Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
+        OpenGL requires Direct Composition
+    Using renderer 'GskCairoRenderer' for surface 'GdkWin32Toplevel'
+
+GTK falls back to the **software** cairo renderer for every window, so "cairo
+and the default GL renderer agree" was cairo agreeing with itself. What cannot
+draw a transform node is `GskCairoRenderer`; GSK's hotpink is that renderer
+reporting it, exactly as documented — the reading of the colour was right, the
+attribution was not.
+
+The tell was there in the numbers and went unexamined: `GSK_RENDERER` set to
+`(default)`, `cairo`, `gl`, `ngl` and `vulkan` all produced **47 873** hotpink
+pixels — not similar, *identical*. Five renderers cannot agree to the pixel.
+They were one renderer, five times. (`vulkan` is not even a recognised name in
+this build, and `gl`/`ngl` both fail to realize.)
+
+GDK has a switch for the missing piece, listed under `GDK_DEBUG=help` as
+`dcomp — Enable Direct Composition (Windows)`. With it, GTK uses
+`GskGLRenderer` and **every transform renders correctly**: offset, both scales,
+both rotations, the shear and rotated text, with zero hotpink and no content
+lost.
+
+| | renderer | hotpink |
+|---|---|---|
+| default | `GskCairoRenderer` | 47 873 |
+| `GDK_DEBUG=dcomp` | `GskGLRenderer` | 0 |
+
+`GtkBackend` can ask for this itself, and does when `SCUI_GTK_DCOMP=1` is set —
+four lines calling `g_setenv("GDK_DEBUG", "dcomp", 1)` before GDK initialises.
+It is opt-in rather than the default because it changes how every window is
+composited, not only transformed ones; P2 and P21 were checked and render
+correctly under it, but that is two apps, not a decision.
+
+**So `setGeometricEffect` declining is now a workaround for a machine
+configuration, not for a platform defect.** Whether to enable dcomp by default
+on Windows, and then implement the transform properly, is an open decision.
+
 **Reproduce.**
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P40
-    ( cd testapp/output && ./P40.exe & )
+    ( cd testapp/output && SCUI_PROBE_GTK_TRANSFORM=1 ./P40.exe & )
     zsh testapp/screenshot.zsh -w P40
 
 Then count hotpink pixels in the capture; zero means the bug is gone.
+
+**`SCUI_PROBE_GTK_TRANSFORM=1` is not optional, and this is the whole point.**
+Without it `setGeometricEffect` applies nothing — see below — so the capture
+contains zero hotpink pixels whether GTK is broken or fixed, and the count
+reports "the bug is gone" having measured nothing. That is what these steps did
+until 2026-08-29: they were written when the backend still applied the
+transform, and were left unchanged when it stopped.
+
+Measured 2026-08-29 on GTK 4.22.4, both ways, so the test is known to
+discriminate rather than assumed to:
+
+| | hotpink pixels | tiles |
+|---|---|---|
+| probe off | 0 | all seven exactly 90×57, untransformed |
+| probe on | 47 873 | six of seven flat hotpink, content gone |
+
+Check the tiles too, not only the count. A probe that silently fails to apply
+also gives zero, and looks identical to a fix. On the first attempt the probe
+emitted `matrix(…, 40px, 20px)`; CSS `matrix()` takes `<number>`, so the `px`
+made the declaration invalid, GTK dropped it without a word, and the run
+reported zero hotpink with every tile still 90×57.
 
 **How this project degrades.** `GtkBackend.setGeometricEffect` conforms to
 `BackendFeatures.GeometricEffects` and deliberately applies nothing, logging

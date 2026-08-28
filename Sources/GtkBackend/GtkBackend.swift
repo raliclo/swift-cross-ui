@@ -265,11 +265,60 @@ public final class GtkBackend:
     /// Creates a backend instance. If `appIdentifier` is `nil`, the default
     /// identifier `com.example.SwiftCrossUIApp` is used.
     public init(appIdentifier: String?) {
+        Self.enableDirectCompositionIfRequested()
         gtkApp = Application(
             applicationId: appIdentifier ?? "com.example.SwiftCrossUIApp",
             flags: SHIM_G_APPLICATION_HANDLES_OPEN
         )
         gtkApp.registerSession = true
+    }
+
+    /// Asks GDK for Direct Composition, so GTK can use a hardware renderer.
+    ///
+    /// Opt-in through `SCUI_GTK_DCOMP=1`, and off by default because it changes
+    /// how every window is composited, not only the transformed ones.
+    ///
+    /// Why it matters. On this Windows machine GTK cannot realize its GL
+    /// renderer -- `Failed to realize renderer 'GskGLRenderer' for surface
+    /// 'GdkWin32Toplevel': OpenGL requires Direct Composition` -- and silently
+    /// falls back to `GskCairoRenderer`, which is software. That fallback is
+    /// what cannot draw a transform node, and paints the hotpink rectangle
+    /// recorded in bugs/Gtk4-bugs.md. With this set, GTK uses `GskGLRenderer`
+    /// and every P40 transform renders correctly: measured 2026-08-29, 47873
+    /// hotpink pixels without it and 0 with it, offset, both scales, both
+    /// rotations, the shear and rotated text all correct.
+    ///
+    /// `GDK_DEBUG=dcomp` is a feature switch rather than a logging category --
+    /// GDK lists it as "Enable Direct Composition (Windows)". Appended rather
+    /// than assigned, so an existing GDK_DEBUG is not thrown away.
+    ///
+    /// 向 GDK 要求啟用 Direct Composition，使 GTK 得以採用硬體繪製器。
+    ///
+    /// 透過 `SCUI_GTK_DCOMP=1` 選擇性啟用，預設關閉——因為它改變的是每一個視窗的合成方式，
+    /// 而不只是那些被變換過的視窗。
+    ///
+    /// 為何重要：在這台 Windows 機器上，GTK 無法實現它的 GL 繪製器——
+    /// `Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
+    /// OpenGL requires Direct Composition`——並靜默退回到軟體的 `GskCairoRenderer`。
+    /// 正是這個退路畫不出 transform node，於是畫出 bugs/Gtk4-bugs.md 所記載的那片 hotpink。
+    /// 設定本旗標後，GTK 會使用 `GskGLRenderer`，而 P40 的每一項變換都正確繪製：2026-08-29
+    /// 實測，未啟用時 47873 個 hotpink 像素，啟用後為 0；位移、兩種縮放、兩種旋轉、推移與
+    /// 旋轉後的文字全部正確。
+    ///
+    /// `GDK_DEBUG=dcomp` 是功能開關而非記錄類別——GDK 自己將它列為
+    /// 「Enable Direct Composition (Windows)」。此處採「附加」而非「指派」，以免丟棄既有的
+    /// GDK_DEBUG 設定。
+    private static func enableDirectCompositionIfRequested() {
+        #if os(Windows)
+            guard ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "1" else { return }
+            let existing = ProcessInfo.processInfo.environment["GDK_DEBUG"]
+            let value = existing.map { $0.isEmpty ? "dcomp" : "\($0),dcomp" } ?? "dcomp"
+            // `g_setenv`, not `setenv`: the latter is not in scope in Swift on
+            // Windows, and GLib's is what GDK itself reads back.
+            // 使用 `g_setenv` 而非 `setenv`：後者在 Windows 的 Swift 中不在作用域內，而前者正是
+            // GDK 自己會讀回的那一個。
+            _ = g_setenv("GDK_DEBUG", value, 1)
+        #endif
     }
 
     var globalCSSProvider: CSSProvider?

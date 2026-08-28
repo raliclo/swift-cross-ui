@@ -43,3 +43,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-29,windows,gtk4,P19,ok,ok,window,"flat menu passes: last action -> second button item, toggle item -> true; all four item kinds render, Text item dimmed, Divider a 1px rgb(35,35,35) full-width line"
 2026-08-29,windows,winui,P39,ok,n/a,desktop,opacity applied (delta 69.3); blur/saturation/brightness/contrast/grayscale/hueRotation all delta 0.0 against control -- confirms the recorded gap
 2026-08-29,windows,gtk4,P39,ok,n/a,window,"all seven applied: six by mean delta, blur by text edge energy 53.21 -> 1.76"
+2026-08-29,windows,gtk4,P40,ok,n/a,window,transform re-diagnosed: default renderer is software cairo (GL fails on Direct Composition); GDK_DEBUG=dcomp gives GskGLRenderer and hotpink 47873 -> 0 with all transforms correct

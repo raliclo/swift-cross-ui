@@ -1,4 +1,5 @@
 import CGtk
+import Foundation
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
@@ -19,6 +20,58 @@ extension GtkBackend: BackendFeatures.GeometricEffects {
         ofWidget widget: Widget
     ) {
         guard transform != .identity else { return }
+
+        #if SCUI_DEBUG
+            // The only code left that can trigger the GTK bug, and it exists so
+            // that the acceptance test in bugs/Gtk4-bugs.md can fire at all.
+            //
+            // That test says to count hotpink pixels and treat zero as "the bug
+            // is gone". With the application removed, zero is guaranteed no
+            // matter what GTK does, so the test would report a fix having
+            // measured nothing. Verified 2026-08-29: P40 on GTK 4.22.4 gives
+            // zero hotpink and seven tiles all exactly 90x57, i.e. nothing was
+            // transformed and nothing was broken.
+            //
+            // Not a correct implementation and not a step towards one. The
+            // matrix convention is unchecked, because the question this answers
+            // is "does GTK draw a transformed widget at all", and any
+            // non-identity transform settles that. Compiled out of release
+            // builds and off unless asked for, since switching it on
+            // deliberately reproduces a total rendering failure.
+            //
+            //   SCUI_PROBE_GTK_TRANSFORM=1 ./P40.exe
+            //
+            // 這是唯一還能觸發該 GTK 錯誤的程式碼，它存在的目的，是讓 bugs/Gtk4-bugs.md 中的
+            // 驗收測試「有可能成立」。
+            //
+            // 該測試說要數 hotpink 像素，並把「零」視為「錯誤已修好」。但在移除了套用邏輯之後，
+            // 無論 GTK 如何表現，結果都必然是零——於是該測試會在什麼都沒量到的情況下回報「已修
+            // 復」。2026-08-29 實測：P40 於 GTK 4.22.4 得到零個 hotpink，七個方塊皆為 90x57，
+            // 亦即什麼都沒被變換，也什麼都沒壞。
+            //
+            // 這不是正確的實作，也不是邁向實作的一步。矩陣慣例並未查證，因為它要回答的問題是
+            // 「GTK 到底畫不畫得出被變換的 widget」，而任何非 identity 的變換都足以定案。它會
+            // 被排除在 release 建置之外，且非經指定不會啟用——因為打開它就是刻意重現一次全面性
+            // 的繪製失敗。
+            if ProcessInfo.processInfo.environment["SCUI_PROBE_GTK_TRANSFORM"] == "1" {
+                let m = transform.linearTransform
+                let t = transform.translation
+                widget.css.set(
+                    property: CSSProperty(
+                        key: "transform",
+                        // Unitless. CSS `matrix()` takes <number> for tx and ty,
+                        // so writing `px` makes the whole declaration invalid
+                        // and GTK drops it silently -- which cost a run that
+                        // reported zero hotpink and looked like a fixed bug.
+                        // 不帶單位。CSS `matrix()` 的 tx 與 ty 收的是 <number>，寫成 `px` 會
+                        // 讓整條宣告無效而被 GTK 靜默丟棄——這曾害一次執行回報零個 hotpink，
+                        // 看起來就像錯誤已經修好。
+                        value: "matrix(\(m.x), \(m.z), \(m.y), \(m.w), \(t.x), \(t.y))"
+                    )
+                )
+                return
+            }
+        #endif
 
         // GTK 4 on Windows cannot render a transformed widget at all, so this
         // conforms and declines rather than producing something unreadable.
@@ -91,8 +144,13 @@ extension GtkBackend: BackendFeatures.GeometricEffects {
         // 拒絕執行優於強行套用：未經變換的 view 仍然可讀、仍然可點擊；而一塊 hotpink 矩形已經完全
         // 失去其內容。這是少數「盡力套用」反而不如「什麼都不做但明白告知」的情況。
         //
-        // 尚未在 Linux 上驗證。它在該處很可能是正常的——此處是 Windows 的 GTK build——若確實如此，
-        // 這裡應改為依平台區分的實作而非一律拒絕。此缺口記錄於 testapp/gtk-silent-noops.md。
+        // 尚未在 Linux GTK 上另行確認。兩邊是同一個版本，因此結果很可能相同（亦即同樣損壞）；
+        // 但畢竟未經測試，在有人下結論說「兩邊都需要這個拒絕」之前，應先實測。此缺口記錄於
+        // testapp/gtk-silent-noops.md。
+        //
+        // 【2026-08-29 修正】此段中文原本寫的是「它在該處**很可能是正常的**」，與同一個註解區塊
+        // 的英文版（"the same result is likely"，即同樣損壞）恰好相反。兩種語言各自漂移到相反的
+        // 結論，而且沒有任何東西會察覺——這正是雙語註解的代價，保留此註記以記錄它確實發生過。
         debugLogOnce(
             """
             GtkBackend does not apply geometric effects: GTK 4 on Windows renders \
