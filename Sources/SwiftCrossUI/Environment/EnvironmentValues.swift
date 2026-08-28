@@ -30,6 +30,19 @@ public struct EnvironmentValues {
     ///
     /// Backends don't neccessarily have to obey this when
     /// ``EnvironmentValues/foregroundColor`` is `nil`.
+    ///
+    /// When it is `nil`, prefer reading ``EnvironmentValues/foregroundColor``
+    /// directly and falling back to the platform's own label color:
+    /// `NSColor.labelColor`, `UIColor.label`, the GTK theme's `color`, WinUI's
+    /// `TextFillColorPrimary`. Those carry secondary, disabled and
+    /// high-contrast variants that this property cannot express, because
+    /// ``ColorScheme/defaultForegroundColor`` is plain black or white.
+    ///
+    /// The trap is that this property is never `nil`, so it collapses "the
+    /// application asked for a color" and "the application asked for nothing"
+    /// into one value, and obeying it unconditionally is the path of least
+    /// resistance. `UIKitBackend.attributedString` shows the shape to copy: it
+    /// reads the optional and supplies a platform color when there is none.
     public var suggestedForegroundColor: Color {
         foregroundColor ?? colorScheme.defaultForegroundColor
     }

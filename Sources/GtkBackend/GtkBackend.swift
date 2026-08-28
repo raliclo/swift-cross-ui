@@ -1722,7 +1722,7 @@ public final class GtkBackend:
 
         textView.selectable = environment.isTextSelectionEnabled
         textView.css.clear()
-        textView.css.set(properties: Self.cssProperties(for: environment))
+        textView.css.set(properties: cssProperties(for: environment))
     }
 
     public func size(
@@ -1847,7 +1847,7 @@ public final class GtkBackend:
 
         button.css.clear()
         button.css.set(
-            properties: Self.cssProperties(
+            properties: cssProperties(
                 for: environment,
                 isControl: true,
                 // Stand aside for a role, so GTK's own class can paint it. See
@@ -1881,7 +1881,7 @@ public final class GtkBackend:
         toggle.css.clear()
         // This is a control, but we set isControl to false anyway because isControl overrides
         // the button background and makes the on and off states of the toggle look identical.
-        toggle.css.set(properties: Self.cssProperties(for: environment, isControl: false))
+        toggle.css.set(properties: cssProperties(for: environment, isControl: false))
     }
 
     public func setState(ofToggle toggle: Widget, to state: Bool) {
@@ -1994,7 +1994,7 @@ public final class GtkBackend:
         }
 
         textField.css.clear()
-        textField.css.set(properties: Self.cssProperties(for: environment, isControl: true))
+        textField.css.set(properties: cssProperties(for: environment, isControl: true))
     }
 
     public func setContent(ofTextField textField: Widget, to content: String) {
@@ -2067,7 +2067,7 @@ public final class GtkBackend:
         }
 
         textEditor.css.clear()
-        textEditor.css.set(properties: Self.cssProperties(for: environment, isControl: false))
+        textEditor.css.set(properties: cssProperties(for: environment, isControl: false))
         textEditor.css.set(property: CSSProperty(key: "background", value: "none"))
     }
 
@@ -2142,7 +2142,7 @@ public final class GtkBackend:
 
         // Apply the current text styles to the dropdown's labels
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
-        block.set(properties: Self.cssProperties(for: environment))
+        block.set(properties: cssProperties(for: environment))
         picker.cssProvider.loadCss(from: block.stringRepresentation)
 
         guard hasChanged else {
@@ -2174,7 +2174,7 @@ public final class GtkBackend:
     /// frame and none of the text. Hence the descendant selector.
     private func applyLabelStyles(to picker: Widget, environment: EnvironmentValues) {
         var block = CSSBlock(forClass: picker.css.cssClass + " label")
-        block.set(properties: Self.cssProperties(for: environment))
+        block.set(properties: cssProperties(for: environment))
         picker.cssProvider.loadCss(from: block.stringRepresentation)
     }
 
@@ -3017,7 +3017,7 @@ public final class GtkBackend:
         let table = table as! Gtk.Table
         table.setColumnLabels(labels)
         table.css.clear()
-        table.css.set(properties: Self.cssProperties(for: environment))
+        table.css.set(properties: cssProperties(for: environment))
     }
 
     public func setCells(
@@ -3061,8 +3061,8 @@ public final class GtkBackend:
         // get it: it is a button, and stripping its border and shadow would
         // leave a floating word that does not look pressable.
         datePicker.applyStyles(
-            toGrid: Self.cssProperties(for: environment, isControl: true),
-            toButton: Self.cssProperties(for: environment)
+            toGrid: cssProperties(for: environment, isControl: true),
+            toButton: cssProperties(for: environment)
         )
 
         // The font and foreground belong on the labels GTK draws inside, not on
@@ -3079,18 +3079,44 @@ public final class GtkBackend:
         return container
     }
 
-    private static func cssProperties(
+    /// The CSS this backend puts directly on a widget.
+    ///
+    /// Only what the application actually asked for, plus what the GTK theme
+    /// currently on screen cannot supply on its own. Everything here is
+    /// installed at GTK_STYLE_PROVIDER_PRIORITY_APPLICATION, which outranks the
+    /// theme, so a property emitted here is one that no theme and no style class
+    /// can ever change again. Emitting one the application never asked for
+    /// spends that authority on a guess.
+    private func cssProperties(
         for environment: EnvironmentValues,
         isControl: Bool = false,
         deferToThemeStyleClass: Bool = false
     ) -> [CSSProperty] {
+        // Whether the scheme the application wants is the one GTK is drawing.
+        //
+        // Compared against `gtkPrefersDarkTheme`, which tracks what this backend
+        // last wrote into GTK's settings, so it is "what is on screen now"
+        // rather than the startup sample in `ambientColorScheme`. `updateWindow`
+        // switches the GTK theme itself to honour a `preferredColorScheme`, so
+        // the two normally agree and this backend has nothing to add; when they
+        // briefly do not, the theme's colours really are the wrong ones and
+        // supplying our own is the only way to stay readable.
+        let themeDrawsRequestedScheme =
+            (environment.colorScheme == .dark) == gtkPrefersDarkTheme
+
         var properties: [CSSProperty] = []
         if !deferToThemeStyleClass {
-            properties.append(
-                .foregroundColor(
-                    environment.suggestedForegroundColor.resolve(in: environment).gtkColor
-                )
-            )
+            // Only when the application named a colour, or when the theme is
+            // drawing the wrong scheme. With neither, the theme's own `color` is
+            // already correct, and setting it here would replace a system label
+            // colour -- which has secondary, disabled and high-contrast variants
+            // -- with flat black or white. See `suggestedForegroundColor`.
+            let color =
+                environment.foregroundColor
+                ?? (themeDrawsRequestedScheme ? nil : environment.suggestedForegroundColor)
+            if let color {
+                properties.append(.foregroundColor(color.resolve(in: environment).gtkColor))
+            }
         }
         let font = environment.resolvedFont
         switch font.identifier.kind {
@@ -3134,31 +3160,32 @@ public final class GtkBackend:
             properties.append(.fontStyle("italic"))
         }
 
-        // `deferToThemeStyleClass` stands this whole block down.
+        // A control's chrome, for the case where the theme cannot supply it.
         //
-        // The per-widget provider is installed at
-        // GTK_STYLE_PROVIDER_PRIORITY_APPLICATION, which outranks the theme, so
-        // this explicit background beats anything a GTK style class would paint.
-        // Measured 2026-08-28: a button carrying `suggested-action` -- which
-        // Adwaita paints blue -- rendered the same flat rgb(73,73,73) as a plain
-        // one, and `gtk_widget_has_css_class` confirmed the class really was on
-        // the widget. So the class was landing and this was overruling it.
+        // Added in 5c89d3e0 alongside the `colorScheme` modifier, so that an app
+        // forcing a scheme got controls to match. It ran unconditionally, which
+        // made it the single most destructive thing this backend did: the
+        // provider outranks the theme, so an explicit background here beats
+        // every state and style class Adwaita ships -- `:hover`, `:checked`,
+        // `.suggested-action`, `.destructive-action`. Measured 2026-08-28: a
+        // button carrying `suggested-action` rendered the same flat rgb(73,73,73)
+        // as a plain one, while `gtk_widget_has_css_class` confirmed the class
+        // was on the widget. The class was landing; this was overruling it.
         //
-        // That is worth knowing beyond buttons: no GTK theme style class can
-        // change the look of any control this backend styles, unless the
-        // backend stands aside for it.
+        // Three call sites had already worked around it one at a time -- the
+        // toggle and the text editor pass `isControl: false`, and a button with
+        // a role passes `deferToThemeStyleClass` -- which is what says the
+        // default was wrong rather than its callers.
         //
-        // `deferToThemeStyleClass` 會讓整個區塊退場。
+        // Now it fires only when the theme is drawing the wrong scheme, which is
+        // the case it was written for. When the theme agrees, standing down
+        // costs nothing measurable and returns the theme's border: on P2, dark
+        // Adwaita, the enforced button had edge and interior both rgb(73,73,73)
+        // and the theme's had a distinct rgb(56,56,56) edge.
         //
-        // per-widget 的 provider 是以 GTK_STYLE_PROVIDER_PRIORITY_APPLICATION 安裝的，位階高於
-        // 主題，因此此處明確設定的背景色會蓋過任何 GTK 樣式類別所要繪製的顏色。2026-08-28 實測：
-        // 一顆帶有 `suggested-action`（Adwaita 會將其畫成藍色）的按鈕，呈現出與一般按鈕相同的
-        // 純色 rgb(73,73,73)，而 `gtk_widget_has_css_class` 確認該類別確實在該 widget 上。也就是說
-        // 類別有生效，是這裡把它壓過去了。
-        //
-        // 這一點的意義不止於按鈕：除非 backend 主動退讓，否則沒有任何 GTK 主題樣式類別能改變本
-        // backend 所樣式化的任何控制項之外觀。
-        if isControl && !deferToThemeStyleClass {
+        // Not to be confused with the entry focus ring, which this block never
+        // affected: GTK 4 draws that with `outline`, which is not set here.
+        if isControl && !deferToThemeStyleClass && !themeDrawsRequestedScheme {
             switch environment.colorScheme {
                 case .light:
                     properties.append(.backgroundColor(Color(0.9, 0.9, 0.9, 1)))
