@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P1 on Windows/GtkBackend: does a sheet present at all?
+#
+# Until 2026-08-28 the coverage matrix carried Sheets as built-but-never-run on
+# GTK/Windows, so nobody had seen one there. This file is what moved it, and
+# what it showed: the root sheet presents as its OWN top-level window, with the
+# app's green background, rounded corners, and both buttons legible.
+#
+# Capture the whole desktop, not `-w "P1 ..."`. The sheet is a separate
+# top-level window, so a window-scoped capture of P1 does not contain it -- the
+# same trap as GTK popovers, and it produces a screenshot that looks like the
+# sheet never opened.
+#
+# One thing to look at deliberately: the red bar should touch the sheet's
+# content edge if there is no padding. On 2026-08-28 it did not, which puts
+# #660's default sheet padding on GtkBackend and not only on WinUI. That is the
+# app's own stated assertion, printed beside the bar.
+#
+# P1 於 Windows/GtkBackend：sheet 究竟呈現得出來嗎？
+#
+# 直到 2026-08-28 為止，覆蓋矩陣上 Sheets 在 GTK/Windows 仍是「編得出來但從未執行」，因此沒有人
+# 在那裡看過一個 sheet。本檔正是改變此事的東西，而它顯示的是：root sheet 以它**自己的**
+# top-level 視窗呈現，帶有 app 的綠色背景、圓角，兩顆按鈕皆清晰可讀。
+#
+# 請擷取整個桌面，不要用 `-w "P1 ..."`。該 sheet 是獨立的 top-level 視窗，因此以 P1 為範圍的
+# 視窗擷取並不包含它——與 GTK popover 是同一個陷阱，而且會產生一張「看起來像 sheet 從未開啟」的
+# 截圖。
+#
+# 有一件事要刻意去看：若沒有 padding，紅色橫條應該要碰到 sheet 的內容邊緣。2026-08-28 當天它沒有
+# 碰到，這代表 #660 的 sheet 預設 padding 在 GtkBackend 上同樣存在，而不只在 WinUI 上。這正是
+# 此 app 自己印在橫條旁邊的主張。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,324,330,frame,left,,,"""Open root sheet""",windows
+sleep,,,,,,4000000,hold with the sheet up -- capture the DESKTOP here,windows

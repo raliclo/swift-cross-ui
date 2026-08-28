@@ -1,0 +1,33 @@
+action,x,y,origin,button,key,micros,note,platform
+# P29 on Windows/GtkBackend: is a disabled TextEditor distinguishable from an
+# enabled one?
+#
+# The click is the instrument, not decoration. P29 starts with the editor
+# DISABLED, so a single capture shows one editor and proves nothing -- it could
+# look like that in either state. Clicking "Enable it" and capturing both gives
+# the pair, which is the only thing that can answer the question.
+#
+# What it caught, 2026-08-28: the two states were identical. Text measured
+# rgb(255,255,255) disabled and rgb(255,255,255) enabled, because GtkBackend
+# forced a foreground colour over the theme's `:disabled` value. After
+# a593b3c9 the disabled text is rgb(145,145,144). The fix was in cssProperties,
+# NOT in the `background: none` that a review had blamed.
+#
+# Run it twice, capturing before and after: the app has no readout that encodes
+# the editor's colour, so the screenshots are the record.
+#
+# P29 於 Windows/GtkBackend：停用的 TextEditor 與啟用的 TextEditor 能否分辨？
+#
+# 這個點擊是量測儀器，而非裝飾。P29 啟動時該編輯器是「停用」的，因此單獨一張截圖只看得到一個
+# 編輯器、什麼也證明不了——它在兩種狀態下都可能長那樣。點下「Enable it」並把兩者都擷取下來才
+# 構成一對，而只有這一對能回答問題。
+#
+# 它在 2026-08-28 抓到什麼：兩種狀態一模一樣。文字量測為停用 rgb(255,255,255)、啟用
+# rgb(255,255,255)，因為 GtkBackend 強制寫入的前景色蓋過了主題的 `:disabled` 值。在 a593b3c9
+# 之後，停用狀態的文字為 rgb(145,145,144)。修正位於 cssProperties，而**不是**某次審查所歸咎的
+# `background: none`。
+#
+# 請執行兩次並分別擷取前後狀態：此 app 沒有任何會把編輯器顏色編碼出來的文字輸出，因此截圖就是紀錄。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,471,483,frame,left,,,"""Enable it"" -- the editor above it becomes enabled",windows
+sleep,,,,,,3000000,hold for the after capture,windows

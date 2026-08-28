@@ -1,0 +1,60 @@
+action,x,y,origin,button,key,micros,note,platform
+# P18 on Windows/GtkBackend: do the three file dialogs open, and does closing
+# one send a result back to the application?
+#
+# Until 2026-08-28 no file dialog had been clicked on any platform -- the
+# coverage matrix carried P18 as built-but-never-run for GTK/Linux,
+# GTK/Windows and WinUI alike. This file is what changed that, so the three
+# `-> cancelled` lines it produces are the whole point rather than a detail.
+#
+# Escape rather than clicking Cancel, and that is deliberate. The dialog is a
+# native Windows picker in its own top-level window, so it is not addressable
+# from the `frame` origin, which is relative to P18's window; and its position
+# is not fixed between runs. A key event goes to whatever holds focus, so this
+# file has no coordinates for the dialog at all -- the same reasoning as
+# actions/win/P10-ctrl-q.csv.
+#
+# Reading the result: P18 renders `open -> `, `folder -> ` and `save -> ` from
+# its own bindings, and each starts at "nothing yet". All three reading
+# "cancelled" means every dialog both opened AND returned. A dialog that never
+# opened leaves "nothing yet", and one that opened but never returned leaves
+# the app hung, so the three states are distinguishable without interpreting a
+# picture.
+#
+# NOT covered here: the Open/Select/Save path. Confirming a real selection
+# would mean choosing a path on this machine, and for the save dialog writing
+# to it, which a test that runs unattended should not do. `set_initial_name` is
+# therefore still only observed through the dialog appearing with its name
+# prefilled, not through a completed save.
+#
+# P18 於 Windows/GtkBackend：三個檔案對話框打得開嗎？關閉其中一個時，結果會回到應用程式嗎？
+#
+# 直到 2026-08-28 為止，沒有任何平台上的檔案對話框被點過——覆蓋矩陣上 P18 在 GTK/Linux、
+# GTK/Windows 與 WinUI 三者皆為「編得出來但從未執行」。本檔正是改變這件事的東西，因此它產生的
+# 三行 `-> cancelled` 就是重點本身，而非附帶細節。
+#
+# 使用 Escape 而非點擊 Cancel，這是刻意的。該對話框是 Windows 原生選擇器、位於它自己的 top-level
+# 視窗中，因此無法以 `frame` 原點定位（`frame` 是相對於 P18 的視窗）；而且它的位置在各次執行之間
+# 並不固定。按鍵事件會送往持有焦點者，所以本檔對該對話框完全沒有任何座標——與
+# actions/win/P10-ctrl-q.csv 同樣的道理。
+#
+# 如何判讀結果：P18 以自己的 binding 繪製 `open -> `、`folder -> ` 與 `save -> `，三者初始皆為
+# 「nothing yet」。三行全部讀到「cancelled」，即代表每一個對話框都「打開了」而且「有回傳」。從未
+# 打開者會停在「nothing yet」，打開了卻不回傳者會讓 app 卡住，因此這三種狀態無須判讀畫面即可區分。
+#
+# 本檔未涵蓋：Open/Select/Save 那條路徑。要確認一次真實的選取，就得在這台機器上挑一個路徑，而
+# 存檔對話框還得往該路徑寫入——那不是一個無人看管的測試該做的事。因此 `set_initial_name` 目前
+# 仍只透過「對話框開啟時檔名已預先填好」被觀察到，而非透過一次完成的存檔。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,104,231,frame,left,,,"""Open a file""",windows
+sleep,,,,,,3000000,let the native dialog appear,windows
+key,,,,,escape,,cancel it without coordinates,windows
+sleep,,,,,,1500000,,windows
+click,118,301,frame,left,,,"""Choose a folder""",windows
+sleep,,,,,,3000000,,windows
+key,,,,,escape,,,windows
+sleep,,,,,,1500000,,windows
+click,147,371,frame,left,,,"""Choose a save destination"" -- the only path using set_initial_name",windows
+sleep,,,,,,3000000,,windows
+key,,,,,escape,,,windows
+sleep,,,,,,3000000,"hold for the capture: all three lines must read cancelled",windows

@@ -39,3 +39,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-28,windows,winui,P2,ok,ok,desktop,"TextEditor focus underline restored rgb(76,194,255) 2 rows 500px; dropdown bg now the acrylic brush rgb(45-46) not flat rgb(32,32,32)"
 2026-08-28,windows,winui,P9,ok,ok,desktop,"control for the focus test: TextField underline rgb(76,194,255) 2 rows 163px -- createTextField sets no overrides"
 2026-08-28,windows,winui,P23,ok,n/a,desktop,table headers unchanged after header labels stopped pinning a foreground
+2026-08-28,windows,gtk4,P18,ok,ok,window,"first file dialogs clicked on any platform: open/folder/save each open a native picker, Escape closes each, all three lines read cancelled"

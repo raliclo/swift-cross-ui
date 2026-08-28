@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20 on Windows/GtkBackend: is a disabled menu item distinguishable, and does
+# it refuse the click?
+#
+# Two separate claims, and this file tests both, because either can hold without
+# the other. The menu item was added to P20 on 2026-08-28 -- no test app had one
+# before, so nothing could say.
+#
+# The SECOND click is what makes the first one mean anything. "The disabled item
+# refused the click" and "the click missed the menu entirely" both leave
+# `last action -> nothing yet`. Clicking the enabled item afterwards settles it:
+# `last action -> level 1` proves the coordinates were live and the menu was
+# responding, so the disabled item's silence was a refusal rather than a miss.
+#
+# Reading it: `last action -> level 1` passes. `nothing yet` means the whole
+# sequence missed and the run says nothing. `disabled item -- THIS MUST NOT
+# HAPPEN` means a disabled item accepted input, which is the defect this exists
+# to catch.
+#
+# Capture the DESKTOP, not `-w "P20 ..."`: a GTK popover is its own top-level
+# window on Windows and is absent from a window-scoped capture.
+#
+# What it found: dimming works, and it was fixed blind. Before 10e7bead the
+# disabled item was rgb(255,255,255), identical to the enabled one; after, it is
+# rgb(145,145,144) against rgb(238,238,236). The cause was the popover's forced
+# CSS sitting above the theme, NOT `modelbutton` missing from the opacity rule,
+# which is what the gap had been filed under.
+#
+# P20 於 Windows/GtkBackend：停用的選單項目能否被分辨？它會拒絕點擊嗎？
+#
+# 這是兩個各自獨立的主張，本檔兩者都測，因為其中一個成立不代表另一個也成立。該選單項目於
+# 2026-08-28 加入 P20——在此之前沒有任何測試 app 有停用選單項，因此無從得知。
+#
+# **第二次**點擊才讓第一次點擊具有意義。「停用項目拒絕了點擊」與「點擊根本沒中選單」兩者都會讓
+# `last action -> nothing yet`。事後點擊啟用項目即可分辨：`last action -> level 1` 證明座標是有效
+# 的、選單有在回應，因此停用項目的沉默是「拒絕」而非「沒中」。
+#
+# 如何判讀：`last action -> level 1` 為通過。`nothing yet` 代表整段序列都沒中，該次執行什麼也說
+# 明不了。`disabled item -- THIS MUST NOT HAPPEN` 代表停用項目接受了輸入，而那正是本檔存在的目的。
+#
+# 請擷取整個**桌面**，不要用 `-w "P20 ..."`：GTK popover 在 Windows 上是它自己的 top-level 視窗，
+# 不會出現在以視窗為範圍的擷取中。
+#
+# 它發現了什麼：變淡是有效的，而且是在無人看見的情況下被修好的。在 10e7bead 之前，停用項目是
+# rgb(255,255,255)，與啟用項目完全相同；之後則是 rgb(145,145,144) 對 rgb(238,238,236)。成因是
+# popover 強制寫入的 CSS 位階高於主題，而**不是**當初立案時所歸咎的「`modelbutton` 不在 opacity
+# 規則裡」。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,104,259,frame,left,,,"""Open the menu""",windows
+sleep,,,,,,1200000,let the popover appear,windows
+click,100,330,frame,left,,,"""Disabled item"" -- must do nothing",windows
+sleep,,,,,,1000000,,windows
+click,95,299,frame,left,,,"""Level 1 item"" -- proves the coordinates were live",windows
+sleep,,,,,,2500000,"hold: last action must read level 1",windows
