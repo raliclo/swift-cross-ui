@@ -131,6 +131,39 @@ struct P20RootView: View {
                     lastAction = "level 1"
                     P20Diagnostics.write("clicked: level 1")
                 }
+
+                // A disabled item next to an enabled one, added 2026-08-28. The
+                // pair is the instrument: one dimmed item proves nothing on its
+                // own, because the whole menu could be drawn that way.
+                //
+                // GtkBackend sets `gAction.enabled` from `environment.isEnabled`,
+                // so the item really is insensitive and the only question is
+                // whether that is visible. It is worth asking because the
+                // backend's global `opacity: 0.5` rule for `:disabled` lists
+                // button, checkbutton, switch, entry, scale and spinbutton --
+                // and not `modelbutton`, which is what a GTK menu item is.
+                //
+                // The action still writes, so that a click getting through is a
+                // line in the log rather than something nobody notices: looking
+                // disabled and refusing input are two separate claims.
+                //
+                // 一個緊鄰啟用項目的停用項目，於 2026-08-28 加入。這一對才是量測儀器：單獨一個變淡
+                // 的項目本身什麼也證明不了，因為整個選單都有可能就是那樣畫的。
+                //
+                // GtkBackend 會以 `environment.isEnabled` 設定 `gAction.enabled`，因此該項目確實是
+                // insensitive 的，唯一的問題在於「這件事看不看得出來」。之所以值得一問，是因為此
+                // backend 針對 `:disabled` 的全域 `opacity: 0.5` 規則只列出 button、checkbutton、
+                // switch、entry、scale 與 spinbutton——並不包含 `modelbutton`，而 GTK 的選單項目正是
+                // 後者。
+                //
+                // 該動作仍會寫入紀錄，如此「點擊竟然穿透」會留下一行日誌，而不是沒有人察覺：
+                // 「看起來是停用的」與「確實拒絕輸入」是兩個各自獨立的主張。
+                Button("Disabled item") {
+                    lastAction = "disabled item -- THIS MUST NOT HAPPEN"
+                    P20Diagnostics.write("clicked: disabled item -- should be unreachable")
+                }
+                .disabled(true)
+
                 Divider()
                 Menu("Level 2 submenu") {
                     Button("Level 2 item") {
