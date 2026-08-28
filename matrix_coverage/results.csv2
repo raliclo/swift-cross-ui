@@ -26,3 +26,11 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical now opens on the bound month with the bound day ringed
 2026-08-28,windows,winui,P38,ok,n/a,n/a,"WebView diagnosed: element arranged 760x420, ensureCoreWebView2Async never completes"
 2026-08-28,windows,gtk4,P2,ok,n/a,window,"ButtonRole: destructive Delete renders red, plain Delete and Cancel do not"
+2026-08-28,windows,gtk4,P2,ok,n/a,window,"theme deference: button edge back to the theme rgb(56,56,56) from a flat rgb(73,73,73); destructive red rgb(176,21,28) kept"
+2026-08-28,windows,gtk4,P9,ok,n/a,window,"entries take the theme fill rgb(45,45,45) and an rgb(27,27,27) border; focus ring present, 900 accent px"
+2026-08-28,windows,gtk4,P15,ok,ok,window,"scheme override still correct after theme deference: requested light on a dark desktop, window and chrome follow"
+2026-08-28,windows,gtk4,P21,ok,n/a,window,"no regression from theme deference across buttons, toggles, switches, checkboxes, sliders"
+2026-08-28,windows,gtk4,P29,ok,ok,window,"disabled TextEditor now dims: text rgb(145,145,144) vs enabled rgb(255,255,255); both were 255 before"
+2026-08-28,windows,gtk4,P20,ok,ok,desktop,"popover follows the theme. Under GTK_THEME=HighContrast it was a dark rgb(44,44,44) menu on a white window; now white"
+2026-08-28,windows,winui,P21,ok,n/a,desktop,"disabled button label now dims to rgb(120,120,120); it was rgb(255,255,255), identical to enabled"
+2026-08-28,windows,winui,P15,ok,ok,desktop,requestedTheme carries the scheme override; explicit foreground stays blue after the foreground fix
