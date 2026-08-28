@@ -1,4 +1,5 @@
 import CGtk
+import DebugFeatures
 import Foundation
 import Gtk
 @_spi(Backends) import SwiftCrossUI
@@ -310,7 +311,67 @@ public final class GtkBackend:
     /// GDK_DEBUG 設定。
     private static func enableDirectCompositionIfRequested() {
         #if os(Windows)
-            guard ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "1" else { return }
+            // `SCUI_GTK_DCOMP` still forces it on, for bisecting against a
+            // build that predates `-GPU`.
+            // `SCUI_GTK_DCOMP` 仍可強制開啟，以便與早於 `-GPU` 的建置進行二分比對。
+            let forced = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "1"
+            guard forced || DebugFeatures.gpuSelection >= 1 else { return }
+
+            // The guard has to come BEFORE asking, because the failure it
+            // prevents is a segmentation fault and there is nothing to catch.
+            // Measured 2026-08-29 on P40, GL disabled through
+            // GDK_DISABLE=gl,vulkan,d3d11,d3d12:
+            //
+            //   dcomp off -> alive, falls back to GskCairoRenderer
+            //   dcomp on  -> SIGSEGV before a window appears
+            //
+            // So "ask for it and fall back if it fails" is not available. The
+            // fallback has to be a decision made in advance.
+            //
+            // 這道防護必須在「提出要求之前」，因為它所預防的失敗是 segmentation fault，
+            // 沒有任何東西可以攔截。2026-08-29 於 P40 實測，以
+            // GDK_DISABLE=gl,vulkan,d3d11,d3d12 停用 GL：
+            //
+            //   dcomp 關閉 -> 存活，退回 GskCairoRenderer
+            //   dcomp 開啟 -> 視窗出現前即 SIGSEGV
+            //
+            // 因此「先要求，失敗再退回」這條路並不存在。退回必須是事前就做好的決定。
+            // The global `logger`, not `debugLogOnce`: this runs before there is
+            // an instance to hold the once-per-site set, and it happens once per
+            // process anyway.
+            // 使用全域的 `logger` 而非 `debugLogOnce`：此處執行時尚無實例可持有「每處僅記一次」
+            // 的集合，而且它本來每個行程也只會發生一次。
+            // Respect an explicit GDK_DISABLE. Asking for Direct Composition
+            // after the caller has switched GL off is the exact combination
+            // measured to crash, and it is the one case of "GL is unavailable"
+            // that can be detected for certain rather than guessed at.
+            // 尊重明確設定的 GDK_DISABLE。在呼叫端已關閉 GL 之後仍要求 Direct Composition，
+            // 正是實測會當機的那個組合，而且它是「GL 不可用」諸情況中唯一能被確定偵測、
+            // 而非用猜的那一個。
+            let disabled = ProcessInfo.processInfo.environment["GDK_DISABLE"] ?? ""
+            let disablesGL = disabled.split(separator: ",").contains { $0.trimmingCharacters(in: .whitespaces) == "gl" }
+            guard !disablesGL else {
+                logger.notice(
+                    """
+                    GDK_DISABLE contains gl, so Direct Composition was not requested. \
+                    Asking for it with GL switched off crashes GTK rather than degrading.
+                    """
+                )
+                return
+            }
+
+            guard hasHardwareDisplayAdapter() else {
+                logger.notice(
+                    """
+                    No hardware display adapter found, so Direct Composition was not \
+                    requested and GTK will render in software. Asking for it without one \
+                    crashes GTK rather than degrading. This is what -GPU 0 selects \
+                    explicitly.
+                    """
+                )
+                return
+            }
+
             let existing = ProcessInfo.processInfo.environment["GDK_DEBUG"]
             let value = existing.map { $0.isEmpty ? "dcomp" : "\($0),dcomp" } ?? "dcomp"
             // `g_setenv`, not `setenv`: the latter is not in scope in Swift on
@@ -320,6 +381,51 @@ public final class GtkBackend:
             _ = g_setenv("GDK_DEBUG", value, 1)
         #endif
     }
+
+    #if os(Windows)
+        /// Whether Windows reports a display adapter that is not a software one.
+        ///
+        /// Enumerates adapters and rejects the two names Windows uses when there
+        /// is no driver -- "Microsoft Basic Display Adapter" and "Microsoft
+        /// Basic Render Driver". A machine showing only those has no GL for GTK
+        /// to realize, which is the case that crashes.
+        ///
+        /// A name test rather than a capability test, and that is a real
+        /// limitation: an adapter present but with a driver too old for GL 3.3
+        /// would pass this and still fail. The honest probe is to create a WGL
+        /// context and see, which is a great deal more code; this catches the
+        /// case that actually occurs -- a VM or a session with no GPU at all.
+        ///
+        /// Windows 是否回報了「非軟體」的顯示介面卡。
+        ///
+        /// 列舉所有介面卡，並排除 Windows 在沒有驅動程式時使用的兩個名稱——
+        /// 「Microsoft Basic Display Adapter」與「Microsoft Basic Render Driver」。只顯示
+        /// 這兩者之一的機器，沒有任何 GL 可供 GTK 實現，而那正是會導致當機的情況。
+        ///
+        /// 這是「比對名稱」而非「檢測能力」，此為真實的侷限：一張存在、但驅動程式舊到不支援
+        /// GL 3.3 的介面卡會通過此檢查卻仍然失敗。誠實的探測方式是實際建立一個 WGL context
+        /// 來看結果，那需要多得多的程式碼；此處攔截的是實際會發生的情況——虛擬機，或完全沒有
+        /// GPU 的工作階段。
+        private static func hasHardwareDisplayAdapter() -> Bool {
+            var index: DWORD = 0
+            while true {
+                var device = DISPLAY_DEVICEW()
+                device.cb = DWORD(MemoryLayout<DISPLAY_DEVICEW>.size)
+                guard EnumDisplayDevicesW(nil, index, &device, 0) else { break }
+                index += 1
+                let name = withUnsafeBytes(of: device.DeviceString) { raw -> String in
+                    guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt16.self) else {
+                        return ""
+                    }
+                    return String(decodingCString: base, as: UTF16.self)
+                }
+                if !name.isEmpty && !name.hasPrefix("Microsoft Basic") {
+                    return true
+                }
+            }
+            return false
+        }
+    #endif
 
     var globalCSSProvider: CSSProvider?
 

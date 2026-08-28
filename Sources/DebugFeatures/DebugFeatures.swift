@@ -69,6 +69,40 @@ public enum DebugFeatures {
         #endif
     }
 
+    /// Which graphics adapter the backend should ask for: `-GPU N`.
+    ///
+    /// `0` means no GPU: render in software and do not ask for Direct
+    /// Composition. `1` is the default and asks for hardware. `2` and above
+    /// also ask for hardware, and additionally name which adapter is wanted.
+    ///
+    /// Defaults to `1` in every build, release included, because it is a
+    /// rendering policy rather than a diagnostic -- only the *flag* is
+    /// debug-only, through ``value(after:)``. A release binary therefore takes
+    /// the default and cannot be talked out of it on the command line.
+    ///
+    /// The number is deliberately the same scale as Windows' own
+    /// `GpuPreference`: 0 unspecified, 1 power-saving/integrated, 2
+    /// high-performance/discrete. That is not a coincidence to be tidied away
+    /// -- it is what lets `-GPU 2` mean the same thing here and in the registry
+    /// value Windows actually reads.
+    ///
+    /// backend 應要求哪一張繪圖介面卡：`-GPU N`。
+    ///
+    /// `0` 表示不使用 GPU：以軟體繪製，且不要求 Direct Composition。`1` 為預設值，要求硬體。
+    /// `2` 以上同樣要求硬體，並額外指明想要哪一張介面卡。
+    ///
+    /// 在所有建置（含 release）中預設為 `1`，因為這是繪製政策而非診斷功能——只有那個**旗標**
+    /// 是 debug 限定的（透過 ``value(after:)``）。因此 release 執行檔一律採用預設值，且無法
+    /// 由命令列改變。
+    ///
+    /// 此數字刻意與 Windows 自己的 `GpuPreference` 同一套刻度：0 未指定、1 省電／內顯、
+    /// 2 高效能／獨顯。這並非可以順手「整理掉」的巧合——正是它讓 `-GPU 2` 在此處與在 Windows
+    /// 實際讀取的登錄檔值中意義相同。
+    public static let gpuSelection: Int = {
+        guard let raw = value(after: "-GPU"), let n = Int(raw), n >= 0 else { return 1 }
+        return n
+    }()
+
     /// Writes a line to standard error when debugging is on.
     ///
     /// `@autoclosure` so the message is not built in a release binary. A
