@@ -1516,10 +1516,26 @@ public final class WinUIBackend:
         brush.color = UWP.Color(a: 0, r: 0, g: 0, b: 0)
         textEditor.background = brush
 
-        // Remove hover and focus effects
+        // Remove the hover and focus *backgrounds*, so the editor keeps the
+        // app's background in every state rather than lighting up a box.
         _ = textEditor.resources.insert("TextControlBackgroundPointerOver", brush)
         _ = textEditor.resources.insert("TextControlBackgroundFocused", brush)
-        _ = textEditor.resources.insert("TextControlBorderBrushFocused", brush)
+
+        // TextControlBorderBrushFocused is deliberately NOT blanked here. It was
+        // until 2026-08-28, alongside the two above and under the same comment,
+        // but it is not a decoration -- it is the accent underline that shows
+        // which control has the keyboard, and there is no second indicator
+        // behind it.
+        //
+        // Measured on P2, WinUI, Windows 11 dark, with focus proven by typing
+        // (the editor's Length readout went 96 -> 97 and the character appeared,
+        // so the keystroke reached it): no accent row anywhere in or below the
+        // editor. The control was a TextField in P9 under the same backend and
+        // theme, which createTextField leaves alone -- it drew rgb(76,194,255),
+        // two rows, 163 px wide.
+        //
+        // Not the same as #471, the thin border on the *unfocused* editor: that
+        // is TextControlBorderBrush, which this has never set.
 
         return textEditor
     }
