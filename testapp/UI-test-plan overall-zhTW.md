@@ -1,4 +1,4 @@
-# UI 測試計畫：P0-P17
+# UI 測試計畫：P0-P41
 
 本文件整理 `testapp` 測試程式的手動與輔助 UI 測試步驟。測試目標是快速重現與確認 WinUIBackend、GtkBackend、AppKitBackend、UIKitBackend 與 AndroidBackend 的 backend-specific issues。
 

@@ -42,11 +42,15 @@ WSLg 和 Linux 分成不同欄位，因為兩者會有差異。WSLg 是 Wayland 
 
 ## Binaries
 
-Windows workstation 可達的兩個平台都已建置全部 18 個 apps：🌊 WSLg 下是 `testapp/output/PN`，🪟 Windows 下是 `testapp/output/PN.exe`。目前沒有任何東西在 🐧 下建置過，所以該欄沒有結果。重新建置：
+目前 testapp 已到 P41。下方桌面 issue matrix 仍可判定其中列出的 upstream issue rows，但它已不再是所有本機 repro app 的完整 inventory。P18-P41 依需要記錄在 overall 與 bug plans。
+
+在 Windows workstation 上，可達的桌面 app 預設以 release build 建置：🌊 WSLg 下是 `testapp/output/PN`，🪟 Windows 下是 `testapp/output/PN.exe`。目前沒有任何東西在 🐧 下建置過，所以該欄沒有結果。重新建置 matrix-era desktop set：
 
 ```sh
 zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
 ```
+
+較新的本機 app 請依 test plan 指名的 app 單獨建置，不要假設此 matrix 已經分類。
 
 ## 矩陣
 
@@ -114,6 +118,13 @@ Core-layout issues 同時出現在兩張表中：它們是 backend-independent�
 P5 和 P6 沒有 upstream issue number：P5 是 multi-window alerts，P6 是 Windows GPU video path，NV12 工作就是從這裡延伸出來的。
 
 ## 依機器列出的執行項目
+
+截至 2026-08-29，這份 matrix 在 Windows workstation 上仍視為尚未定案的缺口如下：
+
+- 🪟 Windows：P16 驗 #160；P13 驗 #595/#158，並作為 #291/#415 comparison；P17 驗 #264/#266/#161；P15 作為 #386 control。
+- 🌊 WSLg：P7 的 #556 仍是 provisional，因為 WSLg 會扭曲 window sizing；P15 的 #289 也因相同原因維持 provisional。除非各 app 的 result file 另有記錄，P2、P3、P8、P9、P10、P13、P15、P17 仍是 active WSLg matrix runs。
+- 🐧 真實 Linux desktop：目前兩台機器都不可達。#556 與 #289 仍需要它才能定案。
+- P18-P41：尚未完整納入這份 platform matrix。這些 app 請看 `UI-test-plan overall-en.md`、`UI-test-plan bug-en.md` 與各 feature result docs。
 
 🌊 **WSLg**，在 Windows workstation 上 -- 17 個 issues，加上 #291 和 #415 作比較。#476 已在 GTK4 與 Gtk3 確認修正。〰️ rows 的結果在 🐧 存在前都維持 provisional：
 

@@ -484,6 +484,67 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## Test infrastructure / 測試基礎設施
 
+- **Make GTK 4 render with hardware on WSL. It does not today, and the fallback
+  is silent.** (WSL) GTK reports `GskVulkanRenderer`, which reads like hardware,
+  while lavapipe draws every frame on the CPU. Measured 2026-08-29:
+
+      libEGL warning: MESA-LOADER: failed to retrieve device information
+      MESA: error: ZINK: failed to choose pdev
+      Not using GL: renderer is llvmpipe
+      Using renderer 'GskVulkanRenderer' for surface 'GdkWaylandToplevel'
+
+  **Two absences, not a misconfiguration.** Eight Vulkan ICD manifests are
+  installed and every one is for hardware that is not present, leaving `lvp`
+  (lavapipe, software) as the only one that can answer. `dzn` — Mesa's
+  Vulkan-on-D3D12 driver, the only one that could reach a GPU through
+  `/dev/dxg` — is not built into Ubuntu's `mesa-vulkan-drivers` at all, so
+  `libvulkan_dzn.so` does not exist. Separately, `/usr/lib/wsl/lib` holds CUDA,
+  NVENC/NVDEC and OptiX and **no GL or Vulkan userspace whatsoever**. Full entry
+  in `bugs/Gtk4-bugs.md` §2; detect with `zsh testapp/diagnose_wsl_gpu.zsh`.
+
+  Everything reachable without installing anything was tried and none of it
+  helped: `GALLIUM_DRIVER=d3d12`, `MESA_LOADER_DRIVER_OVERRIDE=d3d12`, explicit
+  `LD_LIBRARY_PATH=/usr/lib/wsl/lib`. `/dev/dxg` exists, `/dev/dri` does not.
+  The rest of the plumbing is intact — `libdxcore.so` and `libd3d12core.so` are
+  in the loader cache, `d3d12_dri.so` is installed — so this is a missing
+  userspace driver, not missing hardware.
+
+  **Two routes, neither a code change**: a Windows NVIDIA driver that publishes
+  GL/Vulkan userspace into WSL, or a Mesa built with `dzn`. Try the driver
+  first; it is the cheaper of the two and the more likely to be maintained.
+
+  **What it costs while unfixed.** UI tests stay valid — the pixels are correct,
+  they were simply drawn by the CPU. Anything measuring GPU presentation, frame
+  time or renderer performance on WSL is measuring lavapipe. In particular
+  **"Vulkan is the hardware path, so it must be faster than Cairo" is false
+  here**: both run on the CPU, and lavapipe additionally emulates a whole GPU
+  pipeline on top. Any Cairo-versus-Vulkan comparison run on WSL today measures
+  two software rasterisers, one of which is carrying an emulated GPU.
+
+  **讓 GTK 4 在 WSL 上以硬體繪製。目前並非如此，而且退回是無聲的。**（WSL）GTK 回報
+  `GskVulkanRenderer`，讀起來像硬體，實際上每一格都由 CPU 上的 lavapipe 繪製。
+
+  **這是兩項「缺席」，不是設定錯誤。** 已安裝八個 Vulkan ICD manifest，而每一個都對應到不存在
+  的硬體，只剩 `lvp`（lavapipe，軟體）能回應。`dzn`——Mesa 的 Vulkan-on-D3D12 驅動，也是唯一
+  能透過 `/dev/dxg` 觸及 GPU 的那個——根本未被 Ubuntu 的 `mesa-vulkan-drivers` 編入，因此
+  `libvulkan_dzn.so` 並不存在。另一方面，`/usr/lib/wsl/lib` 內有 CUDA、NVENC/NVDEC 與 OptiX，
+  **完全沒有任何 GL 或 Vulkan userspace**。完整條目見 `bugs/Gtk4-bugs.md` §2；偵測方式為
+  `zsh testapp/diagnose_wsl_gpu.zsh`。
+
+  所有「不必安裝任何東西」的途徑都試過且全部無效：`GALLIUM_DRIVER=d3d12`、
+  `MESA_LOADER_DRIVER_OVERRIDE=d3d12`、顯式 `LD_LIBRARY_PATH=/usr/lib/wsl/lib`。`/dev/dxg`
+  存在，`/dev/dri` 不存在。其餘管線都是完整的——`libdxcore.so` 與 `libd3d12core.so` 位於
+  loader cache，`d3d12_dri.so` 也已安裝——因此這是**缺少 userspace 驅動，而非缺少硬體**。
+
+  **兩條路，皆非程式碼變更**：換一份會把 GL/Vulkan userspace 發布進 WSL 的 Windows NVIDIA
+  驅動，或換一份編入 `dzn` 的 Mesa。先試驅動——那是兩者中較便宜、也較可能持續被維護的一條。
+
+  **未修好期間的代價。** UI 測試仍然有效——像素是正確的，只是由 CPU 畫的。但任何在 WSL 上量測
+  GPU 呈現、frame time 或繪製器效能的工作，量到的都是 lavapipe。尤其**「Vulkan 是硬體路徑，
+  所以一定比 Cairo 快」在此為假**：兩者都跑在 CPU 上，而 lavapipe 還額外在其上模擬了一整條
+  GPU pipeline。今天在 WSL 上做的任何 Cairo 對 Vulkan 比較，量的都是兩個軟體光柵化器，
+  其中一個還背著一顆模擬的 GPU。
+
 - ~~**Keyboard action files cannot run on Windows at all.** `prepareForReplay`
   refuses any file containing `key`/`keydown`/`keyup` [...] Options, in order:
   `PostMessage`; retry `AttachThreadInput` now that the window is pinned

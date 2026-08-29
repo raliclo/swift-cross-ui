@@ -340,3 +340,249 @@ zsh testapp/test.zsh P14 --ios --actionfile testapp/actions/ios/P14-basic.csv
 xcrun simctl spawn swift-cross-ui log stream --style compact \
   --predicate 'process == "debugTarget"'
 ```
+
+## What is the difference between Cairo and Direct Composition?
+
+**They are not the same kind of thing, and that is the point.** Comparing them
+directly is what makes this confusing.
+
+- **`GskCairoRenderer`** is a **renderer**. It is GTK's software rasteriser,
+  drawing on the CPU.
+- **Direct Composition (DComp)** is a **Windows compositing API**. It draws
+  nothing itself. It is what lets GTK create the kind of surface its *GL*
+  renderer needs.
+
+So the real pairing is not "Cairo or DComp" but:
+
+| | GTK realizes | draws on |
+|---|---|---|
+| without DComp | `GskCairoRenderer` | CPU |
+| with DComp | `GskGLRenderer` | GPU |
+
+On this machine GTK cannot realize the GL renderer unaided:
+
+    Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
+        OpenGL requires Direct Composition
+    Using renderer 'GskCairoRenderer' for surface 'GdkWin32Toplevel'
+
+With `GDK_DEBUG=dcomp` it gets `GskGLRenderer`, and that is real hardware: *AMD
+Radeon(TM) Graphics*, or *NVIDIA GeForce RTX 4060 Laptop GPU* when pinned to the
+discrete card — both OpenGL 4.6 through native WGL. `GtkBackend` asks for it
+when `-GPU 2` or above is passed.
+
+**Three consequences, all measured 2026-08-29 and all of which have bitten:**
+
+1. **Transforms.** `GskCairoRenderer` cannot draw a transform node and paints
+   flat hotpink `rgb(255,105,180)` instead, losing the content entirely.
+   `GskGLRenderer` draws it. This was recorded as "GTK 4 cannot render
+   transformed widgets" — it is the *software fallback* that cannot, which is a
+   different claim. See `bugs/Gtk4-bugs.md`.
+2. **gdigrab window capture stops working.** A DComp-composited window cannot
+   be read by gdigrab's BitBlt path. `screenshot.zsh -w` no longer uses that
+   path on Windows/WSLg; it uses wincap /
+   `PrintWindow(PW_RENDERFULLCONTENT)` directly. It fails closed if wincap
+   cannot capture the named window; omit `-w` only when the desktop is the
+   intended subject.
+3. **CPU against GPU.** The two have different performance and startup costs.
+   Not yet measured; see `testapp/plan/plan-gpu-selection.md`.
+
+**A number to distrust.** "Which renderer `-GPU 1` gives" is a fact about *this
+machine*, not about the flag. Here it is Cairo, because GL cannot realize
+without DComp; on a machine where GL realizes unaided it would be
+`GskGLRenderer`. Do not assert a renderer name for `-GPU 1` in a test — assert
+that `-GPU 1` matches the no-flag default, which is what it actually means. The
+measured per-flag table for this machine is in
+[plan/plan-windows-gtk-backend.md](plan/plan-windows-gtk-backend.md), under
+"What each -GPU value actually selects".
+
+## Cairo 與 Direct Composition 有什麼不同？
+
+**兩者不是同一類東西，而這正是重點。** 把它們直接拿來比較，正是混淆的來源。
+
+- **`GskCairoRenderer`** 是一個**繪製器**：GTK 的軟體光柵化器，在 CPU 上繪圖。
+- **Direct Composition（DComp）** 是一個 **Windows 的合成 API**：它自己不畫任何東西，而是讓 GTK
+  得以建立其 **GL** 繪製器所需要的那種 surface。
+
+因此真正成對的並不是「Cairo 或 DComp」，而是：
+
+| | GTK 實現出的繪製器 | 由誰繪圖 |
+|---|---|---|
+| 未啟用 DComp | `GskCairoRenderer` | CPU |
+| 啟用 DComp | `GskGLRenderer` | GPU |
+
+在這台機器上，GTK 無法自行實現 GL 繪製器（實際訊息見上方英文區塊）。設定 `GDK_DEBUG=dcomp`
+之後便會取得 `GskGLRenderer`，而且是**真正的硬體**：AMD Radeon(TM) Graphics，或釘定至獨顯後的
+NVIDIA GeForce RTX 4060 Laptop GPU——兩者皆為透過原生 WGL 的 OpenGL 4.6。`GtkBackend` 會在傳入
+`-GPU 2` 以上時要求它。
+
+**三項於 2026-08-29 實測的後果，每一項都咬過人：**
+
+1. **變換。** `GskCairoRenderer` 畫不出 transform node，會改畫成一整片 hotpink
+   `rgb(255,105,180)`，內容完全喪失；`GskGLRenderer` 則畫得出來。此事曾被記錄為「GTK 4 無法繪製
+   被變換的 widget」——實際上是**軟體後備**畫不出來，那是另一個不同的主張。詳見
+   `bugs/Gtk4-bugs.md`。
+2. **gdigrab 視窗擷取會失效。** 經 DComp 合成的視窗無法被 gdigrab 的 BitBlt 路徑讀取。
+   `screenshot.zsh -w` 在 Windows/WSLg 上不再使用該路徑；它直接使用 wincap /
+   `PrintWindow(PW_RENDERFULLCONTENT)`。若 wincap 無法擷取指定視窗，指令會直接失敗；
+   只有明確省略 `-w` 時，桌面才是擷取目標。
+3. **CPU 與 GPU 的差異。** 兩者的效能與啟動成本並不相同。尚未量測，詳見
+   `testapp/plan/plan-gpu-selection.md`。
+
+**一個不該相信的數字。** 「`-GPU 1` 會得到哪個繪製器」是關於**這台機器**的事實，而非關於這個旗標。
+此處是 Cairo，因為沒有 DComp 就實現不了 GL；在一台 GL 能自行實現的機器上，它會是
+`GskGLRenderer`。**請勿在測試中斷言 `-GPU 1` 的繪製器名稱**——應斷言「`-GPU 1` 與不加旗標的預設
+相同」，那才是它真正的意義。
+
+## Are there licence differences between Cairo and Vulkan, or between the gvsbuild and MSYS2 GTK builds?
+
+Read from each package's own `.PKGINFO` on 2026-08-29, not from memory.
+Regenerate with:
+
+    zstd -dc <pkg>.pkg.tar.zst | tar -xO .PKGINFO | grep '^license = '
+
+This project is **MIT** (`LICENSE`, Copyright 2022 stackotter).
+
+| component | licence |
+|---|---|
+| gtk4 | LGPL-2.1-or-later |
+| glib2 | LGPL-2.1-or-later |
+| pango | LGPL-2.1 |
+| cairo | LGPL-2.1-or-later **OR** MPL-1.1 |
+| vulkan-loader | Apache-2.0 |
+| gcc-libs (MinGW only) | GPL-3.0-or-later **WITH** GCC-exception-3.1, AND LGPL-2.1-or-later |
+| libwinpthread (MinGW only) | MIT AND BSD-3-Clause-Clear |
+
+**Cairo against Vulkan: no difference worth acting on.** Both renderers live
+inside GTK, and GTK is LGPL-2.1-or-later whichever one realizes. Choosing a
+renderer does not change a single obligation. If anything the Vulkan path adds
+the *more* permissive component, since the loader is Apache-2.0 and Mesa's
+llvmpipe — what WSL actually runs — is MIT.
+
+**gvsbuild against MSYS2: a real difference, and it is not the one people
+expect.** The MinGW build drags in `gcc-libs`, whose licence line reads
+GPL-3.0-or-later. That looks alarming and is not, because of the four words
+after it: **WITH GCC-exception-3.1**, the GCC Runtime Library Exception, which
+exists precisely to permit linking libgcc into programs that are not GPL. The
+MSVC build avoids it by linking Microsoft's CRT instead, which carries its own
+redistribution terms and usually means shipping `vcruntime140.dll`. Neither is a
+blocker; they are different sets of notices to carry.
+
+**The obligation that actually matters is the same on both sides, and it is
+GTK's.** LGPL-2.1 is satisfied here by dynamic linking — GTK is a separate DLL
+in both builds, so a recipient can replace it — provided the notices ship with
+any binary distribution. That is a packaging requirement, not a code one, and it
+applies to a gvsbuild bundle exactly as it applies to a repackaged MSYS2 one.
+
+Not legal advice, and the SPDX fields above are the packagers' summaries rather
+than an audit. They are recorded because they are cheap to re-derive and because
+guessing at them is worse.
+
+## Cairo 與 Vulkan、以及 gvsbuild 與 MSYS2 兩份 GTK build，有授權上的差異嗎？
+
+2026-08-29 自各套件本身的 `.PKGINFO` 讀出，並非憑記憶。重新產生方式見上方指令。
+
+本專案為 **MIT**（`LICENSE`，Copyright 2022 stackotter）。授權表見上。
+
+**Cairo 對 Vulkan：沒有值得採取行動的差異。** 兩個繪製器都存在於 GTK 之內，而無論由誰實現，
+GTK 都是 LGPL-2.1-or-later。選擇繪製器不會改變任何一項義務。真要說，Vulkan 那條路加入的反而是
+**更寬鬆**的元件——loader 是 Apache-2.0，而 WSL 實際執行的 Mesa llvmpipe 是 MIT。
+
+**gvsbuild 對 MSYS2：有實質差異，但不是一般人以為的那個。** MinGW build 會帶進 `gcc-libs`，
+其授權行寫著 GPL-3.0-or-later。那看起來很嚇人，但其實不是，關鍵在後面那幾個字：
+**WITH GCC-exception-3.1**，即 GCC Runtime Library Exception——它存在的目的，正是允許把 libgcc
+連結進非 GPL 的程式。MSVC build 則改為連結 Microsoft 的 CRT 而避開此事，但那有它自己的
+再散布條款，通常意味著要一併散布 `vcruntime140.dll`。兩者都不構成阻礙，只是要攜帶的聲明不同。
+
+**真正重要的義務兩邊相同，而且來自 GTK。** 此處 LGPL-2.1 是以動態連結滿足的——兩份 build 中
+GTK 都是獨立的 DLL，接收者可以自行替換——前提是任何二進位散布都要附上聲明。那是**打包**層面的
+要求，不是程式碼層面的，且對 gvsbuild 打包與重新打包的 MSYS2 一體適用。
+
+以上不構成法律意見，且上表的 SPDX 欄位是packager 的摘要而非稽核結果。記錄於此，是因為它們
+重新推導的成本很低，而用猜的更糟。
+
+## Why did `screenshot.zsh -w` fall back to a desktop capture, and how was it fixed?
+
+Yes, it can, and the diagnosis differs per platform. Measured 2026-08-29, each
+window's `GWL_EXSTYLE` read directly.
+
+| where | window style | what defeats gdigrab |
+|---|---|---|
+| Windows, default | `0x00000100` | nothing — priority 1 works |
+| Windows, `-GPU 2` / DComp | `0x00200000` `WS_EX_NOREDIRECTIONBITMAP` | no redirection surface for BitBlt to copy |
+| WSL under WSLg | `0x00080100` `WS_EX_LAYERED` | **two** independent problems, below |
+| Windows, P6 (WinUI, D3D11) | `0x00000100` | nothing — priority 1 works |
+
+**P6 is the counterexample that makes the rule precise.** It presents through
+`CreateSwapChainForComposition` — a composition swapchain — and captures
+perfectly, so "D3D content cannot be captured" and "DirectComposition content
+cannot be captured" are both false. What matters is whether the *toplevel* has a
+redirection surface, not what draws into it.
+
+**WSL has two faults stacked, and either alone hides the other.**
+
+1. **The title does not match.** WSLg renames windows, and `screenshot.zsh`
+   knows about the `(Ubuntu)` suffix. It does not know about a *prefix*: when
+   WSLg's GPU path is degraded the real title is
+   `[WARN:COPY MODE] P40 geometric effects (Ubuntu)`. gdigrab matches titles
+   exactly, so it reports `Can't find window ... aborting` and the fallback
+   triggers before any pixel is read.
+2. **Even given the exact title, the capture is black.** Feeding gdigrab the
+   full title with the prefix produces a file — 928x669, and **45 non-black
+   pixels out of 155,775 sampled**. It found the window and copied nothing,
+   because a layered window has no ordinary surface to BitBlt.
+
+Fixing only the title would therefore turn a visible fallback into a black PNG
+that looks like a successful capture. That is worse than the current behaviour.
+
+**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` handles all three cases.** It
+asks DWM to render the window rather than copying a surface. Measured on the two
+that gdigrab cannot do:
+
+    Windows + DComp   93.0% of pixels non-black, full window content
+    WSL under WSLg    92.6% of pixels non-black, full window content
+
+Both images show chrome, headings, every tile and both text samples. So the
+capture limitation is gdigrab's, and one `PrintWindow` path fixes Windows and
+WSL together.
+
+**Count non-black pixels, always.** `PrintWindow` returns TRUE while producing an
+entirely black bitmap, exactly as gdigrab did above. A capture tool that reports
+only its exit status will report success for an empty image.
+
+As of 2026-08-29, `screenshot.zsh -w` uses this path as the only window-capture
+path on Windows/WSLg. If wincap cannot capture a matching window, the command
+fails closed. Desktop capture is still available by omitting `-w`, but it is no
+longer an automatic fallback for a named-window capture.
+
+## `screenshot.zsh -w` 以前為什麼會退回擷取桌面？現在如何修正？
+
+可以，而且各平台的病因不同。2026-08-29 實測，每個視窗的 `GWL_EXSTYLE` 皆直接讀取（表見上）。
+
+**P6 是那個讓規則變精確的反例。** 它透過 `CreateSwapChainForComposition` 呈現——那是
+composition swapchain——卻能被完美擷取，因此「D3D 內容無法被擷取」與「DirectComposition
+內容無法被擷取」兩句話都是假的。真正決定成敗的是**頂層視窗**有沒有 redirection surface，
+而不是誰在往裡面畫。
+
+**WSL 上疊了兩個故障，而任一個都會遮蔽另一個。**
+
+1. **標題對不上。** WSLg 會替視窗改名，`screenshot.zsh` 知道 `(Ubuntu)` 這個**後綴**，卻不知道
+   還會有**前綴**：當 WSLg 的 GPU 路徑降級時，真實標題是
+   `[WARN:COPY MODE] P40 geometric effects (Ubuntu)`。gdigrab 進行的是精確比對，因此回報
+   `Can't find window ... aborting`，在讀到任何一個像素之前就觸發回退。
+2. **就算給了完全正確的標題，擷取結果仍是黑的。** 把含前綴的完整標題餵給 gdigrab 確實產生了
+   檔案——928x669，而取樣的 155,775 個像素中**只有 45 個非黑**。它找到了視窗，卻什麼也沒複製到，
+   因為 layered window 沒有可供 BitBlt 的一般表面。
+
+因此**只修標題**會把一個「看得見的回退」變成一張「看起來像成功」的全黑 PNG，比現況更糟。
+
+**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` 三種情況全部能處理。** 它要求 DWM 重新繪製
+該視窗，而非複製既有表面。對 gdigrab 做不到的那兩種實測：Windows + DComp 為 93.0% 非黑，
+WSLg 為 92.6% 非黑，兩張圖都完整呈現視窗框、標題、每一個 tile 與兩段文字樣本。所以擷取的限制
+屬於 gdigrab，而一條 `PrintWindow` 路徑可同時修好 Windows 與 WSL。
+
+**永遠要計算非黑像素。** `PrintWindow` 會在產出全黑點陣圖的同時回傳 TRUE，正如上文的 gdigrab。
+一個只回報結束碼的擷取工具，會把空白影像回報為成功。
+
+截至 2026-08-29，`screenshot.zsh -w` 在 Windows/WSLg 已將此路徑作為唯一的視窗擷取路徑。
+若 wincap 無法擷取符合的視窗，指令會 fail closed。桌面擷取仍可透過省略 `-w` 明確使用，
+但不再是指定視窗擷取的自動 fallback。

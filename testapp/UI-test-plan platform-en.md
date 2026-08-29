@@ -63,14 +63,22 @@ explicitly provisional until someone repeats them there.
 
 ## Binaries
 
-All 18 apps are built on both platforms reachable from the Windows
-workstation -- `testapp/output/PN` under 🌊 WSLg, `testapp/output/PN.exe` on
+The current testapp set reaches P41. The desktop issue matrix below still
+decides the upstream issue rows it lists, but it is no longer a complete
+inventory of every local repro app. P18-P41 are covered by the overall and bug
+plans where applicable.
+
+On the Windows workstation, build the reachable desktop apps as release builds
+by default: `testapp/output/PN` under 🌊 WSLg and `testapp/output/PN.exe` on
 🪟 Windows. Nothing here has been built under 🐧, which is why that column
-carries no results. Rebuild with:
+carries no results. Rebuild the matrix-era desktop set with:
 
 ```sh
 zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
 ```
+
+For newer local apps, build the specific app named by the test plan instead of
+assuming this matrix has already classified it.
 
 ## The matrix
 
@@ -146,6 +154,21 @@ feature apps are included in the macOS source matrix even though they are not
 upstream issue rows.
 
 ## What to run, by machine
+
+As of 2026-08-29, the gaps below are the ones this matrix still treats as not
+settled on the Windows workstation:
+
+- 🪟 Windows: P16 for #160; P13 for #595/#158 plus #291/#415 comparisons; P17
+  for #264/#266/#161; P15 as the #386 control.
+- 🌊 WSLg: P7 for #556 remains provisional because WSLg distorts window sizing;
+  P15 for #289 is also provisional for the same reason. P2, P3, P8, P9, P10,
+  P13, P15 and P17 remain the active WSLg matrix runs unless their per-app
+  result file says otherwise.
+- 🐧 real Linux desktop: not reachable on either current machine. It is still
+  required to settle #556 and #289.
+- P18-P41: not fully represented in this platform matrix. Use
+  `UI-test-plan overall-en.md`, `UI-test-plan bug-en.md` and the per-feature
+  result docs for those apps.
 
 🌊 **WSLg**, on the Windows workstation -- 17 issues, plus #291 and #415 as
 comparisons. #476 has been verified fixed on GTK4 and Gtk3. Results for the

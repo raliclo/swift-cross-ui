@@ -161,17 +161,43 @@ platforms now. They conform and decline, and the ordinal is reserved.
 The point of lifting this is that the **rules** are shared and only the
 **lookup** is not.
 
-    SwiftCrossUI  (protocol level — one implementation, shared by everyone)
-        GraphicsAdapter          name, isRemovable, isLowPower, identifier
-        GraphicsAdapterSelection the number and what it means
-        resolution + fallback    N -> adapter, with the 1 then 0 chain
-        reporting                printing the list and the choice
+**As built, abf49d12** — three differences from the sketch, all deliberate:
 
-    BackendFeatures.GraphicsAdapters  (what a backend must actually provide)
+    SwiftCrossUI  (the rules — one implementation, shared by everyone)
+        GraphicsAdapter            name, isRemovable, isLowPower
+        GraphicsAdapterSelection   .software / .systemDefault
+                                   / .external(ordinal:) + init(number:)
+        resolve(among:)            the fallback chain, defined once
+        GraphicsAdapterResolution  requested, resolved, adapter, fellBackBecause
+
+    BackendFeatures.GraphicsAdapters  (only what a backend alone can answer)
         var availableAdapters: [GraphicsAdapter]
-        func apply(_ adapter: GraphicsAdapter) -> Outcome
-             // .applied / .needsRestart(reason) / .unavailable(reason)
+        func applyAdapter(_ resolution: GraphicsAdapterResolution) -> AdapterOutcome
         var adapterRemoved: (() -> Void)?
+
+    AdapterOutcome
+        .applied / .alreadyActive / .needsRestart(reason:) / .unavailable(reason:)
+
+1. **`applyAdapter` takes the resolution, not the adapter.** The backend sees
+   what was *asked for* beside what it resolved to, so it can report a
+   substitution instead of only acting on the result.
+2. **`GraphicsAdapterResolution` was not in the sketch and carries
+   `fellBackBecause`.** A caller cannot print the answer without also having the
+   reason it is not what was requested — which is the failure this whole feature
+   exists to prevent, made structurally hard rather than merely discouraged.
+3. **No `identifier`.** The sketch had one; nothing needed it, and an unused
+   field invites someone to key selection off it — which is the index-based
+   numbering this design rejects. Add it when something actually requires it.
+
+**依實作，abf49d12** —— 與草圖有三處差異，皆為刻意：
+
+1. **`applyAdapter` 收的是 resolution，而非 adapter。** backend 能同時看到「使用者要求什麼」與
+   「解析成什麼」，因此它能回報一次替換，而不只是對結果採取行動。
+2. **`GraphicsAdapterResolution` 不在草圖中，且帶有 `fellBackBecause`。** 呼叫端不可能在「印出
+   答案」的同時、手上卻沒有「這不是使用者所要求的」之理由——而那正是整個功能所要防止的失敗，
+   此處讓它在結構上難以發生，而不只是「不鼓勵」。
+3. **沒有 `identifier`。** 草圖裡有，但沒有任何東西需要它；而一個沒人用的欄位會誘使人以它為鍵
+   來做選擇——那正是本設計所拒絕的「索引式編號」。等到真的有東西需要它時再加。
 
 `needsRestart` exists so that "Windows must relaunch, macOS must not" is a
 difference the **protocol can express**, rather than logic buried in one
@@ -194,13 +220,43 @@ be rewritten rather than extended.
 
 ## Order of work
 
-1. Move the policy type out of `DebugFeatures` into `SwiftCrossUI`.
-   `DebugFeatures` keeps only the argv parsing of `-GPU N` and `-y`, which is
-   its job and which must vanish in a release build.
-2. Define `BackendFeatures.GraphicsAdapters`, including `adapterRemoved`.
-3. `GtkBackend` conforms — move the existing Windows code behind it. Every other
-   backend conforms and declines, which is the safe shape here because
-   `@CastBackend` turns a *missing* conformance into `fatalError`.
+**Read the status honestly: 2 is done, 1 and 3 are half done, and the half that
+is missing is the half that matters.** The protocol is defined, `GtkBackend`
+conforms, and it all compiles — but **nothing calls it**. `applyAdapter` and
+`availableAdapters` have no callers, and the `-GPU` flow still reads
+`DebugFeatures.gpuSelection` as a raw `Int` in two places
+(`GtkBackend.swift:329` and `:695`). So the flag works, the protocol works, and
+they are not connected to each other.
+
+That is exactly the shape of defect this project keeps finding — something that
+compiles, conforms and looks finished while the wire is missing — so it is
+written here rather than reported as complete.
+
+**狀態請照實讀：第 2 項完成，第 1 與第 3 項只做了一半，而缺的那一半正是關鍵的那一半。**
+協定已定義、`GtkBackend` 已 conform、全部編譯通過——但**沒有任何東西呼叫它**。`applyAdapter`
+與 `availableAdapters` 沒有呼叫端，而 `-GPU` 的流程仍在兩處直接讀取原始的
+`DebugFeatures.gpuSelection`（`GtkBackend.swift:329` 與 `:695`）。也就是說：旗標能用、協定能用，
+而兩者尚未接在一起。
+
+這正是本專案一再發現的那種缺陷形狀——編得過、conform 了、看起來完成了，但線沒接上——因此在此
+寫明，而非回報為已完成。
+
+1. **PARTIAL.** `GraphicsAdapterSelection` exists in `SwiftCrossUI` with
+   `init(number:)`. `DebugFeatures.gpuSelection` still returns a raw `Int` and
+   is still what the backend reads. Parsing `-GPU N` and `-y` from argv belongs
+   in `DebugFeatures` and should stay there; *interpreting* the number should
+   not.
+2. **DONE.** `BackendFeatures.GraphicsAdapters`, with `adapterRemoved`.
+3. **PARTIAL.** `GtkBackend` conforms and reports its adapters and outcomes
+   correctly, but `ensureGpuPreference` still does the work directly instead of
+   going through `applyAdapter`. Other backends do not conform yet, which will
+   `fatalError` under `@CastBackend` the moment anything does call it — so the
+   wiring in 3b must land together with their conformances.
+3b. **Wire it up.** `-GPU N` → `GraphicsAdapterSelection(number:)` →
+   `resolve(among: backend.availableAdapters)` → `backend.applyAdapter(_:)`,
+   and let the shared reporting print `requested` beside `resolved`. This is
+   what makes the protocol load-bearing rather than decorative, and it is the
+   step that will show whether the shape is right.
 4. `WinUIBackend` conforms, using the same registry mechanism. This is what
    gives `needsRestart` its second witness and pays for the abstraction.
 5. Sweep P6-v2 across every available adapter and record dropped frames at
@@ -244,3 +300,85 @@ already present and may have stopped type-checking before reaching it.
 `testapp/.compile-work` 裡的那一個，而 `-gtk4` 建置實際使用的是 `testapp/.compile-work-gtk4`。
 工作目錄一共有三個、每個 backend 各一，而 `.gitignore` 裡就寫著這件事。第一次的 `#error` 探針
 同樣無效，因為當時樹上已有另一個編譯錯誤，可能在到達該檔案之前就停止了型別檢查。
+
+## Review 2026-08-29
+
+Two harness defects were found while reviewing the uncommitted GPU work:
+
+1. `gpu_flag_test.zsh` claimed to prove that `-GPU 5` did not write
+   `GpuPreference=5`, but it used an empty expected string with the shared
+   "contains" helper. That assertion always passed. The test now has a separate
+   negative assertion helper and fails if the forbidden text appears.
+2. The same script hardcoded the registry value name to this checkout's
+   `P40.exe` path. The test now derives the Windows path from `testapp/output`,
+   so it checks the executable it actually launched.
+
+These are harness fixes, not backend fixes. The backend-side policy change
+remains: `-GPU 1` means the platform default, while `-GPU 2` is the explicit
+request for Direct Composition / hardware rendering on Windows GTK.
+
+`testapp/wincap.swift` is now wired into `screenshot.zsh` as the only
+Windows/WSLg `-w` window-capture path. With `-w`, the flow is wincap /
+`PrintWindow(PW_RENDERFULLCONTENT)` only, and the command fails closed if that
+capture fails. Desktop capture remains available only by omitting `-w`. The
+helper is built on demand into `testapp/helper/bin/wincap.exe`, checks for a
+non-black BMP, and the script converts that BMP to the same PNG output format
+as the rest of the screenshot flow.
+
+P40 is a rendering-geometric-effects test, not a layout-geometry test. It can
+settle whether transformed samples render as real content or hotpink fallback;
+it does not settle P7/#556 split-view pane ratios.
+
+Measured 2026-08-29 with PIL before calling the P40 capture passed:
+
+- `p40-wincap-20260829-181107.png`: 928x743; hotpink exact 0, hotpink near 0.
+  Seven blue tile bodies were detected, each 90x58; seven orange anchors were
+  detected, each 14x80.
+- `p40-wincap-default-20260829-181425.png`: same size and same component
+  geometry; hotpink exact 0, hotpink near 0.
+
+Capture timing on the same default P40 window:
+
+- `screenshot.zsh -w` through wincap: 1000 ms.
+- The old direct `ffmpeg -f gdigrab -i title=...` method: 3215 ms.
+
+On the DComp run, wincap captured the `WS_EX_NOREDIRECTIONBITMAP` window
+directly with 93.0% non-black pixels. A desktop capture took similar wall time
+in that one run, but photographed a foreground terminal over the app, so it was
+not valid evidence for the named window.
+
+## Review 2026-08-29（中文）
+
+Review 未提交 GPU 工作時發現兩個測試 harness 缺陷：
+
+1. `gpu_flag_test.zsh` 宣稱能證明 `-GPU 5` 沒有寫入 `GpuPreference=5`，
+   但它把空字串交給共用的「contains」檢查函式。任何字串都包含空字串，因此該斷言永遠通過。
+   現在已改成獨立的 negative assertion helper；只要 forbidden text 出現就會失敗。
+2. 同一支腳本把 registry value name 寫死為此 checkout 的 `P40.exe` 路徑。
+   現在改由 `testapp/output` 動態產生 Windows path，因此會檢查實際啟動的那支 executable。
+
+這些是 harness 修正，不是 backend 修正。Backend 端政策仍維持目前結論：`-GPU 1` 代表平台預設，
+`-GPU 2` 才是 Windows GTK 上明確要求 Direct Composition / hardware rendering。
+
+`testapp/wincap.swift` 現已接進 `screenshot.zsh`，作為 Windows/WSLg 唯一的 `-w` 視窗擷取路徑。
+指定 `-w` 時只會走 wincap / `PrintWindow(PW_RENDERFULLCONTENT)`，若擷取失敗則 fail closed。
+桌面擷取只在明確省略 `-w` 時使用。helper 會按需建置到 `testapp/helper/bin/wincap.exe`，檢查 BMP
+不是全黑，並由腳本轉成與既有截圖流程相同的 PNG 輸出格式。
+
+P40 是 rendering geometric effects 測試，不是 layout geometry 測試。它能判定 transformed samples
+是畫成真實內容還是 hotpink fallback；它不能判定 P7/#556 的 split-view pane ratio。
+
+2026-08-29 以 PIL 量測後，才將 P40 capture 視為通過：
+
+- `p40-wincap-20260829-181107.png`：928x743；hotpink exact 0、hotpink near 0。
+  偵測到七個藍色 tile body，每個 90x58；七個橘色 anchor，每個 14x80。
+- `p40-wincap-default-20260829-181425.png`：尺寸與 component geometry 相同；hotpink exact 0、
+  hotpink near 0。
+
+同一個 default P40 視窗的擷取時間：
+
+- `screenshot.zsh -w` 透過 wincap：1000 ms。
+- 舊的 direct `ffmpeg -f gdigrab -i title=...` 方法：3215 ms。
+
+DComp 那輪中，wincap 直接擷取 `WS_EX_NOREDIRECTIONBITMAP` 視窗，非黑像素 93.0%。同輪 desktop
+capture 的 wall time 接近，但它拍到前景終端機覆蓋 app，因此不是指定視窗的有效證據。

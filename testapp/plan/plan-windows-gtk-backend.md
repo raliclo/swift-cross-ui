@@ -353,6 +353,337 @@ WinUIBackend 維持為 baseline：不移除、不標記淘汰、保持可建置�
 基準；P6 的 GPU 路徑只存在於該處，而既定意圖是在需要 GPU 時修補該路徑而非取代它；且
 若 Gtk 路徑在 Windows 上表現不如預期，刪掉它就沒有退路。
 
+## What each -GPU value actually selects
+
+**Verified 2026-08-29 on this machine only** (integrated AMD Radeon plus a
+discrete NVIDIA adapter). Re-measure with
+`zsh testapp/gpu_flag_test.zsh --no-build` before quoting the renderer column
+anywhere else — see the caveat below the table.
+
+| invocation | renderer GTK realizes | what the flag did |
+|---|---|---|
+| *(no flag)* | `GskCairoRenderer` | nothing — the platform default |
+| `-GPU 0` | `GskCairoRenderer` | asked for software explicitly |
+| `-GPU 1` | `GskCairoRenderer` | asked for the system default adapter |
+| `-GPU 2 -y` | `GskGLRenderer` | enabled Direct Composition, so GL can realize |
+
+What the test actually asserts, which is narrower than the table: rows 1-3
+by renderer name (row 3 *relatively*, as "equal to row 1"), and row 4 by
+`GpuPreference=2` in the registry plus the relaunched process reporting the
+NVIDIA adapter. The `GskGLRenderer` in row 4 is an observation from that run,
+not an assertion the test would fail on.
+
+Three of the four rows say `GskCairoRenderer`, and they say it for three
+different reasons. Cairo is **this machine's** answer to `-GPU 1`, not the
+definition of `-GPU 1`: without Direct Composition, GTK on Windows cannot
+realize `GskGLRenderer` at all, so the default and the explicit software request
+land on the same renderer here. On a machine where GL realizes unaided they
+would not. See [FAQ.md](../FAQ.md) for why the pairing is DComp/renderer rather
+than Cairo/DComp.
+
+`-y` answers the restart prompt yes. `-GPU N` for N ≥ 2 writes the Windows
+`UserGpuPreferences` policy, which is fixed at process creation, so the process
+must relaunch to take effect; without `-y` it asks first.
+
+## The rule is the requirement, not the renderer
+
+**Every GtkBackend configuration must keep action files and screenshots
+working.** That is the invariant. It is deliberately *not* stated as "use
+Cairo" or "use Vulkan" or "never use Direct Composition" — a rule naming a
+renderer would be a rule about the wrong thing, and it would have to be
+rewritten on every platform where the renderers differ. A run whose result
+cannot be checked is not a run; which renderer produced it is a detail.
+
+Renderer choices then follow as consequences, and they differ per platform:
+
+- **Windows.** Direct Composition breaks *window* capture, so it is off by
+  default and reachable only through the explicit `-GPU 2` opt-in. It was
+  briefly the default (the threshold read `>= 1`) and broke window capture for
+  every GTK app at once; `>= 2` is the fix. Nothing in the test suite may depend
+  on `-GPU 2`. Re-measured 2026-08-29 as a single-variable experiment on P40,
+  both arms confirmed with `GSK_DEBUG=renderer` before capturing:
+
+  | run | renderer | `screenshot.zsh -w` |
+  |---|---|---|
+  | default | `GskCairoRenderer` | **priority 1, window** |
+  | `SCUI_GTK_DCOMP=1` | `GskGLRenderer` | priority 2, desktop |
+
+  `screenshot.zsh` is not malfunctioning: window capture goes through ffmpeg's
+  gdigrab, which is GDI/BitBlt, and falling back to the desktop is its designed
+  response to a capture it cannot make.
+
+  > **Refuted the same day, and worth keeping because it is the exact
+  > over-generalisation the script's own header warns about.** This paragraph
+  > first read "GDI cannot see D3D or DirectComposition content, this is a
+  > property of Windows". **P6 is a counterexample.** It presents through
+  > `IDXGIFactory2::CreateSwapChainForComposition`
+  > (`D3D11VideoInterop.swift:370`) — a composition swapchain, the same category
+  > as GTK's DComp path — and it captures at **priority 1**, window, measured
+  > 2026-08-29. So "D3D content is uncapturable" is false, and so is "DComp
+  > content is uncapturable". The header of `screenshot.zsh` already recorded
+  > that the earlier form of this claim had been over-generalised into "never
+  > capture a window"; the claim was then over-generalised again, in a document,
+  > by someone who had read that header the same afternoon.
+
+  **So the exclusivity is not established, and the real cause is open.** Two
+  windows, both presenting a composition swapchain, and only one is capturable:
+
+  | app | presents via | capture |
+  |---|---|---|
+  | P6 (WinUIBackend) | `CreateSwapChainForComposition` | **priority 1, window** |
+  | P40 (GTK + DComp) | GDK's Win32 DComp path | priority 2, desktop |
+
+  **Cause confirmed 2026-08-29 by reading `GWL_EXSTYLE` on both live windows.**
+  It is the extended window style, not the swapchain:
+
+      P6  (captures)      exstyle 0x00000100   WS_EX_WINDOWEDGE only
+      P40 + DComp (fails) exstyle 0x00200000   WS_EX_NOREDIRECTIONBITMAP
+
+  A window with `WS_EX_NOREDIRECTIONBITMAP` has no redirection surface, so
+  BitBlt has nothing to copy. GDK's Win32 DComp path sets it at creation; WinUI's
+  HWND does not, and DWM composes P6's swapchain into its redirection surface,
+  which is why a composition swapchain is captured perfectly there.
+
+  It cannot be cleared afterwards. `SetWindowLongPtrW` on the live window returns
+  0 and sets `GetLastError` to 87, `ERROR_INVALID_PARAMETER` — it is a
+  creation-time style, as documented, and now measured rather than assumed.
+
+  **But the capture is not lost, only the method is wrong.**
+  `PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` asks DWM to render the window
+  instead of copying a surface, and it captures the DComp GTK window at full
+  fidelity — 93.0% of pixels non-black, and the saved image shows the complete
+  window: chrome, headings, every tile, both text samples. Measured with a
+  black-pixel count built into the tool, because `PrintWindow` returns TRUE while
+  producing an entirely black bitmap and that is precisely the failure this
+  investigation kept meeting.
+
+  So the Windows constraint is **a limitation of gdigrab, not of Direct
+  Composition**, and giving `screenshot.zsh` a `PrintWindow` path removes it.
+  That in turn makes `-GPU 2` viable as a default: hardware renderer, transforms,
+  and a capturable window at the same time.
+- **WSL.** Window capture fails there *whatever* the renderer — measured
+  2026-08-29 by forcing `GSK_RENDERER=cairo`, confirming with `GSK_DEBUG=renderer`
+  that `GskCairoRenderer` really was in use, and getting the same
+  `priority 1 failed` fallback as the default `GskVulkanRenderer` gives. So it
+  is a WSLg property, not a renderer's fault, and the invariant is met by the
+  desktop capture instead. Renderer choice on WSL is therefore free.
+
+Which also settles a question that was open: desktop capture is a legitimate way
+to satisfy the invariant, because it is already how every WSL run is verified.
+What it cannot do is serve as the control in a *pixel-diff* comparison between
+two runs — two desktop captures differ by 10-22% no matter what changed, because
+the window lands in a different place and the clock has moved. Verifying an
+action file and diffing two renderings are different jobs with different
+requirements.
+
+**規則定在需求上，不定在繪製器上。** 不變條件是：**每一種 GtkBackend 組態都必須讓 action
+file 與截圖可用。** 刻意**不**寫成「用 Cairo」或「用 Vulkan」或「絕不使用 Direct
+Composition」——指名繪製器的規則管的是錯的東西，而且在每個繪製器不同的平台上都得重寫一次。
+一次無法被檢查的執行不算執行；至於是哪個繪製器畫的，那是細節。
+
+繪製器的選擇因此是**結果**，而且每個平台不同：
+
+- **Windows。** Direct Composition 會讓**視窗**擷取失效，因此預設關閉，只能透過明確的
+  `-GPU 2` 取得。它曾短暫是預設（門檻寫成 `>= 1`），一次打斷所有 GTK app 的視窗擷取；
+  `>= 2` 就是修正。測試套件中不得有任何東西依賴 `-GPU 2`。
+- **WSL。** 那裡的視窗擷取**無論用哪個繪製器都會失敗**——2026-08-29 以
+  `GSK_RENDERER=cairo` 強制、並用 `GSK_DEBUG=renderer` 確認確實是 `GskCairoRenderer` 在跑，
+  得到與預設 `GskVulkanRenderer` 相同的 `priority 1 failed` 回退。因此那是 WSLg 的性質，
+  不是繪製器的錯，而不變條件改由桌面擷取滿足。所以 WSL 上的繪製器選擇是自由的。
+
+這順帶了結了一個懸而未決的問題：桌面擷取是滿足該不變條件的**正當**方式，因為每一次 WSL 執行
+本來就是這樣驗證的。它做不到的是充當兩次執行之間**像素比對**的對照組——兩張桌面截圖無論改了
+什麼都會差 10 至 22%，因為視窗落點不同、時鐘也在走。驗證一份 action file 與比對兩次繪製結果，
+是兩件需求不同的工作。
+
+**WSL is the platform that draws transforms with no hotpink, and it already is
+by default.** Measured 2026-08-29:
+
+| platform | default renderer | transform nodes | hotpink in P40 |
+|---|---|---|---|
+| Windows, `/c/gtk4` | `GskCairoRenderer` | not drawn | 47 873 |
+| Windows, `-GPU 2` | `GskGLRenderer` | drawn | 0 |
+| WSL, WSLg | `GskVulkanRenderer` (llvmpipe) | drawn | **0** |
+
+The WSL row was verified by capture, not by reasoning: all seven P40 tiles —
+offset, both scales, both rotations and the shear — render correctly, and a
+pixel count over the capture finds zero hotpink. Cairo is never selected there.
+
+**Windows cannot be made to match, with this GTK build.** `GSK_RENDERER=vulkan`
+looks like it should be the answer and is silently ignored: it still tries
+`GskGLRenderer`, fails on Direct Composition, and lands on Cairo. Ask GTK
+itself, which is the only source that settles it:
+
+    $ GSK_RENDERER=help ./P40.exe
+    Supported arguments for GSK_RENDERER environment variable:
+      broadway - Disabled during GTK build
+         cairo - Use the Cairo fallback renderer
+        opengl - Use the OpenGL renderer
+            gl - Use the OpenGL renderer
+        vulkan - Disabled during GTK build
+          help - Print this help
+
+The cause is upstream of us and is a one-line build decision. `/c/gtk4` is a
+[gvsbuild](https://github.com/wingtk/gvsbuild) install (MSVC, `gtk-4-1.dll`,
+`.lib` import libraries), and gvsbuild's GTK 4 recipe passes **`-Dvulkan=disabled`**
+with no vulkan or shaderc dependency. MSYS2's `mingw-w64-gtk4`, at the **same
+4.22.4**, passes `-Dvulkan=enabled` with `vulkan-headers` and `shaderc` to build
+and `vulkan-loader` to run.
+
+Both DLLs' import tables agree with their recipes — measured 2026-08-29, each
+run with `GskCairoRenderer` as the control that proves `strings` can read the
+file at all:
+
+| build | file | imports `vulkan-1.dll` | imports `OPENGL32.dll` |
+|---|---|---|---|
+| gvsbuild `/c/gtk4` | `gtk-4-1.dll` | no | yes |
+| MSYS2 ucrt64 | `libgtk-4-1.dll` | **yes** | yes |
+
+Both import `api-ms-win-crt-*`, so both are UCRT — take the **ucrt64** MSYS2
+packages, never `mingw64`, which is msvcrt and would put two C runtimes in one
+process. And nothing in this repo hardcodes a GTK DLL name: `Package.swift` uses
+`pkgConfig: "gtk4"`, so the switch is a `PKG_CONFIG_PATH` and a set of MSVC
+import libraries generated from the DLLs, not a source change.
+
+> **A wrong measurement, kept because the shape of it recurs.** The first
+> attempt at this concluded "the DLL contains zero `GskVulkan` symbols and does
+> not import `vulkan-1.dll`" — and reached the right verdict for a reason that
+> was entirely false. It ran `strings` and `objdump -p` against
+> `libgtk-4-1.dll`, the MinGW name; this is an MSVC build and the file is
+> `gtk-4-1.dll`. Both tools reported nothing for a file that does not exist, and
+> nothing was read as zero. The real DLL does contain `GskVulkanRenderer`. The
+> control that would have caught it in one line: grep for `GskCairoRenderer`
+> first, which the runtime demonstrably prints, and stop if that is also zero.
+
+So on Windows there are exactly two states — Cairo with hotpink, or DComp plus
+GL with no hotpink and no window capture — and no third one to pick. A GTK 4
+Windows build with `-Dvulkan=enabled` would create one, and is the only route to
+"never Cairo" on Windows that does not also cost window capture.
+
+**Refuted 2026-08-29, before any of that work was done.** The MSYS2 package was
+downloaded and its own `gtk4-demo.exe` run directly — no repackaging, no import
+libraries, no rebuild. GTK's Win32 backend asks Vulkan for exactly what it asks
+OpenGL for:
+
+    Failed to realize renderer 'GskVulkanRenderer' for surface 'GdkWin32Toplevel':
+        Vulkan requires Direct Composition
+
+So a Vulkan-enabled GTK does **not** produce a DComp-free hardware renderer on
+Windows, and the whole route is dead. Worse, the two builds are missing opposite
+halves — measured with `GDK_DEBUG=help`, whose output was checked to be
+non-empty first (28 flags listed, including `opengl` and `vulkan`):
+
+| build | Vulkan renderer compiled in | `dcomp` in `GDK_DEBUG` |
+|---|---|---|
+| gvsbuild `/c/gtk4` | no | **yes** |
+| MSYS2 ucrt64 | **yes** | no |
+
+MSYS2 has the renderer and no switch to enable the compositing it requires, so
+switching to it would lose the `-GPU 2` escape hatch and gain nothing. Keep
+gvsbuild.
+
+**What this settles, and what it does not.** Settled: no choice of GTK build
+gives a hardware renderer on Windows without Direct Composition. That is a
+property of GDK's Win32 backend, not of a build option, and the Vulkan route is
+closed.
+
+**Not settled: whether a DComp-composited GTK window is capturable.** The
+earlier claim that it is inherently not is refuted by P6 — see the table above.
+Until `GWL_EXSTYLE` has been read on both windows, "transforms or capture, pick
+one" is a hypothesis, not a finding, and the decisions below are provisional on
+it. If the redirection-bitmap theory holds and can be changed, the whole problem
+dissolves; if it does not, the remaining options are about declining well:
+detect `GskCairoRenderer` at runtime and refuse `setGeometricEffect` explicitly
+rather than emit hotpink, accept `-GPU 2` plus desktop capture for transform
+tests specifically, or route transforms through WinUIBackend, which has its own
+renderer and none of this.
+
+Do not reach for DComp to make a transform render correctly; fix the transform,
+or record the gap. `SCUI_GTK_DCOMP=1` also still forces it on, kept only as the
+reproduction for the upstream GTK report in
+[bugs/Gtk4-bugs.md](../../bugs/Gtk4-bugs.md).
+
+**僅在本機驗證，2026-08-29**（AMD Radeon，透過原生 WGL 的 GL 4.6）。以
+`zsh testapp/gpu_flag_test.zsh` 重新產生——該腳本斷言的是上表的**關係**，不是這些
+名字；在別處引用「繪製器」那一欄之前請重新量測。
+
+四列裡有三列寫著 `GskCairoRenderer`，而這三列的理由各不相同。Cairo 是**這台機器**對
+`-GPU 1` 的答案，不是 `-GPU 1` 的定義：沒有 Direct Composition，Windows 上的 GTK 根本
+無法實現 `GskGLRenderer`，於是「預設」與「明確要求軟體」在此落到同一個繪製器上；在一台
+GL 能自行實現的機器上則不會。
+
+`-y` 代表把重啟提示回答為 yes。`-GPU N`（N ≥ 2）會寫入 Windows 的 `UserGpuPreferences`
+政策，該政策在行程建立時就固定，因此必須重啟行程才會生效；未給 `-y` 時會先詢問。
+
+**2026-08-29 定案：除了明確指定 `-GPU 2` 之外，不使用 Direct Composition。** 經 DComp
+合成的視窗無法以視窗方式截圖——`screenshot.zsh -w` 會退回擷取桌面——而每一份 action file
+都是靠截圖驗證的。一次無法被檢查的執行，不算執行。DComp 曾短暫是預設（門檻寫成 `>= 1`），
+一次打斷了所有 GTK app 的視窗截圖；`>= 2` 就是修正。
+
+**能畫出變換且不出現 hotpink 的平台是 WSL，而且它預設就已經是了。** 2026-08-29 實測：
+
+| 平台 | 預設繪製器 | transform node | P40 的 hotpink |
+|---|---|---|---|
+| Windows，`/c/gtk4` | `GskCairoRenderer` | 畫不出 | 47 873 |
+| Windows，`-GPU 2` | `GskGLRenderer` | 畫得出 | 0 |
+| WSL，WSLg | `GskVulkanRenderer`（llvmpipe） | 畫得出 | **0** |
+
+WSL 那一列是以截圖驗證、而非推論得出：P40 的七個 tile——offset、兩種 scale、兩種 rotate
+與 shear——全部正確繪製，對整張截圖計數 hotpink 為 0。該平台從不選用 Cairo。
+
+**以目前這份 GTK build，Windows 無法比照辦理。** `GSK_RENDERER=vulkan` 看起來像是解答，
+實際上被無聲忽略：它仍然去嘗試 `GskGLRenderer`，在 Direct Composition 上失敗，最後落到
+Cairo。去問 GTK 自己，那是唯一能了結此事的來源：
+
+    $ GSK_RENDERER=help ./P40.exe
+        vulkan - Disabled during GTK build
+
+成因在我們的上游，而且只是一行 build 決策。`/c/gtk4` 是一份
+[gvsbuild](https://github.com/wingtk/gvsbuild) 安裝（MSVC、`gtk-4-1.dll`、`.lib` 匯入
+程式庫），而 gvsbuild 的 GTK 4 配方傳的是 **`-Dvulkan=disabled`**，且未列任何 vulkan 或
+shaderc 相依。MSYS2 的 `mingw-w64-gtk4` 在**同樣的 4.22.4** 版本上傳的是
+`-Dvulkan=enabled`，build 期需要 `vulkan-headers` 與 `shaderc`，執行期需要 `vulkan-loader`。
+
+> **一次錯誤的量測，記錄於此是因為它的形狀會重複出現。** 第一次嘗試得出的結論是「該 DLL 內
+> `GskVulkan` 符號為零，且未匯入 `vulkan-1.dll`」——結論方向正確，理由卻完全是假的。它對
+> `libgtk-4-1.dll`（MinGW 的命名）執行 `strings` 與 `objdump -p`；但這是 MSVC build，檔名是
+> `gtk-4-1.dll`。兩個工具對一個不存在的檔案都回報了「沒有」，而「沒有」被讀成了「零」。真正
+> 的 DLL 裡確實含有 `GskVulkanRenderer`。一行就能攔下它的對照組：先 grep `GskCairoRenderer`
+> ——那是執行期明確會印出來的字串——若它也是零，就該停手。
+
+因此 Windows 上只有兩種狀態——Cairo 帶 hotpink，或 DComp 加 GL、無 hotpink 但無法視窗
+截圖——沒有第三種可選。一份 `-Dvulkan=enabled` 的 GTK 4 Windows build 會造出第三種，而那是
+「Windows 上永不使用 Cairo」且不必賠上視窗截圖的唯一路徑。
+
+**2026-08-29 推翻，而且是在動手做那些工作之前。** 直接下載 MSYS2 套件並執行它自帶的
+`gtk4-demo.exe`——不重新打包、不做 import library、不重新建置。GTK 的 Win32 backend 對
+Vulkan 的要求，與它對 OpenGL 的要求完全相同：
+
+    Failed to realize renderer 'GskVulkanRenderer' for surface 'GdkWin32Toplevel':
+        Vulkan requires Direct Composition
+
+因此啟用 Vulkan 的 GTK **並不會**在 Windows 上產生一個不需 DComp 的硬體繪製器，整條路線就此
+斷絕。更糟的是，兩份 build 各缺一半——以 `GDK_DEBUG=help` 量測，並且先確認其輸出非空
+（列出 28 個 flag，其中包含 `opengl` 與 `vulkan`）：
+
+| build | 編入 Vulkan 繪製器 | `GDK_DEBUG` 有 `dcomp` |
+|---|---|---|
+| gvsbuild `/c/gtk4` | 無 | **有** |
+| MSYS2 ucrt64 | **有** | 無 |
+
+MSYS2 有那個繪製器，卻沒有能啟用其所需合成方式的開關，因此換過去會失去 `-GPU 2` 這條退路，
+而且一無所得。維持 gvsbuild。
+
+**這件事因此定案。** 在 Windows 的 GTK 4 上，「畫得出變換」與「視窗可被擷取」兩者互斥，而且
+換任何 GTK build 都改變不了——那是 GDK Win32 backend 的性質，不是某個 build 選項的後果。
+剩下的選項全都是關於「如何體面地拒絕」：在執行期偵測到 `GskCairoRenderer` 就明確拒絕
+`setGeometricEffect`，而不是吐出 hotpink；或針對變換測試接受 `-GPU 2` 加上桌面擷取；
+或把變換交給 WinUIBackend——它有自己的繪製器，完全沒有這些問題。
+
+不要為了讓某個變換正確繪製而搬出
+DComp——去修那個變換，或把落差記錄下來。`SCUI_GTK_DCOMP=1` 仍可強制開啟，保留的唯一理由是
+它是 [bugs/Gtk4-bugs.md](../../bugs/Gtk4-bugs.md) 中那份上游 GTK 回報的重現方式。
+
 ## Open questions
 
 - Does `g_file_get_path` return usable paths for the project's Chinese

@@ -19,7 +19,7 @@
 
 ## Apps
 
-P0-P17 每個都是一個 Swift 檔，會建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。完整對照在 `UI-test-plan platform-en.md`。
+P0-P41 每個都是一個 Swift 檔，會在目前平台支援其 backend 時建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。後續 app 延伸 backend feature、visual fidelity、window level、GPU 與 DatePicker 覆蓋。完整 issue 與平台對照在 `UI-test-plan platform-en.md`。
 
 ```sh
 zsh testapp/compile.zsh P7 P15 P17     # 只建部分 app
@@ -32,7 +32,7 @@ zsh testapp/compile.zsh                # 建全部 app
 
 | Script | 用途 |
 | --- | --- |
-| `install_tool_wsl.sh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
+| `install_tool_wsl.zsh` | WSL：GTK 4、Swift tarball，以及 Ubuntu 26.04 需要的 libxml2/ICU shim |
 | `install_tools_ios.zsh` | macOS：iOS Simulator toolchain，會由 `compile.zsh -ios` 自動呼叫 |
 | `install_tool_mac.zsh` | macOS：以 Homebrew 安裝 GTK 4，以及讓 `swift test` 在 Mac 上得以執行所需的兩件事；`--test` 會直接跑測試套件 |
 | `install_tools_android.zsh` | macOS：Android runner 所需的 SDK、NDK 與 emulator |
@@ -92,7 +92,7 @@ iOS 與 Android 都**不需要**指定裝置或設定環境變數。
 
 | 平台 | 方式 | 拍攝對象 |
 | --- | --- | --- |
-| Windows、WSLg | `screenshot.zsh`，gdigrab | 指定的視窗，或整個桌面 |
+| Windows、WSLg | `screenshot.zsh`，gdigrab 後接 wincap | 指定的視窗，或作為最後回退的整個桌面 |
 | macOS | `screenshot.zsh`，`screencapture` | 依 CGWindowID 指定的視窗，或整個顯示器 |
 | iOS | `simctl io ... screenshot` | 模擬器自身的 framebuffer |
 | Android | `adb exec-out screencap` | 裝置自身的 framebuffer |
@@ -116,7 +116,7 @@ iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」�
 
 | Script | 用途 |
 | --- | --- |
-| `screenshot.zsh` | 擷取合成後的桌面畫面；這是唯一能看到 D3D/DirectComposition 內容的方式 |
+| `screenshot.zsh` | 指定 `-w` 時用 wincap/PrintWindow 擷取該視窗；未指定 `-w` 時才用 gdigrab 擷取桌面 |
 | `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6 throughput matrix 與無人值守測試 |
 | `rebase.zsh` | rebase 後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上 |
 

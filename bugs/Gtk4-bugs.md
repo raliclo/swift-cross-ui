@@ -134,9 +134,19 @@ in the wrong place.
 rotation, scale and offset correctly, so the protocol shape is sound and this is
 a GTK-side gap.
 
-**Still untested:** whether Linux GTK behaves the same. Same version, so
-probably, but nobody has run it — the WSL box has no screenshot tool installed
-and the WSLg window was not reachable from the Windows capture path.
+> **Was: "Still untested: whether Linux GTK behaves the same. Same version, so
+> probably, but nobody has run it — the WSL box has no screenshot tool installed
+> and the WSLg window was not reachable from the Windows capture path."**
+>
+> **Tested 2026-08-29, and the guess was wrong in both halves.** Linux GTK does
+> *not* behave the same: P40 under WSLg renders every transform correctly —
+> offset, both scales, both rotations and the shear — with zero hotpink pixels.
+> It realizes `GskVulkanRenderer`, and Vulkan draws transform nodes, so the
+> defect is specific to the renderer Windows is left with rather than to the
+> version. And the WSLg window *is* reachable from the Windows capture path: a
+> desktop capture shows it, and `PrintWindow(PW_RENDERFULLCONTENT)` captures the
+> window itself at 92.6% non-black. "Probably, but nobody has run it" is the
+> shape to distrust — it reads as a conclusion and carries no evidence at all.
 
 ---
 
@@ -174,5 +184,223 @@ conformance 轉為 `fatalError`，因此若拒絕實作該 protocol，任何呼�
 **這並非 GTK 以外皆然。** WinUIBackend 實作了同一個 protocol，且能正確繪製旋轉、縮放與位移，因此
 protocol 本身是健全的，這是 GTK 這一側的缺口。
 
-**仍未測試**：Linux 的 GTK 是否有相同行為。版本相同，結果很可能一致，但確實無人實測過——WSL 環境
-未安裝任何截圖工具，而 WSLg 的視窗也無法從 Windows 的擷取路徑取得。
+> **原文為：「仍未測試：Linux 的 GTK 是否有相同行為。版本相同，結果很可能一致，但確實無人實測
+> 過——WSL 環境未安裝任何截圖工具，而 WSLg 的視窗也無法從 Windows 的擷取路徑取得。」**
+>
+> **2026-08-29 已測，而且這個猜測兩半都錯。** Linux 的 GTK **並非**相同行為：WSLg 下的 P40 把
+> 每一個變換都正確繪製出來——位移、兩種縮放、兩種旋轉與 shear——hotpink 像素為 0。它實現的是
+> `GskVulkanRenderer`，而 Vulkan 畫得出 transform node，因此該缺陷專屬於「Windows 上只剩下的
+> 那個繪製器」，而非該版本。另外，WSLg 的視窗**確實**能由 Windows 的擷取路徑取得：桌面擷取拍
+> 得到它，而 `PrintWindow(PW_RENDERFULLCONTENT)` 更能直接擷取該視窗本身，非黑像素達 92.6%。
+> 「很可能一致，但無人實測過」正是該被懷疑的句型——它讀起來像結論，卻完全不帶證據。
+
+---
+
+## 2. Not GTK: WSL has no hardware Vulkan, so GSK silently draws on the CPU
+
+**Filed here despite not being a GTK defect**, because it is upstream of us in
+exactly the sense this file is for: we cannot fix it, and the only decisions
+available are how to detect it and how to degrade. Measured 2026-08-29 on
+Ubuntu 26.04, Mesa 26.0.3, WSL 2.7.12, WSLg 1.0.73.2, Direct3D 1.611.1.
+
+**Symptom.** GTK reports `GskVulkanRenderer`, which reads like hardware, and
+every frame is drawn by lavapipe on the CPU:
+
+    libEGL warning: MESA-LOADER: failed to retrieve device information
+    MESA: error: ZINK: failed to choose pdev
+    Not using GL: renderer is llvmpipe
+    Using renderer 'GskVulkanRenderer' for surface 'GdkWaylandToplevel'
+
+**Cause, and it is two absences rather than a misconfiguration.**
+
+1. **Eight Vulkan ICD manifests look plentiful and every one is for hardware
+   that is not present** — asahi, gfxstream, intel, intel_hasvk, nouveau,
+   radeon, virtio, and `lvp`. Only lavapipe can answer, and lavapipe is
+   software. `dzn`, Mesa's Vulkan-on-D3D12 driver and the only one that could
+   reach a GPU through `/dev/dxg`, **is not built into Ubuntu's
+   `mesa-vulkan-drivers` at all**: `/usr/lib/x86_64-linux-gnu/libvulkan_dzn.so`
+   does not exist. So this is not a manifest to add or a variable to set.
+2. **The Windows driver publishes no GL or Vulkan userspace into WSL.**
+   `/usr/lib/wsl/lib` holds CUDA, NVENC/NVDEC and OptiX — `libcuda.so`,
+   `libnvcuvid.so`, `libnvidia-encode.so`, `libnvoptix.so` — and nothing
+   matching GLX, Vulkan or ICD.
+
+The hardware plumbing is otherwise intact: `/dev/dxg` exists, `libdxcore.so`
+and `libd3d12core.so` are in the loader cache via `/etc/ld.so.conf.d/ld.wsl.conf`,
+and `d3d12_dri.so` is installed. `/dev/dri` does not exist.
+
+**Everything reachable without installing anything was tried and none of it
+helped**: `GALLIUM_DRIVER=d3d12`, `MESA_LOADER_DRIVER_OVERRIDE=d3d12`, and an
+explicit `LD_LIBRARY_PATH=/usr/lib/wsl/lib`. All still ended at llvmpipe.
+
+**What this invalidates.** UI tests stay valid — the pixels are correct, they
+were simply drawn by the CPU. Anything measuring GPU presentation, frame time
+or renderer performance on WSL is measuring lavapipe. In particular, "Vulkan is
+the hardware path so it must be faster than Cairo" is false here: both run on
+the CPU, and lavapipe additionally emulates a GPU pipeline.
+
+**Detection**: `zsh testapp/diagnose_wsl_gpu.zsh` prints the ICD manifests, the
+`libvulkan_*.so` that Mesa was actually built with, and what the Windows driver
+exposes. The distinction between those first two matters — the manifests say
+what is configured, the libraries say what exists to configure.
+
+### Building `dzn` was tried, and it narrows the cause to one place
+
+**2026-08-29.** Rather than leave "a Mesa built with `dzn`" as a suggestion, it
+was done. `mesa-vulkan-drivers` was upgraded to 26.0.8 first — still no `dzn`,
+confirming Ubuntu does not build it at any available version — then Mesa 26.0.8
+was configured with `-Dvulkan-drivers=microsoft-experimental` and built into a
+**separate prefix**, `/opt/mesa-dzn`, so the working system Mesa is untouched
+and the two can be A/B'd with `VK_DRIVER_FILES`.
+
+It builds and loads. It still finds no GPU:
+
+    MESA: error: ID3D12DeviceFactory::CreateDevice failed
+    Failed to detect any valid GPUs in the current config
+
+**That is a more useful failure than the one it replaced**, because it moves the
+blocker off Linux entirely. `dzn` reaches D3D12 through `libd3d12.so`'s
+`D3D12GetInterface` and enumerates adapters through `libdxcore.so`; both load
+successfully, and reaching `CreateDevice` at all means **an adapter was
+enumerated**. What fails is D3D12 creating a device on it, and that needs a
+user-mode D3D12 driver the Windows side must publish into `/usr/lib/wsl/lib` —
+where, as above, only CUDA, NVENC/NVDEC and OptiX appear.
+
+So the Linux side is now complete and the remaining lever is a **Windows NVIDIA
+driver that installs WSL graphics support**, not anything installable inside the
+distribution. `/opt/mesa-dzn` is left in place: it costs nothing, it is not on
+any default path, and it means the next attempt starts from a measurement rather
+than from this paragraph.
+
+**Fixes, neither of which is a code change**: a Windows NVIDIA driver that
+publishes GL/Vulkan/D3D12 userspace to WSL, or — already done, and not
+sufficient by itself — a Mesa built with `dzn`.
+
+**曾實際建置 `dzn`，而這把成因收斂到單一位置。2026-08-29。** 與其把「換一份編入 dzn 的 Mesa」
+留為建議，直接做了。先將 `mesa-vulkan-drivers` 升級至 26.0.8——仍然沒有 `dzn`，確認 Ubuntu 在
+任何可取得的版本都不編它——再以 `-Dvulkan-drivers=microsoft-experimental` 設定並建置 Mesa 26.0.8，
+裝入**獨立 prefix** `/opt/mesa-dzn`，因此可運作的系統 Mesa 未被動到，兩者可用 `VK_DRIVER_FILES`
+進行 A/B。
+
+它建得起來也載入得了，卻依然找不到 GPU（訊息見上）。**這個失敗比它所取代的那個更有用**，因為它
+把阻礙完全移出 Linux：`dzn` 透過 `libd3d12.so` 的 `D3D12GetInterface` 進入 D3D12，並透過
+`libdxcore.so` 列舉介面卡；兩者都成功載入，而**能走到 `CreateDevice` 就代表介面卡確實被列舉到了**。
+失敗的是 D3D12 在該介面卡上建立裝置，而那需要一份由 Windows 端發布進 `/usr/lib/wsl/lib` 的
+user-mode D3D12 驅動——如前所述，那裡只有 CUDA、NVENC/NVDEC 與 OptiX。
+
+因此 Linux 這一側已經做完，剩下的槓桿是**一份會安裝 WSL 圖形支援的 Windows NVIDIA 驅動**，而非
+發行版內可安裝的任何東西。`/opt/mesa-dzn` 予以保留：它不佔用任何預設路徑、成本為零，並且讓下一次
+嘗試從一個量測結果出發，而不是從這段文字出發。
+
+---
+
+**2. 這不是 GTK：WSL 沒有硬體 Vulkan，因此 GSK 靜默地改用 CPU 繪製**
+
+**雖非 GTK 的缺陷仍歸檔於此**，因為它正是本檔所針對的那種「位於我們上游」：我們修不了，能做的
+決定只有「如何偵測」與「如何降級」。2026-08-29 於 Ubuntu 26.04、Mesa 26.0.3、WSL 2.7.12、
+WSLg 1.0.73.2、Direct3D 1.611.1 實測。
+
+**症狀。** GTK 回報 `GskVulkanRenderer`，讀起來像硬體，而每一格其實都由 CPU 上的 lavapipe 繪製
+（訊息見上）。
+
+**成因是兩項「缺席」，而非設定錯誤。**
+
+1. **八個 Vulkan ICD manifest 看起來很豐富，但每一個都對應到不存在的硬體**——asahi、gfxstream、
+   intel、intel_hasvk、nouveau、radeon、virtio 與 `lvp`。只有 lavapipe 能回應，而 lavapipe 是軟體。
+   `dzn`（Mesa 的 Vulkan-on-D3D12 驅動，也是唯一能透過 `/dev/dxg` 觸及 GPU 的那個）**根本未被
+   Ubuntu 的 `mesa-vulkan-drivers` 編入**：`/usr/lib/x86_64-linux-gnu/libvulkan_dzn.so` 並不存在。
+   因此這不是「補一個 manifest」或「設一個環境變數」能解決的。
+2. **Windows 驅動未向 WSL 發布任何 GL 或 Vulkan userspace。** `/usr/lib/wsl/lib` 內有 CUDA、
+   NVENC/NVDEC 與 OptiX——`libcuda.so`、`libnvcuvid.so`、`libnvidia-encode.so`、`libnvoptix.so`
+   ——而沒有任何名稱含 GLX、Vulkan 或 ICD 的檔案。
+
+其餘硬體管線是完整的：`/dev/dxg` 存在，`libdxcore.so` 與 `libd3d12core.so` 透過
+`/etc/ld.so.conf.d/ld.wsl.conf` 位於 loader cache 中，`d3d12_dri.so` 也已安裝。`/dev/dri` 不存在。
+
+**所有「不必安裝任何東西」的途徑都試過，全部無效**：`GALLIUM_DRIVER=d3d12`、
+`MESA_LOADER_DRIVER_OVERRIDE=d3d12`，以及顯式指定 `LD_LIBRARY_PATH=/usr/lib/wsl/lib`。
+結果一律止於 llvmpipe。
+
+**這會使哪些結論失效。** UI 測試仍然有效——像素是正確的，只是由 CPU 畫的。但任何在 WSL 上量測
+GPU 呈現、frame time 或繪製器效能的工作，量到的都是 lavapipe。尤其「Vulkan 是硬體路徑，所以一定
+比 Cairo 快」在此為假：兩者都跑在 CPU 上，而 lavapipe 還額外模擬了一整條 GPU pipeline。
+
+**偵測方式**：`zsh testapp/diagnose_wsl_gpu.zsh` 會列出 ICD manifest、Mesa 實際編入的
+`libvulkan_*.so`，以及 Windows 驅動所暴露的內容。前兩者的區別很重要——manifest 說的是「設定了
+什麼」，函式庫說的是「有什麼可供設定」。
+
+**修法有兩條，皆非程式碼變更**：換一份會向 WSL 發布 GL/Vulkan userspace 的 Windows NVIDIA 驅動，
+或換一份編入 `dzn` 的 Mesa。
+
+---
+
+## 3. The two GTK 4 builds for Windows are each missing the half the other has
+
+**Measured 2026-08-29. Both builds are GTK 4.22.4** — the same upstream release,
+so nothing here is a version difference.
+
+| | Vulkan renderer built in | `dcomp` in `GDK_DEBUG` |
+|---|---|---|
+| gvsbuild (`/c/gtk4`, MSVC, `gtk-4-1.dll`) | **no** — `-Dvulkan=disabled` | **yes** |
+| MSYS2 ucrt64 (MinGW, `libgtk-4-1.dll`) | **yes** — imports `vulkan-1.dll` | **no** |
+
+**Why that combination is fatal rather than merely awkward.** GTK's Win32
+backend demands Direct Composition for Vulkan exactly as it does for OpenGL:
+
+    Failed to realize renderer 'GskVulkanRenderer' for surface 'GdkWin32Toplevel':
+        Vulkan requires Direct Composition
+
+So the MSYS2 build ships a renderer it cannot reach, and drops the switch that
+reaches the one gvsbuild *can* — `dcomp` is what `SCUI_GTK_DCOMP=1` and `-GPU 2`
+turn on, and the only route to a hardware renderer on Windows. **Switching to
+MSYS2 would trade a renderer we cannot use for a switch we need.** gvsbuild
+stays; `testapp/install_gtk4_windows.zsh` records this so the swap is not
+attempted as an upgrade.
+
+On gvsbuild, GTK says so itself, which is the only source that settles it:
+
+    $ GSK_RENDERER=help ./P40.exe
+      cairo  - Use the Cairo fallback renderer
+      opengl - Use the OpenGL renderer
+      vulkan - Disabled during GTK build
+
+**Verified by running MSYS2's own `gtk4-demo.exe`**, downloaded and extracted
+without installing MSYS2 — no repackaging, no import libraries, no rebuild. The
+`GDK_DEBUG=help` output was checked to be non-empty before concluding `dcomp`
+was absent from it: 28 flags listed, including `opengl` and `vulkan`. Without
+that control, "no dcomp line" is indistinguishable from "no output".
+
+That control exists because the first attempt at this comparison reached the
+right verdict for an entirely false reason — `strings` and `objdump` were aimed
+at `libgtk-4-1.dll` while the gvsbuild file is `gtk-4-1.dll`, and both tools
+printed nothing for a file that does not exist. See `mistakes/mistakes.csv2`
+entry 43.
+
+**Nothing here is fixable from this repository.** It is two packaging decisions
+upstream, and the only choice available is which build to depend on.
+
+---
+
+**3. Windows 上的兩份 GTK 4 build，各自缺少對方擁有的那一半**
+
+**2026-08-29 實測。兩份都是 GTK 4.22.4**——同一個上游版本，因此以上差異都不是版本差異（表見上）。
+
+**為何這個組合是致命的、而非只是不便。** GTK 的 Win32 backend 對 Vulkan 的要求，與它對 OpenGL 的
+要求完全相同：`Vulkan requires Direct Composition`。
+
+因此 MSYS2 那份帶著一個它**構不到**的繪製器，同時又拿掉了那個能構到 gvsbuild 唯一可用繪製器的
+開關——`dcomp` 正是 `SCUI_GTK_DCOMP=1` 與 `-GPU 2` 所開啟的東西，也是 Windows 上通往硬體繪製器
+的唯一途徑。**換到 MSYS2 等於用一個我們用不到的繪製器，換掉一個我們需要的開關。** 因此維持
+gvsbuild；`testapp/install_gtk4_windows.zsh` 已記下此事，以免日後有人把這個交換當成升級。
+
+**此結論是實際執行 MSYS2 自帶的 `gtk4-demo.exe` 得出的**——套件下載後直接解壓，未安裝 MSYS2、
+未重新打包、未產生 import library、未重新建置。在斷定「`dcomp` 不在其中」之前，先確認過
+`GDK_DEBUG=help` 的輸出並非空的：共列出 28 個 flag，其中包含 `opengl` 與 `vulkan`。少了這道對照，
+「沒有 dcomp 那一行」與「根本沒有輸出」是無法區分的。
+
+這道對照之所以存在，是因為本比較的第一次嘗試「結論正確、理由卻全錯」——`strings` 與 `objdump`
+被指向了 `libgtk-4-1.dll`，而 gvsbuild 的檔名是 `gtk-4-1.dll`，兩個工具都對一個不存在的檔案印出了
+「沒有」。詳見 `mistakes/mistakes.csv2` 第 43 條。
+
+**此處沒有任何一項能從本 repository 修正。** 那是上游的兩個打包決策，我們唯一能做的選擇是「要依賴
+哪一份 build」。

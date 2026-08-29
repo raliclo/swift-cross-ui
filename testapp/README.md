@@ -25,10 +25,13 @@ is only a comparison, or tells you nothing.
 
 ## The apps
 
-P0-P17, one Swift file each, built as standalone executables. P0-P6 came out of
-the WinUIBackend work, P7-P10 and P15 target GtkBackend, P11 AppKitBackend, P12
-AndroidBackend, P14 UIKitBackend, and P13, P16 and P17 cover core layout and
-split-view behaviour. `UI-test-plan platform-en.md` has the full mapping.
+P0-P41 are one Swift file each, built as standalone executables when the current
+platform supports their backend. P0-P6 came out of the WinUIBackend work,
+P7-P10 and P15 target GtkBackend, P11 AppKitBackend, P12 AndroidBackend, P14
+UIKitBackend, and P13, P16 and P17 cover core layout and split-view behaviour.
+Later apps extend backend feature, visual-fidelity, window-level, GPU and
+DatePicker coverage. `UI-test-plan platform-en.md` has the full issue-to-platform
+mapping.
 
 ```sh
 zsh testapp/compile.zsh P7 P15 P17     # build a subset
@@ -43,7 +46,7 @@ tracked.
 
 | Script | For |
 | --- | --- |
-| `install_tool_wsl.sh` | WSL: GTK 4, the Swift tarball, and the libxml2/ICU shims Ubuntu 26.04 needs |
+| `install_tool_wsl.zsh` | WSL: GTK 4, the Swift tarball, and the libxml2/ICU shims Ubuntu 26.04 needs |
 | `install_tools_ios.zsh` | macOS: the iOS Simulator toolchain, called automatically by `compile.zsh -ios` |
 | `install_tool_mac.zsh` | macOS: GTK 4 via Homebrew, and the two things `swift test` needs to run on a Mac at all. `--test` runs the suite |
 | `install_tools_android.zsh` | macOS: the Android SDK, NDK and emulator the Android runner needs |
@@ -105,7 +108,7 @@ Each run takes one shortly after launch and one at the end.
 
 | Platform | How | Subject |
 | --- | --- | --- |
-| Windows, WSLg | `screenshot.zsh`, gdigrab | the named window, or the desktop |
+| Windows, WSLg | `screenshot.zsh`, wincap for `-w`; gdigrab only without `-w` | the named window, or the desktop when explicitly requested |
 | macOS | `screenshot.zsh`, `screencapture` | the named window by CGWindowID, or the display |
 | iOS | `simctl io ... screenshot` | the Simulator's own framebuffer |
 | Android | `adb exec-out screencap` | the device's own framebuffer |
@@ -116,9 +119,12 @@ window as composited on this Mac. They also need no Screen Recording permission,
 where the macOS path does.
 
 A failed capture is reported and counted, never swallowed, and never aborts the
-run -- a screenshot is evidence, not the assertion. On macOS a fallback from the
-window to the whole display is itself a signal: a sleeping display defeats window
-capture while a full-screen grab still succeeds and returns a black frame.
+run -- a screenshot is evidence, not the assertion. On Windows and WSLg,
+`screenshot.zsh -w` fails closed when wincap cannot capture the named window;
+omit `-w` only when the desktop is the intended subject. On macOS a fallback
+from the window to the whole display is itself a signal: a sleeping display
+defeats window capture while a full-screen grab still succeeds and returns a
+black frame.
 
 | Script | For |
 | --- | --- |
