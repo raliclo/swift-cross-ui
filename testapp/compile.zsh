@@ -198,6 +198,34 @@ elif [ "$force_gtk4" -eq 1 ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-gtk4")"
 elif [ "$target_platform" = "android" ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-android")"
+elif [ "$target_platform" = "ios" ]; then
+    # iOS gets its own tree because it is the one path that RENAMES the package.
+    # It names the package after the single app it builds, so that
+    # `xcodebuild -scheme <product>` finds a matching scheme -- see the note
+    # beside package_name below, and do not "fix" that by going back to
+    # TestApps: bundling then fails with "does not contain a scheme named P12",
+    # which reads like a missing target and is only a name mismatch.
+    #
+    # Sharing a tree with the WinUI and macOS builds therefore meant the
+    # manifest flipped between `name: "P12"` and `name: "TestApps"` on every
+    # alternation. The manifest is one of llbuild's three PackageStructure
+    # inputs, so each flip re-planned the whole build -- the same cost measured
+    # at 28-83s for a Pn switch and removed for -gtk4 in the commit before this.
+    #
+    # Separating the tree is what fixes it. Renaming the package would not: it
+    # would trade a slow build for a broken one.
+    #
+    # iOS 使用自己的目錄樹，因為它是唯一會「更改套件名稱」的路徑。它以所建置的那個唯一 app
+    # 為套件命名，好讓 `xcodebuild -scheme <product>` 找得到相符的 scheme——詳見下方
+    # package_name 處的說明；請勿以「改回 TestApps」來「修正」它：那會使打包失敗並顯示
+    # 「does not contain a scheme named P12」，該訊息讀起來像缺少 target，實則只是名稱不一致。
+    #
+    # 因此，與 WinUI、macOS 共用一棵樹，意味著 manifest 會在 `name: "P12"` 與
+    # `name: "TestApps"` 之間來回翻動。manifest 是 llbuild 三個 PackageStructure input 之一，
+    # 每翻動一次就重新規劃整個建置——即前一個 commit 為 -gtk4 所消除、實測 28 至 83 秒的那筆成本。
+    #
+    # 分開目錄樹才是解法。改套件名稱不是：那是拿「慢的建置」換「壞掉的建置」。
+    compile_work_dir="$(windows_path "$script_dir/.compile-work-ios")"
 else
     compile_work_dir="$(windows_path "$script_dir/.compile-work")"
 fi
