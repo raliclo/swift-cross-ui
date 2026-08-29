@@ -523,9 +523,38 @@ fi
 # compiled it immediately -- so this is llbuild's cached plan, not SwiftPM and
 # not the toolchain.
 #
+# The mechanism, since knowing it is what makes this fix obviously right rather
+# than a guess. llbuild's `PackageStructure` task -- the one that prints
+# "Planning build" -- has exactly three inputs:
+#
+#     TestApps/Sources/<Pn>/      TestApps/Package.swift      TestApps/Package.resolved
+#
+# The path dependency's own Sources/ is not among them and is never watched. So
+# adding a file to this repo's Sources/ cannot invalidate the plan, no matter
+# what changes there. Confirm with:
+#
+#     grep -A3 '^  "PackageStructure":$' \
+#         testapp/.compile-work-gtk4/TestApps/.build/debug.yaml
+#
+# Which means the manifest optimisation directly above -- only `mv` when the
+# contents differ, so the mtime does not move -- is what allows this. That
+# comment records the 118s it saves; this is the price. Touching
+# TestApps/Package.swift would also work, and would cost the same re-plan.
+#
 # Hash the LIST of source paths, not their contents: content changes are what
 # llbuild already tracks correctly, and hashing contents would throw the plan
 # away on every edit and cost a full rebuild each time.
+#
+# 機制本身，因為知道它才能看出這個修法是「顯然正確」而非猜測。llbuild 的 `PackageStructure`
+# task——即印出 "Planning build" 的那一個——恰好只有三個 input：
+#
+#     TestApps/Sources/<Pn>/      TestApps/Package.swift      TestApps/Package.resolved
+#
+# path dependency 自己的 Sources/ 不在其中，從未被監看。因此無論本 repo 的 Sources/ 如何變動，
+# 新增檔案都不可能使該計畫失效。
+#
+# 也就是說，上方那段 manifest 最佳化——僅在內容不同時才 `mv`，使 mtime 不動——正是讓此問題成立
+# 的原因。那段註解記錄了它省下的 118 秒；此處記錄它的代價。
 #
 # SwiftPM 不會察覺「新增」的原始檔。
 #
