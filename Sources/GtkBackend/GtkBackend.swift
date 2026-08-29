@@ -496,9 +496,45 @@ public final class GtkBackend:
             }
 
             let hardware = rows.filter { !$0.name.hasPrefix("Microsoft Basic") }
+            // Hand-written, because `csv2` is a command-line tool and this is a
+            // library that must not shell out. That makes this the one place in
+            // the project writing CSV without it, so it is written to make the
+            // failure csv2 exists to prevent impossible rather than unlikely.
+            //
+            // Two rules, both from `.csv2` itself:
+            //   * a record is ONE line -- so a newline inside a field is
+            //     escaped to the two characters \n, never emitted raw. An
+            //     adapter name will not contain one, but "will not" is not a
+            //     guarantee, and a raw newline here would silently split one
+            //     record into two and misalign every column after it.
+            //   * a field containing a comma or a quote is quoted, with inner
+            //     quotes doubled, which is ordinary RFC 4180.
+            //
+            // Verified by round-tripping the output through the real csv2:
+            // `csv2 --json` reports 7 fields per record with the values intact,
+            // which is the alignment test. Reading the pretty-printed table is
+            // not -- a misquoted field still looks like a table.
+            //
+            // 此處為手寫，因為 `csv2` 是命令列工具，而這是一個不該去 shell out 的函式庫。這使得
+            // 本處成為全專案唯一不透過它寫出 CSV 的地方，因此寫法上要讓「csv2 存在所要防止的那種
+            // 失敗」變成**不可能**，而不只是「不太可能」。
+            //
+            // 兩條規則，皆源自 `.csv2` 本身：
+            //   * 一筆紀錄就是**一行**——因此欄位內的換行會被逸出為 \n 兩個字元，絕不原樣輸出。
+            //     介面卡名稱不會含有換行，但「不會」並不是保證；此處若出現原始換行，會靜默地把
+            //     一筆紀錄拆成兩筆，並使其後每一欄都錯位。
+            //   * 含有逗號或引號的欄位會加上引號，內部引號加倍，此即一般的 RFC 4180。
+            //
+            // 已透過真正的 csv2 做來回驗證：`csv2 --json` 回報每筆 7 欄且值皆完好，那才是對齊測試。
+            // 讀那張排版漂亮的表格則不是——欄位引號錯了，它看起來仍然像一張表。
             func quote(_ s: String) -> String {
-                s.contains(",") || s.contains("\"")
-                    ? "\"\(s.replacingOccurrences(of: "\"", with: "\"\""))\"" : s
+                let flattened =
+                    s
+                    .replacingOccurrences(of: "\r\n", with: #"\n"#)
+                    .replacingOccurrences(of: "\n", with: #"\n"#)
+                    .replacingOccurrences(of: "\r", with: #"\n"#)
+                guard flattened.contains(",") || flattened.contains("\"") else { return flattened }
+                return "\"\(flattened.replacingOccurrences(of: "\"", with: "\"\""))\""
             }
 
             var out = "index,name,primary,removable,attached,selected_by,note\n"
