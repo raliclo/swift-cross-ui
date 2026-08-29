@@ -569,7 +569,12 @@ public final class GtkBackend:
 
         /// Every non-software display adapter, by name.
         /// 所有非軟體的顯示介面卡名稱。
-        private static func hardwareAdapterNames() -> [String] {
+        // Internal rather than private: GtkBackend+GraphicsAdapters.swift is a
+        // separate file and needs these to implement the protocol over the same
+        // code, instead of enumerating the adapters a second time.
+        // 使用 internal 而非 private：GtkBackend+GraphicsAdapters.swift 是另一個檔案，需要用到
+        // 這些函式，以便在「同一份程式碼」之上實作該協定，而不是再列舉一次介面卡。
+        static func hardwareAdapterNames() -> [String] {
             var names: [String] = []
             var index: DWORD = 0
             while true {
@@ -608,13 +613,13 @@ public final class GtkBackend:
         private static let regOptionNonVolatile: DWORD = 0
         private static let regTypeSZ: DWORD = 1
 
-        private static func executablePath() -> String? {
+        static func executablePath() -> String? {
             var buffer = [UInt16](repeating: 0, count: 32768)
             guard GetModuleFileNameW(nil, &buffer, DWORD(buffer.count)) > 0 else { return nil }
             return String(decodingCString: buffer, as: UTF16.self)
         }
 
-        private static func readGpuPreference(for executable: String) -> Int? {
+        static func readGpuPreference(for executable: String) -> Int? {
             var key: HKEY?
             var path = wide(gpuPreferencesKey)
             guard
@@ -820,6 +825,22 @@ public final class GtkBackend:
             exit(0)
         }
     #endif
+
+    /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
+    ///
+    /// Here rather than in the conformance because a Swift extension cannot add
+    /// stored properties. Not yet signalled by this backend: GTK on Windows has
+    /// no adapter-removal notification wired up, so nothing calls it. Declared
+    /// anyway, because the protocol is what makes the gap visible instead of
+    /// leaving each backend to invent its own answer.
+    ///
+    /// ``BackendFeatures/GraphicsAdapters/adapterRemoved`` 的儲存空間。
+    ///
+    /// 之所以放在此處而非 conformance 中，是因為 Swift 的 extension 無法新增 stored property。
+    /// 本 backend 目前**尚未**發出此訊號：Windows 上的 GTK 並未接上任何介面卡移除通知，因此不會有
+    /// 東西呼叫它。仍然宣告它，是因為協定的作用正是讓這個缺口「看得見」，而不是任由各 backend
+    /// 各自發明答案。
+    public var adapterRemoved: (() -> Void)?
 
     var globalCSSProvider: CSSProvider?
 
