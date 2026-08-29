@@ -508,6 +508,46 @@ else
     mv "$package_manifest_tmp" "$package_dir/Package.swift"
 fi
 
+# SwiftPM does not notice a source file that has been ADDED.
+#
+# llbuild bakes the file list into `.build/debug.yaml` when it plans a build. A
+# later build whose inputs are all unchanged reuses that plan, so a newly added
+# file belongs to no compile command and is skipped -- with no error, no
+# warning, and a build that finishes in seconds looking perfectly successful.
+# Editing a file that already exists works fine, which is exactly why this can
+# go unnoticed for a long time.
+#
+# Measured 2026-08-29. `Sources/GtkBackend/ZZProbe.swift` containing nothing but
+# `#error` did not fire, three builds running. The same file compiled the moment
+# debug.yaml was removed, and a clean `swift build --scratch-path` elsewhere
+# compiled it immediately -- so this is llbuild's cached plan, not SwiftPM and
+# not the toolchain.
+#
+# Hash the LIST of source paths, not their contents: content changes are what
+# llbuild already tracks correctly, and hashing contents would throw the plan
+# away on every edit and cost a full rebuild each time.
+#
+# SwiftPM 不會察覺「新增」的原始檔。
+#
+# llbuild 在規劃建置時，會把檔案清單烘焙進 `.build/debug.yaml`。之後只要所有輸入都未改變，
+# 該計畫就會被重複使用，於是新增的檔案不屬於任何一道編譯指令而被略過——沒有錯誤、沒有警告，
+# 而且建置會在數秒內完成、看起來完全成功。修改「既有」檔案則一切正常，這正是此問題能長期
+# 不被察覺的原因。
+#
+# 2026-08-29 實測：`Sources/GtkBackend/ZZProbe.swift` 內容只有 `#error`，連續三次建置都未觸發；
+# 一旦移除 debug.yaml，同一個檔案立刻編譯。而在他處以乾淨的 `swift build --scratch-path` 建置，
+# 它也立即被編譯——因此問題出在 llbuild 的快取計畫，而非 SwiftPM，也非工具鏈。
+#
+# 此處雜湊的是原始檔路徑「清單」，而非其內容：內容變更本來就會被 llbuild 正確追蹤，而雜湊內容
+# 會導致每次編輯都丟棄整個建置計畫，代價是每次都全量重建。
+source_list_hash_file="$package_dir/.source-list-hash"
+source_list_hash="$(cd "$repo_root" && find Sources -name '*.swift' -print | sort | cksum)"
+if [[ ! -f "$source_list_hash_file" ]] \
+    || [[ "$source_list_hash" != "$(cat "$source_list_hash_file" 2>/dev/null)" ]]; then
+    rm -f "$package_dir/.build/debug.yaml" "$package_dir/.build/release.yaml"
+    printf '%s\n' "$source_list_hash" > "$source_list_hash_file"
+fi
+
 # Swift Bundler needs a Bundler.toml to turn an executable target into an app
 # bundle: a SwiftPM executable has no Info.plist or bundle identifier, so
 # `simctl install` cannot accept it on its own. Generated alongside

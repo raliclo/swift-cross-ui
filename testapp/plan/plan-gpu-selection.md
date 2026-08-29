@@ -207,26 +207,40 @@ be rewritten rather than extended.
    4K/60, on GTK, Windows and WSL. That is the first real workload behind this
    API, and the first evidence that the choice changes anything measurable.
 
-## Blocker to clear first
+## Blocker — CLEARED 2026-08-29
 
-**A new `.swift` file under `Sources/` is not picked up by
-`testapp/compile.zsh`.** Measured 2026-08-29: a file containing nothing but
-`#error` was added to `Sources/GtkBackend/`, the build completed in 5.25s
-without recompiling anything and without reporting the error. Touching
-`Package.swift` to force a re-plan did not help. The identical code compiled
-first time once it was moved into an existing file.
+A new `.swift` file under `Sources/` was not picked up by
+`testapp/compile.zsh`. **Fixed**; steps 1–3 are unblocked.
 
-Cause unknown, and recorded as unknown. Since steps 1–3 above all want new
-files, this has to be understood before starting, or the work has to be written
-into existing files. The cheap check for anyone hitting it: put a temporary
-`#error` in the new file **while the rest of the tree compiles cleanly**, and
-see whether it fires.
+**Cause.** llbuild bakes the source file list into `.build/debug.yaml` when it
+plans a build. A later build whose inputs are all unchanged reuses that plan, so
+an added file belongs to no compile command and is skipped — no error, no
+warning, and a build finishing in seconds looking successful. Editing an
+existing file works fine, which is why it went unnoticed.
 
-**`Sources/` 下新增的 `.swift` 檔不會被 `testapp/compile.zsh` 納入建置。** 2026-08-29 實測：
-在 `Sources/GtkBackend/` 放入一個只含 `#error` 的檔案，建置在 5.25 秒內完成、未重新編譯任何
-東西、也未回報該錯誤。`touch Package.swift` 強制重新規劃亦無效。同樣的程式碼搬進既有檔案後
-一次就編譯成功。
+**Fix.** `compile.zsh` now hashes the *list* of source paths (not their
+contents — content changes are what llbuild already tracks) and drops
+`debug.yaml` when the list differs. Costs nothing on ordinary builds: measured
+31.94s when the list changed and 4.17s / 4.48s when it did not.
 
-成因未知，且照實記為未知。由於上述步驟 1–3 都需要新檔案，開工前必須先弄清楚這件事，否則就得
-把程式碼寫進既有檔案。給遇到此問題者的便宜檢查法：**在整棵樹都能乾淨編譯的前提下**，在新檔案
-中放一個暫時的 `#error`，看它會不會觸發。
+**Two of the diagnostics along the way were wrong, and both are worth keeping.**
+"Deleting debug.yaml did not help" was false — it deleted the one in
+`testapp/.compile-work`, while `-gtk4` builds in `testapp/.compile-work-gtk4`.
+There are three work directories, one per backend, and `.gitignore` says so.
+The first `#error` probe was also invalid, because another compile error was
+already present and may have stopped type-checking before reaching it.
+
+**阻擋已於 2026-08-29 排除。**
+
+**成因。** llbuild 在規劃建置時把原始檔清單烘焙進 `.build/debug.yaml`；之後只要輸入皆未改變就
+重複使用該計畫，於是新增的檔案不屬於任何編譯指令而被略過——沒有錯誤、沒有警告，建置數秒完成
+且看似成功。修改既有檔案則一切正常，這正是它長期未被察覺的原因。
+
+**修法。** `compile.zsh` 現在會雜湊原始檔路徑「清單」（而非內容——內容變更本來就由 llbuild
+正確追蹤），清單一有差異就刪除 `debug.yaml`。對一般建置零成本：清單變更時實測 31.94 秒，
+未變更時為 4.17 / 4.48 秒。
+
+**過程中有兩項診斷是錯的，而且都值得留著。**「刪掉 debug.yaml 沒有用」是假的——當時刪的是
+`testapp/.compile-work` 裡的那一個，而 `-gtk4` 建置實際使用的是 `testapp/.compile-work-gtk4`。
+工作目錄一共有三個、每個 backend 各一，而 `.gitignore` 裡就寫著這件事。第一次的 `#error` 探針
+同樣無效，因為當時樹上已有另一個編譯錯誤，可能在到達該檔案之前就停止了型別檢查。
