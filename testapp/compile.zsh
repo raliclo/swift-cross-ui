@@ -378,8 +378,70 @@ else
     fi
 fi
 
+# Which apps appear as TARGETS in the manifest, which is not the same question
+# as which apps get built.
+#
+# Every buildable app, always, rather than only the ones requested. The manifest
+# is one of llbuild's three PackageStructure inputs, so changing its contents
+# re-plans the entire build. Listing only the requested apps meant that
+# compiling a different Pn than last time rewrote the manifest and paid for a
+# full re-plan. Measured on this machine, GTK4/Windows:
+#
+#     same app twice        6s, 7s
+#     switch to P19        83s
+#     switch back to P40   28s
+#
+# A sweep across ~26 apps therefore spent 13-35 minutes doing nothing but
+# re-planning. Listing them all makes the manifest byte-identical between
+# invocations, so the plan is computed once and every app after that builds
+# warm. `swift build` still receives --product for the requested app alone, so
+# nothing extra is compiled: a listed target is not a built target.
+#
+# Not applied to -ios, which names the package after the single app it builds
+# and requires exactly one.
+#
+# 哪些 app 會以 target 形式出現在 manifest 中——這與「哪些 app 會被建置」是兩個不同的問題。
+#
+# 此處列出「每一個可建置的 app」，而非僅列出被請求的那些。manifest 是 llbuild 的
+# PackageStructure 三個 input 之一，因此改動其內容會重新規劃整個建置。過去只列出被請求的 app，
+# 意味著「這次編譯的 Pn 與上次不同」就會改寫 manifest，並付出一次完整重新規劃的代價。本機實測
+# （GTK4/Windows）：同一個 app 連續兩次為 6、7 秒；切換到 P19 為 83 秒；切回 P40 為 28 秒。
+#
+# 因此一輪涵蓋約 26 個 app 的 sweep，光是重新規劃就花掉 13 至 35 分鐘。全部列出可使 manifest 在
+# 各次呼叫之間逐位元組相同，於是建置計畫只算一次，之後每個 app 都是熱的。`swift build` 仍只收到
+# 被請求 app 的 --product，因此不會多編譯任何東西：**被列出的 target 不等於被建置的 target**。
+#
+# 不套用於 -ios：該路徑會以它所建置的那個唯一 app 為套件命名，且要求恰好一個。
+manifest_app_names="$app_names"
+if [ "$target_platform" != "ios" ]; then
+    manifest_app_names=""
+    for source_path in "$script_dir"/P*.swift; do
+        [ -f "$source_path" ] || continue
+        candidate_file="$(basename "$source_path")"
+        candidate="${candidate_file%.swift}"
+        # The same exclusion compile_app makes, as a filter rather than an exit:
+        # an app importing the WinUI products cannot be a target under -gtk4.
+        # Requesting one explicitly still fails loudly there, which is where the
+        # error belongs.
+        # 與 compile_app 相同的排除條件，但此處作為篩選而非直接結束：import WinUI product 的 app
+        # 在 -gtk4 下不能作為 target。明確請求它時仍會在該處大聲失敗，錯誤本來就該出現在那裡。
+        if [ "$force_gtk4" -eq 1 ] \
+            && grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path"; then
+            continue
+        fi
+        mkdir -p "$sources_root/$candidate"
+        if ! cmp -s "$source_path" "$sources_root/$candidate/main.swift" 2>/dev/null; then
+            cp "$source_path" "$sources_root/$candidate/main.swift"
+        fi
+        if grep -q '^import ImageFormats' "$source_path"; then
+            needs_image_formats=1
+        fi
+        manifest_app_names="$manifest_app_names $candidate"
+    done
+fi
+
 targets=""
-for app_name in $app_names; do
+for app_name in $manifest_app_names; do
     targets="$targets
         .executableTarget(
             name: \"$app_name\",
