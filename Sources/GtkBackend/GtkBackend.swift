@@ -325,8 +325,34 @@ public final class GtkBackend:
             // `SCUI_GTK_DCOMP` still forces it on, for bisecting against a
             // build that predates `-GPU`.
             // `SCUI_GTK_DCOMP` 仍可強制開啟，以便與早於 `-GPU` 的建置進行二分比對。
+            // `>= 2`, not `>= 1`, and this is a correction with a measurement
+            // behind it.
+            //
+            // Direct Composition made the window uncapturable by the old
+            // gdigrab/BitBlt window path this project's GTK screenshots used
+            // to depend on. Measured 2026-08-29 on P40: with dcomp off, the
+            // old path captured the window; with dcomp on, it had to fall back
+            // to desktop capture. Defaulting dcomp on therefore broke the
+            // meaning of GTK screenshots until the harness moved to wincap.
+            //
+            // Mapping it to 2 is also the more faithful reading of the number.
+            // `1` means "the platform's own default", and GTK's own default
+            // here is what it does unaided -- which is to fail to realize GL and
+            // fall back to cairo. Asking for hardware is asking for more than
+            // the default, which is what `2` means.
+            //
+            // 此處為 `>= 2` 而非 `>= 1`，而這是一項有量測依據的修正。
+            //
+            // Direct Composition 會使視窗無法被舊的 gdigrab/BitBlt 視窗路徑擷取，而本專案
+            // 的 GTK 截圖曾依賴該路徑。2026-08-29 於 P40 實測：dcomp 關閉時舊路徑可擷取
+            // 視窗；dcomp 開啟時只能退回桌面擷取。因此把 dcomp 設為預設開啟，等於在 harness
+            // 移到 wincap 之前弄壞了 GTK 截圖的語意。
+            //
+            // 將它對應到 2，同時也是對這個數字更忠實的解讀。`1` 意指「平台自身的預設」，而 GTK
+            // 在此處的自身預設，就是它在無人干預時所做的事——無法實現 GL、退回 cairo。要求硬體
+            // 就是要求「比預設更多」，而那正是 `2` 的意思。
             let forced = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "1"
-            guard forced || DebugFeatures.gpuSelection >= 1 else { return }
+            guard forced || DebugFeatures.gpuSelection >= 2 else { return }
 
             // The guard has to come BEFORE asking, because the failure it
             // prevents is a segmentation fault and there is nothing to catch.
@@ -615,8 +641,9 @@ public final class GtkBackend:
 
         static func executablePath() -> String? {
             var buffer = [UInt16](repeating: 0, count: 32768)
-            guard GetModuleFileNameW(nil, &buffer, DWORD(buffer.count)) > 0 else { return nil }
-            return String(decodingCString: buffer, as: UTF16.self)
+            let length = Int(GetModuleFileNameW(nil, &buffer, DWORD(buffer.count)))
+            guard length > 0 else { return nil }
+            return String(decoding: buffer.prefix(length), as: UTF16.self)
         }
 
         static func readGpuPreference(for executable: String) -> Int? {
@@ -658,7 +685,7 @@ public final class GtkBackend:
             else { return false }
             defer { RegCloseKey(key) }
             var name = wide(executable)
-            var data = wide("GpuPreference=\(value);")
+            let data = wide("GpuPreference=\(value);")
             let bytes = DWORD(data.count * MemoryLayout<UInt16>.size)
             return data.withUnsafeBytes { raw in
                 RegSetValueExW(
