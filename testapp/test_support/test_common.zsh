@@ -321,7 +321,12 @@ fi
 # 它發生之處被公告，並計入摘要——如此一來，一次沒有產出任何圖片的執行，就不會看起來像有產出。
 screenshot_failures=0
 capture() {
-    zsh "$script_dir/screenshot.zsh" "$@"
+    local rc
+    if zsh "$script_dir/screenshot.zsh" "$@"; then
+        rc=0
+    else
+        rc=$?
+    fi
     # Not `status`. That is one of zsh's special parameters -- a read-only alias
     # for $? -- so `local status=$?` aborts the run with
     # "capture:2: read-only variable: status". The same family as `path`,
@@ -330,7 +335,6 @@ capture() {
     # 不用 `status`。它是 zsh 的特殊參數之一——`$?` 的唯讀別名——因此 `local status=$?` 會以
     # 「capture:2: read-only variable: status」中止執行。與 `path`、`options`、`watch` 同一族；
     # 本檔自身的註解已提出警告，而該警告仍不足以讓人避開它。
-    local rc=$?
     [ "$rc" -eq 0 ] && return 0
 
     screenshot_failures=$(( screenshot_failures + 1 ))
