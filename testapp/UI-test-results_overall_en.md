@@ -124,3 +124,36 @@
 
 - After the `gtk4-widget-factory` process exited, `msrdc.exe` on the Windows side kept showing a `GTK Widget Factory (Ubuntu)` window, while `pgrep` inside WSL confirmed no such process was left.
 - This is the third way a WSLg bridge fails silently, after PulseAudio ceasing to listen and COPY MODE: a window with no owner is left on screen. When reading WSL GUI test results, "the window is visible on Windows" is not evidence that the app is still running.
+
+## 2026-08-29
+
+### P21-P41 Loader Coverage
+
+- Added missing `test_support/test_Pn.zsh` loaders for P21, P22, P23, P24, P25, P27, P29, P37, P38, P39, P40 and P41. `zsh -n` passes for every new loader and for `test_support/test_common.zsh`.
+- The common loader now records screenshot failures without aborting the whole run under `set -e`. This was needed because a failed 1-second capture could previously exit before the cleanup trap released `ui-lock`.
+- Test order followed the current rule: WSLg first, then Windows. P27/P29/P37/P38/P39/P40/P41 were run first, followed by P21-P25.
+
+### Automated Smoke Results
+
+All final screenshots below were captured with `wincap` and measured with PIL. Every final capture was visible and non-black.
+
+| App | WSLg final screenshot | Windows final screenshot | Notes |
+| --- | --- | --- | --- |
+| P21 | 848x749, 93.0% non-black | 836x759, 93.2% non-black | Windows render marker arrived after 8s; WSLg marker arrived immediately. |
+| P22 | 788x729, 92.6% non-black | 776x739, 93.0% non-black | Wrapped text diagnostic differs: WSLg `300 x 46`, Windows `300 x 32`. |
+| P23 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | Both platforms built and reached the final capture. |
+| P24 | 748x589, 91.5% non-black | 736x599, 91.8% non-black | Both platforms built and reached the final capture. |
+| P25 | 748x549, 91.2% non-black | 736x559, 91.3% non-black | Automated run verifies launch/capture only; live drag/drop still needs manual interaction. |
+| P27 | 788x726, 92.6% non-black | 776x702, 92.8% non-black | Both platforms built and reached the final capture. |
+| P29 | 748x589, 91.5% non-black | 736x599, 91.7% non-black | Both platforms built and reached the final capture. |
+| P37 | 688x489, 90.2% non-black | 676x499, 90.4% non-black | Window-level behaviour still needs a second-window foreground/topmost challenge; this run only verifies baseline launch/capture. |
+| P38 | 848x692, 92.6% non-black | 836x699, 92.8% non-black | WSLg 1-second capture was black, but final capture was visible; Windows final capture also succeeded. |
+| P39 | 888x649, 92.5% non-black | 876x659, 92.6% non-black | Near-hotpink pixels were present in effect content: WSLg 7,563, Windows 13,704. |
+| P40 | 928x736, 93.2% non-black | 916x708, 93.1% non-black | Exact hotpink pixels: 0 on both platforms; near-hotpink pixels: 0 on both platforms. |
+| P41 | 968x649, 92.6% non-black | 956x659, 92.7% non-black | Windows `.graphical` DatePicker requires visual/manual inspection of the final screenshot; the automated smoke run did not hang. |
+
+### Timing Observations
+
+- On WSLg, release builds for these apps completed in roughly 12-13s after source sync.
+- On Windows, P27 took 231.84s to build; P21-P25 and P29-P41 generally took about 49-54s each. Windows builds still print `pkg-config` / `gtk4.pc` warnings even when the WinUI app builds successfully.
+- Several Windows apps did not have a visible window for the 1-second capture, but became visible for the final 30-second capture. Treat this as startup/window-discovery timing unless the final capture also fails.

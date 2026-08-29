@@ -35,7 +35,7 @@ This document describes the manual and assisted UI test steps for the apps in `t
 - For Linux / GtkBackend issues, test WSLg first, then Windows only as a comparison if the app supports it.
 - Do not compile from `/mnt/c` inside WSL. Sync the `testapp` Swift/zsh files first, then build under `~/proj/swift-cross-ui`.
 - Use zsh scripts only. The current helper scripts are `compile.zsh`, `rsync_WSL.zsh`, `screenshot.zsh`, `videoshot.zsh`, and `test.zsh`.
-- P8 automated dry-runs keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
+- Automated dry-runs through `zsh testapp/test.zsh Pn --both` run WSLg first, then Windows. They keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
 - Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
 
 ## Common Checks
@@ -54,8 +54,8 @@ This document describes the manual and assisted UI test steps for the apps in `t
 
 Run:
 
-```powershell
-.\P0.exe
+```zsh
+./testapp/output/P0.exe
 ```
 
 Covered issues:
@@ -90,8 +90,8 @@ Expected results:
 
 Run:
 
-```powershell
-.\P1.exe
+```zsh
+./testapp/output/P1.exe
 ```
 
 Covered issues:
@@ -125,8 +125,8 @@ Expected results:
 
 Run:
 
-```powershell
-.\P2.exe
+```zsh
+./testapp/output/P2.exe
 ```
 
 Covered issues:
@@ -161,8 +161,8 @@ Expected results:
 
 Run:
 
-```powershell
-.\P3.exe
+```zsh
+./testapp/output/P3.exe
 ```
 
 Covered issues:
@@ -193,8 +193,8 @@ Expected results:
 
 Run:
 
-```powershell
-.\P4.exe
+```zsh
+./testapp/output/P4.exe
 ```
 
 Covered issues:
@@ -236,8 +236,8 @@ Expected results:
 
 Run:
 
-```powershell
-.\P5.exe
+```zsh
+./testapp/output/P5.exe
 ```
 
 Covered issues:
@@ -271,7 +271,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P7
 ```
 
@@ -306,7 +306,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P8
 ```
 
@@ -346,7 +346,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P9
 ```
 
@@ -375,7 +375,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P10
 ```
 
@@ -404,7 +404,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P11
 ```
 
@@ -464,7 +464,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P13
 ```
 
@@ -494,7 +494,7 @@ Expected results:
 
 Build and run:
 
-```sh
+```zsh
 zsh testapp/compile.zsh -ios P14
 xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
@@ -522,7 +522,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P15                                   # inherit the system theme
 GTK_THEME=Adwaita:dark ./P15            # the real test for #386
 ```
@@ -573,7 +573,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./P16.exe
 ```
 
@@ -616,7 +616,7 @@ Expected results:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P17          # GtkBackend, in WSL
 ./testapp/output/P17.exe      # WinUIBackend, on Windows
 ```
@@ -679,14 +679,14 @@ Expected results:
 
 Build and run:
 
-```sh
+```zsh
 zsh testapp/compile.zsh P6
 ./testapp/output/P6.exe
 ```
 
 On macOS the output binary name may be `P6` instead of `P6.exe`:
 
-```sh
+```zsh
 zsh testapp/compile.zsh P6
 ./testapp/output/P6
 ./testapp/output/P6 -core
@@ -878,7 +878,7 @@ RSS stress record:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P18          # GtkBackend, in WSL
 ./testapp/output/P18.exe      # WinUIBackend, on Windows
 ```
@@ -915,7 +915,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P19          # GtkBackend, in WSL
 ./testapp/output/P19.exe      # WinUIBackend, on Windows
 ```
@@ -947,7 +947,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P20          # GtkBackend, in WSL
 ./testapp/output/P20.exe      # WinUIBackend, on Windows
 ```
@@ -978,7 +978,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P6-v2 -i <file> -autoplay              # GtkBackend, in WSL
 ./testapp/output/P6-v2.exe -i <file> -autoplay          # GtkBackend, on Windows
 ```
@@ -1025,7 +1025,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P21          # GtkBackend, in WSL
 ./testapp/output/P21.exe      # WinUIBackend, on Windows
 ```
@@ -1053,7 +1053,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P22 --debug          # GtkBackend, in WSL
 ./testapp/output/P22.exe --debug      # WinUIBackend, on Windows
 ```
@@ -1077,7 +1077,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P23 --debug          # GtkBackend, in WSL
 ./testapp/output/P23.exe --debug      # WinUIBackend, on Windows
 ```
@@ -1102,7 +1102,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P24 --debug          # GtkBackend, in WSL
 ./testapp/output/P24.exe --debug      # WinUIBackend, on Windows
 ```
@@ -1130,7 +1130,7 @@ Test steps:
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P25 --debug          # GtkBackend, in WSL
 ./testapp/output/P25.exe --debug      # -gtk4 build, on Windows
 ```
@@ -1164,7 +1164,7 @@ it; step 1 onwards needs a real drag.
 
 Run:
 
-```sh
+```zsh
 ./testapp/output/P26 --debug
 zsh testapp/test.zsh P26 --cache-only   # cache assertions without the window
 ```
@@ -1187,15 +1187,21 @@ Test steps:
 
 ## P27: Backend Feature Coverage (Linux and Windows)
 
-**Planned, not yet written.** Covers the two features whose absence on
-GtkBackend is a hard crash rather than a degradation.
+Run:
+
+```zsh
+zsh testapp/test.zsh P27 --both
+```
+
+Covers backend features whose absence should be exposed as visible fallback or
+diagnostic behaviour rather than a silent no-op or hard crash.
 
 A missing backend conformance goes through `@CastBackend`, which turns it into
 `fatalError("'GtkBackend' does not implement ...")`. So an app containing a
 `WebView` aborts on GTK the moment that view is laid out, and `AngularGradient`
 does the same -- both on Linux and on Windows `-gtk4`. AppKit implements both.
 
-Planned test steps:
+Test steps:
 
 1. Show a `WebView` and confirm the app does not abort.
 2. Show an `AngularGradient` beside a `LinearGradient` and a `RadialGradient`
@@ -1228,10 +1234,16 @@ Planned test steps:
 
 ## P29: Visual Fidelity (Linux and Windows)
 
-**Planned, not yet written.** Covers output that is wrong on GtkBackend with no
-diagnostic at all -- the failures a log will never reveal.
+Run:
 
-Planned test steps:
+```zsh
+zsh testapp/test.zsh P29 --both
+```
+
+Covers output that can be wrong on one backend with no diagnostic at all -- the
+failures a log will never reveal.
+
+Test steps:
 
 1. Show an indeterminate `ProgressView()` with no value. GtkBackend sets the
    fraction to zero and never pulses, so it renders as a static empty bar and
@@ -1537,7 +1549,7 @@ Planned test steps:
 
 Run:
 
-```sh
+```zsh
 zsh testapp/run.zsh P37                    # GtkBackend on Windows
 ./testapp/output/P37.exe                   # WinUIBackend on Windows
 ./testapp/output/P37                       # GtkBackend, in WSL
@@ -1590,6 +1602,123 @@ Test steps:
 5. Close P37 and confirm nothing else on the desktop has been left pinned above
    its neighbours. A window level that outlives its window would cover whatever
    the user does next.
+
+## P38: WebView (Linux and Windows)
+
+Run:
+
+```zsh
+zsh testapp/test.zsh P38 --both
+```
+
+Covered issues:
+
+- WinUI WebView async / render delay behaviour.
+- GtkBackend WebView coverage and graceful fallback behaviour.
+
+Test steps:
+
+1. Launch P38 on WSLg first, then Windows.
+2. Confirm the app window appears and does not hang before the final screenshot.
+3. Check whether the WebView area renders usable content, a deliberate fallback,
+   or a blank area.
+4. Check the log for navigation or async completion messages.
+5. On Windows, keep the run open for the default 30 seconds and confirm the app
+   remains responsive while the WebView is loading.
+
+Expected results:
+
+- The test should not crash or block the loader.
+- If the initial screenshot is blank but the final screenshot is visible, record
+  it as startup/render timing, not as a UI failure.
+- If Windows never reaches the final screenshot or cannot close cleanly, record
+  it as the WinUI async WebView issue.
+
+## P39: Visual Effects (Linux and Windows)
+
+Run:
+
+```zsh
+zsh testapp/test.zsh P39 --both
+```
+
+Covered issues:
+
+- Visual-effect rendering differences across GtkBackend and WinUIBackend.
+- Unexpected diagnostic noise or silent no-op effects.
+
+Test steps:
+
+1. Launch P39 on WSLg first, then Windows.
+2. Confirm all effect samples are visible in the final screenshot.
+3. Use image measurement for color/visibility checks when judging a rendering
+   issue; do not rely only on visual inspection.
+4. Compare WSLg and Windows captures for obvious missing effects, clipped
+   content, or theme-driven contrast problems.
+
+Expected results:
+
+- The app should render visible samples on both platforms.
+- Backend-specific theme differences are acceptable; missing or blank samples
+  should be recorded as issues.
+
+## P40: Geometric Effects (Linux and Windows)
+
+Run:
+
+```zsh
+zsh testapp/test.zsh P40 --both
+```
+
+Covered issues:
+
+- Geometric effect rendering.
+- Hotpink fallback / incorrect geometry detection.
+
+Test steps:
+
+1. Launch P40 on WSLg first, then Windows.
+2. Confirm transformed shapes are visible in the final screenshot.
+3. Measure the final screenshot with PIL before claiming the hotpink fallback is
+   absent or fixed.
+4. Record the screenshot dimensions, non-black pixel ratio, and exact/near
+   hotpink pixel count.
+
+Expected results:
+
+- The app should produce a visible non-black capture on both platforms.
+- Exact hotpink pixels should be zero unless the app intentionally displays the
+  fallback color for a test case.
+
+## P41: Date Picker Styles (Linux and Windows)
+
+Run:
+
+```zsh
+zsh testapp/test.zsh P41 --both
+```
+
+Covered issues:
+
+- WinUI `.graphical` DatePicker blank sliver / binding behaviour.
+- Cross-backend DatePicker style fallback behaviour.
+
+Test steps:
+
+1. Launch P41 on WSLg first, then Windows.
+2. Confirm every DatePicker section occupies visible space.
+3. On Windows, inspect `.graphical` specifically and confirm it is not rendered
+   as a blank sliver.
+4. Change the date where possible and confirm the displayed binding value
+   updates.
+5. Record style-specific fallback messages from the log.
+
+Expected results:
+
+- The final screenshot should show visible DatePicker content on both
+  platforms.
+- If `.graphical` is blank or updates the wrong binding value on Windows, record
+  it as the WinUI DatePicker issue.
 
 ## Test Record Template
 

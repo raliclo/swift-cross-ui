@@ -35,7 +35,7 @@
 - Linux / GtkBackend 相關 issues 一律先測 WSLg，再用 Windows 作為對照（若該 app 支援）。
 - 不要在 WSL 內從 `/mnt/c` 編譯。先同步 `testapp` 的 Swift/zsh 檔案，再於 `~/proj/swift-cross-ui` 下建置。
 - 只使用 zsh scripts。目前 helper scripts 包含 `compile.zsh`、`rsync_WSL.zsh`、`screenshot.zsh`、`videoshot.zsh` 與 `test.zsh`。
-- P8 的自動 dry-run 預設會在每個平台 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
+- 透過 `zsh testapp/test.zsh Pn --both` 執行的自動 dry-run 會先跑 WSLg，再跑 Windows。每個平台預設會在 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
 - 截圖會寫到 `testapp/output/screenshots`，檔名含平台與階段，例如 `p8-wslg-1s-...png`、`p8-wslg-final-...png`、`p8-windows-1s-...png`、`p8-windows-final-...png`。
 
 ## 共通觀察項目
@@ -54,8 +54,8 @@
 
 執行：
 
-```powershell
-.\P0.exe
+```zsh
+./testapp/output/P0.exe
 ```
 
 涵蓋 issues：
@@ -90,8 +90,8 @@
 
 執行：
 
-```powershell
-.\P1.exe
+```zsh
+./testapp/output/P1.exe
 ```
 
 涵蓋 issues：
@@ -125,8 +125,8 @@
 
 執行：
 
-```powershell
-.\P2.exe
+```zsh
+./testapp/output/P2.exe
 ```
 
 涵蓋 issues：
@@ -161,8 +161,8 @@
 
 執行：
 
-```powershell
-.\P3.exe
+```zsh
+./testapp/output/P3.exe
 ```
 
 涵蓋 issues：
@@ -193,8 +193,8 @@
 
 執行：
 
-```powershell
-.\P4.exe
+```zsh
+./testapp/output/P4.exe
 ```
 
 涵蓋 issues：
@@ -236,8 +236,8 @@
 
 執行：
 
-```powershell
-.\P5.exe
+```zsh
+./testapp/output/P5.exe
 ```
 
 涵蓋 issues：
@@ -271,7 +271,7 @@
 
 執行：
 
-```sh
+```zsh
 ./P7
 ```
 
@@ -306,7 +306,7 @@ zsh testapp/test.zsh P7 --both
 
 執行：
 
-```sh
+```zsh
 ./P8
 ```
 
@@ -345,7 +345,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 
 執行：
 
-```sh
+```zsh
 ./P9
 ```
 
@@ -374,7 +374,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 
 執行：
 
-```sh
+```zsh
 ./P10
 ```
 
@@ -403,7 +403,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 
 執行：
 
-```sh
+```zsh
 ./P11
 ```
 
@@ -462,7 +462,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 
 執行：
 
-```sh
+```zsh
 ./P13
 ```
 
@@ -492,7 +492,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 
 編譯與執行：
 
-```sh
+```zsh
 zsh testapp/compile.zsh -ios P14
 xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
 xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
@@ -520,7 +520,7 @@ xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 
 執行：
 
-```sh
+```zsh
 ./P15                                   # 沿用系統主題
 GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 ```
@@ -556,7 +556,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 執行：
 
-```sh
+```zsh
 ./P16.exe
 ```
 
@@ -587,7 +587,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P17          # WSL 上的 GtkBackend
 ./testapp/output/P17.exe      # Windows 上的 WinUIBackend
 ```
@@ -638,14 +638,14 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 編譯與執行：
 
-```sh
+```zsh
 zsh testapp/compile.zsh P6
 ./testapp/output/P6.exe
 ```
 
 macOS 的輸出檔名可能是 `P6` 而不是 `P6.exe`：
 
-```sh
+```zsh
 zsh testapp/compile.zsh P6
 ./testapp/output/P6
 ./testapp/output/P6 -core
@@ -1019,7 +1019,7 @@ RSS 壓力測試紀錄：
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P18          # GtkBackend，於 WSL
 ./testapp/output/P18.exe      # WinUIBackend，於 Windows
 ```
@@ -1049,7 +1049,7 @@ RSS 壓力測試紀錄：
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P19          # GtkBackend，於 WSL
 ./testapp/output/P19.exe      # WinUIBackend，於 Windows
 ```
@@ -1076,7 +1076,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P20          # GtkBackend，於 WSL
 ./testapp/output/P20.exe      # WinUIBackend，於 Windows
 ```
@@ -1104,7 +1104,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P6-v2 -i <檔案> -autoplay              # GtkBackend，於 WSL
 ./testapp/output/P6-v2.exe -i <檔案> -autoplay          # GtkBackend，於 Windows
 ```
@@ -1146,7 +1146,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P21          # GtkBackend，於 WSL
 ./testapp/output/P21.exe      # WinUIBackend，於 Windows
 ```
@@ -1171,7 +1171,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P22 --debug          # GtkBackend，於 WSL
 ./testapp/output/P22.exe --debug      # WinUIBackend，於 Windows
 ```
@@ -1193,7 +1193,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P23 --debug          # GtkBackend，於 WSL
 ./testapp/output/P23.exe --debug      # WinUIBackend，於 Windows
 ```
@@ -1214,7 +1214,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P24 --debug          # GtkBackend，於 WSL
 ./testapp/output/P24.exe --debug      # WinUIBackend，於 Windows
 ```
@@ -1239,7 +1239,7 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P25 --debug          # WSL 中的 GtkBackend
 ./testapp/output/P25.exe --debug      # Windows 上的 -gtk4 build
 ```
@@ -1266,7 +1266,7 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 
 執行：
 
-```sh
+```zsh
 ./testapp/output/P26 --debug
 zsh testapp/test.zsh P26 --cache-only   # 不開視窗，只做快取斷言
 ```
@@ -1285,14 +1285,20 @@ zsh testapp/test.zsh P26 --cache-only   # 不開視窗，只做快取斷言
 
 ## P27：Backend 功能覆蓋（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋兩個「在 GtkBackend 上缺席即為硬性崩潰、而非降級」的功能。
+執行：
+
+```zsh
+zsh testapp/test.zsh P27 --both
+```
+
+涵蓋 backend 功能缺口；缺席時應暴露為可見 fallback 或診斷行為，而不是 silent no-op 或 hard crash。
 
 缺少的 backend conformance 會經由 `@CastBackend`，被轉為
 `fatalError("'GtkBackend' does not implement ...")`。因此含有 `WebView` 的 app 會在該 view 進行
 版面配置的當下中止，`AngularGradient` 亦然——在 Linux 與 Windows `-gtk4` 上皆如此。AppKit 兩者
 皆有實作。
 
-規劃的測試步驟：
+測試步驟：
 
 1. 顯示一個 `WebView`，確認 app 不會中止。
 2. 將 `AngularGradient` 與 `LinearGradient`、`RadialGradient` 並排顯示，確認三者皆能渲染。
@@ -1321,10 +1327,15 @@ build 崩潰，並在 release 中悄悄變成下拉選單——一個與其他�
 
 ## P29：視覺保真度（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋「在 GtkBackend 上輸出錯誤、卻完全沒有任何診斷訊息」的情況——那是
-日誌永遠不會揭露的失敗。
+執行：
 
-規劃的測試步驟：
+```zsh
+zsh testapp/test.zsh P29 --both
+```
+
+涵蓋「某個 backend 輸出錯誤、卻完全沒有任何診斷訊息」的情況——那是日誌永遠不會揭露的失敗。
+
+測試步驟：
 
 1. 顯示一個沒有值的不確定進度 `ProgressView()`。GtkBackend 會把 fraction 設為零且從不 pulse，
    因此渲染為靜止的空白進度條，看起來像「卡住」；AppKit 與 WinUI 會使其動態呈現。
@@ -1545,7 +1556,7 @@ scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`Sce
 
 執行：
 
-```sh
+```zsh
 zsh testapp/run.zsh P37                    # Windows 上的 GtkBackend
 ./testapp/output/P37.exe                   # Windows 上的 WinUIBackend
 ./testapp/output/P37                       # WSL 中的 GtkBackend
@@ -1585,6 +1596,109 @@ zsh testapp/run.zsh P37                    # Windows 上的 GtkBackend
    `window level floating is not supported by ... using .normal`，而非每一次版面配置都記錄一次。
 5. 關閉 P37，並確認桌面上沒有任何東西被遺留在「釘選於其他視窗之上」的狀態。一個比其視窗更長壽的
    window level，會壓在使用者接下來所做的每一件事上。
+
+## P38：WebView（Linux 與 Windows）
+
+執行：
+
+```zsh
+zsh testapp/test.zsh P38 --both
+```
+
+涵蓋 issues：
+
+- WinUI WebView async / render delay 行為。
+- GtkBackend WebView 覆蓋率與 graceful fallback 行為。
+
+測試步驟：
+
+1. 先在 WSLg 啟動 P38，再跑 Windows。
+2. 確認 app 視窗會出現，且不會在 final screenshot 前卡住。
+3. 檢查 WebView 區域是顯示可用內容、刻意 fallback，還是空白。
+4. 檢查 log 是否有 navigation 或 async completion 訊息。
+5. Windows 上保留預設 30 秒，確認 WebView 載入期間 app 仍可回應。
+
+預期結果：
+
+- 測試不應 crash，也不應卡住 loader。
+- 若 initial screenshot 為黑畫面但 final screenshot 可見，記錄為啟動／render timing，不直接判為 UI failure。
+- 若 Windows 無法抵達 final screenshot 或無法乾淨關閉，記錄為 WinUI async WebView issue。
+
+## P39：Visual Effects（Linux 與 Windows）
+
+執行：
+
+```zsh
+zsh testapp/test.zsh P39 --both
+```
+
+涵蓋 issues：
+
+- GtkBackend 與 WinUIBackend 的 visual-effect rendering 差異。
+- 非預期 diagnostic noise 或 silent no-op effects。
+
+測試步驟：
+
+1. 先在 WSLg 啟動 P39，再跑 Windows。
+2. 確認 final screenshot 中所有 effect samples 都可見。
+3. 判斷 rendering issue 時使用影像量測檢查顏色與可視性，不只靠肉眼。
+4. 比較 WSLg 與 Windows 截圖是否有明顯 missing effects、clipped content 或 theme-driven contrast 問題。
+
+預期結果：
+
+- 兩個平台都應 render 出可見 samples。
+- Backend-specific theme 差異可接受；missing 或 blank samples 應記錄為 issue。
+
+## P40：Geometric Effects（Linux 與 Windows）
+
+執行：
+
+```zsh
+zsh testapp/test.zsh P40 --both
+```
+
+涵蓋 issues：
+
+- Geometric effect rendering。
+- Hotpink fallback / incorrect geometry detection。
+
+測試步驟：
+
+1. 先在 WSLg 啟動 P40，再跑 Windows。
+2. 確認 final screenshot 中 transformed shapes 可見。
+3. 聲稱 hotpink fallback 不存在或已修正前，先用 PIL 量測 final screenshot。
+4. 記錄 screenshot 尺寸、非黑像素比例，以及 exact / near hotpink 像素數。
+
+預期結果：
+
+- 兩個平台都應產生可見且非黑的截圖。
+- 除非 app 的測試案例刻意顯示 fallback 色，否則 exact hotpink pixels 應為 0。
+
+## P41：Date Picker Styles（Linux 與 Windows）
+
+執行：
+
+```zsh
+zsh testapp/test.zsh P41 --both
+```
+
+涵蓋 issues：
+
+- WinUI `.graphical` DatePicker blank sliver / binding 行為。
+- 跨 backend DatePicker style fallback 行為。
+
+測試步驟：
+
+1. 先在 WSLg 啟動 P41，再跑 Windows。
+2. 確認每個 DatePicker 區塊都有可見空間。
+3. Windows 上特別檢查 `.graphical`，確認它沒有 render 成 blank sliver。
+4. 可操作時更改日期，確認顯示的 binding value 有更新。
+5. 記錄 log 中 style-specific fallback 訊息。
+
+預期結果：
+
+- Final screenshot 應在兩個平台都顯示可見 DatePicker 內容。
+- 若 Windows `.graphical` 是空白或更新錯誤 binding value，記錄為 WinUI DatePicker issue。
 
 ## 測試完成紀錄格式
 

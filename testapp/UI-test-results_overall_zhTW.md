@@ -124,3 +124,36 @@
 
 - `gtk4-widget-factory` 行程結束後，Windows 端的 `msrdc.exe` 仍持續顯示 `GTK Widget Factory (Ubuntu)` 視窗。WSL 內 `pgrep` 確認無任何對應行程。
 - 這是繼 PulseAudio 停止監聽、COPY MODE 之後，**WSLg 橋接第三種靜默失效**：視窗已無擁有者卻不被移除。判讀 WSL GUI 測試結果時，「Windows 上看得到視窗」不足以證明該 app 仍在執行。
+
+## 2026-08-29
+
+### P21-P41 Loader 覆蓋
+
+- 補上 P21、P22、P23、P24、P25、P27、P29、P37、P38、P39、P40、P41 缺少的 `test_support/test_Pn.zsh` loader。所有新 loader 與 `test_support/test_common.zsh` 都通過 `zsh -n`。
+- common loader 現在會記錄 screenshot failure，但不會因 `set -e` 中止整個流程。這是必要修正：先前 1 秒截圖失敗時，流程會在 cleanup trap 釋放 `ui-lock` 前退出。
+- 測試順序遵守目前規則：先 WSLg，再 Windows。第一批先跑 P27/P29/P37/P38/P39/P40/P41，第二批補跑 P21-P25。
+
+### 自動 Smoke Test 結果
+
+以下 final screenshot 都使用 `wincap` 擷取，並以 PIL 量測。每張 final capture 都是可見且非黑畫面。
+
+| App | WSLg final screenshot | Windows final screenshot | 備註 |
+| --- | --- | --- | --- |
+| P21 | 848x749，93.0% 非黑 | 836x759，93.2% 非黑 | Windows render marker 8 秒後出現；WSLg 立即出現。 |
+| P22 | 788x729，92.6% 非黑 | 776x739，93.0% 非黑 | wrapped text 診斷不同：WSLg `300 x 46`，Windows `300 x 32`。 |
+| P23 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P24 | 748x589，91.5% 非黑 | 736x599，91.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P25 | 748x549，91.2% 非黑 | 736x559，91.3% 非黑 | 自動流程只驗證啟動與截圖；live drag/drop 仍需要手動互動。 |
+| P27 | 788x726，92.6% 非黑 | 776x702，92.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P29 | 748x589，91.5% 非黑 | 736x599，91.7% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P37 | 688x489，90.2% 非黑 | 676x499，90.4% 非黑 | Window-level 行為仍需要第二視窗 foreground/topmost 挑戰；本次只驗證 baseline launch/capture。 |
+| P38 | 848x692，92.6% 非黑 | 836x699，92.8% 非黑 | WSLg 1 秒截圖是黑畫面，但 final capture 可見；Windows final capture 也成功。 |
+| P39 | 888x649，92.5% 非黑 | 876x659，92.6% 非黑 | effect 內容中有 near-hotpink 像素：WSLg 7,563，Windows 13,704。 |
+| P40 | 928x736，93.2% 非黑 | 916x708，93.1% 非黑 | exact hotpink pixels：兩平台皆為 0；near-hotpink pixels：兩平台皆為 0。 |
+| P41 | 968x649，92.6% 非黑 | 956x659，92.7% 非黑 | Windows `.graphical` DatePicker 仍需人工檢視 final screenshot；自動 smoke run 未卡住。 |
+
+### 時序觀察
+
+- WSLg 上這批 release build 在 source sync 後約 12-13 秒完成。
+- Windows 上 P27 build 耗時 231.84 秒；P21-P25 與 P29-P41 大多約 49-54 秒。Windows build 即使成功建出 WinUI app，仍會印出 `pkg-config` / `gtk4.pc` 警告。
+- 多個 Windows app 在 1 秒截圖時尚未被找到，但 30 秒 final capture 正常可見。除非 final capture 也失敗，否則先記錄為 startup/window-discovery timing。
