@@ -80,30 +80,58 @@ exists to avoid.
 
 | platform | external GPU | how a specific adapter is chosen |
 |---|---|---|
-| Windows | yes, Thunderbolt, NVIDIA and AMD | **policy only** — see the conflict below |
+| Windows / **GtkBackend** | yes, Thunderbolt, NVIDIA and AMD | **policy only** — OpenGL, see below |
+| Windows / **WinUIBackend** | same hardware | **by index** — DXGI, see below |
 | Linux | yes, Thunderbolt | `DRI_PRIME=n`, or `__NV_PRIME_RENDER_OFFLOAD=1` plus `__GLX_VENDOR_LIBRARY_NAME=nvidia` |
 | macOS Intel | yes, AMD only | `MTLCopyAllDevices()`, filter `isRemovable == true` |
 | macOS Apple Silicon | **no — Apple does not support it** | single unified GPU; every policy resolves to it |
 | iOS / Android | no today | single GPU; see the note below |
 
-### The Windows conflict, which is real and unresolved
+### The conflict is GTK's, not Windows'
 
-**Windows cannot express "the nth external GPU" for OpenGL.**
-`UserGpuPreferences` takes exactly three values — 0 unspecified, 1 power saving,
-2 high performance — and there is no per-adapter selection for a WGL context.
-So on Windows:
+**Corrected 2026-08-29.** This section first said "Windows cannot express the
+nth external GPU". That is too broad and was wrong: it is true of GtkBackend and
+false of WinUIBackend, on the same machine and the same cards. The original
+wording is kept here because a limitation attributed to the wrong layer is
+exactly the kind of claim that gets designed around unnecessarily.
 
-- `-GPU 2` maps to *high performance*, which is what picks an eGPU when one is
-  attached, because that is what "high performance" resolves to
-- `-GPU 3` and above **cannot be honoured**. They must clamp to 2 and say so on
-  stdout rather than pretend
+**GtkBackend — policy only, and this part stands.** GTK renders through OpenGL,
+and Windows selects an OpenGL adapter by policy: `UserGpuPreferences` takes
+exactly three values (0 unspecified, 1 power saving, 2 high performance), and a
+WGL context has no per-adapter selection. So `-GPU 2` maps to *high
+performance*, which is what an attached eGPU resolves to, and **`-GPU 3` and
+above cannot be honoured** — they clamp to 2. Implemented, and it says so in a
+banner on stderr rather than quietly doing something else.
 
-This is the one place where the numbering above does not fit the platform, and
-it should be reported at runtime, not hidden.
+**WinUIBackend — by index, and this is why the limit is not Windows'.** WinUI
+renders through DirectX, where `IDXGIFactory1::EnumAdapters1` gives a real index
+and `D3D11CreateDevice` takes an explicit adapter as its first argument. Both
+are already called in this repo, in
+`Sources/WinUIBackend/D3D11VideoInterop.swift` — `EnumAdapters1` around line 789
+to build adapter descriptions, and `D3D11CreateDevice` around line 281 passing
+`nil` for the adapter today, which is "let the system choose". Passing a chosen
+adapter there is the whole change.
 
-**Windows 無法為 OpenGL 表達「第 n 張外接 GPU」。** `UserGpuPreferences` 只接受三個值——
-0 未指定、1 省電、2 高效能——而 WGL context 沒有逐一介面卡的選擇機制。因此在 Windows 上，
-`-GPU 3` 以上**無法被遵從**，必須夾到 2 並在 stdout 明說，而不是假裝辦到了。
+So the two Windows backends do **not** work the same way, and the numbering fits
+WinUI better than it fits GTK. Neither needs a different `-GPU` vocabulary; they
+need different implementations behind it, which is the argument for the protocol
+in the first place.
+
+**此限制屬於 GTK，而非 Windows。2026-08-29 修正。** 本節原本寫「Windows 無法表達第 n 張外接
+GPU」——**寫得太寬，而且是錯的**：這對 GtkBackend 成立，對 WinUIBackend 不成立，而且是在同一台
+機器、同一批介面卡上。原文保留於此，因為「把限制歸咎到錯誤的層級」正是那種會讓人繞著它做出
+不必要設計的宣稱。
+
+**GtkBackend——僅限政策，這部分依然成立。** GTK 透過 OpenGL 繪製，而 Windows 是以政策選擇
+OpenGL 介面卡：`UserGpuPreferences` 只接受三個值，WGL context 也沒有逐一介面卡的選擇機制。
+因此 `-GPU 3` 以上**無法被遵從**，會夾到 2，並以 stderr 橫幅明說，而不是安靜地做別的事。
+
+**WinUIBackend——可依索引選取，這正是「限制不屬於 Windows」的證據。** WinUI 透過 DirectX
+繪製，其中 `IDXGIFactory1::EnumAdapters1` 提供真正的索引，而 `D3D11CreateDevice` 的第一個參數
+可接受明確指定的 adapter。這兩者在本 repo 中**都已經被呼叫**，位於
+`Sources/WinUIBackend/D3D11VideoInterop.swift`：`EnumAdapters1` 在約 789 行用來建立介面卡描述，
+`D3D11CreateDevice` 在約 281 行、目前 adapter 傳入 `nil`，亦即「交給系統決定」。把選定的
+adapter 傳進去，就是全部的改動。
 
 ### macOS
 
