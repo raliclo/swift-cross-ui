@@ -143,6 +143,45 @@ else
     printf '  none installed\n'
 fi
 
+printf '\n  -- vulkan drivers this mesa was BUILT with --\n'
+# The manifest list above says which ICDs are configured. This says which ones
+# exist to configure, and the two answer different questions. On this machine
+# the manifests looked plentiful -- eight of them -- while every one was for
+# hardware that is not present, leaving lavapipe as the only ICD that could
+# answer. `dzn`, Mesa's Vulkan-on-D3D12 driver and the only one that could reach
+# a GPU through /dev/dxg, is not built by Ubuntu's mesa-vulkan-drivers at all.
+# So "no hardware Vulkan here" is not a configuration mistake to correct; the
+# driver is absent from the packages. Measured 2026-08-29 on mesa 26.0.3.
+# 上方的 manifest 清單說的是「設定了哪些 ICD」，這裡說的是「有哪些 ICD 可供設定」，
+# 兩者回答的是不同問題。本機的 manifest 看起來很豐富——共八個——但每一個都對應到不存在
+# 的硬體，於是只剩 lavapipe 能回應。而 `dzn`（Mesa 的 Vulkan-on-D3D12 驅動，也是唯一
+# 能透過 /dev/dxg 觸及 GPU 的那個）根本未被 Ubuntu 的 mesa-vulkan-drivers 編入。
+# 因此「此處沒有硬體 Vulkan」不是一個可以修正的設定錯誤——那個驅動不在套件裡。
+# 2026-08-29 於 mesa 26.0.3 實測。
+built=(/usr/lib/x86_64-linux-gnu/libvulkan_*.so)
+if [ ${#built} -gt 0 ]; then
+    for b in "${built[@]}"; do printf '  %s\n' "${b:t}" ; done
+    printf '  (libvulkan_lvp.so is lavapipe, software. libvulkan_dzn.so is the\n'
+    printf '   D3D12 one WSL would need -- if it is absent, no package here has it.)\n'
+else
+    printf '  none\n'
+fi
+
+printf '\n  -- GL/Vulkan libraries exposed by the Windows driver --\n'
+# /usr/lib/wsl/lib is where the Windows GPU driver publishes its Linux
+# userspace. A file count is not enough: CUDA, NVENC and OptiX being present
+# says nothing about GL or Vulkan, and on this machine those are exactly what is
+# there and exactly what is missing.
+# /usr/lib/wsl/lib 是 Windows GPU 驅動發布其 Linux userspace 之處。只數檔案不夠：
+# CUDA、NVENC 與 OptiX 存在，並不代表 GL 或 Vulkan 也在——而本機的情況正是前者齊備、
+# 後者一個都沒有。
+exposed=(/usr/lib/wsl/lib/*(glx|GLX|vulkan|VK|icd)*)
+if [ ${#exposed} -gt 0 ]; then
+    for e in "${exposed[@]}"; do printf '  %s\n' "${e:t}"; done
+else
+    printf '  none -- the driver exposes no GL or Vulkan userspace to WSL\n'
+fi
+
 printf '\n  -- driver payload mounted into WSL --\n'
 found=0
 for d in /usr/lib/wsl/drivers/*/; do

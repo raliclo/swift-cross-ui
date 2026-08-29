@@ -13,6 +13,26 @@
 # MSVC binaries. gvsbuild publishes GTK 4 built with MSVC, which is why the
 # bundle comes from there rather than from a package manager.
 #
+# A second reason, measured 2026-08-29, and the one that would otherwise be
+# discovered by breaking something. gvsbuild builds GTK with `-Dvulkan=disabled`,
+# so `GSK_RENDERER=help` reports `vulkan - Disabled during GTK build`. MSYS2's
+# package of the SAME GTK 4.22.4 does enable it, which makes switching look like
+# an upgrade. It is not: MSYS2's build has no `dcomp` entry in `GDK_DEBUG` at
+# all, and Direct Composition is what `-GPU 2` turns on and the only way GTK
+# realizes a hardware renderer on Windows -- the error is literally
+# "Vulkan requires Direct Composition", the same demand it makes of OpenGL.
+# So MSYS2 would trade a renderer we cannot reach for a switch we need. Verified
+# by running MSYS2's own gtk4-demo.exe, not by reading its build recipe.
+#
+# 第二個理由，2026-08-29 實測，也是「不寫下來就會有人靠弄壞它來發現」的那一個。gvsbuild
+# 以 `-Dvulkan=disabled` 建置 GTK，因此 `GSK_RENDERER=help` 回報
+# `vulkan - Disabled during GTK build`。MSYS2 對**同一個** GTK 4.22.4 的套件則有啟用，
+# 使得換過去看起來像升級。並不是：MSYS2 的建置在 `GDK_DEBUG` 中根本沒有 `dcomp` 這一項，
+# 而 Direct Composition 正是 `-GPU 2` 所開啟的東西，也是 GTK 在 Windows 上實現硬體繪製器
+# 的唯一途徑——錯誤訊息就是「Vulkan requires Direct Composition」，與它對 OpenGL 的要求
+# 完全相同。因此換到 MSYS2 等於用「一個我們構不到的繪製器」換掉「一個我們需要的開關」。
+# 此結論是實際執行 MSYS2 自帶的 gtk4-demo.exe 得出，而非閱讀其 build 配方。
+#
 # Source and licensing: https://github.com/wingtk/gvsbuild, recorded in
 # Acknowledgements/gvsbuild/README.md. Nothing is vendored into this repository;
 # the bundle is fetched at install time and lives outside the source tree.

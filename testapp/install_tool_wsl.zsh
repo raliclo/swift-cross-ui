@@ -329,6 +329,30 @@ else
     printf '  Fix: run `wsl --shutdown` on Windows, then reopen WSL.\n' >&2
 fi
 
+# GPU diagnostic tools. Small, and they turn the section below from inference
+# into an answer.
+#
+# Without them the GPU check can only read files and reason: which ICD manifests
+# exist, which libvulkan_*.so were built, whether a render node is there. That
+# chain was walked correctly on 2026-08-29 and still took a dozen commands to
+# conclude what `vulkaninfo --summary` states in one line:
+#
+#   deviceType = PHYSICAL_DEVICE_TYPE_CPU
+#   deviceName = llvmpipe (LLVM 21.1.8, 256 bits)
+#
+# and `glxinfo -B` answers with `Accelerated: no`. Both are direct measurements
+# of the thing itself rather than of its prerequisites, which is the distinction
+# this project keeps paying for elsewhere.
+#
+# GPU 診斷工具。體積很小，而它們讓下方那一段從「推論」變成「答案」。
+#
+# 沒有它們時，GPU 檢查只能讀檔案並據以推理：有哪些 ICD manifest、編出了哪些
+# libvulkan_*.so、render node 在不在。2026-08-29 曾正確走完那條推理鏈，仍花了十幾道指令，
+# 才得到 `vulkaninfo --summary` 一行就說完的結論（見上），而 `glxinfo -B` 的回答則是
+# `Accelerated: no`。兩者量的都是「那個東西本身」，而非它的先決條件——這個區別正是本專案
+# 在別處一再付出代價的地方。
+apt-get install -y --no-install-recommends vulkan-tools mesa-utils
+
 # GPU acceleration: reported, not fixed. Nothing here can install it.
 #
 # GTK renders through GSK, which tries Vulkan, then GL, then falls back to
@@ -355,6 +379,34 @@ fi
 # missing piece is the render node rather than the driver choice. Fixing it is
 # a WSL-side concern -- kernel with the dxgkrnl DRM shim, GPU support enabled
 # in .wslconfig -- not an apt install.
+#
+# Re-verified 2026-08-29, eleven days later, and all of the above still holds.
+# Two further absences were found, and they matter because each one alone is
+# enough to keep GTK on the CPU -- so a render node appearing would NOT be
+# sufficient on its own:
+#
+#   no dzn at all     The stock package does not merely "ship lavapipe": Ubuntu
+#                     builds mesa-vulkan-drivers WITHOUT dzn, so
+#                     /usr/lib/x86_64-linux-gnu/libvulkan_dzn.so does not
+#                     exist. There is no ICD manifest to add and no variable to
+#                     set. Eight manifests are installed and every one is for
+#                     hardware that is not present, leaving lvp -- lavapipe,
+#                     software -- as the only one that can answer.
+#   no GL/Vulkan from The Windows driver publishes CUDA, NVENC/NVDEC and OptiX
+#   the driver        into /usr/lib/wsl/lib and nothing matching GLX, Vulkan or
+#                     ICD. So even a working render node would find no hardware
+#                     Vulkan implementation behind it.
+#
+# 2026-08-29 複查，十一天後，上述一切依然成立。另外發現兩項缺席，而它們之所以重要，是
+# 因為其中任何一項單獨存在就足以讓 GTK 留在 CPU 上——因此「render node 出現」本身並不
+# 充分：其一，套件並非只是「提供 lavapipe」，而是 Ubuntu 建置 mesa-vulkan-drivers 時
+# 根本未編入 dzn，`libvulkan_dzn.so` 並不存在，因此沒有 ICD manifest 可補、也沒有變數可
+# 設；已安裝的八個 manifest 全部對應到不存在的硬體，只剩軟體的 lvp 能回應。其二，
+# Windows 驅動只向 /usr/lib/wsl/lib 發布 CUDA、NVENC/NVDEC 與 OptiX，沒有任何名稱含
+# GLX、Vulkan 或 ICD 者——因此即使 render node 正常，其後方也找不到硬體 Vulkan 實作。
+#
+# Full write-up in bugs/Gtk4-bugs.md section 2; todo.md tracks getting it fixed.
+# 完整記錄見 bugs/Gtk4-bugs.md 第 2 節；todo.md 追蹤修復進度。
 # GPU 加速：只回報、不修復，這裡沒有任何 apt 套件能補上。
 #
 # GTK 透過 GSK 繪製，依序嘗試 Vulkan、GL，最後退回 llvmpipe（CPU 光柵化器）。這個
