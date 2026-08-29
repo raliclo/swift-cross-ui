@@ -267,11 +267,14 @@ public final class GtkBackend:
     /// identifier `com.example.SwiftCrossUIApp` is used.
     public init(appIdentifier: String?) {
         #if os(Windows)
-            // Before anything touches GDK. This one may not return: applying a
+            // Both of these may not return, and that is deliberate. `-GPU list`
+            // is a query and exits without starting anything; applying a
             // `-GPU N` preference means restarting the process, because Windows
             // fixes the adapter at process creation.
-            // 在任何東西碰到 GDK 之前。這一項有可能不會返回：套用 `-GPU N` 偏好設定意味著重新
-            // 啟動行程，因為 Windows 是在行程建立時就決定了介面卡。
+            // 這兩者都有可能不會返回，而且這是刻意的。`-GPU list` 是查詢，會直接結束而不啟動任何
+            // 東西；而套用 `-GPU N` 偏好設定意味著重新啟動行程，因為 Windows 是在行程建立時就決定
+            // 了介面卡。
+            Self.printAdapterTableIfRequested()
             Self.ensureGpuPreference()
         #endif
         Self.enableDirectCompositionIfRequested()
@@ -434,6 +437,100 @@ public final class GtkBackend:
             return false
         }
 
+        /// `-GPU list`: print the adapters as a `.csv2` table and stop.
+        ///
+        /// A query, not a launch. It writes to stdout so it can be piped
+        /// straight into `csv2`, and exits rather than starting the
+        /// application, because the caller asked what is available and not to
+        /// run anything.
+        ///
+        /// Two header rows, English then Traditional Chinese, which is what
+        /// `.csv2` means in this project -- the same shape as
+        /// matrix_coverage/*.csv2, so the same tools read it.
+        ///
+        /// `selected_by` is the honest column and the reason this exists. On
+        /// GtkBackend/Windows an adapter is chosen by POLICY, not by number, so
+        /// several rows can carry the same answer and no row is addressable on
+        /// its own. Printing "2" against a card the flag cannot actually pick
+        /// would be the lie this whole flag is meant to avoid.
+        ///
+        /// `-GPU list`：以 `.csv2` 表格印出所有介面卡，然後結束。
+        ///
+        /// 這是查詢，不是啟動。它輸出到 stdout，以便直接管線給 `csv2`；並且結束而不啟動應用程式，
+        /// 因為呼叫者問的是「有哪些可用」，而非要執行任何東西。
+        ///
+        /// 兩列標頭、先英文後繁體中文，這正是本專案中 `.csv2` 的定義——與 matrix_coverage/*.csv2
+        /// 同一種形狀，因此同一套工具讀得動。
+        ///
+        /// `selected_by` 是最誠實的一欄，也是本功能存在的理由。在 GtkBackend/Windows 上，介面卡是
+        /// 依**政策**而非依編號選取的，因此多列可能帶有相同的答案，而且沒有任何一列可被單獨定址。
+        /// 若在一張旗標其實選不到的卡旁邊印上「2」，那正是這個旗標本身要避免的謊言。
+        static func printAdapterTableIfRequested() {
+            guard DebugFeatures.value(after: "-GPU")?.lowercased() == "list" else { return }
+
+            var rows: [(index: Int, name: String, primary: Bool, removable: Bool, attached: Bool)] =
+                []
+            var index: DWORD = 0
+            while true {
+                var device = DISPLAY_DEVICEW()
+                device.cb = DWORD(MemoryLayout<DISPLAY_DEVICEW>.size)
+                guard EnumDisplayDevicesW(nil, index, &device, 0) else { break }
+                let name = withUnsafeBytes(of: device.DeviceString) { raw -> String in
+                    guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt16.self) else {
+                        return ""
+                    }
+                    return String(decodingCString: base, as: UTF16.self)
+                }
+                // winnt.h / wingdi.h flags, spelled out because Swift imports
+                // values and not macros.
+                // 取自 winnt.h / wingdi.h 的旗標，之所以寫成字面值，是因為 Swift 匯入的是值而非巨集。
+                let attachedToDesktop = device.StateFlags & 0x0000_0001 != 0
+                let primaryDevice = device.StateFlags & 0x0000_0004 != 0
+                let removable = device.StateFlags & 0x0000_0020 != 0
+                if !name.isEmpty, !rows.contains(where: { $0.name == name }) {
+                    rows.append(
+                        (rows.count, name, primaryDevice, removable, attachedToDesktop)
+                    )
+                }
+                index += 1
+            }
+
+            let hardware = rows.filter { !$0.name.hasPrefix("Microsoft Basic") }
+            func quote(_ s: String) -> String {
+                s.contains(",") || s.contains("\"")
+                    ? "\"\(s.replacingOccurrences(of: "\"", with: "\"\""))\"" : s
+            }
+
+            var out = "index,name,primary,removable,attached,selected_by,note\n"
+            out += "索引,名稱,主要,可移除,已接上,由哪個 -GPU 選取,備註\n"
+            for row in rows {
+                let isSoftware = row.name.hasPrefix("Microsoft Basic")
+                let selectedBy: String
+                let note: String
+                if isSoftware {
+                    selectedBy = "0"
+                    note = "software adapter; -GPU 0 renders here"
+                } else if hardware.count < 2 {
+                    selectedBy = "1 or 2"
+                    note = "only one hardware adapter, so every policy resolves to it"
+                } else if row.primary {
+                    selectedBy = "1"
+                    note = "power saving / default"
+                } else {
+                    selectedBy = "2"
+                    note = "high performance; -GPU 3 and above clamp to this"
+                }
+                out += [
+                    String(row.index), quote(row.name), row.primary ? "yes" : "no",
+                    row.removable ? "yes" : "no", row.attached ? "yes" : "no",
+                    selectedBy, quote(note),
+                ].joined(separator: ",")
+                out += "\n"
+            }
+            FileHandle.standardOutput.write(Data(out.utf8))
+            exit(0)
+        }
+
         /// Every non-software display adapter, by name.
         /// 所有非軟體的顯示介面卡名稱。
         private static func hardwareAdapterNames() -> [String] {
@@ -554,7 +651,63 @@ public final class GtkBackend:
         /// 「傳了一個旗標」就發生。`-y` 並不會略過提示；它決定「空白回答」倒向哪一邊，而 stdin
         /// 未接任何東西的執行所得到的正是空白回答，因此 `-y` 也是讓這件事可被腳本使用的關鍵。
         static func ensureGpuPreference() {
-            let wanted = DebugFeatures.gpuSelection
+            var wanted = DebugFeatures.gpuSelection
+
+            // Windows cannot express "the nth adapter" for OpenGL. Its
+            // UserGpuPreferences takes exactly three values -- 0 unspecified,
+            // 1 power saving, 2 high performance -- and a WGL context has no
+            // per-adapter selection. Writing GpuPreference=3 would put a value
+            // there that Windows does not define.
+            //
+            // Said loudly, on stderr, not through the logger. A request that
+            // cannot be honoured must not be answered by quietly doing
+            // something else -- that is the failure this whole flag exists to
+            // avoid, and a notice-level log line is exactly how it would go
+            // unnoticed.
+            //
+            // This is a GtkBackend limit, NOT a Windows one: WinUIBackend
+            // reaches the same adapters through DXGI, where
+            // D3D11CreateDevice takes an explicit adapter and EnumAdapters1
+            // gives a real index. See testapp/plan/plan-gpu-selection.md.
+            //
+            // Windows 無法為 OpenGL 表達「第 n 張介面卡」。其 UserGpuPreferences 只接受三個
+            // 值——0 未指定、1 省電、2 高效能——而 WGL context 沒有逐一介面卡的選擇機制。寫入
+            // GpuPreference=3 等於在該處放進一個 Windows 並未定義的值。
+            //
+            // 此訊息大聲輸出至 stderr，而非透過 logger。一個無法被遵從的要求，絕不能以「安靜地
+            // 做別的事」來回應——那正是這個旗標存在所要避免的失敗，而 notice 等級的日誌正是它
+            // 會被忽略的方式。
+            //
+            // 這是 GtkBackend 的限制，**而非 Windows 的限制**：WinUIBackend 透過 DXGI 觸及同一批
+            // 介面卡，那裡的 D3D11CreateDevice 可接受明確指定的 adapter，EnumAdapters1 也提供真正
+            // 的索引。詳見 testapp/plan/plan-gpu-selection.md。
+            if wanted > 2 {
+                let adapters = hardwareAdapterNames()
+                FileHandle.standardError.write(
+                    Data(
+                        """
+
+                        ============================================================
+                        -GPU \(wanted) CANNOT BE HONOURED ON GtkBackend/Windows.
+
+                        GTK renders through OpenGL (WGL), and Windows selects an
+                        OpenGL adapter only by policy, not by number:
+                            0 unspecified   1 power saving   2 high performance
+
+                        Using 2 (high performance) instead. On a machine with an
+                        external GPU that is the one it resolves to.
+
+                        Adapters seen: \(adapters.joined(separator: ", "))
+
+                        For per-adapter selection use WinUIBackend, which goes
+                        through DXGI and can take an explicit adapter.
+                        ============================================================
+
+                        """.utf8
+                    )
+                )
+                wanted = 2
+            }
             // 0 is software and not an adapter choice; 1 is Windows' own default
             // and needs no pinning.
             // 0 是軟體繪製、並非選擇介面卡；1 是 Windows 自己的預設值，無須釘定。
