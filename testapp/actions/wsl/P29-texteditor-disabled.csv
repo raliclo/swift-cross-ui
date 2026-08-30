@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P29 on WSLg/GtkBackend: capture disabled TextEditor, then enable it for visual comparison.
+#
+# P29 starts with the TextEditor disabled. The first screenshot is the disabled
+# state; this replay presses "Enable it" so the final screenshot can be compared
+# against the enabled state on the same platform.
+#
+# P29 於 WSLg/GtkBackend：先擷取停用 TextEditor，再啟用以供視覺比較。
+#
+# P29 啟動時 TextEditor 為停用狀態。第一張截圖即為停用狀態；此 replay 按下
+# "Enable it"，讓 final screenshot 可與同平台的啟用狀態比較。
+sleep,,,,,,1500000,let the window settle before pressing Enable it,gtk
+click,499,505,frame,left,,,"""Enable it"" -- the editor above it becomes enabled",gtk
+sleep,,,,,,3000000,hold for the after capture,gtk

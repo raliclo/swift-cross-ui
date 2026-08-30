@@ -32,10 +32,30 @@ import SwiftCrossUI
 
 enum P37Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func report(_ message: String) {
         guard isEnabled else { return }
         print("[P37] \(message)")
+
+        guard let data = "P37 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p37-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        report("RENDER COMPLETE -- P37 ready for window-level challenge")
     }
 }
 
@@ -55,7 +75,7 @@ struct P37WindowLevelApp: App {
         // 寬度足以容納最長的那行指示，高度足以容納全部指示。520x340 是第一次的猜測，GTK 直接在
         // stderr 說明了問題：「Tried to allocate 520x301, but GtkPassthroughFixed needs at least
         // 520x336」，且英文文字的右端被切掉。
-        .defaultSize(width: 660, height: 460)
+        .defaultSize(width: 760, height: 540)
         // The whole point of the app. `.windowLevel(.floating)` is the same
         // thing under the name SwiftUI uses; this spelling reads better where a
         // scene is only ever pinned or not.
@@ -115,6 +135,7 @@ struct P37RootView: View {
             P37Diagnostics.report(
                 "supported levels -> \(supportedWindowLevels)"
             )
+            P37Diagnostics.renderComplete()
         }
     }
 }

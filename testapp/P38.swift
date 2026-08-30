@@ -72,10 +72,32 @@ enum P38WebPage {
 
 enum P38Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
+    nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func report(_ message: String) {
         guard isEnabled else { return }
         print("[P38] \(message)")
+
+        guard let data = "P38 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("p38-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
+    static func renderComplete() {
+        guard !didAnnounceRender else { return }
+        didAnnounceRender = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            report("RENDER COMPLETE -- P38 ready for WebView checks")
+        }
     }
 }
 
@@ -156,5 +178,9 @@ struct P38RootView: View {
                 }
         }
         .padding(18)
+        .onAppear {
+            P38Diagnostics.report("backend \(String(describing: DefaultBackend.self))")
+            P38Diagnostics.renderComplete()
+        }
     }
 }

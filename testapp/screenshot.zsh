@@ -459,6 +459,10 @@ ensure_wincap() {
             printf '!! screenshot.zsh: failed to build wincap helper\n' >&2
             return 1
         fi
+        if [ ! -f "$wincap_exe" ]; then
+            printf '!! screenshot.zsh: swiftc reported success but did not produce %s\n' "$wincap_exe" >&2
+            return 1
+        fi
     fi
 }
 
@@ -480,14 +484,12 @@ capture_with_wincap() {
         sed 's/^/wincap: /' "$log" >&2
     fi
 
-    if [ "$rc" -ne 0 ]; then
-        [ -f "$bmp" ] && rm -- "$bmp"
-        [ -f "$log" ] && rm -- "$log"
-        return 1
-    fi
-
     if [ ! -f "$bmp" ] || [ "$(stat -c%s "$bmp" 2>/dev/null || echo 0)" -le 54 ]; then
-        printf '!! screenshot.zsh: wincap returned success but produced no usable BMP\n' >&2
+        if [ "$rc" -ne 0 ]; then
+            printf '!! screenshot.zsh: wincap failed before producing a diagnostic BMP\n' >&2
+        else
+            printf '!! screenshot.zsh: wincap returned success but produced no usable BMP\n' >&2
+        fi
         [ -f "$bmp" ] && rm -- "$bmp"
         [ -f "$log" ] && rm -- "$log"
         return 1
@@ -502,6 +504,11 @@ capture_with_wincap() {
 
     [ -f "$bmp" ] && rm -- "$bmp"
     [ -f "$log" ] && rm -- "$log"
+    if [ "$rc" -ne 0 ]; then
+        printf '!! screenshot.zsh: wincap produced diagnostic image but reported capture failure\n' >&2
+        return 1
+    fi
+
     [ -f "$target" ] && [ "$(stat -c%s "$target" 2>/dev/null || echo 0)" -gt 5000 ]
 }
 

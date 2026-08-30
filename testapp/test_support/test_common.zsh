@@ -34,6 +34,57 @@ mac_app_pid=""
 do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
+host_uname="$(uname -s 2>/dev/null || printf unknown)"
+
+windows_path_mixed() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -m "$1"
+        return
+    fi
+
+    case "$1" in
+        /?/*)
+            local drive rest
+            drive="$(printf '%s' "$1" | cut -c 2 | tr '[:lower:]' '[:upper:]')"
+            rest="$(printf '%s' "$1" | cut -c 4-)"
+            printf '%s:/%s\n' "$drive" "$rest"
+            ;;
+        /cygdrive/?/*)
+            local drive rest
+            drive="$(printf '%s' "$1" | cut -c 11 | tr '[:lower:]' '[:upper:]')"
+            rest="$(printf '%s' "$1" | cut -c 13-)"
+            printf '%s:/%s\n' "$drive" "$rest"
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
+
+posix_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -u "$1"
+        return
+    fi
+
+    case "$1" in
+        [A-Za-z]:/*)
+            local drive rest
+            drive="$(printf '%s' "$1" | cut -c 1 | tr '[:upper:]' '[:lower:]')"
+            rest="$(printf '%s' "$1" | cut -c 4-)"
+            printf '/%s/%s\n' "$drive" "$rest"
+            ;;
+        [A-Za-z]:\\*)
+            local drive rest
+            drive="$(printf '%s' "$1" | cut -c 1 | tr '[:upper:]' '[:lower:]')"
+            rest="$(printf '%s' "$1" | cut -c 4- | tr '\\' '/')"
+            printf '/%s/%s\n' "$drive" "$rest"
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
 
 # Environment the app is launched with, as `NAME=value` pairs separated by
 # spaces. Empty for most apps.
@@ -248,6 +299,10 @@ while [ "$#" -gt 0 ]; do
         *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 64 ;;
     esac
 done
+
+if [ -n "$action_file" ]; then
+    action_file="${action_file:A}"
+fi
 
 # ==============================================================================
 # Which platform this run is for, when nobody said.
@@ -689,7 +744,7 @@ run_windows() {
     # 項目。本修正的第一次嘗試正是如此，且毫無作用。
     local gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
     local gtk_bin
-    gtk_bin="$(cygpath -u "$gtk_prefix/bin" 2>/dev/null || printf '%s' "$gtk_prefix/bin")"
+    gtk_bin="$(posix_path "$gtk_prefix/bin")"
     if [ -d "$gtk_bin" ]; then
         export PATH="$gtk_bin:$PATH"
     fi
@@ -725,7 +780,7 @@ run_windows() {
         # 使用 cygpath -m：該 app 是 Windows 原生執行檔，無法開啟 /c/Users/... 這類 MSYS 路徑。
         # 沒有任何機制會回報此事：Foundation 回傳 nil，backend 記錄檔案無法讀取，而視窗就這樣停在
         # 那裡，看起來就像重放什麼都沒做。
-        args="$args -actionfile $(cygpath -m "$action_file")"
+        args="$args -actionfile $(windows_path_mixed "$action_file")"
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
 
