@@ -89,7 +89,9 @@ struct P25RootView: View {
 
             Text("backend -> \(String(describing: DefaultBackend.self))")
 
-            Text("Drag a file from the file manager onto each area below.")
+            Text(
+                "Drag a file from the platform file manager: Windows Explorer for WinUI, Linux file manager for WSLg."
+            )
 
             HStack(spacing: 16) {
                 // The accepting area offers files, so a file dragged onto it
@@ -157,6 +159,7 @@ struct P25DropArea: View {
                 Text("count    \(count)")
             }
             .padding(12)
+            .foregroundColor(.white)
         }
         .frame(width: 320, height: 200)
         .onDrop(of: acceptedTypes, isTargeted: $hovering) { (items: [DropItem]) in

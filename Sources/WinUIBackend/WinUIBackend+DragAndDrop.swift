@@ -1,4 +1,5 @@
 import Foundation
+import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import UWP
 import WinUI
@@ -23,6 +24,9 @@ extension WinUIBackend: BackendFeatures.DragAndDrop {
         // so a drag of that type is refused rather than mishandled.
         target.acceptsFiles = acceptedTypes.contains(.fileURL)
         target.acceptsText = acceptedTypes.contains(.plainText)
+        target.debug(
+            "configured acceptsFiles=\(target.acceptsFiles) acceptsText=\(target.acceptsText)"
+        )
 
         target.onHover = { hovering in
             guard environment.isEnabled else { return }
@@ -65,32 +69,70 @@ final class DropTargetCanvas: WinUI.Canvas {
         super.init()
 
         children.append(child)
-        allowDrop = true
 
         let transparent = WinUI.SolidColorBrush()
         transparent.color = UWP.Color(a: 0, r: 0, g: 0, b: 0)
         background = transparent
 
-        dragEnter.addHandler { [weak self] _, args in
+        installDropHandlersRecursively(on: self, label: "wrapper")
+    }
+
+    private func installDropHandlersRecursively(on element: WinUI.FrameworkElement, label: String) {
+        installDropHandlers(on: element, label: label)
+
+        guard let panel = element as? WinUI.Panel else { return }
+        for index in 0..<panel.children.size {
+            guard let child = panel.children.getAt(index) as? WinUI.FrameworkElement else {
+                continue
+            }
+            installDropHandlersRecursively(on: child, label: "\(label).\(index)")
+        }
+    }
+
+    private func installDropHandlers(on element: WinUI.FrameworkElement, label: String) {
+        element.allowDrop = true
+
+        element.dragEnter.addHandler { [weak self] _, args in
             guard let self, let args else { return }
             let accepted = self.answer(args)
+            self.debug("dragEnter \(label) accepted=\(accepted)")
             if accepted {
                 self.onHover?(true)
             }
         }
 
-        dragOver.addHandler { [weak self] _, args in
+        element.dragOver.addHandler { [weak self] _, args in
             guard let self, let args else { return }
             _ = self.answer(args)
         }
 
-        dragLeave.addHandler { [weak self] _, _ in
+        element.dragLeave.addHandler { [weak self] _, _ in
+            self?.debug("dragLeave \(label)")
             self?.onHover?(false)
         }
 
-        drop.addHandler { [weak self] _, args in
+        element.drop.addHandler { [weak self] _, args in
             guard let self, let args else { return }
+            self.debug("drop \(label)")
             self.receive(args)
+        }
+    }
+
+    fileprivate func debug(_ message: String) {
+        guard DebugFeatures.isEnabled else { return }
+
+        let line = "SCUI_DND \(Date()) WinUI \(message)\n"
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("scui-dnd-debug.log")
+        guard let data = line.data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
         }
     }
 
