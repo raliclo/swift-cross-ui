@@ -79,12 +79,24 @@ section() { printf '\n== %s ==\n' "$1"; }
 # 先問這一項，因為它就是答案；下面所有內容都只是在解釋它。
 section "What renderer GTK actually uses"
 if wsl zsh -lc "test -x ~/proj/swift-cross-ui/testapp/output/$app" 2>/dev/null; then
-    wsl zsh -lc "cd ~/proj/swift-cross-ui/testapp/output && GSK_DEBUG=renderer timeout 8 ./$app 2>&1 | grep -iE 'renderer is|Not using|Failed to realize' | head -4" \
-        || printf '  (no renderer lines; the app may not have opened a window)\n'
+    gtk_renderer_lines="$(wsl zsh -lc "cd ~/proj/swift-cross-ui/testapp/output && GSK_DEBUG=renderer timeout 8 ./$app 2>&1 | grep -iE 'renderer is|Not using|Failed to realize' | head -4" || true)"
+    if [ -n "$gtk_renderer_lines" ]; then
+        printf '%s\n' "$gtk_renderer_lines"
+    else
+        printf '  no renderer rejection; confirm the accepted GL renderer below\n'
+    fi
 else
     printf '  %s is not built under WSL. Build it first:\n' "$app"
     printf '    zsh testapp/compile.zsh %s\n' "$app"
 fi
+
+# GSK only prints why it rejected a renderer. On successful GL there may be no
+# positive line at all, so measure the Wayland EGL renderer directly too.
+# GSK 只印出拒絕 renderer 的理由；GL 成功時可能完全沒有正向訊息，因此也直接量測
+# Wayland EGL renderer。
+section "Wayland EGL renderer available to GTK"
+wsl zsh -lc "timeout 15 eglinfo -p wayland -B 2>&1 | grep -E 'OpenGL (core|compatibility|ES) profile (vendor|renderer):' | head -6" \
+    || printf '  (Wayland EGL did not initialise)\n'
 
 # ------------------------------------------------------------------- the chain
 # Every WSL-side check lives in one probe file. Three of them were inline
@@ -167,19 +179,17 @@ else
     printf '  none\n'
 fi
 
-printf '\n  -- GL/Vulkan libraries exposed by the Windows driver --\n'
-# /usr/lib/wsl/lib is where the Windows GPU driver publishes its Linux
-# userspace. A file count is not enough: CUDA, NVENC and OptiX being present
-# says nothing about GL or Vulkan, and on this machine those are exactly what is
-# there and exactly what is missing.
-# /usr/lib/wsl/lib 是 Windows GPU 驅動發布其 Linux userspace 之處。只數檔案不夠：
-# CUDA、NVENC 與 OptiX 存在，並不代表 GL 或 Vulkan 也在——而本機的情況正是前者齊備、
-# 後者一個都沒有。
-exposed=(/usr/lib/wsl/lib/*(glx|GLX|vulkan|VK|icd)*)
+printf '\n  -- D3D12/DXCore bridge exposed by Windows --\n'
+# WSLg OpenGL is not a native Windows GL library. Mesa's d3d12 Gallium driver
+# uses these bridge libraries and /dev/dxg; /dev/dri may be absent and hardware
+# Wayland EGL can still work.
+# WSLg OpenGL 並非 Windows 原生 GL library。Mesa d3d12 Gallium driver 使用下列
+# bridge 與 /dev/dxg；即使 /dev/dri 不存在，Wayland EGL 仍可能使用硬體。
+exposed=(/usr/lib/wsl/lib/libd3d12*.so /usr/lib/wsl/lib/libdxcore*.so)
 if [ ${#exposed} -gt 0 ]; then
     for e in "${exposed[@]}"; do printf '  %s\n' "${e:t}"; done
 else
-    printf '  none -- the driver exposes no GL or Vulkan userspace to WSL\n'
+    printf '  none -- Mesa d3d12 cannot reach the Windows GPU\n'
 fi
 
 printf '\n  -- driver payload mounted into WSL --\n'
@@ -215,7 +225,7 @@ section "WSL platform"
 MSYS2_ARG_CONV_EXCL='*' wsl.exe --version 2>/dev/null | tr -d '\0\r' | sed 's/^/  /' | head -4
 
 printf '\n'
-printf 'If the renderer above is llvmpipe, GTK drew every frame on the CPU.\n'
+printf 'If the Wayland EGL renderer above is llvmpipe, GTK drew every frame on the CPU.\n'
 printf 'UI tests remain valid; anything measuring GPU presentation does not.\n'
-printf '若上方的 renderer 是 llvmpipe，代表 GTK 的每一格都由 CPU 繪製。\n'
+printf '若上方的 Wayland EGL renderer 是 llvmpipe，代表 GTK 的每一格都由 CPU 繪製。\n'
 printf 'UI 測試仍然有效，但任何量測 GPU 呈現的工作都不成立。\n'

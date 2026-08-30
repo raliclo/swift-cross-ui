@@ -96,6 +96,14 @@ fi
 # 檔案，而每次都手打路徑，只會招來「對正確的 app 重放了錯誤的檔案」。
 action_file="${TEST_ACTION_FILE:-}"
 actionfile_log="${app:l}-actionfile.log"
+renderer_log="${app:l}-renderer.log"
+
+# Resolved by test.zsh. Defaults are repeated here so the single-test wrappers
+# remain usable directly during development.
+# 由 test.zsh 解析；此處保留相同預設，讓開發時仍可直接執行單一測試 wrapper。
+render_mode="${TEST_RENDER_MODE:-hw}"
+render_env="${TEST_RENDER_ENV:-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer}"
+render_explicit="${TEST_RENDER_EXPLICIT:-0}"
 
 # The platform folder, not the whole tree.
 #
@@ -143,7 +151,7 @@ default_action_file() {
 
 usage() {
     cat <<EOF_USAGE
-Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--ios|--android|--both] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
+Usage: ${script_path:t} [--wsl|-win|--windows|--macos|--ios|--android|--both] [-render hw|sw] [-n|--no-build] [--showtime [seconds]|--showtime=seconds|--no-showtime] [--actionfile [path]]
 
 Runs $app with the common UI dry-run flow.
 
@@ -155,6 +163,9 @@ Default showtime: ${showtime_seconds}s
 --actionfile replays a CSV of synthesised clicks and keystrokes once the window
 is up. With no path, testapp/actions/$app-*.csv is used. The format is
 documented in Sources/InputEvent/README.md.
+
+-render hw|sw selects D3D12/NVIDIA or llvmpipe for WSLg GtkBackend runs.
+The default is hw.
 EOF_USAGE
 }
 
@@ -173,6 +184,27 @@ while [ "$#" -gt 0 ]; do
         -ios|--ios) target="ios"; target_explicit=1; shift ;;
         -android|--android) target="android"; target_explicit=1; shift ;;
         -b|--both) target="both"; target_explicit=1; shift ;;
+        -render|--render)
+            [ "$#" -gt 1 ] || { printf -- '%s requires hw or sw\n' "$1" >&2; exit 64; }
+            render_mode="$2"
+            render_explicit=1
+            case "$render_mode" in
+                hw) render_env='GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer' ;;
+                sw) render_env='LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe GSK_DEBUG=renderer' ;;
+                *) printf 'Invalid -render value: %s (expected hw or sw)\n' "$render_mode" >&2; exit 64 ;;
+            esac
+            shift 2
+            ;;
+        -render=*|--render=*)
+            render_mode="${1#*=}"
+            render_explicit=1
+            case "$render_mode" in
+                hw) render_env='GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer' ;;
+                sw) render_env='LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe GSK_DEBUG=renderer' ;;
+                *) printf 'Invalid -render value: %s (expected hw or sw)\n' "$render_mode" >&2; exit 64 ;;
+            esac
+            shift
+            ;;
         -n|--no-build) do_build=0; shift ;;
         # Only iOS and Android have a device to choose. It lives here rather
         # than only in those two scripts so that one vocabulary covers every
@@ -296,6 +328,11 @@ if [ -n "$host_default" ] && [[ ! " ${host_targets[*]} " == *" $target "* ]]; th
     printf '==> %s defaults to "%s"; running "%s" on this host\n' \
         "$app" "$target" "$host_default"
     target="$host_default"
+fi
+
+if [ "$render_explicit" -eq 1 ] && [[ "$target" != "wsl" && "$target" != "both" ]]; then
+    printf -- '-render applies to WSLg GtkBackend only; target is "%s".\n' "$target" >&2
+    exit 64
 fi
 
 # Takes a screenshot and says so when it does not.
@@ -577,6 +614,43 @@ print_summary_wsl() {
     fi
 }
 
+wsl_renderer_preflight() {
+    local egl_output egl_renderer expected matched=0
+    egl_output="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- \
+        env ${(z)render_env} timeout 10 eglinfo -p wayland -B 2>&1 || true)"
+    egl_renderer="$(printf '%s\n' "$egl_output" \
+        | sed -n 's/^OpenGL core profile renderer: //p' | head -1)"
+
+    printf '==> GtkBackend renderer mode: %s\n' "$render_mode"
+    printf '    Wayland EGL: %s\n' "${egl_renderer:-unavailable}"
+    case "$render_mode" in
+        hw) expected='D3D12'; [[ "$egl_renderer" == D3D12\ * ]] && matched=1 ;;
+        sw) expected='llvmpipe'; [[ "$egl_renderer" == llvmpipe\ * ]] && matched=1 ;;
+        *) printf 'Unknown render mode: %s\n' "$render_mode" >&2; return 64 ;;
+    esac
+    if [ "$matched" -ne 1 ]; then
+        printf 'Renderer preflight failed: -render %s expected %s, got %s\n' \
+            "$render_mode" "$expected" "${egl_renderer:-nothing}" >&2
+        return 1
+    fi
+}
+
+print_renderer_wsl() {
+    local stderr_file="$1"
+    local report
+    report="$(MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- \
+        cat "/home/lowei/proj/swift-cross-ui/testapp/output/$stderr_file" 2>/dev/null \
+        | tr -d '\r' \
+        | grep -iE 'Not using|renderer is|Failed to realize' \
+        | head -10 || true)"
+    printf '\n==> GtkBackend GSK renderer diagnostics (%s)\n' "$render_mode"
+    if [ -n "$report" ]; then
+        printf '%s\n' "$report" | sed 's/^/    /'
+    else
+        printf '    no renderer rejection lines; EGL preflight above is authoritative\n'
+    fi
+}
+
 run_windows() {
     local out="$script_dir/output"
     local label="${app:l}-windows"
@@ -691,6 +765,8 @@ run_windows() {
 run_wsl() {
     local label="${app:l}-wslg"
 
+    wsl_renderer_preflight
+
     if [ "$do_build" -eq 1 ]; then
         printf '==> Syncing sources to WSL\n'
         zsh "$script_dir/rsync_WSL.zsh" >/dev/null
@@ -704,10 +780,11 @@ run_wsl() {
     fi
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-        "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment"
+        "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment && : > $renderer_log"
 
     local args="$app_args"
-    local redirection=">/dev/null 2>&1"
+    local renderer_stderr="$renderer_log"
+    local redirection=">/dev/null 2>$renderer_log"
     if [ -n "$action_file" ]; then
         # Re-rooted onto the WSL copy of the repo. The file lives in the
         # Windows checkout, which WSL can reach as /mnt/c -- but the app is
@@ -741,8 +818,11 @@ run_wsl() {
         # 見 Windows 分支：stderr 承載 backend 對「重放是否執行」的回報，丟棄它會使失敗的重放
         # 看起來像產品缺陷。
         redirection=">/dev/null 2>$actionfile_log"
+        renderer_stderr="$actionfile_log"
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
+
+    local launch_env="$render_env $app_env"
 
     printf '==> Launching %s under WSLg\n' "$app"
     # Plain `$app_args`, deliberately unadorned. Unlike the Windows branch just
@@ -777,7 +857,7 @@ run_wsl() {
     # 含空白的值必須在 TEST_APP_ARGS 內自行加引號（`-f "/path/with a space.webm"`）；
     # 引號會以字面文字傳遞，由內層 shell 解讀。兩種情況皆已驗證。
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui/testapp/output -- \
-        zsh -lc "env $app_env ./$app $args $redirection" \
+        zsh -lc "env $launch_env ./$app $args $redirection" \
         >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
@@ -791,6 +871,7 @@ run_wsl() {
 
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "pkill -x '$app' 2>/dev/null" || true
     printf '==> Closed %s under WSLg\n' "$app"
+    print_renderer_wsl "$renderer_stderr"
     print_summary_wsl
 }
 

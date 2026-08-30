@@ -8,6 +8,8 @@
 # Examples:
 #   zsh testapp/test.zsh P8                        this host's platform
 #   zsh testapp/test.zsh P8 --both                 WSLg then Windows
+#   zsh testapp/test.zsh P40 --wsl -render hw      D3D12/NVIDIA (default)
+#   zsh testapp/test.zsh P40 --wsl -render sw      llvmpipe
 #   zsh testapp/test.zsh P19 -win --actionfile     Windows only
 #   zsh testapp/test.zsh P28 --macos --actionfile  macOS only
 #   zsh testapp/test.zsh P14 --ios                 iOS Simulator
@@ -42,12 +44,17 @@ The platform flag is optional; without one, this host's platform is used.
 Examples:
   zsh testapp/test.zsh P8
   zsh testapp/test.zsh P8 --both
+  zsh testapp/test.zsh P40 --wsl -render hw
+  zsh testapp/test.zsh P40 --wsl -render sw
   zsh testapp/test.zsh P19 -win --actionfile
   zsh testapp/test.zsh P28 --macos --actionfile
   zsh testapp/test.zsh P14 --ios
   zsh testapp/test.zsh P12 --android
 
 Single-test scripts live in testapp/test_support/test_Pn.zsh.
+
+-render hw|sw selects GtkBackend rendering under WSLg. The default is hw.
+It has no effect on WinUI, AppKit, UIKit, or Android backends.
 EOF_USAGE
 }
 
@@ -58,6 +65,52 @@ fi
 
 test_name="$1"
 shift
+
+# Rendering mode belongs to the top-level test command even though the shared
+# helper performs the WSLg launch. Remove it here, export the resolved setting,
+# and pass every unrelated option onward unchanged. This also lets special
+# wrappers such as P26 use the same setting before they enter test_common.
+# renderer 模式屬於頂層 test 命令，實際 WSLg 啟動則由共用 helper 執行。此處先解析並移除
+# 該旗標、匯出結果，再將其餘引數原樣轉送；P26 這類在進入 test_common 前就會啟動 app 的
+# 特殊 wrapper 也因此能使用同一設定。
+render_mode="hw"
+render_explicit=0
+forward_args=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -render|--render)
+            [ "$#" -ge 2 ] || { printf -- '%s requires hw or sw\n' "$1" >&2; exit 64; }
+            render_mode="$2"
+            render_explicit=1
+            shift 2
+            ;;
+        -render=*|--render=*)
+            render_mode="${1#*=}"
+            render_explicit=1
+            shift
+            ;;
+        *)
+            forward_args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+case "$render_mode" in
+    hw)
+        render_env='GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer'
+        ;;
+    sw)
+        render_env='LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe GSK_DEBUG=renderer'
+        ;;
+    *)
+        printf 'Invalid -render value: %s (expected hw or sw)\n' "$render_mode" >&2
+        exit 64
+        ;;
+esac
+export TEST_RENDER_MODE="$render_mode"
+export TEST_RENDER_ENV="$render_env"
+export TEST_RENDER_EXPLICIT="$render_explicit"
 
 case "$test_name" in
     p*) test_name="${test_name:u}" ;;
@@ -113,4 +166,4 @@ if [ ! -f "$test_script" ]; then
     exit 1
 fi
 
-exec zsh "$test_script" "$@"
+exec zsh "$test_script" "${forward_args[@]}"

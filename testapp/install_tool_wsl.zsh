@@ -332,170 +332,126 @@ fi
 # GPU diagnostic tools. Small, and they turn the section below from inference
 # into an answer.
 #
-# Without them the GPU check can only read files and reason: which ICD manifests
-# exist, which libvulkan_*.so were built, whether a render node is there. That
-# chain was walked correctly on 2026-08-29 and still took a dozen commands to
-# conclude what `vulkaninfo --summary` states in one line:
+# Without them the GPU check can only read files and infer an answer. That gave
+# the wrong answer here: /dev/dri is absent, yet Mesa's D3D12 Gallium driver
+# reaches the GPU directly through /dev/dxg. `vulkaninfo` and `eglinfo` measure
+# the renderer instead of treating one proxy as a verdict.
 #
 #   deviceType = PHYSICAL_DEVICE_TYPE_CPU
 #   deviceName = llvmpipe (LLVM 21.1.8, 256 bits)
 #
-# and `glxinfo -B` answers with `Accelerated: no`. Both are direct measurements
-# of the thing itself rather than of its prerequisites, which is the distinction
-# this project keeps paying for elsewhere.
+# Vulkan remains software on this distro, while Wayland EGL can independently
+# report a hardware D3D12 renderer; GTK tries the two APIs separately.
 #
 # GPU 診斷工具。體積很小，而它們讓下方那一段從「推論」變成「答案」。
 #
-# 沒有它們時，GPU 檢查只能讀檔案並據以推理：有哪些 ICD manifest、編出了哪些
-# libvulkan_*.so、render node 在不在。2026-08-29 曾正確走完那條推理鏈，仍花了十幾道指令，
-# 才得到 `vulkaninfo --summary` 一行就說完的結論（見上），而 `glxinfo -B` 的回答則是
-# `Accelerated: no`。兩者量的都是「那個東西本身」，而非它的先決條件——這個區別正是本專案
-# 在別處一再付出代價的地方。
+# 沒有它們時只能從檔案推論，而本機曾因此得到錯誤答案：/dev/dri 不存在，Mesa D3D12
+# Gallium driver 卻仍能直接經 /dev/dxg 使用 GPU。`vulkaninfo` 與 `eglinfo` 直接量 renderer，
+# 不把單一代理條件當成結論。此發行版的 Vulkan 仍是軟體，但 Wayland EGL 可獨立使用硬體
+# D3D12；GTK 會分別嘗試這兩個 API。
 apt-get install -y --no-install-recommends vulkan-tools mesa-utils
 
-# GPU acceleration: reported, not fixed. Nothing here can install it.
+# WSLg OpenGL acceleration uses Mesa's D3D12 Gallium driver over /dev/dxg.
+# A DRM render node is not required for this path: this machine has no
+# /dev/dri, yet Wayland EGL and GTK both render on its RTX 4060 when d3d12 is
+# selected. Vulkan is separate; Ubuntu's package has no dzn ICD, so GSK may
+# reject CPU Vulkan and then successfully use hardware GL.
 #
-# GTK renders through GSK, which tries Vulkan, then GL, then falls back to
-# llvmpipe -- a CPU rasteriser. The fallback is silent: windows appear, tests
-# pass, screenshots look right, and every frame was drawn on the CPU. Anything
-# measuring GPU presentation is then measuring nothing, which is why this
-# prints the answer rather than leaving it to be discovered.
-#
-# The chain that has to hold, in order:
-#
-#   /dev/dxg          WSL's GPU device. Present whenever GPU support is on.
-#   /dev/dri/renderD* The DRM render node. EGL opens this and nothing else;
-#                     without it eglInitialize fails with "failed to get
-#                     driver name for fd -1" no matter which Mesa driver is
-#                     selected. /dev/dxg alone is not enough.
-#   a non-CPU Vulkan  Otherwise GSK reports "device is CPU" and gives up. On
-#     device          WSL that means the dzn (D3D12 -> Vulkan) ICD; the stock
-#                     mesa-vulkan-drivers package here ships lavapipe, which
-#                     is software.
-#
-# Measured on this machine, 2026-08-18: /dev/dxg present, /dev/dri absent,
-# only lavapipe, so GTK ran on llvmpipe. Overriding GALLIUM_DRIVER,
-# MESA_LOADER_DRIVER_OVERRIDE or GSK_RENDERER changes nothing, because the
-# missing piece is the render node rather than the driver choice. Fixing it is
-# a WSL-side concern -- kernel with the dxgkrnl DRM shim, GPU support enabled
-# in .wslconfig -- not an apt install.
-#
-# Re-verified 2026-08-29, eleven days later, and all of the above still holds.
-# Two further absences were found, and they matter because each one alone is
-# enough to keep GTK on the CPU -- so a render node appearing would NOT be
-# sufficient on its own:
-#
-#   no dzn at all     The stock package does not merely "ship lavapipe": Ubuntu
-#                     builds mesa-vulkan-drivers WITHOUT dzn, so
-#                     /usr/lib/x86_64-linux-gnu/libvulkan_dzn.so does not
-#                     exist. There is no ICD manifest to add and no variable to
-#                     set. Eight manifests are installed and every one is for
-#                     hardware that is not present, leaving lvp -- lavapipe,
-#                     software -- as the only one that can answer.
-#   no GL/Vulkan from The Windows driver publishes CUDA, NVENC/NVDEC and OptiX
-#   the driver        into /usr/lib/wsl/lib and nothing matching GLX, Vulkan or
-#                     ICD. So even a working render node would find no hardware
-#                     Vulkan implementation behind it.
-#
-# 2026-08-29 複查，十一天後，上述一切依然成立。另外發現兩項缺席，而它們之所以重要，是
-# 因為其中任何一項單獨存在就足以讓 GTK 留在 CPU 上——因此「render node 出現」本身並不
-# 充分：其一，套件並非只是「提供 lavapipe」，而是 Ubuntu 建置 mesa-vulkan-drivers 時
-# 根本未編入 dzn，`libvulkan_dzn.so` 並不存在，因此沒有 ICD manifest 可補、也沒有變數可
-# 設；已安裝的八個 manifest 全部對應到不存在的硬體，只剩軟體的 lvp 能回應。其二，
-# Windows 驅動只向 /usr/lib/wsl/lib 發布 CUDA、NVENC/NVDEC 與 OptiX，沒有任何名稱含
-# GLX、Vulkan 或 ICD 者——因此即使 render node 正常，其後方也找不到硬體 Vulkan 實作。
-#
-# Full write-up in bugs/Gtk4-bugs.md section 2; todo.md tracks getting it fixed.
-# 完整記錄見 bugs/Gtk4-bugs.md 第 2 節；todo.md 追蹤修復進度。
-# GPU 加速：只回報、不修復，這裡沒有任何 apt 套件能補上。
-#
-# GTK 透過 GSK 繪製，依序嘗試 Vulkan、GL，最後退回 llvmpipe（CPU 光柵化器）。這個
-# 退回是「靜默」的：視窗照常出現、測試照常通過、截圖看起來正確，而每一格都是 CPU
-# 畫的。任何量測 GPU 呈現的工作到那時都在量空氣，因此這裡直接把答案印出來。
-#
-# 必須依序成立的條件：/dev/dxg（WSL 的 GPU 裝置）、/dev/dri/renderD*（DRM render
-# node，EGL 只認這個，缺了它無論選哪個 Mesa 驅動都會失敗）、以及非 CPU 的 Vulkan
-# 裝置（WSL 上需要 dzn ICD；本機 mesa-vulkan-drivers 只提供軟體的 lavapipe）。
-#
-# 2026-08-18 於本機實測：/dev/dxg 有、/dev/dri 無、只有 lavapipe，因此 GTK 跑在
-# llvmpipe 上。覆寫 GALLIUM_DRIVER、MESA_LOADER_DRIVER_OVERRIDE 或 GSK_RENDERER
-# 都無效，因為缺的是 render node 而非驅動選擇。要修屬於 WSL 端的事——具備 dxgkrnl
-# DRM shim 的核心、以及 .wslconfig 中啟用 GPU 支援——不是安裝套件能解決的。
-section "Checking GPU acceleration"
-gpu_ok=1
-if [ ! -e /dev/dxg ]; then
-    printf '  /dev/dxg missing: GPU support is off for this distribution\n' >&2
-    gpu_ok=0
-fi
+# WSLg 的 OpenGL 加速是 Mesa D3D12 Gallium driver 經 /dev/dxg 完成。這條路徑不要求
+# DRM render node：本機沒有 /dev/dri，但選用 d3d12 後，Wayland EGL 與 GTK 都能在
+# RTX 4060 上算繪。Vulkan 是另一條路；Ubuntu 套件沒有 dzn ICD，因此 GSK 可能先拒絕
+# CPU Vulkan，再成功使用硬體 GL。
+section "Configuring WSLg GPU acceleration"
+wslg_gpu_profile=/etc/profile.d/swift-cross-ui-wslg-gpu.sh
+wslg_zshenv=/etc/zsh/zshenv
+wslg_zsh_loader='[ ! -r /etc/profile.d/swift-cross-ui-wslg-gpu.sh ] || . /etc/profile.d/swift-cross-ui-wslg-gpu.sh'
 
-# NULL_GLOB in a subshell: in zsh a pattern matching nothing is an error rather
-# than being passed through, and without this the machines worth diagnosing --
-# the ones with no render node -- abort here instead of reporting that.
-# 在子 shell 中使用 NULL_GLOB：zsh 對匹配不到任何東西的樣式會報錯而非原樣傳遞，少了它，
-# 最需要診斷的機器（沒有 render node 的那些）反而會在此中止，而不是回報該事實。
-if ! ( setopt NULL_GLOB; nodes=(/dev/dri/renderD*); [ ${#nodes} -gt 0 ] ); then
-    printf '  /dev/dri render node missing: EGL cannot initialise, GTK will use llvmpipe\n' >&2
-    gpu_ok=0
-fi
+wayland_gl_renderer() {
+    local adapter="${1:-}"
+    local output
+    if [ -n "$adapter" ]; then
+        output="$(GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME="$adapter" \
+            timeout 15 eglinfo -p wayland -B 2>/dev/null || true)"
+    else
+        output="$(GALLIUM_DRIVER=d3d12 timeout 15 eglinfo -p wayland -B 2>/dev/null || true)"
+    fi
+    printf '%s\n' "$output" | sed -n 's/^OpenGL core profile renderer: //p' | head -1
+}
 
-# Where to look next when the render node is missing.
-#
-# `dmesg | grep dxgk` is the earliest thing in the chain that speaks. On the
-# machine this was diagnosed on it reported
-# `dxgkio_query_adapter_info: Ioctl failed: -22` within three seconds of boot,
-# and every symptom above it -- no /dev/dri, "device is CPU", llvmpipe --
-# follows from that without naming it.
-#
-# What it is NOT, established by getting it wrong three times in one sitting:
-#
-#   It is not a missing or outdated GPU driver. `pnputil /enum-drivers` showed
-#   the NVIDIA display driver installed and current, published as oem109.inf
-#   from nvami.inf, and its WSL mount at
-#   /usr/lib/wsl/drivers/nvami.inf_amd64_*/ held 165 files including
-#   libcuda.so. The payload is there.
-#
-#   `nvami.inf` is NVIDIA's display driver, whatever the name suggests. A
-#   check that dismissed it as NVDIMM storage was written, committed, and
-#   pushed before `pnputil` was consulted.
-#
-#   Reinstalling the driver, `wsl --shutdown` and `wsl --update` were all
-#   tried and changed nothing; WSL 2.7.11 with WSLg 1.0.73.2 is current.
-#
-# So the cause is still open. Ask dxgk what it could not enumerate before
-# assuming anything about drivers -- three guesses were spent on the driver
-# because it was the plausible answer, and each one was checked against a
-# proxy that happened to agree.
-# render node 缺席時該往哪裡看。
-#
-# `dmesg | grep dxgk` 是整條鏈上最早發聲的地方。在診斷這台機器時，它於開機三秒內
-# 報出 `dxgkio_query_adapter_info: Ioctl failed: -22`，而其上的所有症狀（沒有
-# /dev/dri、「device is CPU」、llvmpipe）都源自於此，卻都不會提到它。
-#
-# 以下是「不是」什麼，代價是同一次作業中連錯三次：
-#
-#   不是驅動缺失或過舊。`pnputil /enum-drivers` 顯示 NVIDIA 顯示驅動已安裝且為新版
-#   （oem109.inf，源自 nvami.inf），其 WSL 掛載
-#   /usr/lib/wsl/drivers/nvami.inf_amd64_*/ 內有 165 個檔案，包含 libcuda.so。
-#
-#   `nvami.inf` 就是 NVIDIA 的顯示驅動，名稱容易誤導。曾有一個把它當成 NVDIMM 儲存
-#   驅動而排除的檢查被寫下、提交並推送——在查 `pnputil` 之前。
-#
-#   重裝驅動、`wsl --shutdown`、`wsl --update` 都試過且無效；WSL 2.7.11 與
-#   WSLg 1.0.73.2 皆為最新。
-#
-# 因此成因仍未確定。在對驅動做出任何假設之前，先問 dxgk 它究竟列舉不到什麼——
-# 前三次猜測都押在驅動上，因為那是看似合理的答案，而每次驗證用的代理指標又剛好同意。
-if [ "$gpu_ok" -eq 1 ]; then
-    printf '  device nodes present; confirm with: GSK_DEBUG=renderer <app>\n'
+gpu_ok=0
+gpu_adapter=""
+gpu_renderer="$(timeout 15 eglinfo -p wayland -B 2>/dev/null \
+    | sed -n 's/^OpenGL core profile renderer: //p' | head -1 || true)"
+
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    printf '  no Wayland display in this session; leaving GPU settings unchanged\n' >&2
+elif [ ! -e /dev/dxg ]; then
+    printf '  /dev/dxg missing; WSL GPU support is unavailable\n' >&2
+elif [ ! -e /usr/lib/x86_64-linux-gnu/dri/d3d12_dri.so ] \
+    || [ ! -e /usr/lib/wsl/lib/libd3d12.so ] \
+    || [ ! -e /usr/lib/wsl/lib/libdxcore.so ]; then
+    printf '  Mesa d3d12 or the WSL D3D12/DXCore bridge is missing\n' >&2
+elif [[ "$gpu_renderer" == D3D12\ * ]]; then
+    gpu_ok=1
+    printf '  already accelerated: %s\n' "$gpu_renderer"
 else
-    printf '  GTK will fall back to llvmpipe (CPU). UI tests still work;\n' >&2
-    printf '  anything measuring GPU presentation does not.\n' >&2
+    # First try Mesa's normal adapter selection, then the common hybrid-GPU
+    # vendors. The adapter name is a case-insensitive substring match. NVIDIA
+    # comes first because test machines should prefer throughput over battery;
+    # nothing is written until EGL proves that the candidate actually works.
+    # 先試 Mesa 預設選卡，再試常見的混合顯卡廠牌。adapter 名稱採不分大小寫的子字串比對。
+    # NVIDIA 優先，因測試機以效能為主；EGL 實測成功之前不會寫入任何設定。
+    for candidate in "" NVIDIA AMD Intel; do
+        candidate_renderer="$(wayland_gl_renderer "$candidate")"
+        if [[ "$candidate_renderer" == D3D12\ * ]]; then
+            gpu_adapter="$candidate"
+            gpu_renderer="$candidate_renderer"
+            gpu_ok=1
+            break
+        fi
+    done
+
+    if [ "$gpu_ok" -eq 1 ]; then
+        {
+            printf '%s\n' '# Generated by testapp/install_tool_wsl.zsh.'
+            printf '%s\n' 'export GALLIUM_DRIVER=d3d12'
+            if [ -n "$gpu_adapter" ]; then
+                printf 'export MESA_D3D12_DEFAULT_ADAPTER_NAME=%q\n' "$gpu_adapter"
+            fi
+        } > "$wslg_gpu_profile"
+        chmod 0644 "$wslg_gpu_profile"
+
+        # Ubuntu's zsh does not source /etc/profile or /etc/profile.d. Add one
+        # exact, idempotent loader so non-interactive commands such as
+        # `zsh testapp/run.zsh` inherit the measured settings too.
+        # Ubuntu 的 zsh 不會讀取 /etc/profile.d；加入一行冪等 loader，讓
+        # `zsh testapp/run.zsh` 這類非互動命令也會繼承實測設定。
+        if ! grep -Fqx "$wslg_zsh_loader" "$wslg_zshenv"; then
+            printf '\n%s\n' "$wslg_zsh_loader" >> "$wslg_zshenv"
+        fi
+
+        export GALLIUM_DRIVER=d3d12
+        if [ -n "$gpu_adapter" ]; then
+            export MESA_D3D12_DEFAULT_ADAPTER_NAME="$gpu_adapter"
+        fi
+        printf '  configured: %s\n' "$gpu_renderer"
+        printf '  profile: %s\n' "$wslg_gpu_profile"
+        printf '  zsh loader: %s\n' "$wslg_zshenv"
+    else
+        printf '  no working D3D12 adapter found; renderer remains: %s\n' \
+            "${gpu_renderer:-unknown}" >&2
+    fi
 fi
 
-# Native Windows, for contrast, because the comparison inverts what this project
-# assumed. WSL is the side without a GPU: no render node, so GTK is on llvmpipe.
-# GTK built for Windows gets a real GPU, measured 2026-08-20 with
-# `GDK_DEBUG=opengl P0.exe`: OpenGL 4.6 core over native WGL.
+if [ "$gpu_ok" -eq 1 ]; then
+    printf '  GTK may reject CPU Vulkan; hardware GL remains available.\n'
+    printf '  verify: eglinfo -p wayland -B | grep "core profile renderer"\n'
+else
+    printf '  GTK will use llvmpipe unless a later driver/WSL update fixes D3D12.\n' >&2
+fi
+
+# Native Windows, for contrast. GTK built for Windows uses native WGL; WSLg
+# uses Mesa D3D12 and has its own independent adapter preference.
 #
 # Which GPU it gets is a Windows setting, not a GTK one. On a hybrid-graphics
 # laptop an app with no recorded preference is given the integrated GPU, and
@@ -517,13 +473,10 @@ fi
 # is the part worth remembering: without it a comparison silently runs two
 # binaries on two different GPUs and the numbers look reasonable either way.
 #
-# There is no WSL equivalent to set here. Adapter choice inside WSL goes through
-# MESA_D3D12_DEFAULT_ADAPTER_NAME, and it is moot while the render node is
-# missing -- there is no GPU path to choose between.
+# WSL uses MESA_D3D12_DEFAULT_ADAPTER_NAME instead of this registry key. The
+# configuration above discovers and records a working WSL adapter separately.
 #
-# 原生 Windows 的對照，因為這項比較推翻了本專案原先的假設。沒有 GPU 的那一側是 WSL：缺少
-# render node，因此 GTK 跑在 llvmpipe 上。為 Windows 建置的 GTK 則取得真正的 GPU，
-# 2026-08-20 以 `GDK_DEBUG=opengl P0.exe` 實測：經原生 WGL 的 OpenGL 4.6 core。
+# 原生 Windows 使用 WGL；WSLg 則使用 Mesa D3D12，兩邊的介面卡偏好彼此獨立。
 #
 # 取得哪一顆 GPU 是 Windows 的設定，而非 GTK 的設定。在混合顯示卡筆電上，未登記偏好的程式
 # 會被指派內顯，且沒有任何提示——此處第一次量測回報 `AMD Radeon(TM) Graphics`，即 Ryzen
@@ -536,7 +489,12 @@ fi
 # 該設定以執行檔完整路徑為鍵，因此每支 Pn.exe 都需各自登記。這正是最值得記住的一點：少了它，
 # 一次比較會在兩顆不同的 GPU 上靜默執行兩個二進位檔，而兩邊的數字看起來都很合理。
 #
-# 此處沒有對應的 WSL 設定可加。WSL 內部的介面卡選擇透過 MESA_D3D12_DEFAULT_ADAPTER_NAME，
-# 而在 render node 缺失的情況下這一點沒有意義——根本不存在可供選擇的 GPU 路徑。
+# WSL 不使用上述 registry key，而是透過 MESA_D3D12_DEFAULT_ADAPTER_NAME 選卡；前面的
+# 探測會另外找出可用的 WSL adapter 並寫入設定。
 
-section "Done. Open a new shell, or run: export PATH=\"$SWIFT_PREFIX/usr/bin:\$PATH\""
+section "Done"
+printf 'Open a new login shell, or run:\n'
+printf '  export PATH="%s/usr/bin:$PATH"\n' "$SWIFT_PREFIX"
+if [ -f "$wslg_gpu_profile" ]; then
+    printf '  . %s\n' "$wslg_gpu_profile"
+fi

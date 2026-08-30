@@ -94,7 +94,24 @@ let finder: @convention(c) (HWND?, LPARAM) -> WindowsBool = { hwnd, _ in
     }
     return true
 }
-_ = EnumWindows(finder, 0)
+
+// A WSLg HWND is published asynchronously after the Linux process starts.
+// One enumeration races that publication: the hardware renderer takes just
+// long enough that a capture requested after one second can see no window,
+// while the same capture a few seconds later succeeds. Poll Windows rather
+// than falling back to a desktop image; success must always mean the named
+// window itself was captured.
+//
+// WSLg 的 HWND 會在 Linux process 啟動後非同步發布。只列舉一次會與發布競速：硬體
+// renderer 啟動稍慢，使一秒後的擷取可能還看不到視窗，數秒後同一擷取卻成功。此處輪詢
+// Windows，而不退回 desktop image；成功必須始終代表擷取到指定視窗本身。
+let deadline = GetTickCount64() + 5_000
+repeat {
+    target = nil
+    _ = EnumWindows(finder, 0)
+    if target != nil { break }
+    Sleep(250)
+} while GetTickCount64() < deadline
 
 guard let hwnd = target else {
     print("no visible window matched \"\(needle)\"")

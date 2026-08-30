@@ -88,6 +88,7 @@ wsl() {
 cache_dir='$HOME/.cache/P26/appCache'
 app_dir='$HOME/proj/swift-cross-ui/testapp/output'
 actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
+render_env="${TEST_RENDER_ENV:-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer}"
 
 # The action file switches to the SwiftCrossUI tab, and without it nothing is
 # fetched at all: TabView builds only the selected tab and AsyncImage is on the
@@ -98,7 +99,7 @@ actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
 # 從頭到尾沒有人向快取要過東西。
 launch() {
     wsl "export GDK_BACKEND=x11; cd $app_dir && pkill -x P26 2>/dev/null; sleep 1; \
-        (./P26 --debug $1 -actionfile $actions > /tmp/p26-test.log 2>&1 &); \
+        (env $render_env ./P26 --debug $1 -actionfile $actions > /tmp/p26-test.log 2>&1 &); \
         sleep 14; pkill -x P26 2>/dev/null; sleep 1" > /dev/null 2>&1
 }
 
