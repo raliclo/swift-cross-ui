@@ -145,15 +145,45 @@
 | P24 | 748x589，91.5% 非黑 | 736x599，91.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
 | P25 | 748x549，91.2% 非黑 | 736x559，91.3% 非黑 | 自動流程只驗證啟動與截圖；live drag/drop 仍需要手動互動。 |
 | P27 | 788x726，92.6% 非黑 | 776x702，92.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
-| P29 | 748x589，91.5% 非黑 | 736x599，91.7% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
-| P37 | 688x489，90.2% 非黑 | 676x499，90.4% 非黑 | Window-level 行為仍需要第二視窗 foreground/topmost 挑戰；本次只驗證 baseline launch/capture。 |
-| P38 | 848x692，92.6% 非黑 | 836x699，92.8% 非黑 | WSLg 1 秒截圖是黑畫面，但 final capture 可見；Windows final capture 也成功。 |
-| P39 | 888x649，92.5% 非黑 | 876x659，92.6% 非黑 | effect 內容中有 near-hotpink 像素：WSLg 7,563，Windows 13,704。 |
-| P40 | 928x736，93.2% 非黑 | 916x708，93.1% 非黑 | exact hotpink pixels：兩平台皆為 0；near-hotpink pixels：兩平台皆為 0。 |
-| P41 | 968x649，92.6% 非黑 | 956x659，92.7% 非黑 | Windows `.graphical` DatePicker 仍需人工檢視 final screenshot；自動 smoke run 未卡住。 |
+| P29 | 796x657，82.8% 非黑 | 736x599，91.7% 非黑 | 已新增並驗證 WSLg `P29-texteditor-disabled.csv`：final capture 顯示 replay 後 editor 已切成 enabled。Windows smoke final 可見，但本輪 WinUI actionfile replay 沒有產生 `-actionfile` report，仍待查。 |
+| P37 | 788x569，91.5% 非黑 | 776x579，91.6% 非黑 | WSLg 回報 supported levels 為 `automatic, normal`；Windows 回報 `automatic, normal, floating`。Window-level 行為仍需要第二視窗 foreground/topmost 挑戰；本次只驗證 baseline launch/capture 與 backend capability report。 |
+| P38 | 848x692，92.6% 非黑 | 836x699，92.8% 非黑 | 最新一輪 WSLg 1 秒與 final capture 都可見，並顯示預期的 GtkBackend placeholder。Windows final capture 可見，但 WebView 區域仍是灰色空框，且 `Navigations reported: 0`。 |
+| P39 | 888x649，92.5% 非黑 | 876x659，92.5% 非黑 | WSLg 可見 opacity、blur、saturation、brightness、contrast、grayscale 與 hue-rotation 效果。Windows 只有 opacity 明顯；blur 與多數色彩效果看起來與 control 相同，因此 WinUI visual effects 仍可疑。 |
+| P40 | 928x736，93.1% 非黑 | 916x708，93.0% 非黑 | 已修正 WSLg geometry no-op / clipping：PIL 現在可量到七個 transformed color components，scale / rotate / shear 的 bounding box 接近 WinUI。exact / near hotpink pixels：兩平台皆為 0。背景色差異來自平台 theme：WSLg 預設為 light；此處 WinUI 為 dark。 |
+| P41 | 968x649，92.5% 非黑 | 956x659，92.7% 非黑 | 最新截圖中 Windows `.graphical` DatePicker 已可見，不是 blank sliver。WSLg `.wheel` 明顯不同；Windows `.wheel` 仍像 segmented date input，應記錄為 style parity / fallback observation。 |
 
 ### 時序觀察
 
 - WSLg 上這批 release build 在 source sync 後約 12-13 秒完成。
-- Windows 上 P27 build 耗時 231.84 秒；P21-P25 與 P29-P41 大多約 49-54 秒。Windows build 即使成功建出 WinUI app，仍會印出 `pkg-config` / `gtk4.pc` 警告。
-- 多個 Windows app 在 1 秒截圖時尚未被找到，但 30 秒 final capture 正常可見。除非 final capture 也失敗，否則先記錄為 startup/window-discovery timing。
+- Windows 上 P27 早前 build 耗時 231.84 秒；後續 P37-P41 build 大多約 38-75 秒。Windows build 即使成功建出 WinUI app，仍會印出 `pkg-config` / `gtk4.pc` 警告。
+- 多個 Windows app 在 1 秒截圖時尚未被找到，但 final capture 正常可見。除非 final capture 也失敗，否則先記錄為 startup/window-discovery timing。
+- `--actionfile <relative path>` 暴露 Windows loader bug：路徑 containment check 直接拿相對路徑與絕對 `testapp` 路徑比較。WSLg 先用裸 `--actionfile` 避開；`test_common.zsh` 現已加入本地 path converter，因此 Windows 不再依賴 `cygpath`。
+
+## 2026-08-30
+
+### P30-P36 Loader 與 Baseline 覆蓋
+
+- 已新增 P30、P31、P32、P33、P34、P35、P36 的可編譯 baseline apps 與 `test_support/test_Pn.zsh` loaders。
+- `testapp/compile.zsh` 現在 Windows 與 WSLg 都預設使用 release build；若需要 debug build，必須明確設定 `BUILD_CONFIG=debug`。
+- 測試順序遵守目前規則：先 WSLg，再 Windows。WSLg 端先透過 `testapp/rsync_WSL.zsh` 同步，再於 `/home/lowei/proj/swift-cross-ui` 內編譯。
+
+### 自動 Smoke Test 結果
+
+以下 final screenshot 都以 PIL 量測。每張 final capture 都可見且非黑畫面。
+
+| App | WSLg final screenshot | Windows final screenshot | 備註 |
+| --- | --- | --- | --- |
+| P30 | 888x649，92.5% 非黑 | 876x659，92.6% 非黑 | WSLg 可見 blur / grayscale 類效果；Windows 可見 opacity 與幾何 transform，但 blur / grayscale 看起來像 no-op，先記錄為 WinUI visual-effect parity 仍待查。 |
+| P31 | 808x589，91.8% 非黑 | 796x599，91.9% 非黑 | 兩平台都能渲染 focus / keyboard baseline controls。真正的 Tab 順序、Space/Return 觸發、Escape 與 Ctrl+Q 仍需人工鍵盤測試。 |
+| P32 | 788x589，91.7% 非黑 | 776x599，91.8% 非黑 | 兩平台都能渲染 accessibility baseline controls。角色與名稱驗證仍需 Linux 上的 Accerciser，以及 Windows 上的 Accessibility Insights 或 `inspect.exe`。 |
+| P33 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 兩平台都能渲染 missing-view 清單與手寫近似 UI。這是可編譯 baseline，不代表缺席的 SwiftUI views 已經存在。 |
+| P34 | 808x649，92.2% 非黑 | 796x659，92.4% 非黑 | Smoke run 使用 `--debug -rows 100`。更大的 row count / performance 測試仍需另外執行。 |
+| P35 | 788x589，91.7% 非黑 | 776x599，91.8% 非黑 | 兩平台都能渲染 state baseline。Scene composition 缺口仍屬編譯期問題。 |
+| P36 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 可用的 SwiftCrossUI API 形狀能正常渲染；SwiftUI-shaped missing calls 以文字列出，避免破壞日常測試 build。 |
+
+### 時序觀察
+
+- WSLg release build 在同步後很快完成：P30 13.66 秒，P31-P36 各約 6-10 秒。
+- Windows release rebuild 明顯較慢，尤其是改變 build configuration 後的第一個 target：P30 900.34 秒，P31-P36 之後約 11-29 秒。
+- Windows 多個 1 秒截圖只拍到接近空白的 first frame，但 10 秒 final screenshot 都正常。除非 final screenshot 也失敗，先記錄為 WinUI first-paint / window-capture timing。
+- WSLg 執行時視窗標題仍回報 `[WARN:COPY MODE]`，雖然 final capture 可見。這些結果可用於 UI layout smoke test，但不適合作為 GPU rendering performance 驗證。

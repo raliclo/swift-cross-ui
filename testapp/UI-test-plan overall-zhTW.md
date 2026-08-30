@@ -1349,8 +1349,8 @@ zsh testapp/test.zsh P29 --both
 
 ## P30：效果與動畫（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋協定層最大的缺口：SwiftCrossUI 完全沒有動畫層，也沒有視覺效果
-modifier。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋協定層最大的缺口：
+SwiftCrossUI 完全沒有動畫層；目前只能測專案中已存在的 effect modifiers。
 
 沒有 `Animation`、`withAnimation`、`.animation(_:value:)`、`.transition` 或 `Namespace`，也沒有
 任何相應的 backend 協定。同樣沒有 `.opacity`、`.shadow`、`.blur`、`.rotationEffect`、
@@ -1360,7 +1360,16 @@ modifier。
 本 app 刻意寫在功能**之前**：它一開始就是一份「無法編譯的清單」，而每一行開始能夠編譯，即為進度
 報告。在那之前，它把邊界記錄於同一處，而非散落在十幾個 issue 之中。
 
-規劃的測試步驟：
+目前自動流程：
+
+```zsh
+zsh testapp/test.zsh P30 --both
+```
+
+app 會顯示可編譯的 visual/geometric effect 範例，並把缺少的 animation API 以文字列在畫面上。
+以 `--debug` 執行時會寫入 `p30-debug-events.log`。
+
+測試步驟：
 
 1. 切換一個會改變 frame 的 `@State` 值，確認該變更是瞬間完成（目前行為）還是帶有動畫。
 2. 套用 `.opacity(0.5)`、`.shadow(...)`、`.rotationEffect(...)`、`.scaleEffect(...)` 與
@@ -1370,8 +1379,8 @@ modifier。
 
 ## P31：焦點與鍵盤（Linux 與 Windows）
 
-**部分可於今日撰寫，尚未撰寫。** 本 app 要檢查的內容約有一半現在就能寫；另一半是一份「無法
-編譯的呼叫清單」。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 本 app 要檢查的內容約有一半
+現在就能寫；另一半仍是一份「無法編譯的呼叫清單」。
 
 SwiftCrossUI 中沒有任何東西提到焦點。沒有 `@FocusState`、沒有 `.focused(_:)`、也沒有
 `.focusable()`，因此 app 無法指定哪個欄位起始取得焦點、無法在按下按鈕後移動焦點，也無法讀取
@@ -1406,9 +1415,19 @@ shortcut controller 來吃掉 `Escape`，使其無法關閉對話框，回應處
    每有一行開始能夠編譯，即為進度報告。
 7. 於另一個 backend 重複上述步驟。
 
+自動流程：
+
+```zsh
+zsh testapp/test.zsh P31 --both
+```
+
+自動流程只驗證啟動、render marker、final screenshot 與可見 baseline controls。真正的焦點巡覽、
+Escape 行為與 Ctrl+Q 仍需要人工鍵盤互動確認。
+
 ## P32：無障礙（Linux 與 Windows）
 
-**今日即可撰寫，尚未撰寫。** 本 app 不呼叫任何缺席的東西，它存在的目的是被外部工具檢視。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 本 app 不呼叫任何缺席的東西，
+它存在的目的是被外部工具檢視。
 
 SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilityHint`、
 `.accessibilityValue`、`.accessibilityAddTraits`、`.accessibilityHidden`、`.accessibilityElement`
@@ -1436,10 +1455,19 @@ SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilit
    內容。今日的預期結果是「Button」而沒有名稱；請記錄確切的朗讀字串，而非它的摘要。
 7. 確認朗讀順序與視覺順序一致。版面容器可能在樹中重排子元素而完全不改變繪製結果，畫面上看不出來。
 
+自動流程：
+
+```zsh
+zsh testapp/test.zsh P32 --both
+```
+
+自動流程只驗證 baseline controls 有渲染出來。角色與名稱檢查仍需在 Linux 使用 Accerciser，在
+Windows 使用 Accessibility Insights 或 `inspect.exe`。
+
 ## P33：缺席的 Views（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋在 SwiftCrossUI 中完全沒有對應物的 SwiftUI views——移植過來的程式碼
-是無法編譯，而非渲染不同。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋在 SwiftCrossUI 中完全沒有
+對應物的 SwiftUI views——移植過來的程式碼是無法編譯，而非渲染不同。
 
 `Sources/SwiftCrossUI/Views` 底下沒有 `Form`、`Section`、`Label(_:systemImage:)`、`Stepper`、
 `Gauge`、`DisclosureGroup`、`LabeledContent`、`ColorPicker` 或 `Link` 之中的任何一個。其中最要緊的
@@ -1447,7 +1475,16 @@ SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilit
 共同接受的結構元素，因此它的缺席會弄壞那些「看起來與 section 無關」的呼叫點。其餘各自只影響一個
 呼叫點。
 
-規劃的測試步驟：
+目前自動流程：
+
+```zsh
+zsh testapp/test.zsh P33 --both
+```
+
+app 會顯示 missing-view 清單，並以手寫方式近似 Stepper、DisclosureGroup 與 LabeledContent。
+刻意缺席的 SwiftUI 呼叫點目前以文字記錄，而不是保留為會破壞 build 的程式碼。
+
+測試步驟：
 
 1. 每個缺席的 view 各顯示一個實例，記錄哪些能通過編譯。本 app 一開始就是一個無法 build 的檔案，
    而「被迫註解掉的行」的清單就是量測結果。
@@ -1461,7 +1498,8 @@ SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilit
 
 ## P34：Lazy 容器與大型集合（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋「集合大於顯示它的視窗」時會發生什麼事。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋「集合大於顯示它的視窗」
+時會發生什麼事。
 
 沒有 `LazyVStack`、`LazyHStack`、`LazyVGrid`、`LazyHGrid` 或 `Grid`，也沒有 `ScrollViewReader` 或
 `ScrollViewProxy`。`VStack` 與 `HStack` 會建出每一個子項，而 `ScrollView` 只捲動交給它的東西，因此
@@ -1470,7 +1508,16 @@ SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilit
 
 「感覺很慢」不是發現。本 app 由命令列接收列數並印出數字，因此結果是一張表格，而不是一種印象。
 
-規劃的測試步驟：
+目前自動流程：
+
+```zsh
+zsh testapp/test.zsh P34 --both
+```
+
+loader 目前使用 `--debug -rows 100` 做快速 smoke pass。若要量測 first-paint 時間與記憶體，需明確
+用更大的 row count 重新執行。
+
+測試步驟：
 
 1. 以 100、1,000、10,000 與 100,000 列各執行一次，記錄各自從啟動到首次繪製的時間。四個點足以看出
    形狀：與列數成正比的成長代表完全實體化；持平則代表某處出現了預期之外的 lazy 行為，應該找出它。
@@ -1487,7 +1534,8 @@ SwiftCrossUI 沒有無障礙 API。沒有 `.accessibilityLabel`、`.accessibilit
 
 ## P35：狀態與 Scene 組合（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋那些讓 SwiftUI app 的「結構」無法被表達的缺口——與外觀無關。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋那些讓 SwiftUI app 的
+「結構」無法被表達的缺口——與外觀無關。
 
 `@State`、`@Binding`、`@Environment` 與 `ObservableObject` 都存在。`@StateObject` 與 `@ObservedObject`
 不存在，因此參考型別的 model 沒有可用來觀察它的 property wrapper。`@SceneStorage` 同樣不存在，
@@ -1499,7 +1547,16 @@ scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`Sce
 「有條件地開啟視窗」這個 SwiftUI 常見寫法。`ViewBuilder` 確實有 `buildIf` 與 `buildEither`，但沒有
 `buildLimitedAvailability`，所以 `if #available` 在 view body 中同樣不可用。
 
-規劃的測試步驟：
+目前自動流程：
+
+```zsh
+zsh testapp/test.zsh P35 --both
+```
+
+app 會測一個簡單的 `@State` counter/toggle，並列出目前仍無法表達的 state/scene API。scene 組合
+仍屬編譯期缺口，因此本測試主要是追蹤 baseline。
+
+測試步驟：
 
 1. 宣告一個符合 `ObservableObject` 且帶有 `@Published` 屬性的 class，試著先以 `@StateObject`、再以
    `@ObservedObject` 持有它。記錄哪些能編譯；對能編譯者，記錄變更該 published 屬性是否會重繪 view。
@@ -1517,8 +1574,8 @@ scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`Sce
 
 ## P36：API 形狀相容性（Linux 與 Windows）
 
-**已規劃，尚未撰寫。** 涵蓋「view 存在，但 SwiftUI 的呼叫點無法編譯」的情況。本節中的每個缺口在功能
-清單上都不可見，因為型別在，只有 initialiser 不在。
+**已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋「view 存在，但 SwiftUI 的
+呼叫點無法編譯」的情況。本節中的每個缺口在功能清單上都不可見，因為型別在，只有 initialiser 不在。
 
 - `Picker` 是 `Picker(of: [Value], selection: Binding<Value?>)`。沒有 label 參數、沒有 `@ViewBuilder`
   內容、也沒有 `.tag`，而且 selection 必須是 `Optional`，因此對非 optional 的 `@State` 做選取需要一個
@@ -1535,7 +1592,16 @@ scene 無法像 view 由其他 view 組成那樣，由其他 scene 組成。`Sce
 - 幾何量是 `Int`：`padding(_ amount: Int?)`、`cornerRadius(_ radius: Int)`、`HStack(spacing: Int?)`。
   SwiftUI 全程使用 `CGFloat`，因此移植程式中的 `.padding(8.5)` 是編譯錯誤，而不是捨入差異。
 
-規劃的測試步驟：
+目前自動流程：
+
+```zsh
+zsh testapp/test.zsh P36 --both
+```
+
+app 會把目前可用的 SwiftCrossUI 寫法渲染出來，旁邊列出仍無法編譯的 SwiftUI-shaped calls。這樣
+可以讓 porting cost surface 可見，同時不破壞一般測試 build。
+
+測試步驟：
 
 1. 把上述每一段 SwiftUI 宣告原封不動放入 app，記錄它產生的編譯錯誤。錯誤訊息本身就是產出；「無法編譯」
    不足以讓任何人據以行動。
@@ -1667,12 +1733,17 @@ zsh testapp/test.zsh P40 --both
 1. 先在 WSLg 啟動 P40，再跑 Windows。
 2. 確認 final screenshot 中 transformed shapes 可見。
 3. 聲稱 hotpink fallback 不存在或已修正前，先用 PIL 量測 final screenshot。
-4. 記錄 screenshot 尺寸、非黑像素比例，以及 exact / near hotpink 像素數。
+4. 量測橘色／藍色測試 tile 的 color-component bounding box。通過條件是 scale、offset、
+   rotation 與 shear sample 必須依預期方向不同於 control；只有 hotpink 為 0 不足以判定通過。
+5. 記錄 screenshot 尺寸、非黑像素比例，以及 exact / near hotpink 像素數。
+6. 平台 theme / background 另行記錄。WSLg 可能預設為 light Adwaita，WinUI 則跟隨 Windows
+   theme；這不是 geometry failure。
 
 預期結果：
 
 - 兩個平台都應產生可見且非黑的截圖。
 - 除非 app 的測試案例刻意顯示 fallback 色，否則 exact hotpink pixels 應為 0。
+- transformed samples 不應全部和 control tile 有相同 bounding box。
 
 ## P41：Date Picker Styles（Linux 與 Windows）
 

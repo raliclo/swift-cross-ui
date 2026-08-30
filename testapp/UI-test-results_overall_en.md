@@ -145,15 +145,45 @@ All final screenshots below were captured with `wincap` and measured with PIL. E
 | P24 | 748x589, 91.5% non-black | 736x599, 91.8% non-black | Both platforms built and reached the final capture. |
 | P25 | 748x549, 91.2% non-black | 736x559, 91.3% non-black | Automated run verifies launch/capture only; live drag/drop still needs manual interaction. |
 | P27 | 788x726, 92.6% non-black | 776x702, 92.8% non-black | Both platforms built and reached the final capture. |
-| P29 | 748x589, 91.5% non-black | 736x599, 91.7% non-black | Both platforms built and reached the final capture. |
-| P37 | 688x489, 90.2% non-black | 676x499, 90.4% non-black | Window-level behaviour still needs a second-window foreground/topmost challenge; this run only verifies baseline launch/capture. |
-| P38 | 848x692, 92.6% non-black | 836x699, 92.8% non-black | WSLg 1-second capture was black, but final capture was visible; Windows final capture also succeeded. |
-| P39 | 888x649, 92.5% non-black | 876x659, 92.6% non-black | Near-hotpink pixels were present in effect content: WSLg 7,563, Windows 13,704. |
-| P40 | 928x736, 93.2% non-black | 916x708, 93.1% non-black | Exact hotpink pixels: 0 on both platforms; near-hotpink pixels: 0 on both platforms. |
-| P41 | 968x649, 92.6% non-black | 956x659, 92.7% non-black | Windows `.graphical` DatePicker requires visual/manual inspection of the final screenshot; the automated smoke run did not hang. |
+| P29 | 796x657, 82.8% non-black | 736x599, 91.7% non-black | WSLg `P29-texteditor-disabled.csv` was added and verified: final capture shows the editor enabled after replay. Windows smoke final is visible, but WinUI actionfile replay produced no `-actionfile` report in this run and remains unresolved. |
+| P37 | 788x569, 91.5% non-black | 776x579, 91.6% non-black | WSLg reports supported levels `automatic, normal`; Windows reports `automatic, normal, floating`. Window-level behaviour still needs a second-window foreground/topmost challenge; this run only verifies baseline launch/capture and backend capability reporting. |
+| P38 | 848x692, 92.6% non-black | 836x699, 92.8% non-black | WSLg 1-second and final captures were both visible in the latest run and show the expected GtkBackend placeholder. Windows final capture is visible, but the WebView area is still an empty grey frame with `Navigations reported: 0`. |
+| P39 | 888x649, 92.5% non-black | 876x659, 92.5% non-black | WSLg shows visible opacity, blur, saturation, brightness, contrast, grayscale and hue-rotation effects. Windows shows opacity, but blur and most colour effects appear identical to the control, so WinUI visual effects remain suspect. |
+| P40 | 928x736, 93.1% non-black | 916x708, 93.0% non-black | Fixed WSLg geometry no-op/clipping: PIL now finds seven transformed color components with scale/rotate/shear bounding boxes comparable to WinUI. Exact/near hotpink pixels: 0 on both platforms. Background differs by platform theme: WSLg default is light; WinUI is dark here. |
+| P41 | 968x649, 92.5% non-black | 956x659, 92.7% non-black | Windows `.graphical` DatePicker is visible in the latest screenshot, not a blank sliver. WSLg `.wheel` is visually distinct; Windows `.wheel` still appears as a segmented date input and should be treated as a style parity/fallback observation. |
 
 ### Timing Observations
 
 - On WSLg, release builds for these apps completed in roughly 12-13s after source sync.
-- On Windows, P27 took 231.84s to build; P21-P25 and P29-P41 generally took about 49-54s each. Windows builds still print `pkg-config` / `gtk4.pc` warnings even when the WinUI app builds successfully.
-- Several Windows apps did not have a visible window for the 1-second capture, but became visible for the final 30-second capture. Treat this as startup/window-discovery timing unless the final capture also fails.
+- On Windows, P27 took 231.84s in an earlier build; later P37-P41 builds generally completed in about 38-75s. Windows builds still print `pkg-config` / `gtk4.pc` warnings even when the WinUI app builds successfully.
+- Several Windows apps did not have a visible window for the 1-second capture, but became visible for the final capture. Treat this as startup/window-discovery timing unless the final capture also fails.
+- `--actionfile <relative path>` exposed a loader bug on Windows: the path containment check compared the relative path against the absolute `testapp` path. Using bare `--actionfile` avoided it for WSLg; `test_common.zsh` now has a local path converter so Windows no longer depends on `cygpath`.
+
+## 2026-08-30
+
+### P30-P36 Loader And Baseline Coverage
+
+- Added compileable baseline apps and `test_support/test_Pn.zsh` loaders for P30, P31, P32, P33, P34, P35 and P36.
+- `testapp/compile.zsh` now defaults to release builds on Windows as well as WSLg. A debug build still requires `BUILD_CONFIG=debug`.
+- Test order followed the current rule: WSLg first, then Windows. WSLg was synced through `testapp/rsync_WSL.zsh` before compiling under `/home/lowei/proj/swift-cross-ui`.
+
+### Automated Smoke Results
+
+All final screenshots below were measured with PIL. Every final capture was visible and non-black.
+
+| App | WSLg final screenshot | Windows final screenshot | Notes |
+| --- | --- | --- | --- |
+| P30 | 888x649, 92.5% non-black | 876x659, 92.6% non-black | WSLg shows visible blur/grayscale-style effects. Windows shows opacity and geometric transforms, but blur/grayscale appear to behave like no-ops; record as WinUI visual-effect parity still needing investigation. |
+| P31 | 808x589, 91.8% non-black | 796x599, 91.9% non-black | Baseline focus/keyboard controls render on both platforms. Real Tab order, Space/Return activation, Escape and Ctrl+Q still need manual keyboard testing. |
+| P32 | 788x589, 91.7% non-black | 776x599, 91.8% non-black | Accessibility baseline controls render on both platforms. Role/name verification still needs Accerciser on Linux and Accessibility Insights or `inspect.exe` on Windows. |
+| P33 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | Missing-view list and hand-written approximations render on both platforms. This is a compileable baseline, not evidence that the missing SwiftUI views now exist. |
+| P34 | 808x649, 92.2% non-black | 796x659, 92.4% non-black | Smoke run used `--debug -rows 100`. Larger row-count/performance testing is still separate. |
+| P35 | 788x589, 91.7% non-black | 776x599, 91.8% non-black | State baseline renders on both platforms. Scene composition gaps remain compile-time issues. |
+| P36 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | SwiftCrossUI-compatible API shapes render, while SwiftUI-shaped missing calls are listed as text so normal test builds keep compiling. |
+
+### Timing Observations
+
+- WSLg release builds completed quickly after sync: P30 took 13.66s, then P31-P36 each took about 6-10s.
+- Windows release rebuild was much slower, especially the first target after changing build configuration: P30 took 900.34s, while P31-P36 then took roughly 11-29s each.
+- On Windows, several 1-second screenshots captured only a nearly blank first frame, while the final 10-second screenshots were normal. Treat this as WinUI first-paint/window-capture timing unless a final screenshot also fails.
+- The WSLg runs reported `[WARN:COPY MODE]` in the window title even though the final captures were visible. These runs are useful for UI layout smoke testing, but not for validating GPU rendering performance.

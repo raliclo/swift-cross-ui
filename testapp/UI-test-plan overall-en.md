@@ -1262,8 +1262,9 @@ Test steps:
 
 ## P30: Effects and Animation (Linux and Windows)
 
-**Planned, not yet written.** Covers the largest protocol-level gap: SwiftCrossUI
-has no animation layer at all, and no visual-effect modifiers.
+**Baseline app written and smoke-tested on WSLg and Windows.** Covers the
+largest protocol-level gap: SwiftCrossUI has no animation layer at all, and only
+the effect modifiers currently available in the project can be exercised.
 
 There is no `Animation`, `withAnimation`, `.animation(_:value:)`, `.transition`
 or `Namespace`, and no backend protocol for any of them. Nor is there `.opacity`,
@@ -1277,7 +1278,17 @@ things that do not compile, and each line that starts compiling is the progress
 report. Until then it documents the boundary in one place instead of a dozen
 issues.
 
-Planned test steps:
+Current automated flow:
+
+```zsh
+zsh testapp/test.zsh P30 --both
+```
+
+The app shows compileable visual/geometric effect samples and keeps the missing
+animation APIs visible as text. It also writes `p30-debug-events.log` when run
+with `--debug`.
+
+Test steps:
 
 1. Toggle a `@State` value that changes a frame and confirm whether the change is
    instant (current behaviour) or animated.
@@ -1288,8 +1299,9 @@ Planned test steps:
 
 ## P31: Focus and Keyboard (Linux and Windows)
 
-**Partly writable today, not yet written.** Roughly half of what this app has to
-check can be written now; the other half is a list of calls that do not compile.
+**Baseline app written and smoke-tested on WSLg and Windows.** Roughly half of
+what this app has to check can be written today; the other half remains a list
+of calls that do not compile.
 
 Nothing in SwiftCrossUI names focus. There is no `@FocusState`, no
 `.focused(_:)` and no `.focusable()`, so an app cannot say which field starts
@@ -1338,10 +1350,20 @@ Test steps:
    is the progress report.
 7. Repeat under the other backend.
 
+Automated flow:
+
+```zsh
+zsh testapp/test.zsh P31 --both
+```
+
+The automated run verifies launch, render marker, final screenshot and the
+visible baseline controls. Real focus traversal, Escape handling and Ctrl+Q
+still require manual keyboard interaction.
+
 ## P32: Accessibility (Linux and Windows)
 
-**Writable today, not yet written.** The app calls nothing that is missing. It
-exists to be inspected from outside.
+**Baseline app written and smoke-tested on WSLg and Windows.** The app calls
+nothing that is missing. It exists to be inspected from outside.
 
 SwiftCrossUI has no accessibility API. There is no `.accessibilityLabel`,
 `.accessibilityHint`, `.accessibilityValue`, `.accessibilityAddTraits`,
@@ -1383,11 +1405,21 @@ Test steps:
    reorder its children in the tree without changing what is drawn, and nothing
    on screen would show it.
 
+Automated flow:
+
+```zsh
+zsh testapp/test.zsh P32 --both
+```
+
+The automated run verifies that the baseline controls render. Role/name
+inspection still requires Accerciser on Linux and Accessibility Insights or
+`inspect.exe` on Windows.
+
 ## P33: Missing Views (Linux and Windows)
 
-**Planned, not yet written.** Covers the SwiftUI views with no SwiftCrossUI
-equivalent at all, where ported code fails to compile rather than rendering
-differently.
+**Baseline app written and smoke-tested on WSLg and Windows.** Covers the
+SwiftUI views with no SwiftCrossUI equivalent at all, where ported code fails to
+compile rather than rendering differently.
 
 None of `Form`, `Section`, `Label(_:systemImage:)`, `Stepper`, `Gauge`,
 `DisclosureGroup`, `LabeledContent`, `ColorPicker` or `Link` exists under
@@ -1396,7 +1428,17 @@ it is less a view in its own right than the structuring element that `List`,
 `Form`, `Picker` and `Menu` all accept, so its absence breaks call sites that do
 not look like they are about sections. The others each cost one call site.
 
-Planned test steps:
+Current automated flow:
+
+```zsh
+zsh testapp/test.zsh P33 --both
+```
+
+The app renders a missing-view list and hand-written approximations for Stepper,
+DisclosureGroup and LabeledContent. The intentionally missing SwiftUI call sites
+remain documented in text rather than being kept as uncompilable code.
+
+Test steps:
 
 1. Show one instance of each missing view and record which compile. The app
    begins as a file that does not build, and the list of lines that had to be
@@ -1415,8 +1457,8 @@ Planned test steps:
 
 ## P34: Lazy Containers and Large Collections (Linux and Windows)
 
-**Planned, not yet written.** Covers what happens when a collection is larger
-than the window that shows it.
+**Baseline app written and smoke-tested on WSLg and Windows.** Covers what
+happens when a collection is larger than the window that shows it.
 
 There is no `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` or `Grid`, and
 no `ScrollViewReader` or `ScrollViewProxy`. `VStack` and `HStack` build every
@@ -1428,7 +1470,16 @@ programmatically, which is what `ScrollViewProxy.scrollTo` is for in SwiftUI.
 "Feels slow" is not a finding. The app takes a row count on the command line and
 prints numbers, so the result is a table rather than an impression.
 
-Planned test steps:
+Current automated flow:
+
+```zsh
+zsh testapp/test.zsh P34 --both
+```
+
+The loader currently runs with `--debug -rows 100` for a quick smoke pass. Larger
+row counts should be run explicitly when measuring first-paint time and memory.
+
+Test steps:
 
 1. Run with 100, 1,000, 10,000 and 100,000 rows and record the time from launch
    to first paint at each. Four points are enough to see the shape: growth
@@ -1453,8 +1504,9 @@ Planned test steps:
 
 ## P35: State and Scene Composition (Linux and Windows)
 
-**Planned, not yet written.** Covers the gaps that stop a SwiftUI app's
-structure from being expressed, as distinct from its appearance.
+**Baseline app written and smoke-tested on WSLg and Windows.** Covers the gaps
+that stop a SwiftUI app's structure from being expressed, as distinct from its
+appearance.
 
 `@State`, `@Binding`, `@Environment` and `ObservableObject` all exist.
 `@StateObject` and `@ObservedObject` do not, so a reference-type model has no
@@ -1471,7 +1523,17 @@ SwiftUI pattern of opening a window conditionally. `ViewBuilder` does have
 `buildIf` and `buildEither`, but no `buildLimitedAvailability`, so `if #available`
 does not work inside a view body either.
 
-Planned test steps:
+Current automated flow:
+
+```zsh
+zsh testapp/test.zsh P35 --both
+```
+
+The app exercises a simple `@State` counter/toggle and lists the state/scene APIs
+that still cannot be represented. Scene composition remains a compile-time gap,
+so this test is mainly a tracked baseline.
+
+Test steps:
 
 1. Declare a class conforming to `ObservableObject` with a `@Published`
    property and try to hold it with `@StateObject`, then with `@ObservedObject`.
@@ -1497,9 +1559,10 @@ Planned test steps:
 
 ## P36: API-Shape Compatibility (Linux and Windows)
 
-**Planned, not yet written.** Covers views that exist but whose SwiftUI call
-sites do not compile. Every gap in this section is invisible on a feature
-checklist, because the type is present and only the initialiser is missing.
+**Baseline app written and smoke-tested on WSLg and Windows.** Covers views that
+exist but whose SwiftUI call sites do not compile. Every gap in this section is
+invisible on a feature checklist, because the type is present and only the
+initialiser is missing.
 
 - `Picker` is `Picker(of: [Value], selection: Binding<Value?>)`. There is no
   label argument, no `@ViewBuilder` content and no `.tag`, and the selection
@@ -1521,7 +1584,17 @@ checklist, because the type is present and only the initialiser is missing.
   `HStack(spacing: Int?)`. SwiftUI uses `CGFloat` throughout, so `.padding(8.5)`
   in ported code is a compile error rather than a rounding difference.
 
-Planned test steps:
+Current automated flow:
+
+```zsh
+zsh testapp/test.zsh P36 --both
+```
+
+The app renders the SwiftCrossUI spelling that works today next to a text list of
+SwiftUI-shaped calls that still fail to compile. This keeps the porting-cost
+surface visible without breaking normal test builds.
+
+Test steps:
 
 1. Put each SwiftUI declaration above into the app verbatim and record the
    compiler error it produces. The error text is the deliverable; "does not
@@ -1681,14 +1754,21 @@ Test steps:
 2. Confirm transformed shapes are visible in the final screenshot.
 3. Measure the final screenshot with PIL before claiming the hotpink fallback is
    absent or fixed.
-4. Record the screenshot dimensions, non-black pixel ratio, and exact/near
+4. Measure color-component bounding boxes for the orange/blue test tiles. A
+   pass requires scale, offset, rotation and shear samples to differ from the
+   control in the expected direction; zero hotpink alone is not sufficient.
+5. Record the screenshot dimensions, non-black pixel ratio, and exact/near
    hotpink pixel count.
+6. Record the platform theme/background separately. WSLg may default to light
+   Adwaita while WinUI follows the Windows theme; this is not geometry failure.
 
 Expected results:
 
 - The app should produce a visible non-black capture on both platforms.
 - Exact hotpink pixels should be zero unless the app intentionally displays the
   fallback color for a test case.
+- The transformed samples should not all have the same bounding box as the
+  control tile.
 
 ## P41: Date Picker Styles (Linux and Windows)
 
