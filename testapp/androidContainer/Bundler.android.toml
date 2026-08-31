@@ -1,0 +1,74 @@
+# Android settings for every test app, tracked rather than defaulted.
+#
+# The counterpart of iosContainer/appTemplate.app and macContainer/appTemplate.app,
+# and it exists for the same reason: a build should not take its identity from
+# whatever happened to be installed.
+#
+# Those two supply an Info.plist because SwiftPM produces a bare Mach-O with no
+# bundle identifier. Android does not need that -- swift-bundler emits a complete
+# APK -- so nothing here is load-bearing in the way an Info.plist is. What it
+# fixes is subtler: compile.zsh generated a Bundler.toml carrying only
+# identifier, product and version, so every Android API level came from
+# swift-bundler's defaults and from whichever build-tools the SDK happened to
+# have. Read off the last APK built without this file:
+#
+#   package dev.swiftcrossui.testapp.p12  compileSdk 35  minSdk 28  targetSdk 35
+#
+# Nobody chose 35. It is what build-tools 35.0.0 gave, and installing 36 would
+# have moved it with no diff to review and no failure to notice.
+#
+# Android 相關設定，納入版本控制而非依賴預設值。
+#
+# 這是 iosContainer/appTemplate.app 與 macContainer/appTemplate.app 的對應物，存在理由也相同：
+# 一次建置不該從「機器上剛好裝了什麼」取得它的身分。
+#
+# 那兩者提供 Info.plist，是因為 SwiftPM 產出的裸 Mach-O 沒有 bundle identifier。Android 不需要
+# 這個——swift-bundler 會產出完整的 APK——因此此處沒有任何一項像 Info.plist 那樣是「不可或缺」的。
+# 它修正的是更細微的事：compile.zsh 所產生的 Bundler.toml 只帶 identifier、product 與 version，
+# 於是每一個 Android API level 都來自 swift-bundler 的預設值，以及該 SDK 恰好安裝了哪個
+# build-tools。自「尚未有本檔時所建的最後一個 APK」讀出的值即為上方所列。
+#
+# 沒有人選過 35。那是 build-tools 35.0.0 給的值，而改裝 36 就會讓它跟著移動——沒有可供審閱的
+# diff，也沒有任何失敗可供察覺。
+#
+# This file is the body of an `[apps.<Pn>.android]` table. compile.zsh emits the
+# header for each requested app and appends these lines verbatim, so every test
+# app gets the same Android configuration and there is one place to change it.
+# 本檔是 `[apps.<Pn>.android]` 表格的內容。compile.zsh 會為每一個被請求的 app 產生表頭，並原樣
+#附加以下各行，因此所有測試 app 取得相同的 Android 設定，且只有一處需要修改。
+
+# Matches ANDROID_TRIPLE in compile.zsh, which is
+# aarch64-unknown-linux-android28. The two are the same decision written twice,
+# and they were already in step by luck: 28 is also swift-bundler's default.
+# Pinned so that a change to either has to be made to both.
+# 與 compile.zsh 中的 ANDROID_TRIPLE（aarch64-unknown-linux-android28）一致。兩者是同一個決定
+# 寫了兩次，而先前只是碰巧一致：28 同時也是 swift-bundler 的預設值。此處明確釘住，使得任一方
+# 要更動時，都必須同時更動另一方。
+minSDK = 28
+
+# The API the apps are written against. 35 is what the last build produced, so
+# pinning it changes nothing today -- which is the point. It stops moving on its
+# own the next time the SDK is updated.
+# 這些 app 所針對的 API。35 是上一次建置實際產出的值，因此釘住它在今天不改變任何事——而那正是
+# 重點：它不會在下次更新 SDK 時自行移動。
+targetSDK = 35
+
+# The API used to compile the Kotlin helpers in Sources/AndroidBackend/Kotlin.
+# Kept equal to targetSDK rather than raised. It was briefly 36 while
+# AndroidBackendHelpers.kt called TimeZone.getIanaID, which is API 36; b33f6246
+# rewrote that helper to stay within the API the current Swift Android SDK uses,
+# so the reason to raise it is gone. Raise it again only with a call site that
+# needs it.
+# 用於編譯 Sources/AndroidBackend/Kotlin 中 Kotlin 輔助程式的 API。此處與 targetSDK 保持相同而
+# 不調高。它曾短暫為 36，因為 AndroidBackendHelpers.kt 呼叫了屬於 API 36 的 TimeZone.getIanaID；
+# b33f6246 已改寫該輔助程式，使其停留在現行 Swift Android SDK 所使用的 API 範圍內，因此調高的
+# 理由已不存在。除非有確實需要它的呼叫點，否則不要再調高。
+compileSDK = 35
+
+# versionCode is deliberately absent. Left unset it defaults to the git revision
+# number -- the last APK carried 1052 -- which is what a throwaway test build
+# should have: two builds from different commits are distinguishable, and
+# installing one over the other is never refused for being older.
+# versionCode 刻意不設定。留空時它預設為 git 的 revision number——上一個 APK 帶的是 1052——而那
+# 正是一次性測試建置所應有的：來自不同 commit 的兩個建置可以區分，且以其一覆蓋安裝另一個時，
+# 不會因為「版本較舊」而被拒絕。
