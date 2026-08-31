@@ -89,11 +89,14 @@ now() {
 # The desktop's own verdict on synthesised input, as last recorded by `check`.
 #
 # What this gate protects is one capability: can a process here deliver input to
-# the desktop? Windows answers that directly, and only when asked. SendInput
-# fails with ERROR_ACCESS_DENIED (5) and the replay prints
-#   -actionfile: failed: SendInput exited with status 5
+# the desktop? Windows answers that directly, and only when asked. The injecting
+# call fails with ERROR_ACCESS_DENIED (5) and the replay prints
+#   -actionfile: failed: <call> exited with status 5
 # on stderr. Confirmed twice on 2026-08-27, each time with a desktop capture of
-# the PIN screen taken alongside it.
+# the PIN screen taken alongside it; both times the call was `SendInput`, and
+# since 2026-09-01 a pointer move reports `SetCursorPos` instead. The gate
+# matches the status rather than the name for that reason -- see the note beside
+# the comparison itself.
 #
 # Status 5 is not only the lock screen -- a foreground window at a higher
 # integrity level refuses our input the same way. For this gate the two are the
@@ -144,9 +147,11 @@ now() {
 # 桌面對合成輸入所給出的判決，由 `check` 最近一次記錄下來。
 #
 # 本閘門所保護的是單一能力：此處的行程能否把輸入送達桌面？Windows 會直接回答這個問題，但只在被
-# 詢問時回答。SendInput 會以 ERROR_ACCESS_DENIED（5）失敗，而重放會對 stderr 印出
-#   -actionfile: failed: SendInput exited with status 5
-# 於 2026-08-27 確認兩次，每次都同時取得一張顯示 PIN 畫面的桌面截圖。
+# 詢問時回答。負責注入的那個呼叫會以 ERROR_ACCESS_DENIED（5）失敗，而重放會對 stderr 印出
+#   -actionfile: failed: <呼叫名稱> exited with status 5
+# 於 2026-08-27 確認兩次，每次都同時取得一張顯示 PIN 畫面的桌面截圖；那兩次的呼叫都是
+# `SendInput`，而自 2026-09-01 起，指標移動回報的是 `SetCursorPos`。本閘門之所以比對狀態碼而非
+# 呼叫名稱，理由即在於此——詳見比對處旁邊的註解。
 #
 # status 5 不只代表鎖定畫面——前方若站著一個完整性等級更高的視窗，同樣會拒絕我方輸入。對本閘門而言
 # 兩者是同一件事：此刻取得的任何 UI 結果都不具意義。
@@ -380,7 +385,34 @@ case "$command" in
         local text
         text="$(<"$log")"
 
-        if [[ "$text" == *'SendInput exited with status 5'* ]]; then
+        # Matched on the STATUS, not on the tool that reported it.
+        #
+        # This read `SendInput exited with status 5` until 2026-09-01, and had
+        # just stopped firing. Win32Synthesiser's pointer move changed from
+        # `SendInput` to `SetCursorPos`, and `SynthesiserError.toolFailed`
+        # renders "<name> exited with status <n>" -- so a locked desktop now
+        # produces `SetCursorPos exited with status 5` and the old pattern did
+        # not match it. Nearly every action file begins with a move, so the gate
+        # was silently dead for all of them: the run would be judged as though
+        # its input had reached the app, which is the exact outcome this file
+        # exists to prevent.
+        #
+        # 5 is ERROR_ACCESS_DENIED and it is the signal; which Win32 call happened
+        # to be refused first is not. Naming the call pinned this to an
+        # implementation detail one refactor away from changing, and it changed.
+        #
+        # 比對的是**狀態碼**，而非回報它的那個函式。
+        #
+        # 在 2026-09-01 之前這裡寫的是 `SendInput exited with status 5`，而它當時已經不再觸發。
+        # Win32Synthesiser 的指標移動從 `SendInput` 改為 `SetCursorPos`，而
+        # `SynthesiserError.toolFailed` 的訊息格式為「<name> exited with status <n>」——因此鎖定
+        # 的桌面現在產生的是 `SetCursorPos exited with status 5`，舊樣式比對不到。幾乎每一份動作檔
+        # 都以移動開頭，所以這道閘門對它們全部靜默失效：該次執行會被判定為「輸入已送達 app」，
+        # 而那正是本檔存在所要防止的結果。
+        #
+        # 5 是 ERROR_ACCESS_DENIED，那才是訊號；至於恰好先被拒絕的是哪一個 Win32 呼叫則不是。
+        # 寫上呼叫名稱，等於把這道閘門綁在一個「一次重構就會改變」的實作細節上——而它確實改變了。
+        if [[ "$text" == *'exited with status 5'* ]]; then
             record_denial "$log"
             printf '!! the desktop refused this run every input it sent (ERROR_ACCESS_DENIED).\n' >&2
             printf '!! Nothing this run captured is evidence about the app: a window capture\n' >&2
@@ -391,7 +423,7 @@ case "$command" in
 
         if [[ "$text" == *'-actionfile: replayed '* ]]; then
             clear_denial
-            printf 'desktop: input reached the app, so this run means what it looks like\n'
+            printf 'desktop: accepted synthetic input; judge control handling from the app state\n'
             exit 0
         fi
 

@@ -484,6 +484,59 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## Test infrastructure / 測試基礎設施
 
+- **`SetForegroundWindow` is now requested on the mouse path but never
+  verified.** (Windows) In `Win32Synthesiser.prepareForReplay` the call was
+  moved above the keyboard guard, while the read-back loop that confirms it
+  stayed below:
+
+      SetForegroundWindow(window); BringWindowToTop(window)
+      guard actions.contains(where: \.needsKeyboardFocus) else { return }
+      ... 500 ms loop comparing GetForegroundWindow() == window ...
+
+  So a mouse-only action file asks for the foreground and returns without ever
+  learning whether it got it. **Request and verification were a pair**, and #46
+  is the record of what the unpaired form costs: the synthesiser drove the wrong
+  application because `SetForegroundWindow` was unchecked.
+
+  Not yet observed failing, and the reason is worth stating so nobody upgrades
+  this by accident: `SetWindowPos(HWND_TOPMOST)` still runs first, so clicks
+  land on the intended window whether or not the foreground switch took. That
+  makes this a latent hazard rather than a live bug — the failure would appear
+  only where focus matters, and would look like the application ignoring input.
+
+  **Decide between two shapes, do not leave the third.** Either move the
+  read-back above the guard and let a mouse file *warn* while a keyboard file
+  throws — focus is required for one and merely nice for the other — or drop the
+  request from the mouse path and let TOPMOST do the work alone. What should not
+  survive is asking for something and not looking.
+
+  While there, two comments went stale in the same move: the `AttachThreadInput`
+  note says "attaching to the foreground thread **before this call**" while the
+  call it means is now above the guard and separated from it by the whole
+  comment; and the deleted `SM_XVIRTUALSCREEN` block took with it the measured
+  reason it existed — using the primary monitor instead of the virtual desktop
+  put every click on the wrong screen. `SetCursorPos` takes physical coordinates
+  so multi-monitor still works, but that lesson is now recorded nowhere.
+
+  **`SetForegroundWindow` 現在會在滑鼠路徑上被請求，卻從不驗證。**（Windows）在
+  `Win32Synthesiser.prepareForReplay` 中，該呼叫被移到鍵盤 guard 之上，而確認它是否生效的
+  讀回迴圈仍留在下方（見上方程式碼）。因此純滑鼠的動作檔會要求前景，然後直接返回，從未得知
+  自己是否取得。**請求與驗證原本是成對的**，而 #46 正是「拆開之後的代價」的紀錄：合成器驅動了
+  錯誤的應用程式，原因就是 `SetForegroundWindow` 未經檢查。
+
+  目前尚未觀察到它失敗，而理由值得寫明，以免有人誤把它當成已修好：`SetWindowPos(HWND_TOPMOST)`
+  仍在其之前執行，因此無論前景切換是否成功，點擊都會落在預期的視窗上。這使它成為潛在風險而非
+  現行缺陷——失敗只會出現在「焦點真正重要」之處，而且看起來會像是應用程式忽略了輸入。
+
+  **在兩種形狀之間選一個，不要留下第三種。** 要嘛把讀回迴圈移到 guard 之上，讓滑鼠檔**警告**、
+  鍵盤檔拋出——焦點對後者是必要條件，對前者只是加分；要嘛把該請求從滑鼠路徑移除，單靠 TOPMOST
+  完成工作。唯一不該存活的，是「要求了某件事，卻不去看它有沒有發生」。
+
+  順帶，同一次移動讓兩段註解過時：`AttachThreadInput` 那段寫著「在**此呼叫**之前附加至前景
+  執行緒」，而它所指的呼叫如今在 guard 之上、且被整段註解隔開；另外被刪除的 `SM_XVIRTUALSCREEN`
+  區塊，也一併帶走了它存在的實測理由——使用主螢幕而非虛擬桌面，會讓視窗不在其上時每一次點擊都
+  落在錯誤的螢幕。`SetCursorPos` 採實體座標，多螢幕仍然正確，但那個教訓現在沒有任何地方記著。
+
 - **Make GTK 4 render with hardware on WSL. It does not today, and the fallback
   is silent.** (WSL) GTK reports `GskVulkanRenderer`, which reads like hardware,
   while lavapipe draws every frame on the CPU. Measured 2026-08-29:
