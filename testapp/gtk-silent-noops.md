@@ -58,15 +58,14 @@ individual fixes. Entries 11, 12 and 13 cited line numbers and declarations that
 no longer exist — `GtkBackend.swift:68` and `let scrollBarWidth = 0`, `:73` and
 `[.automatic, .graphical]`. Entry 10's suspicion was right and had already been
 fixed by deleting the measurement. Entry 20's subject moved to
-`GtkBackend+WebView.swift`. Entry 8 was marked fixed **during this audit and
-that was wrong** — see the note on it.
+`GtkBackend+WebView.swift`.
 
-**This file is 1604 lines and nothing re-checks it.** Two stale entries agreeing
-with each other, plus an abandoned class in the source, produced a false claim
-three times over on the day of the audit: that the date picker had no time
-component, when `TimeRow` had been implemented and wired all along. **Two stale
-sources pointing the same way read as corroboration.** Before acting on anything
-here, grep for the symbol.
+**This file is 1604 lines and nothing re-checks it, so grep for an entry's named
+symbol before acting on it.** Two entries here can also agree with each other
+while both are stale, which reads like corroboration and is not: entry 12 said
+the date picker drops time components while an abandoned `TimePicker` class sat
+in the source saying the same thing, and `TimeRow` had been implemented and
+wired the whole time.
 
 **What remains open, and why none of it is a small fix:**
 
@@ -88,12 +87,12 @@ here, grep for the symbol.
 
 **其中六條落後於程式碼**，而該記住的是這個數字，而非個別的修正。第 11、12、13 條所引用的行號與
 宣告皆已不存在；第 10 條的懷疑是對的，且早已藉由「刪除該量測」修好；第 20 條的對象已移至
-`GtkBackend+WebView.swift`；第 8 條在**本次稽核中被標為已修，而那是錯的**——見該條說明。
+`GtkBackend+WebView.swift`。
 
-**本檔 1604 行，而且沒有任何東西會複查它。** 兩條彼此吻合的過時條目，加上原始碼中一個被放棄的
-類別，在稽核當天讓同一個錯誤主張被寫下三次：宣稱日期選擇器沒有時間元件，而 `TimeRow` 其實一直
-都已實作並接上。**兩個指向同一方向的過時來源，讀起來就像互相佐證。** 依據此處任何一條行動之前，
-請先 grep 那個符號。
+**本檔 1604 行，而且沒有任何東西會複查它——因此依據任何一條行動之前，請先 grep 該條所指名的符號。**
+此處也可能出現「兩條條目彼此吻合、但兩條都已過時」的情況，那讀起來像互相佐證，實則不是：第 12 條
+稱日期選擇器丟棄時間元件，而原始碼中一個被放棄的 `TimePicker` 類別也這麼說，然而 `TimeRow` 其實
+一直都已實作並接上。
 
 仍然開著的條目及其理由見上表——沒有一條是小修正。
 
@@ -756,18 +755,7 @@ property——去 grep 該標頭檔，沒有別的了。在 Wayland 下，裝飾
 
 ## 8. `setWindowEnvironmentChangeHandler(of:to:)` is an empty body — **still open**, and the obvious fix does not compile **[src] [hdr]**
 
-> **This entry was marked FIXED earlier on 2026-09-01 and that was wrong.** The
-> change was written, committed and pushed with a commit message saying it
-> built. It does not:
->
->     GtkBackend.swift: error: 'addSignal' is inaccessible due to
->     'internal' protection level
->
-> The build that appeared to pass was run as `swift build … | tail -6`, so the
-> exit code read was `tail`'s. Recorded as `mistakes.csv2` entry 46, along with
-> two other readings of a pipeline's status the same day.
-
-**What was learned is worth more than the empty body it replaced.** The obvious
+**What is known about it is worth more than the empty body.** The obvious
 implementation is one line:
 
 ```swift
@@ -784,19 +772,14 @@ the backend. That is the work; the signal name and the `MainActor.assumeIsolated
 handling are already settled, and are recorded in the source beside the empty
 body.
 
-> **本條目曾於 2026-09-01 稍早被標為 FIXED，那是錯的。** 該改動被寫下、commit、推送，
-> 且 commit 訊息聲稱它通過編譯。事實上它無法編譯（錯誤如上）。當時看起來通過的那次 build 是以
-> `swift build … | tail -6` 執行的，因此讀到的結束碼是 `tail` 的。已記錄為 `mistakes.csv2` 第 46
-> 條，連同同一天另外兩次「讀到管線結束碼」的情形。
-
-**所學到的東西，比它原本取代掉的那個空 body 更有價值。** 最直覺的實作只有一行（如上），而它無法
+**已知的內容比那個空 body 更有價值。** 最直覺的實作只有一行（如上），而它無法
 從此處寫出來：`addSignal` 屬於 `Gtk` module 且對其為 internal；`Gtk` 未提供公開的對應物，`Widget`
 上沒有產生出來的 `notifyScaleFactor`，本 backend 也沒有任何地方直接使用 `g_signal_connect`。要正確
 完成，應**在 `Gtk` 那一側新增一個小的公開 API**——形狀比照 `Window.onCloseRequest` 的
 `onScaleFactorChange`——而不是從 backend 繞過 module 邊界。那才是該做的工作；訊號名稱與
 `MainActor.assumeIsolated` 的處理方式都已確定，並記在原始碼中該空 body 的旁邊。
 
-<details><summary>The claim that was wrong / 曾經錯誤的宣稱</summary>
+<details><summary>Superseded text / 已被取代的內容</summary>
 
 It now connects `notify::scale-factor` on the window and calls the handler.
 
@@ -1222,17 +1205,13 @@ components — testing `hourMinuteAndSecond` first, because SwiftUI's bitfield
 makes it include `hourAndMinute` — builds the row, and `applyDate` writes hour,
 minute and second back into it.
 
-> **This entry caused a false claim on 2026-09-01, twice, and the shape is worth
-> keeping.** Read together with the abandoned upstream `TimePicker` class in the
-> same file — incomplete, unused, its author's note that the spin buttons could
-> not be made to work — it read as confirmation that time components were
-> missing, and that went into a task and into `bugs/Gtk4-bugs.md` as fact. **Two
-> stale sources agreeing look like corroboration.** Neither was checked against a
-> grep for a *working* implementation, which is the one step that would have cost
-> nothing. This same file already held three entries citing line numbers that no
-> longer exist.
+**Do not read this entry together with the abandoned `TimePicker` class as
+confirmation.** That class is in the same source file — incomplete, unused, with
+its author's note that the spin buttons could not be made to work — and it is
+superseded by `TimeRow` rather than pending. Two stale statements agreeing does
+not make either true.
 
-兩半都已完成，而本條目正是查證當天讓一個錯誤主張被寫下兩次的原因——見末尾的更正。
+兩半都已完成。
 
 **時區。** 不再是機器的時區。`GtkBackend` 取用 `environment.timeZone`，自己保有繫結的 `Date`，
 並由 widget 的日期加上它自己的時刻重建之。**不從 GTK 讀回任何時間點**——那正是
@@ -1245,11 +1224,7 @@ skeleton 的職責正是「這個 locale 怎麼寫小時」——而非需要 ma
 `updateDatePicker` 由所要求的 components 推導精度（先測 `hourMinuteAndSecond`，因為 SwiftUI 的
 bitfield 使它包含 `hourAndMinute`），建構該 row，而 `applyDate` 會把時、分、秒寫回其中。
 
-> **本條目於 2026-09-01 造成了兩次錯誤主張，而那個形狀值得留下。** 它與同一檔案中被放棄的上游
-> `TimePicker` 類別（incomplete、未使用、作者註明 spin buttons 無法運作）一併閱讀時，讀起來就像
-> 「時間元件缺失」得到了佐證，於是那句話被當成事實寫進了一個 task 與 `bugs/Gtk4-bugs.md`。
-> **兩個過時的來源彼此吻合，看起來就像互相佐證。** 兩者都沒有被拿去對照一次「是否存在**可運作
-> 的**實作」的 grep——而那一步的成本是零。同一份檔案裡本就已有三條所引行號早已不存在。
+**請勿把本條目與被放棄的 `TimePicker` 類別一併讀成佐證。** 該類別位於同一個原始碼檔案中——incomplete、未被使用，並附有作者「spin buttons 無法運作」的註記——而它是**已被 `TimeRow`取代**，而非尚待完成。兩個過時的陳述彼此吻合，並不會讓其中任何一個變成真的。
 
 <details><summary>The original finding / 原始發現</summary>
 

@@ -545,15 +545,12 @@ process. And nothing in this repo hardcodes a GTK DLL name: `Package.swift` uses
 `pkgConfig: "gtk4"`, so the switch is a `PKG_CONFIG_PATH` and a set of MSVC
 import libraries generated from the DLLs, not a source change.
 
-> **A wrong measurement, kept because the shape of it recurs.** The first
-> attempt at this concluded "the DLL contains zero `GskVulkan` symbols and does
-> not import `vulkan-1.dll`" — and reached the right verdict for a reason that
-> was entirely false. It ran `strings` and `objdump -p` against
-> `libgtk-4-1.dll`, the MinGW name; this is an MSVC build and the file is
-> `gtk-4-1.dll`. Both tools reported nothing for a file that does not exist, and
-> nothing was read as zero. The real DLL does contain `GskVulkanRenderer`. The
-> control that would have caught it in one line: grep for `GskCairoRenderer`
-> first, which the runtime demonstrably prints, and stop if that is also zero.
+**Reading the DLL directly needs the right filename**, and the two builds do not
+share one: gvsbuild's is `gtk-4-1.dll` (MSVC), MSYS2's is `libgtk-4-1.dll`
+(MinGW). `strings` and `objdump -p` both print nothing for a path that does not
+exist and report no error, so grep for `GskCairoRenderer` first — the runtime
+demonstrably prints it — and treat a zero there as "wrong file", not "absent
+symbol".
 
 So on Windows there are exactly two states — Cairo with hotpink, or DComp plus
 GL with no hotpink and no window capture — and no third one to pick. A GTK 4
@@ -644,12 +641,10 @@ Cairo。去問 GTK 自己，那是唯一能了結此事的來源：
 shaderc 相依。MSYS2 的 `mingw-w64-gtk4` 在**同樣的 4.22.4** 版本上傳的是
 `-Dvulkan=enabled`，build 期需要 `vulkan-headers` 與 `shaderc`，執行期需要 `vulkan-loader`。
 
-> **一次錯誤的量測，記錄於此是因為它的形狀會重複出現。** 第一次嘗試得出的結論是「該 DLL 內
-> `GskVulkan` 符號為零，且未匯入 `vulkan-1.dll`」——結論方向正確，理由卻完全是假的。它對
-> `libgtk-4-1.dll`（MinGW 的命名）執行 `strings` 與 `objdump -p`；但這是 MSVC build，檔名是
-> `gtk-4-1.dll`。兩個工具對一個不存在的檔案都回報了「沒有」，而「沒有」被讀成了「零」。真正
-> 的 DLL 裡確實含有 `GskVulkanRenderer`。一行就能攔下它的對照組：先 grep `GskCairoRenderer`
-> ——那是執行期明確會印出來的字串——若它也是零，就該停手。
+**直接讀取 DLL 時檔名必須正確**，而兩份 build 的檔名並不相同：gvsbuild 為 `gtk-4-1.dll`
+（MSVC），MSYS2 為 `libgtk-4-1.dll`（MinGW）。`strings` 與 `objdump -p` 對不存在的路徑都會印出
+「沒有」且不回報任何錯誤，因此請先 grep `GskCairoRenderer`——那是執行期明確會印出的字串——並把
+該處的零視為「檔名不對」，而非「符號不存在」。
 
 因此 Windows 上只有兩種狀態——Cairo 帶 hotpink，或 DComp 加 GL、無 hotpink 但無法視窗
 截圖——沒有第三種可選。一份 `-Dvulkan=enabled` 的 GTK 4 Windows build 會造出第三種，而那是
