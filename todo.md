@@ -922,7 +922,42 @@ window was not reachable from the Windows capture path.
   fix, `case .semibold: 600`, is wrong: `.medium` is already 600, so it moves
   the collision rather than removing it.
 
-### AppKit hit testing: ~~nothing but text fields can be clicked~~ — FIXED on the Mac side
+### AppKit hit testing: still not working on the Mac as of 2026-09-01
+
+**The 2026-08-27 entry below records this as fixed. It is not, on this machine.**
+Re-measured 2026-09-01 with `e25b3a65` confirmed in the tree by
+`git merge-base --is-ancestor` and with binaries built the same morning:
+
+- P21, a plain button with no overlay: an action file clicking `59,206` with
+  `origin=frame` -- the button's own centre, read off a window capture where the
+  button spans x 26-90, y 196-216 -- replays cleanly and leaves
+  `Button — clicks: 0`. Every toggle on that window is also unchanged.
+- P28: same result, `p28-debug-events.log` has "clicked" zero times. Its shipped
+  action file additionally has stale coordinates -- it clicks `168,151` which is
+  above the blue overlay in a 680x448 window -- but correcting them to the
+  overlay's centre `250,239` still leaves the counter at 0, so the coordinates
+  were not what was stopping it.
+- P26's tab click is the exception and still works: one artifact in a cache that
+  an unclicked tab leaves empty.
+
+Tab strip reachable, ordinary controls not -- the same split the probe table
+below found. Whatever `e25b3a65` fixed, this path is not it.
+
+**2026-08-27：以下記錄此問題已修復。在這台機器上並非如此。** 於 2026-09-01 重新量測，`e25b3a65`
+已由 `git merge-base --is-ancestor` 確認在樹中，執行檔亦為當日上午建置：
+
+- P21（純按鈕、無 overlay）：動作檔以 `origin=frame` 點擊 `59,206`——即該按鈕自身的中心，取自視窗
+  擷取（按鈕範圍 x 26-90、y 196-216）——重放完整結束，而 `Button — clicks: 0`。該視窗上所有 toggle
+  亦未改變。
+- P28：結果相同，`p28-debug-events.log` 中「clicked」出現 0 次。其既有動作檔另有座標過期的問題
+  ——它點的是 `168,151`，在 680x448 的視窗中位於藍色 overlay 上方——但改為 overlay 中心 `250,239`
+  後計數器仍為 0，可見阻擋它的並非座標。
+- P26 的分頁點擊是例外，且仍然有效：未被點擊的分頁會使快取為空，而該處抓到了 1 個 artifact。
+
+分頁列可觸及、一般控制項不可——與下方探測表所發現的分界相同。無論 `e25b3a65` 修好了什麼，都不是
+這條路徑。
+
+### AppKit hit testing: ~~nothing but text fields can be clicked~~ — reported FIXED on 2026-08-27
 
 **Fixed 2026-08-27 by `e25b3a65 Fix AppKit hit testing and Swift 6 replay
 build`, on the Mac.** Not verified here and not verifiable here -- there is no

@@ -132,6 +132,7 @@ black frame.
 | `test_common.zsh` | Parses the flags, resolves the platform, and runs WSLg, Windows or macOS directly; delegates iOS and Android to the two scripts below, rebuilding the flags in their spelling |
 | `test_ios.zsh` | macOS: installs a Pn through the fixed `debugTarget` iOS bundle and launches Simulator; optionally replays an action file through XCUITest. Reached as `test.zsh <Pn> --ios` |
 | `test_android.zsh` | macOS: builds and bundles a Pn as an APK, installs it on the emulator and launches it. Reached as `test.zsh <Pn> --android` |
+| `sweep-test/sweep_drive_macos.zsh` | Runs every built Pn on macOS and appends a row per app to `matrix_coverage/results.csv2`. The macOS counterpart of `sweep_drive.zsh`, which is the Windows one |
 
 ## Other scripts
 

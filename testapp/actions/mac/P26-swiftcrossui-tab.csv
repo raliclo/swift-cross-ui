@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P26: switch to the SwiftCrossUI tab and let AsyncImage finish.
+# P26：切換至 SwiftCrossUI 分頁，並等待 AsyncImage 完成。
+click,225,17,,left,,,the SwiftCrossUI tab,macos
+sleep,,,,,,3000000,let the fetch finish,macos

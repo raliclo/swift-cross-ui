@@ -661,6 +661,21 @@ fi
 # Swift Bundler 需要 Bundler.toml 才能把可執行 target 打包成 app bundle：SwiftPM 的
 # 可執行檔本身沒有 Info.plist 與 bundle identifier，simctl install 無法直接安裝。
 # 此檔與 Package.swift 一同產生，確保兩者與所請求的 app 清單保持一致。
+#
+# For Android the per-app section also carries testapp/androidContainer's
+# settings. Without them every API level came from swift-bundler's defaults and
+# from whichever build-tools the SDK happened to have -- the last APK built that
+# way reported compileSdk 35, which nobody had chosen. See that file for what
+# each value is and why.
+# Android 的 per-app 區段另外帶入 testapp/androidContainer 的設定。若無這些設定，每個 API level
+# 都取自 swift-bundler 的預設值與「SDK 恰好安裝了哪個 build-tools」——以該方式建出的最後一個 APK
+# 回報 compileSdk 35，而那是無人選擇的結果。各項數值的意義與理由見該檔。
+android_container="$script_dir/androidContainer/Bundler.android.toml"
+if [ "$target_platform" = "android" ] && [ ! -f "$android_container" ]; then
+    echo "Missing Android settings: $android_container" >&2
+    exit 1
+fi
+
 {
     printf 'format_version = 2\n'
     for app_name in $app_names; do
@@ -668,6 +683,10 @@ fi
         printf "identifier = 'dev.swiftcrossui.testapp.%s'\n" "$app_name"
         printf "product = '%s'\n" "$app_name"
         printf "version = '0.1.0'\n"
+        if [ "$target_platform" = "android" ]; then
+            printf '\n[apps.%s.android]\n' "$app_name"
+            cat "$android_container"
+        fi
     done
 } > "$package_dir/Bundler.toml"
 

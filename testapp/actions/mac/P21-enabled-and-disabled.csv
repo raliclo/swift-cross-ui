@@ -1,0 +1,28 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21: press every control's Enabled copy, then its Disabled copy.
+#
+# The point is the second half. A disabled control that merely looks disabled
+# still accepts the click, and the only way to tell is to press it and read the
+# state back -- the app prints each value, so a disabled control that moved is
+# visible in the log rather than only in a screenshot.
+#
+# P21：先按下每個控制項的 Enabled 版本，再按下其 Disabled 版本。
+#
+# 重點在後半。一個「只是看起來被停用」的控制項仍會接受點擊，而唯一分辨的方法就是按下它並讀回狀態
+# ——該 app 會印出每一個值，因此「被停用卻仍改變了」會出現在記錄檔中，而不只是停留在截圖裡。
+click,58,178,,left,,,Button enabled -- clicks must rise,macos
+sleep,,,,,,300000,,macos
+click,132,178,,left,,,Button disabled -- clicks must not rise,macos
+sleep,,,,,,300000,,macos
+click,60,251,,left,,,Toggle enabled -- must flip to true,macos
+sleep,,,,,,300000,,macos
+click,141,251,,left,,,Toggle disabled -- must not flip,macos
+sleep,,,,,,300000,,macos
+click,104,312,,left,,,ToggleSwitch enabled,macos
+sleep,,,,,,300000,,macos
+click,215,312,,left,,,ToggleSwitch disabled -- must not flip,macos
+sleep,,,,,,300000,,macos
+click,60,373,,left,,,Toggle button style enabled,macos
+sleep,,,,,,300000,,macos
+click,92,431,,left,,,Checkbox enabled,macos
+sleep,,,,,,500000,let the last state settle,macos
