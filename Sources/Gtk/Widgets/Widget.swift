@@ -12,6 +12,24 @@ open class Widget: GObject {
 
     public private(set) var eventControllers: [EventController] = []
 
+    /// The size GTK actually gave this widget, in logical pixels.
+    ///
+    /// Zero until the widget has been allocated, which is why callers need a
+    /// signal to tell them when to read it rather than reading it after
+    /// `present()`. Distinct from anything the widget asked for: this is the
+    /// answer, not the request.
+    ///
+    /// GTK 實際配置給此 widget 的尺寸，單位為 logical pixel。
+    ///
+    /// 在 widget 被配置之前為零，這正是呼叫端需要以 signal 得知「何時可讀」、而非在 `present()`
+    /// 之後直接讀取的原因。它與 widget 所要求的任何尺寸不同：這是結果，不是請求。
+    public var allocatedSize: Size {
+        Size(
+            width: Int(gtk_widget_get_width(widgetPointer)),
+            height: Int(gtk_widget_get_height(widgetPointer))
+        )
+    }
+
     public weak var parentWidget: Widget? {
         willSet {}
         didSet {

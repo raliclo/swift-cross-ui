@@ -1000,6 +1000,49 @@ public final class GtkBackend:
 
         window.setChild(Gtk.Box())
 
+        // `gtk_window_set_default_size` sizes the WINDOW, and with client-side
+        // decorations the header bar is inside the window. So the size just set
+        // is not the size the app asked for -- an app requesting 900x600 was
+        // measured getting 900x561 of content on WSLg, the missing 39 being the
+        // header bar. AppKit and WinUI both treat the request as content: on
+        // Windows the title bar is non-client area, and the same app there gets
+        // a 916x639 frame around a 900x600 client. GTK was the odd one out.
+        //
+        // The shortfall cannot be computed in advance. There is no
+        // set-content-size call in GTK4, and the header's height depends on the
+        // theme, the scale and whether the compositor gives server-side
+        // decorations at all -- under which the shortfall is zero and this must
+        // do nothing. So it is measured once the window is mapped, which is the
+        // first moment the child has a real allocation, and corrected once.
+        //
+        // Guarded by `didCorrect` rather than by disconnecting: "map" fires
+        // again if the window is hidden and reshown, and by then the user may
+        // have resized it deliberately. Growing it a second time would fight
+        // them.
+        //
+        // `gtk_window_set_default_size` 設定的是「視窗」，而在 client-side decoration 之下，
+        // 標題列位於視窗之內。因此剛才設定的並不是 app 所要求的尺寸——實測一支要求 900x600 的
+        // app 在 WSLg 上只拿到 900x561 的內容，少掉的 39 就是標題列。AppKit 與 WinUI 都把該
+        // 要求視為內容尺寸：Windows 上標題列屬 non-client 區域，同一支 app 得到的是 916x639
+        // 的外框包著 900x600 的 client。GTK 是三者中唯一不同的。
+        //
+        // 差額無法事先算出。GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度取決於主題、縮放，
+        // 以及 compositor 是否提供 server-side decorations——在後者之下差額為零，此處必須什麼
+        // 都不做。因此改為在視窗被 map（child 首次擁有真實配置的時刻）之後量測一次並修正一次。
+        //
+        // Measured, so that the next reader does not repeat it: the "map" signal
+        // is too early. Instrumented, it reports `contentAllocation=0x0` -- the
+        // window is mapped before its child has any allocation at all. The
+        // correction therefore happens from `updateWindow`, which the framework
+        // calls on every layout pass, by which time the allocation is real.
+        //
+        // 已實測，避免下一位讀者重蹈：`"map"` signal 太早。加上診斷後它回報
+        // `contentAllocation=0x0`——視窗被 map 時，其 child 根本還沒有任何配置。因此改由
+        // `updateWindow` 執行修正，那是框架在每次版面計算時都會呼叫的位置，屆時配置已是真的。
+        if let defaultSize {
+            requestedContentSizes[ObjectIdentifier(window)] = defaultSize
+        }
+
         window.notifyIsActive = { _ in
             self.rootEnvironmentChangeHandler?()
         }
@@ -1007,7 +1050,66 @@ public final class GtkBackend:
         return window
     }
 
+    /// The content size each window was created with, and the windows already
+    /// grown to deliver it. See `createWindow` for why the correction cannot
+    /// happen there.
+    /// 各視窗建立時所要求的內容尺寸，以及已經被放大以交付該尺寸的視窗。修正為何無法在
+    /// `createWindow` 內完成，見該處說明。
+    private var requestedContentSizes: [ObjectIdentifier: SIMD2<Int>] = [:]
+    private var contentSizeCorrected: Set<ObjectIdentifier> = []
+
+    /// Grows a window by however much its decorations ate, once.
+    ///
+    /// `gtk_window_set_default_size` sizes the window, and under client-side
+    /// decorations the header bar is inside it, so an app asking for 900x600 was
+    /// measured getting 900x561 of content on WSLg. AppKit and WinUI both treat
+    /// the request as content -- on macOS the same app gets a 900x628 frame
+    /// around 900x600, on Windows a 916x639 frame around a 900x600 client -- so
+    /// GTK was the only one of the three delivering less than was asked for.
+    ///
+    /// The shortfall cannot be computed in advance: GTK4 has no set-content-size
+    /// call, and the header's height depends on the theme, the scale and whether
+    /// the compositor gives server-side decorations at all, under which it is
+    /// zero and this must do nothing.
+    ///
+    /// 依裝飾所吃掉的量放大視窗，只做一次。
+    ///
+    /// `gtk_window_set_default_size` 設定的是視窗，而在 client-side decoration 之下標題列位於其
+    /// 內，因此實測一支要求 900x600 的 app 在 WSLg 上只拿到 900x561 的內容。AppKit 與 WinUI 都把
+    /// 該要求視為內容——macOS 上同一支 app 得到 900x628 的外框包著 900x600，Windows 上是 916x639
+    /// 的外框包著 900x600 的 client——因此 GTK 是三者中唯一交付得比要求少的。
+    ///
+    /// 差額無法事先算出：GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度取決於主題、縮放，以及
+    /// compositor 是否提供 server-side decorations——在後者之下差額為零，此處必須什麼都不做。
+    private func correctContentSizeIfNeeded(of window: Window) {
+        let key = ObjectIdentifier(window)
+        guard let requested = requestedContentSizes[key],
+            !contentSizeCorrected.contains(key),
+            let content = window.getChild()
+        else { return }
+
+        let allocated = content.allocatedSize
+        // Still zero means the allocation has not happened yet, so this is not
+        // the pass that can measure it. Returning without marking the window
+        // corrected leaves the next pass to try.
+        // 仍為零代表配置尚未發生，因此這一輪無法量測。此處返回而不標記為已修正，把機會留給下一輪。
+        guard allocated.width > 0, allocated.height > 0 else { return }
+
+        contentSizeCorrected.insert(key)
+
+        let shortfallX = requested.x - allocated.width
+        let shortfallY = requested.y - allocated.height
+        guard shortfallX > 0 || shortfallY > 0 else { return }
+
+        window.defaultSize = Size(
+            width: requested.x + max(0, shortfallX),
+            height: requested.y + max(0, shortfallY)
+        )
+    }
+
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
+        correctContentSizeIfNeeded(of: window)
+
         // #386, the override half: honour preferredColorScheme by asking GTK for
         // the matching theme variant, so the widgets GTK draws itself (buttons,
         // entries, list rows) follow the app's request too, not just the text
