@@ -164,12 +164,54 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
         body.children(backend: backend, snapshots: snapshots, environment: environment)
     }
 
-    @CastBackend<BackendFeatures.GeometricEffects>(returnsWidget: true)
+    // Degrades to the untransformed view rather than aborting the process.
+    //
+    // Same change as ``VisualEffectModifier/asWidget(_:backend:)`` and for the
+    // same reason, but the argument for it is already written down elsewhere in
+    // this file's own subject area: the GTK section of todo.md concludes that
+    // declining to render a geometric effect beats rendering it wrongly,
+    // because "an untransformed view is legible and clickable". That reasoning
+    // applies with more force to a backend that has not implemented the feature
+    // at all -- there the alternative was not a wrong rendering but no process.
+    //
+    // Measured 2026-09-01: AppKitBackend does not implement this, so P40 aborted
+    // at launch with no window on macOS.
+    //
+    // Unlike a compositing effect, a geometric one does change where a view's
+    // pixels land, and therefore where it can be clicked. Degrading leaves the
+    // view at its layout rectangle, which is where hit testing already expects
+    // it -- so the degraded case is self-consistent, and the transformed case is
+    // the one that has to keep the two in step.
+    //
+    // 降級為未經變換的 view，而非中止行程。
+    //
+    // 與 ``VisualEffectModifier/asWidget(_:backend:)`` 是相同的改動、相同的理由；但支持它的論證，
+    // 早已寫在本檔自身主題領域的別處：todo.md 的 GTK 一節結論是「寧可拒絕算繪幾何效果，也不要算繪
+    // 錯誤」，因為「未經變換的 view 是可讀且可點擊的」。這個推理對「完全未實作該功能的 backend」
+    // 更為適用——在那裡，替代方案並不是一個錯誤的算繪，而是根本沒有行程。
+    //
+    // 2026-09-01 量測：AppKitBackend 並未實作本項，因此 P40 在啟動時即中止，在 macOS 上沒有視窗。
+    //
+    // 不同於合成效果，幾何效果確實會改變 view 的像素落在何處，因而也改變它能在何處被點擊。降級會讓
+    // view 留在它的版面矩形上，而那正是 hit testing 本來就預期它所在的位置——因此降級的情況是自洽的，
+    // 反而是「有變換」的情況才必須讓兩者保持同步。
     func asWidget<Backend: BaseAppBackend>(
         _ children: Children,
         backend: Backend
     ) -> Backend.Widget {
-        backend.createGeometricEffectContainer(wrapping: body.asWidget(children, backend: backend))
+        let inner = body.asWidget(children, backend: backend)
+
+        func wrap<B: BaseAppBackend & BackendFeatures.GeometricEffects>(backend: B) -> B.Widget {
+            backend.createGeometricEffectContainer(wrapping: inner as! B.Widget)
+        }
+        guard let capable = backend as? any BaseAppBackend & BackendFeatures.GeometricEffects
+        else {
+            logger.warnOnce(
+                "\(type(of: backend)) doesn't support geometric effects; showing it untransformed"
+            )
+            return inner
+        }
+        return wrap(backend: capable) as! Backend.Widget
     }
 
     func layoutableChildren<Backend: BaseAppBackend>(
@@ -201,7 +243,11 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
         )
     }
 
-    @CastBackend<BackendFeatures.GeometricEffects>
+    // No warning here; `asWidget` has already reported it. See the note on
+    // ``VisualEffectModifier``'s commit for why the second call site is left
+    // silent.
+    // 此處不發出警告；`asWidget` 已經回報過。第二個呼叫點保持沉默的理由，見 ``VisualEffectModifier``
+    // 的 commit 上的說明。
     func commit<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
         children: Children,
@@ -211,9 +257,17 @@ struct GeometricEffectModifier<Content: View>: View, TypeSafeView {
     ) {
         let size = children.child0.commit().size
         backend.setSize(of: widget, to: size.vector)
-        backend.setGeometricEffect(
-            effect.resolved(in: SIMD2(Double(size.vector.x), Double(size.vector.y))),
-            ofWidget: widget
-        )
+
+        func apply<B: BaseAppBackend & BackendFeatures.GeometricEffects>(backend: B) {
+            backend.setGeometricEffect(
+                effect.resolved(in: SIMD2(Double(size.vector.x), Double(size.vector.y))),
+                ofWidget: widget as! B.Widget
+            )
+        }
+        guard let capable = backend as? any BaseAppBackend & BackendFeatures.GeometricEffects
+        else {
+            return
+        }
+        apply(backend: capable)
     }
 }

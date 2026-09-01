@@ -187,6 +187,41 @@ default_action_file() {
     local folder
     folder="$(platform_folder)"
     local candidates=("$script_dir/actions/$folder/$app"-*.csv(N))
+
+    # Drop candidates that belong to a longer-named app.
+    #
+    # `$app-*.csv` is a prefix glob, and some apps are prefixes of others:
+    # P15 and P15-DARK, P6 and P6-v2, P17 and P17-DOE. Asking for P15 matched
+    # P15-DARK's file too and the run stopped with "Several action files for
+    # P15" -- which reads as two files for one app rather than one file each
+    # for two apps.
+    #
+    # The other names are read from the .swift files rather than listed here,
+    # so a new P15-SOMETHING needs no change to this function.
+    #
+    # 排除屬於「名稱更長的另一支 app」的候選檔。
+    #
+    # `$app-*.csv` 是前綴 glob，而有些 app 的名稱正是另一些的前綴：P15 與 P15-DARK、P6 與 P6-v2、
+    # P17 與 P17-DOE。要求 P15 時會連 P15-DARK 的檔案一起匹配，執行便以「Several action files for
+    # P15」中止——那讀起來像是「一支 app 有兩個檔案」，而實際上是「兩支 app 各有一個檔案」。
+    #
+    # 其他 app 的名稱是自 .swift 檔讀取，而非列在此處，因此日後新增 P15-SOMETHING 不需要更動本函式。
+    if [ "${#candidates}" -gt 1 ]; then
+        local other kept=()
+        local others=("$script_dir"/"$app"-*.swift(N:t:r))
+        for candidate in $candidates; do
+            local name="${candidate:t}"
+            local claimed=0
+            for other in $others; do
+                if [[ "$name" == "$other"-* ]]; then
+                    claimed=1
+                    break
+                fi
+            done
+            [ "$claimed" -eq 0 ] && kept+=("$candidate")
+        done
+        [ "${#kept}" -gt 0 ] && candidates=($kept)
+    fi
     if [ "${#candidates}" -eq 0 ]; then
         printf 'No action file for %s in %s/actions/%s\n' "$app" "$script_dir" "$folder" >&2
         printf 'A file appears there once it has been verified on that platform.\n' >&2
@@ -983,9 +1018,52 @@ run_macos() {
         printf 'Missing macOS app template: %s\n' "$mac_template_dir" >&2
         return 1
     fi
+    # One bundle identifier per Pn, stamped in rather than shipped in the
+    # template.
+    #
+    # The template's identifier is a constant, so every test app used to run as
+    # `dev.swiftcrossui.testapp.debugTarget` and share one UserDefaults domain.
+    # NSWindow frame autosave lives there, and AppKitBackend keys it on the root
+    # view's type -- measured in that domain on 2026-09-01:
+    #
+    #     "NSWindow Frame TupleView1<HotReloadableView>-0" = "620 65 1076 907 ..."
+    #
+    # That name is shared by every app whose root view is a plain
+    # `TupleView1<HotReloadableView>`, which is most of them, so a window's size
+    # was decided by whichever Pn had been resized last. P28 opened at 680x448
+    # launched bare and at 1076x907 launched here, same binary, same commit --
+    # which is why an action file measured one way missed by hundreds of points
+    # replayed the other way.
+    #
+    # It also means AppStorage was shared: `p0LaunchCount` sat in the same
+    # domain, so P0 counted launches of every other app as its own.
+    #
+    # 每一支 Pn 各有一個 bundle identifier，於此處寫入，而非由 template 帶著。
+    #
+    # template 的 identifier 是常數，因此每一支測試 app 都以
+    # `dev.swiftcrossui.testapp.debugTarget` 執行，共用同一個 UserDefaults domain。NSWindow 的
+    # frame autosave 就住在那裡，而 AppKitBackend 以 root view 的型別為其命名——2026-09-01 於該
+    # domain 中實測，即為上方那一行。
+    #
+    # 那個名稱被「root view 為單純 `TupleView1<HotReloadableView>`」的每一支 app 共用，而那是其中
+    # 大多數；於是一個視窗的尺寸，是由「最後被調整過大小的那一支 Pn」決定的。P28 以裸執行檔啟動時
+    # 是 680x448，在此處啟動時是 1076x907——同一個 binary、同一個 commit——這正是「以其中一種方式
+    # 量出的動作檔，用另一種方式重放時會差上數百點」的原因。
+    #
+    # 這也意味著 AppStorage 是共用的：`p0LaunchCount` 位於同一個 domain，因此 P0 把其他每一支 app
+    # 的啟動都算成了自己的。
     mkdir -p "$mac_bundle_dir"
     cp "$mac_template_dir/Info.plist" "$mac_bundle_dir/Info.plist"
     cp "$mac_template_dir/PkgInfo" "$mac_bundle_dir/PkgInfo"
+    # Lowercased, because a bundle identifier is matched case-insensitively by
+    # Launch Services but stored as written, and two spellings of one app would
+    # be two domains.
+    # 轉為小寫，因為 Launch Services 比對 bundle identifier 時不分大小寫，但儲存時照原樣保留；
+    # 同一支 app 的兩種寫法會變成兩個 domain。
+    local bundle_id="dev.swiftcrossui.testapp.${app:l}"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle_id" \
+        "$mac_bundle_dir/Info.plist" >/dev/null
+    printf '    bundle identifier: %s\n' "$bundle_id"
     rm -f "$mac_bundle_executable"
     cp "$out/$app" "$mac_bundle_executable"
     chmod +x "$mac_bundle_executable"

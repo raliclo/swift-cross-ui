@@ -78,9 +78,35 @@ struct P41RootView: View {
                 P41Cell(label: ".graphical", date: $graphical, style: .graphical)
             }
 
+            // `.wheel` only where the enum has it.
+            //
+            // `BackendDatePickerStyle.wheel` is `@available(macOS, unavailable)`,
+            // so naming it unconditionally made P41 fail to compile for macOS --
+            // it has never built there. The same commit that added this app,
+            // f704f304, also added `.wheel` to GtkBackend's supported list and
+            // broke `swift test` on a Mac the same way; that half was fixed
+            // separately.
+            //
+            // The macOS cell says so rather than being dropped. A row that
+            // silently loses a cell on one platform reads as a layout
+            // difference, which is the one thing P41 is for comparing.
+            //
+            // 只在 enum 具備該 case 的平台上使用 `.wheel`。
+            //
+            // `BackendDatePickerStyle.wheel` 帶有 `@available(macOS, unavailable)`，因此無條件
+            // 指名它會使 P41 無法為 macOS 編譯——它在該平台上從未建置成功過。加入本 app 的同一個
+            // commit f704f304，也把 `.wheel` 加進了 GtkBackend 的支援清單，以同樣的方式弄壞了
+            // Mac 上的 `swift test`；那一半已另行修復。
+            //
+            // macOS 上的那一格會說明情況，而不是直接消失。在某個平台上悄悄少掉一格的列，讀起來會像
+            // 是版面差異——而版面差異正是 P41 要用來比較的東西。
             HStack(spacing: 20) {
                 P41Cell(label: ".compact", date: $compact, style: .compact)
-                P41Cell(label: ".wheel", date: $wheel, style: .wheel)
+                #if os(macOS)
+                    Text(".wheel is unavailable on macOS")
+                #else
+                    P41Cell(label: ".wheel", date: $wheel, style: .wheel)
+                #endif
             }
 
             // Components, not styles. Both cells below use `.graphical` so the

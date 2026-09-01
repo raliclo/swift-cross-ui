@@ -9,14 +9,21 @@ zsh testapp/test.zsh P28 --macos --actionfile
 
 ## Verified
 
-Two files have been run here and seen to work:
+AppKit hit testing was fixed on 2026-09-01 (`226a4af7`), together with the
+bundle-identity fault that had the same symptom (`test_common.zsh`). Files
+run here since:
 
-- `P28-hit-testing.csv` — `underlying button clicked count=1` in
-  `testapp/output/p28-debug-events.log`.
+- `P28-hit-testing.csv` — `underlying button clicked count=1` then `count=2`
+  in `testapp/output/p28-debug-events.log`. Its coordinates were also stale
+  and are corrected.
+- `P21-enabled-and-disabled.csv` — `Button — clicks: 1`. One, not two: the
+  enabled button counted and the disabled one did not. Toggle, toggle-button
+  and checkbox all flipped; every disabled counterpart stayed put.
+- `P0-appstorage.csv` — the Reset click lands and the status line says so.
 - `P26-swiftcrossui-tab.csv` — the tab click reaches the tab strip and one
   artifact is fetched.
 
-## Everything else here is unverified, and that is a change of rule
+## Everything else here is written but not yet replayed
 
 This file used to say: *a file appears here only after it has been run here
 and seen to work; an empty folder is an honest gap, and a copy of another
@@ -24,12 +31,19 @@ platform's file is a claim nobody checked.* That rule was right and the
 reasoning still holds. It is suspended for one specific reason, written down
 here rather than quietly ignored.
 
-AppKit hit testing is broken on this machine (see `todo.md`). A replay reaches
-the tab strip in P26 and nothing else — P21 reports `Button — clicks: 0` for a
-click at the centre of the button, P28's counter stays at zero at the corrected
-overlay centre. So no file written today *can* be verified, and waiting for the
-fix would mean measuring every window twice: once now to know where the
-controls are, and again later.
+These were written while AppKit hit testing was broken, when no file *could*
+be verified and waiting for the fix would have meant measuring every window
+twice. That is fixed now, so the rule can go back to what it was — but only
+after each file has actually been run, which four have been and the rest have
+not. Until then they are measured, not confirmed.
+
+One thing to know before replaying them: they were measured against the bare
+executable, whose window and the bundle's now agree only because each app
+finally has its own UserDefaults domain and so no inherited frame. An app
+that gets resized will save its own frame and keep it, and its file's
+coordinates will be stale from then on. `measure_macos.zsh` reports the size
+it measured; compare it against the size in the file's header before
+believing a miss.
 
 What is written down is therefore what was measured, not what was observed to
 work. Every coordinate here was read off a window capture taken by
@@ -49,8 +63,7 @@ These are gaps with reasons, not oversights.
 | App | Why |
 | --- | --- |
 | `P25` | Needs a drag from the Finder. A cross-application drag comes from the window server's drag session; `NSApp.postEvent` cannot start one. |
-| `P30`, `P39` | Abort at launch: `'AppKitBackend' does not implement 'BackendFeatures.VisualEffects'`. There is no window to click. |
-| `P40` | Same, for `BackendFeatures.GeometricEffects`. |
+| `P30`, `P39`, `P40` | They open now -- the abort was fixed on 2026-09-01 -- but AppKitBackend still implements neither effect family, so every view in them renders unmodified. There is nothing a click would distinguish. Files are worth adding once the conformances exist. |
 | `P37` | Asks for another application's window to be given focus, which the synthesiser cannot do — it posts into this app's own event queue. |
 | `P17-DOE` | Three drawn rectangles and no controls. A capture answers it. |
 | `P6-v2` | Imports `Gtk` and `GtkBackend` directly. It does not build for AppKit and is not meant to. |
@@ -110,8 +123,7 @@ AppKit 的 hit testing 在這台機器上是壞的（見 `todo.md`）。重放�
 | App | 原因 |
 | --- | --- |
 | `P25` | 需要從 Finder 拖曳。跨應用程式的拖曳來自 window server 的 drag session；`NSApp.postEvent` 無法發起。 |
-| `P30`、`P39` | 啟動即中止：`'AppKitBackend' does not implement 'BackendFeatures.VisualEffects'`。沒有視窗可點。 |
-| `P40` | 同上，為 `BackendFeatures.GeometricEffects`。 |
+| `P30`、`P39`、`P40` | 現在開得起來了——那個中止已於 2026-09-01 修復——但 AppKitBackend 兩個效果系列仍都未實作，因此其中每一個 view 都以未經修飾的樣貌算繪。沒有任何東西是一次點擊能夠區分的。待 conformance 存在後再補上檔案。 |
 | `P37` | 要求把焦點交給另一個應用程式的視窗，而 synthesiser 做不到——它只把事件送入本 app 自己的事件佇列。 |
 | `P17-DOE` | 三個繪製出來的矩形，沒有任何控制項。擷取影像即可回答。 |
 | `P6-v2` | 直接 `import Gtk` 與 `GtkBackend`。它不會為 AppKit 建置，也不打算如此。 |

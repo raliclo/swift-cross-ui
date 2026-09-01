@@ -1,5 +1,38 @@
 action,x,y,origin,button,key,micros,note,platform
-# P28: the opaque blue overlay is disabled for hit testing.
-# P28：不透明藍色 overlay 已停用 hit testing。
-click,168,151,,left,,,click through the overlay to the button,macos
-sleep,,,,,,500000,wait for the click counter and debug log,macos
+# P28: click the button through the blue overlay.
+#
+# The coordinates were stale and had been for some time. This file clicked
+# `168,151` in client space, which is above the overlay in a 680x448 window --
+# it lands on the "Clicks received" line. todo.md recorded the staleness on
+# 2026-09-01 and also recorded that correcting it did not help, because AppKit
+# hit testing was broken at the time; with that fixed the coordinates are the
+# only thing left, so they are corrected here.
+#
+# origin=frame now, and measured rather than adjusted: the overlay spans
+# x 200-800, y 454-632 in a capture 1360px wide for a 680pt window, so its
+# centre is (250, 271) in points. The old client-space numbers would have needed
+# a title bar height subtracted -- 28pt on this machine, from the replay's own
+# `frame=(620.0, 108.0) client=(620.0, 136.0)` -- and nothing in the file
+# recorded which height it had been written against.
+#
+# Two clicks, not one. One click proves the overlay does not swallow it; the
+# second proves the counter is counting rather than latching, which is the
+# failure a single increment cannot tell apart.
+#
+# P28：穿過藍色 overlay 點擊按鈕。
+#
+# 座標早已過期。本檔原本點擊 client 座標的 `168,151`，在 680x448 的視窗中位於 overlay 之上——它
+# 落在「Clicks received」那一行。todo.md 於 2026-09-01 記錄了這項過期，同時也記錄了「修正它並沒有
+# 用」，因為當時 AppKit 的 hit testing 是壞的；那個問題修好之後，剩下的就只有座標，因此在此修正。
+#
+# 現在使用 origin=frame，且是量出來的而非推算的：在「680pt 視窗、擷取寬 1360px」之下，overlay 範圍
+# 為 x 200-800、y 454-632，故其中心為 (250, 271) 點。舊的 client 座標需要扣掉標題列高度——在這台
+# 機器上是 28pt，取自重放自身的 `frame=(620.0, 108.0) client=(620.0, 136.0)`——而檔案裡沒有任何
+# 東西記錄它當初是照著哪一個高度寫的。
+#
+# 點兩次，不是一次。第一次證明 overlay 沒有把它吞掉；第二次證明計數器是在「計數」而非「鎖定」，
+# 而那正是單一次遞增無法區分的失效模式。
+click,250,271,frame,left,,,through the overlay to the button underneath,macos
+sleep,,,,,,600000,let the counter and the debug log catch up,macos
+click,250,271,frame,left,,,again -- Clicks received must reach 2,macos
+sleep,,,,,,800000,,macos

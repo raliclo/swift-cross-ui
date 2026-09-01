@@ -989,7 +989,9 @@ Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
 value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
 `.clipShape`, `.mask`, `.compositingGroup`, `.drawingGroup`.
 
-**AppKitBackend implements neither family, and the fallback is `fatalError`.**
+**AppKitBackend implements neither family. The `fatalError` is fixed; the
+conformances are still missing.** Both modifiers now degrade -- fixed
+2026-09-01, see below.
 Measured 2026-09-01 on the Mac: P30 and P39 abort at launch with
 `VisualEffectModifier.swift:89: Fatal error: 'AppKitBackend' does not implement
 'BackendFeatures.VisualEffects'`, and P40 with the same shape from
@@ -1013,7 +1015,36 @@ not implement 'BackendFeatures.VisualEffects'`，而 P40 則是來自
 三支在 macOS 上根本沒有視窗，而這正是它被發現的方式——`measure_macos.zsh` 回報
 「no window owned by P30 after 20s」。
 
-缺少 conformance 是預期之中的事；真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
+**Fixed 2026-09-01.** `VisualEffectModifier` and `GeometricEffectModifier` no
+longer go through `@CastBackend` for the unsupported case. They warn once and
+return the child's widget unwrapped, so the view renders plainly and the app
+runs. Verified on the Mac: all three apps now open a window --
+P30 860x648, P39 860x648, P40 900x697 -- and each prints
+`AppKitBackend doesn't support visual effects; showing the view unmodified`
+or the geometric equivalent.
+
+The macro is unchanged. Its `fatalError` is right where there is no fallback,
+which GtkBackend's WebView and AngularGradient both rely on; only the two
+modifiers that have somewhere to fall back to were changed.
+
+Still open: AppKitBackend implements neither conformance. Degrading means P30,
+P39 and P40 show unmodified views, which is a truthful result rather than a
+correct one.
+
+**已於 2026-09-01 修復。** `VisualEffectModifier` 與 `GeometricEffectModifier` 在不支援的情況下
+不再經由 `@CastBackend`。它們會警告一次，並回傳未經包裝的子 widget，因此 view 平實地算繪，
+app 也能執行。已在 Mac 上驗證：三支 app 現在都會開出視窗——P30 860x648、P39 860x648、
+P40 900x697——並各自印出
+`AppKitBackend doesn't support visual effects; showing the view unmodified`
+或幾何效果的對應訊息。
+
+macro 未做更動。在沒有退路之處，它的 `fatalError` 是對的，而 GtkBackend 的 WebView 與
+AngularGradient 都倚賴這一點；只有那兩個確實有退路可走的 modifier 被改動。
+
+仍未解決：AppKitBackend 兩個 conformance 都未實作。降級意味著 P30、P39 與 P40 顯示的是未經修飾
+的 view——那是一個誠實的結果，而不是一個正確的結果。
+
+缺少 conformance 是預期之中的事；當時真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
 這一點。這棵樹裡其他每一項不受支援的東西都會降級並說明——`datePickerStyle(_:)` 會把不支援的樣式
 降級為 `.automatic`，而下方的 geometric-effects 一節更是長篇論證「寧可拒絕算繪，也不要算繪錯誤」。
 那兩者都讓 app 繼續執行。這一個則會中止行程，因此只要 app 中任何一處用到該視圖，在尚未實作它的
@@ -1077,7 +1108,64 @@ window was not reachable from the Windows capture path.
   fix, `case .semibold: 600`, is wrong: `.medium` is already 600, so it moves
   the collision rather than removing it.
 
-### AppKit hit testing: still not working on the Mac as of 2026-09-01
+### AppKit hit testing: fixed 2026-09-01 by restoring 9623ad67
+
+`226a4af7` puts back the implementation `e25b3a65` had reverted. `hitTest(_:)`
+receives a point in the **superview's** space -- the AppKit header says so --
+so one conversion is needed at the top and the same point then goes to every
+child unchanged. Both wrong versions are correct only while the container sits
+at its superview's origin, which is why P26's tab strip worked throughout and
+ordinary controls did not.
+
+Measured on the Mac after the restore:
+
+    P21   Button - clicks: 1        (was 0; the disabled button correctly
+                                     did not add a second)
+    P28   underlying button clicked count=1, then count=2
+    P0    the Reset click lands and the status line says so
+
+**A second fault had the same symptom, and is fixed in `test_common.zsh`.**
+P28 still missed after the hit-testing restore, and its coordinates were not
+the reason either. Every test app ran as `dev.swiftcrossui.testapp.debugTarget`
+-- one identifier from the shared template -- so they shared a UserDefaults
+domain, and NSWindow frame autosave lives there under a name AppKitBackend
+derives from the root view's type. Read out of that domain:
+
+    "NSWindow Frame TupleView1<HotReloadableView>-0" = "620 65 1076 907 ..."
+
+Most apps have that exact root view, so a window's size came from whichever Pn
+was resized last. P28 opened 680x448 as a bare executable and 1076x907 from
+the bundle, same binary and commit. `test.zsh` replays from the bundle;
+`measure_macos.zsh` was measuring the bare one, so every coordinate it produced
+described a window the replay would never see. Both now stamp a per-app
+identifier, and both now agree.
+
+The same shared domain held `p0LaunchCount`, so P0's AppStorage had been
+counting every other app's launches as its own.
+
+### AppKit hit testing：2026-09-01 以還原 9623ad67 修復
+
+`226a4af7` 把 `e25b3a65` 所反轉掉的實作放了回去。`hitTest(_:)` 收到的點位於 **superview** 的座標系
+——AppKit 的標頭如此陳述——因此只需在最上方轉換一次，之後同一個點原封不動交給每一個 child。兩個
+錯誤版本都只有在 container 恰好位於其 superview 原點時才會是對的，這正是 P26 的分頁列自始至終
+可用、而一般控制項不可用的原因。
+
+還原後於 Mac 上實測（數值見上方英文段落）。
+
+**另有第二個故障具有相同症狀，已在 `test_common.zsh` 中修復。** 在 hit testing 還原之後 P28 仍然
+落空，而原因也不是它的座標。每一支測試 app 都以 `dev.swiftcrossui.testapp.debugTarget` 執行——來自
+共用 template 的單一 identifier——因此它們共用一個 UserDefaults domain，而 NSWindow 的 frame
+autosave 就住在那裡，其名稱由 AppKitBackend 依 root view 的型別推得（見上方讀出的那一行）。
+
+多數 app 的 root view 正是那一個，於是視窗尺寸取決於「最後被調整過大小的那一支 Pn」。P28 以裸執行檔
+啟動是 680x448，自 bundle 啟動是 1076x907，同一個 binary、同一個 commit。`test.zsh` 是自 bundle
+重放的；`measure_macos.zsh` 量的卻是裸執行檔，因此它產出的每一個座標，描述的都是重放永遠不會見到的
+視窗。現在兩者都會寫入 per-app 的 identifier，也終於一致。
+
+同一個共用 domain 裡還放著 `p0LaunchCount`，因此 P0 的 AppStorage 一直把其他每一支 app 的啟動
+算成了自己的。
+
+### AppKit hit testing: was still not working on the Mac as of 2026-09-01
 
 **The 2026-08-27 entry below records this as fixed. It is not, on this machine.**
 Re-measured 2026-09-01 with `e25b3a65` confirmed in the tree by
