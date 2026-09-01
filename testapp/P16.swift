@@ -211,8 +211,12 @@ struct P16RootView: View {
 // established is that `overlay` takes part in sizing, and that this pane's size
 // is not its own to give.
 //
-// So the numbers below are a floor, not a measurement, and #160 cannot be
-// settled from them.
+// So the numbers below are a floor, not a measurement. The pane sizes come
+// from `SplitView.commit` instead, which reports them when `SCUI_DEBUG_SPLIT`
+// is set -- outside the view tree, so nothing it reports is affected by the
+// reporting. Run `SCUI_DEBUG_SPLIT=1 ./P16.exe --debug` and read
+// `splitview-debug.log`; the panes are 200x486 and 680x486, and they are the
+// same before and after a state change, which is what settles #160.
 //
 // 回報其窗格所獲得的尺寸。保持固定框架，使 reader 本身不影響所量測的窗格高度。
 //
@@ -233,7 +237,10 @@ struct P16RootView: View {
 // 從那一步到「完全沒有視窗」之間的確切機制尚未確立；已確立的是：`overlay` 會參與尺寸決定，
 // 而這個窗格的尺寸並不由它自己決定。
 //
-// 因此下方的數字是一個下限，而非量測值，#160 無法據此定案。
+// 因此下方的數字是一個下限，而非量測值。窗格尺寸改由 `SplitView.commit` 提供——設定
+// `SCUI_DEBUG_SPLIT` 時它會印出來，位置在 view tree 之外，因此它所回報的一切都不受回報行為影響。
+// 執行 `SCUI_DEBUG_SPLIT=1 ./P16.exe --debug` 並讀取 `splitview-debug.log`：窗格為 200x486 與
+// 680x486，且狀態改變前後相同——#160 即由此定案。
 struct P16PaneSize: View {
     var label: String
 
