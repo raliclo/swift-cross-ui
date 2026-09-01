@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P18: open each of the three file dialogs and cancel it.
+#
+# Escape, not a click on Cancel. A file dialog is a window of its own whose
+# geometry this file cannot measure, but it is also modal and key, so a key event
+# reaches it without needing to know where anything in it sits. Escape is Cancel
+# for NSOpenPanel and NSSavePanel, and P18 says in its own text that cancelling
+# is half of what it tests: "the dialog closes on Open/Select/Save and on Cancel,
+# and the line above updates."
+#
+# Leaving a dialog open would be worse than not opening it. It is modal, so the
+# app stops responding to everything after it, and the replay would look like a
+# hang rather than like a file that could not finish. Each open is therefore
+# paired with its cancel on the next row.
+#
+# P18：逐一開啟三個檔案對話框，並取消它。
+#
+# 用 Escape 而非點擊 Cancel。檔案對話框是一個獨立的視窗，本檔量不到它的幾何資訊；但它同時是 modal
+# 且為 key window，因此按鍵事件不需要知道其中任何東西的位置就能送達。Escape 對 NSOpenPanel 與
+# NSSavePanel 而言即是 Cancel，而 P18 自己的文字就說了「取消」是它所測試的一半：「對話框在
+# Open/Select/Save 與 Cancel 時關閉，且上方那一行會更新。」
+#
+# 讓對話框開著會比不開它更糟。它是 modal 的，因此其後 app 對任何事都不再回應，重放看起來會像當掉，
+# 而不是像一個沒能跑完的檔案。所以每一次開啟，都在下一列配上它的取消。
+#
+# origin=frame; measured off a `screencapture -o` window capture whose top-left is
+# the frame's. This window captured 1:1 -- 720x548 image for a 706x538 window --
+# so the numbers below are the image's own. Do not copy this assumption to
+# another app: P3 on the other display captured at scale 2.
+# origin=frame；量自 `screencapture -o` 的視窗擷取，其左上角即 frame 的左上角。此視窗以 1:1 擷取
+# ——706x538 的視窗得到 720x548 的影像——因此下列數字即影像本身的座標。不要把這個假設複製到其他
+# app：另一台顯示器上的 P3 是以 scale 2 擷取的。
+click,62,243,frame,left,,,Open a file,macos
+sleep,,,,,,1500000,let the panel come up,macos
+key,,,,,escape,,cancel it -- the open line must stop saying "nothing yet",macos
+sleep,,,,,,1000000,,macos
+click,77,297,frame,left,,,Choose a folder,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,109,351,frame,left,,,Choose a save destination,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,let the last line settle,macos

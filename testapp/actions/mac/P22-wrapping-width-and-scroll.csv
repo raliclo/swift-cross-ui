@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P22: change the wrapping width, then scroll to the part that does not fit.
+#
+# The clicks come before the scroll, deliberately. Narrower and Wider sit inside
+# the scroll view, so scrolling moves them, and a file that scrolled first would
+# be clicking coordinates that were true of a different scroll position. Ordering
+# it this way means no row depends on a guess about where anything ended up.
+#
+# P22：改變換行寬度，再捲動到放不下的那一段。
+#
+# 點擊刻意排在捲動之前。Narrower 與 Wider 位於捲動視圖之內，因此捲動會移動它們；先捲動的檔案，
+# 點的會是「另一個捲動位置才成立」的座標。這樣的順序意味著沒有任何一列依賴「東西最後跑到哪裡」的猜測。
+#
+# origin=frame. Window 762x730 points, capture 1524x1460 -- scale 2.
+# origin=frame。視窗 762x730 點，擷取 1524x1460——scale 2。
+click,56,516,frame,left,,,Narrower -- the two-line paragraph must rewrap,macos
+sleep,,,,,,800000,,macos
+click,56,516,frame,left,,,Narrower again,macos
+sleep,,,,,,800000,,macos
+click,130,516,frame,left,,,Wider,macos
+sleep,,,,,,800000,,macos
+click,130,516,frame,left,,,Wider again -- back to the launch width,macos
+sleep,,,,,,1000000,,macos
+move,380,400,frame,,,,put the pointer over the content before turning the wheel,macos
+sleep,,,,,,300000,,macos
+scroll,0,6,,,,,six notches down -- into the nine weights,macos
+sleep,,,,,,1000000,,macos
+scroll,0,6,,,,,and further; the trailing rows must arrive,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-12,,,,,back to the top,macos
+sleep,,,,,,1000000,,macos

@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P3: walk the three columns -- sidebar, middle list, image size buttons.
+#
+# Everything P3 shows is in one window, so unlike P18 and P19 this file needs no
+# second window and is complete as written.
+#
+# origin=frame, and the coordinates are the capture's halved. P3's window is
+# 960x628 points and captured as a 1920x1256 image: that display is at scale 2,
+# while P18 on the other one captured 1:1. The scale is a property of the display
+# the window happened to open on, not of the app, so it is read off each capture
+# rather than assumed once.
+#
+# P3：走過三個欄位——側邊欄、中間清單、影像尺寸按鈕。
+#
+# P3 顯示的一切都在同一個視窗裡，因此不同於 P18 與 P19，本檔不需要第二個視窗，如所寫即是完整的。
+#
+# origin=frame，座標為擷取影像座標的一半。P3 的視窗為 960x628 點，擷取所得為 1920x1256 的影像：
+# 該顯示器為 scale 2，而另一台上的 P18 是 1:1。縮放比例是「視窗剛好開在哪一台顯示器」的性質，
+# 而非 app 的性質，因此逐張擷取讀出，不做一次性的假設。
+click,50,329,frame,left,,,sidebar -> Split layout,macos
+sleep,,,,,,800000,,macos
+click,50,357,frame,left,,,sidebar -> Details,macos
+sleep,,,,,,800000,,macos
+click,110,301,frame,left,,,sidebar -> back to Image clipping,macos
+sleep,,,,,,800000,,macos
+click,330,331,frame,left,,,middle list -> Detail B; "Selected detail" must become B,macos
+sleep,,,,,,800000,,macos
+click,330,359,frame,left,,,middle list -> Detail C,macos
+sleep,,,,,,800000,,macos
+click,629,307,frame,left,,,Small; the image and the reported scale must both change,macos
+sleep,,,,,,800000,,macos
+click,700,307,frame,left,,,Medium,macos
+sleep,,,,,,800000,,macos
+click,771,307,frame,left,,,Large -- back to the launch state,macos
+sleep,,,,,,1000000,,macos
+click,110,393,frame,left,,,Force state update,macos
+sleep,,,,,,1000000,,macos

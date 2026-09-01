@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P0: @AppStorage survives a click and a reset.
+#
+# origin=frame, not client. These coordinates were read off a window capture
+# taken with `screencapture -o`, whose top-left is the frame's top-left, so frame
+# is what was actually measured. Using client would mean subtracting a title bar
+# height nobody measured.
+#
+# The three alert buttons are deliberately not pressed. Each opens a modal that
+# owns the event loop until it is dismissed, and a dismiss needs the alert's own
+# geometry, which is a separate window this file cannot address. The AppStorage
+# half is what a click can settle on its own.
+#
+# P0：@AppStorage 在點擊與重設之後仍然保持。
+#
+# 使用 origin=frame 而非 client。這些座標取自以 `screencapture -o` 拍攝的視窗擷取，其左上角即為
+# frame 的左上角，因此 frame 才是實際量到的東西；改用 client 就等於要去減一個沒有人量過的標題列
+# 高度。
+#
+# 三個 alert 按鈕刻意不按。每一個都會開啟一個在被關閉前持有事件迴圈的 modal，而關閉它需要該 alert
+# 自身的幾何資訊——那是本檔無法定址的另一個視窗。AppStorage 這一半才是點擊本身就能判定的部分。
+click,230,200,frame,left,,,Increment @AppStorage,macos
+sleep,,,,,,400000,,macos
+click,230,200,frame,left,,,and again -- the count must rise twice,macos
+sleep,,,,,,400000,,macos
+click,347,200,frame,left,,,Reset -- the count must go back to its floor,macos
+sleep,,,,,,600000,let the label settle,macos

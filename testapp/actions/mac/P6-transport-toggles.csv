@@ -1,0 +1,40 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6: the controls that work without a stream loaded.
+#
+# Most of the transport is disabled until a file is chosen -- -5s, Play, +5s,
+# Seek and Show resolution are all greyed in the launch state -- and choosing a
+# file opens a modal panel this file cannot drive to a selection, only cancel.
+# What is left is genuinely testable: two toggles whose state the status line
+# reports, and two steppers whose value is on screen.
+#
+# The Resolution popup is left alone for the same reason as P19's menu: it opens
+# a window of its own that cannot be measured while AppKit hit testing is broken.
+#
+# P6：在尚未載入串流時仍可操作的控制項。
+#
+# 大部分播放控制在選擇檔案前都是停用的——-5s、Play、+5s、Seek 與 Show resolution 在啟動狀態下全為
+# 灰色——而選擇檔案會開啟一個 modal 面板，本檔無法把它驅動到「選定」，只能取消。剩下的部分是確實
+# 可測的：兩個切換開關（其狀態會由狀態列回報），以及兩個數值就顯示在畫面上的 stepper。
+#
+# Resolution 下拉選單不予碰觸，理由與 P19 的選單相同：它會開啟一個獨立視窗，而在 AppKit hit
+# testing 損壞期間無法量測。
+#
+# origin=frame. Window 1074x825 points, capture 2152x1650 -- scale 2, so these are
+# the image coordinates halved.
+# origin=frame。視窗 1074x825 點，擷取 2152x1650——scale 2，因此下列為影像座標的一半。
+click,769,756,frame,left,,,Sound -- it starts on; the button must lose its highlight,macos
+sleep,,,,,,800000,,macos
+click,849,756,frame,left,,,Frame drop -- the status line says "Frame drop off." and must stop,macos
+sleep,,,,,,800000,,macos
+click,367,752,frame,left,,,Speed stepper up -- 1x must rise,macos
+sleep,,,,,,600000,,macos
+click,367,760,frame,left,,,Speed stepper down -- back to 1x,macos
+sleep,,,,,,600000,,macos
+click,488,752,frame,left,,,FPS stepper up -- 30 must rise,macos
+sleep,,,,,,600000,,macos
+click,488,760,frame,left,,,FPS stepper down -- back to 30,macos
+sleep,,,,,,800000,,macos
+click,849,756,frame,left,,,Frame drop again -- and the status line must return to off,macos
+sleep,,,,,,800000,,macos
+click,769,756,frame,left,,,Sound again,macos
+sleep,,,,,,1000000,,macos
