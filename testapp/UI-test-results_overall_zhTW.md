@@ -30,10 +30,10 @@
 - #476 (Fixed)：安裝 `libgtk-3-dev` 後也已確認 WSLg/Gtk3；`swift build -c release --target Gtk3Backend` 通過，Gtk3 P7 執行時也不再於啟動時選取 `Apple`。
 - #476 (Fixed)：修正後點選 `Cherry`、`Clear selection`、`Select Cherry` 仍會正確更新或清除選取列。
 - #386 / GTK theme 觀察：WSLg/GTK 使用原生 GTK theme metrics 與顏色，因此背景、文字對比、間距、selected row 樣式會和 WinUI 不同。在 `GTK_THEME=Adwaita:dark` 下，app 背景變深，但截圖中仍可看到部分文字對比偏低，後續驗證 GTK theme 行為時應一併注意。
-- #556 (Open)：Windows 與 WSLg/GTK 截圖中都能看到 `NavigationSplitView` 區域，但兩個 backend 的 pane aspect / split ratio 不一致。這符合 GTK NavigationSplitView 尺寸判斷異常的回報，因此即使 detail pane 沒有塌陷，#556 仍維持 open。
+- #556（已由 2026-09-01 量測修正判讀）：當時截圖看起來像 Windows 與 WSLg/GTK 的 pane aspect / split ratio 不一致。後續診斷顯示這是量測誤讀：把 content width 當成 pane width。
 - #556：點選 plain List 的 `Cherry` 後，NavigationSplitView 的 detail pane 仍顯示 `No sidebar selection`。以目前 P7 測試內容來看，plain List selection 與 NavigationSplitView sidebar selection 是分開的，這應屬預期；但閱讀對照截圖時需要注意這點。
-- #556：Step 7 功能上穩定。按 `Add a fruit's worth of text` 後，上方較長文字出現，split view 沒有跳動或塌陷，但 Windows 與 WSLg/GTK 的 pane ratio 仍不一致。
-- #556：Step 8 功能上穩定。調整視窗大小後，包含大幅加寬視窗的情境，Windows 與 WSLg/GTK 的 detail pane 都保持可見。不過 WSLg/GTK 的 split-view aspect / pane ratio 仍明顯不同於 Windows，因此仍屬 #556。
+- #556：Step 7 功能上穩定。按 `Add a fruit's worth of text` 後，上方較長文字出現，split view 沒有跳動或塌陷。後續診斷顯示此情境下 WSLg 與 Windows 的實際 pane ratio 相同。
+- #556：Step 8 功能上穩定。調整視窗大小後，包含大幅加寬視窗的情境，Windows 與 WSLg/GTK 的 detail pane 都保持可見。後續診斷顯示此情境目前不再重現 pane-ratio mismatch。
 - #556 / Windows Light mode：Windows Light mode 下，右側第三 pane 沒有顯示預期的垂直分隔線（`|`）；相較之下，WSLg/GTK 對照截圖中可看到 pane boundary。先記錄為 split-view detail pane 的 Windows/GTK 視覺一致性問題。
 - WSL/Windows GUI comparison：同一個 P7 測試情境下，Windows `P7.exe` 與 WSLg/GTK `P7` 的視窗尺寸理論上應該一致，但截圖對照顯示兩者有明顯尺寸差異。這需要進一步調查，否則不能直接把跨 backend 的 layout screenshot 視為等比例比較；後續需確認差異來自 requested content size、backend window-sizing semantics、DPI scaling、window decorations，或 WSLg compositor 行為。**（已於 2026-08-18 以 P6 解答：成因為 DPI scaling，詳見該日紀錄。）**
 
@@ -187,3 +187,39 @@
 - Windows release rebuild 明顯較慢，尤其是改變 build configuration 後的第一個 target：P30 900.34 秒，P31-P36 之後約 11-29 秒。
 - Windows 多個 1 秒截圖只拍到接近空白的 first frame，但 10 秒 final screenshot 都正常。除非 final screenshot 也失敗，先記錄為 WinUI first-paint / window-capture timing。
 - WSLg 執行時視窗標題仍回報 `[WARN:COPY MODE]`，雖然 final capture 可見。這些結果可用於 UI layout smoke test，但不適合作為 GPU rendering performance 驗證。
+
+## 2026-08-31
+
+### P16：WinUI NavigationSplitView 初始 layout（#160）
+
+- 已重建並執行 Windows `P16.exe`。final screenshot 可見，尺寸為 916x639，非黑像素 92.5%。
+- 初始診斷仍顯示不穩定的首次量測路徑：`sidebar: 0 x 22`、`detail: 0 x 22`，接著 `detail: 734 x 22`。截圖上可見左側 pane 存在，但 sidebar probe 沒有回報穩定的非零寬度。
+- 已找到一個 runner bug：`compile.zsh` 接受 `SCUI_DEBUG=1`，但沒有把 `-Xswiftc -DSCUI_DEBUG` 傳給 `swift build`。此點已在工作樹中修正，並把 build-plan hash 納入 `SCUI_DEBUG`，避免切換 debug feature 後重用錯的 SwiftPM plan。
+- 目前 actionfile hook 已可觀察：WinUI `show(window:)` 會排程 replay，`ActionFileReplay` 也會把幾何與 replay 結果寫入 `actionfile-replay.log`，避免 WinUI console redirection 讓 runner 誤判為沒有執行。
+- 但 P16 的 actionfile replay 尚未讓 UI 出現預期變化：Force update counter、sidebar selection 與 column switch 仍未在 final screenshot 中確認。這表示剩餘問題較可能在 Win32 synthetic input 對 WinUI 控制的命中 / focus / activation，而不是單純沒有載入 actionfile。
+- 重新以乾淨 `actionfile-replay.log` 跑 `P16 --windows --no-build --showtime 10` 後，`SendInput` 回報 `ERROR_ACCESS_DENIED`。此輪不能當作 app 行為證據；需在 unlocked desktop、且沒有 elevated foreground window 的情境重跑。
+- 修正 WinUI `createSplitView` 初始 `openPaneLength` 後，P16 final screenshot 改為顯示 `sidebar: 180 x 22`、`detail: 660 x 22`，且 `Science` / `Humanities` 不再被壓窄換行。此修正與 GTK 的初始 200px sidebar guess 對齊，避免 core `SplitView.computeLayout` 第一次讀到 0-width sidebar。
+- 目前結論：#160 的初始 layout repro 已修正；仍未完成的是 actionfile 對 Force update / sidebar selection / column switch 的自動互動驗證。最新 actionfile report 可回 `replayed`，但畫面上的 counter 沒變，所以此部分仍需人工驗證或更可靠的 WinUI control activation。
+
+### P7：NavigationSplitView pane ratio（#556）
+
+- P7 已依規則先跑 WSLg，再跑 Windows。兩邊 final screenshot 都可見，尺寸皆為 748x509。
+- WSLg 診斷：`[SplitView] total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200`。
+- Windows 診斷：`[SplitView] total=420.0 minLeading=31.0 minTrailing=35.0 -> bounds min=31 max=385 currentSidebar=200`。
+- 因此本輪兩平台使用相同實際 split ratio：sidebar 200 / total 420，也就是 47.6%。
+- 先前類似 87px 的結論是量測錯誤：把 content width 當成 pane width。P7 程式中的註解已指出此點；content probe 可以遠小於承載它的 pane。
+- 目前結論：目前 P7 執行中，#556 不再以 pane-ratio mismatch 重現。除非其他 resize/content 情境仍能重現，否則 plan 應由「ratio mismatch」改為「量測防呆 / regression coverage」。
+
+### P30/P39：WinUI visual effects
+
+- 已執行 Windows P30/P39，並補跑 WSLg P39 作為對照。
+- Windows P39 的 PIL crop comparison 顯示只有 opacity 會改變像素。control crop 與 blur、saturation、brightness、contrast、grayscale、hueRotation 比對，全部得到 `mean_diff=0.00`；blur text edge 指標也與 control 完全相同。
+- WSLg P39 的 PIL crop comparison 則顯示預期的非零差異：saturation 0 與 grayscale 1 的 chroma 為 0，hue rotation 有大幅 mean diff，blur 也有可量測差異。
+- 程式碼審查也確認截圖結果：`WinUIBackend+VisualEffects.swift` 目前只設定 `widget.opacity`；其他 visual effects 明確記錄為需要尚未實作的 Microsoft.UI.Composition effect graph。
+- 目前結論：這不是測試樣本不明顯。WinUI visual effects 除 opacity 外，今日確實是 no-op。
+- 2026-09-01 重跑：WSLg 與 Windows 的 P30/P39 都能啟動、抵達 final screenshot 並正常關閉。最新 P39 PIL comparison 與先前結果一致：Windows `opacity mean_diff=59.73`，但 blur、saturation、brightness、contrast、grayscale、hue rotation 都仍是 `mean_diff=0.00`；WSLg 則每個非 control sample 都有非零差異。
+- 2026-09-01 後續：`WinUIBackend+VisualEffects.swift` 現在對未支援效果只會依效果名稱各警告一次，降低一般 update pass 期間的重複 console warning。這不改變 rendering 語意：WinUI 目前仍只有 opacity 已實作。
+- 本次變更後最新 P39 final screenshots：WSLg `p39-wslg-final-20260901-071259.png`，Windows `p39-windows-final-20260901-071318.png`。PIL comparison 仍顯示 Windows `opacity mean_diff=69.20`；blur、saturation、brightness、contrast、grayscale、hue rotation 仍是 `mean_diff=0.00`。WSLg 則每個非 control sample 都有非零差異。
+- 2026-09-01 P16 重跑，對象是同一小時重新建置的 binary：**三個點擊全部命中，取代先前那條「狀態變化未被確認」的紀錄。** 判讀方式是對照 `P16.swift` 中的初始值，而非目測：`updateCount` 起始為 `0`，截圖顯示 `Force update (1)`；`selectedArea` 起始為 `nil`，截圖顯示 `Science` 為選取狀態；`columns` 起始為 `.two`，而按鈕顯示 `Switch to 2 column`——那是 `.three` 時的標籤，且三個窗格皆在。先前回報「沒有狀態變化」的那次執行，正是同時回報 `SendInput` 為 `ERROR_ACCESS_DENIED` 的那一次。
+- 同一次執行回報 `-actionfile: warning: the window never took the foreground. This file only moves and clicks, so it ran on the topmost pin alone`。這並非失敗：點擊是依座標投遞給該處最上層的視窗，而 `SetWindowPos(HWND_TOPMOST)` 已把我方視窗置於該處，這正是三個點擊都命中的原因。之所以值得知道，是因為任何與焦點相關的行為，都可能與「確實取得前景」的那次執行不同。
+- **#160 剩下的症狀在高度，不在寬度。** 最終截圖回報 `sidebar: 180 x 22`、`middle: 180 x 22`、`detail: 460 x 22`。寬度現在是正確的，而它原本是這個 bug 中看得見的那一半；高度 22 不可能正確，因為窗格是填滿視窗的。同一次執行回報的變化過程為 `sidebar 0 -> 180`、`middle 0 -> 180`、`detail 0 -> 460 -> 660`——寬度會安定下來，高度則從未離開 22。
