@@ -202,4 +202,38 @@ do {
     exit(1)
 }
 print("wrote \(outPath)")
-exit(nonBlack > 0 ? 0 : 3)
+// Rejected on a FRACTION, not on a count.
+//
+// This read `nonBlack > 0` until 2026-09-01, and on that day it passed a capture
+// of 1359 pixels out of 648528 -- 0.2%, effectively black. screenshot.zsh then
+// printed `captured from priority 1: wincap window "P40"`, which reads as a
+// clean capture of the application. A real capture of the same window, measured
+// the same day, is 93.0%. The two sit two orders of magnitude apart, so 2%
+// separates them with room to spare while staying far below anything that has
+// content in it.
+//
+// That the guard existed and still let a black image through is the point: it
+// was testing whether ANY pixel survived, when the question is whether the
+// window did. The threshold is named in the rejection line so a genuinely dark
+// window can be argued with rather than guessed at.
+//
+// 以**比例**判定，而非以計數。
+//
+// 在 2026-09-01 之前這裡寫的是 `nonBlack > 0`，而就在那天，它讓一張 648528 中僅 1359 個非黑
+// 像素的擷取通過——0.2%，實質上是全黑。screenshot.zsh 隨即印出
+// `captured from priority 1: wincap window "P40"`，讀起來就是「乾淨地擷取到該應用程式」。同一天
+// 對同一個視窗的真實擷取是 93.0%。兩者相差兩個數量級，因此 2% 能綽綽有餘地分開它們，同時仍遠低於
+// 任何「有內容」的視窗。
+//
+// 重點在於：這道防護存在，卻仍讓全黑影像通過——它檢查的是「有沒有任何一個像素活下來」，而真正的
+// 問題是「那個視窗有沒有活下來」。拒絕訊息中會寫出閾值，好讓「本來就很暗的視窗」可以被據理爭論，
+// 而不是被猜測。
+let minimumTenths = 20  // 2.0 per cent
+if tenths < minimumTenths {
+    print(
+        "capture rejected: \(tenths / 10).\(tenths % 10)% non-black is below the "
+            + "\(minimumTenths / 10)% minimum, so this is a black image rather than a window"
+    )
+    exit(3)
+}
+exit(0)
