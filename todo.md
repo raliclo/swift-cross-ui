@@ -847,6 +847,31 @@ that changes what a pane answers changes the whole layout.
 尺寸由自己決定的 `List` 上則沒問題，那正是 P7 的用法。分割視圖會以「提議寬度 0」探詢各窗格以求出
 最小值，因此任何改變窗格回答的東西，都會改變整個版面。
 
+**A second behavioural divergence, and this one has two independent
+witnesses.** `List` is not greedy vertically. Measured 2026-09-01 in P7's
+`#556` split view, whose panes are pinned to `.frame(width: 420, height: 180)`:
+a `List` of five rows fills its 200 of width but answers **140** for height,
+which is five rows at a 28px pitch, and the framework then centres it.
+
+SwiftUI's `List` fills its container on both axes. The reason this is filed
+under parity rather than under GtkBackend is that **AppKitBackend answers 140
+too** — two backends written independently, giving the same number, puts the
+behaviour in the shared layout code. Neither backend can be blamed and neither
+can fix it alone.
+
+Not to be confused with #556, which is about the pane *ratio* and stands
+settled: the sidebar really is 200 of 420.
+
+**第二筆行為性差異，而且有兩個彼此獨立的見證。** `List` 在垂直方向不貪婪。2026-09-01 於 P7 的
+`#556` split view 中量得——該處窗格被固定在 `.frame(width: 420, height: 180)`：一個五列的 `List`
+填滿了 200 的寬度，高度卻回答 **140**，也就是五列乘以 28px 的列距，框架隨後將它置中。
+
+SwiftUI 的 `List` 兩個軸向都會填滿容器。此事歸在 parity 而非 GtkBackend 之下，理由是
+**AppKitBackend 同樣回答 140**——兩個各自獨立撰寫的 backend 給出相同數字，就把該行為定位在共用的
+版面程式碼。兩個 backend 都不該被歸咎，也都無法獨力修正。
+
+不要與 #556 混淆：後者關乎窗格**比例**，且結論維持成立——側欄確實是 420 中的 200。
+
 **API shapes cannot be measured this way.** A `grep` finds a type whose
 initialiser has the wrong label just as readily as one that matches, so that row
 is absent from the table on purpose. Settling it means compiling SwiftUI

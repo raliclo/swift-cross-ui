@@ -252,3 +252,11 @@
   - `leadingContent` 的 140 是五列清單、列距 28px，直接從列本身量得。置中於 180 高的方框中，上方應留 20px，因此第一列應在方框頂端下方 20px 處開始。實測：第一列 ink 在 y=248，方框頂端 228。
   - 兩者高度不同，只是因為兩者的內容不同，而且都沒有填滿窗格。那正是非貪婪內容的行為，而框架是刻意將其置中的。
 - 這些數字唯一真正引出的問題與 #556 無關，不該歸入該條目：**`List` 在垂直方向是否應該貪婪？** SwiftUI 的 List 兩個軸向都會填滿容器；這裡它填滿了 200 的寬度，高度卻回答 140 而非 180。尚未對真正的 SwiftUI 建置驗證——那需要 Mac。
+
+### macOS 端回覆之後，三個 backend 的全貌
+
+- macOS 的答案在 `mac-test-results-20260901.md`，同日於 AppKitBackend 上量測。此處僅摘要，因為這次練習的目的就是三方比較；原始輸出與方法在該檔案中。
+- **Q1 定案，GTK 是異類。** AppKit 給出 900x628 的外框、28pt 標題列，因此**內容 900x600——恰為所要求的值**，且取自兩個彼此獨立的來源（`CGWindowListCopyWindowInfo` 取外框，以及 InputEvent 重放以 AppKit 自己回報的 frame 對照 client 原點，120 對 148）。這與 WinUI 一致，並證實了本檔案先前標為「未驗證」而非直接斷言的那個預期。GTK 的 900x561 是唯一短少的，現已修正——見 `todo.md`。
+- **Q2 把一個觀察拆成了兩個。** AppKit 對 P16 的首次算繪 commit **三次**，與 GTK 相同、與 WinUI 的一次不同——但它的高度全程不動，而 GTK 是 485 → 446 → 446。因此「commit 三次」與「高度收斂」是彼此獨立的兩件事，而其中只有後者曾構成證據。三者的寬度一致，皆為 200 / 680。安定後的高度差異，恰好等於各平台放在內容之上的裝飾：**AppKit 497 / WinUI 486 / GTK 修正前 446**。
+- **Q3 是最有價值的答案。** AppKit 的 `List` 在 180 高的窗格中同樣回報 **140**——與 GTK 給出的是同一個數字。兩個各自獨立撰寫的 backend 給出相同答案，就把該行為定位在**共用的版面程式碼**，而非任一 backend，這正是這次量測設計要分辨的事。因此「`List` 在垂直方向不貪婪」是 SwiftCrossUI 本身一個真實的 SwiftUI parity 缺口。
+- 值得帶出此任務之外的一點：他們的檔案記載 `AppKitBackend.createWindow` 會呼叫 `setFrameAutosaveName(id)`，而 `id` 衍生自 root view 的型別，因此大多數測試 app **共用同一把 key**（`"NSWindow Frame TupleView1<HotReloadableView>-0"`）。已儲存的 frame 會完全蓋過 `.defaultSize`——同一個 binary、同一個 commit 的 P28，會因該 key 的內容而開成 680x448 或 1076x907。任何先前未清除該 key 就量測視窗尺寸的 macOS 結果，都應存疑。
