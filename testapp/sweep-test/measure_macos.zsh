@@ -197,10 +197,23 @@ printf 'image: %s\n' "$out"
 # 在這台機器上，P3 的 960x628 視窗擷取為 1920x1256，而 P18 的 706x538 視窗擷取為 720x548。縮放
 # 比例屬於「視窗開在哪一台顯示器」，因此把視窗搬到另一台顯示器就會改變它，而一句寫死的說明無從
 # 得知本次執行用的是哪一台。在實際量測之前，已有兩份動作檔照著錯誤的除數寫成。
+# Rounded, because the image is wider than the window.
+#
+# `screencapture -o` still leaves a few points of padding -- 720px for a 706pt
+# window -- so the ratio is never exactly the scale. Integer division truncated
+# it: P10's 1240px for 622pt is 1.99, which printed as "divide by 1" and would
+# have put every coordinate in that file at half its correct value. Rounding is
+# safe here because the padding is small and the scale is a whole number.
+#
+# 採四捨五入，因為影像比視窗寬。
+#
+# `screencapture -o` 仍會留下數個點的邊距——706pt 的視窗得到 720px——因此比值永遠不會恰好等於
+# 縮放比例。整數除法會把它截斷：P10 的 622pt 對 1240px 是 1.99，印出來成了「除以 1」，而那會讓
+# 該檔中每一個座標都只有正確值的一半。此處四捨五入是安全的，因為邊距很小而縮放比例是整數。
 px=$(sips -g pixelWidth "$out" 2>/dev/null | awk '/pixelWidth/{print $2}')
 if [ -n "${px:-}" ] && [ "$ww" -gt 0 ]; then
     printf 'capture: %spx wide for %spt -- divide image coordinates by %s\n' \
-        "$px" "$ww" "$(( px / ww ))"
+        "$px" "$ww" "$(( (2 * px + ww) / (2 * ww) ))"
 fi
 printf 'origin=frame is what this capture gives directly: -o omits the shadow, so the\n'
 printf 'image top-left is the frame top-left. origin=client would need a title bar\n'

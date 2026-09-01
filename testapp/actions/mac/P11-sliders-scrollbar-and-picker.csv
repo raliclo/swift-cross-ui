@@ -1,0 +1,56 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11: the three controls it names, each exercised the way its own bug needs.
+#
+# #82 is about two sliders clamping each other, and a clamp only shows up when
+# one is dragged past the other. The minimum slider sits at the far left and the
+# maximum at the far right, so the drag below takes the minimum most of the way
+# across; "writes: min N, max M" counts how many times each wrote back, which is
+# the number that distinguishes a clamp from a fight between two of them.
+#
+# #485 is about which way the scrollbar runs, so the wheel is turned inside the
+# forty-row list rather than anywhere else in the window.
+#
+# #473 is about the compact DatePicker's size, and the stepper is what changes a
+# compact picker's value without opening a calendar -- which would be another
+# window, and so out of reach here for the same reason P19's menu is.
+#
+# P11：它所指名的三個控制項，各以其對應缺陷所需的方式操作。
+#
+# #82 談的是兩個滑桿互相箝制，而箝制只有在其中一個被拖過另一個時才會顯現。minimum 滑桿位於最左端、
+# maximum 位於最右端，因此下方的拖曳會把 minimum 拖過大半個行程；「writes: min N, max M」計算
+# 各自回寫了幾次，而那正是能區分「一次箝制」與「兩者互相拉扯」的數字。
+#
+# #485 談的是捲軸的方向，因此滾輪是在那四十列的清單之內轉動，而非視窗中的其他任何位置。
+#
+# #473 談的是精簡型 DatePicker 的尺寸，而 stepper 正是「不開啟日曆就能改變精簡型 picker 數值」的
+# 控制項——開啟日曆會是另一個視窗，因此與 P19 的選單同樣在此不可及。
+#
+# origin=frame. Window 760x648 points, capture 1520px wide -- scale 2.
+# origin=frame。視窗 760x648 點，擷取寬 1520px——scale 2。
+click,86,307,frame,left,,,Reset counters -- writes must go to min 0 max 0,macos
+sleep,,,,,,600000,,macos
+mouseDown,40,255,frame,left,,,grab the minimum slider's knob at the far left,macos
+move,200,255,frame,,,,,macos
+sleep,,,,,,200000,,macos
+move,400,255,frame,,,,,macos
+sleep,,,,,,200000,,macos
+move,700,255,frame,,,,past where the maximum sits -- #82's clamp,macos
+sleep,,,,,,300000,,macos
+mouseUp,700,255,frame,left,,,,macos
+sleep,,,,,,1000000,,macos
+click,207,307,frame,left,,,Separate them,macos
+sleep,,,,,,800000,,macos
+click,319,307,frame,left,,,Collide them,macos
+sleep,,,,,,800000,,macos
+move,385,420,frame,,,,put the pointer inside the forty-row list,macos
+sleep,,,,,,300000,,macos
+scroll,0,5,,,,,five notches -- #485 asks which way it goes,macos
+sleep,,,,,,800000,,macos
+scroll,0,-5,,,,,and back,macos
+sleep,,,,,,800000,,macos
+click,260,527,frame,left,,,DatePicker stepper up,macos
+sleep,,,,,,600000,,macos
+click,260,536,frame,left,,,and down -- back to the launch date,macos
+sleep,,,,,,600000,,macos
+click,317,531,frame,left,,,Reference,macos
+sleep,,,,,,1000000,,macos

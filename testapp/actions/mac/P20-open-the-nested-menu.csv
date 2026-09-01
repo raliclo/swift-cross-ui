@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20: open the three-level menu.
+#
+# Stops at the opening click for the same reason P19 does: each level is a window
+# of its own, so reaching level 2 needs level 1's geometry and reaching level 3
+# needs level 2's, and none of it can be measured until an opening click
+# registers. AppKit hit testing is broken here (todo.md).
+#
+# P20 is worth more than P19 once that is fixed, because it asks a question P19
+# cannot: whether a submenu opens on hover or only on click. That distinction is
+# invisible in a file that never opens one.
+#
+# P20：開啟三層深的選單。
+#
+# 與 P19 同樣停在開啟的那一次點擊：每一層都是獨立的視窗，因此要抵達第二層需要第一層的幾何資訊、
+# 抵達第三層需要第二層的，而在開啟的點擊生效之前，這些全都量不到。AppKit 的 hit testing 在此處
+# 是壞的（見 todo.md）。
+#
+# 修好之後，P20 的價值高於 P19，因為它能問一個 P19 問不出的問題：子選單是在滑過時展開，還是只在
+# 點擊時展開。這個區別，在一個從未打開過子選單的檔案裡是看不見的。
+#
+# origin=frame. Window 654x484 points, capture 1320px wide -- scale 2.
+# origin=frame。視窗 654x484 點，擷取寬 1320px——scale 2。
+click,85,240,frame,left,,,Open the menu,macos
+sleep,,,,,,3000000,leave it open long enough to be seen,macos

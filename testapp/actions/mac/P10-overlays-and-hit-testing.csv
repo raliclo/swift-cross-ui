@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10: which of three targets a click actually reaches.
+#
+# This is the app that measures the bug currently blocking every other file in
+# this directory, so read its counters rather than its appearance. The three
+# targets are laid out to be told apart: a plain button, the same button under a
+# transparent overlay, and an opaque region with allowsHitTesting(false) over a
+# hidden button. A correct backend gives Direct 2, Covered 2, Hidden 0 after the
+# rows below -- the overlay swallows nothing, and the non-hit-testing region
+# swallows everything.
+#
+# Cmd-Q is not sent. P10 asks for it in its own text, and it would work: the
+# shortcut quits the app, which ends the replay in the middle and leaves the
+# remaining rows unrun with no failure to show for it. Test #478 by hand.
+#
+# P10：一次點擊實際抵達三個目標中的哪一個。
+#
+# 這正是那支量測著「目前擋住本目錄所有其他檔案」的缺陷的 app，因此請看它的計數器，而非它的外觀。
+# 三個目標的排列方式使它們可被區分：一個普通按鈕、同一個按鈕但覆蓋著透明的 overlay，以及一個帶有
+# allowsHitTesting(false) 的不透明區域覆蓋在隱藏按鈕之上。正確的 backend 在執行下列各列之後應得到
+# Direct 2、Covered 2、Hidden 0——overlay 不吞掉任何東西，而不參與 hit testing 的區域則全部吞掉。
+#
+# 不送出 Cmd-Q。P10 自己的文字要求它，而它也的確會生效：該快捷鍵會結束 app，於是重放在中途中斷，
+# 其餘各列未執行，卻沒有任何可供顯示的失敗。#478 請以手動測試。
+#
+# origin=frame. Window 622x490 points, capture 1240px wide -- scale 2.
+# origin=frame。視窗 622x490 點，擷取寬 1240px——scale 2。
+click,79,261,frame,left,,,Click me -- Direct clicks 0 -> 1,macos
+sleep,,,,,,600000,,macos
+click,224,261,frame,left,,,Click me too under the transparent overlay -- Covered 0 -> 1,macos
+sleep,,,,,,600000,,macos
+click,455,261,frame,left,,,the opaque allowsHitTesting(false) region -- Hidden must stay 0,macos
+sleep,,,,,,600000,,macos
+click,310,341,frame,left,,,remove the transparent overlay,macos
+sleep,,,,,,800000,,macos
+click,79,261,frame,left,,,Click me again -- Direct 1 -> 2,macos
+sleep,,,,,,600000,,macos
+click,224,261,frame,left,,,and the second button with nothing over it -- Covered 1 -> 2,macos
+sleep,,,,,,600000,,macos
+click,455,261,frame,left,,,the region once more -- Hidden must still be 0,macos
+sleep,,,,,,1000000,,macos
