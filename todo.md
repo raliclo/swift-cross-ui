@@ -767,6 +767,35 @@ Three things this makes visible that the category list did not:
   converted to the SwiftUI form; the five missing ones are the same job again,
   and two of them are already tracked as blocked for their own reasons.
 
+**A behavioural divergence, found 2026-09-01 and not visible in the table
+above.** `overlay` exists on both sides, so the inventory calls it present, and
+it does something different:
+
+`OverlayModifier.computeLayout` returns
+`max(contentSize, overlaySize)` on both axes, so **an overlay can grow its
+host**. SwiftUI's cannot — the host keeps its own size and the overlay is
+positioned within it. Code that compiles unchanged therefore lays out
+differently, which is worse than a name that is simply missing: nothing points
+at it.
+
+It has already cost a working app. Wrapping a `NavigationSplitView` pane —
+a `VStack` holding a greedy `Spacer` — in an overlay so a `GeometryReader` could
+measure the pane made P16 stop producing a window at all. The same shape over a
+`List`, whose size is its own, is fine and is what P7 uses. The split view
+probes its panes at a proposed width of 0 to find their minimums, so anything
+that changes what a pane answers changes the whole layout.
+
+**存在但行為不同的一例，2026-09-01 發現，且上表看不出來。** `overlay` 兩邊都有，所以盤點會把它算成
+「存在」，而它做的事並不相同：`OverlayModifier.computeLayout` 在兩個軸向都回傳
+`max(contentSize, overlaySize)`，因此 **overlay 有可能撐大它的宿主**；SwiftUI 的不會——宿主保有
+自己的尺寸，overlay 只是被定位於其中。於是「原封不動就能編譯」的程式碼會排出不同的版面，而那比
+「某個名稱不存在」更糟：沒有任何東西會指出它。
+
+它已經讓一個可運作的 app 失效過：為了讓 `GeometryReader` 能量到窗格，把 `NavigationSplitView` 的
+一個窗格（內含貪婪 `Spacer` 的 `VStack`）包進 overlay，結果 P16 完全不再產生視窗。同樣的形狀套在
+尺寸由自己決定的 `List` 上則沒問題，那正是 P7 的用法。分割視圖會以「提議寬度 0」探詢各窗格以求出
+最小值，因此任何改變窗格回答的東西，都會改變整個版面。
+
 **API shapes cannot be measured this way.** A `grep` finds a type whose
 initialiser has the wrong label just as readily as one that matches, so that row
 is absent from the table on purpose. Settling it means compiling SwiftUI

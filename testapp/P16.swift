@@ -196,12 +196,23 @@ struct P16RootView: View {
 // `VStack` -- the shape `P7SplitProbe` uses successfully -- was tried on
 // 2026-09-01 and **broke the app**: the window never became visible, wincap
 // found no window to capture at one second or at the end, the action file never
-// replayed, and the panes reported 200x142 and 20x46. Reverted. Whatever
-// `overlay` does to layout in this framework is not what it does in SwiftUI,
-// and `.overlay` already has history here -- it used to swallow pointer events.
+// replayed, and the panes reported 200x142 and 20x46. Reverted.
+//
+// **`overlay` here is not SwiftUI's.** `OverlayModifier.computeLayout` returns
+// `max(contentSize, overlaySize)` on both axes, so the overlay can grow its
+// host; SwiftUI's never does. P7 gets away with it because it wraps a `List`,
+// whose size is its own. This wraps a `VStack` holding a `Spacer`, which is
+// greedy and answers with whatever it is offered -- and `NavigationSplitView`
+// probes its panes at a proposed width of 0 to find their minimums, which the
+// comment beside P7's detail pane records. Wrapping that path changes the answer
+// the pane gives to the probe.
+//
+// The exact step from there to "no window at all" is not established; what is
+// established is that `overlay` takes part in sizing, and that this pane's size
+// is not its own to give.
 //
 // So the numbers below are a floor, not a measurement, and #160 cannot be
-// settled from them. Fixing this needs the overlay difference understood first.
+// settled from them.
 //
 // 回報其窗格所獲得的尺寸。保持固定框架，使 reader 本身不影響所量測的窗格高度。
 //
@@ -212,21 +223,17 @@ struct P16RootView: View {
 // 2026-09-01 曾嘗試把 reader 移入 padded `VStack` 的 `.overlay(alignment: .topLeading)`
 // ——那是 `P7SplitProbe` 成功採用的形狀——結果**弄壞了這個 app**：視窗從未出現，wincap 在第一秒
 // 與結束時都找不到可擷取的視窗，動作檔從未重放，而窗格回報 200x142 與 20x46。已還原。
-// `overlay` 在本框架中對版面所做的事，與它在 SwiftUI 中所做的並不相同，而 `.overlay` 在此本就有
-// 前科——它曾吞掉指標事件。
 //
-// 因此下方的數字是一個下限，而非量測值，#160 無法據此定案。要修好這件事，必須先弄懂 overlay 的差異。
+// **此處的 `overlay` 不是 SwiftUI 的那一個。** `OverlayModifier.computeLayout` 在兩個軸向上都回傳
+// `max(contentSize, overlaySize)`，因此 overlay 有可能撐大它的宿主；SwiftUI 的則絕不會。P7 之所以
+// 沒事，是因為它包的是 `List`，尺寸由自己決定；而這裡包的是內含 `Spacer` 的 `VStack`——`Spacer`
+// 是貪婪的，被提議多少就回答多少。加上 `NavigationSplitView` 會以「提議寬度 0」探詢各窗格以求出
+// 其最小值（此事記於 P7 detail 窗格旁的註解），把這條路徑包起來，改變的正是窗格對該次探詢的回答。
 //
-// 回報一個被傳入的尺寸。它自己不量測任何東西：呼叫端把 `GeometryReader` 放在窗格的
-// **overlay** 中，再把 `proxy.size` 傳進來——與 `P7SplitProbe` 的形狀相同。
+// 從那一步到「完全沒有視窗」之間的確切機制尚未確立；已確立的是：`overlay` 會參與尺寸決定，
+// 而這個窗格的尺寸並不由它自己決定。
 //
-// 先前的版本是窗格 `VStack` 內的一個子元件，其 `GeometryReader` 位於 `.frame(height: 22)` 之下。
-// 該框架限制了 reader，因此 `proxy.size.height` 永遠只能是 22——而那個 22 隨後就被當成「窗格的
-// 高度」在每一次執行、每一個 backend 上被回報。寬度是真的，因為沒有東西限制它，而這正是讓這一對
-// 數字看起來像「修好一半的版面缺陷」、而非「量測方式有誤」的原因。
-//
-// 使用 overlay 才能讓它誠實：overlay 不參與宿主的版面計算，因此 reader 得到的是窗格自身的尺寸，
-// 而不是探針自己要求的尺寸。
+// 因此下方的數字是一個下限，而非量測值，#160 無法據此定案。
 struct P16PaneSize: View {
     var label: String
 
