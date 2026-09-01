@@ -669,6 +669,53 @@ property——去 grep 該標頭檔，沒有別的了。在 Wayland 下，裝飾
 
 ---
 
+## 8. ~~`setWindowEnvironmentChangeHandler(of:to:)` is an empty body~~ — **FIXED 2026-09-01** **[src] [hdr]**
+
+It now connects `notify::scale-factor` on the window and calls the handler.
+
+The property rather than a display or monitor signal, because the scale factor
+is the whole of what `computeWindowEnvironment` reads from a window, and GTK's
+scale factor is the buffer scale it actually laid out at — an integer by design
+— not the fraction the display advertises. Watching the display would fire on
+changes GTK did not act on and miss the moment GTK did.
+
+`MainActor.assumeIsolated` rather than a hop, matching the action callback
+elsewhere in the file: GTK delivers signals on the thread running the main loop,
+so the isolation already holds and a hop would only delay the recompute by a
+turn.
+
+**This is the half entry 9 left open.** That one fixed *reporting* the scale
+factor and said outright that neither backend notified when it changed, so a
+window dragged between displays of different scale kept the value it started
+with — and `Image` re-renders on that value, so it stayed rendered for the old
+display until something else forced a recompute. WinUIBackend still does not
+notify.
+
+**Not yet verified on hardware.** It compiles, and the mechanism matches the
+signal wiring already used for `notify::active` on switches and checkboxes, but
+nothing here has two displays of different scale to drag a window between. The
+check that would settle it: run under WSL with `GDK_SCALE` changed while the app
+is up, which is how entry 9's reporting half was verified.
+
+它現在會連接視窗的 `notify::scale-factor` 並呼叫該處理常式。
+
+監聽屬性而非顯示器訊號，因為 scale factor 就是 `computeWindowEnvironment` 從視窗讀取的全部內容，
+而 GTK 的 scale factor 是它實際排版所用的 buffer scale——依設計即為整數——並非顯示器所宣稱的小數。
+監聽顯示器會在 GTK 並未據以動作的變化上觸發，卻錯過 GTK 真正動作的那一刻。
+
+使用 `MainActor.assumeIsolated` 而非 hop，與本檔其他處的 action callback 一致：GTK 在執行 main
+loop 的執行緒上派送訊號，因此隔離性本已成立，hop 只會讓重新計算多延遲一輪。
+
+**這正是第 9 條所留下的那一半。** 該條修好了 scale factor 的**回報**，並明言兩個 backend 都不會在
+其變動時發出通知，因此視窗被拖到不同縮放的顯示器時會保留啟動時的值——而 `Image` 依該值重新繪製，
+於是它會一直維持為舊顯示器繪製的結果，直到有別的事情強迫重新計算。WinUIBackend 目前仍不通知。
+
+**尚未在硬體上驗證。** 它可以編譯，且其機制與本檔中 switch 與 checkbox 的 `notify::active` 接線
+方式相同，但此處沒有兩台不同縮放的顯示器可供拖曳視窗。能了結此事的檢查：在 WSL 下於 app 執行中
+改變 `GDK_SCALE`——第 9 條的回報那一半正是這樣驗證的。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 8. `setWindowEnvironmentChangeHandler(of:to:)` is an empty body — **refinement**, medium **[src] [hdr]**
 
 `Sources/GtkBackend/GtkBackend.swift:900`
@@ -726,6 +773,8 @@ signal to connect. Cost is a `Gtk` wrapper addition, not one line.
 成本是新增 `Gtk` wrapper，而非一行。
 
 ---
+
+</details>
 
 ## 9. ~~`computeWindowEnvironment(…)` never reports the window scale factor~~ — **FIXED 2026-08-27** **[src] [hdr]**
 
@@ -890,6 +939,35 @@ per-widget class 選取——見 `Sources/Gtk/Widgets/Widget.swift:34-54` 與
 
 ---
 
+## 11. ~~`scrollBarWidth` is a hardcoded `0`~~ — **FIXED, confirmed 2026-09-01** **[src] [hdr]**
+
+It is a computed property now, and the width is **measured from a real
+`GtkScrollbar` rather than guessed**, because a theme decides it. The doc
+comment beside it records why the old constant was not merely imprecise: `0` is
+right for overlay scrolling and unreachable for anything else, so with overlay
+scrolling off the bars take real width, SwiftCrossUI allots none, and the
+content is over-allocated by about a scrollbar.
+
+AppKitBackend likewise asks `NSScroller.preferredScrollerStyle`. WinUIBackend
+still returns a fixed 12, which is the remaining instance of this shape.
+
+The entry below was written against `let scrollBarWidth = 0` at
+`GtkBackend.swift:68`; neither the line nor the declaration survives. Kept for
+the same reason as entry 13.
+
+它現在是 computed property，且該寬度是**從真實的 `GtkScrollbar` 量測而得，而非猜測**，因為決定
+它的是主題。旁邊的文件註解記錄了舊常數為何不只是「不精確」：`0` 對 overlay scrolling 是正確的，
+對其餘情況則永遠到不了——關閉 overlay scrolling 後捲軸會佔用實際寬度，而 SwiftCrossUI 未分配任何
+寬度給它，內容便會超額配置約一個捲軸的寬度。
+
+AppKitBackend 同樣會去詢問 `NSScroller.preferredScrollerStyle`。WinUIBackend 目前仍回傳固定的
+12，那是這個形狀僅存的一例。
+
+下方條目是針對 `GtkBackend.swift:68` 的 `let scrollBarWidth = 0` 所寫；該行號與該宣告皆已不存在。
+保留的理由與第 13 條相同。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 11. `scrollBarWidth` is a hardcoded `0` — **refinement**, small **[src] [hdr]**
 
 `Sources/GtkBackend/GtkBackend.swift:68`
@@ -951,6 +1029,8 @@ SwiftCrossUI 卻分配為零，內容因而被多分配了約一條捲軸的寬�
 **refinement**。
 
 ---
+
+</details>
 
 ## 12. `updateDatePicker` silently drops all time components — **still open**, and the cause is now known **[src]**
 

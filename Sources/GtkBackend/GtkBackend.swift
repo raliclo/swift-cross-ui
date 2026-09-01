@@ -1779,7 +1779,43 @@ public final class GtkBackend:
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO: Notify when window scale factor changes
+        // `notify::scale-factor`, because the scale factor is the whole of what
+        // `computeWindowEnvironment` reads from the window. This body was a bare
+        // TODO, which meant a window dragged between displays of different scale
+        // kept whatever it started with: `Image` re-renders on this value, so it
+        // stayed rendered for the old display until something else forced a
+        // recompute.
+        //
+        // The property, not a display or monitor signal. GTK's scale factor is
+        // the buffer scale it actually laid out at -- an integer by design --
+        // and `computeWindowEnvironment` deliberately reports that rather than
+        // the fraction the display advertises, for the reason recorded there.
+        // Watching the display instead would fire on changes GTK did not act on,
+        // and miss the moment GTK did.
+        //
+        // `MainActor.assumeIsolated` rather than a hop: GTK delivers signals on
+        // the thread running the main loop, which is the main thread, so the
+        // isolation already holds and a hop would only delay the recompute by a
+        // turn. Same shape as the action callback above.
+        //
+        // 使用 `notify::scale-factor`，因為 scale factor 就是 `computeWindowEnvironment` 從視窗
+        // 讀取的全部內容。此處原本只有一行 TODO，意味著視窗被拖到不同縮放的顯示器時，會保留它啟動
+        // 時的值：`Image` 會依這個值重新繪製，於是它會一直維持著為舊顯示器繪製的結果，直到有別的
+        // 事情強迫重新計算為止。
+        //
+        // 監聽的是該屬性，而非顯示器或螢幕的訊號。GTK 的 scale factor 是它實際排版時所用的 buffer
+        // scale——依設計即為整數——而 `computeWindowEnvironment` 刻意回報它、而非顯示器所宣稱的
+        // 小數，理由記於該處。改為監聽顯示器，會在 GTK 並未據以動作的變化上觸發，卻錯過 GTK 真正
+        // 動作的那一刻。
+        //
+        // 使用 `MainActor.assumeIsolated` 而非 hop：GTK 在執行 main loop 的執行緒上派送訊號，
+        // 而那就是主執行緒，因此隔離性本已成立，hop 只會讓重新計算多延遲一輪。與上方的 action
+        // callback 形狀相同。
+        window.addSignal(name: "notify::scale-factor") {
+            MainActor.assumeIsolated {
+                action()
+            }
+        }
     }
 
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
