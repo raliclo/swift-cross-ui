@@ -779,6 +779,51 @@ body.
 `onScaleFactorChange`——而不是從 backend 繞過 module 邊界。那才是該做的工作；訊號名稱與
 `MainActor.assumeIsolated` 的處理方式都已確定，並記在原始碼中該空 body 的旁邊。
 
+**Update 2026-09-01: the blocker is smaller than this entry makes it sound, and
+the route through it has now been walked.** Fixing the window-size shortfall
+(`todo.md`, GtkBackend gaps) needed the same thing this needs — something on the
+`Gtk` side that the backend cannot reach — and the way through turned out to be
+two or three lines:
+
+- `addSignal` is internal to the module, but `Window.registerSignals()` is
+  *inside* the module, so a `map` signal was added there and it fired. The same
+  place takes `notify::scale-factor`.
+- `registerSignals()` **is** called for a top-level window, which was the open
+  question: `ApplicationWindow.init(application:)` calls it directly
+  (`Sources/Gtk/Widgets/ApplicationWindow.swift:12`), not via
+  `didMoveToParent`, which never runs for a window with no parent.
+- The public hook is one stored property beside `onCloseRequest` /`onDestroy`,
+  which is exactly the shape this entry already proposed.
+
+That `map` hook was then removed again, because the size fix ended up not
+needing it — the allocation is still `0x0` at map time, measured. **That
+measurement is worth carrying here**: if `onScaleFactorChange` is added and its
+handler reads anything about the window's geometry, "map" is too early for it.
+
+So this entry stays open, but "the obvious fix does not compile" now
+overstates it. The work is small and the uncertainty about it is gone; what
+remains is doing it and finding a way to *test* it, which needs two displays of
+different scale — and that, not the API, is the real cost.
+
+**更新 2026-09-01：阻礙比本條目所描述的小，而且通往它的路已經走過一遍了。** 修正視窗尺寸短少
+（見 `todo.md` 的 GtkBackend 缺口）需要的正是本條目需要的東西——某個 backend 構不到、必須加在
+`Gtk` 那一側的鉤子——而走通之後發現只需兩三行：
+
+- `addSignal` 對模組是 internal，但 `Window.registerSignals()` **就在模組之內**，因此在該處加入
+  一個 `map` signal 並成功觸發。同一個位置也能放 `notify::scale-factor`。
+- `registerSignals()` **確實**會為頂層視窗被呼叫，而這正是原本懸而未決的問題：
+  `ApplicationWindow.init(application:)` 直接呼叫它（`Sources/Gtk/Widgets/ApplicationWindow.swift:12`），
+  而非經由 `didMoveToParent`——後者對沒有 parent 的視窗永遠不會執行。
+- 公開鉤子就是一個緊鄰 `onCloseRequest` / `onDestroy` 的儲存屬性，形狀正是本條目原本所提議的。
+
+那個 `map` 鉤子事後又被移除了，因為尺寸修正最終不需要它——實測顯示 map 時配置仍是 `0x0`。
+**那個量測值得記在這裡**：若日後加入 `onScaleFactorChange`，而其 handler 讀取任何與視窗幾何有關的
+資訊，"map" 對它而言太早。
+
+因此本條目維持 open，但「明顯的修法無法編譯」這個說法現在過重了。工作量很小，關於它的不確定性
+已經消失；剩下的是動手做，以及找出**測試**它的方法——那需要兩台縮放比例不同的顯示器，而那才是
+真正的成本，不是 API。
+
 <details><summary>Superseded text / 已被取代的內容</summary>
 
 It now connects `notify::scale-factor` on the window and calls the handler.
