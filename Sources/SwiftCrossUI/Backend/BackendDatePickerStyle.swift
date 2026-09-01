@@ -40,8 +40,12 @@ public enum BackendDatePickerStyle: Sendable, Hashable {
 
     /// A set of scrollable inputs that can be used to select a date.
     ///
-    /// Supported by UIKitBackend and WinUIBackend. Not by GtkBackend, which has
-    /// no wheel widget of any kind, nor by AppKitBackend or AndroidBackend.
+    /// Supported by UIKitBackend, WinUIBackend, and GtkBackend on hosts where
+    /// this case exists -- see ``DateWheel``. Not by AppKitBackend or
+    /// AndroidBackend.
+    ///
+    /// This said "Not by GtkBackend, which has no wheel widget of any kind"
+    /// until f704f304 implemented it and left the sentence behind.
     @available(iOS 13.4, macCatalyst 13.4, *)
     @available(macOS, unavailable)
     case wheel

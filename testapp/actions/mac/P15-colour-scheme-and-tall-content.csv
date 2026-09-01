@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15: request each colour scheme in turn, then make the content too tall.
+#
+# System comes last rather than first. P15 reports "Requested: X  Resolved: Y",
+# and the two only differ under system -- Light resolves to light and Dark to
+# dark, but system resolves to whatever the machine is. Ending on system means
+# the final state is the one where those two words can disagree, which is the
+# state #386 is about.
+#
+# Typing into the field is included because a colour scheme change has to reach
+# an editable control's text as well as its background, and an empty field shows
+# only the background.
+#
+# Use tall content is last of all. It changes the content area -- "300 x 24" at
+# launch -- and #289 is about the window's minimum height, so the rows before it
+# need the launch geometry. The drag that would actually test #289 is not here:
+# it means dragging the window's bottom edge, which is a frame coordinate
+# outside the client area and moves with the window, and this file cannot know
+# where the window will be when it runs.
+#
+# P15：依序請求每一種配色方案，再讓內容變得太高。
+#
+# System 排在最後而非最前。P15 回報「Requested: X  Resolved: Y」，而兩者只有在 system 之下才會
+# 不同——Light 解析為 light、Dark 解析為 dark，但 system 解析為機器當下的狀態。以 system 收尾，
+# 意味著最終狀態正是那兩個詞可能不一致的狀態，也就是 #386 所談的狀態。
+#
+# 納入在欄位中打字，是因為配色方案的變更必須同時抵達可編輯控制項的文字與其背景，而空欄位只顯示得
+# 出背景。
+#
+# Use tall content 排在最後。它會改變內容區域——啟動時為「300 x 24」——而 #289 談的是視窗的最小
+# 高度，因此在它之前的各列需要的是啟動時的幾何。真正能測試 #289 的那個拖曳不在此處：它意味著拖曳
+# 視窗的下緣，那是位於 client 區域之外、且會隨視窗移動的 frame 座標，而本檔無從得知執行時視窗會在哪裡。
+#
+# origin=frame. Window 720x588 points, capture 1440px wide -- scale 2.
+# origin=frame。視窗 720x588 點，擷取寬 1440px——scale 2。
+click,360,308,frame,left,,,focus the editable field,macos
+sleep,,,,,,500000,,macos
+key,,,,,x,,,macos
+key,,,,,y,,text that must stay legible in every scheme,macos
+sleep,,,,,,600000,,macos
+click,322,235,frame,left,,,Light -- Requested and Resolved must both say light,macos
+sleep,,,,,,1200000,,macos
+click,359,332,frame,left,,,the toggle under light,macos
+sleep,,,,,,600000,,macos
+click,260,356,frame,left,,,and the button,macos
+sleep,,,,,,800000,,macos
+click,380,235,frame,left,,,Dark,macos
+sleep,,,,,,1200000,,macos
+click,359,332,frame,left,,,the toggle again under dark,macos
+sleep,,,,,,800000,,macos
+click,256,235,frame,left,,,System -- the one case where Requested and Resolved may differ,macos
+sleep,,,,,,1200000,,macos
+click,240,446,frame,left,,,Use tall content -- the content area must stop being 300 x 24,macos
+sleep,,,,,,1200000,,macos

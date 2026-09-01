@@ -6,7 +6,7 @@ action,x,y,origin,button,key,micros,note,platform
 # P23 文字選取：先開啟該選項，再拖曳跨越一個儲存格以選取其內容。選取預設為關閉，因此第一次點擊
 # 正是讓第二個動作具有意義的前提——若不執行該點擊，拖曳將毫無作用，而那正是本項要驗證的行為，
 # 並非失敗。
-click,74,184,,left,,,turn selection on -- the button centre, not its top edge,gtk
+click,74,184,,left,,,"turn selection on -- the button centre, not its top edge",gtk
 sleep,,,,,,600000,let the table rebuild with selectable labels,gtk
 # A drag with intermediate positions. GTK recognises a drag from a sequence of
 # motion events, not from a jump: press, one move to the far end, release can
@@ -26,5 +26,5 @@ move,395,270,,,,,,gtk
 sleep,,,,,,80000,,gtk
 move,410,270,,,,,,gtk
 sleep,,,,,,150000,,gtk
-mouseup,410,270,,left,,,release, leaving the text selected,gtk
+mouseup,410,270,,left,,,"release, leaving the text selected",gtk
 sleep,,,,,,800000,hold the selection for the screenshot,gtk

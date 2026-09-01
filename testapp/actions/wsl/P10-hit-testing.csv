@@ -19,7 +19,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 才具有意義。
 click,74,232,,left,,,Click me -- the plain one,gtk
 sleep,,,,,,400000,,gtk
-click,74,232,,left,,,again, so Direct clicks reads 2,gtk
+click,74,232,,left,,,"again, so Direct clicks reads 2",gtk
 sleep,,,,,,600000,,gtk
 click,221,232,,left,,,Click me too -- under the transparent overlay,gtk
 sleep,,,,,,1200000,hold for the screenshot,gtk

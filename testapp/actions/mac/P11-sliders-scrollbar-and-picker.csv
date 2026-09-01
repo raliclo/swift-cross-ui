@@ -29,14 +29,14 @@ action,x,y,origin,button,key,micros,note,platform
 # origin=frame。視窗 760x648 點，擷取寬 1520px——scale 2。
 click,86,307,frame,left,,,Reset counters -- writes must go to min 0 max 0,macos
 sleep,,,,,,600000,,macos
-mouseDown,40,255,frame,left,,,grab the minimum slider's knob at the far left,macos
+mousedown,40,255,frame,left,,,grab the minimum slider's knob at the far left,macos
 move,200,255,frame,,,,,macos
 sleep,,,,,,200000,,macos
 move,400,255,frame,,,,,macos
 sleep,,,,,,200000,,macos
 move,700,255,frame,,,,past where the maximum sits -- #82's clamp,macos
 sleep,,,,,,300000,,macos
-mouseUp,700,255,frame,left,,,,macos
+mouseup,700,255,frame,left,,,,macos
 sleep,,,,,,1000000,,macos
 click,207,307,frame,left,,,Separate them,macos
 sleep,,,,,,800000,,macos
