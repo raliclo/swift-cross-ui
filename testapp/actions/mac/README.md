@@ -9,14 +9,21 @@ zsh testapp/test.zsh P28 --macos --actionfile
 
 ## Verified
 
-Two files have been run here and seen to work:
+AppKit hit testing was fixed on 2026-09-01 (`226a4af7`), together with the
+bundle-identity fault that had the same symptom (`test_common.zsh`). Files
+run here since:
 
-- `P28-hit-testing.csv` — `underlying button clicked count=1` in
-  `testapp/output/p28-debug-events.log`.
+- `P28-hit-testing.csv` — `underlying button clicked count=1` then `count=2`
+  in `testapp/output/p28-debug-events.log`. Its coordinates were also stale
+  and are corrected.
+- `P21-enabled-and-disabled.csv` — `Button — clicks: 1`. One, not two: the
+  enabled button counted and the disabled one did not. Toggle, toggle-button
+  and checkbox all flipped; every disabled counterpart stayed put.
+- `P0-appstorage.csv` — the Reset click lands and the status line says so.
 - `P26-swiftcrossui-tab.csv` — the tab click reaches the tab strip and one
   artifact is fetched.
 
-## Everything else here is unverified, and that is a change of rule
+## Everything else here is written but not yet replayed
 
 This file used to say: *a file appears here only after it has been run here
 and seen to work; an empty folder is an honest gap, and a copy of another
@@ -24,12 +31,19 @@ platform's file is a claim nobody checked.* That rule was right and the
 reasoning still holds. It is suspended for one specific reason, written down
 here rather than quietly ignored.
 
-AppKit hit testing is broken on this machine (see `todo.md`). A replay reaches
-the tab strip in P26 and nothing else — P21 reports `Button — clicks: 0` for a
-click at the centre of the button, P28's counter stays at zero at the corrected
-overlay centre. So no file written today *can* be verified, and waiting for the
-fix would mean measuring every window twice: once now to know where the
-controls are, and again later.
+These were written while AppKit hit testing was broken, when no file *could*
+be verified and waiting for the fix would have meant measuring every window
+twice. That is fixed now, so the rule can go back to what it was — but only
+after each file has actually been run, which four have been and the rest have
+not. Until then they are measured, not confirmed.
+
+One thing to know before replaying them: they were measured against the bare
+executable, whose window and the bundle's now agree only because each app
+finally has its own UserDefaults domain and so no inherited frame. An app
+that gets resized will save its own frame and keep it, and its file's
+coordinates will be stale from then on. `measure_macos.zsh` reports the size
+it measured; compare it against the size in the file's header before
+believing a miss.
 
 What is written down is therefore what was measured, not what was observed to
 work. Every coordinate here was read off a window capture taken by

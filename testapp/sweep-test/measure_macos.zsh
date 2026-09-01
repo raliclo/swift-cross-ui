@@ -40,9 +40,58 @@ esac
 printf '==> building %s with SCUI_DEBUG=1\n' "$app"
 ( cd "$repo" && SCUI_DEBUG=1 zsh testapp/compile.zsh "$app" 2>&1 | grep -E 'error:|Build complete' ) || true
 
+# Launched from the same .app the replay uses, not as a bare executable.
+#
+# This measured the wrong window until 2026-09-01. A bare Mach-O has no bundle
+# identifier, so NSWindow frame autosave does nothing and the window opens at
+# its natural size; `test.zsh` launches from `.macApp/debugTarget.app`, which
+# has one, and the window opens at whatever frame was saved. Same binary, same
+# commit, two sizes: P28 was 680x448 here and 1076x907 there.
+#
+# Every coordinate this helper produced was therefore measured against a window
+# the replay would never see. It is the reason P28's corrected coordinates still
+# missed after AppKit hit testing was fixed -- two separate faults with one
+# symptom, and fixing the first left the second looking like it had not worked.
+#
+# 以與重放相同的那個 .app 啟動，而非裸執行檔。
+#
+# 在 2026-09-01 之前，本工具量的是錯的視窗。裸 Mach-O 沒有 bundle identifier，因此 NSWindow 的
+# frame autosave 不會作用，視窗會以其自然尺寸開啟；而 `test.zsh` 是從 `.macApp/debugTarget.app`
+# 啟動的，它有 identifier，視窗會以先前存下的 frame 開啟。同一個 binary、同一個 commit，兩種尺寸：
+# P28 在此處是 680x448，在那裡是 1076x907。
+#
+# 因此本工具先前產出的每一個座標，量的都是重放永遠不會見到的視窗。這正是「AppKit hit testing 修好
+# 之後，P28 修正過的座標仍然落空」的原因——兩個各自獨立的問題共用一個症狀，而修好第一個只會讓第二個
+# 看起來像是沒有生效。
+# The same directory test_common.zsh uses -- $script_dir/.macApp, where
+# script_dir is testapp. Writing it to test_support/.macApp instead built a
+# second bundle beside the real one, which .gitignore did not cover and which
+# the harness would never launch.
+# 與 test_common.zsh 所使用的是同一個目錄——$script_dir/.macApp，其中 script_dir 為 testapp。
+# 改寫到 test_support/.macApp 只會在真正的 bundle 旁邊多建一個：.gitignore 沒有涵蓋它，而 harness
+# 也永遠不會啟動它。
+bundle_root="$testapp_dir/.macApp"
+bundle_dir="$bundle_root/debugTarget.app"
+template="$testapp_dir/macContainer/appTemplate.app"
+if [ ! -d "$template" ]; then
+    printf '!! missing macOS app template: %s\n' "$template" >&2
+    exit 1
+fi
+mkdir -p "$bundle_dir"
+cp "$template/Info.plist" "$bundle_dir/Info.plist"
+cp "$template/PkgInfo" "$bundle_dir/PkgInfo"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier dev.swiftcrossui.testapp.${app:l}" \
+    "$bundle_dir/Info.plist" >/dev/null
+rm -f "$bundle_dir/debugTarget"
+cp "$testapp_dir/output/$app" "$bundle_dir/debugTarget"
+chmod +x "$bundle_dir/debugTarget"
+
+# Both names: the bundled process is called debugTarget whichever Pn it is.
+# 兩個名稱都要：經 bundle 的行程，無論是哪一支 Pn，名稱都是 debugTarget。
 pkill -x "$app" 2>/dev/null || true
+pkill -x debugTarget 2>/dev/null || true
 sleep 1
-( cd "$testapp_dir/output" && ./"$app" --debug >/dev/null 2>&1 & )
+( cd "$testapp_dir/output" && "$bundle_dir/debugTarget" --debug >/dev/null 2>&1 & )
 
 # Polled, not slept. A fixed wait is a guess about the slowest app, and the
 # first version guessed five seconds -- P21 needed longer and reported "no
@@ -135,7 +184,12 @@ JXA
 wid=""
 for _ in {1..20}; do
     sleep 1
-    line="$(all_windows | awk -v a="$app" '$1 == a {print $2, $3, $4, $5, $6; exit}')" || true
+    # The owner name is debugTarget, not the app's -- the identity comes from
+    # the bundle. Searching for "$app" found nothing and reported it as the app
+    # failing to start.
+    # 擁有者名稱是 debugTarget 而非該 app 的名稱——身分來自 bundle。以 "$app" 搜尋會什麼都找不到，
+    # 並把它回報成「app 啟動失敗」。
+    line="$(all_windows | awk '$1 == "debugTarget" {print $2, $3, $4, $5, $6; exit}')" || true
     if [ -n "$line" ]; then
         read -r wid wx wy ww wh <<<"$line" || true
         [ -n "$wid" ] && break
@@ -143,8 +197,8 @@ for _ in {1..20}; do
 done
 
 if [ -z "${wid:-}" ]; then
-    printf '!! no window owned by %s after 20s; alive=%s\n' \
-        "$app" "$(pgrep -x "$app" >/dev/null && printf yes || printf no)" >&2
+    printf '!! no window owned by debugTarget (%s) after 20s; alive=%s\n' \
+        "$app" "$(pgrep -x debugTarget >/dev/null && printf yes || printf no)" >&2
     printf '!! owners this process can see:\n' >&2
     all_windows | awk '{print "  [" $1 "]"}' | head -12 >&2
     exit 1
@@ -175,7 +229,7 @@ screencapture -x -o -l "$wid" "$out" 2>&1 | head -1 || true
 
 if [ ! -s "$out" ]; then
     printf '!! capture produced no file for window %s\n' "$wid" >&2
-    [ "$keep" -eq 0 ] && pkill -x "$app" 2>/dev/null
+    [ "$keep" -eq 0 ] && pkill -x debugTarget 2>/dev/null
     exit 1
 fi
 
@@ -221,5 +275,5 @@ printf 'height subtracted, which nothing here measures.\n'
 printf 'origin=frame 是本擷取直接給出的：-o 省略陰影，故影像左上角即 frame 左上角。origin=client\n'
 printf '則需扣除標題列高度，而此處沒有任何東西量測它。\n'
 
-[ "$keep" -eq 0 ] && { pkill -x "$app" 2>/dev/null || true; }
+[ "$keep" -eq 0 ] && { pkill -x debugTarget 2>/dev/null || true; }
 exit 0
