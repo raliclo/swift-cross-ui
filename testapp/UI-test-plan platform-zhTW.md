@@ -70,7 +70,7 @@ zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P1
 | #454 | P10 | ⬜ | 🎯 | 🎯 | 🎯 | Transparent containers 吃掉 clicks -- 兩個 backends 都受影響 |
 | #386 | P15 | 🔍 | 🎯 | 🎯 | ⬜ | 不支援 dark mode |
 | #289 | P15 | ⬜ | 〰️ | 🎯 | ⬜ | Gtk-drawn title bars 下的 window minimum height |
-| #160 | P16 | 🎯 | 🔍 | 🔍 | ⬜ | Split view 第一次 render 時 layout 錯誤 |
+| #160 (Fixed) | P16 | ✅ | 🔍 | 🔍 | ⬜ | Split view 第一次 render 時 layout 錯誤；WinUI initial layout 已修，互動重測仍可保留 |
 | #595 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | ScrollView 內文字被裁切（core） |
 | #158 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | ZStack 內的 Group 沿錯誤 axis layout（core） |
 | #291 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | NavigationSplitView minimum width -- AppKit 有問題，Gtk 沒問題 |

@@ -98,7 +98,7 @@ assuming this matrix has already classified it.
 | #454 | P10 | ⬜ | 🎯 | 🎯 | 🎯 | Transparent containers eat clicks -- both backends |
 | #386 | P15 | 🔍 | 🎯 | 🎯 | ⬜ | Dark mode unsupported |
 | #289 | P15 | ⬜ | 〰️ | 🎯 | ⬜ | Window minimum height with Gtk-drawn title bars |
-| #160 | P16 | 🎯 | 🔍 | 🔍 | ⬜ | Split view laid out wrong on first render |
+| #160 (Fixed) | P16 | ✅ | 🔍 | 🔍 | ⬜ | Split view laid out wrong on first render; WinUI initial layout fixed, interaction retest still useful |
 | #595 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | Text cut off inside a ScrollView (core) |
 | #158 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | Group inside ZStack lays out along the wrong axis (core) |
 | #291 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | NavigationSplitView minimum width -- AppKit yes, Gtk no |

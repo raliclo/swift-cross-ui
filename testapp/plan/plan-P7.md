@@ -5,9 +5,11 @@
 P7 用來追蹤 Linux/GTK backend 的 List 與 NavigationSplitView 行為，主要涵蓋：
 
 - #476 (Fixed)：GTK/Gtk3 backend 上 `List` 啟動時不應自動選取第一項。
-- #556 (Open)：GTK backend 上 `NavigationSplitView` 的 pane aspect / split ratio 應接近 Windows，且 resize 後仍維持合理比例。
+- #556 (Monitoring)：GTK backend 上 `NavigationSplitView` 的 pane aspect / split ratio 應接近 Windows，且 resize 後仍維持合理比例。
 
-目前測試結果顯示：#476 已修正並由 GTK4/GTK3 確認；P7 啟動時 selection 綁定維持 `nil`，狀態列顯示 `Selection: none`，plain List 不再自動選取 `Apple`。#556 仍為 Open：split-view pane ratio 和 Windows 明顯不同，需要後續調查。
+目前測試結果顯示：#476 已修正並由 GTK4/GTK3 確認；P7 啟動時 selection 綁定維持 `nil`，狀態列顯示 `Selection: none`，plain List 不再自動選取 `Apple`。
+
+2026-09-01 重新量測 #556 後，P7 目前不再重現「GTK 與 Windows pane ratio 不一致」：WSLg 與 Windows 都回報 `total=420`、`currentSidebar=200`，也就是 47.6%。先前的 87px 類結論是把 content probe 寬度誤讀為 pane width。此 plan 保留作為防止量測誤讀與 regression coverage；若要繼續判定 #556，需要找出另一個仍可重現的 resize/content 情境。
 
 ## Brainstorm 結論
 
@@ -47,7 +49,9 @@ P7 用來追蹤 Linux/GTK backend 的 List 與 NavigationSplitView 行為，主�
 
 ## #556：NavigationSplitView pane ratio
 
-目前觀察重點不是 collapse，而是 Windows 與 WSLg/GTK 的 pane aspect / split ratio 不一致。P7 step 7 / step 8 功能上穩定，但 #556 仍為 Open。
+目前觀察重點不是 collapse。2026-09-01 的 P7 WSLg/Windows 對照中，兩平台實際 pane ratio 一致：sidebar 200 / total 420。P7 step 7 / step 8 功能上穩定，且此輪未看到 pane aspect / split ratio 不一致。
+
+仍需注意的是量測來源：P7 的 content probes 只量 pane 內內容實際佔用的寬度，不等於 pane width。sidebar content 可回報 31，而 split view 實際 sidebar 仍是 200；detail content 同理。
 
 可疑位置：
 
@@ -62,23 +66,23 @@ P7 用來追蹤 Linux/GTK backend 的 List 與 NavigationSplitView 行為，主�
 - 明確設定 Gtk4 Paned resize policy，讓 resize 時 detail pane 吃剩餘空間，或維持和 Windows 更接近的 sidebar/detail ratio。
 - 若 backend-only 修正不足，再考慮在 SwiftCrossUI `SplitView` 保存 framework 層級的 sidebar width / ratio，避免完全依賴 native `Paned.position`。
 
-優先順序：先加量測，再修 GtkBackend bounds / resize policy；暫時避免一開始就大改 core `SplitView`。
+優先順序：先保留量測，不再直接修 GtkBackend bounds / resize policy。只有在新的可重現情境證明實際 pane ratio 仍錯時，才進入 backend 修正。
 
 ## #556 調查步驟
 
-1. 讓 P7 顯示或記錄 split view 的 sidebar width、detail width、total width、ratio。
-2. 在 Windows 與 WSLg/GTK 使用相同視窗大小截圖，確認差異是否來自 content area、window decoration、DPI scaling，或 GTK Paned allocation。
-3. 檢查 GtkBackend `setSidebarWidthBounds` 中 `getNaturalSize().width` 的實際值是否等於 P7 指定的 420 px。
-4. 嘗試設定 Gtk4 Paned resize policy，並比較 resize 前後 pane ratio。
-5. 若 ratio 仍不一致，再評估 `SplitView` 是否需要保存跨 backend 的 logical sidebar width。
+1. 已完成：P7 記錄 split view 的 sidebar width、detail width、total width、ratio。
+2. 已完成：Windows 與 WSLg/GTK 使用相同視窗大小對照，本輪兩邊實際 pane ratio 一致。
+3. 已完成：P7 指定的 420 px total 有進入 SplitView 診斷。
+4. 待新 repro：若其他 resize/content 情境仍顯示 ratio mismatch，再嘗試設定 Gtk4 Paned resize policy。
+5. 待新 repro：若 backend-only 修正不足，再評估 `SplitView` 是否需要保存跨 backend 的 logical sidebar width。
 
 ## 建議實作順序
 
 1. #476 已完成：signal guard 與 nil-selection cleanup 已實作並驗證。
-2. 為 #556 加 pane ratio instrumentation，先取得數字。
-3. 調整 GtkBackend Paned bounds / resize policy。
-4. 重新執行 P7 Windows 與 WSLg/GTK 對照測試。
-5. 更新 `UI-test-results_overall_en.md` 與 `UI-test-results_overall_zhTW.md`。
+2. #556 pane ratio instrumentation 已完成，並已取得 WSLg/Windows 數字。
+3. 暫停 GtkBackend Paned bounds / resize policy 修改，直到有新的 failing scenario。
+4. 重新執行 P7 Windows 與 WSLg/GTK 對照測試已完成。
+5. 已更新 `UI-test-results_overall_en.md` 與 `UI-test-results_overall_zhTW.md`。
 
 ## 驗收條件
 

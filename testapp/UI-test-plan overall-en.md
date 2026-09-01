@@ -284,7 +284,7 @@ zsh testapp/test.zsh P7 --both
 Covered issues:
 
 - #476 (Fixed): The List control starts with the first item already selected on the GTK backend
-- #556 (Open): Gtk List NavigationSplitView makes weird size decisions
+- #556 (Monitoring): Gtk List NavigationSplitView makes weird size decisions
 
 Test steps:
 
@@ -300,7 +300,7 @@ Test steps:
 Expected results:
 
 - Nothing is selected at launch. A highlighted first row is a #476 regression. Verified fixed on GTK4 and GTK3 under WSLg.
-- The detail pane is visible and does not collapse to nothing, and the division does not change when unrelated text changes. Either is #556.
+- The detail pane is visible and does not collapse to nothing, and the division does not change when unrelated text changes. As of 2026-09-01, P7 reports the same measured split ratio on WSLg and Windows: sidebar 200 / total 420, or 47.6%. Treat future failures as a new #556 repro and capture the diagnostic numbers before changing backend code.
 
 ## P8: Scroll Views (Linux)
 
@@ -579,7 +579,7 @@ Run:
 
 Covered issues:
 
-- #160 (Open): WinUIBackend lays out NavigationSplitView incorrectly on the
+- #160 (Fixed): WinUIBackend lays out NavigationSplitView incorrectly on the
   initial load, and it snaps to a correct layout on any state change or resize
 
 **Read the numbers before touching anything.** The bug is defined by the first
@@ -605,8 +605,14 @@ Expected results:
 
 - The pane sizes at first render are already correct, and match the sizes after
   a forced update.
+- 2026-09-01 verification: after initializing WinUI `createSplitView` with a
+  sidebar width, P16 first render reports `sidebar: 180 x 22` and
+  `detail: 660 x 22`; row text is no longer squeezed into wrapped text.
 - Different numbers at step 2 and step 5 are #160, and the difference is how
   wrong "very incorrectly" actually is.
+- Actionfile-driven interaction may still depend on Windows desktop /
+  foreground / elevation state. If the Force update counter does not change,
+  verify state-update stability manually.
 - Sizes are displayed live rather than captured into state at first render:
   writing state during a layout pass feeds back into the layout it is
   measuring, and `GeometryReader`'s own documentation warns that content may be
@@ -1267,16 +1273,16 @@ largest protocol-level gap: SwiftCrossUI has no animation layer at all, and only
 the effect modifiers currently available in the project can be exercised.
 
 There is no `Animation`, `withAnimation`, `.animation(_:value:)`, `.transition`
-or `Namespace`, and no backend protocol for any of them. Nor is there `.opacity`,
-`.shadow`, `.blur`, `.rotationEffect`, `.scaleEffect`, `.offset`, `.zIndex`,
-`.clipShape` or `.mask` -- `.clipped()` and `.cornerRadius()` are the only two
-that exist. Every SwiftUI state change is implicitly animatable, so this is the
+or `Namespace`, and no backend protocol for any of them. Visual effects and
+geometric effects now have partial coverage, but backend parity is incomplete:
+GtkBackend renders blur and colour filters, while WinUIBackend currently applies
+opacity only. `.shadow`, `.zIndex`, `.clipShape` and `.mask` are still absent.
+Every SwiftUI state change is implicitly animatable, so animation remains the
 widest behavioural divergence in the toolkit.
 
-This app is written **before** the feature, deliberately: it starts as a list of
-things that do not compile, and each line that starts compiling is the progress
-report. Until then it documents the boundary in one place instead of a dozen
-issues.
+This app started as a pre-feature boundary document and now serves as a
+compileable baseline for the effect APIs that exist. Keep using it to separate
+"API does not exist" from "API exists but a backend renders it as a no-op".
 
 Current automated flow:
 
@@ -1286,16 +1292,20 @@ zsh testapp/test.zsh P30 --both
 
 The app shows compileable visual/geometric effect samples and keeps the missing
 animation APIs visible as text. It also writes `p30-debug-events.log` when run
-with `--debug`.
+with `--debug`. Current WinUI support is partial: opacity is implemented, while
+blur, grayscale, saturation, brightness, contrast and hue rotation are confirmed
+no-ops until the backend builds a real Composition / Win2D effect graph.
 
 Test steps:
 
 1. Toggle a `@State` value that changes a frame and confirm whether the change is
    instant (current behaviour) or animated.
-2. Apply `.opacity(0.5)`, `.shadow(...)`, `.rotationEffect(...)`,
-   `.scaleEffect(...)` and `.offset(...)` and record which compile at all.
-3. Insert and remove a view with `.transition(...)`.
-4. Compare each against the same code under AppKit.
+2. Compare opacity, blur and grayscale samples against the control.
+3. Compare offset, scale and rotation samples against the control.
+4. Confirm that animation-only APIs remain documented as missing rather than
+   being represented by broken sample code.
+5. Compare each against the same code under AppKit when that backend is in
+   scope.
 
 ## P31: Focus and Keyboard (Linux and Windows)
 
@@ -1732,8 +1742,11 @@ Test steps:
 Expected results:
 
 - The app should render visible samples on both platforms.
-- Backend-specific theme differences are acceptable; missing or blank samples
-  should be recorded as issues.
+- Backend-specific theme differences are acceptable.
+- On GTK, blur and colour effects should visibly differ from the control.
+- On WinUI, opacity should differ from the control; blur, grayscale,
+  saturation, brightness, contrast and hue rotation are currently expected
+  no-ops and should remain documented until implemented.
 
 ## P40: Geometric Effects (Linux and Windows)
 

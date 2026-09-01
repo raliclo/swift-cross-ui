@@ -9,7 +9,7 @@ import WinUIInterop
 @preconcurrency import WindowsFoundation
 import Mutex
 
-#if SCUI_DEBUG
+#if canImport(InputEvent)
     // The one symbol, not the whole module. InputEvent declares a `Point`, and so
     // does WindowsFoundation; a plain `import InputEvent` makes every unqualified
     // `Point` in this file ambiguous, which is 21 errors across the path-geometry
@@ -551,7 +551,12 @@ public final class WinUIBackend:
     public func show(window: Window) {
         try! window.activate()
 
-        #if SCUI_DEBUG
+        #if canImport(InputEvent)
+            if ActionFileReplay.requestedFile != nil {
+                FileHandle.standardError.write(
+                    Data("-actionfile: WinUIBackend show(window:) scheduling replay\n".utf8)
+                )
+            }
             // Only ever fires for the first window, and only when -actionfile
             // was passed. See InputEvent's ActionFileReplay.
             //
@@ -1685,6 +1690,7 @@ public final class WinUIBackend:
         splitView.content = trailingChild
         splitView.isPaneOpen = true
         splitView.displayMode = .inline
+        splitView.openPaneLength = Double(Self.defaultSidebarWidth)
         return splitView
     }
 

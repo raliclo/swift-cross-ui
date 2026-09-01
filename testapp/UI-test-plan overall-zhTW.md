@@ -284,7 +284,7 @@ zsh testapp/test.zsh P7 --both
 涵蓋 issues：
 
 - #476 (Fixed)：GTK backend 上 List 一啟動就已選取第一項
-- #556 (Open)：Gtk List 的 NavigationSplitView 尺寸判斷異常
+- #556 (Monitoring)：Gtk List 的 NavigationSplitView 尺寸判斷異常
 
 測試步驟：
 
@@ -300,7 +300,7 @@ zsh testapp/test.zsh P7 --both
 預期結果：
 
 - 啟動時沒有任何選取項目；若第一列已被標示，即為 #476 regression。已在 WSLg 下以 GTK4 與 GTK3 確認修正。
-- detail 區可見且不會塌成零寬，且不因無關文字變動而改變分割；任一項不符即為 #556。
+- detail 區可見且不會塌成零寬，且不因無關文字變動而改變分割。依 2026-09-01 量測，P7 在 WSLg 與 Windows 回報相同 split ratio：sidebar 200 / total 420，也就是 47.6%。若之後再失敗，視為新的 #556 repro，先保留診斷數字再改 backend。
 
 ## P8：Scroll Views（Linux）
 
@@ -562,7 +562,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 涵蓋 issues：
 
-- #160 (Open)：WinUIBackend 的 NavigationSplitView 初次載入時 layout 錯誤，一旦有狀態變更或視窗縮放就會跳回正確
+- #160 (Fixed)：WinUIBackend 的 NavigationSplitView 初次載入時 layout 錯誤，一旦有狀態變更或視窗縮放就會跳回正確
 
 **先讀數字再動任何東西。** 這個 bug 由「第一次 render」定義，而縮放視窗正是兩種會修正它的操作之一，任何互動都會破壞證據。
 
@@ -580,7 +580,9 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 預期結果：
 
 - 首次 render 的 pane 尺寸就應該正確，與強制更新後相同。
+- 2026-09-01 驗證：WinUI `createSplitView` 初始設定 sidebar width 後，P16 首次 render 顯示 `sidebar: 180 x 22`、`detail: 660 x 22`，row 文字不再被壓窄換行。
 - 若步驟 2 與步驟 5 的數字不同，即為 #160，且差值就是「錯得多離譜」的量化結果。
+- actionfile 自動互動仍可能受 Windows desktop / foreground / elevation 狀態影響；若 Force update counter 沒變，先以人工點擊確認 state update 後 layout 是否穩定。
 - 尺寸為即時顯示而非在首次 render 時寫入 state：在 layout 過程中寫 state 會回饋到它正在量測的 layout，而 `GeometryReader` 的文件也說明內容可能會以不同尺寸被評估多次。
 
 ## P17：Cross-Backend Layout Comparison（Linux 與 Windows）
@@ -1353,12 +1355,13 @@ zsh testapp/test.zsh P29 --both
 SwiftCrossUI 完全沒有動畫層；目前只能測專案中已存在的 effect modifiers。
 
 沒有 `Animation`、`withAnimation`、`.animation(_:value:)`、`.transition` 或 `Namespace`，也沒有
-任何相應的 backend 協定。同樣沒有 `.opacity`、`.shadow`、`.blur`、`.rotationEffect`、
-`.scaleEffect`、`.offset`、`.zIndex`、`.clipShape` 或 `.mask`——現存的只有 `.clipped()` 與
-`.cornerRadius()` 兩者。SwiftUI 中每一次狀態變更都隱含可動畫化，因此這是本工具組中最大的行為分歧。
+任何相應的 backend 協定。visual effects 與 geometric effects 現在已有部分覆蓋，但 backend parity
+仍不完整：GtkBackend 會 render blur 與 color filters，WinUIBackend 目前只套用 opacity。
+`.shadow`、`.zIndex`、`.clipShape` 與 `.mask` 仍不存在。SwiftUI 中每一次狀態變更都隱含可動畫化，
+因此 animation 仍是本工具組中最大的行為分歧。
 
-本 app 刻意寫在功能**之前**：它一開始就是一份「無法編譯的清單」，而每一行開始能夠編譯，即為進度
-報告。在那之前，它把邊界記錄於同一處，而非散落在十幾個 issue 之中。
+本 app 起初是功能完成前的邊界文件，現在則是已存在 effect APIs 的可編譯 baseline。後續仍用它區分
+「API 不存在」與「API 存在但某個 backend render 成 no-op」。
 
 目前自動流程：
 
@@ -1367,15 +1370,17 @@ zsh testapp/test.zsh P30 --both
 ```
 
 app 會顯示可編譯的 visual/geometric effect 範例，並把缺少的 animation API 以文字列在畫面上。
-以 `--debug` 執行時會寫入 `p30-debug-events.log`。
+以 `--debug` 執行時會寫入 `p30-debug-events.log`。目前 WinUI 支援是 partial：opacity 已實作；
+blur、grayscale、saturation、brightness、contrast、hue rotation 已確認仍是 no-op，直到 backend
+建立真正的 Composition / Win2D effect graph。
 
 測試步驟：
 
 1. 切換一個會改變 frame 的 `@State` 值，確認該變更是瞬間完成（目前行為）還是帶有動畫。
-2. 套用 `.opacity(0.5)`、`.shadow(...)`、`.rotationEffect(...)`、`.scaleEffect(...)` 與
-   `.offset(...)`，記錄哪些能通過編譯。
-3. 以 `.transition(...)` 插入與移除一個 view。
-4. 將每一項與 AppKit 下的相同程式碼比較。
+2. 將 opacity、blur、grayscale samples 與 control 比較。
+3. 將 offset、scale、rotation samples 與 control 比較。
+4. 確認 animation-only APIs 仍以 missing API 文字記錄，而不是放入無法編譯的 sample code。
+5. 若 AppKit backend 在測試範圍內，將每一項與 AppKit 下的相同程式碼比較。
 
 ## P31：焦點與鍵盤（Linux 與 Windows）
 
@@ -1713,7 +1718,9 @@ zsh testapp/test.zsh P39 --both
 預期結果：
 
 - 兩個平台都應 render 出可見 samples。
-- Backend-specific theme 差異可接受；missing 或 blank samples 應記錄為 issue。
+- Backend-specific theme 差異可接受。
+- GTK 上 blur 與色彩效果應明顯不同於 control。
+- WinUI 上 opacity 應不同於 control；blur、grayscale、saturation、brightness、contrast、hue rotation 目前預期仍為 no-op，需保留文件紀錄直到實作完成。
 
 ## P40：Geometric Effects（Linux 與 Windows）
 

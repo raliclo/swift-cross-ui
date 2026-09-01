@@ -15,9 +15,9 @@
 
 | 狀態 | 件數 | Issues |
 |---|---|---|
-| 已修 | 12 | #493 #548 #523 #659 #660 #449 #471 #401 #470 #204 #190 #156 |
-| 只修了 WinUI 半邊 | 2 | #389 #390（GTK 半邊仍開著） |
-| 已有 repro，未驗證 | 1 | #160 |
+| 已修 | 14 | #493 #548 #523 #659 #660 #449 #471 #401 #470 #204 #190 #156 #389 #390 |
+| 已修，仍需人工互動驗證 | 1 | #160 |
+| 已確認未實作 | 1 | P30/P39 WinUI visual effects：opacity 以外仍為 no-op |
 
 可重跑的核對指令：
 
@@ -27,8 +27,9 @@ awk -F, 'NR>1 && $3 ~ /WinUIBackend/ && $4 !~ /^fixed-p/' testapp/issues.csv
 
 ## 總覽
 
-WinUIBackend 剩下 3 件，而且沒有一件屬於原本最擔心的 crash 或生命週期類。
-**瓶頸已經從「不知道要修什麼」變成「repro app 都建好了但一次都沒跑過」。**
+WinUIBackend 目前剩下的本地待辦集中在 #160 的互動驗證，以及 P30/P39 visual effects 的
+Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `testapp/issues.csv`
+標為 fixed，原本「只修 WinUI 半邊」的敘述已過時。
 
 ## 待辦
 
@@ -42,30 +43,44 @@ WinUIBackend 剩下 3 件，而且沒有一件屬於原本最擔心的 crash 或
   - 執行：`./testapp/output/P16.exe`，步驟見 `UI-test-plan overall-en.md`。
   - 注意：**先讀數字再動視窗**。縮放視窗正是兩種會修正它的操作之一，任何互動
     都會破壞證據。步驟 2 與步驟 5 的差值就是這個 bug 的量化結果。
+  - 2026-08-31：Windows initial capture 可見，但 probe 仍回報 `sidebar: 0 x 22`、
+    `detail: 0 x 22`、之後 `detail: 734 x 22`。已修正 `compile.zsh` 沒把
+    `SCUI_DEBUG=1` 傳成 `-Xswiftc -DSCUI_DEBUG` 的問題，也讓 `ActionFileReplay`
+    在 WinUI console redirection 下仍能寫出 `actionfile-replay.log`。目前 replay hook
+    可觀察，但 `actions/win/P16-force-update.csv` 尚未讓 Force update / sidebar selection /
+    column switch 反映到畫面，需改查 Win32 synthetic input 對 WinUI 控制的命中、focus 或
+    activation。
+  - 2026-08-31 補充：清空 `actionfile-replay.log` 後重跑，`SendInput` 回報
+    `ERROR_ACCESS_DENIED`，此輪不能當作 app 行為證據。final screenshot 仍可見 sidebar row
+    內容被壓窄換行；已試過 `ListViewItem.horizontalContentAlignment = .stretch` 與 list item /
+    content width sync，截圖未改善並已撤回。真正有效的修正是讓 WinUI `createSplitView`
+    初始設定 `openPaneLength = 200`，避免 core layout 第一次以 0-width sidebar 計算 row。
+    最新 P16 final screenshot 顯示 `sidebar: 180 x 22`、`detail: 660 x 22`，row 文字不再換行。
   - 可能方向：初次 render 前 WinUI 回報尺寸可能不可靠；需要延後 layout、
     二次 measure，或在 first arrange 後觸發 update。
 
-### WinUI 已修、GTK 半邊仍開著
+### 已確認未實作
 
-這兩件的 WinUI 部分已經完成，剩下的工作全在 GtkBackend，屬於 WSL 那條線。
-repro 步驟早就存在，是當初修 WinUI 版本時寫的。
+- P30/P39 WinUI visual effects
 
-- #389 [GTK][WinUI] Images aren't clipped
-
-  - 現況：`fixed-winui-p3;open-gtk`。P3 步驟 6-9 已涵蓋。
-  - 可能方向：GTK 側的 frame clipping；WinUI 那邊的修法可作參考。
-- #390 [GTK][WinUI] Disabled buttons don't appear disabled
-
-  - 現況：`fixed-winui-p2;open-gtk`。P2 步驟 7-8 已涵蓋。
-  - 可能方向：disabled 狀態的 foreground/background/opacity；注意跨 backend parity。
+  - 現況：`WinUIBackend+VisualEffects.swift` 只設定 `widget.opacity`。P39 的 PIL crop comparison
+    已確認 Windows 上 blur、saturation、brightness、contrast、grayscale、hueRotation 與 control
+    完全相同；WSLg/GTK 對照則有可量測差異。
+  - 2026-09-01：已將 WinUI unsupported-effect warning 改為每個 effect 名稱只回報一次，避免 update
+    pass 反覆洗 console。這只是診斷降噪，非 rendering 修復。
+  - 原因：WinUI binding 有 `CompositionEffectFactory` / `CompositionEffectBrush`，但目前專案沒有
+    Win2D `Microsoft.Graphics.Canvas.Effects` 類型可建立 Gaussian blur / color matrix 類 effect
+    graph。
+  - 方向：補 Win2D dependency/binding，或建立等價的 `IGraphicsEffect` effect graph 後再套進
+    Composition brush；在此之前不要把非 opacity 效果標成已修。
 
 ## 建議近期工作切入點
 
-1. **跑 P16**，確認 #160 是否仍重現，並記下兩組 pane 尺寸。這是唯一純
-   Windows 的待辦，且不依賴任何其他人。
-2. 一併跑 P2、P3 的 GTK 版本（在 WSL），確認 #389、#390 的 GTK 半邊。這三件
-   一起測完，WinUIBackend 這條線就清空了。
-3. 測完再改 `Sources/`。目前沒有任何一支 repro app 被實際執行過，盲修比不修更糟。
+1. **修 WinUI actionfile control activation，或改用另一條可靠輸入路徑**，讓 P16 的 Force update /
+   column switch 可以自動驗證。
+2. 重跑 P16：先記錄 initial pane width，再執行 Force update，最後切到 3 column 對照。若
+   `SendInput` 仍回 `ERROR_ACCESS_DENIED`，先排除 elevated foreground / desktop lock 狀態。
+3. 人工點 P16 的 Force update / sidebar selection / column switch，確認 state update 後 layout 仍穩定。
 
 ## 已經可以送 PR 的 commit
 

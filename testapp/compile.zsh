@@ -221,6 +221,10 @@ sources_root="$package_dir/Sources"
 
 windows_gtk_product=""
 gtk_build_flags=()
+debug_feature_flags=()
+if [ "${SCUI_DEBUG:-}" = "1" ]; then
+    debug_feature_flags=(-Xswiftc -DSCUI_DEBUG)
+fi
 
 # The WinUI products a test app depends on directly, dropped entirely under
 # -gtk4. Redirecting DefaultBackend is not enough on its own: the app names
@@ -620,7 +624,8 @@ fi
 #
 # Hash the LIST of source paths, not their contents: content changes are what
 # llbuild already tracks correctly, and hashing contents would throw the plan
-# away on every edit and cost a full rebuild each time.
+# away on every edit and cost a full rebuild each time. Include SCUI_DEBUG
+# because it changes the root package's conditional InputEvent dependencies.
 #
 # 機制本身，因為知道它才能看出這個修法是「顯然正確」而非猜測。llbuild 的 `PackageStructure`
 # task——即印出 "Planning build" 的那一個——恰好只有三個 input：
@@ -645,9 +650,10 @@ fi
 # 它也立即被編譯——因此問題出在 llbuild 的快取計畫，而非 SwiftPM，也非工具鏈。
 #
 # 此處雜湊的是原始檔路徑「清單」，而非其內容：內容變更本來就會被 llbuild 正確追蹤，而雜湊內容
-# 會導致每次編輯都丟棄整個建置計畫，代價是每次都全量重建。
+# 會導致每次編輯都丟棄整個建置計畫，代價是每次都全量重建。另納入 SCUI_DEBUG，因為它會改變
+# root package 的 conditional InputEvent dependencies。
 source_list_hash_file="$package_dir/.source-list-hash"
-source_list_hash="$(cd "$repo_root" && find Sources -name '*.swift' -print | sort | cksum)"
+source_list_hash="$(cd "$repo_root" && { find Sources -name '*.swift' -print | sort; printf 'SCUI_DEBUG=%s\n' "${SCUI_DEBUG:-0}"; } | cksum)"
 if [[ ! -f "$source_list_hash_file" ]] \
     || [[ "$source_list_hash" != "$(cat "$source_list_hash_file" 2>/dev/null)" ]]; then
     rm -f "$package_dir/.build/debug.yaml" "$package_dir/.build/release.yaml"
@@ -815,6 +821,7 @@ for app_name in $app_names; do
         --package-path "$package_dir" \
         --product "$app_name" \
         -c "$build_config" \
+        "${debug_feature_flags[@]}" \
         "${gtk_build_flags[@]}"
 
     exe_path=""
@@ -854,6 +861,19 @@ for app_name in $app_names; do
             break
         fi
     done
+
+    if [ "$target_platform" = "host" ] && [ "$force_gtk4" -eq 0 ] && [ "${output_path:e}" = "exe" ]; then
+        win2d_dll="${WIN2D_DLL:-}"
+        if [ -z "$win2d_dll" ]; then
+            win2d_dll="$(find "$HOME/.nuget/packages/microsoft.graphics.win2d" \
+                -path '*/runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll' \
+                -print 2>/dev/null | sort -V | tail -n 1 || true)"
+        fi
+        if [ -n "$win2d_dll" ] && [ -f "$win2d_dll" ]; then
+            cp "$win2d_dll" "$output_dir/Microsoft.Graphics.Canvas.dll"
+            echo "    -> $output_dir/Microsoft.Graphics.Canvas.dll"
+        fi
+    fi
 done
 
 echo "Done. Output directory: $output_dir"

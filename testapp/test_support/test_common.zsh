@@ -652,7 +652,13 @@ print_actionfile_report() {
     # stdout 與 stderr 在任何東西能從中導出之前就已被關閉。先前沒發現，只是因為上一行更早就先失敗了，
     # 原因見上方關於 PATH 的說明。
     local report
+    local report_source="$log_path"
     report="$(grep -a actionfile "$log_path" 2>/dev/null || true)"
+    if [ -z "$report" ]; then
+        local replay_log="${log_path:h}/actionfile-replay.log"
+        report="$(grep -a actionfile "$replay_log" 2>/dev/null || true)"
+        report_source="$replay_log"
+    fi
     if [ -n "$report" ]; then
         printf '    %s\n' ${(f)report}
     else
@@ -679,7 +685,7 @@ print_actionfile_report() {
     #
     # 刻意捨棄它的結束狀態：本腳本的 exit code 表示「這次執行發生了」，而對桌面的判決是另一回事。
     # `check` 會用它自己印出的訊息說明結論。
-    zsh "$ui_lock_script" check "$log_path" || true
+    zsh "$ui_lock_script" check "$report_source" || true
 }
 
 print_summary_wsl() {
@@ -805,6 +811,9 @@ run_windows() {
     # 用 `if` 而非 `[ -n ... ] && ...`：在 `set -e` 下，測試為假會使整個腳本中止。
     if [ -n "$extra_log" ]; then
         : > "$out/$extra_log"
+    fi
+    if [ -n "$action_file" ]; then
+        : > "$out/actionfile-replay.log"
     fi
     local args="$app_args"
     if [ -n "$action_file" ]; then
