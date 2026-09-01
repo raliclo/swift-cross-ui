@@ -49,8 +49,7 @@ These are gaps with reasons, not oversights.
 | App | Why |
 | --- | --- |
 | `P25` | Needs a drag from the Finder. A cross-application drag comes from the window server's drag session; `NSApp.postEvent` cannot start one. |
-| `P30`, `P39` | Abort at launch: `'AppKitBackend' does not implement 'BackendFeatures.VisualEffects'`. There is no window to click. |
-| `P40` | Same, for `BackendFeatures.GeometricEffects`. |
+| `P30`, `P39`, `P40` | They open now -- the abort was fixed on 2026-09-01 -- but AppKitBackend still implements neither effect family, so every view in them renders unmodified. There is nothing a click would distinguish. Files are worth adding once the conformances exist. |
 | `P37` | Asks for another application's window to be given focus, which the synthesiser cannot do — it posts into this app's own event queue. |
 | `P17-DOE` | Three drawn rectangles and no controls. A capture answers it. |
 | `P6-v2` | Imports `Gtk` and `GtkBackend` directly. It does not build for AppKit and is not meant to. |
@@ -110,8 +109,7 @@ AppKit 的 hit testing 在這台機器上是壞的（見 `todo.md`）。重放�
 | App | 原因 |
 | --- | --- |
 | `P25` | 需要從 Finder 拖曳。跨應用程式的拖曳來自 window server 的 drag session；`NSApp.postEvent` 無法發起。 |
-| `P30`、`P39` | 啟動即中止：`'AppKitBackend' does not implement 'BackendFeatures.VisualEffects'`。沒有視窗可點。 |
-| `P40` | 同上，為 `BackendFeatures.GeometricEffects`。 |
+| `P30`、`P39`、`P40` | 現在開得起來了——那個中止已於 2026-09-01 修復——但 AppKitBackend 兩個效果系列仍都未實作，因此其中每一個 view 都以未經修飾的樣貌算繪。沒有任何東西是一次點擊能夠區分的。待 conformance 存在後再補上檔案。 |
 | `P37` | 要求把焦點交給另一個應用程式的視窗，而 synthesiser 做不到——它只把事件送入本 app 自己的事件佇列。 |
 | `P17-DOE` | 三個繪製出來的矩形，沒有任何控制項。擷取影像即可回答。 |
 | `P6-v2` | 直接 `import Gtk` 與 `GtkBackend`。它不會為 AppKit 建置，也不打算如此。 |

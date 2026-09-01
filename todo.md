@@ -989,7 +989,9 @@ Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
 value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
 `.clipShape`, `.mask`, `.compositingGroup`, `.drawingGroup`.
 
-**AppKitBackend implements neither family, and the fallback is `fatalError`.**
+**AppKitBackend implements neither family. The `fatalError` is fixed; the
+conformances are still missing.** Both modifiers now degrade -- fixed
+2026-09-01, see below.
 Measured 2026-09-01 on the Mac: P30 and P39 abort at launch with
 `VisualEffectModifier.swift:89: Fatal error: 'AppKitBackend' does not implement
 'BackendFeatures.VisualEffects'`, and P40 with the same shape from
@@ -1013,7 +1015,36 @@ not implement 'BackendFeatures.VisualEffects'`，而 P40 則是來自
 三支在 macOS 上根本沒有視窗，而這正是它被發現的方式——`measure_macos.zsh` 回報
 「no window owned by P30 after 20s」。
 
-缺少 conformance 是預期之中的事；真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
+**Fixed 2026-09-01.** `VisualEffectModifier` and `GeometricEffectModifier` no
+longer go through `@CastBackend` for the unsupported case. They warn once and
+return the child's widget unwrapped, so the view renders plainly and the app
+runs. Verified on the Mac: all three apps now open a window --
+P30 860x648, P39 860x648, P40 900x697 -- and each prints
+`AppKitBackend doesn't support visual effects; showing the view unmodified`
+or the geometric equivalent.
+
+The macro is unchanged. Its `fatalError` is right where there is no fallback,
+which GtkBackend's WebView and AngularGradient both rely on; only the two
+modifiers that have somewhere to fall back to were changed.
+
+Still open: AppKitBackend implements neither conformance. Degrading means P30,
+P39 and P40 show unmodified views, which is a truthful result rather than a
+correct one.
+
+**已於 2026-09-01 修復。** `VisualEffectModifier` 與 `GeometricEffectModifier` 在不支援的情況下
+不再經由 `@CastBackend`。它們會警告一次，並回傳未經包裝的子 widget，因此 view 平實地算繪，
+app 也能執行。已在 Mac 上驗證：三支 app 現在都會開出視窗——P30 860x648、P39 860x648、
+P40 900x697——並各自印出
+`AppKitBackend doesn't support visual effects; showing the view unmodified`
+或幾何效果的對應訊息。
+
+macro 未做更動。在沒有退路之處，它的 `fatalError` 是對的，而 GtkBackend 的 WebView 與
+AngularGradient 都倚賴這一點；只有那兩個確實有退路可走的 modifier 被改動。
+
+仍未解決：AppKitBackend 兩個 conformance 都未實作。降級意味著 P30、P39 與 P40 顯示的是未經修飾
+的 view——那是一個誠實的結果，而不是一個正確的結果。
+
+缺少 conformance 是預期之中的事；當時真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
 這一點。這棵樹裡其他每一項不受支援的東西都會降級並說明——`datePickerStyle(_:)` 會把不支援的樣式
 降級為 `.automatic`，而下方的 geometric-effects 一節更是長篇論證「寧可拒絕算繪，也不要算繪錯誤」。
 那兩者都讓 app 繼續執行。這一個則會中止行程，因此只要 app 中任何一處用到該視圖，在尚未實作它的
