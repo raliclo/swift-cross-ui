@@ -904,6 +904,44 @@ GTK 專屬。
 
 </details>
 
+## 10. ~~The line-limit measurement label is never rooted~~ — **CONFIRMED, then FIXED. Verified 2026-09-01** **[src]**
+
+**The suspicion was right**, and the code now says so in the place the
+measurement used to live:
+
+> No line-limit handling here any more; `Text` applies it, for every backend,
+> from the font's line height. What used to be here measured a synthetic string
+> through a label that was never rooted, so the cap came out at GTK's default
+> font size whatever font was asked for.
+
+So the defect was real and had exactly the consequence this entry reasoned to:
+CSS did not resolve on an unrooted widget, so the measurement answered for the
+default font rather than the requested one. `measurementCustomLabel` no longer
+exists anywhere in the backend.
+
+**The fix was to delete the measurement, not to root the label**, which is the
+better outcome: the line limit is a property of the font's line height and does
+not need a widget at all, so doing it in `Text.computeLayout` gives every
+backend the same answer instead of three backends each measuring their own way.
+
+The same rooting rule is still honoured where a widget genuinely is needed —
+the colour-scheme sample uses "a throwaway label in a throwaway window", with
+the measurement recorded beside it that a loose label reports 1.0/1.0/1.0 under
+every theme.
+
+**這個懷疑是對的**，而程式碼如今就在原本量測所在之處說明了此事（引文見上）。因此該缺陷確實存在，
+且其後果正如本條目所推理：CSS 在未 root 的 widget 上不會解析，於是量測回答的是預設字型而非所要求
+的字型。`measurementCustomLabel` 已不存在於 backend 的任何地方。
+
+**修法是刪除該量測，而非把 label 加上 root**，而那是更好的結果：行數上限是字型行高的性質，根本不
+需要任何 widget，因此改在 `Text.computeLayout` 處理，能讓所有 backend 得到同一個答案，而不是三個
+backend 各自量各自的。
+
+在確實需要 widget 之處，同一條 root 規則仍被遵守——色彩配置的取樣使用「一個拋棄式視窗中的拋棄式
+label」，旁邊並記錄著「未 root 的 label 在任何主題下都回報 1.0/1.0/1.0」這項實測。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 10. The line-limit measurement label is never rooted — **wrong** if confirmed, one line **[?]**
 
 `Sources/GtkBackend/GtkBackend.swift:162` (creation), `:1396-1417` (use)
@@ -982,6 +1020,8 @@ per-widget class 選取——見 `Sources/Gtk/Widgets/Widget.swift:34-54` 與
 量測，而非共用那一個。
 
 ---
+
+</details>
 
 ## 11. ~~`scrollBarWidth` is a hardcoded `0`~~ — **FIXED, confirmed 2026-09-01** **[src] [hdr]**
 
