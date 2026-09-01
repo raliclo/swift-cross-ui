@@ -38,13 +38,36 @@
 #附加以下各行，因此所有測試 app 取得相同的 Android 設定，且只有一處需要修改。
 
 # Matches ANDROID_TRIPLE in compile.zsh, which is
-# aarch64-unknown-linux-android28. The two are the same decision written twice,
-# and they were already in step by luck: 28 is also swift-bundler's default.
-# Pinned so that a change to either has to be made to both.
-# 與 compile.zsh 中的 ANDROID_TRIPLE（aarch64-unknown-linux-android28）一致。兩者是同一個決定
-# 寫了兩次，而先前只是碰巧一致：28 同時也是 swift-bundler 的預設值。此處明確釘住，使得任一方
-# 要更動時，都必須同時更動另一方。
-minSDK = 28
+# aarch64-unknown-linux-android31. The two are the same decision written twice,
+# so a change to either has to be made to both; this pair was raised together
+# on 2026-09-02.
+#
+# **Raised from 28 to 31 for RenderEffect.** `android.graphics.RenderEffect` --
+# the only public way to blur or colour-adjust a live View subtree, and so the
+# only way AndroidBackend can implement `BackendFeatures.VisualEffects` -- is
+# API 31. At 28 it could be reached only behind a runtime version check, which
+# would mean an AndroidBackend that supports the feature on some devices and
+# not others while still claiming the conformance; the conformance is not
+# conditional, so that would be a lie on every device below 31.
+#
+# The cost is real and is the reason 28 was chosen first: API 28 is Android 9
+# (2018) and 31 is Android 12 (2021), so this drops devices in between. For a
+# tree of test apps that is an acceptable trade; for a library release it is a
+# decision someone should take deliberately rather than inherit from here.
+#
+# 與 compile.zsh 中的 ANDROID_TRIPLE（aarch64-unknown-linux-android31）一致。兩者是同一個決定
+# 寫了兩次，因此任一方更動時都必須同時更動另一方；這一對已於 2026-09-02 一併調升。
+#
+# **為了 RenderEffect 而由 28 調升至 31。** `android.graphics.RenderEffect`——公開 API 中唯一能對
+# 一棵活的 View 子樹做模糊或色彩調整的手段，因而也是 AndroidBackend 實作
+# `BackendFeatures.VisualEffects` 的唯一途徑——屬於 API 31。在 28 之下只能藏在執行期版本檢查之後，
+# 那會造就一個「在某些裝置上支援、在其他裝置上不支援，卻依然宣稱符合該 conformance」的
+# AndroidBackend；而 conformance 並非條件式的，因此在所有低於 31 的裝置上那都會是謊言。
+#
+# 代價是真實的，也正是當初選 28 的理由：API 28 是 Android 9（2018），31 是 Android 12（2021），
+# 因此這會捨棄兩者之間的裝置。對一棵測試 app 的樹而言這是可接受的取捨；但對一次函式庫發布而言，
+# 這是應該由某個人刻意做出、而非從此處繼承而來的決定。
+minSDK = 31
 
 # The API the apps are written against. 35 is what the last build produced, so
 # pinning it changes nothing today -- which is the point. It stops moving on its

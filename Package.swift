@@ -45,7 +45,7 @@ let androidBackendSupported: Bool
 #if compiler(>=6.2)
     // A manifest can't observe the target platform: when SwiftPM compiles it, the
     // arguments hold only -fileno/-context and the environment exposes just a host
-    // SDKROOT, so `--swift-sdk aarch64-unknown-linux-android28` is invisible here.
+    // SDKROOT, so `--swift-sdk aarch64-unknown-linux-android31` is invisible here.
     // Android targets are therefore opt-in. Including them unconditionally breaks
     // every other platform, because AndroidBackendShim is a C target including
     // <android/log.h>, and the build system scans C targets it will never link.

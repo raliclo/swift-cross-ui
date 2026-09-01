@@ -49,7 +49,30 @@ output_dir="$(windows_path "$script_dir/output")"
 # Android build 預設使用 project volume，與 testapp/install_tools_android.zsh 一致；若使用者明確
 # 設定 ANDROID_HOME，仍優先使用它；ANDROID_SDK_ROOT 則視為相同設定。
 android_sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
-android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
+android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android31}"
+# `native`, not the default `swiftbuild`, and only for Android.
+#
+# swiftbuild rejects this package outright:
+#
+#   error: Swift package product 'SwiftJavaJNICore-product' is linked as a
+#   static library by 'P12-product' and 'SwiftJava-product'. This will result
+#   in duplication of library code.
+#
+# Six of those, and the build stops. It is not caused by anything in this tree
+# -- the same errors appear at API 28 and at 31, so raising minSDK did not
+# introduce them -- and it is not about Android either; it is swiftbuild
+# refusing a static-linkage shape in swift-java that the native build system
+# accepts. `native` is deprecated, so this is a workaround with an expiry date:
+# when swiftbuild stops rejecting it, or swift-java changes shape, drop this.
+#
+# 使用 `native` 而非預設的 `swiftbuild`，且僅限 Android。
+#
+# swiftbuild 會直接拒絕這個 package，錯誤如上方英文所示，共六條，建置隨即停止。這並非由本樹中的
+# 任何東西造成——在 API 28 與 31 下都會出現同樣的錯誤，因此調升 minSDK 並沒有引入它們——也與
+# Android 無關；那是 swiftbuild 拒絕接受 swift-java 中某種靜態連結形狀，而 native 建置系統接受它。
+# `native` 已標記為 deprecated，因此這是一個有到期日的權宜之計：待 swiftbuild 不再拒絕它，或
+# swift-java 改變形狀時，即可移除。
+android_build_system="${ANDROID_BUILD_SYSTEM:-native}"
 android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
 android_ndk_home="${ANDROID_NDK_HOME:-$android_sdk_root/ndk/$android_ndk_version}"
 # Set after the flags are parsed, because -gtk4 needs its own tree. See the
@@ -59,6 +82,32 @@ compile_work_dir=""
 package_dir=""
 sources_root=""
 
+# An Android build needs a toolchain matching the Android SDK, and on a Mac
+# `swift` is not it.
+#
+# Measured 2026-09-02: `swift` resolves to Xcode's 6.4, the installed Android
+# SDK is 6.3.3, and the build fails with
+#
+#   error: module compiled with Swift 6.3.3 cannot be imported by the
+#   Swift 6.4 compiler
+#
+# on every module that imports Foundation. This is not the SDK being out of
+# date. swift.org's release list has android-sdk from 6.3 onward and stops at
+# 6.3.3 (2026-06-29); there is no 6.4 Android SDK because 6.4 is not a
+# published release -- Xcode ships ahead of that train. So the host compiler is
+# the thing that is wrong for this job, not the SDK.
+#
+# Set SWIFT_BIN to a matching toolchain for Android, for example
+#   SWIFT_BIN=~/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/bin/swift
+#
+# Android 建置需要與 Android SDK 相符的 toolchain，而在 Mac 上 `swift` 並不是它。
+#
+# 2026-09-02 實測：`swift` 解析到 Xcode 的 6.4，已安裝的 Android SDK 為 6.3.3，於是每一個 import
+# Foundation 的 module 都以上方英文所示的錯誤失敗。這不是 SDK 過舊。swift.org 的 release 清單自
+# 6.3 起才有 android-sdk，且停在 6.3.3（2026-06-29）；不存在 6.4 的 Android SDK，因為 6.4 並非
+# 已發布的 release——Xcode 走在那條發布列車的前面。因此對這項工作而言，不對的是主機編譯器，而非 SDK。
+#
+# 請為 Android 將 SWIFT_BIN 指向相符的 toolchain，範例見上方英文。
 swift_bin="${SWIFT_BIN:-swift}"
 # Test apps default to release so GUI startup and interaction latency reflect
 # normal usage. App-specific diagnostics should be controlled with flags such
@@ -751,6 +800,7 @@ if [ "$target_platform" = "android" ]; then
     for app_name in $app_names; do
         echo "==> Compiling $app_name for Android ($android_triple)"
         SCUI_ANDROID=1 "$swift_bin" build \
+            --build-system "$android_build_system" \
             --package-path "$package_dir" \
             --product "$app_name" \
             --swift-sdk "$android_triple" \
