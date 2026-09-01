@@ -952,6 +952,44 @@ SwiftCrossUI 卻分配為零，內容因而被多分配了約一條捲軸的寬�
 
 ---
 
+## 12. `updateDatePicker` silently drops all time components — **still open**, and the cause is now known **[src]**
+
+**Re-checked 2026-09-01. The time-of-day half stands; the rest of what this
+entry implies does not.** The date picker no longer forces the machine's time
+zone: `GtkBackend` takes `environment.timeZone`, keeps the bound `Date` itself,
+and rebuilds it from the widget's day plus its own time of day. Nothing reads an
+instant back out of GTK.
+
+What blocks the time components is upstream and now written down.
+`gtk_calendar_select_day` returns early unless the year, month or day differs,
+so a `GtkCalendar` cannot carry a time of day at all — measured on GTK 4.22.4
+and confirmed in `gtk/gtkcalendar.c`. See `bugs/Gtk4-bugs.md` §4 for that and
+the two other defects behind it.
+
+A separate time widget is the way past it, and upstream started one:
+`GtkBackend.swift` carries a `TimePicker` class that is incomplete and unused,
+introduced by `425ff888 Implement DatePicker (#244)` with its author's note that
+the spin buttons could not be made to work, plus four TODOs. It is deliberately
+left in place — it is upstream's code, and deleting it in a fork buys a merge
+conflict rather than a fix. AndroidBackend has a working time picker in Kotlin,
+so the gap is GTK's rather than the protocol's.
+
+**2026-09-01 重新查證。時刻那一半仍然成立；本條所暗示的其餘部分則否。** 日期選擇器已不再強制使用
+機器的時區：`GtkBackend` 取用 `environment.timeZone`，自己保有繫結的 `Date`，並由 widget 的日期
+加上它自己的時刻重建之。**不從 GTK 讀回任何時間點。**
+
+阻擋時間元件的原因在上游，而且現在已被記錄下來：`gtk_calendar_select_day` 在年、月、日皆未改變時
+會提早返回，因此 `GtkCalendar` 根本無法承載一天中的時間——於 GTK 4.22.4 實測，並在
+`gtk/gtkcalendar.c` 中確認。該項與其背後另外兩個缺陷詳見 `bugs/Gtk4-bugs.md` §4。
+
+繞過它的方式是另一個獨立的時刻 widget，而上游已經起了個頭：`GtkBackend.swift` 中有一個 incomplete
+且未被使用的 `TimePicker` 類別，由 `425ff888 Implement DatePicker (#244)` 引入，並附有作者自己的
+註記：spin buttons 無法運作，另有四項 TODO。刻意保留——那是上游的程式碼，在 fork 中刪除它換來的是
+merge 衝突而非修正。AndroidBackend 有一個能運作的 Kotlin 時刻選擇器，因此這個缺口屬於 GTK，
+而非 protocol。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 12. `updateDatePicker` silently drops all time components — **broken**, expensive **[src]**
 
 `Sources/GtkBackend/GtkBackend.swift:2731`, warning at `:2740`
@@ -1012,6 +1050,44 @@ assuming their code is wrong.
 
 ---
 
+</details>
+
+## 13. ~~`.compact` date picker style falls back silently~~ — **FIXED, confirmed 2026-09-01** **[src]**
+
+GtkBackend now declares every SwiftUI date picker style:
+
+```swift
+public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
+    .automatic, .graphical, .compact, .wheel,
+]
+```
+
+so there is no style left to fall back from. `.wheel` was the last one added, on
+2026-08-27, and the comment beside the list records why the earlier refusal was
+wrong: SwiftUI documents `.wheel` as "each component as columns in a scrollable
+wheel", and on iOS it is a UIPickerView, so a scrolled list per component is the
+wheel rather than a fake of it.
+
+**The entry below is quoted from a version that no longer exists**, which is the
+thing worth noticing about it. It cites `GtkBackend.swift:73` and
+`[.automatic, .graphical]`; today that declaration is around line 168 and has
+four entries. Kept rather than deleted, because a catalogue whose fixed items
+vanish gives no way to tell "fixed" from "never written down", and because the
+list itself is where an omission is meant to be visible — the comment above it
+says so.
+
+GtkBackend 現在已宣告 SwiftUI 的每一種日期選擇器樣式（如上），因此沒有任何樣式需要退回。`.wheel`
+是最後補上的一項，時間為 2026-08-27，清單旁的註解記錄了先前拒絕它的理由為何是錯的：SwiftUI 自己的
+文件把 `.wheel` 描述為「將每個組成部分顯示為可捲動滾輪中的欄位」，而在 iOS 上它就是 UIPickerView，
+因此每個組成部分一個捲動清單並非滾輪的贗品，它就是滾輪本身。
+
+**下方那條是從一個已不存在的版本引用來的**，而那正是它值得一提之處：它引用 `GtkBackend.swift:73`
+與 `[.automatic, .graphical]`，而今天該宣告位於第 168 行附近、且有四個項目。予以保留而非刪除，
+因為一份「修好的條目就消失」的目錄，無法讓人分辨「已修好」與「從未被記下」；也因為那份清單本身
+就是「遺漏應該被看見」的地方——它上方的註解正是這麼說的。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 13. `.compact` date picker style falls back silently — **wrong**, medium **[src]**
 
 `Sources/GtkBackend/GtkBackend.swift:73`
@@ -1062,6 +1138,8 @@ window levels. That is the cheap half and it is not GtkBackend's file.
 compact widget，那又回到 #12 的 `TimePicker`／`GtkSpinButton` 問題。
 
 ---
+
+</details>
 
 ## 14. `setSizeLimits(…)` cannot honour a maximum size, and says so only in DEBUG — **wrong**, unfixable **[src]**
 
