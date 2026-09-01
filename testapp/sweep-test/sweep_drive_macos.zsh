@@ -160,7 +160,30 @@ for app in "${apps[@]}"; do
 
     zsh "$testapp_dir/ui-lock.zsh" release "test-${app:l}" >/dev/null 2>&1 || true
 
-    out="$(timeout 900 zsh "$testapp_dir/test.zsh" "$app" --macos --no-showtime \
+    # No showtime when there is nothing to replay; enough of one when there is.
+    #
+    # `--no-showtime` closes the app as soon as it renders, which truncates a
+    # replay still in progress. Measured on P26: its action file clicks a tab and
+    # then sleeps three seconds for the fetch, and the log held
+    # "-actionfile: replaying" with no matching "replayed" -- the app was gone
+    # first. The row then read `no line` and blamed SCUI_DEBUG, which was fine.
+    #
+    # 沒有東西要重放時不留時間；有的時候則留足夠的時間。
+    #
+    # `--no-showtime` 會在 app 完成繪製後立刻關閉它，而那會截斷仍在進行中的重放。在 P26 上實測：
+    # 其動作檔會點擊分頁、接著等待三秒讓抓取完成，而記錄檔中只有「-actionfile: replaying」而沒有
+    # 對應的「replayed」——app 先一步被關掉了。該列於是讀成 `no line` 並歸咎於 SCUI_DEBUG，而後者
+    # 其實毫無問題。
+    show_args=(--no-showtime)
+    # Ten seconds, not the eight that first worked. Eight was fitted to the one
+    # action file that existed -- a click and a three-second wait -- and a value
+    # chosen to just clear the only case in front of you is the value that
+    # truncates the next one. Ten is the floor for any replay here.
+    # 十秒，而非最初可行的八秒。八秒是依當時唯一存在的那個動作檔（一次點擊加三秒等待）湊出來的，
+    # 而「剛好夠用於眼前唯一案例」的數值，正是會截斷下一個案例的數值。十秒是此處任何重放的下限。
+    [ "${#action_args[@]}" -gt 0 ] && show_args=(--showtime 10)
+
+    out="$(timeout 900 zsh "$testapp_dir/test.zsh" "$app" --macos "${show_args[@]}" \
         "${build_args[@]}" "${action_args[@]}" 2>&1 || true)"
 
     # Every column is read out of what happened, never assumed. A sweep that

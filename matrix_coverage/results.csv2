@@ -128,3 +128,8 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-01,mac,appkit,P38,ok,n/a,window,rebuilt: the binary was older than P38.swift
 2026-09-01,mac,appkit,P10,ok,n/a,window,
 2026-09-01,mac,appkit,P37,ok,n/a,window,rebuilt: the binary was older than P37.swift
+2026-09-01,mac,appkit,P26,ok,no line,window,no -actionfile line -- built without SCUI_DEBUG?
+2026-09-01,mac,appkit,P26,ok,ok,window,
+2026-09-01,mac,appkit,P28,ok,ok,window,
+2026-09-01,mac,appkit,P26,ok,ok,window,
+2026-09-01,mac,appkit,P28,ok,ok,window,

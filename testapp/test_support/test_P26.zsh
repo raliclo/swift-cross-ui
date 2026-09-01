@@ -76,19 +76,57 @@ check() {
     fi
 }
 
-# Everything below runs in WSL, where the app and its cache directory live.
-# One invocation per step rather than a single long script, so a step that hangs
-# is identifiable from the output rather than taking the rest with it.
-# 以下全部在 WSL 中執行，app 與其快取目錄都在該處。每個步驟各自呼叫一次，而非合併為一個長腳本，
-# 如此某個卡住的步驟可從輸出中辨識出來，而不會把其餘步驟一併拖住。
-wsl() {
-    MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "$1"
-}
+# Where the steps run, and where the cache lives, depend on the host.
+#
+# This used to be WSL and only WSL: a `wsl()` helper wrapping `wsl.exe`, paths
+# under $HOME/proj/swift-cross-ui, and the wsl action file. On a Mac that failed
+# at the first step with `command not found: wsl.exe`, the cache checks all
+# failed, and the GUI run was skipped -- so P26 read as a launch failure in the
+# coverage matrix when the app itself runs here perfectly well.
+#
+# One invocation per step either way, rather than a single long script, so a step
+# that hangs is identifiable from the output rather than taking the rest with it.
+#
+# 步驟在何處執行、快取位於何處，取決於主機。
+#
+# 此處原本只支援 WSL：一個包裝 `wsl.exe` 的 `wsl()` 輔助函式、位於 $HOME/proj/swift-cross-ui 之下的
+# 路徑，以及 wsl 的動作檔。在 Mac 上，它在第一步就以 `command not found: wsl.exe` 失敗，快取檢查
+# 全數失敗，GUI 執行亦被跳過——於是 P26 在覆蓋率矩陣中讀起來像是啟動失敗，而該 app 在此處其實
+# 執行得很好。
+#
+# 無論哪一種，都是每個步驟各自呼叫一次而非合併為一個長腳本，如此某個卡住的步驟可從輸出中辨識出來，
+# 而不會把其餘步驟一併拖住。
+case "$(uname -s 2>/dev/null || printf unknown)" in
+    Darwin) host_kind=mac ;;
+    MINGW*|MSYS*|CYGWIN*) host_kind=windows ;;
+    *) host_kind=other ;;
+esac
 
-cache_dir='$HOME/.cache/P26/appCache'
-app_dir='$HOME/proj/swift-cross-ui/testapp/output'
-actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
-render_env="${TEST_RENDER_ENV:-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer}"
+if [ "$host_kind" = mac ]; then
+    # Local, and the cache is where macOS puts caches. The app reports the path
+    # itself -- "cache dir /Users/<user>/Library/Caches/P26/appCache" -- which is
+    # where this value came from rather than a guess at the convention.
+    # 在本機執行，快取位於 macOS 放置快取之處。該路徑是 app 自己回報的
+    # ——「cache dir /Users/<user>/Library/Caches/P26/appCache」——此值取自該回報，而非對慣例的猜測。
+    wsl() { zsh -lc "$1"; }
+    cache_dir="$HOME/Library/Caches/P26/appCache"
+    app_dir="$script_dir/output"
+    actions="$script_dir/actions/mac/P26-swiftcrossui-tab.csv"
+    repo_root="${script_dir:h}"
+    render_env=""
+    build_step="cd $repo_root && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 | grep -E 'error:|complete!'"
+    gui_target=macos
+else
+    wsl() {
+        MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc "$1"
+    }
+    cache_dir='$HOME/.cache/P26/appCache'
+    app_dir='$HOME/proj/swift-cross-ui/testapp/output'
+    actions='$HOME/proj/swift-cross-ui/testapp/actions/wsl/P26-swiftcrossui-tab.csv'
+    render_env="${TEST_RENDER_ENV:-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA GSK_DEBUG=renderer}"
+    build_step="cd \$HOME/proj/swift-cross-ui && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 | grep -E 'error:|complete!'"
+    gui_target=wsl
+fi
 
 # The action file switches to the SwiftCrossUI tab, and without it nothing is
 # fetched at all: TabView builds only the selected tab and AsyncImage is on the
@@ -127,8 +165,7 @@ if [ "$run_cache" -eq 1 ]; then
     # 不會執行，而下方每一項檢查所檢視的，都是一個沒有人向它要過任何東西的快取。這並非假設：它確實
     # 發生過，且該次執行有兩項檢查回報 PASS——因為比較的兩邊同樣是空的。
     printf '  building P26 with SCUI_DEBUG=1\n'
-    wsl "cd \$HOME/proj/swift-cross-ui && SCUI_DEBUG=1 zsh testapp/compile.zsh P26 2>&1 \
-        | grep -E 'error:|complete!'" | sed 's/^/    /'
+    wsl "$build_step" | sed 's/^/    /'
 
     printf '\n  1. an empty cache fills itself on the first fetch\n'
     wsl "rm -rf \$HOME/.cache/P26" > /dev/null 2>&1
@@ -186,5 +223,5 @@ export TEST_TITLE="P26 networking"
 export TEST_LOG_NAME="p26-debug-events.log"
 export TEST_MARKER="RENDER COMPLETE"
 export TEST_SUMMARY_PATTERN="RENDER COMPLETE|cache dir|index rows"
-export TEST_TARGET="wsl"
+export TEST_TARGET="$gui_target"
 exec zsh "$support_dir/test_common.zsh" "${passthrough[@]}"
