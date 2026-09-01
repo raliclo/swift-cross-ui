@@ -87,6 +87,13 @@ printf '==> %d app(s) on %s/%s, %s\n\n' "${#apps[@]}" "$platform" "$backend" "$r
 printf '%-8s %-8s %-8s %-9s %s\n' app launch replay capture note
 
 for app in "${apps[@]}"; do
+    # Cleared per app. The staleness check below writes a note before the run,
+    # so the reset cannot live where it used to -- and a note that survives into
+    # the next iteration attributes one app's finding to another.
+    # 每支 app 都重設。下方的過期檢查會在執行前就寫入 note，因此重設不能再留在原處；而一個殘留到
+    # 下一輪的 note，會把某支 app 的發現安到另一支頭上。
+    note=""
+
     if [ "$dry_run" -eq 1 ]; then
         printf '%-8s %-8s %-8s %-9s %s\n' "$app" "-" "-" "-" "would run"
         continue
@@ -126,8 +133,30 @@ for app in "${apps[@]}"; do
     # 要求動作檔時才設定該變數。因此「`-n` 加上 `--actionfile`」會產出一個不具重放支援的 app，其
     # 執行結果什麼也不回報——實測：第一次嘗試 P28 時，對著先前未帶該旗標建置的執行檔記下了
     # `no line`。對這些 app 放棄 `-n`，代價是各多一次建置，而該欄位也才具有意義。
+    # Rebuild when the binary is older than its source, or when replaying.
+    #
+    # Reusing a build is the point of a sweep, but reusing a *stale* one records
+    # the wrong app. P37 and P38 were logged as "declares a marker that never
+    # appeared" for exactly this: their binaries were built on 2026-08-27,
+    # before the diagnostics they print, so the marker could not appear. A
+    # rebuild produced it on the first run -- "RENDER COMPLETE -- P37 ready for
+    # window-level challenge" -- and neither the app nor AppKit was ever at
+    # fault.
+    #
+    # 當執行檔比其原始碼舊、或需要重放時，重新建置。
+    #
+    # 重用既有建置正是 sweep 的意義所在，但重用**過期的**建置記錄到的是另一個 app。P37 與 P38 之所以
+    # 被記為「宣告了 marker 卻從未出現」，原因正是如此：它們的執行檔建於 2026-08-27，早於它們所印出
+    # 的診斷訊息，因此該 marker 不可能出現。重新建置後第一次執行就印出了它——「RENDER COMPLETE --
+    # P37 ready for window-level challenge」——而 app 與 AppKit 自始至終都沒有問題。
     build_args=(-n)
-    [ "${#action_args[@]}" -gt 0 ] && build_args=()
+    source_file="$testapp_dir/$app.swift"
+    if [ "${#action_args[@]}" -gt 0 ]; then
+        build_args=()
+    elif [ -f "$source_file" ] && [ "$source_file" -nt "$testapp_dir/output/$app" ]; then
+        build_args=()
+        note="rebuilt: the binary was older than $app.swift"
+    fi
 
     zsh "$testapp_dir/ui-lock.zsh" release "test-${app:l}" >/dev/null 2>&1 || true
 
@@ -155,7 +184,6 @@ for app in "${apps[@]}"; do
     # test_common.zsh 會在輸出中明講並改用計時截圖。第一次 sweep 只判讀「marker 有沒有出現」，
     # 因而把十一支這樣的 app 標為 `no marker`，等於把十一個並不存在的問題寫進矩陣。真正有設 marker
     # 卻沒印出來的只有 P37 與 P38；那兩支才是實際的發現，而這個區別必須完整地留存到表格裡。
-    note=""
     case "$out" in
         *"rendered after"*)
             launch=ok ;;
