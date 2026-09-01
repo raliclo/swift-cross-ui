@@ -404,3 +404,77 @@ gvsbuild；`testapp/install_gtk4_windows.zsh` 已記下此事，以免日後有�
 
 **此處沒有任何一項能從本 repository 修正。** 那是上游的兩個打包決策，我們唯一能做的選擇是「要依賴
 哪一份 build」。
+
+---
+
+## 4. A GtkCalendar cannot carry a time of day, a time zone, a calendar system or a range
+
+**Measured on GTK 4.22.4 and then confirmed in `gtk/gtkcalendar.c`**, which is
+why these are stated rather than suspected. The obvious implementation -- hand
+GTK a `GDateTime` and read one back -- is wrong in three separate ways.
+
+- **`gtk_calendar_select_day` returns early unless the year, month or day
+  differs** (`calendar_select_day_internal`). Setting the same day at a
+  different time of day, or in a different time zone, silently does nothing. So
+  the widget cannot be used to carry a time of day at all.
+- **Clicking a day discards the time and forces the machine's time zone.**
+  `calendar_select_and_focus_day` rebuilds the value as
+  `g_date_time_new_local(year, month, day, 0, 0, 0)`, whatever zone was set.
+- **`day-selected` fires for a programmatic set exactly as for a click.** A
+  handler that does not tell the two apart reports the application's own writes
+  back into its binding.
+
+Two further limits are model gaps rather than defects:
+
+- **No calendar system.** A `GtkCalendar` is Gregorian, and has no
+  calendar-system property among its 43. Its month names come from the C locale
+  rather than from anything the caller passes, so `environment.calendar` cannot
+  reach the grid.
+- **No minimum or maximum date**, so out-of-range days stay clickable.
+
+**How this project degrades.** `GtkBackend` treats a `GtkCalendar` as storing a
+year, month and day and nothing else: it keeps the bound `Date` itself and
+rebuilds it from the widget's day plus its own time of day, resolved in
+`environment.timeZone`. Nothing reads an instant back out of GTK. The compact
+style's label goes through a `DateFormatter` and does honour
+`environment.calendar`; the grid cannot. `range` is clamped afterwards, which is
+what the protocol asks for anyway since it calls `range` a hint.
+
+**Still open, and it is upstream's unfinished work rather than ours.** GTK has no
+time-of-day widget in play here. `Sources/GtkBackend/GtkBackend.swift` carries a
+`TimePicker` class that is incomplete and unused, introduced upstream by
+`425ff888 Implement DatePicker (#244)` with its author's own note that the spin
+buttons could not be made to work, plus four TODOs. It is left in place: it is
+upstream's code, and deleting it in a fork buys a merge conflict rather than a
+fix. AndroidBackend does have a working time picker, in Kotlin, so the gap is
+GTK's rather than the protocol's.
+
+---
+
+**4. GtkCalendar 無法承載時間、時區、曆法系統或範圍**
+
+**於 GTK 4.22.4 實測，並在 `gtk/gtkcalendar.c` 中確認**，因此以下是陳述而非臆測。最直覺的實作
+——把 `GDateTime` 交給 GTK、再讀一個回來——在三個彼此獨立的地方是錯的。
+
+- **`gtk_calendar_select_day` 在年、月、日皆未改變時會提早返回**（`calendar_select_day_internal`）。
+  以「同一天但不同時刻」或「同一天但不同時區」去設定，會**無聲地什麼也不做**。因此該 widget 根本
+  無法用來承載一天中的時間。
+- **點選某一天會丟棄時間，並強制使用機器的時區。** `calendar_select_and_focus_day` 以
+  `g_date_time_new_local(year, month, day, 0, 0, 0)` 重建該值，無論先前設定的是哪個時區。
+- **`day-selected` 對「程式設定」與「使用者點選」一視同仁地觸發。** 未區分兩者的處理常式，會把
+  應用程式自己的寫入回報進它自己的 binding。
+
+另有兩項是模型上的缺口而非缺陷：**沒有曆法系統**（`GtkCalendar` 是格里曆，其 43 個屬性中沒有任何
+曆法系統屬性，月份名稱取自 C locale 而非呼叫端傳入之物，因此 `environment.calendar` 到不了那個
+網格）；以及**沒有最小／最大日期**，超出範圍的日子仍可點選。
+
+**本專案如何降級。** `GtkBackend` 把 `GtkCalendar` 當成「只儲存年、月、日」：它自己保有繫結的
+`Date`，再由 widget 的日期加上它自己的時刻、於 `environment.timeZone` 中解析並重建。**不從 GTK
+讀回任何時間點。** compact 樣式的標籤走 `DateFormatter`，確實會遵從 `environment.calendar`；網格
+則不能。`range` 於事後夾制，而那本來就是 protocol 所要求的——它把 `range` 稱為提示。
+
+**仍未解決，而且那是上游未完成的工作，不是我們的。** 此處沒有可用的 GTK 時刻 widget。
+`Sources/GtkBackend/GtkBackend.swift` 中有一個 incomplete 且未被使用的 `TimePicker` 類別，由上游的
+`425ff888 Implement DatePicker (#244)` 引入，並附有作者自己的註記：spin buttons 無法運作，另有四項
+TODO。予以保留：那是上游的程式碼，在 fork 中刪除它換來的是 merge 衝突而非修正。AndroidBackend 確實
+有一個能運作的時刻選擇器（Kotlin），因此這個缺口屬於 GTK，而非 protocol。
