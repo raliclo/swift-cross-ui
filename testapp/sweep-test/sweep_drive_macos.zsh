@@ -199,15 +199,27 @@ for app in "${apps[@]}"; do
 
     printf '%-8s %-8s %-8s %-9s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
 
-    # RFC 4180 quoting, doubling any quote in the note, for the reason
-    # sweep_drive.zsh gives: notes contain commas, and splitting a CSV on `,` is
-    # what csv2 exists in this project to stop.
-    # 依 RFC 4180 引號規則、並將 note 中的引號加倍，理由同 sweep_drive.zsh：note 會含有逗號，而
-    # 「用 `,` 切 CSV」正是 csv2 在本專案中存在的目的所要阻止的事。
-    printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
-        "$run_date" "$platform" "$backend" "$app" \
-        "$launch" "$replay" "$capture" "${note//\"/\"\"}" \
-        >> "$results"
+    # Appended with csv2, not with `printf >>`.
+    #
+    # sweep_drive.zsh writes the row by hand and quotes it per RFC 4180 itself.
+    # That works, but it is the project writing CSV without the tool it keeps
+    # for the purpose, and the row it produces is never validated: a malformed
+    # note, or a history file whose last record is already truncated, is
+    # discovered by whatever reads it next. `csv2 -append` validates the input
+    # before writing, reads the existing file to check its final record, and
+    # writes only the appended bytes -- measured on a copy, 126 lines unchanged
+    # and one added, with a note containing both a comma and doubled quotes
+    # parsed back intact.
+    #
+    # 以 csv2 追加，而非 `printf >>`。
+    #
+    # sweep_drive.zsh 是自行手寫該列並依 RFC 4180 自行處理引號。那能運作，但那是本專案在不使用其
+    # 為此保留的工具的情況下寫 CSV，且所產生的資料列從未經過驗證：一個格式錯誤的 note，或一個最後
+    # 一筆記錄已被截斷的歷史檔，要等到下一個讀取者才會發現。`csv2 -append` 會在寫入前驗證輸入、
+    # 讀取既有檔案以檢查其最後一筆記錄，並且只寫入所追加的位元組——在副本上實測：126 行未變、新增
+    # 一行，且一個同時含有逗號與加倍引號的 note 能被原樣解析回來。
+    csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,\"${note//\"/\"\"}\"" \
+        -i "$results" --in-place
 done
 
 if [ "$dry_run" -eq 0 ]; then

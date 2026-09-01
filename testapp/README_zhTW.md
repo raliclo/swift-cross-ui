@@ -111,6 +111,7 @@ iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」�
 | `test_common.zsh` | 解析旗標、決定平台，並直接執行 WSLg、Windows 或 macOS；iOS 與 Android 則委派給下方兩支腳本，並以它們的寫法重建旗標 |
 | `test_ios.zsh` | macOS：將 Pn 放入固定的 `debugTarget` iOS Bundle，安裝並啟動 Simulator；可選用 XCUITest 重放 action file。經由 `test.zsh <Pn> --ios` 抵達 |
 | `test_android.zsh` | macOS：將 Pn 建置並打包為 APK，安裝至 emulator 後啟動。經由 `test.zsh <Pn> --android` 抵達 |
+| `sweep-test/sweep_drive_macos.zsh` | 在 macOS 上執行每一支已建置的 Pn，並為每支 app 追加一列至 `matrix_coverage/results.csv2`。這是 `sweep_drive.zsh`（Windows 版）的 macOS 對應物 |
 
 ## 其他 scripts
 

@@ -124,3 +124,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-01,mac,appkit,P8,ok,n/a,window,""
 2026-09-01,mac,appkit,P9,ok,n/a,window,""
 2026-09-01,mac,appkit,P26,fail,n/a,n/a,"not an AppKit failure: the loader runs appCache checks through wsl.exe, which does not exist on macOS, and skips the GUI run"
+2026-09-01,mac,appkit,P10,ok,n/a,window,

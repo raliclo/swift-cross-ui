@@ -34,6 +34,43 @@ silently missing from the table, where they read as "never tested".
 the three mobile and macOS columns. Nothing in the codebase referenced its path,
 checked with `git grep` before the move rather than after.
 
+## Who appends to `results.csv2`
+
+One driver per platform. Each hard-codes its own `platform`/`backend` pair,
+because the pair is a fact about the driver rather than a flag someone passes.
+
+| driver | appends | how it runs an app |
+|---|---|---|
+| `testapp/sweep-test/sweep_drive.zsh` | `windows/gtk4` or `windows/winui` | tasklist, taskkill, gdigrab, `Pn.exe` |
+| `testapp/sweep-test/sweep_drive_macos.zsh` | `mac/appkit` | drives `test.zsh <Pn> --macos` |
+
+The macOS one is not a copy of the Windows one. It launches nothing itself:
+`test.zsh <Pn> --macos` already builds, launches, waits for the render marker,
+screenshots and closes on that platform, so the sweep is a loop, a reader of
+that output and an appender. `verified-test-process.md` says not to write a new
+harness.
+
+Rows are appended with `csv2 -append`, not with a hand-written `printf >>`.
+`-append` validates the row before writing and reads the existing file to check
+its final record, so a malformed note or an already-truncated history is caught
+at the point of writing rather than by whatever reads it next. The Windows
+driver still quotes by hand; that is older, and it is the reason this note
+exists.
+
+Three things the macOS driver reads out of the run rather than assuming, each
+of which was wrong in a first draft and would have put a false row in the table:
+
+- **A missing `TEST_MARKER` is not a failure.** Eleven apps configure none, and
+  `test_common.zsh` says so and falls back to timed capture. Reading only "did a
+  marker appear" labelled all eleven as problems. Only `P37` and `P38` declare a
+  marker and never print it.
+- **The replay verdict is in the app's log, not the terminal.** `run_macos`
+  launches with `>"$action_log"`, so the `-actionfile:` line never reaches
+  stdout.
+- **`-actionfile` needs a build with `SCUI_DEBUG`.** `test_common.zsh` only sets
+  it when an action file is requested, so `-n` plus `--actionfile` yields an app
+  with no replay support at all.
+
 ## 本資料夾說明
 
 四個檔案，而**其中兩個是編輯規則完全相反的矩陣**——這是動任何東西之前必須先弄清楚的事（對照上表）。
