@@ -47,6 +47,56 @@ taken and the UI lock was never acquired: none of the findings below turned out 
 need a picture to settle, and the ones that would (#10) need a test app that this
 survey was not permitted to write.
 
+## Audit, 2026-09-01 / 稽核
+
+**Every one of the 21 entries was re-checked against the code on 2026-09-01.**
+Re-derive with `grep` for each entry's named symbol; the entries themselves say
+which one.
+
+**Six were behind the code**, and that is the number to carry rather than the
+individual fixes. Entries 11, 12 and 13 cited line numbers and declarations that
+no longer exist — `GtkBackend.swift:68` and `let scrollBarWidth = 0`, `:73` and
+`[.automatic, .graphical]`. Entry 10's suspicion was right and had already been
+fixed by deleting the measurement. Entry 20's subject moved to
+`GtkBackend+WebView.swift`. Entry 8 was marked fixed **during this audit and
+that was wrong** — see the note on it.
+
+**This file is 1604 lines and nothing re-checks it.** Two stale entries agreeing
+with each other, plus an abandoned class in the source, produced a false claim
+three times over on the day of the audit: that the date picker had no time
+component, when `TimeRow` had been implemented and wired all along. **Two stale
+sources pointing the same way read as corroboration.** Before acting on anything
+here, grep for the symbol.
+
+**What remains open, and why none of it is a small fix:**
+
+| # | why it is still open |
+|---|---|
+| 5 | nine SwiftUI weights map onto eight CSS steps after a deliberate +100 shift, so a collision is forced; choosing where it goes needs AppKit to compare against, so it needs a Mac |
+| 7 | `minimizable` is accepted and ignored; cheap on Windows, expensive on Linux, so fixing only one makes behaviour differ per platform — a decision, not a patch |
+| 8 | the one-line fix does not compile; needs a small public API on the `Gtk` side |
+| 14 | GTK does not enforce a maximum size on a toplevel at all |
+| 15 | theme-change notification, recorded as expensive |
+| 16 | scroll bounce, documented as acceptable to drop |
+| 17 | unverified, and settling it needs a probe window rather than a screenshot |
+| 18 | confirmed wrong and not fixable at the call site; the attempt is recorded |
+| 19 | Escape on an alert is deliberately disabled; re-enabling it needs a design decision about which button is cancel |
+| 20 | no WebKitGTK dependency, so the placeholder is correct behaviour |
+| 21 | half fixed |
+
+**2026-09-01 已對照程式碼重新查證全部 21 條。** 以每條所指名的符號 `grep` 即可重新推導。
+
+**其中六條落後於程式碼**，而該記住的是這個數字，而非個別的修正。第 11、12、13 條所引用的行號與
+宣告皆已不存在；第 10 條的懷疑是對的，且早已藉由「刪除該量測」修好；第 20 條的對象已移至
+`GtkBackend+WebView.swift`；第 8 條在**本次稽核中被標為已修，而那是錯的**——見該條說明。
+
+**本檔 1604 行，而且沒有任何東西會複查它。** 兩條彼此吻合的過時條目，加上原始碼中一個被放棄的
+類別，在稽核當天讓同一個錯誤主張被寫下三次：宣稱日期選擇器沒有時間元件，而 `TimeRow` 其實一直
+都已實作並接上。**兩個指向同一方向的過時來源，讀起來就像互相佐證。** 依據此處任何一條行動之前，
+請先 grep 那個符號。
+
+仍然開著的條目及其理由見上表——沒有一條是小修正。
+
 本文件沒有任何一條是以啟動 app 確認的。未截任何圖，也從未取得 UI lock：以下發現沒有一條
 需要靠畫面才能定案；唯一需要的那條（#10）需要一支本次調查不被允許撰寫的測試 app。
 
@@ -385,6 +435,39 @@ it is right and should stay.
 
 </details>
 
+## 5. `.semibold` and `.bold` render identically — **wrong, still open. Confirmed 2026-09-01, and the "one line" reading below is the wrong one** **[src]**
+
+Both still map to `700`:
+
+```swift
+case .semibold: 700
+case .bold:     700
+```
+
+**It is not a one-line fix, and the second copy of this entry saying so is
+wrong.** The whole ladder is shifted up by 100 — `.regular` is 500 where CSS
+normal is 400 — and the shift is deliberate. The comment above it says so:
+"For some reason I had to tweak these a bit to make them match up with AppKit's
+font weights."
+
+That shift is what forces the collision. Nine SwiftUI weights have to land on
+`200…900`, which is eight steps, so **two of them must share a number**; whoever
+wrote this chose `semibold` and `bold`. Moving the collision somewhere else is
+not obviously better, and deciding where it belongs means comparing rendered
+text against AppKit — which needs a Mac, and is out of scope on this machine.
+
+兩者仍同樣對應到 `700`（如上）。
+
+**這不是一行能修的，而本條目的第二份副本說它是一行，那份是錯的。** 整條階梯被整體上移了 100
+——`.regular` 是 500，而 CSS 的 normal 是 400——且該偏移是刻意的，其上方的註解明說：「為了對上
+AppKit 的字重，我不得不調整這些數值」。
+
+正是那個偏移造成了碰撞：九個 SwiftUI 字重必須落在 `200…900` 這八個級距上，因此**必有兩者共用同一
+個數值**；當初的作者選擇讓 `semibold` 與 `bold` 相撞。把碰撞移到別處未必更好，而要決定它該落在哪裡
+，就得把繪製出來的文字拿去與 AppKit 比對——那需要一台 Mac，在本機屬於範圍之外。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 5. `.semibold` and `.bold` render identically — **wrong**, NOT one line, needs a Mac **[src]**
 
 **Measured 2026-08-27, and the original finding below is understated in two
@@ -515,6 +598,8 @@ collision looks like a slip.
 `.semibold`／`.bold` 的碰撞看起來則像是筆誤。
 
 ---
+
+</details>
 
 </details>
 
