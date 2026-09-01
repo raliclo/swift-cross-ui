@@ -501,3 +501,77 @@ state of this feature is wrong.
 未被使用，並附有作者「spin buttons 無法運作」的註記與四項 TODO。刻意保留：那是上游的程式碼，在
 fork 中刪除它換來的是 merge 衝突而非修正。**它是已被取代，而非尚待完成**——承載時間的是 `TimeRow`，
 把 `TimePicker` 讀成「這個功能的未完成狀態」是錯的。
+
+## 5. Not GTK: `gtk_window_set_default_size` sizes the whole window, and we treat it as content
+
+**Measured 2026-09-01 on WSLg with P16, GTK 4.22.4.** Filed here rather than as
+a GTK defect because GTK behaves as documented; the mistake is on our side.
+
+P16 asks for `.defaultSize(width: 900, height: 600)`. `GtkBackend.createWindow`
+passes that straight to `window.defaultSize` (`GtkBackend.swift:994-997`), which
+is `gtk_window_set_default_size` (`Sources/Gtk/Widgets/Window.swift:63`). In
+GTK4 that call sizes the **window**, and with client-side decorations the header
+bar is inside the window. So the app is given less than it asked for.
+
+A wincap capture of the WSLg window, measured pixel by pixel:
+
+| | |
+|---|---|
+| window surface | exactly **900x600** — the request was honoured |
+| header bar inside it | **39px** |
+| content left for the app | **900x561** |
+
+The consequence is visible in the layout system's own diagnostic, which reports
+`leadingContent` height **485** on the first commit and **446** on the second
+and third, differing by exactly 39. Reproducible byte-for-byte across three
+runs. **The first pass is the one that honours the request**; the second is the
+layout system correctly re-laying out for a window that turned out smaller. No
+part of the layout code is wrong.
+
+WinUIBackend does not have this: on Windows the title bar is non-client area, so
+the same app measures a 916x639 frame around a 900x600 client and reports a
+steady 486 with no second pass. Widths are unaffected on both — the header bar
+takes height only, and both report `total=880` = 900 - 2x10 of padding.
+
+**Why it cannot be fixed by adding a constant.** GTK4 has no set-content-size
+call, and the header height is not knowable before the window is realized: it
+depends on theme, scale and whether the compositor gives server-side decorations
+at all. The correction has to happen once after the window is mapped — compare
+the content widget's allocation against the request and grow the window by the
+shortfall. Tracked in `todo.md`.
+
+Unverified and needing a Mac: whether AppKit's `.defaultSize` maps to the
+content rect, which would make GTK the only one of the three that is short.
+
+## 5. 非 GTK 的問題：`gtk_window_set_default_size` 設定的是整個視窗，而我們把它當成內容
+
+**2026-09-01 於 WSLg 以 P16 量測，GTK 4.22.4。** 歸在此處而非列為 GTK 缺陷，因為 GTK 的行為與
+其文件一致；錯在我們這邊。
+
+P16 要求 `.defaultSize(width: 900, height: 600)`。`GtkBackend.createWindow` 把它直接交給
+`window.defaultSize`（`GtkBackend.swift:994-997`），亦即 `gtk_window_set_default_size`
+（`Sources/Gtk/Widgets/Window.swift:63`）。在 GTK4 中該呼叫設定的是**視窗**，而在 client-side
+decoration 之下，標題列位於視窗之內。於是 app 拿到的比它要求的少。
+
+一張 WSLg 視窗的 wincap 截圖，逐像素量測：
+
+| | |
+|---|---|
+| 視窗表面 | 恰為 **900x600**——要求本身有被遵守 |
+| 其內的標題列 | **39px** |
+| app 實際可用的內容 | **900x561** |
+
+後果可在版面系統自身的診斷中看到：`leadingContent` 高度第一次 commit 為 **485**，第二、三次為
+**446**，相差正好 39，三次執行逐位元組可重現。**第一輪才是遵守要求的那一次**；第二輪是版面系統
+正確地為「實際較小的視窗」重新排版。版面程式碼沒有任何一處是錯的。
+
+WinUIBackend 沒有這個問題：Windows 上標題列屬 non-client 區域，因此同一支 app 量得 916x639 的
+外框包著 900x600 的 client，回報穩定的 486 且沒有第二輪。兩邊的寬度都不受影響——標題列只吃高度，
+兩者都回報 `total=880` = 900 − 2×10 的 padding。
+
+**為何不能靠加一個常數修好。** GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度在視窗 realize 之前
+無從得知：它取決於主題、縮放，以及 compositor 是否根本提供 server-side decorations。修正必須在
+視窗 map 之後做一次——比對內容 widget 的配置與原始要求，再依差額放大視窗。追蹤於 `todo.md`。
+
+尚未驗證、需要 Mac：AppKit 的 `.defaultSize` 是否對應 content rect；若是，GTK 就是三者中唯一
+少給的那一個。

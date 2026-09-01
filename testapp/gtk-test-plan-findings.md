@@ -1100,6 +1100,39 @@ does not apply here.
 沒有任何一欄被擠掉）。`Force update` 之後回報的仍是相同的 `180 x 22` / `660 x 22`，沒有落差
 可比較——GtkBackend 一開始就是對的，#160 在此不適用。
 
+**Correction, 2026-09-01. The conclusion survives; the evidence for it does
+not.** The two paragraphs above are kept as written because what they look
+like matters: a pair of numbers that agree before and after a state change,
+read as proof of a stable layout. Both numbers came from a `GeometryReader`
+under `.frame(height: 22)` sitting inside the pane's `VStack`, so the height
+could only ever be 22 and the width was the content column, not the pane. They
+would have agreed whatever the panes did. "The initial render is correct here:
+`sidebar: 180 x 22`" is therefore not something that run established.
+
+Measured properly, from `SplitView.commit` with `SCUI_DEBUG_SPLIT` set --
+outside the view tree, so nothing perturbs what it reports -- GtkBackend gives
+`leadingContent=200x485` on the first commit and `200x446` on the second and
+third, widths steady at 200 / 680, reproducible byte-for-byte across three
+runs. So there *is* a change across the first render, which the probe could not
+have shown. It is not #160: it settles on its own before any interaction,
+whereas #160 is a layout that stays wrong until a state change. The 39px is a
+client-side-decoration header bar counted inside the requested window height;
+see `UI-test-results_overall_en.md` for the measurement and `todo.md` for the
+fix.
+
+**更正，2026-09-01。結論成立，但支持它的證據不成立。** 上面兩段原文保留，因為它「看起來的樣子」
+本身就是重點：一組在狀態改變前後一致的數字，被讀成「版面穩定」的證明。這兩個數字都來自位於窗格
+`VStack` 之內、且套了 `.frame(height: 22)` 的 `GeometryReader`，因此高度只可能是 22，寬度量到的
+是內容欄而非窗格。無論窗格發生什麼事，它們都會一致。所以「這裡的初始渲染是正確的：
+`sidebar: 180 x 22`」並不是那次執行所確立的事。
+
+改以正確方式量測——在 view tree 之外、由 `SplitView.commit` 於設定 `SCUI_DEBUG_SPLIT` 時輸出，
+因此不會擾動被回報的對象——GtkBackend 第一次 commit 為 `leadingContent=200x485`，第二、三次為
+`200x446`，寬度穩定在 200 / 680，三次執行逐位元組可重現。所以首次算繪之中**確實有變化**，而那是
+探針不可能顯示出來的。它不是 #160：它在任何互動之前就自行安定，而 #160 指的是「一直錯到狀態改變
+為止」。那 39px 是被算進所要求視窗高度之內的 CSD 標題列；量測見
+`UI-test-results_overall_en.md`，修法見 `todo.md`。
+
 | step | result |
 |---|---|
 | 2-3: read initial sidebar/detail sizes, judge by eye | pass -- correct from the first stable frame |

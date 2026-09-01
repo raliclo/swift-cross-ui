@@ -339,6 +339,57 @@ gave -38,-59 at one and 154,-6 at the other.
 
 ## GtkBackend gaps / GtkBackend 的缺口
 
+- **An app asking for a 900x600 window gets 900x561 of content on GTK, and
+  900x600 on WinUI.** Measured 2026-09-01 with P16 on WSLg.
+
+  `GtkBackend.createWindow` hands the requested size straight to
+  `window.defaultSize` (GtkBackend.swift:994-997), i.e. to
+  `gtk_window_set_default_size` (Sources/Gtk/Widgets/Window.swift:63). In GTK4
+  that sizes the **whole window including the client-side-decoration header
+  bar**, so a request for 600 of height yields 561 of content. On Windows the
+  title bar is non-client area — the same app measures a 916x639 frame around a
+  900x600 client — so WinUI delivers what was asked for.
+
+  The evidence is a wincap capture of the WSLg window: surface exactly 900x600,
+  a 39px header bar inside it, content 900x561. The layout system's own
+  diagnostic shows the consequence — `leadingContent` height 485 on the first
+  commit and 446 on the second, differing by exactly 39. **The first pass is
+  the one that honours the request**; the second is the layout system correctly
+  reacting to a window that turned out smaller. Nothing in the layout code is
+  at fault.
+
+  The fix cannot be a one-liner: GTK4 has no set-content-size call, and the
+  header height is not known before the window is realized. It has to be a
+  single correction after the window is mapped — compare the content widget's
+  allocation against the request and grow the window by the shortfall. Verify
+  by re-running P16 on WSLg and checking that the settled figure becomes
+  485/486 with no second pass. Also worth checking whether width is affected
+  where side decorations exist, and whether GTK4 on Windows (gvsbuild,
+  server-side decorations) shows it at all. What SwiftUI does is **unverified**
+  and needs a Mac; the expectation to measure there is that `.defaultSize` maps
+  to the content rect, which would put AppKit on WinUI's side.
+
+  **一支要求 900x600 視窗的 app，在 GTK 上只拿到 900x561 的內容，在 WinUI 上拿到 900x600。**
+  2026-09-01 以 P16 於 WSLg 量測。
+
+  `GtkBackend.createWindow` 把要求的尺寸直接交給 `window.defaultSize`
+  （GtkBackend.swift:994-997），亦即 `gtk_window_set_default_size`
+  （Sources/Gtk/Widgets/Window.swift:63）。在 GTK4 中它設定的是**含 CSD 標題列的整個視窗**，
+  因此要求 600 的高度只得到 561 的內容。Windows 上標題列屬 non-client 區域——同一支 app 量得
+  916x639 的外框包著 900x600 的 client——所以 WinUI 交付了所要求的尺寸。
+
+  證據是一張 WSLg 視窗的 wincap 截圖：表面恰為 900x600，其內有 39px 標題列，內容 900x561。
+  版面系統自身的診斷顯示了後果——`leadingContent` 高度第一次 commit 為 485、第二次為 446，
+  相差正好 39。**第一輪才是遵守要求的那一次**；第二輪是版面系統正確地反應「視窗實際比要求小」。
+  版面程式碼本身沒有問題。
+
+  修法不可能是一行：GTK4 沒有「設定內容尺寸」的 API，而標題列高度在視窗 realize 之前並不可知。
+  必須在視窗 map 之後做一次修正——比對內容 widget 的配置與原始要求，再依差額放大視窗。驗證方式：
+  在 WSLg 重跑 P16，確認安定值變成 485/486 且不再有第二輪。另外值得確認：有側邊裝飾時寬度是否
+  也受影響，以及 GTK4 on Windows（gvsbuild，server-side decorations）是否根本不會發生。
+  SwiftUI 的行為**尚未驗證**、需要 Mac；待量測的預期是 `.defaultSize` 對應 content rect，
+  那會讓 AppKit 站在 WinUI 這一邊。
+
 - **WinUIBackend's WebView: diagnosed, half fixed, and the remaining half is
   characterised.** Investigated 2026-08-28 with P38.
 
