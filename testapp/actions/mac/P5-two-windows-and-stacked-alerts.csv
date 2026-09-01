@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# P5: #675 -- alerts on two windows at once, and alerts stacked on one.
+#
+# The second window comes first, because that is what makes the rest of the file
+# mean anything: #675 is about alerts on *different* windows showing together
+# rather than queuing, and with one window open there is nothing for an alert to
+# be simultaneous with.
+#
+# This is the only file here that opens an alert on purpose, and it is the one
+# most likely to strand the app. An NSAlert maps Escape to a button titled
+# Cancel and P5's alerts may not have one, in which case the Escape below does
+# nothing and the app sits modal until the sweep kills it. That failure is
+# contained to P5 and is worth the risk, because #675 cannot be checked without
+# an alert on screen; a file that avoided them would test only the button that
+# opens a window.
+#
+# P5：#675——兩個視窗上同時出現的 alert，以及堆疊在同一個視窗上的 alert。
+#
+# 第二個視窗排在最前面，因為那才使本檔其餘部分具有意義：#675 談的是**不同**視窗上的 alert 應同時
+# 顯示而非排隊，而只開著一個視窗時，alert 沒有任何可與之「同時」的對象。
+#
+# 這是此處唯一刻意開啟 alert 的檔案，也是最可能讓 app 卡住的一個。NSAlert 會把 Escape 對應到標題
+# 為 Cancel 的按鈕，而 P5 的 alert 可能沒有這個按鈕；那樣的話下方的 Escape 不會有任何作用，app 會
+# 一直維持 modal 直到 sweep 將它結束。該失敗僅侷限於 P5，且值得冒這個險，因為沒有 alert 出現在
+# 畫面上就無法檢查 #675；一個迴避 alert 的檔案，測到的只會是那顆開啟視窗的按鈕。
+#
+# origin=frame. Window 533x404 points, capture 1078px wide -- scale 2.
+# origin=frame。視窗 533x404 點，擷取寬 1078px——scale 2。
+click,270,219,frame,left,,,Open another window,macos
+sleep,,,,,,2000000,let the second window settle,macos
+click,69,251,frame,left,,,Show Alert A,macos
+sleep,,,,,,2000000,,macos
+key,,,,,escape,,dismiss A,macos
+sleep,,,,,,1500000,,macos
+click,270,283,frame,left,,,Show A+B+C at once -- the stacking half of #675,macos
+sleep,,,,,,2500000,,macos
+key,,,,,escape,,dismiss the topmost; the one under it must come back,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,and the next,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,and the last -- Ready. must return,macos
+sleep,,,,,,2000000,,macos
