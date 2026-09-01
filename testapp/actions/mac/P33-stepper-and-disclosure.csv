@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P33: drive the approximations, since the real views do not exist yet.
+#
+# P33's subject is a list of SwiftUI names that do not compile here, and a list
+# cannot be clicked. What it also ships is hand-built approximations of three of
+# them, and those are ordinary controls: a pair of buttons standing in for
+# Stepper, and a button standing in for DisclosureGroup.
+#
+# Driving an approximation is worth doing even though it proves nothing about
+# the missing view. The approximations are what an application would have to
+# write today, so a stepper approximation that miscounts, or a disclosure that
+# does not hide, is a bug an application would hit -- and it would hit it in
+# code copied from here.
+#
+# The stepper is taken below zero deliberately. "value 0" is the launch state
+# and minus is pressed first, so a stepper that clamps at zero and one that goes
+# negative are told apart before anything else moves.
+#
+# P33：驅動那些近似實作，因為真正的視圖尚不存在。
+#
+# P33 的主題是一份「在此無法編譯的 SwiftUI 名稱」清單，而清單是不能點的。它同時提供的，是其中
+# 三者的手工近似實作，而那些都是普通的控制項：一對用來充當 Stepper 的按鈕，以及一顆用來充當
+# DisclosureGroup 的按鈕。
+#
+# 即使驅動近似實作對「缺失的視圖」什麼也證明不了，仍然值得做。這些近似實作正是今天的應用程式不得
+# 不自行撰寫的東西，因此一個計數錯誤的 stepper 近似、或一個藏不起來的 disclosure，都是應用程式會
+# 遇上的缺陷——而且它們會在從這裡複製過去的程式碼中遇上。
+#
+# stepper 刻意被推到零以下。「value 0」是啟動狀態，而減號先按，因此「在零處箝制的 stepper」與
+# 「會變成負數的 stepper」在其他任何東西移動之前就已被區分開來。
+#
+# origin=frame. Window 822x648 points, capture 1640px wide -- scale 2.
+# origin=frame。視窗 822x648 點，擷取寬 1640px——scale 2。
+click,31,347,frame,left,,,minus from 0 -- clamped or negative,macos
+sleep,,,,,,600000,,macos
+click,120,347,frame,left,,,plus,macos
+sleep,,,,,,500000,,macos
+click,120,347,frame,left,,,plus,macos
+sleep,,,,,,500000,,macos
+click,120,347,frame,left,,,plus -- three ups against one down,macos
+sleep,,,,,,800000,,macos
+click,64,407,frame,left,,,Hide details -- the conditional content must go,macos
+sleep,,,,,,900000,,macos
+click,64,407,frame,left,,,and come back; the button's own label must follow,macos
+sleep,,,,,,1000000,,macos

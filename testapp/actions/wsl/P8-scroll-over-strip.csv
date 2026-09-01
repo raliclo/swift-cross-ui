@@ -18,5 +18,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 的截圖。
 move,320,453,,,,,over the horizontal strip,gtk
 sleep,,,,,,400000,,gtk
-scroll,0,4,,,,,four notches down, same as the control,gtk
+scroll,0,4,,,,,"four notches down, same as the control",gtk
 sleep,,,,,,1200000,hold for the screenshot,gtk

@@ -181,9 +181,45 @@ fi
 
 printf '\n%s window %s at %s,%s size %sx%s (points)\n' "$app" "$wid" "$wx" "$wy" "$ww" "$wh"
 printf 'image: %s\n' "$out"
-printf '\nThe image is at backing scale, so a logical point is image/2. Subtract the\n'
-printf 'title bar height from the image y before using it as an origin=client y.\n'
-printf '影像為 backing scale，邏輯點 = 影像座標/2；作為 origin=client 的 y 使用前，需扣除標題列高度。\n'
+# The scale is measured, not assumed.
+#
+# This block used to say "the image is at backing scale, so a logical point is
+# image/2". That is true of some windows and not others: on this machine P3
+# captured 1920x1256 for a 960x628 window while P18 captured 720x548 for one of
+# 706x538. The scale belongs to the display the window opened on, so moving a
+# window between displays changes it, and a sentence cannot know which one this
+# run used. Two action files were written against the wrong divisor before this
+# was measured.
+#
+# 縮放比例是量出來的，不是假設的。
+#
+# 這一段原本寫著「影像為 backing scale，故邏輯點 = 影像座標/2」。那對某些視窗成立、對其他則否：
+# 在這台機器上，P3 的 960x628 視窗擷取為 1920x1256，而 P18 的 706x538 視窗擷取為 720x548。縮放
+# 比例屬於「視窗開在哪一台顯示器」，因此把視窗搬到另一台顯示器就會改變它，而一句寫死的說明無從
+# 得知本次執行用的是哪一台。在實際量測之前，已有兩份動作檔照著錯誤的除數寫成。
+# Rounded, because the image is wider than the window.
+#
+# `screencapture -o` still leaves a few points of padding -- 720px for a 706pt
+# window -- so the ratio is never exactly the scale. Integer division truncated
+# it: P10's 1240px for 622pt is 1.99, which printed as "divide by 1" and would
+# have put every coordinate in that file at half its correct value. Rounding is
+# safe here because the padding is small and the scale is a whole number.
+#
+# 採四捨五入，因為影像比視窗寬。
+#
+# `screencapture -o` 仍會留下數個點的邊距——706pt 的視窗得到 720px——因此比值永遠不會恰好等於
+# 縮放比例。整數除法會把它截斷：P10 的 622pt 對 1240px 是 1.99，印出來成了「除以 1」，而那會讓
+# 該檔中每一個座標都只有正確值的一半。此處四捨五入是安全的，因為邊距很小而縮放比例是整數。
+px=$(sips -g pixelWidth "$out" 2>/dev/null | awk '/pixelWidth/{print $2}')
+if [ -n "${px:-}" ] && [ "$ww" -gt 0 ]; then
+    printf 'capture: %spx wide for %spt -- divide image coordinates by %s\n' \
+        "$px" "$ww" "$(( (2 * px + ww) / (2 * ww) ))"
+fi
+printf 'origin=frame is what this capture gives directly: -o omits the shadow, so the\n'
+printf 'image top-left is the frame top-left. origin=client would need a title bar\n'
+printf 'height subtracted, which nothing here measures.\n'
+printf 'origin=frame 是本擷取直接給出的：-o 省略陰影，故影像左上角即 frame 左上角。origin=client\n'
+printf '則需扣除標題列高度，而此處沒有任何東西量測它。\n'
 
 [ "$keep" -eq 0 ] && { pkill -x "$app" 2>/dev/null || true; }
 exit 0

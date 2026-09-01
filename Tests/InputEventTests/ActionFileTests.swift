@@ -193,4 +193,68 @@ struct ActionFileTests {
             )
         }
     }
+
+    /// Every action file in the tree parses.
+    ///
+    /// The parser is RFC 4180 and handles a quoted comma correctly; what it
+    /// cannot do is guess that an *unquoted* comma inside a note was meant as
+    /// text. Such a row splits into ten fields, the platform column reads the
+    /// note's second half, and the whole file is rejected with
+    /// `unknownPlatform` -- so one stray comma in a comment silently disables
+    /// every action in the file, including the ones nobody touched.
+    ///
+    /// Eight rows across five files were in exactly that state when this test
+    /// was written. They had been reviewed, committed and referenced by name in
+    /// the coverage matrix; nothing in the tree read them until a replay tried
+    /// to, and a replay only runs on the platform the file names. This test
+    /// reads all of them on every platform.
+    ///
+    /// 樹中的每一份動作檔都能被解析。
+    ///
+    /// 解析器遵循 RFC 4180，能正確處理加了引號的逗號；它做不到的，是猜出 note 中**未加引號**的
+    /// 逗號原本是文字。這樣的一列會被切成十欄，platform 欄讀到的是 note 的後半段，於是整個檔案
+    /// 以 `unknownPlatform` 被拒絕——因此註解裡的一個多餘逗號，會靜默地讓該檔中每一個動作失效，
+    /// 包括沒有人動過的那些。
+    ///
+    /// 撰寫本測試時，五個檔案中共有八列正處於這個狀態。它們都經過審閱、提交，並在涵蓋率矩陣中
+    /// 被指名引用；在有人嘗試重放之前，樹中沒有任何東西讀過它們，而重放只會在該檔所指名的平台上
+    /// 執行。本測試在每一個平台上都讀取全部檔案。
+    @Test("every tracked action file parses")
+    func everyTrackedActionFileParses() throws {
+        // The repository root, from this file's own path. A test's working
+        // directory is SwiftPM's business, not something to depend on.
+        // 由本檔自身的路徑推得儲存庫根目錄。測試的工作目錄是 SwiftPM 的事，不該被依賴。
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // InputEventTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // repository root
+        let actions = root.appendingPathComponent("testapp/actions")
+
+        let platforms: [String: ActionFilePlatform] = [
+            "android": .android,
+            "ios": .ios,
+            "mac": .macos,
+            "win": .windows,
+            "wsl": .gtk,
+        ]
+
+        var parsed = 0
+        for (directory, platform) in platforms.sorted(by: { $0.key < $1.key }) {
+            let folder = actions.appendingPathComponent(directory)
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+            for name in names.sorted() where name.hasSuffix(".csv") {
+                let path = folder.appendingPathComponent(name)
+                let text = try String(contentsOf: path, encoding: .utf8)
+                #expect(throws: Never.self, "\(directory)/\(name)") {
+                    _ = try ActionFile.parse(text, platform: platform)
+                }
+                parsed += 1
+            }
+        }
+
+        // A directory that stops matching -- renamed, moved -- would otherwise
+        // make this test pass by reading nothing at all.
+        // 若某個目錄不再相符——被改名、被搬移——本測試否則會因為什麼都沒讀而通過。
+        #expect(parsed > 20, "expected the action files to be found; parsed \(parsed)")
+    }
 }

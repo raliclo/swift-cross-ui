@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19: open the one flat menu.
+#
+# This file stops after opening it, and that is a limit of the machine rather
+# than a choice about coverage. A menu is a window of its own, so selecting an
+# item needs that window's geometry, and the only way to obtain it here is to
+# open the menu and capture it -- which needs the opening click to register.
+# It does not: AppKit hit testing is broken on this Mac (see todo.md), and the
+# screen capture that would have shown the open menu returns the lock screen,
+# because `screencapture -l` reaches a window by id through a locked screen but
+# a full-screen grab does not.
+#
+# So the item coordinates are not guessed. Add them by re-measuring once hit
+# testing works; the button click below is already correct and will not move.
+#
+# P19：開啟那唯一的扁平選單。
+#
+# 本檔在開啟之後即停止，這是機器的限制，而非對涵蓋範圍的取捨。選單本身是一個獨立的視窗，因此選取
+# 其中的項目需要該視窗的幾何資訊，而此處取得它的唯一方法就是把選單打開並擷取——這需要開啟的那一次
+# 點擊真的生效。它並沒有：AppKit 的 hit testing 在這台 Mac 上是壞的（見 todo.md），而原本應該拍到
+# 已開啟選單的螢幕擷取回傳的是鎖定畫面，因為 `screencapture -l` 能以 id 穿透鎖定畫面取得視窗，
+# 全螢幕擷取則不能。
+#
+# 因此項目座標並非用猜的。待 hit testing 修復後重新量測再補上；下方的按鈕點擊已經是正確的，不會移動。
+click,72,232,frame,left,,,Open the menu,macos
+sleep,,,,,,3000000,leave it open long enough to be seen,macos

@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41: change the date through each style and read the label under it.
+#
+# P41's own test is that two cells looking identical means one style fell back to
+# the other, and a capture answers that. What it cannot answer is whether the
+# cells that look different also *behave* differently, and that is what this file
+# adds: each style gets its value changed by its own means -- steppers for
+# .automatic and .compact, a day cell for .graphical -- and the ISO date printed
+# beneath each one must follow.
+#
+# A style that renders correctly and writes nothing back looks right in a
+# screenshot and is broken. The three labels are how that shows up.
+#
+# .graphical is clicked on a day rather than stepped, because that is the only
+# input a calendar grid has. The 17th is chosen: it is in the same month as the
+# launch date, so no month change is involved, and it is far enough from the 24th
+# that an off-by-one cannot be mistaken for a hit.
+#
+# P41：透過每一種樣式改變日期，並讀取其下方的標籤。
+#
+# P41 自己的測試是「兩個格子看起來一樣，代表其中一種樣式退回成了另一種」，而擷取影像能回答這件事。
+# 它回答不了的，是那些看起來不同的格子是否也**行為**不同，而這正是本檔所補上的：每一種樣式都以它
+# 自己的方式改變數值——.automatic 與 .compact 用 stepper，.graphical 用日期格——而印在各自下方的
+# ISO 日期必須跟著改變。
+#
+# 一種算繪正確卻不回寫任何東西的樣式，在螢幕截圖裡看起來是對的，實際上是壞的。那三個標籤正是它
+# 顯現出來的方式。
+#
+# .graphical 是點擊某一天而非使用 stepper，因為日曆格線唯一的輸入方式就是這個。選 17 日：它與啟動
+# 日期同月，因此不涉及換月；而它離 24 日夠遠，使得差一格的誤差不會被誤認成命中。
+#
+# origin=frame. Window 940x648 points, capture 1880px wide -- scale 2.
+# origin=frame。視窗 940x648 點，擷取寬 1880px——scale 2。
+click,201,343,frame,left,,,.automatic stepper up -- 2025-08-24 must move,macos
+sleep,,,,,,700000,,macos
+click,201,343,frame,left,,,again,macos
+sleep,,,,,,700000,,macos
+click,201,352,frame,left,,,and down once -- net one day forward,macos
+sleep,,,,,,900000,,macos
+click,194,481,frame,left,,,.compact stepper up -- its own label must move and the others must not,macos
+sleep,,,,,,900000,,macos
+click,565,374,frame,left,,,.graphical -- the 17th,macos
+sleep,,,,,,1200000,,macos
+click,565,392,frame,left,,,and back to the 24th,macos
+sleep,,,,,,1200000,,macos

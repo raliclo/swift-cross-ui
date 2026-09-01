@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P4: put the row count up, then make callbacks fire against it.
+#
+# The order is the test. P4's expectation is that "row callbacks respond quickly
+# even when row count is large", so pressing Run before raising the count
+# measures nothing -- eighty rows is not large. Rows 250 goes first, and the Run
+# buttons are pressed afterwards, against the count that makes the question real.
+#
+# The banner and its tick sit above all of it: "Rows: 80, rows 0-49, update tick:
+# 0, callbacks: 0" is one line carrying four numbers, and each row below moves a
+# different one. A run that changes only some of them says which part is stuck.
+#
+# P4：先把列數推高，再讓 callback 針對那個列數觸發。
+#
+# 順序本身就是測試。P4 的預期是「即使列數很大，row callback 仍能快速回應」，因此在提高列數之前
+# 就按 Run 什麼也量不到——八十列稱不上大。Rows 250 排在最前面，Run 按鈕排在其後，針對的是那個
+# 讓問題成立的列數。
+#
+# 橫幅與它的 tick 位於這一切之上：「Rows: 80, rows 0-49, update tick: 0, callbacks: 0」是一行
+# 承載四個數字，而下方每一列各自移動其中不同的一個。一次只改變其中部分數字的執行，會指出是哪一
+# 部分卡住了。
+#
+# origin=frame. Window 840x788 points, capture 1680px wide -- scale 2.
+# origin=frame。視窗 840x788 點，擷取寬 1680px——scale 2。
+click,612,125,frame,left,,,Rows 250,macos
+sleep,,,,,,1000000,,macos
+click,433,125,frame,left,,,Force update -- the update tick must move,macos
+sleep,,,,,,800000,,macos
+click,60,344,frame,left,,,Run 0 -- callbacks 0 -> 1,macos
+sleep,,,,,,600000,,macos
+click,60,514,frame,left,,,Run 5 -- and the selected row must follow,macos
+sleep,,,,,,600000,,macos
+click,528,125,frame,left,,,Run last -- the far end of 250 rows,macos
+sleep,,,,,,800000,,macos
+click,210,298,frame,left,,,Load next rows -- the 0-49 window must slide,macos
+sleep,,,,,,1000000,,macos
+move,400,500,frame,,,,into the row list,macos
+sleep,,,,,,300000,,macos
+scroll,0,8,,,,,near the bottom; on Windows this slides the row window,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-8,,,,,and back to the top,macos
+sleep,,,,,,1000000,,macos
+click,330,125,frame,left,,,More rows,macos
+sleep,,,,,,600000,,macos
+click,234,125,frame,left,,,Fewer rows,macos
+sleep,,,,,,1000000,,macos

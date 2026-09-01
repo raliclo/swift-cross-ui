@@ -1,0 +1,65 @@
+action,x,y,origin,button,key,micros,note,platform
+# P2: the four things it groups, in the order that leaves each one measurable.
+#
+# The Picker is expanded before it is opened. P2 counts options and changes on
+# one line -- "Selected: Vanilla, options: 2, changes: 0" -- and toggling the
+# expanded set first means the option count visibly moves before anything else
+# touches the picker, so a picker that never updates is told apart from one that
+# updates late.
+#
+# The dropdown is opened and closed with Escape rather than selected from. It is
+# a menu, so its items are in a window of their own, and P2's own expectation
+# ("dropdown stays open") is about the open state rather than about which item
+# is chosen -- which is the half a click can reach here.
+#
+# Typing comes after the Set/Clear buttons, not before. P2 reports a length, so
+# a run that types first and then presses Clear ends with the same 0 it would
+# have had without typing at all, and "no missed keystrokes" -- the thing its own
+# expectation line names -- would be untestable.
+#
+# P2：它所歸類的四件事，依「使每一件仍可量測」的順序排列。
+#
+# Picker 先展開再開啟。P2 在同一行上計算選項數與變更次數——「Selected: Vanilla, options: 2,
+# changes: 0」——先切換為展開的選項集，意味著在其他東西碰到 picker 之前，選項數就已明顯改變，
+# 於是「從不更新的 picker」得以與「更新較慢的 picker」區分開來。
+#
+# 下拉選單只開啟後以 Escape 關閉，不從中選取。它是一個選單，其項目位於獨立的視窗中；而 P2 自己的
+# 預期（「下拉選單保持開啟」）談的是開啟狀態，而非選了哪一項——前者才是此處一次點擊所能觸及的那一半。
+#
+# 打字排在 Set/Clear 按鈕之後，而非之前。P2 會回報長度，因此先打字再按 Clear 的執行，結束時的 0
+# 與完全沒打字時相同，而「沒有漏掉的按鍵」——它自己的預期行所指名的那件事——將無從測試。
+#
+# origin=frame. Window 622x659 points, capture 1240px wide -- scale 2.
+# origin=frame。視窗 622x659 點，擷取寬 1240px——scale 2。
+click,118,97,frame,left,,,Use expanded Picker options -- options: 2 must rise,macos
+sleep,,,,,,800000,,macos
+click,208,131,frame,left,,,open the Flavor dropdown,macos
+sleep,,,,,,1200000,,macos
+key,,,,,escape,,close it again,macos
+sleep,,,,,,800000,,macos
+click,354,131,frame,left,,,Reset,macos
+sleep,,,,,,800000,,macos
+click,61,246,frame,left,,,Set 12345 -- Length must become 5,macos
+sleep,,,,,,800000,,macos
+click,138,246,frame,left,,,Clear -- Length must become 0,macos
+sleep,,,,,,800000,,macos
+click,400,285,frame,left,,,click into the TextEditor to focus it,macos
+sleep,,,,,,600000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,,macos
+key,,,,,c,,three keystrokes; Length must become exactly 3,macos
+sleep,,,,,,800000,,macos
+click,85,463,frame,left,,,Enable button row,macos
+sleep,,,,,,800000,,macos
+click,77,491,frame,left,,,the formerly disabled action -- now it should respond,macos
+sleep,,,,,,600000,,macos
+click,201,491,frame,left,,,Always enabled,macos
+sleep,,,,,,600000,,macos
+click,326,491,frame,left,,,the formerly disabled toggle,macos
+sleep,,,,,,800000,,macos
+click,120,543,frame,left,,,the second Delete -- the one that should warn,macos
+sleep,,,,,,800000,,macos
+click,191,543,frame,left,,,Cancel -- which should not,macos
+sleep,,,,,,800000,,macos
+click,97,603,frame,left,,,Allow window resizing -- the full screen button must follow,macos
+sleep,,,,,,1000000,,macos

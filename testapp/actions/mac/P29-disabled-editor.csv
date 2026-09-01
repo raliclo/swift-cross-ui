@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P29: the one of its three sections that responds to input.
+#
+# The progress bars and the rounded rectangle are drawn, not driven -- an
+# indeterminate bar animates on its own and a corner radius either clips or does
+# not. A capture settles both, and this file leaves them alone.
+#
+# What a replay can settle is section 3, and it needs the typing to happen twice.
+# "TextEditor honours .disabled" is a claim about a control refusing input, and
+# the only way to see a refusal is to try: type while it is disabled, enable it,
+# type again. One attempt on its own cannot tell a control that refuses input
+# from a synthesiser whose keystrokes went nowhere.
+#
+# P29：其三個區段中唯一會對輸入有反應的那一個。
+#
+# 進度條與圓角矩形是用來繪製的，不是用來驅動的——不確定型進度條會自行動畫，而圓角要嘛裁切、要嘛
+# 不裁切。一張擷取影像就能判定兩者，因此本檔不去碰它們。
+#
+# 重放能夠判定的是第 3 節，而它需要打字進行兩次。「TextEditor honours .disabled」是一項關於
+# 「控制項拒絕輸入」的主張，而看見一次拒絕的唯一方式就是去嘗試：在停用狀態下打字、啟用它、再打一次。
+# 單獨一次嘗試無法區分「拒絕輸入的控制項」與「按鍵根本沒送到的 synthesiser」。
+#
+# origin=frame. Window 722x590 points, capture 1440px wide -- scale 2.
+# origin=frame。視窗 722x590 點，擷取寬 1440px——scale 2。
+click,200,470,frame,left,,,click into the editor while it is disabled,macos
+sleep,,,,,,500000,,macos
+key,,,,,n,,,macos
+key,,,,,o,,these two must not appear -- the editor is disabled,macos
+sleep,,,,,,800000,,macos
+click,451,482,frame,left,,,Enable it,macos
+sleep,,,,,,800000,,macos
+click,200,470,frame,left,,,click into the editor again,macos
+sleep,,,,,,500000,,macos
+key,,,,,y,,,macos
+key,,,,,e,,,macos
+key,,,,,s,,and these three must,macos
+sleep,,,,,,1200000,,macos

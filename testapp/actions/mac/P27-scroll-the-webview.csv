@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27: scroll the embedded WebView. Nothing else here takes a click.
+#
+# The six gradients are drawn, not operated, and P27 says so: if the window is on
+# screen, neither view aborted the app. That is the whole of their test, and a
+# capture answers it better than an action file can.
+#
+# The "Learn more" link is deliberately not clicked. It leaves the page for
+# iana.org, which makes the WebView's state depend on the network and on a site
+# outside this repository; a replay that passes on one machine and fails on
+# another because of DNS is worse than no replay. Scrolling exercises the same
+# view without leaving the page it was given.
+#
+# P27：捲動內嵌的 WebView。此處其餘部分皆不接受點擊。
+#
+# 六個漸層是用來繪製的，不是用來操作的，而 P27 自己也這麼說：只要視窗出現在螢幕上，下方兩個視圖
+# 就都沒有讓 app 中止。那就是它們測試的全部，而一張擷取影像比動作檔更能回答這件事。
+#
+# 「Learn more」連結刻意不點。它會離開頁面前往 iana.org，使 WebView 的狀態取決於網路與一個位於
+# 本儲存庫之外的網站；一份在某台機器上通過、在另一台上卻因 DNS 而失敗的重放，比沒有重放更糟。
+# 捲動能操作到同一個視圖，而不必離開它原本被給定的頁面。
+#
+# origin=frame. Window 760x691 points, capture 1520px wide -- scale 2.
+# origin=frame。視窗 760x691 點，擷取寬 1520px——scale 2。
+move,380,590,frame,,,,into the WebView,macos
+sleep,,,,,,500000,,macos
+scroll,0,4,,,,,the page must move inside the view and not scroll the window,macos
+sleep,,,,,,1000000,,macos
+scroll,0,4,,,,,further,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-8,,,,,and back to the top,macos
+sleep,,,,,,1200000,,macos

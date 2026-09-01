@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P14: what is left of a rotation test on a platform that does not rotate.
+#
+# Both of P14's subjects assume something macOS cannot do -- rotate the device,
+# and switch the system appearance from outside the app -- so this file makes no
+# claim about either. What it can establish is narrower and still worth having:
+# that the width history is a real list that clears and grows, and that the
+# control in the #254 group responds at all.
+#
+# That last point is the one worth being careful about. #254 is about a control's
+# background *after* a theme change, and P14's own label says upstream claims it
+# does update. A click here cannot change the theme, so it cannot answer that;
+# it can only show that the control is live, which is the precondition. Change
+# the appearance by hand while the app is open to test the rest.
+#
+# P14：在一個不會旋轉的平台上，一個旋轉測試還剩下什麼。
+#
+# P14 的兩個主題都假設了 macOS 做不到的事——旋轉裝置，以及從 app 外部切換系統外觀——因此本檔對兩者
+# 皆不作任何主張。它所能確立的事較為狹窄，但仍值得擁有：寬度歷史是一個真的能清除、能增長的清單，
+# 而 #254 群組中的那個控制項確實會有反應。
+#
+# 最後這一點值得謹慎看待。#254 談的是主題變更**之後**控制項的背景，而 P14 自己的標籤說上游主張
+# 它會更新。此處的點擊無法改變主題，因此無法回答那個問題；它只能顯示該控制項是活的，而那是前提條件。
+# 其餘部分請在 app 開啟時手動切換外觀來測試。
+#
+# origin=frame. Window 420x750 points, capture 840px wide -- scale 2.
+# origin=frame。視窗 420x750 點，擷取寬 840px——scale 2。
+click,193,364,frame,left,,,Count a rotation (0) -> 1,macos
+sleep,,,,,,600000,,macos
+click,193,364,frame,left,,,-> 2,macos
+sleep,,,,,,600000,,macos
+click,65,364,frame,left,,,Clear history -- the 388 -> 0 -> 388 list must empty,macos
+sleep,,,,,,800000,,macos
+click,193,364,frame,left,,,count once more against an empty history,macos
+sleep,,,,,,800000,,macos
+click,210,451,frame,left,,,the #254 control -- it must respond even though the theme cannot change here,macos
+sleep,,,,,,1000000,,macos

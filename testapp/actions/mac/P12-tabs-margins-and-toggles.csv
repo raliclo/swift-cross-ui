@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12: the two of its three subjects a click can reach.
+#
+# #580 is state across rotation and there is no rotation on macOS, so what is
+# left of it here is whether the tab and the counter hold their values at all --
+# which is worth checking on its own, because a tab that does not switch cannot
+# survive a rotation either.
+#
+# #632 is margins, and margins are measured from the capture rather than
+# clicked. The two buttons are pressed anyway: a button whose margins are wrong
+# usually still responds, so a press that does nothing means something different
+# from a press that lands in the wrong place.
+#
+# #544 is the one this file tests properly. Two toggles are forced to opposite
+# states, and "Set opposite" swaps them, so a backend that shows toggle state
+# correctly and one that draws both the same are told apart in a single click.
+#
+# P12：其三個主題中，點擊所能觸及的那兩個。
+#
+# #580 是「旋轉後的狀態」，而 macOS 上沒有旋轉，因此此處剩下的部分是「分頁與計數器是否根本保得住
+# 它們的值」——這件事本身就值得檢查，因為一個切換不了的分頁，同樣也撐不過一次旋轉。
+#
+# #632 是邊距，而邊距是從擷取影像量出來的，不是點出來的。那兩顆按鈕仍然要按：邊距錯誤的按鈕通常
+# 仍會有反應，因此「按了沒反應」與「按到了錯誤的位置」意味著不同的事。
+#
+# #544 是本檔真正測到的那一個。兩個 toggle 被強制設為相反的狀態，而「Set opposite」會交換它們，
+# 因此「正確顯示 toggle 狀態的 backend」與「把兩者畫成一樣的 backend」，在單一次點擊中即可區分。
+#
+# origin=frame. Window 420x750 points, capture 840px wide -- scale 2.
+# origin=frame。視窗 420x750 點，擷取寬 840px——scale 2。
+click,132,301,frame,left,,,First -- Selected tab must leave Second,macos
+sleep,,,,,,700000,,macos
+click,263,301,frame,left,,,Third,macos
+sleep,,,,,,700000,,macos
+click,174,327,frame,left,,,Increment counter,macos
+sleep,,,,,,500000,,macos
+click,174,327,frame,left,,,again -- counter must reach 2,macos
+sleep,,,,,,500000,,macos
+click,196,301,frame,left,,,back to Second -- the counter must survive the tab change,macos
+sleep,,,,,,800000,,macos
+click,210,393,frame,left,,,the narrow button between the green bars -- #632,macos
+sleep,,,,,,600000,,macos
+click,210,423,frame,left,,,Wide button,macos
+sleep,,,,,,800000,,macos
+click,142,509,frame,left,,,the forced-on Toggle,macos
+sleep,,,,,,600000,,macos
+click,220,509,frame,left,,,the forced-off one,macos
+sleep,,,,,,700000,,macos
+click,157,535,frame,left,,,Set both on,macos
+sleep,,,,,,700000,,macos
+click,261,535,frame,left,,,Set opposite -- #544; the two must now differ visibly,macos
+sleep,,,,,,800000,,macos
+click,181,585,frame,left,,,the switch-styled toggle for comparison,macos
+sleep,,,,,,1000000,,macos

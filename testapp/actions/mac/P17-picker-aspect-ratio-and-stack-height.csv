@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17: step the three sizing controls and read the numbers they print.
+#
+# P17 is a comparison app -- its own first line says to run it on both backends
+# and compare -- so this file's job is to put it into the same states on macOS
+# that a Windows or GTK run puts it into, not to decide whether any one number is
+# right. Every row below changes a number that P17 prints: the picker's width,
+# the aspect-ratio box's height, the VStack's stack: WxH.
+#
+# The picker is opened and closed rather than selected from, as in P2. Shortest,
+# Medium and Longest change the selection without the menu, and they are what
+# #161 needs: if the picker's width follows the selection it is sized from the
+# selected item, and if it does not it is sized from the largest one. Three
+# presses answer that; opening the menu does not.
+#
+# P17：逐步操作三個尺寸控制項，並讀取它們印出的數字。
+#
+# P17 是一支比較用的 app——它自己的第一行就說要在兩個 backend 上執行並比較——因此本檔的職責是把
+# macOS 上的它帶入與 Windows 或 GTK 執行時相同的狀態，而非判定其中任何一個數字是否正確。下方每一列
+# 都會改變 P17 所印出的某個數字：picker 的寬度、aspect-ratio 方框的高度、VStack 的 stack: WxH。
+#
+# picker 如同 P2 一樣只開啟後關閉，不從中選取。Shortest、Medium 與 Longest 能在不經選單的情況下
+# 改變選擇，而它們正是 #161 所需要的：若 picker 的寬度隨選擇而變，它就是依選定項目決定尺寸；若不變，
+# 則是依最長的項目。三次按下即可回答這個問題；開啟選單則不能。
+#
+# origin=frame. Window 896x784 points, capture 1800px wide -- scale 2.
+# origin=frame。視窗 896x784 點，擷取寬 1800px——scale 2。
+click,307,264,frame,left,,,Shortest -- picker: 350 x 18 must change or must not,macos
+sleep,,,,,,800000,,macos
+click,386,264,frame,left,,,Medium,macos
+sleep,,,,,,800000,,macos
+click,463,264,frame,left,,,Longest -- the widest selection,macos
+sleep,,,,,,800000,,macos
+click,445,239,frame,left,,,open the picker itself,macos
+sleep,,,,,,1200000,,macos
+key,,,,,escape,,and close it without choosing,macos
+sleep,,,,,,800000,,macos
+click,329,490,frame,left,,,Shorter (120) -- #266a; the scroll bar may come and go,macos
+sleep,,,,,,800000,,macos
+click,329,490,frame,left,,,shorter again,macos
+sleep,,,,,,800000,,macos
+click,415,490,frame,left,,,Taller,macos
+sleep,,,,,,800000,,macos
+click,415,490,frame,left,,,taller again -- it must settle rather than flicker,macos
+sleep,,,,,,1000000,,macos
+click,332,736,frame,left,,,Less height (140) -- #266b; the three bands must stay equal width,macos
+sleep,,,,,,800000,,macos
+click,450,736,frame,left,,,More height,macos
+sleep,,,,,,1000000,,macos

@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16: force an update, switch to three columns, and select in the sidebar.
+#
+# Force update is pressed before anything else, and pressed twice. #160 is about
+# the split view's *initial* layout, and P16 tells the reader to read the pane
+# sizes before clicking anything -- so the first question is whether an update
+# that changes nothing leaves "sidebar: 180 x 22, detail: 660 x 22" alone. A
+# layout that only settles on the second update is a different bug from one that
+# never settles, and two presses tell them apart.
+#
+# The sidebar selections come after the column switch, not before. In a
+# three-column layout a sidebar selection has a middle column to fill as well as
+# a detail pane, so selecting after the switch asks the harder of the two
+# questions and the easier one is already implied.
+#
+# P16：強制更新、切換為三欄、並在側邊欄中選取。
+#
+# Force update 排在最前面，且按兩次。#160 談的是分割視圖的**初始**版面，而 P16 告訴讀者在點擊
+# 任何東西之前先讀取窗格尺寸——因此第一個問題是：一次什麼也沒改變的更新，是否會讓
+# 「sidebar: 180 x 22, detail: 660 x 22」保持原樣。一個只在第二次更新才穩定下來的版面，與一個
+# 從不穩定的版面是不同的缺陷，而按兩次即可區分兩者。
+#
+# 側邊欄的選取排在欄位切換之後，而非之前。在三欄版面中，一次側邊欄選取除了詳細窗格之外還有一個
+# 中間欄要填，因此在切換之後才選取問的是兩者中較難的問題，而較容易的那個已被涵蓋。
+#
+# origin=frame. Window 900x628 points, capture 1800px wide -- scale 2.
+# origin=frame。視窗 900x628 點，擷取寬 1800px——scale 2。
+click,377,103,frame,left,,,Force update (0) -> 1; the pane sizes must not move,macos
+sleep,,,,,,800000,,macos
+click,377,103,frame,left,,,-> 2; still no movement,macos
+sleep,,,,,,800000,,macos
+click,516,103,frame,left,,,Switch to 3 column,macos
+sleep,,,,,,1200000,,macos
+click,78,189,frame,left,,,Science -- a middle column and a detail pane must both fill,macos
+sleep,,,,,,800000,,macos
+click,78,241,frame,left,,,Humanities,macos
+sleep,,,,,,800000,,macos
+click,377,103,frame,left,,,Force update again in three columns,macos
+sleep,,,,,,1000000,,macos

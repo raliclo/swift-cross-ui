@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P1: open each dialog and the root sheet, and dismiss each with Escape.
+#
+# Same shape as P18 and for the same reason -- a file dialog is a modal window of
+# its own, so Escape reaches it without needing its geometry -- but P1 asks one
+# thing P18 does not: it times each dialog and prints "No timings yet" until one
+# has been through a full open and close. A run that opens and cancels all four
+# replaces every line on screen, so the four result lines are the whole verdict.
+#
+# The root sheet is included even though sheets are what P1's title puts last.
+# It is the one of the four that is not an AppKit panel, so if the three dialogs
+# dismiss and the sheet does not, that difference is the finding.
+#
+# P1：開啟每一個對話框與 root sheet，並各以 Escape 關閉。
+#
+# 形狀與 P18 相同、理由亦同——檔案對話框是獨立的 modal 視窗，因此 Escape 不需要它的幾何資訊即可
+# 送達——但 P1 多問了一件 P18 沒問的事：它會為每個對話框計時，並在有任何一個走完完整的開啟與關閉
+# 之前顯示「No timings yet」。一次把四個都開啟並取消的執行會替換掉畫面上的每一行，因此那四行結果
+# 就是全部的判定依據。
+#
+# root sheet 也納入，儘管 sheet 在 P1 的標題中排在最後。它是四者中唯一不是 AppKit panel 的，
+# 因此若三個對話框關得掉而 sheet 關不掉，那個差異本身就是發現。
+#
+# origin=frame. Window 622x548 points, capture 1240px wide -- scale 2.
+# origin=frame。視窗 622x548 點，擷取寬 1240px——scale 2。
+click,311,207,frame,left,,,Open file dialog,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,241,frame,left,,,Open folder dialog,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,275,frame,left,,,Save file dialog,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,cancel it,macos
+sleep,,,,,,1000000,,macos
+click,310,309,frame,left,,,Open root sheet,macos
+sleep,,,,,,1500000,,macos
+key,,,,,escape,,dismiss it -- a sheet is not a panel and may not take Escape,macos
+sleep,,,,,,1500000,let the four result lines settle,macos

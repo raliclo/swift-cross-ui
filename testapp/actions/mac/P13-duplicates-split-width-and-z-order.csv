@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13: three of its four subjects. The fourth is left alone on purpose.
+#
+# "Show unidentified list (may crash)" is not clicked. P13 puts #415 behind a
+# button precisely because it crashes, and a crash ends the replay with every
+# row after it unrun -- so a file that pressed it would test one button and then
+# stop, reporting nothing about the three sections below. #415 is a manual test,
+# and P13's own first line says as much.
+#
+# More duplicates goes first because the identity bug is about what happens as
+# the count rises: three identical messages under an Identifiable control, and a
+# hidden non-Identifiable list beside them. Raising the count is the only way to
+# make the two columns disagree.
+#
+# Narrower is pressed twice. #291 is a minimum width, and a minimum only shows
+# itself when something asks for less than it -- one press from 400 may still be
+# above the floor.
+#
+# P13：其四個主題中的三個。第四個是刻意不碰的。
+#
+# 「Show unidentified list (may crash)」不予點擊。P13 把 #415 藏在按鈕之後，正是因為它會當掉；
+# 而一次當掉會結束重放，使其後每一列都未執行——因此按下它的檔案只會測到一顆按鈕就停住，對下方三個
+# 區段什麼也回報不了。#415 是手動測試，P13 自己的第一行就是這麼說的。
+#
+# More duplicates 排在最前面，因為 identity 缺陷談的是「當數量上升時會發生什麼」：一個 Identifiable
+# 控制項底下的三則相同訊息，以及它旁邊一個隱藏的 non-Identifiable 清單。提高數量是使這兩欄產生
+# 分歧的唯一方法。
+#
+# Narrower 按兩次。#291 是最小寬度，而最小值只有在有東西要求比它更少時才會顯現——從 400 按一次，
+# 可能仍在下限之上。
+#
+# origin=frame. Window 900x907 points, capture 1800px wide -- scale 2.
+# origin=frame。視窗 900x907 點，擷取寬 1800px——scale 2。
+click,252,147,frame,left,,,More duplicates (3) -> 4,macos
+sleep,,,,,,700000,,macos
+click,252,147,frame,left,,,-> 5,macos
+sleep,,,,,,700000,,macos
+click,307,413,frame,left,,,Narrower (400),macos
+sleep,,,,,,700000,,macos
+click,307,413,frame,left,,,and again -- below the sidebar's own minimum,macos
+sleep,,,,,,900000,the Detail pane must still be visible,macos
+click,402,413,frame,left,,,Wider,macos
+sleep,,,,,,700000,,macos
+click,374,879,frame,left,,,Reverse -- "Top of the stack" must stop saying blue,macos
+sleep,,,,,,700000,,macos
+click,374,879,frame,left,,,Reverse again -- and say blue once more,macos
+sleep,,,,,,1000000,,macos

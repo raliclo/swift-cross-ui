@@ -1,0 +1,38 @@
+action,x,y,origin,button,key,micros,note,platform
+# P34: raise the row count past the cap, then scroll through what arrived.
+#
+# The row count is the measurement. P34 says "requested rows: 100; showing first
+# 100" and lists the lazy containers SwiftCrossUI does not have, so every row
+# here is eager -- the app builds all of them. Show +100 twice and Show all
+# capped rows put that claim under load, and the scroll afterwards shows whether
+# the rows that were built can actually be reached.
+#
+# Scrolling comes last for the ordinary reason: the two buttons are above the
+# list and outside it, so they do not move, but a file that scrolled first would
+# still be reading its own earlier state rather than the one the count changed.
+#
+# P34：把列數推過上限，再捲動看看實際到達了什麼。
+#
+# 列數就是量測本身。P34 顯示「requested rows: 100; showing first 100」，並列出 SwiftCrossUI
+# 所沒有的 lazy 容器，因此此處每一列都是 eager 的——app 會把它們全部建出來。按兩次 Show +100 與
+# 一次 Show all capped rows 會讓這項主張承受負載，而其後的捲動則顯示「已被建出的列是否真的到達得了」。
+#
+# 捲動排在最後的理由很平常：那兩顆按鈕位於清單之上、清單之外，因此不會移動；但先捲動的檔案，讀到的
+# 仍會是它自己稍早的狀態，而非列數改變之後的那一個。
+#
+# origin=frame. Window 780x648 points, capture 1560px wide -- scale 2.
+# origin=frame。視窗 780x648 點，擷取寬 1560px——scale 2。
+click,120,213,frame,left,,,Show +100 -- requested rows must reach 200,macos
+sleep,,,,,,1200000,,macos
+click,120,213,frame,left,,,and 300,macos
+sleep,,,,,,1200000,,macos
+click,248,213,frame,left,,,Show all capped rows -- the cap is what "showing first 100" names,macos
+sleep,,,,,,2000000,let an eager build of every row finish,macos
+move,165,425,frame,,,,into the list,macos
+sleep,,,,,,300000,,macos
+scroll,0,10,,,,,ten notches down,macos
+sleep,,,,,,1000000,,macos
+scroll,0,10,,,,,ten more,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-20,,,,,and back to Row 0,macos
+sleep,,,,,,1200000,,macos

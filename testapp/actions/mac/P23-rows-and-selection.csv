@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23: add rows past the window, take them away, and turn selection on.
+#
+# The row count is what makes this file worth replaying: P23 asks whether adding
+# rows past the window height scrolls or clips, and the only way to find out is
+# to add enough of them. Eight rows fit at launch; the four clicks below take it
+# well past that.
+#
+# The drag across a cell is a real drag -- mouseDown, move, mouseUp -- rather than
+# a click, because "Selection off" says to drag across a cell to check, and a
+# selection that only appears on press would pass a click and fail a drag.
+#
+# P23：把列數加到超出視窗、再減回來，並開啟選取。
+#
+# 列數才是本檔值得重放的原因：P23 要問的是「當列數超過視窗高度時是捲動還是被裁掉」，而唯一的查明
+# 方式就是加到足夠多。啟動時容得下八列；下方的四次點擊會把它推得遠超過這個數。
+#
+# 跨越一格的拖曳是真正的拖曳——mouseDown、move、mouseUp——而非點擊，因為「Selection off」說的是
+# 「拖過一格來檢查」，而一個只在按下時出現的選取會通過點擊測試、卻在拖曳時失敗。
+#
+# origin=frame. Window 822x648 points, capture 1640px wide -- scale 2.
+# origin=frame。視窗 822x648 點，擷取寬 1640px——scale 2。
+click,157,165,frame,left,,,More rows -- rows: 8 must rise,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,again,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,again,macos
+sleep,,,,,,500000,,macos
+click,157,165,frame,left,,,and again -- now past what the window holds,macos
+sleep,,,,,,1000000,,macos
+click,63,165,frame,left,,,Fewer rows,macos
+sleep,,,,,,500000,,macos
+click,63,165,frame,left,,,and back within the window,macos
+sleep,,,,,,1000000,,macos
+click,66,197,frame,left,,,Selection off -> on,macos
+sleep,,,,,,800000,,macos
+mousedown,300,267,frame,left,,,start of a drag across row 1's long cell,macos
+move,480,267,frame,,,,drag right across it,macos
+sleep,,,,,,300000,,macos
+mouseup,480,267,frame,left,,,,macos
+sleep,,,,,,1000000,,macos

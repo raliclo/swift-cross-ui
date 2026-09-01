@@ -1,0 +1,45 @@
+action,x,y,origin,button,key,micros,note,platform
+# P36: the three call sites that do compile here.
+#
+# P36 is two lists side by side: the SwiftCrossUI form that compiles, and the
+# SwiftUI-shaped call sites that do not. Only the first list has controls, and
+# this file drives all three of them -- picker, button, text field -- because
+# "compiles" and "works" are different claims and P36 only demonstrates the first.
+#
+# The picker is opened and closed rather than selected from. Its items are in a
+# menu, which is a window of its own and cannot be measured while AppKit hit
+# testing is broken; "Picker selection: Vanilla" therefore stays as it is, and a
+# later run should extend this file to change it.
+#
+# The text field already holds "SwiftCrossUI TextField", so the typing below
+# appends rather than starts from nothing -- which is the more interesting case:
+# a field that loses its existing value on the first keystroke is a bug an empty
+# field cannot show.
+#
+# P36：此處確實能編譯的那三個呼叫點。
+#
+# P36 是並排的兩份清單：能編譯的 SwiftCrossUI 形式，以及不能編譯的 SwiftUI 形狀呼叫點。只有第一份
+# 清單帶有控制項，而本檔把三者全部驅動一遍——picker、button、文字欄位——因為「能編譯」與「能運作」
+# 是兩項不同的主張，而 P36 只示範了前者。
+#
+# picker 只開啟後關閉，不從中選取。它的項目位於選單中，而選單是獨立的視窗，在 AppKit hit testing
+# 損壞期間無法量測；因此「Picker selection: Vanilla」維持原狀，日後的執行應擴充本檔以改變它。
+#
+# 文字欄位已經帶有「SwiftCrossUI TextField」，因此下方的打字是追加而非從零開始——而那是更有意思的
+# 情況：一個在第一次按鍵時就丟失既有內容的欄位，是空欄位顯示不出來的缺陷。
+#
+# origin=frame. Window 820x648 points, capture 1640px wide -- scale 2.
+# origin=frame。視窗 820x648 點，擷取寬 1640px——scale 2。
+click,84,298,frame,left,,,String label button,macos
+sleep,,,,,,700000,,macos
+click,66,240,frame,left,,,open the picker,macos
+sleep,,,,,,1200000,,macos
+key,,,,,escape,,and close it without choosing,macos
+sleep,,,,,,800000,,macos
+click,410,331,frame,left,,,into the text field which already has a value,macos
+sleep,,,,,,500000,,macos
+key,,,,,end,,go to the end rather than replacing what is there,macos
+sleep,,,,,,300000,,macos
+key,,,,,1,,,macos
+key,,,,,2,,two characters appended; the existing text must survive,macos
+sleep,,,,,,1200000,,macos

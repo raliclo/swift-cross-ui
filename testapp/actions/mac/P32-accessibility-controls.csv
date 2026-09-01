@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# P32: operate every labelled control, so an inspector has something to read.
+#
+# P32 is an inspection app -- it names Accerciser and Accessibility Insights and
+# lists the APIs SwiftCrossUI does not have -- and none of that can be checked by
+# a replay. What a replay contributes is the state: an accessibility tree is
+# read while the app is in some condition, and a toggle that has been flipped and
+# a slider that has been moved say more about whether values are exposed than a
+# tree read at launch, where every control still holds its default.
+#
+# The unlabelled toggle under the button is included on purpose. It is the
+# control with no visible text, so it is the one whose accessibility label, if
+# there is one, cannot come from what is drawn.
+#
+# P32：操作每一個帶標籤的控制項，好讓檢查工具有東西可讀。
+#
+# P32 是一支供檢查用的 app——它指名了 Accerciser 與 Accessibility Insights，並列出 SwiftCrossUI
+# 尚未具備的 API——而這些都不是重放所能檢查的。重放所貢獻的是「狀態」：無障礙樹是在 app 處於某種
+# 情況時被讀取的，而一個已被切換過的 toggle 與一個已被移動過的滑桿，比起在啟動狀態下讀取（此時
+# 每個控制項都還保持預設值），更能說明數值是否有被公開。
+#
+# 按鈕下方那個沒有標籤的 toggle 是刻意納入的。它是唯一沒有可見文字的控制項，因此若它有無障礙標籤，
+# 那個標籤必定不是來自畫面上所繪製的內容。
+#
+# origin=frame. Window 760x588 points, capture 1520px wide -- scale 2.
+# origin=frame。視窗 760x588 點，擷取寬 1520px——scale 2。
+click,76,206,frame,left,,,Labelled button,macos
+sleep,,,,,,600000,,macos
+click,26,238,frame,left,,,the toggle with no visible text,macos
+sleep,,,,,,600000,,macos
+click,380,270,frame,left,,,into the placeholder field,macos
+sleep,,,,,,500000,,macos
+key,,,,,a,,,macos
+key,,,,,b,,a value for an inspector to read back,macos
+sleep,,,,,,600000,,macos
+click,65,303,frame,left,,,Toggle label,macos
+sleep,,,,,,600000,,macos
+mousedown,148,334,frame,left,,,take hold of the slider,macos
+move,300,334,frame,,,,and move it well off its default,macos
+sleep,,,,,,300000,,macos
+mouseup,300,334,frame,left,,,,macos
+sleep,,,,,,1200000,,macos

@@ -1,0 +1,69 @@
+action,x,y,origin,button,key,micros,note,platform
+# P31: move focus with Tab and operate whatever it lands on.
+#
+# This is the file the keyboard half of the synthesiser exists for. Every other
+# file here clicks; P31 asks whether focus moves at all, and a click that lands
+# on a control sidesteps the question by putting focus there directly. So the
+# first click is the only one, into the field, and everything after it is Tab.
+#
+# Shift-Tab is included because focus that moves forward but not back is a
+# different bug from focus that does not move, and the two look identical in a
+# file that only goes one way.
+#
+# Ctrl-Q is not sent, though P31's own instructions ask for it. It quits the app,
+# and a replay that quits halfway leaves its remaining rows unrun with nothing to
+# show. Same decision as P10, same reason.
+#
+# The alert is opened last. Escape is what P31 wants tested against it, and if
+# Escape does not dismiss it the app is left modal -- so nothing this file still
+# needs comes after that row.
+#
+# P31：以 Tab 移動焦點，並操作它所落到的任何東西。
+#
+# 這正是 synthesiser 的鍵盤部分存在的理由。此處其他每一份檔案都在點擊；P31 問的是「焦點究竟會不會
+# 移動」，而落在控制項上的點擊會把焦點直接放上去，因此迴避了這個問題。所以第一次點擊是唯一的一次，
+# 點進欄位裡，其後的一切都是 Tab。
+#
+# 納入 Shift-Tab，是因為「能往前移動但不能往回」的焦點，與「根本不移動」的焦點是不同的缺陷，
+# 而在一份只往單一方向走的檔案裡，兩者看起來完全一樣。
+#
+# 不送出 Ctrl-Q，儘管 P31 自己的說明要求它。它會結束 app，而中途結束的重放會使其餘各列未執行且
+# 無可呈現。與 P10 相同的決定，相同的理由。
+#
+# alert 排在最後開啟。Escape 正是 P31 想針對它測試的東西，而若 Escape 無法關閉它，app 就會停留在
+# modal 狀態——因此本檔仍需要的一切，都不排在那一列之後。
+#
+# origin=frame. Window 780x588 points, capture 1560px wide -- scale 2.
+# origin=frame。視窗 780x588 點，擷取寬 1560px——scale 2。
+click,390,307,frame,left,,,into the text field -- the only click in this file,macos
+sleep,,,,,,600000,,macos
+key,,,,,t,,,macos
+key,,,,,a,,,macos
+key,,,,,b,,type something the field can lose,macos
+sleep,,,,,,600000,,macos
+key,,,,,tab,,focus must leave the field for Button 0,macos
+sleep,,,,,,700000,,macos
+key,,,,,space,,space activates a focused button; Button 0 must count,macos
+sleep,,,,,,700000,,macos
+key,,,,,tab,,on to the Toggle,macos
+sleep,,,,,,700000,,macos
+key,,,,,space,,which must flip,macos
+sleep,,,,,,700000,,macos
+key,,,,,tab,,on to the slider,macos
+sleep,,,,,,700000,,macos
+key,,,,,rightArrow,,a focused slider moves with the arrows,macos
+sleep,,,,,,500000,,macos
+key,,,,,rightArrow,,,macos
+sleep,,,,,,700000,,macos
+keydown,,,,,shift,,hold shift,macos
+key,,,,,tab,,shift-tab must walk focus back,macos
+keyup,,,,,shift,,release it,macos
+sleep,,,,,,700000,,macos
+keydown,,,,,shift,,,macos
+key,,,,,tab,,and back again,macos
+keyup,,,,,shift,,,macos
+sleep,,,,,,800000,,macos
+click,107,372,frame,left,,,Open alert for Escape test,macos
+sleep,,,,,,2000000,,macos
+key,,,,,escape,,the row P31 is really asking about,macos
+sleep,,,,,,2000000,,macos

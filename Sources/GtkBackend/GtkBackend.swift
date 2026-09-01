@@ -165,9 +165,36 @@ public final class GtkBackend:
     // `.wheel` 描述為「將每個組成部分顯示為可捲動滾輪中的欄位」，而在 iOS 上它就是
     // UIPickerView——N 欄可捲動文字。每個組成部分一個捲動清單並非滾輪的贗品，它就是滾輪本身。
     // 詳見 ``DateWheel``。
-    public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
-        .automatic, .graphical, .compact, .wheel,
-    ]
+    //
+    // Split by host because `BackendDatePickerStyle.wheel` is
+    // `@available(macOS, unavailable)`, and GtkBackend does build for macOS --
+    // GTK 4 comes from Homebrew and testapp runs GTK apps there. Naming the
+    // case unconditionally made `swift test` on a Mac fail to compile this
+    // file, which is how it was found: the failure is in GtkBackend, four
+    // targets away from anything about date pickers, and it takes the whole
+    // suite with it.
+    //
+    // The macOS list is not a lesser version of the other one. A style the
+    // shared enum does not offer on this host cannot be asked for on this host,
+    // so there is nothing to support.
+    //
+    // 依主機平台分開，因為 `BackendDatePickerStyle.wheel` 帶有
+    // `@available(macOS, unavailable)`，而 GtkBackend 的確會為 macOS 建置——GTK 4 來自
+    // Homebrew，testapp 也在該處執行 GTK app。無條件指名該 case，會使 Mac 上的 `swift test`
+    // 無法編譯本檔，而這正是它被發現的方式：失敗出現在 GtkBackend，距離任何與日期選擇器相關的
+    // 東西有四個 target 之遠，卻連帶拖垮整個測試套件。
+    //
+    // macOS 的清單並非另一份清單的簡化版。共用的 enum 在此主機上不提供的樣式，在此主機上就無從
+    // 被要求，因此也沒有什麼可支援的。
+    #if os(macOS)
+        public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
+            .automatic, .graphical, .compact,
+        ]
+    #else
+        public let supportedDatePickerStyles: [BackendDatePickerStyle] = [
+            .automatic, .graphical, .compact, .wheel,
+        ]
+    #endif
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
     // a picker with no style of its own.

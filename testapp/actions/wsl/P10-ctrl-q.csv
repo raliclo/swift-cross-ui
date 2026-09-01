@@ -13,4 +13,4 @@ sleep,,,,,,500000,let the window settle and take focus,gtk
 keydown,,,,,control,,,gtk
 key,,,,,q,,,gtk
 keyup,,,,,control,,,gtk
-sleep,,,,,,1500000,give it time to quit, or to fail to,gtk
+sleep,,,,,,1500000,"give it time to quit, or to fail to",gtk
