@@ -56,7 +56,15 @@ public struct Gradient: Sendable, Hashable {
     /// - Parameters:
     ///   - colors: The colors of the gradient. The gradient synthesizes its location values to evenly
     ///     space the colors along the gradient. If no color is passed, the gradient will be fully transparent.
-    init(colors: [Color]) {
+    ///
+    /// Public since 2026-09-01. It was internal, which was invisible for as long
+    /// as the only way to use a `Gradient` was through `LinearGradient` and its
+    /// siblings, which construct one for the caller. `Shape.fill(_ gradient:)`
+    /// is the first API that asks an application to make one, and it could not.
+    /// 自 2026-09-01 起公開。它原本是 internal，而在「使用 `Gradient` 的唯一途徑是
+    /// `LinearGradient` 及其同類、由它們代呼叫端建構」的期間，這件事是看不出來的。
+    /// `Shape.fill(_ gradient:)` 是第一個要求應用程式自行建構 Gradient 的 API，而它做不到。
+    public init(colors: [Color]) {
         guard let first = colors.first else {
             let invisible = Color.black.opacity(0)
             self.stops = [

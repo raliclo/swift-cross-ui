@@ -3617,6 +3617,38 @@ public final class GtkBackend:
         fillColor: SwiftCrossUI.Color.Resolved,
         overrideStrokeStyle: StrokeStyle?
     ) {
+        renderPath(
+            path,
+            container: container,
+            strokeStyle: .color(strokeColor),
+            fillStyle: .color(fillColor),
+            overrideStrokeStyle: overrideStrokeStyle,
+            environment: EnvironmentValues(backend: self)
+        )
+    }
+
+    /// The style-taking overload, which is where the drawing actually happens.
+    ///
+    /// Cairo needs no persuading here: a gradient is a `cairo_pattern_t` just as
+    /// a flat colour is, so the only change from the two-colour version is which
+    /// constructor makes the pattern. That is the whole reason this backend went
+    /// first -- see `testapp/plan/plan-shape-styles.md`.
+    ///
+    /// 接收樣式的多載，實際繪製發生在此。
+    ///
+    /// Cairo 在此不需要任何說服：漸層與平面色同樣都是 `cairo_pattern_t`，因此與兩色版本唯一的
+    /// 差別，只在於由哪一個建構函式產生該 pattern。這正是本 backend 先行的全部理由
+    /// ——見 `testapp/plan/plan-shape-styles.md`。
+    public func renderPath(
+        _ path: Path,
+        container: Widget,
+        strokeStyle fillStyleForStroke: ResolvedFillStyle,
+        fillStyle: ResolvedFillStyle,
+        overrideStrokeStyle: StrokeStyle?,
+        environment: EnvironmentValues
+    ) {
+        let strokeColor = fillStyleForStroke.flattened(in: environment)
+        let fillColor = fillStyle.flattened(in: environment)
         let drawingArea = container as! Gtk.DrawingArea
 
         // We don't actually care about leaking backends, but might as well use
@@ -3663,25 +3695,116 @@ public final class GtkBackend:
 
             self.renderPathActions(path.actions, to: cairo)
 
-            let fillPattern = cairo_pattern_create_rgba(
-                Double(fillColor.red),
-                Double(fillColor.green),
-                Double(fillColor.blue),
-                Double(fillColor.opacity)
+            // The path's own extents, not the widget's. A gradient's unit points
+            // are in the shape's space, which is what lets it be clipped to a
+            // circle instead of filling a rectangle the way the gradient views
+            // do -- that difference is the entire feature.
+            // 使用路徑自身的範圍，而非 widget 的。漸層的單位座標位於形狀的空間中，這正是它能被裁進
+            // 一個圓形、而非像漸層視圖那樣填滿一個矩形的原因——那個差別就是這項功能的全部。
+            var x1 = 0.0
+            var y1 = 0.0
+            var x2 = 0.0
+            var y2 = 0.0
+            cairo_path_extents(cairo, &x1, &y1, &x2, &y2)
+            let box = (x: x1, y: y1, width: x2 - x1, height: y2 - y1)
+
+            let fillPattern = self.cairoPattern(
+                for: fillStyle,
+                flattenedTo: fillColor,
+                in: box,
+                environment: environment
             )
             cairo_set_source(cairo, fillPattern)
             cairo_fill_preserve(cairo)
             cairo_pattern_destroy(fillPattern)
 
-            let strokePattern = cairo_pattern_create_rgba(
-                Double(strokeColor.red),
-                Double(strokeColor.green),
-                Double(strokeColor.blue),
-                Double(strokeColor.opacity)
+            let strokePattern = self.cairoPattern(
+                for: fillStyleForStroke,
+                flattenedTo: strokeColor,
+                in: box,
+                environment: environment
             )
             cairo_set_source(cairo, strokePattern)
             cairo_stroke(cairo)
             cairo_pattern_destroy(strokePattern)
+        }
+    }
+
+    /// Builds the Cairo pattern for a fill style, in the path's own coordinates.
+    ///
+    /// `flattenedTo` is passed in rather than recomputed so the flat case costs
+    /// exactly what it did before: one `cairo_pattern_create_rgba`, no
+    /// environment work inside the draw callback.
+    ///
+    /// 在路徑自身的座標系中，為一個填充樣式建立 Cairo pattern。
+    ///
+    /// `flattenedTo` 是傳入而非重新計算的，好讓平面色的情況維持與先前完全相同的成本：一次
+    /// `cairo_pattern_create_rgba`，且 draw callback 內不做任何 environment 相關的工作。
+    private func cairoPattern(
+        for style: ResolvedFillStyle,
+        flattenedTo flat: SwiftCrossUI.Color.Resolved,
+        in box: (x: Double, y: Double, width: Double, height: Double),
+        environment: EnvironmentValues
+    ) -> OpaquePointer? {
+        func solid() -> OpaquePointer? {
+            cairo_pattern_create_rgba(
+                Double(flat.red),
+                Double(flat.green),
+                Double(flat.blue),
+                Double(flat.opacity)
+            )
+        }
+
+        // A zero-extent path has no space for a gradient to run across, and
+        // Cairo would take the degenerate pattern without complaint. Falling
+        // back to the flat colour keeps that from being an invisible shape.
+        // 範圍為零的路徑沒有讓漸層延展的空間，而 Cairo 會毫無怨言地接受那個退化的 pattern。
+        // 退回平面色可避免那變成一個看不見的形狀。
+        guard box.width > 0, box.height > 0 else { return solid() }
+
+        func addStops(_ pattern: OpaquePointer?, _ gradient: Gradient) {
+            for stop in gradient.stops {
+                let colour = stop.color.resolve(in: environment)
+                cairo_pattern_add_color_stop_rgba(
+                    pattern,
+                    stop.location,
+                    Double(colour.red),
+                    Double(colour.green),
+                    Double(colour.blue),
+                    Double(colour.opacity)
+                )
+            }
+        }
+
+        switch style {
+            case .color:
+                return solid()
+            case .linearGradient(let gradient, let start, let end):
+                let pattern = cairo_pattern_create_linear(
+                    box.x + start.x * box.width,
+                    box.y + start.y * box.height,
+                    box.x + end.x * box.width,
+                    box.y + end.y * box.height
+                )
+                addStops(pattern, gradient)
+                return pattern
+            case .radialGradient(let gradient, let center, let startRadius, let endRadius):
+                let cx = box.x + center.x * box.width
+                let cy = box.y + center.y * box.height
+                // Radii are in the same unit space, scaled by the smaller side so
+                // a circle stays a circle in a non-square path.
+                // 半徑位於同一個單位空間，並以較短的一邊縮放，使圓形在非正方形的路徑中仍是圓形。
+                let scale = min(box.width, box.height)
+                let pattern = cairo_pattern_create_radial(
+                    cx,
+                    cy,
+                    startRadius * scale,
+                    cx,
+                    cy,
+                    endRadius * scale
+                )
+                addStops(pattern, gradient)
+                return pattern
         }
     }
 
