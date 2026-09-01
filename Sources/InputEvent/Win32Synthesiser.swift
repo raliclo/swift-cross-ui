@@ -167,7 +167,19 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             )
         }
 
-        guard actions.contains(where: \.needsKeyboardFocus) else { return }
+        SetForegroundWindow(window)
+        BringWindowToTop(window)
+
+        // The read-back below is not behind the keyboard guard, and that is the
+        // point: what is requested here must be looked at. Asking for the
+        // foreground and returning without checking is the shape #46 records --
+        // `SetForegroundWindow` unchecked, two runs driving the editor that
+        // covered the app, both reporting success. The guard decides how loudly
+        // a failure is reported, not whether it is noticed.
+        // 下方的讀回檢查**不**放在鍵盤 guard 之後，而這正是重點：此處提出的要求，必須被看過。
+        // 要求前景卻不檢查就返回，正是 #46 所記錄的形狀——`SetForegroundWindow` 未經檢查，兩次
+        // 執行都驅動了覆蓋在 app 上方的編輯器，而兩次都回報成功。guard 決定的是「失敗要多大聲」，
+        // 不是「失敗會不會被發現」。
 
         // No `AttachThreadInput` here, and that is a measurement rather than an
         // omission.
@@ -183,8 +195,12 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         //
         // Left out because unused code that looks load-bearing is worse than
         // absent code. If a keyboard file ever fails here again, attaching to
-        // the foreground thread before this call is the thing to try, and this
-        // note is the record that it is not currently needed.
+        // the foreground thread before the `SetForegroundWindow` above is the
+        // thing to try, and this note is the record that it is not currently
+        // needed. Named rather than written as "this call": the call moved once
+        // already, and a pronoun pointing across a page of comment is how a
+        // reader ends up attaching before the read-back loop, where it does
+        // nothing.
         //
         // 此處沒有 `AttachThreadInput`，而這是量測的結果，並非疏漏。
         //
@@ -195,11 +211,10 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         // #52 被提出之後才加入的。
         //
         // 之所以不留下，是因為「看起來承重、實則無用」的程式碼比「沒有程式碼」更糟。若日後鍵盤
-        // 動作檔在此再次失敗，「在此呼叫之前附加至前景執行緒」就是該試的東西，而本註解即是
-        // 「目前並不需要它」的紀錄。
-        SetForegroundWindow(window)
-        BringWindowToTop(window)
-
+        // 動作檔在此再次失敗，「在上方的 `SetForegroundWindow` 之前附加至前景執行緒」就是該試的
+        // 東西，而本註解即是「目前並不需要它」的紀錄。此處直接寫出呼叫名稱而非「此呼叫」：那個呼叫
+        // 已經被搬移過一次，而一個跨越整頁註解的指代詞，正是讓讀者把附加動作加在讀回迴圈之前
+        // ——那裡什麼也不會發生——的原因。
         // The foreground change is asynchronous, so reading it back immediately
         // can miss a switch that is about to happen. Half a second is far longer
         // than it takes whenever it works at all.
@@ -210,6 +225,40 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 return
             }
             Thread.sleep(forTimeInterval: 0.01)
+        }
+
+        // Failure from here on, and how much it matters depends on the file.
+        //
+        // A key event goes to whatever holds focus, so a file that presses keys
+        // cannot proceed: it would type into another application. A mouse-only
+        // file can, because `SendInput` posts by coordinate to whatever is on
+        // top there, and `SetWindowPos(HWND_TOPMOST)` above already put our
+        // window on top. This is what the doc comment on this method has said
+        // all along; the code simply stopped doing it.
+        //
+        // Said out loud rather than passed over. The pin makes the run valid,
+        // not identical: a window that never took the foreground behaves
+        // differently for anything focus-sensitive inside it, and a reader
+        // comparing this run against one that did take it deserves to know
+        // which they have.
+        //
+        // 從這裡開始就是失敗了，而它有多要緊取決於動作檔的內容。
+        //
+        // 按鍵事件會送往持有焦點者，因此會按鍵的檔案無法繼續：它會打字到別的應用程式裡。只用滑鼠的
+        // 檔案則可以，因為 `SendInput` 是依座標投遞給該處最上層的視窗，而上方的
+        // `SetWindowPos(HWND_TOPMOST)` 已經把我方視窗放到最上層。這正是本方法的文件註解一直以來
+        // 所寫的內容；只是程式碼不再那樣做了。
+        //
+        // 明確說出，而非略過。置頂讓這次執行有效，但不代表兩者相同：一個始終未取得前景的視窗，
+        // 對其內部任何與焦點相關的東西，行為都會不同；而拿這次執行去和「確實取得前景」的那次比較的
+        // 人，有權知道自己手上是哪一種。
+        guard actions.contains(where: \.needsKeyboardFocus) else {
+            ActionFileReplay.report(
+                "warning: the window never took the foreground. This file only moves and "
+                    + "clicks, so it ran on the topmost pin alone -- anything focus-sensitive "
+                    + "may differ from a run that did take it."
+            )
+            return
         }
 
         throw SynthesiserError.windowNotForeground(
@@ -353,26 +402,75 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     private func move(to point: Point, in geometry: WindowGeometry) throws {
         let position = geometry.screenPosition(of: point)
 
-        // The virtual desktop, not the primary monitor: on a multi-monitor
-        // setup the two differ, and using the primary one puts every click on
-        // the wrong screen when the window is not on it.
-        let left = Double(GetSystemMetrics(SM_XVIRTUALSCREEN))
-        let top = Double(GetSystemMetrics(SM_YVIRTUALSCREEN))
-        let width = Double(GetSystemMetrics(SM_CXVIRTUALSCREEN))
-        let height = Double(GetSystemMetrics(SM_CYVIRTUALSCREEN))
-        guard width > 0, height > 0 else {
-            throw SynthesiserError.unsupported("virtual screen metrics")
+        // `SetCursorPos` takes a physical screen coordinate, so multiple
+        // monitors need no arithmetic here. Worth stating, because what this
+        // replaced did need it and got it wrong once: a `SendInput` with
+        // `MOUSEEVENTF_ABSOLUTE` normalises against a rectangle, and the
+        // rectangle has to be the VIRTUAL DESKTOP (`SM_XVIRTUALSCREEN` and
+        // friends) rather than the primary monitor. Using the primary one put
+        // every click on the wrong screen whenever the window was not on it.
+        // The bug is gone with the code, and the lesson would have gone too.
+        //
+        // Status 5 here is ERROR_ACCESS_DENIED and means a locked desktop or a
+        // higher-integrity window in front. `testapp/ui-lock.zsh` matches on
+        // that status rather than on the name of whichever call reported it,
+        // precisely so this change of call did not silence it.
+        //
+        // `SetCursorPos` 接受的是實體螢幕座標，因此多螢幕在此不需要任何換算。值得寫明，是因為
+        // 它所取代的做法確實需要換算，而且曾經算錯過一次：帶 `MOUSEEVENTF_ABSOLUTE` 的
+        // `SendInput` 需要對一個矩形做正規化，而那個矩形必須是**虛擬桌面**（`SM_XVIRTUALSCREEN`
+        // 等），不是主螢幕。用主螢幕會導致「視窗不在其上時，每一次點擊都落在錯的螢幕」。缺陷隨著
+        // 那段程式碼一起消失，而那個教訓本來也會一起消失。
+        //
+        // 此處的狀態碼 5 是 ERROR_ACCESS_DENIED，代表桌面被鎖定，或前方站著一個完整性等級更高的
+        // 視窗。`testapp/ui-lock.zsh` 比對的是該狀態碼，而非「回報它的是哪一個呼叫」的名稱——正是
+        // 為了讓這次呼叫的更換不會使它失聲。
+        guard SetCursorPos(Int32(position.x), Int32(position.y)) else {
+            throw SynthesiserError.toolFailed("SetCursorPos", status: Int32(GetLastError()))
+        }
+        reportMouseMove(point: point, screen: position)
+    }
+
+    /// One line per pointer move, behind `--debug`.
+    ///
+    /// `-actionfile` alone is not enough to turn this on. That flag asks for a
+    /// replay; it does not ask for a trace of one, and this fires on **every
+    /// move** rather than once per run. `ActionFileReplay.report` is exempt from
+    /// `--debug` on the stated grounds that it is one line per run, which is
+    /// what makes an always-on diagnostic acceptable; borrowing that exemption
+    /// for per-event output would take the exemption without its reason. See
+    /// the project rule: keep normal UI test runs quiet unless `--debug` or an
+    /// issue-specific flag is passed.
+    ///
+    /// 每一次指標移動輸出一行，位於 `--debug` 之後。
+    ///
+    /// 只有 `-actionfile` 並不足以開啟它。該旗標要求的是「重放」，而非「重放的追蹤紀錄」，
+    /// 而這裡是**每一次移動**都會觸發，不是每次執行一行。`ActionFileReplay.report` 之所以能
+    /// 免除 `--debug`，其載明的理由正是「每次執行僅一行」——那才是「一律輸出的診斷」可被接受
+    /// 的原因；把該豁免借給逐事件的輸出，等於取走豁免卻不帶走它的理由。參見專案規則：除非傳入
+    /// `--debug` 或 issue-specific 旗標，一般 UI 測試執行應保持安靜。
+    private func reportMouseMove(point: Point, screen: (x: Int, y: Int)) {
+        guard CommandLine.arguments.contains("-actionfile"),
+            CommandLine.arguments.contains("--debug")
+        else { return }
+
+        var cursor = POINT()
+        let cursorDescription: String
+        if GetCursorPos(&cursor) {
+            cursorDescription = "cursor=(\(cursor.x), \(cursor.y))"
+        } else {
+            cursorDescription = "cursor=unavailable(\(GetLastError()))"
         }
 
-        let normalisedX = (Double(position.x) - left) / width * 65535
-        let normalisedY = (Double(position.y) - top) / height * 65535
-
-        var input = INPUT()
-        input.type = DWORD(INPUT_MOUSE)
-        input.mi.dx = LONG(normalisedX.rounded())
-        input.mi.dy = LONG(normalisedY.rounded())
-        input.mi.dwFlags = DWORD(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK)
-        try dispatch(&input)
+        // Through the one writer, rather than a second copy of it. Both copies
+        // carried the same truncate-on-failure bug; one of them was fixed and
+        // the other would not have been.
+        // 走同一個寫入器，而非它的第二份副本。兩份副本帶著同一個「失敗即清空」的缺陷，
+        // 修好其中一份時，另一份不會跟著被修。
+        ActionFileReplay.report(
+            "move \(point.origin.rawValue)=(\(point.x), \(point.y)) "
+                + "screen=(\(screen.x), \(screen.y)) \(cursorDescription)"
+        )
     }
 
     /// One wheel event carrying the whole delta.

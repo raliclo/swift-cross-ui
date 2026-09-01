@@ -109,7 +109,17 @@ public enum ActionFileReplay {
 
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) {
             do {
-                try makeSynthesiser(layoutScale: layoutScale).replayFile(at: file)
+                let synthesiser = try makeSynthesiser(layoutScale: layoutScale)
+                let actions = try ActionFile.load(contentsOf: file)
+                try synthesiser.prepareForReplay(actions)
+                defer { synthesiser.finishReplay() }
+                let geometry = try synthesiser.currentWindowGeometry()
+                report(
+                    "geometry frame=(\(geometry.frameOrigin.x), \(geometry.frameOrigin.y)) "
+                        + "client=(\(geometry.clientOrigin.x), \(geometry.clientOrigin.y)) "
+                        + "scale=\(geometry.scale)"
+                )
+                try synthesiser.replay(actions, in: geometry)
                 report("replayed \(file.lastPathComponent)")
             } catch {
                 report("failed: \(error)")
@@ -122,12 +132,39 @@ public enum ActionFileReplay {
     /// Always, not behind a `--debug` flag. A replay that failed leaves a window
     /// that looks untouched, which is indistinguishable from the application
     /// ignoring the input -- and that is exactly the wrong bug to go looking
-    /// for. The line is one per run and only appears when the flag was passed.
+    /// for. ~~The line is one per run~~ **a handful of lines per run**: what
+    /// makes the exemption defensible is the volume, so anything that fires per
+    /// event belongs behind `--debug` instead and calls in through here rather
+    /// than around it. `Win32Synthesiser.reportMouseMove` is the case that
+    /// prompted saying so; the "one per run" claim was already false when it was
+    /// read, having been outgrown by the same change that added the second line.
     ///
     /// 一律輸出，不受 `--debug` 旗標控制。失敗的重放會留下一個看似未被觸碰的視窗，這與「應用程式
-    /// 忽略了輸入」無法區分——而那正是最不該去追查的方向。此訊息每次執行僅一行，且只在有傳入該
-    /// 旗標時才會出現。
-    private static func report(_ message: String) {
-        FileHandle.standardError.write(Data("-actionfile: \(message)\n".utf8))
+    /// 忽略了輸入」無法區分——而那正是最不該去追查的方向。~~此訊息每次執行僅一行~~**每次執行為
+    /// 數行**：讓這個豁免站得住腳的是「量」，因此任何逐事件觸發的輸出都應改放在 `--debug` 之後，
+    /// 並且經由此處輸出、而非繞過它。`Win32Synthesiser.reportMouseMove` 正是促使寫下這段的案例；
+    /// 而「每次執行僅一行」在被讀到時就已經是假的——讓它過時的，正是同一次加入第二行的改動。
+    static func report(_ message: String) {
+        let line = "-actionfile: \(message)\n"
+        FileHandle.standardError.write(Data(line.utf8))
+
+        // Append, or create -- but never replace. The earlier form fell back to
+        // `write(to:)` whenever the handle could not be opened, and `write(to:)`
+        // truncates: a file that existed but was momentarily unopenable, held by
+        // a reader or locked, lost every line already in it. Silently, and to
+        // the code whose only job is to record what happened.
+        // 附加，或建立——但絕不取代。先前的寫法在無法取得 handle 時一律退回 `write(to:)`，
+        // 而 `write(to:)` 會截斷檔案：一個確實存在、只是當下開不起來（正被讀取或遭鎖定）的檔案，
+        // 會失去其中已有的每一行。而且是無聲地失去，發生在一段「唯一職責就是記錄事情經過」的
+        // 程式碼裡。
+        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("actionfile-replay.log")
+        if let handle = try? FileHandle(forWritingTo: url) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: Data(line.utf8))
+            try? handle.close()
+        } else if !FileManager.default.fileExists(atPath: url.path) {
+            try? Data(line.utf8).write(to: url)
+        }
     }
 }
