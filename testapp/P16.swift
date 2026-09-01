@@ -127,6 +127,7 @@ struct P16RootView: View {
         }
         .padding(10)
         .onAppear {
+            P16Diagnostics.write("arguments \(CommandLine.arguments.joined(separator: " | "))")
             P16Diagnostics.renderComplete()
         }
     }
@@ -184,6 +185,48 @@ struct P16RootView: View {
 
 // Reports the size its pane was given. Kept to a fixed frame so the reader
 // itself does not influence the pane's height while measuring it.
+//
+// **What this actually reports is not the pane.** `.frame(height: 22)`
+// constrains the `GeometryReader`, so `proxy.size.height` can only ever be 22,
+// and that 22 is what every run on every backend has recorded as the pane's
+// height. The width is not trustworthy either: the reader sits inside the
+// pane's `VStack`, so it measures the content column rather than the pane.
+//
+// Moving the reader into `.overlay(alignment: .topLeading)` on the padded
+// `VStack` -- the shape `P7SplitProbe` uses successfully -- was tried on
+// 2026-09-01 and **broke the app**: the window never became visible, wincap
+// found no window to capture at one second or at the end, the action file never
+// replayed, and the panes reported 200x142 and 20x46. Reverted. Whatever
+// `overlay` does to layout in this framework is not what it does in SwiftUI,
+// and `.overlay` already has history here -- it used to swallow pointer events.
+//
+// So the numbers below are a floor, not a measurement, and #160 cannot be
+// settled from them. Fixing this needs the overlay difference understood first.
+//
+// 回報其窗格所獲得的尺寸。保持固定框架，使 reader 本身不影響所量測的窗格高度。
+//
+// **但它實際回報的並不是窗格。** `.frame(height: 22)` 限制了 `GeometryReader`，因此
+// `proxy.size.height` 只可能是 22——而那個 22 就是每一次執行、每一個 backend 所記錄的「窗格高度」。
+// 寬度同樣不可信：reader 位於窗格的 `VStack` 之內，量到的是內容欄，而非窗格。
+//
+// 2026-09-01 曾嘗試把 reader 移入 padded `VStack` 的 `.overlay(alignment: .topLeading)`
+// ——那是 `P7SplitProbe` 成功採用的形狀——結果**弄壞了這個 app**：視窗從未出現，wincap 在第一秒
+// 與結束時都找不到可擷取的視窗，動作檔從未重放，而窗格回報 200x142 與 20x46。已還原。
+// `overlay` 在本框架中對版面所做的事，與它在 SwiftUI 中所做的並不相同，而 `.overlay` 在此本就有
+// 前科——它曾吞掉指標事件。
+//
+// 因此下方的數字是一個下限，而非量測值，#160 無法據此定案。要修好這件事，必須先弄懂 overlay 的差異。
+//
+// 回報一個被傳入的尺寸。它自己不量測任何東西：呼叫端把 `GeometryReader` 放在窗格的
+// **overlay** 中，再把 `proxy.size` 傳進來——與 `P7SplitProbe` 的形狀相同。
+//
+// 先前的版本是窗格 `VStack` 內的一個子元件，其 `GeometryReader` 位於 `.frame(height: 22)` 之下。
+// 該框架限制了 reader，因此 `proxy.size.height` 永遠只能是 22——而那個 22 隨後就被當成「窗格的
+// 高度」在每一次執行、每一個 backend 上被回報。寬度是真的，因為沒有東西限制它，而這正是讓這一對
+// 數字看起來像「修好一半的版面缺陷」、而非「量測方式有誤」的原因。
+//
+// 使用 overlay 才能讓它誠實：overlay 不參與宿主的版面計算，因此 reader 得到的是窗格自身的尺寸，
+// 而不是探針自己要求的尺寸。
 struct P16PaneSize: View {
     var label: String
 
