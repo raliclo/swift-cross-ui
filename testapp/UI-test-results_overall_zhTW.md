@@ -242,4 +242,13 @@
 - 2026-09-01。以 `rsync` 同步後在 WSL 副本上建置，並在 WSL 端以 `grep -c lastLeadingPaneSize` 作為對照，確認 Windows 端的修改確實送達（4 處命中）——未同步就在 WSL 建置，會對著舊程式碼回報成功。
 - **P16 在 GTK 上的行為與在 WinUI 上不同。** WinUI 對首次算繪只 commit 一次；GTK commit 三次，而且高度會變動：`leadingContent=200x485`、`200x446`、`200x446`，寬度始終為 200 / 680，`minLeading=104 minTrailing=33 bounds 104..847 currentSidebar=200`。連續三次執行輸出逐位元組相同，因此那個 485 是可重現的，不是雜訊。
 - 這次安定是自行發生的，在首次算繪之內、任何互動之前，因此它也不是 #160——#160 指的是「一直錯到狀態改變為止」。它是一個 39px 的暫態，稱不上「嚴重錯誤」，而且寬度從未變動。
-- **P7 在 GTK 上，現在帶有內容尺寸：** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`，三行相同。當初為 #556 定案的「sidebar 200 / 420」在版面層級得到確認。但有兩件事是先前的結論看不到的：trailing 子視圖對 220 的提議回答 207，以及兩個子視圖高度差距甚大（140 對 77）。兩者都不是 pane-ratio mismatch，所以 #556 的結論維持不變，但在關閉該條目之前值得一併檢視。
+- **兩者哪一個才對：WinUI 的。GTK 少了 39px，而那 39 就是一條標題列。** P16 要求 `.defaultSize(width: 900, height: 600)`。量測 `p16-gtk-headerbar-20260901-165737.png`：GTK 視窗表面恰為 **900x600**，其**內**有一條 **39px** 的 client-side decoration 標題列，實際內容區為 **900x561**。485 − 446 正好等於 39。GTK 的**第一輪**才是遵守了要求的那一次；它隨後正確地為「實際比要求更小的視窗」重新排版。有問題的不是版面系統，是視窗。
+- 成因：`GtkBackend.createWindow` 把要求的尺寸直接交給 `window.defaultSize`（GtkBackend.swift:994-997），也就是 `gtk_window_set_default_size`（Sources/Gtk/Widgets/Window.swift:63），而在 GTK4 中它設定的是**含 CSD 標題列的整個視窗**。在 Windows 上標題列屬於 non-client 區域——同一支 app 量到 916x639 的外框包著 900x600 的 client——所以 WinUI 交付了所要求的尺寸。已另立任務追蹤；寬度不受影響，兩個 backend 都回報 `total=880` = 900 − 2×10 padding。
+- SwiftUI 在此的行為**尚未驗證**——需要 Mac，而本機不在範圍內。待查證的預期是：`.defaultSize` 設定的是**內容**尺寸，因為在 macOS 上它對應視窗的 content rect，標題列另計，那會讓 SwiftUI 站在 WinUI 這一邊。此處記為「待量測的事項」，不是結論。
+- **P7 在 GTK 上，現在帶有內容尺寸：** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`，三行相同。當初為 #556 定案的「sidebar 200 / 420」在版面層級得到確認。
+- **收回上一句裡的「值得一併檢視」。** 「207 對 220」與「140 對 77」是在查證之前就被稱為異常的；量測 `p7-gtk-556-20260901-165945.png` 之後，每一個都有解釋，而且沒有一個是缺陷：
+  - detail 的文字在畫面上確實斷成兩行，兩行的 ink 寬度為 186 與 140，因此最長那一行是 186；再加上 `VStack` 左右各 10px 的 padding，子視圖寬度就是 206–207。**換行後的 `Text` 回報的是最長那一行的寬度，不是它被提議的寬度**——SwiftUI 也是如此。提議是 220、回答是 207，因為文字在單字邊界斷行。
+  - 那個 207 接著被置中於 220 寬的窗格中，正如 `SplitView.commit` 所述它會置中窗格子視圖：(220−207)/2 = 6.5，再加 10 的 padding，文字左緣應在 505.5（分隔線在 x=488）。實測 **505**。第一行「No sidebar selection」的 ink 中心在 598，窗格中心為 599。
+  - `leadingContent` 的 140 是五列清單、列距 28px，直接從列本身量得。置中於 180 高的方框中，上方應留 20px，因此第一列應在方框頂端下方 20px 處開始。實測：第一列 ink 在 y=248，方框頂端 228。
+  - 兩者高度不同，只是因為兩者的內容不同，而且都沒有填滿窗格。那正是非貪婪內容的行為，而框架是刻意將其置中的。
+- 這些數字唯一真正引出的問題與 #556 無關，不該歸入該條目：**`List` 在垂直方向是否應該貪婪？** SwiftUI 的 List 兩個軸向都會填滿容器；這裡它填滿了 200 的寬度，高度卻回答 140 而非 180。尚未對真正的 SwiftUI 建置驗證——那需要 Mac。
