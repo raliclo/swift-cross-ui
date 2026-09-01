@@ -738,6 +738,51 @@ and container modifiers.
 The API-shape one is worth doing first and is the least visible: the types exist
 and only the initialisers differ, so the gap never shows on a feature checklist.
 
+### Inventory, measured 2026-09-01 / 盤點
+
+Counted by grepping `Sources/SwiftCrossUI/` for each name, so it says whether a
+type or modifier **exists**, not whether it behaves like SwiftUI's. Re-derive
+with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
+
+| area | present | absent |
+|---|---|---|
+| **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
+| **style protocols** | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle` | `ButtonStyle`, `LabelStyle`, `ShapeStyle`, `TextFieldStyle`, `ProgressViewStyle` |
+| **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
+| **common views** | — | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent |
+| **state wrappers** | `State`, `Binding`, `Environment`, `AppStorage`, `Published` | `StateObject`, `ObservedObject`, `EnvironmentObject`, `SceneStorage` |
+| **scenes** | `WindowGroup`, `SceneBuilder` | `Settings`, `DocumentGroup` |
+| **presentation** | `sheet`, `alert`, `presentationDetents` | `popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset` |
+
+Three things this makes visible that the category list did not:
+
+- **Focus and accessibility are not partial, they are absent.** Every other row
+  has something in the left column. This one has nothing, which makes it the
+  only area where an application cannot even express the intent.
+- **Drop targets are not gestures.** P25's drag and drop is
+  `BackendFeatures.DragAndDrop` and works; `DragGesture` — dragging *within* an
+  application — does not exist. The two read as the same feature on a checklist
+  and share no code.
+- **The style protocols already have a shape to copy.** Four exist and were
+  converted to the SwiftUI form; the five missing ones are the same job again,
+  and two of them are already tracked as blocked for their own reasons.
+
+**API shapes cannot be measured this way.** A `grep` finds a type whose
+initialiser has the wrong label just as readily as one that matches, so that row
+is absent from the table on purpose. Settling it means compiling SwiftUI
+snippets against this package, which is the audit below.
+
+以上為 2026-09-01 以 grep 盤點的結果，回答的是「某個型別或修飾符**是否存在**」，而非「它的行為是否
+與 SwiftUI 相同」。三件原本的分類清單看不出來的事：**焦點與無障礙並非部分支援，而是完全不存在**
+（其餘每一列的左欄都有東西，只有這一列全空，因此它是唯一連「表達意圖」都做不到的領域）；
+**放置目標不是手勢**（P25 的拖放是 `BackendFeatures.DragAndDrop` 且可運作，而「在應用程式**內**
+拖曳」的 `DragGesture` 並不存在，兩者在檢查表上看起來是同一項功能，卻不共用任何程式碼）；
+以及**樣式 protocol 已經有可照抄的形狀**（四個已存在並已改為 SwiftUI 形式，缺的五個是同一份工作的
+重複，其中兩個另有各自的阻礙）。
+
+**API 形狀無法用這種方式量測**：`grep` 找得到「初始化器標籤不對」的型別，就跟找得到正確的一樣容易，
+因此該列刻意不列入上表。要了結它，必須拿 SwiftUI 的程式碼片段對本套件編譯——也就是下方那份稽核。
+
 ### API shapes: audited 2026-08-27, all ten claims still stand
 
 Re-checked against the code rather than trusted, because several claims of this
