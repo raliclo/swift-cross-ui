@@ -187,6 +187,41 @@ default_action_file() {
     local folder
     folder="$(platform_folder)"
     local candidates=("$script_dir/actions/$folder/$app"-*.csv(N))
+
+    # Drop candidates that belong to a longer-named app.
+    #
+    # `$app-*.csv` is a prefix glob, and some apps are prefixes of others:
+    # P15 and P15-DARK, P6 and P6-v2, P17 and P17-DOE. Asking for P15 matched
+    # P15-DARK's file too and the run stopped with "Several action files for
+    # P15" -- which reads as two files for one app rather than one file each
+    # for two apps.
+    #
+    # The other names are read from the .swift files rather than listed here,
+    # so a new P15-SOMETHING needs no change to this function.
+    #
+    # 排除屬於「名稱更長的另一支 app」的候選檔。
+    #
+    # `$app-*.csv` 是前綴 glob，而有些 app 的名稱正是另一些的前綴：P15 與 P15-DARK、P6 與 P6-v2、
+    # P17 與 P17-DOE。要求 P15 時會連 P15-DARK 的檔案一起匹配，執行便以「Several action files for
+    # P15」中止——那讀起來像是「一支 app 有兩個檔案」，而實際上是「兩支 app 各有一個檔案」。
+    #
+    # 其他 app 的名稱是自 .swift 檔讀取，而非列在此處，因此日後新增 P15-SOMETHING 不需要更動本函式。
+    if [ "${#candidates}" -gt 1 ]; then
+        local other kept=()
+        local others=("$script_dir"/"$app"-*.swift(N:t:r))
+        for candidate in $candidates; do
+            local name="${candidate:t}"
+            local claimed=0
+            for other in $others; do
+                if [[ "$name" == "$other"-* ]]; then
+                    claimed=1
+                    break
+                fi
+            done
+            [ "$claimed" -eq 0 ] && kept+=("$candidate")
+        done
+        [ "${#kept}" -gt 0 ] && candidates=($kept)
+    fi
     if [ "${#candidates}" -eq 0 ]; then
         printf 'No action file for %s in %s/actions/%s\n' "$app" "$script_dir" "$folder" >&2
         printf 'A file appears there once it has been verified on that platform.\n' >&2

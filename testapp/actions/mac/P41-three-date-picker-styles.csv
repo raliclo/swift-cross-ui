@@ -29,17 +29,35 @@ action,x,y,origin,button,key,micros,note,platform
 # .graphical 是點擊某一天而非使用 stepper，因為日曆格線唯一的輸入方式就是這個。選 17 日：它與啟動
 # 日期同月，因此不涉及換月；而它離 24 日夠遠，使得差一格的誤差不會被誤認成命中。
 #
+# Re-measured 2026-09-01 after P41 was made to build for macOS at all. It had
+# never compiled there -- it named `.wheel`, which is `@available(macOS,
+# unavailable)` -- so the earlier coordinates came from a stale binary that
+# predated the two time-component cells. The window is the same size, 940x648,
+# and everything below the first row had moved.
+#
+# 2026-09-01 於「P41 終於能為 macOS 建置」之後重新量測。它在該平台上從未編譯成功過——它指名了
+# `.wheel`，而該 case 帶有 `@available(macOS, unavailable)`——因此先前的座標來自一個早於那兩個
+# 時間組件格的舊執行檔。視窗尺寸相同（940x648），但第一列以下的一切都移動了。
+#
+# The two clock faces are not driven. An NSDatePicker in clock-and-calendar
+# mode is dragged by its hands, and a drag on a clock face is a gesture this
+# file cannot express as a coordinate pair -- the angle is the value. Their
+# labels below them are still worth reading in the capture.
+#
+# 那兩個時鐘面不予驅動。處於 clock-and-calendar 模式的 NSDatePicker 是以拖曳指針來操作的，而
+# 在錶面上的拖曳是本檔無法以一組座標表達的手勢——角度才是數值。它們下方的標籤在擷取影像中仍值得一讀。
+#
 # origin=frame. Window 940x648 points, capture 1880px wide -- scale 2.
 # origin=frame。視窗 940x648 點，擷取寬 1880px——scale 2。
-click,201,343,frame,left,,,.automatic stepper up -- 2025-08-24 must move,macos
+click,201,258,frame,left,,,.automatic stepper up -- 2025-08-24 must move,macos
 sleep,,,,,,700000,,macos
-click,201,343,frame,left,,,again,macos
+click,201,258,frame,left,,,again,macos
 sleep,,,,,,700000,,macos
-click,201,352,frame,left,,,and down once -- net one day forward,macos
+click,201,267,frame,left,,,and down once -- net one day forward,macos
 sleep,,,,,,900000,,macos
-click,194,481,frame,left,,,.compact stepper up -- its own label must move and the others must not,macos
+click,194,396,frame,left,,,.compact stepper up -- its own label must move and the others must not,macos
 sleep,,,,,,900000,,macos
-click,565,374,frame,left,,,.graphical -- the 17th,macos
+click,565,289,frame,left,,,.graphical -- the 17th,macos
 sleep,,,,,,1200000,,macos
-click,565,392,frame,left,,,and back to the 24th,macos
+click,564,307,frame,left,,,and back to the 24th,macos
 sleep,,,,,,1200000,,macos
