@@ -440,14 +440,38 @@ style's label goes through a `DateFormatter` and does honour
 `environment.calendar`; the grid cannot. `range` is clamped afterwards, which is
 what the protocol asks for anyway since it calls `range` a hint.
 
-**Still open, and it is upstream's unfinished work rather than ours.** GTK has no
-time-of-day widget in play here. `Sources/GtkBackend/GtkBackend.swift` carries a
-`TimePicker` class that is incomplete and unused, introduced upstream by
-`425ff888 Implement DatePicker (#244)` with its author's own note that the spin
-buttons could not be made to work, plus four TODOs. It is left in place: it is
-upstream's code, and deleting it in a fork buys a merge conflict rather than a
-fix. AndroidBackend does have a working time picker, in Kotlin, so the gap is
-GTK's rather than the protocol's.
+> **Was, written earlier the same day: "Still open, and it is upstream's
+> unfinished work rather than ours. GTK has no time-of-day widget in play
+> here."**
+>
+> **False, and corrected within the hour.** `TimeRow` at
+> `GtkBackend.swift:4864` is a working time-of-day widget written in Swift on
+> GTK primitives. It takes a `Precision` of `.hourMinute` or
+> `.hourMinuteSecond`, reports through `onChange` on a 24-hour clock whatever
+> the locale draws, and decides 12-versus-24-hour with
+> `DateFormatter.dateFormat(fromTemplate: "j")` rather than `Locale.hourCycle`,
+> which would need macOS 13. It is wired: `updateDatePicker` derives the
+> precision from the requested components — testing `hourMinuteAndSecond` first,
+> because SwiftUI's bitfield makes it include `hourAndMinute` — constructs the
+> row, and `applyDate` writes the hour, minute and second back into it.
+>
+> **How the wrong claim was reached is the part worth keeping.** Two stale
+> markers agreed with each other: the abandoned `TimePicker` class, and
+> `gtk-silent-noops.md` entry 12 saying time components are dropped. Neither was
+> checked against a grep for a *working* implementation, and two stale sources
+> pointing the same way read as corroboration. The same file already carried
+> three entries whose line numbers no longer existed.
+
+**So the time of day is implemented**, and the `GtkCalendar` limits above are
+the reason it had to be: the calendar grid carries the date, a separate row
+carries the time, and the bound `Date` is rebuilt from both.
+
+The incomplete `TimePicker` class from upstream's
+`425ff888 Implement DatePicker (#244)` is still in the file, unused, with its
+author's note that the spin buttons could not be made to work and four TODOs.
+Left in place deliberately: it is upstream's code, and deleting it in a fork
+buys a merge conflict rather than a fix. It is also what made the claim above
+look true, so it is worth knowing it is superseded rather than pending.
 
 ---
 
@@ -473,8 +497,26 @@ GTK's rather than the protocol's.
 讀回任何時間點。** compact 樣式的標籤走 `DateFormatter`，確實會遵從 `environment.calendar`；網格
 則不能。`range` 於事後夾制，而那本來就是 protocol 所要求的——它把 `range` 稱為提示。
 
-**仍未解決，而且那是上游未完成的工作，不是我們的。** 此處沒有可用的 GTK 時刻 widget。
-`Sources/GtkBackend/GtkBackend.swift` 中有一個 incomplete 且未被使用的 `TimePicker` 類別，由上游的
-`425ff888 Implement DatePicker (#244)` 引入，並附有作者自己的註記：spin buttons 無法運作，另有四項
-TODO。予以保留：那是上游的程式碼，在 fork 中刪除它換來的是 merge 衝突而非修正。AndroidBackend 確實
-有一個能運作的時刻選擇器（Kotlin），因此這個缺口屬於 GTK，而非 protocol。
+> **原文（同日稍早所寫）：「仍未解決，而且那是上游未完成的工作，不是我們的。此處沒有可用的
+> GTK 時刻 widget。」**
+>
+> **這是假的，並於一小時內更正。** `GtkBackend.swift:4864` 的 `TimeRow` 就是一個能運作的時刻
+> widget，以 Swift 寫在 GTK 原生元件之上。它接受 `.hourMinute` 或 `.hourMinuteSecond` 兩種
+> `Precision`，無論 locale 如何呈現都以 24 小時制透過 `onChange` 回報，並以
+> `DateFormatter.dateFormat(fromTemplate: "j")` 判斷 12 或 24 小時制——而非使用需要 macOS 13 的
+> `Locale.hourCycle`。它也確實被接上：`updateDatePicker` 由所要求的 components 推導出精度
+> （先測 `hourMinuteAndSecond`，因為 SwiftUI 的 bitfield 使它包含 `hourAndMinute`），建構該 row，
+> 而 `applyDate` 會把時、分、秒寫回其中。
+>
+> **這個錯誤結論是怎麼得出的，才是值得留下的部分。** 兩個過時的標記彼此吻合：被放棄的 `TimePicker`
+> 類別，以及 `gtk-silent-noops.md` 第 12 條「時間元件被丟棄」。兩者都沒有被拿去對照「是否存在**可
+> 運作的**實作」的 grep，而**兩個指向同一方向的過時來源，讀起來就像互相佐證**。同一份檔案裡本就已
+> 經有三條所引行號早已不存在的條目。
+
+**因此時刻功能是已實作的**，而上述 `GtkCalendar` 的限制正是它必須如此的原因：日曆網格承載日期，
+另一列承載時間，繫結的 `Date` 由兩者共同重建。
+
+上游 `425ff888 Implement DatePicker (#244)` 帶來的那個 incomplete `TimePicker` 類別仍在檔案中、
+未被使用，並附有作者「spin buttons 無法運作」的註記與四項 TODO。刻意保留：那是上游的程式碼，在
+fork 中刪除它換來的是 merge 衝突而非修正。它同時也正是讓上述錯誤主張看起來為真的東西，因此值得
+知道它是**已被取代**，而非**尚待完成**。

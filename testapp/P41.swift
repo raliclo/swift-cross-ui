@@ -56,6 +56,8 @@ struct P41RootView: View {
     @State var graphical = P41RootView.start
     @State var compact = P41RootView.start
     @State var wheel = P41RootView.start
+    @State var hourMinute = P41RootView.start
+    @State var hourMinuteSecond = P41RootView.start
 
     // A fixed date rather than `Date()`, so two runs are comparable and a
     // screenshot does not change meaning overnight.
@@ -80,6 +82,43 @@ struct P41RootView: View {
                 P41Cell(label: ".compact", date: $compact, style: .compact)
                 P41Cell(label: ".wheel", date: $wheel, style: .wheel)
             }
+
+            // Components, not styles. Both cells below use `.graphical` so the
+            // only thing that differs is what was asked for, and a difference
+            // between them is about components rather than about a style
+            // falling back.
+            //
+            // These exist because nothing exercised them. `TimeRow` is
+            // implemented and wired -- `updateDatePicker` derives its precision
+            // from the requested components and `applyDate` writes the hour,
+            // minute and second back into it -- and no test app had ever asked
+            // for a time component, so the whole path was untested. An
+            // implemented and unexercised feature reads as done until someone
+            // relies on it.
+            //
+            // 這裡比較的是 components，不是 styles。下方兩格都使用 `.graphical`，因此唯一的差異
+            // 就是「要求了什麼」，兩者之間的不同便是關於 components，而非某個 style 退回。
+            //
+            // 它們之所以存在，是因為先前沒有任何東西驅動過它們。`TimeRow` 已實作也已接上——
+            // `updateDatePicker` 由所要求的 components 推導其精度，`applyDate` 也會把時、分、秒
+            // 寫回其中——但從來沒有任何測試 app 要求過時間 component，因此整條路徑未被測試過。
+            // 一個「已實作但從未被驅動」的功能，在有人真的依賴它之前，讀起來都像是完成的。
+            HStack(spacing: 20) {
+                P41Cell(
+                    label: ".hourAndMinute",
+                    date: $hourMinute,
+                    style: .graphical,
+                    components: .hourAndMinute,
+                    format: "yyyy-MM-dd HH:mm"
+                )
+                P41Cell(
+                    label: ".hourMinuteAndSecond",
+                    date: $hourMinuteSecond,
+                    style: .graphical,
+                    components: .hourMinuteAndSecond,
+                    format: "yyyy-MM-dd HH:mm:ss"
+                )
+            }
         }
         .padding(18)
     }
@@ -89,16 +128,23 @@ struct P41Cell: View {
     var label: String
     @Binding var date: Date
     var style: any DatePickerStyle
+    /// Defaults to `.date`, which is what the style cells above compare.
+    /// 預設為 `.date`，那正是上方各 style 格所比較的內容。
+    var components: DatePickerComponents = .date
+    /// The readback below has to show whatever was asked for, or a time that
+    /// never changed and a time that changed correctly print the same line.
+    /// 下方的回讀必須顯示「所要求的內容」，否則「時間從未改變」與「時間正確改變」會印出同一行。
+    var format: String = "yyyy-MM-dd"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.system(size: 13))
 
-            DatePicker(label, selection: $date, displayedComponents: .date)
+            DatePicker(label, selection: $date, displayedComponents: components)
                 .datePickerStyle(style)
 
-            Text(P41Cell.formatter.string(from: date))
+            Text(P41Cell.string(from: date, format: format))
                 .font(.system(size: 12))
         }
         .frame(width: 420, alignment: .leading)
@@ -114,4 +160,22 @@ struct P41Cell: View {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    /// One formatter, re-pointed per call rather than one per cell.
+    ///
+    /// Safe here for the same reason the `nonisolated(unsafe)` above is: every
+    /// call is on the main actor by construction, so the assignment and the
+    /// format cannot interleave. It is a shared mutable formatter all the same,
+    /// which is worth saying out loud rather than leaving to be discovered by
+    /// whoever first calls it from somewhere else.
+    ///
+    /// 單一 formatter，每次呼叫時重新指定格式，而非每格一個。
+    ///
+    /// 此處之所以安全，理由與上方的 `nonisolated(unsafe)` 相同：每一次呼叫在結構上都位於 main
+    /// actor，因此賦值與格式化不可能交錯。但它終究是一個共用的可變 formatter——這一點值得明說，
+    /// 而不是留給第一個從別處呼叫它的人自行發現。
+    static func string(from date: Date, format: String) -> String {
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
 }

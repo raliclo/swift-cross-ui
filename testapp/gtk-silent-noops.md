@@ -669,7 +669,49 @@ property——去 grep 該標頭檔，沒有別的了。在 Wayland 下，裝飾
 
 ---
 
-## 8. ~~`setWindowEnvironmentChangeHandler(of:to:)` is an empty body~~ — **FIXED 2026-09-01** **[src] [hdr]**
+## 8. `setWindowEnvironmentChangeHandler(of:to:)` is an empty body — **still open**, and the obvious fix does not compile **[src] [hdr]**
+
+> **This entry was marked FIXED earlier on 2026-09-01 and that was wrong.** The
+> change was written, committed and pushed with a commit message saying it
+> built. It does not:
+>
+>     GtkBackend.swift: error: 'addSignal' is inaccessible due to
+>     'internal' protection level
+>
+> The build that appeared to pass was run as `swift build … | tail -6`, so the
+> exit code read was `tail`'s. Recorded as `mistakes.csv2` entry 46, along with
+> two other readings of a pipeline's status the same day.
+
+**What was learned is worth more than the empty body it replaced.** The obvious
+implementation is one line:
+
+```swift
+window.addSignal(name: "notify::scale-factor") { … }
+```
+
+and it cannot be written from here. `addSignal` belongs to the `Gtk` module and
+is internal to it; `Gtk` exposes no public equivalent, there is no generated
+`notifyScaleFactor` on `Widget`, and nothing in this backend reaches
+`g_signal_connect` directly. Doing it properly means **adding a small public API
+on the `Gtk` side** — an `onScaleFactorChange` shaped like
+`Window.onCloseRequest` — rather than reaching around the module boundary from
+the backend. That is the work; the signal name and the `MainActor.assumeIsolated`
+handling are already settled, and are recorded in the source beside the empty
+body.
+
+> **本條目曾於 2026-09-01 稍早被標為 FIXED，那是錯的。** 該改動被寫下、commit、推送，
+> 且 commit 訊息聲稱它通過編譯。事實上它無法編譯（錯誤如上）。當時看起來通過的那次 build 是以
+> `swift build … | tail -6` 執行的，因此讀到的結束碼是 `tail` 的。已記錄為 `mistakes.csv2` 第 46
+> 條，連同同一天另外兩次「讀到管線結束碼」的情形。
+
+**所學到的東西，比它原本取代掉的那個空 body 更有價值。** 最直覺的實作只有一行（如上），而它無法
+從此處寫出來：`addSignal` 屬於 `Gtk` module 且對其為 internal；`Gtk` 未提供公開的對應物，`Widget`
+上沒有產生出來的 `notifyScaleFactor`，本 backend 也沒有任何地方直接使用 `g_signal_connect`。要正確
+完成，應**在 `Gtk` 那一側新增一個小的公開 API**——形狀比照 `Window.onCloseRequest` 的
+`onScaleFactorChange`——而不是從 backend 繞過 module 邊界。那才是該做的工作；訊號名稱與
+`MainActor.assumeIsolated` 的處理方式都已確定，並記在原始碼中該空 body 的旁邊。
+
+<details><summary>The claim that was wrong / 曾經錯誤的宣稱</summary>
 
 It now connects `notify::scale-factor` on the window and calls the handler.
 
@@ -773,6 +815,8 @@ signal to connect. Cost is a `Gtk` wrapper addition, not one line.
 成本是新增 `Gtk` wrapper，而非一行。
 
 ---
+
+</details>
 
 </details>
 
@@ -1032,6 +1076,58 @@ SwiftCrossUI 卻分配為零，內容因而被多分配了約一條捲軸的寬�
 
 </details>
 
+## 12. ~~`updateDatePicker` silently drops all time components~~ — **FIXED, confirmed 2026-09-01** **[src]**
+
+Both halves are done, and this entry was the reason a wrong claim got made
+twice on the day it was checked — see the correction at the end.
+
+**Time zone.** No longer the machine's. `GtkBackend` takes
+`environment.timeZone`, keeps the bound `Date` itself, and rebuilds it from the
+widget's day plus its own time of day. Nothing reads an instant back out of GTK,
+which is what the three `GtkCalendar` defects in `bugs/Gtk4-bugs.md` §4 force.
+
+**Time components.** `TimeRow` at `GtkBackend.swift:4864` is a working
+time-of-day widget written in Swift on GTK primitives. `Precision` is
+`.hourMinute` or `.hourMinuteSecond`; `onChange` reports on a 24-hour clock
+whatever the locale draws; 12-versus-24-hour is decided with
+`DateFormatter.dateFormat(fromTemplate: "j")`, the skeleton whose whole job is
+"however this locale writes an hour", rather than `Locale.hourCycle`, which
+needs macOS 13. `updateDatePicker` derives the precision from the requested
+components — testing `hourMinuteAndSecond` first, because SwiftUI's bitfield
+makes it include `hourAndMinute` — builds the row, and `applyDate` writes hour,
+minute and second back into it.
+
+> **This entry caused a false claim on 2026-09-01, twice, and the shape is worth
+> keeping.** Read together with the abandoned upstream `TimePicker` class in the
+> same file — incomplete, unused, its author's note that the spin buttons could
+> not be made to work — it read as confirmation that time components were
+> missing, and that went into a task and into `bugs/Gtk4-bugs.md` as fact. **Two
+> stale sources agreeing look like corroboration.** Neither was checked against a
+> grep for a *working* implementation, which is the one step that would have cost
+> nothing. This same file already held three entries citing line numbers that no
+> longer exist.
+
+兩半都已完成，而本條目正是查證當天讓一個錯誤主張被寫下兩次的原因——見末尾的更正。
+
+**時區。** 不再是機器的時區。`GtkBackend` 取用 `environment.timeZone`，自己保有繫結的 `Date`，
+並由 widget 的日期加上它自己的時刻重建之。**不從 GTK 讀回任何時間點**——那正是
+`bugs/Gtk4-bugs.md` §4 中三個 `GtkCalendar` 缺陷所迫使的做法。
+
+**時間元件。** `GtkBackend.swift:4864` 的 `TimeRow` 是一個能運作的時刻 widget，以 Swift 寫在 GTK
+原生元件之上。`Precision` 為 `.hourMinute` 或 `.hourMinuteSecond`；無論 locale 如何呈現，`onChange`
+一律以 24 小時制回報；12 或 24 小時制以 `DateFormatter.dateFormat(fromTemplate: "j")` 判斷——那個
+skeleton 的職責正是「這個 locale 怎麼寫小時」——而非需要 macOS 13 的 `Locale.hourCycle`。
+`updateDatePicker` 由所要求的 components 推導精度（先測 `hourMinuteAndSecond`，因為 SwiftUI 的
+bitfield 使它包含 `hourAndMinute`），建構該 row，而 `applyDate` 會把時、分、秒寫回其中。
+
+> **本條目於 2026-09-01 造成了兩次錯誤主張，而那個形狀值得留下。** 它與同一檔案中被放棄的上游
+> `TimePicker` 類別（incomplete、未使用、作者註明 spin buttons 無法運作）一併閱讀時，讀起來就像
+> 「時間元件缺失」得到了佐證，於是那句話被當成事實寫進了一個 task 與 `bugs/Gtk4-bugs.md`。
+> **兩個過時的來源彼此吻合，看起來就像互相佐證。** 兩者都沒有被拿去對照一次「是否存在**可運作
+> 的**實作」的 grep——而那一步的成本是零。同一份檔案裡本就已有三條所引行號早已不存在。
+
+<details><summary>The original finding / 原始發現</summary>
+
 ## 12. `updateDatePicker` silently drops all time components — **still open**, and the cause is now known **[src]**
 
 **Re-checked 2026-09-01. The time-of-day half stands; the rest of what this
@@ -1129,6 +1225,8 @@ assuming their code is wrong.
 功能缺失，而不是看到一個月曆並以為自己的程式碼寫錯了。
 
 ---
+
+</details>
 
 </details>
 

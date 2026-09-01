@@ -1811,11 +1811,28 @@ public final class GtkBackend:
         // 使用 `MainActor.assumeIsolated` 而非 hop：GTK 在執行 main loop 的執行緒上派送訊號，
         // 而那就是主執行緒，因此隔離性本已成立，hop 只會讓重新計算多延遲一輪。與上方的 action
         // callback 形狀相同。
-        window.addSignal(name: "notify::scale-factor") {
-            MainActor.assumeIsolated {
-                action()
-            }
-        }
+        // NOT IMPLEMENTED, and the attempt is recorded because the obvious form
+        // does not compile:
+        //
+        //     window.addSignal(name: "notify::scale-factor") { … }
+        //     error: 'addSignal' is inaccessible due to 'internal' protection level
+        //
+        // `addSignal` belongs to the `Gtk` module and is internal to it, and
+        // `Gtk` exposes no public equivalent: there is no generated
+        // `notifyScaleFactor` on `Widget`, and nothing in this backend reaches
+        // `g_signal_connect` directly. Doing this properly means adding a small
+        // public API on the `Gtk` side -- an `onScaleFactorChange` in the shape
+        // of `Window.onCloseRequest` -- rather than reaching around it from
+        // here.
+        //
+        // 尚未實作，而此處記下這次嘗試，是因為最直覺的寫法無法編譯（錯誤如上）。
+        //
+        // `addSignal` 屬於 `Gtk` module 且對其為 internal，而 `Gtk` 並未提供公開的對應物：
+        // `Widget` 上沒有產生出來的 `notifyScaleFactor`，本 backend 也沒有任何地方直接使用
+        // `g_signal_connect`。要正確完成這件事，應在 `Gtk` 那一側新增一個小的公開 API——形狀
+        // 比照 `Window.onCloseRequest` 的 `onScaleFactorChange`——而不是從此處繞過它。
+        _ = window
+        _ = action
     }
 
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
