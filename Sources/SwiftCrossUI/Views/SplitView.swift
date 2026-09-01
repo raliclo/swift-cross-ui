@@ -107,8 +107,8 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
         // Update split view size and sidebar width bounds
         let leadingContentSize = leadingResult.size
         let trailingContentSize = trailingResult.size
-        children.lastLeadingPaneSize = leadingContentSize
-        children.lastTrailingPaneSize = trailingContentSize
+        children.lastLeadingContentSize = leadingContentSize
+        children.lastTrailingContentSize = trailingContentSize
         var size = ViewSize(
             leadingContentSize.width + trailingContentSize.width,
             max(leadingContentSize.height, trailingContentSize.height)
@@ -152,13 +152,21 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
         // invisible. Reading a content width as a pane width produced two
         // confident, wrong diagnoses of #556.
         //
-        // `leadingPane` and `trailingPane` are here for #160, which is about
-        // the sizes the panes are given on the first layout pass versus after
-        // a state change. A test app cannot obtain them: anything it adds to
-        // the view tree to do the measuring becomes part of what is measured,
-        // and in this framework `overlay` is not exempt -- `OverlayModifier`
-        // sizes its host as `max(content, overlay)`. Reported from here, the
-        // numbers cost the layout nothing.
+        // `leadingContent` and `trailingContent` are here for #160, which is
+        // about what the panes get on the first layout pass versus after a
+        // state change. A test app cannot obtain them: anything it adds to the
+        // view tree to do the measuring becomes part of what is measured, and
+        // in this framework `overlay` is not exempt -- `OverlayModifier` sizes
+        // its host as `max(content, overlay)`. Reported from here, the numbers
+        // cost the layout nothing.
+        //
+        // They are content sizes, not pane sizes, and the names say so
+        // deliberately. A pane's child is offered the pane's width and answers
+        // with what it wants, which can be less -- in P7 a trailing child
+        // offered 220 answered 207. The pane widths are `currentSidebar` and
+        // `total` minus it. Confusing the two is what produced two confident,
+        // wrong diagnoses of #556, and a field named `leadingPane` would have
+        // invited it a third time.
         //
         // One line is emitted per SplitView per commit, and a three-column
         // NavigationSplitView is two nested SplitViews, so expect two lines
@@ -168,11 +176,16 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
         // 決定版面的數字在別處都看不到。把內容寬度誤讀為 pane 寬度，曾對 #556 造成
         // 兩次自信但錯誤的判斷。
         //
-        // `leadingPane` 與 `trailingPane` 是為 #160 而加的——該問題正是關於「第一次版面計算
-        // 時各窗格拿到的尺寸」與「狀態改變之後的尺寸」之差異。測試 app 拿不到這兩個數字：
+        // `leadingContent` 與 `trailingContent` 是為 #160 而加的——該問題正是關於「第一次版面
+        // 計算時各窗格得到什麼」與「狀態改變之後」之差異。測試 app 拿不到這兩個數字：
         // 任何為了量測而加進 view tree 的東西，都會變成被量測對象的一部分，而在本框架中
         // `overlay` 並不例外——`OverlayModifier` 是以 `max(content, overlay)` 決定其宿主尺寸。
         // 從這裡回報則完全不影響版面。
+        //
+        // 它們是**內容**尺寸而非窗格尺寸，命名刻意如此。窗格的子視圖收到的是窗格寬度的提議，
+        // 而它回答的可以更小——P7 中 trailing 子視圖收到 220 的提議，回答 207。窗格寬度是
+        // `currentSidebar` 以及 `total` 減去它。把兩者混為一談，正是 #556 兩次自信但錯誤判斷的
+        // 成因；一個叫做 `leadingPane` 的欄位只會招來第三次。
         //
         // 每個 SplitView 每次 commit 輸出一行，而三欄的 NavigationSplitView 是兩層巢狀的
         // SplitView，因此每一輪應有兩行：外層的 trailing 窗格就是內層那個 split view。
@@ -183,8 +196,8 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
                     layout.size.width - children.minimumTrailingWidth
                 )
             )
-            let leading = children.lastLeadingPaneSize
-            let trailing = children.lastTrailingPaneSize
+            let leading = children.lastLeadingContentSize
+            let trailing = children.lastTrailingContentSize
             let line =
                 "[SplitView] total=\(layout.size.width)"
                 + " minLeading=\(children.minimumLeadingWidth)"
@@ -192,8 +205,8 @@ struct SplitView<Sidebar: View, Detail: View>: TypeSafeView, View {
                 + " -> bounds min=\(LayoutSystem.roundSize(children.minimumLeadingWidth))"
                 + " max=\(maximum)"
                 + " currentSidebar=\(leadingWidth)"
-                + " leadingPane=\(leading.width)x\(leading.height)"
-                + " trailingPane=\(trailing.width)x\(trailing.height)"
+                + " leadingContent=\(leading.width)x\(leading.height)"
+                + " trailingContent=\(trailing.width)x\(trailing.height)"
             print(line)
             // Also to a file: a WinUI app has no console, so stdout is lost
             // there and this comparison needs both backends.
@@ -264,16 +277,25 @@ class SplitViewChildren<Sidebar: View, Detail: View>: ViewGraphNodeChildren {
     var trailingPaneContainer: AnyWidget
     var minimumLeadingWidth: Double
     var minimumTrailingWidth: Double
-    /// The sizes the two panes were last given, kept only so that `commit` can
-    /// report them. `ViewLayoutResult` does not store `childResults` -- it
-    /// merges their preferences and discards them -- so by the time `commit`
-    /// runs, these are gone unless they are stashed here, alongside the
-    /// minimums that are stashed for the same reason.
-    /// 兩個窗格上一次獲得的尺寸，存放於此僅為了讓 `commit` 能回報它們。
+    /// The sizes the two panes' *contents* last chose, kept only so that
+    /// `commit` can report them. `ViewLayoutResult` does not store
+    /// `childResults` -- it merges their preferences and discards them -- so by
+    /// the time `commit` runs, these are gone unless they are stashed here,
+    /// alongside the minimums that are stashed for the same reason.
+    ///
+    /// Content, not pane. A pane's child is offered the pane's width and
+    /// answers with what it wants, which can be less: measured in P7, a
+    /// trailing child offered 220 answered 207. The pane widths are
+    /// `sidebarWidth(ofSplitView:)` and the split view's width minus it.
+    /// 兩個窗格**內容**上一次選擇的尺寸，存放於此僅為了讓 `commit` 能回報它們。
     /// `ViewLayoutResult` 並未儲存 `childResults`——它合併其 preferences 後就丟棄——
     /// 因此 `commit` 執行時這些數字已不復存在，除非像那兩個 minimum 一樣先存下來。
-    var lastLeadingPaneSize: ViewSize
-    var lastTrailingPaneSize: ViewSize
+    ///
+    /// 是內容，不是窗格。窗格的子視圖收到的是窗格寬度的提議，而它回答的可以更小：P7 實測，
+    /// trailing 子視圖收到 220 的提議，回答 207。窗格寬度是
+    /// `sidebarWidth(ofSplitView:)` 以及「split view 寬度減去它」。
+    var lastLeadingContentSize: ViewSize
+    var lastTrailingContentSize: ViewSize
 
     init<Backend: BaseAppBackend>(
         wrapping children: TupleView2<Sidebar, Detail>.Children,
@@ -298,8 +320,8 @@ class SplitViewChildren<Sidebar: View, Detail: View>: ViewGraphNodeChildren {
         self.trailingPaneContainer = AnyWidget(trailingPaneContainer)
         self.minimumLeadingWidth = 0
         self.minimumTrailingWidth = 0
-        self.lastLeadingPaneSize = .zero
-        self.lastTrailingPaneSize = .zero
+        self.lastLeadingContentSize = .zero
+        self.lastTrailingContentSize = .zero
     }
 
     var erasedNodes: [ErasedViewGraphNode] {

@@ -200,12 +200,17 @@ struct P16RootView: View {
 //
 // **`overlay` here is not SwiftUI's.** `OverlayModifier.computeLayout` returns
 // `max(contentSize, overlaySize)` on both axes, so the overlay can grow its
-// host; SwiftUI's never does. P7 gets away with it because it wraps a `List`,
-// whose size is its own. This wraps a `VStack` holding a `Spacer`, which is
-// greedy and answers with whatever it is offered -- and `NavigationSplitView`
-// probes its panes at a proposed width of 0 to find their minimums, which the
-// comment beside P7's detail pane records. Wrapping that path changes the answer
-// the pane gives to the probe.
+// host; SwiftUI's never does. `NavigationSplitView` probes its panes at a
+// proposed width of 0 to find their minimums, which the comment beside P7's
+// detail pane records, so anything that changes what a pane answers changes the
+// whole layout.
+//
+// What differs from P7 is not `List` versus `VStack` -- P7's detail overlay
+// wraps a padded `VStack` too. It is that P7's panes contain no `Spacer` and
+// its whole split view sits inside `.frame(width: 420, height: 180)`, so
+// nothing there is free to grow. Each pane here ends with a `Spacer`, which is
+// greedy and answers with whatever it is offered, and the split view has no
+// fixed frame.
 //
 // The exact step from there to "no window at all" is not established; what is
 // established is that `overlay` takes part in sizing, and that this pane's size
@@ -229,10 +234,14 @@ struct P16RootView: View {
 // 與結束時都找不到可擷取的視窗，動作檔從未重放，而窗格回報 200x142 與 20x46。已還原。
 //
 // **此處的 `overlay` 不是 SwiftUI 的那一個。** `OverlayModifier.computeLayout` 在兩個軸向上都回傳
-// `max(contentSize, overlaySize)`，因此 overlay 有可能撐大它的宿主；SwiftUI 的則絕不會。P7 之所以
-// 沒事，是因為它包的是 `List`，尺寸由自己決定；而這裡包的是內含 `Spacer` 的 `VStack`——`Spacer`
-// 是貪婪的，被提議多少就回答多少。加上 `NavigationSplitView` 會以「提議寬度 0」探詢各窗格以求出
-// 其最小值（此事記於 P7 detail 窗格旁的註解），把這條路徑包起來，改變的正是窗格對該次探詢的回答。
+// `max(contentSize, overlaySize)`，因此 overlay 有可能撐大它的宿主；SwiftUI 的則絕不會。而
+// `NavigationSplitView` 會以「提議寬度 0」探詢各窗格以求出其最小值（此事記於 P7 detail 窗格旁的
+// 註解），因此任何改變窗格回答的東西，都會改變整個版面。
+//
+// 與 P7 的差別不在於 `List` 或 `VStack`——P7 的 detail overlay 包的同樣是加了 padding 的 `VStack`。
+// 差別在於：P7 的窗格中**沒有 `Spacer`**，而且它整個 split view 位於
+// `.frame(width: 420, height: 180)` 之內，沒有東西能自由長大。而這裡每個窗格都以 `Spacer` 結尾
+// ——`Spacer` 是貪婪的，被提議多少就回答多少——且該 split view 沒有固定框架。
 //
 // 從那一步到「完全沒有視窗」之間的確切機制尚未確立；已確立的是：`overlay` 會參與尺寸決定，
 // 而這個窗格的尺寸並不由它自己決定。

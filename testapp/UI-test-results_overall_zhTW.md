@@ -234,3 +234,12 @@
 - 順帶也解決了高度的問題：窗格高 **486**，不是 22。那個 22 是探針自己的 `.frame(height: 22)`，卻被當成窗格高度回報了兩週。
 - 本結論的適用範圍：這是 SwiftCrossUI 版面系統所決定的結果，不是 WinUI 實際畫出來的東西；繪製端的落差在此看不到。值得特別說明，因為同幾次執行的 1 秒截圖是**全黑**的——WinUI 在一秒時還沒畫，這也是動作檔要先 `sleep 1800000` 才點第一下的原因——所以 harness 的「1s」截圖從來就不是首次算繪的畫面。
 - 重現方式：`cd testapp/output && rm -f splitview-debug.log && SCUI_DEBUG_SPLIT=1 ./P16.exe --debug`，然後讀 `splitview-debug.log`。需要以 `SCUI_DEBUG=1` 建置的執行檔。
+- 更正上面第三條中的一句話——它寫「overlay 在 P7 可行是因為它包的是 `List`」：P7 的 **sidebar** overlay 確實包 `List`，但它的 **detail** overlay 包的是加了 padding 的 `VStack`，與 P16 形狀相同。真正的區別在於：P7 的窗格中沒有 `Spacer`，且它整個 split view 位於 `.frame(width: 420, height: 180)` 之內，其中沒有東西能自由長大；而 P16 每個窗格都以貪婪的 `Spacer` 結尾，該 split view 也沒有固定框架。
+- **更正上面所使用的欄位名稱。** 它們最初輸出為 `leadingPane` / `trailingPane`，那是錯的：`leadingResult.size` 是窗格的**子視圖**在收到窗格寬度的提議後所選擇的尺寸，可以小於窗格本身。在 P16 上兩者恰好相同，因此這個錯誤在那裡看不出來；是 P7 揭穿了它——trailing 子視圖對 **420 − 200 = 220** 的提議回答 **207**。已改名為 `leadingContent` / `trailingContent`。窗格寬度則是 `currentSidebar` 以及 `total` 減去它。這正是把內容讀成窗格、曾對 #556 造成兩次錯誤判斷的同一種混淆，所以現在的名稱直接說明它是哪一個。上方引用的數字沒有改變，#160 的比較也依然成立，因為那是同類相比；錯的只有標籤。
+
+### P16 與 P7 在 GtkBackend（WSLg）上的同一診斷
+
+- 2026-09-01。以 `rsync` 同步後在 WSL 副本上建置，並在 WSL 端以 `grep -c lastLeadingPaneSize` 作為對照，確認 Windows 端的修改確實送達（4 處命中）——未同步就在 WSL 建置，會對著舊程式碼回報成功。
+- **P16 在 GTK 上的行為與在 WinUI 上不同。** WinUI 對首次算繪只 commit 一次；GTK commit 三次，而且高度會變動：`leadingContent=200x485`、`200x446`、`200x446`，寬度始終為 200 / 680，`minLeading=104 minTrailing=33 bounds 104..847 currentSidebar=200`。連續三次執行輸出逐位元組相同，因此那個 485 是可重現的，不是雜訊。
+- 這次安定是自行發生的，在首次算繪之內、任何互動之前，因此它也不是 #160——#160 指的是「一直錯到狀態改變為止」。它是一個 39px 的暫態，稱不上「嚴重錯誤」，而且寬度從未變動。
+- **P7 在 GTK 上，現在帶有內容尺寸：** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`，三行相同。當初為 #556 定案的「sidebar 200 / 420」在版面層級得到確認。但有兩件事是先前的結論看不到的：trailing 子視圖對 220 的提議回答 207，以及兩個子視圖高度差距甚大（140 對 77）。兩者都不是 pane-ratio mismatch，所以 #556 的結論維持不變，但在關閉該條目之前值得一併檢視。
