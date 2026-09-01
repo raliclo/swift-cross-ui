@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P35: move both halves of the state baseline, in that order.
+#
+# "State baseline: count 0, toggle true" is one line holding two independent
+# values, and the two buttons each move one of them. Incrementing three times
+# before touching the toggle means that when the toggle flips, the count is at a
+# value it could not have reached by accident -- so a backend that rebuilds the
+# view and resets state is visible as a count that went back to 0, rather than
+# as a toggle that looks the same either way.
+#
+# The missing-API lists below the buttons are the rest of P35 and nothing here
+# touches them; they are read, not driven.
+#
+# P35：依序移動狀態基準的兩個部分。
+#
+# 「State baseline: count 0, toggle true」是一行承載著兩個彼此獨立的數值，而兩顆按鈕各自移動其中
+# 一個。在碰觸 toggle 之前先遞增三次，意味著當 toggle 翻轉時，計數正處於一個不可能是意外達到的值
+# ——因此「會重建視圖並重設狀態的 backend」會以「計數退回 0」的形式顯現，而不是以一個怎麼看都
+# 一樣的 toggle 顯現。
+#
+# 按鈕下方那些「缺失 API」清單是 P35 的其餘部分，此處不去碰它們；它們是用來閱讀的，不是用來驅動的。
+#
+# origin=frame. Window 762x590 points, capture 1520px wide -- scale 2.
+# origin=frame。視窗 762x590 點，擷取寬 1520px——scale 2。
+click,90,311,frame,left,,,Increment -> 1,macos
+sleep,,,,,,500000,,macos
+click,90,311,frame,left,,,-> 2,macos
+sleep,,,,,,500000,,macos
+click,90,311,frame,left,,,-> 3,macos
+sleep,,,,,,800000,,macos
+click,186,311,frame,left,,,Toggle state -- the count must stay at 3,macos
+sleep,,,,,,800000,,macos
+click,90,311,frame,left,,,-> 4 after the toggle,macos
+sleep,,,,,,600000,,macos
+click,186,311,frame,left,,,and toggle back,macos
+sleep,,,,,,1000000,,macos

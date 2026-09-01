@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15-DARK: one click, and it is worth its own file.
+#
+# Almost all of P15-DARK is answered by a capture: "Requested: dark  Resolved:
+# dark", a window that is dark while the system theme is light, and text that
+# stays readable. None of that needs an action file and none of it is here.
+#
+# What a capture cannot show is whether a control inside a scheme-overridden
+# window still works. `preferredColorScheme(.dark)` reaches AppKit through an
+# appearance override on the window, and an override applied to the wrong object
+# -- or applied twice -- can leave a button drawn correctly and no longer
+# hit-testable. One click settles it, and there is exactly one control to click.
+#
+# P15-DARK：只有一次點擊，而它值得擁有自己的檔案。
+#
+# P15-DARK 的絕大部分都能由一張擷取影像回答：「Requested: dark  Resolved: dark」、在系統為淺色
+# 主題時仍呈深色的視窗，以及維持可讀的文字。這些都不需要動作檔，此處也都沒有。
+#
+# 擷取影像顯示不出的，是「在配色被覆寫的視窗中，控制項是否仍能運作」。
+# `preferredColorScheme(.dark)` 是透過視窗上的 appearance override 抵達 AppKit 的，而套用到錯誤
+# 物件的 override——或套用了兩次的 override——可能讓按鈕繪製正確卻不再能被 hit test。一次點擊即可
+# 判定，而此處恰好只有一個控制項可點。
+#
+# origin=frame. Window 560x328 points, capture 1120px wide -- scale 2.
+# origin=frame。視窗 560x328 點，擷取寬 1120px——scale 2。
+click,280,209,frame,left,,,A button -- it must respond inside an overridden window,macos
+sleep,,,,,,1200000,,macos

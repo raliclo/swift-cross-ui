@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38: scroll the page inside the frame, and count the navigations.
+#
+# "Navigations reported: 1" is the number this file is protecting. A scroll must
+# not raise it -- moving within a page is not a navigation -- so a run that ends
+# with 2 has found something, and one that ends with 1 has confirmed that the
+# view distinguishes the two. That is a claim a capture cannot make on its own.
+#
+# The "Learn more" link is not clicked, as in P27. It leaves for iana.org, which
+# would make the result depend on the network and on a site outside this
+# repository; a replay that fails because of DNS reports nothing about P38.
+#
+# P38：在框內捲動頁面，並計數導覽次數。
+#
+# 「Navigations reported: 1」正是本檔所要守護的數字。捲動不得使它上升——在頁面內移動不是一次導覽
+# ——因此以 2 結束的執行就是發現了什麼，而以 1 結束的則確認了該視圖能區分兩者。這是一張擷取影像
+# 單憑自己無法做出的主張。
+#
+# 與 P27 相同，「Learn more」連結不予點擊。它會離開前往 iana.org，那會讓結果取決於網路與一個位於
+# 本儲存庫之外的網站；一次因 DNS 而失敗的重放，對 P38 什麼也回報不了。
+#
+# origin=frame. Window 818x686 points, capture 1640px wide -- scale 2.
+# origin=frame。視窗 818x686 點，擷取寬 1640px——scale 2。
+move,409,439,frame,,,,into the framed page,macos
+sleep,,,,,,500000,,macos
+scroll,0,5,,,,,the page moves; Navigations reported must stay 1,macos
+sleep,,,,,,1000000,,macos
+scroll,0,5,,,,,further,macos
+sleep,,,,,,1000000,,macos
+scroll,0,-10,,,,,and back,macos
+sleep,,,,,,1200000,,macos

@@ -864,6 +864,36 @@ Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
 value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
 `.clipShape`, `.mask`, `.compositingGroup`, `.drawingGroup`.
 
+**AppKitBackend implements neither family, and the fallback is `fatalError`.**
+Measured 2026-09-01 on the Mac: P30 and P39 abort at launch with
+`VisualEffectModifier.swift:89: Fatal error: 'AppKitBackend' does not implement
+'BackendFeatures.VisualEffects'`, and P40 with the same shape from
+`GeometricEffectModifier.swift:168` for `GeometricEffects`. Three of the
+forty-two test apps have no window on macOS at all, which is how this was
+found -- `measure_macos.zsh` reported "no window owned by P30 after 20s".
+
+The missing conformances are expected; a `fatalError` for a missing optional
+feature is the part worth arguing about. Every other unsupported thing in this
+tree degrades and says so -- `datePickerStyle(_:)` downgrades an unsupported
+style to `.automatic`, and the geometric-effects section below argues at length
+for declining to render rather than rendering wrongly. Both of those leave a
+running app. This aborts the process, so a view used anywhere in an app takes
+the whole app down on a backend that has not implemented it yet, and the app
+cannot fall back to anything because it never gets to run.
+
+**AppKitBackend 兩個系列都未實作，而其退路是 `fatalError`。** 2026-09-01 於 Mac 上量測：P30 與
+P39 在啟動時即中止，訊息為 `VisualEffectModifier.swift:89: Fatal error: 'AppKitBackend' does
+not implement 'BackendFeatures.VisualEffects'`，而 P40 則是來自
+`GeometricEffectModifier.swift:168`、針對 `GeometricEffects` 的同樣形狀。四十二支測試 app 中有
+三支在 macOS 上根本沒有視窗，而這正是它被發現的方式——`measure_macos.zsh` 回報
+「no window owned by P30 after 20s」。
+
+缺少 conformance 是預期之中的事；真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
+這一點。這棵樹裡其他每一項不受支援的東西都會降級並說明——`datePickerStyle(_:)` 會把不支援的樣式
+降級為 `.automatic`，而下方的 geometric-effects 一節更是長篇論證「寧可拒絕算繪，也不要算繪錯誤」。
+那兩者都讓 app 繼續執行。這一個則會中止行程，因此只要 app 中任何一處用到該視圖，在尚未實作它的
+backend 上就會拖垮整個 app，而 app 也無從退回任何替代方案，因為它根本沒有機會執行。
+
 ### Geometric effects: done 2026-08-27, and GTK cannot render them
 
 `BackendFeatures.GeometricEffects` plus `GeometricEffect`, and `.offset(x:y:)`,

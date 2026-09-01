@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P24: push into the stack, and check that state outside it survived.
+#
+# The counter and the push tally live above the stack rather than inside it, and
+# that is what P24 is asking about: whether a navigation push disturbs state
+# that is not part of the navigation. So the counter is raised first, the stack
+# is pushed, and the counter is read again -- in that order, because a counter
+# incremented after the push proves nothing about the push.
+#
+# Only one level is pushed. Level 1's buttons are in a view this file has never
+# seen, so their coordinates are unknown; Pop to root is in the header, which
+# does not move, and that is what brings the app back to a state the remaining
+# rows can address. Measure level 1 and extend this file once a click can open it.
+#
+# P24：推入堆疊，並檢查堆疊之外的狀態是否存活。
+#
+# 計數器與 push 計數位於堆疊之上而非之內，而那正是 P24 所要問的：一次導覽推入是否會干擾不屬於該
+# 導覽的狀態。因此順序是先提高計數器、再推入堆疊、然後重新讀取計數器——之所以如此，是因為在推入
+# 之後才遞增的計數器，對那次推入什麼也證明不了。
+#
+# 只推入一層。Level 1 的按鈕位於本檔從未見過的視圖中，其座標未知；而 Pop to root 位於不會移動的
+# 標題區，正是它能把 app 帶回其餘各列所能定址的狀態。待點擊能夠開啟 level 1 之後，再量測它並擴充本檔。
+#
+# origin=frame. Window 716x584 points, capture 1440px wide -- scale 2.
+# origin=frame。視窗 716x584 點，擷取寬 1440px——scale 2。
+click,84,169,frame,left,,,Increment counter -> 1,macos
+sleep,,,,,,600000,,macos
+click,84,169,frame,left,,,-> 2,macos
+sleep,,,,,,600000,,macos
+click,338,420,frame,left,,,Record a push -- the outside-the-stack tally,macos
+sleep,,,,,,600000,,macos
+click,330,392,frame,left,,,Push level 1,macos
+sleep,,,,,,1500000,,macos
+click,202,169,frame,left,,,Pop to root -- the header does not move with the stack,macos
+sleep,,,,,,1200000,,macos
+click,84,169,frame,left,,,increment once more -- the counter must resume from 2 not 0,macos
+sleep,,,,,,1000000,,macos
