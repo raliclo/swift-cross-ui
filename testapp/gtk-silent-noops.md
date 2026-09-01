@@ -800,10 +800,39 @@ needing it — the allocation is still `0x0` at map time, measured. **That
 measurement is worth carrying here**: if `onScaleFactorChange` is added and its
 handler reads anything about the window's geometry, "map" is too early for it.
 
-So this entry stays open, but "the obvious fix does not compile" now
-overstates it. The work is small and the uncertainty about it is gone; what
-remains is doing it and finding a way to *test* it, which needs two displays of
-different scale — and that, not the API, is the real cost.
+**Later the same day: implemented, and the testing worry was wrong too.**
+`Window.onScaleFactorChange` was added to the `Gtk` module in the shape this
+entry proposed, and `setWindowEnvironmentChangeHandler` now connects to it.
+Compiles clean.
+
+The sentence that stood here — that testing needs two displays of different
+scale — was wrong, and it was the kind of wrong that stops work: it made a
+cheap check sound like it needed hardware. **Changing the scale of the one
+display fires the same notification**, so the whole test is Settings > System >
+Display > Scale while the window is up.
+
+`P42.swift` exists to make the answer visible, because the current value cannot
+be the test: a window showing `2.0` says nothing about whether it would still
+say `2.0` after a change. It shows the **sequence** of distinct values with
+counts, so one entry after a scale change means the notification did not fire
+and two means it did.
+
+Still unverified: whether it actually fires. Compiling is not observing, and
+this entry has already been wrong once today about what was hard.
+
+**當日稍後：已實作，而且連「難以測試」那句也是錯的。** `Window.onScaleFactorChange` 已依本條目
+所提議的形狀加入 `Gtk` 模組，`setWindowEnvironmentChangeHandler` 也已連上它，編譯無誤。
+
+原本寫在此處的那句話——測試需要兩台縮放比例不同的顯示器——是錯的，而且是會讓工作停擺的那種錯：
+它把一個廉價的檢查說成需要硬體。**改變同一台顯示器的縮放就會觸發同一個通知**，因此整個測試就是
+在視窗開著時前往「設定 > 系統 > 顯示器 > 縮放」。
+
+`P42.swift` 的存在是為了讓答案看得見，因為「當前值」無法作為測試：一個顯示 `2.0` 的視窗，並不能
+告訴你它在改變之後是否仍會是 `2.0`。它顯示的是相異值的**序列**與次數——縮放改變後只有一項代表
+通知沒觸發，有兩項代表觸發了。
+
+仍未驗證：它究竟會不會觸發。編譯過不等於觀察到，而本條目今天已經在「什麼是困難的」這件事上
+錯過一次了。
 
 **更新 2026-09-01：阻礙比本條目所描述的小，而且通往它的路已經走過一遍了。** 修正視窗尺寸短少
 （見 `todo.md` 的 GtkBackend 缺口）需要的正是本條目需要的東西——某個 backend 構不到、必須加在

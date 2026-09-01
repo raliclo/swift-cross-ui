@@ -145,11 +145,35 @@ open class Window: Widget {
             guard let self else { return }
             self.onDestroy?(self)
         }
+        addSignal(name: "notify::scale-factor") { [weak self] () in
+            guard let self else { return }
+            self.onScaleFactorChange?(self)
+        }
     }
 
     private var escapeKeyEventController: EventControllerKey?
     public var onCloseRequest: ((Window) -> Void)?
     public var onDestroy: ((Window) -> Void)?
+
+    /// Fires when GTK changes the scale factor it lays this window out at.
+    ///
+    /// The property rather than a display or monitor signal: GTK's scale factor
+    /// is the buffer scale it actually used, an integer by design, not the
+    /// fraction a display advertises. Watching the display would fire on changes
+    /// GTK did not act on and miss the moment it did.
+    ///
+    /// Public because a backend cannot reach `addSignal`, which is internal to
+    /// this module -- registering the signal has to happen in here.
+    ///
+    /// 當 GTK 改變它為此視窗排版所用的 scale factor 時觸發。
+    ///
+    /// 監聽的是該屬性，而非顯示器或螢幕的訊號：GTK 的 scale factor 是它實際使用的 buffer
+    /// scale，依設計為整數，而非顯示器所宣稱的小數。改為監聽顯示器，會在 GTK 並未據以動作的變化
+    /// 上觸發，卻錯過它真正動作的那一刻。
+    ///
+    /// 之所以公開，是因為 backend 取用不到對本模組為 internal 的 `addSignal`——註冊訊號這件事
+    /// 必須發生在這裡。
+    public var onScaleFactorChange: ((Window) -> Void)?
     public var escapeKeyPressed: (() -> Void)?
 }
 
