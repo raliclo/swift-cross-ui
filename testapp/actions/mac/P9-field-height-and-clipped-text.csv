@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P9: type into a field, force an update, and squeeze a line of text.
+#
+# #504 is about a field's height *after* an update, so Force update comes after
+# something has been typed. Pressing it against an empty field measures the
+# launch height twice.
+#
+# Zero width is pressed last of the three width buttons, not first. It is the
+# degenerate case -- a frame with no room at all -- and a backend that mishandles
+# it may leave the text view in a state the other two cannot be read against.
+# Narrower and Wider get their answers before it is reached.
+#
+# P9：在欄位中打字、強制更新，再把一行文字擠壓變形。
+#
+# #504 談的是「更新**之後**」的欄位高度，因此 Force update 排在已經輸入了一些內容之後。對著空欄位
+# 按它，量到的只是把啟動時的高度量了兩次。
+#
+# Zero width 排在三個寬度按鈕的最後而非最前。它是退化情形——一個完全沒有空間的 frame——而處理不當的
+# backend 可能會讓文字視圖停留在某種狀態，使另外兩者無法據以判讀。Narrower 與 Wider 在抵達它之前
+# 就已取得各自的答案。
+#
+# origin=frame. Window 640x548 points, capture 1280px wide -- scale 2.
+# origin=frame。視窗 640x548 點，擷取寬 1280px——scale 2。
+click,171,240,frame,left,,,focus the text field,macos
+sleep,,,,,,500000,,macos
+key,,,,,h,,,macos
+key,,,,,i,,two keystrokes into the plain field,macos
+sleep,,,,,,600000,,macos
+click,379,240,frame,left,,,focus the secure field,macos
+sleep,,,,,,500000,,macos
+key,,,,,s,,,macos
+key,,,,,e,,,macos
+key,,,,,c,,three into the secure one -- it must not echo them,macos
+sleep,,,,,,600000,,macos
+click,121,266,frame,left,,,Force update -- updates 0 -> 1 and the field height must not change,macos
+sleep,,,,,,800000,,macos
+click,121,266,frame,left,,,again -- a second update must be as harmless as the first,macos
+sleep,,,,,,800000,,macos
+click,109,374,frame,left,,,Narrower -- the blue band shrinks; text must not spill past it,macos
+sleep,,,,,,800000,,macos
+click,183,374,frame,left,,,Wider,macos
+sleep,,,,,,800000,,macos
+click,183,374,frame,left,,,Wider again,macos
+sleep,,,,,,800000,,macos
+click,261,374,frame,left,,,Zero width -- the degenerate case; nothing may spill,macos
+sleep,,,,,,1200000,,macos

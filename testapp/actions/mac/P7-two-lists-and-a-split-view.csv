@@ -1,0 +1,38 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7: select in both lists, then push the detail pane's width.
+#
+# The two lists are selected from separately because they are separate bugs.
+# #476 is the plain List; #556 is a List inside a NavigationSplitView. One line,
+# "Selection: none", reports both, so a run that clicks the plain list and then
+# the split view's list shows whether each write reaches it -- and whether the
+# second overwrites the first, which is the thing a single click cannot ask.
+#
+# "Add a fruit's worth of text" goes last. It widens the detail pane's content,
+# and P7's own claim is that the pane "should keep its share of the width", so
+# the rows before it need to have run against the launch geometry.
+#
+# P7：在兩個清單中各自選取，再去推擠詳細窗格的寬度。
+#
+# 兩個清單分別選取，因為它們是兩個不同的缺陷。#476 是純 List；#556 是位於 NavigationSplitView
+# 之內的 List。單一行「Selection: none」同時回報兩者，因此一次先點純清單、再點分割視圖清單的執行，
+# 能顯示每一次寫入是否都送達——以及第二次是否覆蓋了第一次，而那正是單一次點擊問不出的問題。
+#
+# 「Add a fruit's worth of text」排在最後。它會加寬詳細窗格的內容，而 P7 自己的主張是該窗格
+# 「應保持它那一份寬度」，因此在它之前的各列必須是針對啟動時的幾何跑完的。
+#
+# origin=frame. Window 720x508 points, capture 1440px wide -- scale 2.
+# origin=frame。視窗 720x508 點，擷取寬 1440px——scale 2。
+click,50,252,frame,left,,,plain list -> Apple; Selection must stop saying none,macos
+sleep,,,,,,700000,,macos
+click,50,308,frame,left,,,plain list -> Cherry,macos
+sleep,,,,,,700000,,macos
+click,305,286,frame,left,,,split view list -> Banana; the detail pane must follow,macos
+sleep,,,,,,700000,,macos
+click,305,342,frame,left,,,split view list -> Date,macos
+sleep,,,,,,700000,,macos
+click,213,426,frame,left,,,Clear selection -- both lists must let go,macos
+sleep,,,,,,700000,,macos
+click,328,426,frame,left,,,Select Cherry -- a selection made without a click on the row,macos
+sleep,,,,,,700000,,macos
+click,475,426,frame,left,,,Add a fruit's worth of text -- the split must not give up its share,macos
+sleep,,,,,,1000000,,macos

@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P8: three scroll views, each turned where it lives.
+#
+# Every row here is a move followed by a scroll, and the move is the load-bearing
+# half. A wheel event goes to whatever is under the pointer, so scrolling P8
+# without moving first turns whichever view the pointer happened to be over --
+# and P8's whole subject is which of three nested views receives it.
+#
+# The horizontal strip is scrolled sideways rather than down, because #426 is
+# about a horizontal strip inside a vertical scroll view and the interesting
+# case is the one where both could plausibly claim the event.
+#
+# P8：三個捲動視圖，各在其所在之處轉動。
+#
+# 此處每一列都是一次 move 接一次 scroll，而 move 才是承重的那一半。滾輪事件會送往指標下方的元件，
+# 因此不先移動就捲動 P8，轉到的會是指標碰巧所在的那個視圖——而 P8 的整個主題正是「三個巢狀視圖中
+# 由哪一個收到它」。
+#
+# 水平長條是往側向捲動而非往下，因為 #426 談的是「垂直捲動視圖之內的水平長條」，而有趣的情況正是
+# 兩者都可能合理地主張擁有該事件的那一種。
+#
+# origin=frame. Window 642x590 points, capture 1280px wide -- scale 2.
+# origin=frame。視窗 642x590 點，擷取寬 1280px——scale 2。
+move,320,222,frame,,,,inside the #417 rounded scroll view,macos
+sleep,,,,,,300000,,macos
+scroll,0,4,,,,,the red child must move and stay inside the corner radius,macos
+sleep,,,,,,800000,,macos
+scroll,0,-4,,,,,and back,macos
+sleep,,,,,,800000,,macos
+move,320,400,frame,,,,inside the outer vertical view,macos
+sleep,,,,,,300000,,macos
+scroll,0,3,,,,,the outer row numbers must move,macos
+sleep,,,,,,800000,,macos
+move,320,481,frame,,,,onto the horizontal strip -- #426,macos
+sleep,,,,,,300000,,macos
+scroll,8,0,,,,,sideways; the strip must move and the outer view must not,macos
+sleep,,,,,,800000,,macos
+scroll,4,0,,,,,keep going past H9 with nowhere left to go,macos
+sleep,,,,,,800000,,macos
+scroll,0,3,,,,,now vertically with the pointer still on the strip -- the outer view must take it,macos
+sleep,,,,,,1000000,,macos
