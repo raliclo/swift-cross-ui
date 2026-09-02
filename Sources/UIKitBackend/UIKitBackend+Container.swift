@@ -181,7 +181,7 @@ extension UIKitBackend {
     }
 
     public func createColorableRectangle() -> Widget {
-        BaseViewWidget()
+        ColorableRectangleWidget()
     }
 
     public func setColor(ofColorableRectangle widget: Widget, to color: Color.Resolved) {
@@ -237,5 +237,51 @@ extension UIKitBackend {
     public func updateTooltipContainer(_ widget: Widget, tooltip: String) {
         let widget = widget as! TooltipWidget
         widget.text = tooltip
+    }
+}
+
+/// A colour rectangle that a fully transparent colour does not make clickable.
+///
+/// #454: "the ZStack's upper layer is a transparent colour. It covers the
+/// button but should not take its clicks." A plain `UIView` takes them --
+/// `hitTest` returns any view whose bounds contain the point, whatever its
+/// background alpha -- so `Color.clear` over a button swallowed every tap.
+///
+/// Measured on the iOS Simulator 2026-09-02 against P10: "Covered clicks"
+/// stayed at 0 while the overlay was present, and rose as soon as the app's
+/// own toggle removed it. AppKit, measured the same day, reports Direct 2,
+/// Covered 2, Hidden 2 -- all three land, which is the behaviour to match.
+///
+/// This is also SwiftUI's rule, and the reason `.contentShape` exists: a clear
+/// colour is not hit-testable, so making one tappable is something you ask for
+/// rather than something you get.
+///
+/// The test is the background's alpha, not the view's. A rectangle inside a
+/// faded parent is still a rectangle someone can see and aim at; only a colour
+/// that is itself transparent is one they cannot.
+///
+/// 一個「完全透明的顏色不會使其可被點擊」的顏色矩形。
+///
+/// #454：「ZStack 的上層是透明顏色。它覆蓋著按鈕，但不應取走它的點擊。」而純粹的 `UIView` 會取走
+/// ——`hitTest` 會回傳任何 bounds 包含該點的 view，無論其背景 alpha 為何——因此覆蓋在按鈕上的
+/// `Color.clear` 吞掉了每一次點擊。
+///
+/// 2026-09-02 於 iOS 模擬器上針對 P10 實測：overlay 存在期間「Covered clicks」始終為 0，而在 app
+/// 自己的開關把它移除後隨即上升。同日量測的 AppKit 回報 Direct 2、Covered 2、Hidden 2——三者皆命中，
+/// 那才是應該對齊的行為。
+///
+/// 這同時也是 SwiftUI 的規則，以及 `.contentShape` 存在的理由：透明顏色不參與 hit test，因此要讓它
+/// 可點擊是你主動要求的，而非預設就有的。
+///
+/// 判斷依據是背景的 alpha，而非 view 的 alpha。位於已淡出父層之中的矩形，仍然是一個看得見、瞄得準
+/// 的矩形；唯有顏色本身透明時，才是看不見的。
+final class ColorableRectangleWidget: BaseViewWidget {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        var alpha: CGFloat = 0
+        if backgroundColor?.getRed(nil, green: nil, blue: nil, alpha: &alpha) != true {
+            backgroundColor?.getWhite(nil, alpha: &alpha)
+        }
+        guard alpha > 0 else { return nil }
+        return super.hitTest(point, with: event)
     }
 }

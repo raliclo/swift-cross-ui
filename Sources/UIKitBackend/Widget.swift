@@ -103,6 +103,45 @@ extension WidgetProtocolHelpers {
 }
 
 class BaseViewWidget: UIView, WidgetProtocolHelpers {
+    /// A container is never the target of a touch; only its contents are.
+    ///
+    /// `UIView.hitTest` returns any view whose bounds contain the point, so a
+    /// backend container with nothing interactive in it still swallows every
+    /// touch that lands on it. #454 is exactly that case: "the ZStack's upper
+    /// layer is a transparent colour. It covers the button but should not take
+    /// its clicks."
+    ///
+    /// Measured on the simulator 2026-09-02, replaying P10: the tap on "Click
+    /// me too" left `Covered clicks` at 0 while the overlay was present, and
+    /// the overlay is a container, not the colour itself. AppKit reaches the
+    /// same behaviour through `AppKitHitTestingContainer`, which returns nil
+    /// when no child claims the point; measured the same day it reports
+    /// Direct 2, Covered 2, Hidden 2 -- all three land.
+    ///
+    /// Views with a gesture recogniser keep the default. A container that has
+    /// been given something to do with a touch is not a pass-through, and
+    /// `onTapGesture` on a `Color` is the case that would otherwise break.
+    ///
+    /// 容器永遠不是觸控的目標，只有它的內容才是。
+    ///
+    /// `UIView.hitTest` 會回傳任何 bounds 包含該點的 view，因此一個內部沒有任何可互動元件的 backend
+    /// 容器，仍會吞掉每一次落在它身上的觸控。#454 正是這個情況：「ZStack 的上層是透明顏色。它覆蓋著
+    /// 按鈕，但不應取走它的點擊。」
+    ///
+    /// 2026-09-02 於模擬器上重放 P10 實測：overlay 存在期間，對「Click me too」的點擊使
+    /// `Covered clicks` 維持在 0，而該 overlay 是一個容器，不是顏色本身。AppKit 透過
+    /// `AppKitHitTestingContainer` 達成相同行為——它在沒有任何 child 宣稱該點時回傳 nil；同日量測
+    /// 其結果為 Direct 2、Covered 2、Hidden 2，三者皆命中。
+    ///
+    /// 帶有 gesture recogniser 的 view 維持預設行為。一個已被賦予「對觸控做某件事」的容器並非
+    /// pass-through，而 `Color` 上的 `onTapGesture` 正是否則會被弄壞的那個情況。
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        guard hit === self else { return hit }
+        if let recognizers = gestureRecognizers, !recognizers.isEmpty { return self }
+        return nil
+    }
+
     fileprivate var leftConstraint: NSLayoutConstraint?
     fileprivate var topConstraint: NSLayoutConstraint?
     fileprivate var widthConstraint: NSLayoutConstraint?

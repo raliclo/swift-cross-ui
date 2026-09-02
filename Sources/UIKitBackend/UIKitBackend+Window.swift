@@ -57,7 +57,30 @@ final class RootViewController: UIViewController {
         }
         childWidget = child
 
+        // Position as well as size. A view constrained only in width and height
+        // has no defined origin, and Auto Layout resolving an ambiguity is not
+        // the same as it being told -- measured on the simulator 2026-09-02,
+        // P10's content sat centred and was clipped at both edges, which reads
+        // as content too wide for the screen rather than as a missing
+        // constraint.
+        //
+        // Pinned to the safe area rather than to the view, matching
+        // `size(ofWindow:)`, which reports `safeAreaLayoutGuide.layoutFrame`.
+        // Pinning the size to one guide and the origin to another would place
+        // the child by the notch's height on a device that has one.
+        //
+        // 位置與尺寸都要。只約束寬高的 view 沒有確定的原點，而「Auto Layout 自行解掉一個歧義」與
+        // 「它被明確告知」並不相同——2026-09-02 於模擬器上實測，P10 的內容置中並在左右兩側被裁切，
+        // 那讀起來像是「內容對螢幕而言太寬」，而非「少了一條約束」。
+        //
+        // 釘在安全區域而非 view 上，與 `size(ofWindow:)` 一致——後者回報的是
+        // `safeAreaLayoutGuide.layoutFrame`。若尺寸釘在一個 guide、原點釘在另一個，在有瀏海的裝置上
+        // 會使子元件位移一個瀏海的高度。
         NSLayoutConstraint.activate([
+            child.view.leadingAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.leadingAnchor
+            ),
+            child.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             child.view.widthAnchor.constraint(equalTo: view.safeAreaLayoutGuide.widthAnchor),
             child.view.heightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.heightAnchor),
         ])
