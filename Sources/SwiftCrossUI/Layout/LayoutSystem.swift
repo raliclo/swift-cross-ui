@@ -225,6 +225,18 @@ public enum LayoutSystem {
                 // 只保留 spacing，因此不存在任何可能在重新佈局時前後不一致的保留量。
                 // 詳見份額計算處的說明。
                 totalSpacing: totalSpacing,
+                // Empty here on purpose. This branch is the degenerate one --
+                // the stack was proposed zero, infinity or nothing, or it has a
+                // single child -- and the sizes above were chosen against that
+                // proposal rather than measured as minimums. Handing them over
+                // as a floor would stop a later redistribution from compressing
+                // anything. `computeLayouts` treats an empty array as no floor,
+                // which is what this path did before minimums were kept at all.
+                // 此處刻意留空。本分支是退化情況——stack 被提議的是零、無限大或未指定，或它只有
+                // 一個子元件——而上方那些尺寸是「針對該提議所選擇的結果」，並非量測而得的最小值。
+                // 把它們當作下限交出去，會使後續的重新分配無法壓縮任何東西。`computeLayouts` 會把
+                // 空陣列視為「沒有下限」，那正是本路徑在「保留最小值」這件事存在之前的行為。
+                minimumLengths: [],
                 redistributeSpaceOnCommit: shouldRedistributeSpaceOnCommit(
                     proposedSize: proposedSize,
                     orientation: orientation
@@ -310,6 +322,7 @@ public enum LayoutSystem {
         maximumProposedSize[component: orientation] = .infinity
         var isHidden = [Bool](repeating: false, count: children.count)
         var priorities = [Double](repeating: 0, count: children.count)
+        var minimumLengths = [Double](repeating: 0, count: children.count)
         let flexibilities = children.enumerated().map { i, child in
             let minimumResult = child.computeLayout(
                 proposedSize: minimumProposedSize,
@@ -323,6 +336,7 @@ public enum LayoutSystem {
             priorities[i] = minimumResult.preferences.layoutPriority
             let maximum = maximumResult.size[component: orientation]
             let minimum = minimumResult.size[component: orientation]
+            minimumLengths[i] = minimum
             return maximum - minimum
         }
         let visibleChildrenCount = isHidden.filter { hidden in
@@ -369,6 +383,7 @@ public enum LayoutSystem {
             priorityGroups: priorityGroups,
             isHidden: isHidden,
             totalSpacing: totalSpacing,
+            minimumLengths: minimumLengths,
             redistributeSpaceOnCommit: shouldRedistributeSpaceOnCommit(
                 proposedSize: proposedSize,
                 orientation: orientation
@@ -537,7 +552,42 @@ public enum LayoutSystem {
                     proposedLength - spaceUsedAlongStackAxis - cache.totalSpacing,
                     0
                 ) / Double(childrenRemaining)
-                proposedChildSize[component: orientation] = share
+
+                // Never below the child's own minimum.
+                //
+                // The share can reach zero: earlier children take their natural
+                // size, which for a rigid child is more than its share, and the
+                // clamp above then leaves nothing for the last one. Proposing
+                // zero does not change what that child returns -- it returns its
+                // minimum either way -- so the stack's total is identical with
+                // this line and without it. What changes is what the child's own
+                // children are offered, and that is where the damage was.
+                //
+                // Measured on the iPhone 16 simulator, P43: four columns each
+                // holding a fixed 120pt shape and a caption, offered 350 points
+                // against the 528 they need. The shares came out 76, 61, 31 and
+                // 0, so the fourth column's `Text` was proposed zero width and
+                // wrapped to one character per line. That made its column three
+                // times the height of its siblings, and a centred `HStack` then
+                // lifted its shape out of line with the other three -- which
+                // reads as a rendering bug in the last column and is not one.
+                // With this line all four are offered 120, all four captions
+                // wrap the same way, and the row is level.
+                //
+                // 絕不低於子元件自身的最小值。
+                //
+                // 份額有可能歸零：先前的子元件會取用其自然尺寸，而剛性元件的自然尺寸大於它的份額，
+                // 上方的夾限便使最後一個什麼都不剩。提議零並不會改變該子元件所回傳的值——它無論如何
+                // 都回傳自身最小值——因此有沒有這一行，stack 的總長度完全相同。改變的是「該子元件
+                // 自己的子元件被提議了什麼」，而傷害正是發生在那裡。
+                //
+                // 於 iPhone 16 模擬器上實測，P43：四個欄位各含一個固定 120pt 的形狀與一行說明文字，
+                // 在需要 528 點的情況下只被提議 350 點。四份份額為 76、61、31 與 0，因此第四欄的
+                // `Text` 被提議零寬，變成每行一個字。那使該欄的高度成為其兄弟欄的三倍，而置中的
+                // `HStack` 便把它的形狀頂出與其他三欄的對齊線之外——讀起來像是最後一欄有算繪 bug，
+                // 而它並不是。加上這一行之後，四欄都被提議 120，四行說明文字以相同方式換行，整列齊平。
+                let minimum = index < cache.minimumLengths.count ? cache.minimumLengths[index] : 0
+                proposedChildSize[component: orientation] = max(share, minimum)
                 proposedChildSize[component: perpendicularOrientation] = proposedPerpendicular
 
                 if share == 0, firstStarvedChild == nil {

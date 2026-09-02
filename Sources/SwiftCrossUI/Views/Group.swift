@@ -55,6 +55,7 @@ public struct Group<Content: View>: View {
                 priorityGroups: [],
                 isHidden: [],
                 totalSpacing: 0,
+                minimumLengths: [],
                 redistributeSpaceOnCommit: proposedSize.width == nil || proposedSize.height == nil
             )
             return result

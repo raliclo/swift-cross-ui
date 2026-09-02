@@ -66,6 +66,7 @@ public struct ZStack<Content: View>: View {
             priorityGroups: [],
             isHidden: [],
             totalSpacing: 0,
+            minimumLengths: [],
             redistributeSpaceOnCommit: proposedSize.width == nil || proposedSize.height == nil
         )
 
