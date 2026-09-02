@@ -251,16 +251,37 @@ if [ "$do_apk" -eq 1 ]; then
     # 又全部重建回去。來回各十分鐘，而那棵樹本來是熱的。
     #
     # 兩棵樹的代價是磁碟。一棵樹的代價是每次有人切換就十分鐘。
+    bundler_scratch="$package_dir/.build-bundler"
     (
         cd "$package_dir"
         SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
             "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}" \
                 --toolchain "${swift_bin:h:h:h}" \
-                --scratch-path "$package_dir/.build-bundler" \
+                --scratch-path "$bundler_scratch" \
                 --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"
     )
-    generated_apk="$package_dir/.build/bundler/apps/$app/$app.apk"
+    # Read back out of the same scratch path it was written into.
+    #
+    # These were two separate literals and they disagreed: the bundle went to
+    # `.build-bundler/...` and this looked in `.build/...`. Every app died with
+    # "Bundler succeeded but APK was not found" after a four-minute build --
+    # every app except P12, because a stale P12 APK from an earlier run was
+    # still sitting at the old path. So P12 alone appeared to pass, and what it
+    # installed was not what had just been built. A survey of 23 apps was run
+    # against that.
+    #
+    # One variable now, used in both places, so they cannot drift again.
+    #
+    # 從寫入時所用的同一個 scratch path 讀回來。
+    #
+    # 這裡原本是兩個各自獨立的字面值，而它們並不一致：bundle 產到 `.build-bundler/...`，此處卻去
+    # `.build/...` 找。每一支 app 都在四分鐘的建置之後死於「Bundler succeeded but APK was not
+    # found」——除了 P12，因為舊路徑上還躺著先前某次執行留下的 P12 APK。於是只有 P12 看起來通過，
+    # 而它所安裝的並不是剛剛建出來的那一支。一份涵蓋 23 支 app 的普查就是在那個狀態下跑的。
+    #
+    # 現在只有一個變數、兩處共用，因此它們不可能再各自漂移。
+    generated_apk="$bundler_scratch/bundler/apps/$app/$app.apk"
     [ -f "$generated_apk" ] || die "Bundler succeeded but APK was not found: $generated_apk"
     cp "$generated_apk" "$apk_path"
     print "    -> $apk_path"
@@ -361,7 +382,64 @@ ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
 # readiness check for action-file replay.
 # 直接啟動 manifest 宣告的 launcher activity。`monkey` 可能因 emulator 輸入限制回傳
 # 非零狀態，無法作為 action file replay 的可靠 readiness check。
-ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" >/dev/null
+# The action file goes to the device and its path goes in an intent extra.
+#
+# An Android app has no argv, so `AndroidBackend.entrypoint` used to call
+# `main(0, nil)` and nothing downstream could see a flag. `--actionfile` was
+# parsed by this script and then dropped -- an option that was accepted and did
+# nothing. `AndroidBackend+Arguments.swift` now reads the `scui_args` extra and
+# builds argv from it before `main` runs, so `--debug` and `-actionfile` mean
+# here what they mean everywhere else.
+#
+# `/data/local/tmp` rather than the app's own directory: adb can write there
+# without root and the app can read it, and no path in it contains a space --
+# which matters, because the extra is split on spaces.
+#
+# 動作檔送到裝置上，而它的路徑放進 intent 的 extra。
+#
+# Android app 沒有 argv，因此 `AndroidBackend.entrypoint` 原本呼叫 `main(0, nil)`，下游看不到任何
+# 旗標。`--actionfile` 由本腳本解析之後就被丟掉——一個被接受卻什麼都不做的選項。現在
+# `AndroidBackend+Arguments.swift` 會讀取 `scui_args` 這個 extra，並在 `main` 執行前據以建構 argv，
+# 使 `--debug` 與 `-actionfile` 在此處的意義與在其他每個平台相同。
+#
+# 使用 `/data/local/tmp` 而非 app 自己的目錄：adb 不需 root 即可寫入該處，而 app 讀得到；且其中
+# 沒有任何路徑含有空白——這一點很重要，因為該 extra 是以空白切分的。
+app_args=()
+if [ -n "$action_file" ]; then
+    [ -f "$action_file" ] || die "No such action file: $action_file"
+    device_action_file="/data/local/tmp/$app-actions.csv"
+    print "==> Pushing $action_file -> $device_action_file"
+    ANDROID_SERIAL="$serial" "$adb" push "$action_file" "$device_action_file" >/dev/null \
+        || die "Could not push the action file to the device"
+    app_args=(--debug -actionfile "$device_action_file")
+fi
+
+if [ "${#app_args}" -gt 0 ]; then
+    # Quoted for the shell ON THE DEVICE, which is a second round of word
+    # splitting `adb shell` does not protect against: it joins its arguments
+    # into one command line and the device's shell re-parses it. Without the
+    # inner quotes, `--es scui_args "--debug -actionfile /data/local/tmp/x.csv"`
+    # arrives as three words, and `am` reads `-actionfile` as `-a ctionfile` --
+    # it sets the intent's ACTION to "ctionfile" and takes the path as the
+    # component:
+    #
+    #   Starting: Intent { act=ctionfile cmp=/data/local/tmp/P12-actions.csv }
+    #   Error: Activity class {/data/local/tmp/P12-actions.csv} does not exist.
+    #
+    # Measured on the emulator. The app never launched, and the script stopped
+    # with no line saying why.
+    #
+    # 這裡的引號是給**裝置上的** shell 的——那是 `adb shell` 並不會替你擋掉的第二輪斷詞：它把自己的
+    # 引數併成一行命令，再由裝置端的 shell 重新解析。少了內層引號，
+    # `--es scui_args "--debug -actionfile /data/local/tmp/x.csv"` 抵達時會是三個詞，而 `am` 會把
+    # `-actionfile` 讀成 `-a ctionfile`——它把 intent 的 ACTION 設為「ctionfile」，並把該路徑當成
+    # component（輸出見上方英文）。此事於 emulator 上實測：app 根本沒有啟動，而腳本停下時沒有任何
+    # 一行說明原因。
+    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" \
+        --es scui_args "'${app_args[*]}'" >/dev/null
+else
+    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" >/dev/null
+fi
 
 print "==> Launched $package_id on $serial"
 sleep 1

@@ -59,11 +59,25 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
         FileHandle.standardError.fileDescriptor
     )
 
-    // Pass dummy arguments to application main function
-    let argv = UnsafeMutableBufferPointer<UnsafeMutablePointer<CChar>?>.allocate(capacity: 1)
-    argv[0] = nil
-
-    main(0, argv.baseAddress)
+    // Arguments from the launching intent rather than none at all.
+    //
+    // This was `main(0, argv)` with `argv[0] = nil`, described as "dummy
+    // arguments". The cost was not obvious from here: everything downstream
+    // reads `CommandLine.arguments`, so `--debug` was never seen on Android,
+    // `DebugFeatures.isEnabled` was always false, and `-actionfile` could not
+    // arrive -- while `test_android.zsh` accepted the flag and dropped it. See
+    // `AndroidBackend+Arguments.swift`.
+    //
+    // 引數取自啟動它的 intent，而非完全沒有引數。
+    //
+    // 此處原本是 `main(0, argv)`、`argv[0] = nil`，並註解為「dummy arguments」。其代價從這裡看不
+    // 出來：下游的一切都讀取 `CommandLine.arguments`，因此在 Android 上 `--debug` 從未被看見、
+    // `DebugFeatures.isEnabled` 恆為 false，而 `-actionfile` 根本無法送達——同時
+    // `test_android.zsh` 卻接受了該旗標並把它丟掉。詳見 `AndroidBackend+Arguments.swift`。
+    let arguments = AndroidLaunchArguments.read(from: AndroidBackend.activity)
+    AndroidLaunchArguments.withArgv(arguments) { argc, argv in
+        main(argc, argv)
+    }
 }
 
 extension App {
