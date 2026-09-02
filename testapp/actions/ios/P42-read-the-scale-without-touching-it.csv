@@ -1,0 +1,52 @@
+action,x,y,origin,button,key,micros,note,platform
+# P42: wait, and read the scale factor. Touch nothing.
+#
+# **The file does nothing on purpose, and that is the app's instruction.** P42
+# says on screen: "Change the display scale in Settings without touching this
+# window, then read the line above." Its subject is whether the value follows a
+# change, and a click would be the one thing that could make the value look
+# right for the wrong reason -- any interaction forces a recompute, so a window
+# touched before it is read cannot distinguish a notification that fired from a
+# layout pass that happened to run.
+#
+# So the rows are a sleep and nothing else. What is claimed is the launch state.
+#
+# **P42 caught what it exists for on its first iOS run.** Before 2026-09-02
+# `UIKitBackend.computeWindowEnvironment` carried
+# `// TODO: Record window scale factor in here`, so `windowScaleFactor` kept the
+# environment default of 1 on every iOS device. AppKitBackend supplies
+# `backingScaleFactor`, WinUIBackend derives it from the DPI, AndroidBackend
+# from the display metrics; only this one answered 1, on a phone whose display
+# scale is 3. `Image` re-renders on that value, so the failure was art rendered
+# for the wrong scale rather than an error.
+#
+# After the fix this app reads `current: 3.0`, `changes observed: 1`, and the
+# sequence `1.0 x2 -> 3.0 x5`. The sequence is the interesting part: 1.0 is the
+# environment default seen before the window's trait collection is available,
+# and the arrow is the recompute arriving -- so both halves of that TODO, the
+# value and the notification, are exercised by one capture.
+#
+# Measured 2026-09-02 on the iPhone 16 simulator, display scale 3.
+#
+# P42：等待，然後讀取 scale factor。什麼都不要碰。
+#
+# **本檔刻意什麼都不做，而那正是該 app 的指示。** P42 在畫面上寫著：「在設定中改變顯示器縮放，
+# 不要碰這個視窗，然後讀上面那一行。」它的主題是「該值是否會跟隨一次改變」，而點擊恰好是唯一
+# 可能讓該值「因錯誤的理由而看起來正確」的動作——任何互動都會強制一次重新計算，因此一個在被讀取
+# 之前就被碰過的視窗，無法區分「通知確實觸發了」與「剛好跑了一次版面計算」。
+#
+# 所以這些列只有一個 sleep，別無其他。所主張的是啟動時的狀態。
+#
+# **P42 在 iOS 上的第一次執行，就抓到了它存在的理由。** 2026-09-02 之前，
+# `UIKitBackend.computeWindowEnvironment` 帶著一行 `// TODO: Record window scale factor in here`，
+# 因此 `windowScaleFactor` 在每一台 iOS 裝置上都停在環境預設值 1。AppKitBackend 提供
+# `backingScaleFactor`、WinUIBackend 由 DPI 推導、AndroidBackend 由 display metrics 取得；只有
+# 這一個回答 1，而它所在的手機顯示縮放是 3。`Image` 會依該值重新算繪，因此該失敗表現為
+# 「以錯誤縮放算繪的圖像」，而不是一個錯誤。
+#
+# 修正之後，本 app 讀到 `current: 3.0`、`changes observed: 1`，序列為 `1.0 x2 -> 3.0 x5`。
+# 序列才是有趣的部分：1.0 是「視窗的 trait collection 尚不可用之前」所見的環境預設值，而那個箭頭
+# 就是重新計算的抵達——因此那個 TODO 的兩半（值與通知）都由同一張擷取畫面所驗證。
+#
+# 2026-09-02 於 iPhone 16 模擬器上量測，顯示縮放為 3。
+sleep,,,,,,3000000,"let the window settle without touching it -- current must read 3.0 and the sequence 1.0 x2 -> 3.0 x5 (VERIFIED)",ios

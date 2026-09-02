@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P43: read the four gradient cells. There is nothing to press.
+#
+# P43 has no controls: four shapes, one of them a flat-colour control. Its own
+# line states the verdict to read -- "The left circle must be a round gradient.
+# A square one means the fill was not clipped; a flat one means this backend
+# degraded and logged a warning."
+#
+# **What has to be reached, and why this file scrolls.** Four 120-point cells
+# with 16-point gaps need 528 points and the phone offers 350, so at rest the
+# fourth cell -- `circle + gradient stroke` -- is off the right edge. That cell
+# is the one no backend was testing, GtkBackend included: it is the case where a
+# gradient clipped to the fill region instead of the stroke produces a filled
+# circle that looks entirely plausible. The middle must stay empty.
+#
+# UIKitBackend implements this as of 2026-09-02; before that it took the
+# flattening default and drew the gradient's midpoint colour.
+#
+# Measured 2026-09-02 on the iPhone 16 simulator. At rest: the gradient circle
+# is round and runs red at the top to blue at the bottom, the control is flat
+# green, the rectangle runs red to blue. After the scroll the ring is whole,
+# its middle is empty, and the gradient runs around it. The ring's four corners
+# come out flattened and that is not a defect -- a 14-point stroke sits half
+# outside the path, so 7 points of it fall beyond the 120x120 frame and are
+# clipped, which P43's own comment predicts.
+#
+# Red is at the top on both macOS and iOS, and that is the check that matters
+# for the y axis: AppKit's path arrives already flipped and UIKit's does not, so
+# the two implementations differ by one sign and a symmetric gradient would hide
+# it.
+#
+# P43：讀那四個漸層格子。沒有東西可按。
+#
+# P43 沒有任何控制項：四個形狀，其中一個是平面色的對照組。它自己的那一行寫明了要讀的判準——
+# 「左邊的圓必須是圓形漸層。方形代表填充未被裁切；平面色代表此 backend 降級並記錄了警告。」
+#
+# **必須抵達什麼，以及本檔為何要捲動。** 四個 120 點的格子加上 16 點間隔需要 528 點，而手機只給
+# 350 點，因此靜止時第四格——`circle + gradient stroke`——位於右緣之外。那一格正是先前沒有任何
+# backend 測過的（包含 GtkBackend）：它是「漸層被裁到填充區域而非描邊區域」的情況，而那會產生一個
+# 看起來完全合理的實心圓。中間必須是空的。
+#
+# UIKitBackend 自 2026-09-02 起實作了此項；在那之前它走的是壓平的預設路徑，畫的是漸層的中點顏色。
+#
+# 2026-09-02 於 iPhone 16 模擬器上量測。靜止時：漸層圓是圓的、由上方的紅色走到下方的藍色，對照組
+# 是平面綠色，矩形由紅走到藍。捲動之後該環完整、中間是空的、漸層繞著它跑。環的四角是削平的，而那
+# 不是缺陷——14 點的描邊有一半落在路徑之外，因此其中 7 點超出 120x120 的 frame 而被裁掉，這是 P43
+# 自己的註解所預測的。
+#
+# 紅色在 macOS 與 iOS 上都在上方，而那正是 y 軸最關鍵的檢查：AppKit 的路徑抵達時已被翻轉，UIKit 的
+# 沒有，因此兩個實作差一個正負號，而對稱的漸層會把它藏起來。
+move,380,760,client,,,,"the right side, below the shapes, so a leftward drag stays inside the window",ios
+sleep,,,,,,400000,,ios
+scroll,6,0,,,,,"the page must move left until the stroked circle is whole (VERIFIED: the ring is complete, its middle is empty, and the gradient runs red at the top to blue at the bottom around it)",ios
+sleep,,,,,,900000,let the scroll settle,ios

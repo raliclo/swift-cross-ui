@@ -237,8 +237,40 @@ public final class UIKitBackend:
         window: Window,
         rootEnvironment: EnvironmentValues
     ) -> EnvironmentValues {
-        // TODO: Record window scale factor in here
-        rootEnvironment
+        // A `// TODO: Record window scale factor in here` stood here, and the
+        // cost of leaving it was that `windowScaleFactor` kept the environment
+        // default of 1 on every iOS device. AppKitBackend supplies
+        // `backingScaleFactor`, WinUIBackend derives it from the DPI and
+        // AndroidBackend from the display metrics; only this one answered 1.
+        //
+        // P42 exists to catch exactly this and caught it on its first iOS run:
+        // "current: 1.0" on an iPhone 16 simulator, whose display scale is 3.
+        // Nothing else would have noticed. `Image` re-renders on this value, so
+        // a wrong answer produces art rendered for the wrong scale rather than
+        // an error, and P42's own header makes the point that a window showing
+        // a number tells you nothing about whether the number is right.
+        //
+        // `traitCollection.displayScale` and not `screen.scale`: the trait is
+        // what the view hierarchy is actually laid out and drawn against, and
+        // it is the value that changes under Display Zoom. `UIScreen.scale`
+        // reports the physical panel and does not follow it.
+        //
+        // 此處原本是一行 `// TODO: Record window scale factor in here`，而留著它的代價是：
+        // `windowScaleFactor` 在每一台 iOS 裝置上都停在環境預設值 1。AppKitBackend 提供
+        // `backingScaleFactor`、WinUIBackend 由 DPI 推導、AndroidBackend 由 display metrics 取得；
+        // 只有這一個回答 1。
+        //
+        // P42 的存在就是為了抓這件事，而它在 iOS 上的第一次執行就抓到了：在顯示縮放為 3 的
+        // iPhone 16 模擬器上顯示「current: 1.0」。不會有別的東西注意到。`Image` 會依這個值重新算繪，
+        // 因此錯誤的答案產生的是「以錯誤縮放算繪的圖像」，而不是一個錯誤；而 P42 自己的檔頭正是要
+        // 說明：一個顯示著某個數字的視窗，並不能告訴你那個數字是不是對的。
+        //
+        // 使用 `traitCollection.displayScale` 而非 `screen.scale`：trait 才是 view 階層實際據以
+        // 排版與繪製的值，也是會隨 Display Zoom 改變的那一個。`UIScreen.scale` 回報的是實體面板，
+        // 不會跟著改變。
+        let scale = window.traitCollection.displayScale
+        return rootEnvironment
+            .with(\.windowScaleFactor, scale > 0 ? Double(scale) : 1)
             .with(\.scenePhase, window.isKeyWindow ? .active : .inactive)
     }
 
@@ -246,10 +278,59 @@ public final class UIKitBackend:
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO: Notify when window scale factor changes
-
         Self.onWindowEnvironmentChange = action
+
+        // The other half of the TODO above: the value was never recomputed
+        // either, so a window whose display scale changed under it kept
+        // whatever it started with. That is the whole subject of P42 -- its
+        // header says the current value alone cannot be the test, because a
+        // window showing 2.0 tells you nothing about whether it would still say
+        // 2.0 after a change.
+        //
+        // `registerForTraitChanges` is iOS 17, and this package deploys to
+        // iOS 13, so the older path observes the screen instead. Neither is a
+        // guess: `UITraitDisplayScale` is the trait the value is read from, and
+        // `UIScreen.modeDidChangeNotification` is what fires when the display
+        // the window is on changes mode.
+        //
+        // 上方那個 TODO 的另一半：該值也從未被重新計算，因此一個「顯示縮放在其底下改變了」的視窗，
+        // 會一直保留它最初取得的值。那正是 P42 的全部主題——它的檔頭寫著「單憑當前值無法作為測試」，
+        // 因為一個顯示著 2.0 的視窗，並不能告訴你它在一次改變之後是否仍會顯示 2.0。
+        //
+        // `registerForTraitChanges` 需要 iOS 17，而本套件的部署目標是 iOS 13，因此較舊的路徑改為
+        // 觀察螢幕。兩者都不是猜的：`UITraitDisplayScale` 正是該值所讀取的 trait，而
+        // `UIScreen.modeDidChangeNotification` 正是「視窗所在的顯示器改變模式時」會發出的通知。
+        if #available(iOS 17.0, tvOS 17.0, visionOS 1.0, *) {
+            // The registration is retained on the window, because a token
+            // dropped on the floor unregisters and the handler stops firing --
+            // which would look exactly like the notification not existing,
+            // which is the bug this replaces.
+            // 該註冊由 window 保留，因為被丟棄的 token 會解除註冊、handler 也就不再觸發——而那看
+            // 起來會與「通知根本不存在」一模一樣，也就是這段程式碼所要取代的那個 bug。
+            let registration = window.registerForTraitChanges(
+                [UITraitDisplayScale.self]
+            ) { (_: UIWindow, _: UITraitCollection) in
+                Self.onWindowEnvironmentChange?()
+            }
+            objc_setAssociatedObject(
+                window,
+                &Self.traitRegistrationKey,
+                registration,
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        } else {
+            Self.screenModeObserver = NotificationCenter.default.addObserver(
+                forName: UIScreen.modeDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                MainActor.assumeIsolated { Self.onWindowEnvironmentChange?() }
+            }
+        }
     }
+
+    private nonisolated(unsafe) static var traitRegistrationKey: UInt8 = 0
+    private nonisolated(unsafe) static var screenModeObserver: NSObjectProtocol?
 
     public func runInMainThread(action: @escaping @MainActor () -> Void) {
         DispatchQueue.main.async(execute: action)
