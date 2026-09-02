@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21: press the disabled button, then the enabled one.
+#
+# P21's own text states the claim: "check that a disabled control actually
+# refuses input rather than only looking disabled." The counter makes that
+# checkable in one file, because the two rows below are read together -- if the
+# count ends at 1, exactly one of the two presses was accepted, and the order
+# says which.
+#
+# **Two clicks here, where P8, P12 and P13 allow only one.** Those files press
+# buttons that rewrite a status line whose length changes, so the page re-lays
+# out and every later coordinate is stale. "Button - clicks: 0" becoming
+# "Button - clicks: 1" is the same width, and nothing else on the page moves.
+#
+# P21 was one of the six apps that died on `createToggle`'s fatalError within a
+# second of launch, so it had no iOS file. It renders now, and its four toggle
+# styles are visible: switch, button, checkbox and the plain default.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p21-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default). P21 fits the width; there is
+# nothing to scroll to.
+#
+# P21：先按被停用的按鈕，再按啟用的那個。
+#
+# P21 自己的文字寫明了主張：「確認被停用的控制項是真的拒絕輸入，而不只是看起來被停用」。計數器讓
+# 這件事能在同一個檔案裡查核，因為下面兩列是一起讀的——若最終計數為 1，代表兩次按壓中恰有一次被
+# 接受，而順序說明了是哪一次。
+#
+# **此處點兩次，而 P8、P12、P13 只允許一次。** 那些檔案按的按鈕會改寫一行長度會變的狀態文字，
+# 整頁因而重新排版，之後的每個座標都已過期。而「Button - clicks: 0」變成「Button - clicks: 1」
+# 寬度相同，頁面上沒有其他東西移動。
+#
+# P21 是在啟動一秒內死於 `createToggle` 的 fatalError 的六支 app 之一，因此先前沒有 iOS 動作檔。
+# 它現在能夠算繪，四種 toggle 樣式都看得見：switch、button、checkbox，以及純預設樣式。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p21-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。P21 塞得進寬度，沒有東西需要捲動。
+click,124,316,client,left,,,"the Disabled button -- clicks must stay 0",ios
+sleep,,,,,,400000,let the counter redraw if it is going to,ios
+click,49,316,client,left,,,"the Enabled button -- clicks must become exactly 1, which also proves the previous row did nothing",ios
+sleep,,,,,,500000,let the counter redraw,ios

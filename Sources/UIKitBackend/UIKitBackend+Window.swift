@@ -150,13 +150,17 @@ final class RootViewController: UIViewController {
         installViewModeButtonIfDebugging()
     }
 
-    /// Debug builds only. A release build has no floating control over its
-    /// content, which is the difference between a test affordance and a
-    /// feature.
-    /// 僅限 debug 建置。release 建置的內容之上不會浮著任何控制項——那正是「測試用輔助」與「產品功能」
-    /// 之間的分別。
+    /// Shown by default in a debug build, and in a release build only when
+    /// `-allow-rootscroll` is passed. A shipped application does not float a
+    /// control over its own content, which is the difference between a test
+    /// affordance and a feature; the flag exists because a release build is
+    /// where rebuilding to see it is not an option.
+    /// 在 debug 建置中預設顯示；在 release 建置中，僅當傳入 `-allow-rootscroll` 時才顯示。
+    /// 已出貨的應用程式不會在自己的內容之上浮著一個控制項——那正是「測試用輔助」與「產品功能」
+    /// 之間的分別；而該旗標之所以存在，是因為 release 建置正是「重新建置以看見它」這條路走不通的
+    /// 那種建置。
     private func installViewModeButtonIfDebugging() {
-        // `isCompiledIn`, not `isEnabled`.
+        // `allowsRootScrollControl`, not `isEnabled`.
         //
         // `isEnabled` also requires `--debug` on the command line, and an iOS
         // app is launched by `simctl launch`, so that argument has to survive
@@ -164,20 +168,26 @@ final class RootViewController: UIViewController {
         // the button did not appear with `-- --debug` passed, while action-file
         // replay -- which is gated on `isCompiledIn` -- worked in the same run.
         //
-        // The gate that matters is the build. A release build has no floating
-        // control over its content; a debug build is a build made for looking
-        // at, and having to remember a flag to see the control is friction with
-        // nothing on the other side of it.
+        // The default follows the build: a debug build is a build made for
+        // looking at, and having to remember a flag to see the control is
+        // friction with nothing on the other side of it; a release build has no
+        // floating control over its content. But the release default is the one
+        // that needs an override, because a release build is exactly where you
+        // cannot rebuild to see the control -- hence `-allow-rootscroll`, which
+        // ``DebugFeatures/allowsRootScrollControl`` reads in every build.
         //
-        // 使用 `isCompiledIn` 而非 `isEnabled`。
+        // 使用 `allowsRootScrollControl` 而非 `isEnabled`。
         //
         // `isEnabled` 還要求命令列上有 `--debug`，而 iOS app 是由 `simctl launch` 啟動的，該引數
         // 必須一路通過 harness、simctl 與 app 自身的啟動流程才會抵達。實測：傳入 `-- --debug` 時
         // 按鈕並未出現，而同一次執行中、以 `isCompiledIn` 為條件的動作檔重放卻正常運作。
         //
-        // 真正該把關的是「建置」。release 建置的內容之上不會浮著任何控制項；而 debug 建置本就是
-        // 為了觀看而做的建置，若還要記得加一個旗標才看得到該控制項，那是只有摩擦、沒有收穫的設計。
-        guard DebugFeatures.isCompiledIn, viewModeButton == nil else { return }
+        // 預設值隨建置而定：debug 建置本就是為了觀看而做的建置，若還要記得加一個旗標才看得到該控制項，
+        // 那是只有摩擦、沒有收穫的設計；而 release 建置的內容之上不會浮著任何控制項。但需要覆寫手段
+        // 的正是 release 這個預設值，因為 release 建置恰恰是你無法靠重新建置來看見該控制項的那種
+        // 建置——因此有了 `-allow-rootscroll`，由
+        // ``DebugFeatures/allowsRootScrollControl`` 在所有建置中讀取。
+        guard DebugFeatures.allowsRootScrollControl, viewModeButton == nil else { return }
         let button = ViewModeButton.make(initial: scrollHost.mode) { [weak self] mode in
             self?.scrollHost.setMode(mode)
         }

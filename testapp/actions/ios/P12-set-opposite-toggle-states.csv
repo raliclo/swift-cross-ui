@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12: put the two toggles into opposite states, and only that.
+#
+# This is #544's subject -- "toggle state is not visible" -- and it is the
+# claim worth pinning on iOS, because UIKitBackend had no button-style toggle
+# at all until 2026-09-02. `createToggle`, `updateToggle` and
+# `setState(ofToggle:)` were three fatalErrors, and P12 was one of the six apps
+# that died on the first of them within a second of launch.
+#
+# A `.system` UIButton renders `isSelected` identically to `isNormal`, so a
+# toggle that flips its state correctly and is left untouched otherwise looks
+# the same either way -- which reads as the toggle not working, and is the
+# harder failure to see because the state really did change. `updateAppearance`
+# tints the selected button, so this row's claim is about appearance, not about
+# the stored value.
+#
+# **One click, for the reason P8 and P13 record.** Every button in P12 rewrites
+# the status line, the status lines differ in length, and the page re-lays out
+# around them; a coordinate measured at rest is stale after the first click.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p12-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default).
+#
+# P12：把兩個 toggle 設成相反狀態，僅此而已。
+#
+# 這是 #544 的主題——「toggle 的狀態看不出來」——也是在 iOS 上值得釘住的主張，因為直到 2026-09-02
+# 為止，UIKitBackend 根本沒有按鈕樣式的 toggle。`createToggle`、`updateToggle` 與
+# `setState(ofToggle:)` 是三個 fatalError，而 P12 正是在啟動一秒內死在其中第一個上的六支 app 之一。
+#
+# `.system` 的 UIButton 對 `isSelected` 的算繪與 `isNormal` 完全相同，因此一個「狀態切換正確、其餘
+# 未經處理」的 toggle，兩種狀態看起來一樣——那讀起來像是 toggle 沒有作用，而且是更難察覺的一種
+# 失敗，因為狀態確實改變了。`updateAppearance` 會為被選取的按鈕上色，所以本列的主張是關於外觀，
+# 而非關於所儲存的值。
+#
+# **只點一次，理由與 P8、P13 所記錄的相同。** P12 的每一個按鈕都會改寫狀態列，而各狀態列的長度不同，
+# 整頁會隨之重新排版；在靜止狀態下量到的座標，在第一次點擊之後就已過期。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p12-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。
+click,128,634,client,left,,,"Set opposite -- the Forced on toggle must be tinted and the Forced off toggle plain; they must not look alike (VERIFIED: Forced on is filled blue with white text, Forced off is plain, status reads Opposite states)",ios
+sleep,,,,,,700000,let both toggles redraw,ios

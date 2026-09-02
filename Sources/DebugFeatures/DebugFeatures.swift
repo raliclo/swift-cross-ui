@@ -165,9 +165,50 @@ public enum DebugFeatures {
         return [
             "--debug                 print diagnostics to stderr",
             "-actionfile <path>      replay a CSV of synthesised input",
+            "-allow-rootscroll       offer the actualView/rwdView control (release builds)",
         ]
         #else
-        return []
+        return [
+            "-allow-rootscroll       offer the actualView/rwdView control",
+        ]
         #endif
     }
+
+    /// Whether the root view-mode control may be shown.
+    ///
+    /// UIKitBackend hosts every window's content in a scroll view so that
+    /// content wider than the phone can be reached, and offers a floating
+    /// button that switches between showing it at its natural size and scaling
+    /// it to fit. That control is a testing affordance, so a release build must
+    /// not float it over an application's content by default.
+    ///
+    /// **`-allow-rootscroll` is read in release builds, and deliberately so.**
+    /// Every other flag here goes through ``value(after:)`` or `isEnabled`,
+    /// both of which return nothing in a release build -- a diagnostic flag
+    /// that a shipped binary honours is a diagnostic flag an attacker honours.
+    /// This one is different in kind: it does not enable diagnostics, it makes
+    /// an existing piece of user interface visible, and the reason to have it
+    /// is that a release build is exactly where you cannot rebuild to see the
+    /// control. So the default flips with the build and the flag exists to
+    /// override it, rather than the flag being compiled away.
+    ///
+    /// 是否可顯示根視圖的模式控制項。
+    ///
+    /// UIKitBackend 把每個視窗的內容都放進一個捲動視圖中，讓比手機寬的內容得以觸及，並提供一個
+    /// 浮動按鈕，用以在「以自然尺寸顯示」與「縮放至塞得下」之間切換。該控制項是測試用的輔助功能，
+    /// 因此 release 建置不得預設把它浮在應用程式的內容之上。
+    ///
+    /// **`-allow-rootscroll` 在 release 建置中會被讀取，而這是刻意的。** 此處其他每一個旗標都經由
+    /// ``value(after:)`` 或 `isEnabled`，兩者在 release 建置中都不回傳任何東西——一個「已出貨的
+    /// 執行檔會採納的診斷旗標」，就是一個「攻擊者也會採納的診斷旗標」。這一個在性質上不同：它不
+    /// 開啟任何診斷功能，只是讓一個既有的使用者介面元件變為可見；而需要它的理由正是——release
+    /// 建置恰恰是你無法靠重新建置來看見該控制項的那種建置。因此預設值隨建置而翻轉，並由旗標來
+    /// 覆寫它，而不是把旗標本身編譯掉。
+    public static let allowsRootScrollControl: Bool = {
+        #if SCUI_DEBUG
+        return true
+        #else
+        return CommandLine.arguments.contains("-allow-rootscroll")
+        #endif
+    }()
 }

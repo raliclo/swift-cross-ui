@@ -268,6 +268,61 @@ fi
 package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"
 
+# Drop SwiftPM's cached manifests when SCUI_DEBUG changes value.
+#
+# swift-cross-ui's own Package.swift reads `env["SCUI_DEBUG"]` and defines the
+# `SCUI_DEBUG` compilation condition from it. SwiftPM caches the *result* of
+# evaluating a manifest, keyed on the manifest's contents and the toolchain --
+# not on the environment the manifest read. So flipping the variable between
+# two runs changes nothing: the second run reuses the first run's answer.
+#
+# Measured 2026-09-02. `zsh compile.zsh -ios P12` with SCUI_DEBUG unset, run
+# after a build with SCUI_DEBUG=1, produced a binary still containing the
+# strings that only exist inside `#if SCUI_DEBUG`, and the debug-only
+# actualView/rwdView control still appeared on screen. Nothing in the build
+# output suggested a stale anything -- it recompiled, it just recompiled with
+# the previous run's flags.
+#
+# The generated TestApps manifest cannot carry the signal, because it is
+# written to be byte-identical between runs on purpose (see the manifest
+# optimisation below); that is what keeps llbuild from re-planning the whole
+# package on every alternation, and it is worth keeping.
+#
+# So the value is stamped in the work directory instead, and a change clears
+# the manifest caches. Only the manifest caches: the build directory is left
+# alone, so the cost is one re-evaluation rather than a full rebuild.
+#
+# 當 SCUI_DEBUG 的值改變時，清掉 SwiftPM 快取的 manifest。
+#
+# swift-cross-ui 自己的 Package.swift 會讀取 `env["SCUI_DEBUG"]`，並據以定義 `SCUI_DEBUG`
+# 這個編譯條件。而 SwiftPM 快取的是「求值 manifest 的**結果**」，其鍵值取自 manifest 的內容
+# 與工具鏈——不包含 manifest 所讀取的環境。因此在兩次執行之間翻動該變數不會有任何效果：第二次
+# 執行會沿用第一次的答案。
+#
+# 2026-09-02 實測。在一次 SCUI_DEBUG=1 的建置之後，執行未設定 SCUI_DEBUG 的
+# `zsh compile.zsh -ios P12`，產出的執行檔仍含有那些只存在於 `#if SCUI_DEBUG` 之內的字串，
+# 而僅限 debug 的 actualView/rwdView 控制項也依然出現在畫面上。建置輸出中沒有任何跡象顯示有東西
+# 是陳舊的——它確實重新編譯了，只是用的是上一次執行的旗標。
+#
+# 這個訊號無法由產生出來的 TestApps manifest 攜帶，因為它是刻意被寫成「兩次執行之間逐位元組相同」
+# 的（見下方的 manifest 最佳化）；正是那一點讓 llbuild 不必在每次交替時重新規劃整個套件，而那是
+# 值得保留的。
+#
+# 因此改為把該值蓋印在 work 目錄中，一旦改變就清除 manifest 快取。只清 manifest 快取：建置目錄
+# 不予更動，因此代價是一次重新求值，而非一次完整重建。
+scui_debug_stamp="$compile_work_dir/.scui-debug-value"
+scui_debug_value="${SCUI_DEBUG:-}"
+mkdir -p "$compile_work_dir"
+if [ "$(cat "$scui_debug_stamp" 2>/dev/null || true)" != "$scui_debug_value" ]; then
+    rm -rf "$package_dir/.build/manifest.db" \
+        "$package_dir/.build/manifest.db-shm" \
+        "$package_dir/.build/manifest.db-wal" \
+        "$HOME/Library/Caches/org.swift.swiftpm/manifests" \
+        "$HOME/.swiftpm/cache/manifests" \
+        "$HOME/.cache/org.swift.swiftpm/manifests"
+    printf '%s' "$scui_debug_value" > "$scui_debug_stamp"
+fi
+
 windows_gtk_product=""
 gtk_build_flags=()
 debug_feature_flags=()
