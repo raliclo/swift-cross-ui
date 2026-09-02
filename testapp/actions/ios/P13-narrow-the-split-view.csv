@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13: narrow the NavigationSplitView frame, and only that.
+#
+# P13 had no iOS file because it did not run. It died inside `createSplitView`,
+# on a `precondition` that the idiom is not `.phone`, before drawing anything --
+# so the failure carried no app-level log line and the one-second screenshot
+# showed the home screen, exactly like a crash on launch for any other reason.
+# `PhoneSplitWidget` lays the two panes out side by side, and P13 now renders:
+# the sidebar reads "Sidebar / Has its own minimum" with the detail pane beside
+# it, which is the arrangement every other backend produces.
+#
+# **One click, for the reason P8 records.** The first version of this file also
+# pressed "More duplicates (3)" first. That worked -- the status line became
+# "Now 4 identical elements..." -- and the longer status text re-laid the page
+# out, so the coordinate measured for "Narrower" at rest addressed blank space
+# by the time it ran. Any row after a layout-changing click is measured against
+# a layout that no longer exists.
+#
+# "Show unidentified list (may crash)" is the #415 repro and is meant to crash,
+# so it is not in any file. "Wider" and "Reverse" sit off the right edge at this
+# width and were not measured.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p13-after-splitfix.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default) -- nothing is scaled, so these
+# are the coordinates the app itself laid out at.
+#
+# P13：只縮窄 NavigationSplitView 的框架，僅此而已。
+#
+# P13 先前沒有 iOS 動作檔，因為它根本跑不起來。它死在 `createSplitView` 內一個「idiom 不是
+# `.phone`」的 `precondition`，發生在畫出任何東西之前——因此該次失敗沒有任何 app 層級的 log，
+# 而一秒時的螢幕截圖顯示的是主畫面，與任何其他原因的啟動崩潰看起來一模一樣。`PhoneSplitWidget`
+# 把兩個窗格並排放置，P13 現在能夠算繪：sidebar 顯示「Sidebar / Has its own minimum」，detail
+# 窗格在其旁邊，那正是其他每一個 backend 所產生的排列。
+#
+# **只點一次，理由與 P8 所記錄的相同。** 本檔的第一版還會先按「More duplicates (3)」。那一下確實
+# 成功了——狀態列變成「Now 4 identical elements...」——而較長的狀態文字使整頁重新排版，於是在靜止
+# 狀態下為「Narrower」量到的座標，執行時定址到的是空白處。任何排在「會改變版面的點擊」之後的列，
+# 所依據的都是一個已不存在的版面。
+#
+# 「Show unidentified list (may crash)」是 #415 的重現路徑，本就意在崩潰，因此不放進任何檔案。
+# 「Wider」與「Reverse」在此寬度下位於右緣之外，未經量測。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p13-after-splitfix.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）——沒有任何東西被縮放，因此這些就是 app 自己排版時的座標。
+click,299,526,client,left,,,"Narrower (400) -- the label must become (340) and the split view must re-lay out its two panes at the new width (VERIFIED: status reads 340 px wide and the sidebar pane moved with the frame)",ios
+sleep,,,,,,700000,let the split view settle,ios

@@ -66,7 +66,26 @@ shift
 case "$target" in
     p*) target="${target:u}" ;;
 esac
-if [[ "$target" != P<-> ]]; then
+# Accepts the variant names too, not just P<digits>.
+#
+# `P<->` is a zsh number-range glob, so it matched P0 through P41 and rejected
+# P15-DARK, P17-DOE and P6-v2 -- three apps that exist in the tree, build, and
+# have nothing wrong with them. They could never be replayed by the
+# repository's own tooling, which is a tooling limit reading as an app limit.
+#
+# The check is now against the tree: if `testapp/<name>.swift` exists, the name
+# is a test target. That cannot drift from the app list, which the glob did the
+# moment a variant was added.
+#
+# 也接受變體名稱，而不只是 P<數字>。
+#
+# `P<->` 是 zsh 的數字範圍 glob，因此它匹配 P0 到 P41，卻拒絕了 P15-DARK、P17-DOE 與 P6-v2
+# ——那是樹中確實存在、建得起來、也沒有任何問題的三支 app。它們永遠無法被本儲存庫自己的工具重放，
+# 而那是一個「讀起來像 app 限制」的工具限制。
+#
+# 現在改為對照樹本身檢查：若 `testapp/<name>.swift` 存在，該名稱即是一個測試目標。這樣就不會與
+# app 清單產生漂移——而每當有人新增一個變體，那個 glob 就會立刻漂移。
+if [ ! -f "$script_dir/$target.swift" ]; then
     printf 'Invalid test target: %s\n' "$target" >&2
     usage >&2
     exit 64

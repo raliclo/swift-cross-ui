@@ -107,14 +107,44 @@ import UIKit
     }
 
     extension UIKitBackend {
+        /// `UISplitViewController` where it can show two columns, and
+        /// ``PhoneSplitWidget`` where it cannot.
+        ///
+        /// This was a `precondition` that the idiom is not `.phone`, with the
+        /// message "NavigationSplitView is currently unsupported on iPhone and
+        /// iPod touch." Measured on the simulator 2026-09-02: P13 died within a
+        /// second of launch on every run, before drawing anything, and the
+        /// crash carried no app-level log line -- the trap fires inside
+        /// `createSplitView`, so nothing the app itself prints ever runs.
+        ///
+        /// A compact-width `UISplitViewController` collapses to a navigation
+        /// stack no matter what `preferredDisplayMode` asks for, so making it
+        /// show two columns on a phone is not available. Laying the two panes
+        /// out side by side is, and that is what the layout system already
+        /// expects: it asks for ``sidebarWidth(ofSplitView:)`` and gives the
+        /// trailing pane the rest.
+        ///
+        /// 能顯示兩欄的地方使用 `UISplitViewController`，不能的地方使用 ``PhoneSplitWidget``。
+        ///
+        /// 此處原本是一個「idiom 不是 `.phone`」的 `precondition`，訊息為「NavigationSplitView is
+        /// currently unsupported on iPhone and iPod touch.」。2026-09-02 於模擬器上實測：P13 每一次
+        /// 都在啟動一秒內死亡、什麼都還沒畫出來，而該次崩潰沒有任何 app 層級的 log——trap 發生在
+        /// `createSplitView` 之內，因此 app 自己要印的東西根本沒機會執行。
+        ///
+        /// 緊湊寬度下的 `UISplitViewController` 無論 `preferredDisplayMode` 要求什麼都會收合成一個
+        /// navigation stack，所以「讓它在手機上顯示兩欄」這條路並不存在。「把兩個窗格並排放置」則存在，
+        /// 而那正是版面系統原本就預期的做法：它詢問 ``sidebarWidth(ofSplitView:)``，並把其餘寬度交給
+        /// trailing 窗格。
         public func createSplitView(
             leadingChild: any WidgetProtocol,
             trailingChild: any WidgetProtocol
         ) -> any WidgetProtocol {
-            precondition(
-                UIDevice.current.userInterfaceIdiom != .phone,
-                "NavigationSplitView is currently unsupported on iPhone and iPod touch."
-            )
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                return PhoneSplitWidget(
+                    sidebarWidget: leadingChild,
+                    mainWidget: trailingChild
+                )
+            }
 
             return SplitWidget(sidebarWidget: leadingChild, mainWidget: trailingChild)
         }
@@ -123,11 +153,18 @@ import UIKit
             ofSplitView splitView: Widget,
             to action: @escaping () -> Void
         ) {
+            if let phone = splitView as? PhoneSplitWidget {
+                phone.resizeHandler = action
+                return
+            }
             let splitWidget = splitView as! SplitWidget
             splitWidget.resizeHandler = action
         }
 
         public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
+            if let phone = splitView as? PhoneSplitWidget {
+                return phone.resolvedSidebarWidth
+            }
             let splitWidget = splitView as! SplitWidget
             return Int(splitWidget.child.primaryColumnWidth.rounded(.toNearestOrEven))
         }
@@ -137,6 +174,10 @@ import UIKit
             minimum minimumWidth: Int,
             maximum maximumWidth: Int
         ) {
+            if let phone = splitView as? PhoneSplitWidget {
+                phone.setSidebarWidthBounds(minimum: minimumWidth, maximum: maximumWidth)
+                return
+            }
             let splitWidget = splitView as! SplitWidget
             splitWidget.child.minimumPrimaryColumnWidth = CGFloat(minimumWidth)
             splitWidget.child.maximumPrimaryColumnWidth = CGFloat(maximumWidth)
@@ -148,18 +189,18 @@ import UIKit
             leadingChild: Widget,
             trailingChild: Widget
         ) -> Widget {
-            fatalError("\(Self.self): \(#function) not implemented")
+            PhoneSplitWidget(sidebarWidget: leadingChild, mainWidget: trailingChild)
         }
 
         public func setResizeHandler(
             ofSplitView splitView: Widget,
             to action: @escaping () -> Void
         ) {
-            fatalError("\(Self.self): \(#function) not implemented")
+            (splitView as! PhoneSplitWidget).resizeHandler = action
         }
 
         public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
-            fatalError("\(Self.self): \(#function) not implemented")
+            (splitView as! PhoneSplitWidget).resolvedSidebarWidth
         }
 
         public func setSidebarWidthBounds(
@@ -167,7 +208,10 @@ import UIKit
             minimum minimumWidth: Int,
             maximum maximumWidth: Int
         ) {
-            fatalError("\(Self.self): \(#function) not implemented")
+            (splitView as! PhoneSplitWidget).setSidebarWidthBounds(
+                minimum: minimumWidth,
+                maximum: maximumWidth
+            )
         }
     }
 #endif
