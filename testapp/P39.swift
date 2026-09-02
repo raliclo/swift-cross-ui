@@ -59,7 +59,17 @@ struct P39VisualEffectsApp: App {
                 P39RootView()
             }
         }
-        .defaultSize(width: 860, height: 620)
+        // Tall enough for every row. The grid is three columns, so the tenth
+        // sample started a fourth row that fell outside the old 620 and was
+        // never laid out -- and a cell that is never laid out never applies its
+        // effect, so `hueRotation 120` simply vanished from the backend's log
+        // while the nine visible cells all looked correct. Nothing reported it:
+        // the window was not clipped, it was just short.
+        // 高度足以容納每一列。此格線為三欄，因此第十個樣本開啟了第四列，而它落在原本的 620
+        // 之外、從未被配置——未被配置的格子不會套用它的效果，於是 `hueRotation 120` 就這樣
+        // 從 backend 的記錄中消失，而可見的九格看起來全都正確。沒有任何東西回報這件事：
+        // 視窗並沒有被裁切，它只是不夠高。
+        .defaultSize(width: 860, height: 780)
     }
 }
 
@@ -69,12 +79,40 @@ struct P39RootView: View {
         ("opacity 0.35", VisualEffect(opacity: 0.35)),
         ("blur 3", VisualEffect(blurRadius: 3)),
         ("saturation 0", VisualEffect(saturation: 0)),
+        // The midpoint, and the reason it is here: 0 and 2.5 alone leave the
+        // whole range between them unguarded. WinUIBackend used to hand
+        // saturation to Win2D's SaturationEffect, whose scale is its own and
+        // was never checked against SwiftCrossUI's -- where 1 means unchanged.
+        // A wrong midpoint would have drawn something plausible in every cell
+        // this app had, so nothing would have reported it. Read this one as
+        // roughly halfway between the grey cell and the control.
+        // 中間點，而它存在的理由是：只有 0 與 2.5 時，兩者之間的整段區間無人看守。
+        // WinUIBackend 過去把飽和度交給 Win2D 的 SaturationEffect，那個效果自有其刻度，
+        // 而它與 SwiftCrossUI 的刻度（1 表示不變）是否一致從未被檢查過。中段若對應錯誤，
+        // 在這支 app 原有的每一格裡都會畫出看似合理的結果，因此不會有任何東西回報它。
+        // 請把這一格讀成介於灰色那格與對照組之間、大約一半的位置。
+        ("saturation 0.5", VisualEffect(saturation: 0.5)),
         ("saturation 2.5", VisualEffect(saturation: 2.5)),
         ("brightness 0.4", VisualEffect(brightness: 0.4)),
         ("contrast 0.3", VisualEffect(contrast: 0.3)),
         ("grayscale 1", VisualEffect(grayscale: 1)),
         ("hueRotation 120", VisualEffect(hueRotation: .degrees(120))),
     ]
+
+    /// The samples in rows of three, however many there are.
+    ///
+    /// Keyed by first label so `ForEach` has a stable identity; the index alone
+    /// would do, but a label makes a diagnostic readable.
+    /// 將樣本每三個一列，不論總共有幾個。
+    ///
+    /// 以第一個標籤作為鍵，使 `ForEach` 具有穩定的識別；僅用索引也可行，但標籤能讓診斷訊息
+    /// 易於閱讀。
+    static var rows: [(String, [(String, VisualEffect)])] {
+        stride(from: 0, to: samples.count, by: 3).map { start in
+            let row = Array(samples[start..<min(start + 3, samples.count)])
+            return (row[0].0, row)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -85,10 +123,23 @@ struct P39RootView: View {
 
             Text("Compare every cell against the first. Identical to it means the effect did nothing.")
 
+            // Rows derived from the sample count, not three hard-coded slices.
+            // It used to read samples[0..<3], [3..<6], [6..<9], so adding a
+            // tenth sample dropped it: no error, no warning, no gap on screen
+            // -- the cell simply was not there, and because an un-laid-out cell
+            // never applies its effect, the backend's log lost an entry too.
+            // The window was made taller first, on the theory that the row had
+            // fallen outside it; the extra height changed nothing and only the
+            // count in the diagnostic showed the run was still short.
+            // 各列由樣本數推導，而非三個寫死的切片。
+            // 原本寫的是 samples[0..<3]、[3..<6]、[6..<9]，因此加入第十個樣本時它被丟掉了：
+            // 沒有錯誤、沒有警告、畫面上也沒有缺口——那一格根本不存在，而由於未被配置的格子
+            // 不會套用效果，backend 的記錄也少了一筆。當初曾先把視窗加高，以為那一列落到了
+            // 視窗之外；加高之後毫無變化，只有診斷裡的計數顯示這一輪仍然不完整。
             VStack(alignment: .leading, spacing: 10) {
-                P39Row(samples: Array(Self.samples[0..<3]))
-                P39Row(samples: Array(Self.samples[3..<6]))
-                P39Row(samples: Array(Self.samples[6..<9]))
+                ForEach(Self.rows, id: \.0) { row in
+                    P39Row(samples: row.1)
+                }
             }
         }
         .padding(18)

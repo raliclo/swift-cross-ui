@@ -1356,7 +1356,11 @@ SwiftCrossUI 完全沒有動畫層；目前只能測專案中已存在的 effect
 
 沒有 `Animation`、`withAnimation`、`.animation(_:value:)`、`.transition` 或 `Namespace`，也沒有
 任何相應的 backend 協定。visual effects 與 geometric effects 現在已有部分覆蓋，但 backend parity
-仍不完整：GtkBackend 會 render blur 與 color filters，WinUIBackend 目前只套用 opacity。
+仍不完整：GtkBackend 會 render blur 與 color filters，~~WinUIBackend 目前只套用 opacity~~——
+**2026-09-02 起已被取代**（保留不刪，讓過時主張留在紀錄裡）：WinUIBackend 現已透過 Win2D
+effect graph render 全部七項，2026-09-02 驗證為 `applied=8 failed=0 total=8`（重跑指令：
+`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀
+`winui-visual-effects-debug.log`）。
 `.shadow`、`.zIndex`、`.clipShape` 與 `.mask` 仍不存在。SwiftUI 中每一次狀態變更都隱含可動畫化，
 因此 animation 仍是本工具組中最大的行為分歧。
 
@@ -1370,9 +1374,16 @@ zsh testapp/test.zsh P30 --both
 ```
 
 app 會顯示可編譯的 visual/geometric effect 範例，並把缺少的 animation API 以文字列在畫面上。
-以 `--debug` 執行時會寫入 `p30-debug-events.log`。目前 WinUI 支援是 partial：opacity 已實作；
+以 `--debug` 執行時會寫入 `p30-debug-events.log`。~~目前 WinUI 支援是 partial：opacity 已實作；
 blur、grayscale、saturation、brightness、contrast、hue rotation 已確認仍是 no-op，直到 backend
-建立真正的 Composition / Win2D effect graph。
+建立真正的 Composition / Win2D effect graph。~~
+**2026-09-02 起已被取代：** 上面劃掉的那句刻意保留而非刪除，因為它在當時對該版 binary 是成立的，
+留著才看得出「看似合理但如今已為假」的主張長什麼樣子。WinUI 現已七項全部實作：
+`WinUIBackend+VisualEffects.swift` 建立了真正的 Win2D effect graph（`Win2DEffectGraph`），
+`Microsoft.Graphics.Canvas.dll` 也隨 `testapp/output/` 一起出貨。2026-09-02 驗證：
+`applied=8 failed=0 total=8`——此數字的重跑指令為
+`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀
+`winui-visual-effects-debug.log`。
 
 測試步驟：
 
@@ -1720,7 +1731,8 @@ zsh testapp/test.zsh P39 --both
 - 兩個平台都應 render 出可見 samples。
 - Backend-specific theme 差異可接受。
 - GTK 上 blur 與色彩效果應明顯不同於 control。
-- WinUI 上 opacity 應不同於 control；blur、grayscale、saturation、brightness、contrast、hue rotation 目前預期仍為 no-op，需保留文件紀錄直到實作完成。
+- ~~WinUI 上 opacity 應不同於 control；blur、grayscale、saturation、brightness、contrast、hue rotation 目前預期仍為 no-op，需保留文件紀錄直到實作完成。~~
+  **2026-09-02 起已被取代**（保留不刪，讓這條過時主張的樣態留在紀錄裡）：WinUI 上七項效果都應明顯不同於 control，與 GTK 相同。2026-09-02 驗證為 `applied=8 failed=0 total=8`（重跑指令：`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`），並以 wincap 截圖做像素層級確認：saturation 0、0.5、control（=1）、2.5 各 cell 的 mean HSV saturation 依序為 0.000／0.515／0.818／0.992，是一條單調遞增的階梯。
 
 ## P40：Geometric Effects（Linux 與 Windows）
 

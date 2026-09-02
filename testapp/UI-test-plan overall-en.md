@@ -1275,8 +1275,13 @@ the effect modifiers currently available in the project can be exercised.
 There is no `Animation`, `withAnimation`, `.animation(_:value:)`, `.transition`
 or `Namespace`, and no backend protocol for any of them. Visual effects and
 geometric effects now have partial coverage, but backend parity is incomplete:
-GtkBackend renders blur and colour filters, while WinUIBackend currently applies
-opacity only. `.shadow`, `.zIndex`, `.clipShape` and `.mask` are still absent.
+GtkBackend renders blur and colour filters, while ~~WinUIBackend currently
+applies opacity only~~ — **superseded 2026-09-02** (kept, not deleted, so the
+stale claim stays on record): WinUIBackend now renders all seven through a Win2D
+effect graph, verified 2026-09-02 with `applied=8 failed=0 total=8`
+(`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`, then read
+`winui-visual-effects-debug.log`). `.shadow`, `.zIndex`, `.clipShape` and
+`.mask` are still absent.
 Every SwiftUI state change is implicitly animatable, so animation remains the
 widest behavioural divergence in the toolkit.
 
@@ -1292,9 +1297,18 @@ zsh testapp/test.zsh P30 --both
 
 The app shows compileable visual/geometric effect samples and keeps the missing
 animation APIs visible as text. It also writes `p30-debug-events.log` when run
-with `--debug`. Current WinUI support is partial: opacity is implemented, while
+with `--debug`. ~~Current WinUI support is partial: opacity is implemented, while
 blur, grayscale, saturation, brightness, contrast and hue rotation are confirmed
-no-ops until the backend builds a real Composition / Win2D effect graph.
+no-ops until the backend builds a real Composition / Win2D effect graph.~~
+**Superseded 2026-09-02:** the struck-through sentence is kept rather than
+deleted, because it was true of the binary of its date and shows what a
+plausible-but-now-false claim looks like. WinUI now implements all seven:
+`WinUIBackend+VisualEffects.swift` builds a real Win2D effect graph
+(`Win2DEffectGraph`) and `Microsoft.Graphics.Canvas.dll` ships in
+`testapp/output/`. Verified 2026-09-02: `applied=8 failed=0 total=8` —
+regenerate that number with
+`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`, then read
+`winui-visual-effects-debug.log`.
 
 Test steps:
 
@@ -1744,9 +1758,16 @@ Expected results:
 - The app should render visible samples on both platforms.
 - Backend-specific theme differences are acceptable.
 - On GTK, blur and colour effects should visibly differ from the control.
-- On WinUI, opacity should differ from the control; blur, grayscale,
+- ~~On WinUI, opacity should differ from the control; blur, grayscale,
   saturation, brightness, contrast and hue rotation are currently expected
-  no-ops and should remain documented until implemented.
+  no-ops and should remain documented until implemented.~~
+  **Superseded 2026-09-02** (kept, not deleted, so the shape of the stale claim
+  stays on record): on WinUI, all seven should visibly differ from the control,
+  same as GTK. Verified 2026-09-02 with `applied=8 failed=0 total=8`
+  (`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`, then read
+  `winui-visual-effects-debug.log`), and at pixel level from a wincap
+  screenshot: mean HSV saturation per cell reads 0.000 / 0.515 / 0.818 /
+  0.992 for saturation 0, 0.5, control (=1) and 2.5 — a monotonic ladder.
 
 ## P40: Geometric Effects (Linux and Windows)
 

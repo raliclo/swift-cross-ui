@@ -1001,6 +1001,40 @@ would abort every app calling `.opacity(_:)` on the default Windows backend
 rather than render it un-blurred. The rest needs a `Microsoft.UI.Composition`
 effect graph.
 
+**Superseded 2026-09-02: WinUIBackend now does all seven.** The paragraph above
+is kept, not deleted, because it was a correct reading of the binary of its date
+and is what a plausible-but-now-false verification looks like; the code changed,
+the measurement did not. `WinUIBackend+VisualEffects.swift` builds a real Win2D
+effect graph -- `Win2DEffectGraph` -- with `GaussianBlurEffect` for blur,
+`ColorMatrixEffect` for saturation and brightness, `ContrastEffect`,
+`GrayscaleEffect` and `HueRotationEffect`; opacity stays a `needsOnlyOpacity`
+fast path that skips the graph entirely. `Microsoft.Graphics.Canvas.dll` ships
+in `testapp/output/`. It is Win2D, not the `Microsoft.UI.Composition` graph the
+old paragraph predicted. Verified 2026-09-02: `applied=8 failed=0 total=8`,
+regenerate with `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1
+./P39-WinUI.exe` and read `winui-visual-effects-debug.log`. Verified 2026-09-02
+at pixel level from a wincap screenshot, mean HSV saturation per cell:
+saturation 0 → 0.000, saturation 0.5 → 0.515, control (=1) → 0.818,
+saturation 2.5 → 0.992 — a monotonic ladder, which the earlier all-zeros result
+could not have produced. One thing WAS genuinely broken until 2026-09-02:
+`saturation 2.5` failed with `0x80070057` `E_INVALIDARG`, because Win2D's
+`SaturationEffect` cannot oversaturate; it was switched to `ColorMatrixEffect`.
+
+**2026-09-02 起已被取代：WinUIBackend 現在七項全部實作。** 上一段刻意保留而不刪除，因為它在當時
+確實是對該版 binary 的正確判讀，正是「看似合理但如今已為假」的查證長什麼樣子；改變的是程式碼，
+不是量測方法。`WinUIBackend+VisualEffects.swift` 已建立真正的 Win2D effect graph——
+`Win2DEffectGraph`——blur 用 `GaussianBlurEffect`，saturation 與 brightness 用
+`ColorMatrixEffect`，另有 `ContrastEffect`、`GrayscaleEffect`、`HueRotationEffect`；opacity 則保留
+為 `needsOnlyOpacity` 快速路徑，完全跳過 effect graph。`Microsoft.Graphics.Canvas.dll` 隨
+`testapp/output/` 一起出貨。用的是 Win2D，而非舊段落所預測的 `Microsoft.UI.Composition` graph。
+2026-09-02 驗證：`applied=8 failed=0 total=8`，重跑指令為
+`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀
+`winui-visual-effects-debug.log`。2026-09-02 亦以 wincap 截圖做像素層級驗證，各 cell 的
+mean HSV saturation：saturation 0 → 0.000、saturation 0.5 → 0.515、control（=1）→ 0.818、
+saturation 2.5 → 0.992——一條單調遞增的階梯，先前那組全為 0 的結果不可能產生它。在 2026-09-02
+之前確實有一項是真的壞的：`saturation 2.5` 會以 `0x80070057` `E_INVALIDARG` 失敗，因為 Win2D 的
+`SaturationEffect` 無法過飽和；已改用 `ColorMatrixEffect`。
+
 `.border(_:width:)` and `.hidden()` are done too, 2026-08-27, and needed **no
 backend protocol at all**. A border is an overlaid stroked `Rectangle`, inset by
 half the stroke width so the line falls inside the bounds rather than half

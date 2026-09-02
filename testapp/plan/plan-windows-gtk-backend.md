@@ -29,6 +29,22 @@ Size is the more honest of the two numbers. The 2.7x on incremental builds is
 real but survivable; a binary that is 3.3x larger in release and 6.5x in debug
 is WinAppSDK's static content, and no build-configuration change reaches it.
 
+> **Superseded 2026-09-02.** The blocker below is gone. `testapp/output/` holds
+> **46** `*-gtk4.exe` alongside 46 `*-WinUI.exe`, and every one of them has a
+> measured size in `matrix_coverage/executable-size.csv2`. Count them with:
+> `ls -1 testapp/output/*-gtk4.exe | wc -l`
+>
+> The original text is kept below rather than deleted. It is a good example of
+> the claim that ages worst — "X has never happened" — because making X happen
+> does not send anyone back to the sentence that said it never had. It stood
+> here for weeks after it stopped being true.
+>
+> **2026-09-02 起已被取代。** 下方所述的阻礙已不存在：`testapp/output/` 中有 **46** 個
+> `*-gtk4.exe`，與 46 個 `*-WinUI.exe` 並存，且每一個在
+> `matrix_coverage/executable-size.csv2` 中都有實測大小。原文保留而不刪除——它正是最容易
+> 過期的那類敘述（「X 從未發生」），因為讓 X 發生的人不會回頭修改那句宣稱它從未發生的話。
+> 這句話在不再為真之後，還在此處立了數週。
+
 **The blocker this decision does not remove.** GtkBackend's *library* compiles
 on Windows, but no `Pn.exe` has ever linked against it and the `-gtk4` work
 directory has produced zero binaries. Until that link succeeds, every runnable
@@ -116,6 +132,14 @@ baseline」所要求的。該 backend 的原始碼不動，且仍可建置。
 **決定的依據**：編譯時間是最初的抱怨，而檔案大小是決定當日新增的證據（如上表）。大小是
 兩者中較誠實的數字。增量建置的 2.7 倍雖屬實但尚可忍受；release 下大 3.3 倍、debug 下大
 6.5 倍的執行檔則是 WinAppSDK 的靜態內容，任何建置組態的調整都碰不到它。
+
+> **2026-09-02 起已被取代。** 下方所述的阻擋點已不存在：`testapp/output/` 中有 **46** 個
+> `*-gtk4.exe`，與 46 個 `*-WinUI.exe` 並存，且每一個在
+> `matrix_coverage/executable-size.csv2` 中都有實測大小。計數方式：
+> `ls -1 testapp/output/*-gtk4.exe | wc -l`
+>
+> 原文保留而不刪除。它正是最容易過期的那一類敘述——「X 從未發生」——因為讓 X 發生的人，
+> 不會回頭去改那句宣稱它從未發生的話。
 
 **本決定並未解除的阻擋點**：GtkBackend 的*函式庫*可在 Windows 編譯，但從未有任何
 `Pn.exe` 成功連結它——最後一次嘗試以 `missing required modules: 'CGtk', 'GtkCHelpers'`
@@ -658,6 +682,21 @@ GL 能自行實現的機器上則不會。
 都是靠截圖驗證的。一次無法被檢查的執行，不算執行。DComp 曾短暫是預設（門檻寫成 `>= 1`），
 一次打斷了所有 GTK app 的視窗截圖；`>= 2` 就是修正。
 
+> **2026-09-02 訂正——這段話有一半已經不成立，而另一半仍然成立，兩者必須分開讀。**
+>
+> **已被推翻**：「經 DComp 合成的視窗無法以視窗方式截圖」與「`screenshot.zsh -w` 會退回
+> 擷取桌面」。`-w` 現在只使用 `PrintWindow(PW_RENDERFULLCONTENT)`，且**失敗即失敗、絕不退回
+> 桌面**（見 `testapp/screenshot.zsh` 檔頭）。無法擷取的是 BitBlt，不是視窗。
+>
+> **仍然成立**：`>= 2` 這個門檻本身。理由已不再是「擷取不到」，而是 DComp 在此仍屬選用路徑，
+> 不應成為所有 GTK app 的預設。結論沒變，但它的依據換了——而一個依據已經消失的結論，
+> 下一次就該重新檢視，不該再被引用為既成事實。
+>
+> **Half of the paragraph above is refuted and half still stands; read them
+> separately.** Window capture of a DComp window works via
+> `PrintWindow(PW_RENDERFULLCONTENT)`, and `-w` never falls back to the desktop.
+> The `>= 2` threshold survives, but for a different reason than the one given.
+
 **能畫出變換且不出現 hotpink 的平台是 WSL，而且它預設就已經是了。** 2026-08-29 實測：
 
 | 平台 | 預設繪製器 | transform node | P40 的 hotpink |
@@ -709,6 +748,25 @@ Vulkan 的要求，與它對 OpenGL 的要求完全相同：
 
 MSYS2 有那個繪製器，卻沒有能啟用其所需合成方式的開關，因此換過去會失去 `-GPU 2` 這條退路，
 而且一無所得。維持 gvsbuild。
+
+> **2026-09-02 起已被取代，且此段的「定案」二字本身就是教訓。** 下方宣稱「畫得出變換」與
+> 「視窗可被擷取」兩者互斥。**互斥的部分已被推翻**：本檔英文段落（見「But the capture is not
+> lost, only the method is wrong」一節）記錄了以
+> `PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` 成功擷取 DComp 視窗，而
+> `testapp/screenshot.zsh` 的 `-w` 現在只走 wincap 的這條路徑，失敗即失敗、不會退回桌面。
+>
+> 真正互斥的不是那兩件事，而是 **BitBlt 與 `WS_EX_NOREDIRECTIONBITMAP`**——那是一個關於
+> *方法*的限制，卻被寫成關於*能力*的結論。把「我目前的工具做不到」寫成「這件事做不到」，
+> 是本頁最貴的一次措辭失誤：它帶著「定案」二字，因此後續沒有人再去試。
+>
+> 保留原文而不刪除，正是為了留下這個形狀。
+>
+> **Superseded 2026-09-02, and the word 定案 ("settled") is itself the lesson.** The
+> exclusivity claimed below was refuted: `PrintWindow(PW_RENDERFULLCONTENT)`
+> captures a DComp window, as this same file records in English. What is actually
+> exclusive is **BitBlt and `WS_EX_NOREDIRECTIONBITMAP`** — a limit of the
+> *method*, written up as a limit of the *capability*. Declaring it settled is
+> why nobody tried again.
 
 **這件事因此定案。** 在 Windows 的 GTK 4 上，「畫得出變換」與「視窗可被擷取」兩者互斥，而且
 換任何 GTK build 都改變不了——那是 GDK Win32 backend 的性質，不是某個 build 選項的後果。

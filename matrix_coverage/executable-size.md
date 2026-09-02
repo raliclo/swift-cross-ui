@@ -53,21 +53,41 @@ survive the trip, and the failure is silent output rather than an error.
 ## Averages
 
 ```zsh
-csv2 -r -i matrix_coverage/executable-size.csv2 -tail 45 | awk -F, '
+csv2 -r -i matrix_coverage/executable-size.csv2 | awk -F, '
   {for(i=2;i<=4;i++) if($i ~ /^[0-9]+$/) {s[i]+=$i; n[i]++}}
   END{split("_ windows_gtk4 windows_winui linux_gtk4",L," ");
       for(i=2;i<=4;i++) printf "%-14s n=%-3d avg=%7.1f MB\n", L[i], n[i], s[i]/n[i]/1048576}'
 ```
 
-The `$i ~ /^[0-9]+$/` guard is load-bearing: without it `n/a` sums as **0** and
-still counts toward `n`, which drags every average down silently. Measured
-2026-09-02:
+Two things about that command, both learned by getting them wrong.
+
+**No `-tail`.** `csv2 -r` already emits data rows only, so an earlier version
+of this page piping through `-tail 45` was both unnecessary and lossy: the file
+has 47 rows, so it silently dropped **P0 and P1** and reported `n = 44/44/45`.
+The averages it printed were 53.9 / 169.7 / 52.7 MB — *identical to one decimal
+place* with those two rows restored, because the values are so uniform. The
+mistake changed the sample and not the answer, which is why nothing looked
+wrong. Report `n` next to any average for exactly this reason: it is the only
+column that moved.
+
+**The `$i ~ /^[0-9]+$/` guard is load-bearing.** Without it `n/a` sums as **0**
+and still counts toward `n`, dragging every average down silently.
+
+關於那道命令的兩件事，都是做錯之後才學到的。
+
+**不要用 `-tail`。** `csv2 -r` 本來就只輸出資料列，因此本頁較早的版本再接一段 `-tail 45`
+既多餘又有損：檔案有 47 列，於是它靜默丟掉了 **P0 與 P1**，並報出 `n = 44/44/45`。它印出的
+平均值是 53.9 / 169.7 / 52.7 MB——把那兩列補回去之後**到小數第一位完全相同**，因為各值太過
+一致。這個錯誤改變的是樣本而非答案，所以看不出任何異狀。請在任何平均值旁邊一併報出 `n`，
+理由正是如此：它是唯一會動的那一欄。
+
+Measured 2026-09-02:
 
 | Column | n | Average | Range | Empty | vs GTK4 |
 |---|---:|---:|---|---:|---:|
-| Windows GTK4 | 44 | 53.9 MB | 53.9–54.2 | 0 | 1.00x |
-| Windows WinUI | 44 | 169.7 MB | 169.6–170.3 | 0 | **3.15x** |
-| Linux GTK4 | 45 | 52.7 MB | 52.0–53.3 | 0 | 0.98x |
+| Windows GTK4 | 46 | 53.9 MB | 53.9–54.2 | 0 | 1.00x |
+| Windows WinUI | 46 | 169.7 MB | 169.6–170.3 | 0 | **3.15x** |
+| Linux GTK4 | 47 | 52.7 MB | 52.0–53.3 | 0 | 0.98x |
 
 Complete as of 2026-09-02: every app that can be built on a platform has a
 number there. The two `n/a` cells are the only non-numbers, and `macos_appkit`
@@ -76,8 +96,8 @@ is empty throughout because it needs a Mac.
 2026-09-02 起本表已完整：每一支能在該平台建置的 app 都有數字。唯二的非數字是那兩個 `n/a`，
 而 `macos_appkit` 整欄為空是因為它需要一台 Mac。
 
-WinUI costs **115.8 MB more per app**, and the spread across all 43 is only
-0.3 MB — so that is not application code, it is the statically linked WinRT/UWP
+WinUI costs **115.8 MB more per app**, and the spread across all 46 is only
+0.7 MB — so that is not application code, it is the statically linked WinRT/UWP
 projection, paid once by every app. Windows GTK4 sits 1.2 MB (2.3%) above Linux
 GTK4, which puts the whole 3.15x on the backend choice rather than the OS.
 
@@ -99,14 +119,26 @@ Neither ever means zero.
 兩者不同，而這個區別正是重點：**`n/a`** 表示該組合按設計就不存在，沒有東西可建；**空白**表示它應該
 存在卻沒有——那是真實的缺口，`note` 欄記錄已知的部分。兩者都不代表零。
 
-| App | Gap | Reason |
+**Current status.** Only two cells are `n/a`, and no cell is empty except the
+whole `macos_appkit` column:
+
+| App | Cell | Why |
 |---|---|---|
-| `P6` | windows_gtk4 | imports the WinUI products under `#if os(Windows)`, which `-gtk4` removes; the guard stays true because the flag changes products, not the OS |
-| `P6` | windows_winui | the link ran out of disk on 2026-09-02 — rebuild it |
-| `P6-v2` | windows_winui | pure GTK app, no WinUI counterpart exists |
-| `P7` `P8` `P9` | windows_gtk4 | reason **not established** — see below |
-| `P28` | linux_gtk4 | `P28.swift` is present in the WSL checkout, byte-identical to the Windows copy; the Linux sweep simply skipped it |
-| every app | macos_appkit | needs a Mac; out of scope on this machine |
+| `P6` | windows_gtk4 | `n/a` — imports the WinUI products under `#if os(Windows)`, which `-gtk4` removes; the guard stays true because the flag changes products, not the OS |
+| `P6-v2` | windows_winui | `n/a` — pure GTK app, no WinUI counterpart exists |
+| every app | macos_appkit | empty — needs a Mac; out of scope on this machine |
+
+**Resolved 2026-09-02**, kept because what the gaps turned out to be is worth
+more than the fact they are closed:
+
+| App | Cell | Was | Turned out to be |
+|---|---|---|---|
+| `P6` | windows_winui | empty | The link had died with `LLVM ERROR: IO failure on output stream: no space on device`, which reads as a compiler crash. The disk was full at 336 MB free. Rebuilt with 7.6 GB free: 178,624,000 bytes, no errors |
+| `P7` `P8` `P9` | windows_gtk4 | empty | Nothing at all — the earlier sweep had missed them. Rebuilt on a quiet machine, all three produced |
+| `P28` | linux_gtk4 | empty | Same: `P28.swift` was present in the WSL checkout and byte-identical to the Windows copy; the Linux sweep had skipped it |
+
+**目前狀態。** 只有兩格是 `n/a`，除了整欄的 `macos_appkit` 之外沒有空格。
+**2026-09-02 已解決**的部分仍保留於上表，因為那些空格「原來是什麼」比「它們已經補上」更有價值。
 
 ## What the empty cells found
 
