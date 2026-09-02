@@ -270,8 +270,25 @@ extension UIKitBackend {
         ButtonWidget()
     }
 
+    /// Takes the `UIButton`, not the wrapper, so a toggle can share it.
+    ///
+    /// `ToggleWidget` is a `WrapperWidget<UIButton>` too but not a
+    /// `ButtonWidget`, and the title logic below -- the tvOS branch in
+    /// particular -- is worth having in one place rather than two.
+    /// 接受 `UIButton` 而非 wrapper，好讓 toggle 也能共用。
+    ///
+    /// `ToggleWidget` 同樣是 `WrapperWidget<UIButton>`，但並非 `ButtonWidget`；而下方的標題處理
+    /// 邏輯——尤其是 tvOS 那一支——值得只存在一處，而非兩處。
     func setButtonTitle(
         _ buttonWidget: ButtonWidget,
+        _ label: String,
+        environment: EnvironmentValues
+    ) {
+        setButtonTitle(buttonWidget.child, label, environment: environment)
+    }
+
+    func setButtonTitle(
+        _ button: UIButton,
         _ label: String,
         environment: EnvironmentValues
     ) {
@@ -283,9 +300,9 @@ extension UIKitBackend {
         // ignore foreground color for buttons on tvOS until we have a better
         // solution.
         #if os(tvOS)
-            buttonWidget.child.setTitle(label, for: .normal)
+            button.setTitle(label, for: .normal)
         #else
-            buttonWidget.child.setAttributedTitle(
+            button.setAttributedTitle(
                 UIKitBackend.attributedString(
                     text: label,
                     environment: environment,

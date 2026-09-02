@@ -262,24 +262,13 @@ public final class UIKitBackend:
         UIApplication.shared.open(url)
     }
 
-    // MARK: - Unimplemented Features
-
-    public func createToggle() -> Widget {
-        fatalError("\(Self.self): \(#function) not implemented")
-    }
-
-    public func updateToggle(
-        _ toggle: Widget,
-        label: String,
-        environment: EnvironmentValues,
-        onChange: @escaping (Bool) -> Void
-    ) {
-        fatalError("\(Self.self): \(#function) not implemented")
-    }
-
-    public func setState(ofToggle toggle: Widget, to state: Bool) {
-        fatalError("\(Self.self): \(#function) not implemented")
-    }
+    // The "Unimplemented Features" section that used to be here held
+    // createToggle, updateToggle and setState(ofToggle:), all three
+    // fatalError. They are implemented in UIKitBackend+Toggle.swift as of
+    // 2026-09-02; the heading is gone with them rather than left empty.
+    // 此處原本的「Unimplemented Features」一節包含 createToggle、updateToggle 與
+    // setState(ofToggle:) 三者，全為 fatalError。自 2026-09-02 起，它們已於
+    // UIKitBackend+Toggle.swift 中實作；該標題隨之移除，而非留下一個空的區段。
 }
 
 extension App {
