@@ -49,7 +49,33 @@ mis-derived coordinate: 299 points at density 2.625 is 785 pixels, which is the
 tab row, not the 942 where "Increment counter" sits. Both of the first two
 synthesised taps had been pressing tab buttons.
 
-What happens between the press and the blank page is still not established.
+**The rule, measured 2026-09-03.** It is not any state change. It is a state
+change that makes the content need more width.
+
+| control | what it changes | result |
+| --- | --- | --- |
+| Increment counter, taps 1 to 9 | `counter: 0` becomes `counter: 9` — same width | intact, 378953 non-white |
+| Increment counter, tap 10 | `counter: 9` becomes `counter: 10` — one digit wider | **blank, 0 non-white** |
+| Switch | a toggle's own state, no text | intact, 375289 |
+| First tab | `Selected tab: Second` becomes `First`, and a longer status line | **blank** |
+| Set both on | two toggles, and a much longer status line | **blank** |
+
+The tenth tap is the whole finding. Nine presses of the same button in the same
+place do nothing bad; the tenth does, and the only thing that changed is that
+the number needs one more digit. So the trigger is the layout asking for a
+larger size, which is consistent with the one line the app logs for itself:
+
+    D swift : warning: Attempted to set size of Android window
+
+`setSize(ofWindow:)` warns and does nothing on this backend. Something asks for
+a new window size, is refused, and what the layout does afterwards is the blank
+page.
+
+**Consequence for action files.** A file that presses a control whose label or
+status text keeps its width will run and can be verified. A file that widens
+anything will end on a blank page, and that is the app being emptied rather than
+the file being wrong. Until this is fixed, an Android file should either avoid
+widening the content or claim the blanking on purpose.
 
 **Why this had not been seen before.** No tap had ever reached an Android app
 from an action file. `test_android.zsh` parsed `--actionfile` and dropped it,
@@ -102,7 +128,28 @@ log 中只有它自己的一行：
 **那次**困惑的真正原因，是一個算錯的座標：299 點在 density 2.625 下是 785 像素，那是分頁列，而不是
 「Increment counter」所在的 942。前兩次合成觸控其實都一直在按分頁按鈕。
 
-從按下到空白之間發生了什麼，仍然尚未確立。
+**規則，2026-09-03 量得。** 它不是「任何狀態變更」，而是「會讓內容需要更多寬度的狀態變更」。
+
+| 控制項 | 它改變了什麼 | 結果 |
+| --- | --- | --- |
+| Increment counter，第 1 至 9 次點擊 | `counter: 0` 變成 `counter: 9`——寬度相同 | 完好，378953 個非白像素 |
+| Increment counter，第 10 次點擊 | `counter: 9` 變成 `counter: 10`——多了一位數 | **空白，0 個非白像素** |
+| Switch | 某個 toggle 自身的狀態，沒有文字變化 | 完好，375289 |
+| First tab | `Selected tab: Second` 變成 `First`，以及一行更長的狀態文字 | **空白** |
+| Set both on | 兩個 toggle，以及一行長得多的狀態文字 | **空白** |
+
+第十次點擊就是整個發現。同一個按鈕在同一個位置按九次都毫無問題；第十次出事了，而唯一改變的是
+那個數字需要多一位數。因此觸發條件是「版面要求一個更大的尺寸」——這與該 app 為自己記錄的那唯一
+一行是一致的：
+
+    D swift : warning: Attempted to set size of Android window
+
+`setSize(ofWindow:)` 在本 backend 上只會警告、不做任何事。有東西要求了一個新的視窗尺寸、被拒絕，
+而版面在那之後所做的事，就是那個空白頁面。
+
+**對動作檔的影響。** 一份「按下某個控制項，而其標籤或狀態文字寬度不變」的檔案可以執行也可以驗證。
+一份會讓任何東西變寬的檔案，會結束在一個空白頁面上——而那是 app 被清空，不是該檔案寫錯。在這個問題
+修好之前，Android 的動作檔要嘛避免讓內容變寬，要嘛刻意主張那個清空行為。
 
 **為何先前沒有人看到。** 在此之前，從未有任何一次點擊由動作檔抵達 Android app。
 `test_android.zsh` 解析了 `--actionfile` 之後就丟掉、`AndroidBackend.entrypoint` 呼叫的是
