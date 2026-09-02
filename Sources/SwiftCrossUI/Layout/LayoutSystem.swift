@@ -455,6 +455,12 @@ public enum LayoutSystem {
         let orientation = environment.layoutOrientation
         let perpendicularOrientation = orientation.perpendicular
         var spaceUsedAlongStackAxis = 0.0
+
+        // Which child, if any, was offered nothing. See ``StackOverflowReport``
+        // for why this is worth carrying through the loop.
+        // 哪一個子元件（若有的話）什麼都沒被分到。理由見 ``StackOverflowReport``。
+        var firstStarvedChild: String?
+
         for group in cache.priorityGroups {
             var childrenRemaining = group.children.count { index in
                 !cache.isHidden[index]
@@ -534,6 +540,10 @@ public enum LayoutSystem {
                 proposedChildSize[component: orientation] = share
                 proposedChildSize[component: perpendicularOrientation] = proposedPerpendicular
 
+                if share == 0, firstStarvedChild == nil {
+                    firstStarvedChild = child.tag ?? "<unknown type>"
+                }
+
                 let childResult = child.computeLayout(
                     proposedSize: proposedChildSize,
                     environment: environment
@@ -546,6 +556,121 @@ public enum LayoutSystem {
             }
         }
 
+        StackOverflowReport.check(
+            orientation: orientation,
+            proposedLength: proposedLength,
+            usedLength: spaceUsedAlongStackAxis + cache.totalSpacing,
+            childCount: children.count,
+            starvedChild: firstStarvedChild
+        )
+
         return renderedChildren
+    }
+}
+
+/// Says out loud when a stack could not fit its children.
+///
+/// The allocation above gives each child `(proposal - spacing - what earlier
+/// children took) / children remaining`, and clamps that at zero. When a stack
+/// is proposed less than its children need, the clamp is reached and the last
+/// child is offered **nothing**. It still renders -- a child enforces its own
+/// minimum by returning it -- but it renders as though it had been asked for
+/// zero width. A `Text` offered zero wraps to one character per line, which
+/// makes its column very tall, and a centred stack then lifts that column's
+/// shape out of line with its siblings.
+///
+/// **That is the whole of the "misalignment" in P43 on a phone.** Measured on
+/// the iPhone 16 simulator 2026-09-02, this warning reported: `horizontal stack
+/// ran out of space: 4 children were offered 350 and took 528`, naming
+/// `VStack<TupleView2<StrictFrameView<StyledShapeImpl<Circle>>, Text>>` -- the
+/// stroked circle's column, the fourth and last.
+///
+/// **macOS cannot reach this, which is why it needs saying on the others.** A
+/// window's minimum size is derived from its content, so AppKit refuses to make
+/// the window smaller than the stack needs: P43's window would not go below 568
+/// points. A phone's window is whatever the device is, so the content is
+/// proposed less than its minimum and the shortfall lands on the last child.
+///
+/// Nothing said so before. The layout was not wrong and it was not explicable
+/// either: a stack silently running out of room looks like a rendering bug in
+/// whichever child happens to be last. This follows the policy
+/// `ResolvedFillStyleDegradation` sets -- something that draws *plausible and
+/// wrong* has to announce itself, because it otherwise reads as a defect in the
+/// wrong place.
+///
+/// 在 stack 塞不下它的子元件時明說出來。
+///
+/// 上方的分配讓每個子元件取得「(提議 - spacing - 先前子元件已取用) / 尚未放置的數量」，並在零處
+/// 夾住。當 stack 被提議的空間少於其子元件所需時，就會碰到那個夾限，最後一個子元件被分到的是
+/// **零**。它仍然會算繪——子元件會以回傳自身 minimum 的方式強制其下限——但它的算繪結果就像是
+/// 「被要求零寬」一樣。被提議零寬的 `Text` 會變成每行一個字，使該欄變得極高，而置中的 stack 便會
+/// 把該欄的形狀頂出與其兄弟元件的對齊線之外。
+///
+/// **這就是 P43 在手機上「錯位」的全部成因。** 2026-09-02 於 iPhone 16 模擬器上實測，本警告回報：
+/// `horizontal stack ran out of space: 4 children were offered 350 and took 528`，並指名
+/// `VStack<TupleView2<StrictFrameView<StyledShapeImpl<Circle>>, Text>>`——也就是描邊圓所在的那一欄，
+/// 第四欄、也是最後一欄。
+///
+/// **macOS 碰不到這個情況，而那正是它在其他平台上更需要被說出來的原因。** 視窗的最小尺寸是由其內容
+/// 推導出來的，因此 AppKit 拒絕把視窗縮得比 stack 所需更小：P43 的視窗低於 568 點就縮不下去了。而
+/// 手機的視窗就是裝置本身的尺寸，因此內容被提議的空間少於其最小需求，短缺便落在最後一個子元件身上。
+///
+/// 先前沒有任何東西說出這件事。該版面並沒有算錯，卻也無從解釋：一個默默把空間用完的 stack，看起來
+/// 就像「剛好排在最後的那個子元件」有算繪 bug。此處遵循 `ResolvedFillStyleDegradation` 所確立的
+/// 政策——會畫出「看似合理但其實不對」之物者必須自報身分，否則它會讓人把缺陷歸咎到錯誤的地方。
+@MainActor
+enum StackOverflowReport {
+    /// Keyed on the shape of the situation, not on its numbers.
+    ///
+    /// A window being resized produces a new length on every frame, so a key
+    /// containing the proposal would grow without bound and report on every
+    /// pixel of the drag. The orientation, the child count and the starved
+    /// child's type stay put while the window moves.
+    ///
+    /// 以「情況的形狀」為鍵，而非以其數值為鍵。
+    ///
+    /// 被拖曳縮放的視窗每一幀都會產生一個新的長度，因此若鍵中含有提議寬度，它會無限增長並在拖曳的
+    /// 每一個像素上回報一次。而方向、子元件數量與「被餓到的那個子元件的型別」在視窗移動時是不變的。
+    private static var reported: Set<String> = []
+
+    static func check(
+        orientation: Orientation,
+        proposedLength: Double,
+        usedLength: Double,
+        childCount: Int,
+        starvedChild: String?
+    ) {
+        // Only when a child was actually offered nothing. A stack that merely
+        // overflows a little still gave every child a share, and its children
+        // chose to be bigger than that -- a layout the app asked for, not a
+        // shortage worth a line in the log.
+        // 僅在確實有子元件被分到零時才回報。只是稍微溢出的 stack 仍給了每個子元件一份額度，是其
+        // 子元件自行選擇比那份額度更大——那是 app 自己要求的版面，不是值得寫進 log 的短缺。
+        guard let starvedChild else { return }
+
+        let key = "\(orientation)|\(childCount)|\(starvedChild)"
+        guard !reported.contains(key) else { return }
+        reported.insert(key)
+
+        // Assembled rather than written as a multi-line literal. A `"""` block
+        // with backslash continuations keeps each line's indentation, so the
+        // message reached the log with runs of spaces inside it -- measured on
+        // the simulator before this was changed.
+        // 以組裝方式產生，而非寫成多行字面值。帶有反斜線續行的 `"""` 區塊會保留每一行的縮排，
+        // 使訊息抵達 log 時夾帶著連續空白——這是在改成現在這樣之前於模擬器上量到的。
+        let message = [
+            "\(orientation) stack ran out of space:",
+            "\(childCount) children were offered \(Int(proposedLength.rounded()))",
+            "and took \(Int(usedLength.rounded())).",
+            "At least one child was offered zero, so it is drawn at its own",
+            "minimum rather than at a size this stack chose.",
+            "Text offered zero wraps one character per line, which makes its",
+            "column tall and pushes a centred stack's other children out of line.",
+        ].joined(separator: " ")
+
+        logger.warning(
+            "\(message)",
+            metadata: ["firstStarvedChild": "\(starvedChild)"]
+        )
     }
 }
