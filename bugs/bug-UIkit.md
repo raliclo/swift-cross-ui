@@ -56,65 +56,67 @@ filter 鏈確實掛上去了，然後被忽略。
 剩下的三條路徑與其代價見上方英文表格。三者皆尚未嘗試。第二條是最可能的候選，而應先量測的正是它的
 代價：光柵化後的子樹是否仍能參與版面與 hit test，以及每一次狀態變更所需的重新擷取成本為何。
 
-## Open: a tap on a `List` row does not select it
+## Open: one `List` in P7 does not respond to taps, while others do
 
-Measured 2026-09-02 on the iPhone 16 simulator, against P7.
+Measured 2026-09-02 on the iPhone 16 simulator. The first version of this entry
+said list taps do not select on iOS at all. That was wrong, and the way it was
+wrong is worth keeping: it generalised from one list in one app before looking
+at a second.
 
-| what was done | result |
-| --- | --- |
-| launch, touch nothing | no row highlighted — correct, and the answer to #476 on iOS |
-| tap the Cherry row at (76, 639) | nothing: no highlight, no status change |
-| press "Select Cherry", which sets the binding from code | Cherry highlighted grey |
+| app, which list | tap | result |
+| --- | --- | --- |
+| P3, detail list | "Detail C" | selected — grey highlight |
+| P7, split view sidebar | Cherry, (326, 486) | selected — grey band measured at px y 1404-1504, x 880-1176 |
+| P7, plain top-level list | Cherry, (76, 639) then (143, 637) | nothing, twice |
+| P7, plain top-level list | "Select Cherry" button, which sets the binding from code | selected — grey highlight |
 
-So `setSelectedItem(ofSelectableListView:toItemAt:)` works and a selection
-renders; what does not happen is the delegate callback for a user's tap. The
-tap coordinate was inside the same rectangle the button went on to highlight,
-so this is not a missed target.
+So `UIKitBackend+List.swift` is not the problem: taps select in two of the three
+lists, and the fourth row shows that this list renders a selection perfectly
+well once something else sets it. What does not arrive is the touch.
 
-`UIKitBackend+List.swift` looks right at a reading: `createSelectableListView`
-sets `delegate` and `dataSource` to the `UICustomTableViewDelegate`, sets
-`allowSelections = true`, and `willSelectRowAt` calls the handler and returns
-the path. `updateSelectableListView` then overwrites `allowSelections` with
-`environment.isEnabled`, which is the first thing to check — but P7's list is
-not disabled, so that is a suspect rather than an answer.
+The two coordinates tried for the plain list were both inside the rectangle the
+button went on to highlight, so this is not a missed target. Two things about
+that list stand out and neither has been chased yet:
 
-The other candidate is ordering: a tap changes the binding, the view graph runs
-`setItems`, and `setItems` calls `reloadData()`, which clears a table view's
-visual selection. If `setSelectedItem` runs before `setItems` in that pass, the
-highlight is written and then wiped. That would explain why the button works
-and the tap does not only if the two take different paths through the update,
-which has not been checked yet.
+- Its label, `Text("Plain List (#476)")`, does not appear on screen at all.
+  Something about where that `VStack` ends up is already wrong before any touch
+  is involved.
+- P7's content is much wider than the phone, so it is offset inside
+  `RootScrollHost`. The split view sidebar, which does respond, is offset by the
+  same amount, so the offset alone is not the answer — but a sibling laid out
+  over the plain list would be, and a missing label is consistent with a
+  container being somewhere unexpected.
 
-`testapp/actions/ios/P7-select-cherry-from-code.csv` deliberately does not tap
-the row. A file that taps and claims nothing is a file that passes while the
-feature is broken.
+`testapp/actions/ios/P7-select-cherry-from-code.csv` uses the button rather than
+a row tap for this reason. A file that taps a row and claims nothing is a file
+that passes while the feature is broken.
 
-## 未解：點按 `List` 的列並不會選取它
+## 未解：P7 中有一個 `List` 對點按沒有反應，其他的則有
 
-2026-09-02 於 iPhone 16 模擬器上針對 P7 量測。
+2026-09-02 於 iPhone 16 模擬器上量測。本條目的第一版寫的是「在 iOS 上點按 list 完全不會選取」。
+那是錯的，而它錯的方式值得保留：它在看第二個 list 之前，就從「一支 app 中的一個 list」推及全體。
 
-| 所做的事 | 結果 |
-| --- | --- |
-| 啟動、不碰任何東西 | 沒有任何一列被標示——正確，也是 #476 在 iOS 上的答案 |
-| 在 (76, 639) 點按 Cherry 那一列 | 什麼都沒有：沒有標示，狀態也沒變 |
-| 按下「Select Cherry」，由程式碼設定 binding | Cherry 被標示為灰色 |
+| app、哪一個 list | 點按 | 結果 |
+| --- | --- | --- |
+| P3，detail list | 「Detail C」 | 已選取——灰色標示 |
+| P7，分割視圖的 sidebar | Cherry，(326, 486) | 已選取——量到灰帶位於 px y 1404-1504、x 880-1176 |
+| P7，頂層的純 list | Cherry，先 (76, 639) 再 (143, 637) | 兩次都毫無反應 |
+| P7，頂層的純 list | 「Select Cherry」按鈕，由程式碼設定 binding | 已選取——灰色標示 |
 
-因此 `setSelectedItem(ofSelectableListView:toItemAt:)` 是正常的，選取也確實會被算繪；沒有發生的是
-「使用者點按」所對應的 delegate callback。該點按座標落在按鈕稍後所標示的同一個矩形內，因此這不是
-沒點中。
+因此問題不在 `UIKitBackend+List.swift`：三個 list 中有兩個點按可選取，而第四列顯示，一旦有別的東西
+設定了選取，這個 list 完全能把它算繪出來。沒有抵達的是那次觸控。
 
-`UIKitBackend+List.swift` 就閱讀而言看起來是對的：`createSelectableListView` 把 `delegate` 與
-`dataSource` 設為 `UICustomTableViewDelegate`、設定 `allowSelections = true`，而 `willSelectRowAt`
-會呼叫 handler 並回傳該 path。接著 `updateSelectableListView` 會以 `environment.isEnabled` 覆寫
-`allowSelections`，那是第一個該查的地方——但 P7 的 list 並未被停用，所以那是嫌疑而非答案。
+為該純 list 嘗試的兩個座標，都落在該按鈕稍後所標示的矩形之內，因此這不是沒點中。關於那個 list，
+有兩件事顯眼，而兩者都尚未追查：
 
-另一個可能是順序問題：點按改變 binding，view graph 執行 `setItems`，而 `setItems` 會呼叫
-`reloadData()`，那會清除 table view 的視覺選取。若在該次更新中 `setSelectedItem` 先於 `setItems`
-執行，標示就會先被寫上、再被抹掉。但這只有在「按鈕」與「點按」兩者走的更新路徑不同時才能解釋兩者
-的差異，而那一點尚未查證。
+- 它的標籤 `Text("Plain List (#476)")` 根本沒有出現在畫面上。在任何觸控介入之前，那個 `VStack`
+  最終落在哪裡就已經是錯的了。
+- P7 的內容遠比手機寬，因此它在 `RootScrollHost` 中被平移。而確實有反應的分割視圖 sidebar 被平移了
+  同樣的量，所以單靠平移並不能解釋——但「有一個兄弟元件被排在該純 list 之上」可以，而「標籤消失」
+  與「某個容器位於意料之外的地方」是一致的。
 
-`testapp/actions/ios/P7-select-cherry-from-code.csv` 刻意不去點按該列。一份「點了卻不主張任何事」的
-檔案，會是一份在功能損壞時依然通過的檔案。
+`testapp/actions/ios/P7-select-cherry-from-code.csv` 之所以使用按鈕而非點按列，正是為此。一份
+「點了一列卻不主張任何事」的檔案，會是一份在功能損壞時依然通過的檔案。
 
 ## Fixed 2026-09-02
 

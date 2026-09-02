@@ -7,15 +7,16 @@ action,x,y,origin,button,key,micros,note,platform
 # which *is* set renders -- so the two together say the highlight tracks the
 # binding rather than appearing on its own.
 #
-# **A tap on the row itself does not select, and that was measured, not
-# assumed.** The first version of this file tapped Cherry in the plain List at
-# (76, 639), inside the same rectangle that this file's button goes on to
-# highlight. Nothing happened: no highlight, no status change. The button then
-# highlighted the row grey on the very next run, so `setSelectedItem` and the
-# rendering of a selection both work; what does not is the delegate callback
-# for a user's tap. Recorded in bugs/bug-UIkit.md rather than worked around
-# here, because a file that taps a row and claims nothing would be a file that
-# passes while the feature is broken.
+# **A tap on *this* list's rows does not select, and that is measured and
+# narrow.** The first version of this file tapped Cherry in the plain List at
+# (76, 639), and a second attempt used the row's measured centre, (143, 637).
+# Neither did anything, while the button below highlights the same rectangle.
+# Taps do select elsewhere: P3's detail list selects, and so does P7's own
+# split view sidebar -- so the backend's table view delegate is not the
+# problem, and neither is a missed target. bugs/bug-UIkit.md carries the
+# four-row measurement and the two candidates that remain. It is recorded there
+# rather than worked around here, because a file that taps a row and claims
+# nothing would be a file that passes while the feature is broken.
 #
 # P7 did not run on iOS at all until 2026-09-02. It uses NavigationSplitView,
 # and `createSplitView` trapped on a precondition that the idiom is not
@@ -31,12 +32,12 @@ action,x,y,origin,button,key,micros,note,platform
 # 回答了這一點：啟動時沒有任何一列被標示。本列回答另一半——「確實被設定的選取會被算繪出來」——
 # 因此兩者合起來說明：標示是跟隨 binding 的，而不是自己冒出來的。
 #
-# **點按列本身並不會造成選取，而這是量出來的，不是假設的。** 本檔的第一版是在 (76, 639) 點按純
-# List 中的 Cherry，那個位置就落在本檔的按鈕稍後所標示的同一個矩形內。什麼都沒發生：沒有標示，
-# 狀態也沒變。而下一次執行時，該按鈕立刻把那一列標示成灰色，因此 `setSelectedItem` 與「選取的
-# 算繪」兩者都正常；不正常的是「使用者點按」所對應的 delegate callback。此事記錄於
-# bugs/bug-UIkit.md，而非在此處繞過——因為一份「點了一列卻不主張任何事」的檔案，會是一份在功能
-# 損壞時依然通過的檔案。
+# **點按**這一個** list 的列不會造成選取，而這個結論是量出來的，且範圍很窄。** 本檔的第一版是在
+# (76, 639) 點按純 List 中的 Cherry，第二次嘗試改用該列量到的中心 (143, 637)。兩次都毫無反應，
+# 而下方那個按鈕卻能把同一個矩形標示起來。點按在別處是會選取的：P3 的 detail list 會，P7 自己的
+# 分割視圖 sidebar 也會——因此問題既不在 backend 的 table view delegate，也不是沒點中。
+# bugs/bug-UIkit.md 記載了那四列量測結果與尚存的兩個可能原因。此事記錄於該處而非在此處繞過——
+# 因為一份「點了一列卻不主張任何事」的檔案，會是一份在功能損壞時依然通過的檔案。
 #
 # 直到 2026-09-02 之前，P7 在 iOS 上根本跑不起來。它使用 NavigationSplitView，而 `createSplitView`
 # 會在畫出任何東西之前，因一個「idiom 不是 `.phone`」的 precondition 而中止。
