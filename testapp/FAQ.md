@@ -172,7 +172,7 @@ Win32 HWND and is not an X client, and installing an X server does not make it
 one. The gvsbuild GTK 4 for Windows has no x11 backend compiled in either:
 
 ```
-$ GDK_BACKEND=x11 ./P18.exe
+$ GDK_BACKEND=x11 ./P18-gtk4.exe
 Gdk-WARNING: No such backend: x11
 Gtk-WARNING: Failed to open display
 ```

@@ -220,14 +220,14 @@ P6 沒有的新增項目：**Renderer** 標籤會標示呈現路徑，以及上�
 zsh testapp/compile.zsh -gtk4 P6-v2
 
 # watch and listen
-./testapp/output/P6-v2.exe -i <file> -autoplay
+./testapp/output/P6-v2-gtk4.exe -i <file> -autoplay
 
 # measure: fixed sample length, no audio process competing for the disk
-./testapp/output/P6-v2.exe -i <file> -res 1080p -fps 60 -speed 1x \
+./testapp/output/P6-v2-gtk4.exe -i <file> -res 1080p -fps 60 -speed 1x \
     -autoplay -seconds 20 -mute --debug
 
 # which GPU is GTK actually on
-GDK_DEBUG=opengl ./testapp/output/P6-v2.exe
+GDK_DEBUG=opengl ./testapp/output/P6-v2-gtk4.exe
 ```
 
 **Set the GPU preference before measuring on a hybrid-graphics laptop.** With no
@@ -238,7 +238,7 @@ model number — while holding an RTX 4060:
 
 ```sh
 reg.exe add "HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences" \
-  //v "C:\...\testapp\output\P6-v2.exe" //t REG_SZ //d "GpuPreference=2;" //f
+  //v "C:\...\testapp\output\P6-v2-gtk4.exe" //t REG_SZ //d "GpuPreference=2;" //f
 ```
 
 The entry is keyed by full path, so every binary needs its own. Without one, a

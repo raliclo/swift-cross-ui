@@ -227,14 +227,14 @@
 - 2026-09-01，更正上一條：**寬度同樣不可信，因此「剩下的症狀在高度」是錯的。** 那個探針是位於窗格 `VStack` 之內、且套在 `.frame(height: 22)` 之下的 `GeometryReader`，所以高度只可能是 22，而寬度量到的是內容欄、不是窗格。將 reader 移入 `.overlay(alignment: .topLeading)`（`P7SplitProbe` 成功採用的形狀）會弄壞 P16：視窗從未出現，wincap 在第一秒與結束時都找不到可擷取的視窗，動作檔從未重放，窗格回報 `sidebar 200 x 142` 與 `detail 20 x 46`。已還原。`.overlay` 在此的行為與 SwiftUI 不同，而它在本專案本就有前科——它曾吞掉指標事件。
 - **因此 #160 目前無法由 P16 的數字定案**，任何方向都不行。上方關於三個點擊的結果仍然成立，因為那是從 app 自身的狀態讀出的，而非來自探針。
 - 2026-09-01，為上一條定案：**窗格現在量得到了，而 #160 在 WinUIBackend 上並未重現。** 量測被完全移出 view tree。`SplitView.commit` 原本就有一個 `SCUI_DEBUG_SPLIT` 診斷，會印出各 minimum 與交給 backend 的上下界；現在它也印出每個窗格實際獲得的尺寸。view tree 中不新增任何東西，因此不會擾動被量測的對象——而那正是先前每一次嘗試失敗的原因。
-- Run A：`SCUI_DEBUG_SPLIT=1 ./P16.exe --debug`，不帶動作檔，8 秒後結束。恰好一次 committed layout：
+- Run A：`SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`，不帶動作檔，8 秒後結束。恰好一次 committed layout：
   `total=880.0 minLeading=126.0 minTrailing=20.0 -> bounds min=126 max=860 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`
 - Run B：同上再加 `-actionfile actions/win/P16-force-update.csv`，12 秒後結束。共五行。**第 1 至 3 行與 Run A 的那一行逐位元組相同**；Run A 已確立「首次算繪只有一行」，因此第 2、3 行分別是 `Force update` 點擊之後與 `Science` 選取之後的版面。第 4、5 行是三欄狀態，也就是兩層巢狀的 split view：內層 `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`，外層 `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`。
 - **首次算繪時各窗格獲得的尺寸，與經過兩次狀態改變之後完全相同。** #160 的說法是「分割視圖在第一次算繪時排版嚴重錯誤，之後只要有任何狀態改變就會跳成正確的排版」；此處沒有那次跳正，因為沒有可跳的錯誤起點。
 - 這個否定結論之所以可信，在於第 4、5 行確實不同：同一次執行中，該診斷對一次真實的版面變化有反應，因此「第 1 至 3 行不變」是量到的不變，而非一份已經停止輸出的日誌。少了這個對照組，兩者在畫面上完全一樣。
 - 順帶也解決了高度的問題：窗格高 **486**，不是 22。那個 22 是探針自己的 `.frame(height: 22)`，卻被當成窗格高度回報了兩週。
 - 本結論的適用範圍：這是 SwiftCrossUI 版面系統所決定的結果，不是 WinUI 實際畫出來的東西；繪製端的落差在此看不到。值得特別說明，因為同幾次執行的 1 秒截圖是**全黑**的——WinUI 在一秒時還沒畫，這也是動作檔要先 `sleep 1800000` 才點第一下的原因——所以 harness 的「1s」截圖從來就不是首次算繪的畫面。
-- 重現方式：`cd testapp/output && rm -f splitview-debug.log && SCUI_DEBUG_SPLIT=1 ./P16.exe --debug`，然後讀 `splitview-debug.log`。需要以 `SCUI_DEBUG=1` 建置的執行檔。
+- 重現方式：`cd testapp/output && rm -f splitview-debug.log && SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`，然後讀 `splitview-debug.log`。需要以 `SCUI_DEBUG=1` 建置的執行檔。
 - 更正上面第三條中的一句話——它寫「overlay 在 P7 可行是因為它包的是 `List`」：P7 的 **sidebar** overlay 確實包 `List`，但它的 **detail** overlay 包的是加了 padding 的 `VStack`，與 P16 形狀相同。真正的區別在於：P7 的窗格中沒有 `Spacer`，且它整個 split view 位於 `.frame(width: 420, height: 180)` 之內，其中沒有東西能自由長大；而 P16 每個窗格都以貪婪的 `Spacer` 結尾，該 split view 也沒有固定框架。
 - **更正上面所使用的欄位名稱。** 它們最初輸出為 `leadingPane` / `trailingPane`，那是錯的：`leadingResult.size` 是窗格的**子視圖**在收到窗格寬度的提議後所選擇的尺寸，可以小於窗格本身。在 P16 上兩者恰好相同，因此這個錯誤在那裡看不出來；是 P7 揭穿了它——trailing 子視圖對 **420 − 200 = 220** 的提議回答 **207**。已改名為 `leadingContent` / `trailingContent`。窗格寬度則是 `currentSidebar` 以及 `total` 減去它。這正是把內容讀成窗格、曾對 #556 造成兩次錯誤判斷的同一種混淆，所以現在的名稱直接說明它是哪一個。上方引用的數字沒有改變，#160 的比較也依然成立，因為那是同類相比；錯的只有標籤。
 

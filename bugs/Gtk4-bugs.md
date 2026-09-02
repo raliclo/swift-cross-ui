@@ -92,7 +92,7 @@ on Windows, and then implement the transform properly, is an open decision.
 **Reproduce.**
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P40
-    ( cd testapp/output && SCUI_PROBE_GTK_TRANSFORM=1 ./P40.exe & )
+    ( cd testapp/output && SCUI_PROBE_GTK_TRANSFORM=1 ./P40-gtk4.exe & )
     zsh testapp/screenshot.zsh -w P40
 
 Then count hotpink pixels in the capture; zero means the bug is gone.
@@ -359,7 +359,7 @@ attempted as an upgrade.
 
 On gvsbuild, GTK says so itself, which is the only source that settles it:
 
-    $ GSK_RENDERER=help ./P40.exe
+    $ GSK_RENDERER=help ./P40-gtk4.exe
       cairo  - Use the Cairo fallback renderer
       opengl - Use the OpenGL renderer
       vulkan - Disabled during GTK build

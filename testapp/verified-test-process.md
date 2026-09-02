@@ -31,7 +31,7 @@ extension point. An ad-hoc loop in the scratchpad is not.
 
 ### An exit code of 0 from a GUI app means nothing
 
-`./P7.exe` returns 0 immediately whether it works or not, because Windows
+`./P7-WinUI.exe` returns 0 immediately whether it works or not, because Windows
 GUI-subsystem binaries do not hold the shell. P18, which opens a window
 perfectly, reports exit 0 the same way P7 does.
 
@@ -42,7 +42,7 @@ were ten non-observations.
 Never infer from the exit code.
 
 GUI app 回傳 0 沒有任何意義：Windows 的 GUI subsystem 執行檔不會佔住 shell，因此
-`./P7.exe` 無論成功與否都會立刻回傳 0。能正常開窗的 P18 與 P7 一樣回報 exit 0。
+`./P7-WinUI.exe` 無論成功與否都會立刻回傳 0。能正常開窗的 P18 與 P7 一樣回報 exit 0。
 
 十次「exit=0、零輸出」的觀察被讀成十次崩潰，實際上是十次「沒有觀察到任何東西」。
 
@@ -50,14 +50,14 @@ GUI app 回傳 0 沒有任何意義：Windows 的 GUI subsystem 執行檔不會�
 
 ### A backgrounded child dies when the tool call returns
 
-`./P7.exe &` from a Bash tool call is gone the moment that call finishes, so a
+`./P7-WinUI.exe &` from a Bash tool call is gone the moment that call finishes, so a
 check in the *next* call always finds nothing. This produced "process alive=0"
 for apps that were fine.
 
 **Instead:** launch and check inside one invocation, or let `test_common.zsh`
 own the lifetime.
 
-以背景方式啟動的子行程會在工具呼叫返回時消失：在一次 Bash 呼叫中執行 `./P7.exe &`，該行程會在
+以背景方式啟動的子行程會在工具呼叫返回時消失：在一次 Bash 呼叫中執行 `./P7-WinUI.exe &`，該行程會在
 該次呼叫結束時一併終止，因此*下一次*呼叫中的檢查必然什麼都找不到。這使得原本正常的 app 被回報為
 「process alive=0」。
 

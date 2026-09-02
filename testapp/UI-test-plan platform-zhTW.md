@@ -143,10 +143,10 @@ GTK_THEME=Adwaita:dark ./testapp/output/P15    # 386 289
 🪟 **Windows** -- 6 個 issues，加上 #291 和 #415 作比較：
 
 ```sh
-./testapp/output/P16.exe                       # 160
-./testapp/output/P13.exe                       # 595 158, and 291 415 as comparisons
-./testapp/output/P17.exe                       # 264 266 161
-./testapp/output/P15.exe                       # 386 as the control only
+./testapp/output/P16-WinUI.exe                 # 160，WinUIBackend
+./testapp/output/P13-WinUI.exe                 # 595 158, and 291 415 as comparisons，WinUIBackend
+./testapp/output/P17-WinUI.exe                 # 264 266 161，WinUIBackend
+./testapp/output/P15-WinUI.exe                 # 386 as the control only，WinUIBackend
 ```
 
 兩份清單在五個 core-layout issues 上重疊，這正是重點：它們是 backend-independent，所以在兩邊都跑，才能看出平台間是否不一致。其他項目則各自屬於特定欄位。

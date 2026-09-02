@@ -142,7 +142,7 @@ accent across the full row width, and the `NavigationSplitView` sidebar keeps
 the inset grey. Re-run with:
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P7
-    ( cd testapp/output && ./P7.exe -actionfile "$(cygpath -m "$PWD/../actions/win/P7-list-selection.csv")" & )
+    ( cd testapp/output && ./P7-gtk4.exe -actionfile "$(cygpath -m "$PWD/../actions/win/P7-list-selection.csv")" & )
 
 `SCUI_DEBUG=1` is not optional: without it `DebugFeatures` strips `-actionfile`,
 the app launches and ignores the flag in silence, and the capture shows the

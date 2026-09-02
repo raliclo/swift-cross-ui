@@ -554,7 +554,7 @@ looks like it should be the answer and is silently ignored: it still tries
 `GskGLRenderer`, fails on Direct Composition, and lands on Cairo. Ask GTK
 itself, which is the only source that settles it:
 
-    $ GSK_RENDERER=help ./P40.exe
+    $ GSK_RENDERER=help ./P40-gtk4.exe
     Supported arguments for GSK_RENDERER environment variable:
       broadway - Disabled during GTK build
          cairo - Use the Cairo fallback renderer
@@ -712,7 +712,7 @@ WSL 那一列是以截圖驗證、而非推論得出：P40 的七個 tile——o
 實際上被無聲忽略：它仍然去嘗試 `GskGLRenderer`，在 Direct Composition 上失敗，最後落到
 Cairo。去問 GTK 自己，那是唯一能了結此事的來源：
 
-    $ GSK_RENDERER=help ./P40.exe
+    $ GSK_RENDERER=help ./P40-gtk4.exe
         vulkan - Disabled during GTK build
 
 成因在我們的上游，而且只是一行 build 決策。`/c/gtk4` 是一份

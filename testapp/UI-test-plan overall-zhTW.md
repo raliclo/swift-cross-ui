@@ -30,6 +30,27 @@
 
    預期結果：輸出 `ok`。
 
+## Windows 上的執行檔命名
+
+每個 Windows 測試執行檔都以檔名後綴標示其 backend：`Pn-WinUI.exe` 是 WinUIBackend
+build，`Pn-gtk4.exe` 是 GtkBackend build。沒有後綴的 `Pn.exe` 已不存在，因此以下每一
+條執行指令都會明確指名其中之一。
+
+這個後綴不是裝飾。2026-09-02 曾發生一次以視窗標題比對的截圖拍到了另一個 backend 的視
+窗：兩種 build 註冊的標題相同，而兩個 `Pn.exe` 被複製到一起之後，檔名上再也沒有任何線
+索可以分辨它們。後綴把 backend 放進執行指令、process 清單與檔名本身，讓拿錯 build 這件
+事看得見，而不是無聲通過。
+
+重新產生的指令：
+
+```zsh
+cd testapp && zsh compile.zsh          # -> testapp/output/Pn-WinUI.exe
+cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
+```
+
+有兩個 app 依設計只有單一 build：`P6` 是 D3D11 影片測試、且連結 WinUI 產品，因此沒有
+`P6-gtk4.exe`；`P6-v2` 是純 GTK app，因此沒有 `P6-v2-WinUI.exe`。
+
 ## 跨平台測試流程
 
 - Linux / GtkBackend 相關 issues 一律先測 WSLg，再用 Windows 作為對照（若該 app 支援）。
@@ -55,7 +76,7 @@
 執行：
 
 ```zsh
-./testapp/output/P0.exe
+./testapp/output/P0-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -91,7 +112,7 @@
 執行：
 
 ```zsh
-./testapp/output/P1.exe
+./testapp/output/P1-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -126,7 +147,7 @@
 執行：
 
 ```zsh
-./testapp/output/P2.exe
+./testapp/output/P2-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -162,7 +183,7 @@
 執行：
 
 ```zsh
-./testapp/output/P3.exe
+./testapp/output/P3-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -194,7 +215,7 @@
 執行：
 
 ```zsh
-./testapp/output/P4.exe
+./testapp/output/P4-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -237,7 +258,7 @@
 執行：
 
 ```zsh
-./testapp/output/P5.exe
+./testapp/output/P5-WinUI.exe      # WinUIBackend，Windows 上
 ```
 
 涵蓋 issues：
@@ -557,7 +578,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 執行：
 
 ```zsh
-./P16.exe
+./P16-WinUI.exe
 ```
 
 涵蓋 issues：
@@ -591,7 +612,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 ```zsh
 ./testapp/output/P17          # WSL 上的 GtkBackend
-./testapp/output/P17.exe      # Windows 上的 WinUIBackend
+./testapp/output/P17-WinUI.exe      # Windows 上的 WinUIBackend
 ```
 
 涵蓋 issues：
@@ -642,7 +663,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 ```zsh
 zsh testapp/compile.zsh P6
-./testapp/output/P6.exe
+./testapp/output/P6-WinUI.exe      # WinUIBackend，Windows 上；P6 沒有 -gtk4 build
 ```
 
 macOS 的輸出檔名可能是 `P6` 而不是 `P6.exe`：
@@ -1023,7 +1044,7 @@ RSS 壓力測試紀錄：
 
 ```zsh
 ./testapp/output/P18          # GtkBackend，於 WSL
-./testapp/output/P18.exe      # WinUIBackend，於 Windows
+./testapp/output/P18-WinUI.exe      # WinUIBackend，於 Windows
 ```
 
 不對應特定 issue。GtkBackend 已從 `GtkFileChooserNative`（GIR 標記
@@ -1053,7 +1074,7 @@ RSS 壓力測試紀錄：
 
 ```zsh
 ./testapp/output/P19          # GtkBackend，於 WSL
-./testapp/output/P19.exe      # WinUIBackend，於 Windows
+./testapp/output/P19-WinUI.exe      # WinUIBackend，於 Windows
 ```
 
 兩個 backend 以不同機制呈現同一個 `Menu`，而 app 端無法選擇。GtkBackend 符合
@@ -1080,7 +1101,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 
 ```zsh
 ./testapp/output/P20          # GtkBackend，於 WSL
-./testapp/output/P20.exe      # WinUIBackend，於 Windows
+./testapp/output/P20-WinUI.exe      # WinUIBackend，於 Windows
 ```
 
 刻意與 P19 分開。巢狀是兩種機制分歧空間最大之處：一邊由平台提供整棵樹，另一邊必須
@@ -1108,7 +1129,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 
 ```zsh
 ./testapp/output/P6-v2 -i <檔案> -autoplay              # GtkBackend，於 WSL
-./testapp/output/P6-v2.exe -i <檔案> -autoplay          # GtkBackend，於 Windows
+./testapp/output/P6-v2-gtk4.exe -i <檔案> -autoplay          # GtkBackend，於 Windows
 ```
 
 請以 `-gtk4` 建置。在 Windows 上，P6 **不是**一般意義下的比較對象：P6 是 WinUI/D3D11 的
@@ -1150,7 +1171,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 ```zsh
 ./testapp/output/P21          # GtkBackend，於 WSL
-./testapp/output/P21.exe      # WinUIBackend，於 Windows
+./testapp/output/P21-WinUI.exe      # WinUIBackend，於 Windows
 ```
 
 目前未涵蓋範圍中最廣的一塊。ToggleSwitch、ToggleButton 與 Checkbox 完全沒有出現在任何其他
@@ -1175,7 +1196,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 ```zsh
 ./testapp/output/P22 --debug          # GtkBackend，於 WSL
-./testapp/output/P22.exe --debug      # WinUIBackend，於 Windows
+./testapp/output/P22-WinUI.exe --debug      # WinUIBackend，於 Windows
 ```
 
 值得優先進行，因為字型度量是其他所有版面比較的量尺。若某個 backend 的文字系統性地較寬，它
@@ -1197,7 +1218,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 ```zsh
 ./testapp/output/P23 --debug          # GtkBackend，於 WSL
-./testapp/output/P23.exe --debug      # WinUIBackend，於 Windows
+./testapp/output/P23-WinUI.exe --debug      # WinUIBackend，於 Windows
 ```
 
 欄寬是有趣之處。API 中並未指定寬度，因此各 backend 自行決定：依標題、依最寬的儲存格、依第
@@ -1218,7 +1239,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 
 ```zsh
 ./testapp/output/P24 --debug          # GtkBackend，於 WSL
-./testapp/output/P24.exe --debug      # WinUIBackend，於 Windows
+./testapp/output/P24-WinUI.exe --debug      # WinUIBackend，於 Windows
 ```
 
 `NavigationStack` 與 `NavigationLink` 未出現在任何其他測試 app 中。此缺口先前被以「P7 與
@@ -1243,7 +1264,7 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 
 ```zsh
 ./testapp/output/P25 --debug          # WSL 中的 GtkBackend
-./testapp/output/P25.exe --debug      # Windows 上的 -gtk4 build
+./testapp/output/P25-gtk4.exe --debug      # Windows 上的 -gtk4 build
 ```
 
 拖放未出現在任何其他測試 app，因為在 `onDrop(of:isTargeted:perform:)` 加入之前，SwiftCrossUI
@@ -1640,7 +1661,7 @@ app 會把目前可用的 SwiftCrossUI 寫法渲染出來，旁邊列出仍無�
 
 ```zsh
 zsh testapp/run.zsh P37                    # Windows 上的 GtkBackend
-./testapp/output/P37.exe                   # Windows 上的 WinUIBackend
+./testapp/output/P37-WinUI.exe                   # Windows 上的 WinUIBackend
 ./testapp/output/P37                       # WSL 中的 GtkBackend
 ```
 

@@ -30,6 +30,29 @@ This document describes the manual and assisted UI test steps for the apps in `t
 
    Expected result: `ok`.
 
+## Executable Names on Windows
+
+Every Windows test binary carries its backend as a filename suffix:
+`Pn-WinUI.exe` is the WinUIBackend build, `Pn-gtk4.exe` is the GtkBackend build.
+The unsuffixed `Pn.exe` no longer exists, so every run command below names one.
+
+The suffix is not cosmetic. On 2026-09-02 a screenshot matched by window title
+photographed the wrong backend's window: both builds register the same title, and
+once the two `Pn.exe` files had been copied side by side nothing in the filename
+told them apart. The suffix puts the backend in the run command, the process list
+and the file name itself, where a mismatch is visible instead of silent.
+
+Regenerate them with:
+
+```zsh
+cd testapp && zsh compile.zsh          # -> testapp/output/Pn-WinUI.exe
+cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
+```
+
+Two apps have only one build, by design: `P6` is the D3D11 video test and links
+the WinUI products, so there is no `P6-gtk4.exe`; `P6-v2` is a pure GTK app, so
+there is no `P6-v2-WinUI.exe`.
+
 ## Cross-Platform Flow
 
 - For Linux / GtkBackend issues, test WSLg first, then Windows only as a comparison if the app supports it.
@@ -55,7 +78,7 @@ This document describes the manual and assisted UI test steps for the apps in `t
 Run:
 
 ```zsh
-./testapp/output/P0.exe
+./testapp/output/P0-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -91,7 +114,7 @@ Expected results:
 Run:
 
 ```zsh
-./testapp/output/P1.exe
+./testapp/output/P1-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -126,7 +149,7 @@ Expected results:
 Run:
 
 ```zsh
-./testapp/output/P2.exe
+./testapp/output/P2-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -162,7 +185,7 @@ Expected results:
 Run:
 
 ```zsh
-./testapp/output/P3.exe
+./testapp/output/P3-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -194,7 +217,7 @@ Expected results:
 Run:
 
 ```zsh
-./testapp/output/P4.exe
+./testapp/output/P4-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -237,7 +260,7 @@ Expected results:
 Run:
 
 ```zsh
-./testapp/output/P5.exe
+./testapp/output/P5-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -574,7 +597,7 @@ Expected results:
 Run:
 
 ```zsh
-./P16.exe
+./P16-WinUI.exe
 ```
 
 Covered issues:
@@ -624,7 +647,7 @@ Run:
 
 ```zsh
 ./testapp/output/P17          # GtkBackend, in WSL
-./testapp/output/P17.exe      # WinUIBackend, on Windows
+./testapp/output/P17-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Covered issues:
@@ -687,7 +710,7 @@ Build and run:
 
 ```zsh
 zsh testapp/compile.zsh P6
-./testapp/output/P6.exe
+./testapp/output/P6-WinUI.exe      # WinUIBackend, on Windows; P6 has no -gtk4 build
 ```
 
 On macOS the output binary name may be `P6` instead of `P6.exe`:
@@ -886,7 +909,7 @@ Run:
 
 ```zsh
 ./testapp/output/P18          # GtkBackend, in WSL
-./testapp/output/P18.exe      # WinUIBackend, on Windows
+./testapp/output/P18-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Not tied to an issue. GtkBackend moved off `GtkFileChooserNative`, which the
@@ -923,7 +946,7 @@ Run:
 
 ```zsh
 ./testapp/output/P19          # GtkBackend, in WSL
-./testapp/output/P19.exe      # WinUIBackend, on Windows
+./testapp/output/P19-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 The two backends render the same `Menu` through different mechanisms and the
@@ -955,7 +978,7 @@ Run:
 
 ```zsh
 ./testapp/output/P20          # GtkBackend, in WSL
-./testapp/output/P20.exe      # WinUIBackend, on Windows
+./testapp/output/P20-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 Separate from P19 on purpose. Nesting is where the two mechanisms have the most
@@ -986,7 +1009,7 @@ Run:
 
 ```zsh
 ./testapp/output/P6-v2 -i <file> -autoplay              # GtkBackend, in WSL
-./testapp/output/P6-v2.exe -i <file> -autoplay          # GtkBackend, on Windows
+./testapp/output/P6-v2-gtk4.exe -i <file> -autoplay          # GtkBackend, on Windows
 ```
 
 Build it with `-gtk4`. P6 is **not** the comparison target on Windows in the
@@ -1033,7 +1056,7 @@ Run:
 
 ```zsh
 ./testapp/output/P21          # GtkBackend, in WSL
-./testapp/output/P21.exe      # WinUIBackend, on Windows
+./testapp/output/P21-WinUI.exe      # WinUIBackend, on Windows
 ```
 
 The widest uncovered surface. ToggleSwitch, ToggleButton and Checkbox appear in
@@ -1061,7 +1084,7 @@ Run:
 
 ```zsh
 ./testapp/output/P22 --debug          # GtkBackend, in WSL
-./testapp/output/P22.exe --debug      # WinUIBackend, on Windows
+./testapp/output/P22-WinUI.exe --debug      # WinUIBackend, on Windows
 ```
 
 Worth doing early, because font metrics are the measuring stick for every other
@@ -1085,7 +1108,7 @@ Run:
 
 ```zsh
 ./testapp/output/P23 --debug          # GtkBackend, in WSL
-./testapp/output/P23.exe --debug      # WinUIBackend, on Windows
+./testapp/output/P23-WinUI.exe --debug      # WinUIBackend, on Windows
 ```
 
 Column width is the interesting part. Nothing in the API states a width, so each
@@ -1110,7 +1133,7 @@ Run:
 
 ```zsh
 ./testapp/output/P24 --debug          # GtkBackend, in WSL
-./testapp/output/P24.exe --debug      # WinUIBackend, on Windows
+./testapp/output/P24-WinUI.exe --debug      # WinUIBackend, on Windows
 ```
 
 `NavigationStack` and `NavigationLink` appear in no other test app. This gap was
@@ -1138,7 +1161,7 @@ Run:
 
 ```zsh
 ./testapp/output/P25 --debug          # GtkBackend, in WSL
-./testapp/output/P25.exe --debug      # -gtk4 build, on Windows
+./testapp/output/P25-gtk4.exe --debug      # -gtk4 build, on Windows
 ```
 
 Drag and drop appears in no other test app because SwiftCrossUI had no API for it
@@ -1648,7 +1671,7 @@ Run:
 
 ```zsh
 zsh testapp/run.zsh P37                    # GtkBackend on Windows
-./testapp/output/P37.exe                   # WinUIBackend on Windows
+./testapp/output/P37-WinUI.exe                   # WinUIBackend on Windows
 ./testapp/output/P37                       # GtkBackend, in WSL
 ```
 
