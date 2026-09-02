@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7: tap Cherry in the plain List.
+#
+# #476 is "the List control starts with the first item already selected, even
+# though no selection was set". The at-rest capture answers half of that on
+# iOS: no row is highlighted at launch, and the status line reads "Ready.
+# Nothing should...". This row answers the other half -- a tap has to be what
+# selects, so the highlight after it must be on Cherry and on nothing else.
+#
+# **This file exists in this form because of what the first two versions
+# found.** Version one tapped this row at (76, 639) and nothing happened.
+# Version two used the row's measured centre, (143, 637), and nothing happened
+# again, so it was replaced by a press on the "Select Cherry" button, which
+# sets the same binding from code and did highlight the row. That was the right
+# call at the time and the wrong file to keep: the button proves that a
+# selection renders, and says nothing about whether a person can make one.
+#
+# What was actually broken was hit testing, not lists. `UIView.hitTest` returns
+# nil for a point outside a view's own bounds before it looks at any subview,
+# and P7's HStack is wider than the phone, so the List sat outside its parent
+# -- drawn, because nothing clips it, and untouchable. P30's "Use wide frame"
+# failed the same way and has no list in it. `BaseViewWidget.hitTest` now asks
+# its children whatever the point.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p7-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default).
+#
+# P7：點按純 List 中的 Cherry。
+#
+# #476 是「List 控制項一開始就已選取第一項，即使沒有設定任何選取」。靜止狀態的擷取畫面在 iOS 上
+# 回答了其中一半：啟動時沒有任何一列被標示，而狀態列寫著「Ready. Nothing should...」。本列回答
+# 另一半——既然選取必須由點按造成，那麼點按之後被標示的就必須是 Cherry，且不能是其他任何一列。
+#
+# **本檔之所以是現在這個樣子，是因為前兩版所發現的事。** 第一版在 (76, 639) 點按這一列，毫無反應。
+# 第二版改用該列量到的中心 (143, 637)，仍然毫無反應，於是被換成按下「Select Cherry」按鈕——它由
+# 程式碼設定同一個 binding，而它確實把該列標示了起來。那在當下是正確的判斷，卻是不該保留的檔案：
+# 該按鈕證明的是「選取會被算繪」，而對「人是否做得出一次選取」隻字未提。
+#
+# 真正壞掉的是 hit testing，不是 list。對於落在某個 view 自身 bounds 之外的點，`UIView.hitTest`
+# 會在查看任何 subview 之前就回傳 nil；而 P7 的 HStack 比手機寬，因此該 List 位於其父容器之外
+# ——畫得出來（因為沒有東西裁切它），卻碰不到。P30 的「Use wide frame」以相同方式失敗，而它裡面
+# 根本沒有 list。`BaseViewWidget.hitTest` 現在無論該點在哪裡都會詢問其子元件。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p7-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。
+click,143,637,client,left,,,"the Cherry row of the plain List -- Cherry must become the selected row and no other row may be (VERIFIED: grey highlight on Cherry only)",ios
+sleep,,,,,,700000,let the row highlight,ios
