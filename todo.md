@@ -376,11 +376,28 @@ gave -38,-59 at one and 154,-6 at the other.
   single correction after the window is mapped — compare the content widget's
   allocation against the request and grow the window by the shortfall. Verify
   by re-running P16 on WSLg and checking that the settled figure becomes
-  485/486 with no second pass. Also worth checking whether width is affected
+  485/486 with no second pass. ~~Also worth checking whether width is affected
   where side decorations exist, and whether GTK4 on Windows (gvsbuild,
-  server-side decorations) shows it at all. What SwiftUI does is **unverified**
+  server-side decorations) shows it at all.~~ What SwiftUI does is **unverified**
   and needs a Mac; the expectation to measure there is that `.defaultSize` maps
   to the content rect, which would put AppKit on WinUI's side.
+
+  **Answered 2026-09-03, and the answer is not the one the struck-through line
+  expected.** GTK4 on Windows (gvsbuild) shows it too, identically: P16 logs
+  `leadingContent=200.0x480.0` twice then `200.0x441.0` — a drop of **39**, the
+  same number WSLg gives, with a later pass correcting an earlier one the same
+  way. So this is a `GtkBackend` property, not a WSLg one, and the parenthetical
+  guess that Windows has server-side decorations and would therefore be exempt
+  was wrong. Width is unaffected on both. Regenerate with
+  `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16` and read `splitview-debug.log`
+  **in the repo root** — `SplitView.swift:215` uses `currentDirectoryPath`.
+
+  **This item is open, and `correctContentSizeIfNeeded` is not evidence that it
+  is closed.** That function is in `Sources/GtkBackend/GtkBackend.swift` and is
+  called from `updateWindow`, i.e. it was present in the tree that produced the
+  480/480/441 above, and the shortfall is still there. `UI-test-results_overall_en.md`
+  said on 2026-09-01 that this "is now fixed"; that line is annotated rather
+  than deleted. Verify by the numbers, not by the presence of the function.
 
   **一支要求 900x600 視窗的 app，在 GTK 上只拿到 900x561 的內容，在 WinUI 上拿到 900x600。**
   2026-09-01 以 P16 於 WSLg 量測。
@@ -398,10 +415,22 @@ gave -38,-59 at one and 154,-6 at the other.
 
   修法不可能是一行：GTK4 沒有「設定內容尺寸」的 API，而標題列高度在視窗 realize 之前並不可知。
   必須在視窗 map 之後做一次修正——比對內容 widget 的配置與原始要求，再依差額放大視窗。驗證方式：
-  在 WSLg 重跑 P16，確認安定值變成 485/486 且不再有第二輪。另外值得確認：有側邊裝飾時寬度是否
-  也受影響，以及 GTK4 on Windows（gvsbuild，server-side decorations）是否根本不會發生。
+  在 WSLg 重跑 P16，確認安定值變成 485/486 且不再有第二輪。~~另外值得確認：有側邊裝飾時寬度是否
+  也受影響，以及 GTK4 on Windows（gvsbuild，server-side decorations）是否根本不會發生。~~
   SwiftUI 的行為**尚未驗證**、需要 Mac；待量測的預期是 `.defaultSize` 對應 content rect，
   那會讓 AppKit 站在 WinUI 這一邊。
+
+  **2026-09-03 已有答案，而答案並非上面那句刪除線所預期的。** Windows 上的 GTK4（gvsbuild）
+  同樣會發生，且完全一致：P16 記錄 `leadingContent=200.0x480.0` 兩次，接著 `200.0x441.0`
+  ——落差 **39**，與 WSLg 相同的數字，也同樣有一輪修正前一輪。因此這是 `GtkBackend` 的性質，
+  不是 WSLg 的；而括號中「Windows 使用 server-side decorations 所以應可豁免」的猜測是錯的。
+  兩邊的寬度都不受影響。重新產生：`SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`，再讀取
+  **repo 根目錄下**的 `splitview-debug.log`——`SplitView.swift:215` 使用 `currentDirectoryPath`。
+
+  **本項為未結案，而 `correctContentSizeIfNeeded` 的存在並不構成已結案的證據。** 該函式位於
+  `Sources/GtkBackend/GtkBackend.swift` 並由 `updateWindow` 呼叫，也就是說它確實存在於產生上述
+  480/480/441 的那份原始碼中，而短少依然存在。`UI-test-results_overall_en.md` 在 2026-09-01 寫下
+  「現已修正」；該行以註記保留而未刪除。請以數字驗證，而非以「函式存在」驗證。
 
 - **WinUIBackend's WebView: diagnosed, half fixed, and the remaining half is
   characterised.** Investigated 2026-08-28 with P38.

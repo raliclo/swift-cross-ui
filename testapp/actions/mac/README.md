@@ -82,6 +82,19 @@ geometry — `P1`, `P18`, `P5`, `P31`. It reaches a key window without a
 coordinate, which is exactly what a measured-by-capture file cannot supply for
 a window that did not exist when the capture was taken.
 
+**That technique is macOS-only, and the sentence above is the reason someone
+will try it elsewhere.** Measured 2026-09-03 on Windows/GtkBackend with
+`testapp/actions/win/P31-tab-and-escape.csv`: Escape does **not** reach a
+modal there. `Win32Synthesiser` does not have AppKit's notion of a key window —
+`ownWindow()` picks the process's **largest-area** visible top-level window, and
+a dialog is a smaller separate top-level window, so it can never be chosen; the
+synthesiser then calls `SetForegroundWindow` on the main window, which takes
+focus off the modal before the key is even sent. Full write-up in
+`bugs/Gtk4-bugs.md` §6. Keys themselves work on Windows — the same run moved
+focus with Tab and activated a button with Space — so a replay of a ported
+Escape row reports no error and proves nothing. **Do not copy an Escape row from
+here into `win/` and read the absence of a failure as a pass.**
+
 ---
 
 # mac（繁體中文）
@@ -138,3 +151,12 @@ AppKit 的 hit testing 在這台機器上是壞的（見 `todo.md`）。重放�
 凡是必須在不知道其幾何資訊的情況下關閉 modal 之處，一律使用 Escape——`P1`、`P18`、`P5`、`P31`。
 它無需座標即可抵達 key window，而這正是「以擷取影像量測而成的檔案」對一個「拍攝當下尚不存在的
 視窗」所無法提供的東西。
+
+**這個手法僅限 macOS，而上面那句話正是有人會把它搬到別處的原因。** 2026-09-03 於
+Windows/GtkBackend 以 `testapp/actions/win/P31-tab-and-escape.csv` 實測：Escape 在那裡**到不了**
+modal。`Win32Synthesiser` 沒有 AppKit 的 key window 概念——`ownWindow()` 挑的是本行程中**面積最大**
+的可見 top-level 視窗，而對話框是較小的獨立 top-level 視窗，因此永遠選不到；合成器接著又對主視窗
+呼叫 `SetForegroundWindow`，在按鍵送出之前就把焦點從 modal 手上拿走。完整記述見
+`bugs/Gtk4-bugs.md` 第 6 節。按鍵本身在 Windows 上是能用的——同一次執行以 Tab 移動了焦點、以
+Space 觸發了按鈕——所以把 Escape 那一列搬過去重放，會不回報任何錯誤，卻什麼也沒證明。**請勿把
+此處的 Escape 列複製到 `win/`，並把「沒有失敗」讀成通過。**

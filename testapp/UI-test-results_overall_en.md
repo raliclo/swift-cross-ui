@@ -174,7 +174,7 @@ All final screenshots below were measured with PIL. Every final capture was visi
 | App | WSLg final screenshot | Windows final screenshot | Notes |
 | --- | --- | --- | --- |
 | P30 | 888x649, 92.5% non-black | 876x659, 92.6% non-black | WSLg shows visible blur/grayscale-style effects. Windows shows opacity and geometric transforms, but blur/grayscale appear to behave like no-ops; record as WinUI visual-effect parity still needing investigation. |
-| P31 | 808x589, 91.8% non-black | 796x599, 91.9% non-black | Baseline focus/keyboard controls render on both platforms. Real Tab order, Space/Return activation, Escape and Ctrl+Q still need manual keyboard testing. |
+| P31 | 808x589, 91.8% non-black | 796x599, 91.9% non-black | Baseline focus/keyboard controls render on both platforms. ~~Real Tab order, Space/Return activation, Escape and Ctrl+Q still need manual keyboard testing.~~ **Superseded 2026-09-03 for two of the four:** Tab order and Space activation are now measured on Windows/GtkBackend and both work — see the 2026-09-03 entry. Escape and Ctrl+Q are still unmeasured, and Escape *cannot* be measured by action file at all. |
 | P32 | 788x589, 91.7% non-black | 776x599, 91.8% non-black | Accessibility baseline controls render on both platforms. Role/name verification still needs Accerciser on Linux and Accessibility Insights or `inspect.exe` on Windows. |
 | P33 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | Missing-view list and hand-written approximations render on both platforms. This is a compileable baseline, not evidence that the missing SwiftUI views now exist. |
 | P34 | 808x649, 92.2% non-black | 796x659, 92.4% non-black | Smoke run used `--debug -rows 100`. Larger row-count/performance testing is still separate. |
@@ -257,7 +257,7 @@ All final screenshots below were measured with PIL. Every final capture was visi
 ### All three backends, after the macOS side answered
 
 - The macOS answers are in `mac-test-results-20260901.md`, measured on AppKitBackend the same day. Summarised here because the point of the exercise was the three-way comparison; the raw lines and the method are in that file.
-- **Q1 is settled and GTK was the outlier.** AppKit gives a 900x628 frame with a 28pt title bar, so **content 900x600 -- exactly the request**, taken from two independent sources (`CGWindowListCopyWindowInfo` for the frame, and the InputEvent replay reading AppKit's own frame against the client origin, 120 against 148). That matches WinUI and confirms the expectation this file recorded as unverified rather than asserting. GTK's 900x561 was the only short one, and is now fixed -- see `todo.md`.
+- **Q1 is settled and GTK was the outlier.** AppKit gives a 900x628 frame with a 28pt title bar, so **content 900x600 -- exactly the request**, taken from two independent sources (`CGWindowListCopyWindowInfo` for the frame, and the InputEvent replay reading AppKit's own frame against the client origin, 120 against 148). That matches WinUI and confirms the expectation this file recorded as unverified rather than asserting. GTK's 900x561 was the only short one, and ~~is now fixed -- see `todo.md`~~ **-- that "now fixed" did not survive re-measurement. On 2026-09-03 P16 on GTK/Windows (gvsbuild) still logs the same 39px drop, 480 / 480 / 441. `correctContentSizeIfNeeded` exists in `GtkBackend.swift` and runs from `updateWindow`, so the code landed; what has not been shown is that it delivers. See the 2026-09-03 entry, and treat the `todo.md` item as open.**
 - **Q2 splits one observation into two.** AppKit commits P16's first render **three** times, like GTK and unlike WinUI's one -- but its height never moves, where GTK's went 485 -> 446 -> 446. So "commits three times" and "the height converges" are independent, and only the second was ever evidence of anything. All three agree on widths, 200 / 680. The settled heights differ by exactly what each platform puts above the content: **497 AppKit / 486 WinUI / 446 GTK before the fix**.
 - **Q3 is the most useful answer.** AppKit's `List` also reports **140** in a 180-tall pane -- the same number GTK gives. Two independently written backends agreeing puts the behaviour in the **shared layout code**, not in either backend, which is exactly what the measurement was designed to distinguish. `List` not being greedy vertically is therefore a real SwiftUI parity gap in SwiftCrossUI itself.
 - Worth carrying beyond this task: their file records that `AppKitBackend.createWindow` calls `setFrameAutosaveName(id)` with an `id` derived from the root view's type, so most test apps **share one key** (`"NSWindow Frame TupleView1<HotReloadableView>-0"`). A saved frame then wins over `.defaultSize` entirely -- P28 opened at 680x448 or 1076x907 from the same binary at the same commit depending on what that key held. Any earlier macOS measurement of a window size taken without clearing it is suspect.
@@ -377,3 +377,76 @@ All final screenshots below were measured with PIL. Every final capture was visi
   `computeLayout`, before any layout pass has run, so it is computed from the
   `width` that `setSize(of:)` just wrote, which is the same number
   `layoutSubviews` will use.
+
+## 2026-09-03
+
+### P16: the `.defaultSize` shortfall is GtkBackend's, not WSLg's
+
+- Regenerate any number here with `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`,
+  then read `splitview-debug.log` **in the repo root**.
+- **The 39px content shortfall reproduces on GTK for Windows (gvsbuild).** P16
+  asks for `.defaultSize(900, 600)` and logs three passes:
+  `leadingContent=200.0x480.0`, again `200.0x480.0`, then `200.0x441.0`. The
+  drop is **39** — the identical number WSLg gave on 2026-09-01 (485 then 446).
+  WinUI/Windows reports a steady **486** in one pass with no correction.
+- **This retires the WSLg framing.** Everything written on 2026-09-01, in this
+  file and in `bugs/Gtk4-bugs.md` §5, described the shortfall as something
+  measured on WSLg, which reads as a platform property. It is a `GtkBackend`
+  property: client-side decorations put the header bar inside the window on both
+  platforms. The absolute heights differ (480/441 against 485/446) only because
+  the two window systems put different amounts of decoration *around* the
+  surface.
+- **It also means the fix has not been shown to work.** `correctContentSizeIfNeeded`
+  is in `Sources/GtkBackend/GtkBackend.swift` and is called from `updateWindow`,
+  so the code is present in the tree that produced these numbers, yet the drop
+  is still there. The `todo.md` item is open, and the 2026-09-01 line claiming
+  it "is now fixed" is annotated above rather than deleted, because a fix that
+  was written and then assumed to work is the exact shape worth keeping visible.
+- **Frame sizes, for the same requests, are constant per backend and differ
+  between backends** — so comparing frames across backends says nothing about
+  who honoured the request:
+
+  | app | `.defaultSize` | gtk4 frame | WinUI frame |
+  |---|---|---|---|
+  | P31 | 780x560 | 808x589 (+28/+29) | 796x599 (+16/+39) |
+  | P16 | 900x600 | 928x629 (+28/+29) | 916x639 (+16/+39) |
+
+  WinUI's +16/+39 is Windows non-client area drawn *around* a client of exactly
+  the requested size. WinUI honours the request; a larger frame is not a
+  shortfall.
+
+### P31 on Windows/GtkBackend: Tab and Space work, Escape cannot be tested
+
+- Driven by `testapp/actions/win/P31-tab-and-escape.csv`, a new file. Regenerate
+  with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`
+  and read `p31-debug-events.log` **in the directory you ran it from**.
+- **Focus moves and Space activates.** `key tab` out of the `TextField` followed
+  by `key space` produced `button clicked count=1`. SwiftCrossUI has no focus
+  API — no `@FocusState`, no `.focused`, no `.focusable` — so this is entirely
+  GTK-on-Windows behaviour, and it is a genuine positive for the focus half of
+  the SwiftUI-parity focus/keyboard task. Steps 1 and 2 of the P31 plan are now
+  measured rather than assumed.
+- **Escape did not dismiss the alert, and that is not a P31 result.** The key
+  never reached the dialog: `Win32Synthesiser.ownWindow()` returns the
+  largest-area visible top-level window of the process, a `Gtk.MessageDialog` is
+  a smaller separate top-level window, and `SetForegroundWindow` on the main
+  window then pulls focus off the modal. Written up as `bugs/Gtk4-bugs.md` §6.
+  Nothing can currently be tested inside a dialog from an action file.
+- **Escape is not a portable dismissal.** `testapp/actions/mac/README.md`
+  recommends it because "it reaches a key window without a coordinate". True on
+  macOS, false on Windows. Both READMEs now say so.
+
+### Where the Pn debug logs actually land
+
+- **Every `testapp/P*.swift` that writes a debug log writes it to the current
+  working directory**, via `FileManager.default.currentDirectoryPath`. 35 of the
+  47 do; the other 12 write no log. `splitview-debug.log` is the same
+  (`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Re-derive with
+  `grep -c currentDirectoryPath testapp/P*.swift`.
+- So there is **one** convention, not two. Docs that name
+  `testapp/output/p28-debug-events.log` are right only because that flow `cd`s
+  into `testapp/output` first; `testapp/run.zsh` launches by absolute path and
+  never changes directory, so anything driven through it leaves its log at the
+  repo root. Following a doc that names `testapp/output/` after a `run.zsh`
+  launch means looking in an empty directory and reading it as "the app logged
+  nothing".

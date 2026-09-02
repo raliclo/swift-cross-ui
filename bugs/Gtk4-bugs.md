@@ -502,10 +502,23 @@ state of this feature is wrong.
 fork 中刪除它換來的是 merge 衝突而非修正。**它是已被取代，而非尚待完成**——承載時間的是 `TimeRow`，
 把 `TimePicker` 讀成「這個功能的未完成狀態」是錯的。
 
+---
+
 ## 5. Not GTK: `gtk_window_set_default_size` sizes the whole window, and we treat it as content
 
-**Measured 2026-09-01 on WSLg with P16, GTK 4.22.4.** Filed here rather than as
-a GTK defect because GTK behaves as documented; the mistake is on our side.
+**Measured 2026-09-01 on WSLg with P16, GTK 4.22.4, and again 2026-09-03 on GTK
+for Windows (gvsbuild).** Filed here rather than as a GTK defect because GTK
+behaves as documented; the mistake is on our side.
+
+> **Was scoped to WSLg, and that was wrong.** Until 2026-09-03 everything below
+> was written up as a WSLg observation, with the WinUI comparison read as
+> "Windows is fine". **The shortfall is a property of `GtkBackend`, not of
+> WSLg.** GTK on Windows loses the same **39px**, for the same reason: with
+> client-side decorations the header bar is inside the window on both. Only the
+> decoration thickness *around* the window differs between them, and that is not
+> the number that matters. The WSLg text is kept below rather than replaced,
+> because "measured on WSLg" reads as a platform finding, and that reading is
+> exactly what needs distrusting.
 
 P16 asks for `.defaultSize(width: 900, height: 600)`. `GtkBackend.createWindow`
 passes that straight to `window.defaultSize` (`GtkBackend.swift:994-997`), which
@@ -528,10 +541,45 @@ runs. **The first pass is the one that honours the request**; the second is the
 layout system correctly re-laying out for a window that turned out smaller. No
 part of the layout code is wrong.
 
+**GTK on Windows does the same thing, measured 2026-09-03**, which is what takes
+this off WSLg. P16 logs three passes there: `leadingContent=200.0x480.0` twice,
+then `200.0x441.0` — a drop of **39**, the identical number, and a later pass
+correcting an earlier one exactly as under WSLg. The absolute heights differ
+(480/441 against 485/446) because the two window systems put different amounts
+of decoration around the surface; the shortfall does not differ at all.
+
+| backend / platform | `leadingContent` height | passes | shortfall |
+|---|---|---|---|
+| GTK / Windows (gvsbuild) | 480, 480, then **441** | 3, with a correction | **39** |
+| GTK / WSLg | 485, then **446** | 2, with a correction | **39** |
+| WinUI / Windows | **486** | 1, no correction | **0** |
+
+Regenerate any row with `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`, then read
+`splitview-debug.log` **in the repo root** — `SplitView.swift:215` builds its
+path from `currentDirectoryPath`, so the file lands where you invoked the script
+and not in `testapp/output/` next to the executable.
+
 WinUIBackend does not have this: on Windows the title bar is non-client area, so
 the same app measures a 916x639 frame around a 900x600 client and reports a
-steady 486 with no second pass. Widths are unaffected on both — the header bar
-takes height only, and both report `total=880` = 900 - 2x10 of padding.
+steady 486 with no second pass. Widths are unaffected anywhere — the header bar
+takes height only, and every case reports `total=880` = 900 - 2x10 of padding.
+
+**The frame sizes say the same thing from outside the app, and the deltas are
+constant per backend.** Measured 2026-09-03 on two apps asking for different
+sizes:
+
+| app | `.defaultSize` | gtk4 frame | WinUI frame |
+|---|---|---|---|
+| P31 | 780x560 | 808x589 (**+28/+29**) | 796x599 (**+16/+39**) |
+| P16 | 900x600 | 928x629 (**+28/+29**) | 916x639 (**+16/+39**) |
+
+Neither delta moves with the requested size, so each is a fixed decoration cost
+rather than anything proportional. WinUI's **+16/+39** is Windows non-client area
+drawn *around* a client of exactly the requested size — **WinUI honours the
+request**, and the frame being larger than the request is not a shortfall. What
+gtk4's +28/+29 is made of was not broken down; only that it is constant, and
+that it is a different constant from WinUI's, which is why comparing frame sizes
+between the two backends says nothing about which one honoured the request.
 
 **Why it cannot be fixed by adding a constant.** GTK4 has no set-content-size
 call, and the header height is not knowable before the window is realized: it
@@ -543,10 +591,18 @@ shortfall. Tracked in `todo.md`.
 Unverified and needing a Mac: whether AppKit's `.defaultSize` maps to the
 content rect, which would make GTK the only one of the three that is short.
 
-## 5. 非 GTK 的問題：`gtk_window_set_default_size` 設定的是整個視窗，而我們把它當成內容
+---
 
-**2026-09-01 於 WSLg 以 P16 量測，GTK 4.22.4。** 歸在此處而非列為 GTK 缺陷，因為 GTK 的行為與
-其文件一致；錯在我們這邊。
+**5. 非 GTK 的問題：`gtk_window_set_default_size` 設定的是整個視窗，而我們把它當成內容**
+
+**2026-09-01 於 WSLg 以 P16 量測，GTK 4.22.4；2026-09-03 再於 Windows 版 GTK（gvsbuild）上量測一次。**
+歸在此處而非列為 GTK 缺陷，因為 GTK 的行為與其文件一致；錯在我們這邊。
+
+> **原本被界定為 WSLg 的現象，而那個界定是錯的。** 2026-09-03 之前，以下內容都被寫成「WSLg 上的
+> 觀察」，並把 WinUI 的對照讀成「Windows 沒事」。**這個短少是 `GtkBackend` 的性質，不是 WSLg 的。**
+> Windows 上的 GTK 少掉的是同樣的 **39px**，理由也相同：在 client-side decoration 之下，標題列在兩
+> 邊都位於視窗之內。兩者之間不同的只有視窗**外側**的裝飾厚度，而那並不是關鍵的那個數字。以下保留
+> 原本的 WSLg 敘述而非刪除，因為「於 WSLg 量測」讀起來像是一項平台結論，而那正是該被懷疑的讀法。
 
 P16 要求 `.defaultSize(width: 900, height: 600)`。`GtkBackend.createWindow` 把它直接交給
 `window.defaultSize`（`GtkBackend.swift:994-997`），亦即 `gtk_window_set_default_size`
@@ -565,9 +621,37 @@ decoration 之下，標題列位於視窗之內。於是 app 拿到的比它要�
 **446**，相差正好 39，三次執行逐位元組可重現。**第一輪才是遵守要求的那一次**；第二輪是版面系統
 正確地為「實際較小的視窗」重新排版。版面程式碼沒有任何一處是錯的。
 
+**Windows 上的 GTK 做的是同一件事，2026-09-03 實測**——這正是把本條移出 WSLg 的依據。P16 在該處
+記錄了三輪：`leadingContent=200.0x480.0` 兩次，接著 `200.0x441.0`，落差 **39**，與 WSLg 完全相同的
+數字，且同樣有一輪修正前一輪。絕對高度不同（480/441 對 485/446），是因為兩個視窗系統在表面外圍
+加上的裝飾厚度不同；短少的量則毫無差異。
+
+| backend / 平台 | `leadingContent` 高度 | 輪數 | 短少 |
+|---|---|---|---|
+| GTK / Windows（gvsbuild） | 480、480，接著 **441** | 3 輪，含一次修正 | **39** |
+| GTK / WSLg | 485，接著 **446** | 2 輪，含一次修正 | **39** |
+| WinUI / Windows | **486** | 1 輪，無修正 | **0** |
+
+任何一列都可用 `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16` 重新產生，再讀取**repo 根目錄下**的
+`splitview-debug.log`——`SplitView.swift:215` 以 `currentDirectoryPath` 組出路徑，因此該檔會落在
+「你執行腳本的位置」，而不是執行檔旁的 `testapp/output/`。
+
 WinUIBackend 沒有這個問題：Windows 上標題列屬 non-client 區域，因此同一支 app 量得 916x639 的
-外框包著 900x600 的 client，回報穩定的 486 且沒有第二輪。兩邊的寬度都不受影響——標題列只吃高度，
-兩者都回報 `total=880` = 900 − 2×10 的 padding。
+外框包著 900x600 的 client，回報穩定的 486 且沒有第二輪。三種情況的寬度都不受影響——標題列只吃
+高度，每一個都回報 `total=880` = 900 − 2×10 的 padding。
+
+**視窗外框尺寸從 app 之外說的是同一件事，而其差額對每個 backend 而言是固定的。** 2026-09-03 於兩支
+要求不同尺寸的 app 上量測：
+
+| app | `.defaultSize` | gtk4 外框 | WinUI 外框 |
+|---|---|---|---|
+| P31 | 780x560 | 808x589（**+28/+29**） | 796x599（**+16/+39**） |
+| P16 | 900x600 | 928x629（**+28/+29**） | 916x639（**+16/+39**） |
+
+兩組差額都不隨要求的尺寸變動，因此各自是固定的裝飾成本，而非任何比例性的東西。WinUI 的
+**+16/+39** 是 Windows 畫在「尺寸恰為所求」的 client **外圍**的 non-client 區域——**WinUI 遵守了
+要求**，外框大於要求並不是短少。gtk4 的 +28/+29 由什麼組成並未拆解，只確認它是固定值，且與 WinUI
+的是不同的固定值——這也正是為何「比較兩個 backend 的外框尺寸」完全說不出誰遵守了要求。
 
 **為何不能靠加一個常數修好。** GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度在視窗 realize 之前
 無從得知：它取決於主題、縮放，以及 compositor 是否根本提供 server-side decorations。修正必須在
@@ -575,3 +659,79 @@ WinUIBackend 沒有這個問題：Windows 上標題列屬 non-client 區域，�
 
 尚未驗證、需要 Mac：AppKit 的 `.defaultSize` 是否對應 content rect；若是，GTK 就是三者中唯一
 少給的那一個。
+
+---
+
+## 6. Not GTK: the Win32 synthesiser cannot address a modal dialog, and steals focus from it
+
+**Measured 2026-09-03 on Windows / GtkBackend, driving P31 with
+`testapp/actions/win/P31-tab-and-escape.csv`.**
+
+Escape does not dismiss a `.alert`. The alert stays open, the main window's
+controls grey out behind it, and the replay reports nothing wrong.
+
+**It is not GTK ignoring the key.** The same run proves the keyboard path works:
+`key tab` then `key space` activated the button, and `p31-debug-events.log`
+records `button clicked count=1`. Keys arrive. Escape did not fail to be sent.
+
+**The synthesiser sent it to the wrong window.** `Win32Synthesiser.ownWindow()`
+(Win32Synthesiser.swift:365-400) enumerates this process's visible top-level
+windows and returns **the one with the largest area**. A `Gtk.MessageDialog` is
+a separate top-level window and is smaller than the window that owns it, so the
+heuristic can never select it. Worse, the synthesiser then calls
+`SetForegroundWindow` on that main window before sending, which **takes focus
+away from the modal** and delivers Escape to the window that was not asking for
+it.
+
+The file's own comment already describes this failure shape on another platform:
+"a window presented at startup was not focused a second later, and a replay
+reported success while driving something else." This is the same thing, one
+window deeper.
+
+**Corroboration that this is not new.** `testapp/actions/win/P5-stacked-alerts.csv`
+deliberately contains no OK-button coordinate, and says why: an alert is a
+separate top-level window whose position GTK chooses. That file worked around
+the wall; it did not identify it. No action file in this tree has ever dismissed
+a GTK alert.
+
+**What a fix has to do**, and why "pick the smallest" is not it: the right window
+is the one that is *modal for* the app's window, not the smallest or the newest.
+`GetWindow(hwnd, GW_ENABLEDPOPUP)` names it directly — Windows already tracks
+which popup of a window is enabled and taking input — and returns NULL when
+there is none, which is the ordinary case. Until then, no action file can test
+anything that appears in a dialog: not an alert's buttons, not Escape, not a
+file dialog's contents.
+
+**Verify any fix by capture, not by log.** P31 logs `alert opened` and has no
+line for a dismissal, so the log looks identical whether Escape worked or not.
+A desktop capture — not `screenshot.zsh -w`, which matches by title and finds
+only the main window — shows the alert plainly.
+
+---
+
+**6. 非 GTK 的問題：Win32 合成器無法定址 modal dialog，並且會從它手上搶走焦點**
+
+**2026-09-03 於 Windows / GtkBackend 實測**，以
+`testapp/actions/win/P31-tab-and-escape.csv` 驅動 P31。
+
+Escape 無法關閉 `.alert`。alert 持續開啟，主視窗的控制項在它後方變灰，而重放不回報任何異常。
+
+**這不是 GTK 忽略了該按鍵。** 同一次執行即證明鍵盤路徑暢通：`key tab` 之後的 `key space`
+啟動了按鈕，`p31-debug-events.log` 記錄了 `button clicked count=1`。按鍵確實送達。
+
+**是合成器送給了錯的視窗。** `Win32Synthesiser.ownWindow()`（Win32Synthesiser.swift:365-400）
+列舉本行程可見的 top-level 視窗，回傳**面積最大**的那一個。`Gtk.MessageDialog` 是獨立的
+top-level 視窗，且小於擁有它的視窗，因此該啟發式永遠選不到它。更糟的是，合成器接著對那個主視窗
+呼叫 `SetForegroundWindow`，**等於把焦點從 modal 手上搶走**，再把 Escape 投遞給一個並未在等待它
+的視窗。
+
+該檔案自己的註解早已描述過這個失敗形態在另一個平台上的樣子：「啟動時 present 的視窗一秒後並未
+取得焦點，而重放回報成功，實際驅動的卻是別的程式。」這是同一件事，只是深了一層視窗。
+
+**修正必須做到什麼**，以及為何「挑最小的」不是答案：正確的視窗是「對 app 視窗而言為 modal」的
+那一個，而非最小或最新的。`GetWindow(hwnd, GW_ENABLEDPOPUP)` 直接指名它——Windows 本就追蹤某個
+視窗的哪一個 popup 已啟用並正在接收輸入——且在沒有時回傳 NULL，那是常態。在此之前，任何動作檔都
+無法測試出現在對話框中的東西：alert 的按鈕、Escape、檔案對話框的內容，都不行。
+
+**驗證修正時請用擷圖，不要用 log。** P31 會記錄 `alert opened`，卻沒有任何一行對應關閉，因此無論
+Escape 是否生效，log 看起來完全一樣。

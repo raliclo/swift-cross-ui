@@ -46,6 +46,71 @@ Windows 上有兩個 backend，同一支 Pn 分別建置後，控制項的位置
 取錯檔案不會大聲失敗。點擊會落在視窗內的某處而什麼也沒發生，看起來就像 app 忽略了輸入——正是那個
 讓 `P24-push-one-level.csv` 把座標錯誤誤判成缺陷的外觀。
 
+## Nothing inside a dialog can be driven from here yet
+
+**Measured 2026-09-03 with `P31-tab-and-escape.csv`.** Keys work: `key tab`
+moved focus out of a `TextField` and `key space` activated the button,
+`p31-debug-events.log` recording `button clicked count=1`. Escape at an open
+alert did nothing, and **the key never reached the dialog**:
+`Win32Synthesiser.ownWindow()` returns this process's **largest-area** visible
+top-level window, a `Gtk.MessageDialog` is a smaller separate top-level window
+so it can never be selected, and `SetForegroundWindow` on the main window then
+takes focus off the modal. Write-up and the proposed fix
+(`GetWindow(hwnd, GW_ENABLEDPOPUP)`) are in `bugs/Gtk4-bugs.md` §6.
+
+So an alert's buttons, Escape at a dialog, and a file dialog's contents are all
+out of reach from a file in this folder — and a replay that touches one reports
+no error at all, which is the dangerous part. `P5-stacked-alerts.csv` already
+avoided this without naming it.
+
+**`testapp/actions/mac/README.md` recommends Escape** for exactly this job,
+because on macOS it "reaches a key window without a coordinate". That is true
+there and **false here**. Do not port an Escape row from `mac/` to `win/`.
+
+## Where a Pn writes its debug log — the current directory, not `testapp/output/`
+
+Every `testapp/P*.swift` that writes a debug log builds its path from
+`FileManager.default.currentDirectoryPath`; 35 of the 47 do, and the other 12
+write no log. `splitview-debug.log` is the same
+(`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Re-derive with
+`grep -c currentDirectoryPath testapp/P*.swift`.
+
+`testapp/run.zsh` launches the executable by absolute path and never `cd`s, so
+driving a file from the repo root leaves `p31-debug-events.log` **at the repo
+root**. Docs that name `testapp/output/pNN-debug-events.log` are describing a
+flow that `cd`s into `testapp/output` first — same convention, different
+starting directory. Looking in the wrong one produces an empty directory, which
+reads as "the app logged nothing" rather than "you are standing in the wrong
+place".
+
+## 此處尚無法驅動對話框內的任何東西
+
+**2026-09-03 以 `P31-tab-and-escape.csv` 實測。** 按鍵是可用的：`key tab` 把焦點移出 `TextField`，
+`key space` 觸發了按鈕，`p31-debug-events.log` 記錄了 `button clicked count=1`。但在已開啟的 alert
+上按 Escape 毫無作用，而且**該按鍵從未抵達對話框**：`Win32Synthesiser.ownWindow()` 回傳本行程中
+**面積最大**的可見 top-level 視窗，而 `Gtk.MessageDialog` 是較小的獨立 top-level 視窗，因此永遠
+選不到；合成器接著又對主視窗呼叫 `SetForegroundWindow`，把焦點從 modal 手上拿走。記述與建議的
+修法（`GetWindow(hwnd, GW_ENABLEDPOPUP)`）見 `bugs/Gtk4-bugs.md` 第 6 節。
+
+因此 alert 的按鈕、對話框上的 Escape、檔案對話框的內容，對本資料夾中的檔案而言全都構不到——而
+碰到這些的重放**完全不會回報錯誤**，那才是危險之處。`P5-stacked-alerts.csv` 早已繞過此事，只是
+不曾指出它。
+
+**`testapp/actions/mac/README.md` 正是為了這件工作而推薦 Escape**，理由是它在 macOS 上「無需座標
+即可抵達 key window」。那句話在該處為真，在此處為假。請勿把 `mac/` 的 Escape 列搬到 `win/`。
+
+## Pn 的 debug log 寫在哪裡——當前目錄，不是 `testapp/output/`
+
+每一支會寫 debug log 的 `testapp/P*.swift`，其路徑都以 `FileManager.default.currentDirectoryPath`
+組成；47 支中有 35 支如此，其餘 12 支不寫 log。`splitview-debug.log` 亦同
+（`Sources/SwiftCrossUI/Views/SplitView.swift:215`）。可用
+`grep -c currentDirectoryPath testapp/P*.swift` 重新推導。
+
+`testapp/run.zsh` 以絕對路徑啟動執行檔且從不 `cd`，因此從 repo 根目錄驅動某個檔案時，
+`p31-debug-events.log` 會落在 **repo 根目錄**。凡是寫成 `testapp/output/pNN-debug-events.log` 的
+文件，描述的是一個會先 `cd` 進 `testapp/output` 的流程——同一種慣例，只是起始目錄不同。找錯目錄
+會看到一個空目錄，而那會被讀成「這支 app 什麼都沒記錄」，而不是「你站錯地方了」。
+
 ## Two things every file here has to get right
 
 Both were paid for in a failed run rather than in an error message.

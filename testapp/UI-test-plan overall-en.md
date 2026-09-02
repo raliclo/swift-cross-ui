@@ -1413,6 +1413,52 @@ The automated run verifies launch, render marker, final screenshot and the
 visible baseline controls. Real focus traversal, Escape handling and Ctrl+Q
 still require manual keyboard interaction.
 
+### Measured 2026-09-03 on Windows / GtkBackend — steps 1 and 2 pass, step 4 cannot be run
+
+Driven by `testapp/actions/win/P31-tab-and-escape.csv`, which is the first
+action file in this tree to press a key at a dialog at all.
+
+Regenerate with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`,
+then read `p31-debug-events.log` **in the directory you ran it from** — see the
+note below, it is not in `testapp/output/`.
+
+- **Steps 1 and 2 pass.** `key tab` moved focus out of the `TextField` and the
+  following `key space` activated the button: `p31-debug-events.log` records
+  `button clicked count=1`. Tab traversal and Space activation are therefore
+  *present* on Windows/GtkBackend. Since SwiftCrossUI names no focus API at all,
+  this is entirely the platform's own behaviour — which is what step 1 says to
+  expect, and it is the first time it has been measured rather than assumed.
+- **Step 4 cannot be performed by an action file, and this is not a P31 result.**
+  Escape did not dismiss the alert, but the run cannot tell you whether GTK
+  consumed the key as `createAlert()` intends, because **the key never reached
+  the dialog**. `Win32Synthesiser.ownWindow()` picks this process's
+  largest-area visible top-level window, and a `Gtk.MessageDialog` is a smaller
+  separate top-level window, so it can never be selected; the synthesiser then
+  calls `SetForegroundWindow` on the main window, taking focus off the modal.
+  Full write-up in `bugs/Gtk4-bugs.md` §6. **Until that is fixed, step 4 stays a
+  manual step, and a replay reporting no error is not evidence either way.**
+- **Steps 3, 5, 6 and 7 remain unmeasured** on this platform.
+
+**Escape is not a portable way to dismiss a modal.** `testapp/actions/mac/README.md`
+recommends Escape precisely because it "reaches a key window without a
+coordinate", and on macOS that is true. **On Windows it is false** for the reason
+above: the key is addressed to a window chosen by area, not to the window that
+is modal. Do not port a mac action file's Escape row to `win/` and read a
+non-error as a pass.
+
+**Where P31's log goes.** P31 builds its path from
+`FileManager.default.currentDirectoryPath`, so `p31-debug-events.log` lands in
+whatever directory launched it — the repo root when driven through
+`testapp/run.zsh`, not `testapp/output/`. This is not specific to P31:
+**every one of the 35 `testapp/P*.swift` apps that writes a debug log uses
+`currentDirectoryPath`**, and so does `splitview-debug.log`
+(`Sources/SwiftCrossUI/Views/SplitView.swift:215`). The remaining 12 write no
+log at all. Re-derive with
+`grep -c currentDirectoryPath testapp/P*.swift`. There is therefore **one**
+convention, not two — the mac docs saying `testapp/output/p28-debug-events.log`
+are right only because that flow `cd`s into `testapp/output` first, whereas
+`run.zsh` launches by absolute path and never changes directory.
+
 ## P32: Accessibility (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** The app calls

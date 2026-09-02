@@ -1465,6 +1465,39 @@ zsh testapp/test.zsh P31 --both
 自動流程只驗證啟動、render marker、final screenshot 與可見 baseline controls。真正的焦點巡覽、
 Escape 行為與 Ctrl+Q 仍需要人工鍵盤互動確認。
 
+### 2026-09-03 於 Windows / GtkBackend 實測——步驟 1、2 通過，步驟 4 無法執行
+
+以 `testapp/actions/win/P31-tab-and-escape.csv` 驅動；這是本樹中第一個真的對對話框按下按鍵的動作檔。
+
+重新產生：`zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`，
+再讀取**你執行該指令所在目錄下**的 `p31-debug-events.log`——見下方說明，它不在 `testapp/output/`。
+
+- **步驟 1 與 2 通過。** `key tab` 把焦點移出 `TextField`，緊接的 `key space` 觸發了按鈕：
+  `p31-debug-events.log` 記錄了 `button clicked count=1`。因此 Tab 巡覽與 Space 觸發在
+  Windows/GtkBackend 上**確實存在**。由於 SwiftCrossUI 完全沒有 focus API，這一切都是平台自身的
+  行為——正如步驟 1 所預期，而這是第一次被實際量到，而非被假定。
+- **步驟 4 無法由動作檔執行，因此那不是一項 P31 的結果。** Escape 確實沒有關閉 alert，但該次執行
+  無法告訴你 GTK 是否如 `createAlert()` 所意圖地吃掉了該按鍵，因為**按鍵從未抵達對話框**。
+  `Win32Synthesiser.ownWindow()` 挑選本行程中面積最大的可見 top-level 視窗，而
+  `Gtk.MessageDialog` 是較小的獨立 top-level 視窗，因此永遠選不到；合成器接著又對主視窗呼叫
+  `SetForegroundWindow`，把焦點從 modal 手上拿走。完整記述見 `bugs/Gtk4-bugs.md` 第 6 節。
+  **在該問題修好之前，步驟 4 維持為人工步驟；重放沒有回報錯誤，對任一方向都不構成證據。**
+- **步驟 3、5、6、7 在本平台上仍未量測。**
+
+**Escape 不是一種可攜的 modal 關閉方式。** `testapp/actions/mac/README.md` 之所以推薦 Escape，
+正是因為它「無需座標即可抵達 key window」，而這在 macOS 上為真。**在 Windows 上則為假**，理由如上：
+按鍵被送往一個「以面積挑出來」的視窗，而非那個處於 modal 狀態的視窗。請勿把 mac 動作檔中的 Escape
+列直接搬到 `win/`，並把「沒有回報錯誤」讀成通過。
+
+**P31 的 log 落在哪裡。** P31 以 `FileManager.default.currentDirectoryPath` 組出路徑，因此
+`p31-debug-events.log` 會落在啟動它的那個目錄——透過 `testapp/run.zsh` 驅動時就是 repo 根目錄，
+而不是 `testapp/output/`。這並非 P31 特有：**`testapp/P*.swift` 中會寫 debug log 的 35 支 app
+全部使用 `currentDirectoryPath`**，`splitview-debug.log` 亦然
+（`Sources/SwiftCrossUI/Views/SplitView.swift:215`）；其餘 12 支則完全不寫 log。可用
+`grep -c currentDirectoryPath testapp/P*.swift` 重新推導。因此此處只有**一種**慣例，不是兩種——
+mac 文件寫成 `testapp/output/p28-debug-events.log` 之所以正確，只是因為該流程會先 `cd` 進
+`testapp/output`，而 `run.zsh` 是以絕對路徑啟動、從不切換目錄。
+
 ## P32：無障礙（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 本 app 不呼叫任何缺席的東西，

@@ -1,0 +1,67 @@
+action,x,y,origin,button,key,micros,note,platform
+# P31 on Windows, GtkBackend: does keyboard focus move, and does Escape close
+# an alert. P31 exists because SwiftCrossUI has NO focus API at all -- no
+# @FocusState, no .focused, no .focusable, no .keyboardShortcut -- so everything
+# here is whatever the platform gives for free. This file measures how much that
+# is, which is a different question from whether a feature works.
+#
+# GtkBackend, not WinUI, and that is not a choice: run.zsh launches the -gtk4
+# build by design, because putting C:/gtk4/bin on PATH is the reason it exists.
+# Run the WinUI build directly from testapp/output/ if you want that one, and
+# re-read the coordinates first -- see below.
+#
+# Coordinates read off a wincap capture of the frame at 808x589, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here.
+#
+# THE TWO BUILDS ARE NOT THE SAME SIZE: 808x589 for gtk4 against 796x599 for
+# WinUI, for the same .defaultSize(780, 560). This file was first written from
+# the WinUI capture and run against gtk4 by accident. Every step still landed,
+# which is exactly the problem -- the alert button spans x 33..213 on gtk4 and
+# the WinUI-derived x=111 fell inside it by luck, not by being right. The
+# coordinates below are re-read from the gtk4 capture. Do not copy a file
+# between backends without re-reading them.
+#
+# What each step is FOR, since a click that lands is not the same as a pass:
+#   - Tab from the text field must reach the button row. If focus does not move,
+#     the Space that follows goes nowhere and the click count stays 0.
+#   - Space on a focused button must activate it. That is the platform's
+#     keyboard activation, not ours.
+#   - Escape must dismiss the alert. P31 logs "alert opened" but has no line for
+#     a dismissal, so Escape cannot be read from the log: capture the window
+#     afterwards and look. A log that cannot say something did not happen is
+#     not evidence that it did.
+#
+# Read the rest from p31-debug-events.log, which lands in the CURRENT DIRECTORY
+# -- P31 builds its path from currentDirectoryPath, so run.zsh from the repo
+# root leaves it at the repo root, not in testapp/output/ where the other apps
+# put theirs.
+#
+# Measured 2026-09-03 on GtkBackend/Windows: "button clicked count=1" after the
+# Tab and Space, so focus DOES move and Space DOES activate. That is a real
+# result for the focus half of task #30, on the platform half that can be run
+# here.
+#
+# P31 於 Windows、GtkBackend：鍵盤焦點會不會移動，以及 Escape 能不能關閉 alert。
+# P31 存在的理由是 SwiftCrossUI 完全沒有 focus API，因此此處的一切都是平台白送的。
+#
+# 使用 GtkBackend 而非 WinUI，這並非選擇：run.zsh 依設計啟動 -gtk4 建置，因為把
+# C:/gtk4/bin 加進 PATH 正是它存在的理由。
+#
+# **兩個建置的尺寸不同**：同樣的 .defaultSize(780, 560)，gtk4 是 808x589，WinUI 是
+# 796x599。本檔最初是依 WinUI 的擷圖寫成，卻誤跑在 gtk4 上。每一步都命中了——而那正是問題
+# 所在：alert 按鈕在 gtk4 上橫跨 x 33..213，源自 WinUI 的 x=111 是碰巧落在裡面，不是因為
+# 它正確。以下座標已改由 gtk4 的擷圖重新讀取。切勿在未重讀座標的情況下跨 backend 複製檔案。
+#
+# 2026-09-03 實測結果：Tab 與 Space 之後出現 "button clicked count=1"，因此焦點**確實**會
+# 移動，Space **確實**能啟動。這是任務 #30 焦點那一半在此處可執行平台上的真實結果。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,400,300,frame,left,,,put the caret in the text field (spans x 33..775),windows
+sleep,,,,,,500000,,windows
+key,,,,,tab,,Tab out of the field -- focus must reach the button row,windows
+sleep,,,,,,500000,,windows
+key,,,,,space,,Space activates whatever now has focus; Button 0 must become Button 1,windows
+sleep,,,,,,700000,,windows
+click,123,390,frame,left,,,"Open alert for Escape test" (spans x 33..213 y 375..406),windows
+sleep,,,,,,1200000,let the alert appear before pressing anything,windows
+key,,,,,escape,,Escape must dismiss the alert -- check by capture not by log,windows
+sleep,,,,,,1500000,hold for the capture,windows

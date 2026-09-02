@@ -174,7 +174,7 @@
 | App | WSLg final screenshot | Windows final screenshot | 備註 |
 | --- | --- | --- | --- |
 | P30 | 888x649，92.5% 非黑 | 876x659，92.6% 非黑 | WSLg 可見 blur / grayscale 類效果；Windows 可見 opacity 與幾何 transform，但 blur / grayscale 看起來像 no-op，先記錄為 WinUI visual-effect parity 仍待查。 |
-| P31 | 808x589，91.8% 非黑 | 796x599，91.9% 非黑 | 兩平台都能渲染 focus / keyboard baseline controls。真正的 Tab 順序、Space/Return 觸發、Escape 與 Ctrl+Q 仍需人工鍵盤測試。 |
+| P31 | 808x589，91.8% 非黑 | 796x599，91.9% 非黑 | 兩平台都能渲染 focus / keyboard baseline controls。~~真正的 Tab 順序、Space/Return 觸發、Escape 與 Ctrl+Q 仍需人工鍵盤測試。~~ **2026-09-03 起，四者中的兩者已被取代：** Tab 順序與 Space 觸發已在 Windows/GtkBackend 上量測，兩者皆可運作——見 2026-09-03 條目。Escape 與 Ctrl+Q 仍未量測，而 Escape **根本無法**由動作檔量測。 |
 | P32 | 788x589，91.7% 非黑 | 776x599，91.8% 非黑 | 兩平台都能渲染 accessibility baseline controls。角色與名稱驗證仍需 Linux 上的 Accerciser，以及 Windows 上的 Accessibility Insights 或 `inspect.exe`。 |
 | P33 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 兩平台都能渲染 missing-view 清單與手寫近似 UI。這是可編譯 baseline，不代表缺席的 SwiftUI views 已經存在。 |
 | P34 | 808x649，92.2% 非黑 | 796x659，92.4% 非黑 | Smoke run 使用 `--debug -rows 100`。更大的 row count / performance 測試仍需另外執行。 |
@@ -257,7 +257,7 @@
 ### macOS 端回覆之後，三個 backend 的全貌
 
 - macOS 的答案在 `mac-test-results-20260901.md`，同日於 AppKitBackend 上量測。此處僅摘要，因為這次練習的目的就是三方比較；原始輸出與方法在該檔案中。
-- **Q1 定案，GTK 是異類。** AppKit 給出 900x628 的外框、28pt 標題列，因此**內容 900x600——恰為所要求的值**，且取自兩個彼此獨立的來源（`CGWindowListCopyWindowInfo` 取外框，以及 InputEvent 重放以 AppKit 自己回報的 frame 對照 client 原點，120 對 148）。這與 WinUI 一致，並證實了本檔案先前標為「未驗證」而非直接斷言的那個預期。GTK 的 900x561 是唯一短少的，現已修正——見 `todo.md`。
+- **Q1 定案，GTK 是異類。** AppKit 給出 900x628 的外框、28pt 標題列，因此**內容 900x600——恰為所要求的值**，且取自兩個彼此獨立的來源（`CGWindowListCopyWindowInfo` 取外框，以及 InputEvent 重放以 AppKit 自己回報的 frame 對照 client 原點，120 對 148）。這與 WinUI 一致，並證實了本檔案先前標為「未驗證」而非直接斷言的那個預期。GTK 的 900x561 是唯一短少的，~~現已修正——見 `todo.md`~~ **——但這個「現已修正」沒能通過重新量測。2026-09-03 在 GTK/Windows（gvsbuild）上，P16 仍記錄到同樣的 39px 落差：480 / 480 / 441。`correctContentSizeIfNeeded` 確實存在於 `GtkBackend.swift` 並由 `updateWindow` 呼叫，因此程式碼有落地；沒有被證明的是它有交付結果。見 2026-09-03 條目，並把 `todo.md` 中該項視為未結案。**
 - **Q2 把一個觀察拆成了兩個。** AppKit 對 P16 的首次算繪 commit **三次**，與 GTK 相同、與 WinUI 的一次不同——但它的高度全程不動，而 GTK 是 485 → 446 → 446。因此「commit 三次」與「高度收斂」是彼此獨立的兩件事，而其中只有後者曾構成證據。三者的寬度一致，皆為 200 / 680。安定後的高度差異，恰好等於各平台放在內容之上的裝飾：**AppKit 497 / WinUI 486 / GTK 修正前 446**。
 - **Q3 是最有價值的答案。** AppKit 的 `List` 在 180 高的窗格中同樣回報 **140**——與 GTK 給出的是同一個數字。兩個各自獨立撰寫的 backend 給出相同答案，就把該行為定位在**共用的版面程式碼**，而非任一 backend，這正是這次量測設計要分辨的事。因此「`List` 在垂直方向不貪婪」是 SwiftCrossUI 本身一個真實的 SwiftUI parity 缺口。
 - 值得帶出此任務之外的一點：他們的檔案記載 `AppKitBackend.createWindow` 會呼叫 `setFrameAutosaveName(id)`，而 `id` 衍生自 root view 的型別，因此大多數測試 app **共用同一把 key**（`"NSWindow Frame TupleView1<HotReloadableView>-0"`）。已儲存的 frame 會完全蓋過 `.defaultSize`——同一個 binary、同一個 commit 的 P28，會因該 key 的內容而開成 680x448 或 1076x907。任何先前未清除該 key 就量測視窗尺寸的 macOS 結果，都應存疑。
@@ -346,3 +346,60 @@
 - 寬度是**推導出來的，不是存起來的**：`sidebarWidth` 必須能在 `computeLayout` 期間、任何 layout
   pass 執行之前就回答，因此它由 `setSize(of:)` 剛寫入的 `width` 推導，而那與 `layoutSubviews`
   稍後所用的是同一個數字。
+
+## 2026-09-03
+
+### P16：`.defaultSize` 的短少屬於 GtkBackend，而不屬於 WSLg
+
+- 此處任何數字都可用 `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16` 重新產生，再讀取
+  **repo 根目錄下**的 `splitview-debug.log`。
+- **39px 的內容短少在 Windows 版 GTK（gvsbuild）上同樣重現。** P16 要求
+  `.defaultSize(900, 600)`，記錄了三輪：`leadingContent=200.0x480.0`、再一次
+  `200.0x480.0`，接著 `200.0x441.0`。落差為 **39**——與 2026-09-01 WSLg（485 接著 446）
+  完全相同的數字。WinUI/Windows 則一輪即回報穩定的 **486**，沒有修正輪。
+- **這推翻了「WSLg 現象」的界定。** 2026-09-01 寫在本檔與 `bugs/Gtk4-bugs.md` 第 5 節中的一切，
+  都把此短少描述為「在 WSLg 上量到的」，而那讀起來像是一項平台性質。它其實是 `GtkBackend` 的
+  性質：client-side decoration 在兩個平台上都把標題列放進視窗之內。絕對高度不同（480/441 對
+  485/446），只是因為兩個視窗系統在表面**外圍**加上的裝飾量不同。
+- **這也代表該修正尚未被證明有效。** `correctContentSizeIfNeeded` 位於
+  `Sources/GtkBackend/GtkBackend.swift`，並由 `updateWindow` 呼叫，因此產生上述數字的那份原始碼
+  中確實有它，落差卻依然存在。`todo.md` 中的該項為未結案；而 2026-09-01 那句「現已修正」以註記
+  方式保留而非刪除，因為「寫好了就假定它有效」正是最值得留在檯面上的失敗形狀。
+- **同一組要求下的視窗外框尺寸，對每個 backend 是固定的，backend 之間則不同**——因此跨 backend
+  比較外框，說不出誰遵守了要求：
+
+  | app | `.defaultSize` | gtk4 外框 | WinUI 外框 |
+  |---|---|---|---|
+  | P31 | 780x560 | 808x589（+28/+29） | 796x599（+16/+39） |
+  | P16 | 900x600 | 928x629（+28/+29） | 916x639（+16/+39） |
+
+  WinUI 的 +16/+39 是 Windows 畫在「尺寸恰為所求」的 client **外圍**的 non-client 區域。WinUI
+  遵守了要求；外框較大並不是短少。
+
+### P31 於 Windows/GtkBackend：Tab 與 Space 可運作，Escape 無法被測試
+
+- 以新增的 `testapp/actions/win/P31-tab-and-escape.csv` 驅動。重新產生：
+  `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`，
+  再讀取**你執行該指令所在目錄下**的 `p31-debug-events.log`。
+- **焦點會移動，Space 會觸發。** 由 `TextField` 按 `key tab` 之後接 `key space`，產生了
+  `button clicked count=1`。SwiftCrossUI 沒有任何 focus API——沒有 `@FocusState`、沒有
+  `.focused`、沒有 `.focusable`——因此這完全是 GTK-on-Windows 的行為，也是 SwiftUI parity 中
+  focus/keyboard 那項「焦點那一半」的真實正面結果。P31 計畫的步驟 1 與 2 已由量測取代假定。
+- **Escape 沒有關閉 alert，而那不是一項 P31 結果。** 按鍵從未抵達對話框：
+  `Win32Synthesiser.ownWindow()` 回傳本行程中面積最大的可見 top-level 視窗，而
+  `Gtk.MessageDialog` 是較小的獨立 top-level 視窗；合成器接著對主視窗呼叫
+  `SetForegroundWindow`，把焦點從 modal 手上拉走。完整記述見 `bugs/Gtk4-bugs.md` 第 6 節。
+  目前任何出現在對話框內的東西，都無法由動作檔測試。
+- **Escape 不是可攜的關閉手段。** `testapp/actions/mac/README.md` 推薦它，理由是「無需座標即可
+  抵達 key window」。這在 macOS 上為真，在 Windows 上為假。兩份 README 現已寫明此事。
+
+### Pn 的 debug log 究竟落在哪裡
+
+- **每一支會寫 debug log 的 `testapp/P*.swift`，都寫到當前工作目錄**，透過
+  `FileManager.default.currentDirectoryPath`。47 支中有 35 支如此，其餘 12 支完全不寫 log。
+  `splitview-debug.log` 亦同（`Sources/SwiftCrossUI/Views/SplitView.swift:215`）。可用
+  `grep -c currentDirectoryPath testapp/P*.swift` 重新推導。
+- 因此只有**一種**慣例，不是兩種。凡是寫成 `testapp/output/p28-debug-events.log` 的文件，之所以
+  正確，只是因為該流程會先 `cd` 進 `testapp/output`；而 `testapp/run.zsh` 以絕對路徑啟動、從不
+  切換目錄，所以經由它驅動的一切都會把 log 留在 repo 根目錄。若在 `run.zsh` 啟動之後照著寫有
+  `testapp/output/` 的文件去找，看到的會是一個空目錄，並且很容易讀成「這支 app 什麼都沒記錄」。
