@@ -136,9 +136,65 @@ class BaseViewWidget: UIView, WidgetProtocolHelpers {
     /// 帶有 gesture recogniser 的 view 維持預設行為。一個已被賦予「對觸控做某件事」的容器並非
     /// pass-through，而 `Color` 上的 `onTapGesture` 正是否則會被弄壞的那個情況。
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let hit = super.hitTest(point, with: event)
-        guard hit === self else { return hit }
-        if let recognizers = gestureRecognizers, !recognizers.isEmpty { return self }
+        guard !isHidden, alpha > 0.01, isUserInteractionEnabled else { return nil }
+
+        // Clipping is honoured, and only clipping. A container that masks its
+        // bounds does not draw what is outside them, so nothing out there can
+        // be touched either -- `setCornerRadius` sets `masksToBounds`, and a
+        // scroll view clips through its own `hitTest` rather than this one.
+        // 會遵守裁切，且只遵守裁切。一個會遮蔽自身 bounds 的容器不會畫出界外的東西，因此界外
+        // 也沒有任何東西可被觸控——`setCornerRadius` 會設定 `masksToBounds`，而捲動視圖是透過
+        // 它自己的 `hitTest` 裁切，不是透過這一個。
+        if clipsToBounds || layer.masksToBounds, !bounds.contains(point) { return nil }
+
+        // Children are asked even when the point is outside this view's bounds.
+        //
+        // `UIView.hitTest` returns nil for such a point *before* it looks at any
+        // subview. That is correct for a view that clips, and wrong for a
+        // SwiftCrossUI container, whose children routinely sit outside it:
+        // content wider than its container is centred, so half of it is at
+        // negative x, and it draws there because nothing clips it. Drawn and
+        // untouchable is the worst of both.
+        //
+        // Measured 2026-09-02 on the simulator. P7's plain List is inside an
+        // HStack wider than the phone; two coordinates inside the row did
+        // nothing, while the button that sets the same selection from code
+        // highlighted it. P30's "Use wide frame" behaved the same way -- the
+        // label stayed at 120 after a tap on its measured centre. Both apps
+        // overflow horizontally; P16, P21, P23 and P26 fit, and every button in
+        // those responded.
+        //
+        // Topmost first, so a sibling drawn over another is still asked first
+        // and the ordering a person can see is the ordering that decides.
+        //
+        // 即使該點落在本 view 的 bounds 之外，仍會詢問子元件。
+        //
+        // 對於這樣的點，`UIView.hitTest` 會在查看任何 subview **之前**就回傳 nil。那對於會裁切的
+        // view 是正確的，對於 SwiftCrossUI 的容器則是錯的——它的子元件經常位於它之外：比容器寬的
+        // 內容會置中，因此有一半位於負 x，而它會畫在那裡，因為沒有東西裁切它。「畫得出來卻碰不到」
+        // 是兩者中最糟的組合。
+        //
+        // 2026-09-02 於模擬器上實測。P7 的純 List 位於一個比手機還寬的 HStack 內；在該列內部的兩個
+        // 座標都毫無反應，而「由程式碼設定相同選取」的按鈕卻能把它標示起來。P30 的「Use wide frame」
+        // 表現相同——在其量到的中心點按之後，標籤仍停在 120。這兩支 app 都水平溢出；而 P16、P21、
+        // P23、P26 塞得下，它們裡面的每一個按鈕都有反應。
+        //
+        // 由最上層先問，使「被畫在另一個之上的兄弟元件」仍然先被詢問，讓人看得見的層序就是決定的層序。
+        for child in subviews.reversed() {
+            if let hit = child.hitTest(convert(point, to: child), with: event) { return hit }
+        }
+
+        // A container is never the target of a touch; only its contents are.
+        // Views with a gesture recogniser keep the default, because a container
+        // that has been given something to do with a touch is not a
+        // pass-through, and `onTapGesture` on a `Color` is the case that would
+        // otherwise break.
+        // 容器永遠不是觸控的目標，只有它的內容才是。帶有 gesture recogniser 的 view 維持預設行為，
+        // 因為一個已被賦予「對觸控做某件事」的容器並非 pass-through，而 `Color` 上的
+        // `onTapGesture` 正是否則會被弄壞的那個情況。
+        if bounds.contains(point), let recognizers = gestureRecognizers, !recognizers.isEmpty {
+            return self
+        }
         return nil
     }
 

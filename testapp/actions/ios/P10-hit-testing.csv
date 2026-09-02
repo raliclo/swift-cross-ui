@@ -17,9 +17,23 @@ action,x,y,origin,button,key,micros,note,platform
 # The left-hand column is clipped off the left edge on this screen so its
 # Click me button is not measurable. Ctrl-Q is not expressible: the iOS runner
 # rejects key rows.
-click,136,442,client,left,,,"Click me too -- Covered clicks must rise by one (fixed 2026-09-02, verified 1)",ios
+# **Re-measured 2026-09-02, later the same day.** The three coordinates below
+# were 62, 31 and 62 points to the left, and two of the three then landed on
+# empty space. Nothing about P10 changed: content wider than the phone is
+# centred inside RootScrollHost and then shifted so its leftmost pixel sits at
+# the scroll view's origin, so the horizontal offset of the whole page is a
+# function of the total content width. Anything that changes the widest element
+# on the page moves every coordinate on it. A stale x with a matching y is the
+# signature -- all three y values were still correct to within a point.
+#
+# **2026-09-02 稍晚重新量測。** 下方三個座標原本分別偏左 62、31、62 點，其中兩個因而落在空白處。
+# P10 本身沒有任何改變：比手機寬的內容會在 RootScrollHost 內置中，然後被平移使其最左側的像素落在
+# 捲動視圖的原點，因此整頁的水平偏移量是「內容總寬度」的函數。任何會改變頁面上最寬元素的東西，
+# 都會移動該頁上的每一個座標。「x 過期而 y 仍然正確」就是它的特徵——那三個 y 值全都準確到一點以內。
+#
+click,198,443,client,left,,,"Click me too -- Covered clicks must rise by one (VERIFIED 1)",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,317,461,client,left,,,"the orange allowsHitTesting(false) block -- Hidden clicks must RISE; the modifier lets the click through, verified 1",ios
+click,350,464,client,left,,,"the orange allowsHitTesting(false) block -- Hidden clicks must RISE; the modifier lets the click through (VERIFIED 1, and the status line reads Hidden button received a click)",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,304,562,client,left,,,Transparent overlay present -- the switch must flip to off (VERIFIED),ios
+click,366,563,client,left,,,Transparent overlay present -- the switch must flip to off (VERIFIED),ios
 sleep,,,,,,500000,let the overlay disappear,ios
