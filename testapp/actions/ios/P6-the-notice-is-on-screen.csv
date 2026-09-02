@@ -1,0 +1,57 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6: read the notice. There is nothing here that a tap can prove.
+#
+# **P6 had never been built for iOS.** It drives ffmpeg, ffplay and zstd, and
+# its platform guards were binary -- `#if os(Windows)` using a windowless
+# process, and an `#else` assuming a desktop Unix -- so iOS fell into the
+# `#else` and hit twelve errors, ten for `Process` and two for
+# `homeDirectoryForCurrentUser`. swift-bundler hid all of them behind "Failed to
+# run xcodebuild", so nobody had seen them. Fixed 2026-09-02.
+#
+# `Process` is not merely discouraged on iOS: NSTask.h is absent from the
+# iPhoneSimulator SDK entirely, which is why the compiler says "cannot find
+# type" rather than "is unavailable". An app can only execute code in its own
+# signed bundle.
+#
+# **There is a trap under this and the app answers it at run time rather than
+# hiding it.** The simulator shares the host filesystem, so P6's PATH search
+# really does resolve /opt/homebrew/bin/ffmpeg there. Finding a tool and being
+# allowed to run it are different questions, and a file that pressed "Choose a
+# stream" would be asking the first while appearing to ask the second.
+#
+# So the claim is what is on screen, and the reason there is no click. The app
+# says it in its own voice, twice: a notice above the video box and a line
+# inside it.
+#
+# Not covered here, and worth knowing before writing anything that loads a file:
+# with a file loaded, P6's iOS layout collapses to the title row. That is its
+# fixed 960/1040-point layout meeting a 393-point screen on UIKitBackend, newly
+# exposed rather than newly caused -- P6 had never been built for iOS at all.
+# The no-file launch state, which is what an iOS user lands in, renders.
+#
+# Measured 2026-09-02 on the iPhone 16 simulator.
+#
+# P6：讀那則說明。此處沒有任何東西是點擊能夠證明的。
+#
+# **P6 從來沒有為 iOS 建置過。** 它驅動 ffmpeg、ffplay 與 zstd，而它的平台分支是二元的——
+# `#if os(Windows)` 使用一個無視窗的行程，`#else` 則假設桌面 Unix——因此 iOS 掉進了 `#else`，
+# 撞上十二個錯誤：十個關於 `Process`、兩個關於 `homeDirectoryForCurrentUser`。swift-bundler 把
+# 它們全都藏在「Failed to run xcodebuild」之後，因此沒有人看過它們。已於 2026-09-02 修正。
+#
+# `Process` 在 iOS 上不只是「不建議使用」：NSTask.h 在 iPhoneSimulator SDK 中完全不存在，這正是
+# 編譯器說「cannot find type」而非「is unavailable」的原因。app 只能執行自己已簽章 bundle 內的程式碼。
+#
+# **這底下還有一個陷阱，而該 app 選擇在執行時回答它，而不是把它藏起來。** 模擬器共用主機的檔案系統，
+# 因此 P6 的 PATH 搜尋在那裡真的會解析到 /opt/homebrew/bin/ffmpeg。「找得到某個工具」與「被准許執行
+# 它」是兩個不同的問題；而一份會去按「Choose a stream」的檔案，問的是前者，看起來卻像在問後者。
+#
+# 因此本檔所主張的就是畫面上的內容，而這也是它沒有點擊的理由。該 app 用它自己的語氣說了兩次：
+# 影片方框上方的一則說明，以及方框內的一行字。
+#
+# 此處未涵蓋、但在寫任何「會載入檔案」的東西之前值得知道：一旦載入檔案，P6 的 iOS 版面會塌成只剩
+# 標題列。那是它固定的 960/1040 點版面在 UIKitBackend 上遇到 393 點螢幕的結果，屬於「新被暴露」
+# 而非「新被造成」——P6 根本從來沒有為 iOS 建置過。而「沒有載入檔案」的啟動狀態，也就是 iOS 使用者
+# 實際會落在的那個狀態，是正常算繪的。
+#
+# 2026-09-02 於 iPhone 16 模擬器上量測。
+sleep,,,,,,2500000,"the notice must be on screen: four lines reading Playback unavailable on iOS: an app here cannot start another program, and P6 decodes by running ffmpeg. The rest of this screen still works. -- and the black video box must carry Playback unavailable on iOS in white at its left edge (VERIFIED)",ios
