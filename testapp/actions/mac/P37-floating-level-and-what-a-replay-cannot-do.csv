@@ -1,0 +1,115 @@
+action,x,y,origin,button,key,micros,note,platform
+# P37: read the level the backend reports, and record separately that the window
+# really does stay in front.
+#
+# P37 is the one app judged by what is NOT covering it, and it has no control:
+# its "How to test" section is three numbered instructions, deliberately written
+# as text rather than as a button, because raising another application's window
+# is the test and no button inside this window can do that to itself.
+#
+# `actions/mac/README.md` gives that as the reason P37 had no file here:
+# "asks for another application's window to be given focus, which the
+# synthesiser cannot do -- it posts into this app's own event queue." That is
+# still exactly true, and it is why every row below is a sleep. AppKitSynthesiser
+# addresses events to a window by number and cannot activate another process; a
+# click invented for this file would land on a paragraph of instructions.
+#
+# What the file can claim is the half that is in the window. Three lines must
+# read, in this order:
+#
+#   backend -> AppKitBackend
+#   supported levels -> automatic, normal, floating
+#   floating is supported: this window should stay in front
+#
+# The second line is the one that carries information. `supportedWindowLevels`
+# is the backend's own statement about itself, and the app prints it precisely so
+# a tester on a backend without `.floating` does not file the correct result as a
+# bug -- GTK 4 removed `gtk_window_set_keep_above`, so under WSLg the same window
+# is an ordinary one. If AppKitBackend ever stops offering `.floating`, that line
+# changes and the third line changes with it, both readable off a capture.
+#
+# THE OTHER HALF, MEASURED OUTSIDE THIS FILE ON 2026-09-02, because it cannot be
+# driven from inside it:
+#
+#   * The window server reports the window at kCGWindowLayer 3 --
+#     NSFloatingWindowLevel -- while every ordinary window on this desktop is at
+#     layer 0. So `.topmost()` reached AppKit rather than being accepted and
+#     dropped.
+#   * TextEdit was activated and its window moved to P37's exact frame
+#     (580,135 760x568). In the window server's front-to-back list P37 stayed
+#     first and TextEdit came second, and a region capture of that rectangle
+#     showed P37 in full with none of TextEdit visible.
+#   * P37's traffic lights are grey in that capture. That is the proof rather
+#     than a blemish: grey means it is not the key window, so it is in front
+#     while unfocused, which is what floating means and what merely being
+#     frontmost would not show.
+#
+# origin is unused: no row here carries a coordinate. Window 760x568 points,
+# capture 1520px wide -- scale 2.
+#
+# P37：讀出 backend 所回報的層級，並另行記錄該視窗確實會保持在最前。
+#
+# P37 是唯一以「什麼沒有蓋住它」來判定的 app，而它沒有任何控制項：其「How to test」一節是三行編號
+# 指示，刻意寫成文字而非按鈕，因為「把另一個應用程式的視窗抬起來」就是測試本身，而此視窗內的任何
+# 按鈕都無法對自己做這件事。
+#
+# `actions/mac/README.md` 把這一點列為 P37 此前沒有檔案的理由：「要求把焦點交給另一個應用程式的
+# 視窗，而 synthesiser 做不到——它只把事件送入本 app 自己的事件佇列。」那至今完全屬實，也正是下方
+# 每一列都是 sleep 的原因。AppKitSynthesiser 以視窗編號定址事件，無法啟動另一個行程；為本檔硬造的
+# 點擊，只會落在一段指示文字上。
+#
+# 本檔能夠主張的，是位於視窗之內的那一半。以下三行必須依序讀出（原文如上方英文）。
+#
+# 第二行才是帶有資訊的那一行。`supportedWindowLevels` 是 backend 對自身的陳述，而該 app 之所以把它
+# 印出來，正是為了讓在沒有 `.floating` 的 backend 上測試的人，不會把正確的結果當成 bug 回報——GTK 4
+# 移除了 `gtk_window_set_keep_above`，因此在 WSLg 下同一個視窗就是一般視窗。若 AppKitBackend 哪天
+# 不再提供 `.floating`，那一行會改變，第三行也會跟著改變，兩者都能自擷取影像讀出。
+#
+# 另一半，於 2026-09-02 在本檔之外量測，因為它無法由本檔內部驅動：
+#
+#   * window server 回報該視窗位於 kCGWindowLayer 3——即 NSFloatingWindowLevel——而此桌面上其他
+#     每一個一般視窗都在 layer 0。可見 `.topmost()` 確實抵達了 AppKit，而不是被接受後丟棄。
+#   * 啟動 TextEdit 並把它的視窗移到 P37 的確切 frame（580,135 760x568）。在 window server 的
+#     front-to-back 清單中，P37 仍排第一、TextEdit 第二；而對該矩形所做的區域擷取，顯示的是完整的
+#     P37，看不到任何 TextEdit。
+#   * 在該張擷取中，P37 的紅綠燈按鈕是灰的。那是證據而非瑕疵：灰色代表它不是 key window，因此它是
+#     「未取得焦點卻仍在最前」——那正是 floating 的意義，也正是「只是碰巧在最前」所無法展示的。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 760x568 點，擷取寬 1520px——scale 2。
+#
+# ONE MORE THING, FOUND WHILE REPLAYING THIS ON 2026-09-02, because it changes
+# where the evidence for this app comes from: `test.zsh P37 --macos` cannot
+# capture P37's window and never could. Its run prints
+#
+#   !! priority 1 skipped -- no window whose title or owning program name
+#      contains "P37 window level" is open
+#
+# and falls back to a whole-screen grab, which on a shared desktop is useless as
+# evidence and captures whatever else is open. The cause is one line in
+# `testapp/screenshot.zsh`'s window query:
+#
+#   if (w.kCGWindowLayer !== 0) continue;
+#
+# P37's window is at layer 3 precisely because `.topmost()` worked, so the app
+# whose whole subject is its window level is the one app the capture helper
+# filters out. Every other Pn resolved by title on the same runs. Nothing here
+# changes that file; it is recorded so the next reader does not read the
+# fallback as the app failing to start. The window-scoped captures cited above
+# were taken with `screencapture -l <window id>`, which has no such filter.
+#
+# 還有一件事，是 2026-09-02 重放本檔時發現的，而它改變了這支 app 的證據來源：
+# `test.zsh P37 --macos` 擷取不到 P37 的視窗，而且從來就擷取不到。該次執行會印出上方那段
+# 「priority 1 skipped」訊息，然後退回整個螢幕的擷取——在一個共用的桌面上，那既不能作為證據，也會
+# 把其他開著的東西一併拍進去。原因是 `testapp/screenshot.zsh` 視窗查詢中的一行：
+#
+#   if (w.kCGWindowLayer !== 0) continue;
+#
+# P37 的視窗之所以在 layer 3，正是因為 `.topmost()` 生效了；於是這支「整個主題就是視窗層級」的
+# app，成了擷取工具唯一濾掉的那一支。同幾次執行中，其他每一支 Pn 都能以標題解析成功。此處不更動
+# 那個檔案；記在這裡，是為了讓下一位讀者不要把那個 fallback 讀成「app 沒啟動」。上文引用的
+# 視窗範圍擷取是以 `screencapture -l <window id>` 取得的，它沒有這道過濾。
+sleep,,,,,,500000,"the second line must read backend -> AppKitBackend; on this app that line is how a capture says which backend drew it (VERIFIED)",macos
+sleep,,,,,,500000,"supported levels -> automatic, normal, floating -- three levels, and floating is the one this app's .topmost() needs (VERIFIED)",macos
+sleep,,,,,,500000,"the line below it must read 'floating is supported: this window should stay in front' and NOT the 'floating is NOT supported' alternative (VERIFIED)",macos
+sleep,,,,,,500000,"the three numbered instructions are present and are text -- there is no button here, which is why this file drives nothing (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the capture is taken with the window settled,macos

@@ -1,0 +1,80 @@
+action,x,y,origin,button,key,micros,note,platform
+# P43: is the gradient clipped to the shape, or does it fill a rectangle?
+#
+# P43 has no control of any kind -- four shapes and two paragraphs of text -- so
+# this file drives nothing, and a click invented for it would only prove that
+# clicking a Circle does nothing. What it can do is turn the app's question into
+# four colour readings that either hold or do not, and pin the sample points so
+# the same reading can be taken again next month.
+#
+# All four shapes sit on one row, each 120x120 points, all spanning y 149.0 to
+# 268.5. Their left edges are at x 83.0, 221.0, 361.0 and 508.0. That is the
+# whole geometry needed below.
+#
+# The decisive probe is the CORNER, not the middle. A gradient that filled its
+# bounding rectangle instead of the circle would still be red at the top and
+# blue at the bottom -- the middle of the shape cannot tell the two apart. The
+# corner can: at (86,151), four points inside the circle's frame and outside the
+# circle itself, the window background must show through. The rectangle beside
+# it is the control for that control -- the same relative corner at (364,151) is
+# filled -- so a corner reading of "background" cannot be blamed on the probe
+# missing the shape.
+#
+# The ring is where a backend is most likely to be wrong in a way that looks
+# right, and P43's own comment says so: a gradient clipped to the fill region
+# instead of the stroke gives a filled disc that reads as a working gradient.
+# Its middle must stay empty. It is also flattened at four corners, and that is
+# not a fault -- a 14pt stroke sits half outside the path, so 7pt of it falls
+# outside the 120x120 frame and is clipped. Measured here at 6.5pt of visible
+# stroke on each side, which is that same half.
+#
+# origin is unused: no row here carries a coordinate. Window 720x448 points,
+# capture 1440px wide -- scale 2.
+#
+# There is no `testapp/test_support/test_P43.zsh`, so `test.zsh P43 --macos
+# --actionfile` cannot reach this file; it stops with "Missing test script".
+# This was replayed by launching `.macApp/debugTarget.app/Contents/MacOS/
+# debugTarget --debug -actionfile <this file>` from `testapp/output` -- the same
+# bundle, the same binary and the same flag `run_macos` uses.
+#
+# P43：漸層是被裁進形狀裡，還是填滿了一個矩形？
+#
+# P43 沒有任何控制項——四個形狀與兩段文字——因此本檔不驅動任何東西；為它硬造一個點擊，也只能證明
+# 「點一個 Circle 什麼事都不會發生」。它能做的，是把該 app 的問題化為四筆「成立或不成立」的顏色
+# 讀數，並釘住取樣點，使同一筆讀數下個月還能再取一次。
+#
+# 四個形狀位於同一列，各為 120x120 點，全部自 y 149.0 延伸至 268.5。其左緣分別位於 x 83.0、221.0、
+# 361.0、508.0。下方所需的幾何資訊僅此而已。
+#
+# 決定性的探測點是**角落**，不是中間。一個「填滿其外接矩形而非圓形」的漸層，上方仍然是紅、下方仍然
+# 是藍——形狀的中間分辨不出這兩者。角落可以：在 (86,151)，位於圓形 frame 之內、圓形本身之外四個點
+# 的地方，必須透出視窗背景。旁邊的矩形則是這個對照的對照——同一相對角落 (364,151) 是填滿的——因此
+# 角落讀到「背景」，不能被歸咎於探測點根本沒打中形狀。
+#
+# 環是最可能「錯得看起來像對的」之處，而 P43 自己的註解也這麼說：一個被裁到填充區而非描邊區的漸層，
+# 會給出一個實心圓盤，讀起來像是漸層在運作。它的中間必須是空的。它的四角也是削平的，而那不是缺陷
+# ——14pt 的描邊有一半落在路徑之外，因此其中 7pt 超出 120x120 的 frame 而被裁掉。此處量到每側可見
+# 描邊 6.5pt，正是那一半。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 720x448 點，擷取寬 1440px——scale 2。
+#
+# 目前沒有 `testapp/test_support/test_P43.zsh`，因此 `test.zsh P43 --macos --actionfile` 抵達不了
+# 本檔，它會以「Missing test script」停止。本次重放是自 `testapp/output` 執行
+# `.macApp/debugTarget.app/Contents/MacOS/debugTarget --debug -actionfile <本檔>`——與 `run_macos`
+# 所用的是同一個 bundle、同一個 binary、同一個旗標。
+# Replayed 2026-09-02. Every reading below came back identical on the replay's
+# own capture -- window at 600,165, still 720x448 -- and the replay log ends with
+# "-actionfile: replayed P43-gradient-clipped-to-the-shape.csv". The ring's
+# stroke measured 508.0..514.5 and 621.0..627.5 points, 6.5 on each side.
+#
+# 於 2026-09-02 重放。下列每一筆讀數在該次重放自己的擷取上都完全相同——視窗位於 600,165，尺寸仍為
+# 720x448——且重放記錄以「-actionfile: replayed P43-gradient-clipped-to-the-shape.csv」作結。環的
+# 描邊量得為 508.0..514.5 與 621.0..627.5 點，每側 6.5。
+sleep,,,,,,400000,"circle + gradient at (142.5,155) reads (208,96,87) and at (142.5,265) reads (81,151,246): red at the top of the shape and blue at the bottom (VERIFIED)",macos
+sleep,,,,,,400000,"circle + gradient at (86,151) reads the window background (48,46,45): the corner of the 120x120 frame is empty, so the fill was clipped to the circle and not to its bounding box (VERIFIED)",macos
+sleep,,,,,,400000,"rectangle + gradient at the same relative corner (364,151) reads (215,95,82): the corner probe does land on a filled shape when there is one, so the reading above is a clip and not a miss (VERIFIED)",macos
+sleep,,,,,,400000,"circle + flat (control) at (281,155) and (281,265) both read (117,202,100): one green, no ramp -- the old flat path was not disturbed by the gradient work (VERIFIED)",macos
+sleep,,,,,,400000,"circle + gradient stroke at (568,210) reads the window background: the middle of the ring is EMPTY, so the gradient went to the stroke and not to the fill region (VERIFIED)",macos
+sleep,,,,,,400000,"circle + gradient stroke at (568,152) reads (213,95,83) and at (568,268) reads (81,153,251): the ring itself carries the ramp, red arc at the top and blue arc at the bottom (VERIFIED)",macos
+sleep,,,,,,400000,"the ring shows 6.5pt of stroke on each side where the style asks for 14: half the stroke sits outside the 120x120 frame and is clipped, which is why the ring looks like a rounded square at a glance (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the capture is taken with the window settled,macos

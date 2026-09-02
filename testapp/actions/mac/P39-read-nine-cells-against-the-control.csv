@@ -1,0 +1,97 @@
+action,x,y,origin,button,key,micros,note,platform
+# P39: nine visual-effect cells, read against the control in the same window.
+#
+# There is no click in this file and there should not be. P39 has no button, no
+# field, no toggle -- it is nine copies of one angular gradient with one
+# `VisualEffect` each, and the thing being tested is whether each copy differs
+# from the first. Inventing a click here would produce a file that passes by
+# doing nothing, which is worse than no file at all.
+#
+# So the rows are paced sleeps and the claims live in the notes. Each note names
+# a cell and the colour that cell must show at a fixed probe point, so the check
+# is a colour-picker reading on the run's own final capture rather than an
+# impression of "that looks blurred". A cell whose effect silently did nothing
+# reads back as the control's own numbers, which is exactly the failure the app
+# was built to catch and exactly what an eye cannot be trusted to see.
+#
+# The grid, measured: cell columns start at x 118, 330 and 542 points; cell rows
+# start at y 158, 296, 434 and 572. Every cell is 200x90 points. The two probe
+# points below are cell-relative:
+#
+#   A = cell origin + (50, 22)   in the blue-violet quadrant
+#   B = cell origin + (150, 60)  in the orange quadrant
+#
+# Control (none): A = (94,145,251), B = (232,148,60).
+#
+# blur 3 is the one cell these probes cannot judge, and that is a property of the
+# subject rather than a gap in the file. Blurring a smooth gradient returns
+# almost the same gradient -- measured A = (93,145,250), one unit from the
+# control -- so the interior says nothing. Its evidence is at the boundary: the
+# control's left edge steps from the window background to (95,176,183) between
+# one pixel and the next, while the blur cell's edge ramps from (74,119,124) to
+# (90,161,169) over eight points. The blurred "Hamburgefonstiv" beneath it is the
+# same evidence at a size the eye can use.
+#
+# Two cells worth noticing side by side: `saturation 0` and `grayscale 1` both
+# produce grey, and they produce *different* greys -- 144 against 94 at probe A.
+# Two desaturation formulas, not one path called twice. If they ever print the
+# same number, one of them has been wired to the other.
+#
+# origin is unused: no row here carries a coordinate. Window 860x699 points,
+# capture 1720px wide -- scale 2. Note that 699 is not the 780 the app asks for
+# in `.defaultSize`; nothing is cut off at that height, but a file that assumed
+# 780 would have every row below the first in the wrong place.
+#
+# P39：九個視覺效果格，與同一視窗中的對照格互相比對。
+#
+# 本檔沒有任何點擊，也不應該有。P39 沒有按鈕、沒有輸入欄、沒有開關——它是同一道角度漸層的九份副本，
+# 每一份各套一個 `VisualEffect`，而受測的事情是「每一份是否與第一份不同」。在此處硬湊一個點擊，只會
+# 產生一份「什麼都沒做卻通過」的檔案，那比沒有檔案更糟。
+#
+# 因此各列是有節奏的 sleep，主張則寫在 note 裡。每一則 note 指名一個格子，以及該格在固定探測點上
+# 必須呈現的顏色，使這項檢查成為「在該次執行自己的最終擷取上用取色器讀一個數字」，而不是「看起來
+# 有糊掉」這種印象。一個效果靜默失效的格子，讀回來會是對照格自己的數字——那正是本 app 要抓的失效，
+# 也正是肉眼靠不住的地方。
+#
+# 量到的格線：各欄起點為 x 118、330、542 點；各列起點為 y 158、296、434、572 點。每格 200x90 點。
+# 下列兩個探測點採相對於格子原點的座標：
+#
+#   A = 格原點 + (50, 22)   位於藍紫象限
+#   B = 格原點 + (150, 60)  位於橘色象限
+#
+# 對照格（none）：A = (94,145,251)、B = (232,148,60)。
+#
+# blur 3 是這兩個探測點判不了的那一格，而那屬於受測對象的性質，不是本檔的缺口。把一道平滑漸層模糊
+# 之後，得到的幾乎還是同一道漸層——實測 A = (93,145,250)，與對照格只差一個單位——因此其內部說明不了
+# 任何事。它的證據在邊界：對照格的左緣在相鄰兩像素之間就由視窗背景跳到 (95,176,183)，而 blur 格的
+# 邊緣則在八個點的距離上由 (74,119,124) 漸變到 (90,161,169)。其下方那行被模糊的
+# 「Hamburgefonstiv」是同一項證據，只是尺寸大到肉眼能用。
+#
+# 有兩格值得並排一看：`saturation 0` 與 `grayscale 1` 都產生灰色，而且是**不同的**灰——探測點 A 為
+# 144 對 94。那是兩套去飽和公式，不是同一條路徑被叫了兩次。若它們哪天印出相同的數字，就代表其中一個
+# 被接到另一個上去了。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 860x699 點，擷取寬 1720px——scale 2。請注意 699
+# 並非 app 在 `.defaultSize` 中所要求的 780；在該高度下沒有任何東西被切掉，但一份假設 780 的檔案，
+# 會讓第一列以下的每一列都落在錯的位置。
+#
+# Replayed 2026-09-02. Every number below was re-read off the run's own final
+# capture, `p39-macos-final-20260902-234034.png`, and all ten matched the
+# measurement capture exactly -- not within a tolerance, digit for digit. Nine
+# cells are distinct from the control; only `blur 3` is not, at the interior
+# probe, for the reason given above.
+#
+# 於 2026-09-02 重放。下列每一個數字都是自該次執行自己的最終擷取
+# `p39-macos-final-20260902-234034.png` 重新讀出，十項全部與量測用擷取完全相符——不是在容差範圍內，
+# 而是逐位相同。九個格子與對照格皆不同；只有 `blur 3` 在內部探測點上不是，理由如上。
+sleep,,,,,,400000,"cell 1 none (control) at (118,158) -- A must read (94,145,251) and B (232,148,60); every claim below is against these two (VERIFIED)",macos
+sleep,,,,,,400000,"cell 2 opacity 0.35 at (330,158) -- A (62,80,116): every channel pulled toward the dark window background, not merely darkened uniformly (VERIFIED)",macos
+sleep,,,,,,400000,"cell 3 blur 3 at (542,158) -- interior A (93,145,250) matches the control; the claim is the soft edge, ramping over 8pt where the control steps in one pixel (VERIFIED)",macos
+sleep,,,,,,400000,"cell 4 saturation 0 at (118,296) -- A (144,144,144): three equal channels, so the hue is gone (VERIFIED)",macos
+sleep,,,,,,400000,"cell 5 saturation 0.5 at (330,296) -- A (121,145,204): between the control and cell 4, not at either end (VERIFIED)",macos
+sleep,,,,,,400000,"cell 6 saturation 2.5 at (542,296) -- A (0,149,255) and B (255,106,0): channels driven to the rails in both directions (VERIFIED)",macos
+sleep,,,,,,400000,"cell 7 brightness 0.4 at (118,434) -- A (186,218,255): lifted toward white, and B saturates the red channel at 255 (VERIFIED)",macos
+sleep,,,,,,400000,"cell 8 contrast 0.3 at (330,434) -- A (158,170,203): the spread between channels collapses toward mid grey (VERIFIED)",macos
+sleep,,,,,,400000,"cell 9 grayscale 1 at (542,434) -- A (94,94,94): grey, and a different grey from cell 4's 144 (VERIFIED)",macos
+sleep,,,,,,400000,"cell 10 hueRotation 120 at (118,572) -- A (223,102,121) and B (56,201,96): blue-violet has become red and orange has become green (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the run's own final capture is taken with the window settled,macos

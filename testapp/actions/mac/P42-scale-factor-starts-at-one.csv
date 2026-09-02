@@ -1,0 +1,99 @@
+action,x,y,origin,button,key,micros,note,platform
+# P42: the scale factor is 1.0 for the first passes and 2.0 afterwards, before
+# anything has been changed.
+#
+# P42 asks whether a window's scale factor follows a display-scale change while
+# the app is running, and it answers by showing the SEQUENCE of distinct values
+# rather than the current one, because a window reading "2.0" says nothing about
+# whether it would still say 2.0 after a change.
+#
+# No click can change a display's scale, so no row here tries; every row is a
+# sleep and `testapp/test_support/test_P42.zsh` says the same thing in its own
+# header. That wrapper's header also says "No action file", which was true when
+# it was written and is what this file changes -- not by driving the scale
+# change, which is still done by hand in Settings, but by pinning what the
+# sequence line reads before anyone touches anything.
+#
+# AND THAT LINE ALREADY HAS TWO ENTRIES IN IT ON macOS, AT LAUNCH, ON A DISPLAY
+# WHOSE SCALE NOBODY TOUCHED:
+#
+#   current: 2.0
+#   changes observed: 1
+#   1.0 x2  ->  2.0 x8
+#
+# `testapp/output/p42-debug-events.log` shows the same thing with timestamps, all
+# inside one second:
+#
+#   scale factor -> 1.0 (change 1)
+#   RENDER COMPLETE -- P42 ready for scale-factor change checks
+#   scale factor -> 2.0 (change 2)
+#
+# The first body evaluations see 1.0 and the later ones see 2.0. This machine's
+# main display is 3840x2160 presented as 1920x1080, so 2.0 is the true value and
+# 1.0 is a default standing in until the window has a screen. That matters
+# beyond this app: `Image` re-renders on this value, so anything rendered during
+# those first passes is rendered for a 1x display on a 2x one and stays that way
+# until something forces a recompute.
+#
+# It also blunts the app's own reading instruction. "One entry after a scale
+# change means the notification did not fire. Two means it did" counts from an
+# assumed single starting entry; on macOS the count starts at two before any
+# change, so a hand-driven change here must be read as going from two entries to
+# THREE, not from one to two. The counts after each value -- x2 and x8 above --
+# are body-evaluation tallies and are not claimed below; they will differ from
+# run to run. The order of the distinct values will not.
+#
+# The one thing this does establish about the notification: the value moved from
+# 1.0 to 2.0 with the window already up, so the environment value is at least
+# capable of changing after the first layout. Whether it follows a real display
+# change is still the manual test in the app's own text.
+#
+# origin is unused: no row here carries a coordinate. Window 720x388 points,
+# capture 1440px wide -- scale 2.
+#
+# P42：scale factor 在最初幾次 pass 中是 1.0，之後才是 2.0——而在此之前什麼都還沒被改動。
+#
+# P42 要問的是「app 執行期間，視窗的 scale factor 會不會跟隨顯示器縮放的改變」，而它的回答方式是
+# 顯示各相異值的**序列**，而非當前值——因為一個顯示「2.0」的視窗，並不能說明它在改變之後是否仍會
+# 顯示 2.0。
+#
+# 沒有任何點擊能改變顯示器的縮放，因此此處沒有任何一列嘗試這麼做；每一列都是 sleep，而
+# `testapp/test_support/test_P42.zsh` 也在它自己的檔頭裡說了同一件事。那支 wrapper 的檔頭同時寫著
+# 「No action file」——那在當時屬實，而這正是本檔所改變的：不是去驅動那個縮放改變（那仍然要在設定中
+# 手動完成），而是釘住「在任何人動手之前，那一行序列讀作什麼」。
+#
+# 而在 macOS 上，那一行在啟動當下就已經有兩項了，且顯示器的縮放沒有任何人碰過（數值如上方英文）。
+#
+# `testapp/output/p42-debug-events.log` 以時間戳顯示同一件事，全部落在同一秒之內（內容如上）。
+#
+# 最初幾次 body 求值看到的是 1.0，之後的則是 2.0。這台機器的主顯示器為 3840x2160、以 1920x1080
+# 呈現，因此 2.0 才是真值，而 1.0 是在視窗尚未有 screen 之前頂替的預設值。這件事的意義超出本 app：
+# `Image` 會依此值重新算繪，因此在那最初幾次 pass 中算繪的任何東西，都是在 2x 顯示器上以 1x 算出來
+# 的，而且會一直維持到有什麼強迫它重算為止。
+#
+# 它同時也削弱了該 app 自己的判讀指示。「縮放改變後仍只有一項，代表通知沒有觸發；有兩項，代表觸發
+# 了」是從「假設只有一個起始項」開始數的；而在 macOS 上，在任何改變之前計數就已經是二，因此此處
+# 手動驅動的改變必須讀成「由兩項變為**三項**」，而非由一項變為兩項。各值後面的次數——上方的 x2 與
+# x8——是 body 求值的計次，下方不予主張；它們每次執行都會不同。相異值的**順序**則不會。
+#
+# 關於那個通知，本檔確實確立了一件事：在視窗已經開著的情況下，該值由 1.0 變成了 2.0，因此這個
+# environment 值至少具備「在第一次版面計算之後仍會改變」的能力。至於它是否跟隨真正的顯示器改變，
+# 那仍是該 app 自身文字所描述的手動測試。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 720x388 點，擷取寬 1440px——scale 2。
+# Replayed 2026-09-02 with `zsh testapp/test.zsh P42 --macos --actionfile`. The
+# run's own window capture reads "current: 2.0", "changes observed: 1" and
+# "1.0 x2  ->  2.0 x8", and the log holds both entries with RENDER COMPLETE
+# between them -- the same result the measurement run gave, from a cleared log.
+# This is P42's first macOS build; there was no `testapp/output/P42` before it.
+#
+# 於 2026-09-02 以 `zsh testapp/test.zsh P42 --macos --actionfile` 重放。該次執行自己的視窗擷取
+# 讀作「current: 2.0」、「changes observed: 1」與「1.0 x2  ->  2.0 x8」，而記錄檔在清空之後仍持有
+# 兩項、且 RENDER COMPLETE 夾在中間——與量測執行的結果相同。這是 P42 第一次為 macOS 建置；在此之前
+# 並不存在 `testapp/output/P42`。
+sleep,,,,,,500000,"the big line must read 'current: 2.0' -- the true backing scale of this display, which presents 3840x2160 as 1920x1080 (VERIFIED)",macos
+sleep,,,,,,500000,"'changes observed: 1' -- already one change before anybody touched the display scale (VERIFIED)",macos
+sleep,,,,,,500000,"the sequence line must start '1.0 x' and end '-> 2.0 x': two distinct values in that order at launch (VERIFIED)",macos
+sleep,,,,,,500000,"p42-debug-events.log must hold 'scale factor -> 1.0 (change 1)' and 'scale factor -> 2.0 (change 2)' with RENDER COMPLETE between them (VERIFIED)",macos
+sleep,,,,,,500000,"the two instruction lines are present and are text: changing a display's scale is not something any row in this file can do (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the capture is taken with the window settled,macos

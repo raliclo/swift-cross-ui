@@ -1,0 +1,92 @@
+action,x,y,origin,button,key,micros,note,platform
+# P25: pin both drop zones at rest, and say plainly what a replay cannot reach.
+#
+# NO ROW HERE CAN PRODUCE A DROP, AND NONE PRETENDS TO. A drop on macOS arrives
+# through an `NSDraggingSession` owned by the window server, started by the
+# application the file is dragged out of. `AppKitSynthesiser` posts events into
+# this process's own queue with `NSApp.postEvent` -- deliberately, because
+# `CGEvent.post` delivers nothing at all from an untrusted process and does it
+# silently -- and a posted mouse-down inside this window cannot originate a drag
+# from Finder. P25 also has no drag source of its own: the two zones are
+# `onDrop` destinations and nothing in the window is draggable, so there is no
+# in-window drag to synthesise either.
+#
+# `actions/mac/README.md` already gives that as the reason P25 had no file here,
+# and it stands. What was missing is the half a file can hold: the state both
+# zones must be in before anyone drags anything onto them, so a hand-run drag
+# has something to be compared against.
+#
+# Measured. Both zones are 320x200 points, side by side, at y 234.0..433.5:
+#
+#   Accepts files                     x  32.0..351.5
+#   Refuses (offers an unused type)   x 368.0..687.5
+#
+# Both are the same green, (67,111,85), and that sameness is the point. The zone
+# colour is the app's hover feedback -- `Color(red: hovering ? 0.30 : 0.13,
+# green: 0.42, blue: hovering ? 0.65 : 0.30)` -- so at rest the blue channel sits
+# BELOW the green one (85 against 111) and while a file is over an accepting zone
+# it must rise ABOVE it. That single comparison, B < G against B > G, is how a
+# capture says which stage the zone is in, and it needs no memory of what the
+# colours looked like last time.
+#
+# HOW TO FINISH THIS BY HAND, since the file cannot. Run
+# `zsh testapp/test.zsh P25 --macos --showtime 60`, and while the window is up
+# drag any file from Finder onto the LEFT zone. Then read those same four lines:
+# `state` becomes `hovering` on the way in and `accepted` on release, `count`
+# becomes 1, `type` names the identifier the backend delivered, and `received`
+# shows the payload verbatim. `testapp/output/p25-debug-events.log` records the
+# same three moments as `hover enter`, `hover leave` and `drop on '...'`. Then do
+# it again on the RIGHT zone: it must NOT change colour and must NOT report a
+# drop, because it offers a type nothing is dragged as, and a zone that silently
+# swallows what it cannot handle looks identical to one that refuses until the
+# two are put side by side.
+#
+# origin is unused: no row here carries a coordinate. Window 720x548 points,
+# capture 1440px wide -- scale 2. The coordinates above are given anyway, since
+# a person performing the drag needs to know which rectangle is which.
+#
+# P25：釘住兩個放置區的靜止狀態，並明說重放搆不到什麼。
+#
+# 此處沒有任何一列能產生一次放置，也沒有任何一列假裝可以。在 macOS 上，一次放置經由 window server
+# 所擁有的 `NSDraggingSession` 抵達，並由「檔案被拖出的那個應用程式」發起。`AppKitSynthesiser` 以
+# `NSApp.postEvent` 把事件送進本行程自己的佇列——這是刻意的，因為 `CGEvent.post` 在未受信任的行程中
+# 什麼都送不到，而且是靜默地送不到——而在本視窗內 post 出來的 mouse-down，無法從 Finder 發起一次拖曳。
+# P25 本身也沒有拖曳來源：那兩個區塊是 `onDrop` 的目的地，視窗內沒有任何可拖曳之物，因此連「視窗內
+# 的拖曳」也沒有可供合成的對象。
+#
+# `actions/mac/README.md` 早已把這一點列為 P25 此前沒有檔案的理由，而該理由仍然成立。先前缺少的，
+# 是一份檔案能夠承載的那一半：在任何人把東西拖上去之前，兩個區塊必須處於什麼狀態——好讓一次手動的
+# 拖曳有東西可以對照。
+#
+# 量到的結果。兩個區塊皆為 320x200 點，並排於 y 234.0..433.5（x 範圍如上方英文）。
+#
+# 兩者是同一種綠色 (67,111,85)，而「相同」正是重點。區塊顏色就是該 app 的懸停回饋——
+# `Color(red: hovering ? 0.30 : 0.13, green: 0.42, blue: hovering ? 0.65 : 0.30)`——因此靜止時藍色
+# 通道低於綠色通道（85 對 111），而當檔案懸停在一個接受區之上時，藍色必須高於綠色。B < G 對上
+# B > G 這一個比較，就是擷取影像用來說明「該區處於哪一個階段」的方式，而且它不需要記得上一次的顏色
+# 長什麼樣。
+#
+# 如何以手動方式完成本檔做不到的部分。執行 `zsh testapp/test.zsh P25 --macos --showtime 60`，趁視窗
+# 開著時，自 Finder 拖任意一個檔案到**左邊**的區塊。然後讀同樣那四行：`state` 在進入時變為
+# `hovering`、放開時變為 `accepted`，`count` 變為 1，`type` 指出 backend 交付的識別碼，`received`
+# 原樣顯示酬載。`testapp/output/p25-debug-events.log` 會以 `hover enter`、`hover leave` 與
+# `drop on '...'` 記下同樣的三個時刻。接著對**右邊**的區塊再做一次：它必須不變色、也不回報任何放置，
+# 因為它宣告的是一種不會被拖入的型別；而一個「默默吞掉無法處理之物」的區塊，在與一個「明確拒絕」的
+# 區塊並排之前，看起來完全相同。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 720x548 點，擷取寬 1440px——scale 2。上方仍給出
+# 座標，因為執行手動拖曳的人需要知道哪個矩形是哪一個。
+# Replayed 2026-09-02 with `zsh testapp/test.zsh P25 --macos --actionfile`. Both
+# rectangles came back at exactly the bounds above on the run's own window
+# capture, both at (67,111,85), and all eight status lines read as claimed. The
+# manual half above has NOT been performed and this file does not claim it has.
+#
+# 於 2026-09-02 以 `zsh testapp/test.zsh P25 --macos --actionfile` 重放。在該次執行自己的視窗擷取
+# 上，兩個矩形的邊界與上述完全相同，顏色皆為 (67,111,85)，八行狀態文字也都如所主張。上文那半段
+# 手動流程**尚未**執行，本檔亦不主張已執行。
+sleep,,,,,,500000,"the header must read backend -> AppKitBackend; this is the only line in the window that names the backend that drew it (VERIFIED)",macos
+sleep,,,,,,500000,"left zone -- title 'Accepts files' over x32.0..351.5 y234.0..433.5, a 320x200 rectangle (VERIFIED)",macos
+sleep,,,,,,500000,"right zone -- title 'Refuses (offers an unused type)' over x368.0..687.5, same 200pt height and same top edge as the left one (VERIFIED)",macos
+sleep,,,,,,500000,"both zones read state idle / received (nothing yet) / type - / count 0: nothing has been dropped and nothing has been invented (VERIFIED)",macos
+sleep,,,,,,500000,"both zones are (67,111,85) -- identical, and blue 85 is below green 111, which is the resting half of the app's own hover colour (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the capture is taken with the window settled,macos

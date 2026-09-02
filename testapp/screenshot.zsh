@@ -248,12 +248,25 @@ var SEP = String.fromCharCode(31);
 var out = [];
 for (var i = 0; i < list.length; i++) {
     var w = list[i], b = w.kCGWindowBounds || {};
-    // layer 0 才是一般視窗。選單列、Dock 與各種浮層在別的 layer，而它們一樣有名字、有大小，
-    // 因此不濾掉的話會比中它們——那會得到一張拍到 Dock 的圖，而不是一次失敗。
-    // Layer 0 is an ordinary window. The menu bar, the Dock and assorted overlays sit on other
-    // layers and have names and sizes too, so without this filter they match -- yielding a
-    // photograph of the Dock rather than a failure.
-    if (w.kCGWindowLayer !== 0) continue;
+    // 選單列、Dock 與各種浮層一樣有名字、有大小，因此不濾掉的話會比中它們——那會得到一張拍到
+    // Dock 的圖，而不是一次失敗。但這裡原本的條件是 `layer !== 0`，而那會濾掉一個「應用程式自己
+    // 的浮動視窗」：P37 的視窗位於 layer 3，**正是因為 `.topmost()` 生效了**。於是「唯一以視窗層級
+    // 為主題的那支 app」，成了這個擷取工具唯一拍不到的 app——而它的執行會靜默退回整螢幕擷取，看起來
+    // 像是成功。
+    //
+    // 改以「擁有者」為準：只接受由我們要求的那個行程所擁有的視窗，該視窗在哪一層都可以。系統的浮層
+    // 屬於別的行程，因此仍然被排除。
+    //
+    // The menu bar, the Dock and assorted overlays have names and sizes too, so without a filter
+    // they match -- yielding a photograph of the Dock rather than a failure. But the condition
+    // here was `layer !== 0`, which also filters out an application's own floating window: P37's
+    // window sits at layer 3 *because* `.topmost()` worked. So the one app whose subject is its
+    // window level was the one app this helper could never capture, and its runs fell back to a
+    // whole-screen grab silently -- which looks like success.
+    //
+    // Owner rather than layer: accept a window owned by the process we asked for, whatever layer
+    // it is on. The system's overlays belong to other processes and are still excluded.
+    if (w.kCGWindowLayer < 0) continue;
     if (b.Width < 100 || b.Height < 100) continue;
     out.push([w.kCGWindowNumber, w.kCGWindowOwnerName || '', w.kCGWindowName || '',
               Math.round(b.X), Math.round(b.Y), Math.round(b.Width), Math.round(b.Height),

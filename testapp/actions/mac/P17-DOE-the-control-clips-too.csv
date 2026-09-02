@@ -1,0 +1,90 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17-DOE: on AppKitBackend the control clips as well, so the experiment has no
+# contrast to read here.
+#
+# P17-DOE is a design-of-experiments app for #389: GtkBackend never clipped an
+# oversized child to its frame, and the app puts three columns side by side so
+# the better of two candidate fixes can be chosen by looking. Each column frames
+# a 180x120 viewport and centres a 100x280 orange block in it. The control asks
+# for no clip, so on the backend the app was written for the orange stripe spills
+# 80 points above and 80 below the blue box; direction A (`cornerRadius(0)`) and
+# direction B (`clipped()`) both cut it back to 120.
+#
+# On macOS all three columns are identical, and the identical one includes the
+# control. Measured on the capture this file was written against:
+#
+#   Control (no clip)    orange x 110.0..209.5  y 255.0..374.5   100 x 120
+#   A: cornerRadius(0)   orange x 330.0..429.5  y 255.0..374.5   100 x 120
+#   B: clipped()         orange x 550.0..649.5  y 255.0..374.5   100 x 120
+#
+# 100 wide is the block as authored. 120 tall is the viewport, not the block:
+# the 280pt block has lost 80 points off each end in every column, the control
+# included. Nothing in any column reaches outside its own 180x120 viewport --
+# the three viewports occupy x 70.0..249.5, 290.0..469.5 and 510.0..689.5 and
+# every row scanned between y 255.0 and 374.5 is exactly those three spans and
+# nothing else.
+#
+# So the answer this app gives on macOS is not "A" or "B". It is that #389 does
+# not reproduce on AppKitBackend, because an NSView subtree is already clipped
+# to its frame before either modifier is asked for. That makes the DOE
+# unreadable here in the specific sense that matters: with the control behaving
+# like the treatments, a column that did nothing at all would look exactly like
+# a column that worked. This app has to be judged on GtkBackend, which is what
+# it was written for.
+#
+# That is worth recording rather than filing as a pass. `actions/mac/README.md`
+# lists P17-DOE as "three drawn rectangles and no controls -- a capture answers
+# it", which is true; what the capture answers is that the question cannot be
+# asked here.
+#
+# origin is unused: no row here carries a coordinate, because the app has no
+# control to click. Window 760x508 points, capture 1520px wide -- scale 2.
+#
+# There is no `testapp/test_support/test_P17-DOE.zsh`, so `test.zsh P17-DOE
+# --macos --actionfile` stops with "Missing test script". This was replayed by
+# launching `.macApp/debugTarget.app`'s executable with `--debug -actionfile
+# <this file>` from `testapp/output`, which is what `run_macos` does.
+#
+# P17-DOE：在 AppKitBackend 上連對照組也會裁切，因此這項實驗在此處沒有可讀的對比。
+#
+# P17-DOE 是針對 #389 的 design-of-experiments app：GtkBackend 從不把超框的子元件裁切到其 frame，
+# 而本 app 把三欄並排，使兩個候選修法中較佳者可以「看」出來。每一欄框出一個 180x120 的 viewport，
+# 並於其中置中一個 100x280 的橘色方塊。對照組要求不裁切，因此在本 app 所針對的那個 backend 上，
+# 橘色長條會在藍框上下各溢出 80 點；direction A（`cornerRadius(0)`）與 direction B（`clipped()`）
+# 則都會把它切回 120。
+#
+# 在 macOS 上，三欄完全相同，而那個「相同」包含了對照組。在本檔所依據的擷取上量測，數值如上方英文。
+#
+# 寬 100 是該方塊原本的寬度。高 120 是 viewport 的高度，不是方塊的：280pt 的方塊在每一欄都被上下
+# 各切掉 80 點，對照組也不例外。任何一欄都沒有東西超出其自身的 180x120 viewport——三個 viewport
+# 分別佔據 x 70.0..249.5、290.0..469.5、510.0..689.5，而在 y 255.0 至 374.5 之間所掃過的每一列，
+# 都恰好是那三段、別無其他。
+#
+# 因此本 app 在 macOS 上給出的答案不是「A」也不是「B」。答案是 #389 在 AppKitBackend 上不會重現，
+# 因為在任何一個 modifier 被要求之前，NSView 子樹就已經被裁切到其 frame 了。這使得該 DOE 在此處於
+# 關鍵意義上不可讀：當對照組的行為與處理組相同時，一個「什麼都沒做」的欄位，看起來會與一個「有效」
+# 的欄位一模一樣。這支 app 必須在 GtkBackend 上判定，那也正是它被寫出來的對象。
+#
+# 這件事值得記下，而不是當成「通過」。`actions/mac/README.md` 把 P17-DOE 列為「三個繪製出來的矩形，
+# 沒有任何控制項。擷取影像即可回答」——那是對的；而擷取影像所回答的，是「這個問題在此處問不出來」。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標，因為該 app 沒有可點擊的控制項。視窗 760x508 點，
+# 擷取寬 1520px——scale 2。
+#
+# 目前沒有 `testapp/test_support/test_P17-DOE.zsh`，因此 `test.zsh P17-DOE --macos --actionfile`
+# 會以「Missing test script」停止。本次重放是自 `testapp/output` 以 `--debug -actionfile <本檔>`
+# 啟動 `.macApp/debugTarget.app` 中的執行檔，與 `run_macos` 的做法相同。
+# Replayed 2026-09-02. The replay's own capture reproduced all three orange
+# blocks to the same bounds, and every one of the 240 image rows between
+# y 255.0 and y 374.5 returned the identical three-span set -- one distinct
+# result, not a majority. Window 580,150, still 760x508.
+#
+# 於 2026-09-02 重放。該次重放自己的擷取重現了三個橘色方塊，邊界完全相同；而 y 255.0 至 374.5 之間
+# 的 240 個影像列，每一列都回傳同一組三段跨距——結果只有一種，不是多數決。視窗位於 580,150，
+# 尺寸仍為 760x508。
+sleep,,,,,,400000,"Control (no clip) -- orange x110.0..209.5 y255.0..374.5: 100 wide as authored but only 120 tall where the block is 280 (VERIFIED: it is clipped)",macos
+sleep,,,,,,400000,"A: cornerRadius(0) -- orange x330.0..429.5 y255.0..374.5: the same 100x120 as the control, one column to the right (VERIFIED)",macos
+sleep,,,,,,400000,"B: clipped() -- orange x550.0..649.5 y255.0..374.5: again the same 100x120 (VERIFIED)",macos
+sleep,,,,,,400000,"nothing spills -- every row between y255.0 and y374.5 is exactly the three viewport spans 70.0..249.5, 290.0..469.5 and 510.0..689.5 (VERIFIED)",macos
+sleep,,,,,,400000,"the reading -- the control matches both treatments, so #389 does not reproduce on AppKitBackend and this DOE cannot be decided here (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the capture is taken with the window settled,macos

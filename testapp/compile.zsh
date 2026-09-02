@@ -481,7 +481,12 @@ compile_app() {
     fi
 
     if [ "$force_gtk4" -eq 0 ] && [ "$imports_gtk" -eq 1 ] && [ "$imports_winui" -eq 0 ]; then
-        printf '    skipping %s: it imports Gtk, which the WinUI build lacks\n' "$app_file" >&2
+        # The build that lacks Gtk is whichever one is running, not always WinUI.
+        # A macOS user was told "which the WinUI build lacks" while building for
+        # macOS, which reads as a message meant for someone else.
+        # 缺少 Gtk 的是「正在執行的那個建置」，未必總是 WinUI。曾有 macOS 使用者在為 macOS 建置時
+        # 被告知「which the WinUI build lacks」，那讀起來像是一則寫給別人的訊息。
+        printf '    skipping %s: it imports Gtk, which this build lacks\n' "$app_file" >&2
         printf '    build it with: zsh compile.zsh -gtk4 %s\n' "${app_file%.swift}" >&2
         continue
     fi

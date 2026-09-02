@@ -1,0 +1,90 @@
+action,x,y,origin,button,key,micros,note,platform
+# P40: seven geometric-effect tiles, measured against the control tile.
+#
+# Like P39 this app has no control a click can reach, so this file drives
+# nothing and says so. What it adds over a screenshot is arithmetic: every tile
+# is built from the same two rectangles -- an orange bar 14x80 points and a blue
+# block 90x58 -- so the transform each tile claims can be checked by measuring
+# those rectangles rather than by deciding whether a picture looks rotated.
+#
+# The tile grid, measured. Each cell is 180x120 points and each cell's untouched
+# content occupies a 104x80 box inside it: the control's box is x 178..282,
+# y 168..248. Columns step by 220 points (180 wide, 40 apart), rows by 150
+# (120 tall, 30 apart), so the three content boxes on a row start at x 178, 398
+# and 618, and the three rows start at y 168, 318 and 468.
+#
+# THE FINDING THIS FILE EXISTS TO RECORD: on AppKitBackend every transformed
+# tile is CLIPPED to that 104x80 box. The transforms themselves are right -- the
+# numbers below check out to within half a point -- but what reaches the screen
+# is a cropped transform, not a spilled one. `offset x40 y20` moves the tile 40
+# right and 20 down and then loses everything past x 502 and y 248, which is why
+# its "TOP" label reads "TO" and its orange bar ends in a flat cut. `scale x1.6
+# y0.7` widens the blue block past both sides of the box and its orange bar is
+# scaled clean out of the box and vanishes entirely.
+#
+# That contradicts the app's own line on screen -- "Tiles may spill outside their
+# slot and overlap" -- which is what a reader is told to expect. It also refines
+# what `actions/mac/README.md` records for 2026-09-02: "offset, rotation and the
+# two anchors all correct" is true of the transforms and not of the pixels. The
+# app's stated failure, "Neighbours moving aside is the bug", does not happen:
+# no neighbour has moved. AppKitBackend's `createGeometricEffectContainer` sets
+# no `masksToBounds` of its own, so the clip is inherited rather than asked for.
+#
+# The anchor pair is the reason the app exists, and it passes. `rotate 30 centre`
+# and `rotate 30 topLeading` are not the same picture offset by a slot: the
+# centre-anchored blue fills its box from x 398 to 502, while the topLeading one
+# reaches from x 170 -- eight points OUTSIDE its box's left edge at 178 -- and
+# sits lower. An anchor applied twice would have left the two identical.
+#
+# origin is unused: no row here carries a coordinate. Window 900x697 points,
+# capture 1800px wide -- scale 2. The app asks for 900x640 in `.defaultSize`;
+# it opened taller than that, and the bottom row still finishes inside it.
+#
+# P40：七個幾何效果方塊，與對照方塊互相量測比對。
+#
+# 與 P39 相同，本 app 沒有任何點擊搆得到的控制項，因此本檔不驅動任何東西，並明說這一點。它相對於
+# 一張截圖所多出來的，是算術：每個方塊都由同樣的兩個矩形構成——橘色長條 14x80 點、藍色方塊 90x58
+# ——因此各方塊所宣稱的變換可以用「量那兩個矩形」來核對，而不必去判斷一張圖看起來是否有旋轉。
+#
+# 量到的方塊格線。每格 180x120 點，而每格未經變換的內容佔據其中一個 104x80 的框：對照格的框為
+# x 178..282、y 168..248。各欄以 220 點遞進（寬 180、間距 40），各列以 150 點遞進（高 120、間距
+# 30），因此同一列上三個內容框的起點為 x 178、398、618，三列的起點為 y 168、318、468。
+#
+# 本檔存在的理由，就是要記下這項發現：在 AppKitBackend 上，每一個被變換的方塊都被**裁切**到那個
+# 104x80 的框內。變換本身是對的——下列各項數字核對到半點以內——但抵達螢幕的是一個被裁掉的變換，
+# 而非一個溢出的變換。`offset x40 y20` 把方塊右移 40、下移 20，然後失去 x 502 與 y 248 之外的一切，
+# 這就是它的「TOP」讀作「TO」、橘條以一道平切結束的原因。`scale x1.6 y0.7` 讓藍色方塊超出框的兩側，
+# 而它的橘條被縮放到整個離開該框，於是完全消失。
+#
+# 這與該 app 自己顯示在畫面上的那一行相牴觸——「Tiles may spill outside their slot and overlap」
+# ——而那正是讀者被告知該預期的事。它同時修正了 `actions/mac/README.md` 於 2026-09-02 所記下的內容：
+# 「offset、rotation 與兩個 anchor 皆正確」對「變換」而言為真，對「像素」而言則否。該 app 明訂的
+# 失效——「Neighbours moving aside is the bug」——並未發生：沒有任何鄰居移位。AppKitBackend 的
+# `createGeometricEffectContainer` 自身並未設定 `masksToBounds`，因此這道裁切是繼承來的，不是要來的。
+#
+# 那一對 anchor 是這支 app 存在的理由，而它通過了。`rotate 30 centre` 與 `rotate 30 topLeading`
+# 不是同一張圖平移一格：以中心為軸的藍色方塊自 x 398 填到 502，而以 topLeading 為軸的那個則自
+# x 170 起——比其框的左緣 178 還往外八個點——且位置更低。若 anchor 被套用了兩次，兩者會一模一樣。
+#
+# 此處未使用 origin：本檔沒有任何一列帶座標。視窗 900x697 點，擷取寬 1800px——scale 2。app 在
+# `.defaultSize` 中要求 900x640；它開得比那更高，而最後一列仍然收在裡面。
+#
+# Replayed 2026-09-02. All fourteen rectangles were re-measured off the run's own
+# final capture, `p40-macos-final-20260902-234224.png`, and every bound matched
+# the measurement capture to the pixel. The window opened at the same
+# 510,110 900x697 both times.
+#
+# 於 2026-09-02 重放。全部十四個矩形都自該次執行自己的最終擷取
+# `p40-macos-final-20260902-234224.png` 重新量過，每一個邊界都與量測用擷取逐像素相符。兩次視窗都開在
+# 510,110、尺寸 900x697。
+sleep,,,,,,400000,"tile 1 none (control) -- orange x178.0..191.5 y168.0..247.5 (14x80) and blue x192.0..281.5 y188.0..245.5 (90x58); every claim below is against these (VERIFIED)",macos
+sleep,,,,,,400000,"tile 2 offset x40 y20 -- orange x438.0..451.5 y188.0..247.5: exactly +40 in x and +20 in y from where the control's bar would sit in this slot (398,168) (VERIFIED)",macos
+sleep,,,,,,400000,"tile 2 again -- its blue stops dead at x501.5 instead of reaching 542 and the label reads TO not TOP: the offset result is clipped to the tile's own 104x80 box (VERIFIED)",macos
+sleep,,,,,,400000,"tile 3 scale 0.6 -- orange x639.0..646.5 y184.0..231.5: 7.5x47.5 where the control is 14x80, and it shrinks about the box centre (670,208) rather than a corner (VERIFIED)",macos
+sleep,,,,,,400000,"tile 4 scale x1.6 y0.7 -- blue y344.0..384.0 is 40pt tall where 58x0.7 = 40.6; the two axes scale independently (VERIFIED)",macos
+sleep,,,,,,400000,"tile 4 again -- no orange bar is visible at all: x1.6 about the box centre puts the whole 14pt bar outside the box's left edge and the clip removes it (VERIFIED)",macos
+sleep,,,,,,400000,"tile 5 rotate 30 centre -- the orange bar is no longer vertical: its bounding box is x398.0..436.5 y299.0..371.0 where an unrotated bar would be 14 wide (VERIFIED)",macos
+sleep,,,,,,400000,"tile 6 rotate 30 topLeading -- orange x170.0..189.5 y468.0..509.0 and blue x170.0..257.5: it starts 8pt outside its box's left edge at 178 and must NOT match tile 5 modulo the slot step (VERIFIED)",macos
+sleep,,,,,,400000,"tile 7 shear (matrix) -- orange x398.0..443.5 spans 45.5pt where the control's spans 14: the bar leans without rotating the blue block's top edge off horizontal (VERIFIED)",macos
+sleep,,,,,,400000,"bottom row -- bare text under the same rotation is drawn over its own label and cut off, and bare text under offset only reads Hamburgefons: leaf text clips the same way the tiles do (VERIFIED)",macos
+sleep,,,,,,800000,hold still so the run's own final capture is taken with the window settled,macos

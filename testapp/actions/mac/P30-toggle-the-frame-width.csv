@@ -1,0 +1,68 @@
+action,x,y,origin,button,key,micros,note,platform
+# P30: toggle the frame width three times and watch the blue rectangle follow.
+#
+# P30 is mostly a wall of effect samples -- four visual, three geometric -- and
+# those are read from a capture, not driven. It has exactly one control, and that
+# control is the only thing in the app a click can settle: the button swaps the
+# rectangle beneath it between a 120pt and a 260pt frame and prints the new state
+# to `testapp/output/p30-debug-events.log`.
+#
+# That makes the rectangle a ruler rather than a picture. Measured on the
+# capture this file was written against, the rectangle runs from x 142pt to
+# x 261.5pt -- 120pt wide, and the label beside the button says "frame width:
+# 120". After a click both must read 260, and the rectangle's right edge must
+# land at x 401.5pt.
+#
+# Three clicks, not one. One click proves the button is reachable; the second
+# proves the state goes back, which is the half a latching toggle would fail;
+# the third leaves the window wide so the run's own final screenshot is evidence
+# rather than a picture of the starting state. An even number of clicks would end
+# where it began and look identical to a file that missed the button entirely.
+#
+# What this file deliberately does not claim: that any of the seven effect cells
+# is correct. They take no input. AppKitBackend's `VisualEffects` and
+# `GeometricEffects` were implemented on 2026-09-02 and P39 and P40 are where
+# they are judged; here they are only required not to disappear when the layout
+# changes underneath them.
+#
+# origin=frame. Window 860x648 points, capture 1720px wide -- scale 2.
+# The button occupies image x 284..513, y 388..427, so its centre is
+# (199, 204) in points.
+#
+# P30：把 frame 寬度切換三次，並看著藍色矩形跟上。
+#
+# P30 大部分是一整面的效果樣本——四個視覺、三個幾何——那些是從擷取影像讀出來的，不是點出來的。
+# 它剛好只有一個控制項，而那也是這支 app 中唯一一件點擊能夠判定的事：該按鈕會讓其下方的矩形在
+# 120pt 與 260pt 的 frame 之間切換，並把新狀態寫入
+# `testapp/output/p30-debug-events.log`。
+#
+# 這使得那個矩形是一把尺，而不是一張圖。在本檔所依據的擷取影像上量測：矩形自 x 142pt 延伸至
+# x 261.5pt——寬 120pt，而按鈕旁的標籤寫著「frame width: 120」。點擊之後兩者都必須讀作 260，
+# 且矩形右緣必須落在 x 401.5pt。
+#
+# 點三次，不是一次。第一次證明按鈕搆得到；第二次證明狀態會回來，而那正是「鎖定式」切換會失敗的
+# 那一半；第三次讓視窗停在寬的狀態，使該次執行自己的最終截圖成為證據，而非起始狀態的翻拍。偶數
+# 次點擊會回到原點，看起來與「完全沒打中按鈕」的檔案一模一樣。
+#
+# 本檔刻意不主張的事：那七個效果格中任何一個是正確的。它們不接受輸入。AppKitBackend 的
+# `VisualEffects` 與 `GeometricEffects` 於 2026-09-02 實作完成，而判定它們的地方是 P39 與 P40；
+# 在此處，它們只被要求「不因底下的版面改變而消失」。
+#
+# origin=frame。視窗 860x648 點，擷取寬 1720px——scale 2。按鈕佔據影像 x 284..513、y 388..427，
+# 故其中心為 (199, 204) 點。
+#
+# Replayed 2026-09-02. p30-debug-events.log recorded wide=true, wide=false,
+# wide=true in that order, and the run's own final capture measures the
+# rectangle at 142.0..401.5pt with the label reading "frame width: 260". The
+# geometry line was `frame=(530.0, 115.0) client=(530.0, 143.0) scale=1.0`,
+# which is the 28pt title bar this folder's other files mention.
+#
+# 於 2026-09-02 重放。p30-debug-events.log 依序記下 wide=true、wide=false、wide=true，而該次執行
+# 自己的最終擷取量得矩形為 142.0..401.5pt，標籤讀作「frame width: 260」。geometry 那一行是
+# `frame=(530.0, 115.0) client=(530.0, 143.0) scale=1.0`，即本資料夾其他檔案提到的 28pt 標題列。
+click,199,204,frame,left,,,"Use wide frame -- the label must read 260 and the rectangle must reach x 401.5pt (VERIFIED: log line ""size toggled wide=true"")",macos
+sleep,,,,,,600000,let the layout settle,macos
+click,199,204,frame,left,,,"Use narrow frame -- back to 120 (VERIFIED: ""size toggled wide=false"")",macos
+sleep,,,,,,600000,,macos
+click,199,204,frame,left,,,"wide again so the final capture shows 260 (VERIFIED: ""size toggled wide=true""; the final capture measures the rectangle at 142.0..401.5pt and the label reads ""frame width: 260"")",macos
+sleep,,,,,,900000,let the last state settle before the screenshot,macos
