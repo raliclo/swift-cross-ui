@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# P26: open the SwiftCrossUI tab.
+#
+# P26 pairs a description of what SwiftUI would show with the SwiftCrossUI view
+# actually running, on the grounds that a description alone is a claim and a
+# running view alone has nothing to be judged against. Reaching the running one
+# is therefore the thing an action file can do here.
+#
+# P26 was one of the six apps that died within a second of launch on
+# `createToggle`'s fatalError, so it had no iOS file. Its summary table renders
+# through the `BackendFeatures.Tables` conformance added the same day -- four
+# columns, eight rows, cells truncated with an ellipsis where they do not fit.
+#
+# **The Summary tab cannot be tapped in a debug build**, and that is worth
+# knowing before writing a file that tries. It is the leftmost tab, and the
+# floating actualView control sits on top of it at the default position. The
+# control is draggable for exactly this reason; a file that needed the Summary
+# tab would have to drag it away first.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p26-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default).
+#
+# P26：開啟 SwiftCrossUI 分頁。
+#
+# P26 把「SwiftUI 會呈現什麼」的描述，與「實際在執行的 SwiftCrossUI 視圖」成對呈現，理由是：單獨的
+# 描述只是一項主張，而單獨的執行畫面則無從評斷。因此「抵達那個正在執行的畫面」正是動作檔在此處能做
+# 的事。
+#
+# P26 是在啟動一秒內死於 `createToggle` 的 fatalError 的六支 app 之一，因此先前沒有 iOS 動作檔。
+# 它的摘要表格是透過同日新增的 `BackendFeatures.Tables` conformance 算繪的——四欄、八列，放不下的
+# 儲存格以刪節號截斷。
+#
+# **在 debug 建置中，Summary 分頁按不到**，而這是在動手寫「會去按它的檔案」之前該知道的事。它是
+# 最左邊的分頁，而靜止時，浮動的 actualView 控制項在其預設位置上正好蓋住它。該控制項可拖曳，正是為了這個
+# 情況；一份需要用到 Summary 分頁的檔案，得先把它拖開。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p26-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。
+click,213,84,client,left,,,"the SwiftCrossUI tab -- the summary table must be replaced by the running networking view (VERIFIED: [ SwiftCrossUI ] selected, and the httpbin.org PNG downloaded and drawn)",ios
+sleep,,,,,,900000,let the tab swap and any request start,ios

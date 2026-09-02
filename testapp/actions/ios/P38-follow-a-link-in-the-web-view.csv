@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38: tap "Learn more" inside the web view.
+#
+# P38's claim at rest is its own line: "The framed area below should be the
+# page, not empty space." It is the page -- example.com renders inside the
+# frame, and "Navigations reported: 1" with "https://example.com/" beneath it
+# says the navigation delegate reported it.
+#
+# This row asks the harder half: that the web view is live rather than a
+# picture of a page. Following a link has to raise the count, and the URL line
+# has to change with it.
+#
+# P38 had no iOS file until 2026-09-02 -- it is one of the three apps whose
+# subject needs scrolling, and the XCUITest runner threw `unsupported` on every
+# scroll row until then. It turns out not to need a scroll row: at 393 points
+# the whole app fits, frame included.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p38-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default).
+#
+# P38：點按 web view 內的「Learn more」。
+#
+# P38 靜止時的主張就是它自己那一行：「下方的框內應該是該網頁，而非空白」。它確實是網頁——
+# example.com 在框內算繪出來，而「Navigations reported: 1」與其下的「https://example.com/」
+# 說明 navigation delegate 有回報。
+#
+# 本列問的是更難的那一半：這個 web view 是活的，而不是一張網頁的圖片。點下連結必須讓計數上升，
+# 而 URL 那一行必須隨之改變。
+#
+# 直到 2026-09-02 之前，P38 都沒有 iOS 動作檔——它是那三支以捲動為主題的 app 之一，而在那之前
+# XCUITest runner 對每一列 scroll 都會拋出 `unsupported`。結果它並不需要 scroll 列：在 393 點的
+# 寬度下，整支 app 連同外框都塞得下。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p38-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。
+click,238,520,client,left,,,"the Learn more link inside the page -- the URL list must gain a second entry and the frame must show the new page (VERIFIED: https://www.iana.o... listed under https://example.co..., and the IANA page is drawn in the frame; the count itself is off the right edge once the longer URL widens the page)",ios
+sleep,,,,,,2500000,let the navigation start and the delegate report it,ios

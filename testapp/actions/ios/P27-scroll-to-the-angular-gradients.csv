@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27: scroll right, to the two gradients the phone cuts off.
+#
+# At rest P27 shows four of its six gradients and the right edge cuts through
+# the fifth. A capture taken there is not evidence about Angular or Sweep
+# reversed -- it does not contain them -- so this file exists to reach them.
+# Its companion, P27-scroll-past-the-webview.csv, moves the same page
+# vertically; between them the app has been looked at rather than glanced at.
+#
+# After this row all six render: Linear, Radial, Angular on the first line and
+# Ring, Ring reversed, Sweep reversed on the second. The two angular ones are
+# the interesting pair, because a wrong angle convention shows up as a hue
+# wheel that starts in the wrong place and a reversed one that is not the
+# mirror of it.
+#
+# **rwdView shows all six at once, and is not what this file does.** Tapping
+# the floating control scales the page to fit, which is the fastest way to see
+# everything and the wrong way to measure any of it: every gradient is then
+# drawn at a size the app did not choose. This file scrolls instead, so what it
+# reaches is at the size P27 asked for.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p27-scroll-right4.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# A wheel notch is 40 points in the runner, and the sign inverts: scrolling
+# right drags left.
+#
+# P27：向右捲動，去看被手機切掉的那兩個漸層。
+#
+# 靜止時 P27 顯示六個漸層中的四個，而右緣正好切過第五個。在那個狀態下拍的畫面，並不能作為關於
+# Angular 或 Sweep reversed 的證據——它根本沒有包含它們——因此本檔的存在就是為了抵達它們。它的
+# 同伴 P27-scroll-past-the-webview.csv 則是把同一頁垂直移動；兩者合起來，這支 app 才算是被「看過」
+# 而不是「瞄過」。
+#
+# 執行本列之後六個全都算繪出來：第一行是 Linear、Radial、Angular，第二行是 Ring、Ring reversed、
+# Sweep reversed。那兩個角度型的是有趣的一對，因為若角度的約定寫錯，會表現為色相環從錯誤的位置
+# 開始，且「反轉」的那一個並不是它的鏡像。
+#
+# **rwdView 能一次顯示全部六個，而那不是本檔所做的事。** 點按那個浮動控制項會把整頁縮放到塞得下，
+# 那是「看見全部」最快的方式，也是「量測其中任何一個」最錯的方式：屆時每一個漸層都是以 app 並未
+# 選擇的尺寸被繪製的。本檔改為捲動，因此它所抵達的東西，是以 P27 所要求的尺寸呈現的。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p27-scroll-right4.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# 在 runner 中一格滾輪等於 40 點，且符號相反：向右捲動意味著向左拖曳。
+move,60,300,client,,,,"the left margin, clear of the WebView and of every gradient",ios
+sleep,,,,,,400000,,ios
+scroll,4,0,,,,,"the page must move left far enough to show Angular and Sweep reversed whole (VERIFIED: both are fully on screen, and the Radial and Ring reversed cells are cut at the left edge instead)",ios
+sleep,,,,,,900000,let the scroll settle,ios

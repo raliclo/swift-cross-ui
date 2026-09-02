@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27: scroll the page down, starting outside the WebView.
+#
+# P27 is the backend feature coverage app, and its own text states the launch
+# claim: "If this window is on screen, neither view below aborted the app."
+# On iOS that is now true -- four gradients render (linear, radial, ring, ring
+# reversed) and the WebView has loaded example.com. P27 had no iOS file until
+# 2026-09-02 because the XCUITest runner threw `unsupported` on every scroll
+# row, and P27 is one of the three apps whose subject needs scrolling.
+#
+# **The gesture starts at x=60, in the left margin, and that is deliberate.**
+# The WebView occupies the middle and lower half of the screen and scrolls its
+# own content; a drag started inside it would move the page inside the WebView
+# and leave the app's page where it was, which is UIKit's nesting rule working
+# correctly and not what this file is asking about.
+#
+# One scroll, for the reason P8 records: every row after a scroll addresses a
+# layout the scroll has moved.
+#
+# The four notches ask for 160 points and the page gives 94, because that is all
+# there is: P27 ends a little below the WebView. The row states the measured
+# number rather than the requested one, so a future run that moves 160 has
+# found something new rather than passed.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p27-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# A wheel notch is 40 points in the runner, and the sign inverts: scrolling
+# down drags up.
+#
+# P27：從 WebView 之外開始，把頁面向下捲動。
+#
+# P27 是 backend 功能涵蓋範圍的 app，它自己的文字寫明了啟動時的主張：「若這個視窗出現在畫面上，
+# 表示下方兩個視圖都沒有讓 app 中止」。在 iOS 上這一點現在成立了——四個漸層都算繪出來（線性、放射、
+# 環形、環形反轉），而 WebView 已載入 example.com。直到 2026-09-02 之前，P27 都沒有 iOS 動作檔，
+# 因為 XCUITest runner 對每一列 scroll 都會拋出 `unsupported`，而 P27 正是那三支以捲動為主題的
+# app 之一。
+#
+# **手勢從 x=60、也就是左側邊界開始，而這是刻意的。** WebView 佔據畫面的中段與下半部，且會捲動
+# 自己的內容；從它內部開始的拖曳會移動 WebView 裡面的頁面，而讓 app 的頁面留在原地——那是 UIKit
+# 巢狀規則的正確運作，並非本檔要問的事。
+#
+# 只捲一次，理由與 P8 所記錄的相同：任何排在 scroll 之後的列，所定址的都是一個已被該次捲動移動過
+# 的版面。
+#
+# 那四格滾輪要求的是 160 點，而頁面只給了 94 點，因為就只有這麼多：P27 在 WebView 稍下方就結束了。
+# 本列寫的是量到的數字而非要求的數字，如此一來，未來若有一次執行移動了 160 點，那代表發現了新東西，
+# 而不是通過。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p27-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# 在 runner 中一格滾輪等於 40 點，且符號相反：向下捲動意味著向上拖曳。
+move,60,300,client,,,,"the left margin, clear of the WebView and of every gradient",ios
+sleep,,,,,,400000,,ios
+scroll,0,4,,,,,"the page must move up until it reaches the end: measured 94 points, not the 160 the four notches ask for, because P27 ends just below the WebView -- the title and backend line leave the top and If this window is on screen becomes the first line (VERIFIED)",ios
+sleep,,,,,,900000,let the scroll settle,ios
