@@ -1,0 +1,56 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41: scroll down to the .hourAndMinute cell.
+#
+# **P41 had never been built for iOS at all**, and the reason is the trap its
+# own header describes one section earlier. It guards `.wheel` with
+# `#if os(macOS)` because `BackendDatePickerStyle.wheel` carries
+# `@available(macOS, unavailable)`, and explains that naming an unavailable
+# symbol unconditionally means the app never builds there. The
+# `.hourMinuteAndSecond` cell -- added by the same commit -- names
+# `DatePickerComponents.hourMinuteAndSecond`, which carries
+# `@available(iOS, unavailable)`, and had no matching guard. There was no
+# `output/P41-ios.app` and not one `p41-ios-*` capture in `output/screenshots/`
+# while every other app there had some. Fixed 2026-09-02 with the guard the
+# header already argued for.
+#
+# What the file claims. P41's question is whether two cells that look identical
+# mean one style fell back to the other, so the cells themselves are the
+# evidence and there is nothing to click. At rest the phone shows `.automatic`
+# and `.compact`, and they are identical -- both a grey pill reading 2025/8/24
+# over the line 2025-08-24. This row reaches the cell below them.
+#
+# `.hourAndMinute` is the one worth reaching. P41's own comment says the time
+# path was implemented and wired and that no test app had ever asked for a time
+# component, so the whole of it was untested -- "an implemented and unexercised
+# feature reads as done until someone relies on it". After this row it renders
+# 9:46 AM over 2025-08-24 09:46, which is that path running on UIKitBackend for
+# the first time.
+#
+# Measured 2026-09-02 on the iPhone 16 simulator: window 393 x 852 pt, capture
+# 1179 x 2556 px, so px/3. origin=client, mode actualView.
+#
+# P41：向下捲動至 `.hourAndMinute` 那一格。
+#
+# **P41 從來沒有為 iOS 建置過**，而原因正是它自己的檔頭在前一節所描述的陷阱。它以 `#if os(macOS)`
+# 防護 `.wheel`，因為 `BackendDatePickerStyle.wheel` 帶有 `@available(macOS, unavailable)`，並說明
+# 「無條件指名一個不可用的符號，意味著該 app 在該平台上永遠建不起來」。而 `.hourMinuteAndSecond`
+# 那一格——由同一個 commit 加入——指名了 `DatePickerComponents.hourMinuteAndSecond`，該符號帶有
+# `@available(iOS, unavailable)`，卻沒有對應的防護。當時既沒有 `output/P41-ios.app`，
+# `output/screenshots/` 中也沒有任何一張 `p41-ios-*`，而其他每一支 app 在那裡都有。已於 2026-09-02
+# 以「檔頭本來就論證過的那個防護」修正。
+#
+# 本檔主張什麼。P41 要問的是「兩格看起來相同是否代表其中一個 style 退回了另一個」，因此那些格子
+# 本身就是證據，沒有東西可點。靜止時手機顯示 `.automatic` 與 `.compact`，而兩者完全相同——都是一個
+# 灰色藥丸狀、寫著 2025/8/24，其下一行 2025-08-24。本列要抵達的是它們下方那一格。
+#
+# `.hourAndMinute` 是值得抵達的那一個。P41 自己的註解寫著：時間路徑已實作也已接上，而從來沒有任何
+# 測試 app 要求過時間 component，因此整條路徑未被測試過——「一個已實作但從未被驅動的功能，在有人
+# 真的依賴它之前，讀起來都像是完成的」。執行本列之後，它算繪出 9:46 AM 與其下的 2025-08-24 09:46，
+# 那就是該路徑在 UIKitBackend 上的第一次運行。
+#
+# 2026-09-02 於 iPhone 16 模擬器上量測：視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView。
+move,60,700,client,,,,"the left margin, clear of every date picker",ios
+sleep,,,,,,300000,,ios
+scroll,0,8,,,,,"the page must move up far enough to show .hourAndMinute (VERIFIED: it renders 9:46 AM over 2025-08-24 09:46, and .compact is still on screen above it)",ios
+sleep,,,,,,900000,let the scroll settle,ios

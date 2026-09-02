@@ -137,13 +137,46 @@ struct P41RootView: View {
                     components: .hourAndMinute,
                     format: "yyyy-MM-dd HH:mm"
                 )
-                P41Cell(
-                    label: ".hourMinuteAndSecond",
-                    date: $hourMinuteSecond,
-                    style: .graphical,
-                    components: .hourMinuteAndSecond,
-                    format: "yyyy-MM-dd HH:mm:ss"
-                )
+                // The same trap this file's own header describes, one section
+                // up, and it caught this cell too.
+                //
+                // `DatePickerComponents.hourMinuteAndSecond` carries
+                // `@available(iOS, unavailable)`, `@available(visionOS,
+                // unavailable)` and `@available(macCatalyst, unavailable)`, so
+                // naming it unconditionally meant P41 had never built for iOS
+                // at all -- no `output/P41-ios.app`, and not one `p41-ios-*`
+                // capture in `output/screenshots/` while every other app there
+                // has some. The header explains why `.wheel` is guarded for
+                // macOS and then this cell, added by the same commit, was
+                // written without the matching guard.
+                //
+                // The cell says so rather than disappearing, for the reason the
+                // header gives about `.wheel`: a row that silently loses a cell
+                // on one platform reads as a layout difference, and layout
+                // differences are what P41 exists to compare.
+                //
+                // 這正是本檔自己的檔頭在上一節所描述的同一個陷阱，而它也逮到了這一格。
+                //
+                // `DatePickerComponents.hourMinuteAndSecond` 帶有 `@available(iOS, unavailable)`、
+                // `@available(visionOS, unavailable)` 與 `@available(macCatalyst, unavailable)`，
+                // 因此無條件指名它，意味著 P41 從來沒有為 iOS 建置成功過——沒有 `output/P41-ios.app`，
+                // `output/screenshots/` 中也沒有任何一張 `p41-ios-*`，而其他每一支 app 在那裡都有。
+                // 檔頭說明了 `.wheel` 為何要為 macOS 加上防護，而這一格——由同一個 commit 加入——
+                // 卻沒有寫上對應的防護。
+                //
+                // 這一格會說明情況而不是直接消失，理由與檔頭對 `.wheel` 所給的相同：一個在某平台上
+                // 悄悄少掉一格的列，讀起來會像是版面差異——而版面差異正是 P41 要用來比較的東西。
+                #if os(iOS) || os(visionOS) || targetEnvironment(macCatalyst)
+                    Text(".hourMinuteAndSecond is unavailable on this platform")
+                #else
+                    P41Cell(
+                        label: ".hourMinuteAndSecond",
+                        date: $hourMinuteSecond,
+                        style: .graphical,
+                        components: .hourMinuteAndSecond,
+                        format: "yyyy-MM-dd HH:mm:ss"
+                    )
+                #endif
             }
         }
         .padding(18)

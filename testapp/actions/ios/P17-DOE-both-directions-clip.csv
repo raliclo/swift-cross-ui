@@ -1,0 +1,101 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17-DOE: the #389 clipping verdict on UIKitBackend, and why nothing can be
+# clicked or scrolled to improve it.
+#
+# P17-DOE shares nothing with P17 but a prefix. P17 is the cross-backend layout
+# app (#264 ideal width, #161 picker sizing, #266 aspect ratio and ideal-width
+# stacks) and it has six buttons; P17-DOE is a design-of-experiments app for
+# #389 with **no controls at all** -- three static columns, each a 180 x 120 pt
+# blue viewport with a 100 x 280 pt orange block centred in it, differing only
+# in the modifier applied to the viewport: none, cornerRadius(0), clipped().
+# So this file cannot press anything, and P17-picker-and-sizes.csv's rows have
+# no counterpart here.
+#
+# **The verdict is in the launch capture, and it is measurable.** Measured with
+# PIL off p17-doe-ios-final-20260902-231804.png, converted to points:
+#
+#   column               blue viewport y      orange block y     spills?
+#   Control (no clip)    572.3 .. 693.3       491.7 .. 774.0     yes, 80.6 pt
+#                                                                above and
+#                                                                80.7 pt below
+#   A: cornerRadius(0)   478.3 .. 599.3       478.3 .. 599.3     no
+#   B: clipped()         452.3 .. 573.0       452.3 .. 573.0     no
+#
+# The block is 280 pt tall in a 120 pt frame, so an unclipped column has to
+# overflow by 80 pt at each end, and the Control column does exactly that. Both
+# candidate fixes clip to the frame **to the pixel** -- orange top and bottom
+# land on the blue box's own top and bottom in each. #389 is written up as a
+# GtkBackend defect (the one backend whose setCornerRadius only styled and
+# never clipped), and this says UIKitBackend has the same unclipped default and
+# that both proposed modifiers fix it there too. That supports the app header's
+# claim that the experiment is about which API to expose rather than about
+# whether the pixels differ: on this backend the pixels are identical.
+#
+# **The three columns do not share a baseline, and two are cut off.** The HStack
+# is 3 x 180 + 2 x 40 = 620 pt wide in a 393 pt window, so it overhangs both
+# edges: only the right 65 pt of Control and the left 66 pt of B are on screen
+# (Control blue x 25.3..65.0, A blue x 105.7..286.3, B blue x 327.3..367.3).
+# The columns also sit at three different heights, because each label wraps to a
+# different number of lines -- "A: cornerRadius(0)" breaks into four lines --
+# and the HStack centres children of unequal height. Neither is a clipping
+# defect; both make the capture harder to read than it looks like it should be,
+# which is worth knowing before someone reports the offset as the bug.
+#
+# **Why the scroll row is here even though it does nothing.** P17-DOE has no
+# ScrollView, and UIKitBackend does not put the root view in one, so the two
+# cut-off columns cannot be brought into view. That is not obvious -- P8, P27
+# and P39 all scroll on this simulator -- so the row is kept as the record of
+# having tried it, in the direction that would reveal B. The drag starts at
+# x=380 and runs 160 pt left, well inside the 393 x 852 window, so this is not
+# the "a gesture leaving the window silently does nothing" case the README
+# warns about: the gesture is delivered, and the content does not move.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p17-doe-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client. scroll is 40 pt per notch and the sign inverts, so a positive
+# x scrolls right by dragging left.
+#
+# P17-DOE：#389 在 UIKitBackend 上的裁切判定，以及為何沒有任何東西可點、可捲。
+#
+# P17-DOE 與 P17 除了前綴之外毫無共通處。P17 是跨 backend 的版面 app（#264 ideal width、
+# #161 picker 尺寸、#266 aspect ratio 與 ideal-width stack），有六個按鈕；P17-DOE 則是針對
+# #389 的 design-of-experiments app，**完全沒有控制項**——三個靜態欄位，各是一個 180 x 120 pt
+# 的藍色 viewport，中央置一個 100 x 280 pt 的橘色方塊，彼此只差在套用於 viewport 的 modifier：
+# 無、cornerRadius(0)、clipped()。因此本檔案沒有東西可按，
+# P17-picker-and-sizes.csv 的那些列在此沒有對應物。
+#
+# **判定就在啟動時的擷取畫面裡，而且可量測。** 以 PIL 量自
+# p17-doe-ios-final-20260902-231804.png，換算為點：
+#
+#   欄位                 藍色 viewport y      橘色方塊 y        是否溢出？
+#   Control（不裁切）    572.3 .. 693.3       491.7 .. 774.0    是，上溢 80.6 pt、
+#                                                              下溢 80.7 pt
+#   A: cornerRadius(0)   478.3 .. 599.3       478.3 .. 599.3    否
+#   B: clipped()         452.3 .. 573.0       452.3 .. 573.0    否
+#
+# 方塊高 280 pt 而 frame 只有 120 pt，未裁切的欄位必然在兩端各溢出 80 pt，而 Control 欄正是
+# 如此。兩個候選修法都**精確到像素**地裁切至 frame——橘色的上下緣正好落在該欄藍框自身的上下緣。
+# #389 記載為 GtkBackend 的缺陷（唯一一個 setCornerRadius 只設樣式、從不裁切的 backend），
+# 而此處說明 UIKitBackend 也有相同的「預設不裁切」，且兩個候選 modifier 在該處同樣有效。
+# 這支持了 app 表頭的主張：本實驗比較的是該暴露哪種 API，而非像素是否不同——在此 backend 上
+# 像素完全相同。
+#
+# **三欄並未共用基線，且其中兩欄被切掉。** 該 HStack 寬 3 x 180 + 2 x 40 = 620 pt，置於
+# 393 pt 的視窗中，因此兩側都超出：畫面上只看得到 Control 的右側 65 pt 與 B 的左側 66 pt
+# （Control 藍框 x 25.3..65.0、A 藍框 x 105.7..286.3、B 藍框 x 327.3..367.3）。三欄也位於三個
+# 不同高度，因為各自的標籤換行行數不同——「A: cornerRadius(0)」斷成四行——而 HStack 會將高度
+# 不等的子元件置中。兩者都不是裁切缺陷；但兩者都讓這張擷取畫面比預期難讀，值得在有人把這個偏移
+# 當成 bug 回報之前先知道。
+#
+# **為何明知無效仍保留這一列 scroll。** P17-DOE 沒有 ScrollView，UIKitBackend 也不會把 root
+# view 放進一個裡面，因此被切掉的兩欄無法被捲入視野。這一點並不顯而易見——P8、P27 與 P39 在同一
+# 台模擬器上都能捲動——所以這一列作為「已經試過」的記錄保留下來，方向朝向可揭露 B 的那一側。
+# 拖曳自 x=380 起、向左 160 pt，完全落在 393 x 852 視窗內，因此這不是 README 所警告的
+# 「離開視窗的手勢會靜默地什麼都不做」那種情況：手勢有送達，是內容沒有移動。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p17-doe-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client。scroll 每格 40 pt 且符號相反，故 x 為正是以向左拖曳達成向右捲動。
+move,380,650,client,,,,park the finger near the right edge so a 160 pt leftward drag stays inside the window,ios
+scroll,4,0,client,,,,"scroll right four notches -- B: clipped() must NOT come into view, because P17-DOE has no ScrollView (VERIFIED: the capture is pixel-identical to the launch capture below the status bar; the same is true of a vertical scroll of three notches)",ios
+sleep,,,,,,600000,let any momentum settle before the capture,ios

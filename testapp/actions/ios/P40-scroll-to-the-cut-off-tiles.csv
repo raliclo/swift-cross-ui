@@ -1,0 +1,87 @@
+action,x,y,origin,button,key,micros,note,platform
+# P40: scroll right, to the tiles the phone cuts off.
+#
+# P40's rows are 620 points wide against a 393-point phone, so a resting capture
+# holds the left two slots of every row and loses the rest. What it loses is not
+# filler. `scale 0.6` is the only sample in the app that SHRINKS -- every other
+# transform grows, rotates or shears the tile -- and it is the third slot of the
+# first row, so it is entirely absent at rest. `rotate 30 centre` and
+# `shear (matrix)` are cut through the middle by the right edge, and a tile
+# whose right half is missing cannot answer the question P40 exists to ask:
+# whether the matrix arrived transposed. Worst of all, `bare text, offset only`
+# is gone completely, and that cell is the control for the leaf-versus-subtree
+# distinction P40's own header describes -- without it, "the bare text rotated"
+# has nothing to be compared against.
+#
+# **P40 has no interactive controls, and this file invents none.** Its whole
+# body is Text, Color and the two effect modifiers; there is no button, no
+# toggle, no field. The floating actualView button belongs to the backend's
+# debug scroll host, not to P40. A click row here would land on a coloured
+# rectangle, change nothing, and still report success.
+#
+# **rwdView would fit all seven tiles at once, and is the wrong tool here.**
+# Scaling the page to fit multiplies every tile's own transform by the page
+# scale, so `scale 0.6` inside a page scaled to 0.6 is drawn at 0.36 and the
+# question "did the backend apply 0.6" stops being separable from "did the debug
+# host apply 0.6". This file scrolls instead.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p40-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# Each cell reserves an 180 x 120 slot with 40 points between them, so a
+# three-slot row is 620 points and the 18-point padding makes the content 656.
+# **The notch count is not a fine adjustment, and this file is where that was
+# measured.** The row says 7, but 3, 6 and 7 were each replayed from a freshly
+# terminated app and the three captures are IDENTICAL to the pixel: row one's
+# blue spans x 194..1009 px in all of them. A notch is a 40-point drag, so 3
+# notches asks the content to move 120 points and 7 asks for 280, and both
+# arrive at the same place -- the right end of the content. XCUITest delivers
+# the gesture as a flick and the momentum carries it to the stop whatever the
+# distance. ActionFileUITests.swift says the 0.05-second press before the drag
+# exists to prevent exactly this; on this page it does not. So read `scroll,7`
+# here as "sweep to the right end", not as "move 280 points", and do not expect
+# a smaller number to stop somewhere useful in between.
+#
+# The move starts at x=380 because a 280-point leftward drag from further left
+# would leave the window, and a gesture that leaves the window silently does
+# nothing.
+#
+# Vertically nothing is needed: the content ends about 750 points down in an
+# 852-point window, so the bare-text row is already on screen at rest.
+#
+# P40：向右捲動，去看被手機切掉的那些方塊。
+#
+# P40 每一列寬 620 點，而手機只有 393 點，因此靜止的擷取畫面只留下每列左側兩格，其餘全部失去。
+# 失去的並不是填充物。`scale 0.6` 是全 app 唯一會**縮小**的樣本——其他每一個變換不是放大、旋轉就是
+# 剪切——而它正是第一列的第三格，因此在靜止狀態下完全不存在。`rotate 30 centre` 與 `shear (matrix)`
+# 被右緣從中切斷，而一個右半邊不見的方塊，無法回答 P40 存在的目的所要問的問題：矩陣是否以轉置的
+# 形式抵達。最糟的是，`bare text, offset only` 完全消失了，而那一格正是 P40 自己的檔頭所描述的
+# 「葉節點對子樹」之分的對照組——少了它，「那段純文字有旋轉」就沒有可比對的對象。
+#
+# **P40 沒有任何互動控制項，而本檔也不捏造任何一個。** 它的整個 body 只有 Text、Color 與那兩個效果
+# modifier；沒有按鈕、沒有開關、沒有輸入欄。那個浮動的 actualView 按鈕屬於 backend 的除錯捲動宿主，
+# 不屬於 P40。此處若寫一列 click，它會落在一塊彩色矩形上、什麼都不改，然後照樣回報成功。
+#
+# **rwdView 能一次容納全部七個方塊，而它在此是錯的工具。** 把整頁縮放以塞入寬度，會讓每個方塊自身的
+# 變換再乘上頁面的縮放，於是在縮放至 0.6 的頁面中，`scale 0.6` 是以 0.36 繪製的，而「backend 是否
+# 套用了 0.6」便無法再與「除錯宿主是否套用了 0.6」分離。本檔改為捲動。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p40-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。每一格保留 180 x 120 的
+# 格位、格間 40 點，因此三格一列為 620 點，再加上 18 點的 padding，內容寬 656 點。一格為 40 點且
+# **格數不是一個細調的旋鈕，而這正是量出這件事的檔案。** 該列寫的是 7，但 3、6、7 各自在
+# 「先終止 app 再重放」的條件下試過，三張擷取畫面逐像素完全相同：第一列的藍色在三者中都佔
+# x 194..1009 px。一格是 40 點的拖曳，因此 3 格要求內容移動 120 點、7 格要求 280 點，而兩者
+# 抵達同一個位置——內容的右端。XCUITest 把這個手勢當成快速滑動送出，其慣性會不論距離都把它帶到
+# 底。ActionFileUITests.swift 說拖曳前那 0.05 秒的按住正是為了避免這件事；在這一頁上它沒有做到。
+# 因此請把此處的 `scroll,7` 讀成「向右掃到底」，而非「移動 280 點」，也不要期待較小的數字會停在
+# 中間某個有用的位置。
+#
+# move 起點設在 x=380，因為從更左邊起算的 280 點向左拖曳會離開視窗，而離開視窗的手勢會靜默地
+# 什麼都不做。
+#
+# 垂直方向不需要任何動作：在 852 點高的視窗中，內容約在 750 點處結束，因此純文字那一列在靜止時
+# 就已經在畫面上了。
+move,380,620,client,,,,"the right margin, level with the rotate 30 topLeading row and clear of the floating actualView button in the top-left corner",ios
+sleep,,,,,,400000,let the pointer settle before the drag begins,ios
+scroll,7,0,,,,,"sweep to the right end of the content, which must bring in scale 0.6, the whole of rotate 30 centre, and the bare text offset only cell (VERIFIED: scale 0.6 is complete and is visibly the smallest tile on the page; rotate 30 centre is whole, and its orange stripe reads as the LEFT edge of a tile turned clockwise rather than a mirrored one; the bare text offset only cell arrives and is upright and unrotated, so the rotated bare text beside it is a transform and not a font. NOT VERIFIED, and the file cannot fix it: shear (matrix) still loses the bottom-left 6 points or so of its orange stripe off the LEFT edge. Its tile spans content x 270..406 while the content runs to about 669, and 669 - 270 = 399 is wider than the 393-point window, so no single position holds that stripe and the right end at once. What IS visible of the shear cell is enough for its own question -- the blue is a parallelogram, not a rectangle, and the TOP caption leans with it, so the matrix reached the backend rather than being rebuilt from scale and rotation.)",ios
+sleep,,,,,,900000,let the scroll settle and any bounce return,ios

@@ -1,0 +1,78 @@
+action,x,y,origin,button,key,micros,note,platform
+# P39: scroll right, to the third column the phone cuts off.
+#
+# P39 lays its ten samples out three to a row, and the phone is 393 points wide
+# while the content is 660. At rest the capture contains columns one and two and
+# nothing of column three -- and column three is `blur 3`, `saturation 2.5` and
+# `grayscale 1`. Those are not three arbitrary cells. `blur 3` is the ONLY blur
+# sample in the app, `grayscale 1` the only grayscale one, and `saturation 2.5`
+# is the upper end of the range whose midpoint P39's own comment explains was
+# added because a wrong scale draws something plausible everywhere else. A
+# resting capture of P39 on iPhone is therefore evidence about seven samples and
+# silence about three, and this file exists to end the silence.
+#
+# **P39 has no interactive controls, and this file invents none.** Every cell is
+# an AngularGradient and a line of text under a `.visualEffect`; there is no
+# button, no toggle, nothing that responds to a tap. A click row here would
+# land on a gradient, do nothing, and still pass -- which is the shape of a
+# file that claims nothing. The claim below is about reaching content and
+# reading it, because reaching it is the only thing there is to do.
+#
+# **rwdView would show all ten at once, and is not what this file does.** The
+# floating debug button scales the whole page down until it fits the width.
+# That is the fastest way to see everything and the wrong way to judge a blur:
+# a 3-point blur radius on a page scaled to 0.6 is a 3-point blur on smaller
+# glyphs, and "is this softer than the control" stops being answerable. This
+# file scrolls, so what it reaches is drawn at the size P39 asked for.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p39-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# Column 1 occupies x 18..218, column 2 x 230..430, column 3 x 442..642, so the
+# content is 660 wide and about 267 points of it are off the right edge. A notch
+# is a 40-point drag and the sign inverts -- scrolling right drags left -- but
+# **the notch count is not a distance control**, which was measured on P40 and
+# applies here too: 3, 6 and 7 notches replayed from a freshly terminated app
+# gave pixel-identical captures, because XCUITest delivers the drag as a flick
+# whose momentum runs to the end of the content whatever the distance asked
+# for. So read `scroll,7` as "sweep to the right end". The move starts at
+# x=380 because a 280-point leftward drag from anywhere further left would
+# leave the window, and a gesture that leaves the window silently does nothing.
+#
+# Vertically nothing is needed: the content is about 740 points tall against a
+# 852-point window, so the fourth row -- `hueRotation 120`, alone -- is already
+# on screen before this file runs.
+#
+# P39：向右捲動，去看被手機切掉的第三欄。
+#
+# P39 把十個樣本每三個排成一列，而手機寬 393 點、內容寬 660 點。靜止時，擷取畫面包含第一、二欄，
+# 第三欄則完全沒有——而第三欄是 `blur 3`、`saturation 2.5` 與 `grayscale 1`。那不是隨便三格。
+# `blur 3` 是全 app **唯一**的模糊樣本，`grayscale 1` 是唯一的灰階樣本，而 `saturation 2.5` 是
+# 該區間的上端；P39 自己的註解說明過，其中間點之所以被加入，正是因為刻度弄錯時，其他每一格都會
+# 畫出看似合理的結果。因此，一張靜止的 P39 iPhone 擷取畫面，是關於七個樣本的證據、以及關於另外
+# 三個的沉默，而本檔的存在就是為了終結那份沉默。
+#
+# **P39 沒有任何互動控制項，而本檔也不捏造任何一個。** 每一格都是一個 AngularGradient 與其下一行
+# 文字，套上 `.visualEffect`；沒有按鈕、沒有開關，沒有任何會回應點按的東西。此處若寫一列 click，
+# 它會落在某個漸層上、什麼也不做，然後照樣通過——那正是「什麼都沒有主張」的檔案的形狀。下方的主張
+# 是關於「抵達內容並讀取它」，因為抵達它就是這裡唯一能做的事。
+#
+# **rwdView 能一次顯示全部十格，而那不是本檔所做的事。** 那個浮動的 debug 按鈕會把整頁縮小到塞得下
+# 寬度。那是「看見全部」最快的方式，也是「判斷模糊」最錯的方式：在縮放至 0.6 的頁面上，3 點的模糊
+# 半徑仍是 3 點，但字形變小了，於是「這比對照組更柔嗎」不再是個能回答的問題。本檔改為捲動，因此
+# 它所抵達的東西，是以 P39 所要求的尺寸被繪製的。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p39-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。第一欄佔 x 18..218、
+# 第二欄 230..430、第三欄 442..642，故內容寬 660 點，其中約 267 點在右緣之外。一格是 40 點的拖曳
+# 且符號相反——向右捲動意味著向左拖曳——但**格數並不是一個距離控制項**，這件事量於 P40，此處同樣
+# 適用：在「先終止 app 再重放」的條件下，3、6、7 格所得的擷取畫面逐像素相同，因為 XCUITest 把拖曳
+# 當成快速滑動送出，其慣性不論要求多少距離都會跑到內容的盡頭。因此請把 `scroll,7` 讀成「向右掃到
+# 底」。move 起點設在 x=380，因為從更左邊起算的 280 點向左拖曳會離開視窗，而離開視窗的手勢會靜默地
+# 什麼都不做。
+#
+# 垂直方向不需要任何動作：內容高約 740 點、視窗高 852 點，因此第四列——只有 `hueRotation 120`
+# 一格——在本檔執行之前就已經在畫面上了。
+move,380,500,client,,,,"the right margin, level with the saturation row and clear of the floating actualView button in the top-left corner",ios
+sleep,,,,,,400000,let the pointer settle before the drag begins,ios
+scroll,7,0,,,,,"the page must move left far enough to show the whole third column: blur 3, saturation 2.5 and grayscale 1 (VERIFIED: all three are fully on screen and none is cut. blur 3 softens the caption -- ""Hamburgefonstiv 123"" is visibly smeared next to the sharp one under saturation 2.5 -- while its gradient is indistinguishable from the control, which is exactly what P39's own comment says a blurred gradient looks like. saturation 2.5 is the most vivid cell in the app, and grayscale 1 is fully grey. The cost is the left column and the two title lines, which go off the left edge; the fourth row is a single cell in column one, so hueRotation 120 leaves the screen too and the resting capture is still the evidence for it. Nothing moved vertically -- every row label sits at the same y as before the drag.)",ios
+sleep,,,,,,900000,let the scroll settle and any bounce return,ios

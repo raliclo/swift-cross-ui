@@ -1,0 +1,81 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15-DARK: tap the one control, and check the dark override is still in force.
+#
+# P15-DARK is not a small P15. P15 has three scheme buttons and asks the app to
+# change scheme at run time; P15-DARK deletes them and hard-codes
+# `preferredColorScheme(.dark)` on the root view. Its own header says why: it
+# wanted the input step out of the measurement. So this file cannot repeat
+# P15-colour-scheme.csv's claim -- there is no System/Light/Dark row to press,
+# and nothing on screen changes scheme. What is left to test is the opposite
+# claim: that the override is not a one-shot applied at launch which the first
+# touch undoes. "A button" is the only control in the app and its action body is
+# empty, so a tap must leave every pixel of the window where it was.
+#
+# **How you can tell the scheme took effect, without saying "it looks dark".**
+# Measured off p15-dark-ios-final-20260902-231656.png with PIL, in raw pixels:
+#
+#   - Background: exactly (0, 0, 0) at (20,20), (589,600), (100,1500),
+#     (589,1300) and (1100,2400) -- five points spread over the window. iOS
+#     resolves systemBackground to #000000 in dark and #FFFFFF in light, so a
+#     light window would read (255,255,255) at all five.
+#   - Body text: (255,255,255). label is #FFFFFF in dark, #000000 in light.
+#   - The status-bar clock, at px x 150-280 y 69-107, is white on black. That
+#     one is outside the app's own drawing: it says the override reached the
+#     window's trait collection and not just the view backgrounds.
+#   - The app agrees in words: the second line reads "Requested: dark
+#     Resolved: dark", and `resolved` is read from \.colorScheme, so it is the
+#     resolved value rather than the request echoed back.
+#
+# **One measurement that does not follow the scheme.** The "A button" label is
+# exactly (0, 122, 255) = #007AFF. That is the fixed default UIView tint, not
+# `UIColor.systemBlue` resolved in a dark trait collection, which would be
+# #0A84FF. Background and label colours follow the override; the accent does
+# not. Written down as a measurement, not as a verdict -- whether SwiftCrossUI
+# wants the accent to track the scheme is a separate question, and this file
+# only pins the number so a later change is visible.
+#
+# Two rows, one tap. The tap cannot move anything, because the button's action
+# is `{}` -- no state is written, so no relayout is scheduled. That matters
+# here: P11 on this same simulator moves its entire layout 174 pt right and
+# 25 pt up on its first state change, which is what makes a second click
+# unusable there. P15-DARK has no such change to make.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p15-dark-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client. The content is centred vertically; nothing scrolls.
+#
+# P15-DARK：點擊唯一的控制項，確認 dark override 仍然生效。
+#
+# P15-DARK 並不是縮小版的 P15。P15 有三個配色按鈕，要求 app 在執行期改變配色；P15-DARK 把它們
+# 全部刪掉，改在 root view 上寫死 `preferredColorScheme(.dark)`。它自己的表頭說明了理由：它要把
+# 輸入這一步自量測中移除。因此本檔案不能重複 P15-colour-scheme.csv 的主張——這裡沒有
+# System／Light／Dark 可按，畫面上也沒有任何東西會改變配色。剩下可測的是相反的主張：該 override
+# 並非「啟動時套用一次、第一次觸控就失效」。「A button」是全 app 唯一的控制項，且其 action 主體
+# 是空的，所以一次點擊必須讓視窗的每一個像素維持原狀。
+#
+# **如何判定配色確實生效，而不是說「看起來很暗」。** 以 PIL 量自
+# p15-dark-ios-final-20260902-231656.png，單位為原始像素：
+#
+#   - 背景：於 (20,20)、(589,600)、(100,1500)、(589,1300)、(1100,2400) 五個分散於視窗各處的點
+#     皆為 (0, 0, 0)。iOS 的 systemBackground 在 dark 解析為 #000000、在 light 為 #FFFFFF，
+#     因此淺色視窗在這五點都會讀到 (255,255,255)。
+#   - 內文文字：(255,255,255)。label 在 dark 為 #FFFFFF、在 light 為 #000000。
+#   - 狀態列時鐘位於 px x 150-280、y 69-107，為黑底白字。那一項不屬於 app 自己的繪製：它說明
+#     override 抵達了視窗的 trait collection，而不只是各 view 的背景。
+#   - app 自己也以文字同意：第二行寫著「Requested: dark   Resolved: dark」，而 `resolved` 讀自
+#     \.colorScheme，因此它是解析後的值，不是把要求原樣回顯。
+#
+# **有一項量測並未跟著配色走。**「A button」的標籤恰為 (0, 122, 255) = #007AFF。那是固定的
+# UIView 預設 tint，而不是在 dark trait collection 中解析的 `UIColor.systemBlue`（那會是
+# #0A84FF）。背景與文字顏色跟隨 override，accent 則否。此處記為量測值而非判決——SwiftCrossUI
+# 是否希望 accent 跟隨配色是另一個問題，本檔案只把數字釘住，好讓日後的變動看得見。
+#
+# 兩列、一次點擊。這次點擊不可能移動任何東西，因為按鈕的 action 是 `{}`——沒有寫入任何 state，
+# 也就不會排入重新排版。這一點在此很重要：P11 在同一台模擬器上，於第一次 state 變更時整個版面
+# 會右移 174 pt、上移 25 pt，那正是它無法容納第二次點擊的原因。P15-DARK 沒有這種變更可做。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p15-dark-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client。內容垂直置中，沒有任何東西會捲動。
+click,196,463,client,left,,,"A button -- its action is empty, so the window must be unchanged: background still (0,0,0), the line still reading Resolved: dark, and the label still #007AFF (VERIFIED: capture pixel-identical to the pre-tap one below the status bar)",ios
+sleep,,,,,,600000,let any trait change that a touch might have triggered land before the capture,ios

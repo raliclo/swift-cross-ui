@@ -1,0 +1,108 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11: press Collide them, and read both sliders off the result.
+#
+# One click, and the reason is measured rather than assumed. This file replaces
+# P11-collide-and-reference.csv, which had a second row clicking Reference at
+# (197,693). That row was dead. Replayed 2026-09-02 in full, the status line
+# still read "Both at 50: any further drag hits the clamp." at the end -- the
+# text Collide them writes -- and never "Reference button height is the
+# comparison baseline.", which is what Reference writes.
+#
+# **What moved.** P11's first state change relays the whole window out. At
+# launch the title wraps to two lines ("P11: AppKitBackend sliders," / "and
+# pickers"); after any state write it fits on one, the stack gets shorter and
+# wider, and because the stack is centred everything slides. Measured, in
+# points, from the blue button labels:
+#
+#                       at launch              after one click
+#   Collide them        x 93.7..187.7          x 268.0..362.0
+#   button row y        435.3..448.0           409.3..424.7
+#   Reference           x 170.0..245.0         x 344.3..391.3
+#                       y 687.0..699.3         y 660.7..673.0
+#
+# So: 174.3 pt right and 25.4 pt up. (197,693) addresses whitespace once that
+# has happened. This is the case P8, P12 and P13 hit and P21 does not.
+#
+# **It is not the sliders that cause it.** A probe clicking Reference *first*,
+# at (207,693) from the launch layout, did land -- the status line changed to
+# "Reference button height is the comparison baseline." -- and produced the same
+# 174 pt shift, even though Reference only writes a string. Any first state
+# change is enough. Either button is therefore a valid single click; this file
+# takes Collide them because its effect is the one #82 is about.
+#
+# **What you read off the capture.** At launch the two sliders look nothing
+# alike: minimum is 0, so slider 1 has no blue fill anywhere, and maximum is
+# 100, so slider 2 is one blue bar across the full window width (y 399.7..403.3,
+# x 0.0..392.7 -- both its ends are off-screen). After the click both hold 50
+# and both draw the same bar: fill x 19.0..357.5 pt, at y 341 and y 377. (Two
+# runs measured 357.3 and 357.7 for that right edge; the half point is
+# antialiasing, so read it as a tolerance rather than a number to match.) Two
+# identical rows where there was one full-width bar and one empty track is the
+# claim, and it is legible without reading any text. The text agrees:
+# "minimum 50  /  maximum 50".
+#
+# **Do not read "writes: min 0" as a broken counter.** The counters only count
+# writes that go through the sliders' bindings. Collide them assigns
+# `minimum = 50` and `maximum = 50` to the @State properties directly, while the
+# Slider is given `$minimum.onChange { ... }` -- a derived binding the button
+# never touches. Zero is the correct answer for a programmatic set. Only a drag
+# would raise it, and #82 is about what those counters do during a drag.
+#
+# **Why there is no drag here.** At launch slider 1's thumb sits at value 0,
+# which is the stack's leading edge at -153.5 pt: off the left of the window,
+# with nothing to press. A drag test for #82 needs the post-reflow layout and so
+# needs its own file, starting from a click that has already been made.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p11-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client. P11 is 700 pt wide in a 393 pt window and does not scroll, so
+# both ends of most lines are cut off in every capture; that is the app, not a
+# missed coordinate.
+#
+# P11：按下 Collide them，並自結果判讀兩個 slider。
+#
+# 只點一次，而理由是量出來的，不是假設的。本檔案取代 P11-collide-and-reference.csv——後者第二列
+# 於 (197,693) 點擊 Reference，而那一列是無效的。2026-09-02 完整重放後，狀態列最終仍寫著
+# 「Both at 50: any further drag hits the clamp.」——那是 Collide them 寫入的文字——而不是
+# Reference 會寫入的「Reference button height is the comparison baseline.」。
+#
+# **移動了什麼。** P11 的第一次 state 變更會讓整個視窗重新排版。啟動時標題斷成兩行
+# （「P11: AppKitBackend sliders,」／「and pickers」）；任何一次 state 寫入之後它就排得下一行，
+# stack 因而變矮變寬，而由於 stack 是置中的，所有東西都會滑動。以下量自藍色按鈕標籤，單位為點：
+#
+#                       啟動時                  點擊一次後
+#   Collide them        x 93.7..187.7          x 268.0..362.0
+#   按鈕列 y            435.3..448.0           409.3..424.7
+#   Reference           x 170.0..245.0         x 344.3..391.3
+#                       y 687.0..699.3         y 660.7..673.0
+#
+# 亦即：右移 174.3 pt、上移 25.4 pt。一旦如此，(197,693) 指到的是空白。這正是 P8、P12、P13
+# 遇到而 P21 沒有遇到的情況。
+#
+# **造成它的並不是那兩個 slider。** 一次「先」點 Reference 的探測，自啟動版面的 (207,693) 出發，
+# 確實有命中——狀態列變為「Reference button height is the comparison baseline.」——並且產生了
+# 同樣的 174 pt 位移，儘管 Reference 只寫入一個字串。任何第一次 state 變更就足夠。因此兩個按鈕
+# 都是有效的單次點擊；本檔案選 Collide them，因為它的效果才是 #82 所關切的。
+#
+# **可自擷取畫面判讀的內容。** 啟動時兩個 slider 毫不相像：minimum 為 0，所以 slider 1 沒有任何
+# 藍色填充；maximum 為 100，所以 slider 2 是橫貫整個視窗寬度的一條藍帶（y 399.7..403.3、
+# x 0.0..392.7——兩端都在畫面外）。點擊之後兩者皆為 50，且畫出相同的帶：填充 x 19.0..357.5 pt，
+# 位於 y 341 與 y 377。（兩次執行對該右緣分別量到 357.3 與 357.7；那半個點是反鋸齒，因此應把它
+# 讀成容差，而非要對上的數字。）「原本一條滿寬藍帶加一條空軌，變成兩條完全相同的帶」就是本檔案的主張，
+# 而且不必讀任何文字就看得出來。文字也同意：「minimum 50  /  maximum 50」。
+#
+# **不要把「writes: min 0」讀成計數器壞了。** 計數器只計算經由 slider binding 的寫入。
+# Collide them 是直接把 `minimum = 50`、`maximum = 50` 指派給 @State 屬性，而 Slider 拿到的是
+# `$minimum.onChange { ... }`——一個按鈕從未碰過的衍生 binding。對於程式化設值而言，0 才是正確
+# 答案。只有拖曳才會讓它上升，而 #82 談的正是拖曳期間那些計數器的行為。
+#
+# **此處為何沒有拖曳。** 啟動時 slider 1 的滑塊位於值 0，也就是 stack 的前緣 -153.5 pt：在視窗
+# 左側之外，沒有東西可按。針對 #82 的拖曳測試需要重排之後的版面，因此需要它自己的檔案，並自一次
+# 已經完成的點擊出發。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p11-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client。P11 在 393 pt 的視窗中寬 700 pt 且不會捲動，因此每一張擷取畫面裡大多數文字行
+# 的兩端都被切掉；那是 app 本身，不是座標抓錯。
+click,141,442,client,left,,,"Collide them -- both sliders must end up drawing the same bar, fill x 19.0..357.5 pt at y 341 and y 377, where slider 1 had no fill at all before; the text must read minimum 50 / maximum 50 (VERIFIED: both measured exactly, and the whole layout moved 174.3 pt right and 25.4 pt up as a side effect)",ios
+sleep,,,,,,600000,let the relayout that this click triggers finish before the capture,ios
