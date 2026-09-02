@@ -114,11 +114,55 @@ elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundl
 else
     bundler_bin="$repo_root/swift-bundler"
 fi
-android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android28}"
+# 31, matching compile.zsh and androidContainer/Bundler.android.toml.
+#
+# This said 28 while the other two said 31, which is worse than all three
+# saying 28: `compile.zsh -android` would build for API 31 and then this script
+# would rebuild the same app for 28 in its own tree, so the APK under test was
+# not the thing that had just been checked. The three are one decision and have
+# to move together.
+#
+# 31，與 compile.zsh 及 androidContainer/Bundler.android.toml 一致。
+#
+# 此處原本寫 28，而另外兩處寫 31——那比三處都寫 28 更糟：`compile.zsh -android` 會以 API 31 建置，
+# 而本腳本接著會在自己的建置樹中以 28 重建同一支 app，於是受測的 APK 並不是剛才檢查過的那一個。
+# 這三處是同一個決定，必須一起移動。
+android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android31}"
 android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
 android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
-swift_snapshot="${SWIFT_ANDROID_SNAPSHOT:-swift-6.3-DEVELOPMENT-SNAPSHOT-2026-06-07-a}"
-swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_snapshot}.xctoolchain/usr/bin/swift}"
+# A toolchain matching the Android SDK, and explicitly not Xcode's.
+#
+# `swift` on a Mac is Xcode's -- 6.4 as of 2026-09-02 -- while the newest
+# Android SDK swift.org publishes is 6.3.3. Building with the host default
+# fails on every module that imports Foundation:
+#
+#     error: module compiled with Swift 6.3.3 cannot be imported by the
+#     Swift 6.4 compiler
+#
+# The default was a dated snapshot name, `swift-6.3-DEVELOPMENT-SNAPSHOT-
+# 2026-06-07-a`. That toolchain still exists here, but the name rots: the
+# matching Android SDK was replaced with 6.3.3-RELEASE on 2026-09-02 and a
+# hard-coded snapshot date has no way to follow. `swift-latest` is the same
+# 6.3.3-dev compiler today and at least tracks whatever was installed last.
+#
+# If this ever fails with the version error above, the fix is to install a
+# toolchain matching the SDK -- not to raise the SDK, which cannot be raised
+# past what swift.org has published. See testapp/build_time_android.md.
+#
+# 需要與 Android SDK 相符的 toolchain，且明確不是 Xcode 的那個。
+#
+# Mac 上的 `swift` 是 Xcode 的——2026-09-02 為 6.4——而 swift.org 所發布最新的 Android SDK 是
+# 6.3.3。使用主機預設值建置，會使每一個 import Foundation 的 module 都以上方英文所示的錯誤失敗。
+#
+# 原本的預設值是一個帶日期的 snapshot 名稱 `swift-6.3-DEVELOPMENT-SNAPSHOT-2026-06-07-a`。
+# 該 toolchain 目前仍存在，但這個名稱會腐爛：對應的 Android SDK 已於 2026-09-02 換成
+# 6.3.3-RELEASE，而寫死的 snapshot 日期無從跟上。`swift-latest` 今日即是同一個 6.3.3-dev 編譯器，
+# 且至少會跟隨「最後安裝的是哪一個」。
+#
+# 若日後出現上述版本錯誤，正確的修法是安裝一個與 SDK 相符的 toolchain——而不是調高 SDK，
+# 因為它無法高過 swift.org 已發布的版本。詳見 testapp/build_time_android.md。
+swift_toolchain="${SWIFT_ANDROID_TOOLCHAIN:-swift-latest}"
+swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
 package_dir="$script_dir/.compile-work-android/TestApps"
 apk_path="$apk_dir/$app.apk"
 # Lowercased. The APK's application id is lowercase, so `adb shell am start`
