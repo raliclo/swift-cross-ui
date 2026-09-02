@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P12: press "Increment counter", the first synthesised tap this backend has
+# accepted without incident.
+#
+# Android had no way to replay an action file until 2026-09-02. `test_android.zsh`
+# parsed `--actionfile` and dropped it, `AndroidBackend.entrypoint` called
+# `main(0, nil)` so no flag could arrive, `CommandLine.arguments` reads the
+# process's real command line rather than that argv, `#if SCUI_DEBUG` was never
+# true in AndroidBackend, and `Sources/InputEvent` had no Android synthesiser.
+# Five things, each of which looked like success from the outside.
+#
+# **Coordinates are points and the emulator's density is 2.625.** The first
+# version of this file used the coordinates of an older Android file and landed
+# on the tab row: 299 points is 785 pixels and "Increment counter" is at 942.
+# The tap did exactly what it was told, which is the point of stating the
+# density here -- a wrong coordinate on Android does not error, it presses
+# something else.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625. A point is
+# 2.625 pixels, so this row's (149, 359) is (391, 942).
+#
+# P12：按下「Increment counter」——這是本 backend 第一次順利接受的合成觸控。
+#
+# 直到 2026-09-02 之前，Android 完全沒有辦法重放動作檔。`test_android.zsh` 解析了 `--actionfile`
+# 之後就丟掉、`AndroidBackend.entrypoint` 呼叫的是 `main(0, nil)` 因此任何旗標都無法送達、
+# `CommandLine.arguments` 讀的是行程真正的命令列而非那個 argv、`#if SCUI_DEBUG` 在 AndroidBackend
+# 中永遠不為真，而 `Sources/InputEvent` 沒有 Android 的 synthesiser。五件事，而每一件從外面看起來
+# 都像是成功。
+#
+# **座標的單位是點，而該 emulator 的 density 是 2.625。** 本檔的第一版沿用了一份較舊的 Android
+# 動作檔的座標，結果落在分頁列上：299 點是 785 像素，而「Increment counter」位於 942。那次點擊
+# 完全照著指示做了——而這正是此處寫明 density 的理由：在 Android 上，錯誤的座標不會報錯，它只會
+# 按到別的東西。
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素，density 2.625。一點等於 2.625 像素，
+# 因此本列的 (149, 359) 即為 (391, 942)。
+sleep,,,,,,1500000,let P12 render,android
+click,149,359,,left,,,"Increment counter -- the line above must read counter: 1 (VERIFIED: it does, and the rest of the page is untouched)",android
+sleep,,,,,,1200000,let the label redraw,android

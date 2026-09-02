@@ -334,6 +334,26 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         DispatchQueue.main.sync { result = MainActor.assumeIsolated { body() } }
         return result
     }
+
+    /// Asynchronous delivery was tried and changed nothing, which is worth
+    /// recording because it was tried for a plausible wrong reason.
+    ///
+    /// A synthesised tap appeared to blank P12's window, so the update running
+    /// nested inside a block already on the main queue looked like the cause,
+    /// and `DispatchQueue.main.async` looked like the fix. It made no
+    /// difference. The real cause was a mis-derived coordinate: 299 points at
+    /// density 2.625 is 785 pixels, and "Increment counter" is at 942 -- 785 is
+    /// the tab row. Pressing a tab button empties the window, and
+    /// `adb shell input tap` on the same button does it too, so it is
+    /// AndroidBackend's and not this file's. See `bugs/bug-Android.md`.
+    ///
+    /// 非同步投遞試過了，什麼都沒改變；這件事值得記下來，因為當初嘗試它的理由聽起來很合理，卻是錯的。
+    ///
+    /// 合成的觸控看似會清空 P12 的視窗，於是「更新嵌套在一個已於 main queue 上執行的區塊之內」看起來
+    /// 就像是原因，而 `DispatchQueue.main.async` 看起來就像是解法。它毫無作用。真正的原因是一個算錯的
+    /// 座標：299 點在 density 2.625 下是 785 像素，而「Increment counter」位於 942——785 落在分頁列上。
+    /// 按下分頁按鈕會清空視窗，而在同一個按鈕上執行 `adb shell input tap` 也會，因此那屬於
+    /// AndroidBackend，不屬於本檔。詳見 `bugs/bug-Android.md`。
 }
 
 extension Activity {
