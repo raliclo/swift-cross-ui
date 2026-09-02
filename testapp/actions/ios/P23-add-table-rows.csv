@@ -1,0 +1,38 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23: add rows to the table.
+#
+# P23 is the table app, and UIKitBackend had no `BackendFeatures.Tables`
+# conformance at all until 2026-09-02 -- P23 aborted on launch. It now renders
+# the header and four equal columns, which is what a star-sized WinUI Grid
+# gives and the closest thing the protocol allows: it carries no column widths,
+# so any other division would be this backend inventing a policy the others do
+# not share.
+#
+# Adding rows is the one claim that reads off a capture without ambiguity: the
+# counter goes 8 to 12 -- the button steps by four, not by one -- and rows 9
+# through 12 appear under the eighth. P23's own text
+# names two more things worth comparing -- whether row 3's long cell widens its
+# column or is truncated, and whether rows past the window height scroll or
+# clip -- and both are answered by looking, not by a row here.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p23-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default). P23 fits the width.
+#
+# P23：為表格新增數列。
+#
+# P23 是表格 app，而直到 2026-09-02 為止，UIKitBackend 根本沒有 `BackendFeatures.Tables` 的
+# conformance——P23 一啟動就中止。它現在會算繪表頭與四個等寬欄位，那正是 star 尺寸的 WinUI Grid
+# 所給出的結果，也是 protocol 所允許的最接近做法：protocol 並未帶有欄寬資訊，因此任何其他分法，
+# 都會是本 backend 自行發明一套其他 backend 並不共有的策略。
+#
+# 「新增列」是唯一能從擷取畫面上毫無歧義地讀出的主張：計數由 8 變 12——該按鈕一次跨四列，而非一列
+# ——且第八列之下出現第 9 至 12 列。
+# P23 自己的文字還點名了另外兩件值得比較的事——第 3 列那個長 cell 是撐寬了它的欄位還是被截斷，
+# 以及超出視窗高度的列是會捲動還是被裁切——而這兩者靠看即可回答，不需要在此處多一列動作。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p23-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。P23 塞得進寬度。
+click,154,247,client,left,,,"More rows -- the counter must read 12 and rows 9 through 12 must appear under the eighth (VERIFIED)",ios
+sleep,,,,,,700000,let the table re-lay out,ios

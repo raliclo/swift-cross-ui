@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16: switch the split view from two columns to three.
+#
+# #160 is about a split view's initial layout, and P16 prints the pane sizes so
+# that the layout can be read rather than eyeballed. On the phone the two-column
+# form measures sidebar 9x and detail 239 x 22; after this row it is sidebar,
+# middle and detail, and the detail pane has given up width to the new middle
+# one -- 239 becomes 161.
+#
+# This is also the check that a *nested* split view works on iPhone, which
+# matters because `NavigationSplitView` did not work there at all until
+# 2026-09-02: `createSplitView` trapped on a precondition that the idiom is not
+# `.phone`, and P16 was one of the apps that died on it before drawing
+# anything. The three-column form nests one `PhoneSplitWidget` inside another,
+# so it exercises the new code twice over.
+#
+# The sidebar is cramped -- 30% of a 334-point split view is 95 points, and
+# "Science" wraps -- and that is the honest answer rather than a defect. A
+# phone-width split view has little to divide.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p16-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default). P16 fits the width.
+#
+# P16：把分割視圖從兩欄切換為三欄。
+#
+# #160 談的是分割視圖的初始版面，而 P16 會印出各窗格的尺寸，使版面得以被讀取而非目測。在手機上，
+# 兩欄形式量到 sidebar 為 9x、detail 為 239 x 22；執行本列之後變成 sidebar、middle 與 detail，
+# 而 detail 窗格把寬度讓給了新的 middle 窗格——239 變成 161。
+#
+# 這同時也是「巢狀分割視圖在 iPhone 上可用」的查核，而這一點很重要，因為直到 2026-09-02 為止
+# `NavigationSplitView` 在該處根本無法運作：`createSplitView` 會因一個「idiom 不是 `.phone`」的
+# precondition 而中止，而 P16 正是在畫出任何東西之前就死在它上面的 app 之一。三欄形式會把一個
+# `PhoneSplitWidget` 巢狀放進另一個之中，因此它把新程式碼走了兩遍。
+#
+# sidebar 很擠——334 點的分割視圖取 30% 是 95 點，而「Science」會換行——那是誠實的答案，而非缺陷。
+# 一個只有手機寬度的分割視圖，本來就沒有多少寬度可分。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p16-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。P16 塞得進寬度。
+click,288,172,client,left,,,"Switch to 3 column -- a middle pane must appear, the label must become Switch to 2 column, and detail must narrow from 239 to 161 (VERIFIED)",ios
+sleep,,,,,,900000,let the three panes settle,ios
