@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED 2026-09-02 without error; NOT verified. The banner still read
+# "requested rows: 100; showing first 100" afterwards. Either both taps missed
+# or the app is already at its cap -- that is the first thing to settle before
+# these coordinates are trusted.
+#
+# The rows themselves are labels and are not tappable. Scrolling to see new ones
+# is not expressible here: the iOS runner rejects scroll rows.
+click,80,340,client,left,,,Show +100 -- requested rows must rise above 100 (TODAY IT DOES NOT),ios
+sleep,,,,,,800000,let the rows build,ios
+click,215,340,client,left,,,Show all capped rows -- the requested count must reach the cap,ios
+sleep,,,,,,1000000,let the rows build,ios

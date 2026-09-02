@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P29: drawn shifted left on iOS -- the title reads "visual fidelity" with its
+# first word off-screen. Enable it is on the right and is fully visible.
+# Typing into the editor is not expressible: the iOS runner rejects key rows.
+click,296,648,client,left,,,Enable it -- the button must become Disable it and the editor must accept focus,ios
+sleep,,,,,,500000,let the editor re-enable,ios

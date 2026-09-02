@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P20: same limit as P19 -- the file opens level 1 and stops. Levels 2 and 3 need
+# coordinates that only a run with the menu open can supply.
+click,77,412,client,left,,,Open the menu -- level 1 must appear,ios
+sleep,,,,,,1000000,let the menu present,ios

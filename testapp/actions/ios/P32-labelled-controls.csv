@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P32: the accessibility attributes this app is about cannot be read from a tap;
+# what a replay can show is that each labelled control is present and responds.
+click,78,335,client,left,,,Labelled button -- it must respond rather than sit inert,ios
+sleep,,,,,,400000,let the app react,ios
+click,350,456,client,left,,,Toggle label -- the switch must flip on,ios
+sleep,,,,,,400000,let the switch animate,ios
+mousedown,149,499,client,left,,,take hold of the slider knob,ios
+mouseup,250,499,client,left,,,drag it right -- the slider must move and the progress bar must not,ios
+sleep,,,,,,500000,let the slider settle,ios

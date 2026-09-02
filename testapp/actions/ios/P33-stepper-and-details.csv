@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED AND VERIFIED 2026-09-02: the stepper read "value 1" after plus plus
+# minus and the disclosure button read "Show details" with its paragraph gone.
+#
+# Stepper and DisclosureGroup do not exist in SwiftCrossUI yet; this app draws
+# approximations of them and the rows press the approximations.
+click,135,467,client,left,,,plus -- value must go 0 -> 1,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,135,467,client,left,,,plus again -- value must go 1 -> 2,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,34,467,client,left,,,minus -- value must come back to 1 (VERIFIED),ios
+sleep,,,,,,400000,let the label redraw,ios
+click,63,548,client,left,,,Hide details -- the paragraph must go and the button must read Show details (VERIFIED),ios
+sleep,,,,,,500000,let the layout settle,ios

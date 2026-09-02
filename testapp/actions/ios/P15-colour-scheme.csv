@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED 2026-09-02. Verified: the Toggle switch was on before and off after
+# and "Use tall content" became "Use short content" with six extra rows below it.
+# The three colour-scheme rows are NOT verified -- they end on System where they
+# started so one capture at the end proves nothing about them.
+#
+# Toggle here is the switch style and does render; the checkbox style does not
+# exist on UIKitBackend at all. Window resizing is not a thing on iOS so the
+# #289 half of this app cannot be exercised by a tap beyond the content switch.
+click,183,317,client,left,,,Dark -- Requested must become dark and Resolved must follow,ios
+sleep,,,,,,500000,let the appearance change propagate,ios
+click,137,317,client,left,,,Light -- Requested must become light,ios
+sleep,,,,,,500000,let the appearance change propagate,ios
+click,81,317,client,left,,,System -- Requested must go back to system,ios
+sleep,,,,,,400000,let the appearance change propagate,ios
+click,296,439,client,left,,,Toggle -- the switch must flip (VERIFIED),ios
+sleep,,,,,,400000,let the switch animate,ios
+click,74,588,client,left,,,Use tall content -- the button must become Use short content (VERIFIED),ios
+sleep,,,,,,500000,let the layout settle,ios

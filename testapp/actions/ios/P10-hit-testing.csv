@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED 2026-09-02 and it found two things. After the replay the app read
+# "Direct clicks: 0   Covered clicks: 0" and "Hidden clicks: 1" with the status
+# line "Hidden button received a click."
+#
+#  - the tap on the orange allowsHitTesting(false) block DID reach the button
+#    underneath it. UIKitBackend does not honour allowsHitTesting(false).
+#  - the tap on "Click me too" did NOT count. That button sits under a
+#    transparent overlay and the overlay swallowed it.
+#
+# Both rows below therefore state what must happen; today neither does.
+# The left-hand column is clipped off the left edge on this screen so its
+# Click me button is not measurable. Ctrl-Q is not expressible: the iOS runner
+# rejects key rows.
+click,136,442,client,left,,,Click me too -- Covered clicks must rise by one (TODAY IT DOES NOT),ios
+sleep,,,,,,400000,let the counter redraw,ios
+click,317,461,client,left,,,the orange allowsHitTesting(false) block -- Hidden clicks must stay 0 (TODAY IT RISES),ios
+sleep,,,,,,400000,let the counter redraw,ios
+click,304,562,client,left,,,Transparent overlay present -- the switch must flip to off (VERIFIED),ios
+sleep,,,,,,500000,let the overlay disappear,ios

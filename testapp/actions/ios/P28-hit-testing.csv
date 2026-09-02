@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED AND VERIFIED 2026-09-02: "Clicks received: 2" after the two taps.
+# A tap on the blue overlay reaches the button underneath it on UIKitBackend.
+click,179,481,client,left,,,tap the blue overlay -- Clicks received must go 0 -> 1 (VERIFIED),ios
+sleep,,,,,,400000,let the counter redraw,ios
+click,179,481,client,left,,,tap it again -- Clicks received must go 1 -> 2 (VERIFIED),ios
+sleep,,,,,,500000,let the counter redraw,ios

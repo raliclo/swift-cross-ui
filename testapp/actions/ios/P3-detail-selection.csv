@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P3: the sidebar list overlaps the detail pane on this screen and most of the
+# view is black; the image sits half off the right edge. The three Detail rows
+# are still hit-testable where they are drawn.
+click,126,439,client,left,,,Detail B -- the detail pane must change away from Detail A,ios
+sleep,,,,,,400000,let the detail pane swap,ios
+click,126,473,client,left,,,Detail C -- the detail pane must change again,ios
+sleep,,,,,,400000,let the detail pane swap,ios
+click,353,405,client,left,,,Small -- the image must take its smaller size,ios
+sleep,,,,,,500000,let the layout settle,ios

@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P2: the switch-style Toggles do render on UIKitBackend (createSwitch is
+# implemented; createToggle is not -- that is what kills P12 P13 P16 P21 P23 P26).
+# This file presses the ones that exist.
+#
+# Note the app is clipped horizontally on this screen: the TextEditor block and
+# its "border check" heading start left of x=0. Nothing below is measured from
+# the clipped region.
+click,348,125,client,left,,,Use expanded Picker options -- "options: 2" must rise,ios
+sleep,,,,,,400000,let the picker rebuild,ios
+click,350,167,client,left,,,Reset -- Selected must return to Vanilla and changes must move,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,348,547,client,left,,,Enable button row -- the row below must become enabled,ios
+sleep,,,,,,400000,let the row redraw,ios
+click,208,588,client,left,,,Always enabled -- this one must act whatever the row state,ios
+sleep,,,,,,500000,let the last state settle,ios

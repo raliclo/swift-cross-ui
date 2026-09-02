@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P17: this app paints over the status bar on iOS -- its title is drawn across
+# the clock and battery -- and the two #264 sample labels overlap each other.
+# Both are layout faults worth a look; the buttons below still work.
+click,192,279,client,left,,,Longest -- Selected must become L and the picker width must change,ios
+sleep,,,,,,400000,let the picker resize,ios
+click,49,279,client,left,,,Shortest -- Selected must return to S,ios
+sleep,,,,,,400000,let the picker resize,ios
+click,148,540,client,left,,,Taller -- the magenta aspect-ratio block must grow without flicker,ios
+sleep,,,,,,400000,let the scroll view settle,ios
+click,204,820,client,left,,,More height -- the stack line must report a height above 140,ios
+sleep,,,,,,500000,let the stack settle,ios

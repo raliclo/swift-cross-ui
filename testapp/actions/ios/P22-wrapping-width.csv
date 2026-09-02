@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED 2026-09-02 without error; NOT verified. The two rows move the width
+# in opposite directions and the heading read "Wrapping at 300pt" both before
+# and after, which is what both landing and neither landing look like. A
+# verifier has to read the heading between the rows rather than at the end.
+click,53,735,client,left,,,Narrower -- the heading must read a width below 300pt and the paragraph must rewrap,ios
+sleep,,,,,,400000,let the paragraph rewrap,ios
+click,120,735,client,left,,,Wider -- the width must return to 300pt,ios
+sleep,,,,,,500000,let the paragraph rewrap,ios

@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P30: the app is drawn shifted left far enough that the frame button is mostly
+# off-screen -- only its last word is visible, from x=0 to about x=55. The tap
+# below aims at the middle of what is left. If it misses that is the clipping
+# and not the button.
+#
+# Worth reading with the capture beside it: the geometric effects (offset scale
+# rotate) do render here while the colour effects (opacity blur grayscale) draw
+# the sample unmodified -- the same split AppKitBackend shows.
+click,28,258,client,left,,,the frame button -- "frame width: 120" must change,ios
+sleep,,,,,,500000,let the layout settle,ios

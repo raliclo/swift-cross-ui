@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+# UNVERIFIED: coordinates were read off a capture of the running app; no row here
+# has been replayed and seen to have the effect it predicts.
+#
+# P9: this app is drawn shifted left on iOS -- its title reads "xt and field
+# sizing" because the first characters are off-screen, and the Refresh button is
+# cut off at the right. The two width buttons below are fully visible.
+click,50,541,client,left,,,Wider -- the blue frame band must grow and the clipped line must show more,ios
+sleep,,,,,,400000,let the layout settle,ios
+click,122,541,client,left,,,Zero width -- the band must collapse and no text may paint outside it,ios
+sleep,,,,,,500000,let the layout settle,ios

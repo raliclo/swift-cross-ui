@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED AND VERIFIED 2026-09-02: the line read "State baseline: count 1,
+# toggle false" afterwards and the switch was off.
+click,57,423,client,left,,,Increment -- the baseline line must go count 0 -> count 1 (VERIFIED),ios
+sleep,,,,,,400000,let the label redraw,ios
+click,350,422,client,left,,,Toggle state -- the same line must go toggle true -> toggle false (VERIFIED),ios
+sleep,,,,,,500000,let the label redraw,ios

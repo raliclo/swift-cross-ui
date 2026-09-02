@@ -1,0 +1,16 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
+# which is what the XCUITest runner normalises against window.frame.
+#
+# REPLAYED 2026-09-02. The Reset row is verified: the count read 1 at launch and
+# 0 after the replay and the status line read "Reset @AppStorage". The two
+# Increment rows are NOT verified -- Reset runs after them so a single capture at
+# the end cannot distinguish an increment that landed from one that did not.
+click,169,416,client,left,,,Increment @AppStorage -- launch count must rise by one,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,169,416,client,left,,,Increment again -- launch count must rise by one more,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,296,416,client,left,,,Reset -- launch count must return to 0 (VERIFIED),ios
+sleep,,,,,,500000,let the last state settle,ios
