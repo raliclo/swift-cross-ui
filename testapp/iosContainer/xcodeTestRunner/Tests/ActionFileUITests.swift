@@ -3,6 +3,21 @@ import XCTest
 final class ActionFileUITests: XCTestCase {
     private let bundleIdentifier = "dev.swiftcrossui.testapp.debugTarget"
 
+    /// How far one notch of the wheel drags the content.
+    ///
+    /// 40 points, which is what the GTK and AppKit synthesisers deliver per
+    /// notch, so a file written for one platform scrolls a comparable distance
+    /// on this one. It is a convention rather than a measurement -- a touch
+    /// screen has no notch to measure -- and it is here rather than inline so
+    /// there is one place to change it when a file needs a different feel.
+    ///
+    /// 一格滾輪帶動內容的距離。
+    ///
+    /// 40 點，與 GTK 及 AppKit 的 synthesiser 每一格所送出的距離相同，因此為某個平台撰寫的檔案在
+    /// 此處會捲動相當的距離。這是一個約定而非量測值——觸控螢幕上沒有「一格」可量——並且放在此處而非
+    /// 內嵌，使得日後若有檔案需要不同手感時，只有一個地方要改。
+    private static let pointsPerNotch: CGFloat = 40
+
     func testActionFile() throws {
         guard let path = ProcessInfo.processInfo.environment["IOS_ACTION_FILE"] else {
             XCTFail("IOS_ACTION_FILE is required")
@@ -41,7 +56,47 @@ final class ActionFileUITests: XCTestCase {
                     target.tap()
                 }
                 pointer = target
-            case "keydown", "keyup", "key", "scroll":
+            case "scroll":
+                // A wheel notch becomes a drag, because a touch screen has no
+                // wheel.
+                //
+                // The sign inverts, and that is the part to get right. In the
+                // action-file format a positive `dy` scrolls *down* -- the
+                // viewport moves further down the content. A finger does that by
+                // moving *up*. Same for `dx`: scrolling right means dragging
+                // left. Getting this backwards produces a scroll that works,
+                // moves the right distance, and goes the wrong way, which reads
+                // as the app scrolling oddly rather than as the runner being
+                // wrong.
+                //
+                // Until this existed the runner threw `unsupported` on every
+                // scroll row, so P8, P27 and P38 -- the three apps whose whole
+                // subject is scrolling -- had no iOS action file at all.
+                //
+                // 一格滾輪變成一次拖曳，因為觸控螢幕沒有滾輪。
+                //
+                // 符號要反過來，而那正是必須弄對的地方。在動作檔格式中，`dy` 為正代表向**下**捲動
+                // ——視口沿著內容往下移。手指要達成這件事，是往**上**移動。`dx` 亦然：向右捲動意味著
+                // 向左拖曳。若把方向弄反，會得到一個「能運作、距離正確、方向相反」的捲動，那讀起來
+                // 像是 app 的捲動行為古怪，而不像是 runner 寫錯了。
+                //
+                // 在此之前，runner 對每一列 scroll 都會拋出 `unsupported`，因此 P8、P27 與 P38
+                // ——那三支整個主題就是捲動的 app——在 iOS 上完全沒有動作檔。
+                let origin = pointer ?? app.windows.firstMatch.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+                )
+                let destination = origin.withOffset(CGVector(
+                    dx: -action.x * Self.pointsPerNotch,
+                    dy: -action.y * Self.pointsPerNotch
+                ))
+                // A brief press before the drag, as the mouseup case does. A
+                // drag with no press is delivered as a flick, whose momentum
+                // carries the content past where the row asked for and leaves
+                // the next row measuring a position nobody chose.
+                // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
+                // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
+                origin.press(forDuration: 0.05, thenDragTo: destination)
+            case "keydown", "keyup", "key":
                 throw ActionFileError.unsupported(action.kind, action.line)
             default:
                 throw ActionFileError.unsupported(action.kind, action.line)

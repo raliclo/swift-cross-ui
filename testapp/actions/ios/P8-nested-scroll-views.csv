@@ -1,0 +1,52 @@
+action,x,y,origin,button,key,micros,note,platform
+# P8: scroll the outer list, and only that.
+#
+# The first iOS file to use `scroll`. Until 2026-09-02 the XCUITest runner threw
+# `unsupported` on every scroll row, so P8, P27 and P38 -- the three apps whose
+# subject is scrolling -- had no iOS file at all. A wheel notch is now a drag of
+# 40 points, and the sign inverts: scrolling down means dragging up.
+#
+# **One scroll, not three, and that is a limit worth stating.** The first
+# version turned all three of P8's views in one file. It did move content, but
+# it could not show *which* view moved, for two reasons that compound:
+#
+# - Every row after a scroll addresses a layout that the scroll has moved. The
+#   coordinates for the second and third views were measured at rest and were
+#   stale by the time they ran.
+# - Each of P8's three views needs its own file if the claim is to be about
+#   which one moved, because a file that turns all three can only show that
+#   something moved.
+#
+# **The root scroll view does not steal the gesture, and that was measured.**
+# Every iOS app is now hosted in a RootScrollHost so content wider than the
+# phone can be reached, and P8's content is wider, so the root can scroll. It
+# did not: at rest the list showed Outer row 0 through 3, after this row it
+# shows 7 through 11, and the title, the red #417 block and the #426 label are
+# all where they were. The drag reached the app's own scroll view because it
+# started inside it, which is UIKit's nesting rule working as it should.
+#
+# P8：只捲動外層清單，僅此而已。
+#
+# 這是第一份使用 `scroll` 的 iOS 動作檔。在 2026-09-02 之前，XCUITest runner 對每一列 scroll 都會
+# 拋出 `unsupported`，因此 P8、P27、P38 這三支以捲動為主題的 app 在 iOS 上完全沒有動作檔。現在一格
+# 滾輪等於 40 點的拖曳，且符號相反：向下捲動意味著向上拖曳。
+#
+# **只捲一次而非三次，而這個限制值得寫明。** 第一版在同一個檔案裡轉動了 P8 的三個視圖。內容確實
+# 移動了，但它無法顯示**是哪一個**視圖移動了，原因有兩個且互相加乘：
+#
+# - 任何排在 scroll 之後的列，所定址的都是一個已被該次捲動移動過的版面。第二與第三個視圖的座標是
+#   在靜止狀態下量的，執行時早已過期。
+# - P8 的三個視圖若要各自主張「是我動了」，就必須各有一份檔案；把三者都轉一遍的檔案，只能顯示
+#   「有東西動了」。
+#
+# **根捲動視圖不會搶走手勢，而這是量出來的。** 現在每一支 iOS app 都被放進 RootScrollHost，好讓
+# 比手機寬的內容得以觸及，而 P8 的內容確實較寬，因此根視圖是可以捲動的。它沒有捲：靜止時清單顯示
+# Outer row 0 至 3，執行本列之後顯示 7 至 11，而標題、紅色的 #417 方塊與 #426 標籤全都在原位。
+# 該次拖曳抵達的是 app 自己的捲動視圖，因為它是從其內部開始的——那正是 UIKit 巢狀規則應有的運作。
+#
+# origin=client. Screen 393pt wide, measured off a 3x simulator capture.
+# origin=client。畫面寬 393pt，量自 3x 的模擬器擷取。
+move,196,500,client,,,,"into the outer vertical list, below the red block",ios
+sleep,,,,,,400000,,ios
+scroll,0,3,,,,,"the list must move and the page must not: Outer row 0-3 becomes 7-11, title and red block unmoved (verified)",ios
+sleep,,,,,,1000000,,ios
