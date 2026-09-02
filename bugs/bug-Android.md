@@ -87,6 +87,88 @@ anything will end on a blank page, and that is the app being emptied rather than
 the file being wrong. Until this is fixed, an Android file should either avoid
 widening the content or claim the blanking on purpose.
 
+### What it actually is, measured 2026-09-03
+
+**The page is not empty. It is laid out 2440 points below the window.**
+
+Probes in `CustomContainer.onLayout` and in `setPosition(ofChildAt:in:to:)`, on
+the root VStack's container, across three states:
+
+| state | position | size |
+| --- | --- | --- |
+| at rest | `78, 212` px | `918 x 1779` px |
+| after a width-stable tap (Increment counter) | `78, 212` | `918 x 1779` |
+| after a widening tap (First tab) | `2, **6405**` | `1073 x 1779` |
+
+The x is right in both: it is the centring offset, `(1078 - 918) / 2 = 80` and
+`(1078 - 1073) / 2 = 2`. The height does not change at all -- 1779 pixels either
+way, in a container that stays 2207. Only y moves, from 212 to 6405.
+
+`setPosition` is handed **`points = 1, 2440`** by the layout system, so the bad
+number is not AndroidBackend's conversion -- `2440 x 2.625 = 6405`, and the
+density is right.
+
+2440 is the vertical centring result, `(outer - inner) / 2`, with `inner` = 678
+points (1779 px) and therefore **`outer` = 5558 points**. And `size(ofWindow:)`
+reports **411 x 841 both before and after** -- so the window did not change. What
+grew is the stack's own computed height, from about 841 points to about 5558,
+against a window that is still 841.
+
+So the defect is in what the layout system computes for the root stack after a
+widening state change, not in how Android draws it.
+
+### Ruled out, each by measurement
+
+| suspect | ruled out by |
+| --- | --- |
+| the action-file machinery | `adb shell input tap` blanks it identically |
+| synchronous touch delivery | dispatching asynchronously changed nothing |
+| `MATCH_PARENT` (-1) multiplied by density into `WRAP_CONTENT` (-2) | fixed; blanking survived |
+| no root scroll host | added; blanking survived |
+| `CustomContainer.onMeasure` passing the sentinel through as a dimension | fixed -- the root now measures 1080x2400 instead of -1x-1; blanking survived |
+| the window size changing | `size(ofWindow:)` is 411x841 before and after |
+
+The last two fixes are real and are kept. Neither was the cause.
+
+### 實際上是什麼，2026-09-03 量得
+
+**頁面不是空的。它被排到視窗下方 2440 點的地方。**
+
+在 `CustomContainer.onLayout` 與 `setPosition(ofChildAt:in:to:)` 中放入探測，對根 VStack 的容器，
+三個狀態：
+
+| 狀態 | 位置 | 尺寸 |
+| --- | --- | --- |
+| 靜止 | `78, 212` px | `918 x 1779` px |
+| 寬度不變的點擊後（Increment counter） | `78, 212` | `918 x 1779` |
+| 會變寬的點擊後（First tab） | `2, **6405**` | `1073 x 1779` |
+
+兩種情況下 x 都是對的：那是置中偏移，`(1078 - 918) / 2 = 80` 與 `(1078 - 1073) / 2 = 2`。高度
+完全沒有改變——兩者都是 1779 像素，而容器維持 2207。只有 y 動了，從 212 變成 6405。
+
+`setPosition` 收到的是版面系統交下來的 **`points = 1, 2440`**，因此那個壞掉的數字不是
+AndroidBackend 的換算——`2440 x 2.625 = 6405`，density 是對的。
+
+2440 正是垂直置中的結果 `(outer - inner) / 2`，其中 `inner` = 678 點（1779 px），因此
+**`outer` = 5558 點**。而 `size(ofWindow:)` 在前後都回報 **411 x 841**——視窗根本沒有改變。變大的
+是那個 stack 自己算出來的高度，從約 841 點變成約 5558 點，而視窗仍然是 841。
+
+也就是說，缺陷在於「版面系統在一次會變寬的狀態變更之後，為根 stack 算出了什麼」，而不在於 Android
+怎麼把它畫出來。
+
+### 已排除的嫌疑，每一個都以量測排除
+
+| 嫌疑 | 以什麼排除 |
+| --- | --- |
+| 動作檔機制 | `adb shell input tap` 造成完全相同的清空 |
+| 同步投遞觸控 | 改為非同步毫無改變 |
+| `MATCH_PARENT`(-1) 乘上 density 變成 `WRAP_CONTENT`(-2) | 已修；清空依舊 |
+| 缺少根捲動宿主 | 已加；清空依舊 |
+| `CustomContainer.onMeasure` 把哨兵值當尺寸傳出 | 已修——根容器現在量到 1080x2400 而非 -1x-1；清空依舊 |
+| 視窗尺寸改變 | `size(ofWindow:)` 前後都是 411x841 |
+
+後兩項修正是真的，並予以保留。兩者都不是成因。
+
 **Why this had not been seen before.** No tap had ever reached an Android app
 from an action file. `test_android.zsh` parsed `--actionfile` and dropped it,
 `AndroidBackend.entrypoint` called `main(0, nil)` so no flag could arrive, and
