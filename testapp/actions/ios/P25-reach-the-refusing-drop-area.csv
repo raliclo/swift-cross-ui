@@ -1,0 +1,57 @@
+action,x,y,origin,button,key,micros,note,platform
+# P25: scroll right to the drop area that refuses.
+#
+# P25 puts an accepting and a refusing drop area side by side, and says why:
+# "a drop zone that silently swallows what it cannot handle and one that
+# rejects it look identical until put side by side". On a phone they are not
+# side by side. The two areas are 320 points wide with 16 between them, so the
+# content is 692 points across and the screen is 393; at rest the accepting one
+# is on screen in full and all that remains of the refusing one is a 39-point
+# strip of green at the right edge, with nothing written on it. This file goes
+# and gets the rest.
+#
+# **The drop itself cannot be driven from here, and that is the honest limit of
+# an iOS action file for this app.** A drop needs a drag that begins outside the
+# app -- in a file manager -- and XCUITest has no way to start one: it can tap,
+# press and drag inside the app under test and nothing else. So what this file
+# checks is the half that is checkable: that both areas exist, that they are
+# reachable, and that they sit at idle with count 0 until something is actually
+# dragged onto them.
+#
+# One scroll and no click. Nothing here is a button, and every coordinate after
+# a horizontal scroll addresses a layout the scroll has moved.
+#
+# The drag starts at x=380 because it travels left: 8 notches is 320 points, so
+# a gesture beginning any further left would run off the window and be dropped
+# in silence.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p25-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default). At rest the accepting area
+# spans x 18-338 and y 412-613; the refusing one starts at x 354.
+#
+# P25：向右捲動，找出那個會拒絕的放置區。
+#
+# P25 把「接受」與「拒絕」兩個放置區並排，並說明了理由：「一個默默吞掉無法處理之物的放置區，與一個
+# 明確拒絕的放置區，在並排之前看起來完全相同」。但在手機上它們並不並排。兩區各寬 320 點、間距 16
+# 點，內容因而橫向共 692 點，而螢幕只有 393 點；靜止時接受區完整在畫面上，而拒絕區只剩右緣一條寬
+# 39 點、上面什麼字也沒有的綠色長條。這份檔案就是去把其餘的部分取回來。
+#
+# **放置動作本身無法從這裡驅動，而那正是這支 app 的 iOS 動作檔誠實的極限。** 一次放置需要一個從
+# app 外部（檔案管理員）開始的拖曳，而 XCUITest 無從發起：它只能在受測 app 內部點擊、按住與拖曳，
+# 別無其他。因此本檔查核的是可查核的那一半：兩區都存在、都能被觸及，且在真的有東西被拖上去之前，
+# 兩者都停在 idle 且 count 為 0。
+#
+# 只捲一次，且不點擊。此處沒有任何東西是按鈕，而任何排在橫向捲動之後的列，所定址的都是一個已被該次
+# 捲動移動過的版面。
+#
+# 拖曳自 x=380 起始，因為它是往左走的：8 格等於 320 點，起點若再往左一些，手勢就會走出視窗並被靜默
+# 丟棄。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p25-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。靜止時接受區橫跨 x 18-338、y 412-613，拒絕區自 x 354 起。
+move,380,500,client,,,,"into the sliver of the refusing area that is on screen, at the right edge (VERIFIED: the drag started there and moved the content, so the strip at x 354-393 is the refusing area and not padding)",ios
+sleep,,,,,,400000,,ios
+scroll,8,0,,,,,"scroll right to the end: the refusing area must become readable in full -- title Refuses (offers an unused type), state idle, received (nothing yet), type -, count 0 -- and the accepting area must leave the screen to the left (VERIFIED: all five lines of the refusing area are readable and the accepting area is down to a bare green strip at the left edge, measured at about 37 points against the 39 the geometry predicts; the scroll stopped at the content end, 299 points, not the 320 asked for)",ios
+sleep,,,,,,1000000,,ios

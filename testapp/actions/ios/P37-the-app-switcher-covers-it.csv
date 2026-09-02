@@ -1,0 +1,64 @@
+action,x,y,origin,button,key,micros,note,platform
+# P37: put the system's own surface over the window that asked to be topmost.
+#
+# P37 is the one app that cannot be judged by what its window contains, only by
+# what is not covering it. On iOS the window already says what it thinks:
+# "supported levels -> automatic, normal" and "floating is NOT supported: this
+# window will behave normally". That is a label. This file is the check that
+# the label is true, because a label and a behaviour are different things and
+# only one of them is what the app does.
+#
+# **There is no second window to raise, so the covering surface is the system's
+# own.** A phone app owns the screen; the instructions in P37's own text --
+# "click another application's window so it takes focus" -- have no iOS
+# equivalent, and XCUITest cannot click outside the app under test in any case.
+# What it can do is drag, and a drag up from the home indicator held at the top
+# of its travel is the gesture that summons the app switcher. That is a real
+# system surface arriving over a window that asked to float, which is the same
+# question in the form the platform allows.
+#
+# The drag starts at y=846 because it travels up: 8 notches is 320 points, so
+# it ends at y=526 and stays inside the 852-point window for its whole length.
+# Starting any higher would either miss the bottom edge the gesture needs or,
+# with a longer drag, run off the top and be dropped in silence.
+#
+# One gesture, no click. P37 has no controls at all -- deliberately, since
+# raising another window is the test and no button inside this one can do that
+# to itself.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p37-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default). Everything P37 draws is on
+# screen at rest, but it is not quite a page that fits: the root scroll host
+# has 95 points of vertical slack, measured by making the identical drag from
+# mid page instead of from the edge -- it scrolled the text up by 95 points and
+# stopped.
+#
+# P37：把系統自己的介面蓋到那個要求「置頂」的視窗上。
+#
+# P37 是唯一無法以「自己的視窗內含什麼」來判定的 app，只能以「什麼沒有蓋住它」來判定。在 iOS 上，
+# 該視窗已經說出了它的看法：「supported levels -> automatic, normal」以及「floating is NOT
+# supported: this window will behave normally」。那是一段標示。這份檔案就是查核該標示是否為真——因為
+# 標示與行為是兩回事，而只有其中一個才是 app 真正做的事。
+#
+# **沒有第二個視窗可供抬起，因此負責遮蓋的是系統自己的介面。** 手機 app 獨佔整個螢幕；P37 自己文字
+# 裡的指示——「點擊另一個應用程式的視窗，使其取得焦點」——在 iOS 上沒有對應物，何況 XCUITest 本來就
+# 無法點擊受測 app 以外的東西。它做得到的是拖曳，而從 home indicator 向上拖並在行程終點停住，正是
+# 召喚 app switcher 的手勢。那是一個真實的系統介面覆蓋到一個要求浮動的視窗之上，也就是同一個問題在
+# 此平台允許的形式下的提問。
+#
+# 拖曳自 y=846 起始，因為它是往上走的：8 格等於 320 點，終點落在 y=526，全程都留在 852 點高的視窗
+# 之內。起點若再高一些，不是碰不到手勢所需的底緣，就是（在拖得更長時）衝出上緣而被靜默丟棄。
+#
+# 只有一個手勢，不點擊。P37 根本沒有任何控制項——這是刻意的，因為「抬起另一個視窗」就是測試本身，
+# 而此視窗內的任何按鈕都無法對自己做這件事。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p37-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。P37 靜止時所繪製的一切都在畫面上，但它並不完全是一頁
+# 「剛好放得下」的內容：root scroll host 尚有 95 點的縱向餘裕，此數字量自「把同一個拖曳改從畫面中段
+# 開始」的對照——它把文字往上捲了 95 點便停住。
+move,196,846,client,,,,"onto the home indicator at the bottom edge of the window (VERIFIED: the bottom edge is what makes it a system gesture -- the identical 320-point drag started from y=600 instead left the app in front and merely scrolled its content up to the end, 95 points)",ios
+sleep,,,,,,300000,,ios
+scroll,0,8,,,,,"drag up 320 points and hold: the app switcher must take the screen and P37 must be reduced to one card among the others, showing that .topmost() did not keep it in front on UIKitBackend (VERIFIED: the switcher took the whole screen, P37 shrank to a card pushed to the right edge labelled debugTarget, three other app cards including P43 sit in front of it to the left, and it was still like that five seconds later -- so the label on the window is true, and .topmost() is accepted and ignored rather than trapping)",ios
+sleep,,,,,,1500000,,ios

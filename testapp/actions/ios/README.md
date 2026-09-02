@@ -1,9 +1,17 @@
 # ios
 
 `test.zsh <Pn> --ios --actionfile` replays these CSV files through XCUITest. The
-current runner supports `click`, `doubleclick`, `move`, `sleep`, and a
-`mousedown`/`mouseup` drag pair. Keyboard and scroll rows are rejected because
+current runner supports `click`, `doubleclick`, `move`, `sleep`, `scroll`, and a
+`mousedown`/`mouseup` drag pair. Keyboard rows are still rejected, because
 XCUITest does not provide an equivalent operation with the same semantics.
+
+`scroll` arrived on 2026-09-02 and this paragraph said it was rejected for four
+days after that. A notch is a drag of 40 points and the sign inverts -- scrolling
+down means dragging up -- and **the drag has to stay inside the window**: a
+gesture that would leave the 393 x 852 frame silently does nothing, so a file
+that scrolls right starts its `move` near the right edge. `P8-nested-scroll-views.csv`
+records how the behaviour was pinned down; `P27-scroll-to-the-angular-gradients.csv`
+and `P25-reach-the-refusing-drop-area.csv` are the horizontal cases.
 
 The sample file is a smoke case only; its coordinates still need visual
 verification on the intended Simulator device before it is used as a product
