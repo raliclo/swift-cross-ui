@@ -3,6 +3,16 @@
 Measured on the Android emulator (`swift-cross-ui-api36`, API 36, 1080 x 2400,
 density 2.625) unless a line says otherwise. Everything here came from a run.
 
+Defects in the backend, not errors in what I said about it. A claim of mine that
+turned out to be false goes in `mistakes/mistakes.csv2`, whose subject is me;
+this file's subject is the backend. The two get confused because an expensive
+mistake feels like it belongs somewhere permanent -- it does, and that somewhere
+is the other file. See `flow.md` section 3g.
+
+本檔收的是 backend 的缺陷，不是「我對它說錯的話」。我說過而後來被證明為假的主張，屬於
+`mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
+代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3g 節。
+
 ## Open: the window goes blank after a tab button is pressed
 
 Measured 2026-09-02, on P12, by the first synthesised tap this backend has ever
