@@ -11,19 +11,40 @@ Measured 2026-09-02 on macOS 27.0, Apple silicon. Every number here came from
 | Clean `swift build`, earlier run | 659 s | against the 6.3-SNAPSHOT SDK |
 | Incremental, nothing changed | **10 s** | |
 | Incremental, one app source file touched | **7 s** | |
-| APK path — `test_android.zsh` | **~570 s** on top | it builds its own tree, see below |
+| APK path, first run | **569 s** | 3078 Swift compile steps |
+| APK path, second run | **166 s** | **4** Swift compile steps -- see step 5 |
+
+The 166 s is almost entirely Gradle packaging the APK and adb installing it.
+The Swift half is four steps. Before the two entry points were given separate
+scratch paths it was 3078 steps every time, in both directions.
 
 So: about **eleven minutes** the first time or after anything that invalidates
 the tree, and **seven to ten seconds** for an ordinary edit to a `Pn`.
 
-Two build trees exist and they do not share work:
+Two build trees exist, deliberately:
 
-    testapp/.compile-work-android/TestApps/.build    compile.zsh -android
-    (test_android.zsh builds its own)                test_android.zsh
+    testapp/.compile-work-android/TestApps/.build            compile.zsh -android
+    testapp/.compile-work-android/TestApps/.build-bundler    test_android.zsh
 
-A run of `test_android.zsh` after a fresh `compile.zsh -android` therefore pays
-the eleven minutes twice. Budget twenty minutes for a cold "build an APK and put
-it on a device", not ten.
+They used to be one, and that was the ten-minute problem. See step 5.
+
+## The two steps
+
+    zsh testapp/install_tools_android.zsh      # 1. everything the build needs
+    zsh testapp/test.zsh P12 --android         # 2. build, bundle, install, launch
+
+`test.zsh --android` runs `install_tools_android.zsh --check` first, so a
+missing prerequisite stops the run before it builds rather than ten minutes in.
+`zsh testapp/compile.zsh -android P12` builds without installing, if that is all
+you want.
+
+## 兩個步驟
+
+    zsh testapp/install_tools_android.zsh      # 1. 建置所需的一切
+    zsh testapp/test.zsh P12 --android         # 2. 建置、打包、安裝、啟動
+
+`test.zsh --android` 會先執行 `install_tools_android.zsh --check`，因此缺少前提時會在建置之前
+停下，而不是建到十分鐘後才失敗。若只想建置而不安裝，用 `zsh testapp/compile.zsh -android P12`。
 
 A finished clean tree is **1.8 GB**. It grows with reuse — a tree that had seen
 several runs measured 5.6 GB. That figure is accumulation, not the cost of one
@@ -102,6 +123,85 @@ in swift-java that the native build system accepts. `compile.zsh` selects
 
 `native` is deprecated, so this has an expiry date: when swiftbuild stops
 rejecting it, or swift-java changes shape, drop the override.
+
+
+### 5. The bundler inherits nothing, and rebuilds everything
+
+`test_android.zsh` runs Swift Bundler, which runs its own `swift build`. It
+inherits neither of the two prerequisites above. Measured 2026-09-02, its
+invocation was
+
+    /usr/bin/env swift build -c debug --product P12 --arch aarch64 \
+      --swift-sdks-path ~/Library/Caches/dev.moreswift.swift-bundler/sdk-silos/... \
+      --swift-sdk aarch64-unknown-linux-android31 ...
+
+-- Xcode's `swift`, and the default `swiftbuild`. So it reproduced the six
+SwiftJava errors from step 4 immediately after `compile.zsh` had built the same
+product successfully. Both are now passed explicitly:
+
+    --toolchain <.xctoolchain>
+    --Xswiftpm --build-system --Xswiftpm native
+
+Note `--swift-sdks-path`: the bundler builds against a *silo* -- a symlink farm
+under its cache that exists to disambiguate SDKs sharing a target triple. The
+silo itself is cheap. What was expensive is that the scratch path was shared
+with `compile.zsh` while the SDK path was not, so each entry point invalidated
+the other's tree and rebuilt everything. Ten minutes each way, on a warm tree.
+
+**Fixed by giving the bundler its own `--scratch-path`**, which it has always
+accepted. Measured after the change: first run 569 s and 3078 Swift compile
+steps, second run 166 s and 4. Two trees cost disk; one tree cost ten minutes
+every time anyone switched.
+
+This did not need a fork of Swift Bundler. All three of the problems in steps
+4, 5 and this one are solved with options the bundler already exposes --
+`--Xswiftpm`, `--toolchain`, `--scratch-path`.
+
+### 6. TOML keys are snake_case, not the Swift spelling
+
+`androidContainer/Bundler.android.toml` had `minSDK`, `targetSDK` and
+`compileSDK` -- the Swift field names -- and was rejected whole:
+
+    error: Failed to deserialize configuration
+    Caused by: Encountered unexpected keys 'apps.P12.android.minSDK', ...
+
+Swift Bundler's `@Configuration` macro converts each identifier to snake_case
+for TOML (`lowerCamelCaseToSnakeCase` in `ConfigurationMacro.swift`), so the
+keys are `min_sdk`, `target_sdk`, `compile_sdk`.
+
+The file had been wrong since it was written and nothing noticed, because
+Android could not be built at all until 2026-09-02. Its own comment claiming
+the last APK carried minSDK 28 was the evidence: 28 is swift-bundler's default,
+which is what an ignored file leaves behind.
+
+Upgrading the bundler does not help -- upstream `main` rejects the Swift
+spelling too. It was never a version problem.
+
+### 5. bundler 什麼都不繼承，而且會整個重建
+
+`test_android.zsh` 會執行 Swift Bundler，而後者又執行它自己的 `swift build`。上述兩個前提它一個
+也不繼承——2026-09-02 實測，它用的是 Xcode 的 `swift` 與預設的 `swiftbuild`（指令見上方英文段落）。
+於是在 `compile.zsh` 才剛成功建出同一個 product 之後，它立刻重現了第 4 點的那六條 SwiftJava 錯誤。
+現在兩者都明確傳入（參數見上方英文段落）。
+
+請注意 `--swift-sdks-path`：bundler 會把 SDK 複製到它自己的快取 silo，並針對該路徑建置。scratch
+path 雖與 `compile.zsh` 共用，SDK 路徑卻不共用，因此 SwiftPM 認定輸入不同而從頭重建。這就是「在兩個
+入口之間切換時每次都要付一次完整建置」的原因，也是「我明明剛建過，為什麼還要十分鐘」的誠實答案。
+
+### 6. TOML 的鍵是 snake_case，不是 Swift 的拼法
+
+`androidContainer/Bundler.android.toml` 原本使用 `minSDK`、`targetSDK` 與 `compileSDK`——也就是
+Swift 的欄位名稱——因而整份被拒絕（錯誤見上方英文段落）。
+
+Swift Bundler 的 `@Configuration` macro 會把每個識別字轉換為 TOML 的 snake_case
+（`ConfigurationMacro.swift` 中的 `lowerCamelCaseToSnakeCase`），因此正確的鍵是 `min_sdk`、
+`target_sdk`、`compile_sdk`。
+
+該檔自撰寫之日起就是錯的，而沒有任何東西察覺，因為在 2026-09-02 之前 Android 根本建不起來。
+它自己那句「上一個 APK 帶的是 minSDK 28」的註解正是證據：28 是 swift-bundler 的預設值，也就是一個
+被忽略的檔案會留下的結果。
+
+升級 bundler 並不能解決——upstream `main` 同樣拒絕 Swift 的拼法。這從來就不是版本問題。
 
 ## Installing the SDK
 

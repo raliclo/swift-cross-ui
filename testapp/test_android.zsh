@@ -189,11 +189,76 @@ if [ "$do_apk" -eq 1 ]; then
 
     print "==> Bundling $app APK"
     mkdir -p "$apk_dir"
+    # Both overrides have to be handed to the bundler explicitly.
+    #
+    # Swift Bundler runs its own `swift build`, and it inherits neither
+    # of the two things an Android build here needs. Measured
+    # 2026-09-02, its invocation was
+    #
+    #   /usr/bin/env swift build -c debug --product P12 --arch aarch64
+    #     --swift-sdks-path ~/Library/Caches/.../sdk-silos/...
+    #     --swift-sdk aarch64-unknown-linux-android31 ...
+    #
+    # -- Xcode's swift, and the default swiftbuild build system. So it
+    # reproduced the six SwiftJava static-linkage errors that
+    # compile.zsh already works around, after compile.zsh had just
+    # built the same product successfully.
+    #
+    # `--toolchain` fixes the compiler, `--Xswiftpm` passes the build
+    # system through. See testapp/build_time_android.md for why each is
+    # needed.
+    #
+    # 兩個覆寫都必須明確交給 bundler。
+    #
+    # Swift Bundler 會執行它自己的 `swift build`，而此處 Android 建置所需的那兩件事，它一件
+    # 也不繼承。2026-09-02 實測其呼叫如上方英文所示——用的是 Xcode 的 swift，以及預設的
+    # swiftbuild 建置系統。於是它重現了 compile.zsh 早已繞過的那六條 SwiftJava 靜態連結錯誤，
+    # 而 compile.zsh 才剛剛成功建出同一個 product。
+    #
+    # `--toolchain` 修正編譯器，`--Xswiftpm` 把建置系統傳遞下去。各自的理由見
+    # testapp/build_time_android.md。
+    #
+    # The comment above used to sit between the environment assignments and the
+    # command, after a line continuation. zsh ends the continuation at the
+    # comment, so SCUI_ANDROID and the four ANDROID_* variables applied to
+    # nothing and the build failed with "Unknown backend selected" from
+    # DefaultBackend -- an error about backend selection caused by a misplaced
+    # comment.
+    #
+    # 上方的註解原本位於環境變數指派與指令之間、且緊接在續行符號之後。zsh 會在註解處結束續行，
+    # 因此 SCUI_ANDROID 與那四個 ANDROID_* 變數等於沒有套用到任何東西，建置以 DefaultBackend 的
+    # 「Unknown backend selected」失敗——一個關於 backend 選擇的錯誤，成因卻是一個位置放錯的註解。
+    #
+    # A scratch path of its own, so the two entry points stop erasing each
+    # other.
+    #
+    # Both defaulted to `<package>/.build`, but Swift Bundler builds against a
+    # Swift SDK *silo* -- a symlink farm under its cache that exists to
+    # disambiguate SDKs sharing a target triple -- and passes that path as
+    # `--swift-sdks-path`. compile.zsh uses the SDK's real location. Same
+    # scratch directory, different SDK path, so SwiftPM saw different inputs and
+    # rebuilt everything; then the next `compile.zsh -android` rebuilt
+    # everything back. Ten minutes each way, for a tree that was already warm.
+    #
+    # Two trees cost disk. One tree cost ten minutes every time anyone switched.
+    #
+    # 給它自己的 scratch path，讓兩個入口不再互相清除對方的成果。
+    #
+    # 兩者原本都預設為 `<package>/.build`，但 Swift Bundler 是針對 Swift SDK 的 *silo* 建置的
+    # ——那是位於其快取下的一片符號連結，存在目的是為共用 target triple 的多個 SDK 消歧義——並把該
+    # 路徑以 `--swift-sdks-path` 傳入。compile.zsh 用的則是 SDK 的實際位置。相同的 scratch 目錄、
+    # 不同的 SDK 路徑，於是 SwiftPM 認定輸入不同而全部重建；接著下一次 `compile.zsh -android`
+    # 又全部重建回去。來回各十分鐘，而那棵樹本來是熱的。
+    #
+    # 兩棵樹的代價是磁碟。一棵樹的代價是每次有人切換就十分鐘。
     (
         cd "$package_dir"
         SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
-            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}"
+            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}" \
+                --toolchain "${swift_bin:h:h:h}" \
+                --scratch-path "$package_dir/.build-bundler" \
+                --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"
     )
     generated_apk="$package_dir/.build/bundler/apps/$app/$app.apk"
     [ -f "$generated_apk" ] || die "Bundler succeeded but APK was not found: $generated_apk"

@@ -93,6 +93,106 @@ else
     die "找不到 avdmanager：$avdmanager"
 fi
 
+
+# ==============================================================================
+# The Swift Android SDK, and the three things about it that are not obvious.
+#
+# Everything above installs Google's SDK. None of it gives you a Swift compiler
+# that can target Android -- that is a separate artefact from swift.org, and
+# every one of the checks below corresponds to a way a build failed on
+# 2026-09-02 with an error naming something other than the cause. The full
+# accounts are in testapp/build_time_android.md.
+#
+# ==============================================================================
+# Swift 的 Android SDK，以及關於它三件並不顯而易見的事。
+#
+# 以上所有步驟安裝的是 Google 的 SDK，其中沒有任何一項能給你「可以編譯到 Android 的 Swift
+# 編譯器」——那是來自 swift.org 的另一項產物。下方每一項檢查，都對應到 2026-09-02 當天一次
+# 「錯誤訊息指向真正原因以外之處」的建置失敗。完整說明見 testapp/build_time_android.md。
+swift_android_sdk="${SWIFT_ANDROID_SDK:-swift-6.3.3-RELEASE_android}"
+swift_android_url="${SWIFT_ANDROID_SDK_URL:-https://download.swift.org/swift-6.3.3-release/android-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_android.artifactbundle.tar.gz}"
+swift_android_checksum="${SWIFT_ANDROID_SDK_CHECKSUM:-d160cc3206dd1886dae3fef2337af5e25ec034692cd0ec225721c56cc69da7f5}"
+swift_toolchain_dir="${SWIFT_ANDROID_TOOLCHAIN_DIR:-$HOME/Library/Developer/Toolchains/swift-latest.xctoolchain}"
+
+# A toolchain that matches the SDK, not Xcode's.
+#
+# `swift` on a Mac is Xcode's, which runs ahead of swift.org's release train --
+# 6.4 against an Android SDK of 6.3.3 on 2026-09-02. Every module importing
+# Foundation then fails with "module compiled with Swift 6.3.3 cannot be
+# imported by the Swift 6.4 compiler", which reads as an out-of-date SDK and is
+# not: swift.org has published no 6.4 Android SDK because 6.4 is not a release.
+#
+# 需要與 SDK 相符的 toolchain，而非 Xcode 的那個。
+#
+# Mac 上的 `swift` 是 Xcode 的，它走在 swift.org 發布列車的前面——2026-09-02 時是 6.4，而 Android
+# SDK 是 6.3.3。於是每個 import Foundation 的 module 都以「module compiled with Swift 6.3.3
+# cannot be imported by the Swift 6.4 compiler」失敗，那讀起來像是 SDK 過舊，實則不然：swift.org
+# 從未發布 6.4 的 Android SDK，因為 6.4 並非一個 release。
+if [ -x "$swift_toolchain_dir/usr/bin/swift" ]; then
+    note "Swift toolchain for Android: $("$swift_toolchain_dir/usr/bin/swift" --version 2>&1 | head -1)"
+else
+    die "找不到可用於 Android 的 Swift toolchain：$swift_toolchain_dir
+Install a swift.org toolchain matching the Android SDK; Xcode's own will not do."
+fi
+
+swift_sdk_cmd=("$swift_toolchain_dir/usr/bin/swift" sdk)
+installed_sdks="$("${swift_sdk_cmd[@]}" list 2>/dev/null || true)"
+
+if print -r -- "$installed_sdks" | grep -qx "$swift_android_sdk"; then
+    note "Swift Android SDK present: $swift_android_sdk"
+elif [ "$check_only" -eq 1 ]; then
+    note "Swift Android SDK missing: $swift_android_sdk (run without --check to install it)"
+else
+    note "Installing the Swift Android SDK (318 MB)"
+    "${swift_sdk_cmd[@]}" install "$swift_android_url" --checksum "$swift_android_checksum" \
+        || die "swift sdk install failed"
+    installed_sdks="$("${swift_sdk_cmd[@]}" list 2>/dev/null || true)"
+fi
+
+# One SDK, not several.
+#
+# Two bundles offering the same triple make every build print "multiple Swift
+# SDKs match target triple" and pick one for you. It picked correctly here, but
+# "picks one for you" is not a property to build on.
+#
+# 只留一個 SDK，不要多個。
+#
+# 兩個 bundle 同時提供相同的 triple，會使每次建置都印出「multiple Swift SDKs match target
+# triple」並替你選一個。此處它選對了，但「替你選一個」不是一個可以拿來當基礎的性質。
+other_sdks="$(print -r -- "$installed_sdks" | grep -i android | grep -vx "$swift_android_sdk" || true)"
+if [ -n "$other_sdks" ]; then
+    note "Other Android SDKs are installed; builds will warn that several match:"
+    print -r -- "$other_sdks" | sed 's/^/      /'
+    print "      remove with: swift sdk remove <name>"
+fi
+
+# The release bundle ships no NDK -- link the local one in.
+#
+# This is the check most worth having, because without it the failure looks
+# like a corrupt download: `sdkRootPath` points at `ndk-sysroot`, the release
+# bundle does not contain one, and every C target fails with
+# "'sys/types.h' file not found". The snapshot bundles did contain an NDK,
+# so this only started mattering when the SDK moved to a release.
+#
+# release bundle 不附帶 NDK——必須把本機的連結進去。
+#
+# 這是最值得保留的一項檢查，因為少了它，失敗看起來會像下載損毀：`sdkRootPath` 指向
+# `ndk-sysroot`，而 release bundle 並不包含它，於是每個 C target 都以「'sys/types.h' file not
+# found」失敗。snapshot bundle 內含 NDK，因此這件事是在 SDK 換成 release 之後才開始重要。
+swift_sdk_bundle="$HOME/Library/org.swift.swiftpm/swift-sdks/${swift_android_sdk}.artifactbundle/swift-android"
+if [ -d "$swift_sdk_bundle" ]; then
+    if [ -d "$swift_sdk_bundle/ndk-sysroot/usr" ]; then
+        note "ndk-sysroot already linked"
+    elif [ "$check_only" -eq 1 ]; then
+        note "ndk-sysroot not linked (run without --check to link it)"
+    else
+        note "Linking ndk-sysroot to the local NDK"
+        ANDROID_NDK_HOME="$android_root/ndk/$android_ndk_version" \
+            bash "$swift_sdk_bundle/scripts/setup-android-sdk.sh" \
+            || die "setup-android-sdk.sh failed"
+    fi
+fi
+
 print ""
 print "export ANDROID_HOME=\"$android_root\""
 print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'

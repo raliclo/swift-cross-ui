@@ -37,6 +37,33 @@
 # 本檔是 `[apps.<Pn>.android]` 表格的內容。compile.zsh 會為每一個被請求的 app 產生表頭，並原樣
 #附加以下各行，因此所有測試 app 取得相同的 Android 設定，且只有一處需要修改。
 
+# snake_case, not the Swift spelling.
+#
+# Swift Bundler's `@Configuration` macro converts each field's lowerCamelCase
+# identifier to snake_case for TOML -- `lowerCamelCaseToSnakeCase` in
+# ConfigurationMacro.swift -- so the Swift field `minSDK` is the TOML key
+# `min_sdk`. This file used `minSDK`, `targetSDK` and `compileSDK` from the day
+# it was written, and was rejected whole:
+#
+#   error: Failed to deserialize configuration
+#   Caused by: Encountered unexpected keys 'apps.P12.android.minSDK', ...
+#
+# Nothing noticed, because Android could not be built at all until 2026-09-02
+# and the file had never been read. Its own comment above, claiming the last
+# APK carried minSDK 28, is the evidence: 28 is swift-bundler's default, which
+# is what an ignored file leaves you with.
+#
+# 使用 snake_case，而非 Swift 的拼法。
+#
+# Swift Bundler 的 `@Configuration` macro 會把每個欄位的 lowerCamelCase 識別字轉換為 TOML 的
+# snake_case——見 ConfigurationMacro.swift 中的 `lowerCamelCaseToSnakeCase`——因此 Swift 欄位
+# `minSDK` 對應的 TOML 鍵是 `min_sdk`。本檔自撰寫之日起即使用 `minSDK`、`targetSDK` 與
+# `compileSDK`，因而整份被拒絕，錯誤訊息如上方英文所示。
+#
+# 沒有任何東西察覺到這件事，因為在 2026-09-02 之前 Android 根本建不起來，本檔從未被讀取過。
+# 上方它自己的註解宣稱「上一個 APK 帶的是 minSDK 28」，正是證據：28 是 swift-bundler 的預設值，
+# 而那正是一個被忽略的檔案會留給你的結果。
+
 # Matches ANDROID_TRIPLE in compile.zsh, which is
 # aarch64-unknown-linux-android31. The two are the same decision written twice,
 # so a change to either has to be made to both; this pair was raised together
@@ -67,14 +94,14 @@
 # 代價是真實的，也正是當初選 28 的理由：API 28 是 Android 9（2018），31 是 Android 12（2021），
 # 因此這會捨棄兩者之間的裝置。對一棵測試 app 的樹而言這是可接受的取捨；但對一次函式庫發布而言，
 # 這是應該由某個人刻意做出、而非從此處繼承而來的決定。
-minSDK = 31
+min_sdk = 31
 
 # The API the apps are written against. 35 is what the last build produced, so
 # pinning it changes nothing today -- which is the point. It stops moving on its
 # own the next time the SDK is updated.
 # 這些 app 所針對的 API。35 是上一次建置實際產出的值，因此釘住它在今天不改變任何事——而那正是
 # 重點：它不會在下次更新 SDK 時自行移動。
-targetSDK = 35
+target_sdk = 35
 
 # The API used to compile the Kotlin helpers in Sources/AndroidBackend/Kotlin.
 # Kept equal to targetSDK rather than raised. It was briefly 36 while
@@ -86,12 +113,12 @@ targetSDK = 35
 # 不調高。它曾短暫為 36，因為 AndroidBackendHelpers.kt 呼叫了屬於 API 36 的 TimeZone.getIanaID；
 # b33f6246 已改寫該輔助程式，使其停留在現行 Swift Android SDK 所使用的 API 範圍內，因此調高的
 # 理由已不存在。除非有確實需要它的呼叫點，否則不要再調高。
-compileSDK = 35
+compile_sdk = 35
 
-# versionCode is deliberately absent. Left unset it defaults to the git revision
+# version_code is deliberately absent. Left unset it defaults to the git revision
 # number -- the last APK carried 1052 -- which is what a throwaway test build
 # should have: two builds from different commits are distinguishable, and
 # installing one over the other is never refused for being older.
-# versionCode 刻意不設定。留空時它預設為 git 的 revision number——上一個 APK 帶的是 1052——而那
+# version_code 刻意不設定。留空時它預設為 git 的 revision number——上一個 APK 帶的是 1052——而那
 # 正是一次性測試建置所應有的：來自不同 commit 的兩個建置可以區分，且以其一覆蓋安裝另一個時，
 # 不會因為「版本較舊」而被拒絕。
