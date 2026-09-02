@@ -9,11 +9,77 @@ extension AppKitBackend {
         var fillColor: NSColor = .clear
         var strokeColor: NSColor = .clear
 
+        /// Set only when the style is not a flat colour; see
+        /// `AppKitBackend+PathGradients.swift`.
+        /// 僅在樣式不是平面顏色時才設定；見 `AppKitBackend+PathGradients.swift`。
+        var fillGradient: ResolvedFillStyle?
+        var strokeGradient: ResolvedFillStyle?
+        var environment: EnvironmentValues?
+
         override func draw(_ dirtyRect: NSRect) {
-            fillColor.set()
-            path.fill()
-            strokeColor.set()
-            path.stroke()
+            guard let path else { return }
+
+            let context = NSGraphicsContext.current?.cgContext
+
+            if let fillGradient, let environment, let context {
+                context.saveGState()
+                // `addClip()` and not `context.clip()`: the fill region is what
+                // `NSBezierPath` already knows how to describe, honouring its own
+                // winding rule. No CGPath conversion is needed for the fill.
+                // 使用 `addClip()` 而非 `context.clip()`：填充區域是 `NSBezierPath` 本來就知道
+                // 如何描述的東西，並會遵守它自己的 winding rule。填充不需要任何 CGPath 轉換。
+                path.addClip()
+                drawGradient(
+                    fillGradient,
+                    in: path.bounds,
+                    environment: environment,
+                    context: context
+                )
+                context.restoreGState()
+            } else {
+                fillColor.set()
+                path.fill()
+            }
+
+            if let strokeGradient, let environment, let context {
+                context.saveGState()
+                context.addPath(cgPath(of: path))
+                // The stroke parameters have to be on the context, not on the
+                // NSBezierPath, because `replacePathWithStrokedPath` reads the
+                // context's. Setting the path's line width alone produces a
+                // hairline outline with the gradient inside it.
+                // 描邊參數必須設定在 context 上而非 NSBezierPath 上，因為
+                // `replacePathWithStrokedPath` 讀的是 context 的設定。只設定路徑的線寬，會得到一條
+                // 髮絲般細的外框，漸層被關在裡面。
+                context.setLineWidth(path.lineWidth)
+                context.setMiterLimit(path.miterLimit)
+                let cap: CGLineCap =
+                    switch path.lineCapStyle {
+                        case .round: .round
+                        case .square: .square
+                        default: .butt
+                    }
+                let join: CGLineJoin =
+                    switch path.lineJoinStyle {
+                        case .round: .round
+                        case .bevel: .bevel
+                        default: .miter
+                    }
+                context.setLineCap(cap)
+                context.setLineJoin(join)
+                context.replacePathWithStrokedPath()
+                context.clip()
+                drawGradient(
+                    strokeGradient,
+                    in: path.bounds,
+                    environment: environment,
+                    context: context
+                )
+                context.restoreGState()
+            } else {
+                strokeColor.set()
+                path.stroke()
+            }
         }
     }
 
