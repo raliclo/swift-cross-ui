@@ -180,96 +180,51 @@ struct SwiftCrossUITests {
         #expect(ambientColorScheme.value == .dark)
     }
 
+    @Test("Ensure that a basic view has the expected dimensions under DummyBackend")
+    @MainActor
+    func testBasicLayout() async throws {
+        let backend = DummyBackend()
+        let window = backend.createWindow(withDefaultSize: SIMD2(200, 200), id: "window")
+
+        let environment = EnvironmentValues(backend: backend)
+            .with(\.window, window)
+        let viewGraph = ViewGraph(
+            for: CounterView(),
+            backend: backend,
+            environment: environment
+        )
+        backend.setChild(ofWindow: window, to: viewGraph.rootNode.widget.into())
+
+        let result = viewGraph.computeLayout(
+            proposedSize: ProposedViewSize(200, 200),
+            environment: environment
+        )
+
+        // CounterView is a padded VStack of two Buttons ("Decrease"/"Increase",
+        // 8 characters each) and a Text ("Count: 1", 8 characters), laid out under
+        // DummyBackend's character-metric approximation for the default (`.body`)
+        // font: pointSize 13, lineHeight 16 (Font.TextStyle's desktop table).
+        //
+        // Text sizing (DummyBackend.size(of:)): characterWidth = Int(13) * 2 / 3 = 8,
+        //   width = 8 * 8 = 64, height = lineHeight = 16
+        // Button size = label size + DummyBackend.buttonPadding (0, 0) = 64 x 16
+        //
+        // VStack union width = max(64, 64, 64) = 64
+        // VStack height = 16 + 16 + 16 + 2 * VStack.defaultSpacing(10) = 68
+        // .padding() adds DummyBackend.defaultPaddingAmount(10) on every edge:
+        //   width = 64 + 2 * 10 = 84, height = 68 + 2 * 10 = 88
+        #expect(
+            result.size == ViewSize(84, 88),
+            "View update result mismatch"
+        )
+
+        #expect(
+            result.preferences.onOpenURL == nil,
+            "onOpenURL not nil"
+        )
+    }
+
     #if canImport(AppKitBackend)
-        @Test("Ensure that a basic view has the expected dimensions under AppKitBackend")
-        @MainActor
-        func testBasicLayout() async throws {
-            let backend = AppKitBackend()
-            let window = backend.createWindow(withDefaultSize: SIMD2(200, 200), id: "window")
-
-            // Idea taken from https://github.com/pointfreeco/swift-snapshot-testing/pull/533
-            // and implemented in AppKitBackend.
-            window.backingScaleFactorOverride = 1
-            window.colorSpace = .genericRGB
-
-            let environment = EnvironmentValues(backend: backend)
-                .with(\.window, window)
-
-            // Lays a view out through the full graph, the way the assertion
-            // below needs each piece measured: by the same path, in the same
-            // environment, against the same proposal.
-            // 以完整的 view graph 佈局一個 view——下方斷言所需的每一塊，都必須經由相同路徑、
-            // 在相同 environment 中、對相同的提議尺寸量測。
-            func layout<V: View>(_ view: V) -> ViewLayoutResult {
-                let graph = ViewGraph(for: view, backend: backend, environment: environment)
-                backend.setChild(ofWindow: window, to: graph.rootNode.widget.into())
-                return graph.computeLayout(
-                    proposedSize: ProposedViewSize(200, 200),
-                    environment: environment
-                )
-            }
-
-            let result = layout(CounterView())
-
-            // This assertion used to read `result.size == ViewSize(92, 96)`, and
-            // those numbers were AppKit's, not SwiftCrossUI's. On macOS 27 an
-            // NSButton with bezelStyle .regularSquare measures 82x24 for
-            // "Decrease" where 92x96 was written against 72x20, so the test
-            // failed while the layout system was doing exactly the right thing
-            // with the sizes it was given. Nothing caught it for as long as it
-            // was wrong, either: this test sits behind `#if canImport(AppKitBackend)`
-            // and so runs on macOS alone.
-            //
-            // What SwiftCrossUI owns is the composition -- widest child, sum of
-            // heights, spacing between, padding around -- so that is what is
-            // asserted, over control sizes measured here rather than baked in.
-            // Every number below comes from the backend or the environment. The
-            // test now says the same thing on any macOS, and still fails for a
-            // real defect: a child squeezed below its natural width breaks the
-            // max, a dropped gap breaks the sum, padding applied once breaks the
-            // last line.
-            //
-            // 此斷言原本寫作 `result.size == ViewSize(92, 96)`，而那組數字屬於 AppKit，
-            // 不屬於 SwiftCrossUI。在 macOS 27 上，bezelStyle 為 .regularSquare 的 NSButton
-            // 就「Decrease」量得 82x24，而 92x96 是依 72x20 寫成的；於是測試失敗，佈局系統
-            // 卻對它所取得的尺寸做出了完全正確的處理。而且在它出錯的整段期間也無人察覺：此測試
-            // 位於 `#if canImport(AppKitBackend)` 之後，僅在 macOS 上執行。
-            //
-            // SwiftCrossUI 真正負責的是「組合」——最寬的子項、高度總和、其間的 spacing、四周的
-            // padding——因此所斷言的正是這些，並以此處實際量得的控制項尺寸為依據，而非寫死。
-            // 下方每一個數字都來自 backend 或 environment。此測試如今在任何 macOS 上都陳述同一
-            // 件事，且仍會因真正的缺陷而失敗：子項被壓到低於自然寬度會破壞 max、遺漏間隔會破壞
-            // 總和、padding 只套一次會破壞最後一行。
-            let stack = layout(CounterStack()).size
-            let decrease = layout(Button("Decrease") {}).size
-            let count = layout(Text("Count: 1")).size
-            let increase = layout(Button("Increase") {}).size
-
-            let spacing = Double(environment.layoutSpacing)
-            let padding = Double(backend.defaultPaddingAmount)
-
-            #expect(
-                stack.width == max(decrease.width, count.width, increase.width),
-                "VStack width should be its widest child"
-            )
-
-            #expect(
-                stack.height
-                    == decrease.height + count.height + increase.height + 2 * spacing,
-                "VStack height should be its children plus one gap between each pair"
-            )
-
-            #expect(
-                result.size == ViewSize(stack.width + 2 * padding, stack.height + 2 * padding),
-                "padding() should add the default amount on all four edges"
-            )
-
-            #expect(
-                result.preferences.onOpenURL == nil,
-                "onOpenURL not nil"
-            )
-        }
-
         /// Snapshots an AppKit view to a TIFF image.
         @MainActor
         static func snapshotView(_ view: NSView) throws -> Data {
