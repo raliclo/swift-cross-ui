@@ -114,6 +114,30 @@ enum P6WindowRequests {
     static let isMaximized = CommandLine.arguments.contains("-maximized")
 }
 
+/// The home directory, or the sandbox container that stands in for one where
+/// the platform has no user home.
+///
+/// `FileManager.homeDirectoryForCurrentUser` is not merely discouraged on iOS:
+/// it is annotated unavailable there, so naming it is a compile error
+/// ("'homeDirectoryForCurrentUser' is unavailable in iOS"), not a warning. An
+/// iOS app does have a home -- its own container -- and `NSHomeDirectory()`
+/// returns it, so the candidate paths built from this keep their shape and
+/// simply do not exist there, which is the truthful answer on that platform.
+/// 家目錄；在沒有使用者家目錄的平台上，則以 app 自己的沙箱容器代之。
+/// `FileManager.homeDirectoryForCurrentUser` 在 iOS 上不只是不建議使用：它被標記為
+/// 不可用，因此寫出它是編譯錯誤（「'homeDirectoryForCurrentUser' is unavailable in
+/// iOS」）而非警告。iOS app 仍有自己的家——它的容器——`NSHomeDirectory()` 即可取得，
+/// 因此以此組出的候選路徑維持原本形狀，只是在該平台上並不存在；那正是實情。
+enum P6HomeDirectory {
+    static var url: URL {
+        #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        return URL(fileURLWithPath: NSHomeDirectory())
+        #else
+        return FileManager.default.homeDirectoryForCurrentUser
+        #endif
+    }
+}
+
 #if os(Windows)
 import UWP
 import WinSDK
@@ -879,6 +903,33 @@ struct P6StreamPlayerView: View {
                 }
             }
 
+            #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+            // Said here, not only in the status line at the bottom: P6's
+            // layout is a fixed 960pt wide and taller than an iPhone screen,
+            // so the status line is off the bottom edge and the reason would
+            // never be read. Short lines because only the left ~40 characters
+            // of each row are on screen.
+            // 寫在此處而不只寫在底部的狀態列：P6 的版面固定為 960pt 寬且高於 iPhone
+            // 螢幕，狀態列會落在畫面下緣之外，該原因將永遠不會被讀到。行文保持簡短，
+            // 因為每一列只有左側約 40 個字元在畫面內。
+            //
+            // Width 960 like the rows below, not `maxWidth: .infinity`: a
+            // row sized to infinity is laid out from a much wider origin here
+            // and starts about 360pt in, i.e. past the right edge of a phone
+            // screen. Measured -- the first attempt used .infinity and the
+            // screenshot showed four characters of each line.
+            // 與下方各列一樣採 960 寬，而非 `maxWidth: .infinity`：在此處以無限寬
+            // 排版的列，其起點會落在約 360pt 之後，也就是超出手機螢幕右緣。這是實測
+            // 結果——第一版用了 .infinity，截圖上每行只看得到四個字元。
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Playback unavailable on iOS: an app here")
+                Text("cannot start another program, and P6")
+                Text("decodes by running ffmpeg. The rest of")
+                Text("this screen still works.")
+            }
+            .frame(width: 960, alignment: .leading)
+            #endif
+
             ZStack(alignment: .center) {
                 Color.black
                     .frame(width: 960, height: 540)
@@ -918,7 +969,28 @@ struct P6StreamPlayerView: View {
                 } else if player.isLoading {
                     ProgressView("Decoding frame...")
                 } else {
+                    #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                    // Leading rather than centred, and light rather than the
+                    // default label colour: this box is 960pt wide on a 393pt
+                    // screen, so its centre is off-screen, and its fill is
+                    // black. Centred dark text here would have been present
+                    // and invisible -- which is exactly the "silently does
+                    // nothing" reading this notice exists to prevent. The full
+                    // reason is in the line above the box and in the status
+                    // line; this only keeps the black rectangle from looking
+                    // like a broken video surface.
+                    // 靠左而非置中、淺色而非預設標籤色：此方框在 393pt 寬的螢幕上有
+                    // 960pt 寬，中心點落在畫面之外，且底色為黑。置中的深色文字會是
+                    // 「存在但看不見」——正是本提示要避免的那種「看起來什麼都沒做」。
+                    // 完整原因寫在方框上方那一行與狀態列；此處只是讓這個黑色矩形不
+                    // 至於被誤讀成壞掉的影像表面。
+                    Text("Playback unavailable on iOS")
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .frame(width: 960, alignment: .leading)
+                    #else
                     Text("Choose a stream to begin")
+                    #endif
                 }
                 #endif
             }
@@ -1122,7 +1194,7 @@ struct P6StreamPlayerView: View {
 final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     static var suggestedInputDirectory: URL? {
         for projectName in ["LZFSE2", "lzfse2"] {
-            let candidate = FileManager.default.homeDirectoryForCurrentUser
+            let candidate = P6HomeDirectory.url
                 .appendingPathComponent("proj")
                 .appendingPathComponent(projectName)
                 .appendingPathComponent("swift_tar")
@@ -1242,7 +1314,23 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
     var isLoading = false
 
     @SwiftCrossUI.Published
-    var status = "Ready. ffmpeg, ffprobe, and zstd are searched on PATH plus platform tool directories."
+    var status = P6StreamPlayerModel.initialStatus
+
+    /// What the status line says before anything has been loaded. Where P6
+    /// cannot run its tools at all, it says so and why up front, rather than
+    /// leaving the reason to be discovered by pressing Play.
+    /// 尚未載入任何內容時狀態列的內容。在 P6 完全無法執行其外部工具的平台上，它會
+    /// 一開始就說明「不能」與原因，而不是留待使用者按下播放才發現。
+    static let initialStatus: String = {
+        #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        return
+            "Playback is unavailable on this platform: an app here cannot start "
+            + "another program, and P6 decodes by running ffmpeg. Everything else "
+            + "on this screen still works."
+        #else
+        return "Ready. ffmpeg, ffprobe, and zstd are searched on PATH plus platform tool directories."
+        #endif
+    }()
 
     @SwiftCrossUI.Published
     var speedSelection: String? = "1x"
@@ -2841,6 +2929,73 @@ final class P6WindowlessProcess: @unchecked Sendable {
 }
 #endif
 
+#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+/// Stands in for Foundation's `Process` where the platform has no way to start
+/// another program, and says so at `run()` instead of doing nothing.
+///
+/// This is the third implementation of the surface P6 uses, after Foundation's
+/// `Process` and ``P6WindowlessProcess``: the decoder, audio and probe paths
+/// below are left exactly as they are and get an honest failure at run time
+/// rather than a compile error.
+///
+/// Checked, not recalled. `Foundation.framework/Headers/NSTask.h` exists in
+/// MacOSX27.0.sdk and is absent from iPhoneSimulator27.0.sdk altogether, and
+/// the macOS copy declares the class `API_UNAVAILABLE(ios, watchos, tvos)`.
+/// That is why the compiler says "cannot find type 'Process' in scope" rather
+/// than "'Process' is unavailable": on iOS there is no declaration at all.
+/// `fork` and `posix_spawn` are still declared in the iOS SDK's `unistd.h` and
+/// `spawn.h`, but that changes nothing here -- P6 needs ffmpeg, ffplay and
+/// zstd, and an app may only execute code inside its own signed bundle, so
+/// there is no such binary to exec. Note the iOS *Simulator* shares the host's
+/// file system, so ``P6ToolLocator`` can genuinely find `/opt/homebrew/bin/ffmpeg`
+/// there; finding it and being able to run it are different things, and this
+/// type is what keeps the second question answered honestly.
+/// 在無法啟動其他程式的平台上代替 Foundation 的 `Process`，並於 `run()` 時明說，
+/// 而不是默默什麼都不做。
+/// 這是 P6 所用介面的第三種實作，前兩者為 Foundation 的 `Process` 與
+/// ``P6WindowlessProcess``：下方的解碼、音訊與探測路徑原封不動，在執行期得到一個
+/// 誠實的失敗，而不是編譯錯誤。
+/// 這是查證而非憑印象：`Foundation.framework/Headers/NSTask.h` 存在於 MacOSX27.0.sdk，
+/// 而在 iPhoneSimulator27.0.sdk 中完全不存在；macOS 版的標頭把該類別標註為
+/// `API_UNAVAILABLE(ios, watchos, tvos)`。這正是編譯器說「cannot find type 'Process'
+/// in scope」而非「'Process' is unavailable」的原因：iOS 上根本沒有宣告。iOS SDK 的
+/// `unistd.h` 與 `spawn.h` 仍宣告了 `fork` 與 `posix_spawn`，但這對此處毫無幫助——
+/// P6 需要的是 ffmpeg、ffplay 與 zstd，而 app 只能執行自身簽章 bundle 內的程式碼，
+/// 因此沒有這樣的執行檔可供 exec。另須注意 iOS *模擬器* 與主機共用檔案系統，因此
+/// ``P6ToolLocator`` 在模擬器上確實找得到 `/opt/homebrew/bin/ffmpeg`；「找得到」與
+/// 「跑得動」是兩回事，本型別負責讓後者被誠實地回答。
+final class P6UnavailableProcess: @unchecked Sendable {
+    var executableURL: URL?
+    var arguments: [String]?
+    var standardInput: Any?
+    var standardOutput: Any?
+    var standardError: Any?
+
+    var processIdentifier: Int32 { -1 }
+    var isRunning: Bool { false }
+    var terminationStatus: Int32 { -1 }
+
+    func run() throws {
+        throw P6PlayerError.subprocessUnavailable(
+            executableURL?.lastPathComponent ?? "a helper program"
+        )
+    }
+
+    func terminate() {}
+
+    func waitUntilExit() {}
+}
+
+/// Deliberate shadowing, and only where Foundation leaves the name unclaimed.
+/// `Process` does not exist on these platforms, so binding the name here lets
+/// the call sites compile unchanged instead of growing a fourth copy of
+/// themselves under another `#if`.
+/// 這是刻意的名稱遮蔽，且僅發生在 Foundation 未占用該名稱之處。這些平台上並無
+/// `Process`，於此繫結該名稱可讓使用處原封不動地編譯，而不必在另一個 `#if` 之下
+/// 再長出第四份複本。
+typealias Process = P6UnavailableProcess
+#endif
+
 final class P6DecoderSession: @unchecked Sendable {
     /// What ffmpeg is told to emit. On Windows it follows the session's chosen
     /// format; every other platform still consumes RGBA.
@@ -3771,7 +3926,7 @@ enum P6ToolLocator {
             .split(separator: separator)
             .map(String.init) ?? []
 
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let home = P6HomeDirectory.url.path
         #if os(Windows)
             directories.append("\(home)\\scoop\\shims")
             directories.append("\(home)\\AppData\\Local\\Microsoft\\WinGet\\Links")
@@ -3807,11 +3962,27 @@ enum P6PlayerError: LocalizedError {
     case incompleteFrame(Int, Int, String)
     case unsupportedAudioInput
     case processFailed(String, Int32)
+    /// The tool may well be on disk -- the simulator can see the host's copy --
+    /// but this platform will not let the app start it. Thrown by
+    /// ``P6UnavailableProcess/run()``.
+    /// 該工具可能確實存在於磁碟上——模擬器看得到主機上的那一份——但此平台不允許 app
+    /// 啟動它。由 ``P6UnavailableProcess/run()`` 拋出。
+    case subprocessUnavailable(String)
 
     var errorDescription: String? {
         switch self {
             case .missingTool(let tool):
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                // On these platforms it is not just missing: nothing the user
+                // could install would help, because the app cannot start it.
+                // 在這些平台上不只是「找不到」：使用者裝什麼都沒用，因為 app 根本
+                // 無法啟動它。
+                return
+                    "'\(tool)' is unavailable on this platform: an app here cannot "
+                    + "start another program, and P6 decodes by running ffmpeg."
+                #else
                 return "Required tool '\(tool)' was not found on PATH."
+                #endif
             case .processFailed(let tool, let code):
                 return "Could not start '\(tool)' (Windows error \(code))."
             case .incompleteFrame(let actual, let expected, let toolOutput):
@@ -3825,6 +3996,10 @@ enum P6PlayerError: LocalizedError {
                 return "\(summary) \(toolOutput)"
             case .unsupportedAudioInput:
                 return "This input is treated as video-only."
+            case .subprocessUnavailable(let tool):
+                return
+                    "Cannot start '\(tool)': this platform does not let an app run "
+                    + "another program, so ffmpeg-based playback is unavailable here."
         }
     }
 }
