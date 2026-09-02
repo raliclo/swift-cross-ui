@@ -5,11 +5,11 @@ import Mutex
 @_spi(WinRTInternal) import UWP
 @_spi(WinRTInternal) import WinAppSDK
 import WinSDK
-import WinUI
+@_spi(WinRTInternal) import WinUI
 @preconcurrency import WindowsFoundation
 
-private let visualEffectChildren = Mutex<[ObjectIdentifier: WinUIVisualEffectChild]>([:])
-private let visualEffectStates = Mutex<[ObjectIdentifier: WinUIVisualEffectState]>([:])
+private let visualEffectChildren = Mutex<[UInt: WinUIVisualEffectChild]>([:])
+private let visualEffectStates = Mutex<[UInt: WinUIVisualEffectState]>([:])
 private let win2DActivation = Mutex<Win2DActivationState>(Win2DActivationState())
 
 private struct Win2DActivationState {
@@ -29,7 +29,7 @@ private final class WinUIVisualEffectState: @unchecked Sendable {
     var effectFactory: WinAppSDK.CompositionEffectFactory
     var effectBrush: WinAppSDK.CompositionEffectBrush
     var spriteVisual: WinAppSDK.SpriteVisual
-    var effectObjects: [WindowsFoundation.IInspectable]
+    var effectObjects: [Any]
 
     init(
         sourceSurface: WinAppSDK.CompositionVisualSurface,
@@ -37,7 +37,7 @@ private final class WinUIVisualEffectState: @unchecked Sendable {
         effectFactory: WinAppSDK.CompositionEffectFactory,
         effectBrush: WinAppSDK.CompositionEffectBrush,
         spriteVisual: WinAppSDK.SpriteVisual,
-        effectObjects: [WindowsFoundation.IInspectable]
+        effectObjects: [Any]
     ) {
         self.sourceSurface = sourceSurface
         self.sourceBrush = sourceBrush
@@ -53,7 +53,7 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
         let container = createContainer()
         insert(child, into: container, at: 0)
         visualEffectChildren.withLock { children in
-            children[ObjectIdentifier(container)] = WinUIVisualEffectChild(widget: child)
+            children[winUIVisualEffectKey(container)] = WinUIVisualEffectChild(widget: child)
         }
         return container
     }
@@ -61,9 +61,12 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
     public func setVisualEffect(_ effect: VisualEffect, ofWidget widget: Widget) {
         widget.opacity = effect.opacity
 
-        let key = ObjectIdentifier(widget)
+        let key = winUIVisualEffectKey(widget)
         if effect.needsOnlyOpacity {
             try? WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: nil)
+            visualEffectChildren.withLock { children in
+                children[key]?.widget.opacity = 1
+            }
             visualEffectStates.withLock { states in
                 states[key] = nil
             }
@@ -73,6 +76,7 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
         guard ensureWin2DActivationContext(),
               let child = visualEffectChildren.withLock({ $0[key] })?.widget
         else {
+            winUIVisualEffectDebug("missing Win2D activation or child for key \(key)")
             return
         }
 
@@ -91,36 +95,94 @@ extension WinUIBackend: BackendFeatures.VisualEffects {
             guard let sourceBrush = try compositor.createSurfaceBrush(sourceSurface) else {
                 throw WinUIVisualEffectError.emptyEffectGraph
             }
-            let graph = try Win2DEffectGraph(effect: effect)
-            guard let effectFactory = try compositor.createEffectFactory(graph.rootEffect),
-                  let effectBrush = try effectFactory.createBrush()
-            else {
-                throw WinUIVisualEffectError.emptyEffectGraph
-            }
-            try effectBrush.setSourceParameter("source", sourceBrush)
-
-            guard let spriteVisual = try compositor.createSpriteVisual() else {
-                throw WinUIVisualEffectError.emptyEffectGraph
-            }
-            spriteVisual.brush = effectBrush
-            spriteVisual.relativeSizeAdjustment = WindowsFoundation.Vector2(x: 1, y: 1)
-            spriteVisual.size = widget.actualVectorSize
-            try WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: spriteVisual)
-
-            visualEffectStates.withLock { states in
-                states[key] = WinUIVisualEffectState(
-                    sourceSurface: sourceSurface,
-                    sourceBrush: sourceBrush,
-                    effectFactory: effectFactory,
-                    effectBrush: effectBrush,
-                    spriteVisual: spriteVisual,
-                    effectObjects: graph.effectObjects
+            if ProcessInfo.processInfo.environment["SCUI_DEBUG_VISUAL_EFFECT_SOLID"] == "1" {
+                guard let spriteVisual = try compositor.createSpriteVisual() else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                spriteVisual.brush = try compositor.createColorBrush(UWP.Color(
+                    a: 192,
+                    r: 255,
+                    g: 0,
+                    b: 255
+                ))
+                spriteVisual.relativeSizeAdjustment = WindowsFoundation.Vector2(x: 0, y: 0)
+                spriteVisual.size = widget.actualVectorSize
+                try WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: spriteVisual)
+                child.opacity = 0
+                return
+            } else if ProcessInfo.processInfo.environment["SCUI_DEBUG_VISUAL_EFFECT_SOURCE"] == "1" {
+                guard let spriteVisual = try compositor.createSpriteVisual() else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                spriteVisual.brush = sourceBrush
+                spriteVisual.relativeSizeAdjustment = WindowsFoundation.Vector2(x: 0, y: 0)
+                spriteVisual.size = widget.actualVectorSize
+                try WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: spriteVisual)
+                child.opacity = 0
+                return
+            } else {
+                let graph = try Win2DEffectGraph(effect: effect)
+                winUIVisualEffectDebug("created Win2D effect graph for key \(key)")
+                guard let effectFactory = try compositor.createEffectFactory(graph.rootEffect),
+                      let effectBrush = try effectFactory.createBrush()
+                else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                winUIVisualEffectDebug("created effect brush for key \(key)")
+                try effectBrush.setSourceParameter("source", sourceBrush)
+                winUIVisualEffectDebug("set source parameter for key \(key)")
+                guard let spriteVisual = try compositor.createSpriteVisual() else {
+                    throw WinUIVisualEffectError.emptyEffectGraph
+                }
+                spriteVisual.brush = effectBrush
+                spriteVisual.relativeSizeAdjustment = WindowsFoundation.Vector2(x: 0, y: 0)
+                spriteVisual.size = widget.actualVectorSize
+                spriteVisual.clip = try compositor.createInsetClip(0, 0, 0, 0)
+                winUIVisualEffectDebug(
+                    "sprite size \(spriteVisual.size.x)x\(spriteVisual.size.y), "
+                        + "widget \(widget.actualWidth)x\(widget.actualHeight)"
                 )
+                try WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: spriteVisual)
+                child.opacity = 0
+
+                visualEffectStates.withLock { states in
+                    states[key] = WinUIVisualEffectState(
+                        sourceSurface: sourceSurface,
+                        sourceBrush: sourceBrush,
+                        effectFactory: effectFactory,
+                        effectBrush: effectBrush,
+                        spriteVisual: spriteVisual,
+                        effectObjects: graph.effectObjects
+                    )
+                }
             }
         } catch {
+            winUIVisualEffectDebug("effect failed for key \(key): \(error)")
             try? WinUIElementCompositionPreview.setElementChildVisual(of: widget, to: nil)
             visualEffectStates.withLock { states in
                 states[key] = nil
+            }
+        }
+    }
+}
+
+private func winUIVisualEffectDebug(_ message: @autoclosure () -> String) {
+    if ProcessInfo.processInfo.environment["SCUI_DEBUG_VISUAL_EFFECTS"] == "1" {
+        guard let executable = CommandLine.arguments.first else {
+            return
+        }
+        let directory = URL(fileURLWithPath: executable).deletingLastPathComponent()
+        let url = directory.appendingPathComponent("winui-visual-effects-debug.log")
+        let line = "[WinUIBackend.VisualEffects] \(message())\n"
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: url.path),
+               let handle = try? FileHandle(forWritingTo: url)
+            {
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url)
             }
         }
     }
@@ -139,15 +201,23 @@ private extension VisualEffect {
 
 private struct Win2DEffectGraph {
     let rootEffect: UWP.AnyIGraphicsEffect
-    let effectObjects: [WindowsFoundation.IInspectable]
+    let effectObjects: [Any]
 
     init(effect: VisualEffect) throws {
         let sourceParameter = WinAppSDK.CompositionEffectSourceParameter("source")
+        guard let sourceParameterWrapper =
+            __ABI_Windows_Graphics_Effects.IGraphicsEffectSourceWrapper(sourceParameter)
+        else {
+            throw WinUIVisualEffectError.emptyEffectGraph
+        }
         var currentSource: UnsafeMutablePointer<
             __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
-        >? = sourceParameter._getABI()
+        >?
         var currentRoot: UWP.AnyIGraphicsEffect?
-        var objects: [WindowsFoundation.IInspectable] = []
+        var objects: [Any] = [sourceParameterWrapper]
+        try sourceParameterWrapper.toABI { sourceParameterABI in
+            currentSource = sourceParameterABI
+        }
 
         func append(_ object: WindowsFoundation.IInspectable) throws {
             let graphicsEffect: __ABI_Windows_Graphics_Effects.IGraphicsEffect =
@@ -155,20 +225,19 @@ private struct Win2DEffectGraph {
             currentRoot = __IMPL_Windows_Graphics_Effects.IGraphicsEffectBridge.from(
                 abi: RawPointer(graphicsEffect)
             )
-            let graphicsEffectPointer:
-                UnsafeMutablePointer<__x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffect> =
-                    RawPointer(graphicsEffect)
-            let nextSource = UnsafeMutableRawPointer(graphicsEffectPointer).bindMemory(
-                to: __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource.self,
-                capacity: 1
-            )
-            currentSource = nextSource
+            let graphicsEffectSource: __ABI_Windows_Graphics_Effects.IGraphicsEffectSource =
+                try object.QueryInterface()
+            let sourcePointer: UnsafeMutablePointer<
+                __x_ABI_CWindows_CGraphics_CEffects_CIGraphicsEffectSource
+            > = RawPointer(graphicsEffectSource)
+            currentSource = sourcePointer
             objects.append(object)
         }
 
         if effect.blurRadius != 0 {
             let blur = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.GaussianBlurEffect",
+                iid: .gaussianBlurEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGaussianBlurEffect.self
             )
             try CHECKED(blur.pointer.pointee.lpVtbl.pointee.put_BlurAmount(
@@ -182,6 +251,7 @@ private struct Win2DEffectGraph {
         if effect.saturation != 1 {
             let saturation = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.SaturationEffect",
+                iid: .saturationEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CISaturationEffect.self
             )
             try CHECKED(saturation.pointer.pointee.lpVtbl.pointee.put_Saturation(
@@ -198,6 +268,7 @@ private struct Win2DEffectGraph {
         if effect.brightness != 0 {
             let brightness = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.BrightnessEffect",
+                iid: .brightnessEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIBrightnessEffect.self
             )
             let amount = FLOAT(effect.brightness)
@@ -219,6 +290,7 @@ private struct Win2DEffectGraph {
         if effect.contrast != 1 {
             let contrast = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.ContrastEffect",
+                iid: .contrastEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIContrastEffect.self
             )
             try CHECKED(contrast.pointer.pointee.lpVtbl.pointee.put_Contrast(
@@ -235,6 +307,7 @@ private struct Win2DEffectGraph {
         if effect.grayscale != 0 {
             let grayscale = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.GrayscaleEffect",
+                iid: .grayscaleEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIGrayscaleEffect.self
             )
             try CHECKED(grayscale.pointer.pointee.lpVtbl.pointee.put_Source(
@@ -247,6 +320,7 @@ private struct Win2DEffectGraph {
         if effect.hueRotation != .zero {
             let hueRotation = try Win2DGpuEffect(
                 "Microsoft.Graphics.Canvas.Effects.HueRotationEffect",
+                iid: .hueRotationEffect,
                 as: __x_ABI_CMicrosoft_CGraphics_CCanvas_CEffects_CIHueRotationEffect.self
             )
             try CHECKED(hueRotation.pointer.pointee.lpVtbl.pointee.put_Angle(
@@ -272,18 +346,10 @@ private struct Win2DGpuEffect<Interface> {
     let object: WindowsFoundation.IInspectable
     let pointer: UnsafeMutablePointer<Interface>
 
-    init(_ className: String, as interface: Interface.Type) throws {
+    init(_ className: String, iid: WindowsFoundation.IID, as interface: Interface.Type) throws {
         object = try RoActivateInstance(HString(className))
 
-        var iidCount: ULONG = 0
-        var iids: UnsafeMutablePointer<WindowsFoundation.IID>?
-        try object.GetIids(&iidCount, &iids)
-        guard let iids, iidCount > 0 else {
-            throw WinUIVisualEffectError.missingWin2DInterface(className)
-        }
-        defer { CoTaskMemFree(iids) }
-
-        var iid = iids[0]
+        var iid = iid
         var raw: UnsafeMutableRawPointer?
         try object.QueryInterface(&iid, &raw)
         guard let raw else {
@@ -291,6 +357,45 @@ private struct Win2DGpuEffect<Interface> {
         }
         pointer = raw.bindMemory(to: Interface.self, capacity: 1)
     }
+}
+
+private extension WindowsFoundation.IID {
+    static let brightnessEffect = WindowsFoundation.IID(
+        Data1: 0xbeced347,
+        Data2: 0x025f,
+        Data3: 0x5727,
+        Data4: (0x8f, 0x7d, 0x49, 0x8d, 0x67, 0xdf, 0x55, 0x7e)
+    )
+    static let contrastEffect = WindowsFoundation.IID(
+        Data1: 0xda8a2b9f,
+        Data2: 0x594e,
+        Data3: 0x560a,
+        Data4: (0x9e, 0xaa, 0x1f, 0x91, 0x24, 0x08, 0xfe, 0x79)
+    )
+    static let gaussianBlurEffect = WindowsFoundation.IID(
+        Data1: 0xa82ec394,
+        Data2: 0x6734,
+        Data3: 0x5830,
+        Data4: (0x91, 0x23, 0x2c, 0x82, 0xb2, 0x7d, 0xd3, 0xc0)
+    )
+    static let grayscaleEffect = WindowsFoundation.IID(
+        Data1: 0x78e13b83,
+        Data2: 0x0638,
+        Data3: 0x53f8,
+        Data4: (0xb0, 0xb3, 0x5b, 0x0b, 0x32, 0x0a, 0x9a, 0xd2)
+    )
+    static let hueRotationEffect = WindowsFoundation.IID(
+        Data1: 0xc172ebf2,
+        Data2: 0xe35f,
+        Data3: 0x58ae,
+        Data4: (0xad, 0x2c, 0x56, 0x1e, 0xce, 0xaf, 0x26, 0x94)
+    )
+    static let saturationEffect = WindowsFoundation.IID(
+        Data1: 0xf85a5ed7,
+        Data2: 0x7212,
+        Data3: 0x57a6,
+        Data4: (0xb3, 0x57, 0x61, 0x03, 0x89, 0x61, 0xc5, 0x8d)
+    )
 }
 
 private enum WinUIVisualEffectError: Swift.Error {
@@ -347,6 +452,12 @@ private extension WinUI.FrameworkElement {
             y: Float(max(0, actualHeight))
         )
     }
+}
+
+private func winUIVisualEffectKey(_ widget: WinUI.FrameworkElement) -> UInt {
+    let pointer: UnsafeMutablePointer<__x_ABI_CMicrosoft_CUI_CXaml_CIFrameworkElement>? =
+        widget._getABI()
+    return UInt(bitPattern: pointer)
 }
 
 private func ensureWin2DActivationContext() -> Bool {

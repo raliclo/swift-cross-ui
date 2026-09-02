@@ -123,6 +123,33 @@ struct P43RootView: View {
                         .frame(width: 120, height: 120)
                     Text("rectangle + gradient")
                 }
+
+                VStack(spacing: 4) {
+                    // The case the fills cannot cover, and the one a backend is
+                    // most likely to get wrong in a way that looks right. The
+                    // ring must be a gradient and the MIDDLE MUST STAY EMPTY.
+                    // A filled circle here means the gradient was clipped to the
+                    // fill region instead of the stroke -- the trap the Mac
+                    // design in plan-shape-styles.md warns about, and one no
+                    // backend was testing until now, including GtkBackend.
+                    // 填充案例涵蓋不到的情況，也是 backend 最可能「錯得看起來像對的」的一個。
+                    // 這個環必須是漸層，而且**中間必須是空的**。若此處出現實心圓，代表漸層被裁到了
+                    // 填充區域而非描邊區域——那正是 plan-shape-styles.md 的 Mac 設計所警告的陷阱，
+                    // 而在此之前沒有任何 backend 測過它，包含 GtkBackend。
+                    // Its four corners come out flattened, and that is not a
+                    // gradient fault: a 14pt stroke sits half outside the path,
+                    // so 7pt of it falls beyond the 120x120 frame and is
+                    // clipped. Recorded because the ring looks like a
+                    // rounded square at a glance, which is the kind of thing
+                    // that gets filed as a bug later.
+                    // 它的四角是削平的，而那不是漸層的問題：14pt 的描邊有一半落在路徑之外，因此
+                    // 其中 7pt 超出 120x120 的 frame 而被裁掉。記於此處，是因為這個環乍看像個圓角
+                    // 方形——那正是日後容易被當成 bug 回報的東西。
+                    Circle()
+                        .stroke(ramp, style: StrokeStyle(width: 14))
+                        .frame(width: 120, height: 120)
+                    Text("circle + gradient stroke")
+                }
             }
 
             Text(

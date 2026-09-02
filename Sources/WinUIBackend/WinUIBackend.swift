@@ -168,9 +168,160 @@ public final class WinUIBackend:
     public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
-    public var scrollBarWidth: Int {
-        12
+    /// Asked, not assumed. WinUI's `ScrollViewer` overlays its scroll bars by
+    /// default and only reserves space for them when the system setting says to
+    /// always show them, so a fixed number is wrong in both directions: it
+    /// over-allocates for everyone who leaves the default on, and it is not the
+    /// theme's number for anyone who turns it off.
+    ///
+    /// `UISettings.autoHideScrollBars` is the setting itself (Windows 10 1809
+    /// and later). WinUIBackend already holds a `UISettings` for the
+    /// colour-scheme subscription, which is what makes this cheap.
+    ///
+    /// The `12` that used to be here stays as the fallback rather than being
+    /// deleted, for the case where the property cannot be read: it was the
+    /// value shipped for months, so it is the known-survivable answer, and a
+    /// guess of 0 would silently overlap content with the bar.
+    ///
+    /// GtkBackend measures a real `GtkScrollbar` for the same reason and
+    /// AppKitBackend asks `NSScroller.preferredScrollerStyle`; this was the last
+    /// hardcoded one.
+    ///
+    /// 這個值是問來的，不是假設的。WinUI 的 `ScrollViewer` 預設會將捲軸疊在內容之上，只有在系統
+    /// 設定為「一律顯示捲軸」時才會為它保留空間，因此固定值在兩個方向上都是錯的：對維持預設的
+    /// 使用者而言它多配置了空間，對關閉該設定的使用者而言它又不是主題的數值。
+    ///
+    /// `UISettings.autoHideScrollBars` 就是該設定本身（Windows 10 1809 以後）。WinUIBackend 為了
+    /// 配色訂閱本就持有一個 `UISettings`，這使得此處的成本極低。
+    ///
+    /// 原本寫死的 `12` 保留為 fallback 而非刪除，用於無法讀取該屬性的情況：它是已經出貨數個月的
+    /// 值，因此是「已知可存活」的答案；若改猜 0，內容會與捲軸靜默重疊。
+    ///
+    /// GtkBackend 基於相同理由實測一個真實的 `GtkScrollbar`，AppKitBackend 則詢問
+    /// `NSScroller.preferredScrollerStyle`；此處是最後一個寫死的。
+    /// A `Brush` for a fill style. Flat colours keep the `SolidColorBrush` they
+    /// had, so the existing path is byte-for-byte the same work it was.
+    /// 為填充樣式產生一個 `Brush`。平面色仍使用原本的 `SolidColorBrush`，因此既有路徑所做的事
+    /// 與先前完全相同。
+    static func brush(
+        for style: ResolvedFillStyle,
+        in environment: EnvironmentValues
+    ) -> WinUI.Brush {
+        func stops(_ gradient: SwiftCrossUI.Gradient) -> GradientStopCollection {
+            let collection = GradientStopCollection()
+            for stop in gradient.stops {
+                let colour = stop.color.resolve(in: environment)
+                let winUIStop = GradientStop()
+                winUIStop.color = UWP.Color(
+                    a: UInt8(colour.opacity * 255),
+                    r: UInt8(colour.red * 255),
+                    g: UInt8(colour.green * 255),
+                    b: UInt8(colour.blue * 255)
+                )
+                winUIStop.offset = stop.location
+                collection.append(winUIStop)
+            }
+            return collection
+        }
+
+        switch style {
+            case .color(let resolved):
+                return WinUI.SolidColorBrush(resolved.uwpColor)
+            case .linearGradient(let gradient, let start, let end):
+                let brush = LinearGradientBrush()
+                brush.startPoint = WindowsFoundation.Point(
+                    x: Float(start.x),
+                    y: Float(start.y)
+                )
+                brush.endPoint = WindowsFoundation.Point(x: Float(end.x), y: Float(end.y))
+                brush.gradientStops = stops(gradient)
+                return brush
+            case .radialGradient(let gradient, let centre, let startRadius, let endRadius):
+                // `startRadius` cannot be carried. XAML's RadialGradientBrush
+                // has a centre, a gradient origin and one radius pair -- there
+                // is no inner radius, so a gradient asked to begin part-way out
+                // starts at the centre here instead. Untested either way: P43
+                // exercises linear only.
+                //
+                // Not silently dropped: a non-zero value says the caller wanted
+                // something this backend cannot draw, and drawing a plausible
+                // near-miss without saying so is the failure this project keeps
+                // finding. Reported once.
+                //
+                // `startRadius` 無法被承載。XAML 的 RadialGradientBrush 只有中心、漸層原點與一組
+                // 半徑——沒有內半徑，因此一個被要求「從中途開始」的漸層，在此會改從中心開始。
+                // 兩種情況都尚未測試：P43 只涵蓋線性漸層。
+                //
+                // 但不是靜默丟棄：非零的值代表呼叫端要的東西是此 backend 畫不出來的，而畫出一個
+                // 看似接近卻不說明的結果，正是本專案一再發現的那種失敗。只回報一次。
+                if startRadius != 0 {
+                    logger.notice(
+                        """
+                        WinUIBackend cannot express a radial gradient's startRadius \
+                        (\(startRadius)); XAML has no inner radius, so the gradient \
+                        starts at the centre instead.
+                        """
+                    )
+                }
+                let brush = RadialGradientBrush()
+                brush.center = WindowsFoundation.Point(
+                    x: Float(centre.x),
+                    y: Float(centre.y)
+                )
+                // Double here, Float in Point just above. The projection is not
+                // uniform and the compiler is the only thing that says which is
+                // which, so do not copy one line's conversion onto another.
+                // 此處是 Double，而緊鄰上方的 Point 是 Float。投影出來的型別並不一致，而唯一會說出
+                // 哪個是哪個的只有編譯器，因此不要把某一行的轉換照抄到另一行。
+                brush.radiusX = endRadius
+                brush.radiusY = endRadius
+                brush.gradientOrigin = WindowsFoundation.Point(
+                    x: Float(centre.x),
+                    y: Float(centre.y)
+                )
+                brush.spreadMethod = .pad
+                // Appended, not assigned. `RadialGradientBrush.gradientStops` is
+                // get-only where `LinearGradientBrush`'s is settable -- the two
+                // brushes do not share this, which is why the linear case above
+                // reads differently.
+                // 用附加而非指派。`RadialGradientBrush.gradientStops` 是唯讀的，而
+                // `LinearGradientBrush` 的可指派——兩種 brush 在這一點上並不相同，這也是上方
+                // 線性分支寫法不同的原因。
+                for stop in stops(gradient) {
+                    brush.gradientStops.append(stop)
+                }
+                return brush
+        }
     }
+
+    public var scrollBarWidth: Int {
+        let settings = uiSettings ?? UWP.UISettings()
+        guard let autoHides = try? settings.autoHideScrollBars else {
+            debugLogOnce("could not read UISettings.autoHideScrollBars; keeping the historical 12")
+            return 12
+        }
+        return autoHides ? 0 : 12
+    }
+
+    /// One line per call site, so a value read on every layout pass does not
+    /// fill the log. Mirrors `GtkBackend.debugLogOnce`, which exists because a
+    /// branch that only runs on an unusual setting is otherwise a number nobody
+    /// can see.
+    /// 每個呼叫點只記錄一行，避免一個在每次版面計算都會被讀取的值塞爆日誌。形狀比照
+    /// `GtkBackend.debugLogOnce`——它的存在理由是：一條只在罕見設定下才執行的分支，否則就是一個
+    /// 沒人看得見的數字。
+    private func debugLogOnce(
+        _ message: String,
+        file: String = #file,
+        line: Int = #line
+    ) {
+        let location = "\(file):\(line)"
+        if Self.scrollBarLogsPerformed.insert(location).inserted {
+            logger.notice("\(message)")
+        }
+    }
+
+    nonisolated(unsafe) private static var scrollBarLogsPerformed: Set<String> = []
 
     class InternalState {
         var buttonClickActions: [ObjectIdentifier: () -> Void] = [:]
@@ -2408,11 +2559,44 @@ public final class WinUIBackend:
         fillColor: SwiftCrossUI.Color.Resolved,
         overrideStrokeStyle: StrokeStyle?
     ) {
+        renderPath(
+            path,
+            container: container,
+            strokeStyle: .color(strokeColor),
+            fillStyle: .color(fillColor),
+            overrideStrokeStyle: overrideStrokeStyle,
+            environment: EnvironmentValues(backend: self)
+        )
+    }
+
+    /// The style-taking overload. `Path.Fill` and `.Stroke` are `Brush`
+    /// properties, so a gradient needs a different brush and nothing else --
+    /// XAML clips a brush to the geometry it paints, and to the *stroke* when it
+    /// is painting a stroke, which is the case a hand-rolled clip gets wrong.
+    ///
+    /// Conic is deliberately absent: XAML has no conic brush, which is why
+    /// `WinUIBackend+AngularGradient.swift` exists as a workaround, and
+    /// `ResolvedFillStyle` does not offer the case.
+    ///
+    /// 接收樣式的多載。`Path.Fill` 與 `.Stroke` 都是 `Brush` 屬性，因此漸層只需要換一個 brush，
+    /// 別無其他——XAML 會把 brush 裁切到它所塗繪的幾何，而在塗繪描邊時就是裁切到**描邊**，
+    /// 那正是自行實作 clip 時最容易做錯的情況。
+    ///
+    /// 刻意不含 conic：XAML 沒有 conic brush，這正是 `WinUIBackend+AngularGradient.swift` 作為
+    /// 變通存在的原因，而 `ResolvedFillStyle` 也未提供該 case。
+    public func renderPath(
+        _ path: Path,
+        container: Widget,
+        strokeStyle strokeFill: ResolvedFillStyle,
+        fillStyle: ResolvedFillStyle,
+        overrideStrokeStyle: StrokeStyle?,
+        environment: EnvironmentValues
+    ) {
         let winUiPath = container as! WinUI.Path
         let strokeStyle = overrideStrokeStyle ?? path.strokeStyle!
 
-        winUiPath.fill = WinUI.SolidColorBrush(fillColor.uwpColor)
-        winUiPath.stroke = WinUI.SolidColorBrush(strokeColor.uwpColor)
+        winUiPath.fill = Self.brush(for: fillStyle, in: environment)
+        winUiPath.stroke = Self.brush(for: strokeFill, in: environment)
         winUiPath.strokeThickness = strokeStyle.width
 
         switch strokeStyle.cap {

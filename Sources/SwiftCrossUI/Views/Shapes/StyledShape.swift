@@ -16,10 +16,14 @@ public protocol StyledShape: Shape {
     /// 預設為 `nil`，使得新增它不必更動每一個 conformer。有值時它優先於 ``fillColor``——後者
     /// 保留給平面色的情況，以及無法繪製此填充的 backend 使用。
     var fillStyleOverride: ResolvedFillStyle? { get }
+    /// A stroke that is not a flat colour, if one was given.
+    /// 若曾指定非平面色的描邊，即為此值。
+    var strokeStyleOverride: ResolvedFillStyle? { get }
 }
 
 extension StyledShape {
     public var fillStyleOverride: ResolvedFillStyle? { nil }
+    public var strokeStyleOverride: ResolvedFillStyle? { nil }
 }
 
 struct StyledShapeImpl<Base: Shape>: Sendable {
@@ -28,13 +32,15 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
     var fillColor: Color?
     var strokeStyle: StrokeStyle?
     var fillStyleOverride: ResolvedFillStyle?
+    var strokeStyleOverride: ResolvedFillStyle?
 
     init(
         base: Base,
         strokeColor: Color? = nil,
         fillColor: Color? = nil,
         strokeStyle: StrokeStyle? = nil,
-        fillStyleOverride: ResolvedFillStyle? = nil
+        fillStyleOverride: ResolvedFillStyle? = nil,
+        strokeStyleOverride: ResolvedFillStyle? = nil
     ) {
         self.base = base
 
@@ -43,11 +49,13 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
             self.fillColor = fillColor ?? styledBase.fillColor
             self.strokeStyle = strokeStyle ?? styledBase.strokeStyle
             self.fillStyleOverride = fillStyleOverride ?? styledBase.fillStyleOverride
+            self.strokeStyleOverride = strokeStyleOverride ?? styledBase.strokeStyleOverride
         } else {
             self.strokeColor = strokeColor
             self.fillColor = fillColor
             self.strokeStyle = strokeStyle
             self.fillStyleOverride = fillStyleOverride
+            self.strokeStyleOverride = strokeStyleOverride
         }
     }
 }
@@ -120,6 +128,36 @@ extension Shape {
             )
         )
     }
+
+    /// Strokes the shape with a gradient, clipped to the stroke.
+    ///
+    /// Clipped to the **stroke**, which is the part a backend is most likely to
+    /// get wrong in a way that looks deliberate: clipping to the fill region
+    /// instead gives a shape filled with a gradient where an outline was asked
+    /// for. P43's fourth shape exists to catch exactly that -- a gradient ring
+    /// whose middle must stay empty.
+    ///
+    /// 以漸層描邊此形狀，並裁切至描邊範圍。
+    ///
+    /// 裁切至**描邊**，而這正是 backend 最可能「錯得像是刻意為之」的地方：若改為裁切至填充區域，
+    /// 得到的會是一個填滿漸層的形狀，而非所要求的輪廓。P43 的第四個形狀就是為了抓出這件事——
+    /// 一個中間必須保持空白的漸層環。
+    public func stroke(
+        _ gradient: Gradient,
+        from startPoint: UnitPoint = .top,
+        to endPoint: UnitPoint = .bottom,
+        style: StrokeStyle? = nil
+    ) -> some StyledShape {
+        StyledShapeImpl(
+            base: self,
+            strokeStyle: style,
+            strokeStyleOverride: .linearGradient(
+                gradient,
+                startPoint: startPoint,
+                endPoint: endPoint
+            )
+        )
+    }
 }
 
 extension StyledShape {
@@ -176,7 +214,8 @@ extension StyledShape {
         backend.renderPath(
             backendPath,
             container: widget,
-            strokeStyle: .color((strokeColor ?? .clear).resolve(in: environment)),
+            strokeStyle: strokeStyleOverride
+                ?? .color((strokeColor ?? .clear).resolve(in: environment)),
             fillStyle: fillStyleOverride
                 ?? .color((fillColor ?? .clear).resolve(in: environment)),
             overrideStrokeStyle: strokeStyle,

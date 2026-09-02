@@ -1,5 +1,5 @@
 import Foundation
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 extension WinUIBackend: BackendFeatures.RevealFiles {
     /// Opens File Explorer with the file selected.
@@ -65,6 +65,12 @@ extension WinUIBackend: BackendFeatures.RevealFiles {
             // 完全無法啟動 Explorer——這與「選取沒有生效」是不同的失敗，也是此處唯一偵測得到的
             // 一種。此時採用 fallback 而非拋出，因為開啟上層目錄仍是呼叫端想要的；若連它也失敗，
             // 那個錯誤才值得往上傳。
+            //
+            // Logged, because a fallback that opens the parent folder looks from
+            // the outside like a reveal that simply did not highlight anything.
+            // 會記錄，因為「開啟上層資料夾」這個 fallback 從外面看，就像是一次沒有highlight任何
+            // 東西的 reveal。
+            logger.warning("could not launch \(explorer): \(error)")
             try openExternalURL(url.deletingLastPathComponent())
         }
     }
