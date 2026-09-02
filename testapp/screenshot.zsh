@@ -503,8 +503,42 @@ capture_with_wincap() {
     fi
 
     [ -f "$bmp" ] && rm -- "$bmp"
-    [ -f "$log" ] && rm -- "$log"
+
+    # The log is KEPT on success, and that is the change. It holds the line
+    #
+    #     wincap: size: 928x743  exstyle: 0x200000
+    #
+    # and the exstyle is the only thing that says whether the window was
+    # composited by Direct Composition (`WS_EX_NOREDIRECTIONBITMAP`, 0x200000)
+    # or an ordinary redirected one (0x100). Deleting it on success threw that
+    # away exactly when the capture worked -- so a successful DComp capture left
+    # no evidence that it had been a DComp capture at all.
+    #
+    # That is not hypothetical. The claim that PrintWindow captures a DComp
+    # window at 93.0% non-black is recorded in three documents and rests on one
+    # unlogged run; the two candidate PNGs from that session are 928x743 and
+    # 92.9% non-black *both*, so nothing in the images distinguishes the DComp
+    # arm from the control. The decision in `todo.md` about making `-GPU 2` the
+    # default cannot be made on evidence that deletes itself.
+    #
+    # Kept only on success. Every failure path above still removes it, because
+    # there the message has already been printed to stderr and the file would be
+    # a duplicate.
+    #
+    # 日誌在成功時會被**保留**，而這正是本次的改動。它記載著上方那一行，而其中的 exstyle 是唯一
+    # 能說明「該視窗是否由 Direct Composition 合成」的東西
+    # （`WS_EX_NOREDIRECTIONBITMAP`，0x200000；一般重導視窗則為 0x100）。在成功時刪除它，等於
+    # 恰好在擷取成功的那一刻把證據丟掉——於是一次成功的 DComp 擷取，完全不會留下「它曾是 DComp
+    # 擷取」的任何憑據。
+    #
+    # 這並非假設。「PrintWindow 能以 93.0% 非黑像素擷取 DComp 視窗」這個說法被記在三份文件中，
+    # 卻只依據一次未留日誌的執行；那次的兩張候選 PNG **都是** 928x743、92.9% 非黑，因此影像本身
+    # 無法區分 DComp 那一組與對照組。`todo.md` 中「是否讓 `-GPU 2` 成為預設」的決定，不可能建立
+    # 在一份會自我刪除的證據上。
+    #
+    # 僅在成功時保留。上方每一條失敗路徑仍會移除它，因為在那裡訊息已印往 stderr，該檔案只會是重複。
     if [ "$rc" -ne 0 ]; then
+        [ -f "$log" ] && rm -- "$log"
         printf '!! screenshot.zsh: wincap produced diagnostic image but reported capture failure\n' >&2
         return 1
     fi

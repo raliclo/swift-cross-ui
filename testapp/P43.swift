@@ -99,9 +99,24 @@ struct P43RootView: View {
                     // backend degraded and should have logged saying so.
                     // 關鍵的那一個。此處若出現方形漸層，代表填充未被裁切；若是平面紫色圓形，
                     // 代表此 backend 降級了，而它應該已經記錄說明。
+                    // Goes through the `ShapeStyle` protocol, not the
+                    // `Gradient` overload: `LinearGradient` is a conformer, so
+                    // this resolves via `_resolve(in:)`. That makes this circle
+                    // the evidence the protocol works -- a conformance with no
+                    // caller compiles whether it is right or wrong.
+                    // 這一條走的是 `ShapeStyle` protocol，而非 `Gradient` 的多載：`LinearGradient`
+                    // 是它的 conformer，因此經由 `_resolve(in:)` 解析。這使得這個圓成為
+                    // 「protocol 確實有效」的證據——沒有呼叫端的 conformance，對錯都能編譯。
                     Circle()
-                        .fill(ramp)
+                        .fill(
+                            LinearGradient(
+                                gradient: ramp,
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                         .frame(width: 120, height: 120)
+
                     Text("circle + gradient")
                 }
 

@@ -362,6 +362,34 @@ public final class GtkBackend:
             // to desktop capture. Defaulting dcomp on therefore broke the
             // meaning of GTK screenshots until the harness moved to wincap.
             //
+            // That half has expired, and is kept because it is why the number
+            // is 2 rather than why it should stay 2. The harness DID move: `-w`
+            // is wincap/PrintWindow only, gdigrab has no window path left, and
+            // a DComp window was captured at 93.0% non-black. Capture is no
+            // longer an argument for the threshold either way.
+            //
+            // The paragraph below is, and it never depended on capture. Do not
+            // read the two as one reason.
+            //
+            // Before moving the threshold on the strength of that capture,
+            // note that it is a single run, and that `screenshot.zsh` deleted
+            // wincap`s log on success until 2026-09-02 -- so the exstyle that
+            // proves a run was on DComp was discarded exactly when it worked.
+            // The log is kept now; re-establish the figure with a run that
+            // leaves one behind.
+            //
+            // 上述關於擷取的那一半已經到期，保留它是因為它說明「這個數字為何是 2」，而非
+            // 「它為何應該維持是 2」。harness 確實已經改變：`-w` 只使用 wincap/PrintWindow，
+            // gdigrab 已無視窗路徑，而一個 DComp 視窗曾被以 93.0% 非黑像素擷取。擷取在任一
+            // 方向上都不再構成此門檻的論據。
+            //
+            // 下一段才是，而它從未依賴擷取。請勿把兩者讀成同一個理由。
+            //
+            // 若要依據那次擷取來調整門檻，請注意它只有一次執行，且 `screenshot.zsh` 在
+            // 2026-09-02 之前會於成功時刪除 wincap 的日誌——因此「證明某次執行確實在 DComp 上」
+            // 的 exstyle，恰好在它成功的那一刻被丟棄。該日誌現已保留；請以一次會留下日誌的
+            // 執行重新確立該數字。
+            //
             // Mapping it to 2 is also the more faithful reading of the number.
             // `1` means "the platform's own default", and GTK's own default
             // here is what it does unaided -- which is to fail to realize GL and

@@ -67,10 +67,37 @@ shift
 case "$app" in
     *.exe) app="${app%.exe}" ;;
 esac
+# Accept a name that already carries the backend, so `run.zsh P43-gtk4` works
+# as well as `run.zsh P43`.
+# 接受已帶 backend 的名稱，使 `run.zsh P43-gtk4` 與 `run.zsh P43` 都能運作。
+case "$app" in
+    *-gtk4|*-WinUI) app="${app%-*}" ;;
+esac
 
-exe="$script_dir/output/$app.exe"
-if [ ! -x "$exe" ]; then
-    printf 'No such executable: %s\n' "$exe" >&2
+# `-gtk4` first, because that is the build this script exists for -- it puts
+# GTK's DLL directory on PATH. The plain name is accepted as a fallback so a
+# checkout built before executables carried the backend still runs, and the
+# WinUI build is named explicitly in the error rather than launched, because
+# launching it here would add GTK's DLLs to a process that does not want them
+# and the failure would arrive somewhere else entirely.
+#
+# 先找 `-gtk4`，因為本腳本正是為那個建置而存在——它會把 GTK 的 DLL 目錄加進 PATH。無後綴的名稱
+# 作為 fallback 保留，使「執行檔尚未帶 backend 之前」建置的 checkout 仍可執行；而 WinUI 的建置
+# 只會在錯誤訊息中被指名、不會被啟動，因為在此啟動它等於把 GTK 的 DLL 塞進一個不需要它們的
+# process，而失敗會出現在完全不相干的地方。
+exe=""
+for candidate in "$app-gtk4.exe" "$app.exe"; do
+    if [ -x "$script_dir/output/$candidate" ]; then
+        exe="$script_dir/output/$candidate"
+        break
+    fi
+done
+if [ -z "$exe" ]; then
+    printf 'No GTK build of %s in %s\n' "$app" "$script_dir/output" >&2
+    if [ -x "$script_dir/output/$app-WinUI.exe" ]; then
+        printf 'There is a WinUI build (%s-WinUI.exe). This script is for the GTK one;\n' "$app" >&2
+        printf 'run the WinUI build directly, it needs no DLL path.\n' >&2
+    fi
     printf 'Build it first: SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 %s\n' "$app" >&2
     exit 1
 fi

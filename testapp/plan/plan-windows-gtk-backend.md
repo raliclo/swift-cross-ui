@@ -399,7 +399,23 @@ Renderer choices then follow as consequences, and they differ per platform:
 - **Windows.** Direct Composition breaks *window* capture, so it is off by
   default and reachable only through the explicit `-GPU 2` opt-in. It was
   briefly the default (the threshold read `>= 1`) and broke window capture for
-  every GTK app at once; `>= 2` is the fix. Nothing in the test suite may depend
+  every GTK app at once; `>= 2` is the fix.
+
+  **Superseded 2026-09-02, and kept because the sentence below was true when
+  written and is the reason the threshold is still 2.** It read: "Nothing in the
+  test suite may depend on `-GPU 2`." That followed from gdigrab, which copies
+  the redirection surface a DComp window does not have. The harness no longer
+  uses gdigrab for windows -- `-w` is wincap/`PrintWindow(PW_RENDERFULLCONTENT)`
+  only -- and the table further down this same file records it capturing a DComp
+  window. The prohibition is therefore about a tool that is gone, while the code
+  it justifies (`GtkBackend.swift`, `gpuSelection >= 2`) has not moved.
+
+  **超越於 2026-09-02，原句保留，因為它在寫下時為真，也正是門檻至今仍為 2 的原因。** 原文為：
+  「測試套件中不得有任何東西依賴 `-GPU 2`。」那是 gdigrab 的後果——它複製的是 DComp 視窗所沒有
+  的重導表面。harness 已不再以 gdigrab 擷取視窗（`-w` 僅使用
+  wincap/`PrintWindow(PW_RENDERFULLCONTENT)`），而本檔案稍後的表格正記載著它成功擷取了一個
+  DComp 視窗。因此這條禁令針對的是一個已經不存在的工具，而它所支撐的程式碼
+  （`GtkBackend.swift` 的 `gpuSelection >= 2`）並未隨之改動。
   on `-GPU 2`. Re-measured 2026-08-29 as a single-variable experiment on P40,
   both arms confirmed with `GSK_DEBUG=renderer` before capturing:
 
@@ -583,6 +599,31 @@ gvsbuild.
 gives a hardware renderer on Windows without Direct Composition. That is a
 property of GDK's Win32 backend, not of a build option, and the Vulkan route is
 closed.
+
+**Settled 2026-08-29, and this paragraph is left standing because it is what
+an unsettled question looked like.** It is capturable: `PrintWindow` with
+`PW_RENDERFULLCONTENT` returned 93.0% non-black on the
+`WS_EX_NOREDIRECTIONBITMAP` window, and the exstyle table earlier in this file
+is the reading it asks for below. The `GWL_EXSTYLE` comparison it treats as
+outstanding was done the same day.
+
+**One thing it was right about, and which is still true:** that evidence is a
+single run, and until 2026-09-02 `screenshot.zsh` deleted wincap`s log on
+success -- so the exstyle that proves a capture was a DComp capture was thrown
+away exactly when the capture worked. The log is kept now. Re-establish the
+figure with a run that leaves one behind before treating it as settled twice.
+
+**已於 2026-08-29 確定；本段保留，因為它正是「一個未定問題」該有的樣子。** 它是可擷取的：
+`PrintWindow` 搭配 `PW_RENDERFULLCONTENT` 對 `WS_EX_NOREDIRECTIONBITMAP` 視窗取得 93.0% 的
+非黑像素，而本檔案稍早的 exstyle 表格正是它下方所要求的那次讀取。它視為未完成的 `GWL_EXSTYLE`
+比對，當天就已完成。
+
+**它說對了一件事，而那件事至今成立：** 那份證據只有一次執行，而在 2026-09-02 之前，
+`screenshot.zsh` 會在成功時刪除 wincap 的日誌——於是「證明某次擷取確實是 DComp 擷取」的 exstyle，
+恰好在擷取成功的那一刻被丟棄。該日誌現已保留。請以一次會留下日誌的執行重新確立該數字，再視其為
+第二次確定。
+
+原文如下：
 
 **Not settled: whether a DComp-composited GTK window is capturable.** The
 earlier claim that it is inherently not is refuted by P6 — see the table above.

@@ -19,11 +19,25 @@ public protocol StyledShape: Shape {
     /// A stroke that is not a flat colour, if one was given.
     /// 若曾指定非平面色的描邊，即為此值。
     var strokeStyleOverride: ResolvedFillStyle? { get }
+    /// An unresolved ``ShapeStyle``, if one was given.
+    ///
+    /// Unresolved, because `fill(_:)` has no environment -- resolution needs
+    /// one, and the only place that has it is `commit`. Storing the resolved
+    /// value here instead would mean resolving a colour before the colour
+    /// scheme is known.
+    /// 未解析的 ``ShapeStyle``（若曾指定）。
+    ///
+    /// 之所以未解析，是因為 `fill(_:)` 拿不到 environment——解析需要它，而唯一持有它的地方是
+    /// `commit`。若改為在此存放已解析的值，等於在配色方案已知之前就把顏色定死。
+    var fillShapeStyle: (any ShapeStyle)? { get }
+    var strokeShapeStyle: (any ShapeStyle)? { get }
 }
 
 extension StyledShape {
     public var fillStyleOverride: ResolvedFillStyle? { nil }
     public var strokeStyleOverride: ResolvedFillStyle? { nil }
+    public var fillShapeStyle: (any ShapeStyle)? { nil }
+    public var strokeShapeStyle: (any ShapeStyle)? { nil }
 }
 
 struct StyledShapeImpl<Base: Shape>: Sendable {
@@ -33,6 +47,8 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
     var strokeStyle: StrokeStyle?
     var fillStyleOverride: ResolvedFillStyle?
     var strokeStyleOverride: ResolvedFillStyle?
+    var fillShapeStyle: (any ShapeStyle)?
+    var strokeShapeStyle: (any ShapeStyle)?
 
     init(
         base: Base,
@@ -40,7 +56,9 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
         fillColor: Color? = nil,
         strokeStyle: StrokeStyle? = nil,
         fillStyleOverride: ResolvedFillStyle? = nil,
-        strokeStyleOverride: ResolvedFillStyle? = nil
+        strokeStyleOverride: ResolvedFillStyle? = nil,
+        fillShapeStyle: (any ShapeStyle)? = nil,
+        strokeShapeStyle: (any ShapeStyle)? = nil
     ) {
         self.base = base
 
@@ -50,15 +68,20 @@ struct StyledShapeImpl<Base: Shape>: Sendable {
             self.strokeStyle = strokeStyle ?? styledBase.strokeStyle
             self.fillStyleOverride = fillStyleOverride ?? styledBase.fillStyleOverride
             self.strokeStyleOverride = strokeStyleOverride ?? styledBase.strokeStyleOverride
+            self.fillShapeStyle = fillShapeStyle ?? styledBase.fillShapeStyle
+            self.strokeShapeStyle = strokeShapeStyle ?? styledBase.strokeShapeStyle
         } else {
             self.strokeColor = strokeColor
             self.fillColor = fillColor
             self.strokeStyle = strokeStyle
             self.fillStyleOverride = fillStyleOverride
             self.strokeStyleOverride = strokeStyleOverride
+            self.fillShapeStyle = fillShapeStyle
+            self.strokeShapeStyle = strokeShapeStyle
         }
     }
 }
+
 
 extension StyledShapeImpl: StyledShape {
     func path(in bounds: Path.Rect) -> Path {
@@ -158,7 +181,36 @@ extension Shape {
             )
         )
     }
+    /// Fills the shape with any ``ShapeStyle``.
+    ///
+    /// The generic that makes the protocol load-bearing. Without a caller, a
+    /// conformance can be wrong and still compile -- which is what the three
+    /// conformances in ShapeStyle.swift were until this existed.
+    ///
+    /// The concrete `fill(_ color: Color)` above stays and wins for a `Color`
+    /// by overload resolution. It is not redundant: it is the flat path every
+    /// existing app already takes, and putting a working path behind a new
+    /// generic buys nothing.
+    ///
+    /// 以任意 ``ShapeStyle`` 填充此形狀。
+    ///
+    /// 這個泛型才讓該 protocol 真的承重。少了呼叫端，一個 conformance 就算寫錯也照樣能編譯
+    /// ——在此之前 ShapeStyle.swift 中那三個 conformance 正是如此。
+    ///
+    /// 上方具體的 `fill(_ color: Color)` 保留，且對 `Color` 會依多載解析勝出。它並不多餘：那是
+    /// 每一支現有 app 都在走的平面色路徑，把一條可運作的路徑放到新泛型之後，毫無所得。
+    public func fill<S: ShapeStyle>(_ style: S) -> some StyledShape {
+        StyledShapeImpl(base: self, fillShapeStyle: style)
+    }
+
+    public func stroke<S: ShapeStyle>(
+        _ style: S,
+        style strokeStyle: StrokeStyle? = nil
+    ) -> some StyledShape {
+        StyledShapeImpl(base: self, strokeStyle: strokeStyle, strokeShapeStyle: style)
+    }
 }
+
 
 extension StyledShape {
     @MainActor
@@ -214,9 +266,11 @@ extension StyledShape {
         backend.renderPath(
             backendPath,
             container: widget,
-            strokeStyle: strokeStyleOverride
+            strokeStyle: strokeShapeStyle?._resolve(in: environment)
+                ?? strokeStyleOverride
                 ?? .color((strokeColor ?? .clear).resolve(in: environment)),
-            fillStyle: fillStyleOverride
+            fillStyle: fillShapeStyle?._resolve(in: environment)
+                ?? fillStyleOverride
                 ?? .color((fillColor ?? .clear).resolve(in: environment)),
             overrideStrokeStyle: strokeStyle,
             environment: environment

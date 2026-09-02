@@ -23,7 +23,19 @@ Treat any unmarked claim here as unverified.
 `-GPU N` exists and works on GtkBackend/Windows, committed 2026-08-29:
 
 - `DebugFeatures.gpuSelection` parses `-GPU N`, default `1`
-- `0` skips Direct Composition, so GTK falls back to `GskCairoRenderer`
+- **Corrected 2026-09-02.** The next two lines used to read: "`0` skips Direct
+  Composition, so GTK falls back to `GskCairoRenderer` (software); `1` and above
+  request it and GTK gets `GskGLRenderer`." That describes a threshold the code
+  has not used for some time. `GtkBackend.swift` reads `gpuSelection >= 2`, so
+  the DEFAULT of `1` does **not** request Direct Composition -- it is off unless
+  asked for. A reader following this plan would have expected a hardware
+  renderer out of the box and found Cairo.
+- **2026-09-02 更正。** 下面兩行原本寫著：「`0` 會跳過 Direct Composition，因此 GTK 退回
+  `GskCairoRenderer`（軟體）；`1` 以上會要求它，GTK 便得到 `GskGLRenderer`。」那描述的是程式碼
+  已有一段時間不再使用的門檻。`GtkBackend.swift` 讀的是 `gpuSelection >= 2`，因此預設值 `1`
+  **不會**要求 Direct Composition——除非明確要求，否則它是關閉的。依此計畫閱讀的人，會預期開箱
+  即得硬體 renderer，實際拿到的卻是 Cairo。
+- `0` and `1` both skip Direct Composition, so GTK falls back to `GskCairoRenderer`
   (software); `1` and above request it and GTK gets `GskGLRenderer`
 - `N >= 2` detects the current `UserGpuPreferences` value, prints the change and
   the adapter list, asks in the terminal, writes the registry and relaunches

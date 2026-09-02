@@ -340,14 +340,52 @@ compile_app() {
     # 於本機約需十三分鐘的建置中途。目前只有 P6 屬於此類，而它在設計上即為 Windows 專屬——
     # SwapChainPanel 與 D3D11 composition swap chain 在 GtkBackend 中沒有對應物，因此這是
     # 一項真實的排除，而非有待補上的缺口。
-    if [ "$force_gtk4" -eq 1 ] \
-        && grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path"; then
-        printf '%s needs the WinUI products, which -gtk4 removes.\n' "$app_file" >&2
-        printf 'Build it without -gtk4.\n' >&2
-        exit 1
+    # The two sides are NOT symmetric, and the reason is worth stating because
+    # making them symmetric is the obvious wrong move -- it was made on
+    # 2026-09-02 and P6 then failed with `no such module 'UWP'`.
+    #
+    # `-gtk4` removes the WinUI PRODUCTS but does not change the OS. P6's
+    # `import UWP` sits under `#if os(Windows)`, which is still true, so the
+    # import is compiled and the module is gone. An app naming the WinUI
+    # products therefore cannot build under -gtk4 no matter what else it names.
+    #
+    # The other direction is different. P6's `import Gtk` sits under
+    # `#if canImport(Gtk)`, which goes false by itself in the WinUI build. So
+    # naming Gtk does NOT prevent a WinUI build -- only naming Gtk *and not the
+    # WinUI products* marks an app as GTK-only.
+    #
+    # 兩側**並不**對稱，而理由值得寫下來，因為「把它們對稱化」正是那個顯而易見的錯誤做法——
+    # 2026-09-02 這麼做過，隨後 P6 就以 `no such module 'UWP'` 失敗。
+    #
+    # `-gtk4` 移除的是 WinUI 的 **product**，但不改變 OS。P6 的 `import UWP` 位於
+    # `#if os(Windows)` 之內，而該條件仍為真，於是那行 import 會被編譯，模組卻已不存在。因此，
+    # 只要一支 app 指名了 WinUI product，無論它還指名了什麼，都無法在 -gtk4 下建置。
+    #
+    # 另一個方向則不同。P6 的 `import Gtk` 位於 `#if canImport(Gtk)` 之內，該條件在 WinUI 建置下
+    # 會自行為假。因此「指名了 Gtk」並不妨礙 WinUI 建置——唯有「指名 Gtk **且未指名 WinUI
+    # product**」才標示出一支 GTK 專屬的 app。
+    imports_gtk=0
+    imports_winui=0
+    grep -qE '^import (Gtk|GtkBackend)$' "$source_path" && imports_gtk=1
+    grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path" \
+        && imports_winui=1
+
+    if [ "$force_gtk4" -eq 1 ] && [ "$imports_winui" -eq 1 ]; then
+        printf '    skipping %s: it imports the WinUI products, which -gtk4 removes\n' "$app_file" >&2
+        printf '    build it with: zsh compile.zsh %s\n' "${app_file%.swift}" >&2
+        continue
     fi
 
+    if [ "$force_gtk4" -eq 0 ] && [ "$imports_gtk" -eq 1 ] && [ "$imports_winui" -eq 0 ]; then
+        printf '    skipping %s: it imports Gtk, which the WinUI build lacks\n' "$app_file" >&2
+        printf '    build it with: zsh compile.zsh -gtk4 %s\n' "${app_file%.swift}" >&2
+        continue
+    fi
+
+
+
     app_name="${app_file%.swift}"
+
     target_dir="$sources_root/$app_name"
     mkdir -p "$target_dir"
     # Only when the content differs. An unconditional cp gives an unchanged file
@@ -438,16 +476,25 @@ if [ "$target_platform" != "ios" ]; then
         [ -f "$source_path" ] || continue
         candidate_file="$(basename "$source_path")"
         candidate="${candidate_file%.swift}"
-        # The same exclusion compile_app makes, as a filter rather than an exit:
-        # an app importing the WinUI products cannot be a target under -gtk4.
-        # Requesting one explicitly still fails loudly there, which is where the
-        # error belongs.
-        # 與 compile_app 相同的排除條件，但此處作為篩選而非直接結束：import WinUI product 的 app
-        # 在 -gtk4 下不能作為 target。明確請求它時仍會在該處大聲失敗，錯誤本來就該出現在那裡。
-        if [ "$force_gtk4" -eq 1 ] \
-            && grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path"; then
+        # The SAME rule compile_app uses, including its asymmetry. Two
+        # predicates that disagree produce `error: no product named 'P6'` --
+        # measured 2026-09-02, when this filter and compile_app briefly差了一步.
+        # 與 compile_app 完全相同的規則，包含它的不對稱性。兩個判準若不一致，就會產生
+        # `error: no product named 'P6'`——2026-09-02 實測，當時此處與 compile_app 差了一步。
+        candidate_gtk=0
+        candidate_winui=0
+        grep -qE '^import (Gtk|GtkBackend)$' "$source_path" && candidate_gtk=1
+        grep -qE '^import (UWP|WinUI|WinUIBackend|WindowsFoundation)$' "$source_path" \
+            && candidate_winui=1
+        if [ "$force_gtk4" -eq 1 ] && [ "$candidate_winui" -eq 1 ]; then
             continue
         fi
+        if [ "$force_gtk4" -eq 0 ] && [ "$candidate_gtk" -eq 1 ] \
+            && [ "$candidate_winui" -eq 0 ]; then
+            continue
+        fi
+
+
         mkdir -p "$sources_root/$candidate"
         if ! cmp -s "$source_path" "$sources_root/$candidate/main.swift" 2>/dev/null; then
             cp "$source_path" "$sources_root/$candidate/main.swift"
@@ -824,17 +871,40 @@ for app_name in $app_names; do
         "${debug_feature_flags[@]}" \
         "${gtk_build_flags[@]}"
 
+    # On Windows the same app name can be built against either backend, and the
+    # two executables are indistinguishable once copied here. That has already
+    # cost real time: a wincap capture matched a window by title and photographed
+    # a leftover GTK process while the WinUI build was the thing under test, and
+    # the resulting screenshot looked like a perfectly good result. So the
+    # backend goes in the filename.
+    #
+    # Windows only. On Linux and macOS a build is one backend by construction --
+    # there is no second one to confuse it with -- and suffixing there would
+    # break every path that already names the plain executable for no gain.
+    #
+    # 在 Windows 上，同一個 app 名稱可以對兩個 backend 各建置一次，而複製到此處之後，兩個執行檔
+    # 完全無法分辨。這已經造成過實際損失：wincap 依標題比對視窗，拍到了殘留的 GTK process，而當時
+    # 受測的是 WinUI 建置——那張截圖看起來完全像一個正常的結果。因此把 backend 放進檔名。
+    #
+    # 僅限 Windows。Linux 與 macOS 上，一次建置在結構上就只有一個 backend，沒有第二個可混淆；在那裡
+    # 加後綴只會弄壞每一條已經以純檔名指涉執行檔的路徑，而毫無所得。
+    if [ "$force_gtk4" -eq 1 ]; then
+        backend_suffix="-gtk4"
+    else
+        backend_suffix="-WinUI"
+    fi
+
     exe_path=""
     triple_dir="$(find "$package_dir/.build" -maxdepth 1 -type d -name '*-*-*' | head -n 1 || true)"
     if [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name.exe" ]; then
         exe_path="$triple_dir/$build_config/$app_name.exe"
-        output_path="$output_dir/$app_name.exe"
+        output_path="$output_dir/$app_name$backend_suffix.exe"
     elif [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name" ]; then
         exe_path="$triple_dir/$build_config/$app_name"
         output_path="$output_dir/$app_name"
     elif [ -f "$package_dir/.build/$build_config/$app_name.exe" ]; then
         exe_path="$package_dir/.build/$build_config/$app_name.exe"
-        output_path="$output_dir/$app_name.exe"
+        output_path="$output_dir/$app_name$backend_suffix.exe"
     elif [ -f "$package_dir/.build/$build_config/$app_name" ]; then
         exe_path="$package_dir/.build/$build_config/$app_name"
         output_path="$output_dir/$app_name"

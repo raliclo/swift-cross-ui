@@ -501,13 +501,30 @@ kill_existing() {
         return 0
     fi
 
-    if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq $app.exe" 2>/dev/null \
-        | grep -qi "$app.exe"; then
-        MSYS2_ARG_CONV_EXCL='*' taskkill.exe /F /IM "$app.exe" >/dev/null 2>&1 || true
-    fi
-    if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq $app.exe" 2>/dev/null \
-        | grep -qi "$app.exe"; then
-        printf '    WARNING: %s.exe is still running on Windows\n' "$app"
+    # Every backend variant, not just the one about to run. A leftover build of
+    # the OTHER backend is the dangerous one: it holds a window with the same
+    # title, and `screenshot.zsh -w` matches by title, so the capture comes back
+    # looking perfectly good while photographing the wrong process. That
+    # happened on 2026-09-02 -- a WSLg P43 was still up and the "WinUI" capture
+    # was really the GTK one, identical down to the title bar.
+    #
+    # 清掉每一個 backend 變體，而不只是即將執行的那一個。殘留的「另一個 backend」才是危險的：
+    # 它持有一個標題相同的視窗，而 `screenshot.zsh -w` 是依標題比對的，於是截圖看起來完全正常，
+    # 拍到的卻是錯的 process。2026-09-02 就發生過——一個 WSLg 的 P43 還開著，那張「WinUI」截圖
+    # 其實是 GTK 的，連標題列都一模一樣。
+    local still_running=()
+    for image in "$app.exe" "$app-WinUI.exe" "$app-gtk4.exe"; do
+        if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq $image" 2>/dev/null \
+            | grep -qi "$image"; then
+            MSYS2_ARG_CONV_EXCL='*' taskkill.exe /F /IM "$image" >/dev/null 2>&1 || true
+        fi
+        if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq $image" 2>/dev/null \
+            | grep -qi "$image"; then
+            still_running+=("$image")
+        fi
+    done
+    if [ ${#still_running[@]} -gt 0 ]; then
+        printf '    WARNING: still running on Windows: %s\n' "${still_running[*]}"
     else
         printf '    Windows: clear\n'
     fi
@@ -837,11 +854,60 @@ run_windows() {
     # 重放動作檔時保留 stderr 而不丟棄。backend 在該處回報重放是否執行；失敗的重放會留下一個看似
     # 未被觸碰的視窗，與「app 忽略了輸入」無法區分，而那是錯誤的追查方向。實測：本腳本的第一次
     # 執行丟掉了這行訊息，於是該失敗看起來像是產品缺陷。
+    # Which build to run, when the same app can exist for both backends.
+    #
+    # An ambiguity is refused rather than guessed. Picking one silently is the
+    # failure this suffix exists to prevent: the wrong backend runs, its window
+    # carries the same title, and every capture and every number afterwards
+    # describes something nobody asked about. `TEST_BACKEND=gtk4` or
+    # `TEST_BACKEND=WinUI` answers it; a per-app test_Pn.zsh can export it.
+    #
+    # The unsuffixed name is still accepted, alone, so a checkout built before
+    # the suffix existed keeps working -- but it loses to a suffixed build,
+    # because a stale unsuffixed file is exactly what would otherwise be run.
+    #
+    # 當同一個 app 兩個 backend 都可能存在時，要執行哪一個。
+    #
+    # 遇到歧義時拒絕，而不是猜。默默選一個正是這個後綴要防的失敗：錯的 backend 被執行，它的視窗
+    # 帶著相同的標題，而其後的每一張截圖與每一個數字，描述的都是沒人問過的東西。
+    # `TEST_BACKEND=gtk4` 或 `TEST_BACKEND=WinUI` 可以回答它；各 app 的 test_Pn.zsh 也能 export。
+    #
+    # 無後綴的名稱在「僅它存在」時仍被接受，使後綴出現之前建置的 checkout 仍可運作——但它會輸給
+    # 有後綴的建置，因為一個過期的無後綴檔案，正是否則會被執行的那個東西。
+    local candidates=()
+    if [ -n "${TEST_BACKEND:-}" ]; then
+        if [ -f "$out/$app-$TEST_BACKEND.exe" ]; then
+            candidates=("$app-$TEST_BACKEND.exe")
+        else
+            printf '!! TEST_BACKEND=%s but %s/%s-%s.exe does not exist\n' \
+                "$TEST_BACKEND" "$out" "$app" "$TEST_BACKEND" >&2
+            exit 1
+        fi
+    else
+        for suffix in -WinUI -gtk4; do
+            [ -f "$out/$app$suffix.exe" ] && candidates+=("$app$suffix.exe")
+        done
+        if [ ${#candidates[@]} -eq 0 ] && [ -f "$out/$app.exe" ]; then
+            candidates=("$app.exe")
+        fi
+    fi
+    if [ ${#candidates[@]} -eq 0 ]; then
+        printf '!! no build of %s in %s -- run compile.zsh first\n' "$app" "$out" >&2
+        exit 1
+    fi
+    if [ ${#candidates[@]} -gt 1 ]; then
+        printf '!! %s exists for more than one backend: %s\n' "$app" "${candidates[*]}" >&2
+        printf '!! set TEST_BACKEND=WinUI or TEST_BACKEND=gtk4; refusing to guess\n' >&2
+        exit 1
+    fi
+    win_exe="${candidates[1]}"
+    printf '==> Running %s\n' "$win_exe"
+
     if [ -n "$action_file" ]; then
-        ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)args} \
+        ( cd "$out" && env ${(z)app_env} "./$win_exe" ${(z)args} \
             >/dev/null 2>"$actionfile_log" & )
     else
-        ( cd "$out" && env ${(z)app_env} "./$app.exe" ${(z)args} >/dev/null 2>&1 & )
+        ( cd "$out" && env ${(z)app_env} "./$win_exe" ${(z)args} >/dev/null 2>&1 & )
     fi
 
     capture -d 1 -w "$title" "$label-1s"
@@ -852,10 +918,10 @@ run_windows() {
         capture -d 0 -w "$title" "$label-timeout"
     fi
 
-    if MSYS2_ARG_CONV_EXCL='*' taskkill.exe /F /IM "$app.exe" 2>&1 | grep -q SUCCESS; then
-        printf '==> Closed %s.exe\n' "$app"
+    if MSYS2_ARG_CONV_EXCL='*' taskkill.exe /F /IM "$win_exe" 2>&1 | grep -q SUCCESS; then
+        printf '==> Closed %s\n' "$win_exe"
     else
-        printf '==> WARNING: %s.exe may still be running; check with tasklist\n' "$app"
+        printf '==> WARNING: %s may still be running; check with tasklist\n' "$win_exe"
     fi
 
     print_summary_windows
