@@ -1376,12 +1376,16 @@ zsh testapp/test.zsh P29 --both
 SwiftCrossUI 完全沒有動畫層；目前只能測專案中已存在的 effect modifiers。
 
 沒有 `Animation`、`withAnimation`、`.animation(_:value:)`、`.transition` 或 `Namespace`，也沒有
-任何相應的 backend 協定。visual effects 與 geometric effects 現在已有部分覆蓋，但 backend parity
-仍不完整：GtkBackend 會 render blur 與 color filters，~~WinUIBackend 目前只套用 opacity~~——
-**2026-09-02 起已被取代**（保留不刪，讓過時主張留在紀錄裡）：WinUIBackend 現已透過 Win2D
-effect graph render 全部七項，2026-09-02 驗證為 `applied=8 failed=0 total=8`（重跑指令：
+任何相應的 backend 協定。~~visual effects 與 geometric effects 現在已有部分覆蓋，但 backend
+parity 仍不完整：~~GtkBackend 會 render blur 與 color filters，~~WinUIBackend 目前只套用
+opacity~~——**2026-09-02 起已被取代**（保留不刪，讓過時主張留在紀錄裡）：WinUIBackend 現已透過
+Win2D effect graph render 全部七項，2026-09-02 驗證為 `applied=8 failed=0 total=8`（重跑指令：
 `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀
-`winui-visual-effects-debug.log`）。
+`winui-visual-effects-debug.log`）。**同樣於 2026-09-02 被取代：這兩個效果系列在已出貨的桌面與
+行動目標上現已達成完整的 backend parity。** AppKitBackend 兩者都已實作——一條 `CIFilter` 鏈與一個
+`CATransform3D`；UIKitBackend 兩者也都已實作，其 visual effects 是透過 Core Image 作用於
+`CALayer.render(in:)` 的點陣圖，而不是透過 `CALayer.filters`——後者在 iOS 上不參與合成。已於 P39
+與 P40 驗證，詳見該兩節。
 `.shadow`、`.zIndex`、`.clipShape` 與 `.mask` 仍不存在。SwiftUI 中每一次狀態變更都隱含可動畫化，
 因此 animation 仍是本工具組中最大的行為分歧。
 
@@ -1727,7 +1731,7 @@ zsh testapp/test.zsh P38 --both
 - 若 initial screenshot 為黑畫面但 final screenshot 可見，記錄為啟動／render timing，不直接判為 UI failure。
 - 若 Windows 無法抵達 final screenshot 或無法乾淨關閉，記錄為 WinUI async WebView issue。
 
-## P39：Visual Effects（Linux 與 Windows）
+## P39：Visual Effects（Linux、Windows、macOS 與 iOS）
 
 執行：
 
@@ -1754,8 +1758,10 @@ zsh testapp/test.zsh P39 --both
 - GTK 上 blur 與色彩效果應明顯不同於 control。
 - ~~WinUI 上 opacity 應不同於 control；blur、grayscale、saturation、brightness、contrast、hue rotation 目前預期仍為 no-op，需保留文件紀錄直到實作完成。~~
   **2026-09-02 起已被取代**（保留不刪，讓這條過時主張的樣態留在紀錄裡）：WinUI 上七項效果都應明顯不同於 control，與 GTK 相同。2026-09-02 驗證為 `applied=8 failed=0 total=8`（重跑指令：`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`），並以 wincap 截圖做像素層級確認：saturation 0、0.5、control（=1）、2.5 各 cell 的 mean HSV saturation 依序為 0.000／0.515／0.818／0.992，是一條單調遞增的階梯。
+- **macOS/AppKit 上九格全部都應不同於 control**，2026-09-02 量測。`AppKitBackend+VisualEffects.swift` 是一條套在 layer-backed container 上的 `CIFilter` 鏈，opacity 走 `alphaValue`，使子樹以一組的方式合成。若連 identity 對照格在內每一格都變空白，請懷疑 `layerUsesCoreImageFilters` 在沒有 filter 要跑時仍被設定——那正是它的樣子。
+- **iOS/UIKit 上九格全部都應不同於 control**，2026-09-02 於 iPhone 16 模擬器量測。判定失敗前請先讀懂機制：`CALayer.filters` 在 iOS 上**不**參與合成——這量過兩次，而且至今仍為真：`opacity 0.35` 變淡，`blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格逐像素相同。效果之所以仍然有效，是因為已經不再那樣做了：它們改為透過 Core Image 作用於 `CALayer.render(in:)` 的點陣圖，結果覆蓋在子元件之上，子元件則以一個空的 `CALayer` mask 遮蔽，因此仍可被 hit test。要預期的後果是：被過濾的格子是「排版時重新產生的算繪結果」，而非活的子樹，所以其中若有由 Core Animation 驅動的動畫，看起來會是凍結的；`opacity` 不走這條路。
 
-## P40：Geometric Effects（Linux 與 Windows）
+## P40：Geometric Effects（Linux、Windows、macOS 與 iOS）
 
 執行：
 
@@ -1784,6 +1790,7 @@ zsh testapp/test.zsh P40 --both
 - 兩個平台都應產生可見且非黑的截圖。
 - 除非 app 的測試案例刻意顯示 fallback 色，否則 exact hotpink pixels 應為 0。
 - transformed samples 不應全部和 control tile 有相同 bounding box。
+- **macOS/AppKit 與 iOS/UIKit 上七格全部都應正確算繪**，2026-09-02 分別於 Mac 與 iPhone 16 模擬器量測。最關鍵的檢查不是「有東西動了」：請比較 `rotate 30 centre` 與 `rotate 30 topLeading`，兩者必須**不同**。錨點運算錯誤會使這兩格相同，或把 tile 丟到畫面外，而這兩種失敗看起來都像是 transform 正常運作。某一格空白代表容器的子元件沒有被四個邊都釘住——modifier 的 commit 只設定容器的尺寸，沒有任何東西為容器內部的元件設定尺寸。
 
 ## P41：Date Picker Styles（Linux 與 Windows）
 

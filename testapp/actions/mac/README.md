@@ -63,7 +63,7 @@ These are gaps with reasons, not oversights.
 | App | Why |
 | --- | --- |
 | `P25` | Needs a drag from the Finder. A cross-application drag comes from the window server's drag session; `NSApp.postEvent` cannot start one. |
-| `P30`, `P39`, `P40` | They open now -- the abort was fixed on 2026-09-01 -- but AppKitBackend still implements neither effect family, so every view in them renders unmodified. There is nothing a click would distinguish. Files are worth adding once the conformances exist. |
+| `P30`, `P39`, `P40` | They open now -- the abort was fixed on 2026-09-01. ~~AppKitBackend still implements neither effect family, so every view in them renders unmodified.~~ **Superseded 2026-09-02: AppKitBackend implements both `VisualEffects` and `GeometricEffects`, verified against P39 (all nine cells distinct from the control) and P40 (offset, rotation and the two anchors all correct).** These three still have no action file, but the reason is now the one that always applied to them and not the missing conformances: they take no input, so what they demonstrate is read from a capture rather than driven by a click. |
 | `P37` | Asks for another application's window to be given focus, which the synthesiser cannot do — it posts into this app's own event queue. |
 | `P17-DOE` | Three drawn rectangles and no controls. A capture answers it. |
 | `P6-v2` | Imports `Gtk` and `GtkBackend` directly. It does not build for AppKit and is not meant to. |
@@ -123,7 +123,7 @@ AppKit 的 hit testing 在這台機器上是壞的（見 `todo.md`）。重放�
 | App | 原因 |
 | --- | --- |
 | `P25` | 需要從 Finder 拖曳。跨應用程式的拖曳來自 window server 的 drag session；`NSApp.postEvent` 無法發起。 |
-| `P30`、`P39`、`P40` | 現在開得起來了——那個中止已於 2026-09-01 修復——但 AppKitBackend 兩個效果系列仍都未實作，因此其中每一個 view 都以未經修飾的樣貌算繪。沒有任何東西是一次點擊能夠區分的。待 conformance 存在後再補上檔案。 |
+| `P30`、`P39`、`P40` | 現在開得起來了——那個中止已於 2026-09-01 修復。~~但 AppKitBackend 兩個效果系列仍都未實作，因此其中每一個 view 都以未經修飾的樣貌算繪。~~ **2026-09-02 起已被取代：AppKitBackend 已實作 `VisualEffects` 與 `GeometricEffects`，並以 P39（九格全部與對照格不同）與 P40（offset、rotation 與兩個 anchor 皆正確）驗證。** 這三支仍然沒有 action file，但理由已換成那個一直都成立的理由，而不是缺少 conformance：它們不接受任何輸入，要看的東西是從擷取影像讀出來的，不是點出來的。 |
 | `P37` | 要求把焦點交給另一個應用程式的視窗，而 synthesiser 做不到——它只把事件送入本 app 自己的事件佇列。 |
 | `P17-DOE` | 三個繪製出來的矩形，沒有任何控制項。擷取影像即可回答。 |
 | `P6-v2` | 直接 `import Gtk` 與 `GtkBackend`。它不會為 AppKit 建置，也不打算如此。 |

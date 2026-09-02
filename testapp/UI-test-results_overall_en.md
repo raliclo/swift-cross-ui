@@ -261,3 +261,119 @@ All final screenshots below were measured with PIL. Every final capture was visi
 - **Q2 splits one observation into two.** AppKit commits P16's first render **three** times, like GTK and unlike WinUI's one -- but its height never moves, where GTK's went 485 -> 446 -> 446. So "commits three times" and "the height converges" are independent, and only the second was ever evidence of anything. All three agree on widths, 200 / 680. The settled heights differ by exactly what each platform puts above the content: **497 AppKit / 486 WinUI / 446 GTK before the fix**.
 - **Q3 is the most useful answer.** AppKit's `List` also reports **140** in a 180-tall pane -- the same number GTK gives. Two independently written backends agreeing puts the behaviour in the **shared layout code**, not in either backend, which is exactly what the measurement was designed to distinguish. `List` not being greedy vertically is therefore a real SwiftUI parity gap in SwiftCrossUI itself.
 - Worth carrying beyond this task: their file records that `AppKitBackend.createWindow` calls `setFrameAutosaveName(id)` with an `id` derived from the root view's type, so most test apps **share one key** (`"NSWindow Frame TupleView1<HotReloadableView>-0"`). A saved frame then wins over `.defaultSize` entirely -- P28 opened at 680x448 or 1076x907 from the same binary at the same commit depending on what that key held. Any earlier macOS measurement of a window size taken without clearing it is suspect.
+
+## 2026-09-02
+
+### P39 and P40 on AppKitBackend and UIKitBackend: both effect families implemented
+
+- Until this date both families **degraded** on AppKit — warn once, render the
+  view unmodified — and UIKit had `GeometricEffects` only. Degrading was a real
+  improvement over the `fatalError` it replaced on 2026-09-01, and it was still
+  the wrong answer: it produces a truthful report of a missing feature, which
+  looks exactly like a working feature in a screenshot.
+- **AppKit `VisualEffects`**: one `CIFilter` chain on a layer-backed container.
+  `CIColorControls` carries saturation, brightness and contrast together;
+  grayscale is a separate `CIColorMonochrome` so it can land halfway and does
+  not fight `.saturation`; hue is `CIHueAdjust` in radians. Opacity goes through
+  `alphaValue`, not a filter, so the subtree composites as a group the way
+  SwiftUI's `.opacity` does. Measured against P39: **all nine cells render and
+  every effect is visibly distinct from the control.**
+- One trap worth recording because it looks like a rendering failure rather than
+  a configuration one: `layerUsesCoreImageFilters` set unconditionally blanked
+  **every** cell, the identity control included. It is now set only when there
+  is a filter to run.
+- **iOS `VisualEffects` is not the same implementation, and the measurement that
+  forced the difference is still true.** `CALayer.filters` does not composite on
+  iOS. The property is in the headers on both platforms and only the AppKit
+  compositor reads it. Measured twice on the iPhone 16 simulator rather than
+  looked up: `opacity 0.35` was visibly faded, and `blur 3`, `saturation 2.5`,
+  `brightness 0.4`, `grayscale 1` and `hueRotation 120` were **pixel-identical**
+  to the control. One of seven.
+- What was wrong was the conclusion drawn from that measurement — *therefore six
+  of the seven have no path on iOS* — not the measurement. The route iOS does
+  offer is to filter a **rendering** of the subtree instead of the live layer:
+  `CALayer.render(in:)` into a bitmap, the `CIFilter` chain over the bitmap, the
+  result as the contents of a layer laid over the child, and the child hidden by
+  an **empty `CALayer` mask** rather than by `alpha` or `isHidden` — `UIView.hitTest`
+  skips a view at or below alpha 0.01, and both properties live on the layer, so
+  there is no way to set them for drawing only. The child stays hit-testable.
+- Measured on P39, iPhone 16 simulator, iOS 18.4: **all nine cells now differ
+  from the control.** Captures `p39-ios-final-20260902-143209.png` and
+  `p39-ios-final-20260902-144424.png`.
+- The cost is stated rather than hidden: the visible pixels are a rendering
+  refreshed on every layout — which is every time the view graph writes a size
+  or a position, so a state change inside a filtered container does reach the
+  screen — but an animation driven by Core Animation rather than by the view
+  graph would freeze at the last frame a layout caught. `opacity` does not take
+  this path and stays live.
+- **"This platform has no API for this" survived a real measurement here and was
+  still wrong.** That is the durable finding; `bugs/bug-UIkit.md` keeps it.
+- **`GeometricEffects` on both.** AppKit's is a `CATransform3D` with two
+  conversions: the transform arrives top-left and y-down, a `CALayer` under a
+  non-flipped `NSView` is bottom-left and y-up, and CoreAnimation applies the
+  transform about `anchorPoint` rather than about the origin. UIKit needs one
+  fewer, its layer already being top-left and y-down, and the same anchor
+  correction.
+- Measured against P40 on the Mac: offset moves right and down, rotation is
+  clockwise, and **`rotate 30 centre` and `rotate 30 topLeading` differ** —
+  which is the check that the anchor arithmetic is right, because a wrong one
+  makes those two identical or throws the tile off screen. Measured on P40 on
+  the iPhone 16 simulator: **all seven cells render correctly.** Captures
+  `p40-ios-final-20260902-143258.png` and `p40-ios-final-20260902-143444.png`.
+- Both containers pin their child on all four edges, and it took two wrong
+  guesses to find. With no constraints every cell was blank; with left and top
+  they were still blank; the probe read `container=(0,0,200,109)` against
+  `child=(0,109,0,0)` with zero child constraints. The modifier's commit sizes
+  the container and nothing sizes what is inside it — invisible on GTK, where a
+  container sizes its child.
+- Not measured here, and listed rather than guessed: **Android**. No P39 or P40
+  run on AndroidBackend is recorded in `matrix_coverage/results.csv2`, so its
+  cells stay `-`.
+
+### P43 gradient fills on macOS and iOS
+
+- `BackendFeatures.Paths.renderPath(…fillStyle:)` fills or strokes a shape
+  **with** a gradient instead of flattening it to the midpoint stop. The unit
+  points multiply the **path's** own extents, not the widget's, which is what
+  lets a gradient be clipped to a circle rather than filling the rectangle the
+  gradient views own.
+- The protocol's default flattens and warns once per backend. That default was
+  written on a machine with no Mac and says so; implementing AppKit and UIKit
+  blind would have landed as a build break for whoever pulled next. These two
+  were **written and measured on a Mac**.
+- Both draw in `draw(_:)` with `CGGradient`, which takes both radii. The flat
+  case keeps its existing cheap path untouched. `CAShapeLayer` cannot paint a
+  gradient and has no property for one, and the usual masked-`CAGradientLayer`
+  workaround cannot express this feature at all: its `.radial` type is an
+  ellipse between two points with no start radius, so
+  `radialGradient(startRadius:endRadius:)` is unsayable.
+- **The two files differ in exactly one sign, and it is forced rather than
+  chosen.** AppKit's path arrives already y-flipped — `applyActions` ends with a
+  `scaleByX: 1, byY: -1` and `NSBezierPathView` is not flipped — so
+  `UnitPoint.top` is the **largest** y there and the **smallest** y in UIKit.
+  P43's ramp runs red to blue top to bottom, which is what makes the sign
+  visible: red must be at the top on both. A symmetric gradient would have
+  hidden it.
+- AppKit also needed an `NSBezierPath`-to-`CGPath` conversion, because clipping
+  to a stroked region means `CGContext.replacePathWithStrokedPath` and
+  `NSBezierPath.cgPath` is macOS 14 while this package deploys to macOS 11.
+- Measured with P43 on both platforms, all four cells: **the gradient circle is
+  round and not square, the flat control is unchanged, the rectangle runs red to
+  blue, and the stroked circle is a ring with an empty middle** — the last being
+  the case P43 notes no backend was testing, GtkBackend included. Captures
+  `p43-macos-gradient-fills.png` and `p43-ios-gradient-fills.png`.
+- **AndroidBackend still takes the flattening default** and is recorded as a
+  known gap, not as untested: it draws a plausible flat shape and logs once.
+  Closing it needs a machine that can build and run Android.
+
+### NavigationSplitView on iPhone
+
+- `UISplitViewController` collapses to a navigation stack on a compact-width
+  iPhone regardless of `preferredDisplayMode`; there is no configuration that
+  places a sidebar beside a detail pane. `PhoneSplitWidget` is therefore not a
+  wrapper around it — it lays the two panes out side by side, which is what
+  `NavigationSplitView` means and what every other backend produces.
+- The width is **derived, not stored**: `sidebarWidth` has to answer during
+  `computeLayout`, before any layout pass has run, so it is computed from the
+  `width` that `setSize(of:)` just wrote, which is the same number
+  `layoutSubviews` will use.

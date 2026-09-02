@@ -261,3 +261,88 @@
 - **Q2 把一個觀察拆成了兩個。** AppKit 對 P16 的首次算繪 commit **三次**，與 GTK 相同、與 WinUI 的一次不同——但它的高度全程不動，而 GTK 是 485 → 446 → 446。因此「commit 三次」與「高度收斂」是彼此獨立的兩件事，而其中只有後者曾構成證據。三者的寬度一致，皆為 200 / 680。安定後的高度差異，恰好等於各平台放在內容之上的裝飾：**AppKit 497 / WinUI 486 / GTK 修正前 446**。
 - **Q3 是最有價值的答案。** AppKit 的 `List` 在 180 高的窗格中同樣回報 **140**——與 GTK 給出的是同一個數字。兩個各自獨立撰寫的 backend 給出相同答案，就把該行為定位在**共用的版面程式碼**，而非任一 backend，這正是這次量測設計要分辨的事。因此「`List` 在垂直方向不貪婪」是 SwiftCrossUI 本身一個真實的 SwiftUI parity 缺口。
 - 值得帶出此任務之外的一點：他們的檔案記載 `AppKitBackend.createWindow` 會呼叫 `setFrameAutosaveName(id)`，而 `id` 衍生自 root view 的型別，因此大多數測試 app **共用同一把 key**（`"NSWindow Frame TupleView1<HotReloadableView>-0"`）。已儲存的 frame 會完全蓋過 `.defaultSize`——同一個 binary、同一個 commit 的 P28，會因該 key 的內容而開成 680x448 或 1076x907。任何先前未清除該 key 就量測視窗尺寸的 macOS 結果，都應存疑。
+
+## 2026-09-02
+
+### P39 與 P40 於 AppKitBackend 與 UIKitBackend：兩個效果系列皆已實作
+
+- 在此日期之前，兩個系列在 AppKit 上都是**降級**——警告一次、以未經修飾的樣貌算繪——而 UIKit 只有
+  `GeometricEffects`。相對於它在 2026-09-01 所取代的 `fatalError`，降級確實是真正的改善，但它依然
+  是錯的答案：它產出的是「對缺失功能的如實回報」，而那在截圖裡看起來與「功能正常」一模一樣。
+- **AppKit `VisualEffects`**：一條套在 layer-backed container 上的 `CIFilter` 鏈。
+  `CIColorControls` 一次承載 saturation、brightness 與 contrast；grayscale 另用
+  `CIColorMonochrome`，如此它能停在中途，也不會與 `.saturation` 互相打架；hue 是以弧度為單位的
+  `CIHueAdjust`。opacity 走 `alphaValue` 而非 filter，因此子樹以一組的方式合成，與 SwiftUI 的
+  `.opacity` 相同。已對 P39 量測：**九格全部算繪，且每一種效果都與對照格有可見差異。**
+- 有一個陷阱值得記錄，因為它看起來像算繪失敗而不像設定錯誤：無條件設定
+  `layerUsesCoreImageFilters` 會讓**每一格**都變空白，連 identity 對照格也不例外。現在只在確實有
+  filter 要跑時才設定。
+- **iOS 的 `VisualEffects` 不是同一份實作，而逼出這項差異的量測至今仍然為真。**
+  `CALayer.filters` 在 iOS 上不參與合成。該屬性在兩個平台的標頭中都存在，但只有 AppKit 的合成器
+  會讀取它。這是在 iPhone 16 模擬器上量出來的，量了兩次，不是查來的：`opacity 0.35` 明顯變淡，
+  而 `blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格
+  **逐像素相同**。七項中只有一項有效。
+- 錯的是由該量測推出的結論——*因此七項中有六項在 iOS 上無路可走*——而不是量測本身。iOS 確實提供的
+  路徑，是去過濾子樹的**算繪結果**而非活的 layer：`CALayer.render(in:)` 畫進點陣圖、`CIFilter` 鏈
+  在點陣圖上執行、結果成為覆蓋在子元件之上的 layer 的內容，而子元件以一個**空的 `CALayer` mask**
+  隱藏，而非以 `alpha` 或 `isHidden`——`UIView.hitTest` 會跳過 alpha 小於等於 0.01 的 view，而那
+  兩個屬性都存在 layer 上，沒有辦法只為繪製而設定它們。子元件因此仍可被 hit test。
+- 於 P39、iPhone 16 模擬器、iOS 18.4 量測：**九格現在全部與對照格不同。** 擷取影像為
+  `p39-ios-final-20260902-143209.png` 與 `p39-ios-final-20260902-144424.png`。
+- 代價是明說而非隱藏的：看得見的像素是每次排版重新產生的算繪結果——而那是 view graph 每次寫入
+  尺寸或位置時都會發生的事，因此被過濾的容器內部若有狀態變更，確實會反映到畫面上——但若其中有一個
+  由 Core Animation 而非 view graph 驅動的動畫，它會凍結在最後一次排版所捕捉到的那一格。`opacity`
+  不走這條路，維持即時。
+- **「這個平台沒有對應的 API」在此處通過了一次真實的量測，卻依然是錯的。** 那才是能留下來的結論；
+  `bugs/bug-UIkit.md` 保存了它。
+- **兩者的 `GeometricEffects`。** AppKit 的是一個 `CATransform3D`，需要兩次轉換：transform 傳入時
+  位於左上原點、y 向下的空間，而非 flipped 的 `NSView` 底下的 `CALayer` 是左下原點、y 向上，且
+  CoreAnimation 是繞 `anchorPoint` 而非繞原點套用 transform。UIKit 少一次轉換，因為它的 layer
+  本來就是左上、y 向下，但同樣需要錨點修正。
+- 於 Mac 上對 P40 量測：offset 向右下移動、rotation 為順時針，且 **`rotate 30 centre` 與
+  `rotate 30 topLeading` 不同**——這正是錨點運算正確與否的檢查點，因為錯誤的錨點運算會使兩者相同，
+  或把 tile 丟到畫面外。於 iPhone 16 模擬器上對 P40 量測：**七格全部正確算繪。** 擷取影像為
+  `p40-ios-final-20260902-143258.png` 與 `p40-ios-final-20260902-143444.png`。
+- 兩邊的容器都把子元件的四個邊都釘住，而這花了兩次錯誤猜測才找到。完全不加 constraint 時每一格
+  都是空白；只加左邊與上邊仍是空白；探針讀到 `container=(0,0,200,109)` 對上
+  `child=(0,109,0,0)`，且子元件沒有任何 constraint。modifier 的 commit 只設定容器的尺寸，沒有
+  任何東西為容器內部的元件設定尺寸——這在 GTK 上看不見，因為那裡是容器決定子元件的尺寸。
+- 此處未量測、且僅列出而不猜測的是：**Android**。`matrix_coverage/results.csv2` 中沒有任何
+  AndroidBackend 上的 P39 或 P40 執行紀錄，因此其欄位維持 `-`。
+
+### P43 的漸層填充於 macOS 與 iOS
+
+- `BackendFeatures.Paths.renderPath(…fillStyle:)` 是「以漸層填充或描邊一個形狀」，而不是把它壓成
+  中點顏色。單位座標乘上的是**路徑**自身的範圍而非 widget 的，這正是漸層能被裁進圓形、而不是填滿
+  漸層視圖自己那個矩形的原因。
+- 協定的預設實作會壓平並每個 backend 警告一次。那個預設是在一台沒有 Mac 的機器上寫的，而它自己
+  也說明了這一點；盲寫 AppKit 與 UIKit 會讓下一個 pull 的人拿到建置失敗。這兩份實作是**在 Mac 上
+  寫成並量測的**。
+- 兩者都在 `draw(_:)` 中以 `CGGradient` 繪製——它接受兩個半徑。平面色的情況維持原有的低成本路徑
+  不變。`CAShapeLayer` 無法繪製漸層，也沒有對應屬性；而常見的「以形狀遮蔽 `CAGradientLayer`」變通
+  做法根本表達不了這項功能：它的 `.radial` 型別是一個從某點到另一點的橢圓，沒有起始半徑，因此
+  `radialGradient(startRadius:endRadius:)` 無從表述。
+- **兩個檔案恰好差一個正負號，而那是被逼出來的，不是選出來的。** AppKit 的路徑抵達時已被翻轉——
+  `applyActions` 最後會做 `scaleByX: 1, byY: -1`，而 `NSBezierPathView` 並非 flipped——因此
+  `UnitPoint.top` 在那裡是方框中**最大**的 y，在 UIKit 中則是**最小**的。P43 的漸層是紅到藍、
+  由上往下，那正是讓這個正負號看得出來的原因：紅色在兩個平台上都必須在上方。對稱的漸層會把它藏
+  起來。
+- AppKit 另外還需要一次 `NSBezierPath` 到 `CGPath` 的轉換，因為「裁切到描邊區域」得用
+  `CGContext.replacePathWithStrokedPath`，而 `NSBezierPath.cgPath` 需要 macOS 14，本套件卻部署到
+  macOS 11。
+- 於兩個平台以 P43 量測，四格全部成立：**漸層圓形是圓的而不是方的、平面色對照組未變、矩形由紅
+  跑到藍，而描邊圓形是一個中間空心的環**——最後一項正是 P43 自己指出「沒有任何 backend 在測」的
+  情況，連 GtkBackend 也不例外。擷取影像為 `p43-macos-gradient-fills.png` 與
+  `p43-ios-gradient-fills.png`。
+- **AndroidBackend 仍取用壓平的預設實作**，因此記為已知缺口而非未測試：它會畫出一個看似合理的
+  平面形狀，並記錄一次警告。要關閉它需要一台能建置並執行 Android 的機器。
+
+### iPhone 上的 NavigationSplitView
+
+- 在緊湊寬度的 iPhone 上，`UISplitViewController` 無論 `preferredDisplayMode` 為何都會收合成一個
+  navigation stack；沒有任何設定能把 sidebar 放在 detail 窗格旁邊。因此 `PhoneSplitWidget` 並非
+  它的包裝——它就是把兩個窗格並排放置，而那正是 `NavigationSplitView` 的語意，也是其他每一個
+  backend 所產生的結果。
+- 寬度是**推導出來的，不是存起來的**：`sidebarWidth` 必須能在 `computeLayout` 期間、任何 layout
+  pass 執行之前就回答，因此它由 `setSize(of:)` 剛寫入的 `width` 推導，而那與 `layoutSubviews`
+  稍後所用的是同一個數字。

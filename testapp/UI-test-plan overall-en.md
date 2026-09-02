@@ -1296,15 +1296,21 @@ largest protocol-level gap: SwiftCrossUI has no animation layer at all, and only
 the effect modifiers currently available in the project can be exercised.
 
 There is no `Animation`, `withAnimation`, `.animation(_:value:)`, `.transition`
-or `Namespace`, and no backend protocol for any of them. Visual effects and
-geometric effects now have partial coverage, but backend parity is incomplete:
-GtkBackend renders blur and colour filters, while ~~WinUIBackend currently
-applies opacity only~~ — **superseded 2026-09-02** (kept, not deleted, so the
-stale claim stays on record): WinUIBackend now renders all seven through a Win2D
-effect graph, verified 2026-09-02 with `applied=8 failed=0 total=8`
+or `Namespace`, and no backend protocol for any of them. ~~Visual effects and
+geometric effects now have partial coverage, but backend parity is
+incomplete:~~ GtkBackend renders blur and colour filters, while ~~WinUIBackend
+currently applies opacity only~~ — **superseded 2026-09-02** (kept, not deleted,
+so the stale claim stays on record): WinUIBackend now renders all seven through
+a Win2D effect graph, verified 2026-09-02 with `applied=8 failed=0 total=8`
 (`cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`, then read
-`winui-visual-effects-debug.log`). `.shadow`, `.zIndex`, `.clipShape` and
-`.mask` are still absent.
+`winui-visual-effects-debug.log`). **Also superseded 2026-09-02: the visual and
+geometric effect families now have full backend parity on the shipped desktop
+and mobile targets.** AppKitBackend implements both — a `CIFilter` chain and a
+`CATransform3D` — and UIKitBackend implements both as well, its visual effects
+through Core Image over a `CALayer.render(in:)` bitmap rather than through
+`CALayer.filters`, which does not composite on iOS. Verified on P39 and P40; see
+those sections. `.shadow`, `.zIndex`, `.clipShape` and `.mask` are still
+absent.
 Every SwiftUI state change is implicitly animatable, so animation remains the
 widest behavioural divergence in the toolkit.
 
@@ -1754,7 +1760,7 @@ Expected results:
 - If Windows never reaches the final screenshot or cannot close cleanly, record
   it as the WinUI async WebView issue.
 
-## P39: Visual Effects (Linux and Windows)
+## P39: Visual Effects (Linux, Windows, macOS and iOS)
 
 Run:
 
@@ -1791,8 +1797,26 @@ Expected results:
   `winui-visual-effects-debug.log`), and at pixel level from a wincap
   screenshot: mean HSV saturation per cell reads 0.000 / 0.515 / 0.818 /
   0.992 for saturation 0, 0.5, control (=1) and 2.5 — a monotonic ladder.
+- **On macOS/AppKit, all nine cells should differ from the control**, measured
+  2026-09-02. `AppKitBackend+VisualEffects.swift` is one `CIFilter` chain on a
+  layer-backed container, with opacity on `alphaValue` so the subtree composites
+  as a group. If every cell including the identity control comes back blank,
+  suspect `layerUsesCoreImageFilters` being set when there is no filter to run —
+  that is what it looks like.
+- **On iOS/UIKit, all nine cells should differ from the control**, measured on
+  the iPhone 16 simulator 2026-09-02. Read the mechanism before judging a
+  failure here: `CALayer.filters` does **not** composite on iOS — that was
+  measured twice and is still true, `opacity 0.35` faded while `blur 3`,
+  `saturation 2.5`, `brightness 0.4`, `grayscale 1` and `hueRotation 120` came
+  back pixel-identical to the control. The effects work anyway because they are
+  no longer done that way: they run over a `CALayer.render(in:)` bitmap through
+  Core Image, with the result laid over the child and the child masked out by an
+  empty `CALayer` mask so it stays hit-testable. The consequence to expect is
+  that a filtered cell is a rendering refreshed on layout, not the live subtree,
+  so a Core Animation-driven animation inside one would appear frozen; `opacity`
+  does not take that path.
 
-## P40: Geometric Effects (Linux and Windows)
+## P40: Geometric Effects (Linux, Windows, macOS and iOS)
 
 Run:
 
@@ -1826,6 +1850,14 @@ Expected results:
   fallback color for a test case.
 - The transformed samples should not all have the same bounding box as the
   control tile.
+- **On macOS/AppKit and iOS/UIKit, all seven cells should render correctly**,
+  measured 2026-09-02 — on the Mac and on the iPhone 16 simulator. The check
+  that matters most is not "something moved": compare `rotate 30 centre` against
+  `rotate 30 topLeading`, which must **differ**. Wrong anchor arithmetic makes
+  those two identical, or throws the tile off screen, and either failure looks
+  like the transform working. A blank cell means the container's child was not
+  pinned on all four edges — the modifier's commit sizes the container and
+  nothing sizes what is inside it.
 
 ## P41: Date Picker Styles (Linux and Windows)
 

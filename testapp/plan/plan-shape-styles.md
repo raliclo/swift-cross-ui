@@ -9,12 +9,59 @@ is waiting on.
 
 ## Status
 
-**Design only. Nothing here is implemented.** Written 2026-09-01. Every claim
-about existing code below was checked against the tree that day and carries a
-`file:line`; anything not checked is marked as an assumption.
+**~~Design only. Nothing here is implemented.~~ Implemented 2026-09-02 on
+AppKitBackend and UIKitBackend, and the design below was not the one that
+shipped.** Written 2026-09-01. Every claim about existing code below was checked
+against the tree that day and carries a `file:line`; anything not checked is
+marked as an assumption. The document is kept as written, because the part it
+got wrong is the interesting part.
 
-**僅為設計，未實作任何內容。** 2026-09-01 撰寫。以下關於既有程式碼的每一項陳述都在當日對照過原始碼
-並附上 `file:line`；未經查證者均標示為假設。
+**What actually shipped**, in `02ee1b73`, written and measured on a Mac:
+
+- **The direct route, not the pattern-colour workaround.** Both backends draw in
+  `draw(_:)` with `CGGradient`, which takes both radii. `CAShapeLayer` cannot
+  paint a gradient and a masked `CAGradientLayer` cannot express the feature at
+  all — its `.radial` type is an ellipse between two points with **no start
+  radius**, so `radialGradient(startRadius:endRadius:)` is unsayable. The flat
+  case keeps the shape layer, untouched and as cheap as before.
+- **The y-axis warning below was the right thing to worry about and points the
+  wrong way round for UIKit.** AppKit's path arrives already flipped, so
+  `UnitPoint.top` is the **largest** y there; UIKit's y grows downward and
+  matches SwiftUI's unit space, so it is the **smallest** y there. One sign,
+  opposite in the two files.
+- **AppKit's stroke needed the `NSBezierPath.cgPath` note below acted on.**
+  It is macOS 14 and this package deploys to macOS 11, so the file carries its
+  own conversion, and the stroke parameters go on the context rather than on the
+  path or the outline comes out hairline-thin with the gradient shut inside it.
+- **Verified as this document asks**, with P43 on macOS and iOS: gradient circle
+  round, flat control unchanged, rectangle running red to blue — plus the
+  gradient **stroke** the last section asks for, which P43 gained in `c59f7cd9`
+  and which must be a ring with an empty middle.
+- **AndroidBackend still takes the flattening default**, so #66 is four backends
+  done and one to go.
+
+**~~僅為設計，未實作任何內容。~~ 已於 2026-09-02 在 AppKitBackend 與 UIKitBackend 實作，而實際
+出貨的並不是下方的設計。** 2026-09-01 撰寫。以下關於既有程式碼的每一項陳述都在當日對照過原始碼
+並附上 `file:line`；未經查證者均標示為假設。本文維持原樣保留，因為它猜錯的那一部分才是有價值的
+部分。
+
+**實際出貨的內容**（`02ee1b73`，在 Mac 上寫成並量測）：
+
+- **走的是直接路線，不是 pattern colour 的變通做法。** 兩個 backend 都在 `draw(_:)` 中以
+  `CGGradient` 繪製——它接受兩個半徑。`CAShapeLayer` 無法繪製漸層，而「以形狀遮蔽
+  `CAGradientLayer`」根本表達不了這項功能：它的 `.radial` 型別是一個從某點到另一點的橢圓，
+  **沒有起始半徑**，因此 `radialGradient(startRadius:endRadius:)` 無從表述。平面色的情況維持使用
+  shape layer，原封不動且維持原有成本。
+- **下方對 y 軸的警告擔心對了，但方向對 UIKit 而言是反的。** AppKit 的路徑抵達時已被翻轉，因此
+  `UnitPoint.top` 在那裡是**最大**的 y；UIKit 的 y 向下增長，與 SwiftUI 的單位空間一致，因此在
+  那裡是**最小**的 y。同一個正負號，在兩個檔案中相反。
+- **AppKit 的描邊確實需要照下方那則 `NSBezierPath.cgPath` 註記處理。** 它需要 macOS 14，而本套件
+  部署到 macOS 11，因此該檔自帶一份轉換；而且描邊參數要設在 context 上而非路徑上，否則輪廓會細
+  如髮絲，漸層被關在裡面。
+- **驗證方式如本文所要求**，於 macOS 與 iOS 上以 P43 進行：漸層圓形是圓的、平面色對照組未變、
+  矩形由紅跑到藍——再加上最後一節所要求的漸層**描邊**（P43 於 `c59f7cd9` 補上），而它必須是一個
+  中間空心的環。
+- **AndroidBackend 仍取用壓平的預設實作**，因此 #66 是四個 backend 完成、剩一個。
 
 ## What exists today
 
@@ -197,9 +244,13 @@ compiler disagrees with this document, this document is what is wrong.
 
 ## Run P43 before writing anything
 
-Nothing is broken on Mac today. Both backends take the additive default, so
+~~Nothing is broken on Mac today. Both backends take the additive default, so
 `Circle().fill(gradient)` compiles and draws — a flat circle in the gradient's
-midpoint colour, with one warning logged saying exactly that.
+midpoint colour, with one warning logged saying exactly that.~~ **True until
+2026-09-02; both backends implement the feature now.** The instruction below
+still stands for the one backend that does not — run the app first and look, so
+that "the left circle is flat purple" is a measurement rather than an
+expectation.
 
 `testapp/P43.swift` already exists and uses only cross-platform API, so
 building and capturing it on macOS gives the "before" picture: middle circle

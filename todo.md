@@ -96,6 +96,19 @@ gradient fill arrives. The real work is `renderPath` accepting something richer
 than two colours, across six backends, plus a gradient fill in each — which is
 its own project and not a matter of following a protocol shape.
 
+**That project is four backends done and one to go, as of 2026-09-02.**
+`renderPath` gained a `ResolvedFillStyle`-taking overload with a flattening
+default, so the signature change broke nothing: GtkBackend opted in first with
+Cairo, then WinUIBackend with XAML brushes, then AppKitBackend and UIKitBackend
+with `CGGradient`, the last two written **and measured on a Mac** rather than
+blind. Verified with P43 on macOS and iOS on 2026-09-02: the gradient circle is
+round, the flat control is unchanged, the rectangle runs red to blue, and the
+stroked circle is a ring with an empty middle. **AndroidBackend still takes the
+flattening default** — it draws a plausible flat shape and warns once — and is
+the one remaining gap; closing it needs a machine that can build and run
+Android. `ShapeStyle` itself is still unwritten; what has moved is the backend
+half it was waiting on.
+
 `ToggleStyle` was the one of the three that could be done, and it was the
 tidiest starting point of any style here: already a struct with `.switch`,
 `.button` and `.checkbox` statics and an `@_spi(Backends)` nested enum, so the
@@ -1048,9 +1061,11 @@ Still open in this area, all still with no protocol: `.shadow` (needs a `Shadow`
 value type), `.blendMode`, `.position` and `.zIndex`. Also absent:
 `.clipShape`, `.mask`, `.compositingGroup`, `.drawingGroup`.
 
-**AppKitBackend implements neither family. The `fatalError` is fixed; the
-conformances are still missing.** Both modifiers now degrade -- fixed
-2026-09-01, see below.
+**~~AppKitBackend implements neither family. The `fatalError` is fixed; the
+conformances are still missing.~~ Superseded 2026-09-02: AppKitBackend
+implements both families now, and so does UIKitBackend. See the end of this
+section for what each does and what was measured.** Both modifiers degraded
+first -- 2026-09-01, see below.
 Measured 2026-09-01 on the Mac: P30 and P39 abort at launch with
 `VisualEffectModifier.swift:89: Fatal error: 'AppKitBackend' does not implement
 'BackendFeatures.VisualEffects'`, and P40 with the same shape from
@@ -1086,9 +1101,11 @@ The macro is unchanged. Its `fatalError` is right where there is no fallback,
 which GtkBackend's WebView and AngularGradient both rely on; only the two
 modifiers that have somewhere to fall back to were changed.
 
-Still open: AppKitBackend implements neither conformance. Degrading means P30,
+~~Still open: AppKitBackend implements neither conformance. Degrading means P30,
 P39 and P40 show unmodified views, which is a truthful result rather than a
-correct one.
+correct one.~~ **Closed 2026-09-02.** The sentence is kept rather than deleted
+because it names the exact difference the fix had to close: a truthful result is
+not a correct one.
 
 **已於 2026-09-01 修復。** `VisualEffectModifier` 與 `GeometricEffectModifier` 在不支援的情況下
 不再經由 `@CastBackend`。它們會警告一次，並回傳未經包裝的子 widget，因此 view 平實地算繪，
@@ -1100,14 +1117,104 @@ P40 900x697——並各自印出
 macro 未做更動。在沒有退路之處，它的 `fatalError` 是對的，而 GtkBackend 的 WebView 與
 AngularGradient 都倚賴這一點；只有那兩個確實有退路可走的 modifier 被改動。
 
-仍未解決：AppKitBackend 兩個 conformance 都未實作。降級意味著 P30、P39 與 P40 顯示的是未經修飾
-的 view——那是一個誠實的結果，而不是一個正確的結果。
+~~仍未解決：AppKitBackend 兩個 conformance 都未實作。降級意味著 P30、P39 與 P40 顯示的是未經修飾
+的 view——那是一個誠實的結果，而不是一個正確的結果。~~ **已於 2026-09-02 關閉。** 這句話保留而不
+刪除，因為它正好點名了那次修正必須關閉的差距：誠實的結果不等於正確的結果。
 
 缺少 conformance 是預期之中的事；當時真正值得爭論的，是「對一個缺失的選用功能使用 `fatalError`」
 這一點。這棵樹裡其他每一項不受支援的東西都會降級並說明——`datePickerStyle(_:)` 會把不支援的樣式
 降級為 `.automatic`，而下方的 geometric-effects 一節更是長篇論證「寧可拒絕算繪，也不要算繪錯誤」。
 那兩者都讓 app 繼續執行。這一個則會中止行程，因此只要 app 中任何一處用到該視圖，在尚未實作它的
 backend 上就會拖垮整個 app，而 app 也無從退回任何替代方案，因為它根本沒有機會執行。
+
+**Implemented 2026-09-02: `VisualEffects` on AppKitBackend and on
+UIKitBackend.**
+
+**AppKitBackend** is one `CIFilter` chain on a layer-backed container.
+`CIColorControls` carries saturation, brightness and contrast together, because
+that one filter takes all three; grayscale is a separate `CIColorMonochrome` so
+it can land halfway and so it does not fight `.saturation`; hue is `CIHueAdjust`,
+in radians. Opacity goes through `alphaValue` rather than through a filter or
+`layer.opacity`, for the same reason GtkBackend uses `gtk_widget_set_opacity` --
+it composites the subtree as a group, which is what SwiftUI's `.opacity` does.
+`layerUsesCoreImageFilters` is set only when there is a filter to run; set
+unconditionally it blanked every cell, the identity control included. Verified
+against P39: all nine cells render and every effect is visibly distinct from the
+control.
+
+**UIKitBackend is not the same implementation, and the reason is a measurement
+that is still true.** `CALayer.filters` does not composite on iOS. The property
+exists in the headers on both platforms and only the AppKit compositor reads it,
+and that was measured twice rather than looked up: on the iPhone 16 simulator,
+`opacity 0.35` was visibly faded while `blur 3`, `saturation 2.5`,
+`brightness 0.4`, `grayscale 1` and `hueRotation 120` came back pixel-identical
+to the control. One of seven.
+
+What was wrong was the conclusion drawn from that measurement -- *therefore six
+effects have no path on iOS* -- and not the measurement itself. The route iOS
+does offer is to apply the filters to a **rendering** of the subtree rather than
+to the live layer: `CALayer.render(in:)` draws the child into a bitmap, the
+`CIFilter` chain runs over the bitmap, and the result becomes the contents of a
+layer laid over the child. The child is hidden with an **empty `CALayer` mask**
+rather than with `alpha` or `isHidden`, because `UIView.hitTest` skips a view at
+or below alpha 0.01 and both of those are stored on the layer, so there is no
+way to set them for drawing only; a mask layer with no content is transparent
+everywhere and hit testing does not know the difference. Measured on P39,
+2026-09-02: all nine of its cells now differ from the control.
+
+The cost is written into `Sources/UIKitBackend/UIKitBackend+VisualEffects.swift`
+rather than left implicit. The visible pixels are a rendering taken at a moment,
+refreshed whenever the container lays out -- which is every time the view graph
+writes a size or a position, so a state change inside a filtered container does
+reach the screen -- but an animation driven by Core Animation rather than by the
+view graph would freeze at whatever frame the last layout caught. `opacity` does
+not take this path and stays live.
+
+**"This platform has no API for this" survived a real measurement here and was
+still wrong.** That is the part worth carrying rather than the fix;
+`bugs/bug-UIkit.md` keeps it.
+
+**Still stale in the source tree, and not fixed by this document:**
+`Sources/UIKitBackend/UIKitBackend+GeometricEffects.swift` carries a doc comment
+saying `VisualEffects` is deliberately not implemented on iOS, with the
+`CALayer.filters` reasoning. It was true when written and is not now.
+
+**2026-09-02 實作：AppKitBackend 與 UIKitBackend 的 `VisualEffects`。**
+
+**AppKitBackend** 是一條套在 layer-backed container 上的 `CIFilter` 鏈。`CIColorControls` 一次
+承載 saturation、brightness 與 contrast，因為該 filter 三者都收；grayscale 另用
+`CIColorMonochrome`，如此它能停在中途，也不會與 `.saturation` 互相打架；hue 則是以弧度為單位的
+`CIHueAdjust`。opacity 走 `alphaValue`，而非 filter 或 `layer.opacity`——理由與 GtkBackend 使用
+`gtk_widget_set_opacity` 相同：它把子樹當作一組來合成，那正是 SwiftUI 的 `.opacity` 的語意。
+`layerUsesCoreImageFilters` 只在確實有 filter 要跑時才設定；無條件設定會讓每一格都變空白，連
+identity 對照格也不例外。已對 P39 驗證：九格全部算繪，且每一種效果都與對照格有可見差異。
+
+**UIKitBackend 不是同一份實作，而理由是一項至今仍然為真的量測。** `CALayer.filters` 在 iOS 上
+不參與合成。該屬性在兩個平台的標頭中都存在，但只有 AppKit 的合成器會讀取它；而這是量出來的、
+量了兩次，不是查來的：在 iPhone 16 模擬器上，`opacity 0.35` 明顯變淡，而 `blur 3`、
+`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格逐像素相同。
+七項中只有一項有效。
+
+錯的是由該量測所推出的結論——*因此 iOS 上有六項效果無路可走*——而不是量測本身。iOS 確實提供的
+路徑，是把 filter 套用在子樹的**算繪結果**上，而非套用在活的 layer 上：`CALayer.render(in:)` 把
+子元件畫進一張點陣圖，`CIFilter` 鏈在該點陣圖上執行，結果成為一個覆蓋在子元件之上的 layer 的
+內容。子元件則以一個**空的 `CALayer` mask** 隱藏，而非使用 `alpha` 或 `isHidden`，因為
+`UIView.hitTest` 會跳過 alpha 小於等於 0.01 的 view，而那兩者都儲存在 layer 上——沒有辦法只為
+繪製而設定它們；一個沒有內容的 mask layer 處處透明，hit testing 察覺不到差別。2026-09-02 於 P39
+量測：九格全部與對照格不同。
+
+代價寫在 `Sources/UIKitBackend/UIKitBackend+VisualEffects.swift` 裡，而不是留給人猜。看得見的
+像素是「某一刻的算繪結果」，會在容器每次排版時重新產生——而那是 view graph 每次寫入尺寸或位置
+時都會發生的事，因此被過濾的容器內部若有狀態變更，確實會反映到畫面上——但若容器內有一個由
+Core Animation 而非 view graph 驅動的動畫，它會凍結在最後一次排版所捕捉到的那一格。`opacity`
+不走這條路，維持即時。
+
+**「這個平台沒有對應的 API」在此處通過了一次真實的量測，卻依然是錯的。** 值得帶走的是這一點，
+而不是那次修正本身；`bugs/bug-UIkit.md` 保存了它。
+
+**原始碼樹中仍然過期、且本文件並未修正之處：**
+`Sources/UIKitBackend/UIKitBackend+GeometricEffects.swift` 的 doc comment 仍寫著 iOS 上刻意不實作
+`VisualEffects`，並附上 `CALayer.filters` 的理由。那在撰寫當時為真，如今不是。
 
 ### Geometric effects: done 2026-08-27, and GTK cannot render them
 
@@ -1124,6 +1231,25 @@ and never has to reproduce SwiftUI's anchor arithmetic.
 
 **WinUIBackend renders them correctly** -- rotation, scale and offset all
 verified in P40.
+
+**AppKitBackend and UIKitBackend render them too, 2026-09-02.** AppKit's is a
+`CATransform3D` and it needs two conversions, neither of which is optional: the
+transform arrives in a top-left, y-down space; a `CALayer` under a non-flipped
+`NSView` is bottom-left and y-up; and CoreAnimation applies a layer's transform
+about `anchorPoint` rather than about the origin. Both derivations are written
+out in the file. Verified against P40: offset moves right and down, rotation is
+clockwise, and "rotate 30 centre" and "rotate 30 topLeading" differ -- which is
+the signal that the anchor arithmetic is right, since a wrong one makes them
+identical or throws the tile off screen.
+
+UIKit's needs one conversion fewer, a UIKit layer already being top-left and
+y-down, but the same anchor-point correction. Both containers pin their child on
+all four edges, and that took two wrong guesses to find: the modifier's commit
+sizes the container and nothing sizes what is inside it, so with no constraints
+every cell was blank and the probe read `container=(0,0,200,109)` against
+`child=(0,109,0,0)`. Invisible on GTK, where a container sizes its child, and
+absent in the ordinary case, where the layout system owns both ends. Measured on
+P40 on the iPhone 16 simulator, 2026-09-02: all seven cells render correctly.
 
 **GtkBackend conforms and deliberately declines.** GTK 4 renders a transformed
 widget as a flat rectangle of hotpink, `rgb(255, 105, 180)`, losing its content

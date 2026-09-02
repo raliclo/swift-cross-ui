@@ -18,20 +18,26 @@ import UIKit
 /// CoreAnimation 是繞著 `anchorPoint`（預設為中心）套用 layer 的 transform，而傳入的 transform
 /// 是繞該 widget 原點的。
 ///
-/// ``BackendFeatures/VisualEffects`` is deliberately not implemented here. Six
-/// of its seven effects need Core Image running over a live layer, and
-/// `CALayer.filters` does not do that on iOS -- the property exists in the
-/// header but Core Image does not take part in iOS layer compositing, so
-/// assigning to it has no effect. A conformance that carried opacity and
-/// silently dropped blur, saturation, brightness, contrast, grayscale and hue
-/// would be worse than none, because it would also silence the warning that
-/// tells an application which of its effects did nothing.
+/// **A note that used to stand here said `VisualEffects` was deliberately not
+/// implemented on iOS.** Its premise was right and its conclusion was wrong,
+/// and both are worth keeping in view. `CALayer.filters` really does not
+/// composite on iOS -- the property is in the header and Core Image takes no
+/// part in iOS layer compositing, measured twice on P39 -- and the note went on
+/// to conclude that six of the seven effects therefore had no path. They had
+/// one: apply the filters to a rendering of the subtree rather than to the live
+/// layer. `UIKitBackend+VisualEffects.swift` does that, and all nine of P39's
+/// cells now differ from the control.
 ///
-/// 此處刻意不實作 ``BackendFeatures/VisualEffects``。其七種效果中有六種需要 Core Image 作用於
-/// 即時的 layer，而 `CALayer.filters` 在 iOS 上並不提供這件事——該屬性存在於標頭中，但 Core Image
-/// 並不參與 iOS 的 layer 合成，因此對它賦值不會有任何效果。一個「帶著 opacity、卻靜默丟棄 blur、
-/// saturation、brightness、contrast、grayscale 與 hue」的 conformance，會比完全不實作更糟，
-/// 因為它同時也會讓「告知應用程式哪些效果沒有生效」的那則警告消失。
+/// A measured platform limitation is still only a limitation of the route
+/// taken. See `bugs/bug-UIkit.md`.
+///
+/// **此處原本有一段說明，寫著 iOS 上刻意不實作 `VisualEffects`。** 它的前提是對的、結論是錯的，
+/// 而兩者都值得留在眼前。`CALayer.filters` 在 iOS 上確實不參與合成——該屬性存在於標頭中，而
+/// Core Image 並不參與 iOS 的 layer 合成，此事在 P39 上量過兩次——但那段說明接著推論「因此七種效果
+/// 中有六種無路可走」。它們有路：把 filter 套用在「子樹的算繪結果」上，而非套用在即時的 layer 上。
+/// `UIKitBackend+VisualEffects.swift` 就是這麼做的，而 P39 的九個格子現在全都與對照格不同。
+///
+/// 一項量測到的平台限制，終究只是「所走那條路」的限制。詳見 `bugs/bug-UIkit.md`。
 extension UIKitBackend: BackendFeatures.GeometricEffects {
     public func createGeometricEffectContainer(wrapping child: Widget) -> Widget {
         let container = createContainer()
