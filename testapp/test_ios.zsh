@@ -142,7 +142,27 @@ fi
 
 if [ "$do_build" -eq 1 ]; then
     printf '==> Building %s for the iOS Simulator\n' "$target"
-    zsh "$script_dir/compile.zsh" -ios "$target"
+    # SCUI_DEBUG=1, as the Android and macOS paths already do.
+    #
+    # Without it this rebuild silently replaced a debug build with one that has
+    # no debug features at all: `DebugFeatures.isCompiledIn` was false, so
+    # action-file replay and the view-mode button were compiled out. Measured
+    # 2026-09-02 -- an NSLog in the button's install path reported
+    # `isCompiledIn=0` after a `SCUI_DEBUG=1 compile.zsh -ios` build, because
+    # this line had rebuilt over it.
+    #
+    # The failure is silent in the worst way: `--actionfile` still parses and
+    # the run still reports success, it simply replays nothing.
+    #
+    # 加上 SCUI_DEBUG=1，與 Android 及 macOS 的路徑一致。
+    #
+    # 少了它，這次重建會靜默地把一個 debug 建置換成一個完全沒有 debug 功能的建置：
+    # `DebugFeatures.isCompiledIn` 為 false，因此動作檔重放與檢視模式按鈕都被編譯掉了。
+    # 2026-09-02 實測——在按鈕安裝路徑中放入 NSLog，於一次 `SCUI_DEBUG=1 compile.zsh -ios` 建置之後
+    # 仍回報 `isCompiledIn=0`，因為這一行把它重建覆蓋掉了。
+    #
+    # 這種失敗以最糟的方式保持沉默：`--actionfile` 仍會被解析、執行仍回報成功，只是什麼都沒有重放。
+    SCUI_DEBUG=1 zsh "$script_dir/compile.zsh" -ios "$target"
 fi
 
 source_app="$output_dir/${target}-ios.app/$target"

@@ -1,3 +1,4 @@
+import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import UIKit
 
@@ -5,6 +6,8 @@ final class RootViewController: UIViewController {
     unowned var backend: UIKitBackend
     var resizeHandler: ((CGSize) -> Void)?
     private var childWidget: (any WidgetProtocol)?
+    private let scrollHost = RootScrollHost()
+    private var viewModeButton: ViewModeButton?
 
     #if os(visionOS)
         init(backend: UIKitBackend) {
@@ -50,7 +53,36 @@ final class RootViewController: UIViewController {
         child.removeFromParentWidget()
 
         let childController = child.controller
-        view.addSubview(child.view)
+        // Hosted in a scroll view rather than added to `view` directly.
+        //
+        // Fourteen of the forty-six test apps are wider than a phone and were
+        // clipped at both edges -- content that cannot be reached cannot be
+        // tested. RootScrollHost keeps the content at its natural size and
+        // scrolls to it, and carries the rwdView mode that scales it to fit
+        // instead. See that file for why scaling is not reflowing.
+        //
+        // 放進捲動視圖中，而非直接加到 `view` 上。
+        //
+        // 四十六支測試 app 中有十四支比手機寬，並在左右兩側被裁切——碰不到的內容就是測不到的內容。
+        // RootScrollHost 讓內容保持自然尺寸並以捲動觸及，同時帶有「改為縮放以塞入」的 rwdView 模式。
+        // 為何「縮放」不等於「重新排版」，見該檔案的說明。
+        if scrollHost.superview == nil {
+            view.addSubview(scrollHost)
+            scrollHost.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                scrollHost.leadingAnchor.constraint(
+                    equalTo: view.safeAreaLayoutGuide.leadingAnchor
+                ),
+                scrollHost.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                scrollHost.widthAnchor.constraint(
+                    equalTo: view.safeAreaLayoutGuide.widthAnchor
+                ),
+                scrollHost.heightAnchor.constraint(
+                    equalTo: view.safeAreaLayoutGuide.heightAnchor
+                ),
+            ])
+        }
+        scrollHost.host(child.view)
         if let childController {
             addChild(childController)
             childController.didMove(toParent: self)
@@ -76,14 +108,91 @@ final class RootViewController: UIViewController {
         // 釘在安全區域而非 view 上，與 `size(ofWindow:)` 一致——後者回報的是
         // `safeAreaLayoutGuide.layoutFrame`。若尺寸釘在一個 guide、原點釘在另一個，在有瀏海的裝置上
         // 會使子元件位移一個瀏海的高度。
-        NSLayoutConstraint.activate([
-            child.view.leadingAnchor.constraint(
-                equalTo: view.safeAreaLayoutGuide.leadingAnchor
-            ),
-            child.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            child.view.widthAnchor.constraint(equalTo: view.safeAreaLayoutGuide.widthAnchor),
-            child.view.heightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.heightAnchor),
-        ])
+        // Sized against the safe area, positioned by RootScrollHost.
+        //
+        // The size stays as it was: the layout system is told the window is the
+        // safe area, `size(ofWindow:)` reports exactly that, and the child is
+        // laid out for it. What changes is that overflowing that size is now
+        // reachable rather than clipped.
+        //
+        // The origin is left to `layoutSubviews` rather than constrained,
+        // because rwdView applies a transform and a constrained origin fights
+        // the transform every pass.
+        //
+        // 尺寸對齊安全區域，位置則由 RootScrollHost 決定。
+        //
+        // 尺寸維持原樣：版面系統被告知的視窗即是安全區域，`size(ofWindow:)` 回報的正是它，子元件也
+        // 依此排版。改變的是——超出該尺寸的部分現在可以觸及，而不再被裁切。
+        //
+        // 原點交由 `layoutSubviews` 處理而不加以約束，因為 rwdView 會套用一個 transform，而被約束的
+        // 原點會在每一次版面計算中與該 transform 互相拉扯。
+        child.view.translatesAutoresizingMaskIntoConstraints = true
+        child.view.frame = CGRect(
+            origin: .zero,
+            size: view.safeAreaLayoutGuide.layoutFrame.size
+        )
+        child.view.autoresizingMask = []
+    }
+
+    /// Installed at layout time, not when the child is set.
+    ///
+    /// `setChild` runs before the view has ever laid out, so
+    /// `safeAreaLayoutGuide.layoutFrame` is still zero there and the button
+    /// landed at the origin instead of the top-right corner. Measured: the
+    /// button was in the hierarchy and not where it was meant to be.
+    ///
+    /// 於版面計算時安裝，而非在設定子元件時。
+    ///
+    /// `setChild` 執行於該 view 首次進行版面計算之前，因此此時 `safeAreaLayoutGuide.layoutFrame`
+    /// 仍為零，按鈕會落在原點而非右上角。實測結果：按鈕確實在階層中，只是不在它應在的位置。
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        installViewModeButtonIfDebugging()
+    }
+
+    /// Debug builds only. A release build has no floating control over its
+    /// content, which is the difference between a test affordance and a
+    /// feature.
+    /// 僅限 debug 建置。release 建置的內容之上不會浮著任何控制項——那正是「測試用輔助」與「產品功能」
+    /// 之間的分別。
+    private func installViewModeButtonIfDebugging() {
+        // `isCompiledIn`, not `isEnabled`.
+        //
+        // `isEnabled` also requires `--debug` on the command line, and an iOS
+        // app is launched by `simctl launch`, so that argument has to survive
+        // the harness, simctl and the app's own startup to arrive. Measured:
+        // the button did not appear with `-- --debug` passed, while action-file
+        // replay -- which is gated on `isCompiledIn` -- worked in the same run.
+        //
+        // The gate that matters is the build. A release build has no floating
+        // control over its content; a debug build is a build made for looking
+        // at, and having to remember a flag to see the control is friction with
+        // nothing on the other side of it.
+        //
+        // 使用 `isCompiledIn` 而非 `isEnabled`。
+        //
+        // `isEnabled` 還要求命令列上有 `--debug`，而 iOS app 是由 `simctl launch` 啟動的，該引數
+        // 必須一路通過 harness、simctl 與 app 自身的啟動流程才會抵達。實測：傳入 `-- --debug` 時
+        // 按鈕並未出現，而同一次執行中、以 `isCompiledIn` 為條件的動作檔重放卻正常運作。
+        //
+        // 真正該把關的是「建置」。release 建置的內容之上不會浮著任何控制項；而 debug 建置本就是
+        // 為了觀看而做的建置，若還要記得加一個旗標才看得到該控制項，那是只有摩擦、沒有收穫的設計。
+        guard DebugFeatures.isCompiledIn, viewModeButton == nil else { return }
+        let button = ViewModeButton.make(initial: scrollHost.mode) { [weak self] mode in
+            self?.scrollHost.setMode(mode)
+        }
+        view.addSubview(button)
+        // Top left by default, and draggable from there. It sits over the
+        // content wherever it starts, so the default is a choice about which
+        // corner is least likely to matter rather than one that avoids the
+        // problem.
+        // 預設位於左上角，並可自該處拖曳。無論從哪裡開始，它都會蓋在內容之上；因此這個預設值是
+        // 「選一個最不可能造成妨礙的角落」，而不是一個能迴避該問題的位置。
+        button.frame.origin = CGPoint(
+            x: view.safeAreaLayoutGuide.layoutFrame.minX + 8,
+            y: view.safeAreaLayoutGuide.layoutFrame.minY + 8
+        )
+        viewModeButton = button
     }
 }
 
