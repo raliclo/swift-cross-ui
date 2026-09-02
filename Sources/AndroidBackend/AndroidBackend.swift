@@ -228,7 +228,19 @@ public final class AndroidBackend: BaseAppBackend {
     public func setChild(ofWindow window: Window, to child: Widget) {
         let container = createContainer()
         insert(child, into: container, at: 0)
-        Self.activity.setContentView(container)
+
+        // Hosted in a scroll view rather than set as the content view directly.
+        // See `AndroidRootScrollHost` for what this is for and for the
+        // measurement behind it.
+        // 放進捲動視圖中，而不是直接設為 content view。此舉的用途與其背後的量測，見
+        // `AndroidRootScrollHost`。
+        Self.activity.setContentView(
+            AndroidRootScrollHost.wrap(
+                container,
+                activity: Self.activity,
+                environment: Self.env
+            )
+        )
         window.content = container
         updateInsets(ofWindow: window)
     }
@@ -467,9 +479,49 @@ public final class AndroidBackend: BaseAppBackend {
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
         guard let layoutParams = widget.getLayoutParams() else { return }
         let density = widget.getResources().getDisplayMetrics().density
-        layoutParams.width = Int32(Float(size.x) * density)
-        layoutParams.height = Int32(Float(size.y) * density)
+        layoutParams.width = Self.layoutLength(size.x, density: density)
+        layoutParams.height = Self.layoutLength(size.y, density: density)
         widget.setLayoutParams(layoutParams)
+    }
+
+    /// Points to pixels, except where the number is not a length.
+    ///
+    /// `ViewGroup.LayoutParams` overloads its width and height: `MATCH_PARENT`
+    /// is `-1` and `WRAP_CONTENT` is `-2`. They are sentinels, and multiplying
+    /// one by the display density turns it into the other -- at density 2.625,
+    /// `Int32(Float(-1) * 2.625)` is `-2`.
+    ///
+    /// So `updateInsets`, which asks for `MATCH_PARENT` on the root container,
+    /// was setting `WRAP_CONTENT` on it, on every device whose density is above
+    /// 1. The window rendered anyway while the content fitted, which is what
+    /// made it survive: a `WRAP_CONTENT` container is the size of its content,
+    /// and that looks identical to filling the parent until the content grows
+    /// past it.
+    ///
+    /// Measured on the emulator, 2026-09-03, before this line existed: nine
+    /// presses of P12's "Increment counter" left the page intact at 378953
+    /// non-white pixels, and the tenth -- where the count needs a second digit
+    /// -- emptied the window to 0. Pressing a tab button or a control with a
+    /// longer status line did the same. `adb shell input tap` did it too, so it
+    /// was never the action-file machinery. See `bugs/bug-Android.md`.
+    ///
+    /// 點轉換為像素，但「那個數字不是長度」的情況除外。
+    ///
+    /// `ViewGroup.LayoutParams` 的 width 與 height 是多載的：`MATCH_PARENT` 是 `-1`，
+    /// `WRAP_CONTENT` 是 `-2`。它們是哨兵值，而把其中一個乘上顯示密度會把它變成另一個——在密度
+    /// 2.625 下，`Int32(Float(-1) * 2.625)` 就是 `-2`。
+    ///
+    /// 因此 `updateInsets`（它為根容器要求的是 `MATCH_PARENT`）實際上把它設成了 `WRAP_CONTENT`，
+    /// 而且在每一台密度大於 1 的裝置上都是如此。視窗在內容塞得下時照樣算繪，這正是它能存活至今的
+    /// 原因：`WRAP_CONTENT` 的容器就是其內容的大小，而在內容尚未超出之前，那看起來與「填滿父容器」
+    /// 完全相同。
+    ///
+    /// 2026-09-03 於 emulator 上、在這一行存在之前量得：按 P12 的「Increment counter」九次，
+    /// 頁面完好，非白像素 378953；而第十次——計數需要第二位數時——把視窗清空為 0。按分頁按鈕、
+    /// 或按一個會讓狀態文字變長的控制項，結果相同。`adb shell input tap` 也一樣，因此這從來就不是
+    /// 動作檔機制的問題。詳見 `bugs/bug-Android.md`。
+    private static func layoutLength(_ points: Int, density: Float) -> Int32 {
+        points < 0 ? Int32(points) : Int32(Float(points) * density)
     }
 
     public func createButton() -> Widget {
