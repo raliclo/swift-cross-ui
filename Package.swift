@@ -549,6 +549,16 @@ if androidBackendSupported {
             dependencies: [
                 "SwiftCrossUI",
                 "AndroidBackendShim",
+                // For AndroidSynthesiser, which is registered with InputEvent's
+                // SynthesiserRegistry so `-actionfile` works here. InputEvent
+                // cannot build it itself: an Android touch is posted into a view
+                // hierarchy owned by this module's Activity, and InputEvent has
+                // no dependencies at all by design.
+                // 供 AndroidSynthesiser 使用；它會註冊到 InputEvent 的 SynthesiserRegistry，
+                // 使 `-actionfile` 在此處可用。InputEvent 無法自行建構它：Android 的觸控事件是
+                // 投遞進一個由本模組的 Activity 所擁有的 view 階層，而 InputEvent 依設計沒有任何
+                // 依賴。
+                "InputEvent",
                 .product(name: "Mutex", package: "swift-mutex"),
 
                 // These two dependencies have to be marked as only included on Android
@@ -566,7 +576,26 @@ if androidBackendSupported {
                     condition: .when(platforms: [.android])
                 ),
             ],
-            exclude: ["Kotlin"]
+            exclude: ["Kotlin"],
+            // `debugSwiftSettings`, as AppKitBackend and GtkBackend have.
+            //
+            // Without it `#if SCUI_DEBUG` is never true in this target, so the
+            // `ActionFileReplay.replayIfRequested()` call in `show(window:)`
+            // was compiled out. Measured: the flag arrived, CommandLine.arguments
+            // held it, the replay code was linked into libP12.so, "Show window"
+            // was logged, and nothing replayed -- because the one line that
+            // starts a replay was not in the build. A gate that is written and
+            // never true is the same failure as an option that is parsed and
+            // dropped.
+            //
+            // 加上 `debugSwiftSettings`，與 AppKitBackend、GtkBackend 相同。
+            //
+            // 少了它，`#if SCUI_DEBUG` 在本 target 中永遠不為真，因此 `show(window:)` 中的
+            // `ActionFileReplay.replayIfRequested()` 呼叫被編譯掉了。實測：旗標送達了、
+            // CommandLine.arguments 也持有它、重放程式碼也連結進了 libP12.so、"Show window" 也記錄了，
+            // 而什麼都沒重放——因為「啟動重放的那一行」根本不在這個建置裡。一個寫了卻永不為真的閘門，
+            // 與一個被解析後丟掉的選項，是同一種失敗。
+            swiftSettings: debugSwiftSettings
         ),
         .target(name: "AndroidBackendShim"),
     ]

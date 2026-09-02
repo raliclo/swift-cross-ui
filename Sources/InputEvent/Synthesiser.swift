@@ -257,8 +257,63 @@ public func makeSynthesiser(layoutScale: Double? = nil) throws -> any Synthesise
     #elseif os(macOS)
         return AppKitSynthesiser()
     #else
+        if let registered = try SynthesiserRegistry.make(layoutScale: layoutScale) {
+            return registered
+        }
         throw SynthesiserError.unsupported("input synthesis on this platform")
     #endif
+}
+
+/// Where a backend supplies the synthesiser this module cannot build itself.
+///
+/// The three implementations above are written against system APIs this module
+/// can reach on its own: `SendInput`, XTEST through a subprocess, and AppKit.
+/// Android is not like that. Its events are posted into a view hierarchy owned
+/// by an `Activity`, and the activity belongs to `AndroidBackend` -- which
+/// depends on this module, so this module cannot depend back on it.
+///
+/// Registration inverts that without weakening the guarantee the `#else` branch
+/// makes: a platform with nothing registered still throws, rather than
+/// returning something that quietly does nothing.
+///
+/// **Only consulted where there is no built-in implementation.** Windows, Linux
+/// and macOS never reach it, so registering cannot change what already works.
+///
+/// 由 backend 提供本模組自己建構不出來的 synthesiser 之處。
+///
+/// 上方三個實作所依據的系統 API，本模組都能自行取得：`SendInput`、經由子行程的 XTEST，以及 AppKit。
+/// Android 不是這樣。它的事件是投遞進一個由 `Activity` 所擁有的 view 階層，而該 activity 屬於
+/// `AndroidBackend`——後者依賴本模組，因此本模組無法反過來依賴它。
+///
+/// 註冊機制把這個方向倒過來，同時不削弱 `#else` 分支所做的保證：沒有註冊任何東西的平台依然會拋出
+/// 錯誤，而不是回傳一個安靜地什麼也不做的東西。
+///
+/// **僅在沒有內建實作之處才會被查詢。** Windows、Linux 與 macOS 永遠不會走到這裡，因此註冊不可能
+/// 改變任何已經能運作的東西。
+public enum SynthesiserRegistry {
+    private final class Storage: @unchecked Sendable {
+        var factory: (@Sendable (Double?) throws -> any Synthesiser)?
+        let lock = NSLock()
+    }
+
+    private static let storage = Storage()
+
+    /// Installs the factory. Called once, by a backend, during start-up.
+    /// 安裝該工廠函式。由 backend 在啟動時呼叫一次。
+    public static func register(
+        _ factory: @escaping @Sendable (Double?) throws -> any Synthesiser
+    ) {
+        storage.lock.lock()
+        defer { storage.lock.unlock() }
+        storage.factory = factory
+    }
+
+    static func make(layoutScale: Double?) throws -> (any Synthesiser)? {
+        storage.lock.lock()
+        let factory = storage.factory
+        storage.lock.unlock()
+        return try factory?(layoutScale)
+    }
 }
 
 public enum SynthesiserError: Error, CustomStringConvertible {

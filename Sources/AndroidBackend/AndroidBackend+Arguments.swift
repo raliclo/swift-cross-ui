@@ -89,7 +89,35 @@ enum AndroidLaunchArguments {
         // 可問：Android app 沒有主控台，而「沒送達的旗標」與「送達了卻什麼都沒做的旗標」看起來
         // 完全一樣。`adb shell am start` 很樂意把那個 extra 弄壞——未加引號的值會被裝置端的 shell
         // 重新斷詞，接著 `am` 就把 `-actionfile` 讀成 `-a ctionfile`——而唯一的證據就是這一行。
+        // Assigned, not just handed to `main`.
+        //
+        // `CommandLine.arguments` does not come from the argv `main` was called
+        // with. On Android the Swift runtime captures argc/argv at real process
+        // entry -- the JVM's, whose command line is the package name -- and
+        // `main` here is called later, from JNI, with an argv this file built.
+        // So passing argv alone left `CommandLine.arguments` reading
+        // "dev.swiftcrossui.testapp.p12" and every flag invisible. Measured:
+        // the launch-argument line below printed the flags, the replay never
+        // started, and the built library contained the replay code all along.
+        //
+        // `CommandLine.arguments` is a stored `static var` in the standard
+        // library, so it can be replaced. argv is still passed to `main` for
+        // anything that reads argv directly.
+        //
+        // 直接指派，而不只是交給 `main`。
+        //
+        // `CommandLine.arguments` 並非來自呼叫 `main` 時所帶的 argv。在 Android 上，Swift runtime
+        // 是在「真正的行程進入點」捕捉 argc/argv 的——也就是 JVM 的，其命令列是套件名稱——而此處的
+        // `main` 是稍後由 JNI 呼叫、帶著本檔所建構的 argv。因此只傳 argv 會讓
+        // `CommandLine.arguments` 讀到 "dev.swiftcrossui.testapp.p12"，所有旗標都不可見。實測：
+        // 下方那行 launch argument 印出了旗標、重放卻從未開始，而已建置的函式庫自始就含有重放程式碼。
+        //
+        // `CommandLine.arguments` 在標準函式庫中是一個已儲存的 `static var`，因此可以被取代。argv
+        // 仍然會傳給 `main`，供任何直接讀取 argv 的東西使用。
+        CommandLine.arguments = arguments
+
         log("launch arguments: \(arguments.dropFirst().joined(separator: " "))")
+        log("CommandLine.arguments: \(CommandLine.arguments.joined(separator: " "))")
 
         return arguments
     }

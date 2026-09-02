@@ -1,5 +1,6 @@
 import Android
 import Foundation
+import InputEvent
 @_spi(Backends) import SwiftCrossUI
 import AndroidKit
 import AndroidGraphics
@@ -74,6 +75,13 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
     // 出來：下游的一切都讀取 `CommandLine.arguments`，因此在 Android 上 `--debug` 從未被看見、
     // `DebugFeatures.isEnabled` 恆為 false，而 `-actionfile` 根本無法送達——同時
     // `test_android.zsh` 卻接受了該旗標並把它丟掉。詳見 `AndroidBackend+Arguments.swift`。
+    // Registered before `main`, so a replay scheduled by the first window has a
+    // synthesiser to find. See `AndroidSynthesiser`.
+    // 在 `main` 之前註冊，使「由第一個視窗排定的重放」找得到 synthesiser。詳見 `AndroidSynthesiser`。
+    SynthesiserRegistry.register { layoutScale in
+        AndroidSynthesiser(layoutScale: layoutScale)
+    }
+
     let arguments = AndroidLaunchArguments.read(from: AndroidBackend.activity)
     AndroidLaunchArguments.withArgv(arguments) { argc, argv in
         main(argc, argv)
@@ -276,6 +284,15 @@ public final class AndroidBackend: BaseAppBackend {
 
     public func show(window: Window) {
         log("Show window")
+
+        #if SCUI_DEBUG
+            // Only ever fires for the first window, and only when -actionfile
+            // was passed. See InputEvent's ActionFileReplay. AppKitBackend and
+            // WinUIBackend do the same thing in the same place.
+            // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
+            // AppKitBackend 與 WinUIBackend 在同一個位置做同一件事。
+            ActionFileReplay.replayIfRequested()
+        #endif
     }
 
     public func activate(window: Window) {}
