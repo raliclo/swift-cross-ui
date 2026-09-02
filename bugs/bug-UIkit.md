@@ -56,6 +56,66 @@ filter 鏈確實掛上去了，然後被忽略。
 剩下的三條路徑與其代價見上方英文表格。三者皆尚未嘗試。第二條是最可能的候選，而應先量測的正是它的
 代價：光柵化後的子樹是否仍能參與版面與 hit test，以及每一次狀態變更所需的重新擷取成本為何。
 
+## Open: a tap on a `List` row does not select it
+
+Measured 2026-09-02 on the iPhone 16 simulator, against P7.
+
+| what was done | result |
+| --- | --- |
+| launch, touch nothing | no row highlighted — correct, and the answer to #476 on iOS |
+| tap the Cherry row at (76, 639) | nothing: no highlight, no status change |
+| press "Select Cherry", which sets the binding from code | Cherry highlighted grey |
+
+So `setSelectedItem(ofSelectableListView:toItemAt:)` works and a selection
+renders; what does not happen is the delegate callback for a user's tap. The
+tap coordinate was inside the same rectangle the button went on to highlight,
+so this is not a missed target.
+
+`UIKitBackend+List.swift` looks right at a reading: `createSelectableListView`
+sets `delegate` and `dataSource` to the `UICustomTableViewDelegate`, sets
+`allowSelections = true`, and `willSelectRowAt` calls the handler and returns
+the path. `updateSelectableListView` then overwrites `allowSelections` with
+`environment.isEnabled`, which is the first thing to check — but P7's list is
+not disabled, so that is a suspect rather than an answer.
+
+The other candidate is ordering: a tap changes the binding, the view graph runs
+`setItems`, and `setItems` calls `reloadData()`, which clears a table view's
+visual selection. If `setSelectedItem` runs before `setItems` in that pass, the
+highlight is written and then wiped. That would explain why the button works
+and the tap does not only if the two take different paths through the update,
+which has not been checked yet.
+
+`testapp/actions/ios/P7-select-cherry-from-code.csv` deliberately does not tap
+the row. A file that taps and claims nothing is a file that passes while the
+feature is broken.
+
+## 未解：點按 `List` 的列並不會選取它
+
+2026-09-02 於 iPhone 16 模擬器上針對 P7 量測。
+
+| 所做的事 | 結果 |
+| --- | --- |
+| 啟動、不碰任何東西 | 沒有任何一列被標示——正確，也是 #476 在 iOS 上的答案 |
+| 在 (76, 639) 點按 Cherry 那一列 | 什麼都沒有：沒有標示，狀態也沒變 |
+| 按下「Select Cherry」，由程式碼設定 binding | Cherry 被標示為灰色 |
+
+因此 `setSelectedItem(ofSelectableListView:toItemAt:)` 是正常的，選取也確實會被算繪；沒有發生的是
+「使用者點按」所對應的 delegate callback。該點按座標落在按鈕稍後所標示的同一個矩形內，因此這不是
+沒點中。
+
+`UIKitBackend+List.swift` 就閱讀而言看起來是對的：`createSelectableListView` 把 `delegate` 與
+`dataSource` 設為 `UICustomTableViewDelegate`、設定 `allowSelections = true`，而 `willSelectRowAt`
+會呼叫 handler 並回傳該 path。接著 `updateSelectableListView` 會以 `environment.isEnabled` 覆寫
+`allowSelections`，那是第一個該查的地方——但 P7 的 list 並未被停用，所以那是嫌疑而非答案。
+
+另一個可能是順序問題：點按改變 binding，view graph 執行 `setItems`，而 `setItems` 會呼叫
+`reloadData()`，那會清除 table view 的視覺選取。若在該次更新中 `setSelectedItem` 先於 `setItems`
+執行，標示就會先被寫上、再被抹掉。但這只有在「按鈕」與「點按」兩者走的更新路徑不同時才能解釋兩者
+的差異，而那一點尚未查證。
+
+`testapp/actions/ios/P7-select-cherry-from-code.csv` 刻意不去點按該列。一份「點了卻不主張任何事」的
+檔案，會是一份在功能損壞時依然通過的檔案。
+
 ## Fixed 2026-09-02
 
 - **`createToggle` was a `fatalError`.** Six apps — P12, P13, P16, P21, P23,

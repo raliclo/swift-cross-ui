@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7: press "Select Cherry", which sets the binding from code.
+#
+# #476 is "the List control starts with the first item already selected, even
+# though no selection was set". The at-rest capture answers that on iOS: no row
+# is highlighted at launch. This row answers the other half -- that a selection
+# which *is* set renders -- so the two together say the highlight tracks the
+# binding rather than appearing on its own.
+#
+# **A tap on the row itself does not select, and that was measured, not
+# assumed.** The first version of this file tapped Cherry in the plain List at
+# (76, 639), inside the same rectangle that this file's button goes on to
+# highlight. Nothing happened: no highlight, no status change. The button then
+# highlighted the row grey on the very next run, so `setSelectedItem` and the
+# rendering of a selection both work; what does not is the delegate callback
+# for a user's tap. Recorded in bugs/bug-UIkit.md rather than worked around
+# here, because a file that taps a row and claims nothing would be a file that
+# passes while the feature is broken.
+#
+# P7 did not run on iOS at all until 2026-09-02. It uses NavigationSplitView,
+# and `createSplitView` trapped on a precondition that the idiom is not
+# `.phone` before drawing anything.
+#
+# Measured 2026-09-02 from testapp/output/screenshots/p7-ios-final-*.png.
+# iPhone 16 simulator, window 393 x 852 pt, capture 1179 x 2556 px, so px/3.
+# origin=client, mode actualView (the default).
+#
+# P7：按下「Select Cherry」，它會由程式碼設定該 binding。
+#
+# #476 是「List 控制項一開始就已選取第一項，即使沒有設定任何選取」。靜止狀態的擷取畫面在 iOS 上
+# 回答了這一點：啟動時沒有任何一列被標示。本列回答另一半——「確實被設定的選取會被算繪出來」——
+# 因此兩者合起來說明：標示是跟隨 binding 的，而不是自己冒出來的。
+#
+# **點按列本身並不會造成選取，而這是量出來的，不是假設的。** 本檔的第一版是在 (76, 639) 點按純
+# List 中的 Cherry，那個位置就落在本檔的按鈕稍後所標示的同一個矩形內。什麼都沒發生：沒有標示，
+# 狀態也沒變。而下一次執行時，該按鈕立刻把那一列標示成灰色，因此 `setSelectedItem` 與「選取的
+# 算繪」兩者都正常；不正常的是「使用者點按」所對應的 delegate callback。此事記錄於
+# bugs/bug-UIkit.md，而非在此處繞過——因為一份「點了一列卻不主張任何事」的檔案，會是一份在功能
+# 損壞時依然通過的檔案。
+#
+# 直到 2026-09-02 之前，P7 在 iOS 上根本跑不起來。它使用 NavigationSplitView，而 `createSplitView`
+# 會在畫出任何東西之前，因一個「idiom 不是 `.phone`」的 precondition 而中止。
+#
+# 2026-09-02 量自 testapp/output/screenshots/p7-ios-final-*.png。
+# iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
+# origin=client，模式為 actualView（預設）。
+click,338,759,client,left,,,"Select Cherry -- the Cherry row of the plain List must be highlighted and no other row may be (VERIFIED: grey highlight on Cherry, status reads Set selection to Ch...)",ios
+sleep,,,,,,700000,let the row highlight,ios
