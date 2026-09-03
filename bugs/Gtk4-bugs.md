@@ -735,3 +735,263 @@ top-level 視窗，且小於擁有它的視窗，因此該啟發式永遠選不�
 
 **驗證修正時請用擷圖，不要用 log。** P31 會記錄 `alert opened`，卻沒有任何一行對應關閉，因此無論
 Escape 是否生效，log 看起來完全一樣。
+
+### Resolved 2026-09-04, and two claims above were wrong
+
+The wall is down. What removed it was a **dump before a fix**: a candidate list
+printed from inside `Win32Synthesiser.ownWindow()` itself, behind `-actionfile`
+plus `--debug`, so it reports the real decision at the real moment rather than an
+approximation from another process. Driving P1 once produced this, with the sheet
+up:
+
+```
+window 0x…0065a 648x549@234,234 class=gdkSurfaceToplevel enabled=true  owner=none      enabledPopup=0x…50d4c
+window 0x…50d4c 428x174@344,421 class=gdkSurfaceToplevel enabled=true  owner=0x…0065a  enabledPopup=none
+```
+
+Two things written above as findings are refuted by it, and both are left in
+place rather than edited away, because a plausible wrong diagnosis is worth more
+on the page than a silent correction:
+
+- **"the main window's controls grey out behind it" / focus is stolen from a
+  disabled owner.** The owner measures `enabled=true`. GTK4 does modality with
+  its own grab and never calls `EnableWindow` on Win32. The greying is GTK's
+  styling, not a Windows window state, and code that tested `IsWindowEnabled`
+  would have found nothing wrong.
+- **`GW_ENABLEDPOPUP` "was tried and was ineffective"** — the reason it was
+  removed. It is not ineffective: the owner reports the sheet by handle,
+  exactly as documented. It was removed without any dump to say whether the call
+  had answered, so an unrelated failure was attributed to it.
+
+**Why the first attempt genuinely did nothing, which is the part worth keeping.**
+The defect was in *two* places, and fixing either alone is invisible:
+
+1. `ownWindow()` returned the largest-area window, and a dialog is smaller than
+   its owner — 428x174 against 648x549 — so the owner always won.
+2. `ActionFileReplay` reads geometry **once** (`ActionFileReplay.swift:116`) and
+   `Synthesiser.replay(_:in:)` reuses it for every action. So fixing (1) only
+   changes which window `SetForegroundWindow` targets; every coordinate stays
+   resolved against the owner's frame origin.
+
+Fixed by following `GW_ENABLEDPOPUP` transitively (dialogs nest — P1's sheet
+opens another) and by re-measuring geometry **when the target window changes and
+only then**. Per action would break the case the code documents: a file that
+drags a window by its title bar and then clicks would measure that click against
+the new position. A window that merely moved keeps its `HWND`, so those files are
+untouched.
+
+Proven by arithmetic on measured numbers, not by "it looked right". With the
+sheet at `428x174@318,395`, a second click written as `frame=(324,330)` resolved
+to screen `(642,725)` — 318+324 and 395+330. Before the change the same row
+resolved against the owner.
+
+### A second defect, which this uncovered and which was a suspicion since 2026-09-03
+
+`prepareForReplay` pins its window `HWND_TOPMOST`. **A dialog opened afterwards is
+not pinned, so the app's own main window covers its own modal.** Measured
+2026-09-04: P1's sheet existed at `428x174@162,239` — Win32 reported it and
+`GW_ENABLEDPOPUP` named it — and a desktop capture taken while it was up shows no
+sheet at all, only the main window's buttons occupying that rectangle.
+
+`testapp/actions/win/P5-stacked-alerts.csv` has carried this as a stated risk
+since 2026-09-03: *"If the capture shows no alert, that is the first thing to
+suspect rather than a click that missed."* It was right. Fixed by re-running
+`prepareForReplay` when the target window changes, which pins the new target.
+
+### The symptom this section opens with was not a bug either
+
+The first paragraph reports *"Escape does not dismiss a `.alert`. The alert stays
+open … and the replay reports nothing wrong."* That is the behaviour GtkBackend
+is written to have, in **two** independent places:
+
+- `createAlert` installs a shortcut controller whose entire purpose is to
+  *"disable the default Escape-to-close action"* (`GtkBackend.swift:3287`).
+- `present` drops response id `-4` with *"Ignore escape key for now"*
+  (`GtkBackend.swift:3339`).
+
+Both give the same reason: until an alert knows which of its buttons is the
+cancel action, Escape has nothing correct to do. So an alert still standing after
+Escape is a **pass**, and "the replay reports nothing wrong" was accurate — there
+was nothing wrong to report. The diagnosis that followed happened to be right
+about the synthesiser, but it was reached from a symptom that was never a defect,
+and `testapp/actions/win/P31-tab-and-escape.csv` then asserted the opposite of
+the backend's stated behaviour for a day.
+
+What P31 can now assert instead, and could not before 2026-09-04: pressing the
+alert's **OK** button. Measured, running that file:
+
+```
+P31 … alert opened
+P31 … alert OK
+```
+
+The app writes `alert OK` from the button's own handler, so nothing but a press
+on that button produces it. That is the first time any file in this tree has
+pressed a control inside a dialog.
+
+### Retracted the same day: "P1's first synthesised click is consumed"
+
+**There is no such defect.** This section carried one for about two hours on
+2026-09-04, with a table of measurements behind it, and every number in it was
+real. The conclusion was still false, and the way it went wrong is worth more
+than the claim was.
+
+What was written, and what it rested on — interleaved, three rounds each:
+
+| file | sheet observed |
+|---|---|
+| one click on "Open root sheet" | **0/3** |
+| the same click twice, 600 ms apart | **3/3** |
+| a `move` to the button, then one click | **0/3** |
+
+Read as: only a preceding *click* helps, so the first press is being swallowed.
+It even survived a control — `P35`'s single click gives `count=1` **3/3** — which
+made it look app-specific rather than like a mistake.
+
+**The instrument had stopped, and the column head says "sheet observed" for a
+reason.** Identity is checked *before* each action, so a file whose last action
+is the sleep that waits for the dialog never observes it: the check ran while it
+was still mapping. The one thing that used to look afterwards was
+`finishReplay`, which called `ownWindow()` and dumped as a side effect — and the
+fix two sections up replaced that call with a `visibleWindows()` loop. Correct in
+itself, and a real fix. It also silently deleted the only observation point after
+the last action.
+
+So the two-click file was not proving that two clicks are needed. It was proving
+that a *second action* gives the checker a second chance to look.
+
+Re-measured with one extra `sleep` row, so a check runs after the sheet has
+mapped: **one click, 3/3.** The click had worked every time.
+
+`WindowFromPoint` at the moment of the press returns our own window and equals
+`GetForegroundWindow()`, so the press was never misdirected either — a fact that
+would have refuted the claim on its own, and was only gathered afterwards.
+
+`finishReplay` now dumps again, deliberately and with the reason written beside
+it. `GetActiveWindow()` is printed too but says nothing here: it is per
+*thread*, and the replay runs on a background queue, so `active=none` is expected
+and is not evidence of anything.
+
+**The general shape, which this file has now recorded three times in one day:** a
+negative that came from a check that was no longer running. `-tail 45` on a
+47-row file, a `grep` for a string that appears either way, and now a diagnostic
+removed by an unrelated fix. None of them errored. All three produced a plausible
+number. The guard is the same each time — *establish that the check can still
+fail before believing that it passed* — and it is cheap: one extra action row was
+the whole cost here.
+
+---
+
+### 2026-09-04 已解決，且上文有兩項主張是錯的
+
+這道牆倒了。讓它倒下的是**先傾印、後修正**：在 `Win32Synthesiser.ownWindow()` 內部印出候選清單，
+置於 `-actionfile` 加 `--debug` 之後，因此它回報的是**真正的決策、在真正的時刻**，而不是從另一個
+行程做出的近似。驅動 P1 一次，在 sheet 開啟時得到：
+
+```
+window 0x…0065a 648x549@234,234 class=gdkSurfaceToplevel enabled=true  owner=none      enabledPopup=0x…50d4c
+window 0x…50d4c 428x174@344,421 class=gdkSurfaceToplevel enabled=true  owner=0x…0065a  enabledPopup=none
+```
+
+上文有兩項被當成「發現」寫下的東西被它推翻，而兩者都**原文保留**而非改寫，因為一個看似合理的錯誤
+診斷留在頁面上，比一次無聲的更正更有價值：
+
+- **「主視窗的控制項在它後方變灰」／焦點被從一個已停用的擁有者手上搶走。** 擁有者實測為
+  `enabled=true`。GTK4 以自己的 grab 處理 modality，在 Win32 上從不呼叫 `EnableWindow`。變灰是
+  GTK 的樣式，不是 Windows 的視窗狀態；一段去檢查 `IsWindowEnabled` 的程式碼，什麼異常都找不到。
+- **`GW_ENABLEDPOPUP`「試過且無效」** ——那正是它被移除的理由。它並非無效：擁有者確實以 handle
+  指名了該 sheet，與文件所述完全一致。它是在**沒有任何傾印可以判斷「該呼叫是否回答了」**的情況下
+  被移除的，於是一項無關的失敗被歸咎到它頭上。
+
+**第一次嘗試之所以真的毫無作用，這才是值得留下的部分。** 缺陷位於**兩個**地方，只修其中之一是
+看不見的：
+
+1. `ownWindow()` 回傳面積最大的視窗，而對話框比其擁有者更小——428x174 對 648x549——因此擁有者
+   永遠勝出。
+2. `ActionFileReplay` 只讀取幾何**一次**（`ActionFileReplay.swift:116`），而
+   `Synthesiser.replay(_:in:)` 對每一個動作重複使用它。因此只修 (1)，改變的僅是
+   `SetForegroundWindow` 指向哪個視窗；每一個座標仍以擁有者的框架原點來解析。
+
+修法是遞移地追隨 `GW_ENABLEDPOPUP`（對話框會巢狀——P1 的 sheet 會再開一個），並且**只在目標視窗
+改變時**重新量測幾何。逐動作重量會破壞程式碼所載明的情境：一份「以標題列拖曳視窗後再點擊」的檔案，
+會把該次點擊對到新位置。而僅僅移動過的視窗其 `HWND` 不變，因此那些檔案完全不受影響。
+
+以實測數字的**算術**證明，而非「看起來對」。sheet 位於 `428x174@318,395` 時，一列寫成
+`frame=(324,330)` 的第二次點擊解析為螢幕 `(642,725)`——即 318+324 與 395+330。改動之前，同一列
+是對著擁有者解析的。
+
+### 第二個缺陷，由此順帶揭出，且自 2026-09-03 起就是一項懷疑
+
+`prepareForReplay` 會把它的視窗釘為 `HWND_TOPMOST`。**其後才開啟的對話框不會被釘，於是 app 自己的
+主視窗蓋住了自己的 modal。** 2026-09-04 實測：P1 的 sheet 確實存在於 `428x174@162,239`——Win32
+如此回報，`GW_ENABLEDPOPUP` 也指名了它——而在它開啟期間所取的桌面擷圖中，完全看不到任何 sheet，
+那個矩形裡只有主視窗的按鈕。
+
+`testapp/actions/win/P5-stacked-alerts.csv` 自 2026-09-03 起就把這件事寫成明列的風險：
+「**若擷圖看不到 alert，這是第一個該懷疑的東西，而不是懷疑點擊沒中。**」它是對的。修法是在目標
+視窗改變時重新執行 `prepareForReplay`，以釘住新的目標。
+
+### 本節開頭的那個症狀，也不是缺陷
+
+第一段回報：「**Escape 無法關閉 `.alert`。alert 持續開啟……而重放不回報任何異常。**」那正是
+GtkBackend 被寫成要有的行為，而且出現在**兩個**獨立的地方：
+
+- `createAlert` 安裝了一個 shortcut controller，其存在的全部目的就是「**停用預設的
+  Escape 關閉行為**」（`GtkBackend.swift:3287`）。
+- `present` 會丟棄 response id `-4`，註明「**Ignore escape key for now**」
+  （`GtkBackend.swift:3339`）。
+
+兩者給的理由相同：在 alert 尚不知道自己哪一顆按鈕是取消動作之前，Escape 沒有正確的事可做。
+因此**按下 Escape 後 alert 仍然站著是通過**，而「重放不回報任何異常」也是準確的——本來就沒有
+異常可報。其後的診斷雖然在「合成器」這件事上碰巧是對的，但它是從一個**從來就不是缺陷**的症狀
+出發的；而 `testapp/actions/win/P31-tab-and-escape.csv` 因此有整整一天在主張與 backend 明文
+行為相反的事。
+
+P31 現在能改為主張、而在 2026-09-04 之前寫不出來的東西：按下 alert 的 **OK** 按鈕。實測，
+以該檔案執行：
+
+```
+P31 … alert opened
+P31 … alert OK
+```
+
+`alert OK` 是 app 從該按鈕自己的 handler 寫出的，因此除了「按到那一顆」之外，沒有任何東西能
+產生它。這是本樹中第一次有檔案按下了對話框**內部**的控制項。
+
+### 同日撤回：「P1 的第一次合成點擊被吞掉」
+
+**不存在這個缺陷。** 2026-09-04 當天，本節帶著這樣一個缺陷約兩個小時，背後還附有一張量測表，
+而表中每一個數字都是真的。結論依然是**假的**；而它出錯的方式，比那個主張本身更有價值。
+
+當初寫下的內容，以及它所依據的東西——交錯量測，各三輪：
+
+| 檔案 | 是否**觀察到** sheet |
+|---|---|
+| 對「Open root sheet」點一次 | **0/3** |
+| 同一個點擊做兩次，相隔 600 毫秒 | **3/3** |
+| 先 `move` 到按鈕，再點一次 | **0/3** |
+
+當時的解讀是：只有先來一次「點擊」才有用，所以第一次按壓被吞掉了。它甚至通過了一個對照組
+——`P35` 的單次點擊給出 `count=1`，**3/3**——這讓它看起來像是「該 app 專有」，而非一個錯誤。
+
+**是儀器停了；而那一欄的標題寫「是否**觀察到**」正是原因。** identity 是在每個動作**之前**
+檢查的，因此一份「最後一個動作是等待對話框的 sleep」的檔案，永遠不會觀察到它：檢查發生在它
+還在 map 的時候。唯一會在其後再看一眼的東西是 `finishReplay`——它呼叫 `ownWindow()`，而後者
+會順帶輸出傾印——而上面兩節的那個修正，把該呼叫換成了 `visibleWindows()` 迴圈。那本身是正確
+的，也是一項真正的修正。它同時**靜默地**刪掉了最後一個動作之後唯一的觀測點。
+
+所以雙擊版檔案證明的並不是「需要點兩次」，而是「**多一個動作**，就讓檢查器多一次觀察的機會」。
+
+加一列 `sleep`，讓檢查在 sheet map 之後才執行，重新量測：**單擊，3/3。** 那個點擊一直都有效。
+
+按壓當下的 `WindowFromPoint` 回傳的是我們自己的視窗，且等於 `GetForegroundWindow()`，因此那次
+按壓也從來沒有被送錯——這項事實單獨就足以推翻該主張，只是它是事後才被收集的。
+
+`finishReplay` 現在會重新輸出傾印，是刻意的，理由就寫在旁邊。`GetActiveWindow()` 也一併印出，
+但它在此什麼也說不了：它是**逐執行緒**的，而重放跑在背景佇列上，因此 `active=none` 是預期結果，
+不構成任何證據。
+
+**共通的形狀，本檔一天之內已記錄三次：** 一個來自「已不再執行的檢查」的否定結果。47 列的檔案上
+用 `-tail 45`、grep 一個兩種情況下都會出現的字串，以及現在這個「被一項無關修正移除的診斷」。
+三者都沒有報錯，三者都產出了合理的數字。防範方式每次都相同——**在相信一項檢查通過之前，先確認
+它仍然「有可能失敗」**——而且很便宜：這一次的全部代價，就是多一列動作。

@@ -1,34 +1,138 @@
 action,x,y,origin,button,key,micros,note,platform
-# P1 on Windows/GtkBackend: does a sheet present at all?
+# P1 on Windows, GtkBackend: open the root sheet, then DISMISS IT FROM INSIDE.
 #
-# Until 2026-08-28 the coverage matrix carried Sheets as built-but-never-run on
-# GTK/Windows, so nobody had seen one there. This file is what moved it, and
-# what it showed: the root sheet presents as its OWN top-level window, with the
-# app's green background, rounded corners, and both buttons legible.
+# Until 2026-09-04 this file stopped after opening, because nothing in this tree
+# could click a control inside a dialog. bugs/Gtk4-bugs.md section 6 recorded
+# that wall and two wrong reasons for it. Both halves are fixed now, and this is
+# the file that proves it.
 #
-# Capture the whole desktop, not `-w "P1 ..."`. The sheet is a separate
-# top-level window, so a window-scoped capture of P1 does not contain it -- the
-# same trap as GTK popovers, and it produces a screenshot that looks like the
-# sheet never opened.
+# TWO FRAMES OF REFERENCE IN ONE FILE, which is new and is the thing to
+# understand before editing a coordinate here. `origin=frame` means "relative to
+# the window the synthesiser is currently driving", and that window CHANGES when
+# a dialog opens:
+#   the "Open root sheet" row     -> the main window, 648x549
+#   the "Dismiss root sheet" row  -> the SHEET, 428x174
+# Named rather than numbered on purpose: a row was deleted from this file on
+# 2026-09-04 and every "row N" above it silently started pointing one place too
+# far down. Names cannot drift.
+# A coordinate copied between them is not merely off; it is measured against a
+# different window. The replay says which one it used -- watch for
+# "target window changed -- re-pinned and re-measured geometry".
+#
+# MEASURED 2026-09-04, and the arithmetic is the proof rather than a screenshot
+# that looked right:
+#   main window at (130,130); the "Open root sheet" row frame=(324,330) -> screen (454,460)
+#   sheet opens at 428x174@240,317; target changes; geometry re-measured
+#   the "Dismiss root sheet" row frame=(214,156) -> screen (454,473) = 240+214, 317+156
+#   the sheet closes; target changes BACK; geometry re-measured to (130,130)
+# main -> sheet -> main, in one run.
+#
+# THE SCREEN NUMBERS ABOVE WILL NOT REPEAT, and that is correct. GTK staggers a
+# window's position on every launch -- 52, 104, 130, 156, 182, 234 all seen in
+# one afternoon -- so the frame origin differs each run and the screen figures
+# move with it. A later run put the sheet at 136,213 and that row landed on
+# (350,369). What must hold is the RELATION: screen = frame origin + the
+# coordinate in the row. Comparing against a remembered screen number is how a
+# correct run gets read as a failure.
+#
+# THE LAST ROW IS AN OBSERVATION POINT, not padding, and removing it makes this
+# file report a failure that did not happen.
+#
+# The replay checks which window it is driving BEFORE each action, never after
+# the last one. So a file that ends with "click, then sleep and wait for the
+# dialog" checks while the dialog is still mapping, sees nothing, and never
+# looks again. A second trailing sleep costs half a second and gives the checker
+# one more chance to look, after the sheet exists.
+#
+# This is not hypothetical. For about two hours on 2026-09-04 this header
+# carried a measured defect -- "P1's FIRST synthesised click is consumed", one
+# click 0/3, the same click twice 3/3, a move then a click 0/3 -- and an extra
+# row on this file is what disproved it. The two-click version was not showing
+# that two clicks are needed; it was showing that a second ACTION gives a second
+# chance to observe. With the trailing sleep in place, one click opens the sheet
+# 3/3. The click had always worked. bugs/Gtk4-bugs.md section 6 keeps the
+# retraction and how the numbers came to be real and the conclusion false.
+#
+# DO NOT JUDGE THIS BY STDOUT. P1 has `print("P1 root sheet dismissed")` in its
+# onDismiss, and that line will usually be MISSING even on a successful run:
+# Swift block-buffers stdout when it is not a terminal, and the harness kills the
+# process before it flushes. Judge it by the second "target window changed" line,
+# which cannot appear unless the sheet actually went away, or by a DESKTOP
+# capture -- not `screenshot.zsh -w`, which matches by title and finds only the
+# main window.
+#
+# The sheet is now VISIBLE in a capture, which it was not before 2026-09-04.
+# `prepareForReplay` pins its window HWND_TOPMOST, and a dialog opened afterwards
+# was not pinned, so the app's own main window covered its own modal: the sheet
+# measured 428x174@162,239 while a capture of that exact rectangle showed the
+# main window's buttons. P5-stacked-alerts.csv called this out as the first thing
+# to suspect; it was right.
 #
 # One thing to look at deliberately: the red bar should touch the sheet's
 # content edge if there is no padding. On 2026-08-28 it did not, which puts
-# #660's default sheet padding on GtkBackend and not only on WinUI. That is the
-# app's own stated assertion, printed beside the bar.
+# #660's default sheet padding on GtkBackend and not only on WinUI.
 #
-# P1 於 Windows/GtkBackend：sheet 究竟呈現得出來嗎？
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P1
 #
-# 直到 2026-08-28 為止，覆蓋矩陣上 Sheets 在 GTK/Windows 仍是「編得出來但從未執行」，因此沒有人
-# 在那裡看過一個 sheet。本檔正是改變此事的東西，而它顯示的是：root sheet 以它**自己的**
-# top-level 視窗呈現，帶有 app 的綠色背景、圓角，兩顆按鈕皆清晰可讀。
+# P1 於 Windows、GtkBackend：開啟 root sheet，然後**從它內部把它關掉**。
 #
-# 請擷取整個桌面，不要用 `-w "P1 ..."`。該 sheet 是獨立的 top-level 視窗，因此以 P1 為範圍的
-# 視窗擷取並不包含它——與 GTK popover 是同一個陷阱，而且會產生一張「看起來像 sheet 從未開啟」的
-# 截圖。
+# 直到 2026-09-04 之前，本檔在「開啟」之後就停住，因為本樹中沒有任何東西能點擊對話框**內部**的
+# 控制項。bugs/Gtk4-bugs.md 第 6 節記錄了那道牆，以及兩個錯誤的理由。兩半現在都已修好，而本檔
+# 正是證明它的東西。
+#
+# **同一份檔案裡有兩個參考框架**，這是新的，也是動這裡任何一個座標之前必須先理解的事。
+# `origin=frame` 的意思是「相對於合成器當下所驅動的那個視窗」，而該視窗會在對話框開啟時**改變**：
+#   「Open root sheet」那一列    -> 主視窗，648x549
+#   「Dismiss root sheet」那一列 -> **sheet**，428x174
+# 刻意用「名稱」而非「列號」：2026-09-04 本檔刪掉了一列，其上每一處「第 N 列」都靜默地往下錯了
+# 一格。名稱不會漂移。
+# 在兩者之間複製座標，不只是「偏了」，而是對著另一個視窗量測。重放會說出它用了哪一個——請找
+# 「target window changed -- re-pinned and re-measured geometry」那一行。
+#
+# **2026-09-04 實測**，而證明是那組算術，不是一張看起來對的截圖：
+#   主視窗位於 (130,130)；「Open root sheet」那列 frame=(324,330) -> 螢幕 (454,460)
+#   sheet 開於 428x174@240,317；目標改變；幾何重新量測
+#   「Dismiss root sheet」那列 frame=(214,156) -> 螢幕 (454,473) = 240+214、317+156
+#   sheet 關閉；目標**變回**；幾何重新量測為 (130,130)
+# 主視窗 -> sheet -> 主視窗，一次執行內完成。
+#
+# **上面那些螢幕座標不會重現，而那是正確的。** GTK 每次啟動都會錯開視窗位置——同一個下午就看過
+# 52、104、130、156、182、234——因此每次執行的框架原點都不同，螢幕數字也隨之移動。後來一次執行
+# 把 sheet 放在 136,213，該列落在 (350,369)。必須成立的是那個**關係**：
+# 螢幕 = 框架原點 + 該列的座標。拿記憶中的螢幕數字去比對，正是一次正確的執行被讀成失敗的方式。
+#
+# **最後一列是一個觀測點**，不是湊數；把它刪掉，本檔就會回報一個從未發生過的失敗。
+#
+# 重放是在每個動作**之前**檢查自己正在驅動哪個視窗，最後一個動作之後則不再檢查。因此一份以
+# 「點擊，然後 sleep 等待對話框」結尾的檔案，會在對話框還在 map 的時候檢查、什麼也看不到，
+# 而且之後不會再看第二眼。多加一列 sleep 只花半秒，卻讓檢查器在 sheet 存在**之後**多一次觀察
+# 的機會。
+#
+# 這不是假設。2026-09-04 當天，本標頭有大約兩個小時帶著一個「實測到的缺陷」——「P1 的**第一次**
+# 合成點擊會被吞掉」，單擊 0/3、同一個點擊做兩次 3/3、先 move 再點一次 0/3——而推翻它的，正是
+# 在本檔多加的一列。雙擊版顯示的並不是「需要點兩次」，而是「多一個**動作**就多一次觀察的機會」。
+# 加上這列結尾的 sleep 之後，單擊 3/3 開啟 sheet。那個點擊一直都有效。撤回的完整說明，以及
+# 「數字都是真的、結論卻是假的」是怎麼發生的，記於 bugs/Gtk4-bugs.md 第 6 節。
+#
+# **請勿以 stdout 判定。** P1 在 onDismiss 中有 `print("P1 root sheet dismissed")`，而**即使
+# 執行成功，該行通常也不會出現**：Swift 在 stdout 非終端機時採區塊緩衝，而測試框架會在它 flush
+# 之前終止該行程。請改以第二次出現的「target window changed」來判定——沒有真的關掉 sheet 就不
+# 可能出現那一行——或以**桌面**擷圖判定，而非 `screenshot.zsh -w`（它以標題比對，只會找到主視窗）。
+#
+# sheet 現在在擷圖中**看得見**，這在 2026-09-04 之前並非如此。`prepareForReplay` 會把它的視窗釘為
+# HWND_TOPMOST，而其後才開啟的對話框不會被釘，於是 app 自己的主視窗蓋住了自己的 modal：sheet
+# 實測為 428x174@162,239，而對該矩形所取的擷圖顯示的卻是主視窗的按鈕。P5-stacked-alerts.csv
+# 早已把這件事列為「第一個該懷疑的東西」；它是對的。
 #
 # 有一件事要刻意去看：若沒有 padding，紅色橫條應該要碰到 sheet 的內容邊緣。2026-08-28 當天它沒有
-# 碰到，這代表 #660 的 sheet 預設 padding 在 GtkBackend 上同樣存在，而不只在 WinUI 上。這正是
-# 此 app 自己印在橫條旁邊的主張。
+# 碰到，這代表 #660 的 sheet 預設 padding 在 GtkBackend 上同樣存在，而不只在 WinUI 上。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P1
 sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
-click,324,330,frame,left,,,"""Open root sheet""",windows
-sleep,,,,,,4000000,hold with the sheet up -- capture the DESKTOP here,windows
+click,324,330,frame,left,,,"""Open root sheet"" -- main-window frame; the sheet must appear at 428x174 and the replay must log target window changed",windows
+sleep,,,,,,2000000,let the sheet map and become the target -- the re-pin happens here,windows
+click,214,156,frame,left,,,"""Dismiss root sheet"" -- SHEET frame not the main window; 240+214 and 317+156 gave screen (454,473) on 2026-09-04",windows
+sleep,,,,,,1500000,let the dismissal settle,windows
+sleep,,,,,,1000000,"a second sleep so the identity check runs once more and logs target window changed BACK to the main window -- that line is the verdict",windows

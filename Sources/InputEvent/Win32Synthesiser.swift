@@ -96,6 +96,21 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         )
     }
 
+    /// The HWND `currentWindowGeometry()` would measure, as a comparable value.
+    ///
+    /// `0` on failure rather than a throw, because the caller reads `0` as
+    /// "unchanged" -- an identity check that cannot be answered must not be the
+    /// thing that aborts a replay.
+    ///
+    /// 以可比較的數值回傳 `currentWindowGeometry()` 將會量測的那個 HWND。
+    ///
+    /// 失敗時回傳 `0` 而非拋出錯誤，因為呼叫端會把 `0` 讀作「未改變」——一個「無法回答的識別檢查」
+    /// 不應該成為中止整個重放的原因。
+    public func currentWindowIdentity() -> Int {
+        guard let window = try? ownWindow() else { return 0 }
+        return Int(bitPattern: window)
+    }
+
     /// Pins our window above every other window, and takes focus if the file
     /// needs it.
     ///
@@ -280,12 +295,67 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 使用者接下來所做的每一件事之上。`testapp/P6.swift` 從另一個角度記錄了相同的代價：持續強制
     /// 置頂會使控制項無法點選，也會讓檔案選取對話框跑到視窗後面。
     public func finishReplay() {
-        guard let window = try? ownWindow() else { return }
-        // HWND_NOTOPMOST is `((HWND)-2)`.
-        _ = SetWindowPos(
-            window, HWND(bitPattern: -2), 0, 0, 0, 0,
-            UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
-        )
+        // EVERY window, not `ownWindow()`'s pick, and the difference is a
+        // regression this caught on 2026-09-04. `prepareForReplay` pins whatever
+        // `ownWindow()` returned BEFORE the replay -- the main window. Once
+        // `ownWindow()` learned to follow a dialog, the two calls stopped naming
+        // the same window whenever a file left a dialog open: the sheet had its
+        // topmost cleared, which it never had, and the main window kept the
+        // topmost it was given -- pinned over everything the user did next, which
+        // is exactly what the comment below says must not happen.
+        //
+        // Clearing it on a window that never had it is a no-op, so the list costs
+        // nothing and removes the need to remember which one was pinned. That
+        // matters more than it looks: remembering would mean mutable state on a
+        // `Sendable` type, and the stateless version cannot get it wrong.
+        //
+        // **每一個**視窗，而非 `ownWindow()` 的選擇；這個差別是本次（2026-09-04）抓到的一個回歸。
+        // `prepareForReplay` 釘住的是重放**之前** `ownWindow()` 回傳的那一個——主視窗。而在
+        // `ownWindow()` 學會追隨對話框之後，只要某份檔案結束時仍留著對話框，這兩個呼叫就不再指向
+        // 同一個視窗：被解除釘選的是那個從未被釘選的 sheet，而主視窗保留了它被賦予的 topmost——
+        // 壓在使用者接下來所做的每一件事之上，正是下方註解明文禁止的情況。
+        //
+        // 對從未被釘選的視窗解除釘選是 no-op，因此這份清單不花任何代價，並且免去了「記住釘了哪一
+        // 個」的需要。這比看起來重要：記住它意味著要在一個 `Sendable` 型別上放可變狀態，而無狀態
+        // 的版本不可能出錯。
+        let windows = visibleWindows()
+        for window in windows {
+            // HWND_NOTOPMOST is `((HWND)-2)`.
+            _ = SetWindowPos(
+                window, HWND(bitPattern: -2), 0, 0, 0, 0,
+                UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+            )
+        }
+
+        // The LAST look, and it has to be here or a whole class of file cannot
+        // be judged at all. Identity is checked BEFORE each action, so a file
+        // whose final action is the sleep that waits for a dialog never observes
+        // that dialog: the check ran while it was still mapping, and nothing
+        // looks again.
+        //
+        // This cost a false finding on 2026-09-04 and is the reason the line
+        // exists. `finishReplay` used to call `ownWindow()`, which dumped as a
+        // side effect. Replacing it with the `visibleWindows()` loop above --
+        // correct in itself, and a real fix -- silently removed the only
+        // observation point after the last action. Three runs of a one-click
+        // file then showed no sheet, three runs of a two-click file showed one,
+        // and that read exactly like "the first click is consumed". It was not.
+        // The click had always worked; the instrument had stopped. Re-measured
+        // with one extra sleep row so a check ran after the sheet mapped: 3/3.
+        //
+        // 最後一次觀察，而它必須在此，否則有一整類檔案根本無法被判定。identity 是在每個動作
+        // **之前**檢查的，因此一份「最後一個動作是等待對話框的 sleep」的檔案，永遠不會觀察到
+        // 那個對話框：檢查發生在它還在 map 的時候，而之後沒有任何東西再看一眼。
+        //
+        // 這在 2026-09-04 換來了一個**假發現**，也正是這幾行存在的理由。`finishReplay` 原本
+        // 呼叫 `ownWindow()`，而後者會順帶輸出傾印。把它換成上方的 `visibleWindows()` 迴圈
+        // ——那本身是正確的，也是一項真正的修正——卻**靜默地**移除了最後一個動作之後唯一的
+        // 觀測點。接著單擊版檔案三次執行都看不到 sheet、雙擊版三次都看得到，而那讀起來完全就像
+        // 「第一次點擊被吞掉了」。它並沒有。點擊一直都有效，是儀器停了。加一列 sleep 讓檢查在
+        // sheet map 之後執行，重新量測：3/3。
+        if let largest = largestByArea(of: windows) {
+            reportWindowChoice(candidates: windows, chosen: innermostModal(over: largest))
+        }
     }
 
     public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
@@ -363,6 +433,54 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// `EnumWindows` 接受的是 C function pointer，無法捕獲外部變數，因此收集器透過 `LPARAM`
     /// 傳入——這是此呼叫的標準寫法，也是使用 `Unmanaged` 來回轉換的原因。
     private func ownWindow() throws -> HWND {
+        let candidates = visibleWindows()
+        guard let largest = largestByArea(of: candidates) else {
+            throw SynthesiserError.unsupported("no visible window for this process")
+        }
+        let chosen = innermostModal(over: largest)
+        reportWindowChoice(candidates: candidates, chosen: chosen)
+        return chosen
+    }
+
+    /// The biggest of the given windows, or nil if none can be measured.
+    ///
+    /// Shared with ``finishReplay()`` rather than written twice. A second copy
+    /// would be the sort that drifts: this one decides which window a replay
+    /// drives, and the other decides what the final diagnostic reports, so two
+    /// copies disagreeing would make the log describe a different window from
+    /// the one that was driven -- while both looked right.
+    ///
+    /// 給定視窗中最大的那一個；若一個都量不到則回傳 nil。
+    ///
+    /// 與 ``finishReplay()`` 共用，而非寫兩份。第二份會是那種會漂移的副本：這一份決定重放要驅動
+    /// 哪個視窗，另一份決定最後的診斷回報什麼；兩份一旦不一致，log 描述的就會是與實際被驅動者
+    /// 不同的視窗——而兩邊看起來都沒問題。
+    private func largestByArea(of windows: [HWND]) -> HWND? {
+        var best: (window: HWND, area: Int)?
+        for window in windows {
+            var rect = RECT()
+            guard GetWindowRect(window, &rect) else { continue }
+            let area = Int(rect.right - rect.left) * Int(rect.bottom - rect.top)
+            if best == nil || area > best!.area {
+                best = (window, area)
+            }
+        }
+        return best?.window
+    }
+
+    /// Every visible top-level window belonging to this process.
+    ///
+    /// Split out of ``ownWindow()`` when ``finishReplay()`` needed the whole list
+    /// rather than the winner. Not a tidy-up: the two callers want different
+    /// things from the same enumeration, and duplicating it would have given
+    /// `finishReplay` a second copy to drift from.
+    ///
+    /// 本行程所有可見的 top-level 視窗。
+    ///
+    /// 在 ``finishReplay()`` 需要「整份清單」而非「勝出者」時，自 ``ownWindow()`` 抽出。這不是
+    /// 順手整理：兩個呼叫端對同一次列舉想要的東西不同，而複製一份會讓 `finishReplay` 多出一份
+    /// 可供漂移的副本。
+    private func visibleWindows() -> [HWND] {
         let collector = WindowCollector()
         let context = Unmanaged.passUnretained(collector).toOpaque()
         EnumWindows(
@@ -382,21 +500,155 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             },
             LPARAM(Int(bitPattern: context))
         )
+        return collector.windows
+    }
 
-        var best: (window: HWND, area: Int)?
-        for window in collector.windows {
+    /// Follows the owned-dialog chain and returns the window input should go to.
+    ///
+    /// Largest-area alone picks the OWNER whenever a dialog is up, because a
+    /// dialog is smaller than what it covers -- P1's sheet measures 428x174
+    /// against 648x549. Every `origin=frame` coordinate is then resolved against
+    /// the wrong frame origin, so the click is placed on the owner and GTK's
+    /// modal grab discards it. That is the whole reason P1, P5, P18 and P31 could
+    /// not be driven past the point where they raise a dialog.
+    ///
+    /// The loop, not a single step, because dialogs nest: P1 opens a sheet that
+    /// opens another. The innermost one is the only window accepting input.
+    ///
+    /// Two guards, and neither is defensive padding. `GetWindow` is documented to
+    /// return the window ITSELF when it owns no enabled popup, which would spin
+    /// forever -- measured here it returns NULL instead, so the `!= window` test
+    /// is what makes the code correct on the documented behaviour as well as the
+    /// observed one. The depth cap covers a cycle the API should not produce; if
+    /// it ever trips, a hung replay would be the alternative.
+    ///
+    /// `IsWindowVisible` is required, not decoration: GTK keeps a destroyed
+    /// dialog's HWND around briefly, and driving a hidden window sends every
+    /// remaining event nowhere while reporting nothing.
+    ///
+    /// 沿著「被擁有的對話框」這條鏈往下走，回傳輸入真正該送往的視窗。
+    ///
+    /// 只靠最大面積，在任何對話框開啟時都會選到**擁有者**，因為對話框比它所覆蓋的東西更小——P1 的
+    /// sheet 是 428x174，對上 648x549。接著每一個 `origin=frame` 座標都會以錯誤的框架原點來解析，
+    /// 於是點擊被放在擁有者身上，並被 GTK 的 modal grab 丟棄。這正是 P1、P5、P18、P31 一旦開啟
+    /// 對話框就再也無法被驅動下去的全部原因。
+    ///
+    /// 用迴圈而非單一步驟，因為對話框會巢狀：P1 會開啟一個 sheet，而它又會開啟另一個。最內層的
+    /// 那一個，才是唯一接受輸入的視窗。
+    ///
+    /// 兩道防護，且兩者都不是為防而防。`GetWindow` 在文件上載明：當視窗不擁有任何啟用中的 popup
+    /// 時，它會回傳**視窗自己**——那會導致無窮迴圈；而此處實測回傳的是 NULL，因此 `!= window`
+    /// 這個判斷，正是讓這段程式碼在「文件所述行為」與「實測行為」下都正確的東西。深度上限則涵蓋
+    /// 這個 API 不該產生的環；若它真的觸發，另一個結果會是一個永遠卡住的重放。
+    ///
+    /// `IsWindowVisible` 是必要的，不是裝飾：GTK 會在對話框銷毀後短暫保留其 HWND，而驅動一個隱藏
+    /// 的視窗，會讓其後每一個事件都送往無處，且什麼都不會回報。
+    private func innermostModal(over window: HWND) -> HWND {
+        var current = window
+        for _ in 0..<8 {
+            guard let popup = GetWindow(current, UINT(GW_ENABLEDPOPUP)),
+                popup != current,
+                IsWindowVisible(popup)
+            else { return current }
+            current = popup
+        }
+        return current
+    }
+
+    /// Dumps every candidate this call weighed, and which one won.
+    ///
+    /// Written to answer ONE question with a measurement instead of a guess: why
+    /// the four apps that raise a modal dialog (P1, P5, P18, P31) cannot be
+    /// driven. It answered it on the first run, and corrected two guesses that
+    /// had been written down as if they were findings:
+    ///
+    ///   - "the click lands on a window the modal has disabled" -- FALSE. With
+    ///     P1's sheet up, the owner measures `enabled=true`. GTK4 does its own
+    ///     modality with a grab and does not call `EnableWindow` on Win32.
+    ///   - "`GW_ENABLEDPOPUP` is ineffective here" -- FALSE, and this is the one
+    ///     that cost the four apps. The owner reports
+    ///     `enabledPopup=0x...26d072c`, which is exactly the sheet. The earlier
+    ///     attempt was removed for being ineffective without this dump to say
+    ///     whether the call had answered; it had.
+    ///
+    /// What is actually wrong is the GEOMETRY, and largest-area is why: the sheet
+    /// measures 428x174 against the owner's 648x549, so the owner wins, and every
+    /// `origin=frame` coordinate is then resolved against the owner's frame at
+    /// (78,78) instead of the sheet's at (188,265). The click is placed on the
+    /// owner, where GTK's grab discards it, and the app looks like it ignored the
+    /// input.
+    ///
+    /// Kept after the fix, not deleted with it: it is what distinguishes "the
+    /// popup was not found" from "the popup was found and the click still missed"
+    /// the next time, and those two need opposite investigations.
+    ///
+    /// Behind `--debug` because `ownWindow` runs per event, and
+    /// `ActionFileReplay.report` says a per-event line belongs behind the flag.
+    ///
+    /// 傾印本次呼叫權衡過的每一個候選視窗，以及勝出者。
+    ///
+    /// 寫它是為了用**量測**而非猜測回答**一個**問題：那四支會開啟 modal dialog 的 app
+    /// （P1、P5、P18、P31）為何無法被驅動。它在第一次執行就給出了答案，並且更正了兩個「被當成發現
+    /// 寫下來」的猜測：
+    ///
+    ///   - 「點擊落在一個已被 modal 停用的視窗上」——**假**。P1 的 sheet 開啟時，其擁有者實測為
+    ///     `enabled=true`。GTK4 以自己的 grab 處理 modality，並不會在 Win32 上呼叫
+    ///     `EnableWindow`。
+    ///   - 「`GW_ENABLEDPOPUP` 在此無效」——**假**，而這一項正是那四支 app 的代價所在。擁有者
+    ///     回報 `enabledPopup=0x...26d072c`，那正是該 sheet。先前那次嘗試在沒有這份傾印可以判斷
+    ///     「該呼叫究竟有沒有回答」的情況下，就以無效為由被移除；它其實回答了。
+    ///
+    /// 真正錯的是**幾何**，而「取最大面積」正是原因：sheet 為 428x174，擁有者為 648x549，於是
+    /// 擁有者勝出，接著每一個 `origin=frame` 座標都改以擁有者位於 (78,78) 的框架、而非 sheet 位於
+    /// (188,265) 的框架來解析。點擊被放在擁有者身上，被 GTK 的 grab 丟棄，而 app 看起來就像忽略了
+    /// 那個輸入。
+    ///
+    /// 修好之後保留，而非隨修正一併刪除：下一次它是用來分辨「popup 沒被找到」與「popup 找到了但
+    /// 點擊仍然落空」的東西，而這兩者需要的是相反方向的追查。
+    ///
+    /// 放在 `--debug` 之後，因為 `ownWindow` 是逐事件執行的，而 `ActionFileReplay.report`
+    /// 已載明逐事件的輸出應置於該旗標之後。
+    private func reportWindowChoice(candidates: [HWND], chosen: HWND) {
+        guard CommandLine.arguments.contains("-actionfile"),
+            CommandLine.arguments.contains("--debug")
+        else { return }
+
+        for window in candidates {
             var rect = RECT()
-            guard GetWindowRect(window, &rect) else { continue }
-            let area = Int(rect.right - rect.left) * Int(rect.bottom - rect.top)
-            if best == nil || area > best!.area {
-                best = (window, area)
-            }
+            let haveRect = GetWindowRect(window, &rect)
+            let size =
+                haveRect
+                ? "\(rect.right - rect.left)x\(rect.bottom - rect.top)"
+                    + "@\(rect.left),\(rect.top)"
+                : "rect-unavailable"
+            // GW_OWNER is the window this one is owned by; GW_ENABLEDPOPUP is the
+            // enabled popup it owns, which is the modal when there is one. Both
+            // return nil far more often than not, and that is a result.
+            // GW_OWNER 是「本視窗被誰擁有」，GW_ENABLEDPOPUP 是「本視窗擁有的、處於啟用狀態的
+            // popup」——若存在 modal，那就是它。兩者回傳 nil 的情況遠多於不是，而那也是一項結果。
+            let owner = GetWindow(window, UINT(GW_OWNER))
+            let popup = GetWindow(window, UINT(GW_ENABLEDPOPUP))
+            ActionFileReplay.report(
+                "window \(String(describing: window)) \(size) "
+                    + "class=\(className(of: window)) "
+                    + "enabled=\(IsWindowEnabled(window)) "
+                    + "owner=\(owner.map { String(describing: $0) } ?? "none") "
+                    + "enabledPopup=\(popup.map { String(describing: $0) } ?? "none") "
+                    + "\(window == chosen ? "<- CHOSEN" : "")"
+            )
         }
+    }
 
-        guard let best else {
-            throw SynthesiserError.unsupported("no visible window for this process")
-        }
-        return best.window
+    /// The window class, which names what a window IS where the title does not.
+    /// A GTK modal and its owner can carry the same title, so the class is what
+    /// tells them apart in the dump above.
+    /// 視窗類別；在標題無法辨別時，它說明一個視窗**是什麼**。GTK 的 modal 與其擁有者可能帶有相同
+    /// 的標題，因此在上面的傾印中，是類別把兩者區分開來。
+    private func className(of window: HWND) -> String {
+        var buffer = [WCHAR](repeating: 0, count: 256)
+        let length = GetClassNameW(window, &buffer, Int32(buffer.count))
+        guard length > 0 else { return "unavailable(\(GetLastError()))" }
+        return String(decoding: buffer[0..<Int(length)], as: UTF16.self)
     }
 
     private func move(to point: Point, in geometry: WindowGeometry) throws {
@@ -462,6 +714,42 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             cursorDescription = "cursor=unavailable(\(GetLastError()))"
         }
 
+        // Who will actually RECEIVE the click about to be sent, which is a
+        // different question from where the cursor is and is the one that goes
+        // unanswered when a press lands on nothing.
+        //
+        // `WindowFromPoint` is the decisive one: `SendInput` posts a button
+        // event with no target, so whatever this returns is what gets it. It
+        // walks down to the deepest child, so a value that is not any of the
+        // top-levels in the dump above is normal -- what matters is whether its
+        // root is ours. `GetForegroundWindow` and `GetActiveWindow` are printed
+        // beside it because "foreground" and "active" are not the same state and
+        // a click can be eaten by a mismatch between them.
+        //
+        // Added 2026-09-04 for the one thing the candidate dump could not
+        // explain: P1's FIRST synthesised click does nothing (0/3), while the
+        // same click repeated works (3/3) and a `move` first does not help
+        // (0/3). Everything already printed looked correct on the failing runs,
+        // which is exactly when a new fact is needed rather than more thought.
+        //
+        // 即將送出的那個點擊，究竟會由**誰**收到——這與「游標在哪裡」是不同的問題，也正是
+        // 「一次按壓落在虛無中」時無人回答的那個問題。
+        //
+        // `WindowFromPoint` 是決定性的一項：`SendInput` 送出的按鍵事件不帶目標，因此它回傳
+        // 什麼，就由什麼收下。它會一路下探到最深層的子視窗，所以回傳值不在上面那份 top-level
+        // 清單中是正常的——真正要看的是它的 root 是不是我們的。`GetForegroundWindow` 與
+        // `GetActiveWindow` 並列印出，是因為「前景」與「作用中」並非同一個狀態，而一次點擊
+        // 可能正是被兩者之間的不一致吃掉的。
+        //
+        // 2026-09-04 新增，為的是候選傾印無法解釋的那一件事：P1 的**第一次**合成點擊毫無作用
+        // （0/3），而同一個點擊重複一次就成功（3/3），先 `move` 則沒有幫助（0/3）。在失敗的那些
+        // 執行中，已經印出的每一項看起來都是正確的——而那正是需要一個**新事實**、而非更多推理的
+        // 時候。
+        let target = WindowFromPoint(POINT(x: Int32(screen.x), y: Int32(screen.y)))
+        let root = target.map { GetAncestor($0, UINT(GA_ROOT)) } ?? nil
+        let foreground = GetForegroundWindow()
+        let active = GetActiveWindow()
+
         // Through the one writer, rather than a second copy of it. Both copies
         // carried the same truncate-on-failure bug; one of them was fixed and
         // the other would not have been.
@@ -469,7 +757,12 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         // 修好其中一份時，另一份不會跟著被修。
         ActionFileReplay.report(
             "move \(point.origin.rawValue)=(\(point.x), \(point.y)) "
-                + "screen=(\(screen.x), \(screen.y)) \(cursorDescription)"
+                + "screen=(\(screen.x), \(screen.y)) \(cursorDescription) "
+                + "hitTarget=\(target.map { String(describing: $0) } ?? "none") "
+                + "hitRoot=\(root.map { String(describing: $0) } ?? "none") "
+                + "hitClass=\(target.map { className(of: $0) } ?? "none") "
+                + "foreground=\(foreground.map { String(describing: $0) } ?? "none") "
+                + "active=\(active.map { String(describing: $0) } ?? "none")"
         )
     }
 

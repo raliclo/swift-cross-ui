@@ -26,10 +26,34 @@ action,x,y,origin,button,key,micros,note,platform
 #     the Space that follows goes nowhere and the click count stays 0.
 #   - Space on a focused button must activate it. That is the platform's
 #     keyboard activation, not ours.
-#   - Escape must dismiss the alert. P31 logs "alert opened" but has no line for
-#     a dismissal, so Escape cannot be read from the log: capture the window
-#     afterwards and look. A log that cannot say something did not happen is
-#     not evidence that it did.
+#   - ~~Escape must dismiss the alert.~~ CORRECTED 2026-09-04: it must NOT, and
+#     this file spent since 2026-09-03 asserting the opposite. GtkBackend refuses
+#     Escape on an alert in two places on purpose -- `createAlert` installs a
+#     shortcut controller whose whole job is "disable the default Escape-to-close
+#     action" (GtkBackend.swift:3287), and `present` drops response id -4 with
+#     "Ignore escape key for now" (GtkBackend.swift:3339). Both say the same
+#     thing: until an alert knows which of its buttons is the cancel action,
+#     Escape has nothing correct to do. So an alert still standing after Escape
+#     is the PASS, and the run that reported this as a synthesiser defect --
+#     bugs/Gtk4-bugs.md section 6, opening paragraph -- was reading deliberate
+#     behaviour as a bug. The wrong expectation is kept here rather than deleted
+#     because it is the more useful half: nothing failed, nothing warned, and the
+#     app did exactly what it was written to do.
+#   - The OK button must dismiss it, and that is the assertion that replaced the
+#     Escape one. It is only writable since 2026-09-04, when the synthesiser
+#     learned to address a dialog at all; before that no coordinate inside an
+#     alert meant anything. MEASURED that day: the alert is 107x60@454,368, so
+#     `origin=frame` on the OK row is relative to the ALERT, not to the window
+#     the rows above it drive. See P1-open-root-sheet.csv for the same trap
+#     written out at length. Running this exact file that day, the log gained
+#         P31 ... alert OK
+#     which the app writes from the OK button's own handler, so nothing but a
+#     press on that button can produce it. That line, not a capture, is the
+#     verdict -- and it is the first time any file in this tree has pressed a
+#     button inside a dialog. The alert's position moves every launch: 454,368
+#     on one run and 532,446 on the next, where the row resolved to screen
+#     (585,490) = 532+53 and 446+44. Compare the RELATION, never a remembered
+#     screen pair.
 #
 # Read the rest from p31-debug-events.log, which lands in the CURRENT DIRECTORY
 # -- P31 builds its path from currentDirectoryPath, so run.zsh from the repo
@@ -54,6 +78,26 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 2026-09-03 實測結果：Tab 與 Space 之後出現 "button clicked count=1"，因此焦點**確實**會
 # 移動，Space **確實**能啟動。這是任務 #30 焦點那一半在此處可執行平台上的真實結果。
+#
+# **2026-09-04 更正：~~Escape 必須關閉 alert~~ ——它必須「不」關閉。** 本檔自 2026-09-03 起
+# 一直在主張相反的事。GtkBackend 在**兩個**地方刻意拒絕對 alert 的 Escape：`createAlert` 安裝
+# 了一個 shortcut controller，其存在的全部目的就是「停用預設的 Escape 關閉行為」
+# （GtkBackend.swift:3287）；而 `present` 會丟棄 response id -4，註明「Ignore escape key for
+# now」（GtkBackend.swift:3339）。兩者說的是同一件事：在 alert 尚不知道自己哪一顆按鈕是取消
+# 動作之前，Escape 沒有正確的事可做。因此**按下 Escape 後 alert 仍然站著才是通過**；而把這件事
+# 回報為合成器缺陷的那次執行——bugs/Gtk4-bugs.md 第 6 節開頭那段——是把刻意的行為讀成了 bug。
+# 錯誤的預期在此保留而非刪除，因為它才是更有用的那一半：沒有任何東西失敗、沒有任何警告，而 app
+# 完完全全做了它被寫成要做的事。
+#
+# **改由 OK 按鈕承擔關閉的主張**，取代原本的 Escape 主張。這一條自 2026-09-04 才寫得出來——
+# 在合成器學會定址對話框之前，alert 內部的任何座標都沒有意義。當日實測：alert 為
+# 107x60@454,368，因此 OK 那一列的 `origin=frame` 是相對於 **alert**，而非其上各列所驅動的
+# 那個視窗。同一個陷阱的完整說明見 P1-open-root-sheet.csv。當日以本檔實際執行，log 多了一行
+#     P31 ... alert OK
+# 那是 app 從 OK 按鈕自己的 handler 寫出的，因此除了「按到那一顆」之外，沒有任何東西能產生它。
+# **判定依據是那一行，不是擷圖**——而這也是本樹中第一次有檔案按下了對話框**內部**的按鈕。
+# alert 的位置每次啟動都會移動：某次為 454,368，下一次為 532,446，而該列在後者解析為螢幕
+# (585,490)＝532+53 與 446+44。請比對那個**關係**，絕不要比對記憶中的螢幕座標。
 sleep,,,,,,900000,let the window settle and take focus,windows
 click,400,300,frame,left,,,put the caret in the text field (spans x 33..775),windows
 sleep,,,,,,500000,,windows
@@ -63,5 +107,7 @@ key,,,,,space,,Space activates whatever now has focus; Button 0 must become Butt
 sleep,,,,,,700000,,windows
 click,123,390,frame,left,,,"Open alert for Escape test" (spans x 33..213 y 375..406),windows
 sleep,,,,,,1200000,let the alert appear before pressing anything,windows
-key,,,,,escape,,Escape must dismiss the alert -- check by capture not by log,windows
-sleep,,,,,,1500000,hold for the capture,windows
+key,,,,,escape,,"Escape must NOT dismiss it -- GtkBackend refuses it on purpose in two places; an alert still standing here is the pass",windows
+sleep,,,,,,1200000,"let the refusal settle; the replay must NOT log a second target window changed here",windows
+click,53,44,frame,left,,,"OK -- ALERT frame not the window frame; the alert measured 107x60@454,368 on 2026-09-04 so this is its centre",windows
+sleep,,,,,,1500000,"hold; the verdict is the line alert OK in p31-debug-events.log -- the app writes it from the button's own handler so nothing else can produce it",windows

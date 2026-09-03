@@ -144,6 +144,45 @@ public protocol Synthesiser: Sendable {
     /// 於最後一個動作之後呼叫，失敗時亦然。不會拋出錯誤：一個能讓「它所善後的那次執行」失敗的
     /// 清理程序，只會用自己的錯誤取代掉真正的錯誤。
     func finishReplay()
+
+    /// Identifies the window ``currentWindowGeometry()`` would measure right now.
+    ///
+    /// Only for noticing that it has become a DIFFERENT window. The value is
+    /// opaque -- compare it, do not interpret it -- and `0` means "this platform
+    /// cannot tell", which is read as "unchanged" and preserves the old
+    /// behaviour exactly.
+    ///
+    /// This exists because an app that opens a dialog changes which window an
+    /// action file's coordinates are relative to, and nothing else notices.
+    /// Measured on 2026-09-04: with P1's sheet up, the sheet's frame begins at
+    /// (188,265) and the owner's at (78,78), so every subsequent `origin=frame`
+    /// coordinate was resolved 110 and 187 points away from where the file said.
+    /// The clicks landed on the owner, where GTK's modal grab discarded them,
+    /// and four apps (P1, P5, P18, P31) looked like they ignored their input.
+    ///
+    /// A protocol REQUIREMENT rather than an extension, deliberately.
+    /// `ActionFileReplay` holds an `any Synthesiser`, so a method that lives only
+    /// in an extension cannot be overridden by a conforming type -- the
+    /// extension's version is what runs, silently. `replay(_:in:)` below is
+    /// exactly that shape, which is why the change goes here and the loop stays
+    /// where it is.
+    ///
+    /// 指出 ``currentWindowGeometry()`` 此刻會量測哪一個視窗。
+    ///
+    /// 僅用於察覺它已變成**另一個**視窗。此值是不透明的——只能比較，不可解讀——而 `0` 代表
+    /// 「本平台無法判斷」，會被讀作「未改變」，因而完整保留原有行為。
+    ///
+    /// 它之所以存在，是因為「一個開啟對話框的 app，會改變動作檔座標所相對的那個視窗」，而在此之前
+    /// 沒有任何東西會察覺這件事。2026-09-04 實測：P1 的 sheet 開啟時，sheet 的框架起點為
+    /// (188,265)、其擁有者為 (78,78)，因此其後每一個 `origin=frame` 座標，都被解析到距離檔案所指
+    /// 之處 110 與 187 點之外。那些點擊落在擁有者上，被 GTK 的 modal grab 丟棄，於是四支 app
+    /// （P1、P5、P18、P31）看起來就像忽略了自己的輸入。
+    ///
+    /// 刻意置於 protocol **requirement** 而非 extension。`ActionFileReplay` 持有的是
+    /// `any Synthesiser`，因此只存在於 extension 的方法無法被遵循型別覆寫——實際執行的會是
+    /// extension 的版本，而且是靜默的。下方的 `replay(_:in:)` 正是這個形狀，這也是本次改動放在此處、
+    /// 而迴圈維持原位的原因。
+    func currentWindowIdentity() -> Int
 }
 
 extension Synthesiser {
@@ -161,14 +200,75 @@ extension Synthesiser {
     public func prepareForReplay(_ actions: [InputAction]) throws {}
 
     public func finishReplay() {}
+
+    /// Unknown, which keeps every platform that does not implement it on the
+    /// pre-2026-09-04 behaviour: geometry read once and never revisited.
+    /// 未知；這讓每一個未實作它的平台維持 2026-09-04 之前的行為：幾何只讀一次，之後不再重讀。
+    public func currentWindowIdentity() -> Int { 0 }
+
     /// Replays a whole file.
     ///
     /// Stops at the first failure rather than continuing. A synthesiser that
     /// carries on after a failed action produces a run whose later steps acted
     /// on a state the file does not describe, and the screenshot at the end
     /// looks like a product defect.
+    ///
+    /// Geometry is re-measured when the target window CHANGES, and only then.
+    /// The distinction is the whole design: re-measuring per action would break
+    /// the case the caller documents -- a file that drags a window by its title
+    /// bar and then clicks would measure that click against the new position,
+    /// landing somewhere the file never named. A window that merely moved keeps
+    /// its identity, so that file behaves exactly as before. A dialog is a
+    /// different window, and its coordinates genuinely are relative to a
+    /// different frame.
+    ///
+    /// 幾何只在目標視窗**改變**時重新量測，且僅限於此。這個區別就是整個設計：逐動作重新量測會破壞
+    /// 呼叫端所載明的那個情境——一份「以標題列拖曳視窗後再點擊」的檔案，會把該次點擊對到新位置，
+    /// 落在檔案從未指名之處。而僅僅移動過的視窗，其識別值不變，因此那份檔案的行為與先前完全相同。
+    /// 對話框則是**另一個**視窗，它的座標確實相對於另一個框架。
     public func replay(_ actions: [InputAction], in geometry: WindowGeometry) throws {
+        var geometry = geometry
+        var identity = currentWindowIdentity()
         for action in actions {
+            let current = currentWindowIdentity()
+            if current != 0, current != identity {
+                identity = current
+                // Prepare BEFORE measuring, the same pairing the file-level
+                // `replay(_:)` uses and for the same reason: preparing is what
+                // raises the window on the platforms that need raising.
+                //
+                // It is also a fix in its own right, and a confirmation.
+                // `prepareForReplay` pins its window HWND_TOPMOST; a dialog
+                // opened afterwards is NOT pinned, so the app's own main window
+                // covers its own modal. MEASURED 2026-09-04: P1's sheet existed
+                // at 428x174@162,239 -- Win32 reported it, `GW_ENABLEDPOPUP`
+                // named it -- and a desktop capture taken at that moment shows
+                // no sheet at all, only the main window's buttons in that
+                // rectangle. `testapp/actions/win/P5-stacked-alerts.csv` has
+                // listed this as a suspicion since 2026-09-03 and said to
+                // suspect it first if a capture shows no alert; it was right,
+                // and this is the run that turned it into a measurement.
+                //
+                // 先 prepare 再量測，與檔案層級的 `replay(_:)` 採用相同的配對，理由也相同：
+                // 在需要抬升視窗的平台上，正是 prepare 這一步把視窗帶到前面。
+                //
+                // 它本身也是一項修正，同時是一次確認。`prepareForReplay` 會把它的視窗釘為
+                // HWND_TOPMOST；而其後才開啟的對話框**不會**被釘，於是 app 自己的主視窗蓋住了
+                // 自己的 modal。**2026-09-04 實測**：P1 的 sheet 確實存在於 428x174@162,239
+                // ——Win32 這麼回報，`GW_ENABLEDPOPUP` 也指名了它——而同一時刻的桌面擷圖中完全
+                // 看不到任何 sheet，那個矩形裡只有主視窗的按鈕。
+                // `testapp/actions/win/P5-stacked-alerts.csv` 自 2026-09-03 起就把這件事列為
+                // 懷疑，並寫明「若擷圖看不到 alert，這是第一個該懷疑的東西」；它是對的，而這一次
+                // 執行把那個懷疑變成了量測。
+                try prepareForReplay(actions)
+                geometry = try currentWindowGeometry()
+                ActionFileReplay.report(
+                    "target window changed -- re-pinned and re-measured geometry "
+                        + "frame=(\(geometry.frameOrigin.x), \(geometry.frameOrigin.y)) "
+                        + "client=(\(geometry.clientOrigin.x), \(geometry.clientOrigin.y)) "
+                        + "scale=\(geometry.scale)"
+                )
+            }
             try perform(action, in: geometry)
         }
     }
