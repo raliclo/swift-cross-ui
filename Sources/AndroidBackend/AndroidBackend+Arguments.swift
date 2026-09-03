@@ -44,6 +44,19 @@ extension Activity {
     /// AndroidKit 產生的 `Activity` 中沒有這個方法，因此在此處綁定。
     @JavaMethod
     func getIntent() -> Intent!
+
+    /// Whether this activity's window is the one taking input.
+    ///
+    /// False while a popup is showing -- a Spinner dropdown, a `PopupMenu` --
+    /// because those are separate windows. `AndroidSynthesiser` uses it to say
+    /// so rather than dispatch into nothing.
+    ///
+    /// 本 activity 的視窗是否為正在接收輸入的那一個。
+    ///
+    /// 當某個彈出視窗顯示中時為 false——Spinner 的下拉、`PopupMenu`——因為那些是獨立的視窗。
+    /// `AndroidSynthesiser` 以它來如實說明，而不是把事件投遞到空無一物之中。
+    @JavaMethod
+    func hasWindowFocus() -> Bool
 }
 
 enum AndroidLaunchArguments {

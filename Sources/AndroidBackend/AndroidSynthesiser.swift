@@ -4,6 +4,7 @@ import AndroidOS
 import AndroidView
 import Foundation
 import InputEvent
+import Synchronization
 import SwiftJava
 
 // `AndroidKit` is deliberately not imported here, and neither is
@@ -284,6 +285,48 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         let dispatched = Self.onMainThread(default: false) {
             guard let activity = AndroidBackend.activity else { return false }
+
+            // A popup is a different window, and this dispatch cannot reach it.
+            //
+            // `Activity.dispatchTouchEvent` delivers to this activity's window.
+            // A Spinner's dropdown and a `PopupMenu` are separate windows owned
+            // by the WindowManager, and Android offers an app no public way to
+            // address another window's view: the API that reaches whatever is
+            // on top is `Instrumentation.sendPointerSync`, which needs
+            // INJECT_EVENTS, a signature permission. Neither popup is even ours
+            // to hold a reference to -- `Spinner(MODE_DROPDOWN)` builds its own
+            // `ListPopupWindow` and `PopupMenu` its own helper, both private.
+            //
+            // So the event goes nowhere, and until 2026-09-04 it went nowhere
+            // silently: the second click of a file that opened a picker and
+            // then chose from it did nothing at all, and the only evidence was
+            // a screenshot that looked like the app had ignored its input. That
+            // is why the four existing Android files that open a picker or a
+            // menu -- P2, P17, P19, P20 -- each stop after one click.
+            //
+            // Losing window focus is the signal, and it is exact: an activity
+            // has window focus unless another window has taken it, which for
+            // this app means a popup.
+            //
+            // 彈出視窗是另一個視窗，而這個 dispatch 抵達不了它。
+            //
+            // `Activity.dispatchTouchEvent` 只會投遞到本 activity 的視窗。Spinner 的下拉與
+            // `PopupMenu` 是由 WindowManager 持有的獨立視窗，而 Android 沒有提供 app 任何公開方式
+            // 去定址另一個視窗的 view：能抵達「當下位於最上層者」的 API 是
+            // `Instrumentation.sendPointerSync`，它需要 INJECT_EVENTS——一個簽章層級的權限。而且
+            // 這兩種彈出視窗都不是我們能持有參照的東西——`Spinner(MODE_DROPDOWN)` 會自建
+            // `ListPopupWindow`，`PopupMenu` 會自建其 helper，兩者皆為私有。
+            //
+            // 因此該事件哪裡也沒去，而在 2026-09-04 之前它是靜默地哪裡也沒去：一份「先開啟選擇器、
+            // 再從中選取」的檔案，其第二次點擊完全沒有作用，而唯一的證據是一張「看起來像 app 忽略了
+            // 輸入」的截圖。這正是既有的四份「會開啟選擇器或選單」的 Android 檔案——P2、P17、P19、
+            // P20——每一份都在一次點擊之後就停止的原因。
+            //
+            // 失去視窗焦點就是那個訊號，而且它是精確的：一個 activity 除非有另一個視窗奪走了焦點，
+            // 否則就擁有視窗焦點；而對這支 app 而言，那個「另一個視窗」就是彈出視窗。
+            if !activity.hasWindowFocus() {
+                Self.reportPopupOnce()
+            }
             guard
                 let event = try? JavaClass<MotionEvent>().obtain(
                     down,
@@ -303,6 +346,35 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             throw SynthesiserError.unsupported("posting a touch without an activity")
         }
         return down
+    }
+
+    /// Said once per replay, not once per event.
+    ///
+    /// A click is three dispatches and a drag is many more; one line per event
+    /// would bury the replay's own output, which `ActionFileReplay.report`'s
+    /// note asks callers not to do. The prefix matches that function's so the
+    /// line lands beside the `replaying` and `replayed` pair a reader is
+    /// already looking for.
+    ///
+    /// 每次重放只說一次，而不是每個事件說一次。
+    ///
+    /// 一次點擊是三次 dispatch，一次拖曳則更多；每個事件一行會把重放自身的輸出淹沒，而那正是
+    /// `ActionFileReplay.report` 的說明要求呼叫端不要做的事。此處的前綴與該函式相同，使這一行落在
+    /// 讀者本來就在找的 `replaying` 與 `replayed` 這一對旁邊。
+    private static let popupReported = Mutex(false)
+
+    private static func reportPopupOnce() {
+        let alreadySaid = popupReported.withLock { said -> Bool in
+            defer { said = true }
+            return said
+        }
+        guard !alreadySaid else { return }
+
+        let line = "-actionfile: this activity does not have window focus, so a "
+            + "popup (a picker dropdown or a menu) is in front. Touches "
+            + "synthesised here go to the activity's window and cannot reach "
+            + "it; this click will do nothing. See AndroidSynthesiser.\n"
+        FileHandle.standardError.write(Data(line.utf8))
     }
 
     /// Runs the body on the UI thread and waits for it.

@@ -85,6 +85,36 @@ action,x,y,origin,button,key,micros,note,platform
 # 「Chocolate」與「Strawberry」——位於 [47,666]-[341,1044]，每列 126 像素。這不是標籤能偽造的：
 # 這些選項來自 `choices`、經由 `Picker(of:selection:)`，因此一個只有一列、或字串錯誤、
 # 或根本沒有開啟的下拉選單，就是一個「排版出來了卻不能用」的選擇器。
+#
+# A SECOND CLICK WAS ADDED 2026-09-04, AND IT IS EXPECTED TO DO NOTHING. That is
+# the point of it. The dropdown is a `ListPopupWindow` -- a separate window owned
+# by the WindowManager -- and `AndroidSynthesiser` dispatches through
+# `Activity.dispatchTouchEvent`, which reaches this activity's window and no
+# other. Android gives an app no public way to address another window's view;
+# the API that reaches whatever is on top is `Instrumentation.sendPointerSync`,
+# which needs INJECT_EVENTS, a signature permission. Neither popup here is even
+# ours to hold: `Spinner(MODE_DROPDOWN)` builds its own ListPopupWindow.
+#
+# Until 2026-09-04 that click did nothing SILENTLY, and the only evidence was a
+# screenshot that looked like the app had ignored its input. The synthesiser now
+# says so, once per replay, on the `-actionfile:` channel beside the replaying
+# and replayed lines. The click stays in the file because the line it produces
+# is the record: a limitation that prints is a limitation the next person does
+# not have to rediscover.
+#
+# 第二次點擊是 2026-09-04 加入的，而它**預期不會有任何作用**。那正是它存在的用意。該下拉是一個
+# `ListPopupWindow`——由 WindowManager 持有的獨立視窗——而 `AndroidSynthesiser` 是透過
+# `Activity.dispatchTouchEvent` 投遞的，它只抵達本 activity 的視窗，不及其他。Android 沒有提供 app
+# 任何公開方式去定址另一個視窗的 view；能抵達「當下位於最上層者」的 API 是
+# `Instrumentation.sendPointerSync`，而它需要 INJECT_EVENTS——一個簽章層級的權限。而此處的彈出視窗
+# 甚至不是我們能持有的：`Spinner(MODE_DROPDOWN)` 會自行建立它的 ListPopupWindow。
+#
+# 在 2026-09-04 之前，那次點擊是**靜默地**毫無作用，而唯一的證據是一張「看起來像 app 忽略了輸入」
+# 的截圖。現在 synthesiser 會說出來，每次重放一次，輸出在 `-actionfile:` 這條通道上，緊鄰
+# replaying 與 replayed 兩行。這次點擊之所以留在檔案裡，是因為它所產生的那一行就是紀錄：一個會印
+# 出來的限制，是下一個人不必重新發現的限制。
 sleep,,,,,,1500000,let P36 lay out the picker and its readout,android
 click,83,278,,left,,,"the closed picker reading ""Vanilla"" -- a dropdown must open at pixels [47,666]-[341,1044] listing three rows of 126 pixels, ""Vanilla"", ""Chocolate"" and ""Strawberry"". REPLAYED 2026-09-03 and IT HOLDS: the dump after the press has exactly those three TextViews at [47,666]-[341,792], [47,792]-[341,918] and [47,918]-[341,1044], and nothing of the page underneath, which is what a PopupWindow looks like to uiautomator. logcat carries the pair ""replaying P36-actions.csv"" / ""replayed P36-actions.csv"" and geometry scale=2.625",android
 sleep,,,,,,1200000,let the dropdown appear,android
+click,74,374,,left,,,"the ""Strawberry"" row of the open dropdown -- EXPECTED TO DO NOTHING, see the header. REPLAYED 2026-09-04: the selection did not change, the dropdown stayed open, and the synthesiser reported ""this activity does not have window focus, so a popup ... is in front"" on the -actionfile channel. Before that change the same click was silent",android
+sleep,,,,,,1500000,"give the popup time to react, which it will not",android
