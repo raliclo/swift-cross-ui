@@ -7,12 +7,28 @@ action,x,y,origin,button,key,micros,note,platform
 # GTK/Windows and WinUI alike. This file is what changed that, so the three
 # `-> cancelled` lines it produces are the whole point rather than a detail.
 #
-# Escape rather than clicking Cancel, and that is deliberate. The dialog is a
-# native Windows picker in its own top-level window, so it is not addressable
-# from the `frame` origin, which is relative to P18's window; and its position
-# is not fixed between runs. A key event goes to whatever holds focus, so this
-# file has no coordinates for the dialog at all -- the same reasoning as
-# actions/win/P10-ctrl-q.csv.
+# Escape rather than clicking Cancel, and the reason CHANGED on 2026-09-04.
+#
+# What this said, and why it is no longer true: "The dialog is a native Windows
+# picker in its own top-level window, so it is not addressable from the `frame`
+# origin, which is relative to P18's window." That was the state of the
+# synthesiser, not a property of the dialog. `frame` now means "relative to the
+# window being driven", and the driven window follows an owned dialog -- so a
+# coordinate inside one of these pickers IS addressable today. The second half
+# stands: the position is not fixed between runs, and Escape needs no
+# coordinate at all, which is why this file keeps using it.
+#
+# MEASURED 2026-09-04, running this file unchanged: all three dialogs open, all
+# three Escapes land, the log gains three `cancelled` lines, and the replay logs
+# FIVE "target window changed" lines as it follows into and back out of each
+# picker. The dialogs report client=(60,83) against frame=(52,52) -- decorated,
+# unlike P18's own window, which reports client == frame because GTK draws it
+# with client-side decorations.
+#
+# The risk this file was held back for is also gone, and it was real: until that
+# day `prepareForReplay` pinned P18's window HWND_TOPMOST and a picker opened
+# afterwards was not pinned, so the app covered its own dialog. See
+# bugs/Gtk4-bugs.md section 6.
 #
 # Reading the result: P18 renders `open -> `, `folder -> ` and `save -> ` from
 # its own bindings, and each starts at "nothing yet". All three reading
@@ -33,10 +49,22 @@ action,x,y,origin,button,key,micros,note,platform
 # GTK/Windows 與 WinUI 三者皆為「編得出來但從未執行」。本檔正是改變這件事的東西，因此它產生的
 # 三行 `-> cancelled` 就是重點本身，而非附帶細節。
 #
-# 使用 Escape 而非點擊 Cancel，這是刻意的。該對話框是 Windows 原生選擇器、位於它自己的 top-level
-# 視窗中，因此無法以 `frame` 原點定位（`frame` 是相對於 P18 的視窗）；而且它的位置在各次執行之間
-# 並不固定。按鍵事件會送往持有焦點者，所以本檔對該對話框完全沒有任何座標——與
-# actions/win/P10-ctrl-q.csv 同樣的道理。
+# 使用 Escape 而非點擊 Cancel，而**理由在 2026-09-04 改變了**。
+#
+# 原本的說法，以及它為何不再成立：「該對話框是 Windows 原生選擇器、位於它自己的 top-level 視窗中，
+# 因此無法以 `frame` 原點定位（`frame` 是相對於 P18 的視窗）。」那描述的是**合成器當時的狀態**，
+# 不是該對話框的性質。`frame` 現在的意思是「相對於當下被驅動的那個視窗」，而被驅動的視窗會追隨
+# 一個被擁有的對話框——因此**今天，這些選擇器內部的座標是定位得到的**。後半段依然成立：它的位置
+# 在各次執行之間並不固定，而 Escape 根本不需要座標，這正是本檔繼續使用它的原因。
+#
+# **2026-09-04 實測**，以本檔原樣執行：三個對話框全部開啟、三次 Escape 全部送達、log 得到三行
+# `cancelled`，而重放記錄了**五次**「target window changed」——它進入每個選擇器又退出來。
+# 這些對話框回報 client=(60,83) 對 frame=(52,52)，即**有裝飾**；而 P18 自身的視窗回報
+# client == frame，因為 GTK 以 client-side decoration 繪製它。
+#
+# 本檔當初被壓著不動的那項風險也消失了，而它是真的：在那天之前，`prepareForReplay` 會把 P18 的
+# 視窗釘為 HWND_TOPMOST，而其後才開啟的選擇器不會被釘，於是 app 蓋住了自己的對話框。
+# 見 bugs/Gtk4-bugs.md 第 6 節。
 #
 # 如何判讀結果：P18 以自己的 binding 繪製 `open -> `、`folder -> ` 與 `save -> `，三者初始皆為
 # 「nothing yet」。三行全部讀到「cancelled」，即代表每一個對話框都「打開了」而且「有回傳」。從未

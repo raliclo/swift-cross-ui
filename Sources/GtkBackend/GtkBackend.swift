@@ -1186,27 +1186,88 @@ public final class GtkBackend:
     private func correctContentSizeIfNeeded(of window: Window) {
         let key = ObjectIdentifier(window)
         guard let requested = requestedContentSizes[key],
-            !contentSizeCorrected.contains(key),
             let content = window.getChild()
         else { return }
 
         let allocated = content.allocatedSize
+
+        // Report on EVERY pass, correct on one. The two were fused until
+        // 2026-09-04 and that made the diagnostic unable to answer the only
+        // question worth asking.
+        //
+        // With the correction guarded and the log inside it, a run printed
+        // "shortfall 0x39 -- grew the window to 900x639" and then went quiet.
+        // That says the fix RAN. It does not say it WORKED: there is no second
+        // reading, so "corrected to 600" and "corrected to something else" look
+        // identical, and so does a correction that GTK silently refused. A
+        // check that cannot produce a failing answer has not produced a passing
+        // one either -- the shape this project has now recorded three times in
+        // bugs/Gtk4-bugs.md section 6.
+        //
+        // Now the after-pass prints `shortfall 0x0`, which is a value that could
+        // have come out wrong and did not.
+        //
+        // **每一輪都回報，只修正一次。** 兩者在 2026-09-04 之前是綁在一起的，而那使這個診斷無法
+        // 回答唯一值得問的問題。
+        //
+        // 在「修正被 guard 擋住、log 又寫在 guard 之內」的情況下，某次執行印出
+        // 「shortfall 0x39——已把視窗放大為 900x639」，然後就沉默了。那說明這個修正**執行過**，
+        // 卻沒說它**有效**：因為沒有第二次讀數，「已修正為 600」與「修正成了別的值」看起來一模一樣，
+        // 而「GTK 默默拒絕了這次修正」看起來也一樣。**一個無法產生失敗答案的檢查，也沒有產生通過的
+        // 答案**——這正是本專案已在 bugs/Gtk4-bugs.md 第 6 節記錄三次的形狀。
+        //
+        // 現在事後那一輪會印出 `shortfall 0x0`，那是一個「本來可能出錯、而它沒有」的數值。
         // Still zero means the allocation has not happened yet, so this is not
         // the pass that can measure it. Returning without marking the window
         // corrected leaves the next pass to try.
         // 仍為零代表配置尚未發生，因此這一輪無法量測。此處返回而不標記為已修正，把機會留給下一輪。
         guard allocated.width > 0, allocated.height > 0 else { return }
 
-        contentSizeCorrected.insert(key)
-
         let shortfallX = requested.x - allocated.width
         let shortfallY = requested.y - allocated.height
+
+        // Reported from INSIDE the layout system, which is the only place the
+        // answer is not a guess. Measuring this from a screenshot was tried on
+        // 2026-09-04 and abandoned: a GTK4 window on Windows carries an
+        // invisible resize border that `GetWindowRect` includes and nothing
+        // paints, so a ruler laid on the visible edge and a ruler laid on the
+        // reported frame disagree by a number that itself has to be measured.
+        // Task #78 reached the same conclusion for #160 and it holds here.
+        //
+        // Prints whether or not a correction is needed, because "shortfall 0"
+        // is the result that says the bug is gone -- and a diagnostic that only
+        // speaks when something is wrong cannot distinguish "fixed" from
+        // "not running".
+        //
+        // 由**版面系統內部**回報，那是唯一不需要猜測的地方。2026-09-04 曾嘗試從截圖量測並放棄：
+        // Windows 上的 GTK4 視窗帶有一圈隱形的調整邊框，`GetWindowRect` 把它算進去而沒有任何東西
+        // 去畫它，因此「量可見邊緣的尺」與「量回報框架的尺」會相差一個本身還得先被量出來的數字。
+        // 任務 #78 對 #160 得到相同結論，此處亦然。
+        //
+        // **無論是否需要修正都輸出**，因為「shortfall 0」正是「缺陷已消失」的結果——而一個只在
+        // 出錯時才出聲的診斷，無法區分「已修好」與「根本沒有執行」。
+        DebugFeatures.log(
+            "content size: requested \(requested.x)x\(requested.y) "
+                + "allocated \(allocated.width)x\(allocated.height) "
+                + "shortfall \(shortfallX)x\(shortfallY)"
+        )
+
+        // Correct once; the reading above happens every pass. `insert` returns
+        // whether it was new, so the two facts stay in one expression rather
+        // than a flag that could be set in the wrong branch.
+        // 只修正一次；上方的讀數則每一輪都做。`insert` 會回傳「是否為新加入」，使這兩件事留在同一個
+        // 運算式中，而不是一個可能被設在錯誤分支裡的旗標。
+        guard contentSizeCorrected.insert(key).inserted else { return }
 
         guard shortfallX > 0 || shortfallY > 0 else { return }
 
         window.defaultSize = Size(
             width: requested.x + max(0, shortfallX),
             height: requested.y + max(0, shortfallY)
+        )
+        DebugFeatures.log(
+            "content size: grew the window to "
+                + "\(requested.x + max(0, shortfallX))x\(requested.y + max(0, shortfallY))"
         )
     }
 

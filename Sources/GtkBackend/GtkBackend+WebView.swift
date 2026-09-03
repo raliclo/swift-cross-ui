@@ -26,6 +26,52 @@ extension GtkBackend {
     // looks like a layout bug, whereas the text says which feature is missing
     // and why. When a WebKitGTK implementation lands it replaces this file.
     //
+    // DECISION, 2026-09-04: `webkitgtk-6.0` CANNOT be a plain system dependency,
+    // and the reason is not cost or taste. It is measured:
+    //
+    //   Linux (WSL, Ubuntu 26.04) `apt-cache policy libwebkitgtk-6.0-dev`
+    //     -> Candidate: 2.52.6-0ubuntu0.26.04.1     available, installable
+    //   Windows (gvsbuild, C:/gtk4) `ls C:/gtk4/bin/*webkit*`, and pkg-config
+    //     -> nothing at all                          WebKitGTK has no Windows port
+    //
+    // GtkBackend ships on Linux, on WSL AND on Windows. Adding the dependency
+    // unconditionally would take the Windows GTK build from "renders a labelled
+    // placeholder" to "does not configure", which is strictly worse and breaks a
+    // shipped target to fix a different one. So the decision is not yes/no; the
+    // question had a hidden third answer.
+    //
+    // What it has to be instead, and this is the shape any implementation must
+    // take: a CONDITIONAL dependency, present where the platform has it, with
+    // the Windows GTK build keeping a real implementation of its own. Windows
+    // does have an engine -- WebView2, which `WinUIBackend+WebView.swift`
+    // already drives -- and GTK4 on Windows can hand out an HWND for its
+    // surface, so hosting WebView2 as a child of that HWND is the route. That is
+    // work, not a flag, and it is why this file still exists.
+    //
+    // What is NOT acceptable, per this project's rules: leaving the placeholder
+    // as the permanent answer on three of the six shipped platforms. It is a
+    // truthful report of a missing feature, which is not the same as a feature.
+    //
+    // **決策，2026-09-04：`webkitgtk-6.0` 不能成為單純的系統相依**，理由不是成本或喜好，而是實測：
+    //
+    //   Linux（WSL、Ubuntu 26.04）`apt-cache policy libwebkitgtk-6.0-dev`
+    //     -> Candidate: 2.52.6-0ubuntu0.26.04.1      有，可安裝
+    //   Windows（gvsbuild、C:/gtk4）`ls C:/gtk4/bin/*webkit*` 與 pkg-config
+    //     -> 完全沒有                                 WebKitGTK 沒有 Windows 版本
+    //
+    // GtkBackend 同時出貨於 Linux、WSL **與 Windows**。無條件加入該相依，會讓 Windows 的 GTK 建置
+    // 從「畫出一個有說明文字的佔位」變成「根本無法 configure」——那是為了修好某個目標而弄壞另一個
+    // 已出貨的目標，嚴格來說更糟。因此這個決策不是「要或不要」；這個問題有一個被忽略的第三種答案。
+    //
+    // 它必須改成什麼，而任何實作也都得是這個形狀：**條件式相依**，在平台具備時才引入，而 Windows
+    // 的 GTK 建置保有它自己的真實實作。Windows 確實有引擎——WebView2，
+    // `WinUIBackend+WebView.swift` 已經在驅動它——而 GTK4 在 Windows 上能交出其 surface 的 HWND，
+    // 因此「把 WebView2 掛為該 HWND 的子視窗」就是那條路。那是工作量，不是一個旗標，而這正是本檔
+    // 至今仍存在的原因。
+    //
+    // 依本專案規則**不可接受**的是：把這個佔位當成六個已出貨平台中三個的永久答案。它是對一項缺失
+    // 功能的如實回報，而那與「擁有一項功能」是兩回事。
+    //
     // 這是一個佔位用的 web view，而非真正的 web view。
     //
     // GtkBackend 先前完全沒有 conform `BackendFeatures.WebViews`，而缺少 conformance 並非降級：

@@ -1,70 +1,138 @@
 action,x,y,origin,button,key,micros,note,platform
-# P5 on Windows, GtkBackend: stack two alerts on one window and see whether the
-# first one comes back when the second closes.
+# P5 on Windows, GtkBackend: stack three alerts on one window and dismiss them
+# one at a time, checking that each one below comes back.
 #
-# #675 is that alerts used to queue behind a single app-wide dialog. The two
-# checks are separate: alerts on DIFFERENT windows showing at the same time,
-# and alerts stacked on the SAME window restoring each earlier one as the top
-# one is dismissed. This file does the second, because it needs only the one
-# window whose frame coordinates are known.
+# THIS IS #675's ACTUAL CLAIM, and until 2026-09-04 no file in this tree could
+# make it. #675 has two halves: alerts on DIFFERENT windows showing at the same
+# time, and alerts stacked on the SAME window restoring each earlier one as the
+# top one is dismissed. The second half is a SEQUENCE, and testing a sequence
+# needs the ability to dismiss -- which needs a click inside a dialog, which the
+# synthesiser could not do. See bugs/Gtk4-bugs.md section 6.
 #
-# There is no OK button coordinate here, deliberately. An alert is a separate
+# What this file replaced, kept because it states the old limit exactly:
+# "There is no OK button coordinate here, deliberately. An alert is a separate
 # top-level window, its position is decided by GTK rather than by this app, and
-# nothing has measured it. So the file opens the alerts and stops; judge it by
-# a DESKTOP capture, which is the only kind that shows a dialog at all.
+# nothing has measured it. So the file opens the alerts and stops."
+# Both reasons are now answered. The position is still GTK's to choose -- but
+# `origin=frame` means "relative to the window being driven", the driven window
+# follows an owned dialog, and the replay re-measures on every change. A moving
+# alert therefore needs no fixed position, only a fixed offset INSIDE it.
 #
-# Risk, stated because P18 is deliberately skipped for it: `prepareForReplay`
-# pins the app window topmost for the whole replay, and testapp/P6.swift
-# records a pinned window putting a dialog behind itself. If the capture shows
-# no alert, that is the first thing to suspect rather than a click that missed.
+# THREE FRAMES OF REFERENCE, one per dialog, plus the app's own. Named rather
+# than numbered so deleting a row cannot silently shift the references:
+#   the "Show A+B+C at once" row  -> P5's window, 582x409
+#   each of the three "OK" rows   -> that alert's own frame, 134x60
+# An OK coordinate copied up to the app's frame does not merely miss; it is
+# measured against a different window.
 #
-# P5 於 Windows、GtkBackend：在同一個視窗上疊兩個 alert，看第二個關閉後第一個會不會回來。
+# WHY "Show A+B+C at once" AND NOT THREE SEPARATE BUTTONS. Read P5.swift: a
+# modal backend cannot raise a second alert while the first is up, so pressing
+# "Show Alert A" then "Show Alert B" would only ever exercise one at a time.
+# The combined button sets all three `isPresented` in a single update, which is
+# the only way to make the queue exist at all. That is the app's own comment,
+# not this file's inference.
 #
-# #675 是「alert 過去會排隊等在單一個 app 層級的對話框後面」。兩項檢查是分開的：**不同**視窗上的
-# alert 能否同時顯示，以及疊在**同一個**視窗上的 alert 能否在上層被關閉後逐一還原。本檔做的是
-# 第二項，因為它只需要那個已知 frame 座標的視窗。
+# MEASURED 2026-09-04, and every number here was read off a capture
+# programmatically rather than by eye:
+#   P5's window frame reports 582x409@104,104, but its body is DRAWN from image
+#   x=118 -- GTK4 reserves a 14px invisible resize border that GetWindowRect
+#   includes and nothing paints. Coordinates below are (image - frame origin),
+#   so they already absorb it. This is why a coordinate must never be taken
+#   from a ruler laid on the visible window edge.
+#   "Show A+B+C at once" spans image x 317..473, y 389..423 -> frame (291,302).
+#   The alert reports 134x60 and its OK button spans image x 250..383, which is
+#   exactly the reported width: the alert has NO horizontal shadow inset and OK
+#   fills it edge to edge. OK centre in the ALERT's frame is (66,42).
 #
-# 此處刻意沒有 OK 按鈕的座標。alert 是獨立的 top-level 視窗，位置由 GTK 而非本 app 決定，而且
-# 無人量測過。因此本檔只負責開啟 alert 就停下；判定請用**桌面**截圖——那是唯一看得到對話框的擷取。
+# All three alerts carry titles of the same length -- "Alert A (Main)",
+# "Alert B (Main)", "Alert C (Main)" -- so all three are 134x60 and one offset
+# serves all three rows. If a title is ever edited, re-measure; a longer title
+# widens the alert and moves the centre.
 #
-# 風險，特此註明（P18 正是為此被刻意略過）：`prepareForReplay` 在整場重放期間把 app 視窗釘在最上層，
-# 而 testapp/P6.swift 記錄過「被釘住的視窗會把對話框壓到自己後面」。若截圖中沒有 alert，應先懷疑
-# 這一點，而非「點擊落空」。
+# READ THE RESULT FROM p5-debug-events.log, in the CURRENT DIRECTORY. P5 gained
+# a diagnostics writer on 2026-09-04 for this file, because the claim is about
+# ORDER and the on-screen `eventLog` holds ONE line that each event overwrites.
+# A capture at the end can only ever show the last state. Expect exactly, in
+# this order:
+#     Main: requesting A, B and C together
+#     Main: Alert A dismissed
+#     Main: Alert B dismissed
+#     Main: Alert C dismissed
+# Three dismissals in A, B, C order IS the #675 claim. Two of them means one
+# alert never came back. One means the queue does not exist.
 #
-# Measured on a 578x398 window capture at 100% display scale.
-# 量測自一張 578x398 的視窗截圖，顯示縮放 100%。
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P5
+# and pass --debug too, or the log is never created and nothing says why.
 #
-# ---------------------------------------------------------------------------
-# RESULT, 2026-08-27, GtkBackend `-gtk4`. The clicks reach the app and no
-# dialog appears.
+# The final sleep is an OBSERVATION POINT, not padding. The replay checks which
+# window it drives BEFORE each action and never after the last one, so a file
+# ending on its last click cannot see the result of that click. Deleting that
+# row makes this file report a failure that did not happen -- which is exactly
+# what happened to P1's file on 2026-09-04, at the cost of a whole false finding.
 #
-# The status line went from "Ready." to "Main: showing Alert A", so the app
-# knows it was asked. A desktop capture taken while both clicks had been made
-# shows the whole screen with the P5 window in front and NO alert window
-# anywhere on it.
+# P5 於 Windows、GtkBackend：在同一個視窗上疊三個 alert，逐一關閉，檢查下層的是否會回來。
 #
-# Which of the two explanations applies was not established:
-#   (a) the alert exists and the topmost pin is holding it behind the window,
-#       which is what testapp/P6.swift records happening to a file picker; or
-#   (b) GtkBackend does not present it.
+# **這才是 #675 真正的主張**，而在 2026-09-04 之前，本樹中沒有任何檔案做得到。#675 有兩半：
+# **不同**視窗上的 alert 能否同時顯示，以及疊在**同一個**視窗上的 alert 能否在上層被關閉後逐一
+# 還原。第二半是一個**序列**，而測試序列需要「能夠關閉」——那需要點擊對話框內部，而合成器當時
+# 做不到。見 bugs/Gtk4-bugs.md 第 6 節。
 #
-# Telling them apart needs a run without the pin, which `prepareForReplay` does
-# not offer, or somebody pressing the button by hand. So this is an observation
-# and not a verdict on #675.
+# 本檔所取代的內容，保留於此，因為它精確地陳述了舊的限制：
+# 「此處刻意沒有 OK 按鈕的座標。alert 是獨立的 top-level 視窗，位置由 GTK 而非本 app 決定，而且
+# 無人量測過。因此本檔只負責開啟 alert 就停下。」
+# 這兩個理由現在都有了答案。位置仍然由 GTK 決定——但 `origin=frame` 的意思是「相對於當下被驅動的
+# 視窗」，被驅動的視窗會追隨被擁有的對話框，而重放在每次變更時都會重新量測。因此一個會移動的
+# alert 根本不需要固定位置，只需要它**內部**的固定位移。
 #
-# ---------------------------------------------------------------------------
-# 結果，2026-08-27，GtkBackend `-gtk4`。點擊有抵達 app，但沒有任何對話框出現。
+# **三個參考框架**，每個對話框一個，外加 app 自己的。用名稱而非列號，使刪除某列不會靜默地移動
+# 這些指涉：
+#   「Show A+B+C at once」那一列 -> P5 的視窗，582x409
+#   三列「OK」的每一列           -> 該 alert 自己的框架，134x60
+# 把 OK 的座標往上套到 app 的框架，不只是「沒中」，而是對著另一個視窗量測。
 #
-# 狀態列從「Ready.」變成「Main: showing Alert A」，代表 app 知道自己被要求了。在兩次點擊都已完成時
-# 取得的桌面截圖顯示整個螢幕上 P5 視窗位於最前方，而畫面上**沒有**任何 alert 視窗。
+# **為何用「Show A+B+C at once」而非三顆分開的按鈕。** 請看 P5.swift：modal backend 無法在第一個
+# alert 顯示時再舉起第二個，因此先按「Show Alert A」再按「Show Alert B」永遠只能一次驗一個。
+# 合併的那顆按鈕會在**同一次更新**中把三個 `isPresented` 都設為真，那是讓佇列得以存在的唯一方式。
+# 這是該 app 自己的註解，不是本檔的推論。
 #
-# 兩種解釋中何者成立，並未確立：
-#   (a) alert 存在，但置頂釘選把它壓在視窗後面——testapp/P6.swift 記錄過檔案選取對話框正是如此；或
-#   (b) GtkBackend 根本沒有把它呈現出來。
+# **2026-09-04 實測**，而此處每一個數字都是以程式從擷圖讀出的，不是用眼睛量的：
+#   P5 的視窗框架回報 582x409@104,104，但它的主體是從 image x=118 才**畫**出來的——GTK4 保留了
+#   14px 的隱形調整邊框，`GetWindowRect` 把它算進去，而沒有任何東西去畫它。以下座標是
+#   （image − 框架原點），因此已經把它吸收進去了。這正是「絕不可拿尺量可見視窗邊緣來取座標」的
+#   原因。
+#   「Show A+B+C at once」橫跨 image x 317..473、y 389..423 -> frame (291,302)。
+#   alert 回報 134x60，而它的 OK 按鈕橫跨 image x 250..383，恰好等於回報的寬度：該 alert **沒有**
+#   水平陰影內縮，OK 從左緣填到右緣。OK 中心在 **alert 框架**中為 (66,42)。
 #
-# 要分辨兩者，需要一次「沒有釘選」的執行（`prepareForReplay` 不提供），或有人親手按下按鈕。因此這是
-# 一項觀察，而非對 #675 的判定。
-click,87,255,frame,left,,,"Show Alert A",windows
-sleep,,,,,,1500000,,windows
-click,241,255,frame,left,,,"Show Alert B (stacks on A)",windows
-sleep,,,,,,8000000,hold both open for a desktop capture,windows
+# 三個 alert 的標題等長——「Alert A (Main)」、「Alert B (Main)」、「Alert C (Main)」——因此三者
+# 皆為 134x60，一組位移即可通用三列。若日後修改標題，請重新量測；較長的標題會加寬 alert 並移動
+# 中心。
+#
+# **結果請讀目前工作目錄下的 p5-debug-events.log。** P5 於 2026-09-04 為本檔新增了診斷寫入器，
+# 因為此主張關乎**順序**，而畫面上的 `eventLog` 只有**一行**、每個事件都會覆蓋它。最後所取的擷圖
+# 只能顯示最終狀態。預期恰為以下四行，且順序如下：
+#     Main: requesting A, B and C together
+#     Main: Alert A dismissed
+#     Main: Alert B dismissed
+#     Main: Alert C dismissed
+# 依 A、B、C 順序出現的三次關閉，**就是** #675 的主張。只有兩次，代表有一個 alert 沒有回來；
+# 只有一次，代表佇列根本不存在。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P5
+# 並且同時傳入 --debug，否則 log 檔根本不會被建立，且沒有任何訊息說明原因。
+#
+# 最後那一列 sleep 是**觀測點**，不是湊數。重放是在每個動作**之前**檢查自己驅動哪個視窗，最後一個
+# 動作之後不再檢查，因此一份以最後一次點擊結尾的檔案，看不到那次點擊的結果。刪掉那一列，本檔就會
+# 回報一個從未發生過的失敗——而那正是 2026-09-04 發生在 P1 檔案上的事，代價是一個完整的假發現。
+sleep,,,,,,1500000,let the window settle -- a click before layout misses silently,windows
+click,291,302,frame,left,,,"""Show A+B+C at once"" -- P5's own frame; sets all three isPresented in one update so the queue exists",windows
+sleep,,,,,,2000000,let Alert A map and become the driven window -- the re-pin happens here,windows
+click,66,42,frame,left,,,"OK on Alert A -- the ALERT's frame not P5's; the log must gain Alert A dismissed and Alert B must appear",windows
+sleep,,,,,,1800000,let Alert B come back up,windows
+click,66,42,frame,left,,,"OK on Alert B -- same offset because all three alerts are 134x60; a restored alert is what #675 is about",windows
+sleep,,,,,,1800000,let Alert C come back up,windows
+click,66,42,frame,left,,,"OK on Alert C -- the last of the stack; after this no alert should remain",windows
+sleep,,,,,,1500000,let the last dismissal settle,windows
+sleep,,,,,,1000000,"observation point: a second action so the identity check runs once more and reports the target going BACK to P5's window",windows
