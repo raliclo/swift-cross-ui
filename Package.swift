@@ -278,6 +278,10 @@ let package = Package(
             url: "https://github.com/swhitty/swift-mutex",
             .upToNextMinor(from: "0.0.6")
         ),
+        .package(
+            url: "https://github.com/apple/swift-collections",
+            .upToNextMajor(from: "1.5.0")
+        ),
         // .package(
         //     url: "https://github.com/stackotter/TermKit",
         //     revision: "163afa64f1257a0c026cc83ed8bc47a5f8fc9704"
@@ -594,6 +598,7 @@ if androidBackendSupported {
                 // 依賴。
                 "InputEvent",
                 .product(name: "Mutex", package: "swift-mutex"),
+                .product(name: "DequeModule", package: "swift-collections"),
 
                 // These two dependencies have to be marked as only included on Android
                 // (even though this target is only used on Android) because SwiftPM requires

@@ -2,6 +2,7 @@ package dev.swiftcrossui.androidbackend.datepickers
 
 import androidx.fragment.app.FragmentActivity
 import java.time.LocalDateTime
+import java.util.Locale
 
 class CompactDatePicker(activity: FragmentActivity) : AbstractDatePicker(activity) {
     protected override val dateView = DateButton(activity)
@@ -44,5 +45,10 @@ class CompactDatePicker(activity: FragmentActivity) : AbstractDatePicker(activit
     fun setForegroundColor(color: Int) {
         dateView.setTextColor(color)
         timeView.setTextColor(color)
+    }
+
+    override fun setLocale(locale: Locale) {
+        dateView.setLocale(locale)
+        timeView.setLocale(locale)
     }
 }

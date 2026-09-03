@@ -7,6 +7,7 @@ import AndroidKit
 import AndroidGraphics
 import AndroidBackendShim
 import Mutex
+import DequeModule
 
 // Many force tries are required for the Android backend but we don't really want them
 // anywhere else so just disable the lint rule at a file level.
@@ -215,6 +216,9 @@ public final class AndroidBackend: BaseAppBackend {
     static var activity: Activity!
 
     var helpers: AndroidBackendHelpers
+
+    static let maxLocaleCacheSize = 25
+    var localeCache = Deque<(Foundation.Locale, AndroidKit.Locale)>()
 
     public init() {
         helpers = AndroidBackendHelpers(environment: Self.env)
