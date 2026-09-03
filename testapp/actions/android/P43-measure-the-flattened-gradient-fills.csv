@@ -1,0 +1,118 @@
+action,x,y,origin,button,key,micros,note,platform
+# P43 on Android: the shapes are clipped correctly and every gradient is FLAT.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p43-android-final-20260903-142624.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# P43 HAS NO CONTROLS -- four shapes and three lines of text -- so the press below
+# is a survival check and the claim is a set of measurements, which is the right
+# shape for an app whose own header says "The check is visual and cannot be a
+# number: a screenshot either shows a round gradient or a square one."
+#
+# THE HALF THAT WORKS. Every shape is the right shape, at the right size, and
+# clipped to its own path. The control circle occupies pixels [205,804]-[519,1118],
+# 315 x 315, which is the 120 x 120 points asked for, and holds 77393 pixels of
+# Color.green (52, 199, 89) against the 77931 a circle of that diameter has -- so
+# it is a circle, not a square. The rectangle holds 99225 pixels in a 315 x 315
+# box, which is 315 x 315 exactly, so it is a full square. The gradient circle at
+# [0,804]-[162,1118] holds 40419, about half a circle, because its left half is
+# off the window edge; its height is the full 315. And the stroked ring at
+# [919,804]-[1077,1118] has an EMPTY MIDDLE -- the pixel at (1010, 955) is white
+# -- which is the trap P43's header names as the one a backend is most likely to
+# get wrong in a way that looks right: a gradient clipped to the fill region
+# instead of the stroke would have filled it in.
+#
+# THE DEFECT: NOT ONE OF THE GRADIENTS IS A GRADIENT. All three gradient shapes
+# are a single flat colour with no variation at all. Sampling the rectangle down
+# its middle at x 720, every row from y 835 to y 1115 is (255, 56, 60); the same
+# down the circle at x 80. A colour census of each shape finds exactly two colours
+# in it, the fill and the white background: the circle 40419 pixels of
+# (255, 56, 60), the rectangle 99225 of it, the ring 14026. A red-to-blue ramp
+# across 315 pixels cannot produce two colours.
+#
+# TWO THINGS ARE WRONG, not one, and they are separable.
+#
+#   1. AndroidBackend does not implement the styled path renderer.
+#      `BackendFeatures.Paths` declares
+#      `renderPath(_:container:strokeStyle:fillStyle:overrideStrokeStyle:environment:)`
+#      and gives it a default that flattens both styles to one colour each; only
+#      AppKitBackend and UIKitBackend override it, in their `+PathGradients.swift`
+#      files. Sources/AndroidBackend/AndroidBackend+Paths.swift implements only the
+#      flat-colour `renderPath(_:container:strokeColor:fillColor:overrideStrokeStyle:)`,
+#      so this backend takes the degradation. Under this project's rule that a
+#      shipped backend does not degrade, that is the defect.
+#
+#   2. The degradation does not do what it says. `ResolvedFillStyle.flattened(in:)`
+#      is documented as using "the **midpoint** stop, not the first", and its
+#      comment gives the reason: "A two-stop gradient flattened to its first colour
+#      looks like the gradient was ignored." Its implementation picks
+#      `stops.min(by: { abs($0.location - 0.5) < abs($1.location - 0.5) })`. For
+#      `Gradient(colors: [.red, .blue])` the two stops sit at 0.0 and 1.0, both
+#      exactly 0.5 away, and `min(by:)` keeps the first element of a tie -- so it
+#      returns RED, the first stop, in the very case the comment says must not
+#      happen. The measured (255, 56, 60) is SwiftCrossUI's `.red`; the purple a
+#      red-to-blue midpoint would give is nowhere on screen.
+#
+#   And a third thing, smaller: the degradation is supposed to announce itself
+#   through `ResolvedFillStyleDegradation.reportOnce`, which calls
+#   `logger.warning`. Nothing from the app reaches logcat on this backend --
+#   checked on this run, which carries the `-actionfile:` lines and not one line
+#   from P43's own `print` -- so on Android the warning that makes this
+#   "degradation, and it says so" is not visible to anyone.
+#
+# NOT FIXED HERE; all three recorded for a decision.
+#
+# P43 於 Android：形狀都被正確裁切，而每一個漸層都是平色。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p43-android-final-20260903-142624.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+#
+# **P43 沒有任何控制項**——四個形狀與三行文字——因此下方的按壓是一次存活檢查，而主張是一組量測；
+# 對一支自己在表頭寫著「這個檢查是視覺性的，也不可能是一個數字：截圖不是顯示圓形漸層，就是顯示方形
+# 漸層」的 app 而言，那正是正確的形狀。
+#
+# **做對的那一半。** 每個形狀都是正確的形狀、正確的尺寸，並且被裁切到它自己的路徑上。對照組的圓
+# 佔據像素 [205,804]-[519,1118]，315 x 315，即所要求的 120 x 120 點，其中含有 77393 個
+# Color.green (52, 199, 89) 像素，對照該直徑的圓應有的 77931——因此它是圓，不是方。矩形在 315 x 315
+# 的框中含有 99225 個像素，恰為 315 x 315，因此是完整的正方形。位於 [0,804]-[162,1118] 的漸層圓
+# 含有 40419 個，約為半個圓，因為它的左半落在視窗邊緣之外；其高度為完整的 315。而位於
+# [919,804]-[1077,1118] 的描邊環，**中間是空的**——像素 (1010, 955) 為白色——那正是 P43 表頭所指名、
+# backend 最可能「錯得看起來像對的」的陷阱：若漸層被裁到填充區域而非描邊區域，那裡就會被填滿。
+#
+# **缺陷：沒有任何一個漸層是漸層。** 三個漸層形狀全都是單一平色，完全沒有變化。沿矩形中線 x 720
+# 取樣，自 y 835 至 y 1115 的每一列都是 (255, 56, 60)；沿圓形的 x 80 亦然。對每個形狀做顏色普查，
+# 各自只找得到兩種顏色，即填充色與白色背景：圓有 40419 個 (255, 56, 60)、矩形有 99225 個、
+# 環有 14026 個。橫跨 315 像素的紅到藍漸層，不可能只產生兩種顏色。
+#
+# **錯的有兩件事，不是一件**，而且它們可以分開。
+#
+#   1. AndroidBackend 沒有實作帶樣式的路徑繪製器。`BackendFeatures.Paths` 宣告了
+#      `renderPath(_:container:strokeStyle:fillStyle:overrideStrokeStyle:environment:)`，
+#      並為它提供了一個「把兩個樣式各壓成一個顏色」的預設實作；只有 AppKitBackend 與 UIKitBackend
+#      在其 `+PathGradients.swift` 中覆寫了它。Sources/AndroidBackend/AndroidBackend+Paths.swift
+#      只實作了平面色版本的
+#      `renderPath(_:container:strokeColor:fillColor:overrideStrokeStyle:)`，因此本 backend 走的是
+#      降級路徑。依本專案「已發布的 backend 不得降級」的規則，那就是缺陷。
+#
+#   2. 該降級並沒有做到它所宣稱的事。`ResolvedFillStyle.flattened(in:)` 的文件寫著它使用
+#      「**中點**的 stop，而非第一個」，其註解也給出了理由：「把雙 stop 的漸層壓成它的第一個顏色，
+#      看起來像漸層被忽略了。」而它的實作取的是
+#      `stops.min(by: { abs($0.location - 0.5) < abs($1.location - 0.5) })`。對
+#      `Gradient(colors: [.red, .blue])` 而言，兩個 stop 位於 0.0 與 1.0，距離 0.5 恰好相同，
+#      而 `min(by:)` 在平手時保留第一個元素——因此它回傳的是**紅色**，也就是第一個 stop，
+#      正好落在該註解說「不可以發生」的那個情況上。實測的 (255, 56, 60) 就是 SwiftCrossUI 的
+#      `.red`；紅到藍的中點所應呈現的紫色，畫面上一處也沒有。
+#
+#   還有第三件較小的事：該降級本應透過 `ResolvedFillStyleDegradation.reportOnce` 自我announce，
+#   而它呼叫的是 `logger.warning`。在本 backend 上，app 的任何輸出都不會抵達 logcat——本次執行已
+#   查證：其中有 `-actionfile:` 各行，卻沒有任何一行來自 P43 自己的 `print`——因此在 Android 上，
+#   那個讓此事成為「降級，而且它會說出來」的警告，沒有任何人看得見。
+#
+# **此處未修正**；三項全部記錄下來供裁決。
+sleep,,,,,,1800000,let all four shapes render,android
+click,138,366,,left,,,"the centre of the green control circle -- the process must survive and the measurement must still hold: the control circle is 77393 pixels of (52, 199, 89) in a 315 x 315 box, the ring is empty at (1010, 955), and all three gradient shapes are flat (255, 56, 60) with no second colour anywhere in them. REPLAYED 2026-09-03 and IT HOLDS TO THE PIXEL, WHICH MEANS THE APP FAILS ITS OWN TEST: no Abort message, and on a fresh launch the counts reproduce exactly -- control 77393 of (52, 199, 89), circle+gradient 40419 of (255, 56, 60), rectangle+gradient 99225 of it, ring 14026 with white at (1010, 955). Every shape census finds exactly two colours, the fill and the white background, so not one of the three gradients has a second colour in it. The shapes are right and the gradients are not there",android
+sleep,,,,,,1200000,"let anything the touch started finish, or fail",android

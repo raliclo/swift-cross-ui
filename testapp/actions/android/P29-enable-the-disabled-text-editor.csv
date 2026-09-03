@@ -1,0 +1,72 @@
+action,x,y,origin,button,key,micros,note,platform
+# P29 on Android: enable the TextEditor and check the widget itself becomes
+# editable, not only the caption under it.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p29-android-final-20260903-131055.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Enable it" is at pixels [719,1652]-[960,1778]; its centre is pixel
+# (839, 1715) = point (320, 653).
+#
+# Which of P29's three cases this file can ask about. The first two have no
+# control on them -- an indeterminate progress bar is judged by whether it is
+# moving, which one capture cannot show, and the cornerRadius clip is judged by
+# looking at the corners. The third has a button, and it is also the one P29's own
+# comment says had no way to be told apart except by typing into it: an editor
+# that stayed editable while looking disabled.
+#
+# Typing is not available here. `AndroidSynthesiser.perform` throws
+# SynthesiserError.unsupported("key rows on Android") for `keydown`, `keyup` and
+# `key`, because no keycode mapping from InputEvent's Key to Android's has been
+# written. So the question "does it accept input" has to be asked of the widget's
+# own state rather than by feeding it a character.
+#
+# The launch state, measured. The caption reads "Editor is disabled -- try typing
+# in it", and the widget agrees with it: the EditText at pixels [0,1637]-[687,1794]
+# carries enabled="false" in the accessibility tree. That agreement is the baseline
+# -- the failure P29 describes is the caption and the widget disagreeing.
+#
+# The claim, in two halves: after the press the caption must read "Editor is
+# enabled -- try typing in it" and the button must read "Disable it", AND the
+# EditText node must have flipped to enabled="true". The second half is the one a
+# label cannot fake. A backend that took `.disabled` as a paint job would have
+# shown enabled="true" at launch as well, and one that stored the flag without
+# pushing it into the widget would leave enabled="false" under the new caption --
+# which is the exact shape of the List defect recorded on this backend in
+# P7-select-a-list-row-from-code.csv.
+#
+# One press. The caption's text changes width and the button relabels from
+# "Enable it" to "Disable it", so anything written for the row afterwards would be
+# aimed at a moved target.
+#
+# P29 於 Android：啟用 TextEditor，並確認變的是 widget 本身，而不只是它下方的說明文字。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p29-android-final-20260903-131055.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。「Enable it」位於像素
+# [719,1652]-[960,1778]，其中心為像素 (839, 1715)，即點 (320, 653)。
+#
+# 本檔能對 P29 的三個案例中的哪一個提問。前兩個沒有任何控制項——不確定進度條要看它有沒有在動，
+# 而單一張截圖顯示不出來；cornerRadius 的裁切則要看四個角。第三個有按鈕，而它也正是 P29 自身註解
+# 所說「除了實際輸入之外無從分辨」的那一個：一個看起來被停用、實際上仍可編輯的編輯器。
+#
+# 此處無法輸入文字。`AndroidSynthesiser.perform` 對 `keydown`、`keyup` 與 `key` 會拋出
+# SynthesiserError.unsupported("key rows on Android")，因為從 InputEvent 的 Key 到 Android keycode
+# 的對照表尚未寫出。因此「它接不接受輸入」這個問題，只能改問 widget 自身的狀態，而不是餵它一個字元。
+#
+# 啟動狀態，經量測。說明文字讀作「Editor is disabled -- try typing in it」，而 widget 與它一致：
+# 位於像素 [0,1637]-[687,1794] 的 EditText 在 accessibility tree 中帶有 enabled="false"。這份一致
+# 正是基準——P29 所描述的失敗，就是說明文字與 widget 彼此不一致。
+#
+# 主張分為兩半：按下之後，說明文字必須讀作「Editor is enabled -- try typing in it」、按鈕必須讀作
+# 「Disable it」，**且** EditText 節點必須翻轉為 enabled="true"。第二半是標籤偽造不了的。若某個
+# backend 把 `.disabled` 當成上色處理，那麼它在啟動時就會顯示 enabled="true"；而若它只存下旗標卻
+# 不推進 widget，新的說明文字之下就會留著 enabled="false"——那正是本 backend 在
+# P7-select-a-list-row-from-code.csv 中所記錄的清單缺陷的同一個形狀。
+#
+# 只按一次。說明文字的寬度會改變，按鈕也會由「Enable it」改標為「Disable it」，因此在那之後為該列
+# 所寫的任何東西，瞄準的都會是一個已經移動過的目標。
+sleep,,,,,,1500000,let P29 draw all three sections,android
+click,320,653,,left,,,"""Enable it"" -- the caption must read ""Editor is enabled -- try typing in it"", the button must relabel to ""Disable it"", and the EditText node must flip from enabled=""false"" to enabled=""true"". REPLAYED 2026-09-03 and ALL THREE HOLD: the caption is ""Editor is enabled -- try typing in it"" at [0,1831]-[577,1894], the button is ""Disable it"" at [719,1652]-[973,1778] (13 px wider than ""Enable it"", so it really relabelled), and the EditText at the unchanged bounds [0,1637]-[687,1794] now carries enabled=""true"" where it carried enabled=""false"" at launch. .disabled reaches the widget on AndroidBackend rather than being stored beside it",android
+sleep,,,,,,1200000,let the editor and its caption repaint,android

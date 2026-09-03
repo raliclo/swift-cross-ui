@@ -1,0 +1,66 @@
+action,x,y,origin,button,key,micros,note,platform
+# P33 on Android: collapse the DisclosureGroup approximation and check the child is
+# removed from the tree, not just hidden.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p33-android-final-20260903-133018.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Hide details" is at pixels [47,1451]-[359,1577]; its centre is
+# pixel (203, 1514) = point (77, 577).
+#
+# Why this button and not the stepper's + or -. Both are here, at
+# [47,1199]-[278,1325] and [469,1199]-[700,1325], and pressing one turns
+# "value 0" into "value 1", which is a fine thing to check and the same thing P12
+# already checks on this backend. The disclosure button does something no other
+# file here does: it takes a view OUT of the graph. `if expanded { Text(...) }`
+# is a conditional child, and removing one is a different backend operation from
+# updating one -- the child has to be detached from its container and everything
+# below it re-laid-out. Nothing in the Android set has driven that.
+#
+# The launch state. "Hide details" is the button's label, so the group starts
+# expanded, and the detail line "Details are plain conditional content, not a
+# DisclosureGroup." occupies pixels [47,1608]-[1031,1726]. Below it sit
+# "LabeledContent approximation" at y 1758-1821 and the "Label"/"Value" pair at
+# y 1852-1915.
+#
+# The claim, in three parts, and the third is what separates a removal from a
+# repaint: the button must relabel to "Show details", the detail line must be gone
+# from the tree entirely -- not present with zero size, absent -- and the rows
+# below it must MOVE UP by the height that line occupied, about 118 pixels plus
+# the stack's spacing. A backend that hid the child without removing it leaves a
+# gap where the text was and the rows below stay where they are; that is the
+# failure a screenshot alone reads as "the text disappeared, good".
+#
+# One press. Everything below the detail line moves, so a second coordinate would
+# be written against a screen this press has re-laid-out.
+#
+# P33 於 Android：收合 DisclosureGroup 的近似實作，確認子視圖是從樹中被移除，而不只是被藏起來。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p33-android-final-20260903-133018.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Hide details」位於像素 [47,1451]-[359,1577]，
+# 其中心為像素 (203, 1514)，即點 (77, 577)。
+#
+# 為何選這個按鈕而非 stepper 的 + 或 -。那兩個也在這裡，位於 [47,1199]-[278,1325] 與
+# [469,1199]-[700,1325]，按下其一會把「value 0」變成「value 1」——那是很好的檢查對象，但也正是 P12
+# 在本 backend 上已經檢查過的同一件事。這個收合按鈕做的則是此處其他檔案都沒做的事：它把一個 view
+# **移出**了視圖圖。`if expanded { Text(...) }` 是一個條件子項，而移除它與更新它是不同的 backend
+# 操作——該子項必須從其容器上卸下，其下的一切都必須重新排版。Android 這一組檔案中，沒有任何一份
+# 驅動過那件事。
+#
+# 啟動狀態。按鈕的標籤是「Hide details」，因此該群組起始為展開；明細行
+# 「Details are plain conditional content, not a DisclosureGroup.」佔據像素 [47,1608]-[1031,1726]。
+# 其下方是位於 y 1758-1821 的「LabeledContent approximation」，以及位於 y 1852-1915 的
+# 「Label」/「Value」一對。
+#
+# 主張分為三部分，而第三部分正是區分「移除」與「重繪」的關鍵：按鈕必須改標為「Show details」、
+# 明細行必須從樹中**完全消失**——不是以零尺寸存在，而是不存在——而其下方各列必須**上移**該行原本
+# 所佔的高度，約 118 像素再加上堆疊的間距。若某個 backend 只是把子項藏起來而未移除，文字原處會留下
+# 一個空缺，而其下各列會停在原地；那正是「單看截圖會讀成『文字消失了，很好』」的那種失敗。
+#
+# 只按一次。明細行以下的一切都會移動，因此第二個座標將是寫給一個已被這次按壓重新排版過的畫面。
+sleep,,,,,,1500000,let P33 draw the expanded disclosure group,android
+click,77,577,,left,,,"""Hide details"" -- the button must relabel to ""Show details"", the line ""Details are plain conditional content, not a DisclosureGroup."" must be absent from the tree, and ""LabeledContent approximation"" must move up from y 1758 by roughly the 118 pixels that line occupied. REPLAYED 2026-09-03 and ALL THREE HOLD, with the third arriving in a more informative form than the claim asked for: the button reads ""Show details"" at [47,1524]-[377,1650], the detail line appears nowhere in the dump, and ""LabeledContent approximation"" moved from y 1758 to y 1681, up 77 px. It is 77 rather than 118 because the whole page is centred vertically, so the rows ABOVE the group moved DOWN by 73 at the same time -- the stepper went from y 1199 to y 1272. The two shifts sum to 150, which is the removed line height 118 plus the VStack spacing of 12 points = 31.5 px, i.e. 149.5. The child was detached and the container re-laid-out around the gap; it was not left in place with zero size",android
+sleep,,,,,,1200000,let the child be detached and the rows below re-laid-out,android

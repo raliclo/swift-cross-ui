@@ -1,0 +1,79 @@
+action,x,y,origin,button,key,micros,note,platform
+# P34 on Android: scroll the 100-row eager VStack and check the rows move while the
+# header does not.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p34-android-final-20260903-133506.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Why a scroll and not one of the two buttons. Both buttons are dead at the
+# default settings, and that is arithmetic rather than a defect: `rowCount`
+# defaults to 100 and `visibleRows` starts at 100, so "Show +100" computes
+# min(100, 200) = 100 and "Show all capped rows" computes 100. Pressing either
+# changes nothing, and the label would still read "requested rows: 100; showing
+# first 100" afterwards -- a claim that passes on a completely broken build. The
+# row count is raised with `-rows N` on the command line, and this harness has no
+# way to add an app argument: test_android.zsh builds the `scui_args` extra as
+# exactly `--debug -actionfile <path>`.
+#
+# So the testable thing is the scroll view itself, which is what P34 is about
+# anyway: 100 eagerly built children inside a `ScrollView` of fixed height, with
+# no LazyVStack anywhere in SwiftCrossUI to build them on demand.
+#
+# The launch state. The scroll view's content starts at pixel y 1064 with "Row 0:
+# eager VStack child" and runs to the frame's bottom edge at 1988 -- 945 pixels,
+# which is the 360 points the app asks for -- with rows 0 to 13 visible at 71
+# pixels each. Above it and outside it, "requested rows: 100; showing first 100"
+# sits at [47,668]-[852,731].
+#
+# The gesture. On Android a `scroll` row is a drag, not a wheel: the synthesiser
+# converts each notch to 40 points and inverts the sign, so `0,2` presses at the
+# parked point and drags 210 pixels upward, asking the content to move up by 80
+# points. The `move` row before it parks at point (130, 571) = pixel (341, 1499),
+# which is inside the scroll view and on no other control.
+#
+# The claim, in two halves. The rows must move up -- "Row 0" must be gone from the
+# top and a higher-numbered row must have arrived at the bottom -- AND the header
+# line at y 668-731 must still be at y 668-731, because it is outside the scroll
+# view. The second half is what makes the first mean "the scroll view scrolled"
+# rather than "the page scrolled". Expect the travel to fall a little short of 80
+# points: Android's touch slop eats the first few pixels of a drag, which is
+# recorded in P8-scroll-the-outer-view-from-the-inner-strip.csv as 70 points
+# delivered against 80 asked.
+#
+# P34 於 Android：捲動那個含 100 列的 eager VStack，確認列會移動而標題不會。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p34-android-final-20260903-133506.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# 為何用捲動而非那兩個按鈕。在預設設定下兩個按鈕都是死的，而那是算術問題而非缺陷：`rowCount`
+# 預設為 100、`visibleRows` 起始為 100，因此「Show +100」算出 min(100, 200) = 100，
+# 「Show all capped rows」算出 100。按下任一個都不會改變任何東西，之後標籤仍會讀作
+# 「requested rows: 100; showing first 100」——那是一項在完全壞掉的建置上照樣通過的主張。列數是靠
+# 命令列上的 `-rows N` 提高的，而本測試工具無法加入 app 引數：test_android.zsh 所組出的 `scui_args`
+# extra 恰好就是 `--debug -actionfile <path>`。
+#
+# 因此可測試的東西就是那個捲動視圖本身，而那本來也正是 P34 的主題：100 個被急切建構的子項，
+# 放在固定高度的 `ScrollView` 之內，而 SwiftCrossUI 裡沒有任何 LazyVStack 能按需建構它們。
+#
+# 啟動狀態。捲動視圖的內容自像素 y 1064 的「Row 0: eager VStack child」開始，延伸至其 frame 底緣
+# 1988——945 像素，正是 app 所要求的 360 點——其中可見的是第 0 至第 13 列，每列 71 像素。
+# 其上方、且位於它之外的「requested rows: 100; showing first 100」位於 [47,668]-[852,731]。
+#
+# 手勢。在 Android 上，`scroll` 列是拖曳而非滾輪：synthesiser 把每一格換算為 40 點並反轉符號，
+# 因此 `0,2` 會在停駐點按下並向上拖曳 210 像素，要求內容向上移動 80 點。其前的 `move` 列停駐於
+# 點 (130, 571)，即像素 (341, 1499)，該處位於捲動視圖之內，且不在任何其他控制項上。
+#
+# 主張分為兩半。各列必須上移——「Row 0」必須自頂端消失，且底部必須出現編號更大的列——**且**位於
+# y 668-731 的標題行必須仍在 y 668-731，因為它在捲動視圖之外。第二半正是讓第一半的意思成為
+# 「捲動視圖捲動了」而非「整頁捲動了」的關鍵。預期實際位移會略少於 80 點：Android 的 touch slop
+# 會吃掉拖曳最初的幾個像素，這一點記錄於
+# P8-scroll-the-outer-view-from-the-inner-strip.csv——要求 80 點、實得 70 點。
+sleep,,,,,,1500000,let P34 build all 100 rows eagerly,android
+move,130,571,,,,,"park inside the scroll view, between Row 6 and Row 7 and on no control",android
+scroll,0,2,,,,,"drag up 210 px -- the rows must move up so ""Row 0"" leaves the top and a higher-numbered row arrives at the bottom, while the header at y 668-731 stays exactly where it is. REPLAYED 2026-09-03 and BOTH HALVES HOLD: the visible range went from rows 0-13 to rows 2-15, with ""Row 0"" and ""Row 1"" gone; ""Row 3"" moved from y 1276 to y 1087, which is 189 px = 72 points against the 80 asked for, the shortfall being Android touch slop exactly as P8 recorded. The header ""requested rows: 100; showing first 100"" is still at [47,668]-[852,731], unmoved, so the inner scroll view took the gesture and the page did not",android
+sleep,,,,,,1500000,let the scroll settle,android

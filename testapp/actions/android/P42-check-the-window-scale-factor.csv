@@ -1,0 +1,84 @@
+action,x,y,origin,button,key,micros,note,platform
+# P42 on Android: the scale factor is right, it does follow a live display-scale
+# change, and it passes through 1.0 first every time.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p42-android-final-20260903-142048.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# P42 HAS NO CONTROLS: its whole screen is five text lines. Its real test is a
+# display-scale change made from outside the app, and an action file cannot make
+# one -- the rows available are moves, clicks, scrolls and sleeps, all delivered
+# into this process. So the press below is a survival check, and the two findings
+# below it came from driving the change by hand with `adb shell wm density`.
+#
+# THE ANSWER TO P42's QUESTION, AND IT IS THE GOOD ONE. The notification fires on
+# AndroidBackend. Running the app and then changing the display density from
+# outside it:
+#
+#     adb shell wm density 480   ->  "current: 3.0",    history "... -> 3.0 x2"
+#     adb shell wm density reset ->  "current: 2.625",  history "... -> 2.625 x2"
+#
+# The history line accumulated across both changes rather than restarting, which
+# says the process was not recreated: `P42History` is process-global state, so a
+# recreated activity would have shown a single entry. The window followed the
+# display under it, in place, which is exactly what #40's missing notification
+# would have prevented.
+#
+# THE OTHER FINDING: EVERY VALUE IS PRECEDED BY 1.0. At launch, before anything is
+# touched, the line reads "1.0 x2  ->  2.625 x2" -- the first two evaluations of
+# the body saw a scale factor of 1.0. It happens again on every change: after both
+# density changes the full history read
+# "1.0 x2 -> 2.625 x3 -> 1.0 x2 -> 3.0 x3 -> 1.0 x2 -> 2.625 x2". So the
+# environment reports the default 1.0 for two passes before the real value
+# arrives, each time. Anything that renders from `\.windowScaleFactor` -- `Image`
+# does -- is rendered twice at the wrong scale before being corrected. Nothing
+# reports it and the final value is right, which is what makes it worth writing
+# down. NOT FIXED HERE; recorded for a decision.
+#
+# The cross-check the claim below uses. The value on screen and the value the
+# replay logs come from different code: `current:` is
+# `@Environment(\.windowScaleFactor)` read inside the body, while the
+# `-actionfile: geometry ... scale=` line is `AndroidSynthesiser.currentWindowGeometry()`
+# built from the activity's own display metrics. They must agree, and both must be
+# 2.625 on this device, where `adb shell wm density` reports 420 and 420/160 =
+# 2.625.
+#
+# P42 於 Android：scale factor 是正確的、它確實會跟隨顯示器縮放的即時改變，而且每一次都會先經過 1.0。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p42-android-final-20260903-142048.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# **P42 沒有任何控制項**：整個畫面只有五行文字。它真正的測試是「從 app 之外改變顯示器縮放」，
+# 而動作檔做不到——可用的列只有 move、click、scroll 與 sleep，全都投遞進本行程之內。因此下方的按壓
+# 是一次存活檢查，而其下的兩項發現，來自以 `adb shell wm density` 手動驅動該變更。
+#
+# **P42 問題的答案，而且是好的那一個。** 通知在 AndroidBackend 上確實會觸發。在 app 執行中、從外部
+# 改變顯示密度：
+#
+#     adb shell wm density 480   ->  「current: 3.0」，  歷程「... -> 3.0 x2」
+#     adb shell wm density reset ->  「current: 2.625」，歷程「... -> 2.625 x2」
+#
+# 歷程那一行是跨兩次變更**累積**的，而非重新開始，這說明行程並未被重建：`P42History` 是行程層級的
+# 全域狀態，若 activity 被重建，畫面會只剩下單一項。視窗原地跟隨了其下的顯示器，
+# 而那正是 #40 所缺少的通知本會阻止的事。
+#
+# **另一項發現：每一個值之前都先出現 1.0。** 啟動時，在任何操作之前，該行讀作
+# 「1.0 x2  ->  2.625 x2」——body 的前兩次求值看到的 scale factor 是 1.0。而每一次變更都會再發生一次：
+# 兩次密度變更之後，完整歷程讀作
+# 「1.0 x2 -> 2.625 x3 -> 1.0 x2 -> 3.0 x3 -> 1.0 x2 -> 2.625 x2」。因此 environment 每一次都會先
+# 回報預設值 1.0 兩輪，真正的值才抵達。任何依 `\.windowScaleFactor` 算繪的東西——`Image` 就是——
+# 都會先以錯誤的縮放被繪製兩次，然後才被修正。沒有任何東西回報這件事，而最終值是對的，
+# 這正是它值得被寫下來的理由。**此處未修正**，記錄下來供裁決。
+#
+# 下方主張所使用的交叉檢查。畫面上的值與重放所記錄的值來自不同的程式碼：`current:` 是在 body 內讀取
+# 的 `@Environment(\.windowScaleFactor)`，而 `-actionfile: geometry ... scale=` 那一行則是由
+# `AndroidSynthesiser.currentWindowGeometry()` 依 activity 自身的 display metrics 建構而成。
+# 兩者必須一致，且在本裝置上都必須是 2.625——`adb shell wm density` 回報 420，而 420/160 = 2.625。
+sleep,,,,,,1500000,let P42 record its first scale factors,android
+click,206,507,,left,,,"the instruction text, which is inert -- the process must survive, ""current: 2.625"" must still be on screen and must match the scale= value in the replay geometry line, and the history must still begin ""1.0 x2  ->  2.625"". REPLAYED 2026-09-03 and ALL THREE HOLD: no Abort message, the dump reads ""current: 2.625"" at [346,986]-[734,1072] and ""1.0 x2  ->  2.625 x2"" at [346,1188]-[734,1251], and the replay logged ""geometry frame=(0.0, 0.0) client=(0.0, 0.0) scale=2.625"". The environment value and the synthesiser geometry agree at 2.625, which is 420/160 for this device",android
+sleep,,,,,,1200000,"let anything the touch started finish, or fail",android

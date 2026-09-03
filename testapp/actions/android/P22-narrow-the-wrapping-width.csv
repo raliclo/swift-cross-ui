@@ -1,0 +1,59 @@
+action,x,y,origin,button,key,micros,note,platform
+# P22 on Android: narrow the wrapping width and check the paragraph re-wraps.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p22-android-final-20260903-124015.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Narrower" is at pixels [47,1897]-[304,2023] and "Wider" at
+# [325,1897]-[556,2023]. "Narrower"'s centre is pixel (175, 1960) = point (67, 747).
+#
+# Why the wrapping section and not the size ladder. Everything above it -- the
+# eight sizes, the nine weights, the two line-limit rows -- is static: it is read
+# by comparing numbers between backends, and there is nothing to press. Wrapping
+# is the one part of P22 with a control on it, and it is the same question the
+# size ladder asks put a different way, because where a line breaks is decided by
+# the same font metrics.
+#
+# The launch state, measured. The label reads "Wrapping at 300pt" and the
+# paragraph under it occupies pixels [47,1698]-[834,1871]: 787 pixels wide, which
+# is 300 points at this density to within a pixel, and 173 pixels tall.
+#
+# The claim, in two halves, and the second is what a status line cannot fake:
+# after the press the label must read "Wrapping at 250pt", AND the paragraph's own
+# box must narrow to about 656 pixels (250 points) and grow TALLER, because the
+# same words in a narrower column need more lines. A backend that changed the
+# frame and did not re-run the line breaking would give a narrower box at the same
+# height with the text clipped or overflowing; one that ignored the frame entirely
+# would leave the box at 787. Height is the half that catches the first of those,
+# and it is the half that would be missed by only checking the width.
+#
+# One press. The paragraph grows downward and pushes the two buttons with it, so
+# a second coordinate written now would be aimed at a screen this press has moved.
+#
+# P22 於 Android：縮窄換行寬度，並確認該段落重新換行。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p22-android-final-20260903-124015.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Narrower」位於像素 [47,1897]-[304,2023]，
+# 「Wider」位於 [325,1897]-[556,2023]。「Narrower」的中心為像素 (175, 1960)，即點 (67, 747)。
+#
+# 為何選換行段落而非字級階梯。它上方的一切——八種字級、九種字重、兩列行數限制——都是靜態的：
+# 判讀方式是跨 backend 比較數字，而且沒有任何東西可按。換行是 P22 中唯一帶有控制項的部分，而它問的
+# 其實是字級階梯的同一個問題，只是換了個方式問，因為「行在哪裡斷」是由同一組字型度量決定的。
+#
+# 啟動狀態，經量測。標籤讀作「Wrapping at 300pt」，其下的段落佔據像素 [47,1698]-[834,1871]：
+# 寬 787 像素——在此密度下與 300 點相差不到一個像素——高 173 像素。
+#
+# 主張分為兩半，而第二半是狀態列偽造不了的：按下之後，標籤必須讀作「Wrapping at 250pt」，
+# **且**該段落自身的方框必須縮窄至約 656 像素（250 點），並且變得**更高**，因為同樣的文字在更窄的
+# 欄位裡需要更多行。若某個 backend 改了 frame 卻沒有重跑斷行，得到的會是「更窄但等高」的方框，
+# 文字被裁切或溢出；若它完全忽略該 frame，方框則會停在 787。高度正是能抓到前者的那一半，
+# 也正是「只檢查寬度」會漏掉的那一半。
+#
+# 只按一次。該段落會向下增高並把兩個按鈕一起推下去，因此此刻寫下的第二個座標，將指向一個已被這次
+# 按壓移動過的畫面。
+sleep,,,,,,1500000,let P22 lay out the whole scroll view,android
+click,67,747,,left,,,"""Narrower"" -- the label must read ""Wrapping at 250pt"" and the paragraph box must go from 787 x 173 pixels to about 656 pixels wide and TALLER than 173. REPLAYED 2026-09-03 and BOTH HALVES HOLD: the label reads ""Wrapping at 250pt"" and the paragraph is [47,1698]-[703,1923], i.e. 656 x 225 pixels. 656 px is 249.9 points, so the frame was honoured to within a pixel, and the height went 173 to 225 -- three lines at 57.7 px became four at 56.3, which is a real re-break rather than a stretched box. The buttons under it moved down by exactly the 52 px the paragraph gained, from y 1897 to y 1950, so nothing was clipped to make room",android
+sleep,,,,,,1200000,let the paragraph re-wrap and the rows below it move,android

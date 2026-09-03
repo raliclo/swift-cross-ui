@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P31 on Android: open the alert and check the dialog actually appears.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p31-android-final-20260903-132046.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Open alert for Escape test" is at pixels [0,1432]-[596,1558]; its
+# centre is pixel (298, 1495) = point (114, 569).
+#
+# What P31 asks that cannot be asked here. Its subject is Tab, Space, Return,
+# Escape and Ctrl+Q, and none of them can be sent: `AndroidSynthesiser.perform`
+# ends with `case .keyDown, .keyUp, .key: throw SynthesiserError.unsupported("key
+# rows on Android")`, because no mapping from InputEvent's `Key` to an Android
+# keycode has been written and no Android action file has ever needed one. A file
+# here with a `key` row would abort the replay, not fail a claim. So the whole
+# keyboard half of this app is untestable by this route today, and saying so is
+# more use than a file that presses a button and calls it a focus test.
+#
+# What is left, and it is not nothing. The Escape test needs an alert to press
+# Escape at, and whether that alert opens at all is its own question -- it is the
+# one control in P31 that changes the screen rather than a value. AndroidBackend
+# puts alerts up through `AlertFragment`, and nothing in this app has driven that
+# path before.
+#
+# The launch state: no dialog, and the row of controls -- EditText at
+# [0,1125]-[974,1243], "Button 0", "Toggle", the slider -- is at the top of the
+# window with the alert button under it at y 1432-1558.
+#
+# The claim: after one press a dialog must be on screen carrying the title
+# "P31 alert" and a button reading "OK", and the page behind it must be dimmed or
+# overlaid rather than replaced. A backend that accepted `isPresented = true` and
+# put nothing up leaves the same screen with no new node -- which is the failure
+# worth catching, because an alert that is silently not shown looks exactly like
+# an alert that was dismissed.
+#
+# One press, and it must be one: a dialog is an overlay, and every coordinate on
+# the page underneath means something different once it is up.
+#
+# P31 於 Android：開啟警示對話框，確認它真的出現。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p31-android-final-20260903-132046.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Open alert for Escape test」位於像素
+# [0,1432]-[596,1558]，其中心為像素 (298, 1495)，即點 (114, 569)。
+#
+# P31 想問、但此處問不了的事。它的主題是 Tab、Space、Return、Escape 與 Ctrl+Q，而這些一個都送不出去：
+# `AndroidSynthesiser.perform` 的結尾是
+# `case .keyDown, .keyUp, .key: throw SynthesiserError.unsupported("key rows on Android")`，
+# 因為從 InputEvent 的 `Key` 到 Android keycode 的對照表尚未寫出，也從未有任何 Android 動作檔需要它。
+# 此處若寫下 `key` 列，結果會是 replay 中止，而不是某項主張失敗。因此本 app 的整個鍵盤半部，
+# 今日循此途徑無從測試；把這件事說出來，比寫一份「按個按鈕就自稱是焦點測試」的檔案更有價值。
+#
+# 剩下的部分，也並非一無所有。Escape 測試需要一個可供按下 Escape 的警示框，而「那個警示框到底會不會
+# 出現」本身就是一個問題——它是 P31 中唯一會改變畫面、而非改變某個數值的控制項。AndroidBackend 透過
+# `AlertFragment` 顯示警示框，而本 app 先前從未驅動過那條路徑。
+#
+# 啟動狀態：沒有任何對話框，而那一列控制項——位於 [0,1125]-[974,1243] 的 EditText、「Button 0」、
+# 「Toggle」、slider——位於視窗上方，警示按鈕在其下方的 y 1432-1558。
+#
+# 主張：按下一次之後，畫面上必須出現一個對話框，帶有標題「P31 alert」與一個讀作「OK」的按鈕，
+# 而其後方的頁面必須是被遮暗或被覆蓋，而不是被取代。若某個 backend 接受了 `isPresented = true`
+# 卻什麼都沒顯示，畫面會維持原樣、不會多出任何節點——而那正是值得抓出來的失敗，因為「靜默地沒顯示
+# 的警示框」與「已被關閉的警示框」看起來一模一樣。
+#
+# 只按一次，而且必須只有一次：對話框是覆蓋層，它一出現，其下頁面上的每一個座標就都改變了意義。
+sleep,,,,,,1500000,let P31 lay out the control row,android
+click,114,569,,left,,,"""Open alert for Escape test"" -- a dialog must appear carrying the title ""P31 alert"" and a button reading ""OK"". REPLAYED 2026-09-03 and IT HOLDS: the dump after the press contains exactly two nodes, the title ""P31 alert"" at [112,1155]-[968,1226] and a button ""OK"" at [779,1226]-[1010,1352], and none of the page underneath -- no EditText, no ""Button 0"", no slider -- which is what a modal dialog window should look like to uiautomator. AndroidBackend put the AlertFragment up rather than accepting isPresented and doing nothing",android
+sleep,,,,,,1500000,let the alert fragment be presented,android

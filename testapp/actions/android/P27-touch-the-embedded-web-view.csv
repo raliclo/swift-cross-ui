@@ -1,0 +1,81 @@
+action,x,y,origin,button,key,micros,note,platform
+# P27 on Android: touch the embedded WebView and check the process survives it.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p27-android-final-20260903-125936.png
+# and uiautomator dumps of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The WebView is at pixels [0,1692]-[1078,2112]; its visible centre
+# is pixel (539, 1902) = point (205, 725).
+#
+# P27 HAS NO CONTROLS. There is no button, no picker and no toggle anywhere in it
+# -- the app is six gradient tiles, four lines of text and a web view -- and it is
+# not scrollable either: swiping 800 pixels up and then 700 pixels sideways
+# changed not one pixel of the framebuffer (compared with ImageChops, bbox None
+# both times). So there is nothing here whose press moves a label, and a file that
+# invented one would be pressing empty space.
+#
+# What is left is the question P27 exists for, asked one step further on. Its own
+# header says the app is the falsifiable version of "a missing conformance aborts
+# the process": if the window is up, neither the WebView nor the AngularGradient
+# called `fatalError` during layout. The thing no one has asked on this backend is
+# whether TOUCHING one of them does. The WebView is a real
+# `android.webkit.WebView` hosted inside SwiftCrossUI's own container view, and a
+# MotionEvent has to cross that boundary to reach it; that is a path with its own
+# ways to fail, and nothing has ever driven it.
+#
+# What the page looks like before the touch, so the claim has a baseline:
+#
+#   * the WebView is laid out at [0,1692]-[1078,2112] -- 420 pixels tall, which is
+#     the 160 points asked for -- and it has painted, not stayed blank: its
+#     accessibility node carries the text "Webpage not available", the Chromium
+#     error page for a host that will not resolve on an offline emulator. A frame
+#     that never rendered would have no text node at all. The 700-point width is
+#     clipped by the 411-point window, which is P27's layout meeting a phone.
+#   * all six gradients drew, and the two sweeps are not the same picture: in the
+#     "Angular" tile the left edge is (27, 168, 170) and the top edge is
+#     (64, 116, 206), while in "Sweep reversed" the LEFT edge is (64, 116, 206)
+#     and the top is (255, 56, 60) -- the same wheel turned a quarter, which is
+#     what reversing the sweep should look like. Two identical tiles would be the
+#     silent degradation P27's header warns about.
+#
+# The claim: after the tap the process must still be running and the WebView must
+# still be there, same node, same bounds, same "Webpage not available". The
+# failure this catches is not a wrong pixel -- it is a dead process, and a dead
+# process is the one result a screenshot reports without any ambiguity at all.
+#
+# P27 於 Android：觸碰內嵌的 WebView，確認行程能存活下來。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p27-android-final-20260903-125936.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。WebView 位於像素 [0,1692]-[1078,2112]，
+# 其可見中心為像素 (539, 1902)，即點 (205, 725)。
+#
+# **P27 沒有任何控制項。** 它裡面沒有按鈕、沒有選擇器、也沒有開關——整支 app 就是六塊漸層、四行文字
+# 與一個 web view——而且它也不能捲動：向上滑 800 像素、再橫向滑 700 像素，framebuffer 沒有任何一個
+# 像素改變（以 ImageChops 比對，兩次的 bbox 皆為 None）。因此此處沒有任何「按下去會讓標籤改變」的
+# 東西，而一份捏造出控制項的檔案，按到的只會是空白處。
+#
+# 剩下的，是 P27 存在的那個問題，再往前推一步。它自己的表頭說：這支 app 是「缺少 conformance 會使
+# 行程中止」這項主張的可證偽版本——若視窗出現了，代表 WebView 與 AngularGradient 在版面配置期間
+# 都沒有呼叫 `fatalError`。而在本 backend 上沒有人問過的是：**觸碰**它們會不會。那個 WebView 是一個
+# 真正的 `android.webkit.WebView`，被託管在 SwiftCrossUI 自己的容器 view 之內，而 MotionEvent 必須
+# 跨過那道邊界才能抵達它；那是一條有其自身失敗方式的路徑，而它從未被驅動過。
+#
+# 觸碰之前這一頁的樣子，作為主張的基準：
+#
+#   * WebView 被配置於 [0,1692]-[1078,2112]——高 420 像素，正是所要求的 160 點——而且它確實繪製了、
+#     而非保持空白：其 accessibility 節點帶有文字「Webpage not available」，那是 Chromium 在離線
+#     emulator 上對無法解析之主機所顯示的錯誤頁。一個從未算繪的框不會有任何文字節點。所要求的
+#     700 點寬度被 411 點的視窗裁切，那是 P27 的版面撞上一支手機的結果。
+#   * 六塊漸層全部畫出來了，而兩塊扇形漸層並非同一張圖：在「Angular」那一塊中，左緣為 (27, 168, 170)、
+#     上緣為 (64, 116, 206)；而在「Sweep reversed」中，**左**緣為 (64, 116, 206)、上緣為
+#     (255, 56, 60)——同一個色輪轉了四分之一圈，那正是「把扇形反轉」應有的樣子。兩塊一模一樣，
+#     才是 P27 表頭所警告的那種靜默降級。
+#
+# 主張：點擊之後，行程必須仍在執行，而 WebView 必須仍在原處——同一個節點、同樣的邊界、同樣的
+# 「Webpage not available」。這裡要抓的失敗不是某個像素畫錯——而是行程死亡，而「行程死亡」正是
+# 截圖能毫無歧義回報的那一種結果。
+sleep,,,,,,1800000,let the gradients draw and the web view finish its navigation,android
+click,205,725,,left,,,"the centre of the embedded WebView -- the process must survive the touch crossing into android.webkit.WebView, and the WebView node must still be at [0,1692]-[1078,2112] carrying ""Webpage not available"". REPLAYED 2026-09-03 and IT HOLDS: logcat has the pair ""replaying P27-actions.csv"" / ""replayed P27-actions.csv"" with no Abort message and no FATAL, dumpsys still names dev.swiftcrossui.testapp.p27/.MainActivity as topResumedActivity, and the WebView node is at exactly [0,1692]-[1078,2112]. The framebuffer after the tap is pixel-identical to the launch capture -- ImageChops.difference over the full 1080 x 2400 gives bbox None, across two separate launches -- so nothing repainted, navigated or moved. One thing did change and it is not a repaint: the WebView node came back marked NAF with clickable=true and focused=true and no longer carries the inner ""Webpage not available"" text child, which is uiautomator declining to walk a focused WebView, not the page going away, since the pixels are the same",android
+sleep,,,,,,1500000,"let anything the touch started finish, or fail",android

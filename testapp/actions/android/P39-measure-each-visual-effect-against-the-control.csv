@@ -1,0 +1,92 @@
+action,x,y,origin,button,key,micros,note,platform
+# P39 on Android: every visual effect does something, measured against the control
+# in the same column.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p39-android-final-20260903-140414.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# P39 HAS NO CONTROLS. It is a ten-cell grid and nothing in it can be pressed, so
+# the press below is a survival check and the claim is a set of measurements. That
+# is the right shape for this app: its header says the whole family of defects it
+# exists to catch is "the effect silently doing nothing", and silence is measured,
+# not clicked.
+#
+# All ten cells laid out. The dump finds four rows of labels and their
+# "Hamburgefonstiv 123" captions -- none (control), opacity 0.35, blur 3;
+# saturation 0, saturation 0.5, saturation 2.5; brightness 0.4, contrast 0.3,
+# grayscale 1; hueRotation 120 -- which is the count P39's header warns about,
+# where a tenth sample once fell out of a hard-coded three-slice layout and
+# vanished with no error. Ten are here.
+#
+# WHY THE MEASUREMENTS BELOW ONLY USE THE LEFT COLUMN. The grid is three columns
+# of 200-point wheels in a 411-point window, so each column shows a different
+# slice of its wheel: the left column is visible from x 0 to 246, the middle from
+# 278 to 802, the right from 834 to 1080. Comparing a cell in one column against
+# the control in another compares different parts of a colour wheel and means
+# nothing. The control is in the left column, so the left column is where a cell
+# can be read against it over the SAME pixels.
+#
+# The left-column ladder, sampled every fourth pixel over the wheel area at
+# x 0-246, 3658 samples per cell, with chroma meaning mean(max(r,g,b) - min(r,g,b)):
+#
+#     none (control)     chroma 200.9   luminance 143.0
+#     saturation 0       chroma   0.0   luminance 128.2
+#     brightness 0.4     chroma 113.6   luminance 210.3
+#     hueRotation 120    chroma 168.4   luminance  92.9
+#
+# Each differs from the control and each differs in the direction its name claims:
+# saturation 0 removes colour completely, brightness 0.4 lifts luminance by 67,
+# hueRotation keeps the chroma high while moving the colours (luminance drops 50
+# because a rotated wheel puts different hues in the same place). The right column
+# carries the other zero -- grayscale 1 measures chroma 0.0 against blur 3's 164.5
+# over the same x 834-1080 -- so both of the "should be grey" cells are grey and
+# both of the "should still be colourful" cells are.
+#
+# The claim: after a touch delivered into the control cell the process must still
+# be running and those four numbers must be unchanged, within a pixel or two of
+# rounding. A cell whose effect did nothing would read the control's 200.9 and
+# 143.0; two cells reading identically is the exact failure P39's header describes.
+#
+# P39 於 Android：每一項視覺效果都確實有作用——與同一欄中的對照組比對量測。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p39-android-final-20260903-140414.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+#
+# **P39 沒有任何控制項。** 它是一個十格的網格，其中沒有任何東西可以被按下，因此下方的按壓是一次
+# 存活檢查，而主張則是一組量測。對這支 app 而言那才是正確的形狀：它的表頭說，它所要捕捉的整類缺陷
+# 正是「效果靜默地什麼也沒做」，而靜默是量出來的，不是點出來的。
+#
+# 十格全部完成排版。dump 找到四列標籤及其「Hamburgefonstiv 123」說明文字——none (control)、
+# opacity 0.35、blur 3；saturation 0、saturation 0.5、saturation 2.5；brightness 0.4、contrast 0.3、
+# grayscale 1；hueRotation 120——正是 P39 表頭所警告的那個計數：第十個樣本曾經掉出寫死的三段切片
+# 版面，無聲無息地消失。這裡十個都在。
+#
+# **為何下方的量測只使用左欄。** 這個網格是三欄 200 點寬的色輪，放在 411 點寬的視窗裡，因此每一欄
+# 所顯示的是它自己色輪的不同切片：左欄可見範圍是 x 0 至 246、中欄是 278 至 802、右欄是 834 至 1080。
+# 拿某一欄的格子去比對另一欄的對照組，比的是色輪的不同部位，毫無意義。對照組位於左欄，因此左欄
+# 才是「能以**同一批像素**去對照它」的地方。
+#
+# 左欄的階梯，於色輪區域 x 0-246 每隔四個像素取樣、每格 3658 個樣本，chroma 定義為
+# mean(max(r,g,b) - min(r,g,b))：
+#
+#     none (control)     chroma 200.9   luminance 143.0
+#     saturation 0       chroma   0.0   luminance 128.2
+#     brightness 0.4     chroma 113.6   luminance 210.3
+#     hueRotation 120    chroma 168.4   luminance  92.9
+#
+# 每一格都與對照組不同，且每一格的差異方向都符合其名稱所宣稱的：saturation 0 完全去除了顏色、
+# brightness 0.4 把亮度抬高了 67、hueRotation 維持高 chroma 同時移動了各色相（亮度下降 50，
+# 因為旋轉後的色輪把不同色相放到了同一位置）。右欄則帶著另一個零——grayscale 1 量得 chroma 0.0，
+# 而 blur 3 在同一段 x 834-1080 上量得 164.5——因此兩個「應該是灰的」格子都是灰的，而兩個
+# 「應該仍然有色彩」的格子也都有。
+#
+# 主張：在對照組格子上投遞一次觸控之後，行程必須仍在執行，而那四個數字必須未變，容許一兩個像素的
+# 捨入誤差。若某一格的效果什麼也沒做，它會讀出對照組的 200.9 與 143.0；兩格讀數相同，
+# 正是 P39 表頭所描述的那個失敗。
+sleep,,,,,,1800000,let all ten cells lay out and apply their effects,android
+click,46,320,,left,,,"the control cell in the top-left -- the process must survive and the left-column ladder must be unchanged: control chroma 200.9 luminance 143.0, saturation 0 chroma 0.0, brightness 0.4 luminance 210.3, hueRotation 120 chroma 168.4 luminance 92.9. REPLAYED 2026-09-03 and IT HOLDS EXACTLY: no Abort message, and every figure reproduced to one decimal place on a fresh launch -- control 200.9/143.0, saturation 0 at 0.0/128.2, brightness 0.4 at 113.6/210.3, hueRotation 120 at 168.4/92.9, with grayscale 1 at 0.0/143.2 and blur 3 at 164.5/132.8 in the right column. Ten cells, ten distinct results, and the two that must be grey are exactly grey. AndroidBackend implements every VisualEffect P39 asks for",android
+sleep,,,,,,1200000,"let anything the touch started finish, or fail",android

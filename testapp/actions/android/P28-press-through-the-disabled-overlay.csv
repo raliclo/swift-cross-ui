@@ -1,0 +1,61 @@
+action,x,y,origin,button,key,micros,note,platform
+# P28 on Android: press through the disabled overlay and check the button beneath
+# it receives the click.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p28-android-final-20260903-130602.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# The two things that have to overlap for this test to mean anything, and both
+# were measured rather than assumed. The button is at pixels [115,1282]-[766,1408].
+# The blue overlay is drawn on top of it: sampling the framebuffer for its exact
+# colour (38, 89, 217), which is Color(red: 0.15, green: 0.35, blue: 0.85) at 8
+# bits, it runs x 47-833 and y 1227-1462 -- 787 x 236 pixels, which is 299.8 x 89.9
+# points against the 300 x 90 the app asks for. So the overlay is the right size,
+# it is in front, and it covers the whole button. Its centre is pixel (440, 1344)
+# = point (168, 512), and that point is inside the button as well.
+#
+# The claim, in two halves, and they are the two halves of `allowsHitTesting(false)`:
+# after one tap at that point the line must read "Clicks received: 1", AND the
+# overlay must still be blue at pixel (440, 1344). Both are needed. A backend that
+# made the overlay transparent to touches by not drawing it would pass the first
+# half and fail the second, and that is not a made-up failure -- it is what
+# "disabled" is easiest to implement as. A backend that drew it and swallowed the
+# touch fails the first half, which is the defect the app is named for.
+#
+# Why the counter and not the log. P28 writes to `p28-debug-events.log` in the
+# process's working directory, which on Android is not somewhere this harness
+# reads; the on-screen counter is the same fact where a screenshot can see it.
+#
+# One tap. The counter's digit changes and nothing moves -- the line is at
+# [47,1128]-[411,1191] and stays there -- but one tap is all the claim needs.
+#
+# P28 於 Android：穿過那層停用的覆蓋按下去，確認其下方的按鈕收到了點擊。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p28-android-final-20260903-130602.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+#
+# 要讓這項測試有意義，必須重疊的兩樣東西，而兩者都是量出來的、不是假設的。按鈕位於像素
+# [115,1282]-[766,1408]。藍色覆蓋層畫在它之上：以其精確顏色 (38, 89, 217)——即 8 位元下的
+# Color(red: 0.15, green: 0.35, blue: 0.85)——在 framebuffer 中取樣，它橫跨 x 47-833、y 1227-1462，
+# 即 787 x 236 像素，換算為 299.8 x 89.9 點，對應 app 所要求的 300 x 90。因此該覆蓋層尺寸正確、
+# 位於前方，並且完全蓋住了按鈕。其中心為像素 (440, 1344)，即點 (168, 512)，而該點同時也落在按鈕
+# 之內。
+#
+# 主張分為兩半，而它們正是 `allowsHitTesting(false)` 的兩半：在該點點一次之後，那一行必須讀作
+# 「Clicks received: 1」，**且**像素 (440, 1344) 必須仍然是藍色。兩者缺一不可。若某個 backend 是靠
+# 「乾脆不畫」來讓覆蓋層對觸控透明，它會通過前半、卻在後半失敗——而那並非虛構的失敗，那正是
+# 「停用」最容易被實作成的樣子。若某個 backend 畫出了它卻吞掉觸控，則前半失敗，而那正是本 app
+# 命名所指的缺陷。
+#
+# 為何用計數器而非日誌。P28 會寫入行程工作目錄下的 `p28-debug-events.log`，而在 Android 上那不是
+# 本測試工具會去讀的地方；畫面上的計數器是同一件事實，只是放在截圖看得見的地方。
+#
+# 只點一次。計數器的數字會改變，其餘不動——該行位於 [47,1128]-[411,1191] 且會留在原處——但主張所需
+# 的也就只有這一次點擊。
+sleep,,,,,,1500000,let P28 lay the overlay over the button,android
+click,168,512,,left,,,"the centre of the blue overlay -- the line must read ""Clicks received: 1"" and pixel (440, 1344) must still be (38, 89, 217). REPLAYED 2026-09-03 and BOTH HALVES HOLD: the dump reads ""Clicks received: 1"" at [47,1128]-[411,1191] and the framebuffer at (440, 1344) is exactly (38, 89, 217), so the overlay is still drawn and still opaque while the touch went through it to the button underneath. AndroidBackend honours allowsHitTesting(false) by disabling the hit test, not by hiding the view",android
+sleep,,,,,,1200000,let the counter repaint,android

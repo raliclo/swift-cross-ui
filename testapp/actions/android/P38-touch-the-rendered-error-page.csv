@@ -1,0 +1,98 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38 on Android: the web view paints, and the reason it has nothing to paint.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p38-android-final-20260903-135820.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The WebView is at pixels [0,978]-[1080,2081]; that is 1103 pixels
+# tall, which is the 420 points asked for, and its width is the window's rather
+# than the requested 760 points because 760 does not fit. Its centre is pixel
+# (540, 1530) = point (206, 583).
+#
+# P38's question, answered. Its header says the failure mode it is built to catch
+# is an empty rectangle, and that a blank area cannot be told from "no web view
+# here" without something drawn around it. On AndroidBackend the frame is NOT
+# blank. The dump finds a real `android.webkit.WebView` with a live document
+# inside it: "Webpage not available" at [0,1056]-[1080,1135], the requested
+# "https://example.com/" at [0,1182]-[278,1235], " could not be loaded because:"
+# beside it, and "net::ERR_CACHE_MISS" at [0,1274]-[1080,1327]. So the control
+# initialises, is laid out at the size the layout system chose, and renders. That
+# is a different result from the Windows/WinUIBackend measurement P38's header
+# records, where four msedgewebview2.exe processes ran and nothing was painted.
+#
+# THE FINDING, and it is not about the backend. `net::ERR_CACHE_MISS` on a first
+# load is what Android's WebView reports when the application has no
+# `android.permission.INTERNET`, and this application does not have one:
+# `adb shell dumpsys package dev.swiftcrossui.testapp.p38` lists exactly one
+# requested permission, the framework's own DYNAMIC_RECEIVER_NOT_EXPORTED, and the
+# generated `AndroidManifest.xml` under
+# .compile-work-android/TestApps/.build-bundler/bundler/apps/P38/P38.project/src/main/
+# has no `<uses-permission>` element at all. Swift Bundler writes that element from
+# the `permissions` list in the app's Android configuration -- see
+# `generateAndroidManifest(targetAPI:themeName:appNameStringKey:projectStructure:permissions:)`
+# in Vendor/swift-bundler/Sources/SwiftBundler/Bundler/APKBundler.swift -- and
+# testapp/androidContainer/Bundler.android.toml, which supplies the body of every
+# `[apps.<Pn>.android]` table, declares none. The emulator itself has a network:
+# `adb shell ping 8.8.8.8` gets replies. So no Android test app built by this
+# harness can reach the network, and that hits P26's AsyncImage as well as this
+# WebView. NOT FIXED HERE; recorded for a decision.
+#
+# What that means for the claim. "Navigations reported: 0" is what the page shows,
+# and it CANNOT be read as a defect while the load never leaves the process:
+# `onChange(of: url)` fires when the binding changes, and a load that fails before
+# any redirect gives it nothing to report. Whether `WebView` writes back through
+# its binding on this backend stays open until the app can reach a page, and
+# saying so is worth more than counting a 0 as a failure.
+#
+# P38 HAS NO CONTROLS -- the dump finds four TextViews, the WebView and nothing
+# clickable -- so the press below goes into the web view itself, which is the one
+# thing here that could refuse a touch. The claim: the process must survive a
+# touch crossing into `android.webkit.WebView`, the error document must still be
+# there with "net::ERR_CACHE_MISS" and the requested URL, and the counter line
+# must still read "Navigations reported: 0" -- a touch that navigated somewhere
+# would move it.
+#
+# P38 於 Android：web view 確實有繪製，以及它無物可繪的原因。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p38-android-final-20260903-135820.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。WebView 位於像素 [0,978]-[1080,2081]；其高為 1103 像素，
+# 正是所要求的 420 點，而其寬度是視窗的寬度而非所要求的 760 點，因為 760 放不下。其中心為像素
+# (540, 1530)，即點 (206, 583)。
+#
+# P38 的問題，已有答案。它的表頭說：它所要捕捉的失敗樣態是一個空白矩形，而若周圍沒有任何東西被畫
+# 出來，空白區域與「這裡根本沒有 web view」無法區分。在 AndroidBackend 上，那個框**不是空白的**。
+# dump 找到一個真正的 `android.webkit.WebView`，其中有一份活的文件：位於 [0,1056]-[1080,1135] 的
+# 「Webpage not available」、位於 [0,1182]-[278,1235] 的所請求網址「https://example.com/」、
+# 其旁的「 could not be loaded because:」，以及位於 [0,1274]-[1080,1327] 的「net::ERR_CACHE_MISS」。
+# 因此該控制項完成了初始化、以版面系統所選定的尺寸被配置，並且有算繪。這與 P38 表頭所記錄的
+# Windows/WinUIBackend 量測結果不同——在那裡有四個 msedgewebview2.exe 行程在跑，而什麼都沒被畫出來。
+#
+# **發現**，而它與 backend 無關。首次載入時出現 `net::ERR_CACHE_MISS`，正是 Android WebView 在應用
+# 程式沒有 `android.permission.INTERNET` 時所回報的錯誤，而本應用程式確實沒有：
+# `adb shell dumpsys package dev.swiftcrossui.testapp.p38` 只列出一項請求權限，即框架自身的
+# DYNAMIC_RECEIVER_NOT_EXPORTED；而位於
+# .compile-work-android/TestApps/.build-bundler/bundler/apps/P38/P38.project/src/main/
+# 下所產生的 `AndroidManifest.xml` 完全沒有任何 `<uses-permission>` 元素。Swift Bundler 是依 app
+# Android 設定中的 `permissions` 清單寫出該元素的——見
+# Vendor/swift-bundler/Sources/SwiftBundler/Bundler/APKBundler.swift 中的
+# `generateAndroidManifest(targetAPI:themeName:appNameStringKey:projectStructure:permissions:)`
+# ——而提供每一個 `[apps.<Pn>.android]` 表格內容的 testapp/androidContainer/Bundler.android.toml
+# 一項都沒有宣告。emulator 本身是有網路的：`adb shell ping 8.8.8.8` 收得到回應。因此本測試工具所建置
+# 的任何 Android 測試 app 都無法連上網路，而這同時擊中 P26 的 AsyncImage 與此處的 WebView。
+# **此處未修正**，記錄下來供裁決。
+#
+# 這對主張的意涵。「Navigations reported: 0」是畫面上顯示的內容，而在載入從未離開行程之前，
+# 它**不能**被讀成缺陷：`onChange(of: url)` 是在繫結改變時觸發，而一次在任何轉址之前就失敗的載入，
+# 不會給它任何可回報的東西。「`WebView` 在本 backend 上會不會透過其繫結回寫」這件事，在該 app 能夠
+# 抵達某個頁面之前仍然懸而未決；把這一點說清楚，比把一個 0 記成失敗更有價值。
+#
+# **P38 沒有任何控制項**——dump 找到四個 TextView、那個 WebView，以及任何可點擊之物皆無——因此下方的
+# 按壓是投進 web view 自身，而它正是此處唯一可能拒絕觸控的東西。主張：行程必須在一次跨入
+# `android.webkit.WebView` 的觸控下存活，錯誤文件必須仍在、帶有「net::ERR_CACHE_MISS」與所請求的
+# 網址，而計數行必須仍讀作「Navigations reported: 0」——一次導覽到別處的觸控會讓它改變。
+sleep,,,,,,2500000,let the web view finish its navigation and paint the result,android
+click,206,583,,left,,,"the centre of the WebView -- the process must survive, the error document must still carry ""net::ERR_CACHE_MISS"" and ""https://example.com/"", and the counter must still read ""Navigations reported: 0"". REPLAYED 2026-09-03 and ALL THREE HOLD: logcat has the pair ""replaying P38-actions.csv"" / ""replayed P38-actions.csv"" with no Abort message; the dump afterwards still has ""Webpage not available"" at [0,1056]-[1080,1135], ""https://example.com/"" at [0,1182]-[278,1235] and ""net::ERR_CACHE_MISS"" inside the same WebView at [0,978]-[1080,2081]; and ""Navigations reported: 0"" is unchanged at [0,650]-[26,713]. The touch crossed into android.webkit.WebView without aborting and without navigating anywhere",android
+sleep,,,,,,1500000,"let anything the touch started finish, or fail",android

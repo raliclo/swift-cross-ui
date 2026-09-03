@@ -1,0 +1,74 @@
+action,x,y,origin,button,key,micros,note,platform
+# P13 on Android: show the non-Identifiable ForEach and check the process survives
+# it (#415).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p13-android-final-20260903-123049.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Show unidentified list (may crash)" is at pixels [333,173]-[1078,299];
+# its centre is pixel (705, 236) = point (269, 90).
+#
+# Why this button and not one of the other four. #415 is the only thing in P13
+# whose failure mode is the process dying, and a dead process is the one result a
+# screenshot reports without ambiguity. The button is deliberately not on the
+# launch path -- P13's own header says so -- so nothing reaches that codepath
+# unless something presses it, and nothing ever has on Android. The three
+# duplicated elements are not Identifiable and all compare equal, which is the
+# fallback that upstream traced to handing the backend duplicate child views.
+#
+# Why not "Reverse", which would otherwise be the sharpest test here. It is off
+# the bottom of the screen. The dump's last visible node is
+# "Top of the stack: blue" at pixels [220,2068]-[671,2131], the ForEach ZStack
+# below it is cut by the bottom edge at 2400, and the button under that has no
+# coordinate to press. P13's window is 840 x 620 points of content in a
+# 411 x 914 window and there is no scroll view around it, so the bottom of this
+# app is simply unreachable on a phone. Recorded, not worked around: a coordinate
+# invented for an off-screen button presses whatever is at that pixel instead.
+#
+# The launch state. The right-hand column reads "Non-Identifiable (#415)" over
+# "(hidden)" at pixels [561,451]-[736,514], and the left-hand control column shows
+# the three Identifiable rows "Same: Identical message" at y 383-446, 451-514 and
+# 519-582. The control rows are what the #415 rows must come to look like.
+#
+# The claim, and it is a pair: after the press the app must STILL BE RUNNING --
+# same process, window still up, the header row still on screen -- and "(hidden)"
+# must have been replaced by three rows reading "Same: Identical message" in that
+# right-hand column. Half of this cannot be faked by a label, because the failure
+# being tested is not a wrong pixel: it is `am start` returning to an empty
+# screen, or a SIGSEGV in logcat, or a window that never repaints.
+#
+# One press. It replaces a placeholder with three rows and moves everything below
+# it.
+#
+# P13 於 Android：顯示那個非 Identifiable 的 ForEach，並確認行程能存活下來（#415）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p13-android-final-20260903-123049.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。「Show unidentified list (may crash)」
+# 位於像素 [333,173]-[1078,299]，其中心為像素 (705, 236)，即點 (269, 90)。
+#
+# 為何選這個按鈕而非其他四個。#415 是 P13 中唯一「失敗樣態為行程死亡」的項目，而「行程死了」正是
+# 截圖能毫無歧義地回報的那一種結果。該按鈕刻意不在啟動路徑上——P13 自己的表頭說明了這一點——因此
+# 除非有人按下它，否則不會有任何東西抵達該條程式路徑，而在 Android 上從來沒有過。那三個重複元素
+# 並非 Identifiable 且彼此相等，這正是上游追查到「交給 backend 重複子視圖」的那條 fallback。
+#
+# 為何不選「Reverse」——否則它會是此處最銳利的測試。它落在畫面底部之外。dump 中最後一個可見節點是
+# 位於像素 [220,2068]-[671,2131] 的「Top of the stack: blue」，其下方的 ForEach ZStack 被 2400 的
+# 底緣切斷，而再下面的按鈕根本沒有可按的座標。P13 的視窗是 840 x 620 點的內容放進 411 x 914 的
+# 視窗，且外面沒有任何捲動視圖，因此這支 app 的底部在手機上就是搆不到。此事記錄下來，而不是繞過去：
+# 為一個畫面外的按鈕捏造座標，按到的會是該像素上的別的東西。
+#
+# 啟動狀態。右欄顯示「Non-Identifiable (#415)」，其下是位於像素 [561,451]-[736,514] 的「(hidden)」；
+# 左側對照欄則有三列「Same: Identical message」，分別位於 y 383-446、451-514 與 519-582。
+# 那三列對照組，正是 #415 那些列應當變成的樣子。
+#
+# 主張，且是成對的：按下之後，app 必須**仍在執行**——同一個行程、視窗仍在、標題列仍在畫面上——
+# 而「(hidden)」必須被右欄中三列「Same: Identical message」所取代。其中一半是標籤偽造不了的，
+# 因為受測的失敗並不是某個像素畫錯：它是 `am start` 回到一片空白畫面、是 logcat 裡的 SIGSEGV、
+# 或是一個永遠不再重繪的視窗。
+#
+# 只按一次。它會以三列取代一個佔位文字，並把其下的所有東西往下推。
+sleep,,,,,,1500000,let P13 render the control column and the placeholder,android
+click,269,90,,left,,,"""Show unidentified list (may crash)"" -- the process must survive and ""(hidden)"" must be replaced by three rows reading ""Same: Identical message"". REPLAYED 2026-09-03 and BOTH HALVES HOLD, so #415 DOES NOT REPRODUCE ON AndroidBackend: the button label became ""Hide unidentified list"" and the right-hand column gained exactly three ""Same: Identical message"" rows at [561,383]-[1078,446], [561,451]-[1078,514] and [561,519]-[1078,582], matching the three control rows opposite them at the same y. logcat carries the pair ""replaying P13-actions.csv"" / ""replayed P13-actions.csv"" 4.4 s apart with no FATAL and no SIGSEGV in between; the one ""app died"" line in the log is at 12:31:59.192, over a second BEFORE the replay began at 12:32:00.558, and is the previous run being force-stopped by test_android.zsh",android
+sleep,,,,,,1800000,"let the non-Identifiable ForEach build its rows, or fail trying",android

@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P30 on Android: widen the frame and check the rectangle actually grows.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p30-android-final-20260903-131538.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Use wide frame" is at pixels [0,831]-[252,957]; its centre is
+# pixel (126, 894) = point (48, 341).
+#
+# Why the size toggle and not one of the seven effect tiles. The tiles are static:
+# opacity, blur, grayscale, offset, scale and rotate are read by comparing each
+# against the "control" tile in the same row, which is a job for one screenshot
+# and no press. The size toggle is the only control in P30, and it is a widening
+# state change -- the shape of the bug that made a window go blank on this
+# backend, fixed earlier this week. Pressing it is the cheapest way to keep that
+# fix honest.
+#
+# Where the rectangle is, and why the number below is 179 rather than 315. P30's
+# content is wider than the window: the visual-effects row alone is four 120-point
+# tiles plus spacing, about 510 points inside a 411-point window, so the enclosing
+# VStack is centred at a width the screen cannot show and every leading-aligned
+# child starts off the left edge. The blue rectangle, Color(0.10, 0.45, 0.85) =
+# (26, 115, 217) at 8 bits, is visible from x 0 to x 178 at y 988-1134. Its height
+# measures 147 pixels = 56.0 points, which is exactly the 56 the app asks for, so
+# the frame is being honoured; it is the left 137 pixels of its 315-pixel width
+# that are off screen, not missing.
+#
+# The claim, in two halves. The label must read "frame width: 260", AND the blue
+# rectangle's visible right edge must move from x 178 to about x 545, i.e. its
+# visible width must go from 179 pixels to about 546. The arithmetic is fixed:
+# the left edge sits at 178 - 120 x 2.625 = -137, the widened frame is 260 x 2.625
+# = 682 pixels, so the right edge lands at -137 + 682 = 545. The height must stay
+# 147. A backend that relabelled and did not re-lay-out leaves the edge at 178; a
+# backend with the old blanking bug leaves nothing at all in that band.
+#
+# One press. It changes the rectangle's width and the label's text, and the label
+# sits immediately to the right of the button, so a second coordinate would be
+# written against a row this press has re-laid-out.
+#
+# P30 於 Android：加寬 frame，確認矩形真的變大。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p30-android-final-20260903-131538.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。「Use wide frame」位於像素
+# [0,831]-[252,957]，其中心為像素 (126, 894)，即點 (48, 341)。
+#
+# 為何選尺寸切換而非那七塊效果磚。那些磚是靜態的：opacity、blur、grayscale、offset、scale 與
+# rotate 的判讀方式，是把每一塊與同列的「control」相比，那是一張截圖就能完成、不需按壓的工作。
+# 尺寸切換是 P30 唯一的控制項，而它是一次**變寬的狀態改變**——正是本週稍早修好的那個「讓視窗變成
+# 空白」的 bug 的形狀。按下它，是讓那個修正保持誠實的最省事的方法。
+#
+# 矩形在哪裡，以及為何下面那個數字是 179 而不是 315。P30 的內容比視窗寬：光是視覺效果那一列就是
+# 四塊 120 點的磚加上間距，約 510 點，放進 411 點寬的視窗；因此外層 VStack 以一個螢幕顯示不下的
+# 寬度被置中，而每一個 leading 對齊的子項都從左緣之外開始。那個藍色矩形——
+# Color(0.10, 0.45, 0.85)，8 位元下為 (26, 115, 217)——可見範圍是 x 0 至 x 178、y 988-1134。
+# 其高度量得 147 像素 = 56.0 點，正是 app 所要求的 56，因此 frame 確實被遵守了；落在畫面之外的是它
+# 315 像素寬度中的左側 137 像素，而不是「不見了」。
+#
+# 主張分為兩半。標籤必須讀作「frame width: 260」，**且**藍色矩形的可見右緣必須從 x 178 移動到約
+# x 545，也就是可見寬度必須由 179 像素變為約 546。算術是固定的：左緣位於 178 - 120 x 2.625 = -137，
+# 加寬後的 frame 為 260 x 2.625 = 682 像素，因此右緣落在 -137 + 682 = 545。高度必須維持 147。
+# 若某個 backend 只改標籤而未重新排版，該邊緣會停在 178；若某個 backend 仍帶有舊的空白化 bug，
+# 那一帶會什麼都不剩。
+#
+# 只按一次。它會改變矩形的寬度與標籤的文字，而該標籤就緊鄰按鈕右側，因此第二個座標會是寫給一列
+# 已被這次按壓重新排版過的內容。
+sleep,,,,,,1500000,let P30 draw the rectangle and both effect rows,android
+click,48,341,,left,,,"""Use wide frame"" -- the label must read ""frame width: 260"" and the blue (26, 115, 217) band at y 988-1134 must run from x 0 to about x 545 instead of x 178, with its height still 147 pixels. REPLAYED 2026-09-03 and BOTH HALVES HOLD, TO THE PIXEL: the label reads ""frame width: 260"", the button relabelled to ""Use narrow frame"", and the blue band is x 0-545 at y 988-1134 -- right edge 545 against the 545 predicted from -137 + 260 x 2.625, and height still exactly 147. Nothing blanked: the band is continuous and every other row is still on screen. The widening state change repaints correctly on AndroidBackend",android
+sleep,,,,,,1200000,let the rectangle re-lay-out at the wider frame,android

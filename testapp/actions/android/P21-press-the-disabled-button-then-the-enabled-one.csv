@@ -1,0 +1,69 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21 on Android: press the disabled button and then the enabled one, and check the
+# counter reads exactly 1.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p21-android-final-20260903-123532.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The two buttons share the pixel band y 757-883: "Enabled" at
+# x 47-278, "Disabled" at x 304-548. Their centres are pixels (162, 820) and
+# (426, 820) = points (62, 312) and (162, 312).
+#
+# Why exactly 1, and why two presses in one file. P21's own header names the case
+# worth catching: a control that "leaves the label looking live and simply ignores
+# input" is not the problem -- the problem is one that LOOKS disabled and takes
+# the click anyway, because that reads as correct in a screenshot. A file that
+# pressed only the disabled button would pass on a build where nothing works at
+# all, since 0 is also what a dead button gives. Pressing both, in that order, is
+# what makes the number diagnostic:
+#
+#     0  neither press did anything -- the enabled button is broken too
+#     1  correct: the disable refused the click and the enable took it
+#     2  the disable is cosmetic, which is the defect this app exists for
+#
+# Two presses are allowed here for the reason the one-press rule exists: neither
+# of them moves anything. The only thing that changes is one digit in
+# "Button — clicks: 0", a line at pixels [47,663]-[417,726] whose width does not
+# change with the digit, so the second coordinate is aimed at exactly the screen
+# the first press left behind. The buttons are still at y 757-883 afterwards.
+#
+# One thing the dump already says, before any press. The disabled Button reports
+# clickable="true", and so do the disabled Switch at pixels [597,1295]-[720,1368]
+# and the disabled CheckBox at [558,1747]-[642,1831]. That is what the
+# accessibility tree says, not what the widget does -- an Android view can be
+# clickable and not enabled -- but it is the reason this file presses the thing
+# rather than reading the tree.
+#
+# P21 於 Android：先按停用的按鈕、再按啟用的按鈕，並確認計數器恰好是 1。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p21-android-final-20260903-123532.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。兩個按鈕共用像素帶 y 757-883：「Enabled」位於
+# x 47-278，「Disabled」位於 x 304-548。其中心分別為像素 (162, 820) 與 (426, 820)，
+# 即點 (62, 312) 與 (162, 312)。
+#
+# 為何要求恰好是 1，以及為何一份檔案裡有兩次按壓。P21 自己的表頭已指出值得捕捉的情形：
+# 「外觀看起來仍是活的、只是忽略輸入」的控制項不是問題所在——問題在於**看起來像被停用、卻照樣接下
+# 點擊**的那一種，因為它在截圖上讀起來完全正確。若某份檔案只按下停用的按鈕，那麼在一個「什麼都不能
+# 動」的建置上它照樣會通過，因為 0 也正是壞掉的按鈕會給出的數字。依此順序按下兩者，才使這個數字
+# 具有診斷力：
+#
+#     0  兩次按壓都沒有作用——連啟用的按鈕也壞了
+#     1  正確：停用的拒絕了點擊，啟用的接下了它
+#     2  該停用只是外觀上的，而那正是本 app 存在的理由
+#
+# 此處允許兩次按壓，理由正是「一次按壓」規則存在的理由：這兩次都不會移動任何東西。唯一改變的是
+# 「Button — clicks: 0」中的一個數字——該行位於像素 [47,663]-[417,726]，其寬度不隨該數字改變——
+# 因此第二個座標所指向的，正是第一次按壓所留下的那個畫面。按鈕在此之後仍位於 y 757-883。
+#
+# 在任何按壓之前，dump 就已經說了一件事。停用的 Button 回報 clickable="true"，位於像素
+# [597,1295]-[720,1368] 的停用 Switch 與 [558,1747]-[642,1831] 的停用 CheckBox 也是如此。那是
+# accessibility tree 所說的，而不是 widget 實際會做的——Android 的 view 可以既 clickable 又
+# not enabled——但這正是本檔選擇「按下去」而非「讀樹」的理由。
+sleep,,,,,,1500000,let P21 lay out the button row,android
+click,162,312,,left,,,"the DISABLED button -- it must refuse the press, so ""Button — clicks:"" must still read 0 after it",android
+sleep,,,,,,1200000,let any counter change that should not happen happen,android
+click,62,312,,left,,,"the ENABLED button -- after both presses the line must read ""Button — clicks: 1"" exactly: 0 means the enabled button is broken too, 2 means the disable is only cosmetic. REPLAYED 2026-09-03 and IT READS 1: the dump after the pair gives ""Button — clicks: 1"" at [47,663]-[417,726], and both buttons are still at y 757-883, so the second press landed where the file said it would. AndroidBackend refuses a press on a disabled Button while still accepting one on its enabled neighbour -- the disable is real and not cosmetic, despite the accessibility tree reporting clickable=true for both",android
+sleep,,,,,,1200000,let the counter repaint,android

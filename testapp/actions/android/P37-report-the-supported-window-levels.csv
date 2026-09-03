@@ -1,0 +1,73 @@
+action,x,y,origin,button,key,micros,note,platform
+# P37 on Android: what `.topmost()` does here, and why no action file can test its
+# real question.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p37-android-final-20260903-135324.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# THE FINDING, and it is the reason this file exists rather than the press below.
+# P37's scene carries `.topmost()`, and on AndroidBackend that request is accepted
+# and does nothing: the app's own readout says so, "supported levels ->
+# automatic, normal" at pixels [47,803]-[834,866], followed by "floating is NOT
+# supported: this window will behave normally". `.floating` is absent from
+# `supportedWindowLevels`, so `windowLevel(_:)` has nothing to apply. The app
+# launches, which rules out the other failure -- an unimplemented level that
+# aborts during layout -- but the modifier is a no-op. Android does have an answer
+# for this shape of request, `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY`
+# behind the SYSTEM_ALERT_WINDOW permission, so "the platform cannot express it"
+# is not the reason. NOT FIXED HERE; recorded for a decision.
+#
+# WHY THE REAL TEST CANNOT BE WRITTEN AS AN ACTION FILE. P37's header is explicit
+# that this app is judged by what is NOT covering it: raise another application's
+# window and look again. `AndroidSynthesiser` is in-process -- every MotionEvent
+# goes through `activity.dispatchTouchEvent`, so nothing it posts can leave this
+# app, and it cannot launch or raise anything. That is a property of the
+# synthesiser, not a gap in this file, and it is the same reason the Windows and
+# X11 synthesisers were noted as being able to drive other applications when this
+# one cannot.
+#
+# P37 also has NO CONTROLS: the dump finds five TextViews and not one Button,
+# Spinner or Toggle. So the press below is deliberately aimed at inert text.
+#
+# The claim, and it is a small one, stated plainly rather than dressed up: after a
+# touch delivered into the middle of the instruction block the process must still
+# be running and both capability lines must be unchanged -- "supported levels ->
+# automatic, normal" still at [47,803]-[834,866], and "floating is NOT supported"
+# still under it. It catches a touch that aborts the app and nothing else. The
+# value in this file is the two paragraphs above it.
+#
+# P37 於 Android：`.topmost()` 在此處做了什麼，以及為何沒有任何動作檔能測試它真正的問題。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p37-android-final-20260903-135324.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# **發現**，也是本檔存在的理由——而非下方那次按壓。P37 的 scene 帶有 `.topmost()`，而在
+# AndroidBackend 上該請求被接受了卻什麼也沒做：app 自己的讀數就這麼說——位於像素 [47,803]-[834,866]
+# 的「supported levels -> automatic, normal」，其下是「floating is NOT supported: this window will
+# behave normally」。`.floating` 不在 `supportedWindowLevels` 之中，因此 `windowLevel(_:)` 沒有東西
+# 可套用。app 能夠啟動，這排除了另一種失敗——未實作的層級在版面配置期間中止行程——但該 modifier
+# 是個空操作。Android 對這種形狀的請求其實是有答案的：位於 SYSTEM_ALERT_WINDOW 權限之後的
+# `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY`，因此「這個平台表達不了」並不是理由。
+# **此處未修正**，記錄下來供裁決。
+#
+# **為何真正的測試無法寫成動作檔。** P37 的表頭明白指出：這支 app 是以「什麼沒有蓋住它」來判定的
+# ——把另一個應用程式的視窗抬起來，再看一次。`AndroidSynthesiser` 是在行程內的——每一個 MotionEvent
+# 都經由 `activity.dispatchTouchEvent`，因此它投遞的任何東西都離不開這支 app，它也無法啟動或抬起
+# 任何東西。那是 synthesiser 的性質，而非本檔的缺口；這也正是當初會註明「Windows 與 X11 的
+# synthesiser 能驅動其他應用程式，而這一個不能」的同一個理由。
+#
+# P37 **也沒有任何控制項**：dump 找到五個 TextView，而沒有任何一個 Button、Spinner 或 Toggle。
+# 因此下方那次按壓是刻意瞄準一段無反應的文字。
+#
+# 主張，而它是個小主張，就直說而不加修飾：在指示文字區塊中央投遞一次觸控之後，行程必須仍在執行，
+# 且兩行能力宣告必須未變——「supported levels -> automatic, normal」仍位於 [47,803]-[834,866]，
+# 其下仍是「floating is NOT supported」。它能抓到的只有「一次觸控使 app 中止」，此外別無其他。
+# 本檔的價值在它上方的那兩段。
+sleep,,,,,,1500000,let P37 read the backend's supported window levels,android
+click,206,571,,left,,,"the middle of the instruction text, which is inert -- the process must survive and both capability lines must be unchanged, ""supported levels -> automatic, normal"" still at [47,803]-[834,866]. REPLAYED 2026-09-03 and IT HOLDS: logcat has the pair ""replaying P37-actions.csv"" / ""replayed P37-actions.csv"" with no Abort message, and the dump afterwards still reads ""supported levels -> automatic, normal"" at exactly [47,803]-[834,866] with ""floating is NOT supported: this window will behave normally"" under it",android
+sleep,,,,,,1200000,"let anything the touch started finish, or fail",android

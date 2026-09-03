@@ -1,0 +1,72 @@
+action,x,y,origin,button,key,micros,note,platform
+# P32 on Android: tap the slider at 80% and check the progress bar bound to the
+# same value follows.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p32-android-final-20260903-132521.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Why the slider and not one of the two buttons. P32 has no status line anywhere:
+# its buttons report through `P32Diagnostics`, which prints to a log file in the
+# process's working directory, and a screenshot cannot see either. The slider is
+# the one control whose effect is drawn twice -- `Slider(value: $slider, in: 0...1)`
+# and `ProgressView(Text("Progress label"), value: slider)` share one piece of
+# state -- so pressing it makes a claim about a round trip rather than about a
+# label, on an app that has no labels to offer.
+#
+# The geometry, all of it measured. The SeekBar is at pixels [47,1422]-[729,1548]:
+# 682 pixels wide, which is the 260 points the app asks for. Its thumb is at
+# [325,1422]-[451,1548], so 126 pixels across and centred at 388. With a 63-pixel
+# radius the value 0 sits at pixel 110 and the value 1 at 666, and 388 is dead
+# centre of those -- 0.5, which is what the app starts at. The progress bar under
+# it, at [47,1579]-[1031,1634], agrees independently: along its middle scanline
+# y 1606 the filled amber (255, 192, 0) runs x 47-538 and the unfilled grey
+# (112, 115, 112) runs 539-1030, which is 492 pixels each, exactly half.
+#
+# The target. Value 0.8 puts the thumb centre at 110 + 0.8 x 556 = 555, so the tap
+# goes at pixel (555, 1485) = point (211, 566).
+#
+# The claim, in two halves, and the second is the one that cannot be reached by
+# the widget alone: the SeekBar's thumb must move from centre 388 to about 555,
+# AND the progress bar's amber must grow from 492 pixels to about 787 -- 80% of
+# its 984-pixel track, with the boundary moving from x 538 to about x 834. A
+# backend where the touch moved the Material slider and never wrote back through
+# the binding passes the first half and fails the second, and that half is
+# invisible in every other app here because nothing else draws the same state
+# twice.
+#
+# One tap. It moves a thumb and repaints a bar and nothing is laid out again, but
+# one is all the claim needs.
+#
+# P32 於 Android：在 80% 處點擊 slider，確認繫結至同一個值的進度條隨之改變。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p32-android-final-20260903-132521.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+#
+# 為何選 slider 而非兩個按鈕之一。P32 全篇沒有任何狀態列：它的按鈕透過 `P32Diagnostics` 回報，
+# 而那會印到行程工作目錄下的日誌檔，截圖兩者都看不見。slider 是唯一「效果被畫了兩次」的控制項——
+# `Slider(value: $slider, in: 0...1)` 與 `ProgressView(Text("Progress label"), value: slider)`
+# 共用同一份狀態——因此在一支沒有標籤可用的 app 上，按它所提出的是「關於一趟往返」的主張，
+# 而非「關於一個標籤」的主張。
+#
+# 幾何，全部都是量出來的。SeekBar 位於像素 [47,1422]-[729,1548]：寬 682 像素，正是 app 所要求的
+# 260 點。其 thumb 位於 [325,1422]-[451,1548]，寬 126 像素、中心在 388。以 63 像素為半徑，值 0 落在
+# 像素 110、值 1 落在 666，而 388 正好是兩者的正中央——0.5，也就是 app 的起始值。其下方位於
+# [47,1579]-[1031,1634] 的進度條獨立地佐證了這一點：沿其中線 y 1606，填滿的琥珀色 (255, 192, 0)
+# 橫跨 x 47-538，未填滿的灰色 (112, 115, 112) 橫跨 539-1030，各為 492 像素，恰為一半。
+#
+# 目標。值 0.8 會使 thumb 中心落在 110 + 0.8 x 556 = 555，因此點擊位置為像素 (555, 1485)，
+# 即點 (211, 566)。
+#
+# 主張分為兩半，而第二半是單靠 widget 本身到不了的：SeekBar 的 thumb 必須由中心 388 移動到約 555，
+# **且**進度條的琥珀色必須由 492 像素增長到約 787——即其 984 像素軌道的 80%，邊界由 x 538 移動到
+# 約 x 834。若某個 backend 的觸控移動了 Material slider、卻從未經由繫結寫回，它會通過前半、
+# 在後半失敗；而這後半在此處其他每一支 app 中都看不見，因為沒有別的 app 把同一份狀態畫兩次。
+#
+# 只點一次。它會移動一個 thumb 並重繪一條長條，沒有任何東西被重新排版，而主張所需的也就只有這一次。
+sleep,,,,,,1500000,let P32 lay out the slider and the progress bar,android
+click,211,566,,left,,,"the slider at the pixel for 0.8 -- the thumb centre must move from 388 to about 555 and the progress bar amber must grow from 492 pixels to about 787, its boundary moving from x 538 to about x 834. REPLAYED 2026-09-03 and BOTH HALVES HOLD, with the value landing at 0.777 rather than 0.80: the thumb is now [490,1422]-[616,1548], centre 553, and the amber runs x 47-811 with grey from 812, so 765 pixels of the 984-pixel track. The two agree with each other, which is what the claim is about: 765/984 = 0.777 from the progress bar, and the thumb at 553 gives 0.776 once the Material track is measured rather than assumed. The 0.8 target was computed from a 63-pixel side padding taken from the thumb radius; solving from the two observations instead gives a track running pixel 89 to 687, 598 pixels with 42 of padding each side, and 89 + 0.777 x 598 = 553.6. The slider wrote back through the binding and the ProgressView redrew from it",android
+sleep,,,,,,1200000,let the slider and the progress bar repaint,android

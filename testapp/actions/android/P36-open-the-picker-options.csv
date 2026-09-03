@@ -1,0 +1,90 @@
+action,x,y,origin,button,key,micros,note,platform
+# P36 on Android: open the picker and check all three options are listed.
+#
+# Measured 2026-09-03 from uiautomator dumps of the running app, one at launch and
+# one with the dropdown open, and from
+# testapp/output/screenshots/p36-android-final-20260903-134659.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The closed picker is a Spinner at pixels [47,666]-[388,792] reading
+# "Vanilla"; its centre is pixel (217, 729) = point (83, 278).
+#
+# Why the picker. P36's other two controls cannot carry a claim here. The button
+# reports only through `P36Diagnostics.write`, and NO OUTPUT FROM AN APP'S `print`
+# REACHES LOGCAT ON THIS BACKEND -- checked on this run, which shows the
+# `-actionfile:` lines from InputEvent and not one line from P36 itself, including
+# the `onAppear` line it writes before anything is pressed. The TextField needs
+# typing, which `AndroidSynthesiser.perform` refuses: every key row throws
+# SynthesiserError.unsupported("key rows on Android").
+#
+# WHAT THIS FILE WANTED TO DO AND CANNOT, which is the more useful half of it.
+# The claim worth making about a picker is that choosing the THIRD option makes
+# the line under it read "Picker selection: Strawberry" -- the third specifically,
+# because an off-by-one in the index handed back would land on "Chocolate" and be
+# visible, where picking "Vanilla" would look correct even from a picker that
+# reported nothing. That needs two presses, and the second one does not work.
+#
+# Measured, not assumed. The first version of this file had two click rows: the
+# spinner at point (83, 278), then the "Strawberry" row at point (74, 374), whose
+# pixel (194, 981) is the middle of the row the open dropdown puts at
+# [47,918]-[341,1044]. Replayed on 2026-09-03, THE SECOND PRESS DID NOTHING AT
+# ALL: the dump afterwards still showed the dropdown open with the same three rows
+# at the same bounds, and the selection unchanged. It did not select, it did not
+# dismiss, and it did not fall through to the "String label button" that sits
+# underneath it at [47,918]-[490,1044].
+#
+# Why, as far as the source shows. `AndroidSynthesiser.dispatch(action:at:downTime:)`
+# posts every MotionEvent with `activity.dispatchTouchEvent(event)`, and a
+# Spinner's dropdown is not in the activity's view hierarchy -- it is a
+# `PopupWindow`, a second window of its own. An event handed to the activity has
+# nowhere to travel to reach it. That is consistent with all four of the Android
+# picker and menu files written before this one having exactly one click row each:
+# P2, P17, P19 and P20 all open something and stop there. So on Android today an
+# action file can open a picker or a menu and cannot choose from one.
+#
+# The claim this file does make: one press must open a dropdown listing all three
+# options as separate rows -- "Vanilla", "Chocolate" and "Strawberry" -- at
+# [47,666]-[341,1044], 126 pixels per row. It is not fakeable by a label: the
+# options come from `choices` through `Picker(of:selection:)`, so a dropdown with
+# one row, or the wrong strings, or none at all, is a picker that laid out and
+# does not work.
+#
+# P36 於 Android：開啟選擇器，確認三個選項都被列出。
+#
+# 2026-09-03 量自執行中 app 的兩份 uiautomator dump（一份於啟動時、一份於下拉開啟時），以及
+# testapp/output/screenshots/p36-android-final-20260903-134659.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。關閉狀態的選擇器是位於像素 [47,666]-[388,792]、
+# 顯示「Vanilla」的 Spinner，其中心為像素 (217, 729)，即點 (83, 278)。
+#
+# 為何選這個選擇器。P36 的另外兩個控制項在此承載不了主張。那個按鈕只透過 `P36Diagnostics.write`
+# 回報，而**在本 backend 上，app 的 `print` 沒有任何輸出會抵達 logcat**——本次執行已查證：logcat 中
+# 有來自 InputEvent 的 `-actionfile:` 各行，卻沒有任何一行來自 P36 自身，連它在任何按壓之前於
+# `onAppear` 所寫的那一行也沒有。TextField 則需要打字，而 `AndroidSynthesiser.perform` 拒絕這件事：
+# 每一個按鍵列都會拋出 SynthesiserError.unsupported("key rows on Android")。
+#
+# **本檔原本想做、卻做不到的事**，而那是它更有用的一半。對一個選擇器值得提出的主張是：選取**第三個**
+# 選項後，其下那一行必須讀作「Picker selection: Strawberry」——特別是第三個，因為若回傳的索引差了一，
+# 結果會落在「Chocolate」而被看見；而選「Vanilla」的話，即使選擇器什麼都沒回報也看起來正確。
+# 那需要兩次按壓，而第二次不管用。
+#
+# 這是量出來的，不是假設的。本檔的第一個版本有兩個 click 列：先是點 (83, 278) 的 spinner，
+# 接著是點 (74, 374) 的「Strawberry」列——其像素 (194, 981) 正是開啟後的下拉選單放在
+# [47,918]-[341,1044] 的那一列的中央。2026-09-03 重放，**第二次按壓完全沒有作用**：其後的 dump 仍
+# 顯示下拉選單開著、三列位於相同邊界、選取值未變。它沒有選取、沒有關閉，也沒有穿透到位於其下方
+# [47,918]-[490,1044] 的「String label button」。
+#
+# 原因，就原始碼所能顯示的部分而言。`AndroidSynthesiser.dispatch(action:at:downTime:)` 以
+# `activity.dispatchTouchEvent(event)` 投遞每一個 MotionEvent，而 Spinner 的下拉選單並不在該 activity
+# 的 view 階層之內——它是一個 `PopupWindow`，是它自己的第二個視窗。交給 activity 的事件，沒有任何
+# 路徑可以抵達它。這一點與「在本檔之前所寫的四份 Android 選擇器與選單動作檔，每一份都恰好只有一個
+# click 列」相符：P2、P17、P19 與 P20 都只是打開某個東西，然後就停在那裡。因此在今日的 Android 上，
+# 動作檔可以打開一個選擇器或選單，卻無法從中選取。
+#
+# 本檔實際提出的主張：按一次必須開啟一個下拉選單，以獨立的列列出全部三個選項——「Vanilla」、
+# 「Chocolate」與「Strawberry」——位於 [47,666]-[341,1044]，每列 126 像素。這不是標籤能偽造的：
+# 這些選項來自 `choices`、經由 `Picker(of:selection:)`，因此一個只有一列、或字串錯誤、
+# 或根本沒有開啟的下拉選單，就是一個「排版出來了卻不能用」的選擇器。
+sleep,,,,,,1500000,let P36 lay out the picker and its readout,android
+click,83,278,,left,,,"the closed picker reading ""Vanilla"" -- a dropdown must open at pixels [47,666]-[341,1044] listing three rows of 126 pixels, ""Vanilla"", ""Chocolate"" and ""Strawberry"". REPLAYED 2026-09-03 and IT HOLDS: the dump after the press has exactly those three TextViews at [47,666]-[341,792], [47,792]-[341,918] and [47,918]-[341,1044], and nothing of the page underneath, which is what a PopupWindow looks like to uiautomator. logcat carries the pair ""replaying P36-actions.csv"" / ""replayed P36-actions.csv"" and geometry scale=2.625",android
+sleep,,,,,,1200000,let the dropdown appear,android

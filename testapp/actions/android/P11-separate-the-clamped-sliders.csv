@@ -1,0 +1,91 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11 on Android: move both sliders from code and check that the widgets move, not
+# only the readout (#82's apparatus, driven the safe way).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p11-android-final-20260903-122017.png
+# and from uiautomator dumps before and after the press.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Separate them" is at pixels [26,1201]-[396,1327]; its centre is
+# pixel (211, 1264) = point (80, 482).
+#
+# Why this press and not a drag. #82 is a jitter that appears while dragging one
+# slider past the other, and a drag is exactly what an action file cannot state a
+# claim about: the outcome depends on where the finger stopped. P11 provides the
+# two buttons for this reason -- "Separate them" sets 20/80 and "Collide them"
+# sets 50/50 -- so the bindings can be driven from a fixed state. This file takes
+# the first, which is the one whose result differs on both sliders at once.
+#
+# Where the sliders actually are, which is the whole difficulty here and cost this
+# file one wrong reading before it was written. Each Slider is `.frame(width: 700)`
+# inside a 411-point window and the enclosing VStack centres it, so the track runs
+# from -144 to +555 points and only its middle 411 points are on screen. Derived
+# from the thumb bounds themselves: with the thumb 126 pixels wide, value 20 puts
+# its centre at pixel 14, value 50 at 540 and value 80 at 1066 -- 17.53 pixels per
+# unit, so value 0 sits at pixel -337 and value 100 at pixel 1417, both outside
+# the screen. A first attempt at this file measured the purple fill along the
+# track and concluded the sliders had not moved; that reading was wrong, because
+# the track does not span the screen and the fill runs off both edges.
+#
+# That geometry is also what makes the claim below checkable, and it is better
+# than a fill measurement: AT LAUNCH NEITHER THUMB IS ON SCREEN. The values are 0
+# and 100, both thumbs are past the window edges, and the dump finds exactly two
+# SeekBar nodes with no thumb children -- the screenshot shows two flat bars, one
+# empty and one full, and no circle on either.
+#
+# The claim, in two halves, and the second is the one a label cannot fake: after
+# the press the readout must read "minimum 20  /  maximum 80", AND a thumb must
+# appear on each slider, the first clipped against the left edge and the second
+# against the right. A backend that accepted the write and never pushed it into
+# the widget would leave both thumbs off screen and show two bare bars under the
+# new numbers -- which is precisely the failure recorded for the List in
+# P7-select-a-list-row-from-code.csv, on this same backend, in the same week.
+#
+# One press. It rewrites the readout and both sliders, so any second coordinate
+# would be aimed at a screen this press has already changed.
+#
+# Not tested here, and worth saying so. "Reset counters" is off the left edge --
+# the button row is 700 points wide inside a 411-point window and the dump finds
+# only "Separate them" and "Collide them" -- and the #485 scrollbar section shows
+# no scrollbar at all to point the wrong way, because AndroidBackend's scroll
+# views draw no bar at rest. Neither is something this press touches.
+#
+# P11 於 Android：以程式移動兩個 slider，並確認移動的是 widget 本身而不只是讀數
+# （#82 的裝置，以安全的方式驅動）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p11-android-final-20260903-122017.png，以及按壓前後的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。「Separate them」位於像素
+# [26,1201]-[396,1327]，其中心為像素 (211, 1264)，即點 (80, 482)。
+#
+# 為何是按鈕而非拖曳。#82 是「把一個 slider 拖過另一個時出現的抖動」，而拖曳恰恰是動作檔無法對其
+# 提出主張的東西：結果取決於手指停在哪裡。P11 之所以提供這兩個按鈕正是為此——「Separate them」
+# 設為 20/80，「Collide them」設為 50/50——如此便能從固定狀態驅動這些繫結。本檔取用前者，
+# 因為它的結果會同時在兩個 slider 上呈現差異。
+#
+# 這些 slider 究竟位於何處——這正是此處的全部難點，也讓本檔在寫成之前先付出了一次錯誤的讀數。
+# 每個 Slider 都是 `.frame(width: 700)` 而視窗只有 411 點寬，外層 VStack 又將其置中，因此其軌道
+# 由 -144 點延伸至 +555 點，只有中間的 411 點在畫面上。這是由 thumb 自身的邊界推導出來的：thumb
+# 寬 126 像素，值 20 時其中心位於像素 14、值 50 時位於 540、值 80 時位於 1066——每單位 17.53 像素，
+# 因此值 0 落在像素 -337、值 100 落在像素 1417，兩者皆在畫面之外。本檔的第一次嘗試是沿軌道量測
+# 紫色填充比例，並據以斷定 slider 沒有移動；那個讀數是錯的，因為軌道並未橫跨畫面，填充從兩端都
+# 溢出了。
+#
+# 這個幾何關係同時也讓下方的主張變得可檢查，而且優於填充量測：**啟動時兩個 thumb 都不在畫面上**。
+# 兩個值是 0 與 100，兩個 thumb 都在視窗邊界之外，dump 恰好只找到兩個 SeekBar 節點而沒有任何 thumb
+# 子節點——截圖顯示的是兩條平坦的長條，一空一滿，兩者上面都沒有圓點。
+#
+# 主張分為兩半，而第二半是標籤偽造不了的：按下之後，讀數必須變為「minimum 20  /  maximum 80」，
+# **且**每個 slider 上都必須出現一個 thumb，第一個被左緣裁切、第二個被右緣裁切。若某個 backend
+# 接受了寫入卻從未把它推進 widget，兩個 thumb 會留在畫面之外，新的數字之下只有兩條光禿的長條
+# ——那正是 P7-select-a-list-row-from-code.csv 為同一個 backend、在同一週所記錄的清單失敗樣態。
+#
+# 只按一次。它會改寫讀數與兩個 slider，因此任何第二個座標都會指向一個已被這次按壓改變過的畫面。
+#
+# 此處未測試、但值得說明的事。「Reset counters」落在左緣之外——該按鈕列在 411 點寬的視窗中有
+# 700 點寬，dump 只找得到「Separate them」與「Collide them」——而 #485 的捲軸段落根本沒有任何捲軸
+# 可供「指錯方向」，因為 AndroidBackend 的捲動視圖在靜止時不繪製捲軸。這兩件事都不是本次按壓所
+# 觸及的。
+sleep,,,,,,1500000,let P11 lay out both sliders and the picker row,android
+click,80,482,,left,,,"""Separate them"" -- the readout must read ""minimum 20  /  maximum 80"" and a thumb must appear on each slider, neither of which is on screen at launch. REPLAYED 2026-09-03 and BOTH HALVES HOLD: the readout reads ""minimum 20  /  maximum 80   writes: min 0, max 0"" (the writes counters stay at 0, so the button set the state directly and no clamp fired), and the dump gains two thumb nodes where it had none -- [0,917]-[77,1043] on the first slider and [1003,1059]-[1078,1185] on the second. Those give thumb centres of pixel 14 and 1066, which with the 540 measured for value 50 in a follow-up probe is 17.53 px per unit, dead straight: 14 + 30 x 17.53 = 540.0. The widgets are at 20 and 80, not merely labelled 20 and 80",android
+sleep,,,,,,1200000,let both sliders repaint at their new values,android

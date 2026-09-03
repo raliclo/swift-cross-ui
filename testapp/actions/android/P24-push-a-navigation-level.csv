@@ -1,0 +1,64 @@
+action,x,y,origin,button,key,micros,note,platform
+# P24 on Android: follow a NavigationLink and check the stack actually pushes.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p24-android-final-20260903-124833.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Push level 1" is at pixels [280,1434]-[595,1560]; its centre is
+# pixel (437, 1497) = point (167, 570).
+#
+# What P24 is for and why one push is the whole first question. NavigationStack
+# and NavigationLink appear in no other test app; P7 and P16 exercise
+# NavigationSplitView, which is a different type with a different layout model. A
+# stack has history, and history cannot be checked until something has been
+# pushed onto it, so this file establishes that a push happens at all before
+# anything asks what going back does.
+#
+# The launch state. The stack shows its root: "Level 0" at pixels
+# [280,1266]-[419,1329], "Root. Push to go deeper." at [280,1350]-[794,1413], and
+# the two controls "Push level 1" and "Record a push" beneath. Outside the stack
+# the two bookkeeping lines read "pushes recorded (outside the stack) -> 0" and
+# "counter -> 0".
+#
+# The claim, in two halves. First, the pressed link must REPLACE the root inside
+# the stack: "Level 1" and "Pushed to level 1." must be on screen and "Level 0"
+# and "Root. Push to go deeper." must be gone, with the link now offering "Push
+# level 2". Second, and this is the part that separates a push from a redraw: the
+# counter line outside the stack must STILL READ 0. `onPush` is called only by the
+# "Record a push" button, never by the link, so a backend that re-entered the root
+# view or rebuilt the whole scene instead of pushing would run that closure and
+# the number would move. The two halves together say the stack pushed, and pushed
+# once.
+#
+# One press. It replaces everything inside the stack, so a second coordinate
+# written now would be aimed at a screen this press has already discarded.
+#
+# P24 於 Android：跟隨一個 NavigationLink，確認堆疊真的推入了一層。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p24-android-final-20260903-124833.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Push level 1」位於像素 [280,1434]-[595,1560]，
+# 其中心為像素 (437, 1497)，即點 (167, 570)。
+#
+# P24 的用途，以及為何「推入一次」就是全部的第一個問題。NavigationStack 與 NavigationLink 未出現在
+# 任何其他測試 app；P7 與 P16 操作的是 NavigationSplitView，那是不同型別、不同的版面模型。堆疊有
+# 「歷史」，而在有東西被推入之前，歷史無從檢查，因此本檔先確立「推入確實發生」，之後才輪到
+# 「返回會怎樣」。
+#
+# 啟動狀態。堆疊顯示其根：「Level 0」位於像素 [280,1266]-[419,1329]、「Root. Push to go deeper.」
+# 位於 [280,1350]-[794,1413]，其下是「Push level 1」與「Record a push」兩個控制項。堆疊之外的兩行
+# 記帳文字讀作「pushes recorded (outside the stack) -> 0」與「counter -> 0」。
+#
+# 主張分為兩半。其一，被按下的連結必須**取代**堆疊內的根：「Level 1」與「Pushed to level 1.」
+# 必須出現在畫面上，而「Level 0」與「Root. Push to go deeper.」必須消失，連結則改為提供
+# 「Push level 2」。其二，也是分辨「推入」與「重繪」的關鍵：堆疊之外的計數行必須**仍然讀作 0**。
+# `onPush` 只由「Record a push」按鈕呼叫，連結從不呼叫它，因此若某個 backend 是重新進入根視圖、
+# 或整個 scene 重建而非推入，該閉包就會被執行、數字就會改變。兩半合在一起，才說出「堆疊推入了，
+# 而且只推入一次」。
+#
+# 只按一次。它會取代堆疊內的一切，因此此刻寫下的第二個座標，將指向一個已被這次按壓丟棄的畫面。
+sleep,,,,,,1500000,let P24 lay out the stack at its root,android
+click,167,570,,left,,,"""Push level 1"" -- the stack must show ""Level 1"" and ""Pushed to level 1."" with ""Level 0"" gone, and the line outside the stack must still read ""pushes recorded (outside the stack) -> 0"". REPLAYED 2026-09-03 and BOTH HALVES HOLD: the dump after the press has ""Level 1"" at [353,1352]-[492,1415], ""Pushed to level 1."" at [353,1436]-[723,1499] and ""Push level 2"" at [353,1520]-[668,1646], with no ""Level 0"" and no ""Root. Push to go deeper."" anywhere, while the counter line still reads 0 -- so the root was pushed off rather than rebuilt. A third thing appeared that the claim did not ask for and is worth recording: AndroidBackend adds its own back affordance, a ""‹ Back"" button at [68,1172]-[299,1298] above the pushed level, which was not there at the root. The history the stack keeps is therefore reachable from the screen, not only from the path",android
+sleep,,,,,,1500000,let the destination be built and pushed,android

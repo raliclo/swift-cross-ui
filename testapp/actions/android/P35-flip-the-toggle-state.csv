@@ -1,0 +1,67 @@
+action,x,y,origin,button,key,micros,note,platform
+# P35 on Android: flip the toggle and check the state and the widget agree
+# afterwards.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and
+# testapp/output/screenshots/p35-android-final-20260903-134220.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The toggle is at pixels [343,1128]-[574,1254]; its centre is pixel
+# (458, 1191) = point (175, 454).
+#
+# Why the toggle and not "Increment". Both are here -- "Increment" is at
+# [47,1128]-[322,1254] -- and pressing it turns "count 0" into "count 1", which is
+# the same claim P12 already makes on this backend. The toggle is the one control
+# in P35 whose state exists in two places at once: in the `@State var toggle` the
+# line reports, and in the widget's own `checked` attribute. Those two can
+# disagree, and a counter cannot.
+#
+# Why the toggle STARTS true, which is what makes one press enough. `@State var
+# toggle = true`, so the line reads "State baseline: count 0, toggle true" and the
+# ToggleButton node carries checked="true". They agree at launch, and that
+# agreement is the baseline the press is measured against -- an app whose toggle
+# started false would need a press just to reach a state worth checking.
+#
+# The claim, in two halves: after the press the line must read "State baseline:
+# count 0, toggle false", AND the ToggleButton node must carry checked="false".
+# Both, because either alone has a failure it cannot see. A backend that told
+# SwiftCrossUI about the tap but left the widget drawn as on gives the new words
+# over a still-checked button -- the user sees a switch that says one thing and a
+# label that says another. A backend that flipped the widget locally and never
+# called back through the binding gives checked="false" under "toggle true", and
+# the app's state never moved at all. The count must stay 0 through both, so
+# nothing else fired.
+#
+# One press. Nothing is re-laid-out -- the line at [47,1033]-[768,1096] keeps its
+# place -- but one press is all the claim needs.
+#
+# P35 於 Android：切換 toggle，確認狀態與 widget 在事後彼此一致。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p35-android-final-20260903-134220.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。該 toggle 位於像素 [343,1128]-[574,1254]，
+# 其中心為像素 (458, 1191)，即點 (175, 454)。
+#
+# 為何選 toggle 而非「Increment」。兩者都在這裡——「Increment」位於 [47,1128]-[322,1254]——而按下它
+# 會把「count 0」變成「count 1」，那與 P12 在本 backend 上已經提出的主張相同。toggle 則是 P35 中
+# 唯一「狀態同時存在於兩處」的控制項：一處是該行所回報的 `@State var toggle`，另一處是 widget 自身
+# 的 `checked` 屬性。這兩者有可能彼此不一致，而計數器不會。
+#
+# 為何 toggle 起始為 true——這正是「一次按壓就夠」的原因。`@State var toggle = true`，因此該行讀作
+# 「State baseline: count 0, toggle true」，而 ToggleButton 節點帶有 checked="true"。它們在啟動時
+# 一致，而這份一致正是本次按壓所比對的基準——若某支 app 的 toggle 起始為 false，光是要抵達一個值得
+# 檢查的狀態就得先按一次。
+#
+# 主張分為兩半：按下之後，該行必須讀作「State baseline: count 0, toggle false」，**且** ToggleButton
+# 節點必須帶有 checked="false"。兩者缺一不可，因為任一單獨存在時都有它看不見的失敗。若某個 backend
+# 把點擊告訴了 SwiftCrossUI、卻讓 widget 仍畫成開啟，得到的會是新的文字配上一個仍被勾選的按鈕
+# ——使用者會看到開關與標籤各說各話。若某個 backend 只在本地翻轉了 widget、從未經由繫結回呼，
+# 得到的則是「toggle true」之下的 checked="false"，而 app 的狀態根本沒有移動過。整個過程中 count
+# 必須維持為 0，以確認沒有其他東西被觸發。
+#
+# 只按一次。沒有任何東西被重新排版——位於 [47,1033]-[768,1096] 的那一行會留在原處——但主張所需的
+# 也就只有這一次按壓。
+sleep,,,,,,1500000,let P35 draw the state line and the two controls,android
+click,175,454,,left,,,"the ""Toggle state"" toggle -- the line must read ""State baseline: count 0, toggle false"" and the ToggleButton node must carry checked=""false"" instead of checked=""true"". REPLAYED 2026-09-03 and BOTH HALVES HOLD: the line reads ""State baseline: count 0, toggle false"" at [47,1033]-[787,1096] and the ToggleButton carries checked=""false"", so the tap reached the binding and the binding reached the widget. The count is still 0, so nothing else fired. One thing the claim did not predict: the toggle got WIDER, [343,1128]-[574,1254] became [343,1128]-[663,1254], 231 px to 320. A Material ToggleButton in the unchecked state draws its label without the checked pill, and SwiftCrossUI re-measures it -- worth knowing before writing a coordinate for a second press against a toggle that has already been pressed",android
+sleep,,,,,,1200000,let the toggle and the state line repaint,android

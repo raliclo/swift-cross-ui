@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P7 on Android: set the List's selection from code and check that the list itself
+# follows, not only the label (#476).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p7-android-final-20260903-121402.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The three buttons share the pixel band y 1606-1732: "Clear
+# selection" at x 0-240, "Select Cherry" at x 261-602, "Add a fruit's worth of
+# text" at x 624-1078. "Select Cherry"'s centre is pixel (431, 1669) = point
+# (164, 636).
+#
+# The launch state, which is what makes one press worth something here. #476 is
+# that a List arrives with its first row already selected even though the binding
+# started nil. It does NOT reproduce on AndroidBackend: at launch the page reads
+# "Selection: none" and "Ready. Nothing should be selected yet.", and the plain
+# List's five row bands -- the ListView is at pixels [0,1096]-[189,1568], so the
+# rows are 94 px each -- all measure a mean colour of exactly (255, 255, 255),
+# with no band tinted. Nothing is selected, by the label and by the pixels.
+#
+# The claim, in two halves, and the second is the one a label cannot fake:
+# pressing "Select Cherry" must change the line to "Selection: Cherry" AND the
+# third row band of the plain List, pixels y 1284-1379, must stop being pure
+# white. `selection = "Cherry"` is written from the button's action, so a backend
+# that stores the value and never tells its ListView about it moves the words and
+# leaves all five bands at 255. That is a real failure mode on this backend: the
+# neighbouring defect fixed in 66c22d71 was the opposite direction -- taps not
+# reaching the binding -- and nothing has ever driven this direction here.
+#
+# One press. It rewrites two text lines above the list and the list itself, so a
+# second coordinate would be written against a screen this press has moved.
+#
+# What this file does not test, and why. The plain List's own labels are missing:
+# its five rows draw as separator lines with no text, and the "Plain List (#476)"
+# caption above them is 7 pixels wide. That is P7's fixed layout meeting a phone
+# -- an HStack of 200 + 32 + 420 points inside a 411-point window -- rather than
+# anything the press touches, and it is why the check below is written against
+# row COLOUR rather than against which label is highlighted.
+#
+# P7 於 Android：以程式設定 List 的選取項，並確認清單本身跟著改變，而不只是標籤（#476）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p7-android-final-20260903-121402.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。三個按鈕共用像素帶 y 1606-1732：
+# 「Clear selection」位於 x 0-240、「Select Cherry」位於 x 261-602、「Add a fruit's worth of text」
+# 位於 x 624-1078。「Select Cherry」的中心為像素 (431, 1669)，即點 (164, 636)。
+#
+# 啟動狀態，也正是使「按一次」在此有意義的原因。#476 說的是：即使繫結初值為 nil，List 一出現就
+# 已經選中了第一列。它在 AndroidBackend 上並未重現：啟動時頁面顯示「Selection: none」與
+# 「Ready. Nothing should be selected yet.」，而那個 plain List 的五條列帶——該 ListView 位於像素
+# [0,1096]-[189,1568]，因此每列高 94 像素——平均色全部恰為 (255, 255, 255)，沒有任何一帶被著色。
+# 無論由文字或由像素判讀，都沒有任何東西被選取。
+#
+# 主張分為兩半，而第二半是標籤偽造不了的：按下「Select Cherry」後，該行必須變為
+# 「Selection: Cherry」，**且** plain List 第三列的色帶（像素 y 1284-1379）必須不再是純白。
+# `selection = "Cherry"` 是由按鈕的 action 寫入的，因此若某個 backend 只存下該值而從不告知它的
+# ListView，文字會改變、五條色帶則會全部停留在 255。這在本 backend 上是真實存在的失敗樣態：
+# 66c22d71 所修正的鄰近缺陷正是反方向的——點擊沒有傳達到繫結——而這個方向在此處從未被驅動過。
+#
+# 只按一次。它會改寫清單上方的兩行文字以及清單本身，因此第二個座標將是寫給「已被這次按壓移動過」
+# 的畫面。
+#
+# 本檔不測試什麼，以及為什麼。plain List 自身的標籤是缺失的：它的五列只畫出分隔線而沒有文字，
+# 其上方的「Plain List (#476)」說明文字寬僅 7 像素。那是 P7 的固定版面撞上一支手機的結果——
+# 200 + 32 + 420 點的 HStack 放進 411 點寬的視窗——而非本次按壓所觸及之事；這也正是下方的檢查
+# 以「列的顏色」而非「哪一個標籤被高亮」來書寫的理由。
+sleep,,,,,,1500000,let P7 lay out both lists and the split view,android
+click,164,636,,left,,,"""Select Cherry"" -- the line must read ""Selection: Cherry"" and the third row band of the plain List, pixels y 1284-1379, must stop measuring (255, 255, 255). REPLAYED 2026-09-03: THE FIRST HALF HOLDS AND THE SECOND HALF IS FALSE. The line reads ""Selection: Cherry"" and the log line reads ""Set selection to Cherry from code."", so the button ran and the state changed; all five row bands of the plain List still measure exactly (255, 255, 255), i.e. nothing at all was painted. A tap paints and a programmatic selection does not: tapping row 3 of the neighbouring split-view List (pixel 480, 1338) tints a text-free strip of that row to (237, 237, 237) while its four neighbours stay at 255, and 237 is exactly the 0x32a1a1a1 list selector composited over white (255*0.804 + 161*0.196 = 236.6). The responsible line is Sources/AndroidBackend/AndroidBackend+List.swift:146, listView.setItemChecked(Int32(index), true), reached from Sources/SwiftCrossUI/Views/List.swift:269. setItemChecked records the choice in AbsListView mCheckStates and, for a row that is not android.widget.Checkable, expresses it only as View.setActivated on rebind -- and these rows are plain custom containers built by CustomListAdapter.setViews with no activated state in their background, so the flag is stored and never drawn. It is the same trap as the comment three lines above it, which rejects setSelection because it is ""accepted and draws nothing""; the replacement is accepted and draws nothing either, one level further in. NOT FIXED HERE -- reported for a decision",android
+sleep,,,,,,1200000,let the label and the list repaint,android

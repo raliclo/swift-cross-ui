@@ -1,0 +1,110 @@
+action,x,y,origin,button,key,micros,note,platform
+# P40 on Android: the transforms are applied, and every one of them is CLIPPED to
+# its parent's bounds.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p40-android-final-20260903-140920.png
+# and a uiautomator dump of the same run.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# P40 HAS NO CONTROLS -- eight tiles and two bare-text samples, nothing pressable
+# -- so the press below is a survival check and the claim is a measurement. The
+# measurement is the point of this file.
+#
+# WHICH TILES CAN BE MEASURED. The grid is three 180-point columns in a 411-point
+# window, so the left column runs off the left edge and the right column off the
+# right. Only the middle column is whole: "offset x40 y20", "rotate 30 centre" and
+# "shear (matrix)". The one cell P40's header names as its sharpest test,
+# "rotate 30 topLeading", is in the left column and is almost entirely off screen,
+# so the double-applied-anchor question cannot be answered from this device.
+#
+# THE TRANSFORMS DO ARRIVE, and correctly. The middle column's tiles are drawn in
+# Color.blue (0, 136, 255) and Color.orange (255, 141, 40), and each is a
+# different shape from the others: "offset" is a perfect rectangle -- its blue
+# bounding box is 132 x 105 pixels and contains exactly 132 x 105 = 13860 blue
+# pixels -- while "rotate 30 centre" has a 272 x 200 bounding box holding only
+# 32797, and "shear (matrix)" a 215 x 152 box holding 28150. A box that its
+# content does not fill is a shape that is not axis-aligned. The shear's angle is
+# right too: its orange stripe, 37 pixels wide when upright, spans 118 pixels of x
+# across 210 pixels of y, a slope of 0.386 against the 0.4 the matrix asks for.
+# "scale 0.6" in the right column is exact: its orange measures 21 x 126 pixels
+# against the 14 x 80 points = 37 x 210 pixels of the control, scaled by 0.6 to
+# 22 x 126.
+#
+# THE DEFECT. P40's header states the rule it is testing: "Each cell keeps a fixed
+# slot, so a transformed tile is expected to spill outside its slot and may
+# overlap its neighbour. Overlap is correct here." On AndroidBackend nothing
+# spills. Every transformed tile is cut off at the edge of the box it occupied
+# before the transform:
+#
+#   * The middle column's untransformed content box is x 404-676 -- 273 pixels,
+#     which is the 104 points of a 14-point stripe beside a 90-point square,
+#     centred at 540.
+#   * "offset x40 y20" translates by (40, 20) points = (105, 52) pixels, so it
+#     should run x 509-781 and its orange should stay 37 x 210 pixels. Measured:
+#     orange starts at x 508 and y 826, both exactly where the translation puts
+#     them, and the blue ENDS AT x 675 -- the old right edge -- with the orange
+#     only 157 pixels tall instead of 210. 106 pixels are missing off the right
+#     and 53 off the bottom.
+#   * "rotate 30 centre" and "shear (matrix)" end at x 675 as well. Three
+#     different transforms, three different shapes, one shared right edge, and it
+#     is the edge of the box they had before being transformed.
+#
+# Where it comes from. `GeometricEffectContainer` sets `animationMatrix` and
+# invalidates the parent, and Sources/AndroidBackend/Kotlin/GeometricEffectContainer.kt
+# says why -- "An animation matrix moves pixels outside this container's own
+# bounds ... only the parent's invalidate repaints the area the view has left
+# behind". Repainting that area is handled; being ALLOWED to draw into it is not.
+# An animation matrix is applied by the parent while it draws the child, and a
+# ViewGroup clips its children to its own bounds unless `clipChildren` is set
+# false. The parent here is the cell's VStack container, which is 273 pixels wide
+# because that is what its widest child needs, and 404-676 is exactly where it
+# sits. Nothing in AndroidBackend clears `clipChildren` on the ancestors of a
+# transformed view. NOT FIXED HERE; recorded for a decision.
+#
+# P40 於 Android：變換確實有被套用，而且每一個都被**裁切**在其父容器的邊界之內。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p40-android-final-20260903-140920.png 與同一次執行的
+# uiautomator dump。Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為
+# 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+#
+# **P40 沒有任何控制項**——八塊方磚與兩段純文字樣本，沒有任何可按之物——因此下方的按壓是一次存活
+# 檢查，而主張是一組量測。那組量測才是本檔的重點。
+#
+# **哪些方磚量得到。** 這個網格是三欄各 180 點，放在 411 點寬的視窗裡，因此左欄跑出左緣、右欄跑出
+# 右緣。唯一完整的是中欄：「offset x40 y20」、「rotate 30 centre」與「shear (matrix)」。而 P40 表頭
+# 指名為最銳利測試的那一格「rotate 30 topLeading」位於左欄、幾乎完全在畫面之外，因此
+# 「錨點是否被套用兩次」這個問題在本裝置上無從回答。
+#
+# **變換確實有抵達**，而且正確。中欄各磚以 Color.blue (0, 136, 255) 與 Color.orange (255, 141, 40)
+# 繪製，而每一塊的形狀都與其他不同：「offset」是完美的矩形——其藍色外接框為 132 x 105 像素，
+# 其中恰好含有 132 x 105 = 13860 個藍色像素——而「rotate 30 centre」的外接框為 272 x 200，
+# 其中只有 32797 個；「shear (matrix)」的框為 215 x 152，其中有 28150 個。內容填不滿的外接框，
+# 代表那是一個非軸對齊的形狀。剪切的角度也對：其橘色條在直立時寬 37 像素，此處在 210 像素的 y
+# 跨度上橫移了 118 像素，斜率 0.386，對應矩陣所要求的 0.4。右欄的「scale 0.6」則是精確的：
+# 其橘色量得 21 x 126 像素，對照對照組的 14 x 80 點 = 37 x 210 像素，乘上 0.6 為 22 x 126。
+#
+# **缺陷。** P40 的表頭明白寫出它所測試的規則：「每個格子都保有固定的位置，因此被變換過的方塊預期
+# 會溢出其格位，甚至與鄰居重疊。此處重疊是正確的。」在 AndroidBackend 上，沒有任何東西溢得出去。
+# 每一塊被變換的方磚都在「它變換之前所佔方框」的邊緣被切斷：
+#
+#   * 中欄未變換的內容框為 x 404-676——273 像素，即「14 點的色條加上 90 點的方塊」共 104 點，
+#     置中於 540。
+#   * 「offset x40 y20」平移 (40, 20) 點 = (105, 52) 像素，因此應橫跨 x 509-781，其橘色應維持
+#     37 x 210 像素。實測：橘色起於 x 508、y 826，兩者都正是平移應到的位置，而藍色**止於 x 675**
+#     ——舊的右緣——且橘色只有 157 像素高而非 210。右側少了 106 像素，底部少了 53 像素。
+#   * 「rotate 30 centre」與「shear (matrix)」同樣止於 x 675。三種不同的變換、三種不同的形狀、
+#     共用同一個右緣，而那正是它們被變換之前所在方框的邊緣。
+#
+# 成因。`GeometricEffectContainer` 設定 `animationMatrix` 並讓父容器 invalidate，而
+# Sources/AndroidBackend/Kotlin/GeometricEffectContainer.kt 說明了理由——「animation matrix 會把
+# 像素移動到本容器自身邊界之外……唯有父容器的 invalidate 才會重繪該 view 所離開的那塊區域」。
+# 「重繪那塊區域」已經處理了；「**被允許**畫進那塊區域」則沒有。animation matrix 是由父容器在繪製
+# 子 view 時套用的，而 ViewGroup 預設會把子 view 裁切在自身邊界內，除非把 `clipChildren` 設為 false。
+# 此處的父容器是該格的 VStack 容器，其寬度為 273 像素——因為那是它最寬的子項所需的寬度——
+# 而 404-676 正是它所在的位置。AndroidBackend 中沒有任何地方清除被變換 view 之各祖先的
+# `clipChildren`。**此處未修正**，記錄下來供裁決。
+sleep,,,,,,1800000,let all eight tiles lay out and take their transforms,android
+click,225,343,,left,,,"the ""offset x40 y20"" tile -- the process must survive, and the measurement recorded above must still hold: the tile is translated to exactly (508, 826) and then CUT OFF at x 675 and at the bottom of its old box, losing 106 pixels of width and 53 of height, against P40 stated rule that a transformed tile spills outside its slot. REPLAYED 2026-09-03 and IT HOLDS, WHICH MEANS THE APP FAILS ITS OWN RULE: no Abort message, and every figure reproduced on a fresh launch -- offset orange [508,826]-[543,982], offset blue [544,878]-[675,982] with 13860 blue pixels in a 132 x 105 box, rotate blue [404,1176]-[675,1375] with 32797 in a 272 x 200 box, shear blue [461,1612]-[675,1763] with 28150 in a 215 x 152 box. All three end at x 675, the right edge of the 404-676 box they had before being transformed. The transforms are correct and the clipping is the defect",android
+sleep,,,,,,1200000,"let anything the touch started finish, or fail",android

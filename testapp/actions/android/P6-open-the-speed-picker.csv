@@ -1,0 +1,73 @@
+action,x,y,origin,button,key,micros,note,platform
+# P6 on Android: open the Speed picker and check that all three options are listed.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app and from
+# testapp/output/screenshots/p6-android-final-20260903-120819.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# What P6 does on this device at all. It builds, installs and launches: the black
+# 960x540 video box is drawn, "No file selected" and "Choose a stream to begin"
+# are on screen, and the control row is laid out. Nothing is decoded, and nothing
+# was expected to be -- P6 decodes by running ffmpeg as a subprocess and an
+# Android app cannot start another program, the same limit P6's own header
+# records for iOS. So the playback half of this app is not testable here and this
+# file does not pretend otherwise.
+#
+# What is testable is the control row, and the Speed picker is the one control on
+# it that is not disabled. Every button in that row is `.disabled(!player.hasInput)`
+# and there is no input, so -5s, Play, +5s and Seek all refuse a press by design;
+# pressing one of them would assert nothing. The three pickers are always live.
+#
+# Where the row is. `.frame(width: 1_040)` on a 411-point window, so most of it is
+# off screen: the dump finds "Seek" clipped at [0,2049]-[147,2175] with -5s, Play
+# and +5s entirely outside the left edge, and "Preview 960x540" running past the
+# right edge at x 1078 of 1080. That is P6's own fixed 960-point layout meeting a
+# phone, not a backend defect, and it is the reason this file targets the Speed
+# spinner rather than a button: the Speed spinner is the leftmost live control
+# that is fully on screen.
+#
+# The Speed spinner is at pixels [215,2049]-[435,2175] and reads "1x". Its centre
+# is pixel (325, 2112) = point (124, 805).
+#
+# The claim. One tap on the spinner must open a dropdown listing all three speed
+# options -- "1x", "2x" and "3x" -- as separate rows. It is a claim a label cannot
+# fake: the options come from `speedOptions` through `Picker(of:selection:)` with
+# `.pickerStyle(.menu)`, so a dropdown that opens with one row, or with the wrong
+# strings, or that does not open at all, is a picker that laid out and does not
+# work. One tap only: the dropdown is an overlay and any coordinate written for
+# the screen underneath it stops meaning anything once it is up.
+#
+# P6 於 Android：開啟 Speed 選擇器，確認三個選項都被列出。
+#
+# 2026-09-03 量自執行中 app 的 uiautomator dump 與
+# testapp/output/screenshots/p6-android-final-20260903-120819.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# P6 在此裝置上做得到什麼。它能建置、安裝並啟動：960x540 的黑色影像框有畫出來，
+# 「No file selected」與「Choose a stream to begin」都在畫面上，控制列也完成了排版。沒有任何東西
+# 被解碼，而那本來就不在預期之內——P6 是以子行程執行 ffmpeg 來解碼的，而 Android app 無法啟動
+# 另一個程式，這與 P6 自身表頭為 iOS 所記下的限制相同。因此本 app 的播放那一半在此處無從測試，
+# 而本檔並不假裝可以。
+#
+# 可測試的是控制列，而 Speed 選擇器是該列上唯一沒有被停用的控制項。該列中每個按鈕都帶有
+# `.disabled(!player.hasInput)`，而目前沒有輸入，因此 -5s、Play、+5s 與 Seek 依設計都會拒絕按壓；
+# 按下它們什麼也主張不了。三個選擇器則始終是活的。
+#
+# 該列的位置。`.frame(width: 1_040)` 落在 411 點寬的視窗上，因此其大部分位於畫面之外：dump 顯示
+# 「Seek」被裁切於 [0,2049]-[147,2175]，而 -5s、Play 與 +5s 完全落在左緣之外，「Preview 960x540」
+# 則跨過右緣，止於 1080 中的 x 1078。那是 P6 自身固定 960 點的版面撞上一支手機的結果，並非 backend
+# 的缺陷；也正是本檔鎖定 Speed spinner 而非某個按鈕的理由——它是完整位於畫面內、最靠左的活控制項。
+#
+# Speed spinner 位於像素 [215,2049]-[435,2175]，顯示「1x」。其中心為像素 (325, 2112)，即點 (124, 805)。
+#
+# 主張。在該 spinner 上點一次，必須開啟一個下拉選單，並以獨立的列列出全部三個速度選項——
+# 「1x」、「2x」與「3x」。這是標籤偽造不了的主張：這些選項是由 `speedOptions` 經
+# `Picker(of:selection:)` 搭配 `.pickerStyle(.menu)` 而來，因此一個只開出一列、或字串錯誤、或根本
+# 沒有開啟的下拉選單，就是一個「排版出來了卻不能用」的選擇器。只點一次：下拉選單是覆蓋層，任何
+# 為其下方畫面所寫的座標，在它出現之後便不再有意義。
+sleep,,,,,,1500000,let P6 lay out its 960-point row inside a 411-point window,android
+click,124,805,,left,,,"the Speed picker, which reads ""1x"" -- a dropdown must open listing three rows, ""1x"", ""2x"" and ""3x"". REPLAYED 2026-09-03 and IT HOLDS: the uiautomator dump after the tap finds exactly three TextViews, ""1x"" at [95,1671]-[226,1797], ""2x"" at [95,1797]-[226,1923] and ""3x"" at [95,1923]-[226,2049], each 126 px = 48 points tall and stacked with no gap, and nothing else on the page is listed while the dropdown is up. logcat shows the pair ""replaying P6-actions.csv"" / ""replayed P6-actions.csv"" and geometry scale=2.625",android
+sleep,,,,,,1200000,let the dropdown appear,android
