@@ -21,6 +21,14 @@ import android.widget.FrameLayout
 // 本 backend 無權決定的順序：傳入的 transform 已經組合完成，也已針對其錨點解析完畢。
 class GeometricEffectContainer(activity: Activity) : FrameLayout(activity) {
 
+    init {
+        // The transformed view's own parent, so it is the first thing that
+        // would cut the overflow. See CustomContainer's note.
+        // 被變換之 view 自身的父容器，因此它是第一個會把溢出切掉的東西。見 CustomContainer 的說明。
+        clipChildren = false
+        clipToPadding = false
+    }
+
     private val matrix = Matrix()
 
     override fun generateDefaultLayoutParams() =

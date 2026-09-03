@@ -14,6 +14,24 @@ class PathView: JavaObject {
     )
 
     @JavaMethod
+    func clearGradient(_ stroke: Bool)
+
+    @JavaMethod
+    func setGradient(
+        _ stroke: Bool,
+        _ radial: Bool,
+        _ ax: Float,
+        _ ay: Float,
+        _ bx: Float,
+        _ by: Float,
+        _ startRadius: Float,
+        _ endRadius: Float
+    )
+
+    @JavaMethod
+    func addGradientStop(_ stroke: Bool, _ color: Int32, _ position: Float)
+
+    @JavaMethod
     func set(
         path: AndroidGraphics.Path?,
         fillPaint: AndroidKit.Paint?,

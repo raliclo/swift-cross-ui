@@ -13,6 +13,79 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
+## Fixed 2026-09-04: three defects P7, P40 and P43 recorded as failures
+
+Each of these had an action file that stated a claim and then recorded that the
+claim was false. All three now hold, and the files keep both recordings.
+
+**A List selection made from code was never drawn.** P7's five rows measured
+pure white after "Select Cherry", while a tapped row on a neighbouring list
+measured 237. The binding worked -- the label read "Selection: Cherry" -- and so
+did `setItemChecked`. `AbsListView` calls `setActivated(true)` on a checked row
+whose view is not `Checkable`, and these views are plain containers with no
+drawable that answers `state_activated`, so the flag arrived and nothing painted
+it. Each row now carries a foreground `StateListDrawable` in the ListView's own
+selector colour, so a row selected from code and a row under a finger look the
+same. Foreground rather than background, because a row's background belongs to
+whatever `.background()` the app put there.
+
+**Geometric effects were cut at the cell edge.** P40's offset tile was
+translated to exactly the right place and then lost 106 pixels of width and 53
+of height; the rotated and sheared tiles stopped at the right edge of their
+pre-transform frames. Nothing was wrong with the transform. Android is the only
+backend here whose parent clips a child by default: `ViewGroup.clipChildren` is
+true, `UIView.clipsToBounds` is false, an `NSView` does not clip, and GTK draws
+outside an allocation. `CustomContainer` and `GeometricEffectContainer` no
+longer clip, which nothing depended on -- `BackendFeatures.Clipping` is not
+implemented on Android at all, and `CornerRadiusContainer` clips with
+`canvas.clipPath` inside its own draw.
+
+**`Shape.fill(gradient)` was a flat colour.** AndroidBackend did not implement
+the gradient overload of `renderPath`, so `BackendFeatures.Paths` supplied its
+default, which flattens and warns. Two things made that worse than it sounds:
+the flattened colour is the *first stop* rather than a midpoint, because
+`ResolvedFillStyle.midpoint(of:)` picks the stop nearest 0.5 with `min(by:)` and
+a two-stop gradient ties at 0.5, and the warning it logs never appears, because
+an Android app's `print` does not reach logcat. The overload is implemented with
+Android's own `LinearGradient` and `RadialGradient`. `RadialGradient` has no
+start radius; that is expressed by remapping the stop positions rather than
+dropped.
+
+**Still open, found on the way:** AndroidBackend does not implement
+`BackendFeatures.Clipping`, so `.clipped()` would take the `@CastBackend` path.
+No test app in this tree exercises it on Android yet.
+
+## 已修 2026-09-04：P7、P40 與 P43 記錄為失敗的三個缺陷
+
+這三者各自都有一份動作檔，其中陳述了一項主張，然後記下該主張為假。三者現在都成立，而那些檔案同時
+保留了兩次記錄。
+
+**以程式做出的 List 選取從未被繪製。** 按下「Select Cherry」之後，P7 的五列量得純白，而鄰近清單中
+一列被點擊時量得 237。繫結是正常的——標籤讀作「Selection: Cherry」——`setItemChecked` 也是。當某列
+的 view 並非 `Checkable` 時，`AbsListView` 會對它呼叫 `setActivated(true)`，而這些 view 是普通容器，
+沒有任何回應 `state_activated` 的 drawable，因此那個旗標抵達了、卻沒有東西把它畫出來。現在每一列都
+帶有一個 foreground `StateListDrawable`，顏色即 ListView 自己的 selector 色，使「以程式選取的列」
+與「手指底下的列」看起來相同。採用 foreground 而非 background，因為一列的 background 屬於 app 以
+`.background()` 放在那裡的東西。
+
+**幾何效果在格位邊緣被切斷。** P40 的 offset 磚被平移到完全正確的位置，然後失去 106 像素的寬與 53
+像素的高；旋轉與傾斜的磚都止於它們變換前方框的右緣。變換本身沒有任何問題。Android 是此處唯一
+「父元件預設會裁切子元件」的 backend：`ViewGroup.clipChildren` 為 true，而 `UIView.clipsToBounds`
+為 false、`NSView` 不裁切、GTK 會畫到 allocation 之外。`CustomContainer` 與
+`GeometricEffectContainer` 不再裁切，而這一點沒有任何東西依賴——`BackendFeatures.Clipping` 在
+Android 上根本沒有實作，而 `CornerRadiusContainer` 是在它自己的 draw 中以 `canvas.clipPath` 裁切的。
+
+**`Shape.fill(gradient)` 是一個平面色。** AndroidBackend 未實作 `renderPath` 的漸層 overload，
+因此 `BackendFeatures.Paths` 提供了它的預設實作——壓平並發出警告。有兩件事使情況比聽起來更糟：
+壓平後得到的是**第一個 stop** 而非中點，因為 `ResolvedFillStyle.midpoint(of:)` 以 `min(by:)` 取
+「最接近 0.5」的 stop，而雙 stop 漸層在 0.5 處打平；而它所記錄的那則警告從未出現，因為 Android
+app 的 `print` 不會抵達 logcat。該 overload 現已使用 Android 自己的 `LinearGradient` 與
+`RadialGradient` 實作。`RadialGradient` 沒有起始半徑；那是以重新映射 stop 位置來表達的，而不是
+被丟棄。
+
+**沿路發現、仍未修：** AndroidBackend 未實作 `BackendFeatures.Clipping`，因此 `.clipped()` 會走
+`@CastBackend` 路徑。本樹中目前沒有任何測試 app 在 Android 上用到它。
+
 ## Fixed 2026-09-03: a ZStack's later child did not cover an earlier Button
 
 P10 puts a `Button` and then an opaque `Color.orange` in a `ZStack`. On iOS and

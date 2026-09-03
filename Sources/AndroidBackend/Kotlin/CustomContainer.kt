@@ -7,6 +7,39 @@ import android.view.View
 import android.view.ViewGroup
 
 class CustomContainer(val activity: Activity) : ViewGroup(activity) {
+    init {
+    // Android is the only one of these backends that clips a child to its
+    // parent by default. `UIView.clipsToBounds` is false, an `NSView` does not
+    // clip, and GTK draws outside an allocation; `ViewGroup.clipChildren` is
+    // true. So a view the layout system deliberately moved outside its cell --
+    // an offset, a rotation, a scale -- was drawn correctly and then cut at the
+    // cell edge, on Android and nowhere else.
+    //
+    // Measured 2026-09-03 on P40: the offset tile translated to exactly the
+    // right place and lost 106 pixels on its right and 53 at its bottom; the
+    // rotated and sheared tiles both stopped at x 675, which is the right edge
+    // of their pre-transform frames. P40's own header says the overflow and the
+    // overlap are the correct behaviour.
+    //
+    // Nothing here relies on this clipping. `BackendFeatures.Clipping` is not
+    // implemented on Android at all, and `CornerRadiusContainer` clips with
+    // `canvas.clipPath` inside its own draw rather than through this flag.
+    //
+    // Android 是這些 backend 之中唯一「預設會把子元件裁切到父元件範圍內」的。
+    // `UIView.clipsToBounds` 為 false，`NSView` 不裁切，GTK 會畫到 allocation 之外；而
+    // `ViewGroup.clipChildren` 為 true。因此一個被版面系統刻意移到其格位之外的 view——offset、
+    // 旋轉、縮放——會被正確地繪製，然後在格位邊緣被切掉；只在 Android 上如此，其他平台都不會。
+    //
+    // 2026-09-03 於 P40 上實測：offset 磚被平移到完全正確的位置，然後右側失去 106 像素、底部失去
+    // 53 像素；旋轉與傾斜的磚都止於 x 675，那正是它們變換前方框的右緣。P40 自己的表頭寫明，溢出
+    // 與重疊才是正確的行為。
+    //
+    // 此處沒有任何東西依賴這個裁切。`BackendFeatures.Clipping` 在 Android 上根本沒有實作，而
+    // `CornerRadiusContainer` 是在它自己的 draw 之中以 `canvas.clipPath` 裁切的，不經由這個旗標。
+        clipChildren = false
+        clipToPadding = false
+    }
+
     class LayoutParams(width: Int, height: Int, var x: Int, var y: Int) :
         ViewGroup.LayoutParams(width, height) {}
 
