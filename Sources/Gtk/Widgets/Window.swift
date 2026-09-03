@@ -106,6 +106,49 @@ open class Window: Widget {
         return child
     }
 
+    /// The natural height of this window's titlebar widget, or nil when it has
+    /// none.
+    ///
+    /// The point of asking is that `gtk_widget_measure` answers WITHOUT a size
+    /// allocation, so a caller can know what the decoration will cost before the
+    /// window is mapped -- which is the only way to size a window correctly on
+    /// the first layout pass rather than correcting it on the second.
+    ///
+    /// nil is a real answer, not a failure: `gtk_window_get_titlebar` returns
+    /// NULL when nothing has called `gtk_window_set_titlebar`, and GTK then
+    /// draws whatever decoration the platform gives. There is no widget to
+    /// measure in that case and the caller has to fall back to measuring after
+    /// the fact.
+    ///
+    /// 本視窗 titlebar widget 的自然高度；若沒有 titlebar 則為 nil。
+    ///
+    /// 之所以問這件事，是因為 `gtk_widget_measure` **不需要 size allocation** 就能回答，
+    /// 因此呼叫端可以在視窗被 map 之前就知道裝飾的成本——而那是「第一次版面計算就把視窗開對」
+    /// 的唯一途徑，否則就只能在第二次計算時修正。
+    ///
+    /// nil 是一個真正的答案，不是失敗：未曾呼叫 `gtk_window_set_titlebar` 時
+    /// `gtk_window_get_titlebar` 會回傳 NULL，此時 GTK 畫的是平台給的裝飾。那種情況下沒有
+    /// widget 可量，呼叫端只能退回事後量測。
+    public var titlebarNaturalHeight: Int? {
+        guard let titlebar = gtk_window_get_titlebar(castedPointer()) else {
+            return nil
+        }
+        var minimum: gint = 0
+        var natural: gint = 0
+        var minimumBaseline: gint = 0
+        var naturalBaseline: gint = 0
+        gtk_widget_measure(
+            titlebar,
+            GTK_ORIENTATION_VERTICAL,
+            -1,
+            &minimum,
+            &natural,
+            &minimumBaseline,
+            &naturalBaseline
+        )
+        return Int(natural)
+    }
+
     public func present() {
         gtk_window_present(castedPointer())
     }

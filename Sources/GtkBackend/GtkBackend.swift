@@ -1020,6 +1020,80 @@ public final class GtkBackend:
         windows.append(window)
 
         if let defaultSize {
+            // The request goes out unadjusted, and the correction happens after
+            // the window is mapped. That costs a second layout pass, and the
+            // first frame is wrong -- WinUI needs only one. It was investigated
+            // on 2026-09-03 and there is no way to do better from here.
+            //
+            // Measured, P16 asking for 900x600, reading splitview-debug.log in
+            // the repo root after `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`:
+            // GTK logs 480, 480, then 441. WinUI logs 486 once. The 39 is the
+            // same on Windows AND under WSLg; only the frame thickness differs
+            // (+28/+29 against WinUI's +16/+39).
+            //
+            // The only way to size it right the first time is to know the
+            // decoration's height before mapping, and `gtk_widget_measure` can
+            // answer without an allocation -- but it needs a widget, and there
+            // is none. Measured the same day with SCUI_DEBUG_DECORATION=1:
+            // `gtk_window_get_titlebar` returns **nil**, because nothing here
+            // calls `gtk_window_set_titlebar` and GTK draws the platform's own
+            // decoration, which is not a widget anyone can query.
+            //
+            // A per-scale cache of the measured shortfall was written and
+            // REMOVED. It helped only the second window onward, and every test
+            // app in this tree opens one, so nothing could observe it -- code
+            // that looks load-bearing and is not. Tracked as task #81; see
+            // `Window.titlebarNaturalHeight`, which starts returning a number
+            // the moment anything does set a titlebar.
+            //
+            // 請求原樣送出，修正在視窗 map 之後才發生。代價是多一次版面計算，而且第一幀是錯的
+            // ——WinUI 只需要一次。此事已於 2026-09-03 調查過，從此處無法做得更好。
+            //
+            // 實測：P16 要求 900x600 時，GTK 記錄 480、480、441；WinUI 只記錄一次 486。那個 39
+            // 在 Windows 與 WSLg 上相同，兩者相差的只有外框厚度（+28/+29 對 WinUI 的 +16/+39）。
+            //
+            // 要第一次就開對，唯一的辦法是在 map 之前得知裝飾高度，而 `gtk_widget_measure` 確實
+            // 能在沒有配置的情況下回答——但它需要一個 widget，而這裡沒有。同日以
+            // SCUI_DEBUG_DECORATION=1 實測：`gtk_window_get_titlebar` 回傳 **nil**，因為此處從未
+            // 呼叫 `gtk_window_set_titlebar`，GTK 畫的是平台自身的裝飾，那不是任何人能查詢的
+            // widget。
+            //
+            // 曾寫過一份「依縮放分鍵、記錄實測短少」的快取，後來**移除**：它只對第二個之後的
+            // 視窗有效，而本樹中每一支測試 app 都只開一個視窗，因此沒有任何東西能觀察到它
+            // ——那正是「看起來承重、實則無用」的程式碼。追蹤於任務 #81；另見
+            // `Window.titlebarNaturalHeight`，一旦有任何地方設了 titlebar，它就會開始回傳數字。
+            // Is there a titlebar widget to measure before the window is
+            // mapped? Kept rather than deleted after it answered, because the
+            // answer cost a build and a run to obtain and the next person to
+            // wonder should not repeat that. On 2026-09-03 it printed
+            // `titlebar=nil`, which is why the request above goes out
+            // unadjusted. It starts printing a number the moment anything calls
+            // `gtk_window_set_titlebar`, and that is the day this can be fixed.
+            //
+            // 在視窗被 map 之前，是否有 titlebar widget 可量？它回答之後仍予保留而非刪除，
+            // 因為那個答案花了一次建置與一次執行才得到，下一個心生同樣疑問的人不該重來一遍。
+            // 2026-09-03 它印出 `titlebar=nil`，這正是上方請求原樣送出的理由。一旦有任何地方
+            // 呼叫 `gtk_window_set_titlebar`，它就會開始印出數字，而那一天此事才修得了。
+            if ProcessInfo.processInfo.environment["SCUI_DEBUG_DECORATION"] == "1" {
+                let measured = window.titlebarNaturalHeight
+                let line =
+                    "[decoration] titlebar="
+                    + (measured.map(String.init) ?? "nil")
+                    + " requested=\(defaultSize.x)x\(defaultSize.y)\n"
+                print(line, terminator: "")
+                if let data = line.data(using: .utf8) {
+                    let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                        .appendingPathComponent("decoration-debug.log")
+                    if let handle = try? FileHandle(forWritingTo: url) {
+                        _ = try? handle.seekToEnd()
+                        try? handle.write(contentsOf: data)
+                        try? handle.close()
+                    } else {
+                        try? data.write(to: url)
+                    }
+                }
+            }
+
             window.defaultSize = Size(
                 width: defaultSize.x,
                 height: defaultSize.y
@@ -1127,6 +1201,7 @@ public final class GtkBackend:
 
         let shortfallX = requested.x - allocated.width
         let shortfallY = requested.y - allocated.height
+
         guard shortfallX > 0 || shortfallY > 0 else { return }
 
         window.defaultSize = Size(

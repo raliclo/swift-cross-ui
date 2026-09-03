@@ -66,3 +66,4 @@ p*-debug-events.log
 # bugs/ 或動作檔旁的註解並直接引用；檔案本身會被下一次執行覆寫，留著只會造成衝突。
 actionfile-replay.log
 splitview-debug.log
+decoration-debug.log
