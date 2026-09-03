@@ -312,6 +312,37 @@ sources_root="$package_dir/Sources"
 # 不予更動，因此代價是一次重新求值，而非一次完整重建。
 scui_debug_stamp="$compile_work_dir/.scui-debug-value"
 scui_debug_value="${SCUI_DEBUG:-}"
+
+# Export it, or the cache invalidation above is the only thing that ever sees
+# it. `Package.swift` reads `env["SCUI_DEBUG"]` to decide whether to define the
+# `SCUI_DEBUG` compilation condition, and `swift build` runs as a child of this
+# script: a value set on the command line as `SCUI_DEBUG=1 zsh compile.zsh ...`
+# reaches this shell, but an unexported shell variable does not reach the child.
+# Everything else here handled the flag correctly, which is what made the gap
+# hard to see -- the stamp changed, the caches were dropped, the whole package
+# was re-evaluated, and it was re-evaluated with the flag still unset.
+#
+# Measured 2026-09-03, and it cost most of an afternoon. GtkBackend guards its
+# `ActionFileReplay.replayIfRequested()` call with `#if SCUI_DEBUG`, so every
+# binary built here had the action-file replay compiled out. The failure is
+# completely silent: `run.zsh -actionfile` accepts the path, the app launches
+# and renders, and not one line is printed -- no error, no warning, not even the
+# `replaying ...` the replay would emit. Three separate conclusions were drawn
+# about a synthesiser change that had never once executed.
+#
+# 必須 export，否則上方的快取失效是唯一看得見這個值的東西。`Package.swift` 讀
+# `env["SCUI_DEBUG"]` 來決定是否定義 `SCUI_DEBUG` 編譯條件，而 `swift build` 是本腳本的
+# 子行程：以 `SCUI_DEBUG=1 zsh compile.zsh ...` 在命令列設定的值會到達本 shell，但未 export
+# 的 shell 變數不會傳給子行程。此處其餘每一段都正確處理了這個旗標，而那正是這個缺口難以察覺的
+# 原因——戳記變了、快取被清了、整個套件被重新求值，而重新求值時該旗標依然是未設定的。
+#
+# 2026-09-03 實測，代價是大半個下午。GtkBackend 以 `#if SCUI_DEBUG` 包住它呼叫
+# `ActionFileReplay.replayIfRequested()` 之處，因此此處建出的每一個執行檔都把動作檔重放編譯掉
+# 了。該失敗完全靜默：`run.zsh -actionfile` 接受了路徑、app 正常啟動並繪製，卻一行都不印
+# ——沒有錯誤、沒有警告，連重放本該印出的 `replaying ...` 都沒有。有三個關於某項 synthesiser
+# 改動的結論，就是在它從未被執行過的情況下做出的。
+export SCUI_DEBUG="$scui_debug_value"
+
 mkdir -p "$compile_work_dir"
 if [ "$(cat "$scui_debug_stamp" 2>/dev/null || true)" != "$scui_debug_value" ]; then
     rm -rf "$package_dir/.build/manifest.db" \
