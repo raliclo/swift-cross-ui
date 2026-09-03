@@ -1,0 +1,96 @@
+action,x,y,origin,button,key,micros,note,platform
+# P33 on Windows, GtkBackend: press the DisclosureGroup-approximation button and
+# show that the conditional content collapses.
+#
+# THE EVIDENCE HERE IS THE CAPTURE, NOT A LOG LINE, and that is weaker than
+# every other file in this directory. Read P33.swift: the only calls to
+# P33Diagnostics.write are in .onAppear, so p33-debug-events.log holds three
+# lines -- backend, the missing-name list, and RENDER COMPLETE -- before any
+# click and exactly the same three lines after it. No button in P33 writes
+# anything. Do not read a matching log as confirmation that the click landed;
+# it says only that the app started.
+#
+# WHY THIS BUTTON. It is the one control whose result cannot be produced by any
+# other control on the window. Pressing it does two things at once: its own
+# label flips "Hide details" -> "Show details", and the line "Details are plain
+# conditional content, not a DisclosureGroup." disappears. Neither stepper
+# button can do either. The
+# two stepper buttons were the alternative and were rejected: "-" and "+" only
+# move "value 0" to "value -1" or "value 1", a one-glyph difference in a
+# 848x649 frame, which is a thin thing to hang a whole file on when there is no
+# log to back it up.
+#
+# ONE click, and the layout is the reason it must stay one. The whole content
+# block is centred vertically, so losing one line does not merely pull the rows
+# below it upwards -- MEASURED, comparing the before and after captures, every
+# row in the window moved DOWN by 15 px, including the button that was just
+# pressed: it sits at y 404..436 before the click and y 419..451 after. A second
+# row written against this capture would address a layout that no longer exists,
+# and would be wrong in the direction nobody expects. That is the trap recorded
+# across the iOS files (P8, P11, P12, P13), which costs a whole run to spot
+# because the stale click still lands on something.
+#
+# Coordinates read off a wincap capture of the frame at 848x649, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# button spans x 34..133, y 404..436; (83, 420) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P33
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. P33's own
+# --debug flag is a SEPARATE gate, controlling whether the app writes its log at
+# all; here it buys only the three startup lines, but without it the log file is
+# never created and nothing says why.
+#
+# p33-debug-events.log lands in the CURRENT DIRECTORY, not testapp/output/ --
+# P33 builds its path from currentDirectoryPath and run.zsh launches by absolute
+# path without cd'ing. Measured after this file replayed, and this is the whole
+# file:
+#     P33 ... backend GtkBackend
+#     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
+#     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
+# The verdict is in the after-capture instead: the button must read "Show
+# details" and the "Details are plain conditional content" line must be gone.
+#
+# P33 於 Windows、GtkBackend：按下 DisclosureGroup 近似做法的按鈕，證明條件內容確實收合。
+#
+# **本檔的證據是擷圖，而非 log 行**，這比本目錄中其他每一份檔案都要弱。請看 P33.swift：
+# P33Diagnostics.write 只在 .onAppear 中被呼叫，因此 p33-debug-events.log 在點擊之前有三行
+# ——backend、缺失名稱清單、RENDER COMPLETE——點擊之後仍是完全相同的三行。P33 沒有任何按鈕會
+# 寫入任何東西。切勿把「log 內容相符」當成點擊命中的佐證；它只說明 app 有啟動。
+#
+# **為何選這顆。** 它是視窗上唯一一個「結果無法由其他控制項produce」的控制項。按下它會同時做兩件
+# 事：自身標籤由「Hide details」翻成「Show details」，而「Details are plain conditional
+# content, not a DisclosureGroup.」那一行會消失。兩顆
+# stepper 按鈕都做不到其中任一件。stepper 是被考慮過並被否決的替代方案：「-」與「+」只會把
+# 「value 0」變成「value -1」或「value 1」，在 848x649 的畫面裡只差一個字元；在沒有 log 撐腰的
+# 情況下，用它撐起一整份檔案太單薄。
+#
+# **只有一次點擊**，而版面正是它必須維持一次的原因。整個內容區塊是垂直置中的，因此少掉一行並非
+# 只是把其下的列往上拉——**實測**比對前後兩張擷圖，視窗中的每一列都往**下**移了 15 px，包括剛被
+# 按下的那顆按鈕本身：點擊前位於 y 404..436，點擊後位於 y 419..451。依此擷圖所寫的第二列，將指
+# 向一個已不存在的版面，而且錯的方向是沒人會預期的那一邊。這正是 iOS 多份檔案（P8、P11、P12、
+# P13）中記錄的陷阱，它要花掉一整輪執行才會被發現，因為那個過期的點擊仍然會落在某個東西上。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、848x649 的 wincap frame 擷圖，origin=frame。
+# 按鈕橫跨 x 34..133、y 404..436，(83, 420) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P33
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P33 自身的 --debug 是
+# **另一道**開關，控制 app 是否寫出 log；在這裡它只換來那三行啟動訊息，但少了它 log 檔根本不會
+# 被建立，且沒有任何訊息說明原因。
+#
+# p33-debug-events.log 落在**目前的工作目錄**，而非 testapp/output/——P33 由
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。本檔重放後實測，整個檔案
+# 就只有這三行：
+#     P33 ... backend GtkBackend
+#     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
+#     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
+# 因此判定改由事後擷圖給出：按鈕必須顯示為「Show details」，且「Details are plain conditional
+# content」那一行必須已經消失。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,83,420,frame,left,,,"centre of the ""Hide details"" button (x 34..133 y 404..436) -- label must become ""Show details"" and the details line must vanish",windows
+sleep,,,,,,1500000,hold for the capture; there is no log line to wait for,windows

@@ -1,0 +1,84 @@
+action,x,y,origin,button,key,micros,note,platform
+# P35 on Windows, GtkBackend: press Increment once and let the app name the new
+# value.
+#
+# WHY THIS CONTROL AND NOT THE TOGGLE BESIDE IT. They sit 10 points apart and
+# look alike -- GTK draws the Toggle as a button-shaped box the same height as
+# the Button, so a coordinate that drifted right would land on it and still look
+# like it hit something. Only Increment writes to the log: read P35.swift, its
+# action calls P35Diagnostics.write("count=\(count)"), and the Toggle's binding
+# calls nothing. So a run that ends with "count=1" in the log says WHICH of the
+# two was pressed, not merely that a press was delivered. Driving the Toggle
+# would prove strictly less, because its only trace is a word in a line of text
+# that a mis-click could not be ruled out from.
+#
+# THE LOG LINE IS THE RESULT; the capture corroborates it. Both change: the log
+# gains a line, and "State baseline: count 0, toggle true" becomes "count 1".
+# That is a better position than P33 and P34 in this directory, whose buttons
+# log nothing at all.
+#
+# ONE click. Nothing else here needs a second: the Toggle is the only other
+# control and it has its own claim to make in its own file, against a capture
+# measured after this one has not run.
+#
+# Coordinates read off a wincap capture of the frame at 788x589, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# Increment button spans x 84..176, y 300..332; (130, 316) is its centre. The
+# Toggle starts at x 186, which is why the centre and not the right edge -- an
+# edge hit that works cannot be told apart from one that missed and landed on
+# the neighbour.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P35
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. P35's own
+# --debug flag is a SEPARATE gate controlling whether the app writes its log at
+# all; both are needed, and without --debug the log file is never created and
+# nothing says why.
+#
+# READ THE RESULT FROM p35-debug-events.log IN THE CURRENT DIRECTORY, not
+# testapp/output/ -- P35 builds its path from currentDirectoryPath and run.zsh
+# launches by absolute path without cd'ing. MEASURED, the third and last line:
+#     count=1
+# The two before it -- "backend GtkBackend" and "RENDER COMPLETE" -- both come
+# from .onAppear and are printed whether or not anything is clicked; do not
+# mistake them for a result. The after-capture corroborates: "State baseline:
+# count 1, toggle true", against "count 0" before.
+#
+# P35 於 Windows、GtkBackend：按一次 Increment，讓 app 自己說出新的值。
+#
+# **為何選它而非旁邊的 Toggle。** 兩者相距僅 10 點且外觀相似——GTK 把 Toggle 畫成與 Button 同高
+# 的按鈕狀方塊，因此座標若往右偏就會落在它上面，而看起來仍像有命中某物。只有 Increment 會寫
+# log：見 P35.swift，它的 action 呼叫 P35Diagnostics.write("count=\(count)")，而 Toggle 的
+# binding 什麼也不呼叫。因此一次以 log 中「count=1」作結的執行，能指出被按下的是**哪一個**，而不
+# 只是「有一次按下被送達」。改為驅動 Toggle 證據會嚴格更弱，因為它唯一的痕跡是一行文字中的一個
+# 詞，而那無法排除誤擊。
+#
+# **log 行才是結論；擷圖是佐證。** 兩者都會變：log 多出一行，而「State baseline: count 0,
+# toggle true」會變成「count 1」。這比本目錄中的 P33 與 P34 處境好——那兩支的按鈕根本不寫 log。
+#
+# **只有一次點擊。** 這裡沒有別的東西需要第二次：Toggle 是唯一的另一個控制項，它該在自己的檔案裡
+# 提出自己的主張，並對著一張「本檔尚未執行過」時所量測的擷圖。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、788x589 的 wincap frame 擷圖，origin=frame。
+# Increment 按鈕橫跨 x 84..176、y 300..332，(130, 316) 為其中心。Toggle 自 x 186 開始，這正是
+# 取中心而非右緣的原因——一次「有效的邊緣命中」無法與「偏掉並落在鄰居上」區分開來。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P35
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P35 自身的 --debug 是
+# **另一道**開關，控制 app 是否寫出 log；兩者缺一不可，而少了 --debug 時 log 檔根本不會被建立，
+# 且沒有任何訊息說明原因。
+#
+# **結果請讀目前工作目錄下的 p35-debug-events.log**，而非 testapp/output/——P35 由
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。**實測**的第三行也是最後
+# 一行：
+#     count=1
+# 在它之前的兩行——「backend GtkBackend」與「RENDER COMPLETE」——都來自 .onAppear，無論有沒有
+# 點擊都會印出；請勿把它們誤認為結果。事後擷圖佐證：「State baseline: count 1, toggle true」，
+# 對照點擊前的「count 0」。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,130,316,frame,left,,,"centre of the Increment button (x 84..176 y 300..332) -- the log must gain count=1; the Toggle 10 points to its right writes nothing at all",windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows

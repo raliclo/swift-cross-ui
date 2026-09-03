@@ -1,0 +1,92 @@
+action,x,y,origin,button,key,micros,note,platform
+# P36 on Windows, GtkBackend: press the one control in the app that leaves a
+# trace, and prove it was that control and not the Picker above or the TextField
+# below.
+#
+# WHY THIS CONTROL. P36 has three interactive things stacked in a column --
+# a Picker at y 210..241, "String label button" at y 286..317, and a TextField
+# at y 331..363 -- and only the button writes to the log. Read P36.swift: the
+# Button's action calls P36Diagnostics.write("button clicked"); the Picker's
+# $pickerSelection binding and the TextField's $text binding call nothing. The
+# gap between the button and the TextField is FOURTEEN points, so this is
+# exactly the case the centre rule exists for: a hit near the bottom edge that
+# worked cannot be told apart from one that slipped into the text entry. The log
+# line is what settles it -- the TextField cannot produce "button clicked", and
+# neither can the Picker.
+#
+# THIS FILE IS LOG-ONLY EVIDENCE. Nothing on screen changes when the button is
+# pressed: the action's whole body is the write call, no state is touched, and
+# the before and after captures are identical. The capture corroborates nothing
+# here; it can only show that the window was still up and had not, say, opened
+# the Picker's dropdown over the frame. Compare P30 in this directory, where the
+# rectangle visibly widens. Same shape as P32, and for the same reason -- the
+# distinct message is doing all the work.
+#
+# ONE claim. Neither the button nor a Picker selection would move the layout, so
+# a second row would be safe here in a way it is not in P33 -- but the Picker
+# opens a popup that overlays the frame and covers the TextField, and any file
+# that grew to include it would need re-measuring after every step. Keep them
+# for their own files.
+#
+# Coordinates read off a wincap capture of the frame at 848x649 (P36 asks for
+# 820x620 and GTK gives it more), GtkBackend, 2026-09-03, 100% display scale,
+# origin=frame like every other file here. The button spans x 34..171,
+# y 286..317; (102, 301) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P36
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. P36's own
+# --debug flag is a SEPARATE gate controlling whether the app writes its log at
+# all; both are needed, and without --debug the log file is never created and
+# nothing says why. Here that matters more than usual, because the log is the
+# only evidence there is.
+#
+# READ THE RESULT FROM p36-debug-events.log IN THE CURRENT DIRECTORY, not
+# testapp/output/ -- P36 builds its path from currentDirectoryPath and run.zsh
+# launches by absolute path without cd'ing. MEASURED, the third and last line:
+#     button clicked
+# The two before it -- "backend GtkBackend" and "RENDER COMPLETE" -- come from
+# .onAppear and are printed whether or not anything is clicked. A log holding
+# only those two means the click did not reach the button, and the picture will
+# not tell you so.
+#
+# P36 於 Windows、GtkBackend：按下這支 app 中唯一會留下痕跡的控制項，並證明命中的是它，而非其上
+# 的 Picker 或其下的 TextField。
+#
+# **為何選它。** P36 有三個可互動的東西縱向排列——Picker 位於 y 210..241、「String label
+# button」位於 y 286..317、TextField 位於 y 331..363——而只有按鈕會寫 log。見 P36.swift：
+# Button 的 action 呼叫 P36Diagnostics.write("button clicked")；Picker 的 $pickerSelection
+# binding 與 TextField 的 $text binding 什麼也不呼叫。按鈕與 TextField 之間只差 **14 點**，
+# 因此這正是「取中心」這條規則存在的情境：一次靠近下緣而成功的命中，無法與「滑進文字輸入框」區分
+# 開來。定案的是那一行 log——TextField 產不出「button clicked」，Picker 也不行。
+#
+# **本檔的證據僅來自 log。** 按下按鈕時畫面上沒有任何變化：該 action 的全部內容就是那個 write
+# 呼叫，沒有動到任何 state，前後兩張擷圖完全相同。擷圖在此佐證不了任何事；它至多能顯示視窗仍在，
+# 而且沒有（例如）把 Picker 的下拉選單蓋在畫面上。對照本目錄的 P30，那裡的矩形會明顯變寬。與 P32
+# 同一種形狀，理由也相同——全部的工作都由那則獨特訊息承擔。
+#
+# **只做一個主張。** 按鈕與 Picker 選取都不會移動版面，因此此處多加一列，在 P33 不安全的意義上是
+# 安全的——但 Picker 會開出一個覆蓋畫面並遮住 TextField 的 popup，任何擴充納入它的檔案，每一步
+# 之後都得重新量測。那些留給它們自己的檔案。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、848x649 的 wincap frame 擷圖（P36 要求 820x620，GTK
+# 給了更大的），origin=frame。按鈕橫跨 x 34..171、y 286..317，(102, 301) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P36
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P36 自身的 --debug 是
+# **另一道**開關，控制 app 是否寫出 log；兩者缺一不可，而少了 --debug 時 log 檔根本不會被建立，
+# 且沒有任何訊息說明原因。此事在這裡比平常更要緊，因為 log 是**唯一**的證據。
+#
+# **結果請讀目前工作目錄下的 p36-debug-events.log**，而非 testapp/output/——P36 由
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。**實測**的第三行也是最後
+# 一行：
+#     button clicked
+# 在它之前的兩行——「backend GtkBackend」與「RENDER COMPLETE」——來自 .onAppear，無論有沒有點擊
+# 都會印出。若 log 只有那兩行，就表示點擊沒有到達按鈕，而畫面不會告訴你這件事。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,102,301,frame,left,,,"centre of ""String label button"" (x 34..171 y 286..317) -- the TextField top edge is only 14 points below at y 331 and it logs nothing",windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows

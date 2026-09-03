@@ -1,0 +1,111 @@
+action,x,y,origin,button,key,micros,note,platform
+# P34 on Windows, GtkBackend: press "Show +100" and show that the visible row
+# count actually moves.
+#
+# LAUNCH IT WITH -rows, or this file proves nothing. The whole file:
+#   zsh testapp/run.zsh P34 --debug -rows 500 -actionfile actions/win/P34-show-more-rows.csv
+# P34 defaults to rowCount 100 and starts with visibleRows already 100, so at
+# the default BOTH buttons are no-ops: "Show +100" computes
+# min(100, 100 + 100) = 100 and "Show all capped rows" assigns 100 over 100.
+# Nothing on screen changes, nothing is logged, and a file written that way
+# would pass by doing nothing -- which is worse than no file. -rows 500 is what
+# makes the button have work to do. This is a property of P34's defaults, not a
+# bug this file is reporting.
+#
+# THE EVIDENCE HERE IS THE CAPTURE, NOT A LOG LINE, and that is weaker than
+# most files in this directory. Read P34.swift: the only calls to
+# P34Diagnostics.write are in .onAppear, so p34-debug-events.log holds two lines
+# -- backend, and RENDER COMPLETE -- before any click and exactly the same two
+# lines after it. Neither button writes anything. Do not read a matching log as
+# confirmation that the click landed; it says only that the app started with the
+# row count you asked for.
+#
+# WHY THIS BUTTON. Its neighbour is 8 points away and does something visibly
+# DIFFERENT with the same control: "Show +100" takes visibleRows to 200,
+# "Show all capped rows" takes it straight to 500. So the one number in the
+# header line names which button was hit -- 200 for this one, 500 for the
+# neighbour, and 100 for a click that missed both. That three-way reading is the
+# closest this app gets to P32's two distinct log messages, and it is the reason
+# to drive the +100 button rather than the other one.
+#
+# ONE click. The row list under the buttons is inside a ScrollView pinned to
+# .frame(height: 360), so adding 100 children does not move the buttons -- but
+# the count that proves the click is the thing that changed, and re-reading it
+# after a second click would mean re-measuring first. Keep the other button for
+# its own file.
+#
+# Coordinates read off a wincap capture of the frame at 808x649 (P34 asks for
+# 780x620 and GTK gives it more), GtkBackend, 2026-09-03, 100% display scale,
+# origin=frame like every other file here. "Show +100" spans x 114..219,
+# y 204..236; (166, 220) is its centre. "Show all capped rows" starts at x 227,
+# which is why the centre and not an edge.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P34
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. P34's own
+# --debug flag is a SEPARATE gate, controlling whether the app writes its log at
+# all; here it buys only the two startup lines, but without it the log file is
+# never created and nothing says why.
+#
+# p34-debug-events.log lands in the CURRENT DIRECTORY, not testapp/output/ --
+# P34 builds its path from currentDirectoryPath and run.zsh launches by absolute
+# path without cd'ing. Measured after this file replayed, and this is the whole
+# file:
+#     P34 ... backend GtkBackend
+#     P34 ... RENDER COMPLETE -- P34 rows=500
+# The verdict is in the after-capture instead. MEASURED: the header line reads
+#     requested rows: 500; showing first 200
+# That one line is the entire visible difference. The row list looks IDENTICAL
+# before and after -- it is not scrolled, so both captures show Row 0 to Row 16
+# and the 100 new children are all below the fold. Do not go looking for them in
+# the picture and conclude the click failed.
+#
+# P34 於 Windows、GtkBackend：按下「Show +100」，證明可見列數確實有動。
+#
+# **必須以 -rows 啟動**，否則本檔什麼也證明不了。完整指令：
+#   zsh testapp/run.zsh P34 --debug -rows 500 -actionfile actions/win/P34-show-more-rows.csv
+# P34 的 rowCount 預設為 100，而 visibleRows 一開始就已經是 100，因此在預設值下**兩顆按鈕都是
+# no-op**：「Show +100」算出 min(100, 100 + 100) = 100，「Show all capped rows」則把 100 指派
+# 給 100。畫面沒有任何變化，也沒有任何 log；照那樣寫出的檔案會「什麼都沒做就通過」——那比沒有檔案
+# 更糟。是 -rows 500 讓這顆按鈕有事可做。這是 P34 預設值的性質，不是本檔要回報的 bug。
+#
+# **本檔的證據是擷圖，而非 log 行**，這比本目錄中大多數檔案都要弱。請看 P34.swift：
+# P34Diagnostics.write 只在 .onAppear 中被呼叫，因此 p34-debug-events.log 在點擊之前有兩行
+# ——backend 與 RENDER COMPLETE——點擊之後仍是完全相同的兩行。兩顆按鈕都不寫入任何東西。切勿把
+# 「log 內容相符」當成點擊命中的佐證；它只說明 app 有以你要求的列數啟動。
+#
+# **為何選這顆。** 它的鄰居只相距 8 點，而且對同一個狀態做出**不同**的事：「Show +100」把
+# visibleRows 帶到 200，「Show all capped rows」則直接帶到 500。因此標頭那一行裡的數字就能指出
+# 被按到的是哪一顆——這顆是 200、鄰居是 500、兩顆都沒中則是 100。這個三向判讀，是本 app 最接近
+# P32 那兩則不同 log 訊息的東西，也正是選擇驅動 +100 而非另一顆的理由。
+#
+# **只有一次點擊。** 按鈕下方的列表位於一個以 .frame(height: 360) 釘住的 ScrollView 內，因此多
+# 加 100 個 child 並不會移動按鈕——但「證明點擊成立」的那個數字，正是被改動的東西；若要在第二次
+# 點擊之後再讀它，就得先重新量測。另一顆按鈕留給它自己的檔案。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、808x649 的 wincap frame 擷圖（P34 要求 780x620，GTK
+# 給了更大的），origin=frame。「Show +100」橫跨 x 114..219、y 204..236，(166, 220) 為其中心。
+# 「Show all capped rows」自 x 227 開始，這正是取中心而非邊緣的原因。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P34
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P34 自身的 --debug 是
+# **另一道**開關，控制 app 是否寫出 log；在這裡它只換來那兩行啟動訊息，但少了它 log 檔根本不會
+# 被建立，且沒有任何訊息說明原因。
+#
+# p34-debug-events.log 落在**目前的工作目錄**，而非 testapp/output/——P34 由
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。本檔重放後實測，整個檔案
+# 就只有這兩行：
+#     P34 ... backend GtkBackend
+#     P34 ... RENDER COMPLETE -- P34 rows=500
+# 因此判定改由事後擷圖給出。**實測**：標頭那一行顯示為
+#     requested rows: 500; showing first 200
+# 而那一行就是畫面上**全部**的差異。列表看起來前後**完全相同**——它沒有被捲動，因此兩張擷圖都只
+# 顯示 Row 0 到 Row 16，新增的 100 個 child 全都在可視範圍之外。請勿在圖中找不到它們，就斷定
+# 點擊失敗。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,166,220,frame,left,,,"centre of ""Show +100"" (x 114..219 y 204..236) -- header must read ""showing first 200""; 500 would mean the neighbour was hit and 100 that nothing was",windows
+sleep,,,,,,1500000,hold for the capture; there is no log line to wait for,windows
