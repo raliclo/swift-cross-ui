@@ -13,6 +13,95 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
+## Open: a ZStack's later child does not cover an earlier Button
+
+P10 puts a `Button` and then an opaque `Color.orange` in a `ZStack`. The orange
+is declared second, so it should cover the button, and on iOS and macOS it does
+-- P10's own comment calls the button "invisible on purpose", because that is
+what makes a press reaching it a statement about `allowsHitTesting(false)`.
+
+On Android the button is drawn on top of the orange
+(`testapp/output/screenshots/p10-android-final-20260903-095311.png`). It is
+therefore also the topmost view in touch dispatch, so P10's overlay check cannot
+distinguish a working modifier from a broken one here, and its action file says
+so rather than claiming the same coverage as the other platforms.
+
+**Two candidate causes, and neither has been ruled out.** Either the ZStack's
+children are inserted in the wrong order, or the button's default elevation is
+raising a correctly-placed sibling above it -- Android orders both drawing and
+touch dispatch by Z before child index, and a Material button carries a
+non-zero elevation from the theme. A `uiautomator` dump lists the orange before
+the button, which is consistent with both: that listing follows drawing order,
+which is what Z already decided.
+
+Distinguishing them needs the child index read directly rather than inferred
+from a dump, and the fix differs: an insertion-order bug is in
+`AndroidBackend.insert`, an elevation bug means every native widget with a
+theme elevation needs its Z pinned to its index.
+
+**Scope.** Any `ZStack` with a native control below something else -- overlays,
+badges, disabled scrims. Not just P10.
+
+## 未修：ZStack 中較晚宣告的子元件無法覆蓋較早的 Button
+
+P10 在一個 `ZStack` 中依序放入一個 `Button` 與一個不透明的 `Color.orange`。橘色宣告在後，因此它
+應該蓋住按鈕，而在 iOS 與 macOS 上確實如此——P10 自己的註解稱那顆按鈕是「刻意看不見的」，正因如此，
+「按壓抵達了它」才成為一項關於 `allowsHitTesting(false)` 的陳述。
+
+在 Android 上，按鈕被畫在橘色之上
+（`testapp/output/screenshots/p10-android-final-20260903-095311.png`）。因此它在觸控分派中也是最
+上層的 view，於是 P10 的覆蓋層檢查在此處無法分辨「modifier 正常」與「modifier 損壞」，而它的動作檔
+如實寫明這一點，不宣稱與其他平台相同的覆蓋範圍。
+
+**有兩個候選成因，而兩者都尚未被排除。** 可能是 ZStack 的子元件插入順序錯誤，也可能是按鈕預設的
+elevation 把一個本來正確置於下方的同層元件抬高了——Android 的繪製與觸控分派都是先依 Z、再依子元件
+索引排序，而 Material 按鈕會從主題帶有一個非零的 elevation。`uiautomator` dump 把橘色列在按鈕之前，
+而這對兩者都相容：該列表遵循的是繪製順序，而繪製順序早已由 Z 決定。
+
+要區分兩者，必須直接讀取子元件索引，而不是從 dump 反推；而兩者的修法不同：插入順序的錯誤在
+`AndroidBackend.insert`，elevation 的錯誤則意味著每一個帶有主題 elevation 的原生 widget 都需要把
+自己的 Z 釘在其索引上。
+
+**影響範圍。** 任何「原生控制項位於其他東西之下」的 `ZStack`——覆蓋層、徽章、停用時的遮罩。
+不只 P10。
+
+## Fixed 2026-09-03: a list row lit up under the press and changed nothing else
+
+P16's sidebar is a `List(selection:)`. Pressing a row highlighted it and left
+the detail pane reading "Select an area" whichever row was pressed.
+
+`createSelectableListView` registered only
+`AdapterView.OnItemSelectedListener`. That callback is about the *focused*
+item -- the one a D-pad or trackball moved to. A `ListView` on a touchscreen is
+in touch mode, where there is no focused item at all, so a tap fires
+`onItemClick` and never `onItemSelected`. The binding was accepted and did
+nothing, and the highlight came from the row's own pressed state, which is what
+made it look like it had worked.
+
+`setSelectedItem` had the matching half of the same misreading: it called
+`setSelection`, which in touch mode also does nothing. The list is in
+`CHOICE_MODE_SINGLE`, so `setItemChecked` is the state it actually carries.
+
+Fixed by having `ListItemSelectedListener` implement both interfaces and
+registering it as both. Verified: P16's detail pane reads "Science" after the
+row is pressed.
+
+## 已修 2026-09-03：清單的列在按壓下亮起，其餘毫無變化
+
+P16 的側欄是一個 `List(selection:)`。按下任何一列都會讓它亮起，而 detail 窗格無論如何都讀作
+「Select an area」。
+
+`createSelectableListView` 只註冊了 `AdapterView.OnItemSelectedListener`。該 callback 講的是
+**取得焦點**的項目——也就是 D-pad 或軌跡球移動到的那一個。觸控螢幕上的 `ListView` 處於 touch mode，
+而該模式下根本沒有取得焦點的項目，因此點擊觸發的是 `onItemClick`，永遠不會是 `onItemSelected`。
+該繫結被接受了，卻什麼都沒做；而那個高亮來自該列自身的按下狀態——正是它讓整件事看起來像是成功了。
+
+`setSelectedItem` 犯的是同一個誤讀的另一半：它呼叫 `setSelection`，而該方法在 touch mode 下同樣
+什麼都不做。此清單處於 `CHOICE_MODE_SINGLE`，因此 `setItemChecked` 才是它真正持有的狀態。
+
+修法是讓 `ListItemSelectedListener` 同時實作兩個介面，並以兩者的身分註冊它。已驗證：按下該列之後，
+P16 的 detail 窗格讀作「Science」。
+
 ## Fixed 2026-09-03: the window went blank after a widening state change
 
 Measured 2026-09-02, on P12, by the first synthesised tap this backend has ever

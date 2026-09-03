@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P16 on Android: press a sidebar row and check that the detail pane follows
+# (#160's neighbour -- the split view itself, not its initial size).
+#
+# This app could not be run on Android at all until 2026-09-03. Four split-view
+# entry points in AndroidBackend were `fatalError`, so P16 died at launch with
+# "createSplitView(leadingChild:trailingChild:) not implemented" and
+# ActivityManager gave up on it. Implemented in 66c22d71.
+#
+# Measured 2026-09-03 from a uiautomator dump of the running app.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The "Science" row occupies pixels [204,647]-[285,820] for its
+# label and the row spans the sidebar's full 97-point width; the tap is pixel
+# (244, 733) = point (93, 279).
+#
+# TWO DEFECTS WERE FOUND BY WRITING THIS FILE, and both are fixed rather than
+# recorded as failures, so the claim below is the post-fix behaviour:
+#
+# 1. The sidebar reported its width in pixels where the framework wanted points.
+#    P16 showed "sidebar: 288" beside a sidebar whose rows were cut off at the
+#    divider -- 288 pixels is 110 points here, so the rows had been laid out for
+#    two and a half times the width they had. It now reads "sidebar: 97" and the
+#    labels wrap instead of vanishing, which is what a 97-point sidebar should
+#    do.
+# 2. Pressing a row lit it up and changed nothing else. AndroidBackend
+#    registered only `AdapterView.OnItemSelectedListener`, which is about the
+#    focused item and never fires on a touchscreen; taps fire
+#    `OnItemClickListener`. The binding was accepted and did nothing.
+#
+# P16 on Android：按下側欄的一列，並確認 detail 窗格隨之改變（#160 的近鄰——測的是 split view
+# 本身，而不是它的初始尺寸）。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上根本無法執行。AndroidBackend 中四個 split view 進入點
+# 都是 `fatalError`，因此 P16 在啟動時就死於
+# 「createSplitView(leadingChild:trailingChild:) not implemented」，接著 ActivityManager 放棄了它。
+# 已於 66c22d71 實作。
+#
+# 2026-09-03 量自執行中的 app 之 uiautomator dump。Emulator 為 swift-cross-ui-api36，
+# 1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。座標以點書寫，synthesiser 會再乘上 density。
+# 「Science」該列的標籤佔據像素 [204,647]-[285,820]，而該列橫跨側欄完整的 97 點寬；點擊位置為
+# 像素 (244, 733)，即點 (93, 279)。
+#
+# 撰寫本檔的過程中發現了兩個缺陷，而兩者都已修正、而非被記錄為失敗，因此下方的主張是修正後的行為：
+#
+# 1. 側欄以像素回報寬度，而框架要的是點。P16 顯示「sidebar: 288」，而其各列卻在分隔線處被切斷
+#    ——288 像素在此處是 110 點，因此那些列是以「兩倍半於它實際擁有的寬度」來排版的。現在它讀作
+#    「sidebar: 97」，標籤改為換行而非消失，那正是一個 97 點寬的側欄應有的行為。
+# 2. 按下一列會讓它亮起，其餘毫無變化。AndroidBackend 只註冊了
+#    `AdapterView.OnItemSelectedListener`，而它講的是取得焦點的項目，在觸控螢幕上永遠不會觸發；
+#    點擊觸發的是 `OnItemClickListener`。該繫結被接受了，卻什麼都沒做。
+sleep,,,,,,1500000,let P16 lay out both panes,android
+click,93,279,,left,,,"the ""Science"" row in the sidebar -- the detail pane must stop reading ""Select an area"" and read ""Science"", and the two size lines must stay at ""sidebar: 97"" and ""detail: 254 x 22"" (a selection changes the contents of a pane, not the split). REPLAYED 2026-09-03: detail read ""Science"", both size lines unchanged",android
+sleep,,,,,,1500000,let the detail pane repaint,android

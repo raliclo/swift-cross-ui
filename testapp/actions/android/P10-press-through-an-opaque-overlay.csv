@@ -1,0 +1,68 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10 on Android: press the button underneath an opaque `allowsHitTesting(false)`
+# overlay and check that the press reaches it (#454's neighbour; the modifier
+# rather than transparency).
+#
+# This app could not be run on Android at all until 2026-09-03. `allowsHitTesting`
+# goes through `@CastBackend`, which expands to `fatalError` for a backend that
+# does not conform to `BackendFeatures.HitTesting`, and AndroidBackend was the
+# only shipped backend that did not. P10 died at launch --
+# "'AndroidBackend' does not implement 'BackendFeatures.HitTesting'", SIGTRAP,
+# and ActivityManager gave up on it as having "crashed too many times". Fixed in
+# 66c22d71.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p10-android-final-20260903-095311.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. P10 is authored at 620 points wide and the window is 411, so the
+# right-hand column is partly off screen and the root scroll host is what makes
+# the rest of it reachable; the target below is on screen without scrolling.
+#
+# The ZStack's band is pixel rows 1124-1281. The orange rectangle runs from pixel
+# x 672 to past the right edge; the "Hidden button" inside it is x 753-1078. The
+# tap is pixel (924, 1200) = point (352, 457), which is inside both.
+#
+# WHAT THIS FILE CAN AND CANNOT SHOW ON ANDROID. On iOS and macOS the button is
+# invisible: the orange is declared second in the ZStack and covers it, which is
+# what makes a press that reaches it a statement about the modifier and nothing
+# else. On Android the button is drawn ON TOP of the orange -- see
+# p10-android-final-20260903-095311.png -- so it is also the topmost view in
+# touch dispatch, and the press below would land on it even if the modifier did
+# nothing. The claim is therefore weaker here than on the other platforms, and
+# it is recorded as such rather than being presented as the same check.
+#
+# Two candidate causes, and this file does not choose between them: the ZStack
+# children may be inserted in the wrong order, or Android's default Button
+# elevation may be raising it above a sibling that was correctly placed below.
+# Both would produce this screenshot and both would produce the same uiautomator
+# dump, which lists the orange before the button. Recorded in bugs/bug-Android.md.
+#
+# P10 on Android：按下位於一個不透明 `allowsHitTesting(false)` 覆蓋層底下的按鈕，並確認該次按壓
+# 抵達了它（#454 的近鄰；此處測的是該 modifier，而非透明度）。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上根本無法執行。`allowsHitTesting` 走的是
+# `@CastBackend`，對於未實作 `BackendFeatures.HitTesting` 的 backend，它會展開為 `fatalError`，
+# 而 AndroidBackend 是唯一未實作的已發布 backend。P10 在啟動時就死掉——
+# 「'AndroidBackend' does not implement 'BackendFeatures.HitTesting'」、SIGTRAP，接著
+# ActivityManager 以「crashed too many times」放棄了它。已於 66c22d71 修正。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p10-android-final-20260903-095311.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。P10 是以 620 點寬撰寫的，而視窗只有 411 點，因此
+# 右側欄有一部分在畫面外，是根捲動宿主讓其餘部分可被觸及；下方的目標不需捲動即在畫面上。
+#
+# ZStack 所在的像素帶為列 1124-1281。橘色矩形自像素 x 672 延伸至超出右緣；其中的「Hidden button」
+# 位於 x 753-1078。點擊位置為像素 (924, 1200)，即點 (352, 457)，落在兩者之內。
+#
+# 本檔在 Android 上能證明什麼、不能證明什麼。在 iOS 與 macOS 上那顆按鈕是看不見的：橘色在 ZStack
+# 中宣告在後、把它蓋住了，正是這一點使「按壓抵達了它」成為一項只關於該 modifier 的陳述。而在
+# Android 上，按鈕被畫在橘色**之上**——見 p10-android-final-20260903-095311.png——因此它在觸控
+# 分派中也是最上層的 view，即使該 modifier 什麼都沒做，下方這次按壓仍會落在它身上。因此此處的主張
+# 比其他平台弱，而本檔如實記下這一點，不把它當成同一項檢查來呈現。
+#
+# 有兩個候選成因，而本檔不在兩者之間下判斷：ZStack 的子元件可能是以錯誤的順序插入的，或者 Android
+# 預設的 Button elevation 把一個本來正確置於下方的同層元件抬高了。兩者都會產生這張截圖，也都會產生
+# 同一份 uiautomator dump——該 dump 把橘色列在按鈕之前。已記錄於 bugs/bug-Android.md。
+sleep,,,,,,1500000,let P10 render,android
+click,352,457,,left,,,"the ""Hidden button"" under the opaque orange overlay -- ""Hidden clicks:"" must read 1 afterwards. It reads 0 at launch. REPLAYED 2026-09-03: it read 1 (p10-tap-overlap-crop.png). See the header for why this is a weaker claim on Android than on iOS and macOS",android
+sleep,,,,,,1200000,let the counter repaint,android

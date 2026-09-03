@@ -56,9 +56,20 @@ extension AndroidBackend {
         listView
             .setAdapter(CustomListAdapter(environment: Self.env).as(AndroidKit.ListAdapter.self))
 
+        // One object, registered twice. Which of the two callbacks fires
+        // depends on how the row was reached, and on a phone it is always the
+        // click one -- see ListItemSelectedListener.
+        // 同一個物件，註冊兩次。兩個 callback 中哪一個會被觸發，取決於該列是以何種方式被抵達的，
+        // 而在手機上永遠是 click 那一個——見 ListItemSelectedListener。
+        let listener = ListItemSelectedListener(environment: Self.env)
         listView
-            .setOnItemSelectedListener(ListItemSelectedListener(environment: Self.env)
-                .as(AndroidKit.AdapterView.OnItemSelectedListener.self))
+            .setOnItemSelectedListener(
+                listener.as(AndroidKit.AdapterView.OnItemSelectedListener.self)
+            )
+        listView
+            .setOnItemClickListener(
+                listener.as(AndroidKit.AdapterView.OnItemClickListener.self)
+            )
 
         // Color was derived experimentally on an Android 16 emulator to match
         // the default pressed color.
@@ -123,9 +134,16 @@ extension AndroidBackend {
         ofSelectableListView listView: Widget,
         toItemAt index: Int?
     ) {
+        // `setItemChecked`, not `setSelection`. The list is in
+        // `CHOICE_MODE_SINGLE`, and in touch mode "selection" does not exist --
+        // `setSelection` is accepted and draws nothing. Checking is the state a
+        // touchscreen list actually carries.
+        // 使用 `setItemChecked`，而非 `setSelection`。此清單處於 `CHOICE_MODE_SINGLE`，而在 touch
+        // mode 下「selection」並不存在——`setSelection` 會被接受，但不會畫出任何東西。checked 才是
+        // 觸控清單真正持有的狀態。
         let listView = listView.as(AndroidKit.ListView.self)!
         if let index {
-            listView.setSelection(Int32(index))
+            listView.setItemChecked(Int32(index), true)
         } else {
             listView.clearChoices()
         }
