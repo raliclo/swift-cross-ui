@@ -111,6 +111,61 @@ place".
 文件，描述的是一個會先 `cd` 進 `testapp/output` 的流程——同一種慣例，只是起始目錄不同。找錯目錄
 會看到一個空目錄，而那會被讀成「這支 app 什麼都沒記錄」，而不是「你站錯地方了」。
 
+## Eight apps that should never get a file here, and why that is a finding
+
+Checked 2026-09-04. Re-derive with:
+
+```zsh
+for p in P25 P27 P37 P38 P39 P40 P42 P43; do
+    printf '%-5s controls=%s writes=%s\n' "$p" \
+        "$(grep -cE 'Button\(|Toggle\(|TextField\(|Slider\(|Picker\(' testapp/$p.swift)" \
+        "$(grep -c 'Diagnostics.write' testapp/$p.swift)"
+done
+```
+
+All eight have **zero interactive controls**. A click row aimed at one of them
+lands on a gradient or a label, changes nothing, and **still reports success** --
+so a file for any of them would pass by doing nothing, which is worse than no
+file. Five of them (P27, P37, P38, P39, P40) have no diagnostics either, so even
+a `sleep`-only file could produce no readable evidence: it would take a
+screenshot, and `screenshot.zsh` already does that without a replay in the way.
+
+The other three each have a specific reason no synthesised input can drive them,
+and each reason is already recorded elsewhere:
+
+| App | Logs | Why no file |
+|---|---|---|
+| `P25` | hover enter/leave | It is the drag-and-drop app. `SendInput` cannot originate an OLE drag, so the drop it exists to test is unreachable — see the P25 row in `matrix_coverage/coverage-matrix.csv2` |
+| `P42` | scale factor changes | The event under test is a display-scale change. No synthesised input produces one; a human must alter Settings — task #80 |
+| `P43` | `.onAppear` only | Gradient fills in shapes. The claim is visual and lives in a capture; nothing to drive |
+
+**So the Windows gap is smaller than a count of missing files suggests.** Of the
+apps with no file, these eight are deliberate, and four more (P1, P5, P18, P31)
+are blocked on the synthesiser being unable to address a modal dialog —
+`bugs/Gtk4-bugs.md` section 6. Read a missing file as a question, not as a
+backlog item.
+
+## 八支永遠不該有動作檔的 app，以及為何那是一項發現
+
+2026-09-04 查證。重新產生的方式見上方英文段落中的指令。
+
+這八支**沒有任何可互動的控制項**。指向它們的點擊列會落在漸層或標籤上、什麼都不會改變，
+**而且仍然回報成功**——因此為它們寫的檔案會「靠什麼都不做而通過」，那比沒有檔案更糟。其中五支
+（P27、P37、P38、P39、P40）連診斷都沒有，所以即使是只有 `sleep` 的檔案也產生不了可讀的證據：
+它只會擷一張圖，而 `screenshot.zsh` 本來就能做到，不需要一次重放擋在中間。
+
+另外三支各有一個「合成輸入無法驅動」的具體理由，且每個理由都已記錄於他處：
+
+| App | 記錄什麼 | 為何不寫檔 |
+|---|---|---|
+| `P25` | hover 進出 | 它是拖放 app。`SendInput` 無法發起 OLE 拖放，因此它存在所要測試的那個「放下」根本觸及不到 |
+| `P42` | scale factor 變更 | 受測事件是顯示縮放的改變。合成輸入產生不了它，必須由人修改設定——任務 #80 |
+| `P43` | 僅 `.onAppear` | 形狀內的漸層填充。該主張是視覺性的、存在於擷圖中，沒有可驅動的東西 |
+
+**因此 Windows 的缺口比「缺幾個檔案」這個數字所暗示的要小。** 在沒有檔案的 app 之中，這八支是
+刻意的，另有四支（P1、P5、P18、P31）卡在「合成器無法定址 modal 對話框」——見
+`bugs/Gtk4-bugs.md` 第 6 節。**請把「缺少檔案」讀成一個問題，而不是一項待辦。**
+
 ## Two things every file here has to get right
 
 Both were paid for in a failed run rather than in an error message.

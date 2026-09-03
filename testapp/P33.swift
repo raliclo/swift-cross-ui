@@ -68,6 +68,15 @@ struct P33RootView: View {
             Text("DisclosureGroup approximation")
             Button(expanded ? "Hide details" : "Show details") {
                 expanded.toggle()
+                // Names the new value, so an action file has something better
+                // than a picture to check. Added 2026-09-04: the Windows action
+                // file for this button had to rest on the capture alone, and an
+                // unchanged log after a click is then expected rather than
+                // evidence -- the two are indistinguishable without this line.
+                // 指出新的值，使動作檔有比截圖更可靠的東西可以檢查。2026-09-04 新增：此按鈕的
+                // Windows 動作檔原本只能依靠擷圖，而在那種情況下「點擊後 log 沒有變化」是預期
+                // 行為而非證據——少了這一行，兩者無從分辨。
+                P33Diagnostics.write("details expanded=\(expanded)")
             }
             if expanded {
                 Text("Details are plain conditional content, not a DisclosureGroup.")

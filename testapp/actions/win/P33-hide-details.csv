@@ -2,13 +2,20 @@ action,x,y,origin,button,key,micros,note,platform
 # P33 on Windows, GtkBackend: press the DisclosureGroup-approximation button and
 # show that the conditional content collapses.
 #
-# THE EVIDENCE HERE IS THE CAPTURE, NOT A LOG LINE, and that is weaker than
-# every other file in this directory. Read P33.swift: the only calls to
-# P33Diagnostics.write are in .onAppear, so p33-debug-events.log holds three
-# lines -- backend, the missing-name list, and RENDER COMPLETE -- before any
-# click and exactly the same three lines after it. No button in P33 writes
-# anything. Do not read a matching log as confirmation that the click landed;
-# it says only that the app started.
+# THE EVIDENCE IS THE LOG AND THE CAPTURE TOGETHER. Since 2026-09-04 the button
+# calls P33Diagnostics.write("details expanded=\(expanded)"), so a click leaves a
+# fourth line in the log naming the NEW value.
+#
+# What this header said until 2026-09-04, kept rather than deleted because it is
+# what shaped every other choice below: "THE EVIDENCE HERE IS THE CAPTURE, NOT A
+# LOG LINE, and that is weaker than every other file in this directory ... No
+# button in P33 writes anything. Do not read a matching log as confirmation that
+# the click landed; it says only that the app started." That was true when
+# written -- the only write calls were in .onAppear, so the log held the same
+# three lines before and after the click, and the two cases were literally
+# indistinguishable. The fix was two lines in P33.swift, not a rewrite of this
+# file: the coordinate, the one-click design and the reasons for both are
+# unchanged.
 #
 # WHY THIS BUTTON. It is the one control whose result cannot be produced by any
 # other control on the window. Pressing it does two things at once: its own
@@ -40,25 +47,36 @@ action,x,y,origin,button,key,micros,note,platform
 # the replay is compiled out and the failure is silent -- run.zsh accepts the
 # path, the app launches and renders, and not one line is printed. P33's own
 # --debug flag is a SEPARATE gate, controlling whether the app writes its log at
-# all; here it buys only the three startup lines, but without it the log file is
-# never created and nothing says why.
+# all -- including the click line this file now depends on. Without it the log
+# file is never created and nothing says why.
 #
 # p33-debug-events.log lands in the CURRENT DIRECTORY, not testapp/output/ --
 # P33 builds its path from currentDirectoryPath and run.zsh launches by absolute
-# path without cd'ing. Measured after this file replayed, and this is the whole
-# file:
+# path without cd'ing. MEASURED 2026-09-04 after this file replayed, and this is
+# the whole file:
 #     P33 ... backend GtkBackend
 #     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
 #     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
-# The verdict is in the after-capture instead: the button must read "Show
-# details" and the "Details are plain conditional content" line must be gone.
+#     P33 ... details expanded=false
+# READ THAT LAST LINE CAREFULLY: false, not true. `expanded` starts TRUE, which
+# is why the button's first label is "Hide details", so one click takes it to
+# false. A file that predicted "expanded=true" would have been wrong while
+# looking right, and that is the whole reason the app names the VALUE rather
+# than announcing that a button was pressed.
+# The capture carries the other half: the button must then read "Show details"
+# and the "Details are plain conditional content" line must be gone.
 #
 # P33 於 Windows、GtkBackend：按下 DisclosureGroup 近似做法的按鈕，證明條件內容確實收合。
 #
-# **本檔的證據是擷圖，而非 log 行**，這比本目錄中其他每一份檔案都要弱。請看 P33.swift：
-# P33Diagnostics.write 只在 .onAppear 中被呼叫，因此 p33-debug-events.log 在點擊之前有三行
-# ——backend、缺失名稱清單、RENDER COMPLETE——點擊之後仍是完全相同的三行。P33 沒有任何按鈕會
-# 寫入任何東西。切勿把「log 內容相符」當成點擊命中的佐證；它只說明 app 有啟動。
+# **證據是 log 與擷圖兩者合起來。** 自 2026-09-04 起，該按鈕會呼叫
+# P33Diagnostics.write("details expanded=\(expanded)")，因此一次點擊會在 log 留下第四行，
+# 並指出**新的值**。
+#
+# 本標頭在 2026-09-04 之前的說法，保留而不刪除，因為它形塑了以下每一項選擇：「本檔的證據是擷圖，
+# 而非 log 行，這比本目錄中其他每一份檔案都要弱……P33 沒有任何按鈕會寫入任何東西。切勿把
+# 『log 內容相符』當成點擊命中的佐證；它只說明 app 有啟動。」那在當時是**正確的**——write 只在
+# .onAppear 中被呼叫，因此點擊前後 log 都是同樣三行，兩種情況根本無從分辨。修法是 P33.swift 裡
+# 的兩行，而非重寫本檔：座標、只點一次的設計，以及兩者的理由都未改變。
 #
 # **為何選這顆。** 它是視窗上唯一一個「結果無法由其他控制項produce」的控制項。按下它會同時做兩件
 # 事：自身標籤由「Hide details」翻成「Show details」，而「Details are plain conditional
@@ -80,17 +98,21 @@ action,x,y,origin,button,key,micros,note,platform
 #   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P33
 # GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
 # 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。P33 自身的 --debug 是
-# **另一道**開關，控制 app 是否寫出 log；在這裡它只換來那三行啟動訊息，但少了它 log 檔根本不會
-# 被建立，且沒有任何訊息說明原因。
+# **另一道**開關，控制 app 是否寫出 log——包括本檔現在所倚賴的那一行點擊訊息。少了它 log 檔根本
+# 不會被建立，且沒有任何訊息說明原因。
 #
 # p33-debug-events.log 落在**目前的工作目錄**，而非 testapp/output/——P33 由
-# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。本檔重放後實測，整個檔案
-# 就只有這三行：
+# currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。**2026-09-04 實測**，本檔
+# 重放後整個檔案就是這四行：
 #     P33 ... backend GtkBackend
 #     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
 #     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
-# 因此判定改由事後擷圖給出：按鈕必須顯示為「Show details」，且「Details are plain conditional
-# content」那一行必須已經消失。
+#     P33 ... details expanded=false
+# **請看清最後那一行：是 false，不是 true。** `expanded` 起始為 **true**，這正是按鈕第一個標籤
+# 為「Hide details」的原因，因此一次點擊會把它帶到 false。若本檔預測「expanded=true」，那會是
+# 一個**看起來正確的錯誤**；而這就是 app 要指出「值」而非宣告「有按鈕被按下」的全部理由。
+# 擷圖承擔另一半：按鈕必須顯示為「Show details」，且「Details are plain conditional content」
+# 那一行必須已經消失。
 sleep,,,,,,900000,let the window settle and take focus,windows
 click,83,420,frame,left,,,"centre of the ""Hide details"" button (x 34..133 y 404..436) -- label must become ""Show details"" and the details line must vanish",windows
-sleep,,,,,,1500000,hold for the capture; there is no log line to wait for,windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up -- expect a fourth line reading details expanded=false,windows

@@ -66,8 +66,34 @@ struct P34RootView: View {
                 .font(.system(size: 13))
 
             HStack(spacing: 8) {
-                Button("Show +100") { visibleRows = min(rowCount, visibleRows + 100) }
-                Button("Show all capped rows") { visibleRows = rowCount }
+                // Two buttons, eight points apart, that do different things to
+                // the same state -- so they log DIFFERENT text. A single shared
+                // message would say a button was pressed without saying which,
+                // and a coordinate that drifted between them would still read as
+                // a pass. Added 2026-09-04 for the Windows action file, which
+                // otherwise had only the capture.
+                //
+                // Both are no-ops at the default rowCount of 100, because
+                // visibleRows also starts at 100: min(100, 100+100) and
+                // 100 = 100. Launch with `-rows 500` to make either do
+                // anything. The log now says so out loud rather than leaving a
+                // silent no-op to look like success.
+                //
+                // 兩顆相距八點的按鈕，對同一份狀態做不同的事——因此它們記錄**不同**的訊息。
+                // 若共用一則訊息，就只能說明「有按鈕被按下」而說不出是哪一顆，而在兩者之間偏移
+                // 的座標仍會被讀成通過。2026-09-04 為 Windows 動作檔新增，否則該檔只有擷圖可依。
+                //
+                // 在預設的 rowCount 100 之下兩者皆為 no-op，因為 visibleRows 起始亦為 100：
+                // min(100, 100+100) 與 100 = 100。請以 `-rows 500` 啟動，任一顆才會有作用。
+                // 現在 log 會直說這件事，而不是讓一個靜默的 no-op 看起來像成功。
+                Button("Show +100") {
+                    visibleRows = min(rowCount, visibleRows + 100)
+                    P34Diagnostics.write("show plus 100 -> visibleRows=\(visibleRows)")
+                }
+                Button("Show all capped rows") {
+                    visibleRows = rowCount
+                    P34Diagnostics.write("show all -> visibleRows=\(visibleRows)")
+                }
             }
 
             ScrollView {
