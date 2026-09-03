@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note,platform
+# P4 on Android: press "Run 2" in the scrolled row list and read both counters
+# back off the page.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p4-android-final-20260903-085113.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The five visible "Run n" buttons all occupy pixels x 93-306 and
+# sit 163 pixels apart: Run 0 at y 1137-1238, Run 1 at 1299-1400, Run 2 at
+# 1462-1564, Run 3 at 1625-1728, Run 4 at 1788-1891. Run 2's centre is pixel
+# (199, 1513) = point (76, 576) -- the row below.
+#
+# Run 2 rather than Run 0. The five buttons are identical apart from their label
+# and their y, so a tap on the first one cannot tell "the button was pressed"
+# apart from "something near the top of the list was pressed"; the third one has
+# two identical neighbours above it and two below, and it names itself in the
+# result. If the tap landed one row off, the page says so: it would read
+# "Selected row: 1" or "Selected row: 3".
+#
+# Two lines have to move together, which is what makes this a callback test
+# rather than a selection test. #190 is about where callbacks are stored, so the
+# check is that the closure attached to this particular button ran:
+#
+#   Rows: 80, rows 0-49, update tick: 0, callbacks: 0   ->   callbacks: 1
+#   Selected row: none                                  ->   Selected row: 2
+#
+# and "Rows: 80", "rows 0-49" and "update tick: 0" must not move, because this
+# button touches none of them. A backend that re-ran the wrong row's callback
+# would still increment callbacks and would name the wrong row.
+#
+# One click. Both lines rewrite and the callbacks digit changes width, so a second
+# click would be judged against a page the first had already moved.
+#
+# P4 於 Android：在列表中按下「Run 2」，並從畫面讀回兩個計數。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p4-android-final-20260903-085113.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。五個可見的「Run n」按鈕都佔據像素 x 93-306，彼此
+# 相距 163 像素：Run 0 於 y 1137-1238、Run 1 於 1299-1400、Run 2 於 1462-1564、Run 3 於
+# 1625-1728、Run 4 於 1788-1891。Run 2 的中心為像素 (199, 1513)，即點 (76, 576)——下方那一列。
+#
+# 選 Run 2 而非 Run 0。這五個按鈕除了標籤與 y 之外完全相同，因此按第一個無法把「該按鈕被按下」與
+# 「列表頂端附近某物被按下」區分開來；第三個的上下各有兩個一模一樣的鄰居，而且它會在結果中報出
+# 自己的名字。若點擊落錯一列，頁面會說出來：它會讀作「Selected row: 1」或「Selected row: 3」。
+#
+# 必須同時移動的是兩行，這使本項成為 callback 測試而非選取測試。#190 談的是 callback 存放在哪裡，
+# 因此檢查的是「附加在這一個按鈕上的 closure 有沒有執行」（對照如上方英文）；而「Rows: 80」、
+# 「rows 0-49」與「update tick: 0」都不得變動，因為此按鈕並不觸及它們。若某個 backend 執行了錯誤
+# 那一列的 callback，callbacks 一樣會加一，但它會報出錯誤的列號。
+#
+# 只按一次。兩行都會重寫，且 callbacks 的位數寬度改變，因此第二次點擊將是對「已被第一次點擊移動過
+# 的頁面」下判斷。
+sleep,,,,,,1500000,let P4 render,android
+click,76,576,,left,,,"Run 2 -- the summary line must go from ""callbacks: 0"" to ""callbacks: 1"" and the line below the list must go from ""Selected row: none"" to ""Selected row: 2"", with ""Rows: 80"", ""rows 0-49"" and ""update tick: 0"" unchanged (VERIFIED 2026-09-03 in p4-android-final-20260903-085244.png: the summary line reads ""Rows: 80, rows 0-49, update tick: 0, callbacks: 1"" and the line below the list reads ""Selected row: 2"" -- the row named is the row pressed, not a neighbour, and the rest of the page is unchanged)",android
+sleep,,,,,,1500000,let both labels redraw,android

@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P0 on Android: press "Reset" and read the @AppStorage value back off the page.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p0-android-final-20260903-083324.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Action files are written in points and the synthesiser
+# multiplies by the density. The "Reset" button's grey rectangle occupies pixels
+# x 732-945, y 1066-1166; its centre is pixel (838, 1116), which is point
+# (319, 425) -- the row below.
+#
+# Why Reset and not Increment. P0 increments its @AppStorage counter in onAppear,
+# so the number on screen at launch depends on how many times this APK has ever
+# been started on this emulator: 1 on the run that was measured, and higher on
+# every run after. An "Increment" row could therefore only claim "one more than
+# whatever it was", which no single capture can check. Reset writes a constant,
+# so the claim is a literal: the count line must read 0 and the status line must
+# name the action.
+#
+# One click, because it changes the page. The count line and the status line both
+# rewrite, and the status line changes length, so a second click in the same file
+# would be judged against a page the first click had already moved.
+#
+# P0 於 Android：按下「Reset」，再從畫面上讀回 @AppStorage 的值。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p0-android-final-20260903-083324.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，因此視窗為 411 x 914 點。
+# 動作檔以「點」書寫，synthesiser 會再乘上 density。「Reset」按鈕的灰色矩形佔據像素
+# x 732-945、y 1066-1166，中心為像素 (838, 1116)，即點 (319, 425)——也就是下方那一列。
+#
+# 為何選 Reset 而非 Increment。P0 在 onAppear 中就會遞增它的 @AppStorage 計數，因此啟動時畫面上
+# 的數字取決於這支 APK 在本 emulator 上總共被啟動過幾次：量測當次是 1，之後每一次都會更高。
+# 「Increment」列因此只能主張「比原本多一」，而單一張截圖無法查證這件事。Reset 寫入的是常數，
+# 所以主張可以是一個字面值：計數那一行必須讀作 0，狀態行必須寫出該動作的名稱。
+#
+# 只按一次，因為這一按會改變版面：計數行與狀態行都會重寫，且狀態行長度改變，因此同一檔中的第二次
+# 點擊，將是對「已被第一次點擊移動過的頁面」下判斷。
+sleep,,,,,,1500000,let P0 render,android
+click,319,425,,left,,,"Reset -- the count line must read ""Launch count stored in @AppStorage: 0"" and the status line must read ""Reset @AppStorage"" (VERIFIED 2026-09-03 in p0-android-final-20260903-083547.png: the count line reads 0 where it read 1 before the tap, the status line reads ""Reset @AppStorage"" where it read ""Window appeared. Incremented @AppStorage to 1."", and every other row of the page is unchanged)",android
+sleep,,,,,,1200000,let the two labels redraw,android

@@ -1,0 +1,55 @@
+action,x,y,origin,button,key,micros,note,platform
+# P2 on Android: switch "Use expanded Picker options" on and read the option
+# count back off the page.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p2-android-final-20260903-084203.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The toggle's widget occupies pixels x 30-683, y 126-193; its centre
+# is pixel (356, 159) = point (136, 61) -- the row below.
+#
+# This is issue #449's check, and the app states it as a number rather than as a
+# picture: the summary line reads
+#
+#     Selected: Vanilla, options: 2, changes: 0
+#
+# and the toggle swaps a two-item option list for a five-item one, so after the
+# tap the same line has to read "options: 5". "Selected:" must stay Vanilla and
+# "changes:" must stay 0, because neither the selection nor the change count is
+# what the toggle touches -- a picker that reset its selection while rebuilding
+# its options would show up right there.
+#
+# This is deliberately one of the widening controls. The longest new option is
+# "Coffee" against a previous longest of "Chocolate", and the summary line grows
+# by nothing, but the option list behind the picker does change size. The Android
+# blanking defect -- a state change needing more width emptying the window -- was
+# fixed on 2026-09-03, so this row is pressed on purpose rather than avoided.
+#
+# What this file cannot claim, because the launch capture already shows it: P2 is
+# authored 620 points wide and the window is 411, so the page is cut off at both
+# sides at launch and the title row sits above the top edge. Every coordinate
+# here was read from the page in that state, not from an uncut one.
+#
+# P2 於 Android：把「Use expanded Picker options」打開，再從畫面讀回選項數。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p2-android-final-20260903-084203.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。該 toggle 的 widget 佔據像素 x 30-683、y 126-193，
+# 中心為像素 (356, 159)，即點 (136, 61)——也就是下方那一列。
+#
+# 這是 issue #449 的檢查，而本 app 是以數字而非圖像陳述它：摘要行原本讀作
+# 「Selected: Vanilla, options: 2, changes: 0」，而該 toggle 會把兩項的選項清單換成五項的，
+# 因此點擊後同一行必須讀作「options: 5」。「Selected:」必須維持 Vanilla、「changes:」必須維持 0，
+# 因為選取項與變更次數都不是該 toggle 所觸及之物——若某個 picker 在重建選項時把選取項重設了，
+# 那正好會顯示在那一行上。
+#
+# 此處刻意選用一個會加寬內容的控制項。新選項中最長的是「Coffee」，先前最長的是「Chocolate」，
+# 摘要行本身不變長，但 picker 背後的選項清單確實改變了大小。Android 上「狀態改變需要更多寬度即
+# 使視窗變空白」的缺陷已於 2026-09-03 修正，因此本列是刻意按下的，而非刻意避開的。
+#
+# 本檔無法主張、而啟動截圖已顯示的事：P2 的版面寬度寫作 620 點而視窗只有 411 點，因此頁面在啟動
+# 時左右兩側即被切斷，標題列位於上緣之外。此處每一個座標都是從該狀態下的頁面量得，而非從一個
+# 未被切斷的頁面。
+sleep,,,,,,1500000,let P2 render,android
+click,136,61,,left,,,"Use expanded Picker options -- the summary line must change from ""options: 2"" to ""options: 5"" while ""Selected: Vanilla"" and ""changes: 0"" stay as they are (VERIFIED 2026-09-03 in p2-android-final-20260903-084332.png: the line reads ""Selected: Vanilla, options: 5, changes: 0"" where it read ""options: 2"" before the tap, the toggle is drawn in its on state, the picker still shows Vanilla, and the page did not blank -- it is cut off at the sides exactly as it was at launch and no more)",android
+sleep,,,,,,1500000,let the picker rebuild its options,android

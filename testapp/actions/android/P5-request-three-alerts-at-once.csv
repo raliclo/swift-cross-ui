@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P5 on Android: request Alert A, B and C in one action and see which one the
+# backend puts on screen (#675).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p5-android-final-20260903-085520.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Show A+B+C at once" occupies pixels x 296-783, y 1494-1596; its
+# centre is pixel (539, 1545) = point (206, 589) -- the row below.
+#
+# That button rather than "Show Alert A". The three single-alert buttons sit on
+# one row that P5 lays out wider than this window: at launch "Show Alert A" is
+# entirely off the left edge and "Show Alert C" is cut in half at the right, so
+# only B has a centre this file could name. "Show A+B+C at once" is on its own
+# row, fully on screen, and it is also the only control that exercises what #675
+# is about -- it sets all three isPresented flags in a single update, so the
+# backend has to decide what to do with three simultaneous requests instead of
+# being handed them one at a time.
+#
+# What a capture can say. Android's AlertDialog is modal, so the honest claim is
+# about the first of the three: an alert must be on screen, the page behind it
+# must be dimmed but still legible, and the status line under the buttons must
+# have changed from "Ready." to "Main: requesting A, B and C together". Whether B
+# and C are queued behind A or were dropped cannot be read from one still, and
+# this file does not claim it -- that needs a second file that dismisses A and
+# looks again, written from a capture of the dialog whose OK button this one
+# cannot yet locate.
+#
+# One click, and it is the only one possible: the alert covers the page it was
+# pressed from.
+#
+# P5 於 Android：在單一動作中同時請求 Alert A、B、C，看 backend 把哪一個放上畫面（#675）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p5-android-final-20260903-085520.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Show A+B+C at once」佔據像素 x 296-783、
+# y 1494-1596，中心為像素 (539, 1545)，即點 (206, 589)——下方那一列。
+#
+# 選這個按鈕而非「Show Alert A」。三個單一 alert 的按鈕位於同一列，而 P5 把該列排得比本視窗更寬：
+# 啟動時「Show Alert A」完全位於左緣之外，「Show Alert C」在右側被切掉一半，因此只有 B 有一個本檔
+# 能指名的中心點。「Show A+B+C at once」自成一列、完整位於畫面內，而且它也是唯一能觸及 #675 核心
+# 的控制項——它在單一次更新中把三個 isPresented 全部設為真，因此 backend 必須決定如何處理三個同時
+# 到達的請求，而不是被逐一交付。
+#
+# 一張截圖能說什麼。Android 的 AlertDialog 是 modal 的，因此誠實的主張是關於三者中的第一個：畫面上
+# 必須有一個 alert、其後方頁面必須被調暗但仍可辨讀，且按鈕下方的狀態行必須從「Ready.」變為
+# 「Main: requesting A, B and C together」。至於 B 與 C 是排在 A 之後、還是被丟棄了，單一張靜態
+# 截圖讀不出來，本檔也不主張——那需要另一份會關掉 A 再看一次的檔案，而它必須寫自一張本檔尚無法
+# 定位其 OK 按鈕的對話框截圖。
+#
+# 只按一次，而且也只能按一次：alert 會蓋住它被按下的那一頁。
+sleep,,,,,,1500000,let P5 render,android
+click,206,589,,left,,,"Show A+B+C at once -- an alert must appear over the page and the status line must change from ""Ready."" to ""Main: requesting A, B and C together"" (VERIFIED 2026-09-03 in p5-android-final-20260903-085645.png: a white AlertDialog is on screen over a dimmed but fully legible page and the status line reads ""Main: requesting A, B and C together"". Measured and worth recording: the dialog on top is titled ""Alert C (Main)"", not A -- the last of the three requested, which is what the button labels ""stacks on A"" and ""stacks on A+B"" describe, so the topmost alert is the one that stacked last. Whether A and B are still behind it is not visible in a still and is not claimed here)",android
+sleep,,,,,,1500000,let the alert present,android

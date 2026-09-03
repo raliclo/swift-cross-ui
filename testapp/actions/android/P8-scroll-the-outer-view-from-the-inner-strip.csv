@@ -1,0 +1,66 @@
+action,x,y,origin,button,key,micros,note,platform
+# P8 on Android: start a vertical drag on the inner horizontal strip and check
+# that the outer vertical ScrollView is what moves (#426).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p8-android-final-20260903-085915.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# The launch positions every claim below is measured against, as pixel bands of
+# dark text down the middle of the page:
+#
+#   1247-1290  "#426 horizontal strip inside a vertical scroll view" (the header,
+#              outside the scroll view, so it must not move)
+#   1336-1369  Outer row 0
+#   1451-1484  Outer row 1
+#   1567-1600  Outer row 2
+#   1682-1715  Outer row 3
+#   1814-1847  the H0..H8 strip
+#
+# The strip's centre is pixel y 1830 = point 697, and point x 205 = pixel 538
+# falls between H4 and H5, so the `move` row parks on the strip and nowhere else.
+#
+# Why the drag starts there. #426 is that a horizontal ScrollView swallows the
+# scroll input belonging to the vertical ScrollView it sits inside, so the outer
+# view stops moving whenever the pointer is over the inner one. Starting the drag
+# on an ordinary row would move the outer view on any backend and would say
+# nothing about the issue. Starting it on the strip is the issue.
+#
+# On Android `scroll` is a drag, not a wheel: the synthesiser converts each notch
+# to 40 points and inverts the sign, so `0,2` presses at the strip and drags 210
+# pixels upwards, which asks the outer view to move down by 80 points.
+#
+# Two things have to be true at once, and the second is what stops a passing
+# capture from being an accident: the outer rows must move, and the strip must
+# not have scrolled sideways -- H0 must still be the leftmost label, at the same x
+# as at launch. A backend where the inner view took the gesture and turned it into
+# horizontal travel would move H0 off the left edge.
+#
+# P8 於 Android：從內層水平長條上開始一次垂直拖曳，確認移動的是外層的垂直 ScrollView（#426）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p8-android-final-20260903-085915.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# 下列所有主張所比對的啟動位置，以頁面中央深色文字的像素帶表示（如上方英文所列）：標題帶
+# 1247-1290 位於捲動視圖之外，因此不得移動；Outer row 0 至 3 分別位於 1336、1451、1567、1682；
+# H0..H8 長條位於 1814-1847。
+#
+# 長條的中心為像素 y 1830，即點 697；而點 x 205（像素 538）落在 H4 與 H5 之間，因此 `move` 這一列
+# 停駐之處只可能是該長條。
+#
+# 為何拖曳從那裡開始。#426 說的是：水平 ScrollView 會吞掉本該屬於其外層垂直 ScrollView 的捲動輸入，
+# 使得指標一旦位於內層之上，外層就不再移動。若從一般列開始拖曳，任何 backend 上外層都會移動，
+# 那對這個 issue 什麼也沒說。從長條上開始，才是這個 issue 本身。
+#
+# 在 Android 上 `scroll` 是拖曳而非滾輪：synthesiser 把每一格換算為 40 點並反轉符號，因此 `0,2`
+# 會在長條上按下並向上拖曳 210 像素，也就是要求外層視圖向下移動 80 點。
+#
+# 必須同時成立的有兩件事，而第二件正是讓「通過的截圖」不至於是巧合的關鍵：外層各列必須移動，
+# 而長條不得橫向捲動——H0 必須仍是最左的標籤，且 x 與啟動時相同。若某個 backend 讓內層接走該手勢
+# 並把它變成水平位移，H0 會被推出左緣。
+sleep,,,,,,1500000,let P8 render,android
+move,205,697,,,,,park between H4 and H5 on the inner horizontal strip,android
+scroll,0,2,,,,,"drag up 210 px from the strip -- the outer rows must move up and H0 must stay the leftmost label at its launch x, so the inner horizontal view did not swallow the gesture (VERIFIED 2026-09-03 in p8-android-final-20260903-090308.png against p8-android-final-20260903-085915.png: the strip moved from band 1814-1847 to 1631-1664, i.e. 183 px = 70 points against the 80 asked for -- the shortfall is Android's touch slop, which eats the first move of a drag; the visible rows went from 0,1,2,3+strip to 2,3,strip,5,6, so #426 does NOT reproduce on AndroidBackend -- the drag that started on the horizontal strip moved the outer vertical view; the strip's dark pixels still run x 14-1053 with H0 leftmost, exactly as at launch, so it did not scroll sideways; and the header band at 1247-1290, which is outside the scroll view, did not move)",android
+sleep,,,,,,1500000,let the scroll settle,android

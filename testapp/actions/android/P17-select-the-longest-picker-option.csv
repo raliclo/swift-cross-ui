@@ -1,0 +1,54 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17 on Android: select the longest picker option and read the picker's own
+# reported size (#161).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p17-android-final-20260903-092252.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The three selection buttons share the band y 736-835: "Shortest"
+# at x 52-276, "Medium" at x 315-530, "Longest" at x 571-784. "Longest"'s centre
+# is pixel (677, 785) = point (258, 299) -- the row below.
+#
+# #161 asked in one number. The three options are "S", "A medium option", and "An
+# extremely long option label that dwarfs the others" -- deliberately very
+# different lengths, so a picker sized from its selected item changes width as
+# the selection moves and one sized from its largest item does not. P17 prints
+# the picker's measured size into the page rather than leaving it to be eyeballed:
+# at launch it reads "Selected: S" and "picker: 90 x 48", and the blue measurement
+# box behind that line runs pixels x 45-280, which is 235 px = 90 points, so the
+# printed number and the drawn box agree.
+#
+# This row moves the selection to the longest option. What must be true either
+# way: "Selected:" must name that option. What the row is actually for: the
+# number beside "picker:" afterwards. 90 means AndroidBackend sizes from the
+# largest item, which is the behaviour upstream leans towards; anything else means
+# it sizes from the selection. This file records which, because #161 is about
+# backends disagreeing and a single-backend answer is one half of the comparison.
+#
+# One click. The picker's own width is what is being measured, so a second
+# selection in the same file would leave one capture standing for two widths.
+#
+# P17 於 Android：選取最長的 picker 選項，並讀取 picker 自陳的尺寸（#161）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p17-android-final-20260903-092252.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。三個選取按鈕共用像素帶 y 736-835：「Shortest」位於
+# x 52-276、「Medium」位於 x 315-530、「Longest」位於 x 571-784。「Longest」的中心為像素
+# (677, 785)，即點 (258, 299)——下方那一列。
+#
+# 用一個數字問出 #161。三個選項分別是「S」、「A medium option」與「An extremely long option label
+# that dwarfs the others」——長度刻意差異極大，因此「依選取項決定大小」的 picker 會隨選取改變寬度，
+# 而「依最大項決定大小」的則不會。P17 把 picker 的實測尺寸印在頁面上，而不是留給人用眼睛判斷：
+# 啟動時它讀作「Selected: S」與「picker: 90 x 48」，而該行背後的藍色量測方塊佔據像素 x 45-280，
+# 即 235 像素 = 90 點，印出的數字與畫出的方塊一致。
+#
+# 本列把選取項移到最長的選項。無論如何都必須成立的是：「Selected:」必須寫出該選項。而本列真正的
+# 用途，是其後「picker:」旁邊的那個數字。若仍是 90，代表 AndroidBackend 依最大項決定大小，也就是
+# upstream 傾向的行為；若不是，代表它依選取項決定大小。本檔記錄的是哪一種，因為 #161 談的是
+# backend 之間的分歧，而單一 backend 的答案只是這場比較的一半。
+#
+# 只按一次。被量測的正是 picker 自身的寬度，因此同一檔中的第二次選取，會讓單一張截圖同時代表
+# 兩個寬度。
+sleep,,,,,,1500000,let P17 render,android
+click,258,299,,left,,,"Longest -- ""Selected:"" must name the long option, and the ""picker:"" line records the width AndroidBackend gives it: 90 would mean sized from the largest item, anything else means sized from the selection (VERIFIED 2026-09-03 in p17-android-final-20260903-092424.png: ""Selected: An extremely long option label that dwarfs the others"" and ""picker: 469 x 48"". ANSWER FOR #161 ON ANDROID: sized from the selected item. The width went from 90 to 469 points on a selection change, so it is not sized from the largest item; and 469 is wider than the 411-point window, so the picker now runs past both edges and the whole page is cut at the left. The height stayed 48. The page did not blank on a state change that asked for 469 points of width where 90 had been enough)",android
+sleep,,,,,,1500000,let the picker resize,android

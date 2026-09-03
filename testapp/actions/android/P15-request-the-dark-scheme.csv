@@ -1,0 +1,56 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15 on Android: press "Dark" and check that the window actually goes dark
+# (#386).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p15-android-final-20260903-091548.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The three scheme buttons share the band y 774-873: "System" at
+# x 154-367, "Light" at x 406-619, "Dark" at x 659-872. "Dark"'s centre is pixel
+# (765, 823) = point (292, 314) -- the row below.
+#
+# The emulator's ambient scheme is light, and P15 says so at launch: the line
+# above the buttons reads "Requested: system   Resolved: light" and the mean
+# luminance of the content area (pixel rows 120-2350, sampled every third pixel)
+# is 242 out of 255. That pair is what makes a single press of "Dark" worth
+# something here. P15's own header warns that pressing Dark alone proves nothing
+# under a dark desktop, because the window was already dark; under this emulator's
+# light ambient it is the whole test, and the round trip the header asks for --
+# Light and then Dark -- would need a second file.
+#
+# Two claims, and the second is the one that cannot be faked by a label: the line
+# must read "Requested: dark   Resolved: dark", and the mean luminance of the same
+# content area must fall to a dark value. A backend that recorded the request and
+# did not repaint would move the words and leave the number at 242. That is the
+# exact failure #386 describes -- text keeping its light-mode colours while the
+# background changes, or the request being accepted and ignored.
+#
+# One click. The whole page repaints -- or rather, it should. It did not: see the
+# result recorded on the click row below, which is the reason this file is kept.
+# A file that claims nothing passes while the feature is broken; this one claims
+# something and records that the claim failed.
+#
+# P15 於 Android：按下「Dark」，確認視窗真的變暗（#386）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p15-android-final-20260903-091548.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。三個配色按鈕共用像素帶 y 774-873：「System」位於
+# x 154-367、「Light」位於 x 406-619、「Dark」位於 x 659-872。「Dark」的中心為像素 (765, 823)，
+# 即點 (292, 314)——下方那一列。
+#
+# 該 emulator 的環境配色是淺色，而 P15 在啟動時就這麼說：按鈕上方那行讀作
+# 「Requested: system   Resolved: light」，而內容區（像素列 120-2350，每三個像素取樣一次）的平均
+# 亮度為 242（滿值 255）。正是這一組數值，使得在此處單按一次「Dark」有其意義。P15 自身的表頭提醒：
+# 在深色桌面下單獨按 Dark 什麼也證明不了，因為視窗本來就是深色的；而在本 emulator 的淺色環境下，
+# 它就是整個測試。表頭所要求的那趟來回——先 Light 再 Dark——需要另一份檔案。
+#
+# 兩項主張，而第二項是標籤偽造不了的：該行必須讀作「Requested: dark   Resolved: dark」，且同一塊
+# 內容區的平均亮度必須降到一個深色的值。若某個 backend 只記錄了請求而沒有重繪，它會讓文字改變、
+# 而數字停在 242。那正是 #386 所描述的失敗——文字保留淺色模式的配色，或請求被接受卻被忽略。
+#
+# 只按一次。整頁都會重繪——或者說，本應如此。實際上並沒有：見下方點擊列所記錄的結果，那正是本檔
+# 被保留下來的理由。一份什麼都不主張的檔案，會在功能損壞時照樣通過；這一份提出了主張，並記下
+# 該主張未能成立。
+sleep,,,,,,1500000,let P15 render,android
+click,292,314,,left,,,"Dark -- the line above the buttons must read ""Requested: dark   Resolved: dark"" and the mean luminance of pixel rows 120-2350 must fall well below the 242 measured at launch (REPLAYED 2026-09-03; THE SECOND HALF OF THIS CLAIM IS FALSE ON AndroidBackend. In p15-android-final-20260903-091708.png the line reads ""Requested: dark   Resolved: light"" and the mean luminance of the same content area is 241.8 against 242.2 at launch -- a change of 0.4, i.e. nothing repainted. The tap landed: ""Requested:"" moved from system to dark, so this is not a missed coordinate. The window simply did not follow. Sources/AndroidBackend/AndroidBackend.swift:125 declares canOverrideWindowColorScheme = false, and it is the only one of the five shipped backends that does -- GtkBackend, WinUIBackend, AppKitBackend and UIKitBackend all declare true. So #386 is open on Android: the request is accepted, recorded, displayed, and ignored)",android
+sleep,,,,,,1800000,let the window repaint in the new scheme,android

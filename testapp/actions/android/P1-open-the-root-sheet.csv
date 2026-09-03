@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P1 on Android: press "Open root sheet" and check that the sheet arrives.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p1-android-final-20260903-083739.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates here are points and the synthesiser multiplies
+# by the density. "Open root sheet" is the fourth grey rectangle, pixels
+# x 348-727, y 1306-1407; its centre is pixel (537, 1356) = point (205, 517).
+#
+# The sheet rather than a dialog. The three dialog buttons above it hand the
+# check over to Android's own document picker, which is a separate activity from
+# another package: a capture of it says that Android's picker opened, not that
+# SwiftCrossUI's sheet presentation works, and dismissing it needs a coordinate
+# on a UI this file cannot measure in advance. The sheet is drawn by the backend
+# under test, so what a capture shows is the thing being tested.
+#
+# What the sheet must show, all of it readable off one capture: the sheet is
+# given .presentationBackground(.green) and .padding(0), and its content is a red
+# 160 x 20 bar, the words "Root sheet", the sentence about the red bar touching
+# the content edge, and the buttons "Open nested sheet" and "Dismiss root sheet".
+#
+# One click, because the sheet covers the page it was pressed from. Anything
+# after it would be aimed at coordinates the sheet has since taken over.
+#
+# P1 於 Android：按下「Open root sheet」，確認 sheet 確實出現。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p1-android-final-20260903-083739.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 此處座標為點，synthesiser 會再乘上 density。「Open root sheet」是第四個灰色矩形，像素為
+# x 348-727、y 1306-1407，中心為像素 (537, 1356)，即點 (205, 517)。
+#
+# 選 sheet 而非 dialog。上方三個 dialog 按鈕會把檢查交給 Android 自己的 document picker，那是
+# 另一個套件的 activity：對它截圖只能說明「Android 的 picker 開了」，而不是「SwiftCrossUI 的
+# sheet 呈現可用」；且要關掉它需要一個本檔無法事先量測的座標。sheet 由受測的 backend 自行繪製，
+# 因此截圖看到什麼，就是受測之物的樣子。
+#
+# sheet 必須顯示的內容，全部都能從單一張截圖讀出：該 sheet 帶有 .presentationBackground(.green)
+# 與 .padding(0)，其內容為一條 160 x 20 的紅色長條、「Root sheet」字樣、關於紅條應貼齊內容邊緣的
+# 那句話，以及「Open nested sheet」與「Dismiss root sheet」兩個按鈕。
+#
+# 只按一次，因為 sheet 會蓋住它被按下的那一頁；其後的任何一列，都會瞄準已被 sheet 接管的座標。
+sleep,,,,,,1500000,let P1 render,android
+click,205,517,,left,,,"Open root sheet -- a sheet must appear carrying a red bar, the words ""Root sheet"", and the buttons ""Open nested sheet"" and ""Dismiss root sheet"" (VERIFIED 2026-09-03 in p1-android-final-20260903-083844.png: a green sheet rose from the bottom edge with the red bar flush against its top, ""Root sheet"" below it, and both buttons present; the page behind is dimmed but intact. Also seen and NOT part of the claim: the sheet's explanatory sentence is drawn on one unwrapped line and runs off both edges, reading ""r should touch the sheet content edge if padding wa"" -- that is a text-wrapping observation for the tree, not a failure of this row)",android
+sleep,,,,,,1500000,let the sheet present,android

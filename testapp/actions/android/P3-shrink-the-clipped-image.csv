@@ -1,0 +1,82 @@
+action,x,y,origin,button,key,micros,note,platform
+# P3 on Android: press "Small" and check that the image is rescaled inside a
+# frame that keeps clipping it (#389).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p3-android-final-20260903-084625.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Small" is the left button of the size row, pixels x 755-965,
+# y 1001-1096; its centre is pixel (860, 1048) = point (328, 399).
+#
+# The numbers this row is judged by, all of them off the capture. The test image
+# is 160 x 100 source pixels with a 10-pixel checker, so 16 cells across and 10
+# down. It is drawn into a frame of 220 x 140 points -- 578 x 367 device pixels --
+# which is also what cornerRadius(0) clips it to.
+#
+#   Large (2.4x): image 528 x 336 pt, cell 33 pt = 87 px. Measured at launch: the
+#                 coloured band runs y 581-948, i.e. 367 px tall, and its cells
+#                 are about 86 px. So the image already overflows the frame and
+#                 is already clipped to exactly 140 points of height.
+#   Small (1.0x): image 220 x 140 pt, exactly the frame. Cell 13.75 pt = 36 px.
+#
+# So the claim is a pair, and the second half is what makes it a clipping test
+# rather than a resize test: the cells must get about 2.4 times smaller, and the
+# coloured band must still be 367 px tall. A frame that grew with its content
+# would fail the second half while passing the first.
+#
+# One click. The button row does not move, but the image it controls does, and a
+# second size pressed in the same file would leave one capture standing for two
+# different states.
+#
+# Two things about this page that no row here can fix, both present at launch and
+# both also present on iOS -- compared against
+# testapp/output/screenshots/p3-ios-final-20260902-135421.png:
+#
+#   - P3 is authored 960 points wide (220 + 220 + the rest) and the window is 411,
+#     so the third column is most of the way off the right edge and the size row
+#     is cut after "Small" and part of "Medium".
+#   - Every Text on this page is drawn in the default black over the columns'
+#     .background(Color.black), so the labels are invisible. That is why this file
+#     claims something about the image and not about the "Image size:" line
+#     underneath it: that line is present in the view tree and unreadable on
+#     screen.
+#
+# One thing that differs from iOS and is worth someone's attention: iOS draws the
+# middle column's List as an opaque white table, so "Detail A/B/C" can be read
+# there. On Android nothing of either List is visible at all.
+#
+# P3 於 Android：按下「Small」，確認影像是在一個仍持續裁切它的框內被重新縮放（#389）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p3-android-final-20260903-084625.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Small」是尺寸列最左的按鈕，像素為 x 755-965、
+# y 1001-1096，中心為像素 (860, 1048)，即點 (328, 399)。
+#
+# 判斷本列所依據的數字，全部讀自截圖。測試影像的原始大小為 160 x 100 像素、棋盤格為 10 像素，
+# 因此橫向 16 格、縱向 10 格。它被畫進一個 220 x 140 點（即 578 x 367 裝置像素）的框中，而
+# cornerRadius(0) 也正是把它裁切到這個大小。
+#
+#   Large（2.4 倍）：影像 528 x 336 點，格子 33 點 = 87 像素。啟動時實測：彩色區塊自 y 581 至 948，
+#                    即 367 像素高，格子約 86 像素。可見影像已溢出該框，且已被裁切至恰好 140 點高。
+#   Small（1.0 倍）：影像 220 x 140 點，恰為該框大小。格子 13.75 點 = 36 像素。
+#
+# 因此主張是成對的，而使它成為「裁切測試」而非「縮放測試」的是後半：格子必須縮小約 2.4 倍，而彩色
+# 區塊必須仍為 367 像素高。一個會隨內容長大的框，會通過前半而在後半失敗。
+#
+# 只按一次。按鈕列本身不會移動，但它所控制的影像會；同一檔中再按第二個尺寸，會讓單一張截圖同時
+# 代表兩個不同的狀態。
+#
+# 本頁有兩件事是這裡任何一列都無法補救的，兩者在啟動時即存在，且在 iOS 上同樣存在——比對對象為
+# testapp/output/screenshots/p3-ios-final-20260902-135421.png：
+#
+#   - P3 的版面寬度寫作 960 點（220 + 220 + 其餘），而視窗只有 411 點，因此第三欄大部分位於右緣
+#     之外，尺寸列在「Small」與半個「Medium」之後即被切斷。
+#   - 本頁每一個 Text 都以預設的黑色畫在各欄的 .background(Color.black) 之上，因此那些標籤是看不見的。
+#     這正是本檔選擇對影像下主張、而不對其下方那行「Image size:」下主張的理由：那一行存在於 view
+#     tree 中，卻在畫面上無法閱讀。
+#
+# 有一項與 iOS 不同、值得有人留意：iOS 會把中間欄的 List 畫成不透明的白色表格，因此在那裡讀得到
+# 「Detail A/B/C」。在 Android 上，兩個 List 完全看不見任何東西。
+sleep,,,,,,1500000,let P3 render,android
+click,328,399,,left,,,"Small -- the checker cells must shrink from about 86 px to about 36 px while the coloured band stays 367 px (140 points) tall, so the frame is still clipping (VERIFIED 2026-09-03 in p3-android-final-20260903-084917.png against p3-android-final-20260903-084625.png: along the scan line y=700 the cell edges moved from 858/945/1031 -- spacings 87 and 86 px -- to 865/901/937/973/1009/1045, spacings of 36 px throughout, which is the 2.4 ratio the two scales predict; the coloured band measured 367 px tall before and 361 px after, so it did not grow -- the 6 px is the image's own near-black top and bottom rows blending into the black frame at 1.0x, where at 2.4x those rows were outside the frame and the edge was a hard clip)",android
+sleep,,,,,,1500000,let the image resize,android

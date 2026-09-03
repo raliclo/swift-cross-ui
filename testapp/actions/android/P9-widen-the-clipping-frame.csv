@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P9 on Android: press "Wider" and check that the blue frame grows by exactly the
+# 40 points it was asked for (#295).
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p9-android-final-20260903-090414.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The three width buttons share the band y 1489-1591; "Narrower" is
+# cut off at the left edge at x 0-103, "Wider" is whole at x 142-355 and "Zero
+# width" at x 394-663. "Wider"'s centre is pixel (248, 1540) = point (95, 587).
+#
+# At launch the blue band -- the Color.blue background that marks the frame the
+# text was given -- occupies pixels x 0-380, y 1285-1457, and the line above it
+# reads "#295 text clipped to its given width (200 px)". Its left edge is off
+# screen, so the measurement that matters is the right edge: 380.
+#
+# This is deliberately a widening control, and it is the one that would have hit
+# the Android blanking defect hardest -- clipWidth goes from 200 to 240, so the
+# content asks for more width than it had. That defect was fixed on 2026-09-03 by
+# supplying the missing windowSizeIsFinal argument in WindowReference.swift, so
+# this row is pressed on purpose. If the page comes back empty, that is a new
+# finding and this note is wrong.
+#
+# What has to be true: the header line must read "(240 px)", and the blue band's
+# right edge must move right by 40 points = 105 pixels, from 380 to about 485.
+# The second half is the point. #295 is that a Text refuses to shrink past its own
+# text and pushes its container wider, so the band is the container's real width
+# and the number in the header is what it was asked for; a band that grew by
+# something other than 105 pixels means the two have come apart.
+#
+# One click. The band moves and the text inside it re-wraps, so a second press
+# would be judged against a page the first had already changed.
+#
+# P9 於 Android：按下「Wider」，確認藍色框恰好長大它被要求的那 40 點（#295）。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p9-android-final-20260903-090414.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。三個寬度按鈕共用像素帶 y 1489-1591：「Narrower」
+# 在左緣被切掉，位於 x 0-103；「Wider」完整位於 x 142-355；「Zero width」位於 x 394-663。
+# 「Wider」的中心為像素 (248, 1540)，即點 (95, 587)。
+#
+# 啟動時，藍色帶——標示文字所獲得之框的 Color.blue 背景——佔據像素 x 0-380、y 1285-1457，其上一行
+# 讀作「#295 text clipped to its given width (200 px)」。它的左緣在畫面之外，因此真正能量的是
+# 右緣：380。
+#
+# 此處刻意選用一個會加寬內容的控制項，而它也正是最會撞上 Android 空白缺陷的那一個——clipWidth 由
+# 200 變為 240，內容要求的寬度比原本更多。該缺陷已於 2026-09-03 藉由在 WindowReference.swift 補上
+# 缺漏的 windowSizeIsFinal 引數修正，因此本列是刻意按下的。若頁面變成空白，那是一項新發現，
+# 而本註解是錯的。
+#
+# 必須成立的是：標題行必須讀作「(240 px)」，且藍色帶的右緣必須向右移動 40 點 = 105 像素，由 380
+# 移至約 485。重點在後半。#295 說的是 Text 拒絕縮小到比自身文字更窄、因而把容器撐寬；因此藍色帶是
+# 容器的真實寬度，而標題中的數字是它被要求的寬度。若藍帶長大的量不是 105 像素，代表兩者已經脫節。
+#
+# 只按一次。藍帶會移動、其中的文字會重新換行，因此第二次按下將是對「已被第一次改變過的頁面」下判斷。
+sleep,,,,,,1500000,let P9 render,android
+click,95,587,,left,,,"Wider -- the header must read ""(240 px)"" and the blue band's right edge must move from pixel 380 to about 485, which is the 40 points asked for (VERIFIED 2026-09-03 in p9-android-final-20260903-090557.png: the header reads ""#295 text clipped to its given width (240 px)"" and the blue band now runs x 0-485 where it ran x 0-380, a move of exactly 105 pixels; the band is still 173 px tall and the text inside it re-wrapped within the frame rather than spilling past it. The page did not blank: 220228 non-white pixels across the frame after a state change that asked for more width)",android
+sleep,,,,,,1500000,let the frame and its text re-lay out,android

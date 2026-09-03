@@ -1,0 +1,57 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20 on Android: open the top level of the nested menu and record what the first
+# level contains.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p20-android-final-20260903-093440.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Open the menu" is the only control on the page: pixels x 54-417,
+# y 1109-1210, centre pixel (235, 1159) = point (90, 442) -- the row below.
+#
+# Level one declares, in order:
+#
+#   Button("Level 1 item")
+#   Button("Disabled item").disabled(true)
+#   Divider()
+#   Menu("Level 2 submenu")            <- which itself contains Level 3 submenu
+#
+# so a single open shows the whole first level plus the entry to the second. The
+# claim is that list, and the disabled item is the part worth stating separately:
+# it must be there and it must be drawn differently from "Level 1 item" beside it.
+# One dimmed item on its own proves nothing, because the whole menu could be drawn
+# that way; the pair is the instrument. Its action writes
+# "disabled item -- THIS MUST NOT HAPPEN" into the page, so if that string ever
+# appears under the button, a click reached an item that refused it.
+#
+# What this file stops at, and why. Levels two and three are behind
+# "Level 2 submenu", and where AndroidBackend puts a submenu -- as a second popup,
+# in place of the first, or not at all -- is exactly what is not known yet. There
+# is no coordinate for it to aim at until a capture of this menu exists, which is
+# what this run produces. A file that guessed at the submenu's position would
+# press whatever is at that point and report the result as a submenu test.
+#
+# One click, and only one is possible: the popup covers the page it was opened
+# from.
+#
+# P20 於 Android：開啟這個巢狀選單的第一層，並記錄第一層包含了什麼。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p20-android-final-20260903-093440.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Open the menu」是本頁唯一的控制項：像素
+# x 54-417、y 1109-1210，中心為像素 (235, 1159)，即點 (90, 442)——下方那一列。
+#
+# 第一層依序宣告的內容如上方英文所列，因此單次開啟即可看到整個第一層，外加通往第二層的入口。
+# 主張就是那份清單，而其中的停用項目值得單獨陳述：它必須存在，且必須被畫得與其旁的「Level 1 item」
+# 不同。單獨一個變淡的項目本身什麼也證明不了，因為整個選單都有可能就是那樣畫的；這一對才是量測
+# 儀器。它的動作會把「disabled item -- THIS MUST NOT HAPPEN」寫進頁面，因此只要那串字出現在按鈕
+# 下方，就代表有一次點擊抵達了一個本該拒絕它的項目。
+#
+# 本檔為何到此為止。第二層與第三層藏在「Level 2 submenu」之後，而 AndroidBackend 會把子選單放在
+# 哪裡——另開一個 popup、取代原有的、或根本不出現——正是目前尚未知的事。在這個選單的截圖存在之前，
+# 沒有任何座標可供瞄準，而這次執行產生的正是那張截圖。一份對子選單位置用猜的檔案，只會按下那個
+# 座標上的任何東西，並把結果當成子選單測試回報。
+#
+# 只按一次，也只能按一次：popup 會蓋住它被開啟的那一頁。
+sleep,,,,,,1500000,let P20 render,android
+click,90,442,,left,,,"Open the menu -- a menu must appear showing Level 1 item, a Disabled item drawn visibly differently from it, a divider, and a Level 2 submenu entry, and no click may reach the disabled item (VERIFIED 2026-09-03 in p20-android-final-20260903-093611.png: all four are drawn, in the declared order, in a white popup anchored to the button's left edge and hanging below it. The disabled item is visibly distinct and by a measured margin: the darkest pixel of ""Level 1 item"" is 29 and of ""Level 2 submenu"" is 29, while the darkest pixel of ""Disabled item"" is 168 -- grey text against black. The submenu entry carries a right-pointing triangle at the popup's right edge, so on AndroidBackend the second level is reached by that row rather than being inlined. The two status lines are behind the popup, so they were read in a follow-up capture taken after dismissing the menu with adb KEYCODE_BACK -- a step outside this file -- and they read ""last action -> nothing yet"" and ""level 3 toggle -> false"", so no item fired and ""THIS MUST NOT HAPPEN"" never appeared)",android
+sleep,,,,,,1500000,let the menu present,android

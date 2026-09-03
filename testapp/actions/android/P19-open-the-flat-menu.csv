@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P19 on Android: open the flat menu and record which of its five item kinds the
+# backend actually draws.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p19-android-final-20260903-093039.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. "Open the menu" is the only control on the page: pixels x 54-417,
+# y 1059-1159, centre pixel (235, 1109) = point (90, 422) -- the row below.
+#
+# The menu declares one of every MenuItem kind except .submenu, which is P20's
+# job, in this order:
+#
+#   Button("Button item")
+#   Text("Text item, not clickable")
+#   Divider()
+#   Toggle("Toggle item", isOn: $toggleItem)
+#   Button("Second button item")
+#
+# So a single open shows the whole set side by side, and the claim is a list: all
+# five must be there, in that order, with the toggle showing its state -- the page
+# says "toggle item -> false" underneath, so the item must be drawn unchecked, not
+# merely present.
+#
+# The two lines under the button must not move. "last action -> nothing yet" and
+# "toggle item -> false" are what a later file will check after choosing an item;
+# opening a menu chooses nothing, so a backend that fired the first item while
+# presenting the menu would show up as "last action -> button item" here.
+#
+# One click. The menu covers the page it was opened from, and this file has no
+# coordinate inside the menu -- those have to be measured from a capture of the
+# menu itself, which is what this run produces.
+#
+# P19 於 Android：開啟這個扁平選單，並記錄 backend 實際畫出了其中哪幾種項目。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p19-android-final-20260903-093039.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。「Open the menu」是本頁唯一的控制項：像素
+# x 54-417、y 1059-1159，中心為像素 (235, 1109)，即點 (90, 422)——下方那一列。
+#
+# 該選單宣告了除 .submenu（那是 P20 的工作）以外的每一種 MenuItem，順序如上方英文所列。因此單次
+# 開啟即可並列看到完整集合，而主張是一份清單：五者都必須存在、順序正確，且 toggle 必須顯示其狀態
+# ——頁面下方寫著「toggle item -> false」，因此該項必須被畫成未勾選，而不只是「有出現」。
+#
+# 按鈕下方那兩行不得變動。「last action -> nothing yet」與「toggle item -> false」是日後另一份檔案
+# 在選取項目之後要檢查的對象；開啟選單並不選取任何東西，因此若某個 backend 在呈現選單的同時就觸發了
+# 第一個項目，這裡會顯示為「last action -> button item」。
+#
+# 只按一次。選單會蓋住它被開啟的那一頁，而本檔在選單內部沒有任何座標——那些座標必須量自選單自身的
+# 截圖，而這一次執行產生的正是那張截圖。
+sleep,,,,,,1500000,let P19 render,android
+click,90,422,,left,,,"Open the menu -- a menu must appear showing Button item, Text item not clickable, a divider, Toggle item drawn unchecked, and Second button item, in that order, while ""last action -> nothing yet"" and ""toggle item -> false"" stay as they are (VERIFIED 2026-09-03 in p19-android-final-20260903-093208.png: all five are drawn, in the declared order, in a white popup anchored to the button's left edge and hanging below it -- ""Button item"", ""Text item, not clickable"", a full-width hairline divider, ""Toggle item"" with an empty square checkbox at the popup's right, and ""Second button item"". The two status lines are behind that popup, so they were read in a follow-up capture taken after dismissing the menu with adb KEYCODE_BACK -- a step outside this file -- and they read ""last action -> nothing yet"" and ""toggle item -> false"", so presenting the menu fired nothing)",android
+sleep,,,,,,1500000,let the menu present,android

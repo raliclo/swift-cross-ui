@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P18 on Android: press "Open a file" and check that a file picker actually
+# arrives.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p18-android-final-20260903-092652.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The three buttons are stacked at the left margin: "Open a file"
+# at pixels x 54-320, y 962-1062; "Choose a folder" at x 54-433, y 1198-1299;
+# "Choose a save destination" at x 54-654, y 1434-1536. "Open a file"'s centre is
+# pixel (187, 1012) = point (71, 386) -- the row below.
+#
+# What this can claim and what it cannot. chooseFile on Android hands off to the
+# system document picker, which is another package's activity: it is drawn by
+# Android, not by AndroidBackend, so a capture of it says the hand-off happened
+# and says nothing about how the picker looks. That hand-off is the part that can
+# fail silently -- a backend that returned nil immediately would leave the page
+# exactly as it was and write "open -> Cancelled" on it, which is why the claim
+# below names both what must appear and what the line underneath the button must
+# still say.
+#
+# A picker that is up is a picker that has not returned. The first draft of this
+# file also asked for "open -> nothing yet" to be unchanged underneath it; the
+# run showed that cannot be checked, because Android's picker is opaque and
+# full screen and P18's page is not visible behind it at all. The claim was cut
+# back to what a capture can actually show, and the note on the row records why.
+# What is still ruled out is the silent failure: a chooseFile that returned
+# immediately would have left P18 on screen.
+#
+# One click, and only one is possible: the picker takes the screen, and this file
+# has no coordinate on it. Dismissing it and reading the result back needs a
+# second file written from a capture of the picker itself.
+#
+# P18 於 Android：按下「Open a file」，確認檔案選擇器確實出現。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p18-android-final-20260903-092652.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。三個按鈕沿左邊界堆疊：「Open a file」位於像素
+# x 54-320、y 962-1062；「Choose a folder」位於 x 54-433、y 1198-1299；「Choose a save
+# destination」位於 x 54-654、y 1434-1536。「Open a file」的中心為像素 (187, 1012)，
+# 即點 (71, 386)——下方那一列。
+#
+# 本檔能主張什麼、不能主張什麼。Android 上的 chooseFile 會交棒給系統的 document picker，那是另一個
+# 套件的 activity：它由 Android 繪製而非由 AndroidBackend 繪製，因此對它截圖只能說明「交棒發生了」，
+# 而說不出該 picker 長什麼樣。真正會無聲失敗的正是這次交棒——若某個 backend 立刻回傳 nil，頁面會
+# 原封不動並在上頭寫下「open -> Cancelled」。這就是下方主張同時指名「必須出現什麼」與「按鈕下方
+# 那一行必須仍然是什麼」的原因。
+#
+# 一個仍在畫面上的 picker，就是一個尚未回傳的 picker。本檔的初稿還要求其下方的
+# 「open -> nothing yet」維持不變；實際執行後發現那無法查證，因為 Android 的 picker 不透明且
+# 佔滿全螢幕，P18 的頁面在它後方完全看不見。主張因而被收斂為截圖真正能顯示的範圍，並在該列的
+# 註記中寫明原因。仍被排除掉的是那種無聲的失敗：若 chooseFile 立刻回傳，P18 會還留在畫面上。
+#
+# 只按一次，而且也只能按一次：picker 會佔滿畫面，而本檔在它上頭沒有任何座標。要關掉它並讀回結果，
+# 需要另一份寫自該 picker 自身截圖的檔案。
+sleep,,,,,,1500000,let P18 render,android
+click,71,386,,left,,,"Open a file -- a file picker must take the screen (VERIFIED 2026-09-03 in p18-android-final-20260903-092812.png: Android's document picker is in front, titled ""Recent"", with the Images/Audio/Videos/Documents chips, a ""Recent files"" heading and one entry, window.xml. The half of this claim about the line under the button had to be dropped after the run: the picker is opaque and full screen, so P18's own page is not visible behind it and ""open -> nothing yet"" cannot be read off this capture. What the capture does rule out is the silent failure the header describes -- a chooseFile that returned immediately would have left P18 on screen, and P18 is not on screen)",android
+sleep,,,,,,2000000,let the document picker come to the front,android

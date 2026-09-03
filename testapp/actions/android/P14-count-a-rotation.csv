@@ -1,0 +1,63 @@
+action,x,y,origin,button,key,micros,note,platform
+# P14 on Android: press "Count a rotation (0)" and read the width the app says it
+# was proposed.
+#
+# Measured 2026-09-03 from testapp/output/screenshots/p14-android-final-20260903-091159.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. The two buttons share the band y 1030-1130: "Clear history" at
+# x 49-357 and "Count a rotation (0)" at x 401-856. The second one's centre is
+# pixel (628, 1080) = point (239, 411) -- the row below.
+#
+# What this app can and cannot be asked on Android. P14 is written for #324, an
+# orientation change handing the content a proposal wider than the window, and an
+# action file cannot rotate a device: there is no verb for it and the runner does
+# not turn the emulator. So this file does not touch #324. What it does is check
+# the machinery #324 would be read through -- the app records the proposed width
+# it is given and stamps it into a line when the button is pressed -- because a
+# rotation test whose recorder is broken would report nothing and look calm.
+#
+# The number that recorder currently holds, and it is worth writing down: the
+# window is 411 points wide and the app reports "Current proposed width: 379",
+# with "Width history: 379" as the single entry. 32 points go somewhere between
+# the window and this subtree on AndroidBackend, and this file's claim carries
+# that 379 forward: pressing the button must produce "Marked rotation 1 at width
+# 379.", so the number in the status line and the number in the width line have
+# to be the same number.
+#
+# Two things must move together: the button's own label, which is built from the
+# counter, goes from "Count a rotation (0)" to "Count a rotation (1)", and the
+# status line at the top of the page replaces "Rotate the device. Widths are
+# logged as they arrive." with "Marked rotation 1 at width 379.". A button that
+# ran its action without rebuilding its label would move the second and not the
+# first.
+#
+# One click, because both lines rewrite.
+#
+# P14 於 Android：按下「Count a rotation (0)」，並讀取 app 自陳被提議的寬度。
+#
+# 2026-09-03 量自 testapp/output/screenshots/p14-android-final-20260903-091159.png。
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。兩個按鈕共用像素帶 y 1030-1130：「Clear history」
+# 位於 x 49-357，「Count a rotation (0)」位於 x 401-856。後者的中心為像素 (628, 1080)，
+# 即點 (239, 411)——下方那一列。
+#
+# 這支 app 在 Android 上能被問什麼、不能被問什麼。P14 是為 #324 而寫的——方向改變時內容收到比視窗
+# 更寬的提議——而動作檔無法旋轉裝置：既沒有對應的動詞，runner 也不會轉動 emulator。因此本檔完全
+# 不碰 #324。它做的是檢查「#324 將透過哪一套機制被讀出」——該 app 會記錄它所收到的提議寬度，並在
+# 按鈕被按下時把它蓋印進一行文字——因為一個記錄器壞掉的旋轉測試，會什麼都不報，而且看起來很平靜。
+#
+# 該記錄器目前持有的數字值得寫下來：視窗寬 411 點，而 app 回報「Current proposed width: 379」，
+# 且「Width history: 379」只有這一筆。在 AndroidBackend 上，有 32 點消失在視窗與這個子樹之間；
+# 本檔的主張把這個 379 帶了下去：按下按鈕必須產生「Marked rotation 1 at width 379.」，也就是狀態行
+# 裡的數字與寬度行裡的數字必須是同一個數字。
+#
+# 必須同時移動的有兩件事：按鈕自身的標籤（由計數建構）由「Count a rotation (0)」變為
+# 「Count a rotation (1)」，而頁面上方的狀態行把「Rotate the device. Widths are logged as they
+# arrive.」換成「Marked rotation 1 at width 379.」。若某個按鈕執行了它的動作卻沒有重建標籤，
+# 就會只有後者改變而前者不變。
+#
+# 只按一次，因為兩行都會重寫。
+sleep,,,,,,1500000,let P14 render,android
+click,239,411,,left,,,"Count a rotation (0) -- the button's label must become ""Count a rotation (1)"" and the status line must become ""Marked rotation 1 at width 379."", the same 379 the width line reports (VERIFIED 2026-09-03 in p14-android-final-20260903-091322.png: the button reads ""Count a rotation (1)"" and the status line reads ""Marked rotation 1 at width 379."", and ""Current proposed width: 379"" is unchanged. One thing the capture shows that this row did not predict and that is worth someone chasing: the width history went from ""379"" to ""379 -> 0 -> 379"". Pressing a counter is not a rotation and does not change any width, yet the GeometryReader was proposed a width of 0 in an intermediate pass before being given 379 again. That is a transient wrong proposal on an ordinary state change -- the same shape as #324 without any rotation involved -- measured on AndroidBackend)",android
+sleep,,,,,,1500000,let the label and the status line redraw,android
