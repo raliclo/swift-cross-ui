@@ -397,6 +397,41 @@ public final class AndroidBackend: BaseAppBackend {
         {
             environment.timeZone = timeZone
             environment.calendar = getCurrentCalendar(timeZone: timeZone)
+
+            // Foundation's own default as well, not only the environment's.
+            //
+            // `TimeZone.current` does not find the device's zone on Android --
+            // that is why these two lines exist at all. But an app does not
+            // only read `environment.timeZone`: a plain `DateFormatter` with no
+            // zone set uses Foundation's default, and there is no way for the
+            // app to know it has to override it. Measured 2026-09-03 on an
+            // emulator set to Asia/Taipei: P41 formatted 1756000000 as
+            // "2025-08-23" while its own date picker, which goes through
+            // `environment.timeZone`, showed 24 August. Both were reading the
+            // same instant. The app was not wrong; it asked Foundation and
+            // Foundation did not know.
+            //
+            // Assigned rather than worked around for the same reason
+            // `CommandLine.arguments` is in AndroidBackend+Arguments.swift: the
+            // platform does not populate something every Swift program expects
+            // to be populated, the backend is the one piece of code that knows
+            // the real value, and the alternative is every app carrying the
+            // workaround.
+            //
+            // 也設定 Foundation 自己的預設值，而不只是 environment 的。
+            //
+            // `TimeZone.current` 在 Android 上找不到裝置的時區——那正是上面這兩行存在的原因。但一支
+            // app 讀取的不只是 `environment.timeZone`：一個未設定時區的普通 `DateFormatter` 用的是
+            // Foundation 的預設值，而 app 沒有任何辦法知道自己必須覆寫它。2026-09-03 於設定為
+            // Asia/Taipei 的 emulator 上實測：P41 把 1756000000 格式化為「2025-08-23」，而它自己的
+            // 日期選擇器（走 `environment.timeZone`）顯示的是 8 月 24 日。兩者讀的是同一個瞬間。
+            // 那支 app 沒有錯；它問了 Foundation，而 Foundation 不知道。
+            //
+            // 選擇直接指派而非繞過，理由與 AndroidBackend+Arguments.swift 中的
+            // `CommandLine.arguments` 相同：平台沒有填入某個「每一支 Swift 程式都預期已被填入」的
+            // 東西，而 backend 是唯一知道真實值的那段程式碼；另一種做法是讓每一支 app 各自攜帶
+            // 這個變通。
+            NSTimeZone.default = timeZone
         } else {
             environment.calendar = getCurrentCalendar(timeZone: nil)
         }

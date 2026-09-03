@@ -15,6 +15,9 @@ class GraphicalDatePicker(context: Context) : AbstractDatePicker(context) {
 
     init {
         dateView.setOnDateChangedListener { _, year, month, day ->
+            if (isApplyingDate) {
+                return@setOnDateChangedListener
+            }
             currentValue = currentValue.withYear(year).withMonth(month + 1).withDayOfMonth(day)
 
             adjustTimeForBounds()
@@ -24,6 +27,9 @@ class GraphicalDatePicker(context: Context) : AbstractDatePicker(context) {
 
         timeView.setIs24HourView(DateFormat.is24HourFormat(context))
         timeView.setOnTimeChangedListener { _, hour, minute ->
+            if (isApplyingDate) {
+                return@setOnTimeChangedListener
+            }
             currentValue = currentValue.withHour(hour).withMinute(minute)
 
             adjustTimeForBounds()
@@ -40,6 +46,14 @@ class GraphicalDatePicker(context: Context) : AbstractDatePicker(context) {
         dateView.maxDate = Constants.EPOCH.until(max, ChronoUnit.MILLIS)
 
         adjustTimeForBounds()
+    }
+
+    protected override fun applyDate(value: LocalDateTime) {
+        isApplyingDate = true
+        dateView.updateDate(value.year, value.monthValue - 1, value.dayOfMonth)
+        timeView.hour = value.hour
+        timeView.minute = value.minute
+        isApplyingDate = false
     }
 
     private fun adjustTimeForBounds() {

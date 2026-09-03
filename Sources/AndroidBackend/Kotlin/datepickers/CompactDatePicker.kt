@@ -28,6 +28,14 @@ class CompactDatePicker(activity: FragmentActivity) : AbstractDatePicker(activit
             timeView.value = newValue.toLocalTime()
         }
 
+    // The two buttons already redraw themselves from a value they are given,
+    // which is why `.compact` never showed the defect this overrides.
+    // 這兩顆按鈕本來就會依所收到的值自行重繪，這正是 `.compact` 從未顯現此處所修正之缺陷的原因。
+    protected override fun applyDate(value: LocalDateTime) {
+        dateView.value = value.toLocalDate()
+        timeView.value = value.toLocalTime()
+    }
+
     protected override fun applyRange(min: LocalDateTime, max: LocalDateTime) {
         dateView.setRange(min, max)
         timeView.value = value.toLocalTime()
