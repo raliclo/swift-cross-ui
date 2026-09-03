@@ -121,8 +121,31 @@ public final class WinUIBackend:
     BackendFeatures.Windowing,
     BackendFeatures.WindowLevels,
     BackendFeatures.LinearGradients,
-    BackendFeatures.RadialGradients
+    BackendFeatures.RadialGradients,
+    BackendFeatures.GraphicsAdapters
 {
+    /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
+    ///
+    /// Here rather than in the extension because Swift has no stored properties
+    /// in extensions, which is the same reason `GtkBackend` keeps its copy in
+    /// the class body.
+    ///
+    /// Nothing assigns it yet on this backend. Said plainly instead of left to
+    /// be discovered: an external GPU being unplugged arrives as
+    /// `WM_DISPLAYCHANGE` or a DXGI factory going stale, and neither is wired
+    /// up here. The property exists so the conformance is complete and so the
+    /// day it is wired up is an addition rather than a protocol change.
+    ///
+    /// ``BackendFeatures/GraphicsAdapters/adapterRemoved`` 的儲存空間。
+    ///
+    /// 放在類別本體而非 extension，因為 Swift 的 extension 不能有儲存屬性——`GtkBackend` 把它的
+    /// 那一份放在類別本體，理由相同。
+    ///
+    /// **本 backend 目前沒有任何東西會指派它。** 明說出來，而不是留給人自己發現：外接 GPU 被拔除
+    /// 時，訊號會是 `WM_DISPLAYCHANGE`，或是某個 DXGI factory 失效，而兩者在此都尚未接上。此屬性
+    /// 存在，是為了讓 conformance 完整，並使「接上它的那一天」成為一次新增，而非一次協定變更。
+    public var adapterRemoved: (() -> Void)?
+
     // Logging
     private struct LogLocation: Hashable, Equatable {
         let file: String

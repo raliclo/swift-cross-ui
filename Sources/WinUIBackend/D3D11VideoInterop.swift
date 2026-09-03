@@ -176,7 +176,16 @@ public final class RawSwapChainPanel {
 /// Well-known public COM interface IIDs, hand-declared (matching the
 /// `SwiftISwapChainPanelNative.IID` approach above) rather than linking
 /// against dxguid.lib, so no extra linker settings are needed.
-private enum D3D11IID {
+// Internal rather than private since 2026-09-04: WinUIBackend+GraphicsAdapters
+// needs IDXGIFactory1 for `EnumAdapters1`, and a second hand-written copy of a
+// GUID is a copy that can drift. One wrong hex digit produces E_NOINTERFACE at
+// runtime and nothing at compile time, so the two copies would disagree
+// silently -- the same reasoning as sharing `largestByArea` in the synthesiser.
+// 自 2026-09-04 起改為 internal 而非 private：WinUIBackend+GraphicsAdapters 需要
+// IDXGIFactory1 來呼叫 `EnumAdapters1`，而手寫 GUID 的第二份副本正是會漂移的那種副本。
+// 一個十六進位數字打錯，在執行期得到 E_NOINTERFACE、在編譯期什麼也沒有，因此兩份副本會**靜默地**
+// 不一致——與合成器中共用 `largestByArea` 的理由相同。
+enum D3D11IID {
     // 770aae78-f26f-4dba-a829-253c83d1b387
     static var IDXGIFactory1: WinUIInterop.IID {
         WinUIInterop.IID(
