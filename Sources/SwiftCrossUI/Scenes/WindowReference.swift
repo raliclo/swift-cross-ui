@@ -209,7 +209,43 @@ final class WindowReference<SceneType: WindowingScene> {
                     proposedWindowSize: backend.size(ofWindow: window),
                     needsWindowSizeCommit: false,
                     backend: backend,
-                    environment: environment
+                    environment: environment,
+                    // The two sibling call sites -- the resize handler and the
+                    // environment-change handler -- both pass this, and this one
+                    // did not, so it took the default of `false`. That permits
+                    // the restart below, which re-proposes `clampedWindowSize`:
+                    // the content's size when offered zero width, which for a
+                    // page of text is a very tall, very narrow column. On a
+                    // backend that can resize, the window becomes that and all
+                    // is well. On one that cannot, `setSize(ofWindow:)` does
+                    // nothing and the content is then centred against a window
+                    // that does not exist.
+                    //
+                    // Measured on the Android emulator with P12, 2026-09-03.
+                    // At rest the update reported proposed (411, 841) against
+                    // content (350, 678). After a state change that made the
+                    // content wider: proposed (411, 5558), content (409, 678),
+                    // while `size(ofWindow:)` still answered 411 x 841 both
+                    // times. The content was placed at y = (5558 - 678) / 2 =
+                    // 2440 points -- 6405 pixels down a 2400-pixel screen -- and
+                    // the window looked blank. Nine presses of a counter did not
+                    // do it; the tenth, where the number needs a second digit,
+                    // did.
+                    //
+                    // 它的兩個兄弟呼叫點——resize handler 與環境變更 handler——都會傳這個參數，
+                    // 而此處沒有傳，於是取了預設值 `false`。那使下方的重啟得以執行，重新提議
+                    // `clampedWindowSize`：也就是「內容在被提議寬度 0 時的尺寸」，對一個文字頁面
+                    // 而言那是一根極高極窄的長條。在可調整大小的 backend 上，視窗會真的變成那樣，
+                    // 一切正常；在不能調整的 backend 上，`setSize(ofWindow:)` 什麼都不做，而內容
+                    // 接著就被對著一個並不存在的視窗置中。
+                    //
+                    // 2026-09-03 於 Android emulator 上以 P12 實測。靜止時該次更新回報
+                    // proposed (411, 841)、content (350, 678)。在一次讓內容變寬的狀態變更之後：
+                    // proposed (411, 5558)、content (409, 678)，而 `size(ofWindow:)` 兩次都仍
+                    // 回答 411 x 841。內容因而被放在 y = (5558 - 678) / 2 = 2440 點——在一個
+                    // 2400 像素高的螢幕上往下 6405 像素——視窗看起來就是空白的。按計數器九次不會
+                    // 造成它，第十次（數字需要第二位數時）會。
+                    windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
                 )
             }
         let outerColorScheme = environment.colorScheme

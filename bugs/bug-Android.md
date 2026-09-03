@@ -13,7 +13,7 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
-## Open: the window goes blank after a tab button is pressed
+## Fixed 2026-09-03: the window went blank after a widening state change
 
 Measured 2026-09-02, on P12, by the first synthesised tap this backend has ever
 received.
@@ -130,6 +130,91 @@ widening state change, not in how Android draws it.
 
 The last two fixes are real and are kept. Neither was the cause.
 
+### The cause, and the fix
+
+`WindowReference.update` takes `windowSizeIsFinal`, defaulting to `false`. Three
+call sites hand it the answer for the backend in use -- the resize handler, the
+environment-change handler, and the public entry point all pass
+`!backend.isWindowProgrammaticallyResizable(window)`. **A fourth did not.** The
+`onResize` closure built into the window's environment called `update` without
+it, so it took the default.
+
+`false` permits the restart a few lines further down, which re-proposes
+`clampedWindowSize`: the content's size when offered **zero width**, which for a
+page of text is a very tall, very narrow column. On a backend that can resize,
+the window then becomes that size and the arithmetic is honest. On one that
+cannot, `setSize(ofWindow:)` does nothing, the window stays as it was, and the
+content is centred against a window that does not exist:
+
+    y = (proposedWindowSize.y - contentHeight) / 2
+      = (5558 - 678) / 2
+      = 2440 points = 6405 pixels, down a 2400-pixel screen
+
+Adding the argument at that fourth call site fixes it. Measured after, on P12:
+at rest 377531 non-white pixels, First tab 380457, Set both on 381325 -- the two
+that had been 0 -- and ten presses of Increment counter reach `counter: 10` with
+the page intact, which is the case that first pinned the defect down.
+
+Nothing changes on a resizable backend: there `isWindowProgrammaticallyResizable`
+is true, so the new argument is `false`, which is what the default already was.
+Checked anyway -- P21's action file still reports `clicks: 1` on iOS and macOS
+replays unchanged.
+
+### Environment this was measured on
+
+| | value | latest? |
+| --- | --- | --- |
+| device under test | Android 16 / API 36 | **yes** -- the emulator is API 36 |
+| `compile_sdk` | 35 | no; android-36 is installed in the SDK |
+| `target_sdk` | 35 | no; same |
+| `min_sdk` | 31 | as specified for this project |
+
+Worth knowing because API 36 applies compatibility behaviour to an app whose
+target is below it, and windows and insets are among the areas Android 16
+changed most -- `AndroidBackendHelpers.getSafeWindowHeight` already branches on
+`SDK_INT <= 34`. It did not matter here: `size(ofWindow:)` reported a steady
+411 x 841 throughout, and the bad number came from the shared layout system, not
+from anything the platform reported. Raising `compile_sdk` and `target_sdk` to
+36 is a separate change and has not been made.
+
+### 成因與修正
+
+`WindowReference.update` 接受一個 `windowSizeIsFinal` 參數，預設為 `false`。有三個呼叫點會依所用的
+backend 傳入正確答案——resize handler、環境變更 handler，以及公開的進入點，三者都傳
+`!backend.isWindowProgrammaticallyResizable(window)`。**第四個沒有傳。** 建構於視窗環境中的
+`onResize` closure 呼叫 `update` 時省略了它，於是取到預設值。
+
+`false` 使下方數行處的重啟得以執行，而它重新提議的是 `clampedWindowSize`：內容在被提議**寬度 0**
+時的尺寸——對一個文字頁面而言，那是一根極高極窄的長條。在可調整大小的 backend 上，視窗接著會變成
+那個尺寸，這個算式因而誠實；在不能調整的 backend 上，`setSize(ofWindow:)` 什麼都不做、視窗維持原狀，
+而內容被對著一個並不存在的視窗置中：
+
+    y = (proposedWindowSize.y - 內容高度) / 2
+      = (5558 - 678) / 2
+      = 2440 點 = 6405 像素，位於一個 2400 像素高的螢幕之下方
+
+在第四個呼叫點補上該參數即可修正。修正後於 P12 上實測：靜止 377531 個非白像素、First tab 380457、
+Set both on 381325——後兩者原本都是 0——而按 Increment counter 十次會顯示 `counter: 10` 且頁面完好，
+那正是最初把這個缺陷釘下來的案例。
+
+在可調整大小的 backend 上不會有任何改變：該處 `isWindowProgrammaticallyResizable` 為 true，因此新
+傳入的值是 `false`，與原本的預設值相同。仍然實測確認過——P21 的動作檔在 iOS 上依然回報 `clicks: 1`，
+macOS 的重放也毫無變化。
+
+### 此次量測所在的環境
+
+| | 值 | 是不是最新 |
+| --- | --- | --- |
+| 受測裝置 | Android 16 / API 36 | **是**——emulator 就是 API 36 |
+| `compile_sdk` | 35 | 否，SDK 中已裝有 android-36 |
+| `target_sdk` | 35 | 否，同上 |
+| `min_sdk` | 31 | 本專案先前指定的值 |
+
+值得記下，是因為 API 36 會對「target 低於它」的 app 套用相容性行為，而視窗與 insets 正是 Android 16
+改動最多的區域之一——`AndroidBackendHelpers.getSafeWindowHeight` 本身就以 `SDK_INT <= 34` 分支。
+不過此處並不影響結論：`size(ofWindow:)` 全程穩定回報 411 x 841，而那個壞掉的數字來自共用的版面系統，
+不是來自平台回報的任何東西。把 `compile_sdk` 與 `target_sdk` 提升到 36 是另一件事，尚未進行。
+
 ### 實際上是什麼，2026-09-03 量得
 
 **頁面不是空的。它被排到視窗下方 2440 點的地方。**
@@ -183,7 +268,7 @@ Candidates, none of them checked:
 - The tab row is the `#580` state-across-rotation section, so the press changes
   `@State` and forces a full re-render of the root.
 
-## 未解：按下分頁按鈕之後視窗變成空白
+## 已修 2026-09-03：一次讓內容變寬的狀態變更會使視窗變成空白
 
 2026-09-02 量測，對象為 P12，由本 backend 有史以來第一次收到的合成觸控所觸發。
 
