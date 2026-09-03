@@ -178,6 +178,7 @@ public final class AndroidBackend: BaseAppBackend {
     public init() {
         helpers = AndroidBackendHelpers(environment: Self.env)
 
+
         let fragmentActivity = Self.activity.as(FragmentActivity.self)!
 
         let filesCallback = FilesActivityCallback(environment: Self.env)

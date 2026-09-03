@@ -13,6 +13,75 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
+## Open: `windowLevel(.floating)` -- two APIs tried, neither delivers it
+
+AndroidBackend now conforms to `BackendFeatures.WindowLevels` and reports
+`[.automatic, .normal]`. It does not offer `.floating`, and this section is the
+evidence for that rather than an assertion, because "the platform has no API for
+this" is a claim this repository requires to be demonstrated.
+
+Both attempts were on the API 36 emulator with SYSTEM_ALERT_WINDOW granted
+through `adb shell appops set ... allow`, which the permission needs -- it is
+granted by the user in Settings, not by a manifest line.
+
+**1. `Window.setType(TYPE_APPLICATION_OVERLAY)` on the activity's own window.**
+Compiles, runs, returns nothing, does nothing. Settings launched over P37
+covered it completely and `dumpsys window` reported
+`mCurrentFocus=...SettingsHomepageActivity`. An activity's window type is
+assigned by the window manager when the activity is attached; it is not a
+property the activity can change afterwards.
+
+**2. Detaching the content view into a `WindowManager` overlay window.** This
+does produce a real overlay, and the dump proves it: `dumpsys window windows`
+listed `Sys2038:dev.swiftcrossui.testapp.p37/...` at #6 with Settings at #9 --
+2038 is TYPE_APPLICATION_OVERLAY and #6 is above #9 -- with
+`mAttrs={(0,0)(fillxfill) ty=APPLICATION_OVERLAY fmt=TRANSLUCENT`,
+`mViewVisibility=0x0` and `appop=SYSTEM_ALERT_WINDOW`. And it draws nothing.
+Re-assigning MATCH_PARENT layout params and calling `requestLayout()` and
+`invalidate()` after `addView` changed nothing. The window is in front, visible,
+full screen, and empty.
+
+So the remaining work is making SwiftCrossUI's view tree render in a window that
+is not the activity's, which is a real piece of work rather than a missing call.
+It was not shipped half-done: an app whose window is in front and blank is worse
+than one that is not in front, and a backend that lists a level it cannot
+deliver is worse than one that lists two it can, because the app has no way to
+find out. P37 prints what the backend claims, and it now claims what is true.
+
+SYSTEM_ALERT_WINDOW was declared in `Bundler.android.toml` for attempt 2 and
+withdrawn with it. A permission declared for a feature that is not offered is
+the thing that file's own comment warns about.
+
+## 未修：`windowLevel(.floating)`——試過兩個 API，都無法兌現
+
+AndroidBackend 現已實作 `BackendFeatures.WindowLevels`，並回報 `[.automatic, .normal]`。它不提供
+`.floating`，而本節是那件事的證據，而非一項斷言——因為「這個平台沒有對應的 API」是本倉庫要求必須
+被證明的主張。
+
+兩次嘗試都是在 API 36 emulator 上、並以 `adb shell appops set ... allow` 授予 SYSTEM_ALERT_WINDOW
+的情況下進行的；該權限需要這樣做，因為它是由使用者在「設定」中授予的，不是靠 manifest 的一行取得的。
+
+**1. 在 activity 自己的視窗上呼叫 `Window.setType(TYPE_APPLICATION_OVERLAY)`。** 能編譯、能執行、
+不回傳任何東西，也什麼都不做。啟動於 P37 之上的「設定」把它完全覆蓋，而 `dumpsys window` 回報
+`mCurrentFocus=...SettingsHomepageActivity`。activity 的視窗型別是在 activity 被 attach 時由 window
+manager 指派的；那不是 activity 事後可以更改的屬性。
+
+**2. 把內容 view 分離、移入一個 `WindowManager` 的 overlay 視窗。** 這確實產生了一個真正的 overlay，
+而 dump 可以證明：`dumpsys window windows` 把 `Sys2038:dev.swiftcrossui.testapp.p37/...` 列在 #6，
+而「設定」在 #9——2038 即 TYPE_APPLICATION_OVERLAY，而 #6 位於 #9 之上——其
+`mAttrs={(0,0)(fillxfill) ty=APPLICATION_OVERLAY fmt=TRANSLUCENT`、`mViewVisibility=0x0`、
+appop 為 SYSTEM_ALERT_WINDOW。而它什麼都不畫。在 `addView` 之後重新指派 MATCH_PARENT 的 layout
+params 並呼叫 `requestLayout()` 與 `invalidate()`，也沒有改變任何事。該視窗在最前面、可見、滿版，
+而且是空的。
+
+因此剩下的工作，是讓 SwiftCrossUI 的 view tree 在「不屬於 activity 的視窗」中完成繪製——那是一件
+實在的工作，不是少呼叫了某個方法。它沒有以半成品的狀態出貨：一支「視窗在最前面卻一片空白」的 app
+比「不在最前面」更糟，而一個列出自己無法兌現之層級的 backend，也比一個只列出兩個做得到的更糟，
+因為 app 沒有任何辦法察覺。P37 印出的是 backend 的宣稱，而它現在宣稱的是真的。
+
+SYSTEM_ALERT_WINDOW 曾為第 2 次嘗試而宣告於 `Bundler.android.toml`，並隨之撤回。為一項並未提供的
+功能而宣告權限，正是該檔自己的註解所警告的那件事。
+
 ## Fixed 2026-09-04: three defects P7, P40 and P43 recorded as failures
 
 Each of these had an action file that stated a claim and then recorded that the

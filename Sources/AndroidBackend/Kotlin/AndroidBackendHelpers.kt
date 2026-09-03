@@ -280,6 +280,22 @@ class AndroidBackendHelpers {
             android.content.res.ColorStateList.valueOf(button.context.getColor(resource))
     }
 
+    // `.floating` on Android, and the answer is not a flag on the activity's
+    // window -- it is a different kind of window. `TYPE_APPLICATION_OVERLAY`
+    // is what "above other applications" means here, and it is gated on
+    // SYSTEM_ALERT_WINDOW, a permission the user grants in Settings rather than
+    // one an app can declare into existence.
+    //
+    // Returns whether the request took, so `supportedWindowLevels` can tell the
+    // truth instead of the app finding out by looking.
+    //
+    // Android 上的 `.floating`，而它的答案不是在 activity 的視窗上設一個旗標——它是一種不同的視窗。
+    // 「位於其他應用程式之上」在此處的意思就是 `TYPE_APPLICATION_OVERLAY`，而它受
+    // SYSTEM_ALERT_WINDOW 管制——那是一個由使用者在「設定」中授予的權限，不是 app 可以靠宣告就
+    // 取得的東西。
+    //
+    // 回傳該請求是否生效，好讓 `supportedWindowLevels` 說實話，而不是讓 app 靠肉眼去發現。
+
     fun setWindowBackground(activity: Activity, dark: Boolean) {
         val resource = if (dark) R.color.background_dark else R.color.background_light
         activity.window?.decorView?.setBackgroundColor(activity.getColor(resource))
