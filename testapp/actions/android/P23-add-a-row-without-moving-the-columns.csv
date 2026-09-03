@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Android: press "More rows" and check that the columns do not move.
+#
+# This app could not be run on Android until 2026-09-03. `BackendFeatures.Tables`
+# was unimplemented, so `Table` went through `@CastBackend` and died at launch:
+# "'AndroidBackend' does not implement 'BackendFeatures.Tables'".
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# Measured from a uiautomator dump of the running app. The header cells begin at
+# pixel x 47, 293, 539 and 785 and are 246 pixels wide each -- equal columns,
+# which is what the layout system above assumes and what UIKitBackend's
+# TableWidget also produces. "More rows" is pixels [372,577]-[658,703], centre
+# (515, 640) = point (196, 244).
+#
+# "More rows" adds four, not one -- `rowCount + 4` in P23.swift:143. The first
+# version of this file claimed "rows: 9" and measured 12, and the app was right.
+# Recorded because the shape of that mistake is worth more than the correction:
+# a claim written from what the button is named rather than from what it does
+# fails against a working build, and the fix is to read the source, not to
+# loosen the claim.
+#
+# 「More rows」一次加四列，而非一列——P23.swift:143 中的 `rowCount + 4`。本檔的第一版宣稱
+# 「rows: 9」而量到 12，而那支 app 是對的。此處記錄下來，是因為這個錯誤的形狀比它的更正更有價值：
+# 一個「依按鈕的名稱、而非依它實際的行為」所寫下的主張，會在一個正常運作的建置上失敗，而修法是去
+# 讀原始碼，不是把主張放寬。
+#
+# The claim is about the columns rather than about the row count alone, because
+# a row count is a label and the columns are the thing this backend actually
+# had to decide. P23's own text says column 2 is wider than its header and
+# column 3 narrower, and asks what happens to the boundaries as rows are added.
+#
+# P23 on Android：按下「More rows」，並確認各欄不會移動。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上無法執行。`BackendFeatures.Tables` 未實作，因此
+# `Table` 走 `@CastBackend` 並在啟動時死去：
+# 「'AndroidBackend' does not implement 'BackendFeatures.Tables'」。
+#
+# 量自執行中 app 的 uiautomator dump。各欄的標頭起始於像素 x 47、293、539、785，每欄寬 246 像素
+# ——等寬欄，那正是其上的版面系統所假設的，也是 UIKitBackend 的 TableWidget 所產生的結果。
+# 「More rows」位於像素 [372,577]-[658,703]，中心為 (515, 640)，即點 (196, 244)。
+#
+# 此處的主張關於「各欄」而非只關於列數，因為列數只是一個標籤，而各欄才是這個 backend 真正必須
+# 決定的東西。P23 自己的文字說第 2 欄比它的標頭寬、第 3 欄比較窄，並問「隨著列數增加，那些邊界會
+# 怎麼樣」。
+sleep,,,,,,1500000,let P23 lay out its table,android
+click,196,244,,left,,,"the ""More rows"" button -- ""rows: 8"" must become ""rows: 12"" (the button adds four) and the four column boundaries must stay at pixel x 47, 293, 539 and 785, each column 246 pixels wide. REPLAYED 2026-09-03 from a cleared app: rows: 12, columns unmoved at 47/293/539/785",android
+sleep,,,,,,1500000,let the table relayout,android

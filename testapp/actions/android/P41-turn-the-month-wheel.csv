@@ -1,0 +1,57 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Android: turn the wheel date picker's month and check the binding follows.
+#
+# This app could not be run on Android until 2026-09-03. It asks for `.graphical`
+# and `.wheel` unconditionally; `.graphical` was declared only for desktop and TV,
+# `.wheel` was implemented nowhere, and `datePickerStyle(_:)` asserts on a style
+# the backend does not list -- so P41 died at launch on
+# DatePickerStyleModifier.swift:51.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# Measured from a uiautomator dump. The month wheel's three visible rows are
+# pixels y 781-954, 954-1080 and 1080-1254; the selected row is the middle one,
+# and it is recognisable in a dump without reading colours because it is the
+# short band -- 126 pixels against its neighbours' 173. Pressing the row below
+# the selection advances the wheel by one. That row is pixel (698, 1167) =
+# point (266, 445).
+#
+# The claim is the readout, not the wheel. A spinner that scrolled and did not
+# write back would move Aug to Sep and leave "2025-08-24" underneath it, and
+# that is exactly the defect this app found on the way in: until 1ab3dafc the
+# value went the other way and never arrived either -- the wheel showed today's
+# date whatever it was bound to.
+#
+# The date is 2025-08-24 and not the 23rd. `Date(timeIntervalSince1970:
+# 1_756_000_000)` is 2025-08-24 01:46 UTC, which is 09:46 on this emulator, set
+# to Asia/Taipei. P41 printed the 23rd until the same commit, because a
+# `DateFormatter` with no zone set asks Foundation, and Foundation does not find
+# the device's zone on Android.
+#
+# P41 on Android：轉動滾輪日期選擇器的月份，並確認繫結值隨之改變。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上無法執行。它無條件要求 `.graphical` 與 `.wheel`；
+# `.graphical` 只為 desktop 與 TV 宣告過，`.wheel` 在任何地方都未實作，而 `datePickerStyle(_:)`
+# 對於 backend 未列出的 style 會觸發 assert——因此 P41 死在
+# DatePickerStyleModifier.swift:51。
+#
+# 量自 uiautomator dump。月份滾輪三個可見列位於像素 y 781-954、954-1080 與 1080-1254；被選中的是
+# 中間那一列，而且不必判讀顏色也能在 dump 中認出它，因為它是較短的那一帶——126 像素，相對於兩側
+# 的 173。按下選中列下方的那一列，會使滾輪前進一格。該列位於像素 (698, 1167)，即點 (266, 445)。
+#
+# 此處的主張是那個讀數，而非滾輪本身。一個「會滾動但不寫回」的滾輪，會把 Aug 變成 Sep，卻讓底下
+# 仍然寫著「2025-08-24」——而那正是這支 app 在抵達此處的路上所發現的缺陷：在 1ab3dafc 之前，值是
+# 往另一個方向走的，而且同樣從未抵達——無論繫結為何，滾輪顯示的都是今天的日期。
+#
+# 日期是 2025-08-24 而非 23 日。`Date(timeIntervalSince1970: 1_756_000_000)` 是 UTC 的
+# 2025-08-24 01:46，而在這台設定為 Asia/Taipei 的 emulator 上是 09:46。P41 一直印著 23 日，直到
+# 同一個 commit 為止，因為一個未設定時區的 `DateFormatter` 會去問 Foundation，而 Foundation 在
+# Android 上找不到裝置的時區。
+sleep,,,,,,1800000,let both date pickers lay out,android
+click,266,445,,left,,,the row below the month wheel's selection -- the wheel must advance from Aug to Sep AND the readout under it must go from 2025-08-24 to 2025-09-24. REPLAYED 2026-09-03: both,android
+sleep,,,,,,1800000,let the wheel settle and the label repaint,android

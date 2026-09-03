@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P25 on Android: press inside a drop target and check that nothing is received.
+#
+# This app could not be run on Android until 2026-09-03. `BackendFeatures.DragAndDrop`
+# was unimplemented, so `onDrop(of:isTargeted:perform:)` died at launch on
+# OnDropModifier.swift:81.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# WHAT THIS FILE DOES NOT DO, and it is most of what P25 is for: it does not
+# perform a drop. A drop on Android comes from a drag begun in another app with
+# DRAG_FLAG_GLOBAL, and `adb` has no command that starts one -- there is no
+# `input drag` that carries ClipData. The action-file machinery cannot
+# synthesise this gesture today, on any of the platforms whose drags are
+# system-wide, and saying so here is more use than a file that pressed something
+# and called it a drop test.
+#
+# So the claim is the negative one, and it is worth having: a press inside a
+# drop target must NOT be taken as a drop. An implementation that fired its drop
+# handler on any touch would pass a careless test and fail this one. The
+# "Accepts files" panel is pixels x 0-660, y 1200-1650; the press is pixel
+# (157, 1365) = point (60, 520).
+#
+# P25 on Android：在一個 drop target 之內按下，並確認什麼都沒有被接收。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上無法執行。`BackendFeatures.DragAndDrop` 未實作，因此
+# `onDrop(of:isTargeted:perform:)` 在啟動時死於 OnDropModifier.swift:81。
+#
+# 本檔沒有做的事，而那正是 P25 的主要用途：它不執行一次 drop。Android 上的 drop 來自另一支 app
+# 以 DRAG_FLAG_GLOBAL 發起的拖曳，而 `adb` 沒有任何指令可以發起它——不存在能攜帶 ClipData 的
+# `input drag`。今日的動作檔機制無法合成這個手勢，在所有「拖曳屬於系統層級」的平台上都是如此；
+# 在此寫明這一點，比寫一份「按了某個東西然後稱之為 drop 測試」的檔案更有用。
+#
+# 因此此處的主張是否定式的，而它值得存在：在 drop target 之內按下**不可以**被當成一次 drop。
+# 一個「任何觸控都觸發其 drop handler」的實作，會通過一個馬虎的測試，並在此處失敗。
+# 「Accepts files」面板位於像素 x 0-660、y 1200-1650；按下的位置為像素 (157, 1365)，即點 (60, 520)。
+sleep,,,,,,1500000,let P25 lay out both targets,android
+click,60,520,,left,,,"inside the ""Accepts files"" target -- ""state"" must still read idle, ""received"" must still read (nothing yet) and ""count"" must still read 0. REPLAYED 2026-09-03: all three unchanged",android
+sleep,,,,,,1500000,give any handler time to fire,android

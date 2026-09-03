@@ -1,0 +1,40 @@
+action,x,y,origin,button,key,micros,note,platform
+# P26 on Android: press the "SwiftUI" tab and check the page follows.
+#
+# This app could not be run on Android until 2026-09-03: its Summary tab is a
+# `Table`, and `BackendFeatures.Tables` was unimplemented, so it died at launch
+# the same way P23 did. Its AsyncImage was also heading for a wall of its own --
+# the generated manifest had no INTERNET permission, which is fixed in dcea9fb1.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# Measured from a uiautomator dump. The three tabs are pixels [15,141]-[280,267],
+# [290,141]-[549,267] and [561,141]-[894,267]; the selected one is the one whose
+# label is bracketed. "SwiftUI" is centre pixel (452, 204) = point (172, 78).
+#
+# Two things must change together, which is what makes this more than a repaint:
+# the bracket marker moves from Summary to SwiftUI, and the heading below the
+# tabs becomes "SwiftUI: expected behaviour". A tab bar that highlighted the
+# press without switching the page would move the first and not the second.
+#
+# P26 on Android：按下「SwiftUI」分頁，並確認頁面隨之改變。
+#
+# 在 2026-09-03 之前，這支 app 在 Android 上無法執行：它的 Summary 分頁是一個 `Table`，而
+# `BackendFeatures.Tables` 未實作，因此它以與 P23 相同的方式在啟動時死去。它的 AsyncImage 也正朝著
+# 另一堵牆前進——產生的 manifest 沒有 INTERNET 權限，該問題已於 dcea9fb1 修正。
+#
+# 量自 uiautomator dump。三個分頁位於像素 [15,141]-[280,267]、[290,141]-[549,267] 與
+# [561,141]-[894,267]；被選中的那一個，是標籤帶有方括號的那一個。「SwiftUI」的中心為像素
+# (452, 204)，即點 (172, 78)。
+#
+# 有兩件事必須同時改變，而那正是本項不只是一次重繪的原因：方括號標記從 Summary 移到 SwiftUI，
+# 且分頁下方的標題變成「SwiftUI: expected behaviour」。一個「只把按下的分頁高亮、卻不切換頁面」的
+# 分頁列，會移動前者而不會改變後者。
+sleep,,,,,,1500000,let P26 lay out the summary table,android
+click,172,78,,left,,,"the ""SwiftUI"" tab -- the bracketed label must move from ""[ Summary ]"" to ""[ SwiftUI ]"" AND the heading must become ""SwiftUI: expected behaviour"". REPLAYED 2026-09-03: both",android
+sleep,,,,,,1500000,let the tab content render,android
