@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P44 on Android: press "Clip the third cell" and check that the third cell is cut.
+#
+# P44 was written 2026-09-04 for this, because nothing in this tree used
+# `clipped()` on Android and AndroidBackend did not implement
+# `BackendFeatures.Clipping`. Verified by removing the conformance again and
+# rebuilding: P44 dies at launch with
+# "SwiftCrossUI/ClippedModifier.swift:39: Fatal error: 'AndroidBackend' does not
+# implement 'BackendFeatures.Clipping'". A missing conformance that no app
+# reaches is a gap nobody can see.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。
+#
+# The orange child is 200 x 100 points inside a 120 x 60 frame, so an unclipped
+# cell measures 100 points tall and a clipped one 60. Measured from the running
+# app: "Clip the third cell" is pixels [42,506]-[454,632], centre (248, 569) =
+# point (94, 217).
+#
+# Three cells and the first is the control, which is what makes the others
+# readable. Cell 1 never clips and MUST stay 100 points tall: a backend that
+# clipped everything would draw all three at 60 and look like a pass. Cell 2
+# always clips. Only cell 3 moves.
+#
+# P44 on Android：按下「Clip the third cell」，並確認第三格被裁切。
+#
+# P44 是 2026-09-04 為此而寫的，因為本樹中沒有任何東西在 Android 上使用 `clipped()`，而
+# AndroidBackend 並未實作 `BackendFeatures.Clipping`。驗證方式是再次移除該 conformance 並重新建置：
+# P44 在啟動時死於
+# 「SwiftCrossUI/ClippedModifier.swift:39: Fatal error: 'AndroidBackend' does not implement
+# 'BackendFeatures.Clipping'」。一個「沒有任何 app 會抵達」的缺失 conformance，是一個沒有人看得見
+# 的缺口。
+#
+# 橘色子元件為 200 x 100 點，位於一個 120 x 60 的 frame 之內，因此未被裁切的格位量得 100 點高，
+# 被裁切的則為 60 點。量自執行中的 app：「Clip the third cell」位於像素 [42,506]-[454,632]，
+# 中心為 (248, 569)，即點 (94, 217)。
+#
+# 三個格位，而第一格是對照組——正是它讓另外兩格得以被讀懂。第 1 格永不裁切，且**必須**維持 100 點高：
+# 一個「什麼都裁」的 backend 會把三格都畫成 60 點，而那看起來會像通過。第 2 格永遠裁切。只有第 3 格
+# 會動。
+sleep,,,,,,1500000,let P44 lay out its three cells,android
+click,94,217,,left,,,"the ""Clip the third cell"" button -- the third orange band must go from 100 points tall to 60 and from 200 points wide to 120, the label must read ""third cell: clipped()"", and the first two bands must not move at all. REPLAYED 2026-09-04: band 3 went 262 px to 157 px tall (100 pt to 60 pt) and 462 px to 315 px wide; bands 1 and 2 unchanged at 262 px and 157 px",android
+sleep,,,,,,1500000,let the third cell redraw,android

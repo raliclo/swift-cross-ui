@@ -25,6 +25,12 @@ class CustomContainer: JavaObject {
 
     @JavaMethod
     func removeViewAt(_ index: Int32)
+
+    @JavaMethod
+    func setClipChildren(_ clip: Bool)
+
+    @JavaMethod
+    func setClipToPadding(_ clip: Bool)
 }
 
 extension CustomContainer {
