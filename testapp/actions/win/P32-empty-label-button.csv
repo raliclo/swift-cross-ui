@@ -1,0 +1,74 @@
+action,x,y,origin,button,key,micros,note,platform
+# P32 on Windows, GtkBackend: press the button that has NO label, and prove the
+# press reached that button rather than the labelled one above it.
+#
+# The empty-label button is the point of this app. P32 exists because
+# SwiftCrossUI has no accessibility API at all -- no accessibilityLabel, no
+# accessibilityHint, no accessibilityValue, no accessibilityHidden, no
+# accessibilityIdentifier -- and a control with no visible text is where that
+# absence bites: a screen reader has nothing to announce. On screen it is a bare
+# 48x32 box at x 33..81, y 221..253, sized by the label it does not have.
+#
+# WHY THIS BUTTON AND NOT THE LABELLED ONE. The two write DIFFERENT log lines --
+# "empty-label button clicked" against "labelled button clicked" -- so the log
+# says WHICH one was hit, not merely that something was. A file that drove the
+# labelled button would prove less: they sit 30 points apart vertically, and a
+# coordinate that drifted would land on the other one and still look like a
+# pass.
+#
+# ONE claim, deliberately. Neither button changes the layout, so a second click
+# would be safe here -- but the Toggle and the Slider below both do move things,
+# and a file that grew to include them would need re-measuring after each. Keep
+# them for their own files.
+#
+# Coordinates read off a wincap capture of the frame at 788x589, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame. (57, 237) is the box's centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P32
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG, and without
+# it the replay is compiled out silently -- run.zsh accepts the path, the app
+# launches and renders, and not one line is printed. P32's own --debug flag is a
+# SEPARATE gate controlling whether the app writes its log at all; both are
+# needed, and without --debug the log file is never created and nothing says why.
+#
+# READ THE RESULT FROM p32-debug-events.log IN THE REPO ROOT, not
+# testapp/output/ -- P32 builds its path from currentDirectoryPath and run.zsh
+# launches by absolute path without cd'ing. Expect exactly:
+#     empty-label button clicked
+# The capture cannot carry this one at all: nothing on screen changes when
+# either button is pressed. This file is log-only evidence, which is why the two
+# distinct messages matter so much.
+#
+# P32 於 Windows、GtkBackend：按下那個**沒有標籤**的按鈕，並證明這一下確實落在它身上，而非其
+# 上方那個有標籤的按鈕。
+#
+# 空標籤按鈕正是這支 app 的重點。P32 存在的理由是 SwiftCrossUI 完全沒有無障礙 API——沒有
+# accessibilityLabel、accessibilityHint、accessibilityValue、accessibilityHidden、
+# accessibilityIdentifier——而「沒有可見文字的控制項」正是這項缺席最痛的地方：螢幕閱讀器無話
+# 可報。它在畫面上是一個 48x32 的空方塊，位於 x 33..81、y 221..253，大小由它所沒有的那個標籤
+# 決定。
+#
+# **為何選它而非有標籤的那顆。** 兩者寫入**不同**的 log 訊息——「empty-label button clicked」
+# 對「labelled button clicked」——因此 log 能指出被按到的是**哪一顆**，而不只是「有東西被按
+# 到」。若改為驅動有標籤的那顆，證據會更弱：兩者垂直相距僅 30 點，座標若稍有偏移就會落在另一
+# 顆上，而看起來仍像通過。
+#
+# 刻意只做**一個**主張。這兩顆按鈕都不改變版面，因此此處多按一次是安全的——但下方的 Toggle 與
+# Slider 都會移動東西，若本檔擴充納入它們，每一步之後都得重新量測。那些留給它們自己的檔案。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、788x589 的 wincap frame 擷圖，origin=frame。
+# (57, 237) 為該方塊的中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P32
+# 此外 P32 自身的 --debug 是**另一道**開關，控制 app 是否寫出 log；兩者缺一不可，而少了
+# --debug 時 log 檔根本不會被建立，且沒有任何訊息說明原因。
+#
+# **結果請讀 repo 根目錄的 p32-debug-events.log**，而非 testapp/output/。預期恰為
+#     empty-label button clicked
+# 擷圖完全承載不了這一項：按下任一顆按鈕時，畫面上沒有任何變化。本檔的證據僅來自 log，這也正是
+# 那兩則不同訊息如此重要的原因。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,57,237,frame,left,,,centre of the empty-label button (x 33..81 y 221..253) -- the log must say empty-label and not labelled,windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows
