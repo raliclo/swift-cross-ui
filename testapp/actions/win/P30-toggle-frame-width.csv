@@ -1,0 +1,67 @@
+action,x,y,origin,button,key,micros,note,platform
+# P30 on Windows, GtkBackend: press the frame-width button once and check the
+# app says the state changed.
+#
+# ONE click, and that is the whole design. The button's own label is part of
+# what changes -- "Use wide frame" becomes "Use narrow frame" -- and the blue
+# rectangle beside it goes from 120 to 260 wide. Every coordinate below the
+# button therefore moves the moment it is pressed, so a second step written
+# against this capture would address a layout that no longer exists. That trap
+# is recorded across the iOS files (P8, P11, P12, P13) and it costs a whole run
+# to notice, because the click still lands on something.
+#
+# Coordinates read off a wincap capture of the frame at 888x649, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here.
+# The button spans x 173..295, y 194..223; (234, 208) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P30
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. compile.zsh
+# now exports the value (2026-09-03); before that it only hashed it.
+#
+# READ THE RESULT FROM p30-debug-events.log, which lands in the CURRENT
+# DIRECTORY -- P30 builds its path from currentDirectoryPath, and run.zsh
+# launches by absolute path without cd'ing, so from the repo root the log is in
+# the repo root, not testapp/output/. Expect:
+#     size toggled wide=true
+# The picture cannot carry this on its own: a wider rectangle is visible, but
+# "the state changed" and "the state was already true" look identical after the
+# fact. The log line names the value.
+#
+# ONE THING THIS FILE DOES NOT TEST, and it is visible in the same capture: the
+# three Geometric effects cells (offset, scale, rotate) render identically to
+# the control. That is not a defect this file found -- it is bugs/Gtk4-bugs.md
+# section 1: gvsbuild's GTK on Windows falls back to GskCairoRenderer, which
+# cannot draw transform nodes. Recorded here so the next reader does not file it
+# twice.
+#
+# P30 於 Windows、GtkBackend：按一次調整框寬的按鈕，並檢查 app 是否回報狀態已改變。
+#
+# **只有一次點擊**，而那就是本檔的全部設計。按鈕自身的標籤也是變動的一部分——「Use wide frame」
+# 會變成「Use narrow frame」——旁邊的藍色矩形則由 120 寬變為 260。因此按鈕以下的每一個座標都會
+# 在它被按下的瞬間移動，依此擷圖所寫的第二個步驟，將指向一個已不存在的版面。這個陷阱記錄於
+# iOS 的多份檔案中（P8、P11、P12、P13），而它要花掉一整輪執行才會被發現，因為那個點擊仍然會
+# 落在某個東西上。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、888x649 的 wincap frame 擷圖，origin=frame。
+# 按鈕橫跨 x 173..295、y 194..223，(234, 208) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P30
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。
+#
+# **結果請讀 p30-debug-events.log**，它落在**目前的工作目錄**，而非 testapp/output/。預期為
+#     size toggled wide=true
+# 畫面本身承載不了這個結論：較寬的矩形看得見，但「狀態剛剛改變」與「狀態本來就是 true」在事後
+# 看起來完全一樣。是那一行 log 指出了值。
+#
+# 本檔**不**測試的一件事，而它就在同一張擷圖裡：Geometric effects 的三格（offset、scale、
+# rotate）與對照組畫得一模一樣。那不是本檔發現的缺陷——那是 bugs/Gtk4-bugs.md 第 1 節：
+# Windows 上 gvsbuild 的 GTK 退回 GskCairoRenderer，而它畫不出 transform node。記於此處，
+# 使下一位讀者不會重複回報。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,234,208,frame,left,,,"Use wide frame" -- label becomes "Use narrow frame" and the rectangle goes 120 -> 260,windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows
