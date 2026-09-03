@@ -1,0 +1,104 @@
+action,x,y,origin,button,key,micros,note,platform
+# P4 on Windows, GtkBackend: press one row's "Run 3" button and check the two
+# counters below the list move.
+#
+# READ THIS FIRST -- P4 HAS NO DEBUG LOG. Every other file in this directory
+# names a p<n>-debug-events.log line as its result. P4 has no P4Diagnostics and
+# no write() anywhere in testapp/P4.swift, so there is no p4-debug-events.log to
+# read and none will appear. The claim here is made off the capture, which is
+# weaker, and the file is written to make that weakness as small as it can be
+# rather than to hide it.
+#
+# What makes it survivable is the choice of control. "Run 3" sets
+# selectedRow = 3 and callbackCount += 1, and selectedRow starts at nil, which
+# renders as the literal word "none". So the label goes
+#     Selected row: none  ->  Selected row: 3
+# and "none" cannot have been 3 already. That is the one readout on this screen
+# that a picture can carry on its own. Contrast "Force update", which steps a
+# tick from 0 to 1 -- a picture of "update tick: 1" cannot distinguish the click
+# landing from a second run of the app, and the usual trap (a picture cannot
+# separate "the state just changed" from "it was already that value") applies to
+# it in full.
+#
+# MEASURED, 2026-09-03, not predicted. Before:
+#     Rows: 80, rows 0-49, update tick: 0, callbacks: 0
+#     Selected row: none
+# After:
+#     Rows: 80, rows 0-49, update tick: 0, callbacks: 1
+#     Selected row: 3
+# The update tick stays 0, which is correct: the row buttons do not touch it.
+#
+# ONE click, and no step after it. Both counter labels re-render at a different
+# width the moment the button fires, and "Selected row: none" is the widest
+# thing that changes, so any coordinate read off this capture below the list is
+# addressing a layout that no longer exists. Recorded at length in
+# P30-toggle-frame-width.csv; the click still lands on something, which is why
+# it costs a whole run to notice.
+#
+# Coordinates read off a wincap capture of the frame at 868x800, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# "Run 3" button spans x 47..113, y 517..548; (80, 532) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P4
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed.
+#
+# WHERE A LOG WOULD LAND, if P4 ever grows one: the CURRENT DIRECTORY. The Pn
+# apps build the path from currentDirectoryPath and run.zsh launches by absolute
+# path without cd'ing, so from the repo root that is the repo root, not
+# testapp/output/.
+#
+# NOT TESTED HERE, and visible in the same capture: the WinUI native banner is
+# replaced by "WinUI native banner only appears when WinUIBackend is available."
+# That is P4.swift's own #if canImport(WinUIBackend) else-branch under GtkBackend
+# and not a defect -- the banner, the .inspect border brush and the ScrollViewer
+# auto-load hook are all WinUI-only and cannot be driven from a -gtk4 build.
+#
+# P4 於 Windows、GtkBackend：按下某一列的「Run 3」按鈕，並檢查清單下方的兩個計數器是否變動。
+#
+# **請先讀這段——P4 沒有 debug log。**本目錄中其他每一個檔案都以 p<n>-debug-events.log 的某一行
+# 作為結果。P4 沒有 P4Diagnostics，testapp/P4.swift 中也沒有任何 write()，因此不存在
+# p4-debug-events.log，也不會出現。此處的宣稱是從擷圖做出的，較弱；本檔的寫法是要把這個弱點縮到
+# 最小，而不是把它藏起來。
+#
+# 讓它仍然可用的關鍵，在於所選的控制項。「Run 3」會設定 selectedRow = 3 並使 callbackCount += 1，
+# 而 selectedRow 起始為 nil，會繪成字面上的「none」。因此標籤由
+#     Selected row: none  ->  Selected row: 3
+# 而「none」不可能本來就是 3。這是本畫面上唯一一個畫面自身承載得起的讀數。相對地，「Force update」
+# 只是把 tick 由 0 推到 1——一張寫著「update tick: 1」的圖分不出是點擊生效，還是 app 跑了第二次；
+# 常見的那個陷阱（畫面分不出「狀態剛剛改變」與「狀態本來就是該值」）對它完全適用。
+#
+# **實測值，2026-09-03，非預測值。**之前：
+#     Rows: 80, rows 0-49, update tick: 0, callbacks: 0
+#     Selected row: none
+# 之後：
+#     Rows: 80, rows 0-49, update tick: 0, callbacks: 1
+#     Selected row: 3
+# update tick 維持 0，這是正確的：row 按鈕不會動到它。
+#
+# **只有一次點擊**，其後不再有步驟。兩個計數器標籤在按鈕觸發的瞬間就以不同寬度重繪，而
+# 「Selected row: none」是其中最寬的變動項，因此凡是依此擷圖讀出、位於清單下方的座標，都會指向
+# 一個已不存在的版面。詳見 P30-toggle-frame-width.csv；那個點擊仍然會落在某個東西上，這正是它要
+# 花掉一整輪執行才會被發現的原因。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、868x800 的 wincap frame 擷圖，origin=frame。
+# 「Run 3」按鈕橫跨 x 47..113、y 517..548，(80, 532) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P4
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。
+#
+# **若 P4 日後長出 log，它會落在哪裡**：目前的工作目錄。Pn app 由 currentDirectoryPath 組出路徑，
+# 而 run.zsh 以絕對路徑啟動且不做 cd，因此從 repo 根目錄執行時就是 repo 根目錄，而非
+# testapp/output/。
+#
+# **本檔不測試、但同一張擷圖裡看得到的事**：WinUI native banner 被換成
+# 「WinUI native banner only appears when WinUIBackend is available.」。那是 P4.swift 自身
+# #if canImport(WinUIBackend) 的 else 分支在 GtkBackend 下的結果，不是缺陷——banner、.inspect
+# 的 border brush 與 ScrollViewer auto-load hook 都只存在於 WinUI，無法從 -gtk4 build 驅動。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,80,532,frame,left,,,"Run 3" -- "Selected row: none" becomes "Selected row: 3" and callbacks goes 0 -> 1,windows
+sleep,,,,,,1500000,hold for the capture and let the labels re-render,windows

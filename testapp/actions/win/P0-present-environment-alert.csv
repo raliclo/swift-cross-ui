@@ -1,0 +1,87 @@
+action,x,y,origin,button,key,micros,note,platform
+# P0 on Windows, GtkBackend: press "Present environment alert now" once and
+# check the app says the button fired.
+#
+# ONE click, and it has to be this one. P0 has five buttons, but only the two
+# "Present environment alert" buttons write to the log at all -- Increment
+# @AppStorage, Reset and Show AlertScene change the screen and say nothing. A
+# click on any of those could only be claimed off the picture, and a picture
+# cannot separate "the counter just moved" from "it already read that". The
+# immediate variant is preferred over the 1-second one because its first log
+# line lands before any sleep, so a run that dies early still shows whether the
+# click arrived.
+#
+# The click also opens a modal alert, which is the second reason there is no
+# step after it: from that moment the main window is behind a grab and every
+# coordinate below is addressing a window that no longer takes input. That trap
+# is recorded in P30-toggle-frame-width.csv for the layout-shift form of it; a
+# modal is the same failure with a harder edge.
+#
+# Coordinates read off a wincap capture of the frame at 548x406, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# button spans x 168..380, y 261..289; (274, 275) is its centre.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P0
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed.
+#
+# READ THE RESULT FROM p0-debug-events.log, which lands in the CURRENT
+# DIRECTORY -- P0DebugLog builds its path from currentDirectoryPath and run.zsh
+# launches by absolute path without cd'ing, so from the repo root the log is in
+# the repo root, not testapp/output/. Measured 2026-09-03:
+#     immediate alert button clicked
+# and nothing after it. The two lines the source also writes,
+# "immediate alert OK clicked" and "immediate presentAlert returned", need the
+# alert's OK button pressed; this file does not press it, so their absence is
+# the expected result and not a defect.
+#
+# Note P0DebugLog has no --debug guard, so the log is written whether or not
+# the flag is passed. --debug is still used here to match every other file.
+#
+# What the after-capture showed, measured on the same run: the bottom label read
+# "Presenting manual environment alert..." and all five buttons were drawn
+# greyed out -- the modal's grab, seen from the parent window. The alert itself
+# is a separate top-level window, so it is NOT in a PrintWindow capture of
+# "P0 WinUI critical checks"; do not read its absence as the alert failing to
+# appear.
+#
+# P0 於 Windows、GtkBackend：按一次「Present environment alert now」，並檢查 app 是否回報
+# 該按鈕已觸發。
+#
+# **只有一次點擊**，而且只能是這一個。P0 有五個按鈕，但只有兩個「Present environment alert」
+# 按鈕會寫入 log——Increment @AppStorage、Reset 與 Show AlertScene 會改變畫面，卻什麼都不說。
+# 點擊那三者只能從畫面上宣稱結果，而畫面分不出「計數剛剛變動」與「它本來就是那個值」。選立即版
+# 而非延遲一秒版，是因為它的第一行 log 落在任何 sleep 之前，即使執行提早中止，仍看得出點擊是否
+# 送達。
+#
+# 這次點擊同時會開啟一個 modal alert，這是其後不再有步驟的第二個理由：自那一刻起主視窗處於
+# grab 之後，底下的每一個座標都指向一個不再接受輸入的視窗。版面位移形式的同類陷阱記錄於
+# P30-toggle-frame-width.csv；modal 是同一種失敗，只是邊界更硬。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、548x406 的 wincap frame 擷圖，origin=frame。
+# 按鈕橫跨 x 168..380、y 261..289，(274, 275) 為其中心。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P0
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。
+#
+# **結果請讀 p0-debug-events.log**，它落在**目前的工作目錄**，而非 testapp/output/。
+# 2026-09-03 實測為
+#     immediate alert button clicked
+# 其後沒有任何內容。原始碼另外會寫的兩行「immediate alert OK clicked」與
+# 「immediate presentAlert returned」需要按下 alert 的 OK；本檔不按，因此它們的缺席是預期結果，
+# 而非缺陷。
+#
+# 另注意 P0DebugLog 沒有 --debug 保護，不論是否帶旗標都會寫 log。此處仍傳 --debug，只為與其他
+# 檔案一致。
+#
+# 同一輪執行的事後擷圖實測：底部標籤變為「Presenting manual environment alert...」，五個按鈕
+# 全部畫成灰色——那是從父視窗看見的 modal grab。alert 本身是獨立的 top-level window，因此
+# **不會**出現在對「P0 WinUI critical checks」的 PrintWindow 擷圖中；不要把它的缺席讀成 alert
+# 沒有出現。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,274,275,frame,left,,,"Present environment alert now" -- writes the log line and puts a modal alert over the window,windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows

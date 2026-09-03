@@ -1,0 +1,90 @@
+action,x,y,origin,button,key,micros,note,platform
+# P28 on Windows, GtkBackend: click once in the middle of the blue overlay and
+# check the button underneath it received the click.
+#
+# This is the whole point of the app -- the overlay carries
+# .allowsHitTesting(false), so a click landing on blue pixels must reach the
+# Button in the same ZStack cell. There is exactly one control, so there is
+# exactly one click, and the coordinate is deliberately the centre of the
+# overlay rather than an edge: an edge could be argued to have missed the
+# overlay and hit the button directly, which would prove nothing.
+#
+# P28.swift's header calls this AppKitBackend's allowsHitTesting implementation.
+# Running it under GtkBackend on Windows is not a mistake -- the modifier is
+# backend-agnostic in SwiftCrossUI and this file checks the Gtk4 side of it. Do
+# not read a pass here as a statement about AppKit.
+#
+# THE LOG LINE IS THE RESULT, NOT THE PICTURE. The counter label is visible, but
+# a picture of "Clicks received: 1" cannot separate the click landing from a
+# second run of the app, and the blue rectangle looks identical either way. The
+# log names the value it counted.
+#
+# READ THE RESULT FROM p28-debug-events.log, which lands in the CURRENT
+# DIRECTORY -- P28Diagnostics builds its path from currentDirectoryPath and
+# run.zsh launches by absolute path without cd'ing, so from the repo root the
+# log is in the repo root, not testapp/output/. Measured 2026-09-03, both lines,
+# in this order:
+#     RENDER COMPLETE -- P28 ready for hit-testing checks
+#     underlying button clicked count=1
+# The first is written from .onAppear and appears even with no action file, so
+# it is not evidence of anything this file did; the second one is. If only the
+# RENDER COMPLETE line is present the click was swallowed -- that is the failure
+# this app exists to catch, and it is silent everywhere else.
+#
+# PASS --debug OR THE LOG IS NEVER WRITTEN. P28Diagnostics.isEnabled reads
+# CommandLine.arguments for --debug and write() returns early without it. Unlike
+# P0, this app really does need the flag; the log file simply will not be
+# created and there is no message saying why.
+#
+# Coordinates read off a wincap capture of the frame at 708x449, GtkBackend,
+# 2026-09-03, 100% display scale, origin=frame like every other file here. The
+# blue overlay spans x 128..430, y 232..322; (279, 277) is its centre, and the
+# 300x90 button sits under exactly the same rectangle.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P28
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent -- run.zsh accepts the
+# path, the app launches and renders, and not one line is printed. Note this is
+# a separate switch from the app's own --debug above, and both are required:
+# SCUI_DEBUG=1 at build time makes the click happen, --debug at run time makes
+# the app say so.
+#
+# P28 於 Windows、GtkBackend：在藍色 overlay 正中央點擊一次，並檢查其下方的按鈕是否收到該次點擊。
+#
+# 這正是本 app 的全部用意——overlay 帶有 .allowsHitTesting(false)，因此落在藍色像素上的點擊必須
+# 抵達同一個 ZStack 格中的 Button。控制項只有一個，所以點擊也只有一次；座標刻意取 overlay 的中心
+# 而非邊緣：邊緣可以被辯稱為沒打到 overlay、直接命中按鈕，那樣什麼也證明不了。
+#
+# P28.swift 的標頭把本項稱為 AppKitBackend 的 allowsHitTesting 實作。在 Windows 上以 GtkBackend
+# 執行並非錯誤——該 modifier 在 SwiftCrossUI 中與 backend 無關，本檔檢查的是它的 Gtk4 這一側。
+# 不要把這裡的通過讀成對 AppKit 的結論。
+#
+# **結果是那行 log，不是畫面。**計數器標籤看得見，但一張「Clicks received: 1」的圖分不出是點擊
+# 生效，還是 app 跑了第二次，而藍色矩形兩種情況下長得一模一樣。是 log 說出它數到的值。
+#
+# **結果請讀 p28-debug-events.log**，它落在**目前的工作目錄**，而非 testapp/output/。
+# 2026-09-03 實測到兩行，順序如下：
+#     RENDER COMPLETE -- P28 ready for hit-testing checks
+#     underlying button clicked count=1
+# 第一行由 .onAppear 寫出，即使沒有 action file 也會出現，因此它不構成本檔做了任何事的證據；
+# 第二行才是。若只有 RENDER COMPLETE 那一行，代表點擊被吞掉了——那正是本 app 存在的目的，
+# 而它在其他任何地方都是靜默的。
+#
+# **必須傳 --debug，否則 log 永遠不會被寫出。**P28Diagnostics.isEnabled 讀取 CommandLine.arguments
+# 中的 --debug，缺少時 write() 直接返回。與 P0 不同，本 app 確實需要這個旗標；log 檔根本不會被
+# 建立，而且沒有任何訊息說明原因。
+#
+# 座標取自 2026-09-03 於 100% 顯示縮放下、708x449 的 wincap frame 擷圖，origin=frame。
+# 藍色 overlay 橫跨 x 128..430、y 232..322，(279, 277) 為其中心，而 300x90 的按鈕就位於完全相同
+# 的矩形之下。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P28
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而
+# 失敗是靜默的——run.zsh 接受路徑、app 正常啟動並繪製，卻一行都不印。注意這與上方 app 自身的
+# --debug 是兩個獨立開關，兩者都必要：建置時的 SCUI_DEBUG=1 讓點擊發生，執行時的 --debug 讓
+# app 把它說出來。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,279,277,frame,left,,,centre of the blue overlay -- must pass through allowsHitTesting(false) and reach the button beneath,windows
+sleep,,,,,,1500000,hold for the capture and let the log catch up,windows
