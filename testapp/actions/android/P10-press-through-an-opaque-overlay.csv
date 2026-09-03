@@ -22,20 +22,17 @@ action,x,y,origin,button,key,micros,note,platform
 # x 672 to past the right edge; the "Hidden button" inside it is x 753-1078. The
 # tap is pixel (924, 1200) = point (352, 457), which is inside both.
 #
-# WHAT THIS FILE CAN AND CANNOT SHOW ON ANDROID. On iOS and macOS the button is
-# invisible: the orange is declared second in the ZStack and covers it, which is
-# what makes a press that reaches it a statement about the modifier and nothing
-# else. On Android the button is drawn ON TOP of the orange -- see
-# p10-android-final-20260903-095311.png -- so it is also the topmost view in
-# touch dispatch, and the press below would land on it even if the modifier did
-# nothing. The claim is therefore weaker here than on the other platforms, and
-# it is recorded as such rather than being presented as the same check.
-#
-# Two candidate causes, and this file does not choose between them: the ZStack
-# children may be inserted in the wrong order, or Android's default Button
-# elevation may be raising it above a sibling that was correctly placed below.
-# Both would produce this screenshot and both would produce the same uiautomator
-# dump, which lists the orange before the button. Recorded in bugs/bug-Android.md.
+# THE OVERLAY IS OPAQUE HERE TOO, AND IT WAS NOT ALWAYS. Until 2026-09-03 the
+# button was drawn on top of the orange on Android, so it was also the topmost
+# view in touch dispatch and this press would have landed on it whether or not
+# the modifier worked -- a weaker claim than the same file makes on iOS and
+# macOS. The tree was built correctly, Button at index 0 and the orange's
+# container at index 1; the platform button style gave the button
+# `elevation=5.25` against the orange's 0, and Android orders siblings by Z
+# before child index. Fixed by having CustomContainer make the declaration
+# order win where the two disagree. The button is now invisible here as it is
+# everywhere else, so the press below reaches something nobody can see, which
+# is the whole claim.
 #
 # P10 on Android：按下位於一個不透明 `allowsHitTesting(false)` 覆蓋層底下的按鈕，並確認該次按壓
 # 抵達了它（#454 的近鄰；此處測的是該 modifier，而非透明度）。
@@ -54,15 +51,13 @@ action,x,y,origin,button,key,micros,note,platform
 # ZStack 所在的像素帶為列 1124-1281。橘色矩形自像素 x 672 延伸至超出右緣；其中的「Hidden button」
 # 位於 x 753-1078。點擊位置為像素 (924, 1200)，即點 (352, 457)，落在兩者之內。
 #
-# 本檔在 Android 上能證明什麼、不能證明什麼。在 iOS 與 macOS 上那顆按鈕是看不見的：橘色在 ZStack
-# 中宣告在後、把它蓋住了，正是這一點使「按壓抵達了它」成為一項只關於該 modifier 的陳述。而在
-# Android 上，按鈕被畫在橘色**之上**——見 p10-android-final-20260903-095311.png——因此它在觸控
-# 分派中也是最上層的 view，即使該 modifier 什麼都沒做，下方這次按壓仍會落在它身上。因此此處的主張
-# 比其他平台弱，而本檔如實記下這一點，不把它當成同一項檢查來呈現。
-#
-# 有兩個候選成因，而本檔不在兩者之間下判斷：ZStack 的子元件可能是以錯誤的順序插入的，或者 Android
-# 預設的 Button elevation 把一個本來正確置於下方的同層元件抬高了。兩者都會產生這張截圖，也都會產生
-# 同一份 uiautomator dump——該 dump 把橘色列在按鈕之前。已記錄於 bugs/bug-Android.md。
+# 此處的覆蓋層同樣是不透明的，而它並非一向如此。在 2026-09-03 之前，Android 上的按鈕是被畫在橘色
+# 之上的，因此它在觸控分派中也是最上層的 view，於是無論該 modifier 是否運作，這次按壓都會落在它
+# 身上——那是比同一份檔案在 iOS 與 macOS 上所作的主張更弱的主張。該樹是正確建構的：Button 在索引
+# 0、橘色的容器在索引 1；是平台的按鈕樣式給了該按鈕 `elevation=5.25`，而橘色是 0，且 Android
+# 先依 Z、再依子元件索引排序同層元件。修法是讓 CustomContainer 在兩種排序衝突時使宣告順序勝出。
+# 那顆按鈕現在在此處與在其他各處一樣是看不見的，因此下方的按壓抵達的是一個沒有人看得見的東西
+# ——而那正是此項主張的全部。
 sleep,,,,,,1500000,let P10 render,android
-click,352,457,,left,,,"the ""Hidden button"" under the opaque orange overlay -- ""Hidden clicks:"" must read 1 afterwards. It reads 0 at launch. REPLAYED 2026-09-03: it read 1 (p10-tap-overlap-crop.png). See the header for why this is a weaker claim on Android than on iOS and macOS",android
+click,352,457,,left,,,"the ""Hidden button"" under the opaque orange overlay -- ""Hidden clicks:"" must read 1 afterwards. It reads 0 at launch. REPLAYED 2026-09-03: it read 1, with the orange solid and the button not visible at all (p10-android-zorder-fixed.png). An earlier replay the same day also read 1, but with the button drawn on top of the overlay; see the header",android
 sleep,,,,,,1200000,let the counter repaint,android

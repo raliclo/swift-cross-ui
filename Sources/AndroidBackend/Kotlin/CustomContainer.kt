@@ -102,6 +102,79 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
         return super.dispatchTouchEvent(ev)
     }
 
+    // Android orders siblings by Z first and by child index second. SwiftCrossUI
+    // orders them by index alone: a ZStack's later child covers its earlier one,
+    // and that is the whole of what a ZStack promises. When a native widget
+    // carries a theme elevation, the two orderings disagree and Android's wins.
+    //
+    // Measured 2026-09-03 on P10, whose ZStack is `Button` then an opaque
+    // `Color.orange`. The tree was built correctly -- Button at index 0, the
+    // orange's container at index 1 -- and the button still drew on top, because
+    // the platform button style gives it `elevation=5.25` (2dp at density 2.625)
+    // against the orange's 0. On iOS and macOS the button is invisible, which is
+    // what P10's own comment says it is for; on Android it was legible through
+    // an opaque rectangle.
+    //
+    // Only when they disagree. A container whose Z values already rise with the
+    // index is left alone, which is nearly all of them -- a button usually sits
+    // alone in its wrapper, and its shadow is a real part of how Android looks.
+    // The flattening is applied where a later sibling is being covered by an
+    // earlier one, and there a shadow cast through the thing on top would be
+    // wrong anyway.
+    //
+    // Android 先依 Z、再依子元件索引來排序同層元件。SwiftCrossUI 只依索引排序：ZStack 中較晚的
+    // 子元件覆蓋較早的，而那就是 ZStack 所承諾的全部。當一個原生 widget 帶有來自主題的 elevation
+    // 時，兩種排序就會衝突，而勝出的是 Android 的。
+    //
+    // 2026-09-03 於 P10 上實測，其 ZStack 為一個 `Button` 之後接一個不透明的 `Color.orange`。
+    // 該樹是正確建構的——Button 在索引 0、橘色的容器在索引 1——而按鈕依然畫在上面，因為平台的按鈕
+    // 樣式給了它 `elevation=5.25`（density 2.625 下的 2dp），而橘色是 0。在 iOS 與 macOS 上那顆
+    // 按鈕是看不見的，那正是 P10 自己的註解所說的用途；在 Android 上它卻透過一個不透明矩形清晰可讀。
+    //
+    // 僅在兩者衝突時才處理。Z 值本來就隨索引遞增的容器完全不受影響，而那幾乎是全部——一顆按鈕通常
+    // 獨自位於它自己的外層中，而它的陰影是 Android 外觀真實的一部分。此處的壓平只施加於「較晚的
+    // 同層元件正被較早的蓋住」之處，而在那裡，一道穿過上方物件投下的陰影本來就是錯的。
+    private fun enforceDeclarationOrder() {
+        if (childCount < 2) {
+            return
+        }
+
+        var highest = 0f
+        var disagrees = false
+        for (i in 0..<childCount) {
+            val z = getChildAt(i).z
+            if (z < highest) {
+                disagrees = true
+                break
+            }
+            if (z > highest) {
+                highest = z
+            }
+        }
+
+        if (!disagrees) {
+            return
+        }
+
+        // The state-list animator first, and that ordering is not incidental.
+        // Cancelling translationZ alone was measured to do nothing: the
+        // animator owns that property on a platform button and puts its own
+        // value back, so the tree still read `Button z=5.25` after a pass that
+        // had just set it to zero. Clearing the animator, then the two
+        // properties, is what holds.
+        //
+        // 先處理 state-list animator，而這個順序不是偶然的。實測顯示，只取消 translationZ 什麼也
+        // 做不到：在平台按鈕上，那個屬性是由該 animator 所擁有的，它會把自己的值放回去，因此在一次
+        // 剛把它設為零的處理之後，樹狀結構讀到的仍是 `Button z=5.25`。先清除 animator、再清除那兩個
+        // 屬性，才站得住。
+        for (i in 0..<childCount) {
+            val child = getChildAt(i)
+            child.stateListAnimator = null
+            child.translationZ = 0f
+            child.elevation = 0f
+        }
+    }
+
     override protected fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         for (i in 0..<childCount) {
             val child = getChildAt(i)
@@ -113,5 +186,31 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
                 layoutParams.y + layoutParams.height,
             )
         }
+
+    }
+
+    // Checked here rather than in onLayout, because at layout time the value
+    // this has to correct does not exist yet. A platform button gets its
+    // elevation from the state-list animator, which runs when the view's
+    // drawable state is first set -- after layout, before the first draw. The
+    // first version of this fix ran in onLayout, saw every child at z=0, found
+    // nothing to correct and left the button on top; the tree dump afterwards
+    // still read `Button z=5.25 tz=0.0`, which is what a check that ran too
+    // early looks like.
+    //
+    // Converges in one extra frame: the correcting pass invalidates, the next
+    // pass finds the orders agree and changes nothing.
+    //
+    // 在此處檢查而非在 onLayout 中，因為在版面計算的時點，這個機制所要修正的那個值根本還不存在。
+    // 平台按鈕的 elevation 來自 state-list animator，而它是在該 view 的 drawable state 首次被設定時
+    // 執行的——晚於版面、早於首次繪製。本修正的第一版是在 onLayout 中執行的，它看到的每個子元件都是
+    // z=0，因而認定沒有東西需要修正，於是按鈕依然在上面；事後的樹狀 dump 仍讀作
+    // `Button z=5.25 tz=0.0`，而那正是「一個執行得太早的檢查」的模樣。
+    //
+    // 一個額外的影格即收斂：進行修正的那一輪會觸發 invalidate，而下一輪會發現兩種排序已一致，
+    // 因此不做任何改變。
+    override protected fun dispatchDraw(canvas: android.graphics.Canvas) {
+        enforceDeclarationOrder()
+        super.dispatchDraw(canvas)
     }
 }

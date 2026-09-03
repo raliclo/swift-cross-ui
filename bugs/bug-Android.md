@@ -13,57 +13,70 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
-## Open: a ZStack's later child does not cover an earlier Button
+## Fixed 2026-09-03: a ZStack's later child did not cover an earlier Button
 
-P10 puts a `Button` and then an opaque `Color.orange` in a `ZStack`. The orange
-is declared second, so it should cover the button, and on iOS and macOS it does
--- P10's own comment calls the button "invisible on purpose", because that is
-what makes a press reaching it a statement about `allowsHitTesting(false)`.
+P10 puts a `Button` and then an opaque `Color.orange` in a `ZStack`. On iOS and
+macOS the button is invisible -- P10's own comment calls it "invisible on
+purpose", because that is what makes a press reaching it a statement about
+`allowsHitTesting(false)`. On Android the button was drawn on top of the orange.
 
-On Android the button is drawn on top of the orange
-(`testapp/output/screenshots/p10-android-final-20260903-095311.png`). It is
-therefore also the topmost view in touch dispatch, so P10's overlay check cannot
-distinguish a working modifier from a broken one here, and its action file says
-so rather than claiming the same coverage as the other platforms.
+**Not the insertion order.** That was the first suspicion and it was wrong. A
+tree dump taken after layout shows the ZStack container holding `Button` at
+index 0 and the orange's container at index 1, which is the declared order.
+What differed was Z: the platform button style gives a `Button`
+`elevation=5.25` -- 2dp at density 2.625 -- against the orange's 0, and
+**Android orders siblings by Z first and by child index second**. A
+`uiautomator` dump could not tell the two candidates apart, because it lists
+drawing order, which is what Z has already decided.
 
-**Two candidate causes, and neither has been ruled out.** Either the ZStack's
-children are inserted in the wrong order, or the button's default elevation is
-raising a correctly-placed sibling above it -- Android orders both drawing and
-touch dispatch by Z before child index, and a Material button carries a
-non-zero elevation from the theme. A `uiautomator` dump lists the orange before
-the button, which is consistent with both: that listing follows drawing order,
-which is what Z already decided.
+`CustomContainer` now makes the declaration order win where the two disagree.
+Only where they disagree: a container whose Z values already rise with the index
+is untouched, which is nearly all of them, so a button alone in its wrapper
+keeps the shadow that is a real part of how Android looks.
 
-Distinguishing them needs the child index read directly rather than inferred
-from a dump, and the fix differs: an insertion-order bug is in
-`AndroidBackend.insert`, an elevation bug means every native widget with a
-theme elevation needs its Z pinned to its index.
+Two things had to be got right, and each was measured wrong first:
 
-**Scope.** Any `ZStack` with a native control below something else -- overlays,
-badges, disabled scrims. Not just P10.
+- **When.** The first version ran in `onLayout`, saw every child at z=0, found
+  nothing to correct, and left the button on top. A button's elevation comes
+  from its state-list animator, which runs after layout and before the first
+  draw. The check belongs in `dispatchDraw`.
+- **What.** Cancelling `translationZ` alone did nothing: the animator owns that
+  property and put its own value back, so the tree still read `Button z=5.25`
+  after a pass that had just zeroed it. The animator has to be cleared first.
 
-## 未修：ZStack 中較晚宣告的子元件無法覆蓋較早的 Button
+**Scope.** Any `ZStack` with a native control below something else. P10's
+action file was written while this was open and said its overlay claim was
+weaker on Android than elsewhere; it now makes the same claim as the other
+platforms, and records that it once could not.
 
-P10 在一個 `ZStack` 中依序放入一個 `Button` 與一個不透明的 `Color.orange`。橘色宣告在後，因此它
-應該蓋住按鈕，而在 iOS 與 macOS 上確實如此——P10 自己的註解稱那顆按鈕是「刻意看不見的」，正因如此，
-「按壓抵達了它」才成為一項關於 `allowsHitTesting(false)` 的陳述。
+## 已修 2026-09-03：ZStack 中較晚宣告的子元件無法覆蓋較早的 Button
 
-在 Android 上，按鈕被畫在橘色之上
-（`testapp/output/screenshots/p10-android-final-20260903-095311.png`）。因此它在觸控分派中也是最
-上層的 view，於是 P10 的覆蓋層檢查在此處無法分辨「modifier 正常」與「modifier 損壞」，而它的動作檔
-如實寫明這一點，不宣稱與其他平台相同的覆蓋範圍。
+P10 在一個 `ZStack` 中依序放入一個 `Button` 與一個不透明的 `Color.orange`。在 iOS 與 macOS 上
+那顆按鈕是看不見的——P10 自己的註解稱它是「刻意看不見的」，正因如此，「按壓抵達了它」才成為一項
+關於 `allowsHitTesting(false)` 的陳述。而在 Android 上，按鈕被畫在橘色之上。
 
-**有兩個候選成因，而兩者都尚未被排除。** 可能是 ZStack 的子元件插入順序錯誤，也可能是按鈕預設的
-elevation 把一個本來正確置於下方的同層元件抬高了——Android 的繪製與觸控分派都是先依 Z、再依子元件
-索引排序，而 Material 按鈕會從主題帶有一個非零的 elevation。`uiautomator` dump 把橘色列在按鈕之前，
-而這對兩者都相容：該列表遵循的是繪製順序，而繪製順序早已由 Z 決定。
+**不是插入順序。** 那是最初的懷疑，而它是錯的。版面完成後所取的樹狀 dump 顯示，ZStack 容器持有的
+是索引 0 的 `Button` 與索引 1 的橘色容器，那正是宣告的順序。真正不同的是 Z：平台的按鈕樣式給了
+`Button` `elevation=5.25`——density 2.625 下的 2dp——而橘色是 0，且 **Android 先依 Z、再依子元件
+索引排序同層元件**。`uiautomator` 的 dump 無法分辨那兩個候選成因，因為它列出的是繪製順序，而那
+早已由 Z 決定。
 
-要區分兩者，必須直接讀取子元件索引，而不是從 dump 反推；而兩者的修法不同：插入順序的錯誤在
-`AndroidBackend.insert`，elevation 的錯誤則意味著每一個帶有主題 elevation 的原生 widget 都需要把
-自己的 Z 釘在其索引上。
+`CustomContainer` 現在會在兩種排序衝突時使宣告順序勝出。而且僅在衝突時：Z 值本來就隨索引遞增的
+容器完全不受影響，而那幾乎是全部——因此一顆獨自位於其外層中的按鈕，仍保有那道屬於 Android 外觀
+真實一部分的陰影。
 
-**影響範圍。** 任何「原生控制項位於其他東西之下」的 `ZStack`——覆蓋層、徽章、停用時的遮罩。
-不只 P10。
+有兩件事必須做對，而每一件都先量錯過一次：
+
+- **時機。** 第一版在 `onLayout` 中執行，它看到的每個子元件都是 z=0，因而認定沒有東西需要修正，
+  於是按鈕依然在上面。按鈕的 elevation 來自它的 state-list animator，而該 animator 在版面之後、
+  首次繪製之前才執行。這項檢查該放在 `dispatchDraw`。
+- **內容。** 只取消 `translationZ` 什麼也做不到：那個屬性是由該 animator 所擁有的，它會把自己的值
+  放回去，因此在一次剛把它歸零的處理之後，樹狀結構讀到的仍是 `Button z=5.25`。必須先清除該
+  animator。
+
+**影響範圍。** 任何「原生控制項位於其他東西之下」的 `ZStack`。P10 的動作檔是在此問題尚未修正時
+撰寫的，當時寫明其覆蓋層主張在 Android 上比別處弱；它現在提出的是與其他平台相同的主張，並記下
+它曾經無法如此。
 
 ## Fixed 2026-09-03: a list row lit up under the press and changed nothing else
 
