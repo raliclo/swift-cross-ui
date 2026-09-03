@@ -250,11 +250,30 @@ extension ForEach: TypeSafeView, View where Child: View {
             return result
         }
 
-        if environment.layoutOverlapsChildren {
-            let result = LayoutSystem.computeOverlapLayout(
+        // Upstream's mechanism, taken in place of this tree's own.
+        //
+        // `layoutOverlapsChildren` was ours (e90a2b8d, for `Group` inside a
+        // `ZStack`); upstream solved the same problem independently in #728 with
+        // `usesZStackLayout` and a real ZStack layout rather than a plain
+        // overlap. Two flags for one question is one too many, so ours goes and
+        // theirs stays -- it also carries `zStackContentAlignment`, which the
+        // overlap path could not, and this file used to say so as a known
+        // limitation.
+        //
+        // 採用 upstream 的機制,取代本樹自有的那一套。
+        //
+        // `layoutOverlapsChildren` 是我們的(e90a2b8d,為了 `ZStack` 內的 `Group`);upstream 在
+        // #728 中獨立地解了同一個問題,用的是 `usesZStackLayout` 與一套真正的 ZStack 版面,而非
+        // 單純的重疊。同一個問題有兩個旗標就是多了一個,因此我們的移除、他們的保留——而且他們那套
+        // 還帶著 `zStackContentAlignment`,那是重疊路徑做不到的,本檔過去正是把它記為一項已知限制。
+        if environment.usesZStackLayout {
+            let result = LayoutSystem.computeZStackLayout(
+                container: widget,
                 children: children.layoutableChildren,
+                cache: &children.stackLayoutCache,
                 proposedSize: proposedSize,
-                environment: environment
+                environment: environment,
+                backend: backend
             )
             children.stackLayoutCache = StackLayoutCache(
                 priorityGroups: [],
@@ -395,13 +414,12 @@ extension ForEach: TypeSafeView, View where Child: View {
             return
         }
 
-        if environment.layoutOverlapsChildren {
-            LayoutSystem.commitOverlapLayout(
+        if environment.usesZStackLayout {
+            LayoutSystem.commitZStackLayout(
                 container: widget,
                 children: children.layoutableChildren,
-                cache: children.stackLayoutCache,
+                cache: &children.stackLayoutCache,
                 layout: layout,
-                alignment: .center,
                 environment: environment,
                 backend: backend
             )

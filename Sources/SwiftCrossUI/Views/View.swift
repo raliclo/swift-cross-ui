@@ -253,17 +253,7 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        guard bodyIsBuilderProduced(children) else {
-            return body.computeLayout(
-                widget,
-                children: children,
-                proposedSize: proposedSize,
-                environment: environment,
-                backend: backend
-            )
-        }
-        let vStack = VStack(content: body)
-        return vStack.computeLayout(
+        return body.computeLayout(
             widget,
             children: children,
             proposedSize: proposedSize,
@@ -295,17 +285,7 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        guard bodyIsBuilderProduced(children) else {
-            return body.commit(
-                widget,
-                children: children,
-                layout: layout,
-                environment: environment,
-                backend: backend
-            )
-        }
-        let vStack = VStack(content: body)
-        return vStack.commit(
+        return body.commit(
             widget,
             children: children,
             layout: layout,

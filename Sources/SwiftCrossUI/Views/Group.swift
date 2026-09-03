@@ -45,12 +45,34 @@ public struct Group<Content: View>: View {
         // `ZStack` sets no orientation, so before this branch existed a `Group`
         // inside one fell back to whatever axis the grandparent used and laid
         // three views that should have overlapped out in a column.
-        if environment.layoutOverlapsChildren {
-            let result = LayoutSystem.computeOverlapLayout(
+        // Upstream's mechanism, taken in place of this tree's own.
+        //
+        // `layoutOverlapsChildren` was ours (e90a2b8d, for `Group` inside a
+        // `ZStack`); upstream solved the same problem independently in #728 with
+        // `usesZStackLayout` and a real ZStack layout rather than a plain
+        // overlap. Two flags for one question is one too many, so ours goes and
+        // theirs stays -- it also carries `zStackContentAlignment`, which the
+        // overlap path could not, and this file used to say so as a known
+        // limitation.
+        //
+        // 採用 upstream 的機制,取代本樹自有的那一套。
+        //
+        // `layoutOverlapsChildren` 是我們的(e90a2b8d,為了 `ZStack` 內的 `Group`);upstream 在
+        // #728 中獨立地解了同一個問題,用的是 `usesZStackLayout` 與一套真正的 ZStack 版面,而非
+        // 單純的重疊。同一個問題有兩個旗標就是多了一個,因此我們的移除、他們的保留——而且他們那套
+        // 還帶著 `zStackContentAlignment`,那是重疊路徑做不到的,本檔過去正是把它記為一項已知限制。
+        if environment.usesZStackLayout {
+            var cache = (children as? TupleViewChildren)?.stackLayoutCache
+                ?? StackLayoutCache.initial
+            let result = LayoutSystem.computeZStackLayout(
+                container: widget,
                 children: layoutableChildren(backend: backend, children: children),
+                cache: &cache,
                 proposedSize: proposedSize,
-                environment: environment
+                environment: environment,
+                backend: backend
             )
+            (children as? TupleViewChildren)?.stackLayoutCache = cache
             (children as? TupleViewChildren)?.stackLayoutCache = StackLayoutCache(
                 priorityGroups: [],
                 isHidden: [],
@@ -92,17 +114,18 @@ public struct Group<Content: View>: View {
         // 置中，與 `ZStack` 自身的預設一致。`Group` 本身不帶對齊資訊，而父層的對齊在此處取不到
         // ——`layoutAlignment` 的型別是 `StackAlignment`，只描述單一軸向。此處明言此限制而不使其
         // 隱含：帶有非預設對齊的 `ZStack`，對直接子元件會正確對齊，對被 Group 包住的則會置中。
-        if environment.layoutOverlapsChildren {
-            LayoutSystem.commitOverlapLayout(
+        if environment.usesZStackLayout {
+            var zCache = (children as? TupleViewChildren)?.stackLayoutCache
+                ?? StackLayoutCache.initial
+            LayoutSystem.commitZStackLayout(
                 container: widget,
                 children: layoutableChildren(backend: backend, children: children),
-                cache: (children as? TupleViewChildren)?.stackLayoutCache
-                    ?? StackLayoutCache.initial,
+                cache: &zCache,
                 layout: layout,
-                alignment: .center,
                 environment: environment,
                 backend: backend
             )
+            (children as? TupleViewChildren)?.stackLayoutCache = zCache
             return
         }
 

@@ -59,10 +59,10 @@ public struct HStack<Content: View>: View {
                 // Cleared, not merely left alone: this stack arranges along an
                 // axis, so a `Group` below it must too even when a `ZStack`
                 // further up set the flag.
-                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
-                .with(\.layoutSpacing, spacing),
+                .with(\.layoutSpacing, spacing)
+                .with(\.usesZStackLayout, false),
             backend: backend
         )
         (children as? TupleViewChildren)?.stackLayoutCache = cache
@@ -87,10 +87,10 @@ public struct HStack<Content: View>: View {
                 // Cleared, not merely left alone: this stack arranges along an
                 // axis, so a `Group` below it must too even when a `ZStack`
                 // further up set the flag.
-                .with(\.layoutOverlapsChildren, false)
                 .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
-                .with(\.layoutSpacing, spacing),
+                .with(\.layoutSpacing, spacing)
+                .with(\.usesZStackLayout, false),
             backend: backend
         )
         (children as? TupleViewChildren)?.stackLayoutCache = cache

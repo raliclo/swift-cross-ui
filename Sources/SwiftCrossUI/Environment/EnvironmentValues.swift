@@ -289,25 +289,19 @@ extension EnvironmentValues {
     /// affecting layout.
     @Entry public var layoutAlignment: StackAlignment = .center
 
+    /// Whether to use the ZStack StackLayout variants.
+    @Entry public var usesZStackLayout: Bool = false
+
+    /// The alignment of content inside a ``ZStack``.
+    /// Only gets used when ``usesZStackLayout`` is `true`.
+    @Entry public var zStackContentAlignment: Alignment = .center
+
     /// The current stack spacing.
     ///
     /// Inherited by ``ForEach`` and ``Group`` so that they can be used without
     /// affecting layout.
     @Entry public var layoutSpacing: Int = 10
 
-    /// Whether the enclosing stack overlaps its children instead of arranging
-    /// them along an axis.
-    ///
-    /// Set by ``ZStack`` and cleared by ``VStack`` and ``HStack``, for the same
-    /// reason ``layoutOrientation`` exists: ``Group`` and ``ForEach`` are meant
-    /// to be transparent, and each builds a real container rather than being
-    /// flattened away, so they have to be told how their parent arranges things.
-    ///
-    /// Without it a `Group` inside a `ZStack` inherited only an orientation,
-    /// which a `ZStack` never sets -- so it laid its children out along whatever
-    /// axis the grandparent used. Three colours that were meant to overlap
-    /// appeared one below another instead.
-    @Entry public var layoutOverlapsChildren: Bool = false
 
     /// The columns a ``LazyVGrid`` resolved, for whoever arranges the cells.
     ///

@@ -43,16 +43,6 @@ public struct ZStack<Content: View>: View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        let result = LayoutSystem.computeOverlapLayout(
-            children: layoutableChildren(backend: backend, children: children),
-            proposedSize: proposedSize,
-            // Told to the children, so that a `Group` or `ForEach` between this
-            // stack and the views it holds overlaps them too instead of
-            // arranging them along an axis it inherited from further up.
-            environment: environment.with(\.layoutOverlapsChildren, true)
-                .with(\.layoutGridPlan, nil)
-        )
-
         if !(children is TupleViewChildren || children is EmptyViewChildren) {
             logger.warning(
                 "ZStack will not function correctly with non-TupleView content",
@@ -63,14 +53,20 @@ public struct ZStack<Content: View>: View {
             )
         }
 
-        (children as? TupleViewChildren)?.stackLayoutCache = StackLayoutCache(
-            priorityGroups: [],
-            isHidden: [],
-            totalSpacing: 0,
-            minimumLengths: [],
-            redistributeSpaceOnCommit: proposedSize.width == nil || proposedSize.height == nil
+        var cache = (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial
+        let result = LayoutSystem.computeZStackLayout(
+            container: widget,
+            children: layoutableChildren(backend: backend, children: children),
+            cache: &cache,
+            proposedSize: proposedSize,
+            environment: environment
+                .with(\.usesZStackLayout, true)
+                .with(\.layoutGridPlan, nil)
+                .with(\.zStackContentAlignment, alignment)
+                .with(\.layoutOrientation, .vertical),
+            backend: backend
         )
-
+        (children as? TupleViewChildren)?.stackLayoutCache = cache
         return result
     }
 
@@ -81,15 +77,19 @@ public struct ZStack<Content: View>: View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        LayoutSystem.commitOverlapLayout(
+        var cache = (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial
+        LayoutSystem.commitZStackLayout(
             container: widget,
             children: layoutableChildren(backend: backend, children: children),
-            cache: (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial,
+            cache: &cache,
             layout: layout,
-            alignment: alignment,
-            environment: environment.with(\.layoutOverlapsChildren, true)
-                .with(\.layoutGridPlan, nil),
+            environment: environment
+                .with(\.usesZStackLayout, true)
+                .with(\.layoutGridPlan, nil)
+                .with(\.zStackContentAlignment, alignment)
+                .with(\.layoutOrientation, .vertical),
             backend: backend
         )
+        (children as? TupleViewChildren)?.stackLayoutCache = cache
     }
 }
