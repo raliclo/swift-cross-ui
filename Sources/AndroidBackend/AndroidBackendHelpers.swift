@@ -39,6 +39,15 @@ class AndroidBackendHelpers: JavaObject {
     func getSmallTextSize(_ activity: Activity?) -> Float
 
     @JavaMethod
+    func setButtonColorScheme(_ button: AndroidKit.Button?, _ dark: Bool)
+
+    @JavaMethod
+    func setWindowBackground(_ activity: Activity?, _ dark: Bool)
+
+    @JavaMethod
+    func setHitTesting(_ view: AndroidKit.View?, _ allowsHitTesting: Bool)
+
+    @JavaMethod
     func isNightMode(_ activity: Activity?) -> Bool
 
     @JavaMethod

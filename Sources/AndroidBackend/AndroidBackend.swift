@@ -122,7 +122,29 @@ public final class AndroidBackend: BaseAppBackend {
 
     public let defaultPaddingAmount = 10
     public let supportsMultipleWindows = false
-    public let canOverrideWindowColorScheme = false
+    // True since 2026-09-03, and the false it replaced was not a statement about
+    // Android. `WindowReference` reads this flag before it does anything: false
+    // makes it discard `preferredColorScheme` entirely, so `.colorScheme(.dark)`
+    // was accepted by the API, recorded by the app and then dropped upstream of
+    // every line of this backend. P15 showed the shape exactly -- its status
+    // line read "Requested: dark   Resolved: light".
+    //
+    // Nothing here was missing. `resolveAdaptiveColor` has always switched on
+    // `environment.colorScheme` (AndroidBackend+Colors.swift) and so have the
+    // sheets; they were being handed an environment that had already had the
+    // request taken out of it. What this needed was the flag and a window
+    // background to go with it -- see `updateWindow`.
+    //
+    // 自 2026-09-03 起為 true，而它所取代的 false 並不是對 Android 的陳述。`WindowReference` 會在
+    // 做任何事之前先讀這個旗標：false 會讓它把 `preferredColorScheme` 整個丟棄，於是
+    // `.colorScheme(.dark)` 被 API 接受了、被 app 記錄了，然後在抵達本 backend 的任何一行程式碼
+    // 之前就被丟掉。P15 精確地呈現了這個形狀——它的狀態列寫著
+    // 「Requested: dark   Resolved: light」。
+    //
+    // 此處沒有任何東西是缺的。`resolveAdaptiveColor` 一直都會對 `environment.colorScheme` 做
+    // switch（AndroidBackend+Colors.swift），sheet 也是；它們只是被交付了一個「請求已被拿掉」的
+    // environment。真正需要補的是這個旗標，以及與之相配的視窗背景——見 `updateWindow`。
+    public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
     static var fileDialogCallback: (([Foundation.URL]) -> Void)?
@@ -203,7 +225,18 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
-        // TODO(stackotter): Update window theme?
+        // The same hook AppKitBackend uses for `window.appearance` and
+        // GtkBackend for its theme override: the one place a backend is handed
+        // the environment for a window rather than for a widget. See
+        // `canOverrideWindowColorScheme` above for why nothing reached here
+        // before, and `setWindowBackground` in AndroidBackendHelpers.kt for
+        // which colour and why it is not a literal.
+        //
+        // 與 AppKitBackend 用來設定 `window.appearance`、GtkBackend 用來覆寫主題的是同一個 hook：
+        // 那是 backend 唯一一處拿到「某個視窗的」environment 而非「某個 widget 的」environment。
+        // 為何此前沒有任何東西抵達這裡，見上方的 `canOverrideWindowColorScheme`；至於用哪個顏色、
+        // 以及為何不用字面值，見 AndroidBackendHelpers.kt 的 `setWindowBackground`。
+        helpers.setWindowBackground(Self.activity, environment.colorScheme == .dark)
         updateInsets(ofWindow: window)
     }
 
@@ -547,6 +580,13 @@ public final class AndroidBackend: BaseAppBackend {
         button.setOnClickListener(listener.as(AndroidView.View.OnClickListener.self))
         button.setAllCaps(false)
 
+        // The same call AppKitBackend makes here as `button.appearance`. See
+        // `setButtonColorScheme` for why the button needs telling separately
+        // from the window.
+        // 與 AppKitBackend 在此處呼叫 `button.appearance` 是同一件事。為何按鈕必須與視窗分開告知，
+        // 見 `setButtonColorScheme`。
+        helpers.setButtonColorScheme(button, environment.colorScheme == .dark)
+
         getTextStyle(from: environment).apply(to: button)
     }
 
@@ -597,19 +637,56 @@ public final class AndroidBackend: BaseAppBackend {
         return SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
     }
 
+    // The four of these were `fatalError` until 2026-09-03. `NavigationSplitView`
+    // is not an optional part of the framework -- P16 is built around it -- and
+    // an unimplemented backend entry point does not degrade the view, it ends
+    // the process: P16 died at launch and ActivityManager gave up on it as
+    // having crashed too many times.
+    //
+    // The geometry lives in `SplitContainer.kt`, which also records why this is
+    // two columns side by side rather than Android's usual drawer.
+    //
+    // 這四個在 2026-09-03 之前都是 `fatalError`。`NavigationSplitView` 不是框架中的選配部分——P16
+    // 整支 app 就是圍繞它建立的——而一個未實作的 backend 進入點並不會讓該 view 降級，它會終結整個
+    // 行程：P16 在啟動時就死掉，接著 ActivityManager 以「crashed too many times」放棄了它。
+    //
+    // 幾何計算位於 `SplitContainer.kt`，該檔同時記錄了此處為何採用左右兩欄並排，而非 Android 慣用的
+    // 抽屜式做法。
     public func createSplitView(leadingChild: Widget, trailingChild: Widget) -> Widget {
-        fatalError("\(Self.self): \(#function) not implemented")
+        let split = SplitContainer(Self.activity, environment: Self.env)
+        split.setChildren(leadingChild, trailingChild)
+        return split.as(AndroidKit.View.self)!
     }
 
     public func setResizeHandler(
         ofSplitView splitView: Widget,
         to action: @escaping () -> Void
     ) {
-        fatalError("\(Self.self): \(#function) not implemented")
+        splitView.as(SplitContainer.self)!.setResizeHandler(
+            SwiftAction(environment: Self.env, action: action)
+        )
     }
 
+    // Both of these cross the unit boundary, and the first version of this file
+    // did not. `SplitContainer` works in pixels because `layoutParams` does;
+    // SwiftCrossUI works in points. Returning the pixel count unconverted told
+    // the layout system the sidebar was 288 points wide when it was 288 pixels,
+    // which at density 2.625 is 110 -- so the sidebar's rows were laid out for
+    // two and a half times the width they had, and P16 drew "Science" and
+    // "Humanities" cut off at the divider while its own status line read
+    // "sidebar: 288". The drawing was self-consistent, which is what made it
+    // look like a clipping bug rather than a unit bug.
+    //
+    // 這兩個函式都跨越了單位邊界，而本檔的第一版沒有處理。`SplitContainer` 以像素運作，因為
+    // `layoutParams` 就是像素；SwiftCrossUI 則以點運作。未經換算就回傳像素值，等於告訴版面系統
+    // 側欄有 288 點寬，而它其實是 288 像素——在 density 2.625 下那是 110 點。於是側欄中的列是以
+    // 「兩倍半於它實際擁有的寬度」來排版的，P16 因而把 "Science" 與 "Humanities" 畫成在分隔線處
+    // 被切斷，而它自己的狀態列卻寫著「sidebar: 288」。繪製本身是自洽的，那正是它看起來像裁切問題
+    // 而非單位問題的原因。
     public func sidebarWidth(ofSplitView splitView: Widget) -> Int {
-        fatalError("\(Self.self): \(#function) not implemented")
+        let density = splitView.getResources().getDisplayMetrics().density
+        let pixels = splitView.as(SplitContainer.self)!.resolvedSidebarWidth()
+        return Int((Double(pixels) / Double(density)).rounded())
     }
 
     public func setSidebarWidthBounds(
@@ -617,6 +694,23 @@ public final class AndroidBackend: BaseAppBackend {
         minimum minimumWidth: Int,
         maximum maximumWidth: Int
     ) {
-        fatalError("\(Self.self): \(#function) not implemented")
+        let density = splitView.getResources().getDisplayMetrics().density
+
+        // Clamped before the multiply. A maximum of `Int.max` means "no upper
+        // bound" and is what the layout system sends when the app has not set
+        // one; `Float(Int.max) * 2.625` does not fit in an `Int32` and the
+        // conversion traps, which would make an unbounded sidebar -- the
+        // default -- the one case that crashes.
+        //
+        // 在乘法之前先夾住。上限為 `Int.max` 的意思是「沒有上限」，而那正是 app 未設定上限時版面
+        // 系統會送來的值；`Float(Int.max) * 2.625` 放不進 `Int32`，該轉換會 trap——那會使「未設上限
+        // 的側欄」這個預設情況，成為唯一會崩潰的情況。
+        let pixelLimit = Int(Int32.max)
+        splitView.as(SplitContainer.self)!.setSidebarWidthBounds(
+            Self.layoutLength(min(minimumWidth, pixelLimit), density: density),
+            maximumWidth >= pixelLimit
+                ? Int32.max
+                : Self.layoutLength(maximumWidth, density: density)
+        )
     }
 }

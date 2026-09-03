@@ -2,6 +2,7 @@ package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 
@@ -83,6 +84,22 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
                 View.MeasureSpec.makeMeasureSpec(layoutParams.height, View.MeasureSpec.EXACTLY)
             child.measure(widthSpec, heightSpec)
         }
+    }
+
+    // Refusing, not consuming. Returning false is what lets the ViewGroup above
+    // carry on to the child underneath, which is the whole of what
+    // `allowsHitTesting(false)` promises; see HitTesting.kt. Checked here rather
+    // than on every descendant because this is the one call the entire subtree
+    // has to pass through.
+    //
+    // 拒收，而非吃掉。回傳 false 正是讓上層 ViewGroup 繼續往下一個子元件走的原因，而那就是
+    // `allowsHitTesting(false)` 所承諾的全部；見 HitTesting.kt。在此處檢查而非標記每一個後代，
+    // 是因為這是整棵子樹都必須經過的那一個呼叫。
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (HitTesting.isDisabled(this)) {
+            return false
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     override protected fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
