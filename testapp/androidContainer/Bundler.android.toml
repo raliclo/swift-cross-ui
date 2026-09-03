@@ -96,6 +96,27 @@
 # 這是應該由某個人刻意做出、而非從此處繼承而來的決定。
 min_sdk = 31
 
+# The apps could not reach the network. There was no `<uses-permission>` element
+# in the generated manifest at all, because nothing here asked for one, and on
+# Android a missing permission does not raise -- the request just fails.
+# Measured 2026-09-03: P38's WebView drew Chromium's own error page with
+# `net::ERR_CACHE_MISS`, which reads like a caching problem and is not one, and
+# P26's AsyncImage would hit the same wall. The emulator itself had network the
+# whole time.
+#
+# INTERNET only. It is what a WebView and an image load need, and adding more
+# because they might one day be useful is how a test tree ends up requesting
+# permissions no reviewer can account for.
+#
+# 這些 app 連不上網路。產生的 manifest 中根本沒有任何 `<uses-permission>` 元素，因為此處沒有任何
+# 東西要求過；而在 Android 上，缺少權限並不會拋出錯誤——請求只是會失敗。2026-09-03 實測：P38 的
+# WebView 畫出了 Chromium 自己的錯誤頁，內容是 `net::ERR_CACHE_MISS`——那看起來像是快取問題，
+# 但並不是；而 P26 的 AsyncImage 會撞上同一堵牆。emulator 本身自始至終都有網路。
+#
+# 只加 INTERNET。那是 WebView 與載入圖片所需要的；而「因為將來可能用得到就先加進去」，正是一棵
+# 測試樹最後會請求一堆沒有人能交代的權限的原因。
+permissions = ["INTERNET"]
+
 # The API the apps are written against. 35 is what the last build produced, so
 # pinning it changes nothing today -- which is the point. It stops moving on its
 # own the next time the SDK is updated.
