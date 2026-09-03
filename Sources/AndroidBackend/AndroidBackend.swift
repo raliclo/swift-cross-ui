@@ -111,7 +111,22 @@ public final class AndroidBackend: BaseAppBackend {
     static let stdoutPipe = Pipe()
     static let stderrPipe = Pipe()
 
-    private let _supportedDatePickerStyles = Mutex<[BackendDatePickerStyle]>([.automatic, .compact])
+    // A placeholder, like `deviceClass` below, and it has to agree with that
+    // one: the real list is chosen in `computeRootEnvironment`, and until then
+    // this is what a caller sees. `deviceClass` places itself at `.phone`, so
+    // this holds the phone list -- and it did not, which is why declaring
+    // `.graphical` for phones in `computeRootEnvironment` was not enough on its
+    // own. P41 still died on `DatePickerStyleModifier`'s assertion, from a read
+    // that happened while this value was still the placeholder.
+    //
+    // 一個佔位值，與下方的 `deviceClass` 相同，而且必須與它一致：真正的清單是在
+    // `computeRootEnvironment` 中選定的，在那之前呼叫端看到的就是這個值。`deviceClass` 把自己置於
+    // `.phone`，因此此處持有的是 phone 的清單——而它原本並非如此，這正是為何「只在
+    // `computeRootEnvironment` 中為 phone 宣告 `.graphical`」還不夠。P41 依然死在
+    // `DatePickerStyleModifier` 的 assert 上，而那次讀取發生在本值仍是佔位值的時候。
+    private let _supportedDatePickerStyles = Mutex<[BackendDatePickerStyle]>(
+        [.automatic, .compact, .graphical, .wheel]
+    )
 
     public nonisolated var supportedDatePickerStyles: [BackendDatePickerStyle] {
         _supportedDatePickerStyles.withLock { copy $0 }
@@ -397,19 +412,65 @@ public final class AndroidBackend: BaseAppBackend {
             switch helpers.getDeviceClass(Self.activity) {
                 case 0:
                     deviceClass = .desktop
-                    supportedDatePickerStyles = [.automatic, .compact, .graphical]
+                    supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
+                // `.graphical` added for phone and tablet 2026-09-03. The size
+                // objection above was real when it was written and the answer
+                // to it arrived separately: every window's root child is now
+                // hosted in `AndroidRootScrollHost`, so content wider or taller
+                // than the screen is reached by scrolling rather than lost. A
+                // 350dp calendar also fits across this emulator's 411-point
+                // window without scrolling at all.
+                //
+                // Nothing had to be implemented for this. `GraphicalDatePicker`
+                // has always been here and `updateDatePicker` has always had
+                // the `.graphical` branch; the style was simply not declared,
+                // and `datePickerStyle(_:)` asserts on a style a backend does
+                // not list. P41 asks for `.graphical` unconditionally and died
+                // at launch on that assertion -- an app that queried
+                // `supportedDatePickerStyles` first, as P11 does, would have
+                // been quietly downgraded instead.
+                //
+                // Watch keeps `.compact` and `.wheel` and not `.graphical`.
+                // `.wheel` is three spinners and is the smallest style there
+                // is; the calendar is the 350dp one, and I have no watch to
+                // check it on. A claim that a 350dp calendar is usable on a
+                // watch face is exactly the kind this repository asks to be
+                // demonstrated rather than asserted, so it is not made here.
+                //
+                // `.wheel` is new on every class in this switch, and it needed
+                // no size argument at all: it was declared nowhere because it
+                // was implemented nowhere. See `WheelDatePicker.kt`.
+                //
+                // 2026-09-03 為 phone 與 tablet 加入 `.graphical`。上方那個尺寸的反對意見在當時是
+                // 成立的，而它的解答是另外抵達的：每個視窗的根子元件現在都寄宿於
+                // `AndroidRootScrollHost` 之中，因此比螢幕更寬或更高的內容是靠捲動抵達，而不是遺失。
+                // 而且一個 350dp 的日曆在本 emulator 411 點寬的視窗中，根本不需要捲動就放得下。
+                //
+                // 此處不需要實作任何東西。`GraphicalDatePicker` 一直都在，`updateDatePicker` 也一直
+                // 都有 `.graphical` 分支；只是這個 style 從未被宣告，而 `datePickerStyle(_:)` 對於
+                // backend 未列出的 style 會觸發 assert。P41 無條件要求 `.graphical`，因而死在那個
+                // assert 上——而一個像 P11 那樣先查詢 `supportedDatePickerStyles` 的 app，得到的會是
+                // 靜默降級。
+                //
+                // watch 保留 `.compact` 與 `.wheel`，而不含 `.graphical`。`.wheel` 是三個滾輪，
+                // 是所有樣式中最小的；350dp 的是那個日曆，而我沒有手錶可以驗證它。「一個 350dp 的
+                // 日曆在錶面上可用」正是本倉庫要求被證明、而非被斷言的那種主張，因此此處不作此主張。
+                //
+                // 本 switch 中每一個 device class 的 `.wheel` 都是新加的，而它完全不需要尺寸方面的
+                // 論證：它之所以在任何地方都沒有被宣告，是因為它在任何地方都沒有被實作。
+                // 見 `WheelDatePicker.kt`。
                 case 1:
                     deviceClass = .phone
-                    supportedDatePickerStyles = [.automatic, .compact]
+                    supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
                 case 2:
                     deviceClass = .tablet
-                    supportedDatePickerStyles = [.automatic, .compact]
+                    supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
                 case 3:
                     deviceClass = .tv
-                    supportedDatePickerStyles = [.automatic, .compact, .graphical]
+                    supportedDatePickerStyles = [.automatic, .compact, .graphical, .wheel]
                 case 4:
                     deviceClass = .watch
-                    supportedDatePickerStyles = [.automatic, .compact]
+                    supportedDatePickerStyles = [.automatic, .compact, .wheel]
                 case let x:
                     fatalError("helpers.getDeviceClass returned unexpected value \(x)")
             }

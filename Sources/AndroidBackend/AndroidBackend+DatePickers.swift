@@ -100,9 +100,22 @@ extension AndroidBackend: BackendFeatures.DatePickers {
                     frame.addView(datePicker!)
                 }
             case .wheel:
-                // TODO(bbrk24): Once swift-bundler supports XML resources in libraries, implement
-                //   the wheel style
-                fatalError("The .wheel style is not currently supported on Android")
+                // The TODO this replaces was right about the obstacle and wrong
+                // about its being one: `datePickerMode="spinner"` can only be
+                // *set* in XML, and it can be *defaulted* by a theme, which
+                // needs no resource of ours. See `WheelDatePicker.kt`.
+                //
+                // 此處所取代的那則 TODO，對於障礙的描述是正確的，但「那是個障礙」這件事是錯的：
+                // `datePickerMode="spinner"` 確實只能在 XML 中被**設定**，但它可以被主題**預設**，
+                // 而那不需要我們自己的任何資源。見 `WheelDatePicker.kt`。
+                if datePicker?.is(WheelDatePicker.self) != true {
+                    frame.removeAllViews()
+                    datePicker = WheelDatePicker(
+                        Self.activity,
+                        environment: Self.env
+                    )
+                    frame.addView(datePicker!)
+                }
         }
 
         guard let datePicker else {

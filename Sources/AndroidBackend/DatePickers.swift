@@ -49,3 +49,20 @@ class GraphicalDatePicker: AbstractDatePicker {
         environment: JNIEnvironment? = nil
     )
 }
+
+/// The `.wheel` style. Same shape as `GraphicalDatePicker`; the difference is
+/// the theme its children resolve against, and `WheelDatePicker.kt` records why
+/// that is enough.
+/// `.wheel` 樣式。與 `GraphicalDatePicker` 形狀相同；差別在於其子元件所解析的主題，而
+/// `WheelDatePicker.kt` 記錄了為何那樣就已足夠。
+@JavaClass(
+    "dev.swiftcrossui.androidbackend.datepickers.WheelDatePicker",
+    extends: AbstractDatePicker.self
+)
+class WheelDatePicker: AbstractDatePicker {
+    @JavaMethod
+    @_nonoverride convenience init(
+        _ context: AndroidKit.Context!,
+        environment: JNIEnvironment? = nil
+    )
+}
