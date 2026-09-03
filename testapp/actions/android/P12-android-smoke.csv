@@ -1,4 +1,18 @@
 action,x,y,origin,button,key,micros,note,platform
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density. Added 2026-09-03: these two files predate the rule in flow.md
+# section 1 step 3 that every action file states its own device geometry, and
+# they were the only two Android files without it. The geometry is not a comment
+# about the file, it is what makes the coordinates in it readable later -- the
+# two phone platforms in this tree do not share a coordinate system.
+#
+# Emulator 為 swift-cross-ui-api36，1080 x 2400 像素、density 2.625，視窗為 411 x 914 點。
+# 座標以點書寫，synthesiser 會再乘上 density。2026-09-03 補上：這兩份檔案早於 flow.md 第一節
+# 第 3 步所訂下的「每一份動作檔都必須寫明自己的裝置幾何」規則，而它們是唯二缺少該行的 Android
+# 檔案。幾何並不是關於這份檔案的註解，它是讓其中的座標日後仍可被讀懂的東西——本樹中的兩個手機
+# 平台並不共用同一個座標系。
+#
 # P12 Android smoke sequence. Coordinates are logical points for the Android
 # emulator and must be rechecked against the launched screen.
 # P12 Android smoke sequence。座標使用 Android emulator 的 logical points，須依啟動畫面重新確認。
