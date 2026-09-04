@@ -1192,7 +1192,13 @@ public final class GtkBackend:
     /// 各視窗建立時所要求的內容尺寸，以及已經被放大以交付該尺寸的視窗。修正為何無法在
     /// `createWindow` 內完成，見該處說明。
     private var requestedContentSizes: [ObjectIdentifier: SIMD2<Int>] = [:]
-    private var contentSizeCorrected: Set<ObjectIdentifier> = []
+    // `contentSizeCorrected` lived here and is gone with the correction it
+    // guarded. Nothing needs to remember whether a window has been corrected
+    // once nothing corrects one, and a set kept "in case" is state that reads as
+    // load-bearing while holding nothing up.
+    // 這裡原本有 `contentSizeCorrected`，它隨著它所守護的那段修正一併移除。當沒有東西在做修正時，
+    // 就不需要記住「某個視窗是否已被修正過」；而一個「以備不時之需」而保留的集合，是一種「看起來
+    // 承重、實則什麼都沒撐」的狀態。
 
     /// Grows a window by however much its decorations ate, once.
     ///
@@ -1240,13 +1246,20 @@ public final class GtkBackend:
     /// then. So the one moment it can measure is the one moment it can no longer
     /// act.
     ///
-    /// Left in place rather than deleted, because deleting it would remove the
-    /// only reading of the shortfall and leave nothing saying the bug is there.
-    /// The reading is the useful half; the assignment is the part that lies.
-    /// What a real fix needs is a mechanism GTK keeps enforcing after
-    /// realisation -- the CustomRootWidget's measured minimum is the only one
-    /// this codebase has found -- and that trades the bug for a window the user
-    /// cannot shrink, which is a design decision and not a patch. Task #79.
+    /// **The assignment was deleted on 2026-09-04 and this method renamed with
+    /// it.** What stood here said "left in place rather than deleted", and that
+    /// was true at the time: the reading and the assignment shared one function,
+    /// so removing either took the shortfall's only reading with it. They are
+    /// separated now, so the reading stays and the assignment goes -- and the
+    /// name goes too, because a `correctContentSizeIfNeeded` that corrects
+    /// nothing misleads at every call site.
+    ///
+    /// Three real fixes were considered and all three rejected; see task #79 and
+    /// `bugs/Gtk4-bugs.md` section 5. Forcing the size through the
+    /// CustomRootWidget's measured minimum breaks what `.defaultSize` means, and
+    /// owning the titlebar in order to measure it costs 8px of permanent chrome
+    /// on every window (GTK's own decoration measures 39, a `GtkHeaderBar` 47,
+    /// both measured 2026-09-04). So this reports, and does not pretend.
     ///
     /// **這段程式碼沒有作用，而且是實測的。2026-09-04。** 下方的指派會執行、會記錄，然後什麼也
     /// 不改變。加入同日新增的讀回之後，P16 在 Windows/GtkBackend 上回報：
@@ -1265,11 +1278,16 @@ public final class GtkBackend:
     /// 執行——那正是它存在的全部理由，因為差額在那之前量不到。於是**它唯一能量測的時刻，正是它
     /// 已經無法作用的時刻。**
     ///
-    /// 保留而不刪除，因為刪掉它會連唯一一份「差額」的讀數一併移除，使這個缺陷再也沒有東西指出
-    /// 它。**讀數是有用的那一半；指派才是說謊的那一半。** 真正的修正需要一個「GTK 在 realise
-    /// 之後仍會持續強制」的機制——本專案目前只找到 CustomRootWidget 的 measured minimum——而那
-    /// 等於用「使用者無法縮小視窗」換掉這個缺陷，那是一項設計決策，不是一個補丁。見任務 #79。
-    private func correctContentSizeIfNeeded(of window: Window) {
+    /// **那個指派已於 2026-09-04 刪除，本方法也隨之更名。** 先前這裡寫的是「保留而不刪除」，
+    /// 那句話在當時是對的：讀數與指派綁在同一個函式裡，刪掉其一會連唯一一份「差額」的讀數一併
+    /// 帶走。兩者現在已經分開，因此**讀數留下、指派移除**——而名稱也跟著改，因為一個叫
+    /// `correctContentSizeIfNeeded` 卻不做任何修正的方法，會在呼叫端騙過下一個讀者。
+    ///
+    /// 曾考慮三種真正的修正，三種都被否決；見任務 #79 與 bugs/Gtk4-bugs.md 第 5 節。透過
+    /// CustomRootWidget 的 measured minimum 強制尺寸，會破壞 `.defaultSize` 的語意；為了量測而
+    /// 接管 titlebar，代價是每個視窗永久多出 8px 裝飾（GTK 自身 39，GtkHeaderBar 47，2026-09-04
+    /// 實測）。因此此處回報，而不假裝修好。
+    private func reportContentSizeShortfall(of window: Window) {
         let key = ObjectIdentifier(window)
         guard let requested = requestedContentSizes[key],
             let content = window.getChild()
@@ -1338,26 +1356,68 @@ public final class GtkBackend:
                 + "shortfall \(shortfallX)x\(shortfallY)"
         )
 
-        // Correct once; the reading above happens every pass. `insert` returns
-        // whether it was new, so the two facts stay in one expression rather
-        // than a flag that could be set in the wrong branch.
-        // 只修正一次；上方的讀數則每一輪都做。`insert` 會回傳「是否為新加入」，使這兩件事留在同一個
-        // 運算式中，而不是一個可能被設在錯誤分支裡的旗標。
-        guard contentSizeCorrected.insert(key).inserted else { return }
+        // The correction that used to follow is GONE, deleted 2026-09-04 after
+        // it was measured doing nothing. It read:
+        //
+        //     window.defaultSize = Size(width: requested.x + shortfallX,
+        //                               height: requested.y + shortfallY)
+        //
+        // and it logged "grew the window to 900x639" while the content stayed
+        // at 900x561, at +250ms and again at +1500ms. Two delays, the same
+        // number twice, so a no-op rather than a reading taken too early.
+        //
+        // `gtk_window_set_default_size` is a launch hint once the window is
+        // realised -- `setSizeLimits` in this same file has said so all along --
+        // and this method runs after the window is mapped BY CONSTRUCTION,
+        // because the shortfall is unmeasurable before then. The one moment it
+        // can measure is the one moment it can no longer act.
+        //
+        // Deleting the assignment rather than keeping it: a line that logs
+        // success and changes nothing is worse than no line, because it makes
+        // the bug look handled in `git log`, in the comments, and in the output.
+        // The reading above stays, because it is the only thing in the tree that
+        // reports the shortfall at all.
+        //
+        // Three replacements were considered and all three rejected; see task
+        // #79 and bugs/Gtk4-bugs.md section 5. The shortest version: forcing the
+        // size through the child's measured minimum breaks what `.defaultSize`
+        // means, and owning the titlebar to measure it costs 8px of permanent
+        // chrome (GTK's own decoration is 39, a GtkHeaderBar is 47).
+        //
+        // 原本接在這裡的那段修正**已刪除**，2026-09-04，在它被量測到毫無作用之後。它原本是：
+        //
+        //     window.defaultSize = Size(width: requested.x + shortfallX,
+        //                               height: requested.y + shortfallY)
+        //
+        // 它會記錄「grew the window to 900x639」，而內容仍停在 900x561——在 +250ms 與 +1500ms
+        // 各量一次，兩個延遲、同一個數字兩次，因此是 no-op，而非「量得太早」。
+        //
+        // 視窗一旦 realise，`gtk_window_set_default_size` 就只是啟動提示——同一個檔案裡的
+        // `setSizeLimits` 一直都這麼寫著——而本方法**依其構造**必然在 map 之後才執行，因為差額在
+        // 那之前量不到。**它唯一能量測的時刻，正是它已經無法作用的時刻。**
+        //
+        // 選擇刪除而非保留：一行「記錄成功卻什麼都不改」的程式碼，比沒有這行更糟，因為它會讓這個
+        // 缺陷在 `git log`、在註解、在輸出中**看起來都已經被處理過了**。上方的讀數則保留，因為它是
+        // 本樹中唯一會回報這個短少的東西。
+        //
+        // 曾考慮三種替代方案，三種都被否決；見任務 #79 與 bugs/Gtk4-bugs.md 第 5 節。最短的版本：
+        // 透過子 widget 的 measured minimum 強制尺寸，會破壞 `.defaultSize` 的語意；而為了量測而
+        // 接管 titlebar，代價是永久多出 8px 的裝飾（GTK 自身的裝飾為 39，GtkHeaderBar 為 47）。
 
-        guard shortfallX > 0 || shortfallY > 0 else { return }
-
-        window.defaultSize = Size(
-            width: requested.x + max(0, shortfallX),
-            height: requested.y + max(0, shortfallY)
-        )
-        DebugFeatures.log(
-            "content size: grew the window to "
-                + "\(requested.x + max(0, shortfallX))x\(requested.y + max(0, shortfallY))"
-        )
-
-        // Read it back once GTK has re-laid out, because otherwise there is no
-        // way to tell a correction that WORKED from one that merely RAN.
+        // Re-read it later, which now proves something different from what it
+        // was written for. It was added to tell a correction that WORKED from
+        // one that merely RAN; there is no correction any more, so what the
+        // second and third readings establish is that the shortfall is
+        // PERMANENT rather than a transient of startup layout. That distinction
+        // matters and nothing else in the tree makes it: a 39px window that
+        // settles correctly a moment later is a flicker, and a 39px window that
+        // stays is an app given less than it asked for, for the whole run.
+        //
+        // 稍後重讀一次；它現在證明的東西與當初寫它的目的**不同**。它原本是用來分辨一次修正是
+        // **有效**還是只是**執行過**；如今已經沒有修正，因此第二、第三次讀數所確立的，是這個短少
+        // 屬於**永久性**，而非啟動版面的暫態。這個區別很重要，而本樹中沒有別的東西能做出它：
+        // 一個稍後就自行修正的 39px 視窗只是閃爍，而一個一直維持著的 39px 視窗，代表這支 app
+        // **在整個執行期間**都拿到比它所要求的更少。
         //
         // Nothing else provides the second reading. `updateWindow` is the only
         // caller of this method and it is not invoked again in an app that
@@ -1401,7 +1461,7 @@ public final class GtkBackend:
                     guard let window, let content = window.getChild() else { return }
                     let settled = content.allocatedSize
                     DebugFeatures.log(
-                        "content size after correction (+\(delay)ms): "
+                        "content size settled (+\(delay)ms): "
                             + "requested \(requested.x)x\(requested.y) "
                             + "allocated \(settled.width)x\(settled.height) "
                             + "shortfall \(requested.x - settled.width)x"
@@ -1413,7 +1473,7 @@ public final class GtkBackend:
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
-        correctContentSizeIfNeeded(of: window)
+        reportContentSizeShortfall(of: window)
 
         // #386, the override half: honour preferredColorScheme by asking GTK for
         // the matching theme variant, so the widgets GTK draws itself (buttons,
