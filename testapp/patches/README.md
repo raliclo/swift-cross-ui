@@ -8,6 +8,9 @@ tree that owns them cannot be pushed to from here.
 | `gtk4-pkgconfig-relocate.patch` | a Homebrew gtk4 `.pc` file | rewritten per machine, not per checkout |
 | `swift-bundler-android-service.patch` | `Vendor/swift-bundler` | the submodule points at `moreSwift/swift-bundler`, which is upstream and not ours to push to |
 
+The swift-bundler patch now carries two changes: the `<service>` element, and a
+strip step that removes `.swift_ast` from the packaged library.
+
 ## swift-bundler-android-service.patch
 
 Adds a `<service>` element to the generated `AndroidManifest.xml`, which
@@ -16,6 +19,32 @@ Adds a `<service>` element to the generated `AndroidManifest.xml`, which
 not declared in the manifest cannot be started. See
 `Sources/AndroidBackend/Kotlin/OverlayService.kt` for why a service and not a
 plain overlay.
+
+### The `.swift_ast` strip
+
+The same patch removes `.swift_ast` from the library that goes into the APK.
+That section is the serialized Swift AST lldb reads to describe types, and
+nothing at runtime touches it. Measured 2026-09-04 with `llvm-size --format=sysv`
+on a packaged `libP43.so`: 137.6 MB total, `.text` 56.7 MB, `.swift_ast` 45.0 MB
+-- a third of the library and its second largest section. Removing it takes the
+library from 130.3 MB to 87.3 and **the APK from 212 MB to 169**, and P43's
+gradients measure pixel for pixel what they did before.
+
+It runs after the library is copied into the project rather than at build time,
+so the build tree keeps its debugging information and only the shipped copy
+loses it. `-gnone` would drop the section at the source and take local
+debuggability with it.
+
+### `.swift_ast` 的剝除
+
+同一份 patch 會把 `.swift_ast` 從進入 APK 的那個 library 中移除。該 section 是 lldb 用來描述型別的
+序列化 Swift AST，執行期完全不會碰它。2026-09-04 以 `llvm-size --format=sysv` 量測一個已打包的
+`libP43.so`：總計 137.6 MB，其中 `.text` 為 56.7 MB、`.swift_ast` 為 45.0 MB——佔該 library 的三分之
+一，是其中第二大的 section。移除它使該 library 由 130.3 MB 降到 87.3，而 **APK 由 212 MB 降到
+169**，且 P43 的漸層逐像素與先前相同。
+
+它在 library 被複製進專案**之後**執行，而非在建置時，因此建置樹保留其除錯資訊，只有出貨的那一份
+失去它。`-gnone` 會從源頭去掉該 section，並連帶取走本機的可除錯性。
 
 Apply and rebuild:
 
