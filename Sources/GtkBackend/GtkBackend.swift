@@ -1183,6 +1183,58 @@ public final class GtkBackend:
     ///
     /// 差額無法事先算出：GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度取決於主題、縮放，以及
     /// compositor 是否提供 server-side decorations——在後者之下差額為零，此處必須什麼都不做。
+    ///
+    /// **THIS DOES NOT WORK, AND THAT IS MEASURED. 2026-09-04.** The assignment
+    /// below runs, logs, and changes nothing. With the read-back added the same
+    /// day, P16 on Windows/GtkBackend reports:
+    ///
+    ///     content size: requested 900x600 allocated 900x561 shortfall 0x39
+    ///     content size: grew the window to 900x639
+    ///     content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+    ///     content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+    ///
+    /// Two delays, the same number twice, so this is a real no-op and not a
+    /// measurement taken before GTK relaid out -- a timing artefact would have
+    /// produced two DIFFERENT numbers.
+    ///
+    /// Why it cannot work, and the answer was already written down 400 lines
+    /// away in `setSizeLimits`: "A size request on the toplevel is only honoured
+    /// as a launch hint; once the window is realised GTK lets the user drag it
+    /// below that." `gtk_window_set_default_size` is the same kind of hint, and
+    /// this method by construction runs AFTER the window is mapped -- that is
+    /// the whole reason it exists, since the shortfall is unmeasurable before
+    /// then. So the one moment it can measure is the one moment it can no longer
+    /// act.
+    ///
+    /// Left in place rather than deleted, because deleting it would remove the
+    /// only reading of the shortfall and leave nothing saying the bug is there.
+    /// The reading is the useful half; the assignment is the part that lies.
+    /// What a real fix needs is a mechanism GTK keeps enforcing after
+    /// realisation -- the CustomRootWidget's measured minimum is the only one
+    /// this codebase has found -- and that trades the bug for a window the user
+    /// cannot shrink, which is a design decision and not a patch. Task #79.
+    ///
+    /// **這段程式碼沒有作用，而且是實測的。2026-09-04。** 下方的指派會執行、會記錄，然後什麼也
+    /// 不改變。加入同日新增的讀回之後，P16 在 Windows/GtkBackend 上回報：
+    ///
+    ///     content size: requested 900x600 allocated 900x561 shortfall 0x39
+    ///     content size: grew the window to 900x639
+    ///     content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+    ///     content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+    ///
+    /// 兩個延遲、同一個數字兩次，因此這是真正的 no-op，而不是「在 GTK 重新配置之前就量了」——
+    /// 時序造成的假象會給出**兩個不同的**數字。
+    ///
+    /// 它為何不可能有效，而答案早就寫在四百行外的 `setSizeLimits` 裡：「toplevel 上的 size
+    /// request 只會被當成啟動提示；視窗一旦 realise，GTK 就允許使用者把它拖得更小。」
+    /// `gtk_window_set_default_size` 屬於同一類提示，而本方法**依其構造**必然在視窗 map 之後才
+    /// 執行——那正是它存在的全部理由，因為差額在那之前量不到。於是**它唯一能量測的時刻，正是它
+    /// 已經無法作用的時刻。**
+    ///
+    /// 保留而不刪除，因為刪掉它會連唯一一份「差額」的讀數一併移除，使這個缺陷再也沒有東西指出
+    /// 它。**讀數是有用的那一半；指派才是說謊的那一半。** 真正的修正需要一個「GTK 在 realise
+    /// 之後仍會持續強制」的機制——本專案目前只找到 CustomRootWidget 的 measured minimum——而那
+    /// 等於用「使用者無法縮小視窗」換掉這個缺陷，那是一項設計決策，不是一個補丁。見任務 #79。
     private func correctContentSizeIfNeeded(of window: Window) {
         let key = ObjectIdentifier(window)
         guard let requested = requestedContentSizes[key],
@@ -1269,6 +1321,61 @@ public final class GtkBackend:
             "content size: grew the window to "
                 + "\(requested.x + max(0, shortfallX))x\(requested.y + max(0, shortfallY))"
         )
+
+        // Read it back once GTK has re-laid out, because otherwise there is no
+        // way to tell a correction that WORKED from one that merely RAN.
+        //
+        // Nothing else provides the second reading. `updateWindow` is the only
+        // caller of this method and it is not invoked again in an app that
+        // simply sits there -- measured 2026-09-04, including with
+        // `actions/win/P16-force-update.csv`, which produced the same single
+        // pass. So the after-value has to be asked for explicitly.
+        //
+        // On a timeout rather than an idle callback: the new default size takes
+        // effect through GTK's own resize, and an idle handler can run before
+        // that has happened, which would report the OLD allocation and read as
+        // a failed correction. The delay is a guess at "after the resize", and
+        // it is a diagnostic, so being late costs nothing and being early costs
+        // a wrong answer.
+        //
+        // Behind `DebugFeatures.log`, so a release build schedules nothing.
+        //
+        // 在 GTK 重新配置之後讀回一次，否則無從分辨一次修正是**有效**還是只是**執行過**。
+        //
+        // 沒有別的東西會提供第二次讀數。`updateWindow` 是本方法唯一的呼叫端，而在一個就這麼放著
+        // 的 app 中它不會被再次呼叫——2026-09-04 實測，連用
+        // `actions/win/P16-force-update.csv` 也一樣只有單獨一輪。因此事後的值必須主動去要。
+        //
+        // 使用 timeout 而非 idle callback：新的預設尺寸要透過 GTK 自身的 resize 才會生效，而
+        // idle handler 可能在那之前就執行，於是回報**舊的**配置，讀起來就像修正失敗。這個延遲是
+        // 對「resize 之後」的估計；由於它是診斷，晚一點沒有代價，早一點卻會得到錯的答案。
+        //
+        // 置於 `DebugFeatures.log` 之後，因此 release 建置不會排任何東西。
+        #if SCUI_DEBUG
+            // TWICE, at two delays, and that is not belt-and-braces. A single
+            // late reading cannot distinguish "the correction did nothing" from
+            // "the correction worked but I measured before GTK relaid out" --
+            // both print the old number. Two readings separate them: a timing
+            // artefact shows two DIFFERENT numbers, a real no-op shows the same
+            // number twice.
+            //
+            // **兩次，取兩個延遲**，這不是多此一舉。單一次的延後讀數無法分辨「修正沒有作用」與
+            // 「修正有效，但我在 GTK 重新配置之前就量了」——兩者都會印出舊的數字。兩次讀數能把它們
+            // 分開：時序造成的假象會顯示**兩個不同的**數字，真正的 no-op 則會把同一個數字印兩次。
+            for delay in [250, 1500] {
+                Self.runInMainThread(afterMilliseconds: delay) { [weak window] in
+                    guard let window, let content = window.getChild() else { return }
+                    let settled = content.allocatedSize
+                    DebugFeatures.log(
+                        "content size after correction (+\(delay)ms): "
+                            + "requested \(requested.x)x\(requested.y) "
+                            + "allocated \(settled.width)x\(settled.height) "
+                            + "shortfall \(requested.x - settled.width)x"
+                            + "\(requested.y - settled.height)"
+                    )
+                }
+            }
+        #endif
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
