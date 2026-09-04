@@ -37,8 +37,25 @@ got wrong is the interesting part.
   round, flat control unchanged, rectangle running red to blue — plus the
   gradient **stroke** the last section asks for, which P43 gained in `c59f7cd9`
   and which must be a ring with an empty middle.
-- **AndroidBackend still takes the flattening default**, so #66 is four backends
-  done and one to go.
+- **#66 is closed: all five backends implement it as of 2026-09-04.**
+  AndroidBackend was the last, and it is Android's own shaders rather than a
+  flatten -- `LinearGradient` and `RadialGradient` built at draw time from the
+  path's bounds, because that is the first moment the box is known.
+  `RadialGradient` has no start radius and `radialGradient(startRadius:endRadius:)`
+  has one; that is expressed by remapping the stop positions onto the shader's
+  radius rather than dropped.
+- **Verified as a picture, which is what this plan asked for.** P43 on macOS,
+  iOS and Android: the left circle is a round red-to-blue gradient, the control
+  circle beside it is still flat green, and the ring is hollow. Android's
+  numbers, top to bottom down the left circle: (242, 60, 70), (128, 96, 157),
+  (15, 131, 244).
+- **The loud default was louder than intended, and is now correct.** It
+  flattened to "the midpoint stop", and for a two-stop gradient both stops are
+  exactly 0.5 away, `min(by:)` keeps the first, and the midpoint was the start
+  colour -- the very outcome this plan says flattening must avoid. Since
+  2026-09-04 it interpolates at 0.5 instead. On Android the warning was also
+  invisible: an app's `print` does not reach logcat, so there the degradation
+  was silent as well as wrong.
 
 **~~僅為設計，未實作任何內容。~~ 已於 2026-09-02 在 AppKitBackend 與 UIKitBackend 實作，而實際
 出貨的並不是下方的設計。** 2026-09-01 撰寫。以下關於既有程式碼的每一項陳述都在當日對照過原始碼
@@ -61,7 +78,18 @@ got wrong is the interesting part.
 - **驗證方式如本文所要求**，於 macOS 與 iOS 上以 P43 進行：漸層圓形是圓的、平面色對照組未變、
   矩形由紅跑到藍——再加上最後一節所要求的漸層**描邊**（P43 於 `c59f7cd9` 補上），而它必須是一個
   中間空心的環。
-- **AndroidBackend 仍取用壓平的預設實作**，因此 #66 是四個 backend 完成、剩一個。
+- **#66 已結案：截至 2026-09-04，五個 backend 全部實作。** AndroidBackend 是最後一個，而它用的是
+  Android 自己的 shader 而非壓平——`LinearGradient` 與 `RadialGradient` 在繪製時才依路徑的邊界框
+  建構，因為那是「邊界框已知」的第一個時刻。`RadialGradient` 沒有起始半徑，而
+  `radialGradient(startRadius:endRadius:)` 有；那是以「把 stop 位置重新映射到 shader 的半徑上」
+  來表達的，而不是被丟棄。
+- **以圖驗證，正如本計畫所要求的。** P43 於 macOS、iOS 與 Android：左邊的圓是一個紅到藍的圓形
+  漸層，旁邊的對照圓仍是平面的綠色，而環是中空的。Android 上沿左圓由上而下的數值為：
+  (242, 60, 70)、(128, 96, 157)、(15, 131, 244)。
+- **那個「刻意大聲」的預設實作，比原本預期的更大聲，而現在已經正確。** 它壓平到的是「中點的
+  stop」，而對雙 stop 漸層而言兩個 stop 距 0.5 都恰好是 0.5，`min(by:)` 保留前者，於是中點就是
+  起始色——正是本計畫所說壓平必須避免的結果。自 2026-09-04 起改為在 0.5 處內插。在 Android 上，
+  那則警告同樣是看不見的：app 的 `print` 不會抵達 logcat，因此該降級在那裡既是靜默的、也是錯的。
 
 ## What exists today
 
