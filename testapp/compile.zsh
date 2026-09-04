@@ -646,12 +646,49 @@ if [ "$target_platform" != "ios" ]; then
     done
 fi
 
+# Android hides everything it does not export across a library boundary.
+#
+# An app's own library statically links SwiftCrossUI, AndroidBackend, SwiftJava
+# and libwebp, and by default exports every public symbol in all of them:
+# measured on P44's release APK, 151,047 dynamic symbols of which 31 have a
+# caller outside the library. The names alone -- Swift mangling averages 76
+# characters -- came to 15.81 MB across .dynstr, .dynsym, .gnu.hash and
+# .gnu.version, 34% of a 46.4 MB library.
+#
+# Android only. The other platforms ship an executable rather than a library
+# loaded by name from Java, they do not carry a 46 MB binary onto a phone, and
+# a version script is GNU-linker syntax that Apple's ld does not take. The
+# android manifest lives in its own work directory, so this does not perturb
+# the byte-identical manifests the other paths rely on.
+#
+# 讓 Android 隱藏一切不需跨 library 邊界匯出的東西。
+#
+# app 自己的 library 靜態連結了 SwiftCrossUI、AndroidBackend、SwiftJava 與 libwebp，並預設匯出
+# 其中每一個 public 符號：以 P44 的 release APK 實測，151,047 個動態符號中，只有 31 個在該
+# library 之外有呼叫者。單是那些名字——Swift 的名稱修飾平均 76 個字元——在 .dynstr、.dynsym、
+# .gnu.hash 與 .gnu.version 中合計 15.81 MB，佔一個 46.4 MB library 的 34%。
+#
+# 僅限 Android。其他平台出貨的是執行檔而非「由 Java 以名稱載入的 library」，它們也不會把一個
+# 46 MB 的二進位檔搬上手機，而且 version script 是 GNU linker 的語法，Apple 的 ld 不接受。
+# android 的 manifest 位於它自己的工作目錄，因此這不會擾動其他路徑所倚賴的「逐位元組相同的
+# manifest」。
+app_linker_settings=""
+if [ "$target_platform" = "android" ]; then
+    app_linker_settings=",
+            linkerSettings: [
+                .unsafeFlags([
+                    \"-Xlinker\",
+                    \"--version-script=$script_dir/android-exports.map\",
+                ])
+            ]"
+fi
+
 targets=""
 for app_name in $manifest_app_names; do
     targets="$targets
         .executableTarget(
             name: \"$app_name\",
-            dependencies: testAppDependencies
+            dependencies: testAppDependencies$app_linker_settings
         ),"
 done
 
