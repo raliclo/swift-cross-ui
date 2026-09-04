@@ -402,6 +402,30 @@ All final screenshots below were measured with PIL. Every final capture was visi
   is still there. The `todo.md` item is open, and the 2026-09-01 line claiming
   it "is now fixed" is annotated above rather than deleted, because a fix that
   was written and then assumed to work is the exact shape worth keeping visible.
+- **Upgraded 2026-09-04 from "not shown to work" to "shown not to work."** A
+  read-back was added after the correction, so there is now an *after* value and
+  not only a *before* one:
+
+  ```
+  content size: requested 900x600 allocated 900x561 shortfall 0x39
+  content size: grew the window to 900x639
+  content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+  content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+  ```
+
+  Two delays on purpose: one late reading cannot separate "the correction did
+  nothing" from "the correction worked and I measured too early", because both
+  print the old number. A timing artefact would give two *different* numbers.
+  The same number twice means the assignment is a no-op.
+
+  It hid for three days because the reading and the correction sat inside one
+  once-only guard, so *ran* and *worked* printed identically. The cause is in
+  the same file as the fix: `setSizeLimits` already documents that a size
+  request on the toplevel is only a launch hint once the window is realised, and
+  `gtk_window_set_default_size` is the same kind of hint. The correction runs
+  after the window is mapped by construction — the shortfall cannot be measured
+  before then — so **the one moment it can measure is the one moment it can no
+  longer act.** See `bugs/Gtk4-bugs.md` section 5 and task #79.
 - **Frame sizes, for the same requests, are constant per backend and differ
   between backends** — so comparing frames across backends says nothing about
   who honoured the request:

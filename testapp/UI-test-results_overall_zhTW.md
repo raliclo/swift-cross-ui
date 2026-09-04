@@ -365,6 +365,25 @@
   `Sources/GtkBackend/GtkBackend.swift`，並由 `updateWindow` 呼叫，因此產生上述數字的那份原始碼
   中確實有它，落差卻依然存在。`todo.md` 中的該項為未結案；而 2026-09-01 那句「現已修正」以註記
   方式保留而非刪除，因為「寫好了就假定它有效」正是最值得留在檯面上的失敗形狀。
+- **2026-09-04 由「尚未被證明有效」升級為「已被證明無效」。** 在該修正之後加入了讀回，因此現在
+  不只有**事前**的值，也有**事後**的值：
+
+  ```
+  content size: requested 900x600 allocated 900x561 shortfall 0x39
+  content size: grew the window to 900x639
+  content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+  content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+  ```
+
+  刻意取兩個延遲：單一次的延後讀數無法分辨「修正沒有作用」與「修正有效但我量得太早」，因為兩者
+  都會印出舊的數字。時序造成的假象會給出**兩個不同的**數字；同一個數字出現兩次，代表那個指派是
+  no-op。
+
+  它之所以藏了三天，是因為讀數與修正被放在**同一個 once-only guard** 內，於是「**執行過**」與
+  「**有效**」印出來一模一樣。而原因就在同一個檔案裡：`setSizeLimits` 早已載明「toplevel 上的
+  size request 在視窗 realise 之後只是啟動提示」，而 `gtk_window_set_default_size` 屬於同一類
+  提示。該修正**依其構造**必然在視窗 map 之後才執行——因為差額在那之前量不到——於是**它唯一能
+  量測的時刻，正是它已經無法作用的時刻。** 見 `bugs/Gtk4-bugs.md` 第 5 節與任務 #79。
 - **同一組要求下的視窗外框尺寸，對每個 backend 是固定的，backend 之間則不同**——因此跨 backend
   比較外框，說不出誰遵守了要求：
 
