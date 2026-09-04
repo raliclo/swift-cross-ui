@@ -1,8 +1,8 @@
 diff --git a/Sources/SwiftBundler/Bundler/APKBundler.swift b/Sources/SwiftBundler/Bundler/APKBundler.swift
-index 2f8da47..879f866 100644
+index 2f8da47..b4ceb86 100644
 --- a/Sources/SwiftBundler/Bundler/APKBundler.swift
 +++ b/Sources/SwiftBundler/Bundler/APKBundler.swift
-@@ -266,6 +266,47 @@ enum APKBundler: Bundler {
+@@ -266,6 +266,63 @@ enum APKBundler: Bundler {
        throw Error(message, cause: error)
      }
  
@@ -25,6 +25,22 @@ index 2f8da47..879f866 100644
 +    // larger. It says so rather than passing over it, because a size
 +    // optimisation that silently stops working is one nobody notices until the
 +    // download doubles.
++    // Kept when asked. `SCUI_KEEP_SWIFT_AST=1` leaves the section in, for a
++    // build that is going to be attached to with lldb: the debugger reads
++    // `.swift_ast` to describe types, and stripping it is what makes a
++    // packaged build unhelpful to step through. The default is to strip,
++    // because the common case is an APK to install and measure.
++    //
++    // 需要時保留。`SCUI_KEEP_SWIFT_AST=1` 會把該 section 留著，供「將以 lldb 附加」的建置使用：
++    // debugger 是靠讀取 `.swift_ast` 來描述型別的，而剝除它，正是讓一個已打包的建置難以逐步追蹤
++    // 的原因。預設為剝除，因為常見情況是「要安裝並量測的 APK」。
++    let keepAST = ProcessInfo.processInfo.environment["SCUI_KEEP_SWIFT_AST"]
++      .map { $0 == "1" || $0 == "true" } ?? false
++
++    if keepAST {
++      log.info("SCUI_KEEP_SWIFT_AST is set; leaving .swift_ast in the packaged library")
++    }
++
 +    let objcopyTool = try Error.catch {
 +      try AndroidSDKManager.llvmPrebuiltDirectory(
 +        forNDK: ndk,
@@ -32,7 +48,7 @@ index 2f8da47..879f866 100644
 +        hostArchitecture: .host
 +      )
 +    } / "bin/llvm-objcopy"
-+    if FileManager.default.fileExists(atPath: objcopyTool.path) {
++    if !keepAST, FileManager.default.fileExists(atPath: objcopyTool.path) {
 +      let strip = Process.create(
 +        objcopyTool.path,
 +        arguments: ["--remove-section=.swift_ast", libraryDestination.path],
@@ -43,14 +59,14 @@ index 2f8da47..879f866 100644
 +      } catch {
 +        log.warning("Could not remove .swift_ast from the packaged library: \(error)")
 +      }
-+    } else {
++    } else if !keepAST {
 +      log.warning("llvm-objcopy not found in the NDK; the packaged library keeps its .swift_ast section")
 +    }
 +
      let readelfTool = try Error.catch {
        try AndroidSDKManager.locateReadelfTool(
          inNDK: ndk,
-@@ -972,6 +1013,27 @@ enum APKBundler: Bundler {
+@@ -972,6 +1029,27 @@ enum APKBundler: Bundler {
                )
              ]
            )

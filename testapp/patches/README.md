@@ -46,13 +46,24 @@ debuggability with it.
 它在 library 被複製進專案**之後**執行，而非在建置時，因此建置樹保留其除錯資訊，只有出貨的那一份
 失去它。`-gnone` 會從源頭去掉該 section，並連帶取走本機的可除錯性。
 
-Apply and rebuild:
+Apply and rebuild with the script, which does both and refuses rather than
+half-applying:
 
 ```zsh
-cd Vendor/swift-bundler
-git apply ../../testapp/patches/swift-bundler-android-service.patch
-swift build --build-system swiftbuild --product swift-bundler
+bash Scripts/build-android-bundler.sh
 ```
+
+`SCUI_KEEP_SWIFT_AST=1` on an APK build leaves the section in, for a build you
+intend to attach lldb to. The default strips it.
+
+以腳本套用並重建；它會兩件事一起做，而且寧可拒絕也不會做到一半：
+
+```zsh
+bash Scripts/build-android-bundler.sh
+```
+
+在建置 APK 時設定 `SCUI_KEEP_SWIFT_AST=1` 會把該 section 留著，供「你打算以 lldb 附加」的建置使用。
+預設是剝除。
 
 **That build system flag is not optional and the reason is worth knowing.**
 `test_android.zsh` prefers `Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler`
