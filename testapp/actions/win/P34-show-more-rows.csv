@@ -182,5 +182,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 顯示 Row 0 到 Row 16，新增的 100 個 child 全都在可視範圍之外。請勿在圖中找不到它們，就斷定
 # 點擊失敗。
 sleep,,,,,,900000,let the window settle and take focus,windows
-click,232,245,frame,left,,,"centre of ""Show +100"" (x 184..280 y 229..253) -- header must read ""showing first 200""; 500 would mean the neighbour was hit and 100 that nothing was",windows
+click,232,245,frame,left,,,"centre of ""Show +100"" (x 184..280 y 229..253) -- header must read ""showing first 200""; 500 would mean the neighbour was hit and 100 that nothing was (VERIFIED 2026-09-05 with -rows 500: log line show plus 100 -> visibleRows=200. The first re-run OMITTED -rows and logged visibleRows=100, which is a landed click on a button that is a no-op at the default rowCount -- see mistakes.csv2)",windows
 sleep,,,,,,1500000,hold for the capture and let the log catch up -- expect a third line reading show plus 100 -> visibleRows=200,windows

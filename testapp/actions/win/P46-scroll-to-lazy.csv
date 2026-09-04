@@ -66,5 +66,5 @@ sleep,,,,,,900000,let the window settle and take focus,windows
 move,440,400,frame,,,,"put the pointer over the middle of the Form's content, so the wheel goes to the scroll container and not to the title bar or a button",windows
 scroll,0,10,,,,,"ten notches down -- x and y are NOTCHES here, not pixels, and origin is empty on purpose",windows
 sleep,,,,,,600000,let the scroll settle,windows
-scroll,0,10,,,,,"ten more, to reach the bottom of the Form whatever its exact height",windows
+scroll,0,10,,,,,"ten more, to reach the bottom of the Form whatever its exact height (VERIFIED 2026-09-04: the content moved -- the title and the Stepper buttons scrolled off the top -- and LazyVStack with lazy row 1, 2 and 3 came into view, along with the Label section. Both claims of this file therefore hold: LazyVStack draws its children, and Form's ScrollView scrolls. output/screenshots/p46-scrolled-20260904-222305.png)",windows
 sleep,,,,,,1500000,"final hold: the capture must now show LazyVStack with lazy row 1, 2 and 3",windows

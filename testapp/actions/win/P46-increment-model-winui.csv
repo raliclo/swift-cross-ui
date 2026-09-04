@@ -51,7 +51,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 座標以 frame 為基準，量自 output/screenshots/p46-winui-20260904-230435.png，那是一張
 # 876x739、**含標題列**的 wincap 擷圖。該按鈕範圍約 x 20..142、y 512..542，81,527 為其中心。
 sleep,,,,,,900000,let the window settle and take focus,windows
-click,81,527,frame,left,,,"centre of the ""Increment model"" button (x 20..142 y 512..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1",windows
+click,81,527,frame,left,,,"centre of the ""Increment model"" button (x 20..142 y 512..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1 (VERIFIED 2026-09-04: log line model.count=1 constructions=1)",windows
 sleep,,,,,,1200000,let the log catch up and hold the frame for the capture,windows
-click,81,527,frame,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot",windows
+click,81,527,frame,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot (VERIFIED 2026-09-04: log line model.count=2 constructions=1, byte-identical to the GTK run, and the capture shows all three lines -- output/screenshots/p46-winui-verified-20260904-230614.png)",windows
 sleep,,,,,,1500000,final hold so the capture and the log both observe the settled state,windows

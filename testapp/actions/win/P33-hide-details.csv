@@ -144,5 +144,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 擷圖承擔另一半：按鈕必須顯示為「Show details」，且「Details are plain conditional content」
 # 那一行必須已經消失。
 sleep,,,,,,900000,let the window settle and take focus,windows
-click,83,420,frame,left,,,"centre of the ""Hide details"" button (x 34..133 y 404..436) -- label must become ""Show details"" and the details line must vanish",windows
+click,83,420,frame,left,,,"centre of the ""Hide details"" button (x 34..133 y 404..436) -- label must become ""Show details"" and the details line must vanish (VERIFIED 2026-09-05 against the rebuilt binary, after P33's text changed: log line details expanded=false. That run is what proved the coordinate survived the edit; see this file's header for why it did)",windows
 sleep,,,,,,1500000,hold for the capture and let the log catch up -- expect a fourth line reading details expanded=false,windows

@@ -54,7 +54,7 @@ action,x,y,origin,button,key,micros,note,platform
 # `content size: requested 860x700 allocated 860x700 shortfall 0x0`；同一支 app 在 Win-gtk4 上
 # 回報 39px 的缺口。見任務 #79——那個損失專屬於「Windows 上的 GTK」，而非 GTK 本身。
 sleep,,,,,,900000,let the window settle and take focus,gtk
-click,84,506,,left,,,"centre of the ""Increment model"" button (x 10..158 y 470..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1",gtk
+click,84,506,,left,,,"centre of the ""Increment model"" button (x 10..158 y 470..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1 (VERIFIED 2026-09-05: log line model.count=1 constructions=1, and the capture taken between the two presses shows P46Model constructions: 1, model.count = 1, observed child sees count = 1 -- output/screenshots/p46-wsl-verified.png)",gtk
 sleep,,,,,,1200000,let the log catch up and hold the frame for the capture,gtk
-click,84,506,,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot",gtk
+click,84,506,,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot (VERIFIED 2026-09-05: log line model.count=2 constructions=1, identical to both Windows targets)",gtk
 sleep,,,,,,1500000,final hold so the capture and the log both observe the settled state,gtk
