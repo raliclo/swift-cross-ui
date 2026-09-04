@@ -920,6 +920,42 @@ fi
     done
 } > "$package_dir/Bundler.toml"
 
+# Optimise the Android build for size rather than for speed.
+#
+# `.text` is the largest section of an app's library once the export tables are
+# gone: 21.59 MB of 30.7 MB on P44. Android is the only target here that carries
+# the whole framework into a single library on a phone, so it is the only one
+# where trading some speed for bytes is obviously the right way round.
+#
+# Release only. `-Osize` in a debug build would mean stepping through optimised
+# code, which is the opposite of what --debug-build is for. SwiftPM puts `-O`
+# on the release command line and these flags land after it; the Swift driver
+# takes the last optimisation mode, so -Osize wins.
+#
+# **It is worth 1.2% and it is the first thing to drop.** Measured on P44:
+# .text 21.59 -> 19.61 MB, but .eh_frame 3.72 -> 4.34 and .eh_frame_hdr 1.06 ->
+# 1.30, because -Osize inlines less and more distinct frames need more unwind
+# tables. Net 30.74 -> 29.62 MB of library and 109.9 -> 108.6 MB of APK. Beside
+# the other three levers -- 43 MB of .swift_ast, 15 MB of SwiftSyntax, 28 MB of
+# release -- that is loose change, and it is paid for in the speed of every line
+# in the framework. Recorded here rather than left to be re-measured: if
+# scrolling or animation is ever dropping frames on Android, this is the first
+# flag to take away.
+#
+# 讓 Android 的建置以體積而非速度為目標最佳化。
+#
+# 移除匯出表之後，`.text` 是 app library 中最大的一段：P44 上為 30.7 MB 中的 21.59 MB。Android 是
+# 此處唯一「把整個框架裝進單一 library 帶上手機」的目標，因此也是唯一「拿一些速度換位元組」明顯划算的
+# 那一個。
+#
+# 僅限 release。在 debug 建置中使用 `-Osize` 等於要在最佳化過的程式碼上單步除錯，那與 --debug-build
+# 的用途正好相反。SwiftPM 會在 release 的命令列上放入 `-O`，而這些旗標排在它之後；Swift driver 取
+# 最後一個最佳化模式，因此 -Osize 勝出。
+android_size_flags=()
+if [ "$build_config" = "release" ]; then
+    android_size_flags=(-Xswiftc -Osize)
+fi
+
 if [ "$target_platform" = "android" ]; then
     export ANDROID_HOME="$android_sdk_root"
     export ANDROID_SDK_ROOT="$android_sdk_root"
@@ -932,7 +968,8 @@ if [ "$target_platform" = "android" ]; then
             --package-path "$package_dir" \
             --product "$app_name" \
             --swift-sdk "$android_triple" \
-            -c "$build_config"
+            -c "$build_config" \
+            "${android_size_flags[@]}"
         android_binary="$package_dir/.build/$android_triple/$build_config/$app_name"
         [ -f "$android_binary" ] || {
             echo "Build succeeded but Android executable was not found: $android_binary" >&2
