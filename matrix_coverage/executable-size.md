@@ -41,7 +41,49 @@ done
 
 # Linux, in the WSL checkout
 wsl.exe -d Ubuntu -- bash /tmp/lxsizes.sh
+
+# iOS -- the Mach-O inside the bundle, not the bundle
+cd testapp && SCUI_DEBUG=1 zsh compile.zsh -ios
+cd testapp/output && for d in P*-ios.app; do
+    a=${d%-ios.app}
+    printf '%s\t%s\n' "$a" "$(stat -f %z "$d/$a")"
+done
+
+# Android -- two numbers, and they are different things
+cd testapp && for a in P0 P1 ...; do SCUI_DEBUG=1 zsh test_android.zsh "$a" --no-showtime; done
+cd testapp && for f in output/P*-android; do
+    printf '%s\t%s\n' "${f##*/}" "$(stat -f %z "$f")"
+done
+cd testapp && for f in .androidApk/P*.apk; do
+    printf '%s\t%s\n' "${f##*/}" "$(stat -f %z "$f")"
+done
 ```
+
+`stat -f %z` on macOS, `stat -c %s` on Linux and in WSL. The two flags mean the
+same thing and neither is portable; a command copied from the Linux block into a
+Mac shell fails with `stat: illegal option -- c`, which is at least loud.
+
+The iOS number is the executable inside the bundle and not the bundle: measured
+2026-09-02, `P12-ios.app` is 8,949,760 bytes against its `P12` executable's
+8,933,456, so the bundle adds 16 KB of Info.plist and signature. Recording the
+bundle would put this column in different units from every other one, which are
+all executables.
+
+Android needs two columns because the two numbers answer different questions.
+The executable is what compares with the other platforms; the APK is what
+installs, and it is 38 MB larger because it carries the Swift runtime's shared
+libraries beside the executable rather than inside it.
+
+macOS 用 `stat -f %z`，Linux 與 WSL 用 `stat -c %s`。兩個旗標意思相同，而且都不可移植；把 Linux
+區塊的命令複製到 Mac 的 shell 會得到 `stat: illegal option -- c`——至少那是有聲的。
+
+iOS 記的是 bundle **之內**的執行檔，而不是 bundle 本身：2026-09-02 實測，`P12-ios.app` 為
+8,949,760 位元組，而其中的 `P12` 執行檔為 8,933,456，因此 bundle 多出約 16 KB 的 Info.plist 與
+簽章。若記錄 bundle，本欄的單位就會與其他每一欄（全是執行檔）不同。
+
+Android 需要兩欄，因為那兩個數字回答的是不同的問題。執行檔是能與其他平台相比的那一個；APK 則是
+實際安裝的那一個，而它大了 38 MB，因為它把 Swift runtime 的共享函式庫放在執行檔**旁邊**，
+而不是放在其中。
 
 `lxsizes.sh` must be run as a **file**. A `find -printf '%f|%s\n'` passed on a
 quoted `wsl.exe` command line comes back empty — the format string does not
@@ -54,10 +96,14 @@ survive the trip, and the failure is silent output rather than an error.
 
 ```zsh
 csv2 -r -i matrix_coverage/executable-size.csv2 | awk -F, '
-  {for(i=2;i<=4;i++) if($i ~ /^[0-9]+$/) {s[i]+=$i; n[i]++}}
-  END{split("_ windows_gtk4 windows_winui linux_gtk4",L," ");
-      for(i=2;i<=4;i++) printf "%-14s n=%-3d avg=%7.1f MB\n", L[i], n[i], s[i]/n[i]/1048576}'
+  {for(i=2;i<=8;i++) if($i ~ /^[0-9]+$/) {s[i]+=$i; n[i]++}}
+  END{split("_ windows_gtk4 windows_winui linux_gtk4 macos_appkit ios_uikit android_exe android_apk",L," ");
+      for(i=2;i<=8;i++) if(n[i]) printf "%-14s n=%-3d avg=%7.1f MB\n", L[i], n[i], s[i]/n[i]/1048576}'
 ```
+
+The range was 2–4 until 2026-09-04 and is now 2–8, and the `if(n[i])` guard is
+new with it: `macos_appkit` has no numbers at all, and dividing by `n=0` printed
+`-nan` rather than skipping the column.
 
 Two things about that command, both learned by getting them wrong.
 
@@ -81,25 +127,60 @@ and still counts toward `n`, dragging every average down silently.
 一致。這個錯誤改變的是樣本而非答案，所以看不出任何異狀。請在任何平均值旁邊一併報出 `n`，
 理由正是如此：它是唯一會動的那一欄。
 
-Measured 2026-09-02:
+Windows and Linux measured 2026-09-02, iOS the same day, Android 2026-09-04.
+48 rows.
 
 | Column | n | Average | Range | Empty | vs GTK4 |
 |---|---:|---:|---|---:|---:|
-| Windows GTK4 | 46 | 53.9 MB | 53.9–54.2 | 0 | 1.00x |
-| Windows WinUI | 46 | 169.7 MB | 169.6–170.3 | 0 | **3.15x** |
-| Linux GTK4 | 47 | 52.7 MB | 52.0–53.3 | 0 | 0.98x |
+| Windows GTK4 | 46 | 53.9 MB | 53.9–54.2 | 2 | 1.00x |
+| Windows WinUI | 46 | 169.7 MB | 169.6–170.3 | 2 | **3.15x** |
+| Linux GTK4 | 47 | 52.7 MB | 52.0–53.3 | 1 | 0.98x |
+| macOS AppKit | 0 | — | — | 48 | — |
+| iOS UIKit | 46 | 8.5 MB | 8.5–8.7 | 2 | **0.16x** |
+| Android executable | 45 | 173.3 MB | 173.1–173.6 | 3 | **3.21x** |
+| Android APK | 44 | 211.5 MB | 211.5–211.8 | 4 | 3.92x |
 
-Complete as of 2026-09-02: every app that can be built on a platform has a
-number there. The two `n/a` cells are the only non-numbers, and `macos_appkit`
-is empty throughout because it needs a Mac.
+The empty counts rose by one across the older columns because P44 was added on
+2026-09-04 and exists only on Android so far; `P6-v2` and `P6` account for the
+rest, as the table below records.
 
-2026-09-02 起本表已完整：每一支能在該平台建置的 app 都有數字。唯二的非數字是那兩個 `n/a`，
-而 `macos_appkit` 整欄為空是因為它需要一台 Mac。
+Windows/Linux 量於 2026-09-02，iOS 同日，Android 量於 2026-09-04。全表 48 列。舊有各欄的空格數
+各增加一格，是因為 P44 於 2026-09-04 新增、目前只在 Android 上存在；其餘則由 `P6-v2` 與 `P6`
+說明，見下方表格。
 
 WinUI costs **115.8 MB more per app**, and the spread across all 46 is only
 0.7 MB — so that is not application code, it is the statically linked WinRT/UWP
 projection, paid once by every app. Windows GTK4 sits 1.2 MB (2.3%) above Linux
 GTK4, which puts the whole 3.15x on the backend choice rather than the OS.
+
+**iOS is the outlier downward and Android the outlier upward, for the same
+reason.** An iOS app is 8.5 MB against Windows GTK4's 53.9 — 0.16x — because
+Swift's runtime and Foundation ship with the OS and the app links against them.
+Android has no such runtime on the device, so every app carries its own: the
+executable is 173.3 MB and the APK 211.5 MB, and the APK is larger than the
+executable because it also contains the runtime's shared libraries beside it.
+The spread within each column is under half a megabyte across 44 apps, which is
+what says this is per-platform overhead rather than anything the apps do.
+
+**The Android figures are debug builds, and it does not matter.** `test_android.zsh`
+builds debug because `SCUI_DEBUG` is what makes action-file replay exist at all,
+while `compile.zsh` defaults to release, so the two are not the same
+configuration. Measured on P12 the same day: release 181,824,952 bytes against
+debug 181,629,584 — **0.1% apart**, because the size is the statically linked
+runtime either way. P12's row carries the release number and says so in its
+note; every other Android row is debug.
+
+**iOS 是向下的例外，Android 是向上的例外，而兩者出於同一個原因。** 一支 iOS app 是 8.5 MB，相對於
+Windows GTK4 的 53.9——0.16 倍——因為 Swift 的 runtime 與 Foundation 隨作業系統出貨，app 是連結
+它們的。Android 的裝置上沒有這樣的 runtime，因此每一支 app 都自行攜帶：執行檔是 173.3 MB，APK 是
+211.5 MB，而 APK 比執行檔大，是因為它同時還在旁邊放了該 runtime 的共享函式庫。每一欄之內、跨 44 支
+app 的極差都不到半個 MB——正是這一點說明了它是平台的固定成本，而非各 app 所為。
+
+**Android 的數字是 debug 建置，而那不重要。** `test_android.zsh` 建的是 debug，因為 `SCUI_DEBUG`
+正是「動作檔重放得以存在」的前提；而 `compile.zsh` 預設為 release，因此兩者並非同一種組態。同日於
+P12 上實測：release 為 181,824,952 位元組，debug 為 181,629,584——**相差 0.1%**，因為無論哪一種，
+其尺寸都是那份靜態連結的 runtime。P12 那一列記的是 release 的數字，並在其 note 欄寫明；其餘每一列
+的 Android 數字都是 debug。
 
 `$i ~ /^[0-9]+$/` 這個條件是關鍵：少了它，`n/a` 會以 **0** 計入總和且仍佔一個 `n`，靜默拉低每一個
 平均值。WinUI 每支多付 **115.8 MB**，而 43 支的極差只有 0.3 MB——那不是應用程式碼，是靜態連結的
@@ -126,7 +207,11 @@ whole `macos_appkit` column:
 |---|---|---|
 | `P6` | windows_gtk4 | `n/a` — imports the WinUI products under `#if os(Windows)`, which `-gtk4` removes; the guard stays true because the flag changes products, not the OS |
 | `P6-v2` | windows_winui | `n/a` — pure GTK app, no WinUI counterpart exists |
-| every app | macos_appkit | empty — needs a Mac; out of scope on this machine |
+| every app | macos_appkit | empty — never measured. The Mac in use builds and runs macOS apps, so this is a sweep that has not been run rather than a platform that is out of reach |
+| `P6-v2` | ios_uikit, android_* | empty — GTK-only app; it has no iOS or Android build and no action file on either |
+| `P12` | android_apk | empty — the executable was measured but no APK was on disk when the sweep ran |
+| `P15-DARK`, `P17-DOE` | android_apk | empty — variants that are built when their experiment is run, not by the standard sweep |
+| `P44` | everything but Android | empty — added 2026-09-04 and only built for Android so far |
 
 **Resolved 2026-09-02**, kept because what the gaps turned out to be is worth
 more than the fact they are closed:
