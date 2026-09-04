@@ -136,18 +136,29 @@ black frame.
 
 ## Android build size, and the disk it takes
 
-An Android APK from this tree is **154 MB**; the same app on iOS is **8.6 MB**.
+An Android APK from this tree is **126 MB**; the same app on iOS is **8.6 MB**.
 Measured 2026-09-05 on P43. That 20x is not this project: Swift's runtime ships
 with iOS and the app links against it, while Android has none on the device, so
 every APK carries its own.
 
 | | P43 |
 | --- | ---: |
-| Android APK | 154 MB |
+| Android APK | 126 MB |
 | iOS `.app` | 8.6 MB |
 
-**58 MB came off, in two pieces.** 43 of them is `.swift_ast`, and it stays off
-by default. `.swift_ast`
+**86 MB came off, in three pieces**, and all three are the default:
+
+| | APK |
+|---|---:|
+| where this started | 212 MB |
+| `.swift_ast` stripped | 169 MB |
+| SwiftSyntax not linked into Android | 154 MB |
+| built release rather than debug | **126 MB** |
+
+Release is the default because Android was the only platform here that was not;
+`--debug-build` goes back. `SCUI_DEBUG` is a compilation condition rather than a
+build configuration, so action-file replay and `--debug` diagnostics work in
+both. `.swift_ast`
 is the serialized Swift AST lldb reads to describe types, and nothing at runtime
 touches it -- it was 45.0 MB of a 137.6 MB library, the second largest section
 after `.text`. The bundler strips it from the packaged copy, so
@@ -178,11 +189,16 @@ is made of, is in `matrix_coverage/executable-size.md`.
 
 ## Android 的建置體積，以及它佔用的磁碟
 
-本樹產出的 Android APK 為 **154 MB**；同一支 app 在 iOS 上是 **8.6 MB**。2026-09-05 於 P43 上量測。
+本樹產出的 Android APK 為 **126 MB**；同一支 app 在 iOS 上是 **8.6 MB**。2026-09-05 於 P43 上量測。
 那 20 倍不是這個專案造成的：Swift 的 runtime 隨 iOS 出貨、app 是連結它的，而 Android 的裝置上沒有，
 因此每一支 APK 都得自帶一份。
 
-**共移除了 58 MB，分兩塊。** 其中 43 MB 是 `.swift_ast`，且預設維持移除。 `.swift_ast` 是 lldb 用來描述型別的序列化
+**共移除了 86 MB，分三塊**，而三者都是預設行為：212 MB 起算，剝除 `.swift_ast` 後為 169 MB，
+不再把 SwiftSyntax 連進 Android 後為 154 MB，改以 release 而非 debug 建置後為 **126 MB**。
+
+release 之所以是預設，是因為 Android 曾是此處唯一不是的平台；`--debug-build` 可以走回去。
+`SCUI_DEBUG` 是 compilation condition 而非 build configuration，因此動作檔重放與 `--debug` 診斷
+在兩者之下都可用。 `.swift_ast` 是 lldb 用來描述型別的序列化
 Swift AST，執行期完全不會碰它——它在一個 137.6 MB 的 library 中佔 45.0 MB，是繼 `.text` 之後第二大的
 section。bundler 會從打包的副本中剝除它，因此 `test.zsh --android` 與 `test_android.zsh` 都不需要
 任何旗標就會產出較小的 APK。若某個建置你打算以除錯器附加，請設定 `SCUI_KEEP_SWIFT_AST=1`。

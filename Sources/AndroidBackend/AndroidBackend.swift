@@ -60,6 +60,34 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
         FileHandle.standardError.fileDescriptor
     )
 
+    // Line buffering, or `print` reaches logcat only in 4 KB instalments.
+    //
+    // C stdio picks its buffering from what the descriptor is: a terminal gets
+    // line buffering, anything else gets a full 4 KB buffer. The `dup2` above
+    // makes stdout a pipe, so from that call onwards `print` writes into a
+    // buffer that is flushed when it fills, when the process exits, or never --
+    // and an app killed with `am force-stop`, which is how every test here
+    // ends, never flushes.
+    //
+    // stderr is unbuffered by the C standard and needs nothing, which is why
+    // `InputEvent`'s `-actionfile:` lines have always appeared while the test
+    // apps' own `print` output has not. That asymmetry was recorded as "an
+    // Android app's print does not reach logcat" and taken as a platform
+    // limitation; it is four lines of buffering.
+    //
+    // 設為行緩衝，否則 `print` 只會以 4 KB 為單位分批抵達 logcat。
+    //
+    // C stdio 是依「該描述子是什麼」來決定緩衝方式的：終端機得到行緩衝，其他一切得到完整的 4 KB
+    // 緩衝區。上方的 `dup2` 使 stdout 成為一條 pipe，因此自該次呼叫起，`print` 寫入的是一個
+    // 「緩衝區滿了才沖、行程結束才沖，或者永遠不沖」的緩衝區——而一個以 `am force-stop` 終結的
+    // app（此處每一次測試都是這樣結束的）永遠不會沖。
+    //
+    // stderr 依 C 標準是無緩衝的，不需要任何處理——這正是為什麼 `InputEvent` 的 `-actionfile:`
+    // 各行一直都看得到，而測試 app 自身的 `print` 輸出卻看不到。那個不對稱曾被記錄為「Android app
+    // 的 print 到不了 logcat」並當成平台限制；它其實是四行緩衝設定。
+    setvbuf(stdout, nil, _IOLBF, 0)
+    setvbuf(stderr, nil, _IONBF, 0)
+
     // Arguments from the launching intent rather than none at all.
     //
     // This was `main(0, argv)` with `argv[0] = nil`, described as "dummy

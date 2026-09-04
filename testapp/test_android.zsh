@@ -33,7 +33,17 @@ Usage: ${script_path:t} <Pn> [--no-build] [--actionfile [path]] [--showtime seco
 Usually reached as: zsh testapp/test.zsh <Pn> --android
 That uses the same flags as every other platform.
 
-Default: compile and bundle a fresh Android APK, then install and launch it.
+Default: compile and bundle a fresh Android APK in RELEASE, then install and
+launch it. `--debug-build` uses debug instead.
+
+Release is the default because Android was the only platform here that was not:
+compile.zsh has used release everywhere else all along, and the debug default
+cost 28 MB per APK -- 154 against 126, measured on P43 2026-09-05 -- for an
+optimisation setting nothing was reading. `SCUI_DEBUG` is a separate thing and
+still works: it is a compilation condition, not a build configuration, so
+action-file replay and `--debug` diagnostics are available in both. Verified in
+release on P43: the gradients measure what they did in debug and the replay
+still reports `replayed P43-actions.csv`.
 --no-build: reuse testapp/.androidApk/<Pn>.apk and skip compile/bundle.
             Aliases: -noApk, --no-apk.
 --actionfile: replay an Android action file after launch; without a path, use
@@ -66,6 +76,10 @@ while [ "$#" -gt 0 ]; do
         # test_common.zsh 交付過來的形式。原本的 `-noApk` 與 `-replay` 保留為別名，讓任何直接
         # 呼叫本腳本的既有做法仍然可用。
         -n|--no-build|-noApk|--no-apk) do_apk=0; shift ;;
+        # Release is the default here, as it is for every other platform in
+        # compile.zsh, and this is the way back to a debug build.
+        # 此處預設為 release，與 compile.zsh 中其他所有平台相同；本旗標是回到 debug 建置的方式。
+        --debug-build) BUILD_CONFIG=debug; shift ;;
         --actionfile|-replay|--replay)
             if [ "$#" -gt 1 ] && [[ "$2" != -* ]]; then
                 action_file="$2"
@@ -299,7 +313,7 @@ if [ "$do_apk" -eq 1 ]; then
         cd "$package_dir"
         SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
-            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}" \
+            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-release}" \
                 --toolchain "${swift_bin:h:h:h}" \
                 --scratch-path "$bundler_scratch" \
                 --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"

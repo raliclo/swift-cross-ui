@@ -64,6 +64,46 @@ P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以�
 
 受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
 
+## Fixed 2026-09-05: an app's `print` did not reach logcat, and it was buffering
+
+Recorded on 2026-09-03 as a platform limitation -- "an Android app's `print` does
+not reach logcat" -- and used to justify writing several action files against
+uiautomator attributes and pixels instead of the diagnostics the apps already
+had. It was four lines of buffering.
+
+`AndroidBackend.entrypoint` pipes **both** stdout and stderr and `dup2`s both, so
+nothing was missing. C stdio picks its buffering from what the descriptor is: a
+terminal gets line buffering, anything else gets a full 4 KB buffer. After the
+`dup2` stdout is a pipe, so `print` wrote into a buffer flushed when it filled,
+when the process exited, or never -- and an app ended with `am force-stop`, which
+is how every test here ends, never flushes. stderr is unbuffered by the C
+standard, which is exactly why `InputEvent`'s `-actionfile:` lines always
+appeared while the apps' own output never did.
+
+That asymmetry was the whole clue and it was in front of me: two streams, same
+plumbing, only one arriving.
+
+`setvbuf(stdout, nil, _IOLBF, 0)` after the dup2. Verified: P44 now logs
+`[P44] RENDER COMPLETE -- P44 ready for clipping checks` and
+`[P44] third cell clipped: true`.
+
+## 已修 2026-09-05：app 的 `print` 到不了 logcat，而成因是緩衝
+
+2026-09-03 曾把它記為平台限制——「Android app 的 `print` 到不了 logcat」——並以此為由，讓好幾份動作
+檔改用 uiautomator 屬性與像素判讀，而不是那些 app 本來就有的診斷輸出。它其實是四行緩衝設定。
+
+`AndroidBackend.entrypoint` 對 stdout 與 stderr **兩者**都接了 pipe、也都做了 `dup2`，因此並沒有
+少接什麼。C stdio 是依「該描述子是什麼」決定緩衝方式的：終端機得到行緩衝，其他一切得到完整的 4 KB
+緩衝區。`dup2` 之後 stdout 是一條 pipe，於是 `print` 寫進一個「滿了才沖、行程結束才沖，或永遠不沖」
+的緩衝區——而一個以 `am force-stop` 終結的 app（此處每次測試都是如此）永遠不會沖。stderr 依 C 標準
+無緩衝，這正是為什麼 `InputEvent` 的 `-actionfile:` 各行一直都看得到，而 app 自身的輸出從來沒有。
+
+那個不對稱就是全部的線索，而它一直擺在眼前：兩條串流、同一套管線，只有一條抵達。
+
+修法是在 dup2 之後加上 `setvbuf(stdout, nil, _IOLBF, 0)`。已驗證：P44 現在會記錄
+`[P44] RENDER COMPLETE -- P44 ready for clipping checks` 與
+`[P44] third cell clipped: true`。
+
 ## Fixed 2026-09-04: `windowLevel(.floating)`, after four experiments
 
 AndroidBackend now conforms to `BackendFeatures.WindowLevels` and reports
