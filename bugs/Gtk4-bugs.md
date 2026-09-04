@@ -584,9 +584,57 @@ between the two backends says nothing about which one honoured the request.
 **Why it cannot be fixed by adding a constant.** GTK4 has no set-content-size
 call, and the header height is not knowable before the window is realized: it
 depends on theme, scale and whether the compositor gives server-side decorations
-at all. The correction has to happen once after the window is mapped — compare
+at all. ~~The correction has to happen once after the window is mapped — compare
 the content widget's allocation against the request and grow the window by the
-shortfall. Tracked in `todo.md`.
+shortfall.~~ Tracked in `todo.md`.
+
+### That prescription was written, implemented, and does not work — 2026-09-04
+
+`correctContentSizeIfNeeded` does exactly what the struck-through sentence says,
+and **it has been shipping as a no-op**. It runs, it logs that it grew the
+window, and nothing grows. Measured on Windows / GtkBackend with P16, once a
+read-back was added:
+
+```
+content size: requested 900x600 allocated 900x561 shortfall 0x39
+content size: grew the window to 900x639
+content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+```
+
+**Two delays, deliberately.** A single late reading cannot tell "the correction
+did nothing" from "the correction worked and I measured before GTK relaid out" —
+both print the old number. Two separate them: a timing artefact gives two
+*different* numbers, a real no-op gives the same number twice. It gave the same
+number twice.
+
+It stayed invisible because the reading and the correction were fused in one
+once-only guard, so *the fix ran* and *the fix worked* printed identically.
+
+**The reason was already in this repository, 400 lines from the fix**, in
+`GtkBackend.setSizeLimits`: *"A size request on the toplevel is only honoured as
+a launch hint; once the window is realised GTK lets the user drag it below
+that."* `gtk_window_set_default_size` is the same kind of hint, and the
+correction runs after the window is mapped **by construction** — the shortfall
+is unmeasurable before then. So the one moment it can measure is the one moment
+it can no longer act. Not a bug in the implementation; the approach cannot work.
+
+Not the Swift side: `Window.defaultSize`'s setter does call
+`gtk_window_set_default_size` (`Sources/Gtk/Widgets/Window.swift:62-64`). GTK is
+being asked and is declining.
+
+**What a real fix needs** is a mechanism GTK still enforces after realisation.
+The only one this codebase has found is the `CustomRootWidget`'s measured
+minimum, which `setSizeLimits` already relies on — and using it here trades the
+39px for a window the user cannot shrink below its default size. That is a
+design decision, not a patch.
+
+**Untested claim, and it changes the scope of any fix:** the doc comment asserts
+the shortfall is zero under server-side decorations and that the correction must
+then do nothing. Nothing has ever measured that. Both platforms tested so far
+use client-side decorations — on Windows a GTK app window reports `client ==
+frame`, while its own file dialogs report `client=(60,83)` against
+`frame=(52,52)`, so the dialogs are decorated and the app window is not.
 
 Unverified and needing a Mac: whether AppKit's `.defaultSize` maps to the
 content rect, which would make GTK the only one of the three that is short.
@@ -654,8 +702,46 @@ WinUIBackend 沒有這個問題：Windows 上標題列屬 non-client 區域，�
 的是不同的固定值——這也正是為何「比較兩個 backend 的外框尺寸」完全說不出誰遵守了要求。
 
 **為何不能靠加一個常數修好。** GTK4 沒有「設定內容尺寸」的呼叫，而標題列高度在視窗 realize 之前
-無從得知：它取決於主題、縮放，以及 compositor 是否根本提供 server-side decorations。修正必須在
-視窗 map 之後做一次——比對內容 widget 的配置與原始要求，再依差額放大視窗。追蹤於 `todo.md`。
+無從得知：它取決於主題、縮放，以及 compositor 是否根本提供 server-side decorations。~~修正必須在
+視窗 map 之後做一次——比對內容 widget 的配置與原始要求，再依差額放大視窗。~~追蹤於 `todo.md`。
+
+### 那個處方寫過、實作過，而且沒有作用 —— 2026-09-04
+
+`correctContentSizeIfNeeded` 做的正是上面被劃掉那句話所說的事，而**它一直以 no-op 的形式在出貨**。
+它會執行、會記錄「已把視窗放大」，然後什麼都沒長大。在加入讀回之後，於 Windows / GtkBackend 上
+以 P16 實測：
+
+```
+content size: requested 900x600 allocated 900x561 shortfall 0x39
+content size: grew the window to 900x639
+content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+```
+
+**刻意取兩個延遲。** 單一次的延後讀數無法分辨「修正沒有作用」與「修正有效，但我在 GTK 重新配置
+之前就量了」——兩者都會印出舊的數字。兩次就能分開：時序造成的假象會給出**兩個不同的**數字，真正
+的 no-op 則把同一個數字印兩次。它印了同一個數字兩次。
+
+它之所以一直沒被看見，是因為讀數與修正被綁在**同一個 once-only guard** 內，於是「這個修正**執行
+過**」與「這個修正**有效**」印出來一模一樣。
+
+**理由早就存在於本專案中，距離該修正僅四百行**，位於 `GtkBackend.setSizeLimits`：
+「**toplevel 上的 size request 只會被當成啟動提示；視窗一旦 realise，GTK 就允許使用者把它拖得
+更小。**」`gtk_window_set_default_size` 屬於同一類提示，而該修正**依其構造**必然在視窗 map 之後
+才執行——因為差額在那之前量不到。於是**它唯一能量測的時刻，正是它已經無法作用的時刻。** 這不是
+實作的錯誤；是這個做法本身不可行。
+
+不是 Swift 這一端漏掉：`Window.defaultSize` 的 setter 確實呼叫了 `gtk_window_set_default_size`
+（`Sources/Gtk/Widgets/Window.swift:62-64`）。是 GTK 被要求了而拒絕。
+
+**真正的修正需要**一個「GTK 在 realise 之後仍會持續強制」的機制。本專案目前只找到
+`CustomRootWidget` 的 measured minimum，也就是 `setSizeLimits` 已經倚賴的那一個——而在此處使用
+它，等於用「使用者無法把視窗縮到小於預設尺寸」換掉這 39px。**那是一項設計決策，不是一個補丁。**
+
+**一個未經驗證的主張，而它會改變任何修正所需涵蓋的範圍：** 文件註解宣稱在 server-side decoration
+之下差額為零、因此該修正屆時必須什麼都不做。**從來沒有任何東西量過這件事。** 目前測過的兩個平台
+都使用 client-side decoration——在 Windows 上，GTK 的 app 視窗回報 `client == frame`，而它自己的
+檔案對話框回報 `client=(60,83)` 對 `frame=(52,52)`，因此對話框有裝飾、app 視窗沒有。
 
 尚未驗證、需要 Mac：AppKit 的 `.defaultSize` 是否對應 content rect；若是，GTK 就是三者中唯一
 少給的那一個。
