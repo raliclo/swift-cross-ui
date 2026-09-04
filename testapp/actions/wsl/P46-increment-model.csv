@@ -1,0 +1,60 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on WSL-gtk4: the third target of flow.md's Windows track, and the same
+# three numbers the other two produce.
+#
+# WHY A THIRD FILE. flow.md section 2 makes the Windows track Win-WinUI,
+# Win-gtk4 AND WSL-gtk4, and section 4's count says WSL is the thin column: 9 of
+# 49 against Windows' 33. It also forbids copying a win file here -- the two
+# differ in window geometry and the coordinates land in the wrong space. This
+# file was measured on WSL.
+#
+# GEOMETRY, which section 3d requires in every header. The capture is 860x700
+# and that IS the window: under WSLg the compositor draws no frame, so the
+# capture holds only client area and there is no chrome to subtract. Coordinates
+# are therefore window-relative and `origin` is EMPTY, matching every other file
+# in this directory -- xdotool mousemove --window takes window coordinates.
+# Layout scale 1. "Increment model" spans x 10..158, y 470..542; (84, 506) is its
+# centre, measured by pixel edges rather than read off a picture.
+#
+# THIS IS THE XWAYLAND PATH, NOT THE WAYLAND ONE, and drive_xdotool.zsh's own
+# header says why that distinction has already cost something: Wayland forbids
+# one process driving another client, so the app must be launched with
+# GDK_BACKEND=x11 and xdotool sees nothing otherwise. The two are separate code
+# paths in GTK. A result here is evidence about XWayland.
+#
+# WHAT THE NUMBERS MEAN, identical to the win file:
+#   model.count = 1 then 2            the @Published property published
+#   observed child sees count = 1,2   @ObservedObject reached a child view that
+#                                     shares no @State with its parent
+#   P46Model constructions: 1         @StateObject did not rebuild the model
+# The construction count is the only one that needs the click: @State and
+# @StateObject both show 1 on the first frame and diverge only on update.
+#
+# A THING THIS TARGET GOT RIGHT THAT WIN-GTK4 DID NOT. On launch the app logs
+# `content size: requested 860x700 allocated 860x700 shortfall 0x0`. On
+# Win-gtk4 the same app reports a 39px shortfall. See task #79 -- the loss is
+# specific to GTK on Windows, not to GTK.
+#
+# P46 於 WSL-gtk4：flow.md Windows 軌的第三個目標，產出與另外兩個相同的三個數字。
+#
+# 為何要有第三份檔案。flow.md 第二節把 Windows 軌定義為 Win-WinUI、Win-gtk4 **與 WSL-gtk4**，
+# 而第四節的計數顯示 WSL 是最薄的一欄：49 之中只有 9，Windows 則是 33。它同時禁止把 win 的檔案
+# 複製到此處——兩者的視窗幾何不同，座標會落在錯誤的空間。本檔案是在 WSL 上量的。
+#
+# 幾何，第 3d 節要求每份檔頭都寫明。擷圖為 860x700，而**那就是視窗本身**：WSLg 下的合成器不繪製
+# 外框，因此擷圖只含 client 區域，沒有 chrome 需要扣除。座標因此是視窗相對，`origin` **留空**，
+# 與本目錄其他每一份檔案一致——`xdotool mousemove --window` 接受的正是視窗座標。版面比例為 1。
+# 「Increment model」橫跨 x 10..158、y 470..542，(84, 506) 為其中心，以像素邊界量得，而非看圖判讀。
+#
+# 這是 XWayland 路徑，不是 Wayland 路徑，而 drive_xdotool.zsh 自己的檔頭說明了這個區別已經付過
+# 什麼代價：Wayland 不允許一個行程驅動另一個 client，因此 app 必須以 GDK_BACKEND=x11 啟動，否則
+# xdotool 什麼也看不到。兩者在 GTK 中是不同的程式路徑。此處的結果是關於 XWayland 的證據。
+#
+# 這個目標做對了一件 Win-gtk4 沒做對的事。啟動時 app 記錄
+# `content size: requested 860x700 allocated 860x700 shortfall 0x0`；同一支 app 在 Win-gtk4 上
+# 回報 39px 的缺口。見任務 #79——那個損失專屬於「Windows 上的 GTK」，而非 GTK 本身。
+sleep,,,,,,900000,let the window settle and take focus,gtk
+click,84,506,,left,,,"centre of the ""Increment model"" button (x 10..158 y 470..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1",gtk
+sleep,,,,,,1200000,let the log catch up and hold the frame for the capture,gtk
+click,84,506,,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot",gtk
+sleep,,,,,,1500000,final hold so the capture and the log both observe the settled state,gtk
