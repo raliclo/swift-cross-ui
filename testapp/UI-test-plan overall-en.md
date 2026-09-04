@@ -773,9 +773,12 @@ Diagnostics:
   current working directory, keeping normal terminal output quiet. Detailed frame
   upload, presentation, and per-frame timing messages require `--debug` and are
   also written only to that file.
-- `testapp/.compile-work/` and `testapp/output/` are scratch: `compile.zsh` copies
-  the selected source to `.compile-work/TestApps/Sources/<name>/main.swift` and
-  generates its `Package.swift`, so neither directory belongs in a commit.
+- `testapp/.compile-work-<backend>/` and `testapp/output/` are scratch:
+  `compile.zsh` copies the selected source to
+  `.compile-work-<backend>/TestApps/Sources/<name>/main.swift` and generates its
+  `Package.swift`, so neither directory belongs in a commit. The suffix names the
+  backend -- `-winui`, `-gtk4`, `-appkit`, `-android`, `-ios` -- and there is no
+  suffix-less tree.
 
 Test steps:
 

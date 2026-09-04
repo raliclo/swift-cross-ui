@@ -719,9 +719,10 @@ Runtime tools：
 - P6 只把生命週期與錯誤訊息寫入目前工作目錄下的 `p6-debug-events.log`，
   終端機輸出維持安靜。詳細的 frame upload、呈現與逐格計時訊息需要 `--debug`，
   且同樣只會寫入該檔案。
-- `testapp/.compile-work/` 與 `testapp/output/` 屬於暫存區：`compile.zsh` 會把
-  選定的原始碼複製到 `.compile-work/TestApps/Sources/<name>/main.swift` 並
-  產生對應的 `Package.swift`，因此這兩個目錄都不應納入 commit。
+- `testapp/.compile-work-<backend>/` 與 `testapp/output/` 屬於暫存區：`compile.zsh` 會把
+  選定的原始碼複製到 `.compile-work-<backend>/TestApps/Sources/<name>/main.swift` 並
+  產生對應的 `Package.swift`，因此這兩個目錄都不應納入 commit。後綴即 backend 名稱——
+  `-winui`、`-gtk4`、`-appkit`、`-android`、`-ios`——不存在無後綴的樹。
 
 測試步驟：
 

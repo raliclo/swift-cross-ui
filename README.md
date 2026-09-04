@@ -200,8 +200,10 @@ it the executable exits immediately with `gtk-4-1.dll => not found`.
 > nothing to do. `testapp/platform-costs.md` has that measurement.
 
 > [!TIP]
-> Each backend gets its own build tree (`testapp/.compile-work` and
-> `.compile-work-gtk4`). Sharing one is not merely slower, it is wrong: SwiftPM's
+> Each backend gets its own build tree, named after it:
+> `testapp/.compile-work-winui`, `.compile-work-gtk4`, `.compile-work-appkit`,
+> `.compile-work-android`, `.compile-work-ios`. Sharing one is not merely slower,
+> it is wrong: SwiftPM's
 > incremental state records which modules a target depended on, so a `-gtk4`
 > build leaves references behind and the next default build fails with
 > `missing required modules: 'CGtk', 'GtkCHelpers'`. Set `COMPILE_WORK_DIR` to

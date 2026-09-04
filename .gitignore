@@ -3,10 +3,12 @@
 /.index-build
 /Examples/.build
 
-# Generated test app packages and their build trees. One per backend: the
-# default build and a -gtk4 build cannot share a tree, because SwiftPM's
-# incremental state records module dependencies and they contradict each other.
-/testapp/.compile-work
+# Generated test app packages and their build trees. One per backend, and the
+# name always says which: a default build and a -gtk4 build cannot share a tree,
+# because SwiftPM's incremental state records module dependencies and they
+# contradict each other. The suffix-less /testapp/.compile-work was removed on
+# 2026-09-04 -- it was the fallback, so its contents depended on the host rather
+# than on its name, and nobody could tell whether it was safe to delete.
 /testapp/.compile-work-*
 
 # Reusable iOS Simulator bundle assembled by testapp/test_ios.zsh. The

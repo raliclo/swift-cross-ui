@@ -75,10 +75,18 @@ source_root="$(to_wsl_path "$repo_root")"
 # `--exclude='*'` has to come last or it would swallow everything.
 #
 # Only sources are copied, never build output. The WSL checkout keeps its own
-# .build and .compile-work; overwriting them from Windows would mean shipping
+# .build and .compile-work*; overwriting them from Windows would mean shipping
 # object files built for the wrong platform. `output/` is excluded for the same
 # reason -- the two sides produce P7 and P7.exe from the same source and both
 # must survive.
+#
+# The glob is `.compile-work*/`, not `.compile-work/`, and that was a real bug
+# rather than tidying. `compile.zsh` has kept one tree PER BACKEND for a long
+# time -- .compile-work-gtk4, -android, -ios -- and none of those matched the
+# exact-name exclude, so every run rsynced a multi-gigabyte Windows build tree
+# into WSL. It never errored: rsync copying more than intended looks exactly
+# like rsync working. Measured 2026-09-04, when .compile-work-gtk4 alone was
+# 7.9 GB.
 # 下方 include/exclude 的順序是 rsync 的規則，並不直觀：先命中者勝，因此讓 rsync
 # 能進入目錄的 `--include='*/'` 必須排在檔案樣式之前，而收尾的 `--exclude='*'`
 # 必須放最後，否則會把所有東西一併排除。
@@ -94,7 +102,7 @@ rsync -a \
     --exclude='.git/' \
     --exclude='.build/' \
     --exclude='.swiftpm/' \
-    --exclude='.compile-work/' \
+    --exclude='.compile-work*/' \
     --exclude='.tmp/' \
     --exclude='output/' \
     --include='*/' \

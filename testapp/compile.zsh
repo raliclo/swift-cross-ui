@@ -263,7 +263,50 @@ elif [ "$target_platform" = "ios" ]; then
     # 分開目錄樹才是解法。改套件名稱不是：那是拿「慢的建置」換「壞掉的建置」。
     compile_work_dir="$(windows_path "$script_dir/.compile-work-ios")"
 else
-    compile_work_dir="$(windows_path "$script_dir/.compile-work")"
+    # Every tree is named after the backend it holds. There is deliberately no
+    # suffix-less `.compile-work` any more.
+    #
+    # It used to be the fallback, and that made it the one directory whose
+    # contents could not be read off its name: on Windows it held WinUI, on
+    # Linux it held Gtk, and on macOS it held AppKit. A 12 GB directory that
+    # answers "which backend is this?" with "depends where you ran it" is a
+    # directory nobody can decide whether to delete -- which is how it reached
+    # 12 GB, on a disk that then hit 100% and failed every build of the day with
+    # `I/O error (code: 28)`, an ENOSPC that reads like a corrupt build database.
+    #
+    # If a new platform lands here, give it its own branch above rather than
+    # letting it fall through. An unnamed tree is the bug.
+    #
+    # 每一棵樹都以它所存放的 backend 命名。此處刻意不再有無後綴的 `.compile-work`。
+    #
+    # 它從前是 fallback，而那使它成為「唯一無法從名字看出內容」的目錄：在 Windows 上放 WinUI、
+    # 在 Linux 上放 Gtk、在 macOS 上放 AppKit。一個對「這是哪個 backend?」只能回答「看你在哪裡
+    # 執行」的 12 GB 目錄，是沒有人能決定該不該刪的目錄——而它正是這樣長到 12 GB，接著把磁碟
+    # 塞到 100%，使當天每一次建置都以 `I/O error (code: 28)` 失敗；那是一個 ENOSPC，讀起來
+    # 卻像建置資料庫壞掉。
+    #
+    # 若日後有新平台落到此處，請在上方為它加一個分支，而不要讓它掉進來。沒有名字的樹本身就是 bug。
+    #
+    # Linux resolves to the SAME tree as -gtk4, not to a second one, because it
+    # would hold the same thing: GtkBackend is already the default there, so
+    # `compile.zsh P1` and `compile.zsh -gtk4 P1` build byte-identical trees on
+    # Linux. Two directories for one backend is how the orphaned pair that
+    # started this cleanup came to exist.
+    #
+    # Linux 解析到與 -gtk4 **同一棵樹**，而不是另建一棵，因為兩者存放的內容相同：GtkBackend
+    # 在該平台本就是預設，因此在 Linux 上 `compile.zsh P1` 與 `compile.zsh -gtk4 P1` 建出的是
+    # 位元組相同的樹。「一個 backend 兩個目錄」正是引發這次清理的那對孤兒目錄的由來。
+    case "$host_uname" in
+        MINGW*|MSYS*|CYGWIN*)
+            compile_work_dir="$(windows_path "$script_dir/.compile-work-winui")"
+            ;;
+        Darwin)
+            compile_work_dir="$(windows_path "$script_dir/.compile-work-appkit")"
+            ;;
+        *)
+            compile_work_dir="$(windows_path "$script_dir/.compile-work-gtk4")"
+            ;;
+    esac
 fi
 package_dir="$compile_work_dir/TestApps"
 sources_root="$package_dir/Sources"

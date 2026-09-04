@@ -26,7 +26,7 @@ zsh testapp/compile.zsh P7 P15 P17     # 只建部分 app
 zsh testapp/compile.zsh                # 建全部 app
 ```
 
-輸出會放在 `testapp/output/`：Linux/macOS 上是 `PN`，Windows 上是 `PN.exe`。`output` 目錄和 `.compile-work` 建置樹都不追蹤。
+輸出會放在 `testapp/output/`：Linux/macOS 上是 `PN`，Windows 上是 `PN.exe`。`output` 目錄和 `.compile-work-*` 建置樹都不追蹤。每個 backend 各有一棵樹，後綴即其名稱——刻意不存在無後綴的 `.compile-work`，因為那樣它的內容取決於執行的主機、而非它的名字。
 
 ## 環境設定
 

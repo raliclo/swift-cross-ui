@@ -39,8 +39,10 @@ zsh testapp/compile.zsh                # build everything
 ```
 
 Output lands in `testapp/output/` -- `PN` on Linux and macOS, `PN.exe` on
-Windows. Neither the output directory nor the `.compile-work` build tree is
-tracked.
+Windows. Neither the output directory nor the `.compile-work-*` build trees are
+tracked. There is one tree per backend and the suffix names it -- there is
+deliberately no suffix-less `.compile-work`, because its contents would depend
+on the host rather than on its name.
 
 ## Environment setup
 
