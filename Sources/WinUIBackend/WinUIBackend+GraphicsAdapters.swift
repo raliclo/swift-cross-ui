@@ -21,6 +21,34 @@ import WinUIInterop
 /// 這個 conformance 補上了一個曾被記錄兩次、卻兩次都沒有修的缺口：`GtkBackend` 是唯一的實作者，
 /// 而該協定根本沒有呼叫端，因此兩邊出錯都不會有人察覺。兩半都在 2026-09-04 改變了——
 /// `_App.selectGraphicsAdapter` 現在會詢問，而此處負責回答。
+///
+/// **Verified at runtime 2026-09-04**, in a real terminal:
+///
+///     ./P5-WinUI.exe -GPU 2
+///     -GPU 2: already using AMD Radeon(TM) Graphics (fell back: no external adapter is attached)
+///
+/// The adapter name proves the DXGI enumeration below runs end to end; the name
+/// being a real card rather than WARP proves the software filter works; and the
+/// fallback clause is the part that matters most -- "already using X" on its own
+/// reads as success while quietly not being the card that was asked for.
+///
+/// It must be run in a TERMINAL, not through a pipe. `Console.swift` redirects
+/// stderr with `freopen_s(..., "CONOUT$", ...)`, which targets the console
+/// device and bypasses file and pipe redirection, so a redirected run shows
+/// nothing whether this works or not. That check cannot fail, so it cannot pass.
+///
+/// **2026-09-04 於真實終端機中完成執行期驗證**：
+///
+///     ./P5-WinUI.exe -GPU 2
+///     -GPU 2: already using AMD Radeon(TM) Graphics (fell back: no external adapter is attached)
+///
+/// 印出介面卡名稱，證明下方的 DXGI 列舉從頭到尾都能運作；名稱是一張真卡而非 WARP，證明軟體 renderer
+/// 的濾除有效；而**退路子句才是最要緊的那一項**——單獨的「already using X」讀起來像成功，實際上卻
+/// 悄悄地不是被要求的那張卡。
+///
+/// 必須在**終端機**中執行，不能透過管線。`Console.swift` 以
+/// `freopen_s(..., "CONOUT$", ...)` 重導 stderr，那會指向主控台裝置並繞過檔案與管線重導，因此被
+/// 重導的執行無論成功與否都看不到東西。**那樣的檢查無法失敗，因此也無法通過。**
 extension WinUIBackend: BackendFeatures.GraphicsAdapters {
     /// Every adapter DXGI reports, in DXGI's own order.
     ///
