@@ -51,11 +51,51 @@ action,x,y,origin,button,key,micros,note,platform
 # after a second click would mean re-measuring first. Keep the other button for
 # its own file.
 #
-# Coordinates read off a wincap capture of the frame at 808x649 (P34 asks for
-# 780x620 and GTK gives it more), GtkBackend, 2026-09-03, 100% display scale,
-# origin=frame like every other file here. "Show +100" spans x 114..219,
-# y 204..236; (166, 220) is its centre. "Show all capped rows" starts at x 227,
-# which is why the centre and not an edge.
+# RE-MEASURED 2026-09-05 and the old numbers were DEAD. Kept below, because how
+# they died is the lesson.
+#
+# Coordinates read off a wincap capture of the frame at 808x669, GtkBackend,
+# 2026-09-05, 100% display scale, origin=frame like every other file here.
+# "Show +100" spans x 184..280, y 229..253; (232, 245) is its centre. "Show all
+# capped rows" starts at x 291, which is why the centre and not an edge.
+#
+# The previous line read: frame 808x649, "Show +100" at x 114..219, y 204..236,
+# centre (166, 220). Every one of those is now wrong. On 2026-09-04 P34's
+# "Missing APIs:" line was split into two Texts -- one saying LazyVStack and
+# LazyHStack are present but not lazy, one listing what is still absent. That
+# ADDED A ROW to the VStack, and it also SHORTENED the longest string, so the
+# window's natural width shrank. The button moved 66px right and 25px down.
+#
+# It failed exactly the way this whole directory is written to prevent. The
+# replay ran, reported the window and the move, and clicked 66px to the left of
+# the button. Nothing was hit, so nothing was raised, so p34-debug-events.log
+# gained no line -- and a run with no failure signal reads as a pass. It was
+# caught only by looking for the line that SHOULD have appeared, not by looking
+# for an error.
+#
+# So: a text edit anywhere above a control invalidates every coordinate below
+# it, and changing the LONGEST string moves things sideways as well. Re-run this
+# file after any edit to P34.swift, and check for the log line rather than for
+# an error.
+#
+# 2026-09-05 重新量測，舊的數字已經失效。仍保留於下，因為它們如何失效才是重點。
+#
+# 座標讀自 GtkBackend、2026-09-05、100% 顯示縮放下一張 808x669 的 wincap 外框擷圖，
+# origin=frame，與本目錄其他檔案相同。「Show +100」橫跨 x 184..280、y 229..253，(232, 245)
+# 為其中心。「Show all capped rows」自 x 291 開始，這正是取中心而非邊緣的理由。
+#
+# 先前那一行寫的是：外框 808x649、「Show +100」位於 x 114..219、y 204..236、中心 (166, 220)。
+# 上述每一項現在都是錯的。2026-09-04 時，P34 的「Missing APIs:」那一行被拆成兩個 Text——一個說明
+# LazyVStack 與 LazyHStack 存在但不惰性，一個列出仍然缺席者。那**為 VStack 增加了一列**，同時也
+# **縮短了最長的字串**，於是視窗的自然寬度縮小。按鈕因此右移 66px、下移 25px。
+#
+# 它的失敗方式，正是整個目錄的寫法所要防範的那一種。replay 有執行、有回報視窗與移動，然後在按鈕
+# 左方 66px 處點了下去。沒有命中任何東西，就不會引發任何東西，於是 p34-debug-events.log 沒有多出
+# 任何一行——而一次「沒有失敗訊號」的執行讀起來就是通過。它是靠「去找那一行**應該出現**的紀錄」
+# 才被抓到的，不是靠找錯誤訊息。
+#
+# 因此：控制項上方任何一處的文字編輯都會使其下的所有座標失效，而更動**最長**的那個字串還會讓東西
+# 橫向位移。對 P34.swift 做任何編輯後請重跑本檔案，並檢查那一行 log，而不是檢查有沒有錯誤。
 #
 # BUILD IT WITH THE FLAG or this file does nothing at all:
 #   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P34
@@ -118,9 +158,10 @@ action,x,y,origin,button,key,micros,note,platform
 # 加 100 個 child 並不會移動按鈕——但「證明點擊成立」的那個數字，正是被改動的東西；若要在第二次
 # 點擊之後再讀它，就得先重新量測。另一顆按鈕留給它自己的檔案。
 #
-# 座標取自 2026-09-03 於 100% 顯示縮放下、808x649 的 wincap frame 擷圖（P34 要求 780x620，GTK
-# 給了更大的），origin=frame。「Show +100」橫跨 x 114..219、y 204..236，(166, 220) 為其中心。
-# 「Show all capped rows」自 x 227 開始，這正是取中心而非邊緣的原因。
+# 座標取自 2026-09-05 於 100% 顯示縮放下、808x669 的 wincap frame 擷圖，origin=frame。
+# 「Show +100」橫跨 x 184..280、y 229..253，(232, 245) 為其中心。「Show all capped rows」自
+# x 291 開始，這正是取中心而非邊緣的原因。2026-09-03 那組數字（808x649、x 114..219、y 204..236、
+# 中心 (166, 220)）為何失效，見本檔上方的說明。
 #
 # **必須帶旗標建置**，否則本檔完全不會有任何作用：
 #   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P34
@@ -141,5 +182,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 顯示 Row 0 到 Row 16，新增的 100 個 child 全都在可視範圍之外。請勿在圖中找不到它們，就斷定
 # 點擊失敗。
 sleep,,,,,,900000,let the window settle and take focus,windows
-click,166,220,frame,left,,,"centre of ""Show +100"" (x 114..219 y 204..236) -- header must read ""showing first 200""; 500 would mean the neighbour was hit and 100 that nothing was",windows
+click,232,245,frame,left,,,"centre of ""Show +100"" (x 184..280 y 229..253) -- header must read ""showing first 200""; 500 would mean the neighbour was hit and 100 that nothing was",windows
 sleep,,,,,,1500000,hold for the capture and let the log catch up -- expect a third line reading show plus 100 -> visibleRows=200,windows
