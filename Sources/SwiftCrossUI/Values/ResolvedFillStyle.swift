@@ -66,20 +66,91 @@ public enum ResolvedFillStyle: Sendable {
                 return resolved
             case .linearGradient(let gradient, _, _),
                 .radialGradient(let gradient, _, _, _):
-                return Self.midpoint(of: gradient).resolve(in: environment)
+                return Self.midpoint(of: gradient, in: environment)
         }
     }
 
-    private static func midpoint(of gradient: Gradient) -> Color {
-        let stops = gradient.stops
-        guard !stops.isEmpty else { return Color.black.opacity(0) }
-        // The stop nearest location 0.5, rather than the middle of the array:
-        // stops are not evenly spaced, and a gradient whose stops cluster at one
-        // end would otherwise flatten to a colour from that end.
-        // 取位置最接近 0.5 的 stop，而非陣列中間的那一個：stop 之間並非等距，若不如此，一個 stop
-        // 聚集在某一端的漸層就會被壓成該端的顏色。
-        return stops.min(by: {
-            abs($0.location - 0.5) < abs($1.location - 0.5)
-        })!.color
+    /// The colour the gradient actually has at location 0.5.
+    ///
+    /// **Not the stop nearest 0.5, which is what this did until 2026-09-04 and
+    /// which returned the first colour for the commonest gradient there is.**
+    /// `Gradient(colors: [.red, .blue])` has stops at 0.0 and 1.0; both are
+    /// exactly 0.5 away, `min(by:)` keeps the first of an equal pair, and the
+    /// "midpoint" was red. That is the outcome the note above this function
+    /// says must not happen -- flattening a two-stop gradient to its first
+    /// colour reads as the gradient having been ignored -- so the intent was
+    /// right and only the arithmetic was wrong.
+    ///
+    /// Interpolating removes the tie rather than breaking it, and it is also
+    /// the more truthful answer: 0.5 of a red-to-blue ramp is the purple a
+    /// backend that could draw the gradient would put there.
+    ///
+    /// In sRGB, because that is the space every backend's gradient interpolates
+    /// in -- `CGGradient` with `CGColorSpace.sRGB`, Cairo's default, Android's
+    /// `LinearGradient` -- so this lands on the colour the real gradient would
+    /// have shown at its middle rather than on a different blend of the same
+    /// two ends.
+    ///
+    /// 此漸層在位置 0.5 處實際所具有的顏色。
+    ///
+    /// **不是「最接近 0.5 的 stop」——那是本函式在 2026-09-04 之前的做法，而它對最常見的漸層
+    /// 回傳的是第一個顏色。** `Gradient(colors: [.red, .blue])` 的 stop 位於 0.0 與 1.0；兩者距
+    /// 0.5 都恰好是 0.5，而 `min(by:)` 在相等時保留前者，於是「中點」是紅色。那正是本函式上方那段
+    /// 說明所指「不可以發生」的結果——把雙 stop 的漸層壓成它的第一個顏色，讀起來像漸層被忽略了
+    /// ——因此當初的意圖是對的，錯的只有算術。
+    ///
+    /// 內插是「消除」這個平手，而不是「打破」它；而且它也是更誠實的答案：一段紅到藍的漸變在 0.5
+    /// 處，正是一個畫得出該漸層的 backend 會放在那裡的紫色。
+    ///
+    /// 在 sRGB 空間中進行，因為那是每一個 backend 的漸層所使用的內插空間——`CGGradient` 搭配
+    /// `CGColorSpace.sRGB`、Cairo 的預設、Android 的 `LinearGradient`——因此此處會落在「真實漸層
+    /// 在其中間所顯示的顏色」上，而不是同樣兩端的另一種混色。
+    @MainActor
+    private static func midpoint(
+        of gradient: Gradient,
+        in environment: EnvironmentValues
+    ) -> Color.Resolved {
+        // Sorted, because `Gradient(stops:)` takes whatever order the caller
+        // wrote and the bracket below walks pairs. An unsorted array would make
+        // the pair search miss and fall through to the last stop.
+        // 先排序，因為 `Gradient(stops:)` 會照呼叫端所寫的順序收下，而下方的區間搜尋是逐對走訪的。
+        // 未排序的陣列會使該搜尋落空，並一路掉到最後一個 stop。
+        let stops = gradient.stops.sorted { $0.location < $1.location }
+
+        guard let first = stops.first else {
+            return Color.black.opacity(0).resolve(in: environment)
+        }
+        guard let last = stops.last, stops.count > 1 else {
+            return first.color.resolve(in: environment)
+        }
+
+        // A gradient entirely on one side of 0.5 has no midpoint to find; its
+        // nearest end is the honest answer, and it is the case the old
+        // "clustered at one end" note was really about.
+        // 一個整段都落在 0.5 同一側的漸層，沒有中點可找；離它最近的那一端就是誠實的答案，而那正是
+        // 舊註解所說「聚集在某一端」真正指的情況。
+        guard first.location < 0.5 else { return first.color.resolve(in: environment) }
+        guard last.location > 0.5 else { return last.color.resolve(in: environment) }
+
+        var lower = first
+        var upper = last
+        for (start, end) in zip(stops, stops.dropFirst())
+        where start.location <= 0.5 && 0.5 <= end.location {
+            lower = start
+            upper = end
+            break
+        }
+
+        let span = upper.location - lower.location
+        let fraction = span > 0 ? Float((0.5 - lower.location) / span) : 0
+        let start = lower.color.resolve(in: environment)
+        let end = upper.color.resolve(in: environment)
+
+        return Color.Resolved(
+            red: start.red + (end.red - start.red) * fraction,
+            green: start.green + (end.green - start.green) * fraction,
+            blue: start.blue + (end.blue - start.blue) * fraction,
+            opacity: start.opacity + (end.opacity - start.opacity) * fraction
+        )
     }
 }
