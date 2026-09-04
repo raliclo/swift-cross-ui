@@ -1,0 +1,57 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on Windows, WinUIBackend: the same three numbers as the GTK file, on the
+# other Windows backend.
+#
+# WHY A SECOND FILE RATHER THAN A SECOND COORDINATE IN THE FIRST. The two
+# backends lay the same view tree out differently and give the window different
+# chrome. Measured 2026-09-04: the GTK window frame is 888x729 and the WinUI one
+# 876x739, and "Increment model" sits at 91,586 on GTK against 81,527 here. The
+# GTK file was run against this binary first and the click landed on nothing --
+# the replay reported the window and the move, and no log line followed, because
+# a click that hits nothing raises nothing. Naming follows
+# P24-push-one-level-winui.csv, which exists for the same reason.
+#
+# WHAT IT PROVES, and it is not the same thing the GTK file proves. The views
+# under test are composed entirely from existing primitives -- HStack, VStack,
+# Button, Text, Spacer, ProgressView, ScrollView -- so the claim is that they
+# cannot be "implemented on one backend but not another". That claim is about
+# TWO backends at least, and one measurement cannot support it. This file is the
+# second measurement.
+#
+#   model.count = 1 then 2            the @Published property published
+#   observed child sees count = 1,2   @ObservedObject reached a CHILD view that
+#                                     shares no @State with its parent
+#   P46Model constructions: 1         @StateObject did not rebuild the model
+#
+# The construction count is again the only one that needs the click: @State and
+# @StateObject both show 1 on the first frame, and only diverge once an update
+# happens.
+#
+# COORDINATES ARE FRAME-RELATIVE, measured from
+# output/screenshots/p46-winui-20260904-230435.png, an 876x739 wincap capture
+# INCLUDING the title bar. The button spans roughly x 20..142, y 512..542;
+# 81,527 is its centre.
+#
+# P46 於 Windows、WinUIBackend：與 GTK 版動作檔相同的三個數字，在另一個 Windows backend 上。
+#
+# 為何另立一檔而非在原檔中多加一組座標。兩個 backend 對同一棵 view tree 的排版不同，視窗外框也
+# 不同。2026-09-04 實測：GTK 的視窗外框為 888x729，WinUI 為 876x739；「Increment model」在 GTK
+# 上位於 91,586，在此則為 81,527。GTK 版動作檔曾先對此 binary 執行過，點擊落在空處——replay 有
+# 回報視窗與移動，其後沒有任何 log 行，因為一次沒有命中的點擊不會引發任何東西。命名沿用
+# P24-push-one-level-winui.csv，其存在理由相同。
+#
+# 它證明什麼，而那與 GTK 版所證明的並不相同。受測的這些 view 完全由既有原語組合而成——HStack、
+# VStack、Button、Text、Spacer、ProgressView、ScrollView——因此主張是「它們不可能在某個 backend
+# 上實作了、在另一個上沒有」。該主張**至少關於兩個 backend**，而單一次量測支撐不了它。本檔案就是
+# 第二次量測。
+#
+# 建構次數同樣是唯一需要點擊才能分辨的一項：@State 與 @StateObject 在第一幀都顯示 1，只有在發生
+# 更新之後才會分歧。
+#
+# 座標以 frame 為基準，量自 output/screenshots/p46-winui-20260904-230435.png，那是一張
+# 876x739、**含標題列**的 wincap 擷圖。該按鈕範圍約 x 20..142、y 512..542，81,527 為其中心。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,81,527,frame,left,,,"centre of the ""Increment model"" button (x 20..142 y 512..542) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1",windows
+sleep,,,,,,1200000,let the log catch up and hold the frame for the capture,windows
+click,81,527,frame,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot",windows
+sleep,,,,,,1500000,final hold so the capture and the log both observe the settled state,windows

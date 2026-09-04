@@ -27,6 +27,36 @@ action,x,y,origin,button,key,micros,note,platform
 # 848x649 frame, which is a thin thing to hang a whole file on when there is no
 # log to back it up.
 #
+# COORDINATES RE-VERIFIED 2026-09-04, after P33's text changed. Two Text views
+# above the button were rewritten that day, because the list of "missing" names
+# they printed had become false -- seven of the nine were implemented. Rewriting
+# text above a control is the classic way to invalidate a measured coordinate:
+# if a line's wrapping changes, everything below it moves, the click lands on
+# empty space, and the run still reports a pass because a click that hits
+# nothing raises nothing.
+#
+# It did NOT move here, and the reason is worth stating so nobody assumes the
+# next edit is equally safe: the replacement is the same NUMBER OF LINES as what
+# it replaced -- two single-line Texts before, two single-line Texts after -- and
+# the VStack is .leading, so a different string LENGTH moves nothing.
+#
+# That was checked by running this file against the rebuilt binary and finding
+# `details expanded=false` in p33-debug-events.log, not by looking at a capture
+# and judging the button unmoved. Do the same after any edit to P33.swift.
+#
+# 座標於 2026-09-04 重新驗證，時間在 P33 的文字改動之後。當天按鈕上方有兩個 Text 被改寫，因為它們
+# 所印出的「缺失名稱」清單已經是假的——九個之中有七個已被實作。改寫控制項上方的文字，正是使「已量測
+# 座標」失效的典型方式：只要某一行的換行方式改變，其下的一切都會位移，點擊便落在空白處，而該次執行
+# 仍會回報通過，因為一次沒有命中任何東西的點擊不會引發任何東西。
+#
+# 此處**並未**位移，而其理由值得寫明，以免有人以為下一次編輯同樣安全：替換後的內容與被替換者
+# **行數相同**——之前是兩個單行 Text，之後也是兩個單行 Text——而該 VStack 為 .leading，因此
+# 字串**長度**的差異不會移動任何東西。
+#
+# 這一點是以「對重建後的 binary 執行本檔案，並在 p33-debug-events.log 中找到
+# `details expanded=false`」來確認的，而不是靠看擷圖判斷按鈕沒動。日後對 P33.swift 做任何編輯後，
+# 請同樣照做。
+#
 # ONE click, and the layout is the reason it must stay one. The whole content
 # block is centred vertically, so losing one line does not merely pull the rows
 # below it upwards -- MEASURED, comparing the before and after captures, every

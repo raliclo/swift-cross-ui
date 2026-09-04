@@ -52,9 +52,29 @@ struct P33RootView: View {
             Text("P33: missing views")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
-            Text("These SwiftUI names are compile-time gaps today; approximations are shown where possible.")
+            // These two lines were a list of nine missing names until 2026-09-04,
+            // when seven of them were implemented. They are now the record of
+            // what P33 was FOR, and the two that are still absent. P46 exercises
+            // the real views; P33 keeps the hand-built shapes beside them so the
+            // approximation and the implementation can be compared.
+            //
+            // The wording was NOT trimmed to fit. Every string here is a
+            // different length from what it replaced, so P33-hide-details.csv's
+            // measured coordinates had to be re-measured in the same change --
+            // shortening a wrapped line lifts everything below it, and a click
+            // that then lands on empty space raises nothing and still reports a
+            // pass.
+            //
+            // 這兩行在 2026-09-04 之前是一份「九個缺失名稱」的清單，當天其中七個被實作了。它們現在
+            // 記錄的是 P33 當初的用途，以及仍然缺席的那兩個。P46 演練真正的 view；P33 則保留手工搭出
+            // 的形狀放在旁邊，使近似做法與實作可以互相對照。
+            //
+            // 措辭**並未**為了遷就版面而修剪。此處每個字串的長度都與被取代者不同，因此
+            // P33-hide-details.csv 的量測座標必須在同一次改動中重新量測——縮短一行換行文字會把它
+            // 下方的一切往上抬，而屆時落在空白處的點擊不會引發任何東西，卻仍會回報通過。
+            Text("Hand-built shapes, kept for comparison. The real views now exist -- see P46.")
 
-            Text("Missing: Form, Section, Label(systemImage:), Stepper, Gauge, DisclosureGroup, LabeledContent, ColorPicker, Link")
+            Text("Still missing: Label(systemImage:) and ColorPicker. Both need backend work, not composition.")
                 .font(.system(size: 13))
 
             Divider()
@@ -91,7 +111,14 @@ struct P33RootView: View {
         .padding(18)
         .onAppear {
             P33Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
-            P33Diagnostics.write("missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link")
+            // A log line is a claim like any other, and this one was false from
+            // the moment the seven views landed. It is inside .onAppear rather
+            // than on screen, which is exactly why it would have gone on being
+            // read as current: nothing shows it to anyone until they grep.
+            // 一行 log 與其他任何陳述一樣是一項主張，而這一行自那七個 view 落地的那一刻起就是假的。
+            // 它位於 .onAppear 之內而非畫面上，這正是它會被繼續當成現況讀下去的原因：在有人 grep
+            // 之前，沒有任何東西會把它呈現給任何人。
+            P33Diagnostics.write("still missing Label(systemImage:) ColorPicker -- the other seven are implemented, see P46")
             P33Diagnostics.renderComplete()
         }
     }

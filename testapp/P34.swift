@@ -62,7 +62,21 @@ struct P34RootView: View {
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
             Text("requested rows: \(rowCount); showing first \(min(visibleRows, rowCount))")
-            Text("Missing APIs: LazyVStack, LazyHStack, LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy")
+            // Three states, not two, and collapsing them would lose the only
+            // part that matters. LazyVStack and LazyHStack now EXIST and are
+            // NOT lazy: the layout is identical to VStack/HStack, so the picture
+            // is right, but every child is created up front and every onAppear
+            // fires at once. Calling them "missing" is wrong; calling them done
+            // is worse, because it is the claim someone would rely on when
+            // deciding whether a thousand-row list is safe.
+            //
+            // 三種狀態而非兩種，而把它們合併會丟掉唯一重要的那一部分。LazyVStack 與 LazyHStack
+            // 現已**存在**，但**不是惰性的**：版面與 VStack/HStack 完全相同，因此畫面是對的，但所有
+            // 子項都會被預先建立、所有 onAppear 會同時觸發。把它們稱為「缺席」是錯的；稱為「完成」
+            // 更糟，因為那正是有人在判斷「一千列的清單是否安全」時會依賴的那句話。
+            Text("Present but NOT lazy: LazyVStack, LazyHStack -- all children are built up front")
+                .font(.system(size: 13))
+            Text("Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy")
                 .font(.system(size: 13))
 
             HStack(spacing: 8) {

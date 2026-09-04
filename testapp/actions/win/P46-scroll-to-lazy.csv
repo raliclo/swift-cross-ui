@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on Windows, GtkBackend: scroll the Form to the bottom and look at the one
+# section nobody has seen.
+#
+# WHY THIS FILE EXISTS. P46's window asks for 860x700 and GTK gives its content
+# 661, so the last section -- the LazyVStack, with rows "lazy row 1/2/3" -- sits
+# below the fold. The launch log says the tree rendered and the app did not
+# crash, and that is ALL it says. "It is in the view tree" is not "it is drawn",
+# and this tree has recorded four separate occasions of the first being read as
+# the second. The matrix entry for the parity work states the gap explicitly;
+# this file is what closes it.
+#
+# IT TESTS TWO THINGS AT ONCE, and that is the reason to scroll rather than to
+# enlarge the window:
+#
+#   1. LazyVStack draws its children.
+#   2. Form's ScrollView actually scrolls. Form wraps its content in one
+#      precisely so a long form does not clip its last rows with no way to reach
+#      them. If the wheel moves nothing, that wrapping is decorative and the
+#      "Allocation height too small" warning is a real clipping bug rather than
+#      a cosmetic complaint.
+#
+# Growing the window would have shown the rows while proving nothing about the
+# second, and would also have invalidated every coordinate in
+# P46-increment-model.csv.
+#
+# THE POINTER IS MOVED FIRST AND THAT IS NOT OPTIONAL. `scroll` carries no
+# position by design -- a wheel event goes to whatever is under the pointer --
+# so a scroll row without a preceding `move` turns the wheel over whatever the
+# desktop happened to have under the cursor. See InputAction's note on the verb.
+# On a scroll row the x and y columns are WHEEL NOTCHES, not pixels, and
+# `origin` is left empty because it would be meaningless.
+#
+# READING THE RESULT: the capture must show "lazy row 1", "lazy row 2" and
+# "lazy row 3" under a "LazyVStack" heading. If the picture is unchanged, the
+# scroll did nothing -- and note that this is a case where the log CANNOT help.
+# Nothing in P46 writes on scroll, so an unchanged log is expected either way
+# and is not evidence of anything.
+#
+# P46 於 Windows、GtkBackend：把 Form 捲到底，看那個至今無人看過的區段。
+#
+# 本檔案的存在理由。P46 的視窗要求 860x700，GTK 只給內容 661，因此最後一個區段——LazyVStack，
+# 內含「lazy row 1/2/3」——落在畫面之外。啟動 log 只說了「樹渲染完成、程式沒有崩潰」，就只有這樣。
+# **「它在 view tree 裡」不等於「它被畫出來了」**，而這棵樹已經記錄過四次把前者讀成後者的情形。
+# parity 工作的 matrix 條目明確寫出了這個缺口；本檔案就是用來把它補上的。
+#
+# 它一次測兩件事，而這正是「用捲動而非放大視窗」的理由：
+#
+#   1. LazyVStack 會畫出它的子項。
+#   2. Form 的 ScrollView 真的會捲動。Form 之所以把內容包進 ScrollView，正是為了讓一份長表單不會
+#      把最後幾列裁掉且無從抵達。若滾輪毫無作用，那層包裝就只是裝飾，而「Allocation height too
+#      small」的警告就是真正的裁切 bug，而非外觀上的抱怨。
+#
+# 放大視窗雖然也能讓那幾列出現，卻完全無法證明第二件事，而且會作廢 P46-increment-model.csv 中
+# 的每一個座標。
+#
+# 先移動指標，這一步不可省略。`scroll` 在設計上不帶位置——滾輪事件會送到指標底下的東西——因此
+# 一列前面沒有 `move` 的 scroll，會把滾輪轉在桌面當下游標所指的任何東西上。見 InputAction 對該
+# 動詞的說明。在 scroll 列上，x 與 y 兩欄是**滾輪格數**而非像素，而 `origin` 留空，因為它在此毫無
+# 意義。
+#
+# 如何判讀結果：擷圖中必須出現「LazyVStack」標題下的「lazy row 1」「lazy row 2」「lazy row 3」。
+# 若畫面毫無變化，代表捲動沒有作用——並請注意，這是一個 **log 幫不上忙**的情況。P46 在捲動時不寫
+# 任何東西，因此「log 沒有變化」在兩種結果下都是預期，不構成任何證據。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,440,400,frame,,,,"put the pointer over the middle of the Form's content, so the wheel goes to the scroll container and not to the title bar or a button",windows
+scroll,0,10,,,,,"ten notches down -- x and y are NOTCHES here, not pixels, and origin is empty on purpose",windows
+sleep,,,,,,600000,let the scroll settle,windows
+scroll,0,10,,,,,"ten more, to reach the bottom of the Form whatever its exact height",windows
+sleep,,,,,,1500000,"final hold: the capture must now show LazyVStack with lazy row 1, 2 and 3",windows
