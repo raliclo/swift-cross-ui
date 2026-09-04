@@ -15,7 +15,9 @@ import SwiftCrossUI
 //   1. no clipped()  -- the control. The oversized child MUST spill past the
 //      frame. If this one is cut, the backend is clipping something it was
 //      never asked to clip, which is the defect P40 found on Android and is a
-//      different bug from the one below.
+//      different bug from the one below. If it is the frame's size WITH its
+//      blue corner still showing, it was resized rather than clipped, which is
+//      a third outcome again -- see `P44Child`.
 //   2. clipped()     -- MUST be cut to exactly the frame.
 //   3. toggled       -- follows the button, so one press turns one cell from
 //      the first case into the second while the other two stand still.
@@ -191,17 +193,71 @@ struct P44Cell: View {
         VStack(spacing: 6) {
             Text(label)
 
-            Color.orange
-                .frame(
-                    width: P44Metrics.childWidth,
-                    height: P44Metrics.childHeight
-                )
+            P44Child()
                 .frame(
                     width: P44Metrics.frameWidth,
                     height: P44Metrics.frameHeight
                 )
                 .conditionallyClipped(clipped)
         }
+    }
+}
+
+/// The oversized child: orange, with a blue square in its top-left corner.
+///
+/// **The corner is what separates the two ways a cell can come out the frame's
+/// size.** A uniformly orange child cannot: clipped to the centre of the frame
+/// it measures 120 x 60, and resized to the frame it also measures 120 x 60,
+/// and the picture is identical. That was this file's first design, and macOS
+/// found the blind spot immediately -- all three cells measured 120 x 60 there,
+/// which the app could report and not explain.
+///
+/// The marker is 40 x 40 at the top-left of a 200 x 100 child. The outer frame
+/// centres its child, so clipping to 120 x 60 keeps the middle and throws away
+/// 40 points from each side and 20 from the top and bottom -- the whole marker.
+/// Resizing keeps it, smaller. So:
+///
+/// - orange only, 120 x 60  -> the child was CLIPPED
+/// - blue corner present    -> the child was RESIZED, not clipped
+///
+/// The orange's outer measurements are unchanged by this, so the Android
+/// numbers already recorded against this app still stand.
+///
+/// 過大的子元件：橘色，左上角有一個藍色方塊。
+///
+/// **那個角落，正是用來區分「一格為何量起來等於 frame 尺寸」的兩種可能的東西。** 一個純橘色的子
+/// 元件做不到這件事：被裁切到 frame 中央時量得 120 x 60，被縮小到 frame 時也量得 120 x 60，而畫面
+/// 完全相同。那是本檔的第一版設計，而 macOS 立刻找出了這個盲點——在那裡三格都量得 120 x 60，而這支
+/// app 報得出來、卻解釋不了。
+///
+/// 該標記為 40 x 40，位於 200 x 100 子元件的左上角。外層 frame 會把子元件置中，因此裁切到 120 x 60
+/// 會保留中間、丟掉左右各 40 點與上下各 20 點——也就是整個標記。縮小則會保留它，只是變小。所以：
+///
+/// - 只有橘色、120 x 60  -> 該子元件被**裁切**了
+/// - 藍色角落仍在        -> 該子元件被**縮小**了，而非被裁切
+///
+/// 橘色的外圍量測不因此改變，因此已針對本 app 記錄的 Android 數字依然成立。
+struct P44Child: View {
+    private static let marker = 40
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Color.blue
+                    .frame(width: Self.marker, height: Self.marker)
+                Color.orange
+                    .frame(
+                        width: P44Metrics.childWidth - Self.marker,
+                        height: Self.marker
+                    )
+            }
+            Color.orange
+                .frame(
+                    width: P44Metrics.childWidth,
+                    height: P44Metrics.childHeight - Self.marker
+                )
+        }
+        .frame(width: P44Metrics.childWidth, height: P44Metrics.childHeight)
     }
 }
 

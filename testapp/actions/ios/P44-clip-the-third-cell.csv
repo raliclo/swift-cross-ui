@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# P44 on iOS: press "Clip the third cell".
+#
+# P44 asks whether `clipped()` cuts a child down to its frame, and whether
+# anything else does. Three cells: one that never clips and MUST spill, one that
+# always clips, and one that follows the button. The first is the control -- a
+# backend that clipped everything would draw all three cut and look like a pass.
+#
+# The child is 200 x 100 points inside a 120 x 60 frame, with a 40 x 40 blue
+# square at its top-left. The outer frame centres its child, so clipping keeps
+# the middle and throws away 40 points from each side and 20 from top and bottom
+# -- the whole marker. That is what separates a clipped cell from one that was
+# merely sized down: orange only means clipped, a blue corner means not.
+#
+# P44 詢問的是 `clipped()` 是否會把子元件裁到它的 frame 之內，以及有沒有別的東西也在裁。三個格位：
+# 一個永不裁切、且**必須**溢出，一個永遠裁切，一個跟隨按鈕。第一格是對照組——一個「什麼都裁」的
+# backend 會把三格都畫成被裁的樣子，而那看起來會像通過。
+#
+# 子元件為 200 x 100 點，位於一個 120 x 60 的 frame 之內，其左上角有一個 40 x 40 的藍色方塊。外層
+# frame 會把子元件置中，因此裁切會保留中間、丟掉左右各 40 點與上下各 20 點——也就是整個標記。那正是
+# 用來區分「被裁切的格位」與「僅僅被縮小的格位」的東西：只有橘色代表被裁切，有藍色角落代表沒有。
+#
+# Measured 2026-09-04 from p44-ios-final-20260904-134045.png. iPhone 16 sim,
+# 1179 x 2556 pixels at scale 3, so the window is 393 x 852 points. The button's
+# label spans pixels x 125-502, y 599-643; its centre (313, 621) is client point
+# (104, 207).
+#
+# iOS does what the app asks. Cell 1 is 605 x 303 pixels = 202 x 101 points with
+# its blue corner intact, cell 2 is 361 x 182 = 120 x 61 with no blue at all,
+# and cell 3 follows the button. macOS does not -- see the macOS file.
+#
+# P44 on iOS：按下「Clip the third cell」。
+#
+# 2026-09-04 量自 p44-ios-final-20260904-134045.png。iPhone 16 模擬器，1179 x 2556 像素、比例 3，
+# 因此視窗為 393 x 852 點。該按鈕的標籤橫跨像素 x 125-502、y 599-643；其中心 (313, 621) 即
+# client 座標 (104, 207)。
+#
+# iOS 的行為符合這支 app 的要求。第 1 格是 605 x 303 像素 = 202 x 101 點，藍色角落完好；第 2 格是
+# 361 x 182 = 120 x 61，完全沒有藍色；第 3 格跟隨按鈕。macOS 則不然——見 macOS 的那份檔案。
+sleep,,,,,,1500000,let P44 lay out its three cells,ios
+click,104,207,client,left,,,"the ""Clip the third cell"" button -- cell 3 must go from 202 x 101 points with a blue corner to 120 x 61 with none, and the label must read ""third cell: clipped()"", while cells 1 and 2 do not move. REPLAYED 2026-09-04",ios
+sleep,,,,,,1500000,let the third cell redraw,ios

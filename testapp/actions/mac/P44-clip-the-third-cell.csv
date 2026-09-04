@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P44 on macOS: press "Clip the third cell".
+#
+# P44 asks whether `clipped()` cuts a child down to its frame, and whether
+# anything else does. Three cells: one that never clips and MUST spill, one that
+# always clips, and one that follows the button. The first is the control -- a
+# backend that clipped everything would draw all three cut and look like a pass.
+#
+# The child is 200 x 100 points inside a 120 x 60 frame, with a 40 x 40 blue
+# square at its top-left. The outer frame centres its child, so clipping keeps
+# the middle and throws away 40 points from each side and 20 from top and bottom
+# -- the whole marker. That is what separates a clipped cell from one that was
+# merely sized down: orange only means clipped, a blue corner means not.
+#
+# P44 詢問的是 `clipped()` 是否會把子元件裁到它的 frame 之內，以及有沒有別的東西也在裁。三個格位：
+# 一個永不裁切、且**必須**溢出，一個永遠裁切，一個跟隨按鈕。第一格是對照組——一個「什麼都裁」的
+# backend 會把三格都畫成被裁的樣子，而那看起來會像通過。
+#
+# 子元件為 200 x 100 點，位於一個 120 x 60 的 frame 之內，其左上角有一個 40 x 40 的藍色方塊。外層
+# frame 會把子元件置中，因此裁切會保留中間、丟掉左右各 40 點與上下各 20 點——也就是整個標記。那正是
+# 用來區分「被裁切的格位」與「僅僅被縮小的格位」的東西：只有橘色代表被裁切，有藍色角落代表沒有。
+#
+# Measured 2026-09-04 from p44-macos-final-20260904-133053.png. The window is
+# 420 points wide and the capture 840 pixels, so the scale is 2. The button is
+# pixels x 34-280, y 288-325, centre (157, 306) = frame point (78, 153).
+#
+# WHAT THIS RUN FOUND, AND IT IS NOT WHAT THE APP ASKS FOR. All three cells
+# measure 240 x 120 pixels -- 120 x 60 points, the frame -- and there is no blue
+# anywhere in the window. Cell 1 must spill and does not. iOS and Android both
+# spill on the same source: iOS cell 1 is 605 x 303 pixels at scale 3, which is
+# 202 x 101 points, with 3721 blue samples; Android's is 461 x 262 at 2.625,
+# which is 176 x 100 points, with 1113. So this is macOS and not the app.
+#
+# TWO EXPLANATIONS REMAIN AND P44 CANNOT SEPARATE THEM YET. Either AppKitBackend
+# clips a container it was never asked to clip, or the layout gave the child the
+# frame's size and the marker's row was compressed until the marker had no
+# width. Both produce a 120 x 60 orange rectangle with no blue. Separating them
+# needs a marker that survives compression, which this app does not have.
+# Recorded rather than guessed.
+#
+# P44 on macOS：按下「Clip the third cell」。
+#
+# 2026-09-04 量自 p44-macos-final-20260904-133053.png。視窗寬 420 點、擷取影像寬 840 像素，
+# 因此比例為 2。該按鈕位於像素 x 34-280、y 288-325，中心為 (157, 306)，即 frame 座標 (78, 153)。
+#
+# 本次執行的發現，而那不是這支 app 所要求的結果。三格全部量得 240 x 120 像素——即 120 x 60 點，
+# 也就是 frame——且整個視窗中沒有任何藍色。第 1 格必須溢出，而它沒有。iOS 與 Android 在同一份原始碼
+# 上都會溢出：iOS 的第 1 格在比例 3 下是 605 x 303 像素，即 202 x 101 點，藍色樣本 3721 個；
+# Android 的在 2.625 下是 461 x 262，即 176 x 100 點，藍色樣本 1113 個。因此問題出在 macOS，
+# 不在這支 app。
+#
+# 仍有兩種解釋，而 P44 目前分不開它們。可能是 AppKitBackend 裁切了一個它從未被要求裁切的容器，
+# 也可能是版面把子元件給成 frame 的尺寸、而標記所在的那一列被壓縮到標記沒有寬度。兩者都會產生
+# 一個沒有藍色的 120 x 60 橘色矩形。要分開它們，需要一個「能在壓縮下存活」的標記，而這支 app
+# 沒有。此處如實記錄，不作猜測。
+sleep,,,,,,1500000,let P44 lay out its three cells,macos
+click,78,153,frame,left,,,"the ""Clip the third cell"" button -- cell 3 must go from spilling to cut and the label must read ""third cell: clipped()"". REPLAYED 2026-09-04: the label changed; cell 3 was already the frame's size before the press, because on macOS all three cells are, which is the finding recorded in this header",macos
+sleep,,,,,,1500000,let the third cell redraw,macos
