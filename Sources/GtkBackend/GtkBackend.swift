@@ -1074,10 +1074,31 @@ public final class GtkBackend:
             // 因為那個答案花了一次建置與一次執行才得到，下一個心生同樣疑問的人不該重來一遍。
             // 2026-09-03 它印出 `titlebar=nil`，這正是上方請求原樣送出的理由。一旦有任何地方
             // 呼叫 `gtk_window_set_titlebar`，它就會開始印出數字，而那一天此事才修得了。
-            if ProcessInfo.processInfo.environment["SCUI_DEBUG_DECORATION"] == "1" {
+            let decorationProbe = ProcessInfo.processInfo.environment["SCUI_DEBUG_DECORATION"]
+            if decorationProbe == "1" || decorationProbe == "2" || decorationProbe == "3" {
+                // `2` answers the question `1` could only pose. `1` reports
+                // titlebar=nil, which says the height is unknowable but not
+                // whether it would be knowable if we owned the widget. `2`
+                // installs a GtkHeaderBar first, so the same measurement runs
+                // against a titlebar that exists.
+                //
+                // If `2` prints a number and `1` prints nil on the same app,
+                // the shortfall is fixable on the first pass and the only thing
+                // in the way is who owns the decoration -- which is a decision,
+                // not a limitation.
+                //
+                // `2` 回答的，正是 `1` 只能提出的那個問題。`1` 回報 titlebar=nil，那說明「高度
+                // 無從得知」，卻沒有說明「若由我們擁有該 widget，它是否就可得知」。`2` 會先裝上一個
+                // GtkHeaderBar，使同一個量測得以對著一個確實存在的 titlebar 執行。
+                //
+                // 若同一支 app 在 `2` 下印出數字、在 `1` 下印出 nil，就代表這個短少在第一次版面
+                // 計算時是修得掉的，而擋在路上的只有「裝飾歸誰擁有」——那是一項決策，不是限制。
+                if decorationProbe == "2" || decorationProbe == "3" {
+                    window.installMeasurableTitlebar()
+                }
                 let measured = window.titlebarNaturalHeight
                 let line =
-                    "[decoration] titlebar="
+                    "[decoration] probe=\(decorationProbe ?? "?") titlebar="
                     + (measured.map(String.init) ?? "nil")
                     + " requested=\(defaultSize.x)x\(defaultSize.y)\n"
                 print(line, terminator: "")
@@ -1094,9 +1115,22 @@ public final class GtkBackend:
                 }
             }
 
+            // `3` is the whole proposal, not just its measurement: own the
+            // titlebar, ask it how tall it is BEFORE mapping, and add that to
+            // the requested height so the first layout pass is already right.
+            // If the content then measures exactly what the app asked for, the
+            // 39px is fixable and the only remaining question is whether owning
+            // the decoration is worth it.
+            //
+            // `3` 即為整個提案本身，而不只是它的量測：接管 titlebar、在 map **之前**問它有多高，
+            // 並把該值加進所要求的高度，使**第一次**版面計算就已經正確。若內容區屆時量得的正是
+            // app 所要求的尺寸，那就代表這 39px 是修得掉的，剩下的唯一問題只是「接管裝飾是否
+            // 值得」。
+            let titlebarAllowance =
+                decorationProbe == "3" ? (window.titlebarNaturalHeight ?? 0) : 0
             window.defaultSize = Size(
                 width: defaultSize.x,
-                height: defaultSize.y
+                height: defaultSize.y + titlebarAllowance
             )
         }
 
@@ -1605,9 +1639,36 @@ public final class GtkBackend:
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
         let child = window.getChild() as! CustomRootWidget
+        // The titlebar is chrome INSIDE the window that eats content height,
+        // exactly like the menu bar beside it -- and it was missing here.
+        //
+        // This is the second place the requested CONTENT size is turned into a
+        // WINDOW size, and it is why adding the allowance in `createWindow`
+        // alone changed nothing: `setSize` runs afterwards and writes the
+        // unadjusted request back. Measured 2026-09-04 with
+        // SCUI_DEBUG_DECORATION=3 -- the titlebar reported 47 before mapping,
+        // the allowance was added at creation, and the content still came out
+        // 553, which is 600 - 47. The arithmetic named the overwriter before
+        // the code was read.
+        //
+        // Zero unless the window owns a titlebar, which today only happens
+        // under the probe. `titlebarNaturalHeight` returns nil for GTK's own
+        // decoration, so this is inert on every normal run.
+        //
+        // titlebar 是**視窗內部**會吃掉內容高度的裝飾，與它旁邊的 menu bar 完全同類——而它在此處
+        // 被漏掉了。
+        //
+        // 這是「把所要求的**內容**尺寸換算成**視窗**尺寸」的第二個地點，也正是「只在
+        // `createWindow` 加上補正卻毫無改變」的原因：`setSize` 在其後執行，並把未經調整的請求寫
+        // 了回去。2026-09-04 以 SCUI_DEBUG_DECORATION=3 實測——titlebar 在 map 前回報 47、補正
+        // 已加在建立時，而內容仍然是 553，即 600 − 47。**是算術先指出了覆蓋者，然後才去讀程式碼。**
+        //
+        // 除非視窗擁有 titlebar，否則此值為零；而今天只有在探針下才會擁有。對 GTK 自身的裝飾，
+        // `titlebarNaturalHeight` 回傳 nil，因此在一般執行中這一項完全不作用。
+        let titlebarHeight = window.titlebarNaturalHeight ?? 0
         window.size = Size(
             width: newSize.x,
-            height: newSize.y + menubarHeight(ofWindow: window)
+            height: newSize.y + menubarHeight(ofWindow: window) + titlebarHeight
         )
         child.preemptAllocatedSize(allocatedWidth: newSize.x, allocatedHeight: newSize.y)
     }

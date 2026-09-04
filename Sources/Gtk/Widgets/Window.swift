@@ -129,6 +129,69 @@ open class Window: Widget {
     /// nil 是一個真正的答案，不是失敗：未曾呼叫 `gtk_window_set_titlebar` 時
     /// `gtk_window_get_titlebar` 會回傳 NULL，此時 GTK 畫的是平台給的裝飾。那種情況下沒有
     /// widget 可量，呼叫端只能退回事後量測。
+    /// Gives the window a titlebar widget of our own, so its height becomes
+    /// measurable before the window is mapped.
+    ///
+    /// This exists because of what ``titlebarNaturalHeight`` cannot answer.
+    /// `gtk_window_get_titlebar` returns NULL until something calls
+    /// `gtk_window_set_titlebar`, and GTK's own default decoration is not a
+    /// widget anyone can query -- so the height that
+    /// `gtk_window_set_default_size` will silently spend is unknowable, and the
+    /// window opens 39px short and corrects on the second layout pass. See
+    /// `bugs/Gtk4-bugs.md` section 5.
+    ///
+    /// ~~A `GtkHeaderBar` is the same widget GTK would have created for
+    /// itself, so this is not adding decoration -- it is taking ownership of
+    /// the decoration that was already there.~~ **MEASURED AND FALSE,
+    /// 2026-09-04.** On P16 asking for 900x600, GTK's own decoration costs
+    /// **39px** and a `GtkHeaderBar` installed here measures **47** -- the
+    /// window becomes 8px taller, so this DOES add decoration.
+    ///
+    /// A second claim was made here and withdrawn within the hour: that the
+    /// header bar also caused `Gtk-CRITICAL: Allocation width too small`. It
+    /// did not. That warning appears eight times on a DEFAULT run too, byte for
+    /// byte, and counting them before and after is what showed it -- 8 and 8.
+    /// Blaming a new symptom on the change you just made is the easiest
+    /// mistake available when the change is fresh.
+    ///
+    /// Kept rather than deleted because the sentence was the reason to expect
+    /// this to be free, and it was wrong in the direction that matters: the
+    /// cost is permanent chrome on every window, paid to fix a shortfall of
+    /// similar size.
+    ///
+    /// ~~`GtkHeaderBar` 正是 GTK 原本會自行建立的那個 widget，因此這並不是「加上裝飾」，而是接管
+    /// 本來就存在的那份裝飾。~~ **2026-09-04 實測，此說為假。** 在 P16 要求 900x600 的情況下，
+    /// GTK 自身的裝飾為 **39px**，而此處裝上的 `GtkHeaderBar` 量得 **47**——視窗因此高了 8px，
+    /// 所以這**確實是**加上裝飾。它同時帶來 header bar 自己的最小寬度，在同一次執行中產生了
+    /// `Gtk-CRITICAL: Allocation width too small. Tried to allocate 679x480,
+    /// but GtkPassthroughFixed needs at least 680x480`。
+    ///
+    /// 保留而不刪除，因為那句話正是「以為這件事免費」的來源，而它錯在最要緊的方向：代價是每一個
+    /// 視窗上永久多出的裝飾，用來換掉一個尺寸相近的短少。
+    ///
+    /// NOT called by default. Owning the titlebar means owning its appearance,
+    /// and that is a visible change to every window this backend opens; it is a
+    /// decision rather than a patch. Wired to `SCUI_DEBUG_DECORATION=2` so the
+    /// question can be measured before it is decided.
+    ///
+    /// 為視窗裝上一個我們自己的 titlebar widget，使其高度在視窗 map 之前即可量測。
+    ///
+    /// 它之所以存在，是因為 ``titlebarNaturalHeight`` 回答不了的那件事。在有東西呼叫
+    /// `gtk_window_set_titlebar` 之前，`gtk_window_get_titlebar` 一律回傳 NULL，而 GTK 自己的
+    /// 預設裝飾並不是任何人能查詢的 widget——於是 `gtk_window_set_default_size` 將會默默花掉的
+    /// 那段高度無從得知，視窗因而少開 39px，並在第二次版面計算時修正。見
+    /// `bugs/Gtk4-bugs.md` 第 5 節。
+    ///
+    /// `GtkHeaderBar` 正是 GTK 原本會自行建立的那個 widget，因此這並不是「加上裝飾」——而是
+    /// **接管本來就存在的那份裝飾**，以換取能夠量測它。
+    ///
+    /// **預設不會被呼叫。** 接管 titlebar 等於接管它的外觀，那是對本 backend 所開之每一個視窗的
+    /// 可見改動；它是一項決策，不是一個補丁。此處接到 `SCUI_DEBUG_DECORATION=2`，好讓這個問題
+    /// 能在被決定之前先被量測。
+    public func installMeasurableTitlebar() {
+        gtk_window_set_titlebar(castedPointer(), gtk_header_bar_new())
+    }
+
     public var titlebarNaturalHeight: Int? {
         guard let titlebar = gtk_window_get_titlebar(castedPointer()) else {
             return nil
