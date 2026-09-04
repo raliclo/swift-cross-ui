@@ -135,10 +135,10 @@ final class DateWheel: Box {
         dayScroller = built[2]
 
         for year in yearRange {
-            yearColumn.append(Label(string: String(year)))
+            yearColumn.append(Gtk.Label(string: String(year)))
         }
         for name in calendar.monthSymbols {
-            monthColumn.append(Label(string: name))
+            monthColumn.append(Gtk.Label(string: name))
         }
 
         yearColumn.rowSelected = { [weak self] _, _ in self?.selectionChanged(rebuildDays: true) }
@@ -283,7 +283,7 @@ final class DateWheel: Box {
 
         dayColumn.removeAll()
         for day in range {
-            dayColumn.append(Label(string: String(day)))
+            dayColumn.append(Gtk.Label(string: String(day)))
         }
     }
 

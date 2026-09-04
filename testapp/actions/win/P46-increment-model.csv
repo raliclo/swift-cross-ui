@@ -1,0 +1,66 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on Windows, GtkBackend: press "Increment model" and read three numbers.
+#
+# THIS FILE EXISTS FOR ONE MEASUREMENT THAT A SCREENSHOT CANNOT MAKE. The three
+# lines the click changes are each evidence for a different claim, and only the
+# third needs the click at all:
+#
+#   model.count = 1                    the @Published property published
+#   observed child sees count = 1      @ObservedObject delivered it to a CHILD
+#                                      view that shares no @State with the parent
+#   P46Model constructions: 1          @StateObject did NOT rebuild the model
+#
+# The third is the whole point. `@State var model = P46Model()` also compiles,
+# also renders, and also shows "constructions: 1" on the FIRST frame -- the two
+# wrappers are indistinguishable until an update happens. With @State the
+# initialiser re-runs on every view update and the count climbs; with
+# @StateObject it stays at 1. So a capture taken before any interaction proves
+# nothing about which wrapper is in use, and that is exactly the trap this file
+# is built to avoid.
+#
+# WHY THE LOG AND NOT ONLY THE PICTURE. The button also writes
+#   model.count=<n> constructions=<n>
+# to p46-debug-events.log, so the click leaves a line naming both numbers. The
+# capture shows the same values on screen; the log makes them greppable and
+# survives the window closing. Read both -- a log line without a matching
+# picture would mean the action ran and the view did not update, which is a real
+# failure mode and one this file must be able to report.
+#
+# COORDINATES ARE FRAME-RELATIVE, measured from
+# output/screenshots/p46-first-20260904-213846.png, an 888x729 wincap capture of
+# the window INCLUDING its chrome. The button reads "Increment model" and spans
+# roughly x 26..157, y 570..602; 91,586 is its centre. If the window is resized,
+# or the Form scrolls, every number here is wrong and the click lands on empty
+# space -- which raises nothing and still reports a pass. Re-measure rather than
+# adjusting by eye.
+#
+# P46 於 Windows、GtkBackend：按下「Increment model」並讀取三個數字。
+#
+# 本檔案的存在是為了一項截圖做不到的量測。點擊所改變的三行各自佐證不同的主張，而其中只有第三項
+# 真正需要這次點擊：
+#
+#   model.count = 1                    @Published 屬性確實發布了
+#   observed child sees count = 1      @ObservedObject 把它送達了一個「與父層不共用任何 @State」
+#                                      的子 view
+#   P46Model constructions: 1          @StateObject 沒有重建那個 model
+#
+# 第三項才是重點。`@State var model = P46Model()` 同樣編得過、同樣畫得出來，第一幀同樣顯示
+# 「constructions: 1」——在發生更新之前，兩種包裝器是無法分辨的。用 @State 時初始化式會在每次
+# view 更新時重跑、數字會攀升；用 @StateObject 則維持為 1。因此「互動之前拍的截圖」無法證明用的
+# 是哪一種，而那正是本檔案要避開的陷阱。
+#
+# 為何要看 log 而不只看畫面。該按鈕同時會把
+#   model.count=<n> constructions=<n>
+# 寫入 p46-debug-events.log，因此點擊會留下一行同時載明兩個數字。截圖顯示畫面上的相同數值；log
+# 則讓它可被 grep，且在視窗關閉後仍存在。兩者都要讀——只有 log 而畫面未更新，代表「動作執行了但
+# view 沒更新」，那是真實存在的失敗模式，而本檔案必須有能力回報它。
+#
+# 座標以 frame 為基準，量自 output/screenshots/p46-first-20260904-213846.png，那是一張
+# 888x729、包含視窗外框的 wincap 擷圖。該按鈕標籤為「Increment model」，範圍約 x 26..157、
+# y 570..602；91,586 為其中心。若視窗被調整大小、或 Form 被捲動，此處每一個數字都會失效，點擊
+# 會落在空白處——而那不會引發任何東西，卻仍會回報通過。請重新量測，不要憑目測微調。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,91,586,frame,left,,,"centre of the ""Increment model"" button (x 26..157 y 570..602) -- expect model.count = 1 and observed child sees count = 1, with constructions still 1",windows
+sleep,,,,,,1200000,let the log catch up and hold the frame for the capture,windows
+click,91,586,frame,left,,,"second press: the counts must reach 2 while constructions stays 1 -- one press could be a coincidence of initial state, two cannot",windows
+sleep,,,,,,1500000,final hold so the capture and the log both observe the settled state,windows

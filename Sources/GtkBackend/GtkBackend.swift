@@ -4652,7 +4652,29 @@ class CustomPaned: Paned {
     var hasEstablishedPosition = false
 }
 
-class CustomLabel: Label {
+/// Qualified as `Gtk.Label`, and it has to be.
+///
+/// `SwiftCrossUI.Label` was added on 2026-09-04 for SwiftUI parity. This file
+/// imports both modules, so from that moment a bare `Label` here is ambiguous
+/// and the compiler says so at the SUBCLASS line -- followed by a cascade
+/// blaming `CustomLabel` for having no superclass and no members, which points
+/// at this class rather than at the name clash that caused it.
+///
+/// Every other bare `Label` in GtkBackend is qualified for the same reason.
+/// Do not "fix" a future recurrence by renaming the SwiftCrossUI view: `Label`
+/// is the SwiftUI spelling, and parity is the whole point of it existing.
+///
+/// 限定為 `Gtk.Label`，而且必須如此。
+///
+/// `SwiftCrossUI.Label` 於 2026-09-04 為 SwiftUI parity 而新增。本檔案同時 import 兩個模組，
+/// 因此自那時起，此處未限定的 `Label` 即為歧義，而編譯器會在**子類別那一行**報錯，接著串出一連串
+/// 「`CustomLabel` 沒有父類別、沒有任何成員」的錯誤——那些訊息指向這個類別，而非指向真正的肇因：
+/// 名稱衝突。
+///
+/// GtkBackend 中其餘未限定的 `Label` 也基於同樣理由一併限定。日後若再度發生，請勿以「改掉
+/// SwiftCrossUI 那個 view 的名字」來「修正」它：`Label` 正是 SwiftUI 的寫法，而 parity 正是
+/// 它存在的全部理由。
+class CustomLabel: Gtk.Label {
     override func setSizeRequest(width: Int, height: Int) {
         super.setSizeRequest(width: width, height: height)
 
@@ -4727,9 +4749,13 @@ final class TooltipContainer: Fixed {
 final class TimePicker: Box {
     private var hourCycle: Locale.HourCycle
     private let hourPicker: SpinButton
-    private let hourMinuteSeparator = Label(string: ":")
+    // Qualified for the reason recorded at ``CustomLabel``: SwiftCrossUI now has
+    // a Label of its own and a bare one here is ambiguous.
+    // 依 ``CustomLabel`` 處所記錄的理由加以限定：SwiftCrossUI 現在自己也有一個 Label，
+    // 此處未限定即為歧義。
+    private let hourMinuteSeparator = Gtk.Label(string: ":")
     private let minutePicker = SpinButton(range: 0, max: 59, step: 1)
-    private var minuteSecondSeparator: Label?
+    private var minuteSecondSeparator: Gtk.Label?
     private var secondPicker: SpinButton?
     private var amPmPicker: DropDown?
 
@@ -4796,7 +4822,7 @@ final class TimePicker: Box {
                     max: Double(secondsRange.upperBound - 1)
                 )
             } else {
-                minuteSecondSeparator = Label(string: ":")
+                minuteSecondSeparator = Gtk.Label(string: ":")
                 secondPicker = SpinButton(
                     range: Double(secondsRange.lowerBound),
                     max: Double(secondsRange.upperBound - 1),
@@ -5590,10 +5616,10 @@ final class TimeRow: Box {
         }
 
         add(hourField)
-        add(Label(string: ":"))
+        add(Gtk.Label(string: ":"))
         add(minuteField)
         if let secondField {
-            add(Label(string: ":"))
+            add(Gtk.Label(string: ":"))
             add(secondField)
         }
         if let meridiemField {
