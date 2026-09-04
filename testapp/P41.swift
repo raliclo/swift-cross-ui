@@ -74,8 +74,8 @@ struct P41RootView: View {
             Text("Two cells that look identical mean one style fell back to the other.")
 
             HStack(spacing: 20) {
-                P41Cell(label: ".automatic", date: $automatic, style: .automatic)
-                P41Cell(label: ".graphical", date: $graphical, style: .graphical)
+                P41Cell(label: ".automatic", date: $automatic, style: .automatic, requires: .automatic)
+                P41Cell(label: ".graphical", date: $graphical, style: .graphical, requires: .graphical)
             }
 
             // `.wheel` only where the enum has it.
@@ -101,11 +101,11 @@ struct P41RootView: View {
             // macOS 上的那一格會說明情況，而不是直接消失。在某個平台上悄悄少掉一格的列，讀起來會像
             // 是版面差異——而版面差異正是 P41 要用來比較的東西。
             HStack(spacing: 20) {
-                P41Cell(label: ".compact", date: $compact, style: .compact)
+                P41Cell(label: ".compact", date: $compact, style: .compact, requires: .compact)
                 #if os(macOS)
                     Text(".wheel is unavailable on macOS")
                 #else
-                    P41Cell(label: ".wheel", date: $wheel, style: .wheel)
+                    P41Cell(label: ".wheel", date: $wheel, style: .wheel, requires: .wheel)
                 #endif
             }
 
@@ -134,6 +134,7 @@ struct P41RootView: View {
                     label: ".hourAndMinute",
                     date: $hourMinute,
                     style: .graphical,
+                    requires: .graphical,
                     components: .hourAndMinute,
                     format: "yyyy-MM-dd HH:mm"
                 )
@@ -173,6 +174,7 @@ struct P41RootView: View {
                         label: ".hourMinuteAndSecond",
                         date: $hourMinuteSecond,
                         style: .graphical,
+                        requires: .graphical,
                         components: .hourMinuteAndSecond,
                         format: "yyyy-MM-dd HH:mm:ss"
                     )
@@ -187,6 +189,14 @@ struct P41Cell: View {
     var label: String
     @Binding var date: Date
     var style: any DatePickerStyle
+    /// The backend vocabulary name for `style`, so the cell can look it up in
+    /// `supportedDatePickerStyles` before asking for it. Passed rather than
+    /// derived, because `_asBackendDatePickerStyle` is SPI and an app is not
+    /// supposed to reach it -- P11 compares against this enum too.
+    /// `style` 在 backend 詞彙中的名稱，好讓這一格在索取之前先到 `supportedDatePickerStyles` 中
+    /// 查詢。採用傳入而非推導，因為 `_asBackendDatePickerStyle` 屬於 SPI，而 app 不應該碰它
+    /// ——P11 比對的也是這個 enum。
+    var requires: BackendDatePickerStyle
     /// Defaults to `.date`, which is what the style cells above compare.
     /// 預設為 `.date`，那正是上方各 style 格所比較的內容。
     var components: DatePickerComponents = .date
@@ -195,16 +205,52 @@ struct P41Cell: View {
     /// 下方的回讀必須顯示「所要求的內容」，否則「時間從未改變」與「時間正確改變」會印出同一行。
     var format: String = "yyyy-MM-dd"
 
+    /// What the backend says it can draw, so a cell can ask before asking.
+    /// backend 宣稱自己畫得出來的東西，好讓一個格位在索取之前先詢問。
+    @Environment(\.supportedDatePickerStyles) var supportedDatePickerStyles
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.system(size: 13))
 
-            DatePicker(label, selection: $date, displayedComponents: components)
-                .datePickerStyle(style)
+            // Asked for only when the backend lists it, which is what P11 does
+            // and what this app did not.
+            //
+            // `datePickerStyle(_:)` downgrades an unlisted style silently in a
+            // release build and calls `assertionFailure` in a debug one, and
+            // this harness builds debug. So a cell that asked unconditionally
+            // did not produce a downgraded picker to look at -- it ended the
+            // process. Measured 2026-09-04 on a Wear OS 5 emulator: this app
+            // died at launch with "Unsupported date picker style:
+            // GraphicalDatePickerStyle", because a watch is 320 points wide and
+            // AndroidBackend does not offer `.graphical` there.
+            //
+            // The unsupported case now says so on screen. That is more use than
+            // a crash and more use than a silent downgrade: the whole subject of
+            // this app is which style you actually got.
+            //
+            // 只有在 backend 列出該樣式時才索取它，那正是 P11 的做法，也是這支 app 過去沒有做的。
+            //
+            // 對於未列出的樣式，`datePickerStyle(_:)` 在 release build 中會靜默降級，在 debug
+            // build 中則會呼叫 `assertionFailure`；而本 harness 建的是 debug。因此一個「無條件索取」
+            // 的格位並不會產生一個「降級後的選擇器」供人檢視——它會終結整個行程。2026-09-04 於
+            // Wear OS 5 emulator 上實測：這支 app 在啟動時死於「Unsupported date picker style:
+            // GraphicalDatePickerStyle」，因為錶只有 320 點寬，而 AndroidBackend 在該處不提供
+            // `.graphical`。
+            //
+            // 現在「不支援」這件事會顯示在畫面上。那比崩潰有用，也比靜默降級有用：這支 app 的整個
+            // 主題，就是「你實際拿到的是哪一個樣式」。
+            if supportedDatePickerStyles.contains(requires) {
+                DatePicker(label, selection: $date, displayedComponents: components)
+                    .datePickerStyle(style)
 
-            Text(P41Cell.string(from: date, format: format))
-                .font(.system(size: 12))
+                Text(P41Cell.string(from: date, format: format))
+                    .font(.system(size: 12))
+            } else {
+                Text("not offered by this backend")
+                    .font(.system(size: 12))
+            }
         }
         .frame(width: 420, alignment: .leading)
     }
