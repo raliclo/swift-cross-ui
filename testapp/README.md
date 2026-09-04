@@ -136,17 +136,18 @@ black frame.
 
 ## Android build size, and the disk it takes
 
-An Android APK from this tree is **169 MB**; the same app on iOS is **8.6 MB**.
+An Android APK from this tree is **154 MB**; the same app on iOS is **8.6 MB**.
 Measured 2026-09-05 on P43. That 20x is not this project: Swift's runtime ships
 with iOS and the app links against it, while Android has none on the device, so
 every APK carries its own.
 
 | | P43 |
 | --- | ---: |
-| Android APK | 169 MB |
+| Android APK | 154 MB |
 | iOS `.app` | 8.6 MB |
 
-**43 MB of that came off on 2026-09-04 and stays off by default.** `.swift_ast`
+**58 MB came off, in two pieces.** 43 of them is `.swift_ast`, and it stays off
+by default. `.swift_ast`
 is the serialized Swift AST lldb reads to describe types, and nothing at runtime
 touches it -- it was 45.0 MB of a 137.6 MB library, the second largest section
 after `.text`. The bundler strips it from the packaged copy, so
@@ -177,11 +178,11 @@ is made of, is in `matrix_coverage/executable-size.md`.
 
 ## Android 的建置體積，以及它佔用的磁碟
 
-本樹產出的 Android APK 為 **169 MB**；同一支 app 在 iOS 上是 **8.6 MB**。2026-09-05 於 P43 上量測。
+本樹產出的 Android APK 為 **154 MB**；同一支 app 在 iOS 上是 **8.6 MB**。2026-09-05 於 P43 上量測。
 那 20 倍不是這個專案造成的：Swift 的 runtime 隨 iOS 出貨、app 是連結它的，而 Android 的裝置上沒有，
 因此每一支 APK 都得自帶一份。
 
-**其中 43 MB 已於 2026-09-04 移除，且預設維持移除。** `.swift_ast` 是 lldb 用來描述型別的序列化
+**共移除了 58 MB，分兩塊。** 其中 43 MB 是 `.swift_ast`，且預設維持移除。 `.swift_ast` 是 lldb 用來描述型別的序列化
 Swift AST，執行期完全不會碰它——它在一個 137.6 MB 的 library 中佔 45.0 MB，是繼 `.text` 之後第二大的
 section。bundler 會從打包的副本中剝除它，因此 `test.zsh --android` 與 `test_android.zsh` 都不需要
 任何旗標就會產出較小的 APK。若某個建置你打算以除錯器附加，請設定 `SCUI_KEEP_SWIFT_AST=1`。

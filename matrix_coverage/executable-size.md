@@ -215,10 +215,31 @@ nearly five times the entire iOS app.
 
 | part | size | |
 |---|---:|---|
-| `libP43.so` | 87 MB | the app, everything static |
-| `lib_FoundationICU.so` | 40 MB | ICU data, shipped by every app |
+| `libP43.so` | 73 MB | the app, everything static |
+| `lib_FoundationICU.so` | 38 MB | ICU data, shipped by every app |
 | everything else in `lib/` | ~32 MB | the rest of the Swift runtime |
 | `classes.dex` | 10 MB | |
+
+**ICU is not removable from this tree, and that is measured rather than
+assumed.** `llvm-readelf -d` shows `libFoundation.so` carrying
+`lib_FoundationICU.so` as a hard `NEEDED` entry, so any app that imports
+Foundation pulls in all 38 MB. `libFoundationEssentials.so`, the ICU-free core,
+does not need it -- an app confined to that would not pay for ICU, but every app
+here imports Foundation proper. Shrinking the blob itself means rebuilding the
+Swift Android SDK, which this tree does not own.
+
+**Nothing else in `lib/` is dead weight**: of the 21 libraries, every one but
+`libshim.so` (0 MB, loaded by the JNI entry point) is a declared `NEEDED` of
+something else in the APK.
+
+**ICU 無法從本樹中移除，而這是量出來的、不是假定的。** `llvm-readelf -d` 顯示
+`libFoundation.so` 把 `lib_FoundationICU.so` 列為硬性的 `NEEDED` 項目，因此任何 import Foundation
+的 app 都會帶進那整整 38 MB。不需要它的是 `libFoundationEssentials.so`——那個不含 ICU 的核心；
+一支只用它的 app 不必為 ICU 付費，但此處每一支 app 用的都是完整的 Foundation。要縮小那個資料塊
+本身，就得重建 Swift Android SDK，而本樹並不擁有它。
+
+**`lib/` 中其餘沒有任何贅物**：21 個函式庫中，除了 `libshim.so`（0 MB，由 JNI 進入點載入）之外，
+每一個都是 APK 內其他東西所宣告的 `NEEDED`。
 
 And inside `libP43.so`, the defined dynamic symbols account for 33.9 MB:
 
@@ -227,6 +248,18 @@ And inside `libP43.so`, the defined dynamic symbols account for 33.9 MB:
 | **SwiftSyntax** | **9.6 MB** |
 | Android bindings (`AndroidView`, `SwiftJava`, `AndroidMaterial`, …) | ~16 MB |
 | SwiftCrossUI | 2.3 MB |
+
+**SwiftSyntax was a compile-time library and it shipped, until 2026-09-05.**
+Removing SwiftCrossUI's direct dependency on it when `SCUI_ANDROID` is set takes
+79,105 symbols out of the binary and **the APK from 169 MB to 154**, with P43's
+gradients unchanged and macOS's 53 tests still passing -- macOS keeps the
+dependency, which is what the workaround was for.
+
+The first attempt read as a no-op and was reverted on that reading. It was not
+the edit: llbuild caches the build plan, and `debug.yaml` and `build.db` have to
+be deleted with any manifest change. Clearing only SwiftPM's manifest cache is
+not enough. The paragraph below is what that failed attempt concluded, kept
+because the conclusion was wrong for a reason worth seeing.
 
 **SwiftSyntax is a compile-time library and it ships.** It is larger in the
 binary than SwiftCrossUI itself. `Package.swift` has SwiftCrossUI depending on

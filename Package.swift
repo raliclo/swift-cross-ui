@@ -321,8 +321,35 @@ let package = Package(
                 // flag when building SwiftCrossUI apps doesn't seem to be sufficient to fix
                 // the issues, even though I would've thought that was the effect that adding
                 // this dependency has.
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-            ],
+                // **Except when building for Android, where it costs 15 MB
+                // and buys nothing.** SwiftSyntax is a compile-time library and
+                // this line links it into the app: measured 2026-09-05 on P43,
+                // dropping it here took 79,105 SwiftSyntax symbols out of the
+                // binary and the APK from 169 MB to 154. The problem the
+                // workaround exists for is a macOS build problem, and
+                // `androidBackendSupported` is exactly the flag that says this
+                // build is not that one -- macOS keeps the dependency and its
+                // 53 tests still pass.
+                //
+                // The first attempt at this looked like it changed nothing, and
+                // that was llbuild's cached build plan rather than the edit:
+                // `debug.yaml` and `build.db` have to go with it, which is the
+                // same trap `compile.zsh` documents for SwiftPM's manifest
+                // cache.
+                //
+                // **但為 Android 建置時除外——在那裡它要價 15 MB，而且什麼也沒換到。** SwiftSyntax
+                // 是編譯期函式庫，而這一行把它連結進 app 之中：2026-09-05 於 P43 上實測，在此處
+                // 移除它，使該執行檔少了 79,105 個 SwiftSyntax 符號，APK 由 169 MB 降到 154。
+                // 這個變通所要解決的是一個 macOS 的建置問題，而 `androidBackendSupported` 正是那個
+                // 「本次建置不是那一種」的旗標——macOS 保留該依賴，其 53 個測試依然通過。
+                //
+                // 第一次嘗試看起來毫無改變，而那是 llbuild 快取的建置計畫、不是這次編輯造成的：
+                // `debug.yaml` 與 `build.db` 必須一併刪除，那與 `compile.zsh` 為 SwiftPM manifest
+                // 快取所記錄的是同一個陷阱。
+            ]
+                + (androidBackendSupported
+                    ? []
+                    : [.product(name: "SwiftSyntax", package: "swift-syntax")]),
             exclude: [
                 "Builders/ViewBuilder.swift.gyb",
                 "Builders/SceneBuilder.swift.gyb",
