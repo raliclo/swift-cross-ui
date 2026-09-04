@@ -187,6 +187,66 @@ P12 上實測：release 為 181,824,952 位元組，debug 為 181,629,584——*
 WinRT/UWP projection，每支各付一次。Windows GTK4 只比 Linux GTK4 多 1.2 MB（2.3%），因此那 3.15
 倍完全落在 backend 選擇上，與作業系統無關。
 
+## What is inside an Android APK, and what came off it
+
+Measured 2026-09-04 on P43 with `llvm-size --format=sysv` and
+`llvm-nm --dynamic --defined-only --print-size`.
+
+**212 MB, of which 43 was a debug section nothing reads.** `.swift_ast` is the
+serialized Swift AST lldb uses to describe types: 45.0 MB of a 137.6 MB library,
+its second largest section after `.text`'s 56.7. The bundler now removes it from
+the packaged copy, which takes **the APK to 169 MB** with the rendering
+unchanged pixel for pixel. `SCUI_KEEP_SWIFT_AST=1` puts it back for a build you
+mean to attach a debugger to.
+
+**The remaining 169 MB**, by what is in it:
+
+| part | size | |
+|---|---:|---|
+| `libP43.so` | 87 MB | the app, everything static |
+| `lib_FoundationICU.so` | 40 MB | ICU data, shipped by every app |
+| everything else in `lib/` | ~32 MB | the rest of the Swift runtime |
+| `classes.dex` | 10 MB | |
+
+And inside `libP43.so`, the defined dynamic symbols account for 33.9 MB:
+
+| module | size |
+|---|---:|
+| **SwiftSyntax** | **9.6 MB** |
+| Android bindings (`AndroidView`, `SwiftJava`, `AndroidMaterial`, …) | ~16 MB |
+| SwiftCrossUI | 2.3 MB |
+
+**SwiftSyntax is a compile-time library and it ships.** It is larger in the
+binary than SwiftCrossUI itself. `Package.swift` has SwiftCrossUI depending on
+it directly, with a comment saying it works around a macOS linker and plugin
+problem -- but **making that dependency non-Android changes nothing**: tried
+2026-09-04, the symbols and the 169 MB both stayed exactly as they were, so it
+arrives by another path, most likely the macro plugin. The edit was reverted
+rather than left in place looking like a saving.
+
+## 一支 Android APK 的內容，以及從它身上拿掉了什麼
+
+2026-09-04 於 P43 上，以 `llvm-size --format=sysv` 與
+`llvm-nm --dynamic --defined-only --print-size` 量測。
+
+**212 MB，其中 43 MB 是一個沒有任何東西會讀取的除錯 section。** `.swift_ast` 是 lldb 用來描述型別的
+序列化 Swift AST：在一個 137.6 MB 的 library 中佔 45.0 MB，是繼 `.text` 的 56.7 MB 之後第二大的
+section。bundler 現在會從打包的副本中移除它，使 **APK 降到 169 MB**，而繪製結果逐像素不變。
+`SCUI_KEEP_SWIFT_AST=1` 會把它放回去，供「你打算附加除錯器」的建置使用。
+
+**剩下的 169 MB** 的組成：`libP43.so` 87 MB（整個 app，全部靜態連結）、`lib_FoundationICU.so`
+40 MB（ICU 資料，每支 app 各帶一份）、`lib/` 中其餘約 32 MB（Swift runtime 的其餘部分）、
+`classes.dex` 10 MB。
+
+而在 `libP43.so` 之內，已定義的動態符號合計 33.9 MB：**SwiftSyntax 9.6 MB**、Android 綁定
+（`AndroidView`、`SwiftJava`、`AndroidMaterial` 等）約 16 MB、SwiftCrossUI 2.3 MB。
+
+**SwiftSyntax 是編譯期函式庫，而它會出貨。** 它在該執行檔中比 SwiftCrossUI 自身還大。
+`Package.swift` 中 SwiftCrossUI 直接依賴它，註解說那是為了繞過 macOS 的 linker 與 plugin 問題
+——但**把該依賴改為「非 Android 才加入」毫無改變**：2026-09-04 試過，符號與 169 MB 都一模一樣，
+因此它是循另一條路徑進來的，最可能是 macro plugin。那次編輯已被撤回，而不是留在原處、看起來像是
+一項節省。
+
 ## Empty cells and `n/a`
 
 The two are different and the difference is the point:
