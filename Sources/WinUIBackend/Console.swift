@@ -15,12 +15,80 @@ extension WinUIBackend {
     ///
     /// Adapted from: https://stackoverflow.com/a/55875595/8268001
     static func attachToParentConsole() throws {
+        // Leave a deliberate redirect alone. `./app > out.txt 2>&1` and
+        // `./app | grep x` both set the standard handles to a file or a pipe,
+        // and taking those over is not "attaching to the parent's console" --
+        // it is discarding what the caller asked for.
+        //
+        // MEASURED 2026-09-04, and the old order made this worse than it looks.
+        // `releaseConsole()` ran FIRST and UNCONDITIONALLY, and it does
+        // `freopen_s("NUL:", "w", stderr)`. When `AttachConsole` then failed --
+        // which is exactly what happens with no parent console, so from a pipe,
+        // a service, or a detached process -- stderr was left pointing at NUL
+        // and every byte the app wrote was thrown away. Not redirected
+        // elsewhere: destroyed. P35-WinUI.exe produced 0 bytes on both streams
+        // through a pipe while still writing its own log file, and the -GPU
+        // line added in this session vanished the same way.
+        //
+        // The cost of that was not just lost output. A check whose result is
+        // discarded cannot fail, so it cannot pass either: "-GPU 2 printed
+        // nothing" was read as possible evidence about adapter selection when
+        // it was evidence about nothing at all.
+        //
+        // 若呼叫端刻意做了重導，就完全不要動它。`./app > out.txt 2>&1` 與 `./app | grep x` 都會把
+        // 標準控制代碼設成檔案或管線，而接手它們並不是「附加到父行程的主控台」——那是把呼叫端所
+        // 要求的東西丟掉。
+        //
+        // **2026-09-04 實測**，而舊有的順序讓情況比表面更糟。`releaseConsole()` 是**最先**且
+        // **無條件**執行的，而它會做 `freopen_s("NUL:", "w", stderr)`。當其後的 `AttachConsole`
+        // 失敗時——那正是「沒有父主控台」時會發生的事，也就是從管線、服務或分離的行程啟動時——
+        // stderr 就停在 NUL，app 寫出的每一個位元組都被丟棄。不是被導到別處：是被銷毀。
+        // P35-WinUI.exe 透過管線執行時兩個串流都是 0 位元組，卻仍然寫出了自己的 log 檔；本次
+        // session 新增的 -GPU 行也是以同樣的方式消失的。
+        //
+        // 它的代價不只是輸出遺失。**一個結果會被丟棄的檢查無法失敗，因此也無法通過**：
+        // 「-GPU 2 什麼都沒印」曾被當成關於介面卡選擇的可能證據，而它其實什麼都不是。
+        guard !standardStreamIsRedirected() else { return }
+
         try Self.releaseConsole()
         // -1 attaches to parent's console
         if AttachConsole(DWORD(bitPattern: -1)) {
             try Self.adjustConsoleBuffer(1024)
             try Self.redirectConsoleIO()
         }
+    }
+
+    /// Whether stdout or stderr already points at a file or a pipe.
+    ///
+    /// `GetFileType` is the question that distinguishes "a console this process
+    /// should attach to" from "somewhere the caller is collecting output".
+    /// Checking BOTH streams, because `2>&1` and `>` are separate acts and a run
+    /// that redirects only one still means the caller wants its output.
+    ///
+    /// The constants are spelled out rather than named: they are `#define`s in
+    /// `WinBase.h`, and this project already writes Win32 flag values literally
+    /// for the same reason -- Swift imports values, not macros.
+    ///
+    /// stdout 或 stderr 是否已經指向檔案或管線。
+    ///
+    /// `GetFileType` 正是那個能區分「這是本行程該附加的主控台」與「這是呼叫端正在收集輸出的地方」
+    /// 的問題。**兩個串流都檢查**，因為 `2>&1` 與 `>` 是兩個獨立的動作，而只重導其中一個的執行，
+    /// 仍然代表呼叫端要它的輸出。
+    ///
+    /// 常數以字面值寫出而非使用名稱：它們是 `WinBase.h` 中的 `#define`，而本專案基於相同理由
+    /// 一向把 Win32 旗標值直接寫出——Swift 匯入的是值，不是巨集。
+    private static func standardStreamIsRedirected() -> Bool {
+        // FILE_TYPE_DISK is 0x0001 and FILE_TYPE_PIPE is 0x0003; a console is
+        // FILE_TYPE_CHAR 0x0002, and an invalid handle gives FILE_TYPE_UNKNOWN 0.
+        // FILE_TYPE_DISK 為 0x0001、FILE_TYPE_PIPE 為 0x0003；主控台是 FILE_TYPE_CHAR 0x0002，
+        // 而無效的控制代碼會得到 FILE_TYPE_UNKNOWN 0。
+        func isFileOrPipe(_ stdHandle: DWORD) -> Bool {
+            let type = GetFileType(GetStdHandle(stdHandle))
+            return type == 0x0001 || type == 0x0003
+        }
+        // STD_OUTPUT_HANDLE is -11 and STD_ERROR_HANDLE is -12.
+        // STD_OUTPUT_HANDLE 為 -11，STD_ERROR_HANDLE 為 -12。
+        return isFileOrPipe(DWORD(bitPattern: -11)) || isFileOrPipe(DWORD(bitPattern: -12))
     }
 
     /// Releases existing files associated with the app's standard IO streams.
