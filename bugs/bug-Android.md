@@ -13,6 +13,57 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
+## Open: a replayed press on a `.wheel` date picker is lost about a third of the time
+
+P41's action file presses one row of the month wheel. Counted 2026-09-04: **3 of
+5** with the file as it stands. The claim itself is right -- when the press
+lands, the wheel advances to Sep and the readout goes 2025-08-24 to 2025-09-24 --
+and nothing else in the file is unreliable.
+
+**Two hypotheses, both tested and both wrong.** They are written down because
+each cost a build and neither is worth repeating.
+
+- **Layout timing.** Dumps at 2, 4, 6 and 9 seconds after launch: the wheel's
+  selected band is absent at 2 and present at y 954-1080 from 4 onwards. The
+  file's settling sleep was raised from 1.8 to 3.5 seconds accordingly, which
+  puts the press at about 4.5 seconds counting the replay's own 1 second. Going
+  further, to 6, gave 4 of 5 -- inside the same spread. Waiting longer is not
+  the fix.
+- **Press duration.** A synthesised click posts ACTION_DOWN and ACTION_UP with
+  no gap, and `dispatch` stamps both with `SystemClock.uptimeMillis()`, so they
+  can share a millisecond -- a touch of zero length. `NumberPicker`, which is
+  what a Holo spinner is, tells a tap from a fling by measuring the gesture, so
+  this looked like the answer. Holding for 50ms gave **0 of 5**: strictly worse
+  than no gap at all. Reverted.
+
+**What is not yet ruled out**: the emulator dropping input under load, something
+in `NumberPicker`'s own press-state handling, or the replay thread's hop to the
+main thread reordering the two events. None of those has been measured.
+
+The affected row is one press in one file. Every other Android action file
+replays consistently.
+
+## 未修：對 `.wheel` 日期選擇器的重放按壓，約有三分之一會遺失
+
+P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以檔案現狀為 **5 次中 3 次**。該主張本身是
+正確的——當按壓落下時，滾輪會前進到 Sep，讀數由 2025-08-24 變為 2025-09-24——而該檔案中其餘部分
+都沒有不穩定的情況。
+
+**兩個假設，都測過，也都是錯的。** 之所以寫下來，是因為每一個都花了一次建置，而兩者都不值得重來。
+
+- **版面時序。** 於啟動後 2、4、6、9 秒各取一次 dump：滾輪被選中的那一帶在 2 秒時不存在，自 4 秒起
+  存在且穩定於 y 954-1080。該檔案的等待因此由 1.8 秒提高到 3.5 秒，加上重放本身的 1 秒，使按壓落在
+  約 4.5 秒。再往上加到 6 秒得到 5 次中 4 次——落在同一個散布範圍內。等更久並不是解法。
+- **按壓時長。** 一次合成的點擊會投遞 ACTION_DOWN 與 ACTION_UP 且中間沒有間隔，而 `dispatch` 以
+  `SystemClock.uptimeMillis()` 為兩者蓋時戳，因此它們可能共用同一毫秒——一次長度為零的觸控。而
+  `NumberPicker`（Holo 滾輪的本體）正是以量測手勢來區分點擊與快滑，所以這看起來像是答案。改為持續
+  50 毫秒的結果是 **5 次中 0 次**：嚴格地比完全沒有間隔更差。已撤回。
+
+**尚未排除的**：emulator 在負載下丟棄輸入、`NumberPicker` 自身按下狀態處理中的某些行為，或重放
+執行緒跳往主執行緒時使那兩個事件次序顛倒。以上皆未經量測。
+
+受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
+
 ## Fixed 2026-09-04: `windowLevel(.floating)`, after four experiments
 
 AndroidBackend now conforms to `BackendFeatures.WindowLevels` and reports
