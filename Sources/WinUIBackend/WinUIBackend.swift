@@ -121,9 +121,19 @@ public final class WinUIBackend:
     BackendFeatures.Windowing,
     BackendFeatures.WindowLevels,
     BackendFeatures.LinearGradients,
-    BackendFeatures.RadialGradients,
-    BackendFeatures.GraphicsAdapters
+    BackendFeatures.RadialGradients
 {
+    // GraphicsAdapters is declared on the extension in
+    // WinUIBackend+GraphicsAdapters.swift, NOT here, and listing it in both
+    // places is `error: redundant conformance` -- which is how this was found on
+    // 2026-09-04. Only the stored property has to live in the class body, since
+    // Swift has no stored properties in extensions. GtkBackend has the same
+    // split for the same reason.
+    // GraphicsAdapters 宣告於 WinUIBackend+GraphicsAdapters.swift 的 extension 上，**而非此處**；
+    // 兩邊都列會得到 `error: redundant conformance`——2026-09-04 正是這樣被發現的。只有儲存屬性
+    // 必須放在類別本體，因為 Swift 的 extension 不能有儲存屬性。GtkBackend 基於相同理由採用相同
+    // 的拆法。
+
     /// Storage for ``BackendFeatures/GraphicsAdapters/adapterRemoved``.
     ///
     /// Here rather than in the extension because Swift has no stored properties
