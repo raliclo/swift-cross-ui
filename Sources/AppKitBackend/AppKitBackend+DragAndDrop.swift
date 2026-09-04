@@ -6,8 +6,15 @@ import Foundation
 extension AppKitBackend: BackendFeatures.Clipping {
     public func createClippedContainer() -> Widget {
         let container = createContainer()
-        // An `NSView` does not clip its subviews by default, so this is the whole
-        // difference between the clipped container and the plain one.
+        // The whole difference between the clipped container and the plain one,
+        // and the plain one now has to say so too: `NSView.clipsToBounds`
+        // defaulted to false when this was written and defaults to true on a
+        // modern macOS SDK, so `createContainer` sets it to false explicitly.
+        // Without that these two functions returned the same thing.
+        //
+        // 這是「已裁切的容器」與「一般容器」之間的全部差異，而現在一般容器也必須把這件事說出來：
+        // `NSView.clipsToBounds` 在本段寫下時預設為 false，而在現代的 macOS SDK 上預設為 true，
+        // 因此 `createContainer` 會明確地把它設為 false。少了那一步，這兩個函式回傳的是同一種東西。
         // `clipsToBounds` is the same switch `setCornerRadius(of:to:)` sets; the
         // layer's `masksToBounds` is set as well because that is what actually
         // does the clipping once the view is layer-backed, and every view in a

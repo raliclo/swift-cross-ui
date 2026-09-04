@@ -243,8 +243,10 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             // was passed. See InputEvent's ActionFileReplay.
             // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
             ActionFileReplay.replayIfRequested()
+
         #endif
     }
+
 
     public func activate(window: Window) {
         window.makeKeyAndOrderFront(nil)
@@ -491,6 +493,37 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public func createContainer() -> Widget {
         let container = AppKitHitTestingContainer()
         container.translatesAutoresizingMaskIntoConstraints = false
+
+        // Explicitly not clipping, because the platform default changed
+        // underneath this code and nothing said so.
+        //
+        // `NSView.clipsToBounds` used to be false, which is why
+        // `createClippedContainer` could be nothing but setting it to true and
+        // why its comment says "an NSView does not clip its subviews by
+        // default". On a modern macOS SDK that default is true, so every
+        // container this backend made was a clipped container and the two were
+        // indistinguishable.
+        //
+        // Measured 2026-09-04 by dumping the view tree of a running app: 199 of
+        // 199 `AppKitHitTestingContainer`s reported `clipsToBounds == true`,
+        // and none of them had been asked to. P44 is the app that made it
+        // visible -- its control cell, which must let an oversized child spill,
+        // came out the frame's size on macOS while iOS and Android both
+        // spilled.
+        //
+        // 明確地不裁切，因為平台預設在這段程式碼底下改變了，而沒有任何東西說出這件事。
+        //
+        // `NSView.clipsToBounds` 過去是 false，那正是 `createClippedContainer` 可以只做「把它設為
+        // true」這一件事的原因，也是它的註解寫著「NSView 預設不會裁切其子 view」的原因。在現代的
+        // macOS SDK 上，該預設值是 true，因此這個 backend 所建立的每一個容器都是「已裁切的容器」，
+        // 兩者無從區分。
+        //
+        // 2026-09-04 以傾印執行中 app 的 view tree 實測：199 個 `AppKitHitTestingContainer` 中
+        // 有 199 個回報 `clipsToBounds == true`，而它們都沒有被要求這麼做。P44 是讓這件事顯現出來的
+        // app——它那個「必須讓過大的子元件溢出」的對照格，在 macOS 上量得等於 frame 的尺寸，而
+        // iOS 與 Android 都會溢出。
+        container.clipsToBounds = false
+        container.layer?.masksToBounds = false
         return container
     }
 
