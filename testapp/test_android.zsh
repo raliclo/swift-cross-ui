@@ -114,6 +114,49 @@ elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundl
 else
     bundler_bin="$repo_root/swift-bundler"
 fi
+
+# The strip is default, and this is what makes "default" mean something.
+#
+# `.swift_ast` is removed from the packaged library by a patch this tree keeps
+# against Vendor/swift-bundler -- 43 MB off every APK, 212 down to 169. A
+# bundler built without that patch produces a correct APK that is simply larger,
+# so nothing fails and nobody notices until the download doubles. That is the
+# shape of failure this project spends the most effort refusing.
+#
+# The marker is the flag's own name, which only exists in a patched build. If it
+# is missing, say so once and carry on: a fat APK is still a testable APK, and
+# stopping the run would make a size optimisation into a blocker.
+#
+# 剝除是預設行為，而這一段正是讓「預設」這個詞有意義的東西。
+#
+# `.swift_ast` 是由本樹針對 Vendor/swift-bundler 所保存的一份 patch，從打包的 library 中移除的
+# ——每支 APK 少 43 MB，由 212 降到 169。一個未套用該 patch 的 bundler 會產生完全正確、只是比較大的
+# APK，因此不會有任何東西失敗，也不會有人發現，直到下載量翻倍為止。那正是本專案最不遺餘力拒絕的
+# 那種失敗形狀。
+#
+# 此處的標記是那個旗標自己的名稱，它只存在於已套用 patch 的建置中。若它不存在，就說一次然後繼續：
+# 一個肥大的 APK 仍然是可測試的 APK，而中止執行會把一項體積最佳化變成一道阻礙。
+# `grep -c` into a variable, not `grep -q` in a condition. Under this script's
+# `set -o pipefail`, `grep -q` exits as soon as it matches, `strings` takes
+# SIGPIPE, the pipeline reports failure, and the `!` turns that into the warning
+# it was meant to suppress. The first version of this check fired on a bundler
+# that did carry the marker -- the test manufactured the fault it was looking
+# for.
+#
+# 使用 `grep -c` 並存進變數，而不是在條件式中使用 `grep -q`。在本腳本的 `set -o pipefail` 之下，
+# `grep -q` 一旦命中就會結束，`strings` 收到 SIGPIPE，整條管線回報失敗，而 `!` 又把它轉成了它本該
+# 抑制的那則警告。這項檢查的第一版，正是在一個確實帶有該標記的 bundler 上觸發的——那個測試自己
+# 製造了它所要尋找的故障。
+strip_marker=$(strings "$bundler_bin" 2>/dev/null | grep -c "SCUI_KEEP_SWIFT_AST") || strip_marker=0
+if [ "${strip_marker:-0}" -eq 0 ]; then
+    printf '%s\n' \
+        "==> WARNING: this swift-bundler does not strip .swift_ast." \
+        "    Every APK it builds will be about 43 MB larger than it needs to be." \
+        "    Fix with: bash Scripts/build-android-bundler.sh" \
+        "==> 警告：這個 swift-bundler 不會剝除 .swift_ast。" \
+        "    它所建置的每一支 APK 都會比必要大小多出約 43 MB。" \
+        "    修正方式：bash Scripts/build-android-bundler.sh" >&2
+fi
 # 31, matching compile.zsh and androidContainer/Bundler.android.toml.
 #
 # This said 28 while the other two said 31, which is worse than all three

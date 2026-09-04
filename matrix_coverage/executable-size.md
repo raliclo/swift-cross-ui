@@ -199,6 +199,18 @@ the packaged copy, which takes **the APK to 169 MB** with the rendering
 unchanged pixel for pixel. `SCUI_KEEP_SWIFT_AST=1` puts it back for a build you
 mean to attach a debugger to.
 
+**Against iOS, the same app is 8.6 MB.** P43 measured 2026-09-05: an Android
+APK of 169 MB against an iOS `.app` bundle of 8.6, a factor of 20. None of that
+gap is this project's code -- SwiftCrossUI's own symbols are 2.3 MB in the
+Android binary. Swift's runtime ships with iOS and the app links against it;
+Android has none on the device, so `lib_FoundationICU.so` alone, at 40 MB, is
+nearly five times the entire iOS app.
+
+**與 iOS 相比，同一支 app 是 8.6 MB。** P43 於 2026-09-05 量測：Android APK 為 169 MB，iOS 的
+`.app` bundle 為 8.6 MB，相差 20 倍。這個差距沒有一分是本專案的程式碼造成的——SwiftCrossUI 自身的
+符號在 Android 執行檔中是 2.3 MB。Swift 的 runtime 隨 iOS 出貨、app 是連結它的；Android 的裝置上
+沒有，因此光是 `lib_FoundationICU.so` 的 40 MB，就將近整支 iOS app 的五倍。
+
 **The remaining 169 MB**, by what is in it:
 
 | part | size | |
