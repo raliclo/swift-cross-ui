@@ -124,6 +124,18 @@ public final class AndroidBackend: BaseAppBackend {
     // `.phone`，因此此處持有的是 phone 的清單——而它原本並非如此，這正是為何「只在
     // `computeRootEnvironment` 中為 phone 宣告 `.graphical`」還不夠。P41 依然死在
     // `DatePickerStyleModifier` 的 assert 上，而那次讀取發生在本值仍是佔位值的時候。
+    // Computed in `init()` rather than left constant: `.floating` needs an
+    // overlay permission the user grants in Settings, and a list that claimed
+    // it on a device where they said no would be a promise this backend cannot
+    // keep. `EnvironmentValues` captures the list once and before
+    // `computeRootEnvironment`, which is why `init()` and not there.
+    //
+    // 在 `init()` 中計算，而非保持為常數：`.floating` 需要一項由使用者在「設定」中授予的 overlay
+    // 權限，而在使用者拒絕的裝置上仍宣稱擁有它的清單，會是這個 backend 兌現不了的承諾。
+    // `EnvironmentValues` 只擷取該清單一次，且早於 `computeRootEnvironment`，這正是它放在 `init()`
+    // 而不放在那裡的原因。
+    let _supportedWindowLevels = Mutex<[WindowLevel]>([.automatic, .normal])
+
     private let _supportedDatePickerStyles = Mutex<[BackendDatePickerStyle]>(
         [.automatic, .compact, .graphical, .wheel]
     )
@@ -182,6 +194,13 @@ public final class AndroidBackend: BaseAppBackend {
         // `resolveDeviceClass`.
         // 在任何東西讀取 `supportedDatePickerStyles` 之前。見 `resolveDeviceClass` 的說明。
         resolveDeviceClass()
+
+        _supportedWindowLevels.withLock { levels in
+            levels =
+                helpers.canFloat(Self.activity)
+                ? [.automatic, .normal, .floating]
+                : [.automatic, .normal]
+        }
 
         let fragmentActivity = Self.activity.as(FragmentActivity.self)!
 

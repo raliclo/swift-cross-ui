@@ -1,0 +1,111 @@
+diff --git a/Sources/SwiftBundler/Bundler/APKBundler.swift b/Sources/SwiftBundler/Bundler/APKBundler.swift
+index 2f8da47..d9bdca1 100644
+--- a/Sources/SwiftBundler/Bundler/APKBundler.swift
++++ b/Sources/SwiftBundler/Bundler/APKBundler.swift
+@@ -972,6 +972,27 @@ enum APKBundler: Bundler {
+               )
+             ]
+           )
++        ],
++        // Declared in every Android app this bundler produces, and started by
++        // none of them unless one asks for `windowLevel(.floating)`.
++        //
++        // A declared service that never starts has no user-visible effect --
++        // no notification, no permission prompt, nothing in the app's
++        // permission list -- which is what makes this different from declaring
++        // a permission speculatively. What it buys is that an app can float
++        // without its manifest having been written differently, and the
++        // manifest is generated rather than authored, so there is nowhere for
++        // an app to say it wants one.
++        //
++        // SwiftCrossUI's AndroidBackend owns the class name. A project that is
++        // not SwiftCrossUI gets an element naming a class it does not have,
++        // which Android ignores until something tries to start it.
++        services: [
++          AndroidManifest.Service(
++            name: "dev.swiftcrossui.androidbackend.OverlayService",
++            exported: false,
++            foregroundServiceType: "specialUse"
++          )
+         ]
+       ),
+       permissions: permissions.map { permission in
+diff --git a/Sources/SwiftBundler/Bundler/AndroidManifest.swift b/Sources/SwiftBundler/Bundler/AndroidManifest.swift
+index ee4b7c9..455c80d 100644
+--- a/Sources/SwiftBundler/Bundler/AndroidManifest.swift
++++ b/Sources/SwiftBundler/Bundler/AndroidManifest.swift
+@@ -24,6 +24,7 @@ struct AndroidManifest: Codable {
+     @Attribute var targetAPI: Int?
+ 
+     @Element var activities: [Activity]
++    @Element var services: [Service]
+ 
+     enum CodingKeys: String, CodingKey {
+       case allowBackup = "android:allowBackup"
+@@ -32,6 +33,7 @@ struct AndroidManifest: Codable {
+       case theme = "android:theme"
+       case targetAPI = "tools:targetApi"
+       case activities = "activity"
++      case services = "service"
+     }
+ 
+     init(
+@@ -40,7 +42,8 @@ struct AndroidManifest: Codable {
+       label: String? = nil,
+       theme: String? = nil,
+       targetAPI: Int? = nil,
+-      activities: [AndroidManifest.Activity]
++      activities: [AndroidManifest.Activity],
++      services: [AndroidManifest.Service] = []
+     ) {
+       _allowBackup = Attribute(allowBackup)
+       _icon = Attribute(icon)
+@@ -48,6 +51,7 @@ struct AndroidManifest: Codable {
+       _theme = Attribute(theme)
+       _targetAPI = Attribute(targetAPI)
+       _activities = Element(activities)
++      _services = Element(services)
+     }
+   }
+ 
+@@ -74,6 +78,40 @@ struct AndroidManifest: Codable {
+     }
+   }
+ 
++  /// A `<service>`, which is how a window outlives the activity that made it.
++  ///
++  /// `windowLevel(.floating)` on Android is a `TYPE_APPLICATION_OVERLAY`
++  /// window, and an overlay owned by an activity is hidden the moment that
++  /// activity stops -- measured 2026-09-04, with `dumpsys` reporting
++  /// `Surface: shown=false mLastHidden=true` while the view was still VISIBLE
++  /// and HAS_DRAWN, and the process listed as `prev /LAST`. A foreground
++  /// service is what keeps the process out of the cached state and the surface
++  /// on screen.
++  ///
++  /// `foregroundServiceType` is required from API 34; the system refuses to
++  /// start the service without it.
++  struct Service: Codable {
++    @Attribute var name: String?
++    @Attribute var exported: Bool?
++    @Attribute var foregroundServiceType: String?
++
++    enum CodingKeys: String, CodingKey {
++      case name = "android:name"
++      case exported = "android:exported"
++      case foregroundServiceType = "android:foregroundServiceType"
++    }
++
++    init(
++      name: String? = nil,
++      exported: Bool? = nil,
++      foregroundServiceType: String? = nil
++    ) {
++      _name = Attribute(name)
++      _exported = Attribute(exported)
++      _foregroundServiceType = Attribute(foregroundServiceType)
++    }
++  }
++
+   struct IntentFilter: Codable {
+     @Element var action: Action
+     @Element var category: Category?

@@ -5,74 +5,74 @@ import SwiftJava
 
 /// `windowLevel(_:)` on Android.
 ///
-/// Before this file AndroidBackend did not conform to
-/// `BackendFeatures.WindowLevels` at all, and a backend that does not conform
-/// gets `[.automatic, .normal]` from `EnvironmentValues` anyway -- so the
-/// visible behaviour is unchanged and what this adds is that the list is now
-/// this backend's own statement rather than a fallback, and that `setLevel` is
-/// a place where a level can be acted on.
+/// `WindowLevel.floating` is defined as "above every other window, including
+/// other applications', and staying there without needing focus". On Android
+/// that is `TYPE_APPLICATION_OVERLAY`, and getting there took four experiments,
+/// three of which failed. `OverlayService.kt` records them; the short version is
+/// that the window was never the hard part and the app's *process state* was.
 ///
-/// **`.floating` is not offered, and that is a measured result rather than an
-/// assumption.** Two APIs were tried on 2026-09-04, on the API 36 emulator with
-/// SYSTEM_ALERT_WINDOW granted through `appops`:
+/// **Two things gate it, and both are the platform's price rather than a choice
+/// made here.** `SYSTEM_ALERT_WINDOW` is granted by the user in Settings, so
+/// `supportedWindowLevels` is computed rather than constant -- a list claiming
+/// `.floating` on a device where the user said no would be a promise this
+/// backend cannot keep. And the window has to be owned by a foreground service,
+/// which means an app that floats shows a notification.
 ///
-/// - `Window.setType(TYPE_APPLICATION_OVERLAY)` on the activity's own window.
-///   Compiles, runs, reports nothing, does nothing: Settings launched over P37
-///   covered it completely and `dumpsys window` showed Settings focused. An
-///   activity's window type is assigned when the activity is attached and is
-///   not a property it can change afterwards.
-/// - Detaching the content view and adding it to the `WindowManager` as a
-///   `TYPE_APPLICATION_OVERLAY` window. This produces a real overlay --
-///   `dumpsys window windows` listed `Sys2038:...p37` at #6 against Settings at
-///   #9, `mViewVisibility=0`, `fillxfill`, appop SYSTEM_ALERT_WINDOW -- and it
-///   draws nothing. Re-assigning MATCH_PARENT layout params and calling
-///   `requestLayout()`/`invalidate()` after `addView` did not change that. The
-///   window is in front and empty, which is worse than not floating.
-///
-/// So the remaining work is making SwiftCrossUI's tree render in a window that
-/// is not the activity's, which is a real piece of work and not a missing call.
-/// Recorded in bugs/bug-Android.md. What is *not* done here is claiming
-/// `.floating` and hoping: a backend that lists a level it cannot deliver is
-/// worse than one that lists two it can, because the app has no way to find out.
+/// **One limit, measured and not ours.** A screen that sets
+/// `HIDE_NON_SYSTEM_OVERLAY_WINDOWS` on its window hides every non-system
+/// overlay while it is in front; Settings does, which is why testing against it
+/// produced three misleading runs. Verified 2026-09-04 by reading the flag off
+/// Settings' own window in `dumpsys window windows`, and by watching the same
+/// overlay stay visible over an ordinary app. It applies to every app on the
+/// platform and cannot be opted out of.
 ///
 /// Android 上的 `windowLevel(_:)`。
 ///
-/// 在本檔存在之前，AndroidBackend 根本沒有實作 `BackendFeatures.WindowLevels`，而一個未實作的
-/// backend 本來就會從 `EnvironmentValues` 得到 `[.automatic, .normal]`——因此外顯行為並未改變；
-/// 本檔所增加的是：這份清單現在是這個 backend 自己的陳述，而非一個後備值，且 `setLevel` 成為一個
-/// 「可以對某個層級採取行動」的位置。
+/// `WindowLevel.floating` 的定義是「位於所有其他視窗之上——包含其他應用程式的——並且無需取得焦點
+/// 即可停留在那裡」。在 Android 上那就是 `TYPE_APPLICATION_OVERLAY`，而走到這一步用了四次實驗，
+/// 其中三次失敗。`OverlayService.kt` 記錄了它們；簡短的版本是：難的從來不是那個視窗，而是該 app
+/// 的**行程狀態**。
 ///
-/// **不提供 `.floating`，而那是一個實測結果，不是一個假設。** 2026-09-04 於 API 36 emulator 上、
-/// 並以 `appops` 授予 SYSTEM_ALERT_WINDOW 的情況下，嘗試過兩個 API：
+/// **有兩件事管制它，而兩者都是平台的定價，不是此處所做的選擇。** `SYSTEM_ALERT_WINDOW` 由使用者
+/// 在「設定」中授予，因此 `supportedWindowLevels` 是計算出來的、而非常數——在使用者拒絕的裝置上仍
+/// 宣稱 `.floating`，會是這個 backend 兌現不了的承諾。而該視窗必須由一個 foreground service 持有，
+/// 這意味著一支會浮動的 app 會顯示一則通知。
 ///
-/// - 在 activity 自己的視窗上呼叫 `Window.setType(TYPE_APPLICATION_OVERLAY)`。能編譯、能執行、
-///   不回報任何東西，也什麼都不做：啟動於 P37 之上的「設定」把它完全覆蓋，而 `dumpsys window`
-///   顯示焦點在「設定」。activity 的視窗型別是在 activity 被 attach 時指派的，並非它事後可以更改
-///   的屬性。
-/// - 把內容 view 分離，並以 `TYPE_APPLICATION_OVERLAY` 加入 `WindowManager`。這確實產生了一個真正
-///   的 overlay——`dumpsys window windows` 把 `Sys2038:...p37` 列在 #6，而「設定」在 #9，
-///   `mViewVisibility=0`、`fillxfill`、appop 為 SYSTEM_ALERT_WINDOW——而它什麼都不畫。在 `addView`
-///   之後重新指派 MATCH_PARENT 的 layout params 並呼叫 `requestLayout()`/`invalidate()`，也沒有改變
-///   這一點。該視窗在最前面而且是空的，那比「不浮動」更糟。
-///
-/// 因此剩下的工作，是讓 SwiftCrossUI 的樹在「不屬於 activity 的視窗」中完成繪製——那是一件實在的
-/// 工作，不是少呼叫了某個方法。已記錄於 bugs/bug-Android.md。此處**沒有**做的事，是一邊宣稱
-/// `.floating` 一邊期待它成立：一個列出自己無法兌現之層級的 backend，比一個只列出兩個做得到的更糟，
-/// 因為 app 沒有任何辦法察覺。
+/// **一項限制，是量出來的，而且不屬於我們。** 任何在自己視窗上設定
+/// `HIDE_NON_SYSTEM_OVERLAY_WINDOWS` 的畫面，在它位於前景時會隱藏所有非系統的 overlay；「設定」
+/// 就是這樣的畫面，而那正是以它作為測試對象時產生三次誤導性結果的原因。2026-09-04 驗證方式：從
+/// `dumpsys window windows` 中讀出「設定」自身視窗上的該旗標，並觀察同一個 overlay 在一支普通 app
+/// 之上維持可見。它適用於平台上的每一支 app，且無法選擇退出。
 extension AndroidBackend: BackendFeatures.WindowLevels {
     public nonisolated var supportedWindowLevels: [WindowLevel] {
-        [.automatic, .normal]
+        // Read from the lock rather than asked of the platform, because this is
+        // `nonisolated` and the permission check needs the activity. Computed
+        // in `init()` for the reason `resolveDeviceClass` is: `EnvironmentValues`
+        // captures it once, before `computeRootEnvironment` runs.
+        //
+        // 從那個 lock 讀取，而不是去問平台，因為這是 `nonisolated` 的，而權限檢查需要 activity。
+        // 它在 `init()` 中計算，理由與 `resolveDeviceClass` 相同：`EnvironmentValues` 只擷取一次，
+        // 而那早於 `computeRootEnvironment` 執行。
+        _supportedWindowLevels.withLock { copy $0 }
     }
 
     public func setLevel(ofWindow window: Window, to level: WindowLevel) {
-        // Only levels from `supportedWindowLevels` arrive here -- SwiftCrossUI
-        // substitutes `.normal` for anything else and says so once -- and both
-        // of the two mean "where an activity normally sits", which is where it
-        // already is.
-        //
-        // 只有來自 `supportedWindowLevels` 的層級會抵達此處——SwiftCrossUI 會把其他層級替換為
-        // `.normal` 並提示一次——而那兩個層級的意思都是「一個 activity 平常所在的位置」，
-        // 而它已經在那裡了。
-        _ = (window, level)
+        let floating = level == .floating
+        let applied = helpers.setWindowFloating(Self.activity, floating)
+
+        if floating && !applied {
+            // Only reachable if the permission was revoked between `init` and
+            // here, since `supportedWindowLevels` would not have offered
+            // `.floating` otherwise and SwiftCrossUI substitutes `.normal` for
+            // a level a backend does not list.
+            //
+            // 只有在權限於 `init` 與此處之間被撤銷時才可能走到；否則 `supportedWindowLevels` 不會
+            // 提供 `.floating`，而 SwiftCrossUI 會把 backend 未列出的層級替換為 `.normal`。
+            log(
+                "windowLevel(.floating) could not be applied: the overlay "
+                    + "permission is no longer held. The window stays at its "
+                    + "normal level."
+            )
+        }
     }
 }

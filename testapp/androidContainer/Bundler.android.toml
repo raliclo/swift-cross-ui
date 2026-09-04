@@ -115,7 +115,34 @@ min_sdk = 31
 #
 # 只加 INTERNET。那是 WebView 與載入圖片所需要的；而「因為將來可能用得到就先加進去」，正是一棵
 # 測試樹最後會請求一堆沒有人能交代的權限的原因。
-permissions = ["INTERNET"]
+# SYSTEM_ALERT_WINDOW and FOREGROUND_SERVICE are what `windowLevel(.floating)`
+# costs on Android, and both are the platform's price rather than a choice made
+# here. `.floating` is a TYPE_APPLICATION_OVERLAY window, that type is gated on
+# SYSTEM_ALERT_WINDOW, and an overlay owned by an activity is hidden the instant
+# the activity stops -- so it has to be owned by a foreground service, which
+# needs the other two. See Sources/AndroidBackend/Kotlin/OverlayService.kt for
+# the measurements.
+#
+# Declaring is not requesting. SYSTEM_ALERT_WINDOW is granted by the user in
+# Settings and nothing here asks for it; the other two are normal permissions
+# that cost nothing until a service actually starts, and none starts unless an
+# app calls `.topmost()`.
+#
+# SYSTEM_ALERT_WINDOW 與 FOREGROUND_SERVICE 是 `windowLevel(.floating)` 在 Android 上的代價，
+# 而兩者都是平台的定價，不是此處所做的選擇。`.floating` 是一個 TYPE_APPLICATION_OVERLAY 視窗，
+# 該型別受 SYSTEM_ALERT_WINDOW 管制；而由 activity 持有的 overlay 會在該 activity 停止的瞬間被隱藏
+# ——因此它必須由一個 foreground service 持有，而那需要另外兩項權限。量測見
+# Sources/AndroidBackend/Kotlin/OverlayService.kt。
+#
+# 宣告不等於索取。SYSTEM_ALERT_WINDOW 由使用者在「設定」中授予，而此處沒有任何東西會去索取它；
+# 另外兩項是一般權限，在真的有 service 啟動之前不造成任何代價，而除非有 app 呼叫 `.topmost()`，
+# 否則不會有任何 service 啟動。
+permissions = [
+    "INTERNET",
+    "SYSTEM_ALERT_WINDOW",
+    "FOREGROUND_SERVICE",
+    "FOREGROUND_SERVICE_SPECIAL_USE",
+]
 
 # The API the apps are written against. 35 is what the last build produced, so
 # pinning it changes nothing today -- which is the point. It stops moving on its

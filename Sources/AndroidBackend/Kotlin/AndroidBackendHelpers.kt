@@ -296,6 +296,41 @@ class AndroidBackendHelpers {
     //
     // 回傳該請求是否生效，好讓 `supportedWindowLevels` 說實話，而不是讓 app 靠肉眼去發現。
 
+    /// Whether the user has granted the overlay permission.
+    ///
+    /// Read once at start-up rather than at each call, and the answer decides
+    /// whether `supportedWindowLevels` offers `.floating` at all. Revoking it
+    /// while the app runs is not tracked: `setWindowFloating` returns false in
+    /// that case and the backend logs it.
+    ///
+    /// 使用者是否已授予 overlay 權限。
+    ///
+    /// 在啟動時讀取一次，而非每次呼叫時讀取，而其答案決定 `supportedWindowLevels` 是否提供
+    /// `.floating`。app 執行期間該權限被撤銷的情況不追蹤：那時 `setWindowFloating` 會回傳 false，
+    /// 而 backend 會記錄下來。
+    fun canFloat(activity: Activity): Boolean {
+        return android.provider.Settings.canDrawOverlays(activity)
+    }
+
+    // Handing the content to `OverlayService`, which is what keeps it on
+    // screen; that file records the three experiments that led here.
+    //
+    // 把內容交給 `OverlayService`——那才是讓它留在畫面上的東西；該檔記錄了走到這一步的三次實驗。
+    fun setWindowFloating(activity: Activity, floating: Boolean): Boolean {
+        if (!floating) {
+            val returned = OverlayService.stop(activity) ?: return true
+            (returned.parent as? android.view.ViewGroup)?.removeView(returned)
+            activity.setContentView(returned)
+            return true
+        }
+
+        val content =
+            activity.findViewById<android.view.ViewGroup>(android.R.id.content)
+                ?: return false
+        val child = content.getChildAt(0) ?: return false
+        return OverlayService.start(activity, child)
+    }
+
     fun setWindowBackground(activity: Activity, dark: Boolean) {
         val resource = if (dark) R.color.background_dark else R.color.background_light
         activity.window?.decorView?.setBackgroundColor(activity.getColor(resource))

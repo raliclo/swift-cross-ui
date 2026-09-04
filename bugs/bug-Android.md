@@ -13,7 +13,7 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
-## Open: `windowLevel(.floating)` -- two APIs tried, neither delivers it
+## Fixed 2026-09-04: `windowLevel(.floating)`, after four experiments
 
 AndroidBackend now conforms to `BackendFeatures.WindowLevels` and reports
 `[.automatic, .normal]`. It does not offer `.floating`, and this section is the
@@ -41,18 +41,33 @@ Re-assigning MATCH_PARENT layout params and calling `requestLayout()` and
 `invalidate()` after `addView` changed nothing. The window is in front, visible,
 full screen, and empty.
 
-So the remaining work is making SwiftCrossUI's view tree render in a window that
-is not the activity's, which is a real piece of work rather than a missing call.
-It was not shipped half-done: an app whose window is in front and blank is worse
-than one that is not in front, and a backend that lists a level it cannot
-deliver is worse than one that lists two it can, because the app has no way to
-find out. P37 prints what the backend claims, and it now claims what is true.
+**3. The same through `applicationContext`'s WindowManager**, in case the
+window was following the activity's token. Identical. So it follows the
+*process* state, not the token.
 
-SYSTEM_ALERT_WINDOW was declared in `Bundler.android.toml` for attempt 2 and
-withdrawn with it. A permission declared for a feature that is not offered is
-the thing that file's own comment warns about.
+**4. A foreground service owning the window.** This is the one. A foreground
+service keeps the process out of the cached state, which is what the surface
+needed. `OverlayService.kt` holds the view; `swift-bundler`'s manifest generator
+gained a `<service>` element to declare it.
 
-## 未修：`windowLevel(.floating)`——試過兩個 API，都無法兌現
+**"Draws nothing" was wrong, and so was the diagnosis built on it.** Experiment
+2 was recorded here as producing a blank overlay. It did not: with the view
+instrumented it laid out at 1080x2209, attached, and drew P37's text over
+everything. The blank screenshots came from testing against **Settings**, whose
+window carries `HIDE_NON_SYSTEM_OVERLAY_WINDOWS` -- read off `dumpsys window
+windows` on 2026-09-04. That flag hides every non-system overlay while such a
+screen is in front, for every app on the platform, and cannot be opted out of.
+Three runs were read as failures because of the app I happened to test against.
+
+Verified against an ordinary app instead: with P44 in front, P37's text draws
+over P44's orange tiles and the overlay sits at window #7 above it.
+
+**What it costs**, and both are Android's price rather than a choice made here:
+SYSTEM_ALERT_WINDOW, which the user grants in Settings and which
+`supportedWindowLevels` is computed from rather than assumed; and a foreground
+service, which means an app that floats shows a notification.
+
+## 已修 2026-09-04：`windowLevel(.floating)`,歷經四次實驗
 
 AndroidBackend 現已實作 `BackendFeatures.WindowLevels`，並回報 `[.automatic, .normal]`。它不提供
 `.floating`，而本節是那件事的證據，而非一項斷言——因為「這個平台沒有對應的 API」是本倉庫要求必須
@@ -74,13 +89,26 @@ appop 為 SYSTEM_ALERT_WINDOW。而它什麼都不畫。在 `addView` 之後重�
 params 並呼叫 `requestLayout()` 與 `invalidate()`，也沒有改變任何事。該視窗在最前面、可見、滿版，
 而且是空的。
 
-因此剩下的工作，是讓 SwiftCrossUI 的 view tree 在「不屬於 activity 的視窗」中完成繪製——那是一件
-實在的工作，不是少呼叫了某個方法。它沒有以半成品的狀態出貨：一支「視窗在最前面卻一片空白」的 app
-比「不在最前面」更糟，而一個列出自己無法兌現之層級的 backend，也比一個只列出兩個做得到的更糟，
-因為 app 沒有任何辦法察覺。P37 印出的是 backend 的宣稱，而它現在宣稱的是真的。
+**3. 同樣的做法，但改用 `applicationContext` 的 WindowManager**，以防該視窗在跟隨 activity 的
+token。結果完全相同。因此它跟隨的是**行程**狀態，不是 token。
 
-SYSTEM_ALERT_WINDOW 曾為第 2 次嘗試而宣告於 `Bundler.android.toml`，並隨之撤回。為一項並未提供的
-功能而宣告權限，正是該檔自己的註解所警告的那件事。
+**4. 由一個 foreground service 持有該視窗。** 這一個成了。foreground service 會讓行程不進入 cached
+狀態，而那正是該 surface 所需要的。`OverlayService.kt` 持有那個 view；`swift-bundler` 的 manifest
+產生器則新增了一個 `<service>` 元素來宣告它。
+
+**「什麼都不畫」是錯的，而建立在它之上的診斷也是錯的。** 此處原本記載第 2 次實驗產生了一個空白的
+overlay。它並沒有：為該 view 加上量測之後，它以 1080x2209 完成佈局、已 attach，並把 P37 的文字畫在
+一切之上。那些空白的截圖來自以**「設定」**作為測試對象——而它的視窗帶有
+`HIDE_NON_SYSTEM_OVERLAY_WINDOWS`，此事於 2026-09-04 自 `dumpsys window windows` 讀出。該旗標會在
+這類畫面位於前景時，隱藏平台上每一支 app 的所有非系統 overlay，且無法選擇退出。三次執行之所以被
+讀成失敗，原因只是我恰好拿來測試的那支 app。
+
+改以一支普通 app 驗證：P44 在前景時，P37 的文字畫在 P44 的橘色磚之上，而該 overlay 位於其上的
+視窗 #7。
+
+**它的代價**，而兩者都是 Android 的定價、不是此處所做的選擇：SYSTEM_ALERT_WINDOW——由使用者在
+「設定」中授予，而 `supportedWindowLevels` 是依它計算而非假定；以及一個 foreground service——
+這意味著一支會浮動的 app 會顯示一則通知。
 
 ## Fixed 2026-09-04: three defects P7, P40 and P43 recorded as failures
 
