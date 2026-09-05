@@ -186,3 +186,7 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-06,windows,gtk4,P10,ok,running,desktop,"quit as expected; still replaying when captured"
 2026-09-06,windows,gtk4,P10,ok,n/a,n/a,"quit as expected"
 2026-09-06,windows,gtk4,P31,ok,FAIL,window,"failed: could not bring our window to th"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,"P10-ctrl-q.csv: quit as expected"
+2026-09-06,windows,gtk4,P10,ok,ok,window,"P10-hit-testing.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,"P13-duplicates-and-split.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,"P13-zorder.csv: "

@@ -209,8 +209,8 @@ else
 fi
 
 printf '=== drive: %s ===\n' "$label"
-printf '%-6s %-8s %-9s %-9s %s\n' app launch replay capture note
-printf '%s\n' '--------------------------------------------------------------'
+printf '%-30s %-8s %-9s %-9s %s\n' 'app / action file' launch replay capture note
+printf '%s\n' '----------------------------------------------------------------------'
 
 for app in $apps; do
     launch=- replay=- capture=- note=
@@ -218,7 +218,7 @@ for app in $apps; do
     exe="$out/$app$suffix.exe"
 
     if [ ! -x "$exe" ]; then
-        printf '%-6s %-8s %-9s %-9s %s\n' "$app" 'no exe' - - "no $app$suffix.exe"
+        printf '%-30s %-8s %-9s %-9s %s\n' "$app" 'no exe' - - "no $app$suffix.exe"
         continue
     fi
 
@@ -256,10 +256,57 @@ for app in $apps; do
     # 「clicks hit 0x10196」，那是 Program Manager，也就是桌面，而它一度被寫成動作檔的座標缺陷。
     # 它其實是過期的建置，而 `git status` 全程乾淨——因為「修正的過期副本」是建置產物。
     if [ -n "$fix_epoch" ] && [ "$(date -r "$exe" +%s)" -lt "$fix_epoch" ]; then
-        printf '%-6s %-8s %-9s %-9s %s\n' "$app" 'STALE' - - \
+        printf '%-30s %-8s %-9s %-9s %s\n' "$app" 'STALE' - - \
             "built before $fix_commit -- rebuild with SCUI_DEBUG=1"
         continue
     fi
+
+    # EVERY action file for this app, not the first one.
+    #
+    # `head -1` discarded 5 of the 38 files in actions/win, silently: P46 has
+    # three, and P24, P20, P19, P13 and P10 have two each, and only the first
+    # of each was ever driven. The ones that never ran are not spares -- P10's
+    # pair is a keyboard shortcut and a hit test, which are different questions
+    # about different code.
+    #
+    # `-winui` files are excluded because their coordinates were measured
+    # against WinUI's window, and WinUI gives 860x700 where GTK gives 860x661
+    # (issue #79). Driving one against the gtk4 build addresses points 39 px out
+    # and calls the result a verdict.
+    #
+    # An app with no action file still gets one pass through the loop, with an
+    # empty `action_file`: launching and capturing it is a real run and the
+    # columns already say so.
+    #
+    # 這支 app 的**每一個**動作檔，而不是第一個。
+    #
+    # `head -1` 靜默地丟掉了 actions/win 中 38 個檔案裡的 5 個：P46 有三個，P24、P20、P19、P13
+    # 與 P10 各有兩個，而每一組都只有第一個曾被驅動。那些沒跑過的並不是備品——P10 的那一對是
+    # 「鍵盤快捷鍵」與「命中測試」，是關於不同程式碼的不同問題。
+    #
+    # `-winui` 檔案被排除，因為它們的座標是對著 WinUI 的視窗量的，而 WinUI 給 860x700、GTK 給
+    # 860x661（issue #79）。拿它去驅動 gtk4 建置，等於在偏差 39 px 的位置下手，然後把結果當成判決。
+    #
+    # 沒有動作檔的 app 仍會走一次迴圈，`action_file` 為空：把它啟動並擷取本來就是一次真實的執行，
+    # 而各欄位已經如實說明了這一點。
+    action_files=("${(@f)$(ls "$actions/$app"-*.csv 2>/dev/null | grep -v -- '-winui')}")
+    [[ -z "${action_files[1]:-}" ]] && action_files=("")
+
+    for action_file in "${action_files[@]}"; do
+    attempt=1
+    while :; do
+    launch=- replay=- capture=- note=
+    file_label="${action_file:t}"
+
+    # One log and one capture PER FILE, keyed by the file rather than the app.
+    # With two files under one name the second overwrote the first, and the hit
+    # check would then have read the wrong run's dump -- which is the failure
+    # this whole file spends its comments guarding against.
+    # 每一個檔案各有自己的 log 與擷圖，以**檔案**而非 app 為鍵。若兩個檔案共用一個名字，第二個會
+    # 覆蓋第一個，而命中檢查接著會讀到另一次執行的傾印——那正是本檔的註解通篇在防範的失敗。
+    run_key="${file_label%.csv}"
+    [[ -z "$run_key" ]] && run_key="$app"
+    run_log="$log_dir/$run_key.log"
 
     # A leftover process makes the next launch exit 0 with no window, which
     # reads as the app failing rather than the sweep failing.
@@ -268,8 +315,6 @@ for app in $apps; do
     sleep 1
 
     clear_desktop
-
-    action_file="$(ls "$actions/$app"-*.csv 2>/dev/null | grep -v -- '-winui' | head -1)"
 
     # `--debug` IS REQUIRED BY THE HIT CHECK BELOW, not a nicety.
     #
@@ -294,9 +339,9 @@ for app in $apps; do
     # 靜默通過而加入的防護，自己靜默地通過了。
     if [ -n "$action_file" ]; then
         ( cd "$out" && ./"$app$suffix.exe" --debug -actionfile "$(cygpath -m "$action_file")" \
-            > "$log_dir/$app.log" 2>&1 & )
+            > "$run_log" 2>&1 & )
     else
-        ( cd "$out" && ./"$app$suffix.exe" --debug > "$log_dir/$app.log" 2>&1 & )
+        ( cd "$out" && ./"$app$suffix.exe" --debug > "$run_log" 2>&1 & )
     fi
 
     # Derived from the file rather than fixed, because a fixed wait silently
@@ -423,25 +468,31 @@ for app in $apps; do
     if [ "$expect_exit" = yes ] && [ "$launch" = ok ]; then
         capture='n/a'
         replay='n/a'
-        printf '%-6s %-8s %-9s %-9s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
+        # The action file goes in the CSV note, because the `app` column cannot
+        # hold it and several apps now contribute more than one row per run.
+        # Without it those rows are indistinguishable in the history.
+        # 動作檔名寫入 CSV 的 note 欄，因為 `app` 欄放不下它，而現在有數支 app 每次執行會貢獻不只
+        # 一列。少了它，那些資料列在歷史中就無從分辨。
+        csv_note="${file_label:+$file_label: }$note"
+        printf '%-30s %-8s %-9s %-9s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
         printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
             "$run_date" "$platform" "$label" "$app" \
-            "$launch" "$replay" "$capture" "${note//\"/\"\"}" \
+            "$launch" "$replay" "$capture" "${csv_note//\"/\"\"}" \
             >> "$results"
-        continue
+        break
     fi
 
-    case "$(zsh "$repo/testapp/screenshot.zsh" -w "$app" "$label-$app" 2>&1 | tail -1)" in
+    case "$(zsh "$repo/testapp/screenshot.zsh" -w "$app" "$label-$run_key" 2>&1 | tail -1)" in
         *'priority 1'*) capture=window ;;
         *'priority 2'*|*desktop*) capture=desktop ;;
         *) capture='?' ;;
     esac
 
     if [ -n "$action_file" ]; then
-        if grep -q 'status 5' "$log_dir/$app.log" 2>/dev/null; then
+        if grep -q 'status 5' "$run_log" 2>/dev/null; then
             replay=LOCKED
             note="${note:+$note; }workstation locked -- input result is void"
-        elif grep -q 'actionfile: replayed' "$log_dir/$app.log" 2>/dev/null; then
+        elif grep -q 'actionfile: replayed' "$run_log" 2>/dev/null; then
             replay=ok
 
             # A REPLAY THAT FINISHED IS NOT A REPLAY THAT LANDED.
@@ -482,11 +533,11 @@ for app in $apps; do
             # 對候選集合使用 `tr '\n' ' '` 是承重的：下方的測試要求每個 handle 前後各有一個空格，
             # 若維持以換行分隔，就只有第一項與最後一項有可能相符。那個 bug 曾對一份 log 回報
             # 「clicks hit 0x520c0e」，而該 log 上方兩行正寫著 `window 0x520c0e ... <- CHOSEN`。
-            ours="$(grep -oE 'actionfile: window 0x[0-9a-f]+' "$log_dir/$app.log" \
+            ours="$(grep -oE 'actionfile: window 0x[0-9a-f]+' "$run_log" \
                 | grep -oE '0x[0-9a-f]+' | sort -u | tr '\n' ' ')"
-            hits="$(grep -oE 'hitRoot=0x[0-9a-f]+' "$log_dir/$app.log" \
+            hits="$(grep -oE 'hitRoot=0x[0-9a-f]+' "$run_log" \
                 | sed 's/hitRoot=//' | sort -u)"
-            chosen="$(grep -oE 'actionfile: window 0x[0-9a-f]+ .*<- CHOSEN' "$log_dir/$app.log" \
+            chosen="$(grep -oE 'actionfile: window 0x[0-9a-f]+ .*<- CHOSEN' "$run_log" \
                 | grep -oE '0x[0-9a-f]+' | head -1)"
 
             # A positive control that must hold BY CONSTRUCTION: the window the
@@ -522,10 +573,10 @@ for app in $apps; do
                     note="${note:+$note; }clicks hit$strays"
                 fi
             fi
-        elif grep -q 'actionfile: failed' "$log_dir/$app.log" 2>/dev/null; then
+        elif grep -q 'actionfile: failed' "$run_log" 2>/dev/null; then
             replay=FAIL
-            note="${note:+$note; }$(grep -m1 -oE 'failed: .*' "$log_dir/$app.log" | cut -c1-40)"
-        elif grep -q 'actionfile: replaying' "$log_dir/$app.log" 2>/dev/null; then
+            note="${note:+$note; }$(grep -m1 -oE 'failed: .*' "$run_log" | cut -c1-40)"
+        elif grep -q 'actionfile: replaying' "$run_log" 2>/dev/null; then
             # Started and never finished. Distinguished from "no output at all"
             # because they have different causes and the old script reported
             # both as "built without SCUI_DEBUG?", which was wrong twice in one
@@ -581,7 +632,40 @@ for app in $apps; do
 
     MSYS2_ARG_CONV_EXCL='*' taskkill /F /IM "$app$suffix.exe" >/dev/null 2>&1
 
-    printf '%-6s %-8s %-9s %-9s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
+    # RETRY WHEN THE FOREGROUND WAS LOST, because that is a property of the
+    # desktop at that instant and not of the app.
+    #
+    # A file that presses keys cannot run without focus, and Windows shell
+    # surfaces take the foreground back on their own: `SearchHost.exe` returned
+    # between two runs of P31 on 2026-09-06, so the same file passed and then
+    # failed with nothing about it changed. Reporting the second run as a defect
+    # would be reporting the desktop.
+    #
+    # The retry re-clears and re-dismisses first, which is the only thing that
+    # can change the outcome -- and it stops at the first attempt that gets past
+    # this, rather than looping for a better answer. Three attempts, then the
+    # failure stands: at that point the honest reading is that this desktop
+    # cannot hold the foreground still for the length of a replay, and that is
+    # worth reporting rather than retrying away.
+    #
+    # 當前景遺失時重試，因為那是**該瞬間桌面的性質**，不是 app 的性質。
+    #
+    # 會按鍵的檔案沒有焦點就無法執行，而 Windows 的 shell 表面會自行把前景搶回去：2026-09-06，
+    # `SearchHost.exe` 在 P31 的兩次執行之間回來了，於是同一個檔案先通過、後失敗，而其間沒有任何
+    # 與它有關的東西改變過。把第二次執行報成缺陷，等於在回報桌面。
+    #
+    # 重試會先重新 clear 與 dismiss，那是唯一可能改變結果的動作——而且它在「第一次順利通過這一關」
+    # 時就停止，不會為了更好看的答案繼續繞。三次之後失敗即成立：到那個地步，誠實的讀法是「這台桌面
+    # 無法在一次重放的時間內把前景穩住」，而那值得被回報，不該被重試掩蓋。
+    if [ "$replay" = FAIL ] \
+        && grep -q 'could not bring our window to the front' "$run_log" 2>/dev/null \
+        && [ "$attempt" -lt 3 ]; then
+        attempt=$(( attempt + 1 ))
+        continue
+    fi
+
+    csv_note="${file_label:+$file_label: }$note"
+    printf '%-30s %-8s %-9s %-9s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
 
     # Appended so the matrix has evidence with a date on it. A hand-maintained
     # Pn-versus-platform table drifts from reality silently, which is the exact
@@ -600,8 +684,11 @@ for app in $apps; do
     # 專案中存在的目的所要阻止的事。
     printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
         "$run_date" "$platform" "$label" "$app" \
-        "$launch" "$replay" "$capture" "${note//\"/\"\"}" \
+        "$launch" "$replay" "$capture" "${csv_note//\"/\"\"}" \
         >> "$results"
+    break
+    done
+    done
 done
 
 printf '\nlogs in %s ; captures in testapp/output/screenshots/%s-*.png\n' "$log_dir" "$label"

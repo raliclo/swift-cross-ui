@@ -173,9 +173,62 @@ trap 'rm -f "$pivot"' EXIT
 
             if (!(pair in known)) { dropped[pair]++; next }
 
-            # Latest wins, and rows are appended in time order.
-            # 以最新者為準；資料列是依時間順序追加的。
-            cell[app, pair] = verdict " " date
+            # LATEST DATE WINS, AND WITHIN THAT DATE THE ROWS COMBINE.
+            #
+            # This was `cell[app, pair] = verdict " " date`, i.e. the last row
+            # read simply replaced whatever was there. That was right while
+            # sweep_drive.zsh emitted one row per app; it started losing results
+            # the moment that script began driving EVERY action file, because a
+            # second file for the same app on the same day silently overwrote
+            # the first. P46 has three, and P24, P20, P19, P13 and P10 have two
+            # each -- 5 of the 38 files -- so a pass could hide a failure that
+            # ran an hour earlier and nothing would say so.
+            #
+            # A NEWER DATE still discards the older one, deliberately: a cell
+            # means "this is what happened on that day", and mixing two days
+            # would answer a question nobody asked. Rows within the same date
+            # are the same run, so they combine instead.
+            #
+            # The combination is not an average. If every file passed the cell
+            # is `pass`; if any did not, the cell shows the FIRST failing
+            # verdict, because a run with one failure is a failing run and the
+            # detail belongs in results.csv2 where each row names its file.
+            #
+            # 以**最新日期**為準，而同一日期之內的資料列則合併。
+            #
+            # 此處原本是 `cell[app, pair] = verdict " " date`，也就是「最後讀到的那一列直接取代原
+            # 有內容」。在 sweep_drive.zsh 每支 app 只輸出一列時，那是正確的；但當該腳本開始驅動
+            # **每一個**動作檔的那一刻起，它就開始遺失結果——因為同一天、同一支 app 的第二個檔案會
+            # 靜默覆蓋第一個。P46 有三個，P24、P20、P19、P13 與 P10 各有兩個，合計 38 個檔案中的
+            # 5 個；於是一次通過可能蓋掉一小時前的一次失敗，而不會有任何東西說出來。
+            #
+            # **較新的日期**仍然捨棄較舊者，這是刻意的：一格的意思是「那一天發生了什麼」，把兩天
+            # 混在一起等於回答一個沒有人問的問題。同一日期內的資料列屬於同一次執行，因此改為合併。
+            #
+            # 合併不是取平均。若每個檔案都通過，該格為 `pass`；只要有任何一個沒通過，該格顯示
+            # **第一個失敗的判決**——因為「有一項失敗的執行」就是失敗的執行，而細節屬於
+            # results.csv2，那裡的每一列都標明了自己的檔案。
+            if (date > cellDate[app, pair]) {
+                cellDate[app, pair] = date
+                total[app, pair] = 0
+                passes[app, pair] = 0
+                worst[app, pair] = ""
+            }
+            if (date == cellDate[app, pair]) {
+                total[app, pair]++
+                if (verdict == "pass") passes[app, pair]++
+                else if (worst[app, pair] == "") worst[app, pair] = verdict
+
+                shown = (passes[app, pair] == total[app, pair]) ? "pass" : worst[app, pair]
+                # The ratio only when there is more than one file, so every
+                # single-file cell reads exactly as it did before and the diff
+                # shows the apps that actually gained coverage.
+                # 只有在超過一個檔案時才附上比例，如此每一個單檔的格子讀起來與從前完全相同，而 diff
+                # 顯示的正是那些真正增加了覆蓋的 app。
+                if (total[app, pair] > 1)
+                    shown = shown " " passes[app, pair] "/" total[app, pair]
+                cell[app, pair] = shown " " date
+            }
             seen[app] = 1
         }
         END {
