@@ -242,6 +242,59 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             Thread.sleep(forTimeInterval: 0.01)
         }
 
+        // SECOND ATTEMPT, and only for a file that cannot proceed without focus.
+        //
+        // The note above is a live instruction, not history: it says that if a
+        // keyboard file ever fails here again, attaching to the foreground
+        // thread before `SetForegroundWindow` is the thing to try. On
+        // 2026-09-05 all three keyboard files in actions/win did fail --
+        // P10-ctrl-q, P18-three-dialogs, P31-tab-and-escape, which is every
+        // file there carrying a key event and no others -- so the condition it
+        // names has occurred.
+        //
+        // Placed HERE rather than before the first attempt, so the path that
+        // already works is not touched. `SetWindowPos(HWND_TOPMOST)` plus a
+        // plain `SetForegroundWindow` is what made keyboard files work when #52
+        // was closed, and 15 mouse files still pass on it today; a change ahead
+        // of that would put every one of them on an untested path to fix three.
+        //
+        // WHAT THIS DOES NOT CLAIM: that it works. It did nothing in the
+        // 2026-08-27 trial, and that trial's subject was P10 driven by a Ctrl-Q
+        // file -- one of the three failing now. Attaching may well fail again,
+        // because the window holding the foreground here is Program Manager,
+        // the desktop shell, and the input queue we would be joining is
+        // explorer.exe's. The reason to add it anyway is that the alternative
+        // is three files that cannot run at all, and a second attempt that is
+        // measured beats a first attempt that is only regretted.
+        //
+        // Set SCUI_NO_ATTACH_INPUT=1 to take this path out at runtime, so the
+        // with/without comparison is one build and not two.
+        //
+        // 第二次嘗試，且僅針對「沒有焦點就無法進行」的檔案。
+        //
+        // 上方那段註解是一道**生效中的指示**，不是歷史紀錄：它寫明若鍵盤動作檔日後在此再次失敗，
+        // 該試的就是「在 `SetForegroundWindow` 之前附加至前景執行緒」。2026-09-05，actions/win
+        // 中的三個鍵盤檔案全部失敗——P10-ctrl-q、P18-three-dialogs、P31-tab-and-escape，恰好就是
+        // 該目錄中帶有按鍵事件的全部檔案，不多不少——因此它所指名的條件已經成立。
+        //
+        // 放在**這裡**而非第一次嘗試之前，如此已經可行的路徑就不會被動到。`SetWindowPos(HWND_TOPMOST)`
+        // 搭配單純的 `SetForegroundWindow`，正是 #52 結案時讓鍵盤檔案得以運作的組合，而今天仍有
+        // 15 個滑鼠檔案靠它通過；把改動放在它之前，等於為了修三個而讓那十五個全部走上未經測試的路徑。
+        //
+        // 本段不主張的事：它會成功。在 2026-08-27 的試驗中它毫無作用，而那次試驗的對象正是以
+        // Ctrl-Q 動作檔驅動的 P10——今天失敗的三個之一。附加很可能再次失敗，因為此處持有前景的是
+        // Program Manager（桌面 shell），我們要加入的是 explorer.exe 的輸入佇列。仍然加上它的理由
+        // 是：另一個選項是三個檔案根本無法執行，而「一次被量測過的第二嘗試」勝過「一次只剩懊悔的
+        // 第一嘗試」。
+        //
+        // 設定 SCUI_NO_ATTACH_INPUT=1 可在執行期停用此路徑，使「有/無」的對照只需一份建置。
+        if actions.contains(where: \.needsKeyboardFocus),
+            ProcessInfo.processInfo.environment["SCUI_NO_ATTACH_INPUT"] != "1",
+            takeForegroundByAttachingInput(to: window)
+        {
+            return
+        }
+
         // Failure from here on, and how much it matters depends on the file.
         //
         // A key event goes to whatever holds focus, so a file that presses keys
@@ -279,6 +332,116 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         throw SynthesiserError.windowNotForeground(
             "this file presses keys, and a key event goes to whichever window has focus"
         )
+    }
+
+    /// Joins the foreground window's input queue, asks again, and reports what
+    /// happened either way.
+    ///
+    /// Windows grants a foreground change to a process that is already in
+    /// front, owns the last input event, or finds no foreground window at all.
+    /// A test app launched from a shell is none of those. `AttachThreadInput`
+    /// makes two threads share one input queue, and for as long as they do,
+    /// this process counts as the foreground one for the purposes of that
+    /// check.
+    ///
+    /// Detached in a `defer`, without exception. An attachment left in place
+    /// couples this process's input queue to another application's for the rest
+    /// of its life -- if that one blocks, this one blocks with it -- and the
+    /// early return on success is exactly the path where forgetting is easiest.
+    ///
+    /// Reports on BOTH outcomes rather than only on failure. This call has
+    /// already been added once, measured to do nothing, and removed; a silent
+    /// success would leave the next reader unable to tell whether it is
+    /// carrying the run or is dead weight again.
+    ///
+    /// 加入前景視窗的輸入佇列、再要求一次，並且無論結果如何都回報。
+    ///
+    /// Windows 只把前景切換授予「已在前方」、「擁有最後一個輸入事件」或「當時沒有前景視窗」的
+    /// 行程，而由 shell 啟動的測試 app 三者皆非。`AttachThreadInput` 使兩個執行緒共用同一個輸入
+    /// 佇列；在共用期間，就上述檢查而言，本行程即被視為前景行程。
+    ///
+    /// 以 `defer` 解除附加，無一例外。留著不解的附加，會讓本行程的輸入佇列在其餘生中與另一個應用
+    /// 程式綁在一起——對方一旦阻塞，本行程也隨之阻塞——而「成功時提早返回」正是最容易忘記解除的
+    /// 那條路徑。
+    ///
+    /// 成功與失敗**都**回報，而非只在失敗時出聲。這個呼叫曾經被加入、被量出毫無作用、然後被移除；
+    /// 若成功時保持沉默，下一位讀者將無從分辨它究竟是撐起了這次執行，還是又一次成了無用的重量。
+    private func takeForegroundByAttachingInput(to window: HWND) -> Bool {
+        // EVERY exit from here reports, including the two early ones. The first
+        // measurement of this function produced no line at all on a run where
+        // it must have been called -- the file presses keys and the foreground
+        // was never taken -- and a silent return is indistinguishable from a
+        // function that was never reached. That ambiguity cost an attempt to
+        // explain a result that had no evidence behind it either way.
+        //
+        // 從此處起的**每一條**退出路徑都會回報，包含那兩條提早返回的。本函式的第一次量測，在一次
+        // 它必然被呼叫到的執行上（該檔案會按鍵、且前景始終未取得）竟然一行都沒有輸出；而「安靜地
+        // 返回」與「根本沒被執行到」是無法分辨的。那份歧義，換來了一次為「兩邊都沒有證據」的結果
+        // 所做的解釋。
+        guard let foreground = GetForegroundWindow() else {
+            // Documented as the case where a foreground change is ALLOWED, so
+            // reaching here and still having failed is worth seeing.
+            // 文件上這正是「允許切換前景」的情況；因此走到這裡卻仍然失敗，值得被看見。
+            ActionFileReplay.report(
+                "no window holds the foreground, so there is no input queue to attach to"
+            )
+            return false
+        }
+
+        var foreignProcess: DWORD = 0
+        let foreignThread = GetWindowThreadProcessId(foreground, &foreignProcess)
+        let ownThread = GetCurrentThreadId()
+
+        // Attaching a thread to itself is documented as an error, and it is
+        // also the case where there is nothing to gain: if the foreground
+        // window is already ours, the loop above would have returned.
+        // 把執行緒附加到它自己，文件上即為錯誤；那同時也是「無利可圖」的情況：若前景視窗本來就是
+        // 我方的，上方的迴圈早已返回。
+        guard foreignThread != 0, foreignThread != ownThread else {
+            ActionFileReplay.report(
+                "the foreground window belongs to this thread already (\(foreignThread)), "
+                    + "so attaching would be a no-op"
+            )
+            return false
+        }
+
+        // Named, so the next reader is not left guessing which application
+        // refused. ACCESS_DENIED from `AttachThreadInput` depends entirely on
+        // WHO holds the foreground, and "it failed with 5" without that is a
+        // fact that cannot be acted on.
+        // 指名道姓，讓下一位讀者不必猜是哪個應用程式拒絕了。`AttachThreadInput` 的 ACCESS_DENIED
+        // 完全取決於**誰**持有前景；缺了這一項，「它以 5 失敗」是一個無法據以行動的事實。
+        ActionFileReplay.report(
+            "attaching to the foreground window \(foreground) class=\(className(of: foreground)) "
+                + "thread=\(foreignThread) process=\(foreignProcess)"
+        )
+
+        guard AttachThreadInput(ownThread, foreignThread, true) else {
+            ActionFileReplay.report(
+                "AttachThreadInput to the foreground thread failed (\(GetLastError())); "
+                    + "the window cannot take the foreground from here"
+            )
+            return false
+        }
+        defer { _ = AttachThreadInput(ownThread, foreignThread, false) }
+
+        SetForegroundWindow(window)
+        BringWindowToTop(window)
+
+        for _ in 0..<50 {
+            if GetForegroundWindow() == window {
+                ActionFileReplay.report(
+                    "took the foreground after attaching to the foreground thread"
+                )
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+
+        ActionFileReplay.report(
+            "attached to the foreground thread and still did not take the foreground"
+        )
+        return false
     }
 
     /// Lets the window fall back into the normal z-order.

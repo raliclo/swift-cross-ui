@@ -54,6 +54,33 @@ func title(of hwnd: HWND) -> String {
     return String(decodingCString: buffer, as: UTF16.self)
 }
 
+/// The window class, which is the only name an untitled window has.
+/// 視窗類別——對一個沒有標題的視窗而言，那是它唯一的名字。
+func className(of hwnd: HWND) -> String {
+    var buffer = [WCHAR](repeating: 0, count: 256)
+    guard GetClassNameW(hwnd, &buffer, 256) > 0 else { return "?" }
+    return String(decodingCString: buffer, as: UTF16.self)
+}
+
+/// The owning executable, because a class name alone does not say who to blame.
+/// `Windows.UI.Core.CoreWindow` is shared by every UWP surface on the machine.
+/// 擁有它的執行檔——因為單憑類別名稱說不出該歸咎於誰。`Windows.UI.Core.CoreWindow`
+/// 是這台機器上每一個 UWP 表面共用的類別。
+func processName(of hwnd: HWND) -> String {
+    var pid: DWORD = 0
+    _ = GetWindowThreadProcessId(hwnd, &pid)
+    guard pid != 0,
+        let handle = OpenProcess(DWORD(PROCESS_QUERY_LIMITED_INFORMATION), false, pid)
+    else { return "pid \(pid)" }
+    defer { CloseHandle(handle) }
+
+    var size = DWORD(260)
+    var buffer = [WCHAR](repeating: 0, count: Int(size))
+    guard QueryFullProcessImageNameW(handle, 0, &buffer, &size) else { return "pid \(pid)" }
+    let path = String(decodingCString: buffer, as: UTF16.self)
+    return (path as NSString).lastPathComponent
+}
+
 final class Collector {
     var windows: [HWND] = []
 }
@@ -105,16 +132,50 @@ if needle == "--list" {
     // ——`hitRoot=0x...`——而若此處不列出 handle，就只能用猜的把那個數字對回名稱，而這在
     // 2026-09-05 已經猜錯兩次。IsIconic 之所以重要：**被最小化的視窗對 IsWindowVisible 而言
     // 仍然「可見」**，因此仍會出現在本清單中；一份不標示這件事的清單，讀起來就像「最小化沒有作用」。
+    // UNTITLED WINDOWS ARE LISTED TOO, by class and owning executable.
+    //
+    // Skipping them hid the one window that mattered. On 2026-09-06 every
+    // keyboard action file failed with `AttachThreadInput ... failed (5)`, and
+    // the synthesiser named what it had tried to attach to: window 0x30268,
+    // class `Windows.UI.Core.CoreWindow`, which is `SearchHost.exe` -- the Start
+    // menu's search surface. It held the foreground and it swallowed two of
+    // P10's clicks. It has no title, so THIS LISTING DID NOT SHOW IT, and the
+    // tool built to answer "what is in front?" could not see the thing that was
+    // in front. The listing said Program Manager, and that was the topmost
+    // TITLED window, which is a different question.
+    //
+    // The class alone is not enough either: `Windows.UI.Core.CoreWindow` is
+    // shared by every UWP surface on the machine, so the executable is what
+    // turns the line into something actionable.
+    //
+    // `--clear` still skips untitled windows, and that asymmetry is deliberate:
+    // listing something is free, minimising a shell surface is not.
+    //
+    // **無標題的視窗也會列出**，以其類別與擁有它的執行檔標示。
+    //
+    // 略過它們，藏住了唯一要緊的那個視窗。2026-09-06，每一個鍵盤動作檔都以
+    // `AttachThreadInput ... failed (5)` 失敗，而 synthesiser 說出了它試圖附加的對象：視窗
+    // 0x30268、類別 `Windows.UI.Core.CoreWindow`，也就是 `SearchHost.exe`——「開始」選單的搜尋
+    // 表面。它持有前景，並且吞掉了 P10 的兩次點擊。它沒有標題，因此**本清單並未顯示它**，於是這個
+    // 為了回答「現在是什麼在前面？」而寫的工具，看不見當時就在前面的那個東西。清單說的是
+    // Program Manager，而那是最上層的**有標題**視窗——那是另一個問題。
+    //
+    // 單有類別也不夠：`Windows.UI.Core.CoreWindow` 是這台機器上每一個 UWP 表面共用的類別，
+    // 因此「執行檔」才是讓這一行變得可據以行動的東西。
+    //
+    // `--clear` 仍然略過無標題的視窗，而這個不對稱是刻意的：列出一個東西不花任何代價，
+    // 把 shell 的表面最小化則不然。
     let foreground = GetForegroundWindow()
     for window in collector.windows {
         let name = title(of: window)
-        if name.isEmpty { continue }
+        let label = name.isEmpty ? "<untitled \(className(of: window))>" : name
         let handle = UInt(bitPattern: Int(bitPattern: window))
         var flags: [String] = []
         if IsIconic(window) { flags.append("minimised") }
         if window == foreground { flags.append("FOREGROUND") }
+        if name.isEmpty { flags.append(processName(of: window)) }
         let suffix = flags.isEmpty ? "" : "  [\(flags.joined(separator: ", "))]"
-        print(String(format: "0x%016llx  %@%@", UInt64(handle), name, suffix))
+        print(String(format: "0x%016llx  %@%@", UInt64(handle), label, suffix))
     }
     exit(0)
 }
