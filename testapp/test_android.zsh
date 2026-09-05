@@ -308,27 +308,6 @@ if [ "$do_apk" -eq 1 ]; then
     # 又全部重建回去。來回各十分鐘，而那棵樹本來是熱的。
     #
     # 兩棵樹的代價是磁碟。一棵樹的代價是每次有人切換就十分鐘。
-    # The same -Osize compile.zsh uses, restated because the bundler builds
-    # again.
-    #
-    # `--Xswiftpm` is the bundler's only passthrough and it goes to `swift
-    # build`, so `-Xswiftc -Osize` has to be spelled one word per flag. The
-    # bundler's build is the one that produces the APK; compile.zsh's runs first
-    # into a different scratch path. If only one of the two carried the flag the
-    # shipped library would not have it, and the build that did would look like
-    # it had done the work.
-    #
-    # 與 compile.zsh 相同的 -Osize，此處重述一次，因為 bundler 會再建置一次。
-    #
-    # `--Xswiftpm` 是 bundler 唯一的傳遞管道，且它送往 `swift build`，因此 `-Xswiftc -Osize`
-    # 必須一個旗標一個字地拼出來。產生 APK 的是 bundler 那次建置；compile.zsh 那次先跑，而且進的是
-    # 另一個 scratch path。若兩者只有其一帶了這個旗標，出貨的 library 就不會有它，而帶了旗標的那次
-    # 建置看起來卻像已經做完了事。
-    bundler_size_flags=()
-    if [ "${BUILD_CONFIG:-release}" = "release" ]; then
-        bundler_size_flags=(--Xswiftpm -Xswiftc --Xswiftpm -Osize)
-    fi
-
     bundler_scratch="$package_dir/.build-bundler"
     (
         cd "$package_dir"
@@ -337,8 +316,7 @@ if [ "$do_apk" -eq 1 ]; then
             "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-release}" \
                 --toolchain "${swift_bin:h:h:h}" \
                 --scratch-path "$bundler_scratch" \
-                --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}" \
-                "${bundler_size_flags[@]}"
+                --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"
     )
     # Read back out of the same scratch path it was written into.
     #
