@@ -735,7 +735,32 @@ for app in $apps; do
     # 尺寸不符**不自動等於「動作檔過期」**。改變的可能是視窗，而 issue #79 正是為此開著的——
     # Windows 上的 GTK 相對 WinUI 偏小。該修哪一邊是判斷；把這個分歧回報出來則不是。
     if [ -n "$action_file" ] && [ "$replay" = ok ]; then
-        want_size="$(grep -oE '[0-9]{3,4}x[0-9]{3,4}' "$action_file" | head -1)"
+        # ANCHORED ON THE SENTENCE, not on the first NNNxNNN in the file.
+        #
+        # Action-file headers are prose and they mention other sizes. P3's
+        # first match is `220x140`, the black picture frame the test is about,
+        # eight lines above the window size it actually records -- so the check
+        # reported "measured at 220x140, ran at 988x629, off by 768x489" and
+        # called P3 the second-worst offender in the suite. It is not an
+        # offender at all; 988x638 versus 988x629 is nine pixels.
+        #
+        # The wording is consistent where it exists: `Measured on a WxH window
+        # capture`. Twelve of the win files carry it; thirty-one contain some
+        # NNNxNNN. That gap is the measurement -- matching the loose pattern
+        # would have silently invented a size for nineteen files.
+        #
+        # 錨定於**那個句子**，而非檔案中第一個 NNNxNNN。
+        #
+        # 動作檔的標頭是散文，其中會提到其他尺寸。P3 的第一個匹配是 `220x140`——那是本測試所關注
+        # 的黑色圖片框，位於它真正記載的視窗尺寸之上八行——於是檢查回報「measured at 220x140,
+        # ran at 988x629, off by 768x489」，並把 P3 列為全套件第二嚴重者。它根本不是問題：
+        # 988x638 對 988x629，差九個像素。
+        #
+        # 該措辭在存在之處是一致的：`Measured on a WxH window capture`。win 目錄下有十二個檔案帶
+        # 有它，而含有任何 NNNxNNN 的則有三十一個。這個落差本身就是量測結果——若採寬鬆樣式，
+        # 會為其中十九個檔案憑空捏造一個尺寸。
+        want_size="$(grep -oE 'Measured on a [0-9]+x[0-9]+ window capture' "$action_file" \
+            | head -1 | grep -oE '[0-9]+x[0-9]+')"
         # Two steps, and NO `[^\n]` in the pattern. grep is line-oriented, so
         # inside a bracket expression `\n` is not a newline -- it is the two
         # characters backslash and n. `[^\n]*` therefore means "not a backslash
@@ -754,8 +779,48 @@ for app in $apps; do
         elif [ -z "$got_size" ]; then
             note="${note:+$note; }no toplevel size in the log -- geometry unchecked"
         elif [ "$want_size" != "$got_size" ]; then
-            replay=GEOMETRY
-            note="${note:+$note; }measured at $want_size, ran at $got_size -- coordinates address a different layout"
+            # GRADED BY HOW FAR OUT IT IS, because "different" and "different
+            # enough to hit another control" are not the same claim.
+            #
+            # The first version reported every difference as GEOMETRY and made
+            # 15 of 26 files fail, including P23 at 848x648 versus 848x649 and
+            # P26 at 928x688 versus 928x689. One pixel cannot move a control
+            # past anything; calling that the same finding as P24, measured at
+            # 1920x1080 and run at 748x589, buries the one that matters.
+            #
+            # Eight pixels is the line, and it is a judgement with a number
+            # behind it: P16 reports its own row height as 22 (`sidebar: 180 x
+            # 22`), so a shift under a third of a row leaves a click inside the
+            # control it was aimed at. Anything at or above that can cross a
+            # boundary and is reported as GEOMETRY.
+            #
+            # Below the line is still said out loud, in the note. It is not
+            # nothing -- the window is not the one that was measured -- it is
+            # just not evidence that the clicks went astray.
+            #
+            # 依「差多遠」分級，因為「不一樣」與「不一樣到會打到別的控制項」不是同一個主張。
+            #
+            # 第一版把所有差異一律報成 GEOMETRY，使 26 個檔案中的 15 個失敗，其中包含 P23 的
+            # 848x648 對 848x649、以及 P26 的 928x688 對 928x689。一個像素不可能把控制項推過任何
+            # 邊界；把那個與「P24 量測於 1920x1080、實際跑在 748x589」算成同一項發現，會把真正
+            # 要緊的那個埋掉。
+            #
+            # 以八像素為界，而這是一個「背後有數字」的判斷：P16 自己回報的列高是 22
+            # （`sidebar: 180 x 22`），因此小於三分之一列的位移，會讓點擊仍落在它原本瞄準的控制項
+            # 之內。達到或超過該值者則可能跨越邊界，回報為 GEOMETRY。
+            #
+            # 低於該界線者仍會明說，寫在 note 裡。那並非無事——這個視窗不是當初被量測的那一個——
+            # 只是它不構成「點擊跑掉了」的證據。
+            wantw="${want_size%x*}"; wanth="${want_size#*x}"
+            gotw="${got_size%x*}";   goth="${got_size#*x}"
+            dw=$(( wantw > gotw ? wantw - gotw : gotw - wantw ))
+            dh=$(( wanth > goth ? wanth - goth : goth - wanth ))
+            if [ "$dw" -ge 8 ] || [ "$dh" -ge 8 ]; then
+                replay=GEOMETRY
+                note="${note:+$note; }measured at $want_size, ran at $got_size (off by ${dw}x${dh}) -- coordinates address a different layout"
+            else
+                note="${note:+$note; }measured at $want_size, ran at $got_size (off by ${dw}x${dh}, under a third of a row)"
+            fi
         fi
     fi
 
