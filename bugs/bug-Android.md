@@ -64,6 +64,58 @@ P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以�
 
 受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
 
+## Fixed 2026-09-05: a root scroll view that could not scroll
+
+`AndroidRootScrollHost` wrapped every window's content in a
+`HorizontalScrollView` around a `ScrollView` -- and added the content with
+`MATCH_PARENT` in both axes, which pins a scroll view's child to exactly the
+viewport. There was never anything to scroll. Both scroll views reported
+`scrollable=false` on P35, P39, P41 and P43, and a 900-pixel swipe on P35 moved
+zero pixels.
+
+It went unnoticed for three days because a scroll view that cannot scroll looks
+exactly like no scroll view at all, and because the first evidence pointed the
+wrong way: `uiautomator dump` reported no node extending past the 1080-pixel
+viewport, which reads as "nothing overflows". It reports bounds clipped to the
+window. Measuring the laid-out subtree from inside the process gives P41's
+content as 2606 x 2845 -- 635 pixels off the left edge and 891 off the right.
+
+Fixed by porting UIKitBackend's `RootScrollHost`, including both modes and the
+draggable control. `WRAP_CONTENT` on each scrolling axis is what lets a child
+exceed its scroll view; `fillViewport` still covers the smaller-than-viewport
+case, so nothing was traded away. An app whose content fits is unchanged:
+P23 measures `box=(0,0)-(1080,2400)` and differs from its previous screenshot
+only in the button and the status-bar clock.
+
+**A second defect was underneath it.** The control was first placed 8dp from
+the top of the window, and `dumpsys window` reports
+`statusBars frame=[0,0][1080,128]` on this device: 107 of the button's 126
+pixels were beneath a SystemUI window that takes the touches in its own area.
+Tapping its centre did nothing -- no log line, no mode change -- and a tap 54
+pixels lower worked first time. It now offsets by the safe-area inset.
+
+## 已修 2026-09-05：一個捲不動的根捲動視圖
+
+`AndroidRootScrollHost` 把每個視窗的內容包進「`HorizontalScrollView` 包 `ScrollView`」——而它是以
+兩軸皆 `MATCH_PARENT` 加入內容的，那會把捲動視圖的子元件釘死在視口大小上。於是從來就沒有任何東西
+可捲。P35、P39、P41、P43 上兩層捲動視圖都回報 `scrollable=false`，而在 P35 上滑動 900 像素，畫面
+一個像素也沒有改變。
+
+它之所以三天沒被發現，是因為「捲不動的捲動視圖」與「根本沒有捲動視圖」看起來完全一樣；也因為最初
+的證據指向錯誤的方向：`uiautomator dump` 回報沒有任何節點超出 1080 像素的視口，那讀起來像是「沒有
+東西溢出」。它回報的 bounds 是已被裁到視窗範圍的。從行程內部量測已排版的子樹，得到的 P41 內容是
+2606 x 2845——左邊界外 635 像素、右邊界外 891 像素。
+
+修法是移植 UIKitBackend 的 `RootScrollHost`，含兩個模式與那個可拖曳的控制項。在各自的捲動軸上使用
+`WRAP_CONTENT`，才是讓子元件得以超出其捲動視圖的關鍵；而 `fillViewport` 仍然涵蓋「比視口小」的情形，
+因此沒有任何東西被犧牲。內容塞得下的 app 完全不變：P23 量到 `box=(0,0)-(1080,2400)`，與它先前的
+截圖之間，除了按鈕與狀態列時鐘之外沒有差異。
+
+**在它底下還有第二個缺陷。** 該控制項一開始被放在「距視窗頂端 8dp」處，而本裝置上 `dumpsys window`
+回報 `statusBars frame=[0,0][1080,128]`：按鈕 126 個像素中有 107 個位於一個屬於 SystemUI 的視窗底下，
+而該視窗會接走其範圍內的觸控。點擊它的中心毫無反應——沒有日誌行、也沒有模式變更——而往下 54 像素
+點擊，第一次就成功。現在它會依安全區域的 inset 偏移。
+
 ## Fixed 2026-09-05: an app's `print` did not reach logcat, and it was buffering
 
 Recorded on 2026-09-03 as a platform limitation -- "an Android app's `print` does

@@ -1,4 +1,5 @@
 import Android
+import DebugFeatures
 import Foundation
 import InputEvent
 @_spi(Backends) import SwiftCrossUI
@@ -334,11 +335,22 @@ public final class AndroidBackend: BaseAppBackend {
         // measurement behind it.
         // 放進捲動視圖中，而不是直接設為 content view。此舉的用途與其背後的量測，見
         // `AndroidRootScrollHost`。
+        //
+        // `allowsRootScrollControl`, not `isEnabled`. `isEnabled` also requires
+        // `--debug` on the command line, and it is the same distinction
+        // UIKitBackend draws: this flag does not switch diagnostics on, it makes
+        // an existing piece of interface visible, and a release build is exactly
+        // where you cannot rebuild to see it.
+        //
+        // 使用 `allowsRootScrollControl` 而非 `isEnabled`。`isEnabled` 還要求命令列上有 `--debug`，
+        // 而此處的區別與 UIKitBackend 所劃的是同一個：這個旗標並不開啟任何診斷功能，它只是讓一個既有的
+        // 介面元件變為可見；而 release 建置恰恰是「無法靠重新建置來看見它」的那種建置。
         Self.activity.setContentView(
             AndroidRootScrollHost.wrap(
                 container,
                 activity: Self.activity,
-                environment: Self.env
+                environment: Self.env,
+                showModeControl: DebugFeatures.allowsRootScrollControl
             )
         )
         window.content = container
