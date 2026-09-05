@@ -172,7 +172,19 @@ struct P17RootView: View {
                 // small steps, so the height where the scroll bar appears can
                 // be walked over rather than guessed.
                 ScrollView {
-                    Color.purple
+                    // Teal, not purple. GtkBackend renders `Color.purple` as
+                    // #db34f2, which reads as pink at a glance and collides
+                    // with the hotpink a GTK transform node paints when the
+                    // renderer cannot draw it -- a defect signal this project
+                    // counts pixels of. This block is large and fills a scroll
+                    // view, so it is the worst place in the suite to put that
+                    // hue. See the same change in P16.swift for the measurement.
+                    //
+                    // 用 teal，不用 purple。GtkBackend 把 `Color.purple` 繪為 #db34f2，一眼望去
+                    // 就是粉色，而它與「GTK 在 renderer 無法繪製 transform node 時所畫的 hotpink」
+                    // 相衝——後者是本專案會逐像素計數的缺陷訊號。這個色塊面積大又填滿整個 scroll
+                    // view，是全套件中最不該放上該色相之處。量測見 P16.swift 的同一項改動。
+                    Color.teal
                         .aspectRatio(2.0, contentMode: .fit)
                 }
                 .frame(width: 300, height: scrollHeight)

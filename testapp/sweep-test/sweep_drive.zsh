@@ -657,11 +657,39 @@ for app in $apps; do
     # 重試會先重新 clear 與 dismiss，那是唯一可能改變結果的動作——而且它在「第一次順利通過這一關」
     # 時就停止，不會為了更好看的答案繼續繞。三次之後失敗即成立：到那個地步，誠實的讀法是「這台桌面
     # 無法在一次重放的時間內把前景穩住」，而那值得被回報，不該被重試掩蓋。
-    if [ "$replay" = FAIL ] \
-        && grep -q 'could not bring our window to the front' "$run_log" 2>/dev/null \
-        && [ "$attempt" -lt 3 ]; then
-        attempt=$(( attempt + 1 ))
-        continue
+    # ASTRAY RETRIES TOO, for the same reason and with less excuse for not
+    # having said so the first time.
+    #
+    # P16-force-update came back ASTRAY on 2026-09-06 with
+    # `hitClass=ConsoleWindowClass foreground=0x50832` -- a console window on
+    # top of the app at the moment of the click. The run was correct in every
+    # other respect: right toplevel, right origin, coordinates inside the
+    # window. The console does not belong to the app either; the app reports
+    # `this process has no console window to hide`, so it is the harness's own,
+    # raised by one of the subprocesses this script spawns.
+    #
+    # That is the same class of interference as losing the foreground -- the
+    # desktop at that instant -- and the same answer applies. It is NOT a claim
+    # that P16 is fine: an ASTRAY that survives three attempts is reported, and
+    # a real coordinate defect would survive all three.
+    #
+    # ASTRAY 同樣重試，而且比前一項更沒有「第一次沒想到」的藉口。
+    #
+    # 2026-09-06，P16-force-update 回報 ASTRAY，附帶
+    # `hitClass=ConsoleWindowClass foreground=0x50832`——點擊當下有一個主控台視窗蓋在 app 之上。
+    # 那次執行在其他每一方面都正確：toplevel 正確、原點正確、座標落在視窗內。而該主控台也不屬於
+    # 該 app；app 回報的是 `this process has no console window to hide`，因此它是本腳本自己所衍生
+    # 的子行程所帶起的、屬於測試框架的主控台。
+    #
+    # 那與「失去前景」屬於同一類干擾——都是該瞬間的桌面——因此適用同一個答案。這**不是**在主張
+    # P16 沒問題：連續三次仍為 ASTRAY 會如實回報，而真正的座標缺陷會三次都存活。
+    if { [ "$replay" = FAIL ] \
+            && grep -q 'could not bring our window to the front' "$run_log" 2>/dev/null; } \
+        || [ "$replay" = ASTRAY ]; then
+        if [ "$attempt" -lt 3 ]; then
+            attempt=$(( attempt + 1 ))
+            continue
+        fi
     fi
 
     csv_note="${file_label:+$file_label: }$note"

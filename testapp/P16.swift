@@ -138,7 +138,33 @@ struct P16RootView: View {
                 P16PaneSize(label: "sidebar")
                 List(P16Area.allCases, selection: $selectedArea) { area in
                     HStack {
-                        Color.purple.frame(width: 40, height: 40).cornerRadius(4)
+                        // TEAL, NOT PURPLE, AND NOT ANY PINK.
+                        //
+                        // GtkBackend renders `Color.purple` as #db34f2, and at a
+                        // glance that is indistinguishable from the hotpink a
+                        // GTK transform node paints when the renderer cannot
+                        // draw it. That hotpink is a DEFECT SIGNAL in this
+                        // project -- GtkBackend+GeometricEffects.swift counts
+                        // those pixels -- so a test app must not put anything
+                        // in that hue range on screen. Measured 2026-09-06 on
+                        // the P16 capture: 3160 pixels of #db34f2, reported as
+                        // "I see pink on P16", and the first minute of looking
+                        // at it went on whether the transform bug had returned.
+                        //
+                        // Teal is far from both #ff69b4 and #db34f2 in hue and
+                        // is not used as a signal anywhere.
+                        //
+                        // 用 teal，不用 purple，也不用任何粉色。
+                        //
+                        // GtkBackend 把 `Color.purple` 繪為 #db34f2，而一眼望去，它與「GTK 在
+                        // renderer 無法繪製 transform node 時所畫的 hotpink」無從分辨。在本專案中
+                        // 那個 hotpink 是**缺陷訊號**——GtkBackend+GeometricEffects.swift 會去數
+                        // 那些像素——因此測試 app 不該讓任何落在該色相範圍的東西出現在畫面上。
+                        // 2026-09-06 於 P16 擷圖實測：3160 個 #db34f2 像素，被回報為「P16 上看到
+                        // 粉紅」，而看到它的第一分鐘都花在判斷 transform 的 bug 是不是回來了。
+                        //
+                        // Teal 在色相上遠離 #ff69b4 與 #db34f2，且未在任何地方作為訊號使用。
+                        Color.teal.frame(width: 40, height: 40).cornerRadius(4)
                         Text(area.rawValue)
                     }
                 }

@@ -161,6 +161,8 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 「嘗試取得」，而其失敗僅對「會按鍵的動作檔」才是致命的。只用滑鼠的檔案單靠置頂即可安全執行，
     /// 拒絕執行它等於拒絕了一件本來可行的事。
     public func prepareForReplay(_ actions: [InputAction]) throws {
+        hideOwnConsoleOnce()
+
         let window = try ownWindow()
 
         if IsIconic(window) {
@@ -332,6 +334,94 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         throw SynthesiserError.windowNotForeground(
             "this file presses keys, and a key event goes to whichever window has focus"
         )
+    }
+
+    /// Hides this process's OWN console window, and only its own.
+    ///
+    /// SwiftPM emits console-subsystem executables -- `objdump -p` reports
+    /// subsystem 3 for every `testapp/output/Pn-gtk4.exe` -- so a Pn launched
+    /// detached is given a console window of its own. That window is created
+    /// after the app starts, holds the foreground, and sits over the app's own
+    /// window; `WindowFromPoint` then returns it and every synthesised click
+    /// goes to a console instead of to the view under test.
+    ///
+    /// Measured 2026-09-06 on P16-force-update, whose run was correct in every
+    /// other respect -- right toplevel chosen, right origin, coordinates inside
+    /// the window -- and still reported `hitClass=ConsoleWindowClass
+    /// foreground=0x50832`, a handle adjacent to the app's own 0x50812. Three
+    /// clicks, all swallowed. Nothing failed and nothing warned.
+    ///
+    /// ONLY WHEN THIS PROCESS OWNS IT, which `GetConsoleProcessList` answers:
+    /// a count of one means the console exists for this process alone. Launched
+    /// from a shell the console belongs to that shell and is shared, and hiding
+    /// it would take away the operator's terminal.
+    ///
+    /// The same test and the same reasoning as `testapp/P6.swift`, which solved
+    /// this for itself in `hideOwnConsoleOnce` and recorded that the "jump to
+    /// the terminal" people saw was P6's own console. It was solved for one app
+    /// and left for the other forty-two; this is the replay path, so every app
+    /// driven by an action file gets it.
+    ///
+    /// 隱藏**本行程自己的**主控台視窗，且僅限自己的。
+    ///
+    /// SwiftPM 產生的是 console 子系統的執行檔——`objdump -p` 對每一個
+    /// `testapp/output/Pn-gtk4.exe` 都回報 subsystem 3——因此以分離方式啟動的 Pn 會獲得一個屬於
+    /// 自己的主控台視窗。該視窗在 app 啟動之後才建立、持有前景、並且蓋在 app 自己的視窗之上；
+    /// `WindowFromPoint` 於是回傳它，而每一次合成點擊都送進了主控台，而非受測的視圖。
+    ///
+    /// 2026-09-06 於 P16-force-update 實測：那次執行在其他每一方面都正確——選對了 toplevel、
+    /// 原點正確、座標落在視窗內——卻仍然回報 `hitClass=ConsoleWindowClass foreground=0x50832`，
+    /// 而該 handle 與 app 自己的 0x50812 相鄰。三次點擊，全被吞掉。沒有任何東西失敗，也沒有任何
+    /// 東西發出警告。
+    ///
+    /// 僅在**本行程擁有它**時才隱藏，而這由 `GetConsoleProcessList` 回答：數量為一，代表該主控台
+    /// 只為本行程而存在。若是從 shell 啟動，主控台屬於該 shell 且為多方共用，隱藏它等於奪走操作者
+    /// 的終端機。
+    ///
+    /// 與 `testapp/P6.swift` 相同的判斷與相同的理由——它在 `hideOwnConsoleOnce` 中為自己解決了這
+    /// 件事，並記載了使用者所看到的「跳到 terminal」其實是 P6 自己的主控台。那次只為一支 app 解決，
+    /// 其餘四十二支被留了下來；此處是重放路徑，因此每一支由動作檔驅動的 app 都會得到它。
+    /// `nonisolated(unsafe)` for the same reason the rest of this project uses
+    /// it on once-only flags -- see `P11Diagnostics.didAnnounceRender`. A replay
+    /// runs on one thread and the flag exists only to keep the console from
+    /// being hidden twice; the cost of a race here is a second `ShowWindow` on
+    /// an already hidden window.
+    /// 使用 `nonisolated(unsafe)` 的理由與本專案其他「只執行一次」的旗標相同——參見
+    /// `P11Diagnostics.didAnnounceRender`。重放在單一執行緒上進行，此旗標的存在只是為了避免主控台
+    /// 被隱藏兩次；此處競態的代價，不過是對一個已經隱藏的視窗再呼叫一次 `ShowWindow`。
+    nonisolated(unsafe) private static var didHideConsole = false
+
+    private func hideOwnConsoleOnce() {
+        guard !Self.didHideConsole else { return }
+        Self.didHideConsole = true
+
+        // Reported, because a silent return here is the whole failure mode this
+        // function exists to stop. The first run after adding it printed NO
+        // console line at all and two files passed; that is not evidence the
+        // fix worked, it is evidence that nothing was observed -- and reading
+        // the pass as a fix is the exact mistake catalogued half a dozen times
+        // in mistakes.csv2.
+        // 加上回報，因為「安靜地返回」正是本函式存在所要阻止的那一種失敗。加入本函式後的第一次執行
+        // **一行 console 訊息都沒有印**，而兩個檔案都通過了；那不是「修正生效」的證據，而是「什麼
+        // 都沒被觀察到」的證據——把通過讀成修正，正是 mistakes.csv2 中已記錄六次的同一個錯誤。
+        guard let console = GetConsoleWindow() else {
+            ActionFileReplay.report("this process has no console window to hide")
+            return
+        }
+
+        var processes: [DWORD] = Array(repeating: 0, count: 4)
+        let count = processes.withUnsafeMutableBufferPointer { buffer in
+            GetConsoleProcessList(buffer.baseAddress, DWORD(buffer.count))
+        }
+        guard count == 1 else {
+            ActionFileReplay.report(
+                "console is shared with \(count) processes, leaving it alone"
+            )
+            return
+        }
+
+        _ = ShowWindow(console, SW_HIDE)
+        ActionFileReplay.report("hid this process's own console window")
     }
 
     /// Joins the foreground window's input queue, asks again, and reports what
