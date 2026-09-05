@@ -1,9 +1,34 @@
 action,x,y,origin,button,key,micros,note,platform
 # P10 on Windows: does Ctrl-Q reach the application? (#478)
 #
+# expect: process-exits
+#
 # The instrument is the process, not a screenshot. P10 quits on Ctrl-Q, so
 # success is the process being gone afterwards and failure is it still running
 # -- there is nothing to read off an image and nothing to interpret.
+#
+# THAT MARKER ABOVE IS READ BY sweep_drive.zsh, and it is the only file in
+# actions/win that carries it -- checked, it is also the only file whose actions
+# can quit the app. Every other file is judged by the process being ALIVE when
+# the capture is taken, so this one inverts the test, and without the marker the
+# sweep reported P10 as `launch FAIL -- exited before the capture` on a run where
+# exiting is the pass. A verdict that is exactly backwards is worse than no
+# verdict, because it reads as a defect in the app.
+#
+# In the action file rather than in a table inside the driver: this is a fact
+# about what THIS file does, it lives beside the prose that already explains it,
+# and one copy cannot disagree with itself. A list in the driver would be a
+# second copy that drifts the first time a file is added or renamed.
+#
+# 上方那個標記由 sweep_drive.zsh 讀取，而它是 actions/win 中唯一帶有此標記的檔案——經查，它也是
+# 唯一「其動作會讓 app 結束」的檔案。其餘每一個檔案的判準都是「擷取當下該行程仍存活」，因此這一個
+# 檔案把該測試反過來；而少了這個標記，掃描會在「結束才是通過」的那次執行中，把 P10 回報為
+# `launch FAIL -- exited before the capture`。一個**恰好相反**的判決比沒有判決更糟，因為它讀起來
+# 像是 app 有缺陷。
+#
+# 放在動作檔中，而非放在驅動腳本裡的一張表：這是關於**這個檔案**做了什麼的事實，它就住在早已解釋
+# 它的那段散文旁邊，而一份副本不可能與自己矛盾。放在驅動腳本裡的清單會是第二份副本，並在第一次
+# 有檔案被新增或改名時就開始漂移。
 #
 # This file could not run at all on Windows until 2026-08-27. `prepareForReplay`
 # refuses a file containing key actions unless it can put the window in the

@@ -183,3 +183,6 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-06,windows,gtk4,P31,ok,ok,window,""
 2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,"clicks hit 0x00000000009a0dd4"
 2026-09-06,windows,gtk4,P10,FAIL,running,desktop,"exited before the capture; still replaying when captured"
+2026-09-06,windows,gtk4,P10,ok,running,desktop,"quit as expected; still replaying when captured"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,"quit as expected"
+2026-09-06,windows,gtk4,P31,ok,FAIL,window,"failed: could not bring our window to th"

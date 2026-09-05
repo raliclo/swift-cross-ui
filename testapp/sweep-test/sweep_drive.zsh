@@ -340,11 +340,95 @@ for app in $apps; do
     # stderr 回覆「ERROR: Invalid argument/option」，於是每個 app 都被判讀為啟動失敗。於
     # 2026-08-27 本腳本首次執行時實測：P1 與 P2 的視窗明明在螢幕上，卻回報「exited before the
     # capture」。
+    # SOME FILES PASS BY THE PROCESS BEING GONE, and for those this test is
+    # exactly backwards.
+    #
+    # `P10-ctrl-q.csv` asks whether Ctrl-Q reaches the application. Its own
+    # header says the instrument is the process rather than a screenshot:
+    # success is the process having quit. Judged by the rule below it reported
+    # `launch FAIL -- exited before the capture` on a run where exiting IS the
+    # pass, and a verdict that is exactly inverted is worse than none, because
+    # it reads as a defect in the app.
+    #
+    # The expectation is declared in the ACTION FILE, as `# expect:
+    # process-exits`, beside the prose that already explains why. A table of
+    # exceptions kept here would be a second copy of a fact the file already
+    # holds, and it would drift the first time a file was added or renamed.
+    # Checked: P10-ctrl-q is currently the only file in actions/win carrying the
+    # marker, and also the only one whose actions can quit the app.
+    #
+    # 有些檔案的通過條件是「行程已結束」，對它們而言下方這項測試恰好是反的。
+    #
+    # `P10-ctrl-q.csv` 要問的是 Ctrl-Q 是否送達應用程式。它自己的標頭寫明：量測儀器是行程本身而非
+    # 截圖，「成功」即為該行程已經結束。若以下方的規則判定，它會在「結束才是通過」的那次執行中回報
+    # `launch FAIL -- exited before the capture`；而一個**恰好相反**的判決比沒有判決更糟，因為它
+    # 讀起來像是 app 有缺陷。
+    #
+    # 該預期宣告於**動作檔**之中，寫作 `# expect: process-exits`，就在早已解釋其理由的那段散文
+    # 旁邊。若在此處另存一張例外表，那會是「該檔案已經持有的事實」的第二份副本，並且在第一次有檔案
+    # 被新增或改名時就開始漂移。經查：P10-ctrl-q 目前是 actions/win 中唯一帶有該標記的檔案，
+    # 也是唯一其動作會讓 app 結束的檔案。
+    expect_exit=no
+    if [ -n "$action_file" ] \
+        && grep -qE '^# *expect: *process-exits' "$action_file" 2>/dev/null; then
+        expect_exit=yes
+    fi
+
     if tasklist.exe //FI "IMAGENAME eq $app$suffix.exe" 2>&1 | grep -q "$app$suffix.exe"; then
-        launch=ok
+        if [ "$expect_exit" = yes ]; then
+            launch=FAIL
+            note='still running -- this file passes by the process quitting'
+        else
+            launch=ok
+        fi
     else
-        launch=FAIL
-        note='exited before the capture'
+        if [ "$expect_exit" = yes ]; then
+            launch=ok
+            note='quit as expected'
+        else
+            launch=FAIL
+            note='exited before the capture'
+        fi
+    fi
+
+    # NOTHING TO CAPTURE, AND NO REPLAY VERDICT TO GIVE, when the file passes by
+    # the app quitting. Both of the remaining columns invert for it too, and
+    # leaving them to the normal path produced two more misleading cells on top
+    # of the launch one:
+    #
+    #   capture  `desktop`, because there is no window left -- correct, and it
+    #            reads as "the window was not found", which for GTK is the
+    #            spelling of a problem. It also spends a capture on an image of
+    #            the empty desktop that nobody will ever look at.
+    #   replay   `running`, i.e. "still replaying when captured", because the
+    #            process died before writing `actionfile: replayed`. It died
+    #            because Ctrl-Q worked. That is the pass, printed as a warning.
+    #
+    # `n/a` rather than `ok` for the replay: the pass condition for this file is
+    # the process being gone, and `launch` already carries that. Claiming a
+    # separate replay verdict would be inventing a second measurement out of the
+    # first. coverage.zsh already reads `n/a` as "no replay was expected".
+    #
+    # 當某個檔案的通過條件是「app 結束」時，就沒有東西可擷取，也沒有重放判決可下。餘下的兩欄對它
+    # 而言同樣是反的；把它們留給一般路徑處理，會在 launch 那一欄之外再產生兩格誤導：
+    #
+    #   capture  `desktop`，因為已經沒有視窗——這是正確的，但它讀起來是「視窗沒被找到」，而那對
+    #            GTK 而言正是「有問題」的寫法。它同時還把一次擷取花在一張沒有人會看的空桌面上。
+    #   replay   `running`，即「擷取當下仍在重放」，因為該行程在寫出 `actionfile: replayed` 之前
+    #            就死了。它之所以死，正是因為 Ctrl-Q 生效了。那是通過，卻被印成警告。
+    #
+    # replay 欄採 `n/a` 而非 `ok`：本檔的通過條件是「行程已不存在」，而 `launch` 欄已經承載了它。
+    # 另外宣稱一個重放判決，等於從同一次量測裡憑空生出第二次量測。coverage.zsh 本來就把 `n/a`
+    # 讀作「本就不預期有重放」。
+    if [ "$expect_exit" = yes ] && [ "$launch" = ok ]; then
+        capture='n/a'
+        replay='n/a'
+        printf '%-6s %-8s %-9s %-9s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
+        printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
+            "$run_date" "$platform" "$label" "$app" \
+            "$launch" "$replay" "$capture" "${note//\"/\"\"}" \
+            >> "$results"
+        continue
     fi
 
     case "$(zsh "$repo/testapp/screenshot.zsh" -w "$app" "$label-$app" 2>&1 | tail -1)" in
