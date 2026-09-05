@@ -692,6 +692,73 @@ for app in $apps; do
         fi
     fi
 
+    # DID THE WINDOW HAVE THE SIZE THE COORDINATES WERE MEASURED AT?
+    #
+    # `replay=ok` means the replay finished and every click landed on the app's
+    # own window. It does NOT mean a click landed on the control it names, and
+    # nothing else here checks that. A window of a different size lays its
+    # contents out differently, so the same coordinate reaches something else,
+    # and the run is clean, quiet and wrong.
+    #
+    # Measured 2026-09-06: P16-force-update.csv records `Measured on a 916x639
+    # window capture at 100% display scale`, and the live window was 928x629 --
+    # twelve pixels wider and ten shorter. Five consecutive rounds reported
+    # `ok ok window`, and every one of them clicked somewhere other than
+    # "Force update (0)". The operator saw it on screen; the harness could not.
+    #
+    # Read from the action file's own header, which most of them carry, rather
+    # than from a table here -- same reason as `# expect:`. Files with no
+    # recorded size are skipped and said to be skipped: a check that quietly
+    # passes when it has no input is the failure this whole script is built
+    # against.
+    #
+    # A MISMATCH IS NOT AUTOMATICALLY THE FILE BEING STALE. The window may be
+    # the thing that changed, and issue #79 is open on exactly that -- GTK on
+    # Windows comes out short against WinUI. Which side to correct is a
+    # judgement; reporting the disagreement is not.
+    #
+    # 視窗的尺寸，是否就是那些座標被量測時的尺寸？
+    #
+    # `replay=ok`的意思是「重放跑完了，而且每一次點擊都落在該 app 自己的視窗上」。它**不**代表
+    # 某次點擊落在它所指名的控制項上，而此處也沒有別的東西在檢查那件事。尺寸不同的視窗會以不同方式
+    # 排版其內容，於是同一個座標會抵達別的東西，而該次執行乾淨、安靜、且錯誤。
+    #
+    # 2026-09-06 實測：P16-force-update.csv 記載「Measured on a 916x639 window capture at 100%
+    # display scale」，而實際視窗是 928x629——寬了十二像素、矮了十像素。連續五輪都回報
+    # `ok ok window`，而其中每一輪點的都不是「Force update (0)」。操作者在畫面上看見了；本工具
+    # 看不見。
+    #
+    # 由動作檔自己的標頭讀取（多數檔案都有記載），而非在此另存一張表——理由與 `# expect:` 相同。
+    # 沒有記載尺寸的檔案會被略過，而且會**說明它被略過**：一項「沒有輸入時就安靜通過」的檢查，
+    # 正是整份腳本所要對抗的那種失敗。
+    #
+    # 尺寸不符**不自動等於「動作檔過期」**。改變的可能是視窗，而 issue #79 正是為此開著的——
+    # Windows 上的 GTK 相對 WinUI 偏小。該修哪一邊是判斷；把這個分歧回報出來則不是。
+    if [ -n "$action_file" ] && [ "$replay" = ok ]; then
+        want_size="$(grep -oE '[0-9]{3,4}x[0-9]{3,4}' "$action_file" | head -1)"
+        # Two steps, and NO `[^\n]` in the pattern. grep is line-oriented, so
+        # inside a bracket expression `\n` is not a newline -- it is the two
+        # characters backslash and n. `[^\n]*` therefore means "not a backslash
+        # and not the letter n", and the line contains `enabled`. The pattern
+        # matched nothing, `got_size` came out empty, and the check passed
+        # vacuously on the very run it was written to catch.
+        #
+        # 分兩步，而且樣式中**不使用** `[^\n]`。grep 以行為單位，因此在 bracket expression 中，
+        # `\n` 不是換行，而是「反斜線」與「n」兩個字元。`[^\n]*` 於是代表「不是反斜線也不是字母 n」，
+        # 而該行含有 `enabled`。樣式因此毫無匹配、`got_size` 成為空字串，這道檢查就在「它被寫出來
+        # 所要捕捉的那一次執行」上空洞地通過了。
+        got_size="$(grep -E 'class=gdkSurfaceToplevel.*CHOSEN' "$run_log" 2>/dev/null \
+            | head -1 | grep -oE '[0-9]+x[0-9]+@' | tr -d '@')"
+        if [ -z "$want_size" ]; then
+            note="${note:+$note; }no measured size in the action file -- geometry unchecked"
+        elif [ -z "$got_size" ]; then
+            note="${note:+$note; }no toplevel size in the log -- geometry unchecked"
+        elif [ "$want_size" != "$got_size" ]; then
+            replay=GEOMETRY
+            note="${note:+$note; }measured at $want_size, ran at $got_size -- coordinates address a different layout"
+        fi
+    fi
+
     csv_note="${file_label:+$file_label: }$note"
     printf '%-30s %-8s %-9s %-9s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
 
