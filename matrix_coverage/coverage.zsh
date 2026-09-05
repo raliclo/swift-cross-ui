@@ -208,25 +208,107 @@ trap 'rm -f "$pivot"' EXIT
             # 合併不是取平均。若每個檔案都通過，該格為 `pass`；只要有任何一個沒通過，該格顯示
             # **第一個失敗的判決**——因為「有一項失敗的執行」就是失敗的執行，而細節屬於
             # results.csv2，那裡的每一列都標明了自己的檔案。
+            # KEYED BY ACTION FILE, latest per file wins, then combined.
+            #
+            # Rows appended by sweep_drive.zsh carry their action file at the
+            # front of the note, `P10-ctrl-q.csv: ...`, because the `app` column
+            # cannot hold it. Rows written before that share one key, which
+            # makes them behave exactly as they always did.
+            #
+            # WHY NOT "any failure that day poisons the cell", which is what this
+            # was for one commit: because several rows for one app on one date
+            # are usually a DAY OF DEBUGGING, not several files, and the last one
+            # is the conclusion. P1 on mac 2026-09-01 has two rows -- `no marker,
+            # launched but the render marker never appeared`, then `ok, no marker
+            # configured; capture is timed`. The second retracts the first. P26
+            # has seven, four of them `never launched` while the loader was being
+            # fixed, ending `ok ok window`. Combining those reported eighteen
+            # cells as failing that were nothing of the kind, and the claim was
+            # made and withdrawn within the hour.
+            #
+            # Superseding still works, because latest-per-file still wins. What
+            # is fixed is only the case the file key distinguishes: two DIFFERENT
+            # files for one app, where the second used to overwrite the first.
+            #
+            # 以**動作檔**為鍵，每個檔案取最新者，再行合併。
+            #
+            # sweep_drive.zsh 追加的資料列會把動作檔名放在 note 的最前面，形如
+            # `P10-ctrl-q.csv: ...`，因為 `app` 欄放不下它。在那之前寫入的資料列共用同一個鍵，
+            # 因此其行為與過去完全一致。
+            #
+            # 為何不採「當天只要有一項失敗就毒化該格」——那正是本處曾有一個 commit 的做法：因為
+            # 「同一天、同一支 app 的數列」通常是**一天的除錯過程**，而不是數個檔案，且最後一列才是
+            # 結論。P1 在 mac 2026-09-01 有兩列——`no marker, launched but the render marker never
+            # appeared`，接著是 `ok, no marker configured; capture is timed`；第二列在**撤回**第一列。
+            # P26 有七列，其中四列是 loader 被修好之前的 `never launched`，最後結束於 `ok ok window`。
+            # 把它們合併，會把十八格根本不是失敗的格子報成失敗；那個主張在一小時之內就被提出又收回。
+            #
+            # 「後者取代前者」依然有效，因為每個檔案仍是最新者勝出。真正被修好的，只有「檔案鍵」所能
+            # 區分的那一種情況：同一支 app 的**兩個不同檔案**，過去第二個會覆蓋第一個。
+            note = field("note")
+            fileKey = "-"
+            if (match(note, /^[^ :]+\.csv: /))
+                fileKey = substr(note, 1, RLENGTH - 2)
+
+            # The accumulator is ONE STRING PER CELL, `file=verdict|` repeated,
+            # rather than a shared array keyed by app and file.
+            #
+            # A shared array needs clearing when a newer date arrives, and
+            # `delete arr` in awk clears the WHOLE array -- every other app and
+            # its verdicts with it. (No apostrophes in here: this program is
+            # inside a single-quoted argument, and one in a COMMENT ends the
+            # quote. It did, and zsh reported a parse error two hundred lines
+            # away at the first bare parenthesis it then met.)
+            # Rows arrive interleaved across apps and platforms, so
+            # that would empty cells at random depending on the order results
+            # were appended in, which is a bug that would have looked like data
+            # loss rather than like a bug.
+            #
+            # 累積器是**每格一個字串**，內容為重複的 `file=verdict|`，而非一個以 app 與檔案為鍵的
+            # 共用陣列。
+            #
+            # 共用陣列在較新日期出現時需要清空，而 awk 的 `delete arr` 會清掉**整個**陣列——連同其他
+            # 每一支 app 的判決。資料列在各 app 與各平台之間是交錯抵達的，因此那會依「結果被追加的
+            # 順序」隨機清空某些格子;那種 bug 看起來會像資料遺失，而不像 bug。
             if (date > cellDate[app, pair]) {
                 cellDate[app, pair] = date
-                total[app, pair] = 0
-                passes[app, pair] = 0
-                worst[app, pair] = ""
+                acc[app, pair] = ""
             }
             if (date == cellDate[app, pair]) {
-                total[app, pair]++
-                if (verdict == "pass") passes[app, pair]++
-                else if (worst[app, pair] == "") worst[app, pair] = verdict
+                # Rebuilt rather than appended, because a later row REPLACES an
+                # earlier one for the same file and a running total cannot take
+                # a verdict back.
+                # 採重建而非追加：因為同一個檔案的較新資料列會**取代**較舊者，而累加式的計數收不回
+                # 一個已經計入的判決。
+                n = split(acc[app, pair], parts, "|")
+                out = ""; replaced = 0
+                for (i = 1; i <= n; i++) {
+                    if (parts[i] == "") continue
+                    eq = index(parts[i], "=")
+                    f = substr(parts[i], 1, eq - 1)
+                    v = substr(parts[i], eq + 1)
+                    if (f == fileKey) { v = verdict; replaced = 1 }
+                    out = out f "=" v "|"
+                }
+                if (!replaced) out = out fileKey "=" verdict "|"
+                acc[app, pair] = out
 
-                shown = (passes[app, pair] == total[app, pair]) ? "pass" : worst[app, pair]
-                # The ratio only when there is more than one file, so every
-                # single-file cell reads exactly as it did before and the diff
-                # shows the apps that actually gained coverage.
-                # 只有在超過一個檔案時才附上比例，如此每一個單檔的格子讀起來與從前完全相同，而 diff
-                # 顯示的正是那些真正增加了覆蓋的 app。
-                if (total[app, pair] > 1)
-                    shown = shown " " passes[app, pair] "/" total[app, pair]
+                n = split(out, parts, "|")
+                passes = 0; failed = ""; files = 0
+                for (i = 1; i <= n; i++) {
+                    if (parts[i] == "") continue
+                    files++
+                    v = substr(parts[i], index(parts[i], "=") + 1)
+                    if (v == "pass") passes++
+                    else if (failed == "") failed = v
+                }
+                fileCount[app, pair] = files
+                shown = (failed == "") ? "pass" : failed
+                # The ratio only when more than one file ran, so every
+                # single-file cell reads exactly as it did before.
+                # 只有在跑了超過一個檔案時才附上比例，如此每一個單檔的格子讀起來與從前完全相同。
+                if (fileCount[app, pair] > 1)
+                    shown = shown " " passes "/" fileCount[app, pair]
                 cell[app, pair] = shown " " date
             }
             seen[app] = 1
