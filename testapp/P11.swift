@@ -134,8 +134,24 @@ struct P11RootView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Text("P11: AppKitBackend sliders, scrollbars and pickers")
+            // Names the backend it is ACTUALLY running on, not the one it was
+            // written for. Until 2026-09-05 this line read "P11: AppKitBackend
+            // sliders, scrollbars and pickers" and the window said AppKitBackend
+            // while running on GtkBackend under Windows -- a false claim on
+            // screen, in the one place a reader cannot check it against
+            // anything. The three issues below really are AppKit's, and the file
+            // header still says so; that is provenance, and provenance is not a
+            // statement about the process you are looking at.
+            //
+            // 標示它**實際執行所在**的 backend，而非它當初為誰而寫。在 2026-09-05 之前，這一行
+            // 寫的是「P11: AppKitBackend sliders, scrollbars and pickers」，於是視窗在 Windows
+            // 上以 GtkBackend 執行時卻聲稱自己是 AppKitBackend——一句出現在畫面上的假陳述，而畫面
+            // 正是讀者無從與任何東西對照之處。下方那三個 issue 確實屬於 AppKit，檔案標頭也仍然
+            // 如此記載；那是「出處」，而出處並不是一句關於「你眼前這個行程」的陳述。
+            Text("P11: sliders, scrollbars and pickers")
                 .font(.system(size: 20))
+
+            Text("backend -> \(String(describing: DefaultBackend.self))")
 
             Text(status)
                 .frame(width: 700, alignment: .leading)
