@@ -434,12 +434,68 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 傳入——這是此呼叫的標準寫法，也是使用 `Unmanaged` 來回轉換的原因。
     private func ownWindow() throws -> HWND {
         let candidates = visibleWindows()
-        guard let largest = largestByArea(of: candidates) else {
+        guard let largest = largestByArea(of: preferringOwners(among: candidates)) else {
             throw SynthesiserError.unsupported("no visible window for this process")
         }
         let chosen = innermostModal(over: largest)
         reportWindowChoice(candidates: candidates, chosen: chosen)
         return chosen
+    }
+
+    /// Drops any window that is OWNED by another candidate.
+    ///
+    /// Added 2026-09-05, when Direct Composition became GtkBackend's default and
+    /// broke an action file that had worked for weeks.
+    ///
+    /// With DComp, GTK creates a second window per toplevel: a `GdkWin32GL`
+    /// surface holding the GL content, owned by the real `gdkSurfaceToplevel`.
+    /// The two are the SAME SIZE, so "largest by area" is a tie -- and the tie
+    /// was going to the GL surface, whose origin is (0, 0) while the toplevel's
+    /// is (26, 17). Every frame-relative coordinate was therefore converted
+    /// against the wrong origin and every click landed 26 left and 17 up of
+    /// where the file said.
+    ///
+    /// It failed the way this whole directory is written to prevent. Most
+    /// targets are large enough to absorb 17px, so nearly every action file kept
+    /// passing; only P13-zorder, whose target sits near the bottom edge, missed.
+    /// One file in forty reporting a failure that is really a global coordinate
+    /// shift is worse than none reporting it -- it reads as one flaky test.
+    ///
+    /// Ownership rather than class name. `GdkWin32GL` is what this instance is,
+    /// but a rule naming it would be a rule about one toolkit's current
+    /// spelling. "A window owned by another window I can also see is not the one
+    /// the user is looking at" is true of tooltips, GL surfaces and helper
+    /// windows alike. If every candidate is owned, the list is returned
+    /// unchanged rather than emptied, because an empty list here is a thrown
+    /// error and a wrong window still beats no window.
+    ///
+    /// 移除任何「被另一個候選者所擁有」的視窗。
+    ///
+    /// 於 2026-09-05 新增，當時 Direct Composition 成為 GtkBackend 的預設值，並弄壞了一份已經
+    /// 正常運作數週的動作檔。
+    ///
+    /// 啟用 DComp 後，GTK 會為每個 toplevel 額外建立一個視窗：一個承載 GL 內容的 `GdkWin32GL`
+    /// surface，由真正的 `gdkSurfaceToplevel` 所擁有。兩者**尺寸相同**，因此「面積最大」是平手
+    /// ——而平手時勝出的是那個 GL surface，它的原點是 (0, 0)，真正的 toplevel 則是 (26, 17)。
+    /// 於是每一個 frame 相對座標都以錯誤的原點換算，每一次點擊都落在檔案所述位置的左方 26、
+    /// 上方 17 像素處。
+    ///
+    /// 它失敗的方式，正是整個目錄的寫法所要防範的那一種。多數目標夠大，足以吸收 17px 的偏移，
+    /// 因此幾乎每一份動作檔都照樣通過；只有目標貼近底部邊緣的 P13-zorder 落空。**四十份中只有
+    /// 一份回報失敗，而那其實是全域座標偏移**——這比「一份都沒回報」更糟，因為它讀起來像是
+    /// 單一個不穩定的測試。
+    ///
+    /// 以「所有權」而非類別名稱判斷。`GdkWin32GL` 是此次的具體樣貌，但以它命名的規則，會是一條
+    /// 關於「某個 toolkit 目前拼法」的規則。「一個被我同樣看得見的另一視窗所擁有的視窗，不會是
+    /// 使用者正在看的那一個」——這對 tooltip、GL surface 與各種輔助視窗同樣成立。若所有候選者
+    /// 都被擁有，則原樣返回而非清空，因為此處清空等同於拋出錯誤，而「選錯視窗」仍勝過「沒有視窗」。
+    private func preferringOwners(among windows: [HWND]) -> [HWND] {
+        let visible = Set(windows.map { UInt(bitPattern: Int(bitPattern: $0)) })
+        let unowned = windows.filter { window in
+            guard let owner = GetWindow(window, UINT(GW_OWNER)) else { return true }
+            return !visible.contains(UInt(bitPattern: Int(bitPattern: owner)))
+        }
+        return unowned.isEmpty ? windows : unowned
     }
 
     /// The biggest of the given windows, or nil if none can be measured.
@@ -548,11 +604,59 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         for _ in 0..<8 {
             guard let popup = GetWindow(current, UINT(GW_ENABLEDPOPUP)),
                 popup != current,
-                IsWindowVisible(popup)
+                IsWindowVisible(popup),
+                // A dialog is SMALLER than what it covers. Added 2026-09-05,
+                // after Direct Composition became GtkBackend's default: GTK then
+                // gives each toplevel a `GdkWin32GL` content surface, registered
+                // as that toplevel's enabled popup and exactly the same size.
+                // Without this test the walk stepped off the real window onto
+                // its own content surface, whose origin is (0, 0) rather than
+                // the toplevel's, and every frame-relative coordinate converted
+                // against the wrong origin.
+                //
+                // Size is the right discriminator because it is the same
+                // property this function was written for: the comment above
+                // records that `largestByArea` always picked the owner, BECAUSE
+                // a dialog is smaller. A popup that is not smaller is not the
+                // thing this walk is looking for.
+                //
+                // 對話框比它所覆蓋的東西**小**。此條件於 2026-09-05 新增，起因是 Direct
+                // Composition 成為 GtkBackend 的預設值：此後 GTK 會為每個 toplevel 配上一個
+                // `GdkWin32GL` 內容 surface，它被登記為該 toplevel 的 enabled popup，且尺寸
+                // 完全相同。少了這項判斷，這趟走訪就會從真正的視窗踏上它自己的內容 surface
+                // ——後者的原點是 (0, 0) 而非 toplevel 的原點——於是每一個 frame 相對座標都以
+                // 錯誤的原點換算。
+                //
+                // 以尺寸作為判準是正確的，因為那正是本函式當初被寫出來所依據的同一項性質：
+                // 上方的說明記載著 `largestByArea` 總是選中擁有者，**正因為**對話框比較小。
+                // 一個不比較小的 popup，不是這趟走訪要找的東西。
+                isSmaller(popup, than: current)
             else { return current }
             current = popup
         }
         return current
+    }
+
+    /// Whether `inner` covers strictly less area than `outer`.
+    ///
+    /// Returns `false` when either window cannot be measured, so an unmeasurable
+    /// popup is not followed. That is the safe direction: staying on a window
+    /// known to be the right size beats stepping onto one nothing is known
+    /// about.
+    ///
+    /// `inner` 所覆蓋的面積是否嚴格小於 `outer`。
+    ///
+    /// 任一視窗量不到時回傳 `false`，因此量不到的 popup 不會被跟隨。那是安全的方向：留在一個
+    /// 已知尺寸正確的視窗上，勝過踏上一個一無所知的視窗。
+    private func isSmaller(_ inner: HWND, than outer: HWND) -> Bool {
+        var innerRect = RECT()
+        var outerRect = RECT()
+        guard GetWindowRect(inner, &innerRect), GetWindowRect(outer, &outerRect) else {
+            return false
+        }
+        let innerArea = Int(innerRect.right - innerRect.left) * Int(innerRect.bottom - innerRect.top)
+        let outerArea = Int(outerRect.right - outerRect.left) * Int(outerRect.bottom - outerRect.top)
+        return innerArea < outerArea
     }
 
     /// Dumps every candidate this call weighed, and which one won.
