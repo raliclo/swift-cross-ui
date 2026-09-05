@@ -49,6 +49,15 @@ notes.json
 # is built from the app, so the pattern has to be too.
 p*-debug-events.log
 
+# P11's unconditional startup trace, written whether or not --debug is passed --
+# see the P11Startup comment for why that one is exempt. Same naming rule as
+# above, different suffix, so p*-debug-events.log does not reach it and the file
+# turned up untracked after every P11 run.
+# P11 的無條件啟動追蹤：無論是否傳入 --debug 都會寫出——理由見 P11Startup 的註解。命名規則
+# 與上者相同、後綴不同，因此 p*-debug-events.log 涵蓋不到它，於是每次執行 P11 之後它都會以
+# 未追蹤檔案的形式出現。
+p*-startup.log
+
 # The same shape, but these names carry no app, so p*- cannot cover them: one is
 # written by the replay runner and one by SplitView, both from
 # currentDirectoryPath. run.zsh launches by absolute path and never cd's, so

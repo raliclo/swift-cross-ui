@@ -1,10 +1,12 @@
 // Minimises every visible top-level window whose title contains a substring.
 //
 //   winmin.exe "<title substring>"        minimise matching windows
-//   winmin.exe --list                     print every visible window title
+//   winmin.exe --list                     every visible window: HWND, title, flags
+//   winmin.exe --clear                    minimise every titled window that is up
+//   winmin.exe --restore                  undo --clear
 //   winmin.exe --help
 //
-// Exit codes, which are the interface: 0 at least one window was minimised,
+// Exit codes, which are the interface: 0 at least one window was acted on,
 // 1 nothing matched, 2 bad arguments.
 //
 // WHY IT EXISTS. Synthesised replays need the app under test in front, and
@@ -64,7 +66,7 @@ if arguments.first == "--help" || arguments.first == "-h" {
     // 標頭即說明文件；直接印出它，而不是另存一份可能與它互相矛盾的副本。
     let source = URL(fileURLWithPath: #filePath)
     if let text = try? String(contentsOf: source, encoding: .utf8) {
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false).prefix(9) {
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false).prefix(10) {
             print(line.hasPrefix("// ") ? String(line.dropFirst(3)) : String(line.dropFirst(2)))
         }
     }
@@ -72,7 +74,9 @@ if arguments.first == "--help" || arguments.first == "-h" {
 }
 
 guard let needle = arguments.first, !needle.isEmpty else {
-    FileHandle.standardError.write(Data("winmin: needs a window title substring, or --list\n".utf8))
+    FileHandle.standardError.write(
+        Data("winmin: needs a window title substring, or --list/--clear/--restore\n".utf8)
+    )
     exit(2)
 }
 
@@ -89,11 +93,88 @@ let pointer = Unmanaged.passUnretained(collector).toOpaque()
 _ = EnumWindows(enumerator, LPARAM(Int(bitPattern: pointer)))
 
 if needle == "--list" {
+    // The HWND and the minimised flag are both printed, and neither is
+    // decoration. A replay that misses reports the HWND it hit --
+    // `hitRoot=0x...` -- and without the handle here there is no way to turn
+    // that number into a name except by guessing, which cost two wrong guesses
+    // on 2026-09-05. IsIconic matters because a MINIMISED window is still
+    // "visible" to IsWindowVisible and still appears in this list; a list that
+    // did not say so reads as "minimising did nothing".
+    //
+    // HWND 與「是否最小化」兩者都會印出，且都不是裝飾。一次落空的重放會回報它所命中的 HWND
+    // ——`hitRoot=0x...`——而若此處不列出 handle，就只能用猜的把那個數字對回名稱，而這在
+    // 2026-09-05 已經猜錯兩次。IsIconic 之所以重要：**被最小化的視窗對 IsWindowVisible 而言
+    // 仍然「可見」**，因此仍會出現在本清單中；一份不標示這件事的清單，讀起來就像「最小化沒有作用」。
+    let foreground = GetForegroundWindow()
     for window in collector.windows {
         let name = title(of: window)
-        if !name.isEmpty { print(name) }
+        if name.isEmpty { continue }
+        let handle = UInt(bitPattern: Int(bitPattern: window))
+        var flags: [String] = []
+        if IsIconic(window) { flags.append("minimised") }
+        if window == foreground { flags.append("FOREGROUND") }
+        let suffix = flags.isEmpty ? "" : "  [\(flags.joined(separator: ", "))]"
+        print(String(format: "0x%016llx  %@%@", UInt64(handle), name, suffix))
     }
     exit(0)
+}
+
+if needle == "--restore" {
+    // Undoes --clear. Present because --clear is a large, uninvited change to
+    // someone else's desktop, and a tool that can make that change without
+    // being able to undo it should not have been written.
+    //
+    // SW_RESTORE, not SW_SHOW: restore returns a window to whatever it was
+    // before it was minimised, maximised or normal, which is the only thing
+    // here that knows which of those it should be.
+    //
+    // 還原 --clear 所做的事。之所以存在，是因為 --clear 是對「別人的桌面」所做的、未經邀請的
+    // 大幅改動，而一個能造成該改動卻無法復原它的工具，本就不該被寫出來。
+    //
+    // 使用 SW_RESTORE 而非 SW_SHOW：restore 會讓視窗回到它被最小化之前的狀態——無論當時是一般
+    // 還是最大化——而在此處，只有它知道那該是哪一種。
+    var restored = 0
+    for window in collector.windows where IsIconic(window) && !title(of: window).isEmpty {
+        _ = ShowWindow(window, SW_RESTORE)
+        restored += 1
+    }
+    print("restored \(restored) window(s)")
+    exit(restored > 0 ? 0 : 1)
+}
+
+if needle == "--clear" {
+    // Minimises everything that is up, which is what a synthesised replay
+    // actually needs and what minimising one window at a time cannot deliver.
+    //
+    // Foreground here is a stack, not a single obstruction. Minimising the
+    // front window promotes the next one, and on 2026-09-05 that produced four
+    // rounds -- Windows Settings, a Codex window, VS Code, the terminal, then LM
+    // Studio -- each of which looked like "the" blocker until it was gone. A
+    // sweep cannot be run against a desktop that has to be cleared one layer per
+    // attempt.
+    //
+    // Untitled windows are skipped, because that is what tool windows, tray
+    // hosts and the desktop itself look like from here, and minimising those
+    // achieves nothing while risking something.
+    //
+    // 一次把所有開著的視窗最小化——那才是合成重放真正需要的，也是「一次收一個視窗」做不到的事。
+    //
+    // 此處的前景是一個**堆疊**，不是單一障礙物。把最前面的視窗最小化，只會讓下一個遞補上來；
+    // 2026-09-05 因此連續出現四輪——Windows「設定」、一個 Codex 視窗、VS Code、終端機，然後是
+    // LM Studio——每一個在被移開之前，看起來都像是「那個」阻礙者。一輪 sweep 無法在「每嘗試一次
+    // 才能清掉一層」的桌面上進行。
+    //
+    // 無標題的視窗會被略過：從此處看去，工具視窗、系統匣宿主與桌面本身都是那副樣子，把它們
+    // 最小化毫無所得，卻有可能造成損害。
+    var cleared = 0
+    for window in collector.windows {
+        if title(of: window).isEmpty { continue }
+        if IsIconic(window) { continue }
+        _ = SendMessageW(window, UINT(WM_SYSCOMMAND), WPARAM(0xF020), 0)
+        cleared += 1
+    }
+    print("cleared \(cleared) window(s)")
+    exit(cleared > 0 ? 0 : 1)
 }
 
 var minimised = 0
