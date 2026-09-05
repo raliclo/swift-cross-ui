@@ -356,7 +356,23 @@ if [[ "$device_name" == emulator-* ]]; then
     serial="$device_name"
 else
     print "==> Booting Android AVD: $device_name"
-    "$emulator" -avd "$device_name" -no-snapshot -no-boot-anim >/dev/null 2>&1 &
+    # `-no-metrics`, or the emulator can block before it ever boots.
+    #
+    # Measured 2026-09-05: `emulator -avd ... -no-snapshot -no-boot-anim` logged
+    # "Showing crashdialog to get consent." and then sat there. `adb devices`
+    # stayed empty, the sixty-second wait below expired, and the failure read
+    # "Android emulator did not appear in adb devices" -- which sounds like a
+    # boot that was too slow rather than a modal dialog waiting for a click that
+    # a headless run will never give it.
+    #
+    # 加上 `-no-metrics`，否則模擬器可能在啟動之前就卡住。
+    #
+    # 2026-09-05 實測：`emulator -avd ... -no-snapshot -no-boot-anim` 記錄了
+    # 「Showing crashdialog to get consent.」然後就停在那裡。`adb devices` 一直是空的，下方的六十秒
+    # 等待逾時，而失敗訊息是「Android emulator did not appear in adb devices」——那聽起來像是啟動太慢，
+    # 而不是「一個模態對話框正在等一次點擊，而無人值守的執行永遠不會給它」。
+    "$emulator" -avd "$device_name" -no-snapshot -no-boot-anim -no-metrics \
+        >/dev/null 2>&1 &
     serial=""
     for _ in {1..60}; do
         serial="$($adb devices | awk '/^emulator-[0-9]+[[:space:]]+/{print $1; exit}')"
