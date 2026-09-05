@@ -515,7 +515,42 @@ else
 fi
 
 print "==> Launched $package_id on $serial"
-sleep 1
+
+# Five seconds before the first capture, not one.
+#
+# One second is the number the other platforms use, and on Android it
+# photographs the wrong thing. A cold start here has to bring up the JVM, load
+# libswiftCore, Foundation and ICU, run `AndroidBackend_entrypoint` through JNI
+# and then lay out; the apps log RENDER COMPLETE at around six seconds. A
+# one-second capture can therefore photograph the launch splash instead of the
+# app: `p13-android-1s-20260905-113746.png` is 97.6% white with a green Android
+# robot and nothing else. One of 174 captures on 2026-09-05, so it is rare on a
+# warm emulator and not rare enough to leave to chance.
+#
+# It also broke a check built on top of it. Comparing the `-1s-` and `-final-`
+# captures was meant to show what the action file changed, and under
+# `--no-showtime` the two are taken back to back: forty of forty-five apps
+# differed by exactly zero pixels, same timestamp, same md5. One photograph
+# compared with itself. The gap has to be real for the pair to mean anything.
+#
+# The name stays `-1s-`. It is in every existing filename and in the comparisons
+# written against them, and renaming it would silently split the history in two.
+# 是 5 秒,不是 1 秒。
+#
+# 1 秒是其他平台使用的數字,而在 Android 上它拍到的是錯的東西。此處的冷啟動必須先起 JVM、載入
+# libswiftCore、Foundation 與 ICU、透過 JNI 執行 `AndroidBackend_entrypoint`,然後才排版;這些 app
+# 大約在六秒左右記錄 RENDER COMPLETE。因此 1 秒的擷取有可能拍到啟動畫面而不是 app:
+# `p13-android-1s-20260905-113746.png` 有 97.6% 是白色,畫面上只有一個綠色的 Android 機器人。
+# 2026-09-05 的 174 張擷取中出現一次——在熱的模擬器上算罕見,但沒有罕見到可以交給運氣。
+#
+# 它同時也弄壞了一個建立在其上的檢查。比對 `-1s-` 與 `-final-` 兩張擷取,原意是顯示動作檔改變了
+# 什麼;而在 `--no-showtime` 之下,這兩張是連續拍下的:四十五支中有四十支的差異恰好是零像素、
+# 時間戳相同、md5 相同。那是拿一張照片跟它自己比。這一對要有意義,中間的間隔就必須是真的。
+#
+# 名稱維持 `-1s-`。它出現在每一個既有檔名、以及依據那些檔名所寫的比對之中,重新命名會靜默地把
+# 歷史一分為二。
+first_capture_seconds="${ANDROID_FIRST_CAPTURE_SECONDS:-5}"
+sleep "$first_capture_seconds"
 capture "${app_id}-android-1s"
 
 if [ "$showtime_seconds" -gt 0 ]; then

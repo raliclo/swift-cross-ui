@@ -146,8 +146,54 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         )
     }
 
+    private var positioned = false
+
     fun host(view: View) {
         stage.host(view)
+        positioned = false
+    }
+
+    // Scrolled to the content's own origin once, after the first layout.
+    //
+    // The shift `Stage` applies makes the leftmost pixel reachable, and that is
+    // the whole reason it exists; it also means scroll position zero shows the
+    // empty margin to the left of the content rather than the content. On P3
+    // that put the "Small" button at 1140..1371 on a 1080-wide screen, and
+    // every action file measured before this existed -- 46 of them, with
+    // coordinates like P3's `click 328,399` carrying a "VERIFIED 2026-09-03"
+    // note -- suddenly pressed nothing. Fifteen apps reported an action file
+    // that replayed and changed no pixel.
+    //
+    // Re-measuring 46 files was the alternative. This is better because the
+    // default view is the one the layout describes and the overflow stays
+    // reachable in both directions: scroll left for what is left of the origin,
+    // right for what is past the viewport.
+    //
+    // Once, not on every layout, or a scroll the user makes would be undone on
+    // the next pass.
+    //
+    // 在第一次版面計算之後,捲到內容自身的原點一次。
+    //
+    // `Stage` 所施加的位移讓最左邊的像素得以觸及,而那正是它存在的全部理由;但它同時也意味著
+    // 「捲動位置為零」顯示的是內容左側的空白邊界,而不是內容本身。在 P3 上,那把 "Small" 按鈕推到了
+    // 一個 1080 寬的螢幕上的 1140..1371;而所有在此機制存在之前量測的動作檔——共 46 份,座標如 P3 的
+    // `click 328,399`,並帶有「VERIFIED 2026-09-03」的備註——突然全都按不到任何東西。有十五支 app
+    // 回報「動作檔重放了,而且沒有改變任何一個像素」。
+    //
+    // 另一個選項是重新量測那 46 份檔案。此做法更好,因為預設畫面就是版面所描述的那一個,而溢出在兩個
+    // 方向上都仍可觸及:向左捲可看原點左側的部分,向右捲可看超出視口的部分。
+    //
+    // 只做一次,而不是每次版面計算都做,否則使用者自己捲動的結果會在下一輪被撤銷。
+    override protected fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        if (positioned) return
+        val origin = stage.originOffset
+        if (origin.x == 0 && origin.y == 0 && stage.width == 0) return
+        positioned = true
+        post {
+            horizontal.scrollTo(origin.x, 0)
+            vertical.scrollTo(0, origin.y)
+        }
     }
 
     fun getModeIndex(): Int = stage.mode
@@ -248,6 +294,17 @@ private class Stage(context: Context) : ViewGroup(context) {
     private val box = Rect()
     private var scale = 1f
     private var lastLoggedState = ""
+
+    /// Where the content's own (0,0) sits inside this view, in pixels.
+    ///
+    /// The host scrolls here once so the first frame shows what the app laid
+    /// out, rather than the empty margin to its left.
+    ///
+    /// 內容自身的 (0,0) 落在本 view 內的位置,以像素計。
+    ///
+    /// 宿主會捲到此處一次,好讓第一個畫面顯示 app 實際排出來的東西,而不是它左側的空白邊界。
+    val originOffset: android.graphics.Point
+        get() = android.graphics.Point((-box.left * scale).toInt(), (-box.top * scale).toInt())
 
     var mode: Int = RootScrollHost.MODE_ACTUAL_VIEW
         set(value) {
