@@ -4,6 +4,8 @@
 //   winmin.exe --list                     every visible window: HWND, title, flags
 //   winmin.exe --clear                    minimise every titled window that is up
 //   winmin.exe --restore                  undo --clear
+//   winmin.exe --foreground               who holds the foreground, visible or not
+//   winmin.exe --dismiss                  press escape at a Windows shell surface
 //   winmin.exe --help
 //
 // Exit codes, which are the interface: 0 at least one window was acted on,
@@ -93,7 +95,7 @@ if arguments.first == "--help" || arguments.first == "-h" {
     // 標頭即說明文件；直接印出它，而不是另存一份可能與它互相矛盾的副本。
     let source = URL(fileURLWithPath: #filePath)
     if let text = try? String(contentsOf: source, encoding: .utf8) {
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false).prefix(10) {
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false).prefix(12) {
             print(line.hasPrefix("// ") ? String(line.dropFirst(3)) : String(line.dropFirst(2)))
         }
     }
@@ -178,6 +180,127 @@ if needle == "--list" {
         print(String(format: "0x%016llx  %@%@", UInt64(handle), label, suffix))
     }
     exit(0)
+}
+
+if needle == "--foreground" {
+    // Prints GetForegroundWindow directly, WITHOUT going through the visible
+    // window list, because the two disagree and the disagreement is the whole
+    // reason this exists.
+    //
+    // `--list` enumerates windows that pass IsWindowVisible. The window that
+    // blocked every keyboard replay on 2026-09-06 -- SearchHost.exe's
+    // Windows.UI.Core.CoreWindow -- held the foreground while not appearing in
+    // that enumeration at all. Asking the system directly is one call and
+    // cannot disagree with itself.
+    //
+    // 直接印出 GetForegroundWindow，**不**經過可見視窗清單，因為兩者說法不同，而這個分歧正是本
+    // 子命令存在的全部理由。
+    //
+    // `--list` 列舉的是通過 IsWindowVisible 的視窗。2026-09-06 擋住每一次鍵盤重放的那個視窗
+    // ——SearchHost.exe 的 Windows.UI.Core.CoreWindow——持有前景，卻**完全沒有**出現在該列舉中。
+    // 直接問系統只需一次呼叫，而且不會自相矛盾。
+    guard let window = GetForegroundWindow() else {
+        print("no window holds the foreground")
+        exit(1)
+    }
+    let handle = UInt(bitPattern: Int(bitPattern: window))
+    let name = title(of: window)
+    print(
+        String(
+            format: "0x%016llx  %@  class=%@  process=%@  visible=%@  minimised=%@",
+            UInt64(handle),
+            name.isEmpty ? "<untitled>" : name,
+            className(of: window),
+            processName(of: window),
+            IsWindowVisible(window) ? "yes" : "no",
+            IsIconic(window) ? "yes" : "no"
+        )
+    )
+    exit(0)
+}
+
+if needle == "--dismiss" {
+    // Presses Escape when a Windows shell surface holds the foreground.
+    //
+    // WHY THIS IS NEEDED AND MINIMISING IS NOT. On 2026-09-06 every keyboard
+    // action file failed, and the synthesiser named the obstruction: window
+    // 0x30268, `Windows.UI.Core.CoreWindow`, `SearchHost.exe`, titled "Search".
+    // It refuses `AttachThreadInput` with ACCESS_DENIED because it is a
+    // protected UWP process, and it swallowed two of P10's clicks.
+    //
+    // `--clear` cannot reach it. Measured: the foreground was SearchHost BOTH
+    // before and after a `--clear`, so it is not something --clear promotes,
+    // and a UWP CoreWindow ignores the WM_SYSCOMMAND/SC_MINIMIZE that --clear
+    // sends. It is also absent from `--list`: EnumWindows plus IsWindowVisible
+    // does not return it, while GetForegroundWindow does and
+    // IsWindowVisible(0x30268) answers yes -- which is why --foreground asks
+    // the system directly rather than filtering an enumeration.
+    //
+    // Escape rather than anything stronger, because Escape is what a person
+    // does to the same window: it closes the search surface and leaves the
+    // process running and the machine as it was. No window is closed, nothing
+    // is killed, and if the user reopens search they lose nothing.
+    //
+    // 當 Windows 的 shell 表面持有前景時，按下 Escape。
+    //
+    // 為何需要它、而最小化不行。2026-09-06 每一個鍵盤動作檔都失敗，而 synthesiser 指名了阻礙者：
+    // 視窗 0x30268、`Windows.UI.Core.CoreWindow`、`SearchHost.exe`，標題為「Search」。它以
+    // ACCESS_DENIED 拒絕 `AttachThreadInput`（因為它是受保護的 UWP 行程），並且吞掉了 P10 的兩次
+    // 點擊。
+    //
+    // `--clear` 碰不到它。實測：`--clear` 之前與之後，前景**都**是 SearchHost，因此它並非
+    // --clear 所促成；而 UWP 的 CoreWindow 會忽略 --clear 送出的 WM_SYSCOMMAND/SC_MINIMIZE。
+    // 它同時也不在 `--list` 之中：EnumWindows 加上 IsWindowVisible 不會回傳它，而
+    // GetForegroundWindow 會，且 IsWindowVisible(0x30268) 答「是」——這正是 --foreground 直接
+    // 詢問系統、而非過濾一份列舉的原因。
+    //
+    // 選擇 Escape 而非更強硬的手段，因為 Escape 正是人對同一個視窗會做的事：它關閉搜尋表面，
+    // 讓該行程繼續執行、機器維持原狀。沒有視窗被關閉、沒有東西被強制結束，使用者重新打開搜尋
+    // 也不會失去任何東西。
+    let shellSurfaces = [
+        "SearchHost.exe", "StartMenuExperienceHost.exe", "ShellExperienceHost.exe",
+        "SearchApp.exe",
+    ]
+
+    guard let before = GetForegroundWindow() else {
+        print("no window holds the foreground; nothing to dismiss")
+        exit(1)
+    }
+    let owner = processName(of: before)
+    guard shellSurfaces.contains(owner) else {
+        print("foreground is \(owner), not a shell surface; nothing to dismiss")
+        exit(2)
+    }
+
+    var events = [INPUT(), INPUT()]
+    events[0].type = DWORD(INPUT_KEYBOARD)
+    events[0].ki.wVk = WORD(VK_ESCAPE)
+    events[1].type = DWORD(INPUT_KEYBOARD)
+    events[1].ki.wVk = WORD(VK_ESCAPE)
+    events[1].ki.dwFlags = DWORD(KEYEVENTF_KEYUP)
+    let sent = SendInput(UINT(events.count), &events, Int32(MemoryLayout<INPUT>.size))
+    guard sent == UINT(events.count) else {
+        // SendInput returning short is how a locked workstation presents, and
+        // it is worth naming rather than reporting as "escape did not work".
+        // SendInput 少送，正是工作站已鎖定時的表現形式；把它指名出來，勝過回報為「Escape 沒有用」。
+        print("SendInput sent \(sent) of \(events.count) events (status \(GetLastError()))")
+        exit(1)
+    }
+
+    // Up to a second, checked ten times. The surface closes in well under that
+    // whenever it closes at all.
+    // 最多一秒，檢查十次。只要它會關閉，所需時間都遠短於此。
+    for _ in 0..<10 {
+        Sleep(100)
+        let after = GetForegroundWindow()
+        if after != before {
+            let name = after.map { processName(of: $0) } ?? "none"
+            print("dismissed \(owner); foreground is now \(name)")
+            exit(0)
+        }
+    }
+    print("pressed escape and \(owner) still holds the foreground")
+    exit(1)
 }
 
 if needle == "--restore" {
