@@ -178,3 +178,8 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-03,android,android,P42,ok,ok,window,
 2026-09-03,android,android,P43,ok,ok,window,
 2026-09-04,android,android,P44,ok,ok,window,
+2026-09-06,windows,gtk4,P31,ok,ok,window,""
+2026-09-06,windows,gtk4,P16,ok,ok,window,""
+2026-09-06,windows,gtk4,P31,ok,ok,window,""
+2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,"clicks hit 0x00000000009a0dd4"
+2026-09-06,windows,gtk4,P10,FAIL,running,desktop,"exited before the capture; still replaying when captured"
