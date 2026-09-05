@@ -89,6 +89,55 @@ correctly under it, but that is two apps, not a decision.
 configuration, not for a platform defect.** Whether to enable dcomp by default
 on Windows, and then implement the transform properly, is an open decision.
 
+> **Decided and done, 2026-09-05.** Direct Composition is on by default and the
+> transform is applied on Windows through the same CSS path Linux uses.
+>
+> The gate was `DebugFeatures.gpuSelection >= 2`, so only `-GPU 2` asked for it.
+> That contradicted the flag's own documentation, which calls `1` "the default,
+> asks for hardware" — the default asked for nothing. It is `>= 1` now, `-GPU 0`
+> is still the software opt-out it is documented to be, and `SCUI_GTK_DCOMP=0`
+> turns off just this for bisecting.
+>
+> Measured before flipping it, P40 with the transform probe: **76 285** hotpink
+> pixels with dcomp off, **0** with it on. Measured after, with no flags at all —
+> `zsh run.zsh P40 --debug` — hotpink **0**, and every cell now differs from the
+> control by 3 279 to 7 553 pixels where each had differed by **exactly 0** that
+> morning. Same crops, same controls, opposite result.
+>
+> The old objection was "P2 and P21 were checked, but that is two apps, not a
+> decision". Answered by capturing P11, P15-DARK and P25 both ways and diffing:
+> the differences are glyph antialiasing and colour rounding between the cairo
+> and GL renderers, nothing structural. P25 read as 31% of pixels differing until
+> the *magnitude* was measured — 128 510 differing pixels, of which **711** exceed
+> a delta of 8. Counting differing pixels without their size would have blocked
+> the change on nothing.
+>
+> `setGeometricEffect` still declines when Direct Composition is not active, and
+> that is now the narrow case rather than the rule: `-GPU 0`, an explicit
+> `GDK_DISABLE=gl`, or no hardware display adapter. Each leaves GTK on
+> `GskCairoRenderer`, where hotpink is still what a transform produces.
+>
+> **2026-09-05 已決定並完成。** Direct Composition 改為預設開啟，且 Windows 上的變換改由與
+> Linux 相同的 CSS 路徑套用。
+>
+> 原本的閘門是 `DebugFeatures.gpuSelection >= 2`，因此只有 `-GPU 2` 會要求它。那與該旗標自身的
+> 文件互相矛盾——文件稱 `1` 為「預設值，要求硬體」，而預設值其實什麼也沒要求。現在是 `>= 1`，
+> `-GPU 0` 仍是文件所述的軟體退路，而 `SCUI_GTK_DCOMP=0` 可單獨關閉此項以供二分比對。
+>
+> 改動前實測（P40 搭配 transform 探針）：dcomp 關閉為 **76,285** 個 hotpink 像素，開啟為 **0**。
+> 改動後實測，且**不帶任何旗標**——`zsh run.zsh P40 --debug`——hotpink 為 **0**，而每一格與對照格
+> 的差異為 3,279 至 7,553 像素；同一天稍早，每一格的差異都是**恰好 0**。相同的裁切、相同的對照，
+> 相反的結果。
+>
+> 舊有的反對意見是「P2 與 P21 檢查過，但那是兩支 app，不是一個決定」。已藉由對 P11、P15-DARK 與
+> P25 各擷取兩次並比對而回答：差異只是 cairo 與 GL 兩種 renderer 之間的字形反鋸齒與色彩捨入，
+> 沒有任何結構性差異。P25 起初讀起來是 31% 的像素相異，直到量了**幅度**——128,510 個相異像素中
+> 僅 **711** 個差幅超過 8。若只數相異像素而不看其大小，這項改動就會被一件不存在的事擋下來。
+>
+> 當 Direct Composition 未生效時，`setGeometricEffect` 仍會拒絕，而那如今是狹窄的例外而非常態：
+> `-GPU 0`、明確設定的 `GDK_DISABLE=gl`，或沒有硬體顯示介面卡。每一種都會讓 GTK 留在
+> `GskCairoRenderer` 上，而在那裡，變換產生的依然是 hotpink。
+
 **Reproduce.**
 
     SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P40

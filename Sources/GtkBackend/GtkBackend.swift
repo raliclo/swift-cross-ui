@@ -314,8 +314,15 @@ public final class GtkBackend:
 
     /// Asks GDK for Direct Composition, so GTK can use a hardware renderer.
     ///
-    /// Opt-in through `SCUI_GTK_DCOMP=1`, and off by default because it changes
-    /// how every window is composited, not only the transformed ones.
+    /// ON BY DEFAULT since 2026-09-05. `-GPU 0` turns it off along with the rest
+    /// of hardware rendering, and `SCUI_GTK_DCOMP=0` turns off just this, for
+    /// bisecting against a build that predates the change.
+    ///
+    /// It used to be opt-in through `SCUI_GTK_DCOMP=1`, on the grounds that it
+    /// changes how every window is composited rather than only the transformed
+    /// ones. That reason was real but it was never weighed against what leaving
+    /// it off costs: GTK falls back to a software renderer that cannot draw a
+    /// transform node, so every geometric effect is a no-op on Win-gtk4.
     ///
     /// Why it matters. On this Windows machine GTK cannot realize its GL
     /// renderer -- `Failed to realize renderer 'GskGLRenderer' for surface
@@ -333,8 +340,13 @@ public final class GtkBackend:
     ///
     /// 向 GDK 要求啟用 Direct Composition，使 GTK 得以採用硬體繪製器。
     ///
-    /// 透過 `SCUI_GTK_DCOMP=1` 選擇性啟用，預設關閉——因為它改變的是每一個視窗的合成方式，
-    /// 而不只是那些被變換過的視窗。
+    /// 自 2026-09-05 起**預設開啟**。`-GPU 0` 會連同其餘硬體繪製一併關閉它；`SCUI_GTK_DCOMP=0`
+    /// 則只關閉這一項，供與該改動之前的建置進行二分比對。
+    ///
+    /// 它從前是透過 `SCUI_GTK_DCOMP=1` 選擇性啟用、預設關閉，理由是它改變的是**每一個**視窗的
+    /// 合成方式，而不只是那些被變換過的視窗。那個理由是真的，但從未與「不開啟的代價」放在一起
+    /// 衡量過：GTK 會退回一個畫不出 transform node 的軟體繪製器，於是在 Win-gtk4 上，每一項
+    /// geometric effect 都是 no-op。
     ///
     /// 為何重要：在這台 Windows 機器上，GTK 無法實現它的 GL 繪製器——
     /// `Failed to realize renderer 'GskGLRenderer' for surface 'GdkWin32Toplevel':
@@ -406,8 +418,50 @@ public final class GtkBackend:
             // 將它對應到 2，同時也是對這個數字更忠實的解讀。`1` 意指「平台自身的預設」，而 GTK
             // 在此處的自身預設，就是它在無人干預時所做的事——無法實現 GL、退回 cairo。要求硬體
             // 就是要求「比預設更多」，而那正是 `2` 的意思。
-            let forced = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "1"
-            guard forced || DebugFeatures.gpuSelection >= 2 else { return }
+            // DECIDED 2026-09-05: `>= 1`, so Direct Composition is ON BY DEFAULT.
+            // This closes task #73 and resolves a contradiction rather than
+            // stating a preference -- `DebugFeatures.gpuSelection` documents `1`
+            // as "the default, asks for hardware", and the gate below was
+            // `>= 2`, so the default asked for nothing. `-GPU 0` remains the
+            // software opt-out it is documented to be, and the two crash guards
+            // that follow are unchanged.
+            //
+            // Why it had to change, and not for tidiness: without dcomp GTK
+            // falls back to GskCairoRenderer, which cannot draw a transform
+            // node, so `setGeometricEffect` declines and offset, rotationEffect,
+            // scaleEffect and transformEffect are NO-OPS on Win-gtk4. CLAUDE.md
+            // does not allow a feature to be left unsupported on a shipped
+            // backend, and dcomp is how this one becomes supported.
+            //
+            // Measured 2026-09-05 before flipping it, on P40 with the transform
+            // probe: 76,285 hotpink pixels with dcomp off, 0 with it on, and
+            // every transform correct. The old "two apps, not a decision"
+            // objection was answered by capturing P11, P15-DARK and P25 both
+            // ways and diffing: the only differences are glyph antialiasing and
+            // colour rounding between the cairo and GL renderers. P25 looked
+            // alarming at 31% of pixels differing until the MAGNITUDE was
+            // measured -- 128,510 differing pixels, of which 711 exceed a delta
+            // of 8. Counting differing pixels without their size would have
+            // blocked this change on nothing.
+            //
+            // 2026-09-05 決定：改為 `>= 1`，亦即 Direct Composition **預設開啟**。此舉關閉任務
+            // #73，且它修正的是一項矛盾而非表達偏好——`DebugFeatures.gpuSelection` 的文件寫著
+            // `1` 是「預設值，要求硬體」，而下方的閘門卻是 `>= 2`，於是預設值什麼也沒要求。
+            // `-GPU 0` 仍是它文件所述的軟體退路，其後那兩道防當機守衛也維持不變。
+            //
+            // 為何非改不可，而不是為了整潔：沒有 dcomp 時 GTK 會退回 GskCairoRenderer，它畫不出
+            // transform node，於是 `setGeometricEffect` 選擇拒絕，而 offset、rotationEffect、
+            // scaleEffect 與 transformEffect 在 Win-gtk4 上全是 **no-op**。CLAUDE.md 不允許任何
+            // 功能在已發布的 backend 上維持「不支援」，而 dcomp 正是此功能得以被支援的方式。
+            //
+            // 改動之前於 2026-09-05 實測，P40 搭配 transform 探針：dcomp 關閉時 76,285 個 hotpink
+            // 像素，開啟時為 0，且每一個變換都正確。至於「那是兩支 app，不是一個決定」這項舊有的
+            // 反對意見，已藉由對 P11、P15-DARK 與 P25 各擷取兩次並比對而得到回答：唯一的差異是
+            // cairo 與 GL 兩種 renderer 之間的字形反鋸齒與色彩捨入。P25 起初看來很嚇人——31% 的
+            // 像素相異——直到量了**幅度**：128,510 個相異像素中，僅 711 個差幅超過 8。若只數相異
+            // 像素而不看其大小，這項改動就會被一件根本不存在的事擋下來。
+            let forcedOff = ProcessInfo.processInfo.environment["SCUI_GTK_DCOMP"] == "0"
+            guard !forcedOff, DebugFeatures.gpuSelection >= 1 else { return }
 
             // The guard has to come BEFORE asking, because the failure it
             // prevents is a segmentation fault and there is nothing to catch.
@@ -471,8 +525,39 @@ public final class GtkBackend:
             // 使用 `g_setenv` 而非 `setenv`：後者在 Windows 的 Swift 中不在作用域內，而前者正是
             // GDK 自己會讀回的那一個。
             _ = g_setenv("GDK_DEBUG", value, 1)
+            directCompositionEnabled = true
         #endif
     }
+
+    /// Whether this process asked GDK for Direct Composition and got past every
+    /// guard that would have made asking crash.
+    ///
+    /// Read by ``setGeometricEffect(_:ofWidget:)``, which is the whole reason it
+    /// exists. Without Direct Composition GTK falls back to `GskCairoRenderer`,
+    /// which cannot draw a transform node and paints the subtree hotpink
+    /// instead; with it GTK realises `GskGLRenderer` and draws transforms
+    /// correctly. Those are different behaviours, so the transform path has to
+    /// know which one it is running under.
+    ///
+    /// It records what HAPPENED rather than what was asked for. Three things
+    /// can stop the request after the flag says yes -- an explicit
+    /// `GDK_DISABLE=gl`, no hardware display adapter, and `-GPU 0` -- and each
+    /// leaves GTK on the software renderer. Reading the request instead of the
+    /// outcome would put the transform back on exactly the configurations that
+    /// cannot render it.
+    ///
+    /// 本行程是否向 GDK 要求了 Direct Composition，並通過了所有「若貿然要求就會當機」的守衛。
+    ///
+    /// 由 ``setGeometricEffect(_:ofWidget:)`` 讀取，而那正是它存在的全部理由。沒有 Direct
+    /// Composition 時，GTK 會退回 `GskCairoRenderer`，它畫不出 transform node，並改以 hotpink
+    /// 塗滿該子樹；有了它，GTK 會實作 `GskGLRenderer` 並正確繪出變換。兩者行為不同，因此變換
+    /// 路徑必須知道自己正運行在哪一種之下。
+    ///
+    /// 它記錄的是**實際發生的事**，而非「要求了什麼」。即使旗標為是，仍有三件事會中止該要求——
+    /// 明確設定的 `GDK_DISABLE=gl`、沒有硬體顯示介面卡，以及 `-GPU 0`——而每一種都會讓 GTK
+    /// 留在軟體繪製器上。若讀的是「要求」而非「結果」，就會把變換重新開在那些恰好無法繪製它的
+    /// 組態上。
+    nonisolated(unsafe) private(set) static var directCompositionEnabled = false
 
     #if os(Windows)
         /// Whether Windows reports a display adapter that is not a software one.
