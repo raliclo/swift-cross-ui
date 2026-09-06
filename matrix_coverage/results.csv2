@@ -197,7 +197,7 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-06,android,android,P15,ok,ok,window,"request-the-dark-scheme: 2316472 px changed; content box (0,0)-(1080,2400) (fits)"
 2026-09-06,android,android,P16,ok,ok,window,"select-a-sidebar-row: 55882 px changed; content box (0,0)-(1080,2400) (fits)"
 2026-09-06,android,android,P17,ok,ok,window,"select-the-longest-picker-option: 614505 px changed; content box (-603,-294)-(1686,2756) (603L 606R 294T 356B)"
-2026-09-06,android,android,P18,ok,FAIL-in-batch,window,"open-a-file: 0 px and no replay line in a full batch, twice; 327294 px and a pass when run alone, 4 of 4. Not an intermittent -- it is context-dependent and open; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P18,ok,ok,window,"open-a-file: 327294 px changed. Two batch runs reported zero replayed lines and zero pixels; the cause is the SAF picker P18 opens, which belongs to com.google.android.documentsui, survives the test app's force-stop, stays resumed and swallows the next launch. The harness now force-stops it before every launch"
 2026-09-06,android,android,P19,ok,ok,window,"open-the-flat-menu: 393427 px changed; content box (0,0)-(1080,2400) (fits)"
 2026-09-06,android,android,P20,ok,ok,window,"open-the-nested-menu: 313350 px changed; content box (0,0)-(1080,2400) (fits)"
 2026-09-06,android,android,P21,ok,ok,window,"press-the-disabled-button-then-the-enabled-one: 11793 px changed; content box (0,0)-(1080,4192) (1792B)"

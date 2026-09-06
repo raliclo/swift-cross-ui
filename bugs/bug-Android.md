@@ -64,7 +64,7 @@ P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以�
 
 受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
 
-## Open 2026-09-06: P18 replays alone and does not replay in a batch
+## Fixed 2026-09-06: P18 replayed alone and not in a batch, and it was the file picker
 
 `P18-open-a-file` reports zero replayed lines and zero changed pixels when
 `verify_effect_android.zsh` walks all 46 scenarios, and 327,294 changed pixels
@@ -76,10 +76,30 @@ and three solo passes. Two batches make that wrong: it is deterministic in both
 directions, so something about the batch context stops the replay from starting
 rather than from landing -- `-actionfile: replayed` never appears at all.
 
-What differs in a batch: 45 other apks have been installed and uninstalled, the
-scenario before it in alphabetical order is P17, which opens a picker dropdown,
-and the device has just finished 46 builds. P18 is the file-dialog app, so the
-system DocumentsUI provider is the obvious suspect and is not yet checked.
+**It is the file picker P18 itself opens.** `dumpsys activity activities` after
+a failing launch reports
+`topResumedActivity=com.google.android.documentsui/PickActivity` and `pidof` for
+the test app is empty. The harness stops the test app before each launch, and
+`am force-stop dev.swiftcrossui.testapp.p18` stops exactly that -- the SAF
+picker belongs to another package, survives, stays resumed, and the next launch
+starts behind it and never resumes, so the Swift entrypoint never reaches the
+replay.
+
+Two experiments, one command apart. With the picker on top: zero
+`actionfile: replayed` lines. After `am force-stop com.google.android.documentsui`
+and the identical launch: one, and a pass.
+
+Two earlier explanations were wrong and are worth naming, because both were
+plausible and neither was tested before being written down. "An emulator
+intermittent", from one batch failure and three solo passes -- it is
+deterministic in both directions. And "the scenario before it opens a picker
+dropdown", which pointed at P17: running P17 then P18 replays fine, because
+P17's dropdown is an in-app Spinner and never leaves another package resumed.
+
+Fixed in the harness, not the toolkit: `close_leftover_system_ui` force-stops
+DocumentsUI before every launch in sweep_android.zsh,
+verify_replay_android.zsh and verify_effect_android.zsh. Verified by leaving a
+picker on top on purpose and running the check: 327,294 changed pixels, a pass.
 
 ## 開放中 2026-09-06:P18 單獨執行會重放,在批次中不會
 
@@ -90,9 +110,23 @@ system DocumentsUI provider is the obvious suspect and is not yet checked.
 決定性的,因此是批次的某種情境使該重放**無法開始**,而不是使它落不到東西上——`-actionfile: replayed`
 根本從未出現。
 
-批次中不同的是:已經有 45 個 apk 被安裝與解除安裝、依字母序排在它前面的情境是會開啟下拉選單的 P17、
-而裝置剛完成 46 次建置。P18 是檔案對話框那一支,因此系統的 DocumentsUI provider 是最明顯的嫌疑,
-但尚未查證。
+**成因就是 P18 自己開啟的那個檔案選擇器。** 在一次失敗的啟動之後,`dumpsys activity activities`
+回報 `topResumedActivity=com.google.android.documentsui/PickActivity`,而測試 app 的 `pidof` 是空的。
+harness 在每次啟動前會停止測試 app,而 `am force-stop dev.swiftcrossui.testapp.p18` 停的正是「那一個」
+——SAF 的選擇器屬於另一個套件,它存活下來、維持為 resumed,於是下一次啟動在它後面開始、永遠不會
+resume,Swift 的進入點也就從未走到重放。
+
+兩個實驗,相差一道指令。選擇器在最上層時:零行 `actionfile: replayed`。執行
+`am force-stop com.google.android.documentsui` 之後,以完全相同的方式啟動:一行,而且通過。
+
+先前有兩個錯誤的解釋值得寫下來,因為兩者都合理,而且都是「還沒查證就先寫下」:其一是「模擬器偶發」,
+依據是一次批次失敗與三次單獨通過——但它在兩個方向上都是決定性的。其二是「排在它前面的情境會開啟
+下拉選單」,矛頭指向 P17:實測 P17 接著 P18,重放正常,因為 P17 的下拉是 app 內的 Spinner,
+從不會讓另一個套件維持 resumed。
+
+修在 harness,而非工具組:`close_leftover_system_ui` 會在 sweep_android.zsh、
+verify_replay_android.zsh 與 verify_effect_android.zsh 的每一次啟動前 force-stop DocumentsUI。
+驗證方式是刻意把一個選擇器留在最上層再跑檢查:327,294 個像素改變,通過。
 
 ## Fixed 2026-09-05: a root scroll view that could not scroll
 

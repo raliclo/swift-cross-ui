@@ -100,6 +100,38 @@ count_in_text() {
     print "${n:-0}"
 }
 
+# Close the system UI a previous run may have left on top.
+#
+# `am force-stop <the test app>` stops the test app and nothing else, and the
+# file dialog P18 opens is not the test app: it is
+# `com.google.android.documentsui/PickActivity`, a separate package. It survives
+# the force-stop, stays the resumed activity, and swallows the next launch --
+# the app starts behind it, never resumes, and the Swift entrypoint never
+# reaches the replay.
+#
+# Demonstrated 2026-09-06: with the picker on top, P18 logged zero
+# `actionfile: replayed` lines; `am force-stop com.google.android.documentsui`
+# and the identical command logged one. That is the whole of the "P18 fails in a
+# batch and passes alone" behaviour, which was first written down as an emulator
+# intermittent on the strength of one failure and three passes.
+#
+# 關掉先前執行可能留在最上層的系統介面。
+#
+# `am force-stop <測試 app>` 只會停止該測試 app,而 P18 所開啟的檔案對話框並不是測試 app:它是
+# `com.google.android.documentsui/PickActivity`,屬於另一個套件。它會在 force-stop 之後存活、
+# 維持為 resumed activity,並吞掉下一次啟動——app 會在它後面啟動、永遠不會 resume,而 Swift 的
+# 進入點也就從未走到重放。
+#
+# 2026-09-06 實證:選擇器在最上層時,P18 記錄了零行 `actionfile: replayed`;執行
+# `am force-stop com.google.android.documentsui` 之後,完全相同的指令記錄了一行。這就是
+# 「P18 在批次中失敗、單獨執行則通過」的全部成因——而它最初依據「一次失敗與三次通過」被寫成了
+# 模擬器偶發。
+close_leftover_system_ui() {
+    for leftover in com.google.android.documentsui com.android.documentsui; do
+        "$adb" -s "$serial" shell am force-stop "$leftover" >/dev/null 2>&1
+    done
+}
+
 replayed=0
 silent=0
 missing=0
@@ -122,6 +154,7 @@ for action in $action_files; do
     fi
 
     "$adb" -s "$serial" shell am force-stop "$package" >/dev/null 2>&1
+    close_leftover_system_ui
     "$adb" -s "$serial" install -r -d "$apk" >/dev/null 2>&1
     installed=$?
 
