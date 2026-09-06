@@ -27,7 +27,13 @@ action,x,y,origin,button,key,micros,note,platform
 # The coordinates below were NOT changed: they were measured against the real
 # 748x509 window and still address it.
 #
-# Verify with: python3 -c "import struct;d=open(F,'rb').read();print(struct.unpack('>II',d[16:24]))"
+# Verify a capture's size with ffprobe, which this project already depends on
+# for every screenshot -- screenshot.zsh converts wincap's BMP to PNG with it:
+#   ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+#           -of csv=p=0 <capture.png>          ->  748,509
+#
+# 以 ffprobe 查驗某張擷圖的尺寸；本專案的每一張截圖本來就依賴它——screenshot.zsh 正是用它把
+# wincap 的 BMP 轉成 PNG。
 #
 # 於 2026-09-06 更正。此行原本寫 748x518，而那個數字與任何東西都對不上。座標量測當天所拍的擷圖
 # 仍在磁碟上——P7-b2-win-20260827-090445.png 與 P7-run-win-20260827-094123.png——兩張都是
