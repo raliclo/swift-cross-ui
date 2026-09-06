@@ -461,3 +461,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv: "
 2026-09-07,windows,gtk4,P7,ok,ok,window,P7-list-selection.csv
 2026-09-07,windows,gtk4,P11,ok,-,window,
+2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv"
