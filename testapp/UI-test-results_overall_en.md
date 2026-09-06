@@ -326,9 +326,15 @@ All final screenshots below were measured with PIL. Every final capture was visi
   `child=(0,109,0,0)` with zero child constraints. The modifier's commit sizes
   the container and nothing sizes what is inside it — invisible on GTK, where a
   container sizes its child.
-- Not measured here, and listed rather than guessed: **Android**. No P39 or P40
-  run on AndroidBackend is recorded in `matrix_coverage/results.csv2`, so its
-  cells stay `-`.
+- **Android has since been measured, and this entry was stale.**
+  `matrix_coverage/results.csv2` does hold P39 and P40 rows on AndroidBackend,
+  recorded 2026-09-03, and both were driven again on 2026-09-06 with their
+  action files. Both apps build, launch, replay and render; both have content
+  wider than the phone -- P39's box is (-325,0)-(1407,2400) and P40's is
+  (-320,0)-(1402,2400) -- which was unreachable until the root scroll host was
+  fixed, and is why their earlier captures looked cut off at both edges.
+  Neither action file expects a visible change: each presses one cell and
+  requires the process to survive.
 
 ### P43 gradient fills on macOS and iOS
 
@@ -362,9 +368,12 @@ All final screenshots below were measured with PIL. Every final capture was visi
   blue, and the stroked circle is a ring with an empty middle** — the last being
   the case P43 notes no backend was testing, GtkBackend included. Captures
   `p43-macos-gradient-fills.png` and `p43-ios-gradient-fills.png`.
-- **AndroidBackend still takes the flattening default** and is recorded as a
-  known gap, not as untested: it draws a plausible flat shape and logs once.
-  Closing it needs a machine that can build and run Android.
+- **AndroidBackend implements it too, and this entry was stale.**
+  `Sources/AndroidBackend/AndroidBackend+PathGradients.swift` overrides
+  `renderPath(…fillStyle:)`; it no longer takes the flattening default. Measured
+  on `p43-android-final-20260906-022713.png`: 9,885 red and 14,959 blue pixels
+  in the gradient shapes, beside 19,410 green in the flat control. A flattened
+  fill would have been one colour per shape and no ramp at all.
 
 ### NavigationSplitView on iPhone
 

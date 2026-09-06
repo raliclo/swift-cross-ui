@@ -187,7 +187,30 @@ print(px, max(x[1] for x in d.getextrema()), d.getbbox() or "none")
 PY
 )"
 
-    if [ "${px:-0}" -gt 2000 ]; then
+    # 100, and it sits in a gap rather than in a guess.
+    #
+    # The threshold was 2000 and it called two passes failures. P23 changes
+    # "rows: 8" to "rows: 12" and P28 changes "received: 0" to "received: 1":
+    # 884 and 517 pixels, because a digit is small. Across all 46 scenarios the
+    # measured distribution is bimodal -- the ones that change nothing report
+    # exactly 0 with no bounding box, and the smallest real change is 517 -- so
+    # any number between 1 and 500 separates them. 100 is in the middle of a gap
+    # of 517, where 2000 was inside the data.
+    #
+    # Same error as the release-plain probe in test_rootscroll_android.zsh: a
+    # threshold has to be chosen from the distribution, not from a round number.
+    #
+    # 用 100,而且它落在空隙裡,不是猜出來的。
+    #
+    # 這個門檻原本是 2000,而它把兩次通過判成了失敗。P23 把 "rows: 8" 改成 "rows: 12"、P28 把
+    # "received: 0" 改成 "received: 1":分別是 884 與 517 個像素,因為一個數字就是這麼小。在全部 46 個
+    # 情境上,實測的分佈是雙峰的——不改變任何東西的那些回報的是恰好 0 且沒有 bounding box,而最小的
+    # 真實改變是 517——因此 1 到 500 之間的任何數字都能把兩者分開。100 位於一個 517 寬的空隙中央,
+    # 而 2000 落在資料之內。
+    #
+    # 與 test_rootscroll_android.zsh 裡那個 release-plain 探測器是同一個錯誤:門檻必須從分佈中選出,
+    # 而不是從一個整數選出。
+    if [ "${px:-0}" -gt 100 ]; then
         verdict="action file changed the screen"; changed=$((changed+1))
     elif [ "${px:-0}" -lt 0 ]; then
         verdict="could not compare"; failed=$((failed+1))
