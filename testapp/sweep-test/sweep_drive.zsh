@@ -485,11 +485,18 @@ for app in $apps; do
         # Without it those rows are indistinguishable in the history.
         # 動作檔名寫入 CSV 的 note 欄，因為 `app` 欄放不下它，而現在有數支 app 每次執行會貢獻不只
         # 一列。少了它，那些資料列在歷史中就無從分辨。
-        csv_note="${file_label:+$file_label: }$note"
+        csv_note="${file_label}${note:+${file_label:+: }$note}"
         printf '%-30s %-8s %-9s %-9s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
-        printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
+        # Same rule as the other write site below: bare comma for an empty note,
+        # because that is what csv2 emits and results.csv2 is line-merged across
+        # two machines. See the comment there for the measurement.
+        # 與下方另一個寫入點同一規則：note 為空時寫裸逗號，因為那是 csv2 的輸出形式，而
+        # results.csv2 是在兩台機器之間逐行合併的。量測依據見該處註解。
+        note_field=""
+        [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
+        printf '%s,%s,%s,%s,%s,%s,%s,%s\n' \
             "$run_date" "$platform" "$label" "$app" \
-            "$launch" "$replay" "$capture" "${csv_note//\"/\"\"}" \
+            "$launch" "$replay" "$capture" "$note_field" \
             >> "$results"
         break
     fi
@@ -836,7 +843,7 @@ for app in $apps; do
         fi
     fi
 
-    csv_note="${file_label:+$file_label: }$note"
+    csv_note="${file_label}${note:+${file_label:+: }$note}"
     printf '%-30s %-8s %-9s %-9s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
 
     # Appended so the matrix has evidence with a date on it. A hand-maintained
@@ -854,9 +861,35 @@ for app in $apps; do
     #
     # 依 RFC 4180 以 `""` 進行跳脫，因為 `note` 經常含有逗號——而「用 `,` 切 CSV」正是 `csv2` 在本
     # 專案中存在的目的所要阻止的事。
-    printf '%s,%s,%s,%s,%s,%s,%s,"%s"\n' \
+    # QUOTE THE NOTE ONLY WHEN THERE IS ONE, because csv2 spells an empty field
+    # as a bare comma and this script was spelling it `""`.
+    #
+    # Both are valid CSV and both read back as empty, but they are DIFFERENT
+    # STRINGS, and results.csv2 is merged between two machines by comparing
+    # lines. On 2026-09-07 a rebase of this branch onto the Mac side reported 64
+    # rows as new that were the same rows already present, differing only in
+    # that spelling -- and a naive union would have doubled every one of them in
+    # the history the coverage matrix is computed from.
+    #
+    # csv2 is the authority and it was asked: appending a row with an empty last
+    # field produces `5,6,`. The bare comma is the convention; this script was
+    # the odd one out because it formats the row with printf instead of going
+    # through csv2, and hard-coded the quotes into the format string.
+    #
+    # 只有在 note 非空時才加引號——因為 csv2 把空欄位寫成裸逗號，而本腳本一直寫成 `""`。
+    #
+    # 兩者都是合法的 CSV，讀回來也都是空值，但它們是**不同的字串**；而 results.csv2 是靠逐行比對
+    # 在兩台機器之間合併的。2026-09-07，把本分支 rebase 到 Mac 那一側時，有 64 列被回報為新增，
+    # 而它們其實就是已經存在的同一批列，差別僅在這個寫法——若照單全收做聯集，覆蓋率矩陣所依據的
+    # 歷史中，那 64 列每一列都會被算成兩次。
+    #
+    # csv2 才是權威，而它已經被問過了：追加一列、最後一欄為空，它寫出的是 `5,6,`。裸逗號才是慣例；
+    # 本腳本之所以是異類，是因為它用 printf 拼出資料列而不是經由 csv2，並把引號寫死在格式字串裡。
+    note_field=""
+    [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
+    printf '%s,%s,%s,%s,%s,%s,%s,%s\n' \
         "$run_date" "$platform" "$label" "$app" \
-        "$launch" "$replay" "$capture" "${csv_note//\"/\"\"}" \
+        "$launch" "$replay" "$capture" "$note_field" \
         >> "$results"
     break
     done

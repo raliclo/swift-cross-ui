@@ -366,3 +366,7 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-06,windows,gtk4,P24,ok,ok,window,"P24-push-one-level.csv: no measured size in the action file -- geometry unchecked"
 2026-09-06,windows,gtk4,P25,ok,-,window,""
 2026-09-06,windows,gtk4,P26,ok,ok,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
+2026-09-07,windows,gtk4,P31,ok,ASTRAY,window,"P31-tab-and-escape.csv: clicks hit 0x000000000001025e"
+2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv: "
+2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv"
+2026-09-07,windows,gtk4,P11,ok,-,window,
