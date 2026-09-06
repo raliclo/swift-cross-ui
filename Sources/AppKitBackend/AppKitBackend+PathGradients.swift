@@ -185,22 +185,58 @@ func cgPath(of path: NSBezierPath) -> CGPath {
     var points = [NSPoint](repeating: .zero, count: 3)
 
     for index in 0..<path.elementCount {
-        switch path.element(at: index, associatedPoints: &points) {
+        let element = path.element(at: index, associatedPoints: &points)
+        switch element {
             case .moveTo:
                 result.move(to: points[0])
             case .lineTo:
                 result.addLine(to: points[0])
             case .curveTo:
+                // Also `.cubicCurveTo`: the SDK declares
+                // `NSBezierPathElementCurveTo = NSBezierPathElementCubicCurveTo`,
+                // one raw value with two spellings, the newer one available only
+                // from macOS 14. Swift treats them as two cases and asks for
+                // both, but this package deploys to macOS 11 and cannot name the
+                // newer one outside an availability check. The older spelling
+                // matches the same value on every version.
+                // 這同時也是 `.cubicCurveTo`：SDK 宣告的是
+                // `NSBezierPathElementCurveTo = NSBezierPathElementCubicCurveTo`，同一個 raw
+                // value、兩種寫法，較新的那個僅自 macOS 14 起可用。Swift 視它們為兩個 case 並要求
+                // 兩者都寫，但本套件部署至 macOS 11，無法在 availability 檢查之外指名較新的那個。
+                // 較舊的寫法在每一個版本上都對應到同一個值。
                 result.addCurve(to: points[2], control1: points[0], control2: points[1])
             case .closePath:
                 result.closeSubpath()
-            @unknown default:
-                // macOS 14 added `.quadraticCurveTo`, and `applyActions` emits
-                // it there rather than converting a quadratic to a cubic -- so
-                // this arm is reached on every current Mac, not on none of them.
-                // macOS 14 新增了 `.quadraticCurveTo`，而 `applyActions` 在該版本上會直接輸出它，
-                // 不再把二次曲線轉成三次——因此這個分支在現今每一台 Mac 上都會走到，而非永不執行。
-                if #available(macOS 14, *) {
+            default:
+                // `.quadraticCurveTo`, macOS 14 and later, where `applyActions`
+                // emits quadratics instead of converting them to cubics -- so
+                // this arm runs on every current Mac rather than on none.
+                //
+                // Named rather than assumed. This was `@unknown default` with an
+                // unconditional `addQuadCurve`, which was right only because
+                // `.curveTo` above already absorbs the cubic case; had it not,
+                // every cubic would have been rebuilt as a quadratic through
+                // points[0] and points[1] and the stroke outline would have been
+                // quietly wrong. A future element type now falls through
+                // untouched instead of being bent into a quadratic.
+                //
+                // `default` and not `@unknown default`, because the case this
+                // arm is for is a known one that cannot be spelled at this
+                // deployment target; `@unknown default` asks the compiler for a
+                // warning naming exactly the cases that cannot be written.
+                //
+                // `.quadraticCurveTo`，macOS 14 起。在該版本上 `applyActions` 會直接輸出二次曲線
+                // 而不再轉成三次——因此這個分支在現今每一台 Mac 上都會走到，而非永不執行。
+                //
+                // 這裡是指名，而非假設。此處原本是 `@unknown default` 加上無條件的 `addQuadCurve`；
+                // 那之所以正確，只是因為上方的 `.curveTo` 已經吸收了三次曲線那個 case——若不然，
+                // 每一條三次曲線都會被以 points[0] 與 points[1] 重建成二次曲線，描邊外框會靜默地
+                // 出錯。現在，未來新增的 element 型別會原樣通過，而不是被硬掰成二次曲線。
+                //
+                // 使用 `default` 而非 `@unknown default`，因為本分支所服務的是一個「已知但在此
+                // 部署目標下無法寫出名字」的 case；`@unknown default` 會要求編譯器對「恰好就是那些
+                // 寫不出來的 case」發出警告。
+                if #available(macOS 14, *), element == .quadraticCurveTo {
                     result.addQuadCurve(to: points[1], control: points[0])
                 }
         }

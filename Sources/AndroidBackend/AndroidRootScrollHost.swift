@@ -51,48 +51,48 @@ import SwiftJava
 /// 溢出的地方。若清空依然發生，則成因在別處——而本機制仍然值得保留，理由與 UIKitBackend 相同。
 enum AndroidRootScrollHost {
     /// Wraps `content` so that it can be larger than the window in either
-    /// direction.
+    /// direction, and offers the two ways of looking at it.
     ///
-    /// A `HorizontalScrollView` around a `ScrollView` is how Android is scrolled
-    /// in two directions; neither does both. The outer one is horizontal
-    /// because that is the axis this tree's content overflows on -- desktop
-    /// widths on a phone -- so a horizontal drag is the one that reaches the
-    /// gesture first.
+    /// The construction lives in `RootScrollHost.kt`. It was written here in
+    /// Swift first, and the version that lived here was wrong in a way this
+    /// file's own comment could not see: it added the content with
+    /// `MATCH_PARENT` in both axes, which pins a scroll view's child to exactly
+    /// the viewport and leaves nothing to scroll. Measured on 2026-09-05, both
+    /// scroll views reported `scrollable=false` on P35, P39, P41 and P43, and a
+    /// 900-pixel swipe on P35 moved zero pixels.
     ///
-    /// `fillViewport` on both, or a child smaller than the screen is laid out at
-    /// its own size and floats at the top left instead of filling the window,
-    /// which would change every existing Android screenshot for the apps that
-    /// do fit.
+    /// Moved to Kotlin rather than fixed in place, because what actually closes
+    /// the gap is measuring the laid-out subtree -- reading `x`, `y`, `width`
+    /// and `height` off every descendant and taking the union including the
+    /// negative half -- and then re-laying out around it. That is a `ViewGroup`
+    /// with its own `onMeasure` and `onLayout`, and a draggable control on top
+    /// of it, none of which is expressible as a call sequence from here.
     ///
-    /// 包裹 `content`，使它在任一方向上都可以大於視窗。
+    /// 包裹 `content`，使它在任一方向上都可以大於視窗，並提供觀看它的兩種方式。
     ///
-    /// 「`HorizontalScrollView` 包住 `ScrollView`」是 Android 達成雙向捲動的方式；兩者都不會自己
-    /// 做兩個方向。外層採用水平，因為那正是本樹內容溢出的軸向——手機上的桌面寬度——因此水平拖曳會
-    /// 先接到手勢。
+    /// 實際的構造位於 `RootScrollHost.kt`。它原本是以 Swift 寫在此處的，而那個版本錯在一個「本檔
+    /// 自己的註解看不見」的地方：它以兩軸皆 `MATCH_PARENT` 加入內容，而那會把捲動視圖的子元件釘死在
+    /// 視口大小上，於是沒有任何東西可捲。2026-09-05 實測：P35、P39、P41、P43 上兩層捲動視圖都回報
+    /// `scrollable=false`，而在 P35 上滑動 900 像素，畫面一個像素也沒有改變。
     ///
-    /// 兩者都設定 `fillViewport`，否則比螢幕小的子元件會以它自己的尺寸排版並浮在左上角，而不是填滿
-    /// 視窗；那會改變所有「本來就塞得下」的 app 的既有截圖。
+    /// 之所以搬到 Kotlin 而不是就地修正，是因為真正填補這個缺口的做法是「量測已排版的子樹」——讀取
+    /// 每一個後代的 `x`、`y`、`width`、`height` 並取其聯集（含負的那一半）——然後圍繞該結果重新排版。
+    /// 那需要一個具備自身 `onMeasure` 與 `onLayout` 的 `ViewGroup`，其上再加一個可拖曳的控制項，
+    /// 而這些都無法以「從此處發出的一串呼叫」來表達。
     static func wrap(
         _ content: AndroidView.View,
         activity: Activity,
-        environment: JNIEnvironment?
+        environment: JNIEnvironment?,
+        showModeControl: Bool
     ) -> AndroidView.View {
-        let matchParent = try! JavaClass<ViewGroup.LayoutParams>().MATCH_PARENT
-
-        let vertical = AndroidWidget.ScrollView(activity, environment: environment)
-        vertical.setFillViewport(true)
-        vertical.addView(
-            content,
-            ViewGroup.LayoutParams(matchParent, matchParent, environment: environment)
+        let host = RootScrollHost(
+            activity.as(AndroidContent.Context.self),
+            environment: environment
         )
-
-        let horizontal = AndroidWidget.HorizontalScrollView(activity, environment: environment)
-        horizontal.setFillViewport(true)
-        horizontal.addView(
-            vertical.as(AndroidView.View.self)!,
-            ViewGroup.LayoutParams(matchParent, matchParent, environment: environment)
-        )
-
-        return horizontal.as(AndroidView.View.self)!
+        host.host(content)
+        if showModeControl {
+            host.installModeButton(activity)
+        }
+        return host.as(AndroidView.View.self)!
     }
 }

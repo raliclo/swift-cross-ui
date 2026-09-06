@@ -33,7 +33,17 @@ Usage: ${script_path:t} <Pn> [--no-build] [--actionfile [path]] [--showtime seco
 Usually reached as: zsh testapp/test.zsh <Pn> --android
 That uses the same flags as every other platform.
 
-Default: compile and bundle a fresh Android APK, then install and launch it.
+Default: compile and bundle a fresh Android APK in RELEASE, then install and
+launch it. `--debug-build` uses debug instead.
+
+Release is the default because Android was the only platform here that was not:
+compile.zsh has used release everywhere else all along, and the debug default
+cost 28 MB per APK -- 154 against 126, measured on P43 2026-09-05 -- for an
+optimisation setting nothing was reading. `SCUI_DEBUG` is a separate thing and
+still works: it is a compilation condition, not a build configuration, so
+action-file replay and `--debug` diagnostics are available in both. Verified in
+release on P43: the gradients measure what they did in debug and the replay
+still reports `replayed P43-actions.csv`.
 --no-build: reuse testapp/.androidApk/<Pn>.apk and skip compile/bundle.
             Aliases: -noApk, --no-apk.
 --actionfile: replay an Android action file after launch; without a path, use
@@ -66,6 +76,10 @@ while [ "$#" -gt 0 ]; do
         # test_common.zsh 交付過來的形式。原本的 `-noApk` 與 `-replay` 保留為別名，讓任何直接
         # 呼叫本腳本的既有做法仍然可用。
         -n|--no-build|-noApk|--no-apk) do_apk=0; shift ;;
+        # Release is the default here, as it is for every other platform in
+        # compile.zsh, and this is the way back to a debug build.
+        # 此處預設為 release，與 compile.zsh 中其他所有平台相同；本旗標是回到 debug 建置的方式。
+        --debug-build) BUILD_CONFIG=debug; shift ;;
         --actionfile|-replay|--replay)
             if [ "$#" -gt 1 ] && [[ "$2" != -* ]]; then
                 action_file="$2"
@@ -113,6 +127,49 @@ elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundl
     bundler_bin="$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler"
 else
     bundler_bin="$repo_root/swift-bundler"
+fi
+
+# The strip is default, and this is what makes "default" mean something.
+#
+# `.swift_ast` is removed from the packaged library by a patch this tree keeps
+# against Vendor/swift-bundler -- 43 MB off every APK, 212 down to 169. A
+# bundler built without that patch produces a correct APK that is simply larger,
+# so nothing fails and nobody notices until the download doubles. That is the
+# shape of failure this project spends the most effort refusing.
+#
+# The marker is the flag's own name, which only exists in a patched build. If it
+# is missing, say so once and carry on: a fat APK is still a testable APK, and
+# stopping the run would make a size optimisation into a blocker.
+#
+# 剝除是預設行為，而這一段正是讓「預設」這個詞有意義的東西。
+#
+# `.swift_ast` 是由本樹針對 Vendor/swift-bundler 所保存的一份 patch，從打包的 library 中移除的
+# ——每支 APK 少 43 MB，由 212 降到 169。一個未套用該 patch 的 bundler 會產生完全正確、只是比較大的
+# APK，因此不會有任何東西失敗，也不會有人發現，直到下載量翻倍為止。那正是本專案最不遺餘力拒絕的
+# 那種失敗形狀。
+#
+# 此處的標記是那個旗標自己的名稱，它只存在於已套用 patch 的建置中。若它不存在，就說一次然後繼續：
+# 一個肥大的 APK 仍然是可測試的 APK，而中止執行會把一項體積最佳化變成一道阻礙。
+# `grep -c` into a variable, not `grep -q` in a condition. Under this script's
+# `set -o pipefail`, `grep -q` exits as soon as it matches, `strings` takes
+# SIGPIPE, the pipeline reports failure, and the `!` turns that into the warning
+# it was meant to suppress. The first version of this check fired on a bundler
+# that did carry the marker -- the test manufactured the fault it was looking
+# for.
+#
+# 使用 `grep -c` 並存進變數，而不是在條件式中使用 `grep -q`。在本腳本的 `set -o pipefail` 之下，
+# `grep -q` 一旦命中就會結束，`strings` 收到 SIGPIPE，整條管線回報失敗，而 `!` 又把它轉成了它本該
+# 抑制的那則警告。這項檢查的第一版，正是在一個確實帶有該標記的 bundler 上觸發的——那個測試自己
+# 製造了它所要尋找的故障。
+strip_marker=$(strings "$bundler_bin" 2>/dev/null | grep -c "SCUI_KEEP_SWIFT_AST") || strip_marker=0
+if [ "${strip_marker:-0}" -eq 0 ]; then
+    printf '%s\n' \
+        "==> WARNING: this swift-bundler does not strip .swift_ast." \
+        "    Every APK it builds will be about 43 MB larger than it needs to be." \
+        "    Fix with: bash Scripts/build-android-bundler.sh" \
+        "==> 警告：這個 swift-bundler 不會剝除 .swift_ast。" \
+        "    它所建置的每一支 APK 都會比必要大小多出約 43 MB。" \
+        "    修正方式：bash Scripts/build-android-bundler.sh" >&2
 fi
 # 31, matching compile.zsh and androidContainer/Bundler.android.toml.
 #
@@ -256,7 +313,7 @@ if [ "$do_apk" -eq 1 ]; then
         cd "$package_dir"
         SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
-            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-debug}" \
+            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-release}" \
                 --toolchain "${swift_bin:h:h:h}" \
                 --scratch-path "$bundler_scratch" \
                 --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"
@@ -299,7 +356,23 @@ if [[ "$device_name" == emulator-* ]]; then
     serial="$device_name"
 else
     print "==> Booting Android AVD: $device_name"
-    "$emulator" -avd "$device_name" -no-snapshot -no-boot-anim >/dev/null 2>&1 &
+    # `-no-metrics`, or the emulator can block before it ever boots.
+    #
+    # Measured 2026-09-05: `emulator -avd ... -no-snapshot -no-boot-anim` logged
+    # "Showing crashdialog to get consent." and then sat there. `adb devices`
+    # stayed empty, the sixty-second wait below expired, and the failure read
+    # "Android emulator did not appear in adb devices" -- which sounds like a
+    # boot that was too slow rather than a modal dialog waiting for a click that
+    # a headless run will never give it.
+    #
+    # 加上 `-no-metrics`，否則模擬器可能在啟動之前就卡住。
+    #
+    # 2026-09-05 實測：`emulator -avd ... -no-snapshot -no-boot-anim` 記錄了
+    # 「Showing crashdialog to get consent.」然後就停在那裡。`adb devices` 一直是空的，下方的六十秒
+    # 等待逾時，而失敗訊息是「Android emulator did not appear in adb devices」——那聽起來像是啟動太慢，
+    # 而不是「一個模態對話框正在等一次點擊，而無人值守的執行永遠不會給它」。
+    "$emulator" -avd "$device_name" -no-snapshot -no-boot-anim -no-metrics \
+        >/dev/null 2>&1 &
     serial=""
     for _ in {1..60}; do
         serial="$($adb devices | awk '/^emulator-[0-9]+[[:space:]]+/{print $1; exit}')"
@@ -442,7 +515,42 @@ else
 fi
 
 print "==> Launched $package_id on $serial"
-sleep 1
+
+# Five seconds before the first capture, not one.
+#
+# One second is the number the other platforms use, and on Android it
+# photographs the wrong thing. A cold start here has to bring up the JVM, load
+# libswiftCore, Foundation and ICU, run `AndroidBackend_entrypoint` through JNI
+# and then lay out; the apps log RENDER COMPLETE at around six seconds. A
+# one-second capture can therefore photograph the launch splash instead of the
+# app: `p13-android-1s-20260905-113746.png` is 97.6% white with a green Android
+# robot and nothing else. One of 174 captures on 2026-09-05, so it is rare on a
+# warm emulator and not rare enough to leave to chance.
+#
+# It also broke a check built on top of it. Comparing the `-1s-` and `-final-`
+# captures was meant to show what the action file changed, and under
+# `--no-showtime` the two are taken back to back: forty of forty-five apps
+# differed by exactly zero pixels, same timestamp, same md5. One photograph
+# compared with itself. The gap has to be real for the pair to mean anything.
+#
+# The name stays `-1s-`. It is in every existing filename and in the comparisons
+# written against them, and renaming it would silently split the history in two.
+# 是 5 秒,不是 1 秒。
+#
+# 1 秒是其他平台使用的數字,而在 Android 上它拍到的是錯的東西。此處的冷啟動必須先起 JVM、載入
+# libswiftCore、Foundation 與 ICU、透過 JNI 執行 `AndroidBackend_entrypoint`,然後才排版;這些 app
+# 大約在六秒左右記錄 RENDER COMPLETE。因此 1 秒的擷取有可能拍到啟動畫面而不是 app:
+# `p13-android-1s-20260905-113746.png` 有 97.6% 是白色,畫面上只有一個綠色的 Android 機器人。
+# 2026-09-05 的 174 張擷取中出現一次——在熱的模擬器上算罕見,但沒有罕見到可以交給運氣。
+#
+# 它同時也弄壞了一個建立在其上的檢查。比對 `-1s-` 與 `-final-` 兩張擷取,原意是顯示動作檔改變了
+# 什麼;而在 `--no-showtime` 之下,這兩張是連續拍下的:四十五支中有四十支的差異恰好是零像素、
+# 時間戳相同、md5 相同。那是拿一張照片跟它自己比。這一對要有意義,中間的間隔就必須是真的。
+#
+# 名稱維持 `-1s-`。它出現在每一個既有檔名、以及依據那些檔名所寫的比對之中,重新命名會靜默地把
+# 歷史一分為二。
+first_capture_seconds="${ANDROID_FIRST_CAPTURE_SECONDS:-5}"
+sleep "$first_capture_seconds"
 capture "${app_id}-android-1s"
 
 if [ "$showtime_seconds" -gt 0 ]; then

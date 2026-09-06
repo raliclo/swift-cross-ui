@@ -307,8 +307,11 @@
   都是空白；只加左邊與上邊仍是空白；探針讀到 `container=(0,0,200,109)` 對上
   `child=(0,109,0,0)`，且子元件沒有任何 constraint。modifier 的 commit 只設定容器的尺寸，沒有
   任何東西為容器內部的元件設定尺寸——這在 GTK 上看不見，因為那裡是容器決定子元件的尺寸。
-- 此處未量測、且僅列出而不猜測的是：**Android**。`matrix_coverage/results.csv2` 中沒有任何
-  AndroidBackend 上的 P39 或 P40 執行紀錄，因此其欄位維持 `-`。
+- **Android 後來已經量測過，這一條已經過時。** `matrix_coverage/results.csv2` 中確實有
+  AndroidBackend 上的 P39 與 P40 紀錄，記於 2026-09-03；兩者並於 2026-09-06 再次以其動作檔驅動。
+  兩支都能建置、啟動、重放並算繪；兩支的內容都比手機寬——P39 的內容框是 (-325,0)-(1407,2400)、
+  P40 是 (-320,0)-(1402,2400)——而在 root scroll host 修好之前那部分是碰不到的，這也是它們先前的
+  截圖左右兩側看起來被切掉的原因。兩份動作檔都不預期畫面改變：各按一個格子，要求行程存活。
 
 ### P43 的漸層填充於 macOS 與 iOS
 
@@ -334,8 +337,11 @@
   跑到藍，而描邊圓形是一個中間空心的環**——最後一項正是 P43 自己指出「沒有任何 backend 在測」的
   情況，連 GtkBackend 也不例外。擷取影像為 `p43-macos-gradient-fills.png` 與
   `p43-ios-gradient-fills.png`。
-- **AndroidBackend 仍取用壓平的預設實作**，因此記為已知缺口而非未測試：它會畫出一個看似合理的
-  平面形狀，並記錄一次警告。要關閉它需要一台能建置並執行 Android 的機器。
+- **AndroidBackend 也已實作，這一條已經過時。**
+  `Sources/AndroidBackend/AndroidBackend+PathGradients.swift` 覆寫了
+  `renderPath(…fillStyle:)`，它不再取用壓平的預設實作。以
+  `p43-android-final-20260906-022713.png` 實測：漸層形狀中有 9,885 個紅色與 14,959 個藍色像素，
+  旁邊的平面對照則有 19,410 個綠色像素。若是壓平的填充，每個形狀就會是單一顏色、完全沒有漸層。
 
 ### iPhone 上的 NavigationSplitView
 

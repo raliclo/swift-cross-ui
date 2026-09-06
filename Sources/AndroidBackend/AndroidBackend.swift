@@ -1,4 +1,5 @@
 import Android
+import DebugFeatures
 import Foundation
 import InputEvent
 @_spi(Backends) import SwiftCrossUI
@@ -59,6 +60,34 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
         AndroidBackend.stderrPipe.fileHandleForWriting.fileDescriptor,
         FileHandle.standardError.fileDescriptor
     )
+
+    // Line buffering, or `print` reaches logcat only in 4 KB instalments.
+    //
+    // C stdio picks its buffering from what the descriptor is: a terminal gets
+    // line buffering, anything else gets a full 4 KB buffer. The `dup2` above
+    // makes stdout a pipe, so from that call onwards `print` writes into a
+    // buffer that is flushed when it fills, when the process exits, or never --
+    // and an app killed with `am force-stop`, which is how every test here
+    // ends, never flushes.
+    //
+    // stderr is unbuffered by the C standard and needs nothing, which is why
+    // `InputEvent`'s `-actionfile:` lines have always appeared while the test
+    // apps' own `print` output has not. That asymmetry was recorded as "an
+    // Android app's print does not reach logcat" and taken as a platform
+    // limitation; it is four lines of buffering.
+    //
+    // 設為行緩衝，否則 `print` 只會以 4 KB 為單位分批抵達 logcat。
+    //
+    // C stdio 是依「該描述子是什麼」來決定緩衝方式的：終端機得到行緩衝，其他一切得到完整的 4 KB
+    // 緩衝區。上方的 `dup2` 使 stdout 成為一條 pipe，因此自該次呼叫起，`print` 寫入的是一個
+    // 「緩衝區滿了才沖、行程結束才沖，或者永遠不沖」的緩衝區——而一個以 `am force-stop` 終結的
+    // app（此處每一次測試都是這樣結束的）永遠不會沖。
+    //
+    // stderr 依 C 標準是無緩衝的，不需要任何處理——這正是為什麼 `InputEvent` 的 `-actionfile:`
+    // 各行一直都看得到，而測試 app 自身的 `print` 輸出卻看不到。那個不對稱曾被記錄為「Android app
+    // 的 print 到不了 logcat」並當成平台限制；它其實是四行緩衝設定。
+    setvbuf(stdout, nil, _IOLBF, 0)
+    setvbuf(stderr, nil, _IONBF, 0)
 
     // Arguments from the launching intent rather than none at all.
     //
@@ -124,6 +153,18 @@ public final class AndroidBackend: BaseAppBackend {
     // `.phone`，因此此處持有的是 phone 的清單——而它原本並非如此，這正是為何「只在
     // `computeRootEnvironment` 中為 phone 宣告 `.graphical`」還不夠。P41 依然死在
     // `DatePickerStyleModifier` 的 assert 上，而那次讀取發生在本值仍是佔位值的時候。
+    // Computed in `init()` rather than left constant: `.floating` needs an
+    // overlay permission the user grants in Settings, and a list that claimed
+    // it on a device where they said no would be a promise this backend cannot
+    // keep. `EnvironmentValues` captures the list once and before
+    // `computeRootEnvironment`, which is why `init()` and not there.
+    //
+    // 在 `init()` 中計算，而非保持為常數：`.floating` 需要一項由使用者在「設定」中授予的 overlay
+    // 權限，而在使用者拒絕的裝置上仍宣稱擁有它的清單，會是這個 backend 兌現不了的承諾。
+    // `EnvironmentValues` 只擷取該清單一次，且早於 `computeRootEnvironment`，這正是它放在 `init()`
+    // 而不放在那裡的原因。
+    let _supportedWindowLevels = Mutex<[WindowLevel]>([.automatic, .normal])
+
     private let _supportedDatePickerStyles = Mutex<[BackendDatePickerStyle]>(
         [.automatic, .compact, .graphical, .wheel]
     )
@@ -182,6 +223,13 @@ public final class AndroidBackend: BaseAppBackend {
         // `resolveDeviceClass`.
         // 在任何東西讀取 `supportedDatePickerStyles` 之前。見 `resolveDeviceClass` 的說明。
         resolveDeviceClass()
+
+        _supportedWindowLevels.withLock { levels in
+            levels =
+                helpers.canFloat(Self.activity)
+                ? [.automatic, .normal, .floating]
+                : [.automatic, .normal]
+        }
 
         let fragmentActivity = Self.activity.as(FragmentActivity.self)!
 
@@ -287,11 +335,22 @@ public final class AndroidBackend: BaseAppBackend {
         // measurement behind it.
         // 放進捲動視圖中，而不是直接設為 content view。此舉的用途與其背後的量測，見
         // `AndroidRootScrollHost`。
+        //
+        // `allowsRootScrollControl`, not `isEnabled`. `isEnabled` also requires
+        // `--debug` on the command line, and it is the same distinction
+        // UIKitBackend draws: this flag does not switch diagnostics on, it makes
+        // an existing piece of interface visible, and a release build is exactly
+        // where you cannot rebuild to see it.
+        //
+        // 使用 `allowsRootScrollControl` 而非 `isEnabled`。`isEnabled` 還要求命令列上有 `--debug`，
+        // 而此處的區別與 UIKitBackend 所劃的是同一個：這個旗標並不開啟任何診斷功能，它只是讓一個既有的
+        // 介面元件變為可見；而 release 建置恰恰是「無法靠重新建置來看見它」的那種建置。
         Self.activity.setContentView(
             AndroidRootScrollHost.wrap(
                 container,
                 activity: Self.activity,
-                environment: Self.env
+                environment: Self.env,
+                showModeControl: DebugFeatures.allowsRootScrollControl
             )
         )
         window.content = container

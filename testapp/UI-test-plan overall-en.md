@@ -61,6 +61,118 @@ there is no `P6-v2-WinUI.exe`.
 - Automated dry-runs through `zsh testapp/test.zsh Pn --both` run WSLg first, then Windows. They keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
 - Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
 
+## Android: Four Things To Check, And What Each One Proves
+
+Android is driven by `test_android.zsh` for a single app and `sweep_android.zsh`
+for the whole set. Neither of those, on its own, answers "did the test run".
+They stack, and the reason this section exists is that on 2026-09-05 a sweep
+reported 46 of 46 apps passing while the strongest claim the evidence supported
+was that 46 processes had started.
+
+| Stage | Script | What it proves | What it does **not** prove |
+| --- | --- | --- | --- |
+| Build and launch | `sweep_android.zsh` | The APK built, installed, and the activity started | Nothing about the action file |
+| The file arrived | the same run's log | `==> Pushing …csv -> /data/local/tmp/…` and the intent extra was sent | That a single event was replayed |
+| The replay ran | `verify_replay_android.zsh` | `-actionfile: replayed <name>` reached logcat, naming this app's file | That the events landed on anything |
+| Something changed | `verify_effect_android.zsh` | The app looks different from the same app launched with no action file | Which widget changed, unless you read the diff |
+
+**The third does not imply the fourth.** `FAQ.md` records a run that logged
+`action file replayed` while the screen still read `last action -> nothing yet`.
+Two attempts to check the fourth stage were written before one worked:
+
+- grepping logcat for `last action ->` matched zero apps, because that text is
+  drawn on screen and never logged;
+- comparing each app's `-1s-` and `-final-` captures gave exactly zero differing
+  pixels for 40 of 45, because under `--no-showtime` those two captures are
+  taken back to back and carry the same timestamp and the same md5.
+
+Both are the same failure: **a check that cannot produce a positive is not a
+check.** Before trusting one, make it fail on purpose.
+
+### Reading a "no effect" result
+
+Twelve of the 46 action files are not supposed to change anything -- they press
+an inert label or a disabled control and require the process to survive. For
+those, zero changed pixels is the pass. The verdict has to come from the action
+file's own `note`, and even that has to be read rather than pattern-matched: a
+note can say "the process must survive" in one clause and require a counter to
+increment in the next, which is why six apps were misfiled the first time a
+regular expression was pointed at those notes.
+
+### Thresholds
+
+The effect check counts changed pixels, and its threshold has to sit in a gap in
+the measured distribution rather than on a round number. The scenarios that
+change nothing report exactly 0 with no bounding box; the smallest real change
+is 517 pixels, because P28 turns `received: 0` into `received: 1` and a digit is
+small. A threshold of 2000 called two passes failures. It is 100.
+
+### The screenshots
+
+The first capture is taken **five seconds** after launch, not one. A cold
+Android start loads the JVM, libswiftCore, Foundation and ICU before
+`AndroidBackend_entrypoint` runs, and these apps log RENDER COMPLETE at about
+six seconds; one capture in 174 on 2026-09-05 photographed the launch splash
+instead of the app. Override with `ANDROID_FIRST_CAPTURE_SECONDS`.
+
+### The frame is not the app
+
+Twenty-seven of the 46 scenarios lay out content wider or taller than the phone
+-- P6 reaches 2.65 times the viewport width. A screenshot at the default scroll
+position is a photograph of part of the page, and reading absence from it is
+wrong: P3's test image measured **zero** coloured pixels in the visible frame and
+**4,735** with the page scaled to fit. It had rendered all along. Use
+`SCUI_RWD=1` on the effect check, or tap the `actualView` control, to photograph
+the whole page.
+
+## Android：要檢查的四件事，以及每一件各自證明了什麼
+
+Android 的驅動,單一 app 用 `test_android.zsh`,整組用 `sweep_android.zsh`。這兩者單獨都回答不了
+「這個測試到底有沒有跑」。它們是疊起來的;而本節之所以存在,是因為 2026-09-05 有一次 sweep 回報
+46 支全數通過,而當時證據所能支持的最強主張,只是「有 46 個行程啟動過」。
+
+| 階段 | 腳本 | 它證明了什麼 | 它**沒有**證明什麼 |
+| --- | --- | --- | --- |
+| 建置與啟動 | `sweep_android.zsh` | APK 建好、安裝、activity 啟動 | 關於動作檔的任何事 |
+| 檔案送達 | 同一次執行的日誌 | `==> Pushing …csv -> /data/local/tmp/…`,且 intent extra 已送出 | 有任何一個事件被重放 |
+| 重放執行了 | `verify_replay_android.zsh` | `-actionfile: replayed <名稱>` 抵達 logcat,且指名的是本 app 的檔案 | 那些事件落到了任何東西上 |
+| 有東西改變了 | `verify_effect_android.zsh` | 該 app 與「不帶動作檔啟動的同一支 app」看起來不同 | 是哪個 widget 改變了——除非去讀那個差異 |
+
+**第三件不蘊涵第四件。** `FAQ.md` 記錄過一次執行:它記錄了 `action file replayed`,而畫面仍寫著
+`last action -> nothing yet`。在寫出一個可用的第四階段檢查之前,有兩次嘗試是失敗的:
+
+- 在 logcat 中 grep `last action ->`,零支命中——因為那段文字是畫在畫面上的,從不記錄;
+- 比對各 app 的 `-1s-` 與 `-final-` 兩張擷取,45 支中有 40 支的差異恰好是零像素——因為在
+  `--no-showtime` 之下,那兩張是連續拍下的,帶有相同的時間戳與相同的 md5。
+
+兩者是同一種失敗:**一個產生不出正面結果的檢查,不是檢查。** 在信任它之前,先讓它刻意失敗一次。
+
+### 如何解讀「無效果」
+
+46 份動作檔中有 12 份本來就不該改變任何東西——它們按的是一個惰性標籤或一個已停用的控制項,要求的是
+行程存活。對那些而言,零像素改變就是通過。判定必須來自動作檔自己的 `note`,而且那也必須用讀的、
+不能用樣式比對:一則備註可以在前半句寫「the process must survive」、後半句要求某個計數器增加——
+這正是第一次拿正規表示式去掃那些備註時,有六支被歸錯類的原因。
+
+### 門檻
+
+效果檢查計算的是改變的像素數,而它的門檻必須落在實測分佈的空隙裡,而不是落在一個整數上。不改變任何
+東西的情境回報的是恰好 0 且沒有 bounding box;而最小的真實改變是 517 像素,因為 P28 把
+`received: 0` 變成 `received: 1`,而一個數字就是這麼小。2000 的門檻曾把兩次通過判成失敗。現在是 100。
+
+### 那些截圖
+
+第一張擷取是在啟動後**五秒**,不是一秒。Android 的冷啟動會在 `AndroidBackend_entrypoint` 執行之前
+先載入 JVM、libswiftCore、Foundation 與 ICU,而這些 app 大約在六秒記錄 RENDER COMPLETE;
+2026-09-05 的 174 張擷取中有一張拍到的是啟動畫面而非 app。以 `ANDROID_FIRST_CAPTURE_SECONDS` 覆寫。
+
+### 畫面不等於 app
+
+46 個情境中有 27 個的內容比手機更寬或更高——P6 達到視口寬度的 2.65 倍。在預設捲動位置拍的截圖,
+是「整頁的一部分」的照片,而從中讀出「不存在」是錯的:P3 的測試圖在可見畫面中量到**零**個彩色像素,
+把整頁縮放到塞得下之後則是 **4,735** 個。它自始至終都算繪出來了。請在效果檢查上使用 `SCUI_RWD=1`,
+或點擊 `actualView` 控制項,以拍下整頁。
+
 ## Common Checks
 
 - The app can open its main window.

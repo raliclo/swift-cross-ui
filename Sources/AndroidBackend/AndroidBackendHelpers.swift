@@ -42,6 +42,12 @@ class AndroidBackendHelpers: JavaObject {
     func setButtonColorScheme(_ button: AndroidKit.Button?, _ dark: Bool)
 
     @JavaMethod
+    func canFloat(_ activity: Activity?) -> Bool
+
+    @JavaMethod
+    func setWindowFloating(_ activity: Activity?, _ floating: Bool) -> Bool
+
+    @JavaMethod
     func setWindowBackground(_ activity: Activity?, _ dark: Bool)
 
     @JavaMethod

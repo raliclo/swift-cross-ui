@@ -1,0 +1,77 @@
+# What an Android app's own library has to expose to anything outside itself.
+#
+# `libP44.so` exported 151,047 symbols and needed 31. The other 151,016 are the
+# public API of SwiftCrossUI, AndroidBackend, SwiftJava and libwebp, which are
+# statically linked into it and have no consumer outside it: measured on the
+# 2026-09-05 release APK, .dynstr 11.06 MB + .dynsym 3.49 MB + .gnu.hash
+# 0.97 MB + .gnu.version 0.29 MB = 15.81 MB, or 34% of a 46.4 MB library, for
+# names nothing looks up. Swift mangling is why the string table is three times
+# the symbol table: the mean exported name is 76 characters and the longest is
+# 617.
+#
+# Everything on the global list has an actual caller across a .so boundary, and
+# each was checked rather than assumed:
+#
+#   AndroidBackend_entrypoint  libshim.so holds the one undefined reference to
+#                              it -- `llvm-nm -D --undefined-only` on every
+#                              library in the APK finds exactly that one. It is
+#                              the @_cdecl in AndroidBackend.swift.
+#   Java_*, JNI_OnLoad         resolved by the JVM by name at registration
+#                              time, which is a lookup no linker can see.
+#                              JNI_OnUnload was listed here too, from the JNI
+#                              convention rather than from the symbol table,
+#                              and the link failed with "version script
+#                              assignment of 'global' to symbol 'JNI_OnUnload'
+#                              failed: symbol not defined". Swift's runtime
+#                              does not define one. lld only raises this for a
+#                              literal name -- a pattern like Java_* matching
+#                              nothing is silent -- so the list above is
+#                              exactly the set that was read out of
+#                              `llvm-nm -D --defined-only`.
+#   main                       called from the entrypoint in the same library,
+#                              so it does not need to be here; kept because an
+#                              exported `main` is what the platform expects of
+#                              a library that has one.
+#
+# `local: *` is the part that saves the space, and it is also the part that
+# could break something: hiding a symbol means a second copy of it elsewhere no
+# longer coalesces with this one. Verified rather than reasoned about -- see
+# testapp/README.md for which apps were run and what was compared.
+#
+# 一個 Android app 自己的 library 必須向外界暴露的東西。
+#
+# `libP44.so` 匯出了 151,047 個符號，而它需要的是 31 個。其餘 151,016 個是 SwiftCrossUI、
+# AndroidBackend、SwiftJava 與 libwebp 的 public API——它們被靜態連結進來，在該 library 之外
+# 沒有任何消費者：以 2026-09-05 的 release APK 實測，.dynstr 11.06 MB + .dynsym 3.49 MB +
+# .gnu.hash 0.97 MB + .gnu.version 0.29 MB = 15.81 MB，佔一個 46.4 MB library 的 34%，
+# 而那些名字沒有任何東西會去查。字串表是符號表的三倍，原因是 Swift 的名稱修飾：匯出名稱平均
+# 76 個字元，最長的一個是 617 個。
+#
+# global 清單上的每一項都有跨 .so 的真實呼叫者，且每一項都是查證而非假設得來的：
+#
+#   AndroidBackend_entrypoint  對它的唯一未定義參考在 libshim.so——對 APK 中每一個 library
+#                              執行 `llvm-nm -D --undefined-only` 恰好找到那一個。它就是
+#                              AndroidBackend.swift 中的那個 @_cdecl。
+#   Java_*、JNI_OnLoad         由 JVM 在註冊時以名稱解析，那是任何 linker 都看不見的查找。
+#                              此處原本還列了 JNI_OnUnload——那是依 JNI 慣例寫的，不是從符號表
+#                              讀來的——連結因而失敗，訊息為「version script assignment of
+#                              'global' to symbol 'JNI_OnUnload' failed: symbol not defined」。
+#                              Swift 的 runtime 並未定義它。lld 只對「字面名稱」發出此錯誤
+#                              ——像 Java_* 這種一個都沒配對到的樣式是沉默的——因此上方清單
+#                              恰好就是從 `llvm-nm -D --defined-only` 讀出來的那一組。
+#   main                       由同一個 library 中的 entrypoint 呼叫，因此並不需要列在此處；
+#                              保留它，是因為一個帶有 main 的 library 被平台預期會匯出它。
+#
+# `local: *` 是省下空間的那一部分，也是可能弄壞東西的那一部分：隱藏一個符號，意味著別處的第二份
+# 副本不再與這一份合併。此事以驗證確認，而非以推理斷定——跑了哪些 app、比對了什麼，見
+# testapp/README.md。
+{
+  global:
+    AndroidBackend_entrypoint;
+    JNI_OnLoad;
+    Java_*;
+    main;
+
+  local:
+    *;
+};

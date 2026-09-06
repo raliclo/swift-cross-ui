@@ -13,7 +13,214 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
-## Open: `windowLevel(.floating)` -- two APIs tried, neither delivers it
+## Open: a replayed press on a `.wheel` date picker is lost about a third of the time
+
+P41's action file presses one row of the month wheel. Counted 2026-09-04: **3 of
+5** with the file as it stands. The claim itself is right -- when the press
+lands, the wheel advances to Sep and the readout goes 2025-08-24 to 2025-09-24 --
+and nothing else in the file is unreliable.
+
+**Two hypotheses, both tested and both wrong.** They are written down because
+each cost a build and neither is worth repeating.
+
+- **Layout timing.** Dumps at 2, 4, 6 and 9 seconds after launch: the wheel's
+  selected band is absent at 2 and present at y 954-1080 from 4 onwards. The
+  file's settling sleep was raised from 1.8 to 3.5 seconds accordingly, which
+  puts the press at about 4.5 seconds counting the replay's own 1 second. Going
+  further, to 6, gave 4 of 5 -- inside the same spread. Waiting longer is not
+  the fix.
+- **Press duration.** A synthesised click posts ACTION_DOWN and ACTION_UP with
+  no gap, and `dispatch` stamps both with `SystemClock.uptimeMillis()`, so they
+  can share a millisecond -- a touch of zero length. `NumberPicker`, which is
+  what a Holo spinner is, tells a tap from a fling by measuring the gesture, so
+  this looked like the answer. Holding for 50ms gave **0 of 5**: strictly worse
+  than no gap at all. Reverted.
+
+**What is not yet ruled out**: the emulator dropping input under load, something
+in `NumberPicker`'s own press-state handling, or the replay thread's hop to the
+main thread reordering the two events. None of those has been measured.
+
+The affected row is one press in one file. Every other Android action file
+replays consistently.
+
+## 未修：對 `.wheel` 日期選擇器的重放按壓，約有三分之一會遺失
+
+P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以檔案現狀為 **5 次中 3 次**。該主張本身是
+正確的——當按壓落下時，滾輪會前進到 Sep，讀數由 2025-08-24 變為 2025-09-24——而該檔案中其餘部分
+都沒有不穩定的情況。
+
+**兩個假設，都測過，也都是錯的。** 之所以寫下來，是因為每一個都花了一次建置，而兩者都不值得重來。
+
+- **版面時序。** 於啟動後 2、4、6、9 秒各取一次 dump：滾輪被選中的那一帶在 2 秒時不存在，自 4 秒起
+  存在且穩定於 y 954-1080。該檔案的等待因此由 1.8 秒提高到 3.5 秒，加上重放本身的 1 秒，使按壓落在
+  約 4.5 秒。再往上加到 6 秒得到 5 次中 4 次——落在同一個散布範圍內。等更久並不是解法。
+- **按壓時長。** 一次合成的點擊會投遞 ACTION_DOWN 與 ACTION_UP 且中間沒有間隔，而 `dispatch` 以
+  `SystemClock.uptimeMillis()` 為兩者蓋時戳，因此它們可能共用同一毫秒——一次長度為零的觸控。而
+  `NumberPicker`（Holo 滾輪的本體）正是以量測手勢來區分點擊與快滑，所以這看起來像是答案。改為持續
+  50 毫秒的結果是 **5 次中 0 次**：嚴格地比完全沒有間隔更差。已撤回。
+
+**尚未排除的**：emulator 在負載下丟棄輸入、`NumberPicker` 自身按下狀態處理中的某些行為，或重放
+執行緒跳往主執行緒時使那兩個事件次序顛倒。以上皆未經量測。
+
+受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
+
+## Fixed 2026-09-06: P18 replayed alone and not in a batch, and it was the file picker
+
+`P18-open-a-file` reports zero replayed lines and zero changed pixels when
+`verify_effect_android.zsh` walks all 46 scenarios, and 327,294 changed pixels
+when it is run on its own. Two batches, two failures; four solo runs, four
+passes.
+
+Recorded first as an emulator intermittent on the strength of one batch failure
+and three solo passes. Two batches make that wrong: it is deterministic in both
+directions, so something about the batch context stops the replay from starting
+rather than from landing -- `-actionfile: replayed` never appears at all.
+
+**It is the file picker P18 itself opens.** `dumpsys activity activities` after
+a failing launch reports
+`topResumedActivity=com.google.android.documentsui/PickActivity` and `pidof` for
+the test app is empty. The harness stops the test app before each launch, and
+`am force-stop dev.swiftcrossui.testapp.p18` stops exactly that -- the SAF
+picker belongs to another package, survives, stays resumed, and the next launch
+starts behind it and never resumes, so the Swift entrypoint never reaches the
+replay.
+
+Two experiments, one command apart. With the picker on top: zero
+`actionfile: replayed` lines. After `am force-stop com.google.android.documentsui`
+and the identical launch: one, and a pass.
+
+Two earlier explanations were wrong and are worth naming, because both were
+plausible and neither was tested before being written down. "An emulator
+intermittent", from one batch failure and three solo passes -- it is
+deterministic in both directions. And "the scenario before it opens a picker
+dropdown", which pointed at P17: running P17 then P18 replays fine, because
+P17's dropdown is an in-app Spinner and never leaves another package resumed.
+
+Fixed in the harness, not the toolkit: `close_leftover_system_ui` force-stops
+DocumentsUI before every launch in sweep_android.zsh,
+verify_replay_android.zsh and verify_effect_android.zsh. Verified by leaving a
+picker on top on purpose and running the check: 327,294 changed pixels, a pass.
+
+## 開放中 2026-09-06:P18 單獨執行會重放,在批次中不會
+
+當 `verify_effect_android.zsh` 走過全部 46 個情境時,`P18-open-a-file` 回報零個 replayed 行、零像素
+改變;而單獨執行它時,則是 327,294 個像素改變。兩次批次、兩次失敗;四次單獨執行、四次通過。
+
+最初依據「一次批次失敗加三次單獨通過」記為模擬器偶發。兩次批次讓那個說法站不住:它在兩個方向上都是
+決定性的,因此是批次的某種情境使該重放**無法開始**,而不是使它落不到東西上——`-actionfile: replayed`
+根本從未出現。
+
+**成因就是 P18 自己開啟的那個檔案選擇器。** 在一次失敗的啟動之後,`dumpsys activity activities`
+回報 `topResumedActivity=com.google.android.documentsui/PickActivity`,而測試 app 的 `pidof` 是空的。
+harness 在每次啟動前會停止測試 app,而 `am force-stop dev.swiftcrossui.testapp.p18` 停的正是「那一個」
+——SAF 的選擇器屬於另一個套件,它存活下來、維持為 resumed,於是下一次啟動在它後面開始、永遠不會
+resume,Swift 的進入點也就從未走到重放。
+
+兩個實驗,相差一道指令。選擇器在最上層時:零行 `actionfile: replayed`。執行
+`am force-stop com.google.android.documentsui` 之後,以完全相同的方式啟動:一行,而且通過。
+
+先前有兩個錯誤的解釋值得寫下來,因為兩者都合理,而且都是「還沒查證就先寫下」:其一是「模擬器偶發」,
+依據是一次批次失敗與三次單獨通過——但它在兩個方向上都是決定性的。其二是「排在它前面的情境會開啟
+下拉選單」,矛頭指向 P17:實測 P17 接著 P18,重放正常,因為 P17 的下拉是 app 內的 Spinner,
+從不會讓另一個套件維持 resumed。
+
+修在 harness,而非工具組:`close_leftover_system_ui` 會在 sweep_android.zsh、
+verify_replay_android.zsh 與 verify_effect_android.zsh 的每一次啟動前 force-stop DocumentsUI。
+驗證方式是刻意把一個選擇器留在最上層再跑檢查:327,294 個像素改變,通過。
+
+## Fixed 2026-09-05: a root scroll view that could not scroll
+
+`AndroidRootScrollHost` wrapped every window's content in a
+`HorizontalScrollView` around a `ScrollView` -- and added the content with
+`MATCH_PARENT` in both axes, which pins a scroll view's child to exactly the
+viewport. There was never anything to scroll. Both scroll views reported
+`scrollable=false` on P35, P39, P41 and P43, and a 900-pixel swipe on P35 moved
+zero pixels.
+
+It went unnoticed for three days because a scroll view that cannot scroll looks
+exactly like no scroll view at all, and because the first evidence pointed the
+wrong way: `uiautomator dump` reported no node extending past the 1080-pixel
+viewport, which reads as "nothing overflows". It reports bounds clipped to the
+window. Measuring the laid-out subtree from inside the process gives P41's
+content as 2606 x 2845 -- 635 pixels off the left edge and 891 off the right.
+
+Fixed by porting UIKitBackend's `RootScrollHost`, including both modes and the
+draggable control. `WRAP_CONTENT` on each scrolling axis is what lets a child
+exceed its scroll view; `fillViewport` still covers the smaller-than-viewport
+case, so nothing was traded away. An app whose content fits is unchanged:
+P23 measures `box=(0,0)-(1080,2400)` and differs from its previous screenshot
+only in the button and the status-bar clock.
+
+**A second defect was underneath it.** The control was first placed 8dp from
+the top of the window, and `dumpsys window` reports
+`statusBars frame=[0,0][1080,128]` on this device: 107 of the button's 126
+pixels were beneath a SystemUI window that takes the touches in its own area.
+Tapping its centre did nothing -- no log line, no mode change -- and a tap 54
+pixels lower worked first time. It now offsets by the safe-area inset.
+
+## 已修 2026-09-05：一個捲不動的根捲動視圖
+
+`AndroidRootScrollHost` 把每個視窗的內容包進「`HorizontalScrollView` 包 `ScrollView`」——而它是以
+兩軸皆 `MATCH_PARENT` 加入內容的，那會把捲動視圖的子元件釘死在視口大小上。於是從來就沒有任何東西
+可捲。P35、P39、P41、P43 上兩層捲動視圖都回報 `scrollable=false`，而在 P35 上滑動 900 像素，畫面
+一個像素也沒有改變。
+
+它之所以三天沒被發現，是因為「捲不動的捲動視圖」與「根本沒有捲動視圖」看起來完全一樣；也因為最初
+的證據指向錯誤的方向：`uiautomator dump` 回報沒有任何節點超出 1080 像素的視口，那讀起來像是「沒有
+東西溢出」。它回報的 bounds 是已被裁到視窗範圍的。從行程內部量測已排版的子樹，得到的 P41 內容是
+2606 x 2845——左邊界外 635 像素、右邊界外 891 像素。
+
+修法是移植 UIKitBackend 的 `RootScrollHost`，含兩個模式與那個可拖曳的控制項。在各自的捲動軸上使用
+`WRAP_CONTENT`，才是讓子元件得以超出其捲動視圖的關鍵；而 `fillViewport` 仍然涵蓋「比視口小」的情形，
+因此沒有任何東西被犧牲。內容塞得下的 app 完全不變：P23 量到 `box=(0,0)-(1080,2400)`，與它先前的
+截圖之間，除了按鈕與狀態列時鐘之外沒有差異。
+
+**在它底下還有第二個缺陷。** 該控制項一開始被放在「距視窗頂端 8dp」處，而本裝置上 `dumpsys window`
+回報 `statusBars frame=[0,0][1080,128]`：按鈕 126 個像素中有 107 個位於一個屬於 SystemUI 的視窗底下，
+而該視窗會接走其範圍內的觸控。點擊它的中心毫無反應——沒有日誌行、也沒有模式變更——而往下 54 像素
+點擊，第一次就成功。現在它會依安全區域的 inset 偏移。
+
+## Fixed 2026-09-05: an app's `print` did not reach logcat, and it was buffering
+
+Recorded on 2026-09-03 as a platform limitation -- "an Android app's `print` does
+not reach logcat" -- and used to justify writing several action files against
+uiautomator attributes and pixels instead of the diagnostics the apps already
+had. It was four lines of buffering.
+
+`AndroidBackend.entrypoint` pipes **both** stdout and stderr and `dup2`s both, so
+nothing was missing. C stdio picks its buffering from what the descriptor is: a
+terminal gets line buffering, anything else gets a full 4 KB buffer. After the
+`dup2` stdout is a pipe, so `print` wrote into a buffer flushed when it filled,
+when the process exited, or never -- and an app ended with `am force-stop`, which
+is how every test here ends, never flushes. stderr is unbuffered by the C
+standard, which is exactly why `InputEvent`'s `-actionfile:` lines always
+appeared while the apps' own output never did.
+
+That asymmetry was the whole clue and it was in front of me: two streams, same
+plumbing, only one arriving.
+
+`setvbuf(stdout, nil, _IOLBF, 0)` after the dup2. Verified: P44 now logs
+`[P44] RENDER COMPLETE -- P44 ready for clipping checks` and
+`[P44] third cell clipped: true`.
+
+## 已修 2026-09-05：app 的 `print` 到不了 logcat，而成因是緩衝
+
+2026-09-03 曾把它記為平台限制——「Android app 的 `print` 到不了 logcat」——並以此為由，讓好幾份動作
+檔改用 uiautomator 屬性與像素判讀，而不是那些 app 本來就有的診斷輸出。它其實是四行緩衝設定。
+
+`AndroidBackend.entrypoint` 對 stdout 與 stderr **兩者**都接了 pipe、也都做了 `dup2`，因此並沒有
+少接什麼。C stdio 是依「該描述子是什麼」決定緩衝方式的：終端機得到行緩衝，其他一切得到完整的 4 KB
+緩衝區。`dup2` 之後 stdout 是一條 pipe，於是 `print` 寫進一個「滿了才沖、行程結束才沖，或永遠不沖」
+的緩衝區——而一個以 `am force-stop` 終結的 app（此處每次測試都是如此）永遠不會沖。stderr 依 C 標準
+無緩衝，這正是為什麼 `InputEvent` 的 `-actionfile:` 各行一直都看得到，而 app 自身的輸出從來沒有。
+
+那個不對稱就是全部的線索，而它一直擺在眼前：兩條串流、同一套管線，只有一條抵達。
+
+修法是在 dup2 之後加上 `setvbuf(stdout, nil, _IOLBF, 0)`。已驗證：P44 現在會記錄
+`[P44] RENDER COMPLETE -- P44 ready for clipping checks` 與
+`[P44] third cell clipped: true`。
+
+## Fixed 2026-09-04: `windowLevel(.floating)`, after four experiments
 
 AndroidBackend now conforms to `BackendFeatures.WindowLevels` and reports
 `[.automatic, .normal]`. It does not offer `.floating`, and this section is the
@@ -41,18 +248,33 @@ Re-assigning MATCH_PARENT layout params and calling `requestLayout()` and
 `invalidate()` after `addView` changed nothing. The window is in front, visible,
 full screen, and empty.
 
-So the remaining work is making SwiftCrossUI's view tree render in a window that
-is not the activity's, which is a real piece of work rather than a missing call.
-It was not shipped half-done: an app whose window is in front and blank is worse
-than one that is not in front, and a backend that lists a level it cannot
-deliver is worse than one that lists two it can, because the app has no way to
-find out. P37 prints what the backend claims, and it now claims what is true.
+**3. The same through `applicationContext`'s WindowManager**, in case the
+window was following the activity's token. Identical. So it follows the
+*process* state, not the token.
 
-SYSTEM_ALERT_WINDOW was declared in `Bundler.android.toml` for attempt 2 and
-withdrawn with it. A permission declared for a feature that is not offered is
-the thing that file's own comment warns about.
+**4. A foreground service owning the window.** This is the one. A foreground
+service keeps the process out of the cached state, which is what the surface
+needed. `OverlayService.kt` holds the view; `swift-bundler`'s manifest generator
+gained a `<service>` element to declare it.
 
-## 未修：`windowLevel(.floating)`——試過兩個 API，都無法兌現
+**"Draws nothing" was wrong, and so was the diagnosis built on it.** Experiment
+2 was recorded here as producing a blank overlay. It did not: with the view
+instrumented it laid out at 1080x2209, attached, and drew P37's text over
+everything. The blank screenshots came from testing against **Settings**, whose
+window carries `HIDE_NON_SYSTEM_OVERLAY_WINDOWS` -- read off `dumpsys window
+windows` on 2026-09-04. That flag hides every non-system overlay while such a
+screen is in front, for every app on the platform, and cannot be opted out of.
+Three runs were read as failures because of the app I happened to test against.
+
+Verified against an ordinary app instead: with P44 in front, P37's text draws
+over P44's orange tiles and the overlay sits at window #7 above it.
+
+**What it costs**, and both are Android's price rather than a choice made here:
+SYSTEM_ALERT_WINDOW, which the user grants in Settings and which
+`supportedWindowLevels` is computed from rather than assumed; and a foreground
+service, which means an app that floats shows a notification.
+
+## 已修 2026-09-04：`windowLevel(.floating)`,歷經四次實驗
 
 AndroidBackend 現已實作 `BackendFeatures.WindowLevels`，並回報 `[.automatic, .normal]`。它不提供
 `.floating`，而本節是那件事的證據，而非一項斷言——因為「這個平台沒有對應的 API」是本倉庫要求必須
@@ -74,13 +296,26 @@ appop 為 SYSTEM_ALERT_WINDOW。而它什麼都不畫。在 `addView` 之後重�
 params 並呼叫 `requestLayout()` 與 `invalidate()`，也沒有改變任何事。該視窗在最前面、可見、滿版，
 而且是空的。
 
-因此剩下的工作，是讓 SwiftCrossUI 的 view tree 在「不屬於 activity 的視窗」中完成繪製——那是一件
-實在的工作，不是少呼叫了某個方法。它沒有以半成品的狀態出貨：一支「視窗在最前面卻一片空白」的 app
-比「不在最前面」更糟，而一個列出自己無法兌現之層級的 backend，也比一個只列出兩個做得到的更糟，
-因為 app 沒有任何辦法察覺。P37 印出的是 backend 的宣稱，而它現在宣稱的是真的。
+**3. 同樣的做法，但改用 `applicationContext` 的 WindowManager**，以防該視窗在跟隨 activity 的
+token。結果完全相同。因此它跟隨的是**行程**狀態，不是 token。
 
-SYSTEM_ALERT_WINDOW 曾為第 2 次嘗試而宣告於 `Bundler.android.toml`，並隨之撤回。為一項並未提供的
-功能而宣告權限，正是該檔自己的註解所警告的那件事。
+**4. 由一個 foreground service 持有該視窗。** 這一個成了。foreground service 會讓行程不進入 cached
+狀態，而那正是該 surface 所需要的。`OverlayService.kt` 持有那個 view；`swift-bundler` 的 manifest
+產生器則新增了一個 `<service>` 元素來宣告它。
+
+**「什麼都不畫」是錯的，而建立在它之上的診斷也是錯的。** 此處原本記載第 2 次實驗產生了一個空白的
+overlay。它並沒有：為該 view 加上量測之後，它以 1080x2209 完成佈局、已 attach，並把 P37 的文字畫在
+一切之上。那些空白的截圖來自以**「設定」**作為測試對象——而它的視窗帶有
+`HIDE_NON_SYSTEM_OVERLAY_WINDOWS`，此事於 2026-09-04 自 `dumpsys window windows` 讀出。該旗標會在
+這類畫面位於前景時，隱藏平台上每一支 app 的所有非系統 overlay，且無法選擇退出。三次執行之所以被
+讀成失敗，原因只是我恰好拿來測試的那支 app。
+
+改以一支普通 app 驗證：P44 在前景時，P37 的文字畫在 P44 的橘色磚之上，而該 overlay 位於其上的
+視窗 #7。
+
+**它的代價**，而兩者都是 Android 的定價、不是此處所做的選擇：SYSTEM_ALERT_WINDOW——由使用者在
+「設定」中授予，而 `supportedWindowLevels` 是依它計算而非假定；以及一個 foreground service——
+這意味著一支會浮動的 app 會顯示一則通知。
 
 ## Fixed 2026-09-04: three defects P7, P40 and P43 recorded as failures
 

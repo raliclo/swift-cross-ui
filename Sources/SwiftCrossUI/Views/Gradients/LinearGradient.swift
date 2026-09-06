@@ -1,5 +1,16 @@
 /// A linear gradient.
-public struct LinearGradient: ElementaryView {
+/// `Sendable` is stated here rather than picked up from the `ShapeStyle`
+/// conformance in ShapeStyle.swift. `ShapeStyle` refines `Sendable`, so
+/// conforming to it in another file made this a retroactive `Sendable`
+/// conformance -- a warning today and an error in a future language mode.
+/// `Gradient`, `UnitPoint` and `Double` are all `Sendable`, so this is the
+/// checked conformance and not `@unchecked`.
+///
+/// `Sendable` 寫在此處，而不是從 ShapeStyle.swift 中的 `ShapeStyle` conformance 順帶取得。
+/// `ShapeStyle` 精煉自 `Sendable`，因此在另一個檔案中遵循它，會使這裡變成一個追溯性的
+/// `Sendable` conformance——今天是警告，在未來的語言模式中會是錯誤。`Gradient`、`UnitPoint`
+/// 與 `Double` 皆為 `Sendable`，因此這是經檢查的 conformance，而非 `@unchecked`。
+public struct LinearGradient: ElementaryView, Sendable {
     /// The gradient represented as an array of color stops, each having a parametric location value.
     public let gradient: Gradient
     /// The normalized point where the gradient begins, defined in the view's coordinate space.
