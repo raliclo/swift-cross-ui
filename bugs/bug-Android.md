@@ -64,6 +64,36 @@ P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以�
 
 受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
 
+## Open 2026-09-06: P18 replays alone and does not replay in a batch
+
+`P18-open-a-file` reports zero replayed lines and zero changed pixels when
+`verify_effect_android.zsh` walks all 46 scenarios, and 327,294 changed pixels
+when it is run on its own. Two batches, two failures; four solo runs, four
+passes.
+
+Recorded first as an emulator intermittent on the strength of one batch failure
+and three solo passes. Two batches make that wrong: it is deterministic in both
+directions, so something about the batch context stops the replay from starting
+rather than from landing -- `-actionfile: replayed` never appears at all.
+
+What differs in a batch: 45 other apks have been installed and uninstalled, the
+scenario before it in alphabetical order is P17, which opens a picker dropdown,
+and the device has just finished 46 builds. P18 is the file-dialog app, so the
+system DocumentsUI provider is the obvious suspect and is not yet checked.
+
+## 開放中 2026-09-06:P18 單獨執行會重放,在批次中不會
+
+當 `verify_effect_android.zsh` 走過全部 46 個情境時,`P18-open-a-file` 回報零個 replayed 行、零像素
+改變;而單獨執行它時,則是 327,294 個像素改變。兩次批次、兩次失敗;四次單獨執行、四次通過。
+
+最初依據「一次批次失敗加三次單獨通過」記為模擬器偶發。兩次批次讓那個說法站不住:它在兩個方向上都是
+決定性的,因此是批次的某種情境使該重放**無法開始**,而不是使它落不到東西上——`-actionfile: replayed`
+根本從未出現。
+
+批次中不同的是:已經有 45 個 apk 被安裝與解除安裝、依字母序排在它前面的情境是會開啟下拉選單的 P17、
+而裝置剛完成 46 次建置。P18 是檔案對話框那一支,因此系統的 DocumentsUI provider 是最明顯的嫌疑,
+但尚未查證。
+
 ## Fixed 2026-09-05: a root scroll view that could not scroll
 
 `AndroidRootScrollHost` wrapped every window's content in a
