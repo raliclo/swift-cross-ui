@@ -290,6 +290,37 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
  * `MATCH_PARENT`，好讓 `size(ofWindow:)` 與版面一致。本 view 位於兩者之間，回報兩者的聯集。
  */
 private class Stage(context: Context) : ViewGroup(context) {
+    init {
+        // `clipChildren = false`, for the reason CustomContainer already has it.
+        //
+        // The content this hosts is a CustomContainer laid out at the viewport
+        // size, and its children are placed at the x and y SwiftCrossUI gave
+        // them -- which is regularly outside that rectangle. `ViewGroup`
+        // clips its children to their own layout rect by default, so a subtree
+        // measured correctly still stops being drawn at the root's right edge.
+        //
+        // Measured on P41: its three NumberPicker columns are 168 pixels wide
+        // each, all three, and the year column was still cut a few pixels in.
+        // The cut sat at x=710, which is exactly where the content root's
+        // 1080-pixel width ends once rwdView has scaled it by 0.414 and shifted
+        // it by 263 -- the root's edge, not the wheel's. So the layout was
+        // right and the drawing was clipped, which reads in a screenshot as a
+        // widget too narrow for its contents.
+        //
+        // `clipChildren = false`,理由與 CustomContainer 早已如此設定的相同。
+        //
+        // 本 view 所承載的內容是一個以視口尺寸排版的 CustomContainer,而它的子元件是放在
+        // SwiftCrossUI 指派的 x 與 y 上——那些位置經常落在該矩形之外。`ViewGroup` 預設會把子元件裁切
+        // 到它們自己的版面矩形內,因此一棵量測正確的子樹,仍會在根的右邊界處停止被繪製。
+        //
+        // 於 P41 實測:它的三個 NumberPicker 欄位各為 168 像素寬,三個都是,而年份欄仍在進去幾個像素
+        // 處就被切斷。那個切口位於 x=710,而那正好是「內容根的 1080 像素寬度,經 rwdView 以 0.414
+        // 縮放並位移 263 之後」的結束位置——是根的邊界,不是那個轉輪的。所以版面是對的,被裁的是繪製;
+        // 而這在螢幕截圖上看起來,就像一個「對其內容而言太窄」的 widget。
+        clipChildren = false
+        clipToPadding = false
+    }
+
     private var content: View? = null
     private val box = Rect()
     private var scale = 1f
