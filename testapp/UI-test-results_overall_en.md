@@ -463,10 +463,15 @@ All final screenshots below were measured with PIL. Every final capture was visi
 ### Where the Pn debug logs actually land
 
 - **Every `testapp/P*.swift` that writes a debug log writes it to the current
-  working directory**, via `FileManager.default.currentDirectoryPath`. 35 of the
-  47 do; the other 12 write no log. `splitview-debug.log` is the same
+  working directory**, via `FileManager.default.currentDirectoryPath`. **38 of
+  the 49** do; the other 11 write no log. `splitview-debug.log` is the same
   (`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Re-derive with
-  `grep -c currentDirectoryPath testapp/P*.swift`.
+  `grep -l currentDirectoryPath testapp/P*.swift | wc -l`.
+
+  Corrected 2026-09-07, from "35 of the 47", and so was the command beside it:
+  `grep -c` prints one count per file, so it never produced the total it was
+  offered as the derivation of. A regeneration command that does not regenerate
+  the number is worse than none, because it looks checkable.
 - So there is **one** convention, not two. Docs that name
   `testapp/output/p28-debug-events.log` are right only because that flow `cd`s
   into `testapp/output` first; `testapp/run.zsh` launches by absolute path and

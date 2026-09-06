@@ -50,6 +50,12 @@ Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `test
     可觀察，但 `actions/win/P16-force-update.csv` 尚未讓 Force update / sidebar selection /
     column switch 反映到畫面，需改查 Win32 synthetic input 對 WinUI 控制的命中、focus 或
     activation。
+  - **2026-09-07 更新：上面這一條已被取代兩次，而它自己沒有被更新過。**
+    2026-09-01 記於 `UI-test-results_overall_en.md`：三次點擊全部命中；同日結案 #160 在
+    WinUIBackend 上不重現。那個 `0 x 22` 的 probe 讀數本身也已被撤回——22 是 probe 自己
+    `.frame(height: 22)` 的高度，不是窗格的高度。
+    另外檔名已改為 `actions/win/P16-force-update-winui.csv`。**保留上面的原文而不刪除**，
+    因為它示範了一條「看起來仍然有效的待辦」在被兩次結論取代之後會是什麼樣子。
   - 2026-08-31 補充：清空 `actionfile-replay.log` 後重跑，`SendInput` 回報
     `ERROR_ACCESS_DENIED`，此輪不能當作 app 行為證據。final screenshot 仍可見 sidebar row
     內容被壓窄換行；已試過 `ListViewItem.horizontalContentAlignment = .stretch` 與 list item /

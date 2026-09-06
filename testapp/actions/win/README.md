@@ -70,10 +70,11 @@ there and **false here**. Do not port an Escape row from `mac/` to `win/`.
 ## Where a Pn writes its debug log — the current directory, not `testapp/output/`
 
 Every `testapp/P*.swift` that writes a debug log builds its path from
-`FileManager.default.currentDirectoryPath`; 35 of the 47 do, and the other 12
+`FileManager.default.currentDirectoryPath`; **38 of the 49** do, and the other 11
 write no log. `splitview-debug.log` is the same
-(`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Re-derive with
-`grep -c currentDirectoryPath testapp/P*.swift`.
+(`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Corrected 2026-09-07 from
+"35 of the 47"; re-derive with
+`grep -l currentDirectoryPath testapp/P*.swift | wc -l`.
 
 `testapp/run.zsh` launches the executable by absolute path and never `cd`s, so
 driving a file from the repo root leaves `p31-debug-events.log` **at the repo
@@ -102,9 +103,10 @@ place".
 ## Pn 的 debug log 寫在哪裡——當前目錄，不是 `testapp/output/`
 
 每一支會寫 debug log 的 `testapp/P*.swift`，其路徑都以 `FileManager.default.currentDirectoryPath`
-組成；47 支中有 35 支如此，其餘 12 支不寫 log。`splitview-debug.log` 亦同
+組成；**49 支中有 38 支**如此，其餘 11 支不寫 log（2026-09-07 由「47 支中有 35 支」更正）。
+`splitview-debug.log` 亦同
 （`Sources/SwiftCrossUI/Views/SplitView.swift:215`）。可用
-`grep -c currentDirectoryPath testapp/P*.swift` 重新推導。
+`grep -l currentDirectoryPath testapp/P*.swift | wc -l` 重新推導。
 
 `testapp/run.zsh` 以絕對路徑啟動執行檔且從不 `cd`，因此從 repo 根目錄驅動某個檔案時，
 `p31-debug-events.log` 會落在 **repo 根目錄**。凡是寫成 `testapp/output/pNN-debug-events.log` 的

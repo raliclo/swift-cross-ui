@@ -2,7 +2,8 @@
 # Launches every already-built P1-P26 app, replays its action file, captures it.
 #
 #   zsh testapp/sweep-test/sweep_drive.zsh                 every app
-#   zsh testapp/sweep-test/sweep_drive.zsh -l gtk4         label the run
+#   zsh testapp/sweep-test/sweep_drive.zsh -l gtk4         drive the -gtk4 builds
+#   zsh testapp/sweep-test/sweep_drive.zsh -l winui        drive the -WinUI builds
 #   zsh testapp/sweep-test/sweep_drive.zsh P8 P19          just these
 #   zsh testapp/sweep-test/sweep_drive.zsh --help
 #
@@ -39,7 +40,9 @@
 #   replay    the app's own `-actionfile:` line, which needs a SCUI_DEBUG build.
 #             `ok` finished AND every click landed on the app; `ASTRAY` finished
 #             with clicks on some other window, so it proves nothing; `CHECKER`
-#             means this script's own hit test is broken, not the run
+#             means this script's own hit test is broken, not the run;
+#             `GEOMETRY` means the window was not the size the coordinates were
+#             measured at, so they address a different layout
 #   capture   `window` is a real window capture; `desktop` is the fallback
 #
 # `desktop` is expected for WinUI and a problem for GTK. WinUI draws through
@@ -52,9 +55,17 @@
 # 與 sweep_build.zsh 成對，且本腳本不做建置。兩者為何分開，見該腳本的檔頭；簡言之，這一半需要
 # 解鎖的桌面而那一半不需要，而且這一半會自行維持桌面不被鎖定——因為合成輸入會重置閒置計時器。
 #
-# `-l` 只是為本次執行命名：它會出現在截圖檔名與表格標題中。它**不會**選擇 backend。實際的 backend
-# 取決於 `testapp/output/Pn.exe` 當下是哪一個，也就是最後一次建置的產物。在 WinUI 建置之後傳入
-# `-l gtk4`，會產生一份錯誤的表格，而且沒有任何其他東西會抓到——請傳入你實際建置的那一個。
+# `-l` **現在同時選擇 backend**，而不只是為本次執行命名：`gtk4` 驅動 `Pn-gtk4.exe`，
+# `winui` 驅動 `Pn-WinUI.exe`。
+#
+# 它過去只是個標籤，而本段落曾寫著：「它不會選擇 backend；實際的 backend 取決於
+# testapp/output/Pn.exe 當下是哪一個」。當執行檔加上 backend 後綴之後，那句話就不再成立——
+# 已經沒有 `Pn.exe` 了。舊做法同時帶有它自己所警告的那種失敗：在 WinUI 建置之後傳 `-l gtk4`
+# 會產生一份靜默錯誤的表格。由標籤推導檔名可同時消除這兩者。
+#
+# 這一段於 2026-09-07 更正。上方的英文半邊在同一天稍早就已改好，中文半邊沒有——於是同一份檔頭的
+# 兩半互相矛盾了幾個小時，而 `--help` 兩半都會印出來。本專案的雙語規則之所以要求「同一次編輯改
+# 兩邊」，正是為了這件事：一份與自己矛盾的說明，比沒有說明更糟，因為兩邊都會被相信。
 #
 # 各欄位的讀法：
 #
@@ -62,7 +73,8 @@
 #   replay    app 自己輸出的 `-actionfile:` 行，需要 SCUI_DEBUG 建置才會存在。
 #             `ok` 表示跑完**且**每一次點擊都落在該 app 上；`ASTRAY` 表示跑完了、但點擊落在
 #             別的視窗上，因此什麼也證明不了；`CHECKER` 表示壞的是本腳本自己的命中檢查，
-#             而不是那次執行
+#             而不是那次執行；`GEOMETRY` 表示視窗的尺寸不是那些座標被量測時的尺寸，
+#             因此它們指向的是另一套版面
 #   capture   `window` 為真正的視窗擷取；`desktop` 為回退
 #
 # 對 WinUI 而言 `desktop` 是預期的，對 GTK 而言則是問題。WinUI 透過 DirectComposition 繪製，
@@ -80,7 +92,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     # is added above it, and the columns section is the part a reader came for.
     # 至第 48 行，即英文段落的結尾。標頭變長時一併加寬——寫死的範圍會在其上方新增任何內容的那一刻
     # 靜默截斷說明，而「各欄位的讀法」正是讀者前來尋找的部分。
-    sed -n '2,48p' "$script_path" | sed 's/^# \{0,1\}//'
+    sed -n '2,52p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 

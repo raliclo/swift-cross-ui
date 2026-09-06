@@ -23,8 +23,8 @@ track, not a task.
 | **基準平台** | **iOS** | **WinUI** |
 | 看不到 | 另一軌的三個 | 另一軌的三個 |
 
-47 支測試 app × 5 個平台目錄 = 235 個動作檔格。兩條軌各自負責其中一半，而**兩邊都無法驗證對方的
-那一半**。
+49 支測試 app × 5 個平台目錄 = 245 個動作檔格。兩條軌各自負責其中一半，而**兩邊都無法驗證對方的
+那一半**。（數量以 `ls -1 testapp/P*.swift | wc -l` 重新計算；此處 2026-09-07 由 47/235 更正。）
 
 ### 為什麼每一軌要有一個「基準平台」
 
@@ -125,7 +125,9 @@ Windows 軌的情況不同，見第二節第 3 步：那三個目標是同一台
 
 ### 2. 量體積，並寫進文件
 
-`executable-size.csv2` 的三個 Windows/Linux 欄位已經存在，48 筆紀錄。這一軌的這一步是現成的。
+`executable-size.csv2` 已有 **49 筆**紀錄與 **8 個**位元組欄位（見 `matrix_coverage/README.md`）。
+這一軌的這一步是現成的。（2026-09-07 由「三個 Windows/Linux 欄位、48 筆紀錄」更正；
+以 `csv2 -r -i matrix_coverage/executable-size.csv2 | wc -l` 重新計算。）
 
 ### 3. 保證兩個 gtk4 目標的視窗尺寸與 WinUI 一致
 
@@ -297,7 +299,28 @@ Android 的清空缺陷是靠「非白像素數 378,653 → 0」釘住的；而�
         missing = [a for a in apps if a not in have]
         print(f"{plat:8} {len(apps)-len(missing):2}/{len(apps)}  missing: {missing}")'
 
-2026-09-03：**Mac 軌** mac 46/47、ios 46/47、android 1/47。**Windows 軌** win 22/47、wsl 9/47。
+**2026-09-07**：**Mac 軌** mac 47/49、ios 47/49、android 45/49。**Windows 軌** win 33/49、wsl 10/49。
+
+上一次記錄是 2026-09-03 的「mac 46/47、ios 46/47、android 1/47；win 22/47、wsl 9/47」，六個數字
+**全部**已經過期，其中 android 差了 44。那份紀錄沒有錯——它在當天是對的；錯的是把一個**快照**寫下來
+之後，沒有任何東西會在它失效時出聲。所以請把上面的日期讀成有效期限，並在引用之前重跑那支腳本。
+
+**`win` 這個數字把兩個 backend 併在一起數了。** `actions/win/` 同時裝著兩個 backend 的檔案，而該腳本
+只看目錄與檔名前綴。2026-09-07 實測：
+
+| | |
+| --- | --- |
+| `actions/win/` 檔案總數 | 40 |
+| 其中 `-winui` 後綴 | **3**（P16、P24、P46） |
+| 其餘（gtk4） | 37 |
+| `output/` 中的 WinUI 執行檔 | **2**（P40、P46） |
+
+所以 **Win-gtk4 是 33/49，而 Win-WinUI 只有 3/49**——若再要求「動作檔與執行檔都存在、真的跑得起來」，
+**只有 P46 一支**。本文開頭把 Windows 軌寫成三個目標，而 `win 33/49` 這個數字會讓 Win-WinUI 看起來
+已被涵蓋。它幾乎是空的。
+
+重新計算：上方那段 `python3 -c` 原樣執行；後兩個數字用
+`ls -1 testapp/actions/win/*-winui.csv | wc -l` 與 `ls -1 testapp/output/*-WinUI.exe | wc -l`。
 
 **不是每一個空格都是缺口。** `P6-v2.swift` 直接 `import Gtk`，`compile.zsh` 本來就會擋；它在 mac
 與 ios 欄永遠是空的，而那不是覆蓋率有缺，是計數方式錯了。

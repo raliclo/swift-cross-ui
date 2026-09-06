@@ -19,14 +19,14 @@
 
 ## Apps
 
-P0-P41 每個都是一個 Swift 檔，會在目前平台支援其 backend 時建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。後續 app 延伸 backend feature、visual fidelity、window level、GPU 與 DatePicker 覆蓋。完整 issue 與平台對照在 `UI-test-plan platform-en.md`。
+P0-P44 與 P46，加上 `P15-DARK`、`P17-DOE`、`P6-v2`，每個都是一個 Swift 檔——合計 **49 支**，以 `ls -1 testapp/P*.swift | wc -l` 計數。每一支都會在目前平台支援其 backend 時建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。後續 app 延伸 backend feature、visual fidelity、window level、GPU 與 DatePicker 覆蓋。完整 issue 與平台對照在 `UI-test-plan platform-en.md`。
 
 ```sh
 zsh testapp/compile.zsh P7 P15 P17     # 只建部分 app
 zsh testapp/compile.zsh                # 建全部 app
 ```
 
-輸出會放在 `testapp/output/`：Linux/macOS 上是 `PN`，Windows 上是 `PN.exe`。`output` 目錄和 `.compile-work-*` 建置樹都不追蹤。每個 backend 各有一棵樹，後綴即其名稱——刻意不存在無後綴的 `.compile-work`，因為那樣它的內容取決於執行的主機、而非它的名字。
+輸出會放在 `testapp/output/`：Linux/macOS 上是 `PN`，Windows 上則是 `PN-gtk4.exe` 或 `PN-WinUI.exe`，後綴即它所建置的 backend。**不存在無後綴的 `PN.exe`**，任何指名它的指令都會失敗：`ls testapp/output/*.exe` 回傳 45 個檔案，每一個都帶後綴。2026-09-07 更正；執行檔加上後綴的理由，與建置樹加上後綴的理由相同，而下一句本來就已經說明了那個理由。`output` 目錄和 `.compile-work-*` 建置樹都不追蹤。每個 backend 各有一棵樹，後綴即其名稱——刻意不存在無後綴的 `.compile-work`，因為那樣它的內容取決於執行的主機、而非它的名字。
 
 ## 環境設定
 

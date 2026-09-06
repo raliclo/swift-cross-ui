@@ -415,9 +415,13 @@
 ### Pn 的 debug log 究竟落在哪裡
 
 - **每一支會寫 debug log 的 `testapp/P*.swift`，都寫到當前工作目錄**，透過
-  `FileManager.default.currentDirectoryPath`。47 支中有 35 支如此，其餘 12 支完全不寫 log。
+  `FileManager.default.currentDirectoryPath`。**49 支中有 38 支**如此，其餘 11 支完全不寫 log。
   `splitview-debug.log` 亦同（`Sources/SwiftCrossUI/Views/SplitView.swift:215`）。可用
-  `grep -c currentDirectoryPath testapp/P*.swift` 重新推導。
+  `grep -l currentDirectoryPath testapp/P*.swift | wc -l` 重新推導。
+
+  2026-09-07 由「47 支中有 35 支」更正，旁邊那道指令也一併更正：`grep -c` 印的是**每個檔案一列**
+  的計數，因此它從來就產不出它被附上作為推導依據的那個總數。一道無法重新產生該數字的指令，
+  比沒有指令更糟，因為它看起來可以查證。
 - 因此只有**一種**慣例，不是兩種。凡是寫成 `testapp/output/p28-debug-events.log` 的文件，之所以
   正確，只是因為該流程會先 `cd` 進 `testapp/output`；而 `testapp/run.zsh` 以絕對路徑啟動、從不
   切換目錄，所以經由它驅動的一切都會把 log 留在 repo 根目錄。若在 `run.zsh` 啟動之後照著寫有

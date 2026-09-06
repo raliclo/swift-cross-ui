@@ -1,14 +1,20 @@
 # matrix_coverage
 
-Four files, and **two of them are matrices with opposite editing rules**. That
+Six files, and **two of them are matrices with opposite editing rules**. That
 is the thing to get right before touching anything here.
 
 | file | what it is | edit by hand? |
 |---|---|---|
-| `results.csv2` | run history: one row per app per run, append-only, never rewritten | **append only** |
+| `results.csv2` | run history: one row per app per action file per run, append-only, never rewritten | **append only** |
 | `coverage.zsh` | the generator | yes |
 | `coverage.md` | Pn × platform, **generated** from `results.csv2` | **no — it is overwritten** |
 | `coverage-matrix.csv2` | area × platform feature coverage, **hand-maintained** | **yes — nothing generates it** |
+| `executable-size.csv2` | one row per app, 8 byte columns | see below |
+| `executable-size.md` | rendered from it | **no — it is overwritten** |
+
+Corrected 2026-09-07: this said "four files" while discussing the two
+`executable-size` ones further down, so the table and the prose disagreed about
+what was in the directory they both describe.
 
 `coverage.md` and `coverage-matrix.csv2` are both "the coverage matrix" in
 conversation and they are not the same table. `coverage.md` answers *has this
@@ -36,13 +42,38 @@ checked with `git grep` before the move rather than after.
 
 ## Who appends to `results.csv2`
 
-One driver per platform. Each hard-codes its own `platform`/`backend` pair,
-because the pair is a fact about the driver rather than a flag someone passes.
+One driver per platform. The `platform` is a fact about the driver -- the
+Windows one uses tasklist, taskkill and gdigrab and could not run anywhere else.
+The BACKEND is not: `sweep_drive.zsh -l gtk4` drives `Pn-gtk4.exe` and
+`-l winui` drives `Pn-WinUI.exe`, and the label picks the filename so the two
+cannot disagree. Corrected 2026-09-07, along with `Pn.exe`, which no longer
+exists.
 
 | driver | appends | how it runs an app |
 |---|---|---|
-| `testapp/sweep-test/sweep_drive.zsh` | `windows/gtk4` or `windows/winui` | tasklist, taskkill, gdigrab, `Pn.exe` |
+| `testapp/sweep-test/sweep_drive.zsh` | `windows/gtk4` or `windows/winui`, from `-l` | tasklist, taskkill, gdigrab, `Pn-gtk4.exe` / `Pn-WinUI.exe` |
 | `testapp/sweep-test/sweep_drive_macos.zsh` | `mac/appkit` | drives `test.zsh <Pn> --macos` |
+
+### Reading a verdict in `results.csv2` and `coverage.md`
+
+Added 2026-09-07, because `sweep_drive.zsh` gained four verdicts and this file
+still described a vocabulary of `ok` and `FAIL`. A reader could not decode the
+table this README exists to explain. The script's own `--help` is the authority;
+this is the summary.
+
+| verdict | column | means |
+|---|---|---|
+| `ok` | both | ran, and every click landed on the app under test |
+| `STALE` | launch | the executable predates the window-choice fix `2d163c9b`, so it was **not run at all** |
+| `ASTRAY` | replay | the replay finished, but a click reached some other window, so it proves nothing |
+| `GEOMETRY` | replay | the window was not the size the action file's coordinates were measured at, so they address a different layout |
+| `CHECKER` | replay | the script's own hit test is broken; this says nothing about the run |
+| `n/a` | either | no verdict was expected -- e.g. `P10-ctrl-q`, which passes by the process quitting |
+
+`STALE`, `ASTRAY` and `CHECKER` all describe the HARNESS or the environment
+rather than the app. Only `GEOMETRY` and a bare failure are about the thing
+under test, and even `GEOMETRY` may mean the action file is out of date rather
+than the app being wrong -- see the corrections in `testapp/actions/win/`.
 
 The macOS one is not a copy of the Windows one. It launches nothing itself:
 `test.zsh <Pn> --macos` already builds, launches, waits for the render marker,

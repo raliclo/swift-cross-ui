@@ -25,7 +25,9 @@ is only a comparison, or tells you nothing.
 
 ## The apps
 
-P0-P41 are one Swift file each, built as standalone executables when the current
+P0-P44 and P46, plus `P15-DARK`, `P17-DOE` and `P6-v2`, are one Swift file each
+-- 49 in total, counted with `ls -1 testapp/P*.swift | wc -l`. Each is built as
+a standalone executable when the current
 platform supports their backend. P0-P6 came out of the WinUIBackend work,
 P7-P10 and P15 target GtkBackend, P11 AppKitBackend, P12 AndroidBackend, P14
 UIKitBackend, and P13, P16 and P17 cover core layout and split-view behaviour.
@@ -38,8 +40,13 @@ zsh testapp/compile.zsh P7 P15 P17     # build a subset
 zsh testapp/compile.zsh                # build everything
 ```
 
-Output lands in `testapp/output/` -- `PN` on Linux and macOS, `PN.exe` on
-Windows. Neither the output directory nor the `.compile-work-*` build trees are
+Output lands in `testapp/output/` -- `PN` on Linux and macOS, and on Windows
+`PN-gtk4.exe` or `PN-WinUI.exe`, named for the backend it was built against.
+**There is no suffix-less `PN.exe`**, and a command that names one will fail:
+`ls testapp/output/*.exe` returns 45 files and every one carries a suffix.
+Corrected 2026-09-07; the executables gained their suffix for the same reason
+the build trees have one, which the next sentence already explains.
+Neither the output directory nor the `.compile-work-*` build trees are
 tracked. There is one tree per backend and the suffix names it -- there is
 deliberately no suffix-less `.compile-work`, because its contents would depend
 on the host rather than on its name.
