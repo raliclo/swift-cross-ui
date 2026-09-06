@@ -90,11 +90,50 @@ fi
 
 echo "==> Checking recorded hashes in testapp/issue_commits.csv against $branch"
 
-# Column 3 is the commit hash. Fields before it never contain a comma, so a
-# plain split is safe here; the subject in column 4 is sometimes quoted and
-# does contain commas, which is why it is read from git below rather than
-# from the file.
-hashes=("${(@f)$(awk -F, 'NR > 1 && $3 != "" { print $3 }' "$csv")}")
+# Column 3 is the commit hash, and it is read with csv2 because a plain split
+# gets it wrong.
+#
+# The comment here used to say "fields before it never contain a comma, so a
+# plain split is safe". Three of them do. `issue_title` is quoted and holds
+# lines like
+#
+#     ,"No macOS synthesiser, so -actionfile could not replay on AppKitBackend",ec6a2bac,...
+#
+# so `awk -F,` cut inside the quotes and handed back ` so -actionfile could not
+# replay on AppKitBackend"` as the hash. Measured 2026-09-07: of the 39 values
+# awk produced, 3 were prose. Those three then failed to resolve as commits and
+# the script reported `3 of 39 recorded hashes are no longer on develop`, which
+# is a fabricated alarm about the repository from a defect in the reader. Every
+# one of the 39 actually resolves and is an ancestor of develop.
+#
+# That is the whole reason csv2 is in this project: splitting a CSV on `,`
+# mis-aligns columns silently rather than failing. mistakes.md has carried the
+# rule since 2026-08-27, and this script was written against it anyway.
+#
+# One csv2 call per record. `-get r:c` prints one cell, so the row count comes
+# first; 72 records cost about eight seconds, which is nothing next to the
+# rebase this script performs.
+#
+# 第 3 欄是 commit hash，而它改以 csv2 讀取，因為單純切割會取錯。
+#
+# 此處的註解原本寫著「它之前的欄位從不含逗號，因此單純切割是安全的」。其中三個含有逗號。
+# `issue_title` 是帶引號的欄位，內容形如上方那一行，於是 `awk -F,` 在引號內切開，把
+# ` so -actionfile could not replay on AppKitBackend"` 當成 hash 交回。2026-09-07 實測：
+# awk 產出的 39 個值中有 3 個是散文。那三個接著無法解析為 commit，於是本腳本回報
+# `3 of 39 recorded hashes are no longer on develop`——一個由「讀取器的缺陷」捏造出來、
+# 卻指控「儲存庫」的警報。那 39 個實際上全部可解析，且全部是 develop 的祖先。
+#
+# 這正是 csv2 存在於本專案的全部理由：用 `,` 切 CSV 會**靜默地**錯開欄位，而不是失敗。
+# mistakes.md 自 2026-08-27 起就記著這條規則，而本腳本仍然違反了它。
+#
+# 每筆記錄一次 csv2 呼叫。`-get r:c` 只印一格，因此先取得列數；72 筆約需八秒，相對於本腳本
+# 所執行的 rebase 微不足道。
+record_count="$(csv2 -r -i "$csv" 2>/dev/null | grep -c .)"
+hashes=()
+for row in {1..${record_count}}; do
+    cell="$(csv2 -i "$csv" -get "$row":3 2>/dev/null)"
+    [ -n "$cell" ] && hashes+=("$cell")
+done
 
 total=0
 orphaned=0

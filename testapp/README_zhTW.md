@@ -119,9 +119,13 @@ iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」�
 | --- | --- |
 | `screenshot.zsh` | 指定 `-w` 時用 wincap/PrintWindow 擷取該視窗；未指定 `-w` 時才用 gdigrab 擷取桌面 |
 | `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6 throughput matrix 與無人值守測試 |
-| `rebase.zsh` | rebase 後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上 |
+| `rebase.zsh` | **它自己執行 rebase**，然後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上。`--check` 才是唯讀的那一半 |
 
 `rebase.zsh` 存在是因為 rebase 會靜默孤立已記錄的 hash：它們仍可能從 reflog resolve，所以直到下一次 clone 前都看不出問題。
+
+除非你真的要改寫歷史，否則請用 `--check`。不加它時，本腳本會先 fetch 並 rebase，之後才開始檢查
+任何東西；而它的名字讀起來像是在描述「什麼時候該跑它」，而不是「它會做什麼」——2026-09-07 就因為
+把它當成「只是查一下」而執行，讓這個 repository 停在 rebase 進行中的狀態。
 
 ## 紀錄
 

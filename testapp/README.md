@@ -232,10 +232,15 @@ section。bundler 會從打包的副本中剝除它，因此 `test.zsh --android
 | --- | --- |
 | `screenshot.zsh` | Captures the composited desktop, which is the only way to see D3D/DirectComposition content |
 | `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6's throughput matrix and its unattended runs |
-| `rebase.zsh` | Rebases, then checks that the hashes in `issue_commits.csv` still exist on the branch |
+| `rebase.zsh` | **Performs a rebase**, then checks that the hashes in `issue_commits.csv` still exist on the branch. `--check` is the read-only half |
 
 `rebase.zsh` exists because a rebase silently orphans recorded hashes: they
 keep resolving from the reflog, so nothing looks wrong until the next clone.
+
+Reach for `--check` unless you mean to rewrite history. Without it the script
+fetches and rebases before it checks anything, and the name reads like a
+description of when to run it rather than of what it does — running it to "just
+check" left this repository mid-rebase on 2026-09-07.
 
 ## Records
 
