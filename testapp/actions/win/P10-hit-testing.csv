@@ -53,7 +53,17 @@ action,x,y,origin,button,key,micros,note,platform
 # 並非如此：2026-08-27 的 `-w` 擷取第一次嘗試就取得了完整繪出的視窗。中間是否修好了什麼、
 # 或當時撞上的是 GTK 單一實例交接，並未確立。
 #
-# Measured on a 648x458 window capture at 100% display scale.
+# Measured on a 648x489 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 648x458. The captures from the measurement date are
+# on disk and are 648x489, which is also today's size; P10.swift has had zero
+# commits since, so the window never moved. Off by 31 here rather than the 9 in
+# P3, P7 and P9, so the headers were not all wrong the same way -- each has to
+# be checked against its own capture. The coordinates below were not changed.
+#
+# 於 2026-09-06 由 648x458 更正。量測當天的擷圖仍在磁碟上，尺寸為 648x489，也是今天的尺寸；
+# P10.swift 自那時起有零筆 commit，因此視窗從未改變。此處差 31 而非 P3、P7、P9 的 9，可見這些
+# 標頭並非以同一種方式出錯——每一個都必須對照它自己的擷圖查證。下方座標未更動。
 # 量測自一張 648x458 的視窗截圖，顯示縮放 100%。
 click,104,259,frame,left,,,"Click me" -- no overlay; Direct clicks must reach 1,windows
 sleep,,,,,,700000,,windows

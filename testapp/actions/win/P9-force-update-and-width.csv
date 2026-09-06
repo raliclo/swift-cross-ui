@@ -25,7 +25,16 @@ action,x,y,origin,button,key,micros,note,platform
 # 兩者都無法從 app 印出的數字判定，因此都靠兩張截圖判讀。標題列的 `updates: N` 則是「點擊確實
 # 命中」的證據。
 #
-# Measured on a 668x558 window capture at 100% display scale.
+# Measured on a 668x549 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 668x558. The captures from the measurement date are
+# on disk and are 668x549, which is also today's size; P9.swift has had zero
+# commits since, so the window never moved. The same +9 error is in P3 and P7.
+# The coordinates below were not changed.
+#
+# 於 2026-09-06 由 668x558 更正。量測當天的擷圖仍在磁碟上，尺寸為 668x549，也是今天的尺寸；
+# P9.swift 自那時起有零筆 commit，因此視窗從未改變。P3 與 P7 帶有同樣的 +9 誤差。
+# 下方座標未更動。
 # 量測自一張 668x558 的視窗截圖，顯示縮放 100%。
 # ---------------------------------------------------------------------------
 # Only ONE click may use the row at y=384, and it has to be the last one.

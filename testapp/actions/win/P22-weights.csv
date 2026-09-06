@@ -21,7 +21,17 @@ action,x,y,origin,button,key,micros,note,platform
 # 兩列不得完全相同。在 2026-08-27 之前，此處的 `semibold` 與 `bold` 是像素完全相同的，因為
 # GtkBackend 把兩者都對映到 CSS 700。
 #
-# Measured on a 760x700 window capture at 100% display scale.
+# Measured on a 788x729 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 760x700. The captures from the measurement date are
+# on disk and are 788x729, which is also today's size, so the window never
+# moved even though P22.swift has had two commits since -- neither of them
+# changed its size. Wrong in BOTH axes here, by 28 and 29, where P3, P7 and P9
+# were height-only. The coordinates below were not changed.
+#
+# 於 2026-09-06 由 760x700 更正。量測當天的擷圖仍在磁碟上，尺寸為 788x729，也是今天的尺寸；
+# 因此即使 P22.swift 自那時起有兩筆 commit，視窗仍未改變——那兩筆都沒有改動它的尺寸。此處
+# **兩個軸都錯**，分別差 28 與 29，而 P3、P7、P9 只錯在高度。下方座標未更動。
 # 量測自一張 760x700 的視窗截圖，顯示縮放 100%。
 move,380,500,frame,,,,over the scrolling content,windows
 sleep,,,,,,400000,,windows

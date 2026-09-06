@@ -14,7 +14,28 @@ action,x,y,origin,button,key,micros,note,platform
 # 這一半：本 app 啟動時顯示 `Selection: none` 與 `No sidebar selection`。因此下方的點擊針對的是
 # 另一半——一旦有東西要求選取，選取功能究竟能不能運作。
 #
-# Measured on a 748x518 window capture at 100% display scale.
+# Measured on a 748x509 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06. This line read 748x518 and never matched anything. The
+# captures taken the day the coordinates were measured are still on disk --
+# P7-b2-win-20260827-090445.png and P7-run-win-20260827-094123.png -- and both
+# are 748x509, which is also what the window measures today. P7.swift has had
+# zero commits since, so the window never moved; only the number written here
+# was wrong, by exactly 9. P3 and P9 carried the same +9 error, which makes it a
+# transcription of something other than the capture, not a typo.
+#
+# The coordinates below were NOT changed: they were measured against the real
+# 748x509 window and still address it.
+#
+# Verify with: python3 -c "import struct;d=open(F,'rb').read();print(struct.unpack('>II',d[16:24]))"
+#
+# 於 2026-09-06 更正。此行原本寫 748x518，而那個數字與任何東西都對不上。座標量測當天所拍的擷圖
+# 仍在磁碟上——P7-b2-win-20260827-090445.png 與 P7-run-win-20260827-094123.png——兩張都是
+# 748x509，而那也正是今天量到的視窗尺寸。P7.swift 自那時起有零筆 commit，因此視窗從未改變；
+# 錯的只是寫在這裡的數字，恰好差 9。P3 與 P9 帶有同樣的 +9 誤差，這說明它是「對某個非該擷圖之
+# 物的抄寫」，而非打字錯誤。
+#
+# 下方的座標**未**更動：它們是對著真實的 748x509 視窗量的，至今仍指向它。
 # 量測自一張 748x518 的視窗截圖，顯示縮放 100%。
 click,343,433,frame,left,,,"Select Cherry" -- the app sets the binding itself,windows
 sleep,,,,,,900000,,windows

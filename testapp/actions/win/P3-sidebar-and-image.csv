@@ -23,7 +23,16 @@ action,x,y,origin,button,key,micros,note,platform
 # #160——分割視圖在有東西更新之前排版錯誤——就是「Force state update」與 sidebar 各列的用途。
 # sidebar 的選取會被印出，因此命中的點擊與落空的點擊可以分辨。
 #
-# Measured on a 988x638 window capture at 100% display scale.
+# Measured on a 988x629 window capture at 100% display scale.
+#
+# CORRECTED 2026-09-06, from 988x638. The captures from the measurement date are
+# on disk and are 988x629, which is also today's size; P3.swift has had zero
+# commits since, so the window never moved. The same +9 error is in P7 and P9.
+# The coordinates below were not changed.
+#
+# 於 2026-09-06 由 988x638 更正。量測當天的擷圖仍在磁碟上，尺寸為 988x629，也是今天的尺寸；
+# P3.swift 自那時起有零筆 commit，因此視窗從未改變。P7 與 P9 帶有同樣的 +9 誤差。
+# 下方座標未更動。
 # 量測自一張 988x638 的視窗截圖，顯示縮放 100%。
 click,632,341,frame,left,,,"Small" -- the image must shrink inside the same frame,windows
 sleep,,,,,,900000,,windows
