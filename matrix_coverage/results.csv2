@@ -1,16 +1,16 @@
 date,platform,backend,app,launch,replay,capture,note
 日期,平台,backend,app,啟動,重放,擷取,備註
-2026-08-27,windows,gtk4,P10,ok,ok,window,""
+2026-08-27,windows,gtk4,P10,ok,ok,window,
 2026-08-27,windows,gtk4,P10,ok,ok,window,"#61 no-op control: modifier removed gives 0, present gives 1"
-2026-08-27,windows,gtk4,P10,ok,ok,window,""
+2026-08-27,windows,gtk4,P10,ok,ok,window,
 2026-08-27,windows,gtk4,P7,ok,ok,window,"#64 liststyle: plain List selection is GTK's blue accent, sidebar keeps the inset grey"
-2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 before the fix: Light then Dark left a light window with dark-scheme text"
+2026-08-27,windows,gtk4,P15,ok,ok,window,#62 before the fix: Light then Dark left a light window with dark-scheme text
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 after the fix: same action file, window is dark and legible"
 2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 control: Light alone still goes light, so the other direction is intact"
 2026-08-27,windows,gtk4,P27,ok,n/a,window,"gradients 3+4 after the fix: ring has a solid centre, reversed sweep shows its colours"
-2026-08-27,windows,winui,P27,ok,n/a,window,"gradient control: agrees on both rings; its reversed sweep was flat until fixed here too"
+2026-08-27,windows,winui,P27,ok,n/a,window,gradient control: agrees on both rings; its reversed sweep was flat until fixed here too
 2026-08-27,windows,winui,P38,ok,n/a,window,"WebView frame stayed empty with 4 msedgewebview2.exe running; parked, not diagnosed"
-2026-08-27,windows,gtk4,P39,ok,n/a,window,"all seven compositing effects differ from the identity control"
+2026-08-27,windows,gtk4,P39,ok,n/a,window,all seven compositing effects differ from the identity control
 2026-08-27,windows,winui,P39,ok,n/a,desktop,"opacity applied, six filters warn and no-op as documented; no fatalError"
 2026-08-27,windows,gtk4,P40,ok,n/a,window,"transform applied but content lost: every transformed tile flat hotpink rgb(255,105,180)"
 2026-08-27,windows,gtk4,P40,ok,n/a,window,"after declining to transform: 0 hotpink pixels sampled, content legible again"
@@ -44,85 +44,85 @@ date,platform,backend,app,launch,replay,capture,note
 2026-08-29,windows,winui,P39,ok,n/a,desktop,opacity applied (delta 69.3); blur/saturation/brightness/contrast/grayscale/hueRotation all delta 0.0 against control -- confirms the recorded gap
 2026-08-29,windows,gtk4,P39,ok,n/a,window,"all seven applied: six by mean delta, blur by text edge energy 53.21 -> 1.76"
 2026-08-29,windows,gtk4,P40,ok,n/a,window,transform re-diagnosed: default renderer is software cairo (GL fails on Direct Composition); GDK_DEBUG=dcomp gives GskGLRenderer and hotpink 47873 -> 0 with all transforms correct
-2026-09-01,mac,appkit,P28,ok,n/a,window,""
-2026-09-01,mac,appkit,P8,ok,n/a,window,""
-2026-09-01,mac,appkit,P28,ok,no line,window,"no -actionfile line at all"
-2026-09-01,mac,appkit,P28,ok,no line,window,"no -actionfile line -- built without SCUI_DEBUG?"
-2026-09-01,mac,appkit,P28,ok,ok,window,""
-2026-09-01,mac,appkit,P0,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P1,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P10,ok,n/a,window,""
-2026-09-01,mac,appkit,P11,ok,n/a,window,""
-2026-09-01,mac,appkit,P12,ok,n/a,window,""
-2026-09-01,mac,appkit,P13,ok,n/a,window,""
-2026-09-01,mac,appkit,P14,ok,n/a,window,""
-2026-09-01,mac,appkit,P15,ok,n/a,window,""
-2026-09-01,mac,appkit,P16,ok,n/a,window,""
-2026-09-01,mac,appkit,P17,ok,n/a,window,""
-2026-09-01,mac,appkit,P18,ok,n/a,window,""
-2026-09-01,mac,appkit,P19,ok,n/a,window,""
-2026-09-01,mac,appkit,P2,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P20,ok,n/a,window,""
-2026-09-01,mac,appkit,P21,ok,n/a,window,""
-2026-09-01,mac,appkit,P22,ok,n/a,window,""
-2026-09-01,mac,appkit,P23,ok,n/a,window,""
-2026-09-01,mac,appkit,P24,ok,n/a,window,""
-2026-09-01,mac,appkit,P25,ok,n/a,window,""
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,"never launched"
-2026-09-01,mac,appkit,P27,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P28,ok,ok,window,""
-2026-09-01,mac,appkit,P29,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P3,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P37,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P38,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P39,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P4,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P40,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P41,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P5,no marker,n/a,window,"launched but the render marker never appeared"
-2026-09-01,mac,appkit,P6,ok,n/a,window,""
-2026-09-01,mac,appkit,P7,ok,n/a,window,""
-2026-09-01,mac,appkit,P8,ok,n/a,window,""
-2026-09-01,mac,appkit,P9,ok,n/a,window,""
-2026-09-01,mac,appkit,P0,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P37,no marker,n/a,window,"declares a marker that never appeared"
-2026-09-01,mac,appkit,P10,ok,n/a,window,""
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,"never launched"
-2026-09-01,mac,appkit,P0,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P1,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P10,ok,n/a,window,""
-2026-09-01,mac,appkit,P11,ok,n/a,window,""
-2026-09-01,mac,appkit,P12,ok,n/a,window,""
-2026-09-01,mac,appkit,P13,ok,n/a,window,""
-2026-09-01,mac,appkit,P14,ok,n/a,window,""
-2026-09-01,mac,appkit,P15,ok,n/a,window,""
-2026-09-01,mac,appkit,P16,ok,n/a,window,""
-2026-09-01,mac,appkit,P17,ok,n/a,window,""
-2026-09-01,mac,appkit,P18,ok,n/a,window,""
-2026-09-01,mac,appkit,P19,ok,n/a,window,""
-2026-09-01,mac,appkit,P2,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P20,ok,n/a,window,""
-2026-09-01,mac,appkit,P21,ok,n/a,window,""
-2026-09-01,mac,appkit,P22,ok,n/a,window,""
-2026-09-01,mac,appkit,P23,ok,n/a,window,""
-2026-09-01,mac,appkit,P24,ok,n/a,window,""
-2026-09-01,mac,appkit,P25,ok,n/a,window,""
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,"never launched"
-2026-09-01,mac,appkit,P27,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P28,ok,ok,window,""
-2026-09-01,mac,appkit,P29,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P3,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P37,no marker,n/a,window,"declares a marker that never appeared"
-2026-09-01,mac,appkit,P38,no marker,n/a,window,"declares a marker that never appeared"
-2026-09-01,mac,appkit,P39,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P4,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P40,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P41,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P5,ok,n/a,window,"no marker configured; capture is timed"
-2026-09-01,mac,appkit,P6,ok,n/a,window,""
-2026-09-01,mac,appkit,P7,ok,n/a,window,""
-2026-09-01,mac,appkit,P8,ok,n/a,window,""
-2026-09-01,mac,appkit,P9,ok,n/a,window,""
+2026-09-01,mac,appkit,P28,ok,n/a,window,
+2026-09-01,mac,appkit,P8,ok,n/a,window,
+2026-09-01,mac,appkit,P28,ok,no line,window,no -actionfile line at all
+2026-09-01,mac,appkit,P28,ok,no line,window,no -actionfile line -- built without SCUI_DEBUG?
+2026-09-01,mac,appkit,P28,ok,ok,window,
+2026-09-01,mac,appkit,P0,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P1,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P10,ok,n/a,window,
+2026-09-01,mac,appkit,P11,ok,n/a,window,
+2026-09-01,mac,appkit,P12,ok,n/a,window,
+2026-09-01,mac,appkit,P13,ok,n/a,window,
+2026-09-01,mac,appkit,P14,ok,n/a,window,
+2026-09-01,mac,appkit,P15,ok,n/a,window,
+2026-09-01,mac,appkit,P16,ok,n/a,window,
+2026-09-01,mac,appkit,P17,ok,n/a,window,
+2026-09-01,mac,appkit,P18,ok,n/a,window,
+2026-09-01,mac,appkit,P19,ok,n/a,window,
+2026-09-01,mac,appkit,P2,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P20,ok,n/a,window,
+2026-09-01,mac,appkit,P21,ok,n/a,window,
+2026-09-01,mac,appkit,P22,ok,n/a,window,
+2026-09-01,mac,appkit,P23,ok,n/a,window,
+2026-09-01,mac,appkit,P24,ok,n/a,window,
+2026-09-01,mac,appkit,P25,ok,n/a,window,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
+2026-09-01,mac,appkit,P27,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P28,ok,ok,window,
+2026-09-01,mac,appkit,P29,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P3,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P37,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P38,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P39,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P4,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P40,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P41,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P5,no marker,n/a,window,launched but the render marker never appeared
+2026-09-01,mac,appkit,P6,ok,n/a,window,
+2026-09-01,mac,appkit,P7,ok,n/a,window,
+2026-09-01,mac,appkit,P8,ok,n/a,window,
+2026-09-01,mac,appkit,P9,ok,n/a,window,
+2026-09-01,mac,appkit,P0,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P37,no marker,n/a,window,declares a marker that never appeared
+2026-09-01,mac,appkit,P10,ok,n/a,window,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
+2026-09-01,mac,appkit,P0,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P1,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P10,ok,n/a,window,
+2026-09-01,mac,appkit,P11,ok,n/a,window,
+2026-09-01,mac,appkit,P12,ok,n/a,window,
+2026-09-01,mac,appkit,P13,ok,n/a,window,
+2026-09-01,mac,appkit,P14,ok,n/a,window,
+2026-09-01,mac,appkit,P15,ok,n/a,window,
+2026-09-01,mac,appkit,P16,ok,n/a,window,
+2026-09-01,mac,appkit,P17,ok,n/a,window,
+2026-09-01,mac,appkit,P18,ok,n/a,window,
+2026-09-01,mac,appkit,P19,ok,n/a,window,
+2026-09-01,mac,appkit,P2,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P20,ok,n/a,window,
+2026-09-01,mac,appkit,P21,ok,n/a,window,
+2026-09-01,mac,appkit,P22,ok,n/a,window,
+2026-09-01,mac,appkit,P23,ok,n/a,window,
+2026-09-01,mac,appkit,P24,ok,n/a,window,
+2026-09-01,mac,appkit,P25,ok,n/a,window,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
+2026-09-01,mac,appkit,P27,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P28,ok,ok,window,
+2026-09-01,mac,appkit,P29,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P3,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P37,no marker,n/a,window,declares a marker that never appeared
+2026-09-01,mac,appkit,P38,no marker,n/a,window,declares a marker that never appeared
+2026-09-01,mac,appkit,P39,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P4,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P40,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P41,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P5,ok,n/a,window,no marker configured; capture is timed
+2026-09-01,mac,appkit,P6,ok,n/a,window,
+2026-09-01,mac,appkit,P7,ok,n/a,window,
+2026-09-01,mac,appkit,P8,ok,n/a,window,
+2026-09-01,mac,appkit,P9,ok,n/a,window,
 2026-09-01,mac,appkit,P26,fail,n/a,n/a,"not an AppKit failure: the loader runs appCache checks through wsl.exe, which does not exist on macOS, and skips the GUI run"
 2026-09-01,mac,appkit,P10,ok,n/a,window,
 2026-09-01,mac,appkit,P38,ok,n/a,window,rebuilt: the binary was older than P38.swift
@@ -178,3 +178,49 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-03,android,android,P42,ok,ok,window,
 2026-09-03,android,android,P43,ok,ok,window,
 2026-09-04,android,android,P44,ok,ok,window,
+2026-09-06,android,android,P0,ok,ok,window,"reset-appstorage: 318236 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P1,ok,ok,window,"open-the-root-sheet: 2421625 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P2,ok,ok,window,"expand-the-picker-options: 180309 px changed; content box (-246,-76)-(1329,2538) (246L 249R 76T 138B)"
+2026-09-06,android,android,P3,ok,ok,window,"shrink-the-clipped-image: 92117 px changed; content box (-509,0)-(1811,2400) (509L 731R)"
+2026-09-06,android,android,P4,ok,ok,window,"run-a-callback-row: 2004 px changed; content box (-278,0)-(1360,9254) (278L 280R 6854B)"
+2026-09-06,android,android,P5,ok,ok,window,"request-three-alerts-at-once: 2255386 px changed; content box (-357,0)-(1435,2400) (357L 355R)"
+2026-09-06,android,android,P6,ok,ok,window,"open-the-speed-picker: 187756 px changed; content box (-889,-68)-(1972,2530) (889L 892R 68T 130B)"
+2026-09-06,android,android,P7,ok,ok,window,"select-a-list-row-from-code: 56726 px changed; content box (-367,0)-(1449,2400) (367L 369R)"
+2026-09-06,android,android,P8,ok,ok,window,"scroll-the-outer-view-from-the-inner-strip: 341255 px changed; content box (-42,0)-(1800,2701) (42L 720R 301B)"
+2026-09-06,android,android,P9,ok,ok,window,"widen-the-clipping-frame: 42400 px changed; content box (-175,0)-(1255,2400) (175L 175R)"
+2026-09-06,android,android,P10,ok,ok,window,"press-through-an-opaque-overlay: 64454 px changed; content box (-149,0)-(1229,2400) (149L 149R)"
+2026-09-06,android,android,P11,ok,ok,window,"separate-the-clamped-sliders: 30328 px changed; content box (-425,0)-(1507,4402) (425L 427R 2002B)"
+2026-09-06,android,android,P12,ok,ok,window,"android-smoke: 116053 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P12,ok,ok,window,"increment-the-counter: 13740 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P13,ok,ok,window,"render-the-non-identifiable-foreach: 69894 px changed; content box (-609,-162)-(1690,2625) (609L 610R 162T 225B)"
+2026-09-06,android,android,P14,ok,ok,window,"count-a-rotation: 419159 px changed; content box (-36,0)-(1116,2400) (36L 36R)"
+2026-09-06,android,android,P15,ok,ok,window,"request-the-dark-scheme: 2316472 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P16,ok,ok,window,"select-a-sidebar-row: 55882 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P17,ok,ok,window,"select-the-longest-picker-option: 614505 px changed; content box (-603,-294)-(1686,2756) (603L 606R 294T 356B)"
+2026-09-06,android,android,P18,ok,ok,window,"open-a-file: 327294 px changed on retry; content box (0,0)-(1080,2400) (fits). One run in this batch produced no replay line and no change; 3/3 on retry, so recorded as an emulator intermittent rather than a defect"
+2026-09-06,android,android,P19,ok,ok,window,"open-the-flat-menu: 393427 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P20,ok,ok,window,"open-the-nested-menu: 313350 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P21,ok,ok,window,"press-the-disabled-button-then-the-enabled-one: 11793 px changed; content box (0,0)-(1080,4192) (1792B)"
+2026-09-06,android,android,P22,ok,ok,window,"narrow-the-wrapping-width: 107997 px changed; content box (0,0)-(1080,3570) (1170B)"
+2026-09-06,android,android,P23,ok,ok,window,"add-a-row-without-moving-the-columns: 884 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P24,ok,ok,window,"push-a-navigation-level: 140761 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P25,ok,ok,window,"press-a-drop-target-without-dropping: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (-367,0)-(1449,2400) (367L 369R)"
+2026-09-06,android,android,P26,ok,ok,window,"switch-to-the-swiftui-tab: 484351 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P27,ok,ok,window,"touch-the-embedded-web-view: 680392 px changed; content box (-425,0)-(1507,2400) (425L 427R)"
+2026-09-06,android,android,P28,ok,ok,window,"press-through-the-disabled-overlay: 517 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P29,ok,ok,window,"enable-the-disabled-text-editor: 13894 px changed; content box (-178,0)-(1228,2400) (178L 148R)"
+2026-09-06,android,android,P30,ok,ok,window,"widen-the-rectangle-frame: 70138 px changed; content box (-183,0)-(1266,2400) (183L 186R)"
+2026-09-06,android,android,P31,ok,ok,window,"open-the-alert: 2237081 px changed; content box (-57,0)-(1137,2400) (57L 57R)"
+2026-09-06,android,android,P32,ok,ok,window,"drive-the-progress-bar-from-the-slider: 35751 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P33,ok,ok,window,"collapse-the-disclosure-group: 277595 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P34,ok,ok,window,"scroll-the-hundred-row-stack: 413341 px changed; content box (0,0)-(1080,8164) (5764B)"
+2026-09-06,android,android,P35,ok,ok,window,"flip-the-toggle-state: 17451 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P36,ok,ok,window,"open-the-picker-options: 196159 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P37,ok,ok,window,"report-the-supported-window-levels: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P38,ok,ok,window,"touch-the-rendered-error-page: 113264 px changed; content box (-509,0)-(1591,2400) (509L 511R)"
+2026-09-06,android,android,P39,ok,ok,window,"measure-each-visual-effect-against-the-control: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (-325,0)-(1407,2400) (325L 327R)"
+2026-09-06,android,android,P40,ok,ok,window,"measure-the-clipped-geometric-effects: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (-320,0)-(1402,2400) (320L 322R)"
+2026-09-06,android,android,P41,ok,ok,window,"turn-the-month-wheel: 79430 px changed; content box (-635,-191)-(1971,2654) (635L 891R 191T 254B)"
+2026-09-06,android,android,P42,ok,ok,window,"check-the-window-scale-factor: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P43,ok,ok,window,"measure-the-flattened-gradient-fills: 0 px changed, which is the pass -- the action file presses an inert or disabled target and requires only that the process survives; content box (-204,0)-(1287,2400) (204L 207R)"
+2026-09-06,android,android,P44,ok,ok,window,"clip-the-third-cell: 86805 px changed; content box (-63,0)-(1080,2400) (63L)"

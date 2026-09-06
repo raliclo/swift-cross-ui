@@ -83,13 +83,28 @@ else
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/android/|")"})
 fi
 
-python3 - "$out_csv" <<'PY'
+# The CSV is rewritten only for a full pass; naming apps appends instead.
+#
+# Every invocation used to truncate it. A 46-scenario run finished, three
+# re-runs of P18 followed to check an intermittent, and the file that was
+# supposed to carry the batch held one row. The results survived only because
+# the run had also printed them to a log. A verifier that destroys its own
+# output when you look at one case more closely is worse than no file.
+#
+# 只有完整執行才會重寫 CSV;指名個別 app 時改為追加。
+#
+# 過去每一次呼叫都會截斷它。一次 46 情境的執行剛結束、接著為了查一個偶發問題重跑了三次 P18,
+# 而那個本該承載整批結果的檔案就只剩一列。那些結果之所以還在,只是因為該次執行同時把它們印進了
+# 日誌。一個「當你想更仔細看某個案例時就把自己的輸出毀掉」的驗證器,比沒有這個檔案更糟。
+if [ "$#" -eq 0 ] || [ ! -f "$out_csv" ]; then
+    python3 - "$out_csv" <<'PY'
 import csv, sys
 with open(sys.argv[1], "w", newline="") as handle:
     w = csv.writer(handle)
     w.writerow(["app", "scenario", "changed_px", "max_delta", "bbox", "replayed", "verdict"])
     w.writerow(["應用程式", "情境", "相異像素", "最大差", "範圍", "已重放", "判定"])
 PY
+fi
 
 append_row() {
     python3 - "$out_csv" "$@" <<'PY'
