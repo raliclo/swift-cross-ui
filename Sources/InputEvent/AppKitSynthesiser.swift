@@ -166,6 +166,43 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// 參考邊為主螢幕頂端，而它會相互抵消：幾何資訊在此依它量測，並在 ``windowPoint`` 中依它還原，
     /// 因此即使參考取錯，仍會落在正確的控制項上。儘管如此仍取正確的值，因為呼叫端可能自行提供幾何。
     @MainActor
+    /// A view's rect in the space an action file's coordinates are written in.
+    ///
+    /// Top-left origin, points, measured from the primary screen's top -- the
+    /// same space ``currentWindowGeometry`` reports, and therefore the same one
+    /// `origin=frame` and `origin=client` are relative to. Public because a
+    /// diagnostic dump that computes this itself will drift from the space the
+    /// replay actually uses, and then the two disagree without either being
+    /// obviously wrong.
+    ///
+    /// That is not hypothetical. A peer's dump reported a control at
+    /// `190,290 338x27` while the replay resolved the same control at
+    /// `24,279 332x20` -- an origin off by 166 points and a size off by six --
+    /// and reconciling the two by scanning the control's edges produced a
+    /// confident, wrong rule about where controls respond. One function that
+    /// both sides call cannot disagree with itself.
+    ///
+    /// 一個 view 的矩形,以「動作檔座標所使用的那個空間」表示。
+    ///
+    /// 左上為原點、單位為點、自主螢幕頂端量起——與 ``currentWindowGeometry`` 所回報的是同一個空間,
+    /// 因此也就是 `origin=frame` 與 `origin=client` 所相對的那一個。設為 public,是因為一份自行
+    /// 計算此值的診斷傾印會與「重放實際使用的空間」漂移開來,屆時兩者互相矛盾,而任一方看起來都不
+    /// 明顯是錯的。
+    ///
+    /// 這並非假設。某位同事的傾印把一個控制項回報為 `190,290 338x27`,而重放把同一個控制項解析在
+    /// `24,279 332x20`——原點差了 166 點、尺寸差了六點——而以掃描控制項邊緣的方式去調和兩者,產生了
+    /// 一條自信而錯誤的「控制項在哪裡會回應」的規則。一個由雙方共同呼叫的函式,不可能與自己矛盾。
+    @MainActor
+    public static func actionFileRect(of view: NSView) -> (x: Double, y: Double, width: Double, height: Double) {
+        guard let window = view.window else {
+            return (0, 0, Double(view.bounds.width), Double(view.bounds.height))
+        }
+        let inWindow = view.convert(view.bounds, to: nil)
+        let onScreen = window.convertToScreen(inWindow)
+        let corner = topLeft(of: onScreen)
+        return (corner.x, corner.y, Double(onScreen.width), Double(onScreen.height))
+    }
+
     private static func topLeft(of rect: NSRect) -> (x: Double, y: Double) {
         (x: Double(rect.minX), y: Double(primaryScreenTop() - rect.maxY))
     }
