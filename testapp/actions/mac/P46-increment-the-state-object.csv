@@ -1,0 +1,60 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on macOS: pressing "Increment model" advances the model and does not
+# rebuild it.
+#
+# origin=frame, per actions/mac/README and the other files here: the window
+# capture's top-left is the frame's top-left, title bar included. The window is
+# 860x700 points and the capture was 1720x1456, so every measured pixel was
+# halved.
+#
+# Measured 2026-09-08 by scanning the capture for runs of button-bezel fill
+# rather than by reading the picture: the plate occupies (24,1008)-(267,1047)
+# in capture pixels, which is (12,504)-(133.5,523.5) in points, so the centre
+# is (73, 514). Scanning was used because a click that lands beside a button
+# produces exactly the same screen as a click the framework ignored, and an
+# eye reading a screenshot cannot tell 73 from 79.
+#
+# **What this checks is the @StateObject contract, not the button.** After the
+# press, "model.count" must read 1 and "P46Model constructions" must still read
+# 1, and the observed child below must read 1 as well. Declared @State the model
+# would be rebuilt on every update and the construction count would climb with
+# it; that count is the whole reason P46 exists. A press that increments
+# model.count while constructions also climbs is a failure that looks exactly
+# like a pass if only model.count is read.
+#
+# The third line is the one a plain stored property would fail: P46ChildView
+# shares no @State with its parent, so if "observed child sees count" moves,
+# that is because the object's publisher reached it.
+#
+# P46 於 macOS:按下「Increment model」會推進 model,而不會重建它。
+#
+# 使用 origin=frame,依 actions/mac/README 與此處其他檔案的慣例:視窗擷取的左上角即 frame 的左上角,
+# 含標題列。視窗為 860x700 點,擷取為 1720x1456,因此每一個量到的像素都要除以二。
+#
+# 2026-09-08 量測,方式是掃描擷取中成片的按鈕邊框填色,而非用眼睛讀圖:該色塊在擷取像素中佔據
+# (24,1008)-(267,1047),換算為點是 (12,504)-(133.5,523.5),因此中心為 (73, 514)。之所以用掃描,
+# 是因為「點在按鈕旁邊」與「框架忽略了這次點擊」會產生完全相同的畫面,而肉眼讀截圖分不出 73 與 79。
+#
+# **本檔檢查的是 @StateObject 的契約,不是那個按鈕。** 按下之後,「model.count」必須讀作 1,而
+# 「P46Model constructions」必須仍然是 1,下方那行 observed child 也必須是 1。若宣告為 @State,
+# 該 model 會在每次更新時被重建,建構次數也會隨之攀升;而那個計數正是 P46 存在的全部理由。一次
+# 「model.count 增加、但 constructions 也增加」的按下是失敗,而若只讀 model.count,它看起來與通過
+# 完全相同。
+#
+# REPLAYED AND VERIFIED 2026-09-08. -hittest reported `hit NSButton` with rect
+# 539,594 size 128x27 against frame-origin 530,93 -- so the button occupies
+# (9,501)-(137,528) in frame points and the click at (73,514) is inside it. The
+# capture afterwards reads "P46Model constructions: 1", "model.count = 1" and
+# "observed child sees count = 1": the model advanced, it was not rebuilt, and
+# the observed child saw it.
+#
+# 2026-09-08 已重放並驗證。-hittest 回報 `hit NSButton`,其 rect 為 539,594 size 128x27,對應
+# frame-origin 530,93——因此該按鈕在 frame 座標中佔據 (9,501)-(137,528),而 (73,514) 這一點落在
+# 其中。其後的擷取讀作「P46Model constructions: 1」、「model.count = 1」與
+# 「observed child sees count = 1」:model 前進了、它沒有被重建,而 observed child 看見了它。
+#
+# 第三行正是一個普通儲存屬性會失敗的那一項:P46ChildView 與其父層不共用任何 @State,因此若
+# 「observed child sees count」動了,那是因為該物件的 publisher 傳達到了它。
+sleep,,,,,,1500000,let P46 lay out its sections,macos
+click,73,514,frame,left,,,"the ""Increment model"" button -- model.count must read 1, P46Model constructions must still read 1, and the observed child must read 1",macos
+sleep,,,,,,1200000,let the three lines redraw,macos
