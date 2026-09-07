@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# The control for verify_effect_ios.zsh: the same journey with nothing pressed.
+#
+# On iOS a run with an action file is launched by the XCUITest runner and a run
+# without one by `simctl launch`. Comparing those two would vary the launch path
+# and the elapsed time as well as the actions, and any difference could be
+# attributed to either. This file goes through the XCUITest runner and presses
+# nothing, so the only thing that differs between it and a real action file is
+# the actions.
+#
+# The sleep matches the settle a real file gets after its last row. A control
+# that returns sooner would photograph an earlier moment and manufacture a
+# difference out of timing.
+#
+# verify_effect_ios.zsh 的對照組:走完全相同的流程,但什麼都不按。
+#
+# 在 iOS 上,帶動作檔的執行由 XCUITest runner 啟動,不帶的則由 `simctl launch` 啟動。若拿那兩者
+# 比對,變動的就不只是動作,還包括啟動路徑與經過時間,而任何差異都可以被歸給其中任一個。本檔會走
+# XCUITest runner 且不按任何東西,因此它與一份真正的動作檔之間唯一的差別就是那些動作。
+#
+# 這個 sleep 與真正的檔案在最後一列之後所得到的沉澱時間相同。一個較早返回的對照組會拍到較早的
+# 時刻,並從時間差裡製造出一個差異。
+sleep,,,,,,2000000,the control presses nothing,ios
