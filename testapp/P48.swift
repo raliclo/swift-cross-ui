@@ -58,6 +58,13 @@ struct P48GridApp: App {
 }
 
 struct P48RootView: View {
+    // Seeded to a colour that is none of the primaries, so a picker that
+    // silently resets its binding is visible as a change rather than as a
+    // colour that happened to already be there.
+    // 起始值刻意不是任何一個原色,如此「靜默重置了自己 binding 的選擇器」會表現為一次改變,
+    // 而不是一個「碰巧本來就是那個顏色」的顏色。
+    @State var chosen = Color(red: 0.85, green: 0.45, blue: 0.20)
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -110,6 +117,10 @@ struct P48RootView: View {
                         P48Cell(number: n)
                     }
                 }
+                Text("4. ColorPicker -- expect a swatch, an Edit button, and three sliders")
+                ColorPicker("Accent", selection: $chosen)
+                Text("chosen -> rgb")
+                ColorPickerReadout(color: chosen)
             }
             .padding(16)
         }
@@ -139,5 +150,46 @@ struct P48Cell: View {
             .padding(8)
             .background(Color(red: 0.30, green: 0.42, blue: 0.55))
             .cornerRadius(6)
+    }
+}
+
+/// Prints the chosen colour's components beside the picker.
+///
+/// The picker's own sliders show the same three numbers, so this is the check
+/// that the binding actually reaches the app rather than only the control:
+/// a ColorPicker that edited a copy would leave this line unchanged while its
+/// own sliders moved, and those two are the same picture from inside the
+/// control.
+///
+/// 在選擇器旁邊印出所選顏色的各分量。
+///
+/// 選擇器自身的 slider 顯示的是同樣的三個數字,因此這一行檢查的是「該 binding 真的抵達了 app」,
+/// 而不只是抵達了那個控制項:一個「編輯的是副本」的 ColorPicker 會讓這一行維持不變、而它自己的
+/// slider 照樣移動——從控制項內部看,那兩者是同一幅畫面。
+struct ColorPickerReadout: View {
+    let color: Color
+
+    @Environment(\.self) var environment
+
+    var body: some View {
+        // One expression, no `return`. A body written as
+        //     let r = color.resolve(in: environment)
+        //     return Text("...\(r.red)...")
+        // renders NOTHING here -- it compiles, the body runs, and the view is
+        // silently absent. Reduced to a minimal case with no environment and no
+        // resolve: `let n = 7; return Text("n=\(n)")` is blank while
+        // `Text("marker")` is not. See testapp/plan/explicit-return-body.md.
+        //
+        // 單一運算式,不使用 `return`。若把 body 寫成
+        //     let r = color.resolve(in: environment)
+        //     return Text("...\(r.red)...")
+        // 在此處什麼都不會畫——它編得過、body 也確實執行,而該 view 靜默地不存在。已化約為一個
+        // 不含 environment、不含 resolve 的最小案例:`let n = 7; return Text("n=\(n)")` 是空白的,
+        // 而 `Text("marker")` 不是。見 testapp/plan/explicit-return-body.md。
+        Text(
+            "app sees r=\(color.resolve(in: environment).red) "
+                + "g=\(color.resolve(in: environment).green) "
+                + "b=\(color.resolve(in: environment).blue)"
+        )
     }
 }
