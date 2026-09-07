@@ -266,10 +266,66 @@ for app in "${apps[@]}"; do
         esac
     fi
 
+    # `fail` covers two different things and the note has to say which.
+    #
+    # "No image" points at the capture tool, the window handle or the host;
+    # "rejected on content" points at rendering, and the non-black fraction that
+    # comes with it is the measurement that names the cause. Collapsing both
+    # into "screenshot.zsh produced no image" is what happened on the WSL sweep
+    # of 2026-09-07: 47 rows said no image while 56 PNGs, 1796..3505 bytes,
+    # sat in output/screenshots -- and the wrong note hid a host EGL fault
+    # behind the capture tool.
+    #
+    # screenshot.zsh's macOS branch removes an undersized capture before it
+    # returns, so today only its Windows/WSLg branch can exit 4 and reach the
+    # new arm here. It is matched anyway rather than assumed away: the arm
+    # costs one line, and an assumption about another file's behaviour is
+    # exactly the kind of thing that is true until it is not.
+    #
+    # The arm sits AFTER `priority 1` and `priority 2` so that no verdict this
+    # driver already produces changes. This `case` reads the whole run output
+    # with no notion of which capture came last, so putting the rejection first
+    # would let an early rejected capture overrule a final successful one. Only
+    # a run with no successful capture at all reaches it.
+    #
+    # The two success arms now require the words `captured from`, and that is a
+    # bug fix rather than tidying. screenshot.zsh prints `captured from ...` only
+    # on success, but on the macOS fallback path it also prints
+    #
+    #     !! priority 1 failed -- window 5 could not be captured. Falling back to
+    #     !! priority 2, the whole screen, ...
+    #
+    # and the old `*"priority 1"*` matched that failure line, first, in a run
+    # whose only real capture line was `captured from priority 2`. So a run that
+    # fell back to the whole screen was recorded as `window`, and the note this
+    # driver keeps for exactly that case -- "window capture fell back to the
+    # screen" -- could never be reached.
+    #
+    # 兩個成功分支現在都要求出現 `captured from` 字樣，而那是修正錯誤，不是整理格式。
+    # screenshot.zsh 只有在成功時才印出 `captured from ...`，但在 macOS 的回退路徑上它同時會印出
+    # 上方那兩行；舊的 `*"priority 1"*` 會**先**比中那一行失敗訊息，而該次執行唯一真正的擷取記錄是
+    # `captured from priority 2`。於是一次回退到整個螢幕的執行被記成 `window`，而本 driver 為此情況
+    # 準備的備註——「window capture fell back to the screen」——永遠不可能被觸發。
+    #
+    # `fail`涵蓋兩件不同的事，而 note 必須說出是哪一件。
+    #
+    # 「沒有影像」指向擷取工具、視窗 handle 或主機；「因內容被否決」指向繪製，而隨之而來的非黑像素
+    # 比例正是指認成因的量測值。把兩者壓成「screenshot.zsh produced no image」，正是 2026-09-07
+    # 那次 WSL sweep 發生的事：47 列說沒有影像，而 56 張介於 1796 至 3505 位元組的 PNG 就放在
+    # output/screenshots——那則錯誤的備註把一個主機端的 EGL 故障藏到了擷取工具背後。
+    #
+    # screenshot.zsh 的 macOS 分支會在返回前刪掉過小的擷取，因此目前只有它的 Windows/WSLg 分支會以
+    # 4 結束並走到此處第一個分支。仍然照樣比對，而不是假設它不會發生：這個分支只花一行，而「對另一個
+    # 檔案行為的假設」正是那種「在它不成立之前都成立」的東西。
+    capture_fraction="$(printf '%s\n' "$out" \
+        | grep -oE 'non-black: [0-9]+/[0-9]+ \([0-9.]+%\)' | tail -1 || true)"
     case "$out" in
-        *"priority 1"*) capture=window ;;
-        *"priority 2"*) capture=desktop; note="${note:+$note; }window capture fell back to the screen" ;;
-        *"no screenshot"*) capture=fail; note="${note:+$note; }screenshot.zsh produced no image" ;;
+        *"captured from priority 1"*) capture=window ;;
+        *"captured from priority 2"*) capture=desktop; note="${note:+$note; }window capture fell back to the screen" ;;
+        *"rejected on content"*)
+            capture=fail
+            note="${note:+$note; }an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
+        *"no screenshot"*) capture=fail; note="${note:+$note; }screenshot.zsh wrote no image file at all" ;;
         *) capture=n/a ;;
     esac
 

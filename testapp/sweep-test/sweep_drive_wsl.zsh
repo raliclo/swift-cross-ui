@@ -619,15 +619,45 @@ for app in "${apps[@]}"; do
     # 取「最後一行」擷取記錄，而非任何一行。一次執行會在一秒時拍一張早期截圖、並在 marker 之後拍
     # 一張最終截圖；早期那張常常還找不到視窗，而 `case "$out" in *"priority 1"*` 會讓其中任何一張
     # 決定該欄位。只有最終那張截圖才是證據。
-    capture_line="$(printf '%s\n' "$out" | grep 'captured from' | tail -1 || true)"
+    #
+    # A REJECTED CAPTURE IS ALSO A CAPTURE LINE, so it is matched here rather
+    # than left to the `""` branch below.
+    #
+    # A capture that is rejected on content prints no `captured from` line, so
+    # this grep used to see nothing and the run fell through to
+    # `screenshot.zsh produced no image` -- about images that existed. Measured
+    # 2026-09-07: 47 WSL rows carried that note while 56 PNGs from the same day
+    # sat in output/screenshots, 1796..3505 bytes, none of them empty. Worse, on
+    # a run whose EARLY capture succeeded and whose FINAL one was rejected, the
+    # only `captured from` line was the early one, so `tail -1` reported
+    # `window` and the rejection vanished entirely.
+    #
+    # 被否決的擷取同樣是一行擷取記錄，因此在此比對，而不是留給下方的 `""` 分支。
+    #
+    # 因內容被否決的擷取不會印出 `captured from`，所以這個 grep 原本什麼也看不到，於是該次執行落到
+    # 「screenshot.zsh produced no image」——而那些影像是存在的。2026-09-07 實測：47 列 WSL 帶著該
+    # 備註，而同一天的 56 張 PNG 就放在 output/screenshots，介於 1796 至 3505 位元組，沒有一張是空
+    # 的。更糟的是，若某次執行的「早期」擷取成功而「最終」擷取被否決，唯一的 `captured from` 來自早期
+    # 那一張，於是 `tail -1` 會回報 `window`，而否決就此完全消失。
+    capture_line="$(printf '%s\n' "$out" | grep -E 'captured from|rejected on content' | tail -1 || true)"
+    # Taken from wincap's own measurement, echoed through screenshot.zsh. It is
+    # the number that separates a rendering fault from a capture fault, and the
+    # note is where a reader of results.csv2 will look for it.
+    # 取自 wincap 自身的量測，經由 screenshot.zsh 回顯。它是區分「繪製故障」與「擷取故障」的那個
+    # 數字，而 note 正是 results.csv2 的讀者會去找它的地方。
+    capture_fraction="$(printf '%s\n' "$out" \
+        | grep -oE 'non-black: [0-9]+/[0-9]+ \([0-9.]+%\)' | tail -1 || true)"
     case "$capture_line" in
+        *"rejected on content"*)
+            capture=fail
+            add_note "an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
         *"priority 1"*) capture=window ;;
         *"priority 2"*|*desktop*)
             capture=desktop
             add_note "window capture fell back to the screen" ;;
         "")
             case "$out" in
-                *"no screenshot"*) capture=fail; add_note "screenshot.zsh produced no image" ;;
+                *"no screenshot"*) capture=fail; add_note "screenshot.zsh wrote no image file at all" ;;
                 *) capture=n/a; add_note "no capture line in the output; whether an image exists is unknown" ;;
             esac ;;
         *) capture=n/a; add_note "unrecognised capture line: $(printf '%s' "$capture_line" | cut -c1-60)" ;;

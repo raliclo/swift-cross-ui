@@ -33,6 +33,54 @@
 # and overwriting the same file, so the file always holds the most recent frame.
 # 等待方式依路徑不同。視窗擷取會先 sleep，再請 wincap 取得一張已算繪影像。桌面擷取仍靠每秒
 # 抓一張並覆寫同一個檔案，因此檔案內容永遠是最新的一張。
+#
+# Exit codes, which are the interface:
+#
+#   0  an image was written and it has content
+#   1  no image was written
+#   3  this host has no capture path at all
+#   4  an image WAS written and was then rejected on content; the file is kept
+#
+# 4 exists because 1 was carrying both "nothing was produced" and "a picture was
+# taken and judged too black to keep", and those two need opposite responses:
+# the first points at the capture tool, the window handle or the host, the
+# second at rendering.
+#
+# Measured 2026-09-07. A WSLg sweep recorded 47 rows as `screenshot.zsh produced
+# no image` while 56 PNGs written that same day sat in output/screenshots -- not
+# one of them zero-byte, 1796..3505 bytes each. The wincap log kept beside one
+# of them reads
+#
+#     window: [WARN:COPY MODE] P11 sliders, scrollbars and pickers (Ubuntu)
+#     size: 788x649  exstyle: 0x80100
+#     PrintWindow: true  non-black: 19922/511412 (3.8%)
+#
+# The picture was taken. It was 96.2% black, so the 5000-byte floor at the end
+# of capture_with_wincap rejected it and this script exited 1, which the caller
+# read as "no image". A software-rendered run of the same app, the same 788x649
+# window, minutes later, measures 92.1% non-black -- so the fraction names a
+# host EGL fault, and calling it "no image" hid that behind the capture tool for
+# several investigation steps while the files sat on disk contradicting the
+# report.
+#
+# 結束碼即為它的介面：
+#
+#   0  已寫出影像且影像有內容
+#   1  沒有寫出任何影像
+#   3  本主機根本沒有擷取路徑
+#   4  影像**已**寫出，之後才因內容被否決；檔案予以保留
+#
+# 之所以要有 4，是因為 1 同時承載了「什麼都沒產出」與「拍到了，但被判定太黑而不予採用」這兩件事，
+# 而它們需要的是相反的回應：前者指向擷取工具、視窗 handle 或主機，後者指向繪製。
+#
+# 2026-09-07 實測。一次 WSLg sweep 記下 47 列 `screenshot.zsh produced no image`，而同一天寫出的
+# 56 張 PNG 就躺在 output/screenshots 裡——沒有任何一張是零位元組，每張介於 1796 至 3505 位元組。
+# 保留在其中一張旁邊的 wincap 日誌寫著上方那三行。
+#
+# 照片拍到了。它 96.2% 是黑的，於是 capture_with_wincap 結尾的 5000 位元組門檻否決了它，本腳本
+# 結束碼為 1，而呼叫端把它讀成「沒有影像」。數分鐘後，同一支 app、同一個 788x649 視窗，改以軟體
+# 繪製執行，量到 92.1% 非黑——因此該比例指認的是主機端的 EGL 故障；把它說成「沒有影像」，等於在
+# 檔案就躺在磁碟上反駁該回報的情況下，把故障藏到擷取工具背後好幾個調查步驟。
 
 set -euo pipefail
 
@@ -133,6 +181,15 @@ usage() {
         "macOS：-w 先比對視窗標題，比不到時改以擁有該視窗的程式名稱比對——未取得" \
         "       「螢幕錄製」權限的行程讀到的標題一律為空。實際以哪一種比中會被印出。" \
         "       擷取本身需要該權限；沒有時不會產生檔案，結束碼為 1。" \
+        "" \
+        "Exit codes 結束碼:" \
+        "  0  an image was written and it has content 已寫出影像且有內容" \
+        "  1  no image was written 沒有寫出任何影像" \
+        "  3  this host has no capture path 本主機沒有擷取路徑" \
+        "  4  an image WAS written and then rejected on content; it is kept," \
+        "     and the non-black fraction is printed with it" \
+        "  4  影像已寫出，之後才因內容被否決；檔案保留，並一併印出非黑像素比例" \
+        "" \
         "Example 範例:" \
         "  zsh testapp/screenshot.zsh -d 15 -w 'P6 stream player' p6-960x540"
 }
@@ -479,6 +536,54 @@ ensure_wincap() {
     fi
 }
 
+# Announces "an image WAS written and then rejected on content", and says by how
+# much.
+#
+# The fraction is NOT recomputed here. wincap already measured it, pixel by
+# pixel, and printed it into the log that sits beside the capture:
+#
+#     PrintWindow: true  non-black: 19922/511412 (3.8%)
+#
+# That one number is what separates the two faults. "No image" points at the
+# capture tool, the window handle or the host; "3.8% non-black" points at
+# rendering, and a second run of the same window at 92.1% then names the
+# difference. Throwing the number away and reporting "no image" is how a host
+# EGL fault stayed hidden on 2026-09-07 -- see this file's header.
+#
+# The log is deliberately left on disk here, unlike every other failure path in
+# capture_with_wincap: on those the message IS the whole evidence, whereas here
+# a PNG survives and the log is the only thing that explains what is in it.
+#
+# The last line is one line on purpose, and carries the phrase, the fraction and
+# the path together, because sweep_drive.zsh reads this through `tail -1`.
+#
+# 宣告「影像**已**寫出，之後才因內容被否決」，並說出差多少。
+#
+# 該比例並非在此重新計算。wincap 早已逐像素量過，並印進了擷取檔旁邊的那份日誌（如上行）。
+#
+# 那一個數字正是區分兩種故障的依據：「沒有影像」指向擷取工具、視窗 handle 或主機；「3.8% 非黑」
+# 指向繪製，而同一個視窗的第二次執行量到 92.1%，就替兩者的差別命了名。把這個數字丟掉、改報
+# 「沒有影像」，正是 2026-09-07 那次主機端 EGL 故障得以隱藏的方式——見本檔檔頭。
+#
+# 此處刻意把日誌留在磁碟上，與 capture_with_wincap 其他每一條失敗路徑不同：在那些路徑上，訊息本身
+# 就是全部的證據；而在這裡有一張 PNG 存活下來，日誌是唯一能說明它內容為何的東西。
+#
+# 最後一行刻意寫成單獨一行，且把關鍵字、比例與路徑放在一起，因為 sweep_drive.zsh 是以 `tail -1`
+# 讀取它的。
+wincap_reject() {
+    local log="$1" reason="$2"
+    local fraction
+
+    fraction="$(grep -m1 -o 'non-black: .*' "$log" 2>/dev/null || true)"
+    if [ -z "$fraction" ]; then
+        fraction="non-black: unmeasured (no wincap log at $log)"
+    fi
+
+    printf '!! screenshot.zsh：影像已寫出，之後才因內容被否決（%s）。這不是「沒有影像」。\n' "$reason" >&2
+    printf '!! screenshot.zsh: image written but rejected on content (%s): %s -- kept at %s\n' \
+        "$reason" "$fraction" "$target" >&2
+}
+
 capture_with_wincap() {
     local title="$1"
     local bmp="${target:r}-wincap.bmp"
@@ -550,13 +655,43 @@ capture_with_wincap() {
     # 在一份會自我刪除的證據上。
     #
     # 僅在成功時保留。上方每一條失敗路徑仍會移除它，因為在那裡訊息已印往 stderr，該檔案只會是重複。
-    if [ "$rc" -ne 0 ]; then
+    # Everything from here down happens AFTER the PNG has been written, so
+    # nothing below is a "no image" condition. Both remaining rejections judge
+    # the CONTENT of a file that exists, and both return 4 rather than 1.
+    #
+    # This block used to be two lines: `rm` the log, print "wincap produced
+    # diagnostic image but reported capture failure", `return 1`; then a bare
+    # `[ -f "$target" ] && [ size -gt 5000 ]` whose failure said nothing at all.
+    # The bare test is what fired on 2026-09-07 -- a 3505-byte PNG of a 96.2%
+    # black window -- and because it returned 1 silently, the caller printed
+    # "no matching window could be captured" about a window it had photographed.
+    #
+    # 從這裡往下的每一件事都發生在 PNG 已經寫出之後，因此以下沒有任何一項是「沒有影像」。剩下的
+    # 兩種否決判斷的都是一個確實存在之檔案的**內容**，兩者都回傳 4 而非 1。
+    #
+    # 本區塊原本是兩段：刪掉日誌、印出「wincap produced diagnostic image but reported capture
+    # failure」、回傳 1；再加上一行光禿禿的 `[ -f "$target" ] && [ size -gt 5000 ]`，失敗時什麼
+    # 也不說。2026-09-07 觸發的正是那一行光禿禿的判斷——一張 3505 位元組、視窗 96.2% 全黑的
+    # PNG——而由於它靜默地回傳 1，呼叫端便對一個它明明已經拍下的視窗印出「找不到可擷取的視窗」。
+    if [ ! -f "$target" ]; then
+        printf '!! screenshot.zsh: ffmpeg reported success but no PNG is on disk: %s\n' "$target" >&2
         [ -f "$log" ] && rm -- "$log"
-        printf '!! screenshot.zsh: wincap produced diagnostic image but reported capture failure\n' >&2
         return 1
     fi
 
-    [ -f "$target" ] && [ "$(stat -c%s "$target" 2>/dev/null || echo 0)" -gt 5000 ]
+    if [ "$rc" -ne 0 ]; then
+        wincap_reject "$log" "wincap exited $rc"
+        return 4
+    fi
+
+    local png_bytes
+    png_bytes="$(stat -c%s "$target" 2>/dev/null || echo 0)"
+    if [ "$png_bytes" -le 5000 ]; then
+        wincap_reject "$log" "the PNG is $png_bytes bytes, at or below the 5000-byte floor"
+        return 4
+    fi
+
+    return 0
 }
 
 # In window mode the wait is a plain sleep, because Windows `-w` intentionally
@@ -592,17 +727,38 @@ target="$output_dir/$label-$timestamp.png"
 # 要求 DWM 算繪視窗，並在本腳本將 BMP 轉成 PNG 前拒絕全黑 bitmap。
 captured_from=""
 if [ -n "$window" ]; then
-    if capture_with_wincap "$window"; then
-        captured_from="priority 1: wincap window \"$window\""
-    else
-        # Fail closed. A desktop capture is not evidence about the named window,
-        # and silently substituting one caused false findings before.
-        # 採 fail closed。桌面截圖不是指定視窗的證據，先前靜默替換成桌面截圖曾造成錯誤 finding。
-        printf '!! screenshot.zsh: priority 1 failed -- no matching window could be captured by wincap.\n' >&2
-        printf '!! No desktop fallback was used; retry with the correct window title or omit -w explicitly.\n' >&2
-        printf '!! 優先序 1 失敗：wincap 無法擷取符合的視窗。未使用 desktop fallback；請修正視窗標題，或明確省略 -w。\n' >&2
-        exit 1
-    fi
+    # The return code is kept, not collapsed to true/false. 4 means an image is
+    # on disk and failed the content check; 1 means there is nothing to look at.
+    # An `if capture_with_wincap` here would have thrown that away, and is
+    # exactly how the two states came to share one message.
+    # 保留回傳碼，不把它壓成 true/false。4 表示磁碟上有影像但未通過內容檢查；1 表示根本沒有東西
+    # 可看。此處若寫成 `if capture_with_wincap` 就會把這個區別丟掉——那正是兩種狀態共用同一則訊息
+    # 的成因。
+    wincap_rc=0
+    capture_with_wincap "$window" || wincap_rc=$?
+    case "$wincap_rc" in
+        0)
+            captured_from="priority 1: wincap window \"$window\""
+            ;;
+        4)
+            # wincap_reject has already printed the fraction and the path. No
+            # "captured from" line is printed, because the capture is not
+            # evidence about the window -- but the file is kept, because it is
+            # evidence about the rendering.
+            # wincap_reject 已印出比例與路徑。此處不印 "captured from"，因為該擷取並非關於該視窗
+            # 的證據——但檔案予以保留，因為它是關於「繪製」的證據。
+            exit 4
+            ;;
+        *)
+            # Fail closed. A desktop capture is not evidence about the named window,
+            # and silently substituting one caused false findings before.
+            # 採 fail closed。桌面截圖不是指定視窗的證據，先前靜默替換成桌面截圖曾造成錯誤 finding。
+            printf '!! screenshot.zsh: priority 1 failed -- no matching window could be captured by wincap.\n' >&2
+            printf '!! No desktop fallback was used; retry with the correct window title or omit -w explicitly.\n' >&2
+            printf '!! 優先序 1 失敗：wincap 無法擷取符合的視窗。未使用 desktop fallback；請修正視窗標題，或明確省略 -w。\n' >&2
+            exit 1
+            ;;
+    esac
 fi
 
 if [ -z "$captured_from" ]; then

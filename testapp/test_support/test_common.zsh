@@ -430,30 +430,91 @@ fi
 # The call sites used to end in `|| true`, which was accurate while
 # screenshot.zsh exited 0 whatever happened -- it could not fail, so there was
 # nothing to swallow. It can now: 1 when it produced no image, 3 when the host
-# has no capture path at all. `|| true` would discard exactly the signal that
-# was missing before.
+# has no capture path at all, 4 when it wrote an image and then rejected it on
+# content. `|| true` would discard exactly the signal that was missing before.
 #
 # The run is not aborted. A screenshot is evidence, not the assertion, and a
 # window that rendered and logged its diagnostics is still worth reading. But
 # the failure is announced where it happens and counted for the summary, so a
 # run that produced no pictures cannot look like one that did.
 #
+# WHY THIS FUNCTION LOOKS FOR THE FILE.
+#
+# It did not, and that is the bug it now exists to prevent. The message read
+# "screenshot.zsh exited %d and produced no image" for every non-zero code that
+# was not 3 -- an inference from an exit status, never a look at the disk.
+#
+# Measured 2026-09-07: a WSLg sweep recorded 47 rows as "screenshot.zsh produced
+# no image". The images existed. 56 PNGs were written that day, none zero-byte,
+# 1796..3505 bytes. The wincap log beside one of them reads
+#
+#     window: [WARN:COPY MODE] P11 sliders, scrollbars and pickers (Ubuntu)
+#     size: 788x649  exstyle: 0x80100
+#     PrintWindow: true  non-black: 19922/511412 (3.8%)
+#
+# The picture was taken and it was 96.2% black. Since todo #77 made wincap judge
+# content by a non-black FRACTION rather than by any single surviving pixel, a
+# capture that succeeds mechanically and comes back mostly black exits non-zero,
+# and the old message then said the opposite of what had happened.
+#
+# The two states need opposite responses. "No image" points at the capture tool,
+# the window handle, the host. "Image rejected on content" points at rendering:
+# the same app, the same 788x649 window, software-rendered minutes later,
+# measures 92.1% non-black. In this instance the wrong message hid a host-level
+# EGL fault and several investigation steps went into asking whether
+# screenshot.zsh was broken, while 56 PNGs sat on disk contradicting its report.
+#
 # 擷取畫面；若未能擷取，就明白說出來。
 #
 # 各呼叫點原本以 `|| true` 結尾，而在 screenshot.zsh 無論如何都回傳 0 的年代，那是準確的——它不
 # 可能失敗，因此也沒有什麼可被吞掉。現在它會失敗了：未產生影像時回傳 1，主機根本沒有擷取路徑時
-# 回傳 3。`|| true` 會恰好丟棄那個先前一直欠缺的訊號。
+# 回傳 3，寫出影像後才因內容否決時回傳 4。`|| true` 會恰好丟棄那個先前一直欠缺的訊號。
 #
 # 執行不會因此中止。截圖是證據而非斷言，一個已完成繪製並寫下診斷的視窗仍然值得閱讀。但失敗會在
 # 它發生之處被公告，並計入摘要——如此一來，一次沒有產出任何圖片的執行，就不會看起來像有產出。
+#
+# 本函式為何要去找那個檔案。
+#
+# 它原本不找，而那正是它如今存在所要防止的錯誤。除 3 以外的每一個非零結束碼，訊息都寫成
+# 「screenshot.zsh exited %d and produced no image」——那是從結束碼推論出來的，從未看過磁碟一眼。
+#
+# 2026-09-07 實測：一次 WSLg sweep 記下 47 列「screenshot.zsh produced no image」。影像是存在的。
+# 那天寫出 56 張 PNG，沒有任何一張是零位元組，介於 1796 至 3505 位元組。其中一張旁邊的 wincap
+# 日誌寫著上方那三行。
+#
+# 照片拍到了，而它 96.2% 是黑的。自 todo #77 讓 wincap 改以非黑像素的**比例**判定內容（而非只看
+# 有沒有任何一個像素活下來）之後，一次機械上成功、回來卻幾乎全黑的擷取會以非零結束，而舊訊息說的
+# 正好與實際發生的事相反。
+#
+# 這兩種狀態需要的是相反的回應。「沒有影像」指向擷取工具、視窗 handle、主機；「影像因內容被否決」
+# 指向繪製：同一支 app、同一個 788x649 視窗，數分鐘後改以軟體繪製，量到 92.1% 非黑。在該次事件中，
+# 錯誤的訊息掩蓋了一個主機層級的 EGL 故障，好幾個調查步驟花在追問 screenshot.zsh 是不是壞了，而
+# 56 張 PNG 就躺在磁碟上反駁著它自己的回報。
 screenshot_failures=0
 capture() {
-    local rc
-    if zsh "$script_dir/screenshot.zsh" "$@"; then
-        rc=0
-    else
-        rc=$?
-    fi
+    # errexit and pipefail are off for this function alone. The screenshot is
+    # deliberately allowed to fail, and the pipeline below exists so that
+    # screenshot.zsh's output can be BOTH streamed to the terminal as it happens
+    # -- `ensure_wincap` can run swiftc, which is not something to hide behind a
+    # silent buffer -- and read back afterwards. Under `set -e -o pipefail` a
+    # non-zero screenshot.zsh would end the run at the pipe. `localoptions`
+    # restores both options when the function returns.
+    # 僅在本函式內關閉 errexit 與 pipefail。截圖本來就允許失敗，而下方的 pipeline 存在的理由是：
+    # screenshot.zsh 的輸出既要在發生當下就串流到終端（`ensure_wincap` 可能會跑 swiftc，那不該被
+    # 藏在一個安靜的緩衝區後面），事後又要能被讀回來。在 `set -e -o pipefail` 之下，非零的
+    # screenshot.zsh 會在管線處直接結束整個執行。`localoptions` 會在函式返回時把兩個選項還原。
+    setopt localoptions noerrexit nopipefail
+
+    local rc out tmp reject_line rejected_png fraction
+    tmp="$(mktemp)"
+    zsh "$script_dir/screenshot.zsh" "$@" 2>&1 | tee "$tmp"
+    # `pipestatus[1]`, not `$?`: `$?` here is tee's, and tee succeeds whatever
+    # screenshot.zsh did.
+    # 用 `pipestatus[1]` 而非 `$?`：此處的 `$?` 是 tee 的，而無論 screenshot.zsh 發生什麼事，
+    # tee 都會成功。
+    rc="${pipestatus[1]}"
+    out="$(cat "$tmp" 2>/dev/null || true)"
+    rm -f "$tmp"
     # Not `status`. That is one of zsh's special parameters -- a read-only alias
     # for $? -- so `local status=$?` aborts the run with
     # "capture:2: read-only variable: status". The same family as `path`,
@@ -465,9 +526,54 @@ capture() {
     [ "$rc" -eq 0 ] && return 0
 
     screenshot_failures=$(( screenshot_failures + 1 ))
+
+    # The fraction is taken from what wincap already measured, not recomputed
+    # here. wincap counts the non-black pixels itself and prints the count into
+    # the `*-wincap.log` it leaves beside the capture; screenshot.zsh echoes that
+    # log to stderr with a `wincap: ` prefix and repeats the fraction on its own
+    # rejection line. Recomputing it would need an image decoder this script does
+    # not have, and would risk disagreeing with the number in the log.
+    #
+    # `tail -1` on both: a run takes an early capture and a final one, so the
+    # last occurrence is the one this message is about.
+    #
+    # 比例取自 wincap 已經量好的數值，不在此重新計算。wincap 自行計數非黑像素，並把結果印進它留在
+    # 擷取檔旁邊的 `*-wincap.log`；screenshot.zsh 會以 `wincap: ` 前綴把該日誌回顯到 stderr，並在
+    # 自己的否決訊息行上再寫一次比例。重新計算需要本腳本沒有的影像解碼器，而且有與日誌裡的數字互相
+    # 矛盾的風險。
+    #
+    # 兩者都取 `tail -1`：一次執行會拍早期與最終兩張，最後出現的那一筆才是本訊息所指的那一次。
+    reject_line="$(printf '%s\n' "$out" | grep 'rejected on content' | tail -1 || true)"
+    fraction="$(printf '%s\n' "$out" \
+        | grep -oE 'non-black: [0-9]+/[0-9]+ \([0-9.]+%\)' | tail -1 || true)"
+    rejected_png=""
+    if [ -n "$reject_line" ]; then
+        rejected_png="${reject_line##*-- kept at }"
+    fi
+
+    # The disk is asked, not the exit code. That is the whole point: an exit code
+    # says a step failed, a file says whether a picture exists.
+    # 這裡問的是磁碟，不是結束碼。這正是重點所在：結束碼說的是某個步驟失敗了，檔案說的才是究竟有
+    # 沒有一張圖。
+    if [ -n "$rejected_png" ] && [ -f "$rejected_png" ]; then
+        printf '!! screenshot rejected on content: an image WAS written -- %s\n' \
+            "${fraction:-non-black: unmeasured}" >&2
+        printf '!! screenshot rejected on content: the file is %s\n' "$rejected_png" >&2
+        printf '!! Read this as a rendering fault, not a capture fault: the capture tool ran,\n' >&2
+        printf '!! the window was found and the picture was taken. The fraction above is the\n' >&2
+        printf '!! measurement that names the cause -- a healthy capture of the same window is\n' >&2
+        printf '!! upwards of 90%% non-black.\n' >&2
+        printf '!! 請把這讀成繪製故障，而非擷取故障：擷取工具跑過了、視窗找到了、照片也拍了。\n' >&2
+        printf '!! 上方的比例就是指認成因的量測值——同一個視窗健康時的擷取在 90%% 非黑以上。\n' >&2
+        return 0
+    fi
+
     case "$rc" in
         3) printf '!! no screenshot: this host has no capture path (screenshot.zsh exited 3)\n' >&2 ;;
-        *) printf '!! no screenshot: screenshot.zsh exited %d and produced no image\n' "$rc" >&2 ;;
+        4) printf '!! no screenshot: screenshot.zsh exited 4, so it wrote an image and rejected it,\n' >&2
+           printf '!! but %s is not on disk now -- something removed it between the two.\n' \
+               "${rejected_png:-the file it named}" >&2 ;;
+        *) printf '!! no screenshot: screenshot.zsh exited %d and no image file was written\n' "$rc" >&2 ;;
     esac
     return 0
 }
@@ -1350,3 +1456,33 @@ case "$target" in
     both) run_wsl; printf '\n'; run_windows ;;
     *) printf 'Unknown target: %s\n' "$target" >&2; exit 64 ;;
 esac
+
+# The counter `capture` keeps is read HERE. Until now it was written and never
+# read: the comment above capture() said the failures were "counted for the
+# summary", the increment was there, and nothing anywhere printed the total.
+# test_ios.zsh (line 373) and test_android.zsh (line 561) both have this line;
+# this file had only half of the pattern.
+#
+# It is a total, not a diagnosis. Which kind of failure each one was -- no image
+# at all, or an image rejected on content -- is said by capture() at the moment
+# it happens, with the file name and the non-black fraction. This line exists so
+# that a run whose pictures did not come out cannot end looking like one whose
+# pictures did, which is the same failure mode in a different place.
+#
+# `ios` and `android` do not reach it: run_ios and run_android use `exec`, and
+# the script they hand over to prints its own count.
+#
+# capture 所維護的計數器在此被讀取。在此之前它只被寫入、從未被讀取：capture() 上方的註解說這些失敗
+# 會「計入摘要」，遞增也確實在那裡，卻沒有任何地方印出總數。test_ios.zsh（第 373 行）與
+# test_android.zsh（第 561 行）都有這一行；本檔只有這個模式的一半。
+#
+# 它是總數，不是診斷。每一次失敗屬於哪一種——完全沒有影像，或影像因內容被否決——由 capture() 在事發
+# 當下說明，並附上檔名與非黑像素比例。這一行存在的理由是：一次沒有拍出照片的執行，不該在結束時看起來
+# 像有拍出照片的執行——那是同一種失敗模式換了個位置。
+#
+# `ios` 與 `android` 不會走到這裡：run_ios 與 run_android 使用 `exec`，而它們交棒過去的腳本會印出
+# 自己的計數。
+if [ "$screenshot_failures" -gt 0 ]; then
+    printf '\n!! %d screenshot(s) did not succeed; the "!!" lines above say which kind each was.\n' \
+        "$screenshot_failures" >&2
+fi

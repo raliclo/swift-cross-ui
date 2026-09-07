@@ -548,10 +548,75 @@ for app in $apps; do
         break
     fi
 
-    case "$(zsh "$repo/testapp/screenshot.zsh" -w "$app" "$label-$run_key" 2>&1 | tail -1)" in
-        *'priority 1'*) capture=window ;;
-        *'priority 2'*|*desktop*) capture=desktop ;;
-        *) capture='?' ;;
+    # The whole output is kept now, not only its last line.
+    #
+    # `tail -1` alone answers "which priority" and nothing else, so every kind of
+    # failure landed on `?` with no note -- including the one where a picture WAS
+    # taken and then rejected because it came back mostly black. Those two need
+    # opposite responses: "no image" points at the capture tool, the window
+    # handle or the host, while "rejected on content" points at rendering, and
+    # the non-black fraction that screenshot.zsh prints beside it is the
+    # measurement that names the cause.
+    #
+    # Measured on the WSL sweep of 2026-09-07, which had the same conflation:
+    # 47 rows recorded "screenshot.zsh produced no image" while 56 PNGs written
+    # that day, 1796..3505 bytes and none of them empty, sat in
+    # output/screenshots. The wrong note hid a host EGL fault behind the capture
+    # tool for several investigation steps.
+    #
+    # The failure arms read the whole output because the last line on the
+    # no-window path is the Chinese half of the message.
+    #
+    # The two success arms now require the words `captured from`, and that is a
+    # bug fix, not tidying. screenshot.zsh prints `captured from ...` only when
+    # it succeeded, but its FAILURE message is
+    #
+    #     !! 優先序 1 失敗：wincap 無法擷取符合的視窗。未使用 desktop fallback；...
+    #
+    # which is the last line on that path and contains the word `desktop`. The
+    # old `*desktop*` therefore recorded `capture=desktop` -- "a screenshot was
+    # taken, just of the wrong thing" -- for a run that captured nothing at all.
+    # Measured while testing this change, by feeding that exact output through
+    # the old arms. `*'priority 1'*` had the matching hole: the English line
+    # above it reads `priority 1 failed`, so whenever that line landed last, a
+    # total failure was recorded as `window`.
+    #
+    # 兩個成功分支現在都要求出現 `captured from` 字樣，而那是修正錯誤，不是整理格式。
+    # screenshot.zsh 只有在成功時才會印出 `captured from ...`，但它的**失敗**訊息（如上）是該路徑
+    # 的最後一行，而其中含有 `desktop` 一詞。因此舊的 `*desktop*` 會把一次什麼都沒擷取到的執行記成
+    # `capture=desktop`——讀起來是「有拍到，只是拍錯東西」。這是在測試本次改動時，把該段輸出原封不動
+    # 餵進舊分支所實測到的。`*'priority 1'*` 有同樣的漏洞：它上一行英文寫的是 `priority 1 failed`，
+    # 因此只要那一行落在最後，一次徹底的失敗就會被記成 `window`。
+    #
+    # 現在保留整份輸出，而不再只取最後一行。
+    #
+    # 單靠 `tail -1` 只能回答「哪一個優先序」，別的都答不了，於是每一種失敗都落到 `?` 且沒有任何
+    # 備註——包含「照片確實拍了，但因回來時幾乎全黑而被否決」那一種。這兩者需要相反的回應：「沒有
+    # 影像」指向擷取工具、視窗 handle 或主機，而「因內容被否決」指向繪製，且 screenshot.zsh 印在
+    # 旁邊的非黑像素比例正是指認成因的量測值。
+    #
+    # 2026-09-07 的 WSL sweep 有同樣的混淆，實測如下：47 列記著「screenshot.zsh produced no
+    # image」，而那天寫出的 56 張 PNG（1796 至 3505 位元組，沒有一張是空的）就放在
+    # output/screenshots。那則錯誤的備註把一個主機端的 EGL 故障藏在擷取工具背後好幾個調查步驟。
+    #
+    # `?` 各分支語意不變，`window`/`desktop` 仍由最後一行決定，因此本 driver 既有的判定一個都不會
+    # 移動。失敗分支改讀整份輸出，因為「找不到視窗」那條路徑的最後一行是訊息的中文那一半。
+    shot_out="$(zsh "$repo/testapp/screenshot.zsh" -w "$app" "$label-$run_key" 2>&1 || true)"
+    shot_fraction="$(printf '%s\n' "$shot_out" \
+        | grep -oE 'non-black: [0-9]+/[0-9]+ \([0-9.]+%\)' | tail -1 || true)"
+    case "$(printf '%s\n' "$shot_out" | tail -1)" in
+        *'captured from priority 1'*) capture=window ;;
+        *'captured from priority 2'*|*'captured from desktop'*) capture=desktop ;;
+        *)
+            case "$shot_out" in
+                *'rejected on content'*)
+                    capture=fail
+                    note="${note:+$note; }an image WAS written and rejected on content -- ${shot_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
+                *'no matching window could be captured'*|*'no capture path on this platform'*)
+                    capture=fail
+                    note="${note:+$note; }screenshot.zsh wrote no image file at all" ;;
+                *) capture='?' ;;
+            esac ;;
     esac
 
     if [ -n "$action_file" ]; then
