@@ -571,3 +571,8 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked"
 2026-09-07,windows,gtk4,P15,ok,ok,window,default,"P15-colour-scheme.csv"
 2026-09-07,windows,gtk4,P17,ok,ok,window,default,"P17-picker-and-sizes.csv"
+2026-09-07,windows,gtk4,P3,ok,no line,window,default,"P3-sidebar-and-image.csv: no output at all -- WinUI build, or no SCUI_DEBUG; no log writer in P3.swift -- judge from the capture"
+2026-09-07,windows,gtk4,P41,ok,GEOMETRY,window,default,"P41-wheel-scroll.csv: no log writer in P41.swift -- judge from the capture; measured at 960x660, ran at 968x736 (off by 8x76) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P44,ok,-,window,default,
+2026-09-07,windows,gtk4,P11,ok,-,window,default,
+2026-09-07,windows,gtk4,P44,ok,ok,window,default,"P44-clip-third-cell.csv"
