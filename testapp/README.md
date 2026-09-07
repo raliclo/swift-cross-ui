@@ -49,7 +49,73 @@ the build trees have one, which the next sentence already explains.
 Neither the output directory nor the `.compile-work-*` build trees are
 tracked. There is one tree per backend and the suffix names it -- there is
 deliberately no suffix-less `.compile-work`, because its contents would depend
-on the host rather than on its name.
+on the host rather than on its name. Both rules live in the root `.gitignore`;
+`/testapp/output/` was added there on 2026-09-07, having until then been
+ignored only by one checkout's untracked `.git/info/exclude`.
+
+### `output/build-manifest.csv2`
+
+The filename says which backend built an executable. It does not say which
+*configuration*, and nothing inside the binary does either. Measured
+2026-09-07: `output/` held 43 `-gtk4.exe` files in two size clusters, 56-57 MB
+(33 files) and 80 MB (10 files), where the todo list had recorded one debug
+binary. Three indirect checks were tried to tell the clusters apart -- an
+embedded build-config path, the string `Sources/SwiftCrossUI`, and `.swift`
+string density -- and all three found nothing, which looks exactly like the
+files being the same. What settled it was rebuilding P7 at the default and
+watching it move 80,582,656 to 57,024,000 bytes: a 23-minute build to answer a
+question one recorded line answers free.
+
+So `compile.zsh` now writes a row per artefact as it copies it out, into
+`output/build-manifest.csv2` -- `file,app,platform,backend,config,scui_debug,built,bytes`,
+a `.csv2` with the usual two header rows. Read and write it with `csv2`, never
+with `awk -F,` or `cut -d,`.
+
+```sh
+csv2 -r -i testapp/output/build-manifest.csv2 -t      # read it
+zsh testapp/compile.zsh --manifest                    # audit it, builds nothing
+zsh testapp/compile.zsh --manifest --prune            # and drop rows whose file is gone
+```
+
+`--manifest` reports the three ways the manifest and the directory can
+disagree and exits non-zero if any of them fired, so it works as a preflight:
+
+| | Means |
+| --- | --- |
+| `unrecorded` | a file in `output/` with no row. Built before the manifest existed, or copied in by hand. Its configuration is genuinely unknown -- rebuild it rather than guessing from its size |
+| `orphan` | a row whose file is gone. `--prune` removes the row; without it the row is reported and left, because a read-only audit that mutates is not one |
+| `changed` | the file is not the size its row records, so something other than `compile.zsh` replaced it and the row describes a different binary. Never repaired automatically |
+
+Every run also compares the row count against the artefact count and says so
+when they differ. That is the cheap check, not the full audit: the full audit
+costs two `csv2` calls per row, about twelve seconds on a 45-row manifest,
+against a six-second warm incremental build.
+
+### `output/build-manifest.csv2`（中文）
+
+檔名說得出執行檔是由哪個 backend 建出來的，卻說不出它是哪一種**組態**，而執行檔內部也
+一樣說不出。2026-09-07 實測：`output/` 中有 43 個 `-gtk4.exe`，分成 56-57 MB（33 個）與
+80 MB（10 個）兩個尺寸叢集，而待辦清單只記了一個 debug 執行檔。當時試了三種間接檢查來分辨
+兩個叢集——內嵌的 build-config 路徑、字串 `Sources/SwiftCrossUI`、以及 `.swift` 字串密度
+——三種都什麼也沒找到，而那看起來與「這些檔案本來就相同」完全一樣。真正定案的是以預設組態
+重建 P7，看著它從 80,582,656 變成 57,024,000 位元組：為了回答一個「寫下一行就免費得到答案」
+的問題，付出了 23 分鐘的建置。
+
+因此 `compile.zsh` 現在會在複製出每一個產物時，於 `output/build-manifest.csv2` 寫下一列
+——`file,app,platform,backend,config,scui_debug,built,bytes`，一份帶有慣例兩列標頭的
+`.csv2`。請以 `csv2` 讀寫它，絕不要用 `awk -F,` 或 `cut -d,`。指令見上方英文區塊。
+
+`--manifest` 會回報 manifest 與目錄之間可能不一致的三種情形，只要任一發生就以非零狀態
+結束，因此可當作前置檢查使用：
+
+| | 意義 |
+| --- | --- |
+| `unrecorded` | `output/` 中有檔案但沒有對應資料列。它建於本 manifest 出現之前，或是被手動複製進來。它的組態是真的未知——請重建它，不要從大小去猜 |
+| `orphan` | 有資料列但檔案已不存在。`--prune` 會移除該列；不加時只回報並保留，因為「會改動東西的唯讀稽核」不叫唯讀稽核 |
+| `changed` | 檔案的大小與資料列所記不同，代表有 `compile.zsh` 以外的東西換掉了它，該列描述的是另一個執行檔。絕不自動修復 |
+
+每一次執行也會比對資料列數與產物檔數，不同時就出聲。那是便宜的檢查，不是完整稽核：完整
+稽核每列要花兩次 `csv2` 呼叫，45 列約十二秒，而單一 app 的熱增量建置只要六秒。
 
 ## Environment setup
 

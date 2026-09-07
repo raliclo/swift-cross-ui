@@ -43,6 +43,16 @@ windows_path() {
 script_dir="$(windows_path "$(cd "$(dirname "$0")" && pwd)")"
 repo_root="$(windows_path "$(cd "$script_dir/.." && pwd)")"
 output_dir="$(windows_path "$script_dir/output")"
+# Captured at TOP LEVEL because `$0` inside a zsh function is the FUNCTION's
+# name -- FUNCTION_ARGZERO is on by default. Measured 2026-09-07 while testing
+# the build manifest: a warning meant to read `run zsh .../compile.zsh
+# --manifest` came out as `run zsh manifest_summary --manifest`, an instruction
+# that cannot be followed and looks like a typo rather than a shell rule.
+# 於「最上層」擷取，因為 `$0` 在 zsh 函式內是「該函式的名稱」——FUNCTION_ARGZERO 預設為開。
+# 2026-09-07 於測試建置 manifest 時實測：一則本該印出 `run zsh .../compile.zsh --manifest`
+# 的警告，印成了 `run zsh manifest_summary --manifest`；那是一條無法照做的指示，而且看起來
+# 像打字錯誤，而不像一條 shell 規則。
+script_self="$script_dir/$(basename "$0")"
 # Android builds use the project volume by default, matching
 # testapp/install_tools_android.zsh. Explicit ANDROID_HOME remains the first
 # choice; ANDROID_SDK_ROOT is accepted as the equivalent spelling.
@@ -183,14 +193,401 @@ case "${1:-}" in
             "         需要 GTK 4；Windows 上請先執行 install_gtk4_windows.zsh。" \
             "  -android  Build for Android with the Swift Android SDK." \
             "  -android  使用 Swift Android SDK 建置 Android。" \
+            "  --manifest  Audit output/build-manifest.csv2 against output/ and" \
+            "              exit non-zero on any disagreement. Builds nothing." \
+            "              Add --prune to delete rows whose file is gone." \
+            "  --manifest  以 output/ 稽核 output/build-manifest.csv2，只要有任何" \
+            "              不一致就以非零狀態結束。不會建置任何東西。" \
+            "              加上 --prune 可刪除「檔案已不存在」的資料列。" \
             "" \
             "With no app names, every P*.swift is built." \
             "未指定 app 名稱時，會建置所有 P*.swift。" \
             "Release by default; BUILD_CONFIG=debug for an unoptimised build." \
-            "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。"
+            "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。" \
+            "Every artefact copied into output/ gets a row in" \
+            "output/build-manifest.csv2 saying which configuration produced it." \
+            "每一個複製進 output/ 的產物都會在 output/build-manifest.csv2 得到一列，" \
+            "記下它是由哪一種組態產生的。"
         exit 0
         ;;
 esac
+
+# ---------------------------------------------------------------------------
+# The build manifest: what this script produced, and how it produced it.
+#
+# output/ is a flat directory of binaries and nothing in a binary says which
+# configuration built it. That is not a theoretical gap. Measured 2026-09-07:
+# output/ held 43 `-gtk4.exe` files in two size clusters, 56-57 MB (33 files)
+# and 80 MB (10 files). The todo list recorded ONE debug binary; there were ten.
+# Three indirect checks were tried and all three had no discriminating power --
+# an embedded build-config path (0 hits in both clusters), the string
+# `Sources/SwiftCrossUI` (0 hits in both), and `.swift` string density (734 vs
+# 664, no separation). "The check does not fire" is indistinguishable from "the
+# files are the same". What settled it was rebuilding P7 at the default
+# configuration and watching it move 80,582,656 -> 57,024,000 bytes: a
+# 23-minute build spent to answer a question one recorded line answers free.
+#
+# So the value is written down at the moment it is known. This script already
+# HAS the configuration -- `$build_config`, printed in its own --help -- so
+# nothing here is derived or inferred.
+#
+# `.csv2` and `csv2`, because that is this project's format for machine-read
+# records: two header rows, English then Traditional Chinese, one record per
+# line. Never read or written with awk -F, / cut -d, / any other text tool;
+# `csv2 -get` and `csv2 -contains` cannot mis-split a field, and that mistake
+# has already been made twice in this repository.
+#
+# The manifest lives beside the artefacts it describes, so it is untracked for
+# the same reason they are.
+#
+# ---------------------------------------------------------------------------
+# 建置 manifest：本腳本產出了什麼，以及是怎麼產出的。
+#
+# output/ 是一個平坦的執行檔目錄，而執行檔本身不會說出自己是用哪一種組態建出來的。這並非
+# 理論上的缺口。2026-09-07 實測：output/ 中有 43 個 `-gtk4.exe`，分成兩個尺寸叢集——
+# 56-57 MB（33 個）與 80 MB（10 個）。待辦清單只記了「一個」debug 執行檔，實際上有十個。
+# 當時嘗試了三種間接檢查，三種都不具鑑別力：內嵌的 build-config 路徑（兩邊皆 0 次命中）、
+# 字串 `Sources/SwiftCrossUI`（兩邊皆 0）、以及 `.swift` 字串密度（734 對 664，無法分離）。
+# 「檢查沒有觸發」與「兩邊檔案相同」看起來完全一樣。真正定案的方法是以預設組態重建 P7，
+# 看著它從 80,582,656 變成 57,024,000 位元組：為了回答一個「寫下一行就免費得到答案」的問題，
+# 付出了 23 分鐘的建置。
+#
+# 因此，在知道那個值的當下就把它寫下來。本腳本本來就「持有」該組態——`$build_config`，它
+# 自己的 --help 也印出這件事——所以此處沒有任何東西是推導或猜測出來的。
+#
+# 採用 `.csv2` 與 `csv2`，因為那是本專案供機器讀取的紀錄格式：兩列標頭，先英文後繁體中文，
+# 一筆紀錄一行。絕不以 awk -F, / cut -d, 或任何文字工具讀寫它；`csv2 -get` 與
+# `csv2 -contains` 不可能把欄位切錯，而那個錯誤在本 repo 已經犯過兩次。
+#
+# manifest 與它所描述的產物放在一起，因此它未被納入版控的理由，與那些產物完全相同。
+manifest_path="$output_dir/build-manifest.csv2"
+
+case "$host_uname" in
+    MINGW*|MSYS*|CYGWIN*) manifest_host_os="windows" ;;
+    Darwin) manifest_host_os="macos" ;;
+    Linux) manifest_host_os="linux" ;;
+    *) manifest_host_os="unknown" ;;
+esac
+
+# Every artefact name this script can produce that actually exists on disk.
+#
+# Derived from testapp/P*.swift and the four naming rules further down, rather
+# than from a glob over output/. A glob would be wrong here: output/ also holds
+# run logs, a WebView2 user-data directory, Microsoft.Graphics.Canvas.dll and
+# whatever else a test run dropped, and calling those "unrecorded artefacts"
+# would make the audit cry wolf until nobody read it.
+#
+# 本腳本可能產出、且確實存在於磁碟上的每一個產物名稱。
+#
+# 由 testapp/P*.swift 與下方四條命名規則推導，而不是對 output/ 做 glob。在此 glob 是錯的：
+# output/ 裡還有執行 log、WebView2 的使用者資料目錄、Microsoft.Graphics.Canvas.dll，以及
+# 測試執行留下的其他東西；把那些叫做「未記錄的產物」會讓稽核一直誤報，直到沒有人再看它。
+manifest_artefact_files() {
+    for manifest_src in "$script_dir"/P*.swift; do
+        [ -f "$manifest_src" ] || continue
+        manifest_stem="$(basename "$manifest_src")"
+        manifest_stem="${manifest_stem%.swift}"
+        for manifest_candidate in \
+            "$manifest_stem" \
+            "${manifest_stem}-gtk4.exe" \
+            "${manifest_stem}-WinUI.exe" \
+            "${manifest_stem}-android" \
+            "${manifest_stem}-ios.app"
+        do
+            [ -e "$output_dir/$manifest_candidate" ] || continue
+            printf '%s\n' "$manifest_candidate"
+        done
+    done
+}
+
+# An iOS artefact is a .app DIRECTORY, so `wc -c` on the name is not its size.
+# iOS 的產物是一個 .app「目錄」，因此對名稱下 `wc -c` 並不是它的大小。
+manifest_bytes() {
+    if [ -d "$1" ]; then
+        find "$1" -type f -exec cat {} + | wc -c | tr -d ' '
+    else
+        wc -c < "$1" | tr -d ' '
+    fi
+}
+
+manifest_have_csv2() {
+    command -v csv2 >/dev/null 2>&1
+}
+
+manifest_ensure() {
+    if [ -f "$manifest_path" ]; then
+        return 0
+    fi
+    printf '%s\n' \
+        'file,app,platform,backend,config,scui_debug,built,bytes' \
+        '檔案,app,平台,backend,組態,scui_debug,建置時間,位元組' \
+        | csv2 -r -si --headers 2 -t -o "$manifest_path"
+}
+
+manifest_record_count() {
+    if [ ! -f "$manifest_path" ]; then
+        printf '0\n'
+        return 0
+    fi
+    csv2 -r -i "$manifest_path" | wc -l | tr -d ' '
+}
+
+# Upsert one artefact: drop whatever row named this file, then append the new
+# one. Rewriting rather than editing in place is what keeps a rebuild honest --
+# a release build over a debug build has to change `config`, `built` and
+# `bytes` together, and one -append does all three.
+#
+# 覆寫式寫入一個產物：先移除指名該檔案的既有資料列，再附加新的一列。之所以重寫而非就地
+# 修改，是為了讓「重建」保持誠實——release 蓋掉 debug 時，`config`、`built` 與 `bytes`
+# 必須一起改變，而一次 -append 就同時完成三者。
+manifest_record() {
+    manifest_file="$1"
+    manifest_app_col="$2"
+    manifest_platform_col="$3"
+    manifest_backend_col="$4"
+
+    if ! manifest_have_csv2; then
+        printf '    manifest: csv2 is not on PATH, so %s was not recorded\n' \
+            "$manifest_file" >&2
+        printf '    manifest：csv2 不在 PATH 上，因此未記錄 %s\n' \
+            "$manifest_file" >&2
+        return 0
+    fi
+
+    # `if ! manifest_ensure` rather than a bare call, for the same reason the
+    # append below is guarded: errexit is suspended inside a condition, so a
+    # csv2 that cannot create the file reports here instead of killing the run.
+    # 以 `if ! manifest_ensure` 取代直接呼叫，理由與下方 append 加防護相同：條件式之內
+    # errexit 會被暫停，因此無法建立檔案的 csv2 會在此回報，而不是直接殺掉整輪執行。
+    if ! manifest_ensure; then
+        printf '    manifest: could not create %s\n' "$manifest_path" >&2
+        printf '    manifest：無法建立 %s\n' "$manifest_path" >&2
+        return 0
+    fi
+
+    # -contains matches SUBSTRINGS, so every hit is re-checked with -get for an
+    # exact cell value before anything is deleted. Deleting on a substring hit
+    # would take out P15-gtk4.exe's row while recording P15-DARK-gtk4.exe.
+    #
+    # Collected in DESCENDING record order, because -delete renumbers: deleting
+    # record 2 first would make the old record 5 into record 4.
+    #
+    # -contains 比對的是「子字串」，因此在刪除任何東西之前，每一個命中都先以 -get 取出
+    # 儲存格原值做精確比對。若照子字串命中就刪，記錄 P15-DARK-gtk4.exe 時會順手刪掉
+    # P15-gtk4.exe 的資料列。
+    #
+    # 以「遞減」的紀錄號收集，因為 -delete 會重新編號：先刪第 2 筆，原本的第 5 筆就變成第 4 筆。
+    manifest_hits="$(csv2 -r -i "$manifest_path" -contains "$manifest_file" \
+        --search-column file 2>/dev/null || true)"
+    manifest_victims=""
+    while IFS= read -r manifest_hit; do
+        [ -n "$manifest_hit" ] || continue
+        manifest_rec="${manifest_hit%%:*}"
+        if [ "$(csv2 -i "$manifest_path" -get "${manifest_rec}:file")" = "$manifest_file" ]; then
+            manifest_victims="$manifest_rec $manifest_victims"
+        fi
+    done <<EOF_MANIFEST_HITS
+$manifest_hits
+EOF_MANIFEST_HITS
+    for manifest_rec in $manifest_victims; do
+        if ! csv2 -i "$manifest_path" --in-place -delete "$manifest_rec"; then
+            printf '    manifest: could not drop the old row for %s; it will now appear twice\n' \
+                "$manifest_file" >&2
+            printf '    manifest：無法移除 %s 的舊資料列，它接下來會出現兩次\n' \
+                "$manifest_file" >&2
+        fi
+    done
+
+    # Loud, but not fatal. `set -e` is on, so an unguarded csv2 failure here
+    # would abort a build that had already SUCCEEDED -- and take the remaining
+    # apps of a 45-app sweep with it, for a bookkeeping error. The row is
+    # missing either way; manifest_summary's count check at the end of the run
+    # is what stops that going quiet.
+    # 出聲，但不致命。本腳本開了 `set -e`，因此此處若不加防護，csv2 一失敗就會中止一次
+    # 「已經成功」的建置——並且為了一個記帳錯誤，把 45 支 app 的 sweep 剩下的部分一起帶走。
+    # 無論如何那一列都會缺席；真正讓它不至於悄悄過去的，是執行結束時 manifest_summary 的
+    # 數目檢查。
+    if csv2 -i "$manifest_path" --in-place -append "$(printf '%s,%s,%s,%s,%s,%s,%s,%s' \
+        "$manifest_file" \
+        "$manifest_app_col" \
+        "$manifest_platform_col" \
+        "$manifest_backend_col" \
+        "$build_config" \
+        "${SCUI_DEBUG:-0}" \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        "$(manifest_bytes "$output_dir/$manifest_file")")"
+    then
+        printf '    manifest: %s %s %s\n' \
+            "$manifest_file" "$manifest_backend_col" "$build_config"
+    else
+        printf '    manifest: FAILED to record %s -- the manifest is now short a row\n' \
+            "$manifest_file" >&2
+        printf '    manifest：記錄 %s 失敗——manifest 現在少了一列\n' \
+            "$manifest_file" >&2
+    fi
+}
+
+# The three ways the manifest and the directory can disagree, and what each one
+# means. None of them is silently accepted; a manifest that can disagree with
+# its directory and not say so is the same defect as the one it exists to fix.
+#
+#   unrecorded  a file in output/ with no row. It was built before this
+#               manifest existed, or copied in by hand. Its configuration is
+#               genuinely unknown -- rebuild it, and do not guess from bytes.
+#   orphan      a row whose file is gone. Deleted outside this script. --prune
+#               removes the row; without it the row is only reported, because
+#               a read-only audit that mutates is not one.
+#   changed     the file exists but is not the size the row records. Something
+#               other than compile.zsh replaced it, so the row's config and
+#               timestamp describe a different binary. Never repaired
+#               automatically: which side is right is a judgement, reporting
+#               the disagreement is not.
+#
+# Exits non-zero on any of the three, so this is usable as a preflight.
+#
+# manifest 與目錄之間可能不一致的三種情形，以及各自的意義。三者都不會被靜默接受；一份能與
+# 自己的目錄相左卻不出聲的 manifest，和它要修掉的那個缺陷是同一類。
+#
+#   unrecorded  output/ 中有檔案但沒有對應資料列。它建於本 manifest 出現之前，或是被手動
+#               複製進來。它的組態是真的未知——請重建它，不要從位元組數去猜。
+#   orphan      有資料列但檔案已不存在。它在本腳本之外被刪除。--prune 會移除該列；不加時
+#               只回報，因為「會改動東西的唯讀稽核」不叫唯讀稽核。
+#   changed     檔案存在，但大小與資料列所記不同。有 compile.zsh 以外的東西換掉了它，因此
+#               該列的組態與時間戳描述的是另一個執行檔。絕不自動修復：哪一邊才對是判斷，
+#               而回報這個不一致不是。
+#
+# 三者任一發生即以非零狀態結束，因此它可以當作前置檢查使用。
+manifest_audit() {
+    manifest_do_prune="${1:-0}"
+    manifest_problems=0
+    manifest_seen=""
+
+    if ! manifest_have_csv2; then
+        printf 'csv2 is not on PATH; the manifest cannot be audited\n' >&2
+        printf 'csv2 不在 PATH 上，無法稽核 manifest\n' >&2
+        return 2
+    fi
+
+    manifest_disk="$(manifest_artefact_files)"
+
+    manifest_rows="$(manifest_record_count)"
+    manifest_orphans=""
+    manifest_n=1
+    while [ "$manifest_n" -le "$manifest_rows" ]; do
+        manifest_row_file="$(csv2 -i "$manifest_path" -get "${manifest_n}:file")"
+        manifest_seen="$manifest_seen $manifest_row_file"
+        if [ ! -e "$output_dir/$manifest_row_file" ]; then
+            printf '%-11s %-28s %s\n' 'orphan' "$manifest_row_file" \
+                'row has no file in output/'
+            manifest_orphans="$manifest_n $manifest_orphans"
+            manifest_problems=$((manifest_problems + 1))
+        else
+            manifest_row_bytes="$(csv2 -i "$manifest_path" -get "${manifest_n}:bytes")"
+            manifest_now_bytes="$(manifest_bytes "$output_dir/$manifest_row_file")"
+            if [ "$manifest_row_bytes" != "$manifest_now_bytes" ]; then
+                printf '%-11s %-28s %s\n' 'changed' "$manifest_row_file" \
+                    "row says $manifest_row_bytes bytes, file is $manifest_now_bytes"
+                manifest_problems=$((manifest_problems + 1))
+            fi
+        fi
+        manifest_n=$((manifest_n + 1))
+    done
+
+    while IFS= read -r manifest_disk_file; do
+        [ -n "$manifest_disk_file" ] || continue
+        case " $manifest_seen " in
+            *" $manifest_disk_file "*) continue ;;
+        esac
+        printf '%-11s %-28s %s\n' 'unrecorded' "$manifest_disk_file" \
+            'file in output/ has no row -- rebuild it to learn its configuration'
+        manifest_problems=$((manifest_problems + 1))
+    done <<EOF_MANIFEST_DISK
+$manifest_disk
+EOF_MANIFEST_DISK
+
+    if [ "$manifest_do_prune" -eq 1 ] && [ -n "$manifest_orphans" ]; then
+        for manifest_rec in $manifest_orphans; do
+            csv2 -i "$manifest_path" --in-place -delete "$manifest_rec"
+        done
+        printf 'pruned %s orphan row(s)\n' "$(printf '%s\n' $manifest_orphans | wc -l | tr -d ' ')"
+    fi
+
+    if [ "$manifest_problems" -eq 0 ]; then
+        printf '%s: %s row(s), consistent with %s\n' \
+            "$manifest_path" "$manifest_rows" "$output_dir"
+        return 0
+    fi
+    printf '%s disagreement(s); see above\n' "$manifest_problems" >&2
+    return 1
+}
+
+# The cheap end-of-build check: record count against artefact count.
+#
+# NOT the full audit, which costs two csv2 calls per row -- about 130 ms each
+# on this machine, so twelve seconds on a 45-row manifest. A warm incremental
+# build of one app takes six seconds, and tripling that to re-derive something
+# the build just wrote is the wrong trade. Every row this script writes is
+# written from a file it has just copied, so for the counts to agree while the
+# contents do not, someone must have deleted one artefact and added another
+# between two builds. `--manifest` is there for when that is worth ruling out.
+#
+# 便宜的建置後檢查：資料列數對產物檔數。
+#
+# 這不是完整稽核；完整稽核每列要花兩次 csv2 呼叫——本機每次約 130 毫秒，45 列就是十二秒。
+# 單一 app 的熱增量建置只要六秒，為了重新推導出建置剛剛才寫下的東西而讓它變成三倍，是不划算
+# 的交換。本腳本寫下的每一列，都來自它剛剛複製過的檔案；因此若數目相符而內容不符，代表有人
+# 在兩次建置之間刪掉了一個產物又加進了另一個。要排除那種情況時，`--manifest` 就在那裡。
+manifest_summary() {
+    if ! manifest_have_csv2; then
+        return 0
+    fi
+    manifest_disk_count="$(manifest_artefact_files | wc -l | tr -d ' ')"
+    manifest_row_total="$(manifest_record_count)"
+    if [ "$manifest_disk_count" != "$manifest_row_total" ]; then
+        printf 'manifest: %s artefact(s) in output/, %s row(s) in %s\n' \
+            "$manifest_disk_count" "$manifest_row_total" "$manifest_path" >&2
+        printf 'manifest: run `zsh %s --manifest` to see which disagree\n' \
+            "$script_self" >&2
+        printf 'manifest：output/ 有 %s 個產物，%s 有 %s 列\n' \
+            "$manifest_disk_count" "$manifest_path" "$manifest_row_total" >&2
+        printf 'manifest：執行 `zsh %s --manifest` 可看出是哪些不一致\n' "$script_self" >&2
+    fi
+}
+
+# Answered before the toolchain is touched, for the same reason --help is: an
+# audit reads two directories and must not cost a GTK probe or a compile.
+# 與 --help 同理，在動用工具鏈之前先回答：一次稽核只讀兩個目錄，不該付出 GTK 探測或
+# 一次編譯的代價。
+manifest_only=0
+manifest_prune=0
+for arg in "$@"; do
+    case "$arg" in
+        --manifest) manifest_only=1 ;;
+        --prune) manifest_prune=1 ;;
+    esac
+done
+if [ "$manifest_only" -eq 1 ]; then
+    # `|| manifest_status=$?`, not a bare call: `set -e` is on, and a bare call
+    # returning 1 would exit here before the status could be forwarded -- which
+    # happens to give the right code for a disagreement and the wrong one for
+    # "csv2 is missing", the case worth telling apart.
+    # 使用 `|| manifest_status=$?` 而非直接呼叫：本腳本開了 `set -e`，直接呼叫若回傳 1 會
+    # 就地結束、來不及轉交狀態碼——那對「有不一致」剛好給對，對「csv2 不存在」則給錯，而
+    # 那正是值得分辨的一種。
+    manifest_status=0
+    manifest_audit "$manifest_prune" || manifest_status=$?
+    exit "$manifest_status"
+fi
+if [ "$manifest_prune" -eq 1 ]; then
+    # Refused rather than ignored. Falling through would leave --prune in the
+    # app-name list and the run would stop on `Missing source file: --prune`,
+    # which points at the wrong thing.
+    # 拒絕，而不是忽略。若讓它掉下去，--prune 會留在 app 名稱清單中，該次執行會以
+    # `Missing source file: --prune` 中止，而那個訊息指向的是錯的東西。
+    printf -- '--prune only means something with --manifest\n' >&2
+    printf -- '--prune 只有與 --manifest 併用才有意義\n' >&2
+    exit 1
+fi
 
 remaining_args=""
 saw_flag=0
@@ -986,7 +1383,9 @@ if [ "$target_platform" = "android" ]; then
         cp "$android_binary" "$android_output"
         chmod +x "$android_output"
         echo "    -> $android_output"
+        manifest_record "${app_name}-android" "$app_name" android android
     done
+    manifest_summary
     echo "Done. Android build tree: $package_dir/.build"
     exit 0
 fi
@@ -1064,12 +1463,14 @@ if [ "$target_platform" = "ios" ]; then
             rm -rf "$ios_output"
             cp -R "$app_bundle" "$ios_output"
             echo "    -> $ios_output"
+            manifest_record "${app_name}-ios.app" "$app_name" ios uikit
         else
             echo "    Bundling reported success but no .app was found at $app_bundle" >&2
             exit 1
         fi
     done
 
+    manifest_summary
     cat <<EOF_IOS
 Done. Output directory: $output_dir
 
@@ -1109,10 +1510,26 @@ for app_name in $app_names; do
     #
     # 僅限 Windows。Linux 與 macOS 上，一次建置在結構上就只有一個 backend，沒有第二個可混淆；在那裡
     # 加後綴只會弄壞每一條已經以純檔名指涉執行檔的路徑，而毫無所得。
+    # The suffix and the manifest's `backend` column answer the same question,
+    # so they are decided in one place. They are not the same string: only
+    # Windows has two backends and therefore a suffix, while the manifest names
+    # a backend on every platform, because a row that said only "the default"
+    # would need the host to interpret it -- the exact property that made the
+    # suffix-less .compile-work directory undeletable.
+    # 後綴與 manifest 的 `backend` 欄回答同一個問題，因此在同一處決定。兩者不是同一個字串：
+    # 只有 Windows 有兩個 backend、因而才有後綴，而 manifest 在每個平台都指名 backend——
+    # 因為一列只寫「預設」的紀錄需要靠主機來解讀，而那正是讓無後綴的 .compile-work 目錄
+    # 沒人敢刪的那個性質。
     if [ "$force_gtk4" -eq 1 ]; then
         backend_suffix="-gtk4"
+        manifest_backend="gtk4"
     else
         backend_suffix="-WinUI"
+        case "$manifest_host_os" in
+            macos) manifest_backend="appkit" ;;
+            linux) manifest_backend="gtk4" ;;
+            *) manifest_backend="WinUI" ;;
+        esac
     fi
 
     exe_path=""
@@ -1137,6 +1554,8 @@ for app_name in $app_names; do
     rm -f "$output_path"
     cp "$exe_path" "$output_path"
     echo "    -> $output_path"
+    manifest_record "$(basename "$output_path")" "$app_name" \
+        "$manifest_host_os" "$manifest_backend"
 
     for resource_dir in \
         "$triple_dir/$build_config/swift-winui_CWinAppSDK.resources" \
@@ -1167,4 +1586,5 @@ for app_name in $app_names; do
     fi
 done
 
+manifest_summary
 echo "Done. Output directory: $output_dir"

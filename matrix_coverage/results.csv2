@@ -556,3 +556,18 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-07,wsl,gtk4,P42,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
 2026-09-07,wsl,gtk4,P43,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
 2026-09-07,wsl,gtk4,P44,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,windows,gtk4,P2,ok,no line,window,default,"P2-controls-and-resizing.csv: no output at all -- WinUI build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the capture"
+2026-09-07,windows,gtk4,P2,ok,no line,window,default,"P2-controls-and-resizing.csv: no output at all -- WinUI build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the capture"
+2026-09-07,windows,gtk4,P13,ok,GEOMETRY,window,default,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked"
+2026-09-07,windows,gtk4,P15,ok,GEOMETRY,window,default,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P17,ok,GEOMETRY,window,default,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P2,ok,no line,window,default,"P2-controls-and-resizing.csv: no output at all -- WinUI build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the capture"
+2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-duplicates-and-split.csv"
+2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked"
+2026-09-07,windows,gtk4,P15,ok,GEOMETRY,window,default,"P15-colour-scheme.csv: measured at 748x691, ran at 748x589 (off by 0x102) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P17,ok,GEOMETRY,window,default,"P17-picker-and-sizes.csv: measured at 928x917, ran at 928x907 (off by 0x10) -- coordinates address a different layout"
+2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-duplicates-and-split.csv"
+2026-09-07,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked"
+2026-09-07,windows,gtk4,P15,ok,ok,window,default,"P15-colour-scheme.csv"
+2026-09-07,windows,gtk4,P17,ok,ok,window,default,"P17-picker-and-sizes.csv"

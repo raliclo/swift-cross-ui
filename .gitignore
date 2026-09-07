@@ -11,6 +11,32 @@
 # than on its name, and nobody could tell whether it was safe to delete.
 /testapp/.compile-work-*
 
+# The executables compile.zsh copies out of those trees, plus screenshots, run
+# logs, and build-manifest.csv2 -- the record of which configuration produced
+# each artefact, which lives beside the artefacts it describes and is therefore
+# untracked for the same reason they are.
+#
+# Added 2026-09-07. testapp/README.md has said "neither the output directory
+# nor the .compile-work-* build trees are tracked" for some time, and for the
+# build trees the line above enforced it; for output/ nothing here did. The
+# only thing ignoring it was `testapp/output/` in this checkout's
+# .git/info/exclude, which is not committed and does not travel -- so the
+# statement was true on this machine and false in a fresh clone, and `git
+# status` was clean here either way. That is the shape of the whole problem
+# this manifest exists for: a claim that is only accidentally true.
+#
+# compile.zsh 從那些建置樹複製出來的執行檔，加上截圖、執行 log，以及 build-manifest.csv2
+# ——「每個產物是由哪一種組態產生」的紀錄；它與所描述的產物放在一起，因此未納入版控的理由
+# 與那些產物完全相同。
+#
+# 2026-09-07 新增。testapp/README.md 已有一段時間寫著「輸出目錄與 .compile-work-* 建置樹
+# 都未被追蹤」，而對建置樹而言，上一行確實落實了它；對 output/ 而言，此處沒有任何一行做到。
+# 唯一在忽略它的，是本 checkout 的 .git/info/exclude 中的 `testapp/output/`，那個檔案不會
+# 被提交、也不會隨著 repo 走——因此那句話在這台機器上為真、在全新的 clone 中為假，而
+# `git status` 兩邊都是乾淨的。那正是這份 manifest 所要解決的問題的形狀：一項只是碰巧為真
+# 的主張。
+/testapp/output/
+
 # Reusable iOS Simulator bundle assembled by testapp/test_ios.zsh. The
 # template is tracked; the copied debugTarget executable and its signature are
 # local build output.
