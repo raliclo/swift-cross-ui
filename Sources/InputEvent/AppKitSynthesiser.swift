@@ -165,7 +165,6 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 參考邊為主螢幕頂端，而它會相互抵消：幾何資訊在此依它量測，並在 ``windowPoint`` 中依它還原，
     /// 因此即使參考取錯，仍會落在正確的控制項上。儘管如此仍取正確的值，因為呼叫端可能自行提供幾何。
-    @MainActor
     /// A view's rect in the space an action file's coordinates are written in.
     ///
     /// Top-left origin, points, measured from the primary screen's top -- the
@@ -193,7 +192,9 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// `24,279 332x20`——原點差了 166 點、尺寸差了六點——而以掃描控制項邊緣的方式去調和兩者,產生了
     /// 一條自信而錯誤的「控制項在哪裡會回應」的規則。一個由雙方共同呼叫的函式,不可能與自己矛盾。
     @MainActor
-    public static func actionFileRect(of view: NSView) -> (x: Double, y: Double, width: Double, height: Double) {
+    public static func actionFileRect(of view: NSView)
+        -> (x: Double, y: Double, width: Double, height: Double)
+    {
         guard let window = view.window else {
             return (0, 0, Double(view.bounds.width), Double(view.bounds.height))
         }
@@ -203,6 +204,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
         return (corner.x, corner.y, Double(onScreen.width), Double(onScreen.height))
     }
 
+    @MainActor
     private static func topLeft(of rect: NSRect) -> (x: Double, y: Double) {
         (x: Double(rect.minX), y: Double(primaryScreenTop() - rect.maxY))
     }

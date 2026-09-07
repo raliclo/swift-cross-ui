@@ -3,6 +3,22 @@ import DebugFeatures
 import Foundation
 import SwiftCrossUI
 
+// `#if SCUI_DEBUG`, matching AppKitBackend.swift, because `InputEvent` is not a
+// dependency of this target in a release build. Package.swift builds the list as
+// `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])`, so a plain
+// `import InputEvent` compiles on this machine -- where the flag happens to be
+// on -- and fails for anyone building without it. The condition is the same one
+// that decides the dependency, so the two cannot drift apart.
+//
+// 使用 `#if SCUI_DEBUG`,與 AppKitBackend.swift 一致,因為在 release 建置中 `InputEvent` 並不是
+// 本 target 的相依。Package.swift 是以
+// `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])` 建構那份清單的,因此一個沒有
+// 條件的 `import InputEvent` 在這台機器上(旗標剛好是開的)編得過,而對任何未開啟它的人則會失敗。
+// 此處的條件與「決定該相依是否存在」的是同一個,因此兩者不會漂移開來。
+#if SCUI_DEBUG
+    import InputEvent
+#endif
+
 extension AppKitBackend: BackendFeatures.HitTesting {
     public func setHitTesting(of widget: Widget, to allowsHitTesting: Bool) {
         if allowsHitTesting {
@@ -208,9 +224,30 @@ final class AppKitHitTestingContainer: NSView {
             guard let candidate = child.hitTest(localPoint) else { continue }
 
             if !AppKitHitTestingRegistry.isDisabled(candidate, through: self) {
+                // `actionFileRect` as well as the local frame, because those two
+                // answer different questions and a reader needs both. The frame
+                // is what `hitTest` compared against, in this container's space;
+                // `click` is where an action file must aim, in the space action
+                // files are written in. A dump that prints one and labels it the
+                // other is how a peer spent four rounds clicking outside a
+                // control on 2026-09-07 -- the numbers were right and the label
+                // was wrong, and a click that lands on nothing raises nothing.
+                //
+                // 除了本地 frame 之外也印出 `actionFileRect`,因為兩者回答的是不同的問題,而讀者
+                // 兩個都需要。frame 是 `hitTest` 用來比對的東西,位於本 container 的座標系;而
+                // `click` 是動作檔應該瞄準的位置,位於動作檔所使用的那個座標系。一份「印了其中一個、
+                // 卻標上另一個名字」的傾印,正是某位同事在 2026-09-07 連續四輪點在控制項外面的原因
+                // ——數字是對的,標籤是錯的,而點在空處不會引發任何錯誤。
+                var aim = ""
+                #if SCUI_DEBUG
+                    let rect = AppKitSynthesiser.actionFileRect(of: candidate)
+                    aim = " click \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
+                        + " size \(Int(rect.width.rounded()))x\(Int(rect.height.rounded()))"
+                #endif
                 Self.report(
                     "hit \(type(of: candidate)) at \(Self.describe(localPoint)) "
                         + "in child \(type(of: child)) frame \(Self.describe(child.frame))"
+                        + aim
                 )
                 return candidate
             }
