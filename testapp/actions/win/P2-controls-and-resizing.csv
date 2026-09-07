@@ -29,8 +29,38 @@ action,x,y,origin,button,key,micros,note,platform
 # 「Set 12345」與「Clear」驅動 `Length: N`。此處無法對 TextEditor **打字**——按鍵事件需要前景
 # ——因此 #471 的細邊框檢查仍須由鍵盤前的人來做。
 #
-# Measured on a 648x726 window capture at 100% display scale.
-# 量測自一張 648x726 的視窗截圖，顯示縮放 100%。
+# Measured on a 648x798 window capture at 100% display scale.
+#
+# RE-MEASURED 2026-09-07 against gtk4-P2-controls-and-resizing-20260907-200337.png.
+# The window grew from 648x726 to 648x798, +72 px of height, because P2.swift
+# gained content. The old header was NOT wrong when written -- it matches P2's
+# own 2026-08-27 capture exactly -- which is what separates this from the five
+# headers corrected in 4e96d2b5, where the number never matched anything.
+#
+# Only the last click had to move, and it was not landing in empty space. Button
+# bands read off the capture by scanning for the button face colour:
+#
+#     y=112..136  x= 35..232   Use expanded Picker options   click 135,128  ok
+#     y=282..306  x= 35..197   Set 12345 / Clear             click  78,295  ok
+#                                                            click 163,295  ok
+#     y=516..540  x= 35..172   Enable button row             click 103,528  exact
+#     y=626..650  x= 35..268   Delete / Delete / Cancel      <-- 115,646 hit THIS
+#     y=702..726  x= 35..194   Allow window resizing         click 114,714  new
+#
+# The old 115,646 fell inside the Delete row. It pressed a different control,
+# which is worse than missing: the replay reported success, the window resizing
+# check never ran, and a destructive-looking button was pressed instead.
+#
+# 量測自一張 648x798 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 重新量測，對象為 gtk4-P2-controls-and-resizing-20260907-200337.png。
+# 視窗從 648x726 長到 648x798，高度增加 72 px，因為 P2.swift 增加了內容。舊的標頭在寫下時
+# **並沒有錯**——它與 P2 自己 2026-08-27 的擷圖完全相符——這正是本例與 4e96d2b5 所更正的那
+# 五個標頭不同之處：那五個的數字從來就對不上任何東西。
+#
+# 只有最後一次點擊需要移動，而它並非落在空白處。上方的按鈕邊界是以掃描按鈕表面顏色的方式從擷圖
+# 讀出的。舊的 115,646 落在 Delete 那一排之內：它按下了另一個控制項，而那比沒點中更糟——重放
+# 回報成功、視窗縮放檢查從未執行，而一顆看起來具破壞性的按鈕被按了下去。
 click,78,295,frame,left,,,"Set 12345" -- Length becomes 5,windows
 sleep,,,,,,800000,,windows
 click,163,295,frame,left,,,"Clear" -- Length becomes 0,windows
@@ -39,5 +69,5 @@ click,135,128,frame,left,,,"Use expanded Picker options" -- options must grow (#
 sleep,,,,,,900000,,windows
 click,103,528,frame,left,,,"Enable button row" -- the disabled row becomes live,windows
 sleep,,,,,,800000,,windows
-click,115,646,frame,left,,,"Allow window resizing" -- the maximise button must return (#401),windows
+click,114,714,frame,left,,,"Allow window resizing" -- the maximise button must return (#401),windows
 sleep,,,,,,1800000,hold for the capture,windows
