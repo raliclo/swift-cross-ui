@@ -462,3 +462,4 @@ date,platform,backend,app,launch,replay,capture,note
 2026-09-07,windows,gtk4,P7,ok,ok,window,P7-list-selection.csv
 2026-09-07,windows,gtk4,P11,ok,-,window,
 2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv"
+2026-09-07,android,android,P46,ok,ok,window,"increment-the-state-object: replayed P46-actions.csv; model.count 0 -> 1 while ""P46Model constructions"" stays 1, which is the @StateObject contract and the reason the app exists -- reading model.count alone cannot tell a pass from a model rebuilt on every update. Content box (0,0)-(1080,2751), fits horizontally, 351 px below the fold"
