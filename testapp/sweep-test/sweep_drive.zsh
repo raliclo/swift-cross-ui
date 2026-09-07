@@ -44,6 +44,10 @@
 #             `GEOMETRY` means the window was not the size the coordinates were
 #             measured at, so they address a different layout
 #   capture   `window` is a real window capture; `desktop` is the fallback
+#   renderer  always `default` here: this driver selects no renderer, so GTK
+#             and WinUI each use their own. See the comment block above
+#             `renderer=default` for why the column exists at all, and why
+#             `default` is not the same answer as `unrecorded`
 #
 # `desktop` is expected for WinUI and a problem for GTK. WinUI draws through
 # DirectComposition, `BitBlt` returns black, and testapp/screenshot.zsh falls
@@ -76,6 +80,9 @@
 #             而不是那次執行；`GEOMETRY` 表示視窗的尺寸不是那些座標被量測時的尺寸，
 #             因此它們指向的是另一套版面
 #   capture   `window` 為真正的視窗擷取；`desktop` 為回退
+#   renderer  在此永遠是 `default`：本驅動器不選擇 renderer，因此 GTK 與 WinUI 各自使用自身的
+#             預設值。本欄位為何存在、以及 `default` 為何與 `unrecorded` 不是同一個答案，
+#             見 `renderer=default` 上方的註解區塊
 #
 # 對 WinUI 而言 `desktop` 是預期的，對 GTK 而言則是問題。WinUI 透過 DirectComposition 繪製，
 # `BitBlt` 會回傳全黑，因此 testapp/screenshot.zsh 會回退——這在其自身檔頭已有記載。GTK 透過
@@ -87,12 +94,21 @@ script_path="${0:A}"
 repo="${${script_path:h}:h:h}"
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-    # Through line 48, the end of the English half. Widened when the header grew
+    # Through line 55, the end of the English half. Widened when the header grew
     # -- a hard-coded range silently truncates the synopsis the moment anything
     # is added above it, and the columns section is the part a reader came for.
-    # 至第 48 行，即英文段落的結尾。標頭變長時一併加寬——寫死的範圍會在其上方新增任何內容的那一刻
+    #
+    # This prose said "line 48" while the code said 52, and had for some time:
+    # the range was widened once and the sentence describing it was not. Both
+    # numbers are updated here in the same edit, which is the only way they stay
+    # able to agree.
+    #
+    # 至第 55 行，即英文段落的結尾。標頭變長時一併加寬——寫死的範圍會在其上方新增任何內容的那一刻
     # 靜默截斷說明，而「各欄位的讀法」正是讀者前來尋找的部分。
-    sed -n '2,52p' "$script_path" | sed 's/^# \{0,1\}//'
+    #
+    # 這段說明原本寫「第 48 行」，而程式碼寫的是 52，且已如此有一段時間：範圍被加寬過一次，描述它
+    # 的句子卻沒有。此處在同一次編輯中一併更新兩個數字——那是讓它們能夠保持一致的唯一辦法。
+    sed -n '2,55p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 
@@ -143,6 +159,37 @@ mkdir -p "$log_dir"
 results="$repo/matrix_coverage/results.csv2"
 platform=windows
 run_date="$(date +%F)"
+
+# The `renderer` column, added to results.csv2 on 2026-09-07 because a renderer
+# decides a verdict: on WSL that day, P11 at 788x649 captured 0.0% non-black
+# under `-render hw` (GskGLRenderer) and 92.1% under `-render sw`
+# (GskVulkanRenderer on llvmpipe), minutes apart, and no row said which.
+#
+# This driver has no renderer knob. It launches `Pn-gtk4.exe` / `Pn-WinUI.exe`
+# directly through tasklist and gdigrab, setting no GSK_RENDERER, no
+# GALLIUM_DRIVER and no LIBGL_ALWAYS_SOFTWARE, so GTK and WinUI each pick their
+# own default. `default` says exactly that, and it is a fact about the run
+# rather than a guess. If a `-render` flag is ever added here, write its value.
+#
+# NOT `unrecorded`: that value belongs to the 509 rows that predate the column,
+# whose conditions were never written down. Writing it here would throw away a
+# thing this script does know. NOT omitted either -- three machines append to
+# this file, and 8 fields into a 9-column history is a ragged file for the next
+# reader, who is coverage.zsh.
+#
+# `renderer` 欄，於 2026-09-07 加入 results.csv2，因為 renderer 會決定判決：當天在 WSL 上，P11 於
+# 788x649 下，`-render hw`（GskGLRenderer）擷取到的非黑比例是 0.0%，`-render sw`（llvmpipe 上的
+# GskVulkanRenderer）則是 92.1%，兩者相隔數分鐘，而沒有任何一列指出是哪一種。
+#
+# 本驅動器沒有 renderer 開關。它透過 tasklist 與 gdigrab 直接啟動 `Pn-gtk4.exe` / `Pn-WinUI.exe`，
+# 不設定 GSK_RENDERER、不設定 GALLIUM_DRIVER、也不設定 LIBGL_ALWAYS_SOFTWARE，因此 GTK 與 WinUI
+# 各自選用自身的預設值。`default` 說的正是這件事，而且它是關於該次執行的事實，不是猜測。日後若在
+# 此加入 `-render` 旗標，就改寫入該旗標的值。
+#
+# **不是** `unrecorded`：那個值屬於早於本欄位的那 509 列，它們的執行條件從未被寫下。在此寫入它，
+# 等於丟棄一件本腳本確實知道的事。**也不可省略**——有三台機器會追加到本檔案，而把 8 個欄位寫進 9 欄
+# 的歷史檔，對下一個讀取者（也就是 coverage.zsh）而言就是一份參差不齊的檔案。
+renderer=default
 
 if [ ! -f "$results" ]; then
     printf 'sweep_drive.zsh: %s is missing; it is the history file and ships with the repo\n' \
@@ -494,9 +541,9 @@ for app in $apps; do
         # results.csv2 是在兩台機器之間逐行合併的。量測依據見該處註解。
         note_field=""
         [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
-        printf '%s,%s,%s,%s,%s,%s,%s,%s\n' \
+        printf '%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
             "$run_date" "$platform" "$label" "$app" \
-            "$launch" "$replay" "$capture" "$note_field" \
+            "$launch" "$replay" "$capture" "$renderer" "$note_field" \
             >> "$results"
         break
     fi
@@ -887,9 +934,9 @@ for app in $apps; do
     # 本腳本之所以是異類，是因為它用 printf 拼出資料列而不是經由 csv2，並把引號寫死在格式字串裡。
     note_field=""
     [ -n "$csv_note" ] && note_field="\"${csv_note//\"/\"\"}\""
-    printf '%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
         "$run_date" "$platform" "$label" "$app" \
-        "$launch" "$replay" "$capture" "$note_field" \
+        "$launch" "$replay" "$capture" "$renderer" "$note_field" \
         >> "$results"
     break
     done

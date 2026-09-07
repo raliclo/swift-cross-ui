@@ -45,6 +45,31 @@ platform=mac
 backend=appkit
 run_date="$(date +%F)"
 
+# The `renderer` column, added to results.csv2 on 2026-09-07. This driver has no
+# renderer knob to report, so it reports that: `default` means "this run made no
+# renderer choice and took the platform's". AppKit draws through Core Animation
+# and there is no GSK here, so `hw`/`sw` -- which are the WSL driver's GALLIUM
+# and LIBGL_ALWAYS_SOFTWARE settings -- would be a claim about machinery this
+# platform does not have.
+#
+# `default` is deliberately NOT `unrecorded`. That value is reserved for the 509
+# rows that predate the column, where the conditions were genuinely never
+# written down; filling it in here would erase the distinction between "we know,
+# and it was the default" and "nobody knows". THE COLUMN MUST NOT BE OMITTED
+# EITHER: this file is appended to by three machines, and a driver writing 8
+# fields into a 9-column history is how the next reader meets a ragged file.
+#
+# `renderer` 欄，於 2026-09-07 加入 results.csv2。本驅動器沒有可回報的 renderer 開關，於是它就
+# 如實回報這件事：`default` 意為「本次執行未做任何 renderer 選擇，採用平台自身的預設」。AppKit
+# 透過 Core Animation 繪製，此處並無 GSK，因此 `hw`/`sw`——那是 WSL 驅動器的 GALLIUM 與
+# LIBGL_ALWAYS_SOFTWARE 設定——會是對這個平台所沒有的機制所做的主張。
+#
+# `default` 刻意不寫成 `unrecorded`。後者保留給早於本欄位的那 509 列，那些執行的條件是真的從未被
+# 寫下來過；在此填入它會抹掉「我們知道，而且它是預設值」與「沒有人知道」之間的差別。**本欄位同樣
+# 不可省略**：本檔案由三台機器共同追加，而一支寫入 8 個欄位到 9 欄歷史檔的驅動器，正是下一個讀取
+# 者遇上一份參差不齊檔案的成因。
+renderer=default
+
 usage() { sed -n '2,9p' "$script_path" | sed 's/^# \{0,1\}//'; }
 
 dry_run=0
@@ -269,7 +294,7 @@ for app in "${apps[@]}"; do
     # 一筆記錄已被截斷的歷史檔，要等到下一個讀取者才會發現。`csv2 -append` 會在寫入前驗證輸入、
     # 讀取既有檔案以檢查其最後一筆記錄，並且只寫入所追加的位元組——在副本上實測：126 行未變、新增
     # 一行，且一個同時含有逗號與加倍引號的 note 能被原樣解析回來。
-    csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,\"${note//\"/\"\"}\"" \
+    csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$renderer,\"${note//\"/\"\"}\"" \
         -i "$results" --in-place
 done
 

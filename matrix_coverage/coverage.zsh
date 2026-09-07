@@ -38,6 +38,15 @@
 # that each carry their own date cannot: the worst it can do is go stale
 # visibly, which is the failure mode to want.
 #
+# THE DATE IS NOT THE ONLY CONDITION THAT MATTERS. Since 2026-09-07 every row
+# also carries the `renderer` it ran under, and that value is part of the cell
+# key, so two runs of one app on one day under different renderers combine
+# rather than one silently replacing the other. It was added because a renderer
+# decided a verdict: P11 captured 0.0% non-black under `-render hw` and 92.1%
+# under `-render sw`, minutes apart. Rows predating the column read
+# `unrecorded`, which means nobody wrote it down -- not the same as `default`,
+# which means a run that chose nothing and took the platform default.
+#
 # TO RECORD A RUN: run the sweep. It appends. Do not edit results.csv2 to make
 # the matrix look better -- add a run.
 #
@@ -54,6 +63,12 @@
 # 為何用歷史檔而非手動維護的表格：手動更新的表格會在沒有任何東西失敗的情況下與現實脫節；而由
 # 「每列自帶日期」所生成的表格做不到這件事——它最糟只能「明顯地過期」，而那正是我們要的失敗方式。
 #
+# 日期不是唯一重要的條件。自 2026-09-07 起，每一列同時帶著它所執行的 `renderer`，而該值是格子鍵的
+# 一部分，因此同一支 app 在同一天、不同 renderer 下的兩次執行會「合併」，而不是其中一次靜默取代
+# 另一次。加入它的原因是 renderer 會決定判決：P11 在 `-render hw` 下擷取到的非黑比例為 0.0%，
+# 在 `-render sw` 下為 92.1%，兩者相隔數分鐘。早於本欄位的資料列讀作 `unrecorded`，意思是沒有人
+# 寫下來過——這與 `default` 不同，後者意為「該次執行未做選擇，採用平台預設」。
+#
 # 要記錄一次執行：去跑掃描，它會自行追加。不要為了讓矩陣好看而編輯 results.csv2——請新增一次執行。
 
 set -uo pipefail
@@ -64,7 +79,23 @@ csv="$here/results.csv2"
 md="$here/coverage.md"
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-    sed -n '2,40p' "$script_path" | sed 's/^# \{0,1\}//'
+    # Line 2 through line 51: the whole English half. Widen it in the same edit
+    # that grows the header, or the synopsis is truncated the moment anything is
+    # added above the cut.
+    #
+    # It was `2,40p` and the English half already ran to line 42, so `TO RECORD A
+    # RUN: run the sweep. It appends.` -- the one instruction a reader of this
+    # `--help` is most likely to have come for -- was being cut off. That is the
+    # drift this comment now exists to make visible; the same range in
+    # sweep_drive.zsh had drifted the same way.
+    #
+    # 第 2 行至第 51 行：整個英文半邊。請在使檔頭變長的同一次編輯中一併加寬，否則只要在切點之上
+    # 新增任何內容，說明就會被截斷。
+    #
+    # 它原本是 `2,40p`，而英文半邊當時已經寫到第 42 行，於是 `TO RECORD A RUN: run the sweep.
+    # It appends.`——讀者查看這份 `--help` 最可能是為了它而來的那一句指示——一直被切掉。這正是本註解
+    # 現在存在的用意：讓這種漂移看得見；sweep_drive.zsh 中的同一種範圍也以同樣方式漂移過。
+    sed -n '2,51p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 
@@ -249,6 +280,52 @@ trap 'rm -f "$pivot"' EXIT
             fileKey = "-"
             if (match(note, /^[^ :]+\.csv: /))
                 fileKey = substr(note, 1, RLENGTH - 2)
+
+            # THE RENDERER IS PART OF THE KEY, added 2026-09-07 with the
+            # `renderer` column itself.
+            #
+            # The key answers "is this the same run, superseded, or a different
+            # run that also happened that day". A renderer makes it a different
+            # run. Measured that day on WSL: P11 at 788x649, minutes apart,
+            # captured 0.0% non-black under `-render hw` (GSK chose
+            # GskGLRenderer) and 92.1% under `-render sw` (GskVulkanRenderer on
+            # llvmpipe). Without the renderer in the key those two share one
+            # key, so the second one read silently REPLACES the first and the
+            # matrix reports whichever was appended last -- one condition
+            # standing in for both, with no sign that the other ever ran.
+            #
+            # This is the same shape as the action-file key above and is fixed
+            # the same way. With both in the key the pair combines instead: a
+            # cell showing `fail 1/2` says one of the two conditions failed,
+            # and results.csv2 names which. The ratio therefore counts distinct
+            # (renderer, action file) runs, not action files alone.
+            #
+            # It changes nothing for the existing history, where every row reads
+            # `unrecorded` and so every key is unchanged -- verified: the
+            # generated coverage.md is byte-identical across the migration. The
+            # 44 WSL rows of 2026-09-07 stay merged, because the thing that
+            # would separate them was never written down. That is the cost of
+            # the omission and it is not recoverable here.
+            #
+            # renderer 也是鍵的一部分，於 2026-09-07 隨 `renderer` 欄一併加入。
+            #
+            # 這個鍵回答的是「這是同一次執行、是被取代、還是當天另一次不同的執行」。renderer 不同，
+            # 就是不同的執行。當天在 WSL 上實測：P11 於 788x649，前後相隔數分鐘，`-render hw`
+            # （GSK 選用 GskGLRenderer）擷取到的非黑比例為 0.0%，`-render sw`（llvmpipe 上的
+            # GskVulkanRenderer）則為 92.1%。若鍵中不含 renderer，這兩者共用同一個鍵，於是後讀到
+            # 的那一列會靜默**取代**前一列，矩陣呈現的是最後被追加的那一個——由一種條件代表兩種，
+            # 且沒有任何跡象顯示另一種曾經跑過。
+            #
+            # 這與上方動作檔鍵是同一種形狀，也以同一種方式修正。兩者都入鍵之後，該對資料改為合併：
+            # 一格顯示 `fail 1/2` 即表示兩種條件中有一種失敗了，而 results.csv2 會指出是哪一種。
+            # 因此該比例計數的是不同的 (renderer, 動作檔) 執行，而不只是動作檔。
+            #
+            # 對既有歷史毫無影響：那裡每一列都讀作 `unrecorded`，因此每一個鍵都不變——已驗證：
+            # 產生出來的 coverage.md 在遷移前後位元組完全相同。2026-09-07 的那 44 列 WSL 紀錄依然
+            # 合併在一起，因為能區分它們的那樣東西從來沒有被寫下來。那是這次遺漏的代價，且在此處
+            # 已無從挽回。
+            renderer = field("renderer")
+            if (renderer != "") fileKey = renderer "/" fileKey
 
             # The accumulator is ONE STRING PER CELL, `file=verdict|` repeated,
             # rather than a shared array keyed by app and file.

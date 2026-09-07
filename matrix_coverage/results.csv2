@@ -1,492 +1,511 @@
-date,platform,backend,app,launch,replay,capture,note
-日期,平台,backend,app,啟動,重放,擷取,備註
-2026-08-27,windows,gtk4,P10,ok,ok,window,
-2026-08-27,windows,gtk4,P10,ok,ok,window,"#61 no-op control: modifier removed gives 0, present gives 1"
-2026-08-27,windows,gtk4,P10,ok,ok,window,
-2026-08-27,windows,gtk4,P7,ok,ok,window,"#64 liststyle: plain List selection is GTK's blue accent, sidebar keeps the inset grey"
-2026-08-27,windows,gtk4,P15,ok,ok,window,#62 before the fix: Light then Dark left a light window with dark-scheme text
-2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 after the fix: same action file, window is dark and legible"
-2026-08-27,windows,gtk4,P15,ok,ok,window,"#62 control: Light alone still goes light, so the other direction is intact"
-2026-08-27,windows,gtk4,P27,ok,n/a,window,"gradients 3+4 after the fix: ring has a solid centre, reversed sweep shows its colours"
-2026-08-27,windows,winui,P27,ok,n/a,window,gradient control: agrees on both rings; its reversed sweep was flat until fixed here too
-2026-08-27,windows,winui,P38,ok,n/a,window,"WebView frame stayed empty with 4 msedgewebview2.exe running; parked, not diagnosed"
-2026-08-27,windows,gtk4,P39,ok,n/a,window,all seven compositing effects differ from the identity control
-2026-08-27,windows,winui,P39,ok,n/a,desktop,"opacity applied, six filters warn and no-op as documented; no fatalError"
-2026-08-27,windows,gtk4,P40,ok,n/a,window,"transform applied but content lost: every transformed tile flat hotpink rgb(255,105,180)"
-2026-08-27,windows,gtk4,P40,ok,n/a,window,"after declining to transform: 0 hotpink pixels sampled, content legible again"
-2026-08-27,windows,winui,P40,ok,n/a,desktop,"rotation, scale and offset all render correctly"
-2026-08-27,mac,appkit,P28,ok,ok,n/a,"AppKit hit testing fixed in e25b3a65; reported by the Mac side, not verified in this checkout"
-2026-08-27,wsl,gtk4,P8,ok,n/a,n/a,"scrollBarWidth A/B: overlay scrolling off measures 14pt via debugLogOnce, on never enters the branch"
-2026-08-27,windows,gtk4,P41,ok,n/a,window,all four date picker styles distinct; .wheel is three columns centred on the selection
-2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical renders nothing; .automatic and .wheel are the same control
-2026-08-27,windows,gtk4,P41,ok,ok,window,"wheel scroll: seven whole rows per column after three notches, no clipped sliver"
-2026-08-27,windows,gtk4,P22,ok,n/a,n/a,"finding 10 confirmed then fixed: lineLimit(2) was 35pt at both 13pt and 30pt, now 34 and 76"
-2026-08-27,windows,gtk4,P20,ok,n/a,window,"menu bar now present; menubarHeight called once, before the bar exists in the tree"
-2026-08-27,windows,winui,P41,ok,ok,desktop,".graphical now draws a month grid, but opens on today not the bound date"
-2026-08-27,windows,winui,P41,ok,ok,desktop,.graphical now opens on the bound month with the bound day ringed
-2026-08-28,windows,winui,P38,ok,n/a,n/a,"WebView diagnosed: element arranged 760x420, ensureCoreWebView2Async never completes"
-2026-08-28,windows,gtk4,P2,ok,n/a,window,"ButtonRole: destructive Delete renders red, plain Delete and Cancel do not"
-2026-08-28,windows,gtk4,P2,ok,n/a,window,"theme deference: button edge back to the theme rgb(56,56,56) from a flat rgb(73,73,73); destructive red rgb(176,21,28) kept"
-2026-08-28,windows,gtk4,P9,ok,n/a,window,"entries take the theme fill rgb(45,45,45) and an rgb(27,27,27) border; focus ring present, 900 accent px"
-2026-08-28,windows,gtk4,P15,ok,ok,window,"scheme override still correct after theme deference: requested light on a dark desktop, window and chrome follow"
-2026-08-28,windows,gtk4,P21,ok,n/a,window,"no regression from theme deference across buttons, toggles, switches, checkboxes, sliders"
-2026-08-28,windows,gtk4,P29,ok,ok,window,"disabled TextEditor now dims: text rgb(145,145,144) vs enabled rgb(255,255,255); both were 255 before"
-2026-08-28,windows,gtk4,P20,ok,ok,desktop,"popover follows the theme. Under GTK_THEME=HighContrast it was a dark rgb(44,44,44) menu on a white window; now white"
-2026-08-28,windows,winui,P21,ok,n/a,desktop,"disabled button label now dims to rgb(120,120,120); it was rgb(255,255,255), identical to enabled"
-2026-08-28,windows,winui,P15,ok,ok,desktop,requestedTheme carries the scheme override; explicit foreground stays blue after the foreground fix
-2026-08-28,windows,gtk4,P20,ok,ok,desktop,"new disabled menu item: dimmed rgb(145,145,144) vs enabled rgb(238,238,236); pre-10e7bead both were rgb(255,255,255). Click refused -- lastAction went to level 1 from the follow-up click"
-2026-08-28,windows,gtk4,P1,ok,ok,desktop,"first sheet ever run on GTK/Windows: root sheet presents as its own top-level window, green background, rounded corners, both buttons legible. #660 padding present here too"
-2026-08-28,windows,winui,P2,ok,ok,desktop,"TextEditor focus underline restored rgb(76,194,255) 2 rows 500px; dropdown bg now the acrylic brush rgb(45-46) not flat rgb(32,32,32)"
-2026-08-28,windows,winui,P9,ok,ok,desktop,"control for the focus test: TextField underline rgb(76,194,255) 2 rows 163px -- createTextField sets no overrides"
-2026-08-28,windows,winui,P23,ok,n/a,desktop,table headers unchanged after header labels stopped pinning a foreground
-2026-08-28,windows,gtk4,P18,ok,ok,window,"first file dialogs clicked on any platform: open/folder/save each open a native picker, Escape closes each, all three lines read cancelled"
-2026-08-29,windows,gtk4,P19,ok,ok,window,"flat menu passes: last action -> second button item, toggle item -> true; all four item kinds render, Text item dimmed, Divider a 1px rgb(35,35,35) full-width line"
-2026-08-29,windows,winui,P39,ok,n/a,desktop,opacity applied (delta 69.3); blur/saturation/brightness/contrast/grayscale/hueRotation all delta 0.0 against control -- confirms the recorded gap
-2026-08-29,windows,gtk4,P39,ok,n/a,window,"all seven applied: six by mean delta, blur by text edge energy 53.21 -> 1.76"
-2026-08-29,windows,gtk4,P40,ok,n/a,window,transform re-diagnosed: default renderer is software cairo (GL fails on Direct Composition); GDK_DEBUG=dcomp gives GskGLRenderer and hotpink 47873 -> 0 with all transforms correct
-2026-09-01,mac,appkit,P28,ok,n/a,window,
-2026-09-01,mac,appkit,P8,ok,n/a,window,
-2026-09-01,mac,appkit,P28,ok,no line,window,no -actionfile line at all
-2026-09-01,mac,appkit,P28,ok,no line,window,no -actionfile line -- built without SCUI_DEBUG?
-2026-09-01,mac,appkit,P28,ok,ok,window,
-2026-09-01,mac,appkit,P0,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P1,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P10,ok,n/a,window,
-2026-09-01,mac,appkit,P11,ok,n/a,window,
-2026-09-01,mac,appkit,P12,ok,n/a,window,
-2026-09-01,mac,appkit,P13,ok,n/a,window,
-2026-09-01,mac,appkit,P14,ok,n/a,window,
-2026-09-01,mac,appkit,P15,ok,n/a,window,
-2026-09-01,mac,appkit,P16,ok,n/a,window,
-2026-09-01,mac,appkit,P17,ok,n/a,window,
-2026-09-01,mac,appkit,P18,ok,n/a,window,
-2026-09-01,mac,appkit,P19,ok,n/a,window,
-2026-09-01,mac,appkit,P2,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P20,ok,n/a,window,
-2026-09-01,mac,appkit,P21,ok,n/a,window,
-2026-09-01,mac,appkit,P22,ok,n/a,window,
-2026-09-01,mac,appkit,P23,ok,n/a,window,
-2026-09-01,mac,appkit,P24,ok,n/a,window,
-2026-09-01,mac,appkit,P25,ok,n/a,window,
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
-2026-09-01,mac,appkit,P27,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P28,ok,ok,window,
-2026-09-01,mac,appkit,P29,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P3,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P37,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P38,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P39,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P4,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P40,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P41,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P5,no marker,n/a,window,launched but the render marker never appeared
-2026-09-01,mac,appkit,P6,ok,n/a,window,
-2026-09-01,mac,appkit,P7,ok,n/a,window,
-2026-09-01,mac,appkit,P8,ok,n/a,window,
-2026-09-01,mac,appkit,P9,ok,n/a,window,
-2026-09-01,mac,appkit,P0,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P37,no marker,n/a,window,declares a marker that never appeared
-2026-09-01,mac,appkit,P10,ok,n/a,window,
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
-2026-09-01,mac,appkit,P0,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P1,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P10,ok,n/a,window,
-2026-09-01,mac,appkit,P11,ok,n/a,window,
-2026-09-01,mac,appkit,P12,ok,n/a,window,
-2026-09-01,mac,appkit,P13,ok,n/a,window,
-2026-09-01,mac,appkit,P14,ok,n/a,window,
-2026-09-01,mac,appkit,P15,ok,n/a,window,
-2026-09-01,mac,appkit,P16,ok,n/a,window,
-2026-09-01,mac,appkit,P17,ok,n/a,window,
-2026-09-01,mac,appkit,P18,ok,n/a,window,
-2026-09-01,mac,appkit,P19,ok,n/a,window,
-2026-09-01,mac,appkit,P2,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P20,ok,n/a,window,
-2026-09-01,mac,appkit,P21,ok,n/a,window,
-2026-09-01,mac,appkit,P22,ok,n/a,window,
-2026-09-01,mac,appkit,P23,ok,n/a,window,
-2026-09-01,mac,appkit,P24,ok,n/a,window,
-2026-09-01,mac,appkit,P25,ok,n/a,window,
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,never launched
-2026-09-01,mac,appkit,P27,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P28,ok,ok,window,
-2026-09-01,mac,appkit,P29,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P3,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P37,no marker,n/a,window,declares a marker that never appeared
-2026-09-01,mac,appkit,P38,no marker,n/a,window,declares a marker that never appeared
-2026-09-01,mac,appkit,P39,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P4,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P40,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P41,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P5,ok,n/a,window,no marker configured; capture is timed
-2026-09-01,mac,appkit,P6,ok,n/a,window,
-2026-09-01,mac,appkit,P7,ok,n/a,window,
-2026-09-01,mac,appkit,P8,ok,n/a,window,
-2026-09-01,mac,appkit,P9,ok,n/a,window,
-2026-09-01,mac,appkit,P26,fail,n/a,n/a,"not an AppKit failure: the loader runs appCache checks through wsl.exe, which does not exist on macOS, and skips the GUI run"
-2026-09-01,mac,appkit,P10,ok,n/a,window,
-2026-09-01,mac,appkit,P38,ok,n/a,window,rebuilt: the binary was older than P38.swift
-2026-09-01,mac,appkit,P10,ok,n/a,window,
-2026-09-01,mac,appkit,P37,ok,n/a,window,rebuilt: the binary was older than P37.swift
-2026-09-01,mac,appkit,P26,ok,no line,window,no -actionfile line -- built without SCUI_DEBUG?
-2026-09-01,mac,appkit,P26,ok,ok,window,
-2026-09-01,mac,appkit,P28,ok,ok,window,
-2026-09-01,mac,appkit,P26,ok,ok,window,
-2026-09-01,mac,appkit,P28,ok,ok,window,
-2026-09-03,android,android,P0,ok,ok,window,
-2026-09-03,android,android,P1,ok,ok,window,
-2026-09-03,android,android,P2,ok,ok,window,
-2026-09-03,android,android,P3,ok,ok,window,
-2026-09-03,android,android,P4,ok,ok,window,
-2026-09-03,android,android,P5,ok,ok,window,
-2026-09-03,android,android,P6,ok,ok,window,
-2026-09-03,android,android,P7,ok,ok,window,
-2026-09-03,android,android,P8,ok,ok,window,
-2026-09-03,android,android,P9,ok,ok,window,
-2026-09-03,android,android,P10,ok,ok,window,
-2026-09-03,android,android,P11,ok,ok,window,
-2026-09-03,android,android,P12,ok,ok,window,
-2026-09-03,android,android,P13,ok,ok,window,
-2026-09-03,android,android,P14,ok,ok,window,
-2026-09-03,android,android,P15,ok,ok,window,
-2026-09-03,android,android,P16,ok,ok,window,
-2026-09-03,android,android,P17,ok,ok,window,
-2026-09-03,android,android,P18,ok,ok,window,
-2026-09-03,android,android,P19,ok,ok,window,
-2026-09-03,android,android,P20,ok,ok,window,
-2026-09-03,android,android,P21,ok,ok,window,
-2026-09-03,android,android,P22,ok,ok,window,
-2026-09-03,android,android,P23,ok,ok,window,
-2026-09-03,android,android,P24,ok,ok,window,
-2026-09-03,android,android,P25,ok,ok,window,
-2026-09-03,android,android,P26,ok,ok,window,
-2026-09-03,android,android,P27,ok,ok,window,
-2026-09-03,android,android,P28,ok,ok,window,
-2026-09-03,android,android,P29,ok,ok,window,
-2026-09-03,android,android,P30,ok,ok,window,
-2026-09-03,android,android,P31,ok,ok,window,
-2026-09-03,android,android,P32,ok,ok,window,
-2026-09-03,android,android,P33,ok,ok,window,
-2026-09-03,android,android,P34,ok,ok,window,
-2026-09-03,android,android,P35,ok,ok,window,
-2026-09-04,android,android,P36,ok,ok,window,
-2026-09-03,android,android,P37,ok,ok,window,
-2026-09-03,android,android,P38,ok,ok,window,
-2026-09-03,android,android,P39,ok,ok,window,
-2026-09-03,android,android,P40,ok,ok,window,
-2026-09-03,android,android,P41,ok,ok,window,
-2026-09-03,android,android,P42,ok,ok,window,
-2026-09-03,android,android,P43,ok,ok,window,
-2026-09-04,android,android,P44,ok,ok,window,
-2026-09-06,android,android,P0,ok,ok,window,"reset-appstorage: 318236 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P1,ok,ok,window,"open-the-root-sheet: 2421625 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P2,ok,ok,window,"expand-the-picker-options: 180309 px changed; content box (-246,-76)-(1329,2538) (246L 249R 76T 138B)"
-2026-09-06,android,android,P3,ok,ok,window,"shrink-the-clipped-image: 92117 px changed; content box (-509,0)-(1811,2400) (509L 731R)"
-2026-09-06,android,android,P4,ok,ok,window,"run-a-callback-row: 2004 px changed; content box (-278,0)-(1360,9254) (278L 280R 6854B)"
-2026-09-06,android,android,P5,ok,ok,window,"request-three-alerts-at-once: 2255386 px changed; content box (-357,0)-(1435,2400) (357L 355R)"
-2026-09-06,android,android,P6,ok,ok,window,"open-the-speed-picker: 162286 px changed; content box (-889,-68)-(1972,2530) (889L 892R 68T 130B); Stage clip fix revealed 27792 px that had been hidden"
-2026-09-06,android,android,P7,ok,ok,window,"select-a-list-row-from-code: 56726 px changed; content box (-367,0)-(1449,2400) (367L 369R); Stage clip fix revealed 20106 px that had been hidden"
-2026-09-06,android,android,P8,ok,ok,window,"scroll-the-outer-view-from-the-inner-strip: 341255 px changed; content box (-42,0)-(1800,2701) (42L 720R 301B)"
-2026-09-06,android,android,P9,ok,ok,window,"widen-the-clipping-frame: 42400 px changed; content box (-175,0)-(1255,2400) (175L 175R); Stage clip fix revealed 13289 px that had been hidden"
-2026-09-06,android,android,P10,ok,ok,window,"press-through-an-opaque-overlay: 64454 px changed; content box (-149,0)-(1229,2400) (149L 149R)"
-2026-09-06,android,android,P11,ok,ok,window,"separate-the-clamped-sliders: 29964 px changed; content box (-425,0)-(1507,4402) (425L 427R 2002B); Stage clip fix revealed 1476 px that had been hidden"
-2026-09-06,android,android,P12,ok,ok,window,"android-smoke: 116053 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P12,ok,ok,window,"increment-the-counter: 13740 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P13,ok,ok,window,"render-the-non-identifiable-foreach: 69894 px changed; content box (-609,-162)-(1690,2625) (609L 610R 162T 225B)"
-2026-09-06,android,android,P14,ok,ok,window,"count-a-rotation: 419159 px changed; content box (-36,0)-(1116,2400) (36L 36R)"
-2026-09-06,android,android,P15,ok,ok,window,"request-the-dark-scheme: 2316472 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P16,ok,ok,window,"select-a-sidebar-row: 55882 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P17,ok,ok,window,"select-the-longest-picker-option: 614505 px changed; content box (-603,-294)-(1686,2756) (603L 606R 294T 356B)"
-2026-09-06,android,android,P18,ok,ok,window,"open-a-file: 327294 px changed. Two batch runs reported zero replayed lines and zero pixels; the cause is the SAF picker P18 opens, which belongs to com.google.android.documentsui, survives the test app's force-stop, stays resumed and swallows the next launch. The harness now force-stops it before every launch"
-2026-09-06,android,android,P19,ok,ok,window,"open-the-flat-menu: 393427 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P20,ok,ok,window,"open-the-nested-menu: 313350 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P21,ok,ok,window,"press-the-disabled-button-then-the-enabled-one: 11793 px changed; content box (0,0)-(1080,4192) (1792B)"
-2026-09-06,android,android,P22,ok,ok,window,"narrow-the-wrapping-width: 107997 px changed; content box (0,0)-(1080,3570) (1170B)"
-2026-09-06,android,android,P23,ok,ok,window,"add-a-row-without-moving-the-columns: 884 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P24,ok,ok,window,"push-a-navigation-level: 140761 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P25,ok,ok,window,"press-a-drop-target-without-dropping: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-367,0)-(1449,2400) (367L 369R)"
-2026-09-06,android,android,P26,ok,ok,window,"switch-to-the-swiftui-tab: 484351 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P27,ok,ok,window,"touch-the-embedded-web-view: 2022175 px changed; content box (-425,0)-(1507,2400) (425L 427R); Stage clip fix revealed 49998 px that had been hidden"
-2026-09-06,android,android,P28,ok,ok,window,"press-through-the-disabled-overlay: 517 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P29,ok,ok,window,"enable-the-disabled-text-editor: 39591 px changed; content box (-178,0)-(1228,2400) (178L 148R); Stage clip fix revealed 25716 px that had been hidden"
-2026-09-06,android,android,P30,ok,ok,window,"widen-the-rectangle-frame: 70138 px changed; content box (-183,0)-(1266,2400) (183L 186R)"
-2026-09-06,android,android,P31,ok,ok,window,"open-the-alert: 2237081 px changed; content box (-57,0)-(1137,2400) (57L 57R)"
-2026-09-06,android,android,P32,ok,ok,window,"drive-the-progress-bar-from-the-slider: 35751 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P33,ok,ok,window,"collapse-the-disclosure-group: 277595 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P34,ok,ok,window,"scroll-the-hundred-row-stack: 413341 px changed; content box (0,0)-(1080,8164) (5764B)"
-2026-09-06,android,android,P35,ok,ok,window,"flip-the-toggle-state: 17451 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P36,ok,ok,window,"open-the-picker-options: 196159 px changed; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P37,ok,ok,window,"report-the-supported-window-levels: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P38,ok,ok,window,"touch-the-rendered-error-page: 61455 px changed; content box (-509,0)-(1591,2400) (509L 511R); Stage clip fix revealed 1156348 px that had been hidden"
-2026-09-06,android,android,P39,ok,ok,window,"measure-each-visual-effect-against-the-control: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-325,0)-(1407,2400) (325L 327R)"
-2026-09-06,android,android,P40,ok,ok,window,"measure-the-clipped-geometric-effects: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-320,0)-(1402,2400) (320L 322R)"
-2026-09-06,android,android,P41,ok,ok,window,"turn-the-month-wheel: 137601 px changed; content box (-635,-191)-(1971,2654) (635L 891R 191T 254B); Stage clip fix revealed 61618 px that had been hidden"
-2026-09-06,android,android,P42,ok,ok,window,"check-the-window-scale-factor: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (0,0)-(1080,2400) (fits)"
-2026-09-06,android,android,P43,ok,ok,window,"measure-the-flattened-gradient-fills: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-204,0)-(1287,2400) (204L 207R)"
-2026-09-06,android,android,P44,ok,ok,window,"clip-the-third-cell: 86805 px changed; content box (-63,0)-(1080,2400) (63L)"
-2026-09-02,ios,uikit,P0,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p0-ios-final-20260902-104719.png, 9.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P1,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p1-ios-final-20260902-095141.png, 6.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P2,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p2-ios-final-20260902-100324.png, 17.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P3,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p3-ios-final-20260902-135421.png, 86.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P4,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p4-ios-final-20260902-102415.png, 14.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P5,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p5-ios-final-20260902-102640.png, 9.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-03,ios,uikit,P6,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p6-ios-final-20260903-000559.png, 60.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P7,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p7-ios-final-20260902-150255.png, 7.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P8,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p8-ios-final-20260902-125427.png, 17.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P9,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p9-ios-final-20260902-103047.png, 9.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P10,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p10-ios-final-20260902-150453.png, 12.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P11,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p11-ios-final-20260902-234034.png, 13.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P12,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p12-ios-final-20260902-132108.png, 15.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P13,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p13-ios-final-20260902-131929.png, 13.4% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P14,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p14-ios-final-20260902-095616.png, 18.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P15,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p15-ios-final-20260902-104853.png, 16.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P16,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p16-ios-final-20260902-140218.png, 7.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P17,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p17-ios-final-20260902-100041.png, 37.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P18,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p18-ios-final-20260902-100136.png, 10.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P19,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p19-ios-final-20260902-100230.png, 10.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P20,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p20-ios-final-20260902-100418.png, 10.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-03,ios,uikit,P21,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p21-ios-final-20260903-081558.png, 16.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P22,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p22-ios-final-20260902-104836.png, 19.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P23,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p23-ios-final-20260902-140533.png, 19.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P24,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p24-ios-final-20260902-104746.png, 6.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P25,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p25-ios-final-20260902-212727.png, 23.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P26,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p26-ios-final-20260902-141607.png, 29.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P27,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p27-ios-final-20260902-142213.png, 21.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P28,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p28-ios-final-20260902-104614.png, 13.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P29,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p29-ios-final-20260902-101255.png, 11.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P30,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p30-ios-final-20260902-145446.png, 28.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P31,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p31-ios-final-20260902-101541.png, 9.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P32,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p32-ios-final-20260902-101635.png, 12.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P33,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p33-ios-final-20260902-104800.png, 10.5% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P34,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p34-ios-final-20260902-104826.png, 17.5% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P35,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p35-ios-final-20260902-104812.png, 10.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P36,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p36-ios-final-20260902-102023.png, 15.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P37,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p37-ios-final-20260902-212528.png, 16.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P38,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p38-ios-final-20260902-142033.png, 16.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P39,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p39-ios-final-20260902-233614.png, 37.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P40,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p40-ios-final-20260902-233630.png, 10.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P41,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p41-ios-final-20260902-234742.png, 4.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-02,ios,uikit,P42,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p42-ios-final-20260902-235305.png, 95.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-04,ios,uikit,P43,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p43-ios-final-20260904-150828.png, 20.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-04,ios,uikit,P44,ok,unverified,window,"recorded from evidence already on disk, not from a fresh run: p44-ios-final-20260904-134649.png, 18.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
-2026-09-06,windows,gtk4,P31,ok,ok,window,
-2026-09-06,windows,gtk4,P16,ok,ok,window,
-2026-09-06,windows,gtk4,P31,ok,ok,window,
-2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,clicks hit 0x00000000009a0dd4
-2026-09-06,windows,gtk4,P10,FAIL,running,desktop,exited before the capture; still replaying when captured
-2026-09-06,windows,gtk4,P10,ok,running,desktop,quit as expected; still replaying when captured
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,quit as expected
-2026-09-06,windows,gtk4,P31,ok,FAIL,window,failed: could not bring our window to th
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,ok,window,"P10-hit-testing.csv: "
-2026-09-06,windows,gtk4,P13,ok,ok,window,"P13-duplicates-and-split.csv: "
-2026-09-06,windows,gtk4,P13,ok,ok,window,"P13-zorder.csv: "
-2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,P16-force-update.csv: clicks hit 0x0000000000050832
-2026-09-06,windows,gtk4,P31,ok,ASTRAY,window,P31-tab-and-escape.csv: clicks hit 0x0000000000010196
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P17,ok,ok,window,"P17-picker-and-sizes.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P16,ok,ok,window,"P16-force-update.csv: "
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P13,ok,ok,window,"P13-duplicates-and-split.csv: "
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P31,ok,ok,window,"P31-tab-and-escape.csv: "
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P1,ok,ok,window,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 220x140, ran at 988x629 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P4,ok,ok,window,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture
-2026-09-06,windows,gtk4,P5,ok,ok,window,"P5-stacked-alerts.csv: "
-2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,"P7-list-selection.csv: measured at 748x518, ran at 748x509 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P8,ok,GEOMETRY,window,"P8-scroll-outer.csv: measured at 668x598, ran at 668x589 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P11,ok,-,window,
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,P18-three-dialogs.csv: clicks hit 0x000000000001025e
-2026-09-06,windows,gtk4,P19,ok,ok,desktop,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P19,ok,ok,window,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P21,ok,GEOMETRY,window,"P21-buttons-and-disabled.csv: measured at 848x746, ran at 848x749 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,"P22-weights.csv: measured at 760x700, ran at 788x729 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P23,ok,GEOMETRY,window,"P23-more-rows.csv: measured at 848x648, ran at 848x649 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P24,ok,GEOMETRY,window,"P24-push-one-level.csv: measured at 1920x1080, ran at 748x589 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P25,ok,-,window,
-2026-09-06,windows,gtk4,P26,ok,GEOMETRY,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P1,ok,ok,window,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 220x140, ran at 988x629 (off by 768x489) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P4,ok,ok,window,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture
-2026-09-06,windows,gtk4,P5,ok,ok,window,"P5-stacked-alerts.csv: "
-2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P8,ok,GEOMETRY,window,"P8-scroll-outer.csv: measured at 668x598, ran at 668x589 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P11,ok,-,window,
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,P18-three-dialogs.csv: clicks hit 0x000000000001025e
-2026-09-06,windows,gtk4,P19,ok,ok,desktop,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P19,ok,ok,window,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P21,ok,ok,window,"P21-buttons-and-disabled.csv: measured at 848x746, ran at 848x749 (off by 0x3, under a third of a row)"
-2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P23,ok,ok,window,"P23-more-rows.csv: measured at 848x648, ran at 848x649 (off by 0x1, under a third of a row)"
-2026-09-06,windows,gtk4,P24,ok,GEOMETRY,window,"P24-push-one-level.csv: measured at 1920x1080, ran at 748x589 (off by 1172x491) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P25,ok,-,window,
-2026-09-06,windows,gtk4,P26,ok,ok,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
-2026-09-06,windows,gtk4,P1,ok,ok,window,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 988x638, ran at 988x629 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P4,ok,ok,window,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P5,ok,ok,window,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P8,ok,ok,window,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P11,ok,-,window,
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,P18-three-dialogs.csv: clicks hit 0x000000000001025e
-2026-09-06,windows,gtk4,P19,ok,ok,desktop,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P19,ok,ok,window,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P21,ok,ok,window,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P23,ok,ok,window,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P24,ok,ok,window,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P25,ok,-,window,
-2026-09-06,windows,gtk4,P26,ok,ok,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
-2026-09-06,windows,gtk4,P1,ok,ok,window,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 988x638, ran at 988x629 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P4,ok,ok,window,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P5,ok,ok,window,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P8,ok,ok,window,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P11,ok,-,window,
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,P18-three-dialogs.csv: clicks hit 0x000000000001025e
-2026-09-06,windows,gtk4,P19,ok,ok,desktop,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P19,ok,ok,window,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P21,ok,ok,window,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P23,ok,ok,window,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P24,ok,ok,window,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P25,ok,-,window,
-2026-09-06,windows,gtk4,P26,ok,ok,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
-2026-09-06,windows,gtk4,P16,ok,-,window,
-2026-09-06,windows,gtk4,P3,ok,ok,window,P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture
-2026-09-06,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv: "
-2026-09-06,windows,gtk4,P9,ok,ok,window,"P9-force-update-and-width.csv: "
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,ok,window,"P10-hit-testing.csv: "
-2026-09-06,windows,gtk4,P22,ok,ok,window,"P22-weights.csv: "
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P1,ok,ok,window,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P3,ok,ok,window,P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture
-2026-09-06,windows,gtk4,P4,ok,ok,window,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P5,ok,ok,window,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv: "
-2026-09-06,windows,gtk4,P8,ok,ok,window,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P9,ok,ok,window,"P9-force-update-and-width.csv: "
-2026-09-06,windows,gtk4,P10,ok,n/a,n/a,P10-ctrl-q.csv: quit as expected
-2026-09-06,windows,gtk4,P10,ok,ok,window,"P10-hit-testing.csv: "
-2026-09-06,windows,gtk4,P11,ok,-,window,
-2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P13,ok,ok,window,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,-,window,
-2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,P18-three-dialogs.csv: clicks hit 0x000000000001025e
-2026-09-06,windows,gtk4,P19,ok,ok,desktop,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P19,ok,ok,window,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P20,ok,ok,window,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P21,ok,ok,window,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P22,ok,ok,window,"P22-weights.csv: "
-2026-09-06,windows,gtk4,P23,ok,ok,window,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P24,ok,ok,window,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P25,ok,-,window,
-2026-09-06,windows,gtk4,P26,ok,ok,window,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
-2026-09-07,windows,gtk4,P31,ok,ASTRAY,window,P31-tab-and-escape.csv: clicks hit 0x000000000001025e
-2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv: "
-2026-09-07,windows,gtk4,P7,ok,ok,window,P7-list-selection.csv
-2026-09-07,windows,gtk4,P11,ok,-,window,
-2026-09-07,windows,gtk4,P7,ok,ok,window,"P7-list-selection.csv"
-2026-09-07,wsl,gtk4,P0,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P1,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P2,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P3,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P4,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P5,ok,n/a,fail,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P6-v2,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P6,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P7,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P8,ok,ok,fail,replayed P8-scroll-outer.csv only; 3 action files exist for P8; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P9,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P10,ok,ok,fail,replayed P10-allows-hit-testing.csv only; 3 action files exist for P10; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P11,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P12,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P13,ok,ok,fail,screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P14,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P15-DARK,no marker,n/a,fail,declares a marker that never appeared; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P15,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P16,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P17,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P18,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P19,ok,ok,fail,screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P20,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P21,ok,ok,fail,replayed P21-disabled-field.csv only; 2 action files exist for P21; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P22,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P23,ok,ok,fail,replayed P23-more-rows.csv only; 4 action files exist for P23; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P24,ok,ok,fail,replayed P24-back-through.csv only; 4 action files exist for P24; screenshot.zsh produced no image
-2026-09-07,wsl,gtk4,P25,ok,n/a,fail,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+date,platform,backend,app,launch,replay,capture,renderer,note
+日期,平台,backend,app,啟動,重放,擷取,算繪器,備註
+2026-08-27,windows,gtk4,P10,ok,ok,window,unrecorded,
+2026-08-27,windows,gtk4,P10,ok,ok,window,unrecorded,"#61 no-op control: modifier removed gives 0, present gives 1"
+2026-08-27,windows,gtk4,P10,ok,ok,window,unrecorded,
+2026-08-27,windows,gtk4,P7,ok,ok,window,unrecorded,"#64 liststyle: plain List selection is GTK's blue accent, sidebar keeps the inset grey"
+2026-08-27,windows,gtk4,P15,ok,ok,window,unrecorded,#62 before the fix: Light then Dark left a light window with dark-scheme text
+2026-08-27,windows,gtk4,P15,ok,ok,window,unrecorded,"#62 after the fix: same action file, window is dark and legible"
+2026-08-27,windows,gtk4,P15,ok,ok,window,unrecorded,"#62 control: Light alone still goes light, so the other direction is intact"
+2026-08-27,windows,gtk4,P27,ok,n/a,window,unrecorded,"gradients 3+4 after the fix: ring has a solid centre, reversed sweep shows its colours"
+2026-08-27,windows,winui,P27,ok,n/a,window,unrecorded,gradient control: agrees on both rings; its reversed sweep was flat until fixed here too
+2026-08-27,windows,winui,P38,ok,n/a,window,unrecorded,"WebView frame stayed empty with 4 msedgewebview2.exe running; parked, not diagnosed"
+2026-08-27,windows,gtk4,P39,ok,n/a,window,unrecorded,all seven compositing effects differ from the identity control
+2026-08-27,windows,winui,P39,ok,n/a,desktop,unrecorded,"opacity applied, six filters warn and no-op as documented; no fatalError"
+2026-08-27,windows,gtk4,P40,ok,n/a,window,unrecorded,"transform applied but content lost: every transformed tile flat hotpink rgb(255,105,180)"
+2026-08-27,windows,gtk4,P40,ok,n/a,window,unrecorded,"after declining to transform: 0 hotpink pixels sampled, content legible again"
+2026-08-27,windows,winui,P40,ok,n/a,desktop,unrecorded,"rotation, scale and offset all render correctly"
+2026-08-27,mac,appkit,P28,ok,ok,n/a,unrecorded,"AppKit hit testing fixed in e25b3a65; reported by the Mac side, not verified in this checkout"
+2026-08-27,wsl,gtk4,P8,ok,n/a,n/a,unrecorded,"scrollBarWidth A/B: overlay scrolling off measures 14pt via debugLogOnce, on never enters the branch"
+2026-08-27,windows,gtk4,P41,ok,n/a,window,unrecorded,all four date picker styles distinct; .wheel is three columns centred on the selection
+2026-08-27,windows,winui,P41,ok,ok,desktop,unrecorded,.graphical renders nothing; .automatic and .wheel are the same control
+2026-08-27,windows,gtk4,P41,ok,ok,window,unrecorded,"wheel scroll: seven whole rows per column after three notches, no clipped sliver"
+2026-08-27,windows,gtk4,P22,ok,n/a,n/a,unrecorded,"finding 10 confirmed then fixed: lineLimit(2) was 35pt at both 13pt and 30pt, now 34 and 76"
+2026-08-27,windows,gtk4,P20,ok,n/a,window,unrecorded,"menu bar now present; menubarHeight called once, before the bar exists in the tree"
+2026-08-27,windows,winui,P41,ok,ok,desktop,unrecorded,".graphical now draws a month grid, but opens on today not the bound date"
+2026-08-27,windows,winui,P41,ok,ok,desktop,unrecorded,.graphical now opens on the bound month with the bound day ringed
+2026-08-28,windows,winui,P38,ok,n/a,n/a,unrecorded,"WebView diagnosed: element arranged 760x420, ensureCoreWebView2Async never completes"
+2026-08-28,windows,gtk4,P2,ok,n/a,window,unrecorded,"ButtonRole: destructive Delete renders red, plain Delete and Cancel do not"
+2026-08-28,windows,gtk4,P2,ok,n/a,window,unrecorded,"theme deference: button edge back to the theme rgb(56,56,56) from a flat rgb(73,73,73); destructive red rgb(176,21,28) kept"
+2026-08-28,windows,gtk4,P9,ok,n/a,window,unrecorded,"entries take the theme fill rgb(45,45,45) and an rgb(27,27,27) border; focus ring present, 900 accent px"
+2026-08-28,windows,gtk4,P15,ok,ok,window,unrecorded,"scheme override still correct after theme deference: requested light on a dark desktop, window and chrome follow"
+2026-08-28,windows,gtk4,P21,ok,n/a,window,unrecorded,"no regression from theme deference across buttons, toggles, switches, checkboxes, sliders"
+2026-08-28,windows,gtk4,P29,ok,ok,window,unrecorded,"disabled TextEditor now dims: text rgb(145,145,144) vs enabled rgb(255,255,255); both were 255 before"
+2026-08-28,windows,gtk4,P20,ok,ok,desktop,unrecorded,"popover follows the theme. Under GTK_THEME=HighContrast it was a dark rgb(44,44,44) menu on a white window; now white"
+2026-08-28,windows,winui,P21,ok,n/a,desktop,unrecorded,"disabled button label now dims to rgb(120,120,120); it was rgb(255,255,255), identical to enabled"
+2026-08-28,windows,winui,P15,ok,ok,desktop,unrecorded,requestedTheme carries the scheme override; explicit foreground stays blue after the foreground fix
+2026-08-28,windows,gtk4,P20,ok,ok,desktop,unrecorded,"new disabled menu item: dimmed rgb(145,145,144) vs enabled rgb(238,238,236); pre-10e7bead both were rgb(255,255,255). Click refused -- lastAction went to level 1 from the follow-up click"
+2026-08-28,windows,gtk4,P1,ok,ok,desktop,unrecorded,"first sheet ever run on GTK/Windows: root sheet presents as its own top-level window, green background, rounded corners, both buttons legible. #660 padding present here too"
+2026-08-28,windows,winui,P2,ok,ok,desktop,unrecorded,"TextEditor focus underline restored rgb(76,194,255) 2 rows 500px; dropdown bg now the acrylic brush rgb(45-46) not flat rgb(32,32,32)"
+2026-08-28,windows,winui,P9,ok,ok,desktop,unrecorded,"control for the focus test: TextField underline rgb(76,194,255) 2 rows 163px -- createTextField sets no overrides"
+2026-08-28,windows,winui,P23,ok,n/a,desktop,unrecorded,table headers unchanged after header labels stopped pinning a foreground
+2026-08-28,windows,gtk4,P18,ok,ok,window,unrecorded,"first file dialogs clicked on any platform: open/folder/save each open a native picker, Escape closes each, all three lines read cancelled"
+2026-08-29,windows,gtk4,P19,ok,ok,window,unrecorded,"flat menu passes: last action -> second button item, toggle item -> true; all four item kinds render, Text item dimmed, Divider a 1px rgb(35,35,35) full-width line"
+2026-08-29,windows,winui,P39,ok,n/a,desktop,unrecorded,opacity applied (delta 69.3); blur/saturation/brightness/contrast/grayscale/hueRotation all delta 0.0 against control -- confirms the recorded gap
+2026-08-29,windows,gtk4,P39,ok,n/a,window,unrecorded,"all seven applied: six by mean delta, blur by text edge energy 53.21 -> 1.76"
+2026-08-29,windows,gtk4,P40,ok,n/a,window,unrecorded,transform re-diagnosed: default renderer is software cairo (GL fails on Direct Composition); GDK_DEBUG=dcomp gives GskGLRenderer and hotpink 47873 -> 0 with all transforms correct
+2026-09-01,mac,appkit,P28,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P8,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P28,ok,no line,window,unrecorded,no -actionfile line at all
+2026-09-01,mac,appkit,P28,ok,no line,window,unrecorded,no -actionfile line -- built without SCUI_DEBUG?
+2026-09-01,mac,appkit,P28,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P0,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P1,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P10,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P11,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P12,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P13,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P14,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P15,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P16,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P17,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P18,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P19,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P2,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P20,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P21,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P22,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P23,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P24,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P25,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,unrecorded,never launched
+2026-09-01,mac,appkit,P27,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P28,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P29,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P3,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P37,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P38,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P39,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P4,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P40,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P41,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P5,no marker,n/a,window,unrecorded,launched but the render marker never appeared
+2026-09-01,mac,appkit,P6,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P7,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P8,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P9,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P0,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P37,no marker,n/a,window,unrecorded,declares a marker that never appeared
+2026-09-01,mac,appkit,P10,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,unrecorded,never launched
+2026-09-01,mac,appkit,P0,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P1,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P10,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P11,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P12,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P13,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P14,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P15,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P16,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P17,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P18,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P19,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P2,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P20,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P21,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P22,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P23,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P24,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P25,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,unrecorded,never launched
+2026-09-01,mac,appkit,P27,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P28,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P29,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P3,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P37,no marker,n/a,window,unrecorded,declares a marker that never appeared
+2026-09-01,mac,appkit,P38,no marker,n/a,window,unrecorded,declares a marker that never appeared
+2026-09-01,mac,appkit,P39,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P4,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P40,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P41,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P5,ok,n/a,window,unrecorded,no marker configured; capture is timed
+2026-09-01,mac,appkit,P6,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P7,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P8,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P9,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P26,fail,n/a,n/a,unrecorded,"not an AppKit failure: the loader runs appCache checks through wsl.exe, which does not exist on macOS, and skips the GUI run"
+2026-09-01,mac,appkit,P10,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P38,ok,n/a,window,unrecorded,rebuilt: the binary was older than P38.swift
+2026-09-01,mac,appkit,P10,ok,n/a,window,unrecorded,
+2026-09-01,mac,appkit,P37,ok,n/a,window,unrecorded,rebuilt: the binary was older than P37.swift
+2026-09-01,mac,appkit,P26,ok,no line,window,unrecorded,no -actionfile line -- built without SCUI_DEBUG?
+2026-09-01,mac,appkit,P26,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P28,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P26,ok,ok,window,unrecorded,
+2026-09-01,mac,appkit,P28,ok,ok,window,unrecorded,
+2026-09-03,android,android,P0,ok,ok,window,unrecorded,
+2026-09-03,android,android,P1,ok,ok,window,unrecorded,
+2026-09-03,android,android,P2,ok,ok,window,unrecorded,
+2026-09-03,android,android,P3,ok,ok,window,unrecorded,
+2026-09-03,android,android,P4,ok,ok,window,unrecorded,
+2026-09-03,android,android,P5,ok,ok,window,unrecorded,
+2026-09-03,android,android,P6,ok,ok,window,unrecorded,
+2026-09-03,android,android,P7,ok,ok,window,unrecorded,
+2026-09-03,android,android,P8,ok,ok,window,unrecorded,
+2026-09-03,android,android,P9,ok,ok,window,unrecorded,
+2026-09-03,android,android,P10,ok,ok,window,unrecorded,
+2026-09-03,android,android,P11,ok,ok,window,unrecorded,
+2026-09-03,android,android,P12,ok,ok,window,unrecorded,
+2026-09-03,android,android,P13,ok,ok,window,unrecorded,
+2026-09-03,android,android,P14,ok,ok,window,unrecorded,
+2026-09-03,android,android,P15,ok,ok,window,unrecorded,
+2026-09-03,android,android,P16,ok,ok,window,unrecorded,
+2026-09-03,android,android,P17,ok,ok,window,unrecorded,
+2026-09-03,android,android,P18,ok,ok,window,unrecorded,
+2026-09-03,android,android,P19,ok,ok,window,unrecorded,
+2026-09-03,android,android,P20,ok,ok,window,unrecorded,
+2026-09-03,android,android,P21,ok,ok,window,unrecorded,
+2026-09-03,android,android,P22,ok,ok,window,unrecorded,
+2026-09-03,android,android,P23,ok,ok,window,unrecorded,
+2026-09-03,android,android,P24,ok,ok,window,unrecorded,
+2026-09-03,android,android,P25,ok,ok,window,unrecorded,
+2026-09-03,android,android,P26,ok,ok,window,unrecorded,
+2026-09-03,android,android,P27,ok,ok,window,unrecorded,
+2026-09-03,android,android,P28,ok,ok,window,unrecorded,
+2026-09-03,android,android,P29,ok,ok,window,unrecorded,
+2026-09-03,android,android,P30,ok,ok,window,unrecorded,
+2026-09-03,android,android,P31,ok,ok,window,unrecorded,
+2026-09-03,android,android,P32,ok,ok,window,unrecorded,
+2026-09-03,android,android,P33,ok,ok,window,unrecorded,
+2026-09-03,android,android,P34,ok,ok,window,unrecorded,
+2026-09-03,android,android,P35,ok,ok,window,unrecorded,
+2026-09-04,android,android,P36,ok,ok,window,unrecorded,
+2026-09-03,android,android,P37,ok,ok,window,unrecorded,
+2026-09-03,android,android,P38,ok,ok,window,unrecorded,
+2026-09-03,android,android,P39,ok,ok,window,unrecorded,
+2026-09-03,android,android,P40,ok,ok,window,unrecorded,
+2026-09-03,android,android,P41,ok,ok,window,unrecorded,
+2026-09-03,android,android,P42,ok,ok,window,unrecorded,
+2026-09-03,android,android,P43,ok,ok,window,unrecorded,
+2026-09-04,android,android,P44,ok,ok,window,unrecorded,
+2026-09-06,android,android,P0,ok,ok,window,unrecorded,"reset-appstorage: 318236 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P1,ok,ok,window,unrecorded,"open-the-root-sheet: 2421625 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P2,ok,ok,window,unrecorded,"expand-the-picker-options: 180309 px changed; content box (-246,-76)-(1329,2538) (246L 249R 76T 138B)"
+2026-09-06,android,android,P3,ok,ok,window,unrecorded,"shrink-the-clipped-image: 92117 px changed; content box (-509,0)-(1811,2400) (509L 731R)"
+2026-09-06,android,android,P4,ok,ok,window,unrecorded,"run-a-callback-row: 2004 px changed; content box (-278,0)-(1360,9254) (278L 280R 6854B)"
+2026-09-06,android,android,P5,ok,ok,window,unrecorded,"request-three-alerts-at-once: 2255386 px changed; content box (-357,0)-(1435,2400) (357L 355R)"
+2026-09-06,android,android,P6,ok,ok,window,unrecorded,"open-the-speed-picker: 162286 px changed; content box (-889,-68)-(1972,2530) (889L 892R 68T 130B); Stage clip fix revealed 27792 px that had been hidden"
+2026-09-06,android,android,P7,ok,ok,window,unrecorded,"select-a-list-row-from-code: 56726 px changed; content box (-367,0)-(1449,2400) (367L 369R); Stage clip fix revealed 20106 px that had been hidden"
+2026-09-06,android,android,P8,ok,ok,window,unrecorded,"scroll-the-outer-view-from-the-inner-strip: 341255 px changed; content box (-42,0)-(1800,2701) (42L 720R 301B)"
+2026-09-06,android,android,P9,ok,ok,window,unrecorded,"widen-the-clipping-frame: 42400 px changed; content box (-175,0)-(1255,2400) (175L 175R); Stage clip fix revealed 13289 px that had been hidden"
+2026-09-06,android,android,P10,ok,ok,window,unrecorded,"press-through-an-opaque-overlay: 64454 px changed; content box (-149,0)-(1229,2400) (149L 149R)"
+2026-09-06,android,android,P11,ok,ok,window,unrecorded,"separate-the-clamped-sliders: 29964 px changed; content box (-425,0)-(1507,4402) (425L 427R 2002B); Stage clip fix revealed 1476 px that had been hidden"
+2026-09-06,android,android,P12,ok,ok,window,unrecorded,"android-smoke: 116053 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P12,ok,ok,window,unrecorded,"increment-the-counter: 13740 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P13,ok,ok,window,unrecorded,"render-the-non-identifiable-foreach: 69894 px changed; content box (-609,-162)-(1690,2625) (609L 610R 162T 225B)"
+2026-09-06,android,android,P14,ok,ok,window,unrecorded,"count-a-rotation: 419159 px changed; content box (-36,0)-(1116,2400) (36L 36R)"
+2026-09-06,android,android,P15,ok,ok,window,unrecorded,"request-the-dark-scheme: 2316472 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P16,ok,ok,window,unrecorded,"select-a-sidebar-row: 55882 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P17,ok,ok,window,unrecorded,"select-the-longest-picker-option: 614505 px changed; content box (-603,-294)-(1686,2756) (603L 606R 294T 356B)"
+2026-09-06,android,android,P18,ok,ok,window,unrecorded,"open-a-file: 327294 px changed. Two batch runs reported zero replayed lines and zero pixels; the cause is the SAF picker P18 opens, which belongs to com.google.android.documentsui, survives the test app's force-stop, stays resumed and swallows the next launch. The harness now force-stops it before every launch"
+2026-09-06,android,android,P19,ok,ok,window,unrecorded,"open-the-flat-menu: 393427 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P20,ok,ok,window,unrecorded,"open-the-nested-menu: 313350 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P21,ok,ok,window,unrecorded,"press-the-disabled-button-then-the-enabled-one: 11793 px changed; content box (0,0)-(1080,4192) (1792B)"
+2026-09-06,android,android,P22,ok,ok,window,unrecorded,"narrow-the-wrapping-width: 107997 px changed; content box (0,0)-(1080,3570) (1170B)"
+2026-09-06,android,android,P23,ok,ok,window,unrecorded,"add-a-row-without-moving-the-columns: 884 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P24,ok,ok,window,unrecorded,"push-a-navigation-level: 140761 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P25,ok,ok,window,unrecorded,"press-a-drop-target-without-dropping: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-367,0)-(1449,2400) (367L 369R)"
+2026-09-06,android,android,P26,ok,ok,window,unrecorded,"switch-to-the-swiftui-tab: 484351 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P27,ok,ok,window,unrecorded,"touch-the-embedded-web-view: 2022175 px changed; content box (-425,0)-(1507,2400) (425L 427R); Stage clip fix revealed 49998 px that had been hidden"
+2026-09-06,android,android,P28,ok,ok,window,unrecorded,"press-through-the-disabled-overlay: 517 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P29,ok,ok,window,unrecorded,"enable-the-disabled-text-editor: 39591 px changed; content box (-178,0)-(1228,2400) (178L 148R); Stage clip fix revealed 25716 px that had been hidden"
+2026-09-06,android,android,P30,ok,ok,window,unrecorded,"widen-the-rectangle-frame: 70138 px changed; content box (-183,0)-(1266,2400) (183L 186R)"
+2026-09-06,android,android,P31,ok,ok,window,unrecorded,"open-the-alert: 2237081 px changed; content box (-57,0)-(1137,2400) (57L 57R)"
+2026-09-06,android,android,P32,ok,ok,window,unrecorded,"drive-the-progress-bar-from-the-slider: 35751 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P33,ok,ok,window,unrecorded,"collapse-the-disclosure-group: 277595 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P34,ok,ok,window,unrecorded,"scroll-the-hundred-row-stack: 413341 px changed; content box (0,0)-(1080,8164) (5764B)"
+2026-09-06,android,android,P35,ok,ok,window,unrecorded,"flip-the-toggle-state: 17451 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P36,ok,ok,window,unrecorded,"open-the-picker-options: 196159 px changed; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P37,ok,ok,window,unrecorded,"report-the-supported-window-levels: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P38,ok,ok,window,unrecorded,"touch-the-rendered-error-page: 61455 px changed; content box (-509,0)-(1591,2400) (509L 511R); Stage clip fix revealed 1156348 px that had been hidden"
+2026-09-06,android,android,P39,ok,ok,window,unrecorded,"measure-each-visual-effect-against-the-control: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-325,0)-(1407,2400) (325L 327R)"
+2026-09-06,android,android,P40,ok,ok,window,unrecorded,"measure-the-clipped-geometric-effects: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-320,0)-(1402,2400) (320L 322R)"
+2026-09-06,android,android,P41,ok,ok,window,unrecorded,"turn-the-month-wheel: 137601 px changed; content box (-635,-191)-(1971,2654) (635L 891R 191T 254B); Stage clip fix revealed 61618 px that had been hidden"
+2026-09-06,android,android,P42,ok,ok,window,unrecorded,"check-the-window-scale-factor: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (0,0)-(1080,2400) (fits)"
+2026-09-06,android,android,P43,ok,ok,window,unrecorded,"measure-the-flattened-gradient-fills: 0 px changed, which is the pass -- the action file presses an inert or disabled target and asks only that the process survives; content box (-204,0)-(1287,2400) (204L 207R)"
+2026-09-06,android,android,P44,ok,ok,window,unrecorded,"clip-the-third-cell: 86805 px changed; content box (-63,0)-(1080,2400) (63L)"
+2026-09-02,ios,uikit,P0,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p0-ios-final-20260902-104719.png, 9.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P1,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p1-ios-final-20260902-095141.png, 6.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P2,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p2-ios-final-20260902-100324.png, 17.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P3,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p3-ios-final-20260902-135421.png, 86.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P4,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p4-ios-final-20260902-102415.png, 14.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P5,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p5-ios-final-20260902-102640.png, 9.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-03,ios,uikit,P6,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p6-ios-final-20260903-000559.png, 60.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P7,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p7-ios-final-20260902-150255.png, 7.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P8,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p8-ios-final-20260902-125427.png, 17.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P9,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p9-ios-final-20260902-103047.png, 9.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P10,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p10-ios-final-20260902-150453.png, 12.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P11,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p11-ios-final-20260902-234034.png, 13.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P12,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p12-ios-final-20260902-132108.png, 15.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P13,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p13-ios-final-20260902-131929.png, 13.4% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P14,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p14-ios-final-20260902-095616.png, 18.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P15,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p15-ios-final-20260902-104853.png, 16.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P16,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p16-ios-final-20260902-140218.png, 7.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P17,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p17-ios-final-20260902-100041.png, 37.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P18,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p18-ios-final-20260902-100136.png, 10.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P19,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p19-ios-final-20260902-100230.png, 10.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P20,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p20-ios-final-20260902-100418.png, 10.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-03,ios,uikit,P21,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p21-ios-final-20260903-081558.png, 16.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P22,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p22-ios-final-20260902-104836.png, 19.2% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P23,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p23-ios-final-20260902-140533.png, 19.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P24,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p24-ios-final-20260902-104746.png, 6.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P25,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p25-ios-final-20260902-212727.png, 23.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P26,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p26-ios-final-20260902-141607.png, 29.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P27,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p27-ios-final-20260902-142213.png, 21.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P28,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p28-ios-final-20260902-104614.png, 13.8% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P29,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p29-ios-final-20260902-101255.png, 11.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P30,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p30-ios-final-20260902-145446.png, 28.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P31,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p31-ios-final-20260902-101541.png, 9.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P32,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p32-ios-final-20260902-101635.png, 12.6% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P33,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p33-ios-final-20260902-104800.png, 10.5% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P34,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p34-ios-final-20260902-104826.png, 17.5% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P35,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p35-ios-final-20260902-104812.png, 10.0% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P36,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p36-ios-final-20260902-102023.png, 15.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P37,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p37-ios-final-20260902-212528.png, 16.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P38,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p38-ios-final-20260902-142033.png, 16.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P39,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p39-ios-final-20260902-233614.png, 37.1% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P40,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p40-ios-final-20260902-233630.png, 10.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P41,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p41-ios-final-20260902-234742.png, 4.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-02,ios,uikit,P42,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p42-ios-final-20260902-235305.png, 95.3% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-04,ios,uikit,P43,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p43-ios-final-20260904-150828.png, 20.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-04,ios,uikit,P44,ok,unverified,window,unrecorded,"recorded from evidence already on disk, not from a fresh run: p44-ios-final-20260904-134649.png, 18.9% non-white, so the app launched and rendered. replay is 'unverified' because nothing on iOS has ever checked that an action file replayed -- the same gap Android carried until 2026-09-06"
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,
+2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,unrecorded,clicks hit 0x00000000009a0dd4
+2026-09-06,windows,gtk4,P10,FAIL,running,desktop,unrecorded,exited before the capture; still replaying when captured
+2026-09-06,windows,gtk4,P10,ok,running,desktop,unrecorded,quit as expected; still replaying when captured
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,quit as expected
+2026-09-06,windows,gtk4,P31,ok,FAIL,window,unrecorded,failed: could not bring our window to th
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,ok,window,unrecorded,"P10-hit-testing.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,"P13-duplicates-and-split.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,"P13-zorder.csv: "
+2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,unrecorded,P16-force-update.csv: clicks hit 0x0000000000050832
+2026-09-06,windows,gtk4,P31,ok,ASTRAY,window,unrecorded,P31-tab-and-escape.csv: clicks hit 0x0000000000010196
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P17,ok,ok,window,unrecorded,"P17-picker-and-sizes.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,"P16-force-update.csv: "
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,"P13-duplicates-and-split.csv: "
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,"P31-tab-and-escape.csv: "
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P1,ok,ok,window,unrecorded,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,unrecorded,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 220x140, ran at 988x629 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P4,ok,ok,window,unrecorded,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture
+2026-09-06,windows,gtk4,P5,ok,ok,window,unrecorded,"P5-stacked-alerts.csv: "
+2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,unrecorded,"P7-list-selection.csv: measured at 748x518, ran at 748x509 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P8,ok,GEOMETRY,window,unrecorded,"P8-scroll-outer.csv: measured at 668x598, ran at 668x589 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,unrecorded,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,unrecorded,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
+2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P19,ok,ok,window,unrecorded,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P21,ok,GEOMETRY,window,unrecorded,"P21-buttons-and-disabled.csv: measured at 848x746, ran at 848x749 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,unrecorded,"P22-weights.csv: measured at 760x700, ran at 788x729 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P23,ok,GEOMETRY,window,unrecorded,"P23-more-rows.csv: measured at 848x648, ran at 848x649 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P24,ok,GEOMETRY,window,unrecorded,"P24-push-one-level.csv: measured at 1920x1080, ran at 748x589 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P25,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P26,ok,GEOMETRY,window,unrecorded,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P1,ok,ok,window,unrecorded,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,unrecorded,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 220x140, ran at 988x629 (off by 768x489) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P4,ok,ok,window,unrecorded,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture
+2026-09-06,windows,gtk4,P5,ok,ok,window,unrecorded,"P5-stacked-alerts.csv: "
+2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,unrecorded,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P8,ok,GEOMETRY,window,unrecorded,"P8-scroll-outer.csv: measured at 668x598, ran at 668x589 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,unrecorded,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,unrecorded,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
+2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P19,ok,ok,window,unrecorded,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P21,ok,ok,window,unrecorded,"P21-buttons-and-disabled.csv: measured at 848x746, ran at 848x749 (off by 0x3, under a third of a row)"
+2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,unrecorded,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P23,ok,ok,window,unrecorded,"P23-more-rows.csv: measured at 848x648, ran at 848x649 (off by 0x1, under a third of a row)"
+2026-09-06,windows,gtk4,P24,ok,GEOMETRY,window,unrecorded,"P24-push-one-level.csv: measured at 1920x1080, ran at 748x589 (off by 1172x491) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P25,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P26,ok,ok,window,unrecorded,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
+2026-09-06,windows,gtk4,P1,ok,ok,window,unrecorded,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,unrecorded,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 988x638, ran at 988x629 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P4,ok,ok,window,unrecorded,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P5,ok,ok,window,unrecorded,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,unrecorded,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P8,ok,ok,window,unrecorded,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,unrecorded,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,unrecorded,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
+2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P19,ok,ok,window,unrecorded,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P21,ok,ok,window,unrecorded,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,unrecorded,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P23,ok,ok,window,unrecorded,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P24,ok,ok,window,unrecorded,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P25,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P26,ok,ok,window,unrecorded,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
+2026-09-06,windows,gtk4,P1,ok,ok,window,unrecorded,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P3,ok,GEOMETRY,window,unrecorded,"P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture; measured at 988x638, ran at 988x629 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P4,ok,ok,window,unrecorded,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P5,ok,ok,window,unrecorded,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P7,ok,GEOMETRY,window,unrecorded,"P7-list-selection.csv: measured at 748x518, ran at 748x509 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P8,ok,ok,window,unrecorded,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P9,ok,GEOMETRY,window,unrecorded,"P9-force-update-and-width.csv: measured at 668x558, ran at 668x549 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,GEOMETRY,window,unrecorded,"P10-hit-testing.csv: measured at 648x458, ran at 648x489 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
+2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P19,ok,ok,window,unrecorded,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P21,ok,ok,window,unrecorded,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P22,ok,GEOMETRY,window,unrecorded,"P22-weights.csv: measured at 760x700, ran at 788x729 (off by 28x29) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P23,ok,ok,window,unrecorded,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P24,ok,ok,window,unrecorded,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P25,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P26,ok,ok,window,unrecorded,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
+2026-09-06,windows,gtk4,P16,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P3,ok,ok,window,unrecorded,P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture
+2026-09-06,windows,gtk4,P7,ok,ok,window,unrecorded,"P7-list-selection.csv: "
+2026-09-06,windows,gtk4,P9,ok,ok,window,unrecorded,"P9-force-update-and-width.csv: "
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,ok,window,unrecorded,"P10-hit-testing.csv: "
+2026-09-06,windows,gtk4,P22,ok,ok,window,unrecorded,"P22-weights.csv: "
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P1,ok,ok,window,unrecorded,P1-open-root-sheet.csv: no log writer in P1.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P2,ok,GEOMETRY,window,unrecorded,"P2-controls-and-resizing.csv: no log writer in P2.swift -- judge from the capture; measured at 648x726, ran at 648x798 (off by 0x72) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P3,ok,ok,window,unrecorded,P3-sidebar-and-image.csv: no log writer in P3.swift -- judge from the capture
+2026-09-06,windows,gtk4,P4,ok,ok,window,unrecorded,P4-row-callback.csv: no log writer in P4.swift -- judge from the capture; no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P5,ok,ok,window,unrecorded,P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P7,ok,ok,window,unrecorded,"P7-list-selection.csv: "
+2026-09-06,windows,gtk4,P8,ok,ok,window,unrecorded,P8-scroll-outer.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P9,ok,ok,window,unrecorded,"P9-force-update-and-width.csv: "
+2026-09-06,windows,gtk4,P10,ok,n/a,n/a,unrecorded,P10-ctrl-q.csv: quit as expected
+2026-09-06,windows,gtk4,P10,ok,ok,window,unrecorded,"P10-hit-testing.csv: "
+2026-09-06,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
+2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P19,ok,ok,window,unrecorded,P19-open-and-select.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-disabled-item.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P20,ok,ok,window,unrecorded,P20-open-level-1.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P21,ok,ok,window,unrecorded,P21-buttons-and-disabled.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P22,ok,ok,window,unrecorded,"P22-weights.csv: "
+2026-09-06,windows,gtk4,P23,ok,ok,window,unrecorded,P23-more-rows.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P24,ok,ok,window,unrecorded,P24-push-one-level.csv: no measured size in the action file -- geometry unchecked
+2026-09-06,windows,gtk4,P25,ok,-,window,unrecorded,
+2026-09-06,windows,gtk4,P26,ok,ok,window,unrecorded,"P26-tab-switching.csv: measured at 928x688, ran at 928x689 (off by 0x1, under a third of a row)"
+2026-09-07,windows,gtk4,P31,ok,ASTRAY,window,unrecorded,P31-tab-and-escape.csv: clicks hit 0x000000000001025e
+2026-09-07,windows,gtk4,P7,ok,ok,window,unrecorded,"P7-list-selection.csv: "
+2026-09-07,windows,gtk4,P7,ok,ok,window,unrecorded,P7-list-selection.csv
+2026-09-07,windows,gtk4,P11,ok,-,window,unrecorded,
+2026-09-07,windows,gtk4,P7,ok,ok,window,unrecorded,"P7-list-selection.csv"
+2026-09-07,wsl,gtk4,P0,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P1,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P2,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P3,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P4,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P5,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6-v2,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P7,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P8,ok,ok,fail,unrecorded,replayed P8-scroll-outer.csv only; 3 action files exist for P8; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P9,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P10,ok,ok,fail,unrecorded,replayed P10-allows-hit-testing.csv only; 3 action files exist for P10; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P11,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P12,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P13,ok,ok,fail,unrecorded,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P14,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P15-DARK,no marker,n/a,fail,unrecorded,declares a marker that never appeared; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P15,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P16,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P17,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P18,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P19,ok,ok,fail,unrecorded,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P20,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P21,ok,ok,fail,unrecorded,replayed P21-disabled-field.csv only; 2 action files exist for P21; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P22,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P23,ok,ok,fail,unrecorded,replayed P23-more-rows.csv only; 4 action files exist for P23; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P24,ok,ok,fail,unrecorded,replayed P24-back-through.csv only; 4 action files exist for P24; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P25,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P11,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P11,ok,n/a,window,unrecorded,no action file in testapp/actions/wsl; nothing verified the content
+2026-09-07,wsl,gtk4,P0,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P1,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P2,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P3,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P4,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P5,ok,n/a,fail,unrecorded,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6-v2,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P7,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P8,ok,ok,fail,unrecorded,replayed P8-scroll-outer.csv only; 3 action files exist for P8; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P9,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P10,ok,ok,fail,unrecorded,replayed P10-allows-hit-testing.csv only; 3 action files exist for P10; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P12,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P13,ok,ok,fail,unrecorded,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P14,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P15,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P11,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image

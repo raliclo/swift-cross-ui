@@ -58,6 +58,16 @@
 #            takes two or three screenshots and only the final one is evidence.
 #            `window` is a real window capture, `desktop` the whole-screen
 #            fallback, `n/a` no capture line at all
+#   renderer the `-render` mode this run asked for, `hw` or `sw`. Recorded
+#            because it DECIDES THE VERDICT rather than merely colouring it:
+#            measured 2026-09-07 on P11 at 788x649, minutes apart, `-render hw`
+#            had GSK pick GskGLRenderer and the capture came back 0.0%
+#            non-black, while `-render sw` had it pick GskVulkanRenderer on
+#            llvmpipe and the same capture came back 92.1%. 44 WSL rows were
+#            written that day, 28 under hw and 16 under sw, and nothing in the
+#            file said which -- two contradictory batches, indistinguishable.
+#            Rows written before this column existed read `unrecorded`, which
+#            is a statement that nobody recorded it, NOT a quiet `hw`.
 #
 # No column is inferred from an exit status. A screenshot proves a launch and a
 # capture; it does not prove a pass. `launch=ok,replay=n/a,capture=window` is
@@ -122,6 +132,13 @@
 #   capture  取自本次執行的「最後一行」`captured from`，因為一次執行會拍兩到三張截圖，而只有
 #            最後一張構成證據。`window` 為真正的視窗擷取，`desktop` 為全螢幕回退，`n/a` 為
 #            完全沒有擷取行
+#   renderer 本次執行所要求的 `-render` 模式，`hw` 或 `sw`。之所以記錄它，是因為它**決定判決**，
+#            而不只是替判決添個註腳：2026-09-07 於 P11、788x649 實測，前後相隔數分鐘，`-render hw`
+#            使 GSK 選用 GskGLRenderer，擷取結果的非黑比例為 0.0%；`-render sw` 則使其選用
+#            llvmpipe 上的 GskVulkanRenderer，同一項擷取為 92.1%。當天共寫入 44 列 WSL 紀錄，
+#            28 列在 hw 下、16 列在 sw 下，而檔案裡沒有任何東西指出是哪一種——兩批互相矛盾的
+#            資料就此無從分辨。在本欄位存在之前寫下的資料列讀作 `unrecorded`，那是「沒有人記錄過」
+#            的陳述，**不是**一個安靜的 `hw`。
 #
 # 沒有任何欄位是由結束狀態推斷而來。一張截圖證明的是「啟動了」與「擷取到了」，它不證明「通過」。
 # `launch=ok,replay=n/a,capture=window` 是此處多數 app 的如實樣貌，也就照這樣寫下。
@@ -166,7 +183,7 @@ platform=wsl
 backend=gtk4
 run_date="$(date +%F)"
 
-# Line 2 through line 142: the whole header, BOTH halves.
+# Line 2 through line 159: the whole header, BOTH halves.
 #
 # A hard-coded range silently truncates the synopsis the moment anything is
 # added above it, and the column section is the part a reader came for. Widen it
@@ -174,13 +191,13 @@ run_date="$(date +%F)"
 # half and has a Chinese line saying `--help` prints both; the two disagreed for
 # hours on 2026-09-07, which is the argument for printing all of it.
 #
-# 第 2 行至第 142 行：整個檔頭，「兩個半邊都印」。
+# 第 2 行至第 159 行：整個檔頭，「兩個半邊都印」。
 #
 # 寫死的範圍會在其上方新增任何內容的那一刻靜默截斷說明，而「各欄位的讀法」正是讀者前來尋找的
 # 部分。檔頭變長時，請在同一次編輯中一併加寬。sweep_drive.zsh 只印到英文半邊為止，卻有一行中文
 # 說明宣稱 `--help` 兩半都會印出來；兩者在 2026-09-07 互相矛盾了幾個小時，而那正是「全部印出」
 # 的理由。
-usage() { sed -n '2,142p' "$script_path" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,159p' "$script_path" | sed 's/^# \{0,1\}//'; }
 
 # --help answers before any work: before the host check, before wsl.exe, before
 # the rsync, before a single build. A `--help` that fell through to a launcher
@@ -626,7 +643,20 @@ for app in "${apps[@]}"; do
     # 以 csv2 追加，而非 `printf >>`。它會在寫入前驗證輸入、讀取既有檔案以檢查其最後一筆記錄，
     # 並且只寫入所追加的位元組。此處的 note 可能含有逗號與引號——編譯器診斷、動作檔名稱——而自行
     # 依 RFC 4180 加引號，正是格式錯誤的資料列被下一個讀取者發現的成因。
-    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,\"${note//\"/\"\"}\"" \
+    #
+    # `$render_mode` goes in the `renderer` column, which sits BEFORE the note.
+    # It is the run condition, not a remark about the run, and the note is
+    # already parsed by coverage.zsh for the action-file prefix -- a second
+    # meaning smuggled into the same free-text field is how that parser starts
+    # guessing. The value is the mode this sweep ASKED for; which GSK renderer
+    # GTK then chose is a fact about the host and is printed by
+    # print_renderer_wsl, not asserted here.
+    #
+    # `$render_mode` 寫入 `renderer` 欄，該欄位於 note 之前。它是執行條件，而非對該次執行的
+    # 附註；而 note 已經被 coverage.zsh 用來解析動作檔前綴——把第二種語意偷渡進同一個自由文字
+    # 欄位，正是那個解析器開始「用猜的」的起點。此處寫的是本次 sweep 所**要求**的模式；GTK 隨後
+    # 選了哪個 GSK renderer 是關於這台主機的事實，由 print_renderer_wsl 印出，不在此斷言。
+    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$render_mode,\"${note//\"/\"\"}\"" \
         -i "$results" --in-place; then
         appended=$(( appended + 1 ))
     else
