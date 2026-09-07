@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 final class ActionFileUITests: XCTestCase {
@@ -28,6 +29,37 @@ final class ActionFileUITests: XCTestCase {
         let actions = try ActionFile.load(at: path)
         var pointer: XCUICoordinate?
         var dragStart: XCUICoordinate?
+
+        // Say what is about to be replayed, and afterwards say that it was.
+        //
+        // Every other platform ends a replay with `-actionfile: replayed <name>`
+        // on stderr, and a run is judged on that line. iOS had nothing: the
+        // replay happens in this XCUITest process, not in the app, so the app's
+        // unified log never mentions it. Measured 2026-09-07 -- of the 47 iOS
+        // run logs in testapp/output, **none** contains a completed-replay line,
+        // which is why the coverage matrix carries iOS as `unverified` rather
+        // than `pass` for all 45 apps.
+        //
+        // The count is here because a file that parsed to zero actions replays
+        // successfully and does nothing, and those two are the same line
+        // otherwise. `stderr` rather than `print`, so it lands beside
+        // xcodebuild's own output whichever way the runner is invoked.
+        //
+        // 先說出將要重放什麼,之後再說它確實被重放了。
+        //
+        // 其他每一個平台的重放都以 stderr 上的 `-actionfile: replayed <名稱>` 作結,而一次執行正是
+        // 依那一行判定的。iOS 上什麼都沒有:重放發生在這個 XCUITest 行程中,而非在 app 內,因此
+        // app 的 unified log 從不提及它。2026-09-07 實測——testapp/output 中的 47 份 iOS 執行日誌
+        // 裡,**沒有任何一份**含有「重放完成」的行,這正是涵蓋矩陣把 iOS 的全部 45 支記為
+        // `unverified` 而非 `pass` 的原因。
+        //
+        // 此處輸出動作數量,是因為「一個解析出零個動作的檔案」會成功重放且什麼都不做,而若不寫出數量,
+        // 那兩者就是同一行字。使用 `stderr` 而非 `print`,好讓它與 xcodebuild 自身的輸出並排,
+        // 無論這個 runner 是以哪種方式被呼叫的。
+        let fileName = (path as NSString).lastPathComponent
+        FileHandle.standardError.write(
+            Data("-actionfile: replaying \(fileName) with \(actions.count) actions\n".utf8)
+        )
 
         for action in actions {
             switch action.kind {
@@ -102,6 +134,10 @@ final class ActionFileUITests: XCTestCase {
                 throw ActionFileError.unsupported(action.kind, action.line)
             }
         }
+
+        FileHandle.standardError.write(
+            Data("-actionfile: replayed \(fileName)\n".utf8)
+        )
     }
 
     private func coordinate(
