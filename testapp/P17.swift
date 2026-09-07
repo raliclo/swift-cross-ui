@@ -43,7 +43,13 @@ enum P17Diagnostics {
         print("[P17] \(message)")
 
         guard let data = "P17 \(Date()) \(message)\n".data(using: .utf8) else { return }
-        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        // SCUI_DEBUG_EVENTS_DIR when a launcher sets it, so every app's log lands
+        // in one place; unset, the launch directory exactly as before. The
+        // contract is documented in testapp/test_support/test_common.zsh.
+        // 有 SCUI_DEBUG_EVENTS_DIR 時取自該變數，讓每支 app 的 log 集中一處；未設定時仍為啟動
+        // 目錄，行為與過去完全相同。該約定記載於 testapp/test_support/test_common.zsh。
+        let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? FileManager.default.currentDirectoryPath)
             .appendingPathComponent("p17-debug-events.log")
         if FileManager.default.fileExists(atPath: url.path),
             let handle = try? FileHandle(forWritingTo: url)

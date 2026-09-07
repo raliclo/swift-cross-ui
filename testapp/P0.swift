@@ -114,7 +114,13 @@ extension AppStorageValues {
 enum P0DebugLog {
     static func write(_ message: String) {
         let line = "\(Date()) \(message)\n"
-        let path = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        // SCUI_DEBUG_EVENTS_DIR when a launcher sets it, so every app's log lands
+        // in one place; unset, the launch directory exactly as before. The
+        // contract is documented in testapp/test_support/test_common.zsh.
+        // 有 SCUI_DEBUG_EVENTS_DIR 時取自該變數，讓每支 app 的 log 集中一處；未設定時仍為啟動
+        // 目錄，行為與過去完全相同。該約定記載於 testapp/test_support/test_common.zsh。
+        let path = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? FileManager.default.currentDirectoryPath)
             .appendingPathComponent("p0-debug-events.log")
 
         if let data = line.data(using: .utf8) {

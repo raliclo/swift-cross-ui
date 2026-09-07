@@ -37,6 +37,46 @@
 # 的主張。
 /testapp/output/
 
+# Debug-event logs, collected into one place on 2026-09-08. They are run
+# output, not source: an app writes its own `pNN-debug-events.log` and only
+# ever appends.
+#
+# They were scattered across three directories -- the repo root, testapp/ and
+# testapp/output/ -- because 38 of the Pn.swift build the path from
+# `FileManager.default.currentDirectoryPath`, so the file lands wherever the
+# app happened to be launched from. 83 files in all, 44 of them same-named
+# copies of each other from different directories.
+#
+# THEY ARE EVIDENCE, not clutter, which is why the move renamed rather than
+# overwrote. Seventeen action files carry a `# expect: log-contains` marker
+# whose text was proved present by reading one of these logs, and eight of
+# those markers rest on the testapp/ and root copies alone -- those eight apps
+# have never been driven by the sweep, so their testapp/output/ log holds
+# startup lines only. A plain `mv` would have silently destroyed 44 of them.
+#
+# Ignored because nothing here is authored. The apps recreate them on the next
+# run, still in their launch directory: this rule tidies the tree, it does not
+# change where anything is written. Doing that means editing all 38 sources AND
+# sweep_drive.zsh's reader together, or the expectation check stops finding the
+# file and reports UNCHECKED.
+#
+# 除錯事件 log，於 2026-09-08 集中至一處。它們是執行輸出而非原始碼：app 自行寫出
+# `pNN-debug-events.log`，且只會附加。
+#
+# 它們原本散落在三個目錄——repo 根目錄、testapp/ 與 testapp/output/——因為 38 支 Pn.swift
+# 是以 `FileManager.default.currentDirectoryPath` 組出路徑的，於是檔案落在「app 恰好從哪裡
+# 被啟動」之處。合計 83 個檔案，其中 44 個是來自不同目錄、彼此同名的副本。
+#
+# **它們是證據，不是雜物**，這正是搬移時採取改名而非覆蓋的理由。有十七個動作檔帶有
+# `# expect: log-contains` 標記，其文字是靠讀取其中某一份 log 才得以證明存在；而那些標記中
+# 有八個**僅**倚賴 testapp/ 與根目錄的副本——那八支 app 從未被 sweep 驅動過，因此它們在
+# testapp/output/ 的 log 只有啟動時的行。一次單純的 `mv` 會靜默摧毀其中 44 份。
+#
+# 之所以忽略，是因為此處沒有任何東西是人寫的。app 會在下一次執行時重新產生它們，而且仍然是在
+# 各自的啟動目錄下：本規則整理了工作樹，並未改變任何東西被寫到哪裡。要真的改變它，必須同時修改
+# 全部 38 份原始碼**以及** sweep_drive.zsh 的讀取端，否則預期檢查將找不到檔案並回報 UNCHECKED。
+/testapp/debug-events/
+
 # Reusable iOS Simulator bundle assembled by testapp/test_ios.zsh. The
 # template is tracked; the copied debugTarget executable and its signature are
 # local build output.

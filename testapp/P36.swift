@@ -12,7 +12,13 @@ enum P36Diagnostics {
         guard isEnabled else { return }
         print("[P36] \(message)")
         let data = Data("P36 \(Date()) \(message)\n".utf8)
-        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        // SCUI_DEBUG_EVENTS_DIR when a launcher sets it, so every app's log lands
+        // in one place; unset, the launch directory exactly as before. The
+        // contract is documented in testapp/test_support/test_common.zsh.
+        // 有 SCUI_DEBUG_EVENTS_DIR 時取自該變數，讓每支 app 的 log 集中一處；未設定時仍為啟動
+        // 目錄，行為與過去完全相同。該約定記載於 testapp/test_support/test_common.zsh。
+        let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? FileManager.default.currentDirectoryPath)
             .appendingPathComponent("p36-debug-events.log")
         if let handle = try? FileHandle(forWritingTo: url) {
             _ = try? handle.seekToEnd()

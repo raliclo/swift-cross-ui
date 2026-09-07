@@ -148,6 +148,48 @@ esac
 
 out="$repo/testapp/output"
 actions="$repo/testapp/actions/win"
+
+# WHERE THE APPS' OWN EVENT LOGS GO. One directory, named by one environment
+# variable, `SCUI_DEBUG_EVENTS_DIR`.
+#
+# This script is BOTH the launcher and the reader for that file, so the two
+# halves have to agree here or the expectation check below reports UNCHECKED --
+# not a failure, an unverifiable, which is the answer that costs the most to
+# read. Exporting it without moving `app_log`, or moving `app_log` without
+# exporting it, each produce exactly that.
+#
+# The apps fall back to their working directory when the variable is unset, so
+# nothing outside this script changes. It exists because 38 of the testapp
+# sources carried their own copy of
+# `URL(fileURLWithPath: FileManager.default.currentDirectoryPath)` and the log
+# landed wherever the app was started from: 83 files had collected across the
+# repo root, testapp/ and testapp/output/, 44 of them same-named copies from
+# different directories. Re-derive with
+# `grep -l SCUI_DEBUG_EVENTS_DIR testapp/P*.swift | wc -l` (38 on 2026-09-08) and
+# `ls testapp/debug-events | wc -l` (83 on 2026-09-08).
+#
+# `cygpath -m` for the same reason the action file gets it further down: these
+# are native Windows binaries and Foundation cannot open /c/Users/... . A wrong
+# form here is silent -- the write goes through `try?`, no file appears, and the
+# run looks like an app that logged nothing.
+#
+# app 自身事件 log 的去處。一個目錄，由一個環境變數 `SCUI_DEBUG_EVENTS_DIR` 指定。
+#
+# 本腳本同時是該檔案的**啟動者與讀取者**，因此這兩半必須在此取得一致，否則下方的期望檢查會回報
+# UNCHECKED——那不是失敗，而是「無法查證」，也是最難讀懂的答案。只 export 而不移動 `app_log`，
+# 或只移動 `app_log` 而不 export，都會恰好造成這個結果。
+#
+# 變數未設定時各 app 退回自己的工作目錄，因此本腳本以外的一切都不改變。它的由來：38 支 testapp
+# 原始碼各自帶著一份 `URL(fileURLWithPath: FileManager.default.currentDirectoryPath)`，log 因而
+# 落在 app 當時的啟動目錄，最終在 repo 根目錄、testapp/ 與 testapp/output/ 之間累積了 83 個檔案，
+# 其中 44 個是來自不同目錄的同名副本。重新推導的指令見上方英文段落。
+#
+# 使用 `cygpath -m` 的理由，與下方動作檔相同：這些是原生 Windows 執行檔，Foundation 打不開
+# /c/Users/... 這類路徑。此處寫錯形式是無聲的——寫入經由 `try?`，不會有檔案出現，那次執行看起來
+# 就像一支什麼都沒記錄的 app。
+events_dir="$repo/testapp/debug-events"
+mkdir -p "$events_dir"
+events_dir_win="$(cygpath -m "$events_dir")"
 log_dir="/tmp/sweep_drive-$label"
 mkdir -p "$log_dir"
 
@@ -417,11 +459,20 @@ for app in $apps; do
     # which the click missed entirely, which is the plausible-wrong-data failure
     # this script exists to prevent, not a near miss of it.
     #
-    # The name is DERIVED, `${app:l}-debug-events.log` in the working directory
-    # the app is launched from -- same reason as `# expect:` itself, a table
-    # here would be a second copy that drifts. Verified 2026-09-07 by listing
-    # testapp/output: 37 such files and every one follows that spelling
-    # (`ls testapp/output/*debug-events*.log` to re-count).
+    # The name is still DERIVED, `${app:l}-debug-events.log` -- same reason as
+    # `# expect:` itself, a table here would be a second copy that drifts. Only
+    # the DIRECTORY changed: it is `$events_dir`, which this script exports to
+    # the app as SCUI_DEBUG_EVENTS_DIR at the launch a few lines below, instead
+    # of the directory the app happens to be launched from. Verified 2026-09-07
+    # by listing testapp/output: 37 such files and every one follows that
+    # spelling; 83 had accumulated across three directories before they were
+    # collected (`ls testapp/debug-events/*debug-events*.log` to re-count now,
+    # `ls testapp/output/*debug-events*.log` for what the old wording counted).
+    #
+    # Reading one directory while the app writes to another does not fail here.
+    # It reports UNCHECKED, and "could not be verified" is not the same answer as
+    # "did not happen" -- which is why the export and this line have to move
+    # together and are commented as one thing.
     #
     # **在啟動之前先記下 app 自身事件 log 的長度**，好讓下方的 `# expect: log-contains` 只讀取
     # **本次執行**所寫入的內容。
@@ -431,22 +482,35 @@ for app in $apps; do
     # 的行就能讓「這一次點擊完全沒中」的執行通過檢查；那正是本腳本所要防範的「看似合理的錯誤資料」，
     # 而不是它的邊緣情況。
     #
-    # 檔名為**推導而得**：app 啟動所在工作目錄下的 `${app:l}-debug-events.log`——理由與
-    # `# expect:` 本身相同，在此另存一張表只會是一份會漂移的副本。2026-09-07 以列出 testapp/output
-    # 查證：共 37 個這樣的檔案，全部符合該寫法（重新清點請用
-    # `ls testapp/output/*debug-events*.log`）。
-    app_log="$out/${app:l}-debug-events.log"
+    # 檔名依然是**推導而得**的 `${app:l}-debug-events.log`——理由與 `# expect:` 本身相同，在此另存
+    # 一張表只會是一份會漂移的副本。改變的只有**目錄**：現在是 `$events_dir`，也就是本腳本在下方
+    # 啟動時以 SCUI_DEBUG_EVENTS_DIR 傳給 app 的那一個，而不再是 app 恰好被啟動的目錄。
+    # 2026-09-07 以列出 testapp/output 查證：共 37 個這樣的檔案，全部符合該寫法；在被集中之前，
+    # 三個目錄合計累積了 83 個（現在重新清點用 `ls testapp/debug-events/*debug-events*.log`，
+    # 舊說法所清點的則是 `ls testapp/output/*debug-events*.log`）。
+    #
+    # 讀一個目錄、而 app 寫在另一個目錄，在此不會失敗，只會回報 UNCHECKED；而「無法查證」與
+    # 「沒有發生」不是同一個答案——這正是那個 export 與這一行必須一起移動、並被當成同一件事註解的
+    # 原因。
+    app_log="$events_dir/${app:l}-debug-events.log"
     app_log_before=0
     if [ -f "$app_log" ]; then
         app_log_before="$(wc -c < "$app_log" 2>/dev/null | tr -d ' ')"
         [ -z "$app_log_before" ] && app_log_before=0
     fi
 
+    # SCUI_DEBUG_EVENTS_DIR is the other half of the mark taken just above: it
+    # sends the app's log to the directory `app_log` reads. The `cd "$out"` stays
+    # -- the executable and everything else it opens are still there.
+    # SCUI_DEBUG_EVENTS_DIR 是上方那個標記的另一半：它把 app 的 log 導向 `app_log` 所讀取的目錄。
+    # `cd "$out"` 保留不變——執行檔以及它開啟的其他東西仍在該處。
     if [ -n "$action_file" ]; then
-        ( cd "$out" && ./"$app$suffix.exe" --debug -actionfile "$(cygpath -m "$action_file")" \
+        ( cd "$out" && SCUI_DEBUG_EVENTS_DIR="$events_dir_win" \
+            ./"$app$suffix.exe" --debug -actionfile "$(cygpath -m "$action_file")" \
             > "$run_log" 2>&1 & )
     else
-        ( cd "$out" && ./"$app$suffix.exe" --debug > "$run_log" 2>&1 & )
+        ( cd "$out" && SCUI_DEBUG_EVENTS_DIR="$events_dir_win" \
+            ./"$app$suffix.exe" --debug > "$run_log" 2>&1 & )
     fi
 
     # Derived from the file rather than fixed, because a fixed wait silently

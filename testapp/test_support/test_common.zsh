@@ -20,6 +20,48 @@ target="${TEST_TARGET:-wsl}"
 target_explicit=0
 device_name=""
 
+# WHERE THE APPS' OWN DEBUG-EVENT LOGS GO, and the single contract that decides
+# it: the environment variable `SCUI_DEBUG_EVENTS_DIR`.
+#
+# Every app reads it and falls back to its current working directory when it is
+# unset, so a bare `./P44.exe` still writes beside itself and nothing outside a
+# launcher changes. This script exports it and creates the directory before each
+# launch -- a Foundation write into a directory that does not exist fails through
+# `try?` and says nothing at all, which would read as an app that never logged.
+#
+# Why it exists: 38 of the testapp sources each carried their own copy of
+# `URL(fileURLWithPath: FileManager.default.currentDirectoryPath)`, so the log
+# landed wherever the app happened to be started from. 83 files had collected
+# across the repo root, testapp/ and testapp/output/, 44 of them same-named
+# copies from different directories. Re-derive the two numbers with
+# `grep -l SCUI_DEBUG_EVENTS_DIR testapp/P*.swift | wc -l` (38 on 2026-09-08) and
+# `ls testapp/debug-events | wc -l` (83 on 2026-09-08).
+#
+# The WSL value names the LINUX copy of the repo, not this one: the app is
+# launched from the rsync'd tree under /home/lowei, and /mnt/c would be a
+# different checkout. It is expanded here, on the Windows side, so what crosses
+# `wsl.exe` is a literal path with no `$` left in it -- see ~/.claude/CLAUDE.md
+# on `$var` being eaten crossing Windows to WSL even inside single quotes.
+#
+# app 自身的 debug-event log 該落在哪裡，以及決定此事的唯一約定：環境變數
+# `SCUI_DEBUG_EVENTS_DIR`。
+#
+# 每支 app 都會讀它，未設定時退回自己的工作目錄，因此直接執行 `./P44.exe` 仍寫在原地，啟動器以外
+# 的一切都不改變。本腳本負責 export 它，並在每次啟動前建立該目錄——Foundation 寫入不存在的目錄時
+# 會被 `try?` 吞掉，不發出任何聲響，讀起來就像這支 app 從未寫過 log。
+#
+# 它的由來：38 支 testapp 原始碼各自帶著一份
+# `URL(fileURLWithPath: FileManager.default.currentDirectoryPath)`，於是 log 落在 app 當時的啟動
+# 目錄，最終在 repo 根目錄、testapp/ 與 testapp/output/ 之間累積了 83 個檔案，其中 44 個是來自不同
+# 目錄的同名副本。這兩個數字的重新推導指令見上方英文段落。
+#
+# WSL 所用的值指向 repo 的 **Linux 副本**，而非此處這一份：app 是由 /home/lowei 底下經 rsync 的樹
+# 啟動的，而 /mnt/c 會是另一份 checkout。該值在 Windows 這一側就展開，因此穿過 `wsl.exe` 的是一條
+# 不含 `$` 的字面路徑——`$var` 跨越 Windows 到 WSL 時即使加了單引號也會被吃掉，詳見
+# ~/.claude/CLAUDE.md。
+events_dir="$script_dir/debug-events"
+wsl_events_dir="/home/lowei/proj/swift-cross-ui/testapp/debug-events"
+
 # Where the macOS run assembles its .app, and what it assembles from.
 #
 # The bundle is kept out of Git and only the small template is tracked; each run
@@ -252,6 +294,10 @@ documented in Sources/InputEvent/README.md.
 
 -render hw|sw selects D3D12/NVIDIA or llvmpipe for WSLg GtkBackend runs.
 The default is hw.
+
+The app's own event log goes to testapp/debug-events/$log_name, on every
+platform, because this script exports SCUI_DEBUG_EVENTS_DIR. Run the executable
+by hand and it writes to the current directory instead, as it always has.
 EOF_USAGE
 }
 
@@ -640,8 +686,18 @@ kill_existing() {
         2>/dev/null || true
 }
 
+# Reads $events_dir, and takes no argument.
+#
+# It used to be passed the output directory, because that is where the app was
+# launched from and therefore where it wrote. Since SCUI_DEBUG_EVENTS_DIR the two
+# are different directories, and a marker wait pointed at the wrong one does not
+# fail -- it times out, which reads as an app that never rendered.
+# 讀取 $events_dir，且不接受引數。
+#
+# 它原本會收到 output 目錄，因為那既是 app 的啟動處、也就是它的寫入處。自從有了
+# SCUI_DEBUG_EVENTS_DIR，兩者已是不同的目錄；而指錯目錄的等待不會報錯——它會逾時，讀起來就像
+# 這支 app 從未完成繪製。
 wait_for_marker_windows() {
-    local out="$1"
     local waited=0
 
     if [ -z "$marker" ]; then
@@ -651,7 +707,8 @@ wait_for_marker_windows() {
 
     printf '==> Waiting for "%s"' "$marker"
     while [ "$waited" -lt "$timeout_seconds" ]; do
-        if [ -f "$out/$log_name" ] && grep -q "$marker" "$out/$log_name" 2>/dev/null; then
+        if [ -f "$events_dir/$log_name" ] \
+            && grep -q "$marker" "$events_dir/$log_name" 2>/dev/null; then
             printf ' -- rendered after %ss\n' "$waited"
             return 0
         fi
@@ -675,7 +732,7 @@ wait_for_marker_wsl() {
     printf '==> Waiting for "%s"' "$marker"
     while [ "$waited" -lt "$timeout_seconds" ]; do
         if MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-            "grep -q '$marker' ~/proj/swift-cross-ui/testapp/output/$log_name 2>/dev/null"; then
+            "grep -q '$marker' $wsl_events_dir/$log_name 2>/dev/null"; then
             printf ' -- rendered after %ss\n' "$waited"
             return 0
         fi
@@ -692,7 +749,10 @@ print_summary_windows() {
     local out="$script_dir/output"
 
     printf '\n==> Windows %s diagnostics\n' "$app"
-    grep -hE "$summary_pattern" "$out/$log_name" ${extra_log:+"$out/$extra_log"} 2>/dev/null \
+    # The app's own log from $events_dir; $extra_log is still written by the
+    # library into the output directory, so the two paths are not the same.
+    # app 自己的 log 取自 $events_dir；$extra_log 仍由函式庫寫入 output 目錄，兩者路徑不同。
+    grep -hE "$summary_pattern" "$events_dir/$log_name" ${extra_log:+"$out/$extra_log"} 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
     print_actionfile_report "$out/$actionfile_log"
 }
@@ -813,8 +873,12 @@ print_actionfile_report() {
 
 print_summary_wsl() {
     printf '\n==> WSLg %s diagnostics\n' "$app"
+    # The app's log by absolute path, the extra log relative to output/ -- the cd
+    # still serves the second one, which the library writes there.
+    # app 的 log 以絕對路徑指定，extra log 則相對於 output/——那個 cd 仍為後者服務，因為它是由
+    # 函式庫寫在該處的。
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-        "cd ~/proj/swift-cross-ui/testapp/output && grep -hE '$summary_pattern' $log_name $extra_log 2>/dev/null | sed 's/^$app [0-9-]* [0-9:]* +0000 //' | sort -u" || true
+        "cd ~/proj/swift-cross-ui/testapp/output && grep -hE '$summary_pattern' $wsl_events_dir/$log_name $extra_log 2>/dev/null | sed 's/^$app [0-9-]* [0-9:]* +0000 //' | sort -u" || true
     # Read through WSL: the app ran from the rsync'd Linux copy, so its stderr
     # landed in the Linux output directory, not the Windows one.
     # 透過 WSL 讀取：app 是從 rsync 過去的 Linux 副本啟動的，其 stderr 落在 Linux 端的 output
@@ -928,7 +992,12 @@ run_windows() {
     fi
 
     mkdir -p "$out"
-    : > "$out/$log_name"
+    # Created before the launch, not after. The app writes through `try?`, so a
+    # missing directory produces no file, no error and no log line.
+    # 在啟動之前建立，而非之後。app 以 `try?` 寫入，因此目錄不存在時不會有檔案、不會有錯誤，
+    # 也不會有任何一行 log。
+    mkdir -p "$events_dir"
+    : > "$events_dir/$log_name"
     # `if`, not `[ -n ... ] && ...`: under `set -e` a false test as the last
     # command in the list aborts the script.
     # 用 `if` 而非 `[ -n ... ] && ...`：在 `set -e` 下，測試為假會使整個腳本中止。
@@ -1009,15 +1078,26 @@ run_windows() {
     win_exe="${candidates[1]}"
     printf '==> Running %s\n' "$win_exe"
 
+    # Mixed Windows form for SCUI_DEBUG_EVENTS_DIR, for the same reason
+    # `-actionfile` gets `cygpath -m` a few lines above: this is a native
+    # Windows binary and Foundation cannot open an MSYS path such as
+    # /c/Users/... . It would fail through `try?` and leave no log at all.
+    # SCUI_DEBUG_EVENTS_DIR 採 Windows 混合式路徑，理由與上方 `-actionfile` 使用 `cygpath -m`
+    # 相同：這是原生 Windows 執行檔，Foundation 打不開 /c/Users/... 這類 MSYS 路徑，寫入會被
+    # `try?` 吞掉，最後連一個 log 檔都不會有。
+    local events_dir_win
+    events_dir_win="$(windows_path_mixed "$events_dir")"
+
     if [ -n "$action_file" ]; then
-        ( cd "$out" && env ${(z)app_env} "./$win_exe" ${(z)args} \
-            >/dev/null 2>"$actionfile_log" & )
+        ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir_win" ${(z)app_env} \
+            "./$win_exe" ${(z)args} >/dev/null 2>"$actionfile_log" & )
     else
-        ( cd "$out" && env ${(z)app_env} "./$win_exe" ${(z)args} >/dev/null 2>&1 & )
+        ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir_win" ${(z)app_env} \
+            "./$win_exe" ${(z)args} >/dev/null 2>&1 & )
     fi
 
     capture -d 1 -w "$title" "$label-1s"
-    if wait_for_marker_windows "$out"; then
+    if wait_for_marker_windows; then
         showtime "Windows $app"
         capture -d 1 -w "$title" "$label-final"
     else
@@ -1050,8 +1130,26 @@ run_wsl() {
             | grep -E 'error:|Build of product' || true
     fi
 
+    # The event log is created on the LINUX side, in the Linux copy of the repo.
+    # `$wsl_events_dir` is expanded by this shell before the string is handed to
+    # `wsl.exe`, so nothing with a `$` in it crosses the boundary -- the trap
+    # documented in ~/.claude/CLAUDE.md, where `$var` is eaten even inside single
+    # quotes. `MSYS2_ARG_CONV_EXCL='*'` keeps MSYS from rewriting the POSIX path
+    # on the way out, as on every other wsl.exe call in this file.
+    #
+    # The renderer and extra logs stay in output/: they are shell redirections and
+    # library output, not the app's own event log, so only one of the three moves.
+    #
+    # 事件 log 建立在 **Linux 側**、位於 repo 的 Linux 副本中。`$wsl_events_dir` 在字串交給
+    # `wsl.exe` 之前就由本 shell 展開，因此沒有任何帶 `$` 的東西跨越邊界——那正是
+    # ~/.claude/CLAUDE.md 所記載的陷阱：`$var` 即使包在單引號裡也會被吃掉。
+    # `MSYS2_ARG_CONV_EXCL='*'` 則防止 MSYS 在送出時改寫該 POSIX 路徑，與本檔其他每一個
+    # wsl.exe 呼叫一致。
+    #
+    # renderer log 與 extra log 仍留在 output/：它們是 shell 重導向與函式庫的輸出，而非 app 自身的
+    # 事件 log，因此三者之中只有一個搬家。
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu -- zsh -lc \
-        "cd ~/proj/swift-cross-ui/testapp/output && : > $log_name$clear_extra_fragment && : > $renderer_log"
+        "mkdir -p $wsl_events_dir && : > $wsl_events_dir/$log_name && cd ~/proj/swift-cross-ui/testapp/output && : > $renderer_log$clear_extra_fragment"
 
     local args="$app_args"
     local renderer_stderr="$renderer_log"
@@ -1093,7 +1191,14 @@ run_wsl() {
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
 
-    local launch_env="$render_env $app_env"
+    # SCUI_DEBUG_EVENTS_DIR first, as a literal Linux path. `env` takes the
+    # assignments in order and the app is the last word, so adding one here needs
+    # nothing else; the value contains no space and no `$`, which is what makes it
+    # safe to travel inside the `-lc` string.
+    # SCUI_DEBUG_EVENTS_DIR 置於最前，是一條字面的 Linux 路徑。`env` 依序取用這些指派，而 app 是
+    # 最後一個詞，因此在此加一項不需要其他改動；該值不含空白也不含 `$`，這正是它能安全穿越 `-lc`
+    # 字串的原因。
+    local launch_env="SCUI_DEBUG_EVENTS_DIR=$wsl_events_dir $render_env $app_env"
 
     printf '==> Launching %s under WSLg\n' "$app"
     # Plain `$app_args`, deliberately unadorned. Unlike the Windows branch just
@@ -1161,7 +1266,11 @@ run_macos() {
     fi
 
     mkdir -p "$out"
-    : > "$out/$log_name"
+    # Same as the Windows branch: the directory has to exist before the launch,
+    # because the app's write goes through `try?` and reports nothing.
+    # 與 Windows 分支相同：該目錄必須在啟動前就存在，因為 app 的寫入經由 `try?`，什麼都不會回報。
+    mkdir -p "$events_dir"
+    : > "$events_dir/$log_name"
     local action_log="$out/$actionfile_log"
     : > "$action_log"
     local args=( ${(z)app_args} )
@@ -1250,7 +1359,11 @@ run_macos() {
     chmod +x "$mac_bundle_executable"
 
     printf '==> Launching %s on macOS from .macApp/debugTarget.app\n' "$app"
-    ( cd "$out" && env ${(z)app_env} "$mac_bundle_executable" ${(q)args} >"$action_log" 2>&1 & )
+    # A plain POSIX path here: this is a native macOS binary and there is no MSYS
+    # layer to convert anything.
+    # 此處直接使用 POSIX 路徑：這是原生 macOS 執行檔，沒有任何 MSYS 層需要轉換。
+    ( cd "$out" && env SCUI_DEBUG_EVENTS_DIR="$events_dir" ${(z)app_env} \
+        "$mac_bundle_executable" ${(q)args} >"$action_log" 2>&1 & )
 
     # macOS took no screenshots at all until now -- not failed ones, none. The
     # run announced "final screenshot follows" and then did not follow, because
@@ -1283,8 +1396,8 @@ wait_for_marker_macos() {
 
     printf '==> Waiting for "%s"' "$marker"
     while [ "$waited" -lt "$timeout_seconds" ]; do
-        if [ -f "$script_dir/output/$log_name" ] \
-            && grep -q "$marker" "$script_dir/output/$log_name" 2>/dev/null; then
+        if [ -f "$events_dir/$log_name" ] \
+            && grep -q "$marker" "$events_dir/$log_name" 2>/dev/null; then
             printf ' -- rendered after %ss\n' "$waited"
             return 0
         fi
@@ -1300,7 +1413,7 @@ wait_for_marker_macos() {
 print_summary_macos() {
     local out="$script_dir/output"
     printf '\n==> macOS %s diagnostics\n' "$app"
-    grep -hE "$summary_pattern" "$out/$log_name" "$out/$actionfile_log" 2>/dev/null \
+    grep -hE "$summary_pattern" "$events_dir/$log_name" "$out/$actionfile_log" 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
 }
 
