@@ -1,11 +1,13 @@
 # A `body` written with an explicit `return` renders nothing
 
-Found 2026-09-08 while adding a readout to P48. **Not yet fixed** -- this
-records the reproduction and what was ruled out, so that whoever fixes it does
-not start from the symptom.
+Found 2026-09-08 while adding a readout to P48. **Fixed the same day**, in
+`Sources/SwiftCrossUI/Views/View.swift`. The reproduction is kept because the
+symptom is unrecognisable from the cause, and because P48 now carries the
+explicit-return shape on purpose as the regression test.
 
-發現於 2026-09-08，當時正在為 P48 加上一行讀數。**尚未修復**——本文件記錄的是重現方式與已被排除的
-可能,好讓動手修的人不必從症狀開始。
+發現於 2026-09-08,當時正在為 P48 加上一行讀數。**同日已修復**,位於
+`Sources/SwiftCrossUI/Views/View.swift`。此處保留重現方式,因為由症狀完全認不出成因;也因為 P48 現在
+刻意保留了「顯式 return」那個形狀,作為回歸測試。
 
 ## The reproduction
 
@@ -43,7 +45,53 @@ consecutive builds of `testapp/P48.swift`.
 - **Not a compile error, a warning, or a runtime message.** Nothing is reported
   anywhere.
 
-## The likely mechanism, unverified
+## The cause
+
+`View`'s default implementations disagreed with each other about what
+`children` is.
+
+`defaultChildren(backend:snapshots:environment:)` asks `body` for its children.
+`defaultAsWidget`, `defaultComputeLayout` and `defaultCommit` then wrapped `body`
+in a `VStack` and handed it those same children. That works when the builder ran,
+because `Content` is then a `TupleViewN` and the children are
+`TupleViewChildren`, which is what a `VStack` expects.
+
+With an explicit `return`, `Content` is the returned view itself. `Text` is an
+`ElementaryView`, whose `Content` is `EmptyView`, so the children are
+`EmptyViewChildren` -- and the `VStack` wrapping them found no layoutable
+children at all. It laid out zero children, reported zero size, and drew
+nothing.
+
+The fix is to route through `VStack` only when the children are
+`TupleViewChildren`, and to delegate straight to `body` otherwise.
+
+**`EmptyViewChildren` had to be on the delegating side, and getting that wrong
+was the first attempt.** Treating it as builder-produced looks right -- an empty
+builder body does produce it -- and changed nothing, because it is exactly the
+case that breaks. Delegating is correct for a genuinely empty body too: an
+`EmptyView` draws nothing either way.
+
+## 成因
+
+`View` 的各個預設實作彼此對「`children` 是什麼」沒有共識。
+
+`defaultChildren(backend:snapshots:environment:)` 是向 `body` 索取其 children 的。而
+`defaultAsWidget`、`defaultComputeLayout` 與 `defaultCommit` 接著把 `body` 包進一個 `VStack`,再把
+同一份 children 交給它。當 builder 執行過時這是可行的,因為此時 `Content` 是某個 `TupleViewN`、
+children 是 `TupleViewChildren`,而那正是 `VStack` 所預期的。
+
+一旦使用顯式 `return`,`Content` 就是所回傳的 view 本身。`Text` 是 `ElementaryView`、其 `Content` 為
+`EmptyView`,因此 children 是 `EmptyViewChildren`——而包住它們的那個 `VStack` 一個可佈局的子節點都
+找不到。它排列了零個子節點、回報零尺寸、什麼都沒畫。
+
+修法是:只有在 children 為 `TupleViewChildren` 時才繞道 `VStack`,其餘一律直接委派給 `body`。
+
+**`EmptyViewChildren` 必須被歸在「委派」那一側,而把它弄反正是第一次嘗試的錯誤。** 把它當成
+builder 產生的看起來很合理——一個空白的 builder body 確實會產生它——而那次改動什麼都沒有改變,因為
+那恰恰就是會壞掉的那一種。對於真正空白的 body,委派同樣是對的:`EmptyView` 無論走哪一條路都不會畫
+出任何東西。
+
+## The hypothesis this replaced, kept because it was close but not actionable
 
 `View` declares `@ViewBuilder var body: Body { get }`. An explicit `return`
 opts out of the builder, so `Body` becomes the returned type itself -- `Text` --
@@ -75,11 +123,21 @@ do with it.
 寫法。它編得過、跑得動，而 view 不見了——於是作者的下一步會是去看版面、看父層、看資料，而那三者
 都沒有錯。這一個花了四輪才看清形狀，其中最後兩輪是在排除一個與它毫無關係的 environment。
 
-## Workaround in the tree today
+## The regression test
 
-`testapp/P48.swift`'s `ColorPickerReadout` computes inline in a single
-expression. It is uglier and it repeats `resolve(in:)` three times; that is the
-cost of the workaround and it should go away when this is fixed.
+`testapp/P48.swift`'s `ColorPickerReadout` is written with an explicit `return`
+on purpose. If the fix is ever undone, that one line disappears from P48 and
+nothing else changes -- which is why the comment there says so.
 
-本樹目前的替代寫法：`testapp/P48.swift` 的 `ColorPickerReadout` 以單一運算式就地計算。它比較醜、而且
-把 `resolve(in:)` 重複了三次;那就是這個替代寫法的代價,而它應在本問題修復後移除。
+Checked for collateral damage by capturing P46 and P47 before and after the
+change: both are pixel-identical. That covers the case where `Content` IS a
+`TupleView`, which is every view in the tree that was already working; it does
+not amount to having run all forty-eight apps.
+
+## 回歸測試
+
+`testapp/P48.swift` 的 `ColorPickerReadout` **刻意**以顯式 `return` 撰寫。若該修正日後被還原,P48 中
+就只有那一行會消失,其他一切都不會改變——這也是那裡的註解如此寫明的原因。
+
+附帶損害的檢查方式是:在改動前後各擷取 P46 與 P47,兩者皆逐像素相同。那涵蓋了「`Content` 確實是
+`TupleView`」的情況——也就是本樹中原本就能運作的每一個 view——但這並不等於把四十八支 app 全部跑過。

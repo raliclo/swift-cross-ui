@@ -172,24 +172,26 @@ struct ColorPickerReadout: View {
     @Environment(\.self) var environment
 
     var body: some View {
-        // One expression, no `return`. A body written as
-        //     let r = color.resolve(in: environment)
-        //     return Text("...\(r.red)...")
-        // renders NOTHING here -- it compiles, the body runs, and the view is
-        // silently absent. Reduced to a minimal case with no environment and no
-        // resolve: `let n = 7; return Text("n=\(n)")` is blank while
-        // `Text("marker")` is not. See testapp/plan/explicit-return-body.md.
+        // Written with an explicit `return` ON PURPOSE. Until 2026-09-08 this
+        // shape rendered nothing at all: an explicit return opts out of View's
+        // @ViewBuilder, so Content became Text rather than TupleView1<Text>,
+        // and the default implementations disagreed about what `children` was
+        // -- defaultChildren asked `body` for them and the rest handed those to
+        // a VStack that then found no layoutable children. It compiled, the
+        // body ran, and the view was silently absent.
         //
-        // 單一運算式,不使用 `return`。若把 body 寫成
-        //     let r = color.resolve(in: environment)
-        //     return Text("...\(r.red)...")
-        // 在此處什麼都不會畫——它編得過、body 也確實執行,而該 view 靜默地不存在。已化約為一個
-        // 不含 environment、不含 resolve 的最小案例:`let n = 7; return Text("n=\(n)")` 是空白的,
-        // 而 `Text("marker")` 不是。見 testapp/plan/explicit-return-body.md。
-        Text(
-            "app sees r=\(color.resolve(in: environment).red) "
-                + "g=\(color.resolve(in: environment).green) "
-                + "b=\(color.resolve(in: environment).blue)"
-        )
+        // So this stays as it is, and it is the regression test: if the fix in
+        // View.swift is ever undone, this line disappears from P48 and nothing
+        // else changes.
+        //
+        // 這裡**刻意**使用顯式 `return`。在 2026-09-08 之前,這個形狀完全不會被畫出來:顯式 return
+        // 會跳出 View 的 @ViewBuilder,於是 Content 成為 Text 而非 TupleView1<Text>,而預設實作對
+        // 「`children` 是什麼」失去共識——defaultChildren 是向 `body` 索取的,其餘的卻把它交給一個
+        // 隨後找不到任何可佈局子節點的 VStack。它編得過、body 也跑了,而 view 靜默地不存在。
+        //
+        // 因此這裡維持原樣,而它就是那項回歸測試:若 View.swift 中的修正日後被還原,這一行會從 P48
+        // 消失,而其他一切都不會改變。
+        let r = color.resolve(in: environment)
+        return Text("app sees r=\(r.red) g=\(r.green) b=\(r.blue)")
     }
 }
