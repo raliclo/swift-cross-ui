@@ -120,7 +120,43 @@ public enum ActionFileReplay {
                         + "scale=\(geometry.scale)"
                 )
                 try synthesiser.replay(actions, in: geometry)
-                report("replayed \(file.lastPathComponent)")
+                // The count, because "replayed" alone cannot tell three things
+                // apart that a screenshot also cannot.
+                //
+                // A file that parses to zero actions replays successfully and
+                // does nothing; these files are hand-written CSV, and a
+                // mistyped column heading is enough. A file cut short by the
+                // process being killed prints no line at all, which is only
+                // visible if someone counts `replaying` against `replayed`
+                // rather than looking for `failed` -- a peer's driver captured
+                // and killed 97 replays mid-flight on 2026-09-07 and every one
+                // of them was silent, because nothing had gone wrong. And a
+                // replay of the wrong file reads identically unless the name and
+                // the count are together.
+                //
+                // 加上動作數,因為單憑「replayed」無法分辨三件事,而那三件事螢幕截圖同樣分辨不了。
+                //
+                // 一個解析出零個動作的檔案會成功重放且什麼都不做;這些檔案是手寫的 CSV,一個打錯的
+                // 欄位標題就夠了。一個因行程被殺而中斷的重放則完全不會印出這一行,而那只有在有人把
+                // `replaying` 與 `replayed` 成對計數、而不是去找 `failed` 時才看得見——2026-09-07
+                // 某位同事的驅動在中途拍照並殺掉了 97 次重放,而它們每一次都是靜默的,因為並沒有任何
+                // 東西出錯。至於重放了錯的檔案,除非名稱與數量同時出現,否則讀起來一模一樣。
+                //
+                // Parenthesised rather than comma-separated, because the count
+                // is being added to a line that already has readers.
+                // `verify_replay_android.zsh` pulls the name out with
+                // `grep -o "actionfile: replayed [^ ]*"`, and a comma would be
+                // inside that match -- every recorded filename would gain a
+                // trailing comma, in a column used to check that an app
+                // replayed its own file. Adding a field to an existing line is
+                // a change to everything that parses it.
+                //
+                // 使用括號而非逗號分隔,因為這個數字是加在一行「已經有讀者」的訊息上。
+                // `verify_replay_android.zsh` 是以 `grep -o "actionfile: replayed [^ ]*"` 取出名稱的,
+                // 而逗號會落在那次比對之內——於是每一個被記錄的檔名都會多一個尾隨逗號,而那一欄正是
+                // 用來檢查「某支 app 重放的是不是自己的檔案」。在一行既有訊息上增加欄位,就是在改動
+                // 所有解析它的東西。
+                report("replayed \(file.lastPathComponent) (\(actions.count) actions)")
             } catch {
                 report("failed: \(error)")
             }
