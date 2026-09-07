@@ -2,6 +2,36 @@ action,x,y,origin,button,key,micros,note,platform
 # P44 on Windows, GtkBackend: does `clipped()` actually clip, and does turning
 # it on at runtime change what is already on screen?
 #
+# expect: log-contains third cell clipped: true
+#
+# THAT MARKER IS READ BY sweep_drive.zsh, which searches this run's own log
+# output for that exact text after the replay finishes. It is the line
+# `P44Diagnostics.write` emits on the press, and nothing else in the app emits
+# it, so finding it means the button's action ran.
+#
+# Without it, driving this file on 2026-09-07 reported `ok / ok / window`, and
+# only reading the capture and the log by hand showed the press had done
+# anything at all:
+#
+#     cell 3 spill, y=620    before x=14..29   after NONE
+#     p44-debug-events.log   third cell clipped: true
+#
+# `replay=ok` means the replay ran to completion and every click landed on this
+# app's window. It does not mean a click reached the control it names -- a file
+# whose clicks ALL missed reports exactly the same three words. The marker is
+# what turns "it ran" into "it worked".
+#
+# 上方那個標記由 sweep_drive.zsh 讀取：重放結束後，它會在本次執行自身的 log 輸出中尋找該段文字。
+# 那正是 `P44Diagnostics.write` 在按下時所寫出的那一行，而 app 中沒有別的東西會寫出它，因此找到
+# 它就代表該按鈕的動作確實執行了。
+#
+# 少了它，2026-09-07 驅動本檔的回報是 `ok / ok / window`，而唯有以人工讀取擷圖與日誌，才看得出
+# 那一按究竟有沒有造成任何改變（如上）。
+#
+# `replay=ok` 的意思是「重放跑完了，而且每一次點擊都落在本 app 的視窗上」。它**不**代表某次點擊
+# 抵達了它所指名的控制項——一個「每一次點擊都沒中」的檔案，回報的會是一模一樣的三個字。這個標記
+# 的作用，就是把「它跑了」變成「它生效了」。
+#
 # P44 draws three cells. The frame is 120x60 and the orange child is 200x100, so
 # a cell that does NOT clip spills past the frame and a cell that does is cut to
 # it. Cell 1 spills by design, cell 2 carries `clipped()` and is cut, and cell 3

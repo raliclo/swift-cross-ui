@@ -580,3 +580,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-07,windows,gtk4,P44,ok,-,window,default,
 2026-09-07,windows,gtk4,P11,ok,-,window,default,
 2026-09-07,windows,gtk4,P44,ok,ok,window,default,P44-clip-third-cell.csv
+2026-09-07,windows,gtk4,P44,ok,ok,window,default,"P44-clip-third-cell.csv: expectation met: 'third cell clipped: true'"
+2026-09-07,windows,gtk4,P2,ok,no line,window,default,"P2-controls-and-resizing.csv: no output at all -- WinUI build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the capture; no toplevel size in the log -- geometry unchecked"

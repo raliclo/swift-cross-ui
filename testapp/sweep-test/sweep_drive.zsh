@@ -42,7 +42,13 @@
 #             with clicks on some other window, so it proves nothing; `CHECKER`
 #             means this script's own hit test is broken, not the run;
 #             `GEOMETRY` means the window was not the size the coordinates were
-#             measured at, so they address a different layout
+#             measured at, so they address a different layout;
+#             `UNMET` means the action file declared `# expect: log-contains ...`
+#             and nothing the run wrote contains it -- the replay ran, the
+#             outcome the file exists to produce did not happen;
+#             `UNCHECKED` means that same declaration could not be tested,
+#             because the run left no log to read, and unverifiable is not the
+#             same answer as satisfied
 #   capture   `window` is a real window capture; `desktop` is the fallback
 #   renderer  always `default` here: this driver selects no renderer, so GTK
 #             and WinUI each use their own. See the comment block above
@@ -78,7 +84,11 @@
 #             `ok` 表示跑完**且**每一次點擊都落在該 app 上；`ASTRAY` 表示跑完了、但點擊落在
 #             別的視窗上，因此什麼也證明不了；`CHECKER` 表示壞的是本腳本自己的命中檢查，
 #             而不是那次執行；`GEOMETRY` 表示視窗的尺寸不是那些座標被量測時的尺寸，
-#             因此它們指向的是另一套版面
+#             因此它們指向的是另一套版面；
+#             `UNMET` 表示動作檔宣告了 `# expect: log-contains ...`，而該次執行所寫出的任何
+#             東西都不含它——重放跑了，但這個檔案存在所要促成的結果沒有發生；
+#             `UNCHECKED` 表示同一項宣告無法被檢驗，因為該次執行沒有留下可讀的 log，
+#             而「無法查證」與「已滿足」不是同一個答案
 #   capture   `window` 為真正的視窗擷取；`desktop` 為回退
 #   renderer  在此永遠是 `default`：本驅動器不選擇 renderer，因此 GTK 與 WinUI 各自使用自身的
 #             預設值。本欄位為何存在、以及 `default` 為何與 `unrecorded` 不是同一個答案，
@@ -94,7 +104,7 @@ script_path="${0:A}"
 repo="${${script_path:h}:h:h}"
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-    # Through line 55, the end of the English half. Widened when the header grew
+    # Through line 61, the end of the English half. Widened when the header grew
     # -- a hard-coded range silently truncates the synopsis the moment anything
     # is added above it, and the columns section is the part a reader came for.
     #
@@ -103,12 +113,12 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     # numbers are updated here in the same edit, which is the only way they stay
     # able to agree.
     #
-    # 至第 55 行，即英文段落的結尾。標頭變長時一併加寬——寫死的範圍會在其上方新增任何內容的那一刻
+    # 至第 61 行，即英文段落的結尾。標頭變長時一併加寬——寫死的範圍會在其上方新增任何內容的那一刻
     # 靜默截斷說明，而「各欄位的讀法」正是讀者前來尋找的部分。
     #
     # 這段說明原本寫「第 48 行」，而程式碼寫的是 52，且已如此有一段時間：範圍被加寬過一次，描述它
     # 的句子卻沒有。此處在同一次編輯中一併更新兩個數字——那是讓它們能夠保持一致的唯一辦法。
-    sed -n '2,55p' "$script_path" | sed 's/^# \{0,1\}//'
+    sed -n '2,61p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 
@@ -396,6 +406,42 @@ for app in $apps; do
     # 少了它，該檢查就沒有輸入，`ours` 與 `hits` 皆為空，於是每一次執行都會通過。本腳本合併後的
     # 首次執行實測：P16 與 P31 都回報 `replay=ok`，而命中檢查根本什麼都沒檢查過——一道為了阻止
     # 靜默通過而加入的防護，自己靜默地通過了。
+
+    # MARK HOW LONG THE APP'S OWN EVENT LOG IS *BEFORE* THE LAUNCH, so that
+    # `# expect: log-contains` further down reads only what THIS run wrote.
+    #
+    # The apps append and never truncate -- P44Diagnostics.write opens the file,
+    # seeks to the end and writes -- so p44-debug-events.log held a line from
+    # 12:49 and two more from 12:52 in the same file. Searching the whole file
+    # would let a line from a previous run satisfy the expectation of a run in
+    # which the click missed entirely, which is the plausible-wrong-data failure
+    # this script exists to prevent, not a near miss of it.
+    #
+    # The name is DERIVED, `${app:l}-debug-events.log` in the working directory
+    # the app is launched from -- same reason as `# expect:` itself, a table
+    # here would be a second copy that drifts. Verified 2026-09-07 by listing
+    # testapp/output: 37 such files and every one follows that spelling
+    # (`ls testapp/output/*debug-events*.log` to re-count).
+    #
+    # **在啟動之前先記下 app 自身事件 log 的長度**，好讓下方的 `# expect: log-contains` 只讀取
+    # **本次執行**所寫入的內容。
+    #
+    # 這些 app 只追加、從不截斷——P44Diagnostics.write 開檔、seek 到結尾後寫入——因此
+    # p44-debug-events.log 中同時存在 12:49 的一行與 12:52 的兩行。若搜尋整個檔案，前一次執行留下
+    # 的行就能讓「這一次點擊完全沒中」的執行通過檢查；那正是本腳本所要防範的「看似合理的錯誤資料」，
+    # 而不是它的邊緣情況。
+    #
+    # 檔名為**推導而得**：app 啟動所在工作目錄下的 `${app:l}-debug-events.log`——理由與
+    # `# expect:` 本身相同，在此另存一張表只會是一份會漂移的副本。2026-09-07 以列出 testapp/output
+    # 查證：共 37 個這樣的檔案，全部符合該寫法（重新清點請用
+    # `ls testapp/output/*debug-events*.log`）。
+    app_log="$out/${app:l}-debug-events.log"
+    app_log_before=0
+    if [ -f "$app_log" ]; then
+        app_log_before="$(wc -c < "$app_log" 2>/dev/null | tr -d ' ')"
+        [ -z "$app_log_before" ] && app_log_before=0
+    fi
+
     if [ -n "$action_file" ]; then
         ( cd "$out" && ./"$app$suffix.exe" --debug -actionfile "$(cygpath -m "$action_file")" \
             > "$run_log" 2>&1 & )
@@ -476,6 +522,53 @@ for app in $apps; do
     if [ -n "$action_file" ] \
         && grep -qE '^# *expect: *process-exits' "$action_file" 2>/dev/null; then
         expect_exit=yes
+    fi
+
+    # THE SECOND DECLARATION IN THE SAME FAMILY, and it answers a different
+    # question: not "did the replay run" but "did it achieve what this file is
+    # for". Spelling:
+    #
+    #     # expect: log-contains third cell clipped: true
+    #
+    # Everything after `log-contains ` is the literal text to look for; it is
+    # matched with `grep -F`, so colons, brackets and parentheses in it are
+    # text, not syntax.
+    #
+    # P44 IS WHY IT EXISTS. Driving P44-clip-third-cell.csv on 2026-09-07
+    # reported `ok / ok / window`, and only reading the capture and the log by
+    # hand showed the button had worked at all:
+    #
+    #     cell 3 spill, y=620    before x=14..29   after NONE
+    #     p44-debug-events.log   third cell clipped: true
+    #
+    # The driver had no opinion either way. A file whose clicks ALL missed would
+    # have reported the same `ok / ok / window`, because `replay=ok` means the
+    # replay ran to completion and every click landed on the app's own window --
+    # it has never meant the controls did what they are for.
+    #
+    # In the ACTION FILE, next to the prose that already explains what the press
+    # is supposed to change, for the same reason `# expect: process-exits` is
+    # there: it is a fact about what THIS file does, and one copy cannot
+    # disagree with itself.
+    #
+    # 同一族的第二項宣告，而它回答的是另一個問題：不是「重放有沒有跑」，而是「它有沒有達成這個檔案
+    # 存在的目的」。寫法如上。`log-contains ` 之後的一切都是要尋找的字面文字；比對使用 `grep -F`，
+    # 因此其中的冒號、方括號與圓括號都是文字，不是語法。
+    #
+    # **P44 就是它存在的理由。** 2026-09-07 驅動 P44-clip-third-cell.csv 回報的是
+    # `ok / ok / window`，而唯有以人工讀取擷圖與日誌，才看得出那個按鈕究竟有沒有生效（如上）。
+    # 驅動器對此毫無意見。一個「每一次點擊都沒中」的檔案，會回報一模一樣的 `ok / ok / window`，
+    # 因為 `replay=ok` 的意思是「重放跑完了，而且每一次點擊都落在該 app 自己的視窗上」——它從來
+    # 不代表那些控制項做了它們該做的事。
+    #
+    # 放在**動作檔**中、緊鄰早已解釋「這一按應該改變什麼」的那段散文旁邊，理由與
+    # `# expect: process-exits` 相同：這是關於**這個檔案**做了什麼的事實，而一份副本不可能與自己
+    # 矛盾。
+    expect_log=
+    if [ -n "$action_file" ]; then
+        expect_log="$(grep -m1 -E '^# *expect: *log-contains .' "$action_file" 2>/dev/null)"
+        expect_log="${expect_log#*log-contains }"
+        expect_log="${expect_log%$'\r'}"
     fi
 
     if tasklist.exe //FI "IMAGENAME eq $app$suffix.exe" 2>&1 | grep -q "$app$suffix.exe"; then
@@ -865,7 +958,62 @@ for app in $apps; do
     #
     # 尺寸不符**不自動等於「動作檔過期」**。改變的可能是視窗，而 issue #79 正是為此開著的——
     # Windows 上的 GTK 相對 WinUI 偏小。該修哪一邊是判斷；把這個分歧回報出來則不是。
-    if [ -n "$action_file" ] && [ "$replay" = ok ]; then
+    #
+    # THE COMPARISON RUNS WHENEVER THERE IS AN ACTION FILE; only the VERDICT is
+    # gated on `replay = ok`. The gate used to sit on the whole block, and it
+    # made the check unreachable for exactly the files that need it most: an app
+    # that writes no `actionfile:` line never reaches `replay = ok`, so nothing
+    # was compared AND nothing said so -- including the
+    # `no toplevel size in the log -- geometry unchecked` message sitting inside
+    # the same block, which could not print for the same reason.
+    #
+    # Measured 2026-09-07. P2-controls-and-resizing.csv recorded 648x726 while
+    # the window was 648x798. Its last click at 115,646 fell inside the Delete
+    # row instead of the "Allow window resizing" button 68 px below it: it
+    # pressed a different control, reported success, and #401's check never ran
+    # -- on every run of that file. Fixed by hand in 11868267; the instrument
+    # said nothing. The note those runs carried was `no output at all -- WinUI
+    # build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the
+    # capture`, with no mention of geometry at all.
+    #
+    # Counted the same day: 6 of the 40 win action files belong to apps with no
+    # `debug-events` writer, and 3 of those carry a `Measured on a WxH` header
+    # (P2, P3, P41). Driving all three showed the proxy is imperfect -- P41's
+    # check DID fire, because `class=gdkSurfaceToplevel ... CHOSEN` comes from
+    # GtkBackend rather than from the app -- so the real silent-skip set was two,
+    # P2 and P3, and P3 was clean (capture 988x629, header 988x629). Two files
+    # is also why `got_size` still comes from the log and NOT from the capture:
+    # that alternative was considered and the count does not justify it.
+    #
+    # WHY THE GATE STILL EXISTS, and it must not be removed: a significant
+    # mismatch sets `replay=GEOMETRY`, and without the gate that would overwrite
+    # a genuine `replay=FAIL` and hide a worse result behind a lesser one. So
+    # when the replay was not ok, the geometry finding goes in the note and the
+    # verdict is left exactly as it was.
+    #
+    # **只要存在動作檔就進行比較**，被 `replay = ok` 把關的只有**判決**。這道關卡過去架在整個
+    # 區塊之上，而那讓這項檢查對「最需要它的那些檔案」恰好無法抵達：不寫出 `actionfile:` 行的 app
+    # 永遠到不了 `replay = ok`，於是什麼都沒被比較、也沒有任何東西這麼說——連同區塊內那句
+    # `no toplevel size in the log -- geometry unchecked` 也因為同一個理由而印不出來。
+    #
+    # 2026-09-07 實測。P2-controls-and-resizing.csv 記載 648x726，而實際視窗是 648x798。它最後
+    # 一次點擊落在 115,646，落進了 Delete 那一列，而不是位於其下方 68 px 的「Allow window
+    # resizing」按鈕：它按了另一個控制項、回報成功，而 #401 的檢查從未執行過——該檔案的每一次執行
+    # 皆然。已於 11868267 手動修正；量測儀器全程沉默。那些執行所帶的備註是 `no output at all --
+    # WinUI build, or no SCUI_DEBUG; no log writer in P2.swift -- judge from the capture`，
+    # 完全沒有提到 geometry。
+    #
+    # 同日清點：40 個 win 動作檔中有 6 個屬於「沒有 debug-events 寫入器」的 app，其中 3 個帶有
+    # `Measured on a WxH` 標頭（P2、P3、P41）。實際驅動這三個之後可知該代理指標並不精確——P41 的
+    # 檢查**確實**觸發了，因為 `class=gdkSurfaceToplevel ... CHOSEN` 來自 GtkBackend 而非該 app
+    # ——因此真正被靜默略過的只有兩個：P2 與 P3，而 P3 是乾淨的（擷圖 988x629、標頭 988x629）。
+    # 「只有兩個檔案」也正是 `got_size` 仍取自 log 而**不**改取自擷圖的理由：該替代方案被考慮過，
+    # 而這個數量並不足以支持它。
+    #
+    # **這道關卡為何仍然存在**，且不可移除：顯著的尺寸不符會設定 `replay=GEOMETRY`，少了關卡，
+    # 它會覆蓋一個真正的 `replay=FAIL`，把較嚴重的結果藏在較輕微的結果之後。因此當重放並非 ok 時，
+    # 這項發現只寫進 note，判決維持原樣。
+    if [ -n "$action_file" ]; then
         # ANCHORED ON THE SENTENCE, not on the first NNNxNNN in the file.
         #
         # Action-file headers are prose and they mention other sizes. P3's
@@ -947,10 +1095,178 @@ for app in $apps; do
             dw=$(( wantw > gotw ? wantw - gotw : gotw - wantw ))
             dh=$(( wanth > goth ? wanth - goth : goth - wanth ))
             if [ "$dw" -ge 8 ] || [ "$dh" -ge 8 ]; then
-                replay=GEOMETRY
+                # THE ONE PLACE THE VERDICT MOVES, and the only reason the gate
+                # above was ever needed. `GEOMETRY` is a downgrade FROM `ok`
+                # and from nothing else: a run that already said `FAIL`,
+                # `ASTRAY`, `no line` or `running` keeps that word, because it
+                # is the worse and more specific finding. The note below is
+                # written either way, so the measurement is never lost.
+                # **判決唯一會被改動的地方**，也是上方那道關卡當初唯一的存在理由。`GEOMETRY` 只
+                # 從 `ok` 降級，不從其他任何值降級：已經是 `FAIL`、`ASTRAY`、`no line` 或
+                # `running` 的執行會保留原本的字，因為那是更嚴重也更具體的發現。下方的 note 兩種
+                # 情況都會寫，因此量測結果永遠不會遺失。
+                if [ "$replay" = ok ]; then
+                    replay=GEOMETRY
+                fi
                 note="${note:+$note; }measured at $want_size, ran at $got_size (off by ${dw}x${dh}) -- coordinates address a different layout"
             else
                 note="${note:+$note; }measured at $want_size, ran at $got_size (off by ${dw}x${dh}, under a third of a row)"
+            fi
+        fi
+    fi
+
+    # DID THE REPLAY ACHIEVE WHAT THE FILE SAYS IT IS FOR?
+    #
+    # Read `# expect: log-contains ...` above for the spelling and for the P44
+    # run that made it necessary. This is where the declaration is settled, and
+    # these states have to stay apart, because they need different fixes:
+    #
+    #   the replay never ran        verdict untouched (`no line`, `FAIL`,
+    #                               `running`, ...), note says the expectation
+    #                               was not checked. There is no evidence about
+    #                               the feature either way.
+    #   it ran, the app said        `UNMET`. The app was writing and this
+    #   things, none of them the    outcome is not among them, so either the
+    #   text                        click missed its control, or the control
+    #                               does nothing.
+    #   it ran, the app said        `UNCHECKED`. Absence of evidence, not
+    #   nothing at all              evidence of absence -- an app that logs
+    #                               nothing cannot be asked what it did.
+    #   the text was found          the verdict it already had, plus a note
+    #                               naming what was established.
+    #
+    # MISSING IS NOT PASSING, AND UNVERIFIABLE IS NOT PASSING EITHER. A file
+    # with no `# expect: log-contains` line keeps today's behaviour exactly --
+    # `expect_log` is empty and this block does nothing, which is the case for
+    # every win action file but P44. A file that HAS one and cannot be shown to
+    # have met it does not get to report `ok`: a silent app is `UNCHECKED`,
+    # which is the same defect the geometry gate above had and must not be
+    # reintroduced here in a new place.
+    #
+    # WHY THE APP'S OWN LOG AND NOT ONLY THE RUN LOG. `P44Diagnostics.write`
+    # does both -- `print("[P44] ...")` to stdout and an append to
+    # p44-debug-events.log -- so "check the run log" looked sufficient. Measured
+    # 2026-09-07 on the run at 20:52:29: p44-debug-events.log gained
+    # `third cell clipped: true`, and `grep -c 'third cell clipped'` on
+    # /tmp/sweep_drive-gtk4/P44-clip-third-cell.log returned 0. Not one `[P44]`
+    # line reached the run log, because Swift's `print` to a redirected stdout
+    # is block-buffered and `taskkill /F` kills the process before it flushes;
+    # the `-actionfile:` lines that ARE in that file come from a different,
+    # unbuffered writer. Checking the run log alone would have called a working
+    # feature `UNMET` -- a false accusation, which is the more expensive
+    # direction of the two.
+    #
+    # The verdict moves only from `ok`, exactly as `GEOMETRY` does above. A run
+    # that is already `FAIL` or `GEOMETRY` keeps that word: `GEOMETRY` in
+    # particular names a CAUSE for an unmet expectation, and replacing it with
+    # the symptom would throw away the more useful half.
+    #
+    # 這次重放，有沒有達成這個檔案所宣稱的目的？
+    #
+    # 寫法與「P44 那次執行為何使它成為必要」見上方的 `# expect: log-contains ...`。此處是該宣告
+    # 被結算的地方，而這幾種狀態必須分開，因為它們要修的東西不同：重放從未執行（判決不動，note
+    # 說明未經檢查，對該功能兩邊都沒有證據）；跑了、app 也寫了東西，但其中沒有那段文字（`UNMET`
+    # ——app 當時確實在寫，而這個結果不在其中，因此不是點擊沒打中它的控制項，就是該控制項什麼也
+    # 沒做）；跑了、但 app 從頭到尾什麼都沒寫（`UNCHECKED`——那是「缺乏證據」而非「證明其不存在」；
+    # 一個什麼都不記錄的 app，無從被詢問它做了什麼）；找到了那段文字（維持原判決，並以 note 指明
+    # 所確立的事實）。
+    #
+    # **沒有宣告不等於通過，無法查證也不等於通過。** 沒有 `# expect: log-contains` 行的檔案，行為
+    # 與今日完全相同——`expect_log` 為空、本區塊什麼也不做，而 win 動作檔中除 P44 之外全屬此類。
+    # 有宣告卻無法被證明已滿足的檔案，不得回報 `ok`：沉默的 app 即為 `UNCHECKED`，那正是上方
+    # geometry 關卡曾有的同一個缺陷，不可在新的地方重新引入。
+    #
+    # **為何要讀 app 自己的 log，而不只讀 run log。** `P44Diagnostics.write` 兩者都做——
+    # `print("[P44] ...")` 寫到 stdout，同時追加到 p44-debug-events.log——因此「查 run log」看似
+    # 足夠。2026-09-07 對 20:52:29 那次執行實測：p44-debug-events.log 增加了
+    # `third cell clipped: true`，而對 /tmp/sweep_drive-gtk4/P44-clip-third-cell.log 執行
+    # `grep -c 'third cell clipped'` 回傳 0。沒有任何一行 `[P44]` 抵達 run log，因為 Swift 的
+    # `print` 在 stdout 被重導向時採區塊緩衝，而 `taskkill /F` 在它 flush 之前就殺掉了行程；該檔案
+    # 中確實存在的 `-actionfile:` 行來自另一個不帶緩衝的寫入器。只查 run log 會把一項可運作的功能
+    # 判成 `UNMET`——那是誣告，而在兩個方向之中它的代價更高。
+    #
+    # 判決同樣只從 `ok` 移動，與上方的 `GEOMETRY` 完全一致。已經是 `FAIL` 或 `GEOMETRY` 的執行保留
+    # 原本的字：`GEOMETRY` 尤其是在指認「期望未達成」的**成因**，若以症狀取代它，等於丟掉更有用的
+    # 那一半。
+    if [ -n "$expect_log" ]; then
+        if ! grep -q 'actionfile: replayed' "$run_log" 2>/dev/null; then
+            note="${note:+$note; }expectation '$expect_log' not checked -- the replay did not run"
+        else
+            # Only the bytes this run appended, per the mark taken before the
+            # launch. A file shorter than the mark was rotated or replaced
+            # between the two points, so the whole of it is new.
+            # 只取本次執行所追加的位元組，依啟動前所記下的標記。若檔案比標記還短，代表它在兩個時點
+            # 之間被輪替或替換過，因此整份都是新的。
+            app_new=
+            if [ -f "$app_log" ]; then
+                app_log_now="$(wc -c < "$app_log" 2>/dev/null | tr -d ' ')"
+                [ -z "$app_log_now" ] && app_log_now=0
+                [ "$app_log_now" -lt "$app_log_before" ] && app_log_before=0
+                app_new="$(tail -c "+$(( app_log_before + 1 ))" "$app_log" 2>/dev/null)"
+            fi
+
+            # TWO DIFFERENT SETS, ON PURPOSE.
+            #
+            # `haystack` is everywhere the text could possibly be -- the whole
+            # run log plus this run's new bytes -- because failing to find text
+            # that IS there would accuse a working feature, and that is the
+            # expensive direction.
+            #
+            # `spoke` is the narrower question "did the app itself say anything
+            # this run", and it decides UNCHECKED versus UNMET. Without it
+            # UNCHECKED is unreachable: at this point the run log always holds
+            # the `actionfile: replayed` line, so a test for an empty log can
+            # never fire, and an unreachable branch reporting "not verified" is
+            # the same defect as no branch at all -- measured while writing
+            # this, on a fabricated case where the app wrote nothing and the
+            # verdict came out UNMET.
+            #
+            # `[Pnn] ` is the app-side stdout prefix; 41 of the testapp sources
+            # use it (`grep -lE 'print\("\[P[0-9]+' testapp/P*.swift | wc -l`).
+            # The `[]-]` class admits `[P6-v2]` while keeping `[P4]` and `[P44]`
+            # apart.
+            #
+            # `${app}` IS BRACED AND MUST STAY BRACED. Written `$app[]-]`, zsh
+            # reads the bracket as an array subscript on `app`, not as text for
+            # grep: it printed `invalid subscript`, the pattern never reached
+            # grep, `spoke` came back empty, and a run where the app HAD spoken
+            # on stdout was reported `UNCHECKED` instead of `UNMET`. Measured
+            # here on 2026-09-07, in the harness written to test this block --
+            # the wrong answer was plausible, which is why it needed a test
+            # rather than a reading.
+            #
+            # **刻意分成兩個集合。** `haystack` 是那段文字可能出現的一切位置——整份 run log 加上本
+            # 次執行新增的位元組——因為「文字明明在那裡卻沒找到」會誣告一項可運作的功能，而那是代價
+            # 較高的方向。`spoke` 問的是較窄的問題：「這次執行中，app 自己有沒有說過話」，並由它決定
+            # UNCHECKED 或 UNMET。少了它，UNCHECKED 將無法抵達：走到這裡時 run log 必定含有
+            # `actionfile: replayed` 那一行，因此「log 為空」的測試永遠不會成立；而一個無法抵達、
+            # 卻宣稱「未經查證」的分支，與根本沒有這個分支是同一個缺陷——此事於撰寫本段時，以「app
+            # 什麼都沒寫」的捏造案例實測，判決當時落在 UNMET。
+            #
+            # `[Pnn] ` 是 app 端的 stdout 前綴；testapp 中有 41 份原始碼使用它（重新清點請用
+            # `grep -lE 'print\("\[P[0-9]+' testapp/P*.swift | wc -l`）。`[]-]` 這個字元類容許
+            # `[P6-v2]`，同時讓 `[P4]` 與 `[P44]` 不會互相誤配。
+            #
+            # **`${app}` 有加大括號，而且必須保持加著。** 若寫成 `$app[]-]`，zsh 會把方括號讀成對
+            # `app` 的陣列下標，而不是要交給 grep 的文字：它印出 `invalid subscript`、樣式從未抵達
+            # grep、`spoke` 因而為空，於是一次「app 確實在 stdout 上說過話」的執行被報成
+            # `UNCHECKED` 而非 `UNMET`。於 2026-09-07 在為本區塊所寫的測試工具中實測——錯誤答案看
+            # 起來完全合理，這正是它需要被測試、而不是被閱讀的理由。
+            haystack="$(cat "$run_log" 2>/dev/null; printf '%s' "$app_new")"
+            spoke="$(grep -E "^\[${app}[]-]" "$run_log" 2>/dev/null; printf '%s' "$app_new")"
+
+            if printf '%s\n' "$haystack" | grep -qF -- "$expect_log"; then
+                note="${note:+$note; }expectation met: '$expect_log'"
+            elif [ -z "$spoke" ]; then
+                if [ "$replay" = ok ]; then
+                    replay=UNCHECKED
+                fi
+                note="${note:+$note; }expectation '$expect_log' could not be checked -- the replay ran but the app wrote nothing this run"
+            else
+                if [ "$replay" = ok ]; then
+                    replay=UNMET
+                fi
+                note="${note:+$note; }expectation NOT met: '$expect_log' is absent from what the app wrote -- the click missed its control, or the control does nothing"
             fi
         fi
     fi
