@@ -8,7 +8,24 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P5: the alert-button row is clipped horizontally -- "Show Alert A" is cut off
 # at the left edge -- so only the two centred buttons are measured.
-click,196,455,client,left,,,Open another window -- the status line must stop saying Ready,ios
+#
+# RE-MEASURED 2026-09-08. The coordinates below replaced ones measured
+# 2026-09-02 that the layout has since moved out from under: every click in the
+# old file landed on blank space, so the replay succeeded, the app ignored it,
+# and the screen afterwards was byte-identical to a control run that pressed
+# nothing. That reads as a framework defect and is not one.
+#
+# Measured from the effect sweep's own control capture, which is the app's
+# initial state on the current build, so the coordinate and the screen it was
+# taken from are the same picture.
+#
+# 2026-09-08 重新量測。下方座標取代的是 2026-09-02 所量、而版面此後已從其下移開的那一組:舊檔中
+# 每一次點擊都落在空白處,於是重放成功、app 忽略它,而其後的畫面與「什麼都不按的對照執行」逐位元組
+# 相同。那讀起來像是框架缺陷,但它不是。
+#
+# 量測自 effect sweep 自身的 control 擷取,那是目前這個 build 上該 app 的初始狀態,因此座標與
+# 「取得它的那張畫面」是同一張。
+click,295,456,client,left,,,Open another window -- the status line must stop saying Ready,ios
 sleep,,,,,,800000,let the second window appear,ios
-click,196,548,client,left,,,Show A+B+C at once -- three alerts must be presented rather than queued,ios
+click,295,548,client,left,,,Show A+B+C at once -- three alerts must be presented rather than queued,ios
 sleep,,,,,,1000000,let the alerts present,ios
