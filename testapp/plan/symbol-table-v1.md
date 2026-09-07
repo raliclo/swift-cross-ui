@@ -361,6 +361,53 @@ Recorded rather than resolved. Each is a real risk to the table, not a formality
    done here because no Adwaita theme index was available to grep, and asserting
    those names from memory is precisely what these rules forbid.
    / **GTK 欄是對照命名規格而非實際主題判定的。** 這是可避免之剔除的最大來源。
+
+   **Done on 2026-09-07, and it found the opposite of what it was looking for.**
+   GTK 4.22.4 is installed on the Mac this was run from, so a C probe calling
+   `gtk_icon_theme_has_icon` on `gtk_icon_theme_get_for_display` could ask the
+   library directly. Every one of the 36 accepted `gtkIconName` values was
+   queried in both its plain and its `-symbolic` form:
+
+   | Form | Resolved |
+   | --- | ---: |
+   | plain, exactly as this table lists it | **0 of 36** |
+   | with a `-symbolic` suffix | **15 of 36** |
+
+   `list-add` does not resolve; `list-add-symbolic` does. GTK 4 ships the
+   symbolic family and not the legacy full-colour set, so **every name in this
+   column as currently written would produce nothing on GTK** -- and produce it
+   silently, which is the same failure this section's item 2 describes for Segoe
+   on Windows 10. The column needs the suffix, and 15 of the 36 are now verified
+   against a running GTK rather than against a document.
+
+   The other 21 are still unjudged. This machine has no `adwaita-icon-theme`
+   package, so the probe was answering out of GTK's own built-in resource, which
+   carries only what GTK itself draws. Installing that theme is what finishes the
+   remaining 21 and tests the premise above about `edit`, `view`, `more` and the
+   rest -- three names outside the spec did resolve even from the built-in set
+   (`view-more-symbolic`, `view-list-symbolic`, `view-grid-symbolic`), which is
+   the first direct evidence that the premise is right.
+
+   Re-derive with: `cc probe.c -o probe $(pkg-config --cflags --libs gtk4)`
+   where `probe.c` calls `gtk_init()`, takes
+   `gtk_icon_theme_get_for_display(gdk_display_get_default())` and prints
+   `gtk_icon_theme_has_icon` per name.
+
+   **2026-09-07 已執行，而它找到的與原本要找的相反。** 執行本次查詢的 Mac 上裝有 GTK 4.22.4，
+   因此一支呼叫 `gtk_icon_theme_has_icon` 的 C 探針可以直接詢問該函式庫。本表 36 個已採用的
+   `gtkIconName` 全部以「純名稱」與「加上 `-symbolic`」兩種形式查詢：純名稱 **0 之 36** 解析成功，
+   加上 `-symbolic` 則為 **15 之 36**。
+
+   `list-add` 解析不到，`list-add-symbolic` 可以。GTK 4 出貨的是 symbolic 家族而非舊有的全彩集，
+   因此**本欄目前所寫的每一個名稱在 GTK 上都會產出「什麼都沒有」**——而且是靜默地產出，與本節第 2 項
+   所描述的「Segoe 在 Windows 10 上」屬於同一類失敗。本欄需要該後綴，而其中 15 個現在是對著一個
+   執行中的 GTK、而非對著一份文件驗證過的。
+
+   其餘 21 個仍未判定。本機沒有 `adwaita-icon-theme` 套件，因此該探針回答的是 GTK 自身內建資源，
+   其中只含 GTK 自己會畫的東西。安裝該主題才能完成剩下的 21 個，並檢驗上方關於 `edit`、`view`、
+   `more` 等的推測——即使只用內建資源，仍有三個規範之外的名稱解析成功
+   （`view-more-symbolic`、`view-list-symbolic`、`view-grid-symbolic`），那是「該推測為真」的第一項
+   直接證據。
 4. **Four SF names are deprecated aliases** (Section 2). They resolve today through
    the raw-string API. If a future step moves to a typed symbol enum, they will need
    `#available` branches. / **四個 SF 名稱是已棄用的別名。**
