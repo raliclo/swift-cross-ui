@@ -6,5 +6,5 @@ extension BackendFeatures {
     /// ### Constituent Protocols
     /// - ``TextViews``
     /// - ``Images``
-    public typealias PassiveViews = TextViews & Images
+    public typealias PassiveViews = TextViews & Images & Symbols
 }

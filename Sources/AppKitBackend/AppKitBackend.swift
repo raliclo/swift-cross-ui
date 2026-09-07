@@ -1327,7 +1327,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         }
     }
 
-    private static func weight(for weight: Font.Weight) -> NSFont.Weight {
+    static func weight(for weight: Font.Weight) -> NSFont.Weight {
         switch weight {
             case .thin:
                 .thin
