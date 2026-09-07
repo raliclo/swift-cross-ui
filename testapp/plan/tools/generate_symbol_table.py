@@ -28,12 +28,39 @@ SOURCE = ROOT / "testapp/plan/symbol-table-v1.md"
 TARGET = ROOT / "Sources/SwiftCrossUI/Symbols/SystemSymbol+Table.swift"
 
 
+def split_row(line):
+    r"""Splits a markdown table row on its unescaped pipes.
+
+    `str.split("|")` is wrong here for the same reason `cut -d,` is wrong on a
+    CSV: the delimiter also occurs inside the data, escaped, and splitting on it
+    anyway does not fail -- it silently produces extra cells and shifts every
+    column after the escape. Three rows in this table have a pipe in their
+    textFallback (`>|`, `||`, `|<`, the media-transport symbols), and a plain
+    split turned all three into a lone backslash. Nothing reported it; the Swift
+    compiled and three buttons would have been labelled `\`.
+
+    以未跳脫的直線切分一列 markdown 表格。
+
+    此處使用 `str.split("|")` 是錯的,理由與「對 CSV 使用 `cut -d,`」完全相同:該分隔符同時也以跳脫
+    形式出現在資料之中,而照切不誤並不會失敗——它會安靜地產生多餘的欄位,並讓跳脫之後的每一欄整體
+    位移。本表中有三列的 textFallback 含有直線(`>|`、`||`、`|<`,即媒體傳輸類符號),而一次單純的
+    切割把這三個全部變成了一個孤零零的反斜線。沒有任何東西回報這件事;Swift 編得過,而三個按鈕會被
+    標成 `\`。
+    """
+    return [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+
+
+def unescape(cell):
+    r"""Turns markdown's `\|` back into the pipe it stands for."""
+    return cell.strip().replace("\\|", "|")
+
+
 def rows():
     out = []
     for line in SOURCE.read_text().splitlines():
         if not line.startswith("|"):
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = [unescape(c) for c in split_row(line)]
         # A data row starts with the symbol's number. The header, the separator
         # and the prose tables elsewhere in the document all fail this test,
         # which is why it is the test: matching on column count alone would

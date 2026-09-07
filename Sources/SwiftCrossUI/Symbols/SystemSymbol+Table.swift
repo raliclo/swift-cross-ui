@@ -134,7 +134,7 @@ extension SystemSymbol {
             gtkIconName: "media-skip-forward",
             segoeScalar: 0xE893,
             androidDrawable: "ic_media_next",
-            textFallback: ">\\"
+            textFallback: ">|"
         ),
         SystemSymbol(
             name: "pause",
@@ -142,7 +142,7 @@ extension SystemSymbol {
             gtkIconName: "media-playback-pause",
             segoeScalar: 0xE769,
             androidDrawable: "ic_media_pause",
-            textFallback: "\\"
+            textFallback: "||"
         ),
         SystemSymbol(
             name: "play",
@@ -158,7 +158,7 @@ extension SystemSymbol {
             gtkIconName: "media-skip-backward",
             segoeScalar: 0xE892,
             androidDrawable: "ic_media_previous",
-            textFallback: "\\"
+            textFallback: "|<"
         ),
         SystemSymbol(
             name: "rewind",
