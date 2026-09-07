@@ -309,6 +309,24 @@ extension EnvironmentValues {
     /// appeared one below another instead.
     @Entry public var layoutOverlapsChildren: Bool = false
 
+    /// The columns a ``LazyVGrid`` resolved, for whoever arranges the cells.
+    ///
+    /// Set by ``LazyVGrid`` and cleared by ``VStack``, ``HStack`` and ``ZStack``,
+    /// for the same reason ``layoutOverlapsChildren`` is: ``ForEach`` builds a
+    /// real container and has to be told how its parent arranges things. A grid
+    /// whose content is a `ForEach` sees one child, and arranging one child in a
+    /// grid produces a single column -- which looks like a grid with the wrong
+    /// column count rather than like a grid that never ran. See
+    /// ``GridLayoutPlan``.
+    ///
+    /// 某個 ``LazyVGrid`` 所解析出來的欄位,供真正排列儲存格的一方使用。
+    ///
+    /// 由 ``LazyVGrid`` 設定,並由 ``VStack``、``HStack`` 與 ``ZStack`` 清除,理由與
+    /// ``layoutOverlapsChildren`` 相同:``ForEach`` 會建立一個真正的容器,因此必須被告知其父層是
+    /// 怎麼排列的。一個「內容是 `ForEach`」的格線只看得到一個子節點,而把一個子節點排進格線會產生
+    /// 單一欄——那看起來像是「欄數算錯的格線」,而不像是「從未執行的格線」。見 ``GridLayoutPlan``。
+    @Entry public var layoutGridPlan: GridLayoutPlan? = nil
+
     /// Whether the text in a ``Table`` can be selected and copied.
     ///
     /// Off by default, and set with ``View/tableTextSelection(_:)``. Selection

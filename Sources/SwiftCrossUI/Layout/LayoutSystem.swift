@@ -724,3 +724,156 @@ enum StackOverflowReport {
         )
     }
 }
+
+extension LayoutSystem {
+    /// Lays children out in the columns a ``GridLayoutPlan`` resolved, filling
+    /// left to right and wrapping.
+    ///
+    /// Separate from ``computeStackLayout(container:children:cache:proposedSize:environment:backend:)``
+    /// rather than an orientation of it, because a stack's job is to divide one
+    /// axis among its children and a grid's is to assign each child a cell whose
+    /// width was decided before any child was asked anything. The two share no
+    /// arithmetic beyond addition.
+    ///
+    /// 依 ``GridLayoutPlan`` 所解析出的欄位安排子節點,由左至右填入、滿了換行。
+    ///
+    /// 之所以獨立於 ``computeStackLayout(container:children:cache:proposedSize:environment:backend:)``
+    /// 而非成為它的一種軸向,是因為 stack 的工作是「把一個軸向分配給它的子節點」,而格線的工作是
+    /// 「指派給每個子節點一個儲存格,而該格的寬度在詢問任何子節點之前就已決定」。除了加法之外,
+    /// 兩者不共用任何算式。
+    /// `clearsPlanForChildren` says whether the children being laid out here
+    /// are the cells themselves.
+    ///
+    /// ``LazyVGrid`` passes `false`: its single child is usually the `ForEach`
+    /// that owns the real cells, and clearing the plan for it is exactly the way
+    /// to make the grid never happen. ``ForEach`` passes `true`: its children
+    /// ARE the cells, and a `ForEach` nested inside one of them describes a
+    /// different set of rows that this plan says nothing about.
+    ///
+    /// Getting this backwards is what the first working version did -- the plan
+    /// resolved correctly, `LazyVGrid` ran, `ForEach` ran immediately after it,
+    /// and the plan it saw was nil. The screenshot was a vertical list with the
+    /// cells in the right order, which reads as a grid that computed one column
+    /// rather than as a plan that was thrown away in transit.
+    ///
+    /// `clearsPlanForChildren` 表示「此處正在佈局的子節點是否就是那些儲存格本身」。
+    ///
+    /// ``LazyVGrid`` 傳入 `false`:它唯一的子節點通常正是持有真正儲存格的那個 `ForEach`,而為它清除
+    /// 該計畫,恰恰就是讓格線永遠不會發生的做法。``ForEach`` 傳入 `true`:它的子節點**就是**儲存格,
+    /// 而巢狀於某一格之內的 `ForEach` 描述的是另一組列,與此計畫無關。
+    ///
+    /// 把這件事弄反,正是第一個「可運作版本」所做的事——計畫解析正確、`LazyVGrid` 執行了、`ForEach`
+    /// 緊接著執行,而它看到的計畫是 nil。截圖是一個儲存格順序正確的垂直清單,那讀起來像是「一個算出
+    /// 單一欄的格線」,而不像是「一份在傳遞途中被丟掉的計畫」。
+    @MainActor
+    static func computeGridLayout(
+        children: [LayoutableChild],
+        plan: GridLayoutPlan,
+        environment: EnvironmentValues,
+        clearsPlanForChildren: Bool
+    ) -> ViewLayoutResult {
+        let columnCount = max(1, plan.columnWidths.count)
+        let childResults = children.enumerated().map { index, child in
+            child.computeLayout(
+                proposedSize: ProposedViewSize(
+                    Double(plan.columnWidths[index % columnCount]),
+                    nil
+                ),
+                environment: clearsPlanForChildren
+                    ? environment.with(\.layoutGridPlan, nil)
+                    : environment
+            )
+        }
+        return ViewLayoutResult(
+            size: gridSize(of: childResults, plan: plan),
+            childResults: childResults
+        )
+    }
+
+    @MainActor
+    static func commitGridLayout<Backend: BaseAppBackend>(
+        container: Backend.Widget,
+        children: [LayoutableChild],
+        plan: GridLayoutPlan,
+        layout: ViewLayoutResult,
+        environment: EnvironmentValues,
+        backend: Backend
+    ) {
+        let columnCount = max(1, plan.columnWidths.count)
+        let results = children.map { $0.commit() }
+        let rows = gridRows(of: results, plan: plan)
+
+        for (index, result) in results.enumerated() {
+            let column = index % columnCount
+            let row = index / columnCount
+            let columnWidth = plan.columnWidths[column]
+            let childWidth = Int(result.size.width.rounded(.up))
+            let childHeight = Int(result.size.height.rounded(.up))
+
+            let alignment =
+                column < plan.alignments.count ? plan.alignments[column] : .center
+            let dx =
+                switch alignment {
+                    case .leading: 0
+                    case .center: (columnWidth - childWidth) / 2
+                    case .trailing: columnWidth - childWidth
+                }
+
+            backend.setPosition(
+                ofChildAt: index,
+                in: container,
+                to: SIMD2(
+                    plan.columnOffsets[column] + dx,
+                    rows.offsets[row] + (rows.heights[row] - childHeight) / 2
+                )
+            )
+        }
+
+        backend.setSize(of: container, to: layout.size.vector)
+    }
+
+    /// Row heights and their y offsets. A row is as tall as its tallest cell,
+    /// which is what makes the columns line up across rows.
+    /// 各列高度及其 y 位移。一列的高度等於該列最高的儲存格,而那正是使各欄能跨列對齊的原因。
+    static func gridRows(
+        of results: [ViewLayoutResult],
+        plan: GridLayoutPlan
+    ) -> (heights: [Int], offsets: [Int]) {
+        let columnCount = max(1, plan.columnWidths.count)
+        var heights: [Int] = []
+        for (index, result) in results.enumerated() {
+            let row = index / columnCount
+            let height = Int(result.size.height.rounded(.up))
+            if row == heights.count {
+                heights.append(height)
+            } else {
+                heights[row] = max(heights[row], height)
+            }
+        }
+        var offsets: [Int] = []
+        var y = 0
+        for height in heights {
+            offsets.append(y)
+            y += height + plan.spacing
+        }
+        return (heights, offsets)
+    }
+
+    static func gridSize(
+        of results: [ViewLayoutResult],
+        plan: GridLayoutPlan
+    ) -> ViewSize {
+        let rows = gridRows(of: results, plan: plan)
+        // The full column width, not the widest cell: a grid occupies its
+        // columns whether or not anything filled them, which is what keeps two
+        // grids with the same columns the same width.
+        // 使用完整的欄寬,而非最寬的儲存格:無論是否有東西填滿,格線都佔據它的那些欄——而那正是
+        // 讓「欄位相同的兩個格線」寬度也相同的原因。
+        let width =
+            plan.columnWidths.reduce(0, +)
+                + plan.spacing * max(0, plan.columnWidths.count - 1)
+        let height =
+            rows.heights.reduce(0, +) + plan.spacing * max(0, rows.heights.count - 1)
+        return ViewSize(Double(width), Double(height))
+    }
+}

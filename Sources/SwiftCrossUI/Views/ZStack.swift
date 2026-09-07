@@ -50,6 +50,7 @@ public struct ZStack<Content: View>: View {
             // stack and the views it holds overlaps them too instead of
             // arranging them along an axis it inherited from further up.
             environment: environment.with(\.layoutOverlapsChildren, true)
+                .with(\.layoutGridPlan, nil)
         )
 
         if !(children is TupleViewChildren || children is EmptyViewChildren) {
@@ -86,7 +87,8 @@ public struct ZStack<Content: View>: View {
             cache: (children as? TupleViewChildren)?.stackLayoutCache ?? StackLayoutCache.initial,
             layout: layout,
             alignment: alignment,
-            environment: environment.with(\.layoutOverlapsChildren, true),
+            environment: environment.with(\.layoutOverlapsChildren, true)
+                .with(\.layoutGridPlan, nil),
             backend: backend
         )
     }

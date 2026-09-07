@@ -1,4 +1,3 @@
-import Foundation
 
 /// A view that displays a variable amount of children.
 public struct ForEach<Items: Collection, ID: Hashable, Child> {
@@ -222,6 +221,35 @@ extension ForEach: TypeSafeView, View where Child: View {
         // 的存在是為了讓「`Group` 與 `ForEach`」保持透明——但實際接上的只有 `Group`。此事於
         // 2026-08-27 被發現：當時正試圖以「`ZStack` 中的 `ForEach`」建立一項 z 順序測試，而在兩者
         // 根本沒有重疊的情況下，那項測試不可能成立。
+        // Before the overlap branch, and for the same reason it exists: a
+        // ForEach has to arrange its own children the way its parent would.
+        // A LazyVGrid whose content is a ForEach -- nearly every one -- sees a
+        // single child, so if this branch is missing the grid puts that one
+        // child in column zero and the ForEach lays its cells out as a vertical
+        // list. See GridLayoutPlan.
+        // 置於 overlap 分支之前,理由與該分支存在的理由相同:ForEach 必須以父層原本會採用的方式
+        // 安排自己的子元件。一個「內容是 ForEach」的 LazyVGrid——幾乎全部都是——只看得到單一個
+        // 子節點,因此若少了這個分支,格線會把那一個子節點放進第 0 欄,而 ForEach 再把它的儲存格
+        // 排成一個垂直清單。見 GridLayoutPlan。
+        if let plan = environment.layoutGridPlan {
+            let result = LayoutSystem.computeGridLayout(
+                children: children.layoutableChildren,
+                plan: plan,
+                environment: environment,
+                // true: these children ARE the cells.
+                // true:這些子節點**就是**那些儲存格。
+                clearsPlanForChildren: true
+            )
+            children.stackLayoutCache = StackLayoutCache(
+                priorityGroups: [],
+                isHidden: [],
+                totalSpacing: 0,
+                minimumLengths: [],
+                redistributeSpaceOnCommit: false
+            )
+            return result
+        }
+
         if environment.layoutOverlapsChildren {
             let result = LayoutSystem.computeOverlapLayout(
                 children: children.layoutableChildren,
@@ -354,6 +382,19 @@ extension ForEach: TypeSafeView, View where Child: View {
         // 使用 `.center`，與 `Group` 在同一個呼叫處的註記一致：`layoutAlignment` 的型別是
         // `StackAlignment`，只描述單一軸向，因此此處取不到父層的對齊方式。帶有非預設對齊的
         // `ZStack`，對直接子元件會正確對齊，對包在 `ForEach` 內的則會置中。此處明言，不使其隱含。
+        if let plan = environment.layoutGridPlan {
+            LayoutSystem.commitGridLayout(
+                container: widget,
+                children: children.layoutableChildren,
+                plan: plan,
+                layout: layout,
+                environment: environment,
+                backend: backend
+            )
+            children.layoutableChildren = []
+            return
+        }
+
         if environment.layoutOverlapsChildren {
             LayoutSystem.commitOverlapLayout(
                 container: widget,
