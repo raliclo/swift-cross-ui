@@ -252,9 +252,36 @@ final class AppKitHitTestingContainer: NSView {
                     // 是相對於 `origin=frame` 或 `origin=client` 的,而此處是絕對座標。呼叫端必須
                     // 減去其中之一,而那次相減正是「讀者」與「本函式」可能靜默地各說各話的地方——
                     // 因此兩者都印出來,誰也不必用猜的。
+                    // `rect` for the origin and `click` for the centre, each
+                    // named, because one of them was labelled the other and a
+                    // reader followed the label.
+                    //
+                    // This line printed `click x,y size wxh` where `x,y` was the
+                    // rect's origin. Used literally that aims at the top-left
+                    // corner, outside the drawn bezel. It is the mirror of the
+                    // bug this whole exchange was about -- a peer's dump printed
+                    // a centre and formatted it as an origin, and four rounds of
+                    // action files clicked outside the control -- and I shipped
+                    // the same shape reversed while helping fix it.
+                    //
+                    // Both go out. A name is more reliable than a format: a pair
+                    // of numbers followed by a size reads as an origin whatever
+                    // it is.
+                    //
+                    // `rect` 表示原點、`click` 表示中心,各自具名,因為其中一個曾被標上另一個的名字,
+                    // 而讀者照著那個名字用了它。
+                    //
+                    // 這一行原本印的是 `click x,y size wxh`,而其中的 `x,y` 是矩形的原點。照字面使用
+                    // 它,瞄準的會是左上角,落在畫出來的 bezel 之外。這正是這整段往返所處理的那個錯誤的
+                    // 鏡像——某位同事的傾印印出中心卻以原點的格式呈現,導致四輪動作檔都點在控制項外面
+                    // ——而我在協助修正它的同時,出貨了同一個形狀的反面。
+                    //
+                    // 兩者都輸出。名字比格式可靠:一對數字後面接著尺寸,無論它是什麼,讀起來都像原點。
                     let rect = AppKitSynthesiser.actionFileRect(of: candidate)
-                    aim = " click \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
+                    aim = " rect \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
                         + " size \(Int(rect.width.rounded()))x\(Int(rect.height.rounded()))"
+                        + " click \(Int((rect.x + rect.width / 2).rounded()))"
+                        + ",\(Int((rect.y + rect.height / 2).rounded()))"
                     if let geometry = try? AppKitSynthesiser().currentWindowGeometry() {
                         aim += " frame-origin \(Int(geometry.frameOrigin.x.rounded()))"
                             + ",\(Int(geometry.frameOrigin.y.rounded()))"
