@@ -89,7 +89,7 @@ does not exist, so no backend can conform to anything.
 
 | # | recorded claim | reality on 2026-09-08 | what actually remains | G | W | A | U | N |
 |---|---|---|---|---|---|---|---|---|
-| **#85** | make LazyVStack/LazyHStack lazy, add LazyVGrid | both stacks **exist and are honestly documented as eager** — `LazyStacks.swift:38`, `:70`, and the doc comment at `:3` says so in both languages. `LazyVGrid` declaration count **0** | real laziness (needs ScrollView to report its visible rect into the layout pass); `LazyVGrid` from scratch. Both are pure composition — no backend requirement | — | — | — | — | — |
+| **#85** | make LazyVStack/LazyHStack lazy, add LazyVGrid | both stacks **exist and are honestly documented as eager** — `LazyStacks.swift:38`, `:70`, and the doc comment at `:3` says so in both languages. `LazyVGrid` declaration count was **0**; **added 2026-09-08** in the same file, and it is eager for the same reason the stacks are — no lazier than its siblings | real laziness, and *only* that (needs ScrollView to report its visible rect into the layout pass). The `LazyVGrid` half is done; it is pure composition and took no backend requirement | — | — | — | — | — |
 | **#88** | ColorPicker as an opt-in BackendFeatures protocol | `grep -rn "ColorPicker" Sources/` → **0**, across every file type, not only `*.swift` | everything: the `ColorPicker` view, a `BackendFeatures.ColorPickers` protocol, and five conformances | n/a | n/a | n/a | n/a | n/a |
 | **#28** | animation and transitions, "no protocol at all" | **claim holds exactly.** `withAnimation` 0, `struct Animation` 0, `AnyTransition` 0, `func transition` 0, `Transition` 0 | all five names, plus a driver in the view graph and a per-backend animator | n/a | n/a | n/a | n/a | n/a |
 | **#30** | focus, accessibility, keyboard shortcuts | **claim holds.** `FocusState` 0, `func focused` 0, `keyboardShortcut` 0, `accessibilityLabel` 0, `\bFocus\b` 0. The single `accessibility` hit is prose in `HelpModifier.swift` | the whole area. Still the only area where an application cannot express the intent | n/a | n/a | n/a | n/a | n/a |
@@ -98,7 +98,7 @@ does not exist, so no backend can conform to anything.
 | **#36** | confirmationDialog and safeAreaInset done, four remain | both are real: `ConfirmationDialogModifier.swift:50`, `SafeAreaInsetModifier.swift:39`. `func popover` 0, `fullScreenCover` 0, `toolbar` 0, `refreshable` 0, and `navigationTitle` **0 as a modifier** | `.popover`, `.fullScreenCover`, `.toolbar`, `.refreshable` — **and `.navigationTitle`, which left the denominator without being implemented** | n/a | n/a | n/a | n/a | n/a |
 | **#27** | follow desktop light/dark while running (GtkBackend) | **claim holds, and the mechanism is already built.** `Gtk.Settings.registerNotification(named:handler:)` exists at `Sources/Gtk/Utility/Settings.swift:92` and **has zero callers** across `Sources/`. The ambient scheme is sampled **once**, at `GtkBackend.swift:1029` | wire the notification up (six changes, per the task history). Windows has the same shape from the other side: `systemColorScheme` reads the registry once inside `sampleAmbientColorScheme` and `grep -rn WM_SETTINGCHANGE Sources/` → **0** | ❌ | — | — | — | — |
 | **#31** | 4/6 done, only ButtonStyle and LabelStyle remain | **5 present, and the denominator shrank silently.** `ShapeStyle` is a real protocol at `Styles/ShapeStyle/ShapeStyle.swift:25` with `Color`, `LinearGradient` and `RadialGradient` conforming — the todo still says "absent — 0 declarations and 0 references". `TextFieldStyle` 0 and `ProgressViewStyle` 0 were on the 2026-09-01 list and quietly left the count | `ButtonStyle` (genuinely blocked: `isPressed` 0 across `Sources/`, `Button.label` is a `String` at `Button.swift:17`), `LabelStyle` (**blocker gone**), `TextFieldStyle`, `ProgressViewStyle` | — | — | — | — | — |
-| **#33** | 8 of 11 done, ColorPicker/LazyVGrid/ScrollViewReader remain | **10 present of a 16-name list, 6 absent.** Three names that the 2026-09-01 census counted absent — `Grid`, `ControlGroup`, `GroupBox`, all still **0** — left the denominator without being implemented | `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `ColorPicker`. `ScrollViewReader` is the expensive one: `BackendFeatures.ScrollContainers` has only `createScrollContainer` and `updateScrollContainer` and **no programmatic scroll**, so it needs a new requirement on all five | n/a | n/a | n/a | n/a | n/a |
+| **#33** | 8 of 11 done, ColorPicker/LazyVGrid/ScrollViewReader remain | was **10 present of a 16-name list, 6 absent** — three names the 2026-09-01 census counted absent (`Grid`, `ControlGroup`, `GroupBox`) had left the denominator without being implemented. **Now 14 of 16**: those three plus `LazyVGrid` landed 2026-09-08. The recorded "8 of 11" was never true and should not be restated | `ScrollViewReader` and `ColorPicker` — the only two of the sixteen that are not composition. `ScrollViewReader` is the expensive one: `BackendFeatures.ScrollContainers` has only `createScrollContainer` and `updateScrollContainer` and **no programmatic scroll**, so it needs a new requirement on all five | n/a | n/a | n/a | n/a | n/a |
 | **#35** | StateObject and ObservedObject done, only a Settings scene remains | both wrappers are real — `StateObject.swift:49`, `ObservedObject.swift:40`. **"Only a Settings scene" is wrong: three more things are absent.** `EnvironmentObject` 0, `SceneStorage` 0, `struct Settings` 0, `DocumentGroup` 0 | `EnvironmentObject`, `SceneStorage`, the `Settings` scene, `DocumentGroup` | n/a | n/a | n/a | n/a | n/a |
 | **#79** | `correctContentSizeIfNeeded` is a no-op | **the function no longer exists.** `grep -rn "correctContentSizeIfNeeded" Sources/ --include=*.swift` returns **two hits, both inside a doc comment**. It was renamed to `reportContentSizeShortfall` and the assignment deleted in `aca6e259` | the **defect** is live: GTK still delivers 39px less content height than requested. The *description* is stale; the *bug* is not | ❌ | — | — | — | — |
 
@@ -143,16 +143,44 @@ eager: *"SwiftUI source that says `LazyVStack` should compile and should look
 right… An eager stack is the correct picture and the wrong performance;
 refusing to compile is neither."*
 
-`LazyVGrid` declaration count **0**. `GridItem` reference count **0**
+`LazyVGrid` declaration count was **0**, and `GridItem` reference count **0**
 (`grep -rn GridItem Sources/SwiftCrossUI --include=*.swift | wc -l`), so a grid
-needs the item type too, not only the container.
+needed the item type too, not only the container.
 
-Neither half touches a backend: a lazy grid is composition, and real laziness is
-a change to the layout system (ScrollView reporting its visible rect), which is
-shared code.
+**Done 2026-09-08.** `LazyVGrid` now sits beside its siblings in
+`Views/LazyStacks.swift`, with `GridItem` in `Views/GridItem.swift`. It took no
+backend requirement, as predicted.
+
+**It is not lazier than `LazyVStack`, and the doc comment says so first.** If
+anything it is the more eager of the two: it cannot decide how many rows there
+are without counting every cell, so it materialises all of them by construction
+rather than merely by omission. Nobody should read "we shipped LazyVGrid" as
+progress on the laziness half — that half is untouched.
+
+Flowing a `@ViewBuilder` block into columns needed one piece of framework
+machinery that did not exist: `GridCellsProviding` in `Views/GridCells.swift`,
+a value-level flattener modelled on `View/_asMenuItems` (the only other one in
+the project). Without it a three-column grid renders as one column, which is the
+wrong picture rather than a documented divergence. Still no backend involved.
+
+**What remains under #85 is real laziness, and only that** — a change to the
+layout system, with `ScrollView` reporting its visible rect into the layout
+pass. Shared code, no backend.
 
 兩個 stack 都存在（`LazyStacks.swift:38`、`:70`），且該檔案的說明比 todo 更明確地指出它們並非惰性。
-`LazyVGrid` 宣告計數為 0，`GridItem` 引用計數也是 0。兩半都不觸及任何 backend。
+`LazyVGrid` 宣告計數原為 0，`GridItem` 引用計數也是 0；**兩者皆於 2026-09-08 完成**，且如預期般
+未觸及任何 backend。
+
+`LazyVGrid` **並不比 `LazyVStack` 更惰性**，其文件註解一開頭就說明了這點；若真要比較，它還更積極
+求值——不先數過每一個儲存格，它就無法決定共有幾列。切勿把「LazyVGrid 已完成」讀作惰性那一半有了
+進展：那一半完全未動。
+
+把 `@ViewBuilder` 區塊流排成欄，需要一項原本不存在的框架機制：`Views/GridCells.swift` 中的
+`GridCellsProviding`，一個仿照 `View/_asMenuItems`（本專案中唯一另一個同類機制）的值層級攤平器。
+少了它，三欄的網格會畫成一欄——那是**錯的畫面**，而非一項有記載的差異。此機制同樣不涉及任何 backend。
+
+#85 尚存的部分是真正的惰性，且僅此一項——那是對版面系統的改動，需由 `ScrollView` 把可視矩形回報
+進版面計算流程。屬共用程式碼，不涉及 backend。
 
 ---
 
@@ -414,31 +442,42 @@ out of the count is how it stops being one.
 
 ---
 
-### #33 — ten present of sixteen, and the denominator moved twice
+### #33 — fourteen present of sixteen, and the denominator moved twice
 
-Declaration counts, 2026-09-08:
+Declaration counts. The middle column is the 2026-09-01 census, the third is the
+measurement taken earlier on 2026-09-08, and the fourth is where the name stands
+after the four composition views landed later the same day.
 
-| name | on 2026-09-01 census | now |
-|---|---|---|
-| `Form` | absent | ✅ `Views/Form.swift:31` |
-| `Section` | absent | ✅ `Views/Section.swift:22` |
-| `Label` | absent | ✅ `Views/Label.swift:45` |
-| `Stepper` | absent | ✅ `Views/Stepper.swift:21` |
-| `LazyVStack` | absent | ✅ `Views/LazyStacks.swift:38` (eager — see #85) |
-| `LazyHStack` | absent | ✅ `Views/LazyStacks.swift:70` (eager — see #85) |
-| `Gauge` | absent | ✅ `Views/Gauge.swift:19` |
-| `LazyVGrid` | absent | ❌ 0 |
-| `Grid` | absent | ❌ 0 — **left the denominator, never implemented** |
-| `ScrollViewReader` | absent | ❌ 0 |
-| `ControlGroup` | absent | ❌ 0 — **left the denominator, never implemented** |
-| `GroupBox` | absent | ❌ 0 — **left the denominator, never implemented** |
-| `DisclosureGroup` | not censused | ✅ `Views/DisclosureGroup.swift:20` |
-| `LabeledContent` | not censused | ✅ `Views/LabeledContent.swift:19` |
-| `Link` | not censused | ✅ `Views/Link.swift:39` |
-| `ColorPicker` | not censused | ❌ 0 — this is #88 |
+| name | on 2026-09-01 census | 2026-09-08, before | 2026-09-08, after |
+|---|---|---|---|
+| `Form` | absent | ✅ `Views/Form.swift:31` | ✅ unchanged |
+| `Section` | absent | ✅ `Views/Section.swift:22` | ✅ unchanged |
+| `Label` | absent | ✅ `Views/Label.swift:45` | ✅ unchanged |
+| `Stepper` | absent | ✅ `Views/Stepper.swift:21` | ✅ unchanged |
+| `LazyVStack` | absent | ✅ `Views/LazyStacks.swift:38` (eager — see #85) | ✅ unchanged, still eager |
+| `LazyHStack` | absent | ✅ `Views/LazyStacks.swift:70` (eager — see #85) | ✅ unchanged, still eager |
+| `Gauge` | absent | ✅ `Views/Gauge.swift:19` | ✅ unchanged |
+| `LazyVGrid` | absent | ❌ 0 | ✅ `Views/LazyStacks.swift:154` (eager, exactly like its siblings — see #85) |
+| `Grid` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/Grid.swift:38`, with `GridRow` at `:124` |
+| `ScrollViewReader` | absent | ❌ 0 | ❌ 0 — still the one that is not composition |
+| `ControlGroup` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/ControlGroup.swift:40` |
+| `GroupBox` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/GroupBox.swift:34` |
+| `DisclosureGroup` | not censused | ✅ `Views/DisclosureGroup.swift:20` | ✅ unchanged |
+| `LabeledContent` | not censused | ✅ `Views/LabeledContent.swift:19` | ✅ unchanged |
+| `Link` | not censused | ✅ `Views/Link.swift:39` | ✅ unchanged |
+| `ColorPicker` | not censused | ❌ 0 — this is #88 | ❌ 0 — still #88 |
 
-Ten present, six absent. Regenerate with the declaration-count loop in
-**Method** above.
+**Ten present and six absent became fourteen present and two absent on
+2026-09-08.** Regenerate with the declaration-count loop in **Method** above,
+and control it before believing any zero: `public struct VStack\b` returns 1
+file, `public struct ZZZNotARealType\b` returns 0.
+
+**The denominator is still sixteen.** `GridRow` (`Views/Grid.swift:124`),
+`GridItem` (`Views/GridItem.swift:45`) and the internal `GridCellsProviding`
+(`Views/GridCells.swift:36`) shipped with the four but are **not** added to the
+list. Widening the denominator by the names one has just written is a flattering
+version of the same error this section exists to record — the difference being
+that dropping names hides work not done, and adding them inflates work done.
 
 **`ScrollViewReader` is the one that is not composition.**
 `BackendFeatures.ScrollContainers`
@@ -447,12 +486,28 @@ two methods — `createScrollContainer(for:)` at `:25` and
 `updateScrollContainer(...)` at `:44`, whose parameters are bounce and
 scroll-bar flags. **There is no way to ask a scroll container to move.** So
 `ScrollViewReader` needs a new backend requirement and five implementations, not
-a new view. `Grid`, `GroupBox`, `ControlGroup` and `LazyVGrid` are all
-composition and need nothing from any backend.
+a new view. `Grid`, `GroupBox`, `ControlGroup` and `LazyVGrid` were all
+composition and needed nothing from any backend — **confirmed by building them
+on 2026-09-08**, not merely predicted. That prediction is the one thing in this
+section that has now been tested rather than measured, and it held.
 
-十六個名稱中十個存在、六個缺席。三個名稱（`Grid`、`ControlGroup`、`GroupBox`）在未被實作的情況下
-離開了分母。`ScrollViewReader` 是唯一不屬於「組合」的一項：`ScrollContainers` 只有建立與更新兩個
-方法，**沒有任何「請捲動到某處」的途徑**，因此它需要一項新的 backend requirement 與五份實作。
+One qualification, because "pure composition" turned out to be true of the views
+and not quite of the job: `LazyVGrid` needed `GridCellsProviding`
+(`Views/GridCells.swift:36`) to recover a `@ViewBuilder` block's children as
+values before it could flow them into columns. That is new framework machinery
+rather than a rearrangement of existing views. It still touches no backend, so
+the claim above survives — but "composition only" and "no new types at all" are
+not the same statement, and this batch needed the second one relaxed.
+
+十六個名稱中原為十個存在、六個缺席；**2026-09-08 之後為十四個存在、兩個缺席**。三個名稱（`Grid`、
+`ControlGroup`、`GroupBox`）曾在未被實作的情況下離開分母，如今連同 `LazyVGrid` 一併補上。
+`ScrollViewReader` 是唯一不屬於「組合」的一項：`ScrollContainers` 只有建立與更新兩個方法，
+**沒有任何「請捲動到某處」的途徑**，因此它需要一項新的 backend requirement 與五份實作。
+
+一項補充說明，因為「純組合」對那幾個 view 成立、對整件工作卻不盡然：`LazyVGrid` 需要
+`GridCellsProviding`（`Views/GridCells.swift:36`）先把 `@ViewBuilder` 區塊的子項還原為值，才能將
+它們流排成欄。那是新的框架機制，而非既有 view 的重新排列。它依然不觸及任何 backend，因此上述主張
+仍然成立——但「只用組合」與「完全不新增型別」並非同一句話，而本批工作需要放寬後者。
 
 ---
 
@@ -547,7 +602,7 @@ Counting these twice inflates the remaining work by three items.
 | entries | shared work | note |
 |---|---|---|
 | **#33 ↔ #88** | `ColorPicker` | #33 lists it as one of its three remaining views; #88 *is* that view plus its backend protocol. **One job.** Do it under #88, where the backend half is scoped |
-| **#33 ↔ #85** | `LazyVGrid` | #33 lists it as remaining; #85 asks for it by name. **One job**, and it is composition-only. #85's *other* half — making the existing stacks lazy — is unrelated to #33 and is a layout-system change |
+| **#33 ↔ #85** | `LazyVGrid` | ~~#33 lists it as remaining; #85 asks for it by name.~~ **Closed 2026-09-08**, done once as predicted rather than twice. #85's *other* half — making the existing stacks lazy — is unrelated to #33, is untouched, and is still a layout-system change |
 | **#31 ↔ #65** | `ButtonStyle`, `LabelStyle` | #31 defers to #65 for why both are blocked. **#65's `LabelStyle` reason expired on 2026-09-08** when `Label` landed. #65's `ButtonStyle` reason is re-verified and stands. So the two halves of #65 should be split: one is closeable, one is not |
 | **#31 ↔ #34** | arbitrary `Button` labels | `ButtonStyle` is blocked on `Button.label` being a `String`, which is #34's claim 2. Fixing #34 claim 2 properly unblocks #31's `ButtonStyle`. **Not the same job, but strictly ordered** |
 | **#33 ↔ #35** | none, despite both saying "one thing remains" | worth stating: they are independent, and both understate |
@@ -569,7 +624,7 @@ claims 9 and 10 of #34.
 | **1** | **#79: retitle the entry and move it to "Needs a decision"** | Zero lines of Swift. The code change already happened in `aca6e259`; only the record is wrong. Doing this first stops the next person scoping an implementation task against a function that does not exist |
 | **2** | **`HoverGestures` on AndroidBackend** | Not one of the twelve — found while checking #32's premise. `.onHover` currently `fatalError`s on a shipped backend, which the project rule forbids outright. One file, and it is the only *live crash* in this survey |
 | **3** | **#31: `LabelStyle`** | Its only recorded blocker — "there is no `Label` view" — expired on 2026-09-08. Framework-only, no backend requirement, and `PickerStyle` is the worked example to copy. The cheapest genuine feature on the list, and it also lets #65 be half-closed |
-| **4** | **#33 + #85: `GroupBox`, `ControlGroup`, `Grid`, `LazyVGrid`** | Four views, all pure composition, no backend requirement, and they close the #33↔#85 overlap in one pass. `LazyVGrid` needs `GridItem` too (reference count 0), which `Grid` wants anyway — so doing them together is cheaper than either alone |
+| **4** | ~~**#33 + #85: `GroupBox`, `ControlGroup`, `Grid`, `LazyVGrid`**~~ **DONE 2026-09-08** | Four views, all pure composition, no backend requirement, closing the #33↔#85 overlap in one pass. Two corrections to the estimate, both worth keeping: `GridItem` turned out to belong to `LazyVGrid` alone — SwiftUI's `Grid` does not use it, so "which `Grid` wants anyway" was wrong — and flowing a `@ViewBuilder` block into columns needed a new value-level flattener (`GridCellsProviding`) that this row did not anticipate. Doing them together was still cheaper than separately |
 | **5** | **#35: `EnvironmentObject`** | A sibling of `ObservedObject`, which already exists at `State/ObservedObject.swift:40` and can be copied. Framework-only. Closes the largest part of #35's understatement for the least work |
 | **6** | **#36: `.popover` and `.fullScreenCover`** | The first two of #36's remainder that already have a backend capability underneath — `PopoverMenus` and `Sheets` respectively — so neither adds a requirement to five backends. `.navigationTitle` belongs in this batch too: `NavigationStack.swift:83` already says where it would read from |
 | **7** | **#31: `TextFieldStyle` and `ProgressViewStyle`** | Same shape as the four styles already converted, no blocker recorded or found. Placed after the free items but before anything needing five backends. Doing them also puts them back in the count |

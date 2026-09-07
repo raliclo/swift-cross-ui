@@ -916,7 +916,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
 | **style protocols** (re-measured 2026-09-08) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle` | `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
-| **common views** | — | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent |
+| **common views** (re-measured 2026-09-08) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid` | `ScrollViewReader`, `ColorPicker` — **14 of 16 present**. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
 | **state wrappers** | `State`, `Binding`, `Environment`, `AppStorage`, `Published` | `StateObject`, `ObservedObject`, `EnvironmentObject`, `SceneStorage` |
 | **scenes** | `WindowGroup`, `SceneBuilder` | `Settings`, `DocumentGroup` |
 | **presentation** | `sheet`, `alert`, `presentationDetents` | `popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset` |
@@ -938,14 +938,48 @@ Three things this makes visible that the category list did not:
   arbitrary `Button` labels. `TextFieldStyle` and `ProgressViewStyle` are the
   same job again with no blocker at all.
 
-  **The rest of this table is the 2026-09-01 measurement and has not been
-  re-run.** The `common views` row is visibly stale from the style row alone —
-  it lists `Label` as absent, and `LabelStyle` could not have been written if it
-  were. `Sources/SwiftCrossUI/Views/` now also holds `Form.swift`,
-  `Section.swift`, `Stepper.swift`, `Gauge.swift` and `LazyStacks.swift`.
-  Left uncorrected here deliberately: guessing at a row is how the wrong
-  denominator above got in. Re-derive the whole table with the `grep -rl`
-  recipe above the table before quoting any of it.
+  **The `common views` row was re-derived on 2026-09-08; the remaining four
+  rows are still the 2026-09-01 measurement and have not been re-run.**
+
+  The old `common views` reading is kept in the table because the way it failed
+  is worth more than the corrected number. It said "twelve checked, twelve
+  absent" while `Label` was already present — `LabelStyle` could not have been
+  written otherwise — and it listed a *twelve*-name denominator that had quietly
+  shed three names. `Grid`, `ControlGroup` and `GroupBox` were counted absent on
+  2026-09-01, then dropped out of the denominator without ever being
+  implemented, which is how a downstream note came to claim "8 of 11 done". That
+  fraction was never true and should not be restated; the real figure on
+  2026-09-08 was **10 present of 16**.
+
+  Re-derived 2026-09-08 with the `grep -rl` recipe above the table:
+
+  ```
+  for n in Form Section Label Stepper LazyVStack LazyHStack Gauge \
+           DisclosureGroup LabeledContent Link Grid ControlGroup GroupBox \
+           LazyVGrid ScrollViewReader ColorPicker; do
+      printf '%-18s %s\n' "$n" \
+        "$(grep -rl "public struct $n\b" Sources/SwiftCrossUI/ | wc -l)"
+  done
+  ```
+
+  Control the grep before believing a zero: `VStack` returns 1 file and
+  `ZZZNotARealType` returns 0. A pattern that is simply wrong looks exactly like
+  a feature that is missing, and this table has been caught by that once already.
+
+  `Grid`, `ControlGroup`, `GroupBox` and `LazyVGrid` landed **2026-09-08** as
+  pure composition — `Views/Grid.swift`, `Views/ControlGroup.swift`,
+  `Views/GroupBox.swift` and `LazyVGrid` in `Views/LazyStacks.swift`. That moves
+  the row from 10 present of 16 to **14 of 16**. `GridRow`, `GridItem` and the
+  `GridCellsProviding` helper shipped with them but are deliberately **not**
+  added to the sixteen-name list — growing the denominator to flatter the
+  fraction is the exact move that produced the wrong number above.
+
+  The two that remain are the two that are not composition:
+  `ScrollViewReader` needs a new `BackendFeatures` requirement on all five
+  backends (`ScrollContainers` has no programmatic scroll at all), and
+  `ColorPicker` is tracked separately as #88.
+
+  Re-derive the whole table with the `grep -rl` recipe before quoting any of it.
 
 **A behavioural divergence, found 2026-09-01 and not visible in the table
 above.** `overlay` exists on both sides, so the inventory calls it present, and
