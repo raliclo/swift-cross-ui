@@ -47,6 +47,14 @@
 # `unrecorded`, which means nobody wrote it down -- not the same as `default`,
 # which means a run that chose nothing and took the platform default.
 #
+# A CELL IS `pass` ONLY IF AN IMAGE WAS CAPTURED. Also 2026-09-07. The verdict
+# read `launch` and `replay` and never looked at `capture`, so a run that
+# photographed nothing still reported `pass`: 46 of the 47 WSL cells did, over
+# captures that came back 0.0% non-black. `window` and `desktop` mean an image
+# exists; every other value fails the cell and names itself -- `no image` for
+# `fail`, `capture n/a` for `n/a`. See the block above `captured =` for why
+# `n/a` is not read as a pass and where that has to be repaired.
+#
 # TO RECORD A RUN: run the sweep. It appends. Do not edit results.csv2 to make
 # the matrix look better -- add a run.
 #
@@ -69,6 +77,12 @@
 # 在 `-render sw` 下為 92.1%，兩者相隔數分鐘。早於本欄位的資料列讀作 `unrecorded`，意思是沒有人
 # 寫下來過——這與 `default` 不同，後者意為「該次執行未做選擇，採用平台預設」。
 #
+# 只有「拍到影像」的執行才算 `pass`。同樣是 2026-09-07。判決原本只讀 `launch` 與 `replay`，
+# 從未看過 `capture`，於是一次什麼也沒拍到的執行仍被報成 `pass`：47 格 WSL 中有 46 格如此，
+# 而那些擷取的非黑比例是 0.0%。`window` 與 `desktop` 代表影像存在；其餘任何值都會使該格失敗
+# 並自報其名——`fail` 顯示為 `no image`，`n/a` 顯示為 `capture n/a`。至於 `n/a` 為何不讀作通過、
+# 以及那應該在哪裡被修好，見 `captured =` 上方的註解區塊。
+#
 # 要記錄一次執行：去跑掃描，它會自行追加。不要為了讓矩陣好看而編輯 results.csv2——請新增一次執行。
 
 set -uo pipefail
@@ -79,7 +93,7 @@ csv="$here/results.csv2"
 md="$here/coverage.md"
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-    # Line 2 through line 51: the whole English half. Widen it in the same edit
+    # Line 2 through line 59: the whole English half. Widen it in the same edit
     # that grows the header, or the synopsis is truncated the moment anything is
     # added above the cut.
     #
@@ -89,13 +103,13 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     # drift this comment now exists to make visible; the same range in
     # sweep_drive.zsh had drifted the same way.
     #
-    # 第 2 行至第 51 行：整個英文半邊。請在使檔頭變長的同一次編輯中一併加寬，否則只要在切點之上
+    # 第 2 行至第 59 行：整個英文半邊。請在使檔頭變長的同一次編輯中一併加寬，否則只要在切點之上
     # 新增任何內容，說明就會被截斷。
     #
     # 它原本是 `2,40p`，而英文半邊當時已經寫到第 42 行，於是 `TO RECORD A RUN: run the sweep.
     # It appends.`——讀者查看這份 `--help` 最可能是為了它而來的那一句指示——一直被切掉。這正是本註解
     # 現在存在的用意：讓這種漂移看得見；sweep_drive.zsh 中的同一種範圍也以同樣方式漂移過。
-    sed -n '2,51p' "$script_path" | sed 's/^# \{0,1\}//'
+    sed -n '2,59p' "$script_path" | sed 's/^# \{0,1\}//'
     exit 0
 fi
 
@@ -188,6 +202,7 @@ trap 'rm -f "$pivot"' EXIT
             date = field("date"); platform = field("platform")
             backend = field("backend"); app = field("app")
             launch = field("launch"); replay = field("replay")
+            capture = field("capture")
 
             pair = platform "/" backend
             # "n/a" counts as "no replay was expected", alongside "-". An app
@@ -200,7 +215,100 @@ trap 'rm -f "$pivot"' EXIT
             # 完全合格的執行；把結論報成「n/a」會讓它看起來像出了什麼問題。兩種寫法都存在於檔案中，
             # 因為 capture 欄本來就使用「n/a」，於是在 replay 欄照樣寫下它是很自然的事。
             noReplayExpected = (replay == "-" || replay == "n/a" || replay == "")
-            verdict = (launch == "ok") ? (replay == "ok" || noReplayExpected ? "pass" : replay) : launch
+
+            # CAPTURE IS PART OF THE VERDICT. Added 2026-09-07; before that the
+            # expression read launch and replay and stopped, so `capture` was
+            # named in the comment directly above -- an app with no action file
+            # launches AND IS CAPTURED and is a perfectly good run -- and then
+            # never consulted. The condition was real. It was simply never
+            # written down as one.
+            #
+            # Measured that day: a WSL sweep of 47 apps under `-render hw` came
+            # back launch 46 ok and 1 no marker, replay 9 ok and 38 n/a, and
+            # capture FAIL on every one of the 47, because EGL has no DRM node
+            # on that host. The matrix printed 46 of those cells as `pass`, over
+            # runs that photographed nothing. If the capture failed then the run
+            # failed.
+            #
+            # THE ORDER IS launch, replay, capture -- the order of the columns
+            # in results.csv2 -- and the first one that is not ok decides,
+            # exactly as launch already outranked replay.
+            #
+            # ONLY `window` AND `desktop` MEAN AN IMAGE EXISTS, and that is
+            # written as a list of what passes rather than a list of what fails.
+            # A value nobody has considered yet then cannot arrive as a pass:
+            # sweep_drive.zsh can already write `?` for screenshot output it did
+            # not recognise, and that value has never reached this file, so a
+            # blacklist would have been a second unread column waiting to
+            # happen.
+            #
+            # WHAT `n/a` DOES, AND WHY: it does not pass, and the cell reads
+            # `capture n/a`. Two writers disagree about what the value means.
+            # sweep_drive.zsh writes it deliberately for a file whose pass
+            # condition is the app quitting -- there is no window left to
+            # photograph and `launch` already carries the verdict -- and for
+            # those rows it really does mean pass. sweep_drive_wsl.zsh and
+            # sweep_drive_macos.zsh write it when no capture line appeared at
+            # all, and their own note spells it out: whether an image exists is
+            # unknown. One spelling carrying both `deliberately none` and
+            # `nobody established it` is not evidence, and where the matrix has
+            # to choose it must choose the reading that cannot overstate. The
+            # alternative is to let an unknown read as a pass, which is the
+            # defect this block exists to remove, one value further along.
+            #
+            # THE REPAIR BELONGS ON THE WRITING SIDE, not here: give the
+            # deliberate case its own value in results.csv2. Nothing in the row
+            # separates the two today, and deriving a rule from the note text
+            # would be another unwritten assumption of exactly the kind that
+            # produced this defect. The cost until then is exactly two cells,
+            # counted 2026-09-07 by regenerating the table both ways:
+            # windows/gtk4 P10, `pass 3/3` to `capture n/a 1/3`, whose files
+            # include P10-ctrl-q.csv, and windows/winui P38, `pass` to
+            # `capture n/a`, a hand-written 2026-08-28 row that recorded a
+            # WebView diagnosis and no screenshot at all. Recount by reverting
+            # this block and diffing the two coverage.md files.
+            #
+            # 擷取（capture）是判決的一部分，於 2026-09-07 加入。在此之前，這個運算式只讀 launch
+            # 與 replay 就停住了，於是 `capture` 只出現在正上方的註解裡——「沒有動作檔的 app，能啟動、
+            # 能擷取，就是一次完全合格的執行」——卻從未被查閱。那個條件是真實存在的，只是從來沒有
+            # 被寫成一個條件。
+            #
+            # 當天實測：47 支 app 的 WSL 掃描（`-render hw`）結果為 launch 46 個 ok、1 個 no marker，
+            # replay 9 個 ok、38 個 n/a，而 capture 則是 47 個全部 FAIL——因為該主機上的 EGL 沒有 DRM
+            # 節點。矩陣卻把其中 46 格印成 `pass`，而那些執行什麼也沒拍到。擷取失敗，那次執行就是失敗。
+            #
+            # 順序為 launch、replay、capture——即 results.csv2 的欄位順序——由第一個不是 ok 的欄位
+            # 決定判決，正如 launch 原本就凌駕於 replay 之上。
+            #
+            # 只有 `window` 與 `desktop` 代表「影像存在」，而且這是寫成「哪些算通過」的清單，而非
+            # 「哪些算失敗」的清單。如此一來，還沒有人想過的值就無法以通過的身分混進來：
+            # sweep_drive.zsh 對它無法辨識的截圖輸出已經會寫下 `?`，而該值至今從未進入本檔——若改採
+            # 黑名單，那就會是下一個等著發生的「沒有人讀的欄位」。
+            #
+            # `n/a` 怎麼處理，以及為什麼：它不算通過，該格顯示 `capture n/a`。這個值有兩個寫入者，
+            # 而兩者對它的意思並不一致。sweep_drive.zsh 是「刻意」寫下它的：某些檔案的通過條件就是
+            # app 結束，此時已經沒有視窗可拍，而 `launch` 欄已經承載了判決——對那些資料列而言，它
+            # 確實就是通過。sweep_drive_wsl.zsh 與 sweep_drive_macos.zsh 則是在「完全沒有出現擷取行」
+            # 時寫下它，而它們自己的 note 就明說了：是否存在影像並不清楚。同一種寫法同時承載
+            # 「刻意沒有」與「沒有人確認過」，那就不構成證據；而在矩陣必須做選擇之處，它必須選擇
+            # 那個不會誇大的讀法。另一條路是讓一個未知讀成通過，而那正是本區塊要消除的缺陷，
+            # 只是往後挪了一個值而已。
+            #
+            # 真正的修法在「寫入端」而不在此處：為那個刻意的情況在 results.csv2 中給出專屬的值。
+            # 今天的資料列裡沒有任何東西能區分這兩者，而從 note 的文字去推導規則，將會是另一個
+            # 未被寫下的假設——與造就本缺陷的那一個一模一樣。在那之前的代價恰好是兩格，於
+            # 2026-09-07 以「兩種版本各產生一次表格再比對」數出：windows/gtk4 的 P10，由
+            # `pass 3/3` 變為 `capture n/a 1/3`，其動作檔中包含 P10-ctrl-q.csv；以及
+            # windows/winui 的 P38，由 `pass` 變為 `capture n/a`——那是 2026-08-28 手寫的一列，
+            # 記錄的是一次 WebView 診斷，根本沒有任何截圖。要重新計數，把本區塊還原後比對兩份
+            # coverage.md 即可。
+            captured = (capture == "window" || capture == "desktop")
+            captureSays = "capture " capture
+            if (capture == "fail") captureSays = "no image"
+            if (capture == "") captureSays = "capture -"
+            verdict = (launch != "ok") ? launch \
+                    : !(replay == "ok" || noReplayExpected) ? replay \
+                    : captured ? "pass" : captureSays
 
             if (!(pair in known)) { dropped[pair]++; next }
 
@@ -427,10 +535,27 @@ trap 'rm -f "$pivot"' EXIT
     printf 'Which test apps have been run on which platform, and when.\n\n'
     printf '`-` means no run has ever been recorded for that pair. It does **not**\n'
     printf 'mean passing.\n\n'
+    # THE INVERSE WARNING, added 2026-09-07. The line above guards against
+    # reading an empty cell as a pass, and the file carried it from the start.
+    # The failure that actually happened was the other one: 46 WSL cells read
+    # `pass` over runs that captured nothing, and a reader had no reason to
+    # doubt them. A table that warns in only one direction is trusted in the
+    # other.
+    # 反向的警告，於 2026-09-07 加入。上面那一句防的是「把空格讀成通過」，而本檔一開始就有它。
+    # 真正發生的失誤卻是另一個方向：46 格 WSL 在什麼也沒拍到的情況下讀作 `pass`，而讀者沒有任何
+    # 理由去懷疑。一張只在單一方向提出警告的表格，會在另一個方向被無條件相信。
+    printf 'And the inverse, which is the warning this file was missing: a recorded run\n'
+    printf 'is **not** a passing run. Only `pass` is a pass. `no image` means the run\n'
+    printf 'captured nothing, `capture n/a` means nobody established whether an image\n'
+    printf 'exists, and `pass 1/2` means one of the two runs behind that cell did not\n'
+    printf 'pass.\n\n'
     printf 'Generated from `results.csv2` — do not edit this file:\n\n'
     printf '```sh\nzsh matrix_coverage/coverage.zsh\n```\n\n'
     printf '哪些測試 app 曾在哪個平台上跑過，以及是什麼時候。\n\n'
     printf '`-` 代表該組合從未有任何一次執行被記錄下來，**不**代表通過。\n\n'
+    printf '而反過來的那一句，正是本檔原本缺少的警告：有紀錄**不**等於通過。只有 `pass` 才是通過；\n'
+    printf '`no image` 代表該次執行什麼也沒拍到，`capture n/a` 代表沒有人確認過影像是否存在，\n'
+    printf '而 `pass 1/2` 代表該格背後的兩次執行中有一次沒有通過。\n\n'
     printf '由 `results.csv2` 產生——請勿編輯本檔。\n\n'
     printf '**Runs recorded / 已記錄的執行筆數: %s**\n\n' "$rows"
 

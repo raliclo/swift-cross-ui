@@ -509,3 +509,50 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-07,wsl,gtk4,P14,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
 2026-09-07,wsl,gtk4,P15,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
 2026-09-07,wsl,gtk4,P11,ok,n/a,fail,unrecorded,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P0,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P1,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P2,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P3,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P4,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P5,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6-v2,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P6,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P7,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P8,ok,ok,fail,hw,replayed P8-scroll-outer.csv only; 3 action files exist for P8; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P9,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P10,ok,ok,fail,hw,replayed P10-allows-hit-testing.csv only; 3 action files exist for P10; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P11,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P12,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P13,ok,ok,fail,hw,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P14,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P15-DARK,no marker,n/a,fail,hw,declares a marker that never appeared; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P15,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P16,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P17,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P18,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P19,ok,ok,fail,hw,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P20,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P21,ok,ok,fail,hw,replayed P21-disabled-field.csv only; 2 action files exist for P21; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P22,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P23,ok,ok,fail,hw,replayed P23-more-rows.csv only; 4 action files exist for P23; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P24,ok,ok,fail,hw,replayed P24-back-through.csv only; 4 action files exist for P24; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P25,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P26,ok,ok,fail,hw,screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P27,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P28,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P29,ok,ok,fail,hw,no marker configured; capture is timed; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P30,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P31,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P32,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P33,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P34,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P35,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P36,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P37,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P38,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P39,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P40,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P41,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P42,ok,n/a,fail,hw,no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P43,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image
+2026-09-07,wsl,gtk4,P44,ok,n/a,fail,hw,no marker configured; capture is timed; no action file in testapp/actions/wsl; nothing verified the content; screenshot.zsh produced no image

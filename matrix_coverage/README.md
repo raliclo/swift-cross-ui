@@ -118,6 +118,22 @@ this is the summary.
 | `GEOMETRY` | replay | the window was not the size the action file's coordinates were measured at, so they address a different layout |
 | `CHECKER` | replay | the script's own hit test is broken; this says nothing about the run |
 | `n/a` | either | no verdict was expected -- e.g. `P10-ctrl-q`, which passes by the process quitting |
+| `no image` | a `coverage.md` cell | `capture` was `fail`: the run photographed nothing, or the image came back all black |
+| `capture n/a` | a `coverage.md` cell | `capture` was `n/a`: nobody established whether an image exists |
+
+The last two are cell values only; `results.csv2` spells them `fail` and `n/a`
+in the `capture` column. They exist because until 2026-09-07 `coverage.zsh`
+never read that column at all, so a run that launched, replayed and captured
+nothing still printed `pass` — 46 of the 47 WSL cells did. **A recorded run is
+not a passing run**, and only `pass` is a pass.
+
+`capture n/a` currently reads as a failure on two cells that are arguably fine,
+windows/gtk4 `P10` and windows/winui `P38`, because one value carries two
+meanings: `sweep_drive.zsh` writes `n/a` deliberately when the pass condition is
+the app quitting, while the WSL and macOS drivers write it when no capture line
+appeared and their own note says whether an image exists is unknown. The repair
+is a distinct value on the writing side, not a rule in `coverage.zsh` that would
+have to guess from the note text.
 
 `STALE`, `ASTRAY` and `CHECKER` all describe the HARNESS or the environment
 rather than the app. Only `GEOMETRY` and a bare failure are about the thing
@@ -164,6 +180,13 @@ app 涵蓋」。手動編輯前者是白費工夫，因為下一次執行 `cover
 在 `coverage.md` 中，一個平台是 `results.csv2` 裡的 `platform/backend` 配對，而**若某筆執行的配對
 不符合任何欄位，會在 stderr 上回報而非直接捨棄**——這項檢查在加入的當天就抓到兩筆以臨時 backend
 標籤記錄的資料，它們原本悄悄地不在表中，讀起來就成了「從未測試過」。
+
+自 2026-09-07 起，`coverage.md` 的一格必須「拍到影像」才算 `pass`。在那之前 `coverage.zsh` 從未讀過
+`capture` 欄，於是一次能啟動、能重放、卻什麼也沒拍到的執行仍被印成 `pass`——47 格 WSL 中有 46 格如此。
+現在 `capture` 為 `fail` 的格子顯示 `no image`，為 `n/a` 的顯示 `capture n/a`。**有紀錄不等於通過**，
+只有 `pass` 才是通過。`n/a` 之所以不讀作通過，是因為同一個值承載了兩種意思：`sweep_drive.zsh` 在
+「通過條件就是 app 結束」時刻意寫下它，而 WSL 與 macOS 驅動器則在「完全沒有出現擷取行」時寫下它，
+並在自己的 note 中註明「是否存在影像並不清楚」。真正的修法是在寫入端給前者一個專屬的值。
 
 `coverage-matrix.csv2` 於 2026-08-27 自 `testapp/` 移入此處，同時新增了三個行動裝置與 macOS 欄位。
 程式碼中沒有任何地方引用它的路徑——這是在搬移**之前**以 `git grep` 查證的，而非事後才確認。
