@@ -165,11 +165,55 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 參考邊為主螢幕頂端，而它會相互抵消：幾何資訊在此依它量測，並在 ``windowPoint`` 中依它還原，
     /// 因此即使參考取錯，仍會落在正確的控制項上。儘管如此仍取正確的值，因為呼叫端可能自行提供幾何。
-    /// A view's rect in the space an action file's coordinates are written in.
+    /// A view's rect in **absolute** screen coordinates: top-left origin,
+    /// points, measured from the primary screen's top.
     ///
-    /// Top-left origin, points, measured from the primary screen's top -- the
-    /// same space ``currentWindowGeometry`` reports, and therefore the same one
-    /// `origin=frame` and `origin=client` are relative to. Public because a
+    /// **This is not a number you can write into an action file.** A file's `x`
+    /// and `y` are relative to `origin=frame` or `origin=client`, so a caller
+    /// subtracts the matching origin from ``currentWindowGeometry``:
+    ///
+    ///     let rect = AppKitSynthesiser.actionFileRect(of: view)
+    ///     let geometry = try AppKitSynthesiser().currentWindowGeometry()
+    ///     let x = rect.x - geometry.clientOrigin.x      // for origin=client
+    ///     let y = rect.y - geometry.clientOrigin.y
+    ///
+    /// The first version of this sentence said "the space an action file's
+    /// coordinates are written in", which a reader took to mean the numbers were
+    /// ready to use -- a fair reading, and the two things are one subtraction
+    /// apart. This whole exchange began with two quantities that were both
+    /// called coordinates and differed by an origin, so the doc now says which
+    /// one this is and shows the subtraction rather than describing it.
+    ///
+    /// **Take both values from the same pair of calls.** Both this and
+    /// ``currentWindowGeometry`` flip against `NSScreen.screens.first`, so that
+    /// reference cancels in the subtraction; it does not cancel against a window
+    /// position obtained some other way, and mixing the two sources is a
+    /// difference no arithmetic reveals.
+    ///
+    /// Verified on P47, 2026-09-07: the button reports `593,582 104x27` with
+    /// `clientOrigin 580,141`, so `origin=client` at `(65,451)` -- the rect
+    /// minus that origin, plus half the size -- hits it, and the app's
+    /// `selection` reads 2.
+    ///
+    /// 一個 view 的矩形,以**絕對**螢幕座標表示:左上為原點、單位為點、自主螢幕頂端量起。
+    ///
+    /// **這不是一個可以直接寫進動作檔的數字。** 檔案裡的 `x` 與 `y` 是相對於 `origin=frame` 或
+    /// `origin=client` 的,因此呼叫端要減去 ``currentWindowGeometry`` 中對應的那個原點(見上方
+    /// 範例)。
+    ///
+    /// 本句的第一版寫的是「動作檔座標所在的那個空間」,而一位讀者把它理解成「這些數字可以直接使用」
+    /// ——那是合理的讀法,而兩者之間只差一次相減。這整段往返的起點,正是兩個都被稱為座標、卻差一個
+    /// 原點的量;因此文件現在會說明「這是哪一個」,並把那次相減寫出來,而不是用描述的。
+    ///
+    /// **兩個值要取自同一對呼叫。** 本函式與 ``currentWindowGeometry`` 都以
+    /// `NSScreen.screens.first` 為翻轉基準,因此該基準會在相減中互相抵消;但它不會與「以其他方式
+    /// 取得的視窗位置」互相抵消,而混用兩個來源所造成的差異,是任何算術都看不出來的。
+    ///
+    /// 2026-09-07 於 P47 上驗證:該按鈕回報 `593,582 104x27`、`clientOrigin 580,141`,因此
+    /// `origin=client` 的 `(65,451)`——即該矩形減去那個原點、再加上尺寸的一半——命中它,而 app 的
+    /// `selection` 讀到 2。
+    ///
+    /// Public because a
     /// diagnostic dump that computes this itself will drift from the space the
     /// replay actually uses, and then the two disagree without either being
     /// obviously wrong.

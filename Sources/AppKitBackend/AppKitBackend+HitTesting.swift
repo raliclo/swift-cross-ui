@@ -240,9 +240,27 @@ final class AppKitHitTestingContainer: NSView {
                 // ——數字是對的,標籤是錯的,而點在空處不會引發任何錯誤。
                 var aim = ""
                 #if SCUI_DEBUG
+                    // The two window origins go out beside the rect, because the
+                    // rect alone cannot be written into an action file: a file's
+                    // x and y are relative to `origin=frame` or `origin=client`,
+                    // and this is absolute. A caller has to subtract one of
+                    // them, and the subtraction is where a reader and this
+                    // function can silently disagree -- so both are printed and
+                    // neither has to be assumed.
+                    //
+                    // 兩個視窗原點與該矩形一併輸出,因為單憑那個矩形無法寫進動作檔:檔案裡的 x 與 y
+                    // 是相對於 `origin=frame` 或 `origin=client` 的,而此處是絕對座標。呼叫端必須
+                    // 減去其中之一,而那次相減正是「讀者」與「本函式」可能靜默地各說各話的地方——
+                    // 因此兩者都印出來,誰也不必用猜的。
                     let rect = AppKitSynthesiser.actionFileRect(of: candidate)
                     aim = " click \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
                         + " size \(Int(rect.width.rounded()))x\(Int(rect.height.rounded()))"
+                    if let geometry = try? AppKitSynthesiser().currentWindowGeometry() {
+                        aim += " frame-origin \(Int(geometry.frameOrigin.x.rounded()))"
+                            + ",\(Int(geometry.frameOrigin.y.rounded()))"
+                            + " client-origin \(Int(geometry.clientOrigin.x.rounded()))"
+                            + ",\(Int(geometry.clientOrigin.y.rounded()))"
+                    }
                 #endif
                 Self.report(
                     "hit \(type(of: candidate)) at \(Self.describe(localPoint)) "
