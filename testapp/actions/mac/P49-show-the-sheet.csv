@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on macOS: the sheet, as the comparison the cover is judged against.
+#
+# origin=frame. Window 780x620 points, capture 1560x1296, so pixels halved. The
+# "Show the sheet" bezel spans (48,794)-(276,831) in capture pixels, so its
+# centre is (81, 406) in points.
+#
+# This file exists only so that "the cover fills the window" is a comparison
+# rather than an assertion. The same content is presented both ways; if the two
+# captures look alike, fullScreenCover is a sheet.
+#
+# P49 於 macOS:sheet,作為評判 cover 的對照組。
+#
+# 使用 origin=frame。視窗 780x620 點、擷取 1560x1296,故像素除以二。「Show the sheet」的按鈕邊框在
+# 擷取像素中佔據 (48,794)-(276,831),因此其中心為 (81, 406) 點。
+#
+# 本檔存在的唯一理由,是讓「cover 填滿視窗」成為一項**比較**而非一項斷言。同樣的內容以兩種方式呈現;
+# 若兩張擷取看起來相像,那麼 fullScreenCover 就是一個 sheet。
+sleep,,,,,,1500000,let P49 render,macos
+click,81,406,frame,left,,,"the ""Show the sheet"" button -- the sheet must NOT fill the window",macos
+sleep,,,,,,1500000,let the presentation animate in,macos

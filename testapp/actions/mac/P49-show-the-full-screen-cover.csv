@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on macOS: fullScreenCover presents, and it is not a sheet.
+#
+# origin=frame, per actions/mac/README: the window capture's top-left is the
+# frame's top-left, title bar included. The window is 780x620 points and the
+# capture was 1560x1296, so every measured pixel was halved.
+#
+# Measured 2026-09-08 from the initial capture: the "Show the cover" bezel spans
+# (48,674)-(276,711) in capture pixels, so its centre is (81, 346) in points.
+#
+# **The counters are the check, not the picture alone.** A cover that never
+# appears and a button that never fired look identical on screen. After this
+# file, "cover opens" must read 1 and "coverShown" must read true -- and the
+# cover itself must be over the top of both lines, so if you can still read
+# them, the presentation did not happen.
+#
+# P49 於 macOS:fullScreenCover 確實呈現,而且它不是一個 sheet。
+#
+# 使用 origin=frame,依 actions/mac/README:視窗擷取的左上角即 frame 的左上角,含標題列。視窗為
+# 780x620 點,擷取為 1560x1296,因此每一個量到的像素都要除以二。
+#
+# 2026-09-08 量測自初始擷取:「Show the cover」的按鈕邊框在擷取像素中佔據 (48,674)-(276,711),
+# 因此其中心為 (81, 346) 點。
+#
+# **檢查的是那些計數器,不是單憑畫面。** 一個從未出現的 cover 與一顆從未觸發的按鈕在畫面上完全相同。
+# 執行本檔之後,「cover opens」必須讀作 1、「coverShown」必須讀作 true——而 cover 本身必須蓋在那兩行
+# 之上,因此若你仍讀得到它們,就表示呈現並未發生。
+sleep,,,,,,1500000,let P49 render,macos
+click,81,346,frame,left,,,"the ""Show the cover"" button -- the cover must fill the window and cover opens must read 1",macos
+sleep,,,,,,1500000,let the presentation animate in,macos
