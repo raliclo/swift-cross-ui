@@ -148,19 +148,48 @@ if a.size != b.size:
     print("-1 -1 size-differs"); raise SystemExit
 d = ImageChops.difference(a, b)
 # The status bar carries a clock, and the two runs are a minute apart.
-# 狀態列帶有時鐘,而兩次執行相隔約一分鐘。
-d.paste((0, 0, 0), (0, 0, a.size[0], 100))
+#
+# 108, measured, not chosen. The clock's glyphs occupy rows 69..107 on this
+# device, so a 100-row mask left seven rows of digit showing -- and those seven
+# rows were the entire "difference" for ten of the forty-eight apps. It is not
+# one row more than 108 either: P1, P18 and P37 have real, full-width changes
+# whose topmost row is exactly 108.
+#
+# 108,是量出來的,不是挑出來的。在本裝置上時鐘字符佔據第 69..107 列,因此 100 列的遮罩留下了
+# 七列數字未遮——而那七列正是四十八支 app 中十支的「全部差異」。它也不能比 108 再多一列:
+# P1、P18 與 P37 有真實的、跨滿寬度的變化,其最上緣恰好就在第 108 列。
+d.paste((0, 0, 0), (0, 0, a.size[0], 108))
 px = sum(1 for p in d.get_flattened_data() if p != (0, 0, 0))
 print(px, max(x[1] for x in d.getextrema()), d.getbbox() or "none")
 PY
 )"
 
-    # 100, from the Android distribution: scenarios that change nothing report
-    # exactly 0, and the smallest real change measured there was 517 pixels,
-    # because a digit is small. 2000 was tried and called two passes failures.
-    # 門檻 100,取自 Android 的分佈:不改變任何東西的情境回報恰好 0,而在該處量到的最小真實改變是
-    # 517 像素——因為一個數字就是這麼小。曾用過 2000,結果把兩次通過判成了失敗。
-    if [ "${px:-0}" -gt 100 ]; then
+    # Zero, because with the mask correct there is nothing to threshold.
+    #
+    # This was 100, and before that 2000, and both numbers were compensating for
+    # the mask above being thirty rows too short: the leaked clock digits scored
+    # 56 to 327 pixels, so any threshold had to sit above them and therefore
+    # inside the real data. It could not be chosen well because the distribution
+    # was continuous -- 56, 87, 138, 189, 206, 218, 241, 241, 244, 296, 327,
+    # 1028, 1241, 1634 -- with no gap to put it in.
+    #
+    # With the status bar actually masked, ten apps report exactly 0 and the
+    # smallest real change is 29 pixels, in a bbox at y=1951 that has nothing to
+    # do with the clock. The gap is between 0 and 29, so the test is `> 0`, and
+    # a scenario that changes nothing is a finding rather than a number below a
+    # line someone picked.
+    #
+    # 門檻為零,因為遮罩正確之後就沒有什麼需要設門檻了。
+    #
+    # 它曾經是 100、更早是 2000,而這兩個數字都是在替上方那個「短了三十列」的遮罩擦屁股:漏出來的
+    # 時鐘數字得分介於 56 到 327 像素之間,因此任何門檻都必須高過它們——也就必然落在真實資料之內。
+    # 它無法被好好選定,因為該分佈是連續的——56、87、138、189、206、218、241、241、244、296、327、
+    # 1028、1241、1634——沒有任何可供安放的間隙。
+    #
+    # 狀態列真正被遮住之後,有十支 app 回報恰好 0,而最小的真實變化是 29 像素,其 bbox 位於
+    # y=1951,與時鐘毫無關係。間隙落在 0 與 29 之間,因此測試是 `> 0`;而「什麼都沒改變的情境」
+    # 是一項發現,不是一個落在某人挑出的線以下的數字。
+    if [ "${px:-0}" -gt 0 ]; then
         verdict="the action file changed the screen"; changed=$((changed + 1))
     elif [ "${px:-0}" -lt 0 ]; then
         verdict="could not compare"; failed=$((failed + 1))
