@@ -7,10 +7,20 @@ action,x,y,origin,button,key,micros,note,platform
 # it is more reliable than synthesising a drag, because a drag that lands a few
 # pixels short still looks like a drag that worked.
 #
-# THE SEQUENCE IS RESET FIRST, ON PURPOSE. Starting from a known `min 0, max 0`
-# is what makes the final capture evidence: a non-zero counter can only have
-# come from the two presses in between. Resetting LAST would leave the capture
-# showing zeros, which is indistinguishable from three clicks that all missed.
+# WHAT THE FINAL CAPTURE MUST SHOW: `minimum 20 / maximum 80`. The app starts
+# at `minimum 0 / maximum 100`, so those two numbers moving is what proves the
+# presses landed. Measured 2026-09-08 -- that is exactly what the run produced.
+#
+# THE WRITE COUNTERS STAY AT ZERO, and an earlier version of this file claimed
+# they must not. That claim was written before the file had ever run and was
+# simply wrong: `writes: min 0, max 0` in the same capture that shows 20 and 80.
+# So the buttons move the bounds without going through whatever path the
+# counters count -- most likely they count CLAMP writes, which only happen when
+# the two sliders actually collide, and "Separate them" ends with them apart.
+#
+# Whether zero is correct there or is #82 itself is NOT settled, and this file
+# does not assert either way. Do not read `writes: 0, 0` as a pass or a failure
+# until someone reads P11.swift and says what those counters count.
 #
 # P11 於 Windows、GtkBackend：兩個互相箝制的滑桿會彼此擋住嗎？每一次箝制會不會計入一次寫入？
 # 這就是 #82。
@@ -18,9 +28,16 @@ action,x,y,origin,button,key,micros,note,platform
 # 該 app 顯示 `minimum 0 / maximum 100   writes: min 0, max 0`。這兩顆按鈕以程式方式移動滑桿——
 # 它們的存在正是為此，而且比合成拖曳更可靠：一次「差幾個像素」的拖曳，看起來仍然像一次成功的拖曳。
 #
-# **序列刻意以 Reset 開頭。** 從已知的 `min 0, max 0` 出發，才使最後那張擷圖成為證據：非零的計數
-# 只可能來自中間那兩次按壓。把 Reset 放在**最後**會讓擷圖顯示為零，而那與「三次點擊全部落空」無法
-# 區分。
+# **最後那張擷圖必須顯示 `minimum 20 / maximum 80`。** 該 app 起始於 `minimum 0 / maximum 100`，
+# 因此這兩個數字改變，就是「按壓確實落下」的證明。2026-09-08 實測：執行結果正是如此。
+#
+# **寫入計數維持為零，而本檔案先前的版本聲稱它們不該為零。** 那個聲稱是在本檔案從未執行過之前寫下
+# 的，而它就是錯的：同一張顯示 20 與 80 的擷圖裡，`writes: min 0, max 0`。所以這兩顆按鈕移動了邊界，
+# 卻沒有經過那些計數所計算的路徑——最可能的解釋是它們計算的是**箝制**寫入，而箝制只在兩個滑桿真正
+# 相撞時才發生，而「Separate them」結束時它們是分開的。
+#
+# 零在那裡究竟是正確行為、還是 #82 本身，**尚未確定**，而本檔案不對任何一邊做出斷言。在有人讀過
+# P11.swift 並說明那些計數究竟在計什麼之前，不要把 `writes: 0, 0` 讀成通過，也不要讀成失敗。
 #
 # NO `# expect:` MARKER, and the reason is the point of the mechanism.
 # p11-debug-events.log contains only `RENDER COMPLETE -- P11 ready for #82,
@@ -65,5 +82,5 @@ click,103,337,frame,left,,,"Reset counters" -- establish the min 0 max 0 baselin
 sleep,,,,,,800000,,windows
 click,354,337,frame,left,,,"Collide them" -- the sliders must stop against each other (#82),windows
 sleep,,,,,,900000,,windows
-click,231,337,frame,left,,,"Separate them" -- and move apart again; writes must now be non-zero,windows
+click,231,337,frame,left,,,"Separate them" -- the bounds must end at 20 and 80,windows
 sleep,,,,,,1500000,hold for the capture,windows
