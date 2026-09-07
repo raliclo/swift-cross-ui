@@ -1,5 +1,5 @@
 action,x,y,origin,button,key,micros,note,platform
-# P45: does a Toggle on Binding(get:set:) reset its siblings?
+# P47: does a Toggle on Binding(get:set:) reset its siblings?
 #
 # The reported symptom is that pressing such a toggle sends another control's
 # selection back to its first item and makes a field disappear -- a subtree
@@ -16,7 +16,7 @@ action,x,y,origin,button,key,micros,note,platform
 # ignored. Once by reading the rendered capture, and once by scanning it for
 # runs of button fill; the two agree on all seven controls.
 #
-# P45:綁在 Binding(get:set:) 上的 Toggle 會不會重置它的兄弟?
+# P47:綁在 Binding(get:set:) 上的 Toggle 會不會重置它的兄弟?
 #
 # 被回報的症狀是:按下這樣的 toggle 會讓另一個控制項的選取回到第一項、並讓一個欄位消失——從外部看
 # 就是一次子樹重建。本檔先種下兩份兄弟狀態,然後只按一個控制項,如此之後畫面上的任何結果都只能歸因
@@ -27,7 +27,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 這些座標是以兩種不同方式各找了一次,因為「點在按鈕旁邊」與「框架忽略了這次點擊」會產生完全相同的
 # 畫面。一次是讀算繪後的擷取,一次是掃描其中成片的按鈕填色;兩者在全部七個控制項上一致。
-sleep,,,,,,1500000,let P45 render,macos
+sleep,,,,,,1500000,let P47 render,macos
 click,64,482,frame,left,,,seed the sibling selection -- the line must read "selection: 2",macos
 sleep,,,,,,400000,,macos
 click,179,482,frame,left,,,seed the sibling field -- the line must read typed: "seeded",macos

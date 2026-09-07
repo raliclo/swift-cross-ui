@@ -2,7 +2,24 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
-// P45 toggles driven through a computed binding.
+// P47 toggles driven through a computed binding.
+//
+// Numbered 47, not 45, and the second attempt is the one that asked the right
+// question. This app was written as P45 because `ls testapp/P45.swift` returned
+// nothing. P46's own header reserves that number and says why: there is a
+// hand-made `P45-MIN.exe` with no `.swift` source, named in
+// `matrix_coverage/executable-size.md` as an artefact nobody can rebuild. That
+// header also says, in as many words, that checking a number with `ls` alone is
+// what lands on P45, and that a free filename and a free name are different
+// questions. Both were asked for 47: no source, no artefact in output/, and no
+// mention in any .md or .csv2 in the tree.
+//
+// 編號為 47 而非 45,而問對問題的是第二次嘗試。本 app 原本寫成 P45,因為 `ls testapp/P45.swift`
+// 沒有回傳任何東西。P46 自己的檔頭保留了那個編號並說明了理由:存在一個沒有 `.swift` 原始碼的手工
+// 執行檔 `P45-MIN.exe`,而 `matrix_coverage/executable-size.md` 把它列為「沒有人能重建的產物」。
+// 那份檔頭還一字不差地寫著:只用 `ls` 檢查一個編號,正是會落到 P45 上的做法;而「檔名是空的」與
+// 「名稱是空的」是兩個不同的問題。對 47 而言,兩個問題都問過了:沒有原始碼、output/ 中沒有產物、
+// 樹中任何 .md 或 .csv2 都沒有提及。
 //
 // Reported from a SoftPCB build on macOS: a `Toggle` whose `isOn` is a
 // `Binding(get:set:)` over a model resets the whole tab when pressed -- another
@@ -28,7 +45,7 @@ import SwiftCrossUI
 // sets a value the getter then contradicts looks identical to a toggle that was
 // never pressed; `writes` counts the setter calls, so the two are told apart.
 //
-// P45 以計算型 binding 驅動的 toggle。
+// P47 以計算型 binding 驅動的 toggle。
 //
 // 來自 SoftPCB 在 macOS 上的回報:一個 `isOn` 為 `Binding(get:set:)`(讀寫某個 model)的 `Toggle`,
 // 按下去會重置整個分頁——另一個控制項的選取回到第一項、一個欄位消失——而畫面上那看起來像是
@@ -46,19 +63,19 @@ import SwiftCrossUI
 // 那些計數器正是讓「按了沒反應」這個情況變得可讀的東西。一個「設了值、而 getter 隨即否定它」的
 // toggle,看起來與一個從未被按過的 toggle 完全相同;`writes` 計算 setter 的呼叫次數,兩者因而分得開。
 
-enum P45Diagnostics {
+enum P47Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func write(_ message: String) {
         guard isEnabled else { return }
-        print("[P45] \(message)")
+        print("[P47] \(message)")
     }
 
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P45 ready for computed-binding checks")
+        write("RENDER COMPLETE -- P47 ready for computed-binding checks")
     }
 }
 
@@ -79,7 +96,7 @@ enum P45Diagnostics {
 // 兩者都加上 `SwiftCrossUI.`,因為在 Apple 平台上 Foundation 會匯出 Combine 的 `ObservableObject`
 // 與 `Published`,於是這兩個名稱變得有歧義——建置會明確地這麼說四次,而且那是編譯錯誤,不是一個
 // 默默做出的選擇。
-final class P45Model: SwiftCrossUI.ObservableObject {
+final class P47Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var honest = false
     @SwiftCrossUI.Published var writes = 0
 
@@ -115,19 +132,19 @@ final class P45Model: SwiftCrossUI.ObservableObject {
 
 @main
 @HotReloadable
-struct P45ComputedBindingApp: App {
+struct P47ComputedBindingApp: App {
     var body: some Scene {
-        WindowGroup("P45 computed bindings") {
+        WindowGroup("P47 computed bindings") {
             #hotReloadable {
-                P45RootView()
+                P47RootView()
             }
         }
         .defaultSize(width: 760, height: 620)
     }
 }
 
-struct P45RootView: View {
-    @ObservedObject var model = P45Model()
+struct P47RootView: View {
+    @ObservedObject var model = P47Model()
 
     // The sibling state a subtree rebuild would clear. Both start at a value
     // that is not their default, so "was reset" and "was never touched" are
@@ -141,7 +158,7 @@ struct P45RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("P45: toggles driven through a computed binding")
+            Text("P47: toggles driven through a computed binding")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
 
@@ -163,7 +180,7 @@ struct P45RootView: View {
                     set: { newValue in
                         model.honest = newValue
                         model.writes += 1
-                        P45Diagnostics.write("honest set to \(newValue)")
+                        P47Diagnostics.write("honest set to \(newValue)")
                     }
                 )
             )
@@ -175,7 +192,7 @@ struct P45RootView: View {
                     get: { model.stubborn },
                     set: { newValue in
                         model.stubborn = newValue
-                        P45Diagnostics.write(
+                        P47Diagnostics.write(
                             "stubborn set to \(newValue), getter still says \(model.stubborn)"
                         )
                     }
@@ -186,21 +203,21 @@ struct P45RootView: View {
             Button("flip honest \(model.honest ? "✓" : "✗")") {
                 presses += 1
                 model.flip()
-                P45Diagnostics.write("flip -> honest \(model.honest)")
+                P47Diagnostics.write("flip -> honest \(model.honest)")
             }
 
             Text("Set the sibling state, then press each control above.")
             HStack(spacing: 8) {
                 Button("selection = 2") {
                     selection = 2
-                    P45Diagnostics.write("selection=\(selection)")
+                    P47Diagnostics.write("selection=\(selection)")
                 }
                 Button("typed = seeded") {
                     typed = "seeded"
-                    P45Diagnostics.write("typed=\(typed)")
+                    P47Diagnostics.write("typed=\(typed)")
                 }
                 Button("report") {
-                    P45Diagnostics.write(
+                    P47Diagnostics.write(
                         "REPORT selection=\(selection) typed=\(typed.isEmpty ? "(empty)" : typed) "
                             + "honest=\(model.honest) stubbornStorage=\(model.stubbornStorage) "
                             + "writes=\(model.writes) presses=\(presses)"
@@ -222,7 +239,7 @@ struct P45RootView: View {
         }
         .padding(16)
         .onAppear {
-            P45Diagnostics.renderComplete()
+            P47Diagnostics.renderComplete()
         }
     }
 }
