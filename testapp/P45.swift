@@ -2,24 +2,35 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
-// P47 toggles driven through a computed binding.
+// P45 toggles driven through a computed binding.
 //
-// Numbered 47, not 45, and the second attempt is the one that asked the right
-// question. This app was written as P45 because `ls testapp/P45.swift` returned
-// nothing. P46's own header reserves that number and says why: there is a
-// hand-made `P45-MIN.exe` with no `.swift` source, named in
-// `matrix_coverage/executable-size.md` as an artefact nobody can rebuild. That
-// header also says, in as many words, that checking a number with `ls` alone is
-// what lands on P45, and that a free filename and a free name are different
-// questions. Both were asked for 47: no source, no artefact in output/, and no
-// mention in any .md or .csv2 in the tree.
+// Numbered 45, after a round trip through 47, and the number was a decision
+// rather than a deduction.
 //
-// 編號為 47 而非 45,而問對問題的是第二次嘗試。本 app 原本寫成 P45,因為 `ls testapp/P45.swift`
-// 沒有回傳任何東西。P46 自己的檔頭保留了那個編號並說明了理由:存在一個沒有 `.swift` 原始碼的手工
-// 執行檔 `P45-MIN.exe`,而 `matrix_coverage/executable-size.md` 把它列為「沒有人能重建的產物」。
-// 那份檔頭還一字不差地寫著:只用 `ls` 檢查一個編號,正是會落到 P45 上的做法;而「檔名是空的」與
-// 「名稱是空的」是兩個不同的問題。對 47 而言,兩個問題都問過了:沒有原始碼、output/ 中沒有產物、
-// 樹中任何 .md 或 .csv2 都沒有提及。
+// P46's header reserves 45 on the grounds that `testapp/output/P45-MIN.exe`
+// exists with no `.swift` source and `matrix_coverage/executable-size.md` names
+// it as an artefact nobody can rebuild. That reasoning was followed and this app
+// was renamed to 47 -- and then the reservation was overruled, because the two
+// names are different: `P45-MIN` is not `P45`, that sentence stays true with
+// this file here, and a gap in the numbering costs more than a name that shares
+// a prefix.
+//
+// What the round trip is worth keeping is the question P46's header asks, which
+// still applies to any new number: a free filename and a free NAME are separate,
+// and `ls` answers only the first. Checked for 45 before this landed -- no other
+// artefact in `output/`, no row in `results.csv2`, and the only mention anywhere
+// is `P45-MIN` in the size document, which is a different name.
+//
+// 編號為 45,中間繞經 47 一趟,而這個編號是一項決定,不是一項推論。
+//
+// P46 的檔頭以「`testapp/output/P45-MIN.exe` 存在且無 `.swift` 原始碼、而
+// `matrix_coverage/executable-size.md` 把它列為沒有人能重建的產物」為由保留 45。該理由曾被採納,
+// 本 app 也因此改名為 47——隨後該保留被推翻,因為那是兩個不同的名字:`P45-MIN` 不是 `P45`,即使本檔
+// 位於此處那句話依然成立,而編號留一個洞的代價,高於「一個共用前綴的名字」。
+//
+// 這趟往返值得留下的,是 P46 檔頭所提的那個問題——它對任何新編號仍然適用:「檔名是空的」與「名稱是
+// 空的」是兩件事,而 `ls` 只回答得了第一件。45 在本檔落地之前查過:`output/` 中沒有其他產物、
+// `results.csv2` 中沒有任何一列、而全樹唯一的提及是尺寸文件中的 `P45-MIN`,那是另一個名字。
 //
 // Reported from a SoftPCB build on macOS: a `Toggle` whose `isOn` is a
 // `Binding(get:set:)` over a model resets the whole tab when pressed -- another
@@ -45,7 +56,7 @@ import SwiftCrossUI
 // sets a value the getter then contradicts looks identical to a toggle that was
 // never pressed; `writes` counts the setter calls, so the two are told apart.
 //
-// P47 以計算型 binding 驅動的 toggle。
+// P45 以計算型 binding 驅動的 toggle。
 //
 // 來自 SoftPCB 在 macOS 上的回報:一個 `isOn` 為 `Binding(get:set:)`(讀寫某個 model)的 `Toggle`,
 // 按下去會重置整個分頁——另一個控制項的選取回到第一項、一個欄位消失——而畫面上那看起來像是
@@ -63,19 +74,19 @@ import SwiftCrossUI
 // 那些計數器正是讓「按了沒反應」這個情況變得可讀的東西。一個「設了值、而 getter 隨即否定它」的
 // toggle,看起來與一個從未被按過的 toggle 完全相同;`writes` 計算 setter 的呼叫次數,兩者因而分得開。
 
-enum P47Diagnostics {
+enum P45Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func write(_ message: String) {
         guard isEnabled else { return }
-        print("[P47] \(message)")
+        print("[P45] \(message)")
     }
 
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P47 ready for computed-binding checks")
+        write("RENDER COMPLETE -- P45 ready for computed-binding checks")
     }
 }
 
@@ -96,7 +107,7 @@ enum P47Diagnostics {
 // 兩者都加上 `SwiftCrossUI.`,因為在 Apple 平台上 Foundation 會匯出 Combine 的 `ObservableObject`
 // 與 `Published`,於是這兩個名稱變得有歧義——建置會明確地這麼說四次,而且那是編譯錯誤,不是一個
 // 默默做出的選擇。
-final class P47Model: SwiftCrossUI.ObservableObject {
+final class P45Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var honest = false
     @SwiftCrossUI.Published var writes = 0
 
@@ -132,19 +143,19 @@ final class P47Model: SwiftCrossUI.ObservableObject {
 
 @main
 @HotReloadable
-struct P47ComputedBindingApp: App {
+struct P45ComputedBindingApp: App {
     var body: some Scene {
-        WindowGroup("P47 computed bindings") {
+        WindowGroup("P45 computed bindings") {
             #hotReloadable {
-                P47RootView()
+                P45RootView()
             }
         }
         .defaultSize(width: 760, height: 620)
     }
 }
 
-struct P47RootView: View {
-    @ObservedObject var model = P47Model()
+struct P45RootView: View {
+    @ObservedObject var model = P45Model()
 
     // The sibling state a subtree rebuild would clear. Both start at a value
     // that is not their default, so "was reset" and "was never touched" are
@@ -158,7 +169,7 @@ struct P47RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("P47: toggles driven through a computed binding")
+            Text("P45: toggles driven through a computed binding")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
 
@@ -180,7 +191,7 @@ struct P47RootView: View {
                     set: { newValue in
                         model.honest = newValue
                         model.writes += 1
-                        P47Diagnostics.write("honest set to \(newValue)")
+                        P45Diagnostics.write("honest set to \(newValue)")
                     }
                 )
             )
@@ -192,7 +203,7 @@ struct P47RootView: View {
                     get: { model.stubborn },
                     set: { newValue in
                         model.stubborn = newValue
-                        P47Diagnostics.write(
+                        P45Diagnostics.write(
                             "stubborn set to \(newValue), getter still says \(model.stubborn)"
                         )
                     }
@@ -203,21 +214,21 @@ struct P47RootView: View {
             Button("flip honest \(model.honest ? "✓" : "✗")") {
                 presses += 1
                 model.flip()
-                P47Diagnostics.write("flip -> honest \(model.honest)")
+                P45Diagnostics.write("flip -> honest \(model.honest)")
             }
 
             Text("Set the sibling state, then press each control above.")
             HStack(spacing: 8) {
                 Button("selection = 2") {
                     selection = 2
-                    P47Diagnostics.write("selection=\(selection)")
+                    P45Diagnostics.write("selection=\(selection)")
                 }
                 Button("typed = seeded") {
                     typed = "seeded"
-                    P47Diagnostics.write("typed=\(typed)")
+                    P45Diagnostics.write("typed=\(typed)")
                 }
                 Button("report") {
-                    P47Diagnostics.write(
+                    P45Diagnostics.write(
                         "REPORT selection=\(selection) typed=\(typed.isEmpty ? "(empty)" : typed) "
                             + "honest=\(model.honest) stubbornStorage=\(model.stubbornStorage) "
                             + "writes=\(model.writes) presses=\(presses)"
@@ -239,7 +250,7 @@ struct P47RootView: View {
         }
         .padding(16)
         .onAppear {
-            P47Diagnostics.renderComplete()
+            P45Diagnostics.renderComplete()
         }
     }
 }

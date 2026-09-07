@@ -190,7 +190,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// position obtained some other way, and mixing the two sources is a
     /// difference no arithmetic reveals.
     ///
-    /// Verified on P47, 2026-09-07: the button reports `593,582 104x27` with
+    /// Verified on P45, 2026-09-07: the button reports `593,582 104x27` with
     /// `clientOrigin 580,141`, so `origin=client` at `(65,451)` -- the rect
     /// minus that origin, plus half the size -- hits it, and the app's
     /// `selection` reads 2.
@@ -209,7 +209,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// `NSScreen.screens.first` 為翻轉基準,因此該基準會在相減中互相抵消;但它不會與「以其他方式
     /// 取得的視窗位置」互相抵消,而混用兩個來源所造成的差異,是任何算術都看不出來的。
     ///
-    /// 2026-09-07 於 P47 上驗證:該按鈕回報 `593,582 104x27`、`clientOrigin 580,141`,因此
+    /// 2026-09-07 於 P45 上驗證:該按鈕回報 `593,582 104x27`、`clientOrigin 580,141`,因此
     /// `origin=client` 的 `(65,451)`——即該矩形減去那個原點、再加上尺寸的一半——命中它,而 app 的
     /// `selection` 讀到 2。
     ///

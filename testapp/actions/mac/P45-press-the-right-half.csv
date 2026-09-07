@@ -9,7 +9,7 @@ action,x,y,origin,button,key,micros,note,platform
 # My earlier evidence against that was worthless and worse than useless. I
 # reported that clicking button centres worked here, but under the peer's rule
 # the centre of any rect IS the boundary: the active region is x0..x0+w/2, and
-# the centre is x0+w/2. Every one of P47's seven controls has its centre exactly
+# the centre is x0+w/2. Every one of P45's seven controls has its centre exactly
 # on that line, by arithmetic and not by luck, so the test could only ever have
 # been ambiguous.
 #
@@ -22,11 +22,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 原點——並在兩顆不同尺寸的按鈕上驗證該規則,四項預測全中。
 #
 # 我先前用來反駁它的證據毫無價值,甚至比沒有更糟。我回報說在此處點按鈕中心是會命中的;但在同事的
-# 規則下,任何矩形的中心**就是**那條邊界:活區為 x0..x0+w/2,而中心正是 x0+w/2。P47 七個控制項的
+# 規則下,任何矩形的中心**就是**那條邊界:活區為 x0..x0+w/2,而中心正是 x0+w/2。P45 七個控制項的
 # 中心全部恰好落在那條線上——那是算術的結果,不是運氣——因此那個測試從一開始就只可能是模稜兩可的。
 #
 # 本檔點的是 x0 + 0.8w,明確位於右半邊。該按鈕會把 `selection` 設為 2,因此
 # 「sibling state -- selection:」那一行會作答。
-sleep,,,,,,1500000,let P47 render,macos
+sleep,,,,,,1500000,let P45 render,macos
 click,93,482,frame,left,,,"x0 + 0.8w on the ""selection = 2"" button, which spans x 16..113. If the peer's rule holds here, this misses and selection stays 0; if it hits, selection reads 2 and this machine does not have that behaviour",macos
 sleep,,,,,,1200000,,macos

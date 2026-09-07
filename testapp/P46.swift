@@ -14,11 +14,16 @@ import SwiftCrossUI
 // nowhere raises nothing. A new app costs one file; re-measuring an action file
 // costs a launch, a capture, and a careful reading of both.
 //
-// Numbered 46, and both skipped numbers are load-bearing. P43 (gradient fills
-// clipped to shapes) and P44 are existing apps. P45 has no source file, but
-// `testapp/output/P45-MIN.exe` exists and `matrix_coverage/executable-size.md`
-// names it as one of the hand-made executables with no `.swift` source --
-// adding a P45.swift would have made that sentence false.
+// Numbered 46. P43 (gradient fills clipped to shapes) and P44 are existing apps,
+// and 45 was skipped here on the grounds that `testapp/output/P45-MIN.exe`
+// exists with no `.swift` source and `matrix_coverage/executable-size.md` names
+// it as an artefact nobody can rebuild.
+//
+// **That reservation was overruled on 2026-09-07 and P45.swift now exists.**
+// `P45-MIN` and `P45` are different names, the size document's sentence is about
+// the first and stays true, and a hole in the numbering costs more than a shared
+// prefix. Recorded here rather than deleted, because a later reader finding
+// P45.swift beside a comment reserving 45 would have to work out which one won.
 //
 // That is not a stylistic note. Write was first pointed at P43.swift on the
 // strength of the highest number mentioned in a task list, and it silently
@@ -37,8 +42,12 @@ import SwiftCrossUI
 // 重新量測一份動作檔的成本是一次啟動、一次擷圖，以及仔細把兩者都讀過一遍。
 //
 // 編號為 46，而被跳過的兩個號碼各有其理由。P43（裁進形狀內的漸層填充）與 P44 是既有的 app。
-// P45 沒有原始碼檔，但 `testapp/output/P45-MIN.exe` 存在，且 `matrix_coverage/executable-size.md`
-// 明確把它列為「沒有 `.swift` 原始碼的手工執行檔」之一——新增 P45.swift 會讓那句話變成假的。
+// 45 在此處被跳過的理由是：`testapp/output/P45-MIN.exe` 存在且無 `.swift` 原始碼，而
+// `matrix_coverage/executable-size.md` 把它列為沒有人能重建的產物。
+//
+// **該保留已於 2026-09-07 被推翻，P45.swift 現已存在。** `P45-MIN` 與 `P45` 是不同的名字，尺寸
+// 文件那句話講的是前者、因此依然成立；而編號留一個洞的代價，高於「一個共用前綴的名字」。此處記錄
+// 而非刪除，因為日後的讀者若看到 P45.swift 與一段保留 45 的註解並存，必須自行判斷哪一邊贏了。
 //
 // 這不是體例上的註記。Write 最初僅憑某份任務清單中出現的最大編號就指向 P43.swift，並靜默替換掉
 // 一個已被追蹤檔案的 185 行內容，還回報成功。見 mistakes.csv2，2026-09-04。之後改用 `ls` 檢查
@@ -87,10 +96,23 @@ enum P46Diagnostics {
 /// `@StateObject` 與 `@State` 只有一項可觀察的差別：初始化式只執行一次，而非每次 view 更新各
 /// 執行一次。該差別在截圖上完全看不出來，因此此處把它計數並寫入 log——否則「它能用」就只能建立在
 /// 「兩種寫法看起來一樣」之上，而它們確實看起來一樣。
-final class P46Model: ObservableObject {
+// `SwiftCrossUI.` on both names, because Foundation re-exports Combine's
+// `ObservableObject` and `Published` on Apple platforms and the two are then
+// ambiguous. Unqualified, this app builds on Android, Windows and WSL and fails
+// on macOS and iOS with "'ObservableObject' is ambiguous for type lookup in this
+// context" -- which is why it has no macOS row in the matrix and no iOS action
+// file. Found 2026-09-07 while renaming P47 back to P45, by building P46 on a
+// Mac for the first time.
+//
+// 兩個名稱都加上 `SwiftCrossUI.`,因為在 Apple 平台上 Foundation 會再匯出 Combine 的
+// `ObservableObject` 與 `Published`,於是兩者變得有歧義。不加限定時,本 app 在 Android、Windows
+// 與 WSL 上建得起來,而在 macOS 與 iOS 上會以「'ObservableObject' is ambiguous for type lookup in
+// this context」失敗——這正是它在矩陣中沒有 macOS 那一列、也沒有 iOS 動作檔的原因。2026-09-07 在把
+// P47 改回 P45 的過程中,第一次於 Mac 上建置 P46 時發現。
+final class P46Model: SwiftCrossUI.ObservableObject {
     nonisolated(unsafe) static var constructionCount = 0
 
-    @Published var count = 0
+    @SwiftCrossUI.Published var count = 0
 
     init() {
         P46Model.constructionCount += 1
