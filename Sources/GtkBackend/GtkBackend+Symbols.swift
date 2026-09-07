@@ -61,8 +61,43 @@ extension GtkBackend {
             child = label
         }
 
+        // The child needs its own size. `Image.commit` sizes the widget that
+        // `createSymbolView()` returned, and here that is the container -- so
+        // without this the child sits at its default extent, which on Android is
+        // zero and draws nothing at all. The Apple backends never hit this
+        // because they return the drawing view itself and the size lands on it.
+        //
+        // After `insert`, never before. `setSize` begins with
+        // `guard let layoutParams = widget.getLayoutParams() else { return }`,
+        // and a view that has not been added to a parent has none -- so the
+        // call returns having done nothing, silently, and the symbol is laid
+        // out with space reserved for it and nothing drawn in that space.
+        // That is what the first attempt at this fix did, and the screenshot
+        // afterwards was identical to the one before it.
+        //
+        // 必須在 `insert` 之後,絕不能在之前。`setSize` 的第一行是
+        // `guard let layoutParams = widget.getLayoutParams() else { return }`,
+        // 而一個尚未被加入父層的 view 沒有 layout params——於是該呼叫什麼都沒做就返回了,
+        // 而且是靜默的,結果就是符號的位置被保留了空間、空間裡卻什麼都沒畫。這正是本修正第一次
+        // 嘗試時所做的事,而其後的截圖與修正前那張一模一樣。
+        //
+        // Computed rather than remembered: the size depends only on the symbol
+        // and the environment, both of which are arguments here, so there is no
+        // state to keep in step.
+        //
+        // 子 widget 需要有自己的尺寸。`Image.commit` 設定的是 `createSymbolView()` 所回傳的那個
+        // widget,而在此處那是容器——因此少了這一步,子 widget 就會停留在其預設範圍,而那在 Android
+        // 上是零,於是什麼都畫不出來。Apple 那兩個 backend 不會遇到這件事,因為它們回傳的就是負責繪製
+        // 的那個 view,尺寸直接落在它身上。
+        //
+        // 這裡是「算出來」而非「記下來」:該尺寸只取決於符號與 environment,而兩者都是此處的參數,
+        // 因此沒有任何需要保持同步的狀態。
         insert(child, into: symbolView, at: 0)
         setPosition(ofChildAt: 0, in: symbolView, to: .zero)
+        setSize(
+            of: child,
+            to: size(ofSymbol: symbol, whenDisplayedIn: symbolView, environment: environment)
+        )
         child.show()
     }
 
