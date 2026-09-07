@@ -153,7 +153,7 @@ final class AppKitHitTestingContainer: NSView {
     /// dump says".
     ///
     /// **A reported frame is larger than what the control draws, and reading a
-    /// defect out of the difference is easy.** Measured on P47's buttons: the
+    /// defect out of the difference is easy.** Measured on P45's buttons: the
     /// frame is `104x27`, placed at `(-3,-4)` inside a container 20 points tall,
     /// and the responding band is 20 points -- which looks like a control whose
     /// live region is smaller than the control itself. It is not. The drawn
@@ -164,7 +164,7 @@ final class AppKitHitTestingContainer: NSView {
     /// user sees.
     ///
     /// **回報的 frame 大於控制項實際畫出的範圍,而從那個差值讀出一個缺陷是很容易的事。**
-    /// 於 P47 的按鈕上實測:frame 為 `104x27`、放置於 `(-3,-4)`、位於一個高 20 點的容器中,而回應
+    /// 於 P45 的按鈕上實測:frame 為 `104x27`、放置於 `(-3,-4)`、位於一個高 20 點的容器中,而回應
     /// 的帶是 20 點——那看起來就像一個「活區小於控制項本身」的控制項。它不是。畫面上的 bezel 量到
     /// 20.0 點高,y 472.0..491.5,而回應帶是 y 473..492:多出來的那七點是 AppKit 自己的不可見邊距,
     /// 而 `(-3,-4)` 這個偏移正是為了讓看得見的 bezel 落在版面所要求的矩形上。活區與使用者所看到的

@@ -384,7 +384,11 @@ public final class WinUIBackend:
 
     var windows: [Window] = []
 
-    private var measurementTextBlock: TextBlock!
+    // Not private: WinUIBackend+Symbols.swift measures a glyph through this
+    // same block, and `private` at type scope reaches only the declaring file.
+    // 非 private:WinUIBackend+Symbols.swift 會透過同一個 block 量測字符,而型別層級的 `private`
+    // 只及於宣告它的那一個檔案。
+    var measurementTextBlock: TextBlock!
 
     public init() {
         internalState = InternalState()
@@ -1274,7 +1278,11 @@ public final class WinUIBackend:
         return size
     }
 
-    private static func measure(
+    // Not private, for the same reason as `measurementTextBlock` above:
+    // WinUIBackend+Symbols.swift measures a glyph through it.
+    // 同樣不設為 private,理由與上方的 `measurementTextBlock` 相同:
+    // WinUIBackend+Symbols.swift 會透過它量測字符。
+    static func measure(
         _ textBlock: TextBlock,
         proposedWidth: Int?,
         proposedHeight: Int?

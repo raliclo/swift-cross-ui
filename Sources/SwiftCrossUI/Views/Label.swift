@@ -3,6 +3,18 @@
 /// Composed from `HStack`, so it needs nothing from any backend. See ``Stepper``
 /// for why this batch was chosen.
 ///
+/// **`Label(_:systemImage:)` was deliberately absent until 2026-09-08**, and the
+/// paragraph below is kept because it states the condition that had to be met
+/// rather than merely recording an absence. That condition was met by
+/// ``BackendFeatures/Symbols``: the name is resolved by the backend, and a
+/// backend that cannot produce the glyph draws ``SystemSymbol/textFallback``
+/// instead of nothing. The original text follows.
+///
+/// **`Label(_:systemImage:)` 在 2026-09-08 之前是刻意不提供的**，而下方那段文字被保留下來，是因為
+/// 它陳述的是「必須被滿足的條件」，而不只是記錄一項缺席。該條件已由 ``BackendFeatures/Symbols``
+/// 滿足:名稱由 backend 解析，而無法產生該字符的 backend 會改畫 ``SystemSymbol/textFallback``，
+/// 不是什麼都不畫。以下為原文。
+///
 /// **`Label(_:systemImage:)` is deliberately absent.** SwiftUI's most common
 /// spelling names a symbol -- `Label("Add", systemImage: "plus")` -- and
 /// resolving that name is backend work, not composition: SF Symbols on Apple, an
@@ -66,5 +78,32 @@ extension Label where Title == Text, Icon == Image {
     /// `systemImage:`，見型別上的說明。
     public init(_ title: String, image: Image) {
         self.init(title: Text(title), icon: image)
+    }
+
+    /// A titled label whose icon is named, as SwiftUI spells it.
+    ///
+    /// The initialiser the type's note said would arrive with the symbol API.
+    /// It did, and the condition that note set out is what made it possible:
+    /// resolving a name is backend work, so ``BackendFeatures/Symbols`` is where
+    /// the resolving happens, and every backend answers -- with a glyph where it
+    /// has one and with ``SystemSymbol/textFallback`` where it does not. There
+    /// is no arrangement of platform and symbol that draws nothing here.
+    ///
+    /// Both spellings of a name resolve, so `Label("Add", systemImage: "plus")`
+    /// carried over from SwiftUI and `Label("Add", systemImage: "add")` are the
+    /// same label. An unrecognised name draws itself; see ``Image/init(systemName:)``.
+    ///
+    /// 一個帶標題的 label，其圖示以名稱指定——即 SwiftUI 的寫法。
+    ///
+    /// 這正是型別上那段說明所稱「會與符號 API 一同到來」的建構式。它到來了，而讓它成為可能的，正是
+    /// 那段說明所提出的條件:解析名稱是 backend 的工作，因此解析發生在 ``BackendFeatures/Symbols``
+    /// 之中，而每一個 backend 都會作答——有字符時給字符，沒有時給 ``SystemSymbol/textFallback``。
+    /// 此處不存在任何一種「平台與符號」的組合會畫出空白。
+    ///
+    /// 名稱的兩種拼法都能解析，因此從 SwiftUI 搬過來的 `Label("Add", systemImage: "plus")` 與
+    /// `Label("Add", systemImage: "add")` 是同一個 label。無法辨識的名稱會畫出它自己；
+    /// 見 ``Image/init(systemName:)``。
+    public init(_ title: String, systemImage: String) {
+        self.init(title: Text(title), icon: Image(systemName: systemImage))
     }
 }

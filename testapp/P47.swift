@@ -2,227 +2,142 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
-// P45 toggles driven through a computed binding.
+// P47 draws every symbol in the table, on whatever backend it was built for.
 //
-// Reported from a SoftPCB build on macOS: a `Toggle` whose `isOn` is a
-// `Binding(get:set:)` over a model resets the whole tab when pressed -- another
-// control's selection returns to its first item and a field disappears -- and
-// on screen that reads as "pressed and nothing happened", not as a crash.
-// Replacing it with a Button that calls a model method behaved normally.
+// The app exists because the symbol feature's correctness is not a property of
+// any one backend: it is the claim that the same 36 names produce something
+// visible on all five, and that claim cannot be checked by building. GTK 4
+// carries 138 icons and the desktop theme supplies the rest; Segoe Fluent Icons
+// is absent from a default Windows 10; an SF Symbol catalogued from a recent
+// macOS may not exist on an older one. Every one of those failures draws a blank
+// rectangle unless something asks first -- so the screenshots this app produces
+// on each backend ARE the test, and a symbol that fell back to text is a pass,
+// not a defect.
 //
-// **Nothing in this tree covered that combination.** All 46 apps bind every
-// Toggle to `@State` through `$`; `Binding(get:set:)` appears in none of them.
-// So the report could be neither confirmed nor denied from the code, and
-// reading `Toggle.body` produced a plausible mechanism that turned out not to
-// apply: it wraps its style's output in `AnyView`, and `AnyView` rebuilds its
-// child node only when the concrete type changes, which a fixed toggle style
-// never does.
+// The last row is the one that would otherwise never be exercised: a name that
+// is in no table at all. It must draw itself. A view that quietly occupies zero
+// points is the single outcome the whole feature was shaped to make
+// unreachable, and it is also the one that looks like nothing being wrong.
 //
-// This app varies one thing at a time. Four controls write the same model
-// field, and beside them sit two pieces of sibling state -- a selection and an
-// entered string -- that a subtree rebuild would reset. If pressing the
-// computed-binding toggle clears those and pressing the `@State` toggle does
-// not, the report is a framework bug and this app says so in one line.
+// P47 把表中的每一個符號畫出來，畫在它被建置的那一個 backend 上。
 //
-// The counters are what make the "nothing happened" case legible. A toggle that
-// sets a value the getter then contradicts looks identical to a toggle that was
-// never pressed; `writes` counts the setter calls, so the two are told apart.
+// 這支 app 存在的理由是：符號功能的正確性並不是任何單一 backend 的性質——它主張的是「同樣的 36 個
+// 名稱在五個 backend 上都能產生看得見的東西」，而該主張無法靠建置來檢查。GTK 4 內建 138 個圖示、
+// 其餘由桌面主題提供；預設安裝的 Windows 10 沒有 Segoe Fluent Icons；從較新 macOS 編目而來的
+// SF Symbol，在較舊的系統上可能並不存在。上述每一種失敗，若沒有人事先詢問，畫出來的都是一個空白
+// 矩形——因此本 app 在各 backend 上產出的截圖**就是**那項測試，而一個退回文字的符號是通過，不是缺陷。
 //
-// P45 以計算型 binding 驅動的 toggle。
-//
-// 來自 SoftPCB 在 macOS 上的回報:一個 `isOn` 為 `Binding(get:set:)`(讀寫某個 model)的 `Toggle`,
-// 按下去會重置整個分頁——另一個控制項的選取回到第一項、一個欄位消失——而畫面上那看起來像是
-// 「按了沒反應」,不像當掉。改成呼叫 model 方法的 Button 就正常。
-//
-// **這棵樹裡沒有任何東西涵蓋那個組合。** 全部 46 支 app 的每一個 Toggle 都是以 `$` 綁 `@State`;
-// `Binding(get:set:)` 一次都沒出現。因此該回報無法僅憑讀碼確認或否定;而閱讀 `Toggle.body` 得到的
-// 一個看似合理的機制,查證後並不適用:它把 style 的產出包在 `AnyView` 中,而 `AnyView` 只在具體
-// 型別改變時才重建子節點——固定的 toggle style 永遠不會改變型別。
-//
-// 本 app 一次只變動一個因素。四個控制項寫入同一個 model 欄位,而它們旁邊放著兩份「兄弟狀態」——
-// 一個選取與一個輸入字串——那是子樹被重建時會被清掉的東西。若按下計算型 binding 的 toggle 會清掉
-// 它們、而按下 `@State` 的 toggle 不會,那麼該回報就是一個框架缺陷,而本 app 會以一行說出來。
-//
-// 那些計數器正是讓「按了沒反應」這個情況變得可讀的東西。一個「設了值、而 getter 隨即否定它」的
-// toggle,看起來與一個從未被按過的 toggle 完全相同;`writes` 計算 setter 的呼叫次數,兩者因而分得開。
+// 最後一列是「否則永遠不會被演練到」的那一項：一個不在任何表中的名稱。它必須畫出它自己。一個安靜地
+// 佔據零點的 view，是整項功能的形狀所要使其無從發生的唯一結果，而它同時也是「看起來像什麼都沒出錯」
+// 的那一個。
 
-enum P45Diagnostics {
+enum P47Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func write(_ message: String) {
         guard isEnabled else { return }
-        print("[P45] \(message)")
+        print("[P47] \(message)")
     }
 
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P45 ready for computed-binding checks")
-    }
-}
-
-/// The source of truth the computed bindings read and write.
-///
-/// A class, because the reported case had one: the setter reaches a model that
-/// outlives the view, which is the whole reason a `Binding(get:set:)` was
-/// written instead of `@State`.
-///
-/// 那些計算型 binding 所讀寫的真實來源。
-///
-/// 使用 class,因為被回報的案例就是如此:setter 觸及的是一個生命週期長於 view 的 model,而那正是
-/// 當初寫 `Binding(get:set:)` 而非 `@State` 的全部理由。
-// `SwiftCrossUI.` on both, because Foundation exports Combine's
-// `ObservableObject` and `Published` on Apple platforms and the two names are
-// then ambiguous -- the build says exactly that, four times, and it is a
-// compile error rather than a silent choice.
-// 兩者都加上 `SwiftCrossUI.`,因為在 Apple 平台上 Foundation 會匯出 Combine 的 `ObservableObject`
-// 與 `Published`,於是這兩個名稱變得有歧義——建置會明確地這麼說四次,而且那是編譯錯誤,不是一個
-// 默默做出的選擇。
-final class P45Model: SwiftCrossUI.ObservableObject {
-    @SwiftCrossUI.Published var honest = false
-    @SwiftCrossUI.Published var writes = 0
-
-    /// A field whose getter does **not** return what the setter was given.
-    ///
-    /// `Binding`'s documentation states the invariant plainly: calling `get`
-    /// immediately after `set` should return the same value, and "views will
-    /// not update as you expect" otherwise. This is that invariant broken on
-    /// purpose, so the app can show what breaking it looks like beside a
-    /// binding that keeps it. Without the honest one next to it, a failure here
-    /// would be indistinguishable from the framework being at fault.
-    ///
-    /// 一個「getter 不回傳 setter 所收到的值」的欄位。
-    ///
-    /// `Binding` 的文件把這個不變式講得很清楚:在 `set` 之後立即呼叫 `get`,應該回傳相同的值,否則
-    /// 「views will not update as you expect」。此處是刻意破壞該不變式,好讓本 app 能把「破壞它會是
-    /// 什麼樣子」與「遵守它的 binding」並排呈現。少了旁邊那個誠實的版本,此處的失敗就無法與
-    /// 「框架有問題」區分開來。
-    @SwiftCrossUI.Published var stubbornStorage = false
-    var stubborn: Bool {
-        get { false }
-        set {
-            stubbornStorage = newValue
-            writes += 1
-        }
-    }
-
-    func flip() {
-        honest.toggle()
-        writes += 1
+        write("RENDER COMPLETE -- P47 ready for symbol checks")
     }
 }
 
 @main
 @HotReloadable
-struct P45ComputedBindingApp: App {
+struct P47SymbolsApp: App {
     var body: some Scene {
-        WindowGroup("P45 computed bindings") {
+        WindowGroup("P47 symbols") {
             #hotReloadable {
-                P45RootView()
+                P47RootView()
             }
         }
-        .defaultSize(width: 760, height: 620)
+        .defaultSize(width: 900, height: 720)
     }
 }
 
-struct P45RootView: View {
-    @ObservedObject var model = P45Model()
-
-    // The sibling state a subtree rebuild would clear. Both start at a value
-    // that is not their default, so "was reset" and "was never touched" are
-    // different pictures.
-    // 子樹重建時會被清掉的兄弟狀態。兩者的起始值都不是其預設值,如此「被重置了」與「從未被碰過」
-    // 才會是兩幅不同的畫面。
-    @State var selection = 0
-    @State var typed = ""
-    @State var stateToggle = false
-    @State var presses = 0
+struct P47RootView: View {
+    /// Six per row, because 36 divides by it and a row of six stays inside the
+    /// default width on every backend. Not a grid: `LazyVGrid` is task #85 and
+    /// is not implemented yet, and using it here would make this app's failures
+    /// ambiguous between two features.
+    /// 每列六個，因為 36 可被它整除，且六個一列在每個 backend 上都容得下預設寬度。此處不使用 grid：
+    /// `LazyVGrid` 屬於任務 #85、尚未實作，而在此使用它會使本 app 的失敗在兩項功能之間變得含糊。
+    static let columns = 6
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("P45: toggles driven through a computed binding")
-                .font(.system(size: 20))
-            Text("backend -> \(String(describing: DefaultBackend.self))")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("P47: system symbols")
+                    .font(.system(size: 20))
+                Text("backend -> \(String(describing: DefaultBackend.self))")
+                Text("\(SystemSymbol.all.count) symbols. A symbol drawn as text is a pass:")
+                Text("it means this platform has no glyph and the fallback column was used.")
+                Text("一個被畫成文字的符號是通過：那表示此平台沒有該字符，因而使用了退路欄位。")
 
-            Text(
-                "sibling state -- selection: \(selection), typed: "
-                    + (typed.isEmpty ? "(empty)" : "\"\(typed)\"")
-            )
-            Text("model -- honest: \(model.honest), stubbornStorage: \(model.stubbornStorage)")
-            Text("setter writes: \(model.writes), button presses: \(presses)")
-
-            Text("1. Toggle on @State, the shape every other Pn uses")
-            Toggle("stateToggle \(stateToggle ? "✓" : "✗")", isOn: $stateToggle)
-
-            Text("2. Toggle on Binding(get:set:) that keeps the invariant")
-            Toggle(
-                "honest \(model.honest ? "✓" : "✗")",
-                isOn: Binding(
-                    get: { model.honest },
-                    set: { newValue in
-                        model.honest = newValue
-                        model.writes += 1
-                        P45Diagnostics.write("honest set to \(newValue)")
+                ForEach(Self.rows) { row in
+                    HStack(spacing: 18) {
+                        ForEach(row.symbols, id: \.name) { symbol in
+                            VStack(spacing: 2) {
+                                Image(systemName: symbol.name)
+                                Text(symbol.name)
+                                    .font(.system(size: 10))
+                            }
+                        }
                     }
-                )
-            )
-
-            Text("3. Toggle on Binding(get:set:) whose getter contradicts the setter")
-            Toggle(
-                "stubborn \(model.stubbornStorage ? "✓" : "✗")",
-                isOn: Binding(
-                    get: { model.stubborn },
-                    set: { newValue in
-                        model.stubborn = newValue
-                        P45Diagnostics.write(
-                            "stubborn set to \(newValue), getter still says \(model.stubborn)"
-                        )
-                    }
-                )
-            )
-
-            Text("4. Button calling a model method -- the reported workaround")
-            Button("flip honest \(model.honest ? "✓" : "✗")") {
-                presses += 1
-                model.flip()
-                P45Diagnostics.write("flip -> honest \(model.honest)")
-            }
-
-            Text("Set the sibling state, then press each control above.")
-            HStack(spacing: 8) {
-                Button("selection = 2") {
-                    selection = 2
-                    P45Diagnostics.write("selection=\(selection)")
                 }
-                Button("typed = seeded") {
-                    typed = "seeded"
-                    P45Diagnostics.write("typed=\(typed)")
+
+                Text("Label(_:systemImage:), the SwiftUI spelling:")
+                HStack(spacing: 18) {
+                    Label("Add", systemImage: "plus")
+                    Label("Delete", systemImage: "trash")
+                    Label("Search", systemImage: "magnifyingglass")
                 }
-                Button("report") {
-                    P45Diagnostics.write(
-                        "REPORT selection=\(selection) typed=\(typed.isEmpty ? "(empty)" : typed) "
-                            + "honest=\(model.honest) stubbornStorage=\(model.stubbornStorage) "
-                            + "writes=\(model.writes) presses=\(presses)"
-                    )
+
+                // The name below is in no table. It must appear, spelled out.
+                // If this line shows a gap, the fallback is broken -- and that
+                // is the failure that no other row on this screen can reveal.
+                // 下方這個名稱不在任何表中。它必須以其字面出現。若這一行顯示出一個空缺，則退路是壞的
+                // ——而那正是本畫面上其他任何一列都無法揭露的那一種失敗。
+                Text("An unknown name must draw itself:")
+                HStack(spacing: 8) {
+                    Image(systemName: "definitely.not.a.symbol")
+                    Label("unknown", systemImage: "definitely.not.a.symbol")
                 }
             }
-
-            Text(
-                "Expected: pressing any of the four leaves selection at 2 and typed at "
-                    + "\"seeded\". Control 3 is expected to look unchanged -- its getter says so -- "
-                    + "while \"setter writes\" still climbs, which is how a refused write is told "
-                    + "apart from a press that never arrived."
-            )
-            Text(
-                "預期:按下四者中的任何一個,selection 都應維持 2、typed 都應維持 \"seeded\"。"
-                    + "控制項 3 預期看起來不會改變——它的 getter 就是這麼說的——但「setter writes」"
-                    + "仍會增加,而那正是「被拒絕的寫入」與「從未抵達的按下」之間的分辨方式。"
-            )
+            .padding(16)
         }
-        .padding(16)
         .onAppear {
-            P45Diagnostics.renderComplete()
+            P47Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+            P47Diagnostics.write("symbols \(SystemSymbol.all.count)")
+            P47Diagnostics.write(
+                "names " + SystemSymbol.all.map(\.name).joined(separator: " ")
+            )
+            P47Diagnostics.renderComplete()
         }
     }
+}
+
+extension P47RootView {
+    /// The symbols split into rows, each row tagged so `ForEach` can identify it.
+    /// 把符號切成數列，每一列都帶有標籤，以便 `ForEach` 能辨識它。
+    static var rows: [P47Row] {
+        stride(from: 0, to: SystemSymbol.all.count, by: columns).map { start in
+            P47Row(
+                id: start,
+                symbols: Array(
+                    SystemSymbol.all[start..<min(start + columns, SystemSymbol.all.count)]
+                )
+            )
+        }
+    }
+}
+
+struct P47Row: Identifiable {
+    let id: Int
+    let symbols: [SystemSymbol]
 }

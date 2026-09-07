@@ -11,6 +11,7 @@ public struct Image: Sendable {
     enum Source: Equatable {
         case url(URL, useFileExtension: Bool)
         case image(ImageFormats.Image<RGBA>)
+        case symbol(SystemSymbol)
     }
 
     /// Creates an image view.
@@ -31,6 +32,35 @@ public struct Image: Sendable {
     /// - Parameter image: The image data to display.
     public init(_ image: ImageFormats.Image<RGBA>) {
         source = .image(image)
+    }
+
+    /// One of the toolkit's ``SystemSymbol`` values, by name.
+    ///
+    /// Spelled `systemName` to match SwiftUI, and it accepts both the SF Symbols
+    /// name SwiftUI would use and this toolkit's own -- `plus` and `add` are the
+    /// same symbol. See ``SystemSymbol/named(_:)``.
+    ///
+    /// **An unrecognised name draws the name itself**, on every backend, rather
+    /// than nothing. That is deliberate and it is the same principle as the
+    /// symbol table's fallback column: a typo in a symbol name is a mistake to
+    /// be seen, and a view that silently occupies zero points is the one shape
+    /// that cannot be seen. It is not resolved against the platform's own symbol
+    /// set either, tempting as that is on Apple -- a name that happened to be a
+    /// real SF Symbol would then render on macOS and as text everywhere else,
+    /// which is worse than being wrong consistently.
+    ///
+    /// 依名稱指定本工具組 ``SystemSymbol`` 中的一個值。
+    ///
+    /// 拼寫為 `systemName` 以與 SwiftUI 一致，且它同時接受 SwiftUI 會使用的 SF Symbols 名稱與本工具組
+    /// 自身的名稱——`plus` 與 `add` 是同一個符號。見 ``SystemSymbol/named(_:)``。
+    ///
+    /// **無法辨識的名稱會畫出該名稱本身**，在每一個 backend 上皆然，而不是什麼都不畫。這是刻意的，
+    /// 其原則與符號表的退路欄位相同：符號名稱打錯是一個「應該被看見」的錯誤，而一個靜默地佔據零點的
+    /// view，正是唯一看不見的形狀。它也不會去比對平台自身的符號集——儘管在 Apple 上那很誘人——因為
+    /// 那會讓「碰巧是真實 SF Symbol 的名稱」在 macOS 上畫出圖示、在其他各處畫成文字，而那比「一致地
+    /// 錯」更糟。
+    public init(systemName: String) {
+        source = .symbol(SystemSymbol.named(systemName) ?? .unresolved(systemName))
     }
 
     /// Makes the image resize to fit the available space.
@@ -80,6 +110,25 @@ extension Image: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        // A symbol is a glyph at the current font size, so it never enters the
+        // decode-and-scale pipeline below and `resizable()` does not apply to
+        // it. Its size is whatever the backend says it drew -- which is the
+        // fallback string's size whenever the platform could not produce the
+        // glyph, and those two are rarely the same width.
+        //
+        // 符號是「目前字級下的一個字符」，因此它完全不會進入下方的解碼與縮放管線，`resizable()`
+        // 對它也不適用。它的尺寸就是 backend 所回報的、它實際畫出來的東西——當平台無法產生該字符
+        // 時，那會是退路字串的尺寸，而這兩者的寬度極少相同。
+        if case .symbol(let symbol) = source {
+            let symbolWidget = children.symbolWidget(backend: backend)
+            let size = backend.size(
+                ofSymbol: symbol,
+                whenDisplayedIn: symbolWidget,
+                environment: environment
+            )
+            return ViewLayoutResult.leafView(size: ViewSize(size))
+        }
+
         let image: ImageFormats.Image<RGBA>?
         if source != children.cachedImageSource {
             switch source {
@@ -119,6 +168,16 @@ extension Image: TypeSafeView {
                     }
                 case .image(let sourceImage):
                     image = sourceImage
+                // Unreachable: the symbol branch above returned before this
+                // switch. Written as `nil` rather than a fatal error because
+                // the two arms are separated by twenty lines and a future edit
+                // that moves the early return should show up as an empty view,
+                // not as a crash in a release build.
+                // 不可能到達:上方的符號分支已在此 switch 之前回傳。此處寫成 `nil` 而非致命錯誤,
+                // 因為這兩處相隔二十行,而日後若有改動搬動了那個提前回傳,它應該表現為一個空 view,
+                // 不是 release 版本中的一次崩潰。
+                case .symbol:
+                    image = nil
             }
 
             children.cachedImageSource = source
@@ -150,6 +209,20 @@ extension Image: TypeSafeView {
         environment: EnvironmentValues,
         backend: Backend
     ) {
+        if case .symbol(let symbol) = source {
+            let size = layout.size.vector
+            let symbolWidget = children.symbolWidget(backend: backend)
+            backend.updateSymbolView(symbolWidget, symbol: symbol, environment: environment)
+            if children.isContainerEmpty {
+                backend.insert(symbolWidget, into: children.container.into(), at: 0)
+                backend.setPosition(ofChildAt: 0, in: children.container.into(), to: .zero)
+                children.isContainerEmpty = false
+            }
+            backend.setSize(of: children.container.into(), to: size)
+            backend.setSize(of: symbolWidget, to: size)
+            return
+        }
+
         let size = layout.size.vector
         let hasResized = children.cachedImageDisplaySize != size
         children.cachedImageDisplaySize = size
@@ -203,6 +276,29 @@ extension Image: TypeSafeView {
     var imageChanged = false
     var isContainerEmpty = true
     var lastScaleFactor: Double = 1
+
+    /// Created on demand, because most images are not symbols.
+    ///
+    /// `imageWidget` is created eagerly in `init` and a second eager widget
+    /// would double the widget count of every raster image in the tree to serve
+    /// the ones that are symbols. `commit` and `computeLayout` both have the
+    /// backend in hand, so there is nowhere this needs to be made in advance.
+    ///
+    /// 依需要建立，因為大多數的 image 並不是符號。
+    ///
+    /// `imageWidget` 是在 `init` 中積極建立的，而第二個積極建立的 widget 會讓樹中每一張點陣圖的
+    /// widget 數量加倍，只為了服務其中屬於符號的那些。`commit` 與 `computeLayout` 手上都有 backend，
+    /// 因此此處沒有任何需要提前建立的理由。
+    var cachedSymbolWidget: AnyWidget? = nil
+
+    func symbolWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
+        if let cachedSymbolWidget {
+            return cachedSymbolWidget.into()
+        }
+        let widget = backend.createSymbolView()
+        cachedSymbolWidget = AnyWidget(widget)
+        return widget
+    }
 
     init<Backend: BaseAppBackend>(backend: Backend) {
         container = AnyWidget(backend.createContainer())
