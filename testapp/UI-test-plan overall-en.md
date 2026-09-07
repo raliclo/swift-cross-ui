@@ -202,7 +202,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P0.exe`.
+1. Launch `P0-WinUI.exe`.
 2. Confirm that the main window `P0 WinUI critical checks` appears.
 3. Confirm that the console does not show these unimplemented logs:
    - `setSizeLimits(ofWindow:minimum:maximum:) unimplemented`
@@ -237,7 +237,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P1.exe`.
+1. Launch `P1-WinUI.exe`.
 2. Click `Open file dialog`.
 3. Select any file or cancel; record how long the dialog takes to appear and return to verify #523 (Fixed).
 4. Click `Open folder dialog`.
@@ -273,7 +273,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P2.exe`.
+1. Launch `P2-WinUI.exe`.
 2. Open the Picker and confirm that the initial options are only `Vanilla` and `Chocolate` to verify #449 (Fixed).
 3. Check `Use expanded Picker options` to verify #449 (Fixed).
 4. Open the Picker again and confirm that `Strawberry`, `Mint`, and `Coffee` were added and selectable to verify #449 (Fixed).
@@ -307,7 +307,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P3.exe`.
+1. Launch `P3-WinUI.exe`.
 2. Before resizing the window, confirm that the sidebar, middle, and detail columns are fully visible.
 3. Confirm that the image detail column does not cover the sidebar or middle column.
 4. Click `Force state update` and confirm that the three columns do not jump or suddenly correct themselves.
@@ -341,7 +341,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P4.exe`.
+1. Launch `P4-WinUI.exe`.
 2. Confirm that the native WinUI banner is displayed to verify #156 (Fixed).
 3. Type text into `Native inspection text` to verify #156 (Fixed).
 4. Confirm that the native banner content updates to verify #156 (Fixed).
@@ -381,7 +381,7 @@ Covered issues:
 
 Test steps:
 
-1. Launch `P5.exe`.
+1. Launch `P5-WinUI.exe`.
 2. Confirm that the main window `P5: Main window` appears.
 3. Click `Open another window` to open a secondary window; confirm that a second window `P5: Secondary window` appears.
 4. In the main window, click `Show Alert A`; confirm that `Alert A (Main)` appears.
@@ -723,7 +723,7 @@ interaction destroys the evidence.
 
 Test steps:
 
-1. Launch `P16.exe`. Do not move or resize the window.
+1. Launch `P16-WinUI.exe`. Do not move or resize the window.
 2. Immediately note the sizes reported by the `sidebar` and `detail` panes.
 3. Judge by eye whether the layout is visibly wrong -- sidebar filling the
    window, detail squeezed out, and so on.
@@ -825,7 +825,7 @@ zsh testapp/compile.zsh P6
 ./testapp/output/P6-WinUI.exe      # WinUIBackend, on Windows; P6 has no -gtk4 build
 ```
 
-On macOS the output binary name may be `P6` instead of `P6.exe`:
+On macOS the output binary name may be `P6` instead of `P6-WinUI.exe`:
 
 ```zsh
 zsh testapp/compile.zsh P6
@@ -852,7 +852,7 @@ matches any other name, and `-f <path>` takes a path directly. The search covers
 the current directory, the directory holding the executable, and the default
 input directory. `-autoplay` starts playback immediately and
 `-enable-dropframe` turns on frame dropping, so
-`P6.exe -f -autoplay -enable-dropframe` needs no clicks at all.
+`P6-WinUI.exe -f -autoplay -enable-dropframe` needs no clicks at all.
 `test_P6.zsh -win` and `P6-test.zsh` both wrap that combination;
 `P6-test.zsh [file-pattern]` is the shorter form.
 `compile.zsh` builds release by default so GUI timing reflects normal usage. Use
@@ -894,7 +894,7 @@ Diagnostics:
 
 Test steps:
 
-1. Launch `P6.exe` and click `Choose file`.
+1. Launch `P6-WinUI.exe` and click `Choose file`.
 2. Select `storybook-1min-4k60.mp4`, a WebM input, or `storybook-1min-4k60.y4m.zst`.
 3. Confirm that the first frame appears and the selectable progress text uses the `Current: 01:17 / 04:02 (32%)` format when duration is available. Drag across the text and copy it to confirm text selection works.
 4. Click `Show resolution`; confirm that its button background changes to the active state and a separate bottom line reports input resolution, output resolution, and the 960x540 viewport. Click it again and confirm that the bottom line disappears and the button returns to its inactive background.

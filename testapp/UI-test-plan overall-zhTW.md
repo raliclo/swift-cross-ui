@@ -88,7 +88,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P0.exe`。
+1. 啟動 `P0-WinUI.exe`。
 2. 確認主視窗 `P0 WinUI critical checks` 出現。
 3. 檢查 console 不應出現下列未實作 log：
    - `setSizeLimits(ofWindow:minimum:maximum:) unimplemented`
@@ -123,7 +123,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P1.exe`。
+1. 啟動 `P1-WinUI.exe`。
 2. 按 `Open file dialog`。
 3. 選擇任一檔案或取消，記錄 dialog 出現與返回時間，確認 #523 (Fixed)。
 4. 按 `Open folder dialog`。
@@ -159,7 +159,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P2.exe`。
+1. 啟動 `P2-WinUI.exe`。
 2. 開啟 Picker，確認初始 options 只有 `Vanilla`、`Chocolate`，確認 #449 (Fixed)。
 3. 勾選 `Use expanded Picker options`，確認 #449 (Fixed)。
 4. 再開 Picker，確認 options 增加 `Strawberry`、`Mint`、`Coffee` 且可切換選項，確認 #449 (Fixed)。
@@ -193,7 +193,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P3.exe`。
+1. 啟動 `P3-WinUI.exe`。
 2. 不調整視窗，先觀察 sidebar、middle、detail 三欄是否都完整可見。
 3. 確認 image detail 欄沒有蓋住 sidebar 或 middle column。
 4. 按 `Force state update`，確認三欄位置不應突然修正或跳動。
@@ -227,7 +227,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P4.exe`。
+1. 啟動 `P4-WinUI.exe`。
 2. 確認 native WinUI banner 顯示，確認 #156 (Fixed)。
 3. 在 `Native inspection text` 輸入文字，確認 #156 (Fixed)。
 4. 確認 native banner 內容可跟著更新，確認 #156 (Fixed)。
@@ -267,7 +267,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 
 測試步驟：
 
-1. 啟動 `P5.exe`。
+1. 啟動 `P5-WinUI.exe`。
 2. 確認主視窗 `P5: Main window` 出現。
 3. 按 `Open another window` 開啟第二個視窗，確認 `P5: Secondary window` 出現。
 4. 在主視窗按 `Show Alert A`，確認 `Alert A (Main)` 出現。
@@ -589,7 +589,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 
 測試步驟：
 
-1. 啟動 `P16.exe`，不要移動或縮放視窗。
+1. 啟動 `P16-WinUI.exe`，不要移動或縮放視窗。
 2. 立刻記下 `sidebar` 與 `detail` 兩個 pane 顯示的尺寸。
 3. 目視判斷版面是否明顯錯誤（例如 sidebar 佔滿、detail 被擠掉）。
 4. 按 `Force update`，這只改變一個與版面無關的計數器。
@@ -666,7 +666,7 @@ zsh testapp/compile.zsh P6
 ./testapp/output/P6-WinUI.exe      # WinUIBackend，Windows 上；P6 沒有 -gtk4 build
 ```
 
-macOS 的輸出檔名可能是 `P6` 而不是 `P6.exe`：
+macOS 的輸出檔名可能是 `P6` 而不是 `P6-WinUI.exe`：
 
 ```zsh
 zsh testapp/compile.zsh P6
@@ -689,7 +689,7 @@ Late-frame dropping 預設為關閉。加上 `--frame-drop` 可在啟動時就�
 含 `恩典365` 的第一個媒體檔，`-f <關鍵字>` 可比對其他檔名，`-f <路徑>` 則直接
 指定路徑。搜尋範圍包含目前目錄、執行檔所在目錄與預設輸入目錄。`-autoplay`
 會立即開始播放，`-enable-dropframe` 會開啟丟幀，因此
-`P6.exe -f -autoplay -enable-dropframe` 完全不需要點擊任何按鈕。
+`P6-WinUI.exe -f -autoplay -enable-dropframe` 完全不需要點擊任何按鈕。
 `test_P6.zsh -win` 與 `P6-test.zsh` 都封裝了這組參數，其中
 `P6-test.zsh [檔名關鍵字]` 是較精簡的寫法。
 `compile.zsh` 預設以 release 編譯，讓 GUI timing 更接近一般使用情境。只有需要
@@ -726,7 +726,7 @@ Runtime tools：
 
 測試步驟：
 
-1. 啟動 `P6.exe`，按 `Choose file`。
+1. 啟動 `P6-WinUI.exe`，按 `Choose file`。
 2. 選擇 `storybook-1min-4k60.mp4`、一個 WebM 輸入檔，或
    `storybook-1min-4k60.y4m.zst`。
 3. 確認第一張 frame 出現，且在 duration 可取得時，可選取的進度文字使用
