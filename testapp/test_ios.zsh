@@ -157,6 +157,48 @@ if [ -n "$action_file" ] && [ ! -f "$action_file" ]; then
 fi
 if [ -n "$action_file" ]; then
     action_file="${action_file:A}"
+
+    # Staged onto the boot volume, because the XCUITest runner is sandboxed and
+    # this checkout is not on a volume it can read.
+    #
+    # `IOS_ACTION_FILE` is read inside the test process, which runs under the
+    # Simulator's sandbox. A path under /Volumes -- an external volume, which is
+    # where this repository lives -- fails there with
+    # `NSCocoaErrorDomain Code=256 "couldn't be opened"`. That is a permission
+    # result, not a missing file: the same absolute path opens fine from the
+    # shell, and copying the file to /tmp and passing that made the identical
+    # run replay three actions and pass.
+    #
+    # **This is why iOS carried 45 `unverified` cells rather than results.** Not
+    # "nobody recorded a run" -- runs were attempted and the replay could never
+    # have worked from here. It left no trace anyone read: of the 47 iOS logs in
+    # output/, none contains a replay line, and until the runner was given one
+    # to print there was nothing to notice its absence by.
+    #
+    # Copied rather than symlinked, because a symlink into /Volumes resolves to
+    # /Volumes and the sandbox refuses it just the same.
+    #
+    # 先暫存到開機磁碟區,因為 XCUITest 的 runner 在沙盒中執行,而這份 checkout 位於一個它讀不到的
+    # 磁碟區上。
+    #
+    # `IOS_ACTION_FILE` 是在測試行程內讀取的,而該行程在 Simulator 的沙盒之下執行。位於 /Volumes
+    # 之下的路徑——一個外接磁碟區,也正是本 repository 所在之處——在那裡會以
+    # `NSCocoaErrorDomain Code=256 "couldn't be opened"` 失敗。那是權限的結果,不是檔案遺失:同一個
+    # 絕對路徑從 shell 開得起來,而把該檔複製到 /tmp 並改傳那個路徑之後,完全相同的執行重放了三個
+    # 動作並通過。
+    #
+    # **這正是 iOS 帶著 45 個 `unverified` 格而非結果的原因。** 不是「沒有人記錄過執行」——執行是嘗試
+    # 過的,而重放在此處根本不可能成功。它沒有留下任何被人讀到的痕跡:output/ 中的 47 份 iOS 日誌沒有
+    # 任何一份含有重放行,而在這個 runner 被賦予一行可印的訊息之前,也沒有任何東西能讓人察覺它的缺席。
+    #
+    # 使用複製而非符號連結,因為指向 /Volumes 的符號連結會解析回 /Volumes,沙盒照樣拒絕。
+    if [[ "$action_file" == /Volumes/* ]]; then
+        staged_actions="${TMPDIR:-/tmp}/scui-ios-actions"
+        mkdir -p "$staged_actions"
+        cp "$action_file" "$staged_actions/${action_file:t}"
+        action_file="$staged_actions/${action_file:t}"
+        printf '==> Staged the action file at %s (the runner cannot read /Volumes)\n' "$action_file"
+    fi
 fi
 
 if [ "$do_build" -eq 1 ]; then

@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on Android: pressing "Increment model" advances the model and does not
+# rebuild it.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Coordinates are points and the synthesiser multiplies by
+# the density.
+#
+# Measured 2026-09-07 from a uiautomator dump of the running app, not from a
+# screenshot: the button reports bounds [31,1810][448,1936], whose centre is
+# (239, 1873) pixels and therefore (91, 714) points. A dump was used because
+# this app's own two assertion lines are text -- "P46Model constructions: 1" and
+# "model.count = 0" -- and the same dump reads both, so the coordinate and the
+# thing it is supposed to change come from one source.
+#
+# The content box is (0,0)-(1080,2751): it fits horizontally and overflows 351
+# pixels below the fold, so the button is reachable without scrolling and no
+# scroll is written here. Content that needed one would need the scroll recorded
+# too, because the root scroll host starts at the content's own origin.
+#
+# **What this checks is the @StateObject contract, not the button.** `model.count`
+# must climb to 1 while "P46Model constructions" stays at 1. Declared `@State`
+# the model would be rebuilt on every update and the construction count would
+# climb with it; that count is the whole reason P46 exists. A press that
+# increments the count while constructions also climbs is a failure that looks
+# exactly like a pass if only `model.count` is read.
+#
+# P46 於 Android:按下「Increment model」會推進 model,而不會重建它。
+#
+# 模擬器 swift-cross-ui-api36,1080 x 2400 像素,density 2.625,因此視窗為 411 x 914 點。
+# 座標以點為單位,由合成器乘上該密度。
+#
+# 2026-09-07 量測,取自執行中 app 的 uiautomator dump 而非螢幕截圖:該按鈕回報的 bounds 是
+# [31,1810][448,1936],其中心為 (239, 1873) 像素,亦即 (91, 713) 點。之所以使用 dump,是因為本 app
+# 自己的兩行斷言是文字——「P46Model constructions: 1」與「model.count = 0」——而同一份 dump 兩者都
+# 讀得到,如此座標與「它應該改變的那個東西」便來自同一個來源。
+#
+# 內容框為 (0,0)-(1080,2751):水平方向塞得下,垂直方向溢出 351 像素,因此該按鈕不需捲動即可觸及,
+# 本檔也就不寫入任何捲動。若內容需要捲動,則該次捲動也必須被記錄下來,因為 root scroll host 是從
+# 內容自身的原點開始的。
+#
+# **本檔檢查的是 @StateObject 的契約,不是那個按鈕。** `model.count` 必須升到 1,而
+# 「P46Model constructions」必須維持 1。若宣告為 `@State`,該 model 會在每次更新時被重建,建構次數
+# 也會隨之攀升;而那個計數正是 P46 存在的全部理由。一次「count 增加、但 constructions 也增加」的按下
+# 是失敗,而若只讀 `model.count`,它看起來與通過完全相同。
+sleep,,,,,,1500000,let P46 lay out its sections,android
+click,91,714,,left,,,"the ""Increment model"" button -- model.count must read 1 and ""P46Model constructions"" must still read 1",android
+sleep,,,,,,1200000,let the two lines redraw,android

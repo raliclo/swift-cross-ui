@@ -1,6 +1,23 @@
 import AppKit
+import DebugFeatures
 import Foundation
 import SwiftCrossUI
+
+// `#if SCUI_DEBUG`, matching AppKitBackend.swift, because `InputEvent` is not a
+// dependency of this target in a release build. Package.swift builds the list as
+// `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])`, so a plain
+// `import InputEvent` compiles on this machine -- where the flag happens to be
+// on -- and fails for anyone building without it. The condition is the same one
+// that decides the dependency, so the two cannot drift apart.
+//
+// 使用 `#if SCUI_DEBUG`,與 AppKitBackend.swift 一致,因為在 release 建置中 `InputEvent` 並不是
+// 本 target 的相依。Package.swift 是以
+// `["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : [])` 建構那份清單的,因此一個沒有
+// 條件的 `import InputEvent` 在這台機器上(旗標剛好是開的)編得過,而對任何未開啟它的人則會失敗。
+// 此處的條件與「決定該相依是否存在」的是同一個,因此兩者不會漂移開來。
+#if SCUI_DEBUG
+    import InputEvent
+#endif
 
 extension AppKitBackend: BackendFeatures.HitTesting {
     public func setHitTesting(of widget: Widget, to allowsHitTesting: Bool) {
@@ -117,8 +134,71 @@ private enum AppKitHitTestingRegistry {
 /// 反而一致：那修正了第二個錯誤卻留下第一個，因此只有在本 container 恰好位於其 superview 原點時
 /// 才會是對的。
 final class AppKitHitTestingContainer: NSView {
+    /// Says where a point landed, when the debug features are on.
+    ///
+    /// A click that resolves to nothing and a click that lands beside a control
+    /// produce the same screen: nothing happens. Working out which, from
+    /// outside, means scanning a control's edges one run at a time -- a peer
+    /// spent half an hour on 2026-09-07 recovering the shape of a live region
+    /// that way, and the geometry dump could not help because it lists
+    /// `NSTextField`, `NSButton`, `NSButtonTextField` and `NSScroller` and no
+    /// containers, so it cannot show what sits above a control or where a hit
+    /// test went.
+    ///
+    /// This reports the point in three spaces and what answered, because the
+    /// interesting failures are conversions between them. `frame` is the
+    /// child's rect in this container's coordinates, which is what `hitTest`
+    /// compares against; printing it beside the point is what distinguishes
+    /// "the point is outside the control" from "the control is not where the
+    /// dump says".
+    ///
+    /// **A reported frame is larger than what the control draws, and reading a
+    /// defect out of the difference is easy.** Measured on P47's buttons: the
+    /// frame is `104x27`, placed at `(-3,-4)` inside a container 20 points tall,
+    /// and the responding band is 20 points -- which looks like a control whose
+    /// live region is smaller than the control itself. It is not. The drawn
+    /// bezel measures 20.0 points on screen, y 472.0..491.5, against a
+    /// responding band of y 473..492: the extra seven points are AppKit's own
+    /// invisible margin, and the `(-3,-4)` offset exists to put the visible
+    /// bezel on the rect the layout asked for. The live region matches what a
+    /// user sees.
+    ///
+    /// **回報的 frame 大於控制項實際畫出的範圍,而從那個差值讀出一個缺陷是很容易的事。**
+    /// 於 P47 的按鈕上實測:frame 為 `104x27`、放置於 `(-3,-4)`、位於一個高 20 點的容器中,而回應
+    /// 的帶是 20 點——那看起來就像一個「活區小於控制項本身」的控制項。它不是。畫面上的 bezel 量到
+    /// 20.0 點高,y 472.0..491.5,而回應帶是 y 473..492:多出來的那七點是 AppKit 自己的不可見邊距,
+    /// 而 `(-3,-4)` 這個偏移正是為了讓看得見的 bezel 落在版面所要求的矩形上。活區與使用者所看到的
+    /// 東西一致。
+    ///
+    /// Gated on `DebugFeatures.isEnabled`, so a release build is silent and a
+    /// debug build without `--debug` is too. Written to stderr, unbuffered,
+    /// which is the stream the action-file lines already use.
+    ///
+    /// 在 debug 功能開啟時,說出某一點落到了哪裡。
+    ///
+    /// 「解析到空無一物的點擊」與「落在控制項旁邊的點擊」會產生相同的畫面:什麼都沒發生。要從外部
+    /// 分辨兩者,只能一次一輪地掃描控制項的邊緣——2026-09-07 有一位同事就是這樣花了半小時,才反推出
+    /// 一個活區的形狀;而幾何傾印幫不上忙,因為它只列 `NSTextField`、`NSButton`、
+    /// `NSButtonTextField` 與 `NSScroller`,不列容器,因此看不出控制項上方壓著什麼,也看不出命中
+    /// 測試走到哪裡。
+    ///
+    /// 此處以三個座標系回報該點以及是誰回應了它,因為有趣的失敗正是發生在它們之間的轉換上。`frame`
+    /// 是子元件在本 container 座標系中的矩形,也正是 `hitTest` 用來比對的東西;把它印在該點旁邊,
+    /// 才能區分「該點在控制項之外」與「控制項不在傾印所說的位置」。
+    ///
+    /// 以 `DebugFeatures.isEnabled` 為條件,因此 release 建置是靜默的,未加 `--debug` 的 debug
+    /// 建置也是。寫入 stderr、不緩衝,那正是動作檔各行本來就使用的串流。
+    private static func report(_ message: String) {
+        guard DebugFeatures.isEnabled else { return }
+        FileHandle.standardError.write(Data("-hittest: \(message)\n".utf8))
+    }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard !isHidden, alphaValue > 0, bounds.width > 0, bounds.height > 0 else {
+            Self.report(
+                "container refused at \(Self.describe(point)) -- "
+                    + "hidden=\(isHidden) alpha=\(alphaValue) bounds=\(Self.describe(bounds))"
+            )
             return nil
         }
 
@@ -126,7 +206,13 @@ final class AppKitHitTestingContainer: NSView {
         // the only space there is.
         // 沒有 superview 就沒有轉換可做，此時 `point` 已位於唯一存在的那個座標系。
         let localPoint = superview.map { convert(point, from: $0) } ?? point
-        guard bounds.contains(localPoint) else { return nil }
+        guard bounds.contains(localPoint) else {
+            Self.report(
+                "outside the container: point \(Self.describe(point)) -> local "
+                    + "\(Self.describe(localPoint)), bounds \(Self.describe(bounds))"
+            )
+            return nil
+        }
 
         for child in subviews.reversed() {
             guard !child.isHidden, child.alphaValue > 0 else { continue }
@@ -138,9 +224,107 @@ final class AppKitHitTestingContainer: NSView {
             guard let candidate = child.hitTest(localPoint) else { continue }
 
             if !AppKitHitTestingRegistry.isDisabled(candidate, through: self) {
+                // `actionFileRect` as well as the local frame, because those two
+                // answer different questions and a reader needs both. The frame
+                // is what `hitTest` compared against, in this container's space;
+                // `click` is where an action file must aim, in the space action
+                // files are written in. A dump that prints one and labels it the
+                // other is how a peer spent four rounds clicking outside a
+                // control on 2026-09-07 -- the numbers were right and the label
+                // was wrong, and a click that lands on nothing raises nothing.
+                //
+                // 除了本地 frame 之外也印出 `actionFileRect`,因為兩者回答的是不同的問題,而讀者
+                // 兩個都需要。frame 是 `hitTest` 用來比對的東西,位於本 container 的座標系;而
+                // `click` 是動作檔應該瞄準的位置,位於動作檔所使用的那個座標系。一份「印了其中一個、
+                // 卻標上另一個名字」的傾印,正是某位同事在 2026-09-07 連續四輪點在控制項外面的原因
+                // ——數字是對的,標籤是錯的,而點在空處不會引發任何錯誤。
+                var aim = ""
+                #if SCUI_DEBUG
+                    // The two window origins go out beside the rect, because the
+                    // rect alone cannot be written into an action file: a file's
+                    // x and y are relative to `origin=frame` or `origin=client`,
+                    // and this is absolute. A caller has to subtract one of
+                    // them, and the subtraction is where a reader and this
+                    // function can silently disagree -- so both are printed and
+                    // neither has to be assumed.
+                    //
+                    // 兩個視窗原點與該矩形一併輸出,因為單憑那個矩形無法寫進動作檔:檔案裡的 x 與 y
+                    // 是相對於 `origin=frame` 或 `origin=client` 的,而此處是絕對座標。呼叫端必須
+                    // 減去其中之一,而那次相減正是「讀者」與「本函式」可能靜默地各說各話的地方——
+                    // 因此兩者都印出來,誰也不必用猜的。
+                    // `rect` for the origin and `click` for the centre, each
+                    // named, because one of them was labelled the other and a
+                    // reader followed the label.
+                    //
+                    // This line printed `click x,y size wxh` where `x,y` was the
+                    // rect's origin. Used literally that aims at the top-left
+                    // corner, outside the drawn bezel. It is the mirror of the
+                    // bug this whole exchange was about -- a peer's dump printed
+                    // a centre and formatted it as an origin, and four rounds of
+                    // action files clicked outside the control -- and I shipped
+                    // the same shape reversed while helping fix it.
+                    //
+                    // Both go out. A name is more reliable than a format: a pair
+                    // of numbers followed by a size reads as an origin whatever
+                    // it is.
+                    //
+                    // `rect` 表示原點、`click` 表示中心,各自具名,因為其中一個曾被標上另一個的名字,
+                    // 而讀者照著那個名字用了它。
+                    //
+                    // 這一行原本印的是 `click x,y size wxh`,而其中的 `x,y` 是矩形的原點。照字面使用
+                    // 它,瞄準的會是左上角,落在畫出來的 bezel 之外。這正是這整段往返所處理的那個錯誤的
+                    // 鏡像——某位同事的傾印印出中心卻以原點的格式呈現,導致四輪動作檔都點在控制項外面
+                    // ——而我在協助修正它的同時,出貨了同一個形狀的反面。
+                    //
+                    // 兩者都輸出。名字比格式可靠:一對數字後面接著尺寸,無論它是什麼,讀起來都像原點。
+                    let rect = AppKitSynthesiser.actionFileRect(of: candidate)
+                    aim = " rect \(Int(rect.x.rounded())),\(Int(rect.y.rounded()))"
+                        + " size \(Int(rect.width.rounded()))x\(Int(rect.height.rounded()))"
+                        + " click \(Int((rect.x + rect.width / 2).rounded()))"
+                        + ",\(Int((rect.y + rect.height / 2).rounded()))"
+                    if let geometry = try? AppKitSynthesiser().currentWindowGeometry() {
+                        aim += " frame-origin \(Int(geometry.frameOrigin.x.rounded()))"
+                            + ",\(Int(geometry.frameOrigin.y.rounded()))"
+                            + " client-origin \(Int(geometry.clientOrigin.x.rounded()))"
+                            + ",\(Int(geometry.clientOrigin.y.rounded()))"
+                    }
+                #endif
+                Self.report(
+                    "hit \(type(of: candidate)) at \(Self.describe(localPoint)) "
+                        + "in child \(type(of: child)) frame \(Self.describe(child.frame))"
+                        + aim
+                )
                 return candidate
             }
+            Self.report(
+                "\(type(of: candidate)) answered at \(Self.describe(localPoint)) but "
+                    + "allowsHitTesting is off for it"
+            )
         }
+
+        // Reached only when no child answered, which is the case a screenshot
+        // cannot tell from a control that ignored the press. Every child's
+        // frame is listed, because the useful comparison is the point against
+        // the rects that were actually tested.
+        // 只有在沒有任何 child 回應時才會走到這裡,而那正是螢幕截圖無法與「控制項忽略了該次按下」
+        // 區分的情況。此處列出每一個 child 的 frame,因為有用的比較是「該點」對上「實際被測試的
+        // 那些矩形」。
+        let rects = subviews
+            .filter { !$0.isHidden && $0.alphaValue > 0 }
+            .map { "\(type(of: $0))\(Self.describe($0.frame))" }
+            .joined(separator: " ")
+        Self.report(
+            "nothing at \(Self.describe(localPoint)) among \(subviews.count) children: \(rects)"
+        )
         return nil
+    }
+
+    private static func describe(_ point: NSPoint) -> String {
+        "(\(Int(point.x.rounded())),\(Int(point.y.rounded())))"
+    }
+
+    private static func describe(_ rect: NSRect) -> String {
+        "(\(Int(rect.minX.rounded())),\(Int(rect.minY.rounded()))"
+            + " \(Int(rect.width.rounded()))x\(Int(rect.height.rounded())))"
     }
 }
