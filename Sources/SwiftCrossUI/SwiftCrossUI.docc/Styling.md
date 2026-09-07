@@ -34,3 +34,13 @@
 - ``View/toggleStyle(_:)``
 - ``View/toggleColor(_:)``
 - ``ToggleStyle``
+
+### Label styles
+
+- ``View/labelStyle(_:)``
+- ``LabelStyle``
+- ``LabelStyleConfiguration``
+- ``DefaultLabelStyle``
+- ``TitleAndIconLabelStyle``
+- ``TitleOnlyLabelStyle``
+- ``IconOnlyLabelStyle``

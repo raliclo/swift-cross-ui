@@ -401,6 +401,20 @@ extension EnvironmentValues {
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button
 
+    /// The style of label to use.
+    ///
+    /// There is no `backendLabelStyle` beside this one, unlike
+    /// ``backendListStyle`` and ``backendDatePickerStyle``. Those exist because
+    /// a backend receives the environment and needs a value from its own
+    /// vocabulary; a label style never reaches a backend at all, since ``Label``
+    /// is composed entirely out of other views.
+    ///
+    /// 此處沒有與之並列的 `backendLabelStyle`，這一點與 ``backendListStyle``、
+    /// ``backendDatePickerStyle`` 不同。那兩者的存在，是因為 backend 收到的是 environment，需要一個
+    /// 出自其自身詞彙的值；而 label style 根本不會抵達任何 backend，因為 ``Label`` 完全是由其他
+    /// view 組合而成的。
+    @Entry public var labelStyle: any LabelStyle = .automatic
+
     /// The active background color of button-style toggles.
     @Entry public var toggleColor: Color?
 

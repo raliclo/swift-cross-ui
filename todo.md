@@ -40,7 +40,40 @@ and the rest do not:
 | `DatePickerStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendDatePickerStyle` | yes |
 | `ListStyle` protocol | protocol since 2026-08-27 — the enum lives on as `BackendListStyle`, and GtkBackend now reads it | yes |
 | `ToggleStyle` protocol | protocol since 2026-08-27 — the nested `Style` enum lives on as `BackendToggleStyle` | yes |
-| `ButtonStyle`, `LabelStyle`, `ShapeStyle` | absent — 0 declarations and 0 references each | no |
+| `ShapeStyle` protocol | protocol since 2026-09-02 (`git log --diff-filter=A` on `Views/Styles/ShapeStyle/ShapeStyle.swift`) — resolves to `ResolvedFillStyle`, no associated `Body` | yes |
+| `LabelStyle` protocol | protocol since 2026-09-08 — `makeBody(configuration:)`, `LabelStyleConfiguration`, and `Default`/`TitleAndIcon`/`TitleOnly`/`IconOnly` structs. Touches no backend | yes |
+| `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` | absent — 0 declarations and 0 references each | no |
+
+**Two corrections to the row above, dated 2026-09-08 and kept rather than
+silently rewritten**, because both are the exact failure the paragraph below
+this table was written about.
+
+The row used to read ``ButtonStyle`, `LabelStyle`, `ShapeStyle` | absent — 0
+declarations and 0 references each`. By 2026-09-08 that was false for two of the
+three: `ShapeStyle` had been a protocol since 2026-09-02 (#66) and measures 1
+declaration and 32 references, while this section still calls it "still
+unwritten" further down — see the `ShapeStyle` paragraph below, which has not
+been corrected here because it is not this change's subject. The count nobody
+re-ran was the giveaway.
+
+The row was also a **wrong denominator**, which is subtler and survived longer:
+`TextFieldStyle` and `ProgressViewStyle` are SwiftUI style protocols this project
+also lacks, and they had never been listed at all. So "four absent" was never
+four names — it was four of the six that happened to be written down. Re-derive
+both halves with counts, never with a truncated listing:
+
+    for n in ButtonStyle LabelStyle ShapeStyle ToggleStyle ListStyle \
+             PickerStyle DatePickerStyle TextFieldStyle ProgressViewStyle; do
+      printf '%-18s decls=%s refs=%s\n' "$n" \
+        "$(grep -rn "\(struct\|enum\|protocol\) $n\b" Sources/ --include=*.swift | wc -l)" \
+        "$(grep -rn "\b$n\b" Sources/ --include=*.swift | wc -l)"
+    done
+
+Measured 2026-09-08, immediately **before** `LabelStyle` landed: five present
+(`PickerStyle`, `DatePickerStyle`, `ListStyle`, `ToggleStyle`, `ShapeStyle`) and
+four absent (`ButtonStyle`, `LabelStyle`, `TextFieldStyle`, `ProgressViewStyle`)
+— not the 4-of-6 this table used to imply. **After** it landed: six present and
+three absent.
 
 **A correction, kept rather than quietly fixed.** The first version of this table
 said all four of `ButtonStyle`, `LabelStyle`, `ShapeStyle` and `ToggleStyle` were
@@ -61,13 +94,25 @@ than on a feature checklist. An enum keeps the *call sites* compiling —
 own style. `struct MyStyle: DatePickerStyle` compiles against SwiftUI and does
 not compile here, and nothing in the API surface hints at why.
 
-Decided: follow the protocol shape everywhere, including adding the four that do
+Decided: follow the protocol shape everywhere, including adding the ones that do
 not exist. `PickerStyle` is the worked example to copy — protocol, an internal
 `_Builtin` protocol for the cases a backend must recognise, and one named struct
 per style.
 
-`DatePickerStyle`, `ToggleStyle` and `ListStyle` are done (2026-08-27, Windows).
-`ButtonStyle` and `LabelStyle` are blocked, below.
+`DatePickerStyle`, `ToggleStyle` and `ListStyle` are done (2026-08-27, Windows),
+`ShapeStyle` (2026-09-02) and `LabelStyle` (2026-09-08, Windows) after them.
+`ButtonStyle` is blocked, below; `TextFieldStyle` and `ProgressViewStyle` are
+simply not started.
+
+**The `_Builtin` half of that recipe is not mandatory, and `LabelStyle` is the
+case that shows why.** `_BuiltinPickerStyle` and `_BuiltinListStyle` exist to
+translate a style into a backend's own vocabulary. A label style has no such
+vocabulary to translate into — `Label` is `HStack`, `Text` and `Image`, and no
+backend is consulted at any point — so `LabelStyle` has neither a `_Builtin`
+companion nor an `isSupported(backend:)`, and its four built-ins are ordinary
+conformers. Copying those two members anyway would have produced a query whose
+only possible answer is `true`, which is the cost `_BuiltinToggleStyle`'s comment
+already records.
 
 **`ButtonStyle` cannot be written yet, and the blocker is `Button`.** SwiftUI's
 `ButtonStyle.makeBody(configuration:)` receives `configuration.label` as a
@@ -79,8 +124,35 @@ returns nothing in any backend. A `ButtonStyle` built on top of today's `Button`
 would hand every style an empty label and an `isPressed` that is always false,
 which is a worse outcome than not having it. Arbitrary button labels first.
 
-**`LabelStyle` has nothing to style.** There is no `Label` view — it is one of
-the missing views under SwiftUI parity below.
+**`LabelStyle` had nothing to style. Done 2026-09-08 (Windows), the day the
+blocker expired.** The original entry read: *"`LabelStyle` has nothing to style.
+There is no `Label` view — it is one of the missing views under SwiftUI parity
+below."* That was true when written and stopped being true in two steps, neither
+of which touched this file — which is exactly how a blocker outlives its blocker.
+`Label` landed as `public struct Label<Title: View, Icon: View>`, and
+`Label(_:systemImage:)` landed with the symbol API on 2026-09-08. Re-derive with
+`grep -n "public struct Label\|systemImage" Sources/SwiftCrossUI/Views/Label.swift`.
+
+What was added: `LabelStyle` with SwiftUI's `makeBody(configuration:)`,
+`LabelStyleConfiguration`, `View.labelStyle(_:)` propagating through the
+environment so the innermost call wins, and `DefaultLabelStyle` (`.automatic`),
+`TitleAndIconLabelStyle`, `TitleOnlyLabelStyle`, `IconOnlyLabelStyle`.
+
+**Nothing that renders a label changes appearance, and that is a property of the
+diff rather than a hope.** `Label.body` was `HStack(spacing: 6) { icon; title }`;
+that expression was *moved* into `TitleAndIconLabelStyle.makeBody`, and
+`DefaultLabelStyle` calls `TitleAndIconLabelStyle().makeBody(configuration:)`
+rather than repeating it — so `.automatic`, the environment default, cannot drift
+from `.titleAndIcon` or from the old body. Two copies of that `HStack` would have
+been two things able to disagree in silence.
+
+Modelled on `ToggleStyle` for the routing (`Label.body` is now
+`AnyView(labelStyle.makeBody(...))`, as `Toggle.body` is) and on `ListStyle` for
+the departures (a style protocol here does not have to carry every member
+`PickerStyle` carries). `LabelStyleConfiguration.Title` and `.Icon` are
+`typealias`es for `AnyView`, not opaque wrapper structs as in SwiftUI; the reason
+is on the type — a wrapper struct picks up `View.defaultAsWidget`, which adds a
+`VStack` per child to hide a type that is erased one line later anyway.
 
 **`ShapeStyle` is blocked below the protocol too, on what a backend can paint.**
 `BackendFeatures.Paths.renderPath` takes two resolved `Color`s —
@@ -823,7 +895,9 @@ gave -38,-59 at one and 154,-6 at the other.
 Nine areas from a protocol-and-platform audit. Each is a category, not a task:
 animation and transitions (no protocol at all); visual effects and transforms;
 focus, accessibility and keyboard shortcuts; style protocols (`ButtonStyle`,
-`LabelStyle`, `ShapeStyle`); gestures beyond tap and hover; missing common views
+`TextFieldStyle`, `ProgressViewStyle` — this said `LabelStyle` and `ShapeStyle`
+until they landed on 2026-09-08 and 2026-09-02); gestures beyond tap and hover;
+missing common views
 (`Form`, `Section`, `Label`, `Stepper`, lazy containers); API shapes that do not
 compile from SwiftUI code; state wrappers and scene composition; presentation
 and container modifiers.
@@ -840,7 +914,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | area | present | absent |
 |---|---|---|
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
-| **style protocols** | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle` | `ButtonStyle`, `LabelStyle`, `ShapeStyle`, `TextFieldStyle`, `ProgressViewStyle` |
+| **style protocols** (re-measured 2026-09-08) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle` | `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
 | **common views** | — | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent |
 | **state wrappers** | `State`, `Binding`, `Environment`, `AppStorage`, `Published` | `StateObject`, `ObservedObject`, `EnvironmentObject`, `SceneStorage` |
@@ -856,9 +930,22 @@ Three things this makes visible that the category list did not:
   `BackendFeatures.DragAndDrop` and works; `DragGesture` — dragging *within* an
   application — does not exist. The two read as the same feature on a checklist
   and share no code.
-- **The style protocols already have a shape to copy.** Four exist and were
-  converted to the SwiftUI form; the five missing ones are the same job again,
-  and two of them are already tracked as blocked for their own reasons.
+- **The style protocols already have a shape to copy.** As measured on
+  2026-09-01 that read "four exist … the five missing ones are the same job
+  again, and two of them are already tracked as blocked". Re-measured
+  **2026-09-08**: six exist — `ShapeStyle` landed 2026-09-02 and `LabelStyle`
+  2026-09-08 — and three are missing, of which only `ButtonStyle` is blocked, on
+  arbitrary `Button` labels. `TextFieldStyle` and `ProgressViewStyle` are the
+  same job again with no blocker at all.
+
+  **The rest of this table is the 2026-09-01 measurement and has not been
+  re-run.** The `common views` row is visibly stale from the style row alone —
+  it lists `Label` as absent, and `LabelStyle` could not have been written if it
+  were. `Sources/SwiftCrossUI/Views/` now also holds `Form.swift`,
+  `Section.swift`, `Stepper.swift`, `Gauge.swift` and `LazyStacks.swift`.
+  Left uncorrected here deliberately: guessing at a row is how the wrong
+  denominator above got in. Re-derive the whole table with the `grep -rl`
+  recipe above the table before quoting any of it.
 
 **A behavioural divergence, found 2026-09-01 and not visible in the table
 above.** `overlay` exists on both sides, so the inventory calls it present, and
