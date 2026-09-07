@@ -1,0 +1,69 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11 on Windows, GtkBackend: do two mutually clamped sliders stop each other,
+# and does each clamp cost a write? That is #82.
+#
+# The app shows `minimum 0 / maximum 100   writes: min 0, max 0`. The two
+# buttons move the sliders programmatically -- that is what they exist for, and
+# it is more reliable than synthesising a drag, because a drag that lands a few
+# pixels short still looks like a drag that worked.
+#
+# THE SEQUENCE IS RESET FIRST, ON PURPOSE. Starting from a known `min 0, max 0`
+# is what makes the final capture evidence: a non-zero counter can only have
+# come from the two presses in between. Resetting LAST would leave the capture
+# showing zeros, which is indistinguishable from three clicks that all missed.
+#
+# P11 於 Windows、GtkBackend：兩個互相箝制的滑桿會彼此擋住嗎？每一次箝制會不會計入一次寫入？
+# 這就是 #82。
+#
+# 該 app 顯示 `minimum 0 / maximum 100   writes: min 0, max 0`。這兩顆按鈕以程式方式移動滑桿——
+# 它們的存在正是為此，而且比合成拖曳更可靠：一次「差幾個像素」的拖曳，看起來仍然像一次成功的拖曳。
+#
+# **序列刻意以 Reset 開頭。** 從已知的 `min 0, max 0` 出發，才使最後那張擷圖成為證據：非零的計數
+# 只可能來自中間那兩次按壓。把 Reset 放在**最後**會讓擷圖顯示為零，而那與「三次點擊全部落空」無法
+# 區分。
+#
+# NO `# expect:` MARKER, and the reason is the point of the mechanism.
+# p11-debug-events.log contains only `RENDER COMPLETE -- P11 ready for #82,
+# #485, and #473 checks`, written at startup. It is present whether or not a
+# single click lands, so asserting it would manufacture a pass. An expectation
+# has to be text that would be ABSENT if every click missed, and P11 writes no
+# such line. This file is judged from the capture until P11.swift logs the
+# clamp itself.
+#
+# **本檔案沒有 `# expect:` 標記**，而理由正是該機制的重點所在。p11-debug-events.log 裡只有啟動時
+# 寫下的 `RENDER COMPLETE -- P11 ready for #82, #485, and #473 checks`。無論任何一次點擊是否命中，
+# 它都會存在，因此對它做斷言等於製造一個假通過。一項預期必須是「若所有點擊都落空就會**不存在**」的
+# 文字，而 P11 並未寫出這樣的一行。在 P11.swift 自己記錄下箝制之前，本檔案由擷圖判定。
+#
+# #485 (scrollbar direction) and #473 (compact DatePicker sizing) are NOT
+# covered here. `scroll` carries no coordinates -- it scrolls wherever the
+# pointer happens to be -- so without a log line naming the row that ended up on
+# top, a scroll step would add an action nobody can check. The DatePicker
+# steppers are the same: pressing `+` changes a number in the capture, but the
+# hour and minute groups measure 110x32 as a unit and the individual + and -
+# were not resolved separately, so a press could land on either.
+#
+# 此處**未**涵蓋 #485（捲軸方向）與 #473（compact DatePicker 尺寸）。`scroll` 不帶座標——它在游標
+# 當下所在之處捲動——因此在沒有一行日誌指出最後停在哪一列的情況下，加入捲動步驟等於加入一個沒有人
+# 能查證的動作。DatePicker 的加減鈕同理：按下 `+` 會改變擷圖裡的一個數字，但時與分的群組整體量得
+# 110x32，其中個別的 + 與 - 並未被分別解析出來，因此一次按壓可能落在任何一邊。
+#
+# Measured on a 788x649 window capture at 100% display scale.
+#
+# Measured 2026-09-07 from gtk4-P11-20260907-204947.png. Every box was found by
+# walking out from the click point to the dark border, not read by eye:
+#
+#     x= 45..161  y=322..353   Reset counters   117x32   centre 103,337
+#     x=174..289  y=322..353   Separate them    116x32   centre 231,337
+#     x=302..406  y=322..353   Collide them     105x32   centre 354,337
+#
+# 量測自一張 788x649 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 量測自 gtk4-P11-20260907-204947.png。上方每一個邊界都是從點擊位置往外走到深色邊框
+# 求得，而非以肉眼判讀。
+click,103,337,frame,left,,,"Reset counters" -- establish the min 0 max 0 baseline,windows
+sleep,,,,,,800000,,windows
+click,354,337,frame,left,,,"Collide them" -- the sliders must stop against each other (#82),windows
+sleep,,,,,,900000,,windows
+click,231,337,frame,left,,,"Separate them" -- and move apart again; writes must now be non-zero,windows
+sleep,,,,,,1500000,hold for the capture,windows
