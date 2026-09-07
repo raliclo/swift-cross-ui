@@ -2,6 +2,29 @@ action,x,y,origin,button,key,micros,note,platform
 # P32 on Windows, GtkBackend: press the button that has NO label, and prove the
 # press reached that button rather than the labelled one above it.
 #
+# expect: log-contains empty-label button clicked
+#
+# EVIDENCE FOR THAT MARKER: p32-debug-events.log holds it twice, from two runs
+# of this file in different working directories -- the repo-root copy at
+# 2026-09-03 05:33:57 and testapp/p32-debug-events.log at 2026-09-05 13:11:14,
+# each two to three seconds after that run's `RENDER COMPLETE`.
+# testapp/output/p32-debug-events.log, written by a launch with no action file,
+# holds `backend WinUIBackend` and `RENDER COMPLETE` and nothing else.
+#
+# THE MARKER CARRIES THE WHICH-BUTTON CLAIM, not merely "a press arrived": the
+# labelled button 30 points above writes `labelled button clicked`, so the two
+# strings are distinguishable and a drifted coordinate cannot satisfy this one.
+# That is the reason stated below for driving this button, now checkable.
+#
+# 該標記的證據：p32-debug-events.log 中有它兩次，來自本檔在不同工作目錄下的兩次執行——repo 根目錄
+# 那份為 2026-09-03 05:33:57，testapp/p32-debug-events.log 為 2026-09-05 13:11:14，兩者都在該次
+# `RENDER COMPLETE` 之後二至三秒。而由一次沒有動作檔的啟動所寫出的
+# testapp/output/p32-debug-events.log，只有 `backend WinUIBackend` 與 `RENDER COMPLETE`。
+#
+# 這個標記承載的是「按到了哪一顆」的主張，而不只是「有一次按下抵達了」：上方 30 點處的有標籤按鈕
+# 寫的是 `labelled button clicked`，兩個字串可以區分，因此偏掉的座標無法滿足這一個。下方所述
+# 「為何驅動這顆按鈕」的理由，至此變成可被檢驗的。
+#
 # The empty-label button is the point of this app. P32 exists because
 # SwiftCrossUI has no accessibility API at all -- no accessibilityLabel, no
 # accessibilityHint, no accessibilityValue, no accessibilityHidden, no

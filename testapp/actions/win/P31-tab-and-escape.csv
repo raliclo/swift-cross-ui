@@ -5,6 +5,41 @@ action,x,y,origin,button,key,micros,note,platform
 # here is whatever the platform gives for free. This file measures how much that
 # is, which is a different question from whether a feature works.
 #
+# expect: log-contains alert opened
+#
+# EVIDENCE FOR THAT MARKER: testapp/output/p31-debug-events.log gained
+# `alert opened` on the three most recent runs of this file -- 2026-09-06
+# 23:10:37, 23:10:57 and 23:11:16 UTC, the last of them inside the run whose log
+# /tmp/sweep_drive-gtk4/P31-tab-and-escape.log closed at 23:11:20. The same file
+# shows a 2026-09-03 01:11:20 launch with no action file that wrote only
+# `backend GtkBackend` and `RENDER COMPLETE`, so `alert opened` is written by
+# the "Open alert for Escape test" click and never by starting up.
+#
+# WHY NOT `alert OK`, which the last row below calls the verdict. That line is
+# also on disk (2026-09-05 17:05:53), but none of the three recent runs produced
+# it, and the run log says why rather than leaving it to guesswork: the move to
+# frame (53,44) reports `hitClass=Windows.UI.Core.CoreWindow`, so the click into
+# the alert went to a shell surface, not to the dialog. Asserting `alert OK`
+# today would report UNMET -- "the click missed its control, or the control does
+# nothing" -- for a desktop problem sweep_drive.zsh documents at `clear_desktop`.
+# `button clicked count=1`, the Tab-then-Space half, is absent from those same
+# three runs for the same reason and is not asserted either. Promote the marker
+# to `alert OK` once a run produces it.
+#
+# 該標記的證據：testapp/output/p31-debug-events.log 在本檔最近三次執行中都新增了 `alert opened`
+# ——2026-09-06 UTC 的 23:10:37、23:10:57 與 23:11:16，其中最後一次落在
+# /tmp/sweep_drive-gtk4/P31-tab-and-escape.log 收尾於 23:11:20 的那次執行之內。同一個檔案中，
+# 2026-09-03 01:11:20 那次沒有動作檔的啟動只寫出 `backend GtkBackend` 與 `RENDER COMPLETE`，
+# 因此 `alert opened` 是由「Open alert for Escape test」那一擊寫出的，絕不會來自啟動。
+#
+# 為何不用下方最後一列所稱的判準 `alert OK`：那一行同樣存在於磁碟上（2026-09-05 17:05:53），
+# 但最近三次執行沒有任何一次產生它；而執行 log 直接說明了原因，不必臆測——移動到 frame (53,44) 時
+# 回報 `hitClass=Windows.UI.Core.CoreWindow`，代表那一擊進入的是 shell 的表面，而不是該對話框。
+# 今天若斷言 `alert OK`，會為一個 sweep_drive.zsh 在 `clear_desktop` 處已載明的桌面問題回報 UNMET
+# ——「點擊沒中它的控制項，或該控制項什麼也沒做」。Tab 接 Space 那一半的 `button clicked count=1`
+# 在同樣那三次執行中同樣缺席，理由相同，因此也不予斷言。等到有任何一次執行產生 `alert OK`，再把
+# 標記升級為它。
+#
 # GtkBackend, not WinUI, and that is not a choice: run.zsh launches the -gtk4
 # build by design, because putting C:/gtk4/bin on PATH is the reason it exists.
 # Run the WinUI build directly from testapp/output/ if you want that one, and

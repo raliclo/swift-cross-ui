@@ -2,6 +2,41 @@ action,x,y,origin,button,key,micros,note,platform
 # P46 on Windows, WinUIBackend: the same three numbers as the GTK file, on the
 # other Windows backend.
 #
+# expect: log-contains model.count=1 constructions=1
+#
+# EVIDENCE FOR THAT MARKER, and this is the file the evidence actually belongs
+# to: testapp/output/p46-debug-events.log holds `model.count=1 constructions=1`
+# at 2026-09-04 15:05:50 and `model.count=2 constructions=1` at 15:05:52, and
+# that run's own first line reads `backend WinUIBackend`. The two-second gap is
+# this file's 1.2 s sleep plus the clicks. The five .onAppear lines above them
+# are what testapp/p46-debug-events.log holds alone from a launch with no action
+# file, so the `model.count=` lines are written by "Increment model" and by
+# nothing else.
+#
+# THE FIRST PRESS AND NOT THE SECOND, for the same reason as the GTK file: `=2`
+# is the stronger claim and needs both clicks, `=1` reports met as soon as the
+# button works, and the capture still carries the two-press reading.
+#
+# NOTE FOR WHOEVER DRIVES THIS. sweep_drive.zsh skips every `-winui` file --
+# their coordinates were measured against WinUI's window and it drives the gtk4
+# builds -- so this marker is only exercised by a run that names the file
+# explicitly. It is written here anyway: the fact belongs to the file, not to
+# whichever harness happens to read it.
+#
+# 該標記的證據，而這個檔案才是該證據真正的歸屬：testapp/output/p46-debug-events.log 於
+# 2026-09-04 15:05:50 有 `model.count=1 constructions=1`、15:05:52 有
+# `model.count=2 constructions=1`，且該次執行的第一行寫的是 `backend WinUIBackend`。兩秒的間隔
+# 就是本檔的 1.2 秒 sleep 加上點擊。其上那五行 .onAppear 內容，正是
+# testapp/p46-debug-events.log 在一次沒有動作檔的啟動中僅有的全部，因此 `model.count=` 那幾行
+# 只可能由「Increment model」寫出。
+#
+# 採第一次按下而非第二次，理由與 GTK 檔相同：`=2` 是更強的主張、需要兩次點擊都命中，`=1` 只要
+# 按鈕能動就回報達成，而兩次按下的讀數仍然留在擷圖上。
+#
+# 給驅動本檔者的提醒：sweep_drive.zsh 會略過每一個 `-winui` 檔案——它們的座標是對著 WinUI 的視窗
+# 量的，而該腳本驅動的是 gtk4 建置——因此這個標記只有在明確指名本檔的執行中才會被檢驗。這裡仍然
+# 寫上它：這項事實屬於這個檔案，而不屬於恰好讀它的那個工具。
+#
 # WHY A SECOND FILE RATHER THAN A SECOND COORDINATE IN THE FIRST. The two
 # backends lay the same view tree out differently and give the window different
 # chrome. Measured 2026-09-04: the GTK window frame is 888x729 and the WinUI one

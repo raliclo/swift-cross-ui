@@ -2,6 +2,31 @@ action,x,y,origin,button,key,micros,note,platform
 # P19 on Windows, GtkBackend: open the flat menu and press each item kind that
 # can be pressed.
 #
+# expect: log-contains clicked: second button item
+#
+# EVIDENCE FOR THAT MARKER: testapp/output/p19-debug-events.log pairs
+# `clicked: button item` with `clicked: second button item` five seconds later,
+# once per driven run of THIS file -- e.g. 2026-09-06 14:10:26 and 14:10:31,
+# inside the run whose log /tmp/sweep_drive-gtk4/P19-open-and-select.log closed
+# at 14:10:33 UTC. The companion file P19-menu-open.csv, which ran immediately
+# before and closed at 14:09:52, produced neither line: it only opens the menu.
+# So this text is specific to the presses, not to P19 having started.
+#
+# The LAST of the two is asserted rather than the first, because it is the final
+# click in the file: reaching it means the reopen-after-activation steps worked
+# as well. `toggle item -> true` would be the third claim, but the app writes no
+# line for it -- the header below explains why the toggle shows nothing either.
+#
+# 該標記的證據：testapp/output/p19-debug-events.log 中，`clicked: button item` 與五秒後的
+# `clicked: second button item` 成對出現，且每次驅動**本檔**只出現一次——例如 2026-09-06 的
+# 14:10:26 與 14:10:31，落在 /tmp/sweep_drive-gtk4/P19-open-and-select.log 收尾於 14:10:33 UTC
+# 的那次執行之內。緊接在其之前、收尾於 14:09:52 的搭檔檔案 P19-menu-open.csv 兩行都沒有產生：
+# 它只負責把選單打開。因此這段文字繫於那些按下動作，而非繫於「P19 有啟動」。
+#
+# 斷言的是兩者中**後**者而非前者，因為它是本檔最後一次點擊：能走到它，代表「啟動項目後重新開啟選單」
+# 那幾步也成立。`toggle item -> true` 會是第三項主張，但 app 並不會為它寫出任何一行——下方標頭已
+# 解釋該 toggle 為何連畫面上也看不出來。
+#
 # Verified 2026-08-27 at 100% display scale. After this file the app reads
 # `last action -> second button item` and `toggle item -> true`.
 #

@@ -2,6 +2,31 @@ action,x,y,origin,button,key,micros,note,platform
 # P5 on Windows, GtkBackend: stack three alerts on one window and dismiss them
 # one at a time, checking that each one below comes back.
 #
+# expect: log-contains requesting A, B and C together
+#
+# EVIDENCE FOR THAT MARKER: testapp/output/p5-debug-events.log, which the driver
+# reads, holds exactly five lines and every one of them is
+# `Main: requesting A, B and C together` -- one per driven run, 2026-09-05
+# 18:02:44 through 2026-09-06 14:04:45. P5 writes NOTHING at startup, so that
+# file cannot gain a line unless "Show A+B+C at once" was actually pressed.
+#
+# WHY NOT THE STRONGER LINE. The repo-root copy of the same log also holds
+# `Main: Alert A dismissed` / `B` / `C` from a hand run on 2026-09-03 22:41, and
+# those would be the better assertion -- they need a click INSIDE a dialog. Not
+# one of the five driven runs produced them, so asserting one would turn a file
+# that presses its button correctly into UNMET and point the reader at P5
+# instead of at the OK coordinate. The first click is what is proven here.
+#
+# 該標記的證據：驅動器所讀取的 testapp/output/p5-debug-events.log 恰好只有五行，且每一行都是
+# `Main: requesting A, B and C together`——每次驅動各一行，時間自 2026-09-05 18:02:44 至
+# 2026-09-06 14:04:45。P5 在啟動時**什麼都不寫**，因此除非「Show A+B+C at once」真的被按下，
+# 該檔案不可能多出任何一行。
+#
+# 為何不採用更強的那一行：同一個 log 位於 repo 根目錄的副本，另有 2026-09-03 22:41 手動執行留下的
+# `Main: Alert A dismissed` / `B` / `C`，那才是更好的斷言——它們需要在對話框**內部**點擊。但五次
+# 驅動執行沒有任何一次產生它們，因此若以其為斷言，會把一個「按鈕確實按對了」的檔案判成 UNMET，
+# 並把讀者指向 P5 而不是那個 OK 座標。此處被證明的是第一次點擊。
+#
 # THIS IS #675's ACTUAL CLAIM, and until 2026-09-04 no file in this tree could
 # make it. #675 has two halves: alerts on DIFFERENT windows showing at the same
 # time, and alerts stacked on the SAME window restoring each earlier one as the

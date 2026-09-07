@@ -1,6 +1,48 @@
 action,x,y,origin,button,key,micros,note,platform
 # P46 on Windows, GtkBackend: press "Increment model" and read three numbers.
 #
+# expect: log-contains model.count=1 constructions=1
+#
+# EVIDENCE FOR THAT MARKER, and read the caveat: the line stands in
+# testapp/output/p46-debug-events.log at 2026-09-04 15:05:50, with
+# `model.count=2 constructions=1` two seconds later at 15:05:52 -- the two
+# presses of this file's twin, spaced by its 1.2 s sleep. The five lines above
+# them are the .onAppear set, and testapp/p46-debug-events.log holds those five
+# alone from a GtkBackend launch with no action file, so the `model.count=` lines
+# are written by the button and by nothing else.
+#
+# THE CAVEAT: that run reads `backend WinUIBackend`, so the only instance on disk
+# comes from P46-increment-model-winui.csv rather than from this file. The write
+# call is one line of backend-independent Swift in the Button's action, the row
+# note below records the same text as VERIFIED on GTK the same day, and the
+# WinUI file's own note calls its output "byte-identical to the GTK run" -- but
+# no GTK run of this file survives on disk to prove it. This is the weakest
+# marker in actions/win. If it reports UNMET, check the coordinate before
+# suspecting P46: the button sits at y 586 and GTK gives this window only 661
+# points of content.
+#
+# THE FIRST PRESS AND NOT THE SECOND. `model.count=2 constructions=1` is the
+# stronger claim -- the header below is explicit that one press could be a
+# coincidence of initial state and two cannot -- but it needs both clicks to
+# land. `=1` reports met as soon as the button works at all, and the capture
+# still carries the two-press reading.
+#
+# 該標記的證據，以及必須一併讀的但書：該行位於 testapp/output/p46-debug-events.log 的
+# 2026-09-04 15:05:50，兩秒後的 15:05:52 則是 `model.count=2 constructions=1`——正是本檔孿生檔的
+# 兩次按下，間隔即其 1.2 秒的 sleep。其上五行為 .onAppear 那一組；而 testapp/p46-debug-events.log
+# 在一次沒有動作檔的 GtkBackend 啟動中就只有那五行，因此 `model.count=` 那幾行只可能由該按鈕寫出。
+#
+# **但書**：那次執行寫的是 `backend WinUIBackend`，因此磁碟上唯一的實例來自
+# P46-increment-model-winui.csv，而非來自本檔。該寫入呼叫是 Button action 中一行與 backend 無關的
+# Swift，下方的列註記也把同一段文字記為當日已在 GTK 上驗證，且 WinUI 檔自己的註記稱其輸出與
+# 「GTK 那次執行逐位元組相同」——但磁碟上並沒有留下本檔的任何一次 GTK 執行可資佐證。這是
+# actions/win 中最弱的一個標記。若它回報 UNMET，請先查座標再懷疑 P46：該按鈕位於 y 586，
+# 而 GTK 只給這個視窗 661 點的內容高度。
+#
+# 採第一次按下而非第二次。`model.count=2 constructions=1` 是更強的主張——下方標頭明說「一次按下
+# 可能只是起始狀態的巧合，兩次則不可能」——但它需要兩次點擊都命中。`=1` 只要按鈕能動就回報達成，
+# 而兩次按下的讀數仍然留在擷圖上。
+#
 # THIS FILE EXISTS FOR ONE MEASUREMENT THAT A SCREENSHOT CANNOT MAKE. The three
 # lines the click changes are each evidence for a different claim, and only the
 # third needs the click at all:

@@ -2,6 +2,39 @@ action,x,y,origin,button,key,micros,note,platform
 # P18 on Windows/GtkBackend: do the three file dialogs open, and does closing
 # one send a result back to the application?
 #
+# expect: log-contains open: cancelled
+#
+# EVIDENCE FOR THAT MARKER: the repo-root copy of p18-debug-events.log, written
+# by the hand run of 2026-09-03 22:33 from that directory, reads
+# `open: cancelled`, `folder: cancelled`, `save: cancelled` at 22:33:10, 22:33:15
+# and 22:33:19 -- three seconds apart, matching this file's three 3.0 s sleeps.
+# P18's startup lines are `backend GtkBackend.Type` and `RENDER COMPLETE`, both
+# from .onAppear, so a `cancelled` line cannot come from launching the app.
+#
+# READ THIS BEFORE FILING ANYTHING AGAINST P18. The marker is expected to report
+# UNMET on the sweep as it stands, and that is a fact about the DESKTOP, not
+# about the dialogs. testapp/output/p18-debug-events.log holds nine driven runs
+# and not one `cancelled` line, and the matching run log
+# /tmp/sweep_drive-gtk4/P18-three-dialogs.log contains ZERO
+# `target window changed` lines -- so no picker was ever opened, and the three
+# Escapes had nothing to cancel. In the same sweep session P31's click inside
+# its alert landed on a `Windows.UI.Core.CoreWindow`. Both are the foreground
+# problem sweep_drive.zsh documents at `clear_desktop`. The first thing to check
+# on an UNMET here is that count of `target window changed`, not P18.swift.
+#
+# 該標記的證據：repo 根目錄那份 p18-debug-events.log 留有 2026-09-03 22:33 的手動執行，內容為
+# 22:33:10 `open: cancelled`、22:33:15 `folder: cancelled`、22:33:19 `save: cancelled`——彼此相隔
+# 三秒，恰與本檔的三個 3.0 秒 sleep 相符。P18 的啟動行是 `backend GtkBackend.Type` 與
+# `RENDER COMPLETE`，兩者皆出自 .onAppear，因此 `cancelled` 行不可能只是啟動所致。
+#
+# **在為 P18 立任何案之前先讀這段。** 依目前的 sweep，此標記預期會回報 UNMET，而那是關於**桌面**
+# 的事實，不是關於這些對話框的。testapp/output/p18-debug-events.log 有九次驅動執行，卻沒有任何一行
+# `cancelled`；對應的執行 log /tmp/sweep_drive-gtk4/P18-three-dialogs.log 中，
+# `target window changed` 的行數為**零**——代表根本沒有任何 picker 被開啟，那三次 Escape 也就無物
+# 可取消。同一輪 sweep 中，P31 在其警示框內的點擊落到了 `Windows.UI.Core.CoreWindow` 上。兩者都是
+# sweep_drive.zsh 在 `clear_desktop` 處所記載的前景問題。看到 UNMET 時該先查的是那個
+# `target window changed` 的計數，而不是 P18.swift。
+#
 # Until 2026-08-28 no file dialog had been clicked on any platform -- the
 # coverage matrix carried P18 as built-but-never-run for GTK/Linux,
 # GTK/Windows and WinUI alike. This file is what changed that, so the three

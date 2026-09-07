@@ -2,6 +2,32 @@ action,x,y,origin,button,key,micros,note,platform
 # P35 on Windows, GtkBackend: press Increment once and let the app name the new
 # value.
 #
+# expect: log-contains count=1
+#
+# EVIDENCE FOR THAT MARKER: p35-debug-events.log holds `count=1` as its third
+# and last line, twice, from two runs of this file in different working
+# directories -- the repo-root copy at 2026-09-03 16:48:24 and
+# testapp/p35-debug-events.log at 2026-09-05 13:12:30, each about two to three
+# seconds after that run's `RENDER COMPLETE`. The two lines above it are the
+# .onAppear pair the header below warns about, and
+# testapp/output/p35-debug-events.log -- from a launch with no action file --
+# holds exactly those two and nothing else.
+#
+# THE SHORT STRING WAS CHECKED FOR COLLISIONS rather than assumed safe: the
+# driver searches the run log too, and a stray `count=1` there would let a
+# missed click report a pass. Measured 2026-09-07: `grep -l "count=1"` over all
+# 35 logs in /tmp/sweep_drive-gtk4 matches none of them.
+#
+# 該標記的證據：p35-debug-events.log 以 `count=1` 作為第三行、也是最後一行，共兩次，來自本檔在
+# 不同工作目錄下的兩次執行——repo 根目錄那份為 2026-09-03 16:48:24，testapp/p35-debug-events.log
+# 為 2026-09-05 13:12:30，兩者都在該次 `RENDER COMPLETE` 之後約二至三秒。其上兩行即下方標頭所
+# 提醒的 .onAppear 那一對；而來自一次沒有動作檔之啟動的 testapp/output/p35-debug-events.log，
+# 就只有那兩行。
+#
+# 這個短字串是**查過碰撞**才採用的，不是想當然耳：驅動器連 run log 也一併搜尋，那裡若混進一個
+# `count=1`，就會讓一次沒中的點擊被判為通過。2026-09-07 實測：對 /tmp/sweep_drive-gtk4 中全部
+# 35 份 log 執行 `grep -l "count=1"`，沒有任何一份命中。
+#
 # WHY THIS CONTROL AND NOT THE TOGGLE BESIDE IT. They sit 10 points apart and
 # look alike -- GTK draws the Toggle as a button-shaped box the same height as
 # the Button, so a coordinate that drifted right would land on it and still look

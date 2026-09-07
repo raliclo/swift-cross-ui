@@ -2,6 +2,31 @@ action,x,y,origin,button,key,micros,note,platform
 # P33 on Windows, GtkBackend: press the DisclosureGroup-approximation button and
 # show that the conditional content collapses.
 #
+# expect: log-contains details expanded=false
+#
+# EVIDENCE FOR THAT MARKER: p33-debug-events.log holds it twice, from two runs
+# of this file in different working directories -- the repo-root copy at
+# 2026-09-03 16:14:49 and testapp/p33-debug-events.log at 2026-09-05 13:11:40,
+# each two to four seconds after that run's `RENDER COMPLETE`.
+# testapp/output/p33-debug-events.log, from a launch with no action file, has
+# three lines and stops at `RENDER COMPLETE`, which is what the header below
+# means by "the log held the same three lines before and after the click".
+#
+# `false` AND NOT JUST THE PREFIX, because the value is the result: the button
+# writes the NEW state, P33 starts expanded, and `details expanded=true` would
+# mean it was pressed twice or started collapsed. Asserting the whole line keeps
+# the marker saying what happened rather than that something happened.
+#
+# 該標記的證據：p33-debug-events.log 中有它兩次，來自本檔在不同工作目錄下的兩次執行——repo 根目錄
+# 那份為 2026-09-03 16:14:49，testapp/p33-debug-events.log 為 2026-09-05 13:11:40，兩者都在該次
+# `RENDER COMPLETE` 之後二至四秒。而來自一次沒有動作檔之啟動的
+# testapp/output/p33-debug-events.log 共三行、止於 `RENDER COMPLETE`——那正是下方標頭所說的
+# 「點擊前後 log 都是同樣那三行」。
+#
+# 為何連 `false` 一起斷言而不只取前綴：數值本身就是結果。該按鈕寫出的是**新**狀態，而 P33 以展開
+# 起始，因此 `details expanded=true` 會代表它被按了兩次、或起始就是收合的。斷言整行，能讓這個標記
+# 說的是「發生了什麼」，而不只是「有事情發生」。
+#
 # THE EVIDENCE IS THE LOG AND THE CAPTURE TOGETHER. Since 2026-09-04 the button
 # calls P33Diagnostics.write("details expanded=\(expanded)"), so a click leaves a
 # fourth line in the log naming the NEW value.

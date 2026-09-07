@@ -2,6 +2,29 @@ action,x,y,origin,button,key,micros,note,platform
 # P30 on Windows, GtkBackend: press the frame-width button once and check the
 # app says the state changed.
 #
+# expect: log-contains size toggled wide=true
+#
+# EVIDENCE FOR THAT MARKER: p30-debug-events.log holds it twice, from two runs
+# of this file in different working directories -- the repo-root copy at
+# 2026-09-03 05:22:44 and testapp/p30-debug-events.log at 2026-09-05 13:10:24,
+# each two to three seconds after that run's `RENDER COMPLETE`. The two startup
+# lines, `backend GtkBackend` and `RENDER COMPLETE`, are what
+# testapp/output/p30-debug-events.log holds on its own from a launch with no
+# action file -- so the toggle line is written by the button and by nothing else.
+#
+# It also names the VALUE, which the header below says the picture cannot: a
+# wider rectangle looks the same whether the state changed or was already true.
+# `wide=true` is the pressed result from P30's `false` start state.
+#
+# 該標記的證據：p30-debug-events.log 中有它兩次，來自本檔在不同工作目錄下的兩次執行——repo 根目錄
+# 那份為 2026-09-03 05:22:44，testapp/p30-debug-events.log 為 2026-09-05 13:10:24，兩者都在該次
+# `RENDER COMPLETE` 之後二至三秒。而 testapp/output/p30-debug-events.log 在一次沒有動作檔的啟動中
+# 就只有 `backend GtkBackend` 與 `RENDER COMPLETE` 兩行——因此那行 toggle 只可能由該按鈕寫出。
+#
+# 它同時指出了**數值**，而下方標頭說得明白：畫面本身給不出這件事——變寬的矩形，在「狀態剛改變」與
+# 「狀態本來就是 true」兩種情形下看起來一模一樣。`wide=true` 即是自 P30 的 `false` 起始狀態按下後
+# 的結果。
+#
 # ONE click, and that is the whole design. The button's own label is part of
 # what changes -- "Use wide frame" becomes "Use narrow frame" -- and the blue
 # rectangle beside it goes from 120 to 260 wide. Every coordinate below the

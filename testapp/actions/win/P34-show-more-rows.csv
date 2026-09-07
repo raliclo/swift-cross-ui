@@ -2,6 +2,35 @@ action,x,y,origin,button,key,micros,note,platform
 # P34 on Windows, GtkBackend: press "Show +100" and show that the visible row
 # count actually moves.
 #
+# expect: log-contains show plus 100 -> visibleRows=
+#
+# THE MARKER STOPS AT THE `=` ON PURPOSE, and that is the only spelling that
+# works for this file. The header below explains why: without `-rows` the value
+# is 100, with `-rows 500` it is 200, and a marker naming either number would go
+# UNMET on the other launch. What the marker asserts is WHICH BUTTON was hit --
+# the neighbour 8 points away writes `show all -> visibleRows=`, so the two are
+# distinguishable and a drifted coordinate cannot satisfy this one. The VALUE
+# stays a human reading, exactly as the three-way test below describes.
+#
+# EVIDENCE: p34-debug-events.log holds `show plus 100 -> visibleRows=100` twice,
+# from two runs of this file in different working directories -- the repo-root
+# copy at 2026-09-03 16:17:10 and testapp/p34-debug-events.log at 2026-09-05
+# 13:12:07, each about two to five seconds after that run's
+# `RENDER COMPLETE -- P34 rows=100`. That render line is written from .onAppear
+# and is what testapp/output/p34-debug-events.log holds alone, so the `show plus`
+# line cannot come from the app merely having started.
+#
+# 標記刻意止於 `=`，而對本檔而言那是唯一可行的寫法。下方標頭已說明理由：不加 `-rows` 時該值為 100，
+# 加了 `-rows 500` 則為 200，因此任何寫死數字的標記，在另一種啟動方式下都會變成 UNMET。此標記所
+# 斷言的是**按到了哪一顆**——相距 8 點的鄰居寫的是 `show all -> visibleRows=`，兩者可以區分，
+# 偏掉的座標無法滿足這一個。**數值**仍留給人判讀，正如下方的三向測試所述。
+#
+# 證據：p34-debug-events.log 中有 `show plus 100 -> visibleRows=100` 兩次，來自本檔在不同工作目錄
+# 下的兩次執行——repo 根目錄那份為 2026-09-03 16:17:10，testapp/p34-debug-events.log 為 2026-09-05
+# 13:12:07，兩者都在該次 `RENDER COMPLETE -- P34 rows=100` 之後約二至五秒。那行 render 出自
+# .onAppear，也正是 testapp/output/p34-debug-events.log 中僅有的內容，因此 `show plus` 那一行不可能
+# 只是「app 有啟動過」所致。
+#
 # LAUNCH IT WITH -rows, or this file proves nothing. The whole file:
 #   zsh testapp/run.zsh P34 --debug -rows 500 -actionfile actions/win/P34-show-more-rows.csv
 # P34 defaults to rowCount 100 and starts with visibleRows already 100, so at

@@ -1,6 +1,25 @@
 action,x,y,origin,button,key,micros,note,platform
 # P13 on Windows: does reordering a ForEach reorder the widgets, not just the array?
 #
+# expect: log-contains z-order reversed -- top should now be red
+#
+# EVIDENCE FOR THAT MARKER, and it is tied to THIS file rather than to P13 in
+# general: testapp/output/p13-debug-events.log carries the line once per driven
+# pair, always a few seconds AFTER the second `RENDER COMPLETE` of the pair. The
+# 2026-09-07 group reads 12:26:58 render, 12:27:17 render, 12:27:20 z-order --
+# and /tmp/sweep_drive-gtk4/P13-duplicates-and-split.log closed at 12:27:05 UTC
+# while P13-zorder.log closed at 12:27:21, so the line falls inside the zorder
+# run and outside the other one. P13's only other line is the render one, which
+# it writes with no action file at all; this one is written by the Reverse
+# button's action, so it is absent if the click misses.
+#
+# 該標記的證據，而且它繫於**本檔**而非泛指 P13：testapp/output/p13-debug-events.log 中，這一行
+# 在每一組驅動中只出現一次，且總是在該組**第二個** `RENDER COMPLETE` 之後數秒。2026-09-07 那一組
+# 為 12:26:58 render、12:27:17 render、12:27:20 z-order；而 /tmp/sweep_drive-gtk4/ 下
+# P13-duplicates-and-split.log 收尾於 12:27:05 UTC、P13-zorder.log 收尾於 12:27:21，因此該行落在
+# zorder 這次執行之內、另一次之外。P13 唯一的另一行是算繪行，那是連動作檔都沒有時就會寫的；這一行
+# 出自 Reverse 按鈕自身的 action，因此點擊沒中時它就不會出現。
+#
 # One click, on Reverse. The squares in the ZStack above it are sized so the
 # smallest is drawn last and sits fully visible in the middle -- so the colour in
 # the middle names the topmost child, and no other reading is needed.

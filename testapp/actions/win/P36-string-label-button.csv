@@ -3,6 +3,43 @@ action,x,y,origin,button,key,micros,note,platform
 # trace, and prove it was that control and not the Picker above or the TextField
 # below.
 #
+# expect: log-contains button clicked
+#
+# EVIDENCE FOR THAT MARKER: p36-debug-events.log holds `button clicked` as its
+# third and last line, twice, from two runs of this file in different working
+# directories -- the repo-root copy at 2026-09-03 05:43:15 and
+# testapp/p36-debug-events.log at 2026-09-05 13:12:55, each two to three seconds
+# after that run's `RENDER COMPLETE`. testapp/output/p36-debug-events.log, from a
+# launch with no action file, holds `backend WinUIBackend` and `RENDER COMPLETE`
+# and stops there.
+#
+# THIS IS THE ONLY EVIDENCE THIS FILE CAN HAVE, which the header below already
+# says: nothing on screen changes, so a capture corroborates nothing. Before the
+# marker, a run in which the click slipped into the TextField 14 points below
+# reported `ok / ok / window` -- identical to one that worked.
+#
+# CHECKED FOR COLLISIONS, since the driver searches the run log as well and
+# `button clicked` is a common phrase: measured 2026-09-07,
+# `grep -l "button clicked"` over all 35 logs in /tmp/sweep_drive-gtk4 matches
+# none of them. P31 writes `button clicked count=1`, which would satisfy this
+# text -- but it is a different app and writes to its own log, and the driver
+# only ever reads THIS app's.
+#
+# 該標記的證據：p36-debug-events.log 以 `button clicked` 作為第三行、也是最後一行，共兩次，
+# 來自本檔在不同工作目錄下的兩次執行——repo 根目錄那份為 2026-09-03 05:43:15，
+# testapp/p36-debug-events.log 為 2026-09-05 13:12:55，兩者都在該次 `RENDER COMPLETE` 之後
+# 二至三秒。而來自一次沒有動作檔之啟動的 testapp/output/p36-debug-events.log，只有
+# `backend WinUIBackend` 與 `RENDER COMPLETE` 便告終止。
+#
+# **這是本檔唯一可能擁有的證據**，下方標頭已經說了：畫面上什麼都不會變，因此擷圖佐證不了任何事。
+# 在有這個標記之前，一次「點擊滑進下方 14 點處 TextField」的執行，回報的是 `ok / ok / window`
+# ——與成功的那一次一模一樣。
+#
+# **查過碰撞**，因為驅動器連 run log 也一併搜尋，而 `button clicked` 是很常見的說法：2026-09-07
+# 實測，對 /tmp/sweep_drive-gtk4 中全部 35 份 log 執行 `grep -l "button clicked"`，沒有任何一份
+# 命中。P31 會寫出 `button clicked count=1`，那確實會滿足這段文字——但它是另一支 app、寫進自己的
+# log，而驅動器只會讀取**本** app 的那一份。
+#
 # WHY THIS CONTROL. P36 has three interactive things stacked in a column --
 # a Picker at y 210..241, "String label button" at y 286..317, and a TextField
 # at y 331..363 -- and only the button writes to the log. Read P36.swift: the

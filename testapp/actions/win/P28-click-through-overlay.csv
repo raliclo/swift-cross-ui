@@ -2,6 +2,28 @@ action,x,y,origin,button,key,micros,note,platform
 # P28 on Windows, GtkBackend: click once in the middle of the blue overlay and
 # check the button underneath it received the click.
 #
+# expect: log-contains underlying button clicked count=1
+#
+# EVIDENCE FOR THAT MARKER: p28-debug-events.log holds it twice, from two runs
+# of this file in different working directories -- the repo-root copy at
+# 2026-09-03 05:31:06 and testapp/p28-debug-events.log at 2026-09-05 13:09:09,
+# each about two seconds after that run's `RENDER COMPLETE`, matching this
+# file's 0.9 s settle plus the replay's own delay. `RENDER COMPLETE` is the
+# only other line in either copy and comes from .onAppear, so the count line
+# cannot appear unless the click passed through the overlay.
+#
+# The header below already names the failure this catches: "If only the RENDER
+# COMPLETE line is present the click was swallowed." The marker is that sentence
+# made mechanical -- until now nothing checked it.
+#
+# 該標記的證據：p28-debug-events.log 中有它兩次，來自本檔在不同工作目錄下的兩次執行——repo 根目錄
+# 那份為 2026-09-03 05:31:06，testapp/p28-debug-events.log 為 2026-09-05 13:09:09，兩者都在該次
+# `RENDER COMPLETE` 之後約兩秒，與本檔 0.9 秒的沉澱時間加上重放自身的延遲相符。兩份副本中唯一的
+# 另一行是出自 .onAppear 的 `RENDER COMPLETE`，因此除非點擊真的穿過了覆蓋層，這行計數不會出現。
+#
+# 下方標頭早已寫明本檔要捕捉的失敗：「若只有 RENDER COMPLETE 那一行，代表點擊被吞掉了。」這個標記
+# 就是把那句話機械化——在此之前沒有任何東西在檢查它。
+#
 # This is the whole point of the app -- the overlay carries
 # .allowsHitTesting(false), so a click landing on blue pixels must reach the
 # Button in the same ZStack cell. There is exactly one control, so there is

@@ -2,6 +2,31 @@ action,x,y,origin,button,key,micros,note,platform
 # P20 on Windows/GtkBackend: is a disabled menu item distinguishable, and does
 # it refuse the click?
 #
+# expect: log-contains clicked: level 1
+#
+# THAT MARKER ASSERTS THE SECOND CLICK, WHICH IS THE POSITIVE CONTROL, and it
+# is the only one of the three that can be asserted at all: "the disabled item
+# refused" and "the click missed" both write nothing, which is precisely why
+# this file has a second click in it. `clicked: level 1` is what separates them.
+#
+# EVIDENCE: testapp/output/p20-debug-events.log carries the line once per driven
+# pair, about six seconds into the FIRST run of the pair -- 2026-09-06 14:10:42
+# render, 14:10:48 `clicked: level 1`, 14:11:01 the next render. The first run
+# is this file: /tmp/sweep_drive-gtk4/P20-disabled-item.log closed at 14:10:50
+# UTC and P20-open-level-1.log at 14:11:21, and the timing matches this file's
+# third click at 1.5 + 1.2 + 1.0 s after the replay starts. P20's only other
+# line is `RENDER COMPLETE`, written from .onAppear with no action file at all.
+#
+# 該標記斷言的是**第二次點擊**，也就是那個正向對照；而三次點擊中也只有它能被斷言：「停用項目拒絕了
+# 點擊」與「點擊沒中」兩者都不會寫出任何東西——這正是本檔為何要有第二次點擊。`clicked: level 1`
+# 就是用來分辨這兩者的。
+#
+# 證據：testapp/output/p20-debug-events.log 中，該行在每一組驅動裡只出現一次，位於該組**第一次**
+# 執行開始後約六秒——2026-09-06 為 14:10:42 render、14:10:48 `clicked: level 1`、14:11:01 下一個
+# render。第一次執行就是本檔：/tmp/sweep_drive-gtk4/P20-disabled-item.log 收尾於 14:10:50 UTC，
+# 而 P20-open-level-1.log 收尾於 14:11:21；該時間也與本檔第三次點擊（重放開始後 1.5+1.2+1.0 秒）
+# 相符。P20 唯一的另一行是 `RENDER COMPLETE`，那是連動作檔都沒有時就會由 .onAppear 寫出的。
+#
 # Two separate claims, and this file tests both, because either can hold without
 # the other. The menu item was added to P20 on 2026-08-28 -- no test app had one
 # before, so nothing could say.

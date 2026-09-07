@@ -2,6 +2,21 @@ action,x,y,origin,button,key,micros,note,platform
 # P0 on Windows, GtkBackend: press "Present environment alert now" once and
 # check the app says the button fired.
 #
+# expect: log-contains immediate alert button clicked
+#
+# EVIDENCE FOR THAT MARKER, read off disk rather than off P0.swift: the line
+# stands in p0-debug-events.log twice, from two runs of this file in different
+# working directories -- the repo-root copy at 2026-09-03 05:27:47 and
+# testapp/p0-debug-events.log at 2026-09-05 13:00:22. It is the ONLY line P0
+# ever writes: neither copy holds a startup or render line, so its presence
+# cannot come from the app merely having launched. If the click missed, the log
+# is empty and the marker reports UNMET, which is the whole point of it.
+#
+# 該標記的證據，取自磁碟而非 P0.swift：這一行在 p0-debug-events.log 中出現兩次，來自本檔在不同
+# 工作目錄下的兩次執行——repo 根目錄那份為 2026-09-03 05:27:47，testapp/p0-debug-events.log 則為
+# 2026-09-05 13:00:22。它是 P0 唯一會寫出的一行：兩份副本都沒有啟動或算繪的行，因此它的存在不可能
+# 只是「app 有啟動過」。若點擊落空，log 就是空的，標記會回報 UNMET——那正是它的用意。
+#
 # ONE click, and it has to be this one. P0 has five buttons, but only the two
 # "Present environment alert" buttons write to the log at all -- Increment
 # @AppStorage, Reset and Show AlertScene change the screen and say nothing. A

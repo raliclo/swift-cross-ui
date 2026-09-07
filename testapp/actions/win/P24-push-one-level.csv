@@ -2,6 +2,34 @@ action,x,y,origin,button,key,micros,note,platform
 # P24 on Windows, GtkBackend: push three levels, and click a control outside the
 # stack while it is three deep.
 #
+# expect: log-contains push recorded at level 3
+#
+# EVIDENCE FOR THAT MARKER: testapp/output/p24-debug-events.log holds the line
+# once per driven run of this file, seconds after that run's `RENDER COMPLETE`
+# -- 2026-09-06 14:12:25 render, 14:12:30 `counter 1, pushes 0`, 14:12:30
+# `push recorded at level 3`, inside the run whose log
+# /tmp/sweep_drive-gtk4/P24-push-one-level.log closed at 14:12:32 UTC. It repeats
+# in five separate sweeps. P24's startup lines are `backend GtkBackend` and
+# `RENDER COMPLETE`; the 2026-08-29 WinUI launch in the same file has those two
+# and nothing else, so the line cannot come from the app merely running.
+#
+# THE LAST CLICK IS THE ONE ASSERTED, and deliberately so: `push recorded at
+# level 3` is written by the plain button at level 3, which is only reachable
+# after all three pushes have landed. `counter 1, pushes 0` -- the out-of-stack
+# button -- is in the same log and would be a weaker claim, because that control
+# is at level 0's coordinates and #57 was exactly about it NOT moving.
+#
+# 該標記的證據：testapp/output/p24-debug-events.log 中，該行在每次驅動本檔時出現一次，就在該次
+# `RENDER COMPLETE` 之後數秒——2026-09-06 為 14:12:25 render、14:12:30 `counter 1, pushes 0`、
+# 14:12:30 `push recorded at level 3`，落在 /tmp/sweep_drive-gtk4/P24-push-one-level.log 收尾於
+# 14:12:32 UTC 的那次執行之內，並在五輪 sweep 中重複出現。P24 的啟動行是 `backend GtkBackend`
+# 與 `RENDER COMPLETE`；同一個檔案中 2026-08-29 的 WinUI 啟動就只有這兩行，因此該行不可能只是
+# 「app 有在跑」所致。
+#
+# 被斷言的是**最後一次點擊**，而且是刻意的：`push recorded at level 3` 由第三層的普通按鈕寫出，
+# 而那個按鈕唯有三次推入都命中之後才到得了。同一份 log 中的 `counter 1, pushes 0`——堆疊之外那顆
+# 按鈕——會是較弱的主張，因為該控制項就位於第 0 層的座標上，而 #57 正是在講它**不會**移動。
+#
 # The filename says "one level" and is now wrong. It is kept because two other
 # documents cite it by name, and a file that answers to its citations is worth
 # more than one with a tidy name -- see the history below for why one level was
