@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P46 on iOS: pressing "Increment model" advances the model and does not
+# rebuild it.
+#
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window
+# 393 x 852 pt, capture 1179 x 2556 px, i.e. 3:1. The coordinate below is px/3
+# in points, which is what the XCUITest runner normalises against window.frame.
+#
+# Measured 2026-09-08 by scanning the capture for the control's tint rather than
+# by reading the picture: the blue run occupies (41,1928)-(419,1965) in capture
+# pixels, so the centre is (77, 649) in points. Scanning was used because a tap
+# that lands beside a control produces exactly the same screen as a tap the
+# framework ignored.
+#
+# **This app had no iOS action file until now, and the reason was a build
+# error, not an oversight.** P46Model declared ObservableObject and Published
+# unqualified, and Foundation re-exports Combine's on Apple platforms, so the
+# names were ambiguous and P46 did not compile for iOS or macOS at all. Both are
+# now qualified with SwiftCrossUI.
+#
+# **What this checks is the @StateObject contract, not the button.** After the
+# tap, "model.count" must read 1 and "P46Model constructions" must still read 1,
+# and the observed child below must read 1 as well. Declared @State the model
+# would be rebuilt on every update and the construction count would climb with
+# it; that count is the whole reason P46 exists.
+#
+# P46 於 iOS:按下「Increment model」會推進 model,而不會重建它。
+#
+# 裝置:iPhone 16 模擬器(IOS_SIM_DEVICE=swift-cross-ui)——視窗 393 x 852 點,擷取 1179 x 2556
+# 像素,即 3:1。下方座標為 px/3、以點為單位,而那正是 XCUITest runner 用來對 window.frame 正規化的
+# 單位。
+#
+# 2026-09-08 量測,方式是掃描擷取中該控制項的 tint,而非用眼睛讀圖:藍色色塊在擷取像素中佔據
+# (41,1928)-(419,1965),因此中心為 (77, 649) 點。之所以用掃描,是因為「點在控制項旁邊」與
+# 「框架忽略了這次點擊」會產生完全相同的畫面。
+#
+# **本 app 在此之前沒有 iOS 動作檔,而理由是一個建置錯誤,不是疏漏。** P46Model 過去未加限定地宣告
+# ObservableObject 與 Published,而在 Apple 平台上 Foundation 會再匯出 Combine 的同名者,於是這兩個
+# 名稱有歧義,P46 在 iOS 與 macOS 上根本編不起來。兩者現已加上 SwiftCrossUI. 限定。
+#
+# **本檔檢查的是 @StateObject 的契約,不是那個按鈕。** 按下之後,「model.count」必須讀作 1,而
+# 「P46Model constructions」必須仍然是 1,下方那行 observed child 也必須是 1。若宣告為 @State,
+# 該 model 會在每次更新時被重建,建構次數也會隨之攀升;而那個計數正是 P46 存在的全部理由。
+#
+# REPLAYED AND VERIFIED 2026-09-08: 3 actions replayed, XCUITest EXECUTE
+# SUCCEEDED, and the capture afterwards reads "P46Model constructions: 1",
+# "model.count = 1" and "observed child sees count = 1".
+#
+# 2026-09-08 已重放並驗證:重放 3 個動作、XCUITest EXECUTE SUCCEEDED,其後的擷取讀作
+# 「P46Model constructions: 1」、「model.count = 1」與「observed child sees count = 1」。
+sleep,,,,,,1500000,let P46 lay out its sections,ios
+click,77,649,client,left,,,"the ""Increment model"" button -- model.count must read 1, P46Model constructions must still read 1, and the observed child must read 1",ios
+sleep,,,,,,1200000,let the three lines redraw,ios
