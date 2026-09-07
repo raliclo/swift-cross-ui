@@ -24,15 +24,49 @@ action,x,y,origin,button,key,micros,note,platform
 # 高度。兩者都必須穩定下來而非閃爍，這是單張截圖看不出來的；截圖能顯示的是最終狀態，而按鈕標籤
 # 上的數字則證明點擊命中。
 #
-# Measured on a 928x898 window capture at 100% display scale.
+# Measured on a 928x907 window capture at 100% display scale.
+#
+# RE-MEASURED 2026-09-07 against gtk4-P17-picker-and-sizes-20260907-201246.png.
+# The old header said 928x898. Two sizes exist in one run and they are not the
+# same quantity: 928x907 at window creation and at the moment of every click,
+# 928x917 in the capture taken after the replay.
+#
+# The number recorded is the size at CLICK TIME, 907. The coordinates were read
+# off the 917 capture -- safe here because the growth is appended below these
+# controls and nothing above them moved -- but what they address is the window
+# the clicks land in. The line says "capture" for historical reasons; that
+# wording is what todo #100 has to settle.
+#
+# Every click box was found by walking out from the click point to the dark
+# border, not read by eye:
+#
+#     box 80x32   centre=(323,320)   Shortest        was 334,320 -> 323,320
+#     box 78x32   centre=(502,320)   Longest         was 510,320 -> 502,320
+#     box 107x32  centre=(357,556)   Shorter (120)   was 356,564 -> 357,556
+#     box 101x32  centre=(483,842)   More height     was 480,828 -> 483,842
+#
+# All five old coordinates DID land inside their buttons. They were not centred:
+# the last one sat 2 px from the top border of a 32 px button. Moved to the
+# measured centres so a few pixels of drift cost nothing.
+#
+# 量測自一張 928x917 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 重新量測，對象為 gtk4-P17-picker-and-sizes-20260907-201246.png。舊標頭寫的是
+# 928x898。一次執行中存在兩個尺寸，而它們並非同一個量：視窗建立時為 928x907（執行日誌），重放
+# 結束後的擷圖為 928x917。標頭記錄的是**擷圖**，一如該行本身的措辭；sweep_drive.zsh 拿它與日誌
+# 比對，那是 todo #100。
+#
+# 上方每一個點擊框都是從點擊位置往外走到深色邊框求得，而非以肉眼判讀。五個舊座標**確實**都落在
+# 各自的按鈕內，但都不在中心：最後一個距離一顆 32 px 高按鈕的上緣只有 2 px。它們被移到量測出的
+# 中心，好讓幾個像素的漂移不再構成代價。
 # 量測自一張 928x898 的視窗截圖，顯示縮放 100%。
-click,334,320,frame,left,,,"Shortest" -- Selected becomes S,windows
+click,323,320,frame,left,,,"Shortest" -- Selected becomes S,windows
 sleep,,,,,,900000,,windows
-click,510,320,frame,left,,,"Longest" -- the widest option,windows
+click,502,320,frame,left,,,"Longest" -- the widest option,windows
 sleep,,,,,,900000,,windows
-click,356,564,frame,left,,,"Shorter (120)" -- #266a step down,windows
+click,357,556,frame,left,,,"Shorter (120)" -- #266a step down,windows
 sleep,,,,,,700000,,windows
-click,356,564,frame,left,,,"Shorter" again,windows
+click,357,556,frame,left,,,"Shorter" again,windows
 sleep,,,,,,700000,,windows
-click,480,828,frame,left,,,"More height" -- #266b step up,windows
+click,483,842,frame,left,,,"More height" -- #266b step up,windows
 sleep,,,,,,1500000,hold for the capture,windows

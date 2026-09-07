@@ -25,7 +25,61 @@ action,x,y,origin,button,key,micros,note,platform
 # 「Show unidentified list (may crash)」**刻意不點**。它是故意會 crash 的，而一個結尾會殺掉自己
 # app 的檔案，事後無法用截圖判定。若有人需要，它的座標是 (462,182)。
 #
-# Measured on a 928x798 window capture at 100% display scale.
+# Measured on a 928x1015 window capture at 100% display scale.
+#
+# RE-MEASURED 2026-09-07. THE COORDINATES ARE CORRECT AND WERE NOT TOUCHED.
+# Only this number changed, and that is the right answer here even though the
+# usual rule is the opposite -- see below, because the reasoning matters more
+# than the number.
+#
+# The old header said 928x798. Today the window is 928x1015 when created (run
+# log) and 928x1055 in the capture, which is taken after the replay.
+#
+# THE TRAP THAT ALMOST COST THIS FILE ITS WORKING COORDINATES:
+# checking the three "Narrower" clicks at 324,474 against the CAPTURE says they
+# land on background, not on a button. The button in the capture sits at
+# x=342..458 y=501..532. It is very easy to read that as "the coordinates are
+# stale, move them to 400,516".
+#
+# That would have been wrong. The clicks landed. The proof is in the capture
+# itself: the button reads "Narrower (220)". The file starts it at 400 and
+# steps by 60, so 400 -> 340 -> 280 -> 220 is exactly three clicks that hit.
+#
+# What actually happened is that the window grew 1015 -> 1055 DURING the replay
+# and the button moved down with it, 474 -> 516, about 42 px. The capture shows
+# where the button ENDED UP, not where it was when it was clicked.
+#
+# So: a post-replay capture is only safe to measure from when nothing above the
+# click point moved. It was safe for P15 and P17, whose growth is appended below
+# their controls. It is NOT safe here. Check a state value in the capture -- a
+# label, a counter, a colour -- before believing that a coordinate missed.
+#
+# The other click, 267,182 "More duplicates", lands on a 143x32 button whose
+# centre is 268,182. That one is unaffected by the growth and is already exact.
+#
+# 量測自一張 928x1015 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 重新量測。**座標是正確的，並未更動。** 只有這個數字改變，而在此處那才是正解——
+# 儘管一般規則恰好相反。理由比數字重要，見下。
+#
+# 舊標頭寫 928x798。今天這個視窗建立時為 928x1015（執行日誌），而重放結束後的擷圖為 928x1055。
+#
+# **差點讓本檔案失去一組可用座標的陷阱**：拿三次 324,474 的「Narrower」點擊去對照**擷圖**，會
+# 得到「它們落在背景上、不在按鈕上」的結論——擷圖中那顆按鈕位於 x=342..458 y=501..532。把這讀成
+# 「座標過期了，改成 400,516」是非常自然的。
+#
+# 那會是錯的。那些點擊命中了，而證據就在擷圖本身：按鈕上寫著「Narrower (220)」。本檔案從 400 開始、
+# 每次減 60，因此 400 → 340 → 280 → 220 正好是三次命中的點擊。
+#
+# 真正發生的是：視窗在重放**期間**從 1015 長到 1055，按鈕隨之下移約 42 px（474 → 516）。擷圖
+# 顯示的是按鈕**最後停在哪裡**，而不是它被點擊時在哪裡。
+#
+# 因此：只有在點擊位置**上方**沒有任何東西移動時，才能安全地從「重放後的擷圖」量測。對 P15 與 P17
+# 是安全的，它們增長的內容都附加在各自控制項的下方；對本檔案則**不**安全。在相信某個座標沒打中之前，
+# 先在擷圖裡找一個狀態值——一個標籤、一個計數、一個顏色——來查證。
+#
+# 另一次點擊 267,182「More duplicates」落在一顆 143x32 按鈕上，其中心為 268,182；它不受增長影響，
+# 本來就已經精確。
 # 量測自一張 928x798 的視窗截圖，顯示縮放 100%。
 # ---------------------------------------------------------------------------
 # Order matters, and getting it wrong cost a whole run.

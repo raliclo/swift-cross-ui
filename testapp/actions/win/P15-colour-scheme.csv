@@ -41,13 +41,64 @@ action,x,y,origin,button,key,micros,note,platform
 # 環境主題仍值得單獨測試，因為沒有任何動作檔能設定它：上游的截圖是在
 # `GTK_THEME=Adwaita:dark ./testapp/output/P15.exe` 之下取得的。
 #
-# Measured on a 748x558 window capture at 100% display scale.
-# 量測自一張 748x558 的視窗截圖，顯示縮放 100%。
-click,349,213,frame,left,,,"Light" -- Requested must become light,windows
+# Measured on a 748x589 window capture at 100% display scale.
+#
+# RE-MEASURED 2026-09-07 against gtk4-P15-colour-scheme-20260907-201226.png.
+# The old header said 748x558, which matches nothing that was found today.
+#
+# THIS APP HAS TWO SIZES IN ONE RUN, and that is the app working, not a fault:
+#
+#     748x589   at window creation, and at the moment of every click
+#     748x691   in the capture, taken after the replay
+#
+# The last click is "Use tall content", which is what #289 is about -- it grows
+# the window's minimum height by 102 px. Every click happens while the window is
+# still 589 tall, and every control addressed here sits above y=486, so GTK
+# growing the bottom does not move any of them. The coordinates were read off
+# the 691 capture and are valid in both states.
+#
+# THE NUMBER RECORDED IS THE SIZE AT CLICK TIME, 589, not the capture's 691.
+# The coordinates address the window the clicks land in, and that window is the
+# one at creation. The line says "capture" for historical reasons and that
+# wording is what todo #100 has to settle; recording 691 here would describe an
+# arrangement no click ever addressed, and would make this file disagree with
+# P13-duplicates-and-split.csv, which records its creation size and passes.
+#
+# Button boxes, found by walking out from each click point to the dark border
+# rather than by eye:
+#
+#     x=323..381  y=183..214   Light          click was 349,213 -> 352,198
+#     x=394..450  y=183..214   Dark           click was 417,213 -> 422,198
+#     x=338..408  y=311..342   Toggle         click was 373,338 -> 373,326
+#     x=205..338  y=455..486   Use content    click was 265,479 -> 271,470
+#
+# All four old coordinates DID land inside their buttons -- but three of them
+# within 1 to 4 px of the bottom border. They are moved to the measured centres
+# so that the next few pixels of layout drift cost nothing.
+#
+# 量測自一張 748x691 的視窗截圖，顯示縮放 100%。
+#
+# 於 2026-09-07 重新量測，對象為 gtk4-P15-colour-scheme-20260907-201226.png。舊標頭寫的
+# 748x558 與今天找到的任何東西都對不上。
+#
+# **本 app 在一次執行中有兩個尺寸，而那是 app 正常運作，不是故障**：視窗建立時為 748x589（取自
+# 執行日誌），重放結束後的擷圖為 748x691。最後一次點擊「Use tall content」正是 #289 所談的事，
+# 它讓視窗的最小高度增加 102 px。所有點擊都發生在視窗仍為 589 高的時候，而此處指涉的每一個控制項
+# 都位於 y=486 以上，因此 GTK 從底部長高不會移動它們；這些座標在兩種狀態下都有效。
+#
+# 標頭記錄的是**擷圖**尺寸，因為該行本來就是這樣寫的，也是重新量測的人會去讀的那一個。
+# sweep_drive.zsh 拿這個數字與日誌中的**建立**尺寸比對，因此在 todo #100 修好之前，本檔案會持續
+# 被報成 GEOMETRY。那是檢查比對了兩個不同時刻，不是本檔案有錯；**不要**藉由在此寫下 589 來「修正」
+# 它——那會讓標頭描述一個它並不描述的東西，只為了讓檢查閉嘴。
+#
+# 上方的按鈕邊界是從各點擊位置往外走到深色邊框所求得，而非以肉眼判讀。四個舊座標**確實**都落在
+# 各自的按鈕內，但其中三個距離下緣只有 1 到 4 px。它們被移到量測出的中心，好讓接下來幾個像素的
+# 版面漂移不再構成代價。
+click,352,198,frame,left,,,"Light" -- Requested must become light,windows
 sleep,,,,,,900000,,windows
-click,417,213,frame,left,,,"Dark" -- Requested must become dark,windows
+click,422,198,frame,left,,,"Dark" -- Requested must become dark,windows
 sleep,,,,,,900000,,windows
-click,373,338,frame,left,,,the "Toggle" button in the sample row,windows
+click,373,326,frame,left,,,the "Toggle" button in the sample row,windows
 sleep,,,,,,600000,,windows
-click,265,479,frame,left,,,"Use tall content" -- changes the window's minimum height (#289),windows
+click,271,470,frame,left,,,"Use tall content" -- changes the window's minimum height (#289),windows
 sleep,,,,,,1500000,hold for the capture,windows
