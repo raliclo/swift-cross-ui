@@ -215,6 +215,26 @@ public final class AndroidBackend: BaseAppBackend {
     /// The main activity. Set by ``entrypoint``.
     static var activity: Activity!
 
+    /// The vertical LinearLayout that is the window's content view.
+    ///
+    /// `setChild(ofWindow:to:)` builds it; `setToolbar(ofWindow:to:)` is the
+    /// only other thing that touches it. Held here rather than on `Window`
+    /// because it is the Activity's content view and there is one Activity.
+    ///
+    /// 那個作為視窗 content view 的垂直 LinearLayout。
+    ///
+    /// 由 `setChild(ofWindow:to:)` 建立;唯一另一個會碰它的是 `setToolbar(ofWindow:to:)`。放在此處
+    /// 而非 `Window` 上,因為它是該 Activity 的 content view,而 Activity 只有一個。
+    nonisolated(unsafe) static var rootStack: AndroidKit.LinearLayout?
+
+    /// The toolbar row, once one has been asked for. `nil` means no row is in
+    /// the stack at all, which is not the same as a row that is empty -- an
+    /// empty row still takes its height from the content.
+    ///
+    /// 工具列那一列,在有人要求之後才存在。`nil` 代表堆疊中根本沒有這一列,那與「一列空的」不同——
+    /// 一列空的仍會從內容那裡佔走它的高度。
+    nonisolated(unsafe) static var toolbar: AndroidKit.LinearLayout?
+
     var helpers: AndroidBackendHelpers
 
     static let maxLocaleCacheSize = 25
@@ -349,14 +369,44 @@ public final class AndroidBackend: BaseAppBackend {
         // 使用 `allowsRootScrollControl` 而非 `isEnabled`。`isEnabled` 還要求命令列上有 `--debug`，
         // 而此處的區別與 UIKitBackend 所劃的是同一個：這個旗標並不開啟任何診斷功能，它只是讓一個既有的
         // 介面元件變為可見；而 release 建置恰恰是「無法靠重新建置來看見它」的那種建置。
-        Self.activity.setContentView(
+        // A vertical stack, so `.toolbar` has somewhere to put a bar without
+        // overlapping the content. The scroll host takes weight 1 and the
+        // toolbar, when there is one, sits above it at its natural height.
+        //
+        // The stack exists even with no toolbar. Building it only on demand
+        // would mean replacing the content view after the window is already up,
+        // and Android's `setContentView` on a live window discards the view
+        // tree it replaces -- every widget the app had built would be recreated
+        // the first time a `.toolbar` appeared, losing scroll position and
+        // in-flight text. One always-present LinearLayout costs one view.
+        //
+        // 一個垂直堆疊,好讓 `.toolbar` 有地方擺放一條列而不與內容重疊。scroll host 取 weight 1,
+        // 而工具列(存在時)以其自然高度位於其上。
+        //
+        // 即使沒有工具列,這個堆疊也一樣存在。若改為按需建立,就意味著要在視窗已經顯示之後替換
+        // content view,而 Android 的 `setContentView` 在活著的視窗上會丟棄它所替換掉的整棵 view
+        // 樹——app 已建好的每一個 widget 都會在第一次出現 `.toolbar` 時被重建,捲動位置與輸入到
+        // 一半的文字也隨之消失。一個恆常存在的 LinearLayout 只值一個 view。
+        let stack = AndroidKit.LinearLayout(Self.activity, environment: Self.env)
+        stack.setOrientation(try! JavaClass<AndroidKit.LinearLayout>().VERTICAL)
+        let matchParentDimension = try! JavaClass<AndroidKit.ViewGroup.LayoutParams>().MATCH_PARENT
+        stack.addView(
             AndroidRootScrollHost.wrap(
                 container,
                 activity: Self.activity,
                 environment: Self.env,
                 showModeControl: DebugFeatures.allowsRootScrollControl
+            ),
+            AndroidKit.LinearLayout.LayoutParams(
+                matchParentDimension,
+                0,
+                1,
+                environment: Self.env
             )
+            .as(AndroidKit.ViewGroup.LayoutParams.self)
         )
+        Self.activity.setContentView(stack)
+        Self.rootStack = stack
         window.content = container
         updateInsets(ofWindow: window)
     }

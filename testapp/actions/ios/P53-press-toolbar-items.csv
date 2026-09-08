@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# Measured 2026-09-08 from testapp/output/screenshots/p53-ios-final-20260908-194151.png
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
+#
+# The bar's centre line is at y = 82: the screenshot is 3x, the bar's glyphs sit
+# on row 246, and 246 / 3 = 82. Taken from the picture rather than from the 44pt
+# navigation-bar height, because the bar is pinned to the safe-area top and the
+# inset is the device's, not a number this file can assume.
+#
+# add is pressed TWICE and trash ONCE, so the three counters end at different
+# values. Pressing each once would leave 1, 1, 0, and a wiring mistake that sent
+# every item to the same action would produce 1, 1, 0 as well when it happened
+# to be the right two. 2, 1, 0 cannot be reached that way.
+#
+# 該列的中心線位於 y = 82:截圖為 3 倍,列上的字符落在第 246 列,而 246 / 3 = 82。取自圖片而非取自
+# 44pt 的導覽列高度,因為該列釘在 safe area 頂端,而那個內縮量屬於裝置,不是本檔可以假設的數字。
+#
+# add 按**兩次**、trash 按**一次**,好讓三個計數器停在不同的值上。若各按一次會留下 1、1、0,而一個
+# 「把每個項目都送到同一個 action」的接線錯誤,在剛好命中那兩個時同樣會產生 1、1、0。2、1、0 走不到
+# 那條路上。
+click,28,82,client,left,,,"the + item (leading) -- add must become 1",ios
+sleep,,,,,,400000,let the counter redraw,ios
+click,28,82,client,left,,,"the + item again -- add must become 2",ios
+sleep,,,,,,400000,let the counter redraw,ios
+click,365,82,client,left,,,"the trash item (trailing) -- trash must become 1, add must stay at 2",ios
+sleep,,,,,,800000,settle before the photograph,ios

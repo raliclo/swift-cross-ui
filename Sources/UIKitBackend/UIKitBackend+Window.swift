@@ -9,6 +9,38 @@ final class RootViewController: UIViewController {
     private let scrollHost = RootScrollHost()
     private var viewModeButton: ViewModeButton?
 
+    /// The toolbar's bar, and the targets its buttons point at.
+    ///
+    /// `UIBarButtonItem.target` is unowned, so a button whose target has been
+    /// deallocated does nothing when pressed and says nothing about it. Held
+    /// here, beside the bar they belong to.
+    ///
+    /// 工具列的那條 bar,以及其按鈕所指向的 target。
+    ///
+    /// `UIBarButtonItem.target` 是 unowned 的,因此一個 target 已被釋放的按鈕,按下去不會有任何作用,
+    /// 也不會為此說任何話。與它們所屬的那條 bar 一起持有於此。
+    var navigationBar: UINavigationBar?
+    var toolbarTargets: [ToolbarActionTarget] = []
+
+    /// The two constraints the toolbar moves, so the bar does not sit on top of
+    /// the content. Held because a constraint that has been activated can only
+    /// be found again by searching `view.constraints` by anchor, and a search
+    /// that matches nothing silently adjusts nothing.
+    ///
+    /// 工具列會調整的那兩個 constraint,好讓那條列不要壓在內容上。之所以持有它們,是因為一個已啟用的
+    /// constraint 只能靠在 `view.constraints` 中依 anchor 搜尋才找得回來,而一次沒有命中的搜尋會
+    /// 靜默地什麼都不調整。
+    var scrollHostTopConstraint: NSLayoutConstraint?
+    var scrollHostHeightConstraint: NSLayoutConstraint?
+
+    /// Moves the content down by `inset` and shortens it by the same amount.
+    /// 把內容往下移 `inset`,並等量縮短它。
+    func setContentTopInset(_ inset: CGFloat) {
+        scrollHostTopConstraint?.constant = inset
+        scrollHostHeightConstraint?.constant = -inset
+        view.setNeedsLayout()
+    }
+
     #if os(visionOS)
         init(backend: UIKitBackend) {
             self.backend = backend
@@ -69,17 +101,32 @@ final class RootViewController: UIViewController {
         if scrollHost.superview == nil {
             view.addSubview(scrollHost)
             scrollHost.translatesAutoresizingMaskIntoConstraints = false
+            let scrollHostTop = scrollHost.topAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.topAnchor
+            )
+            scrollHostTopConstraint = scrollHostTop
+            // The height gives back what the top constraint takes. Pinning only
+            // the top would push an equal-height view down by the bar and off
+            // the bottom of the screen, and a scroll view whose content runs
+            // past its own frame scrolls -- so the loss shows up as a stripe
+            // that will not stay put rather than as anything obviously wrong.
+            //
+            // 高度要把 top constraint 拿走的還回來。若只釘住頂端,一個等高的 view 會被工具列往下推、
+            // 推出畫面底端;而一個內容超出自身框架的捲動視圖是會捲的——於是這份損失呈現出來的樣子,
+            // 是一條「按不住、會滑動」的邊條,而不是任何一眼看得出的錯誤。
+            let scrollHostHeight = scrollHost.heightAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.heightAnchor
+            )
+            scrollHostHeightConstraint = scrollHostHeight
             NSLayoutConstraint.activate([
                 scrollHost.leadingAnchor.constraint(
                     equalTo: view.safeAreaLayoutGuide.leadingAnchor
                 ),
-                scrollHost.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                scrollHostTop,
                 scrollHost.widthAnchor.constraint(
                     equalTo: view.safeAreaLayoutGuide.widthAnchor
                 ),
-                scrollHost.heightAnchor.constraint(
-                    equalTo: view.safeAreaLayoutGuide.heightAnchor
-                ),
+                scrollHostHeight,
             ])
         }
         scrollHost.host(child.view)
