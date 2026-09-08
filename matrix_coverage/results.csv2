@@ -663,3 +663,10 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-08,windows,gtk4,P50,ok,-,fail,default,"screenshot.zsh wrote no image file at all"
 2026-09-08,windows,gtk4,P50,ok,-,window,default,
 2026-09-08,windows,winui,P50,ok,-,window,default,
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,"P13-duplicates-and-split.csv"
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked; expectation met: 'z-order reversed -- top should now be red'"
+2026-09-08,windows,gtk4,P50,ok,-,window,default,
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,"P13-duplicates-and-split.csv"
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,"P13-zorder.csv: no measured size in the action file -- geometry unchecked; expectation met: 'z-order reversed -- top should now be red'"
+2026-09-08,windows,gtk4,P50,ok,-,window,default,
+2026-09-08,windows,winui,P50,ok,-,window,default,
