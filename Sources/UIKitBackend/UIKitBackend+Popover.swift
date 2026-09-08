@@ -1,7 +1,7 @@
 @_spi(Backends) import SwiftCrossUI
 import UIKit
 
-extension UIKitBackend: BackendFeatures.Popovers {
+extension UIKitBackend {
     public typealias Popover = CustomPopover
 
     public func createPopover(content: Widget) -> CustomPopover {
@@ -90,19 +90,36 @@ extension UIKitBackend: BackendFeatures.Popovers {
 public final class CustomPopover: UIViewController, UIPopoverPresentationControllerDelegate {
     var onDismiss: (() -> Void)?
     var customContent: UIView?
-    private var wasDismissedProgrammatically = false
 
     func dismissProgrammatically() {
-        wasDismissedProgrammatically = true
         dismiss(animated: true)
     }
 
+    // Both paths report, and the programmatic one is NOT suppressed.
+    //
+    // It was, until 2026-09-08. The reasoning was that a caller who set
+    // `isPresented = false` already knows the popover is going away, so telling
+    // it again is noise -- which is wrong for the same reason SwiftUI's
+    // `onDismiss` fires either way: the closure is where the caller cleans up
+    // after the presentation, and whether the user tapped outside or the code
+    // asked has nothing to do with whether that cleanup is needed.
+    //
+    // Suppressing it also made this backend the odd one out. AppKit never
+    // suppressed, and the Windows side removed the equivalent flags from GTK
+    // and WinUI in the same decision; this was the last of the five still
+    // holding one, and it was mine.
+    //
+    // 兩條路徑都會回報,而程式化關閉的那一條**不再被抑制**。
+    //
+    // 它原本是被抑制的,直到 2026-09-08。當時的理由是:設定 `isPresented = false` 的呼叫端已經知道
+    // popover 要消失了,再告訴它一次只是雜訊——而那是錯的,理由與 SwiftUI 的 `onDismiss` 兩種情況
+    // 都會觸發相同:那個 closure 是呼叫端在呈現結束後做清理的地方,而「是使用者點了外面」還是
+    // 「程式碼要求的」,與那份清理需不需要做完全無關。
+    //
+    // 抑制它也讓本 backend 成為五個之中的異類。AppKit 從來沒有抑制過,而 Windows 端在同一項決定中
+    // 移除了 GTK 與 WinUI 的對應旗標;這是五個裡最後一個還壓著的,而它是我寫的。
     public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        guard !wasDismissedProgrammatically else {
-            wasDismissedProgrammatically = false
-            return
-        }
         onDismiss?()
     }
 }

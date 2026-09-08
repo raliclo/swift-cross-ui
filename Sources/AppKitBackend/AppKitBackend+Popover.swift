@@ -1,7 +1,7 @@
 import AppKit
 @_spi(Backends) import SwiftCrossUI
 
-extension AppKitBackend: BackendFeatures.Popovers {
+extension AppKitBackend {
     public typealias Popover = NSCustomPopover
 
     public func createPopover(content: NSView) -> NSCustomPopover {

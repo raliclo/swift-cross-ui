@@ -28,7 +28,7 @@ extension AndroidKit.PopupWindow {
 /// 上所有帶錨點的東西都建構於它之上。它不會免費給的,是使 popover 成為 popover(而非一塊浮動面板)的
 /// 那兩項行為:它必須接收觸控,而觸碰它以外之處必須把它關掉。兩者都在 ``createPopover(content:)``
 /// 中設定,而且都不是預設值。
-extension AndroidBackend: BackendFeatures.Popovers {
+extension AndroidBackend {
     public typealias Popover = AndroidKit.PopupWindow
 
     public func createPopover(content: Widget) -> AndroidKit.PopupWindow {

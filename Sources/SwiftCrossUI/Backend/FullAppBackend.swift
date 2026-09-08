@@ -28,6 +28,7 @@ public typealias FullAppBackend =
         & BackendFeatures.Paths
         & BackendFeatures.Alerts
         & BackendFeatures.Sheets
+        & BackendFeatures.Popovers
         & BackendFeatures.IncomingURLs
         & BackendFeatures.ExternalURLs
         & BackendFeatures.RevealFiles

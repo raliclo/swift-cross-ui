@@ -16,7 +16,7 @@ import WindowsFoundation
 /// 選 `Flyout` 而非 `Popup`。兩者都能把內容放到頁面之上，但 `Popup` 接受的是原始座標，並把點擊
 /// 外部關閉、定位、在螢幕邊緣翻轉、尖角與陰影全部留給呼叫端。`Flyout` 則是 Windows 自己就用於
 /// 此事的控制項，而 `showAt(_:)` 直接接受錨點——那正是整個 protocol 之所以存在的那個參數。
-extension WinUIBackend: BackendFeatures.Popovers {
+extension WinUIBackend {
     @MainActor
     public final class Popover {
         let flyout: WinUI.Flyout

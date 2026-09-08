@@ -18,7 +18,7 @@ import Gtk
 /// ——但兩者的共通點僅止於此。`PopoverMenus` 交給 GTK 的是 `GMenuModel`，而 menu model 無從表達
 /// 一個 `Slider`。此處改為透過 `gtk_popover_set_child` 附上一個普通的 widget，那正是 `GtkPopover`
 /// 被設計來承擔的用途，也正是它自己的文件在談到「dialog-like behavior」時所建議者。
-extension GtkBackend: BackendFeatures.Popovers {
+extension GtkBackend {
     /// A `GtkPopover` plus the bookkeeping GTK does not do for us.
     ///
     /// Two things live here rather than on the `GtkPopover`:
