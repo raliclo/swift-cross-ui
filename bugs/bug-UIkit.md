@@ -13,7 +13,81 @@ is the other file. See `flow.md` section 3h.
 `mistakes/mistakes.csv2`——那一份的主詞是我，本檔的主詞是這個 backend。兩者容易混淆，是因為一個
 代價高昂的錯誤會讓人覺得它該被永久記下來；它確實該，只是該記在另一份檔案裡。見 `flow.md` 第 3h 節。
 
-## Nothing open
+## RootScrollHost shifts content right by however far it extends left
+
+`RootScrollHost.contentBounds` seeds its box with
+`CGRect(origin: .zero, size: view.bounds.size)` and unions the subview boxes
+into it. Because the seed always contains the origin, `box.minX` can never be
+positive, and `layoutSubviews` then sets
+`content.frame.origin = CGPoint(x: -box.minX, y: -box.minY)` -- so the content
+is always shifted RIGHT, by exactly how far it reaches to the left.
+
+Measured 2026-09-08 on the iPhone 16 simulator: P17's content occupies
+x 260..393 pt while P15, P46 and P47 all begin at 12..16. The design's own left
+edge is only reachable by scrolling, and 260 pt of the window is blank at scroll
+position zero.
+
+**The shift itself is intentional and the commit that added it says why** -- a
+scroll view cannot reach negative coordinates, so content overflowing to the
+left is unreachable however large `contentSize` is. What is not established is
+whether a 260 pt shift is the right answer for P17 or whether the box is being
+widened by a subview that draws nothing. That question is open.
+
+Scrolling works: a rightward scroll moves 618,358 px on P17 and 287,205 on P10.
+An earlier note here said it did not, which was a probe that scrolled left
+against content already flush left; that is recorded in `mistakes/mistakes.csv2`
+rather than repeated as a defect.
+
+**Sixteen other scenarios are clipped at the right edge** and have not been
+looked at individually. Only P17 (260 pt) and P13 (132 pt) show a large left
+offset; the other 46 start at 0..40.
+
+### RootScrollHost 會把內容往右推,推的距離等於它向左延伸多遠
+
+`RootScrollHost.contentBounds` 以 `CGRect(origin: .zero, size: view.bounds.size)`
+起算,再把各子 view 的框聯集進去。由於起始框永遠包含原點,`box.minX` 不可能為正;而
+`layoutSubviews` 接著設定 `content.frame.origin = CGPoint(x: -box.minX, y: -box.minY)`
+——於是內容永遠**向右**位移,距離恰為它向左延伸的長度。
+
+2026-09-08 於 iPhone 16 模擬器實測:P17 的內容佔據 x 260..393 點,而 P15、P46、P47 都是從
+12..16 開始。該設計自身的左緣只能靠捲動觸及,而在捲動位置 0 時,視窗有 260 點是空白的。
+
+**這個位移本身是刻意的,加入它的那筆 commit 也說明了理由**——捲動視圖無法觸及負座標,因此向左溢出的
+內容無論 `contentSize` 多大都構不到。尚未確立的是:260 點對 P17 而言是否為正確答案,還是那個框被一個
+「什麼都不畫」的子 view 撐大了。該問題仍然開放。
+
+捲動是正常的:P17 向右捲動移動 618,358 像素、P10 為 287,205。此處先前有一條說它捲不動,那是一次
+「對已貼齊左緣的內容向左捲」的探測;那件事記在 `mistakes/mistakes.csv2`,不在此處重述為缺陷。
+
+**另有十六個情境在右緣被裁切**,尚未逐一檢視。左偏移較大的只有 P17(260 點)與 P13(132 點),
+其餘 46 個都從 0..40 開始。
+
+---
+
+## Reported: a 6 ms delay on button presses -- not yet measured here
+
+Recorded 2026-09-08 at the user's request, for investigation when there is time.
+
+**What is known: only that it was reported.** No measurement of mine is behind
+this line -- not the 6 ms, not which platform it was seen on, not whether it is
+input latency, a layout pass, or the gap between a press and its visible
+response. Writing it down with a number I did not take would make it look
+investigated.
+
+What would settle it, when someone picks it up: a press-to-repaint measurement
+on one backend, against the same measurement with the button's action body
+emptied. That separates the framework's dispatch from whatever the action does.
+
+### 回報:按鈕按下有 6 毫秒延遲——此處尚未量測
+
+2026-09-08 依使用者要求記下,待有時間時調查。
+
+**已知的只有「它被回報過」這件事。** 這一行背後沒有任何我自己的量測——不是那 6 毫秒、不是它出現在
+哪個平台、也不是它究竟屬於輸入延遲、一次版面計算,還是「按下」與「可見反應」之間的間隔。把一個我沒有
+量過的數字寫下來,會讓它看起來像是已經被調查過了。
+
+日後接手時能夠定案的做法:在單一 backend 上量測「按下到重繪」,再與「把按鈕 action 主體清空」的同一
+量測相比。那能把框架的派送與 action 本身所做的事分開。
 
 Both entries that used to be here — `VisualEffects` having no path for six of
 its seven effects, and one `List` in P7 not responding to taps — were closed on

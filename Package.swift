@@ -483,7 +483,35 @@ let package = Package(
             ],
             exclude: ["GirFiles"]
         ),
-        .target(name: "UIKitBackend", dependencies: ["SwiftCrossUI"]),
+        // The only backend of the five that had never been given the debug
+        // define, checked back through every commit that touched
+        // `debugSwiftSettings`: GtkBackend and DebugFeatures from 2026-08-21,
+        // AppKitBackend and WinUIBackend from 08-26, SwiftCrossUI from 08-27,
+        // AndroidBackend from 09-02. Each of those added a backend and left this
+        // one out; it was never removed.
+        //
+        // The cost was silent, which is the point. This file already records why
+        // `DebugFeatures.isEnabled` is preferred over `#if SCUI_DEBUG` -- an `#if`
+        // on an undefined flag is not an error, it is a branch that quietly never
+        // compiles -- and that is exactly what happened here on 2026-09-08: a
+        // diagnostic added to `RootScrollHost` built cleanly, ran, and printed
+        // nothing, costing a rebuild and a simulator run before the cause was
+        // looked for in the manifest rather than in the code.
+        //
+        // 五個 backend 中唯一從未被賦予 debug 定義的一個。回溯每一次動到 `debugSwiftSettings` 的
+        // commit:2026-08-21 的 GtkBackend 與 DebugFeatures、08-26 的 AppKitBackend 與
+        // WinUIBackend、08-27 的 SwiftCrossUI、09-02 的 AndroidBackend。其中每一次都加入一個
+        // backend、而每一次都漏掉這一個;它從來不是被移除的。
+        //
+        // 它的代價是靜默的,而那正是重點。本檔已經記載了為何偏好 `DebugFeatures.isEnabled` 而非
+        // `#if SCUI_DEBUG`——對未定義的旗標使用 `#if` 不會報錯,只會安靜地永遠不編譯那個分支——
+        // 而 2026-09-08 這裡發生的正是那件事:一段加進 `RootScrollHost` 的診斷編得乾乾淨淨、跑起來、
+        // 什麼都沒印,在有人去翻 manifest 而非翻程式碼之前,已經花掉一次重建與一次模擬器執行。
+        .target(
+            name: "UIKitBackend",
+            dependencies: ["SwiftCrossUI"],
+            swiftSettings: debugSwiftSettings
+        ),
         .target(
             name: "WinUIBackend",
             dependencies: [
