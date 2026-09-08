@@ -29,34 +29,57 @@ import SwiftJava
 /// 擾亂它所覆蓋之物的版面。那與 AppKitBackend 採用的形狀相同,理由也相同:一個真的按得下去的操作
 /// 方式,勝過一個「在它從不觸發的平台上仍回報成功」的手勢。
 extension AndroidBackend {
+    /// The text on the button, and also how it is found again.
+    ///
+    /// The first version kept the buttons in a Swift dictionary keyed by
+    /// `container.javaHolder.object!.hashValue`. That looks like an identity
+    /// and is not one: the pointer is a JNI local reference and can differ
+    /// between two calls about the same Java object, so the lookup missed, a
+    /// new button was added on EVERY update, and the emulator went from
+    /// "Pixel Launcher isn't responding" to "System UI isn't responding" while
+    /// the app itself never crashed. Nothing in the Swift code failed; the view
+    /// tree simply grew without bound.
+    ///
+    /// Scanning the container's children for this text is O(children) on a
+    /// scroll container that holds one or two, and it asks the view hierarchy
+    /// -- which is the thing that actually knows -- instead of a side table.
+    ///
+    /// 按鈕上的文字,同時也是「再次找到它」的方式。
+    ///
+    /// 第一版把那些按鈕放在一個 Swift 字典裡,以 `container.javaHolder.object!.hashValue` 為索引鍵。
+    /// 那看起來像是一個身分,但它不是:該指標是一個 JNI local reference,對同一個 Java 物件的兩次呼叫
+    /// 可能不同,因此查找落空、**每一次**更新都新增一顆按鈕,而模擬器就從「Pixel Launcher isn't
+    /// responding」一路走到「System UI isn't responding」——而 app 本身從未當掉。Swift 這一側沒有任何
+    /// 東西失敗;只是那棵 view 樹無上限地長大。
+    ///
+    /// 在容器的子 view 中掃描這段文字,對一個只有一兩個子項的 scroll container 而言是 O(children),
+    /// 而且它問的是 view 階層——那才是真正知道答案的東西——而不是一張旁置的表。
+    private static let refreshButtonText = "Refresh"
+
     public func setRefreshHandler(
         ofScrollContainer scrollView: Widget,
         to handler: (@MainActor @Sendable () -> Void)?
     ) {
         guard let container = scrollView.as(ScrollContainer.self) else { return }
-
-        let existing = Self.refreshButtons[container.javaHolder.object!.hashValue]
+        let existing = Self.refreshButton(in: container)
 
         guard let handler else {
             if let existing {
                 container.removeView(existing)
-                Self.refreshButtons[container.javaHolder.object!.hashValue] = nil
             }
             return
         }
 
         // The listener is replaced on an existing button rather than the button
         // being rebuilt. `updateScrollContainer` runs on every state change,
-        // including the ones the refresh action itself causes, and a button
-        // removed and re-added on each of those flickers.
+        // including the ones the refresh action itself causes.
         // 在既有按鈕上替換 listener,而不是重建那顆按鈕。`updateScrollContainer` 在每一次狀態改變時
-        // 都會執行——包括那些由 refresh 動作本身所引起的——而一顆在每次都被移除再加回去的按鈕會閃爍。
+        // 都會執行——包括那些由 refresh 動作本身所引起的。
         let button = existing ?? {
             let button = AndroidKit.Button(Self.activity, environment: Self.env)
-            button.setText(Self.charSequence(from: "Refresh"))
+            button.setText(Self.charSequence(from: Self.refreshButtonText))
             button.setAllCaps(false)
             container.addView(button)
-            Self.refreshButtons[container.javaHolder.object!.hashValue] = button
             return button
         }()
 
@@ -66,8 +89,14 @@ extension AndroidBackend {
         )
     }
 
-    /// Keyed by the container's Java identity, because a `Widget` here is a
-    /// handle rather than an object with storage of its own.
-    /// 以容器的 Java 身分為索引鍵,因為此處的 `Widget` 是一個握把,而不是一個自帶儲存空間的物件。
-    nonisolated(unsafe) static var refreshButtons: [Int: AndroidKit.Button] = [:]
+    private static func refreshButton(in container: ScrollContainer) -> AndroidKit.Button? {
+        for index in 0..<container.getChildCount() {
+            guard let child = container.getChildAt(index),
+                let button = child.as(AndroidKit.Button.self),
+                button.getText()?.toString() == refreshButtonText
+            else { continue }
+            return button
+        }
+        return nil
+    }
 }

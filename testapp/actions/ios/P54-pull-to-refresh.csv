@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P54 on iOS: pull the scroll view down twice and read the counter back.
+#
+# A `scroll` row becomes a drag in the XCUITest runner, and the sign inverts --
+# a NEGATIVE dy scrolls up, which a finger does by moving DOWN, which is the
+# pull. Four notches is 160 pt, comfortably past UIRefreshControl's threshold.
+#
+# Pulled TWICE. `refreshes: 1` could come from a control that fires on being
+# created as well as from one the user pulled; `refreshes: 2` with the rows
+# reaching 10 could not.
+#
+# P54 在 iOS 上:把捲動視圖往下拉兩次,再把計數器讀回來。
+#
+# 一列 `scroll` 在 XCUITest runner 中會變成一次拖曳,而符號是反的——**負**的 dy 代表向上捲動,
+# 而手指要達成那件事是往**下**移動,那正是「下拉」。四格為 160 點,充分超過 UIRefreshControl 的門檻。
+#
+# 拉**兩次**。`refreshes: 1` 既可能來自一個「被建立時就觸發」的控制項,也可能來自使用者的下拉;
+# 而 `refreshes: 2` 加上列數達到 10,則不可能是前者。
+sleep,,,,,,1000000,let P54 render,ios
+move,196,200,client,,,,"start the pull near the top of the content -- a scroll row drags from wherever the pointer is, and the runner's default is the window centre",ios
+scroll,0,-8,,,,,"pull down past the refresh threshold -- refreshes must become 1",ios
+sleep,,,,,,2000000,let the control finish and the rows rebuild,ios
+move,196,200,client,,,,,ios
+scroll,0,-8,,,,,"pull down again -- refreshes must become 2 and the rows must reach 10",ios
+sleep,,,,,,1500000,settle before the photograph,ios

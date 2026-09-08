@@ -77,10 +77,46 @@ extension AppKitBackend {
         }
 
         let button = RefreshButton(action: handler)
-        container.addSubview(button)
-        NSLayoutConstraint.activate([
-            button.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
-            button.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
-        ])
+        // `addFloatingSubview`, not `addSubview`. A plain subview of an
+        // NSScrollView goes BEHIND the clip view, which fills the scroll view
+        // and draws the document over it -- the button is created, laid out and
+        // never seen, which is the failure that looks like the feature was
+        // never wired. Measured: P54 rendered with no button at all until this
+        // line changed.
+        //
+        // The axis argument says which direction the view must not scroll with.
+        // `.vertical` pins it against vertical scrolling, which is the one this
+        // app scrolls in.
+        //
+        // 使用 `addFloatingSubview` 而非 `addSubview`。NSScrollView 的一般子 view 會被放到 clip view
+        // **後方**,而 clip view 填滿整個捲動視圖並在其上繪製 document——那顆按鈕會被建立、被排版,
+        // 然後從來沒有人看得到它,而那正是那種「看起來像是這個功能根本沒接上」的失敗。實測:在這一行
+        // 改掉之前,P54 畫出來完全沒有按鈕。
+        //
+        // axis 引數說的是「這個 view 不可以隨哪個方向捲動」。`.vertical` 讓它固定住不隨垂直捲動,
+        // 而垂直正是這支 app 會捲的方向。
+        button.translatesAutoresizingMaskIntoConstraints = true
+        button.sizeToFit()
+        // AppKit's origin is bottom-left, so `y: 4` is four points from the
+        // BOTTOM. Measured: the button rendered in the bottom-left corner of
+        // P54's window while every comment and the app's own text said
+        // top-left. Nothing failed -- a button in the wrong corner is still a
+        // button, and it is only wrong against a sentence.
+        //
+        // `.minYMargin` keeps the gap to the top fixed as the window resizes;
+        // the default mask would keep the gap to the BOTTOM fixed and walk the
+        // button back down the window.
+        //
+        // AppKit 的原點在左下角,因此 `y: 4` 是距離**底部**四點。實測:那顆按鈕畫在 P54 視窗的
+        // 左下角,而每一段註解與這支 app 自己的文字都說是左上角。沒有任何東西失敗——一顆位置錯誤的
+        // 按鈕仍然是一顆按鈕,它只是與一句話不符。
+        //
+        // `.minYMargin` 讓「與頂端的間距」在視窗改變大小時維持固定;預設的 mask 會固定「與**底部**
+        // 的間距」,並讓按鈕沿著視窗一路走回下方。
+        button.setFrameOrigin(
+            NSPoint(x: 4, y: container.bounds.height - button.frame.height - 4)
+        )
+        button.autoresizingMask = [.minYMargin]
+        container.addFloatingSubview(button, for: .vertical)
     }
 }
