@@ -1,0 +1,79 @@
+action,x,y,origin,button,key,micros,note,platform
+# P51 on Windows, GtkBackend: scroll down until section 6 is on screen, so the
+# GridItem.adaptive cells can be read.
+#
+# NO `# expect:` MARKER, deliberately. P51 writes no log line for section 6, and
+# the question -- did four cells lay out across or stacked -- is answerable only
+# from the picture. A marker here would have to assert something the app does not
+# say, which is worse than having none.
+#
+# WHY THIS FILE EXISTS. Section 6 renders BELOW the window's bottom edge.
+# gtk4-P51-20260908-175107.png shows its heading at y~766 and its explanation
+# under that, and the four cells are off the 889 px frame entirely. So the one
+# section that asks a question -- "4 across = it adapted, 4 stacked = it did not,
+# record which" -- is the one that cannot be read. P51's own header warns about
+# this, having watched it happen to P48 first.
+#
+# WHY SCROLL RATHER THAN ENLARGE THE WINDOW. Making the app's window taller so a
+# test can see more is changing the subject to make the test pass. The section is
+# inside a ScrollView; scrolling is what a user would do, and it exercises the
+# ScrollView at the same time.
+#
+# THE `move` IS NOT OPTIONAL. `scroll` carries no position -- InputAction.swift
+# says so in as many words, and says why: a wheel event goes to whatever is under
+# the pointer, so a scroll row that also claimed a position could describe one
+# place and scroll another. Without a preceding `move` the pointer is wherever
+# the window manager left it, which may be outside the window.
+#
+# (250,605) is prose in the left column -- the "Nine cells, each labelled RnCn"
+# line -- with no control on it. The Grid cells of section 2 start near y 645, so
+# this parks above them. Read off gtk4-P51-20260908-175107.png at 948x889,
+# origin=frame, 100% display scale.
+#
+# SIX NOTCHES. The iOS files in this suite record four notches as "160 points
+# asked for", so a notch is about 40 points and six is about 240 -- enough to lift
+# a heading at y~766 clear of the fold with the cells beneath it. `dy` POSITIVE is
+# down; Windows inverts the vertical wheel and the synthesiser handles that, so
+# the action file does not.
+#
+# HOW TO READ THE RESULT. Section 6 declares `columns: [GridItem(.adaptive(
+# minimum: 96))]` with 4 cells. Four cells side by side means adaptive resolved
+# into multiple columns. Four cells stacked in one column means it did not.
+# Record which; assume neither. The caption in the app says the same, because the
+# earlier "KNOWN DIVERGENCE" claim was measured against a GridItem/LazyVGrid that
+# dea9ccff replaced wholesale, and was never re-checked against this one.
+#
+# P51 於 Windows、GtkBackend：向下捲動直到第 6 節進入畫面，好讓 GridItem.adaptive 的儲存格能被讀取。
+#
+# **刻意不設 `# expect:` 標記。** P51 對第 6 節不會寫任何 log 行，而「四格是橫排還是直疊」這個問題只能
+# 從畫面回答。在此設標記，等於要它斷言一件 app 根本沒說出口的事，那比沒有標記更糟。
+#
+# 本檔存在的理由。第 6 節繪製於視窗底緣**之下**。gtk4-P51-20260908-175107.png 顯示其標題約在 y=766、
+# 說明文字在其下，而那四格完全落在 889 px 的框之外。於是唯一提出問題的那一節——「四格橫排＝它自適應
+# 了；四格直疊＝它沒有；請記錄實際結果」——正是讀不到的那一節。P51 自己的檔頭警告過這件事，因為它
+# 先發生在 P48 身上。
+#
+# 為何用捲動而非把視窗加大。為了讓測試看得到更多而把 app 的視窗變高，是改變題目以使測試通過。該節位於
+# ScrollView 之內；捲動才是使用者會做的事，而且它同時也驗到了 ScrollView。
+#
+# `move` 不是可有可無的。`scroll` 不攜帶位置——InputAction.swift 把話說得很明白，也說明了原因：滾輪
+# 事件會送往指標下方之物，因此一列「同時宣稱位置」的 scroll，可能描述了某處卻捲動了另一處。少了前置的
+# `move`，指標會停在視窗管理員最後留下它的地方，而那可能在視窗之外。
+#
+# (250,605) 是左欄的散文——「Nine cells, each labelled RnCn」那一行——其上沒有任何控制項。第 2 節的
+# Grid 儲存格從約 y=645 開始，因此此處停在它們上方。座標取自 948x889 的
+# gtk4-P51-20260908-175107.png，origin=frame，100% 顯示縮放。
+#
+# 六格滾輪。本套件的 iOS 檔案記錄「四格＝要求 160 點」，因此一格約 40 點、六格約 240 點——足以把約在
+# y=766 的標題抬離折線，並讓儲存格出現在其下。`dy` 為**正**代表向下；Windows 的垂直滾輪方向相反，該
+# 反轉由 synthesiser 處理，動作檔不必理會。
+#
+# 如何判讀結果。第 6 節宣告 `columns: [GridItem(.adaptive(minimum: 96))]` 並放 4 格。四格並排＝
+# adaptive 解析成了多欄；四格疊成一欄＝它沒有。請記錄實際結果，勿預設任何一種。app 內的說明文字也是
+# 這麼寫的，因為先前那句「已知的分歧」是針對一組已被 dea9ccff 整個取代掉的 GridItem／LazyVGrid 量測
+# 的，而從未針對現在這一組重新檢查。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,250,605,frame,,,,park on prose in the left column with no control under the pointer,windows
+sleep,,,,,,200000,let the pointer arrive before the wheel event,windows
+scroll,0,6,,,,,"six notches down (~240 points) to bring section 6's four cells above the fold",windows
+sleep,,,,,,1200000,hold for the capture and let the scroll settle,windows

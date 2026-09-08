@@ -123,23 +123,44 @@ The 6 ms figure above is not a constant. Re-running P52 at three button counts,
 **in both ascending and descending order**, taking the minimum of the two orders
 per count:
 
-Columns follow this tree's vocabulary rather than ones invented here --
-`date`, `host`, `backend`, `scenario`, `seconds` are `buildtime.csv2`'s, and
-`host` takes the same values as `results.csv2`'s `platform`. The first version
-of this table had none of those: no date, no host, no backend, which is exactly
-what makes a number impossible to re-derive later.
+**The numbers live in `P52-buttonstyle-findings.csv2`, not here.** That is this
+tree's convention -- `buildtime.csv2`/`buildtime.md`,
+`executable-size.csv2`/`executable-size.md` and `mistakes.csv2`/`mistakes.md`
+all pair data with prose the same way, and the data half is the one a tool can
+read. Read and write it with `csv2`; it has two header rows.
 
-| date | host | backend | scenario | buttons | ascending | descending | seconds (min) | per button |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-09-08 | windows | gtk4 | press-transition | 12 | 35,679 us | 33,516 us | **0.033516** | 2,793 us |
-| 2026-09-08 | windows | gtk4 | press-transition | 24 | 112,179 us | 92,930 us | **0.092930** | 3,872 us |
-| 2026-09-08 | windows | gtk4 | press-transition | 48 | 278,768 us | 281,202 us | **0.278768** | 5,808 us |
+An earlier version of this file had the measurements in a markdown table with
+column headings invented here, and no date, host or backend on any row. Renaming
+the headings was not the fix: the format was the problem, because a number in
+prose cannot be appended to by the next run or queried by anything.
+
+```zsh
+csv2 -i testapp/P52-buttonstyle-findings.csv2 --json     # all rows
+csv2 -i testapp/P52-buttonstyle-findings.csv2 -get 4:8   # one cell
+```
+
+Nine rows as of 2026-09-08: three from the three-arm comparison at 48 buttons,
+six from the scaling series at 12/24/48 in both orders. Per-button figures are
+derived, not stored -- divide `microseconds` by `buttons`.
 
 **`host` is `windows` and `backend` is `gtk4` on every row. Nothing here was
 measured on macOS, iOS, Android, WSL or WinUI.** The finding looks like
 framework-level stack layout rather than anything a backend does, so it probably
-reproduces elsewhere -- but "probably" is an inference and the table is a
-measurement, and this file does not let the two share a row.
+reproduces elsewhere -- but "probably" is an inference, the csv2 holds
+measurements, and they are not allowed to share a row.
+
+**數字放在 `P52-buttonstyle-findings.csv2`，不在此處。** 那是本樹的慣例——
+`buildtime.csv2`／`buildtime.md`、`executable-size.csv2`／`executable-size.md`、
+`mistakes.csv2`／`mistakes.md` 都是以同樣的方式把資料與說明配成一對，而資料那一半才是工具讀得到的。
+請以 `csv2` 讀寫；它有兩列表頭。
+
+本檔的前一個版本把量測放在一張 markdown 表格裡，欄名是此處自創的，而且沒有任何一列帶著日期、主機或
+backend。**把欄名改掉並不是修正**：問題出在格式——散文裡的數字，下一次執行無法對它追加，任何工具也
+無法查詢它。
+
+**每一列的 `host` 都是 `windows`、`backend` 都是 `gtk4`。此處沒有任何數字來自 macOS、iOS、Android、
+WSL 或 WinUI。** 這項發現看起來屬於框架層的 stack 版面、而非任何 backend 的作為，因此它很可能在別處
+同樣成立——但「很可能」是推論，csv2 裝的是量測，兩者不得共用同一列。
 
 ```
 12 -> 24    buttons x2    time x2.77

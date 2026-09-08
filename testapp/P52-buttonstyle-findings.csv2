@@ -1,0 +1,11 @@
+date,host,backend,scenario,arm,buttons,run_order,microseconds,note
+日期,主機,backend,情境,測試臂,按鈕數,執行順序,微秒,備註
+2026-09-08,windows,gtk4,press-transition,control,48,first,236,0-button arm; sizes the fixed per-pass overhead
+2026-09-08,windows,gtk4,press-transition,primitive,48,first,289907,three-arm run
+2026-09-08,windows,gtk4,press-transition,custom,48,first,311344,three-arm run; ranges overlap primitive so the 1.07x ratio is noise
+2026-09-08,windows,gtk4,press-transition,primitive,12,ascending,35679,scaling series; min of 50 samples
+2026-09-08,windows,gtk4,press-transition,primitive,24,ascending,112179,scaling series; min of 50 samples
+2026-09-08,windows,gtk4,press-transition,primitive,48,ascending,278768,scaling series; min of 50 samples
+2026-09-08,windows,gtk4,press-transition,primitive,12,descending,33516,scaling series; min of 50 samples
+2026-09-08,windows,gtk4,press-transition,primitive,24,descending,92930,scaling series; min of 50 samples
+2026-09-08,windows,gtk4,press-transition,primitive,48,descending,281202,scaling series; min of 50 samples
