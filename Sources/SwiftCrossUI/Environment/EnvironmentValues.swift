@@ -418,6 +418,28 @@ extension EnvironmentValues {
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button
 
+    /// The style ``ProgressView`` uses. Set with
+    /// ``View/progressViewStyle(_:)``.
+    /// ``ProgressView`` 所使用的樣式。以 ``View/progressViewStyle(_:)`` 設定。
+    @Entry public var progressViewStyle: any ProgressViewStyle = .automatic
+
+    /// What the ``ProgressView``'s initialiser chose, for
+    /// ``ProgressViewStyle/automatic`` to hand back unchanged.
+    ///
+    /// Internal, and in the environment rather than a parameter, because a
+    /// custom style's `makeView` has no business receiving it -- it builds its
+    /// own view and the default is meaningless to it.
+    ///
+    /// ``ProgressView`` 的建構式所做的選擇，供 ``ProgressViewStyle/automatic`` 原樣交還。
+    ///
+    /// 設為 internal，且放在 environment 而非參數中，因為自訂樣式的 `makeView` 沒有理由收到它
+    /// ——它建構的是自己的 view，那個預設值對它毫無意義。
+    @Entry internal var progressViewDefaultKind: _ProgressIndicatorKind = .spinner
+
+    /// Whether the spinner `ProgressView(_:)` builds may resize.
+    /// `ProgressView(_:)` 所建構的轉圈是否可以縮放。
+    @Entry internal var progressSpinnerIsResizable: Bool = false
+
     /// The style of label to use.
     ///
     /// There is no `backendLabelStyle` beside this one, unlike
