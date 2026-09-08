@@ -185,7 +185,7 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
             environment: environment
         )
 
-        self.updateSimpleButton(
+        self.updateButton(
             button,
             label: label,
             environment: environment,
