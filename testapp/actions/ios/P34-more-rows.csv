@@ -11,7 +11,43 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # The rows themselves are labels and are not tappable. Scrolling to see new ones
 # is not expressible here: the iOS runner rejects scroll rows.
-click,80,340,client,left,,,Show +100 -- requested rows must rise above 100 (TODAY IT DOES NOT),ios
+# **This file needs the app launched with `-rows 500`.**
+#
+#     zsh testapp/test_ios.zsh P34 --no-build \
+#         --actionfile testapp/actions/ios/P34-more-rows.csv -- -rows 500
+#
+# Without it both buttons are no-ops BY DESIGN and the file cannot fail: rowCount
+# and visibleRows both start at 100, so `min(100, 100 + 100)` is 100 and
+# `visibleRows = rowCount` is 100. The old note said "TODAY IT DOES NOT" about
+# the first row, which read as a defect in the app; it was the launch.
+#
+# Coordinates re-measured 2026-09-09 from p34-ios-final-20260909-002707.png, taken
+# with -rows 500. Device: iPhone 16 simulator -- window 393 x 852 pt, capture
+# 1179 x 2556 px, coordinates are px/3.
+#
+# The previous rows clicked (80, 340) and (215, 340). y 340 is below the button
+# row, inside the list of "Row N: eager VStack child" lines, so both landed on
+# ink and changed nothing -- which, with the launch problem on top, gave two
+# independent reasons for the same silent nothing.
+#
+# The buttons do not move between the two clicks: the rows they add are BELOW
+# them.
+#
+# **這份檔案需要以 `-rows 500` 啟動 app。**
+#
+# 沒有它,兩顆按鈕**依設計**就是 no-op,而這份檔案根本不可能失敗:rowCount 與 visibleRows 都從 100
+# 起算,因此 `min(100, 100 + 100)` 是 100、`visibleRows = rowCount` 也是 100。舊的註記對第一列寫著
+# 「TODAY IT DOES NOT」,那讀起來像是 app 的缺陷;實際上是啟動方式的問題。
+#
+# 座標於 2026-09-09 重新量測自 p34-ios-final-20260909-002707.png,該擷圖是以 -rows 500 取得的。
+# 裝置:iPhone 16 模擬器——視窗 393 x 852 點、擷圖 1179 x 2556 像素,座標為像素除以 3。
+#
+# 前面那兩列點的是 (80, 340) 與 (215, 340)。y 340 在按鈕列**下方**、落在那串
+# 「Row N: eager VStack child」之中,因此兩者都落在墨水上、什麼都沒改變——再加上啟動的問題,
+# 同一個靜默的「什麼都沒發生」就有了兩個各自獨立的成因。
+#
+# 兩次點擊之間按鈕不會移動:它們加入的那些列位於按鈕**下方**。
+click,42,295,client,left,,,"Show +100 -- the header must go from ""showing first 100"" to ""showing first 200"" (VERIFIED 2026-09-09 in p34-ios-final-20260909-003449.png, from a run carrying this click ALONE -- the two-click run ends at 500, which the second click reaches by itself, so it cannot show that the first one landed)",ios
 sleep,,,,,,800000,let the rows build,ios
-click,215,340,client,left,,,Show all capped rows -- the requested count must reach the cap,ios
+click,173,295,client,left,,,"Show all capped rows -- the header must reach ""showing first 500"" (VERIFIED 2026-09-09 in p34-ios-final-20260909-003120.png)",ios
 sleep,,,,,,1000000,let the rows build,ios

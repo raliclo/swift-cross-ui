@@ -9,7 +9,35 @@ action,x,y,origin,button,key,micros,note,platform
 # P9: this app is drawn shifted left on iOS -- its title reads "xt and field
 # sizing" because the first characters are off-screen, and the Refresh button is
 # cut off at the right. The two width buttons below are fully visible.
-click,50,541,client,left,,,Wider -- the blue frame band must grow and the clipped line must show more,ios
+# Re-measured 2026-09-09 from p9-ios-final-20260908-235223.png and checked again
+# after the first click in p9-ios-final-20260909-001756.png. Device: iPhone 16
+# simulator -- window 393 x 852 pt, capture 1179 x 2556 px, coordinates are px/3.
+#
+# The previous rows clicked (50, 541) and (122, 541). Both were wrong twice
+# over: y 541 is below the button row, inside "The blue band marks the frame",
+# and x 50 and 122 are Narrower and Wider rather than Wider and Zero width. The
+# clicks landed on ink and changed nothing, which is why this app was filed as
+# "lands but does nothing". The app was never at fault.
+#
+# The row sits at y 479 and moves to 476 after the first click -- the band keeps
+# three lines at 240 px so it barely changes height. 479 is inside a ~20 pt tall
+# button in both states, so one coordinate serves both rows. That was checked
+# rather than assumed: P17's file needed a re-clamp between clicks for exactly
+# this reason.
+#
+# 2026-09-09 重新量測自 p9-ios-final-20260908-235223.png,並於第一次點擊之後再以
+# p9-ios-final-20260909-001756.png 複查。裝置:iPhone 16 模擬器——視窗 393 x 852 點、
+# 擷圖 1179 x 2556 像素,座標為像素除以 3。
+#
+# 前面那兩列點的是 (50, 541) 與 (122, 541)。兩者都錯了兩重:y 541 在按鈕列**下方**、落在
+# 「The blue band marks the frame」之中;而 x 50 與 122 分別是 Narrower 與 Wider,不是 Wider 與
+# Zero width。那些點擊落在墨水上、什麼都沒改變,而這正是這支 app 被歸類為「落點對但沒反應」的原因。
+# 這支 app 從頭到尾都沒有問題。
+#
+# 該列位於 y 479,第一次點擊後移到 476——240 px 時該色帶仍維持三行,因此它的高度幾乎沒變。479 在
+# 兩種狀態下都落在一顆約 20 點高的按鈕之內,所以一個座標可以同時服務這兩列。這是查證過的,不是
+# 假設的:P17 的動作檔正是因為同樣的理由,必須在兩次點擊之間重新捲到底。
+click,103,479,client,left,,,"Wider -- the given width must rise from 200 to 240 and the blue band must grow (VERIFIED 2026-09-09 in p9-ios-final-20260909-001756.png)",ios
 sleep,,,,,,400000,let the layout settle,ios
-click,122,541,client,left,,,Zero width -- the band must collapse and no text may paint outside it,ios
+click,175,479,client,left,,,"Zero width -- the band must collapse and no text may paint outside it (VERIFIED 2026-09-09 in p9-ios-final-20260909-002133.png: the width reads 0 px, the band is gone and no text paints where it was)",ios
 sleep,,,,,,500000,let the layout settle,ios
