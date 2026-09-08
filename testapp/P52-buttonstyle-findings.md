@@ -117,6 +117,86 @@ has looked at it.
 
 ---
 
+## The cost is SUPERLINEAR in child count, measured 2026-09-08
+
+The 6 ms figure above is not a constant. Re-running P52 at three button counts,
+**in both ascending and descending order**, taking the minimum of the two orders
+per count:
+
+| buttons | ascending | descending | min | per button |
+| --- | --- | --- | --- | --- |
+| 12 | 35,679 us | 33,516 us | **33,516 us** | 2,793 us |
+| 24 | 112,179 us | 92,930 us | **92,930 us** | 3,872 us |
+| 48 | 278,768 us | 281,202 us | **278,768 us** | 5,808 us |
+
+```
+12 -> 24    buttons x2    time x2.77
+24 -> 48    buttons x2    time x3.00
+```
+
+**Doubling the buttons roughly triples the time**, consistently across both
+doublings and both orders — about `n^1.5`.
+
+Both orders were run because this project's monotonic-drift pattern and a real
+superlinearity are indistinguishable from an ascending sweep alone. They are
+distinguished here: in descending order the later, smaller runs came out
+*faster*, which is the opposite of drift, so drift is not the explanation.
+
+Regenerate:
+
+```zsh
+cd testapp/output && PATH=/c/gtk4/bin:$PATH
+for n in 12 24 48; do
+    taskkill -f -im P52-gtk4.exe >/dev/null 2>&1   # a leftover makes the next run exit 0
+    ./P52-gtk4.exe --debug --buttons=$n | grep 'PRESS primitive n='
+done
+```
+
+**Kill leftovers between runs.** One survived a killed 96-button run here and
+the next three invocations produced no output at all — the documented
+single-instance behaviour, and it looks exactly like a broken command line.
+
+### What this is NOT, and what the mechanism is NOT known to be
+
+P52's arms are `VStack { ForEach rows { HStack { ForEach buttons } } }` with 8
+fixed columns — **plain stacks, no `LazyVGrid`**. Doubling the button count
+doubles the ROW count. So this is superlinearity in a `VStack`'s child count,
+which would affect every stack in the framework, not something about buttons.
+
+The mechanism is **not established**. `LayoutSystem.swift:288` computes
+flexibility with two `computeLayout` calls per child, and nesting multiplies
+that by the inner stack's own passes — but that arithmetic stays linear in the
+total child count, so it does not by itself explain `n^1.5`. It carries
+`environment.with(\.allowLayoutCaching, true)`, so cache behaviour degrading
+with size is a candidate, and that is a guess, not a measurement.
+
+**The next experiment is a text-only arm**: N plain `Text` views in the same
+stack shape. If it shows the same curve, the cost is the stack layout and
+buttons are incidental; if it does not, the cost is in `Button`.
+
+## 成本相對於子節點數量是超線性的，2026-09-08 實測
+
+上面的 6 毫秒不是一個常數。以三種按鈕數量重跑 P52，**升序與降序各跑一次**，每個數量取兩者的最小值：
+加倍按鈕，時間大約變三倍，兩次加倍與兩種順序都一致，約為 `n^1.5`。
+
+之所以兩種順序都跑，是因為單就升序而言，本專案的單調漂移形態與真正的超線性長得一模一樣。此處已將兩者
+分開：降序時後跑的、較小的那幾次反而**更快**，方向與漂移相反，因此漂移不是解釋。
+
+**每次執行之間要清掉殘留行程。** 此處曾有一個從被砍掉的 96 顆那次存活下來，導致其後三次呼叫完全沒有
+輸出——那是有紀錄的單一實例行為，而它看起來就像指令寫錯了。
+
+**這不是什麼，以及機制尚未確立。** P52 的每一臂是
+`VStack { ForEach 列 { HStack { ForEach 按鈕 } } }`、固定 8 欄——**是純粹的 stack，沒有 `LazyVGrid`**。
+加倍按鈕即加倍列數。因此這是 `VStack` 子節點數量上的超線性，會影響框架中的每一個 stack，而不是按鈕
+特有的性質。機制**尚未確立**：`LayoutSystem.swift:288` 對每個子節點做兩次 `computeLayout`，巢狀時再
+乘上內層 stack 自己的趟數——但那個算術對總子節點數而言仍是線性，因此它本身解釋不了 `n^1.5`。
+它帶著 `allowLayoutCaching`，所以「快取行為隨規模劣化」是一個候選，而那是猜測，不是量測。
+
+**下一個實驗是一條純 `Text` 的臂**：在相同的 stack 形狀中放 N 個純 `Text`。若它呈現相同的曲線，成本
+就在 stack 版面上、按鈕只是附帶；若不同，成本就在 `Button` 裡。
+
+---
+
 ## Method, and why each part is there
 
 - **Interleaved**, never all-of-one-then-the-other. On this project repeated
