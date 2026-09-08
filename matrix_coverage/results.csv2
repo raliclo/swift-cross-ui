@@ -663,4 +663,11 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-08,windows,gtk4,P50,ok,-,fail,default,screenshot.zsh wrote no image file at all
 2026-09-08,windows,gtk4,P50,ok,-,window,default,
 2026-09-08,windows,winui,P50,ok,-,window,default,
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,P13-duplicates-and-split.csv
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,P13-zorder.csv: no measured size in the action file -- geometry unchecked; expectation met: 'z-order reversed -- top should now be red'
+2026-09-08,windows,gtk4,P50,ok,-,window,default,
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,P13-duplicates-and-split.csv
+2026-09-08,windows,gtk4,P13,ok,ok,window,default,P13-zorder.csv: no measured size in the action file -- geometry unchecked; expectation met: 'z-order reversed -- top should now be red'
+2026-09-08,windows,gtk4,P50,ok,-,window,default,
+2026-09-08,windows,winui,P50,ok,-,window,default,
 2026-09-08,windows,gtk4,P47,ok,-,window,default,"symbols: NOT the same as winui on the same machine, which is why this is a separate row. sync falls back to its textFallback and draws as Sy... rather than an icon. That is the measured GTK behaviour, not a defect: probing GTK 4.22.4 on 2026-09-07 found sync-synchronizing-symbolic absent from the 138 icons GTK bundles, and adwaita-icon-theme is what would supply it. The fallback firing is the feature working. Recording this per backend because one 'Windows passed' row would have hidden a real difference between the two backends that ship on the same platform"
