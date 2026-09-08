@@ -52,6 +52,8 @@ struct P49RootView: View {
     @State var sheetShown = false
     @State var coverOpens = 0
     @State var coverDismissals = 0
+    @State var popoverShown = false
+    @State var popoverOpens = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -65,6 +67,7 @@ struct P49RootView: View {
             // 這些計數器讓「按了沒反應」變得可讀。一個從未出現的 cover 與一顆從未觸發的按鈕在畫面上
             // 完全相同,唯一能分辨它們的是計數。
             Text("cover opens: \(coverOpens), dismissals: \(coverDismissals)")
+            Text("popover opens: \(popoverOpens), popoverShown = \(popoverShown)")
             Text("coverShown = \(coverShown), sheetShown = \(sheetShown)")
 
             Text("1. fullScreenCover -- must fill the window, with no drag indicator")
@@ -72,6 +75,20 @@ struct P49RootView: View {
                 coverOpens += 1
                 coverShown = true
                 P49Diagnostics.write("cover requested, opens=\(coverOpens)")
+            }
+
+            Text("3. popover -- must be anchored to the button, not centred in the window")
+            Button("Show the popover") {
+                popoverOpens += 1
+                popoverShown = true
+                P49Diagnostics.write("popover requested, opens=\(popoverOpens)")
+            }
+            .popover(isPresented: $popoverShown) {
+                P49PresentedContent(
+                    title: "POPOVER",
+                    detail: "Anchored to the button below-left, not to the window.",
+                    onClose: { popoverShown = false }
+                )
             }
 
             Text("2. sheet, for comparison -- the same content, presented as a sheet")
