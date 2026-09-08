@@ -10,9 +10,12 @@ import SwiftCrossUI
 // header records what happens when only the first is asked.
 //
 // **Only one of the five backends has a pull gesture, and the app has to be
-// readable on all five.** UIKit gets a UIRefreshControl; AppKit, Android and
-// WinUI get a visible "Refresh" button because their platforms either have no
-// pull or cannot report one from every input device; GTK connects
+// readable on all five.** UIKit gets a UIRefreshControl -- installed on the
+// enclosing RootScrollHost, which is the scroll view whose pan gesture actually
+// wins. AppKit and WinUI get a floating "Refresh" button, because a desktop
+// toolkit either has no pull or cannot report one from every input device.
+// Android gets a full-width Refresh row above the content, because its
+// ScrollContainer is written around having exactly one child. GTK connects
 // `edge-overshot`. So this app cannot instruct the reader to "pull down" -- it
 // says what the affordance is on each and counts what arrives.
 //
@@ -29,9 +32,11 @@ import SwiftCrossUI
 // 是兩個不同的問題,而 P46 的檔頭記錄了「只問了第一個」會發生什麼事。
 //
 // **五個 backend 中只有一個有下拉手勢,而這支 app 必須在五個上面都讀得懂。** UIKit 得到
-// UIRefreshControl;AppKit、Android 與 WinUI 得到一顆看得見的「Refresh」按鈕,因為它們的平台要嘛
-// 沒有下拉、要嘛無法從每一種輸入裝置回報下拉;GTK 則連接 `edge-overshot`。因此這支 app 不能叫讀者
-// 「往下拉」——它會說明各平台上的操作方式是什麼,並計算抵達了幾次。
+// UIRefreshControl——裝在外圍的 RootScrollHost 上,那才是 pan 手勢真正勝出的那個捲動視圖。AppKit 與
+// WinUI 得到一顆浮動的「Refresh」按鈕,因為桌面 toolkit 要嘛沒有下拉、要嘛無法從每一種輸入裝置回報
+// 下拉。Android 得到一條位於內容上方、佔滿寬度的 Refresh,因為它的 ScrollContainer 是圍繞著
+// 「恰好只有一個子項」寫成的。GTK 則連接 `edge-overshot`。因此這支 app 不能叫讀者「往下拉」——
+// 它會說明各平台上的操作方式是什麼,並計算抵達了幾次。
 //
 // 那個計數器就是這項測試的全部。一個「會出現、然後什麼都不做」的重新整理控制項,在螢幕截圖上看起來
 // 與一個能用的完全相同:兩者都是一個角落帶著轉圈或按鈕的捲動視圖。`refreshes: 0` 變成
