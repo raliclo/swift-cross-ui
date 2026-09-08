@@ -44,7 +44,7 @@ struct ControlsApp: App {
     @State var progressViewSize: Double = 10
     @State var isProgressViewResizable = true
     @State var pickerStyle: BuiltInPickerStyle? = .automatic
-    @State var buttonStyle: ButtonStyle? = nil
+    @State var buttonStyle: PrimitiveButtonStyle? = nil
 
     @Environment(\.supportedDatePickerStyles) var supportedDatePickerStyles
     @Environment(\.isPickerStyleSupported) var isPickerStyleSupported
@@ -58,13 +58,13 @@ struct ControlsApp: App {
                         VStack {
                             Text("Button (persisted)")
                             if #available(iOS 15.0, tvOS 15.0, macCatalyst 15.0, *) {
-                                Text("Default ButtonStyle: \(defaultButtonStyle)")
+                                Text("Default PrimitiveButtonStyle: \(defaultButtonStyle)")
                                 #if !canImport(Gtk3Backend)
                                     Picker(
                                         of: [
-                                            ButtonStyle.bordered,
-                                            ButtonStyle.plain,
-                                            ButtonStyle.borderless
+                                            PrimitiveButtonStyle.bordered,
+                                            PrimitiveButtonStyle.plain,
+                                            PrimitiveButtonStyle.borderless
                                         ],
                                         selection: $buttonStyle
                                     )

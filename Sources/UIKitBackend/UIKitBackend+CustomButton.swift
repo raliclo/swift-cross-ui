@@ -57,7 +57,7 @@ extension UIKitBackend {
         #endif
     }
 
-    public func defaultButtonStyle() -> ButtonStyle {
+    public func defaultButtonStyle() -> PrimitiveButtonStyle {
         .borderless
     }
 
@@ -134,7 +134,7 @@ final class UICustomButton: UIButton {
 
     public var onTap: (() -> Void)?
 
-    public var buttonStyle: ButtonStyle.Kind = .borderless
+    public var buttonStyle: PrimitiveButtonStyle.Kind = .borderless
 
     override public var isHighlighted: Bool {
         didSet {
@@ -193,7 +193,7 @@ final class UICustomButton: UIButton {
     }
 }
 
-extension ButtonStyle.Kind {
+extension PrimitiveButtonStyle.Kind {
     fileprivate func updateBackground(_ button: UICustomButton) {
         // We don't support bordered button style on older versions.
         guard #available(iOS 15.0, tvOS 15.0, macCatalyst 15.0, *) else {

@@ -256,7 +256,7 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
-    public func defaultButtonStyle() -> ButtonStyle {
+    public func defaultButtonStyle() -> PrimitiveButtonStyle {
         todo()
     }
 

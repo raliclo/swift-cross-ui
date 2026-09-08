@@ -56,7 +56,7 @@ extension AppKitBackend {
         }
     }
 
-    public func defaultButtonStyle() -> ButtonStyle { .bordered }
+    public func defaultButtonStyle() -> PrimitiveButtonStyle { .bordered }
 
     func measureBorderedButtonPadding() -> SIMD2<Int> {
         if let borderedButtonPadding { return borderedButtonPadding }
@@ -87,7 +87,7 @@ extension AppKitBackend {
 public final class NSCustomButton: NSView {
     fileprivate var action: (() -> Void)?
     fileprivate let button = NSButtonBackground()
-    fileprivate var buttonStyle: ButtonStyle.Kind = .bordered {
+    fileprivate var buttonStyle: PrimitiveButtonStyle.Kind = .bordered {
         didSet { updateButtonAppearance() }
     }
 
@@ -284,7 +284,7 @@ private final class NSButtonBackground: NSButton {
     }
 }
 
-extension ButtonStyle.Kind {
+extension PrimitiveButtonStyle.Kind {
     fileprivate func applyModifications(_ button: NSCustomButton) {
         button.button.isHidden = true
         switch self {

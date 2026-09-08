@@ -42,7 +42,8 @@ and the rest do not:
 | `ToggleStyle` protocol | protocol since 2026-08-27 — the nested `Style` enum lives on as `BackendToggleStyle` | yes |
 | `ShapeStyle` protocol | protocol since 2026-09-02 (`git log --diff-filter=A` on `Views/Styles/ShapeStyle/ShapeStyle.swift`) — resolves to `ResolvedFillStyle`, no associated `Body` | yes |
 | `LabelStyle` protocol | protocol since 2026-09-08 — `makeBody(configuration:)`, `LabelStyleConfiguration`, and `Default`/`TitleAndIcon`/`TitleOnly`/`IconOnly` structs. Touches no backend | yes |
-| `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` | absent — 0 declarations and 0 references each | no |
+| `ButtonStyle` protocol | protocol since 2026-09-08 — `makeBody(configuration:)`, `ButtonStyleConfiguration` with `label`/`isPressed`/`role`. Upstream's struct of the same name became `PrimitiveButtonStyle`; `isPressed` is fed by `BackendFeatures.ButtonPressState` | yes |
+| `TextFieldStyle`, `ProgressViewStyle` | absent — 0 declarations and 0 references each | no |
 
 **Two corrections to the row above, dated 2026-09-08 and kept rather than
 silently rewritten**, because both are the exact failure the paragraph below
@@ -100,8 +101,8 @@ not exist. `PickerStyle` is the worked example to copy — protocol, an internal
 per style.
 
 `DatePickerStyle`, `ToggleStyle` and `ListStyle` are done (2026-08-27, Windows),
-`ShapeStyle` (2026-09-02) and `LabelStyle` (2026-09-08, Windows) after them.
-`ButtonStyle` is blocked, below; `TextFieldStyle` and `ProgressViewStyle` are
+`ShapeStyle` (2026-09-02), `LabelStyle` (2026-09-08, Windows) and `ButtonStyle`
+(2026-09-08, Windows) after them. `TextFieldStyle` and `ProgressViewStyle` are
 simply not started.
 
 **The `_Builtin` half of that recipe is not mandatory, and `LabelStyle` is the
@@ -114,15 +115,35 @@ conformers. Copying those two members anyway would have produced a query whose
 only possible answer is `true`, which is the cost `_BuiltinToggleStyle`'s comment
 already records.
 
-**`ButtonStyle` cannot be written yet, and the blocker is `Button`.** SwiftUI's
-`ButtonStyle.makeBody(configuration:)` receives `configuration.label` as a
-*view* and `configuration.isPressed` as a Bool. Neither exists here.
-`Button.label` is a `String` — the codebase says so itself, in the comment on
-`Button._buttonWidth`: "a temporary button width solution until arbitrary labels
-are supported". And press state is nowhere: `grep -rn "isPressed" Sources/`
-returns nothing in any backend. A `ButtonStyle` built on top of today's `Button`
-would hand every style an empty label and an `isPressed` that is always false,
-which is a worse outcome than not having it. Arbitrary button labels first.
+**`ButtonStyle` was blocked on `Button`. Done 2026-09-08 (Windows), both halves
+of the blocker having expired.** The original entry is kept below rather than
+replaced, because it names the two conditions that had to be met and both were
+met literally — it is a good record of what a correctly-stated blocker looks
+like. What it said:
+
+> **`ButtonStyle` cannot be written yet, and the blocker is `Button`.** SwiftUI's
+> `ButtonStyle.makeBody(configuration:)` receives `configuration.label` as a
+> *view* and `configuration.isPressed` as a Bool. Neither exists here.
+> `Button.label` is a `String` — the codebase says so itself, in the comment on
+> `Button._buttonWidth`: "a temporary button width solution until arbitrary labels
+> are supported". And press state is nowhere: `grep -rn "isPressed" Sources/`
+> returns nothing in any backend. A `ButtonStyle` built on top of today's `Button`
+> would hand every style an empty label and an `isPressed` that is always false,
+> which is a worse outcome than not having it. Arbitrary button labels first.
+
+Half one expired without anyone editing this file: upstream's #590 made
+`Button.label` a `() -> Label` over any `View`, and `_buttonWidth` is deprecated.
+Half two was closed deliberately, by `BackendFeatures.ButtonPressState` — a
+backend feature whose only caller is `ButtonStyleConfiguration.isPressed`.
+
+The same change renamed upstream's `ButtonStyle` *struct* to
+`PrimitiveButtonStyle`, which is SwiftUI's name for a closed set of built-in
+styles that own their interaction, and gave the freed name to the protocol.
+`.buttonStyle(.bordered)` is unchanged at the call site; `struct MyStyle:
+ButtonStyle` now compiles.
+
+Re-derive with
+`grep -rn "protocol ButtonStyle\|struct PrimitiveButtonStyle\|isPressed" Sources/SwiftCrossUI/ --include=*.swift`.
 
 **`LabelStyle` had nothing to style. Done 2026-09-08 (Windows), the day the
 blocker expired.** The original entry read: *"`LabelStyle` has nothing to style.
@@ -914,7 +935,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | area | present | absent |
 |---|---|---|
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
-| **style protocols** (re-measured 2026-09-08) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle` | `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` |
+| **style protocols** (re-measured 2026-09-08, twice) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle`, `ButtonStyle` | `TextFieldStyle`, `ProgressViewStyle` — **7 of 9 present**. The first 2026-09-08 reading put `ButtonStyle` in the absent column and was right that morning; it landed later the same day, together with `PrimitiveButtonStyle` (the rename of upstream's struct) and `BackendFeatures.ButtonPressState` |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
 | **common views** (re-measured 2026-09-08) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid` | `ScrollViewReader`, `ColorPicker` — **14 of 16 present**. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
 | **state wrappers** (re-measured 2026-09-08) | `State`, `Binding`, `Environment`, `AppStorage`, `Published`, `StateObject`, `ObservedObject`, `EnvironmentObject` | `SceneStorage` — **3 of the 4 that were absent have landed**. The 2026-09-01 reading of this row listed `StateObject`, `ObservedObject`, `EnvironmentObject` and `SceneStorage` as absent, and is kept here because it is still quoted elsewhere: `StateObject` and `ObservedObject` landed before this re-measure, `EnvironmentObject` in it. Do not repeat the phrasing "only a Settings scene remains" from the #35 entry — see the note below the table |
@@ -937,6 +958,14 @@ Three things this makes visible that the category list did not:
   2026-09-08 — and three are missing, of which only `ButtonStyle` is blocked, on
   arbitrary `Button` labels. `TextFieldStyle` and `ProgressViewStyle` are the
   same job again with no blocker at all.
+
+  **That reading expired the same day it was written.** `ButtonStyle` landed
+  later on 2026-09-08, so seven exist and two are missing. The blocker sentence
+  is kept above because it is a correct account of *why* it was blocked and of
+  what closed it: arbitrary `Button` labels (upstream #590) and press state
+  (`BackendFeatures.ButtonPressState`). Nothing else in the paragraph changed —
+  `TextFieldStyle` and `ProgressViewStyle` are still the same job again with no
+  blocker at all.
 
   **The `style protocols`, `common views` and `state wrappers` rows were
   re-derived on 2026-09-08; the remaining four rows are still the 2026-09-01

@@ -35,6 +35,14 @@
 - ``View/toggleColor(_:)``
 - ``ToggleStyle``
 
+### Button styles
+
+- ``View/buttonStyle(_:)-(PrimitiveButtonStyle?)``
+- ``View/buttonStyle(_:)-(S)``
+- ``ButtonStyle``
+- ``ButtonStyleConfiguration``
+- ``PrimitiveButtonStyle``
+
 ### Label styles
 
 - ``View/labelStyle(_:)``

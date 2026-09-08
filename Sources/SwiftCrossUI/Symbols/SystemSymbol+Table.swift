@@ -283,7 +283,39 @@ extension SystemSymbol {
         SystemSymbol(
             name: "sync",
             sfSymbol: "arrow.2.circlepath",
-            gtkIconName: "sync-synchronizing",
+            // `view-refresh`, not `sync-synchronizing`. The latter is not a
+            // freedesktop icon name and resolves nowhere, so this symbol was the
+            // only one of the 36 that fell back to text on GtkBackend -- P51's
+            // capture on 2026-09-08 drew it as the truncated string "Sy...".
+            //
+            // Audited the same day against the Adwaita theme shipped with this
+            // host's GTK (C:/gtk4/share/icons/Adwaita, 766 icon files), trying
+            // `<name>-symbolic` then `<name>` exactly as
+            // `GtkBackend+Symbols.availableIconName(for:)` does: 35 of the 36
+            // names resolved and this was the one that did not. Control:
+            // `zzz-not-a-real-icon` -> 0, so the search was working.
+            //
+            // Adwaita offers two candidates and they are not the same kind of
+            // thing. `emblem-synchronizing.png` is an EMBLEM -- a badge meant to
+            // be composited onto a file icon, PNG only, with no symbolic variant
+            // -- while `view-refresh-symbolic.svg` is the standalone action icon
+            // and is the circular-arrows shape that `arrow.2.circlepath` names on
+            // the SF side. `view-refresh` was free: no other row used it.
+            //
+            // 此處為 `view-refresh` 而非 `sync-synchronizing`。後者不是 freedesktop 的圖示名稱，
+            // 解析不到任何東西，因此在 GtkBackend 上，這是 36 個符號中唯一退回文字的一個——
+            // 2026-09-08 P51 的擷圖把它畫成了被截斷的字串「Sy...」。
+            //
+            // 同日對本機 GTK 所附的 Adwaita 主題（C:/gtk4/share/icons/Adwaita，766 個圖示檔）做了
+            // 稽核，並完全比照 `GtkBackend+Symbols.availableIconName(for:)` 的順序先試
+            // `<name>-symbolic` 再試 `<name>`：36 個名稱中有 35 個解析成功，而這是唯一失敗的那個。
+            // 控制組：`zzz-not-a-real-icon` -> 0，證明該搜尋確實有效。
+            //
+            // Adwaita 提供兩個候選，而它們並非同一類東西。`emblem-synchronizing.png` 是一個
+            // **emblem**——設計來疊加在檔案圖示上的角標，只有 PNG、沒有 symbolic 變體；而
+            // `view-refresh-symbolic.svg` 才是獨立的動作圖示，也正是 SF 端 `arrow.2.circlepath`
+            // 所指的那個環形雙箭頭形狀。`view-refresh` 未被佔用：表中沒有其他列使用它。
+            gtkIconName: "view-refresh",
             segoeScalar: 0xE895,
             androidDrawable: "ic_popup_sync",
             textFallback: "Sync"

@@ -194,7 +194,48 @@ public struct LazyVGrid<Content: View>: View {
             columns: columns,
             alignment: alignment,
             spacing: spacing,
-            proposedWidth: proposedWidth.map { Int($0.rounded(.down)) }
+            // `flatMap` with an `isFinite` test, not `map`. `Int(Double)` TRAPS
+            // on an infinite or NaN value -- an `Illegal instruction`, exit 132,
+            // with no message at all, because it is a language-level trap rather
+            // than a Swift precondition (those print).
+            //
+            // `.infinity` is a real value here, not a theoretical one. The layout
+            // system probes children with it deliberately:
+            // `LayoutSystem.swift:605` is `let specialSizes: [Double?] = [nil,
+            // .infinity]`, `:284` assigns `.infinity` to a proposal component,
+            // and `ProposedViewSize.swift:6` declares `.infinity` as a whole
+            // size. So any grid inside an ordinary stack gets asked this.
+            //
+            // Measured 2026-09-08: P51 died 1881 ms after launch, exit 132, with
+            // an empty replay log -- it never reached its first log line. P50,
+            // the same launcher and PATH, was still running when a 25 s cap
+            // killed it; P50 has no `LazyVGrid`.
+            //
+            // Infinite maps to `nil` rather than to a large number because
+            // `resolve` already gives `nil` the right meaning: `proposedWidth ??
+            // 0` makes `.adaptive` resolve to one column, which is what an
+            // unconstrained width should produce. A sentinel like `Int.max`
+            // would instead overflow `available + spacing` on the next line.
+            //
+            // 此處用帶 `isFinite` 測試的 `flatMap`，而非 `map`。`Int(Double)` 在值為無限或 NaN 時會
+            // **trap**——`Illegal instruction`、退出碼 132，而且完全沒有訊息，因為那是語言層級的
+            // trap，不是 Swift 的 precondition（後者會印出訊息）。
+            //
+            // `.infinity` 在此是真實存在的值，不是理論上的：版面系統會刻意用它來探測子節點——
+            // `LayoutSystem.swift:605` 是 `let specialSizes: [Double?] = [nil, .infinity]`、
+            // `:284` 會把 `.infinity` 指派給某個提案分量，而 `ProposedViewSize.swift:6` 更把
+            // `.infinity` 宣告為一個完整的尺寸。因此任何位於一般 stack 之中的格線都會被這樣詢問。
+            //
+            // 2026-09-08 實測：P51 於啟動後 1881 毫秒死亡，退出碼 132，replay log 為空——它從未抵達
+            // 自己的第一行 log。P50 在同一個啟動器與同一條 PATH 下，直到 25 秒上限才被砍掉；而 P50
+            // 沒有 `LazyVGrid`。
+            //
+            // 無限值對應到 `nil` 而非某個大數，是因為 `resolve` 已經賦予 `nil` 正確的意義：
+            // `proposedWidth ?? 0` 會讓 `.adaptive` 解析為一欄，那正是「寬度無約束」該有的結果。
+            // 若改用 `Int.max` 之類的哨兵值，反而會讓下一行的 `available + spacing` 溢位。
+            proposedWidth: proposedWidth.flatMap {
+                $0.isFinite ? Int($0.rounded(.down)) : nil
+            }
         )
     }
 }

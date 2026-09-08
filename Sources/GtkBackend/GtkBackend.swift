@@ -47,7 +47,15 @@ public final class GtkBackend:
     BackendFeatures.WebViews,
     BackendFeatures.HitTesting,
     BackendFeatures.DragAndDrop,
-    BackendFeatures.Clipping
+    BackendFeatures.Clipping,
+    // Listed here, so `GtkBackend+ButtonPressState.swift` must be a bare
+    // `extension GtkBackend { ... }`. Naming the protocol in both places is
+    // `error: redundant conformance`, which is how the same mistake was found
+    // for `GraphicsAdapters` on 2026-09-04 (see the note in `WinUIBackend.swift`).
+    // 在此處列出，因此 `GtkBackend+ButtonPressState.swift` 必須是不帶 conformance 的
+    // `extension GtkBackend { ... }`。兩處都寫上該 protocol 會得到 `error: redundant conformance`，
+    // 2026-09-04 的 `GraphicsAdapters` 正是這樣被發現的（見 `WinUIBackend.swift` 中的註記）。
+    BackendFeatures.ButtonPressState
 {
     public typealias Window = Gtk.ApplicationWindow
     public typealias Widget = Gtk.Widget

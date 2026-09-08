@@ -29,7 +29,7 @@ extension WinUIBackend {
         }
     }
 
-    public func defaultButtonStyle() -> ButtonStyle { .bordered }
+    public func defaultButtonStyle() -> PrimitiveButtonStyle { .bordered }
 
     func measureBorderedButtonPadding() -> SIMD2<Int> {
         if let borderedButtonPadding { return borderedButtonPadding }
@@ -86,7 +86,7 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
         }
     }
 
-    fileprivate var buttonStyle: ButtonStyle.Kind = .bordered {
+    fileprivate var buttonStyle: PrimitiveButtonStyle.Kind = .bordered {
         didSet {
             if buttonStyle != oldValue {
                 updateButtonAppearance()
@@ -193,7 +193,7 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     }
 }
 
-extension ButtonStyle.Kind {
+extension PrimitiveButtonStyle.Kind {
     fileprivate func updateRenderedStyle(_ button: ViewLabelCustomButton) {
         guard let resources = button.resources else { return }
 
