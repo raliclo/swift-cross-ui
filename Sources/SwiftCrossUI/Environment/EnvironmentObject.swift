@@ -30,12 +30,20 @@
 /// ## Why this exists when ``Environment`` already accepts a type
 ///
 /// `@Environment(Session.self)` reads the very same slot -- both go through
-/// `EnvironmentValues`'s `[observable:]` subscript. But ``Environment`` is only
-/// a ``DynamicProperty``: it has no `didChange`, so ``ViewGraphNode`` never
-/// subscribes to it, and the view does not redraw when the object publishes.
-/// The placement modifier says as much in its own documentation --
-/// *"this modifier does not perform any observation"*. `@EnvironmentObject` is
-/// an ``ObservableProperty``, and the subscription is the entire point of it.
+/// `EnvironmentValues`'s `[observable:]` subscript -- and since 2026-09-08 it
+/// also observes, so the two are equivalent. Keep this one because
+/// `@EnvironmentObject var session: Session` is still valid SwiftUI and is
+/// still what a lot of code says; pick either in new code.
+///
+/// **The paragraph that stood here until 2026-09-08 is kept, wrong, because
+/// what it described was real and is the thing to recognise if it comes back:**
+/// *"``Environment`` is only a ``DynamicProperty``: it has no `didChange`, so
+/// ``ViewGraphNode`` never subscribes to it, and the view does not redraw when
+/// the object publishes."* That was accurate at the time. It was closed by
+/// giving ``Environment`` a conditional ``ObservableProperty`` conformance
+/// rather than by documenting the difference, because "use the other wrapper"
+/// is not a fix for a wrapper that compiles, renders correctly once, and then
+/// silently stops.
 ///
 /// ## When nothing supplied the object
 ///
@@ -81,10 +89,17 @@
 /// ## 既然 ``Environment`` 已經可以接受型別，為何還需要這個
 ///
 /// `@Environment(Session.self)` 讀的是完全相同的位置——兩者都經過 `EnvironmentValues` 的
-/// `[observable:]` subscript。但 ``Environment`` 僅是 ``DynamicProperty``：它沒有 `didChange`，
-/// 因此 ``ViewGraphNode`` 從不訂閱它，物件發佈變更時 view 也不會重繪。放置端的 modifier 在自己的
-/// 文件裡就寫明了這點——*「此 modifier 不執行任何觀察」*。`@EnvironmentObject` 是
-/// ``ObservableProperty``，而那個訂閱正是它存在的全部理由。
+/// `[observable:]` subscript——而自 2026-09-08 起它也會觀察，因此兩者等價。保留這一個，是因為
+/// `@EnvironmentObject var session: Session` 在 SwiftUI 中依然合法，也依然是大量既有程式碼的
+/// 寫法；新程式碼兩者任選其一即可。
+///
+/// **以下這段文字在 2026-09-08 之前立於此處，如今是錯的，但仍予保留，因為它所描述的情況確實
+/// 存在過，而且一旦重演就要認得出來：**
+/// *「``Environment`` 僅是 ``DynamicProperty``：它沒有 `didChange`，因此 ``ViewGraphNode``
+/// 從不訂閱它，物件發佈變更時 view 也不會重繪。」* 這在當時是準確的。它最後是以「給
+/// ``Environment`` 一個條件式的 ``ObservableProperty`` conformance」來關閉，而不是以「把差異寫進
+/// 文件」來關閉——因為對於一個「編得過、正確繪出一次、然後靜默停止」的包裝器而言，「請改用另一個
+/// 包裝器」並不是修正。
 ///
 /// ## 當沒有任何人提供該物件時
 ///

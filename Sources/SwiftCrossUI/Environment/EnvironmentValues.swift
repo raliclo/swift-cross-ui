@@ -418,6 +418,49 @@ extension EnvironmentValues {
     /// The style of toggle to use.
     @Entry public var toggleStyle: any ToggleStyle = .button
 
+    /// The style of text field to use. Set with ``View/textFieldStyle(_:)``.
+    ///
+    /// Read by ``TextField``, which routes its body through the style, as
+    /// ``Toggle`` does through ``toggleStyle``. A backend cannot read this --
+    /// it is an `any TextFieldStyle` and may hold a type this module has never
+    /// heard of -- so the built-in path resolves it to
+    /// ``backendTextFieldStyle`` on its way down.
+    ///
+    /// 文字輸入框所使用的樣式，以 ``View/textFieldStyle(_:)`` 設定。
+    ///
+    /// 由 ``TextField`` 讀取，它會將自己的 body 交由該 style 繪製，正如 ``Toggle`` 之於
+    /// ``toggleStyle``。backend 讀不懂此值——它是 `any TextFieldStyle`，其中可能放著一個本模組從未
+    /// 聽過的型別——因此內建路徑會在往下傳遞的途中，把它解析成 ``backendTextFieldStyle``。
+    @Entry public var textFieldStyle: any TextFieldStyle = .automatic
+
+    /// The same style, already resolved to something a backend understands.
+    ///
+    /// The same split as ``backendListStyle`` and ``backendDatePickerStyle``,
+    /// and for the same reason: `updateTextField` receives the environment
+    /// rather than the view, so this is where a backend can reach a value from
+    /// its own vocabulary. Putting the shape here rather than in that signature
+    /// also means adding text field styles did not have to touch a method seven
+    /// backends implement.
+    ///
+    /// Unlike those two, this is **not** written by the modifier. It is set by
+    /// ``_BuiltinTextFieldImplementation`` on the environment it hands the
+    /// backend, and only there -- see that type for the reasoning. The
+    /// consequence is that its value is `.automatic` everywhere except at the
+    /// moment a built-in text field is being committed, which is exactly the
+    /// set of places that should read it.
+    ///
+    /// 與 ``backendListStyle``、``backendDatePickerStyle`` 相同的拆分，理由也相同：
+    /// `updateTextField` 收到的是 environment 而非 view，因此此處便是 backend 能取到「出自其自身
+    /// 詞彙之值」的地方。把外形放在這裡而不是放進該簽章，也意味著新增文字輸入框樣式，不必去動一個
+    /// 有七個 backend 實作的方法。
+    ///
+    /// 與那兩者不同的是，此值**並非**由 modifier 寫入，而是由
+    /// ``_BuiltinTextFieldImplementation`` 設定於它交給 backend 的 environment 上，且僅止於此
+    /// ——理由見該型別。其結果是：除了「內建文字輸入框正在被 commit」的那一刻之外，它在任何地方都
+    /// 是 `.automatic`，而那正好就是應該讀取它的地方所構成的集合。
+    @_spi(Backends)
+    @Entry public var backendTextFieldStyle: BackendTextFieldStyle = .automatic
+
     /// The style ``ProgressView`` uses. Set with
     /// ``View/progressViewStyle(_:)``.
     /// ``ProgressView`` 所使用的樣式。以 ``View/progressViewStyle(_:)`` 設定。

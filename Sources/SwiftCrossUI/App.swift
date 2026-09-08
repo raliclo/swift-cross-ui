@@ -201,6 +201,61 @@ extension App {
                 "failed to extract swift-bundler metadata: \(error.localizedDescription)"
             )
         }
+
+        // Say so when `-actionfile` was passed to a binary that cannot replay.
+        //
+        // Without SCUI_DEBUG every backend compiles its
+        // `ActionFileReplay.replayIfRequested()` call away, and the result was
+        // indistinguishable from a replay that ran and did nothing: the flag is
+        // accepted by the shell, it is in `CommandLine.arguments`, the window
+        // opens, and not one line is printed -- no error, no warning, not even
+        // the `replaying ...` the replay itself would emit. That silence cost
+        // most of an afternoon on 2026-09-03 and three conclusions about a
+        // synthesiser change that had never once executed; `testapp/compile.zsh`
+        // records both.
+        //
+        // Here rather than in the backends, because it is the same sentence for
+        // all five of them and it is not a backend's question. One `#if` on the
+        // library side is what put the caller in this position; a second one per
+        // backend would be four more places for it to be got wrong.
+        //
+        // A plain `logger.warning`, not `DebugFeatures.log`: the whole point is
+        // that this build has no debug features, so anything gated on them
+        // cannot deliver it. `.warning` also clears the release log level's
+        // `.info` floor. `supportsActionFiles` is a `static let` the optimiser
+        // folds, so a build WITH the define pays nothing and says nothing.
+        //
+        // 當 `-actionfile` 被傳給一個無法重放的執行檔時，明講出來。
+        //
+        // 未定義 SCUI_DEBUG 時，每個 backend 都會把自己那句
+        // `ActionFileReplay.replayIfRequested()` 編譯掉，而其結果與「重放跑了但什麼都沒做」
+        // 完全無法區分：shell 接受了該旗標、它也在 `CommandLine.arguments` 裡、視窗照常開啟，
+        // 而一行都不印——沒有錯誤、沒有警告，連重放本身會輸出的 `replaying ...` 都沒有。
+        // 這份沉默在 2026-09-03 花掉了大半個下午，並造就三個關於「某項從未被執行過的
+        // synthesiser 改動」的結論；`testapp/compile.zsh` 對這兩件事都有記載。
+        //
+        // 放在此處而非各 backend 中，因為對五個 backend 而言這是同一句話，而且它並不是
+        // backend 該回答的問題。把呼叫端推到這個處境的，正是函式庫這一側的一個 `#if`；
+        // 再為每個 backend 各加一個，只是多出四個可能寫錯的地方。
+        //
+        // 使用單純的 `logger.warning` 而非 `DebugFeatures.log`：重點正在於這個建置沒有 debug
+        // 功能，因此任何以它為條件的東西都送不出這則訊息。`.warning` 同時越過 release log
+        // 層級的 `.info` 下限。`supportsActionFiles` 是一個會被最佳化器摺除的 `static let`，
+        // 因此「有」該定義的建置既不付出代價、也不會多說一句。
+        if !DebugFeatures.supportsActionFiles,
+            CommandLine.arguments.contains("-actionfile")
+        {
+            logger.warning(
+                """
+                -actionfile was passed but this binary cannot replay action \
+                files: it was built without SCUI_DEBUG, so the replay call is \
+                compiled out of the backend. Rebuild with SCUI_DEBUG=1 \
+                (testapp/compile.zsh does this by default). Note that the build \
+                configuration is not the switch -- BUILD_CONFIG=debug does not \
+                define SCUI_DEBUG either.
+                """
+            )
+        }
     }
 }
 

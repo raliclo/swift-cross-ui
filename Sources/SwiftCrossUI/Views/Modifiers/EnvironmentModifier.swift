@@ -74,13 +74,15 @@ extension View {
     ///
     /// - Note: The caveat above is about *this* modifier, not about the whole
     ///   round trip. A descendant reading the object with ``EnvironmentObject``
-    ///   subscribes to it itself, so no parent observer is needed in that case.
-    ///   The caveat still applies to ``Environment``, which reads the same slot
-    ///   without observing anything.
+    ///   or with `@Environment(T.self)` subscribes to it itself, so no parent
+    ///   observer is needed in either case. Until 2026-09-08 the ``Environment``
+    ///   half of that was untrue and this note said so; it was made true rather
+    ///   than left documented.
     ///
-    ///   上述提醒是針對**這個** modifier，而非整趟往返。以 ``EnvironmentObject`` 讀取該物件的
-    ///   後代會自行訂閱它，因此那種情形不需要任何父層觀察者。該提醒對 ``Environment`` 仍然適用，
-    ///   因為它讀的是同一個位置，卻不觀察任何東西。
+    ///   上述提醒是針對**這個** modifier，而非整趟往返。以 ``EnvironmentObject`` 或
+    ///   `@Environment(T.self)` 讀取該物件的後代會自行訂閱它，因此兩種情形都不需要任何父層
+    ///   觀察者。在 2026-09-08 之前，其中 ``Environment`` 的那一半並不成立，本註記當時也是
+    ///   這樣寫的；後來的處置是把它變成真的，而不是把它留在文件裡。
     public func environment<T: ObservableObject>(_ object: T) -> some View {
         EnvironmentModifier(self) { environment in
             var environment = environment
