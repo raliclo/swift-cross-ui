@@ -1868,6 +1868,18 @@ class NSSplitViewResizingDelegate: NSObject, NSSplitViewDelegate {
 }
 
 public class NSCustomWindow: NSWindow {
+    /// Holds the toolbar's delegate, which `NSToolbar` does not retain.
+    ///
+    /// A toolbar whose delegate has been deallocated shows nothing and reports
+    /// no error, so this is the difference between a toolbar and an empty strip
+    /// of chrome. Held here because the window outlives the toolbar it owns.
+    ///
+    /// 持有工具列的 delegate,而 `NSToolbar` 不會保留它。
+    ///
+    /// 一個 delegate 已被釋放的工具列什麼都不顯示、也不回報任何錯誤,因此這正是「一個工具列」與
+    /// 「一條空的外框」之間的差別。掛在此處,是因為視窗的生命週期長於它所擁有的工具列。
+    var toolbarDelegate: AnyObject?
+
     var customDelegate = Delegate()
     var persistentUndoManager = UndoManager()
 

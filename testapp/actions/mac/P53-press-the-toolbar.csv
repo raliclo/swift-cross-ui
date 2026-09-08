@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P53 on macOS: the toolbar items are wired, not merely drawn.
+#
+# origin=frame, so the title bar is inside the coordinate space -- which is the
+# point here: a toolbar is the one thing that lives in the chrome rather than in
+# the content area, and a file that used origin=client could not reach it.
+#
+# Window 720x520 points, capture 1440x1200, so pixels halved. Measured from
+# p53-mac-20260908-190854.png: Add at px (1224,55), Info at (1293,55), Delete at
+# (1375,55), giving (612,28), (647,28) and (688,28) in points.
+#
+# **What is claimed is the counter, not the button.** A toolbar that renders and
+# does nothing looks like a success in any screenshot of the chrome. After this
+# file, "add" must read 2 and "trash" 1, with "info" still 0 -- three numbers
+# that only move if the action closures reached the window's own controls.
+#
+# P53 於 macOS:工具列項目是「接上的」,不只是「畫出來的」。
+#
+# 使用 origin=frame,因此標題列也在座標空間之內——而那正是此處的重點:工具列是唯一住在外框而非內容區
+# 的東西,一個使用 origin=client 的檔案根本構不到它。
+#
+# 視窗 720x520 點、擷取 1440x1200,故像素除以二。量自 p53-mac-20260908-190854.png:
+# Add 在 px (1224,55)、Info 在 (1293,55)、Delete 在 (1375,55),換算為點即 (612,28)、(647,28)、(688,28)。
+#
+# **要主張的是計數器,不是按鈕。** 一個畫得出來卻沒有作用的工具列,在任何一張外框的截圖裡都像是成功。
+# 執行本檔之後,「add」必須是 2、「trash」必須是 1,而「info」仍為 0——這三個數字只有在 action closure
+# 真的抵達了視窗自身的控制項時才會改變。
+sleep,,,,,,1500000,let P53 render,macos
+click,612,28,frame,left,,,"Add -- add must go 0 -> 1",macos
+sleep,,,,,,400000,,macos
+click,612,28,frame,left,,,"Add again -- add must go 1 -> 2",macos
+sleep,,,,,,400000,,macos
+click,688,28,frame,left,,,"Delete -- trash must go 0 -> 1 while info stays 0",macos
+sleep,,,,,,900000,let the three lines redraw,macos

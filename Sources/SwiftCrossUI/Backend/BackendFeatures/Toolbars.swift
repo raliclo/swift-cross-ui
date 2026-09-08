@@ -1,0 +1,30 @@
+extension BackendFeatures {
+    /// A row of controls in a window's own chrome.
+    ///
+    /// Takes a resolved ``ToolbarItem`` list rather than widgets, because not
+    /// one of the five platforms hosts an arbitrary view tree in its toolbar --
+    /// see ``ToolbarItem`` for the list of what each one actually is. A backend
+    /// is expected to record, in its own implementation, how it mapped
+    /// ``ToolbarItem/Placement`` onto whatever its platform has.
+    ///
+    /// 視窗自身外框上的一列控制項。
+    ///
+    /// 接收的是已解析的 ``ToolbarItem`` 清單而非 widget,因為五個平台沒有一個會在工具列中承載任意的
+    /// view 樹——各平台實際上是什麼,見 ``ToolbarItem``。各 backend 應在自己的實作中記錄:它把
+    /// ``ToolbarItem/Placement`` 對應到了該平台所擁有的什麼東西。
+    @MainActor
+    public protocol Toolbars<Window>: Core {
+        /// Replaces the window's toolbar.
+        ///
+        /// An empty array removes it. That is the same call rather than a
+        /// separate one because a view that stops asking for a toolbar and a
+        /// view that never asked are the same state, and giving them two paths
+        /// invites one of them to be forgotten.
+        ///
+        /// 取代該視窗的工具列。
+        ///
+        /// 空陣列即為移除。此處使用同一個呼叫而非另立一個,因為「一個不再要求工具列的 view」與
+        /// 「一個從未要求過的 view」處於相同狀態,而給它們兩條路徑,等於邀請其中一條被遺忘。
+        func setToolbar(ofWindow window: Window, to items: [ToolbarItem])
+    }
+}

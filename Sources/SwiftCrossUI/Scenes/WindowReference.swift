@@ -52,6 +52,13 @@ final class WindowReference<SceneType: WindowingScene> {
     /// 而不填入此欄位，因此 `nil` 如實反映了「backend 已被告知的內容」。
     private var lastAppliedWindowTitle: String?
 
+    /// What was last handed to the backend, so an unchanged toolbar is not
+    /// rebuilt on every layout pass. `ToolbarItem`'s `==` ignores the action
+    /// closure, which has no identity to compare -- see its note.
+    /// 上一次交給 backend 的內容,如此未變更的工具列便不會在每次版面計算時被重建。`ToolbarItem`
+    /// 的 `==` 會忽略 action closure,因為它沒有可比較的身分——見其說明。
+    private var lastAppliedToolbar: [ToolbarItem] = []
+
     /// - Parameters:
     ///   - closeHandler: The action to perform when the window is closed. Should
     ///     dispose of the scene's reference to this `WindowReference`.
@@ -402,6 +409,27 @@ final class WindowReference<SceneType: WindowingScene> {
         if title != lastAppliedWindowTitle {
             backend.setTitle(ofWindow: window, to: title)
             lastAppliedWindowTitle = title
+        }
+
+        // Applied the same way the title is, and beside it for the same reason:
+        // both are things the CONTENT asks of the WINDOW, and the window is the
+        // only place that knows both. Guarded by a conformance check rather than
+        // required of every backend, because a platform without window chrome
+        // has nowhere to put one.
+        // 套用方式與標題相同,並置於其旁,理由也相同:兩者都是「內容向視窗提出的要求」,而視窗是
+        // 唯一同時知道這兩者的地方。此處以 conformance 檢查為條件、而非要求每個 backend 都實作,
+        // 因為沒有視窗外框的平台無處安放它。
+        if let toolbarBackend = backend as? any BackendFeatures.Toolbars {
+            func setToolbar<NewBackend: BackendFeatures.Toolbars>(backend: NewBackend) {
+                let items = finalContentResult.preferences.toolbarItems
+                guard items != lastAppliedToolbar else { return }
+                backend.setToolbar(
+                    ofWindow: window as! NewBackend.Window,
+                    to: items
+                )
+                lastAppliedToolbar = items
+            }
+            setToolbar(backend: toolbarBackend)
         }
 
         if let backend = backend as? any BackendFeatures.WindowBehaviors {

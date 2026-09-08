@@ -63,6 +63,21 @@ public struct PreferenceValues: Sendable {
     /// 「標題在超過兩層巢狀後就失效了」，而不像少寫了一行。
     public var navigationTitle: String?
 
+    /// The items a view asked to put in its window's toolbar.
+    ///
+    /// A list rather than a single value, and merged by concatenation rather
+    /// than by outermost-wins. A window's toolbar is the sum of what its
+    /// content asked for -- two sections each contributing a button is the
+    /// ordinary case -- whereas a window has exactly one title, which is why
+    /// ``navigationTitle`` takes the first and this does not.
+    ///
+    /// 某個 view 要求放進其視窗工具列的項目。
+    ///
+    /// 這是一個清單而非單一值,合併方式是串接而非「最外層優先」。一個視窗的工具列是「其內容所要求
+    /// 之物的總和」——兩個區段各貢獻一個按鈕是再普通不過的情況——而一個視窗只有一個標題,那正是
+    /// ``navigationTitle`` 取第一個、而此處不取的原因。
+    public var toolbarItems: [ToolbarItem] = []
+
     /// Controls whether the user can interactively dismiss enclosing sheets.
     public var interactiveDismissDisabled: Bool?
 
@@ -123,6 +138,11 @@ extension PreferenceValues {
         // 在向上傳遞時會覆寫該 key，因此外層的 `.navigationTitle` 早在這次合併看到它之前，就已經
         // 取代了任何內層的值。`.first` 只用來在兄弟節點之間決勝，且依子節點順序決勝。
         navigationTitle = children.compactMap(\.navigationTitle).first
+
+        // Concatenated in child order, so a toolbar reads left to right in the
+        // order the view tree declares it.
+        // 依子節點順序串接,如此工具列的閱讀順序便與 view 樹宣告它的順序一致。
+        toolbarItems = children.flatMap(\.toolbarItems)
 
         windowDismissBehavior = children.compactMap(\.windowDismissBehavior).first
         preferredWindowMinimizeBehavior =
