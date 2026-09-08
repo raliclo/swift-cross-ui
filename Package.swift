@@ -225,7 +225,11 @@ let package = Package(
         .library(name: "WinUIBackend", type: libraryType, targets: ["WinUIBackend"]),
         .library(name: "DefaultBackend", type: libraryType, targets: ["DefaultBackend"]),
         .library(name: "UIKitBackend", type: libraryType, targets: ["UIKitBackend"]),
-        .library(name: "_SwiftCrossUIPortingKit", type: libraryType, targets: ["_SwiftCrossUIPortingKit"]),
+        .library(
+            name: "_SwiftCrossUIPortingKit",
+            type: libraryType,
+            targets: ["_SwiftCrossUIPortingKit"]
+        ),
         .library(name: "Gtk", type: libraryType, targets: ["Gtk"]),
         .library(name: "InputEvent", type: libraryType, targets: ["InputEvent"]),
         .library(name: "DebugFeatures", type: libraryType, targets: ["DebugFeatures"]),
@@ -316,41 +320,39 @@ let package = Package(
                 // 靜默出錯：對未定義的旗標使用 `#if` 並不會報錯，只會安靜地永遠不編譯那個分支。
                 "DebugFeatures",
 
-                // This import is purely required to fix a linker issue and a plugin build
-                // error that occur on macOS when building for non-Android platforms now that
-                // we've added the AndroidBackend. Providing the '--disable-experimental-prebuilts'
-                // flag when building SwiftCrossUI apps doesn't seem to be sufficient to fix
-                // the issues, even though I would've thought that was the effect that adding
-                // this dependency has.
-                // **Except when building for Android, where it costs 15 MB
-                // and buys nothing.** SwiftSyntax is a compile-time library and
-                // this line links it into the app: measured 2026-09-05 on P43,
-                // dropping it here took 79,105 SwiftSyntax symbols out of the
-                // binary and the APK from 169 MB to 154. The problem the
-                // workaround exists for is a macOS build problem, and
-                // `androidBackendSupported` is exactly the flag that says this
-                // build is not that one -- macOS keeps the dependency and its
-                // 53 tests still pass.
+                // SwiftSyntax used to be linked into this target as a
+                // workaround for a macOS linker and plugin-build problem that
+                // appeared when AndroidBackend was added. Upstream deleted it in
+                // 5cf989fb ("no longer necessary", fixes #753) and this branch
+                // takes that.
                 //
-                // The first attempt at this looked like it changed nothing, and
-                // that was llbuild's cached build plan rather than the edit:
-                // `debug.yaml` and `build.db` have to go with it, which is the
-                // same trap `compile.zsh` documents for SwiftPM's manifest
-                // cache.
+                // What it replaces here was narrower: the dependency was dropped
+                // only when building for Android, because there it cost 15 MB
+                // and bought nothing -- measured 2026-09-05 on P43, 79,105
+                // SwiftSyntax symbols out of the binary and the APK from 169 MB
+                // to 154. Upstream's removal is the same saving on every
+                // platform, so the conditional is now dead and goes with it.
                 //
-                // **但為 Android 建置時除外——在那裡它要價 15 MB，而且什麼也沒換到。** SwiftSyntax
-                // 是編譯期函式庫，而這一行把它連結進 app 之中：2026-09-05 於 P43 上實測，在此處
-                // 移除它，使該執行檔少了 79,105 個 SwiftSyntax 符號，APK 由 169 MB 降到 154。
-                // 這個變通所要解決的是一個 macOS 的建置問題，而 `androidBackendSupported` 正是那個
-                // 「本次建置不是那一種」的旗標——macOS 保留該依賴，其 53 個測試依然通過。
+                // The Android measurement is kept because the number is the
+                // evidence that this line was ever costing anything, and because
+                // the first attempt at removing it looked like it changed
+                // nothing -- that was llbuild's cached build plan rather than the
+                // edit, and `debug.yaml` and `build.db` have to go with it. That
+                // trap is still live for anyone touching this file.
                 //
-                // 第一次嘗試看起來毫無改變，而那是 llbuild 快取的建置計畫、不是這次編輯造成的：
-                // `debug.yaml` 與 `build.db` 必須一併刪除，那與 `compile.zsh` 為 SwiftPM manifest
-                // 快取所記錄的是同一個陷阱。
-            ]
-                + (androidBackendSupported
-                    ? []
-                    : [.product(name: "SwiftSyntax", package: "swift-syntax")]),
+                // SwiftSyntax 過去被連結進本 target,作為「加入 AndroidBackend 之後,macOS 上出現的
+                // 連結器與 plugin 建置問題」的變通。upstream 已於 5cf989fb 將它刪除(「不再需要」,
+                // fixes #753),本分支採用之。
+                //
+                // 它所取代的做法較為狹窄:過去只在為 Android 建置時才移除該依賴,因為在那裡它要價
+                // 15 MB 而什麼也沒換到——2026-09-05 於 P43 上實測,執行檔少了 79,105 個 SwiftSyntax
+                // 符號、APK 由 169 MB 降到 154。upstream 的移除在每一個平台上都帶來同樣的節省,
+                // 因此那個條件式現在是死碼,一併移除。
+                //
+                // 保留 Android 那個量測值,因為那個數字正是「這一行確實有代價」的證據;也因為第一次
+                // 嘗試移除它時看起來毫無改變——那是 llbuild 快取的建置計畫、不是那次編輯造成的,
+                // `debug.yaml` 與 `build.db` 必須一併刪除。這個陷阱對任何要動這個檔案的人仍然有效。
+            ],
             exclude: [
                 "Builders/ViewBuilder.swift.gyb",
                 "Builders/SceneBuilder.swift.gyb",
@@ -703,12 +705,19 @@ if hostBackendsOnly {
         // 該指令不會設定建置所需的 pkg-config 與 -Xcc 路徑。移除它們正是此旗標的用途：此處的
         // 主機 backend 是 WinUIBackend。
         let unbuildableOnHost: Set<String> = [
-            "AppKitBackend", "UIKitBackend",
-            "GtkBackend", "Gtk", "GtkExample", "GtkCHelpers", "CGtk",
+            "AppKitBackend",
+            "UIKitBackend",
+            "GtkBackend",
+            "Gtk",
+            "GtkExample",
+            "GtkCHelpers",
+            "CGtk",
         ]
     #else
         let unbuildableOnHost: Set<String> = [
-            "AppKitBackend", "UIKitBackend", "WinUIBackend",
+            "AppKitBackend",
+            "UIKitBackend",
+            "WinUIBackend",
         ]
     #endif
 
@@ -795,9 +804,15 @@ if hostBackendsOnly {
 // swiftSettings，而那些正是逐一手動處理時會漏掉的。不接受 Swift 設定的 target（C 與
 // systemLibrary 類）則不予變更。
 let migratedToSwift6: Set<String> = [
-    "SwiftCrossUI", "GtkBackend", "WinUIBackend",
-    "DebugFeatures", "InputEvent", "DummyBackend", "DefaultBackend",
-    "SwiftCrossUIMacrosPlugin", "Gtk",
+    "SwiftCrossUI",
+    "GtkBackend",
+    "WinUIBackend",
+    "DebugFeatures",
+    "InputEvent",
+    "DummyBackend",
+    "DefaultBackend",
+    "SwiftCrossUIMacrosPlugin",
+    "Gtk",
 ]
 
 // A name that matches no target is a typo, and a typo here is silent: the
