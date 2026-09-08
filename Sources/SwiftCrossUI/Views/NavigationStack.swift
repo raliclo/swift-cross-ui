@@ -78,9 +78,24 @@ public struct NavigationStack<Detail: View>: View {
     /// which pushed to level 3 and then had nowhere to go.
     ///
     /// The label matches SwiftUI's fallback. SwiftUI shows the previous view's
-    /// title and says "Back" when there is none; there are no navigation titles
-    /// here yet, so the fallback is the whole of it. When
-    /// ``View/navigationTitle(_:)`` lands, this is where it reads from.
+    /// title and says "Back" when there is none.
+    ///
+    /// **Corrected 2026-09-08.** This paragraph used to end *"When
+    /// `View/navigationTitle(_:)` lands, this is where it reads from."* That
+    /// modifier has now landed -- see `NavigationTitleModifier.swift` -- and the
+    /// sentence was still wrong, because it named a reading point that cannot
+    /// work. `navigationTitle` is a ``PreferenceValues`` entry, and a preference
+    /// travels *upward*, out of the destination and past this bar, which is its
+    /// preceding sibling in the same `VStack`. By the time the destination's
+    /// title exists, the bar that would show it has already been laid out. The
+    /// wrong text is quoted rather than deleted because "read it from the
+    /// preference" is the obvious thing to try next, and it does not work.
+    ///
+    /// Labelling this bar needs a value that survives *between* layout passes
+    /// -- a store the stack owns, keyed by path depth, written by the
+    /// destination and read on the following pass. That is a change to the
+    /// stack, not to the modifier, and it is not made here. The window title
+    /// is what `navigationTitle` sets today.
     ///
     /// 只要曾經推入任何內容，就會顯示的返回控制項。
     ///
@@ -92,9 +107,19 @@ public struct NavigationStack<Detail: View>: View {
     /// `elements.last`，因此唯一的返回途徑是應用程式自行提供的。此問題於 P24 實測發現——推入至
     /// 第 3 層後便無路可退。
     ///
-    /// 標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時則顯示「Back」；
-    /// 此處尚無導覽標題，因此後備文字即為全部。待 ``View/navigationTitle(_:)`` 加入後，此處便是
-    /// 它的讀取點。
+    /// 標籤沿用 SwiftUI 的後備文字。SwiftUI 會顯示前一個視圖的標題，沒有標題時則顯示「Back」。
+    ///
+    /// **2026-09-08 更正。** 本段原本結尾為：*「待 `View/navigationTitle(_:)` 加入後，此處便是它的
+    /// 讀取點。」* 該 modifier 現已加入——見 `NavigationTitleModifier.swift`——而那句話依然是錯的，
+    /// 因為它指出了一個無法運作的讀取點。`navigationTitle` 是一個 ``PreferenceValues`` 項目，而
+    /// preference 是**向上**傳遞的：它從 destination 往外走，越過這條列——這條列在同一個 `VStack`
+    /// 中是它的前一個兄弟節點。當 destination 的標題存在時，本該顯示它的那條列早已完成版面計算。
+    /// 此處引用而非刪除那句錯誤文字，是因為「就從 preference 讀取吧」正是下一個最直覺的嘗試，
+    /// 而它行不通。
+    ///
+    /// 要為這條列加上標籤，需要一個能**跨越**多次版面計算而存續的值——一個由堆疊自身持有、以路徑
+    /// 深度為鍵、由 destination 寫入、於下一次計算時讀取的儲存區。那是對堆疊的修改，而非對 modifier
+    /// 的修改，此處不做。`navigationTitle` 今日所設定的是視窗標題。
     @ViewBuilder
     private var navigationBar: some View {
         VStack(spacing: 0) {

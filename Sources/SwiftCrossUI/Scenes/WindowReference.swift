@@ -30,6 +30,27 @@ final class WindowReference<SceneType: WindowingScene> {
     /// again, because `.automatic` and `.normal` can map to a platform-level
     /// "not topmost" call that would undo temporary external pins.
     private var lastRequestedWindowLevel: WindowLevel?
+    /// The title last handed to the backend, whatever its source.
+    ///
+    /// Cached so an unchanged title is not re-applied on every layout pass.
+    /// That is not merely an optimisation on GTK: `gtk_window_set_title`
+    /// notifies `notify::title` unconditionally, and this method runs on every
+    /// resize, so an uncached write turns a drag of the window edge into a
+    /// stream of title changes for anything listening.
+    ///
+    /// Starts `nil` rather than `scene.title` so that the first update always
+    /// applies. `init` sets the scene title directly and does not populate
+    /// this, so `nil` is honest about what the backend has been told.
+    ///
+    /// 最近一次交給 backend 的標題，不論其來源為何。
+    ///
+    /// 之所以快取，是為了避免在每一次版面計算中重複套用未變更的標題。這在 GTK 上不只是最佳化：
+    /// `gtk_window_set_title` 會無條件送出 `notify::title`，而本方法在每次縮放時都會執行，因此
+    /// 未經快取的寫入會把「拖曳視窗邊緣」變成一連串的標題變更，任何監聽者都會收到。
+    ///
+    /// 初值為 `nil` 而非 `scene.title`，以確保第一次更新必定套用。`init` 會直接設定 scene 的標題
+    /// 而不填入此欄位，因此 `nil` 如實反映了「backend 已被告知的內容」。
+    private var lastAppliedWindowTitle: String?
 
     /// - Parameters:
     ///   - closeHandler: The action to perform when the window is closed. Should
@@ -189,7 +210,21 @@ final class WindowReference<SceneType: WindowingScene> {
             // 'default' size which would mean that setting the default size every time
             // the default size changed would resize the window (which is incorrect
             // behaviour).
-            backend.setTitle(ofWindow: window, to: newScene.title)
+            //
+            // The title is deliberately *not* set here. It used to be, and that
+            // left two writers for one property: this one, and the
+            // `navigationTitle` preference applied after layout. Two writers
+            // meant the scene title won on any pass that carried a new scene
+            // and lost on every other, so a `.navigationTitle` would appear and
+            // then be overwritten by the scene's own title on the next resize.
+            // There is now exactly one application point, below, and
+            // `scene.title` is its fallback.
+            //
+            // 此處刻意**不**設定標題。它原本在這裡設定，而那讓同一個屬性有了兩個寫入者：這一處，
+            // 以及在版面計算之後套用的 `navigationTitle` preference。兩個寫入者意謂著：在任何帶有
+            // 新 scene 的計算中由 scene 標題勝出，在其餘每一次計算中則落敗，因此 `.navigationTitle`
+            // 會先出現、再於下一次縮放時被 scene 自己的標題覆蓋。現在只有下方唯一一個套用點，
+            // 而 `scene.title` 是它的後備值。
             scene = newScene
         }
 
@@ -347,6 +382,27 @@ final class WindowReference<SceneType: WindowingScene> {
             backend.setSize(ofWindow: window, to: proposedWindowSize)
         }
         cachedWindowSize = proposedWindowSize
+
+        // The one place a window title is applied. `View/navigationTitle(_:)`
+        // sets a preference on the content; the scene's own title is what a
+        // window is called when the content asks for nothing.
+        //
+        // `setTitle(ofWindow:to:)` is a `BackendFeatures/Core` requirement, so
+        // this reaches every backend without a conformance check and without a
+        // cast -- which is the whole reason the modifier was built on a
+        // preference rather than on a backend protocol of its own.
+        //
+        // 視窗標題唯一的套用之處。`View/navigationTitle(_:)` 會在內容上設定一個 preference；
+        // 而 scene 自身的標題，是在內容沒有任何要求時該視窗的名字。
+        //
+        // `setTitle(ofWindow:to:)` 是 `BackendFeatures/Core` 的要求，因此這行不需要 conformance
+        // 檢查、也不需要轉型就能觸及每一個 backend——這正是該 modifier 建構於 preference 而非
+        // 建構於自己的 backend protocol 之上的全部理由。
+        let title = finalContentResult.preferences.navigationTitle ?? scene.title
+        if title != lastAppliedWindowTitle {
+            backend.setTitle(ofWindow: window, to: title)
+            lastAppliedWindowTitle = title
+        }
 
         if let backend = backend as? any BackendFeatures.WindowBehaviors {
             func setBehaviors<NewBackend: BackendFeatures.WindowBehaviors>(backend: NewBackend) {
