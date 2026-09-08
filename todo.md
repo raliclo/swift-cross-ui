@@ -917,7 +917,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | **style protocols** (re-measured 2026-09-08) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle` | `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
 | **common views** (re-measured 2026-09-08) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid` | `ScrollViewReader`, `ColorPicker` — **14 of 16 present**. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
-| **state wrappers** | `State`, `Binding`, `Environment`, `AppStorage`, `Published` | `StateObject`, `ObservedObject`, `EnvironmentObject`, `SceneStorage` |
+| **state wrappers** (re-measured 2026-09-08) | `State`, `Binding`, `Environment`, `AppStorage`, `Published`, `StateObject`, `ObservedObject`, `EnvironmentObject` | `SceneStorage` — **3 of the 4 that were absent have landed**. The 2026-09-01 reading of this row listed `StateObject`, `ObservedObject`, `EnvironmentObject` and `SceneStorage` as absent, and is kept here because it is still quoted elsewhere: `StateObject` and `ObservedObject` landed before this re-measure, `EnvironmentObject` in it. Do not repeat the phrasing "only a Settings scene remains" from the #35 entry — see the note below the table |
 | **scenes** | `WindowGroup`, `SceneBuilder` | `Settings`, `DocumentGroup` |
 | **presentation** | `sheet`, `alert`, `presentationDetents` | `popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset` |
 
@@ -938,8 +938,29 @@ Three things this makes visible that the category list did not:
   arbitrary `Button` labels. `TextFieldStyle` and `ProgressViewStyle` are the
   same job again with no blocker at all.
 
-  **The `common views` row was re-derived on 2026-09-08; the remaining four
-  rows are still the 2026-09-01 measurement and have not been re-run.**
+  **The `style protocols`, `common views` and `state wrappers` rows were
+  re-derived on 2026-09-08; the remaining four rows are still the 2026-09-01
+  measurement and have not been re-run.** (This sentence previously named only
+  `common views` and still said "the remaining four", which did not add up: the
+  `style protocols` row above it was already re-measured on the same day, so
+  five rows were stale, not four. Kept visible because a count that no longer
+  matches its own table is exactly the failure this section is about.)
+
+- **`state wrappers` is where the fractions went wrong, and the #35 entry still
+  says so.** Re-measured **2026-09-08**: `StateObject`
+  (`State/StateObject.swift:49`), `ObservedObject`
+  (`State/ObservedObject.swift:40`) and now `EnvironmentObject`
+  (`Environment/EnvironmentObject.swift`) are all declared; only `SceneStorage`
+  is absent. The #35 todo entry's summary — *"StateObject and ObservedObject
+  done, only a Settings scene remains"* — was wrong in both halves when
+  `testapp/plan/parity-gaps-survey.md` checked it on 2026-09-08: three things
+  were missing, not one (`EnvironmentObject`, `SceneStorage`, `DocumentGroup`,
+  besides the `Settings` scene itself). `EnvironmentObject` has since been
+  implemented; `SceneStorage`, `Settings` and `DocumentGroup` are scene-level
+  and remain open. Re-derive with
+  `grep -rl "public struct EnvironmentObject\b" Sources/SwiftCrossUI/` and the
+  same for each name — and note that the control matters: a pattern that finds
+  nothing because it is wrong looks identical to a feature that is missing.
 
   The old `common views` reading is kept in the table because the way it failed
   is worth more than the corrected number. It said "twelve checked, twelve
