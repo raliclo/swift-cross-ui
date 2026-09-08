@@ -128,7 +128,8 @@ public final class WinUIBackend:
     // `GraphicsAdapters` note directly below records.
     // 在此處列出，因此 `WinUIBackend+ButtonPressState.swift` 必須是不帶 conformance 的
     // `extension WinUIBackend { ... }`——理由與下方 `GraphicsAdapters` 註記所記的完全相同。
-    BackendFeatures.ButtonPressState
+    BackendFeatures.ButtonPressState,
+    BackendFeatures.Toolbars
 {
     // GraphicsAdapters is declared on the extension in
     // WinUIBackend+GraphicsAdapters.swift, NOT here, and listing it in both
@@ -2953,7 +2954,47 @@ public class CustomWindow: WinUI.Window {
     /// microsoft-ui-xaml repository (the MenuBarHeight property)
     private static let menuBarHeight = 40
 
+    /// The toolbar row's height, in the same hardcoded style as
+    /// ``menuBarHeight`` above and for the same reason: there is no theme
+    /// resource to ask. 40 matches the menu bar so the two stack evenly when a
+    /// window has both.
+    /// 工具列該列的高度，與上方 ``menuBarHeight`` 同樣採用寫死的做法，理由也相同：沒有可供查詢的
+    /// theme resource。取 40 與選單列一致，使視窗同時具備兩者時能整齊堆疊。
+    private static let toolbarHeight = 40
+
     var menuBar = WinUI.MenuBar()
+
+    /// The window's toolbar: a horizontal `StackPanel` of ordinary buttons.
+    ///
+    /// **Not a `CommandBar`, and that is measured rather than chosen.**
+    /// ``ToolbarItem`` names `CommandBar` as the WinUI shape, which is correct
+    /// for WinUI itself but not for the bindings this backend actually compiles
+    /// against. Searched 2026-09-08 in
+    /// `.build/checkouts/swift-winui/Sources/WinUI/Generated` (56 files):
+    /// `CommandBar`, `AppBarButton`, `FontIcon`, `SymbolIcon` and
+    /// `AppBarSeparator` are all **absent**, while `MenuBar`, `Button` and
+    /// `StackPanel` are present. The positive control matters here -- `MenuBar`
+    /// resolving with the same pattern is what makes the five zeros absence
+    /// rather than a broken search.
+    ///
+    /// So the row is composed from the primitives that do exist. That is the
+    /// same answer CLAUDE.md requires: "the platform has no API for this" is a
+    /// claim to verify, and the answer is still to find the way the platform
+    /// does do it.
+    ///
+    /// 本視窗的工具列：一列水平的 `StackPanel`，內含一般按鈕。
+    ///
+    /// **不是 `CommandBar`，而且這是量出來的、不是選出來的。** ``ToolbarItem`` 把 `CommandBar` 指為
+    /// WinUI 的對應形狀，那對 WinUI 本身是正確的，但對本 backend 實際編譯所依據的那組綁定並不成立。
+    /// 2026-09-08 於 `.build/checkouts/swift-winui/Sources/WinUI/Generated`（56 個檔案）搜尋：
+    /// `CommandBar`、`AppBarButton`、`FontIcon`、`SymbolIcon` 與 `AppBarSeparator` **全部不存在**，
+    /// 而 `MenuBar`、`Button`、`StackPanel` 存在。此處正對照是關鍵——`MenuBar` 以同一個樣式找得到，
+    /// 才使那五個零成為「缺席」而非「搜尋壞了」。
+    ///
+    /// 因此這一列改以確實存在的原件組成。那正是 CLAUDE.md 要求的答案：「這個平台沒有對應的 API」是
+    /// 一項待查證的主張，而答案仍然是去找出該平台**做得到**的方式。
+    var toolbar = WinUI.StackPanel()
+
     var child: WinUIBackend.Widget?
     var grid: WinUI.Grid
     var cachedAppWindow: WinAppSDK.AppWindow!
@@ -2964,6 +3005,7 @@ public class CustomWindow: WinUI.Window {
     var originalWindowProc: WNDPROC?
 
     private(set) var menuBarIsVisible = false
+    private(set) var toolbarIsVisible = false
     /// Lets the window procedure find the window an `HWND` belongs to.
     ///
     /// `nonisolated(unsafe)` because the thing that keeps this safe is Win32's
@@ -2991,8 +3033,15 @@ public class CustomWindow: WinUI.Window {
 
     /// The amount of height to subtract off the window height to obtain the
     /// window's available content height.
+    /// Both chrome rows count. Omitting the toolbar here would leave the
+    /// content believing it has 40px more height than the grid will give it,
+    /// which does not error -- it just clips the bottom of every window that
+    /// has a toolbar.
+    /// 兩列外框都要計入。若此處漏掉工具列，內容會誤以為自己比 grid 實際給的高度多出 40px，那不會
+    /// 產生任何錯誤——它只會把每一個帶工具列的視窗底部裁掉。
     var contentHeightAdjustment: Int {
-        menuBarIsVisible ? Self.menuBarHeight : 0
+        (menuBarIsVisible ? Self.menuBarHeight : 0)
+            + (toolbarIsVisible ? Self.toolbarHeight : 0)
     }
 
     var scaleFactor: Double {
@@ -3027,12 +3076,22 @@ public class CustomWindow: WinUI.Window {
 
         super.init()
 
+        // Three rows now: menu bar, toolbar, content. The toolbar sits between
+        // them because that is where Windows puts a command surface -- under the
+        // menus, above the document.
+        // 現在是三列：選單列、工具列、內容。工具列位於兩者之間，因為那正是 Windows 放置命令介面的
+        // 位置——在選單之下、文件之上。
         let menuBarRowDefinition = WinUI.RowDefinition()
+        let toolbarRowDefinition = WinUI.RowDefinition()
         let contentRowDefinition = WinUI.RowDefinition()
         grid.rowDefinitions.append(menuBarRowDefinition)
+        grid.rowDefinitions.append(toolbarRowDefinition)
         grid.rowDefinitions.append(contentRowDefinition)
         grid.children.append(menuBar)
         WinUI.Grid.setRow(menuBar, 0)
+        toolbar.orientation = .horizontal
+        grid.children.append(toolbar)
+        WinUI.Grid.setRow(toolbar, 1)
         self.content = grid
 
         // NB: This event fires when the window is activated _or_ deactivated.
@@ -3054,6 +3113,9 @@ public class CustomWindow: WinUI.Window {
 
         // Default to not showing the menu bar; we only want to show it when it's non-empty
         setMenuBarVisible(menuBarIsVisible)
+        // Same for the toolbar: a zero-height row until something asks for one.
+        // 工具列亦同：在有東西要求之前，它是一列高度為零的列。
+        setToolbarVisible(toolbarIsVisible)
     }
 
     func installSizeLimitHandler() {
@@ -3158,10 +3220,36 @@ public class CustomWindow: WinUI.Window {
         menuBarIsVisible = visible
     }
 
+    /// Sets whether the toolbar row of the current window is visible.
+    ///
+    /// Row 1, collapsed to zero height rather than hidden, exactly as
+    /// ``setMenuBarVisible(_:)`` treats row 0. A `Visibility.collapsed` on the
+    /// panel would leave the row's height in the grid and cost 40px of content
+    /// for a bar nobody can see.
+    ///
+    /// 設定本視窗的工具列該列是否可見。
+    ///
+    /// 對象是第 1 列，做法是把高度收為零而非隱藏 widget，與 ``setMenuBarVisible(_:)`` 處理第 0 列
+    /// 的方式完全相同。對該面板設 `Visibility.collapsed` 會讓那一列的高度仍留在 grid 中，等於為一條
+    /// 沒有人看得見的橫條付出 40px 的內容高度。
+    public func setToolbarVisible(_ visible: Bool) {
+        grid.rowDefinitions[1]!.height = WinUI.GridLength(
+            value: visible ? Double(Self.toolbarHeight) : 0,
+            gridUnitType: .pixel
+        )
+        toolbarIsVisible = visible
+    }
+
     public func setChild(_ child: WinUIBackend.Widget) {
         self.child = child
         grid.children.append(child)
-        WinUI.Grid.setRow(child, 1)
+        // Row 2, not 1: the toolbar row was inserted above. This line is the
+        // one that breaks silently if the row count changes again -- the child
+        // would be laid into the toolbar's row and the two would overlap, with
+        // no error from either.
+        // 第 2 列，不是第 1 列：工具列那一列插在其上。若日後列數再變，靜默出錯的正是這一行——子元件
+        // 會被排進工具列那一列、兩者重疊，而雙方都不會產生任何錯誤。
+        WinUI.Grid.setRow(child, 2)
     }
 
     deinit {

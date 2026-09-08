@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note,platform
+# CONTROL, not a test of P53. Clicks the window's own close button, which sits on
+# the SAME GtkHeaderBar as the toolbar items.
+#
+# WHAT IT DISCRIMINATES. P53-press-toolbar-add.csv left the counters at 0 and
+# "last pressed: (none)". Two different faults produce that identical picture:
+#
+#   A. the toolbar button's action is not wired -- the Gtk.Button wrapper was
+#      released and its `clicked` closure with it, so the button draws, hovers,
+#      and does nothing;
+#   B. the click never reached the header bar at all -- a GtkHeaderBar IS the
+#      window's titlebar, which on Windows is non-client area, and the replay
+#      also warned "the window never took the foreground".
+#
+# A screenshot cannot tell A from B, and guessing between them is how a working
+# implementation gets rewritten to fix a synthesiser bug, or the reverse.
+#
+# HOW TO READ IT. The close button is a GTK widget on that same bar, not a Win32
+# caption button, so it answers exactly the right question:
+#   window closes  -> clicks DO reach the header bar -> fault is A, mine.
+#   window survives -> clicks do NOT reach it        -> fault is B, and the
+#                      toolbar implementation is unproven, not disproven.
+#
+# (713,35) is the centre of the close glyph, read off
+# screen-20260908-230801.png at 748x549, origin=frame, 100% display scale.
+#
+# 這是對照，不是對 P53 的測試。它點的是視窗自己的關閉鈕，而該鈕與工具列項目位在**同一條**
+# GtkHeaderBar 上。
+#
+# 它區分什麼。P53-press-toolbar-add.csv 跑完後計數器仍為 0、「last pressed: (none)」。有兩種不同的
+# 故障會產生完全相同的畫面：
+#
+#   A. 工具列按鈕的動作未接線——`Gtk.Button` wrapper 連同它的 `clicked` closure 一起被釋放，於是按鈕
+#      畫得出來、滑過去有反應、按下去什麼都不做；
+#   B. 那一下點擊根本沒抵達 header bar——GtkHeaderBar **就是**視窗的 titlebar，而在 Windows 上那屬於
+#      非客戶區；該次 replay 也警告過「視窗從未取得前景」。
+#
+# 截圖分不出 A 與 B，而在兩者之間用猜的，正是「為了修合成器的 bug 而去重寫一份本來正確的實作」（或
+# 反過來）的由來。
+#
+# 如何判讀。關閉鈕是同一條 bar 上的 GTK widget，並非 Win32 的標題列按鈕，因此它回答的正是我們要問的
+# 問題：
+#   視窗關閉   -> 點擊**到得了** header bar -> 故障是 A，錯在我。
+#   視窗還在   -> 點擊**到不了**            -> 故障是 B，工具列實作屬於「未被證明」，而非「被推翻」。
+#
+# (713,35) 是關閉字符的中心，取自 748x549 的 screen-20260908-230801.png，origin=frame，100% 顯示縮放。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,713,35,frame,,,,move onto the close button on the header bar,windows
+sleep,,,,,,200000,let the pointer arrive so the press lands on a hovered widget,windows
+click,713,35,frame,left,,,press close; if this reaches the bar the process ends,windows
+sleep,,,,,,8000000,"hold 8s so a SURVIVING window can be observed; if the click worked the process is already gone and this sleep never runs",windows

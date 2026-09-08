@@ -48,6 +48,7 @@ public final class GtkBackend:
     BackendFeatures.HitTesting,
     BackendFeatures.DragAndDrop,
     BackendFeatures.Clipping,
+    BackendFeatures.Toolbars,
     // Listed here, so `GtkBackend+ButtonPressState.swift` must be a bare
     // `extension GtkBackend { ... }`. Naming the protocol in both places is
     // `error: redundant conformance`, which is how the same mistake was found
@@ -251,6 +252,32 @@ public final class GtkBackend:
     /// All current windows associated with the application. Doesn't include the
     /// precreated window until it gets 'created' via `createWindow`.
     var windows: [Window] = []
+
+    /// The buttons currently packed into a window's header bar, keyed by window
+    /// identity, held so that their handlers survive.
+    ///
+    /// GTK refcounts the `GtkWidget` once it is packed, so the C object is safe
+    /// without this. What is not safe is the Swift ``Gtk/Button`` wrapper: it
+    /// owns the `clicked` closure, and nothing else refers to a toolbar button
+    /// the way the view graph refers to an ordinary widget it created. Without
+    /// this table the wrapper deallocates at the end of `setToolbar`, and the
+    /// button then draws correctly and does nothing when pressed -- the same
+    /// shape as `NSToolbarItem.target` being unowned on AppKit, recorded there
+    /// for the same reason.
+    ///
+    /// 目前裝進某視窗 header bar 的按鈕，以視窗身分為鍵，持有它們是為了讓其 handler 存活。
+    ///
+    /// widget 一旦被 pack 進去，GTK 就會對該 `GtkWidget` 進行參照計數，因此 C 物件本身不需要這張表。
+    /// 不安全的是 Swift 的 ``Gtk/Button`` wrapper：`clicked` closure 由它持有，而工具列按鈕不像
+    /// view graph 所建立的一般 widget 那樣有東西指向它。少了這張表，wrapper 會在 `setToolbar` 結束時
+    /// 被釋放，於是該按鈕畫得出來、按下去卻毫無反應——與 AppKit 上 `NSToolbarItem.target` 為 unowned
+    /// 的形狀相同，該處也基於同樣理由留有註記。
+    /// Internal rather than `private` because the implementation lives in
+    /// `GtkBackend+Toolbar.swift`, and Swift's `private` on a member is
+    /// file-scoped: an extension in another file cannot see it.
+    /// 使用 internal 而非 `private`，因為實作位於 `GtkBackend+Toolbar.swift`；Swift 的 `private`
+    /// 是以檔案為範圍的，另一個檔案中的 extension 看不見它。
+    var toolbarButtons: [ObjectIdentifier: [Gtk.Button]] = [:]
 
     /// The alert currently on screen for a window, keyed by window identity, and
     /// the alerts waiting behind it. SwiftUI shows one alert at a time per
@@ -3244,7 +3271,16 @@ public final class GtkBackend:
         }
 
         textField.css.clear()
-        textField.css.set(properties: cssProperties(for: environment, isControl: true))
+        var properties = cssProperties(for: environment, isControl: true)
+        // See `GtkBackend+TextFieldStyle.swift`. This also flips `has-frame`,
+        // which is why it takes the entry and not just the style.
+        // 見 `GtkBackend+TextFieldStyle.swift`。它同時會切換 `has-frame`，這正是它除了 style 之外
+        // 還要收下該 entry 的原因。
+        properties += textFieldStyleProperties(
+            environment.backendTextFieldStyle,
+            applyingTo: textField
+        )
+        textField.css.set(properties: properties)
     }
 
     public func setContent(ofTextField textField: Widget, to content: String) {

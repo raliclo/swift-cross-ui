@@ -192,6 +192,91 @@ open class Window: Widget {
         gtk_window_set_titlebar(castedPointer(), gtk_header_bar_new())
     }
 
+    /// Replaces the titlebar with a `GtkHeaderBar` holding the given widgets,
+    /// or restores GTK's own decoration when both lists are empty.
+    ///
+    /// This lives here rather than in `GtkBackend` because every raw GTK call in
+    /// this project does. `castedPointer()` is internal to this module, and the
+    /// first attempt at the toolbar called it from `GtkBackend+Toolbar.swift` and
+    /// got `'castedPointer' is inaccessible due to 'internal' protection level`
+    /// -- which was the compiler pointing at the layering, not an obstacle to
+    /// work around with a wider access level.
+    ///
+    /// Restoring is `nil`, not an empty header bar. An empty bar would still be
+    /// a titlebar: it keeps its height (47px measured, against GTK's own 39 --
+    /// see ``installMeasurableTitlebar()``) and shows an empty strip.
+    ///
+    /// 以一個裝著給定 widget 的 `GtkHeaderBar` 取代 titlebar；當兩份清單皆為空時，則恢復 GTK 自己的
+    /// 裝飾。
+    ///
+    /// 它放在這裡而不是 `GtkBackend`，因為本專案所有的原始 GTK 呼叫都放在這裡。`castedPointer()`
+    /// 對本模組而言是 internal，而工具列的第一次嘗試正是從 `GtkBackend+Toolbar.swift` 呼叫它，得到
+    /// `'castedPointer' is inaccessible due to 'internal' protection level`——那是編譯器在指出分層，
+    /// 而不是一個「把存取層級放寬就能繞過」的障礙。
+    ///
+    /// 恢復時傳的是 `nil`，而不是一個空的 header bar。空的 bar 仍然是一個 titlebar：它保有自己的高度
+    /// （實測 47px，相對於 GTK 自身的 39——見 ``installMeasurableTitlebar()``），並顯示成一條空白橫條。
+    public func setHeaderBar(leading: [Widget], trailing: [Widget]) {
+        guard !leading.isEmpty || !trailing.isEmpty else {
+            gtk_window_set_titlebar(castedPointer(), nil)
+            return
+        }
+
+        let headerBar = gtk_header_bar_new()
+
+        // `GtkHeaderBar` is an opaque type in the generated bindings while
+        // `gtk_header_bar_new` returns a `GtkWidget *`, so each pack call needs
+        // the cast even though it is the same object.
+        // 在產生的綁定中 `GtkHeaderBar` 是 opaque 型別，而 `gtk_header_bar_new` 回傳的是
+        // `GtkWidget *`，因此即使指的是同一個物件，每次 pack 呼叫都需要這個轉換。
+        let bar = OpaquePointer(headerBar)
+
+        // `parentWidget` is assigned, not just packed, and that assignment is
+        // what makes the buttons work.
+        //
+        // MEASURED 2026-09-08. The first version packed `widget.widgetPointer`
+        // and stopped there. Every button drew correctly, highlighted on hover,
+        // and did nothing at all when pressed -- P53's counters stayed at 0 and
+        // "last pressed" stayed "(none)". The cause is that this wrapper
+        // connects its GTK signals in ``Widget/didMoveToParent()``, which only
+        // runs from `parentWidget`'s `didSet`; packing the raw pointer bypasses
+        // it, so `Button.clicked` is stored and the "clicked" signal is never
+        // connected. Nothing errors -- the closure simply has no caller.
+        //
+        // Distinguishing that from "the click never reached the titlebar" took a
+        // control: an action file clicking the window's own close button, which
+        // is a widget on this same header bar. It closed the window in 5s
+        // against an 8s hold, so clicks do arrive and the fault was here.
+        //
+        // The reference is weak, so this does not keep the button alive --
+        // `GtkBackend.toolbarButtons` does, and that is why it exists.
+        //
+        // 此處是「指派 `parentWidget`」而非只是 pack，而正是那個指派讓按鈕能運作。
+        //
+        // 2026-09-08 實測。第一版只 pack 了 `widget.widgetPointer` 就停手。每個按鈕都畫得正確、滑過去
+        // 也有高亮，按下去卻毫無反應——P53 的計數器停在 0、「last pressed」停在「(none)」。原因在於本
+        // wrapper 是在 ``Widget/didMoveToParent()`` 中連接 GTK 訊號的，而該方法只會由 `parentWidget`
+        // 的 `didSet` 觸發；直接 pack 原始指標會繞過它，於是 `Button.clicked` 只是被存了起來，
+        // 「clicked」訊號從未被連接。沒有任何東西報錯——那個 closure 只是沒有呼叫者。
+        //
+        // 要把它與「點擊根本沒抵達 titlebar」區分開來，需要一個對照：一個點擊視窗自身關閉鈕的動作檔，
+        // 而該鈕正是這條 header bar 上的 widget。它在 8 秒停留的情況下 5 秒就關掉了視窗，因此點擊確實
+        // 抵達得了，故障在此處。
+        //
+        // 該參照是 weak 的，因此這並不會讓按鈕存活——存活是靠 `GtkBackend.toolbarButtons`，那也正是
+        // 它存在的理由。
+        for widget in leading {
+            gtk_header_bar_pack_start(bar, widget.widgetPointer)
+            widget.parentWidget = self
+        }
+        for widget in trailing {
+            gtk_header_bar_pack_end(bar, widget.widgetPointer)
+            widget.parentWidget = self
+        }
+
+        gtk_window_set_titlebar(castedPointer(), headerBar)
+    }
+
     public var titlebarNaturalHeight: Int? {
         guard let titlebar = gtk_window_get_titlebar(castedPointer()) else {
             return nil
