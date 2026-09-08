@@ -122,9 +122,39 @@ print -- "----------------------------------------------------------------------
 
 for action in $action_files; do
     base="${action:t:r}"
-    app="${base%%-*}"
-    scenario="${base#*-}"
-    [ -f "$script_dir/$app.swift" ] || { failed=$((failed + 1)); continue }
+
+    # The longest prefix that names a real app, not the first segment.
+    #
+    # `${base%%-*}` truncates at the first hyphen, which is right for
+    # P7-select-a-list-row and wrong for P15-DARK-the-override-survives-a-tap:
+    # it launched P15 and drove it with P15-DARK's coordinates. Both apps exist
+    # -- testapp/P15-DARK.swift and testapp/P17-DOE.swift -- so this was not a
+    # missing file, it was the wrong file, and the run reported cleanly.
+    #
+    # The failure was invisible from the results: the capture is named after the
+    # scenario, so `P15-DARK-...-control.png` held a picture of P15, and the
+    # taps landed on blank space in an app nobody meant to test. It reads as
+    # "the action file changed nothing", which is what it was recorded as.
+    #
+    # 取「能對應到真實 app 的最長前綴」,而不是第一段。
+    #
+    # `${base%%-*}` 在第一個連字號截斷,這對 P7-select-a-list-row 是對的,對
+    # P15-DARK-the-override-survives-a-tap 則是錯的:它啟動了 P15,卻用 P15-DARK 的座標去驅動它。
+    # 兩支 app 都存在——testapp/P15-DARK.swift 與 testapp/P17-DOE.swift——因此這不是「檔案不見了」,
+    # 而是「拿錯了檔案」,而該次執行回報得乾乾淨淨。
+    #
+    # 這個失敗從結果上看不出來:擷取是以情境命名的,於是 `P15-DARK-...-control.png` 裡裝的是 P15 的
+    # 畫面,而那些點擊落在一支沒有人打算測試的 app 的空白處。它讀起來就是「這個動作檔什麼都沒改變」,
+    # 而它也正是被那樣記錄下來的。
+    app=""
+    candidate="$base"
+    while [ -n "$candidate" ]; do
+        if [ -f "$script_dir/$candidate.swift" ]; then app="$candidate"; break; fi
+        [[ "$candidate" == *-* ]] || break
+        candidate="${candidate%-*}"
+    done
+    [ -n "$app" ] || { failed=$((failed + 1)); continue }
+    scenario="${base#$app-}"
 
     plain="$keep/$base-control.png"
     driven="$keep/$base-driven.png"

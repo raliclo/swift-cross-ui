@@ -9,10 +9,7 @@ public struct ProgressView<Label: View>: View {
     private var kind: Kind
     private var isSpinnerResizable: Bool = false
 
-    private enum Kind {
-        case spinner
-        case bar
-    }
+    typealias Kind = _ProgressIndicatorKind
 
     public var body: some View {
         if label as? EmptyView == nil {
@@ -23,14 +20,26 @@ public struct ProgressView<Label: View>: View {
         }
     }
 
-    @ViewBuilder
+    /// The style decides, and the initialiser only supplies the default.
+    ///
+    /// `kind` used to decide alone, which made `ProgressView(value:)` a bar and
+    /// `ProgressView(_:)` a spinner with no way to say otherwise -- SwiftUI
+    /// spells that override `.progressViewStyle(.circular)`. The initialiser's
+    /// choice survives as ``ProgressViewStyle/automatic``'s rule, so nothing
+    /// that did not set a style changes behaviour.
+    ///
+    /// 由樣式決定，而建構式只提供預設值。
+    ///
+    /// 過去是由 `kind` 獨自決定的，那使得 `ProgressView(value:)` 必為長條、`ProgressView(_:)` 必為
+    /// 轉圈，且無從表達其他意圖——而 SwiftUI 表達該覆寫的寫法是 `.progressViewStyle(.circular)`。
+    /// 建構式原本的選擇以 ``ProgressViewStyle/automatic`` 的規則存續下來，因此任何未設定樣式的程式碼
+    /// 行為都不會改變。
     private var progressIndicator: some View {
-        switch kind {
-            case .spinner:
-                ProgressSpinnerView(isResizable: isSpinnerResizable)
-            case .bar:
-                ProgressBarView(value: progress)
-        }
+        StyledProgressIndicator(
+            progress: progress,
+            fallbackKind: kind,
+            isSpinnerResizable: isSpinnerResizable
+        )
     }
 
     /// Creates an indeterminate progress view (a spinner).
@@ -235,5 +244,41 @@ struct ProgressBarView: ElementaryView {
     ) {
         backend.updateProgressBar(widget, progressFraction: value, environment: environment)
         backend.setSize(of: widget, to: layout.size.vector)
+    }
+}
+
+/// Resolves the style against the environment, one level below ``ProgressView``.
+///
+/// A separate view because the style lives in the environment and
+/// ``ProgressView``'s `body` has no `@Environment` of its own to read it from
+/// -- reading it here keeps `ProgressView` a plain composition.
+///
+/// 在 ``ProgressView`` 下一層解析樣式。
+///
+/// 之所以獨立為一個 view，是因為樣式住在 environment 中，而 ``ProgressView`` 的 `body` 自身沒有
+/// `@Environment` 可以讀取它——在此處讀取，可讓 `ProgressView` 維持為單純的組合。
+struct StyledProgressIndicator: View {
+    var progress: Double?
+    var fallbackKind: _ProgressIndicatorKind
+    var isSpinnerResizable: Bool
+
+    @Environment(\.self) var environment
+
+    var body: some View {
+        // `isSpinnerResizable` is honoured only on the path the initialiser
+        // chose, because it is a property of `ProgressView(_:)`'s spinner and a
+        // style that asks for a spinner is asking for the control, not for that
+        // view's sizing behaviour.
+        // `isSpinnerResizable` 僅在「建構式所選的那條路徑」上被遵守，因為它是
+        // `ProgressView(_:)` 那個轉圈的性質;而一個要求轉圈的樣式，要的是那個控制項本身，
+        // 不是該 view 的尺寸行為。
+        AnyView(
+            environment.progressViewStyle.makeView(
+                progress: progress,
+                environment: environment
+                    .with(\.progressViewDefaultKind, fallbackKind)
+                    .with(\.progressSpinnerIsResizable, isSpinnerResizable)
+            )
+        )
     }
 }
