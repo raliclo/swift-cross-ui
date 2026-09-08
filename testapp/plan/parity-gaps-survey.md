@@ -89,13 +89,13 @@ does not exist, so no backend can conform to anything.
 
 | # | recorded claim | reality on 2026-09-08 | what actually remains | G | W | A | U | N |
 |---|---|---|---|---|---|---|---|---|
-| **#85** | make LazyVStack/LazyHStack lazy, add LazyVGrid | both stacks **exist and are honestly documented as eager** — `LazyStacks.swift:38`, `:70`, and the doc comment at `:3` says so in both languages. `LazyVGrid` declaration count was **0**; **added 2026-09-08** in the same file, and it is eager for the same reason the stacks are — no lazier than its siblings | real laziness, and *only* that (needs ScrollView to report its visible rect into the layout pass). The `LazyVGrid` half is done; it is pure composition and took no backend requirement | — | — | — | — | — |
+| **#85** | make LazyVStack/LazyHStack lazy, add LazyVGrid | both stacks **exist and are honestly documented as eager** — `LazyStacks.swift:38`, `:70`, and the doc comment at `:3` says so in both languages. `LazyVGrid` declaration count was **0**; **added 2026-09-08** ~~in the same file~~ — **corrected 2026-09-08: it is in its own file, `Views/LazyVGrid.swift:68`**, see the note under #85 — and it is eager for the same reason the stacks are — no lazier than its siblings | real laziness, and *only* that (needs ScrollView to report its visible rect into the layout pass). The `LazyVGrid` half is done; it is pure composition and took no backend requirement | — | — | — | — | — |
 | **#88** | ColorPicker as an opt-in BackendFeatures protocol | `grep -rn "ColorPicker" Sources/` → **0**, across every file type, not only `*.swift` | everything: the `ColorPicker` view, a `BackendFeatures.ColorPickers` protocol, and five conformances | n/a | n/a | n/a | n/a | n/a |
 | **#28** | animation and transitions, "no protocol at all" | **claim holds exactly.** `withAnimation` 0, `struct Animation` 0, `AnyTransition` 0, `func transition` 0, `Transition` 0 | all five names, plus a driver in the view graph and a per-backend animator | n/a | n/a | n/a | n/a | n/a |
 | **#30** | focus, accessibility, keyboard shortcuts | **claim holds.** `FocusState` 0, `func focused` 0, `keyboardShortcut` 0, `accessibilityLabel` 0, `\bFocus\b` 0. The single `accessibility` hit is prose in `HelpModifier.swift` | the whole area. Still the only area where an application cannot express the intent | n/a | n/a | n/a | n/a | n/a |
 | **#32** | gestures beyond tap and hover | the new gestures are absent as claimed — `DragGesture` 0, `LongPressGesture` 0, `MagnificationGesture` 0, `RotationGesture` 0, `simultaneousGesture` 0, `\bGesture\b` 0. **But the premise is wrong: hover is not done on five backends** | the five gesture types, *and* `HoverGestures` on AndroidBackend — see the flag below | ✅ | ✅ | ✅ | ✅ | ❌ hover |
 | **#34** | API shapes that do not compile from SwiftUI code | audited 2026-08-27, "all ten claims still stand". **Eight still stand. Claim 4 is now false and claim 2 is half false** | claims 1, 3, 5, 6, 7, 8, 9, 10 | — | — | — | — | — |
-| **#36** | confirmationDialog and safeAreaInset done, four remain | both are real: `ConfirmationDialogModifier.swift:50`, `SafeAreaInsetModifier.swift:39`. `func popover` 0, `fullScreenCover` 0, `toolbar` 0, `refreshable` 0, and `navigationTitle` **0 as a modifier** | **Re-measured 2026-09-08: `.popover` and `.navigationTitle` landed.** Left: `.fullScreenCover`, `.toolbar`, `.refreshable`. `.navigationTitle` had left the denominator without being implemented, and is counted from here on | ✅ popover, built | ✅ popover, built | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED |
+| **#36** | confirmationDialog and safeAreaInset done, four remain | both are real: `ConfirmationDialogModifier.swift:50`, `SafeAreaInsetModifier.swift:39`. `func popover` 0, `fullScreenCover` 0, `toolbar` 0, `refreshable` 0, and `navigationTitle` **0 as a modifier** | **Re-measured 2026-09-08: `.popover` and `.navigationTitle` landed.** ~~Left: `.fullScreenCover`, `.toolbar`, `.refreshable`.~~ **Corrected later the same day: `.fullScreenCover` landed too** (`Modifiers/FullScreenCoverModifier.swift:28`), so left: `.toolbar`, `.refreshable`. `.navigationTitle` had left the denominator without being implemented, and is counted from here on | ✅ popover, built | ✅ popover, built | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED |
 | **#27** | follow desktop light/dark while running (GtkBackend) | **claim holds, and the mechanism is already built.** `Gtk.Settings.registerNotification(named:handler:)` exists at `Sources/Gtk/Utility/Settings.swift:92` and **has zero callers** across `Sources/`. The ambient scheme is sampled **once**, at `GtkBackend.swift:1029` | wire the notification up (six changes, per the task history). Windows has the same shape from the other side: `systemColorScheme` reads the registry once inside `sampleAmbientColorScheme` and `grep -rn WM_SETTINGCHANGE Sources/` → **0** | ❌ | — | — | — | — |
 | **#31** | 4/6 done, only ButtonStyle and LabelStyle remain | **5 present, and the denominator shrank silently.** `ShapeStyle` is a real protocol at `Styles/ShapeStyle/ShapeStyle.swift:25` with `Color`, `LinearGradient` and `RadialGradient` conforming — the todo still says "absent — 0 declarations and 0 references". `TextFieldStyle` 0 and `ProgressViewStyle` 0 were on the 2026-09-01 list and quietly left the count | `ButtonStyle` (genuinely blocked: `isPressed` 0 across `Sources/`, `Button.label` is a `String` at `Button.swift:17`), `LabelStyle` (**blocker gone**), `TextFieldStyle`, `ProgressViewStyle` | — | — | — | — | — |
 | **#33** | 8 of 11 done, ColorPicker/LazyVGrid/ScrollViewReader remain | was **10 present of a 16-name list, 6 absent** — three names the 2026-09-01 census counted absent (`Grid`, `ControlGroup`, `GroupBox`) had left the denominator without being implemented. **Now 14 of 16**: those three plus `LazyVGrid` landed 2026-09-08. The recorded "8 of 11" was never true and should not be restated | `ScrollViewReader` and `ColorPicker` — the only two of the sixteen that are not composition. `ScrollViewReader` is the expensive one: `BackendFeatures.ScrollContainers` has only `createScrollContainer` and `updateScrollContainer` and **no programmatic scroll**, so it needs a new requirement on all five | n/a | n/a | n/a | n/a | n/a |
@@ -147,9 +147,29 @@ refusing to compile is neither."*
 (`grep -rn GridItem Sources/SwiftCrossUI --include=*.swift | wc -l`), so a grid
 needed the item type too, not only the container.
 
-**Done 2026-09-08.** `LazyVGrid` now sits beside its siblings in
-`Views/LazyStacks.swift`, with `GridItem` in `Views/GridItem.swift`. It took no
+**Done 2026-09-08.** ~~`LazyVGrid` now sits beside its siblings in
+`Views/LazyStacks.swift`, with `GridItem` in `Views/GridItem.swift`.~~ It took no
 backend requirement, as predicted.
+
+**Correction, 2026-09-08 — the two file paths above were true when written and
+are now wrong.** `LazyVGrid` is at `Sources/SwiftCrossUI/Views/LazyVGrid.swift:68`
+and `GridItem` at `LazyVGrid.swift:16`; `LazyStacks.swift` holds `LazyVStack`
+and `LazyHStack` and nothing else, and `Views/GridItem.swift` **no longer
+exists**. The cause is worth keeping because it is not a typo: **both
+`LazyVGrid` implementations existed simultaneously until the merge `dea9ccff`,
+and this side's was the one removed.** A measurement can be correct on the day
+and be deleted by a merge the next, without the document that records it
+changing at all.
+
+Regenerate:
+`grep -rn "struct GridItem\|struct LazyVGrid\|struct LazyVStack\|struct LazyHStack" Sources/SwiftCrossUI --include=*.swift`
+
+**更正，2026-09-08——上方那兩個檔案路徑在寫下當時為真，如今已錯。** `LazyVGrid` 位於
+`Sources/SwiftCrossUI/Views/LazyVGrid.swift:68`，`GridItem` 位於 `LazyVGrid.swift:16`；
+`LazyStacks.swift` 只剩 `LazyVStack` 與 `LazyHStack`，而 `Views/GridItem.swift` **已不存在**。
+成因值得記下，因為它不是筆誤：**兩份 `LazyVGrid` 實作一直同時存在，直到合併 `dea9ccff`，
+而被移除的是本側那一份。** 一項量測可以在當天正確，隔天就被一次合併刪掉，而記錄它的文件
+卻絲毫未變。
 
 **It is not lazier than `LazyVStack`, and the doc comment says so first.** If
 anything it is the more eager of the two: it cannot decide how many rows there
@@ -157,11 +177,31 @@ are without counting every cell, so it materialises all of them by construction
 rather than merely by omission. Nobody should read "we shipped LazyVGrid" as
 progress on the laziness half — that half is untouched.
 
-Flowing a `@ViewBuilder` block into columns needed one piece of framework
+~~Flowing a `@ViewBuilder` block into columns needed one piece of framework
 machinery that did not exist: `GridCellsProviding` in `Views/GridCells.swift`,
 a value-level flattener modelled on `View/_asMenuItems` (the only other one in
 the project). Without it a three-column grid renders as one column, which is the
-wrong picture rather than a documented divergence. Still no backend involved.
+wrong picture rather than a documented divergence. Still no backend involved.~~
+
+**Correction, 2026-09-08 — this paragraph is stale twice over, and the second
+half is the instructive one.** The file `Views/GridCells.swift` is gone with the
+rest of this side's `LazyVGrid` in `dea9ccff`, *and* the type `GridCellsProviding`
+no longer exists anywhere: `grep -rn GridCellsProviding Sources/` → **0**. So the
+surviving `LazyVGrid` flows a `@ViewBuilder` block into columns without a
+value-level flattener at all, and the conclusion this paragraph drew — that a new
+piece of framework machinery was unavoidable — was never a fact about the
+problem, only about the implementation that got deleted. **A file path going
+stale is visible the moment someone opens it; a load-bearing claim about what the
+work "needed" survives the deletion and keeps being quoted.**
+
+Regenerate: `grep -rn GridCellsProviding Sources/ | wc -l` → 0
+
+**更正，2026-09-08——本段有兩重過時，而第二重才是有教訓的那一重。** 檔案 `Views/GridCells.swift`
+已隨本側 `LazyVGrid` 的其餘部分在 `dea9ccff` 中消失，**而且**型別 `GridCellsProviding` 已不存在於
+任何位置：`grep -rn GridCellsProviding Sources/` → **0**。因此存活下來的 `LazyVGrid` 根本沒有
+任何值層級攤平器就把 `@ViewBuilder` 區塊流排成欄；本段所下的結論——「一項新的框架機制無可避免」
+——從來就不是關於問題本身的事實，而只是關於那份被刪掉的實作。**檔案路徑過時，只要有人打開就會
+發現；但一句關於「這件工作需要什麼」的關鍵主張，會在刪除之後存活下來並持續被引用。**
 
 **What remains under #85 is real laziness, and only that** — a change to the
 layout system, with `ScrollView` reporting its visible rect into the layout
@@ -169,15 +209,16 @@ pass. Shared code, no backend.
 
 兩個 stack 都存在（`LazyStacks.swift:38`、`:70`），且該檔案的說明比 todo 更明確地指出它們並非惰性。
 `LazyVGrid` 宣告計數原為 0，`GridItem` 引用計數也是 0；**兩者皆於 2026-09-08 完成**，且如預期般
-未觸及任何 backend。
+未觸及任何 backend。（更正：兩者現位於 `Views/LazyVGrid.swift:68` 與 `:16`，不在 `LazyStacks.swift`。）
 
 `LazyVGrid` **並不比 `LazyVStack` 更惰性**，其文件註解一開頭就說明了這點；若真要比較，它還更積極
 求值——不先數過每一個儲存格，它就無法決定共有幾列。切勿把「LazyVGrid 已完成」讀作惰性那一半有了
 進展：那一半完全未動。
 
-把 `@ViewBuilder` 區塊流排成欄，需要一項原本不存在的框架機制：`Views/GridCells.swift` 中的
+~~把 `@ViewBuilder` 區塊流排成欄，需要一項原本不存在的框架機制：`Views/GridCells.swift` 中的
 `GridCellsProviding`，一個仿照 `View/_asMenuItems`（本專案中唯一另一個同類機制）的值層級攤平器。
-少了它，三欄的網格會畫成一欄——那是**錯的畫面**，而非一項有記載的差異。此機制同樣不涉及任何 backend。
+少了它，三欄的網格會畫成一欄——那是**錯的畫面**，而非一項有記載的差異。此機制同樣不涉及任何 backend。~~
+（已於 2026-09-08 更正，見上方英文更正段：該檔案與該型別皆已不存在。）
 
 #85 尚存的部分是真正的惰性，且僅此一項——那是對版面系統的改動，需由 `ScrollView` 把可視矩形回報
 進版面計算流程。屬共用程式碼，不涉及 backend。
@@ -313,11 +354,32 @@ Present: `View.confirmationDialog` at
 `Views/Modifiers/ConfirmationDialogModifier.swift:50`, `View.safeAreaInset` at
 `Views/Modifiers/Layout/SafeAreaInsetModifier.swift:39`.
 
-Absent: `func popover` 0, `fullScreenCover` 0, `toolbar` 0, `refreshable` 0.
+Absent: `func popover` 0, ~~`fullScreenCover` 0~~, `toolbar` 0, `refreshable` 0.
 The six `popover` reference hits are all prose — `Menus.swift`,
 `MenuImplementationStyle.swift`, `DismissAction.swift`, `Menu.swift`,
 `BackendDatePickerStyle.swift`, `BuiltinDatePickerStyles.swift` — describing
 GTK's popover *menu*, not a `.popover` presentation modifier.
+
+**Correction, 2026-09-08: `fullScreenCover` is no longer 0.**
+`Sources/SwiftCrossUI/Views/Modifiers/FullScreenCoverModifier.swift:28` declares
+`public func fullScreenCover<CoverContent: View>(isPresented:onDismiss:content:)`.
+The "0" above was a real measurement that a merge outran, exactly as `.popover`
+and `.navigationTitle` did in the row for this entry in the summary table. **So
+#36 is 3 of 7, not 2 of 7** — left: `.toolbar` and `.refreshable`, both of which
+still need a new requirement on all five backends. Note what it is built from
+rather than assuming parity: it is a `sheet` with four options pinned, which is a
+silent divergence recorded in **Divergences from SwiftUI** below.
+
+Regenerate:
+`for n in "func popover" "func fullScreenCover" "func toolbar" "func refreshable" "func navigationTitle"; do printf '%-24s %s\n' "$n" "$(grep -rl "$n" Sources/SwiftCrossUI --include=*.swift | wc -l)"; done`
+
+**更正，2026-09-08：`fullScreenCover` 已不再是 0。**
+`Sources/SwiftCrossUI/Views/Modifiers/FullScreenCoverModifier.swift:28` 宣告了
+`public func fullScreenCover<CoverContent: View>(isPresented:onDismiss:content:)`。
+上面那個「0」是一次真實的量測，只是被一次合併超前了——與本條目在總表列中的 `.popover` 及
+`.navigationTitle` 完全相同。**因此 #36 是 7 分之 3，而非 7 分之 2**，剩下 `.toolbar` 與
+`.refreshable`，兩者都仍需在五個 backend 上新增要求。請留意它是由什麼建成的，不要逕自假定它與
+SwiftUI 一致：它是一個把四個選項釘死的 `sheet`，屬於下方**與 SwiftUI 的分歧**一節所記的無聲分歧。
 
 **`navigationTitle` was on the 2026-09-01 list and is not on the 2026-09-04
 one, and it was never implemented.** Its only two hits are comments in
@@ -457,7 +519,7 @@ after the four composition views landed later the same day.
 | `LazyVStack` | absent | ✅ `Views/LazyStacks.swift:38` (eager — see #85) | ✅ unchanged, still eager |
 | `LazyHStack` | absent | ✅ `Views/LazyStacks.swift:70` (eager — see #85) | ✅ unchanged, still eager |
 | `Gauge` | absent | ✅ `Views/Gauge.swift:19` | ✅ unchanged |
-| `LazyVGrid` | absent | ❌ 0 | ✅ `Views/LazyStacks.swift:154` (eager, exactly like its siblings — see #85) |
+| `LazyVGrid` | absent | ❌ 0 | ✅ ~~`Views/LazyStacks.swift:154`~~ → `Views/LazyVGrid.swift:68` (corrected 2026-09-08 after `dea9ccff`; eager, exactly like its siblings — see #85) |
 | `Grid` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/Grid.swift:38`, with `GridRow` at `:124` |
 | `ScrollViewReader` | absent | ❌ 0 | ❌ 0 — still the one that is not composition |
 | `ControlGroup` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/ControlGroup.swift:40` |
@@ -473,11 +535,23 @@ and control it before believing any zero: `public struct VStack\b` returns 1
 file, `public struct ZZZNotARealType\b` returns 0.
 
 **The denominator is still sixteen.** `GridRow` (`Views/Grid.swift:124`),
-`GridItem` (`Views/GridItem.swift:45`) and the internal `GridCellsProviding`
-(`Views/GridCells.swift:36`) shipped with the four but are **not** added to the
+~~`GridItem` (`Views/GridItem.swift:45`) and the internal `GridCellsProviding`
+(`Views/GridCells.swift:36`)~~ shipped with the four but are **not** added to the
 list. Widening the denominator by the names one has just written is a flattering
 version of the same error this section exists to record — the difference being
 that dropping names hides work not done, and adding them inflates work done.
+
+**Corrected 2026-09-08.** `GridItem` is now at `Views/LazyVGrid.swift:16`;
+`Views/GridItem.swift` was deleted in `dea9ccff`. `GridCellsProviding` is not
+merely at a different path — it is **gone entirely**
+(`grep -rn GridCellsProviding Sources/` → 0), so a name this paragraph listed as
+having "shipped" no longer exists. The argument about the denominator is
+unaffected and still stands; only two of the three names it cites do.
+
+**已於 2026-09-08 更正。** `GridItem` 現位於 `Views/LazyVGrid.swift:16`，`Views/GridItem.swift`
+已在 `dea9ccff` 中刪除。`GridCellsProviding` 不只是換了路徑——它**完全不存在了**
+（`grep -rn GridCellsProviding Sources/` → 0），因此本段列為「已隨那四項一併交付」的名稱之一
+其實已不復存在。關於分母的論點不受影響、依然成立；只是它所引的三個名稱中僅有兩個仍然為真。
 
 **`ScrollViewReader` is the one that is not composition.**
 `BackendFeatures.ScrollContainers`
@@ -491,23 +565,37 @@ composition and needed nothing from any backend — **confirmed by building them
 on 2026-09-08**, not merely predicted. That prediction is the one thing in this
 section that has now been tested rather than measured, and it held.
 
-One qualification, because "pure composition" turned out to be true of the views
+~~One qualification, because "pure composition" turned out to be true of the views
 and not quite of the job: `LazyVGrid` needed `GridCellsProviding`
 (`Views/GridCells.swift:36`) to recover a `@ViewBuilder` block's children as
 values before it could flow them into columns. That is new framework machinery
 rather than a rearrangement of existing views. It still touches no backend, so
 the claim above survives — but "composition only" and "no new types at all" are
-not the same statement, and this batch needed the second one relaxed.
+not the same statement, and this batch needed the second one relaxed.~~
+
+**Withdrawn 2026-09-08.** `GridCellsProviding` does not exist
+(`grep -rn GridCellsProviding Sources/` → 0) and neither does the file. The
+qualification was drawn from this side's `LazyVGrid`, which `dea9ccff` removed in
+favour of the other one; the surviving implementation flows a `@ViewBuilder` block
+into columns with no flattener. **"Composition only" therefore held without the
+relaxation, and the paragraph above was wrong even about the day it described** —
+it generalised one implementation's need into a property of the problem.
+
+**於 2026-09-08 撤回。** `GridCellsProviding` 不存在（`grep -rn GridCellsProviding Sources/` → 0），
+該檔案亦然。這段補充說明取自本側的 `LazyVGrid`，而 `dea9ccff` 已將其移除、改用另一份；存活下來的
+實作沒有任何攤平器就把 `@ViewBuilder` 區塊流排成欄。**因此「只用組合」無須放寬即已成立，而上一段
+即使就它所描述的那一天而言也是錯的**——它把單一實作的需要，推論成了問題本身的性質。
 
 十六個名稱中原為十個存在、六個缺席；**2026-09-08 之後為十四個存在、兩個缺席**。三個名稱（`Grid`、
 `ControlGroup`、`GroupBox`）曾在未被實作的情況下離開分母，如今連同 `LazyVGrid` 一併補上。
 `ScrollViewReader` 是唯一不屬於「組合」的一項：`ScrollContainers` 只有建立與更新兩個方法，
 **沒有任何「請捲動到某處」的途徑**，因此它需要一項新的 backend requirement 與五份實作。
 
-一項補充說明，因為「純組合」對那幾個 view 成立、對整件工作卻不盡然：`LazyVGrid` 需要
+~~一項補充說明，因為「純組合」對那幾個 view 成立、對整件工作卻不盡然：`LazyVGrid` 需要
 `GridCellsProviding`（`Views/GridCells.swift:36`）先把 `@ViewBuilder` 區塊的子項還原為值，才能將
 它們流排成欄。那是新的框架機制，而非既有 view 的重新排列。它依然不觸及任何 backend，因此上述主張
-仍然成立——但「只用組合」與「完全不新增型別」並非同一句話，而本批工作需要放寬後者。
+仍然成立——但「只用組合」與「完全不新增型別」並非同一句話，而本批工作需要放寬後者。~~
+（已於 2026-09-08 撤回，理由見上方英文段。）
 
 ---
 
@@ -593,6 +681,246 @@ rather than in a parity list.
 
 ---
 
+## Divergences from SwiftUI — APIs we HAVE, that do not match / 與 SwiftUI 的分歧——已實作、但與 SwiftUI 不一致者
+
+Everything above this line is about what is **missing**. This section is about
+what is **present and wrong**, which the rest of the document cannot see: a name
+that exists satisfies every grep in **Method**, so an implemented-but-divergent
+API scores identically to an implemented-and-correct one. Measured 2026-09-08.
+
+本節之前的所有內容講的都是**缺什麼**。本節講的是**有、但不對**的東西，而那是本文件其餘部分看不見的：
+一個存在的名稱能滿足**方法**一節的每一道 grep，因此「已實作但有分歧」與「已實作且正確」得到的分數
+完全相同。2026-09-08 實測。
+
+### Silent — compiles, and behaves differently / 無聲——編得過，行為卻不同
+
+These are first because they are the expensive ones. SwiftUI source compiles
+against them, the app runs, and the difference shows up as behaviour nobody
+wrote. There is no warning, no `#warning`, no availability annotation and no
+documentation the caller has to pass through.
+
+這一類排在最前面，因為它們代價最高。SwiftUI 的原始碼對它們編得過、app 跑得起來，差異則以「沒有人
+寫過的行為」現身。沒有警告、沒有 `#warning`、沒有 availability 標註，也沒有呼叫端非經過不可的文件。
+
+| # | API | Ours | SwiftUI | What the caller sees |
+|---|---|---|---|---|
+| 1 | `sheet(onDismiss:)` on **programmatic** dismissal (`Modifiers/SheetModifier.swift:19`) | never fires, on all five backends | fires however the presentation ended | the closure they wrote simply never runs |
+| 2 | `.popover`'s `onDismiss` (`Modifiers/PopoverModifier.swift:22`) | UIKit **suppresses** on programmatic dismissal (`UIKitBackend+Popover.swift:93`, set `:96`, checked `:103`); Gtk, WinUI, AppKit and Android **fire** on both paths | SwiftUI's `popover` has **no `onDismiss` parameter at all** — see the confidence note below | one callback means two different things depending on which backend the app was built for |
+| 3 | `.navigationTitle` (`Modifiers/NavigationTitleModifier.swift:57`) | writes the OS **window** title, via `setTitle(ofWindow:to:)` on all five | iOS: the navigation bar. macOS: the window title | **nothing at all on UIKit and Android**, where the platform window has no visible title bar. The value is delivered and never drawn |
+| 4 | `@Environment(Model.self)` (`Environment/Environment.swift:40`, that initialiser at `:84`) | a `DynamicProperty` that **reads** the object and never observes it — no `didChange`, so `ViewGraphNode` has nothing to subscribe to | observes; a change re-renders the view | renders **once, correctly**, then stays stale forever. Use `@EnvironmentObject` (`Environment/EnvironmentObject.swift:114`), which is an `ObservableProperty` and does observe |
+| 5 | `GridItem` size arithmetic (`Views/LazyVGrid.swift:16`, sizes `:20`/`:25`/`:29`) | `Int` throughout, and the proposed width is truncated — `Int(proposedWidth.rounded(.down))` at `:197` — before integer division splits it | `CGFloat` throughout | columns do not sum to the container on a fractional display scale; the remainder is silently dropped rather than distributed |
+| 6 | `fullScreenCover` (`Modifiers/FullScreenCoverModifier.swift:28`) | a **sheet** with four options pinned: `.presentationDetents([.fraction(1)])`, `.presentationCornerRadius(0)`, `.presentationDragIndicatorVisibility(.hidden)`, `.interactiveDismissDisabled()` (`:46`–`:50`) | a presentation that covers its parent | a sheet-shaped modal on macOS, GTK and WinUI — the platform's own sheet animation and chrome, sized to the window rather than replacing it |
+
+Row 6 carries a correction to how it was described during this survey. It was
+reported as *"a sheet with a `.large` detent"*; the detent is `.fraction(1)`, and
+the pinning is four options, not one. `.large` and `.fraction(1)` are different
+cases of `Values/PresentationDetent.swift` (`:7` and `:13`) and would have sent
+anyone re-deriving the behaviour to the wrong one.
+
+第 6 列附帶一項對本次盤點自身描述的更正。它先前被回報為*「一個帶 `.large` detent 的 sheet」*；實際的
+detent 是 `.fraction(1)`，而被釘死的是四個選項，不是一個。`.large` 與 `.fraction(1)` 是
+`Values/PresentationDetent.swift`（`:7` 與 `:13`）中的兩個不同 case，任何據此重新推導行為的人都會
+走到錯的那一個。
+
+#### Row 1 in detail — two backends suppress with a named flag, three suppress structurally / 第 1 列細節——兩個 backend 以具名旗標壓制，三個以結構壓制
+
+This is worth the extra table because grepping for the flag finds two of five and
+looks like a two-backend bug. It is a five-backend divergence; three of them just
+have nothing to grep for.
+
+這一列值得多一張表，因為 grep 那個旗標只會找到五個中的兩個，看起來像是「兩個 backend 的 bug」。
+它其實是五個 backend 的共同分歧，只是其中三個根本沒有可供 grep 的東西。
+
+| backend | how it suppresses | where |
+|---|---|---|
+| WinUI | named flag `isProgrammaticDismissal` | `WinUIBackend+Sheets.swift:16`, set `:173`, checked `:139`–`:140` |
+| UIKit | named flag `wasDismissedProgrammatically` | `UIKitBackend+Sheet.swift:232`, set `:248`, checked `:272` |
+| AppKit | **no flag — structural.** `dismissSheet` calls `endSheet` directly; `onDismiss` lives only on `cancelOperation`, the user-cancel path | `AppKitBackend+Sheet.swift:88`–`:103`, `:113`–`:118` |
+| Gtk | **no flag — structural.** `dismissSheet` calls `destroy` directly; `onDismiss` lives only on `onCloseRequest` and the escape-key handler | `GtkBackend.swift:4683`–`:4704`, handlers `:4607`–`:4629` |
+| Android | **no flag — structural.** `onDismissListener` is called from `onCancel`, which Android does not invoke for a programmatic `dismiss()` | `Kotlin/CustomSheet.kt:55`–`:58` |
+
+Regenerate:
+`for b in Gtk WinUI AppKit UIKit; do printf '%-8s %s\n' "$b" "$(grep -rn 'isProgrammaticDismissal\|wasDismissedProgrammatically' Sources/${b}Backend --include=*.swift | wc -l)"; done`
+→ `Gtk 0`, `WinUI 6`, `AppKit 0`, `UIKit 3`. **The two zeros are not two clean
+backends.**
+
+**And the asymmetry, which is itself silent.** The three backends that support
+nested sheets — Gtk, WinUI and AppKit; UIKit and Android have no `nestedSheet` at
+all (`grep -rn nestedSheet Sources/UIKitBackend Sources/AndroidBackend` → 0) — all
+call the **child's** `onDismiss` when a parent is dismissed programmatically:
+`AppKitBackend+Sheet.swift:98`, `GtkBackend.swift:4700`,
+`WinUIBackend+Sheets.swift:170`. AppKit's comment says why in as many words.
+**So a nested sheet gets its callback and the sheet actually dismissed does
+not.** Anyone who reaches for a nested sheet to test this — which is the natural
+way to test a sheet's dismissal callback, because it is the case with two
+observable events — concludes that it works.
+
+**還有那項不對稱，而它本身也是無聲的。** 支援巢狀 sheet 的三個 backend——Gtk、WinUI 與 AppKit；
+UIKit 與 Android 根本沒有 `nestedSheet`（`grep -rn nestedSheet Sources/UIKitBackend
+Sources/AndroidBackend` → 0）——在父層被程式化關閉時，全都會呼叫**子層**的 `onDismiss`：
+`AppKitBackend+Sheet.swift:98`、`GtkBackend.swift:4700`、`WinUIBackend+Sheets.swift:170`。
+AppKit 的註解把理由寫得一清二楚。**於是巢狀的那個 sheet 拿到了回呼，真正被關閉的那個沒有。**
+任何拿巢狀 sheet 來測這件事的人——而那正是測試 sheet 關閉回呼最自然的做法，因為它是有兩個可觀察
+事件的情況——都會得出「它可以運作」的結論。
+
+#### The `.popover` correction — I called a divergence "aligning with SwiftUI" during the merge / `.popover` 的更正——合併期間我把一項分歧說成了「與 SwiftUI 一致」
+
+**This must be stated as a correction, not as a corrected fact.** During the
+merge I described the macOS side's design — *pass the anchor **widget** rather
+than an edge* — as **aligning with SwiftUI**. That was wrong, and it was wrong in
+the direction that does the damage: it reported a deliberate divergence as
+conformance, which is precisely the failure this document exists to catch.
+
+SwiftUI's popover takes `attachmentAnchor:` and `arrowEdge:`. **We have neither**
+— `View.popover(isPresented:onDismiss:content:)` at
+`Views/Modifiers/PopoverModifier.swift:22`–`:26` takes no positioning parameter,
+and the anchor is hard-wired to the modifier's own widget at `:157`.
+`grep -rn "arrowEdge\|attachmentAnchor" Sources/ --include=*.swift` → **0**.
+
+Their argument still stands on its merits, and nothing here asks for it to be
+reversed: a pinned edge is honoured even when it puts the popover off the edge of
+the monitor, and a popover nobody can see has shown nothing. That is a good
+reason to diverge. **It is not a reason to call it conformance.** The two claims
+have different consequences — one closes the item, the other leaves a row in the
+table above.
+
+**這必須寫成一項更正，而不是寫成一項已更正的事實。** 合併期間，我把 macOS 那側的設計——*傳入錨點
+**widget** 而非某個 edge*——描述為**與 SwiftUI 一致**。那是錯的，而且錯在會造成損害的那個方向：
+它把一項刻意的分歧回報成了一致，而那正是本文件存在所要抓的失誤。
+
+SwiftUI 的 popover 接受 `attachmentAnchor:` 與 `arrowEdge:`。**我們兩者皆無**——
+`Views/Modifiers/PopoverModifier.swift:22`–`:26` 的
+`View.popover(isPresented:onDismiss:content:)` 不接受任何定位參數，錨點在 `:157` 被寫死為該
+modifier 自身的 widget。`grep -rn "arrowEdge\|attachmentAnchor" Sources/ --include=*.swift` → **0**。
+
+他們的論據本身依然成立，此處也不要求推翻它：一個被釘死的 edge 即使會把 popover 推到螢幕外也照樣
+生效，而一個沒人看得見的 popover 等於什麼都沒顯示。那是分歧的好理由。**但那不是把它稱作「一致」的
+理由。** 這兩種說法的後果並不相同——一種讓該項目結案，另一種在上表留下一列。
+
+### Loud — does not compile from SwiftUI source / 響亮——SwiftUI 原始碼編不過
+
+Lower risk than everything above, because the compiler is the warning. They are
+listed anyway, with `file:line`, because "it does not compile" is what parity
+task #34 is measured in and because the fix for most of them is one overload.
+
+風險低於上述所有項目，因為編譯器就是那個警告。仍然列出並附上 `file:line`，因為 parity 條目 #34
+正是以「編不過」為計量單位，而且其中多數的修法就是加一個 overload。
+
+| SwiftUI source that fails | why | where |
+|---|---|---|
+| `Button { … } label: { … }` | `label` is a `String`, not a view | `Views/Button.swift:4` (the property), `:17` (the only String-label init) |
+| `.buttonStyle(…)` / `ButtonStyle` | **absent entirely** — `grep -rn ButtonStyle Sources/ --include=*.swift` → 0, and `isPressed` → 0 hits, so the protocol could not be given a truthful `configuration` today | — |
+| `struct S: ToggleStyle { func makeBody(configuration:) }` | ours is `makeView(label:isOn:environment:)`, taking a `String` label | `Views/Styles/ToggleStyle/ToggleStyle.swift:19`, `:27` |
+| `Picker("Label", selection: $x) { … }` | ours takes an **options array** and an **optional** binding, with no label and no `.tag()` | `Views/Picker.swift:16` |
+| `Stepper(value: $x, in: 0.0...1.0, step: 0.1)` | `Int`-only: `Binding<Int>`, `ClosedRange<Int>`, `step: Int` | `Views/Stepper.swift:30`–`:34`, `:101` |
+| `Slider(value: $x, in: 0...1, step: 0.1)` | **the `Double` part works** — see the correction below — but there is no `step:`, no label and no `onEditingChanged` | `Views/Slider.swift:28` (integer), `:48` (floating point) |
+| `Text("a") + Text("b")` | `Text` declares no operators at all; its only `public init` takes a `String` | `Views/Text.swift:54` |
+| `ProgressView(value: 0.3, total: 1.0)` | `value:` exists; **there is no `total:`** on any of the nine inits | `Views/ProgressView.swift:64`, `:105`, `:141` |
+| `.padding(10.5)` | `Int?`, and `EdgeInsets` is four `Int` fields | `Views/Modifiers/Layout/PaddingModifier.swift:9`, `:20`, `:34` |
+| `.presentationDragIndicator(.hidden)` | spelled `presentationDragIndicatorVisibility(_:)` here | `Views/Modifiers/PresentationModifiers.swift:51` |
+| `GridItem(.flexible(maximum: .infinity))` | `maximum` is `Int?`, and `.infinity` is not an `Int` | `Views/LazyVGrid.swift:25` |
+
+**Correction inside this table.** `Slider` was described during this survey as
+`Int`-only, alongside `Stepper`. It is not: `Views/Slider.swift:48` is
+`init<T: BinaryFloatingPoint>(value:in:)`, so `Slider(value: $double, in: 0...1)`
+compiles. `Stepper` genuinely is `Int`-only. Grouping them cost `Slider` a
+divergence it does not have and would have hidden the one it does — the missing
+`step:`, which is what actually fails.
+
+**本表內部的一項更正。** 本次盤點曾把 `Slider` 與 `Stepper` 並列描述為「僅支援 `Int`」。並非如此：
+`Views/Slider.swift:48` 是 `init<T: BinaryFloatingPoint>(value:in:)`，因此
+`Slider(value: $double, in: 0...1)` 編得過。`Stepper` 才是真的僅支援 `Int`。把兩者歸為一類，等於
+替 `Slider` 記上一項它沒有的分歧，同時遮住了它真正有的那一項——缺少 `step:`，而那才是真正編不過的
+地方。
+
+#### `.frame` is the pattern the rest should copy / `.frame` 就是其餘各項該抄的樣板
+
+`.frame` has the same `Int`-versus-`Double` history as `padding` and `GridItem`
+and does **not** have their problem, because it was solved rather than chosen.
+`Views/Modifiers/Layout/FrameModifier.swift` carries **both** an `Int` overload
+(`:13`) and a `Double` overload (`:25`), and — the part that matters — the `Int`
+overload still types `maxWidth` and `maxHeight` as `Double?` (`:64`, `:67`), on
+the reasoning that a maximum is the one place `.infinity` is idiomatic. So
+`.frame(maxWidth: .infinity)` compiles from unmodified SwiftUI source while
+`.padding(10.5)` and `GridItem(.flexible(maximum: .infinity))` do not.
+
+**Two overloads and one deliberately-widened parameter is the whole fix**, it is
+already written down in this repository, and it costs nothing at the call site.
+`padding`, `Spacer(minLength:)`, `cornerRadius`, stack `spacing:` and `GridItem`
+should copy it. That also retires #34's claim 10 — *"`padding`/`cornerRadius`/
+spacing/`Spacer(minLength:)` are `Int` while `frame` is `Double`"* — as a design
+question rather than a list of separate tasks.
+
+`.frame` 與 `padding`、`GridItem` 有著相同的 `Int`／`Double` 身世，卻**沒有**它們的問題，因為它是
+被解決掉的，而不是被選擇的。`Views/Modifiers/Layout/FrameModifier.swift` **同時**帶有 `Int`
+overload（`:13`）與 `Double` overload（`:25`），而且——這才是關鍵——`Int` 那個 overload 仍把
+`maxWidth` 與 `maxHeight` 定為 `Double?`（`:64`、`:67`），理由是「最大值」正是 `.infinity` 最合乎
+慣用法的地方。因此 `.frame(maxWidth: .infinity)` 能直接由未經修改的 SwiftUI 原始碼編過，而
+`.padding(10.5)` 與 `GridItem(.flexible(maximum: .infinity))` 不能。
+
+**兩個 overload 加上一個刻意放寬的參數，就是全部的修法**，它已經寫在本倉庫裡，而且在呼叫端不花任何
+代價。`padding`、`Spacer(minLength:)`、`cornerRadius`、各 stack 的 `spacing:` 與 `GridItem` 都該抄
+它。這同時也把 #34 的第 10 項——*「`padding`／`cornerRadius`／spacing／`Spacer(minLength:)` 是
+`Int`，而 `frame` 是 `Double`」*——從一串各自獨立的工作，收斂成一個設計問題。
+
+### Confidence — what this section does NOT claim / 可信度——本節**未**主張什麼
+
+Every row above cites a line in *this* tree, and every such line was opened and
+read on 2026-09-08. The **SwiftUI** column is the weaker half: this environment
+has no Xcode and therefore no `SwiftUI.swiftinterface` to check a signature
+against. Where SwiftUI's behaviour is widely relied upon — `sheet(onDismiss:)`
+firing on any dismissal, `GridItem` being `CGFloat`, `Text` having `+` — it is
+stated. Where it is not, it is marked here instead of guessed.
+
+**Unverified, and deliberately left so:**
+
+- **`PickerStyle`, `ListStyle` and `DatePickerStyle`.** All three exist here
+  (`Views/Styles/…`, see the #31 table) with this project's `makeView(…)` shape
+  rather than SwiftUI's `makeBody(configuration:)`. Whether that is a divergence
+  at all is **not established**: it is not known from this environment whether
+  recent SwiftUI SDKs expose *any* conformable requirement on those three
+  protocols — they may be closed, in which case there is no signature to diverge
+  from and the shape here is free. Settling it needs a real
+  `SwiftUI.swiftinterface` from an Xcode install, which is not available here.
+  They are therefore **absent from both tables above**, rather than listed as
+  loud divergences.
+- **`.popover` having no `onDismiss:` in SwiftUI** (silent row 2). Stated from
+  the documented signature `popover(isPresented:attachmentAnchor:arrowEdge:content:)`,
+  not from an interface file. The half that *is* verified here is the one that
+  matters: our five backends disagree with **each other**, which is a divergence
+  no reading of SwiftUI can excuse.
+
+For contrast, `LabelStyle` **is** verified to match SwiftUI's shape — it is
+`makeBody(configuration:)` at `Views/Styles/LabelStyle/LabelStyle.swift:52` with
+`Configuration = LabelStyleConfiguration` at `:47` — which is why it appears in
+neither table. It is also evidence that the `makeView(…)` shape of the other
+styles was a choice, not a constraint.
+
+上方每一列都引用了**本樹**中的某一行，而每一行都已於 2026-09-08 打開讀過。**SwiftUI** 那一欄是較弱
+的一半：本環境沒有 Xcode，因此沒有 `SwiftUI.swiftinterface` 可供核對簽名。凡 SwiftUI 的行為被廣泛
+依賴者——`sheet(onDismiss:)` 在任何關閉方式下都會觸發、`GridItem` 為 `CGFloat`、`Text` 有 `+`——
+此處據實寫出；其餘則在此標記，而非猜測。
+
+**未經查證，且刻意保持未查證：**
+
+- **`PickerStyle`、`ListStyle` 與 `DatePickerStyle`。** 三者在此處皆存在（`Views/Styles/…`，見 #31
+  的表），採用本專案的 `makeView(…)` 形狀而非 SwiftUI 的 `makeBody(configuration:)`。這究竟算不算
+  一項分歧，**尚未確立**：本環境無從得知近期的 SwiftUI SDK 是否在這三個 protocol 上暴露了**任何**
+  可供 conform 的 requirement——它們可能是封閉的，那樣就不存在可供分歧的簽名，此處的形狀也就自由。
+  要定案需要一份來自 Xcode 安裝的真實 `SwiftUI.swiftinterface`，而此處沒有。因此三者**未列入上方
+  任何一張表**，而不是被當成響亮分歧列出。
+- **SwiftUI 的 `.popover` 沒有 `onDismiss:`**（無聲第 2 列）。此說法出自已公開的簽名
+  `popover(isPresented:attachmentAnchor:arrowEdge:content:)`，而非出自 interface 檔。此處**已經**
+  查證的是更要緊的那一半：我們的五個 backend 彼此不一致——那是任何對 SwiftUI 的解讀都無法開脫的
+  分歧。
+
+作為對照，`LabelStyle` **已查證**與 SwiftUI 的形狀一致——它是
+`Views/Styles/LabelStyle/LabelStyle.swift:52` 的 `makeBody(configuration:)`，`:47` 處
+`Configuration = LabelStyleConfiguration`——這正是它兩張表都不出現的原因。它同時也證明了其餘各
+style 採用 `makeView(…)` 形狀是一項選擇，而非一項限制。
+
+---
+
 ## Overlaps — where two entries are the same work / 重疊之處
 
 Counting these twice inflates the remaining work by three items.
@@ -626,7 +954,7 @@ claims 9 and 10 of #34.
 | **3** | **#31: `LabelStyle`** | Its only recorded blocker — "there is no `Label` view" — expired on 2026-09-08. Framework-only, no backend requirement, and `PickerStyle` is the worked example to copy. The cheapest genuine feature on the list, and it also lets #65 be half-closed |
 | **4** | ~~**#33 + #85: `GroupBox`, `ControlGroup`, `Grid`, `LazyVGrid`**~~ **DONE 2026-09-08** | Four views, all pure composition, no backend requirement, closing the #33↔#85 overlap in one pass. Two corrections to the estimate, both worth keeping: `GridItem` turned out to belong to `LazyVGrid` alone — SwiftUI's `Grid` does not use it, so "which `Grid` wants anyway" was wrong — and flowing a `@ViewBuilder` block into columns needed a new value-level flattener (`GridCellsProviding`) that this row did not anticipate. Doing them together was still cheaper than separately |
 | **5** | **#35: `EnvironmentObject`** | A sibling of `ObservedObject`, which already exists at `State/ObservedObject.swift:40` and can be copied. Framework-only. Closes the largest part of #35's understatement for the least work |
-| **6** | ~~**#36: `.popover` and `.fullScreenCover`**~~ **`.popover` and `.navigationTitle` DONE 2026-09-08; `.fullScreenCover` still open** | The estimate said these "already have a backend capability underneath — `PopoverMenus` and `Sheets` respectively — so neither adds a requirement to five backends". **The `PopoverMenus` half is false, and it was the load-bearing half.** `showPopoverMenu` takes a `Menu` (`Menus.swift:78`), which is built from a `ResolvedMenu` of labels, toggles, separators and submenus; it cannot hold a `Widget`, so it cannot show a `Slider`. It is also conformed by only **two** backends (`GtkBackend.swift:35`, `AppKitBackend+Menus.swift:4`) — the other three use `AttachedMenus`. `.popover` therefore needed a new `BackendFeatures.Popovers` and five conformances after all. The `Sheets` half looks right and inverts the order: `.fullScreenCover` is a sheet sized to its parent window rather than to its content, so it is the *cheap* one and should be done next. `.navigationTitle` needed no protocol at all — it is a `PreferenceValues` entry applied through `setTitle(ofWindow:to:)`, which is a `Core` requirement every backend already implements. But `NavigationStack.swift:83`'s "already says where it would read from" was unachievable as written: a preference travels upward and the bar is the destination's preceding sibling, so the title does not exist until after the bar is laid out. It sets the window title instead |
+| **6** | ~~**#36: `.popover` and `.fullScreenCover`**~~ ~~**`.popover` and `.navigationTitle` DONE 2026-09-08; `.fullScreenCover` still open**~~ **All three DONE 2026-09-08** — corrected: `.fullScreenCover` is at `Modifiers/FullScreenCoverModifier.swift:28`. It was written between this row's measurement and the merge `dea9ccff`, so "still open" was stale by the time it was read. It landed as the cheap one this row predicted — a `sheet` with four options pinned, no new backend requirement — but pinning is not covering, and the divergence is recorded below | The estimate said these "already have a backend capability underneath — `PopoverMenus` and `Sheets` respectively — so neither adds a requirement to five backends". **The `PopoverMenus` half is false, and it was the load-bearing half.** `showPopoverMenu` takes a `Menu` (`Menus.swift:78`), which is built from a `ResolvedMenu` of labels, toggles, separators and submenus; it cannot hold a `Widget`, so it cannot show a `Slider`. It is also conformed by only **two** backends (`GtkBackend.swift:35`, `AppKitBackend+Menus.swift:4`) — the other three use `AttachedMenus`. `.popover` therefore needed a new `BackendFeatures.Popovers` and five conformances after all. The `Sheets` half looks right and inverts the order: `.fullScreenCover` is a sheet sized to its parent window rather than to its content, so it is the *cheap* one and should be done next. `.navigationTitle` needed no protocol at all — it is a `PreferenceValues` entry applied through `setTitle(ofWindow:to:)`, which is a `Core` requirement every backend already implements. But `NavigationStack.swift:83`'s "already says where it would read from" was unachievable as written: a preference travels upward and the bar is the destination's preceding sibling, so the title does not exist until after the bar is laid out. It sets the window title instead |
 | **7** | **#31: `TextFieldStyle` and `ProgressViewStyle`** | Same shape as the four styles already converted, no blocker recorded or found. Placed after the free items but before anything needing five backends. Doing them also puts them back in the count |
 | **8** | **#33: `ScrollViewReader`** | The first item needing a **new** `BackendFeatures` requirement across all five — `ScrollContainers` has no programmatic scroll at all. One protocol method, five implementations. Genuinely more expensive than everything above it, and cheaper than everything below |
 | **9** | **#88 (= #33's `ColorPicker`)** | Self-contained: one view, one new protocol, five conformances, and every platform has a native picker to reach for. Nothing else in the list depends on it, which is why it is not higher despite being well understood |

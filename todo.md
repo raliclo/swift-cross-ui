@@ -1445,6 +1445,103 @@ window was not reachable from the Windows capture path.
 
 ## Needs another machine / 需要另一台機器
 
+### Six divergences from SwiftUI, measured 2026-09-08, assigned to the Mac side
+
+Full tables with `file:line` for every claim are in
+`testapp/plan/parity-gaps-survey.md`. Listed here because this file is the one
+that gets read, and because four of the six **cannot be verified from the
+Windows host** -- they are AppKit, UIKit or Android behaviour.
+
+**The first four are silent: the code compiles, runs, and does something other
+than what a SwiftUI author expects. No warning reaches the caller.** That is why
+they are grouped as one job rather than filed as six unrelated defects.
+
+1. **`sheet(onDismiss:)` never fires on programmatic dismissal, on all five
+   backends.** SwiftUI runs `onDismiss:` however the presentation ended. Two
+   backends suppress it with a named flag (`WinUIBackend+Sheets.swift:16`,
+   `UIKitBackend+Sheet.swift:232`); **three suppress it structurally**, with no
+   flag to find -- AppKit's `endSheet`, GTK's `destroy()`, and Android's Kotlin
+   overriding only `onCancel`. Grepping for the flag finds two backends and
+   misses three that are equally wrong. Separately, the three backends that
+   support nesting at all -- AppKit, GTK and WinUI -- *do* call `onDismiss` for
+   the **children** of a dismissed sheet (`AppKitBackend+Sheet.swift:98`,
+   `GtkBackend.swift:4700`, `WinUIBackend+Sheets.swift:170`), so a nested-sheet
+   test passes while the sheet you actually dismissed stays silent. Note WinUI
+   is in both sets -- named flag *and* nested call -- so "flagless" is not the
+   line that divides them; UIKit and Android simply have no nested sheets
+   (`grep -rc nestedSheet Sources/UIKitBackend Sources/AndroidBackend` -> 0).
+2. **`.navigationTitle` renders nothing on UIKit and Android.** It writes the OS
+   window title; those two have no visible one. An iOS app loses every screen
+   title, silently. Verified working on Win-gtk4 (`gtk4-P50-20260908-082937.png`).
+3. **`@Environment(Model.self)` compiles but never redraws.** It is only a
+   `DynamicProperty` -- it reads, it does not observe. Renders once with correct
+   data, then stale forever. Either make it observe, or refuse the overload so
+   the mistake is a compile error.
+4. **`fullScreenCover` is a sheet with pinned options**, so on macOS, GTK and
+   WinUI it appears inset rather than covering. The fix is sizing, in
+   `SheetModifier`, not in any backend.
+
+The last two are not silent, and are cheaper:
+
+5. **UIKit is the only backend still suppressing `.popover`'s `onDismiss`**
+   (`UIKitBackend+Popover.swift:96`). The other four fire on both paths as of
+   `dea9ccff`. Two lines.
+6. **`GridItem` sizes are `Int`.** `GridItem(.flexible(maximum: .infinity))` --
+   the commonest SwiftUI grid spelling -- does not compile, and the arithmetic
+   integer-divides, so columns do not sum on a fractional display scale.
+   `FrameModifier.swift:13,25` is the pattern to copy: Int *and* Double
+   overloads, with `maxWidth`/`maxHeight` typed `Double?` in both.
+
+**A correction that belongs with these, not buried.** While merging `dea9ccff`
+this side described the Mac side's "pass the anchor widget rather than an edge"
+popover design as *aligning with SwiftUI*. That was wrong. SwiftUI has
+`attachmentAnchor` and `arrowEdge`; we have neither. The argument for their
+design still stands -- a pinned edge would be honoured off the edge of the
+monitor, and a popover nobody can see has shown nothing -- but it is a
+deliberate divergence, not conformance, and it was recorded as the opposite.
+
+### 六項與 SwiftUI 的分歧，2026-09-08 實測，交由 Mac 端處理
+
+每一項主張的 `file:line` 完整表格在 `testapp/plan/parity-gaps-survey.md`。此處列出，
+是因為這個檔案才是真正會被讀到的那一份，也因為六項中有四項**無法從 Windows 主機驗證**
+——它們是 AppKit、UIKit 或 Android 的行為。
+
+**前四項是靜默的：程式編得過、跑得動，然後做出與 SwiftUI 作者預期不同的事，而呼叫端收不到任何
+警告。** 這正是把它們歸為同一件工作、而非六個不相干缺陷的原因。
+
+1. **`sheet(onDismiss:)` 在五個 backend 上都不會於程式化關閉時觸發。** SwiftUI 是「無論
+   presentation 以何種方式結束，`onDismiss:` 都會執行」。其中兩個 backend 以具名旗標壓制
+   （`WinUIBackend+Sheets.swift:16`、`UIKitBackend+Sheet.swift:232`）；**另外三個是結構性壓制**，
+   沒有旗標可找——AppKit 的 `endSheet`、GTK 的 `destroy()`，以及 Android 的 Kotlin 只覆寫了
+   `onCancel`。用旗標名去 grep 只會找到兩個，漏掉同樣有錯的三個。另外，真正支援巢狀的那三個
+   backend——AppKit、GTK 與 WinUI——**確實會**為已被關閉之 sheet 的**子** sheet 呼叫
+   `onDismiss`（`AppKitBackend+Sheet.swift:98`、`GtkBackend.swift:4700`、
+   `WinUIBackend+Sheets.swift:170`），因此用巢狀 sheet 去測會通過，而你真正關掉的那一個依然沉默。
+   注意 WinUI 同時屬於兩個集合——既有具名旗標，也有巢狀呼叫——所以劃分兩者的界線並不是「有沒有
+   旗標」；UIKit 與 Android 則單純沒有巢狀 sheet
+   （`grep -rc nestedSheet Sources/UIKitBackend Sources/AndroidBackend` → 0）。
+2. **`.navigationTitle` 在 UIKit 與 Android 上什麼都不畫。** 它寫的是 OS 視窗標題，而那兩個平台
+   沒有可見的標題列。一支 iOS app 會靜默地失去每一頁的標題。已在 Win-gtk4 上驗證可運作
+   （`gtk4-P50-20260908-082937.png`）。
+3. **`@Environment(Model.self)` 編得過但永遠不會重繪。** 它只是 `DynamicProperty`——會讀，不會
+   觀察。畫一次正確資料，然後永久停滯。要嘛讓它觀察，要嘛拒絕該多載，好讓這個錯誤變成編譯錯誤。
+4. **`fullScreenCover` 是一個被釘死選項的 sheet**，因此在 macOS、GTK 與 WinUI 上呈現為內縮的
+   對話框而非全幅覆蓋。修正點在 `SheetModifier` 的尺寸提案，不在任何 backend。
+
+後兩項不是靜默的，代價也較低：
+
+5. **UIKit 是唯一仍在壓制 `.popover` 之 `onDismiss` 的 backend**
+   （`UIKitBackend+Popover.swift:96`）。其餘四個自 `dea9ccff` 起兩條路都會觸發。兩行。
+6. **`GridItem` 的尺寸是 `Int`。** `GridItem(.flexible(maximum: .infinity))`——SwiftUI 最常見的
+   格線寫法——編不過；而其算術做整數除法，因此在非整數縮放的螢幕上欄寬加不回去。
+   `FrameModifier.swift:13,25` 是可照抄的範式：Int 與 Double 兩種多載，且兩者的
+   `maxWidth`/`maxHeight` 都型為 `Double?`。
+
+**一則應與上述並列、而非被掩埋的更正。** 在合併 `dea9ccff` 期間，本側曾把 Mac 端「傳錨點 widget
+而非傳邊」的 popover 設計描述為**與 SwiftUI 對齊**。那是錯的。SwiftUI 有 `attachmentAnchor` 與
+`arrowEdge`，我們兩者皆無。他們該設計的理由依然成立——釘死的一側會被忠實遵守到螢幕之外，而一個
+沒人看得見的 popover 等於什麼都沒顯示——但那是刻意的偏離，不是對齊，而當初被記成了相反的事。
+
 - **AppKitBackend and UIKitBackend conformances written but never compiled.**
   Clipping, DragAndDrop, WindowLevels and HitTesting were added against
   documented APIs on a Windows host. Review-ready, not verified.
