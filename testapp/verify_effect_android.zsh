@@ -198,7 +198,19 @@ print -- "----------------------------------------------------------------------
 
 for action in $action_files; do
     base="${action:t:r}"
-    app="${base%%-*}"
+    # The longest prefix that names a real app, not the first segment. See the
+    # note in verify_effect_ios.zsh: `${base%%-*}` launched P15 for
+    # P15-DARK-the-override-survives-a-tap, and both apps exist.
+    # 取「能對應到真實 app 的最長前綴」,而不是第一段。見 verify_effect_ios.zsh 中的說明:
+    # `${base%%-*}` 會為 P15-DARK-the-override-survives-a-tap 啟動 P15,而兩支 app 都是存在的。
+    app=""
+    candidate="$base"
+    while [ -n "$candidate" ]; do
+        if [ -f "$script_dir/$candidate.swift" ]; then app="$candidate"; break; fi
+        [[ "$candidate" == *-* ]] || break
+        candidate="${candidate%-*}"
+    done
+    [ -n "$app" ] || app="${base%%-*}"
     scenario="${base#*-}"
     package="dev.swiftcrossui.testapp.${app:l}"
     apk="$script_dir/.androidApk/$app.apk"
