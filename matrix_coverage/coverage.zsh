@@ -349,10 +349,14 @@ trap 'rm -f "$pivot"' EXIT
             # results.csv2，那裡的每一列都標明了自己的檔案。
             # KEYED BY ACTION FILE, latest per file wins, then combined.
             #
-            # Rows appended by sweep_drive.zsh carry their action file at the
-            # front of the note, `P10-ctrl-q.csv: ...`, because the `app` column
-            # cannot hold it. Rows written before that share one key, which
-            # makes them behave exactly as they always did.
+            # Rows appended by sweep_drive.zsh and, since 2026-09-08,
+            # sweep_drive_wsl.zsh carry their action file at the front of the
+            # note, `P10-ctrl-q.csv: ...`, because the `app` column cannot hold
+            # it. Rows written before that share one key, which makes them
+            # behave exactly as they always did -- including every `wsl` row
+            # dated 2026-09-07 or earlier, which was written when that driver
+            # replayed only the first file of each app and named it in prose
+            # (`replayed P8-scroll-outer.csv only`) rather than as this prefix.
             #
             # WHY NOT "any failure that day poisons the cell", which is what this
             # was for one commit: because several rows for one app on one date
@@ -371,9 +375,11 @@ trap 'rm -f "$pivot"' EXIT
             #
             # 以**動作檔**為鍵，每個檔案取最新者，再行合併。
             #
-            # sweep_drive.zsh 追加的資料列會把動作檔名放在 note 的最前面，形如
-            # `P10-ctrl-q.csv: ...`，因為 `app` 欄放不下它。在那之前寫入的資料列共用同一個鍵，
-            # 因此其行為與過去完全一致。
+            # sweep_drive.zsh 追加的資料列，以及自 2026-09-08 起 sweep_drive_wsl.zsh 追加的資料列，
+            # 都會把動作檔名放在 note 的最前面，形如 `P10-ctrl-q.csv: ...`，因為 `app` 欄放不下它。
+            # 在那之前寫入的資料列共用同一個鍵，因此其行為與過去完全一致——這包含所有日期在
+            # 2026-09-07 或更早的 `wsl` 資料列：它們寫入時，該驅動器每支 app 只重放第一個動作檔，
+            # 並以散文形式指名（`replayed P8-scroll-outer.csv only`），而非使用這個前綴。
             #
             # 為何不採「當天只要有一項失敗就毒化該格」——那正是本處曾有一個 commit 的做法：因為
             # 「同一天、同一支 app 的數列」通常是**一天的除錯過程**，而不是數個檔案，且最後一列才是

@@ -111,7 +111,14 @@ capture() {
 failures=0
 
 print "==> release build (no SCUI_DEBUG)"
-zsh "$script_dir/compile.zsh" -ios "$target" >/dev/null
+# SCUI_DEBUG=0 explicitly. compile.zsh defaults it to 1 -- a directory of tests
+# meant to be driven should not need a flag to be drivable -- so "leave the
+# variable unset" no longer means "build without the debug features", and this
+# control would otherwise be the same build as the one it is compared against.
+# 明確設定 SCUI_DEBUG=0。compile.zsh 現在預設為 1——一整個「本來就要被驅動」的測試目錄，不該
+# 需要額外旗標才驅動得了——因此「不設定該變數」已不再等於「建置為不含 debug 功能的版本」，
+# 否則這個對照組會與它所比較的那一個建置完全相同。
+SCUI_DEBUG=0 zsh "$script_dir/compile.zsh" -ios "$target" >/dev/null
 xcrun simctl install "$device_name" "$script_dir/output/$target-ios.app" >/dev/null
 
 report "release, no flag" "$(capture release-plain)" absent || failures=$((failures + 1))

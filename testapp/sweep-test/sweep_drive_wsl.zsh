@@ -37,6 +37,19 @@
 # dropped, so a plausible-looking `linux` or `gtk` would leave every app reading
 # as never tested while this script reported success.
 #
+# ONE ROW PER ACTION FILE, not one per app. `testapp/actions/wsl` held 21 files
+# for 10 apps on 2026-09-08 (`ls -1 testapp/actions/wsl | wc -l`) and this
+# script drove the first of each, so 11 of them -- P8's other two, P10's other
+# two, P23's other three, P24's other three, P21's other one -- had no path into
+# results.csv2 at all. The row that WAS written said so, `replayed
+# P8-scroll-outer.csv only; 3 action files exist for P8`, which is a truthful
+# report of a gap and not a closed one. That is the same shape of gap this
+# script exists to close, one level down.
+#
+# The row names its file at the FRONT of the note, `P8-scroll-outer.csv: ...`,
+# because the `app` column cannot hold it and coverage.zsh keys a cell on that
+# prefix. sweep_drive.zsh has done both since it began driving every file.
+#
 # `-n` MEANS --dry-run HERE, NOT --no-build. That is sweep_drive_macos.zsh's
 # spelling and it is kept rather than improved, because two sweep drivers whose
 # flags disagree are worse than one collision. test_common.zsh's `-n` is
@@ -48,12 +61,18 @@
 #   launch   `ok` the app rendered, or declares no marker and was captured on a
 #            timer; `no marker` it declares one that never appeared; `fail` it
 #            never launched, or the EGL preflight refused the renderer
-#   replay   `ok` the app's own `-actionfile: replayed` line was in its WSL log.
-#            It means the replay RAN TO COMPLETION. Nothing on this platform
-#            reports which window received the clicks, so it is not a claim that
-#            they landed on the app. `n/a` means no action file exists in
-#            testapp/actions/wsl and NOTHING verified the content -- the row is
-#            then a launch and a capture, and the note says so
+#   replay   `ok` the app's own `-actionfile: replayed <this file>` line was in
+#            its WSL log. It means the replay RAN TO COMPLETION. Nothing on this
+#            platform reports which window received the clicks, so it is not a
+#            claim that they landed on the app. `n/a` means no action file
+#            exists in testapp/actions/wsl and NOTHING verified the content --
+#            the row is then a launch and a capture, and the note says so.
+#            `cut short` the log has `replaying` this file and no `replayed`;
+#            `fail` the app reported `-actionfile: failed`; `no line` the log
+#            has no `-actionfile` line at all; `STALE` the log names a
+#            DIFFERENT file, so this run wrote nothing and the previous one's
+#            log was read instead -- which is a run that did not happen, not a
+#            run that passed
 #   capture  read from the LAST `captured from` line of the run, because a run
 #            takes two or three screenshots and only the final one is evidence.
 #            `window` is a real window capture, `desktop` the whole-screen
@@ -117,6 +136,17 @@
 # 會被回報於 stderr 而非直接捨棄，因此一個看似合理的 `linux` 或 `gtk` 會使每支 app 都讀起來像
 # 「從未測試」，而本腳本卻回報成功。
 #
+# **每個動作檔各一列**，而非每支 app 一列。2026-09-08 時 `testapp/actions/wsl` 有 21 個檔案、分屬
+# 10 支 app（`ls -1 testapp/actions/wsl | wc -l`），而本腳本只驅動每支的第一個，因此其中 11 個
+# ——P8 的另外兩個、P10 的另外兩個、P23 的另外三個、P24 的另外三個、P21 的另外一個——完全沒有進入
+# results.csv2 的管道。那些確實被寫下的資料列也如實說了：「replayed P8-scroll-outer.csv only;
+# 3 action files exist for P8」——那是對一個缺口的如實回報，而不是把它填上。那正是本腳本存在所要
+# 消除的同一種缺口，只是低了一層。
+#
+# 資料列會把檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.csv: ...`，因為 `app` 欄放不下它，
+# 而 coverage.zsh 正是以該前綴作為儲存格的鍵。sweep_drive.zsh 自從開始驅動每一個檔案起，這兩件事
+# 就一直是這樣做的。
+#
 # `-n` 在此代表 --dry-run，而非 --no-build。那是 sweep_drive_macos.zsh 的寫法，此處予以沿用而非
 # 「改良」，因為兩支旗標互相矛盾的 sweep 驅動器，比一個名稱衝突更糟。test_common.zsh 的 `-n` 是
 # --no-build；本腳本自行逐支 app 決定是否建置，且從不轉送裸的 `-n`。
@@ -125,10 +155,14 @@
 #
 #   launch   `ok` 表示該 app 完成繪製，或它未宣告 marker 而以計時方式截圖；`no marker` 表示它
 #            宣告了 marker 卻從未出現；`fail` 表示它從未啟動，或 EGL 預檢拒絕了該 renderer
-#   replay   `ok` 表示該 app 自身的 `-actionfile: replayed` 出現在它的 WSL 記錄檔中。它的意思是
-#            「重放執行到完成」。本平台沒有任何東西會回報是哪個視窗收到了那些點擊，因此它並不
-#            主張點擊落在該 app 上。`n/a` 表示 testapp/actions/wsl 中沒有對應的動作檔，且沒有
-#            任何東西驗證過內容——該列於是只代表一次啟動與一次擷取，而 note 會如實說明
+#   replay   `ok` 表示該 app 自身的 `-actionfile: replayed <本檔案>` 出現在它的 WSL 記錄檔中。
+#            它的意思是「重放執行到完成」。本平台沒有任何東西會回報是哪個視窗收到了那些點擊，
+#            因此它並不主張點擊落在該 app 上。`n/a` 表示 testapp/actions/wsl 中沒有對應的動作檔，
+#            且沒有任何東西驗證過內容——該列於是只代表一次啟動與一次擷取，而 note 會如實說明。
+#            `cut short` 表示 log 中有本檔案的 `replaying` 卻沒有 `replayed`；`fail` 表示該 app
+#            回報了 `-actionfile: failed`；`no line` 表示 log 中完全沒有 `-actionfile` 行；
+#            `STALE` 表示 log 指名的是**另一個**檔案，也就是本次執行什麼都沒寫入，而被讀到的是
+#            前一次的 log——那是一次沒有發生的執行，不是一次通過的執行
 #   capture  取自本次執行的「最後一行」`captured from`，因為一次執行會拍兩到三張截圖，而只有
 #            最後一張構成證據。`window` 為真正的視窗擷取，`desktop` 為全螢幕回退，`n/a` 為
 #            完全沒有擷取行
@@ -183,7 +217,7 @@ platform=wsl
 backend=gtk4
 run_date="$(date +%F)"
 
-# Line 2 through line 159: the whole header, BOTH halves.
+# Line 2 through line 193: the whole header, BOTH halves.
 #
 # A hard-coded range silently truncates the synopsis the moment anything is
 # added above it, and the column section is the part a reader came for. Widen it
@@ -191,13 +225,13 @@ run_date="$(date +%F)"
 # half and has a Chinese line saying `--help` prints both; the two disagreed for
 # hours on 2026-09-07, which is the argument for printing all of it.
 #
-# 第 2 行至第 159 行：整個檔頭，「兩個半邊都印」。
+# 第 2 行至第 193 行：整個檔頭，「兩個半邊都印」。
 #
 # 寫死的範圍會在其上方新增任何內容的那一刻靜默截斷說明，而「各欄位的讀法」正是讀者前來尋找的
 # 部分。檔頭變長時，請在同一次編輯中一併加寬。sweep_drive.zsh 只印到英文半邊為止，卻有一行中文
 # 說明宣稱 `--help` 兩半都會印出來；兩者在 2026-09-07 互相矛盾了幾個小時，而那正是「全部印出」
 # 的理由。
-usage() { sed -n '2,159p' "$script_path" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,193p' "$script_path" | sed 's/^# \{0,1\}//'; }
 
 # --help answers before any work: before the host check, before wsl.exe, before
 # the rsync, before a single build. A `--help` that fell through to a launcher
@@ -424,35 +458,68 @@ if [ "$dry_run" -eq 0 ]; then
     MSYS2_ARG_CONV_EXCL='*' wsl.exe -d "$wsl_distro" -- zsh -lc "$kill_cmd" >/dev/null 2>&1 || true
 fi
 
-printf '%-9s %-9s %-8s %-8s %s\n' app launch replay capture note
+printf '%-28s %-9s %-8s %-8s %s\n' 'app / action file' launch replay capture note
 
 appended=0
 preflight_failed=0
 
 for app in "${apps[@]}"; do
-    # Cleared per app. A note that survives into the next iteration attributes
-    # one app's finding to another.
-    # 每支 app 都重設。殘留到下一輪的 note，會把某支 app 的發現安到另一支頭上。
-    note=""
-
-    action_args=()
     action_files=("${(@f)$(action_candidates "$app")}")
     # `(@f)` on an empty string yields one empty element, so the count is not
     # the test -- the first element being empty is.
     # 對空字串使用 `(@f)` 會產生一個空元素，因此判斷依據不是元素個數，而是第一個元素是否為空。
-    if [ -n "${action_files[1]:-}" ]; then
-        if [ "${#action_files[@]}" -gt 1 ]; then
-            # One is replayed and the row names it. The alternative -- passing
-            # a bare --actionfile -- makes test_common.zsh exit 64 with
-            # "Several action files", which would record nothing at all for
-            # five of the apps that have the most replay coverage.
-            # 只重放其中一個，並在資料列中指名。另一種做法——傳裸的 --actionfile——會讓
-            # test_common.zsh 以「Several action files」結束並回傳 64，那將使重放覆蓋最完整的
-            # 五支 app 完全沒有任何記錄。
-            add_note "replayed ${action_files[1]:t} only; ${#action_files[@]} action files exist for $app"
-        fi
-        action_args=(--actionfile "${action_files[1]}")
-    fi
+    #
+    # EVERY action file for this app, and one row per file.
+    #
+    # `${action_files[1]}` drove one file per app and the row said so, in words:
+    # `replayed P8-scroll-outer.csv only; 3 action files exist for P8`. That is
+    # a truthful report of a gap, which is not the same thing as a closed one --
+    # the other two files still had no path into results.csv2 at all, and a
+    # matrix cannot show a run nothing appended.
+    #
+    # They are not spares. P10's three are a keyboard shortcut, a hit test and a
+    # hit-testing-permitted case; P23's four select a cell, select a header,
+    # scroll and add rows. Different questions about different code, and passing
+    # a bare `--actionfile` instead would make test_common.zsh exit 64 with
+    # "Several action files" and record nothing at all for the five apps that
+    # have the most replay coverage.
+    #
+    # An app with no action file still gets one pass, with an empty
+    # `action_file`: launching and capturing it is a real run, and `replay=n/a`
+    # further down already says nothing verified the content.
+    #
+    # 這支 app 的**每一個**動作檔，且每個檔案各記一列。
+    #
+    # 過去只驅動 `${action_files[1]}`，而資料列也用文字如實寫著：「replayed P8-scroll-outer.csv
+    # only; 3 action files exist for P8」。那是對一個缺口的如實回報，與把它填上並不是同一件事——
+    # 其餘兩個檔案依然完全沒有進入 results.csv2 的管道，而矩陣無法顯示一次沒有任何東西追加過的執行。
+    #
+    # 它們並不是備品。P10 的三個分別是鍵盤快捷鍵、命中測試與「允許命中測試」；P23 的四個分別是
+    # 選取儲存格、選取表頭、捲動與增列。那是關於不同程式碼的不同問題；而改傳裸的 `--actionfile`
+    # 會讓 test_common.zsh 以「Several action files」結束並回傳 64，使重放覆蓋最完整的五支 app
+    # 完全沒有任何記錄。
+    #
+    # 沒有動作檔的 app 仍會走一次迴圈，`action_file` 為空：把它啟動並擷取本來就是一次真實的執行，
+    # 而下方的 `replay=n/a` 已經說明了沒有東西驗證其內容。
+    [[ -z "${action_files[1]:-}" ]] && action_files=("")
+
+    for action_file in "${action_files[@]}"; do
+    # Cleared per ROW, not per app. A note that survives into the next iteration
+    # attributes one action file's finding to another, and an app now
+    # contributes up to four rows.
+    # 每一**列**都重設，而非每支 app 一次。殘留到下一輪的 note，會把某個動作檔的發現安到另一個
+    # 頭上，而現在一支 app 最多會貢獻四列。
+    note=""
+
+    # The table key. `${action_file:t}` is empty for an app with no action file,
+    # and then the app name is the only thing there is to print.
+    # 表格的鍵。對沒有動作檔的 app 而言 `${action_file:t}` 為空，此時能印的就只有 app 名稱。
+    file_label="${action_file:t}"
+    run_key="${file_label%.csv}"
+    [[ -z "$run_key" ]] && run_key="$app"
+
+    action_args=()
+    [ -n "$action_file" ] && action_args=(--actionfile "$action_file")
 
     # Reuse the WSL build, except when it is stale or when replaying.
     #
@@ -488,12 +555,22 @@ for app in "${apps[@]}"; do
     if [ "$dry_run" -eq 1 ]; then
         if [ "${#build_args[@]}" -eq 0 ]; then plan=build; else plan=reuse; fi
         if [ "${#action_args[@]}" -gt 0 ]; then plan="$plan+replay"; fi
-        # The note is printed here too, not swallowed. It is where the choice
-        # of action file appears, and an app with five of them would otherwise
-        # look identical to one with a single unambiguous file.
-        # 此處也印出 note，而非吞掉它。動作檔的選擇正是顯示在那裡，否則一支有五個動作檔的 app
-        # 看起來會與一支只有單一明確檔案的 app 一模一樣。
-        printf '%-9s %-9s %-8s %-8s %s\n' "$app" "-" "-" "-" "would $plan${note:+; $note}"
+        # The note is printed here too, not swallowed. It carries the staleness
+        # finding -- `rebuilt: the WSL binary was older than P21.swift` -- which
+        # is the only thing a dry run can tell you that the plan word cannot.
+        #
+        # It used to say the note was "where the choice of action file appears".
+        # That stopped being true when the loop began driving every file: the
+        # choice is now the `run_key` column, one line per file, and there is no
+        # choice left to report. Corrected in the same edit that made it stale.
+        #
+        # 此處也印出 note，而非吞掉它。它承載的是過期判定——`rebuilt: the WSL binary was older
+        # than P21.swift`——那是 dry run 唯一能告訴你、而 plan 那個字說不出來的事。
+        #
+        # 這段原本寫著「動作檔的選擇正是顯示在那裡」。當迴圈開始驅動每一個檔案之後，那句話就不再
+        # 成立：選擇現在是 `run_key` 那一欄、每個檔案各一行，也就不再有什麼選擇需要回報。此處在
+        # 「使它過期的同一次編輯」中一併更正。
+        printf '%-28s %-9s %-8s %-8s %s\n' "$run_key" "-" "-" "-" "would $plan${note:+; $note}"
         continue
     fi
 
@@ -602,7 +679,57 @@ for app in "${apps[@]}"; do
             "cat $wsl_repo/testapp/output/${app:l}-actionfile.log 2>/dev/null; true" 2>/dev/null \
             | tr -d '\r' || true)"
         case "$replay_out" in
-            *"-actionfile: replayed"*) replay=ok ;;
+            # THE LINE HAS TO NAME **THIS** FILE, not merely exist.
+            #
+            # run_wsl launches with `2>$actionfile_log`, which TRUNCATES, so the
+            # file holds one run. That was enough while an app contributed one
+            # row: any `replayed` line in it was necessarily this run's. Driving
+            # every file broke that, and in the direction that does not error --
+            # if the second file's run writes nothing at all (the app died on
+            # launch, or was built without SCUI_DEBUG), the FIRST file's log is
+            # still sitting there, and a bare `*"-actionfile: replayed"*` reads
+            # it and records `replay=ok` for a replay that never happened.
+            #
+            # The name is in the line already: ActionFileReplay.report writes
+            # `replayed <file> (<n> actions)`, and `replaying <file> at layout
+            # scale ...` at the start. Matched WITHOUT the `(n actions)` part,
+            # which is newer than the binaries on this host -- the P21 log read
+            # on 2026-09-08 says `-actionfile: replayed P21-text-fields.csv`
+            # with no count, from a binary dated 2026-09-07.
+            #
+            # `replaying` without `replayed` is the third answer and it is not
+            # the same as the second: the run DID start this file and did not
+            # finish it, which is a killed replay, not a stale log.
+            #
+            # 那一行必須指名**這一個**檔案，而不只是存在。
+            #
+            # run_wsl 以 `2>$actionfile_log` 啟動，該重導向會**截斷**檔案，因此它只保存一次執行。
+            # 在「一支 app 只貢獻一列」的年代這就夠了：檔中任何 `replayed` 必然屬於本次執行。改為
+            # 驅動每一個檔案後這點不再成立，而且是往「不會報錯」的方向壞掉——若第二個檔案的執行完全
+            # 沒有寫入（app 一啟動就死，或建置時未帶 SCUI_DEBUG），第一個檔案的 log 仍原封不動留在
+            # 那裡，而裸的 `*"-actionfile: replayed"*` 會讀到它，替一次從未發生的重放記下
+            # `replay=ok`。
+            #
+            # 檔名本來就在那一行裡：ActionFileReplay.report 寫的是 `replayed <檔名> (<n> actions)`，
+            # 開始時則是 `replaying <檔名> at layout scale ...`。比對時**不含** `(n actions)`，因為
+            # 那個計數比本機上的執行檔還新——2026-09-08 讀到的 P21 log 寫的是
+            # `-actionfile: replayed P21-text-fields.csv`，沒有計數，來自 2026-09-07 的執行檔。
+            #
+            # 有 `replaying` 卻沒有 `replayed` 是第三種答案，且與第二種不同：本次執行**確實**開始了
+            # 這個檔案而沒有跑完，那是被中斷的重放，不是過期的 log。
+            *"-actionfile: replayed $file_label"*) replay=ok ;;
+            *"-actionfile: replaying $file_label"*)
+                case "$replay_out" in
+                    *"-actionfile: failed"*)
+                        replay=fail
+                        add_note "$(printf '%s' "$replay_out" | grep -m1 'actionfile: failed' | cut -c1-80)" ;;
+                    *)
+                        replay='cut short'
+                        add_note "the WSL log has replaying $file_label and no replayed line -- the app was killed or captured mid-replay" ;;
+                esac ;;
+            *"-actionfile: repla"*)
+                replay=STALE
+                add_note "the WSL log names $(printf '%s' "$replay_out" | grep -oE 'repla(ying|yed) [^ ]+' | tail -1 | cut -d' ' -f2), not $file_label -- this run wrote nothing and the previous file's log was still there" ;;
             *"-actionfile: failed"*)
                 replay=fail
                 add_note "$(printf '%s' "$replay_out" | grep -m1 'actionfile: failed' | cut -c1-80)" ;;
@@ -663,7 +790,7 @@ for app in "${apps[@]}"; do
         *) capture=n/a; add_note "unrecognised capture line: $(printf '%s' "$capture_line" | cut -c1-60)" ;;
     esac
 
-    printf '%-9s %-9s %-8s %-8s %s\n' "$app" "$launch" "$replay" "$capture" "$note"
+    printf '%-28s %-9s %-8s %-8s %s\n' "$run_key" "$launch" "$replay" "$capture" "$note"
 
     # Appended with csv2, not with `printf >>`. It validates the input before
     # writing, reads the existing file to check its final record, and writes
@@ -686,11 +813,30 @@ for app in "${apps[@]}"; do
     # 附註；而 note 已經被 coverage.zsh 用來解析動作檔前綴——把第二種語意偷渡進同一個自由文字
     # 欄位，正是那個解析器開始「用猜的」的起點。此處寫的是本次 sweep 所**要求**的模式；GTK 隨後
     # 選了哪個 GSK renderer 是關於這台主機的事實，由 print_renderer_wsl 印出，不在此斷言。
-    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$render_mode,\"${note//\"/\"\"}\"" \
+    # THE ACTION FILE GOES AT THE FRONT OF THE NOTE, `P8-scroll-outer.csv: ...`.
+    #
+    # The `app` column cannot hold it -- it is `P8` for all three of P8's files
+    # -- and coverage.zsh keys a cell on exactly that prefix, matching
+    # `^[^ :]+\.csv: ` (coverage.zsh:389) to make a (renderer, action file) key.
+    # Without it three P8 rows collapse into one cell and the matrix cannot say
+    # which file was run, which is a quieter version of not recording them.
+    #
+    # Same spelling as sweep_drive.zsh, deliberately: two drivers writing the
+    # same field two ways is a parser that starts guessing.
+    #
+    # 動作檔名寫在 note 的**最前面**，形如 `P8-scroll-outer.csv: ...`。
+    #
+    # `app` 欄放不下它——P8 的三個檔案在該欄一律是 `P8`——而 coverage.zsh 正是以這個前綴作為鍵：
+    # 它比對 `^[^ :]+\.csv: `（coverage.zsh:389）以組成 (renderer, 動作檔) 的鍵。少了它，三列 P8
+    # 會塌縮成一格，矩陣說不出跑的是哪一個檔案；那是「沒有記錄它們」比較安靜的版本。
+    #
+    # 寫法刻意與 sweep_drive.zsh 相同：兩個驅動器把同一個欄位寫成兩種樣子，會讓解析器開始用猜的。
+    csv_note="${file_label:+$file_label: }$note"
+    if csv2 -append "$run_date,$platform,$backend,$app,$launch,$replay,$capture,$render_mode,\"${csv_note//\"/\"\"}\"" \
         -i "$results" --in-place; then
         appended=$(( appended + 1 ))
     else
-        printf '!! csv2 refused the row for %s; it was NOT recorded\n' "$app" >&2
+        printf '!! csv2 refused the row for %s; it was NOT recorded\n' "$run_key" >&2
     fi
 
     # An EGL failure is a fact about this host, not about this app, so every
@@ -701,8 +847,16 @@ for app in "${apps[@]}"; do
     if [ "$preflight_failed" -eq 1 ]; then
         printf '\n!! The EGL preflight refused -render %s on this host.\n' "$render_mode" >&2
         printf '!! Nothing was launched. Try: %s -render sw\n' "${script_path:t}" >&2
-        break
+        # `break 2`, not `break`: there are two loops now. A plain `break` would
+        # leave this app's remaining action files to be attempted, each one
+        # writing another copy of the same host-level EGL refusal, which is the
+        # forty-six duplicate rows this branch exists to prevent.
+        # 用 `break 2` 而非 `break`：現在有兩層迴圈。單純的 `break` 會讓這支 app 其餘的動作檔繼續
+        # 被嘗試，每一次都只是把同一個主機層級的 EGL 拒絕再寫一份，而那正是本分支要避免的
+        # 四十六列重複資料。
+        break 2
     fi
+    done
 done
 
 if [ "$dry_run" -eq 0 ]; then

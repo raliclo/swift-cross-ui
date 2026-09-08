@@ -98,7 +98,15 @@ if [ -z "$exe" ]; then
         printf 'There is a WinUI build (%s-WinUI.exe). This script is for the GTK one;\n' "$app" >&2
         printf 'run the WinUI build directly, it needs no DLL path.\n' >&2
     fi
-    printf 'Build it first: SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 %s\n' "$app" >&2
+    # No SCUI_DEBUG=1 in front of it any more: compile.zsh defaults it to 1, so
+    # the plain command already produces a binary that honours -actionfile.
+    # Telling the reader to pass a variable they do not need is how a hint turns
+    # into folklore -- and the version of this line that carried it outlived the
+    # reason for it.
+    # 前面不再帶 SCUI_DEBUG=1：compile.zsh 已將它預設為 1，因此這個樸素的指令本身就會產出一個
+    # 認得 -actionfile 的執行檔。叫讀者傳一個他們不需要的變數，正是提示變成傳說的方式——而帶著
+    # 它的那一版，活得比它的理由還久。
+    printf 'Build it first: zsh testapp/compile.zsh -gtk4 %s\n' "$app" >&2
     exit 1
 fi
 

@@ -145,3 +145,13 @@ actionfile-replay.log
 splitview-debug.log
 decoration-debug.log
 ._*
+
+# csv2's --backup writes <file>.bak beside the original. One reached the
+# repository on 2026-09-08 via a `git add mistakes/`, and nothing objected --
+# a backup is a plausible-looking file, so neither the add nor the commit had
+# anything to say about it. It then blocked the next --backup run, which
+# refuses to overwrite an existing one.
+# csv2 的 --backup 會在原檔旁寫出 <file>.bak。2026-09-08 有一個經由 `git add mistakes/` 進了版本庫，
+# 而沒有任何東西提出異議——備份檔看起來就是個合理的檔案，因此 add 與 commit 都無話可說。它接著擋住了
+# 下一次 --backup，因為 csv2 拒絕覆寫既有的備份。
+*.bak

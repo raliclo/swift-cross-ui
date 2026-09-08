@@ -1,0 +1,188 @@
+action,x,y,origin,button,key,micros,note,platform
+# P48 on Windows, GtkBackend: press the ColorPicker's Edit button so its three
+# channel sliders exist, which is the half of section 4 a launch cannot reach.
+#
+# NO `# expect:` MARKER, deliberately. P48Diagnostics is written from `.onAppear`
+# and nowhere else -- three `write` calls in the whole file, all of them in that
+# one closure -- so no press of any control in this app produces a log line. A
+# marker here would have to assert text the app never emits, and rule 3f says a
+# file that asserts nothing is worse than no file; a marker that asserts the
+# WRONG thing is worse still, because it would be met by the launch alone and
+# would pass with the click missing entirely. The claim is made from the picture
+# instead, and it is stated below precisely enough to be wrong.
+#
+# WHY THIS FILE EXISTS. Section 4 of P48 says on screen: "4. ColorPicker --
+# expect a swatch, an Edit button, and three sliders". The baseline capture
+# gtk4-P48-base-20260908-221138.png shows the swatch and the button and NO
+# sliders, because `ColorPicker` keeps `isEditing` in `@State` and renders the
+# R/G/B channels only when it is true (Sources/SwiftCrossUI/Views/ColorPicker.swift
+# -- `if isEditing { ColorPickerChannel... }`). So two thirds of the app's own
+# stated expectation is unreachable without a press, and the picture that has
+# been taken of P48 until now shows a control in the one state that proves the
+# least.
+#
+# HOW TO READ THE RESULT. Compare the after-capture with
+# gtk4-P48-base-20260908-221138.png at the same 848x749:
+#
+#   before   "Accent" | orange swatch | one small button       (no sliders)
+#   after    the same row, plus slider rows beneath it -- TWO of the three are
+#            inside the window, see the measured result below before calling
+#            the missing one a failure
+#
+#   sliders appear         the composed ColorPicker works on GtkBackend
+#   none appear            the click missed, or `isEditing` does not re-render
+#   the row vanishes       a rebuild reset the state -- the P45 failure shape
+#
+# Do not read "the button looks the same" as failure on its own: its label is
+# ellipsized in both states (see the FINDING below), so "Edit" -> "Done" is NOT
+# legible from the capture and must not be used as the signal. The sliders are.
+#
+# MEASURED 2026-09-08, FIRST RUN, and the count is TWO, not three --
+# gtk4-P48-expand-colorpicker-20260908-221436.png, same 848x749 window:
+#
+#     R  a filled track with its knob near the right end, value 0.85
+#     G  a shorter fill, knob near a third, value 0.45
+#     B  NOT VISIBLE -- below the window's bottom edge
+#
+# 0.85 and 0.45 are exactly the red and green P48 seeds `chosen` with, so the
+# sliders are reading the app's binding and not a default. The press therefore
+# worked and the composed ColorPicker renders on GtkBackend.
+#
+# THE MISSING THIRD SLIDER IS NOT THIS FILE FAILING, and it is not the
+# ColorPicker failing either. P48 asks for a 820x720 content and GTK on Windows
+# allocates 820x681 -- the app prints `requested 820x720 allocated 820x681
+# shortfall 0x39` on every run, which is task #79, the 39 px GTK takes out of
+# the requested size for its own titlebar instead of adding to the frame. Three
+# inserted rows do not fit in what is left, so B falls off the bottom of a
+# ScrollView that has not been scrolled. Reading it as "only two channels were
+# created" would blame the view for the window manager; the same defect is what
+# P51's file exists to scroll past.
+#
+# A FINDING FROM THE BASELINE, recorded here because it is what the measurement
+# ran into rather than something looked for. The Edit button renders as `...`
+# -- 48 px wide, x 113..160, with the glyphs at x 129..145 -- so on GtkBackend
+# the label is elided away entirely and the app's own caption ("an Edit button")
+# does not describe what is drawn. That is a layout defect in the composed
+# ColorPicker, not in this file, and it is why the coordinate below was taken
+# from the button's measured box rather than by aiming at a word.
+#
+# COORDINATES, measured rather than eyeballed. Measured on a 848x749 window
+# capture at 100% display scale, origin=frame, from
+# output/screenshots/gtk4-P48-base-20260908-221138.png. Background sampled at
+# (700,600) is rgb(53,53,53); the button fill is rgb(73,73,73), a difference of
+# 20, so the scan that found it used a threshold of 5 rather than the 24 that
+# P50's file uses -- at 24 this button is invisible and the first scan returned
+# the swatch only. Scanning rows 615..667 for a contiguous run differing from
+# the background gives:
+#     y 622..656  x 113..160  -> centre (136,639)   the Edit button
+#     y 630..647  x  77..104                        the colour swatch, avoid
+# The swatch is 9 px to the left of the button and is NOT a control -- clicking
+# it does nothing at all, and a miss in that direction looks exactly like a
+# ColorPicker that ignores its own button.
+#
+# ORIGIN IS `frame`, NOT `client`, for the reason the folder README gives:
+# screenshot.zsh -w captures the window including its title bar, so every pixel
+# measured on that image is already a frame coordinate.
+#
+# THE SCALE IS NOT ASSUMED, it is in the run's own output. The replay prints
+# `geometry frame=(130.0, 130.0) client=(130.0, 130.0) scale=1.0`, so one
+# captured pixel is one action-file point on this machine and the numbers above
+# were written down exactly as they were read. The folder README explains why
+# that is worth stating rather than assuming: between 2026-08-26 and 08-27 every
+# file here had to be re-measured when the display setting changed, and
+# `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings"` reports a step
+# OFFSET rather than a percentage, so it cannot answer this question on its own.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P48
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent: the app launches,
+# renders, and not one action is performed.
+#
+# ONE LAYOUT-CHANGING CLICK, and only one, per flow.md rule 3d. Pressing Edit
+# inserts three rows into the middle of a ScrollView, so every coordinate below
+# it moves. Any further step -- dragging a channel to watch "app sees r=... g=...
+# b=..." follow it -- has to be measured from the AFTER capture and belongs in a
+# second file, not appended to this one.
+#
+# P48 於 Windows、GtkBackend：按下 ColorPicker 的 Edit 按鈕，讓它的三個色版 slider 存在——那是
+# 「只啟動不驅動」永遠到不了的第 4 節的另一半。
+#
+# **刻意不設 `# expect:` 標記。** P48Diagnostics 只在 `.onAppear` 中被呼叫，全檔三次 `write` 全在
+# 那一個 closure 裡，因此本 app 任何控制項的按下都不會產生 log 行。在此設標記，等於斷言一段 app
+# 從未寫出的文字；而 flow.md 規則 3f 說「一份不主張任何事的檔案，比沒有檔案更糟」——一個斷言了
+# **錯誤**對象的標記則更糟，因為它光靠啟動就會被滿足，即使那一擊完全落空也照樣通過。主張因此改由
+# 畫面提出，並在下方寫得夠精確，好讓它有可能被判定為錯。
+#
+# 本檔存在的理由。P48 第 4 節在畫面上寫著：「4. ColorPicker -- expect a swatch, an Edit button,
+# and three sliders」。基準擷圖 gtk4-P48-base-20260908-221138.png 顯示了色塊與按鈕，卻**沒有**
+# slider——因為 `ColorPicker` 把 `isEditing` 存在 `@State` 中，唯有它為真時才繪製 R/G/B 三個色版
+# （Sources/SwiftCrossUI/Views/ColorPicker.swift 的 `if isEditing { ColorPickerChannel... }`）。
+# 因此該 app 自陳期望中的三分之二，不經按下便無法抵達；而迄今為止拍到的 P48，呈現的正是該控制項
+# 「證明最少」的那個狀態。
+#
+# 如何判讀結果。以同為 848x749 的 gtk4-P48-base-20260908-221138.png 對照事後擷圖：
+#
+#   之前   「Accent」｜橘色色塊｜一顆小按鈕            （無 slider）
+#   之後   同一列，其下多出 slider 列——三者之中有**兩個**落在視窗內；在把少掉的那個判定為失敗
+#          之前，請先看下方的實測結果
+#
+#   出現 slider       組合式 ColorPicker 在 GtkBackend 上可運作
+#   一個都沒出現       點擊落空，或 `isEditing` 沒有觸發重繪
+#   整列消失          某次重建把狀態清掉了——即 P45 所描述的那種失敗形狀
+#
+# **2026-09-08 首次執行實測，數目是「兩個」而不是三個**——
+# gtk4-P48-expand-colorpicker-20260908-221436.png，同一個 848x749 視窗：
+#
+#     R  軌道填滿至接近右端，數值 0.85
+#     G  填色較短、把手約在三分之一處，數值 0.45
+#     B  **看不見**——落在視窗底緣之下
+#
+# 0.85 與 0.45 正是 P48 為 `chosen` 設定的紅與綠初始值，因此這些 slider 讀的是 app 的 binding，
+# 而不是某個預設值。那一按確實生效，組合式 ColorPicker 在 GtkBackend 上畫得出來。
+#
+# **少掉的第三個 slider 不是本檔的失敗，也不是 ColorPicker 的失敗。** P48 要求 820x720 的內容，
+# 而 Windows 上的 GTK 只配置 820x681——每次執行 app 都會印出 `requested 820x720 allocated
+# 820x681 shortfall 0x39`，那就是任務 #79：GTK 把自身標題列的 39 px 從「要求的尺寸」裡扣掉，而
+# 不是加到 frame 上。插入三列後剩下的空間放不下，於是 B 掉到一個尚未捲動的 ScrollView 底部之外。
+# 把它讀成「只建立了兩個色版」，等於拿 view 去頂視窗管理員的鍋；P51 的檔案存在的理由，正是要
+# 捲過同一個缺陷。
+#
+# 請勿單以「按鈕看起來沒變」判定失敗：它的標籤在兩種狀態下都被省略（見下方的發現），因此
+# 「Edit -> Done」在擷圖上**讀不出來**，不可拿來當訊號。訊號是那三個 slider。
+#
+# 一項來自基準擷圖的發現，記於此處是因為它是量測過程撞上的，而非刻意尋找的。Edit 按鈕畫出來是
+# `...`——寬 48 px、x 113..160，字形位於 x 129..145——也就是說在 GtkBackend 上該標籤被整個省略掉，
+# app 自己的說明（「an Edit button」）並不描述實際畫出來的東西。那是組合式 ColorPicker 的版面缺陷，
+# 不是本檔的缺陷；也正因如此，下方的座標取自按鈕的實測邊界，而不是靠瞄準某個字。
+#
+# 座標為實測而非目測。量測自一張 848x749 的視窗截圖，顯示縮放 100%，origin=frame，取自
+# output/screenshots/gtk4-P48-base-20260908-221138.png。於 (700,600) 取樣得背景 rgb(53,53,53)；
+# 按鈕填色為 rgb(73,73,73)，差值僅 20，因此找到它的掃描用的門檻是 5 而非 P50 檔案所用的 24——在 24
+# 之下這顆按鈕是隱形的，第一次掃描只回傳了色塊。逐列掃描 615..667 取「與背景不同的連續區段」得：
+#     y 622..656  x 113..160  -> 中心 (136,639)   Edit 按鈕
+#     y 630..647  x  77..104                      顏色色塊，須避開
+# 色塊在按鈕左方 9 px，且**不是**控制項——點它完全沒有作用，而往那個方向的失手，看起來會與
+# 「ColorPicker 忽略了自己的按鈕」一模一樣。
+#
+# origin 用 `frame` 而非 `client`，理由如本資料夾 README 所述：screenshot.zsh -w 擷取的視窗包含
+# 標題列，因此在該影像上量到的每一個像素本來就是 frame 座標。
+#
+# **縮放比例不是假設出來的，它就印在本次執行的輸出裡。** 重放會印出
+# `geometry frame=(130.0, 130.0) client=(130.0, 130.0) scale=1.0`，因此在本機上「一個擷圖像素」
+# 等於「一個動作檔的點」，上方的數字就是照讀到的原樣寫下的。本資料夾 README 說明了為何這件事值得
+# 寫出來而不是預設：2026-08-26 至 08-27 之間顯示設定一改，此處每個檔案都必須重新量測；而
+# `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings"` 回報的是**級距偏移量**而非百分比，
+# 單憑它回答不了這個問題。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P48
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而失敗
+# 是靜默的：app 正常啟動、正常繪製，卻一個動作也不執行。
+#
+# **只有一次會改變版面的點擊**，依 flow.md 規則 3d。按下 Edit 會在 ScrollView 中間插入三列，於是
+# 其下每一個座標都會移動。任何後續步驟——例如拖曳某個色版、觀察「app sees r=... g=... b=...」是否
+# 跟著改變——都必須自**事後**擷圖重新量測，並寫成第二個檔案，不得附加於本檔之後。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,136,639,frame,left,,,"the ColorPicker's Edit button, drawn as ... at x113..160 y622..656 -- three R/G/B sliders must appear beneath it",windows
+sleep,,,,,,1500000,hold for the capture and let the inserted rows lay out,windows

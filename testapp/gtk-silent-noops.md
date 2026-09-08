@@ -60,8 +60,13 @@ no longer exist — `GtkBackend.swift:68` and `let scrollBarWidth = 0`, `:73` an
 fixed by deleting the measurement. Entry 20's subject moved to
 `GtkBackend+WebView.swift`.
 
-**This file is 1604 lines and nothing re-checks it, so grep for an entry's named
-symbol before acting on it.** Two entries here can also agree with each other
+**This file is 2176 lines and nothing re-checks it, so grep for an entry's named
+symbol before acting on it.** Re-derive the number with
+`wc -l < testapp/gtk-silent-noops.md`; it read 1604 when this paragraph was
+written on 2026-09-01 and 2034 before the 2026-09-08 audit was appended below,
+which is how far a line count drifts in a week and how fast the correction to it
+goes stale in turn.
+Two entries here can also agree with each other
 while both are stale, which reads like corroboration and is not: entry 12 said
 the date picker drops time components while an abandoned `TimePicker` class sat
 in the source saying the same thing, and `TimeRow` had been implemented and
@@ -73,7 +78,7 @@ wired the whole time.
 |---|---|
 | 5 | nine SwiftUI weights map onto eight CSS steps after a deliberate +100 shift, so a collision is forced; choosing where it goes needs AppKit to compare against, so it needs a Mac |
 | 7 | `minimizable` is accepted and ignored; cheap on Windows, expensive on Linux, so fixing only one makes behaviour differ per platform — a decision, not a patch |
-| 8 | the one-line fix does not compile; needs a small public API on the `Gtk` side |
+| 8 | ~~the one-line fix does not compile; needs a small public API on the `Gtk` side~~ — the API was added and wired later the same day; what is open is now only the observation. See the 2026-09-08 audit below |
 | 14 | GTK does not enforce a maximum size on a toplevel at all |
 | 15 | theme-change notification, recorded as expensive |
 | 16 | scroll bounce, documented as acceptable to drop |
@@ -89,7 +94,10 @@ wired the whole time.
 宣告皆已不存在；第 10 條的懷疑是對的，且早已藉由「刪除該量測」修好；第 20 條的對象已移至
 `GtkBackend+WebView.swift`。
 
-**本檔 1604 行，而且沒有任何東西會複查它——因此依據任何一條行動之前，請先 grep 該條所指名的符號。**
+**本檔 2176 行，而且沒有任何東西會複查它——因此依據任何一條行動之前，請先 grep 該條所指名的符號。**
+（以 `wc -l < testapp/gtk-silent-noops.md` 重新推導此數字。本段於 2026-09-01 撰寫時記為 1604 行，
+在下方 2026-09-08 稽核附加之前則為 2034 行——一個行數在一週內會飄移多少、而對它的更正又會多快
+跟著過時，於此可見。）
 此處也可能出現「兩條條目彼此吻合、但兩條都已過時」的情況，那讀起來像互相佐證，實則不是：第 12 條
 稱日期選擇器丟棄時間元件，而原始碼中一個被放棄的 `TimePicker` 類別也這麼說，然而 `TimeRow` 其實
 一直都已實作並接上。
@@ -98,6 +106,79 @@ wired the whole time.
 
 本文件沒有任何一條是以啟動 app 確認的。未截任何圖，也從未取得 UI lock：以下發現沒有一條
 需要靠畫面才能定案；唯一需要的那條（#10）需要一支本次調查不被允許撰寫的測試 app。
+
+## Audit, 2026-09-08 / 稽核
+
+**The eleven entries left open on 2026-09-01 were re-read against the source
+today. Nine are unchanged, two carried a claim that is now false, and none of
+the nine was closed by anything.** Nothing was launched; this is `[src]` only.
+
+**Cite symbols, not line numbers, out of this file.** Every line number the
+2026-08-26 survey recorded is now wrong, most of them by more than a thousand
+lines — `setBehaviors` moved `:300` → `:1687`, `baseItemPadding` `:1207` →
+`:2860`, `createAlert` `:2078` → `:3653`. And they are still moving: while this
+audit ran, `Sources/GtkBackend/GtkBackend.swift` was under edit in the working
+tree (a `BackendFeatures.Toolbars` conformance, +27 lines at the top of the
+class), which shifted every number below it mid-session. A line number in this
+document is a fossil; the symbol name is what survives.
+
+| # | 2026-09-08 | evidence |
+|---|---|---|
+| 5 | still true | `.semibold` and `.bold` both `700`, in the weight `switch` in `GtkBackend.swift`'s `cssProperties`. Nine `Font.Weight` cases still map onto `200…900`. AppKit's `weight(for:)` still gives each its own `NSFont.Weight` |
+| 7 | still true | `setBehaviors` reads `closable` and `resizable` and leaves `minimizable` unread under the same TODO. Positive control: `window.resizable = resizable` is on the next line, so the parameter genuinely is dropped rather than the grep missing it |
+| 8 | **now false as stated** — implemented, see below | `Gtk/Widgets/Window.swift` registers `notify::scale-factor` in `registerSignals()` and exposes `public var onScaleFactorChange`; `setWindowEnvironmentChangeHandler` assigns to it |
+| 14 | half false — the gap is real, "only in DEBUG" is not | `setSizeLimits` still only logs for a maximum, but `debugLogOnce` is no longer `#if DEBUG`: it calls `logger.notice` unconditionally, which #6 fixed on 2026-08-27 |
+| 15 | still true | `setRootEnvironmentChangeHandler` stores the handler under the same reverted-attempt TODO. `sampleAmbientColorScheme()` has exactly one call site, in `init` |
+| 16 | still true | `updateScrollContainer` forwards only the two scroll-bar flags. Positive control: `hasVerticalScrollBar` *is* read three lines down |
+| 17 | still true, still unverified | returns `SwiftCrossUI.EdgeInsets()`; the zeroing CSS (`list > row { padding: 0 }`) is still installed. AppKit still answers `leading: 8, trailing: 8`, WinUI `8/8/16/12`. The probe-window measurement this entry asks for has still not been run |
+| 18 | still true | `menubarHeight` still returns a literal `25`, now with the 2026-08-27 negative result written into the source beside it |
+| 19 | still true | the Escape shortcut still returns `1` and does nothing; `present` still discards response `-4`; `updateAlert` still receives `actionLabels: [String]` with no cancel marker, in `BackendFeatures/Alerts.swift` |
+| 20 | **one claim now false** | the entry is still right that the placeholder is correct behaviour, but "WinUIBackend does not conform to `WebViews` at all" is stale — `Sources/WinUIBackend/WinUIBackend+WebView.swift` conforms and drives a real `WebView2` |
+| 21 | still half fixed | `GtkBackend/InspectionModifiers.swift:49` still carries the real `Picker.inspect` TODO. The false one is confirmed gone: `Implement tables` returns nothing while `Gtk.Table` and `setTextSelectability(ofTable:)` are present in the same file, which is the positive control for that absence |
+
+**What #8 still needs is an observation, not code.** The handler is wired and
+compiles. Nothing has watched it fire. `testapp/actions/win/` has no `P42` file
+and by that folder's own rule that means it has never passed on Windows;
+`testapp/actions/win/README.md` records why it cannot — the event under test is
+a display-scale change and no synthesised input produces one, so a human must
+alter Settings. Tracked as task #80. `mac/`, `ios/` and `android/` do have P42
+files, but those exercise three other backends and say nothing about this one.
+
+**#7 and #14 are the two entries CLAUDE.md's rule actually bites on**, and both
+have a Windows route that is already built. `Sources/GtkCHelpers/gtk_window_level.c`
+reaches the `HWND` behind a GTK window in nine lines —
+`gtk_native_get_surface` then `gdk_win32_surface_get_handle` — and returns
+`FALSE` rather than lying when the window is not yet realized. #7 is
+`SetWindowLongPtr` clearing `WS_MINIMIZEBOX` through that same handle; #14 is a
+`WM_GETMINMAXINFO` subclass on it. Neither is a degradation and neither is
+speculative about the API. What each needs deciding is the Linux half, where the
+limit is real, and that is a `supportedWindowLevels`-shaped capability property
+rather than a patch — which is the design #7 already proposes and which now
+exists in the source to copy.
+
+**2026-09-08 已將 2026-09-01 仍開著的十一條逐一對照原始碼重讀。九條未變，兩條所帶的主張現已為假，
+而那九條沒有一條是被任何東西關閉的。** 未啟動任何 app；本次僅為 `[src]` 等級。
+
+**引用本檔時請引符號，不要引行號。** 2026-08-26 那次調查記下的每一個行號現在都是錯的，多數偏離
+超過一千行——`setBehaviors` 由 `:300` 移至 `:1687`，`baseItemPadding` 由 `:1207` 移至 `:2860`，
+`createAlert` 由 `:2078` 移至 `:3653`。而且它們仍在移動：本次稽核進行期間，
+`Sources/GtkBackend/GtkBackend.swift` 正處於工作區的修改狀態（一個 `BackendFeatures.Toolbars`
+conformance，在類別頂端 +27 行），使其下方每一個數字在稽核中途就位移了。本文件中的行號是化石，
+能存活下來的是符號名稱。逐條結果見上表。
+
+**#8 現在缺的是一次觀察，不是程式碼。** handler 已接上且編譯通過，但沒有任何東西看過它觸發。
+`testapp/actions/win/` 中沒有 `P42` 檔案，而依該資料夾自身的規則，那代表它從未在 Windows 上通過；
+`testapp/actions/win/README.md` 記載了原因——受測事件是顯示縮放的改變，合成輸入產生不了它，必須
+由人修改設定。以任務 #80 追蹤。`mac/`、`ios/`、`android/` 確實有 P42 檔案，但那三者驅動的是另外三個
+backend，對本 backend 什麼也沒說。
+
+**#7 與 #14 是 CLAUDE.md 那條規則真正咬到的兩條**，而兩者在 Windows 上的路線都已經鋪好了。
+`Sources/GtkCHelpers/gtk_window_level.c` 以九行取得 GTK 視窗背後的 `HWND`——`gtk_native_get_surface`
+再 `gdk_win32_surface_get_handle`——並在視窗尚未 realize 時回傳 `FALSE` 而非謊報成功。#7 就是透過同一個
+handle 以 `SetWindowLongPtr` 清掉 `WS_MINIMIZEBOX`；#14 則是在其上掛一個 `WM_GETMINMAXINFO` 的
+subclass。兩者都不是降級，也都不是對 API 的臆測。各自真正需要決定的是 Linux 那一半——限制在那裡是
+真的——而那是一個形狀比照 `supportedWindowLevels` 的能力 property，不是一個補丁；那正是 #7 早已提出
+的設計，而它現在已存在於原始碼中可供比照。
 
 ---
 
@@ -753,7 +834,30 @@ property——去 grep 該標頭檔，沒有別的了。在 Wayland 下，裝飾
 
 ---
 
-## 8. `setWindowEnvironmentChangeHandler(of:to:)` is an empty body — **still open**, and the obvious fix does not compile **[src] [hdr]**
+## 8. ~~`setWindowEnvironmentChangeHandler(of:to:)` is an empty body~~ — **IMPLEMENTED 2026-09-01, still unobserved. Re-checked 2026-09-08** **[src] [hdr]**
+
+The heading here read *"still open, and the obvious fix does not compile"* until
+2026-09-08, by which time the entry's own closing paragraphs said the opposite
+and the code agreed with them. Kept rather than quietly replaced, because a
+heading that contradicts its own body is the exact shape this document warns
+about: a reader who stops at the title carries away the wrong answer, and the
+title is what a `grep` returns.
+
+Confirmed 2026-09-08: `Sources/Gtk/Widgets/Window.swift` registers
+`notify::scale-factor` inside `registerSignals()` and exposes
+`public var onScaleFactorChange`; `setWindowEnvironmentChangeHandler` assigns a
+handler to it. The body is no longer empty. What remains is stated at the end of
+this entry and has not moved — nothing has watched it fire.
+
+此處的標題直到 2026-09-08 都寫著「仍然開著，而且明顯的修法無法編譯」，然而屆時本條目自身的結尾
+段落已經說著相反的事，程式碼也站在結尾那一邊。此處保留原文而不悄悄取代，因為「標題與其本文互相
+矛盾」正是本文件所警告的那種形狀：只讀到標題就停下的讀者會帶走錯誤的答案，而標題正是 `grep` 會
+回傳的東西。
+
+2026-09-08 確認：`Sources/Gtk/Widgets/Window.swift` 於 `registerSignals()` 之內註冊
+`notify::scale-factor`，並公開 `public var onScaleFactorChange`；
+`setWindowEnvironmentChangeHandler` 會指派一個 handler 給它。該 body 已不再是空的。剩下的部分寫在
+本條目結尾且未曾改變——沒有任何東西看過它觸發。
 
 **What is known about it is worth more than the empty body.** The obvious
 implementation is one line:
@@ -1493,7 +1597,31 @@ compact widget，那又回到 #12 的 `TimePicker`／`GtkSpinButton` 問題。
 
 </details>
 
-## 14. `setSizeLimits(…)` cannot honour a maximum size, and says so only in DEBUG — **wrong**, unfixable **[src]**
+## 14. `setSizeLimits(…)` cannot honour a maximum size, ~~and says so only in DEBUG~~ — **wrong, still open. Re-checked 2026-09-08** **[src]**
+
+**Half of this title expired on 2026-08-27 and the entry did not notice for
+twelve days.** `debugLogOnce` is no longer wrapped in `#if DEBUG`; #6's fix made
+it call `logger.notice` unconditionally, so the message *does* reach the app
+author in a release build now. The struck words are kept because two entries in
+this file described the same silence and fixing one of them did not update the
+other — which is the corroboration trap the 2026-09-01 audit named.
+
+**The gap itself is untouched**: `setSizeLimits` still enforces only the
+minimum, and a maximum still produces a log line instead of a limit. See the
+2026-09-08 audit above for the Windows route (`WM_GETMINMAXINFO` on the `HWND`
+that `Sources/GtkCHelpers/gtk_window_level.c` already knows how to obtain);
+"unfixable" is true of GTK's own API and not of the platform underneath it on
+half the platforms this backend ships to.
+
+**本標題有一半在 2026-08-27 就已過期，而本條目過了十二天才發現。** `debugLogOnce` 已不再包在
+`#if DEBUG` 之中；#6 的修正使它無條件呼叫 `logger.notice`，因此該訊息在 release 建置中**確實**會
+傳達給 app 作者。劃掉的字保留於此，是因為本檔中有兩條條目描述著同一種靜默，而修好其中一條並未
+更新另一條——那正是 2026-09-01 稽核所點名的「互相佐證」陷阱。
+
+**缺口本身則毫無變動**：`setSizeLimits` 仍然只執行最小值，最大值仍然換來一行日誌而非一個限制。
+Windows 上的路線見上方 2026-09-08 的稽核（在 `Sources/GtkCHelpers/gtk_window_level.c` 早已知道
+如何取得的 `HWND` 上掛 `WM_GETMINMAXINFO`）；「不可修」對 GTK 自身的 API 為真，但在此 backend
+所發布的一半平台上，對其底下的平台並不為真。
 
 `Sources/GtkBackend/GtkBackend.swift:395`, the maximum branch at `:412-416`
 
@@ -1891,7 +2019,16 @@ document keeps recommending:
 > like a layout bug, whereas the text says which feature is missing and why.
 
 **Other backends**: `AppKitBackend+WebView.swift` implements it for real.
-WinUIBackend does not conform to `WebViews` at all.
+~~WinUIBackend does not conform to `WebViews` at all.~~ **Stale as of
+2026-09-08**: `Sources/WinUIBackend/WinUIBackend+WebView.swift` conforms and
+drives a real `WebView2`, including the `EnsureCoreWebView2Async` call that
+file's own documentation records as having been missing for as long as the class
+existed. `UIKitBackend` and `AndroidBackend` conform too. So GtkBackend is now
+the only shipped backend showing a placeholder, which raises this entry's
+priority rather than changing its conclusion — the placeholder is still the
+right behaviour for a build with no WebKitGTK, and the file records a further
+obstacle the original finding did not have: WebKitGTK has no Windows port, so
+adding the dependency would close the gap on Linux and WSL only.
 
 **Fixable in GTK 4**: yes, with WebKitGTK — which means adding `webkitgtk-6.0` to
 `Package.swift` as a system dependency and changing what everyone building this
@@ -1910,8 +2047,13 @@ build (GtkBackend has no WebKitGTK)」，因此降級在畫面上對作者是可
 這個選擇，而那正是本文件一再推薦的模式：「有文字說明的佔位優於靜默空白——空白區域看起來像版面
 bug，而文字會說出缺少的是哪一個功能、以及原因。」
 
-**其他 backend**：`AppKitBackend+WebView.swift` 有真正的實作；WinUIBackend 則完全沒有 conform
-`WebViews`。
+**其他 backend**：`AppKitBackend+WebView.swift` 有真正的實作；~~WinUIBackend 則完全沒有 conform
+`WebViews`。~~ **截至 2026-09-08 已過時**：`Sources/WinUIBackend/WinUIBackend+WebView.swift`
+已 conform，並驅動一個真正的 `WebView2`，其中包含該檔案自身文件所記載、自該類別存在以來一直
+缺席的 `EnsureCoreWebView2Async` 呼叫。`UIKitBackend` 與 `AndroidBackend` 亦已 conform。因此
+GtkBackend 現在是唯一還在顯示佔位的已發布 backend——這提高了本條目的優先度，但並未改變其結論：
+對一個沒有 WebKitGTK 的建置而言，佔位仍然是正確的行為；而該檔案還記下了原始發現所沒有的另一項
+障礙——WebKitGTK 沒有 Windows 版本，因此加入該相依只會填補 Linux 與 WSL 的缺口。
 
 **GTK 4 是否可修**：可以，用 WebKitGTK——那意味著要把 `webkitgtk-6.0` 加入 `Package.swift`
 作為系統相依，並改變每一位建置本專案者必須安裝的東西。這是封裝決策，上游以 issue 148 追蹤

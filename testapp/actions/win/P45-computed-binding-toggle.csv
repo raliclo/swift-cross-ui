@@ -1,0 +1,236 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on Windows, GtkBackend: seed the two pieces of sibling state, press the
+# computed-binding toggle, then press report -- the exact sequence P45 was
+# written to run, and which nothing had ever run on this platform.
+#
+# NO `# expect:` MARKER, deliberately, AND THE REASON IS NOT THAT THE APP IS
+# SILENT. P45 does write the line this file exists to produce -- the last click
+# emits `REPORT selection=2 typed=seeded honest=true stubbornStorage=false
+# writes=N presses=0`. It cannot be recovered. `P45Diagnostics.write` is
+# `print` only (P45.swift:81-84); it has no file writer, unlike P44 and P52
+# which append to `pNN-debug-events.log` beside the print. Swift's `print` to a
+# REDIRECTED stdout is block-buffered and `taskkill /F` kills the process before
+# it flushes -- measured 2026-09-07 on P44 and written up in
+# sweep-test/sweep_drive.zsh, where `grep -c 'third cell clipped'` on the run
+# log returned 0 while the app's own log file had the line. So a marker here
+# would report `UNCHECKED` on every run for ever, which is not a pass and is not
+# a failure either; it would just be noise attached to a working file.
+#
+# WHAT CARRIES THE CLAIM INSTEAD: the window, which is better here than a log
+# would be. P45 renders every value the REPORT line names, so the after-capture
+# contains the whole result:
+#
+#     sibling state -- selection: 2, typed: "seeded"
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: N, button presses: 0
+#
+# THE ONE THING A READER MUST NOT DO is treat a missing `pnn-debug-events.log`
+# as this file failing. There is no such file for P45 and there never was.
+#
+# WHY THIS FILE EXISTS. P45 exists because a SoftPCB report said a `Toggle`
+# bound to `Binding(get:set:)` resets its whole tab when pressed -- another
+# control's selection returns to its first item and a field disappears -- and
+# because, as P45's own header records, no app in this tree bound a Toggle any
+# way but `$state`, so the report could be neither confirmed nor denied from the
+# code. The app's answer is a comparison, and a comparison needs the sibling
+# state to be non-default BEFORE the toggle is pressed. Launching P45 and
+# photographing it proves nothing at all: selection is 0 and typed is empty on
+# the first frame, so "was reset" and "was never touched" are the same picture.
+# That is what the baseline gtk4-P45-base-20260908-225055.png shows, and it is
+# why the two seed clicks come first.
+#
+# HOW TO READ THE RESULT.
+#
+#   selection: 2 and typed: "seeded" survive   the reported defect does NOT
+#                                              reproduce on GtkBackend
+#   either one back at its default             it DOES -- the subtree was
+#                                              rebuilt by the toggle press
+#   honest: false with writes climbing         the press reached the setter and
+#                                              the getter refused it, which is
+#                                              control 3's designed behaviour
+#                                              and would be a defect in 2
+#   nothing moved at all                       the clicks missed; check the
+#                                              coordinates against a fresh
+#                                              capture before blaming the code
+#
+# MEASURED 2026-09-08, FIRST RUN. THE REPORTED DEFECT DOES NOT REPRODUCE ON
+# GtkBackend. gtk4-P45-computed-binding-toggle-20260908-225443.png, 788x655,
+# against the baseline at the same size:
+#
+#     sibling state -- selection: 2, typed: "seeded"     BOTH SURVIVED
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: 1, button presses: 0
+#     control 2 reads `honest ✓`; control 4 reads `flip honest ✓` because its
+#     label reads the same model field
+#     controls 1 and 3 still read `✗` -- nothing pressed them
+#
+# `writes: 1` is the number that makes this readable: control 2's setter ran
+# exactly once, so the press arrived, was accepted, and the getter agreed --
+# and `presses: 0` says the workaround Button was never touched, so `honest`
+# went true through the computed binding and not through the model method
+# beside it. The SoftPCB report was of a `Toggle` on `Binding(get:set:)` taking
+# a sibling selection back to its first item and making a field disappear;
+# neither happened here.
+#
+# WHAT THIS RUN DOES **NOT** ESTABLISH, and no capture of P45 can: whether the
+# fourth click landed. `report` changes nothing on screen -- its whole effect is
+# the log line that cannot be recovered here -- so a `report` that missed and a
+# `report` that worked produce the same picture. The first three clicks are all
+# confirmed by the values above. If that fourth press ever needs to be proven,
+# the cheap fix is a file writer in `P45Diagnostics`, not a cleverer capture.
+#
+# WHY CONTROL 2 AND NOT CONTROL 3. Control 3's getter returns `false`
+# unconditionally, on purpose, so pressing it is expected to look like nothing
+# happened -- a deliberately broken invariant kept beside the honest one. A file
+# driving control 3 would have to assert an absence, and an absence is what a
+# missed click also produces. Control 2 keeps the invariant, so its press has a
+# visible consequence and a missed click is distinguishable from a refused one.
+# Control 3 is left to a second file, measured from its own capture.
+#
+# FOUR CLICKS, AND NONE OF THEM MOVES ANYTHING BELOW IT. flow.md rule 3d allows
+# one layout-changing click per file, and the budget is not spent here: every
+# label these presses change is a `Text` on its own row inside a
+# `VStack(alignment: .leading)`, so `selection: 0` -> `selection: 2` and
+# `honest ✗` -> `honest ✓` change WIDTHS only. Row heights, and therefore every
+# y below, are untouched. Verified by comparing the two captures rather than
+# assumed -- if a future edit gives one of those rows a wrapping string, this
+# stops being true and the last two clicks start landing on nothing.
+#
+# COORDINATES, measured rather than eyeballed. Measured on a 788x655 window
+# capture at 100% display scale, origin=frame, from
+# output/screenshots/gtk4-P45-base-20260908-225055.png. GTK draws these controls
+# as an OUTLINE with the window's own background inside, so a fill-based scan
+# finds nothing: the threshold-5 scan returns two rows per control, its top and
+# bottom border, and the box is read from those.
+#
+#     y 244..277  x  32..144  -> centre  (88,260)   1. stateToggle  (@State)
+#     y 316..349  x  32..117  -> centre  (74,332)   2. honest       (computed)
+#     y 388..421  x  32..130  -> centre  (81,404)   3. stubborn     (contradicting)
+#     y 460..493  x  30..141  -> centre  (85,476)   4. flip honest  (Button)
+#     y 532..565  x  30..137  -> centre  (83,548)   selection = 2
+#     y 532..565  x 146..270  -> centre (208,548)   typed = seeded
+#     y 532..565  x 279..348  -> centre (313,548)   report
+#
+# The four controls are 72 points apart on a regular grid, which is exactly the
+# hazard: an error of one row lands squarely on the next control and presses the
+# WRONG toggle, and the app would faithfully report what that toggle did. The
+# centres above are the measured ones, not a stride multiplied out.
+#
+# THE SCALE IS NOT ASSUMED, it is in the run's own output: the replay prints
+# `geometry frame=(...) client=(...) scale=1.0`, so one captured pixel is one
+# action-file point on this machine.
+#
+# ORIGIN IS `frame`, NOT `client`: screenshot.zsh -w captures the window
+# including its title bar, so a pixel measured on that image is already a frame
+# coordinate.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P45
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent: the app launches,
+# renders, and not one action is performed.
+#
+# P45 於 Windows、GtkBackend：先種下兩份兄弟狀態，按下計算型 binding 的 toggle，再按 report——
+# 這正是 P45 被寫出來所要跑的那個序列，而在本平台上從來沒有東西跑過它。
+#
+# **刻意不設 `# expect:` 標記，但理由不是「app 不出聲」。** P45 確實會寫出本檔存在所要產生的那一行
+# ——最後一擊會寫出 `REPORT selection=2 typed=seeded honest=true stubbornStorage=false writes=N
+# presses=0`。問題是那一行**取不回來**。`P45Diagnostics.write` 只有 `print`（P45.swift:81-84），
+# 沒有檔案寫入器，這點與 P44、P52 不同——那兩支在 print 之外還會追加到 `pNN-debug-events.log`。
+# Swift 的 `print` 在 stdout **被重導向**時採區塊緩衝，而 `taskkill /F` 會在它 flush 之前殺掉行程
+# ——2026-09-07 於 P44 實測，記載於 sweep-test/sweep_drive.zsh：對 run log 執行
+# `grep -c 'third cell clipped'` 回傳 0，而 app 自己的 log 檔裡有那一行。因此在此設標記，會使每一次
+# 執行都永遠回報 `UNCHECKED`——那既不是通過也不是失敗，只是掛在一個能用的檔案上的雜訊。
+#
+# 那麼由什麼承載主張：視窗。而在此處它比 log 更好。P45 把 REPORT 行提到的每一個值都畫在畫面上，
+# 因此事後擷圖就包含了完整結果：
+#
+#     sibling state -- selection: 2, typed: "seeded"
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: N, button presses: 0
+#
+# **讀者唯一不該做的事**，是把「找不到 pnn-debug-events.log」讀成本檔失敗。P45 沒有那個檔，而且
+# 從來就沒有。
+#
+# 本檔存在的理由。P45 之所以存在，是因為一份 SoftPCB 的回報指出：綁在 `Binding(get:set:)` 上的
+# `Toggle` 一按下去會重置整個分頁——另一個控制項的選取回到第一項、一個欄位消失——而且如 P45 自己的
+# 檔頭所記，本樹中沒有任何一支 app 以 `$state` 以外的方式綁 Toggle，因此該回報無法僅憑讀碼確認或
+# 否定。這支 app 給出的答案是一項**對照**，而對照需要「兄弟狀態在 toggle 被按之前就不是預設值」。
+# 只啟動 P45 然後拍照，什麼都證明不了：第一幀的 selection 是 0、typed 是空的，於是「被重置了」與
+# 「從未被碰過」是同一幅畫面。基準擷圖 gtk4-P45-base-20260908-225055.png 顯示的正是這個，也正是
+# 那兩次「種值」點擊必須排在最前面的理由。
+#
+# 如何判讀結果。
+#
+#   selection: 2 與 typed: "seeded" 都還在   該回報的缺陷在 GtkBackend 上**沒有**重現
+#   其中任何一個回到預設值                   它重現了——toggle 的按下重建了子樹
+#   honest: false 而 writes 持續增加         按壓抵達了 setter、而 getter 拒絕了它；那是控制項 3
+#                                            的設計行為，出現在控制項 2 上則是缺陷
+#   什麼都沒動                               點擊落空；在怪罪程式之前，請先以新的擷圖核對座標
+#
+# **2026-09-08 首次執行實測：該回報的缺陷在 GtkBackend 上並未重現。**
+# gtk4-P45-computed-binding-toggle-20260908-225443.png，788x655，與同尺寸的基準擷圖對照：
+#
+#     sibling state -- selection: 2, typed: "seeded"     **兩者都還在**
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: 1, button presses: 0
+#     控制項 2 顯示 `honest ✓`；控制項 4 顯示 `flip honest ✓`，因為它的標籤讀的是同一個 model 欄位
+#     控制項 1 與 3 仍為 `✗`——沒有東西按過它們
+#
+# `writes: 1` 是讓這件事變得可讀的那個數字：控制項 2 的 setter 恰好執行一次，因此按壓抵達了、被
+# 接受了，而 getter 也同意了；而 `presses: 0` 說明那顆「替代方案」按鈕從未被碰過，所以 `honest`
+# 是經由計算型 binding 變成 true 的，不是經由它旁邊那個 model 方法。SoftPCB 回報的是一個綁在
+# `Binding(get:set:)` 上的 `Toggle` 會把兄弟選取拉回第一項、並讓一個欄位消失；此處兩者皆未發生。
+#
+# **本次執行「未能」確立什麼**，而且 P45 的任何擷圖都無法確立：第四次點擊是否命中。`report` 不會
+# 改變畫面上的任何東西——它的全部作用就是那一行取不回來的 log——因此「report 沒打中」與
+# 「report 有效」畫出來是同一張圖。前三次點擊都已由上方那些數值確認。若哪天真的需要證明第四次
+# 按壓，最便宜的解法是給 `P45Diagnostics` 加一個檔案寫入器，而不是想出更聰明的擷圖方式。
+#
+# 為何選控制項 2 而不是控制項 3。控制項 3 的 getter 刻意無條件回傳 `false`，因此按下它「預期看起來
+# 什麼都沒發生」——那是一個被故意破壞、並擺在誠實版本旁邊的不變式。驅動控制項 3 的檔案將必須斷言
+# 一項**缺席**，而「點擊沒中」產生的也是缺席。控制項 2 遵守不變式，其按壓有可見後果，因此「沒打中」
+# 與「被拒絕」分得開。控制項 3 留給第二個檔案，並由它自己的擷圖量測。
+#
+# **四次點擊，而其中沒有任何一次會移動它下方的東西。** flow.md 規則 3d 允許每個檔案一次會改變版面的
+# 點擊，而此處並未動用該額度：這些按壓所改變的每一個標籤，都是 `VStack(alignment: .leading)` 中
+# 自成一列的 `Text`，因此 `selection: 0` -> `selection: 2` 與 `honest ✗` -> `honest ✓` 只改變
+# **寬度**。列高不變，因此其下每一個 y 都不變。此事以兩張擷圖對照查證，而非假設——若日後某次修改
+# 讓其中一列變成會換行的字串，這句話就不再成立，而最後兩次點擊會開始落在空處。
+#
+# 座標為實測而非目測。量測自一張 788x655 的視窗截圖，顯示縮放 100%，origin=frame，取自
+# output/screenshots/gtk4-P45-base-20260908-225055.png。GTK 把這些控制項畫成**外框**、內部沿用
+# 視窗背景色，因此以填色為基礎的掃描什麼也找不到：門檻 5 的掃描每個控制項只回傳兩列——它的上、下
+# 邊框——而邊界即由那兩列讀出。
+#
+#     y 244..277  x  32..144  -> 中心  (88,260)   1. stateToggle（@State）
+#     y 316..349  x  32..117  -> 中心  (74,332)   2. honest（計算型）
+#     y 388..421  x  32..130  -> 中心  (81,404)   3. stubborn（自相矛盾）
+#     y 460..493  x  30..141  -> 中心  (85,476)   4. flip honest（Button）
+#     y 532..565  x  30..137  -> 中心  (83,548)   selection = 2
+#     y 532..565  x 146..270  -> 中心 (208,548)   typed = seeded
+#     y 532..565  x 279..348  -> 中心 (313,548)   report
+#
+# 四個控制項在一個規律的格線上相隔 72 點，而那正是危險所在：偏一列就會正正落在下一個控制項上、
+# 按到**錯的** toggle，而 app 會忠實地回報那個 toggle 做了什麼。上表的中心是實測值，不是把間距
+# 乘出來的。
+#
+# **縮放比例不是假設出來的，它就印在本次執行的輸出裡**：重放會印出
+# `geometry frame=(...) client=(...) scale=1.0`，因此在本機上一個擷圖像素等於一個動作檔的點。
+#
+# origin 用 `frame` 而非 `client`：screenshot.zsh -w 擷取的視窗包含標題列，因此在該影像上量到的
+# 像素本來就是 frame 座標。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P45
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而失敗
+# 是靜默的：app 正常啟動、正常繪製，卻一個動作也不執行。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,83,548,frame,left,,,"selection = 2 -- seeds the first piece of sibling state; the status line must read selection: 2",windows
+sleep,,,,,,400000,let the status line update before the next press,windows
+click,208,548,frame,left,,,"typed = seeded -- seeds the second; the status line must stop reading (empty) and name the string seeded",windows
+sleep,,,,,,400000,let the status line update before the toggle,windows
+click,74,332,frame,left,,,"control 2, the Binding(get:set:) toggle that keeps the invariant -- honest must go true and NEITHER seeded value may change",windows
+sleep,,,,,,600000,let the model publish and the whole view re-render before asking it to report,windows
+click,313,548,frame,left,,,"report -- writes one REPORT line naming all six values; unrecoverable here, see the header",windows
+sleep,,,,,,1500000,hold for the capture,windows

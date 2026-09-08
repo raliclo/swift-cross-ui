@@ -43,7 +43,8 @@ and the rest do not:
 | `ShapeStyle` protocol | protocol since 2026-09-02 (`git log --diff-filter=A` on `Views/Styles/ShapeStyle/ShapeStyle.swift`) — resolves to `ResolvedFillStyle`, no associated `Body` | yes |
 | `LabelStyle` protocol | protocol since 2026-09-08 — `makeBody(configuration:)`, `LabelStyleConfiguration`, and `Default`/`TitleAndIcon`/`TitleOnly`/`IconOnly` structs. Touches no backend | yes |
 | `ButtonStyle` protocol | protocol since 2026-09-08 — `makeBody(configuration:)`, `ButtonStyleConfiguration` with `label`/`isPressed`/`role`. Upstream's struct of the same name became `PrimitiveButtonStyle`; `isPressed` is fed by `BackendFeatures.ButtonPressState` | yes |
-| `TextFieldStyle`, `ProgressViewStyle` | absent — 0 declarations and 0 references each | no |
+| `TextFieldStyle` protocol | protocol since 2026-09-08 — `makeView(placeholder:text:environment:)`, `_BuiltinTextFieldStyle`, and `Automatic`/`Plain`/`RoundedBorder`/`SquareBorder` structs. **Deliberately open, unlike SwiftUI's**, whose `TextFieldStyle` is a closed empty protocol an application cannot usefully conform to. `TextField` routes its body through it, the old `ElementaryView` body is now `_BuiltinTextFieldImplementation`, and the shape reaches a backend as `BackendTextFieldStyle` on the environment. All five backends implement it: Gtk `Entry.hasFrame` + CSS radius, WinUI `borderThickness`/`cornerRadius` + `TextControl*` theme resources, AppKit `bezelStyle`, UIKit `borderStyle`, Android `GradientDrawable` | yes |
+| `ProgressViewStyle` | this row used to read ``TextFieldStyle`, `ProgressViewStyle` \| absent — 0 declarations and 0 references each`. **That was already false for `TextFieldStyle` when it was split out on 2026-09-08, and it is false for `ProgressViewStyle` too**: `Sources/SwiftCrossUI/Views/Styles/ProgressViewStyle/` holds `ProgressViewStyle.swift`, `BuiltinProgressViewStyles.swift` and a `_BuiltinProgressViewStyle` protocol. Not dated here because that is not this change's subject — re-derive with the loop below rather than trusting this cell | re-check |
 
 **Two corrections to the row above, dated 2026-09-08 and kept rather than
 silently rewritten**, because both are the exact failure the paragraph below
@@ -935,7 +936,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | area | present | absent |
 |---|---|---|
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
-| **style protocols** (re-measured 2026-09-08, twice) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle`, `ButtonStyle` | `TextFieldStyle`, `ProgressViewStyle` — **7 of 9 present**. The first 2026-09-08 reading put `ButtonStyle` in the absent column and was right that morning; it landed later the same day, together with `PrimitiveButtonStyle` (the rename of upstream's struct) and `BackendFeatures.ButtonPressState` |
+| **style protocols** (re-measured 2026-09-08, three times) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle`, `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` | *nothing* — **9 of 9 present**. This cell has now been wrong twice on the same day, in the same direction, and both readings are kept because the pattern is the point. The first put `ButtonStyle` in the absent column and was right that morning; it landed later the same day, together with `PrimitiveButtonStyle` (the rename of upstream's struct) and `BackendFeatures.ButtonPressState`. The second read "`TextFieldStyle`, `ProgressViewStyle` — **7 of 9 present**", and `TextFieldStyle` landed that evening (`Views/Styles/TextFieldStyle/`, open rather than SwiftUI's closed protocol, all five backends) while `ProgressViewStyle` was **already present when that reading was written** (`Views/Styles/ProgressViewStyle/`). A row that names what is absent goes stale the moment someone implements one, and nothing makes them open this file — re-run the loop above the first table |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
 | **common views** (re-measured 2026-09-08) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid` | `ScrollViewReader`, `ColorPicker` — **14 of 16 present**. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
 | **state wrappers** (re-measured 2026-09-08) | `State`, `Binding`, `Environment`, `AppStorage`, `Published`, `StateObject`, `ObservedObject`, `EnvironmentObject` | `SceneStorage` — **3 of the 4 that were absent have landed**. The 2026-09-01 reading of this row listed `StateObject`, `ObservedObject`, `EnvironmentObject` and `SceneStorage` as absent, and is kept here because it is still quoted elsewhere: `StateObject` and `ObservedObject` landed before this re-measure, `EnvironmentObject` in it. Do not repeat the phrasing "only a Settings scene remains" from the #35 entry — see the note below the table |
@@ -1502,10 +1503,33 @@ they are grouped as one job rather than filed as six unrelated defects.
 2. **`.navigationTitle` renders nothing on UIKit and Android.** It writes the OS
    window title; those two have no visible one. An iOS app loses every screen
    title, silently. Verified working on Win-gtk4 (`gtk4-P50-20260908-082937.png`).
-3. **`@Environment(Model.self)` compiles but never redraws.** It is only a
-   `DynamicProperty` -- it reads, it does not observe. Renders once with correct
-   data, then stale forever. Either make it observe, or refuse the overload so
-   the mistake is a compile error.
+3. ~~**`@Environment(Model.self)` compiles but never redraws.**~~ **Fixed here,
+   2026-09-08, run on Win-gtk4.** It was only a `DynamicProperty` -- it read, it
+   did not observe -- so it rendered once with correct data and stayed stale
+   forever. Closed by making it observe: `Environment` now keeps its value in a
+   class carried across updates and gains a *conditional*
+   `ObservableProperty` conformance, `where Value: ObservableObject`
+   (`Environment/Environment.swift`). Conditional because `ViewGraphNode` finds
+   observable properties with a runtime cast, which honours it, so
+   `@Environment(\.colorScheme)` still matches nothing and pays nothing.
+   **The same commit fixes a second defect in the same eight lines**: the
+   object lookup was `as!`, so a *missing* object was a force-cast of `nil` and
+   the process died inside `update(with:previousValue:)`, before
+   `wrappedValue`, with `Could not cast value of type
+   'Swift.Optional<SwiftCrossUI.ObservableObject>' … ` and two hex addresses --
+   naming neither `@Environment` nor the `.environmentObject(_:)` that was
+   forgotten. It is now `as?`, and the read reports
+   `no <Type> in the environment. A view declared '@Environment(<Type>.self)
+   var …' and read it, but no ancestor view or scene ever called
+   '.environmentObject(_:)' …`, through `logger.critical` before the trap so it
+   reaches logcat on Android as well as stderr.
+   Verified by running, not by compiling -- both defects compiled clean before
+   and after. A scratch app read a globally-owned model out of the environment
+   and mutated it at t+3s: before, body evaluations stopped at #11 and never saw
+   the new value; after, `BODY #12 count = 1` lands immediately on the mutation.
+   The model is deliberately **not** owned by an `@State` on the `App`, because
+   that would make the App's own subscription refresh the whole scene graph and
+   the bug would look fixed before it was.
 4. **`fullScreenCover` is a sheet with pinned options**, so on macOS, GTK and
    WinUI it appears inset rather than covering. The fix is sizing, in
    `SheetModifier`, not in any backend.
@@ -1552,8 +1576,27 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
 2. **`.navigationTitle` 在 UIKit 與 Android 上什麼都不畫。** 它寫的是 OS 視窗標題，而那兩個平台
    沒有可見的標題列。一支 iOS app 會靜默地失去每一頁的標題。已在 Win-gtk4 上驗證可運作
    （`gtk4-P50-20260908-082937.png`）。
-3. **`@Environment(Model.self)` 編得過但永遠不會重繪。** 它只是 `DynamicProperty`——會讀，不會
-   觀察。畫一次正確資料，然後永久停滯。要嘛讓它觀察，要嘛拒絕該多載，好讓這個錯誤變成編譯錯誤。
+3. ~~**`@Environment(Model.self)` 編得過但永遠不會重繪。**~~ **已於本側修正，2026-09-08，
+   在 Win-gtk4 上實跑驗證。** 它原本只是 `DynamicProperty`——會讀，不會觀察——因此以正確資料畫
+   一次之後就永久停滯。修法是讓它觀察：`Environment` 現在把值放在一個跨更新沿用的 class 中，
+   並取得一個**條件式**的 `ObservableProperty` conformance，條件為 `Value: ObservableObject`
+   （`Environment/Environment.swift`）。之所以是條件式，是因為 `ViewGraphNode` 以執行期轉型
+   尋找 observable 屬性，而該轉型會遵守條件式 conformance，於是
+   `@Environment(\.colorScheme)` 依然不會命中、也不必付出任何代價。
+   **同一次修改在同樣那八行裡一併修掉了第二個缺陷**：物件查找原本用的是 `as!`，因此當該物件
+   **不存在**時，那就是一次對 `nil` 的強制轉型，行程會死在
+   `update(with:previousValue:)` 之中、在 `wrappedValue` 之前，訊息為
+   `Could not cast value of type 'Swift.Optional<SwiftCrossUI.ObservableObject>' …`
+   外加兩個十六進位位址——既沒指出 `@Environment`，也沒指出被遺忘的
+   `.environmentObject(_:)`。現在改為 `as?`，而讀取端會回報
+   `no <Type> in the environment. A view declared '@Environment(<Type>.self)
+   var …' and read it, but no ancestor view or scene ever called
+   '.environmentObject(_:)' …`，並在中止前先經 `logger.critical`，好讓它除了 stderr 之外
+   在 Android 上也能抵達 logcat。
+   驗證方式是實跑而非編譯——兩個缺陷在修正前後都編得過。一支臨時 app 從 environment 讀取一個
+   由全域持有的 model，並於 t+3 秒時修改它：修正前，body 求值停在 #11，從未看見新值；修正後，
+   `BODY #12 count = 1` 在修改的當下立刻出現。該 model 刻意**不**由 `App` 上的 `@State` 持有，
+   因為那會讓 App 自身的訂閱刷新整個 scene graph，於是缺陷在被修好之前就會看起來像是修好了。
 4. **`fullScreenCover` 是一個被釘死選項的 sheet**，因此在 macOS、GTK 與 WinUI 上呈現為內縮的
    對話框而非全幅覆蓋。修正點在 `SheetModifier` 的尺寸提案，不在任何 backend。
 

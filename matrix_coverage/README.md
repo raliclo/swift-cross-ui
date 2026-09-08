@@ -69,6 +69,21 @@ The WSL row was missing from this table until 2026-09-07, one day after the
 driver was written. Re-derive the list rather than trusting it:
 `grep -rln 'results\.csv2' --include='*.zsh' .`
 
+All three drivers now write **one row per action file**, and the row names its
+file at the front of the note (`P8-scroll-outer.csv: ...`) so `coverage.zsh` can
+key a cell on it. The WSL driver did not until 2026-09-08: it replayed the first
+file of each app and said so in prose, `replayed P8-scroll-outer.csv only; 3
+action files exist for P8` — a truthful report of a gap rather than a closed
+one, since the remaining 11 of the 21 files in `testapp/actions/wsl` had no path
+into this file at all. Re-count with
+`ls -1 testapp/actions/wsl | wc -l` (21 on 2026-09-08) against
+`ls -1 testapp/actions/wsl | sed 's/-.*//' | sort -u | wc -l` (10). Strip at the
+FIRST hyphen, not the last: `sed 's/-[^-]*\.csv$//'` leaves `P23-select-a` and
+`P8-scroll-over` and answers 20, which reads as "two files, ten of them
+duplicated" rather than a count of apps.
+`wsl` rows dated 2026-09-07 or earlier carry no such prefix and therefore share
+one key per app, exactly as they always did.
+
 ### The `renderer` column
 
 Added 2026-09-07. `results.csv2` is

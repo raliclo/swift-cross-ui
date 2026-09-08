@@ -169,7 +169,15 @@ print "==> release build (no SCUI_DEBUG)"
 # test_android.zsh 會建置、安裝並啟動。此處並不需要那次啟動——每一項檢查都會自行以「受測的引數」
 # 啟動 app——但它無害：`capture` 在每次啟動前都會 force-stop。沿用該腳本，優於複製它的建置呼叫，
 # 因為 bundler 的各項覆寫、scratch path 與剝除守衛都在那裡。
-zsh "$script_dir/test_android.zsh" "$target" --no-showtime >/dev/null 2>&1
+#
+# SCUI_DEBUG=0 explicitly. compile.zsh defaults it to 1 -- a directory of tests
+# meant to be driven should not need a flag to be drivable -- so "leave the
+# variable unset" no longer means "build without the debug features", and this
+# control would otherwise be the same build as the one it is compared against.
+# 明確設定 SCUI_DEBUG=0。compile.zsh 現在預設為 1——一整個「本來就要被驅動」的測試目錄，不該
+# 需要額外旗標才驅動得了——因此「不設定該變數」已不再等於「建置為不含 debug 功能的版本」，
+# 否則這個對照組會與它所比較的那一個建置完全相同。
+SCUI_DEBUG=0 zsh "$script_dir/test_android.zsh" "$target" --no-showtime >/dev/null 2>&1
 install_current
 
 report "release, no flag" "$(capture release-plain)" absent || failures=$((failures + 1))

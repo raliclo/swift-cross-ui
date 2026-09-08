@@ -707,7 +707,7 @@ documentation the caller has to pass through.
 | 1 | `sheet(onDismiss:)` on **programmatic** dismissal (`Modifiers/SheetModifier.swift:19`) | never fires, on all five backends | fires however the presentation ended | the closure they wrote simply never runs |
 | 2 | `.popover`'s `onDismiss` (`Modifiers/PopoverModifier.swift:22`) | UIKit **suppresses** on programmatic dismissal (`UIKitBackend+Popover.swift:93`, set `:96`, checked `:103`); Gtk, WinUI, AppKit and Android **fire** on both paths | SwiftUI's `popover` has **no `onDismiss` parameter at all** — see the confidence note below | one callback means two different things depending on which backend the app was built for |
 | 3 | `.navigationTitle` (`Modifiers/NavigationTitleModifier.swift:57`) | writes the OS **window** title, via `setTitle(ofWindow:to:)` on all five | iOS: the navigation bar. macOS: the window title | **nothing at all on UIKit and Android**, where the platform window has no visible title bar. The value is delivered and never drawn |
-| 4 | `@Environment(Model.self)` (`Environment/Environment.swift:40`, that initialiser at `:84`) | a `DynamicProperty` that **reads** the object and never observes it — no `didChange`, so `ViewGraphNode` has nothing to subscribe to | observes; a change re-renders the view | renders **once, correctly**, then stays stale forever. Use `@EnvironmentObject` (`Environment/EnvironmentObject.swift:114`), which is an `ObservableProperty` and does observe |
+| 4 | ~~`@Environment(Model.self)`~~ **fixed 2026-09-08, run on Win-gtk4** | *was* a `DynamicProperty` that **read** the object and never observed it — no `didChange`, so `ViewGraphNode` had nothing to subscribe to (`Environment/Environment.swift:40` as surveyed). Now conditionally an `ObservableProperty` `where Value: ObservableObject`, with the value in a class carried across updates | observes; a change re-renders the view | matches SwiftUI. Before: rendered once correctly, then stale forever. `@EnvironmentObject` (`Environment/EnvironmentObject.swift`) is still there and still equivalent |
 | 5 | `GridItem` size arithmetic (`Views/LazyVGrid.swift:16`, sizes `:20`/`:25`/`:29`) | `Int` throughout, and the proposed width is truncated — `Int(proposedWidth.rounded(.down))` at `:197` — before integer division splits it | `CGFloat` throughout | columns do not sum to the container on a fractional display scale; the remainder is silently dropped rather than distributed |
 | 6 | `fullScreenCover` (`Modifiers/FullScreenCoverModifier.swift:28`) | a **sheet** with four options pinned: `.presentationDetents([.fraction(1)])`, `.presentationCornerRadius(0)`, `.presentationDragIndicatorVisibility(.hidden)`, `.interactiveDismissDisabled()` (`:46`–`:50`) | a presentation that covers its parent | a sheet-shaped modal on macOS, GTK and WinUI — the platform's own sheet animation and chrome, sized to the window rather than replacing it |
 
@@ -721,6 +721,32 @@ anyone re-deriving the behaviour to the wrong one.
 detent 是 `.fraction(1)`，而被釘死的是四個選項，不是一個。`.large` 與 `.fraction(1)` 是
 `Values/PresentationDetent.swift`（`:7` 與 `:13`）中的兩個不同 case，任何據此重新推導行為的人都會
 走到錯的那一個。
+
+Row 4 carried a second defect the survey did not see, found while fixing it and
+recorded here because it lived in the same eight lines. The object lookup was
+`environment[observable: type] as! Value`, so a type **nobody supplied** was a
+force-cast of `nil`: the process died inside `update(with:previousValue:)`,
+before `wrappedValue` and its message were ever reached. Measured on Win-gtk4,
+2026-09-08, the whole of what a developer got was
+
+    Could not cast value of type 'Swift.Optional<SwiftCrossUI.ObservableObject>'
+    (00007FFB7DD911C0) to 'EnvRepro.NeverSuppliedModel' (00007FF67207A110).
+
+— the target type and two addresses, with no mention of `@Environment`, of the
+view, or of the `.environmentObject(_:)` that was missing. `as?` now records the
+absence and `wrappedValue` reports it by name. Worth stating precisely because
+"traps with no message" is *nearly* right and would send the next reader looking
+for a bare `fatalError()`: there is a message, it just answers a different
+question than the one being asked.
+
+第 4 列還帶著一個本次盤點沒看見的第二個缺陷，是在修它的時候發現的，記於此處是因為它就住在同樣那
+八行裡。物件查找原本是 `environment[observable: type] as! Value`，因此一個**沒有人提供**的型別
+就是一次對 `nil` 的強制轉型：行程死在 `update(with:previousValue:)` 之中，`wrappedValue` 與它的
+訊息根本不會被觸及。2026-09-08 於 Win-gtk4 實測，開發者拿到的全部就是上方那兩行——目標型別加兩個
+位址，完全沒有提到 `@Environment`、沒有提到是哪個 view，也沒有提到缺少的
+`.environmentObject(_:)`。現在改用 `as?` 記下「不存在」，由 `wrappedValue` 指名回報。這一點值得
+精確描述，因為「無訊息中止」*幾乎*是對的，卻會讓下一位讀者去找一個沒有參數的 `fatalError()`：
+訊息是有的，只是它回答的問題與被問的那個不同。
 
 #### Row 1 in detail — two backends suppress with a named flag, three suppress structurally / 第 1 列細節——兩個 backend 以具名旗標壓制，三個以結構壓制
 

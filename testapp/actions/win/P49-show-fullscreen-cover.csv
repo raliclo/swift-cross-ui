@@ -1,0 +1,205 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on Windows, GtkBackend: press "Show the cover" so `.fullScreenCover` is
+# actually presented, which is the one thing about it a launch cannot show.
+#
+# NO `# expect:` MARKER, deliberately, AND NOT BECAUSE THE APP IS SILENT. P49
+# writes `cover requested, opens=1` on this press. It cannot be recovered:
+# `P49Diagnostics.write` is `print` only (P49.swift:26-29), with no file writer
+# beside it -- unlike P44 and P52, which append to `pNN-debug-events.log`.
+# Swift's `print` to a REDIRECTED stdout is block-buffered and `taskkill /F`
+# kills the process before it flushes; measured on P44 2026-09-07 and written up
+# in sweep-test/sweep_drive.zsh, where the run log had none of the app's lines
+# while the app's own log file had them. A marker here would therefore report
+# `UNCHECKED` on every run, which is neither a pass nor a failure.
+#
+# WHY THIS FILE EXISTS. P49's own header states the problem it was built for:
+# "`.fullScreenCover(isPresented:)` on a backend that ignored it compiles, runs,
+# sets the binding, and shows nothing -- and the button that set the binding
+# looks like a button that did nothing". A capture of P49 sitting at its first
+# frame is exactly the picture a backend that ignores the modifier would
+# produce, so the app cannot answer its own question until something presses the
+# button. The baseline gtk4-P49-base-20260908-225552.png is that first frame:
+# `cover opens: 0`, `coverShown = false`, three buttons, no presentation.
+#
+# ONE BUTTON, NOT THREE. flow.md rule 3d allows one layout-changing click per
+# file and a presentation is the largest layout change there is. Pressing the
+# sheet or the popover afterwards would be aiming coordinates measured on the
+# UNCOVERED window at whatever is on top of it now, and P50's file already
+# records what that produces: a click delivered to a surface that no longer
+# takes input, reported as success. The sheet and the popover get their own
+# files, each measured from its own capture.
+#
+# THE COVER WAS CHOSEN over the sheet because it is the untested one. `.sheet`
+# has been driven on this platform since P1; `.fullScreenCover` landed with task
+# #36 and has never been presented on GtkBackend by anything.
+#
+# HOW TO READ THE RESULT. Two independent signals, and they must agree:
+#
+#   the window fills with FULL SCREEN COVER and its Close button
+#                       the presentation happened AND it covers, which is the
+#                       whole claim ("must fill the window, with no drag
+#                       indicator")
+#   the counters move, the window does not change
+#                       the binding was set and nothing was presented -- the
+#                       exact failure P49 exists to make visible
+#   nothing changes at all
+#                       the click missed; re-measure before blaming the code
+#   the cover appears as a SEPARATE top-level window
+#                       not a failure, but not the claim either. A GTK
+#                       presentation on its own surface is not in a PrintWindow
+#                       capture of the main window -- P50's header records this
+#                       for a popover and P0's for a modal alert. In that case
+#                       the main window's counters are the evidence and the
+#                       "fills the window" half is UNANSWERED, not answered no.
+#
+# MEASURED 2026-09-08, FIRST RUN. IT IS THE FOURTH CASE ABOVE, and the reason
+# the fourth case is written down is that this run is what it looks like.
+# gtk4-P49-show-fullscreen-cover-20260908-230445.png is **782x583**, not the
+# baseline's 808x649, and it has no title bar. The replay's own window dump says
+# why -- a second top-level appeared that was not there before the click:
+#
+#     before   0x...2e50d94  808x649@234,234  gdkSurfaceToplevel   <- CHOSEN
+#     after    0x...4a00e7c  782x583@0,0      GdkWin32GL           (new)
+#
+# So on GtkBackend `.fullScreenCover` opens ITS OWN undecorated top-level
+# window. It does not replace the parent's content and it is not drawn inside
+# it. The picture holds the cover and nothing else: `FULL SCREEN COVER`, its
+# line, and a `Close` button, on a plain background with no drag indicator and
+# no rounded corners.
+#
+# THE SIZE IS THE INTERESTING NUMBER. 782x583 against the parent's own reported
+# content of 780x581 (`requested 780x620 allocated 780x581 shortfall 0x39`) --
+# two points larger in each axis, which is a border, not a layout. So the cover
+# does match the parent's CONTENT area even though it is a separate surface.
+# "Fills the window" is therefore satisfied in size and NOT in mechanism, and
+# the two are worth keeping apart: a separate surface can be moved, can be
+# raised behind the parent, and is not clipped by it.
+#
+# THE CAPTURE FOUND THE COVER, NOT THE MAIN WINDOW, and that is luck rather than
+# design. `screenshot.zsh -w P49` matches on title, both top-levels answer to
+# it, and the one that was captured is the new one. The consequence to plan for:
+# `cover opens: 1` and `coverShown = true` are on the MAIN window and are not in
+# this picture, so this run confirms the presentation and does NOT independently
+# confirm the counters. If a future run captures the parent instead -- same
+# command, different match -- the picture will show the counters and no cover,
+# and that is the SAME successful outcome seen from the other side. Check the
+# capture's dimensions before reading it: 808x649 is the parent, 782x583 is the
+# cover.
+#
+# COORDINATES, measured rather than eyeballed. Measured on a 808x649 window
+# capture at 100% display scale, origin=frame, from
+# output/screenshots/gtk4-P49-base-20260908-225552.png. Background sampled as
+# rgb(53,53,53); scanning each row for a contiguous run differing from it by
+# more than 5 gives three filled boxes:
+#
+#     y 304..337  x 43..165  -> centre (104,320)   Show the cover
+#     y 380..413  x 43..182  -> centre (112,396)   Show the popover
+#     y 456..489  x 43..165  -> centre (104,472)   Show the sheet
+#
+# THEY ARE 76 POINTS APART, which is the hazard worth naming: one row out and
+# the click lands on a different presentation, and the app would faithfully show
+# that one instead. Note also that the captions read 1, 3, 2 down the window --
+# the popover section sits between the other two in P49.swift -- so "the second
+# button" and "section 2" are different buttons. Aim by the measured box.
+#
+# THE SCALE IS NOT ASSUMED: the replay prints
+# `geometry frame=(...) client=(...) scale=1.0`, so one captured pixel is one
+# action-file point on this machine.
+#
+# ORIGIN IS `frame`, NOT `client`: screenshot.zsh -w captures the window
+# including its title bar, so a pixel measured on that image is already a frame
+# coordinate.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P49
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent.
+#
+# P49 於 Windows、GtkBackend：按下「Show the cover」，讓 `.fullScreenCover` 真的被呈現出來——那正是
+# 只啟動 app 所無法呈現的那一件事。
+#
+# **刻意不設 `# expect:` 標記，而且不是因為 app 不出聲。** P49 在這一按時會寫出
+# `cover requested, opens=1`。問題是它取不回來：`P49Diagnostics.write` 只有 `print`
+# （P49.swift:26-29），旁邊沒有檔案寫入器——這點與會追加到 `pNN-debug-events.log` 的 P44、P52 不同。
+# Swift 的 `print` 在 stdout **被重導向**時採區塊緩衝，而 `taskkill /F` 會在它 flush 之前殺掉行程；
+# 2026-09-07 於 P44 實測，並記載於 sweep-test/sweep_drive.zsh：run log 中沒有 app 的任何一行，而
+# app 自己的 log 檔裡有。因此在此設標記，只會使每一次執行都回報 `UNCHECKED`——那既不是通過也不是失敗。
+#
+# 本檔存在的理由。P49 自己的檔頭寫明了它為何被造出來：「`.fullScreenCover(isPresented:)` 在一個
+# 忽略它的 backend 上編得過、跑得動、也會設定 binding，然後什麼都不顯示——而設定該 binding 的那顆
+# 按鈕，看起來就像一顆沒有作用的按鈕」。因此一張停在第一幀的 P49 擷圖，恰好就是「backend 忽略了該
+# modifier」時會產生的那張圖；在有東西按下按鈕之前，這支 app 回答不了它自己提的問題。基準擷圖
+# gtk4-P49-base-20260908-225552.png 就是那第一幀：`cover opens: 0`、`coverShown = false`、
+# 三顆按鈕、沒有任何呈現。
+#
+# **一顆按鈕，不是三顆。** flow.md 規則 3d 允許每個檔案一次會改變版面的點擊，而「呈現」是其中最大的
+# 一種版面改變。之後再去按 sheet 或 popover，等於拿「未被覆蓋時」量到的座標去點現在蓋在上面的東西，
+# 而 P50 的檔案已經記錄了那會產生什麼：一次送往「不再接受輸入的 surface」的點擊，卻被回報為成功。
+# sheet 與 popover 各自擁有自己的檔案，並各自從自己的擷圖量測。
+#
+# **之所以選 cover** 而非 sheet，是因為它才是沒被測過的那一個。`.sheet` 自 P1 起就在本平台被驅動過；
+# `.fullScreenCover` 隨任務 #36 落地，而在 GtkBackend 上從來沒有任何東西呈現過它。
+#
+# 如何判讀結果。兩項互相獨立的訊號，且兩者必須一致：
+#
+#   視窗被 FULL SCREEN COVER 與它的 Close 按鈕填滿
+#                       呈現發生了**而且**它覆蓋了整個視窗，那正是完整的主張
+#                       （「must fill the window, with no drag indicator」）
+#   計數器動了，但視窗沒變
+#                       binding 被設定了、卻什麼都沒呈現——正是 P49 存在所要使其可見的那種失敗
+#   什麼都沒變
+#                       點擊落空；在怪罪程式之前請先重新量測
+#   cover 以**獨立的** top-level 視窗出現
+#                       這不是失敗，但也不等於那項主張。GTK 中「自成一個 surface」的呈現不會出現在
+#                       主視窗的 PrintWindow 擷圖裡——P50 的檔頭為 popover 記錄過、P0 為 modal alert
+#                       記錄過。此時證據是主視窗上的計數器，而「是否填滿視窗」那一半是**未回答**，
+#                       不是回答為否。
+#
+# **2026-09-08 首次執行實測：它就是上面第四種情況**——而第四種情況之所以被寫下來，正是因為這次執行
+# 長得就是那個樣子。gtk4-P49-show-fullscreen-cover-20260908-230445.png 是 **782x583**，不是基準的
+# 808x649，而且沒有標題列。重放自己的視窗傾印說明了原因——點擊之後多出一個原本不存在的 top-level：
+#
+#     之前   0x...2e50d94  808x649@234,234  gdkSurfaceToplevel   <- CHOSEN
+#     之後   0x...4a00e7c  782x583@0,0      GdkWin32GL           （新增）
+#
+# 因此在 GtkBackend 上，`.fullScreenCover` 會開啟**它自己的**、無外框的 top-level 視窗。它並未取代
+# 父視窗的內容，也不是畫在父視窗裡面。畫面上只有 cover：`FULL SCREEN COVER`、它的說明行，與一顆
+# `Close` 按鈕，背景素淨、沒有拖曳指示條、沒有圓角。
+#
+# **尺寸才是值得注意的數字。** 782x583 對上父視窗自己回報的內容尺寸 780x581
+# （`requested 780x620 allocated 780x581 shortfall 0x39`）——兩軸各大兩點，那是一圈邊框，不是版面
+# 差異。所以即使它是獨立的 surface，尺寸上確實對齊了父視窗的**內容區**。也就是說，「填滿視窗」在
+# 尺寸上成立、在機制上不成立，而這兩者值得分開看：獨立的 surface 可以被移動、可以被壓到父視窗
+# 後面，而且不受父視窗裁切。
+#
+# **擷圖抓到的是 cover，不是主視窗**，而那是運氣而非設計。`screenshot.zsh -w P49` 以標題比對，
+# 兩個 top-level 都答得上，而被抓到的是新的那一個。要預先設想的後果是：`cover opens: 1` 與
+# `coverShown = true` 在**主**視窗上，不在這張圖裡，因此本次執行確認了「呈現發生」，而**沒有**
+# 獨立確認那些計數器。若日後某次執行改抓到父視窗——同樣的指令、不同的比對結果——畫面上會是計數器
+# 而沒有 cover，那是**同一個**成功結果從另一面看過去。判讀之前請先看擷圖的尺寸：808x649 是父視窗，
+# 782x583 是 cover。
+#
+# 座標為實測而非目測。量測自一張 808x649 的視窗截圖，顯示縮放 100%，origin=frame，取自
+# output/screenshots/gtk4-P49-base-20260908-225552.png。背景取樣為 rgb(53,53,53)；逐列掃描
+# 「與背景差異超過 5 且連續」的區段，得到三個填色方塊：
+#
+#     y 304..337  x 43..165  -> 中心 (104,320)   Show the cover
+#     y 380..413  x 43..182  -> 中心 (112,396)   Show the popover
+#     y 456..489  x 43..165  -> 中心 (104,472)   Show the sheet
+#
+# **三者相隔 76 點**，這是值得指名的危險：偏一列，點擊就會落在另一種呈現上，而 app 會忠實地把那一種
+# 顯示出來。另請注意畫面上的說明文字由上而下讀作 1、3、2——popover 那一節在 P49.swift 中夾在另外
+# 兩者之間——因此「第二顆按鈕」與「第 2 節」並不是同一顆。請以實測邊界瞄準。
+#
+# **縮放比例不是假設出來的**：重放會印出 `geometry frame=(...) client=(...) scale=1.0`，因此在本機上
+# 一個擷圖像素等於一個動作檔的點。
+#
+# origin 用 `frame` 而非 `client`：screenshot.zsh -w 擷取的視窗包含標題列，因此在該影像上量到的
+# 像素本來就是 frame 座標。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P49
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，失敗是靜默的。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,104,320,frame,left,,,"Show the cover -- presents .fullScreenCover; the window must fill with FULL SCREEN COVER and a Close button",windows
+sleep,,,,,,1500000,hold for the capture and let the presentation finish,windows

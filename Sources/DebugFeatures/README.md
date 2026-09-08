@@ -43,12 +43,29 @@ SCUI_DEBUG=1 swift build        # the flags exist
 swift build                     # they do not
 ```
 
-`testapp/compile.zsh` passes it through, so:
+`testapp/compile.zsh` inverts the default, on purpose:
 
 ```zsh
-SCUI_DEBUG=1 zsh testapp/compile.zsh P26    # -debug and -actionfile work
-zsh testapp/compile.zsh P26                 # neither is recognised
+zsh testapp/compile.zsh P26                 # -debug and -actionfile work
+SCUI_DEBUG=0 zsh testapp/compile.zsh P26    # neither is recognised
 ```
+
+Nothing that script builds is shipped — every one of them is a test app whose
+purpose is to be driven from `testapp/actions/`, and it links `InputEvent` into
+all of them unconditionally anyway — so neither reason above applies there.
+What the library default produced in that directory was a silent no-op: a
+release build accepted `-actionfile`, linked the replay code, and had the one
+line that starts a replay compiled out of the backend. **The gate is the
+define, never the configuration** — `BUILD_CONFIG=debug` does not define
+`SCUI_DEBUG` and never did, so rebuilding in debug was never the way back.
+
+`testapp/compile.zsh` 刻意把預設反過來（如上）。
+
+該腳本建置的東西沒有一個會出貨——它們全是測試 app，其存在目的正是被 `testapp/actions/` 驅動，
+而且它本來就無條件把 `InputEvent` 連結進其中每一個——因此上述兩個理由在那裡都不成立。函式庫的
+預設在那個目錄裡造成的是一個靜默的 no-op：release 建置接受了 `-actionfile`、也連結了重放程式碼，
+而「啟動重放的那一行」卻被編譯出了 backend 之外。**閘門是那個「定義」，而不是「組態」**——
+`BUILD_CONFIG=debug` 不會定義 `SCUI_DEBUG`，從來沒有過，所以「改用 debug 重建」從來就不是回頭路。
 
 ## API
 
@@ -185,4 +202,6 @@ summary 旁自行印出 `String(describing: DefaultBackend.self)`。
 ## Related
 
 - `Sources/InputEvent/README.md` — the action file format
-- `Sources/GtkBackend/ActionFileReplay.swift` — where `-actionfile` is handled
+- `Sources/InputEvent/ActionFileReplay.swift` — where `-actionfile` is handled.
+  It moved out of `Sources/GtkBackend/` in `4e2e5f05`, which folded the two
+  per-backend copies into one; this line still named the deleted file.

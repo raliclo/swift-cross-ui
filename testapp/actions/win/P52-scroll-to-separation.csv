@@ -1,0 +1,214 @@
+action,x,y,origin,button,key,micros,note,platform
+# P52 on Windows, GtkBackend: wait out the benchmark, then scroll to the
+# SEPARATION line -- the one line that says whether the ratio above it means
+# anything.
+#
+# NO `# expect:` MARKER, deliberately. P52 writes plenty -- `BENCHMARK COMPLETE`
+# among it -- but it writes not one line about being scrolled, and every line it
+# does write is produced by the launch alone. A marker naming any of them would
+# be satisfied by a run in which the wheel event never happened, which is the
+# exact failure mode P44's header describes: `replay=ok` for a file whose every
+# action missed. The claim this file makes is therefore in the picture, and the
+# log is a PRECONDITION to check by hand rather than an assertion (see below).
+#
+# WHY THIS FILE EXISTS. P52 prints its results into the window as well as into
+# p52-debug-events.log, and the window is where a reader looks. The baseline
+# capture gtk4-P52-base2-20260908-222610.png, taken 120 s after launch with the
+# benchmark finished, ends mid-table:
+#
+#     visible   --- P52 results ... / PRESS control / PRESS primitive /
+#               PRESS custom / FIXED OVERHEAD / PER TRANSITION / PER CLICK /
+#               RATIO custom/primitive per transition = 1.04x   (clipped)
+#     below     SEPARATION ... / FIRST RENDER ... / RE-DERIVE ...
+#
+# So the last thing a capture of P52 shows is a ratio, and the line that says
+# the ratio is NOISE is the first thing it does not. That is the worst possible
+# fold: the reader is handed `1.04x` and the sentence retracting it is off
+# screen. P52's own header exists because this comparison "was REASONED AND
+# NEVER MEASURED"; a capture that stops one line short of the measurement's own
+# verdict reintroduces the same problem in picture form.
+#
+# MEASURED 2026-09-08 WITH THE 90s SLEEP: all three hidden lines are readable.
+# gtk4-P52-scroll-to-separation-20260908-231734.png, 1028x929, idle machine.
+# `RENDER COMPLETE` 15:15:52, `BENCHMARK COMPLETE` 15:16:57 -- 65s, so the
+# scroll fired 25s clear of it rather than the 1s the 60s version managed.
+#
+# THE CONTENT MOVED 69 POINTS, NOT THE ~120 THE THREE NOTCHES ASKED FOR, and
+# that is the correct outcome rather than a shortfall. Landmark measured on both
+# captures: `primitive arm -- .buttonStyle(nil) ...` sits at y~224 in
+# gtk4-P52-base2-20260908-222610.png and at y~155 here. The ScrollView stopped
+# at the bottom of its content, which is the whole overflow -- so this file
+# reveals everything there is and cannot overshoot into blank space. A future
+# table with more rows will simply use more of the 120.
+#
+# WHAT IS NOW VISIBLE that no previous capture of P52 contained:
+#     SEPARATION none: ranges overlap (...). Treat the ratio above as NOISE,
+#                      not a result.
+#     FIRST RENDER per button (separate question): ...
+#     RE-DERIVE: rebuild and run again; every number above is min-of-n ...
+# The `RATIO ... = 1.07x` line above them is now fully on screen too, directly
+# above the sentence that says not to believe it. That adjacency is the point of
+# the file.
+#
+# WHY SCROLL RATHER THAN ENLARGE THE WINDOW. Same answer as P51's file: making
+# the app taller so the test can see more is changing the subject to make the
+# test pass. The table is inside a ScrollView, scrolling is what a reader would
+# do, and it exercises the ScrollView at the same time.
+#
+# THE `move` IS NOT OPTIONAL. `scroll` carries no position -- InputAction.swift
+# says so and says why: a wheel event goes to whatever is under the pointer, so
+# a scroll row that also claimed a position could describe one place and scroll
+# another. Without a preceding `move` the pointer is wherever the window manager
+# left it, which may be outside the window entirely.
+#
+# (500,600) is empty background INSIDE the scroll area -- sampled rgb(53,53,53)
+# on the capture, the same colour as (700,600) and (500,650). It sits in the gap
+# the control arm leaves between its caption at y~481 and the Results heading at
+# y~748, so there is no button under the pointer and no chance of the wheel
+# being taken by a control. The 48 primitive-arm buttons end at y~437 and are
+# well clear.
+#
+# THREE NOTCHES. The iOS files in this suite record four notches as "160 points
+# asked for", so a notch is about 40 points and three is about 120 -- enough to
+# lift four remaining table rows (~17 points each at font size 11) above the
+# fold with room to spare, and not so much that the heading leaves the window.
+# `dy` POSITIVE is down; Windows inverts the vertical wheel and the synthesiser
+# handles that, so the action file does not.
+#
+# THE 90-SECOND SLEEP IS THE FRAGILE PART OF THIS FILE, and it is a sleep rather
+# than a wait because the format has no way to wait for a line.
+#
+# P52 SAYS "~20s" ON SCREEN AND THAT IS NOT WHAT IT TAKES. Measured 2026-09-08
+# from p52-debug-events.log's own timestamps, on an idle machine with no build
+# running: `RENDER COMPLETE` at 15:12:35, `BENCHMARK COMPLETE` at 15:13:37 --
+# **62 seconds**, three times the caption. Under a concurrent build the same run
+# took past two minutes. The app's caption is the stale number here, not this
+# file; both are recorded so the disagreement is visible rather than averaged.
+#
+# THE FIRST VERSION OF THIS FILE SLEPT 60s AND PASSED BY ABOUT ONE SECOND. The
+# scroll fired at roughly 15:13:38 against a benchmark that finished at
+# 15:13:37, and the capture was correct -- which is the worst kind of pass,
+# because nothing in it says how close it came. 90s is that margin made real,
+# not caution: at 60s a slightly slower machine produces an empty Results
+# section and a picture that looks exactly like a wheel event that did nothing.
+#
+# HOW TO TELL THE TWO APART when it does go wrong: check p52-debug-events.log
+# for `BENCHMARK COMPLETE` before reading anything into the picture. Present
+# means the benchmark finished and the scroll is the suspect; absent means the
+# sleep was too short and the scroll had nothing to reveal. Note the log is
+# APPENDED to, so read the last block, not the file.
+#
+# THE CAPTURE MUST BE TAKEN AFTER ALL OF THIS. The replay and the screenshot are
+# independent clocks: `screenshot.zsh -d N` has to exceed the sum of the micros
+# below, or the picture is of the unscrolled window and looks exactly like a
+# wheel event that did nothing. 93 seconds of actions here, so -d 100 or more.
+#
+# COORDINATES. Measured on a 1028x929 window capture at 100% display scale,
+# origin=frame, read off output/screenshots/gtk4-P52-base2-20260908-222610.png.
+# The app asks for 1000x900 and prints `requested 1000x900 allocated 1000x861
+# shortfall 0x39` -- task #79, GTK on Windows taking its titlebar out of the
+# requested content rather than adding it to the frame. Those 39 points are part
+# of why the table does not fit; they are not something this file can fix.
+#
+# ORIGIN IS `frame`, NOT `client`: screenshot.zsh -w captures the window
+# including its title bar, so a pixel measured on that image is already a frame
+# coordinate.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P52
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent.
+#
+# P52 於 Windows、GtkBackend：等 benchmark 跑完，然後捲到 SEPARATION 那一行——也就是唯一說出
+# 「它上面那個比值到底有沒有意義」的那一行。
+#
+# **刻意不設 `# expect:` 標記。** P52 寫了很多東西——`BENCHMARK COMPLETE` 也在其中——但它對「被捲動」
+# 一行都沒寫，而它確實會寫的每一行都只靠啟動就會產生。若以其中任何一行為標記，一次「滾輪事件根本
+# 沒發生」的執行也會滿足它，那正是 P44 檔頭所描述的失敗形態：每一個動作都落空的檔案，照樣回報
+# `replay=ok`。因此本檔的主張在畫面裡，而 log 是一項**待人工確認的前提**，不是斷言（見下）。
+#
+# 本檔存在的理由。P52 把結果同時印進視窗與 p52-debug-events.log，而讀者看的是視窗。基準擷圖
+# gtk4-P52-base2-20260908-222610.png 於啟動後 120 秒、benchmark 已完成時拍攝，卻停在表格中間：
+#
+#     看得到  --- P52 results ... ／PRESS control ／PRESS primitive ／PRESS custom ／
+#             FIXED OVERHEAD ／PER TRANSITION ／PER CLICK ／
+#             RATIO custom/primitive per transition = 1.04x（被切）
+#     在下方  SEPARATION ... ／FIRST RENDER ... ／RE-DERIVE ...
+#
+# 也就是說，P52 的擷圖最後給讀者看到的是一個比值，而「這個比值是雜訊」那一句正是它第一個看不到的
+# 東西。那是最糟的一種折線：讀者拿到 `1.04x`，而撤回它的那句話落在畫面外。P52 的檔頭之所以存在，
+# 正是因為那個比較「只被推論過、從未被量測」；一份在量測自身結論前一行就停住的擷圖，等於以圖片
+# 形式把同一個問題再造一次。
+#
+# **2026-09-08 以 90 秒的 sleep 實測：三行原本被藏住的內容全部可讀。**
+# gtk4-P52-scroll-to-separation-20260908-231734.png，1028x929，機器閒置。
+# `RENDER COMPLETE` 15:15:52、`BENCHMARK COMPLETE` 15:16:57——65 秒，因此捲動比它晚了 25 秒才發生，
+# 而不是 60 秒版本那勉強的 1 秒。
+#
+# **內容移動了 69 點，而不是三格滾輪所要求的約 120 點**，而那是正確的結果，不是不足。以同一個地標
+# 在兩張擷圖上量測：`primitive arm -- .buttonStyle(nil) ...` 在
+# gtk4-P52-base2-20260908-222610.png 中位於 y≈224，在此處位於 y≈155。ScrollView 停在它內容的底部，
+# 而那正是全部的溢出量——因此本檔會揭露所有存在的東西，且不可能多捲進一片空白。若日後表格列數增加，
+# 它自然會用掉那 120 點中更多的部分。
+#
+# **現在看得到、而 P52 過去任何一張擷圖都不曾包含的內容**：
+#     SEPARATION none: ranges overlap (...). Treat the ratio above as NOISE,
+#                      not a result.
+#     FIRST RENDER per button (separate question): ...
+#     RE-DERIVE: rebuild and run again; every number above is min-of-n ...
+# 它們上方的 `RATIO ... = 1.07x` 現在也完整落在畫面上，就緊貼在那句「別相信它」的上面。那份緊鄰
+# 關係，正是本檔的重點。
+#
+# 為何用捲動而非把視窗加大。與 P51 的檔案同一個答案：為了讓測試看得到更多而把 app 變高，是改變
+# 題目以使測試通過。表格位於 ScrollView 之內；捲動才是讀者會做的事，而且它同時也驗到了 ScrollView。
+#
+# `move` 不是可有可無的。`scroll` 不攜帶位置——InputAction.swift 說明了原因：滾輪事件會送往指標
+# 下方之物，因此一列「同時宣稱位置」的 scroll，可能描述了某處卻捲動了另一處。少了前置的 `move`，
+# 指標會停在視窗管理員最後留下它的地方，而那可能完全在視窗之外。
+#
+# (500,600) 是捲動區域**內**的空白背景——在擷圖上取樣得 rgb(53,53,53)，與 (700,600)、(500,650)
+# 同色。它落在 control arm 的說明（約 y=481）與 Results 標題（約 y=748）之間的空隙裡，因此指標
+# 下方沒有任何按鈕，滾輪也不會被某個控制項接走。primitive arm 的 48 顆按鈕止於約 y=437，距離充足。
+#
+# 三格滾輪。本套件的 iOS 檔案記錄「四格＝要求 160 點」，因此一格約 40 點、三格約 120 點——足以把
+# 剩下的四列（字級 11，每列約 17 點）抬離折線且仍有餘裕，又不至於多到讓標題離開視窗。`dy` 為**正**
+# 代表向下；Windows 的垂直滾輪方向相反，該反轉由 synthesiser 處理，動作檔不必理會。
+#
+# **那 90 秒的 sleep 是本檔最脆弱之處**，而它之所以是 sleep 而非等待，是因為本格式沒有辦法等待
+# 某一行出現。
+#
+# **P52 在畫面上寫「~20s」，而它實際上不是這個數字。** 2026-09-08 依 p52-debug-events.log 自身的
+# 時戳實測，機器閒置、沒有任何建置在跑：`RENDER COMPLETE` 於 15:12:35、`BENCHMARK COMPLETE` 於
+# 15:13:37——**62 秒**，是說明文字的三倍。在有建置並行時，同樣的執行超過兩分鐘。此處過時的是 app
+# 的說明文字，不是本檔；兩者都記下來，好讓這個分歧被看見，而不是被平均掉。
+#
+# **本檔的第一版睡 60 秒，而它是以大約一秒之差通過的。** 捲動大約發生在 15:13:38，而 benchmark
+# 於 15:13:37 結束，擷圖是正確的——那是最糟的一種通過，因為它本身完全不會說出自己有多驚險。
+# 90 秒是把那個餘裕落實下來，不是保守：在 60 秒之下，一台稍慢的機器會得到空的 Results 區塊，而
+# 那張圖看起來與「滾輪事件毫無作用」一模一樣。
+#
+# **真的出錯時要如何分辨這兩者**：在對畫面做出任何解讀之前，先到 p52-debug-events.log 確認有
+# `BENCHMARK COMPLETE`。有，代表 benchmark 跑完了、嫌疑在捲動；沒有，代表 sleep 太短、捲動根本
+# 無物可揭露。注意該檔是**附加**寫入的，因此要讀最後一段，而不是整份檔案。
+#
+# **擷圖必須在這一切之後才拍。** 重放與截圖是兩個各自獨立的時鐘：`screenshot.zsh -d N` 的 N 必須
+# 大於下方 micros 的總和，否則拍到的是未捲動的視窗，而那看起來與「滾輪事件毫無作用」一模一樣。
+# 下方共 93 秒，因此請用 -d 100 以上。
+#
+# 座標。量測自一張 1028x929 的視窗截圖，顯示縮放 100%，origin=frame，取自
+# output/screenshots/gtk4-P52-base2-20260908-222610.png。該 app 要求 1000x900，並印出
+# `requested 1000x900 allocated 1000x861 shortfall 0x39`——即任務 #79：Windows 上的 GTK 把標題列
+# 從「要求的內容尺寸」裡扣掉，而不是加到 frame 上。那 39 點正是表格塞不下的原因之一，而那不是
+# 本檔能修的東西。
+#
+# origin 用 `frame` 而非 `client`：screenshot.zsh -w 擷取的視窗包含標題列，因此在該影像上量到的
+# 像素本來就是 frame 座標。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P52
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，失敗是靜默的。
+sleep,,,,,,90000000,"wait out the 10-round benchmark; measured at 62s on an idle machine although the app says ~20s, so 90 is 45% margin and not generosity",windows
+move,500,600,frame,,,,park on empty background between the control arm's caption and the Results heading -- no control under the pointer,windows
+sleep,,,,,,200000,let the pointer arrive before the wheel event,windows
+scroll,0,3,,,,,"three notches down (~120 points) to bring SEPARATION, FIRST RENDER and RE-DERIVE above the fold",windows
+sleep,,,,,,2500000,hold for the capture and let the scroll settle,windows

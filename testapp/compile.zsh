@@ -204,6 +204,14 @@ case "${1:-}" in
             "未指定 app 名稱時，會建置所有 P*.swift。" \
             "Release by default; BUILD_CONFIG=debug for an unoptimised build." \
             "預設 release；需要未最佳化 build 時設定 BUILD_CONFIG=debug。" \
+            "SCUI_DEBUG=1 by default, so -actionfile and --debug work in the" \
+            "release build this produces. SCUI_DEBUG=0 builds without them." \
+            "The two are independent: BUILD_CONFIG picks the optimiser," \
+            "SCUI_DEBUG decides whether a replay exists in the binary at all." \
+            "SCUI_DEBUG 預設為 1，因此此處產出的 release 建置中 -actionfile 與" \
+            "--debug 都可用；SCUI_DEBUG=0 則建置為不含它們的版本。" \
+            "兩者互相獨立：BUILD_CONFIG 決定最佳化，SCUI_DEBUG 決定重放是否" \
+            "存在於執行檔之中。" \
             "Every artefact copied into output/ gets a row in" \
             "output/build-manifest.csv2 saying which configuration produced it." \
             "每一個複製進 output/ 的產物都會在 output/build-manifest.csv2 得到一列，" \
@@ -751,7 +759,52 @@ sources_root="$package_dir/Sources"
 # 因此改為把該值蓋印在 work 目錄中，一旦改變就清除 manifest 快取。只清 manifest 快取：建置目錄
 # 不予更動，因此代價是一次重新求值，而非一次完整重建。
 scui_debug_stamp="$compile_work_dir/.scui-debug-value"
-scui_debug_value="${SCUI_DEBUG:-}"
+# ON by default here, which is the opposite of `swift build`'s default, and
+# deliberately so. `Package.swift` leaves SCUI_DEBUG off because a *shipped*
+# application should not carry a way to synthesise clicks into whatever window
+# is in front -- see Sources/DebugFeatures/README.md. This script ships nothing.
+# Everything it builds is a test app whose whole purpose is to be driven from
+# `testapp/actions/`, and it already links `InputEvent` into every one of them
+# unconditionally (see `testAppDependencies` below), so the two reasons the
+# library default rests on -- size, and an input-injection tool in a released
+# binary -- do not apply to anything produced here.
+#
+# What the old default produced was the silent failure this script's own
+# comments describe twice over: `-c release` with no define, `-actionfile`
+# accepted by the shell and by `CommandLine.arguments`, the replay code linked,
+# and the one line that starts a replay compiled out of the backend. No error,
+# no warning, not even the `replaying ...` line. A build flag whose absence
+# turns a driven test into a silent no-op is not a safe default for a directory
+# of driven tests.
+#
+# Note which axis this is on. The gate is the DEFINE, never the configuration:
+# `BUILD_CONFIG=debug` does not define SCUI_DEBUG and never did, so "rebuild it
+# in debug" was never the way to get a replay back. Release with the define is,
+# and now that is what an unadorned run produces.
+#
+# `SCUI_DEBUG=0` still opts out, for the A/B scripts that need a build without
+# the debug features as their control -- test_rootscroll_ios.zsh and
+# test_rootscroll_android.zsh pass it for exactly that.
+#
+# 此處預設為「開」，與 `swift build` 的預設相反，且是刻意如此。`Package.swift` 之所以預設關閉
+# SCUI_DEBUG，是因為「已出貨」的應用程式不應攜帶一套「向前方任何視窗合成點擊」的手段——詳見
+# Sources/DebugFeatures/README.md。而本腳本不出貨任何東西：它建置的全是測試 app，其存在目的
+# 正是要被 `testapp/actions/` 驅動，而且它本來就已無條件把 `InputEvent` 連結進其中每一個
+# （見下方的 `testAppDependencies`）。因此該函式庫預設所倚賴的兩個理由——體積，以及「已發布
+# 執行檔中的輸入注入工具」——對此處產出的任何東西都不成立。
+#
+# 舊的預設所造成的，正是本腳本自己的註解已描述過兩次的那種靜默失敗：`-c release` 而未帶定義、
+# `-actionfile` 被 shell 與 `CommandLine.arguments` 雙雙接受、重放程式碼也連結進去了，而「啟動
+# 重放的那一行」卻被編譯出了 backend 之外。沒有錯誤、沒有警告，連 `replaying ...` 都沒有。
+# 一個「缺少它就會把受驅動的測試變成靜默 no-op」的建置旗標，不該是一整個受驅動測試目錄的預設。
+#
+# 請注意這是哪一條軸線。閘門一直是那個「定義」，而非「組態」：`BUILD_CONFIG=debug` 不會定義
+# SCUI_DEBUG，而且從來沒有過——所以「用 debug 重建一次」從來就不是把重放找回來的方法。真正的
+# 方法是「release 加上該定義」，而現在，一次不帶任何裝飾的執行產出的就是它。
+#
+# `SCUI_DEBUG=0` 仍可退出，供那些「需要一個不含 debug 功能的建置作為對照組」的 A/B 腳本使用——
+# test_rootscroll_ios.zsh 與 test_rootscroll_android.zsh 傳的正是它。
+scui_debug_value="${SCUI_DEBUG:-1}"
 
 # Export it, or the cache invalidation above is the only thing that ever sees
 # it. `Package.swift` reads `env["SCUI_DEBUG"]` to decide whether to define the
