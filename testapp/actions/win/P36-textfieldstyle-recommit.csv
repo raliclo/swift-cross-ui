@@ -1,0 +1,170 @@
+action,x,y,origin,button,key,micros,note,platform
+# P36 on Windows, GtkBackend: type into the styled row so every one of the five
+# text fields is committed a SECOND time, and check the borders survive it.
+#
+# expect: capture-differs
+#
+# RESULT OF THE FIRST RUN, 2026-09-08 23:04, GtkBackend/Windows, and it did NOT
+# establish what this file was written to establish. Read this before quoting
+# the file as evidence of anything.
+#
+# What happened: the click landed. textfieldstyle-gtk4-recommit-20260908-230418.png
+# shows the `automatic` field focused, with a focus ring and one glyph where its
+# placeholder was, so the pointer half of the replay worked and the coordinates
+# above are right. What did NOT happen is the part that matters: the other four
+# fields still show their PLACEHOLDERS, and they share `styledText` with the one
+# that was typed into. If the binding had been written, every placeholder would
+# have gone. So the keystroke reached the GtkEntry's own buffer without reaching
+# SwiftCrossUI's binding, and the state change that would force a second commit
+# of all five fields never occurred.
+#
+# What the capture therefore does and does not prove, measured by the same pixel
+# scan described above and run against the post-click image:
+#
+#   automatic  box y408..441, 4/4 corners page-coloured  (rounded, unchanged)
+#   plain      no box at all down its mid-column          (unchanged)
+#   rounded    box y408..441, 4/4 corners page-coloured   (unchanged)
+#   square     box y408..441, 0/4 corners page-coloured   (square, unchanged)
+#
+# PROVES: the four shapes survive a click and a focus change on one of them.
+# DOES NOT PROVE: that a field can leave `plain` once given it, which is the
+# one-way-door risk in the header. That still rests on reading each backend's
+# `automatic` arm, not on a run.
+#
+# Do not "fix" this by asserting a marker the run does not produce. The next
+# step is the synthesiser, not this file: find why a synthesised character does
+# not reach the binding when a synthesised Tab and Space do (P31 measured
+# `button clicked count=1` from exactly that pair). Until then this file is a
+# click test that happens to re-check the borders.
+#
+# **2026-09-08 23:04 首次執行的結果，而它並未確立本檔原本要確立的事。** 在把本檔當成任何事情的
+# 證據之前，請先讀這一段。
+#
+# 發生了什麼：點擊命中了。textfieldstyle-gtk4-recommit-20260908-230418.png 顯示 `automatic`
+# 欄位取得焦點、帶有焦點環，且原本佔位文字的位置出現一個字形，因此重放的指標部分是有效的，上方
+# 座標也是對的。**沒有**發生的是真正要緊的那一半：另外四個欄位仍顯示它們的**佔位文字**，而它們
+# 與被輸入的那一個共用 `styledText`。若 binding 真的被寫入，所有佔位文字都會消失。因此該按鍵只
+# 抵達了 GtkEntry 自身的緩衝區，並未抵達 SwiftCrossUI 的 binding，而那個「會迫使五個欄位第二次
+# commit」的狀態變更從未發生。
+#
+# **已證明**：四種外形在其中之一被點擊並取得焦點後依然存活。
+# **未證明**：一個欄位在被賦予 `plain` 之後能否離開它——也就是標頭中那個單向門風險。那一點目前
+# 仍只建立在閱讀各 backend 的 `automatic` 分支上，而非建立在一次執行上。
+#
+# 不要靠斷言一個該次執行並不會產生的標記來「修好」這件事。下一步在合成器，不在本檔：找出為何
+# 合成的字元無法抵達 binding，而合成的 Tab 與 Space 卻可以（P31 正是以那一對量到了
+# `button clicked count=1`）。在那之前，本檔是一個順便重新檢查邊框的點擊測試。
+#
+# WHAT THIS IS FOR, and it is not "does textFieldStyle work". The first capture
+# already answers that: textfieldstyle-gtk4-20260908-225329.png shows automatic,
+# plain, roundedBorder, squareBorder and a custom style side by side, each with
+# a different border, after one commit. This file asks the question that one
+# capture cannot: whether a field can LEAVE a style once it has been given one.
+#
+# The risk is specific and it is the same on all five backends. `plain` is
+# implemented by taking chrome away -- `has-frame: false` plus zero-width CSS on
+# Gtk, `borderThickness = 0` plus theme-resource overrides on WinUI,
+# `isBezeled = false` on AppKit, `borderStyle = .none` on UIKit,
+# `setBackground(null)` on Android. Widgets are reused across updates, so if the
+# `automatic` arm merely skipped instead of restoring, a field that had been
+# plain once would stay plain forever, and `.textFieldStyle` would appear to
+# work exactly once per widget. Every backend's `automatic` arm therefore
+# restores explicitly, and this file is the only thing that exercises the second
+# commit on the one backend that can be run here.
+#
+# WHY TYPING IS THE TRIGGER. The five fields below share one `@State var
+# styledText`, on purpose -- see P36.swift. A keystroke into any of them writes
+# that one binding, which invalidates the view and re-commits all five with
+# their styles a second time. Nothing else in P36 touches them: the Picker, the
+# button and the `$text` field above all drive different state.
+#
+# THE VERDICT IS THE CAPTURE, not the log. P36 writes no log line for a
+# keystroke -- P36Diagnostics is called from .onAppear and from the button's
+# action only -- so `log-contains` has nothing to match here. What a correct run
+# looks like: all five fields hold the typed text, AND `automatic` still has its
+# framed rounded box, `rounded` still has rounded corners, `square` still has
+# square ones, and `plain` still has no box. A regression looks like every field
+# gone plain, or every field gone framed.
+#
+# Coordinates read off a wincap capture of the frame at 848x729, GtkBackend,
+# 2026-09-08, 100% display scale, origin=frame like every other file here. P36
+# asks for 820x700 and GTK gives it more. The `automatic` field spans
+# x 36..181, y 409..441; (108, 425) is its centre. It is the LEFTMOST of the
+# five, so a click that slips sideways lands on nothing rather than on a
+# neighbour, and one that slips upward lands on the row's own Text label, which
+# is inert.
+#
+# BUILD IT WITH THE FLAG, as every file here needs:
+#   zsh testapp/compile.zsh -gtk4 P36
+# compile.zsh defaults SCUI_DEBUG on, unlike `swift build`; confirmed for the
+# build this file was written against by output/build-manifest.csv2, whose
+# P36-gtk4.exe row reads scui_debug=1. GtkBackend guards its ActionFileReplay
+# call with #if SCUI_DEBUG, and without it the replay is compiled out silently.
+#
+# P36 於 Windows、GtkBackend：往帶樣式的那一列輸入文字，使五個文字輸入框全部被**第二次** commit，
+# 並檢查邊框是否存活。
+#
+# 本檔的目的**不是**「textFieldStyle 有沒有作用」。第一張擷圖已經回答了那個問題：
+# textfieldstyle-gtk4-20260908-225329.png 在一次 commit 之後，並排顯示了 automatic、plain、
+# roundedBorder、squareBorder 與一個自訂樣式，各自帶著不同的邊框。本檔要問的是那張擷圖回答不了的
+# 事：一個欄位在被賦予某個樣式之後，能不能**離開**它。
+#
+# 這個風險很具體，而且五個 backend 都一樣。`plain` 是靠**拿掉**外框裝飾來實作的——Gtk 上是
+# `has-frame: false` 加零寬度 CSS，WinUI 上是 `borderThickness = 0` 加主題資源覆寫，AppKit 上是
+# `isBezeled = false`，UIKit 上是 `borderStyle = .none`，Android 上是 `setBackground(null)`。
+# widget 會跨更新重複使用，因此若 `automatic` 分支只是略過而非還原，一個曾經是 plain 的欄位就會
+# 永遠是 plain，而 `.textFieldStyle` 看起來會是「每個 widget 只生效一次」。所以每個 backend 的
+# `automatic` 分支都明確地還原，而本檔是在此處唯一跑得動的那個 backend 上，唯一會觸及第二次
+# commit 的東西。
+#
+# **為何以輸入為觸發。** 下方五個欄位刻意共用同一個 `@State var styledText`——見 P36.swift。
+# 往其中任何一個按鍵，都會寫入那個 binding，使 view 失效，並讓五個欄位連同它們的樣式一起被第二次
+# commit。P36 中沒有別的東西會碰它們：Picker、按鈕與上方的 `$text` 欄位驅動的都是不同的 state。
+#
+# **判定依據是擷圖，不是 log。** P36 不會為按鍵寫任何 log——P36Diagnostics 只在 .onAppear 與按鈕
+# 的 action 中被呼叫——因此 `log-contains` 在此沒有東西可比對。一次正確的執行看起來是：五個欄位都
+# 帶著輸入的文字，**而且** `automatic` 仍有它的圓角外框、`rounded` 仍是圓角、`square` 仍是方角、
+# `plain` 仍然沒有框。迴歸看起來則是：全部變成無框，或全部變成有框。
+#
+# 座標取自 2026-09-08 於 100% 顯示縮放下、848x729 的 wincap frame 擷圖，origin=frame。
+# `automatic` 欄位橫跨 x 36..181、y 409..441，(108, 425) 為其中心。它是五者中**最左**的一個，
+# 因此橫向滑掉的點擊會落在空處而非鄰居身上，向上滑掉的則會落在該列自己的 Text 標籤上，而那是惰性的。
+#
+# THIS ONE FILE HAPPENS TO BE VALID ON BOTH WINDOWS BACKENDS, and it is the only
+# file here that may say so, because it is the only one that measured rather
+# than assumed. P31-tab-and-escape.csv records the trap this is the exception
+# to: a file written from a WinUI capture and run against gtk4 landed every step
+# by luck, since the two builds are not the same size. They are not here either
+# -- 848x729 for gtk4 against 836x739 for WinUI, from the same
+# .defaultSize(820, 700). What makes (108, 425) safe on both is that the boxes
+# were read off each capture separately with a pixel scan, not compared by eye:
+#
+#   gtk4   automatic field  x 32..182  y 408..441
+#   WinUI  automatic field  x 26..176  y 405..436
+#
+# (108, 425) is interior to both, with 26 points of margin on the tighter side.
+# The scan is the same one that produces the verdict -- the field's bounding box
+# is found by walking a column and a row for pixels that differ from the page
+# background -- so it is repeatable rather than a remembered pair. Re-run it
+# after any change to P36's layout; do NOT copy this row into a new file for a
+# different app on the strength of it having worked here.
+#
+# **本檔恰好在兩個 Windows backend 上都有效**，而它是此處唯一可以這樣宣稱的檔案，因為它是唯一
+# 經過**量測**而非假設的。P31-tab-and-escape.csv 記載了本檔作為例外的那個陷阱：一個依 WinUI 擷圖
+# 寫成、卻跑在 gtk4 上的檔案，每一步都碰巧命中，因為兩個建置的尺寸並不相同。此處也不相同——同樣的
+# .defaultSize(820, 700)，gtk4 是 848x729，WinUI 是 836x739。(108, 425) 之所以在兩者上都安全，
+# 是因為兩張擷圖各自以像素掃描讀出了方框，而不是用眼睛比對：
+#
+#   gtk4   automatic 欄位  x 32..182  y 408..441
+#   WinUI  automatic 欄位  x 26..176  y 405..436
+#
+# (108, 425) 在兩者內部，較緊的一側仍有 26 點餘裕。該掃描與產生判定結果的是同一套——沿著一行與
+# 一列尋找與頁面背景相異的像素以求出欄位外框——因此它是可重現的，而非記憶中的一組座標。P36 版面
+# 一有變動就重跑它；**切勿**因為它在此處管用，就把這一列複製到另一支 app 的新檔案裡。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,108,425,frame,left,,,"centre of the ""automatic"" field (x 36..181 y 409..441), the leftmost of the five styled fields",windows
+sleep,,,,,,500000,,windows
+key,,,,,a,,"first keystroke -- writes the shared styledText binding and forces a second commit of all five fields",windows
+sleep,,,,,,300000,,windows
+key,,,,,b,,"second keystroke, so the text is visibly typed rather than a single stray character",windows
+sleep,,,,,,1500000,"hold for the capture; the verdict is that all five still differ in border while all five show the typed text",windows

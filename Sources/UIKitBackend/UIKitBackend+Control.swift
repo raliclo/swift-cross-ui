@@ -354,6 +354,19 @@ extension UIKitBackend {
         textFieldWidget.child.keyboardType = keyboardType
         textFieldWidget.child.textContentType = contentType
 
+        // UIKit names all four shapes on one property, so there is nothing to
+        // synthesise -- see `Self.borderStyle(for:)`. Assigned unconditionally
+        // rather than only on change, matching every other line in this
+        // function; `borderStyle` is a plain stored property and setting it to
+        // the value it already holds is not a relayout.
+        //
+        // UIKit 在單一屬性上為四種外形全部命名，因此沒有東西需要合成——見 `Self.borderStyle(for:)`。
+        // 此處無條件指派，與本函式中其他每一行一致；`borderStyle` 是一個單純的儲存屬性，把它設成
+        // 它已持有的值並不會觸發重新佈局。
+        textFieldWidget.child.borderStyle = Self.borderStyle(
+            for: environment.backendTextFieldStyle
+        )
+
         #if os(iOS)
             if let updateToolbar = environment.updateToolbar {
                 let toolbar =
@@ -365,6 +378,62 @@ extension UIKitBackend {
                 textFieldWidget.child.inputAccessoryView = nil
             }
         #endif
+    }
+
+    /// Maps a ``BackendTextFieldStyle`` onto `UITextField.BorderStyle`.
+    ///
+    /// UIKit is the cheapest of the five to satisfy: `UITextField.BorderStyle`
+    /// already enumerates exactly the shapes wanted, so this is a rename rather
+    /// than an implementation. No layer work, no corner radius, no border
+    /// width -- `layer.cornerRadius` and `layer.borderWidth` are used elsewhere
+    /// in this backend (`UIKitBackend+Container.swift`, `RootScrollHost.swift`)
+    /// and are deliberately not used here, because a hand-drawn border would
+    /// not track Dynamic Type, dark mode or the system's own inset metrics the
+    /// way `borderStyle` does.
+    ///
+    /// **`automatic` and `plain` both give `.none`, and that is correct rather
+    /// than a gap.** A bare `UITextField` has `borderStyle == .none`, and a
+    /// bare SwiftUI `TextField` on iOS shows no border either -- borderless
+    /// *is* the platform convention here, which is what
+    /// ``BackendTextFieldStyle/automatic`` promises to preserve. iOS is the
+    /// mirror image of macOS, where `automatic` and `squareBorder` coincide
+    /// instead.
+    ///
+    /// `squareBorder` is `.bezel` and not `.line`: `.line` draws a single rule
+    /// under the text, which is an underline rather than a border, and would
+    /// leave `squareBorder` looking like a different control from
+    /// `roundedBorder` rather than the same one with different corners.
+    ///
+    /// - Note: Unrun. This backend cannot be built or executed on the Windows
+    ///   machine this was written on, so it is implemented by reading UIKit's
+    ///   interface rather than by observing it.
+    ///
+    /// UIKit 是五者中最省事的：`UITextField.BorderStyle` 本來就列舉了正好想要的那些外形，因此這裡
+    /// 是一次改名而非一次實作。沒有 layer 的操作、沒有圓角半徑、沒有邊框寬度——`layer.cornerRadius`
+    /// 與 `layer.borderWidth` 在本 backend 的其他地方有用到，但此處刻意不用，因為手繪的邊框不會像
+    /// `borderStyle` 那樣跟隨 Dynamic Type、深色模式與系統自身的內縮度量。
+    ///
+    /// **`automatic` 與 `plain` 同樣得到 `.none`，這是正確的，而不是一個缺口。** 一個未加設定的
+    /// `UITextField` 其 `borderStyle` 就是 `.none`，而 iOS 上未加修飾的 SwiftUI `TextField` 同樣不
+    /// 顯示邊框——無邊框**就是**此處的平台慣例，而那正是 ``BackendTextFieldStyle/automatic`` 承諾要
+    /// 保留的東西。iOS 是 macOS 的鏡像，後者則是 `automatic` 與 `squareBorder` 重合。
+    ///
+    /// `squareBorder` 對應 `.bezel` 而非 `.line`：`.line` 只在文字下方畫一條線，那是底線而非邊框，
+    /// 會讓 `squareBorder` 看起來像是與 `roundedBorder` 不同的控制項，而不是同一個控制項換了轉角。
+    ///
+    /// - Note: 未實際執行。撰寫本程式碼的 Windows 機器無法建置或執行此 backend，因此它是靠閱讀
+    ///   UIKit 的介面實作的，而非靠觀察其行為。
+    static func borderStyle(
+        for style: BackendTextFieldStyle
+    ) -> UITextField.BorderStyle {
+        switch style {
+            case .automatic, .plain:
+                .none
+            case .roundedBorder:
+                .roundedRect
+            case .squareBorder:
+                .bezel
+        }
     }
 
     public func setContent(ofTextField textField: Widget, to content: String) {

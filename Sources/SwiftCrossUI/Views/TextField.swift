@@ -1,9 +1,12 @@
-import DebugFeatures
-
 /// A control that displays an editable text interface.
-public struct TextField: ElementaryView, View {
-    /// The ideal width of a `TextField`.
-    private static let idealWidth: Double = 100
+///
+/// Depending on the value of ``EnvironmentValues/textFieldStyle``, this control
+/// can appear with the platform's own chrome, with no chrome at all, or with a
+/// rounded or square border. See ``TextFieldStyle`` and
+/// ``View/textFieldStyle(_:)``.
+public struct TextField: View {
+    @Environment(\.self) var environment
+    @Environment(\.textFieldStyle) var textFieldStyle
 
     /// The label to show when the field is empty.
     private var placeholder: String
@@ -80,80 +83,38 @@ public struct TextField: ElementaryView, View {
         )
     }
 
-    func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
-        return backend.createTextField()
-    }
-
-    func computeLayout<Backend: BaseAppBackend>(
-        _ widget: Backend.Widget,
-        proposedSize: ProposedViewSize,
-        environment: EnvironmentValues,
-        backend: Backend
-    ) -> ViewLayoutResult {
-        let naturalHeight = backend.naturalSize(of: widget).y
-        let size = ViewSize(
-            proposedSize.width ?? Self.idealWidth,
-            Double(naturalHeight)
+    public var body: some View {
+        // Routed through the style, exactly as `Toggle` is. What used to be
+        // here -- the `ElementaryView` conformance with `asWidget`,
+        // `computeLayout` and `commit` -- is now
+        // `_BuiltinTextFieldImplementation`, reached by the four built-in
+        // styles; a style written outside this module draws whatever it likes
+        // instead. `AnyView` because the style is existential and its `Body` is
+        // not known here.
+        //
+        // This is the change that makes `TextFieldStyle` open rather than
+        // SwiftUI's closed-and-empty protocol. Resolving the style inside
+        // `commit` and leaving `TextField` elementary would have been a smaller
+        // edit, and it would have supported only the four shapes a backend can
+        // draw -- an application's own style has a view to render, and a leaf
+        // view has nowhere to render it.
+        //
+        // 交由 style 繪製，與 `Toggle` 完全相同。原本位於此處的內容——帶有 `asWidget`、
+        // `computeLayout`、`commit` 的 `ElementaryView` conformance——現在是
+        // `_BuiltinTextFieldImplementation`，由四個內建 style 取用；而在本模組之外撰寫的 style 則
+        // 想畫什麼就畫什麼。使用 `AnyView`，因為此處的 style 是 existential，其 `Body` 型別在這裡
+        // 無從得知。
+        //
+        // 正是這項改動讓 `TextFieldStyle` 得以開放，而非比照 SwiftUI 那個封閉且空白的 protocol。
+        // 在 `commit` 之中解析 style、並讓 `TextField` 維持為 elementary，會是比較小的改動，但那
+        // 只能支援 backend 畫得出來的那四種外形——應用程式自訂的 style 帶著一個 view 要算繪，而
+        // 一個葉節點 view 沒有地方可以算繪它。
+        AnyView(
+            textFieldStyle.makeView(
+                placeholder: placeholder,
+                text: $text,
+                environment: environment
+            )
         )
-
-        // TODO: Allow backends to set their own ideal text field width
-        return ViewLayoutResult.leafView(size: size)
-    }
-
-    func commit<Backend: BaseAppBackend>(
-        _ widget: Backend.Widget,
-        layout: ViewLayoutResult,
-        environment: EnvironmentValues,
-        backend: Backend
-    ) {
-        backend.updateTextField(
-            widget,
-            placeholder: placeholder,
-            environment: environment,
-            onChange: { newValue in
-                // This check catches backends that cause unnecessary binding
-                // writes, usually the handler firing because we called
-                // backend.setContent(ofTextField:to:). Comparing text on every
-                // keystroke is often more expensive than the extra write it
-                // detects, so it is not done unconditionally.
-                //
-                // It was `#if DEBUG`, which put it in no configuration this
-                // project builds: `testapp/compile.zsh` builds release, so the
-                // very backends the check exists to catch were never checked.
-                // `DebugFeatures.isEnabled` keeps the cost argument intact -- it
-                // is a `static let` that is `false` and foldable in a build
-                // without `SCUI_DEBUG` -- while making the check reachable in a
-                // release binary built and run with the flag.
-                //
-                // 此檢查用於揪出會造成不必要 binding 寫入的 backend，通常是因為我們呼叫
-                // backend.setContent(ofTextField:to:) 而反過來觸發了 handler。每次按鍵都比較
-                // 文字，往往比它所偵測到的那次多餘寫入還昂貴，因此不無條件執行。
-                //
-                // 它原本是 `#if DEBUG`，而那讓它不存在於本專案建置的任何組態中：
-                // `testapp/compile.zsh` 建置的是 release，於是此檢查存在的目的——揪出有問題的
-                // backend——從來沒有被執行過。`DebugFeatures.isEnabled` 保留了原本的成本論證
-                // ——在未設定 `SCUI_DEBUG` 的建置中，它是一個為 `false` 且可被摺除的
-                // `static let`——同時使該檢查在「以該旗標建置並執行」的 release 執行檔中可觸及。
-                if DebugFeatures.isEnabled, self.text == newValue {
-                    logger.warning(
-                        """
-                        Unnecessary write to text Binding of TextField detected, \
-                        please open an issue at \(Meta.issueReportingURL) \
-                        so we can fix it for \(type(of: backend)).
-                        """
-                    )
-                }
-
-                self.text = newValue
-            },
-            onSubmit: environment.onSubmit ?? {}
-        )
-
-        let text = text
-        if text != backend.getContent(ofTextField: widget) {
-            backend.setContent(ofTextField: widget, to: text)
-        }
-
-        backend.setSize(of: widget, to: layout.size.vector)
     }
 }
