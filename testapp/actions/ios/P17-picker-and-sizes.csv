@@ -1,19 +1,59 @@
 action,x,y,origin,button,key,micros,note,platform
-# Measured 2026-09-02 from testapp/output/screenshots/<pn>-ios-final-20260902-*.png
-# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt.
-# Capture was 1179 x 2556 px, i.e. 3:1. Every coordinate below is px/3, in points,
-# which is what the XCUITest runner normalises against window.frame.
-# UNVERIFIED: coordinates were read off a capture of the running app; no row here
-# has been replayed and seen to have the effect it predicts.
+# P17 on iOS: press four of the six buttons and read the trail back off the page.
 #
-# P17: this app paints over the status bar on iOS -- its title is drawn across
-# the clock and battery -- and the two #264 sample labels overlap each other.
-# Both are layout faults worth a look; the buttons below still work.
-click,192,279,client,left,,,Longest -- Selected must become L and the picker width must change,ios
-sleep,,,,,,400000,let the picker resize,ios
-click,49,279,client,left,,,Shortest -- Selected must return to S,ios
-sleep,,,,,,400000,let the picker resize,ios
-click,148,540,client,left,,,Taller -- the magenta aspect-ratio block must grow without flicker,ios
-sleep,,,,,,400000,let the scroll view settle,ios
-click,204,820,client,left,,,More height -- the stack line must report a height above 140,ios
+# Measured 2026-09-08 from p17-ios-final-20260908-223831.png, after the two
+# scrolls this file opens with. Device: iPhone 16 simulator
+# (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt, capture 1179 x 2556 px,
+# so every coordinate below is px/3, in points.
+#
+# **The scrolls are not optional and the previous version of this file had none.**
+# P17's content is about 880 pt wide -- one unwrapped paragraph sets that width
+# and the VStack centres everything else inside it -- so at rest the left 244 pt
+# of the window is empty and every button is off the right edge. The rows that
+# used to be here clicked x 49, 148, 192 and 204, which is entirely inside that
+# empty gutter. They were marked UNVERIFIED, and they were not merely unverified:
+# all four landed on nothing, and a click that lands on nothing raises nothing.
+#
+# The order is deliberate. "More height" goes first because pressing "Taller"
+# grows the teal block by 5 pt and moves everything below it, this button
+# included. Selecting a picker option changes the picker's WIDTH only, so the
+# two picker rows move nothing vertically and can sit between them.
+#
+# The trail is the evidence. Longest followed by Shortest returns the picker to
+# the value it started at, so a capture taken afterwards is identical to one from
+# an app nobody touched. `presses: >LS+` distinguishes "these four arrived, in
+# this order" from "the file ran and every row missed".
+#
+# P17 在 iOS 上:按下六顆按鈕中的四顆,再把軌跡從畫面上讀回來。
+#
+# 2026-09-08 量測自 p17-ios-final-20260908-223831.png,量測時已完成本檔開頭的那兩次捲動。
+# 裝置:iPhone 16 模擬器(IOS_SIM_DEVICE=swift-cross-ui)——視窗 393 x 852 點、擷圖 1179 x 2556 像素,
+# 因此以下每一個座標都是像素除以 3,單位為點。
+#
+# **那兩次捲動不是可有可無的,而本檔的前一版一次都沒有。** P17 的內容約 880 點寬——一段不換行的
+# 段落決定了那個寬度,而 VStack 把其餘一切置中於其中——因此靜止時視窗左側 244 點是空的,而每一顆
+# 按鈕都在右邊界之外。舊版的那幾列點在 x 49、148、192 與 204,那完全落在那片空白裡。它們被標記為
+# UNVERIFIED,而它們不只是「未驗證」:四列全部落在空無一物之上,而一次落在空處的點擊不會引發任何東西。
+#
+# 順序是刻意的。「More height」放在最前面,因為按下「Taller」會讓青色方塊長高 5 點,並使其下方的
+# 一切(包含這顆按鈕)位移。選取 picker 選項只改變 picker 的**寬度**,因此那兩列在垂直方向上不移動
+# 任何東西,可以夾在中間。
+#
+# 軌跡就是證據。Longest 之後接 Shortest 會讓 picker 回到它一開始的值,因此事後拍下的畫面,與一支
+# 沒有人碰過的 app 完全相同。`presses: >LS+` 能分辨「這四次都抵達了,而且是這個順序」與
+# 「檔案跑完了但每一列都落空」。
+sleep,,,,,,800000,let P17 render,ios
+scroll,10,0,,,,,"scroll right until the buttons are on screen -- the content is wider than the window",ios
+sleep,,,,,,600000,let the scroll settle,ios
+scroll,0,12,,,,,"scroll to the bottom so More height is reachable too",ios
+sleep,,,,,,800000,let the scroll settle,ios
+click,221,777,client,left,,,"More height -- the stack line must read a height above 140 and the trail must gain >",ios
 sleep,,,,,,500000,let the stack settle,ios
+click,208,239,client,left,,,"Longest -- Selected must become L and the picker width must change",ios
+sleep,,,,,,400000,let the picker resize,ios
+click,66,239,client,left,,,"Shortest -- Selected must return to S; the trail is what tells this apart from never pressing",ios
+sleep,,,,,,400000,let the picker resize,ios
+click,165,487,client,left,,,"Taller -- the teal aspect-ratio block must grow and Shorter must read 125",ios
+sleep,,,,,,600000,let the teal block settle,ios
+scroll,0,-14,,,,,"back to the top, so the presses line is in the photograph",ios
+sleep,,,,,,800000,settle before the photograph,ios

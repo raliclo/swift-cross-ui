@@ -218,6 +218,14 @@ public final class DummyBackend:
         public var bouncesVertically = false
         public var bouncesHorizontally = false
 
+        /// Recorded, not run. DummyBackend exists to be inspected by tests, so
+        /// a handler it stores is a fact a test can assert on; a handler it
+        /// dropped would make "refreshable was applied" untestable.
+        /// 記錄下來,而不執行。DummyBackend 的存在就是為了讓測試檢視它,因此它所儲存的 handler
+        /// 是一項測試可以斷言的事實;而一個被它丟掉的 handler,會讓「refreshable 有被套用」變得
+        /// 無法測試。
+        public var refreshHandler: (@MainActor @Sendable () -> Void)?
+
         public init(child: Widget) {
             self.child = child
         }
@@ -511,6 +519,13 @@ public final class DummyBackend:
         scrollContainer.hasHorizontalScrollBar = hasHorizontalScrollBar
         scrollContainer.bouncesHorizontally = bounceHorizontally
         scrollContainer.bouncesVertically = bounceVertically
+    }
+
+    public func setRefreshHandler(
+        ofScrollContainer scrollView: Widget,
+        to handler: (@MainActor @Sendable () -> Void)?
+    ) {
+        (scrollView as! ScrollContainer).refreshHandler = handler
     }
 
     public func createSelectableListView() -> Widget {

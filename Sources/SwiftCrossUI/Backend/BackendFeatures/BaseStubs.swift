@@ -122,6 +122,13 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
+    public func setRefreshHandler(
+        ofScrollContainer scrollView: Widget,
+        to handler: (@MainActor @Sendable () -> Void)?
+    ) {
+        todo()
+    }
+
     public func createSelectableListView() -> Widget {
         todo()
     }

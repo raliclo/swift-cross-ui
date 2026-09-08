@@ -210,6 +210,16 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
             hasHorizontalScrollBar: children.hasHorizontalScrollBar,
             hasVerticalScrollBar: children.hasVerticalScrollBar
         )
+
+        // After updateScrollContainer, not before. On the backends whose update
+        // touches the container's own subviews, adding the refresh control
+        // first would have it removed again by a pass that knows nothing about
+        // it -- and a control that is created and then silently dropped looks
+        // exactly like one that was never asked for.
+        // 放在 updateScrollContainer 之後而非之前。在那些「更新時會動到容器自身子 view」的 backend 上,
+        // 先加入 refresh 控制項會讓它被一個對它一無所知的流程再次移除——而一個「被建立、然後被靜默
+        // 丟棄」的控制項,看起來與一個從未被要求過的控制項完全相同。
+        backend.setRefreshHandler(ofScrollContainer: widget, to: environment.onRefresh)
     }
 }
 
