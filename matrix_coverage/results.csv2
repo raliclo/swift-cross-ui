@@ -683,3 +683,6 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-08,windows,gtk4,P51,ok,-,window,default,
 2026-09-08,windows,gtk4,P51,ok,ok,window,default,"P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked"
 2026-09-08,windows,gtk4,P51,ok,ok,window,default,"P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked"
+2026-09-08,windows,gtk4,P48,ok,-,window,default,
+2026-09-08,windows,gtk4,P51,ok,ok,window,default,"P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked"
+2026-09-08,windows,gtk4,P5,ok,ok,window,default,"P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked; expectation met: 'requesting A, B and C together'"

@@ -75,11 +75,30 @@ struct P48RootView: View {
                 // Three flexible columns share whatever is left over equally, so
                 // the eight cells must read 1 2 3 / 4 5 6 / 7 8 with the last
                 // row short and left-aligned rather than spread.
+                //
+                // Written out as `minimum: 10, maximum: .infinity` even though
+                // those are the defaults, because until task #108 this exact
+                // line -- the commonest way a SwiftUI grid is spelled -- did not
+                // compile: `maximum` was `Int?` and `.infinity` is not an `Int`.
+                // Its rendering is identical to `GridItem(.flexible())`, so it
+                // costs this app nothing and it fails at BUILD time if the
+                // widening is ever reverted, which is earlier than a screenshot
+                // can fail.
+                //
                 // 三個 flexible 欄平均分配剩餘空間,因此八格必須讀作 1 2 3 / 4 5 6 / 7 8,
                 // 且最後一列是短的、靠左,而不是被撐開。
+                //
+                // 即使 `minimum: 10, maximum: .infinity` 就是預設值，此處仍完整寫出，因為在任務
+                // #108 之前，這一行——SwiftUI 格線最常見的寫法——根本編不過：`maximum` 當時是
+                // `Int?`，而 `.infinity` 不是 `Int`。它畫出來的結果與 `GridItem(.flexible())`
+                // 完全相同，因此對本 app 毫無代價，而若那次放寬日後被還原，它會在**建置**時就失敗，
+                // 那比任何截圖能失敗的時機都更早。
                 Text("1. three flexible columns -- expect 1 2 3 / 4 5 6 / 7 8")
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible()), count: 3),
+                    columns: Array(
+                        repeating: GridItem(.flexible(minimum: 10, maximum: .infinity)),
+                        count: 3
+                    ),
                     spacing: 8
                 ) {
                     ForEach(Array(1...8), id: \.self) { n in
@@ -88,13 +107,30 @@ struct P48RootView: View {
                 }
 
                 // Fixed columns ignore the proposed width entirely, so these
-                // must stay 90 points wide no matter how the window is sized --
-                // the check a flexible column would fail by growing.
-                // fixed 欄完全忽略被建議的寬度,因此無論視窗多大,它們都必須維持 90 點寬
+                // must stay 90.5 points wide no matter how the window is sized
+                // -- the check a flexible column would fail by growing.
+                //
+                // The half point is the other half of task #108, and the reason
+                // it is here rather than in a comment: `.fixed(90.5)` did not
+                // compile at all while the size was `Int`. It also exercises how
+                // a fractional column becomes whole points -- `LazyVGrid.resolve`
+                // rounds the column EDGES, so the two columns come out 91 and 90
+                // and still span exactly 2 x 90.5 + 8 = 189 points, where
+                // rounding each width on its own would have given 91 + 91 and
+                // overhung by one. Grid 3 below keeps its integer literal, so
+                // both spellings are compiled by this app.
+                //
+                // fixed 欄完全忽略被建議的寬度,因此無論視窗多大,它們都必須維持 90.5 點寬
                 // ——而那正是 flexible 欄會因為變寬而失敗的那一項檢查。
-                Text("2. two fixed 90pt columns -- expect a narrow two-wide block")
+                //
+                // 那半個點是任務 #108 的另一半，而它之所以寫在程式裡而不是註解裡：在尺寸還是 `Int`
+                // 的年代，`.fixed(90.5)` 根本編不過。它同時也演練了「帶小數的欄如何變成整數點」
+                // ——`LazyVGrid.resolve` 取整的是欄位**邊界**，因此兩欄會得出 91 與 90，且仍恰好
+                // 橫跨 2 x 90.5 + 8 = 189 點；若改為各自對寬度取整，會得到 91 + 91 而多出一點。
+                // 下方的第 3 個格線保留整數字面量，因此兩種寫法都被本 app 編譯到。
+                Text("2. two fixed 90.5pt columns -- expect a narrow two-wide block")
                 LazyVGrid(
-                    columns: [GridItem(.fixed(90)), GridItem(.fixed(90))],
+                    columns: [GridItem(.fixed(90.5)), GridItem(.fixed(90.5))],
                     spacing: 8
                 ) {
                     ForEach(Array(1...6), id: \.self) { n in
@@ -126,7 +162,7 @@ struct P48RootView: View {
         }
         .onAppear {
             P48Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
-            P48Diagnostics.write("grids flexible-3 fixed-90x2 adaptive-120")
+            P48Diagnostics.write("grids flexible-3 fixed-90.5x2 adaptive-120")
             P48Diagnostics.renderComplete()
         }
     }

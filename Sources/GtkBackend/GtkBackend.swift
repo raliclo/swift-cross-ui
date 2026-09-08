@@ -66,6 +66,28 @@ public final class GtkBackend:
         var onDismiss: (() -> Void)? = nil
         var interactiveDismissDisabled = false
         var nestedSheet: Sheet?
+        /// Whether this sheet has already been torn down by `tearDown(_:)`.
+        ///
+        /// Not a record of WHICH path closed the sheet -- there is deliberately
+        /// no such flag here, and `WinUIBackend+Sheets.swift` just lost the one
+        /// it had. This only says that the teardown has happened, so that the
+        /// destroy and the `onDismiss` each run once per presentation.
+        ///
+        /// A `Sheet` is never re-presented after teardown, so this never needs
+        /// resetting: `SheetModifier.commit` nils `sheetContentNode` along with
+        /// `sheet` when a sheet is dismissed, and its presenting branch builds a
+        /// fresh `createSheet` whenever `sheetContentNode == nil`.
+        ///
+        /// 本 sheet 是否已經被 `tearDown(_:)` 拆除。
+        ///
+        /// 它不是「用來記錄是哪一條路關閉了 sheet」的旗標——此處刻意沒有那種東西，而
+        /// `WinUIBackend+Sheets.swift` 也剛把它原有的那一個拿掉了。這裡只表示拆除已經發生，
+        /// 好讓 destroy 與 `onDismiss` 在每一次呈現中各只執行一次。
+        ///
+        /// `Sheet` 在拆除之後不會再被重新呈現，因此這個旗標永遠不需要重設：`SheetModifier.commit`
+        /// 在關閉 sheet 時會連同 `sheet` 一併把 `sheetContentNode` 設為 nil，而它的呈現分支只要見到
+        /// `sheetContentNode == nil` 就會以 `createSheet` 造一個全新的。
+        var hasBeenTornDown = false
     }
 
     public final class Path {
@@ -4596,7 +4618,32 @@ public final class GtkBackend:
         let sheet = Sheet()
         sheet.setChild(content)
 
-        // Listen for interactive dismissals
+        // Listen for interactive dismissals.
+        //
+        // Neither handler runs `onDismiss` any more; `dismissSheet(_:)` does,
+        // and it is now the only place that tears a sheet down. That one move is
+        // the whole of the fix, and the reason it was needed is structural
+        // rather than a missing flag: the programmatic entry point
+        // `dismissSheet(_:window:parentSheet:)` -- the one `SheetModifier` calls
+        // when `isPresented` goes false -- ends in `gtk_window_destroy`, and
+        // `gtk_window_destroy` does not emit `close-request`. (`gtk_window_close`
+        // is the call that does; nothing here uses it.) So on the programmatic
+        // path the block below never ran, there was no other route to the
+        // callback, and `onDismiss` was simply unreachable. Unlike WinUI, which
+        // reached its own handler and then suppressed it behind
+        // `isProgrammaticDismissal`, GTK had no flag to delete -- there was no
+        // wire at all.
+        //
+        // 監聽互動式關閉。
+        //
+        // 這兩個 handler 都不再執行 `onDismiss`；改由 `dismissSheet(_:)` 執行，而它現在是唯一會拆除
+        // sheet 的地方。整個修正就只有這一次搬移，而之所以需要它，原因是結構性的、而非少了某個旗標：
+        // 程式化的進入點 `dismissSheet(_:window:parentSheet:)`——也就是 `isPresented` 轉為 false 時
+        // `SheetModifier` 所呼叫的那一個——最後走到的是 `gtk_window_destroy`，而 `gtk_window_destroy`
+        // 不會發出 `close-request`。（會發出的是 `gtk_window_close`，而此處沒有任何地方使用它。）
+        // 因此在程式化那條路上，下面這個區塊從未執行過，而通往該回呼也沒有別的路線，`onDismiss` 就
+        // 只是抵達不了。與 WinUI 不同——WinUI 是抵達了自己的 handler 之後再以
+        // `isProgrammaticDismissal` 把它壓住——GTK 這邊沒有旗標可刪，因為那條線根本不存在。
         sheet.onCloseRequest = { [weak self, weak sheet] _ in
             guard let self, let sheet else {
                 return
@@ -4604,7 +4651,6 @@ public final class GtkBackend:
 
             self.runInMainThread {
                 self.dismissSheet(sheet)
-                sheet.onDismiss?()
             }
         }
 
@@ -4617,7 +4663,6 @@ public final class GtkBackend:
 
             self.runInMainThread {
                 self.dismissSheet(sheet)
-                sheet.onDismiss?()
             }
         }
 
@@ -4673,11 +4718,41 @@ public final class GtkBackend:
         sheet.present()
     }
 
+    /// The programmatic path: `SheetModifier` calling in because `isPresented`
+    /// went false.
+    ///
+    /// It runs `onDismiss` now, via `dismissSheet(_:)`, and that is the fix for
+    /// issue #104 on this backend. It does not fire twice for one dismissal --
+    /// `SheetModifier.commit`'s `else` branch is only entered when `isPresented`
+    /// is already false and nils `children.sheet` immediately afterwards, and
+    /// state updates are queued rather than delivered synchronously, so nothing
+    /// re-enters that branch while this call is in progress. The argument is
+    /// written out in full at the branch itself.
+    ///
+    /// 程式化的那條路：`SheetModifier` 因 `isPresented` 轉為 false 而呼叫進來。
+    ///
+    /// 它現在會經由 `dismissSheet(_:)` 執行 `onDismiss`，而那正是 issue #104 在本 backend 上的修正。
+    /// 它不會為同一次關閉觸發兩次——`SheetModifier.commit` 的 `else` 分支只有在 `isPresented` 已經為
+    /// false 時才會進入，且隨即把 `children.sheet` 設為 nil，而 state 更新是排入佇列而非同步送達的，
+    /// 因此在本呼叫進行期間不會有任何東西重入該分支。完整論證寫在該分支本身。
     public func dismissSheet(_ sheet: Sheet, window: Window, parentSheet: Sheet?) {
         dismissSheet(sheet)
         parentSheet?.nestedSheet = nil
     }
 
+    /// Tears down a sheet and everything nested inside it.
+    ///
+    /// Reached from three places, and all three want the same thing: the
+    /// `close-request` handler, the escape handler, and the public
+    /// `dismissSheet(_:window:parentSheet:)` that `SheetModifier` calls. Each
+    /// sheet involved gets destroyed once and notified once, whichever of the
+    /// three arrived.
+    ///
+    /// 拆除一個 sheet，以及嵌在它裡面的一切。
+    ///
+    /// 有三處會抵達這裡，而三者要的是同一件事：`close-request` handler、escape handler，以及
+    /// `SheetModifier` 所呼叫的公開 `dismissSheet(_:window:parentSheet:)`。無論是三者中的哪一個
+    /// 抵達，牽涉到的每一個 sheet 都恰好被摧毀一次、被通知一次。
     private func dismissSheet(_ sheet: Sheet) {
         // Dismiss the nested sheets from the topmost down. We could use
         // recursion here, but then unbounded nested sheets would allow for
@@ -4689,11 +4764,45 @@ public final class GtkBackend:
             currentSheet = nestedSheet
         }
         for nestedSheet in nestedSheets.reversed() {
-            nestedSheet.destroy()
-            nestedSheet.onDismiss?()
+            tearDown(nestedSheet)
         }
 
+        tearDown(sheet)
+    }
+
+    /// Destroys one sheet and runs its `onDismiss`, at most once per sheet.
+    ///
+    /// Destroy first, then notify, because `SheetModifier` documents the
+    /// callback as running *after* the underlying UI framework has dismissed the
+    /// sheet. That was already the order the nested loop above used, and it is
+    /// kept.
+    ///
+    /// The guard is not defensive decoration. Both interactive handlers in
+    /// `createSheet` defer their work through `runInMainThread`, so an escape
+    /// press and a `close-request` naming the same sheet queue two teardowns
+    /// that each run on a later main loop iteration; without the flag the second
+    /// would call `gtk_window_destroy` on an already-destroyed window and run
+    /// the caller's closure a second time. The flag is also what lets the
+    /// programmatic path share this function with the interactive ones at all.
+    ///
+    /// 摧毀單一 sheet 並執行它的 `onDismiss`，每個 sheet 至多一次。
+    ///
+    /// 先摧毀、再通知，因為 `SheetModifier` 的文件寫明該回呼是在底層 UI 框架關閉 sheet **之後**才
+    /// 執行。上方處理巢狀 sheet 的迴圈原本用的就是這個順序，此處予以保留。
+    ///
+    /// 這個 guard 不是防禦性的裝飾。`createSheet` 中的兩個互動 handler 都透過 `runInMainThread`
+    /// 延後其工作，因此一次 escape 按鍵與一次指向同一個 sheet 的 `close-request` 會排入兩次拆除，
+    /// 而兩者各自在往後的某一輪 main loop 中執行；少了這個旗標，第二次會對一個已被摧毀的視窗呼叫
+    /// `gtk_window_destroy`，並把呼叫端的 closure 再執行一次。這個旗標同時也正是「程式化那條路能與
+    /// 互動那兩條路共用這個函式」的前提。
+    private func tearDown(_ sheet: Sheet) {
+        guard !sheet.hasBeenTornDown else {
+            return
+        }
+        sheet.hasBeenTornDown = true
+
         sheet.destroy()
+        sheet.onDismiss?()
     }
 
     public func size(ofSheet sheet: Sheet) -> SIMD2<Int> {
