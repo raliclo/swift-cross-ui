@@ -1,0 +1,158 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, GtkBackend: open the first popover, then click away to
+# light-dismiss it.
+#
+# expect: log-contains popover alpha shown
+#
+# WHY THIS FILE EXISTS. `.popover` landed 2026-09-08 and was verified only as
+# far as "the anchor button renders". The capture
+# gtk4-P50-20260908-114209.png shows both trigger buttons and the line
+# "panel button presses so far: 0" -- so nothing had ever pressed one. A
+# popover that is never opened is a protocol, five conformances and a modifier
+# with no evidence behind any of it.
+#
+# WHY THE MARKER ASSERTS "shown" AND NOT "dismissed". "popover alpha shown" is
+# the claim that has never been tested. The file clicks away afterwards and
+# "popover alpha dismissed" should follow it in the log, but that is left to
+# the log rather than the marker so a partial failure stays legible:
+#
+#   both lines            the popover opened and light dismiss worked
+#   "shown" only          it opened; the outside click did not dismiss it
+#   neither               the click missed the button, or the popover never
+#                         opened
+#
+# MEASURED 2026-09-08, FIRST RUN: "shown" only. The dismiss click did not
+# dismiss, and the reason is the same grab that proves the popover opened.
+#
+# THE CAPTURE CANNOT SHOW THE POPOVER, and an earlier version of this comment
+# claimed it could. A GTK popover is a separate top-level surface, so a
+# PrintWindow capture of the main window does not contain it -- exactly as
+# P0-present-environment-alert.csv records for a modal alert. Do not read its
+# absence from the picture as the popover having failed to open.
+#
+# WHAT THE CAPTURE DOES SHOW is the grab, and that is the better signal.
+# `autohide = true` makes the popover take a grab, and the parent window's
+# controls go insensitive underneath it. Measured between
+# gtk4-P50-20260908-114209.png (no popover) and
+# gtk4-P50-open-first-panel-20260908-162527.png (popover open), both 808x933:
+#
+#     button 1 fill  rgb 89 -> 80
+#     button 2 fill  rgb 89 -> 80
+#     background     rgb 53 -> 53    (control, unchanged)
+#     heading text   rgb 79 -> 79    (control, unchanged)
+#
+# Only the buttons dimmed, so this is the insensitive appearance and not the
+# whole window darkening behind an overlay. Two independent signals therefore
+# say the popover opened: the log line, and the grab.
+#
+# WHY THE DISMISS STEP DID NOT WORK, and it is not obviously a defect. The
+# window is under the popover's grab from the moment it opens, so a synthesised
+# click at frame coordinates is addressing a surface that no longer takes input
+# -- the same trap P0's header records for a modal, and P30's for a layout
+# shift. Whether GTK's light dismiss works for a real pointer press is NOT
+# established by this file and must not be claimed from it. Establishing it
+# needs a click delivered to the grabbing surface, which the current
+# synthesiser has no way to address.
+#
+
+# "closed programmatically" must NOT appear. That line comes from the panel's
+# own close button, which this file does not press, and its presence would mean
+# the dismissal took the wrong path.
+#
+# COORDINATES, measured rather than eyeballed. Read off
+# output/screenshots/gtk4-P50-20260908-114209.png, a wincap frame capture at
+# 808x933, GtkBackend, 100% display scale, origin=frame. Background sampled at
+# (778,600) is rgb(53,53,53); scanning each row for a single contiguous run
+# differing from it by more than 24 gives two bands:
+#     y 695..728  x 144..360  -> centre (252,711)  "Open the first panel"
+#     y 739..772  x 144..402  -> centre (273,755)  "Open the second panel"
+# The regeneration command is in this file's git history alongside it; re-run
+# it against a fresh capture if the layout moves.
+#
+# THE DISMISS CLICK at (700,880) is bottom-right, far from the anchor at
+# (252,711), and lands on explanatory text rather than any control. A popover
+# anchored to the first button should not reach it. If a future layout change
+# puts the popover there, this step stops testing dismissal and starts testing
+# nothing -- check the after-capture, not just the log.
+#
+# BUILD IT WITH THE FLAG or this file does nothing at all:
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P50
+# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
+# the replay is compiled out and the failure is silent: the app launches,
+# renders, and not one line is written.
+#
+# READ THE RESULT FROM testapp/debug-events/p50-debug-events.log. P50 builds
+# its path from SCUI_DEBUG_EVENTS_DIR, which sweep_drive.zsh sets; without that
+# variable it falls back to the current directory. Note the file is APPENDED
+# to, so record its size before a run -- otherwise a marker can be met by a
+# line from an earlier run and a dead binary looks like a pass.
+#
+# P50 於 Windows、GtkBackend：開啟第一個 popover，然後點擊他處使其自動關閉。
+#
+# 本檔存在的理由。`.popover` 於 2026-09-08 落地，而當時只驗證到「錨點按鈕畫得出來」為止。
+# gtk4-P50-20260908-114209.png 這張擷圖同時顯示了兩顆觸發按鈕與「panel button presses so far: 0」
+# 這一行——也就是說，從來沒有任何東西按過它們。一個從未被開啟的 popover，等於一個 protocol、
+# 五份實作與一個 modifier，而它們背後沒有任何證據。
+#
+# 為何標記斷言的是「shown」而非「dismissed」。「popover alpha shown」才是從未被測過的那項主張。
+# 本檔其後會點擊他處，而「popover alpha dismissed」應當接在 log 中出現，但那一項交給 log 而非
+# 標記，好讓部分失敗仍然可讀：
+#
+#   兩行都有      popover 開啟了，且點擊外部關閉有效
+#   只有 shown    它開啟了，但外部點擊沒有關閉它，或是那一擊落在 popover 內部
+#   兩行都沒有    點擊沒打中按鈕，或 popover 根本沒開
+#
+# 2026-09-08 首次執行實測：只有 shown。關閉用的那一擊沒有關掉它，而其原因，正是那個證明 popover
+# 確實開啟了的 grab。
+#
+# 擷圖拍不到 popover，而本註解的前一個版本曾聲稱它拍得到。GTK 的 popover 是獨立的 top-level
+# surface，因此對主視窗的 PrintWindow 擷圖並不包含它——這與 P0-present-environment-alert.csv
+# 為 modal alert 所記錄的情形完全相同。請勿把它在畫面上的缺席讀成「popover 沒有開啟」。
+#
+# 擷圖真正拍得到的是 grab，而那是更好的訊號。`autohide = true` 會讓 popover 取得 grab，於是其下
+# 父視窗的控制項會變為 insensitive。於 gtk4-P50-20260908-114209.png（無 popover）與
+# gtk4-P50-open-first-panel-20260908-162527.png（popover 開啟）之間實測，兩者皆為 808x933：
+#
+#     按鈕 1 填色    rgb 89 -> 80
+#     按鈕 2 填色    rgb 89 -> 80
+#     背景          rgb 53 -> 53    （控制組，未變）
+#     標題文字      rgb 79 -> 79    （控制組，未變）
+#
+# 只有按鈕變暗，因此這是 insensitive 的外觀，而不是整個視窗被覆蓋層壓暗。於是有兩項互相獨立的
+# 訊號指出 popover 已開啟：log 那一行，以及 grab。
+#
+# 關閉那一步為何沒有作用，而且這未必是缺陷。自 popover 開啟的那一刻起，視窗即處於它的 grab 之下，
+# 因此以 frame 座標合成的點擊，所指向的是一個不再接受輸入的 surface——這與 P0 檔頭所記錄的 modal
+# 陷阱、以及 P30 所記錄的版面位移陷阱是同一種。GTK 的 light dismiss 對「真實指標按壓」是否有效，
+# **並未**由本檔確立，也不得據本檔宣稱。要確立它，需要把點擊送到取得 grab 的那個 surface 上，而
+# 目前的合成器沒有辦法定址到它。
+#
+
+# 「closed programmatically」**不應**出現。那一行來自面板自身的關閉按鈕，而本檔不會按它；它的
+# 出現代表這次關閉走錯了路徑。
+#
+# 座標為實測而非目測。取自 output/screenshots/gtk4-P50-20260908-114209.png，一張 808x933 的
+# wincap frame 擷圖，GtkBackend，100% 顯示縮放，origin=frame。於 (778,600) 取樣得背景為
+# rgb(53,53,53)；逐列掃描「與背景差異超過 24 且連續」的單一區段，得到兩個帶：
+#     y 695..728  x 144..360  -> 中心 (252,711)  「Open the first panel」
+#     y 739..772  x 144..402  -> 中心 (273,755)  「Open the second panel」
+# 若版面移動，請對新的擷圖重跑同一套掃描。
+#
+# 位於 (700,880) 的關閉點擊在右下方，遠離 (252,711) 的錨點，且落在說明文字上而非任何控制項。
+# 一個錨定於第一顆按鈕的 popover 不應延伸到該處。若日後版面變動使 popover 蓋到那裡，這一步就不再
+# 測試關閉、而是什麼都不測——屆時請看事後擷圖，不要只看 log。
+#
+# **必須帶旗標建置**，否則本檔完全不會有任何作用：
+#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P50
+# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而失敗
+# 是靜默的：app 正常啟動、正常繪製，卻一行都不寫。
+#
+# **結果請讀 testapp/debug-events/p50-debug-events.log。** P50 由 SCUI_DEBUG_EVENTS_DIR 組出該
+# 路徑，而該變數由 sweep_drive.zsh 設定；沒有它時會退回目前的工作目錄。注意該檔是**附加**寫入的，
+# 因此請在執行前記下它的大小——否則一個標記可能是被前一次執行留下的行滿足的，而一個已經死掉的
+# 執行檔看起來會像通過。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,252,711,frame,left,,,"Open the first panel (top anchor)" -- writes "popover alpha shown",windows
+sleep,,,,,,700000,let the popover appear before anything else touches the window,windows
+click,700,880,frame,left,,,click on background text well away from the anchor to light-dismiss -- writes "popover alpha dismissed",windows
+sleep,,,,,,1200000,hold for the capture and let the dismissal animation and log catch up,windows
