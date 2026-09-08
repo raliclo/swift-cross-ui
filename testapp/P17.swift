@@ -309,46 +309,36 @@ struct P17Measured<Content: View>: View {
     var label: String
     @ViewBuilder var content: () -> Content
 
-    /// The last size the overlay reported, so the number can be drawn outside
-    /// the box it describes.
-    /// overlay 最後回報的尺寸,好讓那個數字能畫在它所描述的框**之外**。
-    @State private var measured: (width: Int, height: Int)?
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            content()
-                .background(Color.blue)
-                .overlay(alignment: .topLeading) {
-                    GeometryReader { proxy in
-                        let _ = P17Diagnostics.record(label: label, size: proxy.size)
-                        let _ = report(proxy.size)
-                        Color.clear
-                    }
+        content()
+            .background(Color.blue)
+            .overlay(alignment: .topLeading) {
+                GeometryReader { proxy in
+                    let _ = P17Diagnostics.record(label: label, size: proxy.size)
+                    // Opaque, so the two texts do not interleave glyph by
+                    // glyph. Without it the readout and the sentence underneath
+                    // render into the same pixels and the result --
+                    // "Auhiedentt5e9lon22en..." -- is neither of them.
+                    //
+                    // The label stays an OVERLAY. It was moved below the box in
+                    // a VStack once, which read better and made the app's
+                    // layout depend on the readout's own height: three
+                    // consecutive runs reported the subject box as 159 x 22,
+                    // 169 x 22 and 159 x 66, and the action file's coordinates
+                    // missed every button that had moved. An overlay
+                    // contributes no size, which is why this app was written
+                    // with one.
+                    //
+                    // 不透明,好讓兩段文字不再一個字一個字地互相穿插。少了它,這段讀數與底下那句話
+                    // 會繪製進同一批像素,而其結果——「Auhiedentt5e9lon22en…」——兩者都不是。
+                    //
+                    // 這個標籤維持為 **overlay**。它曾被移到框下方的一個 VStack 中,那樣比較好讀,
+                    // 也讓這支 app 的版面取決於讀數本身的高度:連續三次執行分別把 subject 那格回報為
+                    // 159 x 22、169 x 22 與 159 x 66,而動作檔的座標錯過了每一顆位置改變過的按鈕。
+                    // overlay 不貢獻任何尺寸,而那正是這支 app 當初以 overlay 寫成的原因。
+                    Text("\(label): \(Int(proxy.size.width)) x \(Int(proxy.size.height))")
+                        .background(Color.white)
                 }
-
-            Text(
-                measured.map { "\(label): \($0.width) x \($0.height)" }
-                    ?? "\(label): measuring"
-            )
-        }
-    }
-
-    /// Hands the measured size back to the view that drew it, on the next turn
-    /// of the main queue.
-    ///
-    /// `async` rather than a direct assignment: this runs inside `body`, and
-    /// writing state there re-enters the update that is already in progress.
-    /// The guard is what stops it repeating -- an unguarded write reports the
-    /// same size, which schedules another update, which reports the same size.
-    ///
-    /// 在 main queue 的下一輪,把量到的尺寸交還給畫出它的那個 view。
-    ///
-    /// 使用 `async` 而非直接指派:這段程式在 `body` 之中執行,而在該處寫入狀態會重新進入一個正在
-    /// 進行中的更新。真正讓它停下來的是那道防護——沒有防護的寫入會回報同一個尺寸,而那會排定另一次
-    /// 更新,那次更新又回報同一個尺寸。
-    private func report(_ size: ViewSize) {
-        let next = (width: Int(size.width), height: Int(size.height))
-        guard measured?.width != next.width || measured?.height != next.height else { return }
-        DispatchQueue.main.async { measured = next }
+            }
     }
 }

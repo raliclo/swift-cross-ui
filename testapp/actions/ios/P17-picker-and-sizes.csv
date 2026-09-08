@@ -1,7 +1,7 @@
 action,x,y,origin,button,key,micros,note,platform
 # P17 on iOS: press four of the six buttons and read the trail back off the page.
 #
-# Measured 2026-09-08 from p17-ios-final-20260908-223831.png, after the two
+# Measured 2026-09-08 from p17-ios-final-20260908-232638.png, after the two
 # scrolls this file opens with. Device: iPhone 16 simulator
 # (IOS_SIM_DEVICE=swift-cross-ui) -- window 393 x 852 pt, capture 1179 x 2556 px,
 # so every coordinate below is px/3, in points.
@@ -26,7 +26,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P17 在 iOS 上:按下六顆按鈕中的四顆,再把軌跡從畫面上讀回來。
 #
-# 2026-09-08 量測自 p17-ios-final-20260908-223831.png,量測時已完成本檔開頭的那兩次捲動。
+# 2026-09-08 量測自 p17-ios-final-20260908-232638.png,量測時已完成本檔開頭的那兩次捲動。
 # 裝置:iPhone 16 模擬器(IOS_SIM_DEVICE=swift-cross-ui)——視窗 393 x 852 點、擷圖 1179 x 2556 像素,
 # 因此以下每一個座標都是像素除以 3,單位為點。
 #
@@ -47,13 +47,15 @@ scroll,10,0,,,,,"scroll right until the buttons are on screen -- the content is 
 sleep,,,,,,600000,let the scroll settle,ios
 scroll,0,12,,,,,"scroll to the bottom so More height is reachable too",ios
 sleep,,,,,,800000,let the scroll settle,ios
-click,221,777,client,left,,,"More height -- the stack line must read a height above 140 and the trail must gain >",ios
-sleep,,,,,,500000,let the stack settle,ios
-click,208,239,client,left,,,"Longest -- Selected must become L and the picker width must change",ios
+click,208,263,client,left,,,"Longest -- Selected must become L (VERIFIED 2026-09-08: the trail reads LS+> in p17-ios-final-20260908-233736.png). The picker width does NOT change with the selection on this backend -- the readout stays 24 x 22 -- which is #161 itself, not a fault in this row",ios
 sleep,,,,,,400000,let the picker resize,ios
-click,66,239,client,left,,,"Shortest -- Selected must return to S; the trail is what tells this apart from never pressing",ios
+click,66,263,client,left,,,"Shortest -- Selected must return to S (VERIFIED: Selected reads S and the trail's second character is S, which is what tells this apart from never pressing)",ios
 sleep,,,,,,400000,let the picker resize,ios
-click,165,487,client,left,,,"Taller -- the teal aspect-ratio block must grow and Shorter must read 125",ios
+click,165,511,client,left,,,"Taller -- the teal block must grow and Shorter must read 125 (VERIFIED: Shorter (125))",ios
 sleep,,,,,,600000,let the teal block settle,ios
+scroll,0,4,,,,,"scroll back to the bottom before the last click -- Taller grew the teal block by 5 pt and the view was already clamped there, so everything below it moved and 789 stopped being where More height is. Re-clamping restores the state the coordinate was measured in; guessing a compensation did not (794 missed)",ios
+sleep,,,,,,600000,let the scroll settle,ios
+click,221,789,client,left,,,"More height -- the stack line must read a height above 140 and the trail must end in > (VERIFIED: stack: 178 x 160, trail LS+>)",ios
+sleep,,,,,,600000,let the stack settle,ios
 scroll,0,-14,,,,,"back to the top, so the presses line is in the photograph",ios
 sleep,,,,,,800000,settle before the photograph,ios
