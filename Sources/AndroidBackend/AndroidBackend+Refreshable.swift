@@ -40,10 +40,6 @@ extension AndroidBackend {
     /// the app itself never crashed. Nothing in the Swift code failed; the view
     /// tree simply grew without bound.
     ///
-    /// Scanning the container's children for this text is O(children) on a
-    /// scroll container that holds one or two, and it asks the view hierarchy
-    /// -- which is the thing that actually knows -- instead of a side table.
-    ///
     /// 按鈕上的文字,同時也是「再次找到它」的方式。
     ///
     /// 第一版把那些按鈕放在一個 Swift 字典裡,以 `container.javaHolder.object!.hashValue` 為索引鍵。
@@ -51,21 +47,46 @@ extension AndroidBackend {
     /// 可能不同,因此查找落空、**每一次**更新都新增一顆按鈕,而模擬器就從「Pixel Launcher isn't
     /// responding」一路走到「System UI isn't responding」——而 app 本身從未當掉。Swift 這一側沒有任何
     /// 東西失敗;只是那棵 view 樹無上限地長大。
-    ///
-    /// 在容器的子 view 中掃描這段文字,對一個只有一兩個子項的 scroll container 而言是 O(children),
-    /// 而且它問的是 view 階層——那才是真正知道答案的東西——而不是一張旁置的表。
     private static let refreshButtonText = "Refresh"
 
+    /// The button goes in the window's root stack, not inside the scroll
+    /// container.
+    ///
+    /// `ScrollContainer` is this backend's own Kotlin class and its
+    /// `updateScroll` is written around `getChildAt(0)` -- it assumes exactly
+    /// one child and moves that child in and out of a ScrollView as the axes
+    /// change. A second child breaks that assumption. Measured on P54: with the
+    /// button added to the container, the app rendered as a grey rectangle with
+    /// "Refresh" in the middle and no content at all.
+    ///
+    /// The root stack is where `.toolbar` already puts its row, it is above the
+    /// scrolling content, and adding to it disturbs nothing. The cost is that
+    /// the affordance is per-window rather than per-scroll-view, which matters
+    /// only for an app with two scroll views wanting different refresh actions
+    /// -- and that app would also need two visible buttons to tell them apart,
+    /// which is a design question rather than a missing capability.
+    ///
+    /// 這顆按鈕放在視窗的 root stack 中,而不是放進 scroll container 裡。
+    ///
+    /// `ScrollContainer` 是本 backend 自有的 Kotlin 類別,而它的 `updateScroll` 是圍繞著
+    /// `getChildAt(0)` 寫成的——它假設自己恰好只有一個子項,並在軸向改變時把那個子項移進、移出一個
+    /// ScrollView。多出第二個子項就會破壞那個假設。在 P54 上實測:把按鈕加進該容器後,這支 app 畫出來
+    /// 是一塊灰色矩形、中央寫著「Refresh」,完全沒有內容。
+    ///
+    /// root stack 正是 `.toolbar` 已經擺放它那一列的地方,它位於捲動內容之上,而加入其中不會擾亂任何
+    /// 東西。代價是這個操作方式屬於「每個視窗一個」而非「每個捲動視圖一個」,而那只有在一支 app 有
+    /// 兩個捲動視圖、且各自想要不同的 refresh 動作時才有影響——而那樣的 app 也需要兩顆看得見的按鈕
+    /// 才分得出來,那是一個設計問題,不是一項缺失的能力。
     public func setRefreshHandler(
         ofScrollContainer scrollView: Widget,
         to handler: (@MainActor @Sendable () -> Void)?
     ) {
-        guard let container = scrollView.as(ScrollContainer.self) else { return }
-        let existing = Self.refreshButton(in: container)
+        guard let stack = Self.rootStack else { return }
+        let existing = Self.refreshButton(in: stack)
 
         guard let handler else {
             if let existing {
-                container.removeView(existing)
+                stack.removeView(existing)
             }
             return
         }
@@ -79,7 +100,16 @@ extension AndroidBackend {
             let button = AndroidKit.Button(Self.activity, environment: Self.env)
             button.setText(Self.charSequence(from: Self.refreshButtonText))
             button.setAllCaps(false)
-            container.addView(button)
+            // Inserted above the scroll host, with the LinearLayout's own
+            // default params rather than params of our making. A vertical
+            // LinearLayout generates MATCH_PARENT x WRAP_CONTENT for a child,
+            // which is a full-width button one line tall -- the shape a bar
+            // across the top of a screen has on this platform.
+            //
+            // 插入在 scroll host 之上,並使用 LinearLayout 自己的預設 params,而不是我們自製的。
+            // 垂直的 LinearLayout 會為子項產生 MATCH_PARENT x WRAP_CONTENT,那是一顆佔滿寬度、
+            // 一行高的按鈕——也就是這個平台上「橫跨畫面頂端的一條」所具有的形狀。
+            stack.addView(button, stack.getChildCount() - 1)
             return button
         }()
 
@@ -89,9 +119,9 @@ extension AndroidBackend {
         )
     }
 
-    private static func refreshButton(in container: ScrollContainer) -> AndroidKit.Button? {
-        for index in 0..<container.getChildCount() {
-            guard let child = container.getChildAt(index),
+    private static func refreshButton(in stack: AndroidKit.LinearLayout) -> AndroidKit.Button? {
+        for index in 0..<stack.getChildCount() {
+            guard let child = stack.getChildAt(index),
                 let button = child.as(AndroidKit.Button.self),
                 button.getText()?.toString() == refreshButtonText
             else { continue }

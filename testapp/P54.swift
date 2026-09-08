@@ -83,13 +83,15 @@ struct P54RootView: View {
 
                 Text(
                     "The affordance differs per backend and that is deliberate. UIKit shows a "
-                        + "pull-to-refresh spinner; AppKit, Android and WinUI show a Refresh "
-                        + "button in the scroll view's top-left corner; GTK responds to dragging "
+                        + "pull-to-refresh spinner; AppKit and WinUI show a Refresh button "
+                        + "floating in the scroll view's top-left corner; Android shows a "
+                        + "full-width Refresh row above the content; GTK responds to dragging "
                         + "past the top edge."
                 )
                 Text(
                     "操作方式因 backend 而異,而那是刻意的。UIKit 顯示下拉重新整理的轉圈;"
-                        + "AppKit、Android 與 WinUI 在捲動視圖左上角顯示一顆 Refresh 按鈕;"
+                        + "AppKit 與 WinUI 在捲動視圖左上角顯示一顆浮動的 Refresh 按鈕;"
+                        + "Android 在內容上方顯示一條佔滿寬度的 Refresh;"
                         + "GTK 則對「拖過頂端邊緣」有反應。"
                 )
                 Text(
