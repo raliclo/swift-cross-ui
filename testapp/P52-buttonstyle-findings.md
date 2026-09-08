@@ -123,11 +123,23 @@ The 6 ms figure above is not a constant. Re-running P52 at three button counts,
 **in both ascending and descending order**, taking the minimum of the two orders
 per count:
 
-| buttons | ascending | descending | min | per button |
-| --- | --- | --- | --- | --- |
-| 12 | 35,679 us | 33,516 us | **33,516 us** | 2,793 us |
-| 24 | 112,179 us | 92,930 us | **92,930 us** | 3,872 us |
-| 48 | 278,768 us | 281,202 us | **278,768 us** | 5,808 us |
+Columns follow this tree's vocabulary rather than ones invented here --
+`date`, `host`, `backend`, `scenario`, `seconds` are `buildtime.csv2`'s, and
+`host` takes the same values as `results.csv2`'s `platform`. The first version
+of this table had none of those: no date, no host, no backend, which is exactly
+what makes a number impossible to re-derive later.
+
+| date | host | backend | scenario | buttons | ascending | descending | seconds (min) | per button |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-09-08 | windows | gtk4 | press-transition | 12 | 35,679 us | 33,516 us | **0.033516** | 2,793 us |
+| 2026-09-08 | windows | gtk4 | press-transition | 24 | 112,179 us | 92,930 us | **0.092930** | 3,872 us |
+| 2026-09-08 | windows | gtk4 | press-transition | 48 | 278,768 us | 281,202 us | **0.278768** | 5,808 us |
+
+**`host` is `windows` and `backend` is `gtk4` on every row. Nothing here was
+measured on macOS, iOS, Android, WSL or WinUI.** The finding looks like
+framework-level stack layout rather than anything a backend does, so it probably
+reproduces elsewhere -- but "probably" is an inference and the table is a
+measurement, and this file does not let the two share a row.
 
 ```
 12 -> 24    buttons x2    time x2.77
