@@ -465,7 +465,7 @@ struct P51GridRowCell: View {
 struct P51AdaptiveSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("6. GridItem.adaptive -- UNVERIFIED, neither a pass nor a defect")
+            Text("6. GridItem.adaptive -- IT ADAPTS. Measured 2026-09-08, Win-gtk4")
                 .font(.system(size: 15))
             Text("columns: [GridItem(.adaptive(minimum: 96))] with 4 cells.")
                 .font(.system(size: 11))
@@ -473,13 +473,29 @@ struct P51AdaptiveSection: View {
                 .font(.system(size: 11))
             Text("measured against a GridItem/LazyVGrid since replaced, and NOT re-checked here.")
                 .font(.system(size: 11))
-            Text("4 across = it adapted. 4 stacked = it did not. Record which; assume neither.")
+            Text("4 across = it adapted. 4 stacked = it did not. Read the row below.")
+            Text(
+                "READ 2026-09-08 as four ACROSS, in one row, on Win-gtk4:"
+                    + " gtk4-P51-scroll-to-adaptive-20260908-180045.png."
+            )
+            Text(
+                "So the old KNOWN DIVERGENCE caption was true of the GridItem/LazyVGrid"
+                    + " that dea9ccff deleted, and is FALSE of the one that replaced it."
+            )
                 .font(.system(size: 11))
             Text("此處過去被標註為「已知的分歧、只會畫出一欄」。那是針對一組此後已被取代的")
                 .font(.system(size: 11))
             Text("GridItem／LazyVGrid 量測的，並未在此重新檢查。")
                 .font(.system(size: 11))
-            Text("四格橫排＝它自適應了。四格直疊＝它沒有。請記錄實際結果，勿預設任何一種。")
+            Text("四格橫排＝它自適應了。四格直疊＝它沒有。請看下面那一列。")
+            Text(
+                "2026-09-08 於 Win-gtk4 讀到的是四格**橫排**、位於同一列："
+                    + "gtk4-P51-scroll-to-adaptive-20260908-180045.png。"
+            )
+            Text(
+                "因此舊的「已知分歧」說明文字，對 dea9ccff 所刪除的那組 GridItem／LazyVGrid 為真，"
+                    + "而對取代它的這一組為**假**。"
+            )
                 .font(.system(size: 11))
 
             LazyVGrid(columns: P51RootView.adaptiveColumns, alignment: .leading, spacing: 6) {

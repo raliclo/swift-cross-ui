@@ -35,12 +35,12 @@ extension AndroidBackend {
         }
     }
 
-    public func defaultButtonStyle() -> ButtonStyle {
+    public func defaultButtonStyle() -> PrimitiveButtonStyle {
         .bordered
     }
 }
 
-extension ButtonStyle {
+extension PrimitiveButtonStyle {
     var kotlinRepresentation: Int16 {
         let buttonClass = try! JavaClass<CustomButton>()
         return switch self.kind {

@@ -122,7 +122,13 @@ public final class WinUIBackend:
     BackendFeatures.Windowing,
     BackendFeatures.WindowLevels,
     BackendFeatures.LinearGradients,
-    BackendFeatures.RadialGradients
+    BackendFeatures.RadialGradients,
+    // Listed here, so `WinUIBackend+ButtonPressState.swift` must be a bare
+    // `extension WinUIBackend { ... }` -- for exactly the reason the
+    // `GraphicsAdapters` note directly below records.
+    // 在此處列出，因此 `WinUIBackend+ButtonPressState.swift` 必須是不帶 conformance 的
+    // `extension WinUIBackend { ... }`——理由與下方 `GraphicsAdapters` 註記所記的完全相同。
+    BackendFeatures.ButtonPressState
 {
     // GraphicsAdapters is declared on the extension in
     // WinUIBackend+GraphicsAdapters.swift, NOT here, and listing it in both

@@ -99,7 +99,7 @@ extension GtkBackend {
         }
     }
 
-    public func defaultButtonStyle() -> ButtonStyle {
+    public func defaultButtonStyle() -> PrimitiveButtonStyle {
         .bordered
     }
 
@@ -143,7 +143,7 @@ extension GtkBackend {
 }
 
 fileprivate final class GtkCustomButton: Gtk.Button {
-    fileprivate var buttonStyle: ButtonStyle.Kind = .bordered {
+    fileprivate var buttonStyle: PrimitiveButtonStyle.Kind = .bordered {
         willSet {
             buttonStyle.removeClass(from: self)
         }
@@ -198,7 +198,7 @@ fileprivate final class GtkCustomButton: Gtk.Button {
     }
 }
 
-extension ButtonStyle.Kind {
+extension PrimitiveButtonStyle.Kind {
     fileprivate func setClass(on button: GtkCustomButton) {
         if let cssClass {
             gtk_widget_add_css_class(button.widgetPointer, cssClass)

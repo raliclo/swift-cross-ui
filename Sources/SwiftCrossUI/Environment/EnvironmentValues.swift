@@ -627,22 +627,63 @@ extension EnvironmentValues {
     /// Whether the current device has a circular screen. Primarily Android smart watches.
     @Entry public var isCircularScreen: Bool = false
 
-    /// The display style used by ``Button``.
-    @Entry public var buttonStyle: ButtonStyle?
+    /// The built-in display style used by ``Button``.
+    ///
+    /// Named `buttonStyle` and typed ``PrimitiveButtonStyle`` since 2026-09-08;
+    /// only the type's name changed. This is the value every backend reads, and
+    /// the vocabulary it is written in -- three cases -- is the backend's, not
+    /// the application's.
+    ///
+    /// A custom ``ButtonStyle`` does not appear here. It goes in
+    /// ``customButtonStyle`` and ``Button`` overrides *this* value with `.plain`
+    /// while one is in effect, so the platform stops drawing chrome underneath a
+    /// style that draws its own.
+    ///
+    /// 由 ``Button`` 使用的內建顯示樣式。
+    ///
+    /// 自 2026-09-08 起名稱為 `buttonStyle`、型別為 ``PrimitiveButtonStyle``；改變的只有型別名稱。
+    /// 這是每一個 backend 都會讀取的值，而它所使用的詞彙——三個 case——屬於 backend，而非應用程式。
+    ///
+    /// 自訂的 ``ButtonStyle`` 不會出現在此處。它放在 ``customButtonStyle``，而在其生效期間 ``Button``
+    /// 會把**本值**覆寫為 `.plain`，好讓平台停止在「自行繪製的樣式」底下畫出自身外框。
+    @Entry public var buttonStyle: PrimitiveButtonStyle?
+
+    /// The application-supplied ``ButtonStyle``, if any.
+    ///
+    /// Type-erased because ``EnvironmentValues`` is not generic; see
+    /// ``View/buttonStyle(_:)-(S)`` for the full reasoning. Stored beside
+    /// ``buttonStyle`` rather than merged into it because the two are read by
+    /// different code for different purposes: this one only ever reaches
+    /// ``Button``, and no backend has any use for it.
+    ///
+    /// Optional, unlike ``labelStyle``, because there is no default conformer to
+    /// fall back to. The absence of a custom style is not "the automatic custom
+    /// style"; it means the platform draws the button, which is what
+    /// ``buttonStyle`` describes.
+    ///
+    /// 應用程式提供的 ``ButtonStyle``（若有）。
+    ///
+    /// 之所以型別抹除，是因為 ``EnvironmentValues`` 並非泛型；完整理由見
+    /// ``View/buttonStyle(_:)-(S)``。它與 ``buttonStyle`` 並列而非合而為一，是因為兩者被不同的程式碼
+    /// 以不同目的讀取：本值只會抵達 ``Button``，任何 backend 都用不到它。
+    ///
+    /// 與 ``labelStyle`` 不同，本值是 optional，因為此處沒有可退回的預設 conformer。「沒有自訂樣式」
+    /// 並不等於「採用自動的自訂樣式」；它的意思是按鈕由平台繪製，而那正是 ``buttonStyle`` 所描述的事。
+    @Entry public var customButtonStyle: (any ButtonStyle)?
 
     /// The default button style as declared by the backend.
     @MainActor
-    public var defaultButtonStyle: ButtonStyle {
+    public var defaultButtonStyle: PrimitiveButtonStyle {
         backend.defaultButtonStyle()
     }
 
-    /// The resolved ``ButtonStyle``. Either ``buttonStyle``, or ``defaultButtonStyle`` if nil.
+    /// The resolved ``PrimitiveButtonStyle``. Either ``buttonStyle``, or ``defaultButtonStyle`` if nil.
     @MainActor
-    public var resolvedButtonStyle: ButtonStyle {
+    public var resolvedButtonStyle: PrimitiveButtonStyle {
         buttonStyle ?? defaultButtonStyle
     }
 
-    /// The amount of padding that the current backend applies to the labels of buttons with the current ``ButtonStyle``.
+    /// The amount of padding that the current backend applies to the labels of buttons with the current ``PrimitiveButtonStyle``.
     @MainActor
     public var buttonPadding: SIMD2<Int> {
         backend.buttonPadding(in: self)

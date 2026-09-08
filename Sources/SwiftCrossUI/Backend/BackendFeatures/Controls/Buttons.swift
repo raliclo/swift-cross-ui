@@ -70,8 +70,15 @@ extension BackendFeatures {
 
         /// The default button style that the backend desires.
         ///
-        /// - Returns: The default ``ButtonStyle``.
-        func defaultButtonStyle() -> ButtonStyle
+        /// - Returns: The default ``PrimitiveButtonStyle``.
+        ///
+        /// Only ever a built-in style. A custom ``ButtonStyle`` belongs to an
+        /// application, so a backend has nothing to say about it and is never
+        /// asked; see ``EnvironmentValues/customButtonStyle``.
+        ///
+        /// 只會是內建樣式。自訂的 ``ButtonStyle`` 屬於應用程式，backend 對它無話可說，也永遠不會被
+        /// 問到；見 ``EnvironmentValues/customButtonStyle``。
+        func defaultButtonStyle() -> PrimitiveButtonStyle
 
         /// Modifies the environment for the body of a button label.
         ///

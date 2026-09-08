@@ -23,7 +23,13 @@ public final class UIKitBackend:
     BackendFeatures.Paths,
     BackendFeatures.Tooltips,
     BackendFeatures.Colors,
-    BackendFeatures.Gradients
+    BackendFeatures.Gradients,
+    // Listed here, so `UIKitBackend+ButtonPressState.swift` must be a bare
+    // `extension UIKitBackend { ... }`; naming the protocol in both places is
+    // `error: redundant conformance`.
+    // 在此處列出，因此 `UIKitBackend+ButtonPressState.swift` 必須是不帶 conformance 的
+    // `extension UIKitBackend { ... }`；兩處都寫上該 protocol 會得到 `error: redundant conformance`。
+    BackendFeatures.ButtonPressState
 {
     static var onWindowEnvironmentChange: (() -> Void)?
     static var onBecomeActive: (() -> Void)?

@@ -22,6 +22,7 @@
 /// - ``BackendFeatures/Colors``
 /// - ``BackendFeatures/DatePickers``
 /// - ``BackendFeatures/Windowing``
+/// - ``BackendFeatures/ButtonPressState``
 /// **Adding a requirement here does not make the backends conform to it.**
 ///
 /// This is a protocol composition, and only ``AppKitBackend`` declares itself a
@@ -82,6 +83,32 @@ public typealias FullAppBackend =
         & BackendFeatures.DatePickers
         & BackendFeatures.Windowing
         & BackendFeatures.Gradients
+        // Added 2026-09-08 with `ButtonStyle`. Following the instruction the
+        // note above ends with, rather than repeating what it records: the
+        // conformance is listed on GtkBackend, WinUIBackend and UIKitBackend in
+        // their own class declarations in the same change, and AndroidBackend
+        // declares it on its `AndroidBackend+ButtonPressState.swift` extension
+        // as it does for every other feature. Only AppKitBackend is covered by
+        // this line, which is exactly the trap the note describes.
+        //
+        // Consequence for the implementation files, stated because getting it
+        // wrong is `error: redundant conformance` and not something the reader
+        // can guess: four of the five must be a bare `extension XBackend { ... }`
+        // -- AppKit because of this composition, the other three because of
+        // their class declarations. Only AndroidBackend writes
+        // `extension AndroidBackend: BackendFeatures.ButtonPressState`.
+        //
+        // 於 2026-09-08 隨 `ButtonStyle` 一併加入。此處遵循上方註記結尾所給的指示，而不重複它已記下的
+        // 內容：在同一次變更中，GtkBackend、WinUIBackend 與 UIKitBackend 已於各自的類別宣告中列出該
+        // conformance，而 AndroidBackend 則如同它對其他所有 feature 的做法，宣告在
+        // `AndroidBackend+ButtonPressState.swift` 的 extension 上。本行只涵蓋 AppKitBackend——那正是
+        // 上方註記所描述的陷阱。
+        //
+        // 對實作檔案的影響（之所以明說，是因為弄錯會得到 `error: redundant conformance`，而讀者無從
+        // 猜測）：五者之中有四者必須寫成不帶 conformance 的 `extension XBackend { ... }`——AppKit 是
+        // 因為本組合，另外三者是因為它們的類別宣告。只有 AndroidBackend 寫
+        // `extension AndroidBackend: BackendFeatures.ButtonPressState`。
+        & BackendFeatures.ButtonPressState
 
 /// A typealias for ``FullAppBackend``.
 ///
