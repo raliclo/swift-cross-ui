@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# P53 on Android: press the toolbar row and read the three counters back.
+#
+# Measured 2026-09-08 from testapp/output/screenshots/p53-android-final-20260908-201226.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. Action files are written in points and the synthesiser
+# multiplies by the density.
+#
+# The row's buttons occupy pixels y 14-110, centre 62, which is point 24. Their
+# centres across are pixel 116, 346 and 577 -- points 44, 132 and 220.
+#
+# add is pressed TWICE and Delete ONCE, so the three counters end at different
+# values. Pressing each once would leave 1, 1, 0, and a wiring mistake that sent
+# every item to the same action would also produce 1, 1, 0 when it happened to
+# hit the right two. 2, 1, 0 cannot be reached that way.
+#
+# P53 在 Android 上:按下工具列那一列,再把三個計數器讀回來。
+#
+# 2026-09-08 量測自 testapp/output/screenshots/p53-android-final-20260908-201226.png。
+# 模擬器 swift-cross-ui-api36,1080 x 2400 像素,density 2.625,因此視窗為 411 x 914 點。
+# 動作檔以「點」書寫,由 synthesiser 乘上 density。
+#
+# 該列的按鈕佔據像素 y 14-110、中心 62,即點 24。它們的水平中心為像素 116、346、577,
+# 即點 44、132、220。
+#
+# add 按**兩次**、Delete 按**一次**,好讓三個計數器停在不同的值上。若各按一次會留下 1、1、0,而一個
+# 「把每個項目都送到同一個 action」的接線錯誤,在剛好命中那兩個時同樣會產生 1、1、0。2、1、0 走不到
+# 那條路上。
+sleep,,,,,,1500000,let P53 render,android
+click,44,24,,left,,,"the Add button (leading) -- add must become 1",android
+sleep,,,,,,500000,let the counter redraw,android
+click,44,24,,left,,,"Add again -- add must become 2",android
+sleep,,,,,,500000,let the counter redraw,android
+click,220,24,,left,,,"the Delete button (trailing) -- trash must become 1, add must stay at 2",android
+sleep,,,,,,1200000,settle before the photograph,android

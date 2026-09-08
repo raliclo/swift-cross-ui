@@ -2,10 +2,12 @@ package dev.swiftcrossui.androidbackend.datepickers
 
 import android.content.Context
 import android.text.format.DateFormat
+import android.icu.util.Calendar
 import android.widget.DatePicker
 import android.widget.TimePicker
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /**
  * The `.wheel` date picker style on Android.
@@ -43,6 +45,8 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
     // Declared before the two views, because they are built from it and Kotlin
     // initialises properties in declaration order.
     // 宣告在那兩個 view 之前，因為它們是以它建構的，而 Kotlin 依宣告順序初始化屬性。
+    private var locale = Locale.getDefault()
+
     private val spinnerContext =
         android.view.ContextThemeWrapper(context, android.R.style.Theme_Holo_Light)
 
@@ -77,6 +81,31 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
 
         addView(dateView)
         addView(timeView)
+    }
+
+    /**
+     * The same two lines GraphicalDatePicker uses, because the two hold the same
+     * pair of views -- a DatePicker and a TimePicker -- and differ only in the
+     * theme they are built against.
+     *
+     * Absent, this class was the one subclass of AbstractDatePicker that did not
+     * implement the abstract member, and Kotlin refused to compile it. That
+     * refusal took out `assembleDebug` for EVERY app: the failure is one class
+     * in one file, and what it looks like from outside is that Android has no
+     * APKs at all.
+     *
+     * 與 GraphicalDatePicker 所用的是同樣那兩行,因為兩者持有的是同一對 view——一個 DatePicker 與一個
+     * TimePicker——差別只在它們是以哪個佈景主題建構的。
+     *
+     * 缺了它,本類別就是 AbstractDatePicker 底下唯一沒有實作那個抽象成員的子類別,而 Kotlin 拒絕編譯。
+     * 該拒絕會讓**每一支** app 的 `assembleDebug` 一起垮掉:失敗的是一個檔案裡的一個類別,而從外面
+     * 看起來的樣子,是 Android 根本產不出任何 APK。
+     */
+    override fun setLocale(locale: Locale) {
+        if (locale == this.locale) return
+        this.locale = locale
+        dateView.firstDayOfWeek = Calendar.getInstance(locale).firstDayOfWeek
+        timeView.setIs24HourView(is24HourLocale(locale))
     }
 
     protected override fun applyRange(min: LocalDateTime, max: LocalDateTime) {
