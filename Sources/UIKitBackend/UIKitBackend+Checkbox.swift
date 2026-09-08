@@ -81,8 +81,7 @@ final class UIButtonCheckbox: WrapperWidget<UIButton>, CheckboxWidget {
 
     func update(environment: EnvironmentValues, onChange: @escaping (Bool) -> Void) {
         child.isEnabled = environment.isEnabled
-        child.imageView?.tintColor =
-            environment.suggestedForegroundColor.resolve(in: environment).uiColor
+        child.imageView?.tintColor = UIKitBackend.resolvedForegroundColor(environment)
         self.onChange = onChange
     }
 

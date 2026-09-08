@@ -344,9 +344,7 @@ extension UIKitBackend {
         textFieldWidget.child.isEnabled = environment.isEnabled
         textFieldWidget.child.placeholder = placeholder
         textFieldWidget.child.font = environment.resolvedFont.uiFont
-        textFieldWidget.child.textColor =
-            environment.suggestedForegroundColor
-                .resolve(in: environment).uiColor
+        textFieldWidget.child.textColor = UIKitBackend.resolvedForegroundColor(environment)
         textFieldWidget.onChange = onChange
         textFieldWidget.onSubmit = onSubmit
 
@@ -491,9 +489,7 @@ extension UIKitBackend {
 
         textEditorWidget.isEditable = environment.isEnabled
         textEditorWidget.child.font = environment.resolvedFont.uiFont
-        textEditorWidget.child.textColor =
-            environment.suggestedForegroundColor
-                .resolve(in: environment).uiColor
+        textEditorWidget.child.textColor = UIKitBackend.resolvedForegroundColor(environment)
         textEditorWidget.onChange = onChange
 
         let (keyboardType, contentType) = splitTextContentType(environment.textContentType)
