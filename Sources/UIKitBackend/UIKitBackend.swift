@@ -18,6 +18,7 @@ public final class UIKitBackend:
     BackendFeatures.IncomingURLs,
     BackendFeatures.Alerts,
     BackendFeatures.Sheets,
+    BackendFeatures.Popovers,
     BackendFeatures.CornerRadius,
     BackendFeatures.Paths,
     BackendFeatures.Tooltips,

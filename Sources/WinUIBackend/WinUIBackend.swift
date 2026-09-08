@@ -114,6 +114,7 @@ public final class WinUIBackend:
     BackendFeatures.CornerRadius,
     BackendFeatures.Gestures,
     BackendFeatures.AttachedMenus,
+    BackendFeatures.Popovers,
     BackendFeatures.Paths,
     BackendFeatures.Tooltips,
     BackendFeatures.Colors,
@@ -389,6 +390,15 @@ public final class WinUIBackend:
     // 非 private:WinUIBackend+Symbols.swift 會透過同一個 block 量測字符,而型別層級的 `private`
     // 只及於宣告它的那一個檔案。
     var measurementTextBlock: TextBlock!
+
+    // The bordered-button padding measured once by `measureBorderedButtonPadding()`
+    // in WinUIBackend+Button.swift, then reused. Measuring means realising a dummy
+    // button and a TextBlock, so it is cached rather than repeated per layout pass.
+    // GtkBackend and AppKitBackend hold the same property for the same reason.
+    // 由 WinUIBackend+Button.swift 中的 `measureBorderedButtonPadding()` 量測一次後重複使用的
+    // 帶框按鈕內距。量測需要實體化一個 dummy button 與 TextBlock,因此快取起來,而非每次 layout
+    // 都重測。GtkBackend 與 AppKitBackend 基於相同理由持有同一個屬性。
+    var borderedButtonPadding: SIMD2<Int>?
 
     public init() {
         internalState = InternalState()

@@ -6,7 +6,7 @@ extension WinUIBackend {
     public func createButton(
         wrapping widget: Widget
     ) -> Widget {
-        let button = CustomButton()
+        let button = ViewLabelCustomButton()
         button.content = widget
         return button
     }
@@ -16,7 +16,7 @@ extension WinUIBackend {
         environment: EnvironmentValues,
         action: @escaping () -> Void
     ) {
-        let button = button as! CustomButton
+        let button = button as! ViewLabelCustomButton
         button.action = action
         button.buttonStyle = environment.resolvedButtonStyle.kind
         button.enabled = environment.isEnabled
@@ -53,7 +53,30 @@ extension WinUIBackend {
     }
 }
 
-fileprivate final class CustomButton: WinUI.Button {
+/// The button behind `createButton(wrapping:)` -- the arbitrary-view label API
+/// upstream added when it split buttons into `StringLabelButtons` and
+/// `ViewLabelButtons` (#590). Its content is whatever `Widget` the caller passed.
+///
+/// There is deliberately a SECOND button class, `CustomButton` in
+/// WinUIBackend.swift, and neither may be deleted in favour of the other. That
+/// one owns a `TextBlock` label of its own, and three methods still depend on it:
+/// `createSimpleButton()`, `updateSimpleButton(_:label:environment:action:)` and
+/// `updateButton(_:label:menu:environment:)` -- the last being the menu/flyout
+/// button, which has nothing to do with #590. Unlike GtkBackend, those three were
+/// never moved into this file, so both classes are live. Merging them breaks menu
+/// buttons.
+///
+/// 這是 `createButton(wrapping:)` 背後的按鈕——即上游將按鈕拆成 `StringLabelButtons` 與
+/// `ViewLabelButtons`(#590)時新增的「任意 view 作為 label」API。其 content 就是呼叫端傳入的
+/// `Widget`。
+///
+/// 這裡刻意存在第二個按鈕類別,即 WinUIBackend.swift 中的 `CustomButton`,兩者都不得為了對方而
+/// 被刪除。那一個自己持有一個 `TextBlock` label,且仍有三個方法依賴它:`createSimpleButton()`、
+/// `updateSimpleButton(_:label:environment:action:)` 與
+/// `updateButton(_:label:menu:environment:)`——最後一個是 menu/flyout 按鈕,與 #590 無關。
+/// 與 GtkBackend 不同,那三個方法從未被搬進本檔案,因此兩個類別都仍在使用中。合併它們會弄壞 menu
+/// 按鈕。
+fileprivate final class ViewLabelCustomButton: WinUI.Button {
     fileprivate var action: (() -> Void)?
 
     private var isPointerCaptured = false
@@ -171,7 +194,7 @@ fileprivate final class CustomButton: WinUI.Button {
 }
 
 extension ButtonStyle.Kind {
-    fileprivate func updateRenderedStyle(_ button: CustomButton) {
+    fileprivate func updateRenderedStyle(_ button: ViewLabelCustomButton) {
         guard let resources = button.resources else { return }
 
         switch self {
@@ -205,7 +228,7 @@ extension ButtonStyle.Kind {
         }
     }
 
-    fileprivate func applyModifications(_ button: CustomButton) {
+    fileprivate func applyModifications(_ button: ViewLabelCustomButton) {
         switch self {
             case .bordered: button.opacity = 1.0
             case .plain, .borderless:
@@ -219,14 +242,32 @@ extension ButtonStyle.Kind {
     }
 }
 
+// These three arrived from upstream as `static let`. Upstream is not in Swift 6
+// language mode; this tree is, and there a `static let` of a non-`Sendable` type
+// is "not concurrency-safe because ... may have shared mutable state" -- the three
+// WinUI/UWP structs are all imported as non-`Sendable`.
+//
+// Making them computed answers the diagnostic instead of silencing it: a computed
+// property has no shared storage for anything to race on. `nonisolated(unsafe)`
+// would have kept the storage and merely asserted it was fine, and `@MainActor`
+// would have restricted where they can be read. Each is a handful of zeroed fields
+// constructed at a handful of call sites, so there is nothing worth caching.
+//
+// 這三者是從上游帶進來的 `static let`。上游並未啟用 Swift 6 語言模式,而本樹有;在該模式下,
+// 非 `Sendable` 型別的 `static let` 會被判為「不具並行安全性,因為……可能持有共享的可變狀態」
+// ——這三個 WinUI/UWP struct 匯入後皆為非 `Sendable`。
+//
+// 改為 computed 是回答該診斷,而非壓制它:computed property 根本沒有可供競爭的共享儲存。
+// `nonisolated(unsafe)` 會保留儲存、僅僅斷言它沒問題,而 `@MainActor` 則會限縮可讀取它們的位置。
+// 每一個都只是幾個歸零欄位、在少數幾處建構,並無快取的價值。
 extension UWP.Color {
-    static let transparent: Self = Color(a: 0, r: 0, g: 0, b: 0)
+    static var transparent: Self { Color(a: 0, r: 0, g: 0, b: 0) }
 }
 
 extension WinUI.Thickness {
-    static let null: Self = Thickness(left: 0, top: 0, right: 0, bottom: 0)
+    static var null: Self { Thickness(left: 0, top: 0, right: 0, bottom: 0) }
 }
 
 extension WinUI.CornerRadius {
-    static let null: Self = CornerRadius(topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0)
+    static var null: Self { CornerRadius(topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0) }
 }

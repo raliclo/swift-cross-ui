@@ -660,3 +660,6 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-08,windows,gtk4,P44,ok,ok,window,default,P44-clip-third-cell.csv: expectation met: 'third cell clipped: true'
 2026-09-08,windows,gtk4,P50,ok,-,window,default,
 2026-09-08,windows,gtk4,P51,ok,-,window,default,
+2026-09-08,windows,gtk4,P50,ok,-,fail,default,"screenshot.zsh wrote no image file at all"
+2026-09-08,windows,gtk4,P50,ok,-,window,default,
+2026-09-08,windows,winui,P50,ok,-,window,default,
