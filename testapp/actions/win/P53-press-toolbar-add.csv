@@ -43,7 +43,39 @@ action,x,y,origin,button,key,micros,note,platform
 # 因此這一次點擊落在外框而非內容區。該視窗啟動時量得 "shortfall 0x47"，而 47 正是 header bar 自身的
 # 高度——與 Gtk/Widgets/Window.swift 中記錄的、相對於 GTK 自身 39 的那個 47 相同。
 #
-# expect: log-contains toolbar add pressed
+# THE MARKER WAS WRONG WHEN THIS FILE WAS WRITTEN, and the wrong version is kept
+# here because the mistake is more instructive than the fix. It read
+# `# expect: log-contains toolbar add pressed`. P53 writes
+# `[P53] add pressed, count=N` (P53.swift:86) -- "toolbar add pressed" appears
+# nowhere in the app, so that marker could never be met by any run, passing or
+# failing. It asserted a sentence I had invented.
+#
+# P51's header, written by the same hand a few hours earlier, says a marker
+# "would have to assert something the app does not say, which is worse than
+# having none". Knowing the rule did not stop me breaking it; checking the app's
+# own `print` call sites would have.
+#
+# CAVEAT ON THE MARKER THAT REMAINS. P53 diagnoses with `print`, and `print` to a
+# redirected stdout is block-buffered, so a harness that ends the run with
+# `taskkill /F` kills before the flush -- measured on P44, 2026-09-07, written up
+# in sweep_drive.zsh. This marker is therefore reliable only when the app exits
+# on its own, as it does at the end of a replay. The picture remains the primary
+# evidence: `add: 1` and `last pressed: add` in the window itself.
+#
+# 這個 marker 在本檔寫成時是錯的，而錯誤的版本被保留在此，因為那個錯誤比修正更有教育意義。它原本寫的
+# 是 `# expect: log-contains toolbar add pressed`。P53 實際寫出的是 `[P53] add pressed, count=N`
+# （P53.swift:86）——「toolbar add pressed」這串字在 app 中根本不存在，因此無論該次執行成功或失敗，
+# 該 marker 都不可能被滿足。它斷言的是一句我自己編出來的話。
+#
+# P51 的檔頭出自同一雙手、僅早了幾個小時，上面寫著：marker「會要它斷言一件 app 沒說出口的事，那比
+# 沒有標記更糟」。知道規則並沒有阻止我違反它；去看 app 自己的 `print` 呼叫點才會。
+#
+# 對保留下來的 marker 的但書。P53 以 `print` 輸出診斷，而 `print` 寫往被重導的 stdout 時是區塊緩衝的，
+# 因此以 `taskkill /F` 結束執行的測試框架會在 flush 之前殺掉它——2026-09-07 在 P44 上實測，記於
+# sweep_drive.zsh。故此 marker 僅在 app 自行結束時可靠（replay 結束時正是如此）。主要證據仍是畫面本身：
+# 視窗中的 `add: 1` 與 `last pressed: add`。
+#
+# expect: log-contains add pressed
 sleep,,,,,,900000,let the window settle and take focus,windows
 move,38,35,frame,,,,move onto the leading toolbar button before pressing it,windows
 sleep,,,,,,200000,let the pointer arrive so the press lands on a hovered button,windows

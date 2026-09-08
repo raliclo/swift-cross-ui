@@ -93,11 +93,17 @@ action,x,y,origin,button,key,micros,note,platform
 # `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings"` reports a step
 # OFFSET rather than a percentage, so it cannot answer this question on its own.
 #
-# BUILD IT WITH THE FLAG or this file does nothing at all:
-#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P48
-# GtkBackend guards its ActionFileReplay call with #if SCUI_DEBUG. Without it
-# the replay is compiled out and the failure is silent: the app launches,
-# renders, and not one action is performed.
+# THE BUILD MUST DEFINE SCUI_DEBUG, and since 9d708bf5 compile.zsh does that by
+# default, so the plain command is enough:
+#   zsh testapp/compile.zsh -gtk4 P48
+# `SCUI_DEBUG=1` in front of it is the same thing spelled out; `SCUI_DEBUG=0`
+# opts out and is the one spelling that breaks this file. GtkBackend guards its
+# ActionFileReplay call with `#if SCUI_DEBUG`, so without the define the replay
+# is not in the binary and the failure is silent: the app launches, renders, and
+# not one action is performed. This binary was built with `SCUI_DEBUG=1` given
+# explicitly, before that default existed. BUILD_CONFIG is a separate axis and
+# does NOT control this -- `BUILD_CONFIG=debug` never defined SCUI_DEBUG, so
+# "rebuild it in debug" was never the way back.
 #
 # ONE LAYOUT-CHANGING CLICK, and only one, per flow.md rule 3d. Pressing Edit
 # inserts three rows into the middle of a ScrollView, so every coordinate below
@@ -175,10 +181,13 @@ action,x,y,origin,button,key,micros,note,platform
 # `reg query "HKCU\Control Panel\Desktop\PerMonitorSettings"` 回報的是**級距偏移量**而非百分比，
 # 單憑它回答不了這個問題。
 #
-# **必須帶旗標建置**，否則本檔完全不會有任何作用：
-#   SCUI_DEBUG=1 zsh testapp/compile.zsh -gtk4 P48
-# GtkBackend 以 #if SCUI_DEBUG 包住它呼叫 ActionFileReplay 之處。少了它，重放會被編譯掉，而失敗
-# 是靜默的：app 正常啟動、正常繪製，卻一個動作也不執行。
+# **建置時必須定義 SCUI_DEBUG**；自 9d708bf5 起 compile.zsh 已預設如此，因此下面這一行就夠了：
+#   zsh testapp/compile.zsh -gtk4 P48
+# 在它前面加 `SCUI_DEBUG=1` 只是把同一件事明寫出來；`SCUI_DEBUG=0` 才是會弄壞本檔的那一種寫法。
+# GtkBackend 以 `#if SCUI_DEBUG` 包住它呼叫 ActionFileReplay 之處，因此少了該定義，重放根本不在
+# 執行檔裡，而失敗是靜默的：app 正常啟動、正常繪製，卻一個動作也不執行。本次量測所用的執行檔是在
+# 那個預設值出現之前、以明寫的 `SCUI_DEBUG=1` 建置的。BUILD_CONFIG 是另一個獨立的軸，**不**控制
+# 這件事——`BUILD_CONFIG=debug` 從來就沒有定義過 SCUI_DEBUG，因此「改用 debug 重建」從來都不是解法。
 #
 # **只有一次會改變版面的點擊**，依 flow.md 規則 3d。按下 Edit 會在 ScrollView 中間插入三列，於是
 # 其下每一個座標都會移動。任何後續步驟——例如拖曳某個色版、觀察「app sees r=... g=... b=...」是否
