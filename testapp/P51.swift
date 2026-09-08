@@ -160,6 +160,18 @@ struct P51RootView: View {
     /// 使用 `.fixed`，是因為如此一來寬度就不取決於內容、視窗、或 backend 對預設值的想法：三欄就是
     /// 3 x 96 點寬，一欄就是 96 點，而這兩張圖在任何 density 下都不可能被混淆。`.flexible` 會讓
     /// 「塌縮成一欄」的失敗撐滿整個視窗寬度，那看起來會像是刻意的。
+    ///
+    /// `96` stays an integer literal on purpose. Task #108 widened
+    /// ``GridItem/Size`` from `Int` to `Double`, and these three lines are the
+    /// check that it did not break source compatibility while doing so: an
+    /// integer literal still has to type-check as a `Double` size, here and in
+    /// ``adaptiveColumns``. P48 carries the fractional and `.infinity`
+    /// spellings; nothing in P51 changed for #108.
+    ///
+    /// `96` 刻意維持為整數字面量。任務 #108 把 ``GridItem/Size`` 從 `Int` 放寬為 `Double`，而這
+    /// 三行正是「它在放寬的同時沒有破壞原始碼相容性」的檢查：整數字面量在此與在 ``adaptiveColumns``
+    /// 中，都仍必須能被型別檢查為 `Double` 尺寸。帶小數與 `.infinity` 的寫法由 P48 承擔；P51 中
+    /// 沒有任何東西因為 #108 而改變。
     static let threeColumns = [
         GridItem(.fixed(96), spacing: 8),
         GridItem(.fixed(96), spacing: 8),

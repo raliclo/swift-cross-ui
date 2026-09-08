@@ -681,7 +681,10 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-08,windows,gtk4,P51,FAIL,-,fail,default,exited before the capture; screenshot.zsh wrote no image file at all
 2026-09-08,windows,gtk4,P51,ok,-,fail,default,screenshot.zsh wrote no image file at all
 2026-09-08,windows,gtk4,P51,ok,-,window,default,
-2026-09-08,windows,gtk4,P51,ok,ok,window,default,"P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked"
-2026-09-08,windows,gtk4,P51,ok,ok,window,default,"P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked"
+2026-09-08,windows,gtk4,P51,ok,ok,window,default,P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked
+2026-09-08,windows,gtk4,P51,ok,ok,window,default,P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked
+2026-09-08,windows,gtk4,P5,ok,ok,window,default,"P5-stacked-alerts.csv: no measured size in the action file -- geometry unchecked; expectation met: 'requesting A, B and C together'"
+2026-09-08,windows,gtk4,P51,ok,ok,window,default,P51-scroll-to-adaptive.csv: no measured size in the action file -- geometry unchecked
+2026-09-08,windows,gtk4,P48,ok,-,window,default,
 2026-09-08,ios,uikit,P53,ok,ok,window,default,"toolbar: UINavigationBar with the content inset below it; P53-press-toolbar-items.csv leaves add 2 trash 1 info 0, last pressed trash (VERIFIED in p53-ios-final-20260908-194615.png)"
 2026-09-08,android,android,P53,ok,ok,window,default,"toolbar: a LinearLayout row of Buttons -- android.widget.Toolbar raised ClassNotFoundException at launch, see AndroidBackend+Toolbar.swift; P53-press-toolbar-items.csv leaves add 2 trash 1 info 0, last pressed trash (VERIFIED in p53-android-final-20260908-201941.png)"
