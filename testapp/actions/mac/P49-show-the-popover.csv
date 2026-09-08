@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on macOS: the popover is anchored to its button, not centred in the window.
+#
+# origin=frame. Window 780x620 points, capture 1560x1296, so pixels halved. The
+# "Show the popover" bezel centre is (178, 780) in capture pixels, so (89, 390)
+# in points.
+#
+# **Anchoring is the whole assertion.** A popover that appeared in the middle of
+# the window would still be a presentation, would still set the binding, and
+# would still count as "it worked" against any check that only asks whether
+# something appeared. The button is deliberately not centred, so its position
+# and the popover's are two different numbers and the picture can be read.
+#
+# P49 於 macOS:popover 錨定在它的按鈕上,而不是置中於視窗。
+#
+# 使用 origin=frame。視窗 780x620 點、擷取 1560x1296,故像素除以二。「Show the popover」按鈕邊框的
+# 中心在擷取像素中為 (178, 780),換算為點是 (89, 390)。
+#
+# **「有錨點」就是全部的斷言。** 一個出現在視窗正中央的 popover 仍然是一次呈現、仍然會設定 binding,
+# 而且對任何「只問有沒有東西出現」的檢查而言仍然算是「成功了」。此處的按鈕刻意不置中,如此它的位置
+# 與 popover 的位置就是兩個不同的數字,而畫面也就讀得出來。
+sleep,,,,,,1500000,let P49 render,macos
+click,89,390,frame,left,,,"the ""Show the popover"" button -- the popover must appear below-left, pointing at it",macos
+sleep,,,,,,1500000,let the popover animate in,macos

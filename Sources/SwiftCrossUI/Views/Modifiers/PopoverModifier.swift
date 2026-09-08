@@ -1,72 +1,31 @@
 extension View {
-    /// Presents a transient panel of content anchored to this view.
+    /// Presents `content` in a popover anchored to this view, while
+    /// `isPresented` is true.
     ///
-    /// A popover is light-dismiss: clicking outside it, or pressing escape,
-    /// closes it and calls `onDismiss`. It is positioned against this view
-    /// rather than against the window, which is the whole difference between it
-    /// and ``View/sheet(isPresented:onDismiss:content:)`` -- see
-    /// ``BackendFeatures/Popovers`` for why that difference needed a backend
-    /// protocol of its own rather than a parameter added to `Sheets`.
+    /// Anchored is the whole of the difference from
+    /// ``View/sheet(isPresented:onDismiss:content:)``: the popover points at
+    /// the view it is attached to, and every one of the five backends draws it
+    /// with its own native popover -- `NSPopover`,
+    /// `UIPopoverPresentationController`, `GtkPopover`, WinUI's `Flyout`,
+    /// Android's `PopupWindow`. On iPhone, UIKit itself adapts a popover into a
+    /// sheet, which is the platform's own answer to a screen too small to point
+    /// at anything, and is not this toolkit substituting one presentation for
+    /// another.
     ///
-    /// `onDismiss` is *not* called when the popover is closed programmatically
-    /// (by setting `isPresented` to `false`), matching `sheet`.
+    /// 在 `isPresented` 為真時，以一個錨定於本 view 的 popover 呈現 `content`。
     ///
-    /// **Platform shapes, none of which is a fallback.** macOS gets an
-    /// `NSPopover` with a beak; Windows a WinUI `Flyout`; GTK a `GtkPopover`;
-    /// iPad a `UIPopoverPresentationController`. On iPhone, where UIKit's own
-    /// adaptation would turn a popover into a full-screen sheet, UIKitBackend
-    /// asks for `.none` so it stays a popover -- SwiftUI's `.popover` behaves
-    /// as a sheet there, and this deliberately does not, because a caller who
-    /// wanted a sheet has `sheet`. Android gets a `PopupWindow` anchored to the
-    /// view, which is the primitive its own menus and autocomplete drop-downs
-    /// are built from.
-    ///
-    /// **On a backend that does not implement ``BackendFeatures/Popovers``,**
-    /// this warns once and renders the anchor view unmodified. That is the
-    /// sanctioned answer for `CursesBackend`, `LVGLBackend`, `QtBackend` and
-    /// `DummyBackend` -- and *only* for those. All five shipped backends
-    /// conform, so none of them reaches that branch; if one ever does, the
-    /// warning is the bug report.
-    ///
-    /// - Parameters:
-    ///   - isPresented: A binding controlling whether the popover is presented.
-    ///   - attachmentEdge: The edge of this view the popover should prefer to
-    ///     appear from. Backends flip it when the requested side would run off
-    ///     the screen.
-    ///   - onDismiss: An action to perform when the popover is dismissed by the
-    ///     user.
-    ///   - content: The content of the popover.
-    ///
-    /// 呈現一塊錨定於此 view 的短暫內容面板。
-    ///
-    /// popover 採點擊外部即關閉：在它之外點擊、或按下 escape，都會關閉它並呼叫 `onDismiss`。它是
-    /// 相對於此 view 定位，而非相對於視窗定位，這正是它與
-    /// ``View/sheet(isPresented:onDismiss:content:)`` 的全部差異——關於這項差異為何需要一個屬於
-    /// 自己的 backend protocol，而不是在 `Sheets` 上加一個參數，見 ``BackendFeatures/Popovers``。
-    ///
-    /// 當 popover 是以程式方式關閉時（將 `isPresented` 設為 `false`），`onDismiss` **不會**被呼叫，
-    /// 與 `sheet` 一致。
-    ///
-    /// **各平台的形態，其中沒有任何一種是後備方案。** macOS 得到帶尖角的 `NSPopover`；Windows 得到
-    /// WinUI 的 `Flyout`；GTK 得到 `GtkPopover`；iPad 得到 `UIPopoverPresentationController`。
-    /// 在 iPhone 上，UIKit 自身的調適會把 popover 變成全螢幕 sheet，因此 UIKitBackend 要求 `.none`
-    /// 以維持它是 popover——SwiftUI 的 `.popover` 在該處的行為即為 sheet，而此處刻意不如此，因為
-    /// 想要 sheet 的呼叫端有 `sheet` 可用。Android 得到錨定於該 view 的 `PopupWindow`，那正是它自身
-    /// 的選單與自動完成下拉所建構於其上的基本元件。
-    ///
-    /// **在未實作 ``BackendFeatures/Popovers`` 的 backend 上，** 本 modifier 會警告一次，並原樣繪製
-    /// 錨點 view。那是給 `CursesBackend`、`LVGLBackend`、`QtBackend` 與 `DummyBackend` 的既定答案
-    /// ——而且**僅限**這些。五個已發布的 backend 全部 conform，因此它們都不會走到那個分支；若哪天
-    /// 有一個走到了，那則警告就是它的錯誤回報。
+    /// 「有錨點」就是它與 ``View/sheet(isPresented:onDismiss:content:)`` 的全部差異:popover 指向它所
+    /// 附著的那個 view，而五個 backend 每一個都以自身的原生 popover 繪製它——`NSPopover`、
+    /// `UIPopoverPresentationController`、`GtkPopover`、WinUI 的 `Flyout`、Android 的 `PopupWindow`。
+    /// 在 iPhone 上，UIKit 自己會把 popover 調適為 sheet,那是該平台對於「螢幕小到無法指向任何東西」
+    /// 所給出的答案,並不是本工具組拿一種呈現去替換另一種。
     public func popover<PopoverContent: View>(
         isPresented: Binding<Bool>,
-        attachmentEdge: Edge = .bottom,
         onDismiss: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> PopoverContent
     ) -> some View {
         PopoverModifier(
             isPresented: isPresented,
-            attachmentEdge: attachmentEdge,
             body: TupleView1(self),
             onDismiss: onDismiss,
             popoverContent: content
@@ -74,45 +33,10 @@ extension View {
     }
 }
 
-/// The view that drives ``View/popover(isPresented:attachmentEdge:onDismiss:content:)``.
-///
-/// Modelled closely on `SheetModifier`, and intentionally so: the presentation
-/// lifecycle -- create once, update every pass, present once, dismiss on the
-/// falling edge -- is the same one, and two presentation modifiers that
-/// disagree about it would diverge under nesting.
-///
-/// It differs from `SheetModifier` in three ways, all forced:
-///
-/// - **It anchors to its own widget.** `asWidget` returns the child's widget, so
-///   the `widget` handed to `commit` *is* the view the popover points at. No
-///   extra plumbing is needed to find the anchor, and none should be added.
-/// - **There is no parent-popover chain.** Sheets track `parentSheet` because a
-///   sheet presented from a sheet must be attached to it. A popover presented
-///   from a popover is attached to a widget like any other, and the platform's
-///   popup layer handles the stacking.
-/// - **It does not use `@CastBackend`.** That macro expands to `fatalError` when
-///   the backend does not conform, which takes the process down for one
-///   modifier. `SheetModifier` predates the rule against that; this does not.
-///
-/// 驅動 ``View/popover(isPresented:attachmentEdge:onDismiss:content:)`` 的 view。
-///
-/// 刻意緊貼 `SheetModifier` 建模：呈現的生命週期——建立一次、每次計算時更新、呈現一次、於下降邊
-/// 關閉——是同一套，而兩個對此看法不一致的 presentation modifier，在巢狀使用時就會分歧。
-///
-/// 它與 `SheetModifier` 有三處不同，且三者都是被迫的：
-///
-/// - **它錨定在自己的 widget 上。** `asWidget` 回傳子節點的 widget，因此交給 `commit` 的 `widget`
-///   **就是** popover 所指向的那個 view。不需要額外的接線去尋找錨點，也不應該加上。
-/// - **沒有 parent-popover 鏈。** sheet 之所以追蹤 `parentSheet`，是因為由 sheet 呈現出的 sheet
-///   必須附著於它。而由 popover 呈現出的 popover，與其他任何 popover 一樣附著於某個 widget，堆疊
-///   由平台的 popup 圖層處理。
-/// - **它不使用 `@CastBackend`。** 該 macro 在 backend 未 conform 時會展開為 `fatalError`，為了
-///   一個 modifier 而拖垮整個行程。`SheetModifier` 早於禁止此事的規則；本檔案則不然。
 struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
     typealias Children = PopoverModifierViewChildren<Content, PopoverContent>
 
     var isPresented: Binding<Bool>
-    var attachmentEdge: Edge
     var body: TupleView1<Content>
     var onDismiss: (() -> Void)?
     var popoverContent: () -> PopoverContent
@@ -127,7 +51,6 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
             backend: backend,
             environment: environment
         )
-
         return PopoverModifierViewChildren(
             childNode: AnyViewGraphNode(bodyViewGraphNode),
             popoverContentNode: nil,
@@ -156,6 +79,7 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
         )
     }
 
+    @CastBackend<BackendFeatures.Popovers>(backendGenericName: "NewBackend")
     func commit<Backend: BaseAppBackend>(
         _ widget: Backend.Widget,
         children: Children,
@@ -165,54 +89,24 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
     ) {
         _ = children.childNode.commit()
 
-        // Degrade rather than abort, and only ever out here. See the type's
-        // documentation: this branch is unreachable on the five shipped
-        // backends, and reaching it is itself the thing worth reporting.
-        // 在此處降級而非中止，且僅限於此。見本型別的文件：這個分支在五個已發布的 backend 上是
-        // 走不到的，而「走到了」本身就是值得回報的事。
-        guard
-            let popoverBackend = backend as? any BaseAppBackend & BackendFeatures.Popovers
-        else {
-            if isPresented.wrappedValue {
-                logger.warnOnce(
-                    """
-                    '\(String(describing: Backend.self))' does not implement \
-                    'BackendFeatures.Popovers'; '.popover' is showing nothing. \
-                    The anchor view is unaffected.
-                    """
-                )
-            }
-            return
-        }
-
-        func present<NewBackend: BaseAppBackend & BackendFeatures.Popovers>(
-            _ backend: NewBackend
-        ) {
-            guard isPresented.wrappedValue else {
-                guard let existingPopover = children.popover else { return }
-                backend.dismissPopover(existingPopover as! NewBackend.Popover)
-                children.popover = nil
-                children.popoverContentNode = nil
-                return
-            }
-
+        if isPresented.wrappedValue {
             let needsPresenting = children.popover == nil
-
             let popover: NewBackend.Popover
+
             if children.popoverContentNode == nil {
-                let contentNode = AnyViewGraphNode(
-                    ViewGraphNode(
-                        for: popoverContent(),
-                        backend: backend,
-                        environment: environment
-                    )
+                let node = ViewGraphNode(
+                    for: popoverContent(),
+                    backend: backend,
+                    environment: environment
                 )
-                children.popoverContentNode = contentNode
-                popover = backend.createPopover(content: contentNode.widget.into())
+                children.popoverContentNode = AnyViewGraphNode(node)
+                popover = backend.createPopover(
+                    content: children.popoverContentNode!.widget.into()
+                )
             } else {
                 guard
-                    let existingPopover = children.popover,
-                    let castedPopover = existingPopover as? NewBackend.Popover
+                    let existing = children.popover,
+                    let casted = existing as? NewBackend.Popover
                 else {
                     logger.warning(
                         """
@@ -222,66 +116,66 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
                     )
                     return
                 }
-                popover = castedPopover
+                popover = casted
             }
 
-            // `dismiss` in the popover's own content must close the popover, not
-            // whatever sheet or window encloses the anchor. Without this an
-            // `@Environment(\.dismiss)` button inside a popover reaches straight
-            // past it, which is a far more confusing outcome than doing nothing.
-            // popover 自身內容中的 `dismiss` 必須關閉該 popover，而不是關閉包住錨點的那個 sheet
-            // 或視窗。少了這一段，popover 內部的 `@Environment(\.dismiss)` 按鈕會越過它直接生效，
-            // 那個結果遠比「什麼都沒發生」更令人困惑。
-            let popoverEnvironment = environment.with(
-                \.dismiss,
-                DismissAction(action: { [isPresented] in
-                    isPresented.wrappedValue = false
-                })
-            )
+            let dismissAction = DismissAction(action: { [isPresented] in
+                isPresented.wrappedValue = false
+            })
 
+            // The popover's content is laid out at its ideal size, and unlike a
+            // sheet there is no detent that can ask for more: a popover is as
+            // big as what it contains, on all five platforms, and one that
+            // filled the window would not be a popover.
+            // popover 的內容以其理想尺寸佈局,而與 sheet 不同的是,此處沒有任何 detent 能要求更多:
+            // 在五個平台上,popover 的大小就是它所容納之物的大小,而一個填滿視窗的 popover 也就不是
+            // popover 了。
             _ = children.popoverContentNode!.computeLayout(
                 with: popoverContent(),
                 proposedSize: .unspecified,
-                environment: popoverEnvironment
+                environment: environment.with(\.dismiss, dismissAction)
             )
             let result = children.popoverContentNode!.commit()
 
+            let window = environment.window!
             backend.updatePopover(
                 popover,
-                // The outer environment, not the content's, for the same reason
-                // `SheetModifier` uses it: this describes the popover, not what
-                // is inside it.
-                // 使用外層環境而非內容的環境，理由與 `SheetModifier` 相同：這描述的是 popover
-                // 本身，不是它裡面的東西。
                 environment: environment,
                 size: result.size.vector,
-                attachmentEdge: attachmentEdge,
-                backgroundColor: result.preferences.presentationBackground?
-                    .resolve(in: environment),
                 onDismiss: { handleDismiss(children: children) }
             )
 
             if needsPresenting {
-                guard let window = environment.window else {
-                    logger.warning("'.popover' was presented outside of a window")
-                    return
-                }
-                backend.showPopover(
+                backend.presentPopover(
                     popover,
-                    relativeTo: widget as! NewBackend.Widget,
+                    // The anchor is this modifier's own widget, which is the
+                    // child's widget -- see `asWidget`. That is what makes the
+                    // popover point at the view it was attached to rather than
+                    // at the window.
+                    // 錨點是本 modifier 自身的 widget,也就是其子節點的 widget——見 `asWidget`。
+                    // 那正是讓 popover 指向「它所附著的那個 view」而非指向視窗的原因。
+                    relativeTo: widget,
                     window: window as! NewBackend.Window
                 )
             }
 
             children.popover = popover
+            children.window = window
+        } else if !isPresented.wrappedValue && children.popover != nil {
+            backend.dismissPopover(
+                children.popover as! NewBackend.Popover,
+                window: children.window! as! NewBackend.Window
+            )
+            children.popover = nil
+            children.window = nil
+            children.popoverContentNode = nil
         }
-
-        present(popoverBackend)
     }
 
     func handleDismiss(children: Children) {
         onDismiss?()
         children.popover = nil
+        children.window = nil
         children.popoverContentNode = nil
         isPresented.wrappedValue = false
     }
@@ -303,6 +197,7 @@ class PopoverModifierViewChildren<Child: View, PopoverContent: View>: ViewGraphN
     var childNode: AnyViewGraphNode<Child>
     var popoverContentNode: AnyViewGraphNode<PopoverContent>?
     var popover: Any?
+    var window: Any?
 
     init(
         childNode: AnyViewGraphNode<Child>,

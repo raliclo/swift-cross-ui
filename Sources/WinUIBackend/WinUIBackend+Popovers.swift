@@ -21,29 +21,48 @@ extension WinUIBackend: BackendFeatures.Popovers {
     public final class Popover {
         let flyout: WinUI.Flyout
         var dismissHandler: (() -> Void)?
-        /// Set immediately before ``dismissPopover(_:)`` hides the flyout.
-        ///
-        /// `closed` fires for both user and programmatic dismissals and carries
-        /// nothing to tell them apart, and the protocol requires that
-        /// `onDismiss` runs only for the former. This is the same flag, for the
-        /// same reason, as `Sheet.isProgrammaticDismissal` in
-        /// `WinUIBackend+Sheets.swift`.
-        ///
-        /// 在 ``dismissPopover(_:)`` 隱藏該 flyout 之前立即設定。
-        ///
-        /// 使用者關閉與程式關閉都會觸發 `closed`，且它沒有攜帶任何足以區分兩者的資訊，而 protocol
-        /// 要求 `onDismiss` 只在前者發生時執行。這與 `WinUIBackend+Sheets.swift` 中的
-        /// `Sheet.isProgrammaticDismissal` 是同一個旗標，理由也相同。
-        var isProgrammaticDismissal = false
 
         init(content: WinUI.FrameworkElement) {
             flyout = WinUI.Flyout()
             flyout.content = content
+            // `closed` fires for both user and programmatic dismissals and
+            // carries nothing to tell them apart. It no longer needs to: the
+            // handler runs on both, which is SwiftUI's rule -- `onDismiss:` runs
+            // when the presentation ends however it ended -- and is what
+            // AppKitBackend already did, since `NSPopover.performClose` runs
+            // `popoverDidClose`. There used to be an `isProgrammaticDismissal`
+            // flag here suppressing the programmatic case, and it made three
+            // shipped backends disagree about one callback.
+            //
+            // Firing on both does not loop; the argument is written out in
+            // `GtkBackend+Popovers.swift`, and rests on `PopoverModifier`
+            // clearing `children.popover` immediately after `dismissPopover` and
+            // only entering that branch when `isPresented` is already false.
+            //
+            // NOTE `Sheet.isProgrammaticDismissal` in `WinUIBackend+Sheets.swift`
+            // is the same flag for the same reason and has NOT been changed
+            // here. SwiftUI's `sheet(isPresented:onDismiss:)` fires on both paths
+            // too, so sheets look misaligned in the same way -- but that is a
+            // separate change with its own five backends to check, and pretending
+            // this one covered it would be worse than saying so.
+            //
+            // 使用者關閉與程式關閉都會觸發 `closed`，且它沒有攜帶任何足以區分兩者的資訊；而現在它也
+            // 不需要區分：兩種情況下 handler 都會執行，那正是 SwiftUI 的規則——無論 presentation 以
+            // 何種方式結束，`onDismiss:` 都會執行——也正是 AppKitBackend 原本的行為，因為
+            // `NSPopover.performClose` 會執行 `popoverDidClose`。此處原本有一個
+            // `isProgrammaticDismissal` 旗標壓住程式化的那一條路，導致三個已發布的 backend 對同一個
+            // 回呼各說各話。
+            //
+            // 兩條路都觸發不會造成迴圈；完整論證寫在 `GtkBackend+Popovers.swift`，其依據是
+            // `PopoverModifier` 在呼叫 `dismissPopover` 之後立刻清掉 `children.popover`，而且只有在
+            // `isPresented` 已經為 false 時才會進入該分支。
+            //
+            // 注意：`WinUIBackend+Sheets.swift` 中的 `Sheet.isProgrammaticDismissal` 是同一個旗標、
+            // 同樣的理由，而此處**並未**一併更動。SwiftUI 的 `sheet(isPresented:onDismiss:)` 同樣在
+            // 兩條路上都會觸發，因此 sheet 也存在同一種偏差——但那是另一項變更，有它自己的五個
+            // backend 要檢查，而假裝這次一併解決了會比說清楚更糟。
             flyout.closed.addHandler { [weak self] _, _ in
                 guard let self else { return }
-                let wasProgrammatic = self.isProgrammaticDismissal
-                self.isProgrammaticDismissal = false
-                guard !wasProgrammatic else { return }
                 self.dismissHandler?()
             }
         }
@@ -57,40 +76,22 @@ extension WinUIBackend: BackendFeatures.Popovers {
         _ popover: Popover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
-        attachmentEdge: SwiftCrossUI.Edge,
-        backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         popover.dismissHandler = onDismiss
 
-        popover.flyout.placement = switch attachmentEdge {
-            case .top: .top
-            case .bottom: .bottom
-            case .leading: .left
-            case .trailing: .right
-        }
-
         if let content = popover.flyout.content as? WinUI.FrameworkElement {
             content.width = Double(size.x)
             content.height = Double(size.y)
-
-            // Only a `Panel` has a background, and the backend's own containers
-            // are panels. A cast rather than a wrapper element: inserting a Grid
-            // here to hold a colour would put a second sizing container between
-            // the flyout and the laid-out content, and the layout system has
-            // already decided the size.
-            //
-            // 只有 `Panel` 才有背景，而本 backend 自己的容器就是 panel。此處採轉型而非包一層：
-            // 為了承載一個顏色而在此插入一個 Grid，會在 flyout 與已完成版面的內容之間多塞一個
-            // 決定尺寸的容器，而版面系統早已決定好尺寸。
-            if let panel = content as? WinUI.Panel {
-                if let backgroundColor {
-                    panel.background = WinUI.SolidColorBrush(backgroundColor.uwpColor)
-                } else {
-                    try? panel.clearValue(WinUI.Panel.backgroundProperty)
-                }
-            }
         }
+
+        // The flyout's background is left to the system. A `FlyoutPresenter` is
+        // themed -- acrylic or a solid theme brush, a border, a corner radius
+        // and a shadow -- and painting a flat colour onto the content would sit
+        // a rectangle inside all of that rather than replacing it.
+        //
+        // flyout 的背景交給系統。`FlyoutPresenter` 是有主題的——壓克力材質或純色主題筆刷、邊框、
+        // 圓角與陰影——而把一塊扁平顏色塗到內容上，只會在這一切之內擺進一個矩形，並不會取代它們。
 
         // The presenter's own padding is left alone. WinUI's `FlyoutPresenter`
         // inserts a margin around flyout content, and removing it needs a
@@ -107,10 +108,24 @@ extension WinUIBackend: BackendFeatures.Popovers {
         // 而 Windows 上的 popover 本來就是這個樣子。
     }
 
-    public func showPopover(_ popover: Popover, relativeTo widget: Widget, window: Window) {
+    public func presentPopover(_ popover: Popover, relativeTo anchor: Widget, window: Window) {
         popover.flyout.xamlRoot = window.content.xamlRoot
+
+        // `.auto` rather than a side this backend picked. It is the one
+        // `FlyoutPlacementMode` value that hands the decision back to XAML,
+        // which places the flyout from the anchor's rectangle and the room left
+        // around it on screen; the default is `.top`, so this is a choice and
+        // not the absence of one. A fixed side would be honoured even where
+        // there is no room for it, and a popover off the edge of the screen has
+        // shown nothing.
+        // 使用 `.auto`，而不是由本 backend 指定某一側。它是 `FlyoutPlacementMode` 中唯一會把決定權
+        // 交還給 XAML 的值——XAML 會依錨點的矩形、以及螢幕上四周所剩的空間來定位該 flyout；其預設值
+        // 是 `.top`，因此這是一項選擇，而不是「沒有做選擇」。釘死的一側即使在沒有空間的地方也會被
+        // 忠實遵守，而一個跑到螢幕邊緣外的 popover 等於什麼都沒顯示。
+        popover.flyout.placement = .auto
+
         do {
-            try popover.flyout.showAt(widget)
+            try popover.flyout.showAt(anchor)
         } catch {
             // Not fatal. A flyout whose anchor has left the tree throws rather
             // than crashing, and taking the process down for a popover is
@@ -122,13 +137,49 @@ extension WinUIBackend: BackendFeatures.Popovers {
         }
     }
 
-    public func dismissPopover(_ popover: Popover) {
-        popover.isProgrammaticDismissal = true
+    public func dismissPopover(_ popover: Popover, window: Window) {
         do {
             try popover.flyout.hide()
         } catch {
-            popover.isProgrammaticDismissal = false
             print("Error: \(error)")
         }
+    }
+
+    public func size(ofPopover popover: Popover) -> SIMD2<Int> {
+        guard let content = popover.flyout.content as? WinUI.FrameworkElement else {
+            return .zero
+        }
+
+        // `width`/`height` are what `updatePopover` wrote. A `FrameworkElement`
+        // reports them whether or not it has ever been laid out -- they are the
+        // requested size, not a measured one -- so this answers for a flyout
+        // that has never been shown, which `actualWidth`/`actualHeight` could
+        // not: those stay 0 until the element is in a live visual tree, and a
+        // flyout's content is not in one until `showAt`.
+        //
+        // Unset, they are `Double.nan`, XAML's spelling of "Auto". That is the
+        // state between `createPopover` and the first `updatePopover`, and
+        // `Int(Double.nan)` traps rather than returning a number, so the NaN
+        // case has to be taken before the conversion and not after it.
+        //
+        // `width`/`height` 就是 `updatePopover` 寫進去的值。無論 `FrameworkElement` 是否曾經完成
+        // 版面計算，它都會回報這兩個值——它們是被請求的尺寸，而非量測出來的——因此對一個從未顯示過的
+        // flyout 這仍答得出來，而 `actualWidth`/`actualHeight` 做不到：在元素進入活的 visual tree
+        // 之前它們都是 0，而 flyout 的內容在 `showAt` 之前並不在其中。
+        //
+        // 未設定時它們是 `Double.nan`，也就是 XAML 對「Auto」的寫法。那正是 `createPopover` 與第一次
+        // `updatePopover` 之間的狀態，而 `Int(Double.nan)` 會直接中止、不會回傳數字，因此 NaN 這個
+        // 情況必須在轉型之前處理，不能在之後。
+        if !content.width.isNaN && !content.height.isNaN {
+            return SIMD2(Int(content.width), Int(content.height))
+        }
+
+        // XAML's own answer, filled in by the last measure pass. Zero before
+        // there has been one, which is the truthful reply to "how big is a
+        // popover nothing has measured yet".
+        // XAML 自己的答案，由最近一次 measure pass 填入。在第一次 measure 之前它是零，而對於
+        // 「一個還沒有任何東西量測過的 popover 有多大」來說，零正是誠實的回答。
+        let desired = content.desiredSize
+        return SIMD2(Int(desired.width), Int(desired.height))
     }
 }

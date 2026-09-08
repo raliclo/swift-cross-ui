@@ -1,0 +1,66 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on iOS: does a Toggle on Binding(get:set:) reset its siblings?
+#
+# The reported symptom, from a SoftPCB build on macOS, is that pressing such a
+# toggle sends another control's selection back to its first item and makes a
+# field disappear -- a subtree rebuild, seen from outside. This file seeds two
+# pieces of sibling state, then presses exactly one control, so whatever the
+# screen says afterwards is attributable to that press and nothing else.
+#
+# Device: iPhone 16 simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window
+# 393 x 852 pt, capture 1179 x 2556 px, i.e. 3:1. Coordinates are px/3, in
+# points, which is what the XCUITest runner normalises against window.frame.
+#
+# Measured 2026-09-08 by scanning the capture, not by reading it. The two seed
+# buttons are tinted text: the blue row at y 1976..2022 splits on its gaps into
+# 52..340, 371..724 and 760..894, and those three spans were then drawn back
+# over the capture and checked to bound exactly "selection = 2",
+# "typed = seeded" and "report". The three toggles are grey pills at x
+# 983..1135, at y 915..1007, 1203..1295 and 1491..1582; the middle one is
+# "honest", the Binding(get:set:) that keeps the invariant.
+#
+# The toggle pressed is the SECOND of three, and the order on screen is the
+# order in the source: stateToggle, honest, stubborn. Pressing the first would
+# test @State, which every other Pn already covers, and pressing the third would
+# test a binding whose getter contradicts its setter -- a different question,
+# and one whose expected result is "looks unchanged", which is indistinguishable
+# from a tap that missed.
+#
+# P45 於 iOS:綁在 Binding(get:set:) 上的 Toggle 會不會重置它的兄弟?
+#
+# 被回報的症狀來自 SoftPCB 在 macOS 上的建置:按下這樣的 toggle 會讓另一個控制項的選取回到第一項、
+# 並讓一個欄位消失——從外部看就是一次子樹重建。本檔先種下兩份兄弟狀態,然後只按一個控制項,如此
+# 之後畫面上的任何結果都只能歸因於那一次按下。
+#
+# 裝置:iPhone 16 模擬器——視窗 393 x 852 點,擷取 1179 x 2556 像素,即 3:1。座標為 px/3、以點為
+# 單位,那正是 XCUITest runner 用來對 window.frame 正規化的單位。
+#
+# 2026-09-08 量測,方式是掃描擷取而非閱讀它。兩個種子按鈕是帶色的文字:y 1976..2022 的藍色列依其
+# 空隙切分為 52..340、371..724 與 760..894,而這三段接著被畫回擷取上,確認它們恰好圈住
+# 「selection = 2」、「typed = seeded」與「report」。三個 toggle 是位於 x 983..1135 的灰色藥丸形狀,
+# y 分別為 915..1007、1203..1295 與 1491..1582;中間那個是「honest」,即維持不變式的 Binding(get:set:)。
+#
+# 被按下的是三者中的**第二個**,而畫面上的順序即為原始碼中的順序:stateToggle、honest、stubborn。
+# 按第一個測的是 @State,那是其他每一支 Pn 都已涵蓋的;按第三個測的則是「getter 與 setter 互相矛盾」
+# 的 binding——那是另一個問題,而且其預期結果是「看起來沒有改變」,與一次沒打中的點擊無法區分。
+#
+# REPLAYED AND VERIFIED 2026-09-08: 7 actions replayed, XCUITest EXECUTE
+# SUCCEEDED. The capture afterwards reads:
+#     sibling state -- selection: 2, typed: "seeded"
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: 1, button presses: 0
+# So the siblings survived, the setter ran exactly once, and no button was
+# pressed. **The reported subtree rebuild does not reproduce on iOS.**
+#
+# 2026-09-08 已重放並驗證:重放 7 個動作、XCUITest EXECUTE SUCCEEDED。其後的擷取讀作:
+#     sibling state -- selection: 2, typed: "seeded"
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: 1, button presses: 0
+# 因此兄弟狀態存活、setter 恰好執行一次,且沒有任何按鈕被按下。**被回報的子樹重建在 iOS 上並未重現。**
+sleep,,,,,,1500000,let P45 render,ios
+click,65,666,client,left,,,"seed the sibling selection -- the line must read ""selection: 2""",ios
+sleep,,,,,,400000,,ios
+click,183,666,client,left,,,"seed the sibling field -- the line must read typed: ""seeded""",ios
+sleep,,,,,,400000,,ios
+click,353,416,client,left,,,"the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",ios
+sleep,,,,,,1200000,let any rebuild settle,ios

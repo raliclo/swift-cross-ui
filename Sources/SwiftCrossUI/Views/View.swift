@@ -168,10 +168,62 @@ extension View {
 
     /// The default `View.asWidget` implementation. Haters may see this as a
     /// composition lover re-implementing inheritance; I see it as innovation.
+    /// Whether the default implementations may route through ``VStack``.
+    ///
+    /// **They may only do so when `body` came out of the `@ViewBuilder`.** An
+    /// explicit `return` in a `body` opts out of the builder, so `Content`
+    /// becomes the returned view itself -- `Text` rather than
+    /// `TupleView1<Text>` -- and then the two halves of the default
+    /// implementation stop agreeing about what `children` is.
+    /// ``defaultChildren(backend:snapshots:environment:)`` asks `body` for them
+    /// and gets `Text`'s; the three below hand those to a `VStack`, whose
+    /// `layoutableChildren` finds none, so the stack lays out zero children,
+    /// reports zero size, and draws nothing.
+    ///
+    /// It compiles, the body runs, and the view is silently absent.
+    ///
+    /// **`EmptyViewChildren` is on the wrong side of this test, and that is
+    /// deliberate.** ``Text`` is an ``ElementaryView``, whose `Content` is
+    /// `EmptyView`, so a `body` that returns a `Text` produces
+    /// `EmptyViewChildren` -- the same children a genuinely empty builder body
+    /// produces. Treating those as builder-produced was the first attempt at
+    /// this fix and it changed nothing, because that is exactly the case that
+    /// breaks. Only a `TupleViewChildren` means the builder ran, and delegating
+    /// to `body` is right for everything else: an `EmptyView` body draws
+    /// nothing either way.
+    ///
+    /// Recorded in testapp/plan/explicit-return-body.md.
+    ///
+    /// **`EmptyViewChildren` 被歸在這項判斷的另一側，而那是刻意的。** ``Text`` 是一個
+    /// ``ElementaryView``，其 `Content` 為 `EmptyView`，因此一個回傳 `Text` 的 `body` 產生的正是
+    /// `EmptyViewChildren`——與一個真正空白的 builder body 所產生的相同。把它們當成 builder 產生的，
+    /// 是本次修正的第一次嘗試，而它什麼都沒有改變，因為那恰恰就是會壞掉的那一種。只有
+    /// `TupleViewChildren` 才代表 builder 執行過;至於其餘各種情況，委派給 `body` 都是對的:一個
+    /// `EmptyView` 的 body 無論走哪一條路都不會畫出任何東西。
+    ///
+    /// 預設實作是否可以繞道 ``VStack``。
+    ///
+    /// **只有在 `body` 出自 `@ViewBuilder` 時才可以。** 在 `body` 中使用顯式 `return` 會跳出 builder，
+    /// 於是 `Content` 成為所回傳的 view 本身——是 `Text` 而非 `TupleView1<Text>`——此時預設實作的兩半
+    /// 便對「`children` 是什麼」失去共識。
+    /// ``defaultChildren(backend:snapshots:environment:)`` 是向 `body` 索取的，拿到的是 `Text` 的;
+    /// 而下方那三個卻把它交給一個 `VStack`，該 `VStack` 的 `layoutableChildren` 一個也找不到，於是它
+    /// 排列了零個子節點、回報零尺寸、什麼都不畫。
+    ///
+    /// 它編得過、body 也確實執行，而 view 靜默地不存在。`VStack` 途中會記下
+    /// 「will not function correctly with non-TupleView content」，那是唯一的痕跡，而它並沒有提到
+    /// 有一個 view 消失了。記於 testapp/plan/explicit-return-body.md。
+    func bodyIsBuilderProduced(_ children: any ViewGraphNodeChildren) -> Bool {
+        children is TupleViewChildren
+    }
+
     public func defaultAsWidget<Backend: BaseAppBackend>(
         _ children: any ViewGraphNodeChildren,
         backend: Backend
     ) -> Backend.Widget {
+        guard bodyIsBuilderProduced(children) else {
+            return body.asWidget(children, backend: backend)
+        }
         let vStack = VStack(content: body)
         return vStack.asWidget(children, backend: backend)
     }
@@ -201,6 +253,15 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
+        guard bodyIsBuilderProduced(children) else {
+            return body.computeLayout(
+                widget,
+                children: children,
+                proposedSize: proposedSize,
+                environment: environment,
+                backend: backend
+            )
+        }
         let vStack = VStack(content: body)
         return vStack.computeLayout(
             widget,
@@ -234,6 +295,15 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
+        guard bodyIsBuilderProduced(children) else {
+            return body.commit(
+                widget,
+                children: children,
+                layout: layout,
+                environment: environment,
+                backend: backend
+            )
+        }
         let vStack = VStack(content: body)
         return vStack.commit(
             widget,

@@ -9,3 +9,21 @@ gyb/* linguist-vendored
 # hidden among 182 that do not. The rule is here so the next file written from
 # the Windows side cannot reintroduce it.
 *.csv text eol=lf
+
+# `*.csv` does not match `*.csv2`, and .csv2 is the format this project actually
+# writes. The rule above was added to stop exactly what then happened anyway:
+# matrix_coverage/results.csv2 spent 2026-09-08 alternating between CRLF and LF
+# from one commit to the next -- 68d46faa LF, bb7eac21 CRLF, 543815c0 LF,
+# f9534bc6 CRLF -- so a merge of a two-row append arrived as a 641-line
+# rewrite on both sides at once. `git check-attr eol -- matrix_coverage/results.csv2`
+# reported `unspecified` while the same query on testapp/issues.csv reported
+# `lf`, which is the whole story: the guard was written for the wrong glob.
+#
+# There are five tracked .csv2 files and none of them was covered.
+#
+# `*.csv` 匹配不到 `*.csv2`，而 .csv2 才是本專案實際會寫出的格式。上面那條規則正是為了阻止
+# 隨後依然發生的事：matrix_coverage/results.csv2 在 2026-09-08 這天於各 commit 之間反覆在
+# CRLF 與 LF 之間跳動，於是一次「追加兩列」的合併，在兩邊同時呈現為 641 行的整檔重寫。
+# `git check-attr eol` 對 results.csv2 回報 `unspecified`，對 testapp/issues.csv 回報 `lf`
+# ——這就是全部的原因：守衛寫在了錯的 glob 上。當時共有五個被追蹤的 .csv2 檔，無一被涵蓋。
+*.csv2 text eol=lf

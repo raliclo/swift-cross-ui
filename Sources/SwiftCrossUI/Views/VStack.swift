@@ -83,6 +83,7 @@ public struct VStack<Content: View>: View {
                 // axis, so a `Group` below it must too even when a `ZStack`
                 // further up set the flag.
                 .with(\.layoutOverlapsChildren, false)
+                .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend
@@ -110,6 +111,7 @@ public struct VStack<Content: View>: View {
                 // axis, so a `Group` below it must too even when a `ZStack`
                 // further up set the flag.
                 .with(\.layoutOverlapsChildren, false)
+                .with(\.layoutGridPlan, nil)
                 .with(\.layoutAlignment, alignment.asStackAlignment)
                 .with(\.layoutSpacing, spacing),
             backend: backend

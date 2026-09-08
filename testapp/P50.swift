@@ -3,8 +3,8 @@ import Foundation
 import SwiftCrossUI
 
 // P50 is the picture of the two view features that landed on 2026-09-08 and
-// that nothing else in the P-suite draws: `.popover(isPresented:attachmentEdge:
-// onDismiss:content:)` and `.navigationTitle(_:)`.
+// that nothing else in the P-suite draws:
+// `.popover(isPresented:onDismiss:content:)` and `.navigationTitle(_:)`.
 //
 // Before this file, `grep -l 'navigationTitle\|\.popover(' testapp/P*.swift`
 // returned NOTHING. Both features are therefore in the state P51's header
@@ -23,9 +23,11 @@ import SwiftCrossUI
 //      the same string. The scene's own title is
 //      "P50 SCENE DEFAULT -- navigationTitle did NOT apply", so a failure spells
 //      itself out in the title bar rather than needing to be deduced.
-//   2. A popover is a floating panel. Success puts the words "PANEL ALPHA" or
-//      "PANEL BETA" on the screen -- words that appear nowhere else in this app,
-//      the buttons that open them deliberately say something different. A
+//   2. A popover is a floating panel ANCHORED to the button that opened it.
+//      Success puts the words "PANEL ALPHA" or "PANEL BETA" on the screen --
+//      words that appear nowhere else in this app, the buttons that open them
+//      deliberately say something different -- and puts each panel beside its
+//      OWN button, which is the whole of the difference from a sheet. A
 //      backend that does not implement `BackendFeatures.Popovers` renders the
 //      anchor UNMODIFIED (it warns once and returns; it does not abort), so the
 //      failure picture is the window unchanged after a click. If the anchor
@@ -41,7 +43,7 @@ import SwiftCrossUI
 // is not, raise `.defaultSize`'s height; nothing here should be behind a scroll.
 //
 // P50 是 2026-09-08 落地、而且 P-suite 中沒有別的東西會畫出來的那兩項 view 功能的圖：
-// `.popover(isPresented:attachmentEdge:onDismiss:content:)` 與 `.navigationTitle(_:)`。
+// `.popover(isPresented:onDismiss:content:)` 與 `.navigationTitle(_:)`。
 //
 // 在本檔之前，`grep -l 'navigationTitle\|\.popover(' testapp/P*.swift` 什麼都沒回傳。因此這兩項
 // 功能都處於 P51 檔頭所描述的狀態：已提交、能編譯，而且沒有任何證據顯示它們會在畫面上放出東西。
@@ -55,8 +57,10 @@ import SwiftCrossUI
 //      「TITLE BAR MUST READ」的方框文字。兩者必須是同一個字串。scene 自身的標題是
 //      「P50 SCENE DEFAULT -- navigationTitle did NOT apply」，因此失敗會在標題列上把自己說出來，
 //      不需要推論。
-//   2. popover 是一塊浮動面板。成功時會讓「PANEL ALPHA」或「PANEL BETA」出現在畫面上——這些字在
-//      本 app 的其他任何地方都不會出現，開啟它們的按鈕刻意寫的是別的字。未實作
+//   2. popover 是一塊**錨定在開啟它的那顆按鈕上**的浮動面板。成功時會讓「PANEL ALPHA」或
+//      「PANEL BETA」出現在畫面上——這些字在本 app 的其他任何地方都不會出現，開啟它們的按鈕刻意
+//      寫的是別的字——而且每塊面板都會出現在**它自己那顆**按鈕旁邊，那正是它與 sheet 的全部差異。
+//      未實作
 //      `BackendFeatures.Popovers` 的 backend 會**原樣**繪製錨點（它警告一次然後返回，不會中止），
 //      因此失敗的畫面就是「點下去之後視窗毫無變化」。若錨點按鈕當初用了面板自己的字，這兩張圖
 //      就會幾乎是同一張。
@@ -150,7 +154,7 @@ struct P50RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("P50: .popover(isPresented:attachmentEdge:onDismiss:) and .navigationTitle")
+            Text("P50: .popover(isPresented:onDismiss:content:) and .navigationTitle")
                 .font(.system(size: 17))
             Text("backend -> \(String(describing: DefaultBackend.self))")
                 .font(.system(size: 12))
@@ -281,17 +285,31 @@ struct P50TitleSection: View {
 
 // MARK: - 2. popover
 
-/// Two popovers, two `attachmentEdge` values, and one anchor column placed where
-/// both edges have room.
+/// Two popovers opened from two SEPARATE anchors, in a column with room around
+/// it on every side.
 ///
-/// **The anchors are at the LEFT of the window and in its upper half, and that
-/// is a placement decision, not a layout accident.** `GtkBackend+Popovers.swift`
-/// maps `attachmentEdge` onto `GtkPopover.position` and says GTK still flips
-/// that side when the requested one would leave the monitor -- deliberately, and
-/// the other four backends' positioners do the same. So an unexpected side is
-/// NOT automatically a bug: it is a bug only if there was room on the side that
-/// was asked for. Anchoring at the left with the window's width to the right,
-/// and above the window's midline with height below, is what removes the excuse.
+/// **Two anchors rather than one, because anchoring is the whole assertion.**
+/// `Popovers.swift` takes the anchor WIDGET, not a point and not an edge:
+/// `presentPopover(_:relativeTo:window:)` hands the platform the widget the
+/// modifier is attached to and each platform positions from that widget's
+/// rectangle. One popover cannot show that -- a panel that appears in a fixed
+/// spot would look identical. Two, opened from two buttons a row apart, cannot:
+/// if they arrive in the same place, nothing is anchored to anything.
+///
+/// **The side each one appears on is NOT asserted here, and there is no
+/// parameter that would let it be.** Every backend leaves the side to the
+/// platform on purpose -- `GtkBackend+Popovers.swift` leaves `GtkPopover`'s
+/// `position` at its default, `WinUIBackend+Popovers.swift` sets
+/// `FlyoutPlacementMode.auto`, AppKit asks for `.maxY` and lets AppKit move it
+/// -- because a side pinned by the toolkit would be honoured off the edge of the
+/// monitor. So above, below or beside the button are all passes; on top of it,
+/// or nowhere near it, is the failure.
+///
+/// **The anchors sit at the LEFT of the window and in its upper half, and that
+/// is a placement decision, not a layout accident.** It leaves width to the
+/// right and height below, so whichever side the platform chooses, the panel
+/// has somewhere to land inside the captured window instead of being clipped by
+/// its own frame.
 ///
 /// **The trigger buttons and the panels do not share any words.** The buttons
 /// say "Open the first panel" / "Open the second panel"; the panels say "PANEL
@@ -307,13 +325,23 @@ struct P50TitleSection: View {
 /// panel whose number climbs when its own button is pressed is a live widget
 /// inside a popover, not a picture of one.
 ///
-/// 兩個 popover、兩個 `attachmentEdge` 值，以及一欄放在「兩個方向都有空間」之處的錨點。
+/// 兩個 popover，由**兩個不同的**錨點開啟，排成一欄且四周都留有空間。
 ///
-/// **錨點位於視窗的左側、且在上半部，那是一項位置決策，不是版面上的意外。**
-/// `GtkBackend+Popovers.swift` 把 `attachmentEdge` 對應到 `GtkPopover.position`，並且說明：當所
-/// 請求的一側會超出螢幕時，GTK 仍會翻轉它——那是刻意的，其餘四個 backend 的定位器也是這麼做。
-/// 因此出現在意料之外的一側**不會**自動就是 bug：只有在所請求的那一側本來就有空間時，它才是 bug。
-/// 把錨點放在左側、右方留有整個視窗的寬度，並放在視窗中線之上、下方留有高度，正是為了拿掉那個藉口。
+/// **用兩個錨點而不是一個，因為「錨定」正是此處要斷言的全部。** `Popovers.swift` 接收的是錨點
+/// **widget**，既不是一個點也不是一條邊：`presentPopover(_:relativeTo:window:)` 把該 modifier 所
+/// 附著的 widget 交給平台，而各平台再依那個 widget 的矩形來定位。單一個 popover 無法顯示這件事
+/// ——一塊固定出現在某處的面板看起來會一模一樣。兩個相隔一列的按鈕所開出的兩塊面板則無法造假：
+/// 若它們出現在同一個位置，那就表示沒有任何東西被錨定在任何東西上。
+///
+/// **各自出現在哪一側，此處並不斷言，而且也不存在能讓人去斷言它的參數。** 每個 backend 都刻意把
+/// 側邊的決定交給平台——`GtkBackend+Popovers.swift` 讓 `GtkPopover` 的 `position` 維持預設值、
+/// `WinUIBackend+Popovers.swift` 設定 `FlyoutPlacementMode.auto`、AppKit 請求 `.maxY` 之後就讓
+/// AppKit 自行移動它——因為由工具組釘死的一側，會被忠實地遵守到螢幕之外。因此出現在按鈕的上方、
+/// 下方或旁邊都算通過；蓋在按鈕上、或離按鈕十萬八千里，才是失敗。
+///
+/// **錨點位於視窗的左側、且在上半部，那是一項位置決策，不是版面上的意外。** 這樣右方留有寬度、
+/// 下方留有高度，於是無論平台選了哪一側，面板都有地方可以落在被擷取的視窗之內，而不會被視窗自身的
+/// 外框裁掉。
 ///
 /// **觸發按鈕與面板不共用任何字詞。** 按鈕寫的是「Open the first panel」／「Open the second
 /// panel」；面板寫的是「PANEL ALPHA」／「PANEL BETA」，而這些字在本 app 的其他任何地方都不會出現。
@@ -331,68 +359,74 @@ struct P50PopoverSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("2. .popover -- two attachmentEdge values, two separate panels")
+            Text("2. .popover -- two panels, each anchored to its own button")
                 .font(.system(size: 15))
             Text("Success = a floating panel reading PANEL ALPHA or PANEL BETA. Those two")
                 .font(.system(size: 11))
             Text("phrases appear nowhere else here, so no click and no panel = failure.")
                 .font(.system(size: 11))
-            Text("A side other than the one asked for is only a bug if that side had room:")
+            Text("Each panel must land NEXT TO THE BUTTON THAT OPENED IT, and the two must")
                 .font(.system(size: 11))
-            Text("every backend flips a popover that would leave the monitor. Expected.")
+            Text("not land in the same place. WHICH SIDE is the platform's call, not a")
+                .font(.system(size: 11))
+            Text("parameter's: above, below or beside the button all pass.")
                 .font(.system(size: 11))
             Text("成功＝出現一塊寫著 PANEL ALPHA 或 PANEL BETA 的浮動面板。這兩個詞在此處別無他處出現，")
                 .font(.system(size: 11))
-            Text("因此「點了卻沒有面板」就是失敗。出現在非所請求的一側，只有在該側原本有空間時才是 bug：")
+            Text("因此「點了卻沒有面板」就是失敗。每塊面板都必須落在**開啟它的那顆按鈕旁邊**，兩塊不可落在")
                 .font(.system(size: 11))
-            Text("任何 backend 都會翻轉一個會跑出螢幕的 popover。那是預期行為。")
+            Text("同一處。至於哪一側是平台決定的、而非某個參數決定的：上方、下方或旁邊都算通過。")
                 .font(.system(size: 11))
 
-            // Anchors in a left-aligned column, not spread across the width. The
-            // .trailing popover needs the window's width to its right and the
-            // .bottom one needs height below; a row of buttons centred in the
-            // window gives neither.
-            // 錨點排成一欄且靠左對齊，而非橫跨整個寬度。.trailing 的 popover 需要它右方有整個視窗的
-            // 寬度，.bottom 的則需要下方有高度；一排置中於視窗的按鈕兩者都給不了。
+            // Anchors in a left-aligned column, not spread across the width, and
+            // a full row apart. Two things depend on that: whichever side the
+            // platform picks, there is width to the right and height below for
+            // the panel to land in; and the two anchors are far enough apart
+            // that "each panel is beside its own button" is legible in a still
+            // image rather than a matter of a few pixels.
+            // 錨點排成一欄且靠左對齊，而非橫跨整個寬度，並且相隔整整一列。有兩件事仰賴於此：無論
+            // 平台挑了哪一側，右方都有寬度、下方都有高度可供面板落腳；而且兩個錨點相距夠遠，使得
+            // 「每塊面板都在它自己那顆按鈕旁邊」在一張靜態圖裡是讀得出來的，而不是幾個像素的差別。
             VStack(alignment: .leading, spacing: 10) {
-                Button("Open the first panel (attachmentEdge .bottom)") {
+                Button("Open the first panel (top anchor)") {
                     isAlphaPresented = true
                     P50Diagnostics.write("popover alpha shown")
                 }
                 .popover(
                     isPresented: $isAlphaPresented,
-                    attachmentEdge: .bottom,
                     onDismiss: {
                         // Reached only for a USER dismissal -- clicking away or
-                        // pressing escape. `dismissPopover(_:)` must not call
-                        // this, per `Popovers.swift`, and GtkBackend keeps that
+                        // pressing escape. `dismissPopover(_:window:)` must not
+                        // call this: the backend's `onDismiss` runs the caller's
+                        // closure through `PopoverModifier.handleDismiss`, and
+                        // both GtkBackend and WinUIBackend keep the two paths
                         // apart with an `isProgrammaticDismissal` flag. The two
-                        // log lines below are therefore an assertion about the
-                        // contract, not two names for one event.
-                        // 只有**使用者**造成的關閉才會走到這裡——在別處點擊或按下 escape。依
-                        // `Popovers.swift` 的規定，`dismissPopover(_:)` 不得呼叫它，而 GtkBackend
-                        // 以 `isProgrammaticDismissal` 旗標將兩者分開。因此下方那兩行 log 是對該
-                        // 約定的斷言，而不是同一件事的兩個名字。
+                        // log lines below are therefore an assertion about that,
+                        // not two names for one event.
+                        // 只有**使用者**造成的關閉才會走到這裡——在別處點擊或按下 escape。
+                        // `dismissPopover(_:window:)` 不得呼叫它：backend 的 `onDismiss` 是經由
+                        // `PopoverModifier.handleDismiss` 去執行呼叫端的 closure 的，而 GtkBackend
+                        // 與 WinUIBackend 都以 `isProgrammaticDismissal` 旗標把這兩條路徑分開。
+                        // 因此下方那兩行 log 是對這件事的斷言，而不是同一件事的兩個名字。
                         P50Diagnostics.write("popover alpha dismissed")
                     }
                 ) {
                     P50Panel(
                         name: "PANEL ALPHA",
                         logName: "alpha",
-                        edgeDescription: "asked for .bottom (below the button)",
+                        anchorDescription: "anchored to the FIRST button",
                         accent: Color.blue,
                         counter: $panelCounter,
                         isPresented: $isAlphaPresented
                     )
                 }
 
-                Button("Open the second panel (attachmentEdge .trailing)") {
+                Button("Open the second panel (bottom anchor)") {
                     isBetaPresented = true
                     P50Diagnostics.write("popover beta shown")
                 }
                 .popover(
                     isPresented: $isBetaPresented,
-                    attachmentEdge: .trailing,
                     onDismiss: {
                         P50Diagnostics.write("popover beta dismissed")
                     }
@@ -400,7 +434,7 @@ struct P50PopoverSection: View {
                     P50Panel(
                         name: "PANEL BETA",
                         logName: "beta",
-                        edgeDescription: "asked for .trailing (right of the button)",
+                        anchorDescription: "anchored to the SECOND button",
                         accent: Color.orange,
                         counter: $panelCounter,
                         isPresented: $isBetaPresented
@@ -424,15 +458,15 @@ struct P50PopoverSection: View {
     }
 }
 
-/// The content of one popover: a name that exists nowhere else, the edge that
-/// was requested, a live button, and a programmatic close.
+/// The content of one popover: a name that exists nowhere else, the anchor it
+/// belongs to, a live button, and a programmatic close.
 ///
 /// The counter it increments lives on ``P50RootView``, not here, and that is
 /// what makes the press visible outside the panel too: the section's
 /// "panel button presses so far" line moves at the same time, so a reader who
 /// dismissed the popover before looking can still see that its button worked.
 ///
-/// 一個 popover 的內容：一個別處不存在的名稱、被請求的邊、一個活的按鈕，以及一個程式化的關閉。
+/// 一個 popover 的內容：一個別處不存在的名稱、它所屬的錨點、一個活的按鈕，以及一個程式化的關閉。
 ///
 /// 它所遞增的計數器住在 ``P50RootView`` 上而不在此處，而這正是讓那一次按壓在面板之外也看得見的
 /// 原因：該區塊的「panel button presses so far」那一行會同時變動，因此即使讀者在查看之前就關掉了
@@ -457,7 +491,12 @@ struct P50Panel: View {
     /// 用於 log 行的簡短穩定字詞。小寫，並與 `name` 分開，如此當畫面上的措辭改變時，可被斷言的
     /// 字串不會跟著變。
     var logName: String
-    var edgeDescription: String
+    /// Which of the two buttons this panel was opened from, written inside the
+    /// panel so a reader can check it against where the panel actually appeared.
+    /// A popover that is anchored puts this line beside the button it names.
+    /// 這塊面板是由兩顆按鈕中的哪一顆開啟的，寫在面板內部，讓讀者能拿它與面板實際出現的位置對照。
+    /// 一個真的有錨定的 popover，會把這行字放在它所指名的那顆按鈕旁邊。
+    var anchorDescription: String
     var accent: Color
     @Binding var counter: Int
     @Binding var isPresented: Bool
@@ -466,7 +505,7 @@ struct P50Panel: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(name)
                 .font(.system(size: 16))
-            Text(edgeDescription)
+            Text(anchorDescription)
                 .font(.system(size: 11))
             Text("A menu could not hold this button. A popover can.")
                 .font(.system(size: 11))

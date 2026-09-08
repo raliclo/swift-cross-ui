@@ -1,118 +1,70 @@
 extension BackendFeatures {
-    /// Backend methods for popovers: a transient panel of arbitrary view
-    /// content, anchored to a widget.
+    /// A transient presentation anchored to the view that opened it.
     ///
-    /// These are used by ``View/popover(isPresented:attachmentEdge:onDismiss:content:)``.
+    /// Shaped like ``Sheets`` because it is the same kind of thing -- a
+    /// presentation with its own widget tree, presented and dismissed by the
+    /// modifier -- and differs in the one way that matters: it is anchored, so
+    /// ``presentPopover(_:relativeTo:window:)`` takes the widget it points at.
     ///
-    /// **Why this is not ``BackendFeatures/PopoverMenus``, which was expected to
-    /// cover it.** That protocol's `showPopoverMenu(_:at:relativeTo:closeHandler:)`
-    /// takes a `Menu`, and a `Menu` is built from a ``ResolvedMenu`` -- a list of
-    /// labels, toggles, separators and submenus. It cannot carry a `Widget`, so
-    /// it cannot show a `Slider`, a `TextField`, or anything else a caller
-    /// writes in a `@ViewBuilder`. The two protocols also disagree on who owns
-    /// dismissal: a menu closes itself when an item is chosen, whereas a popover
-    /// stays up until the binding says otherwise. Only two backends conform to
-    /// `PopoverMenus` at all (GtkBackend and AppKitBackend); the other three use
-    /// ``BackendFeatures/AttachedMenus``, and a popover is not a thing you can
-    /// attach to a button.
+    /// **Every one of the five shipped backends has a native popover, which is
+    /// why this is a protocol rather than a sheet with a different name.**
+    /// `NSPopover`, `UIPopoverPresentationController`, `GtkPopover`, WinUI's
+    /// `Flyout` and Android's `PopupWindow`. Presenting a sheet instead would
+    /// work everywhere and look wrong everywhere: a popover points at
+    /// something, and a sheet that appears in the middle of the window when the
+    /// user pressed a small button in a corner has lost the only information a
+    /// popover carries.
     ///
-    /// **On the relationship to ``BackendFeatures/Sheets``.** A popover is not a
-    /// small sheet. A sheet is modal, centred on or filling its window, and
-    /// knows nothing about the widget that produced it; a popover is
-    /// light-dismiss, positioned against an anchor, and usually draws a beak
-    /// pointing at it. The anchor is the requirement `Sheets` has no parameter
-    /// for, and adding one there would change every existing conformance.
+    /// UIKit is the exception worth naming: on iPhone, UIKit itself adapts a
+    /// popover into a sheet, because a popover on a phone-sized screen would
+    /// cover what it points at. That adaptation is the platform's own and is
+    /// the right answer there, which is different from this toolkit choosing a
+    /// sheet on a platform that would have drawn a popover.
     ///
-    /// Backends outside the five shipped ones need not conform. The modifier
-    /// warns once and renders its anchor unmodified rather than aborting -- see
-    /// its documentation for why that is the right answer *there* and the wrong
-    /// answer for GtkBackend, WinUIBackend, AppKitBackend, UIKitBackend and
-    /// AndroidBackend, all five of which implement this protocol.
+    /// 一種錨定在「開啟它的那個 view」上的短暫呈現。
     ///
-    /// popover 的 backend 方法：一塊錨定在某個 widget 上、承載任意 view 內容的短暫面板。
+    /// 形狀比照 ``Sheets``，因為它們是同一類東西——一種擁有自身 widget 樹、由 modifier 呈現與關閉的
+    /// 呈現方式——而其差異正在於關鍵的那一點:它是**有錨點的**，因此
+    /// ``presentPopover(_:relativeTo:window:)`` 會接收它所指向的那個 widget。
     ///
-    /// 由 ``View/popover(isPresented:attachmentEdge:onDismiss:content:)`` 使用。
+    /// **五個出貨 backend 每一個都有原生的 popover，這正是此處採用協定、而非「換個名字的 sheet」的
+    /// 理由。** `NSPopover`、`UIPopoverPresentationController`、`GtkPopover`、WinUI 的 `Flyout`，
+    /// 以及 Android 的 `PopupWindow`。改用 sheet 呈現會在每個地方都能運作、也會在每個地方都不對:
+    /// popover 是**指向**某個東西的，而當使用者按下角落一顆小按鈕、卻有個東西出現在視窗正中央時，
+    /// popover 所攜帶的唯一資訊就已經丟失了。
     ///
-    /// **為何這不是原本預期能涵蓋它的 ``BackendFeatures/PopoverMenus``。** 該 protocol 的
-    /// `showPopoverMenu(_:at:relativeTo:closeHandler:)` 接受的是 `Menu`，而 `Menu` 由
-    /// ``ResolvedMenu`` 建構——一串標籤、開關、分隔線與子選單。它無法承載 `Widget`，因此無法顯示
-    /// `Slider`、`TextField`，或呼叫端寫在 `@ViewBuilder` 裡的任何其他東西。兩個 protocol 對
-    /// 「由誰決定關閉」的看法也不同：選單在項目被選取時自行關閉，而 popover 會一直停留，直到
-    /// binding 另有指示。此外，實際 conform `PopoverMenus` 的只有兩個 backend（GtkBackend 與
-    /// AppKitBackend）；其餘三個使用 ``BackendFeatures/AttachedMenus``，而 popover 並不是可以
-    /// 「附加在按鈕上」的東西。
-    ///
-    /// **關於它與 ``BackendFeatures/Sheets`` 的關係。** popover 並不是小一號的 sheet。sheet 是
-    /// 模態的、置中於或填滿其視窗，且對產生它的 widget 一無所知；popover 則是點擊外部即關閉、
-    /// 相對於錨點定位，且通常會畫出一個指向錨點的尖角。錨點正是 `Sheets` 沒有對應參數的那項要求，
-    /// 而在那裡新增一個參數會改動每一份既有的 conformance。
-    ///
-    /// 五個已發布 backend 以外的 backend 不需要 conform。該 modifier 會警告一次並原樣繪製其錨點，
-    /// 而非中止行程——關於為何那在**該處**是正確答案、而對 GtkBackend、WinUIBackend、AppKitBackend、
-    /// UIKitBackend 與 AndroidBackend 是錯誤答案（這五者皆已實作本 protocol），見該 modifier 的文件。
+    /// UIKit 是值得指名的例外:在 iPhone 上，UIKit 自己會把 popover 調適為 sheet，因為在手機尺寸的
+    /// 螢幕上，popover 會蓋住它所指向的東西。那項調適是平台自身的，而且在那裡是正確答案——這與
+    /// 「本工具組在一個原本會畫出 popover 的平台上選擇了 sheet」是兩回事。
     @MainActor
     public protocol Popovers<Popover>: Core {
-        /// The underlying popover type. Can be a wrapper or subclass.
         associatedtype Popover
 
-        /// Creates a popover object (without showing it).
-        ///
-        /// - Parameter content: The content of the popover.
-        /// - Returns: A popover containing `content`.
         func createPopover(content: Widget) -> Popover
 
-        /// Updates the appearance and behaviour of a popover.
-        ///
-        /// Called whenever the content's layout or the environment changes, and
-        /// always at least once before ``showPopover(_:relativeTo:window:)``.
-        ///
-        /// - Parameters:
-        ///   - popover: The popover to update.
-        ///   - environment: The environment the popover is presented in. This is
-        ///     the *outer* environment, not that of the popover's content.
-        ///   - size: The size the popover's content wants to be, in points.
-        ///   - attachmentEdge: The edge of the anchor widget that the popover
-        ///     should prefer to appear from. A backend is free to flip this when
-        ///     the requested side would put the popover off-screen; that is what
-        ///     every platform's own positioner does, and fighting it would push
-        ///     the popover out of view rather than keep a promise.
-        ///   - backgroundColor: The background color for the popover, or `nil`
-        ///     for the platform default. The platform default is strongly
-        ///     preferred here -- popovers are one of the few surfaces that are
-        ///     translucent and vibrant by default on macOS and Windows.
-        ///   - onDismiss: An action to perform when the popover is dismissed by
-        ///     the user (by clicking away, or pressing escape). Must *not* be
-        ///     called for a dismissal caused by ``dismissPopover(_:)``.
         func updatePopover(
             _ popover: Popover,
             environment: EnvironmentValues,
             size: SIMD2<Int>,
-            attachmentEdge: Edge,
-            backgroundColor: Color.Resolved?,
             onDismiss: @escaping () -> Void
         )
 
-        /// Shows a popover anchored to a widget.
+        /// Shows `popover` pointing at `anchor`.
         ///
-        /// This method must only be called once for any given popover.
+        /// `anchor` is a widget in `window`, not a point: every one of the five
+        /// platforms positions a popover from a rectangle it is given, and each
+        /// has its own rules about which edge it appears on when the anchor is
+        /// near a screen edge. Passing the widget lets each keep its rules.
         ///
-        /// - Parameters:
-        ///   - popover: The popover to show.
-        ///   - widget: The widget to anchor the popover to.
-        ///   - window: The window the anchor is in. Needed by backends whose
-        ///     popup primitive is attached to a root or a scene rather than to
-        ///     the anchor itself.
-        func showPopover(_ popover: Popover, relativeTo widget: Widget, window: Window)
+        /// 顯示 `popover`，並使其指向 `anchor`。
+        ///
+        /// `anchor` 是 `window` 中的一個 widget，而不是一個點:五個平台每一個都是由「所給定的一個
+        /// 矩形」來定位 popover 的，而當錨點靠近螢幕邊緣時，各平台對於它該出現在哪一側各有規則。
+        /// 傳入 widget 可以讓每個平台保有自己的規則。
+        func presentPopover(_ popover: Popover, relativeTo anchor: Widget, window: Window)
 
-        /// Dismisses a popover programmatically.
-        ///
-        /// Used by ``View/popover(isPresented:attachmentEdge:onDismiss:content:)``
-        /// when the binding goes to `false`. Must not trigger the `onDismiss`
-        /// handler given to ``updatePopover(_:environment:size:attachmentEdge:backgroundColor:onDismiss:)``,
-        /// which is for user-driven dismissals only -- the same split as
-        /// ``Sheets/dismissSheet(_:window:parentSheet:)``.
-        ///
-        /// - Parameter popover: The popover to dismiss.
-        func dismissPopover(_ popover: Popover)
+        func dismissPopover(_ popover: Popover, window: Window)
+
+        func size(ofPopover popover: Popover) -> SIMD2<Int>
     }
 }

@@ -45,5 +45,22 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p7-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。
-click,143,637,client,left,,,"the Cherry row of the plain List -- Cherry must become the selected row and no other row may be (VERIFIED: grey highlight on Cherry only)",ios
+#
+# RE-MEASURED 2026-09-08. The coordinates below replaced ones measured
+# 2026-09-02 that the layout has since moved out from under: every click in the
+# old file landed on blank space, so the replay succeeded, the app ignored it,
+# and the screen afterwards was byte-identical to a control run that pressed
+# nothing. That reads as a framework defect and is not one.
+#
+# Measured from the effect sweep's own control capture, which is the app's
+# initial state on the current build, so the coordinate and the screen it was
+# taken from are the same picture.
+#
+# 2026-09-08 重新量測。下方座標取代的是 2026-09-02 所量、而版面此後已從其下移開的那一組:舊檔中
+# 每一次點擊都落在空白處,於是重放成功、app 忽略它,而其後的畫面與「什麼都不按的對照執行」逐位元組
+# 相同。那讀起來像是框架缺陷,但它不是。
+#
+# 量測自 effect sweep 自身的 control 擷取,那是目前這個 build 上該 app 的初始狀態,因此座標與
+# 「取得它的那張畫面」是同一張。
+click,76,448,client,left,,,"the Cherry row of the plain List -- Cherry must become the selected row and no other row may be (VERIFIED: grey highlight on Cherry only)",ios
 sleep,,,,,,700000,let the row highlight,ios

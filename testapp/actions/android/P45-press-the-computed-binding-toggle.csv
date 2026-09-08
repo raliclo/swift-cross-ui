@@ -1,0 +1,87 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 on Android: does a Toggle on Binding(get:set:) reset its siblings?
+#
+# The reported symptom, from a SoftPCB build on macOS, is that pressing such a
+# toggle sends another control's selection back to its first item and makes a
+# field disappear -- a subtree rebuild, seen from outside. This file seeds two
+# pieces of sibling state, then presses exactly one control, so whatever the
+# screen says afterwards is attributable to that press and nothing else.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the
+# window is 411 x 914 points. Coordinates are points and the synthesiser
+# multiplies by the density.
+#
+# Measured 2026-09-08 from a uiautomator dump of the running app, not from a
+# screenshot. The dump names every control, so there is no colour-scanning and
+# no ambiguity about which pill is which:
+#
+#     ToggleButton "honest ✗"      [42,806][273,932]     centre (157,869) px
+#     Button       "selection = 2" [42,1696][370,1822]   centre (206,1759) px
+#     Button       "typed = seeded" [391,1696][771,1822] centre (581,1759) px
+#
+# Divided by 2.625 those are (60,331), (78,670) and (221,670) in points. The
+# same dump also reads the three assertion lines -- "sibling state", "model" and
+# "setter writes" -- so the coordinates and the things they are supposed to
+# change come from one source.
+#
+# Every control sits above y=1822 px against a 2400 px screen, so nothing needs
+# scrolling and none of these bounds is clipped by the window. That matters
+# because uiautomator clips bounds to the window and a clipped bound reads as a
+# smaller control rather than as an error.
+#
+# The toggle pressed is the SECOND of three, and the order on screen is the
+# order in the source: stateToggle, honest, stubborn. Pressing the first would
+# test @State, which every other Pn already covers; pressing the third tests a
+# binding whose getter contradicts its setter, whose expected result is "looks
+# unchanged" and is therefore indistinguishable from a tap that missed.
+#
+# P45 於 Android:綁在 Binding(get:set:) 上的 Toggle 會不會重置它的兄弟?
+#
+# 被回報的症狀來自 SoftPCB 在 macOS 上的建置:按下這樣的 toggle 會讓另一個控制項的選取回到第一項、
+# 並讓一個欄位消失——從外部看就是一次子樹重建。本檔先種下兩份兄弟狀態,然後只按一個控制項。
+#
+# 模擬器 swift-cross-ui-api36,1080 x 2400 像素,density 2.625,因此視窗為 411 x 914 點。
+# 座標以點為單位,由合成器乘上該密度。
+#
+# 2026-09-08 量測,取自執行中 app 的 uiautomator dump 而非螢幕截圖。該 dump 為每一個控制項命名,
+# 因此不需要掃描顏色,也不會弄不清楚哪一顆藥丸是哪一個。除以 2.625 之後,上列三者分別是
+# (60,331)、(78,670) 與 (221,670) 點。同一份 dump 也讀得到三行斷言,因此座標與「它們應該改變的
+# 東西」來自同一個來源。
+#
+# 每一個控制項都位於 y=1822 像素以上,而螢幕高 2400 像素,因此不需要捲動,這些 bounds 也沒有一個
+# 被視窗裁切。這件事之所以重要,是因為 uiautomator 會把 bounds 裁到視窗內,而被裁過的 bound 讀起來
+# 像是一個比較小的控制項,不像是一個錯誤。
+#
+# 被按下的是三者中的**第二個**,而畫面上的順序即為原始碼中的順序:stateToggle、honest、stubborn。
+#
+# REPLAYED AND VERIFIED 2026-09-08: logcat carries
+# `-actionfile: replayed P45-actions.csv (7 actions)` at scale 2.625, and the
+# capture afterwards reads:
+#     sibling state -- selection: 2, typed: "seeded"
+#     model -- honest: true, stubbornStorage: false
+#     setter writes: 1, button presses: 0
+# So the siblings survived and the setter ran exactly once. **The reported
+# subtree rebuild does not reproduce on Android either.**
+#
+# **The build must set SCUI_DEBUG=1.** Without it the replay call is compiled
+# out -- `AndroidBackend.showWindow` guards it with `#if SCUI_DEBUG` -- and the
+# failure is silent in the worst way: the flag still parses, the app still
+# launches, logcat still prints the launch arguments, and the screenshot is of
+# an app that simply was not driven. The first run of this file looked exactly
+# like a passing run whose action file did nothing.
+#
+# 2026-09-08 已重放並驗證:logcat 中有
+# `-actionfile: replayed P45-actions.csv (7 actions)`、scale 為 2.625,其後的擷取讀作上列三行,
+# 因此兄弟狀態存活、setter 恰好執行一次。**被回報的子樹重建在 Android 上同樣並未重現。**
+#
+# **建置時必須設定 SCUI_DEBUG=1。** 沒有它,重放的呼叫會被編譯掉——`AndroidBackend.showWindow`
+# 以 `#if SCUI_DEBUG` 包住它——而這個失敗以最糟的方式保持沉默:旗標照樣被解析、app 照樣啟動、
+# logcat 照樣印出啟動參數,而截圖拍到的只是一個「根本沒有被驅動」的 app。本檔第一次執行時,看起來
+# 與「一個動作檔什麼都沒做的通過執行」完全相同。
+sleep,,,,,,1500000,let P45 render,android
+click,78,670,,left,,,"seed the sibling selection -- the line must read ""selection: 2""",android
+sleep,,,,,,400000,,android
+click,221,670,,left,,,"seed the sibling field -- the line must read typed: ""seeded""",android
+sleep,,,,,,400000,,android
+click,60,331,,left,,,"the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",android
+sleep,,,,,,1200000,let any rebuild settle,android

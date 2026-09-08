@@ -28,8 +28,21 @@ import SwiftCrossUI
 //   - `.automatic` and `.titleAndIcon` are adjacent, on one label text and one
 //     icon, because 6cefefb9's claim is that they are the same expression and
 //     two neighbouring columns is where sameness is checkable;
-//   - the `GridItem.adaptive` row is captioned as the KNOWN DIVERGENCE it is,
-//     so the picture records the defect instead of being read as a pass.
+//   - the `GridItem.adaptive` row is captioned as UNVERIFIED. It used to be
+//     captioned as a known divergence; that finding was measured against a
+//     `GridItem`/`LazyVGrid` which has since been replaced wholesale, so the
+//     caption now states the uncertainty rather than a result nobody re-ran.
+//
+// WHICH `LazyVGrid` THIS FILE NOW DRAWS. The `GridItem` and `LazyVGrid` that
+// 0e2a0ffa added -- a value-level cell flattener feeding a `VStack` of
+// `HStack`s -- were deleted when a second, independent implementation of the
+// same two types arrived from the macOS side and was kept instead. The
+// surviving pair lives in `Sources/SwiftCrossUI/Views/LazyVGrid.swift` and
+// resolves columns inside the layout system (`Layout/GridLayoutPlan.swift`,
+// `LayoutSystem.computeGridLayout`). Every call in this file compiled against
+// both, unchanged, because each size argument here is an integer literal; the
+// PICTURES the two produce were never compared, and no claim below assumes
+// they match.
 //
 // P51 是 2026-09-08 落地的那六個 view 的第一張圖。
 //
@@ -51,8 +64,17 @@ import SwiftCrossUI
 //     沿著頁面**向下**而非橫向排列——那是看得見的，不是推論出來的；
 //   - `.automatic` 與 `.titleAndIcon` 相鄰放置，共用同一段 label 文字與同一個圖示，因為 6cefefb9
 //     的主張正是「它們是同一個表達式」，而相鄰的兩欄正是「相同」得以被檢查之處；
-//   - `GridItem.adaptive` 那一列被標註為它本來的樣子——**已知的分歧**——好讓這張圖記錄下該缺陷，
-//     而不是被讀成一次通過。
+//   - `GridItem.adaptive` 那一列被標註為**尚未驗證**。它過去被標註為一項已知的分歧；該發現是針對
+//     一個此後已被整個取代掉的 `GridItem`／`LazyVGrid` 量測出來的，因此該說明文字現在陳述的是這份
+//     不確定，而不是一個沒有人重跑過的結果。
+//
+// 本檔現在畫的是**哪一個** `LazyVGrid`。0e2a0ffa 所加入的那組 `GridItem` 與 `LazyVGrid`——一個值層級
+// 的儲存格攤平器，餵給「`HStack` 疊成的 `VStack`」——在同樣這兩個型別的第二份、獨立的實作自 macOS
+// 一側抵達並被選為留下者時，已被刪除。留下來的那一組位於
+// `Sources/SwiftCrossUI/Views/LazyVGrid.swift`，並在版面系統內部解析欄位
+// （`Layout/GridLayoutPlan.swift`、`LayoutSystem.computeGridLayout`）。本檔中每一處呼叫在兩份實作
+// 下都能原封不動地編譯，因為此處每個尺寸引數都是整數字面值；但兩者產生的**畫面**從未被比對過，
+// 下方也沒有任何一項主張假設它們相同。
 
 enum P51Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
@@ -144,9 +166,11 @@ struct P51RootView: View {
         GridItem(.fixed(96), spacing: 8),
     ]
 
-    /// One adaptive column. See ``P51AdaptiveSection`` for why there is only one
-    /// and why that is the point.
-    /// 單一個 adaptive 欄。為何只有一個、以及為何那正是重點，見 ``P51AdaptiveSection``。
+    /// One adaptive ITEM -- deliberately not "one column", because how many
+    /// columns one adaptive item becomes is precisely what this measures. See
+    /// ``P51AdaptiveSection``.
+    /// 單一個 adaptive **item**——刻意不寫成「一個欄」，因為「一個 adaptive item 會變成幾個欄」
+    /// 正是此處要量測的東西。見 ``P51AdaptiveSection``。
     static let adaptiveColumns = [GridItem(.adaptive(minimum: 96), spacing: 8)]
 
     var rowCount: Int {
@@ -193,10 +217,15 @@ struct P51RootView: View {
 /// The three-column grid, and the one thing on this screen that a wrong
 /// implementation makes look plausible.
 ///
-/// `LazyVGrid` cannot count its own cells without ``GridCellsProviding``; 0e2a0ffa
-/// says so in its own commit message, and says that without it "a three-column
-/// grid would have rendered as one column". One column of nine numbered boxes is
-/// a perfectly tidy picture. So the cells carry TWO labels, not one:
+/// `LazyVGrid`'s content here is a single ``ForEach``, so the grid does not see
+/// the nine cells at all -- it sees one child. It resolves its columns into a
+/// `GridLayoutPlan`, puts that in the environment under
+/// ``EnvironmentValues/layoutGridPlan``, and the `ForEach` is what actually
+/// arranges the cells against it (`LazyVGrid.swift`, `Layout/GridLayoutPlan.swift`,
+/// `LayoutSystem.computeGridLayout`). If that hand-off fails for any reason, the
+/// `ForEach` lays its children out as an ordinary stack: ONE column. One column
+/// of nine numbered boxes is a perfectly tidy picture. So the cells carry TWO
+/// labels, not one:
 ///
 ///   - `#n` -- the cell's index, so the reading order is unambiguous;
 ///   - `col n` -- the column it is supposed to be in.
@@ -208,9 +237,12 @@ struct P51RootView: View {
 ///
 /// 三欄的網格，也是本畫面上唯一一個「實作錯了卻看起來很合理」的東西。
 ///
-/// 沒有 ``GridCellsProviding``，`LazyVGrid` 數不出自己有幾個儲存格；0e2a0ffa 在自己的 commit
-/// 訊息裡就這麼說了，並指出少了它「一個三欄的網格會被畫成一欄」。九個編號方塊排成一欄，是一張
-/// 相當整齊的圖。因此每一格帶的是**兩個**標籤，而不是一個：
+/// 此處 `LazyVGrid` 的內容是單一個 ``ForEach``，因此這個網格根本看不到那九個儲存格——它看到的是
+/// 一個子節點。它把自己的欄位解析成一份 `GridLayoutPlan`，經由
+/// ``EnvironmentValues/layoutGridPlan`` 放進 environment，而真正依該計畫排列儲存格的是那個
+/// `ForEach`（`LazyVGrid.swift`、`Layout/GridLayoutPlan.swift`、`LayoutSystem.computeGridLayout`）。
+/// 若這次交接因任何理由失敗，`ForEach` 就會把子節點當成一般的堆疊來排——**一欄**。九個編號方塊排成
+/// 一欄，是一張相當整齊的圖。因此每一格帶的是**兩個**標籤，而不是一個：
 ///
 ///   - `#n`——該格的索引，使閱讀順序毫無歧義；
 ///   - `col n`——它**應該**位於的欄。
@@ -383,51 +415,71 @@ struct P51GridRowCell: View {
     }
 }
 
-// MARK: - 6. GridItem.adaptive, the known divergence
+// MARK: - 6. GridItem.adaptive, behaviour unverified
 
-/// `GridItem.adaptive` accepted, rendered, and WRONG -- on the record.
+/// `GridItem.adaptive` accepted and rendered. What it renders AS is not known.
 ///
-/// `Views/GridItem.swift` documents it against its own `Size.adaptive` case: in
-/// SwiftUI it changes the NUMBER of columns to fit the available width; here it
-/// is treated as `.flexible` with the same bounds, so a grid built from one
-/// adaptive item has exactly one column rather than as many as fit.
+/// **What this section used to say, and why that is no longer safe to repeat.**
+/// It carried a KNOWN DIVERGENCE caption: that `.adaptive` did not adapt, that
+/// it was treated as `.flexible` with the same bounds, and that one adaptive
+/// item therefore produced exactly one column instead of as many as fit. That
+/// was true of `Views/GridItem.swift`, which documented the divergence on its
+/// own `Size.adaptive` case. **That file has been deleted.** The `GridItem` and
+/// `LazyVGrid` compiled here now come from
+/// `Sources/SwiftCrossUI/Views/LazyVGrid.swift`, a separate implementation that
+/// arrived from the macOS side and replaced ours outright.
 ///
-/// This section exists so the screenshot RECORDS that, because the alternative
-/// is worse than it sounds. `LazyVGrid(columns: [GridItem(.adaptive(minimum:
-/// 96))])` is correct SwiftUI, it compiles here, it runs here, and it produces a
-/// tidy single column that a reader with no reason to suspect anything will read
-/// as working. A divergence that only exists in a doc comment is one nobody
-/// looking at the app will meet.
+/// The old claim was a measurement of code that is gone. It has NOT been
+/// re-measured against the replacement, so this file no longer asserts it, and a
+/// reader must not carry it forward. Reading the surviving source, the
+/// replacement's `LazyVGrid.resolve(columns:...)` expands one `.adaptive` item
+/// into `max(1, (available + spacing) / (minimum + spacing))` columns, so it is
+/// written to produce several. Whether it does, on this window, on this backend,
+/// is exactly the open question -- and reading a `/` in a source file is not a
+/// screenshot.
 ///
-/// Four cells, so the expected-wrong picture is four boxes stacked vertically
-/// where SwiftUI would have put four across.
+/// **So this section is a measurement, not a verdict.** Four cells and one
+/// adaptive item, side by side with the three fixed columns above. Four boxes
+/// across the page means it adapted; four stacked down the page means it did
+/// not. Either picture is new information; neither is a failure of this app.
+/// When the screenshot is taken, replace this comment with what it showed.
 ///
-/// `GridItem.adaptive` 被接受、被繪製，而且是**錯的**——並且有案可稽。
+/// `GridItem.adaptive` 被接受、被繪製。至於它被繪製成**什麼樣子**，目前未知。
 ///
-/// `Views/GridItem.swift` 就在它自己的 `Size.adaptive` case 上載明了這點：在 SwiftUI 中它會改變
-/// **欄的數量**以填滿可用寬度；此處則以相同界限比照 `.flexible` 處理，因此由一個 adaptive item
-/// 建構出的網格恰好只有一欄，而不是「能塞下幾欄就幾欄」。
+/// **本區塊過去怎麼寫，以及為何那些話現在不能再照抄。** 它曾帶著「**已知的分歧**」的標註：宣稱
+/// `.adaptive` 並不會自適應、它被以相同界限比照 `.flexible` 處理，因此一個 adaptive item 恰好只
+/// 產生一欄，而不是「能塞下幾欄就幾欄」。那對 `Views/GridItem.swift` 而言是真的——該檔就在它自己的
+/// `Size.adaptive` case 上載明了這項分歧。**而那個檔案已經被刪除了。** 此處編譯到的 `GridItem` 與
+/// `LazyVGrid` 現在來自 `Sources/SwiftCrossUI/Views/LazyVGrid.swift`，那是自 macOS 一側抵達、
+/// 並整個取代掉我方版本的另一份實作。
 ///
-/// 本區塊存在的目的，是讓截圖把那件事**記錄下來**，因為另一種選擇比聽起來更糟。
-/// `LazyVGrid(columns: [GridItem(.adaptive(minimum: 96))])` 是正確的 SwiftUI，在此能編譯、能執行，
-/// 並產出一個整齊的單欄——而一個沒有理由起疑的讀者會把它讀成運作正常。只存在於 doc comment 裡的
-/// 分歧，是任何看著這支 app 的人都不會遇到的分歧。
+/// 舊的主張是對一份已經不存在的程式碼所做的量測。它**尚未**針對取代者重新量測，因此本檔不再斷言
+/// 它，讀者也不可以把它繼續帶著走。就現存原始碼來讀，取代者的 `LazyVGrid.resolve(columns:...)`
+/// 會把一個 `.adaptive` item 展開為 `max(1, (available + spacing) / (minimum + spacing))` 個欄，
+/// 也就是說它是**照著會產生數欄**去寫的。但它在這個視窗上、在這個 backend 上究竟會不會如此，正是
+/// 那個尚未回答的問題——而在原始碼裡讀到一個 `/`，並不等於一張截圖。
 ///
-/// 四格，因此「預期為錯」的那張圖，是四個方塊垂直堆疊——而 SwiftUI 會把那四個橫著排開。
+/// **因此本區塊是一次量測，不是一份判決。** 四格與一個 adaptive item，與上方那三個固定寬度的欄
+/// 並置。四個方塊橫著排開，代表它自適應了；四個方塊沿頁面向下堆疊，代表它沒有。兩張圖都是新的
+/// 資訊；兩張都不是這支 app 的失敗。等截圖拍出來之後，請用它顯示的結果取代這段說明。
 struct P51AdaptiveSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("6. GridItem.adaptive -- KNOWN DIVERGENCE, not a pass")
+            Text("6. GridItem.adaptive -- UNVERIFIED, neither a pass nor a defect")
                 .font(.system(size: 15))
             Text("columns: [GridItem(.adaptive(minimum: 96))] with 4 cells.")
                 .font(.system(size: 11))
-            Text("SwiftUI would fit SEVERAL columns here. This draws ONE, and that is the defect,")
+            Text("This used to be captioned a KNOWN DIVERGENCE that draws ONE column. That was")
                 .font(.system(size: 11))
-            Text("documented on Size.adaptive in GridItem.swift. Four boxes stacked = expected.")
+            Text("measured against a GridItem/LazyVGrid since replaced, and NOT re-checked here.")
                 .font(.system(size: 11))
-            Text("SwiftUI 在此會塞進**數個**欄。這裡只畫出**一個**，而那就是該缺陷，")
+            Text("4 across = it adapted. 4 stacked = it did not. Record which; assume neither.")
                 .font(.system(size: 11))
-            Text("記載於 Views/GridItem.swift 的 Size.adaptive 上。四個方塊垂直堆疊即為預期。")
+            Text("此處過去被標註為「已知的分歧、只會畫出一欄」。那是針對一組此後已被取代的")
+                .font(.system(size: 11))
+            Text("GridItem／LazyVGrid 量測的，並未在此重新檢查。")
+                .font(.system(size: 11))
+            Text("四格橫排＝它自適應了。四格直疊＝它沒有。請記錄實際結果，勿預設任何一種。")
                 .font(.system(size: 11))
 
             LazyVGrid(columns: P51RootView.adaptiveColumns, alignment: .leading, spacing: 6) {
