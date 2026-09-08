@@ -56,7 +56,24 @@ extension GtkBackend {
         Self.refreshHandlers[key] = handler
         guard isFirst else { return }
 
-        scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in
+        // Through ``Gtk/ScrolledWindow/edgeOvershot``, not `addSignal`.
+        //
+        // This line arrived as
+        // `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }`
+        // and did not compile, for two reasons at once: `addSignal` is internal
+        // to the `Gtk` module, and the overload without a marshaller takes a
+        // NO-ARGUMENT callback, so `edge` could not have been delivered even
+        // with access. Neither is visible from macOS, where GtkBackend is not
+        // built -- the code was correct in shape and could not have been checked.
+        //
+        // 走 ``Gtk/ScrolledWindow/edgeOvershot``，而非 `addSignal`。
+        //
+        // 本行原本是
+        // `scrolledWindow.addSignal(name: "edge-overshot") { (edge: Int) in ... }`，
+        // 而它編不過，同時有兩個原因：`addSignal` 對 `Gtk` 模組而言是 internal，且不帶 marshaller 的
+        // 那個多載收的是**無參數** callback，因此就算存取層級允許，`edge` 也送不進來。這兩點在 macOS
+        // 上都看不見，因為那裡不會建置 GtkBackend——那段程式碼形狀正確，只是無從檢查。
+        scrolledWindow.edgeOvershot = { _, edge in
             guard edge == Self.positionTop else { return }
             MainActor.assumeIsolated {
                 Self.refreshHandlers[key]?()
