@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P54 on Android: press the Refresh row twice and read the counter back.
+#
+# Measured 2026-09-09 from p54-android-final-20260909-015442.png. Emulator
+# swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window is
+# 411 x 914 points. Action files are written in points.
+#
+# The row spans pixels y 24..108. y 32 pt is pixel 84, which is inside it and
+# BELOW the status bar (about 63 px on this device) -- a tap at the row's centre
+# would land in the status bar and pull the notification shade down instead,
+# which is a different screen and not a failure anything would report.
+#
+# Pressed TWICE. `refreshes: 1` could come from a control that fires on being
+# created as well as from one the user pressed; `refreshes: 2` with the rows
+# reaching 10 could not.
+#
+# P54 在 Android 上:按兩次 Refresh 那一列,再把計數器讀回來。
+#
+# 2026-09-09 量測自 p54-android-final-20260909-015442.png。模擬器 swift-cross-ui-api36,
+# 1080 x 2400 像素、density 2.625,因此視窗為 411 x 914 點。動作檔以「點」書寫。
+#
+# 那一列橫跨像素 y 24..108。y 32 點即像素 84,落在該列之內、且在狀態列**之下**(本裝置約 63 像素)
+# ——若點在該列的正中心,會落進狀態列並把通知欄拉下來,那是另一個畫面,而且不會有任何東西回報失敗。
+#
+# 按**兩次**。`refreshes: 1` 既可能來自一個「被建立時就觸發」的控制項,也可能來自使用者按下;
+# 而 `refreshes: 2` 加上列數達到 10,則不可能是前者。
+sleep,,,,,,1500000,let P54 render,android
+click,206,32,,left,,,"Refresh -- refreshes must become 1 and the rows must reach 8",android
+sleep,,,,,,800000,let the rows rebuild,android
+click,206,32,,left,,,"Refresh again -- refreshes must become 2 and the rows must reach 10",android
+sleep,,,,,,1200000,settle before the photograph,android

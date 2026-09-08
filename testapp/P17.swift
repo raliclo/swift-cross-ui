@@ -105,6 +105,24 @@ struct P17RootView: View {
     @State var stackHeight = 140.0
     @State var status = "Run this on both backends and compare the numbers."
 
+    /// One character per button pressed, in order.
+    ///
+    /// The action file presses Longest and then Shortest, which returns the
+    /// picker to the value it started at. A capture taken afterwards is
+    /// identical to one taken from an app nobody touched, so without this the
+    /// first two rows cannot be verified from a photograph at all -- and a row
+    /// that lands nowhere raises nothing either. The trail distinguishes "these
+    /// four presses arrived, in this order" from "the file ran and missed".
+    ///
+    /// 每按下一顆按鈕記一個字元,依順序排列。
+    ///
+    /// 動作檔會按下 Longest、接著按下 Shortest,而那會讓 picker 回到它一開始的值。事後拍下的畫面
+    /// 與「一支沒有人碰過的 app」完全相同,因此少了這一行,前兩列根本無法從照片上驗證——而一次落在
+    /// 空處的點擊同樣不會引發任何東西。這條軌跡能分辨「這四次按下都抵達了,而且是這個順序」與
+    /// 「檔案跑完了但全部落空」。
+    @State var trail = ""
+
+
     var body: some View {
         VStack(spacing: 14) {
             Text("P17: cross-backend layout comparison")
@@ -112,6 +130,21 @@ struct P17RootView: View {
 
             Text(status)
                 .frame(width: 840, alignment: .leading)
+            // Centred, not leading, while every other line here is leading.
+            //
+            // P17's content is about 880 pt wide and the window is 393, so a
+            // left-aligned line sits at x 0 and is off screen for the whole of
+            // an action file that has to scroll right to reach the buttons --
+            // the one line whose job is to say what happened would be the one
+            // line the photograph cannot show.
+            //
+            // 置中而非靠左,而此處其他每一行都是靠左的。
+            //
+            // P17 的內容約 880 點寬而視窗為 393 點,因此一個靠左對齊的行會位於 x 0——對於一份「必須
+            // 先向右捲動才碰得到按鈕」的動作檔而言,它在整個過程中都在畫面之外。那樣一來,唯一負責
+            // 說明「發生了什麼」的那一行,就會是照片唯一拍不到的那一行。
+            Text("presses: \(trail.isEmpty ? "(none)" : trail)")
+                .frame(width: 840, alignment: .center)
 
             // ---- #264 -------------------------------------------------------
             VStack(alignment: .leading, spacing: 6) {
@@ -154,14 +187,17 @@ struct P17RootView: View {
                 HStack(spacing: 8) {
                     Button("Shortest") {
                         selection = p17Options[0]
+                        trail += "S"
                         status = "Picker set to the shortest option."
                     }
                     Button("Medium") {
                         selection = p17Options[1]
+                        trail += "M"
                         status = "Picker set to the medium option."
                     }
                     Button("Longest") {
                         selection = p17Options[2]
+                        trail += "L"
                         status = "Picker set to the longest option."
                     }
                 }
@@ -197,10 +233,12 @@ struct P17RootView: View {
 
                 HStack(spacing: 8) {
                     Button("Shorter (\(Int(scrollHeight)))") {
+                        trail += "-"
                         scrollHeight = max(40, scrollHeight - 5)
                         status = "Scroll view height \(Int(scrollHeight))."
                     }
                     Button("Taller") {
+                        trail += "+"
                         scrollHeight = min(240, scrollHeight + 5)
                         status = "Scroll view height \(Int(scrollHeight))."
                     }
@@ -231,10 +269,12 @@ struct P17RootView: View {
 
                 HStack(spacing: 8) {
                     Button("Less height (\(Int(stackHeight)))") {
+                        trail += "<"
                         stackHeight = max(40, stackHeight - 20)
                         status = "Stack height \(Int(stackHeight))."
                     }
                     Button("More height") {
+                        trail += ">"
                         stackHeight = min(300, stackHeight + 20)
                         status = "Stack height \(Int(stackHeight))."
                     }
@@ -275,7 +315,29 @@ struct P17Measured<Content: View>: View {
             .overlay(alignment: .topLeading) {
                 GeometryReader { proxy in
                     let _ = P17Diagnostics.record(label: label, size: proxy.size)
+                    // Opaque, so the two texts do not interleave glyph by
+                    // glyph. Without it the readout and the sentence underneath
+                    // render into the same pixels and the result --
+                    // "Auhiedentt5e9lon22en..." -- is neither of them.
+                    //
+                    // The label stays an OVERLAY. It was moved below the box in
+                    // a VStack once, which read better and made the app's
+                    // layout depend on the readout's own height: three
+                    // consecutive runs reported the subject box as 159 x 22,
+                    // 169 x 22 and 159 x 66, and the action file's coordinates
+                    // missed every button that had moved. An overlay
+                    // contributes no size, which is why this app was written
+                    // with one.
+                    //
+                    // 不透明,好讓兩段文字不再一個字一個字地互相穿插。少了它,這段讀數與底下那句話
+                    // 會繪製進同一批像素,而其結果——「Auhiedentt5e9lon22en…」——兩者都不是。
+                    //
+                    // 這個標籤維持為 **overlay**。它曾被移到框下方的一個 VStack 中,那樣比較好讀,
+                    // 也讓這支 app 的版面取決於讀數本身的高度:連續三次執行分別把 subject 那格回報為
+                    // 159 x 22、169 x 22 與 159 x 66,而動作檔的座標錯過了每一顆位置改變過的按鈕。
+                    // overlay 不貢獻任何尺寸,而那正是這支 app 當初以 overlay 寫成的原因。
                     Text("\(label): \(Int(proxy.size.width)) x \(Int(proxy.size.height))")
+                        .background(Color.white)
                 }
             }
     }

@@ -14,5 +14,23 @@ action,x,y,origin,button,key,micros,note,platform
 # Worth reading with the capture beside it: the geometric effects (offset scale
 # rotate) do render here while the colour effects (opacity blur grayscale) draw
 # the sample unmodified -- the same split AppKitBackend shows.
-click,28,258,client,left,,,the frame button -- "frame width: 120" must change,ios
+# Re-measured 2026-09-08 from p30-ios-final-20260908-234416.png. Device: iPhone 16
+# simulator -- window 393 x 852 pt, capture 1179 x 2556 px, so coordinates are px/3.
+#
+# The previous row clicked (28, 258). That is inside the blue frame rectangle,
+# which is 100 pt BELOW the button -- the click landed on ink, changed nothing,
+# and raised nothing, which is why this app was filed as "lands but does
+# nothing". Nothing was wrong with the app; the coordinate was wrong.
+#
+# The button's own extent is x 0..119, y 190..210, so 60, 200 is its centre.
+#
+# 2026-09-08 重新量測自 p30-ios-final-20260908-234416.png。裝置:iPhone 16 模擬器——視窗
+# 393 x 852 點、擷圖 1179 x 2556 像素,因此座標為像素除以 3。
+#
+# 前一列點的是 (28, 258)。那落在藍色的 frame 方塊裡,而該方塊位於按鈕**下方** 100 點——那次點擊
+# 落在墨水上、什麼都沒改變、也沒引發任何東西,而這正是這支 app 被歸類為「落點對但沒反應」的原因。
+# 這支 app 沒有任何問題;錯的是座標。
+#
+# 該按鈕本身的範圍是 x 0..119、y 190..210,因此 60, 200 是它的中心。
+click,60,200,client,left,,,"the frame button -- ""frame width: 120"" must become 260 and the button must relabel to ""Use narrow frame"" (VERIFIED 2026-09-09 in p30-ios-final-20260908-234732.png: all three -- the number, the label and the width of the blue rectangle)",ios
 sleep,,,,,,500000,let the layout settle,ios

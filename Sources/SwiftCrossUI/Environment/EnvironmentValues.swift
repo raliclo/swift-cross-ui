@@ -361,6 +361,29 @@ extension EnvironmentValues {
     /// pressing Enter/Return).
     @Entry public var onSubmit: (@MainActor @Sendable () -> Void)?
 
+    /// The action a scroll container should run when the user pulls to refresh.
+    ///
+    /// In the environment rather than on ``ScrollView`` because `.refreshable`
+    /// is applied to whatever is inside the scroll view, exactly as SwiftUI
+    /// spells it -- `List { ... }.refreshable { ... }` puts the modifier on the
+    /// list, and the container that has to grow the control is its ancestor.
+    ///
+    /// Unlike ``onSubmit`` it does NOT chain. Two nested `.refreshable`s in
+    /// SwiftUI give the inner scroll view the inner action, not both; a scroll
+    /// view running an ancestor's refresh as well would refresh things the user
+    /// cannot see.
+    ///
+    /// scroll container 在使用者下拉重新整理時應執行的動作。
+    ///
+    /// 放在 environment 而非 ``ScrollView`` 上,因為 `.refreshable` 是套用在捲動視圖**內部**的東西上,
+    /// 這與 SwiftUI 的寫法完全一致——`List { ... }.refreshable { ... }` 是把 modifier 加在 list 上,
+    /// 而必須長出那個控制項的容器是它的祖先。
+    ///
+    /// 與 ``onSubmit`` 不同,它**不**串接。SwiftUI 中兩層巢狀的 `.refreshable` 會讓內層捲動視圖取得
+    /// 內層的動作,而不是兩者都執行;一個連祖先的 refresh 也一併執行的捲動視圖,會去重新整理使用者
+    /// 看不到的東西。
+    @Entry public var onRefresh: (@MainActor @Sendable () -> Void)?
+
     /// The scale factor of the current window.
     @Entry public var windowScaleFactor: Double = 1
 

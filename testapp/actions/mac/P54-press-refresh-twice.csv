@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P54 on macOS: press the Refresh affordance twice and read the counter back.
+#
+# origin=frame. Window 720x648 points, capture 1440x1296 px -- scale 2. The
+# button's own extent in the capture is x 30..145, y 72..100 px, so its centre is
+# pixel (87, 86), which is point (43, 43).
+#
+# Pressed TWICE, not once. `refreshes: 1` could be reached by a control that
+# fires on being created as well as by one the user pressed; `refreshes: 2` with
+# rows reaching 10 could not.
+#
+# The button does not move between the presses. It is an NSScrollView FLOATING
+# subview, so the rows a refresh adds scroll underneath it rather than pushing
+# it anywhere -- which is also why the second coordinate is the same as the
+# first.
+#
+# P54 在 macOS 上:按兩次 Refresh,再把計數器讀回來。
+#
+# origin=frame。視窗 720x648 點,擷圖 1440x1296 像素——scale 2。該按鈕在擷圖中的範圍是
+# x 30..145、y 72..100 像素,因此其中心為像素 (87, 86),即點 (43, 43)。
+#
+# 按**兩次**而非一次。`refreshes: 1` 既可能來自一個「被建立時就觸發」的控制項,也可能來自使用者按下;
+# 而 `refreshes: 2` 加上列數達到 10,則不可能是前者。
+#
+# 兩次按下之間該按鈕不會移動。它是 NSScrollView 的**浮動**子 view,因此重新整理所新增的那些列會從
+# 它底下捲過去,而不是把它推到別處——這也正是第二個座標與第一個相同的原因。
+sleep,,,,,,1000000,let P54 render,macos
+click,43,43,frame,left,,,"Refresh -- refreshes must become 1 and the rows must reach 8",macos
+sleep,,,,,,600000,let the rows rebuild,macos
+click,43,43,frame,left,,,"Refresh again -- refreshes must become 2 and the rows must reach 10",macos
+sleep,,,,,,800000,settle before the photograph,macos
