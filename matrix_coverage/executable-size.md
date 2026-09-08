@@ -7,6 +7,84 @@ column contains commas.
 `executable-size.csv2` 記錄每一支測試 app 在各平台、各 backend 下建置出來的大小。請以 `csv2`
 讀寫——它有兩列表頭，且備註欄含有逗號。
 
+This page is hand-written. **Nothing generates it** — verified 2026-09-08 with
+`git grep -n 'executable-size\.md'`, which finds only prose references in
+`matrix_coverage/README.md`, `testapp/README.md`, `testapp/P45.swift` and
+`testapp/P46.swift`, and no script that writes it. `coverage.zsh` writes
+`coverage.md` and `coverage-matrix.csv2` and never touches this file. Edit it by
+hand; `matrix_coverage/README.md` said the opposite until it was corrected the
+same day.
+
+本頁是手寫的。**沒有任何東西會產生它**——2026-09-08 以 `git grep -n 'executable-size\.md'` 查證：
+只找得到 `matrix_coverage/README.md`、`testapp/README.md`、`testapp/P45.swift` 與
+`testapp/P46.swift` 中的文字引用，沒有任何腳本寫入它。`coverage.zsh` 只寫 `coverage.md`，從不碰
+本檔。請手動編輯；`matrix_coverage/README.md` 在同日被更正之前的說法正好相反。
+
+## 2026-09-08: every Windows row in the CSV is stale by about 27.5 MB
+
+`894e485f` removed the SwiftSyntax dependency from the SwiftCrossUI target on
+2026-09-08. **Every `windows_gtk4_bytes` and `windows_winui_bytes` value in
+`executable-size.csv2` was measured before that commit, and is therefore about
+27.5 MB too large.** So is every figure derived from them further down this page:
+the averages table, the 3.15x ratio, the 115.8 MB WinUI premium.
+
+**The rows are deliberately not edited.** They were true when measured, and
+correcting them is not an edit but a measurement — what would make them true
+again is a full rebuild of every app on both Windows backends, and a fresh sweep
+of `stat -c %s` over the results. Until that runs, read both Windows columns as
+"before `894e485f`". Subtracting 27.5 MB on paper would produce numbers nobody
+measured, which is worse than a row with a known date on it.
+
+The file has **49 records**. Re-derive with:
+
+```zsh
+csv2 -r -i matrix_coverage/executable-size.csv2 | grep -c .
+```
+
+(The "48 rows" in the averages section below is older still — it is the count as
+of 2026-09-04, and is left there with its own date.)
+
+**`P50` has no row in this CSV.** Checked 2026-09-08 with:
+
+```zsh
+csv2 -r -i matrix_coverage/executable-size.csv2 | cut -d, -f1 | grep -x P50
+```
+
+which matches nothing; the highest-numbered rows present are `P44` and `P46`.
+P50's post-removal numbers live in "The SwiftSyntax removal" below and nowhere
+else, so they are the only Windows figures on this page that postdate the commit.
+
+**Only Windows was re-measured.** Upstream's removal is unconditional, so the
+`linux_gtk4` column is very likely stale in the same direction — but nobody has
+measured it, and "likely" is not a number, so those rows are left unannotated
+rather than adjusted by arithmetic. The Android columns have an earlier version
+of the same problem: they were measured 2026-09-04, and the conditional Android
+removal described further down landed 2026-09-05, so they predate that too.
+
+## 2026-09-08：CSV 中每一列 Windows 數字都偏大約 27.5 MB
+
+`894e485f` 於 2026-09-08 把 SwiftSyntax 依賴從 SwiftCrossUI target 移除。**`executable-size.csv2`
+中每一個 `windows_gtk4_bytes` 與 `windows_winui_bytes` 的值都量於該 commit 之前，因此都偏大約
+27.5 MB。** 本頁下方由它們推導出的每一個數字也一樣：平均值表、3.15 倍的比值、115.8 MB 的 WinUI 溢價。
+
+**那些列刻意不修改。** 它們在量測當下是真的；而「更正」它們並不是一次編輯，而是一次量測——真正能讓
+它們重新為真的，是在兩個 Windows backend 上把每一支 app 全部重建，再重跑一遍 `stat -c %s`。在那之前，
+請把兩欄 Windows 數字讀作「`894e485f` 之前」。在紙上減掉 27.5 MB 只會產出沒有人量過的數字，那比一列
+標著日期的舊資料更糟。
+
+本檔有 **49 筆**紀錄，以 `csv2 -r -i matrix_coverage/executable-size.csv2 | grep -c .` 重新計算。
+（下方平均值段落中的「48 列」更舊，那是 2026-09-04 當時的計數，連同其日期一併保留。）
+
+**`P50` 在本 CSV 中沒有任何一列**——2026-09-08 以
+`csv2 -r -i matrix_coverage/executable-size.csv2 | cut -d, -f1 | grep -x P50` 查證，沒有任何符合；
+目前編號最大的列是 `P44` 與 `P46`。P50 移除後的數字只存在於下方〈The SwiftSyntax removal〉一節，
+別無他處，因此它們是本頁唯一晚於該 commit 的 Windows 數字。
+
+**只有 Windows 被重新量過。** 上游的移除是無條件的，因此 `linux_gtk4` 欄極可能朝同一方向失準——但
+沒有人量過它，而「極可能」不是一個數字，所以那些列寧可不加註，也不以算術調整。Android 各欄則有同一
+問題的較早版本：它們量於 2026-09-04，而下方所述的 Android 條件式移除是 2026-09-05 才落地的，因此
+它們也早於那次移除。
+
 ## Why Windows has two columns
 
 On Windows the same app builds against either backend, and the two differ by
@@ -15,6 +93,25 @@ measured reason `compile.zsh -gtk4` removes the WinUI products from the package
 rather than only redirecting `DefaultBackend` — with the products still listed
 the build compiled 73 extra WinUI steps and produced a 342 MB binary while
 still running on GtkBackend, which is the switch without either saving.
+
+**Kept as written, and its numbers are no longer current — annotated 2026-09-08.**
+The paragraph above was measured 2026-09-02 and was correct that day; it is the
+record of what the SwiftSyntax dependency cost. Measured again on `P50`
+2026-09-08, after `894e485f` removed that dependency, the same two backends are
+roughly **30 MB** for `-gtk4` and **152 MB** for WinUI — a ratio of about **5x**,
+not 3x. Method and controls are in "The SwiftSyntax removal" below.
+
+**The conclusion it draws survives, and gets stronger.** The measured reason for
+removing the WinUI products rather than only redirecting `DefaultBackend` was the
+size gap, and the gap widened in multiple: the fixed 27.5 MB came off both
+binaries, so `-gtk4` fell 47.6% while WinUI fell 15.3%, taking the ratio from
+about 3x to about 5x. The **absolute** gap is unchanged, which is the same fact
+stated the other way: 179,471,360 − 57,853,952 = 121,617,408 bytes before,
+151,951,360 − 30,322,176 = 121,629,184 after, a difference of 11,776 bytes
+across 122 MB. The same fixed amount left both sides, so only the denominator
+moved. Nothing in the argument ever depended on the multiple being 3 — it
+depended on there being ~122 MB of WinUI product not worth compiling, and there
+still is.
 
 The executables are named `<app>-gtk4.exe` and `<app>-WinUI.exe` for the same
 reason a column is not enough: a capture matched by window title photographed
@@ -25,6 +122,19 @@ Windows 之所以有兩欄：同一支 app 可對兩個 backend 各建一次，�
 56 MB，WinUI 約 178 MB。那個差距正是 `compile.zsh -gtk4` 選擇把 WinUI product 整組移出套件、而非
 僅重新導向 `DefaultBackend` 的實測理由：product 仍列出時，建置多編了 73 個 WinUI 步驟、產生 342 MB
 的執行檔，而 app 仍跑在 GtkBackend 上——切換達成了，兩項效益一項也沒有。
+
+**上段照原樣保留，而其數字已非現況——2026-09-08 加註。** 那一段量於 2026-09-02，當天正確；它是
+「SwiftSyntax 依賴值多少」的紀錄。2026-09-08 在 `894e485f` 移除該依賴之後於 `P50` 上重新量測：同樣
+這兩個 backend 約為 **30 MB**（`-gtk4`）與 **152 MB**（WinUI），比值約 **5 倍**而非 3 倍。方法與對照
+組見下方〈The SwiftSyntax removal〉。
+
+**該段所下的結論仍然成立，而且更強。** 移除 WinUI product、而非僅重新導向 `DefaultBackend` 的實測
+理由正是那個體積差距，而該差距在**倍數**上變大了：固定的 27.5 MB 從兩支執行檔上各減去一次，於是
+`-gtk4` 少了 47.6%、WinUI 少了 15.3%，比值由約 3 倍升為約 5 倍。**絕對**差距則不變，那是同一件事的
+另一種說法：移除前 179,471,360 − 57,853,952 = 121,617,408 位元組，移除後
+151,951,360 − 30,322,176 = 121,629,184，在 122 MB 上相差 11,776 位元組。同樣的固定量從兩邊各離開
+一次，因此動的只有分母。這項論證從未依賴「3」這個倍數——它依賴的是「有約 122 MB 的 WinUI product
+不值得編譯」，而那依然成立。
 
 ## Regenerating the numbers
 
@@ -291,6 +401,169 @@ section。bundler 現在會從打包的副本中移除它，使 **APK 降到 169
 ——但**把該依賴改為「非 Android 才加入」毫無改變**：2026-09-04 試過，符號與 169 MB 都一模一樣，
 因此它是循另一條路徑進來的，最可能是 macro plugin。那次編輯已被撤回，而不是留在原處、看起來像是
 一項節省。
+
+## The SwiftSyntax removal, measured on Windows (2026-09-08)
+
+`894e485f` — *"Package: take upstream's SwiftSyntax removal, which supersedes our
+conditional"* — brings in upstream's `fixes #753`, which drops the SwiftSyntax
+dependency from the SwiftCrossUI target. This side had removed it only when
+`SCUI_ANDROID` was set, as the section above records; upstream's removal is
+**unconditional**, so our conditional became dead code and went with it.
+
+Measured on `P50` on 2026-09-08, immediately before and after, on the same host
+with the same toolchain:
+
+| backend | before (bytes) | after (bytes) | delta | `SwiftSyntax` strings |
+|---|---:|---:|---:|---:|
+| Win-gtk4 | 57,853,952 | 30,322,176 | −27,531,776 (−47.6%) | 119,624 → 0 |
+| Win-WinUI | 179,471,360 | 151,951,360 | −27,520,000 (−15.3%) | 119,624 → 0 |
+
+Method, per binary:
+
+```zsh
+strings -a testapp/output/P50-gtk4.exe | grep -c SwiftSyntax
+wc -c < testapp/output/P50-gtk4.exe
+```
+
+**The saving is a fixed 27.5 MB, and that is the whole finding.** Both binaries
+lost within 12 KB of the same amount — 27,531,776 against 27,520,000 — so the
+percentage is not a property of the change at all. It is a property of how big
+the binary already was. One edit reads as a 47.6% win on `-gtk4` and a 15.3% win
+on WinUI because the denominators differ by 3x, not because it did more for one
+than the other. **Quote the megabytes; the percentage describes the
+denominator.** It is also why the fixed cost hurt `-gtk4` far more in proportion:
+27.5 MB is nearly half a GTK binary and a seventh of a WinUI one.
+
+**Both controls were run on both binaries, before and after**, because a size
+measurement with no control is just a number.
+
+| control | expected | got |
+|---|---|---|
+| positive — `strings -a … \| grep -c SwiftCrossUI` | unchanged, large | 50,372 → 50,966 (gtk4); 50,904 (WinUI, after) |
+| negative — `strings -a … \| grep -c ZZZNotARealFramework` | 0 | 0 in every case |
+
+The **positive** control says these are still the same applications, and not a
+truncated or failed build: a binary that shrank because it silently failed to
+link would have lost the SwiftCrossUI symbols along with everything else. The
+**negative** control says `strings` was actually reading the files, so the `0` in
+the SwiftSyntax column is a real absence rather than a command line that matched
+nothing because it read nothing.
+
+**A note on the exact "after" bytes, recorded 2026-09-08, and what it turned out
+to measure.** Re-deriving from the files on disk later the same day gives
+30,325,248 and 151,955,456 — 3,072 and 4,096 bytes **larger** than the "after"
+column above. This was first written up as an unexplained discrepancy, on the
+grounds that the binaries' mtimes matched the builds that were measured. They did
+not: the mtimes are 11:41:43 and 11:45:56, which are the builds that finished at
+11:41:46 and 11:46:00, two builds *later* than the ones measured at 11:04 and
+11:33.
+
+What happened in between is the fix in `6ec976b2` — `BackendFeatures.Popovers`
+added to the conformance lists of GtkBackend, WinUIBackend, UIKitBackend and
+AndroidBackend. **So the 3,072 and 4,096 bytes are the cost of declaring one
+protocol conformance**, witness tables and all, and are worth knowing on their
+own: about 3–4 KB per conformance per binary.
+
+The lesson is the one this file keeps relearning. A size measurement is only
+comparable to another taken from the same tree, and "the mtime looks right" is
+not that check — the file had been overwritten twice since. Record the commit,
+not just the time.
+
+The measurement of record stays the matched 11:04/11:33 pair, because a before
+and an after have to share a method. It does not touch the finding either way: 4
+KB against a 27.5 MB delta is 0.015% of it. Re-derive with:
+
+```zsh
+for f in testapp/output/P50-gtk4.exe testapp/output/P50-WinUI.exe; do
+    printf '%s\t%s\n' "$f" "$(wc -c < "$f")"
+done
+```
+
+### The trap: after a `Package.swift` change the build can do nothing at all
+
+llbuild caches the build plan, so a manifest change can yield a build that
+recompiles nothing and a binary that is byte-identical — which reads as *"the
+edit had no effect"* and invites reverting a correct change. That is exactly what
+happened to the first Android attempt recorded above, and the reverted paragraph
+is kept there because the wrong conclusion is the instructive part.
+
+**`build.db` and the plan yaml must both be deleted.** Clearing SwiftPM's
+manifest cache alone is not enough. **In this tree the plan file is
+`release.yaml`, not `debug.yaml`** — these are release builds. Both paths
+verified present 2026-09-08:
+
+```zsh
+rm -f testapp/.compile-work-gtk4/TestApps/.build/build.db \
+      testapp/.compile-work-gtk4/TestApps/.build/release.yaml
+rm -f testapp/.compile-work-winui/TestApps/.build/build.db \
+      testapp/.compile-work-winui/TestApps/.build/release.yaml
+```
+
+Re-derive which file yours is rather than copying either name — the plan is named
+for the configuration, so a debug tree really does have `debug.yaml`:
+
+```zsh
+ls testapp/.compile-work-gtk4/TestApps/.build/*.yaml
+```
+
+`plugin-tools.yaml` sits beside it, is the same size, and is a **different**
+plan — it is the one for building plugins, not the app. Deleting only that one
+looks like the right action and clears nothing that matters.
+
+## SwiftSyntax 的移除，於 Windows 上量測（2026-09-08）
+
+`894e485f`——*"Package: take upstream's SwiftSyntax removal, which supersedes our
+conditional"*——引入上游的 `fixes #753`，將 SwiftSyntax 依賴自 SwiftCrossUI target 移除。本側原本
+只在 `SCUI_ANDROID` 設定時才移除（見上一節），而上游的移除是**無條件的**，因此我們的條件式成了
+死碼，一併移除。
+
+2026-09-08 於 `P50` 上，在同一台主機、同一套 toolchain、移除前後緊接著量測（數字見上方英文表格）：
+Win-gtk4 由 57,853,952 降為 30,322,176 位元組（−27,531,776，−47.6%），Win-WinUI 由 179,471,360
+降為 151,951,360（−27,520,000，−15.3%），兩者的 `SwiftSyntax` 字串數皆由 119,624 降為 0。方法為
+每支執行檔各跑 `strings -a <exe> | grep -c SwiftSyntax` 與 `wc -c < <exe>`。
+
+**節省下來的是固定的 27.5 MB，而這就是整個發現。** 兩支執行檔減少的量相差不到 12 KB
+（27,531,776 對 27,520,000），因此那個百分比根本不是這項變更的性質，而是「該執行檔原本有多大」的
+性質。同一次編輯在 `-gtk4` 上讀作 47.6% 的勝利、在 WinUI 上讀作 15.3%，原因是分母相差 3 倍，而不是
+它對其中一邊做得比較多。**請引用 MB，百分比描述的是分母。** 這也正是固定成本對 `-gtk4` 的比例傷害
+遠大於 WinUI 的原因：27.5 MB 接近一支 GTK 執行檔的一半，卻只是一支 WinUI 執行檔的七分之一。
+
+**兩組對照都在移除前後、於兩支執行檔上各跑過**，因為沒有對照組的體積量測只是一個數字。正對照
+`grep -c SwiftCrossUI` 維持在約五萬（gtk4 由 50,372 變 50,966；WinUI 移除後為 50,904），說明這仍是
+同樣的應用程式，而不是被截斷或連結失敗的建置——若是靜默連結失敗而變小，SwiftCrossUI 的符號也會
+一起消失。負對照 `grep -c ZZZNotARealFramework` 在每一種情況下都是 0，說明 `strings` 確實讀到了
+檔案，因此 SwiftSyntax 欄的那個 `0` 是真正的「不存在」，而不是「什麼都沒讀到所以什麼都沒配到」。
+
+**關於「移除後」的精確位元組數，2026-09-08 記錄，以及它後來被查出量到了什麼。** 同日稍晚自磁碟上的
+檔案重新推導，得到 30,325,248 與 151,955,456——比上表的「移除後」各**大** 3,072 與 4,096 位元組。
+這件事最初被寫成「原因不明的出入」，理由是那些檔案的 mtime 與被量測的建置相符。**它們並不相符**：
+mtime 是 11:41:43 與 11:45:56，對應的是 11:41:46 與 11:46:00 結束的那兩次建置，比 11:04 與 11:33
+所量測的那兩次晚了整整兩輪。
+
+中間發生的事就是 `6ec976b2` 那個修正——把 `BackendFeatures.Popovers` 加回 GtkBackend、
+WinUIBackend、UIKitBackend 與 AndroidBackend 的 conformance 清單。**因此那 3,072 與 4,096 位元組，
+正是「宣告一項 protocol conformance」的代價**，連同 witness table 在內；這個數字本身就值得知道：
+每個 binary、每項 conformance 約 3–4 KB。
+
+而這裡的教訓，正是本檔一再重新學會的那一條。一項大小量測，只能與**取自同一棵樹**的另一項相比，而
+「mtime 看起來對」並不是那個檢查——該檔案在其間已經被覆寫過兩次。**要記的是 commit，不是時間。**
+
+作為記錄的量測仍採 11:04／11:33 那組配對，因為「之前」與「之後」必須共用同一套方法。無論如何它都
+不影響結論：4 KB 的分歧相對於 27.5 MB 的差額只有 0.015%。
+
+### 陷阱：改過 `Package.swift` 之後，建置可能什麼也沒做
+
+llbuild 會快取建置計畫，因此一次 manifest 變更可能產出「什麼都沒重編、執行檔逐位元組相同」的建置
+——那讀起來像是*「這次編輯沒有效果」*，並誘使你撤回一個正確的變更。上一節所記的第一次 Android 嘗試
+正是如此，而那段被撤回的文字保留在該處，因為錯誤的結論才是有教育意義的部分。
+
+**`build.db` 與計畫 yaml 兩者都必須刪除**，只清 SwiftPM 的 manifest 快取並不足夠。**在本樹中該計畫
+檔是 `release.yaml`，不是 `debug.yaml`**——這些是 release 建置。兩條路徑均於 2026-09-08 查證存在：
+`testapp/.compile-work-gtk4/TestApps/.build/` 與 `testapp/.compile-work-winui/TestApps/.build/`。
+請以 `ls testapp/.compile-work-gtk4/TestApps/.build/*.yaml` 重新確認自己這一棵樹是哪一個，而不要直接
+照抄任一名稱——計畫檔是依組態命名的，debug 樹確實會是 `debug.yaml`。`plugin-tools.yaml` 就在它旁邊、
+大小相同，卻是**另一份**計畫（用於建置 plugin，不是 app）；只刪那一個看起來像是做對了，實際上沒有
+清掉任何要緊的東西。
 
 ## Empty cells and `n/a`
 

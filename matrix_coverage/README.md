@@ -10,11 +10,21 @@ is the thing to get right before touching anything here.
 | `coverage.md` | Pn × platform, **generated** from `results.csv2` | **no — it is overwritten** |
 | `coverage-matrix.csv2` | area × platform feature coverage, **hand-maintained** | **yes — nothing generates it** |
 | `executable-size.csv2` | one row per app, 8 byte columns | see below |
-| `executable-size.md` | rendered from it | **no — it is overwritten** |
+| `executable-size.md` | hand-written prose about it | **yes — nothing generates it** |
 
 Corrected 2026-09-07: this said "four files" while discussing the two
 `executable-size` ones further down, so the table and the prose disagreed about
 what was in the directory they both describe.
+
+Corrected 2026-09-08: the `executable-size.md` row read *"rendered from it |
+**no — it is overwritten**"*, which was false and was the more expensive of the
+two errors — it told the reader that hand-editing the file was wasted work, when
+in fact hand-editing is the **only** way it is ever updated. Verified with
+`git grep -n 'executable-size\.md'`: the only hits are prose references in this
+file, `testapp/README.md`, `testapp/P45.swift` and `testapp/P46.swift`, and no
+script writes it. `coverage.zsh` writes `coverage.md` (line 93, `md=`) and a
+temporary pivot, and nothing else. It is prose *about* `executable-size.csv2`,
+not a rendering of it.
 
 `coverage.md` and `coverage-matrix.csv2` are both "the coverage matrix" in
 conversation and they are not the same table. `coverage.md` answers *has this
@@ -169,7 +179,17 @@ of which was wrong in a first draft and would have put a false row in the table:
 
 ## 本資料夾說明
 
-四個檔案，而**其中兩個是編輯規則完全相反的矩陣**——這是動任何東西之前必須先弄清楚的事（對照上表）。
+六個檔案，而**其中兩個是編輯規則完全相反的矩陣**——這是動任何東西之前必須先弄清楚的事（對照上表）。
+（2026-09-08 更正：此處原寫「四個檔案」，與上表所列的六個不符；英文段落已於 2026-09-07 更正為
+「Six files」，中文卻漏改，於是同一份檔案的兩個語言版本互相矛盾。）
+
+**2026-09-08 更正：`executable-size.md` 是手寫的，沒有任何東西會產生它。** 上表該列原本寫的是
+「rendered from it｜**no — it is overwritten**」，那是錯的，而且是兩處錯誤中代價較高的一個——它告訴
+讀者「手動編輯這個檔案是白費工夫」，然而手動編輯其實是它**唯一**的更新方式。以
+`git grep -n 'executable-size\.md'` 查證：所有命中都只是本檔、`testapp/README.md`、
+`testapp/P45.swift` 與 `testapp/P46.swift` 中的文字引用，沒有任何腳本寫入它。`coverage.zsh` 寫的是
+`coverage.md`（第 93 行的 `md=`）與一個暫存 pivot，別無其他。它是**關於** `executable-size.csv2` 的
+說明文字，而不是由它算繪出來的產物。
 
 `coverage.md` 與 `coverage-matrix.csv2` 在口語中都叫「coverage matrix」，但它們不是同一張表。前者
 回答「某個 app 是否曾在某平台上跑過、何時跑的」；後者回答「某項功能是否已被涵蓋、由哪一支測試
