@@ -94,15 +94,68 @@ final class RootScrollHost: UIScrollView {
     ///
     /// 捲動視圖無法觸及負座標，因此呼叫端會把內容平移 `-origin`，再捲動所剩下的那個正座標矩形。
     private func contentBounds(of view: UIView) -> CGRect {
-        var box = CGRect(origin: .zero, size: view.bounds.size)
+        // A container's own frame is not content, and counting it is what made
+        // this shift things that were already in view.
+        //
+        // Measured on P17, 2026-09-08: the box came out at origin (-241, -45)
+        // size 872x889 in a 390-wide host, and the leftmost extent was a
+        // `BaseViewWidget` at x = -241 -- exactly (390 - 872) / 2, an 872-wide
+        // container centred. Its left 241 points draw nothing; the text inside
+        // it starts further in, at x = 0 on screen. Shifting by -box.minX then
+        // moved that text from 0 to 241, and the window showed 241 points of
+        // blank followed by clipped content.
+        //
+        // So a view that draws nothing contributes only its children. A view
+        // that draws contributes its own bounds as well, which is what keeps a
+        // label, an image or a filled shape reachable when it overflows.
+        //
+        // 容器自身的框不是內容,而把它算進去,正是使本位移推動「原本已經在畫面內」之物的原因。
+        //
+        // 2026-09-08 於 P17 上實測:在 390 寬的 host 中,box 算出來是 origin (-241, -45)、
+        // size 872x889,而最左的延伸是一個位於 x = -241 的 `BaseViewWidget`——恰好是
+        // (390 - 872) / 2,也就是一個 872 寬的容器被置中。它左側的 241 點什麼都不畫;其內部的文字
+        // 從更右邊開始,在螢幕上正好是 x = 0。接著以 -box.minX 位移,就把那些文字從 0 推到了 241,
+        // 於是視窗顯示出 241 點的空白,後面接著被裁切的內容。
+        //
+        // 因此,一個什麼都不畫的 view 只貢獻它的子節點。一個會畫東西的 view 則額外貢獻它自己的框,
+        // 而那正是「當一個標籤、圖片或填色形狀溢出時仍然構得到」的保證。
+        var box = draws(view) ? CGRect(origin: .zero, size: view.bounds.size) : .null
         for subview in view.subviews where !subview.isHidden {
             let sub = contentBounds(of: subview).offsetBy(
                 dx: subview.frame.minX,
                 dy: subview.frame.minY
             )
-            box = box.union(sub)
+            box = box.isNull ? sub : (sub.isNull ? box : box.union(sub))
         }
-        return box
+        // A view with no drawing and no children still occupies space in a
+        // stack, and returning `.null` upward would make its parent forget it.
+        // 一個既不繪製、也沒有子節點的 view,在 stack 中仍然佔據空間;若向上回傳 `.null`,
+        // 它的父層就會忘記它的存在。
+        return box.isNull ? CGRect(origin: .zero, size: view.bounds.size) : box
+    }
+
+    /// Whether this view puts anything on screen itself, as opposed to only
+    /// positioning children.
+    ///
+    /// Deliberately conservative: anything that is not a plain, transparent
+    /// container counts as drawing. Being wrong in that direction leaves the
+    /// old behaviour -- content shifted further than necessary, which is
+    /// visible -- while being wrong the other way would make real content
+    /// unreachable, which is not.
+    ///
+    /// 這個 view 自己是否會在畫面上放置任何東西,而不只是為子節點定位。
+    ///
+    /// 刻意保守:凡不是「單純且透明的容器」者,一律視為會繪製。往這個方向判斷錯了,結果是維持舊行為
+    /// ——內容被推得比必要更遠,而那是看得見的;往另一個方向錯了,則會讓真實內容變得構不到,而那不是。
+    private func draws(_ view: UIView) -> Bool {
+        if view.layer.contents != nil { return true }
+        if let colour = view.backgroundColor, colour.cgColor.alpha > 0 { return true }
+        // `BaseViewWidget` is this backend's plain container; everything else
+        // -- labels, images, controls, and any UIKit view a backend wraps --
+        // is assumed to draw.
+        // `BaseViewWidget` 是本 backend 的單純容器;其餘一切——標籤、圖片、控制項,以及任何被 backend
+        // 包裝的 UIKit view——都假定會繪製。
+        return !(view is BaseViewWidget)
     }
 
     func host(_ view: UIView) {
