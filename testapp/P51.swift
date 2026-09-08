@@ -2,7 +2,7 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
-// P48 is the first picture of the six views that landed on 2026-09-08.
+// P51 is the first picture of the six views that landed on 2026-09-08.
 //
 // `GroupBox`, `ControlGroup`, `Grid`/`GridRow`, `LazyVGrid`, `GridItem` and
 // `LabelStyle` were committed in 0e2a0ffa and 6cefefb9. Both commits were
@@ -31,7 +31,7 @@ import SwiftCrossUI
 //   - the `GridItem.adaptive` row is captioned as the KNOWN DIVERGENCE it is,
 //     so the picture records the defect instead of being read as a pass.
 //
-// P48 是 2026-09-08 落地的那六個 view 的第一張圖。
+// P51 是 2026-09-08 落地的那六個 view 的第一張圖。
 //
 // `GroupBox`、`ControlGroup`、`Grid`/`GridRow`、`LazyVGrid`、`GridItem` 與 `LabelStyle` 由
 // 0e2a0ffa 與 6cefefb9 提交。兩個 commit 都以「建置回傳 rc=0」以及「驅動 P44 確認沒有退步」來檢查。
@@ -54,14 +54,14 @@ import SwiftCrossUI
 //   - `GridItem.adaptive` 那一列被標註為它本來的樣子——**已知的分歧**——好讓這張圖記錄下該缺陷，
 //     而不是被讀成一次通過。
 
-enum P48Diagnostics {
+enum P51Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
 
     static func write(_ message: String) {
         guard isEnabled else { return }
-        print("[P48] \(message)")
-        let data = Data("P48 \(Date()) \(message)\n".utf8)
+        print("[P51] \(message)")
+        let data = Data("P51 \(Date()) \(message)\n".utf8)
         // SCUI_DEBUG_EVENTS_DIR when a launcher sets it, so every app's log lands
         // in one place; unset, the launch directory exactly as before. The
         // contract is documented in testapp/test_support/test_common.zsh.
@@ -69,7 +69,7 @@ enum P48Diagnostics {
         // 目錄，行為與過去完全相同。該約定記載於 testapp/test_support/test_common.zsh。
         let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
             ?? FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("p48-debug-events.log")
+            .appendingPathComponent("p51-debug-events.log")
         if let handle = try? FileHandle(forWritingTo: url) {
             _ = try? handle.seekToEnd()
             try? handle.write(contentsOf: data)
@@ -82,17 +82,17 @@ enum P48Diagnostics {
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P48 ready for grid, box and label-style checks")
+        write("RENDER COMPLETE -- P51 ready for grid, box and label-style checks")
     }
 }
 
 @main
 @HotReloadable
-struct P48ContainersApp: App {
+struct P51ContainersApp: App {
     var body: some Scene {
-        WindowGroup("P48 containers and grids") {
+        WindowGroup("P51 containers and grids") {
             #hotReloadable {
-                P48RootView()
+                P51RootView()
             }
         }
         // Wide and tall on purpose, and laid out in TWO columns, because every
@@ -117,7 +117,7 @@ struct P48ContainersApp: App {
     }
 }
 
-struct P48RootView: View {
+struct P51RootView: View {
     /// How many cells the three-column `LazyVGrid` holds. The ``ControlGroup``
     /// buttons move it, which is what makes a press visible in the picture as
     /// well as in the log: 9 cells is 3 full rows, 12 is 4.
@@ -144,9 +144,9 @@ struct P48RootView: View {
         GridItem(.fixed(96), spacing: 8),
     ]
 
-    /// One adaptive column. See ``P48AdaptiveSection`` for why there is only one
+    /// One adaptive column. See ``P51AdaptiveSection`` for why there is only one
     /// and why that is the point.
-    /// 單一個 adaptive 欄。為何只有一個、以及為何那正是重點，見 ``P48AdaptiveSection``。
+    /// 單一個 adaptive 欄。為何只有一個、以及為何那正是重點，見 ``P51AdaptiveSection``。
     static let adaptiveColumns = [GridItem(.adaptive(minimum: 96), spacing: 8)]
 
     var rowCount: Int {
@@ -156,7 +156,7 @@ struct P48RootView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("P48: GroupBox, ControlGroup, Grid, LazyVGrid, GridItem, LabelStyle")
+                Text("P51: GroupBox, ControlGroup, Grid, LazyVGrid, GridItem, LabelStyle")
                     .font(.system(size: 19))
                 Text("backend -> \(String(describing: DefaultBackend.self))")
                 Text("Six views committed 2026-09-08. Nothing else in the P-suite draws them,")
@@ -168,22 +168,22 @@ struct P48RootView: View {
 
                 HStack(alignment: .top, spacing: 28) {
                     VStack(alignment: .leading, spacing: 16) {
-                        P48LazyVGridSection(cellCount: cellCount, rowCount: rowCount)
-                        P48GridSection()
-                        P48AdaptiveSection()
+                        P51LazyVGridSection(cellCount: cellCount, rowCount: rowCount)
+                        P51GridSection()
+                        P51AdaptiveSection()
                     }
 
                     VStack(alignment: .leading, spacing: 16) {
-                        P48GroupBoxSection()
-                        P48ControlGroupSection(cellCount: $cellCount, rowCount: rowCount)
-                        P48LabelStyleSection()
+                        P51GroupBoxSection()
+                        P51ControlGroupSection(cellCount: $cellCount, rowCount: rowCount)
+                        P51LabelStyleSection()
                     }
                 }
             }
             .padding(16)
         }
         .onAppear {
-            P48Diagnostics.renderComplete()
+            P51Diagnostics.renderComplete()
         }
     }
 }
@@ -217,7 +217,7 @@ struct P48RootView: View {
 ///
 /// 三欄時，每一列橫著讀是 `col 1  col 2  col 3`，且每一列都重複一次。一欄時，沿頁面**向下**讀成
 /// `col 1`、`col 2`、`col 3`、`col 1`……。因此這種失敗是「看到的」，而不是靠量寬度「推算出來的」。
-struct P48LazyVGridSection: View {
+struct P51LazyVGridSection: View {
     var cellCount: Int
     var rowCount: Int
 
@@ -234,14 +234,14 @@ struct P48LazyVGridSection: View {
             Text("若它們改為沿頁面向下排列，代表網格塌縮成一欄——那是失敗。")
                 .font(.system(size: 11))
 
-            LazyVGrid(columns: P48RootView.threeColumns, alignment: .leading, spacing: 8) {
+            LazyVGrid(columns: P51RootView.threeColumns, alignment: .leading, spacing: 8) {
                 // `Array(1...n)` rather than the range itself, matching P4,
                 // P11, P15 and P34. Every `ForEach` over a range in this suite
                 // is written that way.
                 // 使用 `Array(1...n)` 而非 range 本身，與 P4、P11、P15、P34 一致。本套件中每一個
                 // 走訪 range 的 `ForEach` 都是這麼寫的。
                 ForEach(Array(1...cellCount), id: \.self) { index in
-                    P48Cell(index: index, column: (index - 1) % 3 + 1)
+                    P51Cell(index: index, column: (index - 1) % 3 + 1)
                 }
             }
 
@@ -277,7 +277,7 @@ struct P48LazyVGridSection: View {
 /// 外觀下都留在視窗背景上。
 ///
 /// 橫排三個、以紅綠藍描邊的方塊，是三個數得出來的欄；直排九個、循環著同樣三種顏色的方塊，則不是。
-struct P48Cell: View {
+struct P51Cell: View {
     var index: Int
     var column: Int
 
@@ -328,7 +328,7 @@ struct P48Cell: View {
 /// 每個標籤都做成一樣寬，產出的截圖讀起來會是「這裡的欄是對齊的」——而那是本實作並未提出的主張。
 ///
 /// 因此參差不齊的第三列才是誠實的圖，並且被標註為預期結果，而不是留給讀者去當成 bug 記下來。
-struct P48GridSection: View {
+struct P51GridSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("2. Grid + GridRow -- 3 x 3")
@@ -344,19 +344,19 @@ struct P48GridSection: View {
 
             Grid(alignment: .topLeading, horizontalSpacing: 10, verticalSpacing: 8) {
                 GridRow {
-                    P48GridRowCell(text: "R1C1")
-                    P48GridRowCell(text: "R1C2")
-                    P48GridRowCell(text: "R1C3")
+                    P51GridRowCell(text: "R1C1")
+                    P51GridRowCell(text: "R1C2")
+                    P51GridRowCell(text: "R1C3")
                 }
                 GridRow {
-                    P48GridRowCell(text: "R2C1")
-                    P48GridRowCell(text: "R2C2")
-                    P48GridRowCell(text: "R2C3")
+                    P51GridRowCell(text: "R2C1")
+                    P51GridRowCell(text: "R2C2")
+                    P51GridRowCell(text: "R2C3")
                 }
                 GridRow {
-                    P48GridRowCell(text: "R3C1 wide")
-                    P48GridRowCell(text: "R3C2")
-                    P48GridRowCell(text: "R3C3")
+                    P51GridRowCell(text: "R3C1 wide")
+                    P51GridRowCell(text: "R3C2")
+                    P51GridRowCell(text: "R3C3")
                 }
             }
         }
@@ -365,15 +365,15 @@ struct P48GridSection: View {
 
 /// A `Grid` cell: outlined, and sized by its text rather than to a fixed width.
 ///
-/// No `frame` here, unlike ``P48Cell``. A fixed width would hide exactly the
+/// No `frame` here, unlike ``P51Cell``. A fixed width would hide exactly the
 /// thing the wide cell is there to show, by making every cell agree on a width
 /// that `Grid` never negotiated.
 ///
 /// `Grid` 的一個儲存格：描邊，且尺寸由其文字決定而非固定寬度。
 ///
-/// 此處與 ``P48Cell`` 不同，沒有 `frame`。固定寬度會把「加寬那一格所要展示的東西」正好藏起來——
+/// 此處與 ``P51Cell`` 不同，沒有 `frame`。固定寬度會把「加寬那一格所要展示的東西」正好藏起來——
 /// 它會讓每一格都同意一個 `Grid` 從未協商過的寬度。
-struct P48GridRowCell: View {
+struct P51GridRowCell: View {
     var text: String
 
     var body: some View {
@@ -414,7 +414,7 @@ struct P48GridRowCell: View {
 /// 分歧，是任何看著這支 app 的人都不會遇到的分歧。
 ///
 /// 四格，因此「預期為錯」的那張圖，是四個方塊垂直堆疊——而 SwiftUI 會把那四個橫著排開。
-struct P48AdaptiveSection: View {
+struct P51AdaptiveSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("6. GridItem.adaptive -- KNOWN DIVERGENCE, not a pass")
@@ -430,9 +430,9 @@ struct P48AdaptiveSection: View {
             Text("記載於 Views/GridItem.swift 的 Size.adaptive 上。四個方塊垂直堆疊即為預期。")
                 .font(.system(size: 11))
 
-            LazyVGrid(columns: P48RootView.adaptiveColumns, alignment: .leading, spacing: 6) {
+            LazyVGrid(columns: P51RootView.adaptiveColumns, alignment: .leading, spacing: 6) {
                 ForEach(Array(1...4), id: \.self) { index in
-                    P48AdaptiveCell(index: index)
+                    P51AdaptiveCell(index: index)
                 }
             }
         }
@@ -442,7 +442,7 @@ struct P48AdaptiveSection: View {
 /// An adaptive-row cell, outlined in orange so it cannot be mistaken for one of
 /// the three-column grid's red/green/blue cells further up the page.
 /// adaptive 那一列的儲存格，以橘色描邊，如此便不會與頁面上方那個三欄網格的紅／綠／藍儲存格混淆。
-struct P48AdaptiveCell: View {
+struct P51AdaptiveCell: View {
     var index: Int
 
     var body: some View {
@@ -478,7 +478,7 @@ struct P48AdaptiveCell: View {
 ///
 /// 這是畫面上唯一的**灰色**方框——網格儲存格是紅、綠、藍與紫色，adaptive 儲存格是橘色，而 label
 /// 樣式那一列刻意不加框——因此上述兩種結果都不會被誤算到鄰居的 frame 頭上。
-struct P48GroupBoxSection: View {
+struct P51GroupBoxSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("3. GroupBox")
@@ -508,7 +508,7 @@ struct P48GroupBoxSection: View {
 /// A `ControlGroup` of three buttons, and the only thing on this screen a click
 /// can reach.
 ///
-/// **These buttons are what makes P48 assertable.** Everything else here is
+/// **These buttons are what makes P51 assertable.** Everything else here is
 /// drawn at startup, and a line written at startup proves that the app launched,
 /// not that anything was clicked -- which is why most Windows action files carry
 /// no `# expect:` marker at all. Measured 2026-09-08, and re-derivable:
@@ -528,7 +528,7 @@ struct P48GroupBoxSection: View {
 ///
 /// 一組三個按鈕的 `ControlGroup`，也是本畫面上唯一點得到的東西。
 ///
-/// **這些按鈕正是使 P48 可被斷言的原因。** 這裡其他的一切都是啟動時畫出來的，而啟動時寫下的一行
+/// **這些按鈕正是使 P51 可被斷言的原因。** 這裡其他的一切都是啟動時畫出來的，而啟動時寫下的一行
 /// 只能證明 app 啟動了，不能證明有東西被點到——這正是多數 Windows action 檔根本沒有 `# expect:`
 /// 標記的理由。2026-09-08 實測，且可重新推導：
 ///
@@ -542,7 +542,7 @@ struct P48GroupBoxSection: View {
 /// `ControlGroup` 的 body 刻意把內容放進 `HStack(spacing: 0)`，所以三個按鈕是**緊貼**的。那正是
 /// 區分「一個 ControlGroup」與「一般 HStack 裡的三個按鈕」的視覺特徵，而且值得在圖上檢查：
 /// 它們之間若有間隙，代表該間距沒有被套用。
-struct P48ControlGroupSection: View {
+struct P51ControlGroupSection: View {
     @Binding var cellCount: Int
     var rowCount: Int
 
@@ -554,7 +554,7 @@ struct P48ControlGroupSection: View {
             ControlGroup("LazyVGrid cell count") {
                 Button("Add 3") {
                     cellCount += 3
-                    P48Diagnostics.write(
+                    P51Diagnostics.write(
                         "controlgroup add -- lazyvgrid cells: \(cellCount)"
                     )
                 }
@@ -567,13 +567,13 @@ struct P48ControlGroupSection: View {
                     // LazyVGrid 會產生的畫面——這支 app 不可以有辦法走到一個「它自己分不出是不是
                     // 失敗」的狀態。
                     cellCount = max(3, cellCount - 3)
-                    P48Diagnostics.write(
+                    P51Diagnostics.write(
                         "controlgroup remove -- lazyvgrid cells: \(cellCount)"
                     )
                 }
                 Button("Reset to 9") {
                     cellCount = 9
-                    P48Diagnostics.write(
+                    P51Diagnostics.write(
                         "controlgroup reset -- lazyvgrid cells: \(cellCount)"
                     )
                 }
@@ -653,7 +653,7 @@ struct P48ControlGroupSection: View {
 ///
 /// 因此此處若有一欄的圖示是**空的**，那是 `LabelStyle` 的失敗，絕不是缺少符號；而一欄讀作
 /// 「Sync Refresh」則是符號退回文字，不是標題重複了。
-struct P48LabelStyleSection: View {
+struct P51LabelStyleSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("5. LabelStyle -- one Label, four styles")
