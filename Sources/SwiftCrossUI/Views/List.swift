@@ -223,9 +223,35 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
         }.reduce(0, +)
         let minimumWidth =
             (childResults.map(\.size.width).max() ?? 0) + Double(horizontalBasePadding)
+        // A backend that scrolls its own list gets a VIEWPORT; one that does
+        // not keeps the full content height, which is the behaviour it has.
+        //
+        // Conformance-checked rather than required, so converting the five
+        // backends one at a time is possible. A backend that ignored a viewport
+        // height would clip instead of scrolling, and missing rows read as a
+        // layout fault rather than as an unimplemented method -- which is why
+        // this asks rather than assumes.
+        //
+        // Measured before and after on P57: the window went from 9306 px at 50
+        // rows, and taller than the display past 200, to the proposal.
+        //
+        // 會自行捲動清單的 backend 得到的是一個**視口**;不會的則保留完整內容高度,也就是它現有的行為。
+        //
+        // 此處採 conformance 檢查而非要求實作,好讓五個 backend 能一次轉換一個。一個忽略視口高度的
+        // backend 會變成裁切而不是捲動,而少掉的列讀起來像是版面問題、不像一個未實作的方法——
+        // 這正是此處「詢問」而非「假定」的理由。
+        //
+        // 在 P57 上前後量測過:視窗高度從「50 列時 9306 像素、超過 200 列高過顯示器」變成那份提案。
+        let reportedHeight: Double
+        if backend is any BackendFeatures.ScrollingLists, let proposed = proposedSize.height {
+            reportedHeight = min(height, proposed)
+        } else {
+            reportedHeight = height
+        }
+
         let size = ViewSize(
             max(proposedSize.width ?? minimumWidth, minimumWidth),
-            height
+            reportedHeight
         )
 
         return ViewLayoutResult(
@@ -252,6 +278,21 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                 LayoutSystem.roundSize(height) + verticalBasePadding
             }
         )
+
+        // Before setSize, so the list knows its viewport when it is resized to
+        // it rather than after. A scroll view told its height second briefly
+        // lays out against the old one, which on a long list is a visible jump.
+        // 放在 setSize 之前,好讓這個清單在「被調整成該尺寸」時就已經知道它的視口,而不是之後才知道。
+        // 一個「後得知自己高度」的捲動視圖會先對著舊值排版一次,而在長清單上那是看得見的跳動。
+        if let scrollingBackend = backend as? any BackendFeatures.ScrollingLists {
+            func setViewport<B: BackendFeatures.ScrollingLists>(backend: B) {
+                backend.setViewportHeight(
+                    ofSelectableListView: widget as! B.Widget,
+                    to: LayoutSystem.roundSize(layout.size.height)
+                )
+            }
+            setViewport(backend: scrollingBackend)
+        }
 
         backend.setSize(of: widget, to: layout.size.vector)
         backend.setSelectionHandler(forSelectableListView: widget) { selectedIndex in

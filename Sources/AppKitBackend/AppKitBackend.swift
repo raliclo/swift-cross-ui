@@ -2033,9 +2033,35 @@ final class NSCustomApplicationDelegate: NSObject, NSApplicationDelegate {
 
 /// A scroll view with scrolling gestures disabled. Used as a dummy scroll view to
 /// allow us to properly set the width of NSTableView (had some weird issues).
+/// A scroll view that hands the wheel to whatever encloses it.
+///
+/// Correct while the framework lays a list out at the height of all its rows:
+/// the list has no viewport, so scrolling it means scrolling its container.
+///
+/// `BackendFeatures.ScrollingLists` reverses that for backends that implement
+/// it, and `setViewportHeight` re-enables the scroller. The forwarding stays
+/// because `createSelectableListView` is shared with the path that has no
+/// viewport -- a list on a backend that has not been converted still needs it.
+///
+/// 一個把滾輪交給外層的捲動視圖。
+///
+/// 在「框架把清單排版成所有列的總高度」的前提下,這是正確的:該清單沒有視口,因此捲動它就意味著
+/// 捲動它的容器。
+///
+/// `BackendFeatures.ScrollingLists` 為有實作它的 backend 反轉了這件事,而 `setViewportHeight`
+/// 會重新啟用捲軸。轉交行為仍然保留,因為 `createSelectableListView` 與那條沒有視口的路徑是共用的
+/// ——一個位於尚未轉換之 backend 上的清單,仍然需要它。
 final class NSDisabledScrollView: NSScrollView {
+    /// Set by `setViewportHeight` once this list owns its own scrolling.
+    /// 一旦這個清單擁有自己的捲動,便由 `setViewportHeight` 設定。
+    var ownsScrolling = false
+
     override func scrollWheel(with event: NSEvent) {
-        self.nextResponder?.scrollWheel(with: event)
+        if ownsScrolling {
+            super.scrollWheel(with: event)
+        } else {
+            self.nextResponder?.scrollWheel(with: event)
+        }
     }
 }
 
