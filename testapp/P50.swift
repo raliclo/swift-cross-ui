@@ -564,6 +564,29 @@ struct P50Panel: View {
                 counter += 1
                 P50Diagnostics.write("popover counter \(counter)")
             }
+            .onAppear {
+                // Debug-only scaffolding for the reported symptom "the text
+                // shifted after pressing press me".
+                //
+                // **An action file cannot press this button on AppKit**: the
+                // synthesiser posts events into the main window, and a click at
+                // the panel's coordinates lands on the window beneath it, which
+                // light-dismisses the popover instead. Measured 2026-09-10 --
+                // the log read "popover alpha dismissed" where it should have
+                // read "popover counter 1". So the press is driven from inside
+                // the app, which changes the same state by the same path.
+                //
+                // 為那個回報症狀「按下 press me 之後文字位移」而設的、僅在 debug 下生效的鷹架。
+                //
+                // **在 AppKit 上動作檔按不到這顆按鈕**：synthesiser 把事件投遞到主視窗，而落在面板
+                // 座標上的點擊會打到它下方的視窗，於是 popover 被 light dismiss 而不是被按下。
+                // 2026-09-10 實測——log 讀到的是「popover alpha dismissed」，而它本應是
+                // 「popover counter 1」。因此改由 app 內部驅動這次按下，走的是同一條路、改的是同一個狀態。
+                if CommandLine.arguments.contains("--auto-press"), counter == 0 {
+                    counter += 1
+                    P50Diagnostics.write("popover counter \(counter) (auto)")
+                }
+            }
             Button("close this panel") {
                 isPresented = false
                 P50Diagnostics.write("popover \(logName) closed programmatically")

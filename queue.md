@@ -11,7 +11,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **1. iOS 動作檔的點擊沒抵達按鈕** — 已解決。按鈕實際在 (55, 218) 點,先前的 y=100 是從縮圖估的。runner 現在會說出它解析到哪個視窗與正規化後的座標
 - [x] **2. 動作檔無法定址第二個視窗** — 已解決。新增 `focus` 動作(第十欄 `target` 放標題),並補上 AppKit 缺少的 `currentWindowIdentity()`——沒有它,geometry 永遠不會重新量測
 - [x] **1. P50 macOS:「Show title B」按了標題沒變** — 已修。狀態改變若不改變尺寸,就不會有人告訴視窗 preference 變了;新增 `onWindowChromeChange` 通道
-- [ ] **2. P50 macOS:面板內容溢出自己的邊界** — 已定位(2026-09-10):主視窗**不會**位移;錯位的是面板本身——文字與兩顆按鈕畫得比 `presentationBackground` 寬,兩側都溢出,左緣被切。量到 `updatePopover` 收到 284x154、content view 284x154、其子 view 亦 284x154——尺寸一致,是**文字畫得比版面算給它的寬度更寬**。證據:`testapp/output/evidence/p50-panel-content-overflows-2026-09-10.png`
+- [ ] **2. P50 macOS:「按下 press me 後文字位移」尚未重現** — 2026-09-10 以像素差異量測:開啟面板只改變 popover 那塊,遮掉它之後 `getbbox()` 為 `None`(主視窗零位移);面板開著把計數 0→1 只改變標籤與計數那一行。**先前「內容溢出、左緣被切」的判定是錯的**,那是我裁切邊界造成的假象。需要你補充:位移是發生在面板內、還是主視窗?按下時面板有沒有關閉?
 - [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
 - [ ] **3. P32:按下 Toggle Label 之後看不到帶標籤的按鈕**
