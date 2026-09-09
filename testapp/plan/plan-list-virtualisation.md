@@ -135,7 +135,15 @@ requirement's shape is derived rather than guessed.
    視口大小的框、讓 `List` 不再加總。檢驗:P57 在 400 列時視窗高度不變。
    *此階段不加任何 protocol requirement,因此不會有建置空窗。*
 3. **依需求建立列。** 上述第四節。檢驗:P57 在 10,000 列時仍然開得起來。
-4. **推廣到其餘四個 backend**,requirement 與六個實作同一個 commit。
+4. **推廣到其餘四個 backend。** UIKit ✅ 與 Android ✅ 已完成(`c88e3994`)。
+   **此處學到的一件事值得先寫下來:phase 2 的檢驗標準在這兩個平台上都不適用。** iOS 與 Android 的
+   視窗就是螢幕,因此「視窗有沒有停止長大」在那裡不可能失敗,也因此什麼都證明不了——iOS 上 50 列與
+   400 列的截圖都是 2556 像素,而即使把改動刪掉,它們仍然會是 2556 像素。能分辨的是那個 table 自身的
+   框相對於它的內容,於行程內量測:UIKit 的 frame.h 在 50/400/2000 列時皆為 382 而 content.h 為
+   2200/17600/88000,Android 的 layoutParams.height 在同樣三個列數時皆為 1181 像素。
+   剩下 GTK 與 WinUI,見第 5 點。
+   *A phase's acceptance test does not travel with the phase. The one that worked on AppKit
+   cannot fail on either platform whose window is the screen.*
 5. **GTK 與 WinUI 由 Windows 端驗證**,檔頭寫明該先查什麼。
 
 Phase 2 是刻意排在第一位的:它把「框架擁有版面」這個決定在**一個** backend 上推翻,而那是整件事
