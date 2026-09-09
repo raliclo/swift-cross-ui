@@ -19,7 +19,12 @@ import AppKit
 /// 項目放進那一列。placement 真正影響的是**順序**:leading 在前，接著 automatic、primary，最後
 /// trailing。那是對意圖的一種解讀，而非對它的實作;此處寫明，而不是留給人從結果去推測。
 extension AppKitBackend: BackendFeatures.Toolbars {
-    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem]) {
+    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem], title _: String?) {
+        // `title` is ignored here on purpose. This platform puts a heading in
+        // the window's title bar, and `setTitle(ofWindow:to:)` has already put
+        // it there -- writing it again would be the same string twice.
+        // 此處刻意忽略 `title`。這個平台把標題放在視窗的標題列中,而 `setTitle(ofWindow:to:)` 已經把它
+        // 放進去了——再寫一次只會是同一個字串出現兩次。
         guard !items.isEmpty else {
             window.toolbar = nil
             return
@@ -137,7 +142,20 @@ final class ToolbarActionTarget: NSObject {
         self.action = action
     }
 
-    @objc func fire() {
-        MainActor.assumeIsolated { action() }
+    // `@MainActor` on the method rather than `assumeIsolated` inside it.
+    //
+    // Under Swift 6 the closure form is `sending 'self' risks causing data
+    // races`: `assumeIsolated` takes a closure that captures `self`, and the
+    // compiler cannot see that an NSToolbarItem's action only ever arrives on
+    // the main thread. Saying so directly is both true and checkable, and
+    // `@objc` and `@MainActor` compose.
+    //
+    // 把 `@MainActor` 加在方法上,而不是在方法內部使用 `assumeIsolated`。
+    //
+    // 在 Swift 6 之下,閉包的寫法會得到 `sending 'self' risks causing data races`:
+    // `assumeIsolated` 收的閉包會捕捉 `self`,而編譯器看不出「NSToolbarItem 的 action 只會從主執行緒
+    // 抵達」。直接把這件事說出來既為真、也可被檢查,而 `@objc` 與 `@MainActor` 可以並存。
+    @MainActor @objc func fire() {
+        action()
     }
 }

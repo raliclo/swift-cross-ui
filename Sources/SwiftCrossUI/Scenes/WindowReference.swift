@@ -57,6 +57,8 @@ final class WindowReference<SceneType: WindowingScene> {
     /// closure, which has no identity to compare -- see its note.
     /// 上一次交給 backend 的內容,如此未變更的工具列便不會在每次版面計算時被重建。`ToolbarItem`
     /// 的 `==` 會忽略 action closure,因為它沒有可比較的身分——見其說明。
+    private var lastAppliedNavigationTitle: String??
+
     private var lastAppliedToolbar: [ToolbarItem] = []
 
     /// - Parameters:
@@ -422,12 +424,24 @@ final class WindowReference<SceneType: WindowingScene> {
         if let toolbarBackend = backend as? any BackendFeatures.Toolbars {
             func setToolbar<NewBackend: BackendFeatures.Toolbars>(backend: NewBackend) {
                 let items = finalContentResult.preferences.toolbarItems
-                guard items != lastAppliedToolbar else { return }
+                // The CONTENT's title, not `title` above. That one is
+                // `navigationTitle ?? scene.title` and a backend cannot tell the
+                // two apart; this one is nil when the content asked for nothing,
+                // which is what lets iOS and Android decide whether a bar
+                // appears at all.
+                // 這是**內容**的標題,不是上方的 `title`。那一個是 `navigationTitle ?? scene.title`,
+                // backend 分辨不出兩者;而這一個在內容什麼都沒要求時為 nil,那正是讓 iOS 與 Android
+                // 能夠決定「那條列究竟該不該出現」的東西。
+                let heading = finalContentResult.preferences.navigationTitle
+                guard items != lastAppliedToolbar || heading != lastAppliedNavigationTitle
+                else { return }
                 backend.setToolbar(
                     ofWindow: window as! NewBackend.Window,
-                    to: items
+                    to: items,
+                    title: heading
                 )
                 lastAppliedToolbar = items
+                lastAppliedNavigationTitle = heading
             }
             setToolbar(backend: toolbarBackend)
         }

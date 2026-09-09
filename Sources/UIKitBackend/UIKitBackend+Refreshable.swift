@@ -18,21 +18,42 @@ final class RefreshActionTarget: NSObject {
         self.action = action
     }
 
-    @objc func fire(_ sender: UIRefreshControl) {
-        MainActor.assumeIsolated {
-            action()
-            // Ended here rather than left for the app. `.refreshable`'s action
-            // is synchronous in this framework, so by the time it returns the
-            // work it represents is done -- a spinner still turning after that
-            // is telling the user about a fetch that finished.
-            // 在此結束,而不是留給 app 處理。本框架中 `.refreshable` 的動作是同步的,因此當它返回時,
-            // 它所代表的工作已經完成——那之後仍在轉的圈,是在向使用者描述一次已經結束的抓取。
-            sender.endRefreshing()
-        }
+    // `@MainActor` on the method rather than `assumeIsolated` inside it. Under
+    // Swift 6 the closure form is `sending 'self' risks causing data races`:
+    // `assumeIsolated` takes a closure that captures `self`, and the compiler
+    // cannot see that a UIKit target-action only ever arrives on the main
+    // thread. `@objc` and `@MainActor` compose, so saying it directly is both
+    // true and checkable.
+    //
+    // 把 `@MainActor` 加在方法上,而不是在方法內部使用 `assumeIsolated`。在 Swift 6 之下,閉包的寫法
+    // 會得到 `sending 'self' risks causing data races`:`assumeIsolated` 收的閉包會捕捉 `self`,而
+    // 編譯器看不出「UIKit 的 target-action 只會從主執行緒抵達」。`@objc` 與 `@MainActor` 可以並存,
+    // 因此直接說出這件事既為真、也可被檢查。
+    @MainActor @objc func fire(_ sender: UIRefreshControl) {
+        action()
+        // Ended here rather than left for the app. `.refreshable`'s action is
+        // synchronous in this framework, so by the time it returns the work it
+        // represents is done -- a spinner still turning after that is telling
+        // the user about a fetch that finished.
+        // 在此結束,而不是留給 app 處理。本框架中 `.refreshable` 的動作是同步的,因此當它返回時,
+        // 它所代表的工作已經完成——那之後仍在轉的圈,是在向使用者描述一次已經結束的抓取。
+        sender.endRefreshing()
     }
 }
 
-private var refreshTargetKey: UInt8 = 0
+// `nonisolated(unsafe)` because only this variable's ADDRESS is ever used.
+//
+// `objc_setAssociatedObject` takes a key by pointer identity; the `UInt8` it
+// points at is never read and never written. Swift 6 cannot see that and calls
+// a mutable global not concurrency-safe, which is the right default and the
+// wrong answer here -- there is no value to race over.
+//
+// `nonisolated(unsafe)`,因為被用到的只有這個變數的**位址**。
+//
+// `objc_setAssociatedObject` 是以指標identity 取用 key 的;它所指向的那個 `UInt8` 從未被讀取、
+// 也從未被寫入。Swift 6 看不出這一點,於是把一個可變的全域變數判定為非並行安全——那是正確的預設值,
+// 但在此處是錯的答案:根本沒有任何值可供競爭。
+private nonisolated(unsafe) var refreshTargetKey: UInt8 = 0
 
 extension UIKitBackend {
     public func setRefreshHandler(

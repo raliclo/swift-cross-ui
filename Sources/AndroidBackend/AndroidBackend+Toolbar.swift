@@ -42,8 +42,13 @@ import SwiftJava
 /// 這一列與內容位於同一段水平空間中,而 P53 宣告三個項目,因此實務上不會溢出——但那是一項差異,
 /// 在此說明的代價,低於某個人拿二十個項目去發現它。
 extension AndroidBackend: BackendFeatures.Toolbars {
-    public func setToolbar(ofWindow window: Window, to items: [SwiftCrossUI.ToolbarItem]) {
+    public func setToolbar(
+        ofWindow window: Window,
+        to items: [SwiftCrossUI.ToolbarItem],
+        title: String?
+    ) {
         guard let stack = Self.rootStack else { return }
+        setNavigationTitle(title, in: stack)
 
         guard !items.isEmpty else {
             if let bar = Self.toolbar {
@@ -110,5 +115,69 @@ extension AndroidBackend: BackendFeatures.Toolbars {
             case .primary: 2
             case .trailing: 3
         }
+    }
+
+    /// The heading `.navigationTitle` asked for, as a row above the content.
+    ///
+    /// A `TextView` in the root stack rather than an ActionBar. This backend's
+    /// activity has no ActionBar to set a title on -- `setTitle(ofWindow:to:)`
+    /// was an empty `TODO(stackotter)` for exactly that reason -- and the root
+    /// stack is where `.toolbar` and `.refreshable` already put their rows, so
+    /// a third one costs nothing new.
+    ///
+    /// Index 0, so a title sits above a toolbar row rather than beside it. That
+    /// is the order Android's own app bar uses, and it is also the order that
+    /// survives one of the two being removed.
+    ///
+    /// `.navigationTitle` 所要求的標題,以一列的形式置於內容之上。
+    ///
+    /// 使用 root stack 中的一個 `TextView`,而不是 ActionBar。本 backend 的 activity 沒有可供設定標題的
+    /// ActionBar——`setTitle(ofWindow:to:)` 之所以是一個空的 `TODO(stackotter)`,正是這個原因——而
+    /// root stack 已經是 `.toolbar` 與 `.refreshable` 擺放它們那幾列的地方,因此第三列不會多付出任何代價。
+    ///
+    /// 放在索引 0,好讓標題位於工具列那一列**之上**而非其旁。那是 Android 自家 app bar 所採用的順序,
+    /// 也是「兩者之一被移除時仍然成立」的順序。
+    private func setNavigationTitle(_ title: String?, in stack: AndroidKit.LinearLayout) {
+        let existing = Self.navigationTitleView(in: stack)
+        guard let title, !title.isEmpty else {
+            if let existing { stack.removeView(existing) }
+            return
+        }
+
+        if let existing {
+            existing.setText(Self.charSequence(from: title))
+            return
+        }
+
+        let label = AndroidKit.TextView(Self.activity, environment: Self.env)
+        label.setText(Self.charSequence(from: title))
+        label.setTag(JavaString(Self.navigationTitleTag, environment: Self.env)
+            .as(JavaObject.self))
+        stack.addView(label, 0)
+    }
+
+    /// Found by tag, not by position or by text.
+    ///
+    /// Position moves as the toolbar and refresh rows come and go, and text is
+    /// the title itself -- searching for it would fail the moment the title
+    /// changed, which is the only time this lookup runs.
+    ///
+    /// 以 tag 尋找,而不是以位置或以文字。
+    ///
+    /// 位置會隨著工具列與 refresh 那兩列的來去而改變,而文字就是標題本身——以它搜尋,會在標題改變的
+    /// 那一刻失效,而那正是這個查找唯一會執行的時機。
+    private static let navigationTitleTag = "scui.navigationTitle"
+
+    private static func navigationTitleView(
+        in stack: AndroidKit.LinearLayout
+    ) -> AndroidKit.TextView? {
+        for index in 0..<stack.getChildCount() {
+            guard let child = stack.getChildAt(index),
+                let label = child.as(AndroidKit.TextView.self),
+                label.getTag()?.toString() == navigationTitleTag
+            else { continue }
+            return label
+        }
+        return nil
     }
 }

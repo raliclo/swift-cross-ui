@@ -32,7 +32,12 @@ import WinAppSDK
 /// 成立的正對照）記於 ``CustomWindow/toolbar``。若日後的 swift-winui 確實提供了 `CommandBar`，
 /// 該對應就會獲得真正的「主要／次要」區分，而本註解即是說明屆時要改什麼的那份備註。
 extension WinUIBackend {
-    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem]) {
+    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem], title _: String?) {
+        // `title` is ignored here on purpose. This platform puts a heading in
+        // the window's title bar, and `setTitle(ofWindow:to:)` has already put
+        // it there -- writing it again would be the same string twice.
+        // 此處刻意忽略 `title`。這個平台把標題放在視窗的標題列中,而 `setTitle(ofWindow:to:)` 已經把它
+        // 放進去了——再寫一次只會是同一個字串出現兩次。
         // Rebuilt wholesale rather than diffed. `ToolbarItem`'s `==` covers
         // everything visible precisely so a caller can decide whether to call
         // this at all; deciding again here would duplicate that judgement in a

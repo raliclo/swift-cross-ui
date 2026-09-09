@@ -25,6 +25,26 @@ extension BackendFeatures {
         ///
         /// 空陣列即為移除。此處使用同一個呼叫而非另立一個,因為「一個不再要求工具列的 view」與
         /// 「一個從未要求過的 view」處於相同狀態,而給它們兩條路徑,等於邀請其中一條被遺忘。
-        func setToolbar(ofWindow window: Window, to items: [ToolbarItem])
+        /// - Parameter title: What ``View/navigationTitle(_:)`` asked for, or
+        ///   `nil` when the content asked for nothing.
+        ///
+        ///   **Not the same as the window's title, and the difference is the
+        ///   whole reason this parameter exists.** `setTitle(ofWindow:to:)`
+        ///   receives `preferences.navigationTitle ?? scene.title`, so a backend
+        ///   reading it cannot tell "the content asked for this heading" from
+        ///   "this is what the window is called". On macOS, GTK and Windows that
+        ///   does not matter -- both belong in the title bar. On iOS and Android
+        ///   it decides whether a bar appears at all, and showing every app's
+        ///   scene title as a heading would put chrome on forty apps that never
+        ///   asked for one.
+        ///
+        /// - Parameter title:``View/navigationTitle(_:)`` 所要求的內容,或在內容什麼都沒要求時為 `nil`。
+        ///
+        ///   **這與視窗的標題不是同一件事,而那個差別正是這個參數存在的全部理由。**
+        ///   `setTitle(ofWindow:to:)` 收到的是 `preferences.navigationTitle ?? scene.title`,因此讀取它的
+        ///   backend 無法分辨「內容要求了這個標題」與「這個視窗就叫這個名字」。在 macOS、GTK 與 Windows 上
+        ///   那沒有差別——兩者都屬於標題列。而在 iOS 與 Android 上,它決定了那條列究竟該不該出現,
+        ///   而把每一支 app 的 scene 標題都當成標題顯示,等於替四十支從未要求過外框的 app 加上外框。
+        func setToolbar(ofWindow window: Window, to items: [ToolbarItem], title: String?)
     }
 }

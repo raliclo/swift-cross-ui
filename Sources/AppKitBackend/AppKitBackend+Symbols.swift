@@ -108,7 +108,7 @@ extension AppKitBackend {
 
         return tinted(
             configured,
-            with: environment.suggestedForegroundColor.resolve(in: environment).nsColor
+            with: AppKitBackend.resolvedForegroundColor(environment)
         )
     }
 

@@ -1278,10 +1278,64 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         paragraphStyle.lineSpacing = 0
 
         return [
-            .foregroundColor: environment.suggestedForegroundColor.resolve(in: environment).nsColor,
+            .foregroundColor: Self.resolvedForegroundColor(environment),
             .font: font(for: resolvedFont),
             .paragraphStyle: paragraphStyle,
         ]
+    }
+
+    /// The colour to paint with: what the application asked for, or the
+    /// platform's own label colour when it asked for nothing.
+    ///
+    /// **Not `environment.suggestedForegroundColor`.** That property is never
+    /// `nil` -- it is `foregroundColor ?? colorScheme.defaultForegroundColor` --
+    /// so obeying it unconditionally collapses "the application chose a colour"
+    /// and "the application chose nothing" into one value, and the second case
+    /// then paints plain black or white. Its own documentation says so and
+    /// names `UIKitBackend.attributedString` as the shape to copy; this is that
+    /// shape.
+    ///
+    /// What plain white costs, measured on P55 in dark mode: 47,539 pixels of
+    /// (255, 255, 255) where `NSColor.labelColor` is white at 85%. The number
+    /// is the visible part. The part that does not show in one screenshot is
+    /// that `labelColor` carries secondary, disabled and increased-contrast
+    /// variants, and a hardcoded white has none of them -- so an app that
+    /// never sets a foreground colour ignores the user's accessibility
+    /// settings and nothing reports it.
+    ///
+    /// 要拿來繪製的顏色:應用程式所要求的顏色,或在它什麼都沒要求時,該平台自己的 label 色。
+    ///
+    /// **不是 `environment.suggestedForegroundColor`。** 那個屬性永遠不會是 `nil`——它是
+    /// `foregroundColor ?? colorScheme.defaultForegroundColor`——因此無條件照用它,等於把
+    /// 「應用程式選了一個顏色」與「應用程式什麼都沒選」壓成同一個值,而後者接著會畫成純黑或純白。
+    /// 它自己的文件就是這麼說的,並指名 `UIKitBackend.attributedString` 是該仿效的形狀;此處就是那個形狀。
+    ///
+    /// 純白的代價,在 P55 的深色模式下實測:47,539 個 (255, 255, 255) 像素,而 `NSColor.labelColor`
+    /// 是 85% 的白。那個數字是看得見的部分。單一張截圖看不見的部分是:`labelColor` 帶有次要、停用與
+    /// 「提高對比」等變體,而一個寫死的白色一個都沒有——因此一支從不設定前景色的 app 會忽略使用者的
+    /// 無障礙設定,而且沒有任何東西會回報這件事。
+    static func resolvedForegroundColor(_ environment: EnvironmentValues) -> NSColor {
+        if let chosen = environment.foregroundColor {
+            return chosen.resolve(in: environment).nsColor
+        }
+        // Disabled goes to the platform's own disabled colour, and this half is
+        // the reported symptom rather than a refinement of it: a disabled
+        // control stayed as bright as an enabled one, because the colour was
+        // decided without consulting `isEnabled` at all.
+        //
+        // `Buttons.swift` already dims a BORDERED button's label on desktop,
+        // which is why buttons looked right and text fields, date pickers and
+        // checkboxes did not. Only the default path is dimmed here: an
+        // application that chose a colour keeps it, because overriding an
+        // explicit choice is a different decision from filling in a missing one.
+        //
+        // 停用狀態走該平台自己的 disabled 顏色,而這一半正是被回報的症狀本身、不是它的補強:一個被停用
+        // 的控制項與啟用中的一樣亮,因為決定顏色時根本沒有查看過 `isEnabled`。
+        //
+        // `Buttons.swift` 已經會在桌面上把**bordered**按鈕的標籤調暗,而這正是為什麼按鈕看起來是對的、
+        // 而文字欄位、日期選擇器與核取方塊不是。此處只調暗預設路徑:選了顏色的應用程式會保留它,
+        // 因為「覆寫一個明確的選擇」與「補上一個缺失的值」是兩個不同的決定。
+        return environment.isEnabled ? .labelColor : .disabledControlTextColor
     }
 
     static func font(for font: Font.Resolved) -> NSFont {
@@ -1555,7 +1609,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         let datePicker = datePicker as! CustomDatePicker
 
         datePicker.isEnabled = environment.isEnabled
-        datePicker.textColor = environment.suggestedForegroundColor.resolve(in: environment).nsColor
+        datePicker.textColor = Self.resolvedForegroundColor(environment)
 
         // If the time zone is set to autoupdatingCurrent, then the cursor position is reset after
         // every keystroke. Thanks Apple

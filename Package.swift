@@ -846,6 +846,8 @@ let migratedToSwift6: Set<String> = [
     "DefaultBackend",
     "SwiftCrossUIMacrosPlugin",
     "Gtk",
+    "AppKitBackend",
+    "UIKitBackend",
 ]
 
 // A name that matches no target is a typo, and a typo here is silent: the

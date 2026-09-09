@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P55 on macOS: press the styled button twice and read both counters back.
+#
+# origin=frame. Window 640x488 points, capture 1280x976 px -- scale 2. The
+# button's grey rectangle occupies pixels x 38..190, y 408..478, so its centre is
+# pixel (114, 443), which is point (57, 222).
+#
+# Pressed TWICE. A style that recorded once on creation would leave
+# `pressed draws: 1` with `clicks: 0`; two presses giving `clicks: 2` and
+# `pressed draws` above 0 cannot be reached that way.
+#
+# **The colour cannot be the evidence and that is not a limitation of this file.**
+# The button is orange only while held. A click is press-and-release, the capture
+# happens afterwards, and a grey button is what a broken `isPressed` also
+# produces. The counter survives the release; the colour does not.
+#
+# P55 在 macOS 上:按兩次那顆帶樣式的按鈕,再把兩個計數器讀回來。
+#
+# origin=frame。視窗 640x488 點,擷圖 1280x976 像素——scale 2。該按鈕的灰色矩形佔據像素
+# x 38..190、y 408..478,因此其中心為像素 (114, 443),即點 (57, 222)。
+#
+# 按**兩次**。一個「在建立時記錄一次」的 style 會留下 `pressed draws: 1` 而 `clicks: 0`;
+# 兩次按下所得到的 `clicks: 2` 加上大於 0 的 `pressed draws`,走不到那條路上。
+#
+# **顏色無法作為證據,而那不是這份檔案的侷限。** 那顆按鈕只在被按住時是橘色。一次點擊是「按下再放開」,
+# 擷取發生在那之後,而一顆灰色的按鈕正是壞掉的 `isPressed` 同樣會產出的東西。計數會在放開之後存活,
+# 顏色不會。
+sleep,,,,,,1000000,let P55 render,macos
+click,57,222,frame,left,,,"press -- clicks must become 1 and pressed draws must rise above 0",macos
+sleep,,,,,,600000,let the counters redraw,macos
+click,57,222,frame,left,,,"press again -- clicks must become 2",macos
+sleep,,,,,,800000,settle before the photograph,macos
