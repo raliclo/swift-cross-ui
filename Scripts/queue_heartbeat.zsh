@@ -13,10 +13,18 @@
 # and "I no longer remember the queue" read the same from the inside -- neither
 # produces a line of output. See mistakes.md entry 1.
 #
-# WHY NOT CRON. A shell script cannot inject a prompt into a live interactive
-# session; `multissh` is an ssh configuration and reaches the machine, not the
-# session. `/loop` re-enters from inside the session, which is why it is the
-# mechanism this is built for:
+# CRON CAN DO THIS, AND AN EARLIER VERSION OF THIS COMMENT SAID IT COULD NOT.
+# What it said was that a shell script cannot inject a prompt into a live
+# interactive session and that `multissh` reaches the machine but not the
+# session. The second half is false. `multissh` has an exec channel, and
+# `screen -X stuff` writes into a live session's stdin -- both measured
+# 2026-09-09, end to end, in Scripts/session_ping.zsh, which is where that
+# correction lives. The real constraint is that the session must be running
+# inside a multiplexer.
+#
+# `/loop` remains the mechanism for THIS script, for a different reason: it
+# re-enters from inside the session that is doing the work, so the next item is
+# read by the session that has to act on it rather than typed at it.
 #
 #     /loop 20m sh Scripts/queue_heartbeat.zsh and do what it says
 #
@@ -30,8 +38,13 @@
 # 而淡出之後，「佇列已經空了」與「我不記得佇列了」在內部讀起來完全相同——兩者都不會產生任何一行
 # 輸出。見 mistakes.md 第 1 條。
 #
-# 為什麼不用 cron。一支 shell 腳本沒有辦法把提示注入到一個活著的互動式 session 裡；`multissh`
-# 是 ssh 設定，它到得了那台機器，到不了那個 session。能從 session 內部週期性重新進入的是 `/loop`。
+# cron 做得到，而本註解的前一個版本說它做不到。當時寫的是「shell 腳本無法把提示注入活著的互動式
+# session」以及「`multissh` 到得了那台機器、到不了那個 session」——後半是假的。`multissh` 有 exec
+# 通道，而 `screen -X stuff` 會寫進一個活著的 session 的 stdin；兩者都在 2026-09-09 端到端實測過，
+# 而那份更正記在 Scripts/session_ping.zsh 裡。真正的限制是：該 session 必須跑在 multiplexer 之內。
+#
+# 對**這一支**腳本而言，`/loop` 仍然是那個機制，但理由不同：它從「正在做事的那個 session 內部」
+# 重新進入，因此下一個項目是由必須採取行動的那個 session 自己讀到的，而不是被別人打進去的。
 
 set -euo pipefail
 

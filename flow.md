@@ -361,9 +361,13 @@ sh  Scripts/queue_heartbeat.zsh          # 一次心跳:印出下一個未完成
 zsh Scripts/queue_heartbeat.zsh --off    # 關;此後每一次心跳都是一次無成本的 IDLE
 ```
 
-搭配 `/loop` 使用,因為**一支 cron 或 while 迴圈做不到這件事**:shell 腳本無法把提示注入一個活著的
-互動式 session,而 `multissh` 是 ssh 設定——它到得了那台機器,到不了那個 session。`/loop` 是從
-session 內部重新進入的,那才是可行的機制:
+搭配 `/loop` 使用,而**理由不是「cron 做不到」——這句話本頁原本寫過,而它是錯的。** cron 到得了一個
+活著的 session:`multissh` 有 exec 通道,而 `screen -X stuff` 會寫進該 session 的 stdin;兩者都在
+2026-09-09 端到端實測過,工具是 `Scripts/session_ping.zsh`,量到的數字記在 `mistakes.md` 第 1 條。
+真正的限制是那個 session 必須跑在 multiplexer 之內,而今天兩台機器上都沒有這樣的 session。
+
+對**佇列**而言選 `/loop`,是因為它從「正在做事的那個 session 內部」重新進入,因此下一個項目是由
+必須採取行動的那個 session 自己讀到的,而不是被別人打進去的:
 
 ```
 /loop 20m sh Scripts/queue_heartbeat.zsh and do what it says
@@ -378,9 +382,10 @@ session 內部重新進入的,那才是可行的機制:
 The queue lives in `queue.md`, not in the conversation. This is the corrective for
 a mistake that happened three times, not a style preference: a pasted table fades
 with compaction, and once it has, "the queue is empty" and "I no longer remember
-the queue" produce the same output, which is none. Pair it with `/loop`, not cron
--- a shell script cannot inject a prompt into a live session, and multissh reaches
-the machine rather than the session. Tick the box in the same commit as the work.
+the queue" produce the same output, which is none. Pair it with `/loop` because
+that re-enters from inside the session doing the work -- not because cron cannot
+reach a session, which this page previously claimed and which is false. Tick the
+box in the same commit as the work.
 
 ### 3e-0. 提交之前,先跑動作檔就緒檢查
 

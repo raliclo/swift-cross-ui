@@ -16,6 +16,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] #117 phase 4a: UIKit and Android list viewport (`c88e3994`)
 - [x] Review 4: two ScrollViewReaders driven on AppKit and Android (P58, `6c417aaf`)
 - [x] Review 6: parity survey #33 summary row reconciled with its detail row
+- [ ] Remote session ping: needs a multiplexer on the Windows host — MSYS2 there has neither `tmux` nor `screen` (measured 2026-09-09), and sessions must be started as `screen -S claude-<name> claude` for `Scripts/session_ping.zsh` to reach them
 - [ ] #117 phase 5: GTK and WinUI list viewport — sent to Windows 2026-09-09, theirs to verify
 
 ## Q8 note — what was measured before writing any code
