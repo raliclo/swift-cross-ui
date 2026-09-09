@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# CONTROL for #116. Clicks the first styled field and types NOTHING.
+#
+# WHAT IT SEPARATES. After P36-textfieldstyle-recommit.csv runs, the first field
+# shows a single book-like glyph where its "automatic" placeholder had been, and
+# the four fields bound to the same @State still show theirs. That was read as
+# "a character was typed and did not reach the binding".
+#
+# Instrumented, the reading does not survive. probe116.log from that run:
+#   registerSignals connecting changed : 6   (once per Entry -- it IS connected)
+#   changed signal ENTERED             : 0   (GTK never emitted it)
+#   updateTextField                    : 18  (positive control -- the probe works)
+# A GtkEntry emits `changed` whenever its text changes. Connected, never emitted,
+# yet something appeared: the strong reading is that what appeared is NOT text.
+#
+# So: click the same field, send no keys, capture. If the glyph still appears it
+# belongs to FOCUS -- a GtkEntry can show an icon of its own when focused -- and
+# nothing was ever typed, which makes "the character does not reach the binding"
+# a description of an event that did not happen. If the field keeps its
+# placeholder, typing really does put something there and the search moves back
+# to the keystroke.
+#
+# #116 的對照。點擊第一個受樣式的欄位，**完全不輸入**。
+#
+# 它要分開什麼。P36-textfieldstyle-recommit.csv 跑完後，第一個欄位原本顯示 "automatic" placeholder 的
+# 位置變成一個書本狀字符，而綁定同一個 @State 的另外四個欄位仍顯示各自的 placeholder。這被讀成「有一個
+# 字元被輸入，但它沒有抵達 binding」。
+#
+# 插上儀器之後，那個讀法站不住。該次執行的 probe116.log：
+#   registerSignals connecting changed : 6   （每個 Entry 一次——訊號**確實**接上了）
+#   changed signal ENTERED             : 0   （GTK 從未發出）
+#   updateTextField                    : 18  （正對照——探針是會動的）
+# GtkEntry 只要文字改變就會發出 `changed`。既然接上了、卻從未發出，而畫面上又出現了東西，那麼較強的
+# 讀法是：出現的那個東西**不是文字**。
+#
+# 因此：點同一個欄位、不送任何按鍵、擷取。若該字符照樣出現，它就屬於**焦點**——GtkEntry 在取得焦點時
+# 可以顯示自己的圖示——那麼「字元沒抵達 binding」描述的是一件從未發生的事。若欄位保留 placeholder，
+# 則輸入確實放進了東西，追查就要回到按鍵那一側。
+#
+# (108,425) is the centre of the "automatic" field, the same coordinate the
+# recommit file uses, read off gtk4 P36 at 848x729, origin=frame, 100% scale.
+# (108,425) 是 "automatic" 欄位的中心，與 recommit 檔所用的座標相同，取自 848x729 的 gtk4 P36，
+# origin=frame，100% 縮放。
+sleep,,,,,,900000,let the window settle and take focus,windows
+click,108,425,frame,left,,,focus the first styled field and send NOTHING after it,windows
+sleep,,,,,,20000000,"hold 20s so the capture happens while the field is focused and empty",windows

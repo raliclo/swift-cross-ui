@@ -1475,6 +1475,55 @@ window was not reachable from the Windows capture path.
 
 ## Needs another machine / 需要另一台機器
 
+### Six items the Windows session had been tracking OUTSIDE this file — written down 2026-09-09
+
+**These existed only in a Windows session's in-memory task list. They were never
+a file, never committed, and could not be found by anyone else.** The Mac side
+searched `todo.md`, all of `testapp/plan/`, and `matrix_coverage/` for the
+numbers being quoted at them and correctly found nothing: a third numbering
+scheme was being cited as if it were shared, and it never had been. Three
+numbering spaces are in play and only two of them are real —
+`testapp/plan/parity-gaps-survey.md`'s local numbers (up to 88) and upstream
+GitHub issues. The third was ephemeral. It is written here so that it stops
+being a private list, and the numbers are deliberately dropped: what identifies
+an item is what it says, not an integer nobody else can resolve.
+
+| Item | Who can verify it |
+| --- | --- |
+| Swift 6 language mode: nine targets migrated; **AppKit and UIKit remain** | Mac |
+| **AppKit and UIKit pin foreground colours**, so disabled controls stay bright | Mac |
+| Design question: what `-GPU` should mean on macOS, including an external GPU | Mac |
+| `.onHover` **kills the process** on AndroidBackend — `HoverGestures` has no conformance | Android device |
+| UIKit is the **only** backend still suppressing `.popover`'s `onDismiss` | Mac/iOS |
+| `.navigationTitle` **renders nothing** on UIKit and Android | Mac/iOS, Android |
+
+The foreground-colour one is the most actionable and needs no number to start:
+grep AppKit and UIKit for a hardcoded `foregroundColor`, and compare against
+what GtkBackend and WinUIBackend do now that task "Backend CSS should suggest a
+default, not enforce it over the theme" has landed on both.
+
+### 六項 Windows session 一直在本檔**之外**追蹤的項目——2026-09-09 寫下
+
+**它們只存在於某個 Windows session 的記憶體任務清單中：從未成為檔案、從未提交，別人也無從尋獲。**
+Mac 端搜遍了 `todo.md`、`testapp/plan/` 全部與 `matrix_coverage/`，尋找被引用的那些編號，而正確地一無所獲：
+有第三套編號被當成共享編號在引用，但它從來就不是。同時存在三個編號空間，其中只有兩個是真實的——
+`testapp/plan/parity-gaps-survey.md` 的本地編號（最大到 88）與上游 GitHub issue。第三套是易逝的。
+此處寫下它們，正是為了讓它不再是一份私人清單；而編號被刻意捨棄：辨識一個項目的是它說了什麼，
+不是一個別人無從解析的整數。
+
+| 項目 | 誰能驗證 |
+| --- | --- |
+| Swift 6 語言模式：九個 target 已遷移，**AppKit 與 UIKit 仍待處理** | Mac |
+| **AppKit 與 UIKit 把前景色寫死**，以致 disabled 的控制項仍然是亮的 | Mac |
+| 設計問題：`-GPU` 在 macOS 上該是什麼意思，含外接 GPU | Mac |
+| `.onHover` 在 AndroidBackend 上**會殺掉行程**——`HoverGestures` 沒有 conformance | Android 裝置 |
+| UIKit 是**唯一**仍在抑制 `.popover` `onDismiss` 的 backend | Mac／iOS |
+| `.navigationTitle` 在 UIKit 與 Android 上**什麼都不畫** | Mac／iOS、Android |
+
+其中「前景色寫死」最可著手，且不需要任何編號即可開始：在 AppKit 與 UIKit 中 grep 寫死的
+`foregroundColor`，並與 GtkBackend、WinUIBackend 現在的做法對照——「Backend CSS 應建議預設值，
+而非凌駕主題」那一項在這兩個 backend 上都已落地。
+
 ### Six divergences from SwiftUI, measured 2026-09-08, assigned to the Mac side
 
 Full tables with `file:line` for every claim are in

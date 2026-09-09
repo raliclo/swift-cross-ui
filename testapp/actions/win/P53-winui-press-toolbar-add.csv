@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P53 on Windows, WinUIBackend: press the leading toolbar button.
+#
+# WHY A SECOND FILE RATHER THAN REUSING THE GTK ONE. Same platform, different
+# backend, different geometry. P53-press-toolbar-add.csv puts the `+` at (38,35)
+# because a GtkHeaderBar IS the titlebar and the button sits in the window
+# chrome. WinUI has no header bar in these bindings, so the toolbar is a
+# StackPanel in the window's own grid, one row below the caption -- the `+`
+# lands at (26,51) instead. Sharing a file between the two would put one click
+# on the caption bar and call the miss a failure.
+#
+# WHAT IT IS FOR. Identical to the GTK file's purpose: distinguish "the bar is
+# drawn" from "the bar is wired". P53 says so itself -- "If the bar is there but
+# its actions are not wired, the bar shows and no counter moves." The GTK arm
+# shipped with exactly that fault: the buttons drew, hovered, and did nothing,
+# because signals had never been connected. WinUI's failure mode would be
+# different (the click handler is registered against
+# `internalState.buttonClickActions`, keyed by ObjectIdentifier) but the
+# SYMPTOM would be identical, and a screenshot cannot tell them apart.
+#
+# (26,51) is the centre of the `+` glyph, read off
+# screen-20260909-072415.png at 736x559, origin=frame, 100% display scale.
+#
+# P53 於 Windows、WinUIBackend：按下前緣的工具列按鈕。
+#
+# 為何另開一檔而非沿用 GTK 那一份。同一個平台、不同的 backend、不同的幾何。
+# P53-press-toolbar-add.csv 把 `+` 放在 (38,35)，因為 GtkHeaderBar **就是** titlebar，該按鈕位於視窗
+# 外框上。WinUI 在這組綁定中沒有 header bar，因此工具列是視窗自身 grid 中的一個 StackPanel，位於標題列
+# 下方一列——`+` 落在 (26,51)。兩者共用同一份檔案，會讓其中一次點擊落在標題列上，並把那次落空當成失敗。
+#
+# 用途。與 GTK 那一份完全相同：區分「這條列被畫出來了」與「這條列已接線」。P53 自己就說了——「若該列
+# 存在但其動作未接線，則列會顯示、而計數器不動。」GTK 那一側出貨時正帶著這個缺陷：按鈕畫得出來、滑過去
+# 有反應、按下去什麼都不做，因為訊號從未被連接。WinUI 的失效方式會不同（點擊 handler 是註冊在
+# `internalState.buttonClickActions` 上，以 ObjectIdentifier 為鍵），但**症狀完全相同**，而截圖分不出來。
+#
+# (26,51) 是 `+` 字符的中心，取自 736x559 的 screen-20260909-072415.png，origin=frame，100% 顯示縮放。
+#
+# expect: log-contains add pressed
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,26,51,frame,,,,move onto the leading toolbar button,windows
+sleep,,,,,,200000,let the pointer arrive so the press lands on a hovered button,windows
+click,26,51,frame,left,,,"press the + item; add must go 0 -> 1 and last pressed must name it",windows
+sleep,,,,,,20000000,"hold 20s; the app exits when the replay ends, so the hold has to outlast the capture",windows
