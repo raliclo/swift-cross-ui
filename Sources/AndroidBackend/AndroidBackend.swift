@@ -812,7 +812,7 @@ public final class AndroidBackend: BaseAppBackend {
     /// 頁面完好，非白像素 378953；而第十次——計數需要第二位數時——把視窗清空為 0。按分頁按鈕、
     /// 或按一個會讓狀態文字變長的控制項，結果相同。`adb shell input tap` 也一樣，因此這從來就不是
     /// 動作檔機制的問題。詳見 `bugs/bug-Android.md`。
-    private static func layoutLength(_ points: Int, density: Float) -> Int32 {
+    static func layoutLength(_ points: Int, density: Float) -> Int32 {
         points < 0 ? Int32(points) : Int32(Float(points) * density)
     }
 
