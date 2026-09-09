@@ -562,6 +562,23 @@ extension EnvironmentValues {
     /// Set by ``Window/defaultSize(width:height:)->Scene``.
     @Entry internal var defaultWindowSize: SIMD2<Int> = SIMD2(900, 450)
 
+    /// The id of the window this view is being displayed in.
+    ///
+    /// The same string the scene hands to ``createWindow(withDefaultSize:id:)``,
+    /// which backends already use to restore a window's frame from disk. It is
+    /// `nil` outside a window -- in a menu item's environment, for instance --
+    /// and ``SceneStorage`` treats that as "no scope to store against" rather
+    /// than inventing one, because a value stored under a guessed id would be
+    /// written and never read again.
+    ///
+    /// 這個 view 正被顯示於其中的那個視窗的 id。
+    ///
+    /// 與 scene 交給 ``createWindow(withDefaultSize:id:)`` 的是同一個字串，而各 backend 本來就用它
+    /// 從磁碟還原視窗的框。在視窗之外——例如某個選單項目的 environment 中——它是 `nil`，而
+    /// ``SceneStorage`` 會把那視為「沒有可供存放的範圍」，而不是自行捏造一個：一個存在猜來的 id 底下
+    /// 的值，會被寫進去，然後再也不會被讀到。
+    @Entry internal var sceneID: String? = nil
+
     /// The menu ordering to use.
     @Entry public var menuOrder: MenuOrder = .automatic
 

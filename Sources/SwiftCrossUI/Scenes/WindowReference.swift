@@ -61,6 +61,10 @@ final class WindowReference<SceneType: WindowingScene> {
 
     private var lastAppliedToolbar: [ToolbarItem] = []
 
+    /// This window's stable id, as handed to ``createWindow(withDefaultSize:id:)``.
+    /// 這個視窗穩定的 id，與交給 ``createWindow(withDefaultSize:id:)`` 的是同一個。
+    private let sceneID: String
+
     /// - Parameters:
     ///   - closeHandler: The action to perform when the window is closed. Should
     ///     dispose of the scene's reference to this `WindowReference`.
@@ -73,6 +77,15 @@ final class WindowReference<SceneType: WindowingScene> {
         id: String
     ) {
         self.scene = scene
+        // Held, because the id has to reach the view tree on every update and
+        // not only on the first one. It already identified this window to the
+        // backend for frame restoration; ``SceneStorage`` needs the same string
+        // for the same reason -- it is the one name that survives the window
+        // being closed and reopened.
+        // 保留下來，因為這個 id 必須在**每一次**更新時抵達 view 樹，而不是只在第一次。它原本就已經
+        // 是這個視窗對 backend 的身分（用於還原視窗框）；``SceneStorage`` 需要同一個字串，理由也相同
+        // ——那是「視窗被關掉又重開」之後仍然存在的唯一名字。
+        self.sceneID = id
         let window = backend.createWindow(
             withDefaultSize: environment.defaultWindowSize,
             id: id
@@ -81,7 +94,7 @@ final class WindowReference<SceneType: WindowingScene> {
         viewGraph = ViewGraph(
             for: scene.content(),
             backend: backend,
-            environment: environment.with(\.window, window)
+            environment: environment.with(\.window, window).with(\.sceneID, id)
         )
         let rootWidget = viewGraph.rootNode.concreteNode(for: Backend.self).widget
 
@@ -241,6 +254,7 @@ final class WindowReference<SceneType: WindowingScene> {
             backend.computeWindowEnvironment(
                 window: window,
                 rootEnvironment: environment.with(\.window, window)
+                    .with(\.sceneID, sceneID)
             )
             .with(\.onResize) { [weak self] _ in
                 guard let self else { return }

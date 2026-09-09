@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59: open the second window, then type in the FIRST one only.
+#
+# origin=frame, coordinates read off p59-macos-final-20260909-170332.png.
+#
+# **The assertion needs both windows in one capture, and only one of them
+# touched.** Pressing "append A" three times in window A must leave:
+#
+#   window A   scene draft AAA     app draft AAA
+#   window B   scene draft (empty) app draft AAA
+#
+# The app row matching across the two windows is what proves the app-wide
+# wrapper still shares, and the scene row differing is what proves the
+# scene-scoped one does not. Either row alone is consistent with the bug: a
+# @SceneStorage that fell back to app-wide storage would show AAA in both scene
+# rows, and a screenshot of window A alone reads identically in both cases.
+#
+# P59：開啟第二個視窗，然後只在**第一個**視窗裡打字。
+#
+# origin=frame，座標讀自 p59-macos-final-20260909-170332.png。
+#
+# **這個判定需要兩個視窗同時入鏡，而且只有其中一個被碰過。** 在視窗 A 按三次「append A」之後，
+# 必須是：視窗 A 的 scene 草稿為 AAA、app 草稿為 AAA；視窗 B 的 scene 草稿為空、app 草稿為 AAA。
+#
+# 「app 那一列在兩個視窗一致」證明 app 層級的 wrapper 仍然共用；「scene 那一列不同」證明有範圍的
+# 那一個不共用。單獨看任何一列，都與那個缺陷相容：一個退回 app 層級的 @SceneStorage 會讓兩個
+# scene 列都是 AAA，而一張只拍視窗 A 的截圖在兩種情況下讀起來完全相同。
+# ORDER MATTERS AND THE FIRST VERSION HAD IT BACKWARDS. It opened the second
+# window first and then clicked "append A" three times, expecting window A to
+# receive them. The second window opens ON TOP at the same coordinates, so all
+# three clicks landed in window B -- confirmed by a probe: three SETs, every one
+# with sceneID=p59-second. The capture then showed window A with an empty scene
+# row, which is the CORRECT result of a test that measured the wrong window.
+# Typing first, opening second, removes the ambiguity entirely.
+#
+# 順序是關鍵，而第一個版本把它寫反了。它先開第二個視窗，再按三次「append A」，並預期由視窗 A 收下
+# 那些點擊。第二個視窗會開在**同一組座標的上層**，因此三次點擊全部落在視窗 B——探針證實了這一點：
+# 三次 SET，每一次都是 sceneID=p59-second。當時的截圖顯示視窗 A 的 scene 那一列是空的，而那是
+# 「量錯了視窗」的測試所給出的**正確**結果。先打字、後開窗，就徹底消除了這個歧義。
+click,54,239,frame,left,,,append A -- window A is the only window open at this point,macos
+sleep,,,,,,300000,,macos
+click,54,239,frame,left,,,again,macos
+sleep,,,,,,300000,,macos
+click,54,239,frame,left,,,and again -- three appends into window A,macos
+sleep,,,,,,500000,,macos
+click,89,268,frame,left,,,now open the second window,macos
+sleep,,,,,,1200000,let the second window map and read its own storage,macos
