@@ -92,6 +92,45 @@ action,x,y,origin,button,key,micros,note,platform
 # across the iOS files (P8, P11, P12, P13), which costs a whole run to spot
 # because the stale click still lands on something.
 #
+# RE-VERIFIED 2026-09-09, second P33 text edit, and NOTHING MOVED. The replay
+# reported the frame as 848x649 -- byte for byte what is recorded below -- and
+# the log gained `details expanded=false`. Coordinates unchanged.
+#
+# WHY IT DID NOT MOVE, and this is worth knowing because the obvious reasoning
+# gives the wrong answer. The edit SHORTENED the longest string in the app, from
+# 95 characters to 41. On 2026-09-04 shortening the longest string is exactly
+# what narrowed P34's window and moved a button 66px sideways. Here the frame did
+# not change by a single pixel, so 848 is NOT set by the widest Text -- something
+# else fixes it, and this file's coordinates are more robust than the 2026-09-04
+# lesson would suggest. Do not generalise either way from one app: MEASURE the
+# frame from the replay's own `<w>x<h>@x,y` line, which costs nothing and is
+# printed on every run.
+#
+# THE LOG LINE FROM .onAppear CHANGED IN THE SAME EDIT, and it is not the line
+# this file asserts on. It read `still missing Label(systemImage:) ColorPicker
+# -- the other seven are implemented, see P46` and now reads
+# `P33 approximations rendered`. Both of the names in the old one EXIST -- that
+# is what the edit fixed. Checked before changing it that nothing in the tree
+# greps for the old text (control: `details expanded=`, which IS referenced,
+# here and in plan/action-file-expectations.md). If a future run of this file
+# reports UNMET, the marker is `details expanded=`, not anything above.
+#
+# 2026-09-09 重新驗證(P33 第二次文字編輯),**沒有任何東西位移**。replay 回報外框為 848x649
+# ——與下方記錄的完全一致——而 log 多出了 `details expanded=false`。座標不變。
+#
+# **為何沒有位移**,值得記下來,因為直觀的推理會給出錯的答案。這次編輯**縮短了 app 中最長的字串**,
+# 從 95 個字元縮到 41 個。而 2026-09-04 縮短最長字串,正是讓 P34 視窗變窄、按鈕橫向移動 66px 的原因。
+# 這裡外框卻一個像素都沒變,所以 848 **不是**由最寬的 Text 決定的——是別的東西固定了它,而本檔的座標
+# 比 2026-09-04 那個教訓所暗示的更耐得住。**不要從單一支 app 往任一方向推廣**:直接從 replay 自己印出
+# 的 `<w>x<h>@x,y` 那一行去**量**,它不花任何成本,而且每次執行都會印。
+#
+# **.onAppear 的那行 log 在同一次編輯中變了**,而它不是本檔所斷言的那一行。它原本是
+# `still missing Label(systemImage:) ColorPicker -- the other seven are implemented, see P46`,
+# 現在是 `P33 approximations rendered`。舊那行裡的兩個名稱**都是存在的**——那正是這次編輯所修正的。
+# 改動前已確認樹中沒有任何東西 grep 舊文字(對照組:`details expanded=` 確實被引用,於本檔與
+# plan/action-file-expectations.md)。若日後本檔回報 UNMET,標記是 `details expanded=`,
+# 不是上面任何一句。
+#
 # Coordinates read off a wincap capture of the frame at 848x649, GtkBackend,
 # 2026-09-03, 100% display scale, origin=frame like every other file here. The
 # button spans x 34..133, y 404..436; (83, 420) is its centre.

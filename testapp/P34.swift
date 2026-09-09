@@ -82,7 +82,30 @@ struct P34RootView: View {
             // 更糟，因為那正是有人在判斷「一千列的清單是否安全」時會依賴的那句話。
             Text("Present but NOT lazy: LazyVStack, LazyHStack -- all children are built up front")
                 .font(.system(size: 13))
-            Text("Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy")
+            // ~~"Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader,
+            // ScrollViewProxy"~~ -- FOUR OF THOSE FIVE EXISTED when this was
+            // last read, 2026-09-09. Checked one at a time with a control
+            // (`VStack` found, `ZZZNotARealType` absent, so the pattern works):
+            //   LazyVGrid        Views/LazyVGrid.swift
+            //   LazyHGrid        genuinely absent
+            //   Grid             Views/Grid.swift
+            //   ScrollViewReader Views/ScrollViewReader.swift
+            //   ScrollViewProxy  Views/ScrollViewReader.swift
+            //
+            // The old text is recorded here rather than simply replaced,
+            // because a false claim RENDERED ON SCREEN is the worst shape a
+            // stale note takes: a reader who does not go and check believes the
+            // running program over the source, and the running program was
+            // wrong about four fifths of its own list.
+            //
+            // ~~「Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy」~~
+            // ——上次讀到它時(2026-09-09),那五個裡有**四個是存在的**。逐一查證並附對照(`VStack`
+            // 找得到、`ZZZNotARealType` 不存在,故樣式有效):只有 `LazyHGrid` 真的缺席。
+            //
+            // 舊文字記錄於此而非直接取代,因為**被算繪到畫面上的**假宣稱,是過期註記最糟的一種形狀:
+            // 不去查證的讀者會選擇相信執行中的程式而非原始碼,而那個執行中的程式對自己列出的清單,
+            // 五分之四是錯的。
+            Text("Still missing: LazyHGrid")
                 .font(.system(size: 13))
 
             HStack(spacing: 8) {
@@ -116,15 +139,47 @@ struct P34RootView: View {
                 }
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(0..<min(visibleRows, rowCount)), id: \.self) { index in
-                        Text("Row \(index): eager VStack child")
-                    }
+            // ScrollViewReader, added 2026-09-09 so that it can be RUN.
+            //
+            // It landed on all five backends but nothing in this suite
+            // exercised it, and "it compiles" has been separated from "it
+            // works" twice in two days here: a toolbar drew correctly and did
+            // nothing when pressed, and a synthesised keystroke reached a
+            // GtkEntry's buffer without reaching its binding. A view nobody
+            // drives is not evidence.
+            //
+            // The assertion is the LOG LINE, not the picture. Scrolling to row
+            // 50 looks, in a screenshot, almost exactly like scrolling to row 48
+            // -- and a `scrollTo` that silently did nothing would leave the view
+            // at row 0, which is also what a failed CLICK leaves. The log says
+            // which of those happened.
+            //
+            // ScrollViewReader，2026-09-09 加入，目的是讓它**能被執行**。
+            //
+            // 它已在五個 backend 上落地，但本套件中沒有任何東西驅動它；而「編得過」與「會動」在這裡
+            // 兩天內已經被分開過兩次：一條工具列畫得正確、按下去毫無反應；一個合成的按鍵抵達了
+            // GtkEntry 的 buffer、卻抵達不了它的 binding。**沒有人驅動的 view 不構成證據。**
+            //
+            // 斷言的對象是 **log 行**，不是畫面。捲到第 50 列，在截圖上與捲到第 48 列幾乎一模一樣
+            // ——而一個「靜默地什麼都沒做」的 `scrollTo` 會把視圖留在第 0 列，那也正是**點擊失敗**時
+            // 的樣子。log 說得出發生的是哪一種。
+            ScrollViewReader { proxy in
+                Button("Scroll to row 50") {
+                    proxy.scrollTo(50, anchor: .top)
+                    P34Diagnostics.write("scrollTo row 50 requested, anchor top")
                 }
-                .padding(8)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(Array(0..<min(visibleRows, rowCount)), id: \.self) { index in
+                            Text("Row \(index): eager VStack child")
+                                .id(index)
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 360)
             }
-            .frame(height: 360)
         }
         .padding(18)
         .onAppear {

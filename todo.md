@@ -938,7 +938,7 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
 | **style protocols** (re-measured 2026-09-08, three times) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle`, `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` | *nothing* — **9 of 9 present**. This cell has now been wrong twice on the same day, in the same direction, and both readings are kept because the pattern is the point. The first put `ButtonStyle` in the absent column and was right that morning; it landed later the same day, together with `PrimitiveButtonStyle` (the rename of upstream's struct) and `BackendFeatures.ButtonPressState`. The second read "`TextFieldStyle`, `ProgressViewStyle` — **7 of 9 present**", and `TextFieldStyle` landed that evening (`Views/Styles/TextFieldStyle/`, open rather than SwiftUI's closed protocol, all five backends) while `ProgressViewStyle` was **already present when that reading was written** (`Views/Styles/ProgressViewStyle/`). A row that names what is absent goes stale the moment someone implements one, and nothing makes them open this file — re-run the loop above the first table |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
-| **common views** (re-measured 2026-09-09) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid`, `ColorPicker` | `ScrollViewReader` — **15 of 16 present** (regenerate: the shape-agnostic loop under "Re-derived 2026-09-09" below; do not quote this number without running it). ~~**14 of 16**, `ColorPicker` absent~~ — wrong from `e6165e8a` (2026-09-08 04:36) onward, which is when `ColorPicker` landed at `Views/ColorPicker.swift:39`. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
+| **common views** (re-measured 2026-09-09) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid`, `ColorPicker`, `ScrollViewReader` | `LazyHGrid` — **16 of 17 present** (regenerate: the shape-agnostic loop under "Re-derived 2026-09-09" below; do not quote this number without running it). ~~`ScrollViewReader` — **15 of 16 present**~~ — both halves moved on 2026-09-09: `ScrollViewReader` landed, and `LazyHGrid` was added to a hand-written list of sixteen that had never contained it, so every earlier reading of this row surveyed one name fewer than it appeared to. ~~**14 of 16**, `ColorPicker` absent~~ — wrong from `e6165e8a` (2026-09-08 04:36) onward, which is when `ColorPicker` landed at `Views/ColorPicker.swift:39`. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
 | **state wrappers** (re-measured 2026-09-08) | `State`, `Binding`, `Environment`, `AppStorage`, `Published`, `StateObject`, `ObservedObject`, `EnvironmentObject` | `SceneStorage` — **3 of the 4 that were absent have landed**. The 2026-09-01 reading of this row listed `StateObject`, `ObservedObject`, `EnvironmentObject` and `SceneStorage` as absent, and is kept here because it is still quoted elsewhere: `StateObject` and `ObservedObject` landed before this re-measure, `EnvironmentObject` in it. Do not repeat the phrasing "only a Settings scene remains" from the #35 entry — see the note below the table |
 | **scenes** | `WindowGroup`, `SceneBuilder` | `Settings`, `DocumentGroup` |
 | **presentation** (re-measured 2026-09-09) | `sheet`, `alert`, `presentationDetents`, `confirmationDialog`, `safeAreaInset`, `popover`, `navigationTitle`, `fullScreenCover`, `toolbar`, `refreshable` | none — **10 of 10 present** (regenerate: `for n in sheet alert presentationDetents confirmationDialog safeAreaInset popover navigationTitle fullScreenCover toolbar refreshable; do printf '%-22s %s\n' "$n" "$(grep -rlE "public func $n\b\|public func $n<" Sources/SwiftCrossUI/ \| wc -l)"; done` — control it with `padding` → 1 and `ZZZNotAModifier` → 0). ~~`fullScreenCover`, `toolbar`, `refreshable` absent — **7 of 10**~~: `fullScreenCover` was already present when that was written (`22e53afc`, see the struck-through divergence #4 below), `refreshable` is `Modifiers/Handlers/RefreshableModifier.swift:23` (`e7c7afc0`), and `toolbar` is `Modifiers/ToolbarModifier.swift:14` with all five backend files present (`064b9458`). Presence here is the modifier, not per-backend behaviour — see divergence #4 for what `fullScreenCover` actually does on each. The reading kept above the re-measure was "`popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset`" absent, which was wrong on two counts *before* today's work: `confirmationDialog` (`ConfirmationDialogModifier.swift:50`) and `safeAreaInset` (`SafeAreaInsetModifier.swift:39`) were already implemented, and `refreshable` was absent but had left the list. `popover` and `navigationTitle` landed 2026-09-08 |
@@ -1009,7 +1009,8 @@ Three things this makes visible that the category list did not:
   ```
   for n in Form Section Label Stepper LazyVStack LazyHStack Gauge \
            DisclosureGroup LabeledContent Link Grid ControlGroup GroupBox \
-           LazyVGrid ScrollViewReader ColorPicker VStack ZZZNotARealType; do
+           LazyVGrid LazyHGrid ScrollViewReader ColorPicker \
+           VStack ZZZNotARealType; do
       printf '%-18s %s\n' "$n" \
         "$(grep -rlE "public [a-z ]*(struct|class|enum|protocol) $n\b" \
              Sources/SwiftCrossUI/ | wc -l)"
@@ -1035,18 +1036,109 @@ Three things this makes visible that the category list did not:
   **`Views/LazyVGrid.swift:97`**, its own file. (`parity-gaps-survey.md` was
   corrected on the same point; this copy was not, which is the cost of writing
   a file path twice.) `ColorPicker` landed **2026-09-08** in `e6165e8a` at
-  `Views/ColorPicker.swift:39`. That is **15 of 16**.
+  `Views/ColorPicker.swift:39`. That is ~~**15 of 16**~~ **16 of 17**, measured
+  by running the loop on 2026-09-09; BOTH halves of the fraction moved that day,
+  for two unrelated reasons — `ScrollViewReader` landed, and `LazyHGrid` was
+  added to a list it had never been on.
+
+  ~~**15 of 17**~~ was written here first, by counting the names by hand while
+  the regeneration command sat four lines above. The loop says 16. Recorded
+  rather than quietly corrected, because this row's entire history is one of
+  hand-derived numbers being wrong, and the fix has always been the same one:
+  **run the loop, do not count the list.**
+
+  `LazyHGrid` was NEVER IN THE LOOP. Added 2026-09-09, and the number it
+  produces is worse than it would otherwise be. The list of sixteen was assembled by
+  hand, `LazyHGrid` was not on it, and so every reading of this row since
+  2026-09-01 — including "15 of 16 present", written the same day this was
+  found — reported a survey that had not looked. Nothing was wrong with the
+  loop; the loop answered exactly what it was asked. **A denominator chosen by
+  hand is a claim about coverage, and it ages like any other claim.** The
+  paragraph below warns against growing the denominator to flatter the
+  fraction; this is the same edit in the honest direction, and it is the reason
+  that warning cannot be read as "never touch the list".
 
   `GridRow`, `GridItem` and the `GridCellsProviding` helper shipped with them
-  but are deliberately **not** added to the sixteen-name list — growing the
-  denominator to flatter the fraction is the exact move that produced the wrong
-  number above.
+  but are deliberately **not** added to the name list — growing the denominator
+  to flatter the fraction is the exact move that produced the wrong number
+  above. Adding a name that is ABSENT is the opposite move and is always
+  allowed.
 
-  The one that remains is the one that is not composition: `ScrollViewReader`
-  needs a new `BackendFeatures` requirement on all five backends
-  (`ScrollContainers` has no programmatic scroll at all).
+  Two remain, and they are not the same kind of work:
+
+  - `ScrollViewReader` — **done 2026-09-09**, and it was the one that is not
+    composition: it needed a new `BackendFeatures` requirement on all five
+    backends (`ScrollContainers` had no programmatic scroll at all). Driven and
+    verified on Win-gtk4 by `actions/win/P34-scroll-to-row-50.csv`.
+  - `LazyHGrid` — still absent. It IS pure composition, and the design is below.
 
   Re-derive the whole table with the loop above before quoting any of it.
+
+#### `LazyHGrid`: the transpose of `LazyVGrid` / `LazyVGrid` 的轉置
+
+  **Upstream `issues.csv` row 176** ("Alternatives for SwiftUI's Grid,
+  LazyVGrid, and LazyHGrid", 2025-06-03, `unaddressed`) covers all three; two of
+  the three are now done, so this closes the last of it.
+
+  `Sources/SwiftCrossUI/Views/LazyVGrid.swift` is 506 lines and is the template.
+  The work is a transpose, not a new design:
+
+  | `LazyVGrid` | `LazyHGrid` |
+  | --- | --- |
+  | `init(columns: [GridItem], ...)` | `init(rows: [GridItem], ...)` |
+  | `resolve(columns:proposedWidth:)` | `resolve(rows:proposedHeight:)` |
+  | fills a row, wraps downward | fills a column, wraps rightward |
+  | `GridItem.alignment: HorizontalAlignment?` | must be `VerticalAlignment?` |
+
+  `GridItem` itself is reused unchanged in everything except that last row —
+  `.fixed`, `.flexible(minimum:maximum:)` and `.adaptive(minimum:maximum:)`
+  all mean the same thing rotated 90°, and `spacing: Int?` is unaffected.
+
+  **The `alignment` type is the one real decision, and SwiftUI made it already.**
+  SwiftUI's `GridItem.alignment` is `Alignment?` — the two-axis type — not
+  `HorizontalAlignment?`, precisely so that one `GridItem` serves both grids.
+  Ours is `HorizontalAlignment?`, so `LazyHGrid` cannot use it as it stands.
+  Three options, in the order they should be considered:
+
+  1. **Widen `GridItem.alignment` to `Alignment?`**, matching SwiftUI. Source-
+     breaking for anyone passing `.leading`, which today is P48 and P51 in this
+     tree and nothing else. This is the SwiftUI-shaped answer.
+  2. A separate `HGridItem` — no source break, but it is a second type SwiftUI
+     does not have, and `#34 API shapes` exists to remove exactly those.
+  3. Ignore `alignment` in `LazyHGrid` and document the divergence — cheapest,
+     and the CLAUDE.md rule at the top of this repository rules it out.
+
+  **Verification, and it must be a running one.** `testapp/P34.swift` already
+  says on screen `Still missing: LazyHGrid` — that line is the assertion, and it
+  is the last name left in a list that was once five. When this lands, P34's text
+  changes and every coordinate in `actions/win/P34-*.csv` is invalidated by the
+  same mechanism recorded in those files' headers. Re-run them; do not re-reason
+  about them.
+
+  **上游 `issues.csv` 第 176 列**(「Alternatives for SwiftUI's Grid, LazyVGrid, and LazyHGrid」,
+  2025-06-03,`unaddressed`)涵蓋三者;其中兩者現已完成,因此這一項會把它結掉。
+
+  `Sources/SwiftCrossUI/Views/LazyVGrid.swift` 有 506 行,即為樣板。這件工作是**轉置**,不是新設計:
+  `columns:` → `rows:`、`resolve(columns:proposedWidth:)` → `resolve(rows:proposedHeight:)`、
+  「填滿一列後向下換行」→「填滿一行後向右換列」、`GridItem.alignment` 由
+  `HorizontalAlignment?` 改為 `VerticalAlignment?`。
+
+  `GridItem` 本身除最後一項外原封不動地沿用——`.fixed`、`.flexible(minimum:maximum:)` 與
+  `.adaptive(minimum:maximum:)` 旋轉 90° 後意義相同,`spacing: Int?` 不受影響。
+
+  **`alignment` 的型別是唯一真正的決定,而 SwiftUI 早已做過。** SwiftUI 的 `GridItem.alignment` 是
+  `Alignment?`——雙軸型別——而非 `HorizontalAlignment?`,正是為了讓同一個 `GridItem` 同時服務兩種
+  grid。我們的是 `HorizontalAlignment?`,因此 `LazyHGrid` 無法照現狀使用它。三個選項,依應考慮的
+  順序:(1) **把 `GridItem.alignment` 放寬為 `Alignment?`**,與 SwiftUI 一致;對傳入 `.leading` 的
+  程式碼是破壞性變更,而在本樹中那只有 P48 與 P51,別無其他——這是符合 SwiftUI 形狀的答案。
+  (2) 另立 `HGridItem`,不破壞既有程式碼,但那是一個 SwiftUI 沒有的第二型別,而 `#34 API shapes`
+  的存在正是為了消除這一類東西。(3) 在 `LazyHGrid` 中忽略 `alignment` 並記錄此分歧——最便宜,而本
+  倉庫頂層的 CLAUDE.md 規則排除了它。
+
+  **驗證,而且必須是「跑得動」的驗證。** `testapp/P34.swift` 畫面上已經寫著
+  `Still missing: LazyHGrid`——那一行就是斷言,也是一份原本有五個名字的清單裡僅存的最後一個。
+  這一項落地時,P34 的文字會改變,而 `actions/win/P34-*.csv` 中的每一個座標都會因為那些檔案標頭
+  所記載的同一個機制而失效。**請重跑它們,不要重新推理它們。**
 
 **A behavioural divergence, found 2026-09-01 and not visible in the table
 above.** `overlay` exists on both sides, so the inventory calls it present, and
