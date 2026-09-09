@@ -1088,6 +1088,14 @@ public final class GtkBackend:
             // #386：於此讀取環境主題——此處 GTK 已初始化，且尚無任何 override 被要求。
             self.sampleAmbientColorScheme()
 
+            // #27: and keep following it. Must come AFTER the sample above, so
+            // the handler's "did it change" comparison has a baseline; before
+            // it, the first notification would compare against a default and
+            // fire for nothing.
+            // #27：並且持續跟隨它。必須在上方取樣**之後**，好讓 handler 的「是否改變」比較有一個
+            // 基準值；若置於其前，第一次通知會與預設值比較，於是白白觸發一次。
+            self.subscribeToAmbientColorSchemeChanges()
+
             callback()
 
             let provider = CSSProvider()
@@ -2326,6 +2334,207 @@ public final class GtkBackend:
     }
 
     /// Samples ``ambientColorScheme``. Must run with GTK initialised.
+    /// What the current GTK theme's foreground colour implies, and NOTHING else.
+    ///
+    /// Split out of ``sampleAmbientColorScheme`` on 2026-09-09 for #27, because
+    /// that method also WRITES `Settings.default?.preferDarkTheme`. Calling it
+    /// from a `notify::` handler would therefore push a value back into the
+    /// object whose change caused the notification -- a feedback loop, and the
+    /// reason the earlier attempt at this was reverted. This one only reads.
+    ///
+    /// 目前 GTK 主題的前景色所蘊含的配色，**且僅止於此**。
+    ///
+    /// 於 2026-09-09 為 #27 自 ``sampleAmbientColorScheme`` 中拆出，因為該方法同時會**寫入**
+    /// `Settings.default?.preferDarkTheme`。若從 `notify::` 的 handler 呼叫它，等於把一個值推回
+    /// 「其變更觸發了該通知」的那個物件——那是一個回饋迴圈，也正是先前那次嘗試被回退的原因。
+    /// 這一個只讀。
+    private func readAmbientColorScheme() -> ColorScheme {
+        // A throwaway label in a throwaway window, neither ever shown.
+        //
+        // Two things this has to get right, both measured rather than assumed.
+        // The widget must be one nothing has styled: reading a label
+        // SwiftCrossUI has already coloured (the measurement label, say) reads
+        // back what was last written to it rather than the theme -- a loop that
+        // returns the app's own last answer. And it must sit inside a window:
+        // GTK only resolves theme CSS for a widget that has a root, so a loose
+        // label reports the default white (measured: 1.0/1.0/1.0 under every
+        // theme, which reads as "dark" everywhere and is wrong everywhere).
+        // Being in a window is enough; the window need not be presented.
+        //
+        // 一個暫時性的 label 放在一個暫時性的視窗中，兩者皆不顯示。
+        //
+        // 此處有兩件事必須正確，且皆為實測而非假設。其一，該 widget 必須是沒有任何東西為其上色過
+        // 的：讀取 SwiftCrossUI 已上色的 label（例如測量用的那個）會讀回最後被寫入的顏色而非主題
+        // 色——該迴圈只會回傳 app 自己上次的答案。其二，它必須位於視窗之內：GTK 只會為「具有
+        // root」的 widget 解析主題 CSS，因此游離的 label 會回報預設的白色（實測：在每個主題下皆為
+        // 1.0/1.0/1.0，於是到處都判為「dark」，也就到處都是錯的）。置於視窗中即已足夠，該視窗
+        // 不需要被 present。
+        //
+        // BUILDING A WINDOW HERE IS SAFE, including from a notification handler.
+        // The TODO this replaced said otherwise -- "re-sampling has to build a
+        // window to read a themed colour from. Doing that there crashed, and
+        // deferring it to the next main-loop turn crashed as well." MEASURED
+        // 2026-08-26: both inline and via `g_idle_add` built the throwaway
+        // Window+Label and returned the correct new value, 0.180 -> 0.933. The
+        // crash in the reverted attempt was an ABI mismatch in the signal
+        // handler, not the probe: `notify` marshals as
+        // (instance, GParamSpec*, user_data) and the handler was declared with
+        // two parameters, so the box was read out of the register holding the
+        // GParamSpec. `Gtk.GObject.addNotificationSignal` declares three.
+        //
+        // **在此建立視窗是安全的**，從通知 handler 中呼叫亦然。被本段取代的那個 TODO 說法相反：
+        // 「重新取樣必須建立一個 widget 才能讀到主題顏色。在該處建立會崩潰，延到主迴圈下一回合同樣
+        // 崩潰。」**2026-08-26 實測**：直接呼叫與透過 `g_idle_add` 兩種方式，都成功建立了暫時性的
+        // Window+Label 並回傳了正確的新值（0.180 → 0.933）。那次被回退的嘗試之所以崩潰，是 signal
+        // handler 的 ABI 不符，而非這個探針：`notify` 的封送形式是
+        // (instance, GParamSpec*, user_data)，而當時的 handler 只宣告了兩個參數，於是 box 被從存放
+        // GParamSpec 的暫存器讀出。`Gtk.GObject.addNotificationSignal` 宣告的是三個。
+        let probeWindow = Gtk.Window()
+        let probeLabel = Gtk.Label(string: "")
+        probeWindow.setChild(probeLabel)
+        let color = probeLabel.getColor()
+        probeWindow.destroy()
+
+        // Rec. 601 luma, the weighting used to decide whether text should be
+        // black or white on a background. A foreground lighter than mid-grey
+        // means the theme draws light text, so onto a dark background. The two
+        // measured values (0.20 and 0.93) are far from the midpoint.
+        let luma = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+        return luma > 0.5 ? .dark : .light
+    }
+
+    /// Subscribes to the two GtkSettings properties that report a desktop
+    /// light/dark change, and to no others.
+    ///
+    /// **`notify::gtk-application-prefer-dark-theme` is deliberately absent.**
+    /// This backend WRITES that property itself, in `updateWindow` and in
+    /// `sampleAmbientColorScheme`, so subscribing to it is a guaranteed feedback
+    /// loop -- the app changes the theme, GTK notifies, the app re-samples and
+    /// changes it again. Measured 2026-08-26: setting `prefer-dark-theme` leaves
+    /// `gtk-theme-name` unchanged, so the two properties chosen here are
+    /// feedback-free with respect to everything this backend writes.
+    ///
+    /// The handler is idempotent by value: it re-reads, compares against the
+    /// stored scheme, and only then tells the environment. GTK emits `notify`
+    /// for a set-to-the-same-value as well, and a handler that fired the
+    /// environment change unconditionally would rebuild every view for nothing.
+    ///
+    /// **NOT VERIFIABLE UNDER WSLg, and that is measured rather than assumed.**
+    /// `gsettings set org.gnome.desktop.interface color-scheme prefer-dark`
+    /// produced ZERO notifications on any of GtkSettings' 55 properties, under
+    /// both Wayland and X11, because WSLg has no xdg-desktop-portal, no
+    /// XSettings manager, no libadwaita and an empty `XDG_CURRENT_DESKTOP`.
+    /// An app will look broken there however correct this code is. Verification
+    /// needs a real GNOME desktop, or a Windows theme switch for the Windows
+    /// branch.
+    ///
+    /// 訂閱兩個「會回報桌面淺色／深色變更」的 GtkSettings 屬性，且僅此兩個。
+    ///
+    /// **`notify::gtk-application-prefer-dark-theme` 是刻意排除的。** 本 backend 自己會**寫入**該
+    /// 屬性（於 `updateWindow` 與 `sampleAmbientColorScheme` 之中），因此訂閱它必然造成回饋迴圈
+    /// ——app 改變主題、GTK 發出通知、app 重新取樣後再改一次。**2026-08-26 實測**：設定
+    /// `prefer-dark-theme` 不會改變 `gtk-theme-name`，因此此處所選的兩個屬性，相對於本 backend 會
+    /// 寫入的一切都是無回饋的。
+    ///
+    /// 該 handler 以**值**保證冪等：它重新讀取、與已存的配色比較，唯有不同時才通知環境。GTK 在
+    /// 「設定為相同的值」時同樣會發出 `notify`，而一個無條件觸發環境變更的 handler，會為了什麼都
+    /// 沒發生而重建每一個 view。
+    ///
+    /// **在 WSLg 下無法驗證，而這是實測而非臆測。**
+    /// `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` 在 Wayland 與 X11 下，
+    /// 對 GtkSettings 的 55 個屬性**皆未產生任何通知**，因為 WSLg 沒有 xdg-desktop-portal、沒有
+    /// XSettings manager、沒有 libadwaita，且 `XDG_CURRENT_DESKTOP` 為空。無論這段程式碼多正確，
+    /// app 在那裡看起來都會像壞掉。驗證需要一個真正的 GNOME 桌面，或針對 Windows 分支做一次
+    /// Windows 主題切換。
+    private func subscribeToAmbientColorSchemeChanges() {
+        guard let settings = Gtk.Settings.default else { return }
+
+        // `registerNotification`, NOT `addNotificationSignal`. The latter is
+        // declared with no access modifier inside `open class GObject`, so it is
+        // internal to the `Gtk` module and a call from here does not compile.
+        // `Settings` already exposes exactly this wrapper, and it takes the full
+        // name including the `notify::` prefix.
+        //
+        // This was caught by reading rather than by building, which is the only
+        // reason it is a footnote. It is the THIRD time this module boundary has
+        // cost something: `castedPointer` and `addSignal` are internal for the
+        // same reason, and this file already records at ~2636 that a fix was
+        // once written down as blocked because `window.addSignal(...)` is not
+        // reachable from here. Raw GTK plumbing belongs in the `Gtk` module,
+        // with a named method crossing the boundary -- the same shape as
+        // `Window.setHeaderBar(leading:trailing:)`.
+        //
+        // 此處用 `registerNotification`，**不是** `addNotificationSignal`。後者宣告於
+        // `open class GObject` 內且沒有存取修飾詞，因此僅在 `Gtk` 模組內可見，從這裡呼叫編不過。
+        // `Settings` 已經公開了正是這個包裝，而且它接受含 `notify::` 前綴的完整名稱。
+        //
+        // 這是靠**閱讀**而非建置抓到的，那也是它只能算一個註腳的唯一原因。這是這道模組邊界第三次
+        // 造成代價：`castedPointer` 與 `addSignal` 內部化的理由相同，而本檔約 2636 行處已經記著
+        // 「某個修正曾因 `window.addSignal(...)` 在此無法取用而被記為受阻」。**原始的 GTK 管線屬於
+        // `Gtk` 模組**，並以一個具名方法跨越邊界——與 `Window.setHeaderBar(leading:trailing:)`
+        // 是同一種形狀。
+        for property in ["gtk-interface-color-scheme", "gtk-theme-name"] {
+            settings.registerNotification(named: "notify::\(property)") { [weak self] in
+                guard let self else { return }
+
+                // `systemColorScheme` FIRST, and this is not a detail. It is a
+                // computed property that reads the Windows registry on every
+                // access, so it is live; and where it has a value, it WINS --
+                // that is the whole reason the Windows branch of
+                // `sampleAmbientColorScheme` exists. An earlier draft of this
+                // handler took `readAmbientColorScheme()` unconditionally, which
+                // on Windows would have let a GTK theme change overwrite the
+                // user's system preference. Caught by reading, not by running:
+                // the check needs a Windows theme switch, which nothing here can
+                // do.
+                //
+                // **先取 `systemColorScheme`,而這不是細節。** 它是一個計算屬性，每次存取都會讀取
+                // Windows 登錄檔，因此它是即時的；而在它有值之處，它**優先**——那正是
+                // `sampleAmbientColorScheme` 的 Windows 分支存在的全部理由。本 handler 的較早草稿
+                // 無條件採用 `readAmbientColorScheme()`，那在 Windows 上會讓一次 GTK 主題變更**覆蓋
+                // 掉使用者的系統偏好**。這是靠閱讀抓到的，不是靠執行：要驗證它需要切換 Windows 主題，
+                // 而此處沒有任何東西做得到。
+                let fresh = self.systemColorScheme ?? self.readAmbientColorScheme()
+                guard fresh != self.ambientColorScheme else { return }
+
+                // Re-run the sampler rather than assigning here, so the
+                // precedence rule and the `preferDarkTheme` write live in ONE
+                // place. It costs a second probe window, which is a throwaway
+                // Window plus Label and not on any hot path.
+                //
+                // Writing `preferDarkTheme` from here does NOT re-enter: the
+                // subscriptions above are on `gtk-theme-name` and
+                // `gtk-interface-color-scheme`, and it was measured on
+                // 2026-08-26 that setting `prefer-dark-theme` leaves
+                // `gtk-theme-name` unchanged. That measurement is what makes
+                // this safe, not the shape of the code.
+                //
+                // 此處重新執行取樣器、而非就地指派，好讓「優先順序規則」與「寫入 `preferDarkTheme`」
+                // 留在**同一處**。代價是多一個探針視窗——一個暫時性的 Window 加 Label，且不在任何
+                // 熱路徑上。
+                //
+                // 從此處寫入 `preferDarkTheme` **不會**重入：上方訂閱的是 `gtk-theme-name` 與
+                // `gtk-interface-color-scheme`，而 2026-08-26 已實測「設定 `prefer-dark-theme` 不會
+                // 改變 `gtk-theme-name`」。**讓這件事安全的是那次量測，不是程式碼的形狀。**
+                self.sampleAmbientColorScheme()
+
+                // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ was here and
+                // is REMOVED. `sampleAmbientColorScheme` already ends by setting
+                // it from `ambientColorScheme`, so this was the same rule
+                // written twice -- and the two copies were not even guaranteed
+                // to agree, since one used `fresh` and the other whatever the
+                // sampler settled on. They do agree today; that is not a reason
+                // to keep both.
+                //
+                // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ 原本在此，**已移除**。
+                // `sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme` 設定過它，因此這是同一條
+                // 規則的兩份副本——而且兩者甚至不保證一致，因為一邊用的是 `fresh`、另一邊用的是取樣器
+                // 最後得出的值。它們今天是一致的；那不構成兩份都留下的理由。
+                self.rootEnvironmentChangeHandler?()
+            }
+        }
+    }
+
     private func sampleAmbientColorScheme() {
         // A throwaway label in a throwaway window, neither ever shown.
         //
@@ -2347,18 +2556,7 @@ public final class GtkBackend:
         // root」的 widget 解析主題 CSS，因此游離的 label 會回報預設的白色（實測：在每個主題下皆為
         // 1.0/1.0/1.0，於是到處都判為「dark」，也就到處都是錯的）。置於視窗中即已足夠，該視窗
         // 不需要被 present。
-        let probeWindow = Gtk.Window()
-        let probeLabel = Gtk.Label(string: "")
-        probeWindow.setChild(probeLabel)
-        let color = probeLabel.getColor()
-        probeWindow.destroy()
-
-        // Rec. 601 luma, the weighting used to decide whether text should be
-        // black or white on a background. A foreground lighter than mid-grey
-        // means the theme draws light text, so onto a dark background. The two
-        // measured values (0.20 and 0.93) are far from the midpoint.
-        let luma = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
-        ambientColorScheme = luma > 0.5 ? .dark : .light
+        ambientColorScheme = readAmbientColorScheme()
 
         // Where the platform has a light/dark setting of its own that GTK does
         // not follow -- Windows -- that setting wins, and GTK is asked for the
@@ -2387,28 +2585,53 @@ public final class GtkBackend:
     public func setRootEnvironmentChangeHandler(
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO: React to the desktop switching between light and dark while the
-        // app runs. The scheme is read once at launch (see
-        // sampleAmbientColorScheme), which covers the common case but means a
-        // running app keeps the scheme it started with.
+        // ~~TODO: React to the desktop switching between light and dark while
+        // the app runs ... Subscribing to the GtkSettings notifications was
+        // tried and reverted: the notification arrives inside GTK's own
+        // property-change machinery, reached from a window update, and
+        // re-sampling has to build a window to read a themed colour from. Doing
+        // that there crashed, and deferring it to the next main-loop turn
+        // crashed as well.~~
         //
-        // Subscribing to the GtkSettings notifications was tried and reverted:
-        // the notification arrives inside GTK's own property-change machinery,
-        // reached from a window update, and re-sampling has to build a window to
-        // read a themed colour from. Doing that there crashed, and deferring it
-        // to the next main-loop turn crashed as well. Whatever the fix is, it
-        // needs a way to read the theme without building a widget, or a safe
-        // point in the update cycle to re-read at -- neither of which is a small
-        // change, so it is left as a known gap rather than a half-working one.
+        // **THE DIAGNOSIS IN THAT TODO WAS WRONG, and it is kept struck through
+        // because believing it is what left this gap open for two weeks.** The
+        // crash was never the probe. It was an ABI mismatch: `notify` marshals
+        // as (instance, GParamSpec*, user_data), and the handler had been
+        // declared with two parameters, so `Unmanaged.fromOpaque` was handed the
+        // register holding the GParamSpec and retained it as a Swift object.
+        // Reproduced 2026-08-26 down to `swift_retain` and a dereference of
+        // 0x18. Building the throwaway window from the handler was measured to
+        // work, inline and via `g_idle_add`, returning 0.180 -> 0.933.
         //
-        // TODO：讓 app 在執行期間跟隨桌面於淺色與深色之間的切換。目前配色僅於啟動時讀取一次
-        //（見 sampleAmbientColorScheme），這涵蓋了常見情境，但執行中的 app 會維持啟動時的配色。
+        // A second, quieter defect made it look like nothing happened even when
+        // it did not crash: `Settings.default` returned a fresh unretained
+        // wrapper each call, and `GObject.deinit` disconnects the handlers its
+        // wrapper registered -- so the subscription was connected and
+        // disconnected inside one expression. Both are fixed;
+        // `Gtk.GObject.addNotificationSignal` declares three parameters and
+        // `Settings.default` caches.
         //
-        // 訂閱 GtkSettings 的通知曾經嘗試並已回退：該通知抵達於 GTK 自身的屬性變更流程之中，
-        // 而該流程由一次視窗更新所觸發，且重新取樣必須建立一個 widget 才能讀到主題顏色。在該處
-        // 建立會崩潰，延到主迴圈下一回合同樣崩潰。無論正確解法為何，都需要「不建立 widget 即可
-        // 讀取主題」的方法，或是更新週期中一個安全的重讀時點——兩者都不是小改動，因此將其記為
-        // 已知缺口，而非留下一個半可用的實作。
+        // Subscribing now happens once, in `runMainLoop`. See
+        // ``subscribeToAmbientColorSchemeChanges`` for which two properties and
+        // why not the third.
+        //
+        // ~~TODO：讓 app 在執行期間跟隨桌面於淺色與深色之間的切換……訂閱 GtkSettings 的通知曾經
+        // 嘗試並已回退：該通知抵達於 GTK 自身的屬性變更流程之中，而重新取樣必須建立一個 widget
+        // 才能讀到主題顏色。在該處建立會崩潰，延到主迴圈下一回合同樣崩潰。~~
+        //
+        // **那個 TODO 的診斷是錯的**，此處劃線保留，因為**相信它**正是這個缺口被擱置了兩週的原因。
+        // 崩潰從來就不是那個探針造成的，而是 ABI 不符：`notify` 的封送形式是
+        // (instance, GParamSpec*, user_data)，而當時的 handler 宣告了兩個參數，於是
+        // `Unmanaged.fromOpaque` 拿到的是存放 GParamSpec 的暫存器，並把它當成 Swift 物件 retain。
+        // 2026-08-26 重現至 `swift_retain` 與對 0x18 的解參考。從 handler 中建立暫時性視窗，已實測
+        // 可行（直接呼叫與經由 `g_idle_add` 皆然），回傳 0.180 → 0.933。
+        //
+        // 另有一個更安靜的缺陷，使它即使不崩潰也像什麼都沒發生：`Settings.default` 每次呼叫都回傳
+        // 一個全新且未被持有的 wrapper，而 `GObject.deinit` 會斷開其 wrapper 所註冊的 handler
+        // ——於是該訂閱在同一個運算式內被連上又被斷開。兩者皆已修正。
+        //
+        // 訂閱現在只發生一次，位於 `runMainLoop`。至於是哪兩個屬性、以及為何不含第三個，
+        // 見 ``subscribeToAmbientColorSchemeChanges``。
         self.rootEnvironmentChangeHandler = action
     }
 
