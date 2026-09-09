@@ -55,6 +55,37 @@ public struct EnvironmentValues {
     /// events can propagate.
     @_spi(Backends) public var onResize: @MainActor (_ newSize: ViewSize) -> Void
 
+    /// Called by a view graph node when a state change alters something the
+    /// WINDOW draws -- the navigation title, or the toolbar -- without altering
+    /// the view's size.
+    ///
+    /// **Window chrome was only ever applied during a window layout pass, and a
+    /// state change that does not resize anything never triggers one.** So
+    /// `.navigationTitle(someState)` wrote the title once, at launch, and every
+    /// later value was computed, stored in the preferences and never read:
+    /// measured 2026-09-10 with P50, whose own body showed "TITLE B" while the
+    /// title bar still said "TITLE A" in the same screenshot. Nothing failed --
+    /// `bottomUpUpdate` recomputed the layout, saw the same size, and committed
+    /// without telling anyone above it that a preference had changed.
+    ///
+    /// Separate from ``onResize`` rather than folded into it, because the two
+    /// have different costs and different triggers: a resize is rare and
+    /// re-lays-out the window, while this fires only when the chrome signature
+    /// actually differs, which for most state changes is never.
+    ///
+    /// 當某次狀態改變更動了**視窗**所繪製的東西——navigation title 或工具列——但沒有改變該 view 的
+    /// 尺寸時，由 view graph 節點呼叫。
+    ///
+    /// **視窗外框過去只在「視窗的版面計算」中套用，而一個不改變尺寸的狀態改變根本不會觸發那件事。**
+    /// 因此 `.navigationTitle(某個狀態)` 只在啟動時寫入一次標題，其後每一個值都被算出來、被存進
+    /// preference，然後從未被讀取：2026-09-10 以 P50 實測，同一張截圖裡它自己的內容顯示「TITLE B」，
+    /// 而標題列仍是「TITLE A」。沒有任何東西失敗——`bottomUpUpdate` 重算了版面、看到尺寸相同、
+    /// 於是提交，而沒有告訴它上方的任何人「有一項 preference 改變了」。
+    ///
+    /// 與 ``onResize`` 分開而不是併入其中，因為兩者的成本與觸發條件都不同：resize 罕見且會讓整個視窗
+    /// 重新排版，而這一個只在外框簽章真的不同時才觸發，對多數狀態改變而言那是從不。
+    @_spi(Backends) public var onWindowChromeChange: @MainActor () -> Void
+
     /// Backing storage for extensible subscript
     private var values: [ObjectIdentifier: Any]
 
@@ -237,6 +268,7 @@ public struct EnvironmentValues {
         self.backend = backend
 
         onResize = { _ in }
+        onWindowChromeChange = {}
         values = [:]
         observableObjects = [:]
 

@@ -315,6 +315,32 @@ final class WindowReference<SceneType: WindowingScene> {
                     windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
                 )
             }
+            // The same update the resize handler runs, for the case where
+            // nothing resized but the window's own chrome changed.
+            //
+            // It goes through `update` rather than calling `setTitle` directly
+            // because the title is not the only thing the content asks of the
+            // window -- the toolbar is applied from the same preferences, in the
+            // same block -- and a second, narrower path would have to be kept in
+            // step with the first one by hand.
+            //
+            // 與 resize handler 所執行的是同一次更新，用於「沒有任何東西改變尺寸、但視窗自身的外框
+            // 改變了」的情況。
+            //
+            // 它走 `update` 而不是直接呼叫 `setTitle`，因為標題並不是內容向視窗提出的唯一要求
+            // ——工具列是從同一份 preference、在同一個區塊中套用的——而一條第二、較窄的路徑，
+            // 日後必須靠人手與第一條保持同步。
+            .with(\.onWindowChromeChange) { [weak self] in
+                guard let self else { return }
+                self.update(
+                    self.scene,
+                    proposedWindowSize: backend.size(ofWindow: window),
+                    needsWindowSizeCommit: false,
+                    backend: backend,
+                    environment: environment,
+                    windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
+                )
+            }
         let outerColorScheme = environment.colorScheme
 
         // Update environment with latest cached value before first update to

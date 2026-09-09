@@ -10,7 +10,35 @@ an empty queue -- mistakes.md entry 1.
 
 - [x] **1. iOS 動作檔的點擊沒抵達按鈕** — 已解決。按鈕實際在 (55, 218) 點,先前的 y=100 是從縮圖估的。runner 現在會說出它解析到哪個視窗與正規化後的座標
 - [x] **2. 動作檔無法定址第二個視窗** — 已解決。新增 `focus` 動作(第十欄 `target` 放標題),並補上 AppKit 缺少的 `currentWindowIdentity()`——沒有它,geometry 永遠不會重新量測
-- [ ] **3. `DocumentGroup`** — 三項缺失 API 的最後一項,蓋在既有的 `FileDialogs` 上
+- [x] **1. P50 macOS:「Show title B」按了標題沒變** — 已修。狀態改變若不改變尺寸,就不會有人告訴視窗 preference 變了;新增 `onWindowChromeChange` 通道
+- [ ] **2. P50 macOS:開啟第一/第二面板後再按 press me,文字位移** — 要附截圖
+- [ ] **3. P32:按下 Toggle Label 之後看不到帶標籤的按鈕**
+- [ ] **4. P44:vertical stack 空間耗盡** — `firstStarvedChild=Spacer`,9 個 children 拿到 643 也用掉 643,至少一個被給 0
+- [ ] **5. P28:點擊到「Clicks received」更新約 1 秒** — **先量再改**;單一觀察不足以定位
+- [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
+- [ ] **7. P33:大量功能缺失** — 先盤點才知道規模
+- [ ] **8. P34 macOS:多數 API 缺失** — 先盤點
+- [ ] **9. `DocumentGroup`** — 三項缺失 API 的最後一項
+- [ ] **10. Q12:#28 動畫 / #32 手勢**
+- [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
+
+## 為什麼缺陷排在功能之前 / Why the defects moved above the features
+
+**上面八項是使用者在一個已發布的 backend 上親眼看到的。** 一個缺席的 API 不會讓人在畫面前困惑;
+一個「按了沒反應的按鈕」會,而且它會讓人懷疑其餘每一樣東西。`DocumentGroup` 從第 3 位掉到第 9 位,
+不是因為它變得不重要,而是因為它從來不曾造成任何人的困惑。
+
+**其中的順序也不是照回報順序。** 前四項各自只有一個症狀、可重現、而且看得出對錯;第 5 項(P28 的
+延遲)排在它們之後,是因為「大約一秒」是一次觀察而不是一個量測——CLAUDE.md 的關卡二明說單一樣本
+不足以下結論。第 6 項是設計決定,需要你;第 7、8 兩項在盤點完成之前,連規模都還不知道。
+
+The eight above were seen by a person using a shipped backend. A missing API does
+not confuse anyone in front of a screen; a button that does nothing does, and it
+casts doubt on everything else. Ordering inside them is not the order they were
+reported: the first four each have one reproducible symptom, the latency one
+needs a measurement before a cause, the multi-file one is a decision, and the
+last two do not have a known size yet.
+
 - [ ] **4. 鍵盤快捷鍵 step 2**(Windows 表的 #121)— **真的,而且已查證**:`ResolvedMenu.Item` 沒有任何 shortcut 欄位,所以要動四個 backend 的 `.button`。Windows 端把它標為「卡在 Mac」
 - [ ] **5. focus / accessibility**(#122 / #123)— 任務自述「不可單機開始」,需要與 Windows 端協調
 - [ ] **6. #74 `-GPU` on macOS** — `todo.md` 六項 Mac 工作中**唯一仍然開著**的一項,而它是一個決定、不是程式碼

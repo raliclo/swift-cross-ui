@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P50: press "Show title B" and read the TITLE BAR, not the window body.
+#
+# Reported 2026-09-10: the title does not change. This file is what turns that
+# into a measurement -- the assertion is the bar at the top of the window frame,
+# and the green box in the body says what it must read, so a capture carries
+# both the claim and the result.
+#
+# Coordinates are frame-relative POINTS, and the conversion is the trap here.
+# **A window capture's scale is not fixed across apps on this machine**: P50's is
+# 1560x1650 for a 780-point-wide window, so 2x, while P60's was 620x448 for a
+# 620-point window, so 1x -- two displays, two scales. Divide a capture pixel by
+# that capture's own scale (its width over the window's point width) rather than
+# by a number remembered from another app. The first version of this file used
+# (540, 851), which is below the bottom of a 728-point-tall window: the click
+# landed on nothing, the replay reported success, and the capture looked like a
+# button that does not work.
+#
+# P50：按下「Show title B」，然後讀**標題列**，不是視窗內容。
+#
+# 2026-09-10 回報：標題沒有改變。本檔就是把那句話變成一次量測——判定的對象是視窗外框頂端的那條標題列，
+# 而內容區的綠框寫著它應該顯示什麼，因此一張擷圖同時帶著主張與結果。
+#
+# 座標是相對於 frame 的**點**，而此處的陷阱正是那個換算。**在這台機器上，視窗擷圖的比例並非各 app
+# 一致**：P50 的擷圖是 1560x1650、而視窗寬 780 點，因此是 2x；P60 的則是 620x448、視窗寬 620 點，
+# 因此是 1x——兩台顯示器、兩種比例。請用「該張擷圖自身的比例」（擷圖寬度除以視窗的點寬）去換算，
+# 而不要沿用從另一支 app 記下來的數字。本檔的第一個版本用了 (540, 851)，那在一個高 728 點的視窗
+# 底部之外：該次點擊什麼也沒打到、重放回報成功，而擷圖看起來就像一顆壞掉的按鈕。
+sleep,,,,,,1200000,let P50 lay out,macos,
+click,270,428,frame,left,,,"Show title B -- the title bar must become 'P50 TITLE B ...'",macos,
+sleep,,,,,,1500000,let the title change reach the window,macos,
