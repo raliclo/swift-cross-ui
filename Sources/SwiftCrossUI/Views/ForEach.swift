@@ -1,3 +1,34 @@
+import DebugFeatures
+
+/// Holds the once-per-process flag for ``ForEach``'s eager-children warning.
+///
+/// A separate non-generic type because `ForEach` is generic and Swift does not
+/// allow static stored properties in generic types -- the first attempt put the
+/// flag on `ForEach` itself and got `static stored properties not supported in
+/// generic types`. Putting it here also makes the "once" correct rather than
+/// accidental: a static on a generic type would be one flag PER SPECIALISATION,
+/// so `ForEach<[Int], Int, Text>` and `ForEach<[String], String, Text>` would
+/// each warn separately and the message would repeat with no new information.
+///
+/// 存放 ``ForEach`` 積極求值警告的「每個行程一次」旗標。
+///
+/// 之所以是獨立的非泛型型別：`ForEach` 是泛型，而 Swift 不允許泛型型別具有 static stored property
+/// ——第一次嘗試把旗標放在 `ForEach` 上，得到 `static stored properties not supported in generic
+/// types`。放在此處也讓那個「一次」成為正確的語意、而非湊巧：泛型型別上的 static 會是**每個特化
+/// 各一份**，於是 `ForEach<[Int], Int, Text>` 與 `ForEach<[String], String, Text>` 會各警告一次，
+/// 而那則訊息重複出現時不會帶有任何新資訊。
+enum EagerForEachWarning {
+    /// Deliberately high. Not a recommendation about list size -- the point past
+    /// which "slow to appear" stops being plausibly something else.
+    /// 刻意設得很高。它不是對清單大小的建議——而是「出現得慢」不再能被合理歸因於別的東西的那個點。
+    static let threshold = 500
+
+    /// `nonisolated(unsafe)` because every caller is already on the main actor
+    /// and a diagnostic flag has nothing for isolation to protect.
+    /// 標記 `nonisolated(unsafe)`：所有呼叫端本就在 main actor 上，而一個診斷旗標沒有任何東西需要
+    /// 隔離來保護。
+    nonisolated(unsafe) static var hasFired = false
+}
 
 /// A view that displays a variable amount of children.
 public struct ForEach<Items: Collection, ID: Hashable, Child> {
@@ -10,6 +41,57 @@ public struct ForEach<Items: Collection, ID: Hashable, Child> {
 }
 
 extension ForEach: TypeSafeView, View where Child: View {
+    /// Says once, when a `ForEach` builds a great many children in one update,
+    /// that it did so eagerly.
+    ///
+    /// **The failure this names is currently invisible.** Nothing stops
+    /// `ScrollView { LazyVStack { ForEach(0..<10_000) { ... } } }` from
+    /// constructing ten thousand widget trees before the first frame. The app
+    /// does not crash, log, or warn -- it simply takes a long time to appear,
+    /// which reads as a hang with no cause attached. `LazyVStack` is eager here
+    /// (see ``LazyVStack``, which says so in its own documentation), and the
+    /// name is the only thing suggesting otherwise, so the developer's first
+    /// guess will not be the right one.
+    ///
+    /// Behind ``DebugFeatures`` because it is a diagnostic, not a policy: a
+    /// large `ForEach` is legitimate, and a release build should not pay for
+    /// counting or complaining about one.
+    ///
+    /// The threshold is deliberately high. It is not a recommendation about
+    /// list size -- it is the point past which "slow to appear" stops being
+    /// plausibly something else.
+    ///
+    /// 當某個 `ForEach` 在一次更新中建立了極大量的子項時，說一次：它是積極求值地建的。
+    ///
+    /// **它所指出的失敗目前是看不見的。** 沒有任何東西會阻止
+    /// `ScrollView { LazyVStack { ForEach(0..<10_000) { ... } } }` 在第一幀之前建出一萬棵 widget 樹。
+    /// app 不會崩潰、不會記錄、也不會警告——它只是很久才出現，而那讀起來像是一次沒有任何線索的當機。
+    /// `LazyVStack` 在此處是積極求值的（見 ``LazyVStack``，它自己的文件就這麼說），而唯一暗示相反的
+    /// 就只有那個名字，因此開發者的第一個猜測不會是正確的那一個。
+    ///
+    /// 置於 ``DebugFeatures`` 之後，因為它是診斷而非政策：一個很大的 `ForEach` 是合理的，而 release
+    /// build 不該為「計數並抱怨它」付出代價。
+    ///
+    /// 門檻刻意設得很高。它不是對清單大小的建議——它是「出現得慢」不再能被合理歸因於別的東西的那個點。
+    static func warnIfEagerlyLarge(built count: Int) {
+        guard DebugFeatures.isEnabled,
+            count >= EagerForEachWarning.threshold,
+            !EagerForEachWarning.hasFired
+        else { return }
+        EagerForEachWarning.hasFired = true
+        DebugFeatures.log(
+            """
+            ForEach built \(count) children eagerly in one update. This tree's \
+            LazyVStack and LazyHStack are NOT lazy -- they delegate to VStack and \
+            HStack, so every child is created up front along with its onAppear. \
+            See the documentation on LazyVStack in Views/LazyStacks.swift. If the \
+            app appears to hang before its first frame, this is a candidate cause.
+            """
+        )
+    }
+
+
+
     typealias Children = ForEachViewChildren<Items, ID, Child>
 
     /// Creates a view that creates child views on demand based on a collection
@@ -183,6 +265,8 @@ extension ForEach: TypeSafeView, View where Child: View {
                     removeChild(atIndex: children.nodes.count + i)
                 }
             }
+
+            Self.warnIfEagerlyLarge(built: children.nodes.count - oldNodesReused)
         }
 
         // Recompute layoutable children if the last commit cleared them
