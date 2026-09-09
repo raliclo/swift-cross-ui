@@ -170,7 +170,13 @@ for line in sys.stdin:
         f.get("os", ""), f.get("session", ""), f.get("host", ""),
         f.get("mux", "") or "tmux", f.get("config", ""),
         f.get("session_name", "") or f.get("session", ""),
+        # session_id is the LOCAL uuid, which is what `claude -r` accepts. The
+        # cloud id (session_01...) is deliberately NOT read here: it is the
+        # claude.ai/code URL form and -r rejects it.
+        # session_id 是**本機** uuid，那才是 `claude -r` 接受的東西。此處刻意不讀雲端那個 id
+        # （session_01…）：它是 claude.ai/code 網址的形式，而 -r 不收它。
         f.get("session_id", ""), f.get("method", "") or "session-id",
+        f.get("cwd", ""),
     ]))
 '
 }
@@ -222,7 +228,7 @@ one_beat() {
     # 本機那一列——它的 `config` 欄是空的——丟失了該欄位，並讓 `session_name` 滑進去。於是 log 印出
     # 「claude session 」後面空無一物，而心跳本身是好的；那種錯誤看起來像排版小疵，不像解析錯誤。
     # 0x1f 不可能出現在該 CSV 裡，而且它不是空白字元。
-    while IFS=$'\x1f' read -r os session host mux config session_name session_id method; do
+    while IFS=$'\x1f' read -r os session host mux config session_name session_id method cwd; do
         [ -n "$session" ] || continue
         # TWO WAYS TO REACH A SESSION, AND THEY ARE NOT THE SAME ACT.
         #
@@ -262,7 +268,17 @@ one_beat() {
                     continue
                     ;;
             esac
-            claude_cmd="claude -p -r $session_id \"$message\""
+            # **`claude -r` resolves a session id WITHIN A PROJECT DIRECTORY.**
+            # Run from anywhere else it answers "No conversation found with
+            # session ID: ..." -- which it did on the first real beat to the
+            # Windows machine, because the remote command landed in the login
+            # home rather than in the checkout. The cwd column is why that is
+            # per row: the two machines keep this tree in different places.
+            # **`claude -r` 是在一個「專案目錄之內」解析 session id 的。** 從別處執行時，它會回答
+            # "No conversation found with session ID: …"——第一次真的送往 Windows 的那一拍就是如此，
+            # 因為那個遠端指令落在登入的 home 而不是這份 checkout 裡。cwd 欄之所以逐列設定，正是
+            # 因為兩台機器把這棵樹放在不同的位置。
+            claude_cmd="cd ${cwd:-.} && claude -p -r $session_id \"$message\""
             if [ "$host" = "local" ]; then
                 reply="$(eval "$claude_cmd" 2>&1 | head -3 || true)"
             else
@@ -270,6 +286,21 @@ one_beat() {
                 config="${config/#\~/$HOME}"
                 reply="$("$multissh_bin" -F "$config" "$host" "$claude_cmd" 2>&1 | head -3 || true)"
             fi
+            # **An error message is also a reply, and the first version of this
+            # counted one as a success.** `claude -r` with an id it cannot
+            # resolve prints "No conversation found with session ID: ..." on
+            # stdout and the beat was reported as delivered. Non-empty is not
+            # the test; not-an-error is.
+            # **一句錯誤訊息也是一個回覆，而本段的第一個版本把它算成了成功。** `claude -r` 在無法
+            # 解析某個 id 時，會在 stdout 印出 "No conversation found with session ID: …"，於是那一拍
+            # 被回報為已送達。判準不是「非空」，而是「不是錯誤」。
+            case "$reply" in
+                *"No conversation found"*|*"not found"*|*"Error"*|*"error:"*)
+                    printf 'FAILED %s/%s (%s) -- %s\n' \
+                        "$os" "$session_name" "$host" "$reply" >&2
+                    continue
+                    ;;
+            esac
             if [ -n "$reply" ]; then
                 printf 'asked %s/%s (%s) -- replied: %s\n' \
                     "$os" "$session_name" "$host" "$reply"
