@@ -1,0 +1,11 @@
+# <host> <session-name> [tmux|screen] [multissh-config-path]
+#
+# Copy to .session-ping-targets (untracked, one machine's state) and edit.
+# 複製為 .session-ping-targets（未納入版控，屬於單一台機器的狀態）後再編輯。
+#
+# WSL has tmux 3.6 and screen 4.09 and answers on port 16889 via config2WSL;
+# the Windows side (MSYS2, config2Win) has neither, so it cannot be pinged
+# until one is installed there. Both measured 2026-09-09.
+# WSL 有 tmux 3.6 與 screen 4.09，經由 config2WSL 於 port 16889 回應；Windows 那一側
+# （MSYS2，config2Win）兩者皆無，因此在安裝之前 ping 不到。兩者皆為 2026-09-09 實測。
+wsl claude-swiftcrossui tmux /Users/raliclo/.multissh/generated/config2WSL

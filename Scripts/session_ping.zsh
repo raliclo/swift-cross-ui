@@ -142,17 +142,53 @@ for target in $(list_local); do
     sent=$(( sent + 1 ))
 done
 
-# Remote targets, one per line: "<host> <screen-session-name>". Sent through
-# multissh's exec channel, which is the half of this that was wrongly ruled out.
-# 遠端目標，一行一個："<主機> <screen session 名稱>"。經由 multissh 的 exec 通道送出，而那正是
-# 先前被誤判為做不到的那一半。
+# Remote targets, one per line:
+#
+#     <host> <session-name> [tmux|screen] [multissh-config-path]
+#
+# The last two columns exist because the two remote machines are not the same
+# machine and do not have the same tools. Measured 2026-09-09 through multissh:
+#
+#     winnode  (config2Win,  MSYS2)   tmux: command not found, screen: not found
+#     wsl      (config2WSL,  port 16889, Linux 6.18 WSL2)   tmux 3.6, screen 4.09
+#
+# So WSL is the side that can be pinged today, and it was pinged end to end from
+# this Mac:
+#
+#     multissh -F config2WSL wsl "tmux new-session -d -s claude-selftest sh"
+#     multissh -F config2WSL wsl "tmux send-keys -t claude-selftest 'echo ... > /tmp/p' Enter"
+#     -> REACHED_WSL_LIVE_SESSION
+#
+# **This does NOT make a Windows-native session reachable from WSL.** tmux writes
+# into a pty it owns, and a session running in MSYS2 on the Windows side is not
+# in WSL's pty. A session has to be started inside whichever of the two it is to
+# be pinged in.
+#
+# 遠端目標，一行一個："<主機> <session 名稱> [tmux|screen] [multissh config 路徑]"。
+#
+# 後兩欄之所以存在，是因為那兩台遠端並不是同一台機器，工具也不同。2026-09-09 經由 multissh 實測：
+# winnode（config2Win，MSYS2）上 tmux 與 screen 皆 command not found；wsl（config2WSL，port
+# 16889，Linux 6.18 WSL2）上有 tmux 3.6 與 screen 4.09。因此今天能被 ping 到的是 WSL 這一側，
+# 而它已從這台 Mac 端到端 ping 過（見上方英文中的三行，回傳 REACHED_WSL_LIVE_SESSION）。
+#
+# **這並不會讓一個 Windows 原生的 session 可以從 WSL 被戳到。** tmux 寫入的是它自己擁有的 pty，
+# 而跑在 Windows 側 MSYS2 中的 session 不在 WSL 的 pty 裡。要在哪一邊被 ping，就必須在哪一邊啟動。
 if [ -f "$targets_file" ]; then
-    while read -r host name; do
+    while read -r host name mux config; do
         case "$host" in ''|\#*) continue ;; esac
         [ -n "$name" ] || continue
-        if "$multissh_bin" -F "$multissh_config" "$host" \
-            "screen -S $name -p 0 -X stuff '$message\r'" >/dev/null 2>&1
-        then
+        mux="${mux:-tmux}"
+        config="${config:-$multissh_config}"
+        case "$mux" in
+            tmux)   remote_cmd="tmux send-keys -t $name '$message' Enter" ;;
+            screen) remote_cmd="screen -S $name -p 0 -X stuff '$message\r'" ;;
+            *)
+                printf 'unknown multiplexer "%s" for %s:%s -- use tmux or screen\n' \
+                    "$mux" "$host" "$name" >&2
+                continue
+                ;;
+        esac
+        if "$multissh_bin" -F "$config" "$host" "$remote_cmd" >/dev/null 2>&1; then
             printf 'sent to %s:%s\n' "$host" "$name"
             sent=$(( sent + 1 ))
         else
