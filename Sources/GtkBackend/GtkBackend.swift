@@ -4614,8 +4614,33 @@ public final class GtkBackend:
 
     // MARK: Paths
 
+    /// A drawing area that does not take clicks for a path it did not fill.
+    ///
+    /// Not a `DrawingArea()`, and that was task #111. A path widget covers the
+    /// view it decorates, and a plain `GtkDrawingArea` claims every point in its
+    /// allocation -- so `.border(_:width:)`, which is an overlaid stroked
+    /// `Rectangle`, swallowed every click meant for what it surrounded. Measured
+    /// with `gtk_widget_pick` inside P50's popover: the chain ended
+    /// `GtkDrawingArea < GtkPassthroughFixed x7 < GtkPopoverContent`, with no
+    /// button in it at all.
+    ///
+    /// Wrapped in a `DrawingArea` rather than given a Swift subclass of its own,
+    /// because there is nothing for a subclass to add: the behaviour is entirely
+    /// in the GObject class, and `renderPath` still needs the value to be a
+    /// `Gtk.DrawingArea` for `setDrawFunc`.
+    ///
+    /// 一個不會為「自己並未填色的路徑」接下點擊的 drawing area。
+    ///
+    /// 不是 `DrawingArea()`,而這正是任務 #111。路徑 widget 覆蓋著它所裝飾的那個 view,而一般的
+    /// `GtkDrawingArea` 會攔截其配置範圍內的每一個點——因此 `.border(_:width:)`(它是一個疊加其上、
+    /// 帶描邊的 `Rectangle`)吞掉了每一次原本要給它所包圍之物的點擊。以 `gtk_widget_pick` 在 P50 的
+    /// popover 內實測:該鏈以 `GtkDrawingArea < GtkPassthroughFixed ×7 < GtkPopoverContent` 作結,
+    /// 其中**根本沒有按鈕**。
+    ///
+    /// 以 `DrawingArea` 包裝而非另立 Swift 子類別,因為子類別無事可做:行為完全位於 GObject 類別中,
+    /// 而 `renderPath` 仍需要這個值是一個 `Gtk.DrawingArea` 才能呼叫 `setDrawFunc`。
     public func createPathWidget() -> Widget {
-        DrawingArea()
+        DrawingArea(gtk_passthrough_drawing_area_new())
     }
 
     public func createPath() -> Path {
@@ -4674,6 +4699,31 @@ public final class GtkBackend:
         let strokeColor = fillStyleForStroke.flattened(in: environment)
         let fillColor = fillStyle.flattened(in: environment)
         let drawingArea = container as! Gtk.DrawingArea
+
+        // Whether this path takes clicks, decided by whether it fills anything.
+        //
+        // Set here rather than at creation because it depends on the style, and
+        // the style arrives with every update: a shape whose fill is bound to
+        // state has to be able to stop taking clicks as well as start.
+        //
+        // The flat colour is the right thing to read even for a gradient. A
+        // gradient's `flattened` is its representative colour, and a gradient
+        // with zero opacity throughout paints nothing -- the case this is
+        // distinguishing -- while any visible gradient gives a visible flat
+        // colour.
+        //
+        // 此路徑是否接下點擊,由「它有沒有填任何東西」決定。
+        //
+        // 設在此處而非建立時,因為它取決於樣式,而樣式在每次更新時都會送達:一個填色綁定於 state
+        // 的形狀,必須既能「開始」也能「停止」接下點擊。
+        //
+        // 即使對漸層而言,讀取平面色也是正確的做法。漸層的 `flattened` 是它的代表色,而一個通篇
+        // 零不透明度的漸層什麼都不會畫——那正是此處要分辨的情況——而任何看得見的漸層,都會給出一個
+        // 看得見的平面色。
+        gtk_passthrough_drawing_area_set_opaque(
+            drawingArea.widgetPointer,
+            fillColor.opacity > 0 ? 1 : 0
+        )
 
         // We don't actually care about leaking backends, but might as well use
         // a weak reference anyway.

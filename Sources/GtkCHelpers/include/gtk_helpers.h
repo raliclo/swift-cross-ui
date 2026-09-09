@@ -51,6 +51,50 @@ GtkWidget *gtk_passthrough_fixed_new(void);
 // 都仍可點擊。
 void gtk_passthrough_fixed_set_opaque(GtkWidget *widget, gboolean opaque);
 
+// A GtkDrawingArea that does not claim pointer events for a path it did not
+// fill. Implemented in gtk_passthrough_drawing_area.c, which records the
+// measurement it came from.
+//
+// The container version above was not enough: `.border(_:width:)` is an
+// overlaid stroked Rectangle, so the widget in the hit path is a DRAWING AREA,
+// not a Fixed, and a plain one claims its whole allocation. Task #111 -- "a
+// click inside a popover does nothing" -- was that border swallowing every
+// click meant for the buttons it surrounded.
+//
+// Declared here rather than in its own header, for the umbrella-module reason
+// recorded above gtk_passthrough_fixed_new -- and that note now covers SOURCE
+// files too. Adding gtk_passthrough_drawing_area.c to this directory on
+// 2026-09-10 produced `lld-link: error: undefined symbol:
+// gtk_passthrough_drawing_area_new` from an incremental build: the declaration
+// was visible, the definition was never compiled, and the failure reads as a
+// missing library rather than a stale file list. `touch Package.swift` forces
+// the replan that picks it up. Worth the two lines, because the error names the
+// symbol and says nothing about the file that was skipped.
+//
+// 此宣告放在此處而非自己的標頭檔,理由同 gtk_passthrough_fixed_new 上方所記——而該註記現在也涵蓋
+// **原始檔**。2026-09-10 將 gtk_passthrough_drawing_area.c 加入本目錄後,增量建置產生了
+// `lld-link: error: undefined symbol: gtk_passthrough_drawing_area_new`:宣告看得見,定義卻從未
+// 被編譯,而該錯誤讀起來像是缺少函式庫,而不是一份過期的檔案清單。`touch Package.swift` 可強制
+// 重新規劃並納入它。值得寫這兩行,因為錯誤訊息指名的是符號,對「被略過的那個檔案」隻字未提。
+//
+// 一個不會為「自己並未填色的路徑」攔截指標事件的 GtkDrawingArea。實作位於
+// gtk_passthrough_drawing_area.c，該處記錄了它所源自的那次量測。
+//
+// 上方的容器版本並不足夠：`.border(_:width:)` 是一個疊加其上、帶描邊的 Rectangle，因此位於命中
+// 路徑上的 widget 是一個 **drawing area** 而非 Fixed，而一般的 drawing area 會攔截其整個配置範圍。
+// 任務 #111——「在 popover 內點擊沒有反應」——正是那個邊框吞掉了每一次原本要給它所包圍之按鈕的點擊。
+//
+// 宣告放在此處而非自己的標頭檔，理由同 gtk_passthrough_fixed_new 上方所記的 umbrella 模組註記。
+GtkWidget *gtk_passthrough_drawing_area_new(void);
+
+// Marks a path widget as filling something, so it claims the points it covers
+// again. A stroke-only path -- a border -- should let clicks through; a filled
+// shape should not.
+//
+// 將某個路徑 widget 標記為「有填色」，使其重新攔截所覆蓋的點。只有描邊的路徑——例如邊框——應讓
+// 點擊穿透；填實的形狀則不應。
+void gtk_passthrough_drawing_area_set_opaque(GtkWidget *widget, gboolean opaque);
+
 // A GtkFixed that clips its children to its own size request rather than letting
 // them draw past it. This is the #389 clip: a plain GtkFixed measures to the
 // bounding box of its children, so a child larger than the frame makes the

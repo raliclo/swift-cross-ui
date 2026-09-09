@@ -9,6 +9,74 @@ public struct Slider: ElementaryView, View {
     private var range: ClosedRange<Double>
     /// The number of decimal places used when displaying the value.
     private var decimalPlaces: Int
+    /// The distance between selectable values, or nil for a continuous slider.
+    ///
+    /// **Not a backend parameter, and that is a measurement rather than a
+    /// preference.** The five shipped backends disagree about whether a slider
+    /// can step at all: `GtkScale` has increments and `round-digits`,
+    /// `WinUI.Slider` has `stepFrequency`, `NSSlider` needs tick marks plus
+    /// `allowsTickMarkValuesOnly`, Android's is integer-stepped -- and `UISlider`
+    /// has **no step API whatsoever**, so its value has to be snapped in the
+    /// change handler regardless. Since one platform forces snapping in shared
+    /// code, doing it there for all five is the only way every backend behaves
+    /// the same, which is what the `step:` in an application's source is asking
+    /// for.
+    ///
+    /// The thumb still snaps visually, and not by accident: ``commit`` pushes
+    /// `value.wrappedValue` back into the widget with `setValue(ofSlider:to:)`,
+    /// so once the binding holds a snapped value the widget is told to show it.
+    /// A drag between steps therefore ends with the thumb on a step, on every
+    /// backend, with no protocol method added to any of them.
+    ///
+    /// **An INITIAL value is left alone.** `step:` governs the values the user
+    /// produces; the value an application starts with is its own. See the note
+    /// in ``commit`` for the run that settled that, and for what snapping it
+    /// there actually produced -- a printed value and a thumb that disagreed.
+    ///
+    /// **初始值不予變動。** `step:` 管的是**使用者所產生**的值;應用程式起始時所持有的值屬於它自己。
+    /// 那次定案的執行,以及在該處吸附實際造成了什麼——一個印出的數值與一個把手互相矛盾——記於
+    /// ``commit`` 中的註解。
+    ///
+    /// 可選值之間的間距;nil 代表連續滑桿。
+    ///
+    /// **不是一個 backend 參數,而這是量測的結果,不是偏好。** 五個已發布的 backend 對「滑桿究竟能不能
+    /// 分段」意見分歧:`GtkScale` 有 increments 與 `round-digits`、`WinUI.Slider` 有 `stepFrequency`、
+    /// `NSSlider` 需要刻度加上 `allowsTickMarkValuesOnly`、Android 的本來就是整數步進——而 `UISlider`
+    /// **根本沒有任何 step API**,因此無論如何它的值都得在變更處理常式中吸附。既然有一個平台強迫我們
+    /// 在共用程式碼中吸附,那麼為五個平台都在該處吸附,就是讓每個 backend 行為一致的唯一辦法——而那
+    /// 正是應用程式原始碼裡那個 `step:` 所要求的東西。
+    ///
+    /// 滑桿的把手仍然會在視覺上吸附,而且不是碰巧:``commit`` 會以 `setValue(ofSlider:to:)` 把
+    /// `value.wrappedValue` 推回 widget,因此一旦 binding 持有吸附後的值,widget 就會被告知顯示它。
+    /// 於是一次落在兩步之間的拖曳,最終會讓把手停在某一步上——在每一個 backend 上皆然,且不需要為
+    /// 任何一個 backend 新增協定方法。
+    private var step: Double?
+
+    /// `value` rounded to the nearest step, clamped to the range.
+    ///
+    /// Clamped last, and it matters: a range whose length is not a whole number
+    /// of steps -- `0...1` by `0.3` -- has its top step at 0.9, and rounding a
+    /// drag to the far end gives 1.2. Without the clamp the binding would take a
+    /// value outside the range it was given, which nothing downstream checks.
+    ///
+    /// A non-positive step is treated as no step rather than trapped on. It
+    /// would divide by zero or loop, and a slider is not worth crashing an
+    /// application over; the value simply stays continuous.
+    ///
+    /// 將 `value` 四捨五入至最近的一步,並夾在範圍內。
+    ///
+    /// **夾限放在最後,而這是有意義的**:一個長度並非整數步的範圍——例如以 `0.3` 為步進的 `0...1`
+    /// ——其最高的一步在 0.9,而把拖到底的值四捨五入會得到 1.2。少了夾限,binding 就會拿到一個
+    /// 超出它被賦予之範圍的值,而下游沒有任何東西會檢查這件事。
+    ///
+    /// 非正數的步進被視為「沒有步進」,而不是讓它觸發 trap。那會除以零或造成迴圈,而一個滑桿不值得
+    /// 讓整個應用程式崩潰;此時數值單純維持連續。
+    private func snapped(_ value: Double) -> Double {
+        guard let step, step > 0 else { return value }
+        let steps = ((value - range.lowerBound) / step).rounded()
+        let snapped = range.lowerBound + steps * step
+        return min(max(snapped, range.lowerBound), range.upperBound)
+    }
 
     @available(*, deprecated, renamed: "init(value:in:)")
     public init<T: BinaryInteger>(_ value: Binding<T>? = nil, minimum: T, maximum: T) {
@@ -18,6 +86,34 @@ public struct Slider: ElementaryView, View {
     @available(*, deprecated, renamed: "init(value:in:)")
     public init<T: BinaryFloatingPoint>(_ value: Binding<T>? = nil, minimum: T, maximum: T) {
         self.init(value: value, in: minimum...maximum)
+    }
+
+    /// Creates a slider to select a value in a range, in fixed increments.
+    ///
+    /// - Parameters:
+    ///   - value: A binding to the current value.
+    ///   - range: The slider's selectable range of values.
+    ///   - step: The distance between selectable values.
+    ///
+    /// 建立一個在指定範圍內、以固定增量選值的滑桿。
+    public init<T: BinaryInteger>(value: Binding<T>? = nil, in range: ClosedRange<T>, step: T) {
+        self.init(value: value, in: range)
+        self.step = Double(step)
+    }
+
+    /// Creates a slider to select a value in a range, in fixed increments.
+    ///
+    /// - Parameters:
+    ///   - value: A binding to the current value.
+    ///   - range: The slider's range of values.
+    ///   - step: The distance between selectable values.
+    ///
+    /// 建立一個在指定範圍內、以固定增量選值的滑桿。
+    public init<T: BinaryFloatingPoint>(
+        value: Binding<T>? = nil, in range: ClosedRange<T>, step: T
+    ) {
+        self.init(value: value, in: range)
+        self.step = Double(step)
     }
 
     /// Creates a slider to select a value in a range.
@@ -96,11 +192,51 @@ public struct Slider: ElementaryView, View {
             decimalPlaces: decimalPlaces,
             environment: environment
         ) { newValue in
+            // Snapped BEFORE the comparison, not after. Comparing the raw value
+            // and snapping on the way in would write on every pixel of a drag,
+            // since the raw value differs each time while the snapped one does
+            // not -- so a stepped slider would fire its binding as often as a
+            // continuous one and every `onChange` downstream would see the
+            // repeats.
+            // **先吸附,再比較**,而不是反過來。若拿原始值比較、在寫入時才吸附,拖曳過程中的每一個
+            // 像素都會觸發寫入——因為原始值每次都不同,而吸附後的值不會——於是一個分段滑桿會與連續
+            // 滑桿一樣頻繁地觸發它的 binding,下游每一個 `onChange` 都會看到那些重複。
+            let newValue = snapped(newValue)
             if let value, value.wrappedValue != newValue {
                 value.wrappedValue = newValue
             }
         }
 
+        // NOT snapped, and the struck-through reasoning below is kept because it
+        // was written, built, run, and refuted by the picture.
+        //
+        // ~~`setValue(ofSlider:to: snapped(value))`, so a slider created at a
+        // value the step does not land on shows its thumb on a step rather than
+        // between two.~~ Measured 2026-09-10 with P21, `in: 0...1, step: 0.25`
+        // and an initial 0.3: the on-screen label read **0.30**. Of course it
+        // did -- the `Text` reads the state, and snapping here only tells the
+        // WIDGET a different number. The result is not "the step was applied on
+        // launch"; it is the thumb and the printed value disagreeing, which is
+        // worse than either of the things it was choosing between.
+        //
+        // So `step:` governs the values the USER produces, and an initial value
+        // is the application's own. Rewriting a caller's binding from inside a
+        // layout commit is a side effect at render time, and this framework has
+        // no moment at which that is safe. The first drag snaps it; until then
+        // the number and the thumb agree, which is the property that actually
+        // matters.
+        //
+        // **不吸附**;下方被劃掉的推論予以保留,因為它曾被寫下、建置、執行,然後被那張圖推翻。
+        //
+        // ~~使用 `setValue(ofSlider:to: snapped(value))`,好讓初始值不落在步進上的滑桿,把手停在
+        // 某一步上而非兩步之間。~~ 2026-09-10 以 P21 實測(`in: 0...1, step: 0.25`,初始值 0.3):
+        // 畫面上的標籤讀作 **0.30**。這是當然的——`Text` 讀的是 state,而在此吸附只是告訴 **widget**
+        // 一個不同的數字。其結果並不是「step 在啟動時就生效了」,而是**把手與印出的數值互相矛盾**,
+        // 那比它原本要在兩者間做的選擇都更糟。
+        //
+        // 因此 `step:` 管的是**使用者所產生**的值,而初始值屬於應用程式自己。從一次 layout commit
+        // 內部改寫呼叫端的 binding,是發生在算繪期的副作用,而本框架沒有任何一個「那樣做是安全的」
+        // 時刻。第一次拖曳就會吸附它;在那之前,數字與把手是一致的——而那才是真正重要的性質。
         if let value = value?.wrappedValue {
             backend.setValue(ofSlider: widget, to: value)
         }
