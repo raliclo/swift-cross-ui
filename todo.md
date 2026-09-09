@@ -28,6 +28,60 @@ different depending on where "here" was.
 
 ## Now / 現在
 
+### In flight on the WINDOWS side, 2026-09-09 — resume here
+
+**Read this before starting anything in this file, and delete the entries as
+they land.** A section like this goes stale faster than anything else here, so
+every entry is dated and says what would prove it done. If an entry is more than
+a couple of days old, check it against the code before believing it.
+
+| what | state | what finishes it |
+| --- | --- | --- |
+| **WinUIBackend did not compile** — `startBringIntoView` throws and the call had no `try` (`WinUIBackend+ScrollTo.swift`) | fixed, build in progress | a clean `swift build`; the file's header said "UNVERIFIED" meaning "not run", when it had not even been compiled |
+| `WinUIBackend` gained a `DebugFeatures` dependency so the above can report a failure instead of swallowing it | done, unverified | same build. This is task #48 moving one file, not finishing — Alerts, AngularGradient, Button and ButtonPressState still have bare `try?` |
+| **WinUI `setRefreshHandler(to: nil)` left the button behind** and re-enabling nested another Grid | fixed, unverified | build, then P54 on WinUI: toggle `.refreshable` off and on and confirm one button, one Grid |
+| `Tests/SwiftCrossUITests/LazyVGridTests.swift` — new, reproduces the adaptive-overflow defect | written, RED expected | see #119. The failing assertion is `resolved 530 for a 420 container` |
+| #119 adaptive columns ignore fixed columns | diagnosed, not fixed | make the test above pass without letting a column fall below its minimum |
+| #120 Grid mis-arranges a static cell beside a `ForEach` | diagnosed, not fixed | `computeLayout` branches on `layoutable.count`; the >1 branch assumes the children ARE the cells |
+
+**Running the tests on Windows needs the GTK include flags** — a plain
+`swift test` fails at `GtkCHelpers` with `'gtk/gtk.h' file not found`, and
+`swift test` builds every target whether or not you filter. This is the
+invocation, the same 14 flags `compile.zsh -gtk4` uses:
+
+```sh
+GTK=C:/gtk4
+export PKG_CONFIG_PATH="$GTK/lib/pkgconfig" PATH="$GTK/bin:$PATH"
+FLAGS=()
+for f in $(PKG_CONFIG_PATH="$GTK/lib/pkgconfig" "$GTK/bin/pkg-config.exe" --cflags gtk4); do
+    case "$f" in -I*) FLAGS+=(-Xcc "$f");; esac
+done
+swift test --filter LazyVGrid "${FLAGS[@]}"
+```
+
+It takes well over ten minutes from cold. **Do not start a second build while
+one is running**: a concurrent `swift test` died with `error: fatalError` at
+step 10 of 554, which looks nothing like a lock conflict and reads as a broken
+package.
+
+**Windows 側進行中,2026-09-09——從這裡接手。** 開始本檔中任何工作之前請先讀這一段,並在各項落地時
+**刪除**對應的列。這種段落比本檔其他任何東西都更快過期,因此每一列都標了日期,也寫明「什麼才算完成」。
+若某一列已超過兩三天,請先對照程式碼再相信它。
+
+上表由上而下:WinUIBackend 先前**根本無法編譯**(`startBringIntoView` 會 throw 而呼叫端沒有 `try`),
+已修、建置中——該檔標頭寫的「UNVERIFIED」意思是「未執行過」,而事實是它連編譯都沒有過;
+`WinUIBackend` 新增了 `DebugFeatures` 依賴,好讓上述失敗能被回報而不是被吞掉(這是任務 #48 前進一個
+檔案,不是完成);WinUI 的 `setRefreshHandler(to: nil)` 會留下按鈕、重新啟用又會多包一層 Grid,已修
+待驗;`LazyVGridTests.swift` 為新增,重現 adaptive 溢出,**預期為紅**;#119 與 #120 已診斷、未修。
+
+**在 Windows 上跑測試需要 GTK 的 include 旗標**——純 `swift test` 會在 `GtkCHelpers` 以
+`'gtk/gtk.h' file not found` 失敗,而且 `swift test` 無論你有沒有 `--filter` 都會建置每一個 target。
+上方程式碼區塊即為正確的呼叫方式,用的是與 `compile.zsh -gtk4` 相同的那 14 個旗標。冷啟動要**十分鐘
+以上**。**切勿在一個建置執行時再啟動另一個**:一次並行的 `swift test` 在 554 步中的第 10 步以
+`error: fatalError` 死亡,那看起來完全不像鎖衝突,而像是套件壞掉。
+
+---
+
 ### Style protocols: follow SwiftUI's shape wherever SwiftUI has one (Windows)
 
 Audited 2026-08-27. The project is not inconsistent with SwiftUI so much as
@@ -1058,8 +1112,16 @@ Three things this makes visible that the category list did not:
   fraction; this is the same edit in the honest direction, and it is the reason
   that warning cannot be read as "never touch the list".
 
-  `GridRow`, `GridItem` and the `GridCellsProviding` helper shipped with them
-  but are deliberately **not** added to the name list — growing the denominator
+  `GridRow` (`Views/Grid.swift:124`) and `GridItem` (`Views/LazyVGrid.swift:33`)
+  shipped with them ~~and the `GridCellsProviding` helper~~ — **that third name
+  does not exist. Measured 2026-09-09: `grep -rn GridCellsProviding Sources/`
+  → 0.** `parity-gaps-survey.md` recorded its disappearance in `dea9ccff` and
+  carries the same regeneration command; this line was never updated to match,
+  so one document has said for over a week that a type exists while another
+  documents that it does not. Neither is wrong about the code — one of them is
+  simply older, and nothing marks which.
+  (`Views/GridItem.swift` is gone too; `GridItem` lives in `LazyVGrid.swift`.)
+  These are deliberately **not** added to the name list — growing the denominator
   to flatter the fraction is the exact move that produced the wrong number
   above. Adding a name that is ABSENT is the opposite move and is always
   allowed.
