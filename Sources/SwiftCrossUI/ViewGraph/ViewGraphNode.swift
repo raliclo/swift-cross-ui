@@ -146,6 +146,30 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     /// Triggers the view to be updated as part of a bottom-up chain of updates (where either the
     /// current view gets updated due to a state change and has potential to trigger its parent to
     /// update as well, or the current view's child has propagated such an update upwards).
+    /// What this node last told the window it was drawing.
+    ///
+    /// `nil` until the first bottom-up update, so the first comparison cannot
+    /// fire spuriously against a value the window already applied at launch.
+    /// 這個節點上一次告訴視窗它正在繪製的東西。
+    ///
+    /// 在第一次 bottom-up 更新之前為 `nil`，因此第一次比較不會對著「視窗在啟動時早已套用的值」
+    /// 誤觸發。
+    private var lastWindowChromeSignature: String?
+
+    /// The window-facing part of a set of preferences, as one comparable string.
+    ///
+    /// A string rather than `Equatable` on `PreferenceValues`, which cannot have
+    /// it: that type holds `onOpenURL`, a closure, and closures have no equality.
+    /// 把 preference 中「面向視窗」的部分壓成一個可比較的字串。
+    ///
+    /// 用字串而非讓 `PreferenceValues` 實作 `Equatable`——它做不到：該型別持有 `onOpenURL`，
+    /// 那是一個 closure，而 closure 沒有相等性。
+    private static func windowChromeSignature(of preferences: PreferenceValues) -> String {
+        let title = preferences.navigationTitle ?? ""
+        let toolbar = preferences.toolbarItems.map(\.label).joined(separator: "\u{1f}")
+        return "\(title)\u{1e}\(toolbar)"
+    }
+
     private func bottomUpUpdate() {
         // First we compute what size the view will be after the update. If it will change size,
         // propagate the update to this node's parent instead of updating straight away.
@@ -161,6 +185,33 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             parentEnvironment.onResize(newLayout.size)
         } else {
             _ = self.commit()
+
+            // A state change that does not resize anything can still change what
+            // the WINDOW draws, and before this nothing carried that upwards.
+            // `.navigationTitle(someState)` wrote its first value at launch and
+            // every later one was computed, stored and never read -- P50 showed
+            // "TITLE B" in its body and "TITLE A" in its title bar, in one
+            // screenshot, on 2026-09-10.
+            //
+            // Compared rather than announced unconditionally: notifying on every
+            // committed state change would make each one re-lay-out the whole
+            // window, which is what `onResize` costs and why it is rare. The
+            // signature covers exactly what `WindowReference` applies from
+            // preferences -- the title and the toolbar's labels.
+            //
+            // 一次不改變尺寸的狀態改變，仍然可能改變**視窗**所繪製的東西，而在此之前沒有任何東西
+            // 把那件事往上帶。`.navigationTitle(某個狀態)` 在啟動時寫入了它的第一個值，其後每一個
+            // 都被算出、被存下、從未被讀取——2026-09-10，P50 在同一張截圖裡內容顯示「TITLE B」、
+            // 標題列顯示「TITLE A」。
+            //
+            // 採比較而非無條件通知：若每一次已提交的狀態改變都通知，等於讓每一次都重排整個視窗，
+            // 而那正是 `onResize` 的成本、也是它罕見的原因。這個簽章涵蓋的，恰好是 `WindowReference`
+            // 會從 preference 中套用的東西——標題與工具列的標籤。
+            let signature = Self.windowChromeSignature(of: newLayout.preferences)
+            if signature != lastWindowChromeSignature {
+                lastWindowChromeSignature = signature
+                parentEnvironment.onWindowChromeChange()
+            }
         }
     }
 

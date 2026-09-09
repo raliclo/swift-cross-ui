@@ -88,6 +88,7 @@ extension AppKitBackend {
         // keep.
         // `.maxY` 會把它放在錨點下方,而那正是由按鈕開啟的 popover 該在的位置。空間不足時,AppKit
         // 會自行把它移到另一側——那正是此處刻意讓這個 backend 保有的規則。
+        popover.willPresent()
         popover.show(
             relativeTo: anchor.bounds,
             of: anchor,
@@ -126,6 +127,35 @@ public final class NSCustomPopover: NSPopover, NSPopoverDelegate {
     var onDismiss: (() -> Void)?
     var customContent: NSView?
 
+    /// Whether this presentation's close has already been reported.
+    ///
+    /// **`popoverDidClose(_:)` is called TWICE for one dismissal, and the reason
+    /// is documented AppKit behaviour rather than a bug here.** `NSPopover`
+    /// automatically registers a delegate that implements a notification-shaped
+    /// method as an observer of the matching notification -- so this method is
+    /// reached once by delegate dispatch and once by the notification centre.
+    /// Measured 2026-09-10: one light dismissal of P50's panel produced two
+    /// `popoverDidClose` calls with the SAME object identity, and P50's own
+    /// `onDismiss` logged "popover alpha dismissed" twice in the same second.
+    ///
+    /// The consequence is not cosmetic. `PopoverModifier.handleDismiss` runs the
+    /// application's `onDismiss` and then tears the popover's state down, so the
+    /// second call runs an application closure a second time -- for an app that
+    /// saves a draft or posts a request on dismissal, once is the contract.
+    ///
+    /// 這一次呈現的關閉是否已經回報過。
+    ///
+    /// **`popoverDidClose(_:)` 對一次關閉會被呼叫兩次,而原因是 AppKit 已載明的行為,不是此處的缺陷。**
+    /// `NSPopover` 會把「實作了通知形狀方法的 delegate」自動註冊為對應通知的觀察者——因此本方法會被
+    /// delegate 派送抵達一次,再被通知中心抵達一次。2026-09-10 實測:P50 面板的一次 light dismiss
+    /// 產生了兩次 `popoverDidClose`,兩次的物件身分相同,而 P50 自己的 `onDismiss` 在同一秒內記下了
+    /// 兩行「popover alpha dismissed」。
+    ///
+    /// 其後果不只是外觀問題。`PopoverModifier.handleDismiss` 會先執行應用程式的 `onDismiss`、再拆掉
+    /// popover 的狀態,因此第二次呼叫等於把一個應用程式的 closure 再執行一遍——對一個「在關閉時存草稿
+    /// 或送出請求」的 app 而言,契約是**一次**。
+    private var hasReportedClose = false
+
     override public init() {
         super.init()
         delegate = self
@@ -142,6 +172,19 @@ public final class NSCustomPopover: NSPopover, NSPopoverDelegate {
     }
 
     public func popoverDidClose(_ notification: Notification) {
+        // Reported once per presentation. Reset when the popover is shown
+        // again, in `presentPopover`, so a second presentation reports its own
+        // close rather than being swallowed by the first one's flag.
+        // 每一次呈現只回報一次。旗標會在 popover 再次被顯示時（於 `presentPopover`）重置，
+        // 好讓第二次呈現能回報它自己的關閉，而不是被第一次的旗標吞掉。
+        guard !hasReportedClose else { return }
+        hasReportedClose = true
         onDismiss?()
+    }
+
+    /// Called by the backend when this popover is shown.
+    /// 由 backend 在本 popover 被顯示時呼叫。
+    func willPresent() {
+        hasReportedClose = false
     }
 }
