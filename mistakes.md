@@ -40,17 +40,18 @@ line of output.
 
 ### 矯正措施 / The corrective
 
-`Scripts/queue_heartbeat.zsh` 與 `queue.md`。下一個項目由**檔案**指名,不由記憶指名:
+`Scripts/heartbeat.zsh` 與 `queue.md`。下一個項目由**檔案**指名,不由記憶指名:
 
 ```sh
-sh Scripts/queue_heartbeat.zsh          # 印出下一個未完成項目,或 IDLE
-zsh Scripts/queue_heartbeat.zsh --on    # 打開開關
-zsh Scripts/queue_heartbeat.zsh --off   # 關掉;此後每次心跳都是一次無成本的 IDLE
+sh Scripts/heartbeat.zsh          # 印出下一個未完成項目,或 IDLE
+zsh Scripts/heartbeat.zsh --on    # 打開開關
+zsh Scripts/heartbeat.zsh --off   # 關掉;此後每次心跳都是一次無成本的 IDLE
 ```
 
 搭配 `/loop` 使用時,關掉開關的那一輪只會執行這一支腳本、印出 `IDLE` 就結束 —— 那正是使用者
-要的「沒有任務時不要浪費 token 去問同一個問題」。同樣的開關也在 `Scripts/session_ping.zsh` 上,
-那一支是走 cron 的。
+要的「沒有任務時不要浪費 token 去問同一個問題」。兩件事現在合在同一支 `Scripts/heartbeat.zsh` 裡:
+`--next` 指出下一項,不帶參數則把心跳送到各個 session。它們共用同一個開關,而共用是刻意的——
+分成兩支時,「開了一個、忘了另一個」讀起來會與「兩個都開著但很安靜」完全相同。
 
 **這一段原本寫錯了,更正留在原地。** 它原本說:「這裡不能用 cron 或 while 迴圈去問一個執行中的
 session;shell 腳本沒有辦法把提示注入活著的互動式 session,`multissh` 是 ssh 設定,它到得了那台
@@ -65,13 +66,13 @@ session;shell 腳本沒有辦法把提示注入活著的互動式 session,`multi
 | `multissh -F ~/.multissh/generated/config2Win winnode "echo PING_OK"` | `PING_OK` |
 | `multissh winnode "echo PING_OK"`(不給 config) | 名稱解析失敗 |
 | `screen -S s -p 0 -X stuff "…\r"` 打進一個活著的 session | 成功,該 session 執行了送進去的那一行 |
-| `Scripts/session_ping.zsh` 端到端 | `sent to local 26235.claude-selftest`,而該 session 寫出了 `REACHED_THE_LIVE_SESSION` |
+| `Scripts/heartbeat.zsh` 端到端 | `sent to local 26235.claude-selftest`,而該 session 寫出了 `REACHED_THE_LIVE_SESSION` |
 | 這台 Mac 上跑在 multiplexer 裡的 session | 0 個(tmux 未安裝、`screen -ls` 無 socket) |
 | Windows 端的 multiplexer | 兩個都沒有(MSYS2 上 `tmux`、`screen` 皆 command not found) |
 
 因此真正的限制窄得多,而且是**可檢查的**:那個 session 必須跑在 multiplexer 之內。在裸終端機中
 啟動的 session 沒有任何人寫得進去的 socket。做法是改用 `screen -S claude-<名稱> claude` 啟動;
-Windows 那端則要先裝一個 multiplexer。工具是 `Scripts/session_ping.zsh`。
+Windows 那端則要先裝一個 multiplexer。工具是 `Scripts/heartbeat.zsh`。
 
 對**佇列**這件事來說,`/loop` 仍然是比較好的機制,但理由不是「cron 做不到」——而是它從正在做事的
 那個 session 內部重新進入,因此下一個項目是由必須採取行動的那個 session 自己讀到的。
@@ -90,4 +91,4 @@ The next item is named by a file, not by memory. Paired with `/loop`, a switched
 spend tokens asking when there is no task" half of the request. `/loop` is the
 mechanism for the queue because it re-enters from inside the session doing the
 work, not because cron is incapable: cron reaches a live session through
-`Scripts/session_ping.zsh`, and the table above is the measurement.
+`Scripts/heartbeat.zsh`, and the table above is the measurement.

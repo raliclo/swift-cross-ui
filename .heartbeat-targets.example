@@ -1,7 +1,7 @@
 # <host> <session-name> [tmux|screen] [multissh-config-path]
 #
-# Copy to .session-ping-targets (untracked, one machine's state) and edit.
-# 複製為 .session-ping-targets（未納入版控，屬於單一台機器的狀態）後再編輯。
+# Copy to .heartbeat-targets (untracked, one machine's state) and edit.
+# 複製為 .heartbeat-targets（未納入版控，屬於單一台機器的狀態）後再編輯。
 #
 # WSL has tmux 3.6 and screen 4.09 and answers on port 16889 via config2WSL;
 # the Windows side (MSYS2, config2Win) has neither, so it cannot be pinged
