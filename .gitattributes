@@ -164,7 +164,48 @@ gyb/* linguist-vendored
 # 安全,理由是有人對它執行過 `csv2 -update 111:3`。錯了:那次 update 改寫的是同一次提交剛剛附加的那
 # 一列,因此淨效果仍是附加,而 +11 -0 就是證據。**用一次記得的操作去推導「它是否純附加」,輸給了直接
 # 數 diff。**
+# THE STANDARD IS FULL HISTORY, AND ONE COMMIT IS NOT A PATTERN.
+#
+# Corrected again after the macOS side checked whole histories rather than a
+# moving window. `testapp/P52-buttonstyle-findings.csv2` has exactly ONE commit;
+# "+11 -0" over one commit says nothing about whether it will be rewritten, so
+# it is NOT listed. `buildtime/buildtime.csv2` has two, which is thin -- it is
+# listed, but "has not been rewritten yet" is not "will not be", and it should
+# be the first thing removed if it ever grows an update path.
+#
+#     mistakes/mistakes.csv2              67 commits   +114    -0
+#     matrix_coverage/results.csv2        95 commits  +2709 -2001  (see below)
+#     buildtime/buildtime.csv2             2 commits    +39    -0
+#     testapp/P52-...-findings.csv2        1 commit     +11    -0  NOT LISTED
+#
+# results.csv2's 2001 deletions are the CRLF/LF churn documented above, not row
+# edits: the last twelve commits touching it are every one of them `+N -0`. That
+# distinction had to be measured; the total alone would have disqualified the
+# file that most needs this rule.
+#
+# A MEASUREMENT ERROR OF MINE, recorded because it produced a confident wrong
+# number rather than an error. `git log --numstat -- <path>` filters which
+# COMMITS are shown and then prints numstat for EVERY file in each of them, so
+# summing its columns gives the whole repository's churn. It reported 827,175
+# deletions against a 114-line file, and I read that as evidence before noticing
+# it was impossible. The fix is to filter the numstat rows on the path too:
+#
+#     git log --numstat --format= -- FILE | awk -v p=FILE '$3==p {a+=$1; d+=$2} END {print a, d}'
+#
+# 判準是**全歷史**,而且**一次提交不構成模式**。
+#
+# 在 macOS 側改以整段歷史(而非移動視窗)檢查後再次更正。`testapp/P52-buttonstyle-findings.csv2` 只有
+# **一次**提交;一次提交的「+11 -0」對「它日後會不會被改寫」什麼都沒說,因此**不列入**。
+# `buildtime/buildtime.csv2` 有兩次,證據很薄——仍然列入,但「尚未被改寫」不等於「不會被改寫」,
+# 一旦它長出任何更新路徑,它應該是第一個被移除的。
+#
+# results.csv2 的 2001 行刪除來自上方所記的 CRLF/LF 抖動,而非改列:最近十二次觸及它的提交,**每一次**
+# 都是 `+N -0`。這個區分必須被量出來;若只看總數,最需要這條規則的那個檔案反而會被判出局。
+#
+# 我自己的一個量測錯誤,記錄於此,因為它產出的是一個有自信的錯數字、而不是一個錯誤。
+# `git log --numstat -- <path>` 過濾的是**哪些 commit**,接著把那些 commit 中**每一個檔案**的 numstat
+# 都印出來,因此直接加總其欄位得到的是整個 repository 的變動量。它對一個 114 行的檔案回報了 827,175
+# 行刪除,而我在察覺那不可能之前,已經把它當成證據讀了。修法是連 numstat 的列也要以路徑過濾(指令見上)。
 matrix_coverage/results.csv2 merge=union
 mistakes/mistakes.csv2 merge=union
 buildtime/buildtime.csv2 merge=union
-testapp/P52-buttonstyle-findings.csv2 merge=union
