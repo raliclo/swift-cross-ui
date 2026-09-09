@@ -1,0 +1,63 @@
+action,x,y,origin,button,key,micros,note,platform
+# P34 on Windows, GtkBackend: press "Scroll to row 50" and prove ScrollViewReader
+# actually moves the view.
+#
+# WHY THIS FILE EXISTS. ScrollViewReader, ScrollViewProxy and .id(_:) landed on
+# all five backends on 2026-09-09, and NOTHING in this suite drove any of them.
+# "It compiles" has been separated from "it works" twice in two days on this
+# machine: a toolbar drew correctly and did nothing when pressed, because its
+# GTK signal was never connected; and a synthesised keystroke reached a
+# GtkEntry's buffer without reaching its binding, because the input method was
+# left composing. A view nobody drives is not evidence.
+#
+# THIS ONE HAS TWO ASSERTIONS AND THEY ANSWER DIFFERENT QUESTIONS.
+#
+#   the log line   says the BUTTON was pressed and scrollTo was CALLED
+#   the picture    says the VIEW MOVED
+#
+# Either alone is ambiguous. A `scrollTo` that silently did nothing leaves the
+# list at Row 0 -- which is also exactly what a click that missed leaves. The
+# log tells those two apart; the picture tells "called it" from "it worked".
+# That distinction is the whole reason this file is not just a capture.
+#
+# HOW TO READ THE RESULT. The rows are labelled, so the answer is legible rather
+# than a judgement: the top visible row goes from `Row 0` to somewhere near
+# `Row 50`. Near, not exactly -- the anchor is `.top` but the list is 100 rows
+# in a 360-point frame, so the exact first row depends on row height and on
+# whether the container clamps at its scrollable maximum. Record what it says;
+# do not assume 50.
+#
+# (245,291) is the centre of the "Scroll to row 50" button, read off
+# screen-20260909-095032.png at 808x715, origin=frame, 100% display scale. The
+# two buttons above it -- "Show +100" and "Show all capped rows" -- sit at y 245,
+# a full row higher, and both are no-ops at the default rowCount, so landing on
+# one of them by mistake would look like a silent failure of this test rather
+# than a miss.
+#
+# P34 於 Windows、GtkBackend：按下「Scroll to row 50」，用以證明 ScrollViewReader 確實移動了視圖。
+#
+# 本檔存在的理由。ScrollViewReader、ScrollViewProxy 與 .id(_:) 於 2026-09-09 在五個 backend 上落地，
+# 而本套件中**沒有任何東西**驅動過它們。「編得過」與「會動」在這台機器上兩天內已被分開過兩次：一條
+# 工具列畫得正確、按下去毫無反應，因為它的 GTK 訊號從未被連接；一個合成的按鍵抵達了 GtkEntry 的
+# buffer、卻抵達不了它的 binding，因為輸入法停在組字狀態。**沒有人驅動的 view 不構成證據。**
+#
+# 本檔有兩項斷言，而它們回答的是不同的問題：**log 行**說明「按鈕被按下、scrollTo 被呼叫」，**畫面**
+# 說明「視圖確實移動了」。任一項單獨存在都是有歧義的：一個靜默無作為的 `scrollTo` 會把清單留在
+# Row 0——而那也正是「點擊落空」時的樣子。log 分得出這兩者；畫面則分得出「呼叫了」與「生效了」。
+# 這個區分正是本檔不只是一張擷圖的全部理由。
+#
+# 如何判讀。各列都有標籤，因此答案是可讀的、而非一種判斷：最上方可見列會從 `Row 0` 變成 `Row 50`
+# 附近。是**附近**、不是剛好——anchor 為 `.top`，但清單是 360 點框內的 100 列，因此確切的首列取決於
+# 列高、以及容器是否夾限在其可捲最大值。**請記錄它實際說了什麼，不要預設是 50。**
+#
+# (245,291) 是「Scroll to row 50」按鈕的中心，取自 808x715 的 screen-20260909-095032.png，
+# origin=frame，100% 顯示縮放。其上方兩顆按鈕（「Show +100」與「Show all capped rows」）位於 y=245，
+# 整整高一列，且在預設 rowCount 下兩者皆為 no-op——因此若誤中其中一顆，看起來會像是本測試靜默失敗，
+# 而不像是一次落空。
+#
+# expect: log-contains scrollTo row 50 requested
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,245,291,frame,,,,move onto the scroll button before pressing it,windows
+sleep,,,,,,200000,let the pointer arrive so the press lands on a hovered button,windows
+click,245,291,frame,left,,,"press Scroll to row 50; the top visible row must leave Row 0",windows
+sleep,,,,,,20000000,"hold 20s: the app exits when the replay ends, and the scrolled state exists only while it runs",windows

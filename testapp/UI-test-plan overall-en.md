@@ -1674,12 +1674,32 @@ Test steps:
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers what
 happens when a collection is larger than the window that shows it.
 
-There is no `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` or `Grid`, and
-no `ScrollViewReader` or `ScrollViewProxy`. `VStack` and `HStack` build every
+~~There is no `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` or `Grid`, and
+no `ScrollViewReader` or `ScrollViewProxy`.~~ **Six of those seven now exist.
+Re-checked 2026-09-09; the only one still absent is `LazyHGrid` (task #118).**
+`LazyVStack`, `LazyHStack`, `LazyVGrid` and `Grid` all landed by 2026-09-08, and
+`ScrollViewReader`/`ScrollViewProxy` on 2026-09-09 — driven and verified on
+Win-gtk4 by `actions/win/P34-scroll-to-row-50.csv`, whose log reads
+`scrollTo row 50 requested, anchor top` and whose capture shows the top visible
+row going from `Row 0` to `Row 50`. So the last sentence of the struck-through
+text — "nor is there a way to scroll to a particular row programmatically" — is
+now false, and it was the paragraph's whole conclusion.
+
+**The struck-through text is kept because of how it stayed wrong.** P34's own
+on-screen label carried the same list and the same error, so a reader who
+checked the running app against this document found them agreeing. Two copies of
+one stale claim do not corroborate each other; they only make the claim harder
+to doubt. It was caught by asking the source tree, one name at a time, with a
+control (`VStack` found, `ZZZNotARealType` absent, so the search itself works).
+
+What remains true: `VStack` and `HStack` build every
 child, and `ScrollView` scrolls whatever it was handed, so a collection inside a
 `ScrollView` is fully realised: 10,000 rows means 10,000 widgets, whether or not
-any of them is on screen. Nor is there a way to scroll to a particular row
-programmatically, which is what `ScrollViewProxy.scrollTo` is for in SwiftUI.
+any of them is on screen. **`LazyVStack` and `LazyHStack` do not change this** —
+they exist, and they are not lazy; the layout matches `VStack`/`HStack` exactly
+and every child is still built up front. See task #85, where that was decided
+as a documented divergence rather than a bug, and #117 for virtualising `List`,
+which is where the platform widgets already recycle.
 
 "Feels slow" is not a finding. The app takes a row count on the command line and
 prints numbers, so the result is a table rather than an impression.

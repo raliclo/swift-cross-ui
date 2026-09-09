@@ -80,6 +80,64 @@ action,x,y,origin,button,key,micros,note,platform
 # after a second click would mean re-measuring first. Keep the other button for
 # its own file.
 #
+# RE-VERIFIED 2026-09-09 after P34.swift changed AGAIN, and this time the
+# coordinate SURVIVED. The frame is now 808x715, not the 808x669 recorded below.
+#
+# Two edits landed on 2026-09-09: the "Still missing:" Text lost four of its five
+# names (a one-line Text replaced by a one-line Text -- no row added, no row
+# removed), and a ScrollViewReader block was added BELOW the button row. Neither
+# can move this button: the first is a substitution at equal height, the second
+# is entirely underneath. The window grew 46px downward to hold the new block.
+#
+# THAT IS AN ARGUMENT, NOT A MEASUREMENT, so it was measured and then run.
+# Measured off screen-20260909-095032.png at 808x715: "Show +100" spans
+# x 183..281, y 228..261, so (232, 245) is inside it. (The 2026-09-05 numbers
+# read x 184..280, y 229..253 -- the same button; the 1-3px difference is the
+# non-background threshold picking up the border, not movement.) The neighbour
+# now spans x 290..448, and the new "Scroll to row 50" button x 183..306 at
+# y 274..307 -- a full row below, and its own file drives it.
+#
+# Then RUN, because the 2026-09-05 failure below proves a plausible argument
+# about this exact button is not evidence:
+#   SCUI_DEBUG_EVENTS_DIR=<dir> zsh testapp/run.zsh P34 --debug -rows 500 \
+#       -actionfile actions/win/P34-show-more-rows.csv
+#     P34 ... RENDER COMPLETE -- P34 rows=500
+#     P34 ... show plus 100 -> visibleRows=200
+# 200 is this button. The replay's own log independently reported the frame as
+# `808x715@104,104`, which is where the new size above comes from rather than
+# from the screenshot alone.
+#
+# NOTE ON WHERE THE LOG GOES -- the paragraph far below saying it lands in the
+# CURRENT DIRECTORY is now only half true. P34 reads SCUI_DEBUG_EVENTS_DIR first
+# and falls back to currentDirectoryPath. run.zsh does NOT set that variable, so
+# unset, the old sentence still holds. Setting it explicitly is what made this
+# run readable: it removes the question of which of the three copies in the tree
+# a line came from.
+#
+# 2026-09-09 重新驗證：P34.swift **又**改了，而這一次座標**存活了下來**。外框現在是 808x715，
+# 不是下方記錄的 808x669。
+#
+# 2026-09-09 有兩處改動：「Still missing:」那個 Text 少掉了五個名字裡的四個（一行 Text 換一行
+# Text——沒有增列、也沒有減列），以及在按鈕列**下方**加入了一個 ScrollViewReader 區塊。兩者都
+# 無法移動這顆按鈕：前者是等高的替換，後者整個在它底下。視窗向下長了 46px 以容納新區塊。
+#
+# **那是推論，不是量測**，所以先量、再跑。量自 808x715 的 screen-20260909-095032.png：
+# 「Show +100」橫跨 x 183..281、y 228..261，因此 (232, 245) 落在其中。（2026-09-05 記的是
+# x 184..280、y 229..253——同一顆按鈕；1 至 3px 的差異是非背景閾值把邊框算了進去，不是位移。）
+# 鄰居現在橫跨 x 290..448，而新的「Scroll to row 50」按鈕在 y 274..307、x 183..306——整整低一列，
+# 且由它自己的檔案驅動。
+#
+# 然後**執行它**，因為下方 2026-09-05 的那次失敗證明了：關於這顆按鈕的一個合理推論不構成證據。
+#     P34 ... RENDER COMPLETE -- P34 rows=500
+#     P34 ... show plus 100 -> visibleRows=200
+# 200 就是這一顆。replay 自己的 log 也獨立回報外框為 `808x715@104,104`，上面的新尺寸取自它，
+# 而非只取自截圖。
+#
+# **關於 log 落在哪裡**——下方那段說它落在「目前的工作目錄」的文字，如今只對了一半。P34 會先讀
+# SCUI_DEBUG_EVENTS_DIR，沒有時才退回 currentDirectoryPath；而 run.zsh **不會**設定該變數，因此
+# 在未設定的情況下，舊的那句話仍然成立。明確設定它正是本次執行之所以可讀的原因：它消除了
+# 「這一行來自樹中三份副本裡的哪一份」這個問題。
+#
 # RE-MEASURED 2026-09-05 and the old numbers were DEAD. Kept below, because how
 # they died is the lesson.
 #

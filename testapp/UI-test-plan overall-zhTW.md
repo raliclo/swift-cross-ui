@@ -1576,10 +1576,24 @@ app 會顯示 missing-view 清單，並以手寫方式近似 Stepper、Disclosur
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋「集合大於顯示它的視窗」
 時會發生什麼事。
 
-沒有 `LazyVStack`、`LazyHStack`、`LazyVGrid`、`LazyHGrid` 或 `Grid`，也沒有 `ScrollViewReader` 或
-`ScrollViewProxy`。`VStack` 與 `HStack` 會建出每一個子項，而 `ScrollView` 只捲動交給它的東西，因此
+~~沒有 `LazyVStack`、`LazyHStack`、`LazyVGrid`、`LazyHGrid` 或 `Grid`，也沒有 `ScrollViewReader` 或
+`ScrollViewProxy`。~~ **那七個裡現在有六個是存在的。2026-09-09 重新查證，仍然缺席的只有
+`LazyHGrid`(任務 #118)。** `LazyVStack`、`LazyHStack`、`LazyVGrid` 與 `Grid` 皆已於 2026-09-08
+之前落地，`ScrollViewReader`／`ScrollViewProxy` 則在 2026-09-09——並已由
+`actions/win/P34-scroll-to-row-50.csv` 在 Win-gtk4 上驅動並驗證：其 log 為
+`scrollTo row 50 requested, anchor top`，其擷圖顯示最上方可見列由 `Row 0` 變為 `Row 50`。因此被
+劃掉那段的最後一句——「同樣也沒有以程式捲動至特定列的方法」——現在是錯的，而那正是整段的結論。
+
+**保留被劃掉的文字，是因為它「錯得下去」的方式。** P34 自己畫在畫面上的標籤帶著同一份清單與同一個
+錯誤，於是一位拿執行中的 app 來對照本文件的讀者，會發現兩者互相吻合。**同一個過期主張的兩份副本
+並不互相佐證，只會讓它更難被懷疑。** 它是靠逐一去問原始碼樹、並附上對照組(`VStack` 找得到、
+`ZZZNotARealType` 不存在，證明搜尋本身有效)才被抓到的。
+
+仍然成立的部分：`VStack` 與 `HStack` 會建出每一個子項，而 `ScrollView` 只捲動交給它的東西，因此
 放在 `ScrollView` 內的集合是完全實體化的：10,000 列就是 10,000 個 widget，無論其中有沒有任何一個
-在畫面上。同樣也沒有以程式捲動至特定列的方法，那正是 SwiftUI 中 `ScrollViewProxy.scrollTo` 的用途。
+在畫面上。**`LazyVStack` 與 `LazyHStack` 並未改變這件事**——它們存在，但不是惰性的；版面與
+`VStack`／`HStack` 完全相同，所有子項仍舊預先建立。這一點見任務 #85，當時判定為「已記錄的分歧」
+而非 bug；而 #117 談的是虛擬化 `List`，那才是平台 widget 本來就會回收的地方。
 
 「感覺很慢」不是發現。本 app 由命令列接收列數並印出數字，因此結果是一張表格，而不是一種印象。
 
