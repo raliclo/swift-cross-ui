@@ -76,6 +76,61 @@ action,x,y,origin,button,key,micros,note,platform
 # window actually is, so these numbers survive the window moving. They do NOT
 # survive P50's layout changing; see flow.md 3e-1.
 #
+# AND THEY DO NOT SURVIVE THE POPOVER CHANGING SIDES. Measured 2026-09-09, on a
+# run made specifically to reproduce the UNMET above, with a GtkBackend probe
+# added inside the popover. The window landed at (26,26) rather than (130,98),
+# and the replay's own dump then read:
+#
+#   window 0x16503c0  291x221@133,753  gdkSurfaceToplevel  owner=main window
+#   move frame=(180,607) screen=(206,633)  hitTarget = the MAIN WINDOW
+#
+# The popover opened at screen y 753..974. The click went to y 633 -- 120 points
+# ABOVE its top edge, and `hitTarget` says so. In the run these coordinates were
+# measured from, GTK had flipped the popover ABOVE the anchor (press me at y 705,
+# anchor at y 809); this time there was room below, so it opened downwards.
+#
+# `origin=frame` was chosen to survive the window moving, and it does. It cannot
+# survive GTK choosing the other side, because which side it chooses depends on
+# how much room is left below the anchor -- which depends on where the window
+# landed. The two are the same variable.
+#
+# SO THE UNMET THIS FILE REPORTS TODAY IS NOT #111'S UNMET, and that is the
+# correction. The absence of `popover counter 1` is a missed coordinate here,
+# exactly the reading the note on the click row tells you not to make -- and it
+# was written from a run where `hitTarget` genuinely did report the popover.
+# Both are true; the file just cannot tell them apart on its own. The positive
+# control DID hold on the re-run (`popover alpha shown`, 06:48:58), so the
+# popover really opened; only the second click missed.
+#
+# WHAT THIS FILE NEEDS IN ORDER TO MEAN ANYTHING: a `origin=popover` that
+# resolves against the popover's own toplevel at replay time. The replay already
+# finds that window -- it prints its rect on every action -- it just has no way
+# to address it. That must be PER-ACTION, not a change to the window walk's
+# choice: see point 2 above, where making the walk prefer the popover was tried
+# and reverted because it breaks the light-dismiss file that must click OUTSIDE.
+#
+# **而它們也撐不住 popover 換邊。** 2026-09-09 實測，該次執行正是為了重現上述的 UNMET 而做，並在
+# popover 內部加了一個 GtkBackend 探針。視窗落在 (26,26) 而非 (130,98)，重放自己的傾印於是讀到：
+# popover toplevel 為 291x221@133,753，而 `move frame=(180,607) screen=(206,633)` 的 `hitTarget`
+# 是**主視窗**。
+#
+# popover 開在螢幕 y 753..974；那一下點擊落在 y 633——比它的上緣還高 120 點，而 `hitTarget` 已經
+# 說了。在這些座標被量出來的那一次執行中，GTK 把 popover 翻到了錨點**上方**（press me 在 y 705、
+# 錨點在 y 809）；這一次下方還有空間，於是它向下開。
+#
+# 選用 `origin=frame` 是為了撐住視窗移動，而它確實撐住了。它撐不住的是 GTK 選了另一側，因為 GTK
+# 選哪一側取決於錨點下方還剩多少空間——而那取決於視窗落在哪裡。**兩者是同一個變數。**
+#
+# **因此本檔今天回報的 UNMET 並不是 #111 的那個 UNMET**，這就是本次的更正。此處 `popover counter 1`
+# 的缺席是一次**沒打中的座標**，正是點擊那一列的備註叫你不要做的那種解讀——而那則備註是從一次
+# `hitTarget` 確實回報 popover 的執行寫下的。兩者都為真；只是本檔自己分不出來。重跑時陽性對照
+# **成立**（`popover alpha shown`，06:48:58），所以 popover 確實開了，只有第二下點擊落空。
+#
+# **本檔要能代表任何意義，還缺什麼**：一個在重放當下以 popover 自己的 toplevel 來換算的
+# `origin=popover`。重放**已經**找得到那個視窗——它每一個動作都印出該視窗的矩形——只是無從定址它。
+# 而那必須是**逐動作**的，不能改動視窗走訪的選擇：見上方第 2 點，讓走訪偏好 popover 已經試過並
+# 撤回，因為那會破壞「必須點在**外面**」的 light-dismiss 檔。
+#
 # expect: log-contains popover counter 1
 #
 # P50 於 Windows、GtkBackend：按下**已開啟之 popover 內部**的一顆按鈕。
