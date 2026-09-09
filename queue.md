@@ -9,7 +9,8 @@ conversation, where it faded with compaction and its absence looked exactly like
 an empty queue -- mistakes.md entry 1.
 
 - [x] **1. `SceneStorage`** — 已完成並驅動 (P59)。`@SceneStorage` 以視窗 id 為範圍,經由既有的 `AppStorageProvider` 存於 `scene.<id>.<key>`——**沒有新的 backend requirement**
-- [ ] **2. `Settings` scene** — 需要先決定單視窗平台那條路(見下方 Q8 註記)。`environment.window` 與 `AnyView` 都存在,因此 sheet 那條路可行;`presentSheet` 需要一個具體的 `Window`,而 `AlertScene` 用的是 `window: nil` 讓 backend 自己選
+- [x] **2. `Settings` scene** — 已完成 (P60)。多視窗 backend 開獨立視窗、單視窗 backend 蓋 sheet;`openSettings` 在 environment 中。**未解決**:iOS 動作檔的點擊沒有打中那顆按鈕,該路徑目前以 `--auto-settings` 啟動引數驅動
+- [ ] **2b. P60 的 iOS 動作檔座標** — `client` 原點在 iOS 上的實際意義未確定;試過 y=100(螢幕點)與 y=41(狀態列以下)皆未命中 — 需要先決定單視窗平台那條路(見下方 Q8 註記)。`environment.window` 與 `AnyView` 都存在,因此 sheet 那條路可行;`presentSheet` 需要一個具體的 `Window`,而 `AlertScene` 用的是 `window: nil` 讓 backend 自己選
 - [ ] **3. `DocumentGroup`** — 三項中最大的一項,但它蓋在既有的 `FileDialogs` 之上,而不是蓋在新的 requirement 上
 - [ ] **4. Q12:#28 動畫 / #30 focus 無障礙 / #32 手勢** — 三項各自獨立,可分開驗證
 - [ ] **5. #117 phase 3:依需求建立列** — **刻意降級。** 它原本的症狀(視窗隨列數長大)已經在五個 backend 上都被 phase 2/4/5 修掉了,剩下的是 10,000 列時的記憶體。檢驗標準已經是精確的:RSS 必須停止隨列數增長(400 列 114 MB,10,000 列 423 MB)

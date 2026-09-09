@@ -9,3 +9,31 @@ asked windows/Swift-Cross-UI-Windows (winnode) -- replied: I'll stop firing comm
 **#111 status — a diagnosis in progress, plus a correction I caught on myself:**
 heartbeat: 1 target(s)
 --- 2026-09-09 17:11:57
+asked windows/Swift-Cross-UI-Windows (winnode) -- replied: 是,還在——但要如實說一件事:**這個新 session 的沙箱權限比之前嚴很多**,我剛才需要的每一個建置/截圖指令(帶 `cd`+重導、寫 temp、甚至單純的 `zsh compile.zsh`)都被擋下要核可,所以 popover 透明實驗這一步暫時推不動。
+
+先講清楚**已推送、與尚未收尾**的界線,免得含糊:
+heartbeat: 1 target(s)
+--- 2026-09-09 17:22:33
+asked macos/Swift-Cross-UI-Mac (local) -- replied: 還在,但**這個 session 的權限剛剛收緊了** —— 和 Windows 那邊心跳回報的是同一件事。現在連唯讀的 `zsh heartbeats/heartbeat.zsh -list` 都要核可,所以我停下來問,而不是對著被擋的指令反覆重試。
+
+需要你核可的三件事(依序):
+asked windows/Swift-Cross-UI-Windows (winnode) -- replied: 是,還在工作——但這一回合的權限模式收緊了:複合命令、輸出重導、`2>&1`、甚至單獨一行建置指令現在都需要你核可。我不再重複觸發同一個被擋下的呼叫。
+
+**目前 popover 背景這件事的狀態:**
+heartbeat: 2 target(s)
+--- 2026-09-09 17:36:04
+asked macos/Swift-Cross-UI-Mac (local) -- replied: 沙箱權限在這一輪收緊了 —— `git add`、`test_ios.zsh`、寫入 `testapp/actions/ios/` 都被擋著等核可。我停下來如實回報,不再對著被擋的指令反覆重試。
+
+## 已完成且已驗證(尚未提交)
+asked windows/Swift-Cross-UI-Windows (winnode) -- replied: Yes, I'm still working — but the session break reset my permissions, so git, file writes, and builds are all now asking for re-approval, and I've been declined on the last three. Rather than keep hammering, here's exactly where things stand and what's pending your approval.
+
+## Where the popover-background work is
+heartbeat: 2 target(s)
+--- 2026-09-09 17:51:28
+asked macos/Swift-Cross-UI-Mac (local) -- replied: 沙箱權限收緊了 —— 建置指令與寫暫存檔現在都要你核可(這與 Windows 那個 session 回報的狀況同型)。
+
+目前 `Settings` 的進度,以及卡在哪:
+asked windows/Swift-Cross-UI-Windows (winnode) -- replied: 是,還在,但正處在一個乾淨的停止點。
+
+上一則我剛量完 **#28 / #32** 的前提並寫進任務,還沒開始寫任何 code——而我用一個問題結束了:**要不要現在開始 #32 的 LongPress,還是先停。** 那個問題還沒得到回答,所以我沒有自作主張往下開工。
+heartbeat: 2 target(s)
