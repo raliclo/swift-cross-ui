@@ -28,40 +28,82 @@ gyb/* linguist-vendored
 # ——這就是全部的原因：守衛寫在了錯的 glob 上。當時共有五個被追蹤的 .csv2 檔，無一被涵蓋。
 *.csv2 text eol=lf
 
-# Append-only data files merge by UNION, because both machines only ever append
-# and git has no append-aware merge for CSV. Without this, every exchange
-# conflicts on matrix_coverage/results.csv2 and someone resolves it by hand --
-# which happened on 2026-09-08 and again on 2026-09-09.
+# Append-only logs merge by union, so two machines appending never conflict.
 #
-# UNION IS A MULTISET, AND THAT IS THE POINT. It concatenates both sides' lines
-# and does NOT de-duplicate. Anything set-like would be wrong here: measured
-# 2026-09-09, results.csv2 holds 706 data rows of which **98 are exact
-# duplicates of another row**, and they are deliberate -- the same app measured
-# twice on the same day is two observations, not one fact recorded twice.
-# De-duplicating would delete 98 measurements and report success.
+# BOTH SIDES WROTE THIS RULE IN THE SAME ROUND, 2026-09-09, and the merged text
+# below keeps each half's evidence because the two halves check DIFFERENT things
+# and either alone would have been an unsafe rule. That is worth more than the
+# rule itself: the macOS side established WHY union is safe, and the Windows side
+# established WHY nothing set-like may be substituted for it.
 #
-# Re-derive with:
-#   csv2 -r -i matrix_coverage/results.csv2 | sort | uniq -d | wc -l
+# These files are written by both machines and only ever appended to. Git has no
+# append-aware merge for CSV, so every merge where both recorded a run came back
+# as a conflict -- five in a row before this line, each resolved by hand.
+#
+# **Union is safe because every record is exactly one physical line.** Checked
+# rather than assumed, and checked for EVERY tracked .csv2 rather than for the
+# one that hurt, which is what justifies the wide glob:
+#
+#     buildtime/buildtime.csv2                 37 records, 39 lines
+#     matrix_coverage/coverage-matrix.csv2    111 records, 113 lines
+#     matrix_coverage/executable-size.csv2     49 records, 51 lines
+#     matrix_coverage/results.csv2            706 records, 708 lines
+#     mistakes/mistakes.csv2                  112 records, 114 lines
+#     testapp/P52-buttonstyle-findings.csv2      9 records, 11 lines
+#
+# Two header rows each, so records + 2 == lines means no record contains an
+# embedded newline. Union merges LINE BY LINE, so a quoted field holding a
+# newline would be split and interleaved: the rows either side of the join would
+# each become half a row, and nothing would report it. **If a note ever needs a
+# line break, this attribute has to go before that note lands.** mistakes.csv2
+# is the one to watch -- its fields are prose.
+#
+# Re-derive, per file:
+#     recs=$(csv2 -r -i FILE | wc -l); lines=$(wc -l < FILE)
+#     # safe when lines == recs + 2
+#
+# **It must NOT be `merge=ours`, and it must NOT be a set union.** These files
+# contain deliberate duplicate rows -- the same app measured twice on the same
+# day is two observations, not one fact recorded twice -- and anything that
+# deduplicates loses the second silently. Measured 2026-09-09: results.csv2
+# holds 706 data rows of which **98 are exact duplicates of another row**. A
+# set-based resolution would delete 98 measurements and report success. That was
+# the trap when the 2026-09-09 conflict was resolved by hand; a set-based
+# resolution dropped two rows, and the counts (685 + 3 + 2 = 690) are what
+# caught it.
+#
+# Re-derive:
+#     csv2 -r -i matrix_coverage/results.csv2 | sort | uniq -d | wc -l
 #
 # KNOWN LIMIT, and it fails loudly rather than silently: union merges the header
-# rows too, so if both sides edit a .csv2 header in the same round the result has
-# duplicated headers. csv2 validates the header count and refuses the file, so
-# that shows up as a hard error on the next read rather than as quiet corruption.
-# The ordinary case -- both sides appending data -- never touches the header.
+# rows too, so two sides editing a .csv2 header in the same round produce
+# duplicated headers -- and csv2 validates the header count and refuses the file,
+# so it surfaces as a hard error on the next read rather than as quiet
+# corruption. Both sides appending data never touches the header.
 #
-# 只做附加的資料檔以 UNION 合併，因為兩台機器都只會附加，而 git 對 CSV 沒有「理解附加」的合併方式。
-# 少了這條規則，每一次交換都會在 matrix_coverage/results.csv2 上衝突，並由人手動解決——2026-09-08
-# 發生過一次，2026-09-09 又一次。
+# 只做附加的紀錄檔採 union 合併,讓兩台機器各自附加時永遠不會衝突。
 #
-# **union 是多重集合，而那正是重點。** 它把兩側的行串接起來，且**不**去除重複。任何「集合式」的做法
-# 在此都是錯的：2026-09-09 實測，results.csv2 有 706 個資料列，其中 **98 列與另一列完全相同**，而
-# 那些重複是刻意的——同一支 app 在同一天量兩次是兩個觀測，不是同一個事實被記了兩遍。去重會刪掉 98
-# 筆量測，並回報成功。
+# **兩側在 2026-09-09 的同一輪各自寫下了這條規則**,而下方合併後的文字保留了雙方的證據,因為兩者查的
+# 是**不同的事**,任何一方單獨存在都會是一條不安全的規則。這件事本身比規則更值得記:macOS 側確立了
+# union **為何安全**,Windows 側確立了**為何不可以拿任何集合式的做法替代它**。
 #
-# 重新推導的指令：
-#   csv2 -r -i matrix_coverage/results.csv2 | sort | uniq -d | wc -l
+# 這些檔案由兩台機器共同寫入,且只會被附加。Git 對 CSV 沒有「理解附加」的合併方式,因此每一次「兩台
+# 機器都記錄了執行結果」的合併都會變成衝突——在這一行之前連續五次,每一次都是手工解的。
 #
-# 已知限制，而且它會大聲失敗、不會靜默損壞：union 連標頭列也會合併，因此若兩側在同一輪都改了某個
-# .csv2 的標頭，結果會有重複的標頭。csv2 會驗證標頭數量並拒絕該檔，所以那會在下一次讀取時以硬性錯誤
-# 出現，而不是變成無聲的損壞。一般情況——兩側都只是附加資料——根本不會碰到標頭。
+# **union 之所以安全,是因為每一筆記錄恰好是一個實體行。** 這是查證過的、不是假設的,而且是對**每一個**
+# 被追蹤的 .csv2 都查(而非只查那個出過事的),那正是採用較寬 glob 的正當理由——各檔的記錄數與行數見
+# 上表。每個檔各有兩列標頭,因此「記錄數 + 2 == 行數」即代表沒有任何記錄內含換行。union 是**逐行**
+# 合併的,因此一個「引號內含換行」的欄位會被拆開並交錯:接縫兩側的列會各自變成半列,而且沒有任何東西
+# 會回報這件事。**若日後某則備註需要換行,這條屬性必須在那則備註落地之前移除。** 要盯的是
+# mistakes.csv2——它的欄位是散文。
+#
+# **它不可以是 `merge=ours`,也不可以是集合式的聯集。** 這些檔案含有刻意重複的列——同一支 app 在同一天
+# 被量測兩次是**兩筆**觀測,不是同一個事實被記了兩遍——而任何會去重的做法都會靜默地失去第二筆。
+# 2026-09-09 實測:results.csv2 有 706 個資料列,其中 **98 列與另一列完全相同**。以集合為基礎的解法
+# 會刪掉 98 筆量測並回報成功。2026-09-09 那次手工解衝突時正是這個陷阱:集合式的解法掉了兩列,而是
+# 那組數字(685 + 3 + 2 = 690)抓到了它。
+#
+# 已知限制,而且它會大聲失敗、不會靜默損壞:union 連標頭列也會合併,因此若兩側在同一輪都改了某個
+# .csv2 的標頭,結果會有重複的標頭——而 csv2 會驗證標頭數量並拒絕該檔,所以那會在下一次讀取時以硬性
+# 錯誤出現,而不是變成無聲的損壞。兩側都只是附加資料時,根本不會碰到標頭。
 *.csv2 merge=union

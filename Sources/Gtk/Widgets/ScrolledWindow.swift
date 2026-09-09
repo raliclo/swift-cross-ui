@@ -95,4 +95,90 @@ public class ScrolledWindow: Widget {
     public func getChild() -> Widget? {
         return child
     }
+
+    /// Scrolls so that `child` is visible, optionally placing it at `anchor`.
+    ///
+    /// **Not `gtk_viewport_scroll_to`, which is GTK 4.12 and this package builds
+    /// against < 4.10** -- the same floor that makes `GtkBackend.swift:2009` use
+    /// `gtk_show_uri` rather than `gtk_uri_launcher_launch`. What is available
+    /// is `gtk_widget_compute_point`, which has been there since 4.0, so the
+    /// child's position is computed here and the adjustment is set directly.
+    ///
+    /// That means no animation. `gtk_adjustment_set_value` is instantaneous, and
+    /// GTK 4's kinetic scrolling is driven by input rather than by the API, so
+    /// there is nothing to animate through. Said here rather than discovered:
+    /// a scroll that arrives instantly on one platform and glides on four reads
+    /// as a stutter.
+    ///
+    /// A nil anchor takes the shortest scroll that makes the child visible,
+    /// which is what SwiftUI's nil anchor means; an anchor asks for a position.
+    ///
+    /// 捲動使 `child` 可見,並可選擇性地把它放在 `anchor` 的位置。
+    ///
+    /// **不是 `gtk_viewport_scroll_to`,那需要 GTK 4.12,而本套件建置於 < 4.10 之上**——正是那個下限
+    /// 使得 `GtkBackend.swift:2009` 採用 `gtk_show_uri` 而非 `gtk_uri_launcher_launch`。可用的是
+    /// `gtk_widget_compute_point`,它自 4.0 就存在,因此子元件的位置在此處計算,並直接設定 adjustment。
+    ///
+    /// 那意味著沒有動畫。`gtk_adjustment_set_value` 是瞬時的,而 GTK 4 的慣性捲動是由輸入驅動、而非
+    /// 由 API 驅動,因此根本沒有東西可以拿來做動畫。此處明說,而不是留給人去發現:一個「在一個平台上
+    /// 瞬間抵達、在另外四個平台上滑行」的捲動,讀起來像是卡頓。
+    ///
+    /// nil 的 anchor 採取「讓該子元件可見的最短捲動」,那正是 SwiftUI 中 nil anchor 的意思;
+    /// 給定 anchor 則是在要求一個位置。
+    public func scroll(to child: Widget, anchor: (x: Double, y: Double)?) {
+        var point = graphene_point_t(x: 0, y: 0)
+        var origin = graphene_point_t(x: 0, y: 0)
+        guard gtk_widget_compute_point(child.widgetPointer, widgetPointer, &origin, &point) != 0
+        else { return }
+
+        setAdjustment(
+            gtk_scrolled_window_get_vadjustment(opaquePointer),
+            childStart: Double(point.y),
+            childExtent: Double(gtk_widget_get_height(child.widgetPointer)),
+            anchor: anchor?.y
+        )
+        setAdjustment(
+            gtk_scrolled_window_get_hadjustment(opaquePointer),
+            childStart: Double(point.x),
+            childExtent: Double(gtk_widget_get_width(child.widgetPointer)),
+            anchor: anchor?.x
+        )
+    }
+
+    /// Moves one adjustment, clamped to what it can actually represent.
+    ///
+    /// GtkAdjustment silently clamps a value outside `[lower, upper - page]`,
+    /// so an out-of-range write does not fail -- it lands somewhere else. The
+    /// clamp is done here so the value that is set is the value that was meant.
+    ///
+    /// 移動一個 adjustment,並夾限到它實際能表示的範圍。
+    ///
+    /// GtkAdjustment 會靜默地夾限落在 `[lower, upper - page]` 之外的值,因此一次超出範圍的寫入不會
+    /// 失敗——它只是落在別的地方。此處先做夾限,好讓「被設定的值」就是「原本想要的值」。
+    private func setAdjustment(
+        _ adjustment: OpaquePointer?,
+        childStart: Double,
+        childExtent: Double,
+        anchor: Double?
+    ) {
+        guard let adjustment else { return }
+        let page = gtk_adjustment_get_page_size(adjustment)
+        let current = gtk_adjustment_get_value(adjustment)
+        let start = current + childStart
+
+        let target: Double
+        if let anchor {
+            target = start - (page - childExtent) * anchor
+        } else if childStart < 0 {
+            target = start
+        } else if childStart + childExtent > page {
+            target = start + childExtent - page
+        } else {
+            return
+        }
+
+        let upper = gtk_adjustment_get_upper(adjustment)
+        let lower = gtk_adjustment_get_lower(adjustment)
+        gtk_adjustment_set_value(adjustment, min(max(lower, target), max(lower, upper - page)))
+    }
 }

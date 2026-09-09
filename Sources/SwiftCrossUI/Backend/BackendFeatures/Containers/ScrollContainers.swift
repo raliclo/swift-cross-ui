@@ -83,6 +83,52 @@ extension BackendFeatures {
         ///
         /// 若某個 backend 所在的平台沒有下拉手勢——例如以滑鼠驅動的桌面 toolkit——它應當為該容器
         /// 提供另一種執行該動作的方式,而不是把它丟掉。每個 backend 的檔案都會說明它選了哪一種。
+        /// Scrolls a container so that one of its descendants is visible.
+        ///
+        /// - Parameters:
+        ///   - scrollView: A scroll container from ``createScrollContainer(for:)``.
+        ///   - child: A widget somewhere inside it. A widget that is NOT inside
+        ///     it must be ignored rather than scrolled to -- an id that names a
+        ///     view in a different scroll view is a mistake in the application,
+        ///     and moving the wrong container hides it.
+        ///   - anchor: Where in the viewport to put the child, or `nil` for the
+        ///     shortest scroll that makes it visible. `nil` is what SwiftUI's
+        ///     `scrollTo(_:anchor:)` means by a nil anchor, and it is the case
+        ///     every platform here has a native call for.
+        ///
+        /// **Expressed as "reach this widget" rather than "go to this offset",
+        /// and that was a constraint rather than a preference.** GTK's
+        /// `gtk_viewport_scroll_to` is 4.12 and this package builds against
+        /// < 4.10, so GTK cannot be handed a child and told to reach it by the
+        /// toolkit -- but `gtk_widget_compute_point` has been there since 4.0,
+        /// so it can compute the offset itself. Every other backend has a
+        /// native scroll-to-descendant call. Asking each backend for the offset
+        /// instead would mean the framework computing a position it does not
+        /// have: a view's origin inside its scroll content is known to the
+        /// layout system and published nowhere.
+        ///
+        /// 捲動某個容器,使它的某個子孫可見。
+        ///
+        /// - Parameters:
+        ///   - scrollView: 由 ``createScrollContainer(for:)`` 產生的 scroll container。
+        ///   - child: 位於它內部某處的一個 widget。**不**在它內部的 widget 必須被忽略而非被捲向——
+        ///     一個指向「另一個捲動視圖中的 view」的 id 是應用程式的錯誤,而移動錯誤的容器會把它藏起來。
+        ///   - anchor: 要把該子元件放在視口的什麼位置,或傳 `nil` 表示「讓它可見的最短捲動」。
+        ///     `nil` 正是 SwiftUI 的 `scrollTo(_:anchor:)` 對 nil anchor 的定義,而那也是此處每一個
+        ///     平台都有原生呼叫可用的情況。
+        ///
+        /// **表述為「抵達這個 widget」而非「前往這個位移」,而那是一項約束、不是偏好。** GTK 的
+        /// `gtk_viewport_scroll_to` 需要 4.12,而本套件建置於 < 4.10 之上,因此無法把一個子元件交給
+        /// GTK 並要求 toolkit 抵達它——但 `gtk_widget_compute_point` 自 4.0 就存在,所以它可以自己算出
+        /// 那個位移。其餘每一個 backend 都有原生的「捲到某個子孫」呼叫。反過來要求每個 backend 接受
+        /// 位移,則意味著框架必須算出一個它並不擁有的位置:一個 view 在其捲動內容中的原點,layout system
+        /// 知道,但沒有發布到任何地方。
+        func scrollContainer(
+            _ scrollView: Widget,
+            to child: Widget,
+            anchor: UnitPoint?
+        )
+
         func setRefreshHandler(
             ofScrollContainer scrollView: Widget,
             to handler: (@MainActor @Sendable () -> Void)?

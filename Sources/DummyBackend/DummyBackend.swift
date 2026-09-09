@@ -226,6 +226,10 @@ public final class DummyBackend:
         /// 無法測試。
         public var refreshHandler: (@MainActor @Sendable () -> Void)?
 
+        /// The last `scrollContainer(_:to:anchor:)` this container received.
+        /// 這個容器最後一次收到的 `scrollContainer(_:to:anchor:)`。
+        public var lastScrollRequest: (child: Widget, anchor: UnitPoint?)?
+
         public init(child: Widget) {
             self.child = child
         }
@@ -519,6 +523,17 @@ public final class DummyBackend:
         scrollContainer.hasHorizontalScrollBar = hasHorizontalScrollBar
         scrollContainer.bouncesHorizontally = bounceHorizontally
         scrollContainer.bouncesVertically = bounceVertically
+    }
+
+    /// Recorded, not performed. A test can assert that a scroll was asked for
+    /// and what it was asked to reach.
+    /// 記錄下來,而不執行。測試可以斷言「有人要求過一次捲動」以及「它被要求捲到什麼」。
+    public func scrollContainer(
+        _ scrollView: Widget,
+        to child: Widget,
+        anchor: UnitPoint?
+    ) {
+        (scrollView as! ScrollContainer).lastScrollRequest = (child, anchor)
     }
 
     public func setRefreshHandler(

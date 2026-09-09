@@ -220,6 +220,31 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
         // 先加入 refresh 控制項會讓它被一個對它一無所知的流程再次移除——而一個「被建立、然後被靜默
         // 丟棄」的控制項,看起來與一個從未被要求過的控制項完全相同。
         backend.setRefreshHandler(ofScrollContainer: widget, to: environment.onRefresh)
+
+        // The one point where the backend's type is still known.
+        //
+        // `ScrollAnchorRegistry` lives in `EnvironmentValues`, which is not
+        // generic over a backend, so it cannot call
+        // `scrollContainer(_:to:anchor:)` -- that needs `Backend.Widget`. This
+        // closure captures the concrete backend and this container's widget, so
+        // the type is recovered exactly once, here.
+        //
+        // Reinstalled on every update rather than once. The widget outlives an
+        // update but not a rebuild, and a closure holding a dead container
+        // would scroll something that is no longer on screen -- successfully,
+        // and invisibly.
+        //
+        // 這是 backend 的型別仍為人所知的唯一地點。
+        //
+        // `ScrollAnchorRegistry` 存放在 `EnvironmentValues` 中,而後者並不對 backend 泛型化,因此它
+        // 無法呼叫 `scrollContainer(_:to:anchor:)`——那需要 `Backend.Widget`。這個 closure 捕捉了
+        // 具體的 backend 與本容器的 widget,因此型別只在此處被還原一次。
+        //
+        // 每次更新都重新安裝,而不是只安裝一次。widget 的生命長於一次更新、但不長於一次重建,而一個
+        // 握著已死容器的 closure 會去捲動某個已經不在畫面上的東西——而且是成功地、無形地捲動。
+        environment.scrollAnchors?.performScroll = { child, anchor in
+            backend.scrollContainer(widget, to: child.into(), anchor: anchor)
+        }
     }
 }
 
