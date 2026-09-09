@@ -281,6 +281,33 @@ struct P21RootView: View {
                         )
                     }
                 Slider(value: $steppedValue, in: 0...1, step: 0.25).disabled(true)
+
+                // #126's label, added 2026-09-10 with the generic rewrite.
+                //
+                // THE ASSERTION IS THAT THE FOUR SLIDERS ABOVE STILL COMPILE.
+                // `Slider` became `Slider<Label>`, and Swift has no default
+                // generic arguments, so every existing `Slider(value:in:)` in
+                // the project had to keep working through a constrained
+                // extension (`where Label == EmptyView`). This app has four of
+                // them; if the constraint were wrong they would fail to infer
+                // and the build would stop. The build passing is that half.
+                //
+                // The visible half is this line: the word "Volume" must appear
+                // to the LEFT of a track, and the four above must be unchanged
+                // -- no stray gap where an empty label would have been. That is
+                // why `hasLabel` exists instead of always wrapping in an HStack.
+                //
+                // #126 的標籤,2026-09-10 隨泛型改寫一併加入。
+                //
+                // **斷言是「上面那四個滑桿仍然編譯得過」。** `Slider` 變成了 `Slider<Label>`,
+                // 而 Swift 沒有預設泛型引數,因此專案中每一個現有的 `Slider(value:in:)` 都必須
+                // 透過受限 extension(`where Label == EmptyView`)繼續運作。本 app 就有四個;
+                // 若那個約束寫錯,它們會推論失敗而讓建置停止。**建置通過就是那一半。**
+                //
+                // 看得見的另一半是這一行:「Volume」這個詞必須出現在軌道的**左邊**,而上方那四個
+                // 必須毫無變化——不能出現「空標籤本來會在那裡」所留下的多餘間隙。那正是
+                // `hasLabel` 存在、而非一律包進 HStack 的理由。
+                Slider("Volume", value: $sliderValue, in: 0...1)
                 }
 
                 // The determinate form needs a label; the label-less

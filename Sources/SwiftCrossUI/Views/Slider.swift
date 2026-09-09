@@ -1,5 +1,32 @@
-/// A control for selecting a value from a bounded range of numerical values.
-public struct Slider: ElementaryView, View {
+/// The track and thumb, without a label.
+///
+/// This is what ``Slider`` used to be, renamed and made internal rather than
+/// rewritten -- every line below the declaration, including the `step:`
+/// reasoning and the struck-through note in ``commit``, is untouched.
+///
+/// WHY THE SPLIT. `ElementaryView` requires `Content == EmptyView`
+/// (Views/ElementaryView.swift:6), so a view that conforms to it cannot have a
+/// label: it has no body to put one beside. A label therefore has to live one
+/// level up, which is why ``Slider`` is now a generic shell over this.
+///
+/// This is exactly the difference that made ``Picker``'s label cheap and this
+/// one not. `Picker` already had a `body`, so its label was an `HStack` around
+/// what it already returned; `Slider` had no body at all. Both were recorded as
+/// "pure view layer" in #126's original note and only one of them was.
+///
+/// 軌道與把手,不含標籤。
+///
+/// 這就是原本的 ``Slider``,經**改名並降為 internal**,而非重寫——宣告以下的每一行,包含 `step:`
+/// 的推論與 ``commit`` 中那段被劃掉的註記,都原封不動。
+///
+/// **為何要拆。** `ElementaryView` 要求 `Content == EmptyView`
+/// (Views/ElementaryView.swift:6),因此符合它的 view **不可能有標籤**:它沒有 body 可以把標籤
+/// 放在旁邊。標籤因此必須住在上一層,那正是 ``Slider`` 現在成為本型別泛型外殼的原因。
+///
+/// 這正是「讓 ``Picker`` 的標籤便宜、而讓這個不便宜」的那個差別。`Picker` 本來就有 `body`,
+/// 所以它的標籤只是在它原本回傳的東西外套一個 `HStack`;`Slider` 根本沒有 body。
+/// 兩者在 #126 最初的記錄中都被寫成「純 view 層」,而**只有其中一個是**。
+struct SliderControl: ElementaryView, View {
     /// The ideal width of a Slider.
     private static let idealWidth: Double = 100
 
@@ -242,5 +269,144 @@ public struct Slider: ElementaryView, View {
         }
 
         backend.setSize(of: widget, to: layout.size.vector)
+    }
+}
+
+/// A control for selecting a value from a bounded range of numerical values.
+///
+/// Generic over its label, the way SwiftUI's is, so that
+/// `Slider(value:in:)` and `Slider("Speed", value:in:)` are the same type. The
+/// label-less initialisers are constrained to `Label == EmptyView`, which is
+/// what keeps every existing call site compiling unchanged -- Swift has no
+/// default generic arguments, and a constrained extension is how SwiftUI solves
+/// the same problem.
+///
+/// The track itself is ``SliderControl``; see its documentation for why the
+/// split was necessary rather than tidy.
+///
+/// 用於在有界數值範圍中選值的控制項。
+///
+/// 與 SwiftUI 的一樣**泛型於它的標籤**,使 `Slider(value:in:)` 與 `Slider("Speed", value:in:)`
+/// 是同一個型別。不帶標籤的建構式被限制在 `Label == EmptyView`,那正是讓**每一個現有呼叫點原封
+/// 不動仍能編譯**的關鍵——Swift 沒有預設泛型引數,而以受限 extension 解決同一個問題,正是
+/// SwiftUI 的做法。
+///
+/// 軌道本身是 ``SliderControl``;至於這次拆分為何是**必要**而非只求整齊,見該型別的文件。
+public struct Slider<Label: View>: View {
+    private var control: SliderControl
+    private var label: Label
+    /// Whether a label was supplied.
+    ///
+    /// A separate flag rather than `Label.self == EmptyView.self`, and rather
+    /// than always wrapping in an `HStack`. Wrapping unconditionally would
+    /// change the layout of every slider already in the project to buy a
+    /// feature none of them asked for, without a single call site changing --
+    /// the same trap ``Picker``'s label documents and avoids the same way.
+    ///
+    /// 是否提供了標籤。
+    ///
+    /// 使用獨立旗標,而非 `Label.self == EmptyView.self`,也非「總是包進 `HStack`」。無條件包裝會
+    /// 在沒有任何呼叫點改動的情況下,為了一個沒有任何現有滑桿要求的功能,改變專案中每一個滑桿的
+    /// 版面——那正是 ``Picker`` 的標籤所記載、並以相同方式避開的陷阱。
+    private var hasLabel: Bool
+
+    public var body: some View {
+        Group {
+            if hasLabel {
+                HStack {
+                    label
+                    control
+                }
+            } else {
+                control
+            }
+        }
+    }
+}
+
+extension Slider where Label == EmptyView {
+    @available(*, deprecated, renamed: "init(value:in:)")
+    public init<T: BinaryInteger>(_ value: Binding<T>? = nil, minimum: T, maximum: T) {
+        self.init(value: value, in: minimum...maximum)
+    }
+
+    @available(*, deprecated, renamed: "init(value:in:)")
+    public init<T: BinaryFloatingPoint>(_ value: Binding<T>? = nil, minimum: T, maximum: T) {
+        self.init(value: value, in: minimum...maximum)
+    }
+
+    /// Creates a slider to select a value in a range.
+    /// 建立一個在指定範圍內選值的滑桿。
+    public init<T: BinaryInteger>(value: Binding<T>? = nil, in range: ClosedRange<T>) {
+        self.init(control: SliderControl(value: value, in: range))
+    }
+
+    /// Creates a slider to select a value in a range.
+    /// 建立一個在指定範圍內選值的滑桿。
+    public init<T: BinaryFloatingPoint>(value: Binding<T>? = nil, in range: ClosedRange<T>) {
+        self.init(control: SliderControl(value: value, in: range))
+    }
+
+    /// Creates a slider to select a value in a range, in fixed increments.
+    /// 建立一個在指定範圍內、以固定增量選值的滑桿。
+    public init<T: BinaryInteger>(value: Binding<T>? = nil, in range: ClosedRange<T>, step: T) {
+        self.init(control: SliderControl(value: value, in: range, step: step))
+    }
+
+    /// Creates a slider to select a value in a range, in fixed increments.
+    /// 建立一個在指定範圍內、以固定增量選值的滑桿。
+    public init<T: BinaryFloatingPoint>(
+        value: Binding<T>? = nil, in range: ClosedRange<T>, step: T
+    ) {
+        self.init(control: SliderControl(value: value, in: range, step: step))
+    }
+
+    /// The one place `hasLabel` is set false, so the flag cannot drift from the
+    /// generic constraint that justifies it.
+    /// `hasLabel` 唯一被設為 false 的地方,使該旗標不可能與「為它提供正當性的那個泛型約束」脫節。
+    private init(control: SliderControl) {
+        self.control = control
+        self.label = EmptyView()
+        self.hasLabel = false
+    }
+}
+
+extension Slider where Label == Text {
+    /// Creates a labelled slider to select a value in a range.
+    /// 建立一個帶標籤、在指定範圍內選值的滑桿。
+    public init<T: BinaryInteger>(
+        _ label: String, value: Binding<T>? = nil, in range: ClosedRange<T>
+    ) {
+        self.init(label, control: SliderControl(value: value, in: range))
+    }
+
+    /// Creates a labelled slider to select a value in a range.
+    /// 建立一個帶標籤、在指定範圍內選值的滑桿。
+    public init<T: BinaryFloatingPoint>(
+        _ label: String, value: Binding<T>? = nil, in range: ClosedRange<T>
+    ) {
+        self.init(label, control: SliderControl(value: value, in: range))
+    }
+
+    /// Creates a labelled slider with fixed increments.
+    /// 建立一個帶標籤、以固定增量選值的滑桿。
+    public init<T: BinaryInteger>(
+        _ label: String, value: Binding<T>? = nil, in range: ClosedRange<T>, step: T
+    ) {
+        self.init(label, control: SliderControl(value: value, in: range, step: step))
+    }
+
+    /// Creates a labelled slider with fixed increments.
+    /// 建立一個帶標籤、以固定增量選值的滑桿。
+    public init<T: BinaryFloatingPoint>(
+        _ label: String, value: Binding<T>? = nil, in range: ClosedRange<T>, step: T
+    ) {
+        self.init(label, control: SliderControl(value: value, in: range, step: step))
+    }
+
+    private init(_ label: String, control: SliderControl) {
+        self.control = control
+        self.label = Text(label)
+        self.hasLabel = true
     }
 }
