@@ -348,7 +348,7 @@ Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看�
 
 ### 3e-3. 佇列在檔案裡,不在對話裡
 
-`queue.md` 是那份清單,`Scripts/heartbeat.zsh` 是讀它的東西。**這一條不是流程偏好,是一次
+`queue.md` 是那份清單,`heartbeats/heartbeat.zsh` 是讀它的東西。**這一條不是流程偏好,是一次
 實際發生過三次的錯誤的矯正措施**——見 `mistakes.md` 第 1 條。
 
 一份貼在訊息中的待辦表會隨著 context 壓縮而淡出,而淡出之後,「佇列已經空了」與「我不記得佇列了」
@@ -356,21 +356,21 @@ Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看�
 使用者發現它的方式,是連問兩次「Are you still working ?」——需要問這句話,本身就是症狀。
 
 ```sh
-zsh Scripts/heartbeat.zsh --on     # 開
-sh  Scripts/heartbeat.zsh          # 一次心跳:印出下一個未完成項,或 IDLE
-zsh Scripts/heartbeat.zsh --off    # 關;此後每一次心跳都是一次無成本的 IDLE
+zsh heartbeats/heartbeat.zsh --on     # 開
+sh  heartbeats/heartbeat.zsh          # 一次心跳:印出下一個未完成項,或 IDLE
+zsh heartbeats/heartbeat.zsh --off    # 關;此後每一次心跳都是一次無成本的 IDLE
 ```
 
 搭配 `/loop` 使用,而**理由不是「cron 做不到」——這句話本頁原本寫過,而它是錯的。** cron 到得了一個
 活著的 session:`multissh` 有 exec 通道,而 `screen -X stuff` 會寫進該 session 的 stdin;兩者都在
-2026-09-09 端到端實測過,工具是 `Scripts/heartbeat.zsh`,量到的數字記在 `mistakes.md` 第 1 條。
+2026-09-09 端到端實測過,工具是 `heartbeats/heartbeat.zsh`,量到的數字記在 `mistakes.md` 第 1 條。
 真正的限制是那個 session 必須跑在 multiplexer 之內,而今天兩台機器上都沒有這樣的 session。
 
 對**佇列**而言選 `/loop`,是因為它從「正在做事的那個 session 內部」重新進入,因此下一個項目是由
 必須採取行動的那個 session 自己讀到的,而不是被別人打進去的:
 
 ```
-/loop 20m sh Scripts/heartbeat.zsh and do what it says
+/loop 20m sh heartbeats/heartbeat.zsh and do what it says
 ```
 
 開關關閉時,那一輪只會執行這一支腳本、印出 `IDLE` 就結束,不會有任何工作被展開——那正是「沒有任務

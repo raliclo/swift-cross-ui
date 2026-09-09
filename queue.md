@@ -1,9 +1,9 @@
 # queue
 
-由 `Scripts/heartbeat.zsh` 讀取。**未完成寫 `- [ ]`,完成改成 `- [x]`。**
+由 `heartbeats/heartbeat.zsh` 讀取。**未完成寫 `- [ ]`,完成改成 `- [x]`。**
 順序即優先序:第一個未完成項就是下一件事。
 
-Read by `Scripts/heartbeat.zsh`. Order is priority: the first unchecked
+Read by `heartbeats/heartbeat.zsh`. Order is priority: the first unchecked
 item is the next thing. This file exists because the queue used to live in the
 conversation, where it faded with compaction and its absence looked exactly like
 an empty queue -- mistakes.md entry 1.

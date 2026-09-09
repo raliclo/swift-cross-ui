@@ -4,14 +4,14 @@
 # name the next unfinished queue item.
 #
 # USAGE
-#     nohup zsh Scripts/heartbeat.zsh -on &    start it: asks every 10 minutes
-#     zsh Scripts/heartbeat.zsh -off           stop it
-#     zsh Scripts/heartbeat.zsh                print this and send nothing
-#     zsh Scripts/heartbeat.zsh -status        ON with a pid, ON with no daemon, or OFF
-#     zsh Scripts/heartbeat.zsh -list          the sessions it would reach
-#     zsh Scripts/heartbeat.zsh -next          the next unchecked queue.md item
-#     zsh Scripts/heartbeat.zsh -once          one beat, for a crontab line
-#     zsh Scripts/heartbeat.zsh -m "text"      send something else, once
+#     nohup zsh heartbeats/heartbeat.zsh -on &    start it: asks every 10 minutes
+#     zsh heartbeats/heartbeat.zsh -off           stop it
+#     zsh heartbeats/heartbeat.zsh                print this and send nothing
+#     zsh heartbeats/heartbeat.zsh -status        ON with a pid, ON with no daemon, or OFF
+#     zsh heartbeats/heartbeat.zsh -list          the sessions it would reach
+#     zsh heartbeats/heartbeat.zsh -next          the next unchecked queue.md item
+#     zsh heartbeats/heartbeat.zsh -once          one beat, for a crontab line
+#     zsh heartbeats/heartbeat.zsh -m "text"      send something else, once
 #
 # Ten minutes is the interval that was asked for; HEARTBEAT_INTERVAL overrides it
 # in seconds. The interval is not what keeps the cost down -- the switch is: with
@@ -23,7 +23,7 @@
 # the pid instead of wherever the shell happened to be.
 #
 # A crontab line, if a daemon is not wanted:
-#     */10 * * * * zsh Scripts/heartbeat.zsh -once
+#     */10 * * * * zsh heartbeats/heartbeat.zsh -once
 #
 # **CRON CAN DO THIS, AND AN EARLIER VERSION OF THIS FILE SAID IT COULD NOT.**
 # What it said was that a shell script cannot inject a prompt into a live
@@ -105,8 +105,8 @@ set -euo pipefail
 # 而那讀起來像是 sed 的用法錯誤，不像是變數取錯。
 script_path="${0:a}"
 repo_root="${script_path:h:h}"
-switch_file="$repo_root/.heartbeat-on"
-targets_file="$repo_root/.heartbeat-targets"
+switch_file="${script_path:h}/.heartbeat-on"
+targets_file="${script_path:h}/heartbeat.csv2"
 queue_file="$repo_root/queue.md"
 message="Are you still working ?"
 
@@ -125,20 +125,54 @@ local_prefix="${HEARTBEAT_PREFIX:-claude}"
 multissh_bin="${MULTISSH_BIN:-$HOME/proj/multissh/release/multissh}"
 multissh_config="${MULTISSH_CONFIG:-$HOME/.multissh/generated/config2Win}"
 
-list_local() {
-    # `|| true` is load-bearing under `set -o pipefail`: `screen -ls` exits 1
-    # when there are no sockets, which is the ORDINARY case here, and the
-    # pipeline's failure would otherwise take the whole script down at --list.
-    # Measured 2026-09-09: --list exited 1 and printed an empty list, which
-    # reads as a broken script rather than as "no sessions are under screen".
-    # 在 `set -o pipefail` 之下這個 `|| true` 是必要的：沒有任何 socket 時 `screen -ls` 以 1 結束，
-    # 而那在此處是常態；該管線的失敗會讓整支腳本在 --list 時倒下。2026-09-09 實測：--list 以 1
-    # 結束並印出空清單，讀起來像腳本壞了，而不是「沒有 session 跑在 screen 裡」。
-    { screen -ls 2>/dev/null || true; } | awk -v p="$local_prefix" '
-        $1 ~ /^[0-9]+\./ {
-            name = substr($1, index($1, ".") + 1)
-            if (index(name, p) == 1) print $1
-        }'
+# Reads heartbeat.csv2 THROUGH csv2, never by splitting on commas.
+#
+# The note column contains commas inside quotes, and `cut -d,` would return half
+# a sentence and shift every column after it left by one -- silently. The global
+# rule in ~/.claude/CLAUDE.md exists because that has already cost this machine
+# real data twice.
+#
+# csv2 emits JSON Lines with named fields, which is turned into tabs here so the
+# zsh loop can read it with `read -r`. Tabs, not spaces: session names and config
+# paths are single words today but the note column is not, and a space-separated
+# format would break the first time someone reorders the columns.
+#
+# 一律**透過 csv2** 讀取 heartbeat.csv2，絕不以逗號切割。
+#
+# note 欄的引號內含有逗號，而 `cut -d,` 會回傳半句話，並讓其後每一欄左移一格——而且是靜默的。
+# ~/.claude/CLAUDE.md 裡的全域規則之所以存在，是因為那件事已經在這台機器上真實地弄壞過兩次資料。
+#
+# csv2 會輸出具名欄位的 JSON Lines，此處把它轉成以 tab 分隔，好讓 zsh 的迴圈能用 `read -r` 讀。
+# 用 tab 而非空白：session 名稱與設定檔路徑今天都是單一個詞，但 note 欄不是，而以空白分隔的格式
+# 會在有人重排欄位的第一天就壞掉。
+read_targets() {
+    [ -f "$targets_file" ] || return 0
+    if ! command -v csv2 >/dev/null 2>&1; then
+        # Loud rather than falling back to a comma split. A fallback that
+        # "mostly works" is exactly the shape the global rule forbids.
+        # 大聲失敗，而不是退回逗號切割。一個「大致上能用」的退路，正是那條全域規則所禁止的形狀。
+        printf 'csv2 is not on PATH; %s cannot be read safely\n' "${targets_file:t}" >&2
+        return 1
+    fi
+    csv2 -r --json -i "$targets_file" 2>/dev/null | python3 -c '
+import json, sys
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    row = json.loads(line)
+    f = row.get("fields")
+    if not f:
+        continue                      # the meta line csv2 prints first
+    if str(f.get("check_required", "")).strip().lower() not in ("yes", "y", "true", "1"):
+        continue
+    print("\x1f".join([
+        f.get("os", ""), f.get("session", ""), f.get("host", ""),
+        f.get("mux", "") or "tmux", f.get("config", ""),
+        f.get("session_name", "") or f.get("session", ""),
+        f.get("session_id", ""), f.get("method", "") or "session-id",
+    ]))
+'
 }
 
 print_next() {
@@ -163,53 +197,159 @@ print_next() {
 # 啟動、寫下 pid、每一次心跳都記下時間戳，並在 log 裡印出 `command not found: one_beat`
 # ——一個誰也沒送到的執行中 daemon，而 `-status` 全程都回報 ON 與一個 pid。
 one_beat() {
-
     sent=0
-    for target in $(list_local); do
-        # -p 0 addresses the session's first window: without it, `stuff` goes to
-        # whichever window is current, which for a session someone has been using is
-        # not necessarily the one running claude.
-        # -p 0 指定該 session 的第一個視窗：少了它，`stuff` 會送到當前視窗，而對一個有人用過的 session
-        # 來說，那不一定是跑著 claude 的那一個。
-        screen -S "$target" -p 0 -X stuff "$message$(printf '\r')"
-        printf 'sent to local %s\n' "$target"
-        sent=$(( sent + 1 ))
-    done
-
-    # Remote targets, one per line:
-    #
-    #     <host> <session-name> [tmux|screen] [multissh-config-path]
-    #
-    # The last two columns exist because the two remote machines are not the same
-    # machine and do not have the same tools -- see the measurements in the header.
-    # 遠端目標，一行一個。後兩欄之所以存在，是因為那兩台遠端並非同一台機器、工具也不同——見檔頭的量測。
-    if [ -f "$targets_file" ]; then
-        while read -r host name mux config; do
-            case "$host" in ''|\#*) continue ;; esac
-            [ -n "$name" ] || continue
-            mux="${mux:-tmux}"
-            config="${config:-$multissh_config}"
-            case "$mux" in
-                tmux)   remote_cmd="tmux send-keys -t $name '$message' Enter" ;;
-                screen) remote_cmd="screen -S $name -p 0 -X stuff '$message\r'" ;;
-                *)
-                    printf 'unknown multiplexer "%s" for %s:%s -- use tmux or screen\n' \
-                        "$mux" "$host" "$name" >&2
+    # One row at a time, and every row says which machine it is on and how to
+    # reach it. `host` == "local" is the only case that skips multissh: the
+    # multiplexer socket is on this machine.
+    # 一次一列，而每一列都說明它在哪一台機器上、以及怎麼到得了它。只有 host 等於 "local" 這一種
+    # 情況會跳過 multissh：那個 multiplexer 的 socket 就在本機。
+    # `session` is the MULTIPLEXER session -- what screen and tmux answer to,
+    # and the only name this script can address. `session_name` is the CLAUDE
+    # session name, which Claude assigns and which no multiplexer has heard of.
+    # They are two namespaces and the table keeps both, because a row that only
+    # carried the Claude name would look addressable and would not be.
+    # `session` 是 **multiplexer** 的 session——screen 與 tmux 認得的那個名字，也是這支腳本唯一
+    # 定址得到的東西。`session_name` 是 **Claude** 的 session 名稱，由 Claude 指派，而任何
+    # multiplexer 都沒聽過它。兩者是兩個命名空間，表格兩個都留，因為一列若只帶著 Claude 的名字，
+    # 看起來會像是定址得到，而事實上不是。
+    # US (0x1f), not a tab. **A tab is whitespace, and zsh's `read` collapses runs
+    # of whitespace**, so the local row -- whose `config` column is empty -- lost
+    # that field and slid `session_name` into it. The log then said
+    # "claude session " with nothing after it while the beat itself worked, which
+    # is the kind of wrong that looks like a formatting nit rather than a parse
+    # error. 0x1f cannot appear in the CSV and is not whitespace.
+    # 用 US（0x1f），不用 tab。**tab 是空白字元，而 zsh 的 `read` 會把連續的空白摺疊掉**，因此
+    # 本機那一列——它的 `config` 欄是空的——丟失了該欄位，並讓 `session_name` 滑進去。於是 log 印出
+    # 「claude session 」後面空無一物，而心跳本身是好的；那種錯誤看起來像排版小疵，不像解析錯誤。
+    # 0x1f 不可能出現在該 CSV 裡，而且它不是空白字元。
+    while IFS=$'\x1f' read -r os session host mux config session_name session_id method; do
+        [ -n "$session" ] || continue
+        # TWO WAYS TO REACH A SESSION, AND THEY ARE NOT THE SAME ACT.
+        #
+        #   session-id   `claude -p -r <id> "<message>"` appends a HEADLESS turn
+        #                to that conversation and returns the reply here, where
+        #                it is logged. No multiplexer anywhere, which is what
+        #                makes the Windows side reachable at all: measured
+        #                2026-09-09, claude is on winnode via multissh and
+        #                reports 2.1.216, while that machine has no tmux, no
+        #                screen and no pacman to install either.
+        #   mux          types into a LIVE terminal, where a human sees it and
+        #                the running session answers in place. Needs screen or
+        #                tmux to own the pty.
+        #
+        # The first is the default because it works everywhere; the second is
+        # kept because it is the only one a person watching the terminal sees.
+        #
+        # 到得了一個 session 的兩種方式，而它們並不是同一件事。
+        #
+        #   session-id   `claude -p -r <id> "<訊息>"` 會在那段對話上追加一個**無頭**回合，並把回覆
+        #                帶回此處記進 log。全程不需要任何 multiplexer，而那正是 Windows 側之所以
+        #                到得了的原因：2026-09-09 實測，claude 經由 multissh 就在 winnode 上、
+        #                回報 2.1.216，而那台機器沒有 tmux、沒有 screen，也沒有 pacman 可以裝。
+        #   mux          打進一個**活著的**終端機，人看得到，而正在跑的那個 session 就地回答。
+        #                需要 screen 或 tmux 擁有那個 pty。
+        #
+        # 前者是預設，因為它到處都行得通；後者保留，因為只有它會被盯著終端機的人看到。
+        if [ "$method" = "session-id" ]; then
+            case "$session_id" in
+                ""|"("*)
+                    # A placeholder id is not an id. Said out loud, because a
+                    # `claude -r "(pending ...)"` would fail in a way that reads
+                    # like the machine being down.
+                    # 佔位字串不是 id。明講出來，因為 `claude -r "(pending …)"` 的失敗讀起來會像是
+                    # 那台機器掛了。
+                    printf 'SKIP %s/%s -- no session_id yet\n' "$os" "$session_name" >&2
                     continue
                     ;;
             esac
-            if "$multissh_bin" -F "$config" "$host" "$remote_cmd" >/dev/null 2>&1; then
-                printf 'sent to %s:%s\n' "$host" "$name"
+            claude_cmd="claude -p -r $session_id \"$message\""
+            if [ "$host" = "local" ]; then
+                reply="$(eval "$claude_cmd" 2>&1 | head -3 || true)"
+            else
+                config="${config:-$multissh_config}"
+                config="${config/#\~/$HOME}"
+                reply="$("$multissh_bin" -F "$config" "$host" "$claude_cmd" 2>&1 | head -3 || true)"
+            fi
+            if [ -n "$reply" ]; then
+                printf 'asked %s/%s (%s) -- replied: %s\n' \
+                    "$os" "$session_name" "$host" "$reply"
                 sent=$(( sent + 1 ))
             else
-                # Loud. A failed remote send that printed nothing would leave the
-                # count looking like a quiet machine rather than an unreachable one.
-                # 大聲失敗。一次什麼都不印的遠端傳送失敗，會讓計數讀起來像是一台安靜的機器，而不是
-                # 一台連不上的機器。
-                printf 'FAILED to reach %s:%s\n' "$host" "$name" >&2
+                # Empty is a failure here, unlike the mux route where silence is
+                # normal. A resume that returns nothing did not reach anything.
+                # 此處「空的」就是失敗，這與 mux 那條路不同——在那裡沉默是常態。一次什麼都沒回傳的
+                # resume，代表它什麼都沒到達。
+                printf 'FAILED %s/%s (%s) -- no reply from claude -r\n' \
+                    "$os" "$session_name" "$host" >&2
             fi
-        done < "$targets_file"
-    fi
+            continue
+        fi
+
+        # **The carriage return has to be a REAL one, and a literal backslash-r
+        # is silently accepted.** Measured 2026-09-09 with two screen sessions
+        # side by side: `stuff 'text\r'` delivered the text with no Enter, so the
+        # session never ran the line and wrote nothing, while `screen` still
+        # exited 0 and this script still printed "sent". `stuff "text$(printf
+        # '\r')"` worked. The remote form keeps the `$(printf ...)` unexpanded on
+        # purpose -- the REMOTE shell expands it, which is why it is in single
+        # quotes here.
+        #
+        # **那個 carriage return 必須是真的,而字面的反斜線加 r 會被靜默接受。** 2026-09-09 以兩個
+        # 並排的 screen session 實測:`stuff 'text\r'` 送出的是「沒有 Enter 的文字」,於是該 session
+        # 從未執行那一行、也沒有寫出任何東西,而 `screen` 依然以 0 結束、本腳本依然印出「sent」。
+        # `stuff "text$(printf '\r')"` 才是對的。遠端的那個形式刻意讓 `$(printf …)` 不在此處展開
+        # ——由**遠端**的 shell 展開它，所以此處用的是單引號。
+        case "$mux" in
+            tmux)   send_cmd="tmux send-keys -t $session '$message' Enter" ;;
+            screen)
+                if [ "$host" = "local" ]; then
+                    send_cmd="screen -S $session -p 0 -X stuff \"$message$(printf '\r')\""
+                else
+                    send_cmd='screen -S '"$session"' -p 0 -X stuff "'"$message"'$(printf "\r")"'
+                fi
+                ;;
+            *)
+                printf 'unknown mux "%s" for %s/%s -- use tmux or screen\n' \
+                    "$mux" "$os" "$session" >&2
+                continue
+                ;;
+        esac
+
+        if [ "$host" = "local" ]; then
+            # -p 0 addresses the session's first window: without it, `stuff` goes
+            # to whichever window is current, which for a session someone has been
+            # using is not necessarily the one running claude.
+            # -p 0 指定該 session 的第一個視窗：少了它，`stuff` 會送到當前視窗，而對一個有人用過的
+            # session 來說，那不一定是跑著 claude 的那一個。
+            if eval "$send_cmd" 2>/dev/null; then
+                printf 'sent to %s/%s (local, claude session %s)\n' \
+                    "$os" "$session" "$session_name"
+                sent=$(( sent + 1 ))
+            else
+                printf 'FAILED local %s/%s -- is it running under %s?\n' \
+                    "$os" "$session" "$mux" >&2
+            fi
+        else
+            config="${config:-$multissh_config}"
+            # ~ is not expanded inside a CSV field, so it arrives literally and
+            # multissh would look for a directory named "~". Expanded here rather
+            # than in the file, because the file is read by other machines too.
+            # CSV 欄位裡的 ~ 不會被展開，因此它會原樣抵達，而 multissh 會去找一個名為 "~" 的目錄。
+            # 在此處展開而不在檔案裡寫死，因為那個檔案也會被其他機器讀到。
+            config="${config/#\~/$HOME}"
+            if "$multissh_bin" -F "$config" "$host" "$send_cmd" >/dev/null 2>&1; then
+                printf 'sent to %s/%s via %s (claude session %s)\n' \
+                    "$os" "$session" "$host" "$session_name"
+                sent=$(( sent + 1 ))
+            else
+                # Loud. A failed send that printed nothing would leave the count
+                # looking like a quiet machine rather than an unreachable one.
+                # 大聲失敗。一次什麼都不印的傳送失敗，會讓計數讀起來像是一台安靜的機器，而不是
+                # 一台連不上的機器。
+                printf 'FAILED to reach %s/%s via %s\n' "$os" "$session" "$host" >&2
+            fi
+        fi
+    done < <(read_targets)
 
     # The count, always, including zero. "Armed and reached nothing" is the state
     # this script is most likely to be in, and it must not read as success.
@@ -220,8 +360,8 @@ one_beat() {
 
 }
 
-pid_file="$repo_root/.heartbeat-pid"
-log_file="$repo_root/.heartbeat-log"
+pid_file="${script_path:h}/.heartbeat-pid"
+log_file="${script_path:h}/.heartbeat-log"
 interval="${HEARTBEAT_INTERVAL:-600}"
 
 usage() {
@@ -229,9 +369,9 @@ usage() {
 }
 
 # Both spellings. The single dash is what gets typed (`nohup zsh
-# Scripts/heartbeat.zsh -on`), the double dash is what the rest of this tree's
+# heartbeats/heartbeat.zsh -on`), the double dash is what the rest of this tree's
 # scripts use, and refusing one of them would be a papercut with no upside.
-# 兩種寫法都收。單破折號是實際會被打出來的那一種（`nohup zsh Scripts/heartbeat.zsh -on`），
+# 兩種寫法都收。單破折號是實際會被打出來的那一種（`nohup zsh heartbeats/heartbeat.zsh -on`），
 # 雙破折號則與這棵樹其他腳本一致；只認其中一種，是一個沒有任何好處的小刺。
 case "${1:-}" in
     -on|--on)
@@ -329,21 +469,38 @@ case "${1:-}" in
         ;;
     -next|--next) print_next; exit $? ;;
     -list|--list)
-        printf 'local screen sessions matching "%s*":\n' "$local_prefix"
-        list_local | sed 's/^/  /'
-        # Nothing found is printed as such. An empty list and a list this script
-        # failed to read look identical otherwise, and the first is the ordinary
-        # case here -- sessions started in a bare terminal.
-        # 找不到時明講。否則「空清單」與「這支腳本沒讀到清單」看起來相同，而在此處前者才是常態
-        # ——那些在裸終端機中啟動的 session。
-        [ -n "$(list_local)" ] || printf '  (none -- start sessions with `screen -S %s-<name> claude`)\n' "$local_prefix"
-        if [ -f "$targets_file" ]; then
-            printf 'remote targets from %s:\n' "${targets_file:t}"
-            grep -v '^[[:space:]]*#' "$targets_file" | grep -v '^[[:space:]]*$' | sed 's/^/  /'
+        # Prints the whole table, then the subset that would actually be sent
+        # to. The two differ by check_required, and showing only the second
+        # would make a row switched off look like a row that was never added.
+        # 先印出整張表，再印出「真正會被送到」的子集。兩者的差別在 check_required，而只印後者會讓
+        # 一個「被關掉的列」看起來像是一個「從來沒被加進去的列」。
+        printf 'targets in %s:\n' "${targets_file:t}"
+        if command -v csv2 >/dev/null 2>&1; then
+            csv2 -r --json -i "$targets_file" 2>/dev/null | python3 -c '
+import json, sys
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    f = json.loads(line).get("fields")
+    if not f:
+        continue
+    method = f.get("method","") or "session-id"
+    via = method if method == "session-id" else f.get("mux","")
+    print("  [%s] %-8s %-24s host=%-8s via=%-11s id=%s" % (
+        "x" if str(f.get("check_required","")).lower() in ("yes","y","true","1") else " ",
+        f.get("os",""), f.get("session_name","") or f.get("session",""),
+        f.get("host",""), via, f.get("session_id","") or "(none)"))
+'
         else
-            printf 'remote targets: none (%s absent, see %s.example)\n' \
-                "${targets_file:t}" "${targets_file:t}"
+            printf '  csv2 is not on PATH; refusing to parse %s by hand\n' "${targets_file:t}" >&2
         fi
+        printf 'would send to:\n'
+        read_targets | awk -F'\x1f' '{ printf "  %s/%s via %s (%s)\n", $1, $6, $3, $8 }'
+        # Said out loud, because "no rows are switched on" and "the file could
+        # not be read" produce the same silence otherwise.
+        # 明講出來，因為「沒有任何一列被開啟」與「這個檔案讀不到」否則會產生同樣的沉默。
+        [ -n "$(read_targets)" ] || printf '  (none -- set check_required to yes on a row)\n'
         exit 0
         ;;
     -m)
