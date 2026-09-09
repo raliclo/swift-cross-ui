@@ -1150,6 +1150,45 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         var input = INPUT()
         input.type = DWORD(INPUT_KEYBOARD)
         input.ki.wVk = WORD(code)
+
+        // The scan code is filled in because a keyboard message should carry
+        // one -- NOT because it fixed anything here. Read the next paragraph
+        // before citing this line as a cause.
+        //
+        // MEASURED 2026-09-09, AND THE HYPOTHESIS WAS WRONG. `wScan` was 0
+        // before this, and the theory was that GDK's Win32 backend derives the
+        // character from the scan code and keyboard state rather than from the
+        // virtual key, so a zero scan code would translate to the wrong letter.
+        // P36 was built with the fix and re-driven: the result did not change
+        // at all. Typing `a` then `b` into the focused GtkEntry still produces
+        // exactly ONE glyph, still not a letter, and the four sibling fields
+        // bound to the same `@State` still show their placeholders. Whatever is
+        // wrong with #116, this is not it.
+        //
+        // Kept rather than reverted: sending wVk without wScan is wrong on its
+        // own terms, and reverting would leave a second defect in place for the
+        // next person to find. Kept ANNOTATED rather than silent, because a
+        // plausible fix with no note attached is exactly what gets cited later
+        // as the explanation.
+        //
+        // MAPVK_VK_TO_VSC is 0, spelled out rather than passed as a literal.
+        //
+        // 此處填入 scan code，是因為一則鍵盤訊息本來就該攜帶它——**而不是**因為它修好了什麼。在把這一行
+        // 當成原因引用之前，請先讀下一段。
+        //
+        // 2026-09-09 實測，而該假設是錯的。此改動之前 `wScan` 為 0，當時的理論是：GDK 的 Win32 後端由
+        // scan code 與鍵盤狀態（而非只由 virtual key）推導字元，因此 scan code 為零會被翻譯成錯的字母。
+        // P36 帶著這個修正重新建置並重跑：**結果完全沒有變化**。對取得焦點的 GtkEntry 輸入 `a` 再 `b`，
+        // 仍然只產生**一個**字符、仍然不是字母，而綁定同一個 `@State` 的另外四個欄位仍顯示 placeholder。
+        // #116 的問題不論是什麼，都不是這裡。
+        //
+        // 保留而不還原：只送 wVk 而不送 wScan 本身就是錯的，還原只會把第二個缺陷留給下一個人發現。
+        // 保留但**加註**而非默默留著，因為「一個看起來合理、卻沒有附註的修正」正是日後會被拿來當成解釋的東西。
+        //
+        // MAPVK_VK_TO_VSC 的值為 0，此處寫出名稱而非直接傳字面值。
+        let mapVKToVSC: UINT = 0  // MAPVK_VK_TO_VSC
+        input.ki.wScan = WORD(MapVirtualKeyW(UINT(code), mapVKToVSC))
+
         input.ki.dwFlags = up ? DWORD(KEYEVENTF_KEYUP) : 0
         try dispatch(&input)
     }
