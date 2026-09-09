@@ -77,13 +77,57 @@ struct GridLayoutTests {
     ///
     /// SwiftUI flattens: the ForEach's elements each become cells.
     ///
-    /// **Marked as a known issue rather than fixed here.** The fix needs the
-    /// grid to ask a child "are you a group of cells?", and
-    /// `LayoutSystem.LayoutableChild` is an opaque pair of closures that cannot
-    /// answer. That is a change to how children are flattened, not a change to
-    /// this file, and it is worth more as a pinned fact than as an unverified
-    /// attempt. When someone does fix it, this test fails -- which is the
-    /// failure that should happen.
+    /// **Attempted on 2026-09-09 and reverted, and the reason is measured.**
+    ///
+    /// The obvious fix is to let the grid ask each direct child "are you a group
+    /// of cells?" and splice in the answer. That was built --
+    /// `ErasedViewGraphNode.getChildren()`, a `cellChildren` requirement on
+    /// `ViewGraphNodeChildren` defaulting to nil, and `ForEachViewChildren`
+    /// answering with its `layoutableChildren`. It compiled, the suite stayed
+    /// green, and this test still recorded its known issue.
+    ///
+    /// A probe said why:
+    ///
+    ///     PROBE node 0 type Text      cellChildren: nil
+    ///     PROBE node 1 type ForEach<> cellChildren: Optional(0)
+    ///
+    /// **Empty, not absent.** `ForEachViewChildren.layoutableChildren` is filled
+    /// during the ForEach's OWN layout, and the parent asks before that has
+    /// happened. So the splice contributed nothing and the ForEach was dropped
+    /// entirely -- strictly worse than treating it as one cell, and invisible
+    /// without a test, because a grid with fewer cells still lays out.
+    ///
+    /// Fixing it means populating those children when the children object is
+    /// CONSTRUCTED rather than when it is laid out, and the elements needed for
+    /// that live on the view rather than on the children. That is a change to
+    /// ForEach's lifecycle.
+    ///
+    /// Kept as a known issue: it records the defect, and it fails the day
+    /// someone fixes it -- which is the failure that should happen. It also now
+    /// records one route that does NOT work, which is the part that would
+    /// otherwise be rediscovered.
+    ///
+    /// **2026-09-09 嘗試過並已還原,而理由是量出來的。**
+    ///
+    /// 顯而易見的修法,是讓格線逐一詢問每個直接子節點「你是一組儲存格嗎?」並把答案接進去。那個做法
+    /// 被實作出來了——`ErasedViewGraphNode.getChildren()`、`ViewGraphNodeChildren` 上一個預設為 nil 的
+    /// `cellChildren` requirement,以及 `ForEachViewChildren` 以它的 `layoutableChildren` 作答。
+    /// 它編譯通過、測試全綠,而這個測試依然記錄了它的 known issue。
+    ///
+    /// 一個探針說出了原因:
+    ///
+    ///     PROBE node 0 type Text      cellChildren: nil
+    ///     PROBE node 1 type ForEach<> cellChildren: Optional(0)
+    ///
+    /// **是空的,不是不存在。** `ForEachViewChildren.layoutableChildren` 是在該 ForEach **自己的**
+    /// layout 期間才被填入的,而父層是在那之前詢問的。因此那次拼接什麼也沒貢獻,ForEach 被整個丟掉——
+    /// 嚴格來說比「當成一格」更糟,而且沒有測試就看不見,因為一個少了幾格的格線照樣排得出版面。
+    ///
+    /// 要修好它,意味著在該 children 物件**被建構時**就填入那些子項,而不是在它被排版時;而做那件事
+    /// 所需要的 elements 存在於 view 上、不在 children 上。那是對 ForEach 生命週期的改動。
+    ///
+    /// 保留為 known issue:它記錄了這個缺陷,並且會在有人修好它的那天失敗——那正是應該發生的失敗。
+    /// 它現在同時記錄了一條**行不通**的路線,而那正是否則會被重新發現一次的部分。
     ///
     /// 一個靜態儲存格擺在 `ForEach` 旁邊時,整個 `ForEach` 會塌縮成一格。
     ///
