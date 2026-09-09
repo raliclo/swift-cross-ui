@@ -14,55 +14,6 @@ track, not a task.
 
 ---
 
-## Change a `Pn`, update the coverage matrix / 改了 `Pn`，就更新覆蓋矩陣
-
-**Editing a test app invalidates what was recorded about it.** Whenever
-`testapp/Pn.swift` changes, update `matrix_coverage/` in the same change and
-say which platforms now need re-verifying. A row that still reads `pass` after
-the app under it moved is not a record of a passing test — it is a record of a
-test that no longer exists.
-
-Three separate things go stale, and they fail differently:
-
-| what changed | what breaks | how it fails |
-| --- | --- | --- |
-| any text the app draws | every action file's coordinates for that app | a click lands one row off and reports a miss, or worse lands on another control and reports a pass |
-| a view added or removed | the `# expect:` markers, and what a capture is evidence of | a marker that can never be met reports UNCHECKED, which reads as "not driven yet" rather than "broken" |
-| a claim the app renders | the matrix cell describing it | the running program disagrees with the source, and a reader believes the program |
-
-So the unit of work is **app + action files + matrix row**, never the app
-alone. The other platforms cannot re-measure from here, so name them rather
-than silently leaving their rows: a cell that needs re-verifying on macOS is
-the macOS side's to run, and it will not know unless the row says so.
-
-This was written after P34 changed on 2026-09-09: a line reading
-`Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`
-was rendered on screen while four of those five existed. Fixing the text
-shortened it, which moved every coordinate below it, which invalidated
-`P34-show-more-rows.csv` — one edit, three consequences, only one of them
-visible in the diff.
-
-**改動一支測試 app，會使關於它的既有紀錄失效。** 只要 `testapp/Pn.swift` 有變動，就在**同一次改動中**
-更新 `matrix_coverage/`，並寫明哪些平台需要重新驗證。一列在其底下的 app 已經改變之後仍寫著 `pass`，
-那不是「一次通過的測試」的紀錄，而是「一個已不存在的測試」的紀錄。
-
-有三樣東西會各自過期，而它們的失敗方式不同：**app 畫出來的任何文字**改變 → 該 app 所有動作檔的座標
-失效（點擊偏一列會回報落空，更糟的是落在另一個控制項上而回報通過）；**新增或移除 view** → `# expect:`
-標記與「一張擷圖能證明什麼」都變了（一個不可能被滿足的標記會回報 UNCHECKED，那讀起來像「尚未驅動」
-而不是「壞了」）；**app 算繪出的任何主張** → 描述它的矩陣格子（執行中的程式與原始碼互相矛盾，而讀者
-會相信程式）。
-
-因此工作的單位是 **app + 動作檔 + 矩陣列**，絕不是 app 單獨一項。其他平台無法從這裡重新量測，所以請
-**指名它們**，而不要默默留著它們的列：一個需要在 macOS 上重驗的格子是 macOS 那一側要跑的，而除非那一列
-寫明了，否則它不會知道。
-
-本節寫於 2026-09-09 P34 變動之後：畫面上有一行寫著
-`Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`，而那五個裡有四個是
-存在的。修正該文字使它變短，於是其下每一個座標都位移了，於是 `P34-show-more-rows.csv` 失效——一次
-編輯、三個後果，而其中只有一個看得見於 diff。
-
----
-
 ## Remote names / remote 名稱
 
 | remote | points at | which is |
@@ -308,6 +259,13 @@ Android 的清空缺陷是靠「非白像素數 378,653 → 0」釘住的；而�
 
 ### 3e-1. 改了 Pn，就要處理它在矩陣裡的舊列
 
+`matrix_coverage/` 底下有**兩個**檔案會因此過期，而它們過期的方式不同，處置也不同。本節前半談
+`results.csv2`，後半（3e-1b）談 `coverage-matrix.csv2`。兩半是 2026-09-09 由兩台機器各自寫成後
+合併的——兩邊在同一天、為同一支 app(ScrollViewReader)寫下同一條規則，各自只看見自己那個檔案。
+**這件事本身就是本節的例證**：一條規則的兩份副本會漂移，所以它們現在只有一份。
+
+#### 3e-1a. `results.csv2`：逐次觀測的流水帳
+
 **一支 app 被改動之後，`matrix_coverage/results.csv2` 中先前為它記下的每一列，描述的都是另一個程式。**
 那些列不會失效、不會過期、也不會有任何東西標記它們——它們只是繼續在那裡，看起來像是對現在這支 app
 的證據。
@@ -337,6 +295,56 @@ Android 的清空缺陷是靠「非白像素數 378,653 → 0」釘住的；而�
 
 不刪除，理由與 `mistakes.csv2` 從不刪列相同：一個被移除的觀測，與一個從未做過的觀測，在檔案裡長得
 一模一樣。
+
+#### 3e-1b. `coverage-matrix.csv2`：每個平台的格子 / the per-platform cells
+
+**Editing a test app invalidates what was recorded about it.** Whenever
+`testapp/Pn.swift` changes, update `matrix_coverage/` in the same change and
+say which platforms now need re-verifying. A row that still reads `pass` after
+the app under it moved is not a record of a passing test — it is a record of a
+test that no longer exists.
+
+Three separate things go stale, and they fail differently:
+
+| what changed | what breaks | how it fails |
+| --- | --- | --- |
+| any text the app draws | every action file's coordinates for that app | a click lands one row off and reports a miss, or worse lands on another control and reports a pass |
+| a view added or removed | the `# expect:` markers, and what a capture is evidence of | a marker that can never be met reports UNCHECKED, which reads as "not driven yet" rather than "broken" |
+| a claim the app renders | the matrix cell describing it | the running program disagrees with the source, and a reader believes the program |
+
+So the unit of work is **app + action files + matrix row**, never the app
+alone. The other platforms cannot re-measure from here, so name them rather
+than silently leaving their rows: a cell that needs re-verifying on macOS is
+the macOS side's to run, and it will not know unless the row says so.
+
+This was written after P34 changed on 2026-09-09: a line reading
+`Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`
+was rendered on screen while four of those five existed. Fixing the text
+shortened it, which moved every coordinate below it, which invalidated
+`P34-show-more-rows.csv` — one edit, three consequences, only one of them
+visible in the diff. (The coordinate turned out to survive, but only because
+the replacement Text was the same height; that was established by running the
+file, not by noticing it.)
+
+**改動一支測試 app，會使關於它的既有紀錄失效。** 只要 `testapp/Pn.swift` 有變動，就在**同一次改動中**
+更新 `matrix_coverage/`，並寫明哪些平台需要重新驗證。一列在其底下的 app 已經改變之後仍寫著 `pass`，
+那不是「一次通過的測試」的紀錄，而是「一個已不存在的測試」的紀錄。
+
+有三樣東西會各自過期，而它們的失敗方式不同：**app 畫出來的任何文字**改變 → 該 app 所有動作檔的座標
+失效（點擊偏一列會回報落空，更糟的是落在另一個控制項上而回報通過）；**新增或移除 view** → `# expect:`
+標記與「一張擷圖能證明什麼」都變了（一個不可能被滿足的標記會回報 UNCHECKED，那讀起來像「尚未驅動」
+而不是「壞了」）；**app 算繪出的任何主張** → 描述它的矩陣格子（執行中的程式與原始碼互相矛盾，而讀者
+會相信程式）。
+
+因此工作的單位是 **app + 動作檔 + 矩陣列**，絕不是 app 單獨一項。其他平台無法從這裡重新量測，所以請
+**指名它們**，而不要默默留著它們的列：一個需要在 macOS 上重驗的格子是 macOS 那一側要跑的，而除非那一列
+寫明了，否則它不會知道。
+
+本節寫於 2026-09-09 P34 變動之後：畫面上有一行寫著
+`Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy`，而那五個裡有四個是
+存在的。修正該文字使它變短，於是其下每一個座標都位移了，於是 `P34-show-more-rows.csv` 失效——一次
+編輯、三個後果，而其中只有一個看得見於 diff。（那個座標最後其實存活了下來，但那只是因為替換上去的
+Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看出來的。）
 
 ### 3e. 一支 Pn 抓到的缺陷，要修完才進下一支
 
