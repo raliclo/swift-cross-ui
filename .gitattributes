@@ -27,3 +27,41 @@ gyb/* linguist-vendored
 # `git check-attr eol` 對 results.csv2 回報 `unspecified`，對 testapp/issues.csv 回報 `lf`
 # ——這就是全部的原因：守衛寫在了錯的 glob 上。當時共有五個被追蹤的 .csv2 檔，無一被涵蓋。
 *.csv2 text eol=lf
+
+# Append-only data files merge by UNION, because both machines only ever append
+# and git has no append-aware merge for CSV. Without this, every exchange
+# conflicts on matrix_coverage/results.csv2 and someone resolves it by hand --
+# which happened on 2026-09-08 and again on 2026-09-09.
+#
+# UNION IS A MULTISET, AND THAT IS THE POINT. It concatenates both sides' lines
+# and does NOT de-duplicate. Anything set-like would be wrong here: measured
+# 2026-09-09, results.csv2 holds 706 data rows of which **98 are exact
+# duplicates of another row**, and they are deliberate -- the same app measured
+# twice on the same day is two observations, not one fact recorded twice.
+# De-duplicating would delete 98 measurements and report success.
+#
+# Re-derive with:
+#   csv2 -r -i matrix_coverage/results.csv2 | sort | uniq -d | wc -l
+#
+# KNOWN LIMIT, and it fails loudly rather than silently: union merges the header
+# rows too, so if both sides edit a .csv2 header in the same round the result has
+# duplicated headers. csv2 validates the header count and refuses the file, so
+# that shows up as a hard error on the next read rather than as quiet corruption.
+# The ordinary case -- both sides appending data -- never touches the header.
+#
+# 只做附加的資料檔以 UNION 合併，因為兩台機器都只會附加，而 git 對 CSV 沒有「理解附加」的合併方式。
+# 少了這條規則，每一次交換都會在 matrix_coverage/results.csv2 上衝突，並由人手動解決——2026-09-08
+# 發生過一次，2026-09-09 又一次。
+#
+# **union 是多重集合，而那正是重點。** 它把兩側的行串接起來，且**不**去除重複。任何「集合式」的做法
+# 在此都是錯的：2026-09-09 實測，results.csv2 有 706 個資料列，其中 **98 列與另一列完全相同**，而
+# 那些重複是刻意的——同一支 app 在同一天量兩次是兩個觀測，不是同一個事實被記了兩遍。去重會刪掉 98
+# 筆量測，並回報成功。
+#
+# 重新推導的指令：
+#   csv2 -r -i matrix_coverage/results.csv2 | sort | uniq -d | wc -l
+#
+# 已知限制，而且它會大聲失敗、不會靜默損壞：union 連標頭列也會合併，因此若兩側在同一輪都改了某個
+# .csv2 的標頭，結果會有重複的標頭。csv2 會驗證標頭數量並拒絕該檔，所以那會在下一次讀取時以硬性錯誤
+# 出現，而不是變成無聲的損壞。一般情況——兩側都只是附加資料——根本不會碰到標頭。
+*.csv2 merge=union
