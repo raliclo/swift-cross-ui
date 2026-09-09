@@ -2333,8 +2333,13 @@ public final class GtkBackend:
         #endif
     }
 
-    /// Samples ``ambientColorScheme``. Must run with GTK initialised.
     /// What the current GTK theme's foreground colour implies, and NOTHING else.
+    ///
+    /// ~~"Samples ``ambientColorScheme``."~~ -- that line belonged to
+    /// `sampleAmbientColorScheme` and was left attached here when the two were
+    /// split on 2026-09-09. It said the opposite of what this function does:
+    /// this one assigns nothing, which is the entire point of the split. Must
+    /// still run with GTK initialised.
     ///
     /// Split out of ``sampleAmbientColorScheme`` on 2026-09-09 for #27, because
     /// that method also WRITES `Settings.default?.preferDarkTheme`. Calling it
@@ -2446,7 +2451,213 @@ public final class GtkBackend:
     /// XSettings manager、沒有 libadwaita，且 `XDG_CURRENT_DESKTOP` 為空。無論這段程式碼多正確，
     /// app 在那裡看起來都會像壞掉。驗證需要一個真正的 GNOME 桌面，或針對 Windows 分支做一次
     /// Windows 主題切換。
+    /// Carries a weak ``GtkBackend`` and an `HKEY` across a thread boundary.
+    ///
+    /// `@unchecked Sendable` for the reason spelled out at its use site: this
+    /// module is on Swift 6, neither member is Sendable on its own, and the box
+    /// is written once and read thereafter. Modelled on `WeakViewBox` in
+    /// `Gtk/Widgets/NV12GLView.swift`, which crosses the same boundary the same
+    /// way.
+    ///
+    /// Declared unconditionally rather than inside `#if os(Windows)` so that a
+    /// change here is compiled on every platform. A type that exists on one
+    /// platform is a type that can be broken on the others without anyone
+    /// noticing until that platform is built -- and the machine that builds
+    /// Windows is one machine.
+    ///
+    /// 跨執行緒邊界攜帶一個 weak 的 ``GtkBackend`` 與一個 `HKEY`。
+    ///
+    /// 標為 `@unchecked Sendable`，理由寫在它的使用處：本模組處於 Swift 6，兩個成員各自都不是
+    /// Sendable，而此 box 只寫入一次、其後只被讀取。仿自 `Gtk/Widgets/NV12GLView.swift` 中的
+    /// `WeakViewBox`——它以相同方式跨越相同的邊界。
+    ///
+    /// 此處**不**包在 `#if os(Windows)` 之內而是無條件宣告，如此對它的改動會在每個平台上都被編譯。
+    /// 一個只存在於單一平台的型別，就是一個「可以在其他平台上被弄壞、而在那個平台被建置之前沒有人會
+    /// 發現」的型別——而建置 Windows 的機器只有一台。
+    private final class ColorSchemeWatchBox: @unchecked Sendable {
+        weak var backend: GtkBackend?
+        #if os(Windows)
+            let key: HKEY
+            init(backend: GtkBackend?, key: HKEY) {
+                self.backend = backend
+                self.key = key
+            }
+        #else
+            init(backend: GtkBackend?) {
+                self.backend = backend
+            }
+        #endif
+    }
+
+    /// Windows only: watch the registry key ``systemColorScheme`` reads.
+    ///
+    /// **The GtkSettings subscription below is not enough on Windows, and that
+    /// is not a shortcoming of it.** GTK there ships its own theme and does not
+    /// track the system light/dark setting -- which is the whole reason
+    /// ``systemColorScheme`` exists -- so `notify::gtk-theme-name` will very
+    /// likely never fire for a desktop change. Two platforms, two triggers, one
+    /// handler.
+    ///
+    /// **Why a registry watch rather than `WM_SETTINGCHANGE`.** The conventional
+    /// Win32 answer is `WM_SETTINGCHANGE` with `lParam == "ImmersiveColorSet"`,
+    /// and it was rejected for a specific reason rather than unfamiliarity: GTK
+    /// owns the message loop, so receiving it means subclassing the toplevel's
+    /// HWND -- which requires the window to be realised, has to be installed and
+    /// removed per window, and puts a Win32 `WNDPROC` in the path of every
+    /// message GTK handles. `RegNotifyChangeKeyValue` watches the same key
+    /// ``systemColorScheme`` already reads, needs no window, and touches nothing
+    /// GTK owns. If it ever proves to miss a change that `WM_SETTINGCHANGE`
+    /// catches, that is the reason to revisit -- not elegance.
+    ///
+    /// `REG_NOTIFY_THREAD_AGNOSTIC` so the subscription outlives this call
+    /// rather than the thread that made it; without it the notification is
+    /// cancelled when the calling thread exits, which is a silent failure, not
+    /// an error.
+    ///
+    /// The thread is detached and never joined. It ends when the process does.
+    /// That is deliberate: there is no teardown path for the backend, and a
+    /// thread parked in `WaitForSingleObject` costs one kernel wait.
+    ///
+    /// **僅限 Windows:監看 ``systemColorScheme`` 所讀取的那個登錄檔鍵。**
+    ///
+    /// **下方的 GtkSettings 訂閱在 Windows 上不夠用,而那不是它的缺陷。** GTK 在該平台自帶主題、
+    /// 不追蹤系統的淺色／深色設定——那正是 ``systemColorScheme`` 存在的全部理由——因此
+    /// `notify::gtk-theme-name` 極可能永遠不會因為桌面切換而觸發。兩個平台、兩個觸發源、同一個 handler。
+    ///
+    /// **為何用登錄檔監看而非 `WM_SETTINGCHANGE`。** Win32 的慣用答案是 `WM_SETTINGCHANGE` 搭配
+    /// `lParam == "ImmersiveColorSet"`,此處捨棄它有具體理由、而非因為不熟:GTK 擁有訊息迴圈,因此要
+    /// 收到它就必須子類化 toplevel 的 HWND——那需要視窗已 realise、必須逐視窗安裝與移除,並且會把一個
+    /// Win32 `WNDPROC` 插進 GTK 所處理的**每一則訊息**的路徑上。`RegNotifyChangeKeyValue` 監看的是
+    /// ``systemColorScheme`` 本來就在讀的同一個鍵,不需要視窗,也不碰任何 GTK 擁有的東西。若日後證實
+    /// 它會漏掉 `WM_SETTINGCHANGE` 抓得到的變更,**那才是**重新考慮的理由——而不是優雅與否。
+    ///
+    /// 使用 `REG_NOTIFY_THREAD_AGNOSTIC`,好讓該訂閱的存續不繫於發出它的執行緒;少了它,呼叫端執行緒
+    /// 結束時通知會被取消,而那是一次靜默的失敗,不是錯誤。
+    ///
+    /// 該執行緒是分離的,永不 join,隨行程結束而結束。這是刻意的:backend 沒有拆除路徑,而一個停在
+    /// `WaitForSingleObject` 的執行緒只佔用一次核心等待。
+    private func watchSystemColorSchemeChanges() {
+        #if os(Windows)
+            var key: HKEY?
+            let opened = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"
+                .withCString(encodedAs: UTF16.self) { subKey in
+                    RegOpenKeyExW(HKEY_CURRENT_USER, subKey, 0, DWORD(KEY_NOTIFY), &key)
+                }
+            guard opened == ERROR_SUCCESS, let key else {
+                DebugFeatures.log(
+                    "GtkBackend: could not open the Personalize key (\(opened)); "
+                        + "the app will not follow a Windows light/dark change while running."
+                )
+                return
+            }
+
+            // ONE box carrying both the weak backend and the key, `@unchecked
+            // Sendable`, because `GtkBackend` is not Sendable and `HKEY` is a
+            // raw pointer -- and this module is on Swift 6, where capturing
+            // either in a `Thread` closure is an ERROR, not a warning.
+            //
+            // This is the shape `Gtk/Widgets/NV12GLView.swift` already uses to
+            // cross the same boundary (`WeakViewBox`, passed as an opaque
+            // pointer, dereferenced under `MainActor.assumeIsolated` on the
+            // other side). Copied rather than reinvented: a second way of doing
+            // one thing is a second thing to get wrong.
+            //
+            // What makes the `@unchecked` honest: the box is written once here
+            // and only ever READ afterwards, the weak reference is the only
+            // mutable state and ARC makes that access atomic, and the backend
+            // itself is touched only on GTK's thread.
+            //
+            // **一個 box 同時攜帶 weak backend 與那個 key**，標為 `@unchecked Sendable`，因為
+            // `GtkBackend` 不是 Sendable 而 `HKEY` 是裸指標——而本模組處於 Swift 6，在其中把兩者之一
+            // 捕獲進 `Thread` 閉包是**錯誤**，不是警告。
+            //
+            // 這正是 `Gtk/Widgets/NV12GLView.swift` 已經在用來跨越同一道邊界的形狀（`WeakViewBox`，
+            // 以不透明指標傳遞，在另一側於 `MainActor.assumeIsolated` 之下解參考）。此處是**沿用**而非
+            // 重新發明：同一件事有第二種做法，就是第二個會出錯的地方。
+            //
+            // 讓這個 `@unchecked` 誠實的理由：此 box 只在此處寫入一次，之後只會被**讀取**；唯一的可變
+            // 狀態是那個 weak 參照，而 ARC 使該存取為原子；至於 backend 本身，只會在 GTK 的執行緒上被碰觸。
+            let box = ColorSchemeWatchBox(backend: self, key: key)
+
+            let thread = Thread {
+                while true {
+                    guard let event = CreateEventW(nil, false, false, nil) else { return }
+                    defer { CloseHandle(event) }
+
+                    let armed = RegNotifyChangeKeyValue(
+                        box.key,
+                        false,
+                        DWORD(REG_NOTIFY_CHANGE_LAST_SET) | DWORD(REG_NOTIFY_THREAD_AGNOSTIC),
+                        event,
+                        true
+                    )
+                    guard armed == ERROR_SUCCESS else {
+                        DebugFeatures.log(
+                            "GtkBackend: RegNotifyChangeKeyValue failed (\(armed)); "
+                                + "no further light/dark changes will be followed."
+                        )
+                        return
+                    }
+
+                    guard WaitForSingleObject(event, INFINITE) == WAIT_OBJECT_0 else { return }
+                    guard box.backend != nil else { return }
+
+                    // Back to GTK's thread before touching anything.
+                    // `runInMainThread` already exists on this type and wraps
+                    // `g_idle_add_full`, which is GTK's own scheduling primitive
+                    // and runs in the loop that is actually turning. Doing the
+                    // re-sample here would build a GTK widget -- the probe
+                    // Window and Label -- from a thread GTK knows nothing about.
+                    //
+                    // 先回到 GTK 的執行緒再碰任何東西。`runInMainThread` 本型別上已經有了，它包裝的是
+                    // `g_idle_add_full`——GTK 自己的排程原語，執行於真正在運轉的那個迴圈中。若在此處
+                    // 直接重新取樣，等於從一個 GTK 一無所知的執行緒建立 GTK widget（那個探針用的
+                    // Window 與 Label）。
+                    // The box crosses as an opaque pointer and is dereferenced
+                    // on the other side, exactly as NV12GLView does it. Passing
+                    // a Swift closure that captured the backend would put a
+                    // non-Sendable value across the boundary, which is the thing
+                    // the box exists to avoid.
+                    //
+                    // `passRetained` here, `release` in the destroy notify: the
+                    // idle source owns one reference for as long as it is
+                    // pending, so the box cannot be collected between the post
+                    // and the callback.
+                    //
+                    // box 以不透明指標跨越，並在另一側解參考，做法與 NV12GLView 完全相同。若改為傳遞
+                    // 一個捕獲了 backend 的 Swift 閉包，等於把一個非 Sendable 的值送過邊界——而那正是
+                    // 這個 box 所要避免的事。
+                    //
+                    // 此處用 `passRetained`、在 destroy notify 中 `release`：只要該 idle source 仍在
+                    // 等待，它就持有一份參照，因此 box 不會在「送出」與「回呼」之間被回收。
+                    g_idle_add_full(
+                        0,
+                        { pointer in
+                            guard let pointer else { return 0 }
+                            let box = Unmanaged<ColorSchemeWatchBox>
+                                .fromOpaque(pointer)
+                                .takeUnretainedValue()
+                            MainActor.assumeIsolated {
+                                box.backend?.recheckAmbientColorScheme()
+                            }
+                            return 0
+                        },
+                        Unmanaged.passRetained(box).toOpaque(),
+                        { pointer in
+                            guard let pointer else { return }
+                            Unmanaged<ColorSchemeWatchBox>.fromOpaque(pointer).release()
+                        }
+                    )
+                }
+            }
+            thread.stackSize = 1 << 18
+            thread.start()
+        #endif
+    }
+
     private func subscribeToAmbientColorSchemeChanges() {
+        watchSystemColorSchemeChanges()
+
         guard let settings = Gtk.Settings.default else { return }
 
         // `registerNotification`, NOT `addNotificationSignal`. The latter is
@@ -2475,8 +2686,33 @@ public final class GtkBackend:
         // 是同一種形狀。
         for property in ["gtk-interface-color-scheme", "gtk-theme-name"] {
             settings.registerNotification(named: "notify::\(property)") { [weak self] in
-                guard let self else { return }
+                self?.recheckAmbientColorScheme()
+            }
+        }
+    }
 
+    /// Re-read the scheme and, only if it moved, apply it and tell the
+    /// environment.
+    ///
+    /// **ONE body, two triggers**, and that is the point of it being a method
+    /// rather than a closure: the GtkSettings notification (Linux, and Windows
+    /// in principle) and the registry watch (Windows, in practice) must not
+    /// drift apart. Two copies of a rule about which reading wins is exactly the
+    /// shape that has cost this project a day at a time.
+    ///
+    /// Idempotent by value. GTK emits `notify` for a set-to-the-same-value as
+    /// well, and the registry watch fires for any change under the key -- there
+    /// are other values in `Personalize` -- so an unconditional call would
+    /// rebuild every view for nothing.
+    ///
+    /// **一個本體、兩個觸發源**,而這正是它是方法而非閉包的理由:GtkSettings 的通知(Linux,以及理論上
+    /// 的 Windows)與登錄檔監看(Windows,實務上)**不可以漂移開來**。「哪一個讀數優先」這條規則有兩份
+    /// 副本,正是本專案一次付出一整天代價的那種形狀。
+    ///
+    /// 以**值**保證冪等。GTK 在「設定為相同的值」時同樣會發出 `notify`,而登錄檔監看則會為該鍵底下的
+    /// **任何**變更觸發——`Personalize` 之下還有別的值——因此無條件呼叫會為了什麼都沒發生而重建每一個
+    /// view。
+    private func recheckAmbientColorScheme() {
                 // `systemColorScheme` FIRST, and this is not a detail. It is a
                 // computed property that reads the Windows registry on every
                 // access, so it is live; and where it has a value, it WINS --
@@ -2494,8 +2730,8 @@ public final class GtkBackend:
                 // 無條件採用 `readAmbientColorScheme()`，那在 Windows 上會讓一次 GTK 主題變更**覆蓋
                 // 掉使用者的系統偏好**。這是靠閱讀抓到的，不是靠執行：要驗證它需要切換 Windows 主題，
                 // 而此處沒有任何東西做得到。
-                let fresh = self.systemColorScheme ?? self.readAmbientColorScheme()
-                guard fresh != self.ambientColorScheme else { return }
+        let fresh = systemColorScheme ?? readAmbientColorScheme()
+        guard fresh != ambientColorScheme else { return }
 
                 // Re-run the sampler rather than assigning here, so the
                 // precedence rule and the `preferDarkTheme` write live in ONE
@@ -2516,7 +2752,7 @@ public final class GtkBackend:
                 // 從此處寫入 `preferDarkTheme` **不會**重入：上方訂閱的是 `gtk-theme-name` 與
                 // `gtk-interface-color-scheme`，而 2026-08-26 已實測「設定 `prefer-dark-theme` 不會
                 // 改變 `gtk-theme-name`」。**讓這件事安全的是那次量測，不是程式碼的形狀。**
-                self.sampleAmbientColorScheme()
+        sampleAmbientColorScheme()
 
                 // ~~`self.gtkPrefersDarkTheme = (fresh == .dark)`~~ was here and
                 // is REMOVED. `sampleAmbientColorScheme` already ends by setting
@@ -2530,9 +2766,7 @@ public final class GtkBackend:
                 // `sampleAmbientColorScheme` 結尾已經依 `ambientColorScheme` 設定過它，因此這是同一條
                 // 規則的兩份副本——而且兩者甚至不保證一致，因為一邊用的是 `fresh`、另一邊用的是取樣器
                 // 最後得出的值。它們今天是一致的；那不構成兩份都留下的理由。
-                self.rootEnvironmentChangeHandler?()
-            }
-        }
+        rootEnvironmentChangeHandler?()
     }
 
     private func sampleAmbientColorScheme() {

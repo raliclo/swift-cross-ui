@@ -1544,11 +1544,23 @@ Windows 使用 Accessibility Insights 或 `inspect.exe`。
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋在 SwiftCrossUI 中完全沒有
 對應物的 SwiftUI views——移植過來的程式碼是無法編譯，而非渲染不同。
 
-`Sources/SwiftCrossUI/Views` 底下沒有 `Form`、`Section`、`Label(_:systemImage:)`、`Stepper`、
-`Gauge`、`DisclosureGroup`、`LabeledContent`、`ColorPicker` 或 `Link` 之中的任何一個。其中最要緊的
-是 `Section`：在 SwiftUI 中它與其說是一個獨立的 view，不如說是 `List`、`Form`、`Picker` 與 `Menu`
-共同接受的結構元素，因此它的缺席會弄壞那些「看起來與 section 無關」的呼叫點。其餘各自只影響一個
-呼叫點。
+~~`Sources/SwiftCrossUI/Views` 底下沒有 `Form`、`Section`、`Label(_:systemImage:)`、`Stepper`、
+`Gauge`、`DisclosureGroup`、`LabeledContent`、`ColorPicker` 或 `Link` 之中的任何一個。~~
+
+**九個全部存在。2026-09-09 重新推導**,使用的是 `todo.md` 中「Re-derived 2026-09-09」一節所記錄的
+那道與型別形狀無關的迴圈——它回報 16/17 個常見 view 存在,並且**自帶對照組**(`VStack` 必須回 1、
+`ZZZNotARealType` 必須回 0)。該普查中唯一缺席的名稱是 `LazyHGrid`。
+
+這是目前在這棵樹裡找到的**最大一筆過期主張**——九個名字,全部是錯的,而且方向全都是「工作其實早就
+做完了」。此處以劃線保留而非刪除,因為它教的不是「這九個存在」,而是**這種清單如何腐化**:它寫下時
+是對的,之後沒有任何東西重跑過它,而那九個各自分別落地,期間沒有人打開過這份說它們不存在的文件。
+
+保留其後的推理,因為它對 `Section` 依然正確,也正是 `Section` 值得最先被做掉的理由:在 SwiftUI 中它
+與其說是一個獨立的 view,不如說是 `List`、`Form`、`Picker` 與 `Menu` 共同接受的結構元素,因此它的
+缺席會弄壞那些「看起來與 section 無關」的呼叫點。其餘各自只影響一個呼叫點。
+
+**這一步現在是什麼。** 不再是「記錄九個缺口」,而是**驗證那九個在此 backend 上真的畫得出來**。
+「存在」與「畫得出來」是兩種不同的主張,而測試計畫要驗的是後者。
 
 目前自動流程：
 
@@ -1567,8 +1579,12 @@ app 會顯示 missing-view 清單，並以手寫方式近似 Stepper、Disclosur
    不可用」與「哪一種都不可用」是不同的結果。
 3. 對可以手工近似的 view——`Stepper` 以兩個按鈕加一個標籤、`LabeledContent` 以一個 `HStack`——在缺口
    旁邊做出近似版本，記錄它要花幾行，以及它仍然做不到什麼：鍵盤可達性、與相鄰列的對齊、停用狀態。
-4. `Label(_:systemImage:)` 需要一個系統圖示，而 `Image(systemName:)` 同樣不存在（見 P36）。記錄
-   「只有文字的退路」是否可接受，或這兩個缺口必須一起補上。
+4. ~~`Label(_:systemImage:)` 需要一個系統圖示，而 `Image(systemName:)` 同樣不存在（見 P36）。記錄
+   「只有文字的退路」是否可接受，或這兩個缺口必須一起補上。~~
+   **兩者現在都存在,2026-09-09 查證:`Label` 的 `public init(_ title: String, systemImage: String)`
+   位於 `Views/Label.swift:143`,`Image(systemName:)` 位於 `Views/Image.swift:62`。** 這一步因此不再是
+   「記錄一個缺口」,而是「驗證那兩者在此 backend 上真的畫得出符號」——那是不同的工作,而且是要**跑**
+   的,不是要查的。
 5. 將每一項與 AppKit 下的相同程式碼比較。
 
 ## P34：Lazy 容器與大型集合（Linux 與 Windows）
@@ -1670,14 +1686,24 @@ app 會測一個簡單的 `@State` counter/toggle，並列出目前仍無法表�
   內容、也沒有 `.tag`，而且 selection 必須是 `Optional`，因此對非 optional 的 `@State` 做選取需要一個
   橋接用的 binding。
 - `Button` 是 `Button(_ label: String, action:)`。沒有 trailing-closure 形式的 label，因此
-  `Button { ... } label: { Image(...) }` 寫不出來；也沒有 `ButtonRole`，因此 `.destructive` 根本無從
-  表達。
+  `Button { ... } label: { Image(...) }` 寫不出來。
+  ~~「也沒有 `ButtonRole`，因此 `.destructive` 根本無從表達。」~~——**假,2026-09-09 重新推導。**
+  `ButtonRole` 位於 `Values/ButtonRole.swift`,`Button` 接受 `role:`,而 `EnvironmentValues` 也承載它。
 - `Text` 接受 `String`。沒有 `LocalizedStringKey`，因此沒有 markdown，也沒有 `Text` + `Text` 串接。
-- `Image` 接受 `URL` 或 `ImageFormats.Image<RGBA>`。沒有 `Image(systemName:)`，也沒有 bundle 資產查找，
-  因此移植後的 app 中每一張圖片都需要一個檔案路徑。
-- `List` 的每一個 initialiser 都要求 `selection:`，並限制 `Data.Index == Int`。沒有 `Section`、沒有
-  `.onDelete`、也沒有 `.swipeActions`。
-- `TextField` 沒有 `axis:`、沒有 `prompt:`、也沒有 `value:format:`。
+  (`.textCase` **確實存在**,位於 `Modifiers/Style/TextCaseModifier.swift`。)
+- `Image` 接受 `URL` 或 `ImageFormats.Image<RGBA>`,~~也沒有 `Image(systemName:)`~~——**假,
+  2026-09-09:`public init(systemName:)` 位於 `Views/Image.swift:62`。** 仍然沒有 bundle 資產查找,
+  因此移植後 app 中以檔案為來源的圖片仍需要一個路徑。
+- `List` 的每一個 initialiser 都要求 `selection:`，並限制 `Data.Index == Int`。~~沒有 `Section`~~
+  ——**假,`Views/Section.swift` 存在。** 仍然沒有 `.onDelete`、也沒有 `.swipeActions`。
+- `TextField` 沒有 `axis:`、沒有 `prompt:`、也沒有 `value:format:`。(`.textFieldStyle` **存在**,
+  五個 backend 皆有——那是已關閉的任務 #31。)
+
+> **本節有四項主張在 2026-09-09 重查時是假的,方向全部是「其實早就實作了」,而
+> `testapp/plan/parity-gaps-survey.md` 早已把其中三項連同檔案與行號正確記錄下來。這棵樹裡,一份文件
+> 握有正確答案、另一份握有錯誤答案,而沒有任何東西標示哪一份比較舊。** 此處以劃線保留而非刪除,因為
+> 「一個看似合理的過期主張長什麼樣子」才是有用的部分。**更正一項主張時,請 grep 它——你眼前這一份,
+> 很少是唯一的一份。**
 - 幾何量是 `Int`：`padding(_ amount: Int?)`、`cornerRadius(_ radius: Int)`、`HStack(spacing: Int?)`。
   SwiftUI 全程使用 `CGFloat`，因此移植程式中的 `.padding(8.5)` 是編譯錯誤，而不是捨入差異。
 

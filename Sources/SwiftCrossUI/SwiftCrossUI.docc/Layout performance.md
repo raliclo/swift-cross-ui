@@ -1,13 +1,34 @@
 # Layout performance
 
-Recently (December 2025), SwiftCrossUI's layout algorithm received a massive
+~~Recently (December 2025)~~ In December 2025, SwiftCrossUI's layout algorithm received a massive
 overhaul, drastically boosting layout performance.
 
 Detailed information can be found in [the PR]; it's reproduced and edited here
 for convenience (written from the perspective of \@stackotter, the project's
 lead maintainer).
 
-[the PR]: https://github.com/stackotter/swift-cross-ui/pull/278
+[the PR]: https://github.com/moreSwift/swift-cross-ui/pull/278
+
+> Note: Re-checked 2026-09-09. Three small corrections, none of which change the substance of the
+> page.
+>
+> "Recently" was dropped. The work is now nine months old, and a relative time word in a document
+> nobody re-dates only ever becomes more wrong; the absolute date says the same thing and cannot
+> rot. The technical content below was spot-checked and holds: `resultCache` and
+> `allowLayoutCaching` are still present and still used as described
+> (`Sources/SwiftCrossUI/ViewGraph/ViewGraphNode.swift:45`, `:219`), and
+> `Sources/SwiftCrossUI/State/DynamicPropertyUpdater.swift` -- the file this page tells you to go
+> read -- still exists at that exact path.
+>
+> The PR link was repointed from `stackotter/swift-cross-ui` to `moreSwift/swift-cross-ui` to match
+> the rest of the catalog.
+>
+> One thing could not be confirmed and is left as written rather than guessed at: the two commit
+> hashes cited under "Future directions", `ed24b0fa` and `e4daa213`, do not resolve in this
+> checkout (`git cat-file -t ed24b0fa` fails). That is expected for a fork that has not fetched the
+> full upstream history and is not by itself evidence the hashes are wrong, so they have been left
+> alone -- but treat them as unverified, and prefer the PR link above if you are trying to find the
+> change they name.
 
 ## Optimizations
 

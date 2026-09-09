@@ -29,3 +29,16 @@ backends to be implemented in third-party packages.
 - ``DialogResult``
 - ``ResolvedMenu``
 - ``BackendPickerStyle``
+- ``BackendDatePickerStyle``
+- ``BackendListStyle``
+- ``BackendTextFieldStyle``
+- ``BackendToggleStyle``
+
+## Discussion
+
+> Note: Added 2026-09-09. `BackendPickerStyle` was the only `Backend*Style` type curated here, and
+> the omission of the other four was not a judgement call -- they simply had not been written yet
+> when this list was made, and adding a file to `Sources/SwiftCrossUI/Backend/` does not prompt
+> anyone to revisit the page that enumerates that folder. All five now sit side by side in that
+> directory. Regenerate the list with `ls Sources/SwiftCrossUI/Backend/`, which is the only reliable
+> way to keep an enumeration of a folder honest.

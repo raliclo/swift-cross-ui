@@ -28,7 +28,15 @@ view graphs inside existing non-SwiftCrossUI apps.
 It's a good idea to refer to [the source code] while reading this, as not all of
 the APIs mentioned are made public.
 
-[the source code]: https://github.com/stackotter/swift-cross-ui/tree/main/Sources/SwiftCrossUI
+[the source code]: https://github.com/moreSwift/swift-cross-ui/tree/main/Sources/SwiftCrossUI
+
+> Note: Corrected 2026-09-09. The link above pointed at
+> ~~`https://github.com/stackotter/swift-cross-ui`~~; the project's upstream is now
+> `moreSwift/swift-cross-ui`, which is what every other page in this catalog uses
+> (<doc:Examples>, <doc:GtkBackend>, <doc:AppBackend-refactor>). GitHub redirects renamed
+> repositories, so the old URL still resolves and would never have shown up as a broken link -- the
+> reason to fix it is that a redirect is not a guarantee, and the inconsistency inside one catalog
+> is itself a signal about which pages have been revisited.
 
 ### Entry point
 
@@ -40,7 +48,8 @@ provided by the ``App`` protocol. That function defers to
 the backend is ready. The rest of the setup phase involves:
 - Computing the root environment
 - Instantiating any ``Environment`` properties on the app struct via
-  `updateDynamicProperties(of:previousValue:environment:)`
+  ~~`updateDynamicProperties(of:previousValue:environment:)`~~
+  `DynamicPropertyUpdater.update(_:with:previousValue:)`
 - Observing any ``State`` properties on the app struct using `Mirror` and
   `observeAsUIUpdater(backend:action:)` (which handles basic update debouncing)
 - Creating the root scene graph node
@@ -90,10 +99,20 @@ multiple different sizes without too much overhead. During the layout phase,
 expensive layout computation if it believes that it can already satisfy the
 query using basic assumptions about view layout behaviour and the results of
 previous layout updates (see `ViewGraphNode.resultCache` and
-`ViewGraphNode.currentResult`).
+~~`ViewGraphNode.currentResult`~~ `ViewGraphNode.currentLayout`).
 
 The commit phase simply applies the result of the last layout computation to
 the view's underlying widget.
+
+> Note: Two internal symbol names on this page were re-checked and corrected 2026-09-09. The
+> property is `currentLayout`, not `currentResult` (`Sources/SwiftCrossUI/ViewGraph/ViewGraphNode.swift:42`),
+> and the dynamic-property entry point is a method on `DynamicPropertyUpdater`
+> (`Sources/SwiftCrossUI/State/DynamicPropertyUpdater.swift:49`) rather than the free function named
+> above. Both were written in single backticks rather than DocC double-backtick links, which is why
+> neither produced a warning when the code was renamed underneath them -- an unresolvable
+> double-backtick symbol link is at least reported at build time, whereas a stale `code span` is
+> just text that happens to be wrong. When citing an internal symbol that DocC cannot link, cite the file and line beside it so
+> the reference can be re-checked mechanically.
 
 There are two types of view updates; top-down and bottom-up. Top-down updates
 occur when a view's parent view has updated for some reason (be that a state
