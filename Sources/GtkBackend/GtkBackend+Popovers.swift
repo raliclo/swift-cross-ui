@@ -1,4 +1,5 @@
 import CGtk
+import DebugFeatures
 import Gtk
 @_spi(Backends) import SwiftCrossUI
 
@@ -64,6 +65,9 @@ extension GtkBackend {
         let content: Gtk.Widget
         var onDismiss: (() -> Void)?
         var isAnchored = false
+        /// The #111 input probes. Empty unless `DebugFeatures.isEnabled`.
+        /// #111 的輸入探針。除非 `DebugFeatures.isEnabled`，否則為空。
+        private var probes: [EventController] = []
 
         init(content: Gtk.Widget) {
             self.popover = Gtk.Popover()
@@ -108,6 +112,113 @@ extension GtkBackend {
                 self.detach()
                 self.onDismiss?()
             }
+
+            installInputProbe()
+        }
+
+        /// Records what GTK actually receives on an open popover, so that "the
+        /// click did nothing" can be split into the three things it might be.
+        ///
+        /// Task #111. A synthesised click measured as landing ON the popover
+        /// (`WindowFromPoint` returned the popover's own toplevel) produces no
+        /// action, and the two mechanisms first proposed for it were both
+        /// refuted: the synthesiser posts nothing to a chosen window -- it uses
+        /// `SetCursorPos` + `SendInput`, which the system routes from the cursor
+        /// position -- and the foreground window was ruled out in the surprising
+        /// direction, since the click that DID work was made while another
+        /// application held the foreground.
+        ///
+        /// What is left is a question about delivery, and it cannot be answered
+        /// from outside the process. These two controllers answer it:
+        ///
+        /// - motion fires, press does not -> the surface is receiving input and
+        ///   button events specifically are not arriving. That points at the
+        ///   Win32/GDK boundary and at injected input.
+        /// - neither fires -> nothing reaches the popover surface at all,
+        ///   whatever `WindowFromPoint` says about which window is under the
+        ///   cursor.
+        /// - both fire -> GTK has the event and it is being lost between the
+        ///   popover and the button inside it, which is a propagation problem
+        ///   and entirely ours.
+        ///
+        /// Both are in the CAPTURE phase deliberately. Capture runs from the
+        /// toplevel down BEFORE the target widget's own handlers, so a probe
+        /// there sees an event even when whatever is below would have consumed
+        /// it -- a bubble-phase probe on a swallowed event reports the same
+        /// silence as an event that never arrived, which is the distinction this
+        /// exists to make. Neither controller returns a value, so neither can
+        /// change what the popover does.
+        ///
+        /// 記錄 GTK 在一個已開啟的 popover 上究竟收到了什麼，好把「按了沒有反應」拆成它可能
+        /// 是的那三件事。
+        ///
+        /// 任務 #111。一次被實測為**落在 popover 上**的合成點擊（`WindowFromPoint` 回傳的
+        /// 正是 popover 自己的 toplevel）沒有產生任何動作，而最初為它提出的兩種機制都已被
+        /// 推翻：合成器並不會把事件 post 給某個選定的視窗——它用的是 `SetCursorPos` 與
+        /// `SendInput`，由系統依游標位置路由——而前景視窗則是以令人意外的方向被排除的，因為
+        /// **成功**的那一次點擊，是在另一個應用程式持有前景時發出的。
+        ///
+        /// 剩下的是一個關於「事件送達」的問題，而它無法從行程外部回答。這兩個 controller
+        /// 回答它：
+        ///
+        /// - motion 有、press 沒有 → 該 surface 確實收得到輸入，而**按鍵事件**特別地沒有
+        ///   抵達。那指向 Win32/GDK 的邊界與注入式輸入。
+        /// - 兩者皆無 → 無論 `WindowFromPoint` 怎麼說游標底下是哪個視窗，都沒有任何東西
+        ///   抵達 popover 的 surface。
+        /// - 兩者皆有 → GTK 拿到了事件，而它是在 popover 與其中的按鈕之間遺失的；那是一個
+        ///   傳播問題，並且完全屬於我們自己。
+        ///
+        /// 兩者都刻意置於 CAPTURE 階段。capture 由 toplevel 向下執行，**早於**目標 widget
+        /// 自己的處理常式，因此位於該階段的探針即使在下方的東西會吃掉事件時也看得到它——而
+        /// 一個置於 bubble 階段的探針，對「被吃掉的事件」所回報的沉默，與「事件從未抵達」
+        /// 完全相同，而那正是本探針存在所要區分的事。兩個 controller 都不回傳值，因此都
+        /// 不會改變 popover 的行為。
+        private func installInputProbe() {
+            guard DebugFeatures.isEnabled else { return }
+
+            let press = GestureClick()
+            press.propagationPhase = .capture
+            press.pressed = { _, nPress, x, y in
+                DebugFeatures.log(
+                    "GtkPopover probe: press n=\(nPress) at (\(x), \(y)) -- "
+                        + "GTK received a button press on the popover"
+                )
+            }
+            popover.addEventController(press)
+
+            let motion = EventControllerMotion()
+            motion.propagationPhase = .capture
+            motion.enter = { _, x, y in
+                DebugFeatures.log("GtkPopover probe: pointer entered at (\(x), \(y))")
+            }
+            motion.leave = { _ in
+                DebugFeatures.log("GtkPopover probe: pointer left")
+            }
+            popover.addEventController(motion)
+
+            // Held for the same reason `content` is: a controller's Swift
+            // wrapper owns its signal handlers, and ARC collecting the wrapper
+            // takes the probe with it -- silently, so the probe would report
+            // the same nothing as the bug it is measuring.
+            // 持有的理由與 `content` 相同：controller 的 Swift wrapper 擁有它自己的 signal
+            // handler，而 ARC 回收該 wrapper 時會一併帶走這個探針——且是靜默地，於是探針會
+            // 回報出與它所要量測的 bug 一模一樣的「什麼都沒有」。
+            probes = [press, motion]
+
+            // Announced, and this line is not decoration. Without it the probe
+            // has the exact defect it exists to remove: "no probe output" and
+            // "no probe" print the same nothing. Measured 2026-09-09 -- the
+            // first run produced no probe lines at all, and the only reason
+            // that was not read as "GTK receives nothing" is that the same log
+            // showed the click had missed the popover by 120 points.
+            //
+            // 明確宣告，而且這一行不是裝飾。少了它，這個探針就帶有它自己所要消除的那個缺陷：
+            // 「探針沒有輸出」與「根本沒有探針」印出來是同一片空白。2026-09-09 實測——第一次
+            // 執行完全沒有任何探針行，而那之所以沒有被讀成「GTK 什麼都沒收到」，只是因為同一份
+            // log 顯示那一下點擊離 popover 差了 120 點。
+            DebugFeatures.log(
+                "GtkPopover probe: installed (press + motion, capture phase)"
+            )
         }
 
         func detach() {

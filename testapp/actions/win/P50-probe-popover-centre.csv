@@ -1,0 +1,161 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, GtkBackend: a DIAGNOSTIC for task #111. Not a feature test.
+#
+# WHAT IT ASKS, and it is narrower than P50-press-inside-popover.csv: does GTK
+# receive a synthesised button press on the popover surface AT ALL? Not "does
+# the button act" -- just "does the event arrive". Those are different
+# questions and the existing file cannot separate them, because a press that
+# arrives and is swallowed and a press that never arrives both produce no
+# `popover counter`.
+#
+# HOW IT SEPARATES THEM. GtkBackend installs two CAPTURE-phase controllers on
+# every popover when `--debug` is on -- see `installInputProbe()` in
+# Sources/GtkBackend/GtkBackend+Popovers.swift. Capture runs from the toplevel
+# DOWN, before the target widget's own handlers, so the probe sees a press even
+# when whatever is below would have consumed it. Read the run's stderr for:
+#
+#   GtkPopover probe: installed ...   <- the instrument exists. If this line is
+#                                        absent, everything below means nothing;
+#                                        stop and find out why.
+#   GtkPopover probe: pointer entered <- GDK is delivering motion to the surface
+#   GtkPopover probe: press n=1 ...   <- GDK is delivering BUTTON events too
+#
+#   entered but no press -> the Win32/GDK boundary, button events specifically
+#   neither              -> nothing reaches the popover surface at all
+#   both                 -> GTK has the event; it is lost between the popover
+#                           and the button, which is a propagation bug and ours
+#
+# WHY THE CENTRE AND NOT A BUTTON. Deliberate. The centre of the 291x221
+# popover may fall between "press me" and "close this panel", and that is fine
+# here -- a capture-phase controller on the POPOVER fires wherever inside it the
+# press lands. Aiming at a button would reintroduce the thing that makes the
+# sibling file unreadable: a miss and a swallow look identical.
+#
+# WHERE (252,837) COMES FROM, and it is a MODEL, not a measurement of this
+# widget. Two runs on 2026-09-09, both with the popover opening BELOW the
+# anchor, gave the popover's own toplevel as:
+#
+#   window at (26,26)  anchor screen (278,737)  popover 291x221 @133,753
+#   window at (78,78)  anchor screen (330,789)  popover 291x221 @185,805
+#
+# so popover origin = (anchor_x - 145, anchor_y + 16) in both, which in frame
+# coordinates is a fixed (252-145, 711+16) = (107,727). Centre = (107+145,
+# 727+110) = (252,837).
+#
+# THIS MODEL HAS A KNOWN FAILURE CASE AND IT IS THE WHOLE REASON #111 IS STILL
+# OPEN: when the window lands low enough that 221 points will not fit below the
+# anchor, GTK flips the popover ABOVE it and every number here is wrong. That
+# happened on the run #111's original measurement came from. So:
+#
+#   * If the probe reports `pointer entered`, the popover was below and the
+#     reading is valid.
+#   * If it does not, CHECK THE DUMP for the popover's rect before concluding
+#     anything -- `hitTarget` on the move row must be the popover's toplevel,
+#     not the main window. Absent that, this run measured nothing, exactly like
+#     the two that preceded it.
+#
+# THE MODEL WAS REFUTED ON THIS FILE'S FIRST RUN, 2026-09-09, and the refutation
+# is kept here rather than the file quietly re-fitted, because it is the finding.
+# Third run of the morning:
+#
+#   frame origin (130,99)   anchor screen (382,810)
+#   popover 291x221 @237,577   <- ABOVE the anchor, y 577..798
+#   move frame=(252,837) -> screen (382,936)   hitTarget = the MAIN window
+#
+# Three runs, two placements. The rule is now clear and it is not "the window
+# moved": GTK opens the popover below when `anchor_y + 16 + 221` still fits
+# inside the WORK AREA (1080 minus the taskbar, about 1032 here), and flips it
+# above when it does not. Window at y 26 -> 974, fits. y 78 -> 1026, fits.
+# y 99 -> 1047, does not, so it flipped.
+#
+# SO NO SINGLE FIXED COORDINATE CAN WORK. Not (180,607), not (252,837). The
+# target is at one of two places and which one depends on where the window
+# landed, which nothing in the file controls. This is now measured in both
+# directions rather than argued, and it is the reason #111 cannot be closed with
+# another action file.
+#
+# TWO WAYS OUT, in increasing cost:
+#
+#   1. Launch maximised. The window position stops varying, so the popover side
+#      stops varying, and one fixed coordinate becomes correct. Cheap, but it
+#      only fixes files that can tolerate a maximised window, and every
+#      coordinate in them has to be re-measured against that layout.
+#   2. `origin=popover`, resolved at replay time against the popover's own
+#      toplevel -- the window the replay ALREADY prints on every action. Fixes
+#      it for every popover, menu and modal file regardless of window size.
+#      `Sources/InputEvent/Synthesiser.swift:62` is the entire conversion.
+#
+# Until one of them exists, RUNNING THIS FILE PROVES NOTHING UNLESS the move
+# row's `hitTarget` is the popover's toplevel. Check that first, every time.
+#
+# **本檔第一次執行就推翻了上述模型**(2026-09-09),而此處保留該推翻、不悄悄把檔案重新湊合,
+# 因為那正是本次的發現。當天第三次執行:frame 原點 (130,99)、錨點螢幕 (382,810)、popover 為
+# 291x221 @237,577——在錨點**上方**(y 577..798);而 `move frame=(252,837)` 換算為螢幕 (382,936),
+# `hitTarget` 是**主視窗**。
+#
+# 三次執行、兩種擺放。規則現在很清楚,而且不是「視窗移動了」:當 `錨點y + 16 + 221` 仍容得下
+# **工作區**(1080 扣掉工作列,此處約 1032)時,GTK 把 popover 開在下方;容不下時翻到上方。
+# 視窗 y=26 → 974,容得下;y=78 → 1026,容得下;y=99 → 1047,容不下,於是翻上去。
+#
+# **因此沒有任何單一固定座標可行。** (180,607) 不行,(252,837) 也不行。目標會在兩個位置之一,
+# 而是哪一個取決於視窗落在何處,那不是檔案能控制的。這一點現在是**雙向都實測過**,而非用講的;
+# 它也就是「#111 無法再靠寫一個動作檔結案」的理由。
+#
+# **兩條出路,依成本遞增**:其一,以最大化啟動——視窗位置不再變動,popover 的側邊也就不再變動,
+# 單一固定座標便成立;便宜,但只救得了「容得下最大化視窗」的檔案,且其中每一個座標都得對著那個
+# 版面重新量測。其二,`origin=popover`,在重放當下以 popover 自己的 toplevel 換算——那正是重放
+# **每個動作都已經印出**的那個視窗;它一次修好所有 popover、選單與模態檔案,與視窗大小無關,
+# 而 `Sources/InputEvent/Synthesiser.swift:62` 就是整個換算所在。
+#
+# 在兩者之一存在之前,**除非 move 那一列的 `hitTarget` 是 popover 的 toplevel,否則執行本檔什麼
+# 都證明不了**。每一次都請先確認那一點。
+#
+# expect: log-contains GtkPopover probe: press
+#
+# P50 於 Windows、GtkBackend:任務 #111 的**診斷檔**,不是功能測試。
+#
+# **它問的問題比 P50-press-inside-popover.csv 更窄**:GTK 到底有沒有在 popover 的 surface 上
+# 收到一次合成的按鍵事件?不是「按鈕有沒有動作」,只是「事件有沒有抵達」。這是兩個不同的問題,
+# 而既有的那個檔案分不開它們——「抵達後被吃掉」與「從未抵達」都同樣不會產生 `popover counter`。
+#
+# **它如何分開兩者。** 當 `--debug` 開啟時,GtkBackend 會在每個 popover 上安裝兩個 **CAPTURE**
+# 階段的 controller——見 `Sources/GtkBackend/GtkBackend+Popovers.swift` 的 `installInputProbe()`。
+# capture 由 toplevel **向下**執行、早於目標 widget 自己的處理常式,因此即使下方的東西會吃掉該
+# 事件,探針仍看得到它。請在該次執行的 stderr 中讀取:
+#
+#   `GtkPopover probe: installed ...`   ← 儀器存在。**這一行若不存在,底下所有內容都不具意義**,
+#                                          請停下來查明原因。
+#   `GtkPopover probe: pointer entered` ← GDK 有把 motion 送到該 surface
+#   `GtkPopover probe: press n=1 ...`   ← GDK 連**按鍵**事件也送了
+#
+# 有 entered、無 press → Win32/GDK 邊界,且特別是按鍵事件;兩者皆無 → 根本沒有東西抵達 popover
+# 的 surface;兩者皆有 → GTK 拿到了事件,它是在 popover 與按鈕之間遺失的,那是傳播 bug、屬於我們。
+#
+# **為何點中心而不點按鈕。** 這是刻意的。291x221 的 popover 中心有可能落在「press me」與
+# 「close this panel」之間,而在此處那沒關係——裝在 **popover 上**的 capture 階段 controller,
+# 無論按在它內部何處都會觸發。瞄準按鈕反而會把「使姊妹檔無法解讀」的那件事重新引入:沒打中與
+# 被吃掉,看起來一模一樣。
+#
+# **(252,837) 從何而來,以及它是一個「模型」而非對該 widget 的量測。** 2026-09-09 的兩次執行,
+# popover 都開在錨點**下方**,其自身 toplevel 分別為:視窗在 (26,26)、錨點螢幕 (278,737) 時為
+# 291x221 @133,753;視窗在 (78,78)、錨點螢幕 (330,789) 時為 291x221 @185,805。兩者皆滿足
+# popover 原點 =(錨點x − 145, 錨點y + 16),換成 frame 座標即固定的 (252−145, 711+16) = (107,727),
+# 中心為 (107+145, 727+110) = (252,837)。
+#
+# **這個模型有一個已知的失效情況,而那正是 #111 至今未結案的全部理由**:當視窗落得夠低、錨點下方
+# 容不下 221 點時,GTK 會把 popover 翻到**上方**,此處每一個數字都會是錯的。#111 最初的量測就是
+# 在那種情況下做出來的。因此:探針若回報 `pointer entered`,表示 popover 在下方、該讀數有效;
+# 若沒有,**在下任何結論之前先查傾印中 popover 的矩形**——move 那一列的 `hitTarget` 必須是
+# popover 的 toplevel 而非主視窗。少了這一點,這次執行什麼都沒量到,與它之前那兩次完全一樣。
+#
+# 真正的解法是 `origin=popover`,在重放當下以「重放每個動作都已印出的那個視窗」來換算。在它存在
+# 之前,本檔是問出這個問題最便宜的方式,而它對自己的暫定性質是誠實的。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,252,711,frame,,,,move onto the first anchor,windows
+sleep,,,,,,200000,let the pointer arrive,windows
+click,252,711,frame,left,,,open the first panel -- positive control; writes popover alpha shown,windows
+sleep,,,,,,900000,let the popover map and take its grab,windows
+move,252,837,frame,,,,"move onto the CENTRE of the popover as modelled above; hitTarget must report the popover toplevel or this run measured nothing",windows
+sleep,,,,,,300000,let the pointer arrive and let any enter event be delivered,windows
+click,252,837,frame,left,,,"press inside the popover anywhere; the capture-phase probe fires wherever it lands, so this asks only whether GTK received it",windows
+sleep,,,,,,2000000,hold and let the log catch up,windows
