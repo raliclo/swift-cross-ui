@@ -268,11 +268,29 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// content view 高 200pt 時，client `(150, 40)` 解析為視窗座標 `(150, 160)` 並命中上方按鈕，
     /// client `(150, 160)` 解析為 `(150, 40)` 並命中下方按鈕。
     @MainActor
+    /// `throws`, because `screenPosition(of:)` does.
+    ///
+    /// **This did not compile on macOS and did compile everywhere it was
+    /// written.** `AppKitSynthesiser.swift` is macOS-only, so a `try` added
+    /// inside a non-throwing function here is invisible on the Windows side --
+    /// the file is never handed to the compiler there. Found 2026-09-09 by the
+    /// first `Scripts/test.sh` run on a Mac after the merge, with
+    /// "errors thrown from here are not handled". The fix propagates the throw
+    /// rather than swallowing it: a coordinate that cannot be resolved must
+    /// stop the replay, not silently click at the last known point.
+    ///
+    /// `throws`，因為 `screenPosition(of:)` 會 throw。
+    ///
+    /// **這在 macOS 上編不過，而在它被寫出來的地方編得過。** `AppKitSynthesiser.swift` 僅限 macOS，
+    /// 因此「在一個不會 throw 的函式裡加上 `try`」這件事在 Windows 側看不見——那個檔案在那裡根本不會
+    /// 被交給編譯器。2026-09-09 由合併之後 Mac 上的第一次 `Scripts/test.sh` 執行發現，訊息為
+    /// 「errors thrown from here are not handled」。此處的修法是把該 throw 往外傳，而不是把它吞掉：
+    /// 一個無法解析的座標必須讓重放停止，而不是靜靜地點在上一個已知位置。
     private static func windowPoint(
         for point: Point,
         in geometry: WindowGeometry,
         window: NSWindow
-    ) -> NSPoint {
+    ) throws -> NSPoint {
         let screen = try geometry.screenPosition(of: point)
         return window.convertPoint(
             fromScreen: NSPoint(
@@ -311,31 +329,31 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
             // last moved to is where the cursor now is.
             // 無座標點擊所使用的指標位置。AppKit 沒有「上一個合成事件在哪裡」的概念，因此改為自
             // 視窗讀回，而非自行記憶：檔案最後移動到的位置，就是游標現在所在之處。
-            @MainActor func location(_ point: Point?) -> NSPoint {
+            @MainActor func location(_ point: Point?) throws -> NSPoint {
                 guard let point else {
                     return self.trackedPoint() ?? window.mouseLocationOutsideOfEventStream
                 }
-                let resolved = Self.windowPoint(for: point, in: geometry, window: window)
+                let resolved = try Self.windowPoint(for: point, in: geometry, window: window)
                 self.track(resolved)
                 return resolved
             }
 
             switch action {
                 case .move(let point):
-                    try self.postMouse(.mouseMoved, .left, at: location(point), in: window, clicks: 0)
+                    try self.postMouse(.mouseMoved, .left, at: try location(point), in: window, clicks: 0)
 
                 case .click(let button, let point):
-                    let at = location(point)
+                    let at = try location(point)
                     try self.postMouse(Self.downType(button), button, at: at, in: window, clicks: 1)
                     try self.postMouse(Self.upType(button), button, at: at, in: window, clicks: 1)
 
                 case .mouseDown(let button, let point):
                     try self.postMouse(
-                        Self.downType(button), button, at: location(point), in: window, clicks: 1)
+                        Self.downType(button), button, at: try location(point), in: window, clicks: 1)
 
                 case .mouseUp(let button, let point):
                     try self.postMouse(
-                        Self.upType(button), button, at: location(point), in: window, clicks: 1)
+                        Self.upType(button), button, at: try location(point), in: window, clicks: 1)
 
                 case .keyDown(let key):
                     self.hold(key)
@@ -350,7 +368,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
                     try self.postKey(key, down: false, in: window)
 
                 case .scroll(let dx, let dy):
-                    try self.postScroll(dx: dx, dy: dy, at: location(nil), in: window)
+                    try self.postScroll(dx: dx, dy: dy, at: try location(nil), in: window)
 
                 case .doubleClick, .sleep:
                     // Both returned above; listed so a new case cannot be added
