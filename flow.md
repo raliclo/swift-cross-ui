@@ -14,6 +14,69 @@ track, not a task.
 
 ---
 
+## Remote names / remote 名稱
+
+| remote | points at | which is |
+| --- | --- | --- |
+| `origin` | `raliclo/…` | our fork, where `develop` lives and where both machines push |
+| `upstream` | `moreSwift/…` | the project pull requests go to |
+
+**The same names in the same roles on both hosts, and inside the submodules.**
+Aligned 2026-09-09, after the two machines had been running opposite
+conventions: Windows called the fork `origin` and upstream `moreSwift`, while
+macOS called the fork `Ralic` and upstream `upstream`. One sentence — "push to
+origin" — meant two different repositories depending on who read it, and
+nothing about that fails visibly.
+
+The direction was chosen by counting rather than by preference: 90 tracked
+files mention `origin`, 45 `upstream`, 30 `moreSwift`, 1 `Ralic`.
+Standardising on `origin`/`upstream` left the two largest sets correct and put
+the whole cost on the smallest.
+
+`Vendor/swift-bundler` carried the same inversion internally — its `origin`
+pointed at `moreSwift/swift-bundler` while `.gitmodules` names
+`raliclo/swift-bundler` — and now matches.
+
+`moreSwift` still appears throughout the tree as a GitHub **organisation** name,
+in URLs, badges and the Discord link. Those are not remote names and were not
+touched; only `git fetch moreSwift` and `moreSwift/main` style uses changed.
+
+**Pull requests are opened by a person, never by an agent.**
+
+| remote | 指向 | 也就是 |
+| --- | --- | --- |
+| `origin` | `raliclo/…` | 我們的 fork，`develop` 所在，兩台機器都推這裡 |
+| `upstream` | `moreSwift/…` | 送 pull request 的目標 |
+
+**兩台主機、以及各 submodule 內部，都用同樣的名字對應同樣的角色。** 於 2026-09-09 對齊——在那之前
+兩邊的慣例是相反的：Windows 把 fork 叫 `origin`、上游叫 `moreSwift`；macOS 把 fork 叫 `Ralic`、
+上游叫 `upstream`。同一句「push 到 origin」，依讀的人不同會指向兩個不同的 repository，而這件事不會
+以任何看得見的方式失敗。
+
+方向是**數出來的，不是偏好**：90 個被追蹤檔案提到 `origin`、45 個提到 `upstream`、30 個提到
+`moreSwift`、1 個提到 `Ralic`。統一為 `origin`／`upstream`，讓最大的兩組引用維持正確，並把全部代價
+放在最小的那一組。
+
+`Vendor/swift-bundler` 內部原本也是反的——它的 `origin` 指向 `moreSwift/swift-bundler`，而
+`.gitmodules` 指名的是 `raliclo/swift-bundler`——現在已一致。
+
+`moreSwift` 在整棵樹中仍以 GitHub **組織名**的身分出現於 URL、徽章與 Discord 連結。那些不是 remote
+名稱，未被更動；本次只改了 `git fetch moreSwift` 與 `moreSwift/main` 這類用法。
+
+**Pull request 一律由人發送，絕不由 agent 發送。**
+
+> 這一節原本寫在 `testapp/PR-flow.md`，而那是錯的地方：該檔被 `.git/info/exclude` 排除，是**本機
+> 專屬**的檔案，Mac 那一側根本不存在它。一項「兩台機器都要遵守的約定」若寫在只有一台看得到的檔案裡，
+> 就等於沒有寫。這是在提交前才發現的——`git status` 對一個被排除的檔案無話可說。
+>
+> This section was first written into `testapp/PR-flow.md`, which was the wrong
+> home: that file is listed in `.git/info/exclude`, so it is local to one
+> machine and does not exist on the other. A convention both hosts must follow,
+> recorded where only one can see it, is not recorded. Caught before committing
+> — `git status` has nothing to say about an excluded file.
+
+---
+
 ## 零、兩台主機，不是六個平台
 
 | | Mac 軌 | Windows 軌 |

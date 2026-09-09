@@ -18,9 +18,29 @@
 # **The patch.** `testapp/patches/swift-bundler-android-service.patch` carries
 # two changes this tree needs: the `<service>` element that
 # `windowLevel(.floating)` cannot work without, and the strip that takes an APK
-# from 212 MB to 169. The submodule points at `moreSwift/swift-bundler`, which
-# is upstream and not ours to push to, so the patch has to be re-applied after
-# any `git submodule update`.
+# from 212 MB to 169.
+#
+# ~~The submodule points at `moreSwift/swift-bundler`, which is upstream and not
+# ours to push to, so the patch has to be re-applied after any
+# `git submodule update`.~~ **NO LONGER TRUE, 2026-09-09.** `.gitmodules` now
+# points at `raliclo/swift-bundler`, which IS ours, so the patch is a commit
+# there rather than something to re-apply. `git submodule update` restores it
+# instead of destroying it.
+#
+# Kept struck through rather than deleted, because the failure it warns about
+# still exists by a DIFFERENT route: a merge can take the submodule gitlink from
+# the wrong side, and git does not present that as a conflict -- it resolves it
+# silently and leaves `git status` clean. That happened on 2026-09-09; the
+# gitlink sat at the old 53a55d1b while `.gitmodules` named the fork, and
+# `grep -c services AndroidManifest.swift` returned 0. An APK built from that
+# state has no `<service>`, no build error, and a `windowLevel(.floating)`
+# window that vanishes when the activity stops.
+#
+# Check after any merge that touches Vendor/:
+#     git rev-parse HEAD:Vendor/swift-bundler
+#     git -C Vendor/swift-bundler rev-parse HEAD
+#     grep -c services Vendor/swift-bundler/Sources/SwiftBundler/Bundler/AndroidManifest.swift
+# The two hashes must match, and the grep must be non-zero.
 #
 # 建置「Android APK 建置實際會使用」的那個 Swift Bundler。
 #
