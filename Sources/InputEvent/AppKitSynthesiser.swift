@@ -150,6 +150,77 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
         NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible }
     }
 
+    /// Raises the window whose title matches exactly.
+    ///
+    /// **Exact, and visible-only.** AppKit keeps closed windows around in
+    /// `NSApp.windows`, so a prefix match or a match against a hidden window
+    /// would hand back something that cannot receive a click -- and the events
+    /// would then go to whatever really is in front, which is the failure this
+    /// action exists to remove rather than reproduce.
+    ///
+    /// `activate()` as well as `makeKeyAndOrderFront`: a window can be key
+    /// within an application that is not itself frontmost, and a replay driving
+    /// a background application clicks on nothing.
+    ///
+    /// 讓標題**完全相符**的那個視窗上前。
+    ///
+    /// **完全相符，且僅限可見的視窗。** AppKit 會把已關閉的視窗留在 `NSApp.windows` 中，因此前綴比對、
+    /// 或比對到一個隱藏的視窗，交回的會是一個接收不到點擊的東西——而那些事件接著會落到「真正在前景的
+    /// 那個」，正是這個動作要消除、而非重現的失敗。
+    ///
+    /// 除了 `makeKeyAndOrderFront` 之外還呼叫 `activate()`：一個視窗可以在「本身並非最前景的應用程式」
+    /// 之中成為 key window，而驅動一個背景應用程式的重放，點到的是空氣。
+    /// The key window's number, or 0 when there is none.
+    ///
+    /// **The default returns 0, and 0 is the value `replay` treats as "cannot
+    /// tell" -- so without this override the geometry was never re-measured on
+    /// macOS.** That did not matter while every file drove one window. It
+    /// matters the moment `focus` exists: focus moved, and the coordinates after
+    /// it kept resolving against the window that had been measured before the
+    /// replay began. Measured 2026-09-09 with P60 -- the `focus` row succeeded,
+    /// the replay reported all 8 actions, and the `+1` inside the settings
+    /// window was posted at a point in the MAIN window's frame.
+    ///
+    /// `windowNumber` rather than an `ObjectIdentifier`: it is what AppKit
+    /// itself uses to identify a window across processes, it is stable while the
+    /// window lives, and it is already an `Int`.
+    ///
+    /// key window 的視窗編號，沒有 key window 時為 0。
+    ///
+    /// **預設實作回傳 0，而 0 正是 `replay` 用來代表「無法判斷」的值——因此少了這個覆寫，macOS 上的
+    /// geometry 從來不會被重新量測。** 在「每個檔案只驅動一個視窗」的年代這不重要；而 `focus` 一旦
+    /// 存在就重要了：焦點移動了，而其後的座標仍然相對於「重放開始前所量測的那個視窗」解析。
+    /// 2026-09-09 以 P60 實測——`focus` 那一列成功、重放回報 8 個動作全部完成，而設定視窗裡的 `+1`
+    /// 被投遞到了**主視窗**框中的某個點。
+    ///
+    /// 使用 `windowNumber` 而非 `ObjectIdentifier`：那是 AppKit 自己用來跨行程辨識視窗的東西，
+    /// 在視窗存活期間穩定，而且它本來就是 `Int`。
+    public func currentWindowIdentity() -> Int {
+        onMain { NSApp.keyWindow?.windowNumber ?? 0 }
+    }
+
+    /// Not `@MainActor` on the method, `onMain` inside it -- the same shape every
+    /// other AppKit call in this file uses. Marking the method itself is what the
+    /// compiler rejects: *"conformance of 'AppKitSynthesiser' to protocol
+    /// 'Synthesiser' crosses into main actor-isolated code"*, because the replay
+    /// deliberately runs off the main thread.
+    /// 隔離標註不放在方法上，而是在方法內部用 `onMain`——與本檔中其他每一個 AppKit 呼叫同一個形狀。
+    /// 把方法本身標為 `@MainActor` 正是編譯器所拒絕的：*「conformance of 'AppKitSynthesiser' to
+    /// protocol 'Synthesiser' crosses into main actor-isolated code」*，因為重放是刻意不在主執行緒上跑的。
+    public func focusWindow(titled title: String) throws {
+        try onMain {
+            let candidates = NSApp.windows.filter { $0.isVisible }
+            guard let window = candidates.first(where: { $0.title == title }) else {
+                throw SynthesiserError.unsupported(
+                    "focus '\(title)': no visible window with that exact title; visible titles are "
+                        + candidates.map { "'\($0.title)'" }.joined(separator: ", ")
+                )
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
     /// AppKit screen coordinates put `0,0` at the bottom-left of the primary
     /// screen and grow upwards; ``WindowGeometry`` is written top-left-origin,
     /// downwards, like the other two platforms. This is the only place the two
@@ -308,6 +379,17 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
         // protocol's own documentation records.
         // 睡眠留在呼叫端執行緒。若為此跳到主佇列，應用程式也會一併睡著，而那正是本協定文件所記載的
         // 那個失敗。
+        // Focus first, and outside the main-queue hop below for the same reason
+        // `sleep` is: it changes what "the current window" means, and the
+        // caller's loop re-measures geometry on the next action once
+        // `currentWindowIdentity()` reports the change.
+        // focus 先處理，並且與下方的主佇列跳轉分開，理由與 `sleep` 相同：它改變的是「當前視窗」的
+        // 意義，而呼叫端的迴圈會在 `currentWindowIdentity()` 回報變化之後，於下一個動作重新量測 geometry。
+        if case .focus(let title) = action {
+            try focusWindow(titled: title)
+            return
+        }
+
         if case .sleep(let microseconds) = action {
             Thread.sleep(forTimeInterval: Double(microseconds) / 1_000_000)
             return
@@ -370,10 +452,15 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
                 case .scroll(let dx, let dy):
                     try self.postScroll(dx: dx, dy: dy, at: try location(nil), in: window)
 
-                case .doubleClick, .sleep:
-                    // Both returned above; listed so a new case cannot be added
-                    // without the compiler pointing here.
-                    // 兩者皆已於上方返回；在此列出，是為了讓新增 case 時編譯器必定指向此處。
+                case .doubleClick, .sleep, .focus:
+                    // All three returned above; listed so a new case cannot be
+                    // added without the compiler pointing here. `focus` joins
+                    // them because it changes which window later actions are
+                    // measured against, which has to happen before this block
+                    // resolves a window at all.
+                    // 三者皆已於上方返回；在此列出，是為了讓新增 case 時編譯器必定指向此處。
+                    // `focus` 之所以歸入此列，是因為它改變的是「其後的動作要相對哪個視窗量測」，
+                    // 而那必須發生在本區塊解析出任何視窗之前。
                     break
             }
         }

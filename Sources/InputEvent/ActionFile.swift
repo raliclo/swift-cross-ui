@@ -184,6 +184,19 @@ public enum ActionFile {
             case "keydown": return .keyDown(try key())
             case "keyup": return .keyUp(try key())
             case "key": return .key(try key())
+            case "focus":
+                // Column 9 (`target`), a tenth column older files do not have.
+                // `value(_:)` returns nil for an index past the end, so every
+                // existing file still parses unchanged -- adding a column here
+                // costs nothing, while overloading `key` or `note` would have
+                // made a window title look like a keystroke or a comment.
+                // 第 9 欄（`target`），這是舊檔沒有的第十欄。`value(_:)` 對超出範圍的索引回傳 nil，
+                // 因此每一個既有檔案都照舊解析得過——在此處新增一欄不花任何代價，而挪用 `key` 或
+                // `note` 則會讓一個視窗標題看起來像一次按鍵或一句註解。
+                guard let title = value(9), !title.isEmpty else {
+                    throw ActionFileError.missingWindowTitle(line: line)
+                }
+                return .focus(window: title)
             case "sleep":
                 guard let raw = value(6), let micros = Int(raw) else {
                     throw ActionFileError.badNumber(value(6) ?? "", line: line)
@@ -207,6 +220,7 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
     case missingKey(verb: String, line: Int)
     case missingButton(verb: String, line: Int)
     case missingPosition(verb: String, line: Int)
+    case missingWindowTitle(line: Int)
     case incompletePosition(line: Int)
     case badNumber(String, line: Int)
 
@@ -228,6 +242,8 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
                 "line \(line): '\(verb)' needs a key"
             case .missingButton(let verb, let line):
                 "line \(line): '\(verb)' needs a button"
+            case .missingWindowTitle(let line):
+                "line \(line): 'focus' needs a window title in the 'target' column"
             case .missingPosition(let verb, let line):
                 "line \(line): '\(verb)' needs x and y"
             case .incompletePosition(let line):

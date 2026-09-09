@@ -9,7 +9,7 @@ conversation, where it faded with compaction and its absence looked exactly like
 an empty queue -- mistakes.md entry 1.
 
 - [x] **1. iOS 動作檔的點擊沒抵達按鈕** — 已解決。按鈕實際在 (55, 218) 點,先前的 y=100 是從縮圖估的。runner 現在會說出它解析到哪個視窗與正規化後的座標
-- [ ] **2. 動作檔無法定址第二個視窗** — `InputEvent` 的格式缺口,不是 P60 的問題。`frame`/`client` 都相對於被驅動的視窗,`popover` 僅限 Windows。修好它,之後每一個多視窗測試都受惠(含 `DocumentGroup`)
+- [x] **2. 動作檔無法定址第二個視窗** — 已解決。新增 `focus` 動作(第十欄 `target` 放標題),並補上 AppKit 缺少的 `currentWindowIdentity()`——沒有它,geometry 永遠不會重新量測
 - [ ] **3. `DocumentGroup`** — 三項缺失 API 的最後一項,蓋在既有的 `FileDialogs` 上
 - [ ] **4. 鍵盤快捷鍵 step 2**(Windows 表的 #121)— **真的,而且已查證**:`ResolvedMenu.Item` 沒有任何 shortcut 欄位,所以要動四個 backend 的 `.button`。Windows 端把它標為「卡在 Mac」
 - [ ] **5. focus / accessibility**(#122 / #123)— 任務自述「不可單機開始」,需要與 Windows 端協調

@@ -37,7 +37,11 @@ public enum InputAction: Equatable, Sendable {
             // `scroll` 刻意不指定座標——ActionFile:176 會直接拒絕 scroll 列上的 `origin`,因為捲動
             // 並不移動指標,而在該處寫下 frame 即代表撰寫者以為它會移動。`sleep` 不指定座標的理由
             // 顯而易見。
-            case .keyDown, .keyUp, .key, .scroll, .sleep: nil
+            // `focus` names no point either: it selects the frame of reference
+            // that later points are written against, rather than being written
+            // against one itself.
+            // `focus` 同樣不指定座標：它**選定**其後座標所依據的參考框架，而不是自己依據某個框架。
+            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus: nil
         }
     }
 
@@ -90,6 +94,41 @@ public enum InputAction: Equatable, Sendable {
     case scroll(dx: Int, dy: Int)
 
     case sleep(microseconds: Int)
+
+    /// Brings the named window to the front, so that later coordinates resolve
+    /// against it.
+    ///
+    /// **Every other action in this file is written against ONE window, and
+    /// before this there was no way to name a second.** `frame` and `client`
+    /// both resolve against whichever window is focused; `popover` is Windows
+    /// only and means a popover, not a window. So an app that opens a second
+    /// window -- a settings window, a document window -- could be photographed
+    /// but not driven: P60's settings window opened on AppKit and the button
+    /// inside it was unreachable from a file.
+    ///
+    /// Nothing else had to change to make the coordinates follow. `replay`
+    /// already re-measures the geometry when `currentWindowIdentity()` reports a
+    /// different window, which it does the moment focus moves -- so this action
+    /// only has to move the focus and the existing machinery does the rest.
+    ///
+    /// The title is matched exactly. A prefix or fuzzy match would silently
+    /// select the wrong window in an app whose windows share a prefix, and
+    /// "wrong window" is precisely the failure this action exists to fix.
+    ///
+    /// 把指名的視窗帶到前景，好讓其後的座標相對於它解析。
+    ///
+    /// **本檔中其他每一個動作都是針對「單一視窗」而寫的，而在此之前沒有任何方式能指名第二個。**
+    /// `frame` 與 `client` 都相對於「當下取得焦點的那個視窗」解析；`popover` 僅限 Windows，且它指的是
+    /// popover、不是視窗。因此一個會開出第二個視窗的 app——設定視窗、文件視窗——拍得到卻驅動不了：
+    /// P60 的設定視窗在 AppKit 上開得出來，而其中的按鈕從檔案裡構不著。
+    ///
+    /// 為了讓座標跟著走，其他什麼都不必改。當 `currentWindowIdentity()` 回報視窗不同時，`replay`
+    /// 本來就會重新量測 geometry，而焦點一移動它就會如此——因此這個動作只需要移動焦點，其餘由既有的
+    /// 機制完成。
+    ///
+    /// 標題採**完全相符**。前綴或模糊比對會在「視窗標題共用前綴」的 app 中靜默選中錯誤的視窗，
+    /// 而「選錯視窗」正是這個動作存在所要修正的失敗。
+    case focus(window: String)
 }
 
 /// A position and the origin it is measured from.

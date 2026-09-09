@@ -246,6 +246,24 @@ public protocol Synthesiser: Sendable {
     /// extension 的版本，而且是靜默的。下方的 `replay(_:in:)` 正是這個形狀，這也是本次改動放在此處、
     /// 而迴圈維持原位的原因。
     func currentWindowIdentity() -> Int
+
+    /// Brings the window with this exact title to the front.
+    ///
+    /// Throws where the platform's synthesiser cannot name windows, rather than
+    /// returning quietly. A `focus` row that did nothing would leave every later
+    /// coordinate resolving against the window that was already in front -- so
+    /// the file would run to completion, clicking real controls in the wrong
+    /// window, and the capture would look like a test that simply failed to do
+    /// anything. This whole module's rule is that a missed target and a swallowed
+    /// event must not look alike.
+    ///
+    /// 把標題與此完全相符的視窗帶到前景。
+    ///
+    /// 在某個平台的 synthesiser 無法指名視窗時**丟出錯誤**，而不是安靜地返回。一個什麼都沒做的
+    /// `focus` 列，會讓其後每一個座標都相對於「本來就在前景的那個視窗」解析——於是該檔案會跑完，
+    /// 在**錯誤的視窗**中點到真實的控制項，而擷圖看起來會像是一個「什麼都沒做成」的測試。本模組的
+    /// 通則正是：沒打中的目標與被吞掉的事件，不可以長得一樣。
+    func focusWindow(titled title: String) throws
 }
 
 extension Synthesiser {
@@ -268,6 +286,14 @@ extension Synthesiser {
     /// pre-2026-09-04 behaviour: geometry read once and never revisited.
     /// 未知；這讓每一個未實作它的平台維持 2026-09-04 之前的行為：幾何只讀一次，之後不再重讀。
     public func currentWindowIdentity() -> Int { 0 }
+
+    /// Loud by default: a synthesiser that has not implemented this cannot do it.
+    /// 預設大聲失敗：未實作此方法的 synthesiser 就是做不到這件事。
+    public func focusWindow(titled title: String) throws {
+        throw SynthesiserError.unsupported(
+            "focus '\(title)': this platform's synthesiser cannot name windows"
+        )
+    }
 
     /// Replays a whole file.
     ///

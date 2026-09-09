@@ -1,23 +1,31 @@
-action,x,y,origin,button,key,micros,note,platform
+action,x,y,origin,button,key,micros,note,platform,target
 # P60: open the settings scene. Opening it is all this file can do here.
 #
 # origin=frame, coordinates read off p60-macos-final-20260909-173049.png.
 #
-# **The +1 half is NOT driven here, and the reason is a limit of the format
-# rather than a gap in the test.** On AppKit settings opens as its own window,
-# and no action-file origin addresses a second window: `frame` and `client` both
-# resolve against the driven window, and `popover` is Windows-only and means
-# something else. So this file proves the scene resolved and the window opened;
-# the shared-count assertion is driven on iOS instead, where settings is a sheet
-# over the one window and both controls share a coordinate space.
+# **The +1 half IS driven here now, through the `focus` verb this file is the
+# first user of.** It used to be impossible: `frame` and `client` both resolve
+# against whichever window is focused, and `popover` is Windows-only and means a
+# popover. `focus` names a window by its exact title, and nothing else had to
+# change -- `Synthesiser.replay` already re-measures geometry when
+# `currentWindowIdentity()` reports a different window, which happens the moment
+# focus moves. The title goes in a tenth column, `target`; files without it parse
+# exactly as before.
 #
 # P60：開啟設定 scene，然後從它裡面改變那個共用的計數。
 #
 # origin=frame，座標讀自 p60-macos-final-20260909-173049.png。
 #
-# **+1 那一半此處不驅動，而理由是這個格式的限制、不是這項測試的缺口。** 在 AppKit 上設定會開成自己的
-# 視窗，而動作檔沒有任何原點定址得到第二個視窗——`frame` 與 `client` 都是相對於被驅動的那個視窗解析，
-# 而 `popover` 僅限 Windows 且意義不同。因此本檔證明的是「那個 scene 被解析了、視窗開了」；共用計數
-# 的判定改在 iOS 上驅動，在那裡設定是蓋在同一個視窗上的 sheet，兩個控制項共用同一個座標空間。
+# **+1 那一半現在驅動得了**，靠的是 `focus` 這個動作，而本檔是它的第一個使用者。過去這做不到：
+# `frame` 與 `client` 都相對於「當下取得焦點的視窗」解析，而 `popover` 僅限 Windows、指的是 popover。
+# `focus` 以**完全相符的標題**指名視窗，而其他什麼都不必改——`Synthesiser.replay` 本來就會在
+# `currentWindowIdentity()` 回報視窗不同時重新量測 geometry，而焦點一移動就會如此。標題放在第十欄
+# `target`；沒有這一欄的檔案解析結果與過去完全相同。
 click,75,250,frame,left,,,open settings,macos
 sleep,,,,,,1200000,let the settings window open and lay out,macos
+focus,,,,,,,switch to the settings window; later coordinates measure against it,macos,Settings
+sleep,,,,,,600000,let the focus change settle,macos,
+click,335,263,frame,left,,,"+1 inside the settings window -- the main window's count must become 1",macos,
+sleep,,,,,,800000,,macos,
+focus,,,,,,,back to the main window so the capture shows the count,macos,P60 settings scene
+sleep,,,,,,800000,,macos,

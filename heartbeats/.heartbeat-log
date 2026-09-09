@@ -139,3 +139,8 @@ heartbeat: 1 target(s)
 asked macos/Swift-Cross-UI-Mac (local) -- replied: 還在工作,但**這台 Mac 的權限模式剛剛收緊了** —— 和 Windows 那邊心跳回報的狀況一樣。現在連原本一路在跑的指令都被擋下等核可:
 
 ```
+asked windows/Swift-Cross-UI-Windows (winnode) -- replied: 是,還在——但剛遇到兩件要跟你講清楚的事,一件是進度、一件是我發現的問題。
+
+**進度:#32 的第一項(WinUI 手勢)已實作並通過編譯。**
+heartbeat: 2 target(s)
+--- 2026-09-09 22:45:57
