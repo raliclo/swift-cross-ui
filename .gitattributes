@@ -64,4 +64,28 @@ gyb/* linguist-vendored
 # 它**不可以**是 `merge=ours`,也不可以是集合式的聯集。該檔案含有刻意重複的列——同一支 app 在同一天
 # 被量測兩次是**兩筆**觀測,不是一筆——而任何會去重的做法都會靜默地失去第二筆。2026-09-09 那次手工
 # 解衝突時正是這個陷阱:以集合為基礎的解法掉了兩列,而是那組數字(685 + 3 + 2 = 690)抓到了它。
+# **Not `*.csv2`.** Every tracked .csv2 is one record per physical line today,
+# so a broad glob looks safe -- but that is not the property union merge needs.
+# The property is APPEND-ONLY, and two of the six are not:
+#
+#   matrix_coverage/coverage-matrix.csv2   +99 -97 over eight commits
+#   matrix_coverage/executable-size.csv2   +100 -49 over three
+#
+# Those are matrices, not logs: the same row is rewritten as a platform's status
+# changes. Union does not conflict on a rewritten line, it keeps BOTH versions --
+# so P16 would carry a `pass` row and a `fail` row at once, and which one a
+# reader gets depends on which they scan first. That is worse than a conflict.
+# A conflict stops and asks; union produces a matrix that looks complete and
+# contradicts itself, with nothing to report it.
+#
+# **不是 `*.csv2`。** 目前每一個被追蹤的 .csv2 都是「一筆記錄一個實體行」,因此廣義的 glob 看起來安全
+# ——但那並不是 union merge 所需要的性質。它需要的性質是**只做附加**,而六個之中有兩個不是:
+#
+#   matrix_coverage/coverage-matrix.csv2   八次提交 +99 -97
+#   matrix_coverage/executable-size.csv2   三次提交 +100 -49
+#
+# 那兩個是**矩陣**而不是紀錄:同一列會隨著某個平台狀態的改變而被改寫。union 對一個被改寫的行不會
+# 衝突,它會把**兩個版本都留下**——於是 P16 會同時帶著一列 `pass` 與一列 `fail`,而讀者拿到哪一列
+# 取決於他先掃到哪一列。那比衝突更糟。衝突會停下來發問;union 則會產出一個看起來完整、卻自相矛盾的
+# 矩陣,而且沒有任何東西會回報它。
 matrix_coverage/results.csv2 merge=union
