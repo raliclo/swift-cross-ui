@@ -346,6 +346,42 @@ file, not by noticing it.)
 編輯、三個後果，而其中只有一個看得見於 diff。（那個座標最後其實存活了下來，但那只是因為替換上去的
 Text 高度相同；而這一點是**跑過**該檔案才確立的，不是看出來的。）
 
+### 3e-3. 佇列在檔案裡,不在對話裡
+
+`queue.md` 是那份清單,`Scripts/queue_heartbeat.zsh` 是讀它的東西。**這一條不是流程偏好,是一次
+實際發生過三次的錯誤的矯正措施**——見 `mistakes.md` 第 1 條。
+
+一份貼在訊息中的待辦表會隨著 context 壓縮而淡出,而淡出之後,「佇列已經空了」與「我不記得佇列了」
+在內部讀起來完全相同:兩者都不會產生任何一行輸出,兩者都會讓那個回合以一份看起來完整的報告收尾。
+使用者發現它的方式,是連問兩次「Are you still working ?」——需要問這句話,本身就是症狀。
+
+```sh
+zsh Scripts/queue_heartbeat.zsh --on     # 開
+sh  Scripts/queue_heartbeat.zsh          # 一次心跳:印出下一個未完成項,或 IDLE
+zsh Scripts/queue_heartbeat.zsh --off    # 關;此後每一次心跳都是一次無成本的 IDLE
+```
+
+搭配 `/loop` 使用,因為**一支 cron 或 while 迴圈做不到這件事**:shell 腳本無法把提示注入一個活著的
+互動式 session,而 `multissh` 是 ssh 設定——它到得了那台機器,到不了那個 session。`/loop` 是從
+session 內部重新進入的,那才是可行的機制:
+
+```
+/loop 20m sh Scripts/queue_heartbeat.zsh and do what it says
+```
+
+開關關閉時,那一輪只會執行這一支腳本、印出 `IDLE` 就結束,不會有任何工作被展開——那正是「沒有任務
+時不要為了問同一個問題而花 token」。
+
+**做完一項就把 `- [ ]` 改成 `- [x]`,並在同一個 commit 裡。** 一個已完成卻仍未打勾的項目,會讓下一次
+心跳把它再指一次,而那讀起來像是回頭重做。
+
+The queue lives in `queue.md`, not in the conversation. This is the corrective for
+a mistake that happened three times, not a style preference: a pasted table fades
+with compaction, and once it has, "the queue is empty" and "I no longer remember
+the queue" produce the same output, which is none. Pair it with `/loop`, not cron
+-- a shell script cannot inject a prompt into a live session, and multissh reaches
+the machine rather than the session. Tick the box in the same commit as the work.
+
 ### 3e-0. 提交之前,先跑動作檔就緒檢查
 
 ```sh
