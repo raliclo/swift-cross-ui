@@ -90,7 +90,7 @@ does not exist, so no backend can conform to anything.
 | # | recorded claim | reality on 2026-09-08 | what actually remains | G | W | A | U | N |
 |---|---|---|---|---|---|---|---|---|
 | **#85** | make LazyVStack/LazyHStack lazy, add LazyVGrid | both stacks **exist and are honestly documented as eager** — `LazyStacks.swift:38`, `:70`, and the doc comment at `:3` says so in both languages. `LazyVGrid` declaration count was **0**; **added 2026-09-08** ~~in the same file~~ — **corrected 2026-09-08: it is in its own file, `Views/LazyVGrid.swift:68`**, see the note under #85 — and it is eager for the same reason the stacks are — no lazier than its siblings | real laziness, and *only* that (needs ScrollView to report its visible rect into the layout pass). The `LazyVGrid` half is done; it is pure composition and took no backend requirement | — | — | — | — | — |
-| **#88** | ColorPicker as an opt-in BackendFeatures protocol | `grep -rn "ColorPicker" Sources/` → **0**, across every file type, not only `*.swift` | everything: the `ColorPicker` view, a `BackendFeatures.ColorPickers` protocol, and five conformances | n/a | n/a | n/a | n/a | n/a |
+| **#88** | ColorPicker as an opt-in BackendFeatures protocol | ~~`grep -rn "ColorPicker" Sources/` → **0**, across every file type, not only `*.swift`~~ **→ 1 as of `e6165e8a` (2026-09-08 04:36), `Views/ColorPicker.swift:39`**; but `grep -rl "ColorPickers" Sources/` is still **0** | ~~everything~~ **the protocol half only**: `BackendFeatures.ColorPickers` and five conformances. The view exists and is composed from `HStack`/`Slider`/`Button`, needing no backend — see #88's detail for why the native panel was deferred rather than missed | n/a | n/a | n/a | n/a | n/a |
 | **#28** | animation and transitions, "no protocol at all" | **claim holds exactly.** `withAnimation` 0, `struct Animation` 0, `AnyTransition` 0, `func transition` 0, `Transition` 0 | all five names, plus a driver in the view graph and a per-backend animator | n/a | n/a | n/a | n/a | n/a |
 | **#30** | focus, accessibility, keyboard shortcuts | **claim holds.** `FocusState` 0, `func focused` 0, `keyboardShortcut` 0, `accessibilityLabel` 0, `\bFocus\b` 0. The single `accessibility` hit is prose in `HelpModifier.swift` | the whole area. Still the only area where an application cannot express the intent | n/a | n/a | n/a | n/a | n/a |
 | **#32** | gestures beyond tap and hover | the new gestures are absent as claimed — `DragGesture` 0, `LongPressGesture` 0, `MagnificationGesture` 0, `RotationGesture` 0, `simultaneousGesture` 0, `\bGesture\b` 0. **But the premise is wrong: hover is not done on five backends** | the five gesture types, *and* `HoverGestures` on AndroidBackend — see the flag below | ✅ | ✅ | ✅ | ✅ | ❌ hover |
@@ -98,7 +98,7 @@ does not exist, so no backend can conform to anything.
 | **#36** | confirmationDialog and safeAreaInset done, four remain | both are real: `ConfirmationDialogModifier.swift:50`, `SafeAreaInsetModifier.swift:39`. `func popover` 0, `fullScreenCover` 0, `toolbar` 0, `refreshable` 0, and `navigationTitle` **0 as a modifier** | **Re-measured 2026-09-08: `.popover` and `.navigationTitle` landed.** ~~Left: `.fullScreenCover`, `.toolbar`, `.refreshable`.~~ **Corrected later the same day: `.fullScreenCover` landed too** (`Modifiers/FullScreenCoverModifier.swift:28`), so left: `.toolbar`, `.refreshable`. `.navigationTitle` had left the denominator without being implemented, and is counted from here on | ✅ popover, built | ✅ popover, built | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED | ⚠️ written, UNCOMPILED |
 | **#27** | follow desktop light/dark while running (GtkBackend) | **claim holds, and the mechanism is already built.** `Gtk.Settings.registerNotification(named:handler:)` exists at `Sources/Gtk/Utility/Settings.swift:92` and **has zero callers** across `Sources/`. The ambient scheme is sampled **once**, at `GtkBackend.swift:1029` | wire the notification up (six changes, per the task history). Windows has the same shape from the other side: `systemColorScheme` reads the registry once inside `sampleAmbientColorScheme` and `grep -rn WM_SETTINGCHANGE Sources/` → **0** | ❌ | — | — | — | — |
 | **#31** | 4/6 done, only ButtonStyle and LabelStyle remain | **5 present, and the denominator shrank silently.** `ShapeStyle` is a real protocol at `Styles/ShapeStyle/ShapeStyle.swift:25` with `Color`, `LinearGradient` and `RadialGradient` conforming — the todo still says "absent — 0 declarations and 0 references". `TextFieldStyle` 0 and `ProgressViewStyle` 0 were on the 2026-09-01 list and quietly left the count | `ButtonStyle` (genuinely blocked: `isPressed` 0 across `Sources/`, `Button.label` is a `String` at `Button.swift:17`), `LabelStyle` (**blocker gone**), `TextFieldStyle`, `ProgressViewStyle` | — | — | — | — | — |
-| **#33** | 8 of 11 done, ColorPicker/LazyVGrid/ScrollViewReader remain | was **10 present of a 16-name list, 6 absent** — three names the 2026-09-01 census counted absent (`Grid`, `ControlGroup`, `GroupBox`) had left the denominator without being implemented. **Now 14 of 16**: those three plus `LazyVGrid` landed 2026-09-08. The recorded "8 of 11" was never true and should not be restated | `ScrollViewReader` and `ColorPicker` — the only two of the sixteen that are not composition. `ScrollViewReader` is the expensive one: `BackendFeatures.ScrollContainers` has only `createScrollContainer` and `updateScrollContainer` and **no programmatic scroll**, so it needs a new requirement on all five | n/a | n/a | n/a | n/a | n/a |
+| **#33** | 8 of 11 done, ColorPicker/LazyVGrid/ScrollViewReader remain | was **10 present of a 16-name list, 6 absent** — three names the 2026-09-01 census counted absent (`Grid`, `ControlGroup`, `GroupBox`) had left the denominator without being implemented. ~~**Now 14 of 16**~~ **15 of 16, re-derived 2026-09-09**: those three plus `LazyVGrid` landed 2026-09-08, and `ColorPicker` landed the same day in `e6165e8a` at `Views/ColorPicker.swift:39`. Regenerate with the shape-agnostic loop under #33's detail below; do not restate the number without running it. The recorded "8 of 11" was never true and should not be restated | ~~`ScrollViewReader` and `ColorPicker`~~ `ScrollViewReader` — the only one of the sixteen that is not composition, and the expensive one: `BackendFeatures.ScrollContainers` has only `createScrollContainer` and `updateScrollContainer` and **no programmatic scroll**, so it needs a new requirement on all five | n/a | n/a | n/a | n/a | n/a |
 | **#35** | StateObject and ObservedObject done, only a Settings scene remains | both wrappers are real — `StateObject.swift:49`, `ObservedObject.swift:40`. **"Only a Settings scene" is wrong: three more things are absent.** `EnvironmentObject` 0, `SceneStorage` 0, `struct Settings` 0, `DocumentGroup` 0 | `EnvironmentObject`, `SceneStorage`, the `Settings` scene, `DocumentGroup` | n/a | n/a | n/a | n/a | n/a |
 | **#79** | `correctContentSizeIfNeeded` is a no-op | **the function no longer exists.** `grep -rn "correctContentSizeIfNeeded" Sources/ --include=*.swift` returns **two hits, both inside a doc comment**. It was renamed to `reportContentSizeShortfall` and the assignment deleted in `aca6e259` | the **defect** is live: GTK still delivers 39px less content height than requested. The *description* is stale; the *bug* is not | ❌ | — | — | — | — |
 
@@ -225,20 +225,35 @@ pass. Shared code, no backend.
 
 ---
 
-### #88 — untouched, and the cleanest of the twelve to scope
+### #88 — the view landed by composition; the native-panel protocol did not
 
-`grep -rn "ColorPicker" Sources/` returns **0** — across every file, not only
+~~`grep -rn "ColorPicker" Sources/` returns **0** — across every file, not only
 `*.swift`. (The 23-file hit for the same string across the repository is
 `testapp/gtk4-source/`, a vendored copy of GTK's own C sources, plus test-app
-and doc files. None of it is SwiftCrossUI.)
+and doc files. None of it is SwiftCrossUI.)~~
 
-What is needed is stated in the entry itself and is accurate: a `ColorPicker`
+~~What is needed is stated in the entry itself and is accurate: a `ColorPicker`
 view, a `BackendFeatures.ColorPickers` protocol, and five conformances. Nothing
-exists to disagree with.
+exists to disagree with.~~
 
-`grep -rn "ColorPicker" Sources/` 回傳 **0**——是所有檔案，不只 `*.swift`。整個 repo 中同一字串的
-23 個命中檔案來自 `testapp/gtk4-source/`（GTK 自身 C 原始碼的內嵌副本）與測試 app／文件，與
-SwiftCrossUI 無關。此條目所述內容準確，沒有任何東西可以與之相左。
+**Half wrong as of 2026-09-09.** `grep -rl "ColorPicker" Sources/ | wc -l`
+returns **1**, not 0: the view landed in `e6165e8a` (2026-09-08 04:36) at
+`Views/ColorPicker.swift:39`. The *protocol* half of the claim still holds —
+`grep -rl "ColorPickers" Sources/ | wc -l` returns **0**, so there is no
+`BackendFeatures.ColorPickers` and no conformance anywhere. That is not an
+oversight: the view is composed from `HStack`, `Slider`, `Button` and a filled
+rectangle and needs nothing from any backend (`ColorPicker.swift:1-22` states
+the trade). So #88 is not "untouched"; it is **the view done by composition,
+the native-panel protocol deliberately deferred**, and re-scoping it should
+start from that file's rationale rather than from this paragraph.
+
+**2026-09-09 起有一半是錯的。** `grep -rl "ColorPicker" Sources/ | wc -l` 回傳 **1** 而非 0：
+該 view 已於 `e6165e8a`（2026-09-08 04:36）落地，位置在 `Views/ColorPicker.swift:39`。主張中
+**protocol** 的那一半仍然成立——`grep -rl "ColorPickers" Sources/ | wc -l` 回傳 **0**，因此並不存在
+`BackendFeatures.ColorPickers`，任何地方也沒有 conformance。那並非疏漏：該 view 由 `HStack`、
+`Slider`、`Button` 與一個填色矩形組合而成，不需要任何 backend 支援（取捨理由見
+`ColorPicker.swift:1-22`）。所以 #88 並非「未被觸碰」，而是**以組合完成了 view、刻意延後了原生面板
+的 protocol**；要重新界定它的範圍，起點應是該檔案的理由，而不是本段。
 
 ---
 
@@ -390,8 +405,28 @@ is 2 of 7, not 2 of 6.
 Backend cost is uneven and worth recording before ordering the work: `.popover`
 has a backend capability already (`BackendFeatures.PopoverMenus`, conformed by
 GtkBackend at `GtkBackend.swift:36`), `.fullScreenCover` is close to `Sheets`
-(four of five conform), while `.toolbar` and `.refreshable` need a new
-requirement on all five.
+(~~four of five conform~~ **five of five conform — corrected 2026-09-09**),
+while `.toolbar` and `.refreshable` need a new requirement on all five.
+
+**Why "four" was wrong, which is more useful than the number.** Only four
+backends name `BackendFeatures.Sheets` in a file of their own —
+`AndroidBackend+Sheets.swift:4`, `GtkBackend.swift:32`,
+`UIKitBackend.swift:20`, `WinUIBackend+Sheets.swift:10`. AppKit's conformance
+arrives through the `FullAppBackend` protocol composition
+(`Backend/FullAppBackend.swift:70`), which `AppKitBackend.swift:22` declares in
+one word. `grep -rl "BackendFeatures.Sheets" Sources/AppKitBackend/` returns
+**0**, and that zero is not the absence of a conformance — it is the absence of
+the *string*. Any per-backend-file grep for a feature will undercount AppKit by
+one for every feature in that composition.
+
+**「四」錯在哪裡，比那個數字本身更值得記。** 只有四個 backend 在自己的檔案中寫出
+`BackendFeatures.Sheets`——`AndroidBackend+Sheets.swift:4`、`GtkBackend.swift:32`、
+`UIKitBackend.swift:20`、`WinUIBackend+Sheets.swift:10`。AppKit 的 conformance 是透過
+`FullAppBackend` 這個 protocol 組合抵達的（`Backend/FullAppBackend.swift:70`），而
+`AppKitBackend.swift:22` 只用一個字宣告了它。
+`grep -rl "BackendFeatures.Sheets" Sources/AppKitBackend/` 回傳 **0**，而那個 0 不代表缺少
+conformance——它代表缺少那個**字串**。任何逐 backend 檔案的 grep，對該組合中的每一項 feature，
+都會把 AppKit 少算一個。
 
 `navigationTitle` 曾在 2026-09-01 的清單上、不在 2026-09-04 的清單上，而它從未被實作——它僅有的
 兩個命中都是 `NavigationStack.swift` 的註解，其中一句直言「待 `navigationTitle(_:)` 加入後，此處
@@ -504,7 +539,7 @@ out of the count is how it stops being one.
 
 ---
 
-### #33 — fourteen present of sixteen, and the denominator moved twice
+### #33 — fifteen present of sixteen, and the denominator moved twice
 
 Declaration counts. The middle column is the 2026-09-01 census, the third is the
 measurement taken earlier on 2026-09-08, and the fourth is where the name stands
@@ -519,7 +554,7 @@ after the four composition views landed later the same day.
 | `LazyVStack` | absent | ✅ `Views/LazyStacks.swift:38` (eager — see #85) | ✅ unchanged, still eager |
 | `LazyHStack` | absent | ✅ `Views/LazyStacks.swift:70` (eager — see #85) | ✅ unchanged, still eager |
 | `Gauge` | absent | ✅ `Views/Gauge.swift:19` | ✅ unchanged |
-| `LazyVGrid` | absent | ❌ 0 | ✅ ~~`Views/LazyStacks.swift:154`~~ → `Views/LazyVGrid.swift:68` (corrected 2026-09-08 after `dea9ccff`; eager, exactly like its siblings — see #85) |
+| `LazyVGrid` | absent | ❌ 0 | ✅ ~~`Views/LazyStacks.swift:154`~~ ~~`Views/LazyVGrid.swift:68`~~ → `Views/LazyVGrid.swift:97` (file corrected 2026-09-08 after `dea9ccff`, line corrected 2026-09-09; eager, exactly like its siblings — see #85) |
 | `Grid` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/Grid.swift:38`, with `GridRow` at `:124` |
 | `ScrollViewReader` | absent | ❌ 0 | ❌ 0 — still the one that is not composition |
 | `ControlGroup` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/ControlGroup.swift:40` |
@@ -527,12 +562,36 @@ after the four composition views landed later the same day.
 | `DisclosureGroup` | not censused | ✅ `Views/DisclosureGroup.swift:20` | ✅ unchanged |
 | `LabeledContent` | not censused | ✅ `Views/LabeledContent.swift:19` | ✅ unchanged |
 | `Link` | not censused | ✅ `Views/Link.swift:39` | ✅ unchanged |
-| `ColorPicker` | not censused | ❌ 0 — this is #88 | ❌ 0 — still #88 |
+| `ColorPicker` | not censused | ❌ 0 — this is #88 | ~~❌ 0 — still #88~~ → ✅ `Views/ColorPicker.swift:39` (`e6165e8a`, 2026-09-08 04:36 — **earlier the same day than the "still 0" beside it**, so that cell was wrong when written, not stale) |
 
-**Ten present and six absent became fourteen present and two absent on
-2026-09-08.** Regenerate with the declaration-count loop in **Method** above,
-and control it before believing any zero: `public struct VStack\b` returns 1
-file, `public struct ZZZNotARealType\b` returns 0.
+~~**Ten present and six absent became fourteen present and two absent on
+2026-09-08.**~~ **Fifteen present and one absent, re-derived 2026-09-09.**
+Regenerate — and note the pattern has changed shape, not just content:
+
+```
+for n in Form Section Label Stepper LazyVStack LazyHStack Gauge \
+         DisclosureGroup LabeledContent Link Grid ControlGroup GroupBox \
+         LazyVGrid ScrollViewReader ColorPicker VStack ZZZNotARealType; do
+    printf '%-18s %s\n' "$n" \
+      "$(grep -rlE "public [a-z ]*(struct|class|enum|protocol) $n\b" \
+           Sources/SwiftCrossUI/ | wc -l)"
+done
+```
+
+The controls are inside the loop so nobody can run it without them: `VStack`
+must return 1 and `ZZZNotARealType` must return 0. The earlier recipe was
+`public struct $n\b`, which is **shape-bound** — it sees only a `struct`, so a
+view shipping as a `final class`, an `enum` or a `protocol` reads as absent. A
+control on the *string* (`VStack`) cannot catch that, because `VStack` is a
+struct too; the control has to exercise the same **shape** as whatever might be
+missed.
+
+~~**十四present、二absent**~~ **十五 present、一 absent，2026-09-09 重新推導。** 重新產生的指令
+如上，並請注意**改變的是模式的形狀，不只是內容**：兩個控制項刻意寫在迴圈裡，讓人無法在不帶控制項
+的情況下執行——`VStack` 必須回傳 1，`ZZZNotARealType` 必須回傳 0。先前的配方是
+`public struct $n\b`，它**受限於形狀**——只看得見 `struct`，因此以 `final class`、`enum` 或
+`protocol` 形式出貨的 view 會被讀成缺席。針對**字串**的控制項（`VStack`）抓不到這件事，因為
+`VStack` 本身也是 struct；控制項必須演練與可能被漏掉之物**相同的形狀**。
 
 **The denominator is still sixteen.** `GridRow` (`Views/Grid.swift:124`),
 ~~`GridItem` (`Views/GridItem.swift:45`) and the internal `GridCellsProviding`

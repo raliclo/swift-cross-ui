@@ -938,10 +938,10 @@ with `grep -rl "public struct Form\b" Sources/SwiftCrossUI/` and the like.
 | **focus, accessibility, shortcuts** | *nothing* | `FocusState`, `focused`, `keyboardShortcut`, and every `accessibility*` modifier |
 | **style protocols** (re-measured 2026-09-08, three times) | `DatePickerStyle`, `ListStyle`, `PickerStyle`, `ToggleStyle`, `ShapeStyle`, `LabelStyle`, `ButtonStyle`, `TextFieldStyle`, `ProgressViewStyle` | *nothing* — **9 of 9 present**. This cell has now been wrong twice on the same day, in the same direction, and both readings are kept because the pattern is the point. The first put `ButtonStyle` in the absent column and was right that morning; it landed later the same day, together with `PrimitiveButtonStyle` (the rename of upstream's struct) and `BackendFeatures.ButtonPressState`. The second read "`TextFieldStyle`, `ProgressViewStyle` — **7 of 9 present**", and `TextFieldStyle` landed that evening (`Views/Styles/TextFieldStyle/`, open rather than SwiftUI's closed protocol, all five backends) while `ProgressViewStyle` was **already present when that reading was written** (`Views/Styles/ProgressViewStyle/`). A row that names what is absent goes stale the moment someone implements one, and nothing makes them open this file — re-run the loop above the first table |
 | **gestures** | tap and hover, at backend level | `DragGesture`, `LongPressGesture`, `MagnificationGesture`, `RotationGesture`, `simultaneousGesture` |
-| **common views** (re-measured 2026-09-08) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid` | `ScrollViewReader`, `ColorPicker` — **14 of 16 present**. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
+| **common views** (re-measured 2026-09-09) | `Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `Gauge`, `DisclosureGroup`, `LabeledContent`, `Link`, `Grid`, `ControlGroup`, `GroupBox`, `LazyVGrid`, `ColorPicker` | `ScrollViewReader` — **15 of 16 present** (regenerate: the shape-agnostic loop under "Re-derived 2026-09-09" below; do not quote this number without running it). ~~**14 of 16**, `ColorPicker` absent~~ — wrong from `e6165e8a` (2026-09-08 04:36) onward, which is when `ColorPicker` landed at `Views/ColorPicker.swift:39`. The 2026-09-01 reading of this row was "`Form`, `Section`, `Label`, `Stepper`, `LazyVStack`, `LazyHStack`, `LazyVGrid`, `Grid`, `ScrollViewReader`, `ControlGroup`, `GroupBox`, `Gauge` — twelve checked, twelve absent", kept here because *how* it went wrong is the useful part: see the note below the table |
 | **state wrappers** (re-measured 2026-09-08) | `State`, `Binding`, `Environment`, `AppStorage`, `Published`, `StateObject`, `ObservedObject`, `EnvironmentObject` | `SceneStorage` — **3 of the 4 that were absent have landed**. The 2026-09-01 reading of this row listed `StateObject`, `ObservedObject`, `EnvironmentObject` and `SceneStorage` as absent, and is kept here because it is still quoted elsewhere: `StateObject` and `ObservedObject` landed before this re-measure, `EnvironmentObject` in it. Do not repeat the phrasing "only a Settings scene remains" from the #35 entry — see the note below the table |
 | **scenes** | `WindowGroup`, `SceneBuilder` | `Settings`, `DocumentGroup` |
-| **presentation** (re-measured 2026-09-08) | `sheet`, `alert`, `presentationDetents`, `confirmationDialog`, `safeAreaInset`, `popover`, `navigationTitle` | `fullScreenCover`, `toolbar`, `refreshable` — **7 of 10 present**. The reading kept above the re-measure was "`popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset`" absent, which was wrong on two counts *before* today's work: `confirmationDialog` (`ConfirmationDialogModifier.swift:50`) and `safeAreaInset` (`SafeAreaInsetModifier.swift:39`) were already implemented, and `refreshable` was absent but had left the list. `popover` and `navigationTitle` landed 2026-09-08 |
+| **presentation** (re-measured 2026-09-09) | `sheet`, `alert`, `presentationDetents`, `confirmationDialog`, `safeAreaInset`, `popover`, `navigationTitle`, `fullScreenCover`, `toolbar`, `refreshable` | none — **10 of 10 present** (regenerate: `for n in sheet alert presentationDetents confirmationDialog safeAreaInset popover navigationTitle fullScreenCover toolbar refreshable; do printf '%-22s %s\n' "$n" "$(grep -rlE "public func $n\b\|public func $n<" Sources/SwiftCrossUI/ \| wc -l)"; done` — control it with `padding` → 1 and `ZZZNotAModifier` → 0). ~~`fullScreenCover`, `toolbar`, `refreshable` absent — **7 of 10**~~: `fullScreenCover` was already present when that was written (`22e53afc`, see the struck-through divergence #4 below), `refreshable` is `Modifiers/Handlers/RefreshableModifier.swift:23` (`e7c7afc0`), and `toolbar` is `Modifiers/ToolbarModifier.swift:14` with all five backend files present (`064b9458`). Presence here is the modifier, not per-backend behaviour — see divergence #4 for what `fullScreenCover` actually does on each. The reading kept above the re-measure was "`popover`, `confirmationDialog`, `fullScreenCover`, `toolbar`, `navigationTitle`, `safeAreaInset`" absent, which was wrong on two counts *before* today's work: `confirmationDialog` (`ConfirmationDialogModifier.swift:50`) and `safeAreaInset` (`SafeAreaInsetModifier.swift:39`) were already implemented, and `refreshable` was absent but had left the list. `popover` and `navigationTitle` landed 2026-09-08 |
 
 Three things this makes visible that the category list did not:
 
@@ -1002,35 +1002,51 @@ Three things this makes visible that the category list did not:
   fraction was never true and should not be restated; the real figure on
   2026-09-08 was **10 present of 16**.
 
-  Re-derived 2026-09-08 with the `grep -rl` recipe above the table:
+  **Re-derived 2026-09-09. This is the regeneration command — it lives next to
+  the number on purpose, because a number nobody can re-derive is guaranteed to
+  be wrong later and the next reader will not know it.**
 
   ```
   for n in Form Section Label Stepper LazyVStack LazyHStack Gauge \
            DisclosureGroup LabeledContent Link Grid ControlGroup GroupBox \
-           LazyVGrid ScrollViewReader ColorPicker; do
+           LazyVGrid ScrollViewReader ColorPicker VStack ZZZNotARealType; do
       printf '%-18s %s\n' "$n" \
-        "$(grep -rl "public struct $n\b" Sources/SwiftCrossUI/ | wc -l)"
+        "$(grep -rlE "public [a-z ]*(struct|class|enum|protocol) $n\b" \
+             Sources/SwiftCrossUI/ | wc -l)"
   done
   ```
 
-  Control the grep before believing a zero: `VStack` returns 1 file and
-  `ZZZNotARealType` returns 0. A pattern that is simply wrong looks exactly like
-  a feature that is missing, and this table has been caught by that once already.
+  Two controls are inside the loop deliberately, so nobody can run it without
+  them: `VStack` must return 1 and `ZZZNotARealType` must return 0. A pattern
+  that is simply wrong looks exactly like a feature that is missing, and this
+  table has been caught by that once already.
+
+  ~~`grep -rl "public struct $n\b"`~~ was the earlier recipe, and it is
+  **shape-bound**: it can only see a `struct`. A view that ships as a `final
+  class`, an `enum` or a `protocol` reads as absent, and nothing says so. The
+  pattern above asks for any of the four. The string-level control (`VStack`)
+  does not catch this, because `VStack` is a struct too — a control has to
+  exercise the same *shape* as the thing that might be missed, not just the
+  same *string*.
 
   `Grid`, `ControlGroup`, `GroupBox` and `LazyVGrid` landed **2026-09-08** as
   pure composition — `Views/Grid.swift`, `Views/ControlGroup.swift`,
-  `Views/GroupBox.swift` and `LazyVGrid` in `Views/LazyStacks.swift`. That moves
-  the row from 10 present of 16 to **14 of 16**. `GridRow`, `GridItem` and the
-  `GridCellsProviding` helper shipped with them but are deliberately **not**
-  added to the sixteen-name list — growing the denominator to flatter the
-  fraction is the exact move that produced the wrong number above.
+  `Views/GroupBox.swift`, and `LazyVGrid` in ~~`Views/LazyStacks.swift`~~
+  **`Views/LazyVGrid.swift:97`**, its own file. (`parity-gaps-survey.md` was
+  corrected on the same point; this copy was not, which is the cost of writing
+  a file path twice.) `ColorPicker` landed **2026-09-08** in `e6165e8a` at
+  `Views/ColorPicker.swift:39`. That is **15 of 16**.
 
-  The two that remain are the two that are not composition:
-  `ScrollViewReader` needs a new `BackendFeatures` requirement on all five
-  backends (`ScrollContainers` has no programmatic scroll at all), and
-  `ColorPicker` is tracked separately as #88.
+  `GridRow`, `GridItem` and the `GridCellsProviding` helper shipped with them
+  but are deliberately **not** added to the sixteen-name list — growing the
+  denominator to flatter the fraction is the exact move that produced the wrong
+  number above.
 
-  Re-derive the whole table with the `grep -rl` recipe before quoting any of it.
+  The one that remains is the one that is not composition: `ScrollViewReader`
+  needs a new `BackendFeatures` requirement on all five backends
+  (`ScrollContainers` has no programmatic scroll at all).
+
+  Re-derive the whole table with the loop above before quoting any of it.
 
 **A behavioural divergence, found 2026-09-01 and not visible in the table
 above.** `overlay` exists on both sides, so the inventory calls it present, and
@@ -1579,9 +1595,57 @@ they are grouped as one job rather than filed as six unrelated defects.
    The model is deliberately **not** owned by an `@State` on the `App`, because
    that would make the App's own subscription refresh the whole scene graph and
    the bug would look fixed before it was.
-4. **`fullScreenCover` is a sheet with pinned options**, so on macOS, GTK and
+4. ~~**`fullScreenCover` is a sheet with pinned options**, so on macOS, GTK and
    WinUI it appears inset rather than covering. The fix is sizing, in
-   `SheetModifier`, not in any backend.
+   `SheetModifier`, not in any backend.~~
+
+   **Kept, struck through, because it was false on the day it was written --
+   not stale.** This entry is `557143fe` (2026-09-08 09:33). The sizing fix it
+   asks for is `22e53afc` (2026-09-08 07:55), which is an **ancestor** of it,
+   one hour thirty-eight minutes earlier:
+
+   ```
+   git show -s --format=%ci 22e53afc   # 2026-09-08 07:55:31 +0800
+   git show -s --format=%ci 557143fe   # 2026-09-08 09:33:15 +0800
+   git merge-base --is-ancestor 22e53afc 557143fe && printf 'ancestor\n'
+   ```
+
+   That is the part worth keeping. A document that decays can be caught by
+   re-reading it; this one could not, because it was never true, and its age
+   would never have made it suspect. The guard is to check the code **before
+   writing a gap down**, not only before acting on one.
+
+   What was right: **"a sheet with pinned options" is exact.**
+   `FullScreenCoverModifier.swift:33` calls `sheet(isPresented:onDismiss:)` and
+   pins five things at `:46-50`.
+
+   What is already fixed: **the sizing half.** `22e53afc` added the second
+   layout pass at `SheetModifier.swift:221-232`, gated on `fillsPresentation`
+   (`:76`), which is true for `.large` and for `.fraction(>= 1)` (`:82`). The
+   entry's own prescription was itself only half right: the proposal alone did
+   nothing until `.frame(maxWidth: .infinity, maxHeight: .infinity)` was added
+   at `FullScreenCoverModifier.swift:46`. A proposal is an **offer** -- a VStack
+   takes its ideal size and leaves the rest, which is how the cover came out at
+   431x128 inside a 780x620 window.
+
+   What actually remains is **per-backend mechanism, not sizing**:
+
+   | backend | mechanism | state |
+   | --- | --- | --- |
+   | Gtk | a separate undecorated top-level window (`Sheet: Gtk.Window`, `GtkBackend.swift:66`) | covers, but 782x583 measured against a 780x581 parent content area. The 2 points are the **unconditional** 1px border at `GtkBackend.swift:4726-4728`, which no detent turns off |
+   | AppKit | `beginSheet` (`AppKitBackend+Sheet.swift:84`) | reported covering by screenshot on the Mac side, 2026-09-08; not re-verifiable from a Windows host |
+   | WinUI | `ContentDialog` sized to the window | **never run.** It also silently drops `cornerRadius` (`WinUIBackend+Sheets.swift:103`) and `interactiveDismissDisabled` (`:107`) -- both are *named* parameters the body never reads, unlike `detents _:` and `dragIndicatorVisibility _:` beside them, which at least say so |
+   | UIKit | `.pageSheet` (`UIKitBackend+Sheet.swift:10`) | cannot reach the top of the screen. On iOS 15 a `.fraction` detent degrades to `.medium()` (`:153`, `:164`) |
+   | Android | a Material bottom sheet | `updateSheet` ignores detents outright, with a TODO at `AndroidBackend+Sheets.swift:49-51` |
+
+   **This needs a human decision before anyone implements it.** The gap cannot
+   be closed inside `FullScreenCoverModifier.swift`, because that file's
+   founding premise -- no new backend requirement, each backend's own sheet is
+   what appears (`:4-10`) -- is precisely what produces the three non-covering
+   mechanisms. Closing it means either a new `BackendFeatures` requirement on
+   all five backends, or accepting that `fullScreenCover` means "the platform's
+   most covering presentation" rather than "covers". That is a scope call, not
+   a bug fix.
 
 The last two are not silent, and are cheaper:
 
@@ -1646,8 +1710,48 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
    由全域持有的 model，並於 t+3 秒時修改它：修正前，body 求值停在 #11，從未看見新值；修正後，
    `BODY #12 count = 1` 在修改的當下立刻出現。該 model 刻意**不**由 `App` 上的 `@State` 持有，
    因為那會讓 App 自身的訂閱刷新整個 scene graph，於是缺陷在被修好之前就會看起來像是修好了。
-4. **`fullScreenCover` 是一個被釘死選項的 sheet**，因此在 macOS、GTK 與 WinUI 上呈現為內縮的
-   對話框而非全幅覆蓋。修正點在 `SheetModifier` 的尺寸提案，不在任何 backend。
+4. ~~**`fullScreenCover` 是一個被釘死選項的 sheet**，因此在 macOS、GTK 與 WinUI 上呈現為內縮的
+   對話框而非全幅覆蓋。修正點在 `SheetModifier` 的尺寸提案，不在任何 backend。~~
+
+   **保留並劃掉，因為它在被寫下的那一天就已經是錯的——不是後來才過期。** 這一條出自 `557143fe`
+   （2026-09-08 09:33）。它所要求的尺寸修正是 `22e53afc`（2026-09-08 07:55），而後者是前者的
+   **祖先**，早了一小時三十八分：
+
+   ```
+   git show -s --format=%ci 22e53afc   # 2026-09-08 07:55:31 +0800
+   git show -s --format=%ci 557143fe   # 2026-09-08 09:33:15 +0800
+   git merge-base --is-ancestor 22e53afc 557143fe && printf 'ancestor\n'
+   ```
+
+   這才是值得留下的部分。會過期的文件，重讀一次就抓得到；這一條抓不到，因為它從來沒有真過，而它的
+   「年紀」永遠不會讓人起疑。防線在於**在把一項缺口寫下來之前**就去查程式碼，而不是只在要動手做它
+   之前才查。
+
+   當時對的部分：**「一個被釘死選項的 sheet」完全正確。**
+   `FullScreenCoverModifier.swift:33` 呼叫 `sheet(isPresented:onDismiss:)`，並在 `:46-50` 釘死五項。
+
+   已經修好的部分：**尺寸那一半。** `22e53afc` 在 `SheetModifier.swift:221-232` 加了第二輪佈局，
+   由 `fillsPresentation`（`:76`）把關——`.large` 與大於等於一的 `.fraction`（`:82`）為真。而這一條
+   自己開出的處方也只對了一半：光有提議什麼都沒發生，直到
+   `FullScreenCoverModifier.swift:46` 加上 `.frame(maxWidth: .infinity, maxHeight: .infinity)` 為止。
+   提議終究只是**提議**——VStack 取它的理想尺寸、剩下的留著不用，這正是該 cover 在 780x620 的視窗中
+   以 431x128 收場的原因。
+
+   真正剩下的是**各 backend 的機制，不是尺寸**：
+
+   | backend | 機制 | 狀態 |
+   | --- | --- | --- |
+   | Gtk | 另開一個無裝飾的頂層視窗（`Sheet: Gtk.Window`，`GtkBackend.swift:66`） | 確實覆蓋，但實測為 782x583，而父視窗內容區為 780x581。那 2 點來自 `GtkBackend.swift:4726-4728` 的**無條件** 1px 邊框，沒有任何 detent 關得掉它 |
+   | AppKit | `beginSheet`（`AppKitBackend+Sheet.swift:84`） | Mac 端於 2026-09-08 以截圖回報確實覆蓋；無法從 Windows 主機複驗 |
+   | WinUI | 尺寸設為視窗大小的 `ContentDialog` | **從未跑過。** 它同時靜默丟棄 `cornerRadius`（`WinUIBackend+Sheets.swift:103`）與 `interactiveDismissDisabled`（`:107`）——兩者都是**具名**參數，而函式本體從未讀取，不像旁邊的 `detents _:` 與 `dragIndicatorVisibility _:` 至少還明說了 |
+   | UIKit | `.pageSheet`（`UIKitBackend+Sheet.swift:10`） | 到不了螢幕頂端。在 iOS 15 上，`.fraction` detent 會退化為 `.medium()`（`:153`、`:164`） |
+   | Android | Material bottom sheet | `updateSheet` 直接忽略 detents，在 `AndroidBackend+Sheets.swift:49-51` 留有 TODO |
+
+   **這件事在動手實作之前需要一個人的決定。** 這個缺口無法在 `FullScreenCoverModifier.swift` 內部
+   收掉，因為該檔案的立基前提——不新增 backend 需求、出現的正是各 backend 自身的 sheet（`:4-10`）
+   ——正是那三種不覆蓋之機制的來源。要收掉它，就得在五個 backend 上新增一項 `BackendFeatures`
+   需求，或者接受 `fullScreenCover` 的語意是「該平台最接近覆蓋的呈現方式」而非「覆蓋」。那是一個
+   範圍決定，不是一次 bug 修正。
 
 後兩項不是靜默的，代價也較低：
 
