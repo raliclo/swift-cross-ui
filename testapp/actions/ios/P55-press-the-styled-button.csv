@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P55 on iOS: press the styled button twice and read both counters back.
+#
+# Measured 2026-09-09 from p55-ios-final-20260909-081252.png. Device: iPhone 16
+# simulator -- window 393 x 852 pt, capture 1179 x 2556 px, coordinates are px/3.
+# The button's grey rectangle occupies pixels x 0..270, y 569..694, so its centre
+# is pixel (135, 631), which is point (45, 210).
+#
+# Pressed TWICE. A style that recorded once on creation would leave
+# `pressed draws: 1` with `clicks: 0`; two presses giving `clicks: 2` and
+# `pressed draws` above 0 cannot be reached that way.
+#
+# **The colour cannot be the evidence, and on this backend that matters more.**
+# UIKit reports press state through UIControl events rather than through a
+# gesture recogniser this app can see, so a broken wiring would leave the button
+# grey and the action still firing -- `clicks` rising while `pressed draws`
+# stays at 0 is precisely the failure, and it is invisible in a photograph taken
+# after the release.
+#
+# P55 在 iOS 上:按兩次那顆帶樣式的按鈕,再把兩個計數器讀回來。
+#
+# 2026-09-09 量測自 p55-ios-final-20260909-081252.png。裝置:iPhone 16 模擬器——視窗 393 x 852 點、
+# 擷圖 1179 x 2556 像素,座標為像素除以 3。該按鈕的灰色矩形佔據像素 x 0..270、y 569..694,
+# 因此其中心為像素 (135, 631),即點 (45, 210)。
+#
+# 按**兩次**。一個「在建立時記錄一次」的 style 會留下 `pressed draws: 1` 而 `clicks: 0`;
+# 兩次按下所得到的 `clicks: 2` 加上大於 0 的 `pressed draws`,走不到那條路上。
+#
+# **顏色無法作為證據,而在這個 backend 上那更重要。** UIKit 是透過 UIControl 事件回報按壓狀態的,
+# 而不是透過這支 app 看得見的手勢辨識器,因此一次壞掉的接線會讓按鈕維持灰色、而 action 照樣觸發——
+# `clicks` 增加而 `pressed draws` 停在 0 正是那個失敗,而它在「放開之後拍的照片」裡是看不見的。
+sleep,,,,,,1000000,let P55 render,ios
+click,45,210,client,left,,,"press -- clicks must become 1 and pressed draws must rise above 0",ios
+sleep,,,,,,600000,let the counters redraw,ios
+click,45,210,client,left,,,"press again -- clicks must become 2",ios
+sleep,,,,,,800000,settle before the photograph,ios

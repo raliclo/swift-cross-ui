@@ -1,0 +1,33 @@
+action,x,y,origin,button,key,micros,note,platform
+# P34 on iOS: the FIRST click alone, which is the only way to verify it.
+#
+# `P34-more-rows.csv` presses both buttons and ends at "showing first 500" -- a
+# number the SECOND click reaches by itself, so that run cannot show the first
+# one landed. This file carries the first click and nothing else, and ends at
+# "showing first 200".
+#
+# **It lives here because its result is cited.** The 2026-09-09 row in
+# results.csv2 says P34's first click was verified "from a run carrying this
+# click ALONE"; that sentence is only checkable if the file that made the run
+# still exists. It spent a day in a scratch directory, which is where a cited
+# artefact stops being reproducible without anything reporting it.
+#
+# Needs `-rows 500`, same as P34-more-rows.csv, or both buttons are no-ops by
+# design:
+#
+#     zsh testapp/test_ios.zsh P34 --no-build \
+#         --actionfile testapp/actions/ios/P34-first-click-alone.csv -- -rows 500
+#
+# P34 在 iOS 上:只按第一個按鈕,而那是驗證它的唯一方式。
+#
+# `P34-more-rows.csv` 會按下兩顆按鈕,並停在「showing first 500」——那個數字第二次點擊自己就能達成,
+# 因此那次執行無法說明第一次點擊有落下。本檔只帶第一次點擊,並停在「showing first 200」。
+#
+# **它存在於此,是因為它的結果被引用了。** results.csv2 中 2026-09-09 的那一列寫著:P34 的第一次點擊
+# 是「從一次只帶這個點擊的執行」中驗證的;而那句話只有在「產生那次執行的檔案仍然存在」時才可被檢查。
+# 它在一個暫存目錄裡待了一天,而那正是一個被引用的產物「停止可重現、卻沒有任何東西回報」的地方。
+#
+# 需要 `-rows 500`,與 P34-more-rows.csv 相同,否則兩顆按鈕依設計都是 no-op。
+sleep,,,,,,800000,let P34 render,ios
+click,42,295,client,left,,,"Show +100 alone -- the header must read showing first 200",ios
+sleep,,,,,,1000000,let the rows build,ios

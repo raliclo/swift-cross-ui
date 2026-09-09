@@ -8,6 +8,12 @@ cd "$(dirname "$0")"/../
 # 見 Scripts/check_submodules.sh。
 sh Scripts/check_submodules.sh || exit 1
 
+# A `(VERIFIED …)` note citing an action file nobody has is a claim nobody can
+# check, and it reads exactly like one they can.
+# 一句引用了「沒有人擁有的動作檔」的 `(VERIFIED …)`，是一個沒有人能檢查的主張，而它讀起來與一個
+# 可以檢查的主張完全相同。
+sh Scripts/check_action_files.sh || exit 1
+
 # `swift test` builds all targets in the package (even those not depended upon
 # by any test targets), which leads to `swift test` on its own being broken
 # for SwiftCrossUI

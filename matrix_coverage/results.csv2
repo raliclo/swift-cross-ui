@@ -236,31 +236,31 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-06,windows,gtk4,P10,ok,ok,window,unrecorded,P10-hit-testing.csv: 
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-duplicates-and-split.csv: 
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: 
-2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,unrecorded,P16-force-update.csv: clicks hit 0x0000000000050832
+2026-09-06,windows,gtk4,P16,ok,ASTRAY,window,unrecorded,P16-force-update-winui.csv: clicks hit 0x0000000000050832
 2026-09-06,windows,gtk4,P31,ok,ASTRAY,window,unrecorded,P31-tab-and-escape.csv: clicks hit 0x0000000000010196
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P17,ok,ok,window,unrecorded,P17-picker-and-sizes.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
-2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update.csv: 
+2026-09-06,windows,gtk4,P16,ok,ok,window,unrecorded,P16-force-update-winui.csv: 
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-duplicates-and-split.csv: 
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update-winui.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P31,ok,ok,window,unrecorded,P31-tab-and-escape.csv: 
 2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
@@ -279,7 +279,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
 2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update-winui.csv: measured at 916x639, ran at 928x629 -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
 2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
@@ -306,7 +306,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
 2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update-winui.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
 2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
@@ -333,7 +333,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
 2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update-winui.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
 2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
@@ -360,7 +360,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-06,windows,gtk4,P13,ok,GEOMETRY,window,unrecorded,"P13-duplicates-and-split.csv: measured at 928x798, ran at 928x1015 (off by 0x217) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P13,ok,ok,window,unrecorded,P13-zorder.csv: no measured size in the action file -- geometry unchecked
 2026-09-06,windows,gtk4,P15,ok,GEOMETRY,window,unrecorded,"P15-colour-scheme.csv: measured at 748x558, ran at 748x589 (off by 0x31) -- coordinates address a different layout"
-2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
+2026-09-06,windows,gtk4,P16,ok,GEOMETRY,window,unrecorded,"P16-force-update-winui.csv: measured at 916x639, ran at 928x629 (off by 12x10) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P17,ok,GEOMETRY,window,unrecorded,"P17-picker-and-sizes.csv: measured at 928x898, ran at 928x907 (off by 0x9) -- coordinates address a different layout"
 2026-09-06,windows,gtk4,P18,ok,ASTRAY,window,unrecorded,P18-three-dialogs.csv: clicks hit 0x000000000001025e
 2026-09-06,windows,gtk4,P19,ok,ok,desktop,unrecorded,P19-menu-open.csv: no measured size in the action file -- geometry unchecked
@@ -417,7 +417,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-07,windows,gtk4,P7,ok,ok,window,unrecorded,P7-list-selection.csv
 2026-09-07,windows,gtk4,P11,ok,-,window,unrecorded,
 2026-09-07,windows,gtk4,P7,ok,ok,window,unrecorded,P7-list-selection.csv
-2026-09-07,android,android,P46,ok,ok,window,unrecorded,"increment-the-state-object: replayed P46-actions.csv; model.count 0 -> 1 while ""P46Model constructions"" stays 1, which is the @StateObject contract and the reason the app exists -- reading model.count alone cannot tell a pass from a model rebuilt on every update. Content box (0,0)-(1080,2751), fits horizontally, 351 px below the fold"
+2026-09-07,android,android,P46,ok,ok,window,unrecorded,"increment-the-state-object: replayed P46-increment-the-state-object.csv; model.count 0 -> 1 while ""P46Model constructions"" stays 1, which is the @StateObject contract and the reason the app exists -- reading model.count alone cannot tell a pass from a model rebuilt on every update. Content box (0,0)-(1080,2751), fits horizontally, 351 px below the fold"
 2026-09-07,ios,uikit,P0,ok,ok,window,unrecorded,"appstorage: replayed 6 actions, XCUITest EXECUTE SUCCEEDED with 0 failures. First iOS run on this machine where the replay actually ran -- until 2026-09-07 the XCUITest runner could not read an action file from /Volumes and reported nothing, so all 47 earlier iOS logs contain no replay line at all"
 2026-09-07,ios,uikit,P1,ok,ok,window,unrecorded,"open-file-dialog: replayed 2 actions, XCUITest EXECUTE SUCCEEDED with 0 failures. First iOS run on this machine where the replay actually ran -- until 2026-09-07 the XCUITest runner could not read an action file from /Volumes and reported nothing, so all 47 earlier iOS logs contain no replay line at all"
 2026-09-07,ios,uikit,P10,ok,ok,window,unrecorded,"hit-testing: replayed 6 actions, XCUITest EXECUTE SUCCEEDED with 0 failures. First iOS run on this machine where the replay actually ran -- until 2026-09-07 the XCUITest runner could not read an action file from /Volumes and reported nothing, so all 47 earlier iOS logs contain no replay line at all"
