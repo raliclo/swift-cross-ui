@@ -527,7 +527,14 @@ for line in sys.stdin:
             printf '  csv2 is not on PATH; refusing to parse %s by hand\n' "${targets_file:t}" >&2
         fi
         printf 'would send to:\n'
-        read_targets | awk -F'\x1f' '{ printf "  %s/%s via %s (%s)\n", $1, $6, $3, $8 }'
+        # \037 octal, not \x1f: BSD awk does not read the hex form as a separator and
+    # silently treats the whole record as one field, so this printed the entire
+    # row on one line with the columns run together. It looked like a formatting
+    # nit; it was the separator not being applied at all.
+    # 用八進位的 \037，不用 \x1f：BSD 的 awk 不會把十六進位那個形式當成分隔符，而是靜默地把整筆
+    # 記錄當成單一欄位，於是此處印出的是整列擠在一行、欄位全部黏在一起。它看起來像排版小疵，
+    # 實際上是那個分隔符根本沒有生效。
+    read_targets | awk -F'\037' '{ printf "  %s/%s via %s (%s)\n", $1, $6, $3, $8 }'
         # Said out loud, because "no rows are switched on" and "the file could
         # not be read" produce the same silence otherwise.
         # 明講出來，因為「沒有任何一列被開啟」與「這個檔案讀不到」否則會產生同樣的沉默。
