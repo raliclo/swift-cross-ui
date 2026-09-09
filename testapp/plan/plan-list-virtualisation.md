@@ -134,7 +134,30 @@ requirement's shape is derived rather than guessed.
 2. **讓一個 backend 的清單擁有自己的高度。** 只做 AppKit:啟用那個 scroll view、給 table 一個
    視口大小的框、讓 `List` 不再加總。檢驗:P57 在 400 列時視窗高度不變。
    *此階段不加任何 protocol requirement,因此不會有建置空窗。*
-3. **依需求建立列。** 上述第四節。檢驗:P57 在 10,000 列時仍然開得起來。
+3. **依需求建立列。** 上述第四節。
+   **~~檢驗:P57 在 10,000 列時仍然開得起來。~~ 那個標準是錯的,而它錯的方式值得記下來:phase 2
+   落地之後,它已經通過了。** 2026-09-09 實測,macOS、10,000 列:app 開得起來、視窗是 640x979
+   (與 400、2,000 列相同)、畫面上有 row 1 到 row 25。一個「在工作做完之前就會通過」的檢驗標準,
+   與一個測不到任何東西的檢驗標準是同一回事。
+
+   另外兩個看似合理的數字也分辨不出來,兩者都實測過:P57 自報的 `firstRender` 在 400 列時是
+   0.002 秒——`onAppear` 早於列的建構;而「行程啟動到 RENDER COMPLETE」在 400 列與 10,000 列時
+   都是 0.10 秒(交錯 4 輪取最小值),理由相同。
+
+   **真正會現形的是常駐記憶體**(交錯 3 輪取最小值,同一個二進位檔、只有 `-rows` 變動):
+
+   | rows | RSS |
+   | --- | --- |
+   | 400 | 114 MB |
+   | 10,000 | 423 MB |
+
+   約每列 32 KB,而那是線性的——十萬列會是 3 GB 左右,那才是它真正壞掉的地方。
+   **因此 phase 3 的檢驗標準是:RSS 必須停止隨列數增長。** 不是「開得起來」,不是計時。
+
+   *The old criterion passed once phase 2 landed, before the work it was meant to gate had
+   begun. Two plausible timings cannot tell 400 rows from 10,000 either -- `onAppear` fires
+   before the rows are built. Resident memory is what grows: 114 MB against 423 MB, about
+   32 KB a row, linear. The criterion is that this stops growing.*
 4. **推廣到其餘四個 backend。** UIKit ✅ 與 Android ✅ 已完成(`c88e3994`)。
    **此處學到的一件事值得先寫下來:phase 2 的檢驗標準在這兩個平台上都不適用。** iOS 與 Android 的
    視窗就是螢幕,因此「視窗有沒有停止長大」在那裡不可能失敗,也因此什麼都證明不了——iOS 上 50 列與

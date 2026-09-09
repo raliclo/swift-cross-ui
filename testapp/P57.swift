@@ -80,6 +80,40 @@ enum P57Diagnostics {
     static func write(_ message: String) {
         guard isEnabled else { return }
         print("[P57] \(message)")
+
+        // **This app used to print and nothing else, and that cost a finding.**
+        // A threshold sweep was written against `p57-debug-events.log`, which
+        // P57 never created; every scenario came back RENDERED because the
+        // absence of the file was read as the absence of a problem. The file is
+        // written now, following the same `SCUI_DEBUG_EVENTS_DIR` contract as
+        // P10 and the rest -- documented in testapp/test_support/test_common.zsh.
+        //
+        // Printing alone is also unreadable on macOS in practice: the process
+        // is a GUI app that does not exit, so a pipe's buffer is never flushed
+        // and `./P57 --debug | grep` returns nothing at all.
+        //
+        // **這支 app 過去只有 print、沒有別的,而那讓一次量測付出了代價。** 有一份門檻掃描是對著
+        // `p57-debug-events.log` 寫的,而 P57 從來不曾建立那個檔案;於是每一個情境都回報 RENDERED
+        // ——「檔案不存在」被讀成了「沒有問題」。現在它會寫出該檔案,沿用與 P10 及其餘各支相同的
+        // `SCUI_DEBUG_EVENTS_DIR` 約定,該約定記載於 testapp/test_support/test_common.zsh。
+        //
+        // 只靠 print 在 macOS 上實務上也讀不到:這個行程是一支不會結束的 GUI app,因此管線的緩衝區
+        // 永遠不會被沖出,`./P57 --debug | grep` 什麼也拿不到。
+        guard let data = "P57 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(
+            fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                ?? FileManager.default.currentDirectoryPath
+        )
+        .appendingPathComponent("p57-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 
     static func renderComplete() {
