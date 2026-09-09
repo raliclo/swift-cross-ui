@@ -43,23 +43,86 @@ public struct WindowGeometry: Equatable, Sendable {
     /// 仍然照乘 1.25，誤差便由動作檔吸收了——這正是一個「本應與縮放無關」的格式並非如此的原因。
     public var scale: Double
 
+    /// Top-left of the popover, menu or modal currently open over this window,
+    /// or `nil` when there is none -- or when the platform cannot find one.
+    ///
+    /// Optional rather than defaulted to the frame origin, because those two
+    /// answers must not be confusable. A default would make "no popover is
+    /// open" and "the popover is exactly at the window's corner" the same
+    /// value, and the first has to be an error. See ``Origin/popover``.
+    ///
+    /// 目前開啟於本視窗之上的 popover、選單或 modal 的左上角;沒有時——或該平台找不到時——為 `nil`。
+    ///
+    /// 採 optional 而非預設為 frame 原點,因為那兩個答案不可以混為一談。若給預設值,「沒有 popover
+    /// 開著」與「popover 恰好位於視窗角落」會是同一個值,而前者必須是一個錯誤。見 ``Origin/popover``。
+    public var popoverOrigin: (x: Double, y: Double)?
+
     public init(
         frameOrigin: (x: Double, y: Double),
         clientOrigin: (x: Double, y: Double),
-        scale: Double = 1
+        scale: Double = 1,
+        popoverOrigin: (x: Double, y: Double)? = nil
     ) {
         self.frameOrigin = frameOrigin
         self.clientOrigin = clientOrigin
         self.scale = scale
+        self.popoverOrigin = popoverOrigin
     }
 
+    /// `popoverOrigin` is compared too, for consistency with the other fields.
+    ///
+    /// **This operator decides nothing today, and an earlier version of this
+    /// comment claimed it decided the mid-replay re-measure.** It does not:
+    /// `replay(_:in:)` keys that off `currentWindowIdentity()`, and a grep for
+    /// `geometry ==` across `Sources/` returns nothing. The claim was written
+    /// from the type's shape rather than from its callers -- the same mistake
+    /// this file's neighbours keep recording, made here while fixing one.
+    ///
+    /// Included anyway so that a future caller comparing two geometries gets an
+    /// answer that accounts for every field, rather than one that silently
+    /// ignores the newest.
+    ///
+    /// `popoverOrigin` 也參與比較,以與其他欄位保持一致。
+    ///
+    /// **這個運算子今天什麼都沒決定,而本註解的前一個版本聲稱它決定了「重放途中的重新量測」。**
+    /// 並非如此:`replay(_:in:)` 是以 `currentWindowIdentity()` 為鍵,而在 `Sources/` 中 grep
+    /// `geometry ==` 一個命中也沒有。那個說法是**從型別的形狀**寫出來的,而不是從它的呼叫端
+    /// ——正是本檔鄰近程式碼一再記錄的那個錯誤,而這次是在修正其中一個時犯下的。
+    ///
+    /// 仍然納入它,是為了讓未來某個比較兩份 geometry 的呼叫端得到一個「涵蓋每個欄位」的答案,
+    /// 而不是一個悄悄忽略最新欄位的答案。
     public static func == (a: WindowGeometry, b: WindowGeometry) -> Bool {
         a.frameOrigin == b.frameOrigin && a.clientOrigin == b.clientOrigin && a.scale == b.scale
+            && a.popoverOrigin?.x == b.popoverOrigin?.x
+            && a.popoverOrigin?.y == b.popoverOrigin?.y
     }
 
     /// Converts a window-relative point to physical screen pixels.
-    public func screenPosition(of point: Point) -> (x: Int, y: Int) {
-        let origin = point.origin == .frame ? frameOrigin : clientOrigin
+    ///
+    /// Throws for `origin=popover` when there is no popover, rather than
+    /// falling back. See ``Origin/popover`` for why a fallback would be worse
+    /// than an error here.
+    /// 當 `origin=popover` 而沒有 popover 時會擲出錯誤,而非退回其他原點。理由見 ``Origin/popover``。
+    public func screenPosition(of point: Point) throws -> (x: Int, y: Int) {
+        let origin: (x: Double, y: Double)
+        switch point.origin {
+            case .frame:
+                origin = frameOrigin
+            case .client:
+                origin = clientOrigin
+            case .popover:
+                guard let popoverOrigin else {
+                    throw SynthesiserError.unsupported(
+                        "origin=popover, but no popover, menu or modal is open over the window "
+                            + "being driven. This is not a fallback: a row with this origin names a "
+                            + "point inside a popover, and resolving it against the window instead "
+                            + "would click a plausible wrong place. Open the popover in an earlier "
+                            + "row, and give it time to map -- the replay's window dump lists every "
+                            + "top-level it can see."
+                    )
+                }
+                origin = popoverOrigin
+        }
         return (
             x: Int(((origin.x + point.x) * scale).rounded()),
             y: Int(((origin.y + point.y) * scale).rounded())
@@ -268,6 +331,40 @@ extension Synthesiser {
                         + "client=(\(geometry.clientOrigin.x), \(geometry.clientOrigin.y)) "
                         + "scale=\(geometry.scale)"
                 )
+            }
+            // A popover does not change the driven window's identity, so the
+            // check above never fires for one. MEASURED 2026-09-09 and this is
+            // the run that found it: the first `origin=popover` file failed with
+            // "no popover is open" while the replay's own dump, printed in the
+            // same second, listed `291x221@289,577` owned by the very window
+            // being driven. The geometry had been read once, before the anchor
+            // click, when there genuinely was no popover -- and nothing asked
+            // again.
+            //
+            // Re-measured for THESE ROWS ONLY, which is what keeps the design
+            // above intact: a file that drags a window by its title bar and then
+            // clicks uses `frame` or `client` and is untouched by this branch.
+            //
+            // Unconditionally, not `if popoverOrigin == nil`. A file may dismiss
+            // one popover and open another without the driven window changing,
+            // and the cheaper test would then resolve the second row against the
+            // FIRST popover's corner -- a plausible wrong place, which is the
+            // failure `origin=popover` exists to remove.
+            //
+            // popover 不會改變被驅動視窗的識別值,因此上方那個檢查對它從不觸發。**2026-09-09 實測**,
+            // 而這正是發現它的那一次執行:第一個 `origin=popover` 檔案以「沒有 popover 開著」失敗,
+            // 而重放自己的傾印在同一秒印出了 `291x221@289,577`,其 owner 正是那個被驅動的視窗。
+            // geometry 只在錨點點擊**之前**讀過一次,當時確實沒有 popover——而之後沒有任何東西再問
+            // 一次。
+            //
+            // **只為這類資料列**重新量測,而那正是讓上方設計維持完整的關鍵:一份「以標題列拖曳視窗
+            // 後再點擊」的檔案用的是 `frame` 或 `client`,完全不會進入本分支。
+            //
+            // 採無條件重測,而非 `if popoverOrigin == nil`。一份檔案可能在不改變被驅動視窗的情況下
+            // 關掉一個 popover 再開另一個,而較省的那個判斷會讓第二列以**第一個** popover 的角落來
+            // 換算——落在一個看似合理的錯誤位置,而那正是 `origin=popover` 所要消除的失效樣態。
+            if action.point?.origin == .popover {
+                geometry = try currentWindowGeometry()
             }
             try perform(action, in: geometry)
         }

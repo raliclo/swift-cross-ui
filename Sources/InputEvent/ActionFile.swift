@@ -219,7 +219,7 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
             case .unknownButton(let name, let line):
                 "line \(line): unknown button '\(name)'; expected left, right or middle"
             case .unknownOrigin(let name, let line):
-                "line \(line): unknown origin '\(name)'; expected client or frame"
+                "line \(line): unknown origin '\(name)'; expected client, frame or popover"
             case .unknownPlatform(let name, let line):
                 "line \(line): unknown platform '\(name)'; expected any, macos, windows, gtk, ios or android"
             case .wrongPlatform(let actual, let expected, let line):

@@ -155,7 +155,7 @@ move,252,711,frame,,,,move onto the first anchor,windows
 sleep,,,,,,200000,let the pointer arrive,windows
 click,252,711,frame,left,,,open the first panel -- positive control; writes popover alpha shown,windows
 sleep,,,,,,900000,let the popover map and take its grab,windows
-move,252,837,frame,,,,"move onto the CENTRE of the popover as modelled above; hitTarget must report the popover toplevel or this run measured nothing",windows
+move,145,110,popover,,,,"the CENTRE of the popover, resolved against the popover's own toplevel at replay time -- 291x221 so the centre is (145,110). hitTarget must report the popover",windows
 sleep,,,,,,300000,let the pointer arrive and let any enter event be delivered,windows
-click,252,837,frame,left,,,"press inside the popover anywhere; the capture-phase probe fires wherever it lands, so this asks only whether GTK received it",windows
+click,145,110,popover,left,,,"press inside the popover anywhere; the capture-phase probe fires wherever it lands, so this asks only whether GTK received it",windows
 sleep,,,,,,2000000,hold and let the log catch up,windows

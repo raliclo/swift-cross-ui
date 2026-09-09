@@ -15,6 +15,32 @@ public enum InputAction: Equatable, Sendable {
     case keyUp(Key)
     case key(Key)
 
+    /// The point this action names, or `nil` for one that names none.
+    ///
+    /// Exists so the replay loop can ask what FRAME an action is written
+    /// against without re-deriving the switch at each call site. Its one caller
+    /// today is the `origin=popover` re-measure in ``Synthesiser/replay(_:in:)``.
+    /// 本動作所指定的座標點;不指定座標者為 `nil`。
+    ///
+    /// 它的存在,是為了讓重放迴圈能問出「這個動作是對哪個**參考框架**寫的」,而不必在每個呼叫點
+    /// 重寫一次那個 switch。目前唯一的呼叫端,是 ``Synthesiser/replay(_:in:)`` 中的
+    /// `origin=popover` 重新量測。
+    public var point: Point? {
+        switch self {
+            case .move(let point): point
+            case .click(_, let point), .doubleClick(_, let point),
+                .mouseDown(_, let point), .mouseUp(_, let point): point
+            // `scroll` names no point on purpose -- ActionFile:176 rejects an
+            // `origin` on a scroll row outright, because scrolling does not move
+            // the pointer and a frame there means the writer expected it to.
+            // `sleep` names none for the obvious reason.
+            // `scroll` 刻意不指定座標——ActionFile:176 會直接拒絕 scroll 列上的 `origin`,因為捲動
+            // 並不移動指標,而在該處寫下 frame 即代表撰寫者以為它會移動。`sleep` 不指定座標的理由
+            // 顯而易見。
+            case .keyDown, .keyUp, .key, .scroll, .sleep: nil
+        }
+    }
+
     /// Whether this action is delivered by focus rather than by position.
     ///
     /// A mouse event goes to whatever is on top at the point it names, so a
@@ -96,6 +122,47 @@ public enum Origin: String, Equatable, Sendable {
     /// title bar is drawn by the app rather than the window manager, so the two
     /// origins can coincide on one machine and differ on another.
     case frame
+
+    /// Top-left of the popover, menu or modal that is currently open over the
+    /// window -- a separate top-level owned by it, not a region inside it.
+    ///
+    /// Exists because neither of the other two can address one. Task #111
+    /// measured this three times on 2026-09-09 with the same action file: the
+    /// popover opened BELOW the anchor twice and ABOVE it once, because GTK
+    /// flips it when `anchor_y + height` no longer fits inside the work area,
+    /// and that depends on where the window landed. `origin=frame` survives the
+    /// window moving -- it was chosen for that -- but the side GTK picks and the
+    /// window's position are the same variable, so no fixed frame coordinate can
+    /// name a point inside the popover on every run.
+    ///
+    /// **A row with this origin FAILS when no popover is open.** It does not
+    /// fall back to `client`, and that is deliberate: a fallback would place the
+    /// click somewhere plausible inside the main window, which is exactly the
+    /// reading the earlier measurements had to be rescued from -- a miss and a
+    /// swallowed event look identical from outside.
+    ///
+    /// Windows only so far. `Win32Synthesiser` finds the popover as the visible
+    /// top-level OWNED by the window being driven and smaller than it, which is
+    /// what the replay's own window dump has always printed. The other
+    /// synthesisers report it as unavailable rather than guessing.
+    ///
+    /// 目前開啟於視窗之上的 popover、選單或 modal 的左上角——它是一個被該視窗**擁有的獨立
+    /// top-level**,而不是視窗內部的某塊區域。
+    ///
+    /// 它之所以存在,是因為另外兩者都無法為其定址。任務 #111 於 2026-09-09 以同一個動作檔量了三次:
+    /// popover 有兩次開在錨點**下方**、一次開在**上方**,因為當 `錨點y + 高度` 容不下工作區時 GTK
+    /// 會把它翻面,而那取決於視窗落在哪裡。`origin=frame` 撐得住視窗移動——選它正是為此——但
+    /// **GTK 選哪一側與視窗位置是同一個變數**,因此沒有任何固定的 frame 座標能在每一次執行中都指到
+    /// popover 內部的某個點。
+    ///
+    /// **沒有 popover 開著時,使用本原點的資料列會失敗。** 它**不會**退回 `client`,而那是刻意的:
+    /// 退回會把點擊放在主視窗內某個看似合理的位置,而那正是先前的量測必須被搶救出來的那種解讀
+    /// ——從外部看,「沒打中」與「被吃掉」一模一樣。
+    ///
+    /// 目前僅 Windows。`Win32Synthesiser` 將 popover 認定為「被所驅動視窗擁有、且比它小的可見
+    /// top-level」,那正是重放自己的視窗傾印一直都在印的東西。其他 synthesiser 回報「無法取得」,
+    /// 而不是用猜的。
+    case popover
 }
 
 public enum MouseButton: String, Equatable, Sendable {

@@ -273,7 +273,7 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
         in geometry: WindowGeometry,
         window: NSWindow
     ) -> NSPoint {
-        let screen = geometry.screenPosition(of: point)
+        let screen = try geometry.screenPosition(of: point)
         return window.convertPoint(
             fromScreen: NSPoint(
                 x: Double(screen.x),

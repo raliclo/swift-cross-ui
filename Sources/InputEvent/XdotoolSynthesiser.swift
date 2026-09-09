@@ -187,7 +187,7 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
     public func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
         switch action {
             case .move(let point):
-                let position = geometry.screenPosition(of: point)
+                let position = try geometry.screenPosition(of: point)
                 try run(["mousemove", "\(position.x)", "\(position.y)"])
 
             case .click(let button, let point):
@@ -234,7 +234,7 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
 
     private func moveIfNeeded(_ point: Point?, in geometry: WindowGeometry) throws {
         guard let point else { return }
-        let position = geometry.screenPosition(of: point)
+        let position = try geometry.screenPosition(of: point)
         try run(["mousemove", "\(position.x)", "\(position.y)"])
     }
 

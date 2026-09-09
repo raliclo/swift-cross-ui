@@ -89,11 +89,86 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         // Divided by the scale so both origins are in logical points, which is
         // what an action file's coordinates are. screenPosition multiplies back
         // by the same scale; doing it in one place keeps the round trip honest.
+        var popover: (x: Double, y: Double)?
+        if let hwnd = popoverWindow(over: window) {
+            var rect = RECT()
+            if GetWindowRect(hwnd, &rect) {
+                popover = (Double(rect.left) / scale, Double(rect.top) / scale)
+            }
+        }
+
         return WindowGeometry(
             frameOrigin: (Double(frame.left) / scale, Double(frame.top) / scale),
             clientOrigin: (Double(clientOrigin.x) / scale, Double(clientOrigin.y) / scale),
-            scale: scale
+            scale: scale,
+            popoverOrigin: popover
         )
+    }
+
+    /// The popover, menu or modal open over `owner`, for `origin=popover`.
+    ///
+    /// Deliberately NOT the `GW_ENABLEDPOPUP` walk that ``innermostModal(over:)``
+    /// uses, and the difference is the whole reason this is a separate function.
+    /// That slot holds exactly ONE window, and since Direct Composition became
+    /// GtkBackend's default it is already filled by the main window's own
+    /// content surface -- same size, correctly rejected by ``isSmaller(_:than:)``,
+    /// and the walk therefore never reaches the popover. Measured in #111 on
+    /// 2026-09-09: the popover appeared in the replay's own dump on every action
+    /// while being invisible to that walk.
+    ///
+    /// So this asks the question the dump already answers: among the visible
+    /// top-levels of this process, which one is OWNED by the window being driven
+    /// and smaller than it? On the three runs measured that was the popover and
+    /// nothing else -- `291x221`, owner the main window, against a `808x933`
+    /// main window whose own owner is none.
+    ///
+    /// **This does not change which window a replay drives.** `ownWindow()` is
+    /// untouched, and it must stay untouched: the walk's choice sets the origin
+    /// for `origin=frame`, and making it prefer the popover was tried in #111
+    /// and reverted, because the light-dismiss action file has to click OUTSIDE
+    /// the popover and its coordinates resolve against the main window. This is
+    /// a per-action lookup that sits beside that choice rather than replacing it.
+    ///
+    /// Smallest rather than largest, when more than one qualifies: a menu opened
+    /// from a popover is owned by the same top-level, and the innermost is the
+    /// one an action file means.
+    ///
+    /// 供 `origin=popover` 使用的「開啟於 `owner` 之上的 popover、選單或 modal」。
+    ///
+    /// **刻意不採用** ``innermostModal(over:)`` 所用的 `GW_ENABLEDPOPUP` 走訪,而兩者的差異正是本
+    /// 函式獨立存在的全部理由。那個位置只容納**一個**視窗,而自從 Direct Composition 成為 GtkBackend
+    /// 的預設值之後,它早已被主視窗自己的內容 surface 佔滿——尺寸相同,被 ``isSmaller(_:than:)``
+    /// 正確地拒絕,於是該走訪永遠到不了 popover。此事於 #111 在 2026-09-09 實測:popover 在重放
+    /// 自己的傾印中**每一個動作都出現**,卻對那個走訪不可見。
+    ///
+    /// 因此本函式問的是傾印早已回答的問題:在本行程的可見 top-level 之中,哪一個**被所驅動的視窗
+    /// 擁有**且比它小?在量測過的三次執行中,那就是 popover、且僅有它——`291x221`,owner 為主視窗;
+    /// 而主視窗為 `808x933`、其 owner 為 none。
+    ///
+    /// **本函式不會改變重放所驅動的視窗。** `ownWindow()` 未被更動,而且必須維持不動:走訪的選擇
+    /// 決定了 `origin=frame` 的原點,而「讓它偏好 popover」已在 #111 中試過並撤回,因為 light-dismiss
+    /// 動作檔必須點在 popover **之外**,其座標是對主視窗換算的。本函式是一個**逐動作**的查找,
+    /// 與那個選擇並存而非取代它。
+    ///
+    /// 當符合者不只一個時取**最小**而非最大:由 popover 開啟的選單被同一個 top-level 擁有,而動作檔
+    /// 所指的是最內層的那一個。
+    private func popoverWindow(over owner: HWND) -> HWND? {
+        let ownerKey = UInt(bitPattern: Int(bitPattern: owner))
+        var best: (window: HWND, area: Int)?
+        for candidate in visibleWindows() {
+            guard candidate != owner else { continue }
+            guard let candidateOwner = GetWindow(candidate, UINT(GW_OWNER)),
+                UInt(bitPattern: Int(bitPattern: candidateOwner)) == ownerKey,
+                isSmaller(candidate, than: owner)
+            else { continue }
+            var rect = RECT()
+            guard GetWindowRect(candidate, &rect) else { continue }
+            let area = Int(rect.right - rect.left) * Int(rect.bottom - rect.top)
+            if best == nil || area < best!.area {
+                best = (candidate, area)
+            }
+        }
+        return best?.window
     }
 
     /// The HWND `currentWindowGeometry()` would measure, as a comparable value.
@@ -1009,7 +1084,7 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     }
 
     private func move(to point: Point, in geometry: WindowGeometry) throws {
-        let position = geometry.screenPosition(of: point)
+        let position = try geometry.screenPosition(of: point)
 
         // `SetCursorPos` takes a physical screen coordinate, so multiple
         // monitors need no arithmetic here. Worth stating, because what this
