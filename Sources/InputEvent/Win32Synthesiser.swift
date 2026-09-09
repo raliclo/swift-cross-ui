@@ -168,7 +168,39 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 best = (candidate, area)
             }
         }
-        return best?.window
+        if let best { return best.window }
+
+        // The driven window may already BE the popover, and before 2026-09-10 it
+        // could not be, which is why this branch is new rather than defensive.
+        //
+        // `innermostModal` now resolves a content surface back to its window, so
+        // once a popover is up the walk lands on the POPOVER rather than on the
+        // main window. The search above then asks "which visible window is owned
+        // by the popover and smaller than it" and correctly finds nothing -- so
+        // `origin=popover` failed with "no popover is open" at the exact moment
+        // the code had finally started driving one.
+        //
+        // The test is the same one that identifies a popover anywhere else here:
+        // a visible toplevel, owned by another visible window, and smaller than
+        // its owner. Asking it of `owner` itself costs one call and removes a
+        // failure that would read as the popover being absent.
+        //
+        // 被驅動的那個視窗**本身**可能就是 popover;而在 2026-09-10 之前它不可能是——這正是本分支
+        // 是「新增」而非「防禦性」的原因。
+        //
+        // `innermostModal` 現在會把內容 surface 解析回它的視窗,因此 popover 一旦升起,走訪會落在
+        // **popover** 上而非主視窗上。於是上方的搜尋所問的是「哪一個可見視窗由這個 popover 所擁有
+        // 且比它小」,而它正確地找不到任何東西——`origin=popover` 於是在「程式終於開始驅動一個
+        // popover」的那一刻,以「沒有 popover 開啟」失敗。
+        //
+        // 判準與此處其他地方辨識 popover 所用的完全相同:一個可見的 toplevel、被另一個可見視窗所
+        // 擁有、且比它的擁有者小。對 `owner` 自己問一次這個問題只多一次呼叫,卻消除了一個
+        // 「讀起來像是 popover 不存在」的失敗。
+        guard let ownersOwner = GetWindow(owner, UINT(GW_OWNER)),
+            IsWindowVisible(ownersOwner),
+            isSmaller(owner, than: ownersOwner)
+        else { return nil }
+        return owner
     }
 
     /// The HWND `currentWindowGeometry()` would measure, as a comparable value.
@@ -237,6 +269,13 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 拒絕執行它等於拒絕了一件本來可行的事。
     public func prepareForReplay(_ actions: [InputAction]) throws {
         hideOwnConsoleOnce()
+
+        // Before `ownWindow()`, not after: the remembered focus steers it, so a
+        // stale one from a previous replay in the same process would decide
+        // which window this replay pins and measures.
+        // 放在 `ownWindow()` 之前而非之後:被記住的焦點會左右它,因此同一行程中前一次重放留下的
+        // 陳舊值,會決定這一次重放要釘住並量測哪一個視窗。
+        Self.forgetFocus()
 
         let window = try ownWindow()
 
@@ -735,6 +774,9 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                     try send(wheelFlags: MOUSEEVENTF_HWHEEL, delta: dx * Int(WHEEL_DELTA))
                 }
 
+            case .focus(let window):
+                try focusWindow(titled: window)
+
             case .sleep(let microseconds):
                 // Sleep takes milliseconds. A file asking for 500 microseconds
                 // gets 1ms rather than 0, because rounding a sub-millisecond
@@ -762,6 +804,48 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// 傳入——這是此呼叫的標準寫法，也是使用 `Unmanaged` 來回轉換的原因。
     private func ownWindow() throws -> HWND {
         let candidates = visibleWindows()
+
+        // A `focus` row overrides largest-by-area, and only a `focus` row can.
+        //
+        // Largest-by-area is right for the case it was written for -- one window
+        // plus the toolkit's helpers -- and wrong for the case `focus` exists to
+        // create, because a second window is usually SMALLER than the first. A
+        // settings window would lose the area contest to the main window, so
+        // geometry and identity would both keep answering "main window" after a
+        // successful focus, and every coordinate in the rows below it would be
+        // converted against the wrong frame. Nothing would report that: the
+        // replay would run to the end and click real controls.
+        //
+        // `innermostModal` still applies, so a dialog raised over the focused
+        // window still wins -- the two rules compose rather than replacing each
+        // other.
+        //
+        // `candidates.contains` is the guard that matters: a window that has
+        // since closed must not keep steering the replay, and GTK is documented
+        // in `innermostModal` above as keeping a destroyed HWND around briefly.
+        // Falling back to largest-by-area is the pre-`focus` behaviour, which is
+        // what every file without a `focus` row still gets, unchanged.
+        //
+        // 一列 `focus` 會覆蓋「面積最大」的規則,而且只有 `focus` 能。
+        //
+        // 「面積最大」對它當初被寫出來所針對的情況是對的——單一視窗加上 toolkit 的輔助視窗——而對
+        // `focus` 所要創造的情況是錯的,因為第二個視窗通常**比第一個小**。設定視窗會在面積競賽中
+        // 輸給主視窗,於是在一次成功的 focus 之後,幾何與 identity 都仍然回答「主視窗」,而其下每
+        // 一列的座標都會以錯誤的框架換算。沒有任何東西會回報這件事:重放會一路跑到結束,並點到真實
+        // 的控制項。
+        //
+        // `innermostModal` 仍然適用,因此在焦點視窗之上升起的對話框依然勝出——兩條規則是**疊加**
+        // 的,不是互相取代。
+        //
+        // `candidates.contains` 是關鍵的那道防護:一個已經關閉的視窗不可以繼續主導重放,而上方
+        // `innermostModal` 的註解已載明 GTK 會在對話框銷毀後短暫保留其 HWND。退回「面積最大」即是
+        // `focus` 出現之前的行為,也正是每一個沒有 `focus` 列的檔案至今原封不動得到的行為。
+        if let focused = Self.rememberedFocus(), candidates.contains(focused) {
+            let chosen = innermostModal(over: focused)
+            reportWindowChoice(candidates: candidates, chosen: chosen)
+            return chosen
+        }
+
         guard let largest = largestByArea(of: preferringOwners(among: candidates)) else {
             throw SynthesiserError.unsupported("no visible window for this process")
         }
@@ -958,11 +1042,76 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 // 以尺寸作為判準是正確的，因為那正是本函式當初被寫出來所依據的同一項性質：
                 // 上方的說明記載著 `largestByArea` 總是選中擁有者，**正因為**對話框比較小。
                 // 一個不比較小的 popup，不是這趟走訪要找的東西。
-                isSmaller(popup, than: current)
+                isSmaller(realWindow(behind: popup, unless: current), than: current)
             else { return current }
-            current = popup
+            current = realWindow(behind: popup, unless: current)
         }
         return current
+    }
+
+    /// A Direct Composition content surface resolved back to the window it draws
+    /// for; anything else returned unchanged.
+    ///
+    /// **The size guard above is not enough, and this is the run that proved
+    /// it.** That guard was written on 2026-09-05 for one shape: a toplevel's
+    /// OWN content surface, which is exactly the same size, so `isSmaller`
+    /// rejects it. It says nothing about ANOTHER window's content surface, which
+    /// is smaller than the window we are standing on and sails straight through.
+    ///
+    /// Measured 2026-09-10 driving P50 with a popover open. Four windows exist:
+    ///
+    /// ```
+    /// 0x1cc0650  291x221@0,0     GdkWin32GL         owner=0xbd6070a   <- the popover's surface
+    /// 0xbd6070a  291x221@211,577 gdkSurfaceToplevel owner=0x1205a2    <- the popover
+    /// 0x42a0842  808x933@0,0     GdkWin32GL         owner=0x1205a2    <- the main surface
+    /// 0x1205a2   808x933@104,99  gdkSurfaceToplevel owner=none        <- the main window
+    /// ```
+    ///
+    /// `GW_ENABLEDPOPUP` on the main window returns the TOPMOST enabled owned
+    /// popup, which once the popover is up is `0x1cc0650` -- the popover's
+    /// surface, not the popover. It is smaller than the main window, so the walk
+    /// stepped onto it and the replay reported
+    /// `re-measured geometry frame=(0.0, 0.0)`. Every `origin=frame` coordinate
+    /// after that point was then converted against (0,0) instead of (104,99).
+    ///
+    /// **Nothing failed.** The replay ran on, and the visible symptom was
+    /// `origin=popover, but no popover is open` several rows later -- because
+    /// `popoverWindow(over:)` was then searching for popups owned by a content
+    /// surface, which owns nothing. A message about popovers, produced by a
+    /// z-order walk, three rows away from the cause.
+    ///
+    /// Resolved by ownership rather than by class name, for the reason
+    /// `preferringOwners` already states: `GdkWin32GL` is this toolkit's current
+    /// spelling, and a rule naming it would be a rule about a spelling. "A window
+    /// owned by another window I can also see is not the one to drive" holds for
+    /// content surfaces, tooltips and helper windows alike.
+    ///
+    /// 把一個 Direct Composition 的內容 surface 解析回它所繪製的那個視窗;其他情況原樣回傳。
+    ///
+    /// **上方的尺寸防護不夠,而這正是證明它不夠的那一次執行。** 該防護於 2026-09-05 為**一種**形狀
+    /// 而寫:一個 toplevel **自己的**內容 surface,尺寸完全相同,因此 `isSmaller` 會擋下它。它對
+    /// **別的視窗的**內容 surface 什麼都沒說,而後者比我們當下所站的視窗小,於是長驅直入。
+    ///
+    /// 2026-09-10 在 popover 開啟的狀態下驅動 P50 實測。當時存在四個視窗(見上方英文區塊)。
+    /// 對主視窗呼叫 `GW_ENABLEDPOPUP` 回傳的是**最上層**的 enabled owned popup,而 popover 一旦升起,
+    /// 那就是 `0x1cc0650`——**popover 的 surface,不是 popover**。它比主視窗小,於是走訪踏了上去,
+    /// 而重放回報 `re-measured geometry frame=(0.0, 0.0)`。自該點之後,每一個 `origin=frame` 座標
+    /// 都以 (0,0) 而非 (104,99) 換算。
+    ///
+    /// **沒有任何東西失敗。** 重放繼續進行,而看得見的症狀是好幾列之後的
+    /// 「`origin=popover`,但沒有 popover 開啟」——因為 `popoverWindow(over:)` 此時是在尋找
+    /// 「由一個內容 surface 所擁有的 popup」,而它什麼都不擁有。一則關於 popover 的訊息,
+    /// 由一次 z 序走訪產生,距離成因三列之遙。
+    ///
+    /// 以**所有權**而非類別名稱解析,理由 `preferringOwners` 已經寫過:`GdkWin32GL` 是這個 toolkit
+    /// 目前的拼法,而以它命名的規則會是一條關於拼法的規則。「一個被我同樣看得見的另一視窗所擁有的
+    /// 視窗,不是該驅動的那一個」——這對內容 surface、tooltip 與各種輔助視窗同樣成立。
+    private func realWindow(behind popup: HWND, unless current: HWND) -> HWND {
+        guard let owner = GetWindow(popup, UINT(GW_OWNER)),
+            owner != current,
+            IsWindowVisible(owner)
+        else { return popup }
+        return owner
     }
 
     /// Whether `inner` covers strictly less area than `outer`.
@@ -1083,6 +1232,191 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         return String(decoding: buffer[0..<Int(length)], as: UTF16.self)
     }
 
+    /// The window's title bar text, which is what a `focus` row names.
+    ///
+    /// Empty string on failure rather than an optional, because the only caller
+    /// compares it and lists it, and an empty title is already a possible real
+    /// answer -- GTK gives its Direct Composition content surface no title at
+    /// all. Nothing here can distinguish "no title" from "could not read the
+    /// title", and pretending otherwise would be the more misleading of the two.
+    ///
+    /// 視窗標題列的文字,也就是一列 `focus` 所指名的東西。
+    ///
+    /// 失敗時回傳空字串而非 optional,因為唯一的呼叫端只是拿它比對與列出,而「空標題」本來就是一個
+    /// 可能的真實答案——GTK 給它的 Direct Composition 內容 surface 根本沒有標題。此處沒有任何東西
+    /// 能區分「沒有標題」與「讀不到標題」,而假裝可以區分,才是兩者中更誤導人的那個。
+    private func windowTitle(of window: HWND) -> String {
+        var buffer = [WCHAR](repeating: 0, count: 512)
+        let length = GetWindowTextW(window, &buffer, Int32(buffer.count))
+        guard length > 0 else { return "" }
+        return String(decoding: buffer[0..<Int(length)], as: UTF16.self)
+    }
+
+    /// Brings this process's window with that exact title to the front, and makes
+    /// every later coordinate resolve against it.
+    ///
+    /// **Two halves, and the second is the one that is easy to omit.** Raising
+    /// the window is the visible part; making `ownWindow()` -- and therefore
+    /// `currentWindowGeometry()` and `currentWindowIdentity()` -- agree that this
+    /// is now the window under test is what makes the rows after a `focus` mean
+    /// anything. Without it the focus succeeds, the replay reports every action
+    /// done, and each coordinate is still converted against the frame of the
+    /// window that was in front when the replay began.
+    ///
+    /// That is not a hypothetical: it is exactly what `a8627210` measured on
+    /// macOS, where `currentWindowIdentity()` returned the protocol default of 0
+    /// and the `+1` inside a settings window was posted into the main window's
+    /// frame. The Windows shape of the same defect is different and would not
+    /// have been fixed by the same change: this file DOES override
+    /// `currentWindowIdentity()`, but it answers with `ownWindow()`, which picks
+    /// the LARGEST window by area. A settings window is smaller than the main
+    /// one, so identity would have kept reporting the main window, replay would
+    /// have seen no change, and no geometry would have been re-measured.
+    ///
+    /// **Exact match, visible windows, this process only.** A prefix match in an
+    /// app whose windows share a prefix selects the wrong one silently, which is
+    /// the failure the verb exists to remove. The error names every visible title
+    /// so a mismatch is one line to diagnose rather than a guess.
+    ///
+    /// **Throws when the foreground does not arrive**, and does not merely
+    /// report. `SetForegroundWindow` returning unchecked is defect #46 in this
+    /// project -- two runs drove the editor covering the app and both reported
+    /// success. Here the consequence is worse than a wrong click: a `focus` that
+    /// quietly did nothing leaves the file clicking real controls in the wrong
+    /// window, and the capture then looks like a test that simply failed.
+    ///
+    /// 把本行程中標題**完全相符**的視窗帶到前景,並讓其後每一個座標都相對於它解析。
+    ///
+    /// **兩個部分,而第二個才是容易漏掉的那個。** 把視窗抬到前面是看得見的部分;讓 `ownWindow()`
+    /// ——連帶 `currentWindowGeometry()` 與 `currentWindowIdentity()`——同意「現在受測的是這個視窗」,
+    /// 才是讓 `focus` 之後那些列具有意義的東西。少了它,focus 會成功、重放會回報每個動作都完成,
+    /// 而每一個座標仍然是相對於「重放開始時位於前景的那個視窗」的框架換算的。
+    ///
+    /// 這不是假設:那正是 `a8627210` 在 macOS 上實測到的情形——`currentWindowIdentity()` 回傳協定
+    /// 預設值 0,而設定視窗裡的 `+1` 被投遞到了主視窗的框中。同一個缺陷在 Windows 上的形狀不同,
+    /// 而且不會被同一項修改治好:本檔**確實**覆寫了 `currentWindowIdentity()`,但它是以
+    /// `ownWindow()` 作答的,而後者挑的是**面積最大**的視窗。設定視窗比主視窗小,因此 identity 會
+    /// 持續回報主視窗、replay 看不到任何變化,也就不會重新量測任何幾何。
+    ///
+    /// **完全相符、僅限可見、僅限本行程。** 在視窗共用前綴的 app 中,前綴比對會靜默地選錯一個,
+    /// 而那正是這個動詞存在所要消除的失敗。錯誤訊息會列出每一個可見的標題,使一次不相符只需一行
+    /// 就能診斷,而不是靠猜。
+    ///
+    /// **前景沒有到手時丟出錯誤**,而不只是回報。在本專案中,`SetForegroundWindow` 未經檢查就返回
+    /// 正是缺陷 #46——兩次執行都驅動了覆蓋在 app 之上的編輯器,而兩次都回報成功。此處的後果比
+    /// 「點錯位置」更糟:一個安靜地什麼都沒做的 `focus`,會讓該檔案在**錯誤的視窗**中點到真實的
+    /// 控制項,而擷圖看起來就只像是一個失敗的測試。
+    public func focusWindow(titled title: String) throws {
+        let candidates = visibleWindows()
+        guard let window = candidates.first(where: { windowTitle(of: $0) == title }) else {
+            throw SynthesiserError.unsupported(
+                "focus '\(title)': no visible window of this process has that exact title; "
+                    + "visible titles are "
+                    + candidates.map { "'\(windowTitle(of: $0))'" }.joined(separator: ", ")
+            )
+        }
+
+        if IsIconic(window) {
+            ShowWindow(window, SW_RESTORE)
+        }
+
+        // The same raise `prepareForReplay` uses, and for the same reason: a
+        // process that is not already in front cannot simply ask for the
+        // foreground, but any process may raise its own window, and
+        // SWP_NOACTIVATE means this does not even ask.
+        // 與 `prepareForReplay` 相同的抬升方式,理由也相同:一個原本不在前景的行程無法直接要求前景,
+        // 但任何行程都可以抬升自己的視窗,而 SWP_NOACTIVATE 意味著這裡連要求都沒有提出。
+        guard
+            SetWindowPos(
+                window, HWND(bitPattern: -1), 0, 0, 0, 0,
+                UINT(SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+            )
+        else {
+            throw SynthesiserError.toolFailed(
+                "SetWindowPos(HWND_TOPMOST) for focus '\(title)'", status: Int32(GetLastError())
+            )
+        }
+
+        SetForegroundWindow(window)
+        BringWindowToTop(window)
+
+        // Asynchronous, so read it back rather than assume. Half a second is far
+        // longer than the switch takes whenever it happens at all -- the same
+        // budget and the same loop as `prepareForReplay`.
+        // 這是非同步的,因此要讀回而不是假設。半秒遠長於這個切換在任何能夠成功的情況下所需的時間
+        // ——與 `prepareForReplay` 相同的預算與相同的迴圈。
+        var tookForeground = false
+        for _ in 0..<50 {
+            if GetForegroundWindow() == window {
+                tookForeground = true
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+
+        guard tookForeground else {
+            // Read once. Two calls can disagree, and an error message whose
+            // handle and class name come from different instants describes a
+            // state that never existed.
+            // 只讀一次。兩次呼叫可能給出不同答案,而一則「handle 與 class 名稱取自不同瞬間」的
+            // 錯誤訊息,描述的是一個從未存在過的狀態。
+            let blocker = GetForegroundWindow()
+            throw SynthesiserError.unsupported(
+                "focus '\(title)': the window was raised but never took the foreground; "
+                    + "the foreground is \(blocker.map { String(describing: $0) } ?? "none") "
+                    + "class=\(blocker.map { className(of: $0) } ?? "none"). "
+                    + "Every coordinate after this row would have resolved against the "
+                    + "previous window, so the replay stops here rather than clicking "
+                    + "real controls in the wrong window"
+            )
+        }
+
+        Self.rememberFocus(window)
+        ActionFileReplay.report(
+            "focus '\(title)': window \(window) is now the foreground and the window "
+                + "geometry will be re-measured against it"
+        )
+    }
+
+    /// The window a `focus` row named, as a bit pattern, or 0 when no row has.
+    ///
+    /// Static and `nonisolated(unsafe)` for the same reason as `didHideConsole`
+    /// above: one replay per process, and this is the idiom the module already
+    /// uses for exactly that. Stored as an `Int` rather than an `HWND` so the
+    /// type stays `Sendable` -- the class conforms without `@unchecked`, and a
+    /// raw pointer in it would end that.
+    ///
+    /// 一列 `focus` 所指名的視窗,以 bit pattern 表示;沒有任何一列指名過時為 0。
+    ///
+    /// 使用 static 與 `nonisolated(unsafe)`,理由與上方的 `didHideConsole` 相同:每個行程只有一次
+    /// 重放,而這正是本 module 對這種情況既有的寫法。存成 `Int` 而非 `HWND`,是為了讓型別維持
+    /// `Sendable`——本類別的 conformance 沒有用 `@unchecked`,而在其中放一個 raw pointer 會終結它。
+    nonisolated(unsafe) private static var focusedWindowBits = 0
+    private static let focusLock = NSLock()
+
+    private static func rememberFocus(_ window: HWND) {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        focusedWindowBits = Int(bitPattern: window)
+    }
+
+    /// Cleared at the start of every replay, so a focus cannot outlive the file
+    /// that asked for it. Two replays in one process would otherwise have the
+    /// second start pointed at the first one's window.
+    /// 在每次重放開始時清除,使一次 focus 無法活得比要求它的那個檔案更久。否則同一行程中的兩次重放,
+    /// 第二次會從「指向第一次那個視窗」的狀態開始。
+    private static func forgetFocus() {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        focusedWindowBits = 0
+    }
+
+    private static func rememberedFocus() -> HWND? {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        return HWND(bitPattern: focusedWindowBits)
+    }
+
     private func move(to point: Point, in geometry: WindowGeometry) throws {
         let position = try geometry.screenPosition(of: point)
 
@@ -1113,6 +1447,11 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
             throw SynthesiserError.toolFailed("SetCursorPos", status: Int32(GetLastError()))
         }
         reportMouseMove(point: point, screen: position)
+        // After the report, so the failing move is in the log with its full hit
+        // dump rather than only in the exception. The two are read together.
+        // 放在回報之後,使那次失敗的移動連同完整的 hit 傾印一起留在 log 中,而不是只存在於例外裡。
+        // 兩者是一起讀的。
+        try assertPointIsOurs(point: point, screen: position)
     }
 
     /// One line per pointer move, behind `--debug`.
@@ -1195,6 +1534,77 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 + "hitClass=\(target.map { className(of: $0) } ?? "none") "
                 + "foreground=\(foreground.map { String(describing: $0) } ?? "none") "
                 + "active=\(active.map { String(describing: $0) } ?? "none")"
+        )
+    }
+
+    /// Stops the replay when the point about to be clicked belongs to another
+    /// process.
+    ///
+    /// Added 2026-09-10, and it enforces something this file has printed for six
+    /// days without acting on.
+    ///
+    /// `hitClass` has been in the move dump since 2026-09-04. On 2026-09-10 two
+    /// consecutive runs of P50's popover sweep printed
+    /// `hitClass=Chrome_RenderWidgetHostHWND`, which says in as many words that
+    /// the click about to be sent would land in a browser -- and the replay
+    /// carried on, clicked into Chrome, and then failed several rows later with
+    /// "origin=popover, but no popover is open". That message is true and
+    /// completely misleading: the popover is not open BECAUSE the click that
+    /// would have opened it went to another application. It was read as a
+    /// popover defect first.
+    ///
+    /// This is defect #46's shape one layer up. #46 was `SetForegroundWindow`
+    /// unchecked -- asking and not looking. Here the looking was done, printed,
+    /// and then not acted on, which is worse: the evidence was in the log the
+    /// whole time.
+    ///
+    /// **Separate from `reportMouseMove`, and that is the point.** The reporter
+    /// returns early unless `--debug` was passed, so a check living inside it
+    /// would protect exactly the runs that are already being watched and none of
+    /// the rest. This runs on every move.
+    ///
+    /// A throw, not a warning, because the module's rule is that a missed target
+    /// and a swallowed event must not look alike -- and because a warning leaves
+    /// the run clicking real controls in someone else's window, which is a real
+    /// thing happening to the user's desktop as well as a wrong test result.
+    ///
+    /// 當即將被點擊的那個點屬於**另一個行程**時中止重放。
+    ///
+    /// 2026-09-10 加入,而它所執行的正是本檔已經印了六天、卻從未據以行動的那件事。
+    ///
+    /// `hitClass` 自 2026-09-04 起就在移動傾印中。2026-09-10,P50 popover 掃描連續兩次執行都印出
+    /// `hitClass=Chrome_RenderWidgetHostHWND`——那已經明說「即將送出的這次點擊會落在一個瀏覽器
+    /// 裡」——而重放繼續進行、點進了 Chrome,然後在好幾列之後以「origin=popover,但沒有 popover
+    /// 開啟」失敗。那個訊息**是真的,而且極度誤導**:popover 沒有開啟,正是**因為**那個本該開啟它
+    /// 的點擊跑到別的應用程式去了。它一開始確實被讀成了 popover 的缺陷。
+    ///
+    /// 這是缺陷 #46 的形狀高了一層。#46 是 `SetForegroundWindow` 未經檢查——問了卻不看。此處是
+    /// **看了、印了,然後沒有據以行動**,而那更糟:證據一直都在 log 裡。
+    ///
+    /// **與 `reportMouseMove` 分開,而這正是重點。** 該回報函式在未傳入 `--debug` 時會提早返回,
+    /// 因此把檢查放在它裡面,保護到的恰好是「已經有人在盯著」的那些執行,其餘一個都保護不到。
+    /// 本函式在每一次移動都會執行。
+    ///
+    /// 用丟出錯誤而非警告,因為本模組的規則是「沒打中的目標與被吞掉的事件不可以長得一樣」——也因為
+    /// 警告會讓這次執行繼續在別人的視窗中點到真實的控制項,那既是錯誤的測試結果,也是真的發生在
+    /// 使用者桌面上的事。
+    private func assertPointIsOurs(point: Point, screen: (x: Int, y: Int)) throws {
+        guard let target = WindowFromPoint(POINT(x: Int32(screen.x), y: Int32(screen.y)))
+        else { return }
+
+        var targetProcess: DWORD = 0
+        GetWindowThreadProcessId(target, &targetProcess)
+        guard targetProcess != GetCurrentProcessId() else { return }
+
+        throw SynthesiserError.unsupported(
+            "the point \(point.origin.rawValue)=(\(point.x), \(point.y)) -> screen "
+                + "(\(screen.x), \(screen.y)) is covered by another application: "
+                + "class=\(className(of: target)) process=\(targetProcess), ours is "
+                + "\(GetCurrentProcessId()). The click would have gone there, not to the "
+                + "window under test, so the replay stops instead of driving someone else's "
+                + "application. The topmost pin was applied and did not win, which means "
+                + "another window is also topmost -- a full-screen browser or video is the "
+                + "usual cause. Close or un-fullscreen it and run again."
         )
     }
 
