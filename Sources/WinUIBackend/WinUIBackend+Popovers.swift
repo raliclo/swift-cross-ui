@@ -76,7 +76,15 @@ extension WinUIBackend {
         _ popover: Popover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
-        backgroundColor: Color.Resolved?,
+        // Qualified for the same reason GtkBackend's is: `UWP.Color` and
+        // `SwiftCrossUI.Color` are both in scope here and the bare name is
+        // ambiguous. Both files needed it and only one got it on the first
+        // pass -- the fix was written, its reason was written down, and the
+        // sibling two directories away was not checked.
+        // 需要限定名稱,理由與 GtkBackend 那份相同:此處 `UWP.Color` 與 `SwiftCrossUI.Color` 同時
+        // 在 scope,裸名有歧義。兩個檔案都需要,而第一次只有一個改到——修正寫了、理由也寫了,
+        // 卻沒去看兩層目錄外的那個同類檔案。
+        backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         popover.dismissHandler = onDismiss

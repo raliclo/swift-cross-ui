@@ -2290,10 +2290,29 @@ public final class WinUIBackend:
         return handleSuccess(result)
     }
 
+    /// How long a press must last to count as a long press.
+    ///
+    /// SwiftUI's `onLongPressGesture` defaults to 0.5s and Windows' own touch
+    /// hold is about the same, so the two agree here and no divergence has to
+    /// be documented.
+    ///
+    /// 一次按壓要持續多久才算長按。
+    ///
+    /// SwiftUI 的 `onLongPressGesture` 預設為 0.5 秒,而 Windows 自身的觸控長按也差不多,
+    /// 因此兩者在此一致,無需記載任何分歧。
+    static let longPressDuration: TimeInterval = 0.5
+
     public func createTapGestureTarget(wrapping child: Widget, gesture: TapGesture) -> Widget {
-        if gesture != .primary {
-            fatalError("Unsupported gesture type \(gesture)")
-        }
+        // `.secondary` and `.longPress` used to reach a `fatalError` here and in
+        // `updateTapGestureTarget`, so `.onTapGesture(gesture: .secondary)` --
+        // a right click -- took the whole application down on this backend
+        // while working on the other four. That is the response CLAUDE.md
+        // rejects most firmly, and it was reachable from one modifier.
+        //
+        // 過去 `.secondary` 與 `.longPress` 在此處與 `updateTapGestureTarget` 中都會撞上
+        // `fatalError`,因此 `.onTapGesture(gesture: .secondary)`——也就是一次右鍵——會在本 backend
+        // 上讓**整個應用程式終止**,而同一段程式在其他四個 backend 上運作正常。那正是 CLAUDE.md
+        // 拒絕得最堅決的那個回應,而且只要一個 modifier 就構得到。
         let tapGestureTarget = TapGestureTarget()
         insert(child, into: tapGestureTarget, at: 0)
         tapGestureTarget.child = child
@@ -2305,9 +2324,72 @@ public final class WinUIBackend:
         brush.color = UWP.Color(a: 0, r: 0, g: 0, b: 0)
         tapGestureTarget.background = brush
 
-        tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, _ in
-            guard let tapGestureTarget else { return }
-            tapGestureTarget.clickHandler?()
+        switch gesture.kind {
+            case .primary:
+                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, _ in
+                    guard let tapGestureTarget else { return }
+                    tapGestureTarget.clickHandler?()
+                }
+
+            case .secondary:
+                // `rightTapped`, not `pointerPressed` with a button test. WinUI
+                // raises this one for a right mouse click AND for the pen
+                // barrel button and a touch hold, which is what "secondary" is
+                // on each of those devices -- reimplementing it from raw
+                // pointer state would quietly cover only the mouse.
+                // 用 `rightTapped`,而不是「`pointerPressed` 再判斷按鍵」。WinUI 會為右鍵點擊、
+                // 觸控筆側鍵以及觸控長按都發出這個事件,而那正是「次要」在各該裝置上的意義;
+                // 從原始 pointer 狀態自行重寫,會悄悄地只涵蓋到滑鼠。
+                tapGestureTarget.rightTapped.addHandler { [weak tapGestureTarget] _, _ in
+                    guard let tapGestureTarget else { return }
+                    tapGestureTarget.clickHandler?()
+                }
+
+            case .longPress:
+                // NOT `holding`. WinUI raises `Holding` for touch and pen only
+                // -- a mouse never produces it, by design, because Windows
+                // reserves press-and-hold-with-a-mouse for other things. On a
+                // desktop backend that would have made this gesture untestable
+                // with a mouse and silently dead for most users, which is the
+                // same shape as the `fatalError` it replaces: correct-looking
+                // code that does nothing.
+                //
+                // So the duration is timed here. `pointerPressed` starts a
+                // generation and schedules the callback; anything that ends the
+                // press moves the generation on, and the scheduled closure
+                // finds a number that is not its own.
+                //
+                // **不用 `holding`。** WinUI 只為觸控與觸控筆發出 `Holding`——滑鼠**永遠不會**產生
+                // 它,而且那是刻意的,因為 Windows 把「以滑鼠按住不放」保留給別的用途。在桌面
+                // backend 上,那會讓這個手勢無法以滑鼠測試、並對多數使用者靜默失效——那與它所取代的
+                // `fatalError` 是同一種形狀:看起來正確、實際什麼都不做的程式碼。
+                //
+                // 因此時長在此自行計時。`pointerPressed` 推進一個 generation 並排程回呼;任何結束
+                // 該次按壓的事件都會再推進 generation,而已排程的 closure 便會發現那個數字不是自己的。
+                tapGestureTarget.pointerPressed.addHandler { [weak tapGestureTarget] _, _ in
+                    guard let tapGestureTarget else { return }
+                    tapGestureTarget.pressGeneration += 1
+                    let generation = tapGestureTarget.pressGeneration
+                    DispatchQueue.main.asyncAfter(
+                        deadline: .now() + WinUIBackend.longPressDuration
+                    ) { [weak tapGestureTarget] in
+                        guard let tapGestureTarget,
+                            tapGestureTarget.pressGeneration == generation
+                        else { return }
+                        tapGestureTarget.clickHandler?()
+                    }
+                }
+                // Both, because a press can end in two ways and only one of
+                // them is a release: dragging off the target ends it too, and
+                // GTK, AppKit and UIKit all treat that as a cancelled press.
+                // 兩者都要,因為一次按壓有兩種結束方式,而其中只有一種是放開:把指標拖離目標同樣會
+                // 結束它,而 GTK、AppKit 與 UIKit 都把那視為一次被取消的按壓。
+                tapGestureTarget.pointerReleased.addHandler { [weak tapGestureTarget] _, _ in
+                    tapGestureTarget?.pressGeneration += 1
+                }
+                tapGestureTarget.pointerExited.addHandler { [weak tapGestureTarget] _, _ in
+                    tapGestureTarget?.pressGeneration += 1
+                }
         }
         return tapGestureTarget
     }
@@ -2318,9 +2400,11 @@ public final class WinUIBackend:
         environment: EnvironmentValues,
         action: @escaping () -> Void
     ) {
-        if gesture != .primary {
-            fatalError("Unsupported gesture type \(gesture)")
-        }
+        // No gesture check. The kind was fixed when the target was created and
+        // decided which events were wired; all three then arrive at the same
+        // `clickHandler`, so there is nothing here that varies by kind.
+        // 此處不再檢查手勢種類。kind 在建立 target 時就已固定,並據以決定接上哪些事件;三者最後都
+        // 抵達同一個 `clickHandler`,因此此處沒有任何隨 kind 而異的東西。
         let tapGestureTarget = tapGestureTarget as! TapGestureTarget
         tapGestureTarget.clickHandler = environment.isEnabled ? action : {}
     }
@@ -2909,6 +2993,23 @@ final class CustomSplitView: SplitView {
 final class TapGestureTarget: WinUI.Canvas {
     var clickHandler: (() -> Void)?
     var child: WinUI.FrameworkElement?
+
+    /// Bookkeeping for `.longPress`, unused by the other two kinds.
+    ///
+    /// A counter rather than a cancellable timer, because the delayed work is a
+    /// `DispatchQueue.main.asyncAfter` closure that cannot be called back. When
+    /// the press ends the counter moves, and the closure that eventually runs
+    /// sees a number that is no longer its own and does nothing. A stale timer
+    /// firing after the finger lifted would report a long press the user never
+    /// made -- and nothing downstream could tell that apart from a real one.
+    ///
+    /// 供 `.longPress` 記帳之用,另外兩種 kind 不使用。
+    ///
+    /// 採計數器而非可取消的計時器,因為那份延遲工作是一個無法回收的
+    /// `DispatchQueue.main.asyncAfter` closure。按壓結束時計數器前進,而最終執行的那個 closure
+    /// 會看到一個不再屬於自己的數字,於是什麼都不做。一個在手指抬起後才觸發的過期計時器,會回報
+    /// 一次**使用者從未做過**的長按——而下游沒有任何東西能把它與真的長按區分開來。
+    var pressGeneration = 0
 }
 
 final class HoverGestureTarget: WinUI.Canvas {
