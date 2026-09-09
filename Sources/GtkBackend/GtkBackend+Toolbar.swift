@@ -49,7 +49,12 @@ import Gtk
 /// 本檔為不帶 conformance 的 `extension`：`BackendFeatures.Toolbars` 已列於 `GtkBackend.swift` 的
 /// 類別宣告中，兩處都寫會得到 `error: redundant conformance`。
 extension GtkBackend {
-    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem]) {
+    public func setToolbar(ofWindow window: Window, to items: [ToolbarItem], title _: String?) {
+        // `title` is ignored here on purpose. This platform puts a heading in
+        // the window's title bar, and `setTitle(ofWindow:to:)` has already put
+        // it there -- writing it again would be the same string twice.
+        // 此處刻意忽略 `title`。這個平台把標題放在視窗的標題列中,而 `setTitle(ofWindow:to:)` 已經把它
+        // 放進去了——再寫一次只會是同一個字串出現兩次。
         let key = ObjectIdentifier(window)
 
         // An empty list removes the toolbar AND gives the decoration back to

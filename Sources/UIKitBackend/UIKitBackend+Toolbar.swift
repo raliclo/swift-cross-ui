@@ -33,9 +33,13 @@ import UIKit
 // 別的東西,而錯誤訊息是「value of type 'any ToolbarItem' has no member 'action'」——它指向的是那個
 // 成員,而不是那個名稱。與 P46Model 的 ObservableObject 和 Combine 撞名是同一種形狀。
 extension UIKitBackend: BackendFeatures.Toolbars {
-    public func setToolbar(ofWindow window: Window, to items: [SwiftCrossUI.ToolbarItem]) {
+    public func setToolbar(
+        ofWindow window: Window,
+        to items: [SwiftCrossUI.ToolbarItem],
+        title: String?
+    ) {
         guard let controller = window.rootViewController as? RootViewController else { return }
-        controller.setToolbar(to: items)
+        controller.setToolbar(to: items, title: title)
     }
 }
 
@@ -73,8 +77,24 @@ final class ToolbarActionTarget: NSObject {
 }
 
 extension RootViewController {
-    func setToolbar(to items: [SwiftCrossUI.ToolbarItem]) {
-        guard !items.isEmpty else {
+    func setToolbar(to items: [SwiftCrossUI.ToolbarItem], title: String?) {
+        // The bar exists when EITHER was asked for.
+        //
+        // Before this, `.navigationTitle` drew nothing on iOS: the title reached
+        // `UINavigationItem` correctly, and the navigation item was only built
+        // inside the `!items.isEmpty` path, so a view with a title and no
+        // toolbar got no bar to put it in. Nothing failed -- the string was
+        // computed, assigned to `rootViewController.title`, and displayed by
+        // nobody.
+        //
+        // 只要**其中之一**被要求了,那條列就存在。
+        //
+        // 在此之前,`.navigationTitle` 在 iOS 上什麼都不畫:標題確實正確地抵達了 `UINavigationItem`,
+        // 而那個 navigation item 只在 `!items.isEmpty` 的路徑中被建立,因此一個「有標題、沒有工具列」
+        // 的 view 根本沒有一條列可以放它。沒有任何東西失敗——那個字串被算了出來、被指派給
+        // `rootViewController.title`,然後沒有任何人顯示它。
+        let heading = (title?.isEmpty ?? true) ? nil : title
+        guard !items.isEmpty || heading != nil else {
             navigationBar?.removeFromSuperview()
             navigationBar = nil
             toolbarTargets = []
@@ -156,7 +176,7 @@ extension RootViewController {
             return button
         }
 
-        let navigationItem = UINavigationItem(title: title ?? "")
+        let navigationItem = UINavigationItem(title: heading ?? "")
         navigationItem.leftBarButtonItems =
             items.filter { $0.placement == .leading }.map(barButton(for:))
         navigationItem.rightBarButtonItems =
