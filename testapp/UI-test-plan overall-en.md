@@ -1635,12 +1635,30 @@ inspection still requires Accerciser on Linux and Accessibility Insights or
 SwiftUI views with no SwiftCrossUI equivalent at all, where ported code fails to
 compile rather than rendering differently.
 
-None of `Form`, `Section`, `Label(_:systemImage:)`, `Stepper`, `Gauge`,
+~~None of `Form`, `Section`, `Label(_:systemImage:)`, `Stepper`, `Gauge`,
 `DisclosureGroup`, `LabeledContent`, `ColorPicker` or `Link` exists under
-`Sources/SwiftCrossUI/Views`. `Section` is the one that matters most: in SwiftUI
-it is less a view in its own right than the structuring element that `List`,
-`Form`, `Picker` and `Menu` all accept, so its absence breaks call sites that do
-not look like they are about sections. The others each cost one call site.
+`Sources/SwiftCrossUI/Views`.~~
+
+**ALL NINE EXIST. Re-derived 2026-09-09** with the shape-agnostic loop recorded
+in `todo.md` under "Re-derived 2026-09-09", which reports 16 of 17 common views
+present and controls itself (`VStack` must return 1, `ZZZNotARealType` must
+return 0). The only absent name in that survey is `LazyHGrid`.
+
+This is the largest single stale claim found in this tree so far — nine names,
+every one of them wrong, in the direction of work already done. Struck through
+rather than deleted because what it teaches is not "these nine exist" but how a
+list like this rots: it was true when written, nothing re-ran it, and each of the
+nine landed separately without anyone opening the document that said it had not.
+
+The reasoning kept, because it is still correct about `Section` and is why
+`Section` was worth doing first: in SwiftUI it is less a view in its own right
+than the structuring element `List`, `Form`, `Picker` and `Menu` all accept, so
+its absence broke call sites that do not look like they are about sections. The
+others each cost one call site.
+
+**What this step is now.** Not "record nine gaps" — verify that the nine RENDER
+on this backend. Existing and drawing are different claims, and the second is
+the one a test plan is for.
 
 Current automated flow:
 
@@ -1664,9 +1682,15 @@ Test steps:
    label, `LabeledContent` as an `HStack` -- build the approximation beside the
    gap and record how many lines it takes and what it still fails to do:
    keyboard reachability, alignment with neighbouring rows, disabled state.
-4. `Label(_:systemImage:)` needs a system image, and `Image(systemName:)` does
+4. ~~`Label(_:systemImage:)` needs a system image, and `Image(systemName:)` does
    not exist either (see P36). Record whether a text-only fallback is acceptable
-   or whether the two gaps have to be closed together.
+   or whether the two gaps have to be closed together.~~
+   **BOTH EXIST, checked 2026-09-09:** `Label`'s
+   `public init(_ title: String, systemImage: String)` is at
+   `Views/Label.swift:143` and `Image(systemName:)` at `Views/Image.swift:62`.
+   So this step is no longer "record a gap" — it is "verify the two actually
+   draw a symbol on this backend", which is a different job and one that has to
+   be RUN rather than looked up.
 5. Compare each against the same code under AppKit.
 
 ## P34: Lazy Containers and Large Collections (Linux and Windows)
@@ -1803,16 +1827,30 @@ initialiser is missing.
   must be `Optional`, so a picker over a non-optional `@State` needs a bridging
   binding.
 - `Button` is `Button(_ label: String, action:)`. There is no trailing-closure
-  label, so `Button { ... } label: { Image(...) }` cannot be written, and there
-  is no `ButtonRole`, so `.destructive` cannot be expressed at all.
+  label, so `Button { ... } label: { Image(...) }` cannot be written.
+  ~~"and there is no `ButtonRole`, so `.destructive` cannot be expressed at
+  all"~~ — **false, re-derived 2026-09-09.** `ButtonRole` is at
+  `Values/ButtonRole.swift`, `Button` takes `role:`, and `EnvironmentValues`
+  carries it.
 - `Text` takes a `String`. There is no `LocalizedStringKey`, therefore no
-  markdown, and no `Text` + `Text` concatenation.
-- `Image` takes a `URL` or an `ImageFormats.Image<RGBA>`. There is no
-  `Image(systemName:)` and no bundle asset lookup, so every image in a ported
-  app needs a file path.
+  markdown, and no `Text` + `Text` concatenation. (`.textCase` DOES exist, at
+  `Modifiers/Style/TextCaseModifier.swift`, and has been struck from the longer
+  list this paragraph used to carry.)
+- `Image` takes a `URL` or an `ImageFormats.Image<RGBA>`, ~~and there is no
+  `Image(systemName:)`~~ — **false, 2026-09-09: `public init(systemName:)` is at
+  `Views/Image.swift:62`.** There is still no bundle asset lookup, so a ported
+  app's file-based images need a path.
 - `List` requires `selection:` on every initialiser and constrains
-  `Data.Index == Int`. There is no `Section`, no `.onDelete` and no
-  `.swipeActions`.
+  `Data.Index == Int`. ~~There is no `Section`~~ — **false, `Views/Section.swift`
+  exists.** There is still no `.onDelete` and no `.swipeActions`.
+
+> **Four claims in this section were false when re-checked on 2026-09-09, all in
+> the "already implemented" direction, and `testapp/plan/parity-gaps-survey.md`
+> had already recorded three of them correctly with file and line. One document
+> in this tree had the right answer while this one had the wrong answer, and
+> nothing marked which was older.** Struck through rather than deleted, because
+> what a plausible stale claim looks like is the useful part. When correcting a
+> claim, grep for it — the copy in front of you is rarely the only one.
 - `TextField` has no `axis:`, no `prompt:` and no `value:format:`.
 - Geometry is `Int`: `padding(_ amount: Int?)`, `cornerRadius(_ radius: Int)`,
   `HStack(spacing: Int?)`. SwiftUI uses `CGFloat` throughout, so `.padding(8.5)`

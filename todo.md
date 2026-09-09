@@ -1303,20 +1303,42 @@ not: every one is still true.
 | # | claim | state |
 |---|---|---|
 | 1 | `Picker` has only `init(of:selection:)`, selection must be Optional, no label, no `.tag()` | still true |
-| 2 | `Button` is label-String only; no `ButtonRole` anywhere | still true |
-| 3 | `Text` is String only; no LocalizedStringKey, markdown, `+`, underline/strikethrough/kerning/textCase | still true |
-| 4 | `Image` has no `systemName:` and no bundle asset init | still true |
-| 5 | all six `List` inits require `selection:` and `Data.Index == Int`; no `Section`, `.onDelete`, `.onMove`, `.swipeActions`, `.listRow*` | still true |
-| 6 | `Table` has no selection, sortOrder or column width | still true |
-| 7 | `TextField` lacks `axis:`, `prompt:`, `value:format:`, `.textFieldStyle` | still true |
+| 2 | `Button` is label-String only; ~~no `ButtonRole` anywhere~~ | **HALF FALSE, re-derived 2026-09-09.** `ButtonRole` is at `Values/ButtonRole.swift`, `Button` takes `role:` (`Views/Button.swift:20`), and `EnvironmentValues` carries it. The String-label half stands |
+| 3 | `Text` is String only; no LocalizedStringKey, markdown, `+`, underline/strikethrough/kerning | **half true, 2026-09-09.** `.textCase` EXISTS (`Modifiers/Style/TextCaseModifier.swift`) and has been struck from the list; the rest stand |
+| 4 | ~~`Image` has no `systemName:`~~ and no bundle asset init | **HALF FALSE, 2026-09-09.** `public init(systemName: String)` is at `Views/Image.swift:62` and takes both SF Symbols names and this toolkit's own. The bundle-asset half stands |
+| 5 | all six `List` inits require `selection:` and `Data.Index == Int`; ~~no `Section`~~, no `.onDelete`, `.onMove`, `.swipeActions`, `.listRow*` | **half true, 2026-09-09.** `Views/Section.swift` exists; the four row modifiers stand |
+| 6 | `Table` has no selection, sortOrder or column width | still true, re-checked 2026-09-09 |
+| 7 | `TextField` lacks `axis:`, `prompt:`, `value:format:`~~, `.textFieldStyle`~~ | **half false, 2026-09-09.** `.textFieldStyle` exists on all five backends -- that is task #31, closed. The other three stand |
 | 8 | `Slider` lacks label, step, onEditingChanged | still true |
 | 9 | `GeometryProxy` has only `size` | still true |
 | 10 | `padding`/`cornerRadius`/stack `spacing`/`Spacer(minLength:)` are Int while `frame` is Double | still true |
 
-**Order to take them in.** 2 first — a `Button(action:label:)` plus a role that
-backends may ignore. Not 9, and not 10; both look cheap and are not, which is
+**Order to take them in.** 2 first — ~~a `Button(action:label:)` plus a role that
+backends may ignore~~ **just the `Button(action:label:)` trailing closure now:
+the role landed, so half of item 2 is done and this sentence was describing work
+that no longer exists.** Not 9, and not 10; both look cheap and are not, which is
 recorded below because "cheapest first" is exactly the judgement that gets made
 from a list without reading the code.
+
+**THIS PARAGRAPH WAS CORRECTED WHILE THE ROWS ABOVE IT WERE NOT**, and that is
+worth more than either correction. Someone re-derived the ORDER — "not 9, and
+not 10" is right, and matches what a re-check on 2026-09-09 found independently
+— and left every row saying "still true". Four of them were false by then.
+`parity-gaps-survey.md` had already been corrected for three of the four, with
+file and line, so the tree contained a right answer and a wrong answer to the
+same question, in two files, with nothing marking which was older.
+
+Same shape as `GridCellsProviding` earlier the same day. **When you correct a
+claim, grep for it: the copy you are looking at is rarely the only one.**
+
+**上方那些列沒有被更正,而這一段被更正了**,而這件事本身比任何一項更正都更值得記。有人重新推導了
+**順序**(「不是 9、也不是 10」是對的,且與 2026-09-09 的獨立重查結果一致),卻讓每一列都停在
+「still true」——而其中四列在那時已經是假的。`parity-gaps-survey.md` 對其中三項早已更正、且附上檔案
+與行號,於是**這棵樹裡對同一個問題同時存在正確答案與錯誤答案,分在兩個檔案,而沒有任何東西標示
+哪一個比較舊**。
+
+與同一天稍早的 `GridCellsProviding` 是同一種形狀。**更正一項主張時,請 grep 它:你眼前這一份,很少是
+唯一的一份。**
 
 **9 is not fields on a struct.** `frame(in:)` needs three things that do not
 exist. There is no `CoordinateSpace` type anywhere — 0 hits across `Sources/`.
