@@ -155,8 +155,30 @@ public class ScrolledWindow: Widget {
     ///
     /// GtkAdjustment 會靜默地夾限落在 `[lower, upper - page]` 之外的值,因此一次超出範圍的寫入不會
     /// 失敗——它只是落在別的地方。此處先做夾限,好讓「被設定的值」就是「原本想要的值」。
+    /// - Note: The parameter is `UnsafeMutablePointer<GtkAdjustment>?`, NOT
+    ///   `OpaquePointer?`. `gtk_scrolled_window_get_vadjustment` returns the
+    ///   former, and this arrived declaring the latter -- written on a machine
+    ///   that cannot build GtkBackend, so nothing there could have caught it.
+    ///
+    ///   It produced SIXTEEN errors from ONE cause. With the parameter wrong,
+    ///   `gtk_adjustment_get_upper(adjustment)` no longer resolves to the C
+    ///   function, so Swift went looking elsewhere and reported `cannot convert
+    ///   value of type 'Duration' to expected argument type 'Double'` on the
+    ///   arithmetic below. There is no `Duration` in this file. Fixing the two
+    ///   pointer types fixes all sixteen; chasing the `Duration` message would
+    ///   have been chasing a symptom two frames from its cause.
+    ///
+    /// - Note: 參數型別是 `UnsafeMutablePointer<GtkAdjustment>?`，**不是** `OpaquePointer?`。
+    ///   `gtk_scrolled_window_get_vadjustment` 回傳的是前者，而此處送來時宣告的是後者——它寫於一台
+    ///   無法建置 GtkBackend 的機器上，因此那裡不可能發現這件事。
+    ///
+    ///   它由**一個**成因產生了**十六個**錯誤。參數型別一錯，`gtk_adjustment_get_upper(adjustment)`
+    ///   就不再解析到那個 C 函式，於是 Swift 轉而尋找別處，並在下方的算術上回報
+    ///   `cannot convert value of type 'Duration' to expected argument type 'Double'`。本檔中根本沒有
+    ///   `Duration`。修正這兩個指標型別即可修掉全部十六個；去追那則 `Duration` 訊息，等於在距離成因
+    ///   兩層之外追一個症狀。
     private func setAdjustment(
-        _ adjustment: OpaquePointer?,
+        _ adjustment: UnsafeMutablePointer<GtkAdjustment>?,
         childStart: Double,
         childExtent: Double,
         anchor: Double?
