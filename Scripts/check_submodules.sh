@@ -35,7 +35,28 @@
 
 cd "$(dirname "$0")"/../ || exit 1
 
-status=$(git submodule status --cached 2>/dev/null)
+# `status` is NOT used as a variable name here, and the reason is not style.
+#
+# This line was `status=$(git submodule status --cached)`, whose value was then
+# never read -- dead already. Under `/bin/sh` that is harmless and the script
+# exits 0. Under zsh it is fatal: `status` is a READ-ONLY parameter there, so
+# the assignment fails with `read-only variable: status` and the guard never
+# runs. This project writes its scripts in zsh, so a guard that only works under
+# one interpreter is a guard that will one day be invoked by the other.
+#
+# zsh has a family of these -- `path`, `status`, `options`, `argv`, `cdpath`,
+# `fpath`, `manpath`, `watch` -- and `status` is one of the kinder ones because
+# it errors. `path=(...)` silently replaces PATH.
+#
+# 此處**不**以 `status` 作為變數名，理由不是風格。
+#
+# 這一行原本是 `status=$(git submodule status --cached)`，而該值之後從未被讀取——它本來就是死碼。
+# 在 `/bin/sh` 下那無害，腳本以 0 結束；在 zsh 下卻是致命的：`status` 在那裡是**唯讀**參數，該指派會以
+# `read-only variable: status` 失敗，於是這個守衛根本不會執行。本專案以 zsh 撰寫腳本，因此「只在某一個
+# 直譯器下能用的守衛」，總有一天會被另一個叫到。
+#
+# zsh 有一整族這樣的名字——`path`、`status`、`options`、`argv`、`cdpath`、`fpath`、`manpath`、`watch`
+# ——而 `status` 算是比較仁慈的一個，因為它至少會報錯。`path=(...)` 會**靜默地**取代掉 PATH。
 stale=$(git submodule status 2>/dev/null | grep '^+' || true)
 
 if [ -n "$stale" ]; then
