@@ -311,7 +311,23 @@ if [ "$do_apk" -eq 1 ]; then
     bundler_scratch="$package_dir/.build-bundler"
     (
         cd "$package_dir"
-        SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
+        # SCUI_DEBUG=1, as the iOS path already does, and for the reason that
+        # path spells out: SCUI_DEBUG -- not BUILD_CONFIG -- decides whether a
+        # replay exists in the binary at all. Without it an --actionfile run
+        # here installs, launches, warns in logcat that it cannot replay, exits
+        # 0 and takes a screenshot of an app that was never touched. That
+        # capture is indistinguishable from a replay that ran and changed
+        # nothing, which is the failure this whole harness exists to avoid.
+        # Measured 2026-09-09 with P58: two runs read as passes before anyone
+        # looked at logcat.
+        #
+        # SCUI_DEBUG=1，與 iOS 那條路徑一致，理由也正是該處寫明的那一條：決定「重放是否存在於
+        # 二進位檔中」的是 SCUI_DEBUG，而不是 BUILD_CONFIG。少了它，此處的 --actionfile 執行會
+        # 安裝、啟動、在 logcat 中警告自己無法重放、以 0 結束，並拍下一張「從未被碰過的 app」的
+        # 截圖。那張截圖與「重放跑了但什麼都沒改變」無從區分，而那正是整套 harness 存在所要避免的
+        # 失敗。2026-09-09 以 P58 實測：在有人去看 logcat 之前，兩次執行都讀起來像通過。
+        SCUI_DEBUG="${SCUI_DEBUG:-1}" \
+            SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
             ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
             "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-release}" \
                 --toolchain "${swift_bin:h:h:h}" \

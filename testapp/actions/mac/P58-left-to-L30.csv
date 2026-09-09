@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58: pressing "left to L30" must move the LEFT column and leave the right one alone.
+#
+# origin=frame, like every other file here: the coordinates were read off a
+# window capture taken by the harness, whose top-left is the frame's top-left.
+# The button centre (57,135) was measured on p58-macos-final-20260909-151006.png
+# rather than computed from the layout.
+#
+# **The right column is the assertion.** Under the single-shared-closure code
+# this file was written to pin, the RIGHT column is the one that jumps -- it
+# installed its closure last and overwrote the left one's. A capture showing
+# only "L30 at the top" would read as a pass under both the broken and the
+# fixed code, so the capture has to show R0 still at the top of the other
+# column, and the two columns are labelled differently so that it can.
+#
+# P58：按下「left to L30」必須移動**左**欄，並讓右欄維持不動。
+#
+# 與此處其他檔案相同採用 origin=frame：座標取自 harness 拍攝的視窗擷取，其左上角即為 frame 的
+# 左上角。按鈕中心 (57,135) 是在 p58-macos-final-20260909-151006.png 上量到的，不是依版面推算的。
+#
+# **右欄才是那個判定。** 在本檔要釘住的「單一共用 closure」程式碼下，跳動的會是**右**欄——它是
+# 最後安裝 closure 的那一個，覆寫掉了左欄的。一張只顯示「L30 在頂端」的截圖，在壞掉與修好的兩種
+# 程式碼下都會讀成通過；因此該截圖必須同時顯示另一欄的頂端仍是 R0，而兩欄採用不同標籤正是為了
+# 讓它做得到。
+click,57,135,frame,left,,,left to L30,macos
+sleep,,,,,,600000,,macos
