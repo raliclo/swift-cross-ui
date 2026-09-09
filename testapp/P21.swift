@@ -83,6 +83,32 @@ struct P21RootView: View {
     @State var buttonToggleState = false
     @State var checkboxState = false
     @State var sliderValue = 0.4
+    /// #126's stepped slider. Starts at 0.3, which is NOT on a 0.25 step.
+    ///
+    /// ~~That is the point: the first commit must pull it to 0.25 before anyone
+    /// touches it.~~ **Wrong, and refuted by the capture that was taken to
+    /// confirm it** -- the label read `Slider step 0.25 — 0.30`. It was written
+    /// from the code that had just been added (`setValue(ofSlider:to:
+    /// snapped(value))`) without noticing that the `Text` above reads the STATE,
+    /// which that line does not touch. Snapping there would only have made the
+    /// printed number and the thumb disagree.
+    ///
+    /// So 0.3 is the point for the opposite reason: `step:` governs values the
+    /// USER produces, and an application's own initial value is left alone. This
+    /// starting value shows that, and the assertion is what happens AFTER a
+    /// click -- see `actions/win/P21-slider-step.csv`.
+    ///
+    /// #126 的分段滑桿。初始值為 0.3,**不**落在 0.25 的步進上。
+    ///
+    /// ~~而這正是重點:第一次 commit 必須在任何人碰它之前把它拉到 0.25。~~
+    /// **這是錯的,而且是被「為了確認它而拍的那張擷圖」推翻的**——標籤讀作 `Slider step 0.25 — 0.30`。
+    /// 那句話是照著剛加上去的程式碼(`setValue(ofSlider:to: snapped(value))`)寫的,卻沒注意到上方
+    /// 的 `Text` 讀的是 **state**,而那一行根本不碰 state。在該處吸附,只會讓印出的數字與把手互相矛盾。
+    ///
+    /// 因此 0.3 是重點,但理由恰好相反:`step:` 管的是**使用者所產生**的值,而應用程式自己的初始值
+    /// 不予變動。這個起始值展示的正是這件事,而斷言在於**點擊之後**發生什麼——見
+    /// `actions/win/P21-slider-step.csv`。
+    @State var steppedValue = 0.3
     @State var text = "editable"
     @State var secret = "hunter2"
     @State var editorText = "multi-line\ntext"
@@ -165,9 +191,97 @@ struct P21RootView: View {
                 }
 
                 Group {
+                // NESTED Group, and it is load-bearing rather than tidiness.
+                //
+                // `ViewBuilder.buildBlock` goes up to 19 children (see
+                // Builders/ViewBuilder.swift), and the enclosing Group was at
+                // exactly 19 before the three stepped-slider views below were
+                // added. The twentieth is not reported where it is added:
+                // measured 2026-09-10, adding three views here produced
+                // `error: extra argument in call` at `ContentUnavailableView`
+                // sixty lines further down -- the first child past the limit --
+                // and nothing named the slider or the arity. Nesting these six
+                // into one child takes the outer block from 22 back to 17.
+                //
+                // 這個**巢狀 Group 是承重的**,不是為了整齊。
+                //
+                // `ViewBuilder.buildBlock` 最多支援 19 個子項(見 Builders/ViewBuilder.swift),
+                // 而在下方三個分段滑桿的 view 被加入之前,外層 Group 恰好就是 19 個。第二十個**不會**
+                // 在它被加入的地方被回報:2026-09-10 實測,在此加入三個 view,產生的是六十行之外
+                // `ContentUnavailableView` 處的 `error: extra argument in call`——也就是超過上限後的
+                // 第一個子項——而訊息中完全沒有提到滑桿,也沒有提到 arity。把這六個收進一個子項,
+                // 外層區塊便由 22 回到 17。
+                Group {
                 Text("Slider — \(String(format: "%.2f", sliderValue))")
                 Slider(value: $sliderValue, in: 0...1)
                 Slider(value: $sliderValue, in: 0...1).disabled(true)
+
+                // #126, added 2026-09-10. `step:` and the assertion that goes
+                // with it.
+                //
+                // THE ASSERTION IS THE PRINTED VALUE, not the thumb. A stepped
+                // slider looks like a continuous one in a still image -- both
+                // draw a thumb somewhere along a track -- so the only thing that
+                // can fail visibly is the number, which must be one of 0.00,
+                // 0.25, 0.50, 0.75, 1.00 AFTER A CLICK, no matter where the
+                // click lands. Any other reading means the step was ignored.
+                //
+                // "After a click" is not a hedge; it is the feature. Before any
+                // input the label reads 0.30, because an initial value belongs
+                // to the application and is not rewritten. See `steppedValue`
+                // for the prediction that got this backwards and the capture
+                // that refuted it.
+                //
+                // A SEPARATE binding from the two above, deliberately. Sharing
+                // `sliderValue` would let the continuous sliders write 0.37 into
+                // it and the stepped one would then be blamed for showing it.
+                //
+                // WHY NO BACKEND CHANGE: `UISlider` has no step API at all, so
+                // the value has to be snapped in shared code regardless; doing
+                // it there for all five is what makes them agree. See
+                // `Slider.step`'s own documentation.
+                //
+                // #126,2026-09-10 加入。`step:` 以及隨附的斷言。
+                //
+                // **斷言是那個被印出來的數值,不是把手。** 在一張靜態圖裡,分段滑桿與連續滑桿長得
+                // 一樣——兩者都在軌道上某處畫一個把手——因此唯一能夠「看得見地失敗」的是那個數字:
+                // 無論拖曳停在哪裡,它都必須是 0.00、0.25、0.50、0.75、1.00 其中之一。
+                // 出現任何其他讀數,都代表 step 被忽略了。
+                //
+                // **刻意使用與上方兩者不同的 binding。** 若共用 `sliderValue`,連續滑桿可以把 0.37
+                // 寫進去,而顯示它的責任會被算到分段滑桿頭上。
+                //
+                // **為何不動 backend**:`UISlider` 根本沒有 step API,因此無論如何值都得在共用程式碼
+                // 中吸附;為五個平台都在該處吸附,正是讓它們一致的原因。詳見 `Slider.step` 自己的文件。
+                Text("Slider step 0.25 — \(String(format: "%.2f", steppedValue))")
+                Slider(value: $steppedValue, in: 0...1, step: 0.25)
+                    // LOGGED, because the assertion cannot be a capture here.
+                    // P21's window is 848x749 and its content is longer than
+                    // that, so these two sliders sit below the fold: a window
+                    // capture shows the label above them and neither control.
+                    // An on-screen assertion nobody can photograph is not an
+                    // assertion, and this is the same lesson as #32 -- the log
+                    // line is what an action file can check.
+                    //
+                    // `initial: false`, the default, so the launch value is not
+                    // logged. Only user-produced values are the subject here,
+                    // and a line for 0.3 at startup would be the one reading
+                    // that could make a broken step look like a working one.
+                    //
+                    // **改用 log,因為此處的斷言不可能是擷圖。** P21 的視窗為 848x749,而其內容比這更長,
+                    // 因此這兩個滑桿位於可視範圍之下:一張視窗擷圖只照得到它們上方的標籤,兩個控制項
+                    // 都照不到。**一個沒有人能拍到的畫面斷言不是斷言**,而這與 #32 是同一個教訓
+                    // ——log 行才是動作檔檢查得到的東西。
+                    //
+                    // 使用預設的 `initial: false`,因此啟動時的值不會被記錄。此處的主題只有「使用者
+                    // 產生的值」,而一行啟動時的 0.3,正是那種「能讓壞掉的 step 看起來像正常」的讀數。
+                    .onChange(of: steppedValue) {
+                        P21Diagnostics.write(
+                            "stepped slider \(String(format: "%.2f", steppedValue))"
+                        )
+                    }
+                Slider(value: $steppedValue, in: 0...1, step: 0.25).disabled(true)
+                }
 
                 // The determinate form needs a label; the label-less
                 // initialisers are the spinner and one taking a `Progress`.

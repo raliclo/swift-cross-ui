@@ -1,0 +1,63 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21 on Windows: `Slider(value:in:step:)` snaps the value a USER produces.
+#
+# WHAT IT ASSERTS, and it is one line in the log, not a picture. After a click
+# anywhere on the stepped slider, `p21-debug-events.log` must contain
+# `stepped slider N` where N is one of 0.00, 0.25, 0.50, 0.75, 1.00. Any other
+# number means the step was ignored and the raw drag position reached the
+# binding.
+#
+# WHY A LOG AND NOT A CAPTURE. The two stepped sliders sit BELOW THE FOLD:
+# P21's window is 820x720 and its content is longer, so a window capture shows
+# the label above them and neither control. Measured 2026-09-10 -- the capture
+# taken to check this ends at `Slider step 0.25 - 0.30` with nothing under it.
+# An on-screen assertion nobody can photograph is not an assertion.
+#
+# WHY IT SCROLLS FIRST. Same fact from the input side: a control below the fold
+# cannot be clicked either. P21's body is inside a `ScrollView` (P21.swift:118),
+# so the wheel brings it into view. Without the scroll the click lands on
+# whatever is at that coordinate instead, which is not nothing -- it is another
+# control, and it would report a plausible wrong result.
+#
+# THE COORDINATE IS MEASURED, NOT REASONED. It comes from a capture taken after
+# the scroll, and it does not survive P21's layout changing. If this file starts
+# failing, re-capture after the scroll and re-measure; do not adjust the number
+# by arithmetic.
+#
+# THE INITIAL VALUE IS NOT SNAPPED, and that is deliberate rather than a gap.
+# `steppedValue` starts at 0.3, which is not on a 0.25 step, and the label reads
+# 0.30 until this file clicks. `step:` governs values the user produces; an
+# application's own initial value is left alone. See `Slider.commit` for the
+# prediction that got this backwards and the capture that refuted it.
+#
+# expect: log-contains stepped slider
+#
+# P21 於 Windows:`Slider(value:in:step:)` 會吸附**使用者所產生**的值。
+#
+# **它斷言什麼**,而那是 log 裡的一行,不是一張圖。在分段滑桿上任意點擊之後,
+# `p21-debug-events.log` 中必須含有 `stepped slider N`,而 N 為 0.00、0.25、0.50、0.75、1.00
+# 其中之一。任何其他數字都代表 step 被忽略,原始的拖曳位置直接抵達了 binding。
+#
+# **為何用 log 而非擷圖。** 那兩個分段滑桿位於**可視範圍之下**:P21 的視窗為 820x720 而內容更長,
+# 因此視窗擷圖只照得到它們上方的標籤,兩個控制項都照不到。2026-09-10 實測——為此拍的那張擷圖
+# 結束於 `Slider step 0.25 - 0.30`,其下空無一物。**一個沒有人能拍到的畫面斷言不是斷言。**
+#
+# **為何要先捲動。** 同一件事的輸入面:位於可視範圍之下的控制項同樣**點不到**。P21 的 body 位於一個
+# `ScrollView` 之內(P21.swift:118),因此滾輪可以把它帶進視野。少了捲動,點擊會落在該座標上的
+# **其他東西**——那不是「什麼都沒有」,而是另一個控制項,並且會回報一個看似合理的錯誤結果。
+#
+# **座標是量出來的,不是推出來的。** 它取自捲動之後所拍的一張擷圖,而且撐不住 P21 的版面改變。
+# 若本檔開始失敗,請在捲動後重新擷圖並重新量測;**不要**用算術去調整那個數字。
+#
+# **初始值不會被吸附**,而那是刻意的,不是缺口。`steppedValue` 起始於 0.3,不落在 0.25 的步進上,
+# 而在本檔點擊之前,標籤讀作 0.30。`step:` 管的是使用者所產生的值;應用程式自己的初始值不予變動。
+# 那個把此事說反了的預測,以及推翻它的那張擷圖,記於 `Slider.commit`。
+sleep,,,,,,1200000,let the window settle and take the topmost pin,windows
+move,410,400,frame,,,,park the pointer over the scroll view so the wheel goes to it,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+scroll,0,6,,,,,"six notches down; x and y are NOTCHES here, not pixels, and origin is empty on purpose. TWELVE overshot -- measured 2026-09-10, it put both stepped sliders above the fold, which fails the same way being below it does",windows
+sleep,,,,,,800000,let the scroll settle before anything is measured against it,windows
+move,600,285,frame,,,,"onto the ENABLED stepped slider. Measured off a window capture at 2026-09-10 05:28 taken after this exact scroll: the label sits at y=247, the enabled slider at y=285 with its track running x=43..803, and the disabled twin at y=330. A window capture starts at the frame origin, so these ARE frame coordinates",windows
+sleep,,,,,,300000,let the pointer arrive,windows
+click,600,285,frame,left,,,"x=600 is (600-43)/(803-43) = 0.733 along the track, which is NOT a multiple of 0.25 -- that is the whole point. GTK warps the thumb to a primary click, so the raw value would be 0.73; the step must pull it to 0.75. A value of 0.73 in the log means the step was ignored",windows
+sleep,,,,,,1500000,let the handler run and the log flush,windows
