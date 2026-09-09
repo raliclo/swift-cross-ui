@@ -69,6 +69,8 @@ struct P10RootView: View {
     @State var hiddenClicks = 0
     @State var overlayEnabled = true
     @State var eventLog = "Ready. Ctrl-Q should quit the app."
+    @State var secondaryTaps = 0
+    @State var longPresses = 0
 
     var body: some View {
         VStack(spacing: 12) {
@@ -77,6 +79,44 @@ struct P10RootView: View {
             Text(eventLog)
 
             Text("Direct clicks: \(directClicks)   Covered clicks: \(coveredClicks)")
+
+            // #32, added 2026-09-09. These two exist to be RUN, not to be read.
+            //
+            // Until today `.secondary` and `.longPress` hit a `fatalError` in
+            // WinUIBackend's `createTapGestureTarget`, so a right click took the
+            // whole application down on that backend while working on the other
+            // four. Nothing in the test suite used either kind, which is why a
+            // crash reachable from one modifier survived this long: the gap was
+            // real, and no app went near it.
+            //
+            // So the first assertion is simply THAT THIS APP STARTS on
+            // Win-WinUI. Before the fix it could not: the fatalError is in
+            // `create`, which runs while the view tree is being built.
+            //
+            // #32,2026-09-09 加入。這兩者的存在是為了**被執行**,不是為了被閱讀。
+            //
+            // 直到今天,`.secondary` 與 `.longPress` 在 WinUIBackend 的 `createTapGestureTarget`
+            // 中都會撞上 `fatalError`,因此一次右鍵會在該 backend 上讓**整個應用程式終止**,
+            // 而同一段程式在其他四個 backend 上運作正常。測試套件中**沒有任何一支 app 用過這兩種
+            // kind**——這正是「一個從單一 modifier 就構得到的當機」能存活這麼久的原因:缺口是真的,
+            // 只是沒有 app 走近它。
+            //
+            // 因此第一項斷言就是:**這支 app 在 Win-WinUI 上啟動得起來。** 在修正之前它不可能——
+            // 那個 fatalError 位於 `create`,而 `create` 是在建構 view tree 時執行的。
+            HStack(spacing: 24) {
+                Text("Right-clicks: \(secondaryTaps)")
+                    .onTapGesture(gesture: .secondary) {
+                        secondaryTaps += 1
+                        eventLog = "secondary tap \(secondaryTaps)"
+                        P10Diagnostics.write("secondary tap \(secondaryTaps)")
+                    }
+                Text("Long presses: \(longPresses)")
+                    .onTapGesture(gesture: .longPress) {
+                        longPresses += 1
+                        eventLog = "long press \(longPresses)"
+                        P10Diagnostics.write("long press \(longPresses)")
+                    }
+            }
 
             HStack(spacing: 24) {
                 VStack(spacing: 6) {

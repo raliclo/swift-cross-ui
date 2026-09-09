@@ -1,0 +1,85 @@
+action,x,y,origin,button,key,micros,note,platform
+# P10 on Windows: the two tap-gesture kinds that used to kill this backend.
+#
+# WHY IT EXISTS. Until 2026-09-09 `.secondary` and `.longPress` reached a
+# `fatalError` in WinUIBackend's `createTapGestureTarget` and
+# `updateTapGestureTarget`, so a right click took the whole application down on
+# Win-WinUI while the same code worked on the other four backends. Nothing in
+# the test suite used either kind -- which is exactly why a crash reachable
+# from one modifier survived: the gap was real and no app went near it.
+#
+# THERE ARE TWO ASSERTIONS HERE AND THE FIRST IS FREE.
+#
+#   1. THE APP STARTS. The fatalError was in `create`, which runs while the
+#      view tree is being built, so before the fix P10 could not reach its
+#      render-complete line at all once these two modifiers were added. If
+#      `p10-debug-events.log` exists, assertion 1 already passed.
+#   2. The gestures FIRE. That is what the rows below are for.
+#
+# Keep both in mind when reading a failure: no log file at all is a different
+# defect from a log file with no gesture lines, and only the second is about
+# the gestures themselves.
+#
+# HOW LONG PRESS IS DRIVEN, and why not a `click`. WinUI raises `Holding` for
+# touch and pen only -- a mouse never produces it, by design. So the backend
+# times the press itself from `pointerPressed`, and driving it needs a real
+# press-wait-release: mouseDown, a sleep LONGER than the 0.5s threshold in
+# `WinUIBackend.longPressDuration`, then mouseUp. A `click` row would press and
+# release within a frame or two and correctly produce nothing.
+#
+# 800ms, not 510ms: the margin is there so a scheduler hiccup cannot turn a
+# pass into a fail. Too close to the threshold and this file starts reporting
+# the machine's load rather than the backend's behaviour.
+#
+# COORDINATES measured off a desktop capture at 2026-09-09 22:34, with the
+# window at frame origin (182,182):
+#
+#   "Right-clicks: 0"  screen centre (443,375)  ->  frame (261,193)
+#   "Long presses: 0"  screen centre (550,375)  ->  frame (368,193)
+#
+# origin=frame so they survive the window landing somewhere else, which it does
+# on every launch. They do NOT survive P10's layout changing.
+#
+# expect: log-contains secondary tap 1
+#
+# P10 於 Windows:兩種曾經會殺掉這個 backend 的 tap 手勢。
+#
+# **本檔為何存在。** 直到 2026-09-09,`.secondary` 與 `.longPress` 在 WinUIBackend 的
+# `createTapGestureTarget` 與 `updateTapGestureTarget` 中都會撞上 `fatalError`,因此一次右鍵會在
+# Win-WinUI 上讓**整個應用程式終止**,而同一段程式在其他四個 backend 上運作正常。測試套件中沒有
+# 任何一支 app 用過這兩種 kind——這正是「一個從單一 modifier 就構得到的當機」能存活下來的原因:
+# 缺口是真的,只是沒有 app 走近它。
+#
+# **此處有兩項斷言,而第一項是免費的。**
+#
+#   1. **app 啟動得起來。** 那個 fatalError 位於 `create`,而 `create` 是在建構 view tree 時執行的;
+#      因此在修正之前,一旦加上這兩個 modifier,P10 根本到不了它的 render-complete 那一行。
+#      只要 `p10-debug-events.log` 存在,斷言 1 就已經通過。
+#   2. **手勢真的會觸發。** 那才是下方那些資料列的用途。
+#
+# 讀失敗時請同時記得這兩者:**完全沒有 log 檔**與**有 log 檔但沒有手勢行**是兩種不同的缺陷,
+# 而只有後者才是關於手勢本身。
+#
+# **長按如何驅動,以及為何不用 `click`。** WinUI 只為觸控與觸控筆發出 `Holding`——滑鼠永遠不會產生
+# 它,而且那是刻意的。因此 backend 自行從 `pointerPressed` 計時,而要驅動它就需要一次真正的
+# 「按下—等待—放開」:mouseDown、一段**長於** `WinUIBackend.longPressDuration` 那 0.5 秒門檻的
+# sleep,然後 mouseUp。一列 `click` 會在一兩個 frame 內完成按下與放開,並且**正確地**什麼都不產生。
+#
+# 用 800 毫秒而非 510:留這個餘裕,是為了不讓一次排程抖動把通過變成失敗。**太靠近門檻,本檔回報的
+# 就會是機器的負載,而不是 backend 的行為。**
+#
+# **座標**量自 2026-09-09 22:34 的一張桌面擷圖,當時視窗的 frame 原點為 (182,182):
+# 「Right-clicks: 0」螢幕中心 (443,375) → frame (261,193);「Long presses: 0」螢幕中心 (550,375)
+# → frame (368,193)。採 origin=frame,因此它們撐得住視窗每次啟動落在不同位置;但撐不住 P10 的
+# 版面改變。
+sleep,,,,,,1200000,let the window settle and take the topmost pin,windows
+move,261,193,frame,,,,onto the right-click target,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,261,193,frame,right,,,"secondary tap; writes secondary tap 1 -- before 2026-09-09 this row killed the process",windows
+sleep,,,,,,600000,let the handler run and the log flush,windows
+move,368,193,frame,,,,onto the long-press target,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+mousedown,368,193,frame,left,,,"press and HOLD -- a click row would release too fast and correctly do nothing. LOWERCASE: the file verbs are not the InputAction case names, and `mouseDown` is rejected by name (ActionFile.swift:171)",windows
+sleep,,,,,,800000,hold past the 0.5s longPressDuration with margin for scheduler jitter,windows
+mouseup,368,193,frame,left,,,release; the callback has already fired if the press was long enough,windows
+sleep,,,,,,1500000,let the log catch up,windows
