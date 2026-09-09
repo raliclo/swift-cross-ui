@@ -1,0 +1,142 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, GtkBackend: press a button INSIDE the open popover.
+#
+# THIS FILE IS EXPECTED TO REPORT UNMET TODAY. It is kept because it is the
+# only thing in the suite that separates two explanations which look identical
+# from outside, and because whatever fixes the gap will make it pass without
+# being edited.
+#
+# WHAT IT REPLACED. Task #111 concluded, from
+# `P50-open-first-panel.csv`, that "the synthesiser cannot click a surface that
+# holds a grab", and proposed a fix: make the synthesiser "find the grabbing
+# top-level and post to it". That conclusion was drawn from an OUTSIDE click --
+# the light-dismiss step -- where "the click did nothing" and "the click was
+# never delivered" are indistinguishable.
+#
+# MEASURED 2026-09-09 by clicking INSIDE instead. Both clicks are in one run:
+#
+#   anchor, frame (252,711)   foreground = ANOTHER APP   hitTarget = main window
+#                             -> WORKED: "popover alpha shown"
+#   press me, frame (180,607) foreground = this app      hitTarget = the POPOVER
+#                             -> NOTHING. No "popover counter 1".
+#
+# Three things follow, and the first two correct #111 rather than confirm it.
+#
+# 1. THE MECHANISM IN #111 IS WRONG. The synthesiser uses SetCursorPos plus
+#    SendInput. Those are PHYSICAL events routed by the system from the cursor
+#    position; they are not posted to a chosen window at all. The dump's
+#    `hitTarget` is `WindowFromPoint`, and it reports the popover -- the cursor
+#    was over the popover's own button when the click was issued. "Find the
+#    grabbing toplevel and post to it" would change nothing that is happening.
+#
+# 2. MAKING THE WINDOW WALK FIND THE POPOVER WOULD MAKE THINGS WORSE, and this
+#    was tried and reverted the same day. The walk's choice sets the ORIGIN for
+#    `origin=frame`. Choose the popover and (700,880) in the light-dismiss file
+#    resolves against a 291x221 frame at (341,577) instead of the main window --
+#    off the popover, off the screen. The current choice is CORRECT for a file
+#    whose click must land outside.
+#
+# 3. FOREGROUND IS NOT THE EXPLANATION, and it is ruled out in the surprising
+#    direction: the click that worked was the one made while ANOTHER
+#    APPLICATION held the foreground. `active=none` on both.
+#
+# WHY THE POPOVER IS REACHABLE AT ALL. It is a separate visible toplevel, owned
+# by the main window, 291x221 -- it is in the replay's own window dump on every
+# action. It is invisible to the walk for a reason worth recording, because two
+# individually correct filters hide it between them: `preferringOwners` drops it
+# for being owned by another candidate (a rule added for the `GdkWin32GL`
+# content surface), and the `GW_ENABLEDPOPUP` walk never reaches it because that
+# slot holds ONE window and Direct Composition has already filled it with the
+# main window's own content surface. Neither is a bug; the popover just falls
+# through the gap. Recorded here rather than acted on, per point 2.
+#
+# WHAT IS STILL UNKNOWN, stated so nobody reads this file as a finished
+# diagnosis: why a physical click delivered onto the popover's own button
+# produces nothing. Candidates not yet separated -- GTK holding a Win32 capture
+# on the main surface and mapping coordinates itself; the popover surface having
+# styles that change delivery; GTK declining injected input. Settling it needs
+# instrumentation inside GtkBackend's event path, not another action file.
+#
+# COORDINATES, measured off a DESKTOP capture, which is the only kind that
+# contains a popover -- it is a separate toplevel, so a PrintWindow capture of
+# the main window never holds it. `screenshot.zsh` WITHOUT `-w` reads the
+# composited desktop. From p50-popover-desktop-20260909-104720.png at 1920x1080:
+#
+#   anchor "Open the first panel"  screen x 271..493  y 791..827  centre (382,809)
+#   popover "press me (0)"         screen x 259..362  y 689..722  centre (310,705)
+#   popover "close this panel"     screen x 259..381  y 729..762  centre (320,745)
+#
+# The anchor is addressed as frame (252,711) by the sibling file, so the frame
+# origin in that capture was (382-252, 809-711) = (130,98), and "press me" is
+# frame (310-130, 705-98) = (180,607).
+#
+# THE WINDOW LANDS SOMEWHERE DIFFERENT ON EVERY LAUNCH -- (234,99), (182,99) and
+# (130,98) across three runs on one morning -- which is exactly why this uses
+# origin=frame. The conversion happens at replay time against wherever the
+# window actually is, so these numbers survive the window moving. They do NOT
+# survive P50's layout changing; see flow.md 3e-1.
+#
+# expect: log-contains popover counter 1
+#
+# P50 於 Windows、GtkBackend：按下**已開啟之 popover 內部**的一顆按鈕。
+#
+# **本檔今天預期會回報 UNMET。** 保留它，是因為它是本套件中唯一能分開「兩種從外部看完全相同」之
+# 解釋的東西，而且無論最後是什麼修好了這個缺口，它都會在不被編輯的情況下自己通過。
+#
+# **它取代了什麼。** 任務 #111 由 `P50-open-first-panel.csv` 得出結論：「合成器點不了持有 grab 的
+# 表面」，並提出修法：讓合成器「找到持有 grab 的 toplevel 並 post 給它」。那個結論是從一次**向外**
+# 的點擊（light dismiss 那一步）得出的——而在那裡，「點擊沒有作用」與「點擊從未被送達」無從分辨。
+#
+# **2026-09-09 實測**，改成往**內**點。兩次點擊在同一次執行中：對錨點 frame (252,711) 的點擊，
+# 當時前景是**別的應用程式**、`hitTarget` 是主視窗——**有效**，寫出 `popover alpha shown`；
+# 對 popover 內 `press me` frame (180,607) 的點擊，當時前景是本 app、`hitTarget` 是 **popover**
+# 本身——**毫無反應**，沒有 `popover counter 1`。
+#
+# 由此有三點，而前兩點是在**更正** #111 而非佐證它：
+#
+# 1. **#111 所述的機制是錯的。** 合成器用的是 SetCursorPos 加 SendInput，那是由系統依游標位置路由的
+#    **實體**事件，根本不會被 post 給某個選定的視窗。傾印中的 `hitTarget` 就是 `WindowFromPoint`，
+#    而它回報的是 popover——點擊發出時，游標就在 popover 自己的按鈕上。「找到持有 grab 的 toplevel
+#    並 post 給它」不會改變任何正在發生的事。
+#
+# 2. **讓視窗走訪找到 popover 只會更糟**，而這在同一天被試過並撤回。走訪的選擇決定了 `origin=frame`
+#    的**原點**。若選中 popover，light-dismiss 檔中的 (700,880) 就會以位於 (341,577) 的 291x221
+#    外框來換算，而非主視窗——落到 popover 之外、也落到螢幕之外。對一個「點擊必須落在外面」的檔案
+#    而言，**目前的選擇是正確的**。
+#
+# 3. **前景不是原因**，而且是往令人意外的方向被排除的：**有效**的那一次點擊，正是在**別的應用程式**
+#    持有前景時做出的。兩次的 `active` 皆為 none。
+#
+# **popover 究竟為何構得到。** 它是一個獨立、可見、被主視窗擁有的 toplevel，291x221——它每一個動作
+# 都出現在重放自己的視窗傾印裡。它之所以對走訪不可見，理由值得記下，因為那是兩道**各自正確**的過濾器
+# 把它夾在中間藏了起來：`preferringOwners` 因為它被另一個候選者擁有而丟掉它（那條規則是為
+# `GdkWin32GL` 內容 surface 而加的），而 `GW_ENABLEDPOPUP` 的走訪永遠到不了它，因為那個位置只容納
+# **一個**視窗，且 Direct Composition 早已用主視窗自己的內容 surface 填滿了它。兩者都不是 bug；
+# popover 只是從縫隙中漏掉。此處**只記錄、不據以行動**，理由見第 2 點。
+#
+# **仍然未知的部分**，寫明以免有人把本檔讀成一份完成的診斷：為何一次實體地落在 popover 自己按鈕上的
+# 點擊會毫無產出。尚未被分開的候選解釋——GTK 在主 surface 上持有 Win32 capture 並自行對應座標；
+# popover surface 帶有改變傳遞行為的樣式；GTK 拒絕注入式輸入。要定案需要在 GtkBackend 的事件路徑
+# **內部**加儀器，而不是再寫一個動作檔。
+#
+# **座標**量自一張**桌面**擷圖，那是唯一會包含 popover 的擷圖種類——它是獨立 toplevel，因此對主視窗
+# 做 PrintWindow 永遠拍不到它。`screenshot.zsh` **不加** `-w` 時讀的是合成後的桌面。取自
+# 1920x1080 的 p50-popover-desktop-20260909-104720.png：錨點「Open the first panel」位於
+# screen x 271..493、y 791..827，中心 (382,809)；popover 的「press me (0)」位於 x 259..362、
+# y 689..722，中心 (310,705)；「close this panel」位於 x 259..381、y 729..762，中心 (320,745)。
+#
+# 姊妹檔以 frame (252,711) 定址該錨點，因此該次擷圖的 frame 原點為 (382-252, 809-711) = (130,98)，
+# 而「press me」即 frame (310-130, 705-98) = (180,607)。
+#
+# **視窗每次啟動都落在不同的位置**——一個上午的三次執行分別是 (234,99)、(182,99) 與 (130,98)
+# ——這正是本檔採用 origin=frame 的原因：換算是在重放當下、依視窗實際所在之處進行的，因此這些數字
+# 撐得住視窗移動。它們**撐不住** P50 版面本身的改變；見 flow.md 3e-1。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,252,711,frame,,,,move onto the first anchor,windows
+sleep,,,,,,200000,let the pointer arrive,windows
+click,252,711,frame,left,,,open the first panel -- writes popover alpha shown,windows
+sleep,,,,,,900000,let the popover map and take its grab,windows
+move,180,607,frame,,,,move onto press me INSIDE the popover -- hitTarget must report the popover toplevel,windows
+sleep,,,,,,300000,let the pointer arrive so the press lands on a hovered button,windows
+click,180,607,frame,left,,,"press the popover's OWN button; writes popover counter 1 when input reaches it. UNMET as of 2026-09-09 -- see this file's header, and do not read the absence as a missed coordinate: hitTarget confirms the cursor was on the popover",windows
+sleep,,,,,,2000000,hold and let the log catch up,windows
