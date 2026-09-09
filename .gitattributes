@@ -106,4 +106,65 @@ gyb/* linguist-vendored
 # 已知限制,而且它會大聲失敗、不會靜默損壞:union 連標頭列也會合併,因此若兩側在同一輪都改了某個
 # .csv2 的標頭,結果會有重複的標頭——而 csv2 會驗證標頭數量並拒絕該檔,所以那會在下一次讀取時以硬性
 # 錯誤出現,而不是變成無聲的損壞。兩側都只是附加資料時,根本不會碰到標頭。
-*.csv2 merge=union
+# LISTED PER FILE, BECAUSE `*.csv2` WAS WRONG AND THE REASON IS WORTH KEEPING.
+#
+# The Windows side first wrote this as `*.csv2`, having checked that all six
+# tracked files are one-line-per-record. That check was real and it was the
+# WRONG CHECK. One line per record makes union non-destructive; it does not make
+# it correct. Union is only correct for a file that is APPEND-ONLY, because
+# union does not conflict on an in-place edit -- it keeps BOTH versions of the
+# row.
+#
+# Two of the six are matrices whose rows are rewritten in place, measured over
+# the last eight commits:
+#
+#                                          macOS      Windows
+#     matrix_coverage/results.csv2            +13 -0    +297 -0   append-only
+#     mistakes/mistakes.csv2                  +11 -0     +12 -0   append-only
+#     buildtime/buildtime.csv2                +39 -0     +39 -0   append-only
+#     testapp/P52-buttonstyle-findings.csv2   +11 -0     +11 -0   append-only
+#     matrix_coverage/coverage-matrix.csv2    +99 -97    +99 -97  REWRITTEN
+#     matrix_coverage/executable-size.csv2   +100 -49   +100 -49  REWRITTEN
+#
+# Two columns because the two machines counted at different points and got
+# different insertion totals -- "the last eight commits" is a moving window, and
+# results.csv2 differs by an order of magnitude between them. The DELETION
+# column is identical on both, and that is the column the decision rests on. A
+# single number here would have been reproducible by neither side.
+#
+# Under union, P16's row in coverage-matrix.csv2 would exist twice -- once
+# saying pass, once saying fail -- and which one a reader gets depends on which
+# they scan first. **That is worse than a conflict.** A conflict stops and asks
+# a human to look; union produces a matrix that looks complete, contradicts
+# itself, and reports nothing.
+#
+# A second reasoning error is recorded here too, because it was refuted by that
+# same table. The Windows side then argued mistakes.csv2 was ALSO unsafe, on the
+# grounds that `csv2 -update 111:3` had been run against it. Wrong: that update
+# rewrote a row the same commit had just appended, so the net was still an
+# append, and +11 -0 says so. Deriving "is it append-only" from one remembered
+# operation lost to counting the diffs.
+#
+# Re-derive:
+#     git log -8 --numstat -- <file> | awk 'NF==3 {a+=$1; d+=$2} END {print a, d}'
+#
+# 逐檔列出,因為 `*.csv2` 是錯的,而理由值得留下。
+#
+# Windows 側最初把它寫成 `*.csv2`,依據是六個被追蹤的檔案都經查證為「一筆記錄一個實體行」。那項查證
+# 是真的,但那是**錯的查證**。「一筆一行」讓 union **不具破壞性**,卻不等於讓它**正確**。union 只對
+# **純附加**的檔案正確,因為 union 對就地編輯**不會**衝突——它會把該列的**兩個版本都留下**。
+#
+# 六個裡有兩個是「列會被就地重寫」的矩陣,以近八次提交量得(表見上)。
+#
+# 在 union 之下,coverage-matrix.csv2 中 P16 那一列會存在兩次——一份寫 pass、一份寫 fail——而讀者拿到
+# 哪一份取決於他先掃到哪一列。**那比衝突糟得多**:衝突會停下來要求人去看,而 union 產出的是一個看起來
+# 完整、卻自相矛盾、且不會有任何東西回報的矩陣。
+#
+# 此處也記下第二個推理錯誤,因為它正是被上面那張表推翻的。Windows 側接著主張 mistakes.csv2 **也**不
+# 安全,理由是有人對它執行過 `csv2 -update 111:3`。錯了:那次 update 改寫的是同一次提交剛剛附加的那
+# 一列,因此淨效果仍是附加,而 +11 -0 就是證據。**用一次記得的操作去推導「它是否純附加」,輸給了直接
+# 數 diff。**
+matrix_coverage/results.csv2 merge=union
+mistakes/mistakes.csv2 merge=union
+buildtime/buildtime.csv2 merge=union
+testapp/P52-buttonstyle-findings.csv2 merge=union
