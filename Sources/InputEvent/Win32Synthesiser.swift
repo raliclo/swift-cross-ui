@@ -1143,7 +1143,44 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         try dispatch(&input)
     }
 
+    /// Whether any modifier is down RIGHT NOW, asked of Windows rather than
+    /// tracked here.
+    ///
+    /// Tracking was the first attempt and the compiler refused it:
+    /// `Win32Synthesiser` is `Sendable`, so a mutable stored property is an
+    /// error, and `perform(_:in:)` is called once per action with no loop of its
+    /// own to hold the state in. Asking is better anyway. An action file spells
+    /// a shortcut as a SEQUENCE -- `keydown,control`, `key,q`, `keyup,control` --
+    /// so a tracked set would only know about modifiers this synthesiser itself
+    /// sent, and would be wrong about one the operator was physically holding.
+    /// `GetKeyState`'s high bit is the actual state of the key.
+    ///
+    /// Shift counts. `shift` + `a` must produce `A`, and only the virtual-key
+    /// path applies the keyboard layout; the Unicode path would send a bare `a`.
+    ///
+    /// 是否**此刻**有任何修飾鍵按著——向 Windows 詢問，而非在此追蹤。
+    ///
+    /// 追蹤是第一次的做法，而編譯器拒絕了它：`Win32Synthesiser` 是 `Sendable`，因此可變的儲存屬性是錯誤；
+    /// 而 `perform(_:in:)` 每個動作被呼叫一次，本身沒有可容納該狀態的迴圈。何況「詢問」本來就更好。動作檔
+    /// 是以**序列**拼出快捷鍵的——`keydown,control`、`key,q`、`keyup,control`——因此一份被追蹤的集合只會
+    /// 知道本合成器自己送出的修飾鍵，對於操作者實體按著的那一個則會判斷錯誤。`GetKeyState` 的最高位元
+    /// 就是該鍵的真實狀態。
+    ///
+    /// Shift 也算在內。`shift` + `a` 必須產生 `A`，而只有 virtual-key 路徑會套用鍵盤配置；Unicode 路徑
+    /// 送出的會是一個單純的 `a`。
+    private static var anyModifierHeld: Bool {
+        for vk in [VK_CONTROL, VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN] {
+            if GetKeyState(Int32(vk)) & Int16(bitPattern: 0x8000) != 0 { return true }
+        }
+        return false
+    }
+
     private func send(key: Key, up: Bool) throws {
+        if !Self.anyModifierHeld, let scalar = Self.printableScalar(for: key) {
+            try sendUnicode(scalar, up: up)
+            return
+        }
+
         guard let code = Self.virtualKey(for: key) else {
             throw SynthesiserError.unsupported("key '\(key.rawValue)' on Windows")
         }
@@ -1190,6 +1227,71 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         input.ki.wScan = WORD(MapVirtualKeyW(UINT(code), mapVKToVSC))
 
         input.ki.dwFlags = up ? DWORD(KEYEVENTF_KEYUP) : 0
+        try dispatch(&input)
+    }
+
+    /// The character a key types when nothing is held, or nil if it is not a
+    /// typing key.
+    ///
+    /// ``Key`` is a `String`-backed enum whose letter and digit cases have
+    /// single-character raw values -- `a`, `b`, `0`, `1` -- while every other
+    /// case spells a name: `escape`, `leftArrow`, `keypadPlus`. Length one is
+    /// therefore the whole test, and `space` is added explicitly because its raw
+    /// value is the word rather than a blank.
+    ///
+    /// 當沒有任何修飾鍵按著時，該鍵所輸入的字元；若它不是輸入字元用的鍵，則為 nil。
+    ///
+    /// ``Key`` 是以 `String` 支撐的 enum，其字母與數字的 case 具有單一字元的 raw value——`a`、`b`、
+    /// `0`、`1`——而其餘每一個 case 拼的都是名稱：`escape`、`leftArrow`、`keypadPlus`。因此「長度為一」
+    /// 就是完整的判準；`space` 另外明列，因為它的 raw value 是那個單字而非一個空白。
+    private static func printableScalar(for key: Key) -> UInt16? {
+        if key == .space { return 0x20 }
+        let raw = key.rawValue
+        guard raw.count == 1, let scalar = raw.unicodeScalars.first, scalar.value < 0x10000 else {
+            return nil
+        }
+        return UInt16(scalar.value)
+    }
+
+    /// Types a character with `KEYEVENTF_UNICODE`, bypassing the keyboard layout
+    /// and the input method entirely.
+    ///
+    /// **WHY THIS PATH EXISTS.** Measured 2026-09-09 on P36/Win-gtk4. Sending
+    /// `a` then `b` as virtual keys put ONE non-letter glyph in a focused
+    /// GtkEntry, displacing its placeholder, while the entry's `changed` signal
+    /// was never emitted -- instrumented, `registerSignals` connected it 6 times
+    /// and the handler was entered 0 times, against a positive control that
+    /// fired 18. A GtkEntry emits `changed` whenever its BUFFER changes, so
+    /// something that displaces the placeholder without emitting it is not
+    /// buffer text: it is IME preedit. Raw virtual keys leave GTK's input method
+    /// composing, and composition never commits.
+    ///
+    /// `KEYEVENTF_UNICODE` delivers the character itself rather than a key to be
+    /// translated, so there is nothing for an input method to compose.
+    /// `wVk` MUST be 0 -- Windows ignores the scan code as a character otherwise.
+    ///
+    /// Only reached when no modifier is held. A shortcut still needs a real
+    /// virtual key, because a Unicode event carries no modifier state and
+    /// Ctrl+Q sent this way is just `q`.
+    ///
+    /// **此路徑存在的理由。** 2026-09-09 於 P36／Win-gtk4 實測。以 virtual key 送出 `a` 再送 `b`，在取得
+    /// 焦點的 GtkEntry 中放進了**一個**非字母字符、蓋掉了它的 placeholder，而該 entry 的 `changed` 訊號
+    /// 從未發出——插上儀器後，`registerSignals` 連接了 6 次、handler 被進入 0 次，而正對照觸發了 18 次。
+    /// GtkEntry 只要 **buffer** 改變就會發出 `changed`，因此「蓋掉 placeholder 卻不發出該訊號」的東西
+    /// 就不是 buffer 文字：它是 IME 的 preedit。原始 virtual key 會讓 GTK 的輸入法停在組字狀態，而組字
+    /// 從未被 commit。
+    ///
+    /// `KEYEVENTF_UNICODE` 送的是字元本身，而非一個待翻譯的按鍵，因此沒有東西可供輸入法組字。
+    /// `wVk` **必須**為 0——否則 Windows 不會把 scan code 當作字元看待。
+    ///
+    /// 僅在沒有任何修飾鍵按著時才會走到。快捷鍵仍需真正的 virtual key，因為 Unicode 事件不攜帶修飾鍵
+    /// 狀態，以此方式送出的 Ctrl+Q 就只是一個 `q`。
+    private func sendUnicode(_ scalar: UInt16, up: Bool) throws {
+        var input = INPUT()
+        input.type = DWORD(INPUT_KEYBOARD)
+        input.ki.wVk = 0
+        input.ki.wScan = scalar
+        input.ki.dwFlags = DWORD(KEYEVENTF_UNICODE) | (up ? DWORD(KEYEVENTF_KEYUP) : 0)
         try dispatch(&input)
     }
 
