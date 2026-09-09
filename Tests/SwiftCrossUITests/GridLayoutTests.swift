@@ -1,0 +1,141 @@
+import Testing
+
+import DummyBackend
+@testable @_spi(Backends) import SwiftCrossUI
+
+@Suite("Grid column resolution")
+struct GridLayoutTests {
+    /// The case a reviewer measured against the resolver on 2026-09-09: an
+    /// adaptive column divided the WHOLE container instead of what a fixed
+    /// column had left, so 420 points of container produced 530 points of
+    /// columns.
+    ///
+    /// Nothing overflowed loudly. The last column simply ran off the edge, which
+    /// on a backend that clips looks like a missing item and on one that does
+    /// not looks like a layout that is merely wide.
+    ///
+    /// 某位審查者於 2026-09-09 對照解析器實測的案例:一個 adaptive 欄瓜分的是**整個**容器,而不是
+    /// 固定欄留下的部分,於是 420 點的容器產出了 530 點的欄。
+    ///
+    /// 沒有任何東西大聲溢位。只是最後一欄跑出了邊緣——在會裁切的 backend 上那看起來像是少了一個項目,
+    /// 在不裁切的 backend 上則看起來只是版面偏寬。
+    @MainActor
+    @Test("An adaptive column divides what a fixed column leaves")
+    func adaptiveDoesNotDoubleCountFixedWidth() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [
+                GridItem(.fixed(200)),
+                GridItem(.adaptive(minimum: 100)),
+            ],
+            alignment: .leading,
+            spacing: 0,
+            proposedWidth: 420
+        )
+
+        let total = plan.columnWidths.reduce(0, +)
+        #expect(
+            total <= 420,
+            "columns total \(total) in a 420 point container: \(plan.columnWidths)"
+        )
+        #expect(plan.columnWidths.first == 200, "the fixed column keeps its width")
+    }
+
+    /// Spacing counts too, and it is the half that is easy to drop when the
+    /// first half is fixed.
+    /// 間距同樣要算,而當前半段是固定寬度時,那是最容易被漏掉的一半。
+    @MainActor
+    @Test("Spacing between columns stays inside the container")
+    func adaptiveRespectsSpacing() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [
+                GridItem(.fixed(200)),
+                GridItem(.adaptive(minimum: 100)),
+            ],
+            alignment: .leading,
+            spacing: 20,
+            proposedWidth: 420
+        )
+
+        let widths = plan.columnWidths.reduce(0, +)
+        let gaps = 20 * max(0, plan.columnWidths.count - 1)
+        #expect(
+            widths + gaps <= 420,
+            "columns \(plan.columnWidths) plus \(gaps) of spacing exceed 420"
+        )
+    }
+
+    /// A static cell beside a `ForEach` collapses the whole `ForEach` into one
+    /// cell.
+    ///
+    /// `LazyVGrid` decides what to do by counting its DIRECT children: one means
+    /// "that child owns the cells, hand it the plan", more than one means "these
+    /// children ARE the cells". `TupleView.layoutableChildren` returns exactly
+    /// one entry per view and does not flatten, so `Text(…)` beside
+    /// `ForEach(…)` is two children -- and the entire ForEach becomes a single
+    /// cell whose contents fall back to stack layout, because the plan is
+    /// cleared for children in that branch.
+    ///
+    /// SwiftUI flattens: the ForEach's elements each become cells.
+    ///
+    /// **Marked as a known issue rather than fixed here.** The fix needs the
+    /// grid to ask a child "are you a group of cells?", and
+    /// `LayoutSystem.LayoutableChild` is an opaque pair of closures that cannot
+    /// answer. That is a change to how children are flattened, not a change to
+    /// this file, and it is worth more as a pinned fact than as an unverified
+    /// attempt. When someone does fix it, this test fails -- which is the
+    /// failure that should happen.
+    ///
+    /// 一個靜態儲存格擺在 `ForEach` 旁邊時,整個 `ForEach` 會塌縮成一格。
+    ///
+    /// `LazyVGrid` 是以「數**直接**子節點」來決定行為的:一個代表「那個子節點擁有這些儲存格,把計畫交
+    /// 給它」,多於一個代表「這些子節點**就是**儲存格」。而 `TupleView.layoutableChildren` 對每個 view
+    /// 恰好回傳一個項目、不做攤平,因此 `Text(…)` 擺在 `ForEach(…)` 旁邊就是兩個子節點——於是整個
+    /// ForEach 成為單一格,其內容退回 stack 排版,因為那個分支會為子節點清掉計畫。
+    ///
+    /// SwiftUI 會攤平:ForEach 的每個元素各自成為一格。
+    ///
+    /// **標記為已知問題,而非在此修正。** 修法需要讓格線能問子節點「你是一組儲存格嗎?」,而
+    /// `LayoutSystem.LayoutableChild` 是一對不透明的閉包,回答不了。那是「子節點如何被攤平」的改動,
+    /// 不是這個檔案的改動,而它作為一項被釘住的事實,價值高於一次未經驗證的嘗試。當有人真的修好它時,
+    /// 這個測試會失敗——而那正是應該發生的失敗。
+    @MainActor
+    @Test("A static cell beside a ForEach collapses it into one cell")
+    func staticCellBesideForEachCollapsesIt() {
+        let backend = DummyBackend()
+        let window = backend.createWindow(withDefaultSize: nil, id: "window")
+        let environment = EnvironmentValues(backend: backend).with(\.window, window)
+
+        func height(of view: some View) -> Double {
+            let node = ViewGraphNode(for: view, backend: backend, environment: environment)
+            let result = node.computeLayout(
+                proposedSize: ProposedViewSize(400, nil),
+                environment: environment
+            )
+            _ = node.commit()
+            return result.size.height
+        }
+
+        let columns = [GridItem(.flexible()), GridItem(.flexible())]
+
+        // Four cells in two columns is two rows.
+        // 兩欄裝四格,就是兩列。
+        let fourViaForEach = LazyVGrid(columns: columns) {
+            ForEach([0, 1, 2, 3], id: \.self) { Text("\($0)") }
+        }
+
+        // One static cell plus three from a ForEach is also four cells, so it
+        // should also be two rows.
+        // 一個靜態儲存格加上 ForEach 的三個,同樣是四格,因此也應該是兩列。
+        let oneStaticPlusThree = LazyVGrid(columns: columns) {
+            Text("static")
+            ForEach([1, 2, 3], id: \.self) { Text("\($0)") }
+        }
+
+        withKnownIssue("a ForEach beside a static cell is treated as one cell") {
+            #expect(
+                height(of: oneStaticPlusThree) == height(of: fourViaForEach),
+                "mixed \(height(of: oneStaticPlusThree)) vs all-ForEach \(height(of: fourViaForEach))"
+            )
+        }
+    }
+}

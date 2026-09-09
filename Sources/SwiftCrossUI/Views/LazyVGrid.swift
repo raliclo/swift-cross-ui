@@ -363,6 +363,48 @@ extension LazyVGrid {
         // Pass one: how many columns each item becomes, and which of them want a
         // share of what is left after the fixed ones.
         // 第一輪:每個項目會變成幾個欄,以及其中哪些想分配「扣掉固定欄之後」剩下的部分。
+        // What an adaptive column may divide is what is LEFT, not the whole
+        // container.
+        //
+        // This used to divide `available`, so a fixed column's width was
+        // counted twice -- once by the fixed column and once by the adaptive
+        // one filling the same space. Measured by a reviewer against the
+        // resolver: 420 pt available, one `.fixed(200)` and one
+        // `.adaptive(minimum: 100)` produced 530 pt of columns in a 420 pt
+        // container. Nothing overflowed loudly; the last column simply ran off
+        // the edge.
+        //
+        // The gap reserve is one per item rather than one per resulting column,
+        // because the adaptive counts are not known yet -- that is the
+        // circularity this pass exists inside. It under-reserves when an
+        // adaptive item becomes several columns, which costs at most a few
+        // points of the share and never overflows, since the second pass clamps
+        // each column to its own bounds anyway.
+        //
+        // adaptive 欄能夠瓜分的,是**剩下**的部分,不是整個容器。
+        //
+        // 它原本瓜分的是 `available`,因此一個固定欄的寬度被計算了兩次——一次由該固定欄、一次由填滿
+        // 同一片空間的 adaptive 欄。某位審查者對照解析器實測:420 點可用寬度、一個 `.fixed(200)` 與
+        // 一個 `.adaptive(minimum: 100)`,在一個 420 點的容器中產出了 530 點的欄。沒有任何東西大聲
+        // 溢位;只是最後一欄跑出了邊緣。
+        //
+        // 間距的預留是「每個項目一份」而非「每個最終欄位一份」,因為此時 adaptive 的欄數尚未得知——
+        // 那正是這一輪所身處的那個循環依賴。當某個 adaptive 項目展開為數欄時它會預留不足,而代價至多
+        // 是分配額中的幾個點、且永遠不會溢位,因為第二輪無論如何都會把每一欄夾在它自身的界限內。
+        var fixedWidth = 0.0
+        var adaptiveItems = 0
+        for column in columns {
+            switch column.size {
+                case .fixed(let width): fixedWidth += width
+                case .adaptive: adaptiveItems += 1
+                case .flexible: break
+            }
+        }
+        let reservedGaps = gap * Double(max(0, columns.count - 1))
+        let adaptiveSpace = max(0, available - fixedWidth - reservedGaps)
+        let spacePerAdaptiveItem =
+            adaptiveItems > 0 ? adaptiveSpace / Double(adaptiveItems) : 0
+
         var counts: [Int] = []
         for column in columns {
             switch column.size {
@@ -383,7 +425,7 @@ extension LazyVGrid {
                     // 商是在 `Int` 轉換**之前**被夾住的，不是之後：上面那一行已保證 `available` 有限，
                     // 但一個「有限但荒謬」的寬度除以最小值 1，其商仍可能超過 `Int.max`，而 `Int(_:)`
                     // 對此的 trap 方式，與它對 `.infinity` 的完全相同。
-                    let fit = (available + gap) / (max(minimum, 1) + gap)
+                    let fit = (spacePerAdaptiveItem + gap) / (max(minimum, 1) + gap)
                     counts.append(
                         max(1, Int(min(fit, Self.columnCountLimit).rounded(.down)))
                     )
