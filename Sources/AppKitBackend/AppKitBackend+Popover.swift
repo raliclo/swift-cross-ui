@@ -34,8 +34,39 @@ extension AppKitBackend {
         _ popover: NSCustomPopover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
+        backgroundColor: Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
+        // WRITTEN ON WINDOWS 2026-09-09 AND NOT RUN. The Windows side cannot
+        // build AppKit; this compiles against the API as read, and the Mac side
+        // verifies it. Same handover shape as #117.
+        //
+        // On the content view's layer, not on the NSPopover. `NSPopover` has
+        // `appearance` (aqua / dark aqua / vibrant) and no background colour at
+        // all -- so a colour cannot be expressed on the popover itself, and
+        // reaching for `appearance` would silently substitute a different
+        // meaning for the one the app asked for.
+        //
+        // nil clears the layer's colour rather than leaving the last one, so a
+        // colour bound to state is removable. Clearing reveals NSPopover's own
+        // vibrant chrome, which is what "leave it to the platform" means here --
+        // it does not leave a hole, unlike the GTK case measured the same day.
+        //
+        // **本段於 2026-09-09 在 Windows 上寫成,未曾執行。** Windows 這側無法建置 AppKit;此處是
+        // 對照所讀到的 API 寫出來的,由 Mac 那側驗證。與 #117 相同的交接形狀。
+        //
+        // 設在內容 view 的 layer 上,而非 NSPopover 上。`NSPopover` 只有 `appearance`
+        // (aqua / dark aqua / vibrant),**完全沒有**背景色——因此顏色無法表達在 popover 本身,
+        // 而改去動 `appearance` 會靜默地把 app 所要求的意義換成另一件事。
+        //
+        // nil 時清掉 layer 的顏色而不是留著上一個,使綁定於 state 的顏色可被移除。清掉後露出的是
+        // `NSPopover` 自己的 vibrant 外觀,那正是此處「交給平台」的意思——它**不會**留下一個洞,
+        // 與同一天在 GTK 上量到的情況不同。
+        if let view = popover.contentViewController?.view {
+            view.wantsLayer = true
+            view.layer?.backgroundColor = backgroundColor.map { $0.nsColor.cgColor }
+        }
+
         let contentSize = NSSize(width: size.x, height: size.y)
         popover.contentSize = contentSize
         popover.contentViewController?.view.frame = NSRect(

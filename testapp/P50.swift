@@ -416,6 +416,9 @@ struct P50PopoverSection: View {
                         logName: "alpha",
                         anchorDescription: "anchored to the FIRST button",
                         accent: Color.blue,
+                        // ALPHA asks for green -- see `requestedBackground`.
+                        // ALPHA 請求綠色——見 `requestedBackground`。
+                        requestedBackground: Color.green,
                         counter: $panelCounter,
                         isPresented: $isAlphaPresented
                     )
@@ -436,6 +439,12 @@ struct P50PopoverSection: View {
                         logName: "beta",
                         anchorDescription: "anchored to the SECOND button",
                         accent: Color.orange,
+                        // BETA asks for NOTHING, and that is the control. It
+                        // must look exactly as it did before this feature
+                        // existed: theme fill, rounded corners, shadow, arrow.
+                        // BETA 什麼都不請求,而那正是對照組。它必須看起來與這個功能存在之前
+                        // 完全相同:主題填色、圓角、陰影、箭頭。
+                        requestedBackground: nil,
                         counter: $panelCounter,
                         isPresented: $isBetaPresented
                     )
@@ -498,10 +507,50 @@ struct P50Panel: View {
     /// 一個真的有錨定的 popover，會把這行字放在它所指名的那顆按鈕旁邊。
     var anchorDescription: String
     var accent: Color
+
+    /// The colour to request via `presentationBackground`, or nil to ask for
+    /// nothing. ALPHA passes a colour and BETA passes nil, on purpose.
+    ///
+    /// Both branches of the feature are then exercised by one build, and the
+    /// two panels sit side by side as each other's control. Testing only the
+    /// colour would leave `nil` -- the case almost every real app is in --
+    /// running for the first time in front of a user.
+    ///
+    /// 要透過 `presentationBackground` 請求的顏色;nil 表示什麼都不要求。**ALPHA 傳顏色、
+    /// BETA 傳 nil,這是刻意的。**
+    ///
+    /// 如此一來,該功能的兩個分支由**同一次建置**同時執行到,而兩塊面板互為對照。只測有顏色的那條,
+    /// 會讓 `nil`——幾乎每個真實 app 所處的情況——第一次執行是在使用者面前。
+    var requestedBackground: Color?
     @Binding var counter: Int
     @Binding var isPresented: Bool
 
     var body: some View {
+        // An `if`, not a helper. `presentationBackground` takes a non-optional
+        // `Color`, so "ask for nothing" is the ABSENCE of the modifier, which is
+        // also how a real app writes it.
+        //
+        // An earlier draft called a `modifierIf(_:_:)` here. It does not exist
+        // anywhere in `Sources/` -- I invented it while writing this and a grep
+        // caught it before the build did. Worth leaving a note about, because an
+        // invented helper reads exactly like a real one.
+        //
+        // 用 `if`,不用 helper。`presentationBackground` 收的是非 optional 的 `Color`,因此
+        // 「什麼都不請求」表現為**不加這個 modifier**,那也正是真實 app 的寫法。
+        //
+        // 本處先前的草稿呼叫了一個 `modifierIf(_:_:)`。它在 `Sources/` 中**完全不存在**——那是我
+        // 邊寫邊發明的,而一次 grep 在建置之前就抓到了。值得留下這則註記,因為一個被發明出來的
+        // helper,讀起來與真實存在的一模一樣。
+        if let requestedBackground {
+            panel.presentationBackground(requestedBackground)
+        } else {
+            panel
+        }
+    }
+
+    /// The panel itself, without any presentation background.
+    /// 面板本身,不帶任何 presentation 背景。
+    var panel: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(name)
                 .font(.system(size: 16))
@@ -522,5 +571,33 @@ struct P50Panel: View {
         }
         .padding(10)
         .border(accent, width: 2)
+        // POSITIVE CONTROL for `presentationBackground` on a popover, added
+        // 2026-09-09 with the modifier itself.
+        //
+        // Green because it is not a colour any theme here draws. The whole
+        // observable consequence of that feature is "the panel changes colour
+        // when asked", so without a request that changes something visible,
+        // "the app asked for nothing" and "the wiring was never connected"
+        // produce exactly the same picture -- and only one of those is working
+        // code.
+        //
+        // Delete this line to see the other half: the panel must then look
+        // EXACTLY as it did before the feature existed, theme fill, rounded
+        // corners, shadow and arrow included. `nil` means "leave it to the
+        // platform", not "make it transparent" -- on GTK 4 / Windows a popover
+        // is an opaque top-level surface, measured the same day: clearing the
+        // theme's fill gave OPAQUE BLACK, and rgba(255,0,0,0.5) gave OPAQUE RED
+        // with the window's text behind it invisible.
+        //
+        // `presentationBackground` 在 popover 上的**陽性對照**,與該 modifier 本身同於 2026-09-09 加入。
+        //
+        // 用綠色,因為此處沒有任何主題會畫出這個顏色。該功能全部可觀察的後果就是「被要求時面板會變色」,
+        // 因此若不提出一個「會造成可見變化」的要求,「app 什麼都沒要求」與「這條線根本沒接上」會產生
+        // **完全相同**的畫面——而其中只有一個是能運作的程式碼。
+        //
+        // 刪掉這一行即可看到另一半:面板必須看起來與這個功能存在之前**一模一樣**,包含主題填色、圓角、
+        // 陰影與箭頭。`nil` 的意思是「交給平台」,不是「弄成透明」——在 GTK 4 / Windows 上 popover 是
+        // 一個不透明的 top-level surface,同日實測:清掉主題填色得到**不透明的黑**,而
+        // rgba(255,0,0,0.5) 得到**不透明的紅**,其背後視窗的文字完全看不見。
     }
 }

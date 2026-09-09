@@ -69,9 +69,28 @@ extension GtkBackend {
         /// #111 的輸入探針。除非 `DebugFeatures.isEnabled`，否則為空。
         private var probes: [EventController] = []
 
+        /// A CSS class carried by THIS popover and no other, so
+        /// `presentationBackground` can be written as a descendant rule
+        /// (`.class > contents`) without colouring every popover in the app.
+        ///
+        /// Its own rather than `Widget.customCSSClass`, which is private to the
+        /// Gtk module.
+        ///
+        /// 一個**只有本 popover 持有**的 CSS class，好讓 `presentationBackground` 能以後代規則
+        /// （`.class > contents`）寫出，而不會把 app 中每一個 popover 都上色。
+        ///
+        /// 自備而不沿用 `Widget.customCSSClass`，因為後者對 Gtk module 而言是 private 的。
+        let popoverClass: String
+
         init(content: Gtk.Widget) {
             self.popover = Gtk.Popover()
             self.content = content
+            self.popoverClass =
+                "scui-popover-"
+                + ObjectIdentifier(popover).debugDescription
+                    .replacingOccurrences(of: "ObjectIdentifier(0x", with: "")
+                    .replacingOccurrences(of: ")", with: "")
+            gtk_widget_add_css_class(popover.widgetPointer, popoverClass)
             popover.setChild(content)
             // Light dismiss. A popover is not modal; clicking elsewhere closes
             // it, and that click is the `onDismiss` the modifier is waiting for.
@@ -260,11 +279,102 @@ extension GtkBackend {
         _ popover: Popover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
+        // Qualified, because `Gtk.Color` and `SwiftCrossUI.Color` are both in
+        // scope in this module and the bare name is ambiguous. `updateSheet`
+        // already spells it out for the same reason (GtkBackend.swift:5236).
+        // 需要限定名稱,因為本 module 中 `Gtk.Color` 與 `SwiftCrossUI.Color` 同時在 scope,裸名有歧義。
+        // `updateSheet` 早已基於相同理由寫全(GtkBackend.swift:5236)。
+        backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         popover.onDismiss = onDismiss
 
         popover.content.setSizeRequest(width: size.x, height: size.y)
+
+        // Set on every update, including back to nothing, because a colour
+        // bound to state has to be removable as well as settable. Writing an
+        // empty block is what removes it -- `loadCss` clears whatever the
+        // provider held.
+        //
+        // SCOPED BY CLASS, and this is not a detail. `Widget.css` is a
+        // `CSSBlock` keyed on the widget's own `customCSSClass`, whereas
+        // `Widget.cssProvider` installs itself for the WHOLE DISPLAY
+        // (`gtk_style_context_add_provider_for_display`, CSSProvider.swift:14).
+        // A bare `popover { ... }` rule through the provider would colour every
+        // popover in the application, menus and pickers included -- so the one
+        // thing this feature promises, that only the popover asked for is
+        // coloured, would be exactly what it failed to do. Measured while
+        // experimenting on 2026-09-09.
+        //
+        // Only the fill is set. The theme keeps its border, shadow, corners and
+        // arrow, so a coloured popover still looks like a popover on this
+        // platform rather than a rectangle.
+        //
+        // 每次更新都設定,包括設回「沒有」,因為一個綁定於 state 的顏色不只要能被設定,也要能被移除。
+        // 寫入一個空區塊就是移除它——`loadCss` 會清掉該 provider 原本持有的內容。
+        //
+        // **以 class 限定,而這不是細節。** `Widget.css` 是一個以該 widget 自身 `customCSSClass`
+        // 為鍵的 `CSSBlock`;而 `Widget.cssProvider` 是把自己安裝到**整個 display**
+        // (`gtk_style_context_add_provider_for_display`,CSSProvider.swift:14)。透過該 provider
+        // 寫一條光禿禿的 `popover { ... }`,會把 app 中**每一個** popover 都上色,包含選單與 picker
+        // ——於是本功能所承諾的唯一一件事「只有被要求的那個 popover 會上色」,恰好就是它做不到的事。
+        // 此事於 2026-09-09 實驗時實測。
+        //
+        // 只設定填色。邊框、陰影、圓角與箭頭都留給主題,因此一個上了色的 popover 在這個平台上
+        // 看起來仍然像個 popover,而不是一個矩形。
+        // Written straight into the provider rather than through `Widget.css`,
+        // and the reason is the node tree. `CSSBlock` emits exactly one
+        // selector, `.class{...}` (CSSBlock.swift:18) -- it cannot express a
+        // descendant. But GTK 4 does not paint a popover's fill on the
+        // `popover` node: it paints it on the `contents` child. So a rule that
+        // can only reach `.class` colours the RIM and leaves the interior at the
+        // theme's own dark grey.
+        //
+        // MEASURED, and this is the run that caught it. `.presentationBackground(.green)`
+        // through `Widget.css` produced a green BORDER around a still-dark
+        // panel. The wiring was correct and the target was wrong -- and without
+        // a positive control in a colour no theme here draws, "the app asked for
+        // nothing" and "the colour landed on the wrong node" would both have
+        // looked like an ordinary popover.
+        //
+        // Scoped by `popoverClass`, which is added to this popover and no other,
+        // so the display-wide provider registration
+        // (`gtk_style_context_add_provider_for_display`, CSSProvider.swift:14)
+        // cannot leak this colour onto menus or pickers.
+        //
+        // 直接寫進 provider 而不經由 `Widget.css`,理由在節點樹。`CSSBlock` 只會產出**一個** selector
+        // ——`.class{...}`(CSSBlock.swift:18)——它無法表達後代選擇器。但 GTK 4 並不是在 `popover`
+        // 節點上繪製 popover 的填色,而是畫在 `contents` 子節點上。因此一條只到得了 `.class` 的規則,
+        // 只會為**邊緣**上色,內部仍是主題自己的深灰。
+        //
+        // **實測,而這正是抓到它的那一次執行。** 透過 `Widget.css` 送出的
+        // `.presentationBackground(.green)`,產出的是「一圈綠色邊框 + 依然深色的面板」。線路是對的,
+        // 目標是錯的——而若沒有一個「此處任何主題都不會畫出的顏色」作為陽性對照,
+        // 「app 什麼都沒要求」與「顏色落在錯的節點上」看起來都只是一個普通的 popover。
+        //
+        // 以 `popoverClass` 限定,該 class 只加在這一個 popover 上,因此 provider 的 display-wide
+        // 註冊(`gtk_style_context_add_provider_for_display`,CSSProvider.swift:14)不會把這個顏色
+        // 漏到選單或 picker 上。
+        if let backgroundColor {
+            let colour = CSSProperty.rgba(backgroundColor.gtkColor)
+            popover.popover.cssProvider.loadCss(
+                from: """
+                    .\(popover.popoverClass),
+                    .\(popover.popoverClass) > contents {
+                        background-color: \(colour);
+                    }
+                    """
+            )
+        } else {
+            // An empty sheet, not a rule setting some "default" colour: only
+            // GTK knows what the theme would have drawn, and naming a colour
+            // here would be this backend overruling the theme -- the mistake
+            // `GtkBackend.swift:5129` documents at length.
+            // 載入一份**空的** stylesheet,而不是寫一條「預設顏色」的規則:只有 GTK 知道主題原本會
+            // 畫什麼,在此指名一個顏色等於由本 backend 蓋過主題——那正是 `GtkBackend.swift:5129`
+            // 用很長篇幅記載的那個錯誤。
+            popover.popover.cssProvider.loadCss(from: "")
+        }
 
         // The background is left to the theme, and nothing here overrides it. A
         // GTK popover draws its own background, border, shadow and arrow, all of

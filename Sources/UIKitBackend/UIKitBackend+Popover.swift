@@ -35,12 +35,34 @@ extension UIKitBackend {
         _ popover: CustomPopover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
+        backgroundColor: Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         let contentSize = CGSize(width: size.x, height: size.y)
         popover.preferredContentSize = contentSize
         popover.customContent?.frame = CGRect(origin: .zero, size: contentSize)
         popover.onDismiss = onDismiss
+
+        // WRITTEN ON WINDOWS 2026-09-09 AND NOT RUN -- the Mac side verifies it,
+        // the same handover as #117 and as the AppKit half of this change.
+        //
+        // On the presented view controller's own view. UIKit's popover chrome is
+        // drawn by `UIPopoverBackgroundView`, which is subclass-only and would
+        // mean a new type for a colour; setting the content's background gets
+        // what was asked without that.
+        //
+        // `nil` clears it back to the platform's own backdrop, matching the
+        // protocol's contract, so a colour bound to state is removable.
+        //
+        // **本段於 2026-09-09 在 Windows 上寫成,未曾執行**——由 Mac 那側驗證,與 #117 以及本次改動
+        // 的 AppKit 那一半是相同的交接方式。
+        //
+        // 設在被呈現的 view controller 自身的 view 上。UIKit 的 popover 外觀是由
+        // `UIPopoverBackgroundView` 繪製,而那個類別只能以子類別化使用,為了一個顏色去建立一個新型別
+        // 並不划算;設定內容的背景即可達成所要求的事。
+        //
+        // `nil` 會把它清回平台自己的底色,符合 protocol 的約定,因此綁定於 state 的顏色可被移除。
+        popover.view.backgroundColor = backgroundColor.map { $0.uiColor }
     }
 
     public func presentPopover(
