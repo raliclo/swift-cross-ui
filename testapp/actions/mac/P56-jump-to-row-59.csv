@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P56 on macOS: press "Jump to 59" and read the row numbers.
+#
+# origin=frame. Window 620x520 points, capture 1240x1097 px -- scale 2. The three
+# buttons occupy pixels y 251..291, so point 135; their centres across are pixel
+# 122, 316 and 500, which are points 61, 158 and 250.
+#
+# 59 rather than 30, and that is the point of the number. The list shows about
+# fifteen rows, so a jump to 30 puts row 30 at the top and a jump to 59 puts the
+# END of the list on screen -- and only the second one is impossible to reach by
+# a scroll that merely nudged. "Back to 0" then has somewhere to return FROM,
+# which is what makes the third row evidence rather than a no-op.
+#
+# P56 在 macOS 上:按下「Jump to 59」並讀取列號。
+#
+# origin=frame。視窗 620x520 點,擷圖 1240x1097 像素——scale 2。三顆按鈕佔據像素 y 251..291,即點 135;
+# 它們的水平中心為像素 122、316、500,即點 61、158、250。
+#
+# 選 59 而不是 30,而那正是這個數字的用意。清單約顯示十五列,因此跳到 30 會把第 30 列放到頂端,而跳到 59
+# 會讓清單的**結尾**出現在畫面上——只有後者不可能是「稍微挪動了一下」的捲動所能達成的。接著「Back to 0」
+# 才有一個可以返回的**起點**,而那正是讓第三列成為證據、而非 no-op 的原因。
+sleep,,,,,,1000000,let P56 render,macos
+click,158,135,frame,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",macos
+sleep,,,,,,800000,let the scroll settle,macos
