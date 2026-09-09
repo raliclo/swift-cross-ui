@@ -1,129 +1,34 @@
 gyb/* linguist-vendored
 
-# Data files are LF, on every machine.
-#
-# testapp/issues.csv arrived with CRLF -- the only tracked file in the repo that
-# had it -- and the damage was not the line endings themselves. Any tool that
-# writes the file correctly normalises them, so a one-field edit came back as a
-# 183-line diff, and that diff is unreviewable: the one change that matters is
-# hidden among 182 that do not. The rule is here so the next file written from
-# the Windows side cannot reintroduce it.
+# Data files are LF on every machine. `*.csv` does not match `*.csv2`, which is
+# the format this project actually writes, so both globs are needed.
+# 資料檔在每一台機器上都用 LF。`*.csv` 匹配不到 `*.csv2`，而後者才是本專案實際寫出的格式，故兩者都要。
 *.csv text eol=lf
-
-# `*.csv` does not match `*.csv2`, and .csv2 is the format this project actually
-# writes. The rule above was added to stop exactly what then happened anyway:
-# matrix_coverage/results.csv2 spent 2026-09-08 alternating between CRLF and LF
-# from one commit to the next -- 68d46faa LF, bb7eac21 CRLF, 543815c0 LF,
-# f9534bc6 CRLF -- so a merge of a two-row append arrived as a 641-line
-# rewrite on both sides at once. `git check-attr eol -- matrix_coverage/results.csv2`
-# reported `unspecified` while the same query on testapp/issues.csv reported
-# `lf`, which is the whole story: the guard was written for the wrong glob.
-#
-# There are five tracked .csv2 files and none of them was covered.
-#
-# `*.csv` 匹配不到 `*.csv2`，而 .csv2 才是本專案實際會寫出的格式。上面那條規則正是為了阻止
-# 隨後依然發生的事：matrix_coverage/results.csv2 在 2026-09-08 這天於各 commit 之間反覆在
-# CRLF 與 LF 之間跳動，於是一次「追加兩列」的合併，在兩邊同時呈現為 641 行的整檔重寫。
-# `git check-attr eol` 對 results.csv2 回報 `unspecified`，對 testapp/issues.csv 回報 `lf`
-# ——這就是全部的原因：守衛寫在了錯的 glob 上。當時共有五個被追蹤的 .csv2 檔，無一被涵蓋。
 *.csv2 text eol=lf
 
 # Append-only logs merge by union, so two machines appending never conflict.
-#
-# `matrix_coverage/results.csv2` is written by both sides and only ever appended
-# to. Git has no append-aware merge for CSV, so every merge where both machines
-# recorded a run came back as a conflict -- five in a row before this line, each
-# resolved by hand.
-#
-# **Union is safe here because every record is exactly one physical line.**
-# Checked rather than assumed, with a CSV parser: 708 records, 708 physical
-# lines, 0 records containing an embedded newline. Union merges line by line, so
-# a quoted field containing a newline would be split and interleaved -- the rows
-# either side of the join would each become half a row, and nothing would report
-# it. If a note ever needs a line break, this attribute has to go before that
-# note lands.
-#
-# It must NOT be `merge=ours` or a set union. That file contains deliberate
-# duplicate rows -- the same app measured twice on the same day is two
-# observations, not one -- and anything that deduplicates loses the second
-# silently. That was the trap when the 2026-09-09 conflict was resolved by hand:
-# a set-based resolution dropped two rows and the counts (685 + 3 + 2 = 690) are
-# what caught it.
-#
-# 只做附加的紀錄檔採 union 合併,讓兩台機器各自附加時永遠不會衝突。
-#
-# `matrix_coverage/results.csv2` 由兩邊共同寫入,而且只會被附加。Git 對 CSV 沒有「理解附加」的合併
-# 方式,因此每一次「兩台機器都記錄了執行結果」的合併都會變成衝突——在這一行之前連續五次,每一次都是
-# 手工解的。
-#
-# **union 在此處是安全的,因為每一筆記錄恰好是一個實體行。** 這是查證過的、不是假設的,以 CSV 解析器
-# 檢查:708 筆記錄、708 個實體行、0 筆內含換行。union 是逐行合併的,因此一個「引號內含換行」的欄位
-# 會被拆開並交錯——接縫兩側的列會各自變成半列,而且沒有任何東西會回報這件事。若日後某則備註需要換行,
-# 這條屬性必須在那則備註落地**之前**移除。
-#
-# 它**不可以**是 `merge=ours`,也不可以是集合式的聯集。該檔案含有刻意重複的列——同一支 app 在同一天
-# 被量測兩次是**兩筆**觀測,不是一筆——而任何會去重的做法都會靜默地失去第二筆。2026-09-09 那次手工
-# 解衝突時正是這個陷阱:以集合為基礎的解法掉了兩列,而是那組數字(685 + 3 + 2 = 690)抓到了它。
-# **Not `*.csv2`.** Every tracked .csv2 is one record per physical line today,
-# so a broad glob looks safe -- but that is not the property union merge needs.
-# The property is APPEND-ONLY, and two of the six are not:
-#
-#   matrix_coverage/coverage-matrix.csv2   +99 -97 over eight commits
-#   matrix_coverage/executable-size.csv2   +100 -49 over three
-#
-# Those are matrices, not logs: the same row is rewritten as a platform's status
-# changes. Union does not conflict on a rewritten line, it keeps BOTH versions --
-# so P16 would carry a `pass` row and a `fail` row at once, and which one a
-# reader gets depends on which they scan first. That is worse than a conflict.
-# A conflict stops and asks; union produces a matrix that looks complete and
-# contradicts itself, with nothing to report it.
-#
-# **不是 `*.csv2`。** 目前每一個被追蹤的 .csv2 都是「一筆記錄一個實體行」,因此廣義的 glob 看起來安全
-# ——但那並不是 union merge 所需要的性質。它需要的性質是**只做附加**,而六個之中有兩個不是:
-#
-#   matrix_coverage/coverage-matrix.csv2   八次提交 +99 -97
-#   matrix_coverage/executable-size.csv2   三次提交 +100 -49
-#
-# 那兩個是**矩陣**而不是紀錄:同一列會隨著某個平台狀態的改變而被改寫。union 對一個被改寫的行不會
-# 衝突,它會把**兩個版本都留下**——於是 P16 會同時帶著一列 `pass` 與一列 `fail`,而讀者拿到哪一列
-# 取決於他先掃到哪一列。那比衝突更糟。衝突會停下來發問;union 則會產出一個看起來完整、卻自相矛盾的
-# 矩陣,而且沒有任何東西會回報它。
-# The three that qualify, and the evidence is whole-history rather than the last
-# eight commits -- eight is a window, and the question is about the file's
-# nature:
-#
-#   matrix_coverage/results.csv2           append-only
-#   mistakes/mistakes.csv2                 66 commits, 0 deleted lines ever, and
-#                                          its columns are date,area,claimed,
-#                                          was_true,caught_by,lesson -- no count
-#                                          to increment in place
-#   buildtime/buildtime.csv2               2 commits, 0 deleted lines. Included,
-#                                          but that is "has not been rewritten
-#                                          yet" rather than "will not be"
-#
-# `testapp/P52-buttonstyle-findings.csv2` is NOT included. One commit is not a
-# pattern, and it is a single-purpose findings file that two machines are
-# unlikely to append to at once -- so it gets the safe default, which is a
-# conflict that stops and asks.
-#
-# The global `mistakes_counter.csv2` must never get this attribute if it ever
-# lands here: `counter.zsh bump` edits a number IN PLACE, so union would keep
-# both counts and the same entry would appear twice with different totals.
-#
-# 三個符合條件的,而所依據的證據是**全歷史**而非最近八次提交——八次只是一個窗口,而這個問題問的是
-# 該檔案的性質:
-#
-#   matrix_coverage/results.csv2           只做附加
-#   mistakes/mistakes.csv2                 66 次提交、歷來 0 行被刪,且其欄位為 date,area,claimed,
-#                                          was_true,caught_by,lesson——沒有任何需要就地遞增的計數
-#   buildtime/buildtime.csv2               2 次提交、0 行被刪。納入,但那是「尚未被改寫過」而不是
-#                                          「不會被改寫」
-#
-# `testapp/P52-buttonstyle-findings.csv2` **未**納入。一次提交不構成模式,而它是一個單一用途的發現
-# 紀錄檔,兩台機器同時附加的可能性不高——因此它保留安全的預設值:一個會停下來發問的衝突。
-#
-# 全域的 `mistakes_counter.csv2` 若日後進入本樹,**絕不可**加上這條屬性:`counter.zsh bump` 是**就地**
-# 修改一個數字的,union 會把兩個計數都留下,同一條紀錄會以不同的總數出現兩次。
+# NOT the two matrix files -- their rows are rewritten in place, and union keeps
+# BOTH versions of an edited row without conflicting, which is worse than a
+# conflict.
+# 純附加的紀錄檔以 union 合併，使兩台機器各自附加時不會衝突。**不含**兩個矩陣檔——它們的列會被就地
+# 重寫，而 union 對就地編輯不會衝突、會把該列的兩個版本都留下，那比衝突更糟。
 matrix_coverage/results.csv2 merge=union
 mistakes/mistakes.csv2 merge=union
 buildtime/buildtime.csv2 merge=union
+
+# The evidence for all of the above -- why union is safe here, why it must not
+# be a set, which files are deliberately excluded, and three wrong scopes with
+# what refuted each -- is in .gitattributes.md.
+#
+# It lives there because it does not belong here. Both machines wrote long
+# bilingual justifications into THIS file in the same round, and the result
+# conflicted on four consecutive exchanges while the rules themselves never
+# disagreed: both sides independently reached the same three union lines. The
+# file was 277 lines, 265 of them comment, for five rules.
+#
+# 上述一切的證據——union 為何在此安全、為何不可以是集合、哪些檔案被刻意排除，以及三個錯誤的範圍
+# 各自被什麼推翻——都在 .gitattributes.md。
+#
+# 它放在那裡，是因為它本來就不屬於這裡。兩台機器在同一輪中各自把長篇雙語論證寫進**本檔**，結果是連續
+# 四次交換都衝突，而規則本身從未有分歧：雙方獨立地得出了完全相同的三行 union。當時本檔共 277 行，
+# 其中 265 行是註解，只為了五條規則。
