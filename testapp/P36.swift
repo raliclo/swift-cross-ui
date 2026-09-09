@@ -103,6 +103,13 @@ extension TextFieldStyle where Self == CaretTextFieldStyle {
 
 struct P36RootView: View {
     @State var pickerSelection: String? = "Vanilla"
+    /// #124's non-optional selection. NOT `String?`, and that is the assertion:
+    /// this only compiles if `init(of:selection: Binding<Value>)` exists, so the
+    /// build itself is half the test and the printed line is the other half.
+    /// #124 的非 optional selection。型別**不是** `String?`,而那正是斷言:只有在
+    /// `init(of:selection: Binding<Value>)` 存在時它才編譯得過,因此**建置本身就是一半的測試**,
+    /// 而印出來的那一行是另一半。
+    @State var labelledSelection: String = "Vanilla"
     @State var text = "SwiftCrossUI TextField"
     /// Shared on purpose across the five styled fields below: one binding makes
     /// it visible at a glance that all five are live and none is a picture.
@@ -120,8 +127,53 @@ struct P36RootView: View {
 
             Text("SwiftCrossUI form that compiles")
                 .font(.system(size: 15))
-            Picker(of: choices, selection: $pickerSelection)
-            Text("Picker selection: \(pickerSelection ?? "nil")")
+            // NESTED Group, and it is load-bearing. This VStack was at 18
+            // children and `ViewBuilder.buildBlock` stops at 19, so the two
+            // #124 views below would put it at 20 -- which is not reported where
+            // it happens. Measured on P21 the same day: three extra views there
+            // produced `error: extra argument in call` at the first child PAST
+            // the limit, sixty lines away, naming neither the addition nor the
+            // arity. Folding these four into one child leaves 17.
+            //
+            // 這個**巢狀 Group 是承重的**。本 VStack 原有 18 個子項,而 `ViewBuilder.buildBlock`
+            // 止於 19,因此下方兩個 #124 的 view 會讓它變成 20——而那**不會**在發生的地方被回報。
+            // 同一天在 P21 上實測:在該處多加三個 view,產生的是**超過上限後第一個子項**處的
+            // `error: extra argument in call`,距離六十行之遙,既沒指名新增的東西,也沒提到 arity。
+            // 把這四個收進一個子項,便只剩 17。
+            Group {
+                Picker(of: choices, selection: $pickerSelection)
+                Text("Picker selection: \(pickerSelection ?? "nil")")
+
+                // #124, added 2026-09-10. The two initialiser shapes that were
+                // missing, exercised together because they are used together.
+                //
+                // NON-OPTIONAL selection, which is SwiftUI's shape. The one
+                // above keeps the optional binding, so this app now shows both
+                // and the pair is each other's control: if the optional
+                // initialiser had been broken by adding the non-optional one,
+                // the line above stops tracking.
+                //
+                // A LABEL. `Picker` has a `body`, so this is an HStack around
+                // what it already returned -- see `Picker.label` for why that is
+                // a real claim here and was not for `Slider`.
+                //
+                // The assertion is the printed value: choosing in either picker
+                // must move only its own line.
+                //
+                // #124,2026-09-10 加入。先前缺少的兩種建構式形狀;放在一起執行,因為它們本來就
+                // 會被一起使用。
+                //
+                // **非 optional 的 selection**,那是 SwiftUI 的形狀。上方那個保留 optional binding,
+                // 因此本 app 現在同時展示兩者,而兩者互為對照:若加入非 optional 版時弄壞了 optional
+                // 版,上面那一行就會停止跟隨。
+                //
+                // **一個標籤。** `Picker` 有 `body`,因此這只是在它原本回傳的東西外套一個 HStack
+                // ——為何此處這是一項有依據的主張、而在 `Slider` 上不是,見 `Picker.label`。
+                //
+                // 斷言是那個被印出來的數值:在任一 picker 中選取,都只能移動它自己那一行。
+                Picker("Labelled", of: choices, selection: $labelledSelection)
+                Text("Labelled selection: \(labelledSelection)")
+            }
             Button("String label button") {
                 P36Diagnostics.write("button clicked")
             }
@@ -169,7 +221,30 @@ struct P36RootView: View {
             Divider()
             Text("SwiftUI-shaped call sites missing here")
                 .font(.system(size: 15))
-            Text("Picker label/content/tag; non-optional Picker selection; Button label builder and ButtonRole")
+            // NARROWED 2026-09-10, and this line is the reason to look at the
+            // capture rather than only at the build. It read
+            // "Picker label/content/tag; non-optional Picker selection; ..."
+            // while the two pickers directly above it were, in the same picture,
+            // demonstrating a label and a non-optional selection. A screen that
+            // says a feature is absent while showing it is worse than one that
+            // says nothing -- it is a wrong claim with a picture attached, and
+            // this app's whole job is to be that picture. Same defect as #87 and
+            // #115, which were both "P33/P34 claim APIs are missing that exist".
+            //
+            // What is left is the ViewBuilder content and `.tag()`, which are
+            // one job and not the same job as the initialisers: they need a
+            // `_asPickerOptions` walker mirroring `_asMenuItems`.
+            //
+            // **2026-09-10 縮減**,而這一行正是「要看擷圖、而不只看建置」的理由。它原本寫著
+            // 「Picker label/content/tag; non-optional Picker selection; ...」,而**就在同一張圖裡**,
+            // 它正上方的兩個 picker 正在展示一個標籤與一個非 optional 的 selection。
+            // **一個一邊展示某功能、一邊聲稱該功能不存在的畫面,比什麼都不說更糟**——那是一項附了
+            // 照片的錯誤主張,而這支 app 的全部工作就是當那張照片。這與 #87、#115 是同一個缺陷,
+            // 那兩項都是「P33/P34 聲稱某些存在的 API 不存在」。
+            //
+            // 剩下的是 ViewBuilder content 與 `.tag()`,它們是**同一件工作**,但與那些建構式**不是**
+            // 同一件:它們需要一個仿照 `_asMenuItems` 的 `_asPickerOptions` 走訪器。
+            Text("Picker content/tag; Button label builder and ButtonRole")
             Text("LocalizedStringKey Text, Text + Text, Image(systemName:), bundle image lookup")
             Text("List without selection, Section, onDelete, swipeActions, TextField axis/prompt/value-format")
             Text("CGFloat geometry such as padding(8.5), cornerRadius(8.5), HStack(spacing: 8.5)")
