@@ -88,4 +88,42 @@ gyb/* linguist-vendored
 # 衝突,它會把**兩個版本都留下**——於是 P16 會同時帶著一列 `pass` 與一列 `fail`,而讀者拿到哪一列
 # 取決於他先掃到哪一列。那比衝突更糟。衝突會停下來發問;union 則會產出一個看起來完整、卻自相矛盾的
 # 矩陣,而且沒有任何東西會回報它。
+# The three that qualify, and the evidence is whole-history rather than the last
+# eight commits -- eight is a window, and the question is about the file's
+# nature:
+#
+#   matrix_coverage/results.csv2           append-only
+#   mistakes/mistakes.csv2                 66 commits, 0 deleted lines ever, and
+#                                          its columns are date,area,claimed,
+#                                          was_true,caught_by,lesson -- no count
+#                                          to increment in place
+#   buildtime/buildtime.csv2               2 commits, 0 deleted lines. Included,
+#                                          but that is "has not been rewritten
+#                                          yet" rather than "will not be"
+#
+# `testapp/P52-buttonstyle-findings.csv2` is NOT included. One commit is not a
+# pattern, and it is a single-purpose findings file that two machines are
+# unlikely to append to at once -- so it gets the safe default, which is a
+# conflict that stops and asks.
+#
+# The global `mistakes_counter.csv2` must never get this attribute if it ever
+# lands here: `counter.zsh bump` edits a number IN PLACE, so union would keep
+# both counts and the same entry would appear twice with different totals.
+#
+# 三個符合條件的,而所依據的證據是**全歷史**而非最近八次提交——八次只是一個窗口,而這個問題問的是
+# 該檔案的性質:
+#
+#   matrix_coverage/results.csv2           只做附加
+#   mistakes/mistakes.csv2                 66 次提交、歷來 0 行被刪,且其欄位為 date,area,claimed,
+#                                          was_true,caught_by,lesson——沒有任何需要就地遞增的計數
+#   buildtime/buildtime.csv2               2 次提交、0 行被刪。納入,但那是「尚未被改寫過」而不是
+#                                          「不會被改寫」
+#
+# `testapp/P52-buttonstyle-findings.csv2` **未**納入。一次提交不構成模式,而它是一個單一用途的發現
+# 紀錄檔,兩台機器同時附加的可能性不高——因此它保留安全的預設值:一個會停下來發問的衝突。
+#
+# 全域的 `mistakes_counter.csv2` 若日後進入本樹,**絕不可**加上這條屬性:`counter.zsh bump` 是**就地**
+# 修改一個數字的,union 會把兩個計數都留下,同一條紀錄會以不同的總數出現兩次。
 matrix_coverage/results.csv2 merge=union
+mistakes/mistakes.csv2 merge=union
+buildtime/buildtime.csv2 merge=union
