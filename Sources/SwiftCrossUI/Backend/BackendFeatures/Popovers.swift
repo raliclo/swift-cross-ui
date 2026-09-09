@@ -42,10 +42,47 @@ extension BackendFeatures {
 
         func createPopover(content: Widget) -> Popover
 
+        /// `backgroundColor` is what ``SwiftCrossUI/View/presentationBackground(_:)``
+        /// resolved to, or `nil` when the app asked for nothing.
+        ///
+        /// **`nil` means "leave it to the platform", NOT "make it transparent".**
+        /// The distinction is the whole design, and it was chosen against a
+        /// measurement rather than from taste. On GTK 4 / Windows a popover is
+        /// its own opaque top-level surface: clearing the theme's fill was tried
+        /// on 2026-09-09 and produced OPAQUE BLACK, and `rgba(255,0,0,0.5)` on
+        /// the same nodes produced OPAQUE RED with the window's text behind it
+        /// invisible. So that surface has no per-pixel alpha, and a
+        /// "transparent by default" contract would have shipped a black
+        /// rectangle on that backend while the API said otherwise.
+        ///
+        /// The second experiment is the one that settled it. A failed
+        /// transparency looks exactly like a black background, and a black
+        /// background looks exactly like a dark theme -- three states wearing
+        /// each other's clothes. A half-opaque RED cannot be mistaken for any of
+        /// them.
+        ///
+        /// A backend that cannot honour a colour must say so where a reader will
+        /// find it, not fall back silently.
+        ///
+        /// `backgroundColor` 是 ``SwiftCrossUI/View/presentationBackground(_:)`` 解析後的結果;
+        /// 若 app 未指定則為 `nil`。
+        ///
+        /// **`nil` 的意思是「交給平台」,不是「弄成透明」。** 這個區別就是整個設計,而它是依據量測、
+        /// 而非依據品味所決定的。在 GTK 4 / Windows 上,popover 是它自己的**不透明** top-level
+        /// surface:2026-09-09 試過清掉主題的填色,得到的是**不透明的黑**;在相同節點上設
+        /// `rgba(255,0,0,0.5)`,得到的是**不透明的紅**,而其背後視窗的文字完全看不見。可見該 surface
+        /// 沒有 per-pixel alpha,因此「預設透明」這個約定會在那個 backend 上交付一個黑色矩形,
+        /// 而 API 卻宣稱是別的東西。
+        ///
+        /// 真正定案的是第二個實驗。**一次失敗的透明,看起來與黑色背景一模一樣;而黑色背景又與深色主題
+        /// 一模一樣**——三種狀態互相穿著對方的衣服。一個半透明的**紅**,則無法被誤認為其中任何一個。
+        ///
+        /// 無法遵守某個顏色的 backend,必須在讀者找得到的地方說明,而不是靜默退回。
         func updatePopover(
             _ popover: Popover,
             environment: EnvironmentValues,
             size: SIMD2<Int>,
+            backgroundColor: Color.Resolved?,
             onDismiss: @escaping () -> Void
         )
 

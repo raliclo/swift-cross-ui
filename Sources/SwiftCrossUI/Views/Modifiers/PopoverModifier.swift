@@ -138,10 +138,27 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
             let result = children.popoverContentNode!.commit()
 
             let window = environment.window!
+            // The same field `SheetModifier` reads, from the same place: the
+            // content's own commit result. `presentationBackground` was already
+            // a modifier and a `PreferenceValues` field before this -- only the
+            // popover path never collected it, so the whole of "colour a popover
+            // when asked" was one argument away.
+            //
+            // Resolved against the OUTER environment, matching the sheet: the
+            // colour describes the presentation, not the content inside it.
+            //
+            // 與 `SheetModifier` 讀的是同一個欄位、同一個來源:內容自身的 commit 結果。在此之前
+            // `presentationBackground` 就已經是一個 modifier 與一個 `PreferenceValues` 欄位——
+            // 只有 popover 這條路從未收集它,因此「有要求時為 popover 上色」整件事只差一個引數。
+            //
+            // 以**外層** environment 解析,與 sheet 一致:該顏色描述的是這個 presentation 本身,
+            // 而不是它內部的內容。
             backend.updatePopover(
                 popover,
                 environment: environment,
                 size: result.size.vector,
+                backgroundColor: result.preferences.presentationBackground?
+                    .resolve(in: environment),
                 onDismiss: { handleDismiss(children: children) }
             )
 

@@ -76,9 +76,37 @@ extension WinUIBackend {
         _ popover: Popover,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
+        backgroundColor: Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         popover.dismissHandler = onDismiss
+
+        // On the CONTENT, not on the Flyout. A `Flyout` has no Background of its
+        // own -- the chrome belongs to its `FlyoutPresenter`, which is created
+        // by the template and is not reachable from here without hunting the
+        // visual tree at open time. Painting the content is both simpler and
+        // closer to what was asked, since the content is what fills the panel.
+        //
+        // nil restores the transparent brush rather than leaving the last
+        // colour: a colour bound to state has to be removable. Transparent is
+        // right HERE and does not contradict the protocol's "nil means leave it
+        // to the platform" -- the FlyoutPresenter behind this content still
+        // draws the system's own acrylic backing, so clearing the content's
+        // brush reveals the platform chrome rather than a hole.
+        //
+        // 設在**內容**上,而不是 Flyout 上。`Flyout` 自己沒有 Background——那層外觀屬於它的
+        // `FlyoutPresenter`,後者由樣板建立,若不在開啟時去翻 visual tree 便無從取得。為內容上色
+        // 既比較簡單,也更接近所要求的事,因為填滿面板的正是內容。
+        //
+        // nil 時還原為透明筆刷,而不是留著上一次的顏色:綁定於 state 的顏色必須可被移除。透明在
+        // **此處**是正確的,且不與 protocol 的「nil 表示交給平台」相牴觸——內容背後的
+        // `FlyoutPresenter` 仍會繪製系統自己的 acrylic 底色,因此清掉內容的筆刷露出的是平台外觀,
+        // 而不是一個洞。
+        if let content = popover.flyout.content as? WinUI.Control {
+            content.background = WinUI.SolidColorBrush(
+                backgroundColor?.uwpColor ?? UWP.Color.transparent
+            )
+        }
 
         if let content = popover.flyout.content as? WinUI.FrameworkElement {
             content.width = Double(size.x)
