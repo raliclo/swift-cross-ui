@@ -242,7 +242,11 @@ public struct ScrollView<Content: View>: TypeSafeView, View {
         //
         // 每次更新都重新安裝,而不是只安裝一次。widget 的生命長於一次更新、但不長於一次重建,而一個
         // 握著已死容器的 closure 會去捲動某個已經不在畫面上的東西——而且是成功地、無形地捲動。
-        environment.scrollAnchors?.performScroll = { child, anchor in
+        environment.scrollAnchors?.install(container: children.innerContainer) { child, anchor in
+            // The backend ignores a widget that is not inside this container,
+            // which is what makes it safe for the registry to ask every one.
+            // backend 會忽略不在本容器內部的 widget,而那正是「讓 registry 逐一詢問每一個容器」
+            // 得以安全的原因。
             backend.scrollContainer(widget, to: child.into(), anchor: anchor)
         }
     }

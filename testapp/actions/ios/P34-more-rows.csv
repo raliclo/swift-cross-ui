@@ -47,7 +47,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 同一個靜默的「什麼都沒發生」就有了兩個各自獨立的成因。
 #
 # 兩次點擊之間按鈕不會移動:它們加入的那些列位於按鈕**下方**。
-click,42,295,client,left,,,"Show +100 -- the header must go from ""showing first 100"" to ""showing first 200"" (VERIFIED 2026-09-09 in p34-ios-final-20260909-003449.png, from a run carrying this click ALONE -- the two-click run ends at 500, which the second click reaches by itself, so it cannot show that the first one landed)",ios
+click,42,295,client,left,,,"Show +100 -- the header must go from ""showing first 100"" to ""showing first 200"" (VERIFIED 2026-09-09 in p34-ios-final-20260909-003449.png, from a run carrying this click ALONE -- that run is P34-first-click-alone.csv, kept beside this file so the claim stays reproducible -- the two-click run ends at 500, which the second click reaches by itself, so it cannot show that the first one landed)",ios
 sleep,,,,,,800000,let the rows build,ios
 click,173,295,client,left,,,"Show all capped rows -- the header must reach ""showing first 500"" (VERIFIED 2026-09-09 in p34-ios-final-20260909-003120.png)",ios
 sleep,,,,,,1000000,let the rows build,ios

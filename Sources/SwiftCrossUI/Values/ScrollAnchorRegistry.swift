@@ -40,10 +40,29 @@ public final class ScrollAnchorRegistry {
     /// 而一個把兩者都留著的 registry 會捲向那個已死的 widget——那會成功、會移動容器、並顯示錯誤的列。
     var anchors: [AnyHashable: AnyWidget] = [:]
 
-    /// Installed by the enclosing ``ScrollView`` on every update, because that
-    /// is where the backend's type is still known.
-    /// 由外圍的 ``ScrollView`` 在每次更新時安裝,因為那裡是 backend 的型別仍為人所知之處。
-    var performScroll: ((AnyWidget, UnitPoint?) -> Void)?
+    /// One scroll closure per scroll container, keyed by the container itself.
+    ///
+    /// **A single closure was wrong and the failure was silent.** Every
+    /// ``ScrollView`` under a reader installs one on every update, so with two
+    /// scroll views the second overwrote the first -- and then scrolling to an
+    /// id inside the FIRST container called the SECOND one, which duly scrolled
+    /// to wherever that widget was not. It succeeds, it moves something, and
+    /// the row you asked for is still off screen.
+    ///
+    /// Identity is `===`: `AnyWidget` is a class, and the same scroll view
+    /// hands back the same instance across updates, so a container replaces its
+    /// own entry rather than adding a second one every frame.
+    ///
+    /// 每個 scroll container 一個 scroll closure,以該容器本身為索引鍵。
+    ///
+    /// **只放一個 closure 是錯的,而那個失敗是靜默的。** reader 底下的每一個 ``ScrollView`` 都會在
+    /// 每次更新時安裝一個,因此有兩個捲動視圖時,第二個會覆寫第一個——接著「捲到第**一**個容器中的某個
+    /// id」會呼叫到第**二**個容器,而它會盡責地捲到「那個 widget 不在的地方」。它成功了、移動了某個東西,
+    /// 而你要的那一列仍然在畫面外。
+    ///
+    /// 身分比較用的是 `===`:`AnyWidget` 是一個 class,而同一個捲動視圖在多次更新之間交回的是同一個
+    /// 實例,因此一個容器會替換掉**自己**的項目,而不是每一幀都多加一個。
+    private var scrollers: [(container: AnyWidget, perform: (AnyWidget, UnitPoint?) -> Void)] = []
 
     public init() {}
 
@@ -64,7 +83,46 @@ public final class ScrollAnchorRegistry {
         // 兩者都是應用程式的錯誤——一個沒有人標記過的 id,或是在 ScrollView 之外使用 proxy——
         // 而兩者也都屬於「發出警告會在一次再普通不過的轉場中逐幀觸發」的形狀,因為 proxy 的生命
         // 長於一次更新,而那些 anchor 正是在該次更新期間被重建的。
-        guard let widget = anchors[id], let performScroll else { return }
-        performScroll(widget, anchor)
+        guard let widget = anchors[id] else { return }
+        // Every container is asked, and only the one holding the widget acts.
+        //
+        // `scrollContainer(_:to:anchor:)` is specified to ignore a widget that
+        // is not inside it, and all six implementations check -- AppKit and
+        // UIKit with `isDescendant(of:)`, GTK through `compute_point` failing,
+        // Android through the child's parent chain. So asking all of them is
+        // correct, not merely harmless.
+        //
+        // An earlier draft had the closure return Bool so this could stop at
+        // the first one that acted. It did not compile -- the requirement
+        // returns Void -- and making it return Bool would have changed the
+        // protocol on six backends to save iterating over the one or two scroll
+        // views a reader typically holds.
+        //
+        // 每一個容器都會被問到,而只有持有該 widget 的那一個會動作。
+        //
+        // `scrollContainer(_:to:anchor:)` 的規格是「忽略不在自己內部的 widget」,而六個實作都有檢查
+        // ——AppKit 與 UIKit 用 `isDescendant(of:)`、GTK 靠 `compute_point` 失敗、Android 靠子元件的
+        // parent 鏈。因此「全部都問」是正確的,而不只是無害的。
+        //
+        // 先前的草稿讓該 closure 回傳 Bool,好讓此處能在「第一個動作的容器」停下來。那編不過——
+        // 該 requirement 回傳的是 Void——而為了省下「走訪一個 reader 通常持有的那一兩個捲動視圖」
+        // 就去改動六個 backend 的 protocol,並不划算。
+        for scroller in scrollers {
+            scroller.perform(widget, anchor)
+        }
+    }
+
+    /// Registers a container's scroll closure, replacing the entry for that
+    /// same container rather than appending a second one.
+    /// 登記某個容器的 scroll closure,替換掉**同一個容器**的既有項目,而不是再附加一個。
+    func install(
+        container: AnyWidget,
+        perform: @escaping (AnyWidget, UnitPoint?) -> Void
+    ) {
+        if let index = scrollers.firstIndex(where: { $0.container === container }) {
+            scrollers[index] = (container, perform)
+        } else {
+            scrollers.append((container, perform))
+        }
     }
 }

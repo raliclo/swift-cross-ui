@@ -433,8 +433,37 @@ final class WindowReference<SceneType: WindowingScene> {
                 // backend 分辨不出兩者;而這一個在內容什麼都沒要求時為 nil,那正是讓 iOS 與 Android
                 // 能夠決定「那條列究竟該不該出現」的東西。
                 let heading = finalContentResult.preferences.navigationTitle
-                guard items != lastAppliedToolbar || heading != lastAppliedNavigationTitle
-                else { return }
+
+                // No equality guard, and that is a correction rather than an
+                // omission.
+                //
+                // It used to skip when `items == lastAppliedToolbar`, and
+                // `ToolbarItem`'s `==` compares `label` and `systemImage` and
+                // deliberately ignores the action -- a closure cannot be
+                // compared. So a toolbar whose buttons kept their labels while
+                // their actions captured new data was judged unchanged, and the
+                // backend kept the closures from the previous state. Pressing
+                // "Delete" then deleted the row that used to be selected.
+                //
+                // Nothing about that fails: the labels are right, the button
+                // works, and it acts on stale data.
+                //
+                // The guard existed to avoid rebuilding the chrome on every
+                // update. That cost belongs to the backends, which can compare
+                // what they already have -- and each of them already does, so
+                // this call is cheap when nothing changed.
+                //
+                // 此處沒有相等性守衛,而那是一項更正、不是一項疏漏。
+                //
+                // 它原本會在 `items == lastAppliedToolbar` 時跳過,而 `ToolbarItem` 的 `==` 比較的是
+                // `label` 與 `systemImage`,並刻意忽略 action——閉包無法比較。因此一個「按鈕標籤沒變、
+                // 但 action 捕捉了新資料」的工具列會被判定為未改變,而 backend 會繼續持有前一個狀態的
+                // 那些閉包。按下「Delete」刪掉的,會是**先前**被選取的那一列。
+                //
+                // 這件事沒有任何一處會失敗:標籤是對的、按鈕能用,而它作用在過期的資料上。
+                //
+                // 那個守衛的用意是避免每次更新都重建外框。那份成本屬於 backend,而它們可以比較自己
+                // 手上已有的東西——而且每一個都已經這麼做了,因此在沒有改變時這個呼叫是廉價的。
                 backend.setToolbar(
                     ofWindow: window as! NewBackend.Window,
                     to: items,
