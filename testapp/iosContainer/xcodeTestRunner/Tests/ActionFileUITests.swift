@@ -154,6 +154,25 @@ final class ActionFileUITests: XCTestCase {
             throw ActionFileError.invalidCoordinate(action.line)
         }
 
+        // Says which window it resolved against and where the point landed.
+        //
+        // **Without this the failure is silent in both directions**: a tap that
+        // misses looks exactly like a tap the app ignored, and the wrong window
+        // looks exactly like wrong coordinates in the file. Both were live
+        // hypotheses for P60 on 2026-09-09 and neither could be told from the
+        // other by a screenshot or by the app's own log -- the log proved only
+        // that the button never fired.
+        //
+        // 說出它是相對哪一個視窗解析的，以及那個點落在哪裡。
+        //
+        // **少了這一行，失敗在兩個方向上都是靜默的**：一次沒打中的點擊，看起來與一次被 app 忽略的
+        // 點擊完全相同；而選錯視窗，看起來又與檔案裡座標寫錯完全相同。2026-09-09 的 P60 正是如此，
+        // 而無論看截圖或看 app 自己的 log 都分辨不出來——那份 log 只能證明「那顆按鈕從未被觸發」。
+        let message = "-actionfile: line \(action.line) point (\(action.x), \(action.y)) "
+            + "windows=\(app.windows.count) frame=\(frame) "
+            + "normalized=(\(action.x / frame.width), \(action.y / frame.height))\n"
+        FileHandle.standardError.write(Data(message.utf8))
+
         return window.coordinate(withNormalizedOffset: CGVector(
             dx: action.x / frame.width,
             dy: action.y / frame.height

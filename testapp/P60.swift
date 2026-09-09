@@ -62,11 +62,27 @@ enum P60Diagnostics {
         print("[P60] \(message)")
 
         guard let data = "P60 \(Date()) \(message)\n".data(using: .utf8) else { return }
-        let url = URL(
-            fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? FileManager.default.currentDirectoryPath
-        )
-        .appendingPathComponent("p60-debug-events.log")
+        // `NSHomeDirectory()` before the working directory, because on iOS the
+        // working directory is `/` and the write fails silently -- no log, no
+        // error, and a reader concludes the app never reached the line. The
+        // env var still wins where a launcher sets it; on iOS it does not reach
+        // the app at all, since `simctl launch` needs a `SIMCTL_CHILD_` prefix
+        // to pass one through.
+        // 先用 `NSHomeDirectory()`、再用工作目錄，因為在 iOS 上工作目錄是 `/`，寫入會靜默失敗
+        // ——沒有 log、沒有錯誤，而讀的人會斷定這支 app 根本沒走到那一行。有 launcher 設定時，
+        // 環境變數仍然優先；而在 iOS 上它根本到不了 app，因為 `simctl launch` 要加上
+        // `SIMCTL_CHILD_` 前綴才傳得進去。
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? {
+                #if os(iOS) || os(tvOS)
+                    return NSHomeDirectory() + "/Documents"
+                #else
+                    return FileManager.default.currentDirectoryPath
+                #endif
+            }()
+        let url = URL(fileURLWithPath: directory)
+            .appendingPathComponent("p60-debug-events.log")
         if FileManager.default.fileExists(atPath: url.path),
             let handle = try? FileHandle(forWritingTo: url)
         {

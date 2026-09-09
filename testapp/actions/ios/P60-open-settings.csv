@@ -1,0 +1,37 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60 on iOS: open settings as a sheet, then increment from inside it.
+#
+# Coordinates are POINTS IN THE WINDOW'S OWN SPACE, which is what the runner
+# converts them to: `window.coordinate(withNormalizedOffset:)` with x/frame.width
+# and y/frame.height, and `frame` is XCUITest's, in points. So a 1179x2556
+# capture at scale 3 gives 393x852 points, and a pixel row divided by three is
+# the y to write here.
+#
+# `frame` origin is rejected outright on iOS by the runner, which is why every
+# row here says `client`.
+#
+# **(55, 218) was measured off a cropped band of the capture, not estimated from
+# a scaled preview, and the difference is the whole reason this file did not work
+# for three runs.** The first value, y=100, came from reading a 700-pixel-wide
+# preview of an 1179-pixel capture and scaling by eye; cropping the actual pixel
+# rows 420..840 shows "open settings" sitting at pixel row ~653, which is point
+# 218. The runner itself was never wrong -- it reported window frame
+# (0, 0, 393, 852) and normalized (0.153, 0.117) for the old point, exactly as
+# specified. The app's log settled the rest: openSettings() was never called, so
+# the tap missed rather than being ignored.
+#
+# 座標是**視窗自身座標空間中的點**，那正是 runner 會把它們轉換成的東西：
+# `window.coordinate(withNormalizedOffset:)`，以 x/frame.width 與 y/frame.height 計算，而 `frame`
+# 是 XCUITest 的、以點為單位。因此一張 1179x2556、scale 3 的擷圖等於 393x852 點，把像素的列數除以三
+# 就是此處要寫的 y。
+#
+# 在 iOS 上，runner 會直接拒絕 `frame` 原點，這就是此處每一列都寫 `client` 的原因。
+#
+# **(55, 218) 是從擷圖裁切出來的像素帶上量到的，不是從縮圖估的；而這個差別，正是本檔連續三次執行都
+# 沒有作用的全部原因。** 最初那個 y=100，來自「用肉眼把一張 1179 像素寬的擷圖之 700 像素寬預覽換算
+# 回去」；實際裁切像素第 420..840 列可以看到「open settings」落在約第 653 個像素列，也就是第 218 點。
+# runner 本身從來沒有錯——它回報視窗框 (0, 0, 393, 852)、舊座標的正規化值 (0.153, 0.117)，完全符合
+# 規格。其餘的由 app 自己的 log 判定：openSettings() 從未被呼叫，因此那一下是沒打中，而不是被忽略。
+sleep,,,,,,1500000,let P60 lay out,ios
+click,55,218,client,left,,,open settings -- expect a sheet over this window,ios
+sleep,,,,,,1500000,let the sheet present,ios

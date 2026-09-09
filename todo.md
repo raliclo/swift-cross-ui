@@ -1701,14 +1701,26 @@ GitHub issues. The third was ephemeral. It is written here so that it stops
 being a private list, and the numbers are deliberately dropped: what identifies
 an item is what it says, not an integer nobody else can resolve.
 
-| Item | Who can verify it |
-| --- | --- |
-| Swift 6 language mode: nine targets migrated; **AppKit and UIKit remain** | Mac |
-| **AppKit and UIKit pin foreground colours**, so disabled controls stay bright | Mac |
-| Design question: what `-GPU` should mean on macOS, including an external GPU | Mac |
-| `.onHover` **kills the process** on AndroidBackend — `HoverGestures` has no conformance | Android device |
-| UIKit is the **only** backend still suppressing `.popover`'s `onDismiss` | Mac/iOS |
-| `.navigationTitle` **renders nothing** on UIKit and Android | Mac/iOS, Android |
+| Item | Who can verify it | Checked on the Mac, 2026-09-09 |
+| --- | --- | --- |
+| Swift 6 language mode: nine targets migrated; **AppKit and UIKit remain** | Mac | **done** — both are in `migratedToSwift6`, `Package.swift:861-862` |
+| **AppKit and UIKit pin foreground colours**, so disabled controls stay bright | Mac | **done** — `resolvedForegroundColor` has 8 uses across the two backends |
+| Design question: what `-GPU` should mean on macOS, including an external GPU | Mac | **open**, and it is a decision rather than an implementation |
+| `.onHover` **kills the process** on AndroidBackend — `HoverGestures` has no conformance | Android device | **done** — `Sources/AndroidBackend/AndroidBackend+HoverGestures.swift` exists |
+| UIKit is the **only** backend still suppressing `.popover`'s `onDismiss` | Mac/iOS | **done** — `UIKitBackend+Popover.swift:44` assigns `popover.onDismiss` |
+| `.navigationTitle` **renders nothing** on UIKit and Android | Mac/iOS, Android | **done** — both toolbar files render it, and each says what it used to do instead |
+
+**Five of the six were already done when this table was read on 2026-09-09**, and
+the table's own warning is why they were checked rather than started: *"If an
+entry is more than a couple of days old, check it against the code before
+believing it."* A list of work is a claim about the code, and it drifts in the
+one direction nobody notices -- towards describing work that no longer needs
+doing. Only the `-GPU` question is still open, and it is a decision, not code.
+
+**這六項當中有五項，在 2026-09-09 讀到這張表時就已經完成了**，而表格自身的警告正是「先查證、不要
+直接開工」的理由：*「若某項條目已超過一兩天，請先對照程式碼再相信它。」* 一份工作清單是一項關於程式碼
+的主張，而它會往「沒有人會注意到」的那個方向漂移——漂向描述「已經不需要做的工作」。此處只剩 `-GPU`
+那個問題仍然開著，而它是一個決定，不是程式碼。
 
 The foreground-colour one is the most actionable and needs no number to start:
 grep AppKit and UIKit for a hardcoded `foregroundColor`, and compare against
