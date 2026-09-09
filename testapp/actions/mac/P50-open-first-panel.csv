@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P50: open the first panel and stop. The control for P50-panel-press-me.csv.
+#
+# Two files rather than one with a flag, because the assertion is a COMPARISON
+# between two captures: what the panel looks like when it opens, and what it
+# looks like after one press. A single run cannot show a shift.
+#
+# Coordinates are frame-relative points.
+#
+# **This app's window capture is 1x in some runs and 2x in others**, because the
+# window does not always open on the same display: 780x825 px in one run and
+# 1560x1650 in another, same app, same build. So a coordinate cannot be derived
+# from "the capture scale" remembered from a previous run -- divide by that
+# capture's own scale, or crop the capture tightly and read the button's row
+# directly, which is what produced (227, 646) after (218, 613) landed on the line
+# of text above the button.
+#
+# 座標是相對於 frame 的點。
+#
+# **這支 app 的視窗擷圖在某些次執行中是 1x、某些次是 2x**，因為那個視窗不一定開在同一台顯示器上：
+# 同一支 app、同一份建置，一次是 780x825 像素，另一次是 1560x1650。因此座標不能沿用「上一次記下的
+# 擷圖比例」去推導——請用那張擷圖自身的比例換算，或直接把擷圖裁緊、讀出按鈕所在的列，而後者正是
+# (227, 646) 的來源：先前的 (218, 613) 落在按鈕上方那一行文字上。
+#
+# P50：開啟第一塊面板然後停住。這是 P50-panel-press-me.csv 的對照組。
+#
+# 分成兩個檔案而不是一個檔案加旗標，因為此處的判定是兩張擷圖之間的**比較**：面板剛開啟時的樣子，
+# 與按過一次之後的樣子。單獨一次執行顯示不出位移。
+#
+# 座標是相對於 frame 的點。這支 app 的視窗擷圖是 2x（780 點寬的視窗擷出 1560 像素），因此擷圖的
+# 一個像素等於半個點。
+sleep,,,,,,1200000,let P50 lay out,macos,
+click,227,646,frame,left,,,open the first panel (top anchor),macos,
+sleep,,,,,,1500000,let the popover appear,macos,
