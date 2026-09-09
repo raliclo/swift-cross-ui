@@ -147,11 +147,19 @@ action,x,y,origin,button,key,micros,note,platform
 # p33-debug-events.log lands in the CURRENT DIRECTORY, not testapp/output/ --
 # P33 builds its path from currentDirectoryPath and run.zsh launches by absolute
 # path without cd'ing. MEASURED 2026-09-04 after this file replayed, and this is
-# the whole file:
+# the whole file. RE-MEASURED 2026-09-09; the previous transcript, kept struck
+# through below it, quoted a line the app STOPPED WRITING ON 2026-09-04 and a
+# render marker it stopped writing on 2026-09-09:
 #     P33 ... backend GtkBackend
-#     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
-#     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
+#     P33 ... P33 approximations rendered
+#     P33 ... RENDER COMPLETE -- P33 approximations ready
 #     P33 ... details expanded=false
+# ~~P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link~~
+# ~~P33 ... RENDER COMPLETE -- P33 ready for missing-view checks~~
+# A sample transcript is a claim like any other and it had gone stale twice
+# over. It is only quoted here, never asserted on -- the assertion is the
+# `# expect:` marker at the top, `details expanded=false`, which is unchanged
+# and was re-verified in the same run.
 # READ THAT LAST LINE CAREFULLY: false, not true. `expanded` starts TRUE, which
 # is why the button's first label is "Hide details", so one click takes it to
 # false. A file that predicted "expanded=true" would have been wrong while
@@ -197,11 +205,17 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # p33-debug-events.log 落在**目前的工作目錄**，而非 testapp/output/——P33 由
 # currentDirectoryPath 組出路徑，而 run.zsh 以絕對路徑啟動且不做 cd。**2026-09-04 實測**，本檔
-# 重放後整個檔案就是這四行：
+# 重放後整個檔案就是這四行。**2026-09-09 重新量測**；先前那份逐字紀錄（劃線保留於其下）引用的是一行
+# app 早在 **2026-09-04** 就不再寫出的訊息，以及一個它在 **2026-09-09** 不再那樣說的 render marker：
 #     P33 ... backend GtkBackend
-#     P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link
-#     P33 ... RENDER COMPLETE -- P33 ready for missing-view checks
+#     P33 ... P33 approximations rendered
+#     P33 ... RENDER COMPLETE -- P33 approximations ready
 #     P33 ... details expanded=false
+# ~~P33 ... missing Form Section Label(systemImage:) Stepper Gauge DisclosureGroup LabeledContent ColorPicker Link~~
+# ~~P33 ... RENDER COMPLETE -- P33 ready for missing-view checks~~
+# **一份範例逐字紀錄與其他任何東西一樣是一項主張**，而它已經過期了兩輪。它在此僅供**引用**，從不作為
+# 斷言——斷言是檔案開頭的 `# expect:` 標記 `details expanded=false`，該標記未變，並已在同一次執行中
+# 重新驗證。
 # **請看清最後那一行：是 false，不是 true。** `expanded` 起始為 **true**，這正是按鈕第一個標籤
 # 為「Hide details」的原因，因此一次點擊會把它帶到 false。若本檔預測「expanded=true」，那會是
 # 一個**看起來正確的錯誤**；而這就是 app 要指出「值」而非宣告「有按鈕被按下」的全部理由。

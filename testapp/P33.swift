@@ -32,7 +32,26 @@ enum P33Diagnostics {
     static func renderComplete() {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
-        write("RENDER COMPLETE -- P33 ready for missing-view checks")
+        // ~~"RENDER COMPLETE -- P33 ready for missing-view checks"~~ -- the
+        // THIRD place in this file that outlived what it described. The screen
+        // text and the .onAppear line were corrected on 2026-09-09; this one
+        // and the window title were not, so the app announced itself ready for
+        // "missing-view checks" one line above stating that nothing is missing.
+        //
+        // Found by grepping this file for the word rather than by re-reading
+        // the diff. A correction that fixes the instances it happens to be
+        // looking at is how a claim survives being corrected -- see the same
+        // pattern below the "Nothing on this list" Text, where the replacement
+        // text was itself false.
+        //
+        // ~~「RENDER COMPLETE -- P33 ready for missing-view checks」~~——本檔中**第三處**活得比它所
+        // 描述的事實還久的地方。畫面文字與 .onAppear 那一行已於 2026-09-09 更正,而這一行與視窗標題
+        // 沒有,於是這支 app 一邊聲明「沒有東西缺席」,一邊宣告自己「已準備好進行缺失 view 的檢查」。
+        //
+        // 它是靠對本檔 grep 那個字找出來的,不是靠重讀 diff。**一次只修好「自己剛好在看的那幾處」的
+        // 更正,正是一個主張得以在被更正之後繼續存活的方式**——同樣的樣式見下方「Nothing on this
+        // list」那個 Text,那裡連替換文字本身都是假的。
+        write("RENDER COMPLETE -- P33 approximations ready")
     }
 }
 
@@ -40,7 +59,27 @@ enum P33Diagnostics {
 @HotReloadable
 struct P33MissingViewsApp: App {
     var body: some Scene {
-        WindowGroup("P33 missing views") {
+        // ~~"P33 missing views"~~. THE WINDOW TITLE IS NOT DECORATION HERE:
+        // `test_support/test_P33.zsh` exports it as `TEST_TITLE` and
+        // `screenshot.zsh -w` finds the window by it, so both were changed in
+        // one edit. VERIFIED 2026-09-09 with the app confirmed running first:
+        // the new title captures from priority 1 (wincap), the old title fails.
+        //
+        // ~~"Changing one without the other does not fail -- wincap finds
+        // nothing and the script falls back to a DESKTOP capture"~~ was written
+        // here in the same edit and is FALSE; see the correction in
+        // test_P33.zsh, which records what the tool actually does. A guess
+        // about a tool, written into a change about stale claims.
+        //
+        // ~~「P33 missing views」~~。**此處的視窗標題不是裝飾**:
+        // `test_support/test_P33.zsh` 會把它匯出為 `TEST_TITLE`,而 `screenshot.zsh -w` 是靠它找到
+        // 視窗的,因此兩者已在同一次編輯中一併更改。**2026-09-09 驗證**(且先確認 app 確實在跑):
+        // 新標題可由 priority 1(wincap)擷取,舊標題則失敗。
+        //
+        // ~~「只改其中一邊不會失敗——wincap 只是找不到東西,腳本便退回**桌面**擷取」~~ 這句話就寫在
+        // 同一次編輯裡,而它是**假的**;更正記於 test_P33.zsh,那裡寫著該工具實際的行為。
+        // 一項關於工具的臆測,被寫進了一次以「過期主張」為主題的改動裡。
+        WindowGroup("P33 hand-built approximations") {
             #hotReloadable {
                 P33RootView()
             }
@@ -55,7 +94,7 @@ struct P33RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("P33: missing views")
+            Text("P33: hand-built approximations")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
             // These two lines were a list of nine missing names until 2026-09-04,

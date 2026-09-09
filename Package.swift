@@ -517,6 +517,18 @@ let package = Package(
             dependencies: [
                 "SwiftCrossUI",
                 "WinUIInterop",
+                // Added 2026-09-09 so this backend can say when a platform call
+                // failed, instead of swallowing it with `try?`. GtkBackend has
+                // had it since diagnostics were introduced; this is task #48
+                // ("diagnostics reach UIKit and WinUI") moving, not finished.
+                // A leaf module with no dependencies of its own, and `SCUI_DEBUG`
+                // changes its CONTENTS rather than whether it is linked, so this
+                // costs a release build nothing.
+                // 於 2026-09-09 加入，好讓這個 backend 能夠說出「某次平台呼叫失敗了」，而不是用
+                // `try?` 把它吞掉。GtkBackend 自診斷機制引入以來就有它；這是任務 #48（「診斷要送進
+                // UIKit 與 WinUI」）在前進，尚未完成。它是一個本身沒有任何依賴的葉節點模組，而
+                // `SCUI_DEBUG` 改變的是它的**內容**、而非它是否被連結，因此這對 release 建置不增加成本。
+                "DebugFeatures",
                 // Conditioning these on Windows was tried and did not help:
                 // `swift test` builds every target in the package, so
                 // WinUIBackend itself is compiled on Linux and swift-winui is
