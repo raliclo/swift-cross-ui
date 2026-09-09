@@ -40,6 +40,101 @@ struct GridLayoutTests {
         #expect(plan.columnWidths.first == 200, "the fixed column keeps its width")
     }
 
+    // The four tests below were written on the Windows side, the same morning,
+    // as a separate `LazyVGridTests` suite, before a fetch showed this file
+    // already existed. The duplicate case -- fixed beside adaptive, which is the
+    // one above -- was dropped, and these four were folded in rather than left
+    // in a second file about the same subject. Two suites over one function
+    // drift, and the flow.md rule about exactly that was written the same day
+    // after the same collision in flow.md itself.
+    //
+    // 下面四項測試是在 Windows 側於同一個早晨、作為另一個獨立的 `LazyVGridTests` suite 寫成的，
+    // 當時尚未 fetch，因而不知道本檔已經存在。重複的那一項——「固定欄旁的 adaptive 欄」，也就是上方
+    // 那一項——已被捨棄，其餘四項則併入此處，而不是留在另一個談論同一主題的檔案裡。
+    // **兩個 suite 覆蓋同一個函式必然會漂移**，而 flow.md 中關於這件事的規則，正是在同一天、因為
+    // flow.md 自己發生了同樣的撞車而寫下的。
+
+    /// The control for the case above. With no fixed column there is nothing to
+    /// subtract, so this arithmetic was already right before the fix -- and if
+    /// it ever fails, the fix broke the simple case rather than the mixed one.
+    /// 上一項的**對照組**。沒有固定欄就沒有東西需要扣除，因此這段算術在修正之前就已經是對的；
+    /// 若它哪天失敗了，代表被修壞的是簡單情形，而不是混合情形。
+    @MainActor
+    @Test("An adaptive column alone fills the container and does not exceed it")
+    func adaptiveAloneFits() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [GridItem(.adaptive(minimum: 100))],
+            alignment: .leading,
+            spacing: 10,
+            proposedWidth: 420
+        )
+        let total = plan.columnWidths.reduce(0, +)
+            + 10 * max(0, plan.columnWidths.count - 1)
+        #expect(total <= 420, "columns total \(total): \(plan.columnWidths)")
+        #expect(plan.columnWidths.allSatisfy { $0 >= 100 })
+    }
+
+    /// The obvious WRONG fix for the overflow is to let the share fall below the
+    /// minimum: the total then fits, and `.adaptive(minimum:)` quietly stops
+    /// meaning anything. This test is what rules that out, and it has to be read
+    /// together with the overflow test -- either one alone is satisfied by a fix
+    /// that is wrong in the other direction.
+    /// 針對該溢出，顯而易見的**錯誤**修法是讓分配額低於最小值：總寬因此「符合」，而
+    /// `.adaptive(minimum:)` 也就悄悄地不再具有任何意義。這一項測試正是用來排除那種修法的，而它
+    /// **必須與溢出那一項一起讀**——任一項單獨存在時，都會被一個「錯在另一個方向」的修正所滿足。
+    @MainActor
+    @Test("Every adaptive column still honours its minimum")
+    func adaptiveColumnsKeepTheirMinimum() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
+            alignment: .leading,
+            spacing: 10,
+            proposedWidth: 420
+        )
+        for width in plan.columnWidths.dropFirst() {
+            #expect(width >= 100, "adaptive column resolved to \(width), below its minimum")
+        }
+    }
+
+    /// Guards task #112. `Int(Double)` TRAPS on `.infinity` -- an Illegal
+    /// instruction, exit 132, with no message, because it is a language-level
+    /// trap rather than a precondition. The layout system probes children with
+    /// an infinite proposal deliberately, so this is a real input, and P51 died
+    /// 1881 ms after launch to prove it. Kept next to the overflow tests because
+    /// they touch the same arithmetic.
+    /// 守住任務 #112。`Int(Double)` 遇到 `.infinity` 會**trap**——Illegal instruction、退出碼 132、
+    /// 沒有任何訊息，因為那是語言層級的 trap 而非 precondition。版面系統會**刻意**用無限提案去探測
+    /// 子節點，因此那是真實的輸入；P51 曾於啟動後 1881 毫秒死亡以資證明。放在溢出測試旁邊，是因為
+    /// 兩者動到的是同一段算術。
+    @MainActor
+    @Test("An infinite proposal does not trap")
+    func infiniteProposalIsSafe() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
+            alignment: .leading,
+            spacing: 10,
+            proposedWidth: .infinity
+        )
+        #expect(!plan.columnWidths.isEmpty)
+    }
+
+    /// A grid with no columns still has to put its children somewhere, and one
+    /// full-width column is both what SwiftUI does and what keeps the modulo
+    /// arithmetic in `LayoutSystem` from dividing by zero.
+    /// 一個沒有任何欄的格線仍然必須把子節點擺在某處；「一個滿寬的欄」既是 SwiftUI 的做法，也是讓
+    /// `LayoutSystem` 中的取餘數運算不會除以零的原因。
+    @MainActor
+    @Test("No columns still yields one full-width column")
+    func emptyColumnsYieldOne() {
+        let plan = LazyVGrid<EmptyView>.resolve(
+            columns: [],
+            alignment: .leading,
+            spacing: 10,
+            proposedWidth: 420
+        )
+        #expect(plan.columnWidths == [420])
+    }
+
     /// Spacing counts too, and it is the half that is easy to drop when the
     /// first half is fixed.
     /// 間距同樣要算,而當前半段是固定寬度時,那是最容易被漏掉的一半。

@@ -40,29 +40,50 @@ a couple of days old, check it against the code before believing it.
 | **WinUIBackend did not compile** — `startBringIntoView` throws and the call had no `try` (`WinUIBackend+ScrollTo.swift`) | fixed, build in progress | a clean `swift build`; the file's header said "UNVERIFIED" meaning "not run", when it had not even been compiled |
 | `WinUIBackend` gained a `DebugFeatures` dependency so the above can report a failure instead of swallowing it | done, unverified | same build. This is task #48 moving one file, not finishing — Alerts, AngularGradient, Button and ButtonPressState still have bare `try?` |
 | **WinUI `setRefreshHandler(to: nil)` left the button behind** and re-enabling nested another Grid | fixed, unverified | build, then P54 on WinUI: toggle `.refreshable` off and on and confirm one button, one Grid |
-| `Tests/SwiftCrossUITests/LazyVGridTests.swift` — new, reproduces the adaptive-overflow defect | written, RED expected | see #119. The failing assertion is `resolved 530 for a 420 container` |
-| #119 adaptive columns ignore fixed columns | diagnosed, not fixed | make the test above pass without letting a column fall below its minimum |
-| #120 Grid mis-arranges a static cell beside a `ForEach` | diagnosed, not fixed | `computeLayout` branches on `layoutable.count`; the >1 branch assumes the children ARE the cells |
+| #119 adaptive columns ignored fixed columns | **fixed by the MAC side** in `bdf09534` while this side was writing a test for it — third collision in one day | nothing; four extra cases were folded into their `GridLayoutTests.swift` and this side's duplicate suite was deleted |
+| #120 Grid mis-arranges a static cell beside a `ForEach` | **pinned** by the Mac side as a `withKnownIssue`, deliberately not fixed | a way for a child to say "I expand into n cells". `LayoutSystem.LayoutableChild` is an opaque pair of closures and cannot answer; the only comparable flattener is `View/_asMenuItems`. Do NOT special-case `ForEach` at the grid |
 
-**Running the tests on Windows needs the GTK include flags** — a plain
-`swift test` fails at `GtkCHelpers` with `'gtk/gtk.h' file not found`, and
-`swift test` builds every target whether or not you filter. This is the
-invocation, the same 14 flags `compile.zsh -gtk4` uses:
+**Running the tests on Windows — the invocation is in `Package.swift`, line 81,
+and it is not the obvious one:**
 
 ```sh
-GTK=C:/gtk4
-export PKG_CONFIG_PATH="$GTK/lib/pkgconfig" PATH="$GTK/bin:$PATH"
-FLAGS=()
-for f in $(PKG_CONFIG_PATH="$GTK/lib/pkgconfig" "$GTK/bin/pkg-config.exe" --cflags gtk4); do
-    case "$f" in -I*) FLAGS+=(-Xcc "$f");; esac
-done
-swift test --filter LazyVGrid "${FLAGS[@]}"
+SCUI_HOST_BACKENDS_ONLY=1 swift test --scratch-path 'C:\scui-ht'
 ```
 
-It takes well over ten minutes from cold. **Do not start a second build while
-one is running**: a concurrent `swift test` died with `error: fatalError` at
-step 10 of 554, which looks nothing like a lock conflict and reads as a broken
-package.
+`SCUI_HOST_BACKENDS_ONLY=1` drops the targets this host cannot compile —
+on Windows that is AppKitBackend, UIKitBackend **and the whole Gtk group**
+(`GtkBackend`, `Gtk`, `GtkExample`, `GtkCHelpers`, `CGtk`). The separate scratch
+path keeps it from clobbering the ordinary build.
+
+~~"Running the tests on Windows needs the GTK include flags", followed by a
+recipe that harvests 14 `-Xcc -I…` flags from `pkg-config`.~~ **That was written
+into this file earlier the same day and it is wrong.** It came from watching a
+plain `swift test` die at `GtkCHelpers` with `'gtk/gtk.h' file not found`,
+supplying the missing includes, and getting further — to
+`'no such module UIKit'`, at which point the conclusion drawn was "`swift test`
+cannot complete on Windows". Neither the flags nor the conclusion were needed:
+the manifest already has `unbuildableOnHost`, with a Windows branch, and
+documents the invocation at its own line 81. **The remedy was in the file being
+read at the time.** Kept struck through because a wrong command in a plan file
+costs the next reader a build, and this one had already been acted on.
+
+Two things that are still true regardless: it takes well over ten minutes from
+cold, and **you must not start a second build while one is running** — a
+concurrent `swift test` died with `error: fatalError` at step 10 of 554, which
+looks nothing like a lock conflict and reads as a broken package.
+
+**在 Windows 上跑測試——正確的呼叫方式寫在 `Package.swift` 第 81 行,而且不是那個顯而易見的作法**
+(見上方程式碼區塊)。`SCUI_HOST_BACKENDS_ONLY=1` 會丟掉本主機編不動的 target;在 Windows 上那是
+AppKitBackend、UIKitBackend,**以及整組 Gtk**(`GtkBackend`、`Gtk`、`GtkExample`、`GtkCHelpers`、
+`CGtk`)。另設 scratch path 則可避免弄髒一般的建置產物。
+
+~~「在 Windows 上跑測試需要 GTK 的 include 旗標」以及隨後那段從 `pkg-config` 收集 14 個 `-Xcc -I…`
+的作法~~——**那是同一天稍早被寫進本檔的,而它是錯的。** 它來自這樣的過程:看到純 `swift test` 在
+`GtkCHelpers` 以 `'gtk/gtk.h' file not found` 死掉、補上缺的 include、於是走得更遠——遠到
+`'no such module UIKit'`,並就此得出「`swift test` 在 Windows 上跑不完」的結論。**那些旗標與那個結論
+都不需要**:manifest 早已有 `unbuildableOnHost`,而且有 Windows 分支,並在它自己的第 81 行寫明了
+呼叫方式。**解法就在當時正被閱讀的那個檔案裡。** 此處劃線保留,因為**一個寫在計畫檔裡的錯誤指令,
+會讓下一位讀者付出一次建置的代價**,而這一個已經被照著做過了。
 
 **Windows 側進行中,2026-09-09——從這裡接手。** 開始本檔中任何工作之前請先讀這一段,並在各項落地時
 **刪除**對應的列。這種段落比本檔其他任何東西都更快過期,因此每一列都標了日期,也寫明「什麼才算完成」。
