@@ -12,7 +12,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **2. 動作檔無法定址第二個視窗** — 已解決。新增 `focus` 動作(第十欄 `target` 放標題),並補上 AppKit 缺少的 `currentWindowIdentity()`——沒有它,geometry 永遠不會重新量測
 - [x] **1. P50 macOS:「Show title B」按了標題沒變** — 已修。狀態改變若不改變尺寸,就不會有人告訴視窗 preference 變了;新增 `onWindowChromeChange` 通道
 - [ ] **2. P50 macOS:面板內容溢出自己的邊界** — 已定位(2026-09-10):主視窗**不會**位移;錯位的是面板本身——文字與兩顆按鈕畫得比 `presentationBackground` 寬,兩側都溢出,左緣被切。量到 `updatePopover` 收到 284x154、content view 284x154、其子 view 亦 284x154——尺寸一致,是**文字畫得比版面算給它的寬度更寬**。證據:`testapp/output/evidence/p50-panel-content-overflows-2026-09-10.png`
-- [ ] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 同一次執行的 log 裡 `popover alpha dismissed` 出現兩次
+- [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
 - [ ] **3. P32:按下 Toggle Label 之後看不到帶標籤的按鈕**
 - [ ] **4. P44:vertical stack 空間耗盡** — `firstStarvedChild=Spacer`,9 個 children 拿到 643 也用掉 643,至少一個被給 0
