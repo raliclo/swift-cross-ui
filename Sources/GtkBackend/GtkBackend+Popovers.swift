@@ -176,6 +176,30 @@ extension GtkBackend {
         private func installInputProbe() {
             guard DebugFeatures.isEnabled else { return }
 
+            // CAPTURE, and the control that says this probe is not itself the
+            // bug was run on 2026-09-09 before any of it was reported.
+            //
+            // The worry is real: a capture-phase GtkGestureClick can CLAIM the
+            // event sequence, and a claimed sequence never reaches the child
+            // button. If that happened, this probe would be the cause of the
+            // silence it exists to measure. So the whole sweep was re-run with
+            // the phase set to `.bubble`, where an ancestor gesture cannot
+            // pre-empt the target -- and the result was IDENTICAL: four presses
+            // reported, no button action, counter still 0.
+            //
+            // So the probe is exonerated and capture is kept, because capture is
+            // the phase that can see an event the target would have swallowed,
+            // which is the distinction this whole thing exists to make.
+            //
+            // 用 CAPTURE;而「這個探針本身不是那個 bug」的對照,已於 2026-09-09 在任何回報之前執行過。
+            //
+            // 那份疑慮是真的:capture 階段的 `GtkGestureClick` 可能**認領**事件序列,而被認領的序列
+            // 永遠到不了子按鈕。若真如此,這個探針就會是「它自己被建來量測的那份沉默」的成因。因此
+            // 整個掃描以 `.bubble` 重跑了一次——在該階段,祖先的 gesture 無法搶在目標之前——而結果
+            // **完全相同**:四次按壓皆有回報、按鈕無動作、計數器仍為 0。
+            //
+            // 探針因此洗清嫌疑,並保留 capture,因為 capture 才是「看得見目標本會吞掉之事件」的那個
+            // 階段,而那正是這整套東西所要區分的事。
             let press = GestureClick()
             press.propagationPhase = .capture
             press.pressed = { _, nPress, x, y in

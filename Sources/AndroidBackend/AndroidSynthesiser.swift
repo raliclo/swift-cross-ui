@@ -136,7 +136,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
         switch action {
             case .move(let point):
-                let position = geometry.screenPosition(of: point)
+                let position = try geometry.screenPosition(of: point)
                 lastPoint = (Double(position.x), Double(position.y))
                 // No event. A `move` row on a touch screen has nothing to post
                 // -- there is no hover -- so it only records where the next
@@ -189,7 +189,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
     private func resolve(_ point: Point?, in geometry: WindowGeometry) -> (x: Double, y: Double) {
         guard let point else { return lastPoint }
-        let position = geometry.screenPosition(of: point)
+        let position = try geometry.screenPosition(of: point)
         lastPoint = (Double(position.x), Double(position.y))
         return lastPoint
     }

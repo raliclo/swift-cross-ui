@@ -1,0 +1,80 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, GtkBackend: find the "press me" button inside the popover by
+# sweeping DOWN its centre line, now that `origin=popover` makes that possible.
+#
+# WHY THIS EXISTS. P50-probe-popover-centre.csv established, 2026-09-09, that a
+# synthesised press DOES reach the popover: the capture-phase probe in
+# GtkBackend reported both `pointer entered` and `press n=1`, and the replay's
+# hitTarget was the popover's own toplevel. What it could NOT establish is
+# whether the BUTTON acts, because it clicks the geometric centre and the centre
+# of a 291x221 popover holding two stacked buttons may be between them.
+#
+# So two explanations were still alive and they look identical from outside:
+#
+#   A  the press reaches GTK and is lost before the button   -- our bug
+#   B  the press landed between the buttons                  -- not a bug
+#
+# This file separates them. It clicks four points down the centre line. If ANY
+# of them produces `popover counter N` then B is the answer and #111's original
+# observation was a missed coordinate from the start. If none does while the
+# probe reports a press at every one of them, A is the answer and the defect is
+# in GTK's propagation from the popover to its child.
+#
+# READ THE PROBE LINES, NOT JUST THE COUNTER. A y that misses the popover
+# entirely would also produce no counter, and the two must not be confused --
+# that confusion is the whole history of #111. Every click below should be
+# accompanied by `GtkPopover probe: press n=1 at (145.0, <y>)`. A click with no
+# probe line did not land, and says nothing about the button.
+#
+# ORDER MATTERS: top to bottom. "close this panel" is the LOWER button and
+# pressing it ends the test, so the sweep must reach "press me" first. The
+# counter is cumulative, so if two of the four are on the same button the log
+# shows `popover counter 1` then `popover counter 2`, which is also information:
+# it says the button works and is being hit twice.
+#
+# expect: log-contains popover counter 1
+#
+# P50 於 Windows、GtkBackend:趁 `origin=popover` 已經可用,沿 popover 的中心線**由上而下**掃描,
+# 找出「press me」按鈕。
+#
+# **本檔為何存在。** P50-probe-popover-centre.csv 已於 2026-09-09 確立:一次合成的按壓**確實**抵達
+# popover——GtkBackend 中 capture 階段的探針同時回報了 `pointer entered` 與 `press n=1`,而重放的
+# `hitTarget` 正是 popover 自己的 toplevel。它**無法**確立的是**按鈕**有沒有動作,因為它點的是幾何
+# 中心,而一個容納兩顆堆疊按鈕的 291x221 popover,其中心可能落在兩者**之間**。
+#
+# 於是仍有兩個解釋存活,而它們從外部看一模一樣:**A** 按壓抵達 GTK 後在觸及按鈕前遺失——那是我們的
+# bug;**B** 按壓落在兩顆按鈕之間——那不是 bug。
+#
+# 本檔把兩者分開。它沿中心線點四個位置。若其中**任何一個**產生 `popover counter N`,答案就是 B,
+# 而 #111 最初的觀察從一開始就是一次沒打中的座標。若四個都沒有、而探針對每一個都回報了按壓,
+# 答案就是 A,缺陷位於 GTK 從 popover 傳播至其子元件的路徑上。
+#
+# **要讀探針行,不要只讀計數器。** 一個完全沒打中 popover 的 y 同樣不會產生計數器,而這兩者絕不可
+# 混為一談——那個混淆正是 #111 的全部歷史。下方每一次點擊都應伴隨
+# `GtkPopover probe: press n=1 at (145.0, <y>)`;沒有探針行的點擊代表它沒有落上去,對按鈕一事
+# 什麼都沒說。
+#
+# **順序有意義:由上而下。**「close this panel」是**下方**那顆按鈕,按下它會結束本測試,因此掃描
+# 必須先抵達「press me」。計數器是累加的,所以若四點中有兩點落在同一顆按鈕上,log 會依序出現
+# `popover counter 1` 與 `popover counter 2`——那也是資訊:它說明按鈕有效,而且被按到了兩次。
+sleep,,,,,,900000,let the window settle and take focus,windows
+move,252,711,frame,,,,move onto the first anchor,windows
+sleep,,,,,,200000,let the pointer arrive,windows
+click,252,711,frame,left,,,open the first panel -- positive control; writes popover alpha shown,windows
+sleep,,,,,,900000,let the popover map and take its grab,windows
+move,145,30,popover,,,,sweep point 1 -- near the top of the popover,windows
+sleep,,,,,,250000,let the pointer arrive so the press lands on a hovered button,windows
+click,145,30,popover,left,,,"sweep point 1; expect a probe press line whether or not the counter moves",windows
+sleep,,,,,,400000,let any handler run and the log catch up,windows
+move,145,55,popover,,,,sweep point 2,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,55,popover,left,,,sweep point 2,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,80,popover,,,,sweep point 3,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,80,popover,left,,,sweep point 3,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,105,popover,,,,sweep point 4 -- still above the lower button on the measured layout,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,105,popover,left,,,sweep point 4,windows
+sleep,,,,,,2000000,hold and let the log catch up,windows
