@@ -1,5 +1,17 @@
 # Vendor/patches
 
+**Empty as of 2026-09-09, and kept for the reasoning rather than the contents.**
+
+`swift-bundler-android-service.patch` is gone: the submodule now points at
+`raliclo/swift-bundler`, a fork we can push to, and the change is commit
+`e30aaf4` on its `develop` branch. That is the durable answer this file said was
+needed, and it was taken the same day.
+
+What is worth keeping is the shape of the problem, below, because the next
+vendored dependency that needs a change will present it again.
+
+---
+
 Changes this repository needs in a vendored submodule, kept as files because
 there is nowhere to commit them.
 
