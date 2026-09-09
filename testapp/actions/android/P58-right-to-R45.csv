@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on Android: pressing "right to R45" must move the RIGHT column only.
+#
+# The mirror of P58-left-to-L30.csv on this platform, kept for the same reason
+# the macOS pair is kept: one direction alone cannot separate per-container
+# keying from every scroll landing on the same container.
+#
+# P58 於 Android：按下「right to R45」必須只移動**右**欄。
+#
+# 這是本平台上 P58-left-to-L30.csv 的鏡像，保留的理由與 macOS 那一對相同：只做一個方向，無法
+# 分辨「每個容器捲自己」與「每一次捲動都送到同一個容器」。
+sleep,,,,,,1500000,let P58 lay out both columns,android
+click,184,183,,left,,,"right to R45 -- the right column must show R45 and the left column must still show L0",android
+sleep,,,,,,1200000,let the scroll settle,android

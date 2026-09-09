@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on Android: pressing "left to L30" must move the LEFT column only.
+#
+# Coordinates are POINTS, not device pixels, and the difference is not cosmetic.
+# The Android synthesiser replays "at layout scale the platform's own", so it
+# multiplies what it reads here by the display density -- 2.625 on this
+# emulator. Written as pixels (175,481), the click landed at (459,1263) and hit
+# nothing: the replay reported "replayed P58-actions.csv (3 actions)", the run
+# exited 0, and the capture showed an untouched app. Read off
+# p58-android-final-20260909-152135.png at 1080x2400 and divided by 2.625.
+#
+# **The reason there is an Android copy at all**: the registry keying is shared
+# Swift, but `scrollContainer(_:to:anchor:)` is not. Each backend decides for
+# itself whether a widget belongs to a container, and Android does it by walking
+# the child's parent chain, where AppKit uses `isDescendant(of:)`. A test that
+# ran only on AppKit would leave the parent-chain path unexecuted.
+#
+# P58 於 Android：按下「left to L30」必須只移動**左**欄。
+#
+# 座標是**點**而非裝置像素，而這個差別不是無關痛癢的。Android 的 synthesiser 以「平台自己的
+# layout scale」重放，因此它會把此處讀到的數字乘上顯示密度——在這台模擬器上是 2.625。若寫成像素
+# (175,481)，該次點擊會落在 (459,1263) 而什麼也沒打到：重放回報
+# 「replayed P58-actions.csv (3 actions)」、執行以 0 結束、截圖顯示一個從未被碰過的 app。
+# 本檔數值讀自 1080x2400 的 p58-android-final-20260909-152135.png 再除以 2.625。
+#
+# **為什麼需要一份 Android 版**：registry 的索引鍵是共用的 Swift 程式碼，但
+# `scrollContainer(_:to:anchor:)` 不是。每個 backend 各自決定一個 widget 是否屬於某個容器，
+# 而 Android 走的是子元件的 parent 鏈，AppKit 用的則是 `isDescendant(of:)`。一個只在 AppKit 上
+# 跑過的測試，會讓那條 parent 鏈的路徑從未被執行。
+sleep,,,,,,1500000,let P58 lay out both columns,android
+click,67,183,,left,,,"left to L30 -- the left column must show L30 and the right column must still show R0",android
+sleep,,,,,,1200000,let the scroll settle,android

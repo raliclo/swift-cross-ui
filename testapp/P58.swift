@@ -161,14 +161,25 @@ struct P58RootView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(rows) { index in
-                                // Widened for the same reason P56 widens its
-                                // rows: AppKit's overlay scroll bar sits on the
-                                // digits at natural width, and the digits are
-                                // the entire evidence.
-                                // 加寬的理由與 P56 相同:在自然寬度下,AppKit 的覆蓋式捲軸會壓在
-                                // 數字上,而那些數字正是全部的證據。
+                                // 150, not P56's 360, and the number was
+                                // chosen by running it on a phone. Two 300
+                                // wide columns are 616 points across, which is
+                                // wider than a 1080 px phone at density 2.625
+                                // -- the Android capture showed the right
+                                // column only, with the left column and the
+                                // left button off screen, so neither could be
+                                // pressed or read. The label sits at the left
+                                // of the frame and AppKit's overlay scroll bar
+                                // at the right, so narrowing does not put the
+                                // bar back on the digits the way P56's natural
+                                // width did.
+                                // 150,而非 P56 的 360,而這個數字是實際在手機上跑過才決定的。
+                                // 兩欄各 300 寬合計 616 點,寬過一支 density 2.625 的 1080 像素
+                                // 手機——Android 的擷取只顯示得出右欄,左欄與左邊那顆按鈕都在畫面外,
+                                // 因此兩者都無法被按下或讀取。標籤位於框的左側而 AppKit 的覆蓋式
+                                // 捲軸位於右側,所以收窄並不會像 P56 的自然寬度那樣讓捲軸重新壓上數字。
                                 Text("L\(index)")
-                                    .frame(width: 300, alignment: .leading)
+                                    .frame(width: 150, alignment: .leading)
                                     .id("L\(index)")
                             }
                         }
@@ -177,7 +188,7 @@ struct P58RootView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(rows) { index in
                                 Text("R\(index)")
-                                    .frame(width: 300, alignment: .leading)
+                                    .frame(width: 150, alignment: .leading)
                                     .id("R\(index)")
                             }
                         }
