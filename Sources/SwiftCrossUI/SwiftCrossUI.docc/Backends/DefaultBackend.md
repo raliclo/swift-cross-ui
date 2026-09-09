@@ -11,8 +11,21 @@ system.
 
 The beauty of SwiftCrossUI is that you can write your app once and have it look native everywhere.
 For this reason we recommend using DefaultBackend unless you have particular constraints. It uses
-<doc:AppKitBackend> on macOS, <doc:WinUIBackend> on Window, <doc:GtkBackend> on Linux, and
-<doc:UIKitBackend> on iOS/tvOS.
+<doc:AppKitBackend> on macOS, <doc:WinUIBackend> on ~~Window~~ Windows, <doc:GtkBackend> on Linux,
+<doc:AndroidBackend> on Android, and <doc:UIKitBackend> on iOS/tvOS.
+
+> Note: Corrected 2026-09-09. The sentence omitted Android entirely, even though
+> `Sources/DefaultBackend/DefaultBackend.swift` has selected `AndroidBackend` for some time and
+> <doc:Built-in-backends> has listed six backends including Android. The repository README already
+> carried the correct five-way list; this page carried the four-way one, and nothing marked which
+> was older. When two documents disagree, the one that was not touched by the change that caused
+> the disagreement is the stale one -- here, this page.
+>
+> Note also that the `#if canImport` chain in `DefaultBackend.swift` is ordered, not
+> platform-keyed: on a host where more than one backend can be imported, the first match wins.
+> AppKitBackend is checked first, then GtkBackend, then WinUIBackend, then QtBackend, then
+> CursesBackend, then UIKitBackend, then AndroidBackend. That ordering, not the operating system,
+> is what `SCUI_DEFAULT_BACKEND` overrides.
 
 > Tip: If you're using DefaultBackend, you can override the underlying backend during compilation by
 > setting the `SCUI_DEFAULT_BACKEND` environment variable to the name of the desired backend. This

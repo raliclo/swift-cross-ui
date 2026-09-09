@@ -10,11 +10,16 @@ Guidelines for organizing backend protocols
   <doc:Custom-backends> and the documentation for the appropriate protocols.
 
 We recently split up the monolithic `AppBackend` protocol into a set of
-three dozen or so smaller protocols to better organize the huge set of backend
+~~three dozen or so~~ smaller protocols to better organize the huge set of backend
 functionality and to allow for a more modular backend development approach. This
 file contains some guidelines as to how to organize these protocols when adding
 new backend methods, in order to keep our protocol definitions easily
 maintainable.
+
+- Note: Re-counted 2026-09-09: there are **59** protocols and 8 grouping typealiases, not three
+  dozen. The number was right when it was written and nobody was ever going to come back and
+  recount it, which is why the regeneration command is recorded here rather than just the answer:
+  `grep -rhoE "public protocol [A-Za-z]+" Sources/SwiftCrossUI/Backend/BackendFeatures/ Sources/SwiftCrossUI/Backend/BackendFeatures.swift | sort -u | wc -l`.
 
 - Note: These guidelines are not hard-and-fast rules. If you feel the need to
   break them, feel free (just be sure other maintainers are cool with it first).
@@ -80,5 +85,16 @@ Here are some tips for new backend protocols:
   only non-backend conformance should be `Sendable`, which is required by
   `Widgets` and thus usually inherited.
 - If an existing file makes sense for the protocol, add it there in a reasonable
-  location; otherwise, make a new file in the `AppBackend` folder with a
-  name modeled on `BackendFeatures+Feature`.
+  location; otherwise, make a new file in the ~~`AppBackend` folder with a
+  name modeled on `BackendFeatures+Feature`~~.
+
+  Corrected 2026-09-09: both halves of that sentence now point at nothing. There is no `AppBackend`
+  folder -- the protocols live in `Sources/SwiftCrossUI/Backend/BackendFeatures/`, with a handful of
+  subfolders (`Containers/`, `Controls/`, `Core/`, `FileDialogs/`, `Gestures/`, `Gradients/`,
+  `PassiveViews/`) grouping the protocols that a composition typealias pulls together. And no file
+  in that tree is named `BackendFeatures+Something`; they are named after the protocol alone, so
+  ``BackendFeatures/Sheets`` is in `Sheets.swift` and ``BackendFeatures/WebViews`` is in
+  `WebViews.swift`. Confirm with `ls Sources/SwiftCrossUI/Backend/BackendFeatures/` before adding a
+  file, because following the instruction as written would have produced a
+  `BackendFeatures+Sheets.swift` sitting next to 31 files that do not use that convention, and
+  nothing in the build would have complained.

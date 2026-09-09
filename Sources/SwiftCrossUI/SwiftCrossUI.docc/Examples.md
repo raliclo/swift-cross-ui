@@ -20,8 +20,28 @@ A few examples are included with SwiftCrossUI to demonstrate some of its basic f
 - `ControlsExample`, an app showcasing the various types of controls available.
 - `NotesExample`, an app showcasing multi-line text editing and a more realistic usage of SwiftCrossUI.
 - `PathsExample`, an app showcasing the use of ``Path`` to draw various shapes.
-- `WebViewExample`, an app showcasing the use of ``WebView`` to display websites. Only works on Apple platforms so far.
+- `WebViewExample`, an app showcasing the use of ``WebView`` to display websites. ~~Only works on Apple platforms so far.~~
 - `AdvancedCustomizationExample`, an app showcasing SwiftCrossUI's more advanced APIs for customizing the underlying native views of your app.
+- `ColorsExample`, `FontsExample`, `ForEachExample`, `GradientsExample`, `HoverExample` and
+  `TapGesturesExample`, six further examples added between 2026-03 and 2026-08 that this list did
+  not mention.
+
+> Note: Corrected 2026-09-09, on two counts.
+>
+> The `WebViewExample` caveat is no longer true. All five shipped backends conform to
+> ``BackendFeatures/WebViews``, and none of the four non-AppKit implementations is a stub:
+> `Sources/GtkBackend/GtkBackend+WebView.swift` is 131 lines and landed 2026-09-04,
+> `Sources/WinUIBackend/WinUIBackend+WebView.swift` is 108 lines,
+> `Sources/UIKitBackend/UIKitBackend+WebView.swift` and
+> `Sources/AndroidBackend/AndroidBackend+WebViews.swift` cover the mobile targets. The claim was
+> inherited from <doc:AppBackend-refactor>, which said web views were "AppKitBackend and
+> UIKitBackend only" -- a good illustration of why an unverified claim is expensive: it does not sit
+> still in the document that first made it, it gets copied.
+>
+> The list was also short by six. There are 20 example targets, not 14; count them with
+> `ls Examples/Sources | wc -l`. Every entry that *was* listed still exists, so nothing here had to
+> be removed -- the failure was purely one of omission, which is the kind that produces no error
+> anywhere and no reason for anyone to look.
 
 ## Running examples
 
