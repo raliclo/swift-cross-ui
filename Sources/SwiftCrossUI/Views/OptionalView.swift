@@ -14,6 +14,10 @@ extension OptionalView: View {
     public var _asMenuItems: [MenuItem] {
         view?._asMenuItems ?? []
     }
+
+    public var _asPickerOptions: [PickerOption] {
+        view?._asPickerOptions ?? []
+    }
 }
 
 extension OptionalView: TypeSafeView {

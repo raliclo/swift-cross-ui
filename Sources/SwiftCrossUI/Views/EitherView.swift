@@ -30,6 +30,25 @@ extension EitherView: View {
             case .b(let b): b._asMenuItems
         }
     }
+
+    /// Needed for `if` inside a ``Picker``'s content, and NOT optional.
+    ///
+    /// `EitherView`'s `body` is not the taken branch, so without this the
+    /// default would forward to something that knows nothing about either side
+    /// and a conditional option would silently vanish. Same reason
+    /// ``_asMenuItems`` above exists.
+    ///
+    /// ``Picker`` 的內容中要使用 `if` 就必須有它,而且它**不是可選的**。
+    ///
+    /// `EitherView` 的 `body` 並不是被採用的那個分支,因此少了這個覆寫,預設實作會轉發給一個
+    /// 對兩側都一無所知的東西,而一個條件式的選項就會**靜默消失**。與上方 ``_asMenuItems``
+    /// 存在的理由相同。
+    public var _asPickerOptions: [PickerOption] {
+        switch storage {
+            case .a(let a): a._asPickerOptions
+            case .b(let b): b._asPickerOptions
+        }
+    }
 }
 
 extension EitherView: TypeSafeView {

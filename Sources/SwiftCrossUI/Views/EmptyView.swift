@@ -63,6 +63,8 @@ public struct EmptyView: View, Sendable {
     ) {}
 
     public var _asMenuItems: [MenuItem] { [] }
+
+    public var _asPickerOptions: [PickerOption] { [] }
 }
 
 /// The children of a node with no children.
@@ -81,4 +83,6 @@ extension Never: View {
     }
 
     public var _asMenuItems: [MenuItem] { [] }
+
+    public var _asPickerOptions: [PickerOption] { [] }
 }

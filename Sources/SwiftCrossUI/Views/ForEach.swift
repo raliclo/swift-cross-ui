@@ -123,6 +123,25 @@ extension ForEach: TypeSafeView, View where Child: View {
         elements.map(child).flatMap(\._asMenuItems)
     }
 
+    /// Needed for `ForEach` inside a ``Picker``, and this one is the trap.
+    ///
+    /// `ForEach.body` is `EmptyView` (just above), so the default
+    /// `body._asPickerOptions` would return [] -- a `Picker` built from a
+    /// `ForEach` would come up EMPTY with no error anywhere. That is the most
+    /// likely way anyone writes a picker with more than three options, so the
+    /// omission would have looked like "tagged pickers do not work" rather than
+    /// like a missing override.
+    ///
+    /// ``Picker`` 中要使用 `ForEach` 就必須有它,而**這一個正是陷阱所在**。
+    ///
+    /// `ForEach.body` 是 `EmptyView`(就在上方),因此預設的 `body._asPickerOptions` 會回傳 []
+    /// ——一個由 `ForEach` 建出的 `Picker` 會是**空的**,而任何地方都不會有錯誤。而那正是「選項超過
+    /// 三個時」最可能的寫法,因此少了這個覆寫,症狀看起來會像「帶標籤的 picker 不能用」,
+    /// 而不像「少了一個覆寫」。
+    public var _asPickerOptions: [PickerOption] {
+        elements.map(child).flatMap(\._asPickerOptions)
+    }
+
     func children<Backend: BaseAppBackend>(
         backend: Backend,
         snapshots: [ViewGraphSnapshotter.NodeSnapshot]?,

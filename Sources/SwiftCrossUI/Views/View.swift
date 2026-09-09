@@ -117,6 +117,22 @@ public protocol View {
     /// - Warning: This is an implementation detail and is subject to be changed or removed at any
     ///   time.
     var _asMenuItems: [MenuItem] { get }
+
+    /// Returns the tagged options this view offers a ``Picker``.
+    ///
+    /// The default implementation forwards to ``body``, the same as
+    /// ``_asMenuItems``; you should only override it in a view that either
+    /// CARRIES a tag or CONTAINS several children, because those are the two
+    /// cases `body` cannot answer for.
+    ///
+    /// - Warning: This is an implementation detail and is subject to be changed
+    ///   or removed at any time.
+    ///
+    /// 回傳此 view 提供給 ``Picker`` 的帶標籤選項。
+    ///
+    /// 預設實作與 ``_asMenuItems`` 相同地轉發給 ``body``;只有在「**帶有**標籤」或
+    /// 「**容納多個**子項」的 view 上才需要覆寫它,因為那兩種情況是 `body` 回答不了的。
+    var _asPickerOptions: [PickerOption] { get }
 }
 
 extension View {
@@ -295,6 +311,8 @@ extension View {
     }
 
     public var _asMenuItems: [MenuItem] { body._asMenuItems }
+
+    public var _asPickerOptions: [PickerOption] { body._asPickerOptions }
 
     /// Resolves this view's menu content to the representation used by backends.
     ///

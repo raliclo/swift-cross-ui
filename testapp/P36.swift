@@ -110,6 +110,11 @@ struct P36RootView: View {
     /// `init(of:selection: Binding<Value>)` 存在時它才編譯得過,因此**建置本身就是一半的測試**,
     /// 而印出來的那一行是另一半。
     @State var labelledSelection: String = "Vanilla"
+    /// #124's tagged picker. Non-optional, and its value is a full word while
+    /// the picker shows a single letter -- see the picker's own comment.
+    /// #124 的帶標籤 picker。非 optional,而它的值是完整字詞、picker 顯示的卻是單個字母
+    /// ——見該 picker 自己的註解。
+    @State var taggedSelection: String = "Vanilla"
     @State var text = "SwiftCrossUI TextField"
     /// Shared on purpose across the five styled fields below: one binding makes
     /// it visible at a glance that all five are live and none is a picture.
@@ -173,6 +178,36 @@ struct P36RootView: View {
                 // 斷言是那個被印出來的數值:在任一 picker 中選取,都只能移動它自己那一行。
                 Picker("Labelled", of: choices, selection: $labelledSelection)
                 Text("Labelled selection: \(labelledSelection)")
+
+                // #124's ViewBuilder + .tag() path, added 2026-09-10.
+                //
+                // THE LABELS AND THE VALUES DELIBERATELY DIFFER. The tags are
+                // "Vanilla"/"Chocolate"/"Mint" -- the same values `choices`
+                // holds -- while the visible text is "V"/"C"/"M". That is the
+                // whole feature: every path before this one derived the label
+                // from the value with `"\($0)"`, so the two could not differ,
+                // and a test where they matched would pass whether or not
+                // `.tag()` did anything.
+                //
+                // So the assertion is: the dropdown shows single letters, and
+                // the line below shows the full word. If it shows "V", the tag
+                // was ignored and the label leaked into the selection.
+                //
+                // #124 的 ViewBuilder + `.tag()` 路徑,2026-09-10 加入。
+                //
+                // **標籤與值刻意不同。** tag 是「Vanilla」/「Chocolate」/「Mint」——與 `choices`
+                // 所持有的值相同——而看得見的文字是「V」/「C」/「M」。**那正是這項功能的全部**:
+                // 在此之前的每一條路徑都以 `"\($0)"` 從值導出標籤,因此兩者不可能不同;
+                // 而一個「兩者相同」的測試,無論 `.tag()` 有沒有作用都會通過。
+                //
+                // 因此斷言是:下拉選單顯示**單個字母**,而下方那一行顯示**完整字詞**。
+                // 若它顯示「V」,代表 tag 被忽略,而標籤洩漏進了 selection。
+                Picker("Tagged", selection: $taggedSelection) {
+                    Text("V").tag("Vanilla")
+                    Text("C").tag("Chocolate")
+                    Text("M").tag("Mint")
+                }
+                Text("Tagged selection: \(taggedSelection)")
             }
             Button("String label button") {
                 P36Diagnostics.write("button clicked")
@@ -244,7 +279,28 @@ struct P36RootView: View {
             //
             // 剩下的是 ViewBuilder content 與 `.tag()`,它們是**同一件工作**,但與那些建構式**不是**
             // 同一件:它們需要一個仿照 `_asMenuItems` 的 `_asPickerOptions` 走訪器。
-            Text("Picker content/tag; Button label builder and ButtonRole")
+            // NARROWED AGAIN the same day, and the repeat is the point. The
+            // first pass took "Picker label/content/tag; non-optional Picker
+            // selection" down to "Picker content/tag" -- and then content/tag
+            // landed two commits later, in a capture that showed a `Tagged`
+            // picker displaying "V" with "Tagged selection: Vanilla" beneath
+            // it, directly above a line claiming tags were missing.
+            //
+            // Twice in one day means the list is not the kind of thing that
+            // stays true by being carefully written. It is only ever true on
+            // the day it was last checked against a picture -- which is what
+            // the 7-day rule in the user's CLAUDE.md says about every status
+            // claim, applied to a status claim that is itself on screen.
+            //
+            // **同一天再次縮減,而「重複」正是重點。** 第一次把「Picker label/content/tag;
+            // non-optional Picker selection」縮成「Picker content/tag」——然後 content/tag 在
+            // 兩個 commit 之後落地,而那張擷圖裡有一個 `Tagged` picker 顯示著「V」、下方寫著
+            // 「Tagged selection: Vanilla」,而它正上方那一行卻聲稱 tag 不存在。
+            //
+            // **一天之內兩次**,說明這份清單不是那種「靠仔細撰寫就能保持正確」的東西。它只在
+            // 「最後一次拿它對照一張圖」的那一天為真——而那正是使用者 CLAUDE.md 中的 7 天規則
+            // 對每一項狀態主張所說的話,只是這一次,那項狀態主張本身就在畫面上。
+            Text("Button label builder and ButtonRole")
             Text("LocalizedStringKey Text, Text + Text, Image(systemName:), bundle image lookup")
             Text("List without selection, Section, onDelete, swipeActions, TextField axis/prompt/value-format")
             Text("CGFloat geometry such as padding(8.5), cornerRadius(8.5), HStack(spacing: 8.5)")

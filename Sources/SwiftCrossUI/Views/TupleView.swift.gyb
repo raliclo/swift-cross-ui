@@ -115,6 +115,14 @@ extension ${view}: View {
         % end
         return result
     }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        % for j in range(i + 1):
+        result += view${j}._asPickerOptions
+        % end
+        return result
+    }
 }
 
 extension ${view}: TupleView {

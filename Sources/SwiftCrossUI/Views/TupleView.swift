@@ -100,6 +100,12 @@ extension TupleView1: View {
         result += view0._asMenuItems
         return result
     }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        return result
+    }
 }
 
 extension TupleView1: TupleView {
@@ -153,6 +159,13 @@ extension TupleView2: View {
         var result: [MenuItem] = []
         result += view0._asMenuItems
         result += view1._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
         return result
     }
 }
@@ -212,6 +225,14 @@ extension TupleView3: View {
         result += view0._asMenuItems
         result += view1._asMenuItems
         result += view2._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
         return result
     }
 }
@@ -275,6 +296,15 @@ extension TupleView4: View {
         result += view1._asMenuItems
         result += view2._asMenuItems
         result += view3._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
         return result
     }
 }
@@ -342,6 +372,16 @@ extension TupleView5: View {
         result += view2._asMenuItems
         result += view3._asMenuItems
         result += view4._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
         return result
     }
 }
@@ -414,6 +454,17 @@ extension TupleView6: View {
         result += view3._asMenuItems
         result += view4._asMenuItems
         result += view5._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
         return result
     }
 }
@@ -490,6 +541,18 @@ extension TupleView7: View {
         result += view4._asMenuItems
         result += view5._asMenuItems
         result += view6._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
         return result
     }
 }
@@ -571,6 +634,19 @@ extension TupleView8: View {
         result += view5._asMenuItems
         result += view6._asMenuItems
         result += view7._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
         return result
     }
 }
@@ -656,6 +732,20 @@ extension TupleView9: View {
         result += view6._asMenuItems
         result += view7._asMenuItems
         result += view8._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
         return result
     }
 }
@@ -755,6 +845,21 @@ extension TupleView10: View {
         result += view7._asMenuItems
         result += view8._asMenuItems
         result += view9._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
         return result
     }
 }
@@ -860,6 +965,22 @@ extension TupleView11: View {
         result += view8._asMenuItems
         result += view9._asMenuItems
         result += view10._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
         return result
     }
 }
@@ -970,6 +1091,23 @@ extension TupleView12: View {
         result += view9._asMenuItems
         result += view10._asMenuItems
         result += view11._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
         return result
     }
 }
@@ -1085,6 +1223,24 @@ extension TupleView13: View {
         result += view10._asMenuItems
         result += view11._asMenuItems
         result += view12._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
         return result
     }
 }
@@ -1207,6 +1363,25 @@ extension TupleView14: View {
         result += view11._asMenuItems
         result += view12._asMenuItems
         result += view13._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
         return result
     }
 }
@@ -1334,6 +1509,26 @@ extension TupleView15: View {
         result += view12._asMenuItems
         result += view13._asMenuItems
         result += view14._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
         return result
     }
 }
@@ -1468,6 +1663,27 @@ extension TupleView16: View {
         result += view13._asMenuItems
         result += view14._asMenuItems
         result += view15._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
+        result += view15._asPickerOptions
         return result
     }
 }
@@ -1607,6 +1823,28 @@ extension TupleView17: View {
         result += view14._asMenuItems
         result += view15._asMenuItems
         result += view16._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
+        result += view15._asPickerOptions
+        result += view16._asPickerOptions
         return result
     }
 }
@@ -1751,6 +1989,29 @@ extension TupleView18: View {
         result += view15._asMenuItems
         result += view16._asMenuItems
         result += view17._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
+        result += view15._asPickerOptions
+        result += view16._asPickerOptions
+        result += view17._asPickerOptions
         return result
     }
 }
@@ -1900,6 +2161,30 @@ extension TupleView19: View {
         result += view16._asMenuItems
         result += view17._asMenuItems
         result += view18._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
+        result += view15._asPickerOptions
+        result += view16._asPickerOptions
+        result += view17._asPickerOptions
+        result += view18._asPickerOptions
         return result
     }
 }
@@ -2055,6 +2340,31 @@ extension TupleView20: View {
         result += view17._asMenuItems
         result += view18._asMenuItems
         result += view19._asMenuItems
+        return result
+    }
+
+    public var _asPickerOptions: [PickerOption] {
+        var result: [PickerOption] = []
+        result += view0._asPickerOptions
+        result += view1._asPickerOptions
+        result += view2._asPickerOptions
+        result += view3._asPickerOptions
+        result += view4._asPickerOptions
+        result += view5._asPickerOptions
+        result += view6._asPickerOptions
+        result += view7._asPickerOptions
+        result += view8._asPickerOptions
+        result += view9._asPickerOptions
+        result += view10._asPickerOptions
+        result += view11._asPickerOptions
+        result += view12._asPickerOptions
+        result += view13._asPickerOptions
+        result += view14._asPickerOptions
+        result += view15._asPickerOptions
+        result += view16._asPickerOptions
+        result += view17._asPickerOptions
+        result += view18._asPickerOptions
+        result += view19._asPickerOptions
         return result
     }
 }
