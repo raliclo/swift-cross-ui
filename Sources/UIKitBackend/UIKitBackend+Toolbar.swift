@@ -56,8 +56,19 @@ final class ToolbarActionTarget: NSObject {
         self.action = action
     }
 
-    @objc func fire() {
-        MainActor.assumeIsolated { action() }
+    // `@MainActor` on the method rather than `assumeIsolated` inside it. Under
+    // Swift 6 the closure form is `sending 'self' risks causing data races`:
+    // `assumeIsolated` takes a closure that captures `self`, and the compiler
+    // cannot see that a UIKit target-action only ever arrives on the main
+    // thread. `@objc` and `@MainActor` compose, so saying it directly is both
+    // true and checkable.
+    //
+    // 把 `@MainActor` 加在方法上,而不是在方法內部使用 `assumeIsolated`。在 Swift 6 之下,閉包的寫法
+    // 會得到 `sending 'self' risks causing data races`:`assumeIsolated` 收的閉包會捕捉 `self`,而
+    // 編譯器看不出「UIKit 的 target-action 只會從主執行緒抵達」。`@objc` 與 `@MainActor` 可以並存,
+    // 因此直接說出這件事既為真、也可被檢查。
+    @MainActor @objc func fire() {
+        action()
     }
 }
 
