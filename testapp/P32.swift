@@ -70,6 +70,22 @@ struct P32RootView: View {
             .help("Icon-only equivalent with tooltip but no accessibility API")
             TextField("Placeholder text", text: $text)
             Toggle("Toggle label", isOn: $toggle)
+            // The toggle's own state, in words.
+            //
+            // **Without this the app cannot tell two different failures apart**:
+            // a toggle whose state never changes, and one whose state changes
+            // with nothing to show for it. Both produce an identical capture,
+            // and on 2026-09-10 that is exactly where this app left a reader --
+            // clicking the toggle changed one 2x16 region of the window, which
+            // turned out to be the text field's caret.
+            //
+            // 這個 toggle 自身的狀態，以文字表示。
+            //
+            // **少了它，這支 app 分辨不出兩種不同的失敗**：一個「狀態從未改變」的 toggle，與一個
+            // 「狀態改變了卻什麼都沒表現出來」的 toggle。兩者產生完全相同的擷圖；而 2026-09-10 這支
+            // app 留給讀者的正是這種處境——點擊它之後，整個視窗只有一塊 2x16 的區域改變，而那塊
+            // 後來查明是文字欄位的游標。
+            Text("toggle state: \(toggle ? "ON" : "OFF")")
             Slider(value: $slider, in: 0...1)
                 .frame(width: 260)
             ProgressView(Text("Progress label"), value: slider)

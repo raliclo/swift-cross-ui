@@ -14,7 +14,7 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **2. P50 macOS:「按下 press me 後文字位移」尚未重現** — 2026-09-10 以像素差異量測:開啟面板只改變 popover 那塊,遮掉它之後 `getbbox()` 為 `None`(主視窗零位移);面板開著把計數 0→1 只改變標籤與計數那一行。**先前「內容溢出、左緣被切」的判定是錯的**,那是我裁切邊界造成的假象。需要你補充:位移是發生在面板內、還是主視窗?按下時面板有沒有關閉?
 - [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
-- [ ] **3. P32:按下 Toggle Label 之後看不到帶標籤的按鈕**
+- [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
 - [ ] **4. P44:vertical stack 空間耗盡** — `firstStarvedChild=Spacer`,9 個 children 拿到 643 也用掉 643,至少一個被給 0
 - [ ] **5. P28:點擊到「Clicks received」更新約 1 秒** — **先量再改**;單一觀察不足以定位
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
