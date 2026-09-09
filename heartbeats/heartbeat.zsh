@@ -4,7 +4,7 @@
 # name the next unfinished queue item.
 #
 # USAGE
-#     nohup zsh heartbeats/heartbeat.zsh -on &    start it: asks every 10 minutes
+#     nohup zsh heartbeats/heartbeat.zsh -on &    start it: asks every 100 minutes
 #     zsh heartbeats/heartbeat.zsh -off           stop it
 #     zsh heartbeats/heartbeat.zsh                print this and send nothing
 #     zsh heartbeats/heartbeat.zsh -status        ON with a pid, ON with no daemon, or OFF
@@ -13,7 +13,7 @@
 #     zsh heartbeats/heartbeat.zsh -once          one beat, for a crontab line
 #     zsh heartbeats/heartbeat.zsh -m "text"      send something else, once
 #
-# Ten minutes is the interval that was asked for; HEARTBEAT_INTERVAL overrides it
+# One hundred minutes is the default interval; HEARTBEAT_INTERVAL overrides it
 # in seconds. The interval is not what keeps the cost down -- the switch is: with
 # it off, nothing is sent and nothing is spent.
 #
@@ -407,7 +407,7 @@ one_beat() {
 
 pid_file="${script_path:h}/.heartbeat-pid"
 log_file="${script_path:h}/.heartbeat-log"
-interval="${HEARTBEAT_INTERVAL:-600}"
+interval="${HEARTBEAT_INTERVAL:-6000}"
 
 usage() {
     sed -n '3,27p' "$script_path" | sed 's/^#$//; s/^# //'
@@ -482,10 +482,10 @@ case "${1:-}" in
             printf -- '--- %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$log_file"
             one_beat >> "$log_file" 2>&1 || true
             # Slept in short steps so `-off` is noticed within a second rather
-            # than within the interval. A ten-minute sleep would mean the switch
+            # than within the interval. A one-hundred-minute sleep would mean the switch
             # file is gone and the daemon still there, which reads as `-off`
             # having failed.
-            # 以短步長睡眠，好讓 `-off` 在一秒內、而非在一個間隔之後被察覺。睡滿十分鐘會造成
+            # 以短步長睡眠，好讓 `-off` 在一秒內、而非在一個間隔之後被察覺。睡滿一百分鐘會造成
             # 「開關檔已消失、daemon 卻還在」，而那讀起來會像是 `-off` 失效了。
             local waited=0
             while [ "$waited" -lt "$interval" ] && [ -e "$switch_file" ]; do

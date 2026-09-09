@@ -6,7 +6,7 @@ Asks each Claude session whether it is still working, on an interval, and logs
 what comes back.
 
 ```sh
-nohup zsh heartbeats/heartbeat.zsh -on &   # 開:每 10 分鐘問一次
+nohup zsh heartbeats/heartbeat.zsh -on &   # 開:每 100 分鐘問一次
 zsh heartbeats/heartbeat.zsh -off          # 關
 zsh heartbeats/heartbeat.zsh               # 不帶參數 = 印用法,不送任何東西
 zsh heartbeats/heartbeat.zsh -list         # 這張表,以及其中真正會被送到的那些
