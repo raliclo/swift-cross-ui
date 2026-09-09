@@ -75,11 +75,28 @@ extension ScrollView {
 }
 
 extension List {
+    /// The signature still hands over a `Gtk.ListBox`, and that is deliberate:
+    /// the widget changed, the inspection contract did not.
+    ///
+    /// Since #117 a `List` is a `GtkScrolledWindow` wrapping the list box, so
+    /// this unwraps one level -- the same shape `NavigationSplitView` above has
+    /// used since it started returning a `Gtk.Fixed`. Passing the scrolled
+    /// window through instead would have been a source break for every caller,
+    /// to expose a wrapper nobody asked to inspect.
+    ///
+    /// 簽章依然交出一個 `Gtk.ListBox`，而那是刻意的：改變的是 widget，不是這份 inspection 的約定。
+    ///
+    /// 自 #117 起，一個 `List` 是包住 list box 的 `GtkScrolledWindow`，因此此處往內拆一層——與上方
+    /// `NavigationSplitView` 自從改為回傳 `Gtk.Fixed` 之後所採用的形狀相同。改為直接把 scrolled
+    /// window 傳出去，會為了暴露一個沒有人要求檢視的外包層，而讓每一個呼叫端都編不過。
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,
         _ action: @escaping @MainActor @Sendable (Gtk.ListBox) -> Void
     ) -> some View {
-        InspectView(child: self, inspectionPoints: inspectionPoints, action: action)
+        InspectView(child: self, inspectionPoints: inspectionPoints) {
+            (view: Gtk.ScrolledWindow) in
+            action(view.getChild() as! Gtk.ListBox)
+        }
     }
 }
 

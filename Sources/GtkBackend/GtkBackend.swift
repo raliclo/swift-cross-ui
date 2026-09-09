@@ -3289,6 +3289,39 @@ public final class GtkBackend:
         )
     }
 
+    /// A `GtkListBox` inside a `GtkScrolledWindow`, and the wrapper is the point.
+    ///
+    /// A bare `GtkListBox` does not scroll. Giving one a height smaller than its
+    /// rows CLIPS them -- and clipping is exactly what ``BackendFeatures/ScrollingLists``
+    /// warns about in its own documentation, because missing rows read as a
+    /// layout bug rather than as a backend that ignored a method. So the widget
+    /// this backend hands back for a `List` is the scrolled window, and the list
+    /// box lives inside it.
+    ///
+    /// The cost of that decision is that `Widget` is no longer the list box, so
+    /// every method taking a `listView` has to unwrap. That is what
+    /// ``listBox(of:)`` is for, and it is the only reason these methods do not
+    /// simply say `as! ListBox` any more.
+    ///
+    /// `propagateNaturalHeight` is left at GTK's default of `false`. That is
+    /// the property doing the actual work in #117: with it false the scrolled
+    /// window's natural height is its own minimum rather than its content's, so
+    /// a window containing a `List` stops growing with the row count. Setting it
+    /// true would restore the old behaviour exactly.
+    ///
+    /// 一個放在 `GtkScrolledWindow` 裡的 `GtkListBox`，而那層外包正是重點。
+    ///
+    /// 光禿禿的 `GtkListBox` 不會捲動。給它一個小於其列高總和的高度，會把列**裁掉**——而裁切正是
+    /// ``BackendFeatures/ScrollingLists`` 在自己的文件裡所警告的事，因為「少了幾列」讀起來像版面
+    /// bug，而不像某個 backend 忽略了一個方法。因此本 backend 為 `List` 交出去的 widget 是那個
+    /// scrolled window，list box 則住在它裡面。
+    ///
+    /// 這個決定的代價，是 `Widget` 不再是那個 list box，於是每個接收 `listView` 的方法都得拆一層。
+    /// ``listBox(of:)`` 就是為此而存在，也是這些方法不再單純寫 `as! ListBox` 的唯一原因。
+    ///
+    /// `propagateNaturalHeight` 保持 GTK 的預設值 `false`。在 #117 中真正起作用的就是這個屬性：
+    /// 為 false 時，scrolled window 的自然高度是它**自己**的最小值而非其內容的高度，因此含有 `List`
+    /// 的視窗不再隨列數長高。把它設為 true 會原封不動地還原舊行為。
     public func createSelectableListView() -> Widget {
         let listView = ListBox()
         listView.selectionMode = .single
@@ -3300,7 +3333,36 @@ public final class GtkBackend:
         // 此處不加 `navigation-sidebar`。它原本是無條件加上的，因此每一個 `List` 都被畫成側邊欄
         // ——無邊框、扁平、採用側邊欄的列距——無論它是不是側邊欄。樣式現改為跟隨 `listStyle`，
         // 於下方的 `updateSelectableListView` 中處理，因為 environment 在那裡才取得到。
-        return listView
+        let scrolled = ScrolledWindow()
+        scrolled.setChild(listView)
+        // Vertical only. A horizontal scroll bar on a list would let rows be
+        // narrower than the list, which is not what a `List` means anywhere
+        // else in this framework.
+        // 只有垂直方向。清單若出現水平捲軸，就等於允許列比清單本身還窄，而那不是 `List` 在本框架
+        // 其他任何地方的意思。
+        scrolled.setScrollBarPresence(
+            hasVerticalScrollBar: true,
+            hasHorizontalScrollBar: false
+        )
+        return scrolled
+    }
+
+    /// The `GtkListBox` inside the scrolled window `createSelectableListView`
+    /// returned.
+    ///
+    /// Force-unwrapped rather than optional-returning on purpose. Every caller
+    /// received its argument from `createSelectableListView`, so a miss here is
+    /// a framework bug and not a state a `List` can reach -- and an optional
+    /// would turn that bug into a silently ignored update, which is the failure
+    /// mode this whole task exists to remove.
+    ///
+    /// 位於 `createSelectableListView` 所回傳之 scrolled window 內部的那個 `GtkListBox`。
+    ///
+    /// 刻意採強制解包而非回傳 optional。每一個呼叫端的引數都來自 `createSelectableListView`，
+    /// 因此此處失手代表的是框架的 bug，而不是某個 `List` 到得了的狀態——而 optional 會把那個 bug
+    /// 變成一次靜默被忽略的更新，那正是整個任務所要消除的失效樣態。
+    private func listBox(of listView: Widget) -> ListBox {
+        (listView as! ScrolledWindow).getChild() as! ListBox
     }
 
     /// Applies `listStyle`, which until 2026-08-27 nothing read.
@@ -3329,7 +3391,7 @@ public final class GtkBackend:
         _ selectableListView: Widget,
         environment: EnvironmentValues
     ) {
-        let selectableListView = selectableListView as! ListBox
+        let selectableListView = listBox(of: selectableListView)
         selectableListView.sensitive = environment.isEnabled
 
         let pointer = selectableListView.widgetPointer
@@ -3362,7 +3424,7 @@ public final class GtkBackend:
         //   that modifications made to `items` between `setItems` calls
         //   are either all pops, or all appends (not a mix).
 
-        let listView = listView as! ListBox
+        let listView = listBox(of: listView)
         let state = state(for: listView)
 
         let previousRowCount = state.rowCount
@@ -3388,7 +3450,7 @@ public final class GtkBackend:
         forSelectableListView listView: Widget,
         to action: @escaping (_ selectedIndex: Int) -> Void
     ) {
-        let listView = listView as! ListBox
+        let listView = listBox(of: listView)
         let state = state(for: listView)
         listView.rowSelected = { _, selectedRow in
             guard !state.isProgrammaticSelectionUpdate else {
@@ -3411,7 +3473,7 @@ public final class GtkBackend:
     }
 
     public func setSelectedItem(ofSelectableListView listView: Widget, toItemAt index: Int?) {
-        let listView = listView as! ListBox
+        let listView = listBox(of: listView)
         let state = state(for: listView)
         state.selection = index
         state.isProgrammaticSelectionUpdate = true
