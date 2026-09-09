@@ -792,6 +792,14 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         )
         toggle.onStateBezelColor = environment.toggleColor?
             .resolve(in: environment).nsColor
+        // Re-applied here, not only in `setState`, so that a toggle whose colour
+        // changes while it is already on repaints. `setState` is called when the
+        // VALUE changes; this is called when anything else does.
+        // 此處也重新套用、而不只在 `setState` 中，好讓「已經是開啟狀態、而顏色被改變」的 toggle 重繪。
+        // `setState` 是在**值**改變時被呼叫；而這裡是在其他任何東西改變時被呼叫。
+        if toggle.state == .on {
+            toggle.bezelColor = toggle.effectiveOnStateBezelColor
+        }
         toggle.isEnabled = environment.isEnabled
         toggle.onAction = { toggle in
             let toggle = toggle as! NSButton
@@ -802,7 +810,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public func setState(ofToggle toggle: Widget, to state: Bool) {
         let toggle = toggle as! NSCustomToggleButton
         toggle.state = state ? .on : .off
-        toggle.bezelColor = state ? toggle.onStateBezelColor : nil
+        toggle.bezelColor = state ? toggle.effectiveOnStateBezelColor : nil
     }
 
     public func createCheckbox() -> Widget {
@@ -1659,7 +1667,37 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 }
 
 final class NSCustomToggleButton: NSButton {
+    /// The colour the app asked for, or `nil` when it asked for none.
+    /// app 所要求的顏色；未要求時為 `nil`。
     var onStateBezelColor: NSColor?
+
+    /// The colour actually painted when this toggle is on.
+    ///
+    /// **`nil` used to mean "paint nothing", and that made the on state
+    /// invisible for every app that does not set a toggle colour** -- which is
+    /// most of them. Measured 2026-09-10 with P32 on AppKit: clicking the
+    /// toggle changed exactly one 2x16 region of the window, and that region was
+    /// the text field's caret blinking. Nothing about the toggle moved, and the
+    /// only way to tell a toggle that changed nothing visible from one that was
+    /// never clicked is to compare two captures, which is why it survived.
+    ///
+    /// The accent colour rather than an invented one: it is what the user chose
+    /// in System Settings and what every other control on the platform uses to
+    /// say "on", so a toggle that follows it looks like the platform rather than
+    /// like this framework.
+    ///
+    /// 這個 toggle 在「開」的狀態下實際被畫上的顏色。
+    ///
+    /// **`nil` 過去代表「什麼都不畫」，而那讓「開」的狀態對每一個沒有設定 toggle 顏色的 app 都不可見**
+    /// ——而那是絕大多數。2026-09-10 於 AppKit 以 P32 實測：點擊該 toggle 後，整個視窗只有一塊 2x16
+    /// 的區域改變，而那塊是文字欄位的游標在閃。toggle 本身毫無變化；而「一個看不出變化的 toggle」與
+    /// 「一個根本沒被點到的 toggle」唯一的分辨方式是比較兩張擷圖——這正是它一直沒被發現的原因。
+    ///
+    /// 採用 accent 顏色而非自行發明一個：那是使用者在系統設定中選的顏色，也是這個平台上其他每一個
+    /// 控制項用來表示「開」的顏色，因此一個跟隨它的 toggle 看起來像這個平台，而不像這個框架。
+    var effectiveOnStateBezelColor: NSColor {
+        onStateBezelColor ?? .controlAccentColor
+    }
 }
 
 final class NSCustomMenuItem: NSMenuItem {

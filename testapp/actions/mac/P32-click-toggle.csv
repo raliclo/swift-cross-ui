@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P32: click the toggle once. The assertion is a COMPARISON against the capture
+# with no click, because a toggle that changes nothing visible and a toggle that
+# was never clicked produce the same picture.
+#
+# Coordinates are frame-relative points, measured off the window capture.
+#
+# P32：點一次那個 toggle。判定的對象是「與未點擊之擷圖的比較」，因為一個「看不出任何變化」的 toggle
+# 與一個「根本沒被點到」的 toggle，產生的是同一張圖。
+#
+# 座標是相對於 frame 的點，量自視窗擷圖。
+sleep,,,,,,1000000,let P32 lay out,macos,
+click,65,289,frame,left,,,click the toggle,macos,
+sleep,,,,,,1200000,,macos,
