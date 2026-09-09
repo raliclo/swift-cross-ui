@@ -14,11 +14,25 @@ action,x,y,origin,button,key,micros,note,platform
 #   A  the press reaches GTK and is lost before the button   -- our bug
 #   B  the press landed between the buttons                  -- not a bug
 #
-# This file separates them. It clicks four points down the centre line. If ANY
+# This file separates them. It clicks eight points down the centre line. If ANY
 # of them produces `popover counter N` then B is the answer and #111's original
 # observation was a missed coordinate from the start. If none does while the
 # probe reports a press at every one of them, A is the answer and the defect is
 # in GTK's propagation from the popover to its child.
+#
+# EIGHT, NOT FOUR -- extended 2026-09-10, and the four it had could not have
+# answered the question they were written for. They ran 30, 55, 80, 105, which
+# is the TOP HALF of a 221-tall popover. The panel is a VStack of six children
+# (a 16pt title, three 11pt lines, then "press me", then "close this panel"),
+# so BOTH buttons sit below y=105. A sweep that stops there reaches no button at
+# all, and its silence would have been read as "A: the press is lost before the
+# button" when the honest reading is "this sweep never went near one".
+#
+# That is the same defect the file's own READ THE PROBE LINES paragraph warns
+# about, one level up: it guards against confusing "missed the popover" with
+# "the button did not act", and then misses "never reached the button" by
+# choosing a range. A coordinate range is a claim about coverage, exactly like a
+# denominator, and it goes stale or starts wrong in the same way.
 #
 # READ THE PROBE LINES, NOT JUST THE COUNTER. A y that misses the popover
 # entirely would also produce no counter, and the two must not be confused --
@@ -45,9 +59,19 @@ action,x,y,origin,button,key,micros,note,platform
 # 於是仍有兩個解釋存活,而它們從外部看一模一樣:**A** 按壓抵達 GTK 後在觸及按鈕前遺失——那是我們的
 # bug;**B** 按壓落在兩顆按鈕之間——那不是 bug。
 #
-# 本檔把兩者分開。它沿中心線點四個位置。若其中**任何一個**產生 `popover counter N`,答案就是 B,
-# 而 #111 最初的觀察從一開始就是一次沒打中的座標。若四個都沒有、而探針對每一個都回報了按壓,
+# 本檔把兩者分開。它沿中心線點**八**個位置。若其中**任何一個**產生 `popover counter N`,答案就是 B,
+# 而 #111 最初的觀察從一開始就是一次沒打中的座標。若八個都沒有、而探針對每一個都回報了按壓,
 # 答案就是 A,缺陷位於 GTK 從 popover 傳播至其子元件的路徑上。
+#
+# **是八點,不是四點——2026-09-10 擴充,而原本那四點根本無法回答它們被寫下來要回答的問題。**
+# 它們跑的是 30、55、80、105,也就是一個高 221 的 popover 的**上半部**。而該面板是一個含六個子元件
+# 的 VStack(一行 16pt 標題、三行 11pt 文字,然後是「press me」,最後是「close this panel」),
+# 因此**兩顆按鈕都在 y=105 以下**。一次停在那裡的掃描根本不會碰到任何按鈕,而它的沉默會被讀成
+# 「A:按壓在觸及按鈕前遺失」,但誠實的讀法是「這次掃描從未走近任何一顆按鈕」。
+#
+# 那與本檔自己那段「**要讀探針行**」的警告是同一個缺陷,只是高了一層:它防的是把「沒打中 popover」
+# 與「按鈕沒有動作」混為一談,然後自己卻因為選了一個範圍而漏掉「從未抵達按鈕」。
+# **一個座標範圍是一項關於涵蓋率的主張**,與分母完全一樣,而它會以完全相同的方式變質或一開始就錯。
 #
 # **要讀探針行,不要只讀計數器。** 一個完全沒打中 popover 的 y 同樣不會產生計數器,而這兩者絕不可
 # 混為一談——那個混淆正是 #111 的全部歷史。下方每一次點擊都應伴隨
@@ -77,4 +101,20 @@ sleep,,,,,,400000,let any handler run,windows
 move,145,105,popover,,,,sweep point 4 -- still above the lower button on the measured layout,windows
 sleep,,,,,,250000,let the pointer arrive,windows
 click,145,105,popover,left,,,sweep point 4,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,130,popover,,,,sweep point 5 -- first point in the lower half; the four before this one were the whole sweep until 2026-09-10,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,130,popover,left,,,sweep point 5,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,155,popover,,,,sweep point 6,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,155,popover,left,,,sweep point 6,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,180,popover,,,,sweep point 7 -- may land on close this panel; if it does the panel ends here and points below say nothing,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,180,popover,left,,,sweep point 7,windows
+sleep,,,,,,400000,let any handler run,windows
+move,145,205,popover,,,,sweep point 8 -- near the bottom edge of the 221-tall popover,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,145,205,popover,left,,,sweep point 8,windows
 sleep,,,,,,2000000,hold and let the log catch up,windows

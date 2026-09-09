@@ -221,13 +221,54 @@ extension GtkBackend {
             // 階段,而那正是這整套東西所要區分的事。
             let press = GestureClick()
             press.propagationPhase = .capture
-            press.pressed = { _, nPress, x, y in
+            press.pressed = { [weak self] _, nPress, x, y in
                 DebugFeatures.log(
                     "GtkPopover probe: press n=\(nPress) at (\(x), \(y)) -- "
                         + "GTK received a button press on the popover"
                 )
+                guard let self else { return }
+                DebugFeatures.log("GtkPopover probe: " + self.describePick(x: x, y: y))
+                DebugFeatures.log("GtkPopover probe: " + self.describeSubtree())
             }
             popover.addEventController(press)
+
+            // The SECOND press probe, on the CONTENT rather than on the popover,
+            // and it is the whole point of this round.
+            //
+            // The first probe established that GTK receives the press on the
+            // popover. That leaves the loss somewhere between the popover and
+            // the button, which is a span of several widgets, and "somewhere in
+            // there" is not a mechanism. This one halves it in a single run:
+            //
+            // - content probe fires  -> the event crossed the popover/content
+            //   boundary, and it is being lost INSIDE the SwiftCrossUI widget
+            //   tree. That is `PassthroughFixed.contains` or an allocation.
+            // - content probe silent -> `gtk_popover_set_child` produced a child
+            //   that GTK will not route to at all, and nothing inside it can
+            //   matter. That is a popover/native-surface question.
+            //
+            // Capture phase again, for the reason above: a bubble probe cannot
+            // tell "swallowed" from "never arrived".
+            //
+            // **第二個 press 探針，掛在 CONTENT 而非 popover 上，而這是本輪的重點。**
+            //
+            // 第一個探針確立了 GTK 收得到落在 popover 上的按壓。於是遺失發生在 popover 與按鈕之間
+            // ——那是好幾層 widget 的跨度，而「在那裡面某處」不是一個機制。這一個在同一次執行中就把
+            // 範圍砍半：content 探針**有**反應 → 事件越過了 popover/content 的邊界，遺失發生在
+            // SwiftCrossUI 的 widget 樹**內部**，也就是 `PassthroughFixed.contains` 或某個配置；
+            // content 探針**沉默** → `gtk_popover_set_child` 產生的子元件根本不會被 GTK 路由到，
+            // 其內部的任何東西都無關緊要,那是 popover/native surface 層級的問題。
+            //
+            // 同樣用 capture 階段，理由如上：bubble 階段的探針分不出「被吞掉」與「從未抵達」。
+            let contentPress = GestureClick()
+            contentPress.propagationPhase = .capture
+            contentPress.pressed = { _, nPress, x, y in
+                DebugFeatures.log(
+                    "GtkPopover probe: CONTENT press n=\(nPress) at (\(x), \(y)) -- "
+                        + "the event crossed the popover/content boundary"
+                )
+            }
+            content.addEventController(contentPress)
 
             let motion = EventControllerMotion()
             motion.propagationPhase = .capture
@@ -246,7 +287,7 @@ extension GtkBackend {
             // 持有的理由與 `content` 相同：controller 的 Swift wrapper 擁有它自己的 signal
             // handler，而 ARC 回收該 wrapper 時會一併帶走這個探針——且是靜默地，於是探針會
             // 回報出與它所要量測的 bug 一模一樣的「什麼都沒有」。
-            probes = [press, motion]
+            probes = [press, contentPress, motion]
 
             // Announced, and this line is not decoration. Without it the probe
             // has the exact defect it exists to remove: "no probe output" and
@@ -262,6 +303,110 @@ extension GtkBackend {
             DebugFeatures.log(
                 "GtkPopover probe: installed (press + motion, capture phase)"
             )
+        }
+
+        /// Names the widget GTK would deliver this point to, and the chain from
+        /// it up to the popover.
+        ///
+        /// This is the measurement the previous round could not make. A probe
+        /// says an event ARRIVED somewhere; `gtk_widget_pick` says where GTK
+        /// would SEND it, which is a different question and the one that decides
+        /// whether a button ever sees the press. GTK routes a button event to
+        /// exactly the widget `pick` returns, so:
+        ///
+        /// - `pick` returns the button          -> routing is right and the loss
+        ///   is in the gesture/handler, not in hit testing.
+        /// - `pick` returns a container         -> hit testing stops there, and
+        ///   the named type says which one.
+        /// - `pick` returns the popover itself  -> the descent never entered the
+        ///   content at all.
+        /// - `pick` returns NOTHING             -> no widget claims the point,
+        ///   including the popover, which would contradict the press probe that
+        ///   just fired and would mean the coordinates disagree.
+        ///
+        /// The last case is the useful control: the probe and the pick are given
+        /// THE SAME x/y, in the same widget's coordinate space, so a
+        /// disagreement between them is a real finding rather than noise.
+        ///
+        /// 指出 GTK 會把這個點交付給哪一個 widget，以及從它往上到 popover 的整條鏈。
+        ///
+        /// 這是上一輪做不到的量測。探針說的是事件**抵達**了某處；`gtk_widget_pick` 說的是 GTK
+        /// 會把它**送往**何處——那是不同的問題，而且是決定「按鈕究竟看不看得到這次按壓」的那一個。
+        /// GTK 正是把按鍵事件路由給 `pick` 所回傳的那個 widget，因此：回傳按鈕 → 路由正確，遺失
+        /// 在 gesture/handler 而非 hit testing；回傳某個容器 → hit testing 停在那裡，而型別名稱
+        /// 說出是哪一個；回傳 popover 自己 → 下降從未進入 content；回傳**空** → 沒有任何 widget
+        /// 攔下該點（連 popover 都沒有），那會與剛剛觸發的 press 探針互相矛盾，代表兩者的座標
+        /// 對不上。
+        ///
+        /// 最後一種正是有用的對照：探針與 pick 拿到的是**同一組 x/y**、同一個 widget 的座標系，
+        /// 因此兩者不一致本身就是一項發現，而不是雜訊。
+        private func describePick(x: Double, y: Double) -> String {
+            guard let picked = gtk_widget_pick(popover.widgetPointer, x, y, GTK_PICK_DEFAULT)
+            else {
+                return "pick: NOTHING -- no widget claims this point, not even the popover"
+            }
+
+            var chain: [String] = []
+            var node: UnsafeMutablePointer<GtkWidget>? = picked
+            // Bounded, because a parent chain that does not terminate would hang
+            // the handler rather than report anything. 24 is far past any real
+            // popover depth in this project.
+            // 設上限，因為一條不會終止的 parent 鏈只會讓 handler 卡住，而不會回報任何東西。
+            // 24 遠超過本專案中任何真實 popover 的深度。
+            while let current = node, chain.count < 24 {
+                chain.append(Popover.typeName(of: current))
+                if current == popover.widgetPointer { break }
+                node = gtk_widget_get_parent(current)
+            }
+            return "pick: " + chain.joined(separator: " < ")
+        }
+
+        /// The popover's content and its first two levels of children, with the
+        /// four properties `gtk_widget_pick` consults before it will descend.
+        ///
+        /// Every one of these can stop the descent on its own and none of them
+        /// reports anything when it does. `mapped` false, `canTarget` false,
+        /// `sensitive` false and a zero allocation all produce the identical
+        /// symptom -- a click that does nothing -- so reading them is the only
+        /// way to tell which it is.
+        ///
+        /// popover 的 content 及其前兩層子元件，連同 `gtk_widget_pick` 在下降之前會查看的四項屬性。
+        ///
+        /// 這四者中任何一項都足以獨力終止下降，而且沒有任何一項在這麼做時會回報什麼。`mapped` 為
+        /// false、`canTarget` 為 false、`sensitive` 為 false，以及配置為零，全都產生**完全相同**
+        /// 的症狀——一次沒有反應的點擊——因此把它們讀出來是分辨究竟是哪一項的唯一辦法。
+        private func describeSubtree() -> String {
+            var lines: [String] = []
+            func describe(_ widget: UnsafeMutablePointer<GtkWidget>, depth: Int) {
+                let indent = String(repeating: "  ", count: depth)
+                lines.append(
+                    indent + Popover.typeName(of: widget)
+                        + " \(gtk_widget_get_width(widget))x\(gtk_widget_get_height(widget))"
+                        + " mapped=\(gtk_widget_get_mapped(widget) != 0)"
+                        + " canTarget=\(gtk_widget_get_can_target(widget) != 0)"
+                        + " sensitive=\(gtk_widget_is_sensitive(widget) != 0)"
+                )
+                guard depth < 2 else { return }
+                var child = gtk_widget_get_first_child(widget)
+                while let current = child {
+                    describe(current, depth: depth + 1)
+                    child = gtk_widget_get_next_sibling(current)
+                }
+            }
+            describe(content.widgetPointer, depth: 0)
+            return "content subtree:\n" + lines.joined(separator: "\n")
+        }
+
+        /// The GObject type name, which is what makes a pick chain readable --
+        /// `GtkButton` versus `GtkPassthroughFixed` is the entire answer this
+        /// round is after, and a pointer value is not it.
+        /// GObject 的型別名稱，那正是讓一條 pick 鏈可讀的東西——`GtkButton` 與
+        /// `GtkPassthroughFixed` 之別就是本輪要的全部答案，而一個指標值不是。
+        private static func typeName(of widget: UnsafeMutablePointer<GtkWidget>) -> String {
+            let instance = UnsafeMutableRawPointer(widget)
+                .assumingMemoryBound(to: GTypeInstance.self)
+            guard let name = g_type_name_from_instance(instance) else { return "<unknown>" }
+            return String(cString: name)
         }
 
         func detach() {
