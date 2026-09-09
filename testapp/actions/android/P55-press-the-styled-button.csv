@@ -1,0 +1,52 @@
+action,x,y,origin,button,key,micros,note,platform
+# P55 on Android: HOLD the button twice, and why a tap is not enough here.
+#
+# Measured 2026-09-09 from p55-android-final-20260909-104130.png. Emulator
+# swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, window 411 x 914
+# points. The button's grey rectangle is pixels x 40..300, y 728..830, centre
+# (170, 779), which is point (65, 297).
+#
+# **A `click` row gives `clicks: 2` and `pressed draws: 1`, and that is not a
+# bug in the backend.** Measured both ways on the same build:
+#
+#   two `click` rows        clicks: 2   pressed draws: 1
+#   two mousedown/mouseup   clicks: 2   pressed draws: 2
+#
+# A synthesised tap presses and releases inside one frame, so the view can be
+# laid out once with `isPressed` true and once without -- or neither. The count
+# then depends on when the frame landed, not on whether the state arrived. AppKit
+# and UIKit happen to give 2 from a plain click; Android does not, and the
+# difference is the input synthesiser rather than the press bridge.
+#
+# So this file holds. `mousedown`, a sleep long enough for a redraw, `mouseup`.
+# What it proves is what the app claims: a real press reaches
+# `configuration.isPressed`.
+#
+# P55 在 Android 上:**按住**該按鈕兩次,以及為何在此處「點一下」不夠。
+#
+# 2026-09-09 量測自 p55-android-final-20260909-104130.png。模擬器 swift-cross-ui-api36,
+# 1080 x 2400 像素、density 2.625,視窗 411 x 914 點。該按鈕的灰色矩形為像素 x 40..300、y 728..830,
+# 中心 (170, 779),即點 (65, 297)。
+#
+# **一列 `click` 得到的是 `clicks: 2` 與 `pressed draws: 1`,而那不是 backend 的缺陷。** 在同一個
+# 建置上兩種方式都量過:
+#
+#   兩列 `click`              clicks: 2   pressed draws: 1
+#   兩組 mousedown/mouseup    clicks: 2   pressed draws: 2
+#
+# 一次合成的 tap 會在同一幀之內完成按下與放開,因此那個 view 可能在 `isPressed` 為 true 時被排版一次、
+# 在為 false 時被排版一次——也可能兩次都不是。於是那個計數取決於「那一幀落在什麼時候」,而不是取決於
+# 「該狀態有沒有抵達」。AppKit 與 UIKit 恰好在單純的 click 下就給出 2;Android 不會,而這個差別在於
+# 輸入合成器,不在於按壓狀態的橋接。
+#
+# 因此本檔採「按住」。`mousedown`、一段長到足以發生重繪的 sleep、`mouseup`。
+# 它所證明的正是這支 app 所主張的:一次真實的按壓會抵達 `configuration.isPressed`。
+sleep,,,,,,1500000,let P55 render,android
+mousedown,65,297,,left,,,hold the button down,android
+sleep,,,,,,900000,stay held long enough for a redraw,android
+mouseup,65,297,,left,,,release,android
+sleep,,,,,,600000,settle,android
+mousedown,65,297,,left,,,hold again,android
+sleep,,,,,,900000,stay held,android
+mouseup,65,297,,left,,,release,android
+sleep,,,,,,1000000,settle before the photograph,android
