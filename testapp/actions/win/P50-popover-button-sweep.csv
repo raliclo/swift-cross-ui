@@ -40,6 +40,23 @@ action,x,y,origin,button,key,micros,note,platform
 # accompanied by `GtkPopover probe: press n=1 at (145.0, <y>)`. A click with no
 # probe line did not land, and says nothing about the button.
 #
+# x=50, NOT the centre line at 145, and this cost a whole run to learn.
+# `P50Panel` is a `VStack(alignment: .leading)`, so its buttons are left-aligned
+# and only as wide as their own labels. "press me (0)" is short and ends well
+# before x=145; "close this panel" is longer and does reach it. A sweep down the
+# centre therefore hits exactly one of the two buttons -- the wrong one, since
+# pressing close ends the test -- and every point over "press me" reports the
+# container instead.
+#
+# Measured 2026-09-10 with gtk_widget_pick: at x=145, y = 120,130,140,150,160
+# all returned `GtkPassthroughFixed < GtkPopoverContent < GtkPopover`, and only
+# y=170 returned a `GtkButton`, which logged "closed programmatically". The
+# reading that nearly followed was "press me is not reachable"; the truth was
+# that the sweep was 95 points to the right of it.
+#
+# "Down the centre" is an assumption about layout dressed up as a method. The
+# centre is only the right x for a centred stack.
+#
 # ORDER MATTERS: top to bottom. "close this panel" is the LOWER button and
 # pressing it ends the test, so the sweep must reach "press me" first. The
 # counter is cumulative, so if two of the four are on the same button the log
@@ -86,35 +103,47 @@ move,252,711,frame,,,,move onto the first anchor,windows
 sleep,,,,,,200000,let the pointer arrive,windows
 click,252,711,frame,left,,,open the first panel -- positive control; writes popover alpha shown,windows
 sleep,,,,,,900000,let the popover map and take its grab,windows
-move,145,30,popover,,,,sweep point 1 -- near the top of the popover,windows
+move,50,30,popover,,,,sweep point 1 -- near the top of the popover,windows
 sleep,,,,,,250000,let the pointer arrive so the press lands on a hovered button,windows
-click,145,30,popover,left,,,"sweep point 1; expect a probe press line whether or not the counter moves",windows
+click,50,30,popover,left,,,"sweep point 1; expect a probe press line whether or not the counter moves",windows
 sleep,,,,,,400000,let any handler run and the log catch up,windows
-move,145,55,popover,,,,sweep point 2,windows
+move,50,55,popover,,,,sweep point 2,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,55,popover,left,,,sweep point 2,windows
+click,50,55,popover,left,,,sweep point 2,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,80,popover,,,,sweep point 3,windows
+move,50,80,popover,,,,sweep point 3,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,80,popover,left,,,sweep point 3,windows
+click,50,80,popover,left,,,sweep point 3,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,105,popover,,,,sweep point 4 -- still above the lower button on the measured layout,windows
+move,50,105,popover,,,,sweep point 4 -- still above the lower button on the measured layout,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,105,popover,left,,,sweep point 4,windows
+click,50,105,popover,left,,,sweep point 4,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,130,popover,,,,sweep point 5 -- first point in the lower half; the four before this one were the whole sweep until 2026-09-10,windows
+move,50,120,popover,,,,sweep point 5 -- first point in the lower half; the four before this one were the whole sweep until 2026-09-10,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,130,popover,left,,,sweep point 5,windows
+click,50,120,popover,left,,,sweep point 5,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,155,popover,,,,sweep point 6,windows
+move,50,130,popover,,,,sweep point 6,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,155,popover,left,,,sweep point 6,windows
+click,50,130,popover,left,,,sweep point 6,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,180,popover,,,,sweep point 7 -- may land on close this panel; if it does the panel ends here and points below say nothing,windows
+move,50,140,popover,,,,sweep point 7,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,180,popover,left,,,sweep point 7,windows
+click,50,140,popover,left,,,sweep point 7,windows
 sleep,,,,,,400000,let any handler run,windows
-move,145,205,popover,,,,sweep point 8 -- near the bottom edge of the 221-tall popover,windows
+move,50,150,popover,,,,sweep point 8,windows
 sleep,,,,,,250000,let the pointer arrive,windows
-click,145,205,popover,left,,,sweep point 8,windows
+click,50,150,popover,left,,,sweep point 8,windows
+sleep,,,,,,400000,let any handler run,windows
+move,50,160,popover,,,,sweep point 9,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,50,160,popover,left,,,sweep point 9,windows
+sleep,,,,,,400000,let any handler run,windows
+move,50,170,popover,,,,sweep point 10 -- press me sits between here and 180 on the 2026-09-10 layout,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,50,170,popover,left,,,sweep point 10,windows
+sleep,,,,,,400000,let any handler run,windows
+move,50,180,popover,,,,"sweep point 11 -- MEASURED as close this panel on 2026-09-10: gtk_widget_pick returned GtkButton here and the panel logged closed programmatically. The panel ends at this row, so nothing below it can say anything",windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,50,180,popover,left,,,sweep point 11,windows
 sleep,,,,,,2000000,hold and let the log catch up,windows
