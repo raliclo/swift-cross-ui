@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform
+# P57 on Windows: measure the WINDOW SIZE and nothing else. #117's acceptance test.
+#
+# It clicks nothing on purpose. The replay prints a window dump before it runs
+# any action -- `window 0x... WxH@x,y class=gdkSurfaceToplevel ... <- CHOSEN` --
+# and that W x H is the whole measurement. Combine it with `-rows N` to get one
+# point per run:
+#
+#   zsh testapp/run.zsh P57 --debug -rows 10  -actionfile actions/win/P57-window-size.csv
+#   zsh testapp/run.zsh P57 --debug -rows 400 -actionfile actions/win/P57-window-size.csv
+#
+# WHAT THE NUMBERS MEAN. Before #117 the framework reported a `List`'s size as
+# the SUM of its rows, so the window grew without bound -- P57's own header
+# records 1280x9306 at 50 rows and a window capture that failed outright at 200.
+# After it, a backend conforming to `BackendFeatures.ScrollingLists` reports
+# `min(height, proposed)` and the height should stop moving with the row count.
+#
+# So the test is a COMPARISON, not a threshold: run two row counts and check the
+# height is the same. A single run tells you nothing, because there is no
+# absolute number that is right -- it depends on the display and the theme.
+#
+# WHY THIS FILE EXISTS AT ALL rather than a screenshot. A capture cannot be the
+# instrument here: P57's header records that window capture FAILED at 200 and
+# 400 rows and fell back to the whole screen, precisely because the window was
+# taller than the display. The failure mode of the old behaviour destroys the
+# tool you would measure it with. The dump is read from inside the process and
+# does not have that problem.
+#
+# expect: log-contains class=gdkSurfaceToplevel
+#
+# P57 於 Windows:只量**視窗尺寸**,不做別的。這是 #117 的驗收測試。
+#
+# 它刻意不點任何東西。重放在執行任何動作**之前**就會印出一份視窗傾印——
+# `window 0x... WxH@x,y class=gdkSurfaceToplevel ... <- CHOSEN`——而那個 W x H 就是全部的量測。
+# 搭配 `-rows N` 使用,每執行一次得到一個資料點(用法見上方英文段落的兩行指令)。
+#
+# **這些數字的意義。** 在 #117 之前,框架把 `List` 的尺寸回報為其所有列高的**總和**,因此視窗會無上限
+# 地長大——P57 自己的標頭記錄了 50 列時的 1280x9306,以及 200 列時視窗擷取直接失敗。在那之後,符合
+# `BackendFeatures.ScrollingLists` 的 backend 會回報 `min(height, proposed)`,而高度應當不再隨列數
+# 變動。
+#
+# 因此本測試是一次**比較**,不是一個門檻:跑兩個不同的列數,檢查高度是否相同。**單獨一次執行什麼都
+# 說明不了**,因為並不存在某個「正確的絕對數值」——它取決於顯示器與主題。
+#
+# **為何需要本檔而不是截圖。** 在這裡擷圖不能當作儀器:P57 的標頭記載了在 200 與 400 列時視窗擷取
+# **失敗**並退回抓整個螢幕,原因正是視窗比顯示器還高。**舊行為的失效方式,會摧毀你用來量測它的那個
+# 工具。** 傾印是從行程內部讀出來的,沒有這個問題。
+sleep,,,,,,1500000,let the window settle so the dump reports its final size,windows
