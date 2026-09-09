@@ -10,7 +10,12 @@ nohup zsh heartbeats/heartbeat.zsh -on &   # 開:每 10 分鐘問一次
 zsh heartbeats/heartbeat.zsh -off          # 關
 zsh heartbeats/heartbeat.zsh               # 不帶參數 = 印用法,不送任何東西
 zsh heartbeats/heartbeat.zsh -list         # 這張表,以及其中真正會被送到的那些
+zsh heartbeats/heartbeat.zsh -f fleet.csv2 -on   # 換一份清單
 ```
+
+`-f` 可指定另一份同格式的 `.csv2`。**開關、pid 與 log 都跟著檔案走**,因此兩份清單可以同時跑,
+`-f fleet.csv2 -off` 停的是 fleet 那一個、而不會動到預設那一個。若共用單一開關,`-off` 會停掉
+「剛好最後啟動的那一個」並回報成功。
 
 | 檔案 | 是什麼 |
 | --- | --- |
@@ -143,6 +148,8 @@ pty. The session-id route sidesteps that entirely, which is why it is the defaul
 | `screen -X stuff 'text\r'` | 字面的反斜線加 r **不是** Enter。文字送到了、那一行從未執行,而 `screen` 以 0 結束、腳本印出 `sent` |
 | 用 tab 當欄位分隔符 | tab 是空白字元,zsh 的 `read` 會摺疊連續空白;本機那一列的空 `config` 欄消失,`session_name` 滑了進去。log 印出「claude session 」後面空無一物,而心跳本身是好的 |
 | `one_beat` 定義在呼叫它的 `case` 之後 | daemon 照樣啟動、寫下 pid、每一拍記下時間戳,並把 `command not found` 印進 log——一個誰也沒送到的執行中 daemon,而 `-status` 全程回報 ON |
+| 迴圈裡的指令吃掉 stdin | 這個迴圈由 `done < <(read_targets)` 餵入,而 `claude -p` 讀了 stdin——於是它吃掉的是剩下的**資料列**。兩列都開著時只送出一列,而輸出寫著 `heartbeat: 1 target(s)`:對「送出了什麼」為真,對「從未看見的那一列」則沉默。修法是迴圈內每個指令都加 `< /dev/null` |
+| `awk -F'\x1f'` | BSD 的 awk 不把十六進位那個形式當分隔符,而是靜默地把整筆記錄當成單一欄位。`-list` 於是印出整列黏在一起——看起來像排版小疵。改用八進位 `\037` |
 
 第三個是這支腳本自己「必須大聲」的理由:它一律印出目標數目(包含 0),而「已開啟但一個也沒送到」
 會另外再說一次。

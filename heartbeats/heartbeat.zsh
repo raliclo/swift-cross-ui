@@ -279,12 +279,26 @@ one_beat() {
             # 因為那個遠端指令落在登入的 home 而不是這份 checkout 裡。cwd 欄之所以逐列設定，正是
             # 因為兩台機器把這棵樹放在不同的位置。
             claude_cmd="cd ${cwd:-.} && claude -p -r $session_id \"$message\""
+            # **`< /dev/null` on every command in this loop, and it is not
+            # defensive noise.** The loop is fed by `done < <(read_targets)`, so
+            # anything inside it that reads stdin eats the remaining ROWS.
+            # Measured 2026-09-09 with two rows armed: `claude -p` swallowed the
+            # rest of the feed, the second row was never read, and the run
+            # reported "heartbeat: 1 target(s)" -- a true statement about what
+            # it sent and a silent one about the row it never saw.
+            #
+            # **這個迴圈裡的每一個指令都要 `< /dev/null`，而那不是防禦性的贅語。** 這個迴圈是由
+            # `done < <(read_targets)` 餵入的，因此其中任何會讀 stdin 的東西，吃掉的是剩下的**資料列**。
+            # 2026-09-09 以兩列同時開啟實測：`claude -p` 吞掉了後續的輸入，第二列從未被讀到，
+            # 而該次執行回報「heartbeat: 1 target(s)」——那句話對「它送出了什麼」是真的，
+            # 對「它從未看見的那一列」則是沉默的。
             if [ "$host" = "local" ]; then
-                reply="$(eval "$claude_cmd" 2>&1 | head -3 || true)"
+                reply="$(eval "$claude_cmd" </dev/null 2>&1 | head -3 || true)"
             else
                 config="${config:-$multissh_config}"
                 config="${config/#\~/$HOME}"
-                reply="$("$multissh_bin" -F "$config" "$host" "$claude_cmd" 2>&1 | head -3 || true)"
+                reply="$("$multissh_bin" -F "$config" "$host" "$claude_cmd" </dev/null 2>&1 \
+                    | head -3 || true)"
             fi
             # **An error message is also a reply, and the first version of this
             # counted one as a success.** `claude -r` with an id it cannot
@@ -352,7 +366,7 @@ one_beat() {
             # using is not necessarily the one running claude.
             # -p 0 指定該 session 的第一個視窗：少了它，`stuff` 會送到當前視窗，而對一個有人用過的
             # session 來說，那不一定是跑著 claude 的那一個。
-            if eval "$send_cmd" 2>/dev/null; then
+            if eval "$send_cmd" </dev/null 2>/dev/null; then
                 printf 'sent to %s/%s (local, claude session %s)\n' \
                     "$os" "$session" "$session_name"
                 sent=$(( sent + 1 ))
@@ -368,7 +382,7 @@ one_beat() {
             # CSV 欄位裡的 ~ 不會被展開，因此它會原樣抵達，而 multissh 會去找一個名為 "~" 的目錄。
             # 在此處展開而不在檔案裡寫死，因為那個檔案也會被其他機器讀到。
             config="${config/#\~/$HOME}"
-            if "$multissh_bin" -F "$config" "$host" "$send_cmd" >/dev/null 2>&1; then
+            if "$multissh_bin" -F "$config" "$host" "$send_cmd" </dev/null >/dev/null 2>&1; then
                 printf 'sent to %s/%s via %s (claude session %s)\n' \
                     "$os" "$session" "$host" "$session_name"
                 sent=$(( sent + 1 ))
@@ -404,6 +418,41 @@ usage() {
 # scripts use, and refusing one of them would be a papercut with no upside.
 # 兩種寫法都收。單破折號是實際會被打出來的那一種（`nohup zsh heartbeats/heartbeat.zsh -on`），
 # 雙破折號則與這棵樹其他腳本一致；只認其中一種，是一個沒有任何好處的小刺。
+# `-f FILE` before anything else, so it composes with every other option:
+# `-f other.csv2 -list`, `-f other.csv2 -once`, `nohup ... -f other.csv2 -on &`.
+# Taken in a loop rather than a single test because it may be given after the
+# option it modifies as easily as before it, and a flag that works in only one
+# position is a flag people report as broken.
+#
+# The point is a SECOND list: the same format, a different set of sessions --
+# one file per project, or one for a fleet nobody wants beaten every ten minutes.
+# The switch, pid and log follow the file, so two lists can run at once without
+# either stopping the other.
+#
+# `-f 檔案` 置於其他一切之前，因此它能與每一個選項組合：`-f other.csv2 -list`、
+# `-f other.csv2 -once`、`nohup … -f other.csv2 -on &`。以迴圈取出而非單次判斷，因為它被寫在
+# 「所修飾的選項」之後與之前一樣自然，而一個只在單一位置有效的旗標，會被當成壞掉來回報。
+#
+# 重點在於**第二份清單**：同樣的格式、不同的一組 session——一個專案一份，或是給一整批「不希望每十
+# 分鐘被打擾」的 session 用。開關、pid 與 log 都跟著檔案走，因此兩份清單可以同時跑，互不停止對方。
+while [ "${1:-}" = "-f" ] || [ "${1:-}" = "--file" ]; do
+    shift
+    targets_file="${1:?-f needs a path to a .csv2 in the heartbeat format}"
+    if [ ! -f "$targets_file" ]; then
+        printf 'no such file: %s\n' "$targets_file" >&2
+        exit 1
+    fi
+    # Derived from the file, not fixed, so `-f fleet.csv2 -off` stops the fleet
+    # daemon and leaves the default one running. With one shared switch, `-off`
+    # would stop whichever happened to be started last and report success.
+    # 由檔案推導而來、而非固定，因此 `-f fleet.csv2 -off` 停的是 fleet 那個 daemon，並讓預設的那個
+    # 繼續跑。若共用單一開關，`-off` 會停掉「剛好最後啟動的那一個」並回報成功。
+    switch_file="${targets_file:h}/.heartbeat-on-${targets_file:t:r}"
+    pid_file="${targets_file:h}/.heartbeat-pid-${targets_file:t:r}"
+    log_file="${targets_file:h}/.heartbeat-log-${targets_file:t:r}"
+    shift
+done
+
 case "${1:-}" in
     -on|--on)
         if [ -e "$switch_file" ] && [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null
