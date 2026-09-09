@@ -37,7 +37,28 @@ cd "$(dirname "$0")"/../ || exit 1
 python3 - "$@" <<'PY'
 import csv, glob, os, re, sys
 
-rows = list(csv.reader(open("matrix_coverage/results.csv2", newline="")))
+# encoding="utf-8" is REQUIRED, and leaving it off breaks this guard on exactly
+# one of the two machines that must run it. Python's `open` defaults to the
+# locale encoding, which on this Windows host is cp950 (Traditional Chinese
+# ANSI). results.csv2 is UTF-8 and its second header row is Chinese, so the read
+# died at byte 62 of the file with
+#
+#     UnicodeDecodeError: 'cp950' codec can't decode byte 0xe6 in position 62
+#
+# and the script exited 1 -- LOUDLY, which is the one good thing about it, but
+# with a failure that reads like a real finding. Measured 2026-09-09 on the
+# Windows side, the first time this guard was run there; it had never been able
+# to check anything on this host. macOS defaults to UTF-8, so it worked where it
+# was written and nowhere else.
+#
+# 這裡的 encoding="utf-8" 是**必要的**，少了它，這個守衛會恰好在「必須執行它的兩台機器」中的一台上
+# 壞掉。Python 的 `open` 預設採用地區編碼，而在這台 Windows 主機上那是 cp950（繁體中文 ANSI）。
+# results.csv2 是 UTF-8，且它的第二列表頭是中文，因此讀取會在檔案的第 62 個位元組死掉，訊息為
+# `UnicodeDecodeError: 'cp950' codec can't decode byte 0xe6 in position 62`，腳本以 1 結束
+# ——**大聲地**失敗，那是它唯一值得慶幸之處，但那個失敗讀起來像是一項真的發現。
+# 2026-09-09 於 Windows 側實測，那是本守衛第一次在該處被執行；在此之前它從來沒有能力檢查任何東西。
+# macOS 預設 UTF-8，所以它在它被寫出來的地方能動，在別處不能。
+rows = list(csv.reader(open("matrix_coverage/results.csv2", newline="", encoding="utf-8")))
 present = {os.path.basename(p) for p in glob.glob("testapp/actions/*/*.csv")}
 
 missing = {}
