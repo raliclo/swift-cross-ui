@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58: pressing "right to R45" must move the RIGHT column and leave the left one alone.
+#
+# The mirror of P58-left-to-L30.csv, and it is not redundant with it. One
+# direction alone cannot tell "each container scrolls itself" from "every
+# scroll goes to the same container" -- if the closures were both installed on
+# the right container, the left-to-L30 file would fail and this one would pass.
+# Both directions are what pin the keying.
+#
+# Button centre (153,135), measured on the same capture as its sibling.
+#
+# P58：按下「right to R45」必須移動**右**欄，並讓左欄維持不動。
+#
+# 這是 P58-left-to-L30.csv 的鏡像，而它並非多餘。只做一個方向無法分辨「每個容器捲自己」與
+# 「每一次捲動都送到同一個容器」——若兩個 closure 都被裝在右邊那個容器上，left-to-L30 會失敗，
+# 而本檔會通過。是**兩個方向**才釘住了那個索引鍵。
+#
+# 按鈕中心 (153,135)，與其手足檔案量自同一張擷取。
+click,153,135,frame,left,,,right to R45,macos
+sleep,,,,,,600000,,macos
