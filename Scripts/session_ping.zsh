@@ -43,11 +43,26 @@
 #     zsh Scripts/session_ping.zsh                 send the question to every armed target
 #     zsh Scripts/session_ping.zsh -m "your text"  send something else
 #
-# A crontab line, now that this is a thing cron can actually do:
-#     */20 * * * * cd /Volumes/Windows/proj_Win/swift-cross-ui && zsh Scripts/session_ping.zsh
+# A crontab line, now that this is a thing cron can actually do. Ten minutes is
+# the interval that was asked for, and it lives here rather than in someone's head.
+# The interval is not what keeps the cost down -- the switch is: a beat while off
+# contacts nothing and spends nothing.
+# 十分鐘是指定的間隔，它寫在這裡而不是留在誰的記憶裡。要注意的是：讓成本壓下來的不是間隔，而是那個
+# 開關——關閉狀態下的一次跳動不會聯絡任何人，也不會花掉任何東西。
+#     */10 * * * * cd /Volumes/Windows/proj_Win/swift-cross-ui && zsh Scripts/session_ping.zsh
 #
 # Off by default, and the switch is the point: a beat while off runs this
 # script, prints IDLE, contacts nothing and spends no tokens anywhere.
+#
+# **It does not read the queue, and that is deliberate.** Scripts/queue_heartbeat.zsh
+# is a separate thing for a separate purpose -- it names the next unfinished item
+# to a session that is already working. This one only asks whether a session is
+# still working, which is all a periodic ping needs to do, and keeping the two
+# apart means a change to the queue file cannot break the ping.
+#
+# **它不讀佇列，而那是刻意的。** Scripts/queue_heartbeat.zsh 是另一件事、服務另一個目的——它把下一個
+# 未完成項目說給一個已經在工作的 session 聽。這一支只問「還在工作嗎」，而那正是一個週期性 ping 需要
+# 做的全部；把兩者分開，意味著佇列檔的任何改動都弄不壞這個 ping。
 
 set -euo pipefail
 
