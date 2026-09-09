@@ -92,3 +92,80 @@ spend tokens asking when there is no task" half of the request. `/loop` is the
 mechanism for the queue because it re-enters from inside the session doing the
 work, not because cron is incapable: cron reaches a live session through
 `heartbeats/heartbeat.zsh`, and the table above is the measurement.
+
+---
+
+## 2. 新增的原始檔不會被增量建置採納
+
+**次數:1 次 / 1 天(2026-09-10)。**
+
+### 症狀 / What it looks like
+
+編譯階段**完全乾淨**,然後**連結器**說:
+
+```
+lld-link: error: undefined symbol: gtk_passthrough_drawing_area_new
+lld-link: error: undefined symbol: gtk_passthrough_drawing_area_set_opaque
+```
+
+那讀起來像「缺少某個函式庫」或「宣告寫錯了」——**不像「有一個檔案從來沒有被編譯」**。
+宣告看得見(它在 `gtk_helpers.h` 裡,而該標頭確實被讀到了),定義存在於磁碟上,而錯誤訊息
+指名的是**符號**,對「被略過的那個檔案」隻字未提。
+
+2026-09-10 實測:新增 `Sources/GtkCHelpers/gtk_passthrough_drawing_area.c` 之後,
+`GtkCHelpers` 重新編譯了 **6** 個檔案,而新的那一個不在其中;
+`.build/x86_64-unknown-windows-msvc/release/GtkCHelpers.build/` 裡有 8 個 `.o`,新的那個沒有。
+
+The compile phase is completely clean and then the LINKER reports an undefined
+symbol. That reads as a missing library or a bad declaration, not as a file that
+was never compiled: the declaration is visible, the definition is on disk, and
+the message names the symbol while saying nothing about the file it skipped.
+
+### 為什麼「更小心」擋不住它 / Why care does not help
+
+**`touch Package.swift` 沒有用。** SwiftPM 對 manifest 取**內容雜湊**,所以只改 mtime 不會
+讓它重新規劃。我試過,失敗了一次,而失敗的方式與第一次完全相同——同樣的連結器錯誤。
+
+真正過期的是 **`.build/release.yaml`**(llbuild 的建置計畫)。實測時它比新檔案舊了**三小時**,
+仍然列著舊的來源集合:
+
+```
+grep -c "gtk_passthrough_drawing_area" release.yaml   →  0
+grep -c "gtk_passthrough_fixed"        release.yaml   →  136
+```
+
+`touch Package.swift` does NOT work, because SwiftPM hashes manifest content
+rather than reading its mtime. What is actually stale is `.build/release.yaml`,
+llbuild's plan -- three hours old and still listing the old source set.
+
+### 矯正措施 / The corrective
+
+**新增任何原始檔之後的第一次建置之前,刪掉建置計畫:**
+
+```sh
+rm -f <scratch>/.build/release.yaml
+```
+
+它會被重新產生,而物件檔會保留,所以代價只是一次重新規劃,不是一次完整重建。
+
+**這不只是 C 檔的問題。** 同一天新增 `Sources/SwiftCrossUI/Views/Modifiers/TagModifier.swift`
+(Swift 檔)時,我**預先**刪掉了 release.yaml,於是沒有撞上——但機制相同,而如果沒有預先刪,
+症狀會是 Swift 端的 `cannot find type ... in scope`,一樣不會提到那個檔案。
+
+`Sources/GtkCHelpers/include/gtk_helpers.h` 對「新增的**標頭**不會被採納」已有一段既有註記;
+本條目把它擴及**原始檔**,並記下 `touch Package.swift` 這條走不通的路。
+
+Delete `.build/release.yaml` before the first build after adding a source file.
+It is regenerated and the object files survive, so the cost is one replan rather
+than a full rebuild. This is not C-specific: a new Swift file has the same
+mechanism, and its symptom is `cannot find type ... in scope`, which likewise
+never names the file.
+
+### 守衛 / The guard
+
+```sh
+ls -l <scratch>/.build/release.yaml
+```
+
+若它比新檔案還舊,那份計畫**不可能**知道新檔案的存在。搭配重新產生之後的
+`git diff --stat` 一起看。
