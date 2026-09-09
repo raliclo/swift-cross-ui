@@ -8,41 +8,39 @@ item is the next thing. This file exists because the queue used to live in the
 conversation, where it faded with compaction and its absence looked exactly like
 an empty queue -- mistakes.md entry 1.
 
-- [x] **1. `SceneStorage`** — 已完成並驅動 (P59)。`@SceneStorage` 以視窗 id 為範圍,經由既有的 `AppStorageProvider` 存於 `scene.<id>.<key>`——**沒有新的 backend requirement**
-- [ ] **2. `Settings` scene** — 需要先決定單視窗平台那條路(見下方 Q8 註記)。`environment.window` 與 `AnyView` 都存在,因此 sheet 那條路可行;`presentSheet` 需要一個具體的 `Window`,而 `AlertScene` 用的是 `window: nil` 讓 backend 自己選
-- [ ] **3. `DocumentGroup`** — 三項中最大的一項,但它蓋在既有的 `FileDialogs` 之上,而不是蓋在新的 requirement 上
-- [ ] **4. Q12:#28 動畫 / #30 focus 無障礙 / #32 手勢** — 三項各自獨立,可分開驗證
-- [ ] **5. #117 phase 3:依需求建立列** — **刻意降級。** 它原本的症狀(視窗隨列數長大)已經在五個 backend 上都被 phase 2/4/5 修掉了,剩下的是 10,000 列時的記憶體。檢驗標準已經是精確的:RSS 必須停止隨列數增長(400 列 114 MB,10,000 列 423 MB)
-- [ ] **6. #74 `-GPU` on macOS** — 被擋:等 Windows 端的輸入
-- [x] #117 phase 5: GTK 與 WinUI 由 Windows 完成並量測(`53c4a660`;WinUI 400 列 656x16224 → 656x739)
-- [x] #117 phase 2: AppKit list viewport (`1ff4f3cf`)
-- [x] #117 phase 4a: UIKit 與 Android list viewport (`c88e3994`)
-- [x] Review 4: 兩個 ScrollViewReader,在 AppKit 與 Android 上雙向驅動 (P58, `6c417aaf`)
-- [x] Review 6: parity survey #33 主表與細節列一致化
-- [x] Remote session ping: heartbeats/ —— 兩台機器皆以 session id 送達並實測
+- [x] **1. iOS 動作檔的點擊沒抵達按鈕** — 已解決。按鈕實際在 (55, 218) 點,先前的 y=100 是從縮圖估的。runner 現在會說出它解析到哪個視窗與正規化後的座標
+- [ ] **2. 動作檔無法定址第二個視窗** — `InputEvent` 的格式缺口,不是 P60 的問題。`frame`/`client` 都相對於被驅動的視窗,`popover` 僅限 Windows。修好它,之後每一個多視窗測試都受惠(含 `DocumentGroup`)
+- [ ] **3. `DocumentGroup`** — 三項缺失 API 的最後一項,蓋在既有的 `FileDialogs` 上
+- [ ] **4. 鍵盤快捷鍵 step 2**(Windows 表的 #121)— **真的,而且已查證**:`ResolvedMenu.Item` 沒有任何 shortcut 欄位,所以要動四個 backend 的 `.button`。Windows 端把它標為「卡在 Mac」
+- [ ] **5. focus / accessibility**(#122 / #123)— 任務自述「不可單機開始」,需要與 Windows 端協調
+- [ ] **6. #74 `-GPU` on macOS** — `todo.md` 六項 Mac 工作中**唯一仍然開著**的一項,而它是一個決定、不是程式碼
+- [ ] **7. Q12 #28 動畫 / #32 手勢** — 三項獨立(#30 focus 已併入上方第 5 項)
+- [ ] **8. #117 phase 3(依需求建列)** — 刻意降級:症狀已在五個 backend 上修掉,剩 10,000 列時的記憶體(400 列 114 MB、10,000 列 423 MB)
+- [ ] **9. #79 GTK 39px / #109 popover anchor API** — 需要你決定
+- [ ] **10. #80 P42 縮放通知** — 需要人在機器前改顯示縮放
+- [x] `SceneStorage`(P59)、`Settings` scene(P60)—— 即 Windows 表的 #35 前兩項
+- [x] #117 phase 2 / 4a / 5:五個 backend 的 list viewport
+- [x] Review 4:兩個 ScrollViewReader,AppKit 與 Android 雙向驅動(P58)
+- [x] heartbeats/:兩台機器以 session id 送達並實測
 
-## 這次重排的理由 / Why this order changed
+## 這份佇列是怎麼來的 / Where this list comes from
 
-**#117 phase 3 從第 2 位降到第 5 位。** 它要解的問題已經不是原本那個問題了:phase 2/4/5 落地之後,
-「視窗隨列數長大」在五個 backend 上都不再發生,而那才是使用者看得見的症狀。剩下的是 10,000 列時
-423 MB 對 114 MB 的記憶體差,那是一個真實但不流血的成本。
+**它現在合併了三個來源,而先前只有一個。** 2026-09-09 對照 `todo.md`(樹裡唯一的待辦檔)與 Windows
+端貼過來的表之後重建;先前的版本只反映了 Mac 這一側自己推進的工作,因此 Windows 端正在追蹤的項目
+一個都不在上面。
 
-**三項缺失的 SwiftUI API 升上來。** `Settings`、`SceneStorage`、`DocumentGroup` 是**根本不存在**的
-東西——以宣告形狀的 grep 查證過(`public struct <名稱>`),三者皆為 0,而同一個 grep 找得到
-`AppStorage`、`StateObject` 與 `EnvironmentObject`。一個不存在的 API 比一個已經可用但在極端規模下
-較貴的 API,離「功能對等」更遠。
+**對照的第一個結果是刪掉工作,不是加上工作。** `todo.md` 中「六項交給 Mac」的表裡,有**五項在讀到它
+時就已經完成了**——Swift 6 語言模式(AppKit 與 UIKit 都已在 `migratedToSwift6`)、前景色寫死
+(`resolvedForegroundColor` 在兩個 backend 共 8 處)、Android 的 `.onHover`(已有
+`AndroidBackend+HoverGestures.swift`)、UIKit 的 popover `onDismiss`(已指派)、UIKit 與 Android 的
+`.navigationTitle`(兩邊的 toolbar 都會畫)。那張表自己就寫著「若條目超過一兩天,請先對照程式碼再
+相信它」,而那正是它們被查證、而不是被重做的原因。
 
-**`SceneStorage` 排在 `Settings` 之前,而不是照編號。** `Settings` 卡在一個尚未決定的設計問題上
-(Android 的 `createWindow` 回傳一個假的視窗),而 `SceneStorage` 沒有這個問題:它有一個現成的
-模型可以照抄,而且不需要任何新的 backend requirement。
-
-Phase 3 dropped from second to fifth because the problem it addresses is no
-longer the problem it was: the visible symptom is fixed on all five backends,
-and what remains is 423 MB against 114 MB at ten thousand rows -- real, but not
-bleeding. The three absent SwiftUI APIs moved up, verified absent by a
-declaration-shaped grep that finds AppStorage and StateObject and finds none of
-them. SceneStorage leads because Settings is blocked on a design decision and it
-is not.
+The list now merges three sources where it used to reflect one. Reconciling
+against `todo.md` first REMOVED work rather than adding it: five of the six
+items that file assigns to the Mac were already done when it was read, and its
+own warning is why they were checked instead of started. A list of work is a
+claim about the code, and it drifts towards describing work nobody needs to do.
 
 ## Q8 note — what was measured before writing any code
 

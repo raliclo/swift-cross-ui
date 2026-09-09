@@ -4,7 +4,16 @@ final class WindowReference<SceneType: WindowingScene> {
     /// The scene.
     private var scene: SceneType
     /// The view graph of the window's root view.
-    private let viewGraph: ViewGraph<SceneType.Content>
+    /// The view graph of the window's root view, wrapped in ``SettingsHost``.
+    ///
+    /// The wrapper is what lets a ``Settings`` scene be shown as a sheet on a
+    /// backend that cannot open a second window. On backends that can, it adds
+    /// one node and no behaviour -- see ``SettingsHost``.
+    /// 這個視窗 root view 的 view graph，外面包了一層 ``SettingsHost``。
+    ///
+    /// 那一層正是「讓 ``Settings`` scene 能在開不出第二個視窗的 backend 上以 sheet 呈現」的東西。
+    /// 在開得出視窗的 backend 上，它只多一個節點、不改變任何行為——見 ``SettingsHost``。
+    private let viewGraph: ViewGraph<SettingsHost<SceneType.Content>>
     /// The window being rendered in.
     let window: Any
     /// `false` after the first scene update.
@@ -92,7 +101,7 @@ final class WindowReference<SceneType: WindowingScene> {
         )
 
         viewGraph = ViewGraph(
-            for: scene.content(),
+            for: SettingsHost(content: scene.content()),
             backend: backend,
             environment: environment.with(\.window, window).with(\.sceneID, id)
         )
@@ -317,7 +326,7 @@ final class WindowReference<SceneType: WindowingScene> {
         }
 
         let probingResult = viewGraph.computeLayout(
-            with: newScene?.content(),
+            with: newScene.map { SettingsHost(content: $0.content()) },
             proposedSize: .zero,
             environment: environment
                 .with(\.allowLayoutCaching, true)
@@ -337,7 +346,7 @@ final class WindowReference<SceneType: WindowingScene> {
         switch environment.windowResizability {
             case .contentSize:
                 let result = viewGraph.computeLayout(
-                    with: newScene?.content(),
+                    with: newScene.map { SettingsHost(content: $0.content()) },
                     proposedSize: .infinity,
                     environment: environment.with(\.allowLayoutCaching, true)
                 )

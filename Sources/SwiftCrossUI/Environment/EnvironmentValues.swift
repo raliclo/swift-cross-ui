@@ -582,6 +582,42 @@ extension EnvironmentValues {
     /// The menu ordering to use.
     @Entry public var menuOrder: MenuOrder = .automatic
 
+    /// Backing store for ``EnvironmentValues/settingsRegistry``.
+    ///
+    /// Boxed the same way `openWindowFunctionsByID` is, and for the same reason:
+    /// `EnvironmentValues` is a value type that gets copied down the tree, so a
+    /// plain stored property would give each branch its own registry and the
+    /// ``Settings`` scene would write into one that nobody reads.
+    /// 與 `openWindowFunctionsByID` 採同樣的裝箱方式，理由也相同：`EnvironmentValues` 是一個會沿著
+    /// 樹往下複製的值型別，因此若用普通的儲存屬性，每一條分支都會拿到自己的 registry，而 ``Settings``
+    /// scene 寫進去的那一個將沒有任何人讀。
+    @Entry private var settingsRegistryStore = UncheckedSendable(
+        wrappedValue: SettingsRegistry()
+    )
+
+    /// Where the ``Settings`` scene leaves its content and its presenter.
+    /// ``Settings`` scene 存放其內容與呈現方式之處。
+    internal var settingsRegistry: SettingsRegistry {
+        settingsRegistryStore.wrappedValue
+    }
+
+    /// Shows the app's ``Settings`` scene.
+    ///
+    /// A separate window on backends with multiple windows, a sheet over the
+    /// current window on the ones without. Warns if the app declares no
+    /// ``Settings`` scene, rather than doing nothing: a press that changes
+    /// nothing is otherwise indistinguishable from a feature never declared.
+    ///
+    /// 顯示這個 app 的 ``Settings`` scene。
+    ///
+    /// 在有多視窗的 backend 上是一個獨立視窗，在沒有多視窗的 backend 上則是蓋在當前視窗上的 sheet。
+    /// 若該 app 未宣告 ``Settings`` scene，它會發出警告而不是默不作聲：一次「什麼都沒改變」的按下，
+    /// 否則會與「一項從未被宣告的功能」無從分辨。
+    @MainActor
+    public var openSettings: OpenSettingsAction {
+        OpenSettingsAction(environment: self)
+    }
+
     /// Backing store for ``EnvironmentValues/openWindowFunctionsByID``.
     /// Used to resolve "non-sendable type" warnings in Swift 5 and errors in Swift 6 language mode.
     @Entry private var openWindowFunctionsByIDStore = UncheckedSendable(

@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60: open the settings scene. Opening it is all this file can do here.
+#
+# origin=frame, coordinates read off p60-macos-final-20260909-173049.png.
+#
+# **The +1 half is NOT driven here, and the reason is a limit of the format
+# rather than a gap in the test.** On AppKit settings opens as its own window,
+# and no action-file origin addresses a second window: `frame` and `client` both
+# resolve against the driven window, and `popover` is Windows-only and means
+# something else. So this file proves the scene resolved and the window opened;
+# the shared-count assertion is driven on iOS instead, where settings is a sheet
+# over the one window and both controls share a coordinate space.
+#
+# P60：開啟設定 scene，然後從它裡面改變那個共用的計數。
+#
+# origin=frame，座標讀自 p60-macos-final-20260909-173049.png。
+#
+# **+1 那一半此處不驅動，而理由是這個格式的限制、不是這項測試的缺口。** 在 AppKit 上設定會開成自己的
+# 視窗，而動作檔沒有任何原點定址得到第二個視窗——`frame` 與 `client` 都是相對於被驅動的那個視窗解析，
+# 而 `popover` 僅限 Windows 且意義不同。因此本檔證明的是「那個 scene 被解析了、視窗開了」；共用計數
+# 的判定改在 iOS 上驅動，在那裡設定是蓋在同一個視窗上的 sheet，兩個控制項共用同一個座標空間。
+click,75,250,frame,left,,,open settings,macos
+sleep,,,,,,1200000,let the settings window open and lay out,macos
