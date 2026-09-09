@@ -27,3 +27,41 @@ gyb/* linguist-vendored
 # `git check-attr eol` 對 results.csv2 回報 `unspecified`，對 testapp/issues.csv 回報 `lf`
 # ——這就是全部的原因：守衛寫在了錯的 glob 上。當時共有五個被追蹤的 .csv2 檔，無一被涵蓋。
 *.csv2 text eol=lf
+
+# Append-only logs merge by union, so two machines appending never conflict.
+#
+# `matrix_coverage/results.csv2` is written by both sides and only ever appended
+# to. Git has no append-aware merge for CSV, so every merge where both machines
+# recorded a run came back as a conflict -- five in a row before this line, each
+# resolved by hand.
+#
+# **Union is safe here because every record is exactly one physical line.**
+# Checked rather than assumed, with a CSV parser: 708 records, 708 physical
+# lines, 0 records containing an embedded newline. Union merges line by line, so
+# a quoted field containing a newline would be split and interleaved -- the rows
+# either side of the join would each become half a row, and nothing would report
+# it. If a note ever needs a line break, this attribute has to go before that
+# note lands.
+#
+# It must NOT be `merge=ours` or a set union. That file contains deliberate
+# duplicate rows -- the same app measured twice on the same day is two
+# observations, not one -- and anything that deduplicates loses the second
+# silently. That was the trap when the 2026-09-09 conflict was resolved by hand:
+# a set-based resolution dropped two rows and the counts (685 + 3 + 2 = 690) are
+# what caught it.
+#
+# 只做附加的紀錄檔採 union 合併,讓兩台機器各自附加時永遠不會衝突。
+#
+# `matrix_coverage/results.csv2` 由兩邊共同寫入,而且只會被附加。Git 對 CSV 沒有「理解附加」的合併
+# 方式,因此每一次「兩台機器都記錄了執行結果」的合併都會變成衝突——在這一行之前連續五次,每一次都是
+# 手工解的。
+#
+# **union 在此處是安全的,因為每一筆記錄恰好是一個實體行。** 這是查證過的、不是假設的,以 CSV 解析器
+# 檢查:708 筆記錄、708 個實體行、0 筆內含換行。union 是逐行合併的,因此一個「引號內含換行」的欄位
+# 會被拆開並交錯——接縫兩側的列會各自變成半列,而且沒有任何東西會回報這件事。若日後某則備註需要換行,
+# 這條屬性必須在那則備註落地**之前**移除。
+#
+# 它**不可以**是 `merge=ours`,也不可以是集合式的聯集。該檔案含有刻意重複的列——同一支 app 在同一天
+# 被量測兩次是**兩筆**觀測,不是一筆——而任何會去重的做法都會靜默地失去第二筆。2026-09-09 那次手工
+# 解衝突時正是這個陷阱:以集合為基礎的解法掉了兩列,而是那組數字(685 + 3 + 2 = 690)抓到了它。
+matrix_coverage/results.csv2 merge=union
