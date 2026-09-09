@@ -556,7 +556,7 @@ after the four composition views landed later the same day.
 | `Gauge` | absent | ✅ `Views/Gauge.swift:19` | ✅ unchanged |
 | `LazyVGrid` | absent | ❌ 0 | ✅ ~~`Views/LazyStacks.swift:154`~~ ~~`Views/LazyVGrid.swift:68`~~ → `Views/LazyVGrid.swift:97` (file corrected 2026-09-08 after `dea9ccff`, line corrected 2026-09-09; eager, exactly like its siblings — see #85) |
 | `Grid` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/Grid.swift:38`, with `GridRow` at `:124` |
-| `ScrollViewReader` | absent | ❌ 0 | ❌ 0 — still the one that is not composition |
+| `ScrollViewReader` | absent | ❌ 0 | ~~❌ 0 — still the one that is not composition~~ ✅ `Views/ScrollViewReader.swift`, with `ScrollViewProxy` in the same file. Landed 2026-09-09 with the new `BackendFeatures` requirement this row predicted, on all five backends, and **driven**: `actions/win/P34-scroll-to-row-50.csv` on Win-gtk4 (log `scrollTo row 50 requested, anchor top`, capture shows the top row going `Row 0` → `Row 50`), and P56 on AppKit, iOS and Android. Re-checked 2026-09-09 with a control (`VStack` found, `ZZZNotARealType` absent) |
 | `ControlGroup` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/ControlGroup.swift:40` |
 | `GroupBox` | absent | ❌ 0 — **left the denominator, never implemented** | ✅ `Views/GroupBox.swift:34` |
 | `DisclosureGroup` | not censused | ✅ `Views/DisclosureGroup.swift:20` | ✅ unchanged |
@@ -664,7 +664,7 @@ it generalised one implementation's need into a property of the problem.
 |---|---|
 | `StateObject` | ✅ `State/StateObject.swift:49`, `@propertyWrapper` at `:48` |
 | `ObservedObject` | ✅ `State/ObservedObject.swift:40`, `@propertyWrapper` at `:39` |
-| `EnvironmentObject` | ❌ 0 |
+| `EnvironmentObject` | ~~❌ 0~~ **✅ 1, re-run 2026-09-09** with this table's own command below |
 | `SceneStorage` | ❌ 0 |
 | `Settings` (scene) | ❌ 0 — `struct Settings` 0; the single `\bSettings\b` hit is a symbol name in `Symbols/SystemSymbol+Table.swift` |
 | `DocumentGroup` | ❌ 0 |
@@ -678,14 +678,26 @@ row is **2/4**, not 3/4; the "3/4" appears to have folded the scene row in. And
 `AlertScene`, `CommandMenu`, `Commands` and the graph — no `Settings`, no
 `DocumentGroup`.
 
-So four things remain, not one. `EnvironmentObject` is the cheap one: it is a
+~~So four things remain, not one. `EnvironmentObject` is the cheap one: it is a
 sibling of `ObservedObject`, which already exists, and needs nothing from a
-backend.
+backend.~~
+
+**THREE remain, re-run 2026-09-09 with the command above:** `SceneStorage`,
+the `Settings` scene, and `DocumentGroup`. `EnvironmentObject` returns 1 and is
+done — and it was correctly called "the cheap one", which is presumably why it
+went first and why this paragraph then outlived it. The count above went
+1 → 4 → 3 in eight days; **do not quote it, run the loop.**
+
+~~剩下的是四項而非一項：`EnvironmentObject`、`SceneStorage`、`Settings` scene、`DocumentGroup`。
+其中 `EnvironmentObject` 最便宜——它是已存在的 `ObservedObject` 的兄弟，且不需要任何 backend 支援。~~
 
 2026-09-01 的盤點列出四個缺席的 wrapper，其中兩個已落地，因此 wrapper 那一列是 **2/4** 而非 3/4；
-「3/4」似乎把 scene 那一列併了進來。剩下的是四項而非一項：`EnvironmentObject`、`SceneStorage`、
-`Settings` scene、`DocumentGroup`。其中 `EnvironmentObject` 最便宜——它是已存在的 `ObservedObject`
-的兄弟，且不需要任何 backend 支援。
+「3/4」似乎把 scene 那一列併了進來。
+
+**2026-09-09 以上方那道指令重跑，剩下的是三項**：`SceneStorage`、`Settings` scene 與
+`DocumentGroup`。`EnvironmentObject` 現在回傳 1，已經完成——而它當初被正確地稱為「最便宜的那一個」，
+想必正因如此才最先被做掉，也正因如此這段文字才比它所描述的事實活得更久。這個數字在八天內走過
+1 → 4 → 3；**不要引用它，去跑那道迴圈。**
 
 ---
 
@@ -767,7 +779,7 @@ documentation the caller has to pass through.
 | 2 | `.popover`'s `onDismiss` (`Modifiers/PopoverModifier.swift:22`) | UIKit **suppresses** on programmatic dismissal (`UIKitBackend+Popover.swift:93`, set `:96`, checked `:103`); Gtk, WinUI, AppKit and Android **fire** on both paths | SwiftUI's `popover` has **no `onDismiss` parameter at all** — see the confidence note below | one callback means two different things depending on which backend the app was built for |
 | 3 | `.navigationTitle` (`Modifiers/NavigationTitleModifier.swift:57`) | writes the OS **window** title, via `setTitle(ofWindow:to:)` on all five | iOS: the navigation bar. macOS: the window title | **nothing at all on UIKit and Android**, where the platform window has no visible title bar. The value is delivered and never drawn |
 | 4 | ~~`@Environment(Model.self)`~~ **fixed 2026-09-08, run on Win-gtk4** | *was* a `DynamicProperty` that **read** the object and never observed it — no `didChange`, so `ViewGraphNode` had nothing to subscribe to (`Environment/Environment.swift:40` as surveyed). Now conditionally an `ObservableProperty` `where Value: ObservableObject`, with the value in a class carried across updates | observes; a change re-renders the view | matches SwiftUI. Before: rendered once correctly, then stale forever. `@EnvironmentObject` (`Environment/EnvironmentObject.swift`) is still there and still equivalent |
-| 5 | `GridItem` size arithmetic (`Views/LazyVGrid.swift:16`, sizes `:20`/`:25`/`:29`) | `Int` throughout, and the proposed width is truncated — `Int(proposedWidth.rounded(.down))` at `:197` — before integer division splits it | `CGFloat` throughout | columns do not sum to the container on a fractional display scale; the remainder is silently dropped rather than distributed |
+| 5 | `GridItem` size arithmetic (`Views/LazyVGrid.swift`) | ~~`Int` throughout, and the proposed width is truncated — `Int(proposedWidth.rounded(.down))` at `:197` — before integer division splits it~~ **FIXED, re-read 2026-09-09.** The sizes are `Double`: `.fixed(Double)` `:37`, `.flexible(minimum: Double = 10, maximum: Double = .infinity)` `:53`, `.adaptive(minimum: Double, maximum: Double = .infinity)` `:57`. **`spacing` is still `Int?` (`:61`)**, so the row is half-live rather than dead — and that half is the caller's `LazyVGrid(spacing:)`, not a `GridItem` size. The line numbers this row cited (`:16`/`:20`/`:25`/`:29`/`:197`) are all stale too; the file was restructured when `LazyVGrid` moved out of `LazyStacks.swift` | `CGFloat` throughout | ~~columns do not sum to the container on a fractional display scale~~ — no longer for the sizes. Still open for `spacing` |
 | 6 | `fullScreenCover` (`Modifiers/FullScreenCoverModifier.swift:28`) | a **sheet** with four options pinned: `.presentationDetents([.fraction(1)])`, `.presentationCornerRadius(0)`, `.presentationDragIndicatorVisibility(.hidden)`, `.interactiveDismissDisabled()` (`:46`–`:50`) | a presentation that covers its parent | a sheet-shaped modal on macOS, GTK and WinUI — the platform's own sheet animation and chrome, sized to the window rather than replacing it |
 
 Row 6 carries a correction to how it was described during this survey. It was
@@ -903,7 +915,7 @@ task #34 is measured in and because the fix for most of them is one overload.
 | `ProgressView(value: 0.3, total: 1.0)` | `value:` exists; **there is no `total:`** on any of the nine inits | `Views/ProgressView.swift:64`, `:105`, `:141` |
 | `.padding(10.5)` | `Int?`, and `EdgeInsets` is four `Int` fields | `Views/Modifiers/Layout/PaddingModifier.swift:9`, `:20`, `:34` |
 | `.presentationDragIndicator(.hidden)` | spelled `presentationDragIndicatorVisibility(_:)` here | `Views/Modifiers/PresentationModifiers.swift:51` |
-| `GridItem(.flexible(maximum: .infinity))` | `maximum` is `Int?`, and `.infinity` is not an `Int` | `Views/LazyVGrid.swift:25` |
+| ~~`GridItem(.flexible(maximum: .infinity))`~~ **compiles, 2026-09-09** | ~~`maximum` is `Int?`, and `.infinity` is not an `Int`~~ — it is `Double` and `.infinity` is its DEFAULT: `case flexible(minimum: Double = 10, maximum: Double = .infinity)`. Integer literals still compile, so `GridItem(.fixed(96))` was never broken by the change | `Views/LazyVGrid.swift:53` |
 
 **Correction inside this table.** `Slider` was described during this survey as
 `Int`-only, alongside `Stepper`. It is not: `Views/Slider.swift:48` is
