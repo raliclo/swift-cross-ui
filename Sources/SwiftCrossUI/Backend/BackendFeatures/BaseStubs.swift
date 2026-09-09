@@ -122,6 +122,14 @@ extension BackendFeatures.BaseStubs {
         todo()
     }
 
+    public func scrollContainer(
+        _ scrollView: Widget,
+        to child: Widget,
+        anchor: UnitPoint?
+    ) {
+        todo()
+    }
+
     public func setRefreshHandler(
         ofScrollContainer scrollView: Widget,
         to handler: (@MainActor @Sendable () -> Void)?

@@ -384,6 +384,18 @@ extension EnvironmentValues {
     /// 看不到的東西。
     @Entry public var onRefresh: (@MainActor @Sendable () -> Void)?
 
+    /// Where ``View/id(_:)`` registers and ``ScrollViewProxy`` looks.
+    ///
+    /// `nil` outside a ``ScrollViewReader``, which is why `.id(_:)` costs
+    /// nothing when nobody is going to scroll to it: the modifier checks this
+    /// and returns.
+    ///
+    /// ``View/id(_:)`` 登記之處,也是 ``ScrollViewProxy`` 查找之處。
+    ///
+    /// 在 ``ScrollViewReader`` 之外為 `nil`,而那正是「當沒有人打算捲向它時,`.id(_:)` 不花任何成本」
+    /// 的原因:該 modifier 會檢查這個值然後直接返回。
+    @Entry public var scrollAnchors: ScrollAnchorRegistry?
+
     /// The scale factor of the current window.
     @Entry public var windowScaleFactor: Double = 1
 
