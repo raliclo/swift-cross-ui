@@ -582,8 +582,19 @@ struct P50Panel: View {
                 // 座標上的點擊會打到它下方的視窗，於是 popover 被 light dismiss 而不是被按下。
                 // 2026-09-10 實測——log 讀到的是「popover alpha dismissed」，而它本應是
                 // 「popover counter 1」。因此改由 app 內部驅動這次按下，走的是同一條路、改的是同一個狀態。
-                if CommandLine.arguments.contains("--auto-press"), counter == 0 {
-                    counter += 1
+                // `--auto-press N` sets the counter to N, so a run can ask for
+                // the case where the number gains a digit -- "(9)" to "(10)" --
+                // which is the one that changes the button's width and is
+                // therefore the one that could move anything.
+                // `--auto-press N` 會把計數設為 N，好讓某次執行能指定「數字進位」那個情況
+                // ——「(9)」到「(10)」——那是唯一會改變按鈕寬度、因而唯一可能推動任何東西的情況。
+                let arguments = CommandLine.arguments
+                if let index = arguments.firstIndex(of: "--auto-press"),
+                    index + 1 < arguments.count,
+                    let target = Int(arguments[index + 1]),
+                    counter != target
+                {
+                    counter = target
                     P50Diagnostics.write("popover counter \(counter) (auto)")
                 }
             }
