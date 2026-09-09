@@ -1,0 +1,28 @@
+action,x,y,origin,button,key,micros,note,platform
+# P56 on iOS: press "Jump to 59" and read the row numbers.
+#
+# Measured 2026-09-09 from p56-ios-final-20260909-102120.png. Device: iPhone 16
+# simulator -- window 393 x 852 pt, capture 1179 x 2556 px, coordinates are px/3.
+# The three buttons sit on pixel row 498, which is point 166; their centres
+# across are pixels 131, 421 and 684 -- points 44, 140 and 228.
+#
+# **The known risk here is the one `.refreshable` fell into.** Every app on this
+# backend is hosted inside a RootScrollHost, itself a UIScrollView, so the app's
+# own ScrollView is nested. If the inner view is not the one that actually
+# scrolls, `setContentOffset` on it succeeds and moves nothing. Rows 45-59 on
+# screen is what tells the two apart; row 0 still at the top is the failure, and
+# it looks exactly like the resting state.
+#
+# P56 在 iOS 上:按下「Jump to 59」並讀取列號。
+#
+# 2026-09-09 量測自 p56-ios-final-20260909-102120.png。裝置:iPhone 16 模擬器——視窗 393 x 852 點、
+# 擷圖 1179 x 2556 像素,座標為像素除以 3。三顆按鈕位於像素第 498 列,即點 166;它們的水平中心為
+# 像素 131、421、684——即點 44、140、228。
+#
+# **此處的已知風險,正是 `.refreshable` 掉進去的那一個。** 本 backend 上的每一支 app 都被裝在一個
+# RootScrollHost 之中,而它本身就是一個 UIScrollView,因此 app 自己的 ScrollView 是巢狀的。若內層那個
+# 並不是真正會捲動的那一個,對它呼叫 `setContentOffset` 會成功、而且什麼都不會移動。畫面上出現
+# 45-59 列就是分辨兩者的依據;第 0 列仍留在頂端則是失敗,而那看起來與靜止狀態一模一樣。
+sleep,,,,,,1000000,let P56 render,ios
+click,140,166,client,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",ios
+sleep,,,,,,1000000,let the scroll settle,ios

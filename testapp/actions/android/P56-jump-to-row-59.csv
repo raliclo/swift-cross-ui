@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P56 on Android: press "Jump to 59" and read the row numbers.
+#
+# Measured 2026-09-09 from p56-android-final-20260909-103033.png. Emulator
+# swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window is
+# 411 x 914 points. Action files are written in points.
+#
+# The buttons sit on pixel row 475, which is point 181. "Jump to 59" spans
+# pixels x 356..656, centre 506, which is point 193.
+#
+# **What could fail silently here is the axis.** ScrollContainer mounts its
+# vertical and horizontal ScrollViews conditionally, and `scrollToChild` is a
+# no-op on an axis whose view is not attached -- correctly, since there is no
+# position to move to. If this app's ScrollView is not vertical, the call
+# succeeds and nothing moves, and that looks exactly like the resting state.
+# Rows 45-59 on screen is what separates them.
+#
+# P56 在 Android 上:按下「Jump to 59」並讀取列號。
+#
+# 2026-09-09 量測自 p56-android-final-20260909-103033.png。模擬器 swift-cross-ui-api36,
+# 1080 x 2400 像素、density 2.625,因此視窗為 411 x 914 點。動作檔以「點」書寫。
+#
+# 那幾顆按鈕位於像素第 475 列,即點 181。「Jump to 59」橫跨像素 x 356..656、中心 506,即點 193。
+#
+# **此處可能靜默失敗的是「軸向」。** ScrollContainer 是條件性地掛載它的垂直與水平 ScrollView 的,
+# 而 `scrollToChild` 對「view 未被掛載」的那個軸是 no-op——那是正確的,因為沒有位置可以移動過去。
+# 若這支 app 的 ScrollView 不是垂直的,該呼叫會成功、而且什麼都不會移動,那看起來與靜止狀態一模一樣。
+# 畫面上出現 45-59 列,才是分辨兩者的依據。
+sleep,,,,,,1500000,let P56 render,android
+click,193,181,,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",android
+sleep,,,,,,1200000,let the scroll settle,android
