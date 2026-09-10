@@ -221,6 +221,30 @@ final class TappableWidget: ContainerWidget {
 @available(tvOS, unavailable)
 final class SliderWidget: WrapperWidget<UISlider> {
     var onChange: ((Double) -> Void)?
+    /// Called with `true` when a drag begins and `false` when it ends.
+    ///
+    /// `UISlider` reports both directly as control events, so nothing here has
+    /// to infer a boundary from the value: `.touchDown` begins, and the three
+    /// ways a touch can finish -- inside, outside, cancelled -- all end it. The
+    /// third matters on a phone, where a system gesture can take the touch away
+    /// mid-drag; without it the slider would stay "being edited" forever.
+    ///
+    /// 在拖曳開始時以 `true` 呼叫、結束時以 `false` 呼叫。
+    ///
+    /// `UISlider` 以控制事件直接回報兩者，因此此處不需要從數值去推斷界線：`.touchDown` 是開始，
+    /// 而一次觸控結束的三種方式——在內放開、在外放開、被取消——都算結束。第三種在手機上很重要：
+    /// 系統手勢可能在拖曳途中把該次觸控收走，少了它，這個滑桿會永遠停在「正在被編輯」的狀態。
+    var onEditingChanged: ((Bool) -> Void)?
+
+    @objc
+    func editingBegan() {
+        onEditingChanged?(true)
+    }
+
+    @objc
+    func editingEnded() {
+        onEditingChanged?(false)
+    }
 
     private var _decimalPlaces = 17
     var decimalPlaces: Int {
@@ -242,6 +266,12 @@ final class SliderWidget: WrapperWidget<UISlider> {
     init() {
         super.init(child: UISlider())
         child.addTarget(self, action: #selector(sliderMoved), for: .valueChanged)
+        child.addTarget(self, action: #selector(editingBegan), for: .touchDown)
+        child.addTarget(
+            self,
+            action: #selector(editingEnded),
+            for: [.touchUpInside, .touchUpOutside, .touchCancel]
+        )
     }
 }
 
@@ -593,13 +623,15 @@ extension UIKitBackend {
             maximum: Double,
             decimalPlaces: Int,
             environment: EnvironmentValues,
-            onChange: @escaping (Double) -> Void
+            onChange: @escaping (Double) -> Void,
+            onEditingChanged: @escaping (Bool) -> Void
         ) {
             let sliderWidget = slider as! SliderWidget
             sliderWidget.child.minimumValue = Float(minimum)
             sliderWidget.child.maximumValue = Float(maximum)
             sliderWidget.child.isEnabled = environment.isEnabled
             sliderWidget.onChange = onChange
+            sliderWidget.onEditingChanged = onEditingChanged
             sliderWidget.decimalPlaces = decimalPlaces
         }
 
@@ -618,7 +650,8 @@ extension UIKitBackend {
             maximum: Double,
             decimalPlaces: Int,
             environment: EnvironmentValues,
-            onChange: @escaping (Double) -> Void
+            onChange: @escaping (Double) -> Void,
+            onEditingChanged: @escaping (Bool) -> Void
         ) {
             fatalError("\(Self.self): \(#function) not implemented")
         }

@@ -836,7 +836,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     }
 
     public func createSlider() -> Widget {
-        return NSSlider()
+        return NSCustomSlider()
     }
 
     public func updateSlider(
@@ -845,15 +845,59 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         maximum: Double,
         decimalPlaces: Int,
         environment: EnvironmentValues,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         // TODO: Implement decimalPlaces
-        let slider = slider as! NSSlider
+        let slider = slider as! NSCustomSlider
         slider.minValue = minimum
         slider.maxValue = maximum
-        slider.onAction = { slider in
-            let slider = slider as! NSSlider
-            onChange(slider.doubleValue)
+        slider.onAction = { [weak slider] control in
+            let control = control as! NSCustomSlider
+            onChange(control.doubleValue)
+
+            // The event that caused this action, which AppKit leaves on
+            // `NSApp.currentEvent` for exactly this kind of question.
+            //
+            // **`NSSlider` has no began/ended callback**, unlike UIKit's control
+            // events or Android's `onStartTrackingTouch`. It sends one action
+            // per change and the phase lives in the event: a drag begins with
+            // `.leftMouseDown`, continues with `.leftMouseDragged` and ends with
+            // `.leftMouseUp`. Keyboard and programmatic changes arrive with no
+            // mouse event at all, and correctly report no editing session --
+            // SwiftUI's `onEditingChanged` describes a drag, not a value.
+            //
+            // The flag is held on the slider rather than in this closure,
+            // because `updateSlider` runs again on every view update and a
+            // closure-local `var` would be replaced mid-drag -- the release
+            // would then find `false` and report nothing.
+            //
+            // 造成這次 action 的事件，AppKit 正是為了這類問題而把它留在 `NSApp.currentEvent` 上。
+            //
+            // **`NSSlider` 沒有 began／ended 回呼**，這一點與 UIKit 的控制事件或 Android 的
+            // `onStartTrackingTouch` 不同。它每次變更送出一個 action，而「處於哪個階段」存在於那個
+            // 事件裡：一次拖曳以 `.leftMouseDown` 開始、以 `.leftMouseDragged` 持續、以
+            // `.leftMouseUp` 結束。鍵盤與程式化的變更則根本不帶滑鼠事件，於是正確地回報「沒有編輯
+            // 階段」——SwiftUI 的 `onEditingChanged` 描述的是一次拖曳，不是一個數值。
+            //
+            // 那個旗標存放在 slider 上而非這個 closure 裡，因為 `updateSlider` 會在每一次 view 更新時
+            // 再跑一遍，而一個 closure 區域變數會在拖曳途中被換掉——放開時便會讀到 `false`，什麼也不
+            // 回報。
+            guard let slider else { return }
+            switch NSApp.currentEvent?.type {
+                case .leftMouseDown, .leftMouseDragged:
+                    if !slider.isEditingValue {
+                        slider.isEditingValue = true
+                        onEditingChanged(true)
+                    }
+                case .leftMouseUp:
+                    if slider.isEditingValue {
+                        slider.isEditingValue = false
+                        onEditingChanged(false)
+                    }
+                default:
+                    break
+            }
         }
         slider.isEnabled = environment.isEnabled
     }
@@ -1664,6 +1708,22 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
                     .clockAndCalendar
             }
     }
+}
+
+/// An `NSSlider` that remembers whether a drag is in progress.
+///
+/// The flag belongs to the slider rather than to the closure that reads it,
+/// because `updateSlider` runs on every view update and replaces that closure --
+/// a `var` captured there would be reset mid-drag, and the release would then
+/// find `false` and report nothing.
+///
+/// 一個「記得自己是否正在被拖曳」的 `NSSlider`。
+///
+/// 這個旗標屬於 slider、而不屬於讀取它的那個 closure，因為 `updateSlider` 會在每一次 view 更新時
+/// 執行並替換掉那個 closure——被捕捉在那裡的 `var` 會在拖曳途中被重設，於是放開時會讀到 `false`、
+/// 什麼也不回報。
+final class NSCustomSlider: NSSlider {
+    var isEditingValue = false
 }
 
 final class NSCustomToggleButton: NSButton {

@@ -137,6 +137,9 @@ public final class DummyBackend:
         public var maximumValue: Double = 100
         public var decimalPlaces = 1
         public var changeHandler: ((Double) -> Void)?
+        /// Held so a test can drive an edit, not only a value.
+        /// 保留下來，好讓測試能驅動一次「編輯」，而不只是一個數值。
+        public var editingChangedHandler: ((Bool) -> Void)?
 
         override public var naturalSize: SIMD2<Int> {
             SIMD2(20, 10)
@@ -815,13 +818,18 @@ public final class DummyBackend:
         maximum: Double,
         decimalPlaces: Int,
         environment: SwiftCrossUI.EnvironmentValues,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         let slider = slider as! Slider
         slider.minimumValue = minimum
         slider.maximumValue = maximum
         slider.decimalPlaces = decimalPlaces
         slider.changeHandler = onChange
+        // Stored rather than dropped, so a test can drive an edit through this
+        // backend the way it drives a value.
+        // 選擇存下而非丟棄，好讓測試能以「驅動數值」的同一種方式，透過這個 backend 驅動一次編輯。
+        slider.editingChangedHandler = onEditingChanged
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {

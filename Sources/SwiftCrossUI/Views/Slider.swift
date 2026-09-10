@@ -36,6 +36,22 @@ struct SliderControl: ElementaryView, View {
     private var range: ClosedRange<Double>
     /// The number of decimal places used when displaying the value.
     private var decimalPlaces: Int
+    /// Called with `true` when the user starts dragging and `false` when they
+    /// let go, as in SwiftUI.
+    ///
+    /// **A drag, not a value.** A slider moved from code changes value with
+    /// nobody editing anything, and a user who pauses mid-drag stops producing
+    /// values without letting go -- so this cannot be derived from the value
+    /// and every backend reports it separately. See
+    /// ``BackendFeatures/Sliders/updateSlider(_:minimum:maximum:decimalPlaces:environment:onChange:onEditingChanged:)``
+    /// for what each platform reports it with.
+    ///
+    /// 使用者**開始**拖曳時以 `true` 呼叫、**放開**時以 `false` 呼叫，與 SwiftUI 一致。
+    ///
+    /// **它描述的是一次拖曳，不是一個數值。** 一個由程式移動的滑桿會在沒有任何人編輯的情況下改變數值；
+    /// 而一個在拖曳途中停手的使用者，會在沒有放開的情況下停止產生數值——因此它無法由數值推導，
+    /// 每個 backend 都是分別回報它的。
+    private var onEditingChangedHandler: ((Bool) -> Void)?
     /// The distance between selectable values, or nil for a continuous slider.
     ///
     /// **Not a backend parameter, and that is a measurement rather than a
@@ -183,6 +199,34 @@ struct SliderControl: ElementaryView, View {
         decimalPlaces = 2
     }
 
+    /// Returns a copy that reports when the user starts and stops dragging.
+    ///
+    /// **A modifier rather than a parameter on six initialisers.** `Slider` has
+    /// six of them -- integer and floating-point, with and without a step, and
+    /// two deprecated spellings -- and adding an argument to each would be six
+    /// signatures to keep in step for one closure. SwiftUI spells it as an
+    /// argument; this spells it as a modifier and the difference is visible in
+    /// the call, so it is written here rather than left to be discovered.
+    ///
+    /// ```swift
+    /// Slider(value: $volume, in: 0...1)
+    ///     .onEditingChanged { editing in
+    ///         if !editing { save(volume) }
+    ///     }
+    /// ```
+    ///
+    /// 回傳一個「會回報使用者何時開始與停止拖曳」的副本。
+    ///
+    /// **採用 modifier 而非在六個 initialiser 上各加一個參數。** `Slider` 有六個 initialiser
+    /// ——整數與浮點、有無 step、以及兩個已棄用的寫法——為了一個 closure 而在每一個上加參數，
+    /// 等於要讓六個簽章彼此保持同步。SwiftUI 把它寫成參數；此處寫成 modifier，而這個差別在呼叫端
+    /// 看得見，因此在這裡寫明，而不是留給人去發現。
+    public func onEditingChanged(_ handler: @escaping (Bool) -> Void) -> Self {
+        var copy = self
+        copy.onEditingChangedHandler = handler
+        return copy
+    }
+
     func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
         return backend.createSlider()
     }
@@ -217,8 +261,8 @@ struct SliderControl: ElementaryView, View {
             minimum: range.lowerBound,
             maximum: range.upperBound,
             decimalPlaces: decimalPlaces,
-            environment: environment
-        ) { newValue in
+            environment: environment,
+            onChange: { newValue in
             // Snapped BEFORE the comparison, not after. Comparing the raw value
             // and snapping on the way in would write on every pixel of a drag,
             // since the raw value differs each time while the snapped one does
@@ -228,11 +272,21 @@ struct SliderControl: ElementaryView, View {
             // **先吸附,再比較**,而不是反過來。若拿原始值比較、在寫入時才吸附,拖曳過程中的每一個
             // 像素都會觸發寫入——因為原始值每次都不同,而吸附後的值不會——於是一個分段滑桿會與連續
             // 滑桿一樣頻繁地觸發它的 binding,下游每一個 `onChange` 都會看到那些重複。
-            let newValue = snapped(newValue)
-            if let value, value.wrappedValue != newValue {
-                value.wrappedValue = newValue
+                let newValue = snapped(newValue)
+                if let value, value.wrappedValue != newValue {
+                    value.wrappedValue = newValue
+                }
+            },
+            // Passed straight through. This view has nothing to add: the
+            // backends report a drag beginning and ending, and inventing the
+            // boundary here -- from a value that stopped arriving, say -- would
+            // be indistinguishable from a user who paused mid-drag.
+            // 直接轉交。這個 view 沒有任何東西可以補充：各 backend 會回報一次拖曳的開始與結束，
+            // 而在此處自行推斷那個界線——例如靠「值不再送來」——與「使用者在拖曳途中停了一下」無從分辨。
+            onEditingChanged: { editing in
+                onEditingChangedHandler?(editing)
             }
-        }
+        )
 
         // NOT snapped, and the struck-through reasoning below is kept because it
         // was written, built, run, and refuted by the picture.

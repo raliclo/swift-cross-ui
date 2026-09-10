@@ -50,7 +50,7 @@ extension AndroidBackend: BackendFeatures.Popovers {
         _ popover: AndroidKit.PopupWindow,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
-        backgroundColor: Color.Resolved?,
+        backgroundColor: SwiftCrossUI.Color.Resolved?,
         onDismiss: @escaping () -> Void
     ) {
         // WRITTEN ON WINDOWS 2026-09-09, NOT RUN, AND NOT EVEN TYPE-CHECKED.
@@ -113,9 +113,38 @@ extension AndroidBackend: BackendFeatures.Popovers {
         // 不只是外觀問題**,在有人想「順手簡化掉它」之前值得知道:一個背景為 null 的 PopupWindow
         // 在歷史上**不會**因外部觸控而關閉,因此把它清成「沒有」會靜默地弄壞 light dismiss,
         // 而不只是改變一個顏色。
-        popover.setBackgroundDrawable(
-            AndroidKit.ColorDrawable(backgroundColor?.asColorInt() ?? 0)
-        )
+        // **ASSUMPTION 1 ABOVE WAS WRONG, AND CHECKING IT WAS THE RIGHT CALL.**
+        // AndroidKit's `PopupWindow` binds 45 methods and
+        // `setBackgroundDrawable` is not among them, so the line that used to
+        // stand here did not compile on the one machine that can build this
+        // file. Verified 2026-09-10 by listing the binding's own methods rather
+        // than by grepping this tree, which had no precedent either way.
+        //
+        // The colour goes on the CONTENT VIEW instead, which is a `View` and
+        // does bind `setBackgroundColor(Int32)`. That also sidesteps the hazard
+        // the note below describes: the popup's own background is never
+        // cleared, so light dismissal keeps working whatever the app asks for.
+        //
+        // `nil` paints transparent rather than restoring a platform default,
+        // and that IS a difference from the other four backends: there is no
+        // "unset" for a view's background colour, only a colour. The window
+        // beneath still supplies the popup's own background, so the panel does
+        // not become a hole.
+        //
+        // **上述第 1 項假設是錯的，而「先去查證」是對的判斷。** AndroidKit 的 `PopupWindow` 綁定了
+        // 45 個方法，其中沒有 `setBackgroundDrawable`；因此原本站在這裡的那一行，在唯一建得了本檔的
+        // 那台機器上編不過。2026-09-10 以「列出該 binding 自身的方法」查證，而非在本樹中 grep
+        // ——本樹在這件事上兩個方向都沒有先例。
+        //
+        // 改為把顏色設在**內容 view** 上：那是一個 `View`，而它確實綁定了 `setBackgroundColor(Int32)`。
+        // 這同時繞開了下方註解所描述的危險：popup 自身的背景從未被清掉，因此無論 app 要求什麼，
+        // light dismiss 都繼續有效。
+        //
+        // `nil` 會畫成透明，而不是還原平台預設值；這**確實**是與另外四個 backend 的差異：一個 view 的
+        // 背景色沒有「未設定」這種狀態，只有顏色。其下的視窗仍然提供 popup 自身的背景，因此這塊面板
+        // 不會變成一個洞。
+        popover.as(PopupWindowContent.self)?.getContentView()?
+            .setBackgroundColor(backgroundColor?.asColorInt() ?? 0)
 
         let density = environment.androidActivity.getResources()
             .getDisplayMetrics().density

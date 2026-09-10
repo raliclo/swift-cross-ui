@@ -3748,7 +3748,8 @@ public final class GtkBackend:
         maximum: Double,
         decimalPlaces: Int,
         environment: EnvironmentValues,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         let slider = slider as! Scale
         slider.sensitive = environment.isEnabled
@@ -3758,6 +3759,45 @@ public final class GtkBackend:
         slider.valueChanged = { widget in
             onChange(widget.value)
         }
+
+        // **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine cannot build
+        // GtkBackend, so what follows is written against the API as it reads in
+        // `Sources/Gtk/` and needs verifying on the Windows or WSL side -- the
+        // same handoff shape the Android popover arrived in, and that one had a
+        // method that did not exist. The two things to check, named rather than
+        // left for the compiler:
+        //
+        //   1. that a `GestureClick` added to a `Scale` receives the press at
+        //      all. `GtkScale` handles its own dragging, and a gesture in the
+        //      bubble phase may never see it; `GtkBackend+Popovers.swift:223`
+        //      sets `.capture` for exactly this reason, which is why it is set
+        //      here too.
+        //   2. that `pressed`/`released` fire for a drag that starts on the
+        //      trough rather than on the handle, since that is also an edit.
+        //
+        // `Scale` has no began/ended signal of its own -- this is why the
+        // gesture is here at all rather than a property being read.
+        //
+        // **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器建不了 GtkBackend，因此以下是對照
+        // `Sources/Gtk/` 中該 API 的樣貌寫出來的，需由 Windows 或 WSL 側驗證——與 Android popover
+        // 抵達此處時相同的交接形狀，而那一份用到了一個並不存在的方法。有兩件事要查，此處明白指名、
+        // 不留給編譯器去找：
+        //
+        //   1. 加在 `Scale` 上的 `GestureClick` 究竟收不收得到那次按下。`GtkScale` 自己處理拖曳，
+        //      而處於 bubble 階段的 gesture 可能永遠看不到它；`GtkBackend+Popovers.swift:223`
+        //      正是為此設定 `.capture`，此處也照做。
+        //   2. 對「起始於軌道而非把手」的拖曳，`pressed`／`released` 是否也會觸發——那同樣是一次編輯。
+        //
+        // `Scale` 自身沒有 began／ended 訊號——這正是此處出現一個 gesture、而不是讀取某個屬性的原因。
+        let press = GestureClick()
+        press.propagationPhase = .capture
+        press.pressed = { _, _, _, _ in
+            onEditingChanged(true)
+        }
+        press.released = { _, _, _, _ in
+            onEditingChanged(false)
+        }
+        slider.addEventController(press)
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {

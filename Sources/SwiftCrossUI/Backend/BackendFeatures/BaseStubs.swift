@@ -334,7 +334,8 @@ extension BackendFeatures.BaseStubs {
         maximum: Double,
         decimalPlaces: Int,
         environment: EnvironmentValues,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         todo()
     }

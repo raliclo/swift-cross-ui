@@ -156,7 +156,8 @@ public struct QtBackend: AppBackend {
         minimum: Double,
         maximum: Double,
         decimalPlaces: Int,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         let slider = slider as! QSlider
         slider.minimum = Int32(minimum)

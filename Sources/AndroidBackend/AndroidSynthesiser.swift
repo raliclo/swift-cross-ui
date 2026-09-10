@@ -134,6 +134,23 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     }
 
     func perform(_ action: InputAction, in geometry: WindowGeometry) throws {
+        // `focus` first, and it throws here rather than doing nothing.
+        //
+        // **Android has one window**, so there is no second one to name, and the
+        // protocol's own default says so loudly. A silent no-op would leave
+        // every later coordinate resolving against the same window while the
+        // file claims to have switched -- the failure this verb was added to
+        // remove.
+        // `focus` 先處理，而它在此處 throw、而不是什麼都不做。
+        //
+        // **Android 只有一個視窗**，因此沒有第二個可以指名，而本協定自己的預設實作會大聲說出這件事。
+        // 一個靜默的空操作，會讓其後每一個座標仍相對於同一個視窗解析，而那個檔案卻宣稱自己切換過了
+        // ——那正是這個動作被加進來所要消除的失敗。
+        if case .focus(let title) = action {
+            try focusWindow(titled: title)
+            return
+        }
+
         switch action {
             case .move(let point):
                 let position = try geometry.screenPosition(of: point)
@@ -147,7 +164,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 // 會是一個檔案並未要求的手勢。
 
             case .click(_, let point):
-                let position = resolve(point, in: geometry)
+                let position = try resolve(point, in: geometry)
                 let downTime = try dispatch(action: actionDown, at: position, downTime: nil)
                 _ = try dispatch(action: actionUp, at: position, downTime: downTime)
 
@@ -155,11 +172,11 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 try performDoubleClick(button, at: point, in: geometry)
 
             case .mouseDown(_, let point):
-                let position = resolve(point, in: geometry)
+                let position = try resolve(point, in: geometry)
                 pressDownTime = try dispatch(action: actionDown, at: position, downTime: nil)
 
             case .mouseUp(_, let point):
-                let position = resolve(point, in: geometry)
+                let position = try resolve(point, in: geometry)
                 _ = try dispatch(action: actionUp, at: position, downTime: pressDownTime)
                 pressDownTime = nil
 
@@ -171,6 +188,12 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
             case .keyDown, .keyUp, .key:
                 throw SynthesiserError.unsupported("key rows on Android")
+
+            case .focus:
+                // Returned above; listed so a new case cannot be added without
+                // the compiler pointing here.
+                // 已於上方返回；在此列出，是為了讓新增 case 時編譯器必定指向此處。
+                break
         }
     }
 
@@ -187,7 +210,21 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 是「對無物的釋放」，而接收了該次按壓的 view 永遠等不到它結束。
     private var pressDownTime: Int64?
 
-    private func resolve(_ point: Point?, in geometry: WindowGeometry) -> (x: Double, y: Double) {
+    /// `throws`, because `screenPosition(of:)` does.
+    ///
+    /// The same break that hit `AppKitSynthesiser` and for the same reason: this
+    /// file is Android-only, so a `try` added inside a non-throwing function is
+    /// invisible on every machine that cannot build this backend. Found
+    /// 2026-09-10 by the first Android build after the merge.
+    /// `throws`，因為 `screenPosition(of:)` 會 throw。
+    ///
+    /// 與擊中 `AppKitSynthesiser` 的是同一個破壞、理由也相同：本檔僅限 Android，因此「在不會 throw 的
+    /// 函式裡加上 `try`」在任何建不了本 backend 的機器上都看不見。2026-09-10 由合併後的第一次
+    /// Android 建置發現。
+    private func resolve(
+        _ point: Point?,
+        in geometry: WindowGeometry
+    ) throws -> (x: Double, y: Double) {
         guard let point else { return lastPoint }
         let position = try geometry.screenPosition(of: point)
         lastPoint = (Double(position.x), Double(position.y))

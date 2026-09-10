@@ -369,6 +369,12 @@ public final class WinUIBackend:
         var toggleClickActions: [ObjectIdentifier: (Bool) -> Void] = [:]
         var switchClickActions: [ObjectIdentifier: (Bool) -> Void] = [:]
         var sliderChangeActions: [ObjectIdentifier: (Double) -> Void] = [:]
+        /// Keyed the same way `sliderChangeActions` is, and for the same reason:
+        /// the handler is added once when the slider is created and the closure
+        /// it should call is replaced on every update.
+        /// 索引方式與 `sliderChangeActions` 相同，理由也相同：handler 只在 slider 建立時加一次，
+        /// 而它該呼叫的那個 closure 會在每一次更新時被替換。
+        var sliderEditingActions: [ObjectIdentifier: (Bool) -> Void] = [:]
         var textFieldChangeActions: [ObjectIdentifier: (String) -> Void] = [:]
         var textFieldSubmitActions: [ObjectIdentifier: () -> Void] = [:]
         var textFieldContents: [ObjectIdentifier: String] = [:]
@@ -1554,6 +1560,30 @@ public final class WinUIBackend:
                 Double(event?.newValue ?? 0)
             )
         }
+        // **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine cannot build
+        // WinUIBackend, so this is written against the API as documented and
+        // needs verifying on the Windows side. One thing to check, named rather
+        // than left for the compiler: that `pointerCaptureLost` fires at the end
+        // of a drag on `Slider`. It is used instead of `pointerReleased`
+        // because a drag that leaves the control still ends the edit, and a
+        // release outside the slider does not raise `pointerReleased` on it --
+        // the same reasoning as UIKit taking `.touchUpOutside` and
+        // `.touchCancel` alongside `.touchUpInside`.
+        //
+        // **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器建不了 WinUIBackend，因此以下是對照文件
+        // 中的 API 寫出來的，需由 Windows 側驗證。有一件事要查，此處明白指名而非留給編譯器：
+        // `Slider` 上的 `pointerCaptureLost` 是否會在一次拖曳結束時觸發。此處採用它而非
+        // `pointerReleased`，因為一次「移出控制項之外」的拖曳仍然結束了那次編輯，而在 slider 之外
+        // 放開並不會在它身上引發 `pointerReleased`——與 UIKit 除了 `.touchUpInside` 之外還要收下
+        // `.touchUpOutside` 與 `.touchCancel` 是同一個道理。
+        slider.pointerPressed.addHandler { [weak internalState, weak slider] _, _ in
+            guard let internalState, let slider else { return }
+            internalState.sliderEditingActions[ObjectIdentifier(slider)]?(true)
+        }
+        slider.pointerCaptureLost.addHandler { [weak internalState, weak slider] _, _ in
+            guard let internalState, let slider else { return }
+            internalState.sliderEditingActions[ObjectIdentifier(slider)]?(false)
+        }
         slider.stepFrequency = 0.01
         return slider
     }
@@ -1564,13 +1594,15 @@ public final class WinUIBackend:
         maximum: Double,
         decimalPlaces _: Int,
         environment: EnvironmentValues,
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onEditingChanged: @escaping (Bool) -> Void
     ) {
         let slider = slider as! WinUI.Slider
         slider.minimum = minimum
         slider.maximum = maximum
         environment.apply(to: slider)
         internalState.sliderChangeActions[ObjectIdentifier(slider)] = onChange
+        internalState.sliderEditingActions[ObjectIdentifier(slider)] = onEditingChanged
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {
