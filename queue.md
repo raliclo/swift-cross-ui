@@ -261,3 +261,61 @@ the conclusion drawn from them does not. #123 exposes SwiftCrossUI's labels, not
 tree, and a UIA provider hung on the GTK window's HWND answers from a side table without touching
 `gtk_accessible` at all. All three pieces -- the HWND, hand-written COM vtables, the UIA provider
 API -- are already used in this tree. Real work, not impossible.*
+
+---
+
+## 減少不必要的重繪 / Reduction of unnecessary redraw
+
+加入佇列於 2026-09-11,起因是一個問題:「GTK 只在必要時更新畫面是否比較省電?」
+Added to the queue 2026-09-11, prompted by the question "does GTK's redraw-only-when-needed save
+power?" It does, and the interesting part is that the answer is a *framework* question, not a
+per-backend one.
+
+### 已經在位的部分 / What is already in place
+
+**兩個 backend 對「幀」的立場相反,而框架已經在兩者之上做了收斂。**
+The two backends take opposite positions and the framework already reconciles them.
+
+| | 閒置時 | 表達「我要幀」的方式 |
+| --- | --- | --- |
+| GTK | 不產生幀 | `gdk_frame_clock_begin_updating` / `end_updating`,計數成對 |
+| WinUI | `CompositionTarget.Rendering` **只要有人訂閱就每幀觸發** | 訂閱 / 取消訂閱 |
+
+`Sources/SwiftCrossUI/Animation/AnimationDriver.swift` 已經是 GDK 那套計數,只是計的是 tween:
+`startClockIfNeeded()` 在第一個 tween 註冊時才 `startFrameClock`,`stopClockIfIdle()` 在
+`tweens` 一空時 `stopFrameClock`,而 `tick(at:)` 的最後一行就是 `stopClockIfIdle()`——所以
+最後一個動畫結束的**那一幀**就把時鐘拆掉。WinUI 因此不必改:省電的唯一施力點是「閒置時不訂閱」。
+
+`AnimationDriver` is already GDK's refcount with tweens as the count. WinUI needs no change: the
+only lever is not being subscribed while idle, and that is what `stopFrameClock` is.
+
+### 沒有被跑過驗證的部分 / What has NOT been verified by running
+
+**這一段是設計對了,不是量到了。** P64 直接驅動 backend requirement,繞過 `AnimationDriver`,
+所以沒有任何量測顯示 `frameClockToken?.dispose()` 真的解除了 WinUI 的訂閱。
+
+The design is right; nothing has been measured. P64 drives the backend requirement directly and
+bypasses `AnimationDriver`, so no measurement shows that `frameClockToken?.dispose()` actually
+unsubscribes.
+
+決定性的實驗很便宜,而且**兩個結果都有意義**:start → stop → 再 start,量第二段的速率。
+The experiment is cheap and both outcomes say something: start, stop, start again, and measure the
+second window.
+
+- 仍是約 141 Hz → 取消訂閱有效
+- 約 283 Hz(兩倍)→ 第一次訂閱洩漏了,而每一次動畫都會再洩漏一次
+- ~141 Hz means the unsubscribe works; ~283 Hz means the first subscription leaked, and every
+  animation would leak another.
+
+**為什麼倍數是可讀的證據而不是巧合:** `CompositionTarget.Rendering` 每幀觸發一次,而 handler 是
+一個型別屬性——兩個活著的訂閱會讓同一幀被數兩次。若改用「有沒有跳」來驗,兩種情況都會跳,那個
+測試無法分辨它們。
+
+### 相鄰但**不同**的一項,不要混為一談 / An adjacent item that is NOT the same
+
+上面談的是**時鐘**的訂閱。「view 內容沒變卻仍重繪」是另一件事,尚未量測,也還沒有人主張它存在
+——本節不宣稱它。要提出它,需要的是一個計數:同一個 widget 在一次沒有狀態變動的 layout pass 中
+被要求重繪幾次。
+
+The above is about the CLOCK subscription. "A view redrawing when its content did not change" is a
+different thing, unmeasured, and not claimed here. Raising it needs a count first.

@@ -586,3 +586,133 @@ WSLg 為 92.6% 非黑，兩張圖都完整呈現視窗框、標題、每一個 t
 截至 2026-08-29，`screenshot.zsh -w` 在 Windows/WSLg 已將此路徑作為唯一的視窗擷取路徑。
 若 wincap 無法擷取符合的視窗，指令會 fail closed。桌面擷取仍可透過省略 `-w` 明確使用，
 但不再是指定視窗擷取的自動 fallback。
+
+## Why does GTK's frame clock not run at the display's refresh rate, and is that better for battery?
+
+**It is not a defect. GTK produces a frame when something needs one, and idles
+otherwise — and that is the power-saving design.** WinUI's
+`CompositionTarget.Rendering` is the opposite: it fires once per composed frame
+for as long as anything is subscribed.
+
+So **do not assert a rate against GtkBackend.** The assertion that means
+something there is "does it keep ticking while frames are being requested".
+Measuring a GTK app at 3 Hz says the app had nothing to redraw, not that its
+clock is broken.
+
+Asking for frames is explicit and reference-counted:
+
+- `gdk_frame_clock_begin_updating(clock)` — keep the cycle running
+- `gdk_frame_clock_end_updating(clock)` — stop asking
+
+`GtkBackend.startFrameClock` calls the first and `stopFrameClock` the second
+(`Sources/GtkBackend/GtkBackend+FrameClock.swift`). **A missing `end_updating`
+is the whole power argument thrown away**: the clock keeps running for the
+process's lifetime, and nothing observable goes wrong until someone measures a
+battery. Installing a tick callback alone is not enough — a tick callback is not
+a reason to redraw, and the Windows side measured exactly that: the callback ran
+once, then never again, while returning `G_SOURCE_CONTINUE` every time.
+
+**Measured 2026-09-11, both backends, same machine and same 144 Hz display.**
+`dxdiag /t` reports the current mode as 144 Hz, where one frame is 6.94ms.
+
+| | ticks / span | rate | gap min | gap median | gap max |
+| --- | --- | --- | --- | --- | --- |
+| Win-WinUI | 265 / 1.86s | 141.6 Hz | 3.4ms | **7.0ms** | 43.2ms |
+| Win-gtk4 | 103 / 1.90s | 53.7 Hz | **7.0ms** | 13.9ms | 766.7ms |
+
+**Read the two rows differently, which is the whole point of this answer.** For
+WinUI the rate is the assertion: 141.6 Hz against a 144 Hz display, median gap
+one frame. For GTK the rate is NOT the assertion — before
+`gdk_frame_clock_begin_updating` was added, the same app ticked **once** and then
+never again. 103 is the result. That its minimum gap is also 7.0ms says the GTK
+clock is locked to the same display; that its median is 13.9ms says it produced a
+frame every other one, which is a statement about how much redrawing the app
+asked for, not a defect. The 766.7ms maximum is a single stall while the window
+was still settling — the same run's log shows size probes out to +1500ms.
+
+Regenerate:
+
+```
+zsh testapp/compile.zsh P64          # WinUI (the default)
+zsh testapp/compile.zsh P64 -gtk4
+cd testapp/output && ./P64-WinUI.exe --debug
+SCUI_DEBUG_EVENTS_DIR=$PWD/testapp/output zsh testapp/run.zsh P64 --debug
+```
+
+The gtk4 build must go through `run.zsh`: launched directly it dies with
+`error while loading shared libraries: api-ms-win-crt-locale-l1-1-0.dll`, because
+nothing has put GTK's DLLs on `PATH`. Read the refresh rate with
+`dxdiag /t <file>` — `wmic` returns nothing on Windows 11 26200.
+
+**Two traps this answer exists to record.** First, that 141.6 Hz was read as a
+defect for a day because 60 Hz was ASSUMED and never measured — a number
+compared against a constant nobody checked. Second, the same measurement earlier
+reported a gap median of **0.0ms**, which is a statement about the clock being
+read rather than about the event: `ProcessInfo.systemUptime` on Windows is
+coarser than a frame, so several frames land on the same timestamp. That one was
+real and is fixed with `QueryPerformanceCounter` — GTK's own Windows backend
+reaches for the same counter (`gdksurface-win32.c:170`).
+
+**What is NOT measured here, so that nobody quotes it as though it were:** the
+idle case. P64 displays its own tick count, so its view is invalidated on every
+tick and the app is never idle on either backend. "An idle WinUI app is woken
+144 times a second" is the expected consequence of the design difference above,
+not something this measured.
+
+## GTK 的 frame clock 為什麼不是照著螢幕更新率跑？那樣比較省電嗎？
+
+**那不是缺陷。GTK 是「有東西需要一幀時才產生一幀」，其餘時間閒置——而那正是省電的設計。**
+WinUI 的 `CompositionTarget.Rendering` 恰好相反:只要有人訂閱，它就每合成一幀觸發一次。
+
+因此**不要對 GtkBackend 斷言速率**。在那裡有意義的斷言是「當幀正在被請求時，它會不會持續跳」。
+量到某支 GTK app 只有 3 Hz，說的是「那支 app 沒有東西要重繪」，不是「它的時鐘壞了」。
+
+「請求產生幀」是明確且會計數的:
+
+- `gdk_frame_clock_begin_updating(clock)`——讓循環持續
+- `gdk_frame_clock_end_updating(clock)`——停止請求
+
+`GtkBackend.startFrameClock` 呼叫前者、`stopFrameClock` 呼叫後者
+(`Sources/GtkBackend/GtkBackend+FrameClock.swift`)。**少一次 `end_updating`，上述省電的理由就
+整個被丟掉了**:那個時鐘會持續運轉到行程結束，而在有人量電池之前，看不出任何異狀。只安裝一個
+tick callback並不足夠——tick callback 本身不構成重繪的理由，而 Windows 端量到的正是這件事:
+該 callback 執行了一次、之後再也沒有，而它每一次都回傳 `G_SOURCE_CONTINUE`。
+
+**2026-09-11 量到,兩個 backend,同一台機器、同一台 144 Hz 顯示器。** `dxdiag /t` 回報目前模式為
+144 Hz，一幀是 6.94ms。
+
+| | 次數 / 時距 | 速率 | gap min | gap 中位數 | gap max |
+| --- | --- | --- | --- | --- | --- |
+| Win-WinUI | 265 / 1.86s | 141.6 Hz | 3.4ms | **7.0ms** | 43.2ms |
+| Win-gtk4 | 103 / 1.90s | 53.7 Hz | **7.0ms** | 13.9ms | 766.7ms |
+
+**這兩列要用不同的方式讀,而那正是本則的全部重點。** WinUI 那列,**速率就是斷言**:141.6 Hz 對上
+144 Hz 的顯示器,間隔中位數是一幀。GTK 那列,**速率不是斷言**——在 `gdk_frame_clock_begin_updating`
+被加上去之前,同一支 app 只跳了**一次**、之後再也沒有。103 就是結果。它的最小間隔同樣是 7.0ms,
+說明 GTK 的時鐘鎖在同一台顯示器上;它的中位數是 13.9ms,說明它每隔一幀才產生一幀——那是一句關於
+「這支 app 要求了多少重繪」的陳述,不是缺陷。766.7ms 的最大值是視窗仍在 settle 時的單次停頓——
+同一次執行的 log 裡,尺寸探測一直持續到 +1500ms。
+
+重新產生:
+
+```
+zsh testapp/compile.zsh P64          # WinUI(預設)
+zsh testapp/compile.zsh P64 -gtk4
+cd testapp/output && ./P64-WinUI.exe --debug
+SCUI_DEBUG_EVENTS_DIR=$PWD/testapp/output zsh testapp/run.zsh P64 --debug
+```
+
+gtk4 的那個 build **必須**經由 `run.zsh`:直接啟動會死在
+`error while loading shared libraries: api-ms-win-crt-locale-l1-1-0.dll`,因為沒有任何東西把 GTK 的
+DLL 放上 `PATH`。更新率以 `dxdiag /t <檔案>` 讀取——`wmic` 在 Windows 11 26200 上什麼都不回傳。
+
+**本則要記下的兩個陷阱。** 其一，那個 141.6 Hz 曾被當成缺陷達一天，因為 60 Hz 是被**假定**的、
+從未被量過——一個拿去和「沒有人查證過的常數」相比的數字。其二，同一次量測稍早回報的間隔中位數是
+**0.0ms**,而那是一句關於「被讀取的那個時鐘」的陳述、不是關於那個事件:Windows 上的
+`ProcessInfo.systemUptime` 比一幀還粗，於是數幀落在同一個時間戳記上。這一個是真的，並已用
+`QueryPerformanceCounter` 修好——GTK 自己的 Windows backend 伸手拿的正是同一個計數器
+(`gdksurface-win32.c:170`)。
+
+**此處**沒有**量到的部分，寫明以免被當成量過的事引用:** 閒置的情況。P64 會顯示它自己的 tick 次數，
+因此每一次 tick 都會讓它的 view 失效，兩個 backend 上那支 app 都從未閒置過。「一支閒置的 WinUI app
+每秒被叫醒 144 次」是上述設計差異的**預期後果**，不是本次量到的東西。

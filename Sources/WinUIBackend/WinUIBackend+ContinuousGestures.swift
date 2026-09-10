@@ -35,7 +35,20 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// 事件(一如 frame clock 中的 `CompositionTarget.rendering`);以及 `args.cumulative` 是否帶著
     /// `translation`、`scale` 與 `rotation`——其中旋轉的單位是**度**，這正是此處要換算的原因。
     public func createDragGestureTarget(wrapping child: Widget) -> Widget {
-        wrap(child, mode: .translateX.union(.translateY))
+        // `ManipulationModes` is a `typealias` to a C enum with `static var`
+        // members bolted on -- not a Swift `OptionSet` -- so `.union` does not
+        // exist and the combination is a bitwise or on `rawValue`. Measured by
+        // building: "value of type 'ManipulationModes' has no member 'union'".
+        // `ManipulationModes` 是一個 `typealias` 指向 C enum、再外掛上 `static var` 成員——
+        // **不是** Swift 的 `OptionSet`——因此 `.union` 並不存在,組合的方式是對 `rawValue`
+        // 做位元或。以建置量得:「value of type 'ManipulationModes' has no member 'union'」。
+        wrap(
+            child,
+            mode: ManipulationModes(
+                rawValue: ManipulationModes.translateX.rawValue
+                    | ManipulationModes.translateY.rawValue
+            )
+        )
     }
 
     public func updateDragGestureTarget(
@@ -109,17 +122,31 @@ extension WinUIBackend: BackendFeatures.DragGestures,
         }
     }
 
-    /// WinUI reports rotation in degrees, clockwise positive, which is this
-    /// package's direction already -- so this converts the unit and nothing else.
-    /// WinUI 以**度**回報旋轉、順時針為正，方向與本套件一致——因此此處只換算單位，不做別的。
-    private func radians(_ degrees: Float) -> Double {
-        Double(degrees) * .pi / 180
-    }
-
     private func wrap(_ child: Widget, mode: ManipulationModes) -> Widget {
         let border = Border()
         border.child = child
         border.manipulationMode = mode
         return border
     }
+}
+
+/// WinUI reports rotation in degrees, clockwise positive, which is this
+/// package's direction already -- so this converts the unit and nothing else.
+///
+/// **A file-scope function rather than a method, and that is the fix rather
+/// than a style choice.** As a method it was called from inside the
+/// `manipulationDelta` closures, which made it an implicit `self` capture:
+/// "implicit use of 'self' in closure; use 'self.' to make capture semantics
+/// explicit", twice. Writing `self.radians(...)` would silence it and would
+/// also make each closure retain the backend for as long as the gesture lives,
+/// for a function that touches no instance state at all.
+///
+/// WinUI 以**度**回報旋轉、順時針為正，方向與本套件一致——因此此處只換算單位，不做別的。
+///
+/// **它是檔案層級的函式而非方法,而那是修法本身、不是風格選擇。** 作為方法時,它被
+/// `manipulationDelta` 的 closure 從內部呼叫,於是構成一次隱含的 `self` 捕獲:
+/// 「implicit use of 'self' in closure」,兩次。改寫成 `self.radians(...)` 可以消掉那個錯誤,
+/// 但也會讓每個 closure 在手勢存活期間一直持有 backend——**而這個函式根本不碰任何實例狀態**。
+private func radians(_ degrees: Float) -> Double {
+    Double(degrees) * .pi / 180
 }

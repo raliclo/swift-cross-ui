@@ -515,3 +515,103 @@ third column is empty is not finished however full the first two are.
 
 Before reporting an item: can I paste a number? If not, the words are "compiles,
 not run".
+
+---
+
+## 8. 把量到的數字拿去和一個**從未被量過的常數**相比,並宣告它有缺陷
+
+**次數:1 次 / 1 天(2026-09-11)。而它的代價不只是我自己走錯——它讓另一台機器照著錯的
+診斷寫了一份修法。**
+
+### 症狀 / What it looks like
+
+一次量測:`CompositionTarget.Rendering` 在 1.86 秒內觸發 262 次 = **140.4 Hz**。
+
+我寫下的結論是「WinUI 的速率不對」。理由聽起來完全合理:*畫面更新率是 60 Hz,140 太高了,
+所以那個事件每幀觸發不只一次。*
+
+**那句話裡有兩個數字。一個是量到的,另一個是我腦子裡來的。** 而我從未查證後者。
+
+一天之後,`dxdiag /t` 給出一行:
+
+```
+Current Mode: 1920 x 1080 (32 bit) (144Hz)
+```
+
+**這台顯示器是 144 Hz。** 141.6 Hz(修好時鐘之後)就是更新率減掉少數掉幀,間隔中位數 7.0ms
+就是一幀(6.94ms)。那個事件**每幀觸發一次,而且一直都是**。從頭到尾沒有這個缺陷。
+
+A measurement of 140.4 Hz was declared a defect because the display "is 60 Hz".
+Two numbers in that sentence: one measured, one from memory. The display is
+144 Hz. There was never a defect.
+
+### 它擴散到了別人身上 / It propagated
+
+**這一條之所以比「我自己繞路」嚴重,是因為那個錯的前提被送出去了。** Mac 端讀到「140 Hz,
+間隔中位數 0.0ms」,據此推出一個**在他們那一半完全正確**的診斷,然後寫了一份修法:改用
+`RenderingEventArgs.renderingTime` 來合併重複的 tick。
+
+結果是兩層的浪費:
+
+1. `RenderingEventArgs` **在 swift-winui 裡根本沒有綁定**(對照組:0 個檔案命中,對照的
+   `CompositionTarget` 有 3 個),那個 event 是 `Event<EventHandler<Any?>>`,所以那份修法
+   編不過;
+2. 就算編得過,**它要解決的問題不存在**。
+
+The wrong premise was handed over. The other machine derived a diagnosis that was
+correct about its own half, then wrote a fix for a problem that did not exist --
+and the type that fix needed is not even bound.
+
+### 為什麼「更仔細」擋不住它 / Why care does not help
+
+**因為 60 從來沒有以「一個待查的數字」的身分出現過。** 它是背景知識,不是一個步驟。
+量測的部分做得很嚴謹——計數、時距、四分位間隔全都有——而比較的另一端連一次呼叫都沒有。
+
+這一條與第 4 條**不同**。第 4 條是「一個零被讀成乾淨的結果」,守衛是正對照組。這一條的
+數字是**非零而且正確的**;錯的是它被拿去比較的那個東西。沒有任何對照組會發現這件事,因為
+被量的那一側從頭到尾都是對的。
+
+**而且它有一個特別安靜的性質:那個錯誤的結論帶著一個乾淨的機制。**「事件每幀觸發不只一次」
+是一個真實存在、在別處確實發生過的現象。一個有機制可以解釋的錯誤結論,讀起來比一個沒有
+解釋的正確結論更可信。
+
+This is not entry 4. There the number was zero and the guard is a positive
+control. Here the measured number was non-zero and correct; what was wrong was
+the thing it was compared against, and no control on the measured side would ever
+find that. It is quiet in a particular way: the false conclusion came with a
+clean mechanism, and a wrong answer with a mechanism reads as more credible than
+a right answer without one.
+
+### 矯正措施 / The corrective
+
+**一次比較有兩端。兩端都要有出處。**
+
+寫下「X 比 Y 大/小,所以有問題」之前,對 **Y** 問和對 X 一樣的問題:*這個數字是哪裡來的?*
+
+| Y 的來源 | 可用 |
+| --- | --- |
+| 同一次執行量到的 | 是 |
+| 一個指令查到的,而那個指令寫在旁邊 | 是 |
+| 規格書/文件裡的,並附連結 | 是 |
+| **「我知道它是這個值」** | **否——去查。它是本條的全部內容** |
+
+尤其要警覺**那些「大家都知道」的常數**,因為它們正是不會被查的那一種:60 Hz、8 KiB 的頁、
+1000 vs 1024、預設 timeout、螢幕 DPI 96。這些每一個都有一台機器上是別的值。
+
+A comparison has two sides. Before writing "X is larger than Y, so something is
+wrong", ask of **Y** what you asked of X: where did this number come from? Be
+most suspicious of the constants everyone knows, because those are precisely the
+ones nobody looks up.
+
+### 守衛 / The guard
+
+**把 Y 的來源指令和 Y 一起寫進那份紀錄。** 這與使用者的 `~/.claude/CLAUDE.md` 已經有的
+一條是同一條——「把重新產生的指令放在任何數字旁邊」——只是它先前被理解成只適用於**我產生的**
+數字。它同樣適用於**我引用的**數字。
+
+本次的形式:`testapp/FAQ.md` 那一節裡,144 Hz 旁邊就寫著 `dxdiag /t <檔案>`,而且註明
+`wmic` 在 Windows 11 26200 上什麼都不回傳——好讓下一個人不必重新發現這件事。
+
+Record the command that produces Y next to Y. The user's own rule -- "put the
+regeneration command next to any number" -- was being applied only to numbers I
+generated. It applies equally to numbers I quote.
