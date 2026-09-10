@@ -614,6 +614,32 @@ extension EnvironmentValues {
     /// The menu ordering to use.
     @Entry public var menuOrder: MenuOrder = .automatic
 
+    /// Backing store for ``EnvironmentValues/documentRegistry``.
+    /// 與 `settingsRegistryStore` 相同的裝箱理由：`EnvironmentValues` 是值型別。
+    @Entry private var documentRegistryStore = UncheckedSendable(
+        wrappedValue: DocumentRegistry()
+    )
+
+    /// Opens a new, empty document in its own window.
+    /// 在自己的視窗中開啟一份新的空白文件。
+    @MainActor
+    public var newDocument: NewDocumentAction {
+        NewDocumentAction(environment: self)
+    }
+
+    /// Opens the document at a URL in its own window.
+    /// 在自己的視窗中開啟位於某個 URL 的文件。
+    @MainActor
+    public var openDocument: OpenDocumentAction {
+        OpenDocumentAction(environment: self)
+    }
+
+    /// Where a ``DocumentGroup`` leaves "new" and "open".
+    /// ``DocumentGroup`` 存放「新增」與「開啟」之處。
+    internal var documentRegistry: DocumentRegistry {
+        documentRegistryStore.wrappedValue
+    }
+
     /// Backing store for ``EnvironmentValues/settingsRegistry``.
     ///
     /// Boxed the same way `openWindowFunctionsByID` is, and for the same reason:

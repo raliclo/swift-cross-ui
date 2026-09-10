@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P62: type in the first document, then open a second, and compare them.
+#
+# **The second window is the assertion.** A DocumentGroup that handed every
+# window the same document would look correct while only one is open: type and
+# the text appears, save and it is there. It goes wrong only when a second
+# document exists, and then silently -- two windows showing one value.
+#
+# So this types AA into window 1 and then asks for a new document. Window 1 must
+# still read AA and window 2 must read (empty). Both are photographed at once
+# with a desktop capture, because the harness captures one window and either
+# window alone is consistent with the defect.
+#
+# Coordinates are frame-relative points, measured off a crop taken at the frame
+# origin the replay itself reported -- (510, 156) in that run -- rather than
+# estimated from a scaled preview.
+#
+# P62：在第一份文件裡打字，接著開啟第二份，然後比較兩者。
+#
+# **第二個視窗才是那個判定。** 一個「把同一份文件交給每個視窗」的 DocumentGroup，在只開一個視窗時
+# 看起來完全正確：打字，文字出現；存檔，文字也在。它只有在第二份文件存在時才會出錯，而且是靜默地
+# 出錯——兩個視窗顯示同一個值。
+#
+# 因此本檔在視窗 1 打入 AA，再要求一份新文件。視窗 1 必須仍然是 AA，而視窗 2 必須是 (empty)。
+# 兩者以桌面擷圖同時拍下，因為 harness 只擷取一個視窗，而任一視窗單獨看都與那個缺陷相容。
+#
+# 座標是相對於 frame 的點，量自「在重放自己回報的 frame 原點處」所裁切的圖——該次執行為 (510, 156)
+# ——而不是從縮圖估算的。
+sleep,,,,,,1200000,let the first document window lay out,macos,
+click,48,237,frame,left,,,type A,macos,
+sleep,,,,,,300000,,macos,
+click,48,237,frame,left,,,type A again -- window 1 now reads AA,macos,
+sleep,,,,,,400000,,macos,
+click,75,266,frame,left,,,new document -- window 2 must be empty,macos,
+sleep,,,,,,6000000,hold for the desktop capture,macos,
