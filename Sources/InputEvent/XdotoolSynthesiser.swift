@@ -227,9 +227,54 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
                     try run(["click", "--repeat", "\(abs(dx))", dx > 0 ? "7" : "6"])
                 }
 
+            case .focus(let window):
+                try focusWindow(titled: window)
+
             case .sleep(let microseconds):
                 usleep(UInt32(max(0, microseconds)))
         }
+    }
+
+    /// Raises the window with this exact title through `xdotool`.
+    ///
+    /// **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine has no X server
+    /// and cannot build the GTK target, so this is written against xdotool's
+    /// documented interface and needs verifying on the WSL side. It exists
+    /// because leaving the case out was worse: adding `InputAction.focus` made
+    /// this switch non-exhaustive, so the target simply would not compile, and
+    /// that break was mine.
+    ///
+    /// `search --name` takes a regular expression, so the title is anchored and
+    /// escaped -- an unanchored search matches any window whose title CONTAINS
+    /// the string, and "wrong window" is the exact failure `focus` was added to
+    /// remove. `--onlyvisible` for the same reason AppKit filters on
+    /// `isVisible`: a window that cannot receive a click is not a candidate.
+    ///
+    /// The two things to check, named rather than left for the compiler:
+    ///   1. that `windowactivate --sync` returns rather than hanging when the
+    ///      window manager refuses to activate -- some do, and `--sync` waits.
+    ///   2. that a failed `search` exits non-zero here. `run` is what turns that
+    ///      into a thrown error, and a search that finds nothing must fail
+    ///      rather than activating whatever was last found.
+    ///
+    /// 透過 `xdotool` 把標題與此完全相符的視窗帶到前景。
+    ///
+    /// **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器沒有 X server、也建不了 GTK target，因此
+    /// 以下是對照 xdotool 的文件介面寫出來的，需由 WSL 側驗證。它之所以存在，是因為「不寫」更糟：
+    /// 新增 `InputAction.focus` 使這個 switch 變得不完整，於是該 target 根本編不過，而那個破壞是我造成的。
+    ///
+    /// `search --name` 收的是正規表示式，因此標題此處被錨定並轉義——未錨定的搜尋會命中「標題**包含**
+    /// 該字串」的任何視窗，而「選錯視窗」正是 `focus` 被加進來所要消除的失敗。使用 `--onlyvisible`
+    /// 的理由與 AppKit 過濾 `isVisible` 相同：一個接收不到點擊的視窗不是候選者。
+    ///
+    /// 有兩件事要查，此處明白指名而非留給編譯器：
+    ///   1. 當視窗管理員拒絕啟動時，`windowactivate --sync` 是會返回還是會卡住——有些會拒絕，而
+    ///      `--sync` 是會等待的。
+    ///   2. 一次找不到結果的 `search` 在此處是否以非零結束。把它轉成拋出錯誤的是 `run`，而一次
+    ///      什麼都沒找到的搜尋必須失敗，不可去啟動「上一次找到的那個」。
+    public func focusWindow(titled title: String) throws {
+        let escaped = NSRegularExpression.escapedPattern(for: title)
+        try run(["search", "--onlyvisible", "--name", "^\(escaped)$", "windowactivate", "--sync"])
     }
 
     private func moveIfNeeded(_ point: Point?, in geometry: WindowGeometry) throws {
