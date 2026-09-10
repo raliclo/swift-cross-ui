@@ -115,7 +115,7 @@ last two do not have a known size yet.
 
 - [ ] **4. 鍵盤快捷鍵 step 2**(Windows 表的 #121)— **真的,而且已查證**:`ResolvedMenu.Item` 沒有任何 shortcut 欄位,所以要動四個 backend 的 `.button`。Windows 端把它標為「卡在 Mac」
 - [ ] **5. focus / accessibility**(#122 / #123)— 任務自述「不可單機開始」,需要與 Windows 端協調
-- [ ] **6. #74 `-GPU` on macOS** — `todo.md` 六項 Mac 工作中**唯一仍然開著**的一項,而它是一個決定、不是程式碼
+- [x] **6. #74 `-GPU` on macOS — 已實作(AppKit + UIKit)** — 那個「設計問題」其實已被協定的形狀回答了:`GraphicsAdapter` 的三個欄位 `name`/`isRemovable`/`isLowPower` **就是 `MTLDevice` 的三個屬性**,而 `AdapterOutcome.requiresRestart` 的文件早就寫著「macOS 不需要這個,Metal 在執行期選擇」。AppKit 用 `MTLCopyAllDevices()`(系統預設排最前,因為 `.systemDefault` 取 `first`)、UIKit 用 `MTLCreateSystemDefaultDevice()`(`MTLCopyAllDevices` 僅限 macOS,而 iOS 只有一張且不可移除)。**明說它不做什麼**:它不會把視窗移到另一張 GPU——window server 依「視窗所在顯示器」決定合成用的 GPU,macOS 上沒有應用程式做得到。P68 驅動並列出介面卡。**Android 仍未實作**
 - [ ] **7. Q12 #28 動畫 / #32 手勢** — 三項獨立(#30 focus 已併入上方第 5 項)
 - [ ] **8. #117 phase 3(依需求建列)** — 刻意降級:症狀已在五個 backend 上修掉,剩 10,000 列時的記憶體(400 列 114 MB、10,000 列 423 MB)
 - [ ] **9. #79 GTK 39px / #109 popover anchor API** — 需要你決定

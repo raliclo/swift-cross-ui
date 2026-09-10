@@ -1,4 +1,5 @@
 import AppKit
+import Metal
 
 @_spi(Backends) import SwiftCrossUI
 
@@ -43,6 +44,18 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public let restoresWindowFrames = true
 
     var borderedButtonPadding: SIMD2<Int>?
+
+    /// The Metal device chosen by `-GPU N`, and the observer that hears about a
+    /// GPU being unplugged. See `AppKitBackend+GraphicsAdapters.swift`.
+    /// 由 `-GPU N` 所選定的 Metal 裝置，以及那個「聽取 GPU 被拔除」的 observer。
+    /// 見 `AppKitBackend+GraphicsAdapters.swift`。
+    var metalDevice: (any MTLDevice)?
+    var metalDeviceObserver: NSObjectProtocol?
+    var adapterRemovedHandler: (() -> Void)? {
+        get { Self.currentAdapterRemovedHandler }
+        set { Self.currentAdapterRemovedHandler = newValue }
+    }
+    @MainActor static var currentAdapterRemovedHandler: (() -> Void)?
 
     /// The one frame clock, and the handler it feeds.
     ///
