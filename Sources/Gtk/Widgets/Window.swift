@@ -277,6 +277,212 @@ open class Window: Widget {
         gtk_window_set_titlebar(castedPointer(), headerBar)
     }
 
+    /// Every direct child of the window widget, with its type name and the
+    /// height it measures at, BEFORE anything is presented.
+    ///
+    /// `gtk_window_get_titlebar` answers only for a titlebar this program
+    /// installed with `gtk_window_set_titlebar`. Under client-side decorations
+    /// -- which is what GTK4 uses on Windows -- GTK builds its own titlebar and
+    /// that call returns NULL, so `titlebarNaturalHeight` is nil and the
+    /// allowance computed from it is zero. The decoration is still a widget; it
+    /// is just one this program did not create. Walking the children finds it
+    /// without taking the decoration over, which is what made option (3)
+    /// expensive.
+    ///
+    /// Returns type name and natural height per child, in tree order.
+    ///
+    /// 視窗 widget 的**每一個直接子項**,連同它的型別名稱與量得的高度,**在任何東西被 present
+    /// 之前**取得。
+    ///
+    /// `gtk_window_get_titlebar` 只會回答「由本程式以 `gtk_window_set_titlebar` 裝上的」那一條
+    /// titlebar。在 client-side decorations 之下——那正是 GTK4 於 Windows 所採用的方式——GTK 會
+    /// 建立**它自己的** titlebar,而該呼叫回傳 NULL,於是 `titlebarNaturalHeight` 為 nil、
+    /// 由它算出的 allowance 為零。**那條裝飾仍然是一個 widget,只是不是本程式建立的那一個。**
+    /// 遍歷子項就能找到它,而**不必接管裝飾**——後者正是方案 (3) 昂貴的原因。
+    public var childMeasurements: [(typeName: String, naturalHeight: Int)] {
+        var results: [(String, Int)] = []
+        var child = gtk_widget_get_first_child(castedPointer())
+        while let current = child {
+            // `G_OBJECT_TYPE_NAME` is a C macro and Swift cannot see it, so the
+            // type is read out of the GTypeInstance by hand. `g_type_name` is a
+            // real function and is reachable.
+            // `G_OBJECT_TYPE_NAME` 是一個 C 巨集,Swift 看不到它,因此此處手動從 GTypeInstance
+            // 讀出型別。`g_type_name` 是真正的函式,構得著。
+            let instance = UnsafeRawPointer(current)
+                .assumingMemoryBound(to: GTypeInstance.self)
+            let gtype = instance.pointee.g_class.pointee.g_type
+            let typeName = String(cString: g_type_name(gtype))
+            var minimum: gint = 0
+            var natural: gint = 0
+            var minimumBaseline: gint = 0
+            var naturalBaseline: gint = 0
+            gtk_widget_measure(
+                current,
+                GTK_ORIENTATION_VERTICAL,
+                -1,
+                &minimum,
+                &natural,
+                &minimumBaseline,
+                &naturalBaseline
+            )
+            results.append((typeName, Int(natural)))
+            child = gtk_widget_get_next_sibling(current)
+        }
+        return results
+    }
+
+    /// The height a client-side-decoration header bar takes, measured from a
+    /// throwaway `GtkHeaderBar` rather than from the window's own.
+    ///
+    /// **Why this exists.** #79: an app asking for 620x420 gets 620x381 of
+    /// content, the missing 39 being the header bar, because
+    /// `gtk_window_set_default_size` sizes the WINDOW and under CSD the header
+    /// is inside it. The obvious fix -- add the header's height to the request
+    /// -- needed that height before the first `present`, and it was not
+    /// available: measured 2026-09-10, the window's children are `GtkBox=0`
+    /// before present and `GtkCustomRootWidget=341 GtkHeaderBar=39` after map.
+    /// GTK does not build the header until the window is realised, so there is
+    /// nothing to ask.
+    ///
+    /// **But a header bar does not have to be THAT header bar to be measured.**
+    /// The 39 is what the theme gives any `GtkHeaderBar`, so one built here,
+    /// measured, and dropped answers the same question without the window
+    /// existing yet -- and without taking the decoration over, which is what
+    /// made the other route expensive.
+    ///
+    /// Returns nil if the widget cannot be created at all, so a caller can tell
+    /// "no decoration" from "measured zero".
+    ///
+    /// 一條 client-side-decoration header bar 所佔的高度,量自一條**用完即丟**的
+    /// `GtkHeaderBar`,而不是量視窗自己的那一條。
+    ///
+    /// **它為何存在。** #79:一個要求 620x420 的 app 拿到的是 620x381 的內容,少掉的 39 就是
+    /// header bar——因為 `gtk_window_set_default_size` 設定的是**視窗**,而在 CSD 之下 header
+    /// 位於視窗**之內**。顯而易見的修法(把 header 的高度加進請求)需要在第一次 `present`
+    /// **之前**取得該高度,而那取不到:2026-09-10 實測,視窗的子項在 present 前是 `GtkBox=0`、
+    /// 在 map 後是 `GtkCustomRootWidget=341 GtkHeaderBar=39`。**GTK 在視窗 realize 之前根本不會
+    /// 建立那條 header**,因此沒有東西可問。
+    ///
+    /// **但一條 header bar 不必是「那一條」才量得。** 那個 39 是主題給予**任何**
+    /// `GtkHeaderBar` 的高度,因此在此處建一條、量它、再丟掉,就能在視窗尚不存在的情況下回答
+    /// 同一個問題——而且**不必接管裝飾**,後者正是另一條路線昂貴的原因。
+    ///
+    /// 若該 widget 根本建不出來則回傳 nil,好讓呼叫端能區分「沒有裝飾」與「量到零」。
+    /// **MEASURED 2026-09-10: a bare `GtkHeaderBar` gives 47, not the 39 the
+    /// window's own header takes.** The first version of this returned that 47
+    /// and would have over-corrected by 8px, which is the same class of error
+    /// as the 39 it was meant to fix. Kept as a parameter so the three variants
+    /// can be compared in one run rather than argued about:
+    ///
+    /// - `.bare` — `gtk_header_bar_new()` and nothing else. 47.
+    /// - `.withTitlebarClass` — plus the `titlebar` CSS class, which is what
+    ///   `gtk_window_set_titlebar` adds. A header bar's height comes from the
+    ///   theme, and the theme selects on that class.
+    /// - `.insideAWindow` — put in a real (never presented) `GtkWindow` via
+    ///   `set_titlebar`, which is the only variant with the full CSS node path
+    ///   the real one has.
+    ///
+    /// **2026-09-10 實測:一條「光禿的」`GtkHeaderBar` 量得 47,而不是視窗自己那條所佔的 39。**
+    /// 本方法的第一版就是回傳那個 47,那會**過度修正 8px**——與它原本要修的那個 39 屬於同一類錯誤。
+    /// 此處保留為參數,好讓三種變體能在**同一次執行中**互相對照,而不是拿來爭論。
+    public enum HeaderBarProbeKind {
+        case bare
+        case withTitlebarClass
+        case insideAWindow
+    }
+
+    public static func probeHeaderBarHeight(_ kind: HeaderBarProbeKind) -> Int? {
+        guard let probe = gtk_header_bar_new() else { return nil }
+        // Sink the floating reference so the widget is owned here, then release
+        // it. Without the sink, `g_object_unref` on a floating reference warns.
+        // 先 sink 掉那個 floating reference,讓此處持有該 widget,再釋放它。
+        // 少了這次 sink,對一個 floating reference 呼叫 `g_object_unref` 會發出警告。
+        g_object_ref_sink(probe)
+        defer { g_object_unref(probe) }
+
+        var host: UnsafeMutablePointer<GtkWindow>?
+        switch kind {
+            case .bare:
+                break
+            case .withTitlebarClass:
+                gtk_widget_add_css_class(probe, "titlebar")
+            case .insideAWindow:
+                // Never presented, so it costs no window on screen. It is
+                // destroyed at the end, and the probe goes with it -- which is
+                // why the unref above is balanced by the ref_sink and not by a
+                // second release here.
+                // 從不 present,因此螢幕上不會多出任何視窗。它會在最後被銷毀,而那條 probe 也
+                // 隨之而去——這也正是上方那次 unref 由 ref_sink 配對、而非在此處再釋放一次的原因。
+                // `gtk_window_new` returns a GtkWidget*; the titlebar and
+                // destroy calls both want GtkWindow*. Rebinding through a raw
+                // pointer is the same widening every other cast in this file
+                // does, and GTK guarantees the layout because GtkWindow starts
+                // with its GtkWidget.
+                // `gtk_window_new` 回傳的是 GtkWidget*,而 titlebar 與 destroy 兩個呼叫要的都是
+                // GtkWindow*。經由 raw pointer 重新繫結,與本檔中其他每一次轉型是同一種放寬,
+                // 而 GTK 保證了記憶體佈局,因為 GtkWindow 的開頭就是它的 GtkWidget。
+                host = gtk_window_new().map {
+                    UnsafeMutableRawPointer($0).assumingMemoryBound(to: GtkWindow.self)
+                }
+                if let host {
+                    gtk_window_set_titlebar(host, probe)
+                    // Realize, do NOT present. Measured 2026-09-10: an
+                    // unrealized header bar measures 47 and the one in a live
+                    // window is 39, and `.insideAWindow` alone still gave 47 --
+                    // so the difference is realization, not the CSS context.
+                    // `gtk_widget_realize` creates the surface without ever
+                    // putting a window on screen.
+                    // **Realize,但不要 present。** 2026-09-10 實測:一條未 realize 的 header bar
+                    // 量得 47,而活在視窗中的那條是 39,且**單靠 `.insideAWindow` 仍然得到 47**
+                    // ——因此差別在於 **realize**,不在 CSS context。`gtk_widget_realize` 會建立
+                    // surface,而完全不需要讓任何視窗出現在螢幕上。
+                    gtk_widget_realize(
+                        UnsafeMutableRawPointer(host)
+                            .assumingMemoryBound(to: GtkWidget.self)
+                    )
+                }
+        }
+        defer {
+            if let host {
+                gtk_window_destroy(host)
+            }
+        }
+
+        var minimum: gint = 0
+        var natural: gint = 0
+        var minimumBaseline: gint = 0
+        var naturalBaseline: gint = 0
+        gtk_widget_measure(
+            probe,
+            GTK_ORIENTATION_VERTICAL,
+            -1,
+            &minimum,
+            &natural,
+            &minimumBaseline,
+            &naturalBaseline
+        )
+        // MINIMUM, not natural. Measured 2026-09-10 across three variants and
+        // with the host window realized: natural is 47 every time, and the
+        // header GTK actually lays out is 39. Adding 47 overshot by exactly 8
+        // (`shortfall 0x-8`), which is 47 - 39. GTK gives its own header bar the
+        // minimum, not the natural, so the minimum is the number that predicts
+        // the layout.
+        //
+        // The natural is still measured, above, because asking for both costs
+        // nothing and a future theme that lays the header out at its natural
+        // height would show up as a fresh non-zero shortfall rather than as
+        // silence.
+        //
+        // **取 minimum,不是 natural。** 2026-09-10 在三種變體之下、且 host 視窗已 realize 的
+        // 情況下實測:natural **每次都是 47**,而 GTK 實際排版出來的 header 是 **39**。
+        // 加 47 恰好超出 8(`shortfall 0x-8`),而 8 正是 47 − 39。**GTK 給它自己的 header bar
+        // 的是 minimum、不是 natural**,因此 minimum 才是能預測版面的那個數字。
+        //
+        // 上方仍然把 natural 一併量了出來,因為兩個一起問不花任何代價;而若日後有某個主題改以
+        // natural 高度來排版 header,那會表現為一個**全新的非零 shortfall**,而不是一片沉默。
+        return Int(minimum)
+    }
+
     public var titlebarNaturalHeight: Int? {
         guard let titlebar = gtk_window_get_titlebar(castedPointer()) else {
             return nil

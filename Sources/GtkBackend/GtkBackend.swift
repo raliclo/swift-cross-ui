@@ -1279,15 +1279,117 @@ public final class GtkBackend:
             // 並把該值加進所要求的高度，使**第一次**版面計算就已經正確。若內容區屆時量得的正是
             // app 所要求的尺寸，那就代表這 39px 是修得掉的，剩下的唯一問題只是「接管裝飾是否
             // 值得」。
-            let titlebarAllowance =
-                decorationProbe == "3" ? (window.titlebarNaturalHeight ?? 0) : 0
+            // #79, ANSWERED 2026-09-10. `gtk_window_set_default_size` sizes the
+            // WINDOW, and under client-side decorations the header bar is
+            // inside it, so an app asking for 620x420 got 620x381 of content.
+            // The allowance now comes from a throwaway `GtkHeaderBar`, measured
+            // before this window exists.
+            //
+            // **THE NUMBER TO ADD IS 47, NOT THE 39 THAT WENT MISSING**, and
+            // getting that backwards is the whole trap. Measured in one run:
+            //
+            //     headerbar bare=47 titlebarClass=47 inWindow=47
+            //     content size: requested 620x420 allocated 620x381 shortfall 0x39
+            //     AFTER map: GtkCustomRootWidget=341 GtkHeaderBar=39
+            //
+            // 39 is not the header's height. It is what the header was
+            // COMPRESSED to when 420 had to cover both it and the content --
+            // 39 + 381 = 420 exactly. Give the window 47 more and the header
+            // takes its natural 47, leaving the content the 420 that was asked
+            // for. Adding 39 would leave it 8px short and look like a partial
+            // fix, which is worse than no fix.
+            //
+            // Three variants were tried and all three answer 47, including a
+            // header bar installed in a real (never presented) window: the CSS
+            // context is not what differs. What differs is allocation, and
+            // allocation is downstream of the size being set here.
+            //
+            // #79,**2026-09-10 已解答**。`gtk_window_set_default_size` 設定的是**視窗**,
+            // 而在 client-side decorations 之下 header bar 位於視窗**之內**,因此一個要求
+            // 620x420 的 app 拿到的是 620x381 的內容。現在這個 allowance 來自一條**用完即丟**的
+            // `GtkHeaderBar`,量測於這個視窗尚不存在之時。
+            //
+            // **要加的數字是 47,不是那個「不見了」的 39**,而把這件事弄反正是整個陷阱所在。
+            // 同一次執行中量到:bare／titlebarClass／inWindow **三者皆為 47**;shortfall 為 39;
+            // map 之後的 `GtkHeaderBar=39`。
+            //
+            // **39 不是 header 的高度**,而是當 420 必須同時涵蓋它與內容時,header **被壓縮到**
+            // 的高度——39 + 381 = 420,分毫不差。給視窗多 47,header 便取回它自然的 47,
+            // 留給內容的正是當初所要求的 420。**加 39 會少 8px,看起來像修好了一半——那比不修更糟。**
+            //
+            // 三種變體都試過、三者都回答 47,**包括一條裝進真實(從未 present 的)視窗中的
+            // header bar**:差別不在 CSS context。差別在**分配**,而分配位於「此處所設定的尺寸」的下游。
+        }
+
+        // OUTSIDE the `SCUI_DEBUG_DECORATION` block on purpose. The first
+        // version of this fix sat INSIDE it, so with the variable unset the
+        // whole thing never ran -- and "shortfall still 39" then reads exactly
+        // like "the fix does not work" rather than "the fix did not execute".
+        // That is mistakes.md entry 4 wearing different clothes, and it cost a
+        // build cycle.
+        //
+        // **刻意放在 `SCUI_DEBUG_DECORATION` 區塊之外。** 本修法的第一版就寫在那個區塊**之內**,
+        // 因此在該變數未設定時整段從未執行——而「shortfall 仍是 39」讀起來,會與
+        // 「這個修法沒有效」一模一樣,而不是「這個修法沒有被執行」。**那是 mistakes.md 第 4 條
+        // 換了一身衣服**,而它花掉了一輪建置。
+        if let defaultSize {
+            let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.bare) ?? 0
             window.defaultSize = Size(
                 width: defaultSize.x,
                 height: defaultSize.y + titlebarAllowance
             )
+            DebugFeatures.log(
+                "titlebar allowance: defaultSize=\(defaultSize.x)x\(defaultSize.y) "
+                    + "+\(titlebarAllowance) -> \(defaultSize.y + titlebarAllowance)"
+            )
+        } else {
+            // Says so out loud. A silent skip here and a fix that does not work
+            // produce the same screen, and that has already happened once today.
+            // 明講出來。此處若靜默跳過,與「修法無效」會產生同一個畫面,而那今天已經發生過一次。
+            DebugFeatures.log("titlebar allowance: SKIPPED, defaultSize is nil")
         }
 
         window.setChild(Gtk.Box())
+
+        // #79, option (c): is the decoration measurable BEFORE the first
+        // present? The comment below asserts "the shortfall cannot be computed
+        // in advance", and that is a claim, not a conclusion --
+        // `gtk_window_get_titlebar` answering NULL only rules out a titlebar
+        // THIS program installed, not the one GTK builds for client-side
+        // decorations. Walking the window's own children finds any widget GTK
+        // put there, whoever created it.
+        //
+        // Printed on both sides of `present` so the two can be compared. If a
+        // decoration widget appears here with a height matching the later
+        // shortfall, (c) is answered and the fix is to add it to the requested
+        // height. If the child list is empty or has no such widget, (c) is
+        // answered the other way -- with the specific call and what it returned,
+        // which is the deliverable either way.
+        //
+        // **#79,方案 (c):裝飾在第一次 present **之前**量得到嗎?** 下方的註解斷言
+        // 「shortfall 無法事先算出」,而那是一項**主張**、不是結論——`gtk_window_get_titlebar`
+        // 回答 NULL,只排除掉了「**本程式**裝上的 titlebar」,並不排除 GTK 為 client-side
+        // decorations 自行建立的那一條。遍歷視窗自己的子項,能找到 GTK 放在那裡的任何 widget,
+        // 無論它是誰建立的。
+        //
+        // 在 `present` 的**兩側**都輸出,以便兩相對照。若此處出現一個裝飾 widget,其高度與稍後的
+        // shortfall 相符,(c) 就得到了答案,而修法就是把它加進所要求的高度。若子項清單是空的、
+        // 或其中沒有這樣的 widget,(c) 也得到了答案——而且**附帶著具體的呼叫與其回傳值**,
+        // 那無論哪種結果都是要交付的東西。
+        DebugFeatures.log(
+            "decoration probe BEFORE present: "
+                + (window.childMeasurements.isEmpty
+                    ? "no children"
+                    : window.childMeasurements
+                        .map { "\($0.typeName)=\($0.naturalHeight)" }
+                        .joined(separator: " "))
+                + " | headerbar bare="
+                + (Gtk.Window.probeHeaderBarHeight(.bare).map(String.init) ?? "nil")
+                + " titlebarClass="
+                + (Gtk.Window.probeHeaderBarHeight(.withTitlebarClass).map(String.init) ?? "nil")
+                + " inWindow="
+                + (Gtk.Window.probeHeaderBarHeight(.insideAWindow).map(String.init) ?? "nil")
+        )
 
         // `gtk_window_set_default_size` sizes the WINDOW, and with client-side
         // decorations the header bar is inside the window. So the size just set
@@ -1507,6 +1609,23 @@ public final class GtkBackend:
             "content size: requested \(requested.x)x\(requested.y) "
                 + "allocated \(allocated.width)x\(allocated.height) "
                 + "shortfall \(shortfallX)x\(shortfallY)"
+        )
+
+        // The other half of the #79 (c) probe. Compare with the BEFORE line
+        // printed in `createWindow`: same list, after mapping. A widget present
+        // in both, at the same height as the shortfall, means the number was
+        // available in advance and the "cannot be computed" comment below is
+        // wrong.
+        // #79 方案 (c) 探針的另一半。與 `createWindow` 中輸出的那行 BEFORE 對照:同一份清單,
+        // 只是在 map 之後。若某個 widget **兩邊都在**、且高度與 shortfall 相同,就代表那個數字
+        // **事先就取得到**,而下方那句「無法事先算出」是錯的。
+        DebugFeatures.log(
+            "decoration probe AFTER map: "
+                + (window.childMeasurements.isEmpty
+                    ? "no children"
+                    : window.childMeasurements
+                        .map { "\($0.typeName)=\($0.naturalHeight)" }
+                        .joined(separator: " "))
         )
 
         // The correction that used to follow is GONE, deleted 2026-09-04 after
@@ -1876,9 +1995,66 @@ public final class GtkBackend:
         // 了回去。2026-09-04 以 SCUI_DEBUG_DECORATION=3 實測——titlebar 在 map 前回報 47、補正
         // 已加在建立時，而內容仍然是 553，即 600 − 47。**是算術先指出了覆蓋者，然後才去讀程式碼。**
         //
-        // 除非視窗擁有 titlebar，否則此值為零；而今天只有在探針下才會擁有。對 GTK 自身的裝飾，
-        // `titlebarNaturalHeight` 回傳 nil，因此在一般執行中這一項完全不作用。
-        let titlebarHeight = window.titlebarNaturalHeight ?? 0
+        // ~~Zero unless the window owns a titlebar … inert on every normal
+        // run.~~ **NO LONGER INERT, 2026-09-10.** That was true only because
+        // there was no way to measure GTK's OWN decoration, and the paragraph
+        // above had already worked out that this line is where the fix has to
+        // land. `probeHeaderBarHeight` supplies the number `titlebarNaturalHeight`
+        // could not: it builds a throwaway `GtkHeaderBar`, measures it, and
+        // drops it, so no decoration has to be taken over.
+        //
+        // It answers 47, and 47 is the right number even though the shortfall
+        // reads 39. 39 is the height GTK COMPRESSED its header to when 420 had
+        // to cover both header and content (39 + 381 = 420). Given 47 more, the
+        // header takes its natural 47 and the content gets the full 420.
+        // Adding 39 would land 8px short.
+        //
+        // Falls back to the old call, so a window that DOES own a titlebar --
+        // under the probe, or once toolbars install one -- still measures its
+        // real one rather than a generic sample.
+        //
+        // ~~除非視窗擁有 titlebar,否則此值為零……在一般執行中完全不作用。~~
+        // **2026-09-10 起不再是不作用的。** 先前之所以為真,只是因為當時**沒有辦法量測 GTK
+        // 自己的裝飾**;而上方那段文字早已推導出「修法必須落在這一行」。`probeHeaderBarHeight`
+        // 提供了 `titlebarNaturalHeight` 給不出的那個數字:它建一條**用完即丟**的
+        // `GtkHeaderBar`、量它、再丟掉,因此**不必接管任何裝飾**。
+        //
+        // 它的答案是 **47**,而即使 shortfall 讀起來是 39,47 才是對的數字。39 是當 420 必須同時
+        // 涵蓋 header 與內容時,GTK 把 header **壓縮**到的高度(39 + 381 = 420)。多給 47,
+        // header 就取回它自然的 47,而內容拿到完整的 420。**加 39 會少 8px。**
+        //
+        // 保留舊呼叫作為優先選項,如此一來「確實擁有 titlebar 的視窗」——在探針之下,或日後
+        // toolbar 裝上一條時——量到的仍是它**真正的**那一條,而不是一個通用樣本。
+        // PREFER THE WINDOW'S OWN HEADER, once it has one.
+        //
+        // The throwaway probe answers 47 and the header GTK lays out is 39, and
+        // that is not a natural-vs-minimum distinction: measured 2026-09-10,
+        // the standalone bar reports 47 for BOTH, realized or not, inside a
+        // window or not. The same `gtk_widget_measure` call against the
+        // window's own header returns 39. So the number depends on the header
+        // being that window's, and nothing about a sample reproduces it.
+        //
+        // Hence the order: the window's own header if it is there, the probe
+        // only until it is. `setSize` runs on every layout pass, so the first
+        // pass uses 47 (8px generous) and every pass after it uses the real 39.
+        //
+        // **一旦視窗有了自己的 header,就優先採用它。**
+        //
+        // 用完即丟的 probe 回答 47,而 GTK 排出來的 header 是 39,**且那並不是 natural 與
+        // minimum 的差別**:2026-09-10 實測,獨立的那條 bar **兩者都回報 47**,無論是否 realize、
+        // 是否置於視窗之內。同一個 `gtk_widget_measure` 對**視窗自己的** header 呼叫則回傳 39。
+        // 也就是說,**這個數字取決於那條 header 屬於那個視窗**,而任何樣本都複製不出來。
+        //
+        // 因此順序是:視窗自己的 header 若在就用它,probe 只在它還不在時頂替。`setSize` 每一次
+        // 版面計算都會執行,所以**第一次**用 47(寬鬆 8px),**其後每一次**都用真正的 39。
+        let liveHeaderHeight = window.childMeasurements
+            .first { $0.typeName == "GtkHeaderBar" }?
+            .naturalHeight
+        let titlebarHeight =
+            window.titlebarNaturalHeight
+            ?? liveHeaderHeight
+            ?? Gtk.Window.probeHeaderBarHeight(.bare)
+            ?? 0
         window.size = Size(
             width: newSize.x,
             height: newSize.y + menubarHeight(ofWindow: window) + titlebarHeight
