@@ -431,7 +431,16 @@ public final class WinUIBackend:
 
     /// The frame clock's subscription token, and the handler it feeds.
     /// frame clock 的訂閱 token，以及它所餵養的 handler。
-    var frameClockToken: EventRegistrationToken?
+    /// `addHandler` returns an `EventCleanup`, not an `EventRegistrationToken`.
+    /// It is a struct carrying the token AND the close action, so unsubscribing
+    /// is `dispose()` rather than a `removeHandler(token)` call -- which is
+    /// what the version that arrived tried to do, and is the whole of the
+    /// second build break this file caused on Windows (2026-09-10).
+    /// `addHandler` 回傳的是 `EventCleanup`,不是 `EventRegistrationToken`。它是一個同時攜帶
+    /// token **與** close action 的 struct,因此取消訂閱是 `dispose()`,而非
+    /// `removeHandler(token)`——後者正是送到的版本所嘗試的做法,也正是本檔在 Windows 上造成的
+    /// 第二個建置中斷的全部內容(2026-09-10)。
+    var frameClockToken: EventCleanup?
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
 
     public init() {
