@@ -141,7 +141,7 @@ public final class AndroidBackend: BaseAppBackend {
     /// The frame clock's handler and the generation that stops it.
     /// frame clock 的 handler，以及那個用來讓它停下來的世代號。
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
-    @MainActor static var frameClockGeneration: UInt64 = 0
+    @MainActor static var frameClockCallback: FrameClockCallback?
 
     static let stdoutPipe = Pipe()
     static let stderrPipe = Pipe()
