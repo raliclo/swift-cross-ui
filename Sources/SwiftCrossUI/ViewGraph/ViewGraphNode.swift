@@ -210,7 +210,7 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             let signature = Self.windowChromeSignature(of: newLayout.preferences)
             if signature != lastWindowChromeSignature {
                 lastWindowChromeSignature = signature
-                parentEnvironment.onWindowChromeChange()
+                parentEnvironment.requestWindowUpdate()
             }
         }
     }

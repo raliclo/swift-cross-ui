@@ -330,7 +330,7 @@ final class WindowReference<SceneType: WindowingScene> {
             // 它走 `update` 而不是直接呼叫 `setTitle`，因為標題並不是內容向視窗提出的唯一要求
             // ——工具列是從同一份 preference、在同一個區塊中套用的——而一條第二、較窄的路徑，
             // 日後必須靠人手與第一條保持同步。
-            .with(\.onWindowChromeChange) { [weak self] in
+            .with(\.requestWindowUpdate) { [weak self] in
                 guard let self else { return }
                 self.update(
                     self.scene,

@@ -60,7 +60,32 @@ public struct GeometryReader<Content: View>: TypeSafeView, View {
         backend: Backend
     ) -> ViewLayoutResult {
         let size = proposedSize.replacingUnspecifiedDimensions(by: ViewSize(10, 10))
-        let view = content(GeometryProxy(size: size))
+
+        // Where this reader sits, taken from what COMMIT last learned.
+        //
+        // Not asked here, and that is the whole of the ordering problem: at
+        // layout time this widget has not been placed yet, so the backend has
+        // nothing to say. `commit` runs after the placement and asks then; if
+        // the answer differs from the one the content was built with, it asks
+        // for another pass. Pass one reports a nil origin, pass two reports the
+        // real one, and pass three never happens because the answer stopped
+        // changing.
+        //
+        // 這個 reader 位於何處，取自 **commit 上一次得知的結果**。
+        //
+        // 不在此處詢問，而那正是整個順序問題之所在:在版面計算的當下，這個 widget 還沒有被放置，
+        // 因此 backend 無話可說。`commit` 執行於放置之後、並在那時詢問;若答案與「內容當初據以建立
+        // 的那一個」不同，它就要求再排一輪。第一輪回報的原點是 nil、第二輪回報真正的值，而第三輪
+        // 不會發生——因為答案不再改變。
+        let origin = children.originUsed ?? nil
+
+        let view = content(
+            GeometryProxy(
+                size: size,
+                originInWindow: origin,
+                namedOrigins: environment.namedCoordinateSpaces
+            )
+        )
 
         let environment = environment.with(\.layoutAlignment, .leading)
 
@@ -100,11 +125,47 @@ public struct GeometryReader<Content: View>: TypeSafeView, View {
         _ = children.node?.commit()
         backend.setPosition(ofChildAt: 0, in: widget, to: .zero)
         backend.setSize(of: widget, to: layout.size.vector)
+
+        // Now that it is placed, ask where it landed.
+        // 現在它已經被放置了，去問它落在哪裡。
+        let origin = Self.originInWindow(of: widget, backend: backend)
+        if origin != nil, origin != (children.originUsed ?? nil) {
+            children.originUsed = origin
+            environment.requestWindowUpdate()
+        }
+    }
+}
+
+extension GeometryReader {
+    @MainActor
+    static func originInWindow<Backend: BaseAppBackend>(
+        of widget: Backend.Widget,
+        backend: Backend
+    ) -> SIMD2<Int>? {
+        guard let geometryBackend = backend as? any BackendFeatures.WidgetGeometry
+        else { return nil }
+        @MainActor
+        func ask<B: BackendFeatures.WidgetGeometry>(_ backend: B) -> SIMD2<Int>? {
+            backend.originInWindow(ofWidget: widget as! B.Widget)
+        }
+        return ask(geometryBackend)
     }
 }
 
 class GeometryReaderChildren<Content: View>: ViewGraphNodeChildren {
     var node: AnyViewGraphNode<Content>?
+
+    /// The origin the content was last built with.
+    ///
+    /// Kept so that "the position changed" can be told from "the position is
+    /// the same", which is the difference between asking for one more pass and
+    /// asking for one on every pass forever.
+    ///
+    /// 內容上一次據以建立的那個原點。
+    ///
+    /// 保留它，是為了能分辨「位置改變了」與「位置沒有變」——而那正是「再要求一輪」與「從此每一輪
+    /// 都要求一輪」之間的差別。
+    var originUsed: SIMD2<Int>??
 
     var widgets: [AnyWidget] {
         [node?.widget].compactMap { $0 }

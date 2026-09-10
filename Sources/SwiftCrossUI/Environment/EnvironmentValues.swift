@@ -84,7 +84,19 @@ public struct EnvironmentValues {
     ///
     /// 與 ``onResize`` 分開而不是併入其中，因為兩者的成本與觸發條件都不同：resize 罕見且會讓整個視窗
     /// 重新排版，而這一個只在外框簽章真的不同時才觸發，對多數狀態改變而言那是從不。
-    @_spi(Backends) public var onWindowChromeChange: @MainActor () -> Void
+    /// **Named for what it does, not for the one thing that first needed it.**
+    /// It was `onWindowChromeChange` until 2026-09-10, when `GeometryReader`
+    /// turned out to need exactly the same thing for a different reason: it
+    /// learns its own position from the backend, and a position is only known
+    /// after the pass that placed it. Two names for one mechanism is one too
+    /// many, and the chrome-specific name would have made the second caller
+    /// look like a misuse.
+    ///
+    /// **以它所做的事命名，而不是以「第一個需要它的東西」命名。** 在 2026-09-10 之前它叫
+    /// `onWindowChromeChange`；那一天 `GeometryReader` 出於完全不同的理由需要同一件事:它從 backend
+    /// 得知自己的位置，而位置要到「放置它的那一輪」之後才會存在。同一個機制有兩個名字就是多了一個，
+    /// 而那個「外框專用」的名字會讓第二個呼叫端看起來像是在誤用它。
+    @_spi(Backends) public var requestWindowUpdate: @MainActor () -> Void
 
     /// Backing storage for extensible subscript
     private var values: [ObjectIdentifier: Any]
@@ -292,7 +304,7 @@ public struct EnvironmentValues {
         self.backend = backend
 
         onResize = { _ in }
-        onWindowChromeChange = {}
+        requestWindowUpdate = {}
         values = [:]
         observableObjects = [:]
 
