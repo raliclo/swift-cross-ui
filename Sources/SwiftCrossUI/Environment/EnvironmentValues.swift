@@ -330,6 +330,15 @@ public struct EnvironmentValues {
     @_spi(Backends) public init<Backend: BaseAppBackend>(backend: Backend) {
         self.backend = backend
 
+        // The animation driver needs a frame clock and has no other way to find
+        // one: it is started from inside `@State`'s setter, which knows nothing
+        // about backends. This runs when the app's root environment is built,
+        // which is once and before any view exists.
+        // 動畫 driver 需要一個 frame clock，而它沒有別的途徑可以找到:它是從 `@State` 的 setter 內部
+        // 啟動的，而那裡對 backend 一無所知。這一行在 app 的根環境被建立時執行——那只發生一次，
+        // 而且在任何 view 存在之前。
+        AnimationDriver.shared.backend = backend
+
         onResize = { _ in }
         requestWindowUpdate = {}
         values = [:]
