@@ -888,6 +888,26 @@ enum StackOverflowReport {
     /// 每一個像素上回報一次。而方向、子元件數量與「被餓到的那個子元件的型別」在視窗移動時是不變的。
     private static var reported: Set<String> = []
 
+    /// The decision this report makes, without the logging or the deduplication.
+    ///
+    /// Split out so a test can pin the condition rather than the message.
+    /// `check` keys its deduplication on the SHAPE of a situation, so a test
+    /// calling it twice would see the second call do nothing -- which is
+    /// correct behaviour and useless as an assertion.
+    ///
+    /// 這則回報所做的判斷，不含記錄與去重複。
+    ///
+    /// 之所以拆出來，是為了讓測試釘住「條件」而非「訊息」。`check` 的去重複是以情況的**形狀**為索引鍵，
+    /// 因此測試呼叫它兩次時，第二次什麼都不會做——那是正確的行為，卻是一個沒有用的斷言對象。
+    static func wouldReport(
+        proposedLength: Double,
+        usedLength: Double,
+        starvedChild: String?
+    ) -> Bool {
+        guard starvedChild != nil else { return false }
+        return usedLength - proposedLength > 0.5
+    }
+
     static func check(
         orientation: Orientation,
         proposedLength: Double,
@@ -902,6 +922,50 @@ enum StackOverflowReport {
         // 僅在確實有子元件被分到零時才回報。只是稍微溢出的 stack 仍給了每個子元件一份額度，是其
         // 子元件自行選擇比那份額度更大——那是 app 自己要求的版面，不是值得寫進 log 的短缺。
         guard let starvedChild else { return }
+
+        // Asked of `wouldReport` so the condition lives in one place: a test
+        // pins that function, and a `check` with its own copy of the comparison
+        // could pass the test while behaving differently.
+        // 交由 `wouldReport` 判斷，讓這個條件只存在於一處：測試釘住的是那個函式，而一個「自己另存一份
+        // 比較式」的 `check`，可以在通過測試的同時表現得不一樣。
+        guard wouldReport(
+            proposedLength: proposedLength,
+            usedLength: usedLength,
+            starvedChild: starvedChild
+        ) else { return }
+
+        // **And only when the stack actually ran out, which is what this message
+        // says and what it did not check.** A child offered zero is normal when
+        // there is simply nothing left over: a `Spacer` with no slack takes
+        // zero, correctly, and every child still got the share it asked for.
+        //
+        // Reported 2026-09-10 from P44: "9 children were offered 643 and took
+        // 643 ... firstStarvedChild=Spacer". Offered and took are EQUAL there --
+        // nothing ran out, nothing was squeezed, and the line accuses a `Spacer`
+        // of starving while it is doing exactly what a `Spacer` is for.
+        //
+        // The case this report was written for is unaffected, because it
+        // genuinely overflows: the comment at the `share == 0` site records four
+        // columns offered 350 while needing 528, where the fourth `Text` was
+        // offered zero and wrapped one character per line.
+        //
+        // A half-point tolerance, not exact equality: these are `Double`s
+        // accumulated across children, and a stack that fits can land a
+        // hair over.
+        //
+        // **而且僅在該 stack 確實不夠用時才回報——那正是這則訊息所宣稱、卻沒有檢查的事。**
+        // 當單純只是「沒有剩餘」時，一個子元件被分到零是正常的：沒有餘裕的 `Spacer` 正確地拿到零，
+        // 而每一個子元件仍然拿到了它所要求的份額。
+        //
+        // 2026-09-10 由 P44 回報:「9 children were offered 643 and took 643 …
+        // firstStarvedChild=Spacer」。此處 offered 與 took **相等**——沒有東西不夠用、沒有東西被擠壓，
+        // 而那一行卻在指控一個 `Spacer` 挨餓，儘管它做的正是 `Spacer` 存在的目的。
+        //
+        // 這則回報原本要抓的情況不受影響，因為它是真的溢出:`share == 0` 那一處的註解記載著四欄在
+        // 需要 528 點時只被提議 350 點，其中第四個 `Text` 被提議零寬、變成每行一個字。
+        //
+        // 採半點的容差而非精確相等：這些是跨子元件累加的 `Double`，一個放得下的 stack 可能落在
+        // 極微幅的超出上。
 
         let key = "\(orientation)|\(childCount)|\(starvedChild)"
         guard !reported.contains(key) else { return }

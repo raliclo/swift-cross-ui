@@ -15,14 +15,21 @@ an empty queue -- mistakes.md entry 1.
 - [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
-- [ ] **4. P44:vertical stack 空間耗盡** — `firstStarvedChild=Spacer`,9 個 children 拿到 643 也用掉 643,至少一個被給 0
-- [ ] **5. P28:點擊到「Clicks received」更新約 1 秒** — **先量再改**;單一觀察不足以定位
+- [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
+- [ ] **5. P28:點擊延遲** — 合成點擊上**不重現**:click→body 0–2 ms、click→像素 **69 ms**(52 ms 取樣)。兩邊時鐘以 uptime 對齊。未量到的兩條:真實滑鼠事件、啟動後的第一次點擊。順帶:**一次點擊讓 body 跑五次**
+- [ ] **5b. #126 `onEditingChanged`(Mac 端承接)** — 全樹 `grep` 零命中,從頭寫。Windows 已註明**不需要新的 Gtk binding**,`GestureClick` 就夠。五個 backend 都要寫;此處建得了 AppKit / UIKit / Android,GTK 與 WinUI 的**驗證**交給 Windows
+- [ ] **5c. #122 focus / #123 accessibility:先草擬 protocol 形狀** — Windows 指出五個平台的 focus 模型根本不同(GTK `grab_focus`、WinUI `FocusManager`、AppKit first responder、UIKit 自成一套、Android `requestFocus`),要求**在寫任何 backend 之前**先定形狀,並由 Mac 端負責 AppKit/UIKit/Android 三份。**先產出形狀草案交給 Windows 同意,再動手**
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
 - [ ] **7. P33:大量功能缺失** — 先盤點才知道規模
 - [ ] **8. P34 macOS:多數 API 缺失** — 先盤點
 - [ ] **9. `DocumentGroup`** — 三項缺失 API 的最後一項
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
+- [ ] **12. #113 n^1.5 版面成本** — Windows 說「只需要一句『去跑』」,而實驗**已經設計好**:給 P52 加一條純 `Text` 的 arm,同樣形狀、交錯、取最小值。曲線相同 → 成本在 stack 版面;不同 → 在 `Button`。48 顆按鈕時一次按壓約 0.3 秒花在版面上。**在這五項裡排最前,因為它不需要任何設計決定,而且會告訴我們其餘幾項該往哪裡使力**
+- [ ] **13. #120 Grid 排版** — 需要「子項能說『我展開成 n 格』」的能力;`LayoutSystem.LayoutableChild` 是一對不透明 closure,答不出來。**需要一個設計決定,且不得在 grid 裡特判 `ForEach`**(此點已由本端以 `withKnownIssue` 釘住)
+- [ ] **14. #127 `GeometryProxy`** — `CoordinateSpace` 與 `safeAreaInsets` 全 repo 0 命中(附對照組)。這不是補一個 getter,而是**先設計 `CoordinateSpace`**
+- [ ] **15. #28 Animation** — 需要 per-frame tick,屬**框架改動**而非協定新增。與 #127 一樣需要先確認要不要投入
+- [ ] **16. #118 LazyHGrid** — 不難,是時機:`GridLayoutPlan` 的詞彙是水平專用的,要跨檔改名,風險全在重疊。**訊號:本端目前不在 layout 區域** —— 2026-09-10 的 P44 修正只動了 `LayoutSystem.swift` 的 `StackOverflowReport`,已提交推送;`GridLayoutPlan` 未被本端碰過。若要動手,先說一聲,我會在那段期間避開該檔
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

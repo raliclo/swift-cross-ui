@@ -1,4 +1,12 @@
 action,x,y,origin,button,key,micros,note,platform
+# Coordinates moved from y=271 to y=285 on 2026-09-10, because P28 gained a
+# "click latency" line above the overlay and every row below it shifted down.
+# **An action file is a claim about a layout, so changing the app invalidates
+# it** -- and the failure is silent: the replay reports four actions, the
+# counter stays at zero, and the capture reads as a button that does not work.
+# 座標於 2026-09-10 由 y=271 改為 y=285，因為 P28 在 overlay 上方多了一行「click latency」，
+# 其下每一列都往下位移。**動作檔是對某個版面的主張，因此改動 app 就會使它失效**——而該失敗是靜默的：
+# 重放回報四個動作、計數停在零，而擷圖讀起來就像一顆壞掉的按鈕。
 # P28: click the button through the blue overlay.
 #
 # The coordinates were stale and had been for some time. This file clicked
@@ -32,7 +40,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 點兩次，不是一次。第一次證明 overlay 沒有把它吞掉；第二次證明計數器是在「計數」而非「鎖定」，
 # 而那正是單一次遞增無法區分的失效模式。
-click,250,271,frame,left,,,through the overlay to the button underneath,macos
+click,250,285,frame,left,,,through the overlay to the button underneath,macos
 sleep,,,,,,600000,let the counter and the debug log catch up,macos
-click,250,271,frame,left,,,again -- Clicks received must reach 2,macos
+click,250,285,frame,left,,,again -- Clicks received must reach 2,macos
 sleep,,,,,,800000,,macos
