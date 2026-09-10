@@ -40,7 +40,7 @@ an empty queue -- mistakes.md entry 1.
 - [x] **9. `DocumentGroup`** — 已完成並驅動 (P62)。`FileDocument`、每份文件一個視窗、`newDocument`/`openDocument` action、`ContentType.plainText`。**未做的部分在 scene 自己的文件裡寫明**:自動儲存、版本、未儲存提示、重開上次工作階段
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
-- [ ] **12. #113 n^1.5 版面成本** — Windows 說「只需要一句『去跑』」,而實驗**已經設計好**:給 P52 加一條純 `Text` 的 arm,同樣形狀、交錯、取最小值。曲線相同 → 成本在 stack 版面;不同 → 在 `Button`。48 顆按鈕時一次按壓約 0.3 秒花在版面上。**在這五項裡排最前,因為它不需要任何設計決定,而且會告訴我們其餘幾項該往哪裡使力**
+- [x] **12. #113 n^1.5 版面成本 — 已跑,結論是「不是 n^1.5,它是線性的」** — P52 四條 arm、12→192 五個尺寸,每格成本是**平的**(primitive 220µs / custom 166µs / text 63µs),指數 n^0.95–0.96。三條 arm 曲線相同 → **成長在 stack 版面**;但常數不是附帶的:`Button` 每格比同形狀 `Text` 多 157µs(3.5 倍)。48 格時一次按壓 min 10.5ms / med 20.7ms,**沒有重現 0.3 秒那個參考點**——若那是 GTK/WinUI 量的,那本身就是要問 Windows 的一件事。細節見 `testapp/plan/plan-113-layout-cost.md`
 - [ ] **13. #120 Grid 排版** — 需要「子項能說『我展開成 n 格』」的能力;`LayoutSystem.LayoutableChild` 是一對不透明 closure,答不出來。**需要一個設計決定,且不得在 grid 裡特判 `ForEach`**(此點已由本端以 `withKnownIssue` 釘住)
 - [ ] **14. #127 `GeometryProxy`** — `CoordinateSpace` 與 `safeAreaInsets` 全 repo 0 命中(附對照組)。這不是補一個 getter,而是**先設計 `CoordinateSpace`**
 - [ ] **15. #28 Animation** — 需要 per-frame tick,屬**框架改動**而非協定新增。與 #127 一樣需要先確認要不要投入

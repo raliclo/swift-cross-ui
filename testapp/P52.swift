@@ -434,8 +434,29 @@ enum P52Bench {
     static let control = 0
     static let primitive = 1
     static let custom = 2
-    static let armCount = 3
-    static let armNames = ["control", "primitive", "custom"]
+    /// A fourth arm holding the SAME grid with no `Button` at all.
+    ///
+    /// **Added 2026-09-10 for #113, and it is the arm that decides where the
+    /// cost is.** The other three all pay for buttons, so they can only rank
+    /// button styles against each other -- they cannot say whether the 0.3
+    /// seconds a press spends in layout at 48 buttons belongs to `Button` or to
+    /// the stack layout underneath it. This arm has the same shape, the same
+    /// counts and the same fixed frames, and differs only by not being a button.
+    ///
+    /// Same curve as the primitive arm -> the cost is the stack layout and the
+    /// buttons are incidental. Different curve -> it is `Button`.
+    ///
+    /// 第四條 arm，持有**完全相同**的網格，但其中沒有任何 `Button`。
+    ///
+    /// **2026-09-10 為 #113 加入，而它正是「決定成本落在哪裡」的那一條。** 另外三條都在為按鈕付出
+    /// 代價，因此它們只能把按鈕樣式彼此排序——無法回答「48 顆按鈕時一次按壓花在版面上的那 0.3 秒，
+    /// 屬於 `Button` 還是屬於它底下的 stack 版面」。這一條的形狀相同、數量相同、固定 frame 也相同，
+    /// 唯一的差別是它不是按鈕。
+    ///
+    /// 曲線與 primitive 相同 → 成本在 stack 版面，按鈕只是附帶；曲線不同 → 成本在 `Button`。
+    static let text = 3
+    static let armCount = 4
+    static let armNames = ["control", "primitive", "custom", "text"]
 
     // MARK: Configuration
 
@@ -539,18 +560,32 @@ enum P52Bench {
 
     // MARK: Shared state
 
-    nonisolated(unsafe) static let models = [P52ArmModel(), P52ArmModel(), P52ArmModel()]
+    // Four models, one per arm, and the count must match `armCount`: `models[step.arm]`
+    // indexes this directly, so a fourth arm with three models is an out-of-range
+    // crash rather than a wrong number.
+    // 四個 model，每條 arm 一個，數量必須與 `armCount` 一致：`models[step.arm]` 直接以它索引，
+    // 因此「四條 arm 配三個 model」會是一次越界崩潰，而不是一個錯誤的數字。
+    nonisolated(unsafe) static let models = [
+        P52ArmModel(), P52ArmModel(), P52ArmModel(), P52ArmModel(),
+    ]
     nonisolated(unsafe) static let results = P52ResultsModel()
 
     /// The last time each arm's sentinel `GeometryReader` ran, in nanoseconds.
     /// 每個 arm 的哨兵 `GeometryReader` 最後一次執行的時間，單位為奈秒。
-    nonisolated(unsafe) static var lastSentinel = [UInt64](repeating: 0, count: 3)
+    // Every one of these is indexed by arm, so every one is `armCount` long.
+    // They were written `count: 3` and a fourth arm made `lastSentinel[3]` kill
+    // the process before the first step ran -- the log ended after CONFIG and
+    // looked exactly like a benchmark that had stalled.
+    // 以下每一個都以 arm 索引，因此每一個都必須是 `armCount` 長。它們原本寫死為 `count: 3`，
+    // 而第四條 arm 讓 `lastSentinel[3]` 在第一步跑起來之前就終結了行程——日誌停在 CONFIG 之後，
+    // 看起來與「一個卡住的 benchmark」一模一樣。
+    nonisolated(unsafe) static var lastSentinel = [UInt64](repeating: 0, count: armCount)
 
     nonisolated(unsafe) static var pressRounds: [[[Double]]] = []
     nonisolated(unsafe) static var mountRounds: [[[Double]]] = []
-    nonisolated(unsafe) static var pressCPU = [P52CPUTimes](repeating: .zero, count: 3)
-    nonisolated(unsafe) static var mountCPU = [P52CPUTimes](repeating: .zero, count: 3)
-    nonisolated(unsafe) static var misses = [Int](repeating: 0, count: 3)
+    nonisolated(unsafe) static var pressCPU = [P52CPUTimes](repeating: .zero, count: armCount)
+    nonisolated(unsafe) static var mountCPU = [P52CPUTimes](repeating: .zero, count: armCount)
+    nonisolated(unsafe) static var misses = [Int](repeating: 0, count: armCount)
     nonisolated(unsafe) static var cpuAvailable = false
     nonisolated(unsafe) static var steps: [P52Step] = []
     nonisolated(unsafe) static var stepIndex = 0
@@ -1113,6 +1148,58 @@ struct P52Instrumented<Content: View>: View {
 /// 容器自身的排版以及哨兵的排版——這些成本每次更新只付一次，與有幾顆按鈕無關。若直接把原始區間除以
 /// 48，等於把該固定成本攤到按鈕頭上，使兩個 arm 同時被灌水相同的量，而那會因為壓縮比值而偏袒本來
 /// 較便宜的那一邊。
+/// The same grid as ``P52ButtonGrid`` with the `Button` taken out.
+///
+/// Every other property is deliberately identical -- the label, the font, the
+/// fixed frame, the row and column arithmetic -- because anything else that
+/// differed would land in the number this arm exists to produce.
+///
+/// 與 ``P52ButtonGrid`` 相同的網格，只是把 `Button` 拿掉。
+///
+/// 其餘每一項性質都刻意保持一致——標籤、字型、固定 frame、列與欄的算術——因為任何**其他**的差異，
+/// 都會落進這條 arm 所要產生的那個數字裡。
+struct P52TextGrid: View {
+    var count: Int
+    var columns: Int
+    var generation: Int
+
+    var rowCount: Int {
+        columns <= 0 ? 0 : (count + columns - 1) / columns
+    }
+
+    func itemsInRow(_ row: Int) -> Int {
+        min(columns, max(0, count - row * columns))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(0..<self.rowCount), id: \.self) { row in
+                HStack(spacing: 2) {
+                    ForEach(Array(0..<self.itemsInRow(row)), id: \.self) { _ in
+                        Text("b")
+                            .font(.system(size: 10))
+                            .frame(width: 14, height: 12)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct P52TextArm: View {
+    @ObservedObject var model: P52ArmModel
+
+    var body: some View {
+        P52Instrumented(arm: P52Bench.text) {
+            P52TextGrid(
+                count: model.mounted ? P52Bench.buttonsPerArm : 0,
+                columns: P52Bench.columns,
+                generation: model.generation
+            )
+        }
+    }
+}
+
 struct P52ControlArm: View {
     @ObservedObject var model: P52ArmModel
 
@@ -1207,6 +1294,12 @@ struct P52RootView: View {
                             .font(.system(size: 11))
                         P52CustomArm(model: P52Bench.models[P52Bench.custom])
                     }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("text arm -- same grid, no Button at all (#113)")
+                        .font(.system(size: 11))
+                    P52TextArm(model: P52Bench.models[P52Bench.text])
                 }
 
                 VStack(alignment: .leading, spacing: 4) {

@@ -328,3 +328,57 @@ ls -l <每一個要傳給工具的路徑> || exit 1
 **與第 2 條的關係**:兩者都源於「建置系統的狀態與我以為的不同」,但形狀相反。第 2 條是
 **建置跑了而檔案沒進去**;本條是**建置根本沒跑**。第 2 條的守衛(`ls -l .build/release.yaml`)
 在本條下毫無用處——那個檔案好端端地在那裡,只是這次沒有人碰過它。
+
+---
+
+## 5. 把一個已經死掉的行程讀成一個很慢的行程,並替它編了一套機制
+
+**2026-09-10,1 次 / 1 天。**
+
+### 症狀
+
+P52 加上第四條 arm 之後,日誌停在:
+
+```
+CONFIG buttons/arm=48 columns=8 rounds=10 press-passes/round=5 mounts/round=1 steps=240
+CONFIG poll=15ms quiet=45ms max-polls=80 warmup=2000ms cpu-clock=unavailable on this platform
+```
+
+然後不再前進。**沒有崩潰訊息、沒有非零退出碼、沒有任何一支工具說出任何一句話**——建置回報
+`build=0`,而它應該印的那行 `--- P52 results ---` 只是沒有出現。這與「一個跑得太慢的
+benchmark」在畫面上完全一樣。
+
+### 我做了什麼
+
+我先把 rounds 從 10 降到 2(48 步,應該一分鐘內跑完)——還是一樣。然後我提出一個解釋:
+**AppKit 會節流背景視窗的重繪**,而這支 benchmark 靠輪詢哨兵推進,所以它在背景推不動。
+
+那是一個**真實存在的機制**,這正是它有說服力的地方。我還為它寫了一支 `test_P52.zsh`,把 app
+放到前景重跑一次來驗證這個假設。前景一樣停住。
+
+### 真正的原因
+
+`P52Bench` 有四個以 arm 索引的陣列寫死 `count: 3`:
+
+```swift
+nonisolated(unsafe) static var lastSentinel = [UInt64](repeating: 0, count: 3)
+```
+
+第四條 arm 讓 `lastSentinel[3]` 在第一步跑起來之前就終結了行程。`models` 上方有一行註解說
+「數量必須與 `armCount` 一致」,而它只說了 `models`。
+
+### 矯正措施
+
+**在解釋「為什麼慢」之前,先確認它還活著。** 而當改動是我自己做的時候,有一個比任何理論都快的
+動作:
+
+```sh
+git checkout -- testapp/P52.swift && zsh testapp/compile.zsh P52 && (跑一次)
+```
+
+原版跑完了、印出了結果——**一個指令就把「平台的行為」與「我弄壞的東西」分開了**,而我在那之前
+已經為一個不存在的原因花掉兩輪重跑與一支新腳本。
+
+The explanation I reached for was a real mechanism, which is what made it
+convincing. Reverting my own change took one command and answered it outright.
+Do that first, whenever the thing that changed is mine.
