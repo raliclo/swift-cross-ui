@@ -382,3 +382,54 @@ git checkout -- testapp/P52.swift && zsh testapp/compile.zsh P52 && (跑一次)
 The explanation I reached for was a real mechanism, which is what made it
 convincing. Reverting my own change took one command and answered it outright.
 Do that first, whenever the thing that changed is mine.
+
+---
+
+## 6. 用 grep 過濾出來的一行,宣告整個測試套件「通過了」
+
+**2026-09-10,1 次 / 1 天。**
+
+### 症狀
+
+```
+$ run_checked.zsh --want 'Test run with' -- sh Scripts/test.sh 2>&1 | grep -aE "Test run with|✗" | tail -3
+􀢂  Test run with 68 tests in 15 suites passed after 0.339 seconds with 1 known issue.
+􁁛  Test run with 14 tests in 1 suite passed after 0.201 seconds.
+```
+
+看起來乾淨得無可挑剔。而在那兩行上方,`SwiftCrossUITests` **根本沒有建置成功**:
+
+```
+Tests/SwiftCrossUITests/GridLayoutTests.swift:158:23: error: generic parameter could not be inferred
+error: Build failed
+```
+
+`#118` 的改名移除了 `LazyVGrid.resolve` 與 `plan.columnWidths`,而測試還在用它們。`Scripts/test.sh`
+會跑不只一次測試,後面那一次建得起來、也印出了 `passed`——**而我的樣式只認得那一行**。
+
+編譯錯誤那行帶著 `error:`、沒有勾勾,於是落在樣式之外。我據此寫下了 commit 訊息裡的
+「Scripts/test.sh passes」,那句話是假的,而它一直到一小時後同一個過濾器碰巧顯示出那行錯誤時才被發現。
+
+### 為什麼工具在手邊卻沒擋住
+
+**`run_checked.zsh` 就在那條指令裡。** 它會掃描失敗訊號、會回報退出碼——而我把它的輸出接進了
+`grep | tail`,於是它說了什麼我一個字都沒看到。這正是 mistakes_prevention 那份 skill 所記載的
+**第六種偽裝**:不是樣式太窄,是「這次不必看判定」。
+
+### 矯正措施
+
+要摘要**也**要判定時,把兩者分開,不要讓其中一個吃掉另一個:
+
+```sh
+run_checked.zsh --want 'Test run with' -- sh Scripts/test.sh > /tmp/t.log 2>&1
+echo "exit=$?"        # ← 判定，單獨一行
+grep -aE "Test run with|error:" /tmp/t.log
+```
+
+**在寫下任何關於建置或測試的主張之前,先讀那一行 `exit=`。** 樣式決定你看到什麼,退出碼決定
+事實是什麼。
+
+The tool was inside the very command that hid it: run_checked.zsh scans for
+failures and reports an exit status, and I piped its output into `grep | tail`
+so none of that reached me. Capture the run to a file, echo the status on its
+own line, then grep the file.
