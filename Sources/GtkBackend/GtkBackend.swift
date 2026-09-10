@@ -253,6 +253,10 @@ public final class GtkBackend:
     /// frame clock 的 callback id，以及它所附著的那個 widget。
     var frameClockID: UInt32?
     var frameClockAttachedTo: UnsafeMutablePointer<GtkWidget>?
+    /// The clock `begin_updating` was called on, so `end_updating` can be paired
+    /// with it exactly once.
+    /// 曾對它呼叫 `begin_updating` 的那個時鐘——好讓 `end_updating` 與它恰好配對一次。
+    var frameClockUpdatingOn: OpaquePointer?
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
 
     /// All current windows associated with the application. Doesn't include the

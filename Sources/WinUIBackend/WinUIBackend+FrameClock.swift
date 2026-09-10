@@ -56,11 +56,52 @@ extension WinUIBackend: BackendFeatures.FrameClocks {
         // **先試過 `MainActor.assumeIsolated { ... }`,結果更糟**:它要求其**回傳值**符合
         // Sendable,而 `EventCleanup` 並不符合,於是一個錯誤變成兩個。此處記下來,是因為那個包裝
         // 是最直覺的伸手處,而它是錯的那一個。
-        frameClockToken = CompositionTarget.rendering.addHandler { _, _ in
+        // **The timestamp comes from the event, not from the process clock.**
+        //
+        // Measured on Win-WinUI (`fd9efe32`): 262 ticks in 1.86s = 140.4 Hz with
+        // a MEDIAN GAP OF ZERO. A median of zero means many ticks share a
+        // timestamp, which is a statement about the clock being read rather than
+        // about how often the event fires -- `ProcessInfo.systemUptime` on
+        // Windows is backed by a tick count whose resolution is coarser than a
+        // frame, so several composed frames land on the same number and the
+        // count divided by the span comes out high.
+        //
+        // `RenderingEventArgs.renderingTime` is the compositor's own estimate of
+        // when the frame will be displayed, which is exactly what the protocol
+        // asks for: a monotonic time in seconds from the backend's own clock.
+        //
+        // If 140 Hz survives this change then the other explanation was the
+        // right one -- the event really does fire more than once per frame --
+        // and the fix is to coalesce on `renderingTime` instead.
+        //
+        // **NOT COMPILED HERE.** What to check: that the second parameter can be
+        // cast to `RenderingEventArgs`, and that `renderingTime` is a `TimeSpan`
+        // whose `duration` is in 100-nanosecond units as WinRT's is elsewhere.
+        //
+        // **時間戳記取自那個事件，而不是取自行程的時鐘。**
+        //
+        // 在 Win-WinUI 上量到(`fd9efe32`):1.86 秒 262 次 = 140.4 Hz，而**間隔中位數為零**。中位數
+        // 為零代表許多次 tick 共用同一個時間戳記——那是一句關於「被讀取的那個時鐘」的陳述，而不是關於
+        // 「事件觸發得多頻繁」:Windows 上的 `ProcessInfo.systemUptime` 背後是一個 tick 計數，其解析度
+        // 比一幀還粗，因此數個合成幀會落在同一個數字上，而「次數除以時距」就會偏高。
+        //
+        // `RenderingEventArgs.renderingTime` 是合成器自己對「這一幀何時會被顯示」的估計，而那正是本
+        // 協定所要的:一個來自 backend 自身時鐘、以秒為單位的單調時間。
+        //
+        // 若改完之後 140 Hz 仍在，那就代表另一個解釋才是對的——該事件確實每幀觸發不只一次——而修法
+        // 會變成改以 `renderingTime` 做合併。
+        //
+        // **此處未編譯。** 要查的是:第二個參數是否能轉型為 `RenderingEventArgs`，以及
+        // `renderingTime` 是否為一個 `TimeSpan`、其 `duration` 是否如 WinRT 他處一樣以 100 奈秒為單位。
+        frameClockToken = CompositionTarget.rendering.addHandler { _, args in
+            let seconds: Double
+            if let args = args as? RenderingEventArgs {
+                seconds = Double(args.renderingTime.duration) / 10_000_000
+            } else {
+                seconds = ProcessInfo.processInfo.systemUptime
+            }
             MainActor.assumeIsolated {
-                WinUIBackend.currentFrameClockHandler?(
-                    ProcessInfo.processInfo.systemUptime
-                )
+                WinUIBackend.currentFrameClockHandler?(seconds)
             }
         }
     }

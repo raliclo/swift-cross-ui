@@ -70,9 +70,59 @@ extension GtkBackend: BackendFeatures.FrameClocks {
         )
         frameClockID = id
         frameClockAttachedTo = widget
+
+        // **Asking for frames, which is the half that was missing.**
+        //
+        // The Windows side measured this on Win-gtk4 (`8babc4a2`): the callback
+        // ran exactly ONCE and then never again, while returning
+        // G_SOURCE_CONTINUE every time. That is not a callback asking to be
+        // removed; it is a frame clock with nothing to do. GTK's clock produces
+        // frames when something needs redrawing, and a tick callback is not
+        // itself a reason to redraw -- `gdk_frame_clock_begin_updating` is how a
+        // widget says "keep the cycle running", and it is paired with
+        // `end_updating` so an idle app stops being woken.
+        //
+        // This is what their commit named as the remaining candidate: "whether a
+        // GtkWindow is a widget that keeps producing frames at all, as opposed
+        // to one that produces a frame when something invalidates it". It is the
+        // second.
+        //
+        // **STILL NOT COMPILED HERE.** `gdk_frame_clock_get_frame_time` already
+        // builds on their machine from this file, so the GDK symbols are visible;
+        // `begin_updating` and `end_updating` are from the same header and the
+        // same GDK 4.0. What to check is the RATE, with P64: 1 tick means this
+        // was the wrong cause, and about 60 means it was the right one.
+        //
+        // **要求產生幀——那正是先前缺掉的那一半。**
+        //
+        // Windows 端在 Win-gtk4 上量到(`8babc4a2`):那個 callback 只執行了**一次**、之後再也沒有，
+        // 而它每一次都回傳 G_SOURCE_CONTINUE。那不是一個「要求被移除」的 callback，那是一個
+        // 「無事可做」的 frame clock。GTK 的時鐘在「有東西需要重繪」時才產生幀，而一個 tick callback
+        // 本身並不構成重繪的理由——`gdk_frame_clock_begin_updating` 才是一個 widget 用來說「請讓這個
+        // 循環持續下去」的方式，並與 `end_updating` 成對，好讓閒置的 app 不再被叫醒。
+        //
+        // 這正是他們那個 commit 所指名的、尚存的那個候選解釋:「一個 GtkWindow 究竟是一個持續產生幀的
+        // widget，還是一個在有東西使其失效時才產生一幀的 widget」。答案是後者。
+        //
+        // **此處仍未編譯。** `gdk_frame_clock_get_frame_time` 已經能在他們的機器上從本檔建置，因此
+        // GDK 的符號是看得見的;`begin_updating` 與 `end_updating` 出自同一個標頭、同一個 GDK 4.0。
+        // 要查的是**速率**，用 P64:1 次代表這個成因猜錯了，約 60 代表猜對了。
+        if let clock = gtk_widget_get_frame_clock(widget) {
+            gdk_frame_clock_begin_updating(clock)
+            frameClockUpdatingOn = clock
+        }
     }
 
     public func stopFrameClock() {
+        if let clock = frameClockUpdatingOn {
+            // Paired with `begin_updating`: GTK reference-counts these, so a
+            // missing `end` leaves the clock running for the process's life --
+            // which looks like nothing at all until a battery is measured.
+            // 與 `begin_updating` 成對:GTK 對它們計數，因此少一次 `end` 會讓那個時鐘持續運轉到行程
+            // 結束——而那件事在有人量測電池之前，看起來什麼事都沒有。
+            gdk_frame_clock_end_updating(clock)
+        }
+        frameClockUpdatingOn = nil
         if let id = frameClockID, let widget = frameClockAttachedTo {
             gtk_widget_remove_tick_callback(widget, id)
         }
