@@ -24,8 +24,8 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **5c. #122 focus / #123 accessibility:先草擬 protocol 形狀** — Windows 指出五個平台的 focus 模型根本不同(GTK `grab_focus`、WinUI `FocusManager`、AppKit first responder、UIKit 自成一套、Android `requestFocus`),要求**在寫任何 backend 之前**先定形狀,並由 Mac 端負責 AppKit/UIKit/Android 三份。**先產出形狀草案交給 Windows 同意,再動手**
 - [x] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
-- [ ] **7. P33:大量功能缺失** — 先盤點才知道規模
-- [ ] **8. P34 macOS:多數 API 缺失** — 先盤點
+- [x] **7. P33 / P34 盤點** — 已完成。十六個名字以宣告形狀 grep 加對照組查證,**只有 `LazyHGrid` 缺席**(即 #118);兩支 app 自己的文字都是準確的
+- [ ] **7b. P34:兩位數的列在右側被切掉** — 盤點時發現。第 0 列止於 x=316,而第 10、18 列都在 x=319 被切斷(容器邊緣)。**容器比它最寬的子元件窄** —— 與 P50 popover 同一族「量到的比畫出來的窄」。`LayoutSystem:239` 交叉軸取的是最大值,所以不是那條規則的錯;尚未定位
 - [ ] **9. `DocumentGroup`** — 三項缺失 API 的最後一項
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
