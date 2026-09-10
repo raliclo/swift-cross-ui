@@ -62,8 +62,94 @@ extension SIMD2: AnimatableValue where Scalar: BinaryFloatingPoint {
     }
 }
 
-// `Color` deliberately does NOT conform, and the reason is a real obstacle
-// rather than a decision to make later.
+extension Color: AnimatableValue {
+    /// Interpolates two colours when both are made of components, and assigns
+    /// immediately when either is not.
+    ///
+    /// **The two cases are not a compromise, they are two different questions.**
+    /// A `.rgb` colour has numbers and the midpoint between two of them exists.
+    /// A `.system` colour has no components at all until it is resolved against
+    /// an environment, and a tween inside `@State` has no environment -- so
+    /// there is no midpoint to compute, only one to invent.
+    ///
+    /// What it does instead of inventing one is assign at once, which is exactly
+    /// what a non-conforming type does. **Holding the old colour for the
+    /// duration and snapping at the end was the alternative and is worse**: a
+    /// delayed jump reads as a bug, while an immediate assignment reads as "this
+    /// colour does not animate", which is the truth.
+    ///
+    /// `.adaptive` recurses, because a light/dark pair of `.rgb` colours has a
+    /// midpoint on each side.
+    ///
+    /// 當兩端都由分量構成時做插值;當任一端不是時，立即賦值。
+    ///
+    /// **這兩種情況不是折衷，它們是兩個不同的問題。** 一個 `.rgb` 顏色有數字，而兩個數字之間的中點
+    /// 存在。一個 `.system` 顏色在對某個環境 resolve 之前根本沒有分量，而 `@State` 裡的補間沒有環境
+    /// ——因此不存在一個可以**計算**的中點，只存在一個可以**捏造**的中點。
+    ///
+    /// 它不去捏造，而是立即賦值——那正是一個「未 conform 的型別」所做的事。**另一個選項是「整段期間
+    /// 維持舊顏色、最後才切換」，而那更糟**:一次延遲的跳變讀起來像 bug，而一次立即的賦值讀起來是
+    /// 「這個顏色不做動畫」——那是事實。
+    ///
+    /// `.adaptive` 會遞迴，因為一對淺色/深色的 `.rgb` 在各自那一側都有中點。
+    public static func interpolated(from start: Color, to end: Color, progress: Double) -> Color {
+        guard
+            let representation = Representation.interpolated(
+                from: start.representation,
+                to: end.representation,
+                progress: progress
+            )
+        else {
+            return end
+        }
+        return Color(
+            representation: representation,
+            opacityMultiplier: Double.interpolated(
+                from: start.opacityMultiplier,
+                to: end.opacityMultiplier,
+                progress: progress
+            )
+        )
+    }
+}
+
+extension Color.Representation {
+    /// `nil` when there is nothing to interpolate, which the caller turns into
+    /// an immediate assignment.
+    /// 當沒有東西可以插值時為 `nil`——呼叫端會把它變成一次立即賦值。
+    static func interpolated(
+        from start: Self,
+        to end: Self,
+        progress: Double
+    ) -> Self? {
+        switch (start, end) {
+            case (
+                .rgb(let r0, let g0, let b0),
+                .rgb(let r1, let g1, let b1)
+            ):
+                return .rgb(
+                    red: Double.interpolated(from: r0, to: r1, progress: progress),
+                    green: Double.interpolated(from: g0, to: g1, progress: progress),
+                    blue: Double.interpolated(from: b0, to: b1, progress: progress)
+                )
+            case (
+                .adaptive(let light0, let dark0),
+                .adaptive(let light1, let dark1)
+            ):
+                return .adaptive(
+                    light: Color.interpolated(from: light0, to: light1, progress: progress),
+                    dark: Color.interpolated(from: dark0, to: dark1, progress: progress)
+                )
+            default:
+                return nil
+        }
+    }
+}
+
+// ~~`Color` deliberately does NOT conform~~ -- it does now, above, and the note
+// below is kept because the obstacle it describes is real and is what shaped the
+// conformance: a `.system` colour still has no midpoint, and what changed is
+// that a `.rgb` one was never the same question.
 //
 // A `Color` here is a `Representation`, which may be a system colour whose
 // components are not known until it is resolved against an environment -- and
