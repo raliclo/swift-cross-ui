@@ -167,6 +167,30 @@ public struct EnvironmentValues {
         )
     }
 
+    /// Presents an 'Open file' dialog that allows selecting more than one item.
+    ///
+    /// A sibling of ``chooseFile`` rather than a flag on it: the two return
+    /// different types, `URL?` and `[URL]?`, and one function cannot do both
+    /// without making every existing caller unwrap an array of one. Nothing new
+    /// reaches the backends -- `OpenDialogOptions` has always carried
+    /// `allowMultipleSelections` and `showOpenDialog` has always returned
+    /// `[URL]`.
+    ///
+    /// 呈現一個「允許選取多個項目」的開啟對話框。
+    ///
+    /// 它是 ``chooseFile`` 的兄弟，而不是它身上的一個旗標：兩者回傳的型別不同（`URL?` 與 `[URL]?`），
+    /// 而一個函式無法同時做到兩者，除非讓每一個既有呼叫端去拆一個只有一個元素的陣列。此處沒有任何新
+    /// 東西送到 backend——`OpenDialogOptions` 一直帶著 `allowMultipleSelections`，而
+    /// `showOpenDialog` 一直回傳 `[URL]`。
+    @MainActor
+    @available(tvOS, unavailable, message: "tvOS does not provide file system access")
+    public var chooseFiles: PresentMultipleFileOpenDialogAction {
+        PresentMultipleFileOpenDialogAction(
+            backend: backend,
+            window: MainActorBox(value: window)
+        )
+    }
+
     /// Presents a 'Save file' dialog fit for selecting a save destination.
     ///
     /// Displays as a modal for the current window, or the entire app if
