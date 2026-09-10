@@ -375,6 +375,22 @@ public final class WinUIBackend:
         /// 索引方式與 `sliderChangeActions` 相同，理由也相同：handler 只在 slider 建立時加一次，
         /// 而它該呼叫的那個 closure 會在每一次更新時被替換。
         var sliderEditingActions: [ObjectIdentifier: (Bool) -> Void] = [:]
+        /// Whether a slider has reported `onEditingChanged(true)` that has not
+        /// yet been matched by a `false`. Read before emitting either, so an
+        /// edit is reported exactly once however many values it produces, and
+        /// so `pointerCaptureLost` cannot emit an unpaired `false`.
+        /// 某個 slider 是否已回報過一次尚未被 `false` 配對的 `onEditingChanged(true)`。
+        /// 發出任一者之前都會先讀它,如此一來:一次編輯無論產生多少個數值都只回報一次,
+        /// 而 `pointerCaptureLost` 也無法發出一個沒有配對的 `false`。
+        var sliderIsEditing: Set<ObjectIdentifier> = []
+        /// Sliders whose value is being set from code right now.
+        /// `setValue(ofSlider:to:)` raises `valueChanged` exactly as a drag
+        /// does, so without this the control in P61 -- "a slider moved from
+        /// code must NOT report an edit" -- fails.
+        /// 目前正由**程式**設定數值的 slider。`setValue(ofSlider:to:)` 引發 `valueChanged`
+        /// 的方式與一次拖曳完全相同,因此若無此集合,P61 的那項對照——「從程式移動的 slider
+        /// **不得**回報一次編輯」——就會失敗。
+        var slidersBeingSetFromCode: Set<ObjectIdentifier> = []
         var textFieldChangeActions: [ObjectIdentifier: (String) -> Void] = [:]
         var textFieldSubmitActions: [ObjectIdentifier: () -> Void] = [:]
         var textFieldContents: [ObjectIdentifier: String] = [:]
@@ -1556,7 +1572,20 @@ public final class WinUIBackend:
                 let slider
             else { return }
 
-            internalState.sliderChangeActions[ObjectIdentifier(slider)]?(
+            let id = ObjectIdentifier(slider)
+
+            // An edit BEGINS at the first value a user interaction produces.
+            // See the block below for why this is not `pointerPressed`.
+            // 一次編輯**開始於**使用者互動所產生的第一個數值。此處不用 `pointerPressed`
+            // 的原因見下方那段。
+            if !internalState.slidersBeingSetFromCode.contains(id),
+                !internalState.sliderIsEditing.contains(id)
+            {
+                internalState.sliderIsEditing.insert(id)
+                internalState.sliderEditingActions[id]?(true)
+            }
+
+            internalState.sliderChangeActions[id]?(
                 Double(event?.newValue ?? 0)
             )
         }
@@ -1576,13 +1605,57 @@ public final class WinUIBackend:
         // `pointerReleased`，因為一次「移出控制項之外」的拖曳仍然結束了那次編輯，而在 slider 之外
         // 放開並不會在它身上引發 `pointerReleased`——與 UIKit 除了 `.touchUpInside` 之外還要收下
         // `.touchUpOutside` 與 `.touchCancel` 是同一個道理。
-        slider.pointerPressed.addHandler { [weak internalState, weak slider] _, _ in
-            guard let internalState, let slider else { return }
-            internalState.sliderEditingActions[ObjectIdentifier(slider)]?(true)
-        }
+        // THE BEGINNING OF AN EDIT DOES NOT COME FROM A POINTER EVENT HERE, and
+        // two attempts to make it are recorded below rather than deleted --
+        // both compile, and both do nothing.
+        //
+        //  1. `slider.pointerPressed.addHandler { ... }`. Measured 2026-09-10
+        //     with `actions/win/P61-drag-the-trough.csv`: P61 read
+        //     `began=0 ended=1`. `Slider`'s own control template handles the
+        //     routed event before it reaches a subscriber, so the handler is
+        //     never called.
+        //  2. `slider.addHandler(UIElement.pointerPressedEvent, handler, true)`
+        //     -- `handledEventsToo: true`, which is the documented way past a
+        //     handled routed event. Also measured, also `began=0`. The binding
+        //     compiles it but `UIElement.AddHandlerImpl` boxes the handler
+        //     through `__ABI_.AnyWrapper`, producing a generic `IInspectable`
+        //     rather than the `IPointerEventHandler` XAML queries for, and the
+        //     delegate is silently never invoked.
+        //
+        // So the edit begins at the first `valueChanged` that a user
+        // interaction produces, and `slidersBeingSetFromCode` is what keeps
+        // `setValue(ofSlider:)` from looking like one. GtkBackend arrives at
+        // the same place from the other direction: there `pressed` fires and
+        // `released` never does, so it ends on `end`.
+        //
+        // **一次編輯的開始,在此處並非來自 pointer 事件**,而下方記下的是兩次嘗試——不是刪掉——
+        // 因為它們**都編譯得過,也都什麼都沒做**。
+        //
+        //  1. `slider.pointerPressed.addHandler { ... }`。2026-09-10 以
+        //     `actions/win/P61-drag-the-trough.csv` 實測:P61 讀到 `began=0 ended=1`。
+        //     `Slider` 自己的 control template 在該 routed event 抵達訂閱者**之前**就把它
+        //     handle 掉了,因此那個 handler 從未被呼叫。
+        //  2. `slider.addHandler(UIElement.pointerPressedEvent, handler, true)`——
+        //     `handledEventsToo: true`,那正是文件所述「繞過一個已被 handle 的 routed event」
+        //     的做法。同樣實測過,同樣是 `began=0`。binding 編譯得過,但
+        //     `UIElement.AddHandlerImpl` 會把 handler 經由 `__ABI_.AnyWrapper` 裝箱,
+        //     產出的是一個泛用的 `IInspectable`,而非 XAML 所查詢的 `IPointerEventHandler`,
+        //     於是那個 delegate 被靜默地永不呼叫。
+        //
+        // 因此,編輯開始於使用者互動所產生的**第一個** `valueChanged`,而
+        // `slidersBeingSetFromCode` 正是用來讓 `setValue(ofSlider:)` 不會看起來像那樣。
+        // GtkBackend 從**反方向**抵達同一個地方:那裡 `pressed` 會觸發而 `released` 永遠不會,
+        // 所以它結束於 `end`。
         slider.pointerCaptureLost.addHandler { [weak internalState, weak slider] _, _ in
             guard let internalState, let slider else { return }
-            internalState.sliderEditingActions[ObjectIdentifier(slider)]?(false)
+            let id = ObjectIdentifier(slider)
+            // Only if an edit actually began. Pressing the handle and releasing
+            // without moving raises this with no value change, and an unpaired
+            // `false` is worse than a missing one.
+            // 只在確實開始過一次編輯時才發。按住把手、不移動就放開,同樣會引發本事件卻沒有
+            // 任何數值變化,而**一個沒有配對的 `false`,比少一個更糟**。
+            guard internalState.sliderIsEditing.remove(id) != nil else { return }
+            internalState.sliderEditingActions[id]?(false)
         }
         slider.stepFrequency = 0.01
         return slider
@@ -1607,6 +1680,18 @@ public final class WinUIBackend:
 
     public func setValue(ofSlider slider: Widget, to value: Double) {
         let slider = slider as! WinUI.Slider
+        // Marked for the duration, because `valueChanged` cannot tell a code
+        // assignment from a drag and this backend now begins an edit there.
+        // GtkBackend's equivalent is `withBlockedSignal(named: "value-changed")`
+        // -- GTK can silence the signal outright, WinUI cannot, so the flag has
+        // to be read on the other side instead.
+        // 全程標記,因為 `valueChanged` 分不出「程式指派」與「一次拖曳」,而本 backend 現在
+        // 正是在那裡開始一次編輯。GtkBackend 的對應寫法是
+        // `withBlockedSignal(named: "value-changed")`——GTK 可以直接讓訊號噤聲,WinUI 不行,
+        // 因此只能改為在**另一端**讀這個旗標。
+        let id = ObjectIdentifier(slider)
+        internalState.slidersBeingSetFromCode.insert(id)
+        defer { internalState.slidersBeingSetFromCode.remove(id) }
         slider.value = value
     }
 

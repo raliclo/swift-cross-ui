@@ -32,6 +32,41 @@ action,x,y,origin,button,key,micros,note,platform
 # BOTH stay where the drag left them. Without this row a broken implementation
 # passes.
 #
+# ONE FILE, BOTH WINDOWS BACKENDS, and deliberately not two. Measured
+# 2026-09-10: the WinUI window puts the track at frame y=229 with the handle at
+# x=178, within 3px of GTK's y=226 / x=197, so x=280 is clear of the handle on
+# both. A second copy would only be able to disagree with this one.
+#
+# What each backend is being asked, though, is NOT the same:
+#   GtkBackend   -- do pressed/released reach a `GestureClick` on a `GtkScale`
+#                   at all (answer: pressed yes, released never; the edit ends
+#                   on `end`)
+#   WinUIBackend -- does `Slider.pointerCaptureLost` fire at the end of a drag.
+#                   It was chosen over `pointerReleased` because a release
+#                   OUTSIDE the control still ends the edit
+# The control row at the bottom is the same question for both.
+#
+# HOW TO RUN THE WINUI ONE. Not through run.zsh: that script looks for
+# `Pn-gtk4.exe` first and only NAMES the WinUI build in its error. Run
+# `output/P61-WinUI.exe --debug -actionfile ...` directly. Going through run.zsh
+# silently launches the GTK build, and the log then says `backend GtkBackend`
+# while you believe you are testing WinUI.
+#
+# **一個檔案、兩個 Windows backend,而且是刻意不分成兩份。** 2026-09-10 實測:WinUI 視窗的軌道
+# 位於 frame y=229、把手在 x=178,與 GTK 的 y=226／x=197 相差在 3px 之內,因此 x=280 在兩者
+# 上都遠離把手。**多一份副本,唯一能做到的事就是與這一份互相矛盾。**
+#
+# 不過對兩個 backend 所問的**並不是同一個問題**:GtkBackend 問的是「`GtkScale` 上的
+# `GestureClick` 究竟收不收得到 pressed／released」(答案:pressed 收得到,released 永遠不來;
+# 編輯結束於 `end`);WinUIBackend 問的是「`Slider.pointerCaptureLost` 會不會在一次拖曳結束時
+# 觸發」——它之所以雀屏中選而非 `pointerReleased`,是因為在控制項**之外**放開同樣結束了那次編輯。
+# 最下方那一列對照,對兩者問的則是同一個問題。
+#
+# **WinUI 版怎麼跑。** 不要經由 run.zsh:該腳本會**先**找 `Pn-gtk4.exe`,而 WinUI 的建置只會
+# 出現在它的錯誤訊息裡、不會被啟動。請直接執行 `output/P61-WinUI.exe --debug -actionfile ...`。
+# 經由 run.zsh 會靜默地啟動 GTK 版,而 log 隨後寫著 `backend GtkBackend`——當你以為自己正在
+# 測 WinUI 的時候。
+#
 # expect: log-contains editing began
 #
 # P61 於 Windows:`Slider.onEditingChanged` 會不會觸發,而且**只**在真正的編輯時觸發?
