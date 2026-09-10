@@ -215,3 +215,49 @@ Windows 量的是 **`.bordered` button 的 press transition**(每顆按鈕都裝
 transitions, not per-cell layout cost, so the 30x is a ratio between two different quantities until
 that is aligned. The one-second P28 report has no Windows row anywhere in results.csv2 to support it;
 this side will measure it.*
+
+---
+
+## 更正:#123 在 GTK/Windows 上**做得到**,我先前說反了
+
+### Correction: #123 IS reachable on GTK/Windows
+
+2026-09-11。我先前寫下「Windows 上的 accessibility 是 WinUI-only,除非 GTK 上游補上 UIA bridge」。
+**那句話是錯的**,而且它正是 CLAUDE.md 明令禁止的形狀——把「這個平台沒有內建 X」說成「這個平台
+做不到 X」。使用者當場指出來,而規則寫得很清楚:那是**待查證的主張,不是結論**,而且答案仍然是
+去找出該平台**做得到**的方式。
+
+錯誤的部分不是量測,是從量測推出的結論。量測本身仍然成立:`C:/gtk4` 有 **0** 個 atk/at-spi
+程式庫(對照 67 個 dll),`gtk-4-1.dll` 有 **130** 處 `gtk_accessible` 與 **0** 個 UIA 符號
+(對照 `gtk_widget_grab_focus` 2)。**GTK 確實不會把它自己的樹送給任何輔助技術。**
+但那不是本專案要送的樹。
+
+### 為什麼那不擋路
+
+**#123 要暴露的是 SwiftCrossUI 的 `.accessibilityLabel(...)`,不是 GTK 的 accessible 樹。**
+那個資訊在 SwiftCrossUI 層產生,GtkBackend 只需要把它存起來再交出去——而「存進側表再回答」
+正是這個 backend 已經為 slider 的編輯狀態、table 的欄寬做過的事。
+
+三個環節都已查證,每一個都已經在本樹中被使用:
+
+| 環節 | 證據 |
+| --- | --- |
+| 取得 GTK 視窗的 HWND | `GtkBackend.swift:1904` 自述「on Windows a GTK window is an ordinary `HWND`」,且 `SetWindowPos` 已在用它 |
+| 手寫 COM 介面與 IID | `D3D11VideoInterop.swift:176` 明說「hand-declared IIDs rather than linking against dxguid.lib, so no extra linker settings are needed」;`lpVtbl`/`QueryInterface` 出現在四個檔案 |
+| UIA 的 provider 端 | 基於 HWND:回應 `WM_GETOBJECT`、回傳 `IRawElementProviderSimple`。`UIAutomationCore.h` 位於 Windows Kits 10.0.22621.0 |
+
+也就是說:**GTK 缺的是「把它自己的樹送出去」,而我們要送的本來就不是它的樹。**
+一個掛在該 HWND 上的 UIA provider,從 SwiftCrossUI 的標籤側表回答,完全不經過 `gtk_accessible`。
+
+### 誠實的成本
+
+這不是一個旗標,是一份實作:視窗程序的 `WM_GETOBJECT`、一組手寫 vtable、以及把
+`IRawElementProviderFragment` 的父/子/兄弟關係映射到 view 樹。**但它不是「不可能」,
+而先前那句話讓它讀起來像不可能。**
+
+*Correcting myself: "accessibility is WinUI-only on Windows" was wrong, and wrong in the shape
+CLAUDE.md forbids -- "no built-in bridge" restated as "the platform cannot". The measurements stand;
+the conclusion drawn from them does not. #123 exposes SwiftCrossUI's labels, not GTK's accessible
+tree, and a UIA provider hung on the GTK window's HWND answers from a side table without touching
+`gtk_accessible` at all. All three pieces -- the HWND, hand-written COM vtables, the UIA provider
+API -- are already used in this tree. Real work, not impossible.*
