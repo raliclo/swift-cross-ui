@@ -25,14 +25,27 @@ machine that cannot compile the file used an API that does not exist.
 | Android | `setFocusable(_:)` / `setFocusableInTouchMode(_:)` | ✅ 同檔 484、490 |
 | AppKit | `makeFirstResponder(_:)`、`acceptsFirstResponder` | ✅ 平台 API |
 | UIKit | `becomeFirstResponder()` / `resignFirstResponder()` / `canBecomeFirstResponder` | ✅ 平台 API |
-| **GTK** | `gtk_widget_grab_focus` | ❌ **只出現在 `Sources/GtkCodeGen/GirFiles/Gtk-4.0.gir` 中,產生出來的 Swift 沒有它** |
+| **GTK** | `gtk_widget_grab_focus` | ⚠️ 產生出來的 Swift 沒有它,**但 C 符號可直接呼叫**——見下方更正 |
 
-**GTK 那一格是這份草案裡最重要的一行。** 在寫任何 GTK 實作之前,`grabFocus` 必須先被產生出來——與
-Windows 端為 #32 產生 `GestureDrag`/`GestureZoom`/`GestureRotate` 的做法相同(`GtkCodeGen.swift` 的
-`allowListedClasses`)。若略過這一步,GTK 那份會在唯一建得了它的機器上編不過。
+~~**GTK 那一格是這份草案裡最重要的一行。** 在寫任何 GTK 實作之前,`grabFocus` 必須先被產生出來~~
+——**這句話是錯的,2026-09-10 更正。**
 
-**The GTK row is the most important line here.** `grabFocus` must be generated
-before any GTK implementation is written, the same way the gesture classes were.
+「產生出來的 Swift 沒有它」是真的,但它推不出「不能用」。**`Sources/Gtk` 本來就直接呼叫 C 符號**,
+而且到處都是:`gtk_widget_set_parent`(8 次)、`gtk_widget_measure`(6)、`gtk_widget_compute_point`
+(3)、`gtk_widget_add_tick_callback`(3,見 `Widgets/NV12GLView.swift:248`)。該模組 `import CGtk`,
+因此 `gtk_widget_grab_focus(pointer)` 今天就能寫。
+
+程式碼產生器是為了「要一個 Swift 類別」時用的(#32 的三個 `Gesture*` 是類別,所以那次確實需要);
+要的若只是一個函式,直接呼叫它。**我把「binding 缺席」讀成了「能力缺席」,那兩者不是同一回事**
+——而這正是本檔開頭所警告的那種錯誤的鏡像版本。
+
+~~The GTK row is the most important line here.~~ **Corrected 2026-09-10.** The
+generated Swift not having `grabFocus` is true and does not imply it cannot be
+used: `Sources/Gtk` calls C symbols directly throughout -- `gtk_widget_measure`,
+`gtk_widget_compute_point`, `gtk_widget_add_tick_callback` -- and imports CGtk.
+The generator is for when a Swift CLASS is wanted, which is why #32's three
+`Gesture*` types did need it. A function can just be called. I read "the binding
+is absent" as "the capability is absent", and those are not the same thing.
 
 ---
 
@@ -144,7 +157,7 @@ while #122 waits for GTK's `grabFocus` to be generated.
 ## 五、要 Windows 同意什麼 / What needs agreement
 
 1. **這個四方法的形狀**,特別是 `focus` 回傳 `Bool`。
-2. **`grabFocus` 要先產生**(`GtkCodeGen.swift` 的 `allowListedClasses`),再寫 GTK 實作。
+2. ~~**`grabFocus` 要先產生**~~ ——**取消,那是我的誤判。** 直接呼叫 `gtk_widget_grab_focus`,與本模組既有的十幾處 C 呼叫相同。
 3. **#123 與 #122 分開**,而 #123 可以先做。
 4. WinUI 那一格由你們填:`FocusManager.TryFocusAsync` 是非同步的,而本 protocol 的 `focus` 是同步的
    ——那是這份草案裡**唯一一個我無法從這台機器查證的衝突**。若它非同步不可,請告訴我,形狀要改。
