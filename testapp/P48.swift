@@ -35,6 +35,29 @@ enum P48Diagnostics {
     static func write(_ message: String) {
         guard isEnabled else { return }
         print("[P48] \(message)")
+
+        // Printed AND written, because a GUI process does not flush its pipe:
+        // this app only printed, so `testapp/test.zsh P48` waited for a marker
+        // that could never arrive, timed out, and captured the whole screen.
+        // The capture still looked like a result.
+        // 既 print 也寫檔，因為 GUI 行程不會沖出它的管線:本 app 過去只有 print，於是
+        // `testapp/test.zsh P48` 在等一個永遠不會抵達的 marker、逾時，然後擷取了整個螢幕
+        // ——而那張擷圖看起來仍然像是一個結果。
+        guard let data = "P48 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+            ?? FileManager.default.currentDirectoryPath
+        let url = URL(fileURLWithPath: directory)
+            .appendingPathComponent("p48-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 
     static func renderComplete() {
@@ -53,7 +76,7 @@ struct P48GridApp: App {
                 P48RootView()
             }
         }
-        .defaultSize(width: 820, height: 720)
+        .defaultSize(width: 820, height: 900)
     }
 }
 
@@ -153,6 +176,48 @@ struct P48RootView: View {
                         P48Cell(number: n)
                     }
                 }
+                // The transpose, and the assertion is the ORDER: filling two
+                // fixed rows top-to-bottom then moving right puts 1 above 2,
+                // 3 above 4, and so on across. A LazyHGrid that had quietly
+                // fallen back to a stack would show 1 2 3 4 5 6 in one line --
+                // which is a picture a reader accepts, because a horizontal
+                // grid and a horizontal stack look the same until you check
+                // which cell is under which.
+                // 這是轉置的版本，而判定的是**順序**:由上而下填滿兩條固定的列、滿了再往右移，
+                // 會讓 1 在 2 上方、3 在 4 上方，依此橫向排開。一個悄悄退回成 stack 的
+                // LazyHGrid 會把 1 2 3 4 5 6 排成一行——而那是一張讀者會接受的圖，因為在你去
+                // 核對「哪一格在哪一格底下」之前，水平格線與水平 stack 長得一模一樣。
+                Text("5. LazyHGrid, two fixed 34pt rows -- expect 1/2, 3/4, 5/6 across")
+                LazyHGrid(
+                    rows: [GridItem(.fixed(34)), GridItem(.fixed(34))],
+                    spacing: 8
+                ) {
+                    ForEach(Array(1...6), id: \.self) { n in
+                        P48Cell(number: n)
+                    }
+                }
+
+                // Every lane alignment in one grid, so a lane that ignored its
+                // own `verticalAlignment` is visible rather than plausible: the
+                // three rows are 40pt tall and the cells are not, so top,
+                // centre and bottom sit at three different heights.
+                // 把三種 lane 對齊方式放在同一個格線裡，好讓「一條忽略了自身 `verticalAlignment`
+                // 的 lane」是看得見的、而不只是說得通的:三條列都是 40 點高而儲存格不是，因此
+                // 靠上、置中與靠下會落在三個不同的高度。
+                Text("6. LazyHGrid rows aligned top / center / bottom -- expect a staircase")
+                LazyHGrid(
+                    rows: [
+                        GridItem(.fixed(40), verticalAlignment: .top),
+                        GridItem(.fixed(40), verticalAlignment: .center),
+                        GridItem(.fixed(40), verticalAlignment: .bottom),
+                    ],
+                    spacing: 8
+                ) {
+                    ForEach(Array(1...6), id: \.self) { n in
+                        P48Cell(number: n)
+                    }
+                }
+
                 Text("4. ColorPicker -- expect a swatch, an Edit button, and three sliders")
                 ColorPicker("Accent", selection: $chosen)
                 Text("chosen -> rgb")
@@ -162,7 +227,7 @@ struct P48RootView: View {
         }
         .onAppear {
             P48Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
-            P48Diagnostics.write("grids flexible-3 fixed-90.5x2 adaptive-120")
+            P48Diagnostics.write("grids flexible-3 fixed-90.5x2 adaptive-120 hgrid-fixed34x2 hgrid-aligned3")
             P48Diagnostics.renderComplete()
         }
     }

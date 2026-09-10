@@ -87,7 +87,9 @@ struct P34RootView: View {
             // last read, 2026-09-09. Checked one at a time with a control
             // (`VStack` found, `ZZZNotARealType` absent, so the pattern works):
             //   LazyVGrid        Views/LazyVGrid.swift
-            //   LazyHGrid        genuinely absent
+            //   LazyHGrid        genuinely absent THEN; landed 2026-09-10 as
+            //                    Views/LazyHGrid.swift (#118), driven by P48
+            //                    sections 5 and 6
             //   Grid             Views/Grid.swift
             //   ScrollViewReader Views/ScrollViewReader.swift
             //   ScrollViewProxy  Views/ScrollViewReader.swift
@@ -100,12 +102,13 @@ struct P34RootView: View {
             //
             // ~~「Still missing: LazyVGrid, LazyHGrid, Grid, ScrollViewReader, ScrollViewProxy」~~
             // ——上次讀到它時(2026-09-09),那五個裡有**四個是存在的**。逐一查證並附對照(`VStack`
-            // 找得到、`ZZZNotARealType` 不存在,故樣式有效):只有 `LazyHGrid` 真的缺席。
+            // 找得到、`ZZZNotARealType` 不存在,故樣式有效):只有 `LazyHGrid` 真的缺席——而它已於
+            // 2026-09-10 以 `Views/LazyHGrid.swift` 落地(#118),由 P48 的第 5、6 節驅動。
             //
             // 舊文字記錄於此而非直接取代,因為**被算繪到畫面上的**假宣稱,是過期註記最糟的一種形狀:
             // 不去查證的讀者會選擇相信執行中的程式而非原始碼,而那個執行中的程式對自己列出的清單,
             // 五分之四是錯的。
-            Text("Still missing: LazyHGrid")
+            Text("Present since #118: LazyHGrid -- see P48 sections 5 and 6")
                 .font(.system(size: 13))
 
             HStack(spacing: 8) {

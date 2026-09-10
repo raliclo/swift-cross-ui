@@ -59,16 +59,51 @@ public struct GridItem: Sendable {
 
     public var size: Size
     public var spacing: Int?
+
+    /// How a cell sits in this item's lane when the lane is a COLUMN, which is
+    /// the ``LazyVGrid`` case.
+    /// 當這個項目的 lane 是一**欄**時（也就是 ``LazyVGrid`` 的情況），儲存格在其中如何擺放。
     public var alignment: HorizontalAlignment?
+
+    /// How a cell sits in this item's lane when the lane is a ROW, which is the
+    /// ``LazyHGrid`` case.
+    ///
+    /// **A second property rather than widening ``alignment``, because the two
+    /// grids ask different questions of the same item.** In a `LazyVGrid` an
+    /// item is a column and only a horizontal alignment means anything; in a
+    /// `LazyHGrid` it is a row and only a vertical one does. SwiftUI collapses
+    /// both into one `Alignment?` and reads the component that applies; this
+    /// tree already shipped `alignment` as a `HorizontalAlignment?`, and
+    /// changing its type would break every existing call site to express
+    /// something no caller can use in both grids anyway.
+    ///
+    /// 這是**第二個**屬性，而不是把 ``alignment`` 放寬——因為這兩種格線對同一個項目問的是不同的
+    /// 問題。在 `LazyVGrid` 中一個項目是一欄，只有水平對齊有意義；在 `LazyHGrid` 中它是一列，
+    /// 只有垂直對齊有意義。SwiftUI 把兩者併成一個 `Alignment?` 並讀取適用的那個分量；而這棵樹
+    /// 早已把 `alignment` 以 `HorizontalAlignment?` 發布出去，改變它的型別會弄壞每一個既有呼叫點，
+    /// 換來的還是一個「任何呼叫端都無法在兩種格線中共用」的東西。
+    public var verticalAlignment: VerticalAlignment?
 
     public init(
         _ size: Size = .flexible(),
         spacing: Int? = nil,
-        alignment: HorizontalAlignment? = nil
+        alignment: HorizontalAlignment? = nil,
+        verticalAlignment: VerticalAlignment? = nil
     ) {
         self.size = size
         self.spacing = spacing
         self.alignment = alignment
+        self.verticalAlignment = verticalAlignment
+    }
+
+    /// Whichever alignment applies to a grid growing along `axis`, or `nil` to
+    /// take the grid's own.
+    /// 對「沿著 `axis` 生長的格線」而言適用的那個對齊方式；若為 `nil`，則採用格線本身的。
+    func laneAlignment(for axis: Axis) -> GridLaneAlignment? {
+        switch axis {
+            case .vertical: alignment.map(GridLaneAlignment.init)
+            case .horizontal: verticalAlignment.map(GridLaneAlignment.init)
+        }
     }
 }
 
@@ -96,27 +131,6 @@ public struct GridItem: Sendable {
 /// 所做的工作量之外，沒有任何可觀察的差異。
 public struct LazyVGrid<Content: View>: View {
     static var defaultSpacing: Int { 10 }
-
-    /// Upper bounds that exist to keep `Int(_:)` from trapping, not to express
-    /// any layout policy.
-    ///
-    /// Both are reached only by a value no display can produce -- ten thousand
-    /// columns, or a column a million points wide. They matter because the sizes
-    /// are `Double` since task #108, and `Int(_:)` traps above `Int.max` for the
-    /// same language-level reason it traps on `.infinity`: silently, with exit
-    /// 132 and no message. Clamping to an absurd-but-finite number turns a value
-    /// that could only have come from a bug into a picture that is visibly
-    /// wrong, which is strictly better than a process that vanishes.
-    ///
-    /// 這兩個上界的存在，是為了讓 `Int(_:)` 不要 trap，而不是為了表達任何版面政策。
-    ///
-    /// 兩者都只會被「任何顯示器都產不出來的值」觸及——一萬個欄，或一個一百萬點寬的欄。它們之所以
-    /// 重要，是因為自任務 #108 起尺寸型別為 `Double`，而 `Int(_:)` 在超過 `Int.max` 時會 trap，
-    /// 其語言層級的成因與它對 `.infinity` 的 trap 相同：靜默、退出碼 132、沒有訊息。把它夾到一個
-    /// 荒謬但有限的數字，會把「只可能來自 bug 的值」變成一張明顯錯誤的畫面，那嚴格優於一個直接
-    /// 消失的行程。
-    static var columnCountLimit: Double { 10_000 }
-    static var columnWidthLimit: Double { 1_000_000 }
 
     public var body: Content
     private let columns: [GridItem]
@@ -235,14 +249,19 @@ public struct LazyVGrid<Content: View>: View {
     ///
     /// 無論儲存格有沒有填滿,格線都是這麼寬——而那正是讓「欄位相同的兩個格線」寬度也相同的原因。
     static func width(of plan: GridLayoutPlan) -> Int {
-        plan.columnWidths.reduce(0, +)
-            + plan.spacing * max(0, plan.columnWidths.count - 1)
+        plan.crossAxisExtent
     }
 
     func resolve(proposedWidth: Double?) -> GridLayoutPlan {
-        Self.resolve(
-            columns: columns,
-            alignment: alignment,
+        GridLayoutPlan.resolve(
+            items: columns,
+            // The lanes are the COLUMNS and the lines grow downwards, which is
+            // the whole of what makes this a `LazyVGrid` rather than a
+            // ``LazyHGrid``. Everything below this line is shared between them.
+            // lane 就是那些**欄**，而 line 向下生長——這正是「本型別是 `LazyVGrid` 而不是
+            // ``LazyHGrid``」的全部內容。這一行以下的每一件事，兩者都是共用的。
+            axis: .vertical,
+            alignment: GridLaneAlignment(alignment),
             spacing: spacing,
             // Handed over untouched. Until task #108 this line was
             // `proposedWidth.flatMap { $0.isFinite ? Int($0.rounded(.down)) : nil }`
@@ -259,290 +278,7 @@ public struct LazyVGrid<Content: View>: View {
             // 已是 `Double`。而 `isFinite` 測試**並沒有**消失：它下沉了一層，移到 `available`，
             // 也就是那些「會因它而 trap 的 `Int` 轉換」現在所在之處。在因為「此處已無任何轉換」
             // 而認定無限的提案無害之前，請先讀該處的註解。
-            proposedWidth: proposedWidth
-        )
-    }
-}
-
-extension LazyVGrid {
-    /// Turns the caller's items into concrete columns.
-    ///
-    /// Takes the proposed width because ``GridItem/Size/adaptive`` turns one
-    /// item into a variable number of columns, so the column COUNT is not
-    /// knowable from the array alone.
-    ///
-    /// 把呼叫端的項目轉成具體的欄位。
-    ///
-    /// 必須接收「被建議的寬度」,因為 ``GridItem/Size/adaptive`` 會把一個項目變成數量不定的欄,
-    /// 因此欄的**數量**無法單憑該陣列得知。
-    static func resolve(
-        columns: [GridItem],
-        alignment: HorizontalAlignment,
-        spacing: Int,
-        proposedWidth: Double?
-    ) -> GridLayoutPlan {
-        // The one line that makes every `Int(_:)` conversion below safe, and the
-        // reason `resolve(proposedWidth:)` no longer needs to do anything.
-        //
-        // `flatMap` with an `isFinite` test, not `map`. `Int(Double)` TRAPS on an
-        // infinite or NaN value -- an `Illegal instruction`, exit 132, with no
-        // message at all, because it is a language-level trap rather than a Swift
-        // precondition (those print).
-        //
-        // `.infinity` is a real value here, not a theoretical one. The layout
-        // system probes children with it deliberately: `LayoutSystem.swift:605`
-        // is `let specialSizes: [Double?] = [nil, .infinity]`, `:284` assigns
-        // `.infinity` to a proposal component, and `ProposedViewSize.swift:6`
-        // declares `.infinity` as a whole size. So any grid inside an ordinary
-        // stack gets asked this.
-        //
-        // Measured 2026-09-08: P51 died 1881 ms after launch, exit 132, with an
-        // empty replay log -- it never reached its first log line. P50, the same
-        // launcher and PATH, was still running when a 25 s cap killed it; P50 has
-        // no `LazyVGrid`.
-        //
-        // Infinite maps to `nil`, and therefore to `0`, rather than to a large
-        // number, because `0` already means the right thing here: it makes
-        // `.adaptive` resolve to one column, which is what an unconstrained width
-        // should produce. A sentinel like `.greatestFiniteMagnitude` would
-        // instead survive into `available + gap` and back into an `Int(_:)`.
-        //
-        // Widening the sizes to `Double` moved this problem, it did not remove
-        // it. An infinite PROPOSAL is handled here; an infinite `maximum` on a
-        // column is handled further down, at `clamped`, and by `min(_:_:)`
-        // returning its finite operand.
-        //
-        // 這一行讓底下每一個 `Int(_:)` 轉換都變得安全，也正是 `resolve(proposedWidth:)` 不再需要
-        // 做任何事的原因。
-        //
-        // 此處用帶 `isFinite` 測試的 `flatMap`，而非 `map`。`Int(Double)` 在值為無限或 NaN 時會
-        // **trap**——`Illegal instruction`、退出碼 132，而且完全沒有訊息，因為那是語言層級的
-        // trap，不是 Swift 的 precondition（後者會印出訊息）。
-        //
-        // `.infinity` 在此是真實存在的值，不是理論上的：版面系統會刻意用它來探測子節點——
-        // `LayoutSystem.swift:605` 是 `let specialSizes: [Double?] = [nil, .infinity]`、
-        // `:284` 會把 `.infinity` 指派給某個提案分量，而 `ProposedViewSize.swift:6` 更把
-        // `.infinity` 宣告為一個完整的尺寸。因此任何位於一般 stack 之中的格線都會被這樣詢問。
-        //
-        // 2026-09-08 實測：P51 於啟動後 1881 毫秒死亡，退出碼 132，replay log 為空——它從未抵達
-        // 自己的第一行 log。P50 在同一個啟動器與同一條 PATH 下，直到 25 秒上限才被砍掉；而 P50
-        // 沒有 `LazyVGrid`。
-        //
-        // 無限值對應到 `nil`、因而對應到 `0`，而不是對應到某個大數，是因為 `0` 在此已經表達了正確的
-        // 意義：它會讓 `.adaptive` 解析為一欄，那正是「寬度無約束」該有的結果。若改用
-        // `.greatestFiniteMagnitude` 之類的哨兵值，它反而會存活到 `available + gap`，並再次流入某個
-        // `Int(_:)`。
-        //
-        // 把尺寸放寬為 `Double` 只是**移動**了這個問題，並沒有消除它。無限的**提案**在此處理；欄位上
-        // 無限的 `maximum` 則在下方的 `clamped` 處處理，以及靠 `min(_:_:)` 會回傳其有限的那一邊。
-        let available = proposedWidth.flatMap { $0.isFinite ? $0 : nil } ?? 0
-
-        // Spacing stays `Int` on the way in and on the way out -- it is the
-        // caller's `LazyVGrid(spacing:)`, not a `GridItem` size, and task #108
-        // widened the sizes. It becomes a `Double` only for the arithmetic in
-        // between, so that a fractional share is not rounded on every addition.
-        // 間距在進來與出去時都維持 `Int`——它是呼叫端的 `LazyVGrid(spacing:)`，而不是 `GridItem`
-        // 的尺寸，而任務 #108 放寬的是尺寸。它只在中間的算式裡成為 `Double`，好讓一個帶小數的
-        // 分配額不會在每一次加法時都被四捨五入一次。
-        let gap = Double(spacing)
-
-        // A grid with no columns still has to put its children somewhere. One
-        // full-width column is what SwiftUI does, and it keeps the modulo
-        // arithmetic in LayoutSystem from dividing by zero.
-        // 一個沒有任何欄的格線,仍然必須把子節點擺在某處。SwiftUI 的做法是「一個滿寬的欄」,
-        // 而那也讓 LayoutSystem 中的取餘數運算不會除以零。
-        guard !columns.isEmpty else {
-            return GridLayoutPlan(
-                columnWidths: [Int(available.rounded())],
-                columnOffsets: [0],
-                alignments: [alignment],
-                spacing: spacing
-            )
-        }
-
-        // Pass one: how many columns each item becomes, and which of them want a
-        // share of what is left after the fixed ones.
-        // 第一輪:每個項目會變成幾個欄,以及其中哪些想分配「扣掉固定欄之後」剩下的部分。
-        // What an adaptive column may divide is what is LEFT, not the whole
-        // container.
-        //
-        // This used to divide `available`, so a fixed column's width was
-        // counted twice -- once by the fixed column and once by the adaptive
-        // one filling the same space. Measured by a reviewer against the
-        // resolver: 420 pt available, one `.fixed(200)` and one
-        // `.adaptive(minimum: 100)` produced 530 pt of columns in a 420 pt
-        // container. Nothing overflowed loudly; the last column simply ran off
-        // the edge.
-        //
-        // The gap reserve is one per item rather than one per resulting column,
-        // because the adaptive counts are not known yet -- that is the
-        // circularity this pass exists inside. It under-reserves when an
-        // adaptive item becomes several columns, which costs at most a few
-        // points of the share and never overflows, since the second pass clamps
-        // each column to its own bounds anyway.
-        //
-        // adaptive 欄能夠瓜分的,是**剩下**的部分,不是整個容器。
-        //
-        // 它原本瓜分的是 `available`,因此一個固定欄的寬度被計算了兩次——一次由該固定欄、一次由填滿
-        // 同一片空間的 adaptive 欄。某位審查者對照解析器實測:420 點可用寬度、一個 `.fixed(200)` 與
-        // 一個 `.adaptive(minimum: 100)`,在一個 420 點的容器中產出了 530 點的欄。沒有任何東西大聲
-        // 溢位;只是最後一欄跑出了邊緣。
-        //
-        // 間距的預留是「每個項目一份」而非「每個最終欄位一份」,因為此時 adaptive 的欄數尚未得知——
-        // 那正是這一輪所身處的那個循環依賴。當某個 adaptive 項目展開為數欄時它會預留不足,而代價至多
-        // 是分配額中的幾個點、且永遠不會溢位,因為第二輪無論如何都會把每一欄夾在它自身的界限內。
-        var fixedWidth = 0.0
-        var adaptiveItems = 0
-        for column in columns {
-            switch column.size {
-                case .fixed(let width): fixedWidth += width
-                case .adaptive: adaptiveItems += 1
-                case .flexible: break
-            }
-        }
-        let reservedGaps = gap * Double(max(0, columns.count - 1))
-        let adaptiveSpace = max(0, available - fixedWidth - reservedGaps)
-        let spacePerAdaptiveItem =
-            adaptiveItems > 0 ? adaptiveSpace / Double(adaptiveItems) : 0
-
-        var counts: [Int] = []
-        for column in columns {
-            switch column.size {
-                case .fixed, .flexible:
-                    counts.append(1)
-                case .adaptive(let minimum, _):
-                    // As many as fit, at least one. The numerator adds one
-                    // spacing back because n columns carry n-1 gaps.
-                    //
-                    // The quotient is clamped BEFORE the `Int` conversion, not
-                    // after: `available` is finite by the line above, but a
-                    // finite absurd width divided by a minimum of 1 still
-                    // produces a quotient past `Int.max`, and `Int(_:)` traps on
-                    // that exactly as it does on `.infinity`.
-                    //
-                    // 塞得下幾個就是幾個,至少一個。分子先加回一份間距,因為 n 個欄之間有 n-1 道空隙。
-                    //
-                    // 商是在 `Int` 轉換**之前**被夾住的，不是之後：上面那一行已保證 `available` 有限，
-                    // 但一個「有限但荒謬」的寬度除以最小值 1，其商仍可能超過 `Int.max`，而 `Int(_:)`
-                    // 對此的 trap 方式，與它對 `.infinity` 的完全相同。
-                    let fit = (spacePerAdaptiveItem + gap) / (max(minimum, 1) + gap)
-                    counts.append(
-                        max(1, Int(min(fit, Self.columnCountLimit).rounded(.down)))
-                    )
-            }
-        }
-
-        let totalColumns = counts.reduce(0, +)
-        var fixedTotal = 0.0
-        var shareCount = 0
-        for (index, column) in columns.enumerated() {
-            if case .fixed(let width) = column.size {
-                fixedTotal += width * Double(counts[index])
-            } else {
-                shareCount += counts[index]
-            }
-        }
-        let remaining = max(
-            0,
-            available - gap * Double(max(0, totalColumns - 1)) - fixedTotal
-        )
-        let share = shareCount > 0 ? remaining / Double(shareCount) : 0
-
-        // Pass two: expand each item into its columns, clamped to its bounds.
-        // 第二輪:把每個項目展開為它的各個欄,並夾在其自身的界限內。
-        var exactWidths: [Double] = []
-        var alignments: [HorizontalAlignment] = []
-        for (index, column) in columns.enumerated() {
-            let width: Double =
-                switch column.size {
-                    case .fixed(let fixed):
-                        fixed
-                    // `min(share, .infinity)` is `share`, so an infinite
-                    // `maximum` needs no case of its own -- it simply stops
-                    // being an upper bound, which is what it means. No `??` and
-                    // no sentinel: that is the whole benefit of spelling "no
-                    // maximum" the way SwiftUI does.
-                    // `min(share, .infinity)` 就是 `share`，因此無限的 `maximum` 不需要自己的分支
-                    // ——它單純地不再構成上界，而那正是它的語意。不需要 `??`、也不需要哨兵值：
-                    // 這正是「照 SwiftUI 的方式表達『沒有上限』」所帶來的全部好處。
-                    case .flexible(let minimum, let maximum):
-                        min(max(share, minimum), maximum)
-                    case .adaptive(let minimum, let maximum):
-                        min(max(share, minimum), maximum)
-                }
-            // A column's own numbers are the caller's, and nothing has validated
-            // them: `.fixed(.infinity)` and `.adaptive(minimum: .infinity)` both
-            // reach here intact, and both would trap at the `Int(_:)` below.
-            // Non-finite falls back to the proposal (the same meaning `available`
-            // gives an infinite proposal), and the upper clamp keeps a finite but
-            // absurd width out of the offset accumulator.
-            // 一個欄自身的數值來自呼叫端，而且不曾被驗證過：`.fixed(.infinity)` 與
-            // `.adaptive(minimum: .infinity)` 都會原封不動抵達此處，而兩者都會在下方的 `Int(_:)`
-            // 處 trap。非有限值退回為那份提案（與 `available` 賦予無限提案的意義相同），而上界的
-            // 夾制則讓「有限但荒謬」的寬度進不了位移累加器。
-            let clamped = min(
-                max(0, width.isFinite ? width : available),
-                Self.columnWidthLimit
-            )
-            exactWidths.append(
-                contentsOf: Array(repeating: clamped, count: counts[index])
-            )
-            alignments.append(
-                contentsOf: Array(
-                    repeating: column.alignment ?? alignment,
-                    count: counts[index]
-                )
-            )
-        }
-
-        // Whole-point columns come from rounding the EDGES, not from rounding
-        // each width on its own. `GridLayoutPlan` is integral (see the note on
-        // it), so a fractional share has to become integers somewhere, and the
-        // two ways of doing it are not equally good:
-        //
-        //   - round each width: three columns of 33.67 in 101 points become
-        //     34 + 34 + 34 = 102 and the last cell hangs over the right edge,
-        //     while flooring them gives 33 + 33 + 33 = 99 and drops the
-        //     remainder into a gutter -- which is what the `Int` version did.
-        //   - round each edge, and take the width as the distance between two
-        //     rounded edges: 0..34, 34..67, 67..101. The columns tile exactly,
-        //     the remainder is distributed rather than discarded, and no error
-        //     accumulates along the row because every offset is computed from
-        //     the exact running position `x`, never from the rounded widths.
-        //
-        // Integer inputs are unaffected: 96 + 8 lands on integers at every step,
-        // so P51's `.fixed(96)` and P48's `.adaptive(minimum: 120)` resolve to
-        // exactly what they did before. P48's second grid is `.fixed(90.5)`
-        // precisely so that one grid in the suite does NOT.
-        //
-        // 整數點的欄位來自對**邊界**取整，而不是各自對每一個寬度取整。`GridLayoutPlan` 是整數的
-        //（見其上的說明），因此帶小數的分配額總得在某處變成整數，而兩種做法的好壞並不相等：
-        //
-        //   - 對每個寬度取整：101 點中三個 33.67 的欄會變成 34 + 34 + 34 = 102，最後一格因而突出
-        //     右緣；而向下取整則得到 33 + 33 + 33 = 99，把餘數丟進一條空隙——那正是 `Int` 版本的
-        //     行為。
-        //   - 對每個邊界取整，並以「兩個取整後邊界之間的距離」作為寬度：0..34、34..67、67..101。
-        //     各欄恰好密合、餘數是被分配而非被丟棄，而且誤差不會沿著一列累積，因為每個位移都是由
-        //     精確的累進位置 `x` 算出，從不由取整後的寬度算出。
-        //
-        // 整數輸入不受影響：96 + 8 在每一步都落在整數上，因此 P51 的 `.fixed(96)` 與 P48 的
-        // `.adaptive(minimum: 120)` 解析出來的結果，與先前完全相同。P48 的第二個格線之所以是
-        // `.fixed(90.5)`，正是為了讓這套測試中有一個格線**不是**如此。
-        var widths: [Int] = []
-        var offsets: [Int] = []
-        var x = 0.0
-        for width in exactWidths {
-            let start = Int(x.rounded())
-            let end = Int((x + width).rounded())
-            offsets.append(start)
-            widths.append(max(0, end - start))
-            x += width + gap
-        }
-        return GridLayoutPlan(
-            columnWidths: widths,
-            columnOffsets: offsets,
-            alignments: alignments,
-            spacing: spacing
+            proposedCrossExtent: proposedWidth
         )
     }
 }

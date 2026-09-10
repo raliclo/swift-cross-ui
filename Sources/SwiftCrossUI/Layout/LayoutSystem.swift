@@ -1041,13 +1041,24 @@ extension LayoutSystem {
         environment: EnvironmentValues,
         clearsPlanForChildren: Bool
     ) -> ViewLayoutResult {
-        let columnCount = max(1, plan.columnWidths.count)
+        let laneCount = max(1, plan.laneSizes.count)
         let childResults = children.enumerated().map { index, child in
-            child.computeLayout(
-                proposedSize: ProposedViewSize(
-                    Double(plan.columnWidths[index % columnCount]),
-                    nil
-                ),
+            let lane = Double(plan.laneSizes[index % laneCount])
+            // The lane is fixed and the line is free, whichever way round that
+            // falls: a vertical grid pins width and lets height grow, and a
+            // horizontal one does the opposite. Proposing on both axes would
+            // make every cell the size of its lane and hide exactly the
+            // measurement the grid then needs.
+            // lane 是固定的、line 是自由的，不論這兩者實際上是哪一個:垂直格線釘住寬度、讓高度
+            // 生長，水平格線則相反。若兩軸都提案，每一格都會變成它 lane 的大小，而那恰好會蓋掉
+            // 格線接下來需要的那個量測。
+            let proposal =
+                switch plan.axis {
+                    case .vertical: ProposedViewSize(lane, nil)
+                    case .horizontal: ProposedViewSize(nil, lane)
+                }
+            return child.computeLayout(
+                proposedSize: proposal,
                 environment: clearsPlanForChildren
                     ? environment.with(\.layoutGridPlan, nil)
                     : environment
@@ -1068,81 +1079,94 @@ extension LayoutSystem {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        let columnCount = max(1, plan.columnWidths.count)
+        let laneCount = max(1, plan.laneSizes.count)
         let results = children.map { $0.commit() }
-        let rows = gridRows(of: results, plan: plan)
+        let lines = gridLines(of: results, plan: plan)
 
         for (index, result) in results.enumerated() {
-            let column = index % columnCount
-            let row = index / columnCount
-            let columnWidth = plan.columnWidths[column]
+            let lane = index % laneCount
+            let line = index / laneCount
+            let laneSize = plan.laneSizes[lane]
             let childWidth = Int(result.size.width.rounded(.up))
             let childHeight = Int(result.size.height.rounded(.up))
 
-            let alignment =
-                column < plan.alignments.count ? plan.alignments[column] : .center
-            let dx =
-                switch alignment {
-                    case .leading: 0
-                    case .center: (columnWidth - childWidth) / 2
-                    case .trailing: columnWidth - childWidth
+            // Across the lane, the caller's alignment decides; along the line,
+            // the cell is centred in the line's own extent. That asymmetry is
+            // deliberate and matches what a `GridItem` can express: it says how
+            // its cells sit within their lane and says nothing about the line,
+            // because the line is not something the caller declared.
+            // 橫越 lane 的方向由呼叫端的對齊方式決定；沿著 line 的方向，則將該格置中於該 line
+            // 自身的長度內。這種不對稱是刻意的，並且與 `GridItem` 表達得出來的東西一致:它說的是
+            // 它的儲存格在其 lane 中如何擺放，而對 line 隻字未提——因為 line 並不是呼叫端宣告的。
+            let childCrossExtent = plan.axis == .vertical ? childWidth : childHeight
+            let childAlongExtent = plan.axis == .vertical ? childHeight : childWidth
+            let crossOffset =
+                switch plan.resolvedAlignment(forLane: lane) {
+                    case .start: 0
+                    case .center: (laneSize - childCrossExtent) / 2
+                    case .end: laneSize - childCrossExtent
                 }
+            let cross = plan.laneOffsets[lane] + crossOffset
+            let along = lines.offsets[line] + (lines.sizes[line] - childAlongExtent) / 2
 
             backend.setPosition(
                 ofChildAt: index,
                 in: container,
-                to: SIMD2(
-                    plan.columnOffsets[column] + dx,
-                    rows.offsets[row] + (rows.heights[row] - childHeight) / 2
-                )
+                to: plan.axis == .vertical ? SIMD2(cross, along) : SIMD2(along, cross)
             )
         }
 
         backend.setSize(of: container, to: layout.size.vector)
     }
 
-    /// Row heights and their y offsets. A row is as tall as its tallest cell,
-    /// which is what makes the columns line up across rows.
-    /// 各列高度及其 y 位移。一列的高度等於該列最高的儲存格,而那正是使各欄能跨列對齊的原因。
-    static func gridRows(
+    /// Line extents and their offsets along ``GridLayoutPlan/axis``. A line is
+    /// as large as its largest cell, which is what makes the lanes line up
+    /// across lines.
+    /// 各 line 沿著 ``GridLayoutPlan/axis`` 的長度及其位移。一條 line 的長度等於該 line 中最大的
+    /// 儲存格，而那正是使各 lane 能跨 line 對齊的原因。
+    static func gridLines(
         of results: [ViewLayoutResult],
         plan: GridLayoutPlan
-    ) -> (heights: [Int], offsets: [Int]) {
-        let columnCount = max(1, plan.columnWidths.count)
-        var heights: [Int] = []
+    ) -> (sizes: [Int], offsets: [Int]) {
+        let laneCount = max(1, plan.laneSizes.count)
+        var sizes: [Int] = []
         for (index, result) in results.enumerated() {
-            let row = index / columnCount
-            let height = Int(result.size.height.rounded(.up))
-            if row == heights.count {
-                heights.append(height)
+            let line = index / laneCount
+            let extent =
+                switch plan.axis {
+                    case .vertical: Int(result.size.height.rounded(.up))
+                    case .horizontal: Int(result.size.width.rounded(.up))
+                }
+            if line == sizes.count {
+                sizes.append(extent)
             } else {
-                heights[row] = max(heights[row], height)
+                sizes[line] = max(sizes[line], extent)
             }
         }
         var offsets: [Int] = []
-        var y = 0
-        for height in heights {
-            offsets.append(y)
-            y += height + plan.spacing
+        var running = 0
+        for size in sizes {
+            offsets.append(running)
+            running += size + plan.spacing
         }
-        return (heights, offsets)
+        return (sizes, offsets)
     }
 
     static func gridSize(
         of results: [ViewLayoutResult],
         plan: GridLayoutPlan
     ) -> ViewSize {
-        let rows = gridRows(of: results, plan: plan)
-        // The full column width, not the widest cell: a grid occupies its
-        // columns whether or not anything filled them, which is what keeps two
-        // grids with the same columns the same width.
-        // 使用完整的欄寬,而非最寬的儲存格:無論是否有東西填滿,格線都佔據它的那些欄——而那正是
-        // 讓「欄位相同的兩個格線」寬度也相同的原因。
-        let width =
-            plan.columnWidths.reduce(0, +)
-                + plan.spacing * max(0, plan.columnWidths.count - 1)
-        let height =
-            rows.heights.reduce(0, +) + plan.spacing * max(0, rows.heights.count - 1)
-        return ViewSize(Double(width), Double(height))
+        let lines = gridLines(of: results, plan: plan)
+        // The full lane extent, not the largest cell: a grid occupies its lanes
+        // whether or not anything filled them, which is what keeps two grids
+        // with the same lanes the same size.
+        // 使用完整的 lane 長度,而非最大的儲存格:無論是否有東西填滿,格線都佔據它的那些 lane
+        // ——而那正是讓「lane 相同的兩個格線」尺寸也相同的原因。
+        let cross = plan.crossAxisExtent
+        let along =
+            lines.sizes.reduce(0, +) + plan.spacing * max(0, lines.sizes.count - 1)
+        return plan.axis == .vertical
+            ? ViewSize(Double(cross), Double(along))
+            : ViewSize(Double(along), Double(cross))
     }
 }
