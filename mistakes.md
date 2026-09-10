@@ -299,6 +299,23 @@ command -- something known to match. A zero without one only shows the command
 produced nothing; it does not show the thing is absent. For files, make the path
 fail before the tool runs.
 
+### 同一天,第三次——而這次被守衛擋下了 / The third time the same day, caught
+
+寫下本條之後**數小時內**,同樣的形狀第三次出現:`zsh compile.zsh P61 -winui`。這個腳本
+**沒有** `-winui` 旗標(WinUI 是 Windows 上的預設,`-gtk4` 才是覆寫),於是 `-winui` 被當成
+第二個 app 名稱,腳本去找 `-winui.swift`。而 `grep -cE ": error:"` 再一次印出 **0**——因為
+`Missing source file:` 並不是編譯器診斷的樣式。
+
+**差別在於這次同一個指令裡還有一行 `ls -l output/P61-winui.exe`,而它說 No such file。**
+於是那個 0 當場失去意義,前後不到一秒。
+
+這是本條目值得寫的證據:擋下它的不是更小心地讀那個 0,而是**在同一道指令裡放了一個
+會說話的第二來源**。前兩次沒有那一行。
+
+Hours after this entry was written the same shape appeared a third time -- and the
+`ls -l` on the expected output, in the same command, contradicted the zero within a
+second. What caught it was a second source that speaks, not a more careful reading.
+
 ### 守衛 / The guard
 
 ```sh
