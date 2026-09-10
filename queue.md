@@ -15,11 +15,12 @@ an empty queue -- mistakes.md entry 1.
 - [x] **2b. P50:一次 light dismiss 觸發兩次 `onDismiss`** — 已修。`NSPopover` 會把「實作通知形狀方法的 delegate」自動註冊為該通知的觀察者,於是同一個方法被送達兩次
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
-- [ ] **4. P44:vertical stack 空間耗盡** — `firstStarvedChild=Spacer`,9 個 children 拿到 643 也用掉 643,至少一個被給 0
+- [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
 - [ ] **5. P28:點擊到「Clicks received」更新約 1 秒** — **先量再改**;單一觀察不足以定位
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
 - [ ] **7. P33:大量功能缺失** — 先盤點才知道規模
 - [ ] **8. P34 macOS:多數 API 缺失** — 先盤點
+- [ ] **8b. #126 `onEditingChanged`(由 Mac 端承接,2026-09-10 指派)** — 全樹 `grep` 零命中,從頭寫。五個 backend 都要;這台機器建得了 AppKit / UIKit / Android,GTK 與 WinUI 的**驗證**要交給 Windows,但實作仍由此處寫出(CLAUDE.md:不得留下未實作的 backend)
 - [ ] **9. `DocumentGroup`** — 三項缺失 API 的最後一項
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
