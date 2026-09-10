@@ -26,7 +26,24 @@ extension WinUIBackend: BackendFeatures.WidgetGeometry {
     public func originInWindow(ofWidget widget: Widget) -> SIMD2<Int>? {
         guard let root = widget.xamlRoot?.content else { return nil }
         guard let transform = try? widget.transformToVisual(root) else { return nil }
-        let origin = transform.transformPoint(.init(x: 0, y: 0))
+        // `transformPoint` throws TOO. The version that arrived had `try?` on
+        // `transformToVisual` and none here, which is the whole of the build
+        // break this file caused on the Windows side (2026-09-10):
+        //
+        //     WinUIBackend+WidgetGeometry.swift:29:22: error: call can throw,
+        //     but it is not marked with 'try'
+        //
+        // Both calls are absorbed the same way and for the same reason: each
+        // fails when the elements are not in one visual tree, and "not placed
+        // yet" is what nil means here.
+        //
+        // `transformPoint` **也會** throws。送到的版本在 `transformToVisual` 上加了 `try?`、
+        // 此處卻沒有,而那正是本檔在 Windows 端造成的建置中斷的全部內容(2026-09-10)。
+        // 兩個呼叫以同樣的方式、基於同樣的理由被吸收:兩者都在「元素不在同一棵 visual tree 中」
+        // 時失敗,而此處的 nil 表達的正是「尚未被放置」。
+        guard let origin = try? transform.transformPoint(.init(x: 0, y: 0)) else {
+            return nil
+        }
         return SIMD2(Int(origin.x.rounded()), Int(origin.y.rounded()))
     }
 }
