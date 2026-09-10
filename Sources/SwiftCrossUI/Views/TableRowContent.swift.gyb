@@ -12,6 +12,20 @@ public protocol TableRowContent<RowValue> {
 
     var labels: [String] { get }
 
+    /// One entry per column: a fixed width in points, or nil to share evenly.
+    ///
+    /// A parallel array to ``labels`` rather than a widened element type,
+    /// because `labels` is read by four call sites and passed to
+    /// `setColumnLabels` as `[String]`; changing its element would reach every
+    /// one of them to carry a value only the layout needs.
+    ///
+    /// 每欄一筆:固定寬度(單位為 point),或 nil 表示平均分配。
+    ///
+    /// 採用與 ``labels`` 平行的陣列,而非把元素型別加寬,因為 `labels` 有四個呼叫端在讀,
+    /// 並以 `[String]` 傳給 `setColumnLabels`;改動它的元素型別會波及每一個呼叫端,
+    /// 只為了攜帶一個**只有版面用得到**的值。
+    var columnWidths: [Double?] { get }
+
     func content(for row: RowValue) -> RowContent
 }
 
@@ -19,6 +33,10 @@ public struct EmptyTableRowContent<RowValue>: TableRowContent {
     public typealias RowContent = EmptyView
 
     public var labels: [String] {
+        []
+    }
+
+    public var columnWidths: [Double?] {
         []
     }
 
@@ -43,6 +61,10 @@ public struct TupleTableRowContent${i}<
 
     public var labels: [String] {
         [${", ".join("column%d.label" % j for j in range(i))}]
+    }
+
+    public var columnWidths: [Double?] {
+        [${", ".join("column%d.width" % j for j in range(i))}]
     }
 
     public init(

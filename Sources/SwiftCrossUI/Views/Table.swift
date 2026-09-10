@@ -90,7 +90,34 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         }
 
         // TODO: Compute a proper ideal size for tables. Look to SwiftUI to see what it does.
-        let columnWidth = (proposedSize.width ?? 0) / Double(columnCount)
+        //
+        // ~~`let columnWidth = (proposedSize.width ?? 0) / Double(columnCount)`~~
+        // -- a flat average, kept struck through because it is what
+        // `TableColumn.width` exists to replace and because a reader comparing
+        // against SwiftUI should see what this used to do. Every column got the
+        // same space whatever it held, and there was no way to say otherwise.
+        //
+        // Sized columns take what they asked for; the rest divide the REMAINDER.
+        // `max(0,)` on the remainder, because a table narrower than the sum of
+        // its fixed widths would otherwise hand the flexible columns a negative
+        // proposal, and a negative proposed width is not a smaller cell -- it is
+        // a value the layout system has no meaning for.
+        //
+        // 此處原為 `(proposedSize.width ?? 0) / Double(columnCount)` ——一個平均值,劃線保留,
+        // 因為那正是 `TableColumn.width` 要取代的東西,也因為對照 SwiftUI 的讀者應該看得到它
+        // 原本的行為:無論欄裡裝什麼,每一欄都拿到相同的空間,而且沒有辦法改變。
+        //
+        // **有指定寬度的欄拿走它所要求的,其餘的瓜分剩下的部分。** 剩餘量取 `max(0,)`,因為當表格
+        // 比其固定寬度總和還窄時,彈性欄會拿到一個**負的**提議寬度——而負的提議寬度並不是一個更小的
+        // 儲存格,那是一個版面系統沒有意義可賦予的值。
+        let columnWidths = columns.columnWidths
+        let totalWidth = proposedSize.width ?? 0
+        let fixedWidth = columnWidths.compactMap { $0 }.reduce(0, +)
+        let flexibleCount = columnWidths.filter { $0 == nil }.count
+        let flexibleWidth =
+            flexibleCount > 0
+            ? max(0, totalWidth - fixedWidth) / Double(flexibleCount)
+            : 0
 
         // Compute cell layouts. Really only done during this initial layout
         // step to propagate cell preference values. Otherwise we'd do it
@@ -104,10 +131,21 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
             )
 
             var rowCellHeights: [Int] = []
-            for rowCell in rowCells {
+            for (columnIndex, rowCell) in rowCells.enumerated() {
+                // Indexed against `columnWidths` rather than zipped, because a
+                // row can hold fewer cells than there are columns and the width
+                // for a column that has no cell here must not shift onto the
+                // next one. Out of range falls back to the flexible share.
+                // 以索引對 `columnWidths` 取值而非用 zip,因為一列可能持有比欄數更少的儲存格,
+                // 而某個「此列沒有儲存格」的欄,其寬度不可以順移到下一個儲存格上。
+                // 超出範圍時退回彈性分配的份額。
+                let width =
+                    columnIndex < columnWidths.count
+                    ? (columnWidths[columnIndex] ?? flexibleWidth)
+                    : flexibleWidth
                 let cellResult = rowCell.computeLayout(
                     proposedSize: ProposedViewSize(
-                        columnWidth,
+                        width,
                         Double(backend.defaultTableRowContentHeight)
                     ),
                     environment: environment
@@ -143,6 +181,10 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         let columnLabels = columns.labels
         backend.setRowCount(ofTable: widget, to: rows.count)
         backend.setColumnLabels(ofTable: widget, to: columnLabels, environment: environment)
+        // AFTER the labels, because that call is what establishes the column
+        // count -- a backend told widths first would have nowhere to put them.
+        // 在 labels 之後,因為那個呼叫才是確立欄數的地方——先被告知寬度的 backend 會無處安放它們。
+        backend.setColumnWidths(ofTable: widget, to: columns.columnWidths)
         // Before the cells, so that a backend applying selectability as cells
         // arrive sees the setting rather than having to revisit them.
         backend.setTextSelectability(ofTable: widget, to: environment.tableTextSelection)

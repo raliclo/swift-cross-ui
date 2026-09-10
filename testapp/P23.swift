@@ -178,7 +178,61 @@ struct P23RootView: View {
             // 實際要比較的內容。
             Group {
                 Table(Array(p23Rows.prefix(rowCount))) {
+                    // #125, added 2026-09-10. `.width(200)` on ID -- the column
+                    // with the NARROWEST content -- and nothing on the other
+                    // three.
+                    //
+                    // WIDE, NOT NARROW, AND THE FIRST VERSION OF THIS TEST WAS
+                    // WORTHLESS. It used `.width(60)`, reasoning that ID holds
+                    // one or two digits so an even quarter of the table is
+                    // absurd for it. The capture showed ID at about 58 px and I
+                    // nearly recorded that as a pass -- but ID would be the
+                    // narrowest column anyway, because GTK sizes a Grid column
+                    // from its widest child and ID's widest child is the word
+                    // "ID". A working `.width(60)` and an IGNORED `.width(60)`
+                    // produce the same picture.
+                    //
+                    // 200 cannot be faked. Nothing in this column is 200 px
+                    // wide, so if ID is the WIDEST of the four, the only thing
+                    // that can have done it is the width being honoured.
+                    //
+                    // THE HEADER IS HALF OF THE ASSERTION. On GTK a column's
+                    // width comes from its widest child, so headers and cells
+                    // are sized separately and a fix reaching only one leaves
+                    // "ID" over a column it does not match. That is why
+                    // `Gtk.Table` stores the widths rather than applying them
+                    // once -- see its `columnWidths`.
+                    //
+                    // WHAT THIS DOES NOT ASSERT: that the other three end up
+                    // equal. They do not, and should not -- GTK gives each
+                    // hexpanding column its natural width first and shares only
+                    // the surplus, which is why this app's own intro line says
+                    // column 2 is wider than its header and column 3 narrower.
+                    // An earlier draft of this comment demanded they be equal;
+                    // that was a claim about a layout model this backend does
+                    // not use.
+                    //
+                    // #125,2026-09-10 加入。`.width(200)` 加在**內容最窄**的 ID 欄上,其餘三欄不給。
+                    //
+                    // **用寬的、不是窄的——而本測試的第一版毫無價值。** 它用的是 `.width(60)`,理由是
+                    // ID 只裝一兩位數字,平分表格的四分之一對它而言荒謬。擷圖顯示 ID 約 58 px,
+                    // 而我差一點就把它記成通過——但**ID 本來就會是最窄的一欄**,因為 GTK 依「該欄最寬的
+                    // 子元件」決定欄寬,而 ID 最寬的子元件就是「ID」這個詞。**一個生效的 `.width(60)`
+                    // 與一個被忽略的 `.width(60)`,產生同一張圖。**
+                    //
+                    // 200 偽造不了。這一欄裡沒有任何東西有 200 px 寬,因此若 ID 成為四欄中**最寬**的,
+                    // 唯一可能造成它的就是寬度確實被遵守了。
+                    //
+                    // **標題是斷言的一半。** 在 GTK 上欄寬取決於該欄最寬的子元件,因此標題與儲存格
+                    // 分開決定尺寸,只顧到其中一邊的修正會讓「ID」壓在一個與它不相符的欄位上方。
+                    // 那正是 `Gtk.Table` 要**儲存**寬度而非套用一次就算了的原因——見其 `columnWidths`。
+                    //
+                    // **本項不斷言的事**:另外三欄會相等。它們不相等,也不應該相等——GTK 先給每個
+                    // hexpand 的欄它的自然寬度,只把**剩餘**的部分拿去分配,而這正是本 app 自己的
+                    // 開場白說「第 2 欄比它的標題寬、第 3 欄比較窄」的原因。本註解的較早草稿要求它們
+                    // 相等;那是一項關於「本 backend 並未採用之版面模型」的主張。
                     TableColumn("ID") { (row: P23Row) in Text("\(row.id)") }
+                        .width(200)
                     TableColumn("A much longer header than its cells") { (row: P23Row) in
                         Text(row.short)
                     }

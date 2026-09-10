@@ -38,6 +38,10 @@ extension WinUIBackend: BackendFeatures.Tables {
     public func setTextSelectability(ofTable table: Widget, to isSelectable: Bool) {
         (table as! WinUITable).setTextSelectable(isSelectable)
     }
+
+    public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {
+        (table as! WinUITable).setColumnWidths(widths)
+    }
 }
 
 /// A table drawn with a `Grid`.
@@ -80,6 +84,18 @@ extension WinUIBackend: BackendFeatures.Tables {
 @MainActor
 final class WinUITable: WinUI.Grid {
     private var columnCount = 0
+    /// Our own references to the `ColumnDefinition`s, in order.
+    ///
+    /// `columnDefinitions` is a WinRT vector and reading an element back out of
+    /// it to mutate is more ceremony than keeping the objects we just made.
+    /// `ColumnDefinition` is a reference type, so setting `width` on one of
+    /// these is seen by the Grid.
+    ///
+    /// 我們自己按順序持有的 `ColumnDefinition` 參考。
+    ///
+    /// `columnDefinitions` 是一個 WinRT vector,為了修改而把元素讀回來,比留住我們剛剛建立的那些
+    /// 物件更繁瑣。`ColumnDefinition` 是參考型別,因此在其中一個上設定 `width`,Grid 看得到。
+    private var columnDefinitionObjects: [WinUI.ColumnDefinition] = []
     private var rowCount = 0
 
     /// Kept so `setCells` can put them back. Every `setCells` clears the
@@ -115,6 +131,7 @@ final class WinUITable: WinUI.Grid {
         columnCount = labels.count
 
         columnDefinitions.clear()
+        columnDefinitionObjects = []
         for _ in labels {
             let column = WinUI.ColumnDefinition()
             // Star, not auto. Auto sizes each column to its widest cell, which
@@ -127,6 +144,7 @@ final class WinUITable: WinUI.Grid {
             // `expandHorizontally` 搭配 `.fill` 得到相同結果。
             column.width = WinUI.GridLength(value: 1, gridUnitType: .star)
             columnDefinitions.append(column)
+            columnDefinitionObjects.append(column)
         }
 
         headerLabels = labels.map { label in
@@ -152,6 +170,29 @@ final class WinUITable: WinUI.Grid {
     // inside this class.
     // 使用 `WinUI.FrameworkElement` 而非 `Widget`。`Widget` 是 `WinUIBackend` 上的 typealias，因此
     // 它只在該型別的 extension 之中解析得到，在本類別之中則否。
+    /// Sets a fixed width per column; nil returns that column to a star share.
+    ///
+    /// `.pixel` against `.star` is the whole mapping, and it is why this backend
+    /// needed no bookkeeping while GtkBackend did: a `Grid` keeps its column
+    /// structure as objects, so a width can be changed after the cells have
+    /// already been placed. GTK's `Grid` derives column width from its widest
+    /// child, so there the width has to be re-applied to every cell.
+    ///
+    /// 設定每欄的固定寬度;nil 讓該欄回到 star 分配。
+    ///
+    /// `.pixel` 對上 `.star` 就是全部的對應關係,而這也正是「本 backend 不需要任何記帳、
+    /// 而 GtkBackend 需要」的原因:`Grid` 把它的欄位結構保存為**物件**,因此即使儲存格早已擺好,
+    /// 寬度仍然改得動。GTK 的 `Grid` 則是由**該欄最寬的子元件**推導欄寬,所以在那邊,寬度必須
+    /// 重新套用到每一個儲存格上。
+    func setColumnWidths(_ widths: [Double?]) {
+        for (index, column) in columnDefinitionObjects.enumerated() {
+            let width = index < widths.count ? widths[index] : nil
+            column.width =
+                width.map { WinUI.GridLength(value: $0, gridUnitType: .pixel) }
+                ?? WinUI.GridLength(value: 1, gridUnitType: .star)
+        }
+    }
+
     func setCells(_ cells: [WinUI.FrameworkElement], rowHeights: [Int]) {
         cellWidgets = cells
         rebuildRowDefinitions(rowHeights: rowHeights)
