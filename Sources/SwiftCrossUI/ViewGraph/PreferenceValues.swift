@@ -12,10 +12,13 @@ public struct PreferenceValues: Sendable {
         windowDismissBehavior: nil,
         preferredWindowMinimizeBehavior: nil,
         windowResizeBehavior: nil,
-        layoutPriority: defaultLayoutPriority
+        layoutPriority: defaultLayoutPriority,
+        gridCellColumns: defaultGridCellColumns,
+        gridRowCells: []
     )
 
     static let defaultLayoutPriority = 0.0
+    static let defaultGridCellColumns = 1
 
     public var onOpenURL: (@Sendable @MainActor (URL) -> Void)?
 
@@ -93,6 +96,35 @@ public struct PreferenceValues: Sendable {
     /// The layout priority of the view.
     var layoutPriority: Double
 
+    /// How many of a ``Grid``'s columns this cell occupies.
+    ///
+    /// Travels up exactly the way ``layoutPriority`` does -- inherited through a
+    /// wrapper that has one child, reset otherwise -- because it means the same
+    /// kind of thing: an attribute of ONE view that has to survive being wrapped
+    /// in a `.padding` or a `.frame`, and must not leak sideways to a sibling.
+    ///
+    /// 這個儲存格佔據 ``Grid`` 的幾個欄。
+    ///
+    /// 它向上傳遞的方式與 ``layoutPriority`` 完全相同——經過「只有一個子節點的包裝層」時被繼承，
+    /// 其餘情況重設——因為它表達的是同一類東西:**單一**一個 view 的屬性，必須能在被 `.padding`
+    /// 或 `.frame` 包起來之後存活，而且絕不可以橫向洩漏給兄弟節點。
+    var gridCellColumns: Int
+
+    /// One entry per ``GridRow``, in declaration order, each listing that row's
+    /// cells.
+    ///
+    /// **Concatenated rather than overwritten, the way ``toolbarItems`` is.**
+    /// A ``Grid`` needs every row's cells at once -- that is the whole of what
+    /// makes columns line up -- and the `.first`-wins rule the presentation
+    /// values use would give it exactly one row.
+    ///
+    /// 每一個 ``GridRow`` 一項，依宣告順序排列，每一項列出該列的儲存格。
+    ///
+    /// **採串接而非覆寫，與 ``toolbarItems`` 相同。** 一個 ``Grid`` 需要同時拿到每一列的儲存格
+    /// ——那正是「讓各欄對齊」的全部內容——而各 presentation 值所採用的「`.first` 勝出」規則，
+    /// 只會交給它其中一列。
+    var gridRowCells: [GridRowMeasurement]
+
     /// Returns a copy of the preferences with the specified property set to the
     /// provided new value.
     ///
@@ -149,10 +181,14 @@ extension PreferenceValues {
             children.compactMap(\.preferredWindowMinimizeBehavior).first
         windowResizeBehavior = children.compactMap(\.windowResizeBehavior).first
 
+        gridRowCells = children.flatMap(\.gridRowCells)
+
         if let firstChild = children.first, children.count == 1 {
             layoutPriority = firstChild.layoutPriority
+            gridCellColumns = firstChild.gridCellColumns
         } else {
             layoutPriority = Self.defaultLayoutPriority
+            gridCellColumns = Self.defaultGridCellColumns
         }
     }
 }

@@ -57,10 +57,10 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
 - [x] **12. #113 n^1.5 版面成本 — 已跑,結論是「不是 n^1.5,它是線性的」** — P52 四條 arm、12→192 五個尺寸,每格成本是**平的**(primitive 220µs / custom 166µs / text 63µs),指數 n^0.95–0.96。三條 arm 曲線相同 → **成長在 stack 版面**;但常數不是附帶的:`Button` 每格比同形狀 `Text` 多 157µs(3.5 倍)。48 格時一次按壓 min 10.5ms / med 20.7ms,**沒有重現 0.3 秒那個參考點**——若那是 GTK/WinUI 量的,那本身就是要問 Windows 的一件事。細節見 `testapp/plan/plan-113-layout-cost.md`
-- [ ] **13. #120 Grid 排版** — 需要「子項能說『我展開成 n 格』」的能力;`LayoutSystem.LayoutableChild` 是一對不透明 closure,答不出來。**需要一個設計決定,且不得在 grid 裡特判 `ForEach`**(此點已由本端以 `withKnownIssue` 釘住)
-- [ ] **14. #127 `GeometryProxy`** — `CoordinateSpace` 與 `safeAreaInsets` 全 repo 0 命中(附對照組)。這不是補一個 getter,而是**先設計 `CoordinateSpace`**
+- [x] **13. #120 Grid — 已完成:共用欄 + `gridCellColumns`** — 成因不是「需要新的 backend 能力」,而是**父層看不見它的孫節點**:`ViewLayoutResult` 只在 initialiser 中接收 `childResults`、只保留合併後的 preferences。因此改由儲存格經 preference 自行上報(`gridRowCells` 串接、`gridCellColumns` 比照 `layoutPriority` 逐層繼承),`Grid` 在**同一次更新**裡跑兩輪(先量、再依欄放),`GridRow` 從「body 是 HStack 的組合 view」變成真正的容器。量到:C2 在三列都是 106..155、C3 都是 166..215(修改前每列各自為政),跨欄那列畫在 16..215。五個單元測試,其中補寬那條已證明「關掉就會紅」
+- [ ] **14. #127 `GeometryProxy.frame(in:)` — 已定形狀,`.global` 不是 Mac 一個人的事** — 查證:沒有任何 backend 能回報 widget 位置、`LayoutableChild.commit()` 兩端都不帶參數、環境裡沒有通用的「請重新版面」。`.local` 現在就精確;`.global`/`.named` 三條路的代價見 `testapp/plan/plan-120-grid-and-geometry.md`,**建議走 backend requirement**(平台才是權威),需要 Windows 補 GTK 與 WinUI 兩格
 - [ ] **15. #28 Animation** — 需要 per-frame tick,屬**框架改動**而非協定新增。與 #127 一樣需要先確認要不要投入
-- [ ] **16. #118 LazyHGrid** — 不難,是時機:`GridLayoutPlan` 的詞彙是水平專用的,要跨檔改名,風險全在重疊。**訊號:本端目前不在 layout 區域** —— 2026-09-10 的 P44 修正只動了 `LayoutSystem.swift` 的 `StackOverflowReport`,已提交推送;`GridLayoutPlan` 未被本端碰過。若要動手,先說一聲,我會在那段期間避開該檔
+- [x] **16. #118 LazyHGrid — 已完成** — 先把 `GridLayoutPlan` 的詞彙從 column/row 改成 lane/line 並帶上 `axis`,270 行的解析器整段移到 `GridLayoutPlan` 共用(不複製);`GridItem` 增加 `verticalAlignment`。P48 第 5、6 節驅動,量到 lane 間距 42 = 34+8、對齊階梯 52/52(而非 48/48)
 
 - [ ] **17. #128 EdgeInsets 是 `Int` — Windows 要動 `Views/Modifiers/Layout/`,請確認** — 這是一個**協調請求**,不是交辦。
   `EdgeInsets` 的四個欄位都是 `Int`(`PaddingModifier.swift:34-42`),因此**小數 padding 完全無法表達**;

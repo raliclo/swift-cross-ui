@@ -355,23 +355,32 @@ struct P51Cell: View {
 
 /// A 3 x 3 `Grid` of `GridRow`s, and one deliberately wide cell.
 ///
-/// **Row 3's first cell is wider on purpose, and it will NOT line up with the
-/// rows above it.** `Grid`'s own documentation states the divergence: cells are
-/// not aligned into columns across rows, because a `GridRow` is an `HStack` and
-/// no shared column measurement happens. Making every label the same width would
-/// have produced a screenshot that reads as "columns align here", which is a
-/// claim this implementation does not make.
+/// **Row 3's first cell is wider on purpose, and since #120 every row lines up
+/// with it.** Column two starts at the same x in all three rows, because the
+/// grid measures every row before it places any of them.
 ///
-/// So the ragged third row is the honest picture, and it is captioned as
-/// expected rather than left for a reader to file as a bug.
+/// ~~"cells are not aligned into columns across rows"~~ was what this said, and
+/// was true until 2026-09-10. It is left here struck through rather than
+/// deleted for the reason P34 records at length: a false claim RENDERED ON
+/// SCREEN is the worst shape a stale note takes, and the caption below was
+/// telling readers that a ragged table was the expected result.
+///
+/// The fourth row is the span: one cell with `.gridCellColumns(3)`, which must
+/// reach the right edge of column three. A span that was ignored would show a
+/// narrow cell in column one -- visibly different, rather than a table that is
+/// merely a bit off.
 ///
 /// 由 `GridRow` 組成的 3 x 3 `Grid`，以及一個刻意加寬的儲存格。
 ///
-/// **第 3 列的第一格是刻意加寬的，而它不會與上方各列對齊。** `Grid` 自己的文件就載明了這項分歧：
-/// 各列之間的儲存格不會對齊成欄，因為 `GridRow` 就是一個 `HStack`，其間並沒有共用的欄寬量測。若把
-/// 每個標籤都做成一樣寬，產出的截圖讀起來會是「這裡的欄是對齊的」——而那是本實作並未提出的主張。
+/// **第 3 列的第一格是刻意加寬的，而自 #120 起，每一列都會與它對齊。** 三列的第二欄都從同一個 x
+/// 開始，因為這個格線會在放置任何一列之前先量測每一列。
 ///
-/// 因此參差不齊的第三列才是誠實的圖，並且被標註為預期結果，而不是留給讀者去當成 bug 記下來。
+/// 這裡原本寫的是 ~~「各列之間的儲存格不會對齊成欄」~~，那句話在 2026-09-10 之前都成立。此處保留
+/// 刪除線而非直接刪掉，理由與 P34 詳細記載的相同:**被算繪到畫面上的**假宣稱，是過期註記最糟的一種
+/// 形狀——而底下那段說明，當時正在告訴讀者「一張參差不齊的表是預期結果」。
+///
+/// 第 4 列是跨欄:一個帶 `.gridCellColumns(3)` 的儲存格，它必須抵達第三欄的右緣。一個被忽略的跨欄數
+/// 會顯示成第一欄裡的一個窄格——那是看得出來的差別，而不是一張「只是有點歪」的表。
 struct P51GridSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -379,11 +388,13 @@ struct P51GridSection: View {
                 .font(.system(size: 15))
             Text("Nine cells, each labelled RnCn. Row 3 column 1 is wide ON PURPOSE:")
                 .font(.system(size: 11))
-            Text("Grid does not measure shared column widths, so row 3 will not align. Expected.")
+            Text("Since #120 every row shares one set of columns, so C2 starts at the same x.")
                 .font(.system(size: 11))
-            Text("九格，各以 RnCn 標示。第 3 列第 1 格是刻意加寬的：Grid 不做共用欄寬量測，")
+            Text("Row 4 is one cell with gridCellColumns(3): it must span to C3's right edge.")
                 .font(.system(size: 11))
-            Text("因此第 3 列不會對齊。這是預期結果。")
+            Text("九格，各以 RnCn 標示。第 3 列第 1 格是刻意加寬的：自 #120 起各列共用同一組欄，")
+                .font(.system(size: 11))
+            Text("因此 C2 在每一列都從同一個 x 開始。第 4 列是一格 gridCellColumns(3)，須跨到 C3 右緣。")
                 .font(.system(size: 11))
 
             Grid(alignment: .topLeading, horizontalSpacing: 10, verticalSpacing: 8) {
@@ -401,6 +412,17 @@ struct P51GridSection: View {
                     P51GridRowCell(text: "R3C1 wide")
                     P51GridRowCell(text: "R3C2")
                     P51GridRowCell(text: "R3C3")
+                }
+                GridRow {
+                    // `maxWidth: .infinity` is what makes this a TEST rather
+                    // than a picture. A span only offers a width; a `Text` takes
+                    // what it needs and no more, so a spanning cell and an
+                    // ignored span look the same until something fills the offer.
+                    // 讓這件事成為一項**測試**而不只是一張圖的，是 `maxWidth: .infinity`。跨欄只是
+                    // **提供**一個寬度;而一個 `Text` 只取它需要的、不多拿——因此在有東西把那個提供
+                    // 填滿之前，「跨欄生效」與「跨欄被忽略」看起來一模一樣。
+                    P51GridRowCell(text: "R4 spans all three", fillsOfferedWidth: true)
+                        .gridCellColumns(3)
                 }
             }
         }
@@ -420,10 +442,34 @@ struct P51GridSection: View {
 struct P51GridRowCell: View {
     var text: String
 
+    /// Whether the BORDER stretches to whatever width the cell is offered.
+    ///
+    /// It matters only for the spanning row, and it matters entirely. With the
+    /// frame outside the border, the border stays the width of the text and is
+    /// centred in the span -- measured 2026-09-10: the cell drew 53..177 inside
+    /// a span of 16..215, centre 115 against centre 115.5. That is a correct
+    /// span and a picture that cannot show it, which is the one thing a test
+    /// app must not produce.
+    ///
+    /// 描邊是否會延展到「這一格被提供的任何寬度」。
+    ///
+    /// 它只對跨欄那一列有意義，而且意義是決定性的。若把 frame 放在描邊**之外**，描邊會維持文字的
+    /// 寬度並被置中在跨欄範圍內——2026-09-10 量到:該格畫在 53..177，而跨欄範圍是 16..215，中心 115
+    /// 對 115.5。那是一個**正確的**跨欄，配上一張**顯示不出**它的圖——而那正是一支測試 app 最不該
+    /// 產出的東西。
+    var fillsOfferedWidth = false
+
     var body: some View {
-        Text(text)
-            .padding(6)
-            .border(Color.purple, width: 2)
+        if fillsOfferedWidth {
+            Text(text)
+                .padding(6)
+                .frame(maxWidth: .infinity)
+                .border(Color.purple, width: 2)
+        } else {
+            Text(text)
+                .padding(6)
+                .border(Color.purple, width: 2)
+        }
     }
 }
 

@@ -22,22 +22,23 @@ struct GridLayoutTests {
     @MainActor
     @Test("An adaptive column divides what a fixed column leaves")
     func adaptiveDoesNotDoubleCountFixedWidth() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [
+        let plan = GridLayoutPlan.resolve(
+            items: [
                 GridItem(.fixed(200)),
                 GridItem(.adaptive(minimum: 100)),
             ],
-            alignment: .leading,
+            axis: .vertical,
+            alignment: .start,
             spacing: 0,
-            proposedWidth: 420
+            proposedCrossExtent: 420
         )
 
-        let total = plan.columnWidths.reduce(0, +)
+        let total = plan.laneSizes.reduce(0, +)
         #expect(
             total <= 420,
-            "columns total \(total) in a 420 point container: \(plan.columnWidths)"
+            "columns total \(total) in a 420 point container: \(plan.laneSizes)"
         )
-        #expect(plan.columnWidths.first == 200, "the fixed column keeps its width")
+        #expect(plan.laneSizes.first == 200, "the fixed column keeps its width")
     }
 
     // The four tests below were written on the Windows side, the same morning,
@@ -62,16 +63,17 @@ struct GridLayoutTests {
     @MainActor
     @Test("An adaptive column alone fills the container and does not exceed it")
     func adaptiveAloneFits() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [GridItem(.adaptive(minimum: 100))],
-            alignment: .leading,
+        let plan = GridLayoutPlan.resolve(
+            items: [GridItem(.adaptive(minimum: 100))],
+            axis: .vertical,
+            alignment: .start,
             spacing: 10,
-            proposedWidth: 420
+            proposedCrossExtent: 420
         )
-        let total = plan.columnWidths.reduce(0, +)
-            + 10 * max(0, plan.columnWidths.count - 1)
-        #expect(total <= 420, "columns total \(total): \(plan.columnWidths)")
-        #expect(plan.columnWidths.allSatisfy { $0 >= 100 })
+        let total = plan.laneSizes.reduce(0, +)
+            + 10 * max(0, plan.laneSizes.count - 1)
+        #expect(total <= 420, "columns total \(total): \(plan.laneSizes)")
+        #expect(plan.laneSizes.allSatisfy { $0 >= 100 })
     }
 
     /// The obvious WRONG fix for the overflow is to let the share fall below the
@@ -85,13 +87,14 @@ struct GridLayoutTests {
     @MainActor
     @Test("Every adaptive column still honours its minimum")
     func adaptiveColumnsKeepTheirMinimum() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
-            alignment: .leading,
+        let plan = GridLayoutPlan.resolve(
+            items: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
+            axis: .vertical,
+            alignment: .start,
             spacing: 10,
-            proposedWidth: 420
+            proposedCrossExtent: 420
         )
-        for width in plan.columnWidths.dropFirst() {
+        for width in plan.laneSizes.dropFirst() {
             #expect(width >= 100, "adaptive column resolved to \(width), below its minimum")
         }
     }
@@ -109,13 +112,14 @@ struct GridLayoutTests {
     @MainActor
     @Test("An infinite proposal does not trap")
     func infiniteProposalIsSafe() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
-            alignment: .leading,
+        let plan = GridLayoutPlan.resolve(
+            items: [GridItem(.fixed(200)), GridItem(.adaptive(minimum: 100))],
+            axis: .vertical,
+            alignment: .start,
             spacing: 10,
-            proposedWidth: .infinity
+            proposedCrossExtent: .infinity
         )
-        #expect(!plan.columnWidths.isEmpty)
+        #expect(!plan.laneSizes.isEmpty)
     }
 
     /// A grid with no columns still has to put its children somewhere, and one
@@ -126,13 +130,14 @@ struct GridLayoutTests {
     @MainActor
     @Test("No columns still yields one full-width column")
     func emptyColumnsYieldOne() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [],
-            alignment: .leading,
+        let plan = GridLayoutPlan.resolve(
+            items: [],
+            axis: .vertical,
+            alignment: .start,
             spacing: 10,
-            proposedWidth: 420
+            proposedCrossExtent: 420
         )
-        #expect(plan.columnWidths == [420])
+        #expect(plan.laneSizes == [420])
     }
 
     /// Spacing counts too, and it is the half that is easy to drop when the
@@ -141,21 +146,22 @@ struct GridLayoutTests {
     @MainActor
     @Test("Spacing between columns stays inside the container")
     func adaptiveRespectsSpacing() {
-        let plan = LazyVGrid<EmptyView>.resolve(
-            columns: [
+        let plan = GridLayoutPlan.resolve(
+            items: [
                 GridItem(.fixed(200)),
                 GridItem(.adaptive(minimum: 100)),
             ],
-            alignment: .leading,
+            axis: .vertical,
+            alignment: .start,
             spacing: 20,
-            proposedWidth: 420
+            proposedCrossExtent: 420
         )
 
-        let widths = plan.columnWidths.reduce(0, +)
-        let gaps = 20 * max(0, plan.columnWidths.count - 1)
+        let widths = plan.laneSizes.reduce(0, +)
+        let gaps = 20 * max(0, plan.laneSizes.count - 1)
         #expect(
             widths + gaps <= 420,
-            "columns \(plan.columnWidths) plus \(gaps) of spacing exceed 420"
+            "columns \(plan.laneSizes) plus \(gaps) of spacing exceed 420"
         )
     }
 
@@ -276,5 +282,110 @@ struct GridLayoutTests {
                 "mixed \(height(of: oneStaticPlusThree)) vs all-ForEach \(height(of: fourViaForEach))"
             )
         }
+    }
+}
+
+/// `Grid`'s shared columns and `gridCellColumns`, at the level where the
+/// arithmetic lives.
+///
+/// The picture in P51 is the other half of this and neither replaces the other:
+/// a screenshot says the table looks right, and these say WHY the numbers are
+/// what they are -- which is the half that tells you what broke when a future
+/// change moves them.
+///
+/// `Grid` 的共用欄與 `gridCellColumns`，測在那些算式所在的層級。
+///
+/// P51 的那張圖是這件事的另一半，兩者互不取代:截圖說的是「這張表看起來是對的」，而此處說的是
+/// 「那些數字為什麼是那樣」——當日後某次改動移動了它們時，能告訴你壞掉的是什麼的，是後面這一半。
+@MainActor
+@Suite("Grid shared columns")
+struct GridColumnTests {
+    typealias Cell = GridRowMeasurement.Cell
+
+    @Test("A column is as wide as the widest cell in it, across every row")
+    func columnsTakeTheWidestCell() {
+        let columns = Grid<EmptyView>.resolveColumns(
+            from: [
+                GridRowMeasurement(cells: [
+                    Cell(naturalWidth: 40, columnSpan: 1),
+                    Cell(naturalWidth: 90, columnSpan: 1),
+                ]),
+                GridRowMeasurement(cells: [
+                    Cell(naturalWidth: 120, columnSpan: 1),
+                    Cell(naturalWidth: 30, columnSpan: 1),
+                ]),
+            ],
+            spacing: 10
+        )
+        #expect(columns == [120, 90], "got \(columns)")
+    }
+
+    @Test("A spanning cell widens nothing it already fits inside")
+    func spanTakesWhatIsThere() {
+        // 120 + 10 + 90 = 220, and the spanning cell wants 200. It fits, so the
+        // columns must not move: a span is a request for room, not for growth.
+        // 120 + 10 + 90 = 220，而跨欄的儲存格要 200。它放得下，因此各欄不可以移動:跨欄要的是
+        // 空間，不是增長。
+        let columns = Grid<EmptyView>.resolveColumns(
+            from: [
+                GridRowMeasurement(cells: [
+                    Cell(naturalWidth: 120, columnSpan: 1),
+                    Cell(naturalWidth: 90, columnSpan: 1),
+                ]),
+                GridRowMeasurement(cells: [Cell(naturalWidth: 200, columnSpan: 2)]),
+            ],
+            spacing: 10
+        )
+        #expect(columns == [120, 90], "got \(columns)")
+    }
+
+    @Test("A spanning cell that does not fit widens its columns evenly")
+    func spanDistributesItsShortfall() {
+        // 40 + 10 + 60 = 110 against a cell wanting 150: 40 short, split two
+        // ways.
+        // 40 + 10 + 60 = 110，而該儲存格要 150:短少 40，由兩欄均分。
+        let columns = Grid<EmptyView>.resolveColumns(
+            from: [
+                GridRowMeasurement(cells: [
+                    Cell(naturalWidth: 40, columnSpan: 1),
+                    Cell(naturalWidth: 60, columnSpan: 1),
+                ]),
+                GridRowMeasurement(cells: [Cell(naturalWidth: 150, columnSpan: 2)]),
+            ],
+            spacing: 10
+        )
+        #expect(columns == [60, 80], "got \(columns)")
+    }
+
+    @Test("A span of zero or less is one column, not none")
+    func spanIsAtLeastOne() {
+        let cell = Cell(naturalWidth: 50, columnSpan: 0)
+        #expect(cell.columnSpan == 1)
+        let columns = Grid<EmptyView>.resolveColumns(
+            from: [GridRowMeasurement(cells: [cell])],
+            spacing: 10
+        )
+        #expect(columns == [50], "a zero span must not erase the cell: \(columns)")
+    }
+
+    @Test("Placements start at the column the spans have reached")
+    func placementsFollowTheSpans() {
+        let placements = GridRow<EmptyView>.placements(
+            of: GridRowMeasurement(cells: [
+                Cell(naturalWidth: 10, columnSpan: 2),
+                Cell(naturalWidth: 10, columnSpan: 1),
+            ]),
+            in: [50, 60, 70],
+            spacing: 10
+        )
+        #expect(placements.count == 2)
+        // First cell covers columns 0 and 1: 50 + 10 + 60 = 120, starting at 0.
+        // 第一格覆蓋第 0、1 欄：50 + 10 + 60 = 120，從 0 開始。
+        #expect(placements[0].origin == 0)
+        #expect(placements[0].width == 120)
+        // Second starts after it, in column 2.
+        // 第二格接在其後，位於第 2 欄。
+        #expect(placements[1].origin == 130)
+        #expect(placements[1].width == 70)
     }
 }
