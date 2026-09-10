@@ -653,7 +653,35 @@ coarser than a frame, so several frames land on the same timestamp. That one was
 real and is fixed with `QueryPerformanceCounter` — GTK's own Windows backend
 reaches for the same counter (`gdksurface-win32.c:170`).
 
-**What is NOT measured here, so that nobody quotes it as though it were:** the
+**Does stopping the clock actually unsubscribe? Yes — measured, both backends.**
+This matters because the framework's whole power story rests on it:
+`AnimationDriver` starts the clock when the first tween registers and stops it
+when the last one finishes (`startClockIfNeeded`, `stopClockIfIdle`, and
+`tick(at:)` ends with `stopClockIfIdle`), which is GDK's begin/end refcount
+lifted to the framework. If the stop did not really unsubscribe, every animation
+would leak another subscription and an idle app would never go quiet.
+
+`P64 --debug --restart` measures, stops, waits half a second, and measures again:
+
+| | sub-frame gaps in pass 2 | verdict |
+| --- | --- | --- |
+| Win-WinUI | **0 of 297** | unsubscribe works |
+| Win-gtk4 | **0 of 189** | unsubscribe works |
+
+**The verdict counts near-zero gaps, and the two obvious statistics are both
+wrong here — recorded because each looked reasonable until it was run.** Two live
+subscriptions call the SAME handler (it is a type property) twice inside one
+composed frame, microseconds apart, so a leak inserts gaps of about zero rather
+than scaling anything.
+
+- **Rate ratio**: count over span, so one long stall drags a whole pass down —
+  and pass 1 always has one, while the window is still settling. gtk4 gave
+  72.5 Hz vs 88.3 Hz, a ratio of 1.22, from a single 450ms gap.
+- **Median gap**: survives that, but on GTK it is BIMODAL. Two runs with nothing
+  changed gave 13.9/13.9 and 7.0/13.9, because GTK produces a frame when
+  something needs one and the median measures how much the app asked to redraw.
+
+**What is still NOT measured, so that nobody quotes it as though it were:** the
 idle case. P64 displays its own tick count, so its view is invalidated on every
 tick and the app is never idle on either backend. "An idle WinUI app is woken
 144 times a second" is the expected consequence of the design difference above,
@@ -713,6 +741,28 @@ DLL 放上 `PATH`。更新率以 `dxdiag /t <檔案>` 讀取——`wmic` 在 Win
 `QueryPerformanceCounter` 修好——GTK 自己的 Windows backend 伸手拿的正是同一個計數器
 (`gdksurface-win32.c:170`)。
 
-**此處**沒有**量到的部分，寫明以免被當成量過的事引用:** 閒置的情況。P64 會顯示它自己的 tick 次數，
+**停掉時鐘真的解除訂閱了嗎?有——兩個 backend 都量過了。** 這件事之所以要緊,是因為框架整個省電的說法
+都建立在它上面:`AnimationDriver` 在第一個 tween 註冊時啟動時鐘、在最後一個結束時停掉
+(`startClockIfNeeded`、`stopClockIfIdle`,而 `tick(at:)` 的最後一行就是 `stopClockIfIdle`),那是把
+GDK 的 begin/end 計數提到框架層。若那個「停」並未真的解除訂閱,每一個動畫都會再洩漏一次訂閱,
+而一支閒置的 app 永遠不會安靜下來。
+
+`P64 --debug --restart` 會量一次、停掉、等半秒、再量一次:
+
+| | pass 2 中「次於一幀」的間隔 | 判定 |
+| --- | --- | --- |
+| Win-WinUI | **0 / 297** | 取消訂閱有效 |
+| Win-gtk4 | **0 / 189** | 取消訂閱有效 |
+
+**判準計數的是近乎零的間隔,而兩個最直覺的統計量在此都是錯的——記下來,因為它們在被跑之前都看起來
+很合理。** 兩個活著的訂閱會呼叫**同一個** handler(它是型別屬性),在同一個合成幀內相隔微秒呼叫兩次,
+因此洩漏插入的是約為零的間隔,而不是把什麼東西乘上一個倍數。
+
+- **速率比值**:它是「次數除以時距」,因此單獨一次長停頓就能把整段拉低——而 pass 1 一定有一次,
+  視窗還在 settle。gtk4 得到 72.5 Hz 對 88.3 Hz、比值 1.22,而它來自單獨一次 450ms 的間隔。
+- **間隔中位數**:它撐過了上述問題,但在 GTK 上它是**雙峰的**。兩次執行、中間什麼都沒改,分別給出
+  13.9/13.9 與 7.0/13.9——因為 GTK 有東西需要時才產生一幀,而中位數量到的是「這支 app 要求了多少重繪」。
+
+**此處仍然**沒有**量到的部分，寫明以免被當成量過的事引用:** 閒置的情況。P64 會顯示它自己的 tick 次數，
 因此每一次 tick 都會讓它的 view 失效，兩個 backend 上那支 app 都從未閒置過。「一支閒置的 WinUI app
 每秒被叫醒 144 次」是上述設計差異的**預期後果**，不是本次量到的東西。

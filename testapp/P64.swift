@@ -101,6 +101,43 @@ final class P64Model: SwiftCrossUI.ObservableObject {
 
     var timestamps: [Double] = []
 
+    /// `--restart`: measure, stop, measure again, and compare the two rates.
+    ///
+    /// **This asks whether `stopFrameClock` actually unsubscribes, which no
+    /// other measurement here can tell you.** On WinUI the handler is a type
+    /// property, so a leaked first subscription does not produce a second
+    /// handler -- it makes the SAME handler run twice per composed frame, and
+    /// the only visible effect is that the counted rate doubles.
+    ///
+    /// Both outcomes are informative, which is why it is worth running:
+    ///
+    /// - pass 2 at about the same rate as pass 1 -> the unsubscribe works
+    /// - pass 2 at about DOUBLE -> the first subscription leaked, and since
+    ///   `AnimationDriver` starts and stops the clock around every animation,
+    ///   each animation would leak another
+    ///
+    /// A pass/fail on "does it still tick" cannot distinguish these: it ticks
+    /// either way. The rate is the only thing that separates them.
+    ///
+    /// `--restart`:量一次、停掉、再量一次，然後比較兩個速率。
+    ///
+    /// **它問的是「`stopFrameClock` 是否真的解除了訂閱」——而此處其他任何量測都答不出這件事。**
+    /// 在 WinUI 上，handler 是一個型別屬性，因此一個洩漏的第一次訂閱**不會**產生第二個 handler，
+    /// 它會讓**同一個** handler 在每一個合成幀跑兩次；而唯一看得見的效果，就是數到的速率變成兩倍。
+    ///
+    /// 兩種結果都有意義，這正是它值得跑的原因:
+    ///
+    /// - 第二段與第一段速率相近 -> 取消訂閱有效
+    /// - 第二段約為**兩倍** -> 第一次訂閱洩漏了;而由於 `AnimationDriver` 會在每個動畫前後啟停時鐘，
+    ///   每一個動畫都會再洩漏一次
+    ///
+    /// 用「還會不會跳」來做 pass/fail 無法分辨這兩者:兩種情況都會跳。速率是唯一分得開它們的東西。
+    static let isRestartProbe = CommandLine.arguments.contains("--restart")
+
+    private var pass = 0
+    private var firstPassRate: Double?
+    private var firstPassMedian: Double?
+
     func start(backend: any BaseAppBackend) {
         guard let clock = backend as? any BackendFeatures.FrameClocks else {
             summary = "this backend does not conform to FrameClocks"
@@ -108,8 +145,43 @@ final class P64Model: SwiftCrossUI.ObservableObject {
             return
         }
         started = true
+        beginPass(clock: clock)
+    }
+
+    /// Everything a measurement window needs, in one place because the restart
+    /// path needs all of it too.
+    ///
+    /// **It is one function because splitting it produced a broken instrument
+    /// on the first run of `--restart`, and the log said so plainly.** The
+    /// reset and the pass counter lived in `start(backend:)` while the restart
+    /// called the private `start(clock:)` directly, so neither happened again:
+    ///
+    ///     PASS 1 TICKS 262 in 1.84s -> 141.9 Hz
+    ///     PASS 1 TICKS 555 in 4.43s -> 124.9 Hz
+    ///     PASS 1 TICKS 852 in 7.00s -> 121.6 Hz
+    ///
+    /// The label never left 1, so the `pass == 1` branch fired every time and
+    /// restarted forever; `timestamps` never cleared, so the count accumulated
+    /// and the rate drifted down as the span grew. **The apparent finding --
+    /// "the rate falls after a restart" -- was entirely the instrument.** It is
+    /// visible only because the run prints the tick COUNT and the SPAN next to
+    /// the rate; a line that printed 124.9 Hz alone would have looked like a
+    /// real and rather interesting result.
+    ///
+    /// 一段量測視窗所需要的一切,集中在一處——因為重啟路徑同樣需要它們全部。
+    ///
+    /// **它之所以是一個函式,是因為把它拆開之後,`--restart` 的第一次執行做出了一個壞掉的儀器,
+    /// 而 log 把這件事講得很清楚。** 重置與段數計數住在 `start(backend:)` 裡,而重啟直接呼叫私有的
+    /// `start(clock:)`,於是兩件事都沒有再發生一次:那個標籤始終停在 1,因此 `pass == 1` 的分支每次
+    /// 都成立、永遠重啟下去;`timestamps` 從未清空,於是次數不斷累加、而速率隨著時距變長逐步下滑。
+    /// **那個看似的發現——「重啟之後速率會下降」——完全來自儀器本身。** 它之所以看得出來,只因為每一行
+    /// 都把 tick **次數**與**時距**印在速率旁邊;一行只印 124.9 Hz 的輸出,看起來會像一個真實而且
+    /// 相當有趣的結果。
+    private func beginPass<Clock: BackendFeatures.FrameClocks>(clock: Clock) {
+        pass += 1
         timestamps.removeAll()
-        P64Diagnostics.write("starting the frame clock")
+        ticks = 0
+        P64Diagnostics.write("starting the frame clock (pass \(pass))")
         start(clock: clock)
 
         // Two seconds is long enough for a rate to mean something and short
@@ -143,7 +215,9 @@ final class P64Model: SwiftCrossUI.ObservableObject {
         }
         let sorted = gaps.sorted()
         summary = String(
-            format: "TICKS %d in %.2fs -> %.1f Hz; gap min %.1fms median %.1fms max %.1fms",
+            format:
+                "PASS %d TICKS %d in %.2fs -> %.1f Hz; gap min %.1fms median %.1fms max %.1fms",
+            pass,
             timestamps.count,
             span,
             rate,
@@ -152,6 +226,97 @@ final class P64Model: SwiftCrossUI.ObservableObject {
             sorted.last ?? 0
         )
         P64Diagnostics.write(summary)
+
+        if Self.isRestartProbe && pass == 1 {
+            firstPassRate = rate
+            firstPassMedian = sorted[sorted.count / 2]
+            // Half a second of doing nothing between the two passes. It is not
+            // a settling delay -- it is so that a leaked subscription has time
+            // to be visible as ticks arriving while this app believes the clock
+            // is stopped. Those ticks are counted: `stopFrameClock` clears the
+            // handler, so anything still firing lands on nothing and the count
+            // stays at zero unless the teardown is incomplete in a way that
+            // leaves the handler installed.
+            // 兩段之間有半秒什麼都不做。那不是為了等它穩定——那是為了讓「一個洩漏的訂閱」有時間以
+            // 「在本 app 認為時鐘已停止時仍有 tick 抵達」的形式顯現出來。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    P64Diagnostics.write("restarting after a stop")
+                    self.beginPass(clock: clock)
+                }
+            }
+            return
+        }
+
+        if Self.isRestartProbe, pass == 2, let firstRate = firstPassRate,
+            let firstMedian = firstPassMedian, firstMedian > 0
+        {
+            // **The verdict counts SUB-FRAME gaps, because that is the shape a
+            // leak actually has.** Two live subscriptions call the same handler
+            // -- it is a type property -- twice within one composed frame,
+            // microseconds apart on a QueryPerformanceCounter clock. That does
+            // not shift a rate or a median by some factor; it inserts gaps of
+            // about ZERO between the members of each pair.
+            //
+            // Two weaker rules were tried on real runs first, and BOTH are
+            // recorded because each looked reasonable until it was run:
+            //
+            //   rate ratio    one long stall while the window settles drags a
+            //                 whole pass down. gtk4 gave 72.5 vs 88.3 Hz, ratio
+            //                 1.22, from a single 450ms gap in pass 1.
+            //   median ratio  survives that, but on GTK the median is BIMODAL:
+            //                 7.0ms in one run and 13.9ms in the next, because
+            //                 GTK produces a frame when something needs one and
+            //                 the median measures how much this app asked to
+            //                 redraw. Two runs gave 13.9/13.9 (ratio 1.00) and
+            //                 7.0/13.9 (ratio 0.50) with nothing changed.
+            //
+            // A count of near-zero gaps has neither problem: it does not depend
+            // on how many frames GTK chose to produce, only on whether any
+            // frame was counted more than once.
+            //
+            // **判準改為計數「次於一幀」的間隔,因為那才是洩漏真正的形狀。** 兩個活著的訂閱會呼叫
+            // **同一個** handler(它是型別屬性)——在同一個合成幀之內呼叫兩次,以
+            // `QueryPerformanceCounter` 的時鐘來看只差微秒。那不會讓速率或中位數乘上某個倍數;
+            // 它會在每一對之間插入**約為零**的間隔。
+            //
+            // 先在真實執行上試過兩個較弱的規則,兩個都記下來,因為它們在被跑之前都看起來很合理:
+            //
+            //   速率比值    視窗 settle 時的單次長停頓會把整段拉低。gtk4 得到 72.5 對 88.3 Hz、
+            //               比值 1.22,而它來自 pass 1 中單獨一次 450ms 的間隔。
+            //   中位數比值  它撐過了上述問題,但在 GTK 上中位數是**雙峰的**:一次執行是 7.0ms、
+            //               下一次是 13.9ms——因為 GTK 有東西需要時才產生一幀,而中位數量到的是
+            //               「這支 app 要求了多少重繪」。兩次執行分別給出 13.9/13.9(比值 1.00)
+            //               與 7.0/13.9(比值 0.50),而中間什麼都沒改。
+            //
+            // 計數近乎零的間隔沒有這兩個問題:它不取決於 GTK 選擇產生了多少幀,只取決於「是否有
+            // 任何一幀被計數了超過一次」。
+            let subFrameGaps = gaps.filter { $0 < 1.0 }.count
+            let median = sorted[sorted.count / 2]
+            let verdict =
+                subFrameGaps == 0
+                ? "UNSUBSCRIBE OK"
+                : "LEAKED -- \(subFrameGaps) ticks landed inside another tick's frame"
+            // The two weaker numbers are still printed, and labelled as weak, so
+            // that a reader can see WHY the verdict is not either of them.
+            // 那兩個較弱的數字仍然印出來、並標明它們是弱的——好讓讀者看得出「判準為何不是它們」。
+            P64Diagnostics.write(
+                String(
+                    format:
+                        "RESTART sub-frame gaps in pass 2: %d of %d (the verdict); "
+                        + "median %.1fms -> %.1fms, rate %.1f Hz -> %.1f Hz "
+                        + "(both weak -- see the comment) -- %@",
+                    subFrameGaps,
+                    gaps.count,
+                    firstMedian,
+                    median,
+                    firstRate,
+                    rate,
+                    verdict
+                )
+            )
+        }
         P64Diagnostics.write("RENDER COMPLETE -- P64 measured the frame clock")
     }
 }
