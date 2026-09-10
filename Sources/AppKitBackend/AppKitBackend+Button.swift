@@ -47,6 +47,11 @@ extension AppKitBackend {
         button.action = action
         button.isEnabled = environment.isEnabled
         button.buttonStyle = environment.resolvedButtonStyle.kind
+        // On every update rather than at creation: the label is a child view whose
+        // text changes without this button being rebuilt.
+        // 每次更新都做，而非在建立時做一次：標籤是一個子 view，它的文字會在這顆按鈕未被重建的
+        // 情況下改變。
+        button.refreshAccessibilityLabel()
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
@@ -130,8 +135,76 @@ public final class NSCustomButton: NSView {
     override public func accessibilityLabel() -> String? {
         // Automatically uses the label text of a Button("") {} as accessibilityLabel.
         // This should be improved via a future .accessibilityLabel(_:) modifier.
-        // The ViewBuilder button init is not covered by this current solution.
-        (subviews.first as? NSTextField)?.stringValue
+        //
+        // **The label has to reach the INNER `NSButton`, which is the element
+        // accessibility actually sees.** `NSCustomButton` is a plain `NSView`, so
+        // it is transparent in the accessibility tree and this override is never
+        // consulted -- dumping P28's tree showed the `AXButton` and the label's
+        // `AXStaticText` as SIBLINGS, which is what a transparent parent looks
+        // like. Setting it here alone changed nothing; ``refreshAccessibilityLabel``
+        // is what makes it visible, and this stays so the two cannot disagree.
+        //
+        // It reads the first text field ANYWHERE below, not `subviews.first`.
+        // `setupButton` adds the `NSButton` first and `addAndSetupLabel` adds the
+        // label after it, so `subviews.first` is the button and the cast to
+        // `NSTextField` always failed -- this returned nil for every button in the
+        // package. Dumped the accessibility tree of P17, P28 and P34 on
+        // 2026-09-10: every `AXButton` had `title=''` and `desc=''`, so a screen
+        // reader had nothing at all to announce. `button.title` is set to `""` a
+        // few lines above, which is why the empty title is not a second bug.
+        //
+        // A ViewBuilder label made of several views is still not covered: the
+        // first text field is a guess about which one names the button, and a
+        // guess is what `.accessibilityLabel(_:)` (#123) exists to replace.
+        //
+        // **標籤必須送達**內層**的 `NSButton`——那才是 accessibility 真正看見的元素。**
+        // `NSCustomButton` 是一個單純的 `NSView`，因此它在 accessibility 樹中是透明的，這個
+        // override 從不會被詢問——傾印 P28 的樹時，`AXButton` 與標籤的 `AXStaticText` 是**兄弟**，
+        // 而那正是「父節點透明」的樣子。只改這裡毫無作用；讓它現身的是 ``refreshAccessibilityLabel``，
+        // 而此處保留下來，是為了讓兩者不會各說各話。
+        //
+        // 它讀的是「底下任何一層的第一個文字欄位」，而不是 `subviews.first`。
+        // `setupButton` 先加入 `NSButton`，`addAndSetupLabel` 之後才加入標籤，因此
+        // `subviews.first` 是那顆按鈕，而轉型為 `NSTextField` 永遠失敗——本套件中的每一顆按鈕
+        // 在此都回傳 nil。2026-09-10 傾印了 P17、P28、P34 的 accessibility 樹：每一個
+        // `AXButton` 的 `title` 與 `desc` 都是空的，螢幕閱讀器沒有任何東西可念。上方數行處
+        // 將 `button.title` 設為 `""`，因此「標題為空」不是第二個錯誤。
+        //
+        // 由多個 view 組成的 ViewBuilder 標籤仍未涵蓋：「第一個文字欄位」是對「哪一個才是這顆
+        // 按鈕的名字」的一種猜測，而 `.accessibilityLabel(_:)`(#123)存在的目的正是取代猜測。
+        firstTextFieldValue(in: self)
+    }
+
+    /// Pushes the label onto the inner `NSButton`, and takes it off the label
+    /// itself so it is announced once rather than twice.
+    /// 把標籤推到內層的 `NSButton` 上，並將它從標籤自身移除，使它只被念一次而非兩次。
+    func refreshAccessibilityLabel() {
+        let text = firstTextFieldValue(in: self)
+        button.setAccessibilityLabel(text)
+        for subview in subviews where subview !== button {
+            hideFromAccessibility(subview)
+        }
+    }
+
+    private func hideFromAccessibility(_ view: NSView) {
+        if view is NSTextField {
+            view.setAccessibilityElement(false)
+        }
+        for subview in view.subviews {
+            hideFromAccessibility(subview)
+        }
+    }
+
+    private func firstTextFieldValue(in view: NSView) -> String? {
+        for subview in view.subviews {
+            if let field = subview as? NSTextField, !field.stringValue.isEmpty {
+                return field.stringValue
+            }
+            if let nested = firstTextFieldValue(in: subview) {
+                return nested
+            }
+        }
+        return nil
     }
 
     override public func draw(_ dirtyRect: NSRect) {

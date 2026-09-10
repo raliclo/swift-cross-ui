@@ -20,6 +20,28 @@ import Foundation
 ///   NSApp.postEvent(_:atStart:)              delivered; NSButton fired,
 ///                                            NSTextField received the key
 ///
+/// **Re-measured 2026-09-10 with the terminal TRUSTED, because the line above
+/// was being read as "CGEvent does not work on macOS".** It does. With
+/// `AXIsProcessTrusted() == true`, `CGEvent.post(tap: .cghidEventTap)` is
+/// delivered: an `NSButton` fired 23.8 ms after the post, and P28's own button
+/// answered 16 ms after a cold post and 2.9-9.9 ms once warm. So the zero above
+/// is a statement about the PERMISSION, not about the API, and the path P28
+/// still needed -- a real event through the full queue -- is reachable from a
+/// machine where somebody has clicked in System Settings. See
+/// `testapp/test_support/measure/real_mouse_latency.swift`.
+///
+/// None of that changes what this file does. The default has to work on a
+/// machine where nobody has clicked anything.
+///
+/// **2026-09-10 在終端機**已被授權**的狀態下重新量測，因為上面那一行正被讀成「CGEvent 在 macOS
+/// 上行不通」。** 它行得通。在 `AXIsProcessTrusted() == true` 之下，
+/// `CGEvent.post(tap: .cghidEventTap)` 會送達：一顆 `NSButton` 在 post 後 23.8 毫秒觸發，而 P28
+/// 自己的按鈕在冷啟後的第一次為 16 毫秒、預熱後為 2.9 至 9.9 毫秒。因此上面那個 0 講的是**權限**，
+/// 不是那個 API；而 P28 仍然需要的那條路徑——一個走完整佇列的真實事件——在「有人到系統設定裡按過」
+/// 的機器上是到得了的。見 `testapp/test_support/measure/real_mouse_latency.swift`。
+///
+/// 這一切都不改變本檔案的作為。預設路徑必須在「沒有人按過任何東西」的機器上也能運作。
+///
 /// The first two fail *silently* -- no error, no diagnostic, an app that looks
 /// as though it ignored its input. That is the worst failure this module can
 /// have, and it is the one `-actionfile` exists to avoid. So this path posts

@@ -16,7 +16,7 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **2c. 動作檔無法驅動 AppKit 的 popover** — synthesiser 把事件投遞到主視窗,因此點在面板上會把它關掉;這正是 Windows 上 `origin=popover` 存在的理由,AppKit 需要對應的東西
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
 - [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
-- [ ] **5. P28:點擊延遲** — 合成點擊上**不重現**:click→body 0–2 ms、click→像素 **69 ms**(52 ms 取樣)。兩邊時鐘以 uptime 對齊。未量到的兩條:真實滑鼠事件、啟動後的第一次點擊。順帶:**一次點擊讓 body 跑五次**
+- [x] **5. P28:點擊延遲 — 兩條未量的路徑都量完了** — 「真實滑鼠事件合成不出來」不成立:`AppKitSynthesiser` 檔頭那個「CGEvent 送出 0 個事件」量於 `AXIsProcessTrusted() == false`,而這台機器現在是 `true`,`CGEvent.post(.cghidEventTap)` 會送達。實測 click→body:**啟動後第一次點擊(未預熱)16.0 ms**、預熱後 2.9–9.9 ms,三輪。合成路徑先前量到的是 0–2 ms / 像素 69 ms。**沒有任何一條接近一秒。** 工具留在 `testapp/test_support/measure/real_mouse_latency.swift`,檔頭的量測也已補上「已授權」那一半
 - [x] **5b. #126 `onEditingChanged`** — 已完成。五個 backend 全數實作,AppKit/UIKit/Android **實測建置通過**,GTK/WinUI 寫了但未執行(待查假設已在檔內指名)。**P61 是它的測試 app**,自帶對照組
 - [ ] **M1. #32 手勢:AppKit / UIKit / Android 三份實作** — Windows 已產好並推出 Gtk binding(`0b1fdfc5`:`GestureDrag`/`GestureZoom`/`GestureRotate`,既有 139 檔 diff 為空)。**他們接著出型別與協定草案**(需要能回報值,而 `TapGestures` 目前每個方法都是單向的),交我們同意後,他們做 Gtk+WinUI、我們做這三份
 - [ ] **M2. #125 Table 的 `selection` 與 `sortOrder`** — 欄寬他們已完成並雙 backend 驗收(`2fd81acb`)。剩下兩項需要 **backend→view 的事件回報**,而 `BackendFeatures.Tables` 目前每個方法都是單向的。**關鍵事實:`Gtk.Table` 是包著 `Grid` 的 `ScrolledWindow`,不是 `GtkColumnView`**——對「選取的列」毫無概念,標題也只是不可點的 `Label`。**不要假設與 `NSTableView` 對等**
