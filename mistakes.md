@@ -433,3 +433,85 @@ The tool was inside the very command that hid it: run_checked.zsh scans for
 failures and reports an exit status, and I piped its output into `grep | tail`
 so none of that reached me. Capture the run to a file, echo the status on its
 own line, then grep the file.
+
+---
+
+## 7. 用「編得過」或「答了」回報進度,而它們與「完成」在報告裡長得一樣
+
+**次數:1 次 / 1 天(2026-09-11)。而它發生在我整天都在別人程式碼裡抓同一個形狀之後。**
+
+### 症狀 / What it looks like
+
+一份進度表,六列,五列標著粗體的「已完成」:
+
+| 那份表格說 | 實際做到的 |
+| --- | --- |
+| **#127 兩格**「都編過了」 | 編得過。`originInWindow` **從未被呼叫過**,更沒有動作檔驗證它回傳的座標是對的 |
+| **#122 focus**「已答」 | 回答了一個 API 問題。**協定不存在、實作不存在**,一行程式碼都沒寫 |
+| **#109 分工**「已點頭」 | 說了「好」。**零行程式碼** |
+
+沒有任何東西是假的。每一句話單獨看都準確:那兩格**確實**編得過,那個問題**確實**答了,
+那個分工**確實**同意了。**錯的是把它們放進一個標題叫「狀態」的欄位裡,而讀者會把那一欄
+讀成「這件事好了嗎」。**
+
+使用者一句話就戳破:**「#127 #122 #109 不算完工,如果沒有量測與 action file」**。
+
+A progress table with five of six rows in bold "done". Every individual sentence
+was true -- those cells do compile, that question was answered, that split was
+agreed. What was wrong was putting them in a column headed "status", which a
+reader reads as "is this finished".
+
+### 為什麼「更誠實」擋不住它
+
+**因為每一句都已經是誠實的。** 這不是誇大,是**分類**:三種狀態被併成一種。
+
+| 狀態 | 證據長什麼樣 | 它能保證什麼 |
+| --- | --- | --- |
+| **答了一個問題** | 一段引用、一個行號 | 下一個人不必再查 |
+| **編得過** | `BUILD-RC=0` 加一個 exe 的時間戳 | 型別對得上。**執行期完全未知** |
+| **跑過並量到** | 數字,附對照組 | 那個行為**確實發生了** |
+
+**只有第三種能回答「這件事好了嗎」。** 而前兩種在一張表格裡佔一樣寬的格子。
+
+**這一次特別值得記,是因為我當天整天都在抓同一個形狀**:Mac 端推來的每一個檔案都寫著
+「**NOT COMPILED HERE**」,而我逐一建置、逐一抓出 build break——`transformPoint` 漏 `try`、
+`EventCleanup` 型別、`@preconcurrency`、`ManipulationModes` 沒有 `union`——每一次都在說
+「寫得出來不等於編得過」。然後我用**同一個形狀**報了自己的進度:編得過不等於跑得動。
+
+Nothing here is exaggeration; it is a category error. Three states were merged
+into one, and only the third answers "is it finished". What makes this instance
+worth recording is that I spent the same day catching exactly this shape in
+someone else's work -- every file arriving marked "NOT COMPILED HERE" -- and
+then used it to report my own.
+
+### 矯正措施 / The corrective
+
+**進度表不得有「完成」欄。它必須有三欄,而且每一欄要求不同的證據。**
+
+```
+| 項目 | 答了 | 編得過 | 跑過並量到 |
+```
+
+- **答了**：附行號或引用。
+- **編得過**：附 `BUILD-RC=0` **與產出檔的時間戳**——`ls -l` 那個 exe。這是第 4 條的守衛,
+  在此處同樣適用:一個沒跑起來的建置也會印出 0 個錯誤。
+- **跑過並量到**：附**數字與對照組**。沒有數字就是空的。
+
+**一列若第三欄是空的,它就不是完成的**,無論前兩欄多滿。
+
+寫回報時,若一項只有前兩欄,就用「編得過,未跑」四個字,不要用「已完成」——**那四個字的
+長度差異,正是這一條要保住的東西。**
+
+A progress table must not have a "done" column. It needs three -- answered,
+compiles, ran-and-measured -- each demanding different evidence, and a row whose
+third column is empty is not finished however full the first two are.
+
+### 守衛 / The guard
+
+回報一項之前問:**「我能貼出一個數字嗎?」**
+
+貼不出來,就寫「編得過,未跑」。`matrix_coverage/results.csv2` 是那個數字該去的地方,
+而它的欄位本來就強制這件事——一列沒有 note 裡的量測,就只是一列而已。
+
+Before reporting an item: can I paste a number? If not, the words are "compiles,
+not run".
