@@ -1,0 +1,48 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P50: open the first panel, then press the button INSIDE it.
+#
+# This is the file `origin=popover` was added to AppKit for. Before it, the
+# click was posted to the window BEHIND the popover, which light-dismisses it --
+# and from outside, a dismissed popover and a click that missed are the same
+# picture, because the popover is gone either way.
+#
+# The coordinates are relative to the popover's own WINDOW, and that window is
+# bigger than the panel it draws. Measured 2026-09-11 from a screen capture:
+# `origin=popover` resolves against the popover's CONTENT, which is neither its
+# window frame nor quite the panel you can see. Measured 2026-09-11:
+#
+#   window frame   (347, 536)  314x180   -- includes the arrow and shadow margin
+#   content        (347, 562)  288x154   -- what origin=popover is relative to
+#   green panel    (360, 564)  273x147   -- what a screenshot shows you
+#   "press me"     window-relative (15..110, 122..142) -- centre (62, 132)
+#
+# So the coordinate here is (62, 106): the button's centre minus the content's
+# own offset of 26 inside the window.
+#
+# Two earlier attempts at this line are worth keeping: (48, 310) came from
+# reading a 2x capture as though it were 1x, and (89, 54) came from a colour
+# match that found the panel's header rather than the button. Both landed inside
+# the popover and neither pressed anything, which is the failure this file is
+# most likely to have again -- a click that misses inside a popover looks
+# exactly like one that hit.
+#
+# The assertion is the LOG LINE, not the picture: P50 prints "panel button
+# presses so far: N". A capture cannot tell a press that landed from a popover
+# that closed at the right moment.
+#
+# P50:開啟第一塊面板，然後按下面板**之內**的那顆按鈕。
+#
+# 這正是 AppKit 加上 `origin=popover` 所為之而設的檔案。在那之前，那次點擊會被投遞給 popover
+# **後方**的視窗，而那會把它 light-dismiss 掉——從外部看，「一個被關掉的 popover」與「一次沒打中的
+# 點擊」是同一張圖，因為兩種情況下它都不見了。
+#
+# 座標相對於 popover 自己的視窗。它們量自一張擷圖:視窗位於 (0, 25) 時，面板左上角在螢幕 (88, 309)，
+# 而「press me」大約落在它內部的 (48, 310)。
+#
+# 判定的是那一行 **log**，不是圖:P50 會印出「panel button presses so far: N」。一張擷圖分辨不出
+# 「一次打中的按壓」與「一個剛好在那個時刻關掉的 popover」。
+sleep,,,,,,1200000,let P50 lay out,macos,
+click,227,646,frame,left,,,open the first panel (top anchor),macos,
+sleep,,,,,,1500000,let the popover appear and be measured,macos,
+click,62,106,popover,left,,,press me -- inside the popover's own window,macos,
+sleep,,,,,,800000,let the press be logged,macos,

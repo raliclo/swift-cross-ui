@@ -154,7 +154,37 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
                 // 使用「點」而非「像素」。另外兩者轉換為實體像素，是因為 SendInput 與 XTEST 以
                 // 像素定址顯示器；而 AppKit 的事件座標與螢幕座標都以點為單位，此處若再乘上
                 // backingScaleFactor，在 Retina 顯示器上每次點擊都會落在預期偏移量的兩倍處。
-                scale: 1
+                scale: 1,
+                // Filled whenever a popover is open, so a file that says
+                // `origin=popover` resolves instead of failing.
+                // 只要有 popover 開著就會被填入——好讓一個寫著 `origin=popover` 的檔案能夠解析，
+                // 而不是失敗。
+                // The popover's CONTENT, not its frame.
+                //
+                // A popover's window is larger than the panel it draws: it
+                // carries the arrow and a shadow margin. Measured 2026-09-11 --
+                // window at (347, 536) sized 314x180, and cropping exactly that
+                // rect out of a screen capture shows the green panel sitting up
+                // and to the left inside it, with the window behind visible
+                // along the top and right edges.
+                //
+                // Anyone writing `origin=popover` measures from the panel they
+                // can see. Using the frame would put every coordinate off by the
+                // margin, and off by a margin is the kind of wrong that still
+                // lands somewhere plausible.
+                //
+                // popover 的**內容**，而不是它的 frame。
+                //
+                // 一個 popover 的視窗比它畫出來的面板大:它帶著箭頭與陰影邊距。2026-09-11 量測——
+                // 視窗位於 (347, 536)、大小 314x180，而把那個矩形從整螢幕擷圖中原樣裁出來，會看到
+                // 綠色面板偏在它的左上方，上緣與右緣露出後面的視窗。
+                //
+                // 任何人寫 `origin=popover` 時，量的是他看得見的那塊面板。若用 frame，每一個座標都會
+                // 差一個邊距——而「差一個邊距」正是那種「依然會落在某個看似合理之處」的錯法。
+                popoverOrigin: Self.popoverWindow(ownedBy: window).map { popover in
+                    let content = popover.contentView.map { popover.convertToScreen($0.frame) }
+                    return Self.topLeft(of: content ?? popover.frame)
+                }
             )
         }
     }
@@ -167,9 +197,61 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     /// window has been made key.
     /// 重放所驅動的視窗。優先取 key window，因為鍵盤事件會送往它，而會輸入文字的檔案必須與 AppKit
     /// 實際的文字路由一致。退回至第一個可見視窗，是為了涵蓋啟動後、視窗尚未成為 key 的那一刻。
+    /// The app's own window, never a popover.
+    ///
+    /// **`NSApp.keyWindow` is not it while a popover is open, because a popover
+    /// takes key.** Every coordinate in an action file that is not
+    /// `origin=popover` is about the app's window, so resolving them against
+    /// whatever happens to be key would move every click by the popover's offset
+    /// the moment one appeared -- and the file would still replay, and every
+    /// click would land somewhere plausible.
+    ///
+    /// Parentless is the test: a popover, a sheet and an attached panel are all
+    /// child windows.
+    ///
+    /// 這個 app 自己的視窗，絕不是 popover。
+    ///
+    /// **當一個 popover 開著時，`NSApp.keyWindow` 並不是它——因為 popover 會取得 key。** 動作檔中
+    /// 每一個不是 `origin=popover` 的座標，講的都是這個 app 的視窗;若拿「當下剛好是 key 的那一個」
+    /// 去解析它們，那麼一旦有 popover 出現，每一次點擊都會被平移一個 popover 的位移——而那個檔案
+    /// 依然會重放成功，每一次點擊也都會落在某個看似合理的位置。
+    ///
+    /// 判準是「沒有父視窗」:popover、sheet 與附著式面板全都是子視窗。
     @MainActor
     private static func targetWindow() -> NSWindow? {
-        NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible }
+        let ownWindows = NSApp.windows.filter { $0.isVisible && $0.parent == nil }
+        return ownWindows.first { $0.isKeyWindow } ?? ownWindows.first
+    }
+
+    /// The popover attached to `window`, if one is open.
+    ///
+    /// **Identified the way `Win32Synthesiser` identifies one -- a visible
+    /// top-level owned by the driven window and smaller than it -- rather than
+    /// by class name.** `NSPopover`'s window is a private `_NSPopoverWindow`,
+    /// and matching that string is matching an implementation detail; ownership
+    /// and size are what the popover actually is.
+    ///
+    /// The size test earns its place: a sheet is also an owned visible
+    /// top-level and is usually as wide as its parent, so requiring strictly
+    /// smaller in both dimensions keeps this from picking one.
+    ///
+    /// 附著於 `window` 的那個 popover，若有開著的話。
+    ///
+    /// **以 `Win32Synthesiser` 辨識它的方式來辨識——「一個被所驅動視窗擁有、且比它小的可見
+    /// top-level」——而不是靠類別名稱。** `NSPopover` 的視窗是私有的 `_NSPopoverWindow`，對那個字串
+    /// 比對，就是在對一個實作細節比對;「歸屬」與「尺寸」才是那個 popover 真正**是**的東西。
+    ///
+    /// 尺寸這一項有其必要:一個 sheet 同樣是「被擁有的可見 top-level」，而且通常與其父視窗一樣寬，
+    /// 因此要求兩個維度都嚴格較小，可以避免挑到它。
+    @MainActor
+    static func popoverWindow(ownedBy window: NSWindow) -> NSWindow? {
+        return NSApp.windows.first { candidate in
+            candidate !== window
+                && candidate.isVisible
+                && candidate.parent === window
+                && candidate.frame.width < window.frame.width
+                && candidate.frame.height < window.frame.height
+        }
     }
 
     /// Raises the window whose title matches exactly.
@@ -423,8 +505,34 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
         }
 
         try onMain {
-            guard let window = Self.targetWindow() else {
+            guard let mainWindow = Self.targetWindow() else {
                 throw SynthesiserError.unsupported("no window to replay against")
+            }
+
+            // A popover is its OWN window, and an event addressed to the main
+            // one lands outside it.
+            //
+            // This is what made `origin=popover` Windows-only here: the
+            // coordinates could be computed, and the click was then posted to
+            // the window BEHIND the popover, which light-dismisses it. From
+            // outside, a dismissed popover and a click that missed are the same
+            // picture -- the popover is gone either way.
+            //
+            // 一個 popover 是它**自己的**視窗，而一個投遞給主視窗的事件會落在它之外。
+            //
+            // 這正是 `origin=popover` 在此處過去僅限 Windows 的原因:座標算得出來，而那次點擊接著被
+            // 投遞給了 popover **後方**的視窗——那會把它 light-dismiss 掉。從外部看，「一個被關掉的
+            // popover」與「一次沒打中的點擊」是同一張圖:兩種情況下它都不見了。
+            let window: NSWindow
+            if action.point?.origin == .popover {
+                guard let popover = Self.popoverWindow(ownedBy: mainWindow) else {
+                    throw SynthesiserError.unsupported(
+                        "origin=popover, but no popover is open on this window"
+                    )
+                }
+                window = popover
+            } else {
+                window = mainWindow
             }
 
             // The pointer position a positionless click uses. AppKit has no
