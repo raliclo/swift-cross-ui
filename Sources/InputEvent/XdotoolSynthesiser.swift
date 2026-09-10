@@ -278,7 +278,17 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
     /// 而本檔是 AppKit 的那一種:**根本沒有覆寫**。
     public func focusWindow(titled title: String) throws {
         let pid = ProcessInfo.processInfo.processIdentifier
-        let pattern = "^\(Self.escapedForRegex(title))$"
+        // `NSRegularExpression.escapedPattern(for:)` rather than a hand-written
+        // character table, and that is the Mac side's version kept over mine.
+        // We fixed this same compile break independently (123e95f4 and
+        // 53a576f7) and their escape is better: a standard-library function
+        // cannot disagree with itself about which metacharacters exist, and mine
+        // was a list I had typed out.
+        //
+        // 使用 `NSRegularExpression.escapedPattern(for:)` 而非手寫的字元表,而**這是採用 Mac 端的
+        // 版本、捨棄我的**。我們各自獨立修了同一個編譯中斷(123e95f4 與 53a576f7),而他們的跳脫
+        // 更好:一個標準庫函式不可能對「哪些是元字元」與自己意見不合,而我的是一份自己打出來的清單。
+        let pattern = "^\(NSRegularExpression.escapedPattern(for: title))$"
         let listing =
             (try? capture(["search", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ?? ""
         let matches = listing.split(whereSeparator: \.isNewline).map(String.init)
@@ -303,28 +313,6 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
 
         try run(["windowactivate", "--sync", window])
         Self.rememberFocus(window)
-    }
-
-    /// Escapes the POSIX extended regex metacharacters `xdotool search` would
-    /// otherwise interpret.
-    ///
-    /// A title is a human string and may contain any of these. Without the
-    /// escape, `focus "Untitled (1)"` searches for a group and matches
-    /// "Untitled 1" instead -- a wrong window, silently.
-    ///
-    /// 跳脫 `xdotool search` 否則會解讀的 POSIX extended regex 元字元。
-    ///
-    /// 標題是人寫的字串,可能含有其中任何一個。少了跳脫,`focus "Untitled (1)"` 會去搜尋一個
-    /// **群組**,並轉而匹配到「Untitled 1」——**靜默地選錯視窗**。
-    private static func escapedForRegex(_ text: String) -> String {
-        var escaped = ""
-        for character in text {
-            if #".^$*+?()[]{}|\"#.contains(character) {
-                escaped.append("\\")
-            }
-            escaped.append(character)
-        }
-        return escaped
     }
 
     /// The window a `focus` row named, or empty when no row has.
