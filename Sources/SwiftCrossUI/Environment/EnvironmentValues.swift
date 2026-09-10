@@ -158,7 +158,34 @@ public struct EnvironmentValues {
     /// The backend in use.
     ///
     /// Mustn't change throughout the app's lifecycle.
-    let backend: any BaseAppBackend
+    ///
+    /// **`@_spi(Backends)` rather than internal, so that a test app can reach
+    /// the RUNNING backend.** It was internal, and P64 -- which measures the
+    /// frame clock, a backend requirement with no framework API on top of it
+    /// yet -- worked around that by constructing a fresh `DefaultBackend()`.
+    /// A second backend instance is a guess about which state is per-instance
+    /// and which is per-process, and the guess happens to hold for every clock
+    /// written so far. The SPI removes the guess.
+    ///
+    /// (An earlier version of this note claimed the second instance "broke iOS
+    /// outright". It did not. P64 rendered fine on iOS and I had cropped the
+    /// screenshot above its content. The change stands on the reason above; the
+    /// evidence I first gave for it was my own measurement error.)
+    ///
+    /// 使用中的 backend。
+    ///
+    /// 在整個 app 生命週期中不得改變。
+    ///
+    /// **標為 `@_spi(Backends)` 而非 internal，好讓測試 app 能取得**執行中**的那個 backend。**
+    /// 它原本是 internal，而 P64——它量測 frame clock，一個目前還沒有框架 API 蓋在上面的 backend
+    /// requirement——為此改為自行建構一個全新的 `DefaultBackend()`。「另建一個 backend 實例」是在猜
+    /// 哪些狀態是逐實例、哪些是逐行程的，而目前為止所寫的每一個時鐘剛好都讓那個猜測成立。SPI 讓那個
+    /// 猜測不必存在。
+    ///
+    /// (本段先前寫著那個第二實例「在 iOS 上直接壞掉」。並沒有。P64 在 iOS 上算繪正常，是我把截圖
+    /// 裁在它的內容上方了。這項改動仍然成立，理由是上一段;而我最初為它提出的證據，是我自己的量測
+    /// 錯誤。)
+    @_spi(Backends) public let backend: any BaseAppBackend
 
     /// Presents an 'Open file' dialog fit for selecting a single file.
     ///

@@ -44,6 +44,27 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
     var borderedButtonPadding: SIMD2<Int>?
 
+    /// The one frame clock, and the handler it feeds.
+    ///
+    /// Instance storage for the link and the timer, and a TYPE property for the
+    /// handler, because a `CADisplayLink`'s target must be an `NSObject` and the
+    /// backend is not one. There is exactly one clock per process, so a type
+    /// property loses nothing.
+    ///
+    /// 那唯一一個 frame clock，以及它所餵養的 handler。
+    ///
+    /// link 與 timer 是實例屬性，handler 則是**型別**屬性——因為 `CADisplayLink` 的 target 必須是
+    /// 一個 `NSObject`，而這個 backend 不是。每個行程恰好只有一個時鐘，因此改用型別屬性不損失任何東西。
+    /// Held as `Any` because `CADisplayLink` is macOS 14+ and this type is not.
+    /// 以 `Any` 持有，因為 `CADisplayLink` 是 macOS 14+ 而這個型別不是。
+    var frameClockLink: Any?
+    var frameClockTimer: Timer?
+    var frameClockHandler: (@MainActor (Double) -> Void)? {
+        get { Self.currentFrameClockHandler }
+        set { Self.currentFrameClockHandler = newValue }
+    }
+    @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
+
     /// A text field kept only to measure with, configured exactly like the ones
     /// ``createTextView`` hands out.
     ///

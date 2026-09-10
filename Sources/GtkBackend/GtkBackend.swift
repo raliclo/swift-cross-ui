@@ -249,6 +249,12 @@ public final class GtkBackend:
     /// this needs to be returned on the first call to `createWindow`.
     var precreatedWindow: Window?
 
+    /// The frame clock's callback id and the widget it is attached to.
+    /// frame clock 的 callback id，以及它所附著的那個 widget。
+    var frameClockID: UInt32?
+    var frameClockAttachedTo: UnsafeMutablePointer<GtkWidget>?
+    @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
+
     /// All current windows associated with the application. Doesn't include the
     /// precreated window until it gets 'created' via `createWindow`.
     var windows: [Window] = []

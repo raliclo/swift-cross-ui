@@ -429,6 +429,11 @@ public final class WinUIBackend:
     // 都重測。GtkBackend 與 AppKitBackend 基於相同理由持有同一個屬性。
     var borderedButtonPadding: SIMD2<Int>?
 
+    /// The frame clock's subscription token, and the handler it feeds.
+    /// frame clock 的訂閱 token，以及它所餵養的 handler。
+    var frameClockToken: EventRegistrationToken?
+    @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
+
     public init() {
         internalState = InternalState()
     }

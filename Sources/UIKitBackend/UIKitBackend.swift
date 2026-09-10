@@ -31,6 +31,17 @@ public final class UIKitBackend:
     // `extension UIKitBackend { ... }`；兩處都寫上該 protocol 會得到 `error: redundant conformance`。
     BackendFeatures.ButtonPressState
 {
+    /// The one frame clock. See ``UIKitFrameClockTarget`` for why the target is
+    /// a separate object.
+    /// 那唯一一個 frame clock。target 之所以是獨立物件，見 ``UIKitFrameClockTarget``。
+    var frameClockLink: CADisplayLink?
+    var frameClockTarget: UIKitFrameClockTarget?
+    var frameClockHandler: (@MainActor (Double) -> Void)? {
+        get { Self.currentFrameClockHandler }
+        set { Self.currentFrameClockHandler = newValue }
+    }
+    @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
+
     static var onWindowEnvironmentChange: (() -> Void)?
     static var onBecomeActive: (() -> Void)?
     static var onReceiveURL: ((URL) -> Void)?
