@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P54 on Windows/WinUI: does the Refresh control DO anything, or does it merely
+# appear?
+#
+# P54's own on-screen text states the trap this file exists to avoid: "A control
+# that appears and does nothing leaves the counter at 0, and on a photograph
+# that is indistinguishable from one that works." A capture showing the button
+# is not evidence the button works.
+#
+# WHY THIS FILE EXISTS AT ALL. `WinUIBackend+Refreshable.swift:20` still reads
+# "**Written on macOS and NOT verified.**", and commit 66725261 (2026-09-09),
+# which fixed a hard build break in it, ends with "COMPILE-VERIFIED ONLY. The
+# runtime check has not been run." `matrix_coverage/results.csv2` has no
+# windows,winui,P54 row at all. So P54 has never been driven on this backend --
+# it has only been made to compile.
+#
+# COORDINATES, measured off a desktop capture at 2026-09-10 14:17: the window's
+# frame origin is (33,28) and the floating Refresh button sits at desktop
+# (70,73), which is frame (37,45). It is ABOVE the "P54: refreshable" heading,
+# in the scroll view's top-left corner, exactly where P54's text says AppKit and
+# WinUI put it.
+#
+# WHAT PASSING LOOKS LIKE: refreshes goes 0 -> 1, and two rows appear (the list
+# ends at Row 5 before, Row 7 after). Two presses to make the increment
+# unambiguous: one press could match a counter that is stuck at 1, two cannot.
+#
+# RUN IT DIRECTLY, not through run.zsh -- that script looks for `Pn-gtk4.exe`
+# first and only names the WinUI build in an error, so it silently drives GTK:
+#   cd testapp/output && ./P54-WinUI.exe --debug -actionfile ../actions/win/P54-press-the-refresh.csv
+#
+# expect: screenshot
+#
+# P54 於 Windows/WinUI:那個 Refresh 控制項究竟**做不做事**,還是只是**出現**?
+#
+# P54 自己的畫面文字就寫明了本檔要避開的陷阱:「一個『會出現、卻什麼都不做』的控制項會讓計數器
+# 停在 0,而**在照片上那與一個能用的控制項無法區分**。」**一張拍到按鈕的擷圖,不是按鈕能用的證據。**
+#
+# **本檔為何存在。** `WinUIBackend+Refreshable.swift:20` 至今仍寫著「**寫於 macOS,未經驗證。**」,
+# 而修掉它一個硬編譯錯誤的 commit 66725261(2026-09-09)結尾寫著「僅通過編譯驗證。執行期檢查
+# 尚未執行。」`matrix_coverage/results.csv2` 裡**完全沒有** windows,winui,P54 這一列。
+# 也就是說,P54 從未在這個 backend 上被驅動過——它只是被弄到編得過而已。
+#
+# **座標**,量自 2026-09-10 14:17 的一張桌面擷圖:視窗的 frame 原點在 (33,28),而那顆浮動的
+# Refresh 按鈕位於桌面座標 (70,73),換算為 frame 座標 (37,45)。它在「P54: refreshable」標題的
+# **上方**、捲動視圖的左上角——正是 P54 文字所述 AppKit 與 WinUI 擺放它的位置。
+#
+# **通過長什麼樣**:refreshes 由 0 變成 1,且新增兩列(先前清單止於 Row 5,之後止於 Row 7)。
+# **按兩次**是為了讓「加一」這件事沒有歧義:按一次的結果,與一個「卡在 1」的計數器相同;按兩次不會。
+#
+# **請直接執行,不要經由 run.zsh**——該腳本會先找 `Pn-gtk4.exe`,而 WinUI 的建置只出現在它的
+# 錯誤訊息裡,於是它會靜默地去驅動 GTK。
+sleep,,,,,,1500000,let the window settle and take the topmost pin,windows
+move,37,45,frame,,,,onto the floating Refresh button in the scroll view's top-left corner,windows
+sleep,,,,,,300000,let the pointer arrive; WinUI shows hover state before it accepts a click,windows
+click,37,45,frame,left,,,"first refresh: refreshes must read 1 and Row 6 and Row 7 must appear",windows
+sleep,,,,,,2000000,"the refresh body is async -- give it time to finish rather than catching it mid-flight",windows
+click,37,45,frame,left,,,"second refresh: 2, and Row 8 and Row 9. One press cannot tell a working counter from one stuck at 1",windows
+sleep,,,,,,2000000,let the second refresh complete before anything reads the screen,windows

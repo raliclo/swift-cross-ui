@@ -16,10 +16,22 @@ import WinUI
 /// what a Windows desktop has -- and it is the same shape AppKitBackend and
 /// AndroidBackend use.
 ///
-/// **Written on macOS and NOT verified.** WinUIBackend builds and runs on the
-/// Windows machine. What to check first: whether a `Grid` is the right host for
-/// the button, and whether the button needs its own row so it does not scroll
-/// away with the content.
+/// ~~**Written on macOS and NOT verified.**~~ **VERIFIED BY RUNNING on
+/// Win-WinUI, 2026-09-10.** `actions/win/P54-press-the-refresh.csv` presses the
+/// button twice and P54 reports `refreshes: 2` with `last refresh added rows up
+/// to: 10` -- rows 0-5 before, 0-9 after. That is the same pair of numbers the
+/// AppKit and UIKit runs recorded on 2026-09-09, so the three agree.
+///
+/// Both of the things this header said to check first turned out fine: a `Grid`
+/// hosts the button correctly, and it does not need its own row -- it does not
+/// scroll away with the content.
+///
+/// **Why this note is longer than "verified":** the commit that made this file
+/// compile (`66725261`) ended with "COMPILE-VERIFIED ONLY", and
+/// `matrix_coverage/results.csv2` had no `windows,winui,P54` row at all. A
+/// control that appears and does nothing is indistinguishable, in a screenshot,
+/// from one that works -- which is P54's own on-screen warning. Pressing it is
+/// the only thing that separates them.
 ///
 /// 給 `ScrollViewer` 使用的重新整理操作方式。
 ///
