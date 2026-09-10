@@ -239,3 +239,75 @@ grep -c currentWindowIdentity Sources/InputEvent/*Synthesiser.swift
 ```
 
 三個檔案都必須 > 0。這條在 2026-09-10 之前會回報 AppKit=1、Win32=1、Xdotool=**0**。
+
+---
+
+## 4. 對一個**不存在的目標**執行工具,把「沒有輸出」讀成「乾淨的結果」
+
+**次數:2 次 / 1 天(2026-09-10)。兩次都是檔名錯了一個字,兩次都得出一個看起來很好的結論。**
+
+### 症狀 / What it looks like
+
+| # | 打出去的指令 | 目標實際叫什麼 | 得出的結論 | 真相 |
+| --- | --- | --- | --- | --- |
+| 1 | `objdump -T libgtk-4-1.dll`、`strings` 同上 | `gtk-4-1.dll`(無 `lib` 前綴) | 「零個符號」 | **量測從未執行** |
+| 2 | `zsh compile.sh P61 -gtk4` → `grep -cE ": (error\|warning):"` → `0` | `compile.zsh`(sh→zsh 掃描時改名) | 「建置乾淨,0 errors」 | **建置從未執行** |
+
+**兩次的畫面都與成功完全相同。** 一次乾淨的建置印 0 個錯誤;一支從未啟動的建置也印 0 個錯誤。
+一個沒有符號的檔案 `objdump` 沒有輸出;一個不存在的檔案 `objdump` 也沒有輸出——**而錯誤訊息
+在別的串流上,或早已捲出畫面**。第 2 次的 `can't open input file: compile.sh` 就在同一份 log 裡,
+排在我讀的那一行**下面**。
+
+Running a tool against a filename that does not exist produces no output, and no
+output is indistinguishable from a clean result. Both times the error message
+existed -- on another stream, or below the line that was read.
+
+### 為什麼「更仔細地看輸出」擋不住它 / Why reading harder does not help
+
+因為**要看的東西不在輸出裡**。輸出是空的,而空的輸出正是好消息的樣子。要察覺,得先知道
+「該有多少」——而那正是這次量測本來要回答的問題。**這是循環的**:量測的目的是判定 0 是否正常,
+而判定 0 是否正常又需要一次可信的量測。
+
+單靠退出碼也擋不住:第 2 次 `grep -c` 沒命中會回傳 1,而我把 `rc` 放在管線末端,拿到的是
+`grep` 的而非 `zsh` 的。第 1 次 `objdump` 對不存在的檔案在某些建置上**以 0 結束**。
+
+### 矯正措施 / The corrective
+
+**任何以「零」為內容的結論,都必須附一個同時執行、且已知會命中的正向對照。**
+沒有對照的零,只證明了「這條指令沒有產出」,不證明「那個東西不存在」。
+
+本次同一天做對過一次,值得對照:查 `Sources/Gtk/` 有沒有 focus 綁定時,同一道 `grep` 也涵蓋了
+`Sources/AppKitBackend/` 與 `Sources/UIKitBackend/`,而**那兩個有命中**。於是「Gtk 零命中」
+是一項發現,而不是一個工具沒跑起來的副作用。
+
+```sh
+# 錯:一個零,無從判斷它是不是量到的
+grep -rn grabFocus Sources/Gtk/
+
+# 對:同一道指令帶著一個必然命中的對照
+grep -rn "grabFocus\|becomeFirstResponder" Sources/Gtk/ Sources/AppKitBackend/
+```
+
+對「檔案本身」也一樣,而且更便宜——**先讓路徑失敗,再讓工具執行**:
+
+```sh
+ls -l "$target" || exit 1        # 檔名錯在這裡就停,而不是傳給 objdump 去靜靜地什麼都不做
+```
+
+Any conclusion whose content is a zero needs a positive control run by the SAME
+command -- something known to match. A zero without one only shows the command
+produced nothing; it does not show the thing is absent. For files, make the path
+fail before the tool runs.
+
+### 守衛 / The guard
+
+```sh
+ls -l <每一個要傳給工具的路徑> || exit 1
+```
+
+以及:寫下「0 個」之前,問**這道指令在什麼情況下會印出非零**,並且讓它印一次。
+若答不出來,那個 0 還沒有意義。
+
+**與第 2 條的關係**:兩者都源於「建置系統的狀態與我以為的不同」,但形狀相反。第 2 條是
+**建置跑了而檔案沒進去**;本條是**建置根本沒跑**。第 2 條的守衛(`ls -l .build/release.yaml`)
+在本條下毫無用處——那個檔案好端端地在那裡,只是這次沒有人碰過它。

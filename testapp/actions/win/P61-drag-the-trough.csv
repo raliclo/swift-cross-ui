@@ -1,0 +1,71 @@
+action,x,y,origin,button,key,micros,note,platform
+# P61 on Windows: does `Slider.onEditingChanged` fire, and does it fire ONLY for
+# a real edit?
+#
+# WRITTEN TO SETTLE TWO ASSUMPTIONS THE MAC SIDE NAMED RATHER THAN LEFT FOR THE
+# COMPILER. GtkBackend's implementation carries a header saying it was written
+# on a Mac and never run (`GtkBackend.swift`, above the `GestureClick` in
+# `updateSlider`), and lists exactly what needed checking:
+#
+#   1. that a `GestureClick` added to a `Scale` receives the press at all --
+#      `GtkScale` handles its own dragging and a bubble-phase gesture may never
+#      see it, which is why `.capture` is set
+#   2. that `pressed`/`released` fire for a drag starting on the TROUGH rather
+#      than on the handle, since that is also an edit
+#
+# Naming them is what made this file cheap to write. An implementation that
+# arrives with "please verify" and no list costs a reader the whole search.
+#
+# THE FIRST ASSERTION IS FREE: the app builds and reaches RENDER COMPLETE. The
+# GTK code compiled, which is already more than "written on a Mac" guaranteed.
+#
+# WHY x=280 AND NOT THE MIDDLE. Measured off a window capture at 2026-09-10
+# 12:49 -- the track runs x=43..353 at y=226 and the handle sits at x=197 for
+# the initial 0.50. 280 is well clear of the handle, so this is assumption 2's
+# case and not the easy one. Pressing the handle would test something GTK was
+# always going to get right.
+#
+# THE SECOND HALF IS THE CONTROL, and it is the half a drag cannot supply.
+# "move it from code (+0.1)" changes the value with nobody editing anything. A
+# backend that fired `onEditingChanged` from its VALUE handler would look
+# perfectly correct for the drag above and wrong here -- began and ended must
+# BOTH stay where the drag left them. Without this row a broken implementation
+# passes.
+#
+# expect: log-contains editing began
+#
+# P61 於 Windows:`Slider.onEditingChanged` 會不會觸發,而且**只**在真正的編輯時觸發?
+#
+# **本檔是為了了結 Mac 端明白指名、而非留給編譯器去找的兩項假設。** GtkBackend 的實作帶著一段標頭,
+# 說明它寫於 Mac 且從未執行過(`GtkBackend.swift`,`updateSlider` 中 `GestureClick` 的上方),
+# 並列出了究竟該查什麼:(1) 加在 `Scale` 上的 `GestureClick` 究竟收不收得到那次按下——`GtkScale`
+# 自行處理拖曳,而 bubble 階段的 gesture 可能永遠看不到它,這正是設定 `.capture` 的原因;
+# (2) 對「起始於**軌道**而非把手」的拖曳,`pressed`／`released` 是否也會觸發——那同樣是一次編輯。
+#
+# **把它們指名出來,正是讓本檔寫起來便宜的原因。** 一份寫著「請驗證」卻不附清單的實作,
+# 會讓讀者付出整趟搜尋的代價。
+#
+# **第一項斷言是免費的**:app 建置得起來並抵達 RENDER COMPLETE。GTK 那段程式碼編譯通過,
+# 而這已經比「寫於 Mac」所能保證的更多。
+#
+# **為何取 x=280 而非正中央。** 量自 2026-09-10 12:49 的一張視窗擷圖——軌道於 y=226 橫跨
+# x=43..353,而把手因初始值 0.50 位於 x=197。280 遠離把手,因此這是**假設 2 的情況**,不是那個
+# 簡單的情況。按在把手上,測到的會是 GTK 本來就一定做得對的事。
+#
+# **後半是對照組,而那正是一次拖曳無法提供的那一半。**「move it from code (+0.1)」會在沒有任何人
+# 編輯的情況下改變數值。一個從**數值**處理常式觸發 `onEditingChanged` 的 backend,在上方那次拖曳中
+# 看起來完全正確,卻會在此處出錯——began 與 ended **兩者都必須**停在拖曳結束時的數字。
+# **少了這一列,一個壞掉的實作會通過。**
+sleep,,,,,,1200000,let the window settle and take the topmost pin,windows
+move,280,226,frame,,,,onto the TROUGH -- x=280 is clear of the handle at x=197,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+mousedown,280,226,frame,left,,,"press and HOLD. LOWERCASE: the file verbs are not the InputAction case names (ActionFile.swift:171). This is where `editing began` must appear",windows
+sleep,,,,,,400000,"hold, so a began that arrives late still arrives before the release",windows
+move,320,226,frame,,,,"drag right while held -- produces several values, all inside ONE edit",windows
+sleep,,,,,,400000,let the value changes flow,windows
+mouseup,320,226,frame,left,,,release; `editing ended` must appear here and began must still be 1,windows
+sleep,,,,,,800000,let the log catch up,windows
+move,120,268,frame,,,,onto "move it from code (+0.1)" -- the control,windows
+sleep,,,,,,250000,let the pointer arrive,windows
+click,120,268,frame,left,,,"changes the value from code. began and ended must NOT move: this is the row that catches an implementation firing onEditingChanged from its value handler",windows
+sleep,,,,,,1500000,let any wrong extra line be written before the log is read,windows

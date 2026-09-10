@@ -3739,6 +3739,33 @@ public final class GtkBackend:
     public func createSlider() -> Widget {
         let scale = Scale()
         scale.expandHorizontally = true
+
+        // The gesture that reports editing is added HERE, once, and only its
+        // callbacks are replaced in `updateSlider`. This mirrors
+        // `createTapGestureTarget`/`updateTapGestureTarget` below, which is the
+        // established shape in this file for a controller whose closure has to
+        // change on every update.
+        //
+        // MEASURED 2026-09-10, and the reason this moved: adding the controller
+        // in `updateSlider` instead added a NEW one on every view update and
+        // removed none. P61 then reported `began=5` for a SINGLE press -- not
+        // GTK firing five times, but five accumulated controllers firing once
+        // each. It compounds, because `onEditingChanged` changes state, which
+        // schedules the update that adds the next controller.
+        //
+        // 回報編輯狀態的 gesture 在**此處**加入，只加一次，而 `updateSlider` 只替換它的
+        // callback。這與本檔下方的 `createTapGestureTarget`／`updateTapGestureTarget`
+        // 同形——那是本檔中「closure 每次 update 都要更換的 controller」既有的寫法。
+        //
+        // **2026-09-10 實測，也是它搬到此處的原因**：改在 `updateSlider` 裡加，等於每次
+        // view update 都**新增**一個、且一個都不移除。P61 於是對**單獨一次**按下回報
+        // `began=5`——那不是 GTK 觸發了五次，而是五個累積下來的 controller 各觸發一次。
+        // 而且它會滾雪球，因為 `onEditingChanged` 會改變 state，而那正好排程了下一次
+        // 「再加一個 controller」的 update。
+        let press = GestureClick()
+        press.propagationPhase = .capture
+        scale.addEventController(press)
+
         return scale
     }
 
@@ -3789,15 +3816,47 @@ public final class GtkBackend:
         //   2. 對「起始於軌道而非把手」的拖曳，`pressed`／`released` 是否也會觸發——那同樣是一次編輯。
         //
         // `Scale` 自身沒有 began／ended 訊號——這正是此處出現一個 gesture、而不是讀取某個屬性的原因。
-        let press = GestureClick()
-        press.propagationPhase = .capture
+        // The end of an edit comes from `end`, NOT from `released`.
+        //
+        // MEASURED 2026-09-10 by connecting all four of pressed/released/end/
+        // cancel at once and driving `actions/win/P61-drag-the-trough.csv`. One
+        // press and one release on the trough produced exactly:
+        //
+        //     pressed  1        released  0
+        //     end      1        cancel    0
+        //
+        // `GtkScale` claims the sequence for its own drag while the button is
+        // held, so this gesture stops recognising the interaction as a click and
+        // never emits `released` -- but the SEQUENCE still ends when the button
+        // comes up, and `end` fires there. `cancel` was the mechanism I expected
+        // and it is not what happens; it is left unconnected because it was
+        // measured not to fire, and because GTK resets a cancelled gesture,
+        // which emits `end` anyway.
+        //
+        // This is why the whole probe was worth building: `released` compiles,
+        // reads correctly, and silently never runs.
+        //
+        // 一次編輯的**結束**來自 `end`,**不是** `released`。
+        //
+        // **2026-09-10 實測**,做法是把 pressed／released／end／cancel 四者同時接上,再驅動
+        // `actions/win/P61-drag-the-trough.csv`。在軌道上一次按下、一次放開,得到的恰好是:
+        //
+        //     pressed  1        released  0
+        //     end      1        cancel    0
+        //
+        // 按鍵按住期間,`GtkScale` 為了自己的拖曳而**取走了該序列**,於是這顆 gesture 不再把這次
+        // 互動辨識為一次 click,`released` 永遠不會發出——但**序列本身**仍會在按鍵彈起時結束,
+        // 而 `end` 就在那裡觸發。`cancel` 是我原本預期的機制,而事實並非如此;此處不接它,
+        // 因為實測它不觸發,也因為 GTK 會重置一顆被取消的 gesture,而那本來就會發出 `end`。
+        //
+        // **這正是那支探針值得寫的原因**:`released` 編譯得過、讀起來也對,卻靜靜地從不執行。
+        let press = slider.eventControllers.lazy.compactMap { $0 as? GestureClick }.first!
         press.pressed = { _, _, _, _ in
             onEditingChanged(true)
         }
-        press.released = { _, _, _, _ in
+        press.end = { _, _ in
             onEditingChanged(false)
         }
-        slider.addEventController(press)
     }
 
     public func setValue(ofSlider slider: Widget, to value: Double) {
