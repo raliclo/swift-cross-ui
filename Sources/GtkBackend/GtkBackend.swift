@@ -5065,6 +5065,10 @@ public final class GtkBackend:
         (table as! Gtk.Table).setTextSelectable(isSelectable)
     }
 
+    public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {
+        (table as! Gtk.Table).setColumnWidths(widths)
+    }
+
     public func createDatePicker() -> Widget {
         DatePickerWidget()
     }

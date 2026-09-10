@@ -33,6 +33,23 @@ public class Table: ScrolledWindow {
     private var columnCount = 0
     private var rowCount = 0
     private var isTextSelectable = false
+    /// A fixed width per column, or nil for a column that shares evenly.
+    ///
+    /// STORED rather than applied and forgotten, because a `GtkGrid` column's
+    /// width comes from its widest child and the children arrive in two batches:
+    /// the header labels from ``setColumnLabels(_:)`` and the cells from
+    /// ``setCells(_:rowHeights:)``, with `setColumnWidths` called between them.
+    /// Applying widths only when they arrive would size the headers and leave
+    /// every cell expanding, and a header that disagrees with the cells beneath
+    /// it is exactly the defect this is meant to remove.
+    ///
+    /// 每欄的固定寬度;nil 表示該欄平均分配。
+    ///
+    /// **儲存起來**而非套用後即丟,因為 `GtkGrid` 某一欄的寬度取決於**該欄最寬的子元件**,而子元件
+    /// 分兩批抵達:``setColumnLabels(_:)`` 送來的標題,以及 ``setCells(_:rowHeights:)`` 送來的
+    /// 儲存格,而 `setColumnWidths` 夾在兩者之間被呼叫。若只在寬度抵達時套用一次,結果會是標題被
+    /// 定了尺寸、而每一個儲存格仍在擴張——**標題與其下儲存格對不齊**,正是本功能所要消除的缺陷。
+    private var columnWidths: [Double?] = []
 
     public convenience init() {
         self.init(gtk_scrolled_window_new())
@@ -59,11 +76,85 @@ public class Table: ScrolledWindow {
             // 正是在儲存格較窄時決定欄寬的依據。
             label.horizontalAlignment = .start
             label.expandHorizontally = true
+            // `xalign` as well as `halign`, and the difference only shows once a
+            // column has a fixed width. `halign` places the LABEL WIDGET inside
+            // its grid cell; `xalign` places the TEXT inside the label. While
+            // every column expands they are the same thing, because the widget
+            // shrinks to its text. Give a column a width and the widget becomes
+            // that wide, and GtkLabel's default `xalign` of 0.5 then centres the
+            // text inside it -- so the header floats in the middle of a column
+            // whose cells are left-aligned.
+            //
+            // Measured 2026-09-10 with `.width(200)` on P23's ID column: the
+            // header "ID" landed at x=131 while the digits beneath it were at
+            // x=33.
+            //
+            // 同時設定 `xalign` 與 `halign`,而兩者的差別只有在某一欄有固定寬度時才看得出來。
+            // `halign` 決定的是 **label widget** 在其 grid cell 中的位置;`xalign` 決定的是
+            // **文字** 在 label 之內的位置。當每一欄都在擴展時,兩者是同一回事,因為 widget 會縮到
+            // 貼合它的文字。一旦給某欄固定寬度,widget 就變成那麼寬,而 GtkLabel 預設的 `xalign`
+            // 0.5 會把文字置中於其中——於是標題浮在一個「儲存格靠左」的欄位中央。
+            //
+            // 2026-09-10 以 P23 的 ID 欄加 `.width(200)` 實測:標題「ID」落在 x=131,
+            // 而其下的數字在 x=33。
+            label.xalign = 0
             return label
         }
 
         for (column, label) in headerLabels.enumerated() {
             grid.attach(child: label, left: column, top: 0, width: 1, height: 1)
+        }
+
+        applyWidth(toHeaders: true)
+    }
+
+    /// Sets a fixed width per column; nil lets that column share evenly.
+    ///
+    /// Applied to the headers now and remembered for the cells, which have not
+    /// arrived yet -- see ``columnWidths``.
+    ///
+    /// 設定每欄的固定寬度;nil 讓該欄平均分配。
+    ///
+    /// 現在套用到標題,並為**尚未抵達**的儲存格記住它——見 ``columnWidths``。
+    public func setColumnWidths(_ widths: [Double?]) {
+        columnWidths = widths
+        applyWidth(toHeaders: true)
+        applyWidth(toHeaders: false)
+    }
+
+    /// The width for a column, or nil when it should share evenly.
+    /// 某一欄的寬度;應平均分配時為 nil。
+    private func width(ofColumn column: Int) -> Double? {
+        guard column < columnWidths.count else { return nil }
+        return columnWidths[column]
+    }
+
+    /// Pins or releases the horizontal sizing of one batch of children.
+    ///
+    /// `expandHorizontally` and a size request are set together and always
+    /// opposite: a widget that both expands and asks for a width will be given
+    /// the larger of the two by GTK, so leaving expand on would make a fixed
+    /// width behave as a MINIMUM. That is a plausible-looking result -- narrow
+    /// columns obey and wide ones do not -- which is worse than it plainly not
+    /// working.
+    ///
+    /// 為某一批子元件釘住或釋放其水平尺寸。
+    ///
+    /// `expandHorizontally` 與 size request 一起設定,而且**永遠相反**:一個既會擴展、又要求寬度的
+    /// widget,GTK 會給它兩者中較大的那個——因此若讓 expand 保持開啟,固定寬度的行為會變成**最小值**。
+    /// 那是一個**看起來合理**的結果:窄的欄遵守、寬的欄不遵守——而那比「明顯不生效」更糟。
+    private func applyWidth(toHeaders: Bool) {
+        let widgets: [Widget] = toHeaders ? headerLabels : cellWidgets
+        guard columnCount > 0 else { return }
+
+        for (index, widget) in widgets.enumerated() {
+            let column = toHeaders ? index : index % columnCount
+            let width = width(ofColumn: column)
+            widget.expandHorizontally = width == nil
+            widget.setSizeRequest(
+                width: width.map { Int($0.rounded()) } ?? -1,
+                height: toHeaders ? -1 : widget.getSizeRequest().height
+            )
         }
     }
 
@@ -87,11 +178,13 @@ public class Table: ScrolledWindow {
             let column = index % columnCount
             guard row < rowCount else { break }
 
-            cell.expandHorizontally = true
+            let width = width(ofColumn: column)
+            cell.expandHorizontally = width == nil
             cell.horizontalAlignment = .fill
-            if row < rowHeights.count {
-                cell.setSizeRequest(width: -1, height: rowHeights[row])
-            }
+            cell.setSizeRequest(
+                width: width.map { Int($0.rounded()) } ?? -1,
+                height: row < rowHeights.count ? rowHeights[row] : -1
+            )
 
             // Row 0 is the header, so data starts at 1.
             // 第 0 列是標題，因此資料自第 1 列開始。

@@ -81,6 +81,39 @@ extension BackendFeatures {
         ///   - table: The table.
         ///   - isSelectable: Whether the table's text can be selected and copied.
         func setTextSelectability(ofTable table: Widget, to isSelectable: Bool)
+
+        /// Sets each column's width, or nil for a column that shares evenly.
+        ///
+        /// Called after ``setColumnLabels(ofTable:to:environment:)``, so the
+        /// column count is already established and the array matches it.
+        ///
+        /// **Why this is a backend call at all, when the layout already knows.**
+        /// ``Table`` computes cell widths itself and passes them down as
+        /// proposed sizes, so the CONTENT is placed correctly without a backend
+        /// ever hearing about widths. What it cannot place is the header row and
+        /// whatever column structure the backend keeps its own copy of -- GTK's
+        /// `Grid` columns, WinUI's `WinUITable` -- and a header that disagrees
+        /// with the cells beneath it is the visible defect this exists to
+        /// prevent.
+        ///
+        /// A backend with no per-column width control should do nothing, and its
+        /// table keeps the even split it had before this existed. That is the
+        /// same judgement `setTextSelectability` records: refusing to draw the
+        /// table would be worse than drawing it evenly.
+        ///
+        /// 設定每一欄的寬度;nil 表示該欄平均分配。
+        ///
+        /// 在 ``setColumnLabels(ofTable:to:environment:)`` 之後呼叫,因此欄數已經確立,
+        /// 而此陣列與之相符。
+        ///
+        /// **既然版面層已經知道寬度,為何還要一個 backend 呼叫。** ``Table`` 自行計算儲存格寬度並
+        /// 以 proposed size 往下傳,因此**內容**的擺放不需要任何 backend 知道寬度。它擺不了的是
+        /// **標題列**,以及 backend 自行保有的那份欄位結構——GTK 的 `Grid` 欄、WinUI 的 `WinUITable`
+        /// ——而**標題與其下的儲存格對不齊**,正是本方法所要防止的、看得見的缺陷。
+        ///
+        /// 沒有逐欄寬度控制能力的 backend 應當什麼都不做,其表格維持本方法存在之前的平均分配。
+        /// 那與 `setTextSelectability` 所記載的判斷相同:拒絕繪製表格,會比把它平均地畫出來更糟。
+        func setColumnWidths(ofTable table: Widget, to widths: [Double?])
     }
 }
 
@@ -93,4 +126,19 @@ extension BackendFeatures.Tables {
     /// call site, so a backend that does nothing here behaves exactly as it did
     /// before the option existed.
     public func setTextSelectability(ofTable table: Widget, to isSelectable: Bool) {}
+
+    /// Ignores the request, leaving the table's columns evenly split.
+    ///
+    /// A default for the same reason as the one above: adding this must not
+    /// break an existing `Tables` backend, and a backend with no per-column
+    /// width control should not be made to write an empty method to say so.
+    /// Nil widths already mean "share evenly", so a backend that does nothing
+    /// here behaves exactly as it did before the option existed.
+    ///
+    /// 忽略此請求,讓表格的欄位維持平均分配。
+    ///
+    /// 提供預設實作的理由與上一個相同:新增這個方法不得弄壞任何既有的 `Tables` backend,
+    /// 而一個沒有逐欄寬度控制能力的 backend,也不該被迫寫一個空方法來聲明這件事。
+    /// nil 寬度本來就代表「平均分配」,因此在此什麼都不做的 backend,行為與本選項存在之前完全相同。
+    public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {}
 }

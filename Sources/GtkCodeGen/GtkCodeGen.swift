@@ -133,6 +133,30 @@ struct GtkCodeGen {
             "Gesture",
             "EventController",
             "GestureLongPress",
+            // #32's three. `DragGesture`, `MagnificationGesture` and
+            // `RotationGesture` have no SwiftCrossUI equivalent, and unlike
+            // `onEditingChanged` -- where an earlier note of mine claimed a new
+            // binding was needed and `GestureClick` turned out to be enough --
+            // these three genuinely have no stand-in. A drag needs offsets from
+            // a start point, and zoom and rotate need a second touch point;
+            // press/release carries none of that.
+            //
+            // Verified present in the gir before being listed: GestureDrag,
+            // GestureZoom and GestureRotate all appear in
+            // GirFiles/Gtk-4.0.gir. Their bases are already here --
+            // GestureDrag extends GestureSingle, the other two extend Gesture.
+            //
+            // #32 的那三個。`DragGesture`、`MagnificationGesture` 與 `RotationGesture` 在
+            // SwiftCrossUI 中沒有對應物,而與 `onEditingChanged` 不同——我先前的一則記錄聲稱那需要
+            // 新的 binding,結果 `GestureClick` 就夠了——**這三個是真的沒有替代品**。拖曳需要相對於
+            // 起點的位移,縮放與旋轉需要第二個觸點,而按下/放開不攜帶其中任何一項。
+            //
+            // 列入前已查證它們存在於 gir 中:GestureDrag、GestureZoom、GestureRotate 皆出現於
+            // GirFiles/Gtk-4.0.gir。它們的基底類別也都已在此清單中——GestureDrag 繼承
+            // GestureSingle,另外兩者繼承 Gesture。
+            "GestureDrag",
+            "GestureZoom",
+            "GestureRotate",
             "GLArea",
             "DrawingArea",
             "CheckButton",

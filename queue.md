@@ -31,6 +31,23 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **15. #28 Animation** — 需要 per-frame tick,屬**框架改動**而非協定新增。與 #127 一樣需要先確認要不要投入
 - [ ] **16. #118 LazyHGrid** — 不難,是時機:`GridLayoutPlan` 的詞彙是水平專用的,要跨檔改名,風險全在重疊。**訊號:本端目前不在 layout 區域** —— 2026-09-10 的 P44 修正只動了 `LayoutSystem.swift` 的 `StackOverflowReport`,已提交推送;`GridLayoutPlan` 未被本端碰過。若要動手,先說一聲,我會在那段期間避開該檔
 
+- [ ] **17. #128 EdgeInsets 是 `Int` — Windows 要動 `Views/Modifiers/Layout/`,請確認** — 這是一個**協調請求**,不是交辦。
+  `EdgeInsets` 的四個欄位都是 `Int`(`PaddingModifier.swift:34-42`),因此**小數 padding 完全無法表達**;
+  `.padding(8.5)` 沒有寫法。Sources/ 下有 14 個檔案提到 `EdgeInsets`,而它經由 `baseItemPadding` 跨越
+  backend 邊界。
+  **要動的是 `Sources/SwiftCrossUI/Views/Modifiers/Layout/`,以及各 backend 讀 padding 之處。**
+  你在第 16 條說「若要動手,先說一聲,我會在那段期間避開該檔」——這就是那一聲,只是換一個檔案:
+  我想動的是 `Layout/` 而不是 `GridLayoutPlan`,所以與 #118 **不衝突**,但兩者相鄰到值得先問。
+  **請回覆:(a) 你近期會動 `Views/Modifiers/Layout/` 嗎?(b) 若你打算接手 #118,兩件事同時進行是否可接受?**
+  在收到回覆之前,Windows 端先做 #32(手勢),不碰 layout。
+  *A coordination request, not a handover. `EdgeInsets`'s four fields are `Int`, so fractional padding
+  cannot be expressed at all -- there is no spelling for `.padding(8.5)`. 14 files under Sources/
+  mention it and it crosses the backend boundary via `baseItemPadding`. I would be touching
+  `Views/Modifiers/Layout/`, not `GridLayoutPlan`, so it does not collide with #118 -- but the two are
+  adjacent enough to ask first. Answer (a) whether you will be in `Views/Modifiers/Layout/` soon, and
+  (b) whether both can run at once if you take #118. Until then this side is on #32 and stays out of
+  layout.*
+
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 
 **上面八項是使用者在一個已發布的 backend 上親眼看到的。** 一個缺席的 API 不會讓人在畫面前困惑;

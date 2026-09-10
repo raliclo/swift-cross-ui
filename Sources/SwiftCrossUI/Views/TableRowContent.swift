@@ -9,6 +9,20 @@ public protocol TableRowContent<RowValue> {
 
     var labels: [String] { get }
 
+    /// One entry per column: a fixed width in points, or nil to share evenly.
+    ///
+    /// A parallel array to ``labels`` rather than a widened element type,
+    /// because `labels` is read by four call sites and passed to
+    /// `setColumnLabels` as `[String]`; changing its element would reach every
+    /// one of them to carry a value only the layout needs.
+    ///
+    /// 每欄一筆:固定寬度(單位為 point),或 nil 表示平均分配。
+    ///
+    /// 採用與 ``labels`` 平行的陣列,而非把元素型別加寬,因為 `labels` 有四個呼叫端在讀,
+    /// 並以 `[String]` 傳給 `setColumnLabels`;改動它的元素型別會波及每一個呼叫端,
+    /// 只為了攜帶一個**只有版面用得到**的值。
+    var columnWidths: [Double?] { get }
+
     func content(for row: RowValue) -> RowContent
 }
 
@@ -16,6 +30,10 @@ public struct EmptyTableRowContent<RowValue>: TableRowContent {
     public typealias RowContent = EmptyView
 
     public var labels: [String] {
+        []
+    }
+
+    public var columnWidths: [Double?] {
         []
     }
 
@@ -37,6 +55,10 @@ public struct TupleTableRowContent1<
 
     public var labels: [String] {
         [column0.label]
+    }
+
+    public var columnWidths: [Double?] {
+        [column0.width]
     }
 
     public init(
@@ -66,6 +88,10 @@ public struct TupleTableRowContent2<
         [column0.label, column1.label]
     }
 
+    public var columnWidths: [Double?] {
+        [column0.width, column1.width]
+    }
+
     public init(
         _ column0: TableColumn<RowValue, Content0>, _ column1: TableColumn<RowValue, Content1>
     ) {
@@ -93,6 +119,10 @@ public struct TupleTableRowContent3<
 
     public var labels: [String] {
         [column0.label, column1.label, column2.label]
+    }
+
+    public var columnWidths: [Double?] {
+        [column0.width, column1.width, column2.width]
     }
 
     public init(
@@ -130,6 +160,10 @@ public struct TupleTableRowContent4<
         [column0.label, column1.label, column2.label, column3.label]
     }
 
+    public var columnWidths: [Double?] {
+        [column0.width, column1.width, column2.width, column3.width]
+    }
+
     public init(
         _ column0: TableColumn<RowValue, Content0>, _ column1: TableColumn<RowValue, Content1>,
         _ column2: TableColumn<
@@ -165,6 +199,10 @@ public struct TupleTableRowContent5<
 
     public var labels: [String] {
         [column0.label, column1.label, column2.label, column3.label, column4.label]
+    }
+
+    public var columnWidths: [Double?] {
+        [column0.width, column1.width, column2.width, column3.width, column4.width]
     }
 
     public init(
@@ -206,6 +244,10 @@ public struct TupleTableRowContent6<
 
     public var labels: [String] {
         [column0.label, column1.label, column2.label, column3.label, column4.label, column5.label]
+    }
+
+    public var columnWidths: [Double?] {
+        [column0.width, column1.width, column2.width, column3.width, column4.width, column5.width]
     }
 
     public init(
@@ -260,6 +302,18 @@ public struct TupleTableRowContent7<
             column4.label,
             column5.label,
             column6.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width
         ]
     }
 
@@ -318,6 +372,19 @@ public struct TupleTableRowContent8<
             column5.label,
             column6.label,
             column7.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width
         ]
     }
 
@@ -380,6 +447,20 @@ public struct TupleTableRowContent9<
             column6.label,
             column7.label,
             column8.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width
         ]
     }
 
@@ -450,6 +531,21 @@ public struct TupleTableRowContent10<
             column7.label,
             column8.label,
             column9.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width
         ]
     }
 
@@ -524,6 +620,22 @@ public struct TupleTableRowContent11<
             column8.label,
             column9.label,
             column10.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width
         ]
     }
 
@@ -602,6 +714,23 @@ public struct TupleTableRowContent12<
             column9.label,
             column10.label,
             column11.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width
         ]
     }
 
@@ -690,6 +819,24 @@ public struct TupleTableRowContent13<
         ]
     }
 
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width
+        ]
+    }
+
     public init(
         _ column0: TableColumn<RowValue, Content0>, _ column1: TableColumn<RowValue, Content1>,
         _ column2: TableColumn<
@@ -775,6 +922,25 @@ public struct TupleTableRowContent14<
             column11.label,
             column12.label,
             column13.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width
         ]
     }
 
@@ -870,6 +1036,26 @@ public struct TupleTableRowContent15<
             column12.label,
             column13.label,
             column14.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width
         ]
     }
 
@@ -969,6 +1155,27 @@ public struct TupleTableRowContent16<
             column13.label,
             column14.label,
             column15.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width,
+            column15.width
         ]
     }
 
@@ -1074,6 +1281,28 @@ public struct TupleTableRowContent17<
             column14.label,
             column15.label,
             column16.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width,
+            column15.width,
+            column16.width
         ]
     }
 
@@ -1184,6 +1413,29 @@ public struct TupleTableRowContent18<
             column15.label,
             column16.label,
             column17.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width,
+            column15.width,
+            column16.width,
+            column17.width
         ]
     }
 
@@ -1303,6 +1555,30 @@ public struct TupleTableRowContent19<
         ]
     }
 
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width,
+            column15.width,
+            column16.width,
+            column17.width,
+            column18.width
+        ]
+    }
+
     public init(
         _ column0: TableColumn<RowValue, Content0>, _ column1: TableColumn<RowValue, Content1>,
         _ column2: TableColumn<
@@ -1419,6 +1695,31 @@ public struct TupleTableRowContent20<
             column17.label,
             column18.label,
             column19.label
+        ]
+    }
+
+    public var columnWidths: [Double?] {
+        [
+            column0.width,
+            column1.width,
+            column2.width,
+            column3.width,
+            column4.width,
+            column5.width,
+            column6.width,
+            column7.width,
+            column8.width,
+            column9.width,
+            column10.width,
+            column11.width,
+            column12.width,
+            column13.width,
+            column14.width,
+            column15.width,
+            column16.width,
+            column17.width,
+            column18.width,
+            column19.width
         ]
     }
 
