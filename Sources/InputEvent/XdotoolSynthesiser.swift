@@ -230,51 +230,154 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
             case .focus(let window):
                 try focusWindow(titled: window)
 
+
             case .sleep(let microseconds):
                 usleep(UInt32(max(0, microseconds)))
         }
     }
 
-    /// Raises the window with this exact title through `xdotool`.
+    /// Raises this process's window with that exact title.
     ///
-    /// **WRITTEN ON A MAC 2026-09-10, NOT RUN.** This machine has no X server
-    /// and cannot build the GTK target, so this is written against xdotool's
-    /// documented interface and needs verifying on the WSL side. It exists
-    /// because leaving the case out was worse: adding `InputAction.focus` made
-    /// this switch non-exhaustive, so the target simply would not compile, and
-    /// that break was mine.
+    /// **`xdotool search --name` takes a REGEX and matches a SUBSTRING.** Left
+    /// bare, `focus "P50"` would also match "P50 tables" and "Old P50", and it
+    /// would pick whichever the search listed first. That is exactly the failure
+    /// this action exists to remove -- `Synthesiser.focusWindow` says so, and
+    /// both the AppKit and Win32 implementations match exactly. So the title is
+    /// escaped and anchored, which makes all three platforms agree.
     ///
-    /// `search --name` takes a regular expression, so the title is anchored and
-    /// escaped -- an unanchored search matches any window whose title CONTAINS
-    /// the string, and "wrong window" is the exact failure `focus` was added to
-    /// remove. `--onlyvisible` for the same reason AppKit filters on
-    /// `isVisible`: a window that cannot receive a click is not a candidate.
+    /// `--pid` as well, so a window belonging to another application cannot be
+    /// activated even if its title matches. Same scope as AppKit's
+    /// `NSApp.windows.filter { $0.isVisible }`.
     ///
-    /// The two things to check, named rather than left for the compiler:
-    ///   1. that `windowactivate --sync` returns rather than hanging when the
-    ///      window manager refuses to activate -- some do, and `--sync` waits.
-    ///   2. that a failed `search` exits non-zero here. `run` is what turns that
-    ///      into a thrown error, and a search that finds nothing must fail
-    ///      rather than activating whatever was last found.
+    /// **THE SECOND HALF IS NOT OPTIONAL, and this is the third platform to
+    /// need it.** Raising the window is the visible part; making
+    /// ``currentWindowIdentity()`` notice is what makes the rows AFTER a
+    /// `focus` mean anything. Without it the focus succeeds, the replay reports
+    /// every action done, and each later coordinate is still converted against
+    /// the window measured before the replay began. AppKit hit this
+    /// (`a8627210`, identity returned the protocol default of 0), Win32 hit a
+    /// different shape of it (identity answered with largest-by-area, and a
+    /// second window is usually smaller), and this file had the AppKit shape:
+    /// no override at all.
     ///
-    /// 透過 `xdotool` 把標題與此完全相符的視窗帶到前景。
+    /// 讓本行程中標題**完全相符**的視窗上前。
     ///
-    /// **2026-09-10 於 Mac 上寫成，未曾執行。** 這台機器沒有 X server、也建不了 GTK target，因此
-    /// 以下是對照 xdotool 的文件介面寫出來的，需由 WSL 側驗證。它之所以存在，是因為「不寫」更糟：
-    /// 新增 `InputAction.focus` 使這個 switch 變得不完整，於是該 target 根本編不過，而那個破壞是我造成的。
+    /// **`xdotool search --name` 收的是正規表示式,而且比對的是子字串。** 若原樣傳入,
+    /// `focus "P50"` 也會匹配到「P50 tables」與「Old P50」,並挑走搜尋結果中的第一個。
+    /// 那正是這個動作存在所要消除的失敗——`Synthesiser.focusWindow` 已寫明,而 AppKit 與 Win32
+    /// 兩個實作都是完全相符。因此此處將標題跳脫並加上錨點,使三個平台語意一致。
     ///
-    /// `search --name` 收的是正規表示式，因此標題此處被錨定並轉義——未錨定的搜尋會命中「標題**包含**
-    /// 該字串」的任何視窗，而「選錯視窗」正是 `focus` 被加進來所要消除的失敗。使用 `--onlyvisible`
-    /// 的理由與 AppKit 過濾 `isVisible` 相同：一個接收不到點擊的視窗不是候選者。
+    /// 同時使用 `--pid`,使得即便標題相符,屬於其他應用程式的視窗也不會被啟用。範圍與 AppKit 的
+    /// `NSApp.windows.filter { $0.isVisible }` 相同。
     ///
-    /// 有兩件事要查，此處明白指名而非留給編譯器：
-    ///   1. 當視窗管理員拒絕啟動時，`windowactivate --sync` 是會返回還是會卡住——有些會拒絕，而
-    ///      `--sync` 是會等待的。
-    ///   2. 一次找不到結果的 `search` 在此處是否以非零結束。把它轉成拋出錯誤的是 `run`，而一次
-    ///      什麼都沒找到的搜尋必須失敗，不可去啟動「上一次找到的那個」。
+    /// **第二半不是可選的,而這已經是第三個需要它的平台。** 把視窗抬起來是看得見的部分;讓
+    /// ``currentWindowIdentity()`` 察覺到它,才是讓 `focus` **之後**那些列具有意義的東西。
+    /// 少了它,focus 會成功、replay 會回報每個動作都完成,而其後每一個座標仍然是相對於
+    /// 「重放開始前所量測的那個視窗」換算的。AppKit 撞過這個(`a8627210`,identity 回傳協定預設 0),
+    /// Win32 撞的是它的另一種形狀(identity 以「面積最大」作答,而第二個視窗通常比較小),
+    /// 而本檔是 AppKit 的那一種:**根本沒有覆寫**。
     public func focusWindow(titled title: String) throws {
-        let escaped = NSRegularExpression.escapedPattern(for: title)
-        try run(["search", "--onlyvisible", "--name", "^\(escaped)$", "windowactivate", "--sync"])
+        let pid = ProcessInfo.processInfo.processIdentifier
+        // `NSRegularExpression.escapedPattern(for:)` rather than a hand-written
+        // character table, and that is the Mac side's version kept over mine.
+        // We fixed this same compile break independently (123e95f4 and
+        // 53a576f7) and their escape is better: a standard-library function
+        // cannot disagree with itself about which metacharacters exist, and mine
+        // was a list I had typed out.
+        //
+        // 使用 `NSRegularExpression.escapedPattern(for:)` 而非手寫的字元表,而**這是採用 Mac 端的
+        // 版本、捨棄我的**。我們各自獨立修了同一個編譯中斷(123e95f4 與 53a576f7),而他們的跳脫
+        // 更好:一個標準庫函式不可能對「哪些是元字元」與自己意見不合,而我的是一份自己打出來的清單。
+        let pattern = "^\(NSRegularExpression.escapedPattern(for: title))$"
+        let listing =
+            (try? capture(["search", "--onlyvisible", "--pid", "\(pid)", "--name", pattern])) ?? ""
+        let matches = listing.split(whereSeparator: \.isNewline).map(String.init)
+
+        guard let window = matches.first else {
+            // The visible titles are listed, so a mismatch is one line to
+            // diagnose rather than a guess -- the same courtesy the AppKit
+            // implementation extends.
+            // 列出所有可見視窗的標題,使一次不相符只需一行就能診斷,而不是靠猜——這與 AppKit
+            // 的實作所提供的便利相同。
+            let visible =
+                (try? capture(["search", "--onlyvisible", "--pid", "\(pid)"])) ?? ""
+            let titles = visible.split(whereSeparator: \.isNewline).map { id in
+                let name = (try? capture(["getwindowname", String(id)])) ?? ""
+                return "'\(name.trimmingCharacters(in: .whitespacesAndNewlines))'"
+            }
+            throw SynthesiserError.unsupported(
+                "focus '\(title)': no visible window of this process has that exact title; "
+                    + "visible titles are \(titles.joined(separator: ", "))"
+            )
+        }
+
+        try run(["windowactivate", "--sync", window])
+        Self.rememberFocus(window)
+    }
+
+    /// The window a `focus` row named, or empty when no row has.
+    ///
+    /// Static and `nonisolated(unsafe)` for the same reason as the Win32
+    /// implementation's: one replay per process, and it is the idiom this module
+    /// already uses.
+    ///
+    /// 一列 `focus` 所指名的視窗;沒有任何一列指名過時為空字串。
+    ///
+    /// 使用 static 與 `nonisolated(unsafe)`,理由與 Win32 實作相同:每個行程只有一次重放,
+    /// 而這正是本 module 既有的寫法。
+    nonisolated(unsafe) private static var focusedWindow = ""
+    private static let focusLock = NSLock()
+
+    private static func rememberFocus(_ window: String) {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        focusedWindow = window
+    }
+
+    /// Cleared at the start of every replay, so a focus cannot outlive the file
+    /// that asked for it.
+    /// 在每次重放開始時清除,使一次 focus 無法活得比要求它的那個檔案更久。
+    private static func forgetFocus() {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        focusedWindow = ""
+    }
+
+    private static func rememberedFocus() -> String? {
+        focusLock.lock()
+        defer { focusLock.unlock() }
+        return focusedWindow.isEmpty ? nil : focusedWindow
+    }
+
+    /// Clears the remembered focus before anything is measured.
+    ///
+    /// The only reason this override exists -- the protocol's default does
+    /// nothing and that was right until a `focus` row could leave state behind.
+    /// Two replays in one process would otherwise have the second start pointed
+    /// at the first one's window, and `ownWindow()` reads this before it reads
+    /// anything else.
+    ///
+    /// 在任何量測開始之前,清除被記住的焦點。
+    ///
+    /// **這個覆寫存在的唯一理由**——協定的預設實作什麼都不做,而在「一列 `focus` 會留下狀態」之前,
+    /// 那是對的。否則同一行程中的第二次重放,會從「指向第一次那個視窗」的狀態開始,
+    /// 而 `ownWindow()` 讀它的時機早於讀任何其他東西。
+    public func prepareForReplay(_ actions: [InputAction]) throws {
+        Self.forgetFocus()
+    }
+
+    /// The X window id `currentWindowGeometry()` will measure, as a comparable
+    /// number.
+    ///
+    /// `0` when it cannot be answered, which the caller reads as "unchanged" --
+    /// an identity check that cannot be answered must not abort a replay.
+    ///
+    /// 以可比較的數值回傳 `currentWindowGeometry()` 將會量測的那個 X window id。
+    ///
+    /// 無法回答時回傳 `0`,呼叫端會把它讀作「未改變」——一個答不出來的識別檢查,不該中止整個重放。
+    public func currentWindowIdentity() -> Int {
+        guard let window = try? ownWindow(), let id = Int(window) else { return 0 }
+        return id
     }
 
     private func moveIfNeeded(_ point: Point?, in geometry: WindowGeometry) throws {
@@ -313,6 +416,32 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
         // 空清單。以下兩種情形都會處理，且兩者意義相同。
         let listing = (try? capture(["search", "--onlyvisible", "--pid", "\(pid)"])) ?? ""
         let candidates = listing.split(whereSeparator: \.isNewline).map(String.init)
+
+        // A `focus` row overrides the usual pick, and only a `focus` row can.
+        //
+        // Without this, `currentWindowIdentity()` above would keep answering
+        // with whichever window the ordinary selection returns, so a successful
+        // focus would report NO CHANGE and no geometry would be re-measured --
+        // the override would be decorative. The two have to agree or neither
+        // means anything.
+        //
+        // `candidates.contains` is the guard that matters: a window that has
+        // since closed must not keep steering the replay. Falling back is the
+        // pre-`focus` behaviour, which is what every file without a `focus` row
+        // still gets, unchanged.
+        //
+        // 一列 `focus` 會覆蓋原本的選擇,而且只有 `focus` 能。
+        //
+        // 少了這一段,上方的 `currentWindowIdentity()` 會持續以「一般選擇所回傳的那個視窗」作答,
+        // 於是一次成功的 focus 會回報**沒有改變**,也就不會重新量測任何幾何——那個覆寫將淪為裝飾。
+        // **兩者必須一致,否則哪一個都沒有意義。**
+        //
+        // `candidates.contains` 是關鍵的那道防護:一個已經關閉的視窗不可以繼續主導重放。
+        // 退回原本的選擇即是 `focus` 出現之前的行為,也正是每一個沒有 `focus` 列的檔案至今
+        // 原封不動得到的行為。
+        if let focused = Self.rememberedFocus(), candidates.contains(focused) {
+            return focused
+        }
         guard !candidates.isEmpty else {
             // Almost always Wayland rather than a genuinely missing window.
             // XTEST is an X11 extension, and a GTK 4 app on a Wayland session
