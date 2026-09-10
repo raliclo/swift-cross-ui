@@ -2279,6 +2279,132 @@ public final class GtkBackend:
         }
     }
 
+    /// Binds a ``KeyboardShortcut`` to a GAction, if there is one.
+    ///
+    /// `gtk_application_set_accels_for_action` is already how this backend gives
+    /// Ctrl+Q to `app.quit` (see `setUpQuitAction`), so the mechanism is one this
+    /// tree has run rather than one read from a header.
+    ///
+    /// 若有快捷鍵,就把一個 ``KeyboardShortcut`` 綁到某個 GAction 上。
+    ///
+    /// 本 backend 把 Ctrl+Q 給 `app.quit` 用的正是 `gtk_application_set_accels_for_action`
+    /// (見 `setUpQuitAction`),因此這個機制是這棵樹**跑過**的,不是從標頭讀來的。
+    private func applyShortcut(_ shortcut: KeyboardShortcut?, toAction action: String) {
+        guard let shortcut else { return }
+        guard let accelerator = Self.gtkAccelerator(for: shortcut) else {
+            // Loud rather than silent: an unbindable shortcut is a menu item
+            // that looks configured and does nothing when the key is pressed.
+            // 說出來而不是沉默:一個綁不上去的快捷鍵,會是一個「看起來設定好了、按下去卻毫無反應」
+            // 的 menu item。
+            debugLogOnce(
+                "no GTK accelerator for keyboard shortcut '\(shortcut.key.character)'"
+                    + " with modifiers \(shortcut.modifiers.rawValue); \(action) has no shortcut"
+            )
+            return
+        }
+        gtkApp.setAccelerators([accelerator], forAction: action)
+    }
+
+    /// A ``KeyboardShortcut`` in the syntax `gtk_accelerator_parse` accepts.
+    ///
+    /// **`.command` becomes Control.** SwiftUI's default modifier is `.command`
+    /// because it was written for macOS; on GTK there is no Command key, and the
+    /// key that plays its role is Control. ``EventModifiers/command`` documents
+    /// the same mapping, so a shortcut written against SwiftUI's names means
+    /// here what a user of this platform would expect.
+    ///
+    /// **`capsLock` and `numericPad` are dropped, and that is not a gap.** They
+    /// are not accelerator modifiers in GTK, X11 or Win32 -- they are keyboard
+    /// STATES. There is nothing to map them to and nothing is lost by ignoring
+    /// them; a shortcut carrying one still binds on its real modifiers.
+    ///
+    /// 以 `gtk_accelerator_parse` 所接受的語法表示的 ``KeyboardShortcut``。
+    ///
+    /// **`.command` 會變成 Control。** SwiftUI 的預設修飾鍵是 `.command`,因為它是為 macOS 寫的;
+    /// GTK 上沒有 Command 鍵,而扮演其角色的是 Control。``EventModifiers/command`` 記載的是同一個
+    /// 對應,因此照 SwiftUI 名稱所寫的快捷鍵,在此處的意義正是本平台使用者所預期的。
+    ///
+    /// **`capsLock` 與 `numericPad` 會被丟棄,而那不是一個缺口。** 它們在 GTK、X11 或 Win32 中都
+    /// **不是**加速鍵的修飾鍵——它們是鍵盤**狀態**。沒有東西可以對應過去,忽略它們也不會失去任何東西;
+    /// 一個帶著它們的快捷鍵,仍會以它真正的修飾鍵綁定。
+    static func gtkAccelerator(for shortcut: KeyboardShortcut) -> String? {
+        guard let key = gtkKeyName(for: shortcut.key) else { return nil }
+
+        var prefix = ""
+        if shortcut.modifiers.contains(.control) || shortcut.modifiers.contains(.command) {
+            prefix += "<Control>"
+        }
+        if shortcut.modifiers.contains(.shift) { prefix += "<Shift>" }
+        if shortcut.modifiers.contains(.option) { prefix += "<Alt>" }
+        return prefix + key
+    }
+
+    /// The GDK key name for a ``KeyEquivalent``.
+    ///
+    /// **The named keys are matched on their SCALAR, not by comparing against
+    /// `KeyEquivalent.escape` and friends.** Those constants are built from
+    /// specific scalars -- `escape` is U+001B, `delete` is U+007F, the arrows
+    /// are in the U+F700 private-use block that SwiftUI uses -- and matching the
+    /// scalar means a `KeyEquivalent("\u{1B}")` written by hand maps the same
+    /// way as `.escape`, which a `==` against the constant would also do but
+    /// less obviously.
+    ///
+    /// `delete` being U+007F and NOT U+0008 matters here: this returns GDK's
+    /// `Delete` (forward delete) for it, and `BackSpace` is a different key that
+    /// ``KeyEquivalent`` has no constant for. The type's own documentation warns
+    /// about the same conflation, which is why it is honoured rather than
+    /// quietly "corrected" to BackSpace because macOS labels that key delete.
+    ///
+    /// ``KeyEquivalent`` 所對應的 GDK 鍵名。
+    ///
+    /// **具名的鍵是以其 scalar 比對的,而不是拿去和 `KeyEquivalent.escape` 之類的常數相比。**
+    /// 那些常數本身就是由特定 scalar 建成的——`escape` 是 U+001B、`delete` 是 U+007F、方向鍵位於
+    /// SwiftUI 所使用的 U+F700 私有使用區——而比對 scalar 意謂著手寫的 `KeyEquivalent("\u{1B}")`
+    /// 與 `.escape` 對應到同一個地方。
+    ///
+    /// `delete` 是 U+007F 而**不是** U+0008,這件事在此處是有意義的:此處為它回傳 GDK 的 `Delete`
+    /// (向前刪除),而 `BackSpace` 是另一個鍵、``KeyEquivalent`` 並沒有對應的常數。該型別自己的文件
+    /// 就在警告同一種混淆,這正是此處遵守它、而不是因為「macOS 把那個鍵標示為 delete」就悄悄把它
+    /// 「修正」成 BackSpace 的原因。
+    private static func gtkKeyName(for key: KeyEquivalent) -> String? {
+        let scalars = Array(key.character.unicodeScalars)
+        guard scalars.count == 1, let scalar = scalars.first else {
+            // A grapheme cluster of more than one scalar has no single key.
+            // 由多個 scalar 組成的字素叢集,沒有單一的鍵可以對應。
+            return nil
+        }
+
+        switch scalar {
+            case "\u{F700}": return "Up"
+            case "\u{F701}": return "Down"
+            case "\u{F702}": return "Left"
+            case "\u{F703}": return "Right"
+            case "\u{1B}": return "Escape"
+            case "\u{7F}": return "Delete"
+            case "\u{F728}": return "Delete"
+            case "\u{F729}": return "Home"
+            case "\u{F72B}": return "End"
+            case "\u{F72C}": return "Page_Up"
+            case "\u{F72D}": return "Page_Down"
+            case "\u{F739}": return "Clear"
+            case "\u{9}": return "Tab"
+            case " ": return "space"
+            case "\r": return "Return"
+            default: break
+        }
+
+        // Anything else has to be a printable character GTK can name directly.
+        // The private-use block is checked explicitly: an unmapped F7xx scalar
+        // would otherwise be handed to GTK as a literal character, and
+        // `gtk_accelerator_parse` accepts it -- binding the shortcut to a key
+        // that does not exist, which is a silent failure rather than a refusal.
+        // 其餘的必須是 GTK 能直接命名的可列印字元。此處明確檢查私有使用區:否則一個未對應的 F7xx
+        // scalar 會被當成字面字元交給 GTK,而 `gtk_accelerator_parse` **會接受它**——把快捷鍵綁到一個
+        // 不存在的鍵上,那是一次沉默的失敗,而不是一次拒絕。
+        guard scalar.value >= 0x20, !(0xF700...0xF8FF).contains(scalar.value) else { return nil }
+        return String(scalar)
+    }
+
     private func renderMenu(
         _ menu: ResolvedMenu,
         actionMap: any GActionMap,
@@ -2307,6 +2433,16 @@ public final class GtkBackend:
                             actionMap.addAction(gAction)
                         }
 
+                        // The shortcut arrives in the environment, on the same
+                        // line as `isEnabled` and for the same reason -- see
+                        // `EnvironmentValues.keyboardShortcut`.
+                        // 快捷鍵是從 environment 來的,與 `isEnabled` 在同一行、基於同一個理由——
+                        // 見 `EnvironmentValues.keyboardShortcut`。
+                        applyShortcut(
+                            environment.keyboardShortcut,
+                            toAction: "\(actionNamespace).\(actionName)"
+                        )
+
                         currentSection.appendItem(
                             label: label,
                             actionName: "\(actionNamespace).\(actionName)"
@@ -2319,6 +2455,11 @@ public final class GtkBackend:
                         )
                         gAction.enabled = environment.isEnabled
                         actionMap.addAction(gAction)
+
+                        applyShortcut(
+                            environment.keyboardShortcut,
+                            toAction: "\(actionNamespace).\(actionName)"
+                        )
 
                         currentSection.appendItem(
                             label: label,

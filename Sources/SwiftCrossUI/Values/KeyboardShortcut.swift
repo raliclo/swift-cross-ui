@@ -152,3 +152,55 @@ public struct KeyboardShortcut: Hashable, Sendable {
         self.modifiers = modifiers
     }
 }
+
+/// The modifier lives in this file rather than under `Views/Modifiers/` so that
+/// the API sits next to the type it carries -- and for one practical reason:
+/// a NEW source file is not picked up by an incremental build here, and the
+/// symptom is a completely clean compile followed by a LINKER error naming the
+/// new function. `mistakes.md` entry 2 has the measurement. This file is already
+/// in the target, so the whole class of problem does not arise.
+///
+/// 這個 modifier 放在本檔而非 `Views/Modifiers/` 之下,是為了讓 API 緊鄰它所攜帶的型別——以及一個
+/// 實務上的理由:此處**新增的原始檔不會被增量建置採納**,而其症狀是一次完全乾淨的編譯,之後在
+/// **連結期**出現一個點名那個新函式的錯誤。量測見 `mistakes.md` 第 2 條。本檔已經在該 target 裡,
+/// 因此整個問題類別根本不會發生。
+extension View {
+    /// Gives this view a keyboard shortcut.
+    ///
+    /// ```swift
+    /// Button("Save") { save() }
+    ///     .keyboardShortcut("s")
+    /// ```
+    ///
+    /// **Apply it to the control, not to a container.** The shortcut travels in
+    /// the environment, which is inherited, so putting it on a `VStack` gives it
+    /// to every control inside. See ``EnvironmentValues/keyboardShortcut`` for
+    /// why the environment is the route and what that buys.
+    ///
+    /// 為這個 view 指定一個鍵盤快捷鍵。
+    ///
+    /// **請加在控制項上,不要加在容器上。** 這個快捷鍵走的是 environment,而 environment 是繼承的,
+    /// 因此把它放在 `VStack` 上會讓裡面的每一個控制項都拿到它。走 environment 的理由、以及它換到了
+    /// 什麼,見 ``EnvironmentValues/keyboardShortcut``。
+    public func keyboardShortcut(
+        _ key: KeyEquivalent,
+        modifiers: EventModifiers = .command
+    ) -> some View {
+        environment(\.keyboardShortcut, KeyboardShortcut(key, modifiers: modifiers))
+    }
+
+    /// Gives this view a keyboard shortcut, or removes one inherited from an
+    /// ancestor when passed `nil`.
+    ///
+    /// The `nil` case is not decoration: because the environment is inherited,
+    /// a container that was given a shortcut passes it to every descendant, and
+    /// this is how a descendant declines it.
+    ///
+    /// 為這個 view 指定一個鍵盤快捷鍵;傳入 `nil` 則移除自祖先繼承而來的那一個。
+    ///
+    /// `nil` 這個情形不是裝飾:因為 environment 是繼承的,一個被指定了快捷鍵的容器會把它傳給每一個
+    /// 後代,而這正是後代用來拒絕它的方式。
+    public func keyboardShortcut(_ shortcut: KeyboardShortcut?) -> some View {
+        environment(\.keyboardShortcut, shortcut)
+    }
+}

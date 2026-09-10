@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P20 on Windows: does a .keyboardShortcut on a menu item actually fire? (#121)
+#
+# ONE FILE FOR BOTH WINDOWS BACKENDS. There are no coordinates here at all -- a
+# key event goes to whatever holds focus, wherever the pointer is -- so the file
+# is unaffected by the two backends' different menu geometry, and by the display
+# scale that every coordinate-carrying file here had to be re-measured for.
+#
+# THE INSTRUMENT IS THE LOG LINE, NOT A SCREENSHOT. The menu is never opened:
+# the whole point of an accelerator is that it works without opening the menu, so
+# a capture would show an unchanged window whether it worked or not. P20's
+# "Shortcut target" item writes
+#
+#     SHORTCUT FIRED: Ctrl+K reached the menu item
+#
+# to p20-debug-events.log, and that line's presence is the pass. Run with
+# --debug, or nothing is written and the run says nothing either way.
+#
+# WHY Ctrl+K AND NOT SOMETHING MORE OBVIOUS: Ctrl+Q already quits (P10-ctrl-q.csv
+# drives it). A shortcut that also ended the process could not be distinguished
+# from one that worked, because both leave no window.
+#
+# Ctrl is correct on both backends and is not a Windows-specific choice in the
+# app: `.keyboardShortcut("k")` defaults to SwiftUI's `.command`, and both
+# GtkBackend and WinUIBackend map `.command` to Control because neither platform
+# has a Command key. EnvironmentValues.keyboardShortcut records that mapping.
+#
+# P20 於 Windows：menu item 上的 .keyboardShortcut 真的會觸發嗎？（#121）
+#
+# 一個檔案同時服務兩個 Windows backend。此處完全沒有座標——按鍵事件送往持有焦點者，與指標位置
+# 無關——因此本檔不受兩個 backend 各異的選單幾何影響，也不受顯示縮放影響；而此處每一個帶座標的
+# 檔案都曾為此重新量測過。
+#
+# 量測儀器是那一行 log，不是截圖。選單自始至終不會被打開：加速鍵的全部意義就在於「不打開選單也能
+# 生效」，因此無論成功與否，截圖都會是一個沒有變化的視窗。P20 的「Shortcut target」項目會把
+#
+#     SHORTCUT FIRED: Ctrl+K reached the menu item
+#
+# 寫進 p20-debug-events.log，而該行的存在即為通過。必須以 --debug 執行，否則什麼都不會被寫入，
+# 那次執行也就對成敗不置一詞。
+#
+# 為何用 Ctrl+K 而非更順手的鍵：Ctrl+Q 已經是結束（由 P10-ctrl-q.csv 驅動）。一個同時會終止行程的
+# 快捷鍵無法與「它成功了」區分開來，因為兩者都不留下視窗。
+#
+# 在兩個 backend 上 Ctrl 都是正確的，而且這不是 app 裡的 Windows 專屬選擇：
+# `.keyboardShortcut("k")` 預設為 SwiftUI 的 `.command`，而 GtkBackend 與 WinUIBackend 都把
+# `.command` 對應到 Control，因為兩個平台都沒有 Command 鍵。該對應記於
+# EnvironmentValues.keyboardShortcut。
+sleep,,,,,,800000,let the window settle and take focus,windows
+keydown,,,,,control,,,windows
+key,,,,,k,,,windows
+keyup,,,,,control,,,windows
+sleep,,,,,,1000000,give the accelerator time to reach the item,windows

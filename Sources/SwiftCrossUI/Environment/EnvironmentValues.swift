@@ -877,6 +877,41 @@ extension EnvironmentValues {
     /// Set by ``View/disabled(_:)``.
     @Entry public var isEnabled: Bool = true
 
+    /// The keyboard shortcut that activates this view, if any.
+    ///
+    /// Set by ``View/keyboardShortcut(_:)``.
+    ///
+    /// **It travels in the environment rather than in ``ResolvedMenu/Item``,
+    /// and that was a decision rather than a convenience.** Every one of the
+    /// five backends already threads an `EnvironmentValues` into the exact line
+    /// where a shortcut has to be attached -- `gAction.enabled =
+    /// environment.isEnabled` in GtkBackend, and the same shape in the other
+    /// four -- because `isEnabled` is ALREADY delivered to menu items this way.
+    /// Adding an associated value to `ResolvedMenu.Item.button` instead would
+    /// break all five `switch`es at once, on both machines, so the three
+    /// backends that cannot be compiled here would have to be written blind.
+    ///
+    /// **The cost of this choice, stated because it is the kind that goes
+    /// quiet:** the environment is inherited, so `.keyboardShortcut` on a
+    /// CONTAINER gives the shortcut to every control inside it, where SwiftUI
+    /// would attach it to one control. Applying it to a `Button` is the correct
+    /// use; applying it to a `VStack` is a mistake this cannot detect.
+    ///
+    /// 啟動這個 view 的鍵盤快捷鍵,若有的話。
+    ///
+    /// 由 ``View/keyboardShortcut(_:)`` 設定。
+    ///
+    /// **它走 environment 而不是放進 ``ResolvedMenu/Item``,這是一個決定,不是圖方便。** 五個 backend
+    /// 每一個都已經把 `EnvironmentValues` 一路帶進「快捷鍵必須被掛上去」的那一行——GtkBackend 是
+    /// `gAction.enabled = environment.isEnabled`,其餘四個形狀相同——因為 `isEnabled` **本來就是**
+    /// 以這種方式送到 menu item 的。改成在 `ResolvedMenu.Item.button` 上增加一個關聯值,會讓五處
+    /// `switch` 在兩台機器上同時編不過,於是這裡編不了的那三個 backend 就得盲寫。
+    ///
+    /// **這個選擇的代價,寫明是因為它屬於會靜下來的那一類:** environment 是繼承的,因此把
+    /// `.keyboardShortcut` 加在**容器**上,會讓它裡面的每一個控制項都拿到同一個快捷鍵,而 SwiftUI
+    /// 會把它掛在單一個控制項上。加在 `Button` 上是正確用法;加在 `VStack` 上是一個此處偵測不到的錯誤。
+    @Entry public var keyboardShortcut: KeyboardShortcut?
+
     /// The number of lines text can occupy and whether to reserve that space.
     @Entry public var lineLimitSettings: LineLimit?
 
