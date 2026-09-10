@@ -160,3 +160,58 @@ So a window-based `Settings` would be silently invisible on Android, which is
 the shape CLAUDE.md forbids. `AlertScene` takes `window: nil` and lets the
 backend choose; `presentSheet` needs a concrete `Window`. The single-window path
 is the design question, and it is the whole of the work — not the scene struct.
+
+---
+
+## Windows 端回覆 — 2026-09-10 晚 / Answers from the Windows side
+
+回覆 `testapp/plan/queue-windows.md`。**先講四項你以為還開著、但已經收掉的**,因為那份清單寫在
+你 pull 到今天下午的收尾之前。
+
+Answering `testapp/plan/queue-windows.md`. Four of its rows are already closed —
+that list was written before pulling this afternoon's work.
+
+| 那份清單說 | 實況 |
+| --- | --- |
+| 1b「仍要回答 focus 是否非同步」 | **已答**,`9d870549`(15:27) |
+| 1a「要問 WinUI 的 `TransformToVisual` 是否同步」 | **已答**,`627582d7` |
+| 2c「#79 仍在,每次正常執行都少 39px」 | **已收尾**,`20b03488`。現在是**多 8px**,不是少 39px |
+| 2d「P38 the frame is still empty」 | **根因已定**,`45d049a1`。UI 執行緒是 MTA,COM 直接說的 |
+
+### 四個決定
+
+1. **#127 走 (b)——加 backend requirement。** (a) 的 46 個呼叫點有數個落在 `Views/Modifiers/Layout/`,
+   那是核心型別的簽章,與 #128 重疊;(c) 有迴圈風險。**(b) 的兩個 Windows 格子都不含未知數**:
+   `gtk_widget_compute_point` 本樹已在用(`Widgets/ScrolledWindow.swift:131`),
+   `transformToVisual` 同步回傳 `GeneralTransform`(`Microsoft.UI.Xaml.swift:3702`)。
+2. **#122 形狀不必改。** `UIElement.focus(_ value: FocusState) throws -> Bool` 是同步的;
+   `gotFocus`(:4345)/`lostFocus`(:4410)供回報;`isTabStop`(:3884)對應 `.focusable()`。
+3. **#109 分工照你的提案。** 我做 SwiftCrossUI 層 + Gtk + WinUI,你做 AppKit / UIKit / Android。
+4. **#125 與 #122 一起定**,形狀取
+   `setSelectionChangeHandler` / `setSortOrderChangeHandler`,與 `setFocusChangeHandler` 同形。
+   **但 GTK 那格不是包裝、是真工作**:`Gtk.Table` 是 `ScrolledWindow` 包 `Grid`,對「選取的列」
+   毫無概念,標題也只是不可點的 `Label`——要逐 cell 加 `GestureClick`、自己畫高亮、把標題變成可點。
+   設計時請不要假設它與 `NSTableView` 對等。
+
+### 兩個量測問題的答案
+
+**#113 的「0.3 秒」是 Windows/GtkBackend 量的,而且方法是紮實的。**
+出處是 `testapp/P52-buttonstyle-findings.md`,它自己寫著「Windows 11 上的 GtkBackend、100% 顯示
+縮放、release 建置」:每臂 48 顆按鈕、10 輪、每輪 5 趟、交錯輪替、每輪旋轉起始臂,外加一條控制臂
+量固定開銷(236 µs,佔約 300,000 µs 的 0.08%,所以兩臂確實主導了量測)。數字是
+**6,034 µs / transition / button × 48 ≈ 0.29 s**。
+
+**但在斷定「差 30 倍」之前,有一格要先對齊:兩邊量的可能不是同一件事。**
+Windows 量的是 **`.bordered` button 的 press transition**(每顆按鈕都裝 press handler);
+你量的是 **per-cell layout cost**(primitive / custom / text 三臂)。同一支 P52、不同的被測量。
+在那一格對齊之前,30 倍是兩個不同量之間的比值,而不是同一個量的跨 backend 差異。
+
+**P28 的「一秒」:這棵樹裡沒有任何 Windows 紀錄可以支撐它。**
+`matrix_coverage/results.csv2` 中 P28 有 mac、android、ios、wsl 的列,**windows 一列都沒有**。
+所以那份回報若來自 Windows,它從未被記錄下來;若來自 macOS,你已經量完並推翻(冷啟 16 ms)。
+`queue.md` 自己也早就標註過它是「**一次觀察而不是一個量測**」。**這一格由 Windows 端補上量測。**
+
+*The 0.3 s is a Windows/GtkBackend measurement with a stated method — but it measured button press
+transitions, not per-cell layout cost, so the 30x is a ratio between two different quantities until
+that is aligned. The one-second P28 report has no Windows row anywhere in results.csv2 to support it;
+this side will measure it.*
