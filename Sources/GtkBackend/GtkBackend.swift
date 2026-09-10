@@ -1628,6 +1628,44 @@ public final class GtkBackend:
                         .joined(separator: " "))
         )
 
+        // I PUT THE CORRECTION BACK ON 2026-09-10 AND TOOK IT OUT AGAIN THE
+        // SAME HOUR. Recorded rather than quietly reverted, because the reason
+        // it failed is the deleted version's conclusion being RIGHT and my
+        // reason for doubting it being wrong.
+        //
+        // The argument for putting it back: `setSize(ofWindow:)` used to write
+        // the unadjusted request back afterwards (its own comment says so), and
+        // that is now fixed, so a correction here should survive. The window's
+        // own header can finally be measured at this point -- 39, where the
+        // throwaway probe says 47 -- so the correction had the right number,
+        // which the earlier attempt did not.
+        //
+        // It ran, with the right number, and changed nothing:
+        //
+        //     content size: corrected using the window's own header
+        //                   (39, the probe said 47) -> window 620x459
+        //     content size settled (+250ms):  allocated 620x428
+        //     content size settled (+1500ms): allocated 620x428
+        //
+        // So `gtk_window_set_default_size` really is a launch hint once the
+        // window is realised, exactly as the note below says and as
+        // `setSizeLimits` in this file has said all along. The overwrite was a
+        // second, independent bug -- fixing it did not make this call work.
+        //
+        // **我在 2026-09-10 把這段修正放了回來,又在同一個小時內把它拿掉。** 此處記錄而非默默還原,
+        // 因為它失敗的原因是:**那份已刪除版本的結論是對的,而我懷疑它的理由是錯的。**
+        //
+        // 放回來的論據是:`setSize(ofWindow:)` 先前會在其後把未經調整的請求寫回去(那個方法自己的
+        // 註解就這麼說),而那件事現在已經修好,因此此處的修正應當得以存活。而且在這個時間點,
+        // 視窗**自己的** header 終於量得到了——**39**,而用完即丟的 probe 說的是 47——
+        // 所以這次的修正**帶著正確的數字**,那是先前那次嘗試所沒有的。
+        //
+        // 它執行了、帶著正確的數字、而且什麼都沒有改變(見上方英文段落中的三行實測輸出)。
+        //
+        // 因此 `gtk_window_set_default_size` 在視窗 realize 之後**真的**只是一個啟動提示,
+        // 正如下方那則註記所述、也正如本檔的 `setSizeLimits` 一直以來所說。那次覆寫是**第二個、
+        // 獨立的**缺陷——修好它並不會讓這個呼叫變得有效。
+        //
         // The correction that used to follow is GONE, deleted 2026-09-04 after
         // it was measured doing nothing. It read:
         //
