@@ -169,3 +169,73 @@ ls -l <scratch>/.build/release.yaml
 
 若它比新檔案還舊,那份計畫**不可能**知道新檔案的存在。搭配重新產生之後的
 `git diff --stat` 一起看。
+
+---
+
+## 3. 加了「改變目標視窗」的動作,卻沒做 identity 那一半
+
+**次數:3 次 / 2 天(2026-09-09、2026-09-10)。三個平台、三種不同的寫法、同一個靜默失敗。**
+
+### 症狀 / What it looks like
+
+`focus` **成功**。重放回報**每一個動作都完成**。其後每一個座標**都算得出一個數字**——只是那個
+數字相對於**重放開始之前**所量測的那個視窗。
+
+沒有任何東西失敗:`focus` 那一列是對的、座標換算是對的、`SendInput`/`xdotool` 也確實把事件送出去了。
+唯一錯的是**參考座標系**,而參考座標系不會出現在任何一行輸出裡。
+
+`focus` succeeds, the replay reports every action completed, and every later
+coordinate still resolves against the window measured before the replay began.
+Nothing errors -- each coordinate is a real number, just relative to the wrong
+window.
+
+### 三次,三種寫法 / Three occurrences, three spellings
+
+| 平台 | 它錯在哪 | 修於 |
+| --- | --- | --- |
+| AppKit | `currentWindowIdentity()` **沒有覆寫**,回傳協定預設 `0` | `a8627210`(Mac 端) |
+| Win32 | **有**覆寫,但以 `ownWindow()`(面積最大)作答——而第二個視窗通常**比較小** | `c4e421fb` |
+| xdotool | **沒有覆寫** | `14f1dd13` |
+
+**`0` 不是一個中性值。** `Synthesiser.replay` 把 `0` 讀作「無法判斷」,也就是「沒有改變」——所以
+一個沒有覆寫的 synthesiser,在焦點確實移動之後,會**主動回報「什麼都沒變」**。
+
+**Win32 那一次特別值得記**,因為它**有**覆寫,看起來已經處理過了。它以「面積最大」作答,而那條規則
+對「一個視窗加上 toolkit 的輔助視窗」是對的,對「`focus` 所要創造的情況」是錯的——設定視窗比主視窗
+小,於是 identity 持續回報主視窗。**一個存在的覆寫,不是它答對了的證據。**
+
+### 為什麼「更仔細」擋不住它 / Why care does not help
+
+這件事有**兩半**,而只有一半看得見:
+
+1. **把視窗抬到前面**——看得見,做了就知道有沒有效
+2. **讓 `currentWindowIdentity()` 察覺到它**——**看不見**,而且它「沒做」與「做了但答錯」產生
+   完全相同的畫面
+
+第 1 半做完的那一刻,螢幕上的東西看起來就是對的。第 2 半沒有任何觸發它的理由——不會編譯失敗、
+不會執行失敗、不會有測試變紅。三次裡有兩次,是在**別的**東西壞掉時才連帶被發現的。
+
+### 矯正措施 / The corrective
+
+**新增任何「改變目標」的動作時,把 `currentWindowIdentity()` 當成必答題,不是選答題。**
+在宣布該動作完成之前,對**每一個** Synthesiser 檔案 grep 該覆寫:
+
+```sh
+grep -c currentWindowIdentity Sources/InputEvent/*Synthesiser.swift
+```
+
+**回傳 0 的那一個就是下一次的受害者。** 而且不要只看「有沒有覆寫」——還要看它**答的是哪個視窗**,
+是否與 `currentWindowGeometry()` 會量測的那一個一致。兩者不一致時,identity 變了而幾何沒變,
+比兩者都不動更糟。
+
+Treat `currentWindowIdentity()` as a required second half whenever an action
+retargets anything. Grep every Synthesiser for the override before calling the
+action done -- and check WHICH window it answers with, not merely that it exists.
+
+### 守衛 / The guard
+
+```sh
+grep -c currentWindowIdentity Sources/InputEvent/*Synthesiser.swift
+```
+
+三個檔案都必須 > 0。這條在 2026-09-10 之前會回報 AppKit=1、Win32=1、Xdotool=**0**。
