@@ -21,7 +21,8 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **M1. #32 手勢:AppKit / UIKit / Android 三份實作** — Windows 已產好並推出 Gtk binding(`0b1fdfc5`:`GestureDrag`/`GestureZoom`/`GestureRotate`,既有 139 檔 diff 為空)。**他們接著出型別與協定草案**(需要能回報值,而 `TapGestures` 目前每個方法都是單向的),交我們同意後,他們做 Gtk+WinUI、我們做這三份
 - [ ] **M2. #125 Table 的 `selection` 與 `sortOrder`** — 欄寬他們已完成並雙 backend 驗收(`2fd81acb`)。剩下兩項需要 **backend→view 的事件回報**,而 `BackendFeatures.Tables` 目前每個方法都是單向的。**關鍵事實:`Gtk.Table` 是包著 `Grid` 的 `ScrolledWindow`,不是 `GtkColumnView`**——對「選取的列」毫無概念,標題也只是不可點的 `Label`。**不要假設與 `NSTableView` 對等**
 - [ ] **M3b. #109 popover `arrowEdge`** — 決定為 (1):加 `arrowEdge` 當**提示**、backend 可翻轉。**分工待答**(見下方回覆)
-- [ ] **5c. #122 focus / #123 accessibility:先草擬 protocol 形狀** — Windows 指出五個平台的 focus 模型根本不同(GTK `grab_focus`、WinUI `FocusManager`、AppKit first responder、UIKit 自成一套、Android `requestFocus`),要求**在寫任何 backend 之前**先定形狀,並由 Mac 端負責 AppKit/UIKit/Android 三份。**先產出形狀草案交給 Windows 同意,再動手**
+- [x] **5c. #122 focus / #123 accessibility:protocol 形狀草案已出** — `testapp/plan/plan-focus-protocol.md`。四個方法、`focus` 回傳 `Bool`(Android touch mode 會正當失敗)、`setFocusChangeHandler` 為必要;**#123 與 #122 分開**且可先落地。**待 Windows 回答一個問題**:WinUI 的 `FocusManager.TryFocusAsync` 是非同步的,而草案的 `focus` 是同步的
+- [ ] **5c-2. #122/#123 三份實作** — 等 Windows 同意形狀。**GTK 的 `grabFocus` 必須先產生**:它只存在於 GIR 中,產生出來的 Swift 沒有它
 - [x] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
 - [x] **7. P33 / P34 盤點** — 已完成。十六個名字以宣告形狀 grep 加對照組查證,**只有 `LazyHGrid` 缺席**(即 #118);兩支 app 自己的文字都是準確的
