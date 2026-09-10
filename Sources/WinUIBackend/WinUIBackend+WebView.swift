@@ -1,5 +1,6 @@
 import Foundation
 @_spi(Backends) import SwiftCrossUI
+import WinSDK
 import WinUI
 import WindowsFoundation
 
@@ -136,6 +137,96 @@ final class WebViewWidget: WinUI.WebView2 {
     /// **一個強參照的代價不過是一個屬性。**
     @MainActor
     private func beginEnsureCore() {
+        // ============================================================
+        // THE CAUSE, CONFIRMED 2026-09-10: this thread is MTA, and WebView2
+        // needs STA.
+        //
+        // The line below prints `0x80010106` -- `RPC_E_CHANGED_MODE`. That
+        // return means the thread is ALREADY in a different apartment and the
+        // request to make it single-threaded was refused. It is not an
+        // inference; it is COM saying which apartment it is in.
+        //
+        // WHY: `SwiftApplication.main()` in swift-winui wraps the whole app in
+        // `WindowsAppRuntimeInitializer(threadingModel: .multi)`. So the UI
+        // thread is MTA by construction, in a dependency, before any of this
+        // runs.
+        //
+        // WHY THAT BREAKS EXACTLY THIS AND NOTHING ELSE: `EnsureCoreWebView2Async`
+        // finishes by posting a completion back to the caller's apartment. An
+        // STA has a message queue to post into; an MTA does not. So the
+        // operation is never reported as finished -- and every symptom follows
+        // from that one fact:
+        //
+        //   no error          nobody failed, nobody was told
+        //   no completion     there is no queue to deliver it on
+        //   browser starts    that is the loader, which is apartment-agnostic
+        //   no profile        that is written after the handshake completes
+        //
+        // XAML itself is fine in MTA because it has its own `DispatcherQueue`.
+        // WebView2 goes through COM's route, not XAML's, which is why every
+        // other control in this backend works.
+        //
+        // THE FIX IS UPSTREAM and is one word: `.multi` -> `.single` in
+        // swift-winui. It was tried here on 2026-09-10 by editing the checkout,
+        // and the experiment did NOT run -- SwiftPM never recompiled the module
+        // (`Compiling WinUI` zero hits; the object file was a day OLDER than the
+        // edited source). The checkout was restored. So the fix is identified
+        // and NOT yet verified, and this comment says which of those two it is.
+        //
+        // ============================================================
+        // **成因,2026-09-10 已確認:這條執行緒是 MTA,而 WebView2 需要 STA。**
+        //
+        // 下方那一行印出 `0x80010106`——`RPC_E_CHANGED_MODE`。該回傳值的意思是:這條執行緒
+        // **已經**處於另一種 apartment,而「把它改成單執行緒」的請求被拒絕了。**這不是推論,
+        // 而是 COM 自己說出它在哪一種 apartment。**
+        //
+        // **為什麼**:swift-winui 的 `SwiftApplication.main()` 用
+        // `WindowsAppRuntimeInitializer(threadingModel: .multi)` 包住了整個 app。因此 UI 執行緒
+        // 從構造上就是 MTA——發生在一個相依套件裡,而且早於此處的一切。
+        //
+        // **為什麼那恰好只弄壞這一項**:`EnsureCoreWebView2Async` 的最後一步,是把「完成」
+        // **回投到呼叫端的 apartment**。STA 有訊息佇列可供投遞,MTA **沒有**。於是那個操作永遠
+        // 不會被回報為完成——而此處每一個症狀都由這一件事推導而出:沒有錯誤(沒有人失敗,
+        // 只是沒有人被通知)、沒有完成(沒有佇列可送達)、瀏覽器起得來(那是 loader,與
+        // apartment 無關)、沒有 profile(那要等交握完成之後才寫)。
+        //
+        // XAML 本身在 MTA 下沒問題,因為它有自己的 `DispatcherQueue`。**WebView2 走的是 COM
+        // 那條路,不是 XAML 那條**,這正是本 backend 中其他每一個控制項都能運作的原因。
+        //
+        // **修法在上游,而且只有一個字**:swift-winui 裡的 `.multi` → `.single`。2026-09-10
+        // 曾以修改 checkout 的方式在此嘗試,而**那次實驗並未執行**——SwiftPM 從未重新編譯該模組
+        // (`Compiling WinUI` 零命中;目的檔比被編輯的原始檔還**舊**一天)。該 checkout 已還原。
+        // 因此:**修法已確認、尚未驗證**,而本註解明說它是這兩者中的哪一個。
+        // `CoInitializeEx` asking for STA rather than `CoGetApartmentType`,
+        // because it needs no COM enum types in scope and gives a sharper
+        // answer:
+        //
+        //   RPC_E_CHANGED_MODE (0x80010106) -- the thread is ALREADY MTA, and
+        //                                      the request to make it STA was
+        //                                      refused. That is the hypothesis.
+        //   S_FALSE (0x1)                   -- already STA. Hypothesis dead.
+        //   S_OK (0x0)                      -- was not initialised at all.
+        //
+        // Balanced with `CoUninitialize` only when it actually initialised,
+        // because an unbalanced uninit tears down someone else's apartment.
+        //
+        // 此處用「向 `CoInitializeEx` 要求 STA」而非 `CoGetApartmentType`,因為它不需要任何 COM
+        // 列舉型別在 scope 中,而且給出的答案更銳利:
+        //   RPC_E_CHANGED_MODE(0x80010106)——這條執行緒**已經是 MTA**,而「把它變成 STA」的
+        //                                    請求被拒絕。**那正是本假設。**
+        //   S_FALSE(0x1)——已經是 STA。假設當場死亡。
+        //   S_OK(0x0)——原本根本沒有初始化過。
+        //
+        // 只有在它**確實初始化了**時才以 `CoUninitialize` 配對,因為不成對的 uninit 會拆掉
+        // 別人的 apartment。
+        let staProbe = CoInitializeEx(nil, DWORD(COINIT_APARTMENTTHREADED.rawValue))
+        logger.info(
+            "WebView2: CoInitializeEx(STA) returned \(String(format: "0x%08x", UInt32(bitPattern: staProbe)))"
+        )
+        if staProbe == S_OK || staProbe == S_FALSE {
+            CoUninitialize()
+        }
+
         guard let promise = try? ensureCoreWebView2Async() else {
             logger.warning("WebView2: EnsureCoreWebView2Async threw immediately")
             return

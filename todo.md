@@ -634,6 +634,45 @@ gave -38,-59 at one and 154,-6 at the other.
   `Default/`, no `Local State` — so the profile is never created. That is
   downstream of process start and upstream of `CoreWebView2` existing.
 
+  **CAUSE FOUND, same day: the UI thread is MTA and WebView2 needs STA.**
+  `CoInitializeEx(nil, COINIT_APARTMENTTHREADED)` on that thread returns
+  `0x80010106` — `RPC_E_CHANGED_MODE`, meaning it is already in another
+  apartment and the request was refused. Not an inference: COM saying which
+  apartment it is in.
+
+  Why: `SwiftApplication.main()` in **swift-winui** wraps the entire app in
+  `WindowsAppRuntimeInitializer(threadingModel: .multi)`. The UI thread is MTA
+  by construction, in a dependency, before any SwiftCrossUI code runs.
+
+  Why it breaks this and nothing else: `EnsureCoreWebView2Async` finishes by
+  posting a completion back to the caller's apartment. An STA has a message
+  queue to post into; an MTA does not. Every symptom follows from that:
+
+  | Symptom | Explained by MTA |
+  | --- | --- |
+  | No error anywhere | Nobody failed — nobody was told |
+  | Completion never fires | There is no queue to deliver it on |
+  | `msedgewebview2.exe` starts, reaches 96 MB | That is the loader, which is apartment-agnostic |
+  | `EBWebView/` never gets a profile | Written after the handshake completes |
+  | Every other WinUI control works | XAML has its own `DispatcherQueue`; WebView2 goes through COM |
+
+  **The fix is upstream and is one word: `.multi` → `.single`.** Tried here on
+  2026-09-10 by editing the checkout, and **the experiment did not run** —
+  SwiftPM never recompiled the module (`Compiling WinUI` zero hits, and the
+  object file was a day OLDER than the edited source; `compile.zsh` builds in
+  `.compile-work-*`, not the `.build` that was cleared). Checkout restored.
+  So: **cause confirmed, fix identified, fix not yet verified.**
+
+  **成因已找到,同一天:UI 執行緒是 MTA,而 WebView2 需要 STA。** 在該執行緒上呼叫
+  `CoInitializeEx(nil, COINIT_APARTMENTTHREADED)` 回傳 `0x80010106`——`RPC_E_CHANGED_MODE`,
+  意思是它**已經**處於另一種 apartment,該請求被拒絕。**這不是推論,是 COM 自己說的。**
+  成因在 **swift-winui**:`SwiftApplication.main()` 以
+  `WindowsAppRuntimeInitializer(threadingModel: .multi)` 包住整個 app。
+  `EnsureCoreWebView2Async` 的最後一步是把「完成」**回投到呼叫端的 apartment**,而 STA 有訊息
+  佇列、MTA 沒有——上表每一個症狀都由此推導而出。**修法在上游,只有一個字:`.multi` → `.single`;
+  曾嘗試但那次實驗並未真正執行**(SwiftPM 沒重編該模組,目的檔比原始檔還舊一天),
+  checkout 已還原。**成因已確認、修法已指認、修法尚未驗證。**
+
   **The +2 s / +6 s figure above is the lesson.** Two samples inside six seconds
   cannot separate "never completes" from "slow cold start", and for two weeks
   this paragraph read as though they had. Forty samples can, and do.
