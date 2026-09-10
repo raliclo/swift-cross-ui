@@ -364,6 +364,37 @@ public struct Slider<Label: View>: View {
     /// 版面——那正是 ``Picker`` 的標籤所記載、並以相同方式避開的陷阱。
     private var hasLabel: Bool
 
+    /// Returns a copy that reports when the user starts and stops dragging.
+    ///
+    /// **On the public `Slider`, not on the internal `SliderControl`, and the
+    /// difference is a compile error away.** `SliderControl` is what talks to
+    /// the backend, but every call site builds a `Slider<Label>` -- so a
+    /// modifier declared only on the control reads correctly in the source and
+    /// then fails at the first use with *"value of type 'Slider<EmptyView>' has
+    /// no member 'onEditingChanged'"*. Measured 2026-09-10 while writing P61.
+    ///
+    /// It must also come before any modifier that erases the type: this is
+    /// declared on `Slider`, so `.frame(width:).onEditingChanged { }` does not
+    /// compile either. Both errors are loud, which is why the ergonomics are
+    /// acceptable, and both are the first things to get wrong.
+    ///
+    /// 回傳一個「會回報使用者何時開始與停止拖曳」的副本。
+    ///
+    /// **掛在公開的 `Slider` 上，而不是內部的 `SliderControl` 上，而這個差別離一個編譯錯誤只有一步。**
+    /// 與 backend 對話的是 `SliderControl`，但每一個呼叫點建構的都是 `Slider<Label>`——因此一個只宣告在
+    /// 該 control 上的 modifier，在原始碼裡讀起來完全正確，卻會在第一次被使用時失敗，訊息是
+    /// *「value of type 'Slider<EmptyView>' has no member 'onEditingChanged'」*。2026-09-10 寫 P61
+    /// 時量到。
+    ///
+    /// 它同樣必須排在任何會抹除型別的 modifier 之前：它宣告在 `Slider` 上，因此
+    /// `.frame(width:).onEditingChanged { }` 也編不過。兩個錯誤都很大聲，這正是這種人體工學可被接受的
+    /// 原因；而兩者都是最先會被弄錯的地方。
+    public func onEditingChanged(_ handler: @escaping (Bool) -> Void) -> Self {
+        var copy = self
+        copy.control = control.onEditingChanged(handler)
+        return copy
+    }
+
     public var body: some View {
         Group {
             if hasLabel {

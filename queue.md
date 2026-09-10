@@ -17,8 +17,12 @@ an empty queue -- mistakes.md entry 1.
 - [x] **3. P32:Toggle 沒有可見的開啟狀態** — 已修。`onStateBezelColor` 來自 `environment.toggleColor`,app 沒設就是 nil,於是「開」什麼都不畫;改為退回 `.controlAccentColor`
 - [x] **4. P44:vertical stack 空間耗盡** — 已修:那是誤報。`offered 643 / took 643` 相等,什麼都沒不夠;是 `Spacer` 在沒有餘裕時正確地拿到 0。回報條件補上「確實溢出」,與它自己的訊息一致
 - [ ] **5. P28:點擊延遲** — 合成點擊上**不重現**:click→body 0–2 ms、click→像素 **69 ms**(52 ms 取樣)。兩邊時鐘以 uptime 對齊。未量到的兩條:真實滑鼠事件、啟動後的第一次點擊。順帶:**一次點擊讓 body 跑五次**
-- [ ] **5b. #126 `onEditingChanged`(Mac 端承接)** — 全樹 `grep` 零命中,從頭寫。Windows 已註明**不需要新的 Gtk binding**,`GestureClick` 就夠。五個 backend 都要寫;此處建得了 AppKit / UIKit / Android,GTK 與 WinUI 的**驗證**交給 Windows
+- [x] **5b. #126 `onEditingChanged`** — 已完成。五個 backend 全數實作,AppKit/UIKit/Android **實測建置通過**,GTK/WinUI 寫了但未執行(待查假設已在檔內指名)。**P61 是它的測試 app**,自帶對照組
+- [ ] **M1. #32 手勢:AppKit / UIKit / Android 三份實作** — Windows 已產好並推出 Gtk binding(`0b1fdfc5`:`GestureDrag`/`GestureZoom`/`GestureRotate`,既有 139 檔 diff 為空)。**他們接著出型別與協定草案**(需要能回報值,而 `TapGestures` 目前每個方法都是單向的),交我們同意後,他們做 Gtk+WinUI、我們做這三份
+- [ ] **M2. #125 Table 的 `selection` 與 `sortOrder`** — 欄寬他們已完成並雙 backend 驗收(`2fd81acb`)。剩下兩項需要 **backend→view 的事件回報**,而 `BackendFeatures.Tables` 目前每個方法都是單向的。**關鍵事實:`Gtk.Table` 是包著 `Grid` 的 `ScrolledWindow`,不是 `GtkColumnView`**——對「選取的列」毫無概念,標題也只是不可點的 `Label`。**不要假設與 `NSTableView` 對等**
+- [ ] **M3b. #109 popover `arrowEdge`** — 決定為 (1):加 `arrowEdge` 當**提示**、backend 可翻轉。**分工待答**(見下方回覆)
 - [ ] **5c. #122 focus / #123 accessibility:先草擬 protocol 形狀** — Windows 指出五個平台的 focus 模型根本不同(GTK `grab_focus`、WinUI `FocusManager`、AppKit first responder、UIKit 自成一套、Android `requestFocus`),要求**在寫任何 backend 之前**先定形狀,並由 Mac 端負責 AppKit/UIKit/Android 三份。**先產出形狀草案交給 Windows 同意,再動手**
+- [x] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
 - [ ] **6. P25:多檔選取是設計問題** — 一律支援多檔,還是加 API 控制單/多檔?需要你決定
 - [ ] **7. P33:大量功能缺失** — 先盤點才知道規模
 - [ ] **8. P34 macOS:多數 API 缺失** — 先盤點

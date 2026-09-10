@@ -1,0 +1,38 @@
+action,x,y,origin,button,key,micros,note,platform,target
+# P61: drag the slider, then move it from code, and compare the counts.
+#
+# **Both halves in one file, because either alone is consistent with a defect.**
+# A drag that reports one begin and one end proves nothing on its own: a backend
+# firing onEditingChanged from its VALUE handler would report a begin for every
+# value, so the count would be large -- but a backend that fires once per press
+# and once per release looks identical to one that fires on any value change
+# with only one value. The code button is what separates them: it changes the
+# value with nobody editing, and both counts must stay put.
+#
+# The drag is mousedown, three moves, mouseup rather than a click, because a
+# click produces one press and one release with no intermediate values -- and
+# "one edit however many values" is half of what is being asserted.
+#
+# P61：拖曳這個滑桿，然後從程式移動它，再比較兩個計數。
+#
+# **兩半放在同一個檔案裡，因為單獨任一半都與某個缺陷相容。** 一次「回報一次開始、一次結束」的拖曳
+# 本身什麼都證明不了：一個「從**數值** handler 觸發 onEditingChanged」的 backend 會為每一個數值回報
+# 一次開始，於是計數會很大——但一個「每次按下一次、每次放開一次」的 backend，與一個「任何數值變動
+# 就觸發、而恰好只有一個數值」的 backend 看起來完全相同。把兩者分開的是那顆程式按鈕：它在沒有人編輯
+# 的情況下改變數值，而兩個計數都必須不動。
+#
+# 此處的拖曳採「按下、移動三次、放開」而非一次點擊，因為一次點擊只產生一次按下與一次放開、中間沒有
+# 任何數值——而「無論多少數值都只算一次編輯」正是要斷言的另一半。
+sleep,,,,,,1200000,let P61 lay out,macos,
+mousedown,60,232,frame,left,,,press on the slider track,macos,
+sleep,,,,,,200000,,macos,
+move,120,232,frame,,,,drag,macos,
+sleep,,,,,,150000,,macos,
+move,200,232,frame,,,,drag further,macos,
+sleep,,,,,,150000,,macos,
+move,280,232,frame,,,,and further,macos,
+sleep,,,,,,150000,,macos,
+mouseup,280,232,frame,left,,,let go -- one begin and one end so far,macos,
+sleep,,,,,,600000,,macos,
+click,104,261,frame,left,,,"move it from code -- the counts must NOT change",macos,
+sleep,,,,,,800000,,macos,
