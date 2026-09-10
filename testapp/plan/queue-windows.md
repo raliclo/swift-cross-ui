@@ -30,18 +30,34 @@ machine, or says plainly that it is a decision rather than a task. Read section
 
 ## 1. 要你決定的(不是要你寫程式)
 
-### 1a. #127 `GeometryProxy.frame(in: .global)` 走哪一條路
+### ~~1a. #127 走哪一條路~~ — **已答、已實作,只剩你們編一次**
 
-需要「回報一個 widget 在視窗中的位置」。三條路的完整代價在
-`testapp/plan/plan-120-grid-and-geometry.md`,摘要:
+你們的答覆(`gtk_widget_translate_coordinates` 在已安裝標頭裡、`transformToVisual` 同步且 throws)
+定案了路線 (b)。`BackendFeatures.WidgetGeometry.originInWindow(ofWidget:)` 已落地,五個 backend 都寫了。
 
-- (a) 改 `LayoutableChild.commit` 的簽章 → **46 個呼叫點**,數個在 `Views/Modifiers/Layout/`(你的 #128 區)
-- (b) **加一個 backend requirement**(Mac 端建議這條)
-- (c) 通用的「請重新版面」+ 逐輪修正 → 有迴圈風險
+**要你們做的只有兩件事**:
 
-**若走 (b),GTK 那一格幾乎是現成的**:`gtk_widget_compute_point` 自 GTK 4.0 就在,而且本樹
-**已經在用**——`Sources/Gtk/Widgets/ScrolledWindow.swift:131`。要問的只剩 WinUI:
-`TransformToVisual(...).TransformPoint(...)` 是同步的嗎?
+| 檔案 | 唯一要查的東西 |
+| --- | --- |
+| `Sources/GtkBackend/GtkBackend+WidgetGeometry.swift` | `graphene_point_t` 在此處是否一如 `Sources/Gtk/Widgets/ScrolledWindow.swift` 那樣經由 `CGtk` 可見。**其餘每一個呼叫該檔都已經在做** |
+| `Sources/WinUIBackend/WinUIBackend+WidgetGeometry.swift` | `widget.xamlRoot?.content` 是不是這個 backend 取視窗內容的正確寫法(形狀對、名字未必) |
+
+GTK 那份刻意**不用** `gtk_widget_get_root`——它回傳 `GtkRoot*`(介面),而把它轉成 `GtkWidget*`
+是這裡唯一沒有人能在 Mac 上查證的一步。改成用 `gtk_widget_get_parent` 一路往上走,兩個函式收發的
+都是 `GtkWidget*`,沒有轉型。
+
+**Android 那份也請順手看一下**(`AndroidBackend+WidgetGeometry.swift`):這台機器的 Android SDK 模組是
+Swift 6.3.3、編譯器是 6.4,因此 `compile.zsh -android` 在抵達該檔之前就失敗了。它**不用**
+`getLocationInWindow`——那個方法綁定為收一個 Java 會寫入的 `[Int32]`,而橋接層會不會把那份複製寫回,
+正是「回傳兩個零而且不報錯」的那種事。改用 `getLeft()`/`getTop()` 沿父節點往上加。
+
+驗收方式:跑 **P63**。Mac 上量到的三個答案(對著像素驗過,不是對著預期):
+
+```
+local: x=0 y=0        global: x=92 y=287        named box: x=24 y=31
+標記方塊量到 x=92..103、上緣在內容座標 y=287   → global 完全相符
+淺藍盒子角落量到 (68, 256) = global − named    → named 完全相符
+```
 
 ### 1b. #122 focus 協定的形狀
 
