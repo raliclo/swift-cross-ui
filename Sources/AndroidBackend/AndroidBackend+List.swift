@@ -93,7 +93,14 @@ extension AndroidBackend {
 
         let dividerHeightPx = listView.as(AndroidKit.ListView.self)!.getDividerHeight()
 
-        return EdgeInsets(bottom: Int(Float(dividerHeightPx) / density))
+        // No longer truncated to an Int: a divider of 3px at density 2.75 is
+        // 1.09 dp, and the old `Int(...)` reported 1, losing 8% of the divider
+        // on every row. `EdgeInsets` is `Double` now, so the fraction survives
+        // to the single rounding at the backend hand-off.
+        // 不再截斷成 Int:密度 2.75 之下,3px 的分隔線是 1.09 dp,而舊的 `Int(...)`
+        // 會回報 1,於是**每一列**都少掉這條分隔線的 8%。`EdgeInsets` 現在是 `Double`,
+        // 因此那個分數會一路存活到「交給 backend 時的那唯一一次取整」。
+        return EdgeInsets(bottom: Double(Float(dividerHeightPx) / density))
     }
 
     public func minimumRowSize(ofSelectableListView listView: Widget) -> SIMD2<Int> {

@@ -198,7 +198,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             if let width = proposedSize.width {
                 proposedWidth = max(
                     Double(minimumRowSize.x),
-                    width - Double(baseRowPadding.axisTotals.x)
+                    width - baseRowPadding.axisTotals.x
                 )
             } else {
                 proposedWidth = nil
@@ -217,12 +217,12 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
 
         let height = childResults.map(\.size.height).map { rowHeight in
             max(
-                rowHeight + Double(verticalBasePadding),
+                rowHeight + verticalBasePadding,
                 Double(minimumRowSize.y)
             )
         }.reduce(0, +)
         let minimumWidth =
-            (childResults.map(\.size.width).max() ?? 0) + Double(horizontalBasePadding)
+            (childResults.map(\.size.width).max() ?? 0) + horizontalBasePadding
         // A backend that scrolls its own list gets a VIEWPORT; one that does
         // not keeps the full content height, which is the behaviour it has.
         //
@@ -275,7 +275,14 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             ofSelectableListView: widget,
             to: children.widgets.map { $0.into() },
             withRowHeights: childResults.map(\.size.height).map { height in
-                LayoutSystem.roundSize(height) + verticalBasePadding
+                // Rounded ONCE, after the padding is added, rather than
+                // rounding the height and then adding. With `EdgeInsets` now
+                // `Double`, the old order would have dropped the fraction of a
+                // fractional base padding on every row.
+                // **加上 padding 之後才取整一次**,而不是先把高度取整再相加。既然
+                // `EdgeInsets` 現在是 `Double`,舊的順序會在**每一列**都丟掉「帶分數的
+                // base padding」的那個分數。
+                LayoutSystem.roundSize(height + verticalBasePadding)
             }
         )
 
