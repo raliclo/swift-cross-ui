@@ -44,6 +44,38 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
     var borderedButtonPadding: SIMD2<Int>?
 
+    /// A text field kept only to measure with, configured exactly like the ones
+    /// ``createTextView`` hands out.
+    ///
+    /// **It exists because `boundingRect` and `NSTextField` disagree, and the
+    /// disagreement is one-directional.** Measured on 2026-09-10, system font 12:
+    /// "Row 99: eager VStack child" is 155.3 pt by `boundingRect` and 159.3 pt by
+    /// the field that draws it -- and the same 4 pt gap appeared on every string
+    /// tried, at every size. Sizing a container from the smaller number cuts the
+    /// last glyph off its widest child, which is exactly what P34's two-digit rows
+    /// showed: rows 0 to 9 ended at x=316 and every row from 10 up stopped dead at
+    /// x=319, mid-"d".
+    ///
+    /// Asking the drawing widget itself is the only version of this that cannot
+    /// drift: whatever the field decides it needs, that is the number.
+    ///
+    /// 一個只為了量測而存在的文字欄位，其設定與 ``createTextView`` 交出去的那些完全相同。
+    ///
+    /// **它之所以存在，是因為 `boundingRect` 與 `NSTextField` 不一致，而且不一致的方向是固定的。**
+    /// 2026-09-10 量測，系統字型 12：「Row 99: eager VStack child」以 `boundingRect` 是 155.3 pt，
+    /// 以真正畫它的那個欄位則是 159.3 pt——而所試過的每一個字串、每一個字級都出現同樣的 4 pt 差。
+    /// 依較小的那個數字決定容器寬度，會把它最寬的子元件的最後一個字形切掉；而那正是 P34 兩位數的列
+    /// 所呈現的樣子：第 0 至 9 列止於 x=316，第 10 列以後每一列都硬生生停在 x=319，切在「d」的中間。
+    ///
+    /// 去問那個負責繪製的 widget 本身，是這件事唯一不會漂移的做法：它說它需要多少，那就是多少。
+    private lazy var textMeasurementField: NSTextField = {
+        let field = NSTextField(wrappingLabelWithString: "")
+        field.allowsEditingTextAttributes = true
+        field.isSelectable = false
+        field.cell?.truncatesLastVisibleLine = true
+        return field
+    }()
+
     public var scrollBarWidth: Int {
         // We assume that all scrollers have their controlSize set to `.regular` by default.
         // The internet seems to indicate that this is true regardless of any system wide
@@ -704,11 +736,41 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             width: proposedWidth.map(Double.init) ?? .greatestFiniteMagnitude,
             height: proposedHeight.map(Double.init) ?? .greatestFiniteMagnitude
         )
-        let rect = NSString(string: text).boundingRect(
-            with: proposedSize,
-            options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-            attributes: Self.attributes(forTextIn: environment)
-        )
+
+        // Ask the kind of widget that will draw this text how much room it needs,
+        // rather than asking the string. `NSTextField` reports 4 pt more than
+        // `NSString.boundingRect` for the same string, font and attributes, and a
+        // container sized from the smaller number clips its widest child.
+        //
+        // Only for `NSTextField`. A `TextEditor` is an `NSTextView` with zero
+        // container inset and no fragment padding, which is a different metric,
+        // and swapping it for one measured here without measuring it there would
+        // be trading a known gap for an unknown one.
+        //
+        // 去問「將要畫出這段文字的那一種 widget」需要多少空間，而不是去問那個字串。對同一個字串、
+        // 字型與屬性，`NSTextField` 回報的數字比 `NSString.boundingRect` 多 4 pt，而依較小者訂寬的
+        // 容器會切掉它最寬的子元件。
+        //
+        // 僅限 `NSTextField`。`TextEditor` 是一個 container inset 為零、fragment padding 為零的
+        // `NSTextView`，那是另一套度量；在沒有於該處量測的情況下就換過去，等於拿一個已知的落差去換
+        // 一個未知的落差。
+        let rect: NSRect
+        if widget is NSTextField {
+            let field = textMeasurementField
+            field.attributedStringValue = Self.attributedString(for: text, in: environment)
+            rect = NSRect(
+                origin: .zero,
+                size: field.cell!.cellSize(
+                    forBounds: NSRect(origin: .zero, size: proposedSize)
+                )
+            )
+        } else {
+            rect = NSString(string: text).boundingRect(
+                with: proposedSize,
+                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                attributes: Self.attributes(forTextIn: environment)
+            )
+        }
 
         var height = rect.size.height
 

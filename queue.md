@@ -36,7 +36,7 @@ an empty queue -- mistakes.md entry 1.
     identical in this list, which is exactly why this one had to go back.
 - [x] **6. P25 多檔** — 已回答並處理。**拖放本來就支援多檔**:`DropPayload.urls` 解析整份 `text/uri-list`,而 P25 已經顯示 `count`,所以 drop 不需要任何開關。真正單檔的是**開啟對話框**,已加上兄弟 action `chooseFiles`(回傳 `[URL]?`);`OpenDialogOptions.allowMultipleSelections` 與 `[URL]` 回傳一直都在,缺的只有公開介面
 - [x] **7. P33 / P34 盤點** — 已完成。十六個名字以宣告形狀 grep 加對照組查證,**只有 `LazyHGrid` 缺席**(即 #118);兩支 app 自己的文字都是準確的
-- [ ] **7b. P34:兩位數的列在右側被切掉** — 盤點時發現。第 0 列止於 x=316,而第 10、18 列都在 x=319 被切斷(容器邊緣)。**容器比它最寬的子元件窄** —— 與 P50 popover 同一族「量到的比畫出來的窄」。`LayoutSystem:239` 交叉軸取的是最大值,所以不是那條規則的錯;尚未定位
+- [x] **7b. P34:兩位數的列在右側被切掉 — 已修** — 成因不在 stack,而在**量測與繪製走不同路徑**:AppKit 以 `NSString.boundingRect` 量,卻以 `NSTextField` 畫,而前者對每一個試過的字串都少報約 4 pt(系統字型 12,「Row 99: eager VStack child」量得 155.3、實需 159.3)。容器依較小者訂寬,於是最寬的子元件被切在字形中間。改為向**負責繪製的那個 widget** 要數字(`cell.cellSize(forBounds:)`),換行與高度已驗證一致且冪等。修前列 10 起全部硬停在 x=319,修後行末隨字寬落在 312–320
 - [x] **9. `DocumentGroup`** — 已完成並驅動 (P62)。`FileDocument`、每份文件一個視窗、`newDocument`/`openDocument` action、`ContentType.plainText`。**未做的部分在 scene 自己的文件裡寫明**:自動儲存、版本、未儲存提示、重開上次工作階段
 - [ ] **10. Q12:#28 動畫 / #32 手勢**
 - [ ] **11. #117 phase 3(依需求建列)** — 症狀已修,剩記憶體 400 列 114 MB vs 10,000 列 423 MB
