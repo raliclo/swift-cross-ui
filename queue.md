@@ -23,7 +23,17 @@ an empty queue -- mistakes.md entry 1.
 - [ ] **M3b. #109 popover `arrowEdge`** — 決定為 (1):加 `arrowEdge` 當**提示**、backend 可翻轉。**分工待答**(見下方回覆)
 - [x] **5c. #122 focus / #123 accessibility:protocol 形狀草案已出** — `testapp/plan/plan-focus-protocol.md`。四個方法、`focus` 回傳 `Bool`(Android touch mode 會正當失敗)、`setFocusChangeHandler` 為必要;**#123 與 #122 分開**且可先落地。**待 Windows 回答一個問題**:WinUI 的 `FocusManager.TryFocusAsync` 是非同步的,而草案的 `focus` 是同步的
 - [ ] **5c-2. #122/#123 三份實作** — 等 Windows 同意形狀。**GTK 的 `grabFocus` 必須先產生**:它只存在於 GIR 中,產生出來的 Swift 沒有它
-- [x] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
+- [ ] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
+  - **2026-09-10 由 [x] 改回 [ ]:那個勾勾標記的是「決定做完了」,不是「39px 沒了」。**
+    今天跑 P61 於 Win-gtk4 仍讀到 `content size settled (+1500ms): requested 620x420
+    allocated 620x381 shortfall 0x39`。2026-09-04 的三個 commit(`283dab23`、`ae40f23d`、
+    `aca6e259`)**移除**了那個從未生效的修正,而非落地一個修法;唯一會補償的
+    `titlebarAllowance`(`GtkBackend.swift:1282-1287`)在沒有 `SCUI_DEBUG_DECORATION=3` 時
+    是 `0`。一個代表「已決定」的勾,與一個代表「已修好」的勾,在這份清單上長得一模一樣——
+    這正是它要改回去的理由。
+  - Changed from [x] back to [ ] on 2026-09-10: the tick marked a DECISION taken,
+    not the 39px gone. A tick meaning "decided" and a tick meaning "fixed" look
+    identical in this list, which is exactly why this one had to go back.
 - [x] **6. P25 多檔** — 已回答並處理。**拖放本來就支援多檔**:`DropPayload.urls` 解析整份 `text/uri-list`,而 P25 已經顯示 `count`,所以 drop 不需要任何開關。真正單檔的是**開啟對話框**,已加上兄弟 action `chooseFiles`(回傳 `[URL]?`);`OpenDialogOptions.allowMultipleSelections` 與 `[URL]` 回傳一直都在,缺的只有公開介面
 - [x] **7. P33 / P34 盤點** — 已完成。十六個名字以宣告形狀 grep 加對照組查證,**只有 `LazyHGrid` 缺席**(即 #118);兩支 app 自己的文字都是準確的
 - [ ] **7b. P34:兩位數的列在右側被切掉** — 盤點時發現。第 0 列止於 x=316,而第 10、18 列都在 x=319 被切斷(容器邊緣)。**容器比它最寬的子元件窄** —— 與 P50 popover 同一族「量到的比畫出來的窄」。`LayoutSystem:239` 交叉軸取的是最大值,所以不是那條規則的錯;尚未定位

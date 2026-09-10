@@ -278,9 +278,49 @@ The hardware plumbing is otherwise intact: `/dev/dxg` exists, `libdxcore.so`
 and `libd3d12core.so` are in the loader cache via `/etc/ld.so.conf.d/ld.wsl.conf`,
 and `d3d12_dri.so` is installed. `/dev/dri` does not exist.
 
-**Everything reachable without installing anything was tried and none of it
+~~**Everything reachable without installing anything was tried and none of it
 helped**: `GALLIUM_DRIVER=d3d12`, `MESA_LOADER_DRIVER_OVERRIDE=d3d12`, and an
-explicit `LD_LIBRARY_PATH=/usr/lib/wsl/lib`. All still ended at llvmpipe.
+explicit `LD_LIBRARY_PATH=/usr/lib/wsl/lib`. All still ended at llvmpipe.~~
+
+> **OVERTAKEN THE NEXT DAY. Re-checked 2026-09-10; struck through, not deleted.**
+>
+> `GALLIUM_DRIVER=d3d12` is now the DEFAULT for the WSL runs and it reaches the
+> GPU. `af38e0e8` (2026-08-30) added renderer modes; `testapp/test.zsh:76` makes
+> `hw` the default and `:101` resolves it to
+> `GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA`. This is not
+> assumed — `test_support/test_common.zsh:900-919` (`wsl_renderer_preflight`)
+> **aborts the run** unless the Wayland EGL renderer string begins with
+> `D3D12 `, and `matrix_coverage/results.csv2` now carries **47 rows with
+> `renderer=hw` and zero preflight refusals**. GSK picks `GskGLRenderer`.
+>
+> So this section's *title* is now half wrong. What survives is narrower and
+> still true: hardware **Vulkan** is absent (no `dzn` ICD, as point 1 says), and
+> llvmpipe/lavapipe appear only when someone explicitly asks for `-render sw`.
+> What is refuted is "no GL … userspace whatsoever" and "GSK silently draws on
+> the CPU" — GL reaches the GPU through D3D12.
+>
+> **The black frames are a separate problem and this section is not evidence
+> about them.** `matrix_coverage/README.md:99-100` has hw at 0.0% non-black, but
+> the 2026-09-08 `sw` rows (`results.csv2:691-695`) also came back 0.0%. Both
+> renderers produce black, so the renderer is not the variable.
+>
+> **一天後就被超越。2026-09-10 重新查證;此處劃線而非刪除。**
+>
+> `GALLIUM_DRIVER=d3d12` 現在是 WSL 測試的**預設**,而且它抵達得了 GPU。`af38e0e8`
+> (2026-08-30)加入了 renderer 模式;`testapp/test.zsh:76` 讓 `hw` 成為預設,`:101` 將它
+> 解析為 `GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA`。這不是假設——
+> `test_support/test_common.zsh:900-919`(`wsl_renderer_preflight`)會在 Wayland EGL
+> renderer 字串不是以 `D3D12 ` 開頭時**中止整趟測試**,而 `matrix_coverage/results.csv2`
+> 現在帶有 **47 列 `renderer=hw`、零次 preflight 拒絕**。GSK 選用的是 `GskGLRenderer`。
+>
+> 因此本節的**標題**如今有一半是錯的。存活下來的部分更窄,而且仍然為真:硬體 **Vulkan** 確實
+> 缺席(沒有 `dzn` ICD,如第 1 點所述),而 llvmpipe／lavapipe 只在有人明確要求 `-render sw`
+> 時才出現。被推翻的是「完全沒有 GL……userspace」與「GSK 靜默地在 CPU 上繪製」——GL 經由
+> D3D12 抵達了 GPU。
+>
+> **黑畫面是另一個問題,而本節不構成關於它的證據。** `matrix_coverage/README.md:99-100`
+> 顯示 hw 的非黑比例是 0.0%,但 2026-09-08 的 `sw` 各列(`results.csv2:691-695`)同樣回報
+> 0.0%。**兩種 renderer 都產出黑畫面,所以 renderer 不是那個變因。**
 
 **What this invalidates.** UI tests stay valid — the pixels are correct, they
 were simply drawn by the CPU. Anything measuring GPU presentation, frame time

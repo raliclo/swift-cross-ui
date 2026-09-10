@@ -612,13 +612,40 @@ gave -38,-59 at one and 154,-6 at the other.
   `_ = try? ensureCoreWebView2Async()` cannot fail visibly, which is how a
   never-starting browser looked exactly like an empty rectangle.
 
-  **Still open: the async action never completes.** Measured with the element in
-  the tree, visible, and correctly arranged at 760x420: `coreWebView2` stays nil
-  at +2 s and +6 s, and the completion handler never fires with any status —
-  neither success nor failure. It hangs rather than fails. `WebView2` got far
-  enough to create `P38.exe.WebView2/EBWebView/EBWebViewMetrics` next to the
-  binary, 24 KB and no browser profile, so initialisation begins and stalls.
-  The Edge WebView2 runtime is installed (151.0.4129.107).
+  **Still open: the async action never completes.** ~~Measured … at +2 s and
+  +6 s~~ — **that window was too short to prove anything, and is superseded
+  below.** `coreWebView2` stays nil, the completion handler never fires with any
+  status, and `WebView2` got far enough to create
+  `P38.exe.WebView2/EBWebView/EBWebViewMetrics` next to the binary with no
+  browser profile, so initialisation begins and stalls.
+
+  **RE-MEASURED 2026-09-10, and three of the four candidate causes are now
+  refuted.** Still open, but the search space is much smaller:
+
+  | Hypothesis | Verdict | Evidence |
+  | --- | --- | --- |
+  | The element is not `Loaded` when `EnsureCoreWebView2Async` is called | **TRUE, fixed** | `isLoaded` logged **false** from `updateWebView`. Being in the visual tree is not being loaded. Necessary but NOT sufficient — the frame is still empty with the wait in place |
+  | The `IAsyncAction` is released before it completes | Plausible, **fixed** | It was a local. Now held in `corePromise`. Did not change the outcome either |
+  | It completed and `promise.completed` never registered the handler | **REFUTED** | A `Task` polled `coreWebView2` directly, bypassing the handler: nil at **every one of 40** one-second samples, from a deleted user-data folder |
+  | The WebView2 Runtime is missing | **REFUTED** | Registry reports **152.0.4191.66**; three versions installed. `msedgewebview2.exe` **does** start and one process reaches **96 MB** — the browser runs |
+
+  **Where that leaves it.** Host and browser process both start and never
+  complete their handshake. `EBWebView/` holds only `EBWebViewMetrics` — no
+  `Default/`, no `Local State` — so the profile is never created. That is
+  downstream of process start and upstream of `CoreWebView2` existing.
+
+  **The +2 s / +6 s figure above is the lesson.** Two samples inside six seconds
+  cannot separate "never completes" from "slow cold start", and for two weeks
+  this paragraph read as though they had. Forty samples can, and do.
+
+  **2026-09-10 重新量測,四個候選成因中已有三個被推翻。** 問題仍未解決,但搜尋空間小了很多:
+  「元素尚未 `Loaded`」**為真、已修**(`isLoaded` 記錄為 false;**在視覺樹中不等於已載入**——
+  必要但不充分);「`IAsyncAction` 提前被釋放」已修、同樣未改變結果;「它完成了、只是 handler
+  沒註冊上」**已推翻**(直接輪詢 `coreWebView2`、繞過 handler,40 次取樣**全部**為 nil);
+  「Runtime 沒裝」**已推翻**(152.0.4191.66,且 `msedgewebview2.exe` 確實啟動,其中一個行程
+  達到 96 MB)。**現況**:host 與瀏覽器行程都啟動,卻從未完成交握;profile 從未建立。
+  **而上面那個「+2 秒 / +6 秒」正是教訓所在**——六秒內取兩個樣本,分不出「永不完成」與
+  「冷啟動很慢」,而這一段卻以那副口吻寫了兩週。四十個樣本分得出來。
 
   **Two measurement traps, both worth keeping:** a WinUI app's `releaseConsole()`
   reopens stdout onto `NUL:` before anything runs, so the first version of the
@@ -706,11 +733,40 @@ gave -38,-59 at one and 154,-6 at the other.
   committed that. `WinUIBackend.swift` now substitutes a default month-view size
   in that case. Verified: the month grid draws.
 
-  **Still open, and only visible now that it draws: the calendar ignores its
+  ~~**Still open, and only visible now that it draws: the calendar ignores its
   binding.** It opens on August 2026 with the 27th selected — today — while the
   bound date is 2025-08-24, which `.automatic`, `.compact` and `.wheel` all show
   correctly in the same window. So the view renders and does not follow the
-  state it was given. Not diagnosed.
+  state it was given. Not diagnosed.~~
+
+  **WRONG, and fixed the same day this was written. Struck through rather than
+  deleted, because the misdiagnosis is the useful part.** The calendar never
+  ignored its binding — `SelectedDates` was set correctly all along. Selecting a
+  date does not SCROLL to it, so the only mark on screen was the calendar's own
+  ring around today, and "shows the wrong date" and "shows today's ring while
+  the bound date is off-screen" look identical. The fix is one line,
+  `2788ba3e` (2026-08-27): `try? calendarView.setDisplayDate(dateTime)` at
+  `WinUIBackend.swift:3710`. Verified the same day —
+  `matrix_coverage/results.csv2:26` reads *".graphical now opens on the bound
+  month with the bound day ringed"*, and it is the last WinUI P41 row in the
+  file. The reverse direction has a live handler too
+  (`WinUIBackend.swift:3586-3605`).
+
+  Re-verified 2026-09-10: this paragraph had said "Still open … Not diagnosed"
+  for two weeks while the commit sat under it.
+
+  ~~**仍未解決，且唯有在它能繪製之後才看得見：該日曆忽略它的綁定值。**~~
+
+  **錯的，而且在寫下這段的**同一天**就修好了。此處劃線而非刪除，因為誤診本身才是有用的部分。**
+  該日曆從未忽略它的綁定值——`SelectedDates` 一直都設定正確。**選取**一個日期並不會**捲動**到
+  該日期，於是螢幕上唯一的標記就只剩日曆自己畫在「今天」的那個圈；而「顯示了錯誤的日期」與
+  「顯示著今天的圈、綁定日期在畫面之外」，看起來完全一樣。修法只有一行，`2788ba3e`
+  （2026-08-27）：`WinUIBackend.swift:3710` 的 `try? calendarView.setDisplayDate(dateTime)`。
+  當天即已驗證——`matrix_coverage/results.csv2:26` 寫著「`.graphical` 現在會開在綁定的月份、
+  且綁定日帶圈」，而那是全檔中**最後**一列 WinUI P41。反方向亦有現行的 handler
+  （`WinUIBackend.swift:3586-3605`）。
+
+  **2026-09-10 重新查證**：這一段寫著「仍未解決……未診斷」達兩週之久，而那個 commit 就躺在它下面。
 
 - **WinUIBackend `.graphical`：已修復，而該修復暴露了第二個缺陷。** 2026-08-27 以 P41 於 WinUI
   發現：`.graphical` 只是一條空白細條，而其餘三種樣式都能繪製。原因正如先前註記的猜測——
@@ -2176,9 +2232,38 @@ out.
 
 ## Needs a decision / 需要決定
 
-- **WebKitGTK as a system dependency.** A real `WebView` on Linux and Windows
+- ~~**WebKitGTK as a system dependency.** A real `WebView` on Linux and Windows
   needs `webkitgtk-6.0` in `Package.swift`, which changes the build requirements
-  for everyone. The placeholder is in place until this is answered.
+  for everyone. The placeholder is in place until this is answered.~~
+
+  **ANSWERED 2026-09-04, in the code rather than here** —
+  `Sources/GtkBackend/GtkBackend+WebView.swift:29-49` carries the decision and
+  the measurements behind it: Ubuntu 26.04 ships `libwebkitgtk-6.0-dev` 2.52.6,
+  and `C:/gtk4` has no webkit at all because **WebKitGTK has no Windows port**.
+  So it cannot be an unconditional dependency; it is a conditional one, and
+  Windows GTK gets WebView2 hosted on the HWND GTK4 already hands out for its
+  surface — the same control `WinUIBackend+WebView.swift` drives today.
+
+  **Still not implemented, and that is a different sentence from "undecided".**
+  `GtkBackend+WebView.swift:105-109` returns the placeholder label, and
+  `Package.swift:420-422` still declares only `pkgConfig: "gtk4"`. The decision
+  exists; the work does not.
+
+  ~~**WebKitGTK 作為系統相依。**~~ **2026-09-04 已回答，而且答案寫在程式碼裡、不在這裡**——
+  `Sources/GtkBackend/GtkBackend+WebView.swift:29-49` 記載了該決定及其背後的量測：
+  Ubuntu 26.04 隨附 `libwebkitgtk-6.0-dev` 2.52.6，而 `C:/gtk4` 裡完全沒有 webkit，
+  因為 **WebKitGTK 沒有 Windows 移植版**。因此它不能是無條件相依，而是**條件式**相依；
+  Windows 的 GTK 則改用 WebView2，寄宿於 GTK4 為其 surface 所交出的那個 HWND 之上——
+  正是 `WinUIBackend+WebView.swift` 今天所驅動的同一個控制項。
+
+  **仍未實作，而那與「未決定」是兩句不同的話。** `GtkBackend+WebView.swift:105-109` 回傳的
+  仍是 placeholder label，`Package.swift:420-422` 也仍然只宣告 `pkgConfig: "gtk4"`。
+  決定存在，工作不存在。
+
+Verified 2026-09-10: this section said "Only one open decision" while that one
+decision had been answered six days earlier, in a file it does not cite.
+**2026-09-10 查證**：本節寫著「只剩一項待決」，而那一項在六天前就已回答，答案在一個它沒有引用的檔案裡。
+
 Only one open decision, then. The AppKit `HitTesting` item that was here has
 already been answered: it was implemented on the Mac side, in
 `AppKitBackend+HitTesting.swift`, with a container subclass and a weak
