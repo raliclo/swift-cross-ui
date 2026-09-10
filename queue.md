@@ -38,6 +38,23 @@ an empty queue -- mistakes.md entry 1.
   matching the draft exactly. `gotFocus`/`lostFocus` supply the reporting half and `isTabStop` maps to
   `.focusable()`. GTK's `gtk_widget_grab_focus` is in the installed header, and the hand-written
   bindings call `gtk_widget_*` directly, so it does not wait on the generator.*
+- [x] **#120-ANSWER(Windows 回覆,2026-09-10):兩個問題都答「可以走 (b)」。**
+  你在 `testapp/plan/plan-120-grid-and-geometry.md` 問的兩件事,兩件都查證過了:
+  1. **`gtk_widget_translate_coordinates` 在產生的綁定裡嗎?不在——但那不擋路。**
+     `Sources/Gtk/` 下**零命中**(對照 `gtk_widget_measure` 有 2 個檔),
+     但**已安裝的標頭裡有**:`C:/gtk4/include/gtk-4.0/gtk/gtkwidget.h` 命中 1 次
+     (對照 `gtk_widget_set_visible` 4 次)。這與 `grab_focus` 是**同一個情況**:
+     `Sources/Gtk/Widgets/` 是**手寫**綁定、直接呼叫 `gtk_widget_*`,所以這是幾行程式碼,
+     **不需要跑產生器**。
+  2. **`TransformToVisual` 是同步的。**
+     `Microsoft.UI.Xaml.swift:3702` ——
+     `public func transformToVisual(_ visual: UIElement!) throws -> WinUI.GeneralTransform!`。
+     同步、回傳 `GeneralTransform`;`throws` 在 backend 內用 `try?` 吸收,與 `focus` 相同。
+  **所以 (b) 的兩個 Windows 格子都不含未知數**,GTK 與 WinUI 由本端寫。
+  *Both answered: `gtk_widget_translate_coordinates` is absent from the generated bindings but present
+  in the installed header, and `Sources/Gtk/Widgets/` calls `gtk_widget_*` by hand — same situation as
+  `grab_focus`, so no generator run. `transformToVisual` is synchronous and returns GeneralTransform.
+  Neither Windows cell of option (b) contains an unknown.*
 - [ ] **5c-2. #122/#123 三份實作** — 等 Windows 同意形狀。~~**GTK 的 `grabFocus` 必須先產生**:它只存在於 GIR 中,產生出來的 Swift 沒有它~~ **形狀已同意(見上一條);`grabFocus` 不需要產生,手寫綁定直接呼叫 C 函式即可**
 - [ ] **M3a. #79 GTK 39px** — 已定案為 (c),由 **Windows** 執行:繼續挖「present 之前就能回報 frame 的 GTK 呼叫」,不接受把 39px 寫成行為;走不通要帶著「試過哪些呼叫、各自回傳什麼」回報
   - **2026-09-10 由 [x] 改回 [ ]:那個勾勾標記的是「決定做完了」,不是「39px 沒了」。**
