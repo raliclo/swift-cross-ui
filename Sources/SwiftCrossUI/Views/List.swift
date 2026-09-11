@@ -491,27 +491,30 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// Least-recently-used first. A plain array because the cap is in the
     /// hundreds: an `O(n)` remove on a 200-entry array is not worth an index.
     ///
-    /// **Evicting here does not return the memory, and that is measured rather
-    /// than assumed.** Scrolling a ten-thousand-row list from the top grew RSS
-    /// from 104 MB to 225 MB -- about 30 KB for every row visited, which is the
-    /// per-row cost, so nothing was being freed. The heap says where it goes:
-    /// `NSKeyValueDependency` went from 1,381 to 25,835 objects, which is AppKit
-    /// holding on to the views, not the framework holding on to the nodes.
+    /// **Evicting here did not return the memory at first, and the reason was
+    /// not this cache.** Scrolling a ten-thousand-row list grew RSS from 104 MB
+    /// to 225 MB -- about 30 KB per row visited, so nothing was being freed --
+    /// and changing this cap made no difference to that number at all. The heap
+    /// said why: live `NSTableRowView` objects went from 30 to 1,745, because
+    /// AppKit's delegate built one per row with no identifier and a table only
+    /// recycles a view it can identify. Fixed there, and scrolling the whole
+    /// list now settles at 134 MB.
     ///
-    /// So the win this cache delivers is the one at REST -- a list that opens on
-    /// ten thousand rows costs what one that opens on four hundred costs -- and
-    /// the remaining work is on the backend side, where a row's view has to be
-    /// released or reused when it scrolls away. That is the next phase, and it
-    /// is written here so nobody has to re-derive it from a memory graph.
+    /// The cap stays, and it is worth knowing what it is actually for: it bounds
+    /// the framework's own nodes, which is a smaller number than the views were.
+    /// The lesson is the one this tree keeps relearning -- the cap was the
+    /// obvious suspect, and testing it (50 against 200, same 143 MB) is what
+    /// pointed at the real one.
     ///
-    /// **此處的逐出並不會把記憶體還回來，而這是量過的、不是假設的。** 把一份一萬列的清單從頂端捲下去，
-    /// RSS 從 104 MB 長到 225 MB——約等於每造訪一列 30 KB，也就是每列的成本，因此什麼都沒有被釋放。
-    /// heap 指出它去了哪裡:`NSKeyValueDependency` 從 1,381 個物件變成 25,835 個——那是 AppKit 抓著
-    /// 那些 view 不放，不是框架抓著那些節點不放。
+    /// **起初這裡的逐出並沒有把記憶體還回來，而原因不在這個快取。** 把一份一萬列的清單捲下去，RSS 從
+    /// 104 MB 長到 225 MB——約等於每造訪一列 30 KB，因此什麼都沒被釋放——而改動這個上限對那個數字
+    /// **毫無影響**。heap 說出了理由:存活的 `NSTableRowView` 物件從 30 個變成 1,745 個，因為 AppKit 的
+    /// delegate 為每一列建一個沒有識別碼的 view，而表格只回收「它認得出來」的 view。已在該處修好，
+    /// 現在把整份清單捲完會停在 134 MB。
     ///
-    /// 因此這個快取所帶來的勝利是**靜止時**的那一個——一份開在一萬列上的清單，成本與開在四百列上的
-    /// 相同——而剩下的工作在 backend 那一側:當某一列捲出視野時，它的 view 必須被釋放或重用。那是下一個
-    /// 階段，而它寫在這裡，好讓沒有人需要再從一張記憶體圖裡把它推導一次。
+    /// 這個上限保留下來，而值得知道它**實際上**是為了什麼:它界住的是框架自己的節點，而那個數目比
+    /// 那些 view 小得多。教訓是這棵樹一再重學的那一個——上限是最顯眼的嫌疑犯，而**去測試它**
+    /// (50 對 200，同樣是 143 MB)才是指出真兇的那一步。
     /// 最久未使用者在前。使用單純的陣列，因為上限只有數百:對一個 200 筆的陣列做 `O(n)` 移除，
     /// 不值得為它多維護一份索引。
     var lazyOrder: [Int] = []

@@ -1973,8 +1973,40 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
         }
     }
 
+    /// The identifier is what makes `NSTableView` RECYCLE these.
+    /// 這個識別碼正是讓 `NSTableView` **回收**它們的東西。
+    static let rowViewIdentifier = NSUserInterfaceItemIdentifier("dev.swiftcrossui.listRow")
+
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        // **Asked for from the reuse queue first, and this is a real leak fix
+        // rather than a tidy-up.**
+        //
+        // This used to be `NSTableRowView()` every time. `NSTableView` only
+        // recycles a view it can identify, so an unidentified one is created
+        // fresh for every row and kept: scrolling a ten-thousand-row list took
+        // `NSTableRowView` from 30 live objects to 1,745, and the process from
+        // 104 MB to 225 MB.
+        //
+        // It was there before rows became lazy, and the eager path hid it --
+        // at 423 MB for the same list, another 120 MB of row views was not
+        // something anyone was going to notice.
+        //
+        // **先向回收佇列索取，而這是修掉一個真正的洩漏，不是整理門面。**
+        //
+        // 此處原本每次都是 `NSTableRowView()`。`NSTableView` 只會回收「它認得出來」的 view，因此一個
+        // 沒有識別碼的 view 會為每一列重新建立、而且被留著:捲動一份一萬列的清單，會讓 `NSTableRowView`
+        // 的存活物件數從 30 變成 1,745，行程從 104 MB 變成 225 MB。
+        //
+        // 它在「列變成延遲建立」之前就存在，而 eager 路徑把它藏住了——同一份清單本來就要 423 MB，
+        // 另外那 120 MB 的 row view 不會有人注意到。
+        if let recycled = tableView.makeView(
+            withIdentifier: Self.rowViewIdentifier,
+            owner: self
+        ) as? NSTableRowView {
+            return recycled
+        }
         let view = NSTableRowView()
+        view.identifier = Self.rowViewIdentifier
         view.wantsLayer = true
         view.layer?.cornerRadius = 5
         return view

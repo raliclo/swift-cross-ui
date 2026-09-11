@@ -77,6 +77,10 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
     var lazyProvider: ((Int) -> (widget: UIKitBackend.Widget, height: Int)?)?
     var estimatedRowHeight = 0
     var knownRowHeights: [Int: Int] = [:]
+
+    /// What makes `UITableView` recycle the cells. See `cellForRowAt`.
+    /// 讓 `UITableView` 回收那些 cell 的東西。見 `cellForRowAt`。
+    static let cellIdentifier = "dev.swiftcrossui.listRow"
     var rowCount = 0
     var allowSelections = false
     var selectionHandler: ((Int) -> Void)?
@@ -94,7 +98,31 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
         _ tableView: UITableView,
         cellForRowAt path: IndexPath
     ) -> UITableViewCell {
-        let cell = UITableViewCell()
+        // **Dequeued, not constructed.** `UITableViewCell()` every time is the
+        // same leak the AppKit half had with `NSTableRowView()`: a table only
+        // recycles a cell it can identify, so an unidentified one is made fresh
+        // for every row and kept. On AppKit that took the live row views from 30
+        // to 1,745 and the process from 104 MB to 225 MB while scrolling.
+        //
+        // The content view is emptied first because a recycled cell still holds
+        // the widget of whichever row used it last, and `addSubview` would stack
+        // them: the row would show two rows' text on top of each other, which is
+        // the failure that looks like a rendering bug rather than a reuse bug.
+        //
+        // **用 dequeue，不要用 construct。** 每次 `UITableViewCell()` 與 AppKit 那一半的
+        // `NSTableRowView()` 是同一個洩漏:表格只回收「它認得出來」的 cell，因此沒有識別碼的 cell 會
+        // 為每一列重新建立並被留著。在 AppKit 上，那讓存活的 row view 從 30 變成 1,745、行程在捲動時
+        // 從 104 MB 變成 225 MB。
+        //
+        // 先清空 content view，因為一個被回收的 cell 仍然持有「上一個用它的那一列」的 widget，而
+        // `addSubview` 會把它們疊起來:那一列會同時顯示兩列的文字——那種失效看起來像算繪缺陷，
+        // 而不像回收缺陷。
+        let cell =
+            tableView.dequeueReusableCell(withIdentifier: Self.cellIdentifier)
+            ?? UITableViewCell(style: .default, reuseIdentifier: Self.cellIdentifier)
+        for subview in cell.contentView.subviews {
+            subview.removeFromSuperview()
+        }
         if let lazyProvider {
             guard let built = lazyProvider(path.row) else { return cell }
             if knownRowHeights[path.row] != built.height {

@@ -245,8 +245,9 @@ struct P57RootView: View {
                     + "執行同一個二進位檔——重要的是形狀,單一樣本不算數。"
             )
             Text(
-                "Measured on AppKit: 10,000 rows was 423 MB before and is 104 MB now, against a "
-                    + "102 MB one-row baseline. Scrolling still grows it; see the commit."
+                "Measured on AppKit: 10,000 rows was 423 MB and is 104 MB, against a 102 MB "
+                    + "one-row baseline. Scrolling the whole list settles at 134 MB rather than "
+                    + "climbing: the row views are recycled now."
             )
 
             List(Array(0..<P57Configuration.rowCount), id: \.self, selection: $selection) {
