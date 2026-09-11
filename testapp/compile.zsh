@@ -1415,6 +1415,60 @@ fi
 
 if [ "$target_platform" = "android" ]; then
     export ANDROID_HOME="$android_sdk_root"
+    # **The host toolchain has to match the Android SDK's Swift version**, and
+    # when it does not the failure is a wall of "module compiled with Swift X
+    # cannot be imported by the Swift Y compiler" pointing at files nobody in
+    # this repository wrote.
+    #
+    # Measured 2026-09-11: the host `swift` was 6.4, the installed SDK was
+    # `swift-6.3.3-RELEASE_android.artifactbundle`, and every Android build had
+    # been failing that way for long enough that five backend files were written
+    # and committed without ever being compiled. Clearing `.build` did not help
+    # and looked like it should -- the first error named a stale
+    # `SwiftSyntax.swiftmodule` in the build directory, which is a symptom.
+    #
+    # A matching toolchain was installed all along, in ~/Library/Developer/
+    # Toolchains. This finds one whose version matches the SDK's and selects it;
+    # if there is none it says so rather than letting the module-format errors
+    # be the message.
+    #
+    # **主機 toolchain 必須與 Android SDK 的 Swift 版本相符**，而當它們不符時，失敗會是一整面
+    # 「module compiled with Swift X cannot be imported by the Swift Y compiler」的牆，指著一些
+    # 本 repository 中沒有人寫過的檔案。
+    #
+    # 2026-09-11 量到:主機的 `swift` 是 6.4，安裝的 SDK 是
+    # `swift-6.3.3-RELEASE_android.artifactbundle`，而每一次 Android 建置都以那種方式失敗——久到
+    # 有五個 backend 檔案被寫出來、提交，卻從未被編譯過。清掉 `.build` 沒有用，而它看起來應該有用:
+    # 第一個錯誤指名的是建置目錄裡一個過期的 `SwiftSyntax.swiftmodule`——那是症狀。
+    #
+    # 而一個相符的 toolchain 一直都裝在 ~/Library/Developer/Toolchains 裡。此處會找出版本與該 SDK
+    # 相符的那一個並選用它;若一個都沒有，它會**說出來**，而不是讓那些 module 格式錯誤去當訊息。
+    if [ -z "${TOOLCHAINS:-}" ]; then
+        android_sdk_swift=$(
+            ls -d "$HOME/Library/org.swift.swiftpm/swift-sdks/"*android.artifactbundle 2>/dev/null                 | head -1 | sed -E 's|.*/swift-([0-9.]+)-.*|\1|'
+        )
+        if [ -n "$android_sdk_swift" ]; then
+            host_swift=$("$swift_bin" --version 2>/dev/null | sed -nE 's/.*Apple Swift version ([0-9.]+).*/\1/p' | head -1)
+            if [ "$host_swift" != "$android_sdk_swift" ]; then
+                for toolchain in "$HOME/Library/Developer/Toolchains/"*.xctoolchain; do
+                    [ -x "$toolchain/usr/bin/swift" ] || continue
+                    toolchain_swift=$("$toolchain/usr/bin/swift" --version 2>/dev/null | sed -nE 's/.*Apple Swift version ([0-9.]+).*/\1/p' | head -1)
+                    if [ "$toolchain_swift" = "$android_sdk_swift" ]; then
+                        export TOOLCHAINS=$(plutil -extract CFBundleIdentifier raw "$toolchain/Info.plist" 2>/dev/null)
+                        echo "==> Android SDK is Swift $android_sdk_swift and the host is $host_swift; using toolchain $TOOLCHAINS"
+                        break
+                    fi
+                done
+                if [ -z "${TOOLCHAINS:-}" ]; then
+                    echo "!! The Android SDK is Swift $android_sdk_swift and this host's swift is $host_swift." >&2
+                    echo "!! No toolchain in ~/Library/Developer/Toolchains matches the SDK, so the build" >&2
+                    echo "!! below will fail with \"module compiled with Swift $android_sdk_swift cannot be imported\"." >&2
+                    echo "!! Install a Swift $android_sdk_swift toolchain, or an Android SDK built for $host_swift." >&2
+                fi
+            fi
+        fi
+    fi
+
     export ANDROID_SDK_ROOT="$android_sdk_root"
     export ANDROID_NDK_HOME="$android_ndk_home"
     export ANDROID_NDK_ROOT="$android_ndk_home"

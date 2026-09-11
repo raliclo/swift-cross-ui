@@ -161,3 +161,72 @@ AppKit 上先前是**空的**:P17、P28、P34 的每一個 `AXButton`,title 與 
 2. **P28 那份「一秒延遲」的回報是在哪台機器上?** macOS 上兩條路徑都量完了:真實滑鼠事件
    click→body 為**冷啟 16.0 ms、預熱後 2.9–9.9 ms**,合成路徑 0–2 ms、到像素 69 ms。沒有一條
    接近一秒。若那份回報來自 Windows,那要重量的是 Windows 那一側。
+
+
+---
+
+# 追加 — 2026-09-11
+
+## A. 要你們轉換的兩個 backend:#117 phase 3(依需求建列)
+
+新增 `BackendFeatures.LazyListRows`(**conformance 檢查**,未 conform 的 backend 行為完全不變)。
+方向是反轉的:不再由框架建好每一列交出一個陣列,而是清單在要顯示第 N 列時回頭向框架要。
+
+已轉換並量過:
+
+| | 10,000 列(靜止) | 捲完整份清單 |
+| --- | --- | --- |
+| AppKit | 423 → **104 MB**(單列基準 102) | 225 MB 且爬升中 → **134 MB 且平** |
+| UIKit | 449 → **170 MB**(500 列同樣 170) | 未量(模擬器無捲動合成) |
+| Android | 已轉換、**編得過**,未在裝置上跑 | — |
+
+**GtkBackend 與 WinUIBackend 尚未轉換。** 兩者原生都有這一側:`GtkListView` 帶 factory、
+`ItemsRepeater`。要實作的只有一個方法:
+
+```swift
+func setLazyRows(
+    ofSelectableListView listView: Widget,
+    count: Int,
+    estimatedRowHeight: Int,
+    provider: @escaping (Int) -> (widget: Widget, height: Int)?
+)
+```
+
+**兩個陷阱,兩個都是量出來的,請在寫之前讀:**
+
+1. **回答高度問題時不可以呼叫 `provider`。** 表格會逐列問高度以算出清單長度;若靠建立該列來回答,
+   第一次版面計算就會把一萬列全部建出來——正是本項所要避免的事。用 `estimatedRowHeight`,
+   並只對「已經建過」的列記住真實高度。
+2. **沒有識別碼的 row view 不會被回收,而那是一個先於本項就存在的洩漏。** AppKit 的
+   `rowViewForRow` 每列都 `NSTableRowView()` 且不設 identifier:捲動時存活的 row view 從 30 變成
+   **1,745**、行程從 104 MB 變成 225 MB。UIKit 是同一形狀的 `UITableViewCell()` 而非 `dequeue`。
+   **eager 路徑把它藏住了**——同一份清單本來就要 423 MB,另外那 120 MB 不會有人注意到。
+   請一併檢查你們那兩個 backend 的等價處。
+
+驗收用 **P57**,它現在自己讀常駐記憶體(Darwin 用 `MACH_TASK_BASIC_INFO`、其餘用 `/proc/self/statm`
+的**第二**個欄位——第一個是虛擬大小,在 64 位元行程上是數十 GB,看起來嚇人而毫無意義)。
+
+## B. Android 現在編得過了,而那不是程式碼問題
+
+先前每一次 `compile.zsh -android` 都以「module compiled with Swift 6.3.3 cannot be imported by the
+Swift 6.4 compiler」失敗,而**第一個錯誤指名的是建置目錄裡一個過期的 `SwiftSyntax.swiftmodule`**
+——那是症狀,不是成因。真正的成因是:主機 `swift` 是 6.4,安裝的 Android SDK 是
+`swift-6.3.3-RELEASE_android.artifactbundle`。**而一個相符的 toolchain 一直都裝在
+`~/Library/Developer/Toolchains` 裡。**
+
+`testapp/compile.zsh` 現在會自己比對兩者版本、選用相符的 toolchain 並印出它選了哪一個;找不到時
+會直接說出原因,而不是讓那面 module 格式錯誤的牆去當訊息。
+
+**代價是五個 Android backend 檔案被寫出來、提交,卻從未被編譯過**(手勢、frame clock、accessibility
+名稱、GraphicsAdapters、延遲列)。現在五個都編過了,而它們檔頭那句「此處未編譯」也一併更正為
+「編得過,但沒有在裝置上跑過」——因為那兩件事不是同一件事。
+
+## C. 自上次清單以來完成的其他項目
+
+| 項目 | 狀態 |
+| --- | --- |
+| #123 accessibility 名稱 | AppKit / UIKit / Android 三份完成並驅動(P67:`plain label` / `padded label` / `two` /(空)) |
+| #74 `-GPU` | 五個 backend 全部實作。AppKit/UIKit 走 Metal,Android 回報一張以 SoC 命名的介面卡(P68) |
+| #28 Animation | `withAnimation` + 四種曲線 + `Color` 插值;P66 量到 0.5 秒補間產出 31 個相異值、29 個相異顏色 |
+| `origin=popover` on AppKit | 完成。要**兩個**修正:事件要投給 popover 自己的視窗,且 `targetWindow()` 不能再回傳 popover(它會取得 key) |
+| P50 popover 版面缺陷 | `updatePopover` 把 content view 的 frame 設成 `.zero`,覆蓋掉 AppKit 的置中,內容被釘在外殼左下角。外殼 314x180 對內容 288x154,那 26 點被整份推到上緣與右緣 |

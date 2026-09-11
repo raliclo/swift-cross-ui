@@ -24,10 +24,23 @@ extension AndroidBackend: BackendFeatures.GraphicsAdapters {
     /// never terminates the default one. It belongs next to the other helpers in
     /// `Sources/AndroidBackend/Kotlin/`.
     ///
-    /// **NOT COMPILED HERE (2026-09-11)** -- this machine's Android SDK modules
-    /// are Swift 6.3.3 against a 6.4 compiler. What to check: that
-    /// `JavaClass<Build>()` reads the static fields, which is the same idiom
-    /// `AndroidBackend+Colors.swift:50` already uses for `R.color`.
+    /// **COMPILES HERE, since 2026-09-11.** It did not for a while, and the reason
+    /// was never this file: the host toolchain was Swift 6.4 while the installed
+    /// Android SDK was 6.3.3, so every Android build failed with module-format
+    /// errors naming files nobody here wrote. `testapp/compile.zsh` now finds a
+    /// matching toolchain and says which one it picked.
+    ///
+    /// Compiling is not running. Nothing in this file has been executed on a
+    /// device or an emulator, and the checks below are still the checks.
+    ///
+    /// **自 2026-09-11 起，此處編得過。** 它曾有一段時間編不過，而理由從來不在這個檔案:主機的
+    /// toolchain 是 Swift 6.4，而安裝的 Android SDK 是 6.3.3，因此每一次 Android 建置都以
+    /// 「module 格式」錯誤失敗，指名的是一些此處沒有人寫過的檔案。`testapp/compile.zsh` 現在會找出
+    /// 相符的 toolchain，並說出它選了哪一個。
+    ///
+    /// 編得過不等於跑得起來。本檔中沒有任何東西曾在裝置或模擬器上執行過，而下方那些要查的項目，
+    /// 依然要查。
+    ///
     ///
     /// 一台 Android 裝置所擁有的那一張 GPU，以它的 System-on-Chip 命名。
     ///
@@ -46,9 +59,6 @@ extension AndroidBackend: BackendFeatures.GraphicsAdapters {
     /// pbuffer surface，並且永不終止那個預設的。它該放在 `Sources/AndroidBackend/Kotlin/` 裡，與其他
     /// 輔助類別為鄰。
     ///
-    /// **此處未編譯(2026-09-11)** ——這台機器的 Android SDK 模組是 Swift 6.3.3、而編譯器是 6.4。
-    /// 要查的是:`JavaClass<Build>()` 是否讀得到那些靜態欄位——那與 `AndroidBackend+Colors.swift:50`
-    /// 讀 `R.color` 所用的是同一個寫法。
     public var availableAdapters: [GraphicsAdapter] {
         let build = try? JavaClass<AndroidKit.Build>()
         let name: String

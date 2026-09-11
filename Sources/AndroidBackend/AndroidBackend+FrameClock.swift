@@ -21,12 +21,23 @@ extension AndroidBackend: BackendFeatures.FrameClocks {
     /// a property because `SwiftAction` takes no arguments; `CustomSlider`
     /// records the same constraint.
     ///
-    /// **NOT COMPILED HERE (2026-09-10)**, because this machine's Android SDK
-    /// modules are built with Swift 6.3.3 against a 6.4 compiler and
-    /// `compile.zsh -android` fails before reaching this file. What to check:
-    /// that the Kotlin file is picked up (it is in the same directory as the
-    /// thirty-nine that already are), and that `getFrameTimeNanos` is the
-    /// generated accessor name for a Kotlin `val` with a private setter.
+    /// **COMPILES HERE, since 2026-09-11.** It did not for a while, and the reason
+    /// was never this file: the host toolchain was Swift 6.4 while the installed
+    /// Android SDK was 6.3.3, so every Android build failed with module-format
+    /// errors naming files nobody here wrote. `testapp/compile.zsh` now finds a
+    /// matching toolchain and says which one it picked.
+    ///
+    /// Compiling is not running. Nothing in this file has been executed on a
+    /// device or an emulator, and the checks below are still the checks.
+    ///
+    /// **自 2026-09-11 起，此處編得過。** 它曾有一段時間編不過，而理由從來不在這個檔案:主機的
+    /// toolchain 是 Swift 6.4，而安裝的 Android SDK 是 6.3.3，因此每一次 Android 建置都以
+    /// 「module 格式」錯誤失敗，指名的是一些此處沒有人寫過的檔案。`testapp/compile.zsh` 現在會找出
+    /// 相符的 toolchain，並說出它選了哪一個。
+    ///
+    /// 編得過不等於跑得起來。本檔中沒有任何東西曾在裝置或模擬器上執行過，而下方那些要查的項目，
+    /// 依然要查。
+    ///
     ///
     /// 使用 `Choreographer`，經由本套件中的一個 Kotlin 類別。
     ///
@@ -41,10 +52,6 @@ extension AndroidBackend: BackendFeatures.FrameClocks {
     /// ——並在每一幀重新掛上自己。時間戳記以屬性回傳，因為 `SwiftAction` 不帶參數;`CustomSlider` 記載了
     /// 同一項限制。
     ///
-    /// **此處未編譯(2026-09-10)**，因為這台機器的 Android SDK 模組是以 Swift 6.3.3 建置、而編譯器是
-    /// 6.4，`compile.zsh -android` 在抵達本檔之前就失敗了。要查的是:那個 Kotlin 檔有沒有被納入建置
-    /// (它與已被納入的那三十九個位於同一個目錄)，以及 `getFrameTimeNanos` 是不是「一個 setter 為
-    /// private 的 Kotlin `val`」所產生的取值方法名稱。
     public func startFrameClock(handler: @escaping @MainActor (Double) -> Void) {
         stopFrameClock()
         Self.currentFrameClockHandler = handler

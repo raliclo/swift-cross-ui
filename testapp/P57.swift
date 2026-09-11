@@ -91,17 +91,36 @@ import SwiftCrossUI
 /// `MACH_TASK_BASIC_INFO.resident_size` 正是 `ps` 所讀的東西，因此兩者一致。
 enum P57Memory {
     static var residentMegabytes: Int {
-        var info = mach_task_basic_info()
-        var count = mach_msg_type_number_t(
-            MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
-        )
-        let result = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
-                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+        #if canImport(Darwin)
+            var info = mach_task_basic_info()
+            var count = mach_msg_type_number_t(
+                MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
+            )
+            let result = withUnsafeMutablePointer(to: &info) { pointer in
+                pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
+                    task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+                }
             }
-        }
-        guard result == KERN_SUCCESS else { return -1 }
-        return Int(info.resident_size) / 1_048_576
+            guard result == KERN_SUCCESS else { return -1 }
+            return Int(info.resident_size) / 1_048_576
+        #else
+            // `/proc/self/statm`: total and resident, in PAGES.
+            //
+            // The second field, not the first. The first is virtual size, which
+            // on a 64-bit Android process is tens of gigabytes of address space
+            // and has nothing to do with what the device is holding -- a number
+            // that looks alarming and means nothing.
+            //
+            // `/proc/self/statm`:總量與常駐量，單位是**頁**。
+            //
+            // 取第二個欄位，不是第一個。第一個是虛擬大小，在一個 64 位元的 Android 行程上那是數十 GB
+            // 的位址空間，與「這台裝置實際持有多少」毫無關係——一個看起來嚇人、而毫無意義的數字。
+            guard let statm = try? String(contentsOfFile: "/proc/self/statm", encoding: .utf8),
+                let residentPages = statm.split(separator: " ").dropFirst().first,
+                let pages = Int(residentPages)
+            else { return -1 }
+            return pages * 4096 / 1_048_576
+        #endif
     }
 }
 
