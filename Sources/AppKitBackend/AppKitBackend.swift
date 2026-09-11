@@ -1,4 +1,5 @@
 import AppKit
+import Metal
 
 @_spi(Backends) import SwiftCrossUI
 
@@ -43,6 +44,18 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     public let restoresWindowFrames = true
 
     var borderedButtonPadding: SIMD2<Int>?
+
+    /// The Metal device chosen by `-GPU N`, and the observer that hears about a
+    /// GPU being unplugged. See `AppKitBackend+GraphicsAdapters.swift`.
+    /// 由 `-GPU N` 所選定的 Metal 裝置，以及那個「聽取 GPU 被拔除」的 observer。
+    /// 見 `AppKitBackend+GraphicsAdapters.swift`。
+    var metalDevice: (any MTLDevice)?
+    var metalDeviceObserver: NSObjectProtocol?
+    var adapterRemovedHandler: (() -> Void)? {
+        get { Self.currentAdapterRemovedHandler }
+        set { Self.currentAdapterRemovedHandler = newValue }
+    }
+    @MainActor static var currentAdapterRemovedHandler: (() -> Void)?
 
     /// The one frame clock, and the handler it feeds.
     ///
@@ -1877,6 +1890,17 @@ class NSCustomTableView: NSTableView {
 class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataSource {
     var widgets: [AppKitBackend.Widget] = []
     var rowHeights: [Int] = []
+
+    /// Set instead of `widgets` when the framework hands rows over one at a
+    /// time. See ``SwiftCrossUI/BackendFeatures/LazyListRows``.
+    /// 當框架改為一次交出一列時，設定的是這個而不是 `widgets`。
+    /// 見 ``SwiftCrossUI/BackendFeatures/LazyListRows``。
+    var lazyProvider: ((Int) -> (widget: AppKitBackend.Widget, height: Int)?)?
+    var estimatedRowHeight = 0
+    /// Heights of rows this table has already asked for, so the scrollbar stops
+    /// moving under the user once a row has been seen.
+    /// 這個表格已經要過的那些列的高度——好讓某一列被看過之後，捲軸不再在使用者腳下移動。
+    var knownRowHeights: [Int: Int] = [:]
     var columnIndices: [ObjectIdentifier: Int] = [:]
     var rowCount = 0
     var columnCount = 0
@@ -1888,6 +1912,22 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        // **The provider is NOT called here**, and the protocol says so
+        // explicitly. `NSTableView` asks the height of every row to work out how
+        // long the list is; answering by building the row would build all ten
+        // thousand of them at the first layout, which is the thing being
+        // avoided.
+        //
+        // A row that has been shown once keeps its real height, so scrolling
+        // back over old rows does not move the scrollbar.
+        //
+        // **此處不呼叫 provider**，而協定明文如此規定。`NSTableView` 會逐列詢問高度以算出這份清單
+        // 有多長;若靠建立該列來回答，第一次版面計算就會把一萬列全部建出來——正是本項所要避免的事。
+        //
+        // 一個已經被顯示過一次的列會保有它真正的高度，因此往回捲過舊的列時，捲軸不會移動。
+        if lazyProvider != nil {
+            return CGFloat(knownRowHeights[row] ?? estimatedRowHeight)
+        }
         return CGFloat(rowHeights[row])
     }
 
@@ -1904,6 +1944,20 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
             logger.warning("NSTableView asked for value of non-existent column")
             return nil
         }
+        if let lazyProvider {
+            guard let built = lazyProvider(row) else { return nil }
+            if knownRowHeights[row] != built.height {
+                knownRowHeights[row] = built.height
+                // The row turned out to be a different height than was assumed.
+                // Telling the table now is what keeps a list of uneven rows from
+                // overlapping them; without it the row is drawn into a slot
+                // sized by the estimate.
+                // 這一列的實際高度與先前假設的不同。此刻告訴表格，正是「一份高度不一的清單不會把
+                // 列疊在一起」的原因;少了它，該列會被畫進一個以估計值決定大小的位置。
+                tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integer: row))
+            }
+            return built.widget
+        }
         return widgets[row * columnCount + columnIndex]
     }
 
@@ -1919,8 +1973,40 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
         }
     }
 
+    /// The identifier is what makes `NSTableView` RECYCLE these.
+    /// 這個識別碼正是讓 `NSTableView` **回收**它們的東西。
+    static let rowViewIdentifier = NSUserInterfaceItemIdentifier("dev.swiftcrossui.listRow")
+
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        // **Asked for from the reuse queue first, and this is a real leak fix
+        // rather than a tidy-up.**
+        //
+        // This used to be `NSTableRowView()` every time. `NSTableView` only
+        // recycles a view it can identify, so an unidentified one is created
+        // fresh for every row and kept: scrolling a ten-thousand-row list took
+        // `NSTableRowView` from 30 live objects to 1,745, and the process from
+        // 104 MB to 225 MB.
+        //
+        // It was there before rows became lazy, and the eager path hid it --
+        // at 423 MB for the same list, another 120 MB of row views was not
+        // something anyone was going to notice.
+        //
+        // **先向回收佇列索取，而這是修掉一個真正的洩漏，不是整理門面。**
+        //
+        // 此處原本每次都是 `NSTableRowView()`。`NSTableView` 只會回收「它認得出來」的 view，因此一個
+        // 沒有識別碼的 view 會為每一列重新建立、而且被留著:捲動一份一萬列的清單，會讓 `NSTableRowView`
+        // 的存活物件數從 30 變成 1,745，行程從 104 MB 變成 225 MB。
+        //
+        // 它在「列變成延遲建立」之前就存在，而 eager 路徑把它藏住了——同一份清單本來就要 423 MB，
+        // 另外那 120 MB 的 row view 不會有人注意到。
+        if let recycled = tableView.makeView(
+            withIdentifier: Self.rowViewIdentifier,
+            owner: self
+        ) as? NSTableRowView {
+            return recycled
+        }
         let view = NSTableRowView()
+        view.identifier = Self.rowViewIdentifier
         view.wantsLayer = true
         view.layer?.cornerRadius = 5
         return view

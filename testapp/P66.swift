@@ -100,6 +100,10 @@ struct P66RootView: View {
     @State var offset = 0.0
     @State var flag = false
     @State var summary = "not run yet"
+    /// Animated beside the offset, so one run drives both a `Double` and a
+    /// `Color` through the same tween.
+    /// 與 offset 並排做動畫——好讓一次執行同時驅動一個 `Double` 與一個 `Color`，走的是同一套補間。
+    @State var tint = Color(red: 0.85, green: 0.2, blue: 0.2)
 
     var body: some View {
         // Recorded here because this is where the value is READ: every
@@ -127,7 +131,7 @@ struct P66RootView: View {
             // 撐寬內容、內容是置中的，於是標記移動的距離只有該值的一半——與 P65 記載的是同一個陷阱，
             // 也正是「此處絕不以截圖本身作為判定」的原因。
             HStack(spacing: 0) {
-                Color(red: 0.15, green: 0.15, blue: 0.15)
+                tint
                     .frame(width: 20, height: 20)
                     .padding(.leading, offset)
                 Spacer()
@@ -147,11 +151,18 @@ struct P66RootView: View {
 
     func run() {
         var samples: [(time: Double, value: Double)] = []
+        // A set, because what matters is how many DISTINCT colours the tween
+        // produced. A colour that jumps yields two; one that interpolates yields
+        // as many as there were frames.
+        // 用 set，因為關鍵在於這次補間產出了幾個**相異**顏色。一個跳變的顏色會產出兩個;一個做插值的
+        // 會產出「有幾幀就有幾個」。
+        var colourSamples = Set<Color>()
         let started = ProcessInfo.processInfo.systemUptime
 
         withAnimation(.linear(duration: 0.5)) {
             offset = 200
             flag = true
+            tint = Color(red: 0.1, green: 0.3, blue: 0.85)
         }
         // One assignment, and a `Bool` cannot tween, so this must stay 1.
         // 一次賦值，而 `Bool` 不能補間，因此這個值必須維持為 1。
@@ -165,6 +176,7 @@ struct P66RootView: View {
         // 「看得到幾個相異值」的限制——若數量偏低，那是動畫的問題，不是量測的問題。
         func sample() {
             let value = offset
+            colourSamples.insert(tint)
             if samples.last?.value != value {
                 samples.append((ProcessInfo.processInfo.systemUptime - started, value))
             }
@@ -173,6 +185,7 @@ struct P66RootView: View {
                     MainActor.assumeIsolated { sample() }
                 }
             } else {
+                P66Diagnostics.write("DISTINCT COLOURS \(colourSamples.count)")
                 report(samples: samples, flagSamples: flagAssignments)
             }
         }

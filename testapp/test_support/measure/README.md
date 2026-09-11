@@ -34,3 +34,37 @@ swiftc -O -o /tmp/axdump testapp/test_support/measure/ax_dump.swift
 It is the tool that caught every `AXButton` having an empty title and
 description, and the same tool prints the labels afterwards -- the same
 measurement before and after, not an easier one after.
+
+
+## `synthesise_magnify_probe.swift` — 能不能合成一個觸控板手勢?**不能**,而這是證據
+
+```sh
+swiftc -O -o /tmp/magnify testapp/test_support/measure/synthesise_magnify_probe.swift
+/tmp/magnify
+```
+
+它開一個帶 `NSMagnificationGestureRecognizer` 的視窗,然後嘗試唯一一條由公開 API 組成的途徑:
+用 `CGEvent(source:)` 建事件、把 `type` 設為 30(`NSEventTypeMagnify`)、在欄位 113 放進倍率、
+以 `NSEvent(cgEvent:)` 包起來,再用 `NSApp.postEvent` 投遞——那正是 `AppKitSynthesiser` 投遞點擊所
+使用的同一條路徑。
+
+2026-09-11 的結果:
+
+```
+2026-09-11 06:54:15.770 magnify[77923] unrecognized type is 30
+built an NSEvent of type 30
+RESULT fired=0 lastMagnification=0.0
+```
+
+那個 `NSEvent` **建得起來**、也被投遞了,而 AppKit 拒絕了它:`unrecognized type is 30`。一個真正的
+手勢事件帶著 `CGEvent(source:)` 不會填入的東西(手勢階段、裝置識別),而 `NSEvent` 沒有任何公開的
+gesture 初始化器——只有 `mouseEvent`、`keyEvent`、`otherEvent`、`enterExit`。
+
+**這就是「已嘗試的具體 API 與它的結果」**,而不是憑印象的斷言。P65 的縮放與旋轉因此仍然只能由
+「一雙手在觸控板上」驅動;拖曳不受影響,它走的是真實滑鼠事件,已經量過。
+
+Route tried and closed: build a `CGEvent`, set `type` to 30, wrap it with
+`NSEvent(cgEvent:)`, post it through the same path clicks use. The event is
+built and delivered; AppKit rejects it with "unrecognized type is 30". There is
+no public gesture initialiser on `NSEvent`. This is the specific API and what it
+did, rather than a claim from memory.

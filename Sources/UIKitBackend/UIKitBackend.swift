@@ -1,5 +1,6 @@
 import Logging
 @_spi(Backends) import SwiftCrossUI
+import Metal
 import UIKit
 
 /// ## Features deliberately not conformed to
@@ -31,6 +32,11 @@ public final class UIKitBackend:
     // `extension UIKitBackend { ... }`；兩處都寫上該 protocol 會得到 `error: redundant conformance`。
     BackendFeatures.ButtonPressState
 {
+    /// The Metal device chosen by `-GPU N`. See
+    /// `UIKitBackend+GraphicsAdapters.swift`.
+    /// 由 `-GPU N` 選定的 Metal 裝置。見 `UIKitBackend+GraphicsAdapters.swift`。
+    var metalDevice: (any MTLDevice)?
+
     /// The one frame clock. See ``UIKitFrameClockTarget`` for why the target is
     /// a separate object.
     /// 那唯一一個 frame clock。target 之所以是獨立物件，見 ``UIKitFrameClockTarget``。

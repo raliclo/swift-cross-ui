@@ -73,6 +73,55 @@ struct AnimationTests {
         #expect(Int.interpolated(from: 0, to: 10, progress: 1) == 10)
     }
 
+    @Test("Two component colours interpolate, component by component")
+    func rgbColoursInterpolate() {
+        let start = Color(red: 0, green: 0, blue: 0)
+        let end = Color(red: 1, green: 0.5, blue: 0)
+        let middle = Color.interpolated(from: start, to: end, progress: 0.5)
+        #expect(middle == Color(red: 0.5, green: 0.25, blue: 0))
+        #expect(Color.interpolated(from: start, to: end, progress: 0) == start)
+        #expect(Color.interpolated(from: start, to: end, progress: 1) == end)
+    }
+
+    @Test("Opacity interpolates with the components")
+    func colourOpacityInterpolates() {
+        let start = Color(red: 1, green: 1, blue: 1, opacity: 0)
+        let end = Color(red: 1, green: 1, blue: 1, opacity: 1)
+        #expect(
+            Color.interpolated(from: start, to: end, progress: 0.25)
+                == Color(red: 1, green: 1, blue: 1, opacity: 0.25)
+        )
+    }
+
+    @Test("A system colour assigns at once rather than inventing a midpoint")
+    func systemColoursDoNotInterpolate() {
+        // At the halfway point it must already BE the target. Holding the old
+        // colour and snapping at the end was the alternative, and a delayed jump
+        // reads as a bug where an immediate assignment reads as "this does not
+        // animate".
+        // 在中點時它必須**已經是**目標值。另一個選項是「維持舊色、最後才切換」，而一次延遲的跳變
+        // 讀起來像 bug，一次立即的賦值則讀起來是「這個不做動畫」。
+        let start = Color(red: 0, green: 0, blue: 0)
+        let end = Color.system(.blue)
+        #expect(Color.interpolated(from: start, to: end, progress: 0.5) == end)
+        #expect(Color.interpolated(from: start, to: end, progress: 0) == end)
+    }
+
+    @Test("Adaptive colours interpolate on both sides")
+    func adaptiveColoursInterpolate() {
+        let start = Color.adaptive(
+            light: Color(red: 0, green: 0, blue: 0),
+            dark: Color(red: 1, green: 1, blue: 1)
+        )
+        let end = Color.adaptive(
+            light: Color(red: 1, green: 1, blue: 1),
+            dark: Color(red: 0, green: 0, blue: 0)
+        )
+        let middle = Color.interpolated(from: start, to: end, progress: 0.5)
+        let grey = Color(red: 0.5, green: 0.5, blue: 0.5)
+        #expect(middle == Color.adaptive(light: grey, dark: grey))
+    }
+
     @Test("A Bool is not animatable, and that is the point")
     func boolsAreNotAnimatable() {
         // The compiler settles this, and the test states it so that a future

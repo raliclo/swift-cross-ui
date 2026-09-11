@@ -117,7 +117,16 @@ public enum ActionFileReplay {
                 report(
                     "geometry frame=(\(geometry.frameOrigin.x), \(geometry.frameOrigin.y)) "
                         + "client=(\(geometry.clientOrigin.x), \(geometry.clientOrigin.y)) "
-                        + "scale=\(geometry.scale)"
+                        + "scale=\(geometry.scale) "
+                        // Printed because a nil here is the difference between
+                        // "origin=popover resolved" and "origin=popover was
+                        // never going to resolve", and those two produce the
+                        // same silence.
+                        // 之所以印出來，是因為此處為 nil 與否，正是「`origin=popover` 有解析到」與
+                        // 「`origin=popover` 從一開始就不可能解析」之間的差別——而那兩者產生的是
+                        // 同一種沉默。
+                        + "popover="
+                        + (geometry.popoverOrigin.map { "(\($0.x), \($0.y))" } ?? "none")
                 )
                 try synthesiser.replay(actions, in: geometry)
                 // The count, because "replayed" alone cannot tell three things
