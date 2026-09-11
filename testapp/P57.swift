@@ -73,6 +73,38 @@ import SwiftCrossUI
 //
 // 列數是啟動引數,因此同一個二進位檔就能產出那條曲線上的每一個點,建置本身不會成為變數。
 
+/// This process's resident memory, in megabytes.
+///
+/// **In the app, because on iOS there is no `ps`.** The macOS numbers for #117
+/// came from `ps -o rss=`, and the simulator gives no equivalent for the app
+/// inside it -- so the claim "ten thousand rows costs what an empty list costs"
+/// would have been unverifiable on the platform that cares most about it.
+///
+/// `MACH_TASK_BASIC_INFO.resident_size` is what `ps` reads, so the two agree.
+///
+/// 這個行程的常駐記憶體，單位為 MB。
+///
+/// **放在 app 裡面，因為 iOS 上沒有 `ps`。** #117 的 macOS 數字來自 `ps -o rss=`，而模擬器對它裡面的
+/// app 並不提供對應物——因此「一萬列的成本等於一份空清單」這個主張，在最在意它的那個平台上會變成
+/// 無法驗證。
+///
+/// `MACH_TASK_BASIC_INFO.resident_size` 正是 `ps` 所讀的東西，因此兩者一致。
+enum P57Memory {
+    static var residentMegabytes: Int {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
+        )
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return -1 }
+        return Int(info.resident_size) / 1_048_576
+    }
+}
+
 enum P57Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
@@ -186,7 +218,7 @@ struct P57RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("P57: eager List cost")
+            Text("P57: List cost, lazy where the backend takes rows one at a time")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
             Text("rows: \(P57Configuration.rowCount)")
@@ -194,15 +226,27 @@ struct P57RootView: View {
             // sanity check that the app got as far as onAppear at all.
             // 保留,但真正的量測是視窗的高度。這一行只是用來確認這支 app 至少走到了 onAppear。
             Text("first render: \(renderedIn)")
+            Text("resident memory: \(P57Memory.residentMegabytes) MB")
 
+            // ~~"Baseline for #117. List builds every row up front"~~ -- it did,
+            // until 2026-09-11. Struck through rather than replaced, for the
+            // reason P34 records: a stale claim RENDERED ON SCREEN is believed
+            // over the source by anyone who does not go and check.
+            // ~~「這是 #117 的基準線。List 會事先建好每一列」~~——它確實如此，直到 2026-09-11。
+            // 此處保留刪除線而非直接取代，理由與 P34 所記載的相同:一個**被算繪到畫面上的**過期主張，
+            // 在不去查證的人眼中會勝過原始碼。
             Text(
-                "Baseline for #117. List builds every row up front, so this number is what a "
-                    + "virtualised List has to beat. Run the same binary at several row counts "
-                    + "-- the shape matters, one sample does not."
+                "#117 phase 3: on a backend that takes rows one at a time, List builds only the "
+                    + "rows that are shown. Run the same binary at several row counts -- the "
+                    + "shape matters, one sample does not."
             )
             Text(
-                "這是 #117 的基準線。List 會事先建好每一列,因此這個數字就是「虛擬化後的 List」必須"
-                    + "勝過的對象。以不同的列數執行同一個二進位檔——重要的是形狀,單一樣本不算數。"
+                "#117 phase 3:在「一次收一列」的 backend 上,List 只會建出被顯示的那些列。以不同的列數"
+                    + "執行同一個二進位檔——重要的是形狀,單一樣本不算數。"
+            )
+            Text(
+                "Measured on AppKit: 10,000 rows was 423 MB before and is 104 MB now, against a "
+                    + "102 MB one-row baseline. Scrolling still grows it; see the commit."
             )
 
             List(Array(0..<P57Configuration.rowCount), id: \.self, selection: $selection) {

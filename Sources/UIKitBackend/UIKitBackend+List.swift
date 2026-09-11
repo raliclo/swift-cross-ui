@@ -70,6 +70,13 @@ extension UIKitBackend {
 class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataSource {
     var widgets: [UIKitBackend.Widget] = []
     var rowHeights: [Int] = []
+
+    /// Set instead of `widgets` when the framework hands rows over one at a
+    /// time. See ``SwiftCrossUI/BackendFeatures/LazyListRows``.
+    /// 當框架改為一次交出一列時，設定的是這個而不是 `widgets`。
+    var lazyProvider: ((Int) -> (widget: UIKitBackend.Widget, height: Int)?)?
+    var estimatedRowHeight = 0
+    var knownRowHeights: [Int: Int] = [:]
     var rowCount = 0
     var allowSelections = false
     var selectionHandler: ((Int) -> Void)?
@@ -88,6 +95,21 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
         cellForRowAt path: IndexPath
     ) -> UITableViewCell {
         let cell = UITableViewCell()
+        if let lazyProvider {
+            guard let built = lazyProvider(path.row) else { return cell }
+            if knownRowHeights[path.row] != built.height {
+                knownRowHeights[path.row] = built.height
+                // UIKit has no `noteHeightOfRows`; the height is re-read on the
+                // next layout pass, and the row is already being laid out now.
+                // Recording it is enough, and asking for a reload from inside
+                // `cellForRowAt` is how a table ends up in an infinite layout.
+                // UIKit 沒有 `noteHeightOfRows`;高度會在下一次版面計算時重新讀取，而這一列此刻本來就
+                // 正在被排版。記下來就夠了——而在 `cellForRowAt` 之內要求 reload，正是一個表格陷入
+                // 無窮版面計算的方式。
+            }
+            cell.contentView.addSubview(built.widget.view)
+            return cell
+        }
         cell.contentView.addSubview(widgets[path.row].view)
         return cell
     }
@@ -99,6 +121,14 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
     // MARK: UITableViewDelegate
 
     func tableView(_ tableView: UITableView, heightForRowAt path: IndexPath) -> CGFloat {
+        // The provider is not called here. See the AppKit half: answering a
+        // height question by building the row builds the whole list at the first
+        // layout, which is the thing being avoided.
+        // 此處不呼叫 provider。見 AppKit 那一半:靠建立該列來回答高度問題，會在第一次版面計算時就把
+        // 整份清單建出來——正是本項所要避免的事。
+        if lazyProvider != nil {
+            return CGFloat(knownRowHeights[path.row] ?? estimatedRowHeight)
+        }
         return CGFloat(rowHeights[path.row])
     }
 
