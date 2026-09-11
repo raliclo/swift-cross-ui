@@ -1890,6 +1890,17 @@ class NSCustomTableView: NSTableView {
 class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataSource {
     var widgets: [AppKitBackend.Widget] = []
     var rowHeights: [Int] = []
+
+    /// Set instead of `widgets` when the framework hands rows over one at a
+    /// time. See ``SwiftCrossUI/BackendFeatures/LazyListRows``.
+    /// 當框架改為一次交出一列時，設定的是這個而不是 `widgets`。
+    /// 見 ``SwiftCrossUI/BackendFeatures/LazyListRows``。
+    var lazyProvider: ((Int) -> (widget: AppKitBackend.Widget, height: Int)?)?
+    var estimatedRowHeight = 0
+    /// Heights of rows this table has already asked for, so the scrollbar stops
+    /// moving under the user once a row has been seen.
+    /// 這個表格已經要過的那些列的高度——好讓某一列被看過之後，捲軸不再在使用者腳下移動。
+    var knownRowHeights: [Int: Int] = [:]
     var columnIndices: [ObjectIdentifier: Int] = [:]
     var rowCount = 0
     var columnCount = 0
@@ -1901,6 +1912,22 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        // **The provider is NOT called here**, and the protocol says so
+        // explicitly. `NSTableView` asks the height of every row to work out how
+        // long the list is; answering by building the row would build all ten
+        // thousand of them at the first layout, which is the thing being
+        // avoided.
+        //
+        // A row that has been shown once keeps its real height, so scrolling
+        // back over old rows does not move the scrollbar.
+        //
+        // **此處不呼叫 provider**，而協定明文如此規定。`NSTableView` 會逐列詢問高度以算出這份清單
+        // 有多長;若靠建立該列來回答，第一次版面計算就會把一萬列全部建出來——正是本項所要避免的事。
+        //
+        // 一個已經被顯示過一次的列會保有它真正的高度，因此往回捲過舊的列時，捲軸不會移動。
+        if lazyProvider != nil {
+            return CGFloat(knownRowHeights[row] ?? estimatedRowHeight)
+        }
         return CGFloat(rowHeights[row])
     }
 
@@ -1916,6 +1943,20 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
         guard let columnIndex = columnIndices[ObjectIdentifier(tableColumn)] else {
             logger.warning("NSTableView asked for value of non-existent column")
             return nil
+        }
+        if let lazyProvider {
+            guard let built = lazyProvider(row) else { return nil }
+            if knownRowHeights[row] != built.height {
+                knownRowHeights[row] = built.height
+                // The row turned out to be a different height than was assumed.
+                // Telling the table now is what keeps a list of uneven rows from
+                // overlapping them; without it the row is drawn into a slot
+                // sized by the estimate.
+                // 這一列的實際高度與先前假設的不同。此刻告訴表格，正是「一份高度不一的清單不會把
+                // 列疊在一起」的原因;少了它，該列會被畫進一個以估計值決定大小的位置。
+                tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integer: row))
+            }
+            return built.widget
         }
         return widgets[row * columnCount + columnIndex]
     }
