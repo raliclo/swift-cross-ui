@@ -67,13 +67,43 @@ extension AppKitBackend {
             view.layer?.backgroundColor = backgroundColor.map { $0.nsColor.cgColor }
         }
 
+        // **`contentSize` is set, and the controller's view is NOT repositioned.**
+        //
+        // This used to also do
+        // `popover.contentViewController?.view.frame = NSRect(origin: .zero, ...)`,
+        // and that line is what put the panel in the corner. AppKit owns where
+        // the content view sits inside the popover's shell -- the shell is
+        // larger, by the arrow and its margins -- and forcing the frame to
+        // `.zero` moves it to the BOTTOM-LEFT of that shell, leaving the chrome
+        // visible along the top and the right.
+        //
+        // Reported as "the green panel is not inside the popover, a lot of white
+        // leaking on the right". Measured: shell 314x180, content 288x154, so 26
+        // points in each axis that AppKit would have split evenly and this line
+        // pushed entirely to two edges.
+        //
+        // The child fills the container instead, and follows it if AppKit
+        // resizes it -- which is what `autoresizingMask` is for and what setting
+        // a frame once cannot do.
+        //
+        // **設定 `contentSize`,而**不**重新定位 controller 的 view。**
+        //
+        // 此處原本還有一行 `popover.contentViewController?.view.frame = NSRect(origin: .zero, ...)`，
+        // 而正是那一行把面板推到了角落。內容 view 在 popover 外殼中的位置由 AppKit 擁有——外殼比內容大，
+        // 大出來的是箭頭與它的邊距——而把 frame 強制設為 `.zero`，會把它移到該外殼的**左下角**，於是
+        // 上緣與右緣露出外殼。
+        //
+        // 回報的說法是「綠框不在 popover 內,右邊漏白很多」。量到:外殼 314x180、內容 288x154,也就是
+        // 每個軸上有 26 點——AppKit 本來會把它平均分到兩側，而那一行把它整份推到了兩個邊。
+        //
+        // 改為讓子 view 填滿容器，並在 AppKit 調整容器大小時跟著走——那正是 `autoresizingMask` 的用途，
+        // 也是「只設定一次 frame」做不到的事。
         let contentSize = NSSize(width: size.x, height: size.y)
         popover.contentSize = contentSize
-        popover.contentViewController?.view.frame = NSRect(
-            origin: .zero,
-            size: contentSize
-        )
-        popover.customContent?.frame = NSRect(origin: .zero, size: contentSize)
+        if let container = popover.contentViewController?.view {
+            popover.customContent?.frame = container.bounds
+            popover.customContent?.autoresizingMask = [.width, .height]
+        }
         popover.onDismiss = onDismiss
     }
 
