@@ -630,7 +630,8 @@ extension DummyBackend {
             of: text,
             displayedWith: environment.resolvedFont,
             proposedWidth: proposedWidth,
-            proposedHeight: proposedHeight
+            proposedHeight: proposedHeight,
+            lineLimit: environment.lineLimitSettings
         )
     }
 
@@ -639,7 +640,8 @@ extension DummyBackend {
         of text: String,
         displayedWith font: Font.Resolved,
         proposedWidth: Int?,
-        proposedHeight: Int?
+        proposedHeight: Int?,
+        lineLimit: LineLimit? = nil,
     ) -> SIMD2<Int> {
         let lineHeight = Int(font.lineHeight)
         let characterHeight = Int(font.pointSize)
@@ -656,6 +658,13 @@ extension DummyBackend {
         var lineCount = (text.count + charactersPerLine - 1) / charactersPerLine
         if let proposedHeight {
             lineCount = min(max(1, proposedHeight / lineHeight), lineCount)
+        }
+
+        if let lineLimit {
+            lineCount = min(lineCount, lineLimit.limit)
+            if lineLimit.reservesSpace {
+                lineCount = max(lineCount, lineLimit.limit)
+            }
         }
 
         return SIMD2(
