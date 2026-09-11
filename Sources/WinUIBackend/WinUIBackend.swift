@@ -1607,6 +1607,21 @@ public final class WinUIBackend:
         var selectionHandler: ((_ selectedIndex: Int) -> Void)?
         var currentItems: [WinUI.ListViewItem] = []
         var cachedSelectedItem: Int? = nil
+
+        /// Set by `setLazyRows`. When present, the list is on the lazy path: its
+        /// content comes from here per visible row rather than from an eager
+        /// array, and selection is addressed by index instead of by holding
+        /// `ListViewItem` instances in `currentItems`.
+        /// 由 `setLazyRows` 設定。存在時,清單走 lazy 路徑:其內容逐可見列從這裡取得、而非取自一個
+        /// eager 陣列,選取也改以索引定址、而不是把 `ListViewItem` 實例留在 `currentItems` 裡。
+        var lazyProvider: ((Int) -> (widget: WinUI.FrameworkElement, height: Int)?)?
+
+        /// The `ContainerContentChanging` handler is attached at most once.
+        /// Re-attaching on every `setLazyRows` would fire the provider N times
+        /// per visible row, the shape this backend's slider hit as `began=5`.
+        /// `ContainerContentChanging` 的 handler 最多只掛一次。若每次 `setLazyRows` 都重掛,provider
+        /// 會為每一可見列觸發 N 次——正是本 backend slider 撞上的 `began=5` 那個形狀。
+        var lazyHandlerAttached = false
     }
 
     public func createSelectableListView() -> Widget {
@@ -1710,6 +1725,16 @@ public final class WinUIBackend:
             return
         }
         listView.cachedSelectedItem = index
+        // On the lazy path there are no retained `ListViewItem` instances to
+        // hand to `selectedItem` -- the containers are virtualized and most do
+        // not exist. Address the selection by index instead, which WinUI
+        // resolves against the item source whether or not the row is realized.
+        // 在 lazy 路徑上,沒有被保留的 `ListViewItem` 實例可以交給 `selectedItem`——容器是虛擬化的,
+        // 大多數並不存在。改以索引定址選取,WinUI 會對著 item source 解析它,無論該列是否已被實體化。
+        if listView.lazyProvider != nil {
+            listView.selectedIndex = Int32(index ?? -1)
+            return
+        }
         if let index {
             // We use `listView.currentItems` instead of `listView.items` because
             // `listView.items` isn't the original instances we added and WinUI

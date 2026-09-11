@@ -2,6 +2,10 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
+#if os(Windows)
+    import WinSDK
+#endif
+
 // P57: how expensive is an eager List, and at what size does it stop being
 // usable?
 //
@@ -90,19 +94,63 @@ import SwiftCrossUI
 ///
 /// `MACH_TASK_BASIC_INFO.resident_size` 正是 `ps` 所讀的東西，因此兩者一致。
 enum P57Memory {
-    static var residentMegabytes: Int {
-        var info = mach_task_basic_info()
-        var count = mach_msg_type_number_t(
-            MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
-        )
-        let result = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
-                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+    #if canImport(Darwin)
+        static var residentMegabytes: Int {
+            var info = mach_task_basic_info()
+            var count = mach_msg_type_number_t(
+                MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
+            )
+            let result = withUnsafeMutablePointer(to: &info) { pointer in
+                pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
+                    task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+                }
             }
+            guard result == KERN_SUCCESS else { return -1 }
+            return Int(info.resident_size) / 1_048_576
         }
-        guard result == KERN_SUCCESS else { return -1 }
-        return Int(info.resident_size) / 1_048_576
-    }
+    #elseif os(Windows)
+        /// The Windows equivalent of the mach reading: `WorkingSetSize` from
+        /// `GetProcessMemoryInfo` is the resident set -- the pages actually in
+        /// physical memory -- which is what `MACH_TASK_BASIC_INFO.resident_size`
+        /// is on macOS, so the two platforms' numbers mean the same thing and
+        /// #117's cross-platform table compares like with like.
+        ///
+        /// Task Manager's "Memory" column is this same working set, so a run can
+        /// be sanity-checked against it by eye.
+        ///
+        /// mach 讀數在 Windows 上的對應物:`GetProcessMemoryInfo` 的 `WorkingSetSize` 就是 resident
+        /// set——實際位於實體記憶體中的分頁——而那正是 macOS 上的
+        /// `MACH_TASK_BASIC_INFO.resident_size`,因此兩個平台的數字意義相同,#117 的跨平台表格是在
+        /// 比較同一種東西。
+        ///
+        /// 工作管理員的「記憶體」欄就是這同一個工作集,因此一次執行可以用肉眼對著它做合理性檢查。
+        static var residentMegabytes: Int {
+            // `K32GetProcessMemoryInfo`, not `GetProcessMemoryInfo`. The latter
+            // is a psapi.h macro (`#define GetProcessMemoryInfo
+            // K32GetProcessMemoryInfo` at PSAPI_VERSION >= 2), and Swift's
+            // WinSDK overlay exposes the real kernel32-exported symbol but not
+            // the macro alias -- "cannot find 'GetProcessMemoryInfo' in scope",
+            // while the `PROCESS_MEMORY_COUNTERS` struct beside it resolves
+            // fine. Checked by building rather than assumed.
+            // 用 `K32GetProcessMemoryInfo`,不是 `GetProcessMemoryInfo`。後者是 psapi.h 的巨集
+            // (在 PSAPI_VERSION >= 2 時 `#define GetProcessMemoryInfo K32GetProcessMemoryInfo`),
+            // 而 Swift 的 WinSDK overlay 曝露的是 kernel32 真正匯出的那個符號、而非巨集別名——
+            // 「cannot find 'GetProcessMemoryInfo' in scope」,而它旁邊的 `PROCESS_MEMORY_COUNTERS`
+            // struct 則正常解析。以建置查證,非臆測。
+            var counters = PROCESS_MEMORY_COUNTERS()
+            counters.cb = DWORD(MemoryLayout<PROCESS_MEMORY_COUNTERS>.size)
+            guard
+                K32GetProcessMemoryInfo(
+                    GetCurrentProcess(),
+                    &counters,
+                    counters.cb
+                )
+            else { return -1 }
+            return Int(counters.WorkingSetSize) / 1_048_576
+        }
+    #else
+        static var residentMegabytes: Int { -1 }
+    #endif
 }
 
 enum P57Diagnostics {
