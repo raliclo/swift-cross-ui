@@ -134,7 +134,7 @@ last two do not have a known size yet.
 **對照的第一個結果是刪掉工作,不是加上工作。** `todo.md` 中「六項交給 Mac」的表裡,有**五項在讀到它
 時就已經完成了**——Swift 6 語言模式(AppKit 與 UIKit 都已在 `migratedToSwift6`)、前景色寫死
 (`resolvedForegroundColor` 在兩個 backend 共 8 處)、Android 的 `.onHover`(已有
-`AndroidBackend+HoverGestures.swift`)、UIKit 的 popover `onDismiss`(已指派)、UIKit 與 Android 的
+`AndroidBackend+HoverGestures.swift`)、UIKit 的 popover `onDismiss`(已完成)、UIKit 與 Android 的
 `.navigationTitle`(兩邊的 toolbar 都會畫)。那張表自己就寫著「若條目超過一兩天,請先對照程式碼再
 相信它」,而那正是它們被查證、而不是被重做的原因。
 

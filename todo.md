@@ -1953,14 +1953,13 @@ they are grouped as one job rather than filed as six unrelated defects.
 
 The last two are not silent, and are cheaper:
 
-5. **UIKit is the only backend still suppressing `.popover`'s `onDismiss`**
-   (`UIKitBackend+Popover.swift:96`). The other four fire on both paths as of
-   `dea9ccff`. Two lines.
-6. **`GridItem` sizes are `Int`.** `GridItem(.flexible(maximum: .infinity))` --
-   the commonest SwiftUI grid spelling -- does not compile, and the arithmetic
-   integer-divides, so columns do not sum on a fractional display scale.
-   `FrameModifier.swift:13,25` is the pattern to copy: Int *and* Double
-   overloads, with `maxWidth`/`maxHeight` typed `Double?` in both.
+5. **UIKit `popover.onDismiss` was the only backend gap** — **done**.
+   `UIKitBackend+Popover.swift` now assigns `popover.onDismiss`; this paragraph
+   is retained as historical context, not as an open task.
+6. **`GridItem` fractional sizes were an API gap** — **implemented**.
+   `GridItem.Size` and `EdgeInsets` now retain `Double` values through layout;
+   remaining work is cross-platform build and screenshot verification, not
+   changing either public type back to an integer.
 
 **A correction that belongs with these, not buried.** While merging `dea9ccff`
 this side described the Mac side's "pass the anchor widget rather than an edge"
@@ -2059,12 +2058,11 @@ deliberate divergence, not conformance, and it was recorded as the opposite.
 
 後兩項不是靜默的，代價也較低：
 
-5. **UIKit 是唯一仍在壓制 `.popover` 之 `onDismiss` 的 backend**
-   （`UIKitBackend+Popover.swift:96`）。其餘四個自 `dea9ccff` 起兩條路都會觸發。兩行。
-6. **`GridItem` 的尺寸是 `Int`。** `GridItem(.flexible(maximum: .infinity))`——SwiftUI 最常見的
-   格線寫法——編不過；而其算術做整數除法，因此在非整數縮放的螢幕上欄寬加不回去。
-   `FrameModifier.swift:13,25` 是可照抄的範式：Int 與 Double 兩種多載，且兩者的
-   `maxWidth`/`maxHeight` 都型為 `Double?`。
+5. **UIKit `popover.onDismiss` 原本是唯一的 backend 缺口——已完成。**
+   `UIKitBackend+Popover.swift` 現在會設定 `popover.onDismiss`；本段只保留作為歷史背景，不是未完成待辦。
+6. **`GridItem` 小數尺寸原本是 API 缺口——已實作。**
+   `GridItem.Size` 與 `EdgeInsets` 現在會以 `Double` 保留數值直到版面計算；剩餘工作是跨平台建置與截圖驗證，
+   不是把公開型別改回整數。
 
 **一則應與上述並列、而非被掩埋的更正。** 在合併 `dea9ccff` 期間，本側曾把 Mac 端「傳錨點 widget
 而非傳邊」的 popover 設計描述為**與 SwiftUI 對齊**。那是錯的。SwiftUI 有 `attachmentAnchor` 與
