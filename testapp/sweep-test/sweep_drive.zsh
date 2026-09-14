@@ -768,7 +768,7 @@ for app in $apps; do
             case "$shot_out" in
                 *'rejected on content'*)
                     capture=fail
-                    note="${note:+$note; }an image WAS written and rejected on content -- ${shot_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
+                    note="${note:+$note; }an image WAS written and rejected on content -- ${shot_fraction:-non-black: unmeasured}; rendering versus capture/bridge cause is unresolved" ;;
                 *'no matching window could be captured'*|*'no capture path on this platform'*)
                     capture=fail
                     note="${note:+$note; }screenshot.zsh wrote no image file at all" ;;

@@ -3,7 +3,7 @@
 # priorities.
 #
 #   priority 1  with -w, wincap asks DWM to render that window through
-#               PrintWindow(PW_RENDERFULLCONTENT)
+#               Windows Graphics Capture, then PrintWindow fallback
 #   desktop     without -w, gdigrab reads the composited desktop
 #
 # Desktop capture is used only when no -w is given. A named-window capture that
@@ -11,7 +11,8 @@
 #
 # The old gdigrab window path went through BitBlt, which returns black for some
 # top-level window styles and can hang when called from this script. Windows
-# `-w` therefore uses `wincap.swift` only: PrintWindow(PW_RENDERFULLCONTENT),
+# `-w` therefore uses `wincap.cpp` only: Windows Graphics Capture first,
+# PrintWindow as a fallback,
 # a non-black bitmap check, and BMP-to-PNG conversion. Desktop capture remains
 # available only when explicitly requested by omitting -w.
 #
@@ -25,7 +26,8 @@
 # desktop screenshot 替代。
 #
 # 舊的 gdigrab 視窗路徑走 BitBlt，對若干 top-level window styles 會回傳全黑，且在此腳本
-# 中可能卡住。因此 Windows `-w` 只使用 `wincap.swift`：PrintWindow(PW_RENDERFULLCONTENT)、
+# 中可能卡住。因此 Windows `-w` 只使用 `wincap.cpp`：先嘗試 Windows Graphics Capture，
+# 再以 PrintWindow 作 fallback，
 # 非黑 bitmap 檢查，以及 BMP-to-PNG 轉換。只有明確省略 -w 時才使用 desktop capture。
 #
 # The wait differs by path. Window capture sleeps, then asks wincap for one
@@ -43,8 +45,8 @@
 #
 # 4 exists because 1 was carrying both "nothing was produced" and "a picture was
 # taken and judged too black to keep", and those two need opposite responses:
-# the first points at the capture tool, the window handle or the host, the
-# second at rendering.
+# the first points at the capture tool, the window handle or the host; the
+# second proves only that the attempted capture has no usable content.
 #
 # Measured 2026-09-07. A WSLg sweep recorded 47 rows as `screenshot.zsh produced
 # no image` while 56 PNGs written that same day sat in output/screenshots -- not
@@ -57,11 +59,9 @@
 #
 # The picture was taken. It was 96.2% black, so the 5000-byte floor at the end
 # of capture_with_wincap rejected it and this script exited 1, which the caller
-# read as "no image". A software-rendered run of the same app, the same 788x649
-# window, minutes later, measures 92.1% non-black -- so the fraction names a
-# host EGL fault, and calling it "no image" hid that behind the capture tool for
-# several investigation steps while the files sat on disk contradicting the
-# report.
+# read as "no image". A later run of the same app and window measured 92.1%
+# non-black. The contrast proves the first image was unusable, while renderer,
+# bridge and capture logs are still needed to identify why.
 #
 # 結束碼即為它的介面：
 #
@@ -71,23 +71,23 @@
 #   4  影像**已**寫出，之後才因內容被否決；檔案予以保留
 #
 # 之所以要有 4，是因為 1 同時承載了「什麼都沒產出」與「拍到了，但被判定太黑而不予採用」這兩件事，
-# 而它們需要的是相反的回應：前者指向擷取工具、視窗 handle 或主機，後者指向繪製。
+# 而它們需要的是不同回應：前者指向擷取工具、視窗 handle 或主機，後者只證明該次擷取沒有可用內容。
 #
 # 2026-09-07 實測。一次 WSLg sweep 記下 47 列 `screenshot.zsh produced no image`，而同一天寫出的
 # 56 張 PNG 就躺在 output/screenshots 裡——沒有任何一張是零位元組，每張介於 1796 至 3505 位元組。
 # 保留在其中一張旁邊的 wincap 日誌寫著上方那三行。
 #
 # 照片拍到了。它 96.2% 是黑的，於是 capture_with_wincap 結尾的 5000 位元組門檻否決了它，本腳本
-# 結束碼為 1，而呼叫端把它讀成「沒有影像」。數分鐘後，同一支 app、同一個 788x649 視窗，改以軟體
-# 繪製執行，量到 92.1% 非黑——因此該比例指認的是主機端的 EGL 故障；把它說成「沒有影像」，等於在
-# 檔案就躺在磁碟上反駁該回報的情況下，把故障藏到擷取工具背後好幾個調查步驟。
+# 結束碼為 1，而呼叫端把它讀成「沒有影像」。之後同一支 app、同一個 788x649 視窗量到 92.1%
+# 非黑；兩者差異證明第一張不可用，但仍須搭配 renderer、bridge 與 capture log 才能判定原因。
 
 set -euo pipefail
 
 script_dir="${0:a:h}"
 output_dir="$script_dir/output/screenshots"
-wincap_source="$script_dir/wincap.swift"
+wincap_source="$script_dir/wincap.cpp"
 wincap_exe="$script_dir/helper/bin/wincap.exe"
+wincap_projection="$script_dir/.compile-work/wincap-cppwinrt"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 平台 / Platform
@@ -497,9 +497,9 @@ fi
 # 既不是 macOS 也不是 Windows / Neither macOS nor Windows
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# 以下全部依賴 Windows capture 工具：指定 -w 時使用 wincap/PrintWindow，未指定 -w 時使用
+# 以下全部依賴 Windows capture 工具：指定 -w 時使用 wincap/WGC，未指定 -w 時使用
 # gdigrab 桌面擷取。一般 Linux 沒有這兩條路徑，因此直接停住並說明原因。
-# Everything below depends on Windows capture tooling: wincap/PrintWindow for -w,
+# Everything below depends on Windows capture tooling: wincap/WGC for -w,
 # and gdigrab desktop capture when -w is omitted. Plain Linux has neither path,
 # so this stops here and says why.
 if [ "$platform" != "windows" ]; then
@@ -524,13 +524,26 @@ ensure_wincap() {
 
     if [ ! -x "$wincap_exe" ] || [ "$wincap_source" -nt "$wincap_exe" ]; then
         mkdir -p "$script_dir/helper/bin"
+        mkdir -p "$wincap_projection"
         printf 'building wincap helper: %s\n' "$wincap_exe" >&2
-        if ! swiftc "$wincap_source" -o "$wincap_exe"; then
+        local sdk_version='10.0.22621.0'
+        local sdk_root='C:/Program Files (x86)/Windows Kits/10'
+        local cppwinrt="$sdk_root/bin/$sdk_version/x64/cppwinrt.exe"
+        local winmd="$sdk_root/UnionMetadata/$sdk_version/Windows.winmd"
+        if [ ! -f "$wincap_projection/winrt/Windows.Graphics.Capture.h" ]; then
+            if ! "$cppwinrt" -input "$winmd" -output "$wincap_projection"; then
+                printf '!! screenshot.zsh: failed to generate C++/WinRT projection\n' >&2
+                return 1
+            fi
+        fi
+        if ! clang++ -std=c++20 -O2 -Wno-nontrivial-memcall -DUNICODE -D_UNICODE \
+            -I "$wincap_projection" "$wincap_source" -o "$wincap_exe" \
+            -ld3d11 -ldxgi -lruntimeobject -lwindowsapp -lole32 -luser32 -lgdi32 -ldwmapi; then
             printf '!! screenshot.zsh: failed to build wincap helper\n' >&2
             return 1
         fi
         if [ ! -f "$wincap_exe" ]; then
-            printf '!! screenshot.zsh: swiftc reported success but did not produce %s\n' "$wincap_exe" >&2
+            printf '!! screenshot.zsh: clang++ reported success but did not produce %s\n' "$wincap_exe" >&2
             return 1
         fi
     fi
@@ -544,11 +557,10 @@ ensure_wincap() {
 #
 #     PrintWindow: true  non-black: 19922/511412 (3.8%)
 #
-# That one number is what separates the two faults. "No image" points at the
-# capture tool, the window handle or the host; "3.8% non-black" points at
-# rendering, and a second run of the same window at 92.1% then names the
-# difference. Throwing the number away and reporting "no image" is how a host
-# EGL fault stayed hidden on 2026-09-07 -- see this file's header.
+# The fraction proves that the image has no usable window content. It does not,
+# by itself, distinguish application rendering from a stale WSLg bridge or a
+# capture-API limitation; the capture method and renderer log provide that
+# context.
 #
 # The log is deliberately left on disk here, unlike every other failure path in
 # capture_with_wincap: on those the message IS the whole evidence, whereas here
@@ -561,9 +573,8 @@ ensure_wincap() {
 #
 # 該比例並非在此重新計算。wincap 早已逐像素量過，並印進了擷取檔旁邊的那份日誌（如上行）。
 #
-# 那一個數字正是區分兩種故障的依據：「沒有影像」指向擷取工具、視窗 handle 或主機；「3.8% 非黑」
-# 指向繪製，而同一個視窗的第二次執行量到 92.1%，就替兩者的差別命了名。把這個數字丟掉、改報
-# 「沒有影像」，正是 2026-09-07 那次主機端 EGL 故障得以隱藏的方式——見本檔檔頭。
+# 該比例能證明影像沒有可用的視窗內容，但不能單獨區分 app 繪製、過期的 WSLg bridge 或 capture API
+# 限制；判讀時必須連同 capture method 與 renderer log。
 #
 # 此處刻意把日誌留在磁碟上，與 capture_with_wincap 其他每一條失敗路徑不同：在那些路徑上，訊息本身
 # 就是全部的證據；而在這裡有一張 PNG 存活下來，日誌是唯一能說明它內容為何的東西。
@@ -710,21 +721,21 @@ fi
 timestamp="$(date +%Y%m%d-%H%M%S)"
 target="$output_dir/$label-$timestamp.png"
 
-# With -w: the window itself through wincap/PrintWindow, with no desktop
+# With -w: the window itself through wincap/WGC, with no desktop
 # fallback. Without -w: the composited desktop.
 #
 # The old Windows priority-1 path used gdigrab with `title=...`, which meant
 # exact-title matching, BitBlt, and occasional hangs from this script. wincap is
-# now the only window path on Windows/WSLg: it matches by substring, asks DWM to
-# render the window, and rejects an all-black bitmap before this script converts
-# the BMP to PNG.
+# now the only window path on Windows/WSLg: it matches by substring, uses Windows
+# Graphics Capture with a PrintWindow fallback, and rejects an all-black bitmap
+# before this script converts the BMP to PNG.
 #
-# 指定 -w：透過 wincap/PrintWindow 擷取視窗本身，不做 desktop fallback。未指定 -w：
+# 指定 -w：透過 wincap/WGC 擷取視窗本身，不做 desktop fallback。未指定 -w：
 # 擷取合成後的桌面。
 #
 # 舊的 Windows 優先序 1 使用 gdigrab 的 `title=...`，意味著 exact-title matching、BitBlt，
 # 且從本腳本呼叫時偶爾會卡住。現在 Windows/WSLg 的唯一視窗路徑是 wincap：它以子字串比對、
-# 要求 DWM 算繪視窗，並在本腳本將 BMP 轉成 PNG 前拒絕全黑 bitmap。
+# 使用 Windows Graphics Capture（失敗時回退 PrintWindow），並在本腳本將 BMP 轉成 PNG 前拒絕全黑 bitmap。
 captured_from=""
 if [ -n "$window" ]; then
     # The return code is kept, not collapsed to true/false. 4 means an image is
@@ -744,9 +755,9 @@ if [ -n "$window" ]; then
             # wincap_reject has already printed the fraction and the path. No
             # "captured from" line is printed, because the capture is not
             # evidence about the window -- but the file is kept, because it is
-            # evidence about the rendering.
+            # evidence about this failed capture.
             # wincap_reject 已印出比例與路徑。此處不印 "captured from"，因為該擷取並非關於該視窗
-            # 的證據——但檔案予以保留，因為它是關於「繪製」的證據。
+            # 的證據——但檔案予以保留，作為這次擷取失敗的證據。
             exit 4
             ;;
         *)

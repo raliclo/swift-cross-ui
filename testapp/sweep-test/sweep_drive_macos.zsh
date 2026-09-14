@@ -324,7 +324,7 @@ for app in "${apps[@]}"; do
         *"captured from priority 2"*) capture=desktop; note="${note:+$note; }window capture fell back to the screen" ;;
         *"rejected on content"*)
             capture=fail
-            note="${note:+$note; }an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
+            note="${note:+$note; }an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; rendering versus capture cause is unresolved" ;;
         *"no screenshot"*) capture=fail; note="${note:+$note; }screenshot.zsh wrote no image file at all" ;;
         *) capture=n/a ;;
     esac

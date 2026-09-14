@@ -768,16 +768,16 @@ for app in "${apps[@]}"; do
     # 那一張，於是 `tail -1` 會回報 `window`，而否決就此完全消失。
     capture_line="$(printf '%s\n' "$out" | grep -E 'captured from|rejected on content' | tail -1 || true)"
     # Taken from wincap's own measurement, echoed through screenshot.zsh. It is
-    # the number that separates a rendering fault from a capture fault, and the
-    # note is where a reader of results.csv2 will look for it.
-    # 取自 wincap 自身的量測，經由 screenshot.zsh 回顯。它是區分「繪製故障」與「擷取故障」的那個
-    # 數字，而 note 正是 results.csv2 的讀者會去找它的地方。
+    # the number proving that the capture has no usable window content. The note
+    # is where a reader of results.csv2 will look for it.
+    # 取自 wincap 自身的量測，經由 screenshot.zsh 回顯。它證明擷取沒有可用的視窗內容，而 note
+    # 正是 results.csv2 的讀者會去找它的地方。
     capture_fraction="$(printf '%s\n' "$out" \
         | grep -oE 'non-black: [0-9]+/[0-9]+ \([0-9.]+%\)' | tail -1 || true)"
     case "$capture_line" in
         *"rejected on content"*)
             capture=fail
-            add_note "an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; a rendering fault, not a capture one" ;;
+            add_note "an image WAS written and rejected on content -- ${capture_fraction:-non-black: unmeasured}; rendering versus capture/bridge cause is unresolved" ;;
         *"priority 1"*) capture=window ;;
         *"priority 2"*|*desktop*)
             capture=desktop

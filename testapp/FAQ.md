@@ -534,25 +534,26 @@ redirection surface, not what draws into it.
 Fixing only the title would therefore turn a visible fallback into a black PNG
 that looks like a successful capture. That is worse than the current behaviour.
 
-**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` handles all three cases.** It
-asks DWM to render the window rather than copying a surface. Measured on the two
-that gdigrab cannot do:
+**Update 2026-09-14:** the PrintWindow-only conclusion below was not stable.
+Current GTK GL and stale WSLg COPY MODE surfaces returned all-black data while
+PrintWindow still returned TRUE. Wincap now uses Windows Graphics Capture first
+and keeps PrintWindow only as a fallback. After `wsl --shutdown` cleared COPY
+MODE, WGC measured 92.2% non-black on WSLg and 92.1% on Windows GTK/GL. The old
+measurements remain useful historical observations:
 
     Windows + DComp   93.0% of pixels non-black, full window content
     WSL under WSLg    92.6% of pixels non-black, full window content
 
-Both images show chrome, headings, every tile and both text samples. So the
-capture limitation is gdigrab's, and one `PrintWindow` path fixes Windows and
-WSL together.
+Both old images show chrome, headings, every tile and both text samples, but
+they do not establish that PrintWindow works across later renderer/bridge state.
 
 **Count non-black pixels, always.** `PrintWindow` returns TRUE while producing an
 entirely black bitmap, exactly as gdigrab did above. A capture tool that reports
 only its exit status will report success for an empty image.
 
-As of 2026-08-29, `screenshot.zsh -w` uses this path as the only window-capture
-path on Windows/WSLg. If wincap cannot capture a matching window, the command
-fails closed. Desktop capture is still available by omitting `-w`, but it is no
-longer an automatic fallback for a named-window capture.
+As of 2026-09-14, `screenshot.zsh -w` uses wincap with WGC first and PrintWindow
+as fallback. If neither captures usable content, the command fails closed.
+Desktop capture is still available only by omitting `-w`.
 
 ## `screenshot.zsh -w` 以前為什麼會退回擷取桌面？現在如何修正？
 
@@ -575,17 +576,17 @@ composition swapchain——卻能被完美擷取，因此「D3D 內容無法被�
 
 因此**只修標題**會把一個「看得見的回退」變成一張「看起來像成功」的全黑 PNG，比現況更糟。
 
-**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` 三種情況全部能處理。** 它要求 DWM 重新繪製
-該視窗，而非複製既有表面。對 gdigrab 做不到的那兩種實測：Windows + DComp 為 93.0% 非黑，
-WSLg 為 92.6% 非黑，兩張圖都完整呈現視窗框、標題、每一個 tile 與兩段文字樣本。所以擷取的限制
-屬於 gdigrab，而一條 `PrintWindow` 路徑可同時修好 Windows 與 WSL。
+**2026-09-14 更新：** 下方 PrintWindow-only 結論並不穩定。現行 GTK GL 與過期的 WSLg
+COPY MODE surface 都曾在 PrintWindow 回傳 TRUE 時取得全黑資料。wincap 現在先使用 Windows
+Graphics Capture，只保留 PrintWindow fallback。執行 `wsl --shutdown` 清除 COPY MODE 後，
+WGC 實測 WSLg 92.2%、Windows GTK/GL 92.1% 非黑。舊測量 Windows + DComp 93.0%、WSLg
+92.6% 仍是有效歷史觀察，但不能證明 PrintWindow 對後續 renderer／bridge 狀態都有效。
 
 **永遠要計算非黑像素。** `PrintWindow` 會在產出全黑點陣圖的同時回傳 TRUE，正如上文的 gdigrab。
 一個只回報結束碼的擷取工具，會把空白影像回報為成功。
 
-截至 2026-08-29，`screenshot.zsh -w` 在 Windows/WSLg 已將此路徑作為唯一的視窗擷取路徑。
-若 wincap 無法擷取符合的視窗，指令會 fail closed。桌面擷取仍可透過省略 `-w` 明確使用，
-但不再是指定視窗擷取的自動 fallback。
+截至 2026-09-14，`screenshot.zsh -w` 先走 wincap/WGC，再走 PrintWindow fallback；兩者都沒有
+可用內容時才 fail closed。桌面擷取仍只在省略 `-w` 時明確使用。
 
 ## Why does GTK's frame clock not run at the display's refresh rate, and is that better for battery?
 

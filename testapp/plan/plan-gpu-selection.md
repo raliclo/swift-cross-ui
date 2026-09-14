@@ -329,13 +329,13 @@ These are harness fixes, not backend fixes. The backend-side policy change
 remains: `-GPU 1` means the platform default, while `-GPU 2` is the explicit
 request for Direct Composition / hardware rendering on Windows GTK.
 
-`testapp/wincap.swift` is now wired into `screenshot.zsh` as the only
+`testapp/wincap.cpp` is now wired into `screenshot.zsh` as the only
 Windows/WSLg `-w` window-capture path. With `-w`, the flow is wincap /
-`PrintWindow(PW_RENDERFULLCONTENT)` only, and the command fails closed if that
-capture fails. Desktop capture remains available only by omitting `-w`. The
-helper is built on demand into `testapp/helper/bin/wincap.exe`, checks for a
-non-black BMP, and the script converts that BMP to the same PNG output format
-as the rest of the screenshot flow.
+Windows Graphics Capture first, with `PrintWindow(PW_RENDERFULLCONTENT)` as a
+fallback. The command fails closed if neither returns usable content. Desktop
+capture remains available only by omitting `-w`. The helper is built on demand
+into `testapp/helper/bin/wincap.exe`, checks for a non-black BMP, and the script
+converts that BMP to the same PNG output format as the rest of the flow.
 
 P40 is a rendering-geometric-effects test, not a layout-geometry test. It can
 settle whether transformed samples render as real content or hotpink fallback;
@@ -372,8 +372,9 @@ Review 未提交 GPU 工作時發現兩個測試 harness 缺陷：
 這些是 harness 修正，不是 backend 修正。Backend 端政策仍維持目前結論：`-GPU 1` 代表平台預設，
 `-GPU 2` 才是 Windows GTK 上明確要求 Direct Composition / hardware rendering。
 
-`testapp/wincap.swift` 現已接進 `screenshot.zsh`，作為 Windows/WSLg 唯一的 `-w` 視窗擷取路徑。
-指定 `-w` 時只會走 wincap / `PrintWindow(PW_RENDERFULLCONTENT)`，若擷取失敗則 fail closed。
+`testapp/wincap.cpp` 現已接進 `screenshot.zsh`，作為 Windows/WSLg 唯一的 `-w` 視窗擷取路徑。
+指定 `-w` 時先走 Windows Graphics Capture，再以 `PrintWindow(PW_RENDERFULLCONTENT)` fallback；
+兩者都沒有可用內容時才 fail closed。
 桌面擷取只在明確省略 `-w` 時使用。helper 會按需建置到 `testapp/helper/bin/wincap.exe`，檢查 BMP
 不是全黑，並由腳本轉成與既有截圖流程相同的 PNG 輸出格式。
 

@@ -92,7 +92,7 @@ iOS 與 Android 都**不需要**指定裝置或設定環境變數。
 
 | 平台 | 方式 | 拍攝對象 |
 | --- | --- | --- |
-| Windows、WSLg | `screenshot.zsh`，gdigrab 後接 wincap | 指定的視窗，或作為最後回退的整個桌面 |
+| Windows、WSLg | `screenshot.zsh`；指定 `-w` 使用 wincap，只有未指定時才使用 gdigrab | 指定的視窗，或明確要求的整個桌面 |
 | macOS | `screenshot.zsh`，`screencapture` | 依 CGWindowID 指定的視窗，或整個顯示器 |
 | iOS | `simctl io ... screenshot` | 模擬器自身的 framebuffer |
 | Android | `adb exec-out screencap` | 裝置自身的 framebuffer |
@@ -117,7 +117,7 @@ iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」�
 
 | Script | 用途 |
 | --- | --- |
-| `screenshot.zsh` | 指定 `-w` 時用 wincap/PrintWindow 擷取該視窗；未指定 `-w` 時才用 gdigrab 擷取桌面 |
+| `screenshot.zsh` | 指定 `-w` 時用 wincap/Windows Graphics Capture 擷取該視窗，失敗才回退 PrintWindow；未指定 `-w` 時才用 gdigrab 擷取桌面 |
 | `gpu-matrix.zsh`, `P6-test.zsh`, `test_P6.zsh` | P6 throughput matrix 與無人值守測試 |
 | `rebase.zsh` | **它自己執行 rebase**，然後檢查 `issue_commits.csv` 內的 hash 是否仍存在於分支上。`--check` 才是唯讀的那一半 |
 
