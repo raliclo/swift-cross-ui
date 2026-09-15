@@ -50,7 +50,16 @@ extension AndroidBackend: BackendFeatures.LazyListRows {
             let adapter = listView.as(AndroidKit.AdapterView.self)?
                 .getAdapter()?
                 .as(CustomListAdapter.self)
-        else { return }
+        else {
+            // Reported, not swallowed. A list that quietly falls back to
+            // holding every row looks identical to a lazy one until the row
+            // count is large enough to matter, and by then the cause is far
+            // from the symptom.
+            // 回報，而非吞掉。一個「靜默退回持有每一列」的 list，在列數大到足以造成影響之前，
+            // 看起來與一個懶載入的完全相同；而到那時，成因已離症狀很遠。
+            log("lazy list rows: the list view has no CustomListAdapter")
+            return
+        }
 
         let density = listView.getResources().getDisplayMetrics().density
         let id = LazyListProviders.register(

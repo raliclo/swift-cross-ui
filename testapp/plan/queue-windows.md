@@ -178,7 +178,11 @@ AppKit 上先前是**空的**:P17、P28、P34 的每一個 `AXButton`,title 與 
 | --- | --- | --- |
 | AppKit | 423 → **104 MB**(單列基準 102) | 225 MB 且爬升中 → **134 MB 且平** |
 | UIKit | 449 → **170 MB**(500 列同樣 170) | 未量(模擬器無捲動合成) |
-| Android | 已轉換、**編得過**,未在裝置上跑 | — |
+| Android | 385 → **92 MB**(單列 91,10,000 列 92) | 未量 |
+
+Android 這一列的量測是 `adb shell dumpsys meminfo` 的 `TOTAL PSS`,而非 app 自報的 resident
+size——在同一支 app 上,自報值(167 MB)與 `dumpsys`(92 MB)差了近一倍,兩者量的不是同一件事,
+因此欄位裡放的是**兩端用同一把尺**的那一個。10,000 列時 provider 被呼叫**不到 500 次**。
 
 **GtkBackend 與 WinUIBackend 尚未轉換。** 兩者原生都有這一側:`GtkListView` 帶 factory、
 `ItemsRepeater`。要實作的只有一個方法:

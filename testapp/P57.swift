@@ -1,6 +1,6 @@
 import DefaultBackend
 import Foundation
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 // P57: how expensive is an eager List, and at what size does it stop being
 // usable?
@@ -210,6 +210,8 @@ struct P57ListCostApp: App {
 }
 
 struct P57RootView: View {
+    @Environment(\.backend) var backend
+
     /// Stamped when the first body runs, read when the first render completes.
     ///
     /// A `let` on the view would be re-stamped every time the view is
@@ -246,6 +248,25 @@ struct P57RootView: View {
             // 保留,但真正的量測是視窗的高度。這一行只是用來確認這支 app 至少走到了 onAppear。
             Text("first render: \(renderedIn)")
             Text("resident memory: \(P57Memory.residentMegabytes) MB")
+            // Whether the backend takes rows one at a time, asked of the
+            // backend rather than assumed from which files exist.
+            //
+            // Android compiled `BackendFeatures.LazyListRows` and then took the
+            // eager path anyway, and the only reason that was caught is that the
+            // memory did not move. A line on screen makes the question visible
+            // on every platform at once.
+            //
+            // 這個 backend 是不是「一次收一列」——去問 backend，而不是從「有哪些檔案存在」去假設。
+            //
+            // Android 把 `BackendFeatures.LazyListRows` 編了進去，然後照樣走了 eager 路徑;而那件事
+            // 之所以被抓到，唯一的原因是記憶體沒有動。畫面上的一行，讓這個問題在每個平台上同時可見。
+            Text("lazy rows: \(backend is any BackendFeatures.LazyListRows ? "yes" : "NO")")
+            // A control. `ScrollingLists` landed on all five backends weeks ago
+            // and is checked the same way in the same file, so if it also reads
+            // NO here the problem is the runtime cast, not this conformance.
+            // 一個對照組。`ScrollingLists` 幾週前就在五個 backend 上落地，而它在同一個檔案裡以同樣的
+            // 方式被檢查;因此若它在此處也讀作 NO，那問題出在執行期的轉型，而不在這個 conformance。
+            Text("control -- scrolling lists: \(backend is any BackendFeatures.ScrollingLists ? "yes" : "NO")")
 
             // ~~"Baseline for #117. List builds every row up front"~~ -- it did,
             // until 2026-09-11. Struck through rather than replaced, for the

@@ -515,3 +515,80 @@ third column is empty is not finished however full the first two are.
 
 Before reporting an item: can I paste a number? If not, the words are "compiles,
 not run".
+
+---
+
+## 8. 量到的是上一次的建置,因為「建置」與「打包」是兩個步驟
+
+**2026-09-15,1 次,1 天。**
+
+### 症狀
+
+Android 上的 P57 顯示 `lazy rows: NO`,而 logcat 印出
+`-lazyrows: EAGER setItems called with 2000 items`。兩個獨立的訊號一致指向同一個結論:
+`BackendFeatures.LazyListRows` 的 conformance 編得進去,執行期卻看不到。於是我開始查
+「靜態連結下 protocol conformance record 被丟棄」這類理論。
+
+**Swift 從第一次建置起就是對的。裝置從來沒拿到它。**
+
+`compile.zsh -android` 建到 `.build/`,而 APK 是由 `test_android.zsh` 從**另一次** swift-bundler
+建置(`.build-bundler/`)打包的。因此:編譯回傳 0、`adb install` 印出 `Success`、app 啟動並正常
+繪製——而每一張截圖、每一次 `dumpsys` 量測,量的都是**上一次**的建置。
+
+### 為什麼沒有任何東西報錯
+
+三個步驟各自都成功,而且各自都誠實:
+
+| 步驟 | 回報 | 它實際保證了什麼 |
+| --- | --- | --- |
+| `compile.zsh -android` rc=0 | 成功 | **原始碼編得過**——不保證有可安裝的產物 |
+| `adb install -r *.apk` | `Success` | **那個檔案裝好了**——不保證那個檔案是新的 |
+| app 啟動並渲染 | 畫面出來了 | **某一版跑起來了**——不保證是哪一版 |
+
+沒有一格是假的。錯的是把三者串起來讀成「我剛寫的程式在裝置上跑了」。
+
+### 這與第 7 條不同
+
+第 7 條是「編得過 ≠ 跑過」。這一條是**「跑過 ≠ 跑的是我建的那一份」**——它發生在第三欄
+**已經填上數字之後**。我當時確實有數字(389 MB、381 MB、170 MB),那些數字也確實是量出來的,
+只是量的是別的二進位。**一個數字不會說出它來自哪一版。**
+
+### 矯正措施
+
+1. **讓 app 自己說出受測的那件事。** P57 現在印
+   `lazy rows: yes/NO`——一行 `backend is any BackendFeatures.LazyListRows`。
+2. **加一個同形狀的對照組。** 同一檔、同一寫法,換一個**早已落地**的 protocol:
+   `control -- scrolling lists:`。若連它也讀作 `NO`,指向的就是**這個二進位**,而不是那個功能。
+   這一步會把一小時縮成幾秒。
+3. **在相信任何一者之前,先看產物自己的時間戳。** `ls -l` 那個 `.apk`,與 `adb install` 寫在
+   同一個指令裡。`compile.zsh -android` 現在會無條件印出它沒有打包 APK。
+
+### 守衛
+
+> 平台的產物若需要**打包**(Android APK、iOS `.app`、任何 bundle),**建置的退出碼不是產物的
+> 時間戳**。量測或截圖之前,`ls -l` 那個產物;而受測的事實要由 app 自己印在畫面上,旁邊放一個
+> 已知為真的對照。
+
+---
+
+## 8. Measured the previous build, because building and packaging are different steps
+
+P57 on Android displayed `lazy rows: NO` while logcat showed the eager path --
+two independent signals agreeing that a conformance compiled but was invisible at
+runtime. The Swift was correct from the first build; the device had never been
+given it. `compile.zsh -android` builds into `.build/`, while the APK is packaged
+by `test_android.zsh` from a separate swift-bundler build in `.build-bundler/`.
+
+Nothing lied. The compile returned 0 (the source compiles), `adb install` printed
+`Success` (that file is installed), and the app rendered (some build ran). The
+error was reading the three together as "the code I just wrote ran on the device".
+
+This is not entry 7. That one is "compiles is not ran". This is **"ran is not ran
+what I built"**, and it happens *after* the third column has a number in it. I had
+numbers -- 389 MB, 381 MB, 170 MB -- and they were real measurements of a
+different binary. A number does not say which build it came from.
+
+The guard: when a platform's artifact must be PACKAGED, the build's exit code is
+not the artifact's timestamp. `ls -l` the artifact in the same command that
+installs it, have the app print the fact under test on screen, and put a control
+beside it -- a control reading NO too would have pointed at the binary in seconds.
