@@ -2,6 +2,92 @@ import DefaultBackend
 import Foundation
 import SwiftCrossUI
 
+#if canImport(CGtk)
+    import CGtk
+    import GtkCHelpers
+
+    /// Asks GTK itself what scale it thinks the window is at, by two different
+    /// calls (#80).
+    ///
+    /// **The two disagree, and which one the framework reads is the whole
+    /// question.** `gtk_widget_get_scale_factor` is an INTEGER by design -- the
+    /// buffer scale GTK rendered at -- so at 125% on Windows it can only say 1,
+    /// and that is the number `computeWindowEnvironment` currently puts into
+    /// `windowScaleFactor`. `gdk_surface_get_scale` arrived in GTK 4.12 and
+    /// returns a DOUBLE. GTK here is 4.22, so it exists; what it returns on
+    /// Windows at a fractional scale is the thing nobody has measured.
+    ///
+    /// Measured before changing anything, because the two possible answers need
+    /// opposite work: 1.25 means the framework is reading the wrong call, and
+    /// 1.0 means GDK does not carry the display scale on this platform at all
+    /// and the answer is a Win32 one.
+    ///
+    /// 用兩個不同的呼叫,去問 GTK 自己認為這個視窗的比例是多少(#80)。
+    ///
+    /// **兩者並不一致,而框架讀的是哪一個,正是整個問題所在。**
+    /// `gtk_widget_get_scale_factor` 依設計是**整數**——那是 GTK 實際繪製所用的 buffer scale——
+    /// 因此在 Windows 的 125% 下它只能回答 1,而那正是 `computeWindowEnvironment` 目前放進
+    /// `windowScaleFactor` 的數字。`gdk_surface_get_scale` 是 GTK 4.12 才有的,回傳**倍精度小數**;
+    /// 此處的 GTK 是 4.22,所以它存在——**而它在 Windows 的小數縮放下回傳什麼,沒有人量過。**
+    ///
+    /// 在動任何程式碼之前先量,因為兩種可能的答案需要相反的工作:1.25 代表框架讀錯了呼叫;
+    /// 1.0 則代表 GDK 在這個平台上根本不攜帶顯示縮放,答案得走 Win32。
+    enum P42GtkProbe {
+        nonisolated(unsafe) static var didStart = false
+
+        static func start() {
+            guard CommandLine.arguments.contains("--scale-probe"), !didStart else { return }
+            didStart = true
+            // On a timer rather than once: the point of #80 is what happens
+            // when the scale CHANGES, so a single reading at startup would
+            // answer only half of it.
+            // 用計時器而非只讀一次:#80 問的是**縮放改變時**會發生什麼,因此只在啟動時讀一次,
+            // 只回答得了一半。
+            _ = g_timeout_add(
+                2000,
+                { _ in
+                    P42GtkProbe.report()
+                    return 1
+                },
+                nil
+            )
+        }
+
+        static func report() {
+            let toplevels = gtk_window_get_toplevels()
+            for index in 0..<g_list_model_get_n_items(toplevels) {
+                guard let object = g_list_model_get_item(toplevels, index) else { continue }
+                let widget = object.assumingMemoryBound(to: GtkWidget.self)
+                let widgetScale = gtk_widget_get_scale_factor(widget)
+                var surfaceScale = -1.0
+                var surfaceScaleFactor = -1
+                // gtk_widget_get_native rather than a cast: GtkNative is an
+                // interface, and GtkWindow implements it, but only the getter
+                // states that in a way Swift can type-check.
+                // 用 gtk_widget_get_native 而非強制轉型:GtkNative 是 interface,GtkWindow 有實作它,
+                // 但只有這個 getter 以 Swift 能做型別檢查的方式陳述此事。
+                if let native = gtk_widget_get_native(widget),
+                    let surface = gtk_native_get_surface(native)
+                {
+                    surfaceScale = gdk_surface_get_scale(surface)
+                    surfaceScaleFactor = Int(gdk_surface_get_scale_factor(surface))
+                }
+                P42Diagnostics.write(
+                    "GTK widget_scale_factor=\(widgetScale) "
+                        + "surface_scale=\(surfaceScale) "
+                        + "surface_scale_factor=\(surfaceScaleFactor) "
+                        + "display_scale=\(scui_window_display_scale(widget))"
+                )
+                if let diagnostics = scui_window_scale_diagnostics(widget) {
+                    P42Diagnostics.write("WIN32 \(String(cString: diagnostics))")
+                    g_free(diagnostics)
+                }
+                g_object_unref(object)
+            }
+        }
+    }
+#endif
+
 // P42: does the window scale factor follow a display-scale change while the app
 // is running?
 //
@@ -166,6 +252,9 @@ struct P42RootView: View {
                 "arguments \(CommandLine.arguments.joined(separator: " | "))"
             )
             P42Diagnostics.renderComplete()
+            #if canImport(CGtk)
+                P42GtkProbe.start()
+            #endif
         }
     }
 }

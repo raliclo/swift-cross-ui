@@ -182,6 +182,100 @@ gboolean scui_window_set_topmost(GtkWidget *window, gboolean topmost);
 // 所設定的主題變體。
 gboolean scui_window_set_dark_titlebar(GtkWidget *window, gboolean dark);
 
+// The scale the DISPLAY reports for the monitor this window is on -- 1.25 at
+// 125% -- or 0 where that is not available. Implemented in gtk_window_scale.c.
+//
+// This exists because GDK on Windows does not carry it. Measured 2026-09-16
+// with the display at 125%, driven by P42 --scale-probe, three readings two
+// seconds apart:
+//
+//     GTK widget_scale_factor=1 surface_scale=1.0 surface_scale_factor=1
+//
+// `gdk_surface_get_scale` is the GTK 4.12 double, and GTK here is 4.22, so it
+// is present and it answered 1.0. The display really was at 125%: the same app
+// built against WinUIBackend, running minutes apart on the same desktop,
+// recorded `scale factor -> 1.25`. So this is not "the integer API rounds" --
+// GDK's fractional API returns the unscaled value too, and no GDK call on this
+// platform states the display scale at all.
+//
+// Kept separate from `gdk_surface_get_scale` rather than replacing it: on
+// Wayland and X11 that call IS the display's fraction and should stay the
+// source. This helper returns 0 off Win32 for exactly that reason.
+//
+// 顯示器就「此視窗所在的那台螢幕」所回報的縮放比例——125% 時為 1.25——取不到時回傳 0。
+// 實作位於 gtk_window_scale.c。
+//
+// 它之所以存在,是因為 **GDK 在 Windows 上並不攜帶這個值**。實測於 2026-09-16,顯示器設為 125%,
+// 以 P42 --scale-probe 驅動,每兩秒一次、共三次讀數:
+//
+//     GTK widget_scale_factor=1 surface_scale=1.0 surface_scale_factor=1
+//
+// `gdk_surface_get_scale` 是 GTK 4.12 起提供的**倍精度小數**版本,而此處的 GTK 是 4.22,因此它
+// 確實存在——而它回答 1.0。顯示器當時確實在 125%:同一支 app 以 WinUIBackend 建置、在同一個桌面上
+// 相隔數分鐘執行,記錄到 `scale factor -> 1.25`。所以這不是「整數 API 會取整」——**GDK 的小數 API
+// 同樣回傳未縮放的值**,在這個平台上沒有任何 GDK 呼叫陳述得出顯示器的縮放。
+//
+// 刻意與 `gdk_surface_get_scale` 並存而非取代它:在 Wayland 與 X11 上,那個呼叫回傳的就是顯示器的
+// 小數,應繼續作為來源。本 helper 在非 Win32 上回傳 0,正是為此。
+double scui_window_display_scale(GtkWidget *window);
+
+// Called when the display scale under a watched window changes, with the new
+// scale already applied.
+// 受監看的視窗其顯示器縮放改變時的回呼,傳入的比例已經套用完成。
+typedef void (*ScuiDisplayScaleChangedFunc)(
+    GtkWidget *window, double scale, void *user_data
+);
+
+// Asks to be told when the value scui_window_display_scale returns changes.
+// Returns whether a watch was installed.
+//
+// **There is no GTK signal for this on Windows, which is the whole reason for
+// the function.** `notify::scale-factor` fires when GTK's INTEGER buffer scale
+// changes, and that integer is 1 at both 100% and 125% -- so the signal the
+// backend already listens to is silent across exactly the change #80 is about.
+// `notify::scale` on the surface is no better: the measurement above shows that
+// value is 1.0 at 125% too, so it has nothing to report a change in.
+//
+// So this subclasses the window procedure and watches for WM_DPICHANGED, which
+// is the notification Windows actually sends. It is idempotent per window, and
+// the replacement calls the original procedure before the callback so the
+// window has finished moving and resizing first.
+//
+// 詢問「scui_window_display_scale 的回傳值改變時請告訴我」。回傳是否成功安裝監看。
+//
+// **在 Windows 上並沒有對應的 GTK 訊號,而那正是本函式存在的全部理由。**
+// `notify::scale-factor` 是在 GTK 的**整數** buffer scale 改變時觸發,而該整數在 100% 與 125% 下
+// 都是 1——因此 backend 既有所監聽的那個訊號,**恰好在 #80 所談的那種變化上完全沉默**。
+// surface 的 `notify::scale` 也好不到哪去:上方的量測顯示該值在 125% 下同樣是 1.0,它根本沒有
+// 任何變化可報。
+//
+// 因此本函式改為 subclass window procedure,監看 WM_DPICHANGED——那才是 Windows 真正送出的通知。
+// 它對每個視窗具冪等性,且替換後的 procedure 會先呼叫原始 procedure 再回呼,使視窗先完成移動與
+// 尺寸調整。
+gboolean scui_window_watch_display_scale(
+    GtkWidget *window, ScuiDisplayScaleChangedFunc callback, void *user_data
+);
+
+// Every Win32 number that bears on the window's scale, in one newly-allocated
+// string. The caller owns it and must g_free it. Diagnostics, not policy:
+// nothing in the framework reads this, and P42's --scale-probe prints it.
+//
+// It exists because the first answer was measured and was still wrong.
+// `GetDpiForWindow` reported 1.25 at 125%, which looked like the fix -- and
+// then kept reporting 1.25 after the display was changed to 100%, across 99
+// readings two seconds apart. The value was not stale by one sample; it never
+// moved. That rules out the notification being the problem and points at the
+// process's DPI awareness, which is what `awareness` here reports.
+//
+// 所有與該視窗縮放有關的 Win32 數字,集中於一個新配置的字串。呼叫端擁有它,必須 g_free。這是
+// **診斷**而非政策:框架中沒有任何東西讀它,由 P42 的 --scale-probe 印出。
+//
+// 它之所以存在,是因為第一個答案量過了、卻仍然是錯的。`GetDpiForWindow` 在 125% 下回報 1.25,
+// 看起來就是修好了——然後在顯示器被改成 100% 之後,它**繼續**回報 1.25,連續 99 次、每兩秒一次。
+// 那個值不是慢了一拍,而是**從未移動**。這排除了「問題出在通知」,並指向行程的 DPI awareness,
+// 亦即此處的 `awareness`。
+char *scui_window_scale_diagnostics(GtkWidget *window);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the

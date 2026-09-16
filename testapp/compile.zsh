@@ -1370,7 +1370,25 @@ fi
 # 會導致每次編輯都丟棄整個建置計畫，代價是每次都全量重建。另納入 SCUI_DEBUG，因為它會改變
 # root package 的 conditional InputEvent dependencies。
 source_list_hash_file="$package_dir/.source-list-hash"
-source_list_hash="$(cd "$repo_root" && { find Sources -name '*.swift' -print | sort; printf 'SCUI_DEBUG=%s\n' "${SCUI_DEBUG:-0}"; } | cksum)"
+# `.c` and `.h` as well as `.swift`, because llbuild bakes those into the plan
+# the same way and skipping them produced the same silent failure from the other
+# direction. Measured 2026-09-16: adding `Sources/GtkCHelpers/gtk_window_scale.c`
+# left this hash unchanged, so the plan was reused, the file was never compiled,
+# and the build failed at the LINK step with
+# `lld-link: error: undefined symbol: scui_window_display_scale` -- a message
+# that names the symbol and says nothing about the file that was skipped. That is
+# exactly the failure `include/gtk_helpers.h` records above
+# `gtk_passthrough_drawing_area_new`, which is why that header tells the reader to
+# `touch Package.swift`: at the time, nothing else would clear it. This does.
+#
+# 同時納入 `.c` 與 `.h`,而不只是 `.swift`,因為 llbuild 以同樣方式把它們烘焙進建置計畫,漏掉它們
+# 會從另一個方向產生同一種無聲失敗。實測於 2026-09-16:新增
+# `Sources/GtkCHelpers/gtk_window_scale.c` 並不會改變此雜湊,於是計畫被沿用、該檔從未被編譯,建置
+# 在**連結**階段失敗於
+# `lld-link: error: undefined symbol: scui_window_display_scale`——這個訊息指名了符號,對「被略過的
+# 那個檔案」隻字未提。那正是 `include/gtk_helpers.h` 在 `gtk_passthrough_drawing_area_new` 上方所
+# 記錄的失敗,也正是該標頭要讀者去 `touch Package.swift` 的原因:當時沒有別的辦法能清掉它。現在有了。
+source_list_hash="$(cd "$repo_root" && { find Sources \( -name '*.swift' -o -name '*.c' -o -name '*.h' \) -print | sort; printf 'SCUI_DEBUG=%s\n' "${SCUI_DEBUG:-0}"; } | cksum)"
 if [[ ! -f "$source_list_hash_file" ]] \
     || [[ "$source_list_hash" != "$(cat "$source_list_hash_file" 2>/dev/null)" ]]; then
     rm -f "$package_dir/.build/debug.yaml" "$package_dir/.build/release.yaml"

@@ -313,6 +313,11 @@ public final class GtkBackend:
 
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
+    /// One per window that has an environment-change handler, keyed by the
+    /// window. See ``DisplayScaleWatch``.
+    /// 每個裝有 environment-change handler 的視窗各一,以視窗為鍵。見 ``DisplayScaleWatch``。
+    private var displayScaleWatches: [ObjectIdentifier: DisplayScaleWatch] = [:]
+
     var borderedButtonPadding: SIMD2<Int>?
 
     private struct LogLocation: Hashable, Equatable {
@@ -3293,11 +3298,40 @@ public final class GtkBackend:
         //
         // 採用 toolkit 自己的答案而非顯示器的答案，與該處是同一項決定、同一個理由：`Image` 會在此值
         // 變動時重新繪製，而以「GTK 並未據以排版的比例」繪製，會得到一張「在錯誤尺寸上很銳利」的圖。
-        rootEnvironment
+        //
+        // Superseded 2026-09-16, for `windowScaleFactor` only. The paragraph
+        // above stays because it is still exactly right about ActionFileReplay,
+        // which still gets the integer -- every action file's coordinates were
+        // measured against it. What it was wrong about is this environment
+        // value: an app asking for `windowScaleFactor` is asking what the
+        // DISPLAY is at, and answering with GTK's buffer scale reports 1.0 on a
+        // 125% Windows display. The same app on WinUIBackend, minutes apart on
+        // the same desktop, reports 1.25. One framework, two answers, and the
+        // GTK one is not the display's.
+        //
+        // `scui_window_display_scale` returns 0 where it has nothing to say --
+        // before the window is realized, and on every platform but Win32, where
+        // GDK's own fraction IS the display's and stays the source. So this is
+        // additive: nothing outside Windows changes.
+        //
+        // 2026-09-16 起被取代,但**僅限 `windowScaleFactor`**。上方那段保留下來,因為它對
+        // `ActionFileReplay` 的描述依然完全正確——那裡仍然拿整數,每一個 action file 的座標都是據它
+        // 量出來的。它說錯的是**這個 environment 值**:app 詢問 `windowScaleFactor` 時,問的是
+        // **顯示器**處於什麼比例,而以 GTK 的 buffer scale 作答,會在 125% 的 Windows 顯示器上回報
+        // 1.0。同一支 app 以 WinUIBackend 建置、在同一個桌面上相隔數分鐘執行,回報的是 1.25。
+        // 同一個框架,兩種答案,而 GTK 的那個並不是顯示器的。
+        //
+        // `scui_window_display_scale` 在無話可說時回傳 0——視窗 realize 之前,以及除 Win32 以外的
+        // 每個平台(在那些平台上 GDK 自己的小數就是顯示器的,並繼續作為來源)。因此這是**附加**的:
+        // Windows 以外沒有任何改變。
+        let gtkBufferScale = Double(gtk_widget_get_scale_factor(window.widgetPointer))
+        let displayScale = scui_window_display_scale(window.widgetPointer)
+        return
+            rootEnvironment
             .with(\.scenePhase, window.isActive ? .active : .inactive)
             .with(
                 \.windowScaleFactor,
-                Double(gtk_widget_get_scale_factor(window.widgetPointer))
+                displayScale > 0 ? displayScale : gtkBufferScale
             )
     }
 
@@ -3358,6 +3392,66 @@ public final class GtkBackend:
             MainActor.assumeIsolated {
                 action()
             }
+        }
+
+        // And WM_DPICHANGED on top, because on Windows the signal above is
+        // silent across the change this is for. GTK's scale factor is 1 at 100%
+        // and 1 at 125%, so `notify::scale-factor` never fires -- a window whose
+        // display scale changed under it kept the old value, which is the exact
+        // failure the paragraph above describes being fixed. It was fixed for
+        // integer steps only, and Windows' common scales are fractional.
+        //
+        // Installed here rather than at window creation because the surface has
+        // to exist for there to be an HWND, and this runs after the window is
+        // shown. `scui_window_watch_display_scale` returns false when it does
+        // not -- and off Windows, where it is not needed.
+        //
+        // 在其上再加 WM_DPICHANGED,因為在 Windows 上,上面那個訊號**恰好對這件事沉默**。GTK 的
+        // scale factor 在 100% 是 1、在 125% 也是 1,因此 `notify::scale-factor` 從不觸發——顯示器
+        // 縮放在其底下改變的視窗會保留舊值,而那正是上一段所描述「已經修好」的那個失敗。它只被修好了
+        // **整數級距**的部分,而 Windows 常用的縮放是小數。
+        //
+        // 安裝於此而非視窗建立時,因為要有 HWND 就必須先有 surface,而此處是在視窗顯示之後執行。
+        // 若沒有,`scui_window_watch_display_scale` 會回傳 false——在不需要它的非 Windows 平台亦然。
+        let watch = DisplayScaleWatch(action: action)
+        displayScaleWatches[ObjectIdentifier(window)] = watch
+        _ = scui_window_watch_display_scale(
+            window.widgetPointer,
+            { _, _, userData in
+                guard let userData else { return }
+                let watch = Unmanaged<DisplayScaleWatch>
+                    .fromOpaque(userData)
+                    .takeUnretainedValue()
+                // Same reasoning as `MainActor.assumeIsolated` above: a window
+                // procedure runs on the thread that pumps the message loop,
+                // which is the thread running the GTK main loop.
+                // 理由同上方的 `MainActor.assumeIsolated`:window procedure 執行於抽取訊息迴圈的
+                // 那個執行緒,也就是執行 GTK main loop 的執行緒。
+                MainActor.assumeIsolated {
+                    watch.action()
+                }
+            },
+            Unmanaged.passUnretained(watch).toOpaque()
+        )
+    }
+
+    /// Keeps a window's environment-change closure alive for the C callback,
+    /// which carries a raw pointer and cannot retain anything itself.
+    ///
+    /// Held in ``displayScaleWatches`` rather than passed with
+    /// `passRetained`: a retained pointer with no matching release is a leak
+    /// that nothing reports, and the backend already outlives its windows.
+    ///
+    /// 為 C callback 保住視窗的 environment-change closure——該 callback 帶的是原始指標,自己
+    /// 無法持有任何東西。
+    ///
+    /// 存放於 ``displayScaleWatches`` 而非以 `passRetained` 傳遞:一個沒有對應 release 的
+    /// retained 指標就是一處**無人回報**的洩漏,而 backend 本來就活得比它的視窗久。
+    final class DisplayScaleWatch {
+        let action: @MainActor () -> Void
+
+        init(action: @escaping @Sendable @MainActor () -> Void) {
+            self.action = action
         }
     }
 
