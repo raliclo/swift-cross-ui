@@ -172,10 +172,46 @@ extension UIKitBackend: BackendFeatures.AttachedMenus {
     }
 }
 
-// Once keyboard shortcuts are implemented, it might be possible to do them on
-// more platforms than just Mac Catalyst. For now, we only conform to the
-// protocol when built for Catalyst.
-#if targetEnvironment(macCatalyst)
+// The condition this `#if` was waiting for, met.
+//
+// It used to read "Once keyboard shortcuts are implemented, it might be possible
+// to do them on more platforms than just Mac Catalyst" and admit only Catalyst.
+// Shortcuts are implemented now -- `UIKeyCommand` through the responder chain,
+// see `UIKitBackend+MenuShortcuts.swift` -- so iOS and iPadOS come in.
+//
+// **What compiling this out actually did was remove the whole application menu,
+// not just its shortcuts.** Without the conformance the framework's
+// `backend as? any BackendFeatures.ApplicationMenus` in `_App.swift` fails,
+// `setApplicationMenu` is never called, and the app delegate's submenu list
+// stays empty. Traced on an iPad on 2026-09-16 by making `buildMenu` write what
+// it saw:
+//
+//     buildMenu system==main: true submenus=0
+//
+// Nothing failed anywhere along that path. The menu system was built, correctly,
+// out of an empty list -- so `.commands` and `CommandMenu` did nothing at all on
+// iOS, and P71's shortcut counters read zero while the keys were arriving.
+//
+// tvOS stays out: it has no menu bar and no keyboard to press.
+//
+// 這個 `#if` 當初在等的條件,已經成立。
+//
+// 它原本寫著「等鍵盤快捷鍵實作出來,或許就能推廣到 Mac Catalyst 以外的平台」,並且只放行 Catalyst。
+// 快捷鍵現在實作好了——`UIKeyCommand` 經由 responder chain,見 `UIKitBackend+MenuShortcuts.swift`
+// ——因此 iOS 與 iPadOS 一併納入。
+//
+// **把這段編譯掉,實際移除的是整個應用程式選單,而不只是它的快捷鍵。** 少了這個 conformance,
+// `_App.swift` 裡的 `backend as? any BackendFeatures.ApplicationMenus` 就失敗,`setApplicationMenu`
+// 永遠不會被呼叫,而 app delegate 的 submenu 清單一直是空的。2026-09-16 在一台 iPad 上,讓
+// `buildMenu` 寫出它所看到的東西而追出來:
+//
+//     buildMenu system==main: true submenus=0
+//
+// 那條路徑上沒有任何東西失敗過。選單系統**正確地**從一份空清單建了出來——於是 `.commands` 與
+// `CommandMenu` 在 iOS 上完全沒有作用,而 P71 的快捷鍵計數是零,儘管那些按鍵確實抵達了。
+//
+// tvOS 不納入:它沒有選單列,也沒有鍵盤可按。
+#if targetEnvironment(macCatalyst) || os(iOS)
     extension UIKitBackend: BackendFeatures.ApplicationMenus {
         public func setApplicationMenu(
             _ submenus: [ResolvedMenu.Submenu],
@@ -184,6 +220,39 @@ extension UIKitBackend: BackendFeatures.AttachedMenus {
             let appDelegate = UIApplication.shared.delegate as! ApplicationDelegate
             appDelegate.menu = submenus
             appDelegate.environment = environment
+
+            // Storing the submenus is not enough: UIKit has already built the
+            // menu by now, and will not build it again unless asked.
+            //
+            // **`buildMenu` runs once, early, before the app's body has
+            // produced anything.** Measured 2026-09-16 on an iPad by having
+            // `buildMenu` write what it saw:
+            //
+            //     buildMenu system==main: true submenus=0
+            //
+            // So every `CommandMenu` item was absent from the menu system, and
+            // with it every `UIKeyCommand` -- P71 reported three zeros for its
+            // shortcuts while the keys were arriving correctly. Nothing failed:
+            // the menu built successfully, out of nothing.
+            //
+            // `setNeedsRebuild()` is the documented way to say the menu is now
+            // different. It is cheap and idempotent; UIKit coalesces.
+            //
+            // 把 submenus 存起來是不夠的:UIKit 此刻**早已**建好選單,而且不會再建一次,除非被要求。
+            //
+            // **`buildMenu` 只在啟動早期跑一次,那時 app 的 body 還沒產生任何東西。** 2026-09-16 在
+            // 一台 iPad 上,讓 `buildMenu` 寫出它所看到的東西而量到:
+            //
+            //     buildMenu system==main: true submenus=0
+            //
+            // 因此每一個 `CommandMenu` 項目都不在選單系統裡,連帶每一個 `UIKeyCommand` 也不在——
+            // P71 的三個快捷鍵計數都是 0,而那些按鍵其實正確地抵達了。沒有任何東西失敗過:那個選單
+            // 建置**成功**了,只是從無到無。
+            //
+            // `setNeedsRebuild()` 是「選單已經不同了」的標準說法。它便宜且冪等,UIKit 自己會合併。
+            if #available(iOS 13, tvOS 13, *) {
+                UIMenuSystem.main.setNeedsRebuild()
+            }
         }
     }
 #endif

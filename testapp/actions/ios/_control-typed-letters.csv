@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# A POSITIVE CONTROL, not a test of any Pn.
+#
+# Three plain letters, no modifiers, into whatever holds the focus. If they
+# appear, XCUITest's typeKey reaches the app and a zero on a shortcut test means
+# the shortcut is not wired. If they do not, the zero says nothing at all.
+#
+# Kept in the tree rather than written ad hoc each time, because the question
+# "did the keys arrive" comes up every time a key test reports nothing, and an
+# answer that has to be rebuilt is an answer nobody reaches for.
+#
+# 一個**正對照**,不是任何 Pn 的測試。
+#
+# 三個沒有 modifier 的普通字母,送進當下持有焦點的東西。若它們出現,代表 XCUITest 的 typeKey
+# 抵達得了 app,那麼快捷鍵測試上的零就意謂「快捷鍵沒接上」。若它們沒出現,那個零什麼都不說。
+#
+# 留在樹裡而不是每次臨時寫,因為「按鍵到底有沒有到」這個問題,在每一次按鍵測試回報「什麼都沒發生」
+# 時都會出現;而一個每次都要重造的答案,是一個沒有人會伸手去拿的答案。
+sleep,,,,,,900000,let the scene settle,ios
+key,,,,,a,,,ios
+key,,,,,h,,,ios
+key,,,,,v,,,ios
+sleep,,,,,,600000,let the field redraw,ios
