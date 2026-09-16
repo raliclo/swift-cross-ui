@@ -382,6 +382,18 @@ public final class WinUIBackend:
         /// 某個 slider 是否已回報過一次尚未被 `false` 配對的 `onEditingChanged(true)`。
         /// 發出任一者之前都會先讀它,如此一來:一次編輯無論產生多少個數值都只回報一次,
         /// 而 `pointerCaptureLost` 也無法發出一個沒有配對的 `false`。
+        /// Focus-change handlers, replaced per layout pass, and the set of
+        /// widgets whose `gotFocus`/`lostFocus` are already subscribed.
+        ///
+        /// Two containers because the handler changes every frame while the
+        /// subscription must not. Subscribing per frame is the `began=5` shape.
+        /// 焦點變更的 handler(每次 layout pass 會被換掉),以及「已訂閱 `gotFocus`/`lostFocus`」
+        /// 的 widget 集合。
+        ///
+        /// 分成兩個容器,是因為 handler 每一幀都會變、而訂閱**不可以**。逐幀訂閱正是 `began=5` 的形狀。
+        var focusChangeHandlers: [ObjectIdentifier: (Bool) -> Void] = [:]
+        var widgetsWithFocusSubscription: Set<ObjectIdentifier> = []
+
         var sliderIsEditing: Set<ObjectIdentifier> = []
         /// Sliders whose value is being set from code right now.
         /// `setValue(ofSlider:to:)` raises `valueChanged` exactly as a drag
