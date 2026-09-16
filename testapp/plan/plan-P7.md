@@ -82,7 +82,7 @@ P7 用來追蹤 Linux/GTK backend 的 List 與 NavigationSplitView 行為，主�
 2. #556 pane ratio instrumentation 已完成，並已取得 WSLg/Windows 數字。
 3. 暫停 GtkBackend Paned bounds / resize policy 修改，直到有新的 failing scenario。
 4. 重新執行 P7 Windows 與 WSLg/GTK 對照測試已完成。
-5. 已更新 `UI-test-results_overall_en.md` 與 `UI-test-results_overall_zhTW.md`。
+5. 已更新 `UI-test-plan-en.md#results-log` 與 `UI-test-plan-zhTW.md#結果紀錄`。
 
 ## 驗收條件
 

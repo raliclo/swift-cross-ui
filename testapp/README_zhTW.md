@@ -8,18 +8,18 @@
 
 | 問題 | 檔案 |
 | --- | --- |
-| 這個 issue 要在哪個平台跑？結果算不算數？ | `UI-test-plan platform-en.md` |
-| PN app 的測試步驟是什麼？ | `UI-test-plan overall-en.md` |
-| GtkBackend 工作計畫是什麼？ | `UI-test-plan linux-en.md` |
-| AppKit/Android/iOS 工作計畫是什麼？ | `UI-test-plan bug-en.md` |
+| 這個 issue 要在哪個平台跑？結果算不算數？ | `UI-test-plan-en.md#platform-matrix` |
+| PN app 的測試步驟是什麼？ | `UI-test-plan-en.md#overall-plan-p0-p41` |
+| GtkBackend 工作計畫是什麼？ | `UI-test-plan-en.md#linux-plan-gtkbackend-through-wsl` |
+| AppKit/Android/iOS 工作計畫是什麼？ | `UI-test-plan-en.md#bug-plan-appkit-uikit-and-androidbackend` |
 | 每個 upstream issue 目前狀態如何？ | `issues.csv` |
 | 哪個 commit 修了什麼？能不能送 upstream？ | `issue_commits.csv` |
 
-`UI-test-plan platform-en.md` 是入口文件：它把目前涵蓋的 40 個 issue 對應到 6 個平台，並在每個格子標示該平台的測試結果是否能判定 issue、只是比較用，或沒有資訊價值。
+`UI-test-plan-en.md#platform-matrix` 是入口文件：它把目前涵蓋的 40 個 issue 對應到 6 個平台，並在每個格子標示該平台的測試結果是否能判定 issue、只是比較用，或沒有資訊價值。
 
 ## Apps
 
-P0-P44 與 P46，加上 `P15-DARK`、`P17-DOE`、`P6-v2`，每個都是一個 Swift 檔——合計 **49 支**，以 `ls -1 testapp/P*.swift | wc -l` 計數。每一支都會在目前平台支援其 backend 時建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。後續 app 延伸 backend feature、visual fidelity、window level、GPU 與 DatePicker 覆蓋。完整 issue 與平台對照在 `UI-test-plan platform-en.md`。
+P0-P44 與 P46，加上 `P15-DARK`、`P17-DOE`、`P6-v2`，每個都是一個 Swift 檔——合計 **49 支**，以 `ls -1 testapp/P*.swift | wc -l` 計數。每一支都會在目前平台支援其 backend 時建成獨立執行檔。P0-P6 來自 WinUIBackend 工作，P7-P10 與 P15 針對 GtkBackend，P11 針對 AppKitBackend，P12 針對 AndroidBackend，P14 針對 UIKitBackend，P13、P16、P17 則涵蓋 core layout 與 split-view 行為。後續 app 延伸 backend feature、visual fidelity、window level、GPU 與 DatePicker 覆蓋。完整 issue 與平台對照在 `UI-test-plan-en.md#platform-matrix`。
 
 ```sh
 zsh testapp/compile.zsh P7 P15 P17     # 只建部分 app
@@ -131,4 +131,6 @@ iOS 與 Android 不經由 `screenshot.zsh`：後者擷取的是「顯示器」�
 
 `P6_findings/` 保存 NV12 工作背後的 throughput 量測資料，`comments/` 則保存準備貼到 upstream issue 的說明稿。
 
-有兩份文件刻意不追蹤、只屬於本地 checkout：`UI-test-plan overall-zhTW.md` 這份繁中測試計畫，以及 `UI-test-results.md`。測試步驟若有更新，繁中與英文兩份都要改，即使目前只有 `UI-test-plan overall-en.md` 會提交。
+測試計畫是兩個檔案、一種語言一個：`UI-test-plan-en.md` 與 `UI-test-plan-zhTW.md`。兩者各自分成原本是獨立檔案的那幾個部分——整體計畫、缺陷計畫、Linux 計畫、平台矩陣、結果紀錄——檔案開頭的目錄可連到各部分。兩者不是逐行對譯;測試步驟若有更新,兩份都要改。
+
+有一份文件刻意不追蹤、只屬於本地 checkout：`UI-test-plan_zhTW.md`,也就是較早那份 WinUI P0-P6 計畫。它列在 `.git/info/exclude` 裡,合併時因此被排除在外。

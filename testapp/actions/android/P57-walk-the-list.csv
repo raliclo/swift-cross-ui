@@ -1,0 +1,175 @@
+action,x,y,origin,button,key,micros,note,platform
+# P57 #117: the row-release callback ARRIVING, read as BUILT against HELD.
+#
+# **"row release reported: yes" is a claim about a TYPE, and Android is the
+# platform that proved the difference matters** -- it compiled a conformance and
+# took the other path anyway, which is why P57 asks the backend rather than the
+# file list. One level further in, a backend can conform and never call the
+# handler, and the list looks and scrolls identically because AbsListView
+# recycles its own views either way.
+#
+# **Built against held is what makes a small traversal enough:**
+#
+#     rows built / held by the framework: B / H
+#
+#     H == B    nothing has ever been released
+#     H <  B    B - H rows were released
+#
+# B is monotonic since launch. No arithmetic about how far a scroll travelled,
+# and the difference cannot come from the LRU instead -- List.swift caps a
+# non-conforming backend at 200 and a conforming one at 4000.
+#
+# **A notch is 40 points times the display density**, which on this emulator is
+# 2.625, so `scroll 0,6` is a 630-pixel drag and `scroll 0,300` -- what an
+# earlier version of this file asked for -- is 31,500 pixels on a 2,400-pixel
+# screen. That replayed without error and moved nothing, which reads as a list
+# that cannot be scrolled rather than as a file asking for something impossible.
+#
+# Down and then back up, because the readout is above the list; the click on
+# "Select last" after returning is a state change, so a stale launch value
+# cannot be mistaken for a live one, and "selection: 499" proves it landed.
+#
+# P57 #117:那個「列釋放」回呼真的抵達了——讀法是「建過幾個」對上「持有幾個」。
+#
+# **「row release reported: yes」是關於一個型別的主張,而 Android 正是證明「這個差別要緊」的平台**
+# ——它曾經把一個 conformance 編了進去、然後照樣走了另一條路,那正是 P57 去問 backend、而不是去看
+# 檔案清單的理由。再往裡一層:一個 backend 可以 conform 卻從不呼叫那個 handler,而那個清單看起來與
+# 捲起來都一模一樣,因為 AbsListView 無論如何都會回收它自己的 view。
+#
+# **「建過」對上「持有」,正是讓一次小規模走訪就足夠的東西:**
+#
+#     rows built / held by the framework: B / H
+#
+#     H == B    從來沒有任何東西被釋放過
+#     H <  B    有 B - H 列被釋放了
+#
+# B 自啟動起單調遞增。完全不需要「一次捲動走了多遠」那種算術,而那個差額也不可能來自 LRU
+# ——List.swift 給未 conform 的 backend 的上限是 200、給 conform 的是 4000。
+#
+# **一格是 40 點乘上顯示密度**,在這台模擬器上是 2.625,因此 `scroll 0,6` 是一次 630 像素的拖曳;
+# 而本檔較早的版本所要求的 `scroll 0,300`,在一個 2,400 像素高的螢幕上是 31,500 像素。
+# 那次重放沒有報錯、也什麼都沒移動——讀起來像是「這份清單捲不動」,而不像是一個檔案要求了
+# 一件不可能的事。
+#
+# 先往下、再往回上來,因為那行讀數在清單上方;回到頂端之後那次點擊「Select last」是一次狀態變更,
+# 因此一個來自啟動的過期值不會被誤讀成活的,而「selection: 499」證明它有落下。
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 px, density 2.625 -> 411 x 914 pt.
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 px、density 2.625 -> 411 x 914 pt。
+sleep,,,,,,1200000,let the list settle and report its launch count,android
+move,200,865,,,,,pointer into the LIST; scroll acts where it is and the page above it has nothing to scroll,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+scroll,0,-6,,,,,,android
+sleep,,,,,,250000,,android
+sleep,,,,,,900000,back at the top,android
+click,137,247,,left,,,Select last -- a state change so the readout re-renders,android
+sleep,,,,,,1500000,,android

@@ -1432,3 +1432,206 @@ a short run that works and a long run that does not, with nothing changed betwee
 This is the first example in my own global CLAUDE.md's "check names before syntax" section. Knowing
 it was not enough; the corrective is to print `$PATH` at the first `command not found` rather than
 swapping the command out, which is what I did first and which changed nothing.
+
+---
+
+## 17. 在一個以「格數」計價的欄位裡填了像素大小的數字,然後把它的無反應讀成平台缺陷
+
+**次數:1 次 / 1 天(2026-09-16),但它產生了 *三* 份錯誤的紀錄。**
+
+**編號 17,並已先問過對面**(第 14 條的教訓):`git show origin/develop:mistakes.md | grep '^## '`
+顯示對面已用到 16。
+
+### 症狀 / What it looks like
+
+要讓 P57 的清單走過大量列,於是寫下:
+
+```
+scroll,0,400,client,,,,,ios          # iOS
+scroll,0,300,,,,,,android            # Android
+scroll,0,-45,,,,,,macos              # macOS
+```
+
+三個平台都**毫無反應**:iOS 事後的擷圖與啟動時逐像素相同;Android 的 logcat 說
+`replayed ... (4 actions)`——**沒有任何錯誤**;macOS 則是往上捲時整份清單一列都不畫。
+
+於是我寫下了三個結論,而**三個都是錯的**:
+
+| 我寫下的 | 實際上 |
+| --- | --- |
+| 「UIKit 未驅動——runner 的 scroll 沒有移動這份清單」 | 我要求了一次 16,000 點的拖曳 |
+| 「Android 的 scroll 不移動清單(但動詞沒拋錯)」 | 31,500 像素,在一個 2,400 像素高的螢幕上 |
+| 「AppKit 的清單對滾輪沒反應」(記為 queue M6) | 那一半後來以合理格數複驗**仍然成立**,但當初的量測本身是錯的尺寸 |
+
+**那個欄位的說明就寫在解析器裡**,而且說得很清楚:
+
+> 此處的 x 與 y 是滾輪**格數**而非位置。
+
+而 runner 裡也有一行:`private static let pointsPerNotch: CGFloat = 40`。
+
+### 為何沒有任何東西報錯
+
+一次終點在視窗外的拖曳,不是一個**錯誤**——它是一個合法的請求,只是沒有任何東西能對它作出有意義的
+反應。動作檔重放完成、退出碼為 0、截圖照拍。而「畫面沒變」與「這個功能不存在」在一張截圖上
+**完全一樣**。
+
+更糟的是第二層:因為畫面沒變,我轉而用「清單持有幾個節點」當證據,而那個數字**也**沒變——
+因為它是一個 `Text`,而捲動不改變任何狀態,所以它顯示的是**啟動時**的值。兩個都沒動的讀數,
+被我讀成了「這個平台做不到」。
+
+### 矯正 / Corrective
+
+1. **寫下任何 `scroll` 列之前,先把格數換算成點。** 一格 40 點(Android 再乘 density)。
+   一屏約 600–900 點,所以**一屏是 15–22 格**,不是 300 格。若算出來的位移大於螢幕高度數倍,
+   那不是一次捲動。
+2. **量尺不能是靜態的。** P57 的讀數現在由 `--debug` 下的一個計時器每秒重繪兩次;在那之前,
+   一個「正確、活著、但停在啟動值」的數字與一個「功能壞掉」的數字無從分辨。
+3. **讀數要成對,不要單一。** `rows built / held` 一起看才有意義:`held == built` 是「從未釋放」,
+   `held < built` 是「釋放了 built − held 個」。單看 `held: 6` 同時相容於「正確釋放」與
+   「從來沒被要求顯示超過六列」。
+
+---
+
+## 17. Pixel-sized numbers in a column priced in notches, and its silence read as a platform defect
+
+**Once, on 2026-09-16 -- and it produced THREE wrong records.** Numbered 17 after checking the
+other machine first, which is entry 14's lesson.
+
+### What it looks like
+
+To walk P57's list across many rows I wrote `scroll,0,400` on iOS, `scroll,0,300` on Android and
+`scroll,0,-45` on macOS. Nothing moved on any of them: the iOS capture afterwards was identical to
+launch, Android's logcat said `replayed ... (4 actions)` with no error at all, and macOS drew no
+rows when scrolled up.
+
+I then wrote three conclusions, all wrong: that the runner's scroll does not move this list on
+UIKit, that Android's scroll moves nothing while not throwing, and that AppKit's lazy list does not
+respond to the wheel. The parser says what the column is -- "x and y are wheel notches here, not a
+position" -- and the runner says what a notch is: `pointsPerNotch = 40`. So those rows asked for a
+16,000-point drag, a 31,500-pixel one on a 2,400-pixel screen, and an 1,800-point one.
+
+### Why nothing reported it
+
+A drag whose destination is outside the window is not an ERROR; it is a legal request that nothing
+can answer meaningfully. The file replayed, the exit status was zero, the screenshots were taken.
+"The screen did not change" and "this feature does not exist" are the same picture.
+
+The second layer made it worse: with the screen unchanged I turned to the count of rows the
+framework was holding, and that had not changed either -- because it is a `Text` and scrolling
+changes no state, so it was showing its value from launch. Two readings that had not moved, read
+as a platform that could not do the thing.
+
+### Corrective
+
+Convert notches to points before writing a scroll row: 40 points each, times density on Android.
+A screenful is 15 to 22 notches, not 300; a figure several screens tall is not a scroll.
+
+Make the instrument live -- P57's readouts now re-render twice a second under `--debug`, because
+before that a correct, live, launch-valued number was indistinguishable from a broken one.
+
+And read counters in pairs. `rows built / held` says what one number cannot: `held == built` is
+"nothing was ever released", `held < built` is "built minus held were". `held: 6` alone is equally
+consistent with a backend that releases properly and one that was never asked for a seventh row.
+
+---
+
+## 18. 一道「補償」把它所補償的缺陷蓋住了,而兩者一起產生完美的沉默
+
+**次數:1 次 / 1 天(2026-09-17),但它讓一個合成器缺陷冒充了兩天的平台缺陷。**
+
+**編號 18,已先問過對面**(第 14 條的教訓):origin 用到 17。
+
+### 症狀 / What it looks like
+
+在 macOS 上對一份五百列的清單送三十格滾輪,清單**完全不動**——最上面仍是第 0 列、捲軸拇指仍在頂端。
+往上捲則更糟:整份清單**一列都不畫**。我把它記成 AppKit 的缺陷(queue M6),還建了一個對照組
+(把某個 handler 拿掉)確認「不是那項新功能造成的」——**那個對照組是對的,而結論仍然是錯的**。
+
+### 兩個缺陷,一種沉默
+
+```
+-scroll: dy=8 before=(0,0) afterEvent=(0,0) compensated target=(0,192) afterCompensation=(0,192)
+-scroll: dy=8 before=(0,192) afterEvent=(0,0)    ← 事件把它帶回 0
+```
+
+| 缺陷 | 它自己會造成什麼 |
+| --- | --- |
+| **滾輪 delta 的符號反了** | 每一次「向下」都往上捲。單獨存在時,任何人一眼就會看到清單往錯的方向動。 |
+| **退路無條件執行** | `NSScrollView` 是在**稍後一輪**才套用滾輪事件,因此那個同步檢查永遠讀到「沒有改變」,於是補償每次都開火。單獨存在時,只是多捲了一倍。 |
+
+**兩者相乘,結果是零。** 補償把 view 往下移了「事件剛剛把它往上移的同一個量」,而兩者都以
+`lineScroll` 為單位、大小完全相同。淨位移:0。三十格之後仍在第 0 列。
+
+而那個退路的註解本身是**正確的**——它記載了一次真實的量測(在 `ScrollView` 裡的 `Text` 上,
+scroll view 確實不理會合成的事件)。它只是沒有寫下「什麼時候**不該**執行」。
+
+### 為何沒有任何東西報錯
+
+一次「淨位移為零」的捲動,與一次「被忽略的捲動」在每一個可觀察的面向上都相同:動作檔重放完成、
+退出碼 0、截圖照拍、畫面沒變。**而我為了排除新功能而建的那個對照組,只證明了「不是新功能」
+——它無法分辨「平台不支援」與「這支工具自己抵銷了自己」。**
+
+### 矯正 / Corrective
+
+1. **讓那支工具說出它做了什麼。** `postScroll` 現在會印出命中的 view、找到的 scroll view、
+   事件前後與補償前後的原點、以及可捲動範圍。**那一行是整件事被打開的唯一原因**:
+   `before=(0,192) afterEvent=(0,0)` 一眼就看出事件在往回捲。
+2. **一道退路必須先確認它是必要的。** 補償現在會先讓 runloop 跑 50 ms,給事件落地的機會,
+   只在它**確實**沒動時才介入。
+3. **一個「沒有淨效果」的操作,與一個「不被支援」的操作,必須在紀錄上分開。** 前者是兩個缺陷,
+   後者是零個;而它們的截圖一模一樣。
+
+---
+
+## 18. A compensation hid the defect it was compensating for, and together they made a perfect silence
+
+**Once, on 2026-09-17 -- but it let a synthesiser defect impersonate a platform defect for two days.**
+Numbered 18 after checking the other machine, which is entry 14's lesson.
+
+### What it looks like
+
+Thirty wheel notches into a five-hundred-row list on macOS moved it not at all: row 0 still at the
+top, the scroller still at the top. Scrolling up was worse -- the list drew no rows at all. I
+recorded it as an AppKit defect, queue M6, and even built a control (the release handler removed) to
+establish that the new feature had not caused it. **The control was right and the conclusion was
+still wrong.**
+
+### Two defects, one silence
+
+    -scroll: dy=8 before=(0,0)   afterEvent=(0,0) compensated to (0,192)
+    -scroll: dy=8 before=(0,192) afterEvent=(0,0)     <- the event scrolled it BACK
+
+The wheel delta's sign was inverted: `dy` is positive downwards in the action-file format, while
+`NSEvent`'s scrolling delta is the finger's direction. On its own, anyone would have seen the list
+move the wrong way.
+
+The fallback ran unconditionally: `NSScrollView` applies a wheel event on a LATER pass, so the
+synchronous check always read "unchanged" and the compensation always fired. On its own, that is
+merely a double scroll.
+
+**Multiplied, they are zero.** The compensation moved the view down by exactly what the event had
+just moved it up -- both in units of `lineScroll`, both the same magnitude. Net travel: nothing.
+
+The fallback's own comment was CORRECT. It recorded a real measurement: over a `Text` inside a
+`ScrollView`, scroll views genuinely ignore a synthesised event. What it never said was when the
+fallback should NOT run.
+
+### Why nothing reported it
+
+A scroll with no net effect and a scroll that was ignored are identical in every observable: the
+file replays, the exit status is zero, the capture is taken, the screen has not changed. And the
+control I built to rule out the new feature only ruled out the new feature -- it could not
+distinguish "the platform does not support this" from "the tool cancelled itself out".
+
+### Corrective
+
+Make the tool say what it did: `postScroll` now prints the hit view, the scroll view it found, the
+origin before and after the event and after the compensation, and the scrollable range. That one
+line is the only reason this opened -- `before=(0,192) afterEvent=(0,0)` shows the event scrolling
+backwards at a glance.
+
+A fallback must establish that it is needed: the compensation now pumps the runloop for 50 ms to let
+the event land, and intervenes only if it genuinely did not.
+
+And record "no net effect" apart from "not supported". The first is two defects, the second is
+none, and their screenshots are the same.

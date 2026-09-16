@@ -1,0 +1,183 @@
+action,x,y,origin,button,key,micros,note,platform
+# P57 #117: the row-release callback ARRIVING, read as BUILT against HELD.
+#
+# **"row release reported: yes" is a claim about a TYPE.** Android has compiled
+# a conformance and taken the other path before -- which is why P57 asks the
+# backend rather than the file list -- and the same gap exists one level in: a
+# backend can conform and never call the handler, and the list looks and
+# scrolls identically because UIKit recycles its own cells either way.
+#
+# **Built against held is what makes a small traversal enough.** The readout is
+#
+#     rows built / held by the framework: B / H
+#
+# and B is monotonic since launch while H is what the framework still has. So:
+#
+#     H == B    nothing has ever been released
+#     H <  B    B - H rows were released
+#
+# No arithmetic about how far a scroll travelled, which is the reasoning that
+# turns into a claim nobody can check. And the difference cannot come from the
+# LRU instead: List.swift caps a non-conforming backend at 200 and a conforming
+# one at 4000, and B here is far below both, so no eviction is possible in
+# either configuration.
+#
+# The scroll rows are SIX notches, and the notch is the thing to get right: a
+# notch is 40 points on this runner, so `scroll 0,400` asks for a 16,000-point
+# drag whose destination is far outside the window. Measured 2026-09-16: thirty
+# of those moved the screen not one pixel, and the capture afterwards was
+# identical to launch -- which reads as "this list cannot be scrolled" rather
+# than as a file asking for something impossible.
+#
+# Down and then back up, because the readout is at the top of the page and a
+# `Text` shows whatever the last render put there; the click on "Select last"
+# after returning is a state change, so a stale launch value cannot be mistaken
+# for a live one, and its own readout ("selection: 499") proves it landed.
+#
+# P57 #117:那個「列釋放」回呼真的抵達了——讀法是「建過幾個」對上「持有幾個」。
+#
+# **「row release reported: yes」是關於一個型別的主張。** Android 曾經把一個 conformance 編了進去、
+# 然後走了另一條路——那正是 P57 去問 backend、而不是去看檔案清單的理由——而同樣的缺口在再往裡一層
+# 仍然存在:一個 backend 可以 conform 卻從不呼叫那個 handler,而那個清單看起來與捲起來都一模一樣,
+# 因為 UIKit 無論如何都會回收它自己的 cell。
+#
+# **「建過」對上「持有」,正是讓一次小規模走訪就足夠的東西。** 那行讀數是
+#
+#     rows built / held by the framework: B / H
+#
+# 其中 B 自啟動起單調遞增,而 H 是框架此刻仍持有的數量。因此:
+#
+#     H == B    從來沒有任何東西被釋放過
+#     H <  B    有 B - H 列被釋放了
+#
+# 完全不需要「一次捲動走了多遠」那種算術——那種推理會變成沒有人查得動的主張。而那個差額也不可能
+# 來自 LRU:List.swift 給未 conform 的 backend 的上限是 200、給 conform 的是 4000,而此處的 B
+# 遠低於兩者,因此在任一設定下都不可能發生逐出。
+#
+# scroll 各列是**六格**,而「一格是多少」正是必須弄對的地方:在這個 runner 上一格是 40 點,
+# 因此 `scroll 0,400` 要求的是一次 16,000 點的拖曳,其終點遠在視窗之外。2026-09-16 量過:
+# 三十次那樣的捲動讓畫面一個像素都沒動,事後的擷圖與啟動時完全相同——而那讀起來像是
+# 「這份清單捲不動」,而不像是一個檔案要求了一件不可能的事。
+#
+# 先往下、再往回上來,因為那行讀數在頁面頂端,而一個 `Text` 顯示的是最後一次算繪所放進去的東西;
+# 回到頂端之後那次點擊「Select last」是一次狀態變更,因此一個來自啟動的過期值不會被誤讀成活的,
+# 而它自己的讀數(「selection: 499」)證明它有落下。
+#
+# Coordinates in points; capture 1320 x 2868 px, so px/3.
+# 座標以點計;擷取 1320 x 2868 px,故為 px/3。
+sleep,,,,,,1200000,let the list settle and report its launch count,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+scroll,0,-6,client,,,,,ios
+sleep,,,,,,200000,,ios
+sleep,,,,,,800000,back at the top,ios
+click,151,245,client,left,,,Select last -- a state change so the readout re-renders,ios
+sleep,,,,,,1200000,,ios

@@ -1,114 +1,189 @@
 action,x,y,origin,button,key,micros,note,platform
-# P57 #117: the row-release callback ARRIVING, not the conformance existing.
+# P57 #117: the row-release callback ARRIVING, read as BUILT against HELD.
 #
-# **"row release reported: yes" is a claim about a TYPE.** Android has compiled
-# a conformance and taken the other path before -- which is why P57 asks the
-# backend rather than the file list -- and the same gap exists one level in: a
-# backend can conform and never call the handler, and the list looks and
-# scrolls identically because NSTableView recycles its own views either way.
-# This file reads the other line:
+# **"row release reported: yes" is a claim about a TYPE.** A backend can conform
+# and never call the handler, and the list looks and scrolls identically because
+# NSTableView recycles its own views either way. This file reads the other line:
 #
-#     rows held by the framework: N
+#     rows built / held by the framework: B / H
 #
-# **The cap is what makes N decisive, and the cap moves with the conformance.**
-# List.swift gives a backend WITHOUT LazyListRowLifetimes an LRU of 200 and one
-# WITH it a backstop of 4000, on the grounds that the callback does the real
-# bounding. So after dragging through all 500 rows:
+#     H == B    nothing has ever been released
+#     H <  B    B - H rows were released
 #
-#     ~19    the callback arrives. N stays at the visible window.
-#     ~500   it does not. Every row visited is still held, and the only thing
-#            that would have stopped it is a backstop twenty times further away
-#            than this list is long.
+# B is monotonic since launch, so no argument about how far a scroll travelled
+# is needed, and the difference cannot be the LRU instead: List.swift caps a
+# non-conforming backend at 200 and a conforming one at 4000.
 #
-# **The scrollbar is DRAGGED rather than the wheel scrolled, and that is not a
-# preference.** Measured 2026-09-16, both directions, 24 notches each:
+# **This file scrolls with the WHEEL, which did not work until 2026-09-17.**
+# An earlier version dragged the scrollbar instead, with a header explaining
+# that the wheel did nothing to this list on AppKit -- recorded as a platform
+# defect, queue M6. It was not the platform. Two defects in the synthesiser
+# produced one silence:
 #
-#     scroll 0,45 (down)  the list does not move. Still row 0 at the top, the
-#                         scrollbar thumb still at the top.
-#     scroll 0,-45 (up)   the list draws NO ROWS AT ALL, with the thumb still at
-#                         the top -- so not scrolled past anything.
+#   the sign was inverted     `dy` is positive downwards in this format, but
+#                             NSEvent's scrolling delta is the FINGER's
+#                             direction, so a downward scroll needs a negative
+#                             delta.
+#   the fallback hid it       NSScrollView applies a wheel event on a later
+#                             pass, so the synchronous check read "unchanged"
+#                             every time and the compensation moved the view
+#                             DOWN by exactly what the event had just moved it
+#                             UP. Thirty notches into a five-hundred-row list
+#                             left it on row 0.
 #
-# Neither is this feature: a control build with the release handler removed does
-# the same, which is the only reason that can be said. Recorded in queue.md as
-# its own defect. This file takes the route that works, and the row numbers in
-# the capture are what show that it did: the list ends on rows 481-492.
+# Both are fixed, and the fallback now waits a runloop turn before deciding the
+# event did nothing. The readout after this file is 500 / 19: every row built,
+# nineteen held, so 481 were released.
 #
-# **The click on "Select last" at the end is load-bearing.** The readout is a
-# `Text` in P57's body, so it shows whatever the last render put there; without
-# a state change after the drag, a stale "19" from launch would be
-# indistinguishable from a live one. Selecting a row changes state without
-# changing the rows, and its own readout ("selection: 499") proves the click
-# landed.
+# P57 #117:那個「列釋放」回呼真的抵達了——讀法是「建過幾個」對上「持有幾個」。
 #
-# P57 #117:那個「列釋放」回呼**真的抵達了**,而不是那個 conformance 存在。
+# **「row release reported: yes」是關於一個型別的主張。** 一個 backend 可以 conform 卻從不呼叫那個
+# handler,而那個清單看起來與捲起來都一模一樣,因為 NSTableView 無論如何都會回收它自己的 view。
+# 本檔讀的是另一行:
 #
-# **「row release reported: yes」是關於一個型別的主張。** Android 曾經把一個 conformance 編了進去、
-# 然後走了另一條路——那正是 P57 去問 backend、而不是去看檔案清單的理由——而同樣的缺口在再往裡一層
-# 仍然存在:一個 backend 可以 conform 卻從不呼叫那個 handler,而那個清單看起來與捲起來都一模一樣,
-# 因為 NSTableView 無論如何都會回收它自己的 view。本檔讀的是另一行:
+#     rows built / held by the framework: B / H
 #
-#     rows held by the framework: N
+#     H == B    從來沒有任何東西被釋放過
+#     H <  B    有 B - H 列被釋放了
 #
-# **讓 N 具有決定性的是那個上限,而上限會隨 conformance 移動。** List.swift 給「沒有
-# LazyListRowLifetimes」的 backend 一個 200 的 LRU,給「有」的一個 4000 的兜底——理由是真正做限制的
-# 是那個回呼。因此在拖過全部 500 列之後:
+# B 自啟動起單調遞增,因此不需要爭論一次捲動走了多遠;而那個差額也不可能來自 LRU
+# ——List.swift 給未 conform 的 backend 的上限是 200、給 conform 的是 4000。
 #
-#     ~19   回呼有抵達。N 停在可見視窗的大小。
-#     ~500  沒有抵達。每一個走過的列都還被持有,而唯一本來會擋下它的東西,是一個比這份清單長度遠
-#           二十倍的兜底。
+# **本檔以「滾輪」捲動,而那在 2026-09-17 之前是不能用的。** 較早的版本改為拖曳捲軸,檔頭還解釋了
+# 「滾輪對 AppKit 上這份清單沒有作用」——並把它記成一個平台缺陷(queue M6)。那不是平台的問題。
+# 是合成器裡的兩個缺陷產生了同一種沉默:
 #
-# **這裡是「拖捲軸」而不是「滾輪捲動」,而那不是偏好。** 2026-09-16 兩個方向各送 24 格量過:
+#   符號反了       在這個格式裡 `dy` 為正代表向下,但 NSEvent 的 scrolling delta 講的是**手指**的
+#                  方向,因此一次向下的捲動需要一個負的 delta。
+#   退路蓋住了它   NSScrollView 是在稍後的一輪才套用滾輪事件,因此那個同步檢查每次都讀到
+#                  「沒有改變」,於是補償把 view 往**下**移了「事件剛剛把它往**上**移的同一個量」。
+#                  對一份五百列的清單送三十格,結果仍停在第 0 列。
 #
-#     scroll 0,45(向下)   清單不動。最上面仍是 row 0,捲軸拇指仍在頂端。
-#     scroll 0,-45(向上)  清單**一列都不畫**,而拇指仍在頂端——所以並不是捲過了頭。
-#
-# 兩者都不是這項功能造成的:把釋放 handler 拿掉的對照組會做出同一件事,而那是唯一能這樣斷言的理由。
-# 該缺陷已另記於 queue.md。本檔走的是行得通的那條路,而擷圖裡的列號正是「它真的走過了」的證據:
-# 清單最後停在第 481–492 列。
-#
-# **最後那次點擊「Select last」是關鍵。** 那行讀數是 P57 body 裡的一個 `Text`,因此它顯示的是最後一次
-# 算繪所放進去的東西;拖曳之後若沒有任何狀態變更,一個來自啟動的過期「19」與一個活的「19」無從分辨。
-# 選取某一列會在不改動那些列的情況下改變狀態,而它自己的讀數(「selection: 499」)證明那次點擊有落下。
+# 兩者都已修正,而那道退路現在會先等一個 runloop 回合,再判斷事件是否什麼都沒做。本檔跑完之後的
+# 讀數是 500 / 19:每一列都建過、持有十九列,因此有 481 列被釋放。
 #
 # origin=frame. Window 640x980, capture 640px wide -- scale 1.
 # origin=frame。視窗 640x980,擷取寬 640px——scale 1。
 sleep,,,,,,900000,let the list settle and report its launch count,macos
-mousedown,617,462,frame,left,,,grab the scrollbar thumb,macos
-move,617,480,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,510,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,540,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,570,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,600,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,630,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,660,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,690,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,720,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,750,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,780,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,810,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,840,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,870,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,900,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,930,frame,,,,,macos
-sleep,,,,,,150000,,macos
-move,617,960,frame,,,,,macos
-sleep,,,,,,150000,,macos
-mouseup,617,970,frame,left,,,released at the bottom -- all 500 rows have been passed,macos
-sleep,,,,,,900000,let the last releases arrive,macos
-click,126,159,frame,left,,,Select last -- a state change so the readout re-renders,macos
-sleep,,,,,,1200000,,macos
+move,300,700,frame,,,,pointer into the list -- scroll acts where it is,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+scroll,0,10,,,,,,macos
+sleep,,,,,,80000,,macos
+sleep,,,,,,1200000,let the last releases arrive before the capture,macos

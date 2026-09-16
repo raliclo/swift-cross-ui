@@ -12,14 +12,14 @@ need the `testapp/` half dropped before submitting.
 
 | Question | File |
 | --- | --- |
-| Where do I run this issue, and does the answer count? | `UI-test-plan platform-en.md` |
-| What are the steps for app PN? | `UI-test-plan overall-en.md` |
-| What is the plan for the GtkBackend work? | `UI-test-plan linux-en.md` |
-| What is the plan for the AppKit/Android/iOS work? | `UI-test-plan bug-en.md` |
+| Where do I run this issue, and does the answer count? | `UI-test-plan-en.md#platform-matrix` |
+| What are the steps for app PN? | `UI-test-plan-en.md#overall-plan-p0-p41` |
+| What is the plan for the GtkBackend work? | `UI-test-plan-en.md#linux-plan-gtkbackend-through-wsl` |
+| What is the plan for the AppKit/Android/iOS work? | `UI-test-plan-en.md#bug-plan-appkit-uikit-and-androidbackend` |
 | What is the state of every upstream issue? | `issues.csv` |
 | Which commit fixes what, and can it be submitted? | `issue_commits.csv` |
 
-`UI-test-plan platform-en.md` is the entry point: it maps all 40 covered issues onto
+`UI-test-plan-en.md#platform-matrix` is the entry point: it maps all 40 covered issues onto
 the six platforms and marks, per cell, whether a run there settles the issue,
 is only a comparison, or tells you nothing.
 
@@ -32,7 +32,7 @@ platform supports their backend. P0-P6 came out of the WinUIBackend work,
 P7-P10 and P15 target GtkBackend, P11 AppKitBackend, P12 AndroidBackend, P14
 UIKitBackend, and P13, P16 and P17 cover core layout and split-view behaviour.
 Later apps extend backend feature, visual-fidelity, window-level, GPU and
-DatePicker coverage. `UI-test-plan platform-en.md` has the full issue-to-platform
+DatePicker coverage. `UI-test-plan-en.md#platform-matrix` has the full issue-to-platform
 mapping.
 
 ```sh
@@ -313,7 +313,12 @@ check" left this repository mid-rebase on 2026-09-07.
 `P6_findings/` holds the measured throughput numbers behind the NV12 work, and
 `comments/` holds write-ups drafted for upstream issues.
 
-Two documents are deliberately untracked and local to a checkout:
-`UI-test-plan overall-zhTW.md`, the Traditional Chinese half of the test plan, and
-`UI-test-results.md`. Edits to the test steps belong in both language files even
-though only `UI-test-plan overall-en.md` is committed.
+The test plan is two files, one per language: `UI-test-plan-en.md` and
+`UI-test-plan-zhTW.md`. Each is divided into the parts that used to be separate
+files -- overall plan, bug plan, Linux plan, platform matrix, results log -- and
+the table of contents at the top links to them. The two are not line-for-line
+translations; an edit to a step belongs in both.
+
+One document is deliberately untracked and local to a checkout:
+`UI-test-plan_zhTW.md`, the older WinUI P0-P6 plan, which is listed in
+`.git/info/exclude` and was left out of the merge for that reason.

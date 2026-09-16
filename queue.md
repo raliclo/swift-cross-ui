@@ -85,60 +85,47 @@ an empty queue -- mistakes.md entry 1.
     什麼也不做。
   - `actions/ios/P71-shortcuts.csv` 的檔頭原本寫著「只跑 iPad」,已更正。
 
-- [~] **M5. `LazyListRowLifetimes` — 三個 backend 都已實作;AppKit 已驅動驗證,UIKit / Android 尚未大規模驅動** — 三者只實作了
-  `LazyListRows`。被回收的列不會通知框架,只靠 `List.swift:617` 的 `lazyLifetimeBackstopLimit = 4000`
-  兜底(WinUI 那份量到的差距是 72–76 MB)。**注意掃描方式:`LazyListRowLifetimes: LazyListRows`**,
-  因此「找具名 extension」的 grep 會說 GtkBackend 沒有 `LazyListRows`——那是偽陰性,它由繼承而來。
-  反方向才成立:只有 `LazyListRows` 的那三個,確實沒有 `Lifetimes`。這三個是 Mac 這邊的。
-  - **`selection` 已五個 backend 到齊。** Windows 落地了協定 `BackendFeatures.TableSelection`、view 側的 `Table(rows, selection:)`、GtkBackend 與 WinUIBackend(`c933f1b7`);本機接著落地 AppKit / UIKit / Android,**三個平台的兩個方向都以 action file 實測過**(五支檔案,見 `matrix_coverage/results.csv2` 的三列)。
-  - **本機補上了 Windows 補不到的那一半。** 他們那兩列寫明「click→binding **未**驗證:這台機器接著遠端桌面,滑鼠注入被拒」。mac 的 log 行 `SELECTION now 4`、iOS 與 Android 的「色帶必須移動」兩張擷圖,補的就是那一半。
-  - ~~**仍未動的是 `sortOrder`。**~~ **2026-09-16 19:30 完成於兩個 Windows backend,兩者都以
-    動作檔驅動通過。** 它是第二條 backend→view 通道(使用者點了哪一個標題),與 `selection`
-    刻意分開成兩個協定,理由寫在 `Tables.swift` 裡:一個 backend 完全可能做得到其中一個而非另一個。
-    `TableSortOrder` 帶的是**欄索引 + 方向,不是 comparator**——本框架的 `TableColumn` 是 closure、
-    沒有 key path,硬造 comparator 只能拿算繪出來的文字比較。**排序由 app 做,框架只做每個 app
-    都一樣的那部分**(哪一欄、哪個方向、同一欄再點就翻轉),而那段翻轉邏輯放在 `Table.commit`、
-    不放在各 backend,否則五份相同的三行會各自漂移。
-    判決(兩個 backend 完全相同,而命中機制完全不同):第 3 欄 ascending → 再點一次 descending
-    且 `firstId/lastId` 由 1/8 變成 8/1(**列真的動了**)→ 點標題回到 ascending(**走 backend**)
-    → Clear 後 none。
-    ~~**唯一未取得的是排序指示符的畫面證據。連續八次注入全被拒。**~~
-    **19:36 拍到了:`p23gtk-indicator-20260916-193639.png` 顯示 `Number ▲`,而 ID、長標題與 Short
-    三欄都沒有箭頭——對照就在同一張圖裡,因此它證明的是「箭頭加在**被排序的那一欄**」,
-    而不只是「有畫東西」。** 這一項是 log 永遠給不了的:`column 3 ascending` 在
-    `setSortIndicator` 有畫與沒畫時讀起來一模一樣,那正是 #117 在 WinUI 上的形狀。
-    驅動用 `actions/win/P23-sort-indicator-gtk4.csv`(點一次、停六秒),**而它必須是獨立的檔案**:
-    四步驟那個檔以 Clear sort 收尾,在它之後拍的擷圖必然沒有箭頭。
-    **WinUI 那張也在 19:39 拍到了**(`p23win-indicator-20260916-193911.png`,同樣是 `Number ▲`
-    加上三個沒有箭頭的對照欄,動作檔為 `actions/win/P23-sort-indicator.csv`)。
-    **至此 #125 的每一個部分在兩個 Windows backend 上都有畫面證據。**
-    **AppKit / UIKit / Android 的 `TableColumnSorting` 仍未實作**,那是 Mac 那邊的。
-  - **AppKit:完成並驅動驗證。** `didAdd`/`didRemove` 的 row view 生命週期就是那個訊號,先前沒有人問。
-    `didRemove` 自己的 `forRow:` 在「該列已不再有效」時是 -1——而那正是這個 handler 存在的情況——
-    所以索引改在 `didAdd` 記下。拖捲軸走完 500 列之後,`rows held by the framework` 是 **19**
-    (可見視窗大小),擷圖停在第 481–492 列。沒有這個回呼的話會是 ~500。
-  - **新增了一支量尺:`DebugFeatures.liveLazyListRows`**,由 `List` 寫入、P57 顯示。
-    上面那行 conformance 是關於**型別**的主張;這一行數的是**那個回呼真的抵達了**。
-  - **UIKit:實作完成、conformance 在執行期可見,但未驅動。** `didEndDisplaying` 是那個掛鉤。
-    30 列 scroll 完全沒有讓 P57 的清單移動——事後的擷圖與啟動時逐像素相同——因此那個計數從未被操練,
-    停在啟動值 1。**不列為通過。** 該 runner 的 scroll 在 P8/P27/P38 上是有效的,所以問題應在這支 app
-    的 view tree,不在那個動詞。
-  - **Android:實作完成、conformance 可見,釋放只在小尺度上被觀察到。**
-    `AbsListView.RecyclerListener.onMovedToScrapHeap` 是掛鉤(而不是 `getView` 的 `convertView`
-    ——後者只在被丟棄的 view **回來**時才觸發)。啟動時可見 row 0、1,按下 Select last(跳到 499)之後
-    讀數是 **2**,所以 0 與 1 確實被釋放了。但差距只有兩列:這台模擬器上清單只容得下約兩列,
-    而 scroll 沒有移動它(logcat 顯示重放完整跑完,所以那個動詞沒有拋錯)。**不列為大規模通過。**
+- [x] **M5. `LazyListRowLifetimes` — 三個 backend 都已實作,而且三個都已驅動驗證(2026-09-16)**
+  - **讀法是「建過幾個」對上「持有幾個」,而那讓一次小規模走訪就夠。** `rows built / held`:
+    `held == built` 是「從未釋放」、`held < built` 是「釋放了 built − held 個」。那個差額不可能來自
+    LRU:`List.swift` 給未 conform 的 backend 的上限是 200、給 conform 的是 4000。
+
+    | 平台 | built / held | 被釋放 |
+    | --- | --- | --- |
+    | mac / AppKit | 38 / 19 | 19 |
+    | iOS / UIKit | 500 / 6 | 494 |
+    | Android | 190 / 3 | 187 |
+
+  - **AppKit** 用 `didAdd`/`didRemove` 的 row view 生命週期;`didRemove` 自己的 `forRow:` 在
+    「該列已不再有效」時是 -1,所以索引改在 `didAdd` 記下。只建過 38 列,是因為 NSTableView 在拖曳
+    期間會合併版面、只算繪落點——把拖曳切細成 51 步得到**一模一樣的 38 / 19**,而那本身就是
+    「這趟走訪要不要緊」的答案。
+  - **UIKit** 用 `didEndDisplaying`,索引直接給,所以只需要「這一列是不是又在畫面上了」這一道防護。
+  - **Android** 用 `AbsListView.RecyclerListener.onMovedToScrapHeap`(而不是 `getView` 的
+    `convertView`——後者只在被丟棄的 view **回來**時才觸發);位置由 `CustomListAdapter` 的兩張表
+    查出來,因為被丟棄的 `View` 身上沒有任何東西說明它先前是哪一列。
+  - **量尺:`DebugFeatures.builtLazyListRows` / `liveLazyListRows`**,由 `List` 寫入、P57 顯示,
+    並由一個只在 `--debug` 下啟動的計時器每秒重繪兩次——否則那個數字會停在啟動值,而
+    「正確、活著、但沒動」與「壞掉」在截圖上完全一樣。
+  - **先前那三筆「未驅動 / 只在小尺度觀察到」的紀錄已被取代,原因在我這邊**:`scroll` 欄位的單位是
+    **滾輪格數**(一格 40 點,Android 再乘 density),而我填了像素大小的數字。見 mistakes 第 17 條。
 
 
-- [ ] **M6. AppKit 的 lazy 清單對滾輪沒有反應,往上捲還會把自己畫空** — 2026-09-16 在 P57(500 列)上量到,
-  兩個方向各 24 格:
-  - `scroll 0,45`(向下):清單**完全不動**,最上面仍是 row 0、捲軸拇指仍在頂端。
-  - `scroll 0,-45`(向上):清單**一列都不畫**,而拇指仍在頂端——所以不是捲過了頭。
-  - **拖捲軸拇指是正常的**,能一路走到第 481–492 列。
-  這**不是** `LazyListRowLifetimes` 造成的:把釋放 handler 拿掉的對照組會做出一模一樣的兩件事
-  (那個對照組是為了判定這件事才建的)。因此它是 `LazyListRows` 在 AppKit 上既有的缺陷,
-  而先前沒有 mac 的 P57 動作檔,所以沒有人走過這條路。證據見
-  `testapp/actions/mac/P57-scroll-the-whole-list.csv` 的檔頭。
+- [x] **M6. 已修,而且它從來不是 AppKit 的缺陷 — 是測試合成器裡的兩個缺陷(2026-09-17)**
+  - **滾輪 delta 的符號反了。** 格式裡 `dy` 為正代表向下,而 `NSEvent` 的 scrolling delta 講的是
+    **手指**的方向——所以每一次「向下」都往上捲。
+  - **那道退路無條件執行。** `NSScrollView` 是在**稍後一輪**才套用滾輪事件,因此同步檢查永遠讀到
+    「沒有改變」,補償每次都開火,把 view 往下移了「事件剛剛往上移的同一個量」——兩者都以
+    `lineScroll` 為單位、大小相同。**淨位移零**,而那與「一份忽略滾輪的清單」完全無法分辨。
+  - **往上捲會畫空,是第三件事:** `contentView.scroll(to:)` 接受文件上方的點,而 AppKit 自己的
+    處理會夾範圍、這條路徑沒有。量到 y=-192。
+  - **修法:** 符號改正、退路先讓 runloop 跑 50 ms 再判斷、目標夾進可捲範圍,並讓 `postScroll`
+    把命中的 view、scroll view、事件前後的原點與可捲範圍印到 stderr。
+    **`before=(0,192) afterEvent=(0,0)` 那一行是整件事被打開的唯一原因。**
+  - **成果:** P57 現在以滾輪走完五百列,讀數 `500 / 19`(481 列被釋放),擷圖停在第 481–490 列。
+  - **順帶查到、與本項無關的兩個既有崩潰:** mac 上 P8 撞 `ForEach.commit` 的存取衝突、
+    P4 撞 `AnyWidget used with incompatible widget type`。兩支在 mac 上都從未被動作檔驅動過。
+  - 記為 mistakes 第 18 條。
 
   - **今天量到、值得下次照做的一件事(相關性,不是成因)**:**三次**成功的驅動,都是在
     **使用者剛與遠端桌面互動之後**的第一次嘗試(19:10 WinUI 排序、19:30 GTK 排序、19:36 指示符);
