@@ -1,3 +1,4 @@
+import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
 import WinUI
@@ -385,11 +386,24 @@ final class WinUITable: WinUI.Grid {
     /// 採直接訂閱,而非 `addHandler(_:_:handledEventsToo:)`——本 backend 已量到後者會**靜默地
     /// 什麼都不做**(見 WinUIBackend.swift 中 slider 的那段註解)。表格自身的 template 不會 handle
     /// `pointerPressed`,因此此處直接訂閱就足夠。
+    /// One line per attach, per pointer event and per hit test, when
+    /// `SCUI_WINUI_TABLE_TRACE` is set. Off by default.
+    /// 設定了 `SCUI_WINUI_TABLE_TRACE` 時,掛載、每個 pointer 事件與每次命中測試各印一行。預設關閉。
+    static let tableTraceEnabled =
+        ProcessInfo.processInfo.environment["SCUI_WINUI_TABLE_TRACE"] != nil
+
+    static func traceTable(_ message: @autoclosure () -> String) {
+        guard tableTraceEnabled else { return }
+        print("TABLE \(message())")
+    }
+
     private func attachPointerHandlerIfNeeded() {
         guard !pointerHandlerAttached else { return }
         pointerHandlerAttached = true
         background = WinUI.SolidColorBrush(UWP.Color(a: 0, r: 0, g: 0, b: 0))
+        WinUITable.traceTable("pointer handler attached")
         pointerPressed.addHandler { [weak self] _, args in
+            WinUITable.traceTable("pointerPressed fired")
             guard let self, let args else { return }
             // `try?`, not `try!`: this runs on every click, and a pointer event
             // whose position cannot be read is not worth taking the app down
@@ -421,11 +435,16 @@ final class WinUITable: WinUI.Grid {
     /// SwiftCrossUI 個別給定的,而標題列是 `auto`——根本不存在單一的列高可供相除。標題是第 0 列,
     /// 且會在任何資料列能夠命中之前先耗掉它自己的高度,那正是「點在欄位標題上不會選到任何東西」的原因。
     private func handleClick(atY y: Double) {
+        WinUITable.traceTable(
+            "handleClick y=\(y) rowDefs=\(rowDefinitionObjects.count) rowCount=\(rowCount)"
+                + " heights=\(rowDefinitionObjects.prefix(4).map { $0.actualHeight })"
+        )
         guard y >= 0 else { return }
         var offset = 0.0
         for (index, definition) in rowDefinitionObjects.enumerated() {
             let height = definition.actualHeight
             if y < offset + height {
+                WinUITable.traceTable("handleClick matched definition index=\(index)")
                 // Row 0 is the header; a click there is not a selection.
                 // 第 0 列是標題;點在那裡不是一次選取。
                 guard index >= 1 else { return }

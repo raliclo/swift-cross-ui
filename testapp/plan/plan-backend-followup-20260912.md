@@ -76,7 +76,19 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 7. P38/P41 WinUI: reproduce WebView completion and graphical DatePicker binding
    against current sources before changing their implementations.
    WebView／DatePicker：先以現行版本重現 callback 與 binding 問題。
-8. #125 Table: selection and sorting need backend-to-view events and tests.
+8. #125 Table: **selection DONE on both Windows backends and driven both ways,
+   2026-09-16**; sorting still needs its own protocol and tests.
+   New `BackendFeatures.TableSelection` plus `Table(rows, selection:)`. Neither
+   Windows table has a row object -- both are a `Grid` -- so the highlight and
+   the hit test are hand-built on each. Verified in both directions:
+   `--select-probe` writes the binding with no mouse (captures show the band on
+   index 2 under WinUI and index 5 under GTK, and gone when cleared), and
+   `actions/win/P23-select-rows.csv` / `-gtk4.csv` click real rows -- sixth row
+   gives `SELECTION now 5`, the HEADER gives nothing, the first row gives 0.
+   選取兩個方向都已驅動驗收:探針寫 binding(不需滑鼠)、動作檔以真實點擊驅動,
+   兩個 backend 三次點擊的答案一致,含「點標題列不得選取」的拒絕對照。排序未做。
+   The blocker note about remote desktop refusing mouse injection was wrong and
+   is corrected in queue.md: it drove fine with CDP connected.
    Table：待 selection／sortOrder 回報與驗證。
 9. #109 popover: arrowEdge hint implementation and placement tests remain.
    Popover：待 arrowEdge 提示及位置驗證。

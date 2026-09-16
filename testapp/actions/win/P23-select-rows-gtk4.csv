@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, GtkBackend: does CLICKING a row select it? (#125)
+#
+# The GTK twin of P23-select-rows.csv, and a SEPARATE FILE rather than shared
+# coordinates, because the two windows are not the same size and the rows are
+# not in the same places: the WinUI capture is 822x652 with rows 28 px apart
+# from y=325, this one is 848x688 with rows 28 px apart from y=368. Copying the
+# other file's numbers would click the header and the first row instead, and
+# both clicks would still "succeed".
+#
+# Same three assertions, and the middle one is the reason there are three:
+#
+#   row ID=6      "selected row: 5" -- zero-based, so the SIXTH row is index 5
+#   the HEADER    NOTHING changes. GtkBackend reads the row out of the grid with
+#                 `gtk_grid_query_child` rather than dividing by a row height,
+#                 and this is the click that tells the two apart
+#   row ID=1      "selected row: 0", which also rules out the first result being
+#                 wherever the highlight already sat
+#
+# Coordinates measured off p23gtk-sel-none-20260916-134436.png, frame origin
+# because that capture includes the title bar.
+#
+# P23 於 Windows、GtkBackend:**點擊**某一列會選取它嗎?(#125)
+#
+# 這是 `P23-select-rows.csv` 的 GTK 版,而且是**獨立的檔案**、不共用座標,因為兩個視窗大小不同、
+# 列的位置也不同:WinUI 那張擷圖是 822x652、資料列自 y=325 起每 28 像素一列;這一張是 848x688、
+# 自 y=368 起。照抄另一個檔的數字,會變成點到標題列與第一列——而**兩次點擊都仍然會「成功」**。
+#
+# 三項主張相同,而中間那一項正是「為何需要三次點擊」的理由:
+#
+#   ID=6 那一列   「selected row: 5」——零基底,因此第六列是索引 5
+#   **標題列**    什麼都不該改變。GtkBackend 是用 `gtk_grid_query_child` 向 grid 問出列號,
+#                 而不是拿列高去除;這一次點擊正是用來分辨這兩種做法的
+#   ID=1 那一列   「selected row: 0」,同時排除「第一個結果只是高亮本來就在那裡」
+#
+# 座標量自 `p23gtk-sel-none-20260916-134436.png`,採 frame origin,因為該擷圖含標題列。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,240,508,frame,left,,,the sixth row -- expect selected row: 5,windows
+sleep,,,,,,900000,observe the readout and the band,windows
+click,240,345,frame,left,,,the HEADER -- expect no change at all,windows
+sleep,,,,,,900000,observe that nothing moved,windows
+click,240,368,frame,left,,,the first row -- expect selected row: 0,windows
+sleep,,,,,,1200000,hold for the final capture,windows
