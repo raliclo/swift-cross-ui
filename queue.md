@@ -67,12 +67,23 @@ an empty queue -- mistakes.md entry 1.
     折成兩行、把表格往下推,於是「在標題上點兩次」的動作檔第二次會落空——而擷圖看起來像是
     「backend 忘了自己的排序狀態」。已改為獨立一行,理由寫在 P23.swift 裡。
 
-- [ ] **M4. #121 在 iPhone 上仍然無效 — `UIResponder.keyCommands`** — UIKit 的 `#121` 目前是
+- [x] **M4. #121 在 iPhone 上已補上 — `UIResponder.keyCommands`(2026-09-16 完成並驅動驗證)** — UIKit 的 `#121` 目前是
   **iPad ✅ / iPhone ❌**,而那不是「平台沒有 API」。唯一的註冊路徑是 `buildMenu(with:)`
   (`UIKitBackend+Menu.swift:215`),而 iPhone 沒有選單列、`buildMenu` 從不以 `.main` 被呼叫
   ——2026-09-16 在 iPhone 17 Pro Max 上量過,寫在 `actions/ios/P71-shortcuts.csv` 的檔頭。
   `grep -rn keyCommands Sources/UIKitBackend` 回報 0:沒有任何地方覆寫 `UIResponder.keyCommands`,
   而那正是 iPhone 上「不需要選單列」的那條路。依 CLAUDE.md,這是待實作,不是可以記成 ✅ 的東西。
+  - **同一個動作檔在兩種裝置上都通過:** iPhone(預設的 `swift-cross-ui` 模擬器,iOS 27.0)
+    plain 1 / shifted 1 / disabled 0——**那正是今天之前回報三個零的那台裝置**;
+    iPad Pro 13-inch (M5) 同樣是 1 / 1 / 0,而那才是真正要防的回歸:一個被公布兩次的快捷鍵會觸發兩次。
+  - **`ApplicationDelegate` 現在覆寫 `keyCommands`。** 那些 command 在 `setApplicationMenu` 中
+    由一次選單走訪造出——**帶著快捷鍵的是 `modifiedEnvironment` 那個 case**,一次略過它的走訪會找到
+    每一個項目、卻一個按鍵都找不到——並在 `hasBuiltMainMenu` 被設起之後不再公布;
+    那個旗標由 `buildMenu` 設定,而那裡是唯一能證明「存在一條選單列」的地方。
+  - **closure 放在 `FallbackShortcutActions`,不是 `MenuShortcutActions`。** 兩者重建的時機不同:
+    `buildMenu` 內的 `beginRebuild` 會默默作廢這條路所持有的每一個 token,而一個找不到東西的快捷鍵
+    什麼也不做。
+  - `actions/ios/P71-shortcuts.csv` 的檔頭原本寫著「只跑 iPad」,已更正。
 
 - [~] **M5. `LazyListRowLifetimes` — 三個 backend 都已實作;AppKit 已驅動驗證,UIKit / Android 尚未大規模驅動** — 三者只實作了
   `LazyListRows`。被回收的列不會通知框架,只靠 `List.swift:617` 的 `lazyLifetimeBackstopLimit = 4000`
