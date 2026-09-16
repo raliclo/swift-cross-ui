@@ -197,6 +197,162 @@ public class Table: ScrolledWindow {
         // 於此處重新套用，而非僅在設定變更時。每次 `setCells` 都會替換 widget，因此在啟用選取之後
         // 重建的表格會變回不可選取——而 P23 的 `More rows` 正是會重建它。
         applyTextSelectability()
+        // Same reasoning, and the reason `Table.swift` in SwiftCrossUI applies
+        // the selection AFTER the cells: these are new widgets, so whatever was
+        // highlighted a moment ago is no longer on screen.
+        // 同樣的理由,也正是 SwiftCrossUI 的 `Table.swift` 把選取放在儲存格**之後**套用的原因:
+        // 這些是新的 widget,因此片刻之前被高亮的東西已經不在畫面上了。
+        applySelectionHighlight()
+    }
+
+    // MARK: - Row selection / 列的選取
+
+    /// Called with a row index when the user clicks a row, never when
+    /// ``selectRow(_:)`` is called.
+    ///
+    /// Setting it is also what installs the click gesture, so a table nobody
+    /// asked to be selectable does not become clickable as a side effect of this
+    /// code existing.
+    ///
+    /// 使用者點擊某列時以該列索引呼叫;``selectRow(_:)`` 被呼叫時**不會**觸發。
+    ///
+    /// 設定它同時也是**安裝點擊 gesture 的動作**,因此一個沒有人要求它可選取的表格,不會因為
+    /// 這段程式碼的存在就順帶變得可點。
+    public var onRowSelected: ((Int?) -> Void)? {
+        didSet { attachClickGestureIfNeeded() }
+    }
+
+    private var selectedRow: Int?
+    private var clickGesture: GestureClick?
+
+    /// One provider for the whole display, loaded once.
+    ///
+    /// **A literal colour rather than a theme variable.** `@accent_bg_color`
+    /// would follow the user's theme and is what a hand-written GTK app should
+    /// use -- but a name the running theme does not define is a CSS parse error,
+    /// and GTK drops the rule silently rather than reporting it. A dropped rule
+    /// here means clicks register and nothing highlights, which reads exactly
+    /// like selection not working at all.
+    ///
+    /// 一個載入一次、涵蓋整個 display 的 provider。
+    ///
+    /// **使用字面色值,而非主題變數。** `@accent_bg_color` 會跟隨使用者的主題,那也是一支手寫的
+    /// GTK app 該用的東西——但**目前主題沒有定義的名稱是 CSS 解析錯誤**,而 GTK 會靜默地丟掉該規則、
+    /// 不作任何回報。在此被丟掉的規則意謂著「點擊有反應、但什麼都沒有高亮」,而那看起來與
+    /// 「選取根本沒有運作」一模一樣。
+    private static let selectionCSSClass = "scui-table-row-selected"
+    private lazy var selectionCSSProvider: CSSProvider = {
+        let provider = CSSProvider()
+        provider.loadCss(
+            from: ".\(Table.selectionCSSClass) { background-color: rgba(53, 132, 228, 0.35); }"
+        )
+        return provider
+    }()
+
+    /// Selects a row without reporting it. nil clears the selection.
+    /// 選取某一列但**不**回報它;nil 清除選取。
+    public func selectRow(_ index: Int?) {
+        guard index != selectedRow else { return }
+        selectedRow = index
+        applySelectionHighlight()
+    }
+
+    /// Adds the highlight class to the selected row's cells and removes it from
+    /// everything else.
+    ///
+    /// Walks every cell rather than tracking which ones were marked: the cells
+    /// are replaced wholesale by ``setCells(_:rowHeights:)``, so a remembered
+    /// list of highlighted widgets would name widgets that no longer exist.
+    ///
+    /// 把高亮 class 加到被選取列的儲存格上,並從其他所有儲存格移除。
+    ///
+    /// 走訪**每一個**儲存格,而不是記住「哪些被標記過」:儲存格會被
+    /// ``setCells(_:rowHeights:)`` 整批替換,因此一份記住的清單所指的會是已經不存在的 widget。
+    private func applySelectionHighlight() {
+        guard columnCount > 0 else { return }
+        _ = selectionCSSProvider
+        for (index, cell) in cellWidgets.enumerated() {
+            let row = index / columnCount
+            if row == selectedRow {
+                gtk_widget_add_css_class(cell.widgetPointer, Table.selectionCSSClass)
+            } else {
+                gtk_widget_remove_css_class(cell.widgetPointer, Table.selectionCSSClass)
+            }
+        }
+    }
+
+    /// Attaches the click gesture, once.
+    ///
+    /// **Once, and the counter is the gesture itself rather than a bool**, so
+    /// there is nothing to get out of step. A controller added per commit is the
+    /// `began=5` shape this backend already hit on a slider: five controllers,
+    /// each firing once, reported as five presses.
+    ///
+    /// The gesture goes on the GRID, not on the cells. A cell is an arbitrary
+    /// widget supplied by the framework, and putting a gesture on each would
+    /// mean adding and removing controllers on widgets this class does not own,
+    /// every time the table is rebuilt.
+    ///
+    /// 掛上點擊 gesture,只掛一次。
+    ///
+    /// **只掛一次,而且作為記號的是那個 gesture 本身、不是一個 bool**,因此沒有東西可以失去同步。
+    /// 每次 commit 都新增一個 controller,正是本 backend 在 slider 上撞過的 `began=5` 形狀:
+    /// 五個 controller、各觸發一次,被回報成五次按下。
+    ///
+    /// gesture 掛在 **grid** 上,不是掛在儲存格上。儲存格是框架提供的任意 widget,若逐一掛上,
+    /// 等於每次重建表格時都要在「本類別並不擁有的 widget」上增刪 controller。
+    private func attachClickGestureIfNeeded() {
+        guard clickGesture == nil else { return }
+        let gesture = GestureClick()
+        gesture.pressed = { [weak self] _, _, x, y in
+            self?.handleClick(x: x, y: y)
+        }
+        clickGesture = gesture
+        grid.addEventController(gesture)
+    }
+
+    /// Turns a click position into a row index, or nil for the header and for
+    /// empty space.
+    ///
+    /// `gtk_widget_pick` answers "what is under this point", and the answer is
+    /// usually a label deep inside a cell, so this walks up until it reaches a
+    /// direct child of the grid -- which is the widget the grid can be asked
+    /// about. Reading the row out of `gtk_grid_query_child` rather than dividing
+    /// by a row height is what makes it correct for rows of different heights.
+    ///
+    /// 把點擊位置變成列索引;標題列與空白處回傳 nil。
+    ///
+    /// `gtk_widget_pick` 回答的是「這個點底下是什麼」,而答案通常是深藏在儲存格裡的某個 label,
+    /// 因此此處會往上走,直到抵達 grid 的**直接子元件**——那才是可以拿去問 grid 的 widget。
+    /// 從 `gtk_grid_query_child` 讀出列號、而不是拿列高去除,正是它在各列高度不同時仍然正確的原因。
+    private func handleClick(x: Double, y: Double) {
+        guard
+            let picked = gtk_widget_pick(
+                grid.widgetPointer,
+                x,
+                y,
+                GTK_PICK_DEFAULT
+            )
+        else { return }
+
+        var candidate: UnsafeMutablePointer<GtkWidget>? = picked
+        while let current = candidate,
+            let parent = gtk_widget_get_parent(current),
+            parent != grid.widgetPointer
+        {
+            candidate = parent
+        }
+        guard let child = candidate, let position = grid.queryChild(child) else { return }
+
+        // Row 0 is the header; a click there is not a row selection.
+        // 第 0 列是標題;點在那裡不是一次列選取。
+        guard position.row >= 1 else { return }
+        let index = position.row - 1
+        guard index < rowCount else { return }
+
+        selectedRow = index
+        applySelectionHighlight()
+        onRowSelected?(index)
     }
 
     /// Sets whether the user can select and copy the table's text.

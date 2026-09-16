@@ -1,4 +1,5 @@
 @_spi(Backends) import SwiftCrossUI
+import UWP
 import WinUI
 
 // `defaultTableRowContentHeight` and `defaultTableCellVerticalPadding` are not
@@ -41,6 +42,32 @@ extension WinUIBackend: BackendFeatures.Tables {
 
     public func setColumnWidths(ofTable table: Widget, to widths: [Double?]) {
         (table as! WinUITable).setColumnWidths(widths)
+    }
+}
+
+/// Row selection for `WinUITable` (#125).
+///
+/// Hand-built for the same reason GtkBackend's is: this table is a `Grid`, and a
+/// grid has no rows to select. `ListView` and the community `DataGrid` both have
+/// selection built in and both want to own their item source, which is the one
+/// thing `BackendFeatures.Tables` does not hand over -- it supplies cells that
+/// are already built.
+///
+/// `WinUITable` 的列選取(#125)。
+///
+/// 與 GtkBackend 那一版出於相同理由是手工做的:這個表格是一個 `Grid`,而 grid 沒有「列」可選。
+/// `ListView` 與社群的 `DataGrid` 都內建選取,而兩者都想擁有自己的 item source
+/// ——那正是 `BackendFeatures.Tables` **不會**交出去的東西:它給的是**已經建好的**儲存格。
+extension WinUIBackend: BackendFeatures.TableSelection {
+    public func setSelectionHandler(
+        ofTable table: Widget,
+        to action: @escaping (Int?) -> Void
+    ) {
+        (table as! WinUITable).onRowSelected = action
+    }
+
+    public func setSelectedRow(ofTable table: Widget, to index: Int?) {
+        (table as! WinUITable).selectRow(index)
     }
 }
 
@@ -96,6 +123,13 @@ final class WinUITable: WinUI.Grid {
     /// `columnDefinitions` 是一個 WinRT vector,為了修改而把元素讀回來,比留住我們剛剛建立的那些
     /// 物件更繁瑣。`ColumnDefinition` 是參考型別,因此在其中一個上設定 `width`,Grid 看得到。
     private var columnDefinitionObjects: [WinUI.ColumnDefinition] = []
+    /// The row definitions, in order, for the same reason the columns are kept:
+    /// reading them back out of the WinRT vector to ask for `actualHeight` is
+    /// more ceremony than holding the objects. Used to turn a click's y
+    /// coordinate into a row -- see ``handleClick(atY:)``.
+    /// 按順序持有的 row definition,理由與欄位相同:為了問 `actualHeight` 而把元素從 WinRT vector
+    /// 讀回來,比直接留住那些物件更繁瑣。用途是把點擊的 y 座標換算成列——見 ``handleClick(atY:)``。
+    private var rowDefinitionObjects: [WinUI.RowDefinition] = []
     private var rowCount = 0
 
     /// Kept so `setCells` can put them back. Every `setCells` clears the
@@ -198,6 +232,10 @@ final class WinUITable: WinUI.Grid {
         rebuildRowDefinitions(rowHeights: rowHeights)
         rebuildChildren(rowHeights: rowHeights)
         applyTextSelectability()
+        // `rebuildChildren` cleared the children, and the highlight was one of
+        // them. Same reason the text selectability is reapplied here.
+        // `rebuildChildren` 清空了所有子元件,而高亮正是其中之一。與文字選取在此重新套用的理由相同。
+        applySelectionHighlight()
     }
 
     func setTextSelectable(_ isSelectable: Bool) {
@@ -209,6 +247,7 @@ final class WinUITable: WinUI.Grid {
 
     private func rebuildRowDefinitions(rowHeights: [Int]) {
         rowDefinitions.clear()
+        rowDefinitionObjects = []
 
         // Row 0 is the header and sizes to its own content; data rows take the
         // height SwiftCrossUI computed for them.
@@ -216,6 +255,7 @@ final class WinUITable: WinUI.Grid {
         let header = WinUI.RowDefinition()
         header.height = WinUI.GridLength(value: 0, gridUnitType: .auto)
         rowDefinitions.append(header)
+        rowDefinitionObjects.append(header)
 
         for index in 0..<rowCount {
             let row = WinUI.RowDefinition()
@@ -228,11 +268,184 @@ final class WinUITable: WinUI.Grid {
                 row.height = WinUI.GridLength(value: 0, gridUnitType: .auto)
             }
             rowDefinitions.append(row)
+            rowDefinitionObjects.append(row)
+        }
+    }
+
+    // MARK: - Row selection / 列的選取
+
+    /// Called with a row index when the user clicks a row, never from
+    /// ``selectRow(_:)``.
+    ///
+    /// Setting it installs the pointer handler, so a table nobody asked to be
+    /// selectable does not start responding to clicks.
+    ///
+    /// 使用者點擊某列時以該列索引呼叫;``selectRow(_:)`` 不會觸發它。
+    ///
+    /// 設定它同時會安裝 pointer handler,因此沒有人要求可選取的表格不會開始對點擊有反應。
+    var onRowSelected: ((Int?) -> Void)? {
+        didSet { attachPointerHandlerIfNeeded() }
+    }
+
+    /// Placed BEHIND the cells, and that is what `insertAt(0,)` in
+    /// ``applySelectionHighlight()`` buys: a `Grid` draws its children in order,
+    /// so a highlight appended last would cover the text it is highlighting.
+    ///
+    /// A `Border` rather than a `Rectangle` because it needs no `Fill`/`Stroke`
+    /// distinction and takes the row's whole cell by default.
+    ///
+    /// 放在儲存格**後面**,而那正是 ``applySelectionHighlight()`` 裡 `insertAt(0,)` 的用意:
+    /// `Grid` 依加入順序繪製子元件,因此**最後**才加入的高亮會蓋住它所要高亮的文字。
+    ///
+    /// 用 `Border` 而非 `Rectangle`,因為它不需要區分 `Fill`/`Stroke`,且預設就會佔滿該列的儲存格。
+    private lazy var selectionHighlight: WinUI.Border = {
+        let border = WinUI.Border()
+        border.background = WinUI.SolidColorBrush(
+            UWP.Color(a: 90, r: 53, g: 132, b: 228)
+        )
+        // Never the thing a click lands on. Without this the highlight sits
+        // between the pointer and the cells, and the row under it could not be
+        // identified from the element that was hit.
+        // 它永遠不該是點擊落到的那個東西。少了這一行,高亮會夾在指標與儲存格之間,
+        // 而「被命中的元素」就無法用來辨識它底下是哪一列。
+        border.isHitTestVisible = false
+        return border
+    }()
+
+    private var selectedRow: Int?
+    private var pointerHandlerAttached = false
+
+    /// Selects a row without reporting it; nil clears the selection.
+    /// 選取某一列但不回報;nil 清除選取。
+    func selectRow(_ index: Int?) {
+        guard index != selectedRow else { return }
+        selectedRow = index
+        applySelectionHighlight()
+    }
+
+    /// Whether the highlight is currently in `children`.
+    ///
+    /// **A flag rather than searching `children` for it.** Reading an element
+    /// back out of a WinRT collection hands you a fresh Swift wrapper around the
+    /// same COM object, so `===` against the one we hold can be false for the
+    /// element that IS there -- measured on this backend's lazy rows the same
+    /// day, where one wrapper address served six different rows. The search
+    /// would then never find it, insert a second copy, and keep going.
+    ///
+    /// Cleared in ``rebuildChildren(rowHeights:)``, which empties the
+    /// collection.
+    ///
+    /// 高亮目前是否在 `children` 之中。
+    ///
+    /// **用一個旗標,而不是去 `children` 裡尋找它。** 從 WinRT collection 讀回一個元素,拿到的是
+    /// 圍繞同一個 COM 物件的**全新 Swift wrapper**,因此拿 `===` 去比對我們手上那個,對於
+    /// **確實在裡面**的那個元素也可能是 false——同一天在本 backend 的 lazy rows 上量到過:
+    /// 一個 wrapper 位址先後服務了六個不同的列。那樣的搜尋會永遠找不到它、於是插入第二份,然後繼續。
+    ///
+    /// 在 ``rebuildChildren(rowHeights:)`` 中清除,因為那裡會清空整個 collection。
+    private var highlightIsInChildren = false
+
+    private func applySelectionHighlight() {
+        // Index 0 by construction: it is the only thing inserted at the front,
+        // and everything else is appended after it. So removing it needs no
+        // search and therefore no identity comparison at all.
+        // 依建構方式必然在索引 0:只有它被插到最前面,其餘都是往後 append。因此移除它不需要搜尋,
+        // 也就完全不需要做任何識別比對。
+        if highlightIsInChildren, children.count > 0 {
+            children.removeAt(0)
+            highlightIsInChildren = false
+        }
+        guard let selectedRow, selectedRow < rowCount, columnCount > 0 else { return }
+        WinUI.Grid.setRow(selectionHighlight, Int32(selectedRow + 1))
+        WinUI.Grid.setColumn(selectionHighlight, 0)
+        WinUI.Grid.setColumnSpan(selectionHighlight, Int32(columnCount))
+        children.insertAt(0, selectionHighlight)
+        highlightIsInChildren = true
+    }
+
+    /// Subscribes `pointerPressed`, once.
+    ///
+    /// **`background` is set at the same time and is not cosmetic.** A `Grid`
+    /// with no background does not hit-test at all, so the transparent brush is
+    /// what makes a click anywhere in the table -- including the gaps between
+    /// cells -- reach this handler. A fully transparent brush still hit-tests;
+    /// `nil` does not.
+    ///
+    /// Subscribed rather than `addHandler(_:_:handledEventsToo:)`, which this
+    /// backend has measured as silently doing nothing (see the slider note in
+    /// WinUIBackend.swift). Nothing in a table's own template handles
+    /// `pointerPressed`, so the plain subscription is enough here.
+    ///
+    /// 訂閱 `pointerPressed`,只做一次。
+    ///
+    /// **同時設定 `background`,而那不是裝飾。** 一個沒有 background 的 `Grid` **完全不參與命中測試**,
+    /// 因此那個透明筆刷才是「點在表格任何位置(含儲存格之間的空隙)都能抵達這個 handler」的原因。
+    /// 完全透明的筆刷仍會參與命中測試;`nil` 不會。
+    ///
+    /// 採直接訂閱,而非 `addHandler(_:_:handledEventsToo:)`——本 backend 已量到後者會**靜默地
+    /// 什麼都不做**(見 WinUIBackend.swift 中 slider 的那段註解)。表格自身的 template 不會 handle
+    /// `pointerPressed`,因此此處直接訂閱就足夠。
+    private func attachPointerHandlerIfNeeded() {
+        guard !pointerHandlerAttached else { return }
+        pointerHandlerAttached = true
+        background = WinUI.SolidColorBrush(UWP.Color(a: 0, r: 0, g: 0, b: 0))
+        pointerPressed.addHandler { [weak self] _, args in
+            guard let self, let args else { return }
+            // `try?`, not `try!`: this runs on every click, and a pointer event
+            // whose position cannot be read is not worth taking the app down
+            // for. A nil point becomes -1 below and selects nothing.
+            // 用 `try?` 而非 `try!`:這段每次點擊都會跑,而「讀不到位置的 pointer 事件」
+            // 不值得讓整個 app 結束。nil 在下方會變成 -1,於是什麼都不會被選取。
+            let point = try? args.getCurrentPoint(self)
+            // `Point.y` is a `Float` here while `RowDefinition.actualHeight` is
+            // a `Double`, so the conversion is explicit rather than left to
+            // whichever one the compiler picks.
+            // 此處 `Point.y` 是 `Float`,而 `RowDefinition.actualHeight` 是 `Double`,
+            // 因此明確轉換,而不是交給編譯器去挑一個。
+            self.handleClick(atY: Double(point?.position.y ?? -1))
+        }
+    }
+
+    /// Turns a click's y coordinate into a row index.
+    ///
+    /// Walks the row definitions' `actualHeight` rather than dividing by a
+    /// nominal row height: rows here are given individual pixel heights by
+    /// SwiftCrossUI, and the header row is `auto`, so there is no single height
+    /// to divide by. The header is row 0 and consumes its height before any data
+    /// row can match, which is what makes a click on a column title select
+    /// nothing.
+    ///
+    /// 把點擊的 y 座標換算成列索引。
+    ///
+    /// 走訪各 row definition 的 `actualHeight`,而不是拿一個名目列高去除:此處各列的像素高度是
+    /// SwiftCrossUI 個別給定的,而標題列是 `auto`——根本不存在單一的列高可供相除。標題是第 0 列,
+    /// 且會在任何資料列能夠命中之前先耗掉它自己的高度,那正是「點在欄位標題上不會選到任何東西」的原因。
+    private func handleClick(atY y: Double) {
+        guard y >= 0 else { return }
+        var offset = 0.0
+        for (index, definition) in rowDefinitionObjects.enumerated() {
+            let height = definition.actualHeight
+            if y < offset + height {
+                // Row 0 is the header; a click there is not a selection.
+                // 第 0 列是標題;點在那裡不是一次選取。
+                guard index >= 1 else { return }
+                let row = index - 1
+                guard row < rowCount else { return }
+                selectedRow = row
+                applySelectionHighlight()
+                onRowSelected?(row)
+                return
+            }
+            offset += height
         }
     }
 
     private func rebuildChildren(rowHeights: [Int]) {
         children.clear()
+        // The highlight was one of the children that just went. `setCells`
+        // puts it back after this returns.
+        // 高亮正是剛剛被清掉的子元件之一。`setCells` 會在本方法返回後把它放回去。
+        highlightIsInChildren = false
 
         for (column, label) in headerLabels.enumerated() {
             WinUI.Grid.setRow(label, 0)

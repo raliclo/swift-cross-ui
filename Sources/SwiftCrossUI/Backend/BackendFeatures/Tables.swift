@@ -115,6 +115,84 @@ extension BackendFeatures {
         /// 那與 `setTextSelectability` 所記載的判斷相同:拒絕繪製表格,會比把它平均地畫出來更糟。
         func setColumnWidths(ofTable table: Widget, to widths: [Double?])
     }
+
+    /// A table whose rows can be selected, and which says when the user selects
+    /// one.
+    ///
+    /// **This is the first backend-to-VIEW channel a table has.** Every other
+    /// method on ``Tables`` runs one way -- the framework tells the backend what
+    /// to draw -- which is why selection could not be expressed before it: the
+    /// user clicking a row is information that only the backend has.
+    ///
+    /// Modelled on ``SelectableListViews``, which answered the same question for
+    /// lists: a handler that receives an index, and a setter that takes one, so
+    /// a selection made in code and a selection made with the mouse end in the
+    /// same place.
+    ///
+    /// **Separate from ``TableColumnSorting`` on purpose.** A backend can
+    /// plausibly manage one and not the other, and a single protocol carrying
+    /// both would turn "half of it works" into a claim that both do. Same
+    /// reasoning as ``Containers/LazyListRows`` and
+    /// ``Containers/LazyListRowLifetimes``.
+    ///
+    /// Conformance-checked rather than required, so a backend that does not
+    /// implement it draws exactly the table it draws today.
+    ///
+    /// 一個列可以被選取、並且會說出使用者選了哪一列的表格。
+    ///
+    /// **這是表格的第一條 backend→view 通道。** ``Tables`` 上其他每一個方法都是單向的
+    /// ——框架告訴 backend 要畫什麼——而那正是「選取」在此之前無法被表達的原因:
+    /// **使用者點了哪一列,是只有 backend 知道的資訊**。
+    ///
+    /// 形狀取自 ``SelectableListViews``,它為清單回答過同一個問題:一個收索引的 handler,
+    /// 加上一個收索引的 setter,好讓「程式設定的選取」與「滑鼠造成的選取」落在同一個地方。
+    ///
+    /// **刻意與 ``TableColumnSorting`` 分開。** 一個 backend 完全可能做得到其中一個而非另一個,
+    /// 而把兩者合成一個協定,會把「只有一半能用」變成「宣稱兩者都有」。理由與
+    /// ``Containers/LazyListRows`` 和 ``Containers/LazyListRowLifetimes`` 分開相同。
+    ///
+    /// 採 conformance 檢查而非要求實作,因此未實作它的 backend,畫出來的表格與今天完全相同。
+    @MainActor
+    public protocol TableSelection: Tables {
+        /// Sets the action to perform when the user selects a row.
+        ///
+        /// Receives the selected row's index, or nil when the selection is
+        /// cleared. Row indices exclude the header row: the first data row is 0,
+        /// which is the same numbering ``Tables/setCells(ofTable:to:withRowHeights:)``
+        /// uses.
+        ///
+        /// Called on every commit, so an implementation must REPLACE the stored
+        /// handler rather than add one. A backend that subscribes each time ends
+        /// up with one subscription per frame -- the shape this tree has hit as
+        /// `began=5` on a slider and guarded against in its lazy-row containers.
+        ///
+        /// 設定「使用者選取某一列時」要執行的動作。
+        ///
+        /// 收到的是被選取列的索引,選取被清除時為 nil。列索引**不含標題列**:第一個資料列是 0,
+        /// 與 ``Tables/setCells(ofTable:to:withRowHeights:)`` 的編號相同。
+        ///
+        /// 每次 commit 都會呼叫,因此實作必須**取代**所存的 handler,而不是再加一個。每次都重新
+        /// 訂閱的 backend 會變成每幀多一個訂閱——那正是這棵樹在 slider 上撞到的 `began=5`,
+        /// 也正是 lazy-row 容器所防的那個形狀。
+        func setSelectionHandler(
+            ofTable table: Widget,
+            to action: @escaping (_ selectedRow: Int?) -> Void
+        )
+
+        /// Selects a row, or clears the selection when given nil.
+        ///
+        /// **Must not call the handler.** This is the framework telling the
+        /// backend what the selection is, and a backend that reports it back
+        /// would make every programmatic selection look like a user action --
+        /// which, with a binding on the other end, is an update loop.
+        ///
+        /// 選取某一列;給 nil 時清除選取。
+        ///
+        /// **不得觸發 handler。** 這是框架在告訴 backend「選取是什麼」,而一個把它回報回去的
+        /// backend,會讓每一次程式設定的選取看起來都像使用者的動作——在另一端接著 binding 的情況下,
+        /// 那是一個更新迴圈。
+        func setSelectedRow(ofTable table: Widget, to index: Int?)
+    }
 }
 
 extension BackendFeatures.Tables {

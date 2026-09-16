@@ -1,6 +1,10 @@
 import DefaultBackend
 import Foundation
-import SwiftCrossUI
+// `@_spi(Backends)` for `BackendFeatures`, which the #125 conformance readout
+// asks about. P57 imports it the same way for the same reason.
+// 需要 `@_spi(Backends)` 才能取得 `BackendFeatures`——#125 的 conformance 讀數要問它。
+// P57 也是以同樣方式、同樣理由引入。
+@_spi(Backends) import SwiftCrossUI
 
 // P23 tables, for comparing WinUIBackend against GtkBackend.
 //
@@ -128,8 +132,16 @@ struct P23TablesApp: App {
 }
 
 struct P23RootView: View {
+    /// Asked of the backend for the conformance readout below, the same way P57
+    /// asks about lazy rows.
+    /// 用於下方那行 conformance 讀數,問的是 backend——與 P57 詢問 lazy rows 的方式相同。
+    @Environment(\.backend) var backend
     @State var rowCount = 8
     @State var isSelectable = false
+    /// #125 row selection. Separate from `isSelectable`, which is TEXT
+    /// selection -- two different features that would otherwise be read as one.
+    /// #125 的列選取。與 `isSelectable`(那是**文字**選取)分開:兩個不同的功能,不分開會被讀成同一個。
+    @State var selectedRow: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -165,6 +177,34 @@ struct P23RootView: View {
                 Text("drag across a cell to check")
             }
 
+            // #125 row selection, and BOTH DIRECTIONS are on screen because they
+            // fail separately. The readout is what a click writes into the
+            // binding; the two buttons are the framework writing into the
+            // backend. A backend that highlights on click but ignores
+            // `setSelectedRow` passes a screenshot of one and fails the other.
+            //
+            // The conformance line is asked of the backend rather than inferred
+            // from which files exist -- the same shape P57 uses for lazy rows,
+            // and for the same reason: Android compiled a conformance and took
+            // the other path anyway.
+            //
+            // #125 的列選取,而**兩個方向**都放在畫面上,因為它們會各自失敗。那行讀數是「點擊寫進
+            // binding 的東西」;兩個按鈕則是「框架寫進 backend 的東西」。一個「點了會高亮、卻忽略
+            // `setSelectedRow`」的 backend,會通過其中一張截圖而在另一張上失敗。
+            //
+            // conformance 那一行是**去問 backend** 的,不是從「有哪些檔案存在」推論——與 P57 對
+            // lazy rows 所用的形狀相同,理由也相同:Android 曾經把一個 conformance 編了進去,
+            // 然後照樣走了另一條路。
+            HStack(spacing: 8) {
+                Button("Select row 2") { selectedRow = 2 }
+                Button("Clear selection") { selectedRow = nil }
+                Text("selected row: \(selectedRow.map(String.init) ?? "none")")
+            }
+            Text(
+                "row selection supported: "
+                    + "\(backend is any BackendFeatures.TableSelection ? "yes" : "NO")"
+            )
+
             // Deliberately not wrapped in P23Measured. The measuring overlay sits
             // on top of what it measures, and a table under it never sees a
             // pointer event -- neither a header nor a cell could be selected
@@ -177,7 +217,7 @@ struct P23RootView: View {
             // `selectable`，標題與儲存格都無法被選取。欄寬仍可由截圖判讀，而那正是步驟 1 與 2
             // 實際要比較的內容。
             Group {
-                Table(Array(p23Rows.prefix(rowCount))) {
+                Table(Array(p23Rows.prefix(rowCount)), selection: $selectedRow) {
                     // #125, added 2026-09-10. `.width(200)` on ID -- the column
                     // with the NARROWEST content -- and nothing on the other
                     // three.
@@ -251,7 +291,73 @@ struct P23RootView: View {
         .padding(18)
         .onAppear {
             P23Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+            P23Diagnostics.write(
+                "row selection supported: "
+                    + "\(backend is any BackendFeatures.TableSelection ? "yes" : "NO")"
+            )
             P23Diagnostics.renderComplete()
+            driveSelectionIfAsked()
+        }
+        // **The log line says which direction produced it**, because the two
+        // fail separately and a bare "SELECTION now 2" cannot tell them apart:
+        // a backend that highlights on click but ignores `setSelectedRow`
+        // writes the same line as one that does both.
+        //
+        // `onChange` prints TRANSITIONS. The verdict is the last value, and the
+        // screen carries it -- read as a failure once already, mistakes.md
+        // entry 14.
+        //
+        // **這行 log 會說出它是由哪個方向產生的**,因為兩個方向會各自失敗,而單獨一行
+        // 「SELECTION now 2」分不出它們:一個「點了會高亮、卻忽略 `setSelectedRow`」的 backend,
+        // 寫出來的是同一行。
+        //
+        // `onChange` 印的是**轉換**。判決是最終值,而那個值在畫面上——這一點曾經被讀成失敗一次,
+        // 見 mistakes.md 第 14 條。
+        .onChange(of: selectedRow) {
+            P23Diagnostics.write(
+                "SELECTION now \(selectedRow.map(String.init) ?? "none")"
+            )
+        }
+    }
+
+    /// `--select-probe`: moves the selection on a timer, with no mouse.
+    ///
+    /// **It drives the half that does not need a pointer, and only that half.**
+    /// Writing the binding exercises the whole framework-to-backend path --
+    /// `@State` -> commit -> `setSelectedRow(ofTable:to:)` -> the highlight on
+    /// screen -- which is the direction a backend can implement and still fail
+    /// at, independently of hit-testing. The other direction, a click becoming
+    /// a binding write, cannot be faked from inside the process and is left to
+    /// an action file.
+    ///
+    /// `DispatchQueue.main.asyncAfter` on both backends, not `g_timeout_add`:
+    /// P70 drives its focus moves this way and has been replayed on GtkBackend
+    /// and WinUIBackend alike, so the mechanism is already known to work on
+    /// both. Three steps, spaced so the log is legible.
+    ///
+    /// `--select-probe`:以計時器移動選取,完全不用滑鼠。
+    ///
+    /// **它驅動的是「不需要指標」的那一半,而且只有那一半。** 寫入 binding 會走完整條
+    /// 框架→backend 的路徑——`@State` → commit → `setSelectedRow(ofTable:to:)` → 畫面上的高亮
+    /// ——而那正是一個 backend 可能實作了卻仍然失敗、且與命中測試互相獨立的方向。另一個方向
+    /// (點擊變成 binding 的寫入)無法在行程內偽造,留給動作檔。
+    ///
+    /// 兩個 backend 都用 `DispatchQueue.main.asyncAfter`,而非 `g_timeout_add`:P70 就是這樣驅動
+    /// 它的焦點移動,並且在 GtkBackend 與 WinUIBackend 上都重放過,因此這個機制在兩邊都已知可用。
+    /// 三個步驟,間隔拉開好讓 log 讀得清楚。
+    func driveSelectionIfAsked() {
+        guard CommandLine.arguments.contains("--select-probe") else { return }
+        P23Diagnostics.write("SELECT PROBE starting")
+        let steps: [(Double, () -> Void)] = [
+            (1.5, { selectedRow = 2 }),
+            (3.0, { selectedRow = 5 }),
+            (4.5, { selectedRow = nil }),
+            (6.0, { P23Diagnostics.write("SELECT PROBE done") }),
+        ]
+        for (delay, step) in steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                MainActor.assumeIsolated(step)
+            }
         }
     }
 }

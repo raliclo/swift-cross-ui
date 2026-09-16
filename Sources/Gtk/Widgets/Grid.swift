@@ -62,6 +62,34 @@ public class Grid: Widget, Orientable {
         gtk_grid_insert_row(castedPointer(), gint(position))
     }
 
+    /// Where a child sits, asked of the grid rather than remembered.
+    ///
+    /// **Used to turn a click into a row**, and asking the grid is what makes
+    /// that correct when rows have different heights: dividing a y coordinate by
+    /// a row height assumes they are uniform, which is true of most tables right
+    /// up until one cell wraps.
+    ///
+    /// The child must be a DIRECT child of this grid; `gtk_grid_query_child`
+    /// warns and returns nothing for anything else, so callers walk up from
+    /// whatever the hit test gave them first.
+    ///
+    /// 某個子元件的位置——**向 grid 詢問**,而不是自己記住。
+    ///
+    /// **用途是把一次點擊換算成列號**,而「向 grid 詢問」正是它在各列高度不同時仍然正確的原因:
+    /// 拿 y 座標去除以列高,前提是各列等高——那對大多數表格都成立,直到某一格文字換行為止。
+    ///
+    /// 傳入的必須是這個 grid 的**直接**子元件;`gtk_grid_query_child` 對其他東西會發出警告並且
+    /// 不回傳任何位置,因此呼叫端要先從命中測試的結果往上走。
+    public func queryChild(_ child: UnsafeMutablePointer<GtkWidget>) -> (column: Int, row: Int)? {
+        guard gtk_widget_get_parent(child) == widgetPointer else { return nil }
+        var column: gint = 0
+        var row: gint = 0
+        var width: gint = 0
+        var height: gint = 0
+        gtk_grid_query_child(castedPointer(), child, &column, &row, &width, &height)
+        return (column: Int(column), row: Int(row))
+    }
+
     /// Detaches one child, and forgets it.
     ///
     /// `removeRow` and `removeColumn` shift everything after them, which is

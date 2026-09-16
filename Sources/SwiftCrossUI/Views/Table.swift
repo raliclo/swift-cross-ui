@@ -9,6 +9,25 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     /// The columns to display (which each compute their cell values when given
     /// ``Table/Row`` instances).
     private var columns: RowContent
+    /// The selected row's index, when the table was given a selection binding.
+    ///
+    /// **An index, not a row value.** A table's rows are not required to be
+    /// `Identifiable` or even `Equatable` here -- `RowValue` carries no
+    /// constraint at all -- so there is nothing to compare a stored row against
+    /// to find it again. `List` can use values because its own API asks for
+    /// them; this cannot, and an index is what the backend reports anyway.
+    ///
+    /// nil when no binding was given, which is what keeps the selection-free
+    /// initializer behaving exactly as it did.
+    ///
+    /// 被選取列的索引——在這個表格有拿到 selection binding 時。
+    ///
+    /// **是索引,不是列的值。** 此處表格的列並不被要求 `Identifiable`、甚至不被要求 `Equatable`
+    /// ——`RowValue` 完全沒有任何約束——因此沒有任何東西可以拿來比對、把存起來的那一列找回來。
+    /// `List` 之所以能用值,是因為它自己的 API 就要求了那些;這裡不能,而 backend 回報的本來就是索引。
+    ///
+    /// 沒有給 binding 時為 nil,而那正是讓「不含選取的初始化式」行為完全不變的東西。
+    private var selection: Binding<Int?>?
 
     /// Creates a table that computes its cell values based on a collection of
     /// rows.
@@ -23,6 +42,34 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     ) {
         self.rows = rows
         self.columns = columns()
+        self.selection = nil
+    }
+
+    /// Creates a table whose selected row is bound to `selection`.
+    ///
+    /// The binding is written when the user selects a row and read to place the
+    /// selection, so setting it in code moves the highlight. A backend that does
+    /// not implement ``BackendFeatures/TableSelection`` ignores both directions
+    /// and draws the table it drew before, rather than refusing to draw it.
+    ///
+    /// - Parameters:
+    ///   - rows: The row data to display.
+    ///   - selection: The index of the selected row, or nil for none.
+    ///   - columns: The columns to display.
+    ///
+    /// 建立一個「被選取的列」與 `selection` 綁定的表格。
+    ///
+    /// 使用者選取某列時會寫入這個 binding,而放置選取時會讀它——因此在程式中設定它就會移動高亮。
+    /// 未實作 ``BackendFeatures/TableSelection`` 的 backend 會忽略這兩個方向,畫出它先前所畫的表格,
+    /// 而不是拒絕繪製。
+    public init(
+        _ rows: [RowValue],
+        selection: Binding<Int?>,
+        @TableRowBuilder<RowValue> _ columns: () -> RowContent
+    ) {
+        self.rows = rows
+        self.columns = columns()
+        self.selection = selection
     }
 
     func children<Backend: BaseAppBackend>(
@@ -216,6 +263,33 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         }
 
         backend.setSize(of: widget, to: layout.size.vector)
+
+        // **After the cells, and that ordering is load-bearing on both backends
+        // implemented so far.** Both rebuild their whole grid in `setCells`, so
+        // a highlight applied before it is applied to cells that are about to be
+        // thrown away. Selecting last means the backend is placing the highlight
+        // on the cells the user will actually see.
+        //
+        // The handler is installed on every commit rather than once, matching
+        // `List`. That puts the requirement on the backend -- replace the stored
+        // closure, never add a subscription -- and the protocol says so.
+        //
+        // **在儲存格之後,而這個順序在目前已實作的兩個 backend 上都是關鍵。** 兩者都在 `setCells`
+        // 裡整份重建自己的 grid,因此在它之前套用的高亮,會被套在「即將被丟掉」的儲存格上。
+        // 放在最後,才是把高亮放在使用者真正會看到的那些儲存格上。
+        //
+        // handler 每次 commit 都重新安裝、而非只裝一次,與 `List` 一致。這把要求放到 backend 身上
+        // ——**取代**所存的 closure、絕不新增訂閱——而協定裡寫明了這件事。
+        if let selection, let selectable = backend as? any BackendFeatures.TableSelection {
+            func installSelection<S: BackendFeatures.TableSelection>(_ backend: S) {
+                let table = widget as! S.Widget
+                backend.setSelectionHandler(ofTable: table) { selectedRow in
+                    selection.wrappedValue = selectedRow
+                }
+                backend.setSelectedRow(ofTable: table, to: selection.wrappedValue)
+            }
+            installSelection(selectable)
+        }
     }
 }
 

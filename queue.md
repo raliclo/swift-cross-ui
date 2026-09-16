@@ -595,6 +595,46 @@ WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個
 
 **分兩批做,selection 先。** 它自成一件完整的事、可獨立驗收,而排序還要處理指示符的繪製。
 
+### selection 進度(2026-09-16 當天完成一半並驗收)
+
+**`BackendFeatures.TableSelection` 已落地,兩個 Windows backend 都實作並以畫面驗過。**
+`Table(rows, selection: Binding<Int?>)` 為 view 端的新初始化式;選取以**索引**表示,因為
+`RowValue` 沒有任何約束——沒有 `Identifiable`、連 `Equatable` 都沒有——所以沒有東西可以拿來
+比對把某一列找回來。
+
+**已驗證:框架 → backend(`setSelectedRow`)。** P23 新增 `--select-probe`,以計時器寫入 binding,
+完全不需要滑鼠(機制與 P70 的 `SCUI_P70_AUTOFOCUS` 相同,而那支在兩個 backend 上都重放過)。
+
+| | log | 畫面 |
+| --- | --- | --- |
+| WinUI | `row selection supported: yes`、`SELECTION now 2 / 5 / none` | `p23-sel-row5-20260916-134321.png`:ID=3 那列(索引 2)整列有底、文字仍可讀;`p23-sel-none-…png`:底色消失 |
+| GTK | 同上 | `p23gtk-sel-row5-20260916-134434.png`:ID=6 那列(索引 **5**)有底——與 WinUI 那張是**不同的列**,所以高亮是跟著 binding 走、不是畫死的 |
+
+**截圖是必要的,不是錦上添花。** log 看不見「一個從未被畫出來的高亮」——那正是 #117 在 WinUI 上
+記憶體量對了、畫面卻全空的那個形狀。
+
+**尚未驗證:backend → 框架(點擊變成 binding 的寫入)。** 它需要真實指標事件,而這台機器在遠端
+桌面連線時拒絕注入滑鼠。GTK 那側的路徑是 `gtk_widget_pick` → 往上走到 grid 直接子元件 →
+新增的 `Grid.queryChild`;WinUI 那側是 `pointerPressed` → 累加 `RowDefinition.actualHeight`。
+**兩者都只編過、沒被點過。**
+
+### Selection, half done and verified the same day
+
+`BackendFeatures.TableSelection` has landed and both Windows backends implement
+it. The framework-to-backend direction is verified with pictures: P23's new
+mouse-free `--select-probe` writes the binding on a timer, and the captures show
+the band on the ID=3 row under WinUI and the ID=6 row under GTK -- different
+rows, so the highlight follows the binding rather than sitting where it was
+painted -- and gone again when the selection clears. The log alone could not
+have shown that: a highlight that is never drawn logs exactly like one that is,
+which is how #117 passed on memory here while rendering nothing.
+
+The click-to-binding direction is NOT verified. It needs real pointer input,
+which this machine refuses while a remote-desktop host is connected. GTK hit
+tests through `gtk_widget_pick` and the new `Grid.queryChild`; WinUI accumulates
+`RowDefinition.actualHeight` under `pointerPressed`. Both compile; neither has
+been clicked.
+
 ## #125 Table selection and sortOrder: the shape, before writing any of it
 
 Published before starting, because of this morning's collision (mistakes entry
