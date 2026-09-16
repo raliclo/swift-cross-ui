@@ -66,15 +66,19 @@ an empty queue -- mistakes.md entry 1.
     判決(兩個 backend 完全相同,而命中機制完全不同):第 3 欄 ascending → 再點一次 descending
     且 `firstId/lastId` 由 1/8 變成 8/1(**列真的動了**)→ 點標題回到 ascending(**走 backend**)
     → Clear 後 none。
-    **唯一未取得的是排序指示符的畫面證據。** `actions/win/P23-sort-indicator-gtk4.csv` 就是為它
-    而寫的(點一次、停六秒),但**連續八次注入全被拒**。箭頭已實作(`setSortIndicator` 附加
-    U+25B2/U+25BC,並在 `setColumnLabels` 重建標題後重新套用),**但沒有人看過它出現在畫面上**;
-    log 的 `column 3 ascending` 在「有畫」與「沒畫」兩種情況下一模一樣,那正是 #117 在 WinUI 上的形狀。
+    ~~**唯一未取得的是排序指示符的畫面證據。連續八次注入全被拒。**~~
+    **19:36 拍到了:`p23gtk-indicator-20260916-193639.png` 顯示 `Number ▲`,而 ID、長標題與 Short
+    三欄都沒有箭頭——對照就在同一張圖裡,因此它證明的是「箭頭加在**被排序的那一欄**」,
+    而不只是「有畫東西」。** 這一項是 log 永遠給不了的:`column 3 ascending` 在
+    `setSortIndicator` 有畫與沒畫時讀起來一模一樣,那正是 #117 在 WinUI 上的形狀。
+    驅動用 `actions/win/P23-sort-indicator-gtk4.csv`(點一次、停六秒),**而它必須是獨立的檔案**:
+    四步驟那個檔以 Clear sort 收尾,在它之後拍的擷圖必然沒有箭頭。
     **AppKit / UIKit / Android 的 `TableColumnSorting` 仍未實作**,那是 Mac 那邊的。
 
-  - **今天量到、值得下次照做的一件事(相關性,不是成因)**:兩次成功的排序驅動,都是在
-    **使用者剛與遠端桌面互動之後**的第一次嘗試;而中間那八次在完全沒有互動的情況下連續被拒。
-    下次要驗證需要滑鼠的東西時,請對方動一下、然後**立刻**跑。
+  - **今天量到、值得下次照做的一件事(相關性,不是成因)**:**三次**成功的驅動,都是在
+    **使用者剛與遠端桌面互動之後**的第一次嘗試(19:10 WinUI 排序、19:30 GTK 排序、19:36 指示符);
+    而夾在中間那八次在完全沒有互動的情況下連續被拒。下次要驗證需要滑鼠的東西時,請對方動一下、
+    然後**立刻**跑——這比重試迴圈有效得多:那個迴圈連跑八次都沒中,而互動後的第一次就中。
     *Both successful sort replays today began right after the user interacted with the remote
     session; eight consecutive attempts with no interaction were all refused. Correlation, not a
     proven cause -- but it is the cheapest thing to try first.*
