@@ -691,3 +691,249 @@ The guard: when a platform's artifact must be PACKAGED, the build's exit code is
 not the artifact's timestamp. `ls -l` the artifact in the same command that
 installs it, have the app print the fact under test on screen, and put a control
 beside it -- a control reading NO too would have pointed at the binary in seconds.
+
+---
+
+## 10. 在「那個缺陷不可能出現」的唯一平台上完成驗證
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+把 `"AndroidBackend"` 加進 `Package.swift` 的 `migratedToSwift6`。該 target **只在
+`SCUI_ANDROID=1` 時存在**,因此在其餘每一種建置上,manifest 自己的打字守衛會開火:
+
+```
+Package.swift:928: Fatal error: migratedToSwift6 names 'AndroidBackend',
+which is not a target in this package
+```
+
+——套件**根本載入不了**。macOS、iOS、Linux、Windows 在那一刻全部壞掉。
+
+### 為什麼我完全沒看到
+
+因為我驗得很勤:**五次重建、一個 APK、一次上機、在 logcat 裡確認啟動旗標到位。** 每一次都在
+Android 上。
+
+而 Android 恰恰是那個名字**確實是一個 target** 的平台——也就是那個 fatal error **不可能發生**的
+平台。驗證做得越徹底,離那個缺陷越遠。
+
+抓到它的是幾分鐘後的 `Scripts/test.sh`,而不是那個 Android 迴圈裡的任何一步。
+
+### 這與第 4 關(「在我的平台上通過」)不同
+
+第 4 關是「我只在一個平台上驗過,別的沒驗」。這一條更窄也更刺:**這次改動本身是有條件的,而我選的
+驗證平台正是那個「條件成立」的分支。** 那不是覆蓋率不足——那是一個**結構上看不見**的實驗:
+
+| | 條件成立(Android) | 條件不成立(其餘四個) |
+| --- | --- | --- |
+| 那個名字是 target 嗎? | 是 | **否** |
+| 那個守衛會開火嗎? | 不會 | **會** |
+| 我跑過嗎? | 五次 | **零次** |
+
+### 矯正措施
+
+> 改動一份**每個平台都會讀**的檔案(manifest、共用腳本、設定)之前,先問:**哪些平台走的是另一條
+> 分支?** 然後在宣稱它可用之前,至少跑其中最便宜的那一個。在本樹上那就是 host 上的
+> `Scripts/test.sh`——它同時也是最便宜的那一個。
+
+**一次只在自身條件下被驗過的條件式改動,等於沒有被驗過。**
+
+---
+
+## 10. Verified on the one platform where the defect was impossible
+
+Adding `"AndroidBackend"` to `Package.swift`'s `migratedToSwift6`. That target
+exists only when `SCUI_ANDROID=1`, so on every other build the manifest's own
+typo guard fired -- `migratedToSwift6 names 'AndroidBackend', which is not a
+target in this package` -- and the package would not load at all. macOS, iOS,
+Linux and Windows were broken.
+
+I verified thoroughly: five rebuilds, an APK, a device run, launch flags checked
+in logcat. All of it on Android, which is exactly where the name IS a target and
+the fatal error cannot occur. The more carefully I checked, the further I was
+from the defect. `Scripts/test.sh` caught it minutes later.
+
+This is not gate 4 ("passes on my platform"). It is narrower: the change was
+CONDITIONAL, and the platform I chose to verify on was the branch where the
+condition holds. That is not thin coverage -- it is an experiment that cannot
+fail.
+
+The guard: before editing anything every platform reads, name the platforms that
+take the OTHER branch and run the cheapest one. A conditional change verified
+only under its own condition is unverified.
+
+---
+
+## 11. 把測試紀錄丟在錯的目錄裡,而 `.gitignore` 讓它永遠不會被回報
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+`p17`、`p28`、`p34`、`p48`、`p50`、`p57`、`p63`、`p67`、`p69` 九份 `-debug-events.log` 躺在
+**repo 根目錄**。不是被使用者注意到的,是被使用者**用眼睛看目錄列表**注意到的。
+
+成因是我自己:今天有幾次為了抓 stderr 而直接跑二進位——
+
+```
+./testapp/output/P70 --debug -actionfile testapp/actions/mac/P70-focus.csv
+```
+
+——而那些 app 在沒有 `SCUI_DEBUG_EVENTS_DIR` 時的 fallback 是**當前目錄**。`test.zsh` 會設定它,
+指向 `testapp/debug-events/`;手動跑不會。
+
+### 為什麼沒有任何東西報錯
+
+`.gitignore:116` 有 `p*-debug-events.log`。所以:
+
+- `git status` **乾淨**
+- `git ls-files` 找到 **0** 個
+- 提交、推送、測試套件全部照常通過
+
+那個忽略規則本身是**對的**——這些是產物,不該被追蹤——但它同時讓「產物落在錯的地方」成為一件
+**沒有任何工具會說出來的事**。它只會累積。
+
+### 而它不只是垃圾,它是假證據
+
+`coverage-matrix.csv2` 早就為 P34 記下過這個形狀:
+
+> *「一行來自 2026-09-04 的舊紀錄,讀起來與一次新鮮的通過**一模一樣**。」*
+
+一份留在當前目錄的舊日誌,與一份剛剛產生的在畫面上無從分辨。今天我就在
+`testapp/debug-events/` 讀 `p70-debug-events.log` 的同時,根目錄躺著一份更舊的同名檔案——這一次
+我讀對了那一份,而那是運氣,不是方法。
+
+### 矯正措施
+
+> **手動跑任何測試 app 之前,先設 `SCUI_DEBUG_EVENTS_DIR`,而且指向一個空目錄。**
+> ```sh
+> SCUI_DEBUG_EVENTS_DIR=$(mktemp -d) ./testapp/output/P70 --debug ...
+> ```
+> 「一個**空**目錄」是關鍵的那一半:它讓「這一次沒有寫出紀錄」與「上一次的紀錄還在」變成兩個
+> 看得出差別的結果。
+
+`.gitignore` 蓋住的東西,沒有任何檢查會替你看。**被忽略不等於無害,只等於安靜。**
+
+---
+
+## 11. Put test logs in the wrong directory, where `.gitignore` guaranteed nobody would report it
+
+Nine `p*-debug-events.log` files sat in the REPOSITORY ROOT. Not caught by a
+tool -- caught by a human reading a directory listing.
+
+They are what a test app writes when run by hand: the fallback for
+`SCUI_DEBUG_EVENTS_DIR` is the current directory, and `test.zsh` sets it while
+running the binary directly does not. I ran binaries directly several times
+today to capture stderr.
+
+Nothing reported it because `.gitignore` covers `p*-debug-events.log`, so
+`git status` was clean, `git ls-files` found zero, and every commit, push and
+test run passed. The ignore rule is right -- these are artefacts -- and it also
+makes "artefacts in the wrong place" a thing no tool will ever mention. It only
+accumulates.
+
+It is not merely litter. `coverage-matrix.csv2` already recorded this shape for
+P34: *a stale line from 2026-09-04 reads exactly like a fresh pass*. A leftover
+log in the working directory is indistinguishable from one just written, and
+today I read `p70-debug-events.log` from `testapp/debug-events/` while an older
+copy of the same name sat at the root. I read the right one by luck.
+
+The guard: before running a test app by hand, set `SCUI_DEBUG_EVENTS_DIR`, and
+set it to an EMPTY directory -- `SCUI_DEBUG_EVENTS_DIR=$(mktemp -d)`. Empty is
+the load-bearing half: it makes "this run wrote no log" distinguishable from
+"last run's log is still there". What `.gitignore` hides, no check will look at
+for you. Ignored is not harmless; it is only quiet.
+
+---
+
+## 12. 問了 queue「輪到誰」,沒問 origin「已經有什麼」
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+`#121` 被**實作了兩次**。合併時 git **沒有報任何衝突**——兩份實作在不同檔案裡——而報出來的是編譯器:
+
+```
+error: invalid redeclaration of 'keyboardShortcut(_:modifiers:)'
+```
+
+我那一份隨即被整份還原。
+
+### 時間線,而它不是運氣問題
+
+| 時間 | 事件 |
+| --- | --- |
+| 08:31 | Windows 提交他們的 #121(他們機器上) |
+| ~09:30 | 我 fetch。`origin/develop` behind **0**——他們還沒推 |
+| **09:56** | **Windows 推上來。他們的 #121 此刻已在 origin** |
+| ~10:30 | 我**開始**寫我的 #121 |
+| 10:46 | 我提交 |
+
+**有 35 分鐘的預警,而我一次都沒再 fetch。** 09:30 那次 fetch 當下是準的;我把「當下是準的」當成了「現在是準的」。
+
+### 為什麼 queue 檔擋不住
+
+`queue.md` 寫著:
+
+> *「Windows 端把它標為『卡在 Mac』」*
+
+那是真的——**在它被寫下的那一刻**。Windows 後來自己解了套:他們挑了一條走 environment 的路,
+那條路**完全不需要 Mac 這邊開任何欄位**。
+
+**一個 queue 檔記錄的是「某人寫下它時相信什麼」,不是「現在成立什麼」。** 它是一份意圖,不是一把鎖;
+而一份不會自己過期的意圖,讀起來與現況一模一樣。
+
+### 為什麼 git 結構上看不見
+
+同一個功能的兩份實作,寫在不同檔案,**merge 會乾乾淨淨**。版本控制沒有「這個功能做了兩次」這個概念——
+它只認得同一行被兩邊改動。唯一看見它的是編譯器,而那已經是兩份都寫完之後。
+
+因此這件事沒有任何**事後**的檢查擋得住。守衛必須在**開始之前**。
+
+### 矯正措施
+
+> 開始任何一項 queue 項目之前,不要問 queue「輪到誰」,要問 **origin**「**已經有什麼**」:
+>
+> ```sh
+> git fetch && git log origin/develop --oneline -S"<那個 API 的名字>" | head
+> ```
+>
+> 這會在幾秒內找到對方的 commit。**`-S` 搜的是內容,不是訊息**——對方不見得會在標題寫上那個名字。
+
+而在多人共用的分支上,**fetch 是「開始一項任務」的一部分**,不是「開始一個 session」的一部分。
+
+---
+
+## 12. Asked the queue whose turn it was, never asked origin what already existed
+
+`#121` was implemented TWICE. Git reported no conflict at all -- the two
+implementations lived in different files -- and the compiler is what reported
+it: `invalid redeclaration of 'keyboardShortcut(_:modifiers:)'`. Mine was
+reverted in full.
+
+It was not bad luck. Windows pushed their implementation at 09:56; I began
+writing mine at about 10:30 and committed at 10:46. My one fetch was at 09:30,
+when `origin/develop` really was 0 behind. I treated "accurate then" as "accurate
+now" for the rest of the session.
+
+`queue.md` said Windows had marked the item "blocked on Mac", and that was true
+when it was written. They then unblocked themselves by choosing a route -- the
+environment -- that needed nothing from this side. A queue file records what
+someone believed when they wrote it, not what holds now. It is an intention, not
+a lock, and an intention that never expires reads exactly like a current fact.
+
+Nor could git catch it: two implementations of one feature in different files
+merge cleanly. Version control has no concept of "this feature was built twice";
+it only knows about the same lines changing on both sides. So no check AFTER the
+work could have caught this. The guard has to come before it.
+
+The guard: before starting a queue item, do not ask the queue whose turn it is;
+ask ORIGIN what already exists.
+
+    git fetch && git log origin/develop --oneline -S"<the API name>" | head
+
+`-S` searches content, not messages -- the other side may never name the symbol
+in a subject line. And on a shared branch, fetching is part of starting a TASK,
+not part of starting a session.

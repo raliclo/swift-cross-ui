@@ -101,7 +101,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             // runs there -- so this is the one hop `init` needs.
             // 在主執行緒上讀取，因為該 activity 屬於 main actor 的狀態。synthesiser 是在主執行緒
             // 之外被建構的——重放本就在那裡執行——因此這是 `init` 唯一需要的一次跳轉。
-            density = Self.onMainThread(default: 1.0) {
+            density = Self.onMainThread {
                 guard let activity = AndroidBackend.activity else { return 1.0 }
                 guard let metrics = activity.getResources()?.getDisplayMetrics() else { return 1.0 }
                 return Double(metrics.density)
@@ -320,7 +320,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let now = clock.uptimeMillis()
         let down = downTime ?? now
 
-        let dispatched = Self.onMainThread(default: false) {
+        let dispatched = Self.onMainThread {
             guard let activity = AndroidBackend.activity else { return false }
 
             // A popup is a different window, and this dispatch cannot reach it.
@@ -432,16 +432,35 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     ///
     /// 採同步方式，使某個事件在下一個被建構之前就已送達：以非同步方式投遞的按壓，可能被它自己的
     /// 釋放事件超車。
-    private static func onMainThread<Result>(
-        default fallback: Result,
+    /// The `default:` parameter is gone, and it had never been reachable.
+    ///
+    /// It seeded a `var` that `DispatchQueue.main.sync` then overwrote
+    /// unconditionally -- `sync` does not return until the closure has run, so
+    /// the seed was read by nothing, ever. What surfaced it was Swift 6:
+    /// capturing that `var` across `sync` needs the closure to be `Sendable`,
+    /// which made the compiler ask what the generic parameter was, and the
+    /// answer was that the whole dance could be one `return`.
+    ///
+    /// `Result: Sendable` is a real constraint rather than a formality -- the
+    /// value crosses a thread boundary -- and both call sites pass a `Double`
+    /// and a `Bool`.
+    ///
+    /// `default:` 參數已移除,而它從來就到不了。
+    ///
+    /// 它為一個 `var` 設了初值,而 `DispatchQueue.main.sync` 隨後會無條件覆寫它——`sync` 在 closure
+    /// 跑完之前不會回傳,因此那個初值從頭到尾沒有被任何東西讀過。把它揭出來的是 Swift 6:跨越 `sync`
+    /// 捕捉那個 `var`,要求該 closure 是 `Sendable`,於是編譯器追問那個泛型參數是什麼——而答案是,
+    /// 整套動作可以縮成一個 `return`。
+    ///
+    /// `Result: Sendable` 是一個真實的約束、不是形式:那個值會跨越執行緒邊界。兩個呼叫端分別傳的是
+    /// 一個 `Double` 與一個 `Bool`。
+    private static func onMainThread<Result: Sendable>(
         _ body: @escaping @MainActor () -> Result
     ) -> Result {
         if Thread.isMainThread {
             return MainActor.assumeIsolated { body() }
         }
-        var result = fallback
-        DispatchQueue.main.sync { result = MainActor.assumeIsolated { body() } }
-        return result
+        return DispatchQueue.main.sync { MainActor.assumeIsolated { body() } }
     }
 
     /// Asynchronous delivery was tried and changed nothing, which is worth

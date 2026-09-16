@@ -363,13 +363,43 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     ) -> NSMenuItem {
         switch item {
             case .button(let label, let action):
+                // The shortcut arrives in the ENVIRONMENT, on the same line as
+                // `isEnabled` and for the same reason -- see
+                // `EnvironmentValues.keyboardShortcut`. It was briefly a third
+                // associated value on `.button` here instead, which forced
+                // every backend's switch to stop compiling until it was
+                // handled; the environment is what GTK and WinUI already read,
+                // and two mechanisms for one feature is worse than either.
+                //
                 // Custom subclass is used to keep strong reference to action
                 // wrapper.
+                //
+                // The key equivalent goes in LOWERCASED, with Shift carried by
+                // the modifier mask alone. **An uppercase `keyEquivalent`
+                // already means Shift to AppKit**, so passing "E" for
+                // `.keyboardShortcut("e", modifiers: [.command, .shift])` would
+                // ask for Shift twice and the item would answer to neither
+                // Cmd-E nor Cmd-Shift-E reliably.
+                //
+                // 快捷鍵是從 **environment** 來的,與 `isEnabled` 在同一行、基於同一個理由——見
+                // `EnvironmentValues.keyboardShortcut`。它一度在此處改成 `.button` 上的第三個
+                // associated value,那會強迫每一個 backend 的 switch 編不過、直到它被處理;而
+                // environment 正是 GTK 與 WinUI 已經在讀的東西,而「一個功能兩套機制」比其中任何
+                // 一套都糟。
+                //
+                // key equivalent 以**小寫**放入,Shift 單獨由 modifier mask 承載。**對 AppKit 來說,
+                // 大寫的 `keyEquivalent` 本身就意謂 Shift**,因此為
+                // `.keyboardShortcut("e", modifiers: [.command, .shift])` 傳入 "E",等於要了兩次
+                // Shift,而該項目對 Cmd-E 與 Cmd-Shift-E 都不會穩定回應。
+                let shortcut = environment.keyboardShortcut
                 let renderedItem = NSCustomMenuItem(
                     title: label,
                     action: nil,
-                    keyEquivalent: ""
+                    keyEquivalent: shortcut.map { String($0.key.character).lowercased() } ?? ""
                 )
+                if let shortcut {
+                    renderedItem.keyEquivalentModifierMask = Self.modifierMask(for: shortcut)
+                }
                 if let action, environment.isEnabled {
                     let wrappedAction = Action(action)
                     renderedItem.actionWrapper = wrappedAction
@@ -2416,5 +2446,30 @@ final class RadioGroup: NSStackView {
 
     @objc func buttonClicked(sender: NSButton) {
         onChange?(sender.tag)
+    }
+}
+
+extension AppKitBackend {
+    /// Maps SwiftCrossUI's modifiers onto AppKit's mask.
+    ///
+    /// `.command` is Command here and Ctrl on three of the five backends, which
+    /// is SwiftUI's own convention and is recorded on
+    /// ``EventModifiers/command``. `.capsLock` and `.numericPad` have AppKit
+    /// equivalents and are carried through rather than dropped, so a shortcut
+    /// that names one does not silently become a different shortcut.
+    /// 把 SwiftCrossUI 的 modifier 映射到 AppKit 的 mask。
+    ///
+    /// `.command` 在這裡是 Command,而在五個 backend 中的三個上是 Ctrl——那是 SwiftUI 自己的慣例,
+    /// 記在 ``EventModifiers/command`` 上。`.capsLock` 與 `.numericPad` 在 AppKit 有對應物,因此一併
+    /// 帶過去而不是丟掉;如此一個指名了它們的快捷鍵,才不會靜默地變成另一個快捷鍵。
+    static func modifierMask(for shortcut: KeyboardShortcut) -> NSEvent.ModifierFlags {
+        var mask: NSEvent.ModifierFlags = []
+        if shortcut.modifiers.contains(.command) { mask.insert(.command) }
+        if shortcut.modifiers.contains(.shift) { mask.insert(.shift) }
+        if shortcut.modifiers.contains(.option) { mask.insert(.option) }
+        if shortcut.modifiers.contains(.control) { mask.insert(.control) }
+        if shortcut.modifiers.contains(.capsLock) { mask.insert(.capsLock) }
+        if shortcut.modifiers.contains(.numericPad) { mask.insert(.numericPad) }
+        return mask
     }
 }

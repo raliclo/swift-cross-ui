@@ -1,0 +1,33 @@
+action,x,y,origin,button,key,micros,note,platform
+# P71: the three menu shortcuts, with the menu CLOSED the whole time.
+#
+# No click appears below, and that is the assertion. Opening the menu and
+# clicking an item tests the item, which already worked before #121; the whole
+# of #121 is the half where the key works without the menu.
+#
+# Expressed as keydown / key / keyup triples because that is what this format
+# has -- `command+s` is not a thing it can express, and the README says why:
+# `command` is a physical key here, not "the shortcut modifier".
+#
+# P71:三個選單快捷鍵,而選單全程**關著**。
+#
+# 底下沒有任何一次點擊,而那正是斷言本身。開啟選單並點擊項目,測到的是那個**項目**——而它在 #121 之前
+# 就能用了;#121 的全部,正是「按鍵在不開選單的情況下也能用」的那一半。
+#
+# 寫成 keydown / key / keyup 三連,因為這個格式只有這種寫法——`command+s` 不是它表達得出來的東西,
+# 而 README 說明了理由:`command` 在此是一個**實體按鍵**,不是「那個快捷鍵修飾子」。
+sleep,,,,,,700000,let the window become key -- a shortcut needs a key window,macos
+keydown,,,,,command,,hold Command,macos
+key,,,,,s,,Cmd-S -- plain must fire once,macos
+keyup,,,,,command,,release,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,hold Command,macos
+keydown,,,,,shift,,and Shift,macos
+key,,,,,e,,Cmd-Shift-E -- the modifier mask must survive,macos
+keyup,,,,,shift,,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,500000,,macos
+keydown,,,,,command,,hold Command,macos
+key,,,,,d,,Cmd-D -- DISABLED: this one must NOT fire,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,700000,let the counters settle,macos
