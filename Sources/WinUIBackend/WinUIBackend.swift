@@ -533,6 +533,14 @@ public final class WinUIBackend:
                 callback()
             }
         }
+        // Logged so the WebView2 apartment question can be answered with two
+        // thread ids rather than an inference. `SwiftApplication.main()` calls
+        // `RoInitialize` on THIS thread; if the WebView's thread id differs,
+        // the apartment that was chosen here was never the one WebView2 runs in.
+        // 記錄下來,好讓 WebView2 的 apartment 問題能用**兩個執行緒 id** 來回答,而不是用推論。
+        // `SwiftApplication.main()` 是在**這條**執行緒上呼叫 `RoInitialize` 的;若 WebView 那條執行緒
+        // 的 id 不同,那麼此處所選定的 apartment 從來就不是 WebView2 實際執行所在的那一個。
+        logger.info("WinUIApplication.main() on thread \(GetCurrentThreadId())")
         WinUIApplication.main()
     }
 
