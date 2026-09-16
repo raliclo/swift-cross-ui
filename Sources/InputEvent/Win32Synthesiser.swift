@@ -1582,6 +1582,7 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                         // 維護游標的方式與有滑鼠的不同。此處若為零,就同時解釋了「移動被拒絕」與
                         // 「本機擷圖中沒有游標」——而查清楚它只需要一次呼叫,不需要一場爭論。
                         + ", mousePresent=\(GetSystemMetrics(SM_MOUSEPRESENT))"
+                        + ", \(Self.desktopComparison())"
                 )
                 throw SynthesiserError.toolFailed("SetCursorPos", status: setCursorPosError)
             }
@@ -1779,6 +1780,74 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     ///
     /// 兩個範圍各減 1 不是柵欄樁的筆誤:正規化後的範圍**兩端皆含**,因此最後一個像素要對應到 65535;
     /// 若用完整寬度去除,它會落在差一像素的位置。
+    /// Whether this thread's desktop IS the input desktop, by name.
+    ///
+    /// **This is the one documented precondition for `SetCursorPos` that had not
+    /// been measured.** Microsoft states two: the process needs
+    /// `WINSTA_WRITEATTRIBUTES` on the window station, and *the input desktop
+    /// must be the current desktop*. A mismatch makes the call fail, and it
+    /// explains the otherwise strange pair of readings this diagnostic keeps
+    /// producing -- refused moves alongside a `GetCursorPos` that answers, since
+    /// the answer would be about a different desktop.
+    ///
+    /// Names rather than handle comparison: `GetThreadDesktop` and
+    /// `OpenInputDesktop` return different handles to the same desktop, so
+    /// comparing the handles would report a difference that is not there.
+    ///
+    /// 這條執行緒的桌面**是不是**輸入桌面,以名稱比對。
+    ///
+    /// **這是 `SetCursorPos` 唯一一個尚未被量測的、有文件明載的前提條件。** 微軟列出兩個:該行程需要
+    /// window station 的 `WINSTA_WRITEATTRIBUTES`,**而且輸入桌面必須是目前的桌面**。兩者不符會讓該
+    /// 呼叫失敗,而它也解釋了本診斷一再產出的那對奇怪讀數——移動被拒絕、`GetCursorPos` 卻答得出來,
+    /// 因為那個答案談的會是**另一個**桌面。
+    ///
+    /// 比對名稱而非控制代碼:`GetThreadDesktop` 與 `OpenInputDesktop` 對同一個桌面會回傳**不同**的
+    /// 控制代碼,因此比對控制代碼會回報一個並不存在的差異。
+    private static func desktopComparison() -> String {
+        func name(of desktop: HDESK?) -> String {
+            guard let desktop else { return "unavailable" }
+            var needed: DWORD = 0
+            GetUserObjectInformationW(desktop, UOI_NAME, nil, 0, &needed)
+            guard needed > 0 else { return "unnamed" }
+            var buffer = [UInt16](repeating: 0, count: Int(needed) / 2 + 1)
+            let ok = buffer.withUnsafeMutableBytes { raw in
+                GetUserObjectInformationW(desktop, UOI_NAME, raw.baseAddress, needed, &needed)
+            }
+            guard ok else { return "unreadable" }
+            return String(decodingCString: buffer, as: UTF16.self)
+        }
+
+        let mine = name(of: GetThreadDesktop(GetCurrentThreadId()))
+        let input = OpenInputDesktop(0, false, DWORD(DESKTOP_READOBJECTS))
+        defer { if let input { CloseDesktop(input) } }
+        let inputName = input == nil ? "DENIED" : name(of: input)
+
+        // The window station, and the second documented precondition with it.
+        // `SetCursorPos` needs `WINSTA_WRITEATTRIBUTES`, and a process on a
+        // NON-INTERACTIVE station -- anything other than `WinSta0` -- cannot
+        // touch the desktop at all. Asking for the name costs one call and
+        // separates "we lack one right" from "we are not on the interactive
+        // station", which are different problems with different fixes.
+        // window station,以及隨之而來的第二個有文件的前提條件。`SetCursorPos` 需要
+        // `WINSTA_WRITEATTRIBUTES`,而一個位於**非互動式** station(任何不是 `WinSta0` 的)上的行程,
+        // 根本碰不到桌面。詢問它的名稱只需一次呼叫,而它能分開「我們缺少某一項權限」與
+        // 「我們不在互動式 station 上」——那是兩個不同的問題,修法也不同。
+        var stationName = "unavailable"
+        if let station = GetProcessWindowStation() {
+            var needed: DWORD = 0
+            GetUserObjectInformationW(station, UOI_NAME, nil, 0, &needed)
+            if needed > 0 {
+                var buffer = [UInt16](repeating: 0, count: Int(needed) / 2 + 1)
+                let ok = buffer.withUnsafeMutableBytes { raw in
+                    GetUserObjectInformationW(station, UOI_NAME, raw.baseAddress, needed, &needed)
+                }
+                stationName = ok ? String(decodingCString: buffer, as: UTF16.self) : "unreadable"
+            }
+        }
+
+        return "threadDesktop=\(mine) inputDesktop=\(inputName) station=\(stationName)"
+    }
+
     private func sendAbsoluteMouseMove(to position: (x: Int, y: Int)) {
         let originX = Int(GetSystemMetrics(SM_XVIRTUALSCREEN))
         let originY = Int(GetSystemMetrics(SM_YVIRTUALSCREEN))

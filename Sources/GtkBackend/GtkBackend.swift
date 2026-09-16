@@ -243,6 +243,20 @@ public final class GtkBackend:
 
     var gtkApp: Application
 
+    /// Focus-change handlers, replaced per layout pass, and the set of widgets
+    /// whose `GtkEventControllerFocus` is already installed.
+    ///
+    /// Two containers because the handler changes every frame while the
+    /// controller must not. Adding a controller per frame is the defect this
+    /// backend's slider showed as `began=5`.
+    /// 焦點變更的 handler(每次 layout pass 會被換掉),以及「已安裝 `GtkEventControllerFocus`」
+    /// 的 widget 集合。
+    ///
+    /// 分成兩個容器,是因為 handler 每一幀都會變、而控制器**不可以**。逐幀新增控制器,正是本 backend
+    /// 的 slider 顯示為 `began=5` 的那個缺陷。
+    var focusChangeHandlers: [ObjectIdentifier: (Bool) -> Void] = [:]
+    var widgetsWithFocusController: Set<ObjectIdentifier> = []
+
     /// A window to be returned on the next call to ``GtkBackend/createWindow``.
     /// This is necessary because Gtk creates a root window no matter what, and
     /// this needs to be returned on the first call to `createWindow`.
