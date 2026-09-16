@@ -1,0 +1,59 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70 on Windows: does focus move, report, and refuse? (#122)
+#
+# Coordinates measured off screen-20260916-113235.png, a wincap of the WinUI
+# window. Frame origin, because that capture includes the title bar.
+#
+# IT DRIVES ALL FOUR PROTOCOL METHODS, which is the point of using an action file
+# rather than reading the code:
+#
+#   focus(_:)                 "focus name" / "focus email" ask for it
+#                             programmatically; "focused field" must follow
+#   isFocused(_:)             the same line is read back from the backend
+#   setFocusChangeHandler     "focus changes heard" must INCREASE. A counter
+#                             stuck at 0 with a visible caret is the exact
+#                             failure this app was built to catch: the focus
+#                             moved and nobody was told
+#   unfocus(_:)               "clear focus" must return it to none
+#
+# AND ONE REFUSAL. "ask both for focus" asks the disabled button and a plain
+# Text. The disabled button MUST report no: `focus` returns whether the widget
+# took it, and a backend that returns a plausible true there would make
+# @FocusState lie about where the keyboard is.
+#
+# The clicks on the two FIELDS come first and deliberately: they are the user
+# moving focus, which the app did not ask for, so they test the handler rather
+# than the setter. The programmatic buttons test the setter afterwards.
+#
+# P70 於 Windows:焦點會移動、會回報、會拒絕嗎?(#122)
+#
+# 座標量自 screen-20260916-113235.png(WinUI 視窗的 wincap)。採 frame origin,因為該擷圖含標題列。
+#
+# 它驅動協定的**全部四個方法**,而那正是「用動作檔而不是讀程式碼」的意義:
+#
+#   focus(_:)              由「focus name」/「focus email」以程式方式索取焦點;
+#                          「focused field」必須跟著改變
+#   isFocused(_:)          同一行是從 backend 讀回來的
+#   setFocusChangeHandler  「focus changes heard」必須**增加**。計數器停在 0 而游標卻看得見,
+#                          正是這支 app 為了抓而存在的那個失敗:焦點移動了,而沒有人被告知
+#   unfocus(_:)            「clear focus」必須把它歸還為 none
+#
+# 以及**一次拒絕**。「ask both for focus」會去問那個被停用的按鈕與一個純 Text。
+# 那個停用的按鈕**必須**回報 no:`focus` 回傳的是「該 widget 有沒有接受焦點」,而一個在此處
+# 回傳「看似合理的 true」的 backend,會讓 @FocusState 對「鍵盤在哪裡」說謊。
+#
+# 對兩個**欄位**的點擊刻意排在最前面:那是**使用者**在移動焦點、而非 app 要求的,因此它們測的是
+# handler,不是 setter。程式方式的那幾個按鈕隨後才測 setter。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,280,253,frame,left,,,click the email field -- the app did not ask for this,windows
+sleep,,,,,,800000,observe focused field = email and the counter increase,windows
+click,280,211,frame,left,,,and back to name,windows
+sleep,,,,,,800000,observe focused field = name and the counter increase again,windows
+click,66,294,frame,left,,,"focus name, this time programmatically",windows
+sleep,,,,,,800000,observe focus(_:) moved it,windows
+click,164,294,frame,left,,,focus email programmatically,windows
+sleep,,,,,,800000,observe focus(_:) moved it again,windows
+click,260,294,frame,left,,,clear focus -- unfocus(_:),windows
+sleep,,,,,,800000,observe focused field returns to none,windows
+click,84,398,frame,left,,,ask both for focus -- the disabled button must be refused,windows
+sleep,,,,,,1200000,let the refusal be reported,windows

@@ -1,4 +1,4 @@
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 import WinUI
 
 extension WinUIBackend: BackendFeatures.FocusableViews {
@@ -33,7 +33,86 @@ extension WinUIBackend: BackendFeatures.FocusableViews {
     /// 畫出鍵盤導覽的外框。
     @discardableResult
     public func focus(_ widget: Widget) -> Bool {
-        (try? widget.focus(.programmatic)) ?? false
+        // **A disabled control is refused before it is asked.** Measured by P70
+        // on 2026-09-16: without this, "ask both for focus" reported
+        // `DISABLED FOCUS reported true` -- `UIElement.focus(_:)` does not
+        // reliably answer false for a disabled control, so this backend handed
+        // the keyboard to one and told `@FocusState` it had worked.
+        //
+        // That is the one answer this protocol exists to get right: `focus`
+        // returns WHETHER the widget took the focus, and a plausible true makes
+        // every reader of `@FocusState` wrong about where the keyboard is.
+        // AppKit refuses the same case by checking `acceptsFirstResponder`
+        // first; `isEnabled` is the WinUI spelling.
+        //
+        // **一個被停用的控制項,在被詢問之前就先被拒絕。** 2026-09-16 由 P70 量到:少了這一段,
+        // 「ask both for focus」回報 `DISABLED FOCUS reported true`——`UIElement.focus(_:)` 對於
+        // 被停用的控制項並不可靠地回傳 false,於是本 backend 把鍵盤交給了它,並告訴 `@FocusState`
+        // 這件事成功了。
+        //
+        // 那正是本協定存在所要答對的那一個答案:`focus` 回傳的是**該 widget 有沒有接受焦點**,
+        // 而一個看似合理的 true,會讓每一個讀取 `@FocusState` 的人對「鍵盤在哪裡」判斷錯誤。
+        // AppKit 以先檢查 `acceptsFirstResponder` 拒絕同一個情形;`isEnabled` 是 WinUI 的寫法。
+        // **The CONTROL inside, never the wrapper.** Every widget this backend
+        // hands out is a `Canvas`, and a `Canvas` accepts focus unconditionally:
+        // instrumented on 2026-09-16, `focus(Canvas) enabled=not-a-Control
+        // took=true` appeared 51 times in one run, including for the disabled
+        // button. So `focus` was returning true for everything, and an earlier
+        // `isEnabled` guard on the widget never even ran, because the cast to
+        // `Control` failed on the wrapper.
+        //
+        // That made the one answer this protocol has to get right -- did the
+        // widget take the focus -- always yes, which makes every reader of
+        // `@FocusState` wrong about where the keyboard is.
+        //
+        // AppKit refuses the identical case and says so: its `responder(in:)`
+        // falls back to the widget, and handing that wrapper to
+        // `makeFirstResponder` is what its comment warns against.
+        //
+        // **要的是裡面那個控制項,絕不是那層 wrapper。** 本 backend 交出去的每一個 widget 都是一個
+        // `Canvas`,而 `Canvas` 會無條件接受焦點:2026-09-16 加上儀器後,單次執行中
+        // `focus(Canvas) enabled=not-a-Control took=true` 出現了 51 次,**包含那個被停用的按鈕**。
+        // 於是 `focus` 對任何東西都回傳 true,而先前那道加在 widget 上的 `isEnabled` 防護根本沒執行過,
+        // 因為對 wrapper 的 `Control` 轉型失敗了。
+        //
+        // 那讓本協定唯一必須答對的答案——「該 widget 有沒有接受焦點」——永遠是「有」,而那會讓每一個
+        // 讀取 `@FocusState` 的人對「鍵盤在哪裡」判斷錯誤。
+        //
+        // AppKit 拒絕的是完全相同的情形,而且它寫明了:它的 `responder(in:)` 會退回該 widget,
+        // 而「把那層 wrapper 交給 `makeFirstResponder`」正是它的註解所警告的事。
+        guard let target = Self.focusableControl(in: widget) else { return false }
+        return (try? target.focus(.programmatic)) ?? false
+    }
+
+    /// The first control inside `widget` that can actually take the focus.
+    ///
+    /// **Enabled AND a tab stop.** `isEnabled` alone is not the whole question:
+    /// a control can be enabled and still excluded from focus navigation, and
+    /// granting focus to one would be the same false yes in a different shape.
+    ///
+    /// Returns `nil` rather than falling back to the widget. A wrapper that
+    /// contains nothing focusable has not taken the focus, and saying so is the
+    /// entire value of the `Bool` this protocol returns.
+    ///
+    /// `widget` 內部第一個**真的能接受焦點**的控制項。
+    ///
+    /// **必須同時是 enabled 且為 tab stop。** 只看 `isEnabled` 並不完整:一個控制項可以是啟用的、
+    /// 卻仍被排除在焦點導覽之外,而把焦點給它會是同一個「假的 yes」、只是換了個形狀。
+    ///
+    /// 找不到時回傳 `nil`,而**不是**退回那個 widget。一個內部沒有任何可聚焦物的 wrapper,
+    /// 並沒有接受焦點;而說出這件事,正是本協定回傳那個 `Bool` 的全部價值。
+    private static func focusableControl(in element: FrameworkElement) -> Control? {
+        if let control = element as? Control, control.isEnabled, control.isTabStop {
+            return control
+        }
+        let count = VisualTreeHelper.getChildrenCount(element)
+        for index in 0..<count {
+            guard
+                let child = VisualTreeHelper.getChild(element, index) as? FrameworkElement
+            else { continue }
+            if let found = focusableControl(in: child) { return found }
+        }
+        return nil
     }
 
     /// Moves the focus off this widget by giving it to the root.

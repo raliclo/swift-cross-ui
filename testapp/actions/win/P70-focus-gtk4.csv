@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70 on Win-gtk4: does focus move, report, and refuse? (#122)
+#
+# The WinUI half is P70-focus.csv. Two files because the two backends lay the
+# same view out at different sizes -- this window captures 588x628, WinUI's is
+# 562x604 -- so one set of coordinates cannot serve both.
+#
+# Coordinates measured off screen-20260916-113536.png. Frame origin, because
+# that capture includes the title bar.
+#
+# It drives all four protocol methods and one refusal; see P70-focus.csv for
+# what each step is asserting and why the field clicks come first.
+#
+# P70 於 Win-gtk4:焦點會移動、會回報、會拒絕嗎?(#122)
+#
+# WinUI 那一半是 P70-focus.csv。之所以兩個檔案,是因為兩個 backend 把同一個 view 排成不同尺寸
+# ——這個視窗擷取為 588x628、WinUI 的是 562x604——因此一組座標無法同時服務兩者。
+#
+# 座標量自 screen-20260916-113536.png。採 frame origin,因為該擷圖含標題列。
+#
+# 它驅動協定的全部四個方法與一次拒絕;每一步在斷言什麼、以及欄位點擊為何排在最前面,見 P70-focus.csv。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,294,281,frame,left,,,click the email field -- the app did not ask for this,windows
+sleep,,,,,,800000,observe focused field = email and the counter increase,windows
+click,294,237,frame,left,,,and back to name,windows
+sleep,,,,,,800000,observe focused field = name and the counter increase again,windows
+click,84,325,frame,left,,,"focus name, this time programmatically",windows
+sleep,,,,,,800000,observe focus(_:) moved it,windows
+click,192,325,frame,left,,,focus email programmatically,windows
+sleep,,,,,,800000,observe focus(_:) moved it again,windows
+click,299,325,frame,left,,,clear focus -- unfocus(_:),windows
+sleep,,,,,,800000,observe focused field returns to none,windows
+click,102,441,frame,left,,,ask both for focus -- the disabled button must be refused,windows
+sleep,,,,,,1200000,let the refusal be reported,windows
