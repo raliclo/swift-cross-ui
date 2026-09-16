@@ -414,7 +414,7 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 | ~~WinUI `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`,並於 `23c9cc61` 以 P69 實測讀回。** `AutomationProperties.Name` / `HelpText` / `ItemStatus` / `setAccessibilityView(.raw)`。**限制**:讀回是**行程內**的(`VisualTreeHelper`),它對 Narrator 實際唸出什麼沒有發言權 |
 | ~~GTK `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`。** `gtk_widget_grab_focus` 確實直接叫得到。踩到的一點:TextField 是包著 `GtkEntry` 的 wrapper,所以回報那一半用的是 `EventControllerFocus` 的 `enter`/`leave`,不是 `notify::has-focus` |
 | ~~WinUI `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`——形狀不必改,而那個答案 2026-09-10 就寫在上面 5c-ANSWER 了。** `UIElement.focus(_:) throws -> Bool` 是同步的;`TryFocusAsync` 是另一個變體,不是取代品。真正的陷阱不是同步與否:本 backend 交出去的每個 widget 都是 `Canvas`,而 `Canvas` 無條件接受焦點,所以得往內走到真正 `isEnabled && isTabStop` 的控制項 |
-| **WinUI `LazyListRowLifetimes`(#117)** | **Windows(新開,2026-09-16)** | 上面那一格查證時發現的**真缺口**,而且方向與表上寫的相反:**GTK 有、WinUI 沒有**。`WinUIBackend` 只 conform `LazyListRows`(`WinUIBackend+LazyListRows.swift`),因此列被回收時框架收不到通知,只能靠 `List.swift` 的 `lazyLifetimeBackstopLimit = 4000` 兜底。`ItemsRepeater` 有 `elementClearing`,那就是要接的訊號。**AppKit / UIKit / Android 同樣只有 GTK 有**——但那三個不是我編得動的,列在此僅供 Mac 判斷 |
+| ~~**WinUI `LazyListRowLifetimes`(#117)**~~ | **Windows,同日完成並量測** | 上面那一格查證時發現的**真缺口**,方向與原表相反:**GTK 有、WinUI 沒有**。**已實作並以對照組驗收**:同一支執行檔掃過 5000 列(約 9000 次 prepare / 9000 次 recycle),release 開啟 **146 / 150 MB**,`SCUI_WINUI_NO_LAZY_RELEASE=1` 的對照組 **221 / 222 MB**,交錯兩輪、無重疊;兩組的實體化容器都是 38,因此**差的 72–76 MB 全是框架端的 view-graph 節點**。對照組是必要的,因為 conform 這件事本身會把 `List.swift` 從 200 列 LRU 換成 4000 列兜底——少了它,「加了 conformance」與「回呼真的有觸發」會同時改變。訊號是 `ContainerContentChanging` 的 `inRecycleQueue` + `args.itemIndex`(不是 `ItemsRepeater.elementClearing`,`ListView` 走的是這條)。**三個看起來都對卻被量成假的假設**寫在 `WinUIBackend+LazyListRows.swift` 裡加了刪除線的註解中。**AppKit / UIKit / Android 仍只有 GTK 有**——那三個不是我編得動的,留給 Mac 判斷 |
 
 **這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
 backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
@@ -474,6 +474,24 @@ The two controls now exist as real cells, so neither has to be invented:
 
 A discriminator that gets both right can open the 39; one that gets a single cell
 right got it by luck.
+
+**The negative control was closed the same afternoon**, so a probe written after
+2026-09-16 needs another one -- `AppKitBackend`, `UIKitBackend` and
+`AndroidBackend` all still lack `LazyListRowLifetimes` and any of them serves.
+
+WinUI now conforms, measured rather than asserted: one binary, two runs
+interleaved twice, each sweeping 5,000 rows (~9,000 prepares, ~9,000 recycles).
+With the release callback: **146 and 150 MB**. With `SCUI_WINUI_NO_LAZY_RELEASE=1`,
+which keeps the conformance and withholds the callback: **221 and 222 MB**. No
+overlap between the groups, and both ran with 38 realized containers, so the
+72-76 MB is entirely framework row nodes. The control switch is not optional
+here: conforming is itself what moves `List.swift` from its 200-row LRU to the
+4,000-row backstop, so without holding one half still, "conformed" and "actually
+releases" change together and neither number means anything.
+
+The signal is `ContainerContentChanging` with `inRecycleQueue`, and the index is
+`args.itemIndex`. Three plausible alternatives were measured false first; they
+are kept, struck through, in `WinUIBackend+LazyListRows.swift`.
 
 ---
 

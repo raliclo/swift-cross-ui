@@ -10,6 +10,20 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 1. #117 GTK: in progress. Connect the existing ListView draft to LazyListRows;
    test P57 at 1/400/10,000 rows, scroll, change content/count and clear selection.
    GTK：進行中。接入 LazyListRows，驗證列數、捲動、內容更新與 nil selection。
+1b. #117 WinUI row lifetimes: **DONE and measured 2026-09-16.** `WinUIBackend`
+   conformed to `LazyListRows` but not `LazyListRowLifetimes`, so no row was ever
+   reported as released. Now released on `ContainerContentChanging` +
+   `inRecycleQueue`, index from `args.itemIndex`.
+   **Verified with a control, because the conformance changes two things at
+   once** -- it also moves `List.swift` from a 200-row LRU to the 4,000-row
+   backstop. One binary, interleaved twice, each run sweeping 5,000 rows via the
+   new `--winui-list-probe` (no mouse, no action file): releasing **146 / 150 MB**
+   against **221 / 222 MB** for `SCUI_WINUI_NO_LAZY_RELEASE=1`. 38 realized
+   containers in every run, so the gap is framework nodes, not WinUI's.
+   WinUI 的列生命週期:**已完成並量測**。訊號是 `inRecycleQueue`,索引取自 `args.itemIndex`。
+   以同一支執行檔、交錯兩輪、各掃 5000 列驗收:有釋放 **146 / 150 MB**,對照組 **221 / 222 MB**,
+   兩組實體化容器皆為 38。對照組不可省略——conform 本身就會把快取上限從 200 換成 4000。
+   Still open elsewhere: AppKit, UIKit and Android have no `LazyListRowLifetimes`.
 2. #117 Android: pending implementation and emulator/device verification.
    Android：待實作及模擬器或實機驗證。
 3. #121 shortcuts: **DONE on both Windows backends, 2026-09-16.**

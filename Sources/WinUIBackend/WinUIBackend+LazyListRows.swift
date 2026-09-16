@@ -178,10 +178,30 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
             // A recycled container is on its way out; dropping its content lets
             // the framework's row node be released. Without this the content --
             // and its node -- would be pinned by the container it last held.
+            //
+            // **Dropping the content is only half of it.** The widget stops
+            // being shown, but the framework still holds the view-graph node
+            // that built it, keyed by row index, and nothing here told it
+            // otherwise. That is what `LazyListRowLifetimes` is for, and until
+            // 2026-09-16 this backend did not conform: the nodes were bounded
+            // only by `List.swift`'s 4000-row backstop cache, so a list scrolled
+            // through ten thousand rows kept four thousand nodes alive that no
+            // container had referenced for a long time.
+            //
             // 被回收的容器正在離場;丟掉它的內容能讓框架的列節點被釋放。少了這一步,內容——以及它的
             // 節點——會被它最後所持有的那個容器釘住。
+            //
+            // **丟掉內容只是其中一半。** 那個 widget 不再被顯示,但框架仍然握著當初建出它的那個
+            // view-graph 節點(以列索引為鍵),而這裡沒有任何東西通知過它。那正是
+            // `LazyListRowLifetimes` 的用途;而直到 2026-09-16 為止,本 backend 並未 conform 它:
+            // 那些節點只被 `List.swift` 的 4000 列兜底快取所限制,於是一份被捲過一萬列的清單,
+            // 會留著四千個「早已沒有任何容器引用」的節點。
             if args.inRecycleQueue {
                 args.itemContainer?.content = nil
+                let index = Int(args.itemIndex)
+                WinUIBackend.traceLazyRow("recycle index=\(index)")
+                guard index >= 0, !WinUIBackend.lazyReleaseSuppressed else { return }
+                listView.lazyRowReleaseHandler?(index)
                 return
             }
 
@@ -269,5 +289,115 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
         container.content = row.widget
         container.horizontalContentAlignment = .left
         container.padding = Thickness(left: 16, top: 8, right: 12, bottom: 8)
+        traceLazyRow("prepare index=\(index)")
+    }
+
+    // **~~The row a container holds has to be recorded on the way in, because
+    // a container can be rebound in place with no recycle event.~~ Both halves
+    // of that were measured false on 2026-09-16, and both looked right.**
+    //
+    // Two recordings were tried and neither is in this file any more:
+    //
+    //   a side table keyed by      answered a different question every time. The
+    //   `ObjectIdentifier`         Swift objects are per-access wrappers around a
+    //                              COM pointer, so one address served rows 2-7
+    //                              and then 14-18. See `CustomListView`.
+    //   the container's own `Tag`  does not round-trip through this binding. A
+    //                              probe wrote `Int32(index)` and read the tag
+    //                              straight back: LOST on 95 of 95 prepares, so
+    //                              a release path reading it fires NEVER while
+    //                              the conformance still moves `List.swift` to
+    //                              the 4,000-row backstop -- strictly worse than
+    //                              not conforming at all
+    //
+    // And the premise did not hold either. Over a run that prepared 95 rows and
+    // recycled 61, **no row was ever prepared again while still live**: every
+    // re-preparation had a recycle of that same index before it. So a rebind
+    // path is not needed, and `inRecycleQueue` is the whole signal.
+    //
+    // What makes `itemIndex` trustworthy HERE, having been doubted: every one of
+    // the 61 recycled indices is a row that had been prepared, and the two
+    // ranges are exactly the rows abandoned by the two scrolls -- 1-25 on the
+    // jump to the end, 9964-9999 on the way back to the top.
+    //
+    // **~~容器持有哪一列必須在放進去時記下來,因為容器可能在沒有回收事件的情況下就地重新綁定。~~
+    // 這句話的兩半都在 2026-09-16 被量成假的,而兩者看起來都對。**
+    //
+    // 試過兩種記錄方式,而兩者都已不在本檔案中:
+    //
+    //   以 `ObjectIdentifier` 為鍵的旁表   每次被詢問時回答的都是另一個問題。那些 Swift 物件是
+    //                                      「每次存取都新建」的 COM 指標 wrapper,於是同一個位址
+    //                                      served 了第 2-7 列、接著第 14-18 列。見 `CustomListView`。
+    //   容器自己的 `Tag`                   在這個綁定上**無法來回**。探針寫入 `Int32(index)` 後
+    //                                      立刻讀回:95 次 prepare 全部 LOST。因此一條讀它的釋放
+    //                                      路徑**永遠不會觸發**,而那個 conformance 卻已經讓
+    //                                      `List.swift` 切到 4,000 列的兜底上限——比不 conform 還糟。
+    //
+    // 而那個前提本身也不成立。在一次準備了 95 列、回收了 61 列的執行中,**沒有任何一列在仍然存活時
+    // 被再次準備**:每一次重新準備之前,都先有該索引的一次回收。所以不需要 rebind 路徑,
+    // `inRecycleQueue` 就是全部的訊號。
+    //
+    // 曾被懷疑過的 `itemIndex`,在**此處**可信的理由:那 61 個被回收的索引,每一個都是曾被準備過的
+    // 列,而它們的兩段範圍正好就是兩次捲動所拋下的列——跳到底時的 1-25,回到頂端時的 9964-9999。
+
+    /// Prints one line per row prepared or released, when
+    /// `SCUI_WINUI_LAZY_TRACE` is set.
+    ///
+    /// Off by default because a list being scrolled produces one line per row
+    /// per screenful, which is exactly the volume that makes a log unreadable
+    /// for every other purpose.
+    ///
+    /// 在設定了 `SCUI_WINUI_LAZY_TRACE` 時,每準備或釋放一列印一行。
+    ///
+    /// 預設關閉:一份正在被捲動的清單,每捲過一個畫面就會產出每列一行,而那個量正好會讓這份 log
+    /// 對其他任何用途都失去可讀性。
+    /// `SCUI_WINUI_NO_LAZY_RELEASE=1` keeps the conformance and withholds the
+    /// callback. **It exists to make the control group runnable from the same
+    /// binary**, and there is no other way to get one: conforming to
+    /// `LazyListRowLifetimes` is what moves `List.swift` off its 200-row LRU and
+    /// onto the 4,000-row backstop, so "before" and "after" differ in two things
+    /// at once unless one of them can be held still. With this set, the cache
+    /// policy is the after and the releases are the before.
+    ///
+    /// A measurement switch, not a feature. Nothing but a probe should set it,
+    /// and a list running with it set leaks row nodes up to the backstop --
+    /// which is precisely the number the control is there to show.
+    ///
+    /// `SCUI_WINUI_NO_LAZY_RELEASE=1` 會**保留** conformance、但**扣住**那個回呼。
+    /// **它的存在是為了讓對照組能用同一個執行檔跑起來**,而且沒有別的辦法:conform
+    /// `LazyListRowLifetimes` 這件事本身,就會讓 `List.swift` 從 200 列的 LRU 換到 4,000 列的
+    /// 兜底上限——因此若不把其中一項固定住,「之前」與「之後」會同時差兩件事。設了它之後,
+    /// 快取策略是「之後」,而釋放行為是「之前」。
+    ///
+    /// 這是量測開關,不是功能。除了探針以外不該有任何東西設定它;設了它的清單會把列節點漏到兜底上限
+    /// ——而那個數字正是這個對照組要顯示的東西。
+    static let lazyReleaseSuppressed =
+        ProcessInfo.processInfo.environment["SCUI_WINUI_NO_LAZY_RELEASE"] != nil
+
+    fileprivate static func traceLazyRow(_ message: @autoclosure () -> String) {
+        guard ProcessInfo.processInfo.environment["SCUI_WINUI_LAZY_TRACE"] != nil else { return }
+        print("LAZYROW \(message())")
+    }
+}
+
+/// Reports a row's index when the container holding it is recycled.
+///
+/// **Kept as its own extension rather than folded into the one above.**
+/// `LazyListRowLifetimes` refines `LazyListRows`, so a single extension naming
+/// the refined protocol would satisfy both -- which is exactly what made
+/// GtkBackend look, to a source sweep on 2026-09-16, as though it had no
+/// `LazyListRows` conformance at all. Two named extensions cost nothing and
+/// leave both names where a reader and a grep can find them.
+///
+/// 刻意保留為獨立的 extension,而不是併進上面那個。`LazyListRowLifetimes` refine 了
+/// `LazyListRows`,因此**只寫一個具名 refined 協定的 extension 就能同時滿足兩者**——而那正是
+/// 2026-09-16 一次原始碼掃描把 GtkBackend 看成「完全沒有 `LazyListRows` conformance」的原因。
+/// 寫成兩個具名 extension 不花任何成本,卻讓兩個名字都留在讀者與 grep 找得到的地方。
+extension WinUIBackend: BackendFeatures.LazyListRowLifetimes {
+    public func setLazyRowReleaseHandler(
+        ofSelectableListView listView: Widget,
+        to handler: @escaping (Int) -> Void
+    ) {
+        (listView as! CustomListView).lazyRowReleaseHandler = handler
     }
 }

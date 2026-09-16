@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 807**
+**Runs recorded / 已記錄的執行筆數: 808**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|--------------------|--------------|
@@ -92,7 +92,7 @@ zsh matrix_coverage/coverage.zsh
 | P54           | -                            | pass 2026-09-10                | -                        | pass 2026-09-09              | pass 2026-09-09        | pass 2026-09-09    |              |
 | P55           | -                            | -                              | -                        | pass 2026-09-09              | pass 2026-09-09        | pass 2026-09-09    |              |
 | P56           | -                            | -                              | -                        | pass 2026-09-09              | pass 2026-09-09        | pass 2026-09-09    |              |
-| P57           | pass 2026-09-16              | pass 2026-09-16                | -                        | pass 2026-09-12              | pass 2026-09-11        | pass 2026-09-15    |              |
+| P57           | pass 2026-09-16              | probe 1/2 2026-09-16           | -                        | pass 2026-09-12              | pass 2026-09-11        | pass 2026-09-15    |              |
 | P58           | -                            | -                              | -                        | pass 2026-09-09              | -                      | pass 2026-09-09    |              |
 | P59           | -                            | -                              | -                        | pass 2026-09-09              | -                      | -                  |              |
 | P60           | -                            | -                              | -                        | pass 2026-09-09              | pass 2/2 2026-09-09    | -                  |              |
