@@ -193,6 +193,83 @@ extension BackendFeatures {
         /// 那是一個更新迴圈。
         func setSelectedRow(ofTable table: Widget, to index: Int?)
     }
+
+    /// A table whose column headers can be clicked to sort by, and which says
+    /// when one is.
+    ///
+    /// **It reports, it does not sort.** The backend says which column the user
+    /// clicked; the app reorders its own rows. That is not a shortcut -- a
+    /// ``TableColumn`` here is a `(RowValue) -> Content` closure with no key
+    /// path and no comparator, so nothing between the click and the app knows
+    /// how two rows compare. SwiftUI can sort because its columns are declared
+    /// with `value:`; ours cannot, and pretending otherwise would mean sorting
+    /// by the rendered text.
+    ///
+    /// **Every header is clickable while a sort handler is installed.** There is
+    /// no per-column opt-out, for the same reason: with no comparator, "this
+    /// column is sortable" is a statement only the app can make, and it makes it
+    /// by what it does with the callback. A column the app ignores simply does
+    /// not move the rows, and the indicator follows the binding rather than the
+    /// click, so it does not appear on a column nothing happened for.
+    ///
+    /// Separate from ``TableSelection`` because a backend may manage one and not
+    /// the other; conformance-checked, so a backend without it draws the table
+    /// it draws today, with headers that do nothing.
+    ///
+    /// 一個「標題列可被點擊以排序、並且會說出哪一欄被點」的表格。
+    ///
+    /// **它只回報,不排序。** backend 說出使用者點了哪一欄;由 **app** 重新排列自己的資料。
+    /// 這不是偷懶——此處的 ``TableColumn`` 是一個 `(RowValue) -> Content` closure,**沒有 key path、
+    /// 也沒有 comparator**,因此在「點擊」與「app」之間,沒有任何一層知道兩列該怎麼比較。
+    /// SwiftUI 能排序,是因為它的欄位以 `value:` 宣告;我們的不行,而假裝可以,等於拿**算繪出來的
+    /// 文字**去排序。
+    ///
+    /// **只要安裝了 sort handler,每一個標題都可點。** 沒有逐欄的退出選項,理由相同:在沒有
+    /// comparator 的情況下,「這一欄可排序」是只有 app 說得出口的話,而它是用「對那個回呼做了什麼」
+    /// 來說的。app 忽略的欄位就是不會讓列移動;而**指示符跟隨的是 binding、不是點擊**,
+    /// 因此它不會出現在一個「什麼都沒發生」的欄位上。
+    ///
+    /// 與 ``TableSelection`` 分開,因為一個 backend 可能做得到其中一個而非另一個;採 conformance
+    /// 檢查,因此沒有實作它的 backend,畫出來的仍是今天那個表格,只是標題點了沒有反應。
+    @MainActor
+    public protocol TableColumnSorting: Tables {
+        /// Sets the action to perform when the user clicks a column header.
+        ///
+        /// Receives the column's index, counting from 0 in the order the labels
+        /// were given to ``Tables/setColumnLabels(ofTable:to:environment:)``.
+        ///
+        /// Called on every commit, so an implementation must REPLACE the stored
+        /// handler rather than add one.
+        ///
+        /// 設定「使用者點擊某個欄位標題時」要執行的動作。
+        ///
+        /// 收到的是該欄的索引,自 0 起算,順序與交給
+        /// ``Tables/setColumnLabels(ofTable:to:environment:)`` 的 labels 相同。
+        ///
+        /// 每次 commit 都會呼叫,因此實作必須**取代**所存的 handler,而不是再加一個。
+        func setSortHandler(
+            ofTable table: Widget,
+            to action: @escaping (_ column: Int) -> Void
+        )
+
+        /// Shows which column the table is sorted by, and in which direction.
+        ///
+        /// nil clears the indicator from every column. **Must not call the
+        /// handler**, for the reason ``TableSelection/setSelectedRow(ofTable:to:)``
+        /// gives: this is the framework stating the sort order, and a backend
+        /// that reported it back would turn one click into an endless one.
+        ///
+        /// 顯示這個表格目前依哪一欄、以哪個方向排序。
+        ///
+        /// nil 會把指示符從所有欄位清除。**不得觸發 handler**,理由與
+        /// ``TableSelection/setSelectedRow(ofTable:to:)`` 所述相同:這是框架在陳述排序狀態,
+        /// 而一個把它回報回去的 backend,會把一次點擊變成永無止盡的一次。
+        func setSortIndicator(
+            ofTable table: Widget,
+            column: Int?,
+            ascending: Bool
+        )
+    }
 }
 
 extension BackendFeatures.Tables {

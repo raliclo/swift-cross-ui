@@ -2,7 +2,7 @@
 
 ## 2026-09-12 Windows / WSL handover
 
-- [ ] **#117 GTK ListView integration and P57 verification (active)**:
+- [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**:
   GtkBackend now uses the native lazy factory. Release builds succeeded on
   WSL and Windows including the latest lifetime change.
   Initial WSL GL/D3D12 probes: 1/400/10,000 rows used 320/326/327 MB after
@@ -21,7 +21,11 @@
   **2026-09-16 更新:GtkBackend 的 `LazyListRows` 已完成(`5739d453`),而一次原始碼掃描
   會說它沒有——它是由 `LazyListRowLifetimes` 繼承而來的,那個 extension 兩個方法都實作了。
   WinUI 的 `LazyListRowLifetimes` 也已完成並以對照組量過(release 146/150 MB 對
-  control 221/222 MB,掃過 5000 列)。此條**唯一剩下的**是 P57 在 gtk4 上的指標重放。**
+  control 221/222 MB,掃過 5000 列)。~~此條**唯一剩下的**是 P57 在 gtk4 上的指標重放。~~
+  **18:58 那筆重放也完成了,20 個動作全數落地:`selection=1`;捲動六格後點**同一個 y** 得到
+  `selection=8`(這就是本檔的主張——清單真的捲動了,不只是重畫);`revision=1`;`Clear` 後
+  `selection=none`;`Toggle count` 走過 `rows=1 → rows=400`,而重建後 `Select last` 仍正確地
+  回報 399。**此條可以關掉了。****
   *2026-09-16: GTK's `LazyListRows` is done and INHERITED, so a name-based sweep reports it
   missing; WinUI's `LazyListRowLifetimes` is done and measured against a control. What is left
   here is the P57 gtk4 pointer replay, nothing else.*
