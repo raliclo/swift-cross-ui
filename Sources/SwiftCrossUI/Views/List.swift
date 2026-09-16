@@ -222,6 +222,9 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             @MainActor
             func buildRow(_ index: Int) -> (widget: AnyWidget, height: Int)? {
                 guard index >= 0, index < rowCount else { return nil }
+                var rowEnvironment = environment
+                // Native row requests are committed immediately, not cached size probes.
+                rowEnvironment.allowLayoutCaching = false
                 let rowView = padded(rowContent(index))
                 let node: AnyViewGraphNode<PaddingModifierView<RowView>>
                 if let cached = children.lazyNodes[index] {
@@ -234,12 +237,27 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                     )
                     children.lazyNodes[index] = node
                 }
-                children.touch(index)
+                // A lifetime-reporting backend frees each node precisely, when
+                // its native factory unbinds that row, so it does not want the
+                // 200-row LRU evicting rows the toolkit still has bound. It does
+                // still get a cap, far above any real overscan -- see
+                // `lazyLifetimeBackstopLimit` for why relying on the callback
+                // alone is not safe.
+                // 會回報生命週期的 backend 會在其原生 factory 對某列 unbind 時精確地釋放該節點,
+                // 因此它不希望那個 200 列的 LRU 逐出「toolkit 仍綁著」的列。但它仍然會拿到一個上限,
+                // 且遠高於任何真實的 overscan——「只依賴那個回呼為何不安全」見
+                // `lazyLifetimeBackstopLimit`。
+                children.touch(
+                    index,
+                    limit: backend is any BackendFeatures.LazyListRowLifetimes
+                        ? ListViewChildren<RowView>.lazyLifetimeBackstopLimit
+                        : ListViewChildren<RowView>.lazyCacheLimit
+                )
 
                 let result = node.computeLayout(
                     with: rowView,
                     proposedSize: ProposedViewSize(proposedRowWidth, nil),
-                    environment: environment
+                    environment: rowEnvironment
                 )
                 _ = node.commit()
                 let height = LayoutSystem.roundSize(
@@ -251,6 +269,16 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
 
             func install<B: BackendFeatures.LazyListRows>(_ lazy: B) {
                 let listView = widget as! B.Widget
+                if let lifecycle = backend as? any BackendFeatures.LazyListRowLifetimes {
+                    func installRelease<L: BackendFeatures.LazyListRowLifetimes>(_ backend: L) {
+                        backend.setLazyRowReleaseHandler(
+                            ofSelectableListView: widget as! L.Widget
+                        ) { [weak children] index in
+                            children?.lazyNodes[index] = nil
+                        }
+                    }
+                    installRelease(lifecycle)
+                }
 
                 // One row is built before the count is handed over, purely to
                 // have an estimate worth giving.
@@ -284,7 +312,33 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                     }
                 )
             }
-            install(lazyBackend)
+            // **Not installed during a speculative size probe.** `computeLayout`
+            // is called with `allowLayoutCaching` true by LayoutSystem and
+            // WindowReference to ask "how big would this be?", sometimes several
+            // times and at sizes that are never committed. Handing the backend a
+            // row count and a provider on one of those would have it realize
+            // containers for a layout that is about to be thrown away.
+            //
+            // **The cost, stated because it is silent:** a count or provider
+            // change that arrives only on a cached pass is not applied on that
+            // pass. That is safe today because a cached pass is always followed
+            // by a real one before anything is shown -- `allowLayoutCaching`
+            // defaults to false and is turned on only for the probe -- but if
+            // that ever stops being true, the symptom is a list showing stale
+            // rows with nothing reporting an error.
+            //
+            // **不在「推測性的尺寸探測」期間安裝。** LayoutSystem 與 WindowReference 會以
+            // `allowLayoutCaching` 為 true 呼叫 `computeLayout`,用來問「這東西會有多大?」——有時會問
+            // 好幾次,而且問的尺寸最後根本不會被採用。在那樣的一次呼叫中把列數與 provider 交給 backend,
+            // 會讓它為一個即將被丟棄的版面實體化容器。
+            //
+            // **代價,寫明是因為它是無聲的:** 一個「只在快取那一趟抵達」的列數或 provider 變更,在那一趟
+            // 不會被套用。這在今天是安全的,因為在任何東西被顯示之前,快取的那一趟之後必定跟著真正的
+            // 一趟(`allowLayoutCaching` 預設為 false,只為探測而開啟);但若哪天那件事不再成立,其症狀
+            // 會是「清單顯示著過期的列,而沒有任何東西回報錯誤」。
+            if !environment.allowLayoutCaching {
+                install(lazyBackend)
+            }
 
             // Nothing eager is left behind: a list that switches paths -- which
             // happens the first time a backend gains the conformance -- would
@@ -411,6 +465,14 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                 setViewport(backend: scrollingBackend)
             }
             backend.setSize(of: widget, to: layout.size.vector)
+            backend.setSelectionHandler(forSelectableListView: widget) { selectedIndex in
+                selection.wrappedValue = associatedSelectionValue(selectedIndex)
+            }
+            backend.updateSelectableListView(widget, environment: environment)
+            backend.setSelectedItem(
+                ofSelectableListView: widget,
+                toItemAt: selection.wrappedValue.flatMap { find($0) }
+            )
             return
         }
 
@@ -526,6 +588,34 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// 200 列約 6 MB，相對於一萬列的 423 MB。
     static var lazyCacheLimit: Int { 200 }
 
+    /// The cap used when the backend reports row releases itself.
+    ///
+    /// **A backstop, not the mechanism.** A ``BackendFeatures/LazyListRowLifetimes``
+    /// backend frees each node when its native factory unbinds the row, which is
+    /// more precise than an LRU and is why the ordinary 200 cap is not used
+    /// there: GTK's overscan can realize more containers than that, and evicting
+    /// a node the toolkit still has bound only forces it to be rebuilt.
+    ///
+    /// But relying on the release callback ALONE means one missed callback grows
+    /// this dictionary for ever, with nothing to catch it -- and a leak whose
+    /// only symptom is memory is exactly the shape that gets found by a user
+    /// rather than by us. So the LRU stays, with a cap far above any real
+    /// overscan: it never fires in normal operation, and it bounds the damage
+    /// when the callback does not arrive.
+    ///
+    /// 當 backend 會自行回報「列已被釋放」時所使用的上限。
+    ///
+    /// **這是兜底,不是機制本身。** 一個 ``BackendFeatures/LazyListRowLifetimes`` backend 會在其原生
+    /// factory 對某一列 unbind 時釋放對應的節點,那比 LRU 精確,也正是該處不使用一般 200 上限的原因:
+    /// GTK 的 overscan 可能實體化超過那個數量的容器,而逐出一個「toolkit 仍綁著」的節點,只會迫使它
+    /// 被重建。
+    ///
+    /// 但**只**依賴那個 release callback,意謂著少收到一次回呼就會讓這個字典永遠成長,而且沒有任何東西
+    /// 會攔下它——一個「唯一症狀是記憶體」的洩漏,正是那種由使用者、而非由我們發現的形狀。因此 LRU
+    /// 保留下來,並採用一個遠高於任何真實 overscan 的上限:它在正常運作下永遠不會觸發,而當那個回呼
+    /// 沒有到達時,它會把損害界住。
+    static var lazyLifetimeBackstopLimit: Int { 4000 }
+
     init() {
         nodes = []
     }
@@ -533,12 +623,19 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// Notes that `index` was just used, and evicts if that put the cache over
     /// its limit.
     /// 記下 `index` 剛被使用過，並在因此超出上限時逐出最久未使用的。
-    func touch(_ index: Int) {
+    // `ListViewChildren<RowView>` spelled out rather than `Self`: a default
+    // argument cannot reference the covariant `Self` of a non-final class --
+    // "covariant 'Self' type cannot be referenced from a default argument
+    // expression". Caught by building.
+    // 此處寫出 `ListViewChildren<RowView>` 而不用 `Self`:預設引數無法引用非 final class 的
+    // covariant `Self`——「covariant 'Self' type cannot be referenced from a default argument
+    // expression」。以建置抓到。
+    func touch(_ index: Int, limit: Int = ListViewChildren<RowView>.lazyCacheLimit) {
         if let existing = lazyOrder.firstIndex(of: index) {
             lazyOrder.remove(at: existing)
         }
         lazyOrder.append(index)
-        while lazyOrder.count > Self.lazyCacheLimit {
+        while lazyOrder.count > limit {
             let evicted = lazyOrder.removeFirst()
             lazyNodes[evicted] = nil
             // The HEIGHT is kept. It costs a few bytes, it is what the backend

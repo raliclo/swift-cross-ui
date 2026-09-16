@@ -5,7 +5,7 @@ import Gtk
 /// `BackendFeatures.ScrollingLists` for GTK 4 (#117).
 ///
 /// The structural half of this is in `createSelectableListView`: a `List` is a
-/// `GtkScrolledWindow` wrapping the `GtkListBox`, because a bare list box does
+/// `GtkScrolledWindow` wrapping the `GtkListView`, because a bare list view does
 /// not scroll and shrinking one clips its rows. This file is the other half --
 /// telling that scrolled window how tall it is allowed to be.
 ///
@@ -20,7 +20,7 @@ import Gtk
 ///
 /// 為 GTK 4 實作的 `BackendFeatures.ScrollingLists`(#117)。
 ///
-/// 結構性的那一半在 `createSelectableListView`:一個 `List` 是包住 `GtkListBox` 的
+/// 結構性的那一半在 `createSelectableListView`:一個 `List` 是包住 `GtkListView` 的
 /// `GtkScrolledWindow`,因為光禿禿的 list box 不會捲動,而把它縮小只會裁掉它的列。本檔是另一半
 /// ——告訴那個 scrolled window 它被允許有多高。
 ///

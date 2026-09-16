@@ -28,6 +28,17 @@ different depending on where "here" was.
 
 ## Now / 現在
 
+### 2026-09-12 Windows handover / Windows 接續工作
+
+Current source takes precedence over the older dated notes below. Track the
+requested ten work items in `testapp/plan/plan-backend-followup-20260912.md`.
+In particular, #128 already uses Double EdgeInsets; GTK #117 is an unconnected
+ListView draft, and WinUI #117 still owes a visual and scrolling regression test.
+
+以下舊紀錄須以目前原始碼為準。這次十項工作的進度與驗收條件記錄於
+`testapp/plan/plan-backend-followup-20260912.md`。#128 已使用 Double；GTK #117
+尚為未接入 backend 的雛形，WinUI #117 的記憶體量測不代表畫面與捲動已通過。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as

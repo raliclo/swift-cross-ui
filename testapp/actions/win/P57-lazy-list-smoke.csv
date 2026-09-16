@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# Startup observation only. Run with --debug -rows 10000.
+# This is not proof of selection, recycling or visual correctness.
+# expect: log-contains RENDER COMPLETE -- P57 ready
+sleep,,,,,,30000000,Keep the rendered window available for inspection,windows

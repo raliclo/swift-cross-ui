@@ -189,6 +189,7 @@ gboolean scui_window_set_dark_titlebar(GtkWidget *window, gboolean dark);
 // earlier... I'm perplexed, but this does at least solve the issue
 extern const GConnectFlags SHIM_G_CONNECT_AFTER;
 extern const GConnectFlags SHIM_G_CONNECT_SWAPPED;
+extern const GConnectFlags SHIM_G_CONNECT_DEFAULT;
 extern const GApplicationFlags SHIM_G_APPLICATION_HANDLES_OPEN;
 
 // Drag-and-drop (drop target) helpers. GtkDropTarget negotiates over GTypes,

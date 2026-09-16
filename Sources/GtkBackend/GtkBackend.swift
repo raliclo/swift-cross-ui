@@ -242,7 +242,6 @@ public final class GtkBackend:
     let defaultSheetCornerRadius = 10
 
     var gtkApp: Application
-    private var selectableListStates: [ObjectIdentifier: SelectableListState] = [:]
 
     /// A window to be returned on the next call to ``GtkBackend/createWindow``.
     /// This is necessary because Gtk creates a root window no matter what, and
@@ -3654,42 +3653,11 @@ public final class GtkBackend:
         )
     }
 
-    /// A `GtkListBox` inside a `GtkScrolledWindow`, and the wrapper is the point.
-    ///
-    /// A bare `GtkListBox` does not scroll. Giving one a height smaller than its
-    /// rows CLIPS them -- and clipping is exactly what ``BackendFeatures/ScrollingLists``
-    /// warns about in its own documentation, because missing rows read as a
-    /// layout bug rather than as a backend that ignored a method. So the widget
-    /// this backend hands back for a `List` is the scrolled window, and the list
-    /// box lives inside it.
-    ///
-    /// The cost of that decision is that `Widget` is no longer the list box, so
-    /// every method taking a `listView` has to unwrap. That is what
-    /// ``listBox(of:)`` is for, and it is the only reason these methods do not
-    /// simply say `as! ListBox` any more.
-    ///
-    /// `propagateNaturalHeight` is left at GTK's default of `false`. That is
-    /// the property doing the actual work in #117: with it false the scrolled
-    /// window's natural height is its own minimum rather than its content's, so
-    /// a window containing a `List` stops growing with the row count. Setting it
-    /// true would restore the old behaviour exactly.
-    ///
-    /// 一個放在 `GtkScrolledWindow` 裡的 `GtkListBox`，而那層外包正是重點。
-    ///
-    /// 光禿禿的 `GtkListBox` 不會捲動。給它一個小於其列高總和的高度，會把列**裁掉**——而裁切正是
-    /// ``BackendFeatures/ScrollingLists`` 在自己的文件裡所警告的事，因為「少了幾列」讀起來像版面
-    /// bug，而不像某個 backend 忽略了一個方法。因此本 backend 為 `List` 交出去的 widget 是那個
-    /// scrolled window，list box 則住在它裡面。
-    ///
-    /// 這個決定的代價，是 `Widget` 不再是那個 list box，於是每個接收 `listView` 的方法都得拆一層。
-    /// ``listBox(of:)`` 就是為此而存在，也是這些方法不再單純寫 `as! ListBox` 的唯一原因。
-    ///
-    /// `propagateNaturalHeight` 保持 GTK 的預設值 `false`。在 #117 中真正起作用的就是這個屬性：
-    /// 為 false 時，scrolled window 的自然高度是它**自己**的最小值而非其內容的高度，因此含有 `List`
-    /// 的視窗不再隨列數長高。把它設為 true 會原封不動地還原舊行為。
+    /// A virtualized GtkListView inside a bounded GtkScrolledWindow (#117).
+    /// Natural-height propagation stays off so row count cannot enlarge the window.
+    /// 以原生 factory 按需建列；保留 ScrolledWindow 的視口高度限制。
     public func createSelectableListView() -> Widget {
-        let listView = ListBox()
-        listView.selectionMode = .single
+        let listView = Gtk.ListView()
         // No `navigation-sidebar` here. It used to be added unconditionally, so
         // every `List` was drawn as a sidebar whether it was one or not --
         // flat, no frame, sidebar row padding. The style now follows
@@ -3712,7 +3680,7 @@ public final class GtkBackend:
         return scrolled
     }
 
-    /// The `GtkListBox` inside the scrolled window `createSelectableListView`
+    /// The `GtkListView` inside the scrolled window `createSelectableListView`
     /// returned.
     ///
     /// Force-unwrapped rather than optional-returning on purpose. Every caller
@@ -3721,13 +3689,13 @@ public final class GtkBackend:
     /// would turn that bug into a silently ignored update, which is the failure
     /// mode this whole task exists to remove.
     ///
-    /// 位於 `createSelectableListView` 所回傳之 scrolled window 內部的那個 `GtkListBox`。
+    /// 位於 `createSelectableListView` 所回傳之 scrolled window 內部的那個 `GtkListView`。
     ///
     /// 刻意採強制解包而非回傳 optional。每一個呼叫端的引數都來自 `createSelectableListView`，
     /// 因此此處失手代表的是框架的 bug，而不是某個 `List` 到得了的狀態——而 optional 會把那個 bug
     /// 變成一次靜默被忽略的更新，那正是整個任務所要消除的失效樣態。
-    private func listBox(of listView: Widget) -> ListBox {
-        (listView as! ScrolledWindow).getChild() as! ListBox
+    func lazyList(of listView: Widget) -> Gtk.ListView {
+        (listView as! ScrolledWindow).getChild() as! Gtk.ListView
     }
 
     /// Applies `listStyle`, which until 2026-08-27 nothing read.
@@ -3756,7 +3724,7 @@ public final class GtkBackend:
         _ selectableListView: Widget,
         environment: EnvironmentValues
     ) {
-        let selectableListView = listBox(of: selectableListView)
+        let selectableListView = lazyList(of: selectableListView)
         selectableListView.sensitive = environment.isEnabled
 
         let pointer = selectableListView.widgetPointer
@@ -3783,105 +3751,46 @@ public final class GtkBackend:
         to items: [Widget],
         withRowHeights rowHeights: [Int]
     ) {
-        // NOTE: This implementation works under the same assumptions as
-        //   AppKitBackend's implementation. Read the comment in
-        //   AppKitBackend.setItems for more details. In short, we assume
-        //   that modifications made to `items` between `setItems` calls
-        //   are either all pops, or all appends (not a mix).
+        // ~~"we assume modifications between setItems calls are either all pops
+        // or all appends (not a mix)"~~ -- that was true of the GtkListBox
+        // implementation, which diffed against a previous row count and appended
+        // or removed the difference. This body appends nothing: it hands the
+        // list a provider closure over `items` and a count, and GtkListView asks
+        // for whatever it needs. Any mix of insertions and removals is fine now.
+        //
+        // Struck through rather than deleted, because the assumption is still
+        // load-bearing in AppKitBackend.setItems, and a reader arriving from
+        // that comment needs to know it stopped applying HERE rather than
+        // conclude the note was never true.
+        //
+        // ~~「我們假設 setItems 之間的變動,要麼全是 pop、要麼全是 append(不可混用)」~~——那對
+        // GtkListBox 的實作為真,因為它會比對先前的列數、再 append 或移除其差額。**本函式不 append
+        // 任何東西**:它交給清單的是一個對 `items` 取值的 provider closure 與一個列數,而 GtkListView
+        // 需要什麼就來要什麼。現在插入與移除任意混用都沒有問題。
+        //
+        // 保留刪除線而非直接刪掉,因為那個假設在 `AppKitBackend.setItems` 中仍然承重;而一個循著那段
+        // 註解找過來的讀者,需要知道它是**在此處**不再適用,而不是就此認定那段註記從來不成立。
 
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-
-        let previousRowCount = state.rowCount
-        state.rowCount = items.count
-
-        state.isProgrammaticSelectionUpdate = true
-        defer { state.isProgrammaticSelectionUpdate = false }
-
-        if items.count > previousRowCount {
-            for item in items[previousRowCount...] {
-                listView.append(item)
-            }
-        } else if items.count < previousRowCount {
-            for _ in 0..<(previousRowCount - items.count) {
-                listView.removeRow(at: items.count)
-            }
+        let listView = lazyList(of: listView)
+        listView.rowProvider = { index in
+            guard items.indices.contains(index) else { return nil }
+            return items[index]
         }
-
-        preserveNilSelection(of: listView, state: state)
+        listView.setRowCount(items.count)
+        listView.refreshBoundRows()
     }
 
     public func setSelectionHandler(
         forSelectableListView listView: Widget,
         to action: @escaping (_ selectedIndex: Int) -> Void
     ) {
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-        listView.rowSelected = { _, selectedRow in
-            guard !state.isProgrammaticSelectionUpdate else {
-                return
-            }
-            guard !state.isClearingNilSelection else {
-                self.preserveNilSelection(of: listView, state: state)
-                return
-            }
-            guard let selectedRow else {
-                return
-            }
-            let selection = Int(gtk_list_box_row_get_index(selectedRow))
-            guard selection != state.selection else {
-                return
-            }
-            state.selection = selection
-            action(selection)
+        lazyList(of: listView).onSelectionChange = { index in
+            if let index { action(index) }
         }
     }
 
     public func setSelectedItem(ofSelectableListView listView: Widget, toItemAt index: Int?) {
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-        state.selection = index
-        state.isProgrammaticSelectionUpdate = true
-        defer { state.isProgrammaticSelectionUpdate = false }
-        if let index {
-            listView.selectRow(at: index)
-        } else {
-            preserveNilSelection(of: listView, state: state)
-        }
-    }
-
-    private func preserveNilSelection(of listView: ListBox, state: SelectableListState) {
-        guard state.selection == nil else {
-            state.isClearingNilSelection = false
-            return
-        }
-
-        state.isClearingNilSelection = true
-        state.isProgrammaticSelectionUpdate = true
-        listView.unselectAll()
-        state.isProgrammaticSelectionUpdate = false
-
-        runInMainThread { [listView, state] in
-            guard state.selection == nil else {
-                state.isClearingNilSelection = false
-                return
-            }
-
-            state.isProgrammaticSelectionUpdate = true
-            listView.unselectAll()
-            state.isProgrammaticSelectionUpdate = false
-            state.isClearingNilSelection = false
-        }
-    }
-
-    private func state(for listView: ListBox) -> SelectableListState {
-        let key = ObjectIdentifier(listView)
-        if let state = selectableListStates[key] {
-            return state
-        }
-        let state = SelectableListState()
-        selectableListStates[key] = state
-        return state
+        lazyList(of: listView).selectedIndex = index
     }
 
     public func createTooltipContainer(wrapping child: Widget) -> Widget {
@@ -5888,13 +5797,6 @@ extension UnsafeMutablePointer {
         let pointer = UnsafeRawPointer(self).bindMemory(to: T.self, capacity: 1)
         return UnsafeMutablePointer<T>(mutating: pointer)
     }
-}
-
-private final class SelectableListState {
-    var selection: Int? = nil
-    var rowCount = 0
-    var isProgrammaticSelectionUpdate = false
-    var isClearingNilSelection = false
 }
 
 /// A custom label subclass that supports ellipsizing multi-line text. Regular

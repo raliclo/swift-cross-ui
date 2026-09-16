@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# WSLg XWayland at scale 1. Run with --debug -rows 10000.
+sleep,,,,,,4000000,Wait for first render,gtk
+click,85,442,,left,,,Select a visible row,gtk
+sleep,,,,,,1000000,Observe selection,gtk
+move,300,530,,,,,Pointer over list,gtk
+scroll,0,8,,,,,Scroll down using wheel input,gtk
+sleep,,,,,,2000000,Wait for recycling,gtk
+click,85,442,,left,,,Select a row after scrolling,gtk
+sleep,,,,,,1000000,Observe changed selection,gtk
+click,260,160,,left,,,Update visible row text,gtk
+sleep,,,,,,1000000,Observe revision 1,gtk
+click,55,160,,left,,,Clear selection,gtk
+sleep,,,,,,1000000,Observe nil,gtk
+click,395,160,,left,,,Shrink to one row,gtk
+sleep,,,,,,1000000,Observe count 1,gtk
+click,395,160,,left,,,Restore ten thousand rows,gtk
+sleep,,,,,,1000000,Observe count 10000,gtk
+click,145,160,,left,,,Select last from code,gtk
+sleep,,,,,,1000000,Observe selection 9999,gtk
+click,55,160,,left,,,Clear selection again,gtk
+sleep,,,,,,1000000,Observe nil,gtk
+move,300,530,,,,,Pointer over list,gtk
+scroll,0,-8,,,,,Return toward the first row,gtk
+sleep,,,,,,2000000,Allow recycled content to settle,gtk
+click,85,442,,left,,,Select a rebuilt row,gtk
+sleep,,,,,,2000000,Keep final state for capture,gtk

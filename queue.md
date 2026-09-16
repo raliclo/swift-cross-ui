@@ -1,5 +1,28 @@
 # queue
 
+## 2026-09-12 Windows / WSL handover
+
+- [ ] **#117 GTK ListView integration and P57 verification (active)**:
+  GtkBackend now uses the native lazy factory. Release builds succeeded on
+  WSL and Windows including the latest lifetime change.
+  Initial WSL GL/D3D12 probes: 1/400/10,000 rows used 320/326/327 MB after
+  settling; 10,000 model rows had 205 realized containers (206 after scrolling).
+  Initial selection was nil and selecting the last row reported 9999.
+  Final native probes on both platforms also confirmed Clear, revision updates
+  and 10,000 -> 1 -> 10,000 rows; container counts changed 205/206 -> 1 -> 205.
+  Wincap now uses Windows Graphics Capture. After restarting a stale WSLg COPY
+  MODE bridge, final WSLg/Windows GL captures measured 92.2%/92.1% non-black;
+  PIL confirmed matching 668x776 images and content bounds. Track current
+  evidence and outstanding checks in
+  `testapp/plan/plan-backend-followup-20260912.md`.
+  GTK 接入、生命週期修正、兩端原生狀態及截圖驗證已完成；黑圖成因是過期的 WSLg
+  COPY MODE bridge，加上舊 PrintWindow 路徑無法讀取 GPU surface。真實指標輸入與
+  WinUI 回歸仍待驗證。2026-09-14 更新。
+
+Source corrections to older entries below: #128 is already Double
+(`cfe30184`), and WinUI #117 was implemented in `bde16de0`; neither remains
+an unimplemented conversion. 原始碼已完成上述兩項，舊條目不可直接當作現況。
+
 由 `heartbeats/heartbeat.zsh` 讀取。**未完成寫 `- [ ]`,完成改成 `- [x]`。**
 順序即優先序:第一個未完成項就是下一件事。
 

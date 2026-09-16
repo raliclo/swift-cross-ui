@@ -1,4 +1,14 @@
 extension BackendFeatures {
+    /// Native factories that report when a row stops owning its content.
+    /// Keeps active row state alive even when native overscan exceeds the LRU limit.
+    @MainActor
+    public protocol LazyListRowLifetimes: LazyListRows {
+        func setLazyRowReleaseHandler(
+            ofSelectableListView listView: Widget,
+            to handler: @escaping (Int) -> Void
+        )
+    }
+
     /// A list that asks for a row when it needs one, instead of being handed
     /// every row up front.
     ///
