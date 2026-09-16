@@ -268,3 +268,29 @@ GTK 側:`gtk_widget_set_tooltip_text` **不是** hint;`AtkObject` 的 `accessibl
 `accessible-description` 才是,而 GTK4 的 `gtk_accessible_update_property` 是抵達它的現代寫法
 (`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。此處查不到它在你們的綁定裡是否存在——那是
 一個要去**查**的問題,不是一個結論。
+
+
+---
+
+## #122 focus:Mac 側三份已落地,GTK/WinUI 待接手(2026-09-16)
+
+`BackendFeatures.FocusableViews` 已存在,形狀與 `plan-focus-protocol.md` 議定的完全一致,**`focus` 回傳
+`Bool`**,採 conformance 檢查(未 conform 只 `warnOnce`)。AppKit / UIKit / Android 已實作,**測試 app
+是 P70**。
+
+**WinUI 那一格當初唯一沒解的衝突:`FocusManager.TryFocusAsync` 是非同步的,而 `focus` 是同步的。**
+那個問題還在,而現在有一個從 Mac 這邊得到的資料點:`focus` 的回傳值**真的被用到**——P70 的
+`@FocusState` 在被拒絕時會把屬性寫回 `false`,那是畫面上看得見的一列。所以「同步回傳一個猜測的
+`true`」會是最糟的選項。若 WinUI 只能非同步,請直接說,形狀要改成 `focus` 不回傳、由
+`setFocusChangeHandler` 承擔全部的回報——那仍然表達得出拒絕,只是晚一拍。
+
+**三個在 Mac 這邊踩過、你們大機率也會踩到的坑:**
+
+| 陷阱 | 症狀 | 真正的原因 |
+| --- | --- | --- |
+| 把 handler 裝在 **widget** 上 | 焦點明明移動了,handler 從不觸發 | widget 是容器;平台的「焦點改變」回呼只為它被裝上的那個 view 觸發。要裝在**視窗/樹**那一層(AppKit:`NSWindow` 的 first responder;Android:`ViewTreeObserver.OnGlobalFocusChangeListener`) |
+| 每一幀重建 observer | 改變被**靜默**吞掉 | 這段從 `computeLayout` 跑,每幀都跑;新 observer 的基準值取自當下狀態,於是拿改變跟自己比。要保留 observer、只換 handler |
+| 相信 `.disabled(true)` 會擋住焦點 | 被停用的控制項拿得到鍵盤,Tab 落在上面且什麼都不做 | `.disabled` 走 environment,設在外層包裝上;responder 搜尋會越過它走到內層仍然啟用的控制項 |
+
+第一列與第二列**都不會報錯**,而且都會產生一個看起來完全正常的畫面。P70 之所以同時顯示「焦點在哪裡」
+與「被告知過幾次」,就是為了讓它們現形:計數器停在 0 而游標看得見,就是第一列。
