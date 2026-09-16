@@ -585,3 +585,52 @@ extension GtkBackend {
         return SIMD2(requested.width, requested.height)
     }
 }
+
+/// The preferred side for a popover's arrow (#109).
+///
+/// **`GtkPopover.position` is already the right shape**: GTK treats it as a
+/// preference and flips to the opposite side when the anchor is too near a
+/// screen edge, which is exactly what ``BackendFeatures/PopoverArrowEdges``
+/// promises and what SwiftUI's `arrowEdge` means. Nothing here has to implement
+/// the flipping, and nothing here should try to prevent it.
+///
+/// **`leading`/`trailing` map to left/right, and that is a real limitation
+/// rather than an oversight.** GTK's `GtkPositionType` has no writing-direction
+/// variant, so a right-to-left layout would want them swapped. The framework's
+/// `Edge` is declared in terms of writing direction ("the left edge in left to
+/// right layouts"), so the honest thing is to say that this backend resolves
+/// them as if the layout were left-to-right, and to leave a reader the
+/// sentence rather than a surprise.
+///
+/// popover 箭頭的偏好側(#109)。
+///
+/// **`GtkPopover.position` 本來就是正確的形狀**:GTK 把它當成一個**偏好**,並在錨點太靠近螢幕邊緣時
+/// 翻到對側——那正是 ``BackendFeatures/PopoverArrowEdges`` 所承諾的,也正是 SwiftUI `arrowEdge`
+/// 的意思。此處不需要實作翻轉,也不該試圖阻止它。
+///
+/// **`leading`/`trailing` 對應到 left/right,而那是一項真實的限制、不是疏漏。**
+/// GTK 的 `GtkPositionType` 沒有「依書寫方向」的變體,因此在由右至左的版面中,這兩者應當對調。
+/// 框架的 `Edge` 是以書寫方向定義的(「在由左至右的版面中即為左緣」),所以誠實的做法是寫明
+/// 本 backend 是**以由左至右的版面**去解析它們,把這句話留給讀者,而不是留一個意外。
+extension GtkBackend: BackendFeatures.PopoverArrowEdges {
+    public func setPreferredArrowEdge(ofPopover popover: Popover, to edge: Edge?) {
+        // nil restores GTK's own default, which is `bottom` -- the value a
+        // `GtkPopover` has before anybody sets one. Restoring it explicitly
+        // matters because this is called on every commit: a popover whose
+        // `arrowEdge` went back to nil must stop preferring the side it was
+        // last given.
+        // nil 會恢復 GTK 自己的預設值,也就是 `bottom`——一個 `GtkPopover` 在任何人設定之前就持有的值。
+        // **明確地**恢復它是重要的,因為本方法每次 commit 都會被呼叫:一個 `arrowEdge` 變回 nil 的
+        // popover,必須停止偏好它上一次被指定的那一側。
+        popover.popover.position = edge.map(Self.positionType(for:)) ?? .bottom
+    }
+
+    private static func positionType(for edge: Edge) -> Gtk.PositionType {
+        switch edge {
+            case .top: return .top
+            case .bottom: return .bottom
+            case .leading: return .left
+            case .trailing: return .right
+        }
+    }
+}

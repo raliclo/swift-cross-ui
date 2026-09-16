@@ -1,0 +1,79 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, WinUIBackend: does arrowEdge move the popover? (#109)
+#
+# **The assertion is GEOMETRY, and the log cannot carry it.** `ARROW EDGE now
+# top` says the binding changed; it says nothing about where the panel landed.
+# So this file exists to put the popover on screen twice with two different
+# preferences, and the two captures are the evidence: PANEL BETA must appear on
+# opposite sides of its button.
+#
+# The pair is what makes either capture mean anything. A popover above its
+# anchor looks identical whether the app asked for `.top` or the platform ran
+# out of room below -- one picture cannot tell those apart, and two can.
+#
+# WHY IT CLICKS "Cycle arrow edge" RATHER THAN FOUR BUTTONS: one control cycles
+# none -> top -> bottom -> leading -> trailing -> none, so reaching `.bottom`
+# costs a second click rather than a second set of measured coordinates. The
+# readout beside it says which value is live, and the capture includes it.
+#
+# The panel is dismissed between the two by clicking well away from it, which is
+# also the light-dismiss path this app already tests.
+#
+# **THE FIRST PANEL, and two earlier arrangements are why.** Both were driven
+# and both produced pairs of captures that could not differ:
+#
+#   BETA with .top / .bottom      the second button sits at y=767 in a 918-tall
+#                                 window and the panel is ~200 tall, so there is
+#                                 no room below: `.bottom` was honoured as a
+#                                 preference and flipped ABOVE the button --
+#                                 correct, and identical to what `.top` gives
+#   BETA with .leading/.trailing  its button also starts near the left edge, so
+#                                 `.leading` flipped to the RIGHT, landing where
+#                                 `.trailing` lands
+#
+# A pair that cannot differ proves nothing whichever way the code behaves --
+# the same shape as a memory measurement that is right about the size and blind
+# to an empty screen. The FIRST panel's button has about 200 points free above
+# and below, which is the panel's height, so both preferences are honoured
+# literally there and the two pictures differ.
+#
+# **改用第一個面板,而理由來自前兩次的安排。** 兩者都驅動過,而且都產生了「不可能不同」的擷圖對:
+#
+#   BETA 配 .top / .bottom       第二顆按鈕位於 918 高視窗中的 y=767,面板約 200 高,
+#                                底下放不下:`.bottom` 作為偏好被遵守,於是翻到按鈕**上方**
+#                                ——正確,而且與 `.top` 給出的結果完全相同
+#   BETA 配 .leading/.trailing   那顆按鈕也靠近左緣,因此 `.leading` 翻到了**右邊**,
+#                                正好落在 `.trailing` 會落的位置
+#
+# **一組不可能不同的對照,無論程式如何運作都證明不了任何事**——這與「一個對尺寸完全正確、卻對
+# 空白畫面視而不見的記憶體量測」是同一個形狀。第一個面板的按鈕上下各有約 200 點空間,正好是面板
+# 高度,因此兩個偏好在那裡都會被**照字面遵守**,兩張圖也就真的不同。
+#
+# P50 於 Windows、WinUIBackend:`arrowEdge` 真的會移動 popover 嗎?(#109)
+#
+# **這裡的斷言是幾何,而 log 承載不了它。** `ARROW EDGE now top` 說的是 binding 改變了;
+# 它對「那塊面板落在哪裡」隻字未提。因此本檔的用途是:以兩個不同的偏好各把 popover 顯示一次,
+# 而**那兩張擷圖**才是證據——PANEL BETA 必須出現在它那顆按鈕的**相反兩側**。
+#
+# **成對才讓任何一張圖具有意義。** 一個出現在錨點上方的 popover,不論是 app 要求了 `.top`、
+# 還是平台在下方沒有空間,看起來都一樣——一張圖分不出來,兩張可以。
+#
+# 為何點的是「Cycle arrow edge」而不是四顆按鈕:一個控制項循環
+# none → top → bottom → leading → trailing → none,因此走到 `.bottom` 的代價是**多按一次**,
+# 而不是**多量一組座標**。旁邊的讀數會說出目前生效的值,而擷圖含有那一行。
+#
+# 兩次之間以「點在離面板很遠的地方」關閉它,而那也正是這支 app 已經在測的 light-dismiss 路徑。
+#
+# Coordinates measured off p50-109-layout-20260916-201628.png (782x918), frame origin.
+# 座標量自 p50-109-layout-20260916-201628.png(782x918),採 frame origin。
+sleep,,,,,,3000000,let the window settle and take the foreground,windows
+click,188,702,frame,left,,,cycle 1: none -> TOP,windows
+sleep,,,,,,600000,observe the readout say top,windows
+click,232,663,frame,left,,,open PANEL ALPHA with arrowEdge .top,windows
+sleep,,,,,,3000000,FIRST CAPTURE is taken during this hold,windows
+click,600,200,frame,left,,,light-dismiss the panel by clicking far from it,windows
+sleep,,,,,,800000,let it close,windows
+click,188,702,frame,left,,,cycle 2: top -> BOTTOM,windows
+sleep,,,,,,600000,observe the readout say bottom,windows
+click,232,663,frame,left,,,open PANEL ALPHA with arrowEdge .bottom,windows
+sleep,,,,,,3000000,SECOND CAPTURE is taken during this hold,windows

@@ -104,4 +104,62 @@ extension BackendFeatures {
 
         func size(ofPopover popover: Popover) -> SIMD2<Int>
     }
+
+    /// A popover that can be asked which side of its anchor to appear on (#109).
+    ///
+    /// **A PREFERENCE, not a placement, and the distinction is the feature.**
+    /// Every one of these platforms moves a popover that would not fit: GTK
+    /// flips a `GtkPopover` to the opposite side when the anchor is near a
+    /// screen edge, and WinUI's `Flyout` does the same. Promising an edge would
+    /// mean fighting that, and winning would mean drawing a popover half off
+    /// the screen. So this says which side to prefer and the platform keeps its
+    /// own rules -- the same contract SwiftUI's `arrowEdge` has.
+    ///
+    /// **This is why the anchor stays a widget** rather than becoming a point
+    /// plus an edge: ``Popovers/presentPopover(_:relativeTo:window:)`` already
+    /// explains that each platform positions from a rectangle it is given and
+    /// each has its own rules about edges. An edge preference rides alongside
+    /// that; it does not replace it.
+    ///
+    /// Separate from ``Popovers`` and conformance-checked, like
+    /// ``Containers/LazyListRows`` and ``TableSelection``: a backend that does
+    /// not implement it draws exactly the popover it draws today, on whichever
+    /// side the platform picks. Adding a parameter to `presentPopover` instead
+    /// would have broken all five conformances at once, and four of those five
+    /// cannot be compiled from here -- the shape mistakes.md entry 10 is about.
+    ///
+    /// 一種「可以被詢問要出現在錨點哪一側」的 popover(#109)。
+    ///
+    /// **這是一個偏好,不是一個位置,而這個區別正是這項功能的本質。** 這些平台每一個都會移動
+    /// 「放不下的」popover:錨點靠近螢幕邊緣時,GTK 會把 `GtkPopover` 翻到對側,WinUI 的 `Flyout`
+    /// 也一樣。**承諾某一側**等於要去對抗那個行為,而「贏了」的結果是畫出一個有一半在螢幕外的 popover。
+    /// 因此這裡說的是「偏好哪一側」,平台保有自己的規則——與 SwiftUI 的 `arrowEdge` 是同一個約定。
+    ///
+    /// **這也是錨點維持為 widget 的原因**,而不是改成「一個點加一個邊」:
+    /// ``Popovers/presentPopover(_:relativeTo:window:)`` 已經說明各平台是**由所給定的矩形**來定位、
+    /// 且各有自己的邊緣規則。邊的偏好是**伴隨**它,而不是取代它。
+    ///
+    /// 與 ``Popovers`` 分開並採 conformance 檢查,做法同 ``Containers/LazyListRows`` 與
+    /// ``TableSelection``:未實作它的 backend,畫出來的 popover 與今天完全相同、由平台自行決定側邊。
+    /// 若改成在 `presentPopover` 上加參數,則會**一次弄壞五個 conformance**,而其中四個在此處根本
+    /// 編不動——那正是 mistakes.md 第 10 條所講的形狀。
+    @MainActor
+    public protocol PopoverArrowEdges<Popover>: Popovers {
+        /// Asks for `popover` to appear on `edge` of its anchor, if it fits.
+        ///
+        /// nil restores the platform's own choice, which is what a popover
+        /// given no preference has always had.
+        ///
+        /// Called before ``Popovers/presentPopover(_:relativeTo:window:)``, so
+        /// an implementation that stores a placement on the native object has
+        /// it set by the time the popover is shown.
+        ///
+        /// 要求 `popover` 出現在其錨點的 `edge` 側——**如果放得下的話**。
+        ///
+        /// nil 會恢復平台自己的選擇,而那正是「沒有給偏好的 popover」一直以來的行為。
+        ///
+        /// 在 ``Popovers/presentPopover(_:relativeTo:window:)`` **之前**呼叫,因此把 placement
+        /// 存在原生物件上的實作,在該 popover 被顯示時該值已經設好。
+        func setPreferredArrowEdge(ofPopover popover: Popover, to edge: Edge?)
+    }
 }
