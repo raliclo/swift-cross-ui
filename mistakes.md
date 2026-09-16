@@ -844,3 +844,96 @@ set it to an EMPTY directory -- `SCUI_DEBUG_EVENTS_DIR=$(mktemp -d)`. Empty is
 the load-bearing half: it makes "this run wrote no log" distinguishable from
 "last run's log is still there". What `.gitignore` hides, no check will look at
 for you. Ignored is not harmless; it is only quiet.
+
+---
+
+## 12. 問了 queue「輪到誰」,沒問 origin「已經有什麼」
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+`#121` 被**實作了兩次**。合併時 git **沒有報任何衝突**——兩份實作在不同檔案裡——而報出來的是編譯器:
+
+```
+error: invalid redeclaration of 'keyboardShortcut(_:modifiers:)'
+```
+
+我那一份隨即被整份還原。
+
+### 時間線,而它不是運氣問題
+
+| 時間 | 事件 |
+| --- | --- |
+| 08:31 | Windows 提交他們的 #121(他們機器上) |
+| ~09:30 | 我 fetch。`origin/develop` behind **0**——他們還沒推 |
+| **09:56** | **Windows 推上來。他們的 #121 此刻已在 origin** |
+| ~10:30 | 我**開始**寫我的 #121 |
+| 10:46 | 我提交 |
+
+**有 35 分鐘的預警,而我一次都沒再 fetch。** 09:30 那次 fetch 當下是準的;我把「當下是準的」當成了「現在是準的」。
+
+### 為什麼 queue 檔擋不住
+
+`queue.md` 寫著:
+
+> *「Windows 端把它標為『卡在 Mac』」*
+
+那是真的——**在它被寫下的那一刻**。Windows 後來自己解了套:他們挑了一條走 environment 的路,
+那條路**完全不需要 Mac 這邊開任何欄位**。
+
+**一個 queue 檔記錄的是「某人寫下它時相信什麼」,不是「現在成立什麼」。** 它是一份意圖,不是一把鎖;
+而一份不會自己過期的意圖,讀起來與現況一模一樣。
+
+### 為什麼 git 結構上看不見
+
+同一個功能的兩份實作,寫在不同檔案,**merge 會乾乾淨淨**。版本控制沒有「這個功能做了兩次」這個概念——
+它只認得同一行被兩邊改動。唯一看見它的是編譯器,而那已經是兩份都寫完之後。
+
+因此這件事沒有任何**事後**的檢查擋得住。守衛必須在**開始之前**。
+
+### 矯正措施
+
+> 開始任何一項 queue 項目之前,不要問 queue「輪到誰」,要問 **origin**「**已經有什麼**」:
+>
+> ```sh
+> git fetch && git log origin/develop --oneline -S"<那個 API 的名字>" | head
+> ```
+>
+> 這會在幾秒內找到對方的 commit。**`-S` 搜的是內容,不是訊息**——對方不見得會在標題寫上那個名字。
+
+而在多人共用的分支上,**fetch 是「開始一項任務」的一部分**,不是「開始一個 session」的一部分。
+
+---
+
+## 12. Asked the queue whose turn it was, never asked origin what already existed
+
+`#121` was implemented TWICE. Git reported no conflict at all -- the two
+implementations lived in different files -- and the compiler is what reported
+it: `invalid redeclaration of 'keyboardShortcut(_:modifiers:)'`. Mine was
+reverted in full.
+
+It was not bad luck. Windows pushed their implementation at 09:56; I began
+writing mine at about 10:30 and committed at 10:46. My one fetch was at 09:30,
+when `origin/develop` really was 0 behind. I treated "accurate then" as "accurate
+now" for the rest of the session.
+
+`queue.md` said Windows had marked the item "blocked on Mac", and that was true
+when it was written. They then unblocked themselves by choosing a route -- the
+environment -- that needed nothing from this side. A queue file records what
+someone believed when they wrote it, not what holds now. It is an intention, not
+a lock, and an intention that never expires reads exactly like a current fact.
+
+Nor could git catch it: two implementations of one feature in different files
+merge cleanly. Version control has no concept of "this feature was built twice";
+it only knows about the same lines changing on both sides. So no check AFTER the
+work could have caught this. The guard has to come before it.
+
+The guard: before starting a queue item, do not ask the queue whose turn it is;
+ask ORIGIN what already exists.
+
+    git fetch && git log origin/develop --oneline -S"<the API name>" | head
+
+`-S` searches content, not messages -- the other side may never name the symbol
+in a subject line. And on a shared branch, fetching is part of starting a TASK,
+not part of starting a session.
