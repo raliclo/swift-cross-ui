@@ -6,6 +6,97 @@ import SwiftCrossUI
     import UIKit
 #endif
 
+#if canImport(WinUI)
+    import WinUI
+    import WinUIBackend
+
+    /// Reads the four accessibility properties back off the live WinUI tree.
+    ///
+    /// **In-process, and that limit is the same one the UIKit path states.** It
+    /// reads the properties this backend SET, not what a screen reader would
+    /// resolve -- `AutomationProperties.getName` returns what was attached, and
+    /// a real client walks the UI Automation tree from outside the process. So a
+    /// pass here says "the backend attached what the modifier asked for", which
+    /// is the half #123 owns, and says nothing about Narrator.
+    ///
+    /// The tree is reached through an embedded element rather than a global: a
+    /// `WinUIElementRepresentable` puts a real `Canvas` in the view tree, and
+    /// `VisualTreeHelper` walks up from it to the root and back down. That is
+    /// the same door P6 uses to reach a native element.
+    ///
+    /// 從活的 WinUI 樹上把那四個無障礙屬性讀回來。
+    ///
+    /// **在行程內讀,而這個限制與 UIKit 那條路所聲明的是同一個。** 它讀的是這個 backend **所設定**的
+    /// 屬性,而不是螢幕閱讀器最終會解析出來的東西——`AutomationProperties.getName` 回傳的是被掛上去的
+    /// 那個值,而真正的用戶端是從行程外走 UI Automation 樹。因此此處的通過,說的是「backend 掛上了
+    /// 那個 modifier 所要求的東西」——那是 #123 該負責的那一半——而它對朗讀程式一句話都沒說。
+    ///
+    /// 取得那棵樹的方式是透過一個嵌入的元素、而非某個全域物件:`WinUIElementRepresentable` 會在 view
+    /// 樹中放進一個真正的 `Canvas`,再由 `VisualTreeHelper` 從它往上走到 root、然後往下走。
+    /// 那與 P6 用來取得原生元素的是同一扇門。
+    struct P69WinUIProbe: WinUIElementRepresentable {
+        typealias WinUIElementType = WinUI.Canvas
+
+        func makeWinUIElement(context: Context) -> WinUI.Canvas {
+            let canvas = WinUI.Canvas()
+            // Deferred, for the reason the UIKit path gives: the controls exist
+            // by now but their properties are attached during this same layout
+            // pass, and reading mid-pass reports a half-built tree.
+            // 延後執行,理由與 UIKit 那條路所述相同:那些控制項此刻已經存在,但它們的屬性是在**這同一次**
+            // 版面計算中被掛上的,而在中途讀取,得到的是一棵建到一半的樹。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                MainActor.assumeIsolated { P69WinUIProbe.readBack(from: canvas) }
+            }
+            return canvas
+        }
+
+        func updateWinUIElement(_ element: WinUI.Canvas, context: Context) {}
+
+        @MainActor
+        static func readBack(from element: WinUI.FrameworkElement) {
+            var root: WinUI.DependencyObject = element
+            while let parent = VisualTreeHelper.getParent(root) {
+                root = parent
+            }
+            var collected: [String] = []
+            walk(root, into: &collected)
+            for line in collected { P69Diagnostics.write(line) }
+            P69Diagnostics.write("ACCESSIBILITY READ")
+        }
+
+        /// Only elements that carry at least one of the four are reported.
+        ///
+        /// A WinUI tree is mostly plumbing -- borders, presenters, panels -- and
+        /// printing every node would bury the four lines this app exists to
+        /// show. An element with nothing set is not evidence of anything.
+        ///
+        /// 只回報**至少帶有四者之一**的元素。
+        ///
+        /// 一棵 WinUI 樹大部分是管路——border、presenter、panel——而把每個節點都印出來,會把這支 app
+        /// 存在的理由(那四行)給埋掉。一個什麼都沒設定的元素,不構成任何證據。
+        @MainActor
+        static func walk(_ node: WinUI.DependencyObject, into collected: inout [String]) {
+            let name = AutomationProperties.getName(node)
+            let hint = AutomationProperties.getHelpText(node)
+            let value = AutomationProperties.getItemStatus(node)
+            let view = AutomationProperties.getAccessibilityView(node)
+            if !name.isEmpty || !hint.isEmpty || !value.isEmpty || view == .raw {
+                collected.append(
+                    "AX \(type(of: node)) label=\(name.isEmpty ? "-" : name)"
+                        + " hint=\(hint.isEmpty ? "-" : hint)"
+                        + " value=\(value.isEmpty ? "-" : value)"
+                        + " hidden=\(view == .raw)"
+                )
+            }
+            let count = VisualTreeHelper.getChildrenCount(node)
+            for index in 0..<count {
+                guard let child = VisualTreeHelper.getChild(node, index) else { continue }
+                walk(child, into: &collected)
+            }
+        }
+    }
+#endif
+
 // P69: do the four `.accessibility*` modifiers reach the screen reader? (#123)
 //
 // The number is checked: `ls testapp` gives P50..P68, and nothing under
@@ -124,6 +215,14 @@ struct P69RootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Zero-sized, and present only so the WinUI readback has a real
+            // element to walk the tree from. It reads; it does not render.
+            // 尺寸為零,存在的唯一目的是讓 WinUI 的讀回有一個真正的元素可據以走訪那棵樹。
+            // 它只負責讀取,不負責算繪。
+            #if canImport(WinUI)
+                P69WinUIProbe()
+                    .frame(width: 0, height: 0)
+            #endif
             Text("P69: accessibility modifiers (#123)")
                 .font(.system(size: 18))
             Text("backend -> \(String(describing: DefaultBackend.self))")
@@ -217,6 +316,13 @@ struct P69RootView: View {
                     P69Readings.shared.summary = collected.joined(separator: " | ")
                 }
             }
+        #elseif canImport(WinUI)
+            // The WinUI readback runs from `P69WinUIProbe`, which is embedded in
+            // the view body so it has a real element to walk the tree from.
+            // Nothing to do here, and saying so beats an empty branch that reads
+            // like an oversight.
+            // WinUI 的讀回由 `P69WinUIProbe` 執行,它被嵌入在 view body 中,好讓它有一個真正的元素
+            // 可以據以走訪那棵樹。此處無事可做——而把這件事寫出來,勝過留下一個「看起來像疏漏」的空分支。
         #else
             P69Diagnostics.write(
                 "macOS: run testapp/test_support/measure/ax_dump.swift against this app"

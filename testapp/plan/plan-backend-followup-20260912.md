@@ -26,9 +26,30 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 4. #32 gestures: drag has prior evidence; magnify/rotate need gesture input and
    callback/value checks. Do not label compile-only paths verified.
    手勢：縮放與旋轉仍待真實手勢輸入及數值驗證。
-5. #122/#123 focus/accessibility: protocol plan exists; inspect and implement
-   GTK/WinUI reporting and native accessibility exposure.
-   焦點／無障礙：待 GTK/WinUI 實作與原生讀取驗證。
+5. #122/#123 focus/accessibility: **both DONE on both Windows backends,
+   2026-09-16, and both DRIVEN by action files rather than only built.**
+
+   #122: FocusableViews now has all five backends. P70-focus.csv and
+   P70-focus-gtk4.csv drive all four protocol methods plus one refusal, 13
+   actions each. GtkEventControllerFocus is hand-written (zero hits in
+   Sources/Gtk/Generated, none needed -- CGtk/header.h is the whole gtk.h).
+
+   #123: Accessibility now has all five. P69 had NO Windows readback -- the
+   `#else` branch printed its own success marker having read nothing -- so add
+   one first; all four modifiers then read back on the right element.
+
+   TWO LIMITS, stated so nobody has to discover them: the readback is
+   in-process, so it confirms the backend ATTACHED what the modifier asked for
+   and says nothing about what Narrator resolves; and GTK has NO readback at
+   all, because gtkaccessible.h has update_property/update_state and no getters
+   -- reading needs AT-SPI, which is Linux-only. Win-gtk4 can set these
+   correctly and have nothing able to read them.
+
+   #122/#123:**2026-09-16 於兩個 Windows backend 皆完成,且都以動作檔驅動驗證,不只是編過。**
+   細節見上方英文段。**兩個限制**寫明如下,免得有人自己去踩:讀回是**行程內**的,它確認的是
+   「backend 掛上了該 modifier 所要求的東西」,對 Narrator 實際解析出什麼**一句話都沒說**;
+   而 **GTK 完全沒有讀回**,因為 `gtkaccessible.h` 只有 `update_property`/`update_state`、
+   沒有任何 getter——要讀必須靠 AT-SPI,而那僅限 Linux。Win-gtk4 可以正確設定,卻沒有東西讀得到。
 6. #79 GTK: **DONE 2026-09-16, and measured rather than hardcoded -- which was
    the whole of option (c).** The decoration IS queryable before present: create
    a window, do NOT set a titlebar, realize it, and walk its children for the

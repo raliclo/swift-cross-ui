@@ -448,13 +448,55 @@ case "$command" in
         #
         # 與上方那段是同一個教訓,只是早了一層:狀態碼是訊號,但**訊息格式**逐條程式路徑而異,
         # 因此每一條路徑都必須被列出。目前已知兩條;第三條出現時,以同樣方式加上去。
-        if [[ "$text" == *'exited with status 5'* ]] \
+        # ANY status from an injecting call, not only 5. Found 2026-09-16.
+        #
+        # `SetCursorPos exited with status 0` appeared on both backends, at the
+        # same point, reproducibly -- and `check` answered "says nothing about a
+        # replay", leaving the previous verdict standing. That is the third time
+        # this gate has been too narrow, after the tool name (fixed 2026-09-01)
+        # and the message format (fixed earlier today).
+        #
+        # The lesson each time is the same, so stop chasing it: the gate's
+        # question is "did our input reach the app", and a FAILED injecting call
+        # answers no whatever the status says. Status 5 is one reason among
+        # several; a run whose `SetCursorPos` returned false sent nothing either
+        # way, and nothing that run captured is evidence about the app.
+        #
+        # `SynthesiserError.toolFailed` renders "<name> exited with status <n>"
+        # and is thrown only by the Win32 calls that position or inject input, so
+        # matching the phrase without the number does not widen this to unrelated
+        # failures.
+        #
+        # **來自注入呼叫的任何狀態碼,不只是 5。發現於 2026-09-16。**
+        #
+        # `SetCursorPos exited with status 0` 在兩個 backend 上、於同一個位置、可重現地出現
+        # ——而 `check` 回答「says nothing about a replay」,讓先前的判決繼續成立。這是本閘門
+        # **第三次**過窄:先是呼叫名稱(2026-09-01 修),再是訊息格式(今天稍早修)。
+        #
+        # 每一次的教訓都相同,所以別再逐案追下去了:本閘門要問的是「我們的輸入有沒有抵達 app」,
+        # 而一個**失敗的注入呼叫**無論狀態碼是什麼,答案都是「沒有」。5 只是眾多理由之一;
+        # 一次 `SetCursorPos` 回傳 false 的執行,同樣什麼都沒送出去,而它所擷取的一切都不構成
+        # 關於那個 app 的證據。
+        #
+        # `SynthesiserError.toolFailed` 的算繪格式是「<名稱> exited with status <n>」,而它只由
+        # 「定位或注入輸入」的那些 Win32 呼叫拋出,因此比對不帶數字的這個片語,並不會把本閘門
+        # 擴及不相干的失敗。
+        if [[ "$text" == *'exited with status '* ]] \
             || [[ "$text" == *'to the foreground thread failed (5)'* ]]; then
             record_denial "$log"
-            printf '!! the desktop refused this run every input it sent (ERROR_ACCESS_DENIED).\n' >&2
+            # The status is quoted from the log rather than named, because it is
+            # not always 5. Saying ERROR_ACCESS_DENIED for a run that reported
+            # status 0 sends the reader looking for a permissions problem that
+            # the log never claimed.
+            # 狀態碼直接從 log 引用、而不由此處命名,因為它**不總是** 5。對一個回報 status 0 的執行
+            # 說「ERROR_ACCESS_DENIED」,會把讀者推去找一個那份 log 從未主張過的權限問題。
+            printf '!! an injecting call FAILED in this run, so its input never reached the app:\n' >&2
+            printf '!!   %s\n' \
+                "$(printf '%s\n' "$text" | grep -oE '[A-Za-z]+ exited with status [0-9]+' | tail -1)" >&2
             printf '!! Nothing this run captured is evidence about the app: a window capture\n' >&2
-            printf '!! still shows it drawn correctly. Unlock the workstation, or close whatever\n' >&2
-            printf '!! elevated window holds the foreground, and run it again.\n' >&2
+            printf '!! still shows it drawn correctly. Status 5 is the locked workstation or a\n' >&2
+            printf '!! higher-integrity foreground window; other statuses have been seen without\n' >&2
+            printf '!! either, and are equally disqualifying because nothing was sent.\n' >&2
             exit 3
         fi
 

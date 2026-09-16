@@ -215,6 +215,14 @@ GType scui_gtype_string(void);
 // The GType a drop target should accept for one or more files.
 GType scui_gtype_file_list(void);
 
+// G_TYPE_BOOLEAN, for the same reason the two above exist: it is a macro, so
+// Swift cannot see it, and `gtk_accessible_update_state_value` needs a GValue
+// initialised to it. `scui_gtype_string()` already covers G_TYPE_STRING.
+// G_TYPE_BOOLEAN,理由與上面兩個相同:它是一個巨集,Swift 看不到它,而
+// `gtk_accessible_update_state_value` 需要一個以它初始化的 GValue。
+// `scui_gtype_string()` 已經涵蓋了 G_TYPE_STRING。
+GType scui_gtype_boolean(void);
+
 // The GdkDragAction bitmask for a copy -- the only action we request.
 GdkDragAction scui_drag_action_copy(void);
 

@@ -1487,8 +1487,109 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         // 此處的狀態碼 5 是 ERROR_ACCESS_DENIED，代表桌面被鎖定，或前方站著一個完整性等級更高的
         // 視窗。`testapp/ui-lock.zsh` 比對的是該狀態碼，而非「回報它的是哪一個呼叫」的名稱——正是
         // 為了讓這次呼叫的更換不會使它失聲。
-        guard SetCursorPos(Int32(position.x), Int32(position.y)) else {
-            throw SynthesiserError.toolFailed("SetCursorPos", status: Int32(GetLastError()))
+        // **The cursor's POSITION is the test, not either call's return value.**
+        //
+        // `SetCursorPos` began returning false for every coordinate on
+        // 2026-09-16 -- a point 20pt inside our own window failed exactly as the
+        // real ones did -- with `GetLastError()` reporting 0, which names no
+        // cause at all. Ruled out by measurement, not by argument: the same
+        // failure on BOTH backends (so not backend code); both processes in
+        // Console 1 alongside explorer (so not a session mismatch); a normal
+        // unlocked desktop capture (so not the lock screen); and the
+        // synthesiser reverted to its pre-2026-09-16 version, which failed
+        // identically (so not that day's foreground change).
+        //
+        // `SendInput` with `MOUSEEVENTF_ABSOLUTE` is a different route to the
+        // same place and is tried when the first one refuses. It normalises
+        // against the VIRTUAL DESKTOP -- `SM_XVIRTUALSCREEN` and friends, not
+        // the primary monitor. That distinction is the bug this file once had
+        // and removed with the code; it is restored here with the lesson
+        // attached, because using the primary monitor puts every event on the
+        // wrong screen whenever the window is not on it.
+        //
+        // Then `GetCursorPos` decides. Either call may lie about what it did;
+        // where the cursor actually is cannot.
+        //
+        // **判準是游標的最終位置,不是任何一個呼叫的回傳值。**
+        //
+        // `SetCursorPos` 自 2026-09-16 起對**每一個**座標都回傳 false——一個位於我方視窗內 20pt 的點,
+        // 失敗方式與真實座標完全相同——而 `GetLastError()` 回報 0,等於沒有指出任何成因。以量測排除,
+        // 而非以論證排除:兩個 backend 上同樣失敗(故非 backend 程式碼);兩個行程都與 explorer 同在
+        // Console 1(故非 session 錯開);桌面擷圖是正常且未鎖定的(故非鎖定畫面);以及把本合成器
+        // 還原成 2026-09-16 之前的版本後**同樣失敗**(故非當日那次前景改動)。
+        //
+        // 帶 `MOUSEEVENTF_ABSOLUTE` 的 `SendInput` 是通往同一個目的地的另一條路,在第一條被拒絕時採用。
+        // 它是對**虛擬桌面**做正規化——`SM_XVIRTUALSCREEN` 那一組,而不是主螢幕。那個區別正是本檔
+        // 曾經有過、並隨程式碼一起移除的缺陷;此處把它連同教訓一起帶回來,因為用主螢幕會導致
+        // 「視窗不在其上時,每一個事件都落在錯的螢幕」。
+        //
+        // 最後由 `GetCursorPos` 裁決。兩個呼叫都可能謊報自己做了什麼;而游標**實際在哪裡**不會。
+        if !SetCursorPos(Int32(position.x), Int32(position.y)) {
+            let setCursorPosError = Int32(GetLastError())
+            sendAbsoluteMouseMove(to: position)
+            var landed = POINT()
+            let readBack = GetCursorPos(&landed)
+            let onTarget =
+                readBack
+                && abs(Int(landed.x) - position.x) <= 1
+                && abs(Int(landed.y) - position.y) <= 1
+            guard onTarget else {
+                // `GetClipCursor` is reported here because a confined cursor is
+                // the one cause that produces EXACTLY this signature: both calls
+                // silently refuse any point outside the clip rectangle, and
+                // `GetLastError` names nothing. Anything can call `ClipCursor`
+                // -- a game, a remote-desktop client, a screen-sharing or KVM
+                // tool -- and it outlives the process that set it if that
+                // process died without releasing it.
+                //
+                // A clip covering the whole virtual desktop is the normal state
+                // and means this was not the cause; a smaller rectangle names
+                // the culprit's bounds and is actionable.
+                //
+                // 此處回報 `GetClipCursor`,因為「游標被限制」是唯一會產生**正是這個簽名**的成因:
+                // 兩個呼叫都會靜默拒絕限制矩形之外的任何點,而 `GetLastError` 什麼也沒指出。
+                // 任何東西都可以呼叫 `ClipCursor`——遊戲、遠端桌面用戶端、螢幕分享或 KVM 工具
+                // ——而若設定它的那個行程沒有釋放就結束了,那個限制會活得比它久。
+                //
+                // 一個涵蓋整個虛擬桌面的限制矩形是正常狀態,代表成因不在此;而一個較小的矩形,
+                // 則指出了元兇的邊界,並且是可據以行動的。
+                var clip = RECT()
+                let clipRead = GetClipCursor(&clip)
+                ActionFileReplay.report(
+                    "SetCursorPos refused (status \(setCursorPosError)) and the SendInput "
+                        + "fallback did not land either: asked for "
+                        + "(\(position.x), \(position.y)), cursor is at "
+                        + (readBack ? "(\(landed.x), \(landed.y))" : "an unreadable position")
+                        + "; cursor clip is "
+                        + (clipRead
+                            ? "(\(clip.left), \(clip.top))-(\(clip.right), \(clip.bottom))"
+                            : "unreadable")
+                        + ", virtual desktop is "
+                        + "(\(GetSystemMetrics(SM_XVIRTUALSCREEN)), "
+                        + "\(GetSystemMetrics(SM_YVIRTUALSCREEN)))-"
+                        + "(\(GetSystemMetrics(SM_CXVIRTUALSCREEN)), "
+                        + "\(GetSystemMetrics(SM_CYVIRTUALSCREEN)))"
+                        // `SM_MOUSEPRESENT` is asked because "plug a mouse into
+                        // the remote machine" is a recurring fix for exactly
+                        // this symptom on remote sessions, and a machine with no
+                        // pointing device does not maintain a cursor the way one
+                        // with a mouse does. Zero here would explain both the
+                        // refused moves and the cursor being absent from a local
+                        // capture, and it is one call to find out instead of an
+                        // argument about it.
+                        // 之所以詢問 `SM_MOUSEPRESENT`,是因為在遠端連線上,針對這一模一樣的症狀,
+                        // 「在遠端機器上插一支滑鼠」是一個反覆出現的解法;而一台沒有指標裝置的機器,
+                        // 維護游標的方式與有滑鼠的不同。此處若為零,就同時解釋了「移動被拒絕」與
+                        // 「本機擷圖中沒有游標」——而查清楚它只需要一次呼叫,不需要一場爭論。
+                        + ", mousePresent=\(GetSystemMetrics(SM_MOUSEPRESENT))"
+                        + ", \(Self.desktopComparison())"
+                )
+                throw SynthesiserError.toolFailed("SetCursorPos", status: setCursorPosError)
+            }
+            ActionFileReplay.report(
+                "SetCursorPos refused (status \(setCursorPosError)); the SendInput fallback "
+                    + "placed the cursor at (\(landed.x), \(landed.y)) as asked"
+            )
         }
         reportMouseMove(point: point, screen: position)
         // After the report, so the failing move is in the log with its full hit
@@ -1657,6 +1758,112 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
     /// Not one event per notch: `mouseData` is a signed multiple of
     /// `WHEEL_DELTA`, and sending the total in a single event is what a real
     /// wheel with a high-resolution driver produces.
+    /// An absolute pointer move through `SendInput`, normalised to the VIRTUAL
+    /// desktop.
+    ///
+    /// `MOUSEEVENTF_ABSOLUTE` coordinates are 0...65535 across a rectangle, and
+    /// `MOUSEEVENTF_VIRTUALDESK` is what makes that rectangle the whole virtual
+    /// desktop rather than the primary monitor. Both the flag and the matching
+    /// `SM_XVIRTUALSCREEN` arithmetic are required; using one without the other
+    /// is the multi-monitor bug this file's `move(to:in:)` comment records.
+    ///
+    /// The `- 1` on each extent is not a fencepost slip: the normalised range is
+    /// inclusive at both ends, so the last pixel maps to 65535 and dividing by
+    /// the full width would place it one pixel short.
+    ///
+    /// 透過 `SendInput` 的絕對座標指標移動,並對**虛擬**桌面做正規化。
+    ///
+    /// `MOUSEEVENTF_ABSOLUTE` 的座標是橫跨某個矩形的 0...65535,而 `MOUSEEVENTF_VIRTUALDESK`
+    /// 正是讓那個矩形成為「整個虛擬桌面」而非「主螢幕」的東西。那個旗標與對應的
+    /// `SM_XVIRTUALSCREEN` 算術**兩者都必要**;只用其一不用其二,正是本檔 `move(to:in:)` 註解所
+    /// 記載的那個多螢幕缺陷。
+    ///
+    /// 兩個範圍各減 1 不是柵欄樁的筆誤:正規化後的範圍**兩端皆含**,因此最後一個像素要對應到 65535;
+    /// 若用完整寬度去除,它會落在差一像素的位置。
+    /// Whether this thread's desktop IS the input desktop, by name.
+    ///
+    /// **This is the one documented precondition for `SetCursorPos` that had not
+    /// been measured.** Microsoft states two: the process needs
+    /// `WINSTA_WRITEATTRIBUTES` on the window station, and *the input desktop
+    /// must be the current desktop*. A mismatch makes the call fail, and it
+    /// explains the otherwise strange pair of readings this diagnostic keeps
+    /// producing -- refused moves alongside a `GetCursorPos` that answers, since
+    /// the answer would be about a different desktop.
+    ///
+    /// Names rather than handle comparison: `GetThreadDesktop` and
+    /// `OpenInputDesktop` return different handles to the same desktop, so
+    /// comparing the handles would report a difference that is not there.
+    ///
+    /// 這條執行緒的桌面**是不是**輸入桌面,以名稱比對。
+    ///
+    /// **這是 `SetCursorPos` 唯一一個尚未被量測的、有文件明載的前提條件。** 微軟列出兩個:該行程需要
+    /// window station 的 `WINSTA_WRITEATTRIBUTES`,**而且輸入桌面必須是目前的桌面**。兩者不符會讓該
+    /// 呼叫失敗,而它也解釋了本診斷一再產出的那對奇怪讀數——移動被拒絕、`GetCursorPos` 卻答得出來,
+    /// 因為那個答案談的會是**另一個**桌面。
+    ///
+    /// 比對名稱而非控制代碼:`GetThreadDesktop` 與 `OpenInputDesktop` 對同一個桌面會回傳**不同**的
+    /// 控制代碼,因此比對控制代碼會回報一個並不存在的差異。
+    private static func desktopComparison() -> String {
+        func name(of desktop: HDESK?) -> String {
+            guard let desktop else { return "unavailable" }
+            var needed: DWORD = 0
+            GetUserObjectInformationW(desktop, UOI_NAME, nil, 0, &needed)
+            guard needed > 0 else { return "unnamed" }
+            var buffer = [UInt16](repeating: 0, count: Int(needed) / 2 + 1)
+            let ok = buffer.withUnsafeMutableBytes { raw in
+                GetUserObjectInformationW(desktop, UOI_NAME, raw.baseAddress, needed, &needed)
+            }
+            guard ok else { return "unreadable" }
+            return String(decodingCString: buffer, as: UTF16.self)
+        }
+
+        let mine = name(of: GetThreadDesktop(GetCurrentThreadId()))
+        let input = OpenInputDesktop(0, false, DWORD(DESKTOP_READOBJECTS))
+        defer { if let input { CloseDesktop(input) } }
+        let inputName = input == nil ? "DENIED" : name(of: input)
+
+        // The window station, and the second documented precondition with it.
+        // `SetCursorPos` needs `WINSTA_WRITEATTRIBUTES`, and a process on a
+        // NON-INTERACTIVE station -- anything other than `WinSta0` -- cannot
+        // touch the desktop at all. Asking for the name costs one call and
+        // separates "we lack one right" from "we are not on the interactive
+        // station", which are different problems with different fixes.
+        // window station,以及隨之而來的第二個有文件的前提條件。`SetCursorPos` 需要
+        // `WINSTA_WRITEATTRIBUTES`,而一個位於**非互動式** station(任何不是 `WinSta0` 的)上的行程,
+        // 根本碰不到桌面。詢問它的名稱只需一次呼叫,而它能分開「我們缺少某一項權限」與
+        // 「我們不在互動式 station 上」——那是兩個不同的問題,修法也不同。
+        var stationName = "unavailable"
+        if let station = GetProcessWindowStation() {
+            var needed: DWORD = 0
+            GetUserObjectInformationW(station, UOI_NAME, nil, 0, &needed)
+            if needed > 0 {
+                var buffer = [UInt16](repeating: 0, count: Int(needed) / 2 + 1)
+                let ok = buffer.withUnsafeMutableBytes { raw in
+                    GetUserObjectInformationW(station, UOI_NAME, raw.baseAddress, needed, &needed)
+                }
+                stationName = ok ? String(decodingCString: buffer, as: UTF16.self) : "unreadable"
+            }
+        }
+
+        return "threadDesktop=\(mine) inputDesktop=\(inputName) station=\(stationName)"
+    }
+
+    private func sendAbsoluteMouseMove(to position: (x: Int, y: Int)) {
+        let originX = Int(GetSystemMetrics(SM_XVIRTUALSCREEN))
+        let originY = Int(GetSystemMetrics(SM_YVIRTUALSCREEN))
+        let width = max(1, Int(GetSystemMetrics(SM_CXVIRTUALSCREEN)) - 1)
+        let height = max(1, Int(GetSystemMetrics(SM_CYVIRTUALSCREEN)) - 1)
+
+        var input = INPUT()
+        input.type = DWORD(INPUT_MOUSE)
+        input.mi.dx = LONG((position.x - originX) * 65535 / width)
+        input.mi.dy = LONG((position.y - originY) * 65535 / height)
+        input.mi.dwFlags = DWORD(
+            MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
+        )
+        _ = SendInput(1, &input, Int32(MemoryLayout<INPUT>.size))
+    }
+
     private func send(wheelFlags: Int32, delta: Int) throws {
         var input = INPUT()
         input.type = DWORD(INPUT_MOUSE)
