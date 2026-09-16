@@ -234,3 +234,37 @@ Swift 6.4 compiler」失敗,而**第一個錯誤指名的是建置目錄裡一�
 | #28 Animation | `withAnimation` + 四種曲線 + `Color` 插值;P66 量到 0.5 秒補間產出 31 個相異值、29 個相異顏色 |
 | `origin=popover` on AppKit | 完成。要**兩個**修正:事件要投給 popover 自己的視窗,且 `targetWindow()` 不能再回傳 popover(它會取得 key) |
 | P50 popover 版面缺陷 | `updatePopover` 把 content view 的 frame 設成 `.zero`,覆蓋掉 AppKit 的置中,內容被釘在外殼左下角。外殼 314x180 對內容 288x154,那 26 點被整份推到上緣與右緣 |
+
+
+---
+
+## #123 accessibility:Mac 側三份已落地,GTK/WinUI 待接手(2026-09-16)
+
+`BackendFeatures.Accessibility` 已存在,四個方法,**conformance 檢查**(未 conform 的 backend 只會
+`warnOnce`,不會 `fatalError`),與 `ScrollingLists`、`LazyListRows` 同一種安排:
+
+```swift
+func setAccessibilityLabel(ofWidget widget: Widget, to label: String?)
+func setAccessibilityHint(ofWidget widget: Widget, to hint: String?)
+func setAccessibilityValue(ofWidget widget: Widget, to value: String?)
+func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool)
+```
+
+AppKit / UIKit / Android 已實作並各自以外部探針驗過。**測試 app 是 P69**(新的;P67 不變,它問的是
+另一個問題)。
+
+**三件在 Mac 這邊踩過、你們很可能也會踩到的事:**
+
+| 陷阱 | 症狀 | 真正的原因 |
+| --- | --- | --- |
+| 在 `commit` 裡套用屬性 | modifier 看起來從未執行 | `updateButton` 在**下一幀的 `computeLayout`** 重寫標籤。屬性要在 `computeLayout` 裡、於子元件之後套用 |
+| 從外面找「內層那個真正的元素」 | 標籤落在一個螢幕閱讀器不造訪的包裝上 | 平台的「這是不是無障礙元素」旗標預設為 false;而「唯一的控制項」在按鈕裡是**兩個** |
+| 用 dump 工具驗 `hidden` | 被隱藏的文字看起來仍在 | Android 的 `uiautomator dump` 預設帶 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,要加 `--compressed` |
+
+第三列對 WinUI 特別相關:**先確認你們的檢視工具過濾的是什麼**,再下「沒生效」的結論。那一項在這邊
+花掉的時間,全部花在一個正確的實作上。
+
+GTK 側:`gtk_widget_set_tooltip_text` **不是** hint;`AtkObject` 的 `accessible-name` /
+`accessible-description` 才是,而 GTK4 的 `gtk_accessible_update_property` 是抵達它的現代寫法
+(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。此處查不到它在你們的綁定裡是否存在——那是
+一個要去**查**的問題,不是一個結論。
