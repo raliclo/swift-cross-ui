@@ -1,6 +1,10 @@
 import DefaultBackend
 import Foundation
-import SwiftCrossUI
+// `@_spi(Backends)` for `BackendFeatures`, which the #109 conformance readout
+// asks about -- the same way P23 and P57 ask about theirs.
+// 需要 `@_spi(Backends)` 才能取得 `BackendFeatures`——#109 的 conformance 讀數要問它,
+// 與 P23、P57 詢問各自協定的方式相同。
+@_spi(Backends) import SwiftCrossUI
 
 // P50 is the picture of the two view features that landed on 2026-09-08 and
 // that nothing else in the P-suite draws:
@@ -356,6 +360,13 @@ struct P50PopoverSection: View {
     @Binding var isAlphaPresented: Bool
     @Binding var isBetaPresented: Bool
     @Binding var panelCounter: Int
+    /// #109. Held HERE rather than in `P50RootView` because the popovers are
+    /// here: the first attempt put the state on the root view and the compiler
+    /// answered with six `cannot find 'arrowEdge' in scope`, one per use.
+    /// #109。狀態放在**這裡**而不是 `P50RootView`,因為那兩個 popover 在這裡:第一次嘗試把 state
+    /// 放在 root view,編譯器以六個 `cannot find 'arrowEdge' in scope` 回答,每個使用點一個。
+    @State var arrowEdge: Edge?
+    @Environment(\.backend) var backend
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -392,8 +403,12 @@ struct P50PopoverSection: View {
                     isAlphaPresented = true
                     P50Diagnostics.write("popover alpha shown")
                 }
+                // #109 rides on ALPHA -- see the note on BETA below for why it
+                // is this one and not that one.
+                // #109 掛在 ALPHA 上——為何是這一個而不是那一個,見下方 BETA 的註解。
                 .popover(
                     isPresented: $isAlphaPresented,
+                    arrowEdge: arrowEdge,
                     onDismiss: {
                         // Reached only for a USER dismissal -- clicking away or
                         // pressing escape. `dismissPopover(_:window:)` must not
@@ -424,10 +439,73 @@ struct P50PopoverSection: View {
                     )
                 }
 
+                // #109 arrowEdge, cycled from one button so an action file can
+                // reach every value without four buttons' worth of coordinates.
+                //
+                // The readout says which value is ACTIVE, and that is the half a
+                // capture cannot supply: a popover that appears above its anchor
+                // looks the same whether it did so because the app asked for
+                // `.top` or because the platform ran out of room below. The pair
+                // -- this line plus the picture -- is what makes either one
+                // evidence.
+                //
+                // #109 的 arrowEdge,用**一顆按鈕循環切換**,好讓動作檔不必為四顆按鈕各量一組座標
+                // 就能走遍每一個值。
+                //
+                // 讀數說出**目前生效的是哪一個值**,而那正是擷圖給不了的一半:一個出現在錨點上方的
+                // popover,不論是因為 app 要求了 `.top`、還是因為平台在下方沒有空間,看起來都一樣。
+                // **這一行加上那張圖**,才讓兩者中的任何一個成為證據。
+                HStack(spacing: 8) {
+                    Button("Cycle arrow edge") {
+                        arrowEdge =
+                            switch arrowEdge {
+                                case nil: .top
+                                case .top: .bottom
+                                case .bottom: .leading
+                                case .leading: .trailing
+                                case .trailing: nil
+                            }
+                        P50Diagnostics.write(
+                            "ARROW EDGE now \(arrowEdge.map(String.init(describing:)) ?? "none")"
+                        )
+                    }
+                    Text(
+                        "arrow edge: \(arrowEdge.map(String.init(describing:)) ?? "none (platform decides)")"
+                    )
+                }
+                Text(
+                    "arrow edge supported: "
+                        + "\(backend is any BackendFeatures.PopoverArrowEdges ? "yes" : "NO")"
+                )
+
                 Button("Open the second panel (bottom anchor)") {
                     isBetaPresented = true
                     P50Diagnostics.write("popover beta shown")
                 }
+                // #109: BETA is the CONTROL and takes no arrowEdge; ALPHA
+                // carries it. That is the opposite of the first arrangement,
+                // and the reason is measured rather than stylistic.
+                //
+                // **BETA's button has no room on any side**: it sits near the
+                // bottom of the window and near the left edge, so `.bottom`
+                // flipped the panel above it and `.leading` flipped it to the
+                // right -- both correct, both producing a picture identical to
+                // the opposite preference. A pair of captures that cannot
+                // differ proves nothing whichever way the code behaves.
+                //
+                // ALPHA's button sits with about 200 points free above and
+                // below, which is the panel's height, so `.top` and `.bottom`
+                // are honoured literally there and the two pictures differ.
+                //
+                // #109:**BETA 是對照組、不帶 arrowEdge;ALPHA 帶它。** 這與第一版的安排相反,
+                // 而理由是量出來的、不是品味問題。
+                //
+                // **BETA 那顆按鈕四周都沒有空間**:它靠近視窗底部、也靠近左緣,因此 `.bottom` 把
+                // 面板翻到它上方、`.leading` 把面板翻到右邊——兩者都正確,而且都產生了與「相反偏好」
+                // 一模一樣的畫面。**一組不可能不同的擷圖,無論程式如何運作都證明不了任何事。**
+                //
+                // ALPHA 那顆按鈕上下各有約 200 點的空間,正好是面板的高度,因此 `.top` 與 `.bottom`
+                // 在它身上會被**照字面遵守**,兩張圖也就看得出差異。
                 .popover(
                     isPresented: $isBetaPresented,
                     onDismiss: {

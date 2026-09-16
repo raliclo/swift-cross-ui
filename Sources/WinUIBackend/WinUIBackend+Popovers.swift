@@ -21,6 +21,21 @@ extension WinUIBackend {
     public final class Popover {
         let flyout: WinUI.Flyout
         var dismissHandler: (() -> Void)?
+        /// The side the app asked for, or nil for XAML's own choice (#109).
+        ///
+        /// **Stored rather than written straight onto the flyout**, because
+        /// `presentPopover` assigns `placement` immediately before `showAt` --
+        /// see the note there. A preference set earlier would be overwritten by
+        /// that line and take effect on the NEXT presentation instead of this
+        /// one: right forever after being wrong once, which reads as a race and
+        /// is not.
+        ///
+        /// app 所要求的那一側;nil 表示交由 XAML 自行決定(#109)。
+        ///
+        /// **存起來、而不是直接寫到 flyout 上**,因為 `presentPopover` 會在 `showAt` 之前立刻指派
+        /// `placement`(見該處註解)。先前設定的偏好會被那一行蓋掉,於是它會在**下一次**呈現時才生效
+        /// ——「錯一次、之後永遠對」,看起來像競態,其實不是。
+        var preferredPlacement: WinUI.FlyoutPlacementMode?
 
         init(content: WinUI.FrameworkElement) {
             flyout = WinUI.Flyout()
@@ -158,7 +173,19 @@ extension WinUIBackend {
         // 交還給 XAML 的值——XAML 會依錨點的矩形、以及螢幕上四周所剩的空間來定位該 flyout；其預設值
         // 是 `.top`，因此這是一項選擇，而不是「沒有做選擇」。釘死的一側即使在沒有空間的地方也會被
         // 忠實遵守，而一個跑到螢幕邊緣外的 popover 等於什麼都沒顯示。
-        popover.flyout.placement = .auto
+        //
+        // **A preference from the app overrides that choice, and does not
+        // contradict the paragraph above.** The values XAML calls `.top`,
+        // `.bottom`, `.left` and `.right` are themselves preferences: the
+        // flyout moves when there is no room, which is the behaviour the
+        // paragraph is protecting. What it rules out is this BACKEND picking a
+        // side nobody asked for, and a nil preference still means `.auto`.
+        //
+        // **來自 app 的偏好會覆蓋那個選擇,而這與上一段並不矛盾。** XAML 的 `.top`、`.bottom`、
+        // `.left`、`.right` 本身就是**偏好**:空間不足時該 flyout 仍會移動,而那正是上一段要保護的
+        // 行為。上一段排除的是「由**這個 backend** 挑一個沒有人要求的側邊」,而偏好為 nil 時
+        // 仍然是 `.auto`。
+        popover.flyout.placement = popover.preferredPlacement ?? .auto
 
         do {
             try popover.flyout.showAt(anchor)
@@ -217,5 +244,40 @@ extension WinUIBackend {
         // 「一個還沒有任何東西量測過的 popover 有多大」來說，零正是誠實的回答。
         let desired = content.desiredSize
         return SIMD2(Int(desired.width), Int(desired.height))
+    }
+}
+
+/// The preferred side for a popover's arrow (#109).
+///
+/// `FlyoutPlacementMode`'s sided values are preferences in XAML's own terms --
+/// a flyout with no room on the requested side moves -- which is what
+/// ``BackendFeatures/PopoverArrowEdges`` promises and what GtkBackend gets from
+/// `GtkPopover.position`. Two platforms, one contract, neither of them asked to
+/// implement flipping.
+///
+/// **`leading`/`trailing` resolve as left/right**, the same limitation stated on
+/// the GTK side: `FlyoutPlacementMode` has `.leftEdgeAlignedTop` and friends but
+/// nothing that follows writing direction, so a right-to-left layout would want
+/// them swapped. Said here rather than left for someone to find.
+///
+/// popover 箭頭的偏好側(#109)。
+///
+/// `FlyoutPlacementMode` 中帶側邊的那些值,依 XAML 自己的定義就是**偏好**——在所要求的一側沒有空間時,
+/// flyout 會移動——那正是 ``BackendFeatures/PopoverArrowEdges`` 所承諾的,也正是 GtkBackend 從
+/// `GtkPopover.position` 得到的東西。兩個平台、同一個約定,而且兩者都不需要自己實作翻轉。
+///
+/// **`leading`/`trailing` 解析為 left/right**,與 GTK 那側寫明的限制相同:`FlyoutPlacementMode`
+/// 有 `.leftEdgeAlignedTop` 之類的值,但沒有任何一個會跟隨書寫方向,因此由右至左的版面應當對調。
+/// 寫在這裡,而不是留給某個人自己去發現。
+extension WinUIBackend: BackendFeatures.PopoverArrowEdges {
+    public func setPreferredArrowEdge(ofPopover popover: Popover, to edge: Edge?) {
+        popover.preferredPlacement = edge.map { edge in
+            switch edge {
+                case .top: return WinUI.FlyoutPlacementMode.top
+                case .bottom: return WinUI.FlyoutPlacementMode.bottom
+                case .leading: return WinUI.FlyoutPlacementMode.left
+                case .trailing: return WinUI.FlyoutPlacementMode.right
+            }
+        }
     }
 }

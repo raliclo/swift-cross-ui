@@ -19,14 +19,29 @@ extension View {
     /// `UIPopoverPresentationController`、`GtkPopover`、WinUI 的 `Flyout`、Android 的 `PopupWindow`。
     /// 在 iPhone 上，UIKit 自己會把 popover 調適為 sheet,那是該平台對於「螢幕小到無法指向任何東西」
     /// 所給出的答案,並不是本工具組拿一種呈現去替換另一種。
+    /// - Parameter arrowEdge: Which side of this view to prefer the popover on.
+    ///   **A preference, not a placement**: every backend here moves a popover
+    ///   that would not fit, and this does not fight that. nil, the default,
+    ///   leaves the choice to the platform, which is what popovers did before
+    ///   this parameter existed -- so adding it changes nothing for existing
+    ///   callers. A backend without ``BackendFeatures/PopoverArrowEdges``
+    ///   ignores it rather than refusing to draw.
+    ///
+    /// - Parameter arrowEdge: 偏好讓 popover 出現在本 view 的哪一側。
+    ///   **這是偏好,不是位置**:此處每一個 backend 都會移動「放不下的」popover,而本參數不與之對抗。
+    ///   預設的 nil 把選擇交給平台——那也正是本參數存在之前 popover 的行為,因此加上它對既有呼叫端
+    ///   不造成任何改變。未實作 ``BackendFeatures/PopoverArrowEdges`` 的 backend 會忽略它,
+    ///   而不是拒絕繪製。
     public func popover<PopoverContent: View>(
         isPresented: Binding<Bool>,
+        arrowEdge: Edge? = nil,
         onDismiss: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> PopoverContent
     ) -> some View {
         PopoverModifier(
             isPresented: isPresented,
             body: TupleView1(self),
+            arrowEdge: arrowEdge,
             onDismiss: onDismiss,
             popoverContent: content
         )
@@ -38,6 +53,10 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
 
     var isPresented: Binding<Bool>
     var body: TupleView1<Content>
+    /// Which side of the anchor to prefer, or nil for the platform's choice.
+    /// See ``SwiftCrossUI/View/popover(isPresented:arrowEdge:onDismiss:content:)``.
+    /// 偏好錨點的哪一側;nil 表示由平台決定。
+    var arrowEdge: Edge?
     var onDismiss: (() -> Void)?
     var popoverContent: () -> PopoverContent
 
@@ -161,6 +180,32 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
                     .resolve(in: environment),
                 onDismiss: { handleDismiss(children: children) }
             )
+
+            // **Before presenting, not after.** GTK and WinUI both read the
+            // placement off the native object when the popover is shown, so a
+            // preference applied afterwards would take effect on the NEXT
+            // presentation -- the popover would appear on the wrong side once
+            // and be right forever after, which is the kind of defect that
+            // looks like a race and is not.
+            //
+            // Applied on every commit rather than only when presenting, so
+            // changing `arrowEdge` on an open popover reaches the backend.
+            //
+            // **在呈現之前,不是之後。** GTK 與 WinUI 都是在 popover 被顯示時,從原生物件上讀取
+            // placement;因此事後才套用的偏好會在**下一次**呈現時才生效——那個 popover 會在第一次
+            // 出現在錯的一側、之後永遠是對的,而那種缺陷看起來像競態,其實不是。
+            //
+            // 每次 commit 都套用,而不是只在呈現時套用,如此一來「在 popover 已開啟時改變
+            // `arrowEdge`」也會傳達到 backend。
+            if let placeable = backend as? any BackendFeatures.PopoverArrowEdges {
+                func apply<P: BackendFeatures.PopoverArrowEdges>(_ backend: P) {
+                    backend.setPreferredArrowEdge(
+                        ofPopover: popover as! P.Popover,
+                        to: arrowEdge
+                    )
+                }
+                apply(placeable)
+            }
 
             if needsPresenting {
                 backend.presentPopover(
