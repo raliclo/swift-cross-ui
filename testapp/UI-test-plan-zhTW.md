@@ -1,8 +1,34 @@
-# UI 測試計畫：P0-P41
+# UI 測試計畫(正體中文)
+
+**一種語言一個檔案,而這是中文的那一個。** 它原本是五份——整體計畫、缺陷計畫、Linux 計畫、
+平台矩陣,以及結果紀錄——而英文那一半是另外五份。十個檔案裝兩份文件,意味著讀者必須先知道答案在
+哪一份裡才查得到,而改一個步驟會有五個地方可能是它該待的位置。
+
+**合併過程中沒有重寫任何內容。** 下面每一部分都是原本那些檔案之一:標題各降一級以嵌進所屬的部分、
+原本的標題行被移除(因為部分標題已經取代了它)、原先各檔之間的互相引用改成連結。
+其餘每一行都未更動。
+
+**`UI-test-plan_zhTW.md`(WinUI P0-P6)刻意沒有併進來。** 它列在 `.git/info/exclude` 裡,
+是一份**只存在於本機**的檔案;把它折進一個會被提交的檔案,等於替使用者決定把它發佈出去。
+它仍在 `testapp/` 底下,原地未動。
+
+英文那一半是 `UI-test-plan-en.md`。兩者不是逐行對譯——本來就不是。
+
+## 各部分
+
+- [整體計畫:P0-P41](#整體計畫p0-p41) — 每一支 app 的步驟,依序排列。最長的一部分,也是最先該讀的。
+- [缺陷計畫:AppKit、UIKit 與 AndroidBackend](#缺陷計畫appkituikit-與-androidbackend) — 針對 Apple 與 Android backend 特定缺陷所寫的那些 app。
+- [Linux 計畫:透過 WSL 的 GtkBackend](#linux-計畫透過-wsl-的-gtkbackend) — 工具鏈、各階段,以及一個 WSLg 的結果能證明什麼、不能證明什麼。
+- [平台矩陣](#平台矩陣) — 哪個 issue 在哪裡跑,以及那個答案算不算數。
+- [結果紀錄](#結果紀錄) — 帶日期的人工測試結果。那是一份執行紀錄,不是計畫。
+
+---
+
+## 整體計畫:P0-P41
 
 本文件整理 `testapp` 測試程式的手動與輔助 UI 測試步驟。測試目標是快速重現與確認 WinUIBackend、GtkBackend、AppKitBackend、UIKitBackend 與 AndroidBackend 的 backend-specific issues。
 
-## 測試前準備
+### 測試前準備
 
 1. 進入專案根目錄：
 
@@ -30,7 +56,7 @@
 
    預期結果：輸出 `ok`。
 
-## Windows 上的執行檔命名
+### Windows 上的執行檔命名
 
 每個 Windows 測試執行檔都以檔名後綴標示其 backend：`Pn-WinUI.exe` 是 WinUIBackend
 build，`Pn-gtk4.exe` 是 GtkBackend build。沒有後綴的 `Pn.exe` 已不存在，因此以下每一
@@ -51,7 +77,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 有兩個 app 依設計只有單一 build：`P6` 是 D3D11 影片測試、且連結 WinUI 產品，因此沒有
 `P6-gtk4.exe`；`P6-v2` 是純 GTK app，因此沒有 `P6-v2-WinUI.exe`。
 
-## 跨平台測試流程
+### 跨平台測試流程
 
 - Linux / GtkBackend 相關 issues 一律先測 WSLg，再用 Windows 作為對照（若該 app 支援）。
 - 不要在 WSL 內從 `/mnt/c` 編譯。先同步 `testapp` 的 Swift/zsh 檔案，再於 `~/proj/swift-cross-ui` 下建置。
@@ -59,7 +85,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - 透過 `zsh testapp/test.zsh Pn --both` 執行的自動 dry-run 會先跑 WSLg，再跑 Windows。每個平台預設會在 render 後保留視窗 30 秒，再拍 final screenshot，方便 tester 共同觀察並回報變化。
 - 截圖會寫到 `testapp/output/screenshots`，檔名含平台與階段，例如 `p8-wslg-1s-...png`、`p8-wslg-final-...png`、`p8-windows-1s-...png`、`p8-windows-final-...png`。
 
-## 共通觀察項目
+### 共通觀察項目
 
 - App 是否能開啟主視窗。
 - Console 是否出現 fatal error 或 stack trace。
@@ -71,7 +97,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
   - crash 前最後一行 log
   - stack trace 中的 Swift / WinUIBackend 檔案與行號
 
-## P0：Critical Lifecycle
+### P0：Critical Lifecycle
 
 執行：
 
@@ -107,7 +133,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - AlertScene 與 environment alert 可以正常顯示。
 - 若 alert crash 且錯誤包含 `XamlRoot`，表示 #493 (Fixed) 發生 regression。
 
-## P1：Dialogs And Sheets
+### P1：Dialogs And Sheets
 
 執行：
 
@@ -142,7 +168,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - Nested sheet 若無法顯示或 crash，記錄為 #659 (Fixed) regression。
 - Root sheet 紅色 bar 若仍被明顯 padding 包住，記錄為 #660 (Fixed) regression。
 
-## P2：Controls And Styling
+### P2：Controls And Styling
 
 執行：
 
@@ -178,7 +204,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - Disabled controls 應明顯看起來 disabled，若不明顯則記錄為 #390 (Fixed) regression。
 - Window resizing disabled 時，使用者不應能正常 resize 或 full screen，若仍可操作則記錄為 #401 (Fixed) regression。
 
-## P3：Layout And Clipping
+### P3：Layout And Clipping
 
 執行：
 
@@ -210,7 +236,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - 若圖片超出 frame，記錄為 #389 (Fixed) regression。
 - 若初始 layout 錯誤但 resize 後恢復，記錄為 P3 三欄 layout (Fixed) regression。
 
-## P4：WinUI Native And Callback Stress
+### P4：WinUI Native And Callback Stress
 
 執行：
 
@@ -253,7 +279,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - 若大量 update 後 callback 指向錯誤 row，記錄為 #190 (Fixed) regression。
 - 若 console 再次出現 WinUI backdrop diagnostic noise，記錄為 #204 (Fixed) regression。
 
-## P5：Multi-Window Alerts
+### P5：Multi-Window Alerts
 
 執行：
 
@@ -288,7 +314,7 @@ cd testapp && zsh compile.zsh -gtk4    # -> testapp/output/Pn-gtk4.exe
 - 關閉疊加的 alert 應依正確順序（C → B → A）還原下層 alert；若還原的 alert 被跳過或順序錯誤，記錄為 #675 (Fixed) regression。
 - 關閉某一個視窗不應影響其他視窗的 alert。
 
-## P7：Lists And Split Views（Linux）
+### P7：Lists And Split Views（Linux）
 
 執行：
 
@@ -323,7 +349,7 @@ zsh testapp/test.zsh P7 --both
 - 啟動時沒有任何選取項目；若第一列已被標示，即為 #476 regression。已在 WSLg 下以 GTK4 與 GTK3 確認修正。
 - detail 區可見且不會塌成零寬，且不因無關文字變動而改變分割。依 2026-09-01 量測，P7 在 WSLg 與 Windows 回報相同 split ratio：sidebar 200 / total 420，也就是 47.6%。若之後再失敗，視為新的 #556 repro，先保留診斷數字再改 backend。
 
-## P8：Scroll Views（Linux）
+### P8：Scroll Views（Linux）
 
 執行：
 
@@ -362,7 +388,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - 紅色不應觸及方角；若觸及即為 #417。
 - 游標在任何位置（含水平長條上）都能垂直捲動；若在長條上外層凍結即為 #426。
 
-## P9：Text And Field Sizing（Linux）
+### P9：Text And Field Sizing（Linux）
 
 執行：
 
@@ -391,7 +417,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - 無關的更新不應改變欄位高度；任何縮水即為 #504。
 - 文字不得超出藍色色帶，且被要求時應能縮到零寬；溢出即為 #295。
 
-## P10：Hit Testing And Shortcuts（Linux）
+### P10：Hit Testing And Shortcuts（Linux）
 
 執行：
 
@@ -420,7 +446,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - 套用 `allowsHitTesting(false)` 的不透明圖層同樣不應阻擋點擊；若 `Hidden clicks` 停在 0，代表該 modifier 沒有傳達到 backend。
 - Ctrl-Q 應結束程式；若視窗仍開著即為 #478。
 
-## P11：AppKit Sliders, Scrollbars And Pickers（macOS）
+### P11：AppKit Sliders, Scrollbars And Pickers（macOS）
 
 執行：
 
@@ -453,7 +479,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - Compact DatePicker 應與鄰近控制項視覺對齊。
 - #404 與 #425 僅列為手動觀察，不作為嚴格 pass/fail。
 
-## P12：Android Margins, Rotation State And Toggles（Android）
+### P12：Android Margins, Rotation State And Toggles（Android）
 
 在 Android backend 建置並部署到 Android device/emulator 後執行。Host build 仍可用來快速檢查 layout。
 
@@ -479,7 +505,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - Button 背景應延伸到 button bounds，不應有額外 margin。
 - Toggle 的 on/off 狀態應有明顯視覺差異。
 
-## P13：Layout And View Graph（AppKit/Gtk）
+### P13：Layout And View Graph（AppKit/Gtk）
 
 執行：
 
@@ -509,7 +535,7 @@ zsh testapp/test.zsh P8 --both --no-showtime
 - Split view minimum widths 應反映到可見 divider 位置。
 - ZStack 中的 Group content 應重疊，而不是沿 container orientation 排列。
 
-## P14：UIKit Rotation And Theme（iOS）
+### P14：UIKit Rotation And Theme（iOS）
 
 編譯與執行：
 
@@ -537,7 +563,7 @@ xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
 - Width history 不應在旋轉後顯示比 settled layout 更寬的短暫 proposal。
 - 系統主題變更時，app background 應與 controls、adaptive colours 一起更新。
 
-## P15：Colour Scheme And Window Height（Linux）
+### P15：Colour Scheme And Window Height（Linux）
 
 執行：
 
@@ -573,7 +599,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 - 視窗縮到最小時不應有內容被裁切。若最小高度未計入 Gtk 自繪標題列的高度，即為 #289。
 - WSLg 是 Wayland，Gtk 在此會使用 CSD，故 #289 的前提成立；但這與 Fedora + GNOME 並不相同，因此「測不出來」只能縮小範圍，不足以關閉該 issue。
 
-## P16：Split View Initial Layout（Windows）
+### P16：Split View Initial Layout（Windows）
 
 執行：
 
@@ -606,7 +632,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 - actionfile 自動互動仍可能受 Windows desktop / foreground / elevation 狀態影響；若 Force update counter 沒變，先以人工點擊確認 state update 後 layout 是否穩定。
 - 尺寸為即時顯示而非在首次 render 時寫入 state：在 layout 過程中寫 state 會回饋到它正在量測的 layout，而 `GeometryReader` 的文件也說明內容可能會以不同尺寸被評估多次。
 
-## P17：Cross-Backend Layout Comparison（Linux 與 Windows）
+### P17：Cross-Backend Layout Comparison（Linux 與 Windows）
 
 執行：
 
@@ -657,7 +683,7 @@ GTK_THEME=Adwaita:dark ./P15            # #386 真正的測試方式
 - #266a：每一個高度下捲軸都應收斂穩定。
 - #266b：任何 stack 高度下，三條色帶都應為最寬子元件的寬度。
 
-## P6：Zstd Stream Player
+### P6：Zstd Stream Player
 
 編譯與執行：
 
@@ -1039,7 +1065,7 @@ RSS 壓力測試紀錄：
 - P6 的峰值 RSS 為 2,398,896 KiB（約 2.29 GiB），平均取樣 RSS 約為 1.92 GiB。
   這些數值不包含 FFmpeg、ffplay 與 zstd 子程序。
 
-## P18：File Dialogs（Linux 與 Windows）
+### P18：File Dialogs（Linux 與 Windows）
 
 執行：
 
@@ -1069,7 +1095,7 @@ RSS 壓力測試紀錄：
 6. 於另一個 backend 重複所有步驟並比較。重點在於兩邊是否都交回路徑、都關閉對話框，
    而非兩者外觀是否相同。
 
-## P19：Flat Menus（Linux 與 Windows）
+### P19：Flat Menus（Linux 與 Windows）
 
 執行：
 
@@ -1096,7 +1122,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 6. 記錄選單相對於按鈕的出現位置。兩種機制的定位方式不同，這正是對照的重點。
 7. 於另一個 backend 重複。
 
-## P20：Nested Menus（Linux 與 Windows）
+### P20：Nested Menus（Linux 與 Windows）
 
 執行：
 
@@ -1124,7 +1150,7 @@ P19 只保留單一平面層級，使任何差異都能明確歸屬於「項目�
 7. 記錄每個子選單相對於其父層的落點，特別是靠近螢幕邊緣時。
 8. 於另一個 backend 重複。
 
-## P6-v2：Video Playback on GtkBackend（Linux 與 Windows）
+### P6-v2：Video Playback on GtkBackend（Linux 與 Windows）
 
 執行：
 
@@ -1166,7 +1192,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 6. 於另一平台重複並比較。WSL 完全沒有 GPU 路徑——缺少 render node，因此 GTK 跑在 llvmpipe
    上——所以此處的 Windows 對 WSL 比較，量的是兩套不同的繪製堆疊，而非兩個作業系統。
 
-## P21：Input Controls（Linux 與 Windows）
+### P21：Input Controls（Linux 與 Windows）
 
 執行：
 
@@ -1191,7 +1217,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 7. 確認 `ContentUnavailableView` 同時顯示標題與說明文字。
 8. 於另一個 backend 重複上述步驟。
 
-## P22：Text Styles（Linux 與 Windows）
+### P22：Text Styles（Linux 與 Windows）
 
 執行：
 
@@ -1213,7 +1239,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 4. 檢查固定 320pt 框內的三列對齊。
 5. 於另一個 backend 重複上述步驟。
 
-## P23：Tables（Linux 與 Windows）
+### P23：Tables（Linux 與 Windows）
 
 執行：
 
@@ -1234,7 +1260,7 @@ P6 的量測語彙，使兩者的數字可以對齊。
 4. 按 `Fewer rows`，確認版面能恢復而非留下空缺。
 5. 於另一個 backend 重複上述步驟。
 
-## P24：Navigation Stack（Linux 與 Windows）
+### P24：Navigation Stack（Linux 與 Windows）
 
 執行：
 
@@ -1259,7 +1285,7 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 5. 按 `Pop to root`，確認畫面與計數器同時歸零。
 6. 於另一個 backend 重複上述步驟。
 
-## P25：拖放（Linux 與 Windows）
+### P25：拖放（Linux 與 Windows）
 
 執行：
 
@@ -1286,7 +1312,7 @@ P16 已涵蓋導覽」為由劃掉，那是錯的：那兩支測的是 `Navigati
 註記：此項無法以動作檔驅動。拖放是作業系統層級的協商，而非一連串滑鼠事件，`InputEvent` 無法合成
 它；步驟 1 起皆需要一次真實的拖曳。
 
-## P26：網路與 App Cache（Linux 與 Windows）
+### P26：網路與 App Cache（Linux 與 Windows）
 
 執行：
 
@@ -1307,7 +1333,7 @@ zsh testapp/test.zsh P26 --cache-only   # 不開視窗，只做快取斷言
 4. 切換至 SwiftUI 分頁，確認它在 Linux 上不渲染任何內容，這是正確的：SwiftUI 在該平台不存在。
 5. 確認 Summary 表格的儲存格可被選取與複製。
 
-## P27：Backend 功能覆蓋（Linux 與 Windows）
+### P27：Backend 功能覆蓋（Linux 與 Windows）
 
 執行：
 
@@ -1330,7 +1356,7 @@ zsh testapp/test.zsh P27 --both
 4. 確認「backend 確實無法提供的功能」會以可見的方式降級（例如空白區域）而非中止——這正是本 app
    存在所要迫使做出的決定。
 
-## P28：控制項樣式（Linux 與 Windows）
+### P28：控制項樣式（Linux 與 Windows）
 
 **已規劃，尚未撰寫。** 涵蓋「在 debug build 中觸發 assert、在 release 中悄悄降級」的樣式。
 
@@ -1349,7 +1375,7 @@ build 崩潰，並在 release 中悄悄變成下拉選單——一個與其他�
    `time picker is unimplemented` 並顯示一個純月曆格線，且使用錯誤的曆法與時區。
 5. 將以上全部與 WinUIBackend 比較。
 
-## P29：視覺保真度（Linux 與 Windows）
+### P29：視覺保真度（Linux 與 Windows）
 
 執行：
 
@@ -1371,7 +1397,7 @@ zsh testapp/test.zsh P29 --both
    `sensitive`。
 5. 比較 `.fontWeight(.semibold)` 與 `.bold`；在 GtkBackend 上兩者對應到相同的 CSS 字重。
 
-## P30：效果與動畫（Linux 與 Windows）
+### P30：效果與動畫（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋協定層最大的缺口：
 SwiftCrossUI 完全沒有動畫層；目前只能測專案中已存在的 effect modifiers。
@@ -1419,7 +1445,7 @@ blur、grayscale、saturation、brightness、contrast、hue rotation 已確認�
 4. 確認 animation-only APIs 仍以 missing API 文字記錄，而不是放入無法編譯的 sample code。
 5. 若 AppKit backend 在測試範圍內，將每一項與 AppKit 下的相同程式碼比較。
 
-## P31：焦點與鍵盤（Linux 與 Windows）
+### P31：焦點與鍵盤（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 本 app 要檢查的內容約有一半
 現在就能寫；另一半仍是一份「無法編譯的呼叫清單」。
@@ -1466,7 +1492,7 @@ zsh testapp/test.zsh P31 --both
 自動流程只驗證啟動、render marker、final screenshot 與可見 baseline controls。真正的焦點巡覽、
 Escape 行為與 Ctrl+Q 仍需要人工鍵盤互動確認。
 
-### 2026-09-03 於 Windows / GtkBackend 實測——步驟 1、2 通過，步驟 4 無法執行
+#### 2026-09-03 於 Windows / GtkBackend 實測——步驟 1、2 通過，步驟 4 無法執行
 
 以 `testapp/actions/win/P31-tab-and-escape.csv` 驅動；這是本樹中第一個真的對對話框按下按鍵的動作檔。
 
@@ -1499,7 +1525,7 @@ Escape 行為與 Ctrl+Q 仍需要人工鍵盤互動確認。
 mac 文件寫成 `testapp/output/p28-debug-events.log` 之所以正確，只是因為該流程會先 `cd` 進
 `testapp/output`，而 `run.zsh` 是以絕對路徑啟動、從不切換目錄。
 
-## P32：無障礙（Linux 與 Windows）
+### P32：無障礙（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 本 app 不呼叫任何缺席的東西，
 它存在的目的是被外部工具檢視。
@@ -1539,7 +1565,7 @@ zsh testapp/test.zsh P32 --both
 自動流程只驗證 baseline controls 有渲染出來。角色與名稱檢查仍需在 Linux 使用 Accerciser，在
 Windows 使用 Accessibility Insights 或 `inspect.exe`。
 
-## P33：缺席的 Views（Linux 與 Windows）
+### P33：缺席的 Views（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋在 SwiftCrossUI 中完全沒有
 對應物的 SwiftUI views——移植過來的程式碼是無法編譯，而非渲染不同。
@@ -1587,7 +1613,7 @@ app 會顯示 missing-view 清單，並以手寫方式近似 Stepper、Disclosur
    的,不是要查的。
 5. 將每一項與 AppKit 下的相同程式碼比較。
 
-## P34：Lazy 容器與大型集合（Linux 與 Windows）
+### P34：Lazy 容器與大型集合（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋「集合大於顯示它的視窗」
 時會發生什麼事。
@@ -1637,7 +1663,7 @@ loader 目前使用 `--debug -rows 100` 做快速 smoke pass。若要量測 firs
 6. 於另一個 backend 重複。GTK 與 WinUI 的 widget 建立成本不同，因此兩條曲線預期會在斜率上有差異，
    而不只是整體偏移。
 
-## P35：狀態與 Scene 組合（Linux 與 Windows）
+### P35：狀態與 Scene 組合（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋那些讓 SwiftUI app 的
 「結構」無法被表達的缺口——與外觀無關。
@@ -1677,7 +1703,7 @@ app 會測一個簡單的 `@State` counter/toggle，並列出目前仍無法表�
 6. 於另一個 backend 重複。這些都是編譯期缺口，因此結果應該完全相同。若有差異，代表此處有東西是依
    backend 而定的，值得把它找出來。
 
-## P36：API 形狀相容性（Linux 與 Windows）
+### P36：API 形狀相容性（Linux 與 Windows）
 
 **已撰寫 baseline app，並已在 WSLg 與 Windows smoke test。** 涵蓋「view 存在，但 SwiftUI 的
 呼叫點無法編譯」的情況。本節中的每個缺口在功能清單上都不可見，因為型別在，只有 initialiser 不在。
@@ -1733,7 +1759,7 @@ app 會把目前可用的 SwiftCrossUI 寫法渲染出來，旁邊列出仍無�
 6. 於另一個 backend 重複。凡是在其中一邊能編譯、另一邊不能的東西，都是依 backend 而定的 API，與本節
    其餘內容屬於不同的發現。
 
-## P37：視窗層級（Linux 與 Windows）
+### P37：視窗層級（Linux 與 Windows）
 
 執行：
 
@@ -1778,7 +1804,7 @@ zsh testapp/run.zsh P37                    # Windows 上的 GtkBackend
 5. 關閉 P37，並確認桌面上沒有任何東西被遺留在「釘選於其他視窗之上」的狀態。一個比其視窗更長壽的
    window level，會壓在使用者接下來所做的每一件事上。
 
-## P38：WebView（Linux 與 Windows）
+### P38：WebView（Linux 與 Windows）
 
 執行：
 
@@ -1805,7 +1831,7 @@ zsh testapp/test.zsh P38 --both
 - 若 initial screenshot 為黑畫面但 final screenshot 可見，記錄為啟動／render timing，不直接判為 UI failure。
 - 若 Windows 無法抵達 final screenshot 或無法乾淨關閉，記錄為 WinUI async WebView issue。
 
-## P39：Visual Effects（Linux、Windows、macOS 與 iOS）
+### P39：Visual Effects（Linux、Windows、macOS 與 iOS）
 
 執行：
 
@@ -1835,7 +1861,7 @@ zsh testapp/test.zsh P39 --both
 - **macOS/AppKit 上九格全部都應不同於 control**，2026-09-02 量測。`AppKitBackend+VisualEffects.swift` 是一條套在 layer-backed container 上的 `CIFilter` 鏈，opacity 走 `alphaValue`，使子樹以一組的方式合成。若連 identity 對照格在內每一格都變空白，請懷疑 `layerUsesCoreImageFilters` 在沒有 filter 要跑時仍被設定——那正是它的樣子。
 - **iOS/UIKit 上九格全部都應不同於 control**，2026-09-02 於 iPhone 16 模擬器量測。判定失敗前請先讀懂機制：`CALayer.filters` 在 iOS 上**不**參與合成——這量過兩次，而且至今仍為真：`opacity 0.35` 變淡，`blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格逐像素相同。效果之所以仍然有效，是因為已經不再那樣做了：它們改為透過 Core Image 作用於 `CALayer.render(in:)` 的點陣圖，結果覆蓋在子元件之上，子元件則以一個空的 `CALayer` mask 遮蔽，因此仍可被 hit test。要預期的後果是：被過濾的格子是「排版時重新產生的算繪結果」，而非活的子樹，所以其中若有由 Core Animation 驅動的動畫，看起來會是凍結的；`opacity` 不走這條路。
 
-## P40：Geometric Effects（Linux、Windows、macOS 與 iOS）
+### P40：Geometric Effects（Linux、Windows、macOS 與 iOS）
 
 執行：
 
@@ -1866,7 +1892,7 @@ zsh testapp/test.zsh P40 --both
 - transformed samples 不應全部和 control tile 有相同 bounding box。
 - **macOS/AppKit 與 iOS/UIKit 上七格全部都應正確算繪**，2026-09-02 分別於 Mac 與 iPhone 16 模擬器量測。最關鍵的檢查不是「有東西動了」：請比較 `rotate 30 centre` 與 `rotate 30 topLeading`，兩者必須**不同**。錨點運算錯誤會使這兩格相同，或把 tile 丟到畫面外，而這兩種失敗看起來都像是 transform 正常運作。某一格空白代表容器的子元件沒有被四個邊都釘住——modifier 的 commit 只設定容器的尺寸，沒有任何東西為容器內部的元件設定尺寸。
 
-## P41：Date Picker Styles（Linux 與 Windows）
+### P41：Date Picker Styles（Linux 與 Windows）
 
 執行：
 
@@ -1892,7 +1918,7 @@ zsh testapp/test.zsh P41 --both
 - Final screenshot 應在兩個平台都顯示可見 DatePicker 內容。
 - 若 Windows `.graphical` 是空白或更新錯誤 binding value，記錄為 WinUI DatePicker issue。
 
-## 測試完成紀錄格式
+### 測試完成紀錄格式
 
 建議每次測試後用以下格式記錄：
 
@@ -1910,3 +1936,1002 @@ Logs:
 Screenshots:
 Notes:
 ```
+
+---
+
+## 缺陷計畫:AppKit、UIKit 與 AndroidBackend
+
+涵蓋可從 macOS workstation 測到的 upstream open bugs。選取來源是 `issues.csv`：其中有 33 列標記為 `bug` 且尚未修正，而這裡列出的是 backend 可在該機器上執行的 10 個。Gtk、Gtk3、WinUI bugs 則屬於 Windows workstation。
+
+`UI-test-plan-en.md#platform-matrix` 是同一份資料的跨平台視角，可查詢哪個 app 在哪個平台涵蓋哪個 issue。
+
+數量可用指令確認，不靠記憶：
+
+```sh
+awk -F, 'NR>1 && $2 ~ /bug/ && $4 !~ /^fixed-p/' testapp/issues.csv | wc -l
+```
+
+工作方式和 WinUI、Linux 計畫相同：先重現，量測而非推論，並記錄實際觀察到的內容。
+
+### 範圍
+
+| App | Backend | Issues | 執行位置 |
+| --- | --- | --- | --- |
+| P11 | AppKitBackend | #82, #485, #473 | macOS native |
+| P12 | AndroidBackend | #632, #580, #544 | Android device 或 emulator |
+| P13 | core layout / view graph | #595, #291, #158 | 任意 backend |
+| P13 | AppKitBackend | #415 | macOS native |
+| P14 | UIKitBackend | #324, #254 | iOS Simulator |
+
+P13 刻意分成兩列。`issues.csv` 把 #595、#291、#158 歸在 `core/unspecified`，不是某個 backend，所以 app 能跑的地方都可測；只有 #415 是回報在 AppKitBackend。已量測，不是假設：P13 在 WSL 的 GtkBackend 下可 build 與 link，因此那三個 issue 不必等 Mac 才能檢查；如果某個 backend **沒有**出現問題，這本身也是有用結果。
+
+同一組 bug 中刻意排除的項目，會在各節的「未涵蓋」中列出並附原因。
+
+#### macOS workstation 無法觸及的項目
+
+記錄下來是為了讓缺口清楚可見，而不是被忘掉。這裡的 "Blocked" 指的是**從 macOS blocked**：前兩列在 Windows workstation 上是例行工作，而且 #289 與 #160 在那裡已經有 repro app：
+
+| Issues | 應改在哪裡處理 |
+| --- | --- |
+| #289, #594 | Windows workstation 的 WSLg。#289 由 P15 涵蓋 |
+| #160, #231 | Windows workstation。#160 由 P16 涵蓋 |
+| #286, #166, #179 | Gtk3Backend，所有地方都不在目前範圍內 |
+| #189 | macOS 上的 GtkBackend，但兩台 workstation 都不跑這個組合；Gtk3 半邊也不在範圍內 |
+| #227 | Mac Catalyst build target，尚未設定 |
+| #226 | tvOS |
+| #645 | 需要同時對多個平台做比較，因此要先等其他平台結果 |
+
+---
+
+### P11：Sliders、Scrollbars And Pickers（macOS）
+
+Build and run：
+
+```sh
+zsh testapp/compile.zsh P11
+./testapp/output/P11
+```
+
+涵蓋 issues：
+
+- #82 (Open)：RandomNumberGeneratorExample 中兩個 sliders 互相限制時會 jitter
+- #485 (Open)：Scrollbar 方向顯示相反
+- #473 (Open)：Liquid Glass 下 Compact DatePicker sizing 錯誤
+
+測試步驟：
+
+1. 啟動 `P11`。
+2. 點 `Separate them`，讓 minimum 為 20、maximum 為 80，且兩邊都沒有 clamp 啟用。點 `Reset counters`。
+3. 慢慢把 **minimum** slider 往上拖過 80。觀察兩個 write counters，以確認 #82。
+4. 放開後讀取 counters。一次拖曳應讓 `min` roughly 跟著 pointer 前進；當 sliders 分開時，`max` 不應前進。
+5. 點 `Collide them`，再點 `Reset counters`，接著把 minimum slider 往右拖更遠。此時兩個值被 pin 在一起，這裡會觸發 clamp feedback。
+6. 拖曳時觀察 slider handle：它必須停在 pointer 放置的位置，而不是來回跳動。
+7. 用 scroll wheel 捲動 row list 並觀察 vertical scrollbar，以確認 #485。記錄 list 位於 row 1 時 thumb 在 track 的哪一端。
+8. 捲到底部，記錄此時 thumb 的位置。
+9. 比較 compact `DatePicker` 與旁邊的 `Reference` button，以確認 #473。檢查高度是否相符，且 date text 與 stepper 都沒有被裁切。
+10. 點進 DatePicker 並改變日期；確認控制項不會因內容改變而 resize。
+
+預期結果：
+
+- 拖曳一個 slider 時，兩者分開的狀態下不會寫入另一個。若兩個 counters 一起上升，或 handle 在放開後跳回，就是 #82。
+- List 在 row 1 時 scrollbar thumb 位於 **top**，捲到底時位於 bottom。若方向相反，就是 #485。
+- DatePicker 符合 reference button 的高度且沒有裁切。若明顯較高、較矮或被裁切，就是 #473。
+
+P11 未涵蓋：
+
+- **#404**（`View > Show Tab Bar` 後 window content size）需要 app 無法從自身 view tree 驅動的 system menu item。重現方式是手動切換 menu 並觀察 content area 是否跟著調整；值得手動測，但不是 P11 能 assert 的東西。
+- **#425**（window launch 後沒有 focus）upstream 描述為 intermittent：「every once in a while」。Pass/fail step 幾乎每次都會回報成功，不論 bug 是否修好。若它出現，請記錄 launch method、是否使用 Swift Bundler，以及 sidebar 是否有 transparency。
+
+---
+
+### P12：Button Margins、State And Toggles（Android）
+
+Build and run：
+
+```sh
+cd Examples
+SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product P12
+```
+
+或依照 `Scripts/build-tool-install-android-on-Mac.sh` bundle 並安裝成 APK。P12 也能在 host platform render，這對部署前檢查 layout 很有用，但只有 Android run 能驗證這些 issues。
+
+涵蓋 issues：
+
+- #632 (Open)：Buttons 有不必要 margin
+- #580 (Open)：旋轉螢幕會 reset `@State`
+- #544 (Open)：Toggle button state 沒有視覺呈現
+
+測試步驟：
+
+1. 在已啟用 auto-rotate 的 device 或 emulator 上啟動 `P12`。
+2. 在 margins section，觀察 green bands 之間的兩個 blue buttons，以確認 #632。Blue background 應延伸到每個 button 的邊緣。
+3. 量測或目視 blue 與上下 green 之間的間隙。只要兩者之間有穩定的 background colour strip，就是 margin。
+4. 點 `Second` 或 `Third`，讓 selected tab 不再是 default，然後點幾次 `Increment counter`。記錄兩個值。
+5. 不做其他操作，將 device 旋轉到 landscape，以確認 #580。
+6. 再讀一次 tab 和 counter。兩者都必須維持不變。
+7. 旋轉回 portrait，並再次讀取。
+8. 在 toggle section 中並排比較 `Forced on` 和 `Forced off` toggles，以確認 #544。
+9. 點 `Set both on`；確認兩者現在彼此看起來相同。
+10. 點 `Set opposite`；確認兩者現在彼此看起來不同。
+11. 與下方使用不同 component 的 `switch` style toggle 比較，確認問題是否只存在於 button style。
+
+預期結果：
+
+- Blue background 會延伸到 button 邊緣。若 blue 和 green 之間有間隙，就是 #632。
+- Tab selection 與 counter 在旋轉後保持不變。若回到第一個 tab，或 counter 回到 0，就是 #580。
+- 兩個 button-style toggles 在 opposite states 時看起來不同。若看起來相同，就是 #544。
+
+P12 未涵蓋：
+
+- **#610**（Android sheet sizing）在 upstream 是兩個耦合 defect：layout system 沒尊重 backend 回報的 sheet size，以及 AndroidBackend 本身回報錯誤 size。要區分兩者，需要從兩層量測 size，而不是單純視覺檢查，所以它需要自己的 instrumented app，不適合只放成這裡的一個 step。
+
+---
+
+### P13：Layout And View Graph（任意 backend，外加一個 macOS-only check）
+
+Build and run：
+
+```sh
+zsh testapp/compile.zsh P13
+./testapp/output/P13          # .exe on Windows
+```
+
+依檢查位置分類的涵蓋 issues：
+
+任意 backend：
+
+- #595 (Open)：ScrollView 內文字被不必要裁切
+- #291 (Open)：NavigationSplitView minimum width sizing
+- #158 (Open)：ZStack 中的 Group 行為
+
+macOS only：
+
+- #415 (Open)：Message list benchmark 在 AppKitBackend crash
+
+#415 是刻意 crash 的測試，因此藏在按鈕後面。先完成其他三項檢查，再最後觸發它。步驟 1-8 值得在所有可用 backend 上執行並分別記錄：尤其 #291 upstream 回報為影響 AppKitBackend、不影響 GtkBackend，因此兩邊是否一致本身就是 finding。
+
+測試步驟：
+
+1. 啟動 `P13`。確認 window 開啟，且左側 identifiable list render 三個相同 rows。
+2. 比較兩個 ScrollViews。左邊是 plain，右邊套用 `.fixedSize(horizontal: false, vertical: true)`；upstream 回報這是 workaround，用來確認 #595。
+3. 確認 plain ScrollView 顯示完整 wrapped sentence。若最後一行被裁切，而 `.fixedSize()` 那個沒有，就是 #595。
+4. 觀察 ZStack section，以確認 #158。紅、綠、藍 blocks 位於 `ZStack` 內的 `Group` 中，尺寸依序遞減。
+5. 確認它們重疊，且最小的在最上方，因此三者都像 nested rectangles 一樣可見。若它們被排成 side by side 或垂直堆疊，代表 Group 採用了 container orientation 而不是 z axis，這就是 #158。
+6. 重複點 `Narrower` 並觀察 NavigationSplitView，以確認 #291。Frame 會每次縮小 60 px。
+7. 確認 frame 變窄時 detail pane 仍保持可見。若 split 停止移動，且 sidebar 保持寬度而 detail pane 被擠出或裁切，就是 #291。
+8. 點 `Wider` 並確認 split 恢復。
+9. macOS 上：點幾次 `More duplicates`，再點 `Show unidentified list`，以確認 #415。這會 render 一個 `ForEach`，其元素不是 `Identifiable`，且彼此都 compare equal。
+10. 記錄 app 是否 crash；若 crash，擷取訊息。Upstream 認為原因是 backend 收到 duplicate child views。在其他 backend 上此 step 預期不會 crash；仍請執行並記錄，因為這能界定 bug 是否限於 AppKitBackend。
+
+預期結果：
+
+- Plain ScrollView 不會裁切文字。若需要 `.fixedSize()` 才正常，就是 #595。
+- Group children 沿 z 軸重疊。任何 side-by-side 或 vertical layout 都是 #158。
+- Detail pane 在縮窄時仍存活。若被擠出，就是 #291。
+- Render non-Identifiable list 不應 crash。Crash 就是 #415，而旁邊 identifiable list 是 control，證明相同資料在 identity 明確時沒問題。
+
+---
+
+### P14：Rotation Size Proposals And Theme（iOS Simulator）
+
+Build、install、run：
+
+```sh
+zsh testapp/compile.zsh -ios P14
+xcrun simctl boot swift-cross-ui
+open -a Simulator
+xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
+xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+```
+
+`compile.zsh -ios` 會透過 `install_tools_ios.zsh` 自行 provision simulator，所以缺少 device 時會建立，而不是直接報錯。
+
+涵蓋 issues：
+
+- #324 (Open)：Orientation change 時 content 收到錯誤 size proposal
+- #254 (Open)：System theme 變更時 app background colour 沒有更新
+
+兩者都是關於值而不是外觀，所以 P14 會記錄收到的值，而不是要求你捕捉 flicker。#324 會在下一次 layout pass 自行修正；#254 則是其中一個 surface 和其他 surface 不一致。
+
+測試步驟：
+
+1. 在 portrait 啟動 `P14`。記錄 reported proposed width；它應該符合 device portrait width。
+2. 點 `Clear history`。
+3. 將 simulator 旋轉到 landscape（Cmd-Left Arrow），以確認 #324。
+4. 讀取 `Width history`。它會依序記錄最多八次 width changes。
+5. 確認 history 直接從 portrait width 到 landscape width。若中間出現一筆**大於 landscape width** 的 entry，接著才是正確值，就是 #324：app 曾被 proposal 到比實際可用空間更大的尺寸，之後才修正。
+6. 旋轉回 portrait，再讀一次 history。
+7. App 開啟時切換 system appearance，以確認 #254。Simulator 中可用 Features > Toggle Appearance，或從 terminal 執行：`xcrun simctl ui swift-cross-ui appearance dark`。
+8. 比較三個編號 surfaces。Text、button、adaptive colour block 都應該和它們背後的 window background 一起變化。
+9. 切回 light 再比較一次。
+
+預期結果：
+
+- Width history 只包含 portrait 與 landscape widths，且順序正確。兩者之間若出現額外 oversized entry，就是 #324。
+- 每個 surface 都跟著 theme 變化。若 controls 和 adaptive block 改變，但它們背後的 background 還停在前一個 theme 的顏色，就是 #254。Adaptive block 在這裡是 control：它證明 theme change 已抵達，因此忽略它的 background 是 app 自身 bug。
+
+P14 未涵蓋：
+
+- **#227**（Mac Catalyst button sizing）同樣屬於 UIKitBackend，但需要 Catalyst destination，而不是 iOS Simulator；upstream 也只提供一張 screenshot，沒有描述，因此重現條件不清楚。
+
+---
+
+### 沒有 upstream issue 的 macOS 功能覆蓋
+
+下列 app 覆蓋尚未分配 upstream issue 的 AppKit 功能：
+
+| App | 功能 | macOS 檢查 |
+| --- | --- | --- |
+| P25 | Drag and drop | 將檔案拖到接受區，確認懸停回饋與收到的 file URL payload。 |
+| P28 | Hit testing | 點擊藍色 overlay；點擊必須穿透並增加下方按鈕的計數。 |
+| P29 | 視覺保真度 | 依文件中的對照項目檢查不確定進度條、裁切與停用 editor。 |
+| P37 | Window levels | 將另一個視窗覆蓋到 app 上，確認選定的 window-level 行為。 |
+
+P28 的可量測結果是 `Clicks received` 計數器，以及
+`p28-debug-events.log` 中的 `underlying button clicked` 記錄。若可見的 overlay
+吃掉點擊，即使 overlay 本身繪製正確，仍是 AppKit regression。
+
+### 測試紀錄模板
+
+```text
+Date:
+Commit:
+OS / device:
+Swift:
+App:
+Result: Pass / Fail
+Steps:
+Observed:
+Expected:
+Logs:
+Screenshots:
+Notes:
+```
+
+---
+
+## Linux 計畫:透過 WSL 的 GtkBackend
+
+目標：在這台機器上重現 open 的 GtkBackend/Gtk3Backend issues，能修的就修，並將修正提交 upstream。工作方式和 WinUI 工作相同：先重現，量測而非推論，並保留證據。
+
+哪個 app 涵蓋哪個 issue，以及 WSLg 執行結果是能判定 issue 還是只能顯示症狀，請看 `UI-test-plan-en.md#platform-matrix`。下方 Tier 1 / Tier 2 的區分就來自那份文件；但請注意，Tier 2 不等於「WSLg 會扭曲它」：要讀 caveat 欄，因為只有 #556 是關於 window sizing 本身。
+
+### 目前環境
+
+已檢查，不是假設：
+
+| | |
+|---|---|
+| WSL | Ubuntu 26.04 LTS, WSL2, running |
+| WSLg | 可用 -- `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`，所以 GTK windows 會 native 顯示 |
+| Swift | **6.3.3**，從官方 tarball 安裝到 `/usr/local/swift` |
+| GTK 4 | **4.22.4**（已安裝 `libgtk-4-dev`） |
+| GTK 3 | 未安裝，而且是刻意不安裝 |
+
+WSLg 提供的是 Wayland compositor。任何關於 window sizing、minimum sizes 或 resizing 的行為，都會和真正 desktop session 不同，因此這些 issues 需要 caveat（見 Tier 2）。
+
+### Phase 0 -- toolchain
+
+已完成。`testapp/install_tool_wsl.sh` 會處理全部設定，也記錄了需要做什麼；請以 root 執行，因為此 distribution 裡的 `sudo` 會要求密碼：
+
+```sh
+wsl -d Ubuntu -u root -- bash testapp/install_tool_wsl.sh
+```
+
+它解決的事項如下，沒有任何一項是猜測：
+
+1. swift.org **沒有**發布 Ubuntu 26.04 build -- 26.04 tarball URL 會 404，而 24.04 的 URL 回 200 -- 所以安裝的是 24.04 build，從官方 tarball 放到 `/usr/local/swift`。不是 Swiftly。
+2. 該 build 在 26.04 上啟動時會連續遇到兩個問題：26.04 提供 `libxml2.so.16`，但 Swift 要 `.so.2`；另外 26.04 是 ICU 78，但 Swift 要 ICU 74。兩者都從 24.04 `.deb` package 解出到 `/usr/local/lib/swift-compat`。
+3. 已安裝 GTK 4：`libgtk-4-dev` 4.22.4，pkg-config 2.5.1。
+4. 驗證：`pkg-config --modversion gtk4` 和 `swift --version`。
+
+**範圍：只包含 GtkBackend。** Gtk3Backend 不在 scope 內，所以不安裝 GTK 3，也不追 Gtk3-only 的 issues。這直接排除 #286 和 #166，也代表 #426 只會針對 GTK 4 測試。
+
+GTK 4.22.4 很新，所以 #702（關於*較舊* GTK 4）在開始前就已經判定：這裡無法重現。
+
+### Phase 1 -- 先證明 toolchain end to end 可用
+
+在碰任何 issue 前，先於 WSLg 下 build 並執行 repository 自己的一個 example。如果 window 沒出現，那是環境問題，不是被測程式的 bug；後續所有結果都會可疑。
+
+```sh
+./Scripts/test.sh                    # unit tests
+swift build --target GtkBackend      # not --product
+```
+
+`--target GtkBackend` 不是偏好，而是必要。單純 `swift build` 或 `--product SwiftCrossUI` 會讓 SwiftPM 建置 default target set，其中包含 `WinUIInterop` C target，Linux 上會因 `'Windows.h' file not found` 失敗。直接指定 target 才能繞過。
+
+本機量測：clean 狀態下 `--target GtkBackend` 需要 61.7 秒；warm 後 `testapp/compile.zsh` 建一個 repro app 約 5-15 秒。
+
+### Phase 2 -- 既有 test apps 提供的免費覆蓋率
+
+`testapp` 中每個 app 都使用 `DefaultBackend`，Linux 上會選 GtkBackend；`testapp/compile.zsh` 已處理非 `.exe` 輸出。P0-P3 與 P5 應可不改直接 build/run；P4 和 P6 的 Windows-specific sections 都包在 `#if os(Windows)` 後面。
+
+這很重要，因為 **P2 和 P3 已經有兩個 open issues 的測試步驟**，那些步驟是在 WinUI 版本修正時寫的：
+
+- P2 step 7-8 涵蓋 #390：disabled buttons 看起來不像 disabled
+- P3 step 6-9 涵蓋 #389：images 未被裁切
+
+所以第一次真正測試不需要寫新 app。執行 P0-P3 和 P5，記錄哪些 WinUI 已修行為在 GTK 上仍壞。應該擴充 `#整體計畫p0-p41` / `UI-test-plan-en.md#overall-plan-p0-p41`，加入 Linux 欄位或 section，而不是另開一份文件。
+
+此計畫寫成後，已新增 P7-P10 來涵蓋下方 Tier 1 / Tier 2 issues，也新增 P13 來測三個非 GTK-specific 但此處可觸及的 core-layout issues。它們都能在 WSL 的 GtkBackend 下 build 與 link，所以剩下只需要有人看著畫面測試。
+
+### Phase 3 -- open issues triage
+
+截至此計畫，Linux/GTK 對應 12 個 open issues。其中兩個（#286、#166）是 Gtk3Backend-only，因 Gtk3 排除而移除，剩下 10 個。之後 Tier 2 又從 `issues.csv` 補進三個標為 `core/unspecified`、而非 GtkBackend 的 issues：它們不是 GTK bugs，但可從此處觸及；在第二個 backend 上檢查 core layout bug，比只在一個 backend 上檢查更有價值。
+
+**Tier 1 -- 一般 widget 行為，應可在 WSLg 重現**
+
+| # | Title | App | Notes |
+|---|---|---|---|
+| 389 | Images aren't clipped | P3 | 已測過；WinUI 半邊已修，GTK 半邊 open |
+| 390 | Disabled buttons don't appear disabled | P2 | 已測過；WinUI 半邊已修，GTK 半邊 open |
+| 417 | ScrollView cornerRadius doesn't affect children | P8 | |
+| 426 | Horizontal ScrollView swallows parent's scroll wheel | P8 | nested-scroll case |
+| 454 | Transparent containers consume click events | P10 | 也影響 AppKitBackend |
+| 476 | List starts with the first item selected | P7 | 已在 WSLg 下以 GTK4 與 Gtk3 確認修正 |
+| 478 | Ctrl-Q does not quit | P10 | keyboard handling，WSLg 會傳遞 keys |
+| 504 | TextField/SecureField shrinks in height after first update | P9 | |
+
+**Tier 2 -- layout 與 window sizing，WSLg 可能扭曲結果**
+
+| # | Title | App | Caveat |
+|---|---|---|---|
+| 556 | List NavigationSplitView makes weird size decisions | P7 | |
+| 295 | Clip text when necessary to reach zero width | P9 | Gtk3Backend 半邊不在 scope |
+| 595 | Text inside a ScrollView is cut off | P13 | 非 GTK-specific；要和其他 backends 比較 |
+| 291 | NavigationSplitView minimum width sizing | P13 | 回報為 AppKit affected、Gtk unaffected |
+| 158 | Group behaviour in ZStacks | P13 | 非 GTK-specific |
+
+先重現這些；但在宣稱 fix 前，請在真正的 Linux desktop session 上確認，或至少明確說明只在 WSLg 下檢查過。
+
+**Tier 3 -- 需要目前沒有的東西，或不是 bug**
+
+| # | Title | Why |
+|---|---|---|
+| 702 | Older GTK 4 breaks button label centering | 26.04 提供 4.22.4；需要較舊 GTK |
+| 386 | Support dark mode | feature；需要設定 dark theme |
+| 594 | EventControllerKey.keyPressed cannot return Bool | binding generation，不需要 GUI 也可測 |
+| 52 | libadwaita support | feature request |
+
+先從 Tier 1、成本最低的開始：#389 和 #390 不需要新增測試程式。
+
+### Phase 4 -- 每個 issue 的流程
+
+1. 重現，並擷取觀察結果（screenshot 或描述症狀）。若無法重現，也在 issue 上說明；這也是有用結果，尤其是那些早於目前 GTK 版本的 issues。
+2. 新增或擴充一個能隔離問題的 `testapp` app，沿用既有 P0-P6 慣例，並將步驟加入兩份 test plan 文件。
+3. 在 `Sources/GtkBackend` 修正，變更範圍保持和 bug 一樣小。若 issue 同時點名兩個 backends，修 GtkBackend，並在 pull request 中說明 Gtk3Backend 未測。
+4. 用 test app 驗證，並檢查鄰近行為沒有 regression。
+5. 每個 issue 一個 commit，風格沿用這裡已使用的格式（`GtkBackend: ...`）。
+
+### 提交 upstream 前
+
+- `Scripts/format.sh`（SwiftFormat 已安裝在 Windows 端；也可在 WSL 安裝，或從 Windows format）。
+- 專案的 LLM policy 適用：pull request description 必須揭露使用情況，作者必須理解程式碼，而且 **description 必須由作者撰寫，不可由 LLM 代寫**。
+- 優先一個 issue 一個 pull request。Contributing guide 要求 focused changes，而這裡較小的項目正好符合。
+
+### 風險
+
+- **Ubuntu 26.04 沒有對應 Swift build**，所以這裡使用的是 24.04 toolchain 搭配 26.04 libraries，並用從 24.04 packages 取出的 `libxml2` 和 ICU shim。它能 build 與 link，但不是 swift.org 測試的組合。若 failure 看起來像 Swift 或 Foundation bug，回報前應先懷疑是這個組合造成的。
+- **WSLg 是 Wayland**，所以 window-level 行為與一般 desktop 不完全相同。Tier 2 結果需要附上這個 caveat。
+- **GTK version skew**：4.22.4 很新，所以關於較舊 GTK 的 bugs 無法在此重現；在它上面驗證的 fix 也不能假設能幫助較舊 distributions 的使用者。
+- 其中幾個 issues 很舊。有些可能已經修好；確認並關閉它們也是合理結果。
+
+---
+
+## 平台矩陣
+
+此文件說明哪個 repro app 測哪個 issue，以及在各平台執行後能得到什麼結論。各 app 的逐步操作在 `UI-test-plan-en.md#overall-plan-p0-p41`；Linux 工作策略在 `UI-test-plan-en.md#linux-plan-gtkbackend-through-wsl`。本文件只回答一個問題：*這個 issue 要在哪裡跑，而結果算不算數？*
+
+內容來自 `issues.csv`，它是 source of truth。若要重新產生 issue 與 app 的對應：
+
+```sh
+awk -F, 'NR>1 && $4 ~ /p[0-9]+$|p[0-9]+;/ {print $4"  #"$1"  "$3}' testapp/issues.csv
+```
+
+### 圖例
+
+| | 意義 |
+| --- | --- |
+| 🎯 | Issue 回報在這個平台上。此平台的一次執行即可判定該 issue。 |
+| 🔍 | Issue 不是回報在這個平台上，但執行結果可作為有用比較；一致或不一致本身就是 finding。 |
+| ⬜ | 沒有可學到的資訊。App 可建置與執行，但此平台無法呈現這個 issue。 |
+| ✅ | 此平台已修正。執行它是 regression check。 |
+| 🚫 | 沒有對應硬體、simulator 或 toolchain。這是套用在哪台機器，請看下方表格。 |
+| 〰️ | 可在 WSLg 執行，但結果不能判定 issue：這是 WSLg 會扭曲的 window-sizing 案例之一。先在這裡重現，再到 🐧 確認。 |
+
+桌面平台欄位：🪟 Windows（WinUIBackend）· 🌊 WSLg（Wayland compositor 下的 GtkBackend）· 🐧 Linux（真實 desktop session 上的 GtkBackend）· 🍎 macOS（AppKitBackend）。Mobile：📱 iOS（UIKitBackend）· 🤖 Android（AndroidBackend）。
+
+WSLg 和 Linux 分成不同欄位，因為兩者會有差異。WSLg 是 Wayland compositor，不是真正的 desktop session，因此 window sizing、minimum sizes、decorations 行為不同；這也是 `UI-test-plan-en.md#linux-plan-gtkbackend-through-wsl` 已記錄的 Tier 1 / Tier 2 分界來源。🌊 下標為 〰️、但 🐧 下標為 🎯 的兩列，就是分開兩欄的理由：WSLg 可以顯示症狀，但只有 desktop session 能判定。〰️ 不會出現在 🐧 下，因為它描述的是 WSLg 這個環境，而不是 GtkBackend 本身。
+
+只有 #556 和 #289 使用 〰️。Tier 2 不等於「WSLg 不可信」：它只是收集需要*某種* caveat 的 issue，而原因各不相同。#595 和 #158 標示為非 GTK-specific，#291 回報為 Gtk **未**受影響，#295 的 caveat 則是 Gtk3Backend 半邊不在範圍內。這些都不是在談 WSLg fidelity，因此若把它們標成 〰️，反而會錯稱 compositor 會扭曲與它無關的結果。
+
+### 各平台可在哪裡執行
+
+此 repository 會在兩台機器上工作，所以「這裡」取決於你正在看的 checkout。以下以機器而非檔案說明：
+
+| Platform | Windows workstation | macOS workstation |
+| --- | --- | --- |
+| 🪟 Windows | ✅ native | 🚫 |
+| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.3.3 | 🚫 |
+| 🐧 Linux | 🚫 no desktop session | 🚫 |
+| 🍎 macOS | 🚫 | ✅ native |
+| 📱 iOS | 🚫 | ✅ Simulator, iOS 18.4 |
+| 🤖 Android | 🚫 | ✅ SDK + NDK, device or emulator |
+
+兩台機器都沒有真正的 Linux desktop session，因此 🐧 欄目前兩邊都不可達。它仍存在，是因為若干在 🌊 下量到的結果，在有人於 🐧 重跑前都明確只是 provisional。
+
+### Binaries
+
+目前 testapp 已到 P41。下方桌面 issue matrix 仍可判定其中列出的 upstream issue rows，但它已不再是所有本機 repro app 的完整 inventory。P18-P41 依需要記錄在 overall 與 bug plans。
+
+在 Windows workstation 上，可達的桌面 app 預設以 release build 建置：🌊 WSLg 下是 `testapp/output/PN`，🪟 Windows 下是 `testapp/output/PN.exe`。目前沒有任何東西在 🐧 下建置過，所以該欄沒有結果。重新建置 matrix-era desktop set：
+
+```sh
+zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
+```
+
+較新的本機 app 請依 test plan 指名的 app 單獨建置，不要假設此 matrix 已經分類。
+
+### 矩陣
+
+#### Open issues 與 fixed regression coverage -- desktop
+
+| Issue | App | 🪟 | 🌊 | 🐧 | 🍎 | 內容 |
+| --- | --- | :-: | :-: | :-: | :-: | --- |
+| #389 | P3 | ✅ | 🎯 | 🎯 | ⬜ | Images aren't clipped -- WinUI 半邊已修，GTK 半邊仍 open |
+| #390 | P2 | ✅ | 🎯 | 🎯 | ⬜ | Disabled buttons 看起來不像 disabled -- 同樣是 split 狀態 |
+| #476 (Fixed) | P7 | ⬜ | ✅ | ✅ | ⬜ | List 啟動時第一項已被選取 -- 已在 GTK4 與 Gtk3 確認修正 |
+| #556 | P7 | ⬜ | 〰️ | 🎯 | ⬜ | NavigationSplitView size decisions 異常 |
+| #417 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | ScrollView cornerRadius 沒有裁切 children |
+| #426 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | Horizontal ScrollView 吞掉 parent 的 scroll wheel |
+| #504 | P9 | ⬜ | 🎯 | 🎯 | ⬜ | TextField/SecureField 第一次更新後高度縮小 |
+| #295 | P9 | ⬜ | 🎯 | 🎯 | ⬜ | Text 沒有被裁切到 zero width |
+| #478 | P10 | ⬜ | 🎯 | 🎯 | ⬜ | Ctrl-Q 無法結束 |
+| #454 | P10 | ⬜ | 🎯 | 🎯 | 🎯 | Transparent containers 吃掉 clicks -- 兩個 backends 都受影響 |
+| #386 | P15 | 🔍 | 🎯 | 🎯 | ⬜ | 不支援 dark mode |
+| #289 | P15 | ⬜ | 〰️ | 🎯 | ⬜ | Gtk-drawn title bars 下的 window minimum height |
+| #160 (Fixed) | P16 | ✅ | 🔍 | 🔍 | ⬜ | Split view 第一次 render 時 layout 錯誤；WinUI initial layout 已修，互動重測仍可保留 |
+| #595 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | ScrollView 內文字被裁切（core） |
+| #158 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | ZStack 內的 Group 沿錯誤 axis layout（core） |
+| #291 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | NavigationSplitView minimum width -- AppKit 有問題，Gtk 沒問題 |
+| #415 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | Non-Identifiable ForEach 在 AppKit crash |
+| #264 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | frame(idealWidth:) 永遠沒有到達 fixedSize（core） |
+| #266 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | 兩個 layout edge cases（core） |
+| #161 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | Picker 依 selection 或最大項目決定大小 -- 需要 2+ platforms |
+| #82 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | 互相 clamp 的 sliders 會 jitter |
+| #485 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | Scrollbar 方向相反 |
+| #473 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | Compact DatePicker sizing |
+
+#### Open issues -- mobile
+
+| Issue | App | 📱 | 🤖 | 內容 |
+| --- | --- | :-: | :-: | --- |
+| #595 | P13 | 🎯 | 🎯 | ScrollView 內文字被裁切（core） |
+| #158 | P13 | 🎯 | 🎯 | ZStack 內的 Group 沿錯誤 axis layout（core） |
+| #264 | P17 | 🎯 | 🎯 | frame(idealWidth:) 永遠沒有到達 fixedSize（core） |
+| #266 | P17 | 🎯 | 🎯 | 兩個 layout edge cases（core） |
+| #161 | P17 | 🎯 | 🎯 | Picker 依 selection 或最大項目決定大小 -- 需要 2+ platforms |
+| #324 | P14 | 🎯 | ⬜ | Orientation change 時 proposed size 錯誤 |
+| #254 | P14 | 🎯 | ⬜ | App background 沒有跟著 system theme 更新 |
+| #632 | P12 | ⬜ | 🎯 | Buttons 有不必要 margin |
+| #580 | P12 | ⬜ | 🎯 | Rotation 會 reset @State |
+| #544 | P12 | ⬜ | 🎯 | Toggle state 沒有視覺呈現 |
+
+### Android action file 後續 TODO
+
+Android runner、APK 傳送、emulator 啟動及 CSV action replay 已在 API 36 emulator
+上以 P12 驗證。TODO：調查 P12 按鈕更新 state 後可能讓 render surface 變白的原因，並在 Android
+action test 加入 screenshot 或 state assertion；在此之前，不可把 #632、#580 或 #544 視為 Android
+已完成結果。
+
+Core-layout issues 同時出現在兩張表中：它們是 backend-independent，所以任何平台執行都算數，而兩個平台之間的不一致本身就是 finding。
+
+#### 已修正，保留作為 regression checks
+
+| Issues | App | 🪟 | 內容 |
+| --- | --- | :-: | --- |
+| #493 #548 | P0 | ✅ | Launch-time crashes |
+| #523 #659 #660 | P1 | ✅ | Dialogs and sheets |
+| #204 #401 #449 #471 | P2 | ✅ | Controls and styling |
+| #156 #190 #470 | P4 | ✅ | Bindings and callback storage |
+
+P5 和 P6 沒有 upstream issue number：P5 是 multi-window alerts，P6 是 Windows GPU video path，NV12 工作就是從這裡延伸出來的。
+
+### 依機器列出的執行項目
+
+截至 2026-08-29，這份 matrix 在 Windows workstation 上仍視為尚未定案的缺口如下：
+
+- 🪟 Windows：P16 驗 #160；P13 驗 #595/#158，並作為 #291/#415 comparison；P17 驗 #264/#266/#161；P15 作為 #386 control。
+- 🌊 WSLg：P7 的 #556 仍是 provisional，因為 WSLg 會扭曲 window sizing；P15 的 #289 也因相同原因維持 provisional。除非各 app 的 result file 另有記錄，P2、P3、P8、P9、P10、P13、P15、P17 仍是 active WSLg matrix runs。
+- 🐧 真實 Linux desktop：目前兩台機器都不可達。#556 與 #289 仍需要它才能定案。
+- P18-P41：尚未完整納入這份 platform matrix。這些 app 請看 `UI-test-plan-en.md#overall-plan-p0-p41`、`UI-test-plan-en.md#bug-plan-appkit-uikit-and-androidbackend` 與各 feature result docs。
+
+🌊 **WSLg**，在 Windows workstation 上 -- 17 個 issues，加上 #291 和 #415 作比較。#476 已在 GTK4 與 Gtk3 確認修正。〰️ rows 的結果在 🐧 存在前都維持 provisional：
+
+```sh
+./testapp/output/P2                            # 390
+./testapp/output/P3                            # 389
+./testapp/output/P7                            # 476 556
+./testapp/output/P8                            # 417 426
+./testapp/output/P9                            # 504 295
+./testapp/output/P10                           # 478 454
+./testapp/output/P13                           # 595 158, and 291 415 as comparisons
+GTK_THEME=Adwaita:dark ./testapp/output/P15    # 386 289
+./testapp/output/P17                           # 264 266 161
+```
+
+🪟 **Windows** -- 6 個 issues，加上 #291 和 #415 作比較：
+
+```sh
+./testapp/output/P16-WinUI.exe                 # 160，WinUIBackend
+./testapp/output/P13-WinUI.exe                 # 595 158, and 291 415 as comparisons，WinUIBackend
+./testapp/output/P17-WinUI.exe                 # 264 266 161，WinUIBackend
+./testapp/output/P15-WinUI.exe                 # 386 as the control only，WinUIBackend
+```
+
+兩份清單在五個 core-layout issues 上重疊，這正是重點：它們是 backend-independent，所以在兩邊都跑，才能看出平台間是否不一致。其他項目則各自屬於特定欄位。
+
+### 會讓結果無效的三件事
+
+- **P15 若沒有 `GTK_THEME=Adwaita:dark`，就不算測 #386。** GtkBackend 宣告 `canOverrideWindowColorScheme = false`，所以 app 自己的 scheme buttons 無法改變任何東西。那些按鈕是 control；ambient theme 才是測試。
+- **P16 若已經碰過視窗，就不算測 #160。** Resize 是會修正 layout 的兩件事之一，所以必須在移動任何東西前讀取 pane sizes。
+- **P17 只在單一平台上跑，對 #161 沒有答案。** 這個 issue 是 backends 之間不一致，因此至少需要兩次執行來比較。
+
+### 🌊 欄位的 caveats
+
+WSLg 是 Wayland compositor，不是真正的 desktop session。Window sizing、minimum sizes、decorations 在那裡的行為不同，所以 🌊 和 🐧 分成兩欄，而不是合併成一欄。#556 和 #289 標為 〰️，因為兩者都和 window sizing 本身有關；Tier 2 其他項目有其他原因需要 caveat，但不受 compositor 影響。Gtk 在 Wayland 下確實會畫 client-side decorations，所以 #289 的前提成立；但這不是 Fedora + GNOME，因此 negative result 只能界定 bug 範圍，不能直接關閉它。
+
+這裡的 GTK 是 4.22.4，夠新，因此 #702（關於*較舊* GTK 4）完全無法重現。Gtk3Backend 完全不在 scope 內，因此 #286 和 #166 被排除，也表示 #426 只會用 GTK 4 測。
+
+---
+
+## 結果紀錄
+
+### 2026-09-14：P57 GTK Lazy Rows (#117)
+
+先 WSLg、再 Windows GTK4；包含列生命週期修正的 release 編譯皆通過。
+原生探針確認初始 nil、選取第 9999 列、清除選取、更新首尾文字，以及列數
+10,000 -> 1 -> 10,000。10,000 列僅建立 205/206 個容器，縮至一列時降為 1。
+這段流程穩定後記憶體：WSL 327-328 MB，Windows 260-288 MB。
+
+兩端皆在 render marker 後保持顯示至少 30 秒。2026-09-14 已解決黑圖缺口：wincap
+改用 Windows Graphics Capture，並保留 PrintWindow fallback。WSLg 當時也卡在過期的
+COPY MODE；執行 `wsl --shutdown` 並重啟後，標題警告消失，WGC 可直接擷取。
+最終 GL 截圖非黑比例為 WSLg 92.2%、Windows 92.1%；PIL 量得兩張皆為 668x776，
+content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標輸入測試；WinUI
+回歸仍待驗證。
+證據及後續項目見 [backend 接續紀錄](plan/plan-backend-followup-20260912.md)。
+
+### 2026-07-12
+
+#### P2：Controls And Styling
+
+- #449 Picker：點開 `Flavor` picker 時，曾觀察到 WinUI/Composition `BVI-*`、`rcBackdropLocal`、`CachedNewBlur` console diagnostic log。已嘗試在 WinUIBackend 覆寫 `ComboBoxDropDownBackground` 為 solid brush，待重新測試確認 console noise 是否消失。
+- #449 Picker：先前 dropdown 會立即消失，且無法選擇其他 option。已調整 WinUI ComboBox：options 未變時不更新 items，selected index 未變時不重設 selection，待重新測試確認。
+- #471 TextEditor：先前輸入可能漏字，例如快速輸入 `12345` 只顯示 `1235`。已移除 TextEditor 的一次性 `shouldBlockNextChangedSignal` 阻擋邏輯，改用最後同步文字避免同值 binding write，待重新測試確認。
+- #390 (Fixed)：disabled button 與 enabled button 視覺差異目前回報為 no issue。
+- #401 (Fixed)：window resizing / full screen button 行為目前回報為 no issue。
+
+#### P3：Layout And Clipping
+
+- #160：截圖顯示初始或特定視窗尺寸下 NavigationSplitView 欄位可能被裁切或配置不穩，需繼續記錄 resize / force state update 前後差異。
+- #389：截圖顯示 oversized image 仍可能超出預期 frame，需記錄為 image clipping 相關現象並後續修正。
+
+#### P4：WinUI Native And Callback Stress
+
+- #156：截圖顯示 native WinUI banner 與 `TextField.inspect` 修改後的 border 可見，初步看起來 native API escape hatch 有生效。
+- #190：截圖顯示 row buttons 與 scroll view 正常出現；仍需逐一點擊 `Run N`、增減 rows、重複 force update 來確認 callback 是否錯亂。
+- Row size 增加延遲：目前判斷和 WinUIBackend 有關。P4 每個 row 會建立 Button/Text/Spacer 等多個 native widgets；row count 增加時，SwiftCrossUI `ForEach` 會重用舊 row 並新增新 row，但 ScrollView/VStack 仍會 layout 所有 rows。WinUIBackend 原本每次 `updateButton` 都重建 button content 的 `TextBlock`，大量 row update 時會放大延遲。已先改成 `CustomButton` 重用 label TextBlock，待重新測試比較延遲是否下降。
+
+### 2026-08-16
+
+#### P7：Lists And Split Views
+
+- #476 (Fixed)：Windows `P7.exe` 啟動時 plain list 沒有任何列被選取，狀態列顯示 `Selection: none`，符合預期。
+- #476 (Fixed)：WSLg/GTK4 `P7` 現在啟動時 selection binding 仍維持 `nil`；plain List 沒有 highlighted row，狀態列顯示 `Selection: none`。
+- #476 (Fixed)：安裝 `libgtk-3-dev` 後也已確認 WSLg/Gtk3；`swift build -c release --target Gtk3Backend` 通過，Gtk3 P7 執行時也不再於啟動時選取 `Apple`。
+- #476 (Fixed)：修正後點選 `Cherry`、`Clear selection`、`Select Cherry` 仍會正確更新或清除選取列。
+- #386 / GTK theme 觀察：WSLg/GTK 使用原生 GTK theme metrics 與顏色，因此背景、文字對比、間距、selected row 樣式會和 WinUI 不同。在 `GTK_THEME=Adwaita:dark` 下，app 背景變深，但截圖中仍可看到部分文字對比偏低，後續驗證 GTK theme 行為時應一併注意。
+- #556（已由 2026-09-01 量測修正判讀）：當時截圖看起來像 Windows 與 WSLg/GTK 的 pane aspect / split ratio 不一致。後續診斷顯示這是量測誤讀：把 content width 當成 pane width。
+- #556：點選 plain List 的 `Cherry` 後，NavigationSplitView 的 detail pane 仍顯示 `No sidebar selection`。以目前 P7 測試內容來看，plain List selection 與 NavigationSplitView sidebar selection 是分開的，這應屬預期；但閱讀對照截圖時需要注意這點。
+- #556：Step 7 功能上穩定。按 `Add a fruit's worth of text` 後，上方較長文字出現，split view 沒有跳動或塌陷。後續診斷顯示此情境下 WSLg 與 Windows 的實際 pane ratio 相同。
+- #556：Step 8 功能上穩定。調整視窗大小後，包含大幅加寬視窗的情境，Windows 與 WSLg/GTK 的 detail pane 都保持可見。後續診斷顯示此情境目前不再重現 pane-ratio mismatch。
+- #556 / Windows Light mode：Windows Light mode 下，右側第三 pane 沒有顯示預期的垂直分隔線（`|`）；相較之下，WSLg/GTK 對照截圖中可看到 pane boundary。先記錄為 split-view detail pane 的 Windows/GTK 視覺一致性問題。
+- WSL/Windows GUI comparison：同一個 P7 測試情境下，Windows `P7.exe` 與 WSLg/GTK `P7` 的視窗尺寸理論上應該一致，但截圖對照顯示兩者有明顯尺寸差異。這需要進一步調查，否則不能直接把跨 backend 的 layout screenshot 視為等比例比較；後續需確認差異來自 requested content size、backend window-sizing semantics、DPI scaling、window decorations，或 WSLg compositor 行為。**（已於 2026-08-18 以 P6 解答：成因為 DPI scaling，詳見該日紀錄。）**
+
+#### P8：Scroll Views
+
+- #426 (Confirmed/Open, WSLg/GtkBackend only)：已確認此問題只在 WSLg / GtkBackend 發生；Windows / WinUIBackend 對照未重現。WSLg 上水平與垂直 scroll 都完全不移動，包含游標位於內層水平長條上並嘗試水平或垂直滾動的情境；外層垂直 scroll view 沒有如預期接收/接手滾輪事件。
+- #426：後續修正應優先在 WSLg / GtkBackend 上重現與驗證，再用 Windows / WinUIBackend 作為 non-regression 對照。可使用 `zsh testapp/test.zsh P8 --both`；腳本會先跑 WSLg、render 後保留 30 秒並拍 final screenshot，再跑 Windows。
+- #417（WSLg/GtkBackend 未重現）：紅色子元件明顯被 `cornerRadius(20)` 裁切——WSLg 截圖中四個角都是圓的，與「內容從圓角穿出」的回報症狀相反。同時量到 `cornerScroll: 260x120` 對 `redChild: 260x300`，子元件確實超出容器 180px，也就是說有東西可被裁切。僅在 WSLg 下以靜態截圖確認；未檢視 Windows，也未在真實 Linux 桌面工作階段驗證。
+- #266（附帶重現，僅 WinUIBackend）：內層水平長條在 Windows 上被量到兩次，先 `420x48` 後 `408x48`；WSLg 只量到一次 `420x48` 且維持不變。那 12px 是**外層** ScrollView 的垂直捲軸：WinUI 在後續的 layout pass 從內容寬度扣除，GTK 則以 overlay 呈現而不佔寬度。這正是 #266 描述的取捨——顯示捲軸會改變內容可用寬度，寬度改變可能改變內容高度，進而改變是否還需要捲軸。此處無害，因為沒有東西依賴該寬度，且 P8 並非為 #266 設計；記錄下來是因為若要處理 #266，這是現成的重現點。
+
+### 2026-08-18
+
+#### P6：Stream Player
+
+- P6 首次在 WSLg 上實際執行。先前從未跑過的原因不是 Linux 呈現路徑缺失，而是 `testapp/output/` 同時被 git 與 rsync 排除（該目錄屬各機器自有），因此 WSL 端沒有媒體檔可播。複製媒體檔後，ffmpeg 解碼管線、視窗、播放控制與版面皆正常，00:24 的截圖畫面完整正確。
+- 判讀提醒：測試用影片開頭數秒為淡入，畫面接近全黑，僅右緣有轉場內容。單看該時段的截圖會誤判為呈現異常（本次即發生過一次）。判讀 P6 截圖應取播放中段而非開頭。
+- `-seek`（已修正）：該旗標原本定義於 Windows 專屬的 `P6WindowFlags`，唯一使用處也包在 `#if os(Windows)` 內，因此在 Linux 與 macOS 上會被接受卻毫無作用。移至平台中立的 `P6DecoderFlags` 後，以同一個 binary 對照：無 `-seek` 時 play session 起始 `0.000s`、第一格 00:00；`-seek 90` 時起始 `90.000s`、第一格 01:30。Windows 端重建後仍為 `90.000s`，無回歸。
+- `-maximized`（已修正）：原本同樣只存在於 Windows。GTK 端改由 `@Environment(\.window)` 取得 backend 視窗、轉型為 `Gtk.ApplicationWindow` 並呼叫新增的 `Gtk.Window.maximize()`；截圖確認 WSLg 視窗滿版 1920x1080。SwiftCrossUI 先前在任何 backend 都沒有 maximize 概念。
+- `-topmost`（維持 Windows 專屬）：GTK4 沒有置頂 API（`gtk_window_set_keep_above` 屬 GTK3 且已移除），Wayland 亦依設計不允許 client 自我抬升，因此刻意不提供 Linux 路徑，而非留待日後補上。
+- WSL 缺少 CJK 字型（已修正）：原始 WSL 映像的 `fc-list :lang=zh-tw` 為 0，zh-TW 的 fc-match 回退到不含漢字的 DejaVu Sans，GTK 因而把中文 UI 文字畫成豆腐框。此症狀極易被誤判為 backend 的算繪缺陷——同一張截圖中，影片壓製的中文字幕清晰可辨（那是像素），只有 UI 文字是方框（那是文字），且全程沒有任何錯誤訊息。安裝 `fonts-noto-cjk` 後 zh-TW 字型由 0 增為 30，檔名完整顯示；已寫入 `install_tool_wsl.sh`。Windows 端不受影響，因為它使用含 CJK 的系統字型。
+- 音訊（已解決）：P6 在 WSLg 上沒有聲音。**唯一的成因是 WSLg 的 PulseAudio server 停止監聽**，`pactl`、`paplay` 與 SDL 三個客戶端在同一時刻都得到 `Connection refused`。在 Windows 執行 `wsl --shutdown` 後重開 WSL，伺服器即恢復（`Server Name: pulseaudio`、`Server Version: 17.0`、`Default Sink: RDPSink`、`RDP Sink - Connected to fd 20`），播放經使用者實聽確認。Windows 端音訊裝置本來就全部正常（Realtek(R) Audio `oem10.inf`、NVIDIA HD Audio、AMD HD Audio、NVIDIA Virtual Audio Device，狀態皆為 Started）。
+- 音訊誤判紀錄（重要，避免重蹈）：中途一度把 32 行 `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'` 當成根本原因，並為此在 P6 中加入 `SDL_AUDIODRIVER=pulse`。那是**症狀而非病因**——pulse 連不上時 SDL 才退回 ALSA。伺服器修復後實測：不設任何變數時 exit 0 且 0 行 ALSA 錯誤，SDL 自己就會選擇 pulse；強制 `SDL_AUDIODRIVER=alsa` 才會產生那 32 行。因此該程式碼改動已撤除。當初之所以誤判為「pulse 修好了」，是因為判定用的 grep 只匹配 `ALSA|error`，看不見 pulse 路徑真正的失敗訊息 `Could not initialize SDL - Could not connect to PulseAudio`：ALSA 路徑是吵鬧的失敗，pulse 路徑是安靜的失敗，兩者都沒有播放。**教訓：用退出碼判定成敗，不要用只匹配特定字串的過濾器。**
+- 判別要點：若沒有 `pactl`，此問題無法與「client 端設定錯誤」區分——socket 存在、`PULSE_SERVER` 指向正確、檔案權限也正常，看起來完全設定妥當。`pactl info` 是唯一能分辨兩者的檢查，因此 `pulseaudio-utils` 已列入 `install_tool_wsl.sh`。伺服器可在 socket 檔案仍留在原處的情況下停止服務，所以「socket 存在」不足以作為判斷依據。
+- WSL 安裝腳本從未被同步到 WSL：`rsync_WSL.zsh` 的 include 樣式只涵蓋 `*.swift` 與 `testapp/**/*.zsh`，因此 `install_tool_wsl.sh` 從未送達 WSL。實際發現 WSL 端的副本仍停留在 8 月 16 日的版本，而本機已改過多次。已於 include 清單加入該檔並註明理由。
+- 安裝腳本已拆分：`install_tool_wsl.sh` 僅保留引導職責（檢查 root、安裝 zsh、交棒），實際邏輯移入新的 `install_tool_wsl.zsh`。維持 `.sh` 進入點的理由無法迴避——該腳本面對的是尚未安裝 zsh 的機器，而安裝 zsh 正是它的工作；若用 zsh shebang，核心會因找不到直譯器而使它完全無法啟動。形狀與「自我提權後立刻交棒」的 `.ps1` launcher 相同。兩個進入點的 `--help` 皆在 0.2 秒內回應且不安裝任何東西。
+- 第三方套件庫會中止整個安裝：本機於 2026-08-17 的 GPU 調查期間加入了 NVIDIA CUDA repo 卻沒有一併安裝 keyring，`apt-get update` 因而以 `NO_PUBKEY A4B469963BF863CC` 失敗；在 `set -e` 下安裝腳本在裝任何東西之前就中止——而它需要的每個套件其實都取得得到。已改為「回報但繼續」，讓真正找不到套件時由安裝指令自行失敗。該 repo 本身仍待處理：補上金鑰或移除（GPU 調查已確認問題不在驅動）。
+- GTK 檔案選擇器不關閉（Open，**僅限 Wayland**）：完整 2×2 對照如下，四格皆為實測。
+
+  | | Wayland | XWayland |
+  |---|---|---|
+  | 無修正 | **不關閉** | 關閉 |
+  | 加上 `gtk_native_dialog_destroy()` | **不關閉** | 關閉 |
+
+  結論：**`gtk_native_dialog_destroy()` 沒有任何作用，該修正已撤除。** 先前提出的 refcount 假說（`GObject.init` 對 `gtk_file_chooser_native_new` 已交付的參考再 `g_object_ref` 一次，使物件永不終結）**已被推翻**——若成立，加上明確 destroy 應當有效。
+- 檔案選擇器：已確認 response handler 有正常觸發。日誌顯示使用者選檔後出現 `load /mnt/c/.../20260721 …`、`session token 2`、`frame 00:00`、`Frame ready`，亦即 URL 有交回、檔案有載入、影格有解出。**只有對話框沒有消失**，因此問題不在 signal 傳遞，而在對話框視窗的生命週期，且僅發生於 Wayland。XWayland 下同一份程式碼完全正常。
+- 檢驗方法備忘：判斷「是否為本專案的缺陷」的下一步，是拿一個非 SwiftCrossUI 的原生 GTK4 app（例如 `gtk4-demo` 的檔案選擇器）在 WSLg Wayland 下測試。若它同樣不關閉，則問題屬於 GTK 或 WSLg，與 GtkBackend 無關；若它正常關閉，才需要回頭查 backend。尚未執行。
+- Wayland 與 XWayland 必須分開驗證：Wayland 依設計不允許一個行程驅動另一個 client，因此 xdotool 在預設的 WSLg 工作階段中看不到任何視窗。這代表兩者是真正不同的測試目標——在其中一邊重現的錯誤不能作為另一邊的證據，上述檔案選擇器即為實例。
+- WSL GUI 自動化已可用：`xdotool` 搭配 `xwd`／`netpbm` 可在 XWayland 下點擊控制項並擷取視窗內容，且不依賴 Windows 端解鎖。座標須使用 `xdotool mousemove --window`（視窗相對），絕對座標會因視窗裝飾而失準——實測絕對座標點擊完全沒有反應，改為相對座標後立即成功。注意 `xwd` 位於 `x11-apps` 而非 `x11-utils`。
+- WSLg 視窗完全不出現（已解決，成因為 COPY MODE）：回報症狀是「P6 啟動後點工作列圖示也不會到前景，甚至根本看不到視窗」。App 本身完全正常——日誌有 `auto-load`、`frame 00:00`、`Frame ready`，代表 `onAppear` 已執行、視窗已建立、影格持續解碼；`/mnt/wslg/weston.log` 也顯示視窗已註冊給 RDP peer（`associateWindowId: 1`、`appWindowId: 0x10`）。真正的原因是 **WSLg 處於 COPY MODE**：其算繪路徑降級，視窗雖存在卻無法被帶到前景。於 Windows 執行 `wsl --shutdown` 後重開即恢復，視窗立即正常顯示。
+- 觸發時機：期間 WSL 自我更新（2.7.11.0 → 2.7.12.0），而執行中的 WSLg 實例仍停留在舊狀態，自此進入 COPY MODE。這與稍早的 PulseAudio 失效屬同一類——**WSLg 的橋接（視窗或音訊）會在 socket／視窗看似正常的情況下降級，且不會有任何錯誤訊息**。兩次的補救都是 `wsl --shutdown` 後重開。
+- WSLg 會改寫視窗標題，這使得以標題尋找視窗的工具失效：正常時為 `P6 stream player (Ubuntu)`，降級時為 `[WARN:COPY MODE] P6 stream player (Ubuntu)`。AppActivate 比對的是標題開頭或結尾，因此該前綴會讓「P6 stream player」的搜尋直接失敗——而失敗的表現形式是「拍到螢幕上的其他內容」，不是「找不到視窗」。`screenshot.zsh` 現在會以子字串解析真實標題，並在偵測到 COPY MODE 時直接指出補救方式。
+- P6 在 Linux 上不會回收 ffplay 子行程：關閉 P6 後仍留下三個各約 8.3 小時的 ffplay 孤兒行程。`P6ChildProcessReaper` 的 job object 機制是 `#if os(Windows)` 專屬，Linux 側沒有對應實作。尚未修正。
+- GTK 檔案選擇器（Open，未修正）：在 WSLg 上，`Choose file` 選好檔案後對話框不會關閉。程式位置為 `Sources/GtkBackend/GtkBackend.swift` 的 `showFileChooserDialog`：它呼叫 `gtk_native_dialog_show()`，但 response handler 只處理結果，沒有任何 hide 或 destroy。`Sources/Gtk3Backend/Gtk3Backend.swift` 的同一段結構相同。尚未實地驗證修法。
+- WSL/Windows GUI comparison（2026-08-16 該項的解答）：兩端的尺寸差異來自 **DPI scaling**，而非 requested content size、backend window-sizing semantics、window decorations 或 WSLg compositor 行為。在同一台 1920x1080 螢幕、兩端皆 `-maximized` 的條件下量到：Windows 影片區為 1200x675 px，WSLg/GTK 為 960x540 px。Windows 日誌本身即記錄 `viewport 960.0x540.0 dip (1200x675 px), panel actual 960.0x540.0 dip, rasterization scale 1.25`，並有 `window metrics: dpi 120`。亦即 WinUIBackend 套用了 1.25 的 rasterization scale，GtkBackend 則以 1:1 呈現。因此跨 backend 的 layout 截圖在換算 DPI 之前，不可直接視為等比例比較。
+
+### 2026-08-19
+
+#### GTK 檔案選擇器：根因確認
+
+- **根因是所使用的 API，而非我們的用法。** 判別方式是拿一個完全不含 SwiftCrossUI 的原生 GTK4 app（`gtk4-node-editor`）在同一個 WSLg Wayland 工作階段下測試：它的檔案對話框**正常關閉**。以 `nm -D --undefined-only` 比對兩者實際連結的符號：
+
+  | | 使用的 API | Wayland 結果 |
+  |---|---|---|
+  | `gtk4-node-editor` | `gtk_file_dialog_new` / `gtk_file_dialog_open`（**GtkFileDialog**） | 關閉 |
+  | SwiftCrossUI GtkBackend | `gtk_file_chooser_native_new` / `gtk_native_dialog_show`（**GtkFileChooserNative**） | 不關閉 |
+
+  同一台機器、同一個 GTK 4.22、同一個 compositor，差別只在 API。
+- `GtkFileChooserNative` 在 GIR 中標記為 `deprecated="1"`（`Gtk-4.0.gir`）。標頭檔本身沒有 `GDK_DEPRECATED` 巨集，因此以標頭檔查詢會得到「未標記淘汰」的錯誤結論——GIR 才是權威來源，也正是 `GtkCodeGen` 產生 Swift 綁定所依據的同一份資料。
+- 取代用的 `GtkFileDialog` 自 **GTK 4.10** 起提供（`GDK_AVAILABLE_IN_4_10`），系統標頭中所需函式齊備：`open`／`open_multiple`／`save`／`select_folder` 及各自的 `_finish`，加上 `set_title`、`set_initial_folder`、`set_filters`、`set_accept_label`。它是**非同步 API**（`GAsyncResult` callback），與現行以 `response` signal 為中心的實作模型不同，因此遷移需要改寫而非替換函式名稱。
+- 方法備忘：先前三次嘗試修正都失敗，因為都在假設「我們用錯了」。真正有效的一步是**切開責任歸屬**——用原生 app 做對照，確認同一環境下別人做得到。這比任何一個新假說都便宜。
+
+#### 放棄 GTK3 支援
+
+- 已移除 `Sources/Gtk3`（179 檔／16,365 行）、`Sources/Gtk3Backend`（2,448 行）、`Sources/CGtk3`、`Sources/Gtk3CHelpers`、`Sources/Gtk3Example`、`Tests/Gtk3BackendTests`、`Scripts/generate_gtk3.sh` 與 docc 的 Gtk3Backend 頁面。
+- 實際的程式碼依賴**只有兩處**：`Package.swift`（products／targets／測試開關 `SCUI_TEST_GTK3BACKEND`）與 `Sources/DefaultBackend`（`#elseif canImport(Gtk3Backend)` 的後備選擇）。其餘散落的引用全是註解或條件編譯分支。
+- `Examples` 內的 `#if canImport(Gtk3Backend)` 分支在模組消失後會自動編譯掉，不會破壞建置，但仍一併移除；`ControlsApp.swift` 的 `#if !canImport(Gtk3Backend)` 則相反——它在移除後永遠為真，因此拆掉包裹讓內容無條件編譯。
+- 文件與註解清理另外揪出**兩個真正的破損**，不只是文字：`Scripts/generate_gtk.sh` 仍呼叫已刪除的 `./generate_gtk3.sh`；`GtkCodeGen` 的 `gtk3AllowListedClasses` 與 `version == "3.0"` 分支是實際的產生邏輯。CI workflow 也還在建置與產生 `Gtk3Backend` 的文件（三個步驟＋docc 合併清單）。`Publisher.swift` 另有一個 ``` ``Gtk3Backend`` ``` 的 DocC 符號連結，目標消失後會變成無法解析的連結。
+- 刻意**保留**的三處：`gtk_helpers.h` 中作者記述某次 macOS 建置異常的第一人稱說明、`AppBackend refactor.md`（開頭即言明是某 PR 的變更清單，本質為歷史文件），以及 `GtkCodeGen` 中 `populate-popup` 的停用理由——後者已改寫為「GTK3 已移除故該理由不再適用，但尚未在 GTK4 上驗證重新啟用」，而不是直接開啟該訊號，因為那是行為變更。改寫歷史記述等同偽造記錄。
+- **rsync 不會傳播刪除，且建置成功會掩蓋這件事**：`rsync_WSL.zsh` 刻意不使用 `--delete`（WSL 端的 `output/`、build 快取與本地修改應保留）。因此本機刪除 193 個 GTK3 檔案後，WSL 端**全部仍在**；而 SwiftPM 會忽略 `Package.swift` 不再宣告的目錄，所以 WSL 上四個 target 依然建置成功——一棵已經與本機不一致的樹，看起來完全正常。已手動清除 WSL 端並重新驗證，同時把這個後果寫進 `rsync_WSL.zsh` 的標頭。
+- 驗證：`Gtk`、`GtkBackend`、`DefaultBackend`、`GtkExample` 四個 target 皆建置成功；所有編輯過的檔案通過 `swiftc -parse`。整包 `swift build` 與 `Examples` 在 Linux 上仍會停在 `WinUIInterop`／`swift-winui` 缺 `Windows.h`、`wtypesbase.h`——那是既有的平台限制，與本次移除無關。
+
+#### GtkBackend 已能在 Windows 上建置
+
+- 動機是編譯時間：Windows 上以 WinUIBackend 建置 P6 需 95-103 秒，WSL 上以 GtkBackend 僅需 13-22 秒，成本來自 WinAppSDK。WinUIBackend **維持為 baseline**，不移除。
+- ABI 是前提：Swift on Windows 以 MSVC ABI 為目標並連結 UCRT。MSYS2 的 GTK 4 是 MinGW 建置，不列入考慮；改用 gvsbuild 的 MSVC 建置版本（`testapp/install_gtk4_windows.zsh`，來源與授權記於 `Acknowledgements/gvsbuild/`）。
+- 路徑改寫改由**簽入的 patch** 提供（`testapp/patches/gtk4-pkgconfig-relocate.patch`），行尾則由單一 `tr` 另外處理。分開的理由可量化：兩者混在同一步時，diff 為 8397 行 / 391 KB，因為每個檔案的每一行都因 CR 而不同；分開後是 2745 行，其中約 600 行是實際變更，其餘為 302 個檔案的 diff 標頭。
+- 順序被工具鏈決定，而非由設計選擇：**MSYS 工具以文字模式讀檔，只要碰到檔案就會丟棄 CR**。實測一個「只改 prefix 那一行」的 `sed -i`，就讓 gtk4.pc 的 CR 由 14 個變為 0 個。因此行尾無法留到最後處理——必須先正規化，patch 才會套用在內容確實相符的檔案上。
+- patch 綁定於單一 gvsbuild 發行版，因此保留規則式的 fallback：若 `patch` 無法套用（換版本時的預期情況），安裝腳本會回退到與 patch 相同的兩條替換規則並明講。實測：patch 乾淨套用至 302 個檔案，`swift build --target GtkBackend` 於 Windows exit code 0。
+- gvsbuild 套件**無法直接重新定位**：302 個 `.pc` 檔中有 301 個硬編碼建置機器的 `C:/gtk-build/gtk/x64/release`，且全部使用 CRLF。
+- **SwiftPM 的 `.pc` 解析器會被 Windows 磁碟機代號打斷**：它先以第一個冒號切分 keyword，因此 `prefix=C:/gtk4` 被讀成 keyword `prefix=C`，變數 `prefix` 從未定義，回報 `Expected a value for variable 'prefix'`。改寫為不含冒號的 `prefix=${pcfiledir}/../..` 後即可解析；其餘殘留路徑一律代入 `${prefix}`，同樣是為了不引入冒號。
+- **SwiftPM 在 Windows 上不套用 systemLibrary 的 pkgConfig cflags**：實測 `GtkCHelpers` 的 clang 呼叫只帶自身 include 目錄，`gtk4.pc` 的內容一項也沒有，即使 `PKG_CONFIG_PATH` 已設定且 pkg-config 回報正確。必須以 `-Xcc -I…` 明確傳入；安裝腳本會印出現成的指令。
+- 兩個真正的可攜性缺陷（皆為 Linux/Windows 的 C 型別匯入差異，修法不需要 `#if os(Windows)`）：
+  - `gulong` 在 Linux 為 64 位元、Windows 為 **32** 位元（LLP64）。`connectSignal` 原本把它轉成 `UInt` 回傳，於是 disconnect／block／unblock 全部無法編譯。改為全程保持 `gulong`。
+  - `gsize` 在 Linux 匯入為 `UInt`、Windows 為 `UInt64`，寬度相同但在 Swift 是不同的具名型別。改為直接以 `gsize(...)` 轉換。
+- 結果：`swift build --target GtkBackend` 於 Windows 上 exit code 0。Linux 端同步驗證無回歸。尚未做的是執行期驗證與編譯時間對照，計畫見 `testapp/plan/plan-windows-gtk-backend.md`。
+
+#### WSLg 幽靈視窗
+
+- `gtk4-widget-factory` 行程結束後，Windows 端的 `msrdc.exe` 仍持續顯示 `GTK Widget Factory (Ubuntu)` 視窗。WSL 內 `pgrep` 確認無任何對應行程。
+- 這是繼 PulseAudio 停止監聽、COPY MODE 之後，**WSLg 橋接第三種靜默失效**：視窗已無擁有者卻不被移除。判讀 WSL GUI 測試結果時，「Windows 上看得到視窗」不足以證明該 app 仍在執行。
+
+### 2026-08-29
+
+#### P21-P41 Loader 覆蓋
+
+- 補上 P21、P22、P23、P24、P25、P27、P29、P37、P38、P39、P40、P41 缺少的 `test_support/test_Pn.zsh` loader。所有新 loader 與 `test_support/test_common.zsh` 都通過 `zsh -n`。
+- common loader 現在會記錄 screenshot failure，但不會因 `set -e` 中止整個流程。這是必要修正：先前 1 秒截圖失敗時，流程會在 cleanup trap 釋放 `ui-lock` 前退出。
+- 測試順序遵守目前規則：先 WSLg，再 Windows。第一批先跑 P27/P29/P37/P38/P39/P40/P41，第二批補跑 P21-P25。
+
+#### 自動 Smoke Test 結果
+
+以下 final screenshot 都使用 `wincap` 擷取，並以 PIL 量測。每張 final capture 都是可見且非黑畫面。
+
+| App | WSLg final screenshot | Windows final screenshot | 備註 |
+| --- | --- | --- | --- |
+| P21 | 848x749，93.0% 非黑 | 836x759，93.2% 非黑 | Windows render marker 8 秒後出現；WSLg 立即出現。 |
+| P22 | 788x729，92.6% 非黑 | 776x739，93.0% 非黑 | wrapped text 診斷不同：WSLg `300 x 46`，Windows `300 x 32`。 |
+| P23 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P24 | 748x589，91.5% 非黑 | 736x599，91.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P25 | 748x549，91.2% 非黑 | 736x559，91.3% 非黑 | 自動流程只驗證啟動與截圖；live drag/drop 仍需要手動互動。 |
+| P27 | 788x726，92.6% 非黑 | 776x702，92.8% 非黑 | 兩平台皆建置成功並抵達 final capture。 |
+| P29 | 796x657，82.8% 非黑 | 736x599，91.7% 非黑 | 已新增並驗證 WSLg `P29-texteditor-disabled.csv`：final capture 顯示 replay 後 editor 已切成 enabled。Windows smoke final 可見，但本輪 WinUI actionfile replay 沒有產生 `-actionfile` report，仍待查。 |
+| P37 | 788x569，91.5% 非黑 | 776x579，91.6% 非黑 | WSLg 回報 supported levels 為 `automatic, normal`；Windows 回報 `automatic, normal, floating`。Window-level 行為仍需要第二視窗 foreground/topmost 挑戰；本次只驗證 baseline launch/capture 與 backend capability report。 |
+| P38 | 848x692，92.6% 非黑 | 836x699，92.8% 非黑 | 最新一輪 WSLg 1 秒與 final capture 都可見，並顯示預期的 GtkBackend placeholder。Windows final capture 可見，但 WebView 區域仍是灰色空框，且 `Navigations reported: 0`。 |
+| P39 | 888x649，92.5% 非黑 | 876x659，92.5% 非黑 | WSLg 可見 opacity、blur、saturation、brightness、contrast、grayscale 與 hue-rotation 效果。~~Windows 只有 opacity 明顯；blur 與多數色彩效果看起來與 control 相同，因此 WinUI visual effects 仍可疑。~~ **2026-09-02 起已被取代**（劃掉保留而非刪除，讓過時主張留在紀錄裡）：Windows 現已透過真正的 Win2D effect graph 套用全部七項。2026-09-02 驗證：`applied=8 failed=0 total=8`；重跑指令為 `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`。 |
+| P40 | 928x736，93.1% 非黑 | 916x708，93.0% 非黑 | 已修正 WSLg geometry no-op / clipping：PIL 現在可量到七個 transformed color components，scale / rotate / shear 的 bounding box 接近 WinUI。exact / near hotpink pixels：兩平台皆為 0。背景色差異來自平台 theme：WSLg 預設為 light；此處 WinUI 為 dark。 |
+| P41 | 968x649，92.5% 非黑 | 956x659，92.7% 非黑 | 最新截圖中 Windows `.graphical` DatePicker 已可見，不是 blank sliver。WSLg `.wheel` 明顯不同；Windows `.wheel` 仍像 segmented date input，應記錄為 style parity / fallback observation。 |
+
+#### 時序觀察
+
+- WSLg 上這批 release build 在 source sync 後約 12-13 秒完成。
+- Windows 上 P27 早前 build 耗時 231.84 秒；後續 P37-P41 build 大多約 38-75 秒。Windows build 即使成功建出 WinUI app，仍會印出 `pkg-config` / `gtk4.pc` 警告。
+- 多個 Windows app 在 1 秒截圖時尚未被找到，但 final capture 正常可見。除非 final capture 也失敗，否則先記錄為 startup/window-discovery timing。
+- `--actionfile <relative path>` 暴露 Windows loader bug：路徑 containment check 直接拿相對路徑與絕對 `testapp` 路徑比較。WSLg 先用裸 `--actionfile` 避開；`test_common.zsh` 現已加入本地 path converter，因此 Windows 不再依賴 `cygpath`。
+
+### 2026-08-30
+
+#### P30-P36 Loader 與 Baseline 覆蓋
+
+- 已新增 P30、P31、P32、P33、P34、P35、P36 的可編譯 baseline apps 與 `test_support/test_Pn.zsh` loaders。
+- `testapp/compile.zsh` 現在 Windows 與 WSLg 都預設使用 release build；若需要 debug build，必須明確設定 `BUILD_CONFIG=debug`。
+- 測試順序遵守目前規則：先 WSLg，再 Windows。WSLg 端先透過 `testapp/rsync_WSL.zsh` 同步，再於 `/home/lowei/proj/swift-cross-ui` 內編譯。
+
+#### 自動 Smoke Test 結果
+
+以下 final screenshot 都以 PIL 量測。每張 final capture 都可見且非黑畫面。
+
+| App | WSLg final screenshot | Windows final screenshot | 備註 |
+| --- | --- | --- | --- |
+| P30 | 888x649，92.5% 非黑 | 876x659，92.6% 非黑 | WSLg 可見 blur / grayscale 類效果；Windows 可見 opacity 與幾何 transform，但 blur / grayscale 看起來像 no-op，先記錄為 WinUI visual-effect parity 仍待查。 |
+| P31 | 808x589，91.8% 非黑 | 796x599，91.9% 非黑 | 兩平台都能渲染 focus / keyboard baseline controls。~~真正的 Tab 順序、Space/Return 觸發、Escape 與 Ctrl+Q 仍需人工鍵盤測試。~~ **2026-09-03 起，四者中的兩者已被取代：** Tab 順序與 Space 觸發已在 Windows/GtkBackend 上量測，兩者皆可運作——見 2026-09-03 條目。Escape 與 Ctrl+Q 仍未量測，而 Escape **根本無法**由動作檔量測。 |
+| P32 | 788x589，91.7% 非黑 | 776x599，91.8% 非黑 | 兩平台都能渲染 accessibility baseline controls。角色與名稱驗證仍需 Linux 上的 Accerciser，以及 Windows 上的 Accessibility Insights 或 `inspect.exe`。 |
+| P33 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 兩平台都能渲染 missing-view 清單與手寫近似 UI。這是可編譯 baseline，不代表缺席的 SwiftUI views 已經存在。 |
+| P34 | 808x649，92.2% 非黑 | 796x659，92.4% 非黑 | Smoke run 使用 `--debug -rows 100`。更大的 row count / performance 測試仍需另外執行。 |
+| P35 | 788x589，91.7% 非黑 | 776x599，91.8% 非黑 | 兩平台都能渲染 state baseline。Scene composition 缺口仍屬編譯期問題。 |
+| P36 | 848x649，92.4% 非黑 | 836x659，92.5% 非黑 | 可用的 SwiftCrossUI API 形狀能正常渲染；SwiftUI-shaped missing calls 以文字列出，避免破壞日常測試 build。 |
+
+#### 時序觀察
+
+- WSLg release build 在同步後很快完成：P30 13.66 秒，P31-P36 各約 6-10 秒。
+- Windows release rebuild 明顯較慢，尤其是改變 build configuration 後的第一個 target：P30 900.34 秒，P31-P36 之後約 11-29 秒。
+- Windows 多個 1 秒截圖只拍到接近空白的 first frame，但 10 秒 final screenshot 都正常。除非 final screenshot 也失敗，先記錄為 WinUI first-paint / window-capture timing。
+- WSLg 執行時視窗標題仍回報 `[WARN:COPY MODE]`，雖然 final capture 可見。這些結果可用於 UI layout smoke test，但不適合作為 GPU rendering performance 驗證。
+
+### 2026-08-31
+
+#### P16：WinUI NavigationSplitView 初始 layout（#160）
+
+- 已重建並執行 Windows `P16.exe`。final screenshot 可見，尺寸為 916x639，非黑像素 92.5%。
+- 初始診斷仍顯示不穩定的首次量測路徑：`sidebar: 0 x 22`、`detail: 0 x 22`，接著 `detail: 734 x 22`。截圖上可見左側 pane 存在，但 sidebar probe 沒有回報穩定的非零寬度。
+- 已找到一個 runner bug：`compile.zsh` 接受 `SCUI_DEBUG=1`，但沒有把 `-Xswiftc -DSCUI_DEBUG` 傳給 `swift build`。此點已在工作樹中修正，並把 build-plan hash 納入 `SCUI_DEBUG`，避免切換 debug feature 後重用錯的 SwiftPM plan。
+- 目前 actionfile hook 已可觀察：WinUI `show(window:)` 會排程 replay，`ActionFileReplay` 也會把幾何與 replay 結果寫入 `actionfile-replay.log`，避免 WinUI console redirection 讓 runner 誤判為沒有執行。
+- 但 P16 的 actionfile replay 尚未讓 UI 出現預期變化：Force update counter、sidebar selection 與 column switch 仍未在 final screenshot 中確認。這表示剩餘問題較可能在 Win32 synthetic input 對 WinUI 控制的命中 / focus / activation，而不是單純沒有載入 actionfile。
+- 重新以乾淨 `actionfile-replay.log` 跑 `P16 --windows --no-build --showtime 10` 後，`SendInput` 回報 `ERROR_ACCESS_DENIED`。此輪不能當作 app 行為證據；需在 unlocked desktop、且沒有 elevated foreground window 的情境重跑。
+- 修正 WinUI `createSplitView` 初始 `openPaneLength` 後，P16 final screenshot 改為顯示 `sidebar: 180 x 22`、`detail: 660 x 22`，且 `Science` / `Humanities` 不再被壓窄換行。此修正與 GTK 的初始 200px sidebar guess 對齊，避免 core `SplitView.computeLayout` 第一次讀到 0-width sidebar。
+- 目前結論：#160 的初始 layout repro 已修正；仍未完成的是 actionfile 對 Force update / sidebar selection / column switch 的自動互動驗證。最新 actionfile report 可回 `replayed`，但畫面上的 counter 沒變，所以此部分仍需人工驗證或更可靠的 WinUI control activation。
+
+#### P7：NavigationSplitView pane ratio（#556）
+
+- P7 已依規則先跑 WSLg，再跑 Windows。兩邊 final screenshot 都可見，尺寸皆為 748x509。
+- WSLg 診斷：`[SplitView] total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200`。
+- Windows 診斷：`[SplitView] total=420.0 minLeading=31.0 minTrailing=35.0 -> bounds min=31 max=385 currentSidebar=200`。
+- 因此本輪兩平台使用相同實際 split ratio：sidebar 200 / total 420，也就是 47.6%。
+- 先前類似 87px 的結論是量測錯誤：把 content width 當成 pane width。P7 程式中的註解已指出此點；content probe 可以遠小於承載它的 pane。
+- 目前結論：目前 P7 執行中，#556 不再以 pane-ratio mismatch 重現。除非其他 resize/content 情境仍能重現，否則 plan 應由「ratio mismatch」改為「量測防呆 / regression coverage」。
+
+#### P30/P39：WinUI visual effects
+
+- 已執行 Windows P30/P39，並補跑 WSLg P39 作為對照。
+- Windows P39 的 PIL crop comparison 顯示只有 opacity 會改變像素。control crop 與 blur、saturation、brightness、contrast、grayscale、hueRotation 比對，全部得到 `mean_diff=0.00`；blur text edge 指標也與 control 完全相同。
+- WSLg P39 的 PIL crop comparison 則顯示預期的非零差異：saturation 0 與 grayscale 1 的 chroma 為 0，hue rotation 有大幅 mean diff，blur 也有可量測差異。
+- ~~程式碼審查也確認截圖結果：`WinUIBackend+VisualEffects.swift` 目前只設定 `widget.opacity`；其他 visual effects 明確記錄為需要尚未實作的 Microsoft.UI.Composition effect graph。~~（2026-09-02 起已被取代——見本節最後一條。）
+- ~~目前結論：這不是測試樣本不明顯。WinUI visual effects 除 opacity 外，今日確實是 no-op。~~（2026-09-02 起已被取代——見本節最後一條。）
+- 2026-09-01 重跑：WSLg 與 Windows 的 P30/P39 都能啟動、抵達 final screenshot 並正常關閉。最新 P39 PIL comparison 與先前結果一致：Windows `opacity mean_diff=59.73`，但 blur、saturation、brightness、contrast、grayscale、hue rotation 都仍是 `mean_diff=0.00`；WSLg 則每個非 control sample 都有非零差異。
+- 2026-09-01 後續：`WinUIBackend+VisualEffects.swift` 現在對未支援效果只會依效果名稱各警告一次，降低一般 update pass 期間的重複 console warning。~~這不改變 rendering 語意：WinUI 目前仍只有 opacity 已實作。~~（2026-09-02 起已被取代——見本節最後一條。）
+- 本次變更後最新 P39 final screenshots：WSLg `p39-wslg-final-20260901-071259.png`，Windows `p39-windows-final-20260901-071318.png`。PIL comparison 仍顯示 Windows `opacity mean_diff=69.20`；blur、saturation、brightness、contrast、grayscale、hue rotation 仍是 `mean_diff=0.00`。WSLg 則每個非 control sample 都有非零差異。
+- **2026-09-02 起已被取代：WinUI 七項 visual effects 全部已實作。** 上面劃掉的各條刻意保留而非刪除——它們在當時是誠實且量測正確的判讀，而留下「看似合理但為假的查證長什麼樣子」比一張乾淨的頁面更有價值。改變的是程式碼，不是量測方法。`WinUIBackend+VisualEffects.swift` 現已建立真正的 Win2D effect graph（`Win2DEffectGraph`）：blur 用 `GaussianBlurEffect`，saturation 與 brightness 用 `ColorMatrixEffect`，另有 `ContrastEffect`、`GrayscaleEffect`、`HueRotationEffect`；opacity 保留為 `needsOnlyOpacity` 快速路徑，完全跳過 effect graph。用的是 Win2D，而非舊條目所預測的 `Microsoft.UI.Composition` graph，且 `Microsoft.Graphics.Canvas.dll` 隨 `testapp/output/` 一起出貨。2026-09-02 驗證：`applied=8 failed=0 total=8`——此數字的重跑指令為 `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`，再讀 `winui-visual-effects-debug.log`。2026-09-02 亦以 wincap 截圖做像素層級驗證，各 cell 的 mean HSV saturation：saturation 0 → 0.000、saturation 0.5 → 0.515、control（=1）→ 0.818、saturation 2.5 → 0.992——一條單調遞增的階梯，先前那組全為 0 的結果不可能產生它。在 2026-09-02 之前確實有一項是真的壞的：`saturation 2.5` 會以 `0x80070057` `E_INVALIDARG` 失敗，因為 Win2D 的 `SaturationEffect` 無法過飽和；已改用 `ColorMatrixEffect`。
+- 2026-09-01 P16 重跑，對象是同一小時重新建置的 binary：**三個點擊全部命中，取代先前那條「狀態變化未被確認」的紀錄。** 判讀方式是對照 `P16.swift` 中的初始值，而非目測：`updateCount` 起始為 `0`，截圖顯示 `Force update (1)`；`selectedArea` 起始為 `nil`，截圖顯示 `Science` 為選取狀態；`columns` 起始為 `.two`，而按鈕顯示 `Switch to 2 column`——那是 `.three` 時的標籤，且三個窗格皆在。先前回報「沒有狀態變化」的那次執行，正是同時回報 `SendInput` 為 `ERROR_ACCESS_DENIED` 的那一次。
+- 同一次執行回報 `-actionfile: warning: the window never took the foreground. This file only moves and clicks, so it ran on the topmost pin alone`。這並非失敗：點擊是依座標投遞給該處最上層的視窗，而 `SetWindowPos(HWND_TOPMOST)` 已把我方視窗置於該處，這正是三個點擊都命中的原因。之所以值得知道，是因為任何與焦點相關的行為，都可能與「確實取得前景」的那次執行不同。
+- **#160 剩下的症狀在高度，不在寬度。** 最終截圖回報 `sidebar: 180 x 22`、`middle: 180 x 22`、`detail: 460 x 22`。寬度現在是正確的，而它原本是這個 bug 中看得見的那一半；高度 22 不可能正確，因為窗格是填滿視窗的。同一次執行回報的變化過程為 `sidebar 0 -> 180`、`middle 0 -> 180`、`detail 0 -> 460 -> 660`——寬度會安定下來，高度則從未離開 22。
+- 2026-09-01，更正上一條：**寬度同樣不可信，因此「剩下的症狀在高度」是錯的。** 那個探針是位於窗格 `VStack` 之內、且套在 `.frame(height: 22)` 之下的 `GeometryReader`，所以高度只可能是 22，而寬度量到的是內容欄、不是窗格。將 reader 移入 `.overlay(alignment: .topLeading)`（`P7SplitProbe` 成功採用的形狀）會弄壞 P16：視窗從未出現，wincap 在第一秒與結束時都找不到可擷取的視窗，動作檔從未重放，窗格回報 `sidebar 200 x 142` 與 `detail 20 x 46`。已還原。`.overlay` 在此的行為與 SwiftUI 不同，而它在本專案本就有前科——它曾吞掉指標事件。
+- **因此 #160 目前無法由 P16 的數字定案**，任何方向都不行。上方關於三個點擊的結果仍然成立，因為那是從 app 自身的狀態讀出的，而非來自探針。
+- 2026-09-01，為上一條定案：**窗格現在量得到了，而 #160 在 WinUIBackend 上並未重現。** 量測被完全移出 view tree。`SplitView.commit` 原本就有一個 `SCUI_DEBUG_SPLIT` 診斷，會印出各 minimum 與交給 backend 的上下界；現在它也印出每個窗格實際獲得的尺寸。view tree 中不新增任何東西，因此不會擾動被量測的對象——而那正是先前每一次嘗試失敗的原因。
+- Run A：`SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`，不帶動作檔，8 秒後結束。恰好一次 committed layout：
+  `total=880.0 minLeading=126.0 minTrailing=20.0 -> bounds min=126 max=860 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`
+- Run B：同上再加 `-actionfile actions/win/P16-force-update.csv`，12 秒後結束。共五行。**第 1 至 3 行與 Run A 的那一行逐位元組相同**；Run A 已確立「首次算繪只有一行」，因此第 2、3 行分別是 `Force update` 點擊之後與 `Science` 選取之後的版面。第 4、5 行是三欄狀態，也就是兩層巢狀的 split view：內層 `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`，外層 `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`。
+- **首次算繪時各窗格獲得的尺寸，與經過兩次狀態改變之後完全相同。** #160 的說法是「分割視圖在第一次算繪時排版嚴重錯誤，之後只要有任何狀態改變就會跳成正確的排版」；此處沒有那次跳正，因為沒有可跳的錯誤起點。
+- 這個否定結論之所以可信，在於第 4、5 行確實不同：同一次執行中，該診斷對一次真實的版面變化有反應，因此「第 1 至 3 行不變」是量到的不變，而非一份已經停止輸出的日誌。少了這個對照組，兩者在畫面上完全一樣。
+- 順帶也解決了高度的問題：窗格高 **486**，不是 22。那個 22 是探針自己的 `.frame(height: 22)`，卻被當成窗格高度回報了兩週。
+- 本結論的適用範圍：這是 SwiftCrossUI 版面系統所決定的結果，不是 WinUI 實際畫出來的東西；繪製端的落差在此看不到。值得特別說明，因為同幾次執行的 1 秒截圖是**全黑**的——WinUI 在一秒時還沒畫，這也是動作檔要先 `sleep 1800000` 才點第一下的原因——所以 harness 的「1s」截圖從來就不是首次算繪的畫面。
+- 重現方式：`cd testapp/output && rm -f splitview-debug.log && SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`，然後讀 `splitview-debug.log`。需要以 `SCUI_DEBUG=1` 建置的執行檔。
+- 更正上面第三條中的一句話——它寫「overlay 在 P7 可行是因為它包的是 `List`」：P7 的 **sidebar** overlay 確實包 `List`，但它的 **detail** overlay 包的是加了 padding 的 `VStack`，與 P16 形狀相同。真正的區別在於：P7 的窗格中沒有 `Spacer`，且它整個 split view 位於 `.frame(width: 420, height: 180)` 之內，其中沒有東西能自由長大；而 P16 每個窗格都以貪婪的 `Spacer` 結尾，該 split view 也沒有固定框架。
+- **更正上面所使用的欄位名稱。** 它們最初輸出為 `leadingPane` / `trailingPane`，那是錯的：`leadingResult.size` 是窗格的**子視圖**在收到窗格寬度的提議後所選擇的尺寸，可以小於窗格本身。在 P16 上兩者恰好相同，因此這個錯誤在那裡看不出來；是 P7 揭穿了它——trailing 子視圖對 **420 − 200 = 220** 的提議回答 **207**。已改名為 `leadingContent` / `trailingContent`。窗格寬度則是 `currentSidebar` 以及 `total` 減去它。這正是把內容讀成窗格、曾對 #556 造成兩次錯誤判斷的同一種混淆，所以現在的名稱直接說明它是哪一個。上方引用的數字沒有改變，#160 的比較也依然成立，因為那是同類相比；錯的只有標籤。
+
+#### P16 與 P7 在 GtkBackend（WSLg）上的同一診斷
+
+- 2026-09-01。以 `rsync` 同步後在 WSL 副本上建置，並在 WSL 端以 `grep -c lastLeadingPaneSize` 作為對照，確認 Windows 端的修改確實送達（4 處命中）——未同步就在 WSL 建置，會對著舊程式碼回報成功。
+- **P16 在 GTK 上的行為與在 WinUI 上不同。** WinUI 對首次算繪只 commit 一次；GTK commit 三次，而且高度會變動：`leadingContent=200x485`、`200x446`、`200x446`，寬度始終為 200 / 680，`minLeading=104 minTrailing=33 bounds 104..847 currentSidebar=200`。連續三次執行輸出逐位元組相同，因此那個 485 是可重現的，不是雜訊。
+- 這次安定是自行發生的，在首次算繪之內、任何互動之前，因此它也不是 #160——#160 指的是「一直錯到狀態改變為止」。它是一個 39px 的暫態，稱不上「嚴重錯誤」，而且寬度從未變動。
+- **兩者哪一個才對：WinUI 的。GTK 少了 39px，而那 39 就是一條標題列。** P16 要求 `.defaultSize(width: 900, height: 600)`。量測 `p16-gtk-headerbar-20260901-165737.png`：GTK 視窗表面恰為 **900x600**，其**內**有一條 **39px** 的 client-side decoration 標題列，實際內容區為 **900x561**。485 − 446 正好等於 39。GTK 的**第一輪**才是遵守了要求的那一次；它隨後正確地為「實際比要求更小的視窗」重新排版。有問題的不是版面系統，是視窗。
+- 成因：`GtkBackend.createWindow` 把要求的尺寸直接交給 `window.defaultSize`（GtkBackend.swift:994-997），也就是 `gtk_window_set_default_size`（Sources/Gtk/Widgets/Window.swift:63），而在 GTK4 中它設定的是**含 CSD 標題列的整個視窗**。在 Windows 上標題列屬於 non-client 區域——同一支 app 量到 916x639 的外框包著 900x600 的 client——所以 WinUI 交付了所要求的尺寸。已另立任務追蹤；寬度不受影響，兩個 backend 都回報 `total=880` = 900 − 2×10 padding。
+- SwiftUI 在此的行為**尚未驗證**——需要 Mac，而本機不在範圍內。待查證的預期是：`.defaultSize` 設定的是**內容**尺寸，因為在 macOS 上它對應視窗的 content rect，標題列另計，那會讓 SwiftUI 站在 WinUI 這一邊。此處記為「待量測的事項」，不是結論。
+- **P7 在 GTK 上，現在帶有內容尺寸：** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`，三行相同。當初為 #556 定案的「sidebar 200 / 420」在版面層級得到確認。
+- **收回上一句裡的「值得一併檢視」。** 「207 對 220」與「140 對 77」是在查證之前就被稱為異常的；量測 `p7-gtk-556-20260901-165945.png` 之後，每一個都有解釋，而且沒有一個是缺陷：
+  - detail 的文字在畫面上確實斷成兩行，兩行的 ink 寬度為 186 與 140，因此最長那一行是 186；再加上 `VStack` 左右各 10px 的 padding，子視圖寬度就是 206–207。**換行後的 `Text` 回報的是最長那一行的寬度，不是它被提議的寬度**——SwiftUI 也是如此。提議是 220、回答是 207，因為文字在單字邊界斷行。
+  - 那個 207 接著被置中於 220 寬的窗格中，正如 `SplitView.commit` 所述它會置中窗格子視圖：(220−207)/2 = 6.5，再加 10 的 padding，文字左緣應在 505.5（分隔線在 x=488）。實測 **505**。第一行「No sidebar selection」的 ink 中心在 598，窗格中心為 599。
+  - `leadingContent` 的 140 是五列清單、列距 28px，直接從列本身量得。置中於 180 高的方框中，上方應留 20px，因此第一列應在方框頂端下方 20px 處開始。實測：第一列 ink 在 y=248，方框頂端 228。
+  - 兩者高度不同，只是因為兩者的內容不同，而且都沒有填滿窗格。那正是非貪婪內容的行為，而框架是刻意將其置中的。
+- 這些數字唯一真正引出的問題與 #556 無關，不該歸入該條目：**`List` 在垂直方向是否應該貪婪？** SwiftUI 的 List 兩個軸向都會填滿容器；這裡它填滿了 200 的寬度，高度卻回答 140 而非 180。尚未對真正的 SwiftUI 建置驗證——那需要 Mac。
+
+#### macOS 端回覆之後，三個 backend 的全貌
+
+- macOS 的答案在 `mac-test-results-20260901.md`，同日於 AppKitBackend 上量測。此處僅摘要，因為這次練習的目的就是三方比較；原始輸出與方法在該檔案中。
+- **Q1 定案，GTK 是異類。** AppKit 給出 900x628 的外框、28pt 標題列，因此**內容 900x600——恰為所要求的值**，且取自兩個彼此獨立的來源（`CGWindowListCopyWindowInfo` 取外框，以及 InputEvent 重放以 AppKit 自己回報的 frame 對照 client 原點，120 對 148）。這與 WinUI 一致，並證實了本檔案先前標為「未驗證」而非直接斷言的那個預期。GTK 的 900x561 是唯一短少的，~~現已修正——見 `todo.md`~~ **——但這個「現已修正」沒能通過重新量測。2026-09-03 在 GTK/Windows（gvsbuild）上，P16 仍記錄到同樣的 39px 落差：480 / 480 / 441。`correctContentSizeIfNeeded` 確實存在於 `GtkBackend.swift` 並由 `updateWindow` 呼叫，因此程式碼有落地；沒有被證明的是它有交付結果。見 2026-09-03 條目，並把 `todo.md` 中該項視為未結案。**
+- **Q2 把一個觀察拆成了兩個。** AppKit 對 P16 的首次算繪 commit **三次**，與 GTK 相同、與 WinUI 的一次不同——但它的高度全程不動，而 GTK 是 485 → 446 → 446。因此「commit 三次」與「高度收斂」是彼此獨立的兩件事，而其中只有後者曾構成證據。三者的寬度一致，皆為 200 / 680。安定後的高度差異，恰好等於各平台放在內容之上的裝飾：**AppKit 497 / WinUI 486 / GTK 修正前 446**。
+- **Q3 是最有價值的答案。** AppKit 的 `List` 在 180 高的窗格中同樣回報 **140**——與 GTK 給出的是同一個數字。兩個各自獨立撰寫的 backend 給出相同答案，就把該行為定位在**共用的版面程式碼**，而非任一 backend，這正是這次量測設計要分辨的事。因此「`List` 在垂直方向不貪婪」是 SwiftCrossUI 本身一個真實的 SwiftUI parity 缺口。
+- 值得帶出此任務之外的一點：他們的檔案記載 `AppKitBackend.createWindow` 會呼叫 `setFrameAutosaveName(id)`，而 `id` 衍生自 root view 的型別，因此大多數測試 app **共用同一把 key**（`"NSWindow Frame TupleView1<HotReloadableView>-0"`）。已儲存的 frame 會完全蓋過 `.defaultSize`——同一個 binary、同一個 commit 的 P28，會因該 key 的內容而開成 680x448 或 1076x907。任何先前未清除該 key 就量測視窗尺寸的 macOS 結果，都應存疑。
+
+### 2026-09-02
+
+#### P39 與 P40 於 AppKitBackend 與 UIKitBackend：兩個效果系列皆已實作
+
+- 在此日期之前，兩個系列在 AppKit 上都是**降級**——警告一次、以未經修飾的樣貌算繪——而 UIKit 只有
+  `GeometricEffects`。相對於它在 2026-09-01 所取代的 `fatalError`，降級確實是真正的改善，但它依然
+  是錯的答案：它產出的是「對缺失功能的如實回報」，而那在截圖裡看起來與「功能正常」一模一樣。
+- **AppKit `VisualEffects`**：一條套在 layer-backed container 上的 `CIFilter` 鏈。
+  `CIColorControls` 一次承載 saturation、brightness 與 contrast；grayscale 另用
+  `CIColorMonochrome`，如此它能停在中途，也不會與 `.saturation` 互相打架；hue 是以弧度為單位的
+  `CIHueAdjust`。opacity 走 `alphaValue` 而非 filter，因此子樹以一組的方式合成，與 SwiftUI 的
+  `.opacity` 相同。已對 P39 量測：**九格全部算繪，且每一種效果都與對照格有可見差異。**
+- 有一個陷阱值得記錄，因為它看起來像算繪失敗而不像設定錯誤：無條件設定
+  `layerUsesCoreImageFilters` 會讓**每一格**都變空白，連 identity 對照格也不例外。現在只在確實有
+  filter 要跑時才設定。
+- **iOS 的 `VisualEffects` 不是同一份實作，而逼出這項差異的量測至今仍然為真。**
+  `CALayer.filters` 在 iOS 上不參與合成。該屬性在兩個平台的標頭中都存在，但只有 AppKit 的合成器
+  會讀取它。這是在 iPhone 16 模擬器上量出來的，量了兩次，不是查來的：`opacity 0.35` 明顯變淡，
+  而 `blur 3`、`saturation 2.5`、`brightness 0.4`、`grayscale 1` 與 `hueRotation 120` 與對照格
+  **逐像素相同**。七項中只有一項有效。
+- 錯的是由該量測推出的結論——*因此七項中有六項在 iOS 上無路可走*——而不是量測本身。iOS 確實提供的
+  路徑，是去過濾子樹的**算繪結果**而非活的 layer：`CALayer.render(in:)` 畫進點陣圖、`CIFilter` 鏈
+  在點陣圖上執行、結果成為覆蓋在子元件之上的 layer 的內容，而子元件以一個**空的 `CALayer` mask**
+  隱藏，而非以 `alpha` 或 `isHidden`——`UIView.hitTest` 會跳過 alpha 小於等於 0.01 的 view，而那
+  兩個屬性都存在 layer 上，沒有辦法只為繪製而設定它們。子元件因此仍可被 hit test。
+- 於 P39、iPhone 16 模擬器、iOS 18.4 量測：**九格現在全部與對照格不同。** 擷取影像為
+  `p39-ios-final-20260902-143209.png` 與 `p39-ios-final-20260902-144424.png`。
+- 代價是明說而非隱藏的：看得見的像素是每次排版重新產生的算繪結果——而那是 view graph 每次寫入
+  尺寸或位置時都會發生的事，因此被過濾的容器內部若有狀態變更，確實會反映到畫面上——但若其中有一個
+  由 Core Animation 而非 view graph 驅動的動畫，它會凍結在最後一次排版所捕捉到的那一格。`opacity`
+  不走這條路，維持即時。
+- **「這個平台沒有對應的 API」在此處通過了一次真實的量測，卻依然是錯的。** 那才是能留下來的結論；
+  `bugs/bug-UIkit.md` 保存了它。
+- **兩者的 `GeometricEffects`。** AppKit 的是一個 `CATransform3D`，需要兩次轉換：transform 傳入時
+  位於左上原點、y 向下的空間，而非 flipped 的 `NSView` 底下的 `CALayer` 是左下原點、y 向上，且
+  CoreAnimation 是繞 `anchorPoint` 而非繞原點套用 transform。UIKit 少一次轉換，因為它的 layer
+  本來就是左上、y 向下，但同樣需要錨點修正。
+- 於 Mac 上對 P40 量測：offset 向右下移動、rotation 為順時針，且 **`rotate 30 centre` 與
+  `rotate 30 topLeading` 不同**——這正是錨點運算正確與否的檢查點，因為錯誤的錨點運算會使兩者相同，
+  或把 tile 丟到畫面外。於 iPhone 16 模擬器上對 P40 量測：**七格全部正確算繪。** 擷取影像為
+  `p40-ios-final-20260902-143258.png` 與 `p40-ios-final-20260902-143444.png`。
+- 兩邊的容器都把子元件的四個邊都釘住，而這花了兩次錯誤猜測才找到。完全不加 constraint 時每一格
+  都是空白；只加左邊與上邊仍是空白；探針讀到 `container=(0,0,200,109)` 對上
+  `child=(0,109,0,0)`，且子元件沒有任何 constraint。modifier 的 commit 只設定容器的尺寸，沒有
+  任何東西為容器內部的元件設定尺寸——這在 GTK 上看不見，因為那裡是容器決定子元件的尺寸。
+- **Android 後來已經量測過，這一條已經過時。** `matrix_coverage/results.csv2` 中確實有
+  AndroidBackend 上的 P39 與 P40 紀錄，記於 2026-09-03；兩者並於 2026-09-06 再次以其動作檔驅動。
+  兩支都能建置、啟動、重放並算繪；兩支的內容都比手機寬——P39 的內容框是 (-325,0)-(1407,2400)、
+  P40 是 (-320,0)-(1402,2400)——而在 root scroll host 修好之前那部分是碰不到的，這也是它們先前的
+  截圖左右兩側看起來被切掉的原因。兩份動作檔都不預期畫面改變：各按一個格子，要求行程存活。
+
+#### P43 的漸層填充於 macOS 與 iOS
+
+- `BackendFeatures.Paths.renderPath(…fillStyle:)` 是「以漸層填充或描邊一個形狀」，而不是把它壓成
+  中點顏色。單位座標乘上的是**路徑**自身的範圍而非 widget 的，這正是漸層能被裁進圓形、而不是填滿
+  漸層視圖自己那個矩形的原因。
+- 協定的預設實作會壓平並每個 backend 警告一次。那個預設是在一台沒有 Mac 的機器上寫的，而它自己
+  也說明了這一點；盲寫 AppKit 與 UIKit 會讓下一個 pull 的人拿到建置失敗。這兩份實作是**在 Mac 上
+  寫成並量測的**。
+- 兩者都在 `draw(_:)` 中以 `CGGradient` 繪製——它接受兩個半徑。平面色的情況維持原有的低成本路徑
+  不變。`CAShapeLayer` 無法繪製漸層，也沒有對應屬性；而常見的「以形狀遮蔽 `CAGradientLayer`」變通
+  做法根本表達不了這項功能：它的 `.radial` 型別是一個從某點到另一點的橢圓，沒有起始半徑，因此
+  `radialGradient(startRadius:endRadius:)` 無從表述。
+- **兩個檔案恰好差一個正負號，而那是被逼出來的，不是選出來的。** AppKit 的路徑抵達時已被翻轉——
+  `applyActions` 最後會做 `scaleByX: 1, byY: -1`，而 `NSBezierPathView` 並非 flipped——因此
+  `UnitPoint.top` 在那裡是方框中**最大**的 y，在 UIKit 中則是**最小**的。P43 的漸層是紅到藍、
+  由上往下，那正是讓這個正負號看得出來的原因：紅色在兩個平台上都必須在上方。對稱的漸層會把它藏
+  起來。
+- AppKit 另外還需要一次 `NSBezierPath` 到 `CGPath` 的轉換，因為「裁切到描邊區域」得用
+  `CGContext.replacePathWithStrokedPath`，而 `NSBezierPath.cgPath` 需要 macOS 14，本套件卻部署到
+  macOS 11。
+- 於兩個平台以 P43 量測，四格全部成立：**漸層圓形是圓的而不是方的、平面色對照組未變、矩形由紅
+  跑到藍，而描邊圓形是一個中間空心的環**——最後一項正是 P43 自己指出「沒有任何 backend 在測」的
+  情況，連 GtkBackend 也不例外。擷取影像為 `p43-macos-gradient-fills.png` 與
+  `p43-ios-gradient-fills.png`。
+- **AndroidBackend 也已實作，這一條已經過時。**
+  `Sources/AndroidBackend/AndroidBackend+PathGradients.swift` 覆寫了
+  `renderPath(…fillStyle:)`，它不再取用壓平的預設實作。以
+  `p43-android-final-20260906-022713.png` 實測：漸層形狀中有 9,885 個紅色與 14,959 個藍色像素，
+  旁邊的平面對照則有 19,410 個綠色像素。若是壓平的填充，每個形狀就會是單一顏色、完全沒有漸層。
+
+#### iPhone 上的 NavigationSplitView
+
+- 在緊湊寬度的 iPhone 上，`UISplitViewController` 無論 `preferredDisplayMode` 為何都會收合成一個
+  navigation stack；沒有任何設定能把 sidebar 放在 detail 窗格旁邊。因此 `PhoneSplitWidget` 並非
+  它的包裝——它就是把兩個窗格並排放置，而那正是 `NavigationSplitView` 的語意，也是其他每一個
+  backend 所產生的結果。
+- 寬度是**推導出來的，不是存起來的**：`sidebarWidth` 必須能在 `computeLayout` 期間、任何 layout
+  pass 執行之前就回答，因此它由 `setSize(of:)` 剛寫入的 `width` 推導，而那與 `layoutSubviews`
+  稍後所用的是同一個數字。
+
+### 2026-09-03
+
+#### P16：`.defaultSize` 的短少屬於 GtkBackend，而不屬於 WSLg
+
+- 此處任何數字都可用 `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16` 重新產生，再讀取
+  **repo 根目錄下**的 `splitview-debug.log`。
+- **39px 的內容短少在 Windows 版 GTK（gvsbuild）上同樣重現。** P16 要求
+  `.defaultSize(900, 600)`，記錄了三輪：`leadingContent=200.0x480.0`、再一次
+  `200.0x480.0`，接著 `200.0x441.0`。落差為 **39**——與 2026-09-01 WSLg（485 接著 446）
+  完全相同的數字。WinUI/Windows 則一輪即回報穩定的 **486**，沒有修正輪。
+- **這推翻了「WSLg 現象」的界定。** 2026-09-01 寫在本檔與 `bugs/Gtk4-bugs.md` 第 5 節中的一切，
+  都把此短少描述為「在 WSLg 上量到的」，而那讀起來像是一項平台性質。它其實是 `GtkBackend` 的
+  性質：client-side decoration 在兩個平台上都把標題列放進視窗之內。絕對高度不同（480/441 對
+  485/446），只是因為兩個視窗系統在表面**外圍**加上的裝飾量不同。
+- **這也代表該修正尚未被證明有效。** `correctContentSizeIfNeeded` 位於
+  `Sources/GtkBackend/GtkBackend.swift`，並由 `updateWindow` 呼叫，因此產生上述數字的那份原始碼
+  中確實有它，落差卻依然存在。`todo.md` 中的該項為未結案；而 2026-09-01 那句「現已修正」以註記
+  方式保留而非刪除，因為「寫好了就假定它有效」正是最值得留在檯面上的失敗形狀。
+- **2026-09-04 由「尚未被證明有效」升級為「已被證明無效」。** 在該修正之後加入了讀回，因此現在
+  不只有**事前**的值，也有**事後**的值：
+
+  ```
+  content size: requested 900x600 allocated 900x561 shortfall 0x39
+  content size: grew the window to 900x639
+  content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+  content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+  ```
+
+  刻意取兩個延遲：單一次的延後讀數無法分辨「修正沒有作用」與「修正有效但我量得太早」，因為兩者
+  都會印出舊的數字。時序造成的假象會給出**兩個不同的**數字；同一個數字出現兩次，代表那個指派是
+  no-op。
+
+  它之所以藏了三天，是因為讀數與修正被放在**同一個 once-only guard** 內，於是「**執行過**」與
+  「**有效**」印出來一模一樣。而原因就在同一個檔案裡：`setSizeLimits` 早已載明「toplevel 上的
+  size request 在視窗 realise 之後只是啟動提示」，而 `gtk_window_set_default_size` 屬於同一類
+  提示。該修正**依其構造**必然在視窗 map 之後才執行——因為差額在那之前量不到——於是**它唯一能
+  量測的時刻，正是它已經無法作用的時刻。** 見 `bugs/Gtk4-bugs.md` 第 5 節與任務 #79。
+- **同一組要求下的視窗外框尺寸，對每個 backend 是固定的，backend 之間則不同**——因此跨 backend
+  比較外框，說不出誰遵守了要求：
+
+  | app | `.defaultSize` | gtk4 外框 | WinUI 外框 |
+  |---|---|---|---|
+  | P31 | 780x560 | 808x589（+28/+29） | 796x599（+16/+39） |
+  | P16 | 900x600 | 928x629（+28/+29） | 916x639（+16/+39） |
+
+  WinUI 的 +16/+39 是 Windows 畫在「尺寸恰為所求」的 client **外圍**的 non-client 區域。WinUI
+  遵守了要求；外框較大並不是短少。
+
+#### P31 於 Windows/GtkBackend：Tab 與 Space 可運作，Escape 無法被測試
+
+- 以新增的 `testapp/actions/win/P31-tab-and-escape.csv` 驅動。重新產生：
+  `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`，
+  再讀取**你執行該指令所在目錄下**的 `p31-debug-events.log`。
+- **焦點會移動，Space 會觸發。** 由 `TextField` 按 `key tab` 之後接 `key space`，產生了
+  `button clicked count=1`。SwiftCrossUI 沒有任何 focus API——沒有 `@FocusState`、沒有
+  `.focused`、沒有 `.focusable`——因此這完全是 GTK-on-Windows 的行為，也是 SwiftUI parity 中
+  focus/keyboard 那項「焦點那一半」的真實正面結果。P31 計畫的步驟 1 與 2 已由量測取代假定。
+- **Escape 沒有關閉 alert，而那不是一項 P31 結果。** 按鍵從未抵達對話框：
+  `Win32Synthesiser.ownWindow()` 回傳本行程中面積最大的可見 top-level 視窗，而
+  `Gtk.MessageDialog` 是較小的獨立 top-level 視窗；合成器接著對主視窗呼叫
+  `SetForegroundWindow`，把焦點從 modal 手上拉走。完整記述見 `bugs/Gtk4-bugs.md` 第 6 節。
+  目前任何出現在對話框內的東西，都無法由動作檔測試。
+- **Escape 不是可攜的關閉手段。** `testapp/actions/mac/README.md` 推薦它，理由是「無需座標即可
+  抵達 key window」。這在 macOS 上為真，在 Windows 上為假。兩份 README 現已寫明此事。
+
+#### Pn 的 debug log 究竟落在哪裡
+
+- **每一支會寫 debug log 的 `testapp/P*.swift`，都寫到當前工作目錄**，透過
+  `FileManager.default.currentDirectoryPath`。**49 支中有 38 支**如此，其餘 11 支完全不寫 log。
+  `splitview-debug.log` 亦同（`Sources/SwiftCrossUI/Views/SplitView.swift:215`）。可用
+  `grep -l currentDirectoryPath testapp/P*.swift | wc -l` 重新推導。
+
+  2026-09-07 由「47 支中有 35 支」更正，旁邊那道指令也一併更正：`grep -c` 印的是**每個檔案一列**
+  的計數，因此它從來就產不出它被附上作為推導依據的那個總數。一道無法重新產生該數字的指令，
+  比沒有指令更糟，因為它看起來可以查證。
+- 因此只有**一種**慣例，不是兩種。凡是寫成 `testapp/output/p28-debug-events.log` 的文件，之所以
+  正確，只是因為該流程會先 `cd` 進 `testapp/output`；而 `testapp/run.zsh` 以絕對路徑啟動、從不
+  切換目錄，所以經由它驅動的一切都會把 log 留在 repo 根目錄。若在 `run.zsh` 啟動之後照著寫有
+  `testapp/output/` 的文件去找，看到的會是一個空目錄，並且很容易讀成「這支 app 什麼都沒記錄」。
+

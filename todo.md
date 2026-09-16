@@ -586,7 +586,7 @@ gave -38,-59 at one and 154,-6 at the other.
   **This item is open, and `correctContentSizeIfNeeded` is not evidence that it
   is closed.** That function is in `Sources/GtkBackend/GtkBackend.swift` and is
   called from `updateWindow`, i.e. it was present in the tree that produced the
-  480/480/441 above, and the shortfall is still there. `UI-test-results_overall_en.md`
+  480/480/441 above, and the shortfall is still there. `UI-test-plan-en.md#results-log`
   said on 2026-09-01 that this "is now fixed"; that line is annotated rather
   than deleted. Verify by the numbers, not by the presence of the function.
 
@@ -620,7 +620,7 @@ gave -38,-59 at one and 154,-6 at the other.
 
   **本項為未結案，而 `correctContentSizeIfNeeded` 的存在並不構成已結案的證據。** 該函式位於
   `Sources/GtkBackend/GtkBackend.swift` 並由 `updateWindow` 呼叫，也就是說它確實存在於產生上述
-  480/480/441 的那份原始碼中，而短少依然存在。`UI-test-results_overall_en.md` 在 2026-09-01 寫下
+  480/480/441 的那份原始碼中，而短少依然存在。`UI-test-plan-en.md#results-log` 在 2026-09-01 寫下
   「現已修正」；該行以註記保留而未刪除。請以數字驗證，而非以「函式存在」驗證。
 
 - **WinUIBackend's WebView: diagnosed, half fixed, and the remaining half is

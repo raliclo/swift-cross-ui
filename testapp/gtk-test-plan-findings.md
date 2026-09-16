@@ -1117,7 +1117,7 @@ runs. So there *is* a change across the first render, which the probe could not
 have shown. It is not #160: it settles on its own before any interaction,
 whereas #160 is a layout that stays wrong until a state change. The 39px is a
 client-side-decoration header bar counted inside the requested window height;
-see `UI-test-results_overall_en.md` for the measurement and `todo.md` for the
+see `UI-test-plan-en.md#results-log` for the measurement and `todo.md` for the
 fix.
 
 **更正，2026-09-01。結論成立，但支持它的證據不成立。** 上面兩段原文保留，因為它「看起來的樣子」
@@ -1131,7 +1131,7 @@ fix.
 `200x446`，寬度穩定在 200 / 680，三次執行逐位元組可重現。所以首次算繪之中**確實有變化**，而那是
 探針不可能顯示出來的。它不是 #160：它在任何互動之前就自行安定，而 #160 指的是「一直錯到狀態改變
 為止」。那 39px 是被算進所要求視窗高度之內的 CSD 標題列；量測見
-`UI-test-results_overall_en.md`，修法見 `todo.md`。
+`UI-test-plan-en.md#results-log`，修法見 `todo.md`。
 
 | step | result |
 |---|---|

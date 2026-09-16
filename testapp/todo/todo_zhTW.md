@@ -40,7 +40,7 @@ Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `test
   - 問題：SplitExample 初始 layout 錯誤，但 state change 或 resize 後會恢復。
   - 現況：**P16 已備妥**，複製 SplitExample 的結構並加上每個 pane 的尺寸量測，
     在 WinUIBackend 與 GtkBackend 上都建置通過。
-  - 執行：`./testapp/output/P16-WinUI.exe`，步驟見 `UI-test-plan overall-en.md`。
+  - 執行：`./testapp/output/P16-WinUI.exe`，步驟見 `UI-test-plan-en.md#overall-plan-p0-p41`。
   - 注意：**先讀數字再動視窗**。縮放視窗正是兩種會修正它的操作之一，任何互動
     都會破壞證據。步驟 2 與步驟 5 的差值就是這個 bug 的量化結果。
   - 2026-08-31：Windows initial capture 可見，但 probe 仍回報 `sidebar: 0 x 22`、
@@ -51,7 +51,7 @@ Composition / Win2D effect graph 實作。#389 / #390 的 GTK 半邊已在 `test
     column switch 反映到畫面，需改查 Win32 synthetic input 對 WinUI 控制的命中、focus 或
     activation。
   - **2026-09-07 更新：上面這一條已被取代兩次，而它自己沒有被更新過。**
-    2026-09-01 記於 `UI-test-results_overall_en.md`：三次點擊全部命中；同日結案 #160 在
+    2026-09-01 記於 `UI-test-plan-en.md#results-log`：三次點擊全部命中；同日結案 #160 在
     WinUIBackend 上不重現。那個 `0 x 22` 的 probe 讀數本身也已被撤回——22 是 probe 自己
     `.frame(height: 22)` 的高度，不是窗格的高度。
     另外檔名已改為 `actions/win/P16-force-update-winui.csv`。**保留上面的原文而不刪除**，

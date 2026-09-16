@@ -1,8 +1,34 @@
-# UI Test Plan: P0-P41
+# UI test plan (English)
+
+**One file per language, and this is the English one.** It used to be five --
+an overall plan, a bug plan, a Linux plan, a platform matrix and a results log --
+with the Traditional Chinese half in six more. Eleven files for two documents
+meant a reader had to know which one held the answer before looking it up, and an
+edit to a step had five places it might belong.
+
+**Nothing was rewritten in the merge.** Each part below is one of those files,
+with its headings pushed down a level so they nest under the part, its own title
+line dropped because the part heading replaces it, and references between the
+former files turned into links within this one. Every other line is unchanged.
+
+The Traditional Chinese half is `UI-test-plan-zhTW.md`. The two are not
+line-for-line translations and never were.
+
+## Parts
+
+- [Overall plan: P0-P41](#overall-plan-p0-p41) — Every app's steps, in order. The largest part and the one to read first.
+- [Bug plan: AppKit, UIKit and AndroidBackend](#bug-plan-appkit-uikit-and-androidbackend) — The apps written against specific defects on the Apple and Android backends.
+- [Linux plan: GtkBackend through WSL](#linux-plan-gtkbackend-through-wsl) — Toolchain, phases, and what a WSLg result is and is not evidence for.
+- [Platform matrix](#platform-matrix) — Which issue runs where, and whether the answer counts.
+- [Results log](#results-log) — Dated manual results. A record of runs, not a plan.
+
+---
+
+## Overall plan: P0-P41
 
 This document describes the manual and assisted UI test steps for the apps in `testapp`. The goal is to quickly reproduce and verify backend-specific issues across WinUIBackend, GtkBackend, AppKitBackend, UIKitBackend, and AndroidBackend.
 
-## Preparation
+### Preparation
 
 1. Go to the project root:
 
@@ -30,7 +56,7 @@ This document describes the manual and assisted UI test steps for the apps in `t
 
    Expected result: `ok`.
 
-## Executable Names on Windows
+### Executable Names on Windows
 
 Every Windows test binary carries its backend as a filename suffix:
 `Pn-WinUI.exe` is the WinUIBackend build, `Pn-gtk4.exe` is the GtkBackend build.
@@ -53,7 +79,7 @@ Two apps have only one build, by design: `P6` is the D3D11 video test and links
 the WinUI products, so there is no `P6-gtk4.exe`; `P6-v2` is a pure GTK app, so
 there is no `P6-v2-WinUI.exe`.
 
-## Cross-Platform Flow
+### Cross-Platform Flow
 
 - For Linux / GtkBackend issues, test WSLg first, then Windows only as a comparison if the app supports it.
 - Do not compile from `/mnt/c` inside WSL. Sync the `testapp` Swift/zsh files first, then build under `~/proj/swift-cross-ui`.
@@ -61,7 +87,7 @@ there is no `P6-v2-WinUI.exe`.
 - Automated dry-runs through `zsh testapp/test.zsh Pn --both` run WSLg first, then Windows. They keep each platform window open for 30 seconds after render by default, then take a final screenshot so the tester can inspect the app and report what changed.
 - Screenshots are written to `testapp/output/screenshots` with platform and phase in the filename, such as `p8-wslg-1s-...png`, `p8-wslg-final-...png`, `p8-windows-1s-...png`, and `p8-windows-final-...png`.
 
-## Android: Four Things To Check, And What Each One Proves
+### Android: Four Things To Check, And What Each One Proves
 
 Android is driven by `test_android.zsh` for a single app and `sweep_android.zsh`
 for the whole set. Neither of those, on its own, answers "did the test run".
@@ -89,7 +115,7 @@ Two attempts to check the fourth stage were written before one worked:
 Both are the same failure: **a check that cannot produce a positive is not a
 check.** Before trusting one, make it fail on purpose.
 
-### Reading a "no effect" result
+#### Reading a "no effect" result
 
 Twelve of the 46 action files are not supposed to change anything -- they press
 an inert label or a disabled control and require the process to survive. For
@@ -99,7 +125,7 @@ note can say "the process must survive" in one clause and require a counter to
 increment in the next, which is why six apps were misfiled the first time a
 regular expression was pointed at those notes.
 
-### Thresholds
+#### Thresholds
 
 The effect check counts changed pixels, and its threshold has to sit in a gap in
 the measured distribution rather than on a round number. The scenarios that
@@ -107,7 +133,7 @@ change nothing report exactly 0 with no bounding box; the smallest real change
 is 517 pixels, because P28 turns `received: 0` into `received: 1` and a digit is
 small. A threshold of 2000 called two passes failures. It is 100.
 
-### The screenshots
+#### The screenshots
 
 The first capture is taken **five seconds** after launch, not one. A cold
 Android start loads the JVM, libswiftCore, Foundation and ICU before
@@ -115,7 +141,7 @@ Android start loads the JVM, libswiftCore, Foundation and ICU before
 six seconds; one capture in 174 on 2026-09-05 photographed the launch splash
 instead of the app. Override with `ANDROID_FIRST_CAPTURE_SECONDS`.
 
-### The frame is not the app
+#### The frame is not the app
 
 Twenty-seven of the 46 scenarios lay out content wider or taller than the phone
 -- P6 reaches 2.65 times the viewport width. A screenshot at the default scroll
@@ -125,7 +151,7 @@ wrong: P3's test image measured **zero** coloured pixels in the visible frame an
 `SCUI_RWD=1` on the effect check, or tap the `actualView` control, to photograph
 the whole page.
 
-## Android：要檢查的四件事，以及每一件各自證明了什麼
+### Android：要檢查的四件事，以及每一件各自證明了什麼
 
 Android 的驅動,單一 app 用 `test_android.zsh`,整組用 `sweep_android.zsh`。這兩者單獨都回答不了
 「這個測試到底有沒有跑」。它們是疊起來的;而本節之所以存在,是因為 2026-09-05 有一次 sweep 回報
@@ -147,33 +173,33 @@ Android 的驅動,單一 app 用 `test_android.zsh`,整組用 `sweep_android.zsh
 
 兩者是同一種失敗:**一個產生不出正面結果的檢查,不是檢查。** 在信任它之前,先讓它刻意失敗一次。
 
-### 如何解讀「無效果」
+#### 如何解讀「無效果」
 
 46 份動作檔中有 12 份本來就不該改變任何東西——它們按的是一個惰性標籤或一個已停用的控制項,要求的是
 行程存活。對那些而言,零像素改變就是通過。判定必須來自動作檔自己的 `note`,而且那也必須用讀的、
 不能用樣式比對:一則備註可以在前半句寫「the process must survive」、後半句要求某個計數器增加——
 這正是第一次拿正規表示式去掃那些備註時,有六支被歸錯類的原因。
 
-### 門檻
+#### 門檻
 
 效果檢查計算的是改變的像素數,而它的門檻必須落在實測分佈的空隙裡,而不是落在一個整數上。不改變任何
 東西的情境回報的是恰好 0 且沒有 bounding box;而最小的真實改變是 517 像素,因為 P28 把
 `received: 0` 變成 `received: 1`,而一個數字就是這麼小。2000 的門檻曾把兩次通過判成失敗。現在是 100。
 
-### 那些截圖
+#### 那些截圖
 
 第一張擷取是在啟動後**五秒**,不是一秒。Android 的冷啟動會在 `AndroidBackend_entrypoint` 執行之前
 先載入 JVM、libswiftCore、Foundation 與 ICU,而這些 app 大約在六秒記錄 RENDER COMPLETE;
 2026-09-05 的 174 張擷取中有一張拍到的是啟動畫面而非 app。以 `ANDROID_FIRST_CAPTURE_SECONDS` 覆寫。
 
-### 畫面不等於 app
+#### 畫面不等於 app
 
 46 個情境中有 27 個的內容比手機更寬或更高——P6 達到視口寬度的 2.65 倍。在預設捲動位置拍的截圖,
 是「整頁的一部分」的照片,而從中讀出「不存在」是錯的:P3 的測試圖在可見畫面中量到**零**個彩色像素,
 把整頁縮放到塞得下之後則是 **4,735** 個。它自始至終都算繪出來了。請在效果檢查上使用 `SCUI_RWD=1`,
 或點擊 `actualView` 控制項,以拍下整頁。
 
-## Common Checks
+### Common Checks
 
 - The app can open its main window.
 - The console does not show a fatal error or stack trace.
@@ -185,7 +211,7 @@ Android 的驅動,單一 app 用 `test_android.zsh`,整組用 `sweep_android.zsh
   - The last log line before the crash
   - Swift / WinUIBackend file names and line numbers from the stack trace
 
-## P0: Critical Lifecycle
+### P0: Critical Lifecycle
 
 Run:
 
@@ -221,7 +247,7 @@ Expected results:
 - AlertScene and environment alerts should display normally.
 - If an alert crashes and the error contains `XamlRoot`, #493 (Fixed) regressed.
 
-## P1: Dialogs And Sheets
+### P1: Dialogs And Sheets
 
 Run:
 
@@ -256,7 +282,7 @@ Expected results:
 - If the nested sheet cannot appear or crashes, record it as a #659 (Fixed) regression.
 - If the red bar in the root sheet is still clearly surrounded by padding, record it as a #660 (Fixed) regression.
 
-## P2: Controls And Styling
+### P2: Controls And Styling
 
 Run:
 
@@ -292,7 +318,7 @@ Expected results:
 - Disabled controls should clearly look disabled; if not, record it as a #390 (Fixed) regression.
 - When window resizing is disabled, the user should not be able to resize or full screen the window normally; if it is still possible, record it as a #401 (Fixed) regression.
 
-## P3: Layout And Clipping
+### P3: Layout And Clipping
 
 Run:
 
@@ -324,7 +350,7 @@ Expected results:
 - If the image overflows the frame, record it as a #389 (Fixed) regression.
 - If the initial layout is wrong but fixes itself after resize, record it as a P3 three-column layout (Fixed) regression.
 
-## P4: WinUI Native And Callback Stress
+### P4: WinUI Native And Callback Stress
 
 Run:
 
@@ -367,7 +393,7 @@ Expected results:
 - If callbacks point to the wrong row after many updates, record it as a #190 (Fixed) regression.
 - If WinUI backdrop diagnostic noise appears in the console again, record it as a #204 (Fixed) regression.
 
-## P5: Multi-Window Alerts
+### P5: Multi-Window Alerts
 
 Run:
 
@@ -402,7 +428,7 @@ Expected results:
 - Dismissing a stacked alert should restore the alert underneath it in the same window, in the correct order (C -> B -> A); if a restored alert is skipped or restored out of order, record it as a #675 (Fixed) regression.
 - Closing one window should not affect alerts in other windows.
 
-## P7: Lists And Split Views (Linux)
+### P7: Lists And Split Views (Linux)
 
 Run:
 
@@ -437,7 +463,7 @@ Expected results:
 - Nothing is selected at launch. A highlighted first row is a #476 regression. Verified fixed on GTK4 and GTK3 under WSLg.
 - The detail pane is visible and does not collapse to nothing, and the division does not change when unrelated text changes. As of 2026-09-01, P7 reports the same measured split ratio on WSLg and Windows: sidebar 200 / total 420, or 47.6%. Treat future failures as a new #556 repro and capture the diagnostic numbers before changing backend code.
 
-## P8: Scroll Views (Linux)
+### P8: Scroll Views (Linux)
 
 Run:
 
@@ -477,7 +503,7 @@ Expected results:
 - Red does not reach a square corner. If it does, that is #417.
 - Vertical scrolling works with the pointer anywhere, including over the horizontal strip. If the outer view freezes there, that is #426.
 
-## P9: Text And Field Sizing (Linux)
+### P9: Text And Field Sizing (Linux)
 
 Run:
 
@@ -506,7 +532,7 @@ Expected results:
 - Field heights are unchanged by an unrelated update. Any shrink is #504.
 - Text never spills past the blue band, and reaches zero width when asked. Spilling is #295.
 
-## P10: Hit Testing And Shortcuts (Linux)
+### P10: Hit Testing And Shortcuts (Linux)
 
 Run:
 
@@ -535,7 +561,7 @@ Expected results:
 - An opaque layer with `allowsHitTesting(false)` does not block clicks either. If `Hidden clicks` stays at 0, the modifier is not reaching the backend.
 - Ctrl-Q quits the app. If the window stays open, that is #478.
 
-## P11: AppKit Sliders, Scrollbars And Pickers (macOS)
+### P11: AppKit Sliders, Scrollbars And Pickers (macOS)
 
 Run:
 
@@ -568,7 +594,7 @@ Expected results:
 - The compact DatePicker should align visually with neighbouring controls.
 - #404 and #425 are noted as manual observations rather than strict pass/fail checks.
 
-## P12: Android Margins, Rotation State And Toggles (Android)
+### P12: Android Margins, Rotation State And Toggles (Android)
 
 Run on Android after building/deploying the app target for the Android backend.
 The host build can still be used for a quick layout sanity check.
@@ -595,7 +621,7 @@ Expected results:
 - Button backgrounds should reach the button bounds without extra margins.
 - On and off toggle states should be visually distinct.
 
-## P13: Layout And View Graph (AppKit/Gtk)
+### P13: Layout And View Graph (AppKit/Gtk)
 
 Run:
 
@@ -625,7 +651,7 @@ Expected results:
 - Split view minimum widths should be reflected in the visible divider position.
 - Group content inside ZStack should overlay, not stack along the container orientation.
 
-## P14: UIKit Rotation And Theme (iOS)
+### P14: UIKit Rotation And Theme (iOS)
 
 Build and run:
 
@@ -653,7 +679,7 @@ Expected results:
 - Width history should not show a transient proposal wider than the settled layout after rotation.
 - The app background should update together with controls and adaptive colours when the system theme changes.
 
-## P15: Colour Scheme And Window Height (Linux)
+### P15: Colour Scheme And Window Height (Linux)
 
 Run:
 
@@ -704,7 +730,7 @@ Expected results:
   precondition holds. That is not the same as Fedora with GNOME, so a negative
   result bounds the bug rather than closing it.
 
-## P16: Split View Initial Layout (Windows)
+### P16: Split View Initial Layout (Windows)
 
 Run:
 
@@ -753,7 +779,7 @@ Expected results:
   measuring, and `GeometryReader`'s own documentation warns that content may be
   evaluated several times with different sizes before the layout settles.
 
-## P17: Cross-Backend Layout Comparison (Linux and Windows)
+### P17: Cross-Backend Layout Comparison (Linux and Windows)
 
 Run:
 
@@ -816,7 +842,7 @@ Expected results:
 - #266a: the scroll bar settles at every height.
 - #266b: all three bands share the widest child's width, at every stack height.
 
-## P6: Zstd Stream Player
+### P6: Zstd Stream Player
 
 Build and run:
 
@@ -1018,7 +1044,7 @@ RSS stress record:
 - The run lasted from 2026-08-04 18:25:39 UTC through 18:28:58 UTC, collected 196 valid one-second samples, and exited successfully with status 0.
 - P6 peak RSS was 2,398,896 KiB (approximately 2.29 GiB), and average sampled RSS was approximately 1.92 GiB. These values exclude FFmpeg, ffplay, and zstd child processes.
 
-## P18: File Dialogs (Linux and Windows)
+### P18: File Dialogs (Linux and Windows)
 
 Run:
 
@@ -1055,7 +1081,7 @@ Test steps:
    whether both deliver a path and both dismiss the dialog, not that the
    dialogs look alike.
 
-## P19: Flat Menus (Linux and Windows)
+### P19: Flat Menus (Linux and Windows)
 
 Run:
 
@@ -1087,7 +1113,7 @@ Test steps:
    mechanisms position menus differently and this is the comparison.
 7. Repeat under the other backend.
 
-## P20: Nested Menus (Linux and Windows)
+### P20: Nested Menus (Linux and Windows)
 
 Run:
 
@@ -1118,7 +1144,7 @@ Test steps:
    screen edge.
 8. Repeat under the other backend.
 
-## P6-v2: Video Playback on GtkBackend (Linux and Windows)
+### P6-v2: Video Playback on GtkBackend (Linux and Windows)
 
 Run:
 
@@ -1165,7 +1191,7 @@ Test steps:
    render node, so GTK is on llvmpipe -- so a Windows-against-WSL comparison here
    measures two different rendering stacks, not two operating systems.
 
-## P21: Input Controls (Linux and Windows)
+### P21: Input Controls (Linux and Windows)
 
 Run:
 
@@ -1193,7 +1219,7 @@ Test steps:
 7. Confirm `ContentUnavailableView` shows both its title and description.
 8. Repeat under the other backend.
 
-## P22: Text Styles (Linux and Windows)
+### P22: Text Styles (Linux and Windows)
 
 Run:
 
@@ -1217,7 +1243,7 @@ Test steps:
 4. Check the three alignment rows inside their fixed 320pt frames.
 5. Repeat under the other backend.
 
-## P23: Tables (Linux and Windows)
+### P23: Tables (Linux and Windows)
 
 Run:
 
@@ -1242,7 +1268,7 @@ Test steps:
 4. Press `Fewer rows` and confirm the layout recovers rather than leaving a gap.
 5. Repeat under the other backend.
 
-## P24: Navigation Stack (Linux and Windows)
+### P24: Navigation Stack (Linux and Windows)
 
 Run:
 
@@ -1270,7 +1296,7 @@ Test steps:
 5. Press `Pop to root` and confirm both the screen and the counter reset.
 6. Repeat under the other backend.
 
-## P25: Drag and Drop (Linux and Windows)
+### P25: Drag and Drop (Linux and Windows)
 
 Run:
 
@@ -1304,7 +1330,7 @@ Note: this cannot be driven by an action file. Drag and drop is an OS-level
 negotiation, not a sequence of mouse events, so `InputEvent` cannot synthesise
 it; step 1 onwards needs a real drag.
 
-## P26: Networking and the App Cache (Linux and Windows)
+### P26: Networking and the App Cache (Linux and Windows)
 
 Run:
 
@@ -1329,7 +1355,7 @@ Test steps:
    correct: SwiftUI is not available there.
 5. Confirm the Summary table's cells can be selected and copied.
 
-## P27: Backend Feature Coverage (Linux and Windows)
+### P27: Backend Feature Coverage (Linux and Windows)
 
 Run:
 
@@ -1354,7 +1380,7 @@ Test steps:
 4. Confirm that a feature a backend genuinely cannot provide degrades visibly
    (a blank area) rather than aborting -- the decision this app exists to force.
 
-## P28: Control Styles (Linux and Windows)
+### P28: Control Styles (Linux and Windows)
 
 **Planned, not yet written.** Covers styles that assert in a debug build and
 silently downgrade in release.
@@ -1376,7 +1402,7 @@ Planned test steps:
    month grid, in the wrong calendar and timezone.
 5. Compare all of the above against WinUIBackend.
 
-## P29: Visual Fidelity (Linux and Windows)
+### P29: Visual Fidelity (Linux and Windows)
 
 Run:
 
@@ -1404,7 +1430,7 @@ Test steps:
 5. Compare `.fontWeight(.semibold)` against `.bold`; they map to the same CSS
    weight on GtkBackend.
 
-## P30: Effects and Animation (Linux and Windows)
+### P30: Effects and Animation (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers the
 largest protocol-level gap: SwiftCrossUI has no animation layer at all, and only
@@ -1465,7 +1491,7 @@ Test steps:
 5. Compare each against the same code under AppKit when that backend is in
    scope.
 
-## P31: Focus and Keyboard (Linux and Windows)
+### P31: Focus and Keyboard (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Roughly half of
 what this app has to check can be written today; the other half remains a list
@@ -1528,7 +1554,7 @@ The automated run verifies launch, render marker, final screenshot and the
 visible baseline controls. Real focus traversal, Escape handling and Ctrl+Q
 still require manual keyboard interaction.
 
-### Measured 2026-09-03 on Windows / GtkBackend — steps 1 and 2 pass, step 4 cannot be run
+#### Measured 2026-09-03 on Windows / GtkBackend — steps 1 and 2 pass, step 4 cannot be run
 
 Driven by `testapp/actions/win/P31-tab-and-escape.csv`, which is the first
 action file in this tree to press a key at a dialog at all.
@@ -1574,7 +1600,7 @@ convention, not two — the mac docs saying `testapp/output/p28-debug-events.log
 are right only because that flow `cd`s into `testapp/output` first, whereas
 `run.zsh` launches by absolute path and never changes directory.
 
-## P32: Accessibility (Linux and Windows)
+### P32: Accessibility (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** The app calls
 nothing that is missing. It exists to be inspected from outside.
@@ -1629,7 +1655,7 @@ The automated run verifies that the baseline controls render. Role/name
 inspection still requires Accerciser on Linux and Accessibility Insights or
 `inspect.exe` on Windows.
 
-## P33: Missing Views (Linux and Windows)
+### P33: Missing Views (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers the
 SwiftUI views with no SwiftCrossUI equivalent at all, where ported code fails to
@@ -1693,7 +1719,7 @@ Test steps:
    be RUN rather than looked up.
 5. Compare each against the same code under AppKit.
 
-## P34: Lazy Containers and Large Collections (Linux and Windows)
+### P34: Lazy Containers and Large Collections (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers what
 happens when a collection is larger than the window that shows it.
@@ -1760,7 +1786,7 @@ Test steps:
 6. Repeat under the other backend. GTK and WinUI have different widget-creation
    costs, so the two curves are expected to differ in slope, not only in offset.
 
-## P35: State and Scene Composition (Linux and Windows)
+### P35: State and Scene Composition (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers the gaps
 that stop a SwiftUI app's structure from being expressed, as distinct from its
@@ -1815,7 +1841,7 @@ Test steps:
    should be identical. A difference means something here is conditional on the
    backend, which is worth locating.
 
-## P36: API-Shape Compatibility (Linux and Windows)
+### P36: API-Shape Compatibility (Linux and Windows)
 
 **Baseline app written and smoke-tested on WSLg and Windows.** Covers views that
 exist but whose SwiftUI call sites do not compile. Every gap in this section is
@@ -1890,7 +1916,7 @@ Test steps:
    other is a backend-conditional API, which is a separate finding from
    everything else in this section.
 
-## P37: Window Level (Linux and Windows)
+### P37: Window Level (Linux and Windows)
 
 Run:
 
@@ -1948,7 +1974,7 @@ Test steps:
    its neighbours. A window level that outlives its window would cover whatever
    the user does next.
 
-## P38: WebView (Linux and Windows)
+### P38: WebView (Linux and Windows)
 
 Run:
 
@@ -1979,7 +2005,7 @@ Expected results:
 - If Windows never reaches the final screenshot or cannot close cleanly, record
   it as the WinUI async WebView issue.
 
-## P39: Visual Effects (Linux, Windows, macOS and iOS)
+### P39: Visual Effects (Linux, Windows, macOS and iOS)
 
 Run:
 
@@ -2035,7 +2061,7 @@ Expected results:
   so a Core Animation-driven animation inside one would appear frozen; `opacity`
   does not take that path.
 
-## P40: Geometric Effects (Linux, Windows, macOS and iOS)
+### P40: Geometric Effects (Linux, Windows, macOS and iOS)
 
 Run:
 
@@ -2078,7 +2104,7 @@ Expected results:
   pinned on all four edges — the modifier's commit sizes the container and
   nothing sizes what is inside it.
 
-## P41: Date Picker Styles (Linux and Windows)
+### P41: Date Picker Styles (Linux and Windows)
 
 Run:
 
@@ -2108,7 +2134,7 @@ Expected results:
 - If `.graphical` is blank or updates the wrong binding value on Windows, record
   it as the WinUI DatePicker issue.
 
-## Test Record Template
+### Test Record Template
 
 Use this format after each test run:
 
@@ -2126,3 +2152,1273 @@ Logs:
 Screenshots:
 Notes:
 ```
+
+---
+
+## Bug plan: AppKit, UIKit and AndroidBackend
+
+Covers the open upstream bugs reachable from the macOS workstation. The
+selection comes from `issues.csv`: 33 rows are tagged `bug` and are not yet
+fixed, and these are the ten whose backend is reachable there. Gtk, Gtk3 and
+WinUI bugs belong to the Windows workstation instead.
+
+`#platform-matrix` is the cross-platform view of the same data, and is the
+place to look for which app covers which issue on which platform.
+
+The count is checkable rather than remembered:
+
+```sh
+awk -F, 'NR>1 && $2 ~ /bug/ && $4 !~ /^fixed-p/' testapp/issues.csv | wc -l
+```
+
+Same working style as the WinUI and Linux plans: reproduce first, measure
+rather than infer, and record what was actually observed.
+
+### Scope
+
+| App | Backend | Issues | Where it runs |
+| --- | --- | --- | --- |
+| P11 | AppKitBackend | #82, #485, #473 | macOS, natively |
+| P12 | AndroidBackend | #632, #580, #544 | Android device or emulator |
+| P13 | core layout / view graph | #595, #291, #158 | any backend |
+| P13 | AppKitBackend | #415 | macOS, natively |
+| P14 | UIKitBackend | #324, #254 | iOS Simulator |
+
+P13 is split across two rows on purpose. `issues.csv` files #595, #291 and #158
+under `core/unspecified`, not under a backend, so they are testable wherever the
+app runs; only #415 is reported against AppKitBackend. Measured, not assumed:
+P13 builds and links under GtkBackend in WSL, so those three can be checked
+without waiting for a Mac, and a backend that does *not* show them is a useful
+result too.
+
+Bugs from the same set that are deliberately excluded appear under "Not
+covered" in each section, with the reason.
+
+#### Not reachable from the macOS workstation
+
+Recorded so the gaps are visible rather than forgotten. "Blocked" here means
+blocked *from macOS* -- the first two rows are routine work on the Windows
+workstation, and #289 and #160 already have repro apps there:
+
+| Issues | Where it belongs instead |
+| --- | --- |
+| #289, #594 | The Windows workstation, under WSLg. #289 is covered by P15 |
+| #160, #231 | The Windows workstation. #160 is covered by P16 |
+| #286, #166, #179 | Gtk3Backend, which is out of scope everywhere |
+| #189 | GtkBackend *on macOS*, which neither workstation runs -- the Gtk3 half is out of scope as well |
+| #227 | A Mac Catalyst build target, not yet set up |
+| #226 | tvOS |
+| #645 | Comparison against several platforms at once, so it needs the others first |
+
+---
+
+### P11: Sliders, Scrollbars And Pickers (macOS)
+
+Build and run:
+
+```sh
+zsh testapp/compile.zsh P11
+./testapp/output/P11
+```
+
+Covered issues:
+
+- #82 (Open): Sliders jitter in RandomNumberGeneratorExample when two sliders
+  constrain each other
+- #485 (Open): Scrollbar renders pointing the wrong way
+- #473 (Open): Compact DatePicker sizing is off with Liquid Glass
+
+Test steps:
+
+1. Launch `P11`.
+2. Click `Separate them`, so minimum is 20 and maximum is 80 and neither clamp
+   is active. Click `Reset counters`.
+3. Drag the **minimum** slider slowly upward past 80. Watch the two write
+   counters, to verify #82.
+4. Release and read the counters. One drag should advance `min` roughly in step
+   with the pointer, and should not advance `max` at all while the sliders are
+   apart.
+5. Click `Collide them`, then `Reset counters`, then drag the minimum slider
+   further right. Both values are now pinned together, so this is where the
+   clamp feeds back.
+6. Watch the slider handle while dragging: it must stay where the pointer put
+   it rather than snapping back and forth.
+7. Scroll the row list with the scroll wheel and watch the vertical scrollbar,
+   to verify #485. Note which end of the track the thumb sits at when the list
+   is at row 1.
+8. Scroll to the bottom and note where the thumb sits now.
+9. Compare the compact `DatePicker` against the `Reference` button beside it,
+   to verify #473. Check the heights match and that neither the date text nor
+   the stepper is clipped.
+10. Click into the DatePicker and change the date; confirm the control does not
+    resize as its contents change.
+
+Expected results:
+
+- Dragging one slider does not write to the other while they are apart. Both
+  counters climbing together, or a handle that jumps back after release, is #82.
+- The scrollbar thumb is at the **top** when the list is at row 1, and at the
+  bottom when scrolled to the end. Reversed is #485.
+- The DatePicker matches the reference button's height and clips nothing. Being
+  visibly taller, shorter or clipped is #473.
+
+Not covered by P11:
+
+- **#404** (window content size after `View > Show Tab Bar`) needs a system menu
+  item that the app cannot drive from its own view tree. Reproducing it means
+  toggling the menu by hand and watching whether the content area follows;
+  worth doing manually, but not something P11 can assert.
+- **#425** (window not focused at launch) is described upstream as intermittent
+  -- "every once in a while". A pass/fail step would report success almost every
+  time regardless of whether the bug is fixed. If it appears, record the launch
+  method, whether Swift Bundler was used, and whether the sidebar had
+  transparency.
+
+---
+
+### P12: Button Margins, State And Toggles (Android)
+
+Build and run:
+
+```sh
+cd Examples
+SCUI_ANDROID=1 swift build --swift-sdk aarch64-unknown-linux-android28 --product P12
+```
+
+Or bundle and install it as an APK, following
+`Scripts/build-tool-install-android-on-Mac.sh`. P12 also renders on the host
+platform, which is useful for checking the layout before deploying, but only
+the Android run can verify these issues.
+
+Covered issues:
+
+- #632 (Open): Buttons have an unnecessary margin
+- #580 (Open): Rotating the screen resets `@State`
+- #544 (Open): Toggle button state is not indicated visually
+
+Test steps:
+
+1. Launch `P12` on a device or emulator with auto-rotate enabled.
+2. In the margins section, look at the two blue buttons between the green
+   bands, to verify #632. The blue background should reach each button's edges.
+3. Measure or eyeball the gap between the blue and the green above and below.
+   Any consistent strip of background colour between them is the margin.
+4. Tap `Second` or `Third` so the selected tab is not the default, then tap
+   `Increment counter` a few times. Note both values.
+5. Rotate the device to landscape without touching anything else, to verify
+   #580.
+6. Read the tab and counter again. Both must be unchanged.
+7. Rotate back to portrait and read them once more.
+8. In the toggle section, compare the `Forced on` and `Forced off` toggles side
+   by side, to verify #544.
+9. Tap `Set both on`; confirm the two now look identical to each other.
+10. Tap `Set opposite`; confirm they now look different from each other.
+11. Compare against the `switch` style toggle below, which uses a different
+    component, to see whether the problem is specific to the button style.
+
+Expected results:
+
+- The blue background reaches the button edges. A gap between blue and green is
+  #632.
+- Tab selection and counter survive rotation unchanged. Reverting to the first
+  tab, or the counter returning to 0, is #580.
+- The two button-style toggles look different when in opposite states. Looking
+  identical is #544.
+
+Not covered by P12:
+
+- **#610** (sheet sizing on Android) is two coupled defects upstream: the layout
+  system not respecting the size backends report for sheets, and AndroidBackend
+  reporting the wrong size in the first place. Distinguishing them needs
+  measured sizes from both layers rather than a visual check, so it needs its
+  own instrumented app rather than a step here.
+
+---
+
+### P13: Layout And View Graph (any backend, plus one macOS-only check)
+
+Build and run:
+
+```sh
+zsh testapp/compile.zsh P13
+./testapp/output/P13          # .exe on Windows
+```
+
+Covered issues, by where they have to be checked:
+
+Any backend:
+
+- #595 (Open): Texts inside a ScrollView get unnecessarily cut off
+- #291 (Open): NavigationSplitView minimum width sizing
+- #158 (Open): Group behaviour in ZStacks
+
+macOS only:
+
+- #415 (Open): Message list benchmark crashes with AppKitBackend
+
+#415 crashes on purpose, so it is behind a button. Do the other three checks
+first, then trigger it last. Steps 1-8 are worth running on every backend
+available, recording each separately: #291 in particular is reported upstream as
+affecting AppKitBackend and not GtkBackend, so agreement between the two is
+itself the finding.
+
+Test steps:
+
+1. Launch `P13`. Confirm the window opens and the identifiable list on the left
+   renders three identical rows.
+2. Compare the two ScrollViews. The left one is plain, the right one applies
+   `.fixedSize(horizontal: false, vertical: true)`, which upstream reports as
+   the workaround, to verify #595.
+3. Confirm the plain ScrollView shows the whole wrapped sentence. If its last
+   line is clipped while the `.fixedSize()` one is not, that is #595.
+4. Look at the ZStack section, to verify #158. The red, green and blue blocks
+   are inside a `Group` inside a `ZStack`, at decreasing sizes.
+5. Confirm they overlap, smallest on top, so all three are visible as nested
+   rectangles. Laid out side by side or stacked vertically means the Group took
+   the container's orientation instead of the z axis, which is #158.
+6. Click `Narrower` repeatedly and watch the NavigationSplitView, to verify
+   #291. The frame shrinks in 60 px steps.
+7. Confirm the detail pane stays visible as the frame narrows. If the split
+   stops moving and the detail pane is squeezed out or clipped while the
+   sidebar keeps its width, that is #291.
+8. Click `Wider` and confirm the split recovers.
+9. On macOS: `More duplicates` a few times, then click `Show unidentified list`,
+   to verify #415. This renders a `ForEach` over elements that are not
+   `Identifiable` and all compare equal.
+10. Record whether the app crashes, and if so capture the message. Upstream
+    attributes it to the backend receiving duplicate child views. On other
+    backends this step is not expected to crash; run it anyway and record that,
+    since it bounds the bug to AppKitBackend.
+
+Expected results:
+
+- The plain ScrollView does not clip its text. Needing `.fixedSize()` is #595.
+- The Group's children overlap along z. Any side-by-side or vertical layout is
+  #158.
+- The detail pane survives narrowing. Being squeezed out is #291.
+- Rendering the non-Identifiable list does not crash. A crash is #415, and the
+  identifiable list beside it is the control showing the same data is fine when
+  identity is explicit.
+
+### macOS feature coverage without an upstream issue
+
+The following apps cover AppKit features that are not assigned an open issue:
+
+| App | Feature | macOS check |
+| --- | --- | --- |
+| P25 | Drag and drop | Drag a file onto the accepting area; verify hover feedback and the received file URL payload. |
+| P28 | Hit testing | Click the blue overlay; the click must pass through and increment the button below. |
+| P29 | Visual fidelity | Compare the indeterminate progress bar, clipping and disabled editor behaviour against the stated controls. |
+| P37 | Window levels | Place another window over the app and verify the selected window-level behaviour. |
+
+For P28, the measurable result is the `Clicks received` counter and the
+`underlying button clicked` entries in `p28-debug-events.log`. A visible overlay
+that consumes the click is an AppKit regression even if the overlay itself is
+drawn correctly.
+
+---
+
+### P14: Rotation Size Proposals And Theme (iOS Simulator)
+
+Build, install and run:
+
+```sh
+zsh testapp/compile.zsh -ios P14
+xcrun simctl boot swift-cross-ui
+open -a Simulator
+xcrun simctl install swift-cross-ui testapp/output/P14-ios.app
+xcrun simctl launch swift-cross-ui dev.swiftcrossui.testapp.P14
+```
+
+`compile.zsh -ios` provisions the simulator itself via `install_tools_ios.zsh`, so
+a missing device is created rather than reported.
+
+Covered issues:
+
+- #324 (Open): Content gets an incorrect size proposal on orientation change
+- #254 (Open): App background colour is not updated when the system theme changes
+
+Both are about a value rather than an appearance, so P14 records what it was
+given instead of asking you to catch a flicker. #324 corrects itself on the next
+layout pass, and #254 is one surface disagreeing with others.
+
+Test steps:
+
+1. Launch `P14` in portrait. Note the reported proposed width; it should match
+   the device's portrait width.
+2. Click `Clear history`.
+3. Rotate the simulator to landscape (Cmd-Left Arrow), to verify #324.
+4. Read `Width history`. It records up to eight width changes in order.
+5. Confirm the history goes straight from the portrait width to the landscape
+   width. An intermediate entry **wider than the landscape width**, followed by
+   the correct one, is #324 -- the app was proposed more space than exists and
+   then corrected.
+6. Rotate back to portrait and read the history again.
+7. With the app open, switch the system appearance, to verify #254. In the
+   simulator use Features > Toggle Appearance, or from a terminal:
+   `xcrun simctl ui swift-cross-ui appearance dark`.
+8. Compare the three numbered surfaces. The text, the button and the adaptive
+   colour block should all change together with the window background behind
+   them.
+9. Switch back to light and compare again.
+
+Expected results:
+
+- Width history contains only the portrait and landscape widths, in order. An
+  extra oversized entry between them is #324.
+- Every surface follows the theme. If the controls and the adaptive block
+  change while the background behind them stays the previous theme's colour,
+  that is #254. The adaptive block is the control here: it proves the theme
+  change arrived, so a background that ignores it is the app's own bug.
+
+Not covered by P14:
+
+- **#227** (Mac Catalyst button sizing) shares UIKitBackend but needs a Catalyst
+  destination rather than an iOS Simulator one, and upstream supplies only a
+  screenshot with no description, so the reproduction conditions are unclear.
+
+---
+
+### Test Record Template
+
+```text
+Date:
+Commit:
+OS / device:
+Swift:
+App:
+Result: Pass / Fail
+Steps:
+Observed:
+Expected:
+Logs:
+Screenshots:
+Notes:
+```
+
+---
+
+## Linux plan: GtkBackend through WSL
+
+Goal: reproduce the open GtkBackend/Gtk3Backend issues on this machine, fix what
+we can, and submit the fixes upstream. Same working style as the WinUI work:
+reproduce first, measure rather than infer, and keep the evidence.
+
+For which app covers which issue, and whether a WSLg run settles it or only
+shows the symptom, see `#platform-matrix`. The Tier 1 and Tier 2 split
+below is where that distinction comes from -- but note that Tier 2 is not a
+synonym for "WSLg distorts it": read the caveat column, since only #556 is
+about window sizing itself.
+
+### Environment as it stands
+
+Checked, not assumed:
+
+| | |
+|---|---|
+| WSL | Ubuntu 26.04 LTS, WSL2, running |
+| WSLg | available -- `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, so GTK windows display natively |
+| Swift | **6.3.3**, installed from the official tarball into `/usr/local/swift` |
+| GTK 4 | **4.22.4** (`libgtk-4-dev`, installed) |
+| GTK 3 | not installed, and deliberately so |
+
+WSLg presents a Wayland compositor. Anything about window sizing, minimum
+sizes or resizing behaves differently there than on a real desktop session, so
+those issues need a caveat (see Tier 2).
+
+### Phase 0 -- toolchain
+
+Done. `testapp/install_tool_wsl.sh` does all of it and is the record of what was
+needed; run it as root, since `sudo` in this distribution asks for a password:
+
+```sh
+wsl -d Ubuntu -u root -- bash testapp/install_tool_wsl.sh
+```
+
+What it resolved, none of it guessed:
+
+1. swift.org publishes **no** Ubuntu 26.04 build -- the 26.04 tarball URL 404s
+   while the 24.04 one returns 200 -- so the 24.04 build is installed, from the
+   official tarball into `/usr/local/swift`. Not Swiftly.
+2. That build then fails to start on 26.04, twice over: 26.04 ships
+   `libxml2.so.16` where Swift wants `.so.2`, and ICU 78 where it wants ICU 74.
+   Both are extracted from the 24.04 `.deb` packages into
+   `/usr/local/lib/swift-compat`.
+3. GTK 4 is installed: `libgtk-4-dev` 4.22.4, with pkg-config 2.5.1.
+4. Verify: `pkg-config --modversion gtk4` and `swift --version`.
+
+**Scope: GtkBackend only.** Gtk3Backend is out of scope, so GTK 3 is not
+installed and issues that only affect it are not being pursued. That drops #286
+and #166 outright, and means #426 is only tested against GTK 4.
+
+GTK 4.22.4 is recent, which decides #702 (about *older* GTK 4) before it starts:
+it cannot be reproduced here.
+
+### Phase 1 -- prove the toolchain end to end
+
+Build and run one of the repo's own examples under WSLg before touching any
+issue. If a window does not appear, that is an environment problem, not a bug in
+the code being tested, and every later result would be suspect.
+
+```sh
+./Scripts/test.sh                    # unit tests
+swift build --target GtkBackend      # not --product
+```
+
+`--target GtkBackend` is not a preference. A plain `swift build`, or
+`--product SwiftCrossUI`, makes SwiftPM build the default target set, which
+includes the `WinUIInterop` C target, and that fails on Linux with
+`'Windows.h' file not found`. Naming the target directly is the way past it.
+
+Measured on this machine: 61.7 s from clean for `--target GtkBackend`, and
+`testapp/compile.zsh` builds a repro app in 5-15 s once that is warm.
+
+### Phase 2 -- free coverage from the existing test apps
+
+Every app in `testapp` uses `DefaultBackend`, which selects GtkBackend on Linux,
+and `testapp/compile.zsh` already handles non-`.exe` output. P0-P3 and P5 should
+build and run unchanged; P4 and P6 contain Windows-specific sections behind
+`#if os(Windows)`.
+
+This matters because **P2 and P3 already have test steps for two of the open
+issues**, written when the WinUI versions were fixed:
+
+- P2 step 7-8 covers #390, disabled buttons not appearing disabled
+- P3 step 6-9 covers #389, images not being clipped
+
+So the first real test run costs nothing to write. Run P0-P3 and P5, and record
+which of the WinUI-fixed behaviours are still broken on GTK. Extend
+`UI-test-plan-zhTW.md#整體計畫p0-p41` / `#overall-plan-p0-p41` with a Linux column or section rather
+than starting a separate document.
+
+Since this plan was written, P7-P10 have been added for the Tier 1 and Tier 2
+issues below, and P13 for three core-layout issues that are not GTK-specific but
+are reachable from here. All of them build and link under GtkBackend in WSL, so
+the only thing left for them is a human at the screen.
+
+### Phase 3 -- triage of the open issues
+
+Twelve open issues match Linux/GTK, as of this plan. Two of them (#286, #166)
+are Gtk3Backend-only and are dropped with it, leaving ten. Tier 2 has since
+picked up three more from `issues.csv` that are filed as `core/unspecified`
+rather than against GtkBackend: they are not GTK bugs, but they are reachable
+from here, and checking a core layout bug on a second backend is worth more
+than checking it on one.
+
+**Tier 1 -- plain widget behaviour, should reproduce under WSLg**
+
+| # | Title | App | Notes |
+|---|---|---|---|
+| 389 | Images aren't clipped | P3 | already exercised; WinUI half fixed, GTK half open |
+| 390 | Disabled buttons don't appear disabled | P2 | already exercised; WinUI half fixed, GTK half open |
+| 417 | ScrollView cornerRadius doesn't affect children | P8 | |
+| 426 | Horizontal ScrollView swallows parent's scroll wheel | P8 | nested-scroll case |
+| 454 | Transparent containers consume click events | P10 | also affects AppKitBackend |
+| 476 | List starts with the first item selected | P7 | Fixed on GTK4 and Gtk3 under WSLg |
+| 478 | Ctrl-Q does not quit | P10 | keyboard handling, WSLg passes keys through |
+| 504 | TextField/SecureField shrinks in height after first update | P9 | |
+
+**Tier 2 -- layout and window sizing, WSLg may distort the result**
+
+| # | Title | App | Caveat |
+|---|---|---|---|
+| 556 | List NavigationSplitView makes weird size decisions | P7 | |
+| 295 | Clip text when necessary to reach zero width | P9 | Gtk3Backend half is out of scope |
+| 595 | Text inside a ScrollView is cut off | P13 | not GTK-specific; compare against other backends |
+| 291 | NavigationSplitView minimum width sizing | P13 | reported as AppKit-affected and Gtk-unaffected |
+| 158 | Group behaviour in ZStacks | P13 | not GTK-specific |
+
+Reproduce these, but before claiming a fix, confirm the behaviour on a real
+Linux desktop session or at least state that it was only checked under WSLg.
+
+**Tier 3 -- needs something we do not have, or is not a bug**
+
+| # | Title | Why |
+|---|---|---|
+| 702 | Older GTK 4 breaks button label centering | 26.04 ships 4.22.4; needs an older GTK |
+| 386 | Support dark mode | feature; needs a dark theme configured |
+| 594 | EventControllerKey.keyPressed cannot return Bool | binding generation, testable without a GUI |
+| 52 | libadwaita support | feature request |
+
+Start with Tier 1, cheapest first: #389 and #390 need no new test code.
+
+### Phase 4 -- per issue
+
+1. Reproduce, and capture what was observed (screenshot or a described symptom).
+   If it does not reproduce, say so on the issue -- that is a useful result too,
+   especially for the ones that predate current GTK versions.
+2. Add or extend a `testapp` app that isolates it, following the existing P0-P6
+   convention, and add steps to both test plan documents.
+3. Fix in `Sources/GtkBackend`, keeping the change as small as the bug. Where
+   an issue names both backends, fix GtkBackend and say in the pull request
+   that Gtk3Backend was not tested.
+4. Verify against the test app, and check the neighbouring behaviour did not
+   regress.
+5. One commit per issue, in the style already used here (`GtkBackend: ...`).
+
+### Before submitting anything upstream
+
+- `Scripts/format.sh` (SwiftFormat is installed on the Windows side; install it
+  in WSL too, or format from Windows).
+- The project's LLM policy applies: usage must be disclosed in the pull request
+  description, the author must understand the code, and **the description must
+  be written by the author, not by an LLM**.
+- Prefer one issue per pull request. The contributing guide asks for focused
+  changes, and the smaller ones here are exactly that.
+
+### Risks
+
+- **Ubuntu 26.04 has no matching Swift build**, so the toolchain here is the
+  24.04 one running against 26.04's libraries, with `libxml2` and ICU shimmed in
+  from 24.04 packages. It builds and links, but it is not a combination
+  swift.org tests. A failure that looks like a Swift or Foundation bug should be
+  suspected of being this before it is reported.
+- **WSLg is Wayland**, so window-level behaviour is not identical to a normal
+  desktop. Tier 2 results need that caveat.
+- **GTK version skew**: 4.22.4 is recent, so bugs about older GTK cannot be
+  reproduced here, and fixes verified against it cannot be assumed to help users
+  on older distributions.
+- Several of these issues are old. Some may already be fixed; confirming that
+  and closing them is a legitimate outcome.
+
+---
+
+## Platform matrix
+
+Which repro app tests which issue, and what running it on each platform tells
+you. The per-app steps live in `#overall-plan-p0-p41`; the strategy behind the
+Linux work lives in `#linux-plan-gtkbackend-through-wsl`. This file answers one question only:
+*where do I run this, and does the answer count?*
+
+Derived from `issues.csv`, which is the source of truth. To regenerate the
+issue-to-app mapping:
+
+```sh
+awk -F, 'NR>1 && $4 ~ /p[0-9]+$|p[0-9]+;/ {print $4"  #"$1"  "$3}' testapp/issues.csv
+```
+
+### Legend
+
+| | Meaning |
+| --- | --- |
+| 🎯 | Reported against this platform. A run here decides the issue. |
+| 🔍 | Not reported here, but a run is a useful comparison -- agreement or disagreement is itself the finding. |
+| ⬜ | Nothing to learn. The app builds and runs, but this platform cannot show this issue. |
+| ✅ | Already fixed on this platform. Run it as a regression check. |
+| 🚫 | No hardware, simulator or toolchain for it. Which machine that applies to is in the table below, not here. |
+| 〰️ | Runs under WSLg, but the result does not settle the issue: it is one of the window-sizing cases WSLg distorts. Reproduce here, confirm on 🐧. |
+
+Desktop columns: 🪟 Windows (WinUIBackend) · 🌊 WSLg (GtkBackend under a
+Wayland compositor) · 🐧 Linux (GtkBackend on a real desktop session) ·
+🍎 macOS (AppKitBackend). Mobile: 📱 iOS (UIKitBackend) · 🤖 Android
+(AndroidBackend).
+
+WSLg and Linux are separate columns because they disagree. WSLg is a Wayland
+compositor rather than a desktop session, so window sizing, minimum sizes and
+decorations behave differently -- the split that `#linux-plan-gtkbackend-through-wsl` already
+records as Tier 1 versus Tier 2. The two rows that are 〰️ under 🌊 but 🎯
+under 🐧 are the whole reason for keeping them apart: WSLg can show you the
+symptom, but only a desktop session settles it. 〰️ never appears under 🐧 --
+it says something about WSLg specifically, not about GtkBackend.
+
+Only #556 and #289 carry it. Tier 2 is not a synonym for "WSLg cannot be
+trusted": it collects issues that need *some* caveat, and the reasons differ.
+#595 and #158 are flagged as not GTK-specific, #291 is reported as Gtk
+**un**affected, and #295's caveat is that the Gtk3Backend half is out of scope.
+None of those say anything about WSLg's fidelity, so marking them 〰️ would
+claim the compositor distorts results it has no bearing on.
+
+### Where each platform is reachable
+
+This repository is worked on from two machines, so "here" depends on which
+checkout you are reading. Stated per machine rather than per file:
+
+| Platform | Windows workstation | macOS workstation |
+| --- | --- | --- |
+| 🪟 Windows | ✅ native | 🚫 |
+| 🌊 WSLg | ✅ WSL2 + WSLg, GTK 4.22.4, Swift 6.3.3 | 🚫 |
+| 🐧 Linux | 🚫 no desktop session | 🚫 |
+| 🍎 macOS | 🚫 | ✅ native |
+| 📱 iOS | 🚫 | ✅ Simulator, iOS 18.4 |
+| 🤖 Android | 🚫 | ✅ SDK + NDK, device or emulator |
+
+Neither machine has a real Linux desktop session, so the 🐧 column is currently
+unreachable from both. It exists because several results measured under 🌊 are
+explicitly provisional until someone repeats them there.
+
+### Binaries
+
+The current testapp set reaches P41. The desktop issue matrix below still
+decides the upstream issue rows it lists, but it is no longer a complete
+inventory of every local repro app. P18-P41 are covered by the overall and bug
+plans where applicable.
+
+On the Windows workstation, build the reachable desktop apps as release builds
+by default: `testapp/output/PN` under 🌊 WSLg and `testapp/output/PN.exe` on
+🪟 Windows. Nothing here has been built under 🐧, which is why that column
+carries no results. Rebuild the matrix-era desktop set with:
+
+```sh
+zsh testapp/compile.zsh P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15 P16 P17
+```
+
+For newer local apps, build the specific app named by the test plan instead of
+assuming this matrix has already classified it.
+
+### The matrix
+
+#### Open issues and fixed regression coverage -- desktop
+
+| Issue | App | 🪟 | 🌊 | 🐧 | 🍎 | What it is |
+| --- | --- | :-: | :-: | :-: | :-: | --- |
+| #389 | P3 | ✅ | 🎯 | 🎯 | ⬜ | Images aren't clipped -- WinUI half fixed, GTK half open |
+| #390 | P2 | ✅ | 🎯 | 🎯 | ⬜ | Disabled buttons don't look disabled -- same split |
+| #476 (Fixed) | P7 | ⬜ | ✅ | ✅ | ⬜ | List starts with the first item selected -- verified fixed on GTK4 and Gtk3 |
+| #556 | P7 | ⬜ | 〰️ | 🎯 | ⬜ | NavigationSplitView makes weird size decisions |
+| #417 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | ScrollView cornerRadius does not clip children |
+| #426 | P8 | ⬜ | 🎯 | 🎯 | ⬜ | Horizontal ScrollView swallows the parent's scroll wheel |
+| #504 | P9 | ⬜ | 🎯 | 🎯 | ⬜ | TextField/SecureField shrinks after the first update |
+| #295 | P9 | ⬜ | 🎯 | 🎯 | ⬜ | Text not clipped to zero width |
+| #478 | P10 | ⬜ | 🎯 | 🎯 | ⬜ | Ctrl-Q does not quit |
+| #454 | P10 | ⬜ | 🎯 | 🎯 | 🎯 | Transparent containers eat clicks -- both backends |
+| #386 | P15 | 🔍 | 🎯 | 🎯 | ⬜ | Dark mode unsupported |
+| #289 | P15 | ⬜ | 〰️ | 🎯 | ⬜ | Window minimum height with Gtk-drawn title bars |
+| #160 (Fixed) | P16 | ✅ | 🔍 | 🔍 | ⬜ | Split view laid out wrong on first render; WinUI initial layout fixed, interaction retest still useful |
+| #595 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | Text cut off inside a ScrollView (core) |
+| #158 | P13 | 🎯 | 🎯 | 🎯 | 🎯 | Group inside ZStack lays out along the wrong axis (core) |
+| #291 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | NavigationSplitView minimum width -- AppKit yes, Gtk no |
+| #415 | P13 | 🔍 | 🔍 | 🔍 | 🎯 | Non-Identifiable ForEach crashes on AppKit |
+| #264 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | frame(idealWidth:) never reaches fixedSize (core) |
+| #266 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | Two layout edge cases (core) |
+| #161 | P17 | 🎯 | 🎯 | 🎯 | 🎯 | Picker sized from selection or largest -- needs 2+ platforms |
+| #82 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | Mutually clamped sliders jitter |
+| #485 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | Scrollbar points the wrong way |
+| #473 | P11 | ⬜ | ⬜ | ⬜ | 🎯 | Compact DatePicker sizing |
+
+#### Open issues -- mobile
+
+| Issue | App | 📱 | 🤖 | What it is |
+| --- | --- | :-: | :-: | --- |
+| #595 | P13 | 🎯 | 🎯 | Text cut off inside a ScrollView (core) |
+| #158 | P13 | 🎯 | 🎯 | Group inside ZStack lays out along the wrong axis (core) |
+| #264 | P17 | 🎯 | 🎯 | frame(idealWidth:) never reaches fixedSize (core) |
+| #266 | P17 | 🎯 | 🎯 | Two layout edge cases (core) |
+| #161 | P17 | 🎯 | 🎯 | Picker sized from selection or largest -- needs 2+ platforms |
+| #324 | P14 | 🎯 | ⬜ | Wrong size proposal on orientation change |
+| #254 | P14 | 🎯 | ⬜ | App background does not follow the system theme |
+| #632 | P12 | ⬜ | 🎯 | Buttons have an unnecessary margin |
+| #580 | P12 | ⬜ | 🎯 | Rotation resets @State |
+| #544 | P12 | ⬜ | 🎯 | Toggle state not shown visually |
+
+### Android action-file follow-up TODO
+
+The Android runner, APK delivery, emulator launch, and CSV action replay are
+verified with P12 on the API 36 emulator. TODO: investigate why a P12 button
+state update can leave the rendered surface blank, then add a screenshot or
+state assertion to the Android action test before treating #632, #580, or #544
+as a completed Android result.
+
+Core-layout issues appear in both tables: they are backend-independent, so a
+run anywhere counts, and disagreement between two platforms is the finding.
+
+#### Fixed, kept as regression checks
+
+| Issues | App | 🪟 | What it is |
+| --- | --- | :-: | --- |
+| #493 #548 | P0 | ✅ | Launch-time crashes |
+| #523 #659 #660 | P1 | ✅ | Dialogs and sheets |
+| #204 #401 #449 #471 | P2 | ✅ | Controls and styling |
+| #156 #190 #470 | P4 | ✅ | Bindings and callback storage |
+
+P5 and P6 carry no upstream issue numbers: P5 is multi-window alerts, P6 is the
+Windows GPU video path that the NV12 work came out of.
+
+P25 covers cross-platform drag-and-drop, P28 covers AppKit hit-testing
+pass-through, P29 covers visual fidelity, and P37 covers window levels. These
+feature apps are included in the macOS source matrix even though they are not
+upstream issue rows.
+
+### What to run, by machine
+
+As of 2026-08-29, the gaps below are the ones this matrix still treats as not
+settled on the Windows workstation:
+
+- 🪟 Windows: P16 for #160; P13 for #595/#158 plus #291/#415 comparisons; P17
+  for #264/#266/#161; P15 as the #386 control.
+- 🌊 WSLg: P7 for #556 remains provisional because WSLg distorts window sizing;
+  P15 for #289 is also provisional for the same reason. P2, P3, P8, P9, P10,
+  P13, P15 and P17 remain the active WSLg matrix runs unless their per-app
+  result file says otherwise.
+- 🐧 real Linux desktop: not reachable on either current machine. It is still
+  required to settle #556 and #289.
+- P18-P41: not fully represented in this platform matrix. Use
+  `#overall-plan-p0-p41`, `#bug-plan-appkit-uikit-and-androidbackend` and the per-feature
+  result docs for those apps.
+
+🌊 **WSLg**, on the Windows workstation -- 17 issues, plus #291 and #415 as
+comparisons. #476 has been verified fixed on GTK4 and Gtk3. Results for the
+〰️ rows stay provisional until 🐧 exists:
+
+```sh
+./testapp/output/P2                            # 390
+./testapp/output/P3                            # 389
+./testapp/output/P7                            # 476 556
+./testapp/output/P8                            # 417 426
+./testapp/output/P9                            # 504 295
+./testapp/output/P10                           # 478 454
+./testapp/output/P13                           # 595 158, and 291 415 as comparisons
+GTK_THEME=Adwaita:dark ./testapp/output/P15    # 386 289
+./testapp/output/P17                           # 264 266 161
+```
+
+🪟 **Windows** -- 6 issues, plus #291 and #415 as comparisons:
+
+```sh
+./testapp/output/P16-WinUI.exe                 # 160, WinUIBackend
+./testapp/output/P13-WinUI.exe                 # 595 158, and 291 415 as comparisons, WinUIBackend
+./testapp/output/P17-WinUI.exe                 # 264 266 161, WinUIBackend
+./testapp/output/P15-WinUI.exe                 # 386 as the control only, WinUIBackend
+```
+
+The two lists overlap on the five core-layout issues, which is the point: they
+are backend-independent, so running them on both is how a disagreement shows
+up. Everything else is specific to one column.
+
+### Three things that invalidate a result
+
+- **P15 without `GTK_THEME=Adwaita:dark` does not test #386.** GtkBackend
+  declares `canOverrideWindowColorScheme = false`, so the app's own scheme
+  buttons cannot change anything. They are the control; the ambient theme is
+  the test.
+- **P16 after touching the window does not test #160.** Resizing is one of the
+  two things that corrects the layout, so read the pane sizes before moving
+  anything.
+- **P17 on one platform answers nothing for #161.** The issue is that backends
+  disagree, so it needs at least two runs to compare.
+
+### Caveats on the 🌊 column
+
+WSLg is a Wayland compositor, not a desktop session. Window sizing, minimum
+sizes and decorations behave differently there, which is why 🌊 and 🐧 are
+separate columns rather than one. #556 and #289 are marked 〰️ because both are
+about window sizing itself; the rest of Tier 2 is caveated for other reasons
+and is not affected by the compositor. Gtk does draw client-side decorations under Wayland, so
+#289's precondition holds -- but this is not Fedora with GNOME, so a negative
+result bounds the bug rather than closing it.
+
+GTK here is 4.22.4, recent enough that #702 (about *older* GTK 4) cannot be
+reproduced at all. Gtk3Backend is out of scope entirely, which drops #286 and
+#166 and means #426 is only ever tested against GTK 4.
+
+---
+
+## Results log
+
+### 2026-09-14: P57 GTK Lazy Rows (#117)
+
+WSLg tested first, followed by Windows GTK4; release builds passed with the
+row-lifetime fix. Native probes confirmed initial nil selection, selecting row
+9999, clearing selection, updating both endpoint labels and changing row count
+10,000 -> 1 -> 10,000. Only 205/206 containers were realized for 10,000 rows,
+falling to 1 when the model shrank. Settled memory was 327-328 MB on WSL and
+260-288 MB on Windows during this sequence.
+
+Both windows stayed open for at least 30 seconds after the render marker. The
+black-capture gap was resolved on 2026-09-14: wincap now uses Windows Graphics
+Capture and falls back to PrintWindow. WSLg was also in stale COPY MODE; after
+`wsl --shutdown` and restart, its title lost the warning and WGC captured it
+directly. Final GL captures measured 92.2% non-black on WSLg and 92.1% on
+Windows. PIL measured both at 668x776 with content bbox (14,12)-(654,759).
+Native API probes are not pointer-input tests, and WinUI regression remains
+outstanding. Evidence and remaining checks:
+[backend follow-up](plan/plan-backend-followup-20260912.md).
+
+### 2026-07-12
+
+#### P2: Controls And Styling
+
+- #449 Picker: When opening the `Flavor` picker, WinUI/Composition console diagnostic logs such as `BVI-*`, `rcBackdropLocal`, and `CachedNewBlur` were previously observed. WinUIBackend has been changed to override `ComboBoxDropDownBackground` with a solid brush; retest is needed to confirm whether the console noise is gone.
+- #449 Picker: Previously, the dropdown disappeared immediately and another option could not be selected. The WinUI ComboBox has been adjusted so items are not updated when options are unchanged, and selection is not reset when the selected index is unchanged; retest is needed.
+- #471 TextEditor: Previously, typing could drop characters; for example, quickly entering `12345` might show only `1235`. The one-shot `shouldBlockNextChangedSignal` blocking logic in TextEditor has been removed, and the implementation now tracks the last synchronized text to avoid same-value binding writes; retest is needed.
+- #390 (Fixed): Disabled and enabled buttons are currently reported as having no visual-difference issue.
+- #401 (Fixed): Window resizing / full-screen button behavior is currently reported as no issue.
+
+#### P3: Layout And Clipping
+
+- #160: Screenshots show that NavigationSplitView columns may be clipped or unstable at initial launch or at specific window sizes. Continue recording the difference before and after resize / force state update.
+- #389: Screenshots show that an oversized image may still exceed the expected frame. Record this as image clipping behavior and fix later.
+
+#### P4: WinUI Native And Callback Stress
+
+- #156: Screenshots show that the native WinUI banner and the border modified through `TextField.inspect` are visible. The native API escape hatch appears to work initially.
+- #190: Screenshots show that row buttons and the scroll view appear correctly. Still need to click each `Run N`, increase/decrease rows, and repeatedly force updates to confirm callbacks do not get mixed up.
+- Row-size increase delay: Currently judged to be related to WinUIBackend. Each P4 row creates multiple native widgets such as Button/Text/Spacer. When row count increases, SwiftCrossUI `ForEach` reuses old rows and appends new rows, but ScrollView/VStack still lays out all rows. WinUIBackend previously rebuilt the button content `TextBlock` on every `updateButton`, which amplified delay during large row updates. It has first been changed so `CustomButton` reuses the label TextBlock; retest is needed to compare whether the delay decreases.
+
+### 2026-08-16
+
+#### P7: Lists And Split Views
+
+- #476 (Fixed): Windows `P7.exe` starts with no selected plain-list row, and the status line shows `Selection: none` as expected.
+- #476 (Fixed): WSLg/GTK4 `P7` now starts with the selection binding still `nil`; no plain-list row is highlighted and the status line shows `Selection: none`.
+- #476 (Fixed): WSLg/Gtk3 was also confirmed after installing `libgtk-3-dev`; `swift build -c release --target Gtk3Backend` succeeds, and the Gtk3 P7 run no longer starts with `Apple` selected.
+- #476 (Fixed): Clicking `Cherry`, `Clear selection`, and `Select Cherry` still updates or clears the selected row correctly after the fix.
+- #386 / GTK theme observation: WSLg/GTK uses native GTK theme metrics and colors, so its background, text contrast, spacing, and selected-row styling differ from WinUI. Under `GTK_THEME=Adwaita:dark`, the app background becomes darker, but some text contrast remains poor in the captured screenshot and should be considered when validating GTK theme behavior.
+- #556 (Superseded by 2026-09-01 measurement): The screenshots appeared to show a pane aspect / split ratio difference between Windows and WSLg/GTK. Later diagnostics showed this was a measurement mistake: content width was being read as pane width.
+- #556: After clicking `Cherry` in the plain List, the NavigationSplitView detail pane still shows `No sidebar selection`. This appears expected for the current P7 test because the plain List selection is separate from the NavigationSplitView sidebar selection, but it is worth keeping in mind when reading the comparison screenshots.
+- #556: Step 7 is functionally stable. After clicking `Add a fruit's worth of text`, the longer text above the split view appears and the split view does not jump or collapse. Later diagnostics show the actual pane ratio matches between WSLg and Windows for this scenario.
+- #556: Step 8 is functionally stable. After resizing the windows, including a much wider horizontal resize, the detail pane remains visible on both Windows and WSLg/GTK. Later diagnostics show this scenario does not currently reproduce a pane-ratio mismatch.
+- #556 / Windows Light mode: The third pane on the right does not show the expected vertical divider line (`|`) in Windows Light mode, while the WSLg/GTK comparison screenshot shows a visible pane boundary. Record this as a Windows/GTK visual parity issue for the split-view detail pane.
+- WSL/Windows GUI comparison: The Windows `P7.exe` window and the WSLg/GTK `P7` window should be equal in size for the same test scenario, but the screenshot comparison shows a visible size difference. This needs investigation before treating cross-backend layout screenshots as directly comparable; confirm whether the difference comes from requested content size, backend window-sizing semantics, DPI scaling, window decorations, or WSLg compositor behavior. **(Answered on 2026-08-18 via P6: the cause is DPI scaling -- see that day's entry.)**
+
+#### P8: Scroll Views
+
+- #426 (Confirmed/Open, WSLg/GtkBackend only): This issue is confirmed only on WSLg / GtkBackend; the Windows / WinUIBackend comparison does not reproduce it. On WSLg, neither horizontal nor vertical scrolling moves the scroll views at all, including the case where the pointer is over the inner horizontal strip and the user attempts either horizontal or vertical scrolling; the outer vertical scroll view does not receive/take over the wheel input as expected.
+- #426: Future fixes should be reproduced and verified on WSLg / GtkBackend first, then compared against Windows / WinUIBackend as a non-regression check. Use `zsh testapp/test.zsh P8 --both`; the script runs WSLg first, keeps the rendered window open for 30 seconds and captures a final screenshot, then repeats on Windows.
+- #417 (Not reproduced on WSLg/GtkBackend): The red child is visibly clipped by `cornerRadius(20)` -- all four corners are rounded in the WSLg screenshot, which is the opposite of the reported symptom of content showing through the corners. Measured alongside it: `cornerScroll: 260x120` against `redChild: 260x300`, so the child does overflow its container by 180px and there is something to clip. Checked under WSLg only, from a static screenshot; Windows was not inspected for this, and neither was a real Linux desktop session.
+- #266 (Reproduced incidentally, WinUIBackend only): the inner horizontal strip is measured twice on Windows, at `420x48` and then `408x48`, while WSLg measures it once at `420x48` and stays there. The 12px is the vertical scrollbar of the *outer* ScrollView: WinUI takes it out of the content width on a later layout pass, GTK overlays it and does not. This is exactly the tradeoff #266 describes -- showing a scrollbar changes the width available to the content, which can change the content's height, which can change whether the scrollbar was needed. Harmless here because nothing depends on the width, and P8 does not test #266 deliberately; recorded because it is a ready-made reproduction if #266 is picked up.
+
+### 2026-08-18
+
+#### P6: Stream Player
+
+- P6 was run on WSLg for the first time. It had never been run there not because the Linux presentation path was missing, but because `testapp/output/` is excluded from both git and rsync (the directory is per-machine), so the WSL side had no media file to play. Once a media file was copied over, the ffmpeg decode pipeline, the window, the playback controls and the layout all worked; the screenshot at 00:24 is correct and complete.
+- Reading note: the test clip fades in over its first few seconds, so the picture is almost entirely black with only a sliver of transition content at the right edge. A screenshot taken during that window reads as a rendering fault (this happened once during the session). Judge P6 screenshots from the middle of playback, not the start.
+- `-seek` (fixed): the flag was defined in the Windows-only `P6WindowFlags` and its single use site was wrapped in `#if os(Windows)`, so on Linux and macOS it was accepted and then did nothing. After moving it to the platform-neutral `P6DecoderFlags`, with the same binary: without `-seek` the play session starts at `0.000s` and the first frame is 00:00; with `-seek 90` it starts at `90.000s` and the first frame is 01:30. Windows still reports `90.000s` after a rebuild, so there is no regression.
+- `-maximized` (fixed): also Windows-only before. On GTK the backend's window is now taken from `@Environment(\.window)`, cast to `Gtk.ApplicationWindow`, and maximized through the newly added `Gtk.Window.maximize()`; a screenshot confirms the WSLg window filling the full 1920x1080 screen. SwiftCrossUI previously had no maximize concept in any backend.
+- `-topmost` (stays Windows-only): GTK4 has no always-on-top API (`gtk_window_set_keep_above` was GTK3 and was dropped) and Wayland does not let a client raise itself by design, so no Linux path is provided. This is deliberate rather than an omission left for later.
+- CJK fonts missing on WSL (fixed): a stock WSL image reports `fc-list :lang=zh-tw` as 0, and fc-match for zh-TW falls back to DejaVu Sans, which has no Han glyphs, so GTK draws Chinese UI text as tofu boxes. The symptom is easily misread as a backend rendering fault: in the same screenshot the video's burned-in Chinese subtitles are sharp (those are pixels) while only the UI text is boxes (that is text), and nothing errors anywhere along the way. After installing `fonts-noto-cjk` the zh-TW font count went from 0 to 30 and the filename renders in full; this is now part of `install_tool_wsl.sh`. Windows is unaffected because it uses the system fonts, which include CJK.
+- Audio (resolved): P6 produced no sound under WSLg. **The only cause was the WSLg PulseAudio server having stopped listening** -- `pactl`, `paplay` and SDL all answered `Connection refused` at the same moment. Running `wsl --shutdown` on Windows and reopening WSL brought the server back (`Server Name: pulseaudio`, `Server Version: 17.0`, `Default Sink: RDPSink`, `RDP Sink - Connected to fd 20`), and playback was confirmed by ear. The Windows audio devices were healthy throughout (Realtek(R) Audio `oem10.inf`, NVIDIA HD Audio, AMD HD Audio, NVIDIA Virtual Audio Device, all Started).
+- Audio misdiagnosis, recorded so it is not repeated: the 32 lines of `ALSA lib confmisc.c:855:(parse_card) cannot find card '0'` were taken for the root cause, and `SDL_AUDIODRIVER=pulse` was added to P6 because of it. They are a **symptom**: SDL falls back to ALSA only when it cannot reach pulse. Measured once the server was healthy: with no variable set at all, exit 0 and zero ALSA lines -- SDL picks pulse by itself; only forcing `SDL_AUDIODRIVER=alsa` reproduces the 32 lines. The code change has been reverted. The reason it looked like "pulse fixes it" is that the check grepped for `ALSA|error`, which cannot see the pulse path's actual failure, `Could not initialize SDL - Could not connect to PulseAudio`: ALSA failed loudly, pulse failed quietly, and neither played. **Lesson: judge success by exit code, not by a filter that matches particular strings.**
+- Diagnostic note: without `pactl` this is indistinguishable from a client-side misconfiguration -- the socket exists, `PULSE_SERVER` points at it correctly, and the permissions are fine, so everything appears configured. `pactl info` is the only check that separates the two, which is why `pulseaudio-utils` is now part of `install_tool_wsl.sh`. The server can stop serving while its socket file stays in place, so the presence of the socket proves nothing.
+- The WSL install script was never synced to WSL: `rsync_WSL.zsh` includes only `*.swift` and `testapp/**/*.zsh`, so `install_tool_wsl.sh` never reached the machine it exists to set up. The WSL copy was found still at its August 16 version while the local one had changed several times since. It is now in the include list with the reason recorded.
+- The install script is now split: `install_tool_wsl.sh` is bootstrap only (root check, install zsh, hand off) and the real logic lives in the new `install_tool_wsl.zsh`. The `.sh` entry point cannot be avoided -- it runs against a machine that has no zsh, and installing zsh is its job, so a zsh shebang would leave the kernel unable to find an interpreter and the script unable to start at all. Same shape as a self-elevating `.ps1` launcher that hands off immediately. `--help` through either entry point answers in 0.2s and installs nothing.
+- A third-party repository aborted the whole install: an NVIDIA CUDA repo was added on 2026-08-17 during the GPU investigation without its keyring, so `apt-get update` failed with `NO_PUBKEY A4B469963BF863CC` and, under `set -e`, the installer stopped before installing anything -- on a machine where every package it wanted was available. It now warns and continues, leaving the installs to fail on their own if a package is genuinely missing. The repo itself still needs attention: add the key or remove it, the GPU investigation having established that the driver was not the problem.
+- GTK file chooser does not close (Open, **Wayland only**): the full 2x2, all four cells measured.
+
+  | | Wayland | XWayland |
+  |---|---|---|
+  | without the fix | **stays open** | closes |
+  | with `gtk_native_dialog_destroy()` | **stays open** | closes |
+
+  So **`gtk_native_dialog_destroy()` changes nothing and the fix has been reverted.** The refcount theory proposed earlier (that `GObject.init` takes a second reference on top of the one `gtk_file_chooser_native_new` already hands over, leaving the object never finalised) is **disproven** -- if it held, an explicit destroy would have worked.
+- File chooser: the response handler is confirmed to fire normally. After the user picked a file the log shows `load /mnt/c/.../20260721 …`, `session token 2`, `frame 00:00` and `Frame ready`, so the URL came back, the file loaded and frames decoded. **Only the dialog fails to disappear**, which puts the problem in the dialog window's lifetime rather than in signal delivery, and only under Wayland. The same code is fine under XWayland.
+- Method note for next time: the way to decide whether this is even our defect is to run a non-SwiftCrossUI GTK4 app -- `gtk4-demo`'s file chooser, say -- under WSLg Wayland. If that also fails to close, the problem belongs to GTK or WSLg rather than GtkBackend; only if it closes cleanly is the backend worth investigating. Not yet done.
+- Wayland and XWayland have to be verified separately: Wayland does not let one process drive another client by design, so xdotool sees no windows at all in a default WSLg session. They are genuinely different test targets -- a bug reproduced under one is not evidence about the other, as the file chooser above demonstrates.
+- GUI automation now works on WSL: `xdotool` with `xwd`/`netpbm` can click controls and capture window contents under XWayland, without depending on the Windows session being unlocked. Coordinates must go through `xdotool mousemove --window` (window-relative); absolute coordinates are thrown off by window decorations -- measured, absolute clicks did nothing at all and the same click landed correctly once made relative. Note that `xwd` is in `x11-apps`, not `x11-utils`.
+- The WSLg window did not appear at all (resolved; the cause was COPY MODE): the report was that P6 started but clicking its taskbar icon did not bring it forward, and the window could not be seen at all. The app itself was fine -- the log had `auto-load`, `frame 00:00` and `Frame ready`, so `onAppear` had run, the window had been created and frames were decoding, and `/mnt/wslg/weston.log` showed the window registered with the RDP peer (`associateWindowId: 1`, `appWindowId: 0x10`). The cause was **WSLg being in COPY MODE**: its rendering path had degraded, so the window existed but could not be raised. `wsl --shutdown` on Windows followed by reopening WSL cleared it and the window appeared immediately.
+- What triggered it: WSL updated itself in the meantime (2.7.11.0 to 2.7.12.0) while the running WSLg instance stayed on the old state, and it entered COPY MODE from then on. This is the same class as the earlier PulseAudio failure -- **a WSLg bridge, whether windows or audio, can degrade while the socket or window still looks present, and says nothing at all**. Both times the remedy was `wsl --shutdown` and reopening.
+- WSLg rewrites window titles, which defeats tools that find a window by name: normally `P6 stream player (Ubuntu)`, and when degraded `[WARN:COPY MODE] P6 stream player (Ubuntu)`. AppActivate matches the beginning or the end of a title, so that prefix makes a search for "P6 stream player" fail outright -- and the way it fails is a screenshot of whatever else was on screen, not a "window not found". `screenshot.zsh` now resolves the real title by substring and names COPY MODE with its remedy when it sees it.
+- P6 does not reap its ffplay children on Linux: three orphaned ffplay processes, each about 8.3 hours old, were still running after P6 had exited. The `P6ChildProcessReaper` job-object mechanism is `#if os(Windows)` only and has no Linux counterpart. Not yet fixed.
+- GTK file chooser (Open, not fixed): on WSLg the `Choose file` dialog does not close after a file is selected. The code is `showFileChooserDialog` in `Sources/GtkBackend/GtkBackend.swift`: it calls `gtk_native_dialog_show()`, but the response handler only handles the result and never hides or destroys the dialog. The same block in `Sources/Gtk3Backend/Gtk3Backend.swift` is structured identically. No fix has been verified on a machine yet.
+- WSL/Windows GUI comparison (answer to the 2026-08-16 entry): the size difference comes from **DPI scaling**, not from requested content size, backend window-sizing semantics, window decorations or WSLg compositor behavior. Measured on the same 1920x1080 screen with both sides `-maximized`: the Windows video area is 1200x675 px and the WSLg/GTK one is 960x540 px. The Windows log records this itself as `viewport 960.0x540.0 dip (1200x675 px), panel actual 960.0x540.0 dip, rasterization scale 1.25`, alongside `window metrics: dpi 120`. So WinUIBackend applies a 1.25 rasterization scale and GtkBackend renders 1:1. Cross-backend layout screenshots therefore cannot be treated as directly comparable until the DPI scale is factored out.
+
+### 2026-08-19
+
+#### GTK file chooser: root cause found
+
+- **The cause is the API in use, not how we use it.** Established by running a native GTK4 app with no SwiftCrossUI in it (`gtk4-node-editor`) in the same WSLg Wayland session: its file dialog **closes normally**. Comparing the symbols each actually links against, via `nm -D --undefined-only`:
+
+  | | API used | Wayland |
+  |---|---|---|
+  | `gtk4-node-editor` | `gtk_file_dialog_new` / `gtk_file_dialog_open` (**GtkFileDialog**) | closes |
+  | SwiftCrossUI GtkBackend | `gtk_file_chooser_native_new` / `gtk_native_dialog_show` (**GtkFileChooserNative**) | stays open |
+
+  Same machine, same GTK 4.22, same compositor; the API is the only difference.
+- `GtkFileChooserNative` is marked `deprecated="1"` in the GIR (`Gtk-4.0.gir`). The header carries no `GDK_DEPRECATED` macro, so checking the header alone gives the wrong answer -- the GIR is authoritative, and it is the same data `GtkCodeGen` generates the Swift bindings from.
+- The replacement, `GtkFileDialog`, has been available since **GTK 4.10** (`GDK_AVAILABLE_IN_4_10`), and the system headers carry everything needed: `open`/`open_multiple`/`save`/`select_folder` with their `_finish` counterparts, plus `set_title`, `set_initial_folder`, `set_filters` and `set_accept_label`. It is an **async API** (`GAsyncResult` callbacks) rather than the `response`-signal model the current code is built around, so migrating means rewriting the flow, not renaming calls.
+- Method note: three attempted fixes failed because each assumed we were using the API wrongly. What worked was **separating ownership** -- using a native app as a control to see whether anyone can do this in the same environment. That is cheaper than any further theory.
+
+#### Dropping GTK3
+
+- Removed `Sources/Gtk3` (179 files, 16,365 lines), `Sources/Gtk3Backend` (2,448 lines), `Sources/CGtk3`, `Sources/Gtk3CHelpers`, `Sources/Gtk3Example`, `Tests/Gtk3BackendTests`, `Scripts/generate_gtk3.sh` and the Gtk3Backend docc page.
+- The real code dependencies were **only two**: `Package.swift` (products, targets and the `SCUI_TEST_GTK3BACKEND` switch) and `Sources/DefaultBackend` (the `#elseif canImport(Gtk3Backend)` fallback). Everything else scattered around was comments or conditional-compilation branches.
+- The `#if canImport(Gtk3Backend)` branches in `Examples` compile out by themselves once the module is gone and would not have broken the build, but were removed anyway. `ControlsApp.swift`'s `#if !canImport(Gtk3Backend)` is the opposite case -- it becomes permanently true, so the wrapper was unwrapped and its contents now compile unconditionally.
+- Cleaning up the prose turned up **two real breakages**, not just wording: `Scripts/generate_gtk.sh` still invoked the deleted `./generate_gtk3.sh`, and `GtkCodeGen`'s `gtk3AllowListedClasses` and `version == "3.0"` branch were live generation logic. The CI workflow was also still building and documenting `Gtk3Backend` across three steps and the docc merge list, and `Publisher.swift` carried a ``Gtk3Backend`` DocC symbol link that no longer resolves to anything.
+- Three places were **deliberately left alone**: the first-person note in `gtk_helpers.h` recounting a macOS build oddity, `AppBackend refactor.md` (which states up front that it is the change list for a particular PR, so it is a historical document), and the `populate-popup` rationale in `GtkCodeGen` -- that one was reworded to say the Gtk3 crash no longer applies but re-enabling has not been tested on Gtk4, rather than simply enabling the signal, which would be a behaviour change. Rewriting someone's account of what happened is falsifying the record, not cleaning up.
+- **rsync does not propagate deletions, and a passing build hides it**: `rsync_WSL.zsh` deliberately omits `--delete`, so that the WSL side keeps its `output/`, build caches and local edits. The result is that after 193 GTK3 files were deleted here, **every one of them was still in WSL**; and because SwiftPM ignores directories `Package.swift` no longer declares, all four targets kept building there -- on a tree that no longer matched this one, looking entirely healthy. The WSL copy was cleaned by hand and re-verified, and the consequence is now written into `rsync_WSL.zsh`'s header.
+- Verified: the `Gtk`, `GtkBackend`, `DefaultBackend` and `GtkExample` targets all build, and every edited file passes `swiftc -parse`. A whole-package `swift build`, and the `Examples` package, still stop on `WinUIInterop`/`swift-winui` missing `Windows.h` and `wtypesbase.h` -- a pre-existing platform limit on Linux, unrelated to this removal.
+
+#### GtkBackend now builds on Windows
+
+- The motivation is compile time: P6 takes 95-103s to build on Windows against WinUIBackend and 13-22s in WSL against GtkBackend, and the cost is WinAppSDK. WinUIBackend **stays as the baseline** and is not removed.
+- The ABI decides the source: Swift on Windows targets the MSVC ABI and links the UCRT. MSYS2's GTK 4 is MinGW-built and is not a candidate; the bundle comes from gvsbuild, which builds with MSVC (`testapp/install_gtk4_windows.zsh`, with source and licensing recorded under `Acknowledgements/gvsbuild/`).
+- The path rewriting now comes from a **checked-in patch** (`testapp/patches/gtk4-pkgconfig-relocate.patch`), with line endings handled separately by a single `tr`. Splitting them is measurable: together the diff is 8397 lines and 391 KB, because the CR removal makes every line of every file differ; apart it is 2745 lines, of which roughly 600 are real changes and the rest is 302 files' worth of diff headers.
+- The order is forced by the toolchain rather than chosen: **MSYS tools read in text mode and drop CR whenever they touch a file**. Measured, a `sed -i` that only edited the prefix line took gtk4.pc from 14 CR bytes to 0. So line endings cannot be left until last -- normalising first is what leaves the patch applying to content that actually matches.
+- The patch is tied to one gvsbuild release, so a rule-based fallback stays: if `patch` does not apply, which is expected on a version bump, the installer says so and falls back to the same two substitutions the patch encodes. Measured: the patch applied cleanly to 302 files and `swift build --target GtkBackend` exits 0 on Windows.
+- The gvsbuild bundle is **not relocatable as shipped**: 301 of its 302 `.pc` files hardcode the build machine's `C:/gtk-build/gtk/x64/release`, and all of them use CRLF.
+- **SwiftPM's `.pc` parser breaks on Windows drive letters**: it splits keyword lines on the first colon, so `prefix=C:/gtk4` is read as the keyword `prefix=C`, the variable `prefix` is never defined, and it reports `Expected a value for variable 'prefix'`. Rewriting to the colon-free `prefix=${pcfiledir}/../..` parses; every other remaining path is substituted with `${prefix}` for the same reason.
+- **SwiftPM does not apply a systemLibrary's pkgConfig cflags on Windows**: measured, the clang invocation for `GtkCHelpers` carried only its own include directory and nothing from `gtk4.pc`, even with `PKG_CONFIG_PATH` set and pkg-config reporting correctly. The flags have to be passed as `-Xcc -I…`; the installer prints a ready-made command.
+- Two genuine portability defects, both Linux/Windows differences in how C types import, and both fixed without any `#if os(Windows)`:
+  - `gulong` is 64 bits on Linux and **32** on Windows (LLP64). `connectSignal` converted it to `UInt` on the way out, after which disconnect, block and unblock all failed to compile. It now stays `gulong` throughout.
+  - `gsize` imports as `UInt` on Linux and `UInt64` on Windows -- same width, different nominal types in Swift. Now converted explicitly with `gsize(...)`.
+- Result: `swift build --target GtkBackend` exits 0 on Windows, with Linux re-verified for regressions. Runtime verification and the compile-time comparison are still to do; the plan is in `testapp/plan/plan-windows-gtk-backend.md`.
+
+#### WSLg ghost windows
+
+- After the `gtk4-widget-factory` process exited, `msrdc.exe` on the Windows side kept showing a `GTK Widget Factory (Ubuntu)` window, while `pgrep` inside WSL confirmed no such process was left.
+- This is the third way a WSLg bridge fails silently, after PulseAudio ceasing to listen and COPY MODE: a window with no owner is left on screen. When reading WSL GUI test results, "the window is visible on Windows" is not evidence that the app is still running.
+
+### 2026-08-29
+
+#### P21-P41 Loader Coverage
+
+- Added missing `test_support/test_Pn.zsh` loaders for P21, P22, P23, P24, P25, P27, P29, P37, P38, P39, P40 and P41. `zsh -n` passes for every new loader and for `test_support/test_common.zsh`.
+- The common loader now records screenshot failures without aborting the whole run under `set -e`. This was needed because a failed 1-second capture could previously exit before the cleanup trap released `ui-lock`.
+- Test order followed the current rule: WSLg first, then Windows. P27/P29/P37/P38/P39/P40/P41 were run first, followed by P21-P25.
+
+#### Automated Smoke Results
+
+All final screenshots below were captured with `wincap` and measured with PIL. Every final capture was visible and non-black.
+
+| App | WSLg final screenshot | Windows final screenshot | Notes |
+| --- | --- | --- | --- |
+| P21 | 848x749, 93.0% non-black | 836x759, 93.2% non-black | Windows render marker arrived after 8s; WSLg marker arrived immediately. |
+| P22 | 788x729, 92.6% non-black | 776x739, 93.0% non-black | Wrapped text diagnostic differs: WSLg `300 x 46`, Windows `300 x 32`. |
+| P23 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | Both platforms built and reached the final capture. |
+| P24 | 748x589, 91.5% non-black | 736x599, 91.8% non-black | Both platforms built and reached the final capture. |
+| P25 | 748x549, 91.2% non-black | 736x559, 91.3% non-black | Automated run verifies launch/capture only; live drag/drop still needs manual interaction. |
+| P27 | 788x726, 92.6% non-black | 776x702, 92.8% non-black | Both platforms built and reached the final capture. |
+| P29 | 796x657, 82.8% non-black | 736x599, 91.7% non-black | WSLg `P29-texteditor-disabled.csv` was added and verified: final capture shows the editor enabled after replay. Windows smoke final is visible, but WinUI actionfile replay produced no `-actionfile` report in this run and remains unresolved. |
+| P37 | 788x569, 91.5% non-black | 776x579, 91.6% non-black | WSLg reports supported levels `automatic, normal`; Windows reports `automatic, normal, floating`. Window-level behaviour still needs a second-window foreground/topmost challenge; this run only verifies baseline launch/capture and backend capability reporting. |
+| P38 | 848x692, 92.6% non-black | 836x699, 92.8% non-black | WSLg 1-second and final captures were both visible in the latest run and show the expected GtkBackend placeholder. Windows final capture is visible, but the WebView area is still an empty grey frame with `Navigations reported: 0`. |
+| P39 | 888x649, 92.5% non-black | 876x659, 92.5% non-black | WSLg shows visible opacity, blur, saturation, brightness, contrast, grayscale and hue-rotation effects. ~~Windows shows opacity, but blur and most colour effects appear identical to the control, so WinUI visual effects remain suspect.~~ **Superseded 2026-09-02** (struck through, not deleted, so the stale claim stays on record): Windows now applies all seven through a real Win2D effect graph. Verified 2026-09-02, `applied=8 failed=0 total=8`; regenerate with `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe` then read `winui-visual-effects-debug.log`. |
+| P40 | 928x736, 93.1% non-black | 916x708, 93.0% non-black | Fixed WSLg geometry no-op/clipping: PIL now finds seven transformed color components with scale/rotate/shear bounding boxes comparable to WinUI. Exact/near hotpink pixels: 0 on both platforms. Background differs by platform theme: WSLg default is light; WinUI is dark here. |
+| P41 | 968x649, 92.5% non-black | 956x659, 92.7% non-black | Windows `.graphical` DatePicker is visible in the latest screenshot, not a blank sliver. WSLg `.wheel` is visually distinct; Windows `.wheel` still appears as a segmented date input and should be treated as a style parity/fallback observation. |
+
+#### Timing Observations
+
+- On WSLg, release builds for these apps completed in roughly 12-13s after source sync.
+- On Windows, P27 took 231.84s in an earlier build; later P37-P41 builds generally completed in about 38-75s. Windows builds still print `pkg-config` / `gtk4.pc` warnings even when the WinUI app builds successfully.
+- Several Windows apps did not have a visible window for the 1-second capture, but became visible for the final capture. Treat this as startup/window-discovery timing unless the final capture also fails.
+- `--actionfile <relative path>` exposed a loader bug on Windows: the path containment check compared the relative path against the absolute `testapp` path. Using bare `--actionfile` avoided it for WSLg; `test_common.zsh` now has a local path converter so Windows no longer depends on `cygpath`.
+
+### 2026-08-30
+
+#### P30-P36 Loader And Baseline Coverage
+
+- Added compileable baseline apps and `test_support/test_Pn.zsh` loaders for P30, P31, P32, P33, P34, P35 and P36.
+- `testapp/compile.zsh` now defaults to release builds on Windows as well as WSLg. A debug build still requires `BUILD_CONFIG=debug`.
+- Test order followed the current rule: WSLg first, then Windows. WSLg was synced through `testapp/rsync_WSL.zsh` before compiling under `/home/lowei/proj/swift-cross-ui`.
+
+#### Automated Smoke Results
+
+All final screenshots below were measured with PIL. Every final capture was visible and non-black.
+
+| App | WSLg final screenshot | Windows final screenshot | Notes |
+| --- | --- | --- | --- |
+| P30 | 888x649, 92.5% non-black | 876x659, 92.6% non-black | WSLg shows visible blur/grayscale-style effects. Windows shows opacity and geometric transforms, but blur/grayscale appear to behave like no-ops; record as WinUI visual-effect parity still needing investigation. |
+| P31 | 808x589, 91.8% non-black | 796x599, 91.9% non-black | Baseline focus/keyboard controls render on both platforms. ~~Real Tab order, Space/Return activation, Escape and Ctrl+Q still need manual keyboard testing.~~ **Superseded 2026-09-03 for two of the four:** Tab order and Space activation are now measured on Windows/GtkBackend and both work — see the 2026-09-03 entry. Escape and Ctrl+Q are still unmeasured, and Escape *cannot* be measured by action file at all. |
+| P32 | 788x589, 91.7% non-black | 776x599, 91.8% non-black | Accessibility baseline controls render on both platforms. Role/name verification still needs Accerciser on Linux and Accessibility Insights or `inspect.exe` on Windows. |
+| P33 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | Missing-view list and hand-written approximations render on both platforms. This is a compileable baseline, not evidence that the missing SwiftUI views now exist. |
+| P34 | 808x649, 92.2% non-black | 796x659, 92.4% non-black | Smoke run used `--debug -rows 100`. Larger row-count/performance testing is still separate. |
+| P35 | 788x589, 91.7% non-black | 776x599, 91.8% non-black | State baseline renders on both platforms. Scene composition gaps remain compile-time issues. |
+| P36 | 848x649, 92.4% non-black | 836x659, 92.5% non-black | SwiftCrossUI-compatible API shapes render, while SwiftUI-shaped missing calls are listed as text so normal test builds keep compiling. |
+
+#### Timing Observations
+
+- WSLg release builds completed quickly after sync: P30 took 13.66s, then P31-P36 each took about 6-10s.
+- Windows release rebuild was much slower, especially the first target after changing build configuration: P30 took 900.34s, while P31-P36 then took roughly 11-29s each.
+- On Windows, several 1-second screenshots captured only a nearly blank first frame, while the final 10-second screenshots were normal. Treat this as WinUI first-paint/window-capture timing unless a final screenshot also fails.
+- The WSLg runs reported `[WARN:COPY MODE]` in the window title even though the final captures were visible. These runs are useful for UI layout smoke testing, but not for validating GPU rendering performance.
+
+### 2026-08-31
+
+#### P16: WinUI NavigationSplitView Initial Layout (#160)
+
+- Windows `P16.exe` was rebuilt and run with the existing diagnostic app. The final screenshot was visible at 916x639 with 92.5% non-black pixels.
+- Initial diagnostics still show an unstable first measurement path: `sidebar: 0 x 22`, `detail: 0 x 22`, then `detail: 734 x 22`. The screenshot visually shows the left pane present, but the sidebar probe does not report a stable non-zero width.
+- Root cause found for one runner bug: `compile.zsh` accepted `SCUI_DEBUG=1` but did not pass `-Xswiftc -DSCUI_DEBUG` to `swift build`. This has been fixed in the working tree, and the build-plan hash now includes `SCUI_DEBUG` so a stale SwiftPM plan is not reused after toggling debug features.
+- The actionfile hook is now observable: WinUI `show(window:)` schedules replay, and `ActionFileReplay` writes geometry plus replay status to `actionfile-replay.log`, which avoids a false negative caused by WinUI console redirection.
+- P16 actionfile replay still has not produced the expected UI state changes: the Force update counter, sidebar selection and column switch were not confirmed in the final screenshot. The remaining issue is therefore more likely Win32 synthetic input hitting / focus / activation of WinUI controls, not simply loading the action file.
+- A clean `P16 --windows --no-build --showtime 10` run with a cleared `actionfile-replay.log` reported `SendInput` as `ERROR_ACCESS_DENIED`. This run is not evidence about app behavior; rerun on an unlocked desktop with no elevated foreground window.
+- After initializing WinUI `createSplitView` with an `openPaneLength`, P16's final screenshot now reports `sidebar: 180 x 22` and `detail: 660 x 22`; `Science` / `Humanities` are no longer squeezed into wrapped text. This matches GTK's initial 200px sidebar guess and prevents core `SplitView.computeLayout` from reading a 0-width sidebar on the first pass.
+- Current verdict: the initial-layout repro for #160 is fixed. What remains unverified is actionfile-driven interaction for Force update / sidebar selection / column switch. The latest actionfile report can say `replayed`, but the visible counter still does not change, so this part still needs manual verification or more reliable WinUI control activation.
+
+#### P7: NavigationSplitView Pane Ratio (#556)
+
+- P7 was run WSLg first, then Windows. Both final screenshots were visible at 748x509.
+- WSLg diagnostics: `[SplitView] total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200`.
+- Windows diagnostics: `[SplitView] total=420.0 minLeading=31.0 minTrailing=35.0 -> bounds min=31 max=385 currentSidebar=200`.
+- Both platforms therefore use the same actual split ratio in this run: sidebar 200 / total 420, or 47.6%.
+- The earlier 87px-style conclusion was a measurement mistake: it read content width as pane width. P7's own comment now calls this out; content probes can be much narrower than the pane that contains them.
+- Current verdict: #556 does not reproduce as a pane-ratio mismatch in the current P7 run. Keep it open only if a different resize/content scenario still shows a mismatch; otherwise update the plan from "ratio mismatch" to "measurement guard / regression coverage".
+
+#### P30/P39: WinUI Visual Effects
+
+- P30 and P39 were run on Windows, and P39 was rerun on WSLg for comparison.
+- PIL crop comparison on Windows P39 shows only opacity changes pixels. The control crop compared with blur, saturation, brightness, contrast, grayscale and hue-rotation all returned `mean_diff=0.00`; the blur text edge metric was also identical to control.
+- PIL crop comparison on WSLg P39 shows the expected non-zero changes: saturation 0 and grayscale 1 have chroma 0, hue rotation has a large mean diff, and blur has a measurable diff.
+- ~~Code review confirms the screenshot result: `WinUIBackend+VisualEffects.swift` currently sets only `widget.opacity`; the other visual effects are intentionally reported as requiring a Microsoft.UI.Composition effect graph that is not implemented yet.~~ (Superseded 2026-09-02 — see the last bullet in this section.)
+- ~~Current verdict: this is not a weak test sample. WinUI visual effects other than opacity are real no-ops today.~~ (Superseded 2026-09-02 — see the last bullet in this section.)
+- 2026-09-01 rerun: WSLg and Windows P30/P39 all launched, reached final screenshots and closed cleanly. Latest P39 PIL comparison matches the earlier result: Windows `opacity mean_diff=59.73`, while blur, saturation, brightness, contrast, grayscale and hue rotation all remain `mean_diff=0.00`; WSLg reports non-zero differences for every non-control sample.
+- 2026-09-01 follow-up: `WinUIBackend+VisualEffects.swift` now reports unsupported effects only once per effect name, reducing repeated console warnings during normal update passes. ~~This does not change rendering semantics: opacity is still the only implemented WinUI visual effect.~~ (Superseded 2026-09-02 — see the last bullet in this section.)
+- Latest P39 final screenshots after that change: WSLg `p39-wslg-final-20260901-071259.png`, Windows `p39-windows-final-20260901-071318.png`. PIL comparison still reports Windows `opacity mean_diff=69.20`; blur, saturation, brightness, contrast, grayscale and hue rotation remain `mean_diff=0.00`. WSLg reports non-zero differences for every non-control sample.
+- **Superseded 2026-09-02: WinUI implements all seven visual effects.** The struck-through bullets above are kept rather than deleted — they were an honest and correctly measured reading of the binary of that date, and a record of what a plausible-but-false verification looks like is worth more than a clean page. What changed is the code, not the measurement method. `WinUIBackend+VisualEffects.swift` now builds a real Win2D effect graph (`Win2DEffectGraph`): `GaussianBlurEffect` for blur, `ColorMatrixEffect` for saturation and brightness, plus `ContrastEffect`, `GrayscaleEffect` and `HueRotationEffect`, with opacity kept as a `needsOnlyOpacity` fast path that skips the graph. It is Win2D, not the `Microsoft.UI.Composition` graph the older bullets predicted, and `Microsoft.Graphics.Canvas.dll` ships in `testapp/output/`. Verified 2026-09-02: `applied=8 failed=0 total=8` — regenerate that number with `cd testapp/output && SCUI_DEBUG_VISUAL_EFFECTS=1 ./P39-WinUI.exe`, then read `winui-visual-effects-debug.log`. Verified 2026-09-02 at pixel level from a wincap screenshot, mean HSV saturation per cell: saturation 0 → 0.000, saturation 0.5 → 0.515, control (=1) → 0.818, saturation 2.5 → 0.992 — a monotonic ladder, which the earlier all-zeros result could not have produced. One effect WAS genuinely broken until 2026-09-02: `saturation 2.5` failed with `0x80070057` `E_INVALIDARG` because Win2D's `SaturationEffect` cannot oversaturate; it was switched to `ColorMatrixEffect`.
+- 2026-09-01 P16 rerun, against a binary rebuilt the same hour: **all three clicks landed, which supersedes the earlier entry saying the state changes were not confirmed.** Read against the initial values in `P16.swift` rather than by eye: `updateCount` starts at `0` and the capture shows `Force update (1)`; `selectedArea` starts at `nil` and the capture shows `Science` selected; `columns` starts at `.two` and the button reads `Switch to 2 column`, which is the label for `.three`, with all three panes present. The earlier run that reported no state changes is the one that also reported `SendInput` as `ERROR_ACCESS_DENIED`.
+- The same run reports `-actionfile: warning: the window never took the foreground. This file only moves and clicks, so it ran on the topmost pin alone`. That is not a failure: clicks are delivered by coordinate to whatever is topmost, and `SetWindowPos(HWND_TOPMOST)` puts our window there, which is why all three landed. It is worth knowing because anything focus-sensitive can differ from a run that did take the foreground.
+- **The remaining #160 symptom is the height, not the width.** Final capture reports `sidebar: 180 x 22`, `middle: 180 x 22`, `detail: 460 x 22`. The widths are now right and were the visible half of the bug; a height of 22 cannot be correct, because the panes fill the window. The reported progression in the same run is `sidebar 0 -> 180`, `middle 0 -> 180`, `detail 0 -> 460 -> 660`, so the width settles and the height never moves off 22.
+- 2026-09-01, correcting the entry above: **the widths are not trustworthy either, so "the remaining symptom is the height" was wrong.** The probe is a `GeometryReader` under `.frame(height: 22)` sitting inside the pane's `VStack`, so the height can only ever be 22 and the width is the content column rather than the pane. Moving the reader into `.overlay(alignment: .topLeading)`, the shape `P7SplitProbe` uses successfully, broke P16: the window never became visible, wincap found nothing to capture at one second or at the end, the action file never replayed, and the panes reported `sidebar 200 x 142` and `detail 20 x 46`. Reverted. `.overlay` does not behave here as it does in SwiftUI, and it already has history in this project -- it used to swallow pointer events.
+- **#160 therefore cannot be settled from P16's numbers at all yet**, in either direction. The click results above still stand, because those are read from the app's own state rather than from the probe.
+- 2026-09-01, settling the entry above: **the panes are measured now, and #160 does not reproduce on WinUIBackend.** The measurement was moved out of the view tree entirely. `SplitView.commit` already had an `SCUI_DEBUG_SPLIT` diagnostic printing the minimums and the bounds it hands the backend; it now also prints the size each pane was actually given. Nothing is added to the view tree, so nothing perturbs what is being measured -- which is what defeated every previous attempt.
+- Run A, `SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug`, no action file, killed after 8s. Exactly one committed layout:
+  `total=880.0 minLeading=126.0 minTrailing=20.0 -> bounds min=126 max=860 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`
+- Run B, the same with `-actionfile actions/win/P16-force-update.csv`, killed after 12s. Five lines. **Lines 1-3 are byte-identical to run A's single line**; run A establishes that the first render is one line, so lines 2 and 3 are the layouts after the `Force update` click and the `Science` selection. Lines 4-5 are the three-column state, which is two nested split views: inner `total=680.0 minLeading=20.0 minTrailing=20.0 -> bounds min=20 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=480.0x486.0`, outer `total=880.0 minLeading=113.0 minTrailing=220.0 -> bounds min=113 max=660 currentSidebar=200 leadingPane=200.0x486.0 trailingPane=680.0x486.0`.
+- **The sizes the panes are given at first render are identical to the sizes after two state changes.** #160 says a split view lays out very incorrectly on first render and snaps as soon as any state changes; there is no snap here, because there is nothing to snap from.
+- The negative is trustworthy because lines 4-5 differ: the diagnostic demonstrably responds to a real layout change in the same run, so "no change across lines 1-3" is a measured no-change rather than a dead log. Without that control it would be indistinguishable from a diagnostic that had stopped firing.
+- Incidentally this disposes of the height question: the panes are **486** tall, not 22. The 22 was the probe's own `.frame(height: 22)`, reported for two weeks as the pane's height.
+- Scope of the claim: this is what SwiftCrossUI's layout system decided, not what WinUI painted. A paint-side discrepancy would not appear here. Worth stating because the 1s capture in the same runs is **entirely black** -- WinUI has not painted at one second, which is also why the action file sleeps 1.8s before its first click -- so the harness's "1s" screenshot has never been a picture of the first render.
+- Reproduce: `cd testapp/output && rm -f splitview-debug.log && SCUI_DEBUG_SPLIT=1 ./P16-WinUI.exe --debug` then read `splitview-debug.log`. Requires a binary built with `SCUI_DEBUG=1`.
+- Correcting one sentence in the entry two above, which said the overlay works in P7 "because it wraps a `List`": P7's **sidebar** overlay wraps a `List`, but its **detail** overlay wraps a padded `VStack`, the same shape as P16's. The distinguishing factors are that P7's panes contain no `Spacer` and its whole split view sits inside `.frame(width: 420, height: 180)`, so nothing in it is free to grow, whereas each P16 pane ends with a greedy `Spacer` and the split view has no fixed frame.
+- **Correcting the field names used above.** They were first emitted as `leadingPane` / `trailingPane`, and that was wrong: `leadingResult.size` is what the pane's *child* chose when offered the pane's width, which can be less than the pane. On P16 the two coincide, so the mistake was invisible there; P7 exposed it, with a trailing child answering **207** to an offer of **420 - 200 = 220**. Renamed to `leadingContent` / `trailingContent`. The pane widths are `currentSidebar` and `total` minus it. This is the same content-read-as-pane confusion that produced two wrong diagnoses of #556, which is why the names now say which one they are. The numbers quoted above are unchanged and the #160 comparison still holds, because it compared like with like; only the label was wrong.
+
+#### P16 and P7 on GtkBackend (WSLg), same diagnostic
+
+- 2026-09-01. Built on the WSL copy after `rsync`, with `grep -c lastLeadingPaneSize` on the WSL side as the control that the Windows edit actually landed there (4 hits) -- a WSL build of unsynced sources reports success against the old code.
+- **P16 on GTK does not behave like P16 on WinUI.** WinUI commits the first render once. GTK commits it three times, and the height moves: `leadingContent=200x485` then `200x446` then `200x446`, widths unchanged at 200 / 680, `minLeading=104 minTrailing=33 bounds 104..847 currentSidebar=200`. Three consecutive runs produced byte-identical output, so the 485 is reproducible and not noise.
+- That settle happens on its own, within the first render and before any interaction, so it is not #160 either -- #160 is a layout that stays wrong until a state change. It is a 39px transient, not "very incorrect", and the widths never move.
+- **Which of the two is right: WinUI's. GTK is 39px short, and the 39 is a header bar.** P16 asks for `.defaultSize(width: 900, height: 600)`. Measuring `p16-gtk-headerbar-20260901-165737.png`: the GTK window surface is exactly **900x600**, there is a **39px** client-side-decoration header bar inside it, and the content area is **900x561**. 485 - 446 = 39 exactly. GTK's *first* pass is the one that honours the request; it then correctly re-lays out for a window that turned out smaller than asked for. The layout system is not at fault -- the window is.
+- Cause: `GtkBackend.createWindow` hands the requested size straight to `window.defaultSize` (GtkBackend.swift:994-997) and so to `gtk_window_set_default_size` (Sources/Gtk/Widgets/Window.swift:63), which in GTK4 sizes the **whole window including the CSD titlebar**. On Windows the title bar is non-client area -- the same app measures a 916x639 frame around a 900x600 client -- so WinUI delivers what was asked. Filed as its own task; the widths are unaffected, both backends report `total=880` = 900 - 2x10 padding.
+- What SwiftUI does here is **not verified** -- it needs a Mac, which is out of scope on this machine. The expectation to check there is that `.defaultSize` sets the *content* size, because on macOS it maps to the window's content rect and the title bar is additional, which would put SwiftUI on WinUI's side. Recorded as the thing to measure, not as a result.
+- **P7 on GTK, now with content sizes:** `total=420.0 minLeading=31.0 minTrailing=36.0 -> bounds min=31 max=384 currentSidebar=200 leadingContent=200.0x140.0 trailingContent=207.0x77.0`, three identical lines. The sidebar figure of 200/420 that settled #556 is confirmed at the layout level.
+- **Retracting "worth a look" from the line above.** The 207-against-220 and the 140-against-77 were called anomalies before they were checked; measuring `p7-gtk-556-20260901-165945.png` explains every one of them, and none is a defect:
+  - The detail text is visibly wrapped into two lines. Their ink widths are 186 and 140, so the longest laid-out line is 186; add the `VStack`'s 10px padding on each side and the child's width is 206-207. **A wrapped `Text` reports the width of its longest line, not the width it was offered**, which is also what SwiftUI does. The offer was 220 and the answer was 207 because the text broke at a word boundary.
+  - That 207 is then centred in the 220-wide pane, exactly as `SplitView.commit` says it centres pane children: (220-207)/2 = 6.5, plus 10 of padding, puts the text's left edge at 505.5 against a divider at x=488. Measured: **505**. The first line, "No sidebar selection", has its ink centre at 598 against a pane centre of 599.
+  - `leadingContent` 140 is five list rows at a 28px pitch, measured off the rows themselves. Centred in the 180-tall box that gives a 20px top inset, so the first row should start 20px below the box top. Measured: first row ink at y=248, box top at 228.
+  - The two heights differ because the two contents differ, and neither fills the pane. That is what non-greedy content does, and the framework centres it deliberately.
+- The one question these numbers do raise is separate from #556 and should not be filed under it: **should a `List` be greedy vertically?** SwiftUI's fills its container on both axes; this one filled the 200 width but answered 140 rather than 180 for the height. Unverified against a real SwiftUI build -- that needs a Mac.
+
+#### All three backends, after the macOS side answered
+
+- The macOS answers are in `mac-test-results-20260901.md`, measured on AppKitBackend the same day. Summarised here because the point of the exercise was the three-way comparison; the raw lines and the method are in that file.
+- **Q1 is settled and GTK was the outlier.** AppKit gives a 900x628 frame with a 28pt title bar, so **content 900x600 -- exactly the request**, taken from two independent sources (`CGWindowListCopyWindowInfo` for the frame, and the InputEvent replay reading AppKit's own frame against the client origin, 120 against 148). That matches WinUI and confirms the expectation this file recorded as unverified rather than asserting. GTK's 900x561 was the only short one, and ~~is now fixed -- see `todo.md`~~ **-- that "now fixed" did not survive re-measurement. On 2026-09-03 P16 on GTK/Windows (gvsbuild) still logs the same 39px drop, 480 / 480 / 441. `correctContentSizeIfNeeded` exists in `GtkBackend.swift` and runs from `updateWindow`, so the code landed; what has not been shown is that it delivers. See the 2026-09-03 entry, and treat the `todo.md` item as open.**
+- **Q2 splits one observation into two.** AppKit commits P16's first render **three** times, like GTK and unlike WinUI's one -- but its height never moves, where GTK's went 485 -> 446 -> 446. So "commits three times" and "the height converges" are independent, and only the second was ever evidence of anything. All three agree on widths, 200 / 680. The settled heights differ by exactly what each platform puts above the content: **497 AppKit / 486 WinUI / 446 GTK before the fix**.
+- **Q3 is the most useful answer.** AppKit's `List` also reports **140** in a 180-tall pane -- the same number GTK gives. Two independently written backends agreeing puts the behaviour in the **shared layout code**, not in either backend, which is exactly what the measurement was designed to distinguish. `List` not being greedy vertically is therefore a real SwiftUI parity gap in SwiftCrossUI itself.
+- Worth carrying beyond this task: their file records that `AppKitBackend.createWindow` calls `setFrameAutosaveName(id)` with an `id` derived from the root view's type, so most test apps **share one key** (`"NSWindow Frame TupleView1<HotReloadableView>-0"`). A saved frame then wins over `.defaultSize` entirely -- P28 opened at 680x448 or 1076x907 from the same binary at the same commit depending on what that key held. Any earlier macOS measurement of a window size taken without clearing it is suspect.
+
+### 2026-09-02
+
+#### P39 and P40 on AppKitBackend and UIKitBackend: both effect families implemented
+
+- Until this date both families **degraded** on AppKit — warn once, render the
+  view unmodified — and UIKit had `GeometricEffects` only. Degrading was a real
+  improvement over the `fatalError` it replaced on 2026-09-01, and it was still
+  the wrong answer: it produces a truthful report of a missing feature, which
+  looks exactly like a working feature in a screenshot.
+- **AppKit `VisualEffects`**: one `CIFilter` chain on a layer-backed container.
+  `CIColorControls` carries saturation, brightness and contrast together;
+  grayscale is a separate `CIColorMonochrome` so it can land halfway and does
+  not fight `.saturation`; hue is `CIHueAdjust` in radians. Opacity goes through
+  `alphaValue`, not a filter, so the subtree composites as a group the way
+  SwiftUI's `.opacity` does. Measured against P39: **all nine cells render and
+  every effect is visibly distinct from the control.**
+- One trap worth recording because it looks like a rendering failure rather than
+  a configuration one: `layerUsesCoreImageFilters` set unconditionally blanked
+  **every** cell, the identity control included. It is now set only when there
+  is a filter to run.
+- **iOS `VisualEffects` is not the same implementation, and the measurement that
+  forced the difference is still true.** `CALayer.filters` does not composite on
+  iOS. The property is in the headers on both platforms and only the AppKit
+  compositor reads it. Measured twice on the iPhone 16 simulator rather than
+  looked up: `opacity 0.35` was visibly faded, and `blur 3`, `saturation 2.5`,
+  `brightness 0.4`, `grayscale 1` and `hueRotation 120` were **pixel-identical**
+  to the control. One of seven.
+- What was wrong was the conclusion drawn from that measurement — *therefore six
+  of the seven have no path on iOS* — not the measurement. The route iOS does
+  offer is to filter a **rendering** of the subtree instead of the live layer:
+  `CALayer.render(in:)` into a bitmap, the `CIFilter` chain over the bitmap, the
+  result as the contents of a layer laid over the child, and the child hidden by
+  an **empty `CALayer` mask** rather than by `alpha` or `isHidden` — `UIView.hitTest`
+  skips a view at or below alpha 0.01, and both properties live on the layer, so
+  there is no way to set them for drawing only. The child stays hit-testable.
+- Measured on P39, iPhone 16 simulator, iOS 18.4: **all nine cells now differ
+  from the control.** Captures `p39-ios-final-20260902-143209.png` and
+  `p39-ios-final-20260902-144424.png`.
+- The cost is stated rather than hidden: the visible pixels are a rendering
+  refreshed on every layout — which is every time the view graph writes a size
+  or a position, so a state change inside a filtered container does reach the
+  screen — but an animation driven by Core Animation rather than by the view
+  graph would freeze at the last frame a layout caught. `opacity` does not take
+  this path and stays live.
+- **"This platform has no API for this" survived a real measurement here and was
+  still wrong.** That is the durable finding; `bugs/bug-UIkit.md` keeps it.
+- **`GeometricEffects` on both.** AppKit's is a `CATransform3D` with two
+  conversions: the transform arrives top-left and y-down, a `CALayer` under a
+  non-flipped `NSView` is bottom-left and y-up, and CoreAnimation applies the
+  transform about `anchorPoint` rather than about the origin. UIKit needs one
+  fewer, its layer already being top-left and y-down, and the same anchor
+  correction.
+- Measured against P40 on the Mac: offset moves right and down, rotation is
+  clockwise, and **`rotate 30 centre` and `rotate 30 topLeading` differ** —
+  which is the check that the anchor arithmetic is right, because a wrong one
+  makes those two identical or throws the tile off screen. Measured on P40 on
+  the iPhone 16 simulator: **all seven cells render correctly.** Captures
+  `p40-ios-final-20260902-143258.png` and `p40-ios-final-20260902-143444.png`.
+- Both containers pin their child on all four edges, and it took two wrong
+  guesses to find. With no constraints every cell was blank; with left and top
+  they were still blank; the probe read `container=(0,0,200,109)` against
+  `child=(0,109,0,0)` with zero child constraints. The modifier's commit sizes
+  the container and nothing sizes what is inside it — invisible on GTK, where a
+  container sizes its child.
+- **Android has since been measured, and this entry was stale.**
+  `matrix_coverage/results.csv2` does hold P39 and P40 rows on AndroidBackend,
+  recorded 2026-09-03, and both were driven again on 2026-09-06 with their
+  action files. Both apps build, launch, replay and render; both have content
+  wider than the phone -- P39's box is (-325,0)-(1407,2400) and P40's is
+  (-320,0)-(1402,2400) -- which was unreachable until the root scroll host was
+  fixed, and is why their earlier captures looked cut off at both edges.
+  Neither action file expects a visible change: each presses one cell and
+  requires the process to survive.
+
+#### P43 gradient fills on macOS and iOS
+
+- `BackendFeatures.Paths.renderPath(…fillStyle:)` fills or strokes a shape
+  **with** a gradient instead of flattening it to the midpoint stop. The unit
+  points multiply the **path's** own extents, not the widget's, which is what
+  lets a gradient be clipped to a circle rather than filling the rectangle the
+  gradient views own.
+- The protocol's default flattens and warns once per backend. That default was
+  written on a machine with no Mac and says so; implementing AppKit and UIKit
+  blind would have landed as a build break for whoever pulled next. These two
+  were **written and measured on a Mac**.
+- Both draw in `draw(_:)` with `CGGradient`, which takes both radii. The flat
+  case keeps its existing cheap path untouched. `CAShapeLayer` cannot paint a
+  gradient and has no property for one, and the usual masked-`CAGradientLayer`
+  workaround cannot express this feature at all: its `.radial` type is an
+  ellipse between two points with no start radius, so
+  `radialGradient(startRadius:endRadius:)` is unsayable.
+- **The two files differ in exactly one sign, and it is forced rather than
+  chosen.** AppKit's path arrives already y-flipped — `applyActions` ends with a
+  `scaleByX: 1, byY: -1` and `NSBezierPathView` is not flipped — so
+  `UnitPoint.top` is the **largest** y there and the **smallest** y in UIKit.
+  P43's ramp runs red to blue top to bottom, which is what makes the sign
+  visible: red must be at the top on both. A symmetric gradient would have
+  hidden it.
+- AppKit also needed an `NSBezierPath`-to-`CGPath` conversion, because clipping
+  to a stroked region means `CGContext.replacePathWithStrokedPath` and
+  `NSBezierPath.cgPath` is macOS 14 while this package deploys to macOS 11.
+- Measured with P43 on both platforms, all four cells: **the gradient circle is
+  round and not square, the flat control is unchanged, the rectangle runs red to
+  blue, and the stroked circle is a ring with an empty middle** — the last being
+  the case P43 notes no backend was testing, GtkBackend included. Captures
+  `p43-macos-gradient-fills.png` and `p43-ios-gradient-fills.png`.
+- **AndroidBackend implements it too, and this entry was stale.**
+  `Sources/AndroidBackend/AndroidBackend+PathGradients.swift` overrides
+  `renderPath(…fillStyle:)`; it no longer takes the flattening default. Measured
+  on `p43-android-final-20260906-022713.png`: 9,885 red and 14,959 blue pixels
+  in the gradient shapes, beside 19,410 green in the flat control. A flattened
+  fill would have been one colour per shape and no ramp at all.
+
+#### NavigationSplitView on iPhone
+
+- `UISplitViewController` collapses to a navigation stack on a compact-width
+  iPhone regardless of `preferredDisplayMode`; there is no configuration that
+  places a sidebar beside a detail pane. `PhoneSplitWidget` is therefore not a
+  wrapper around it — it lays the two panes out side by side, which is what
+  `NavigationSplitView` means and what every other backend produces.
+- The width is **derived, not stored**: `sidebarWidth` has to answer during
+  `computeLayout`, before any layout pass has run, so it is computed from the
+  `width` that `setSize(of:)` just wrote, which is the same number
+  `layoutSubviews` will use.
+
+### 2026-09-03
+
+#### P16: the `.defaultSize` shortfall is GtkBackend's, not WSLg's
+
+- Regenerate any number here with `SCUI_DEBUG_SPLIT=1 zsh testapp/run.zsh P16`,
+  then read `splitview-debug.log` **in the repo root**.
+- **The 39px content shortfall reproduces on GTK for Windows (gvsbuild).** P16
+  asks for `.defaultSize(900, 600)` and logs three passes:
+  `leadingContent=200.0x480.0`, again `200.0x480.0`, then `200.0x441.0`. The
+  drop is **39** — the identical number WSLg gave on 2026-09-01 (485 then 446).
+  WinUI/Windows reports a steady **486** in one pass with no correction.
+- **This retires the WSLg framing.** Everything written on 2026-09-01, in this
+  file and in `bugs/Gtk4-bugs.md` §5, described the shortfall as something
+  measured on WSLg, which reads as a platform property. It is a `GtkBackend`
+  property: client-side decorations put the header bar inside the window on both
+  platforms. The absolute heights differ (480/441 against 485/446) only because
+  the two window systems put different amounts of decoration *around* the
+  surface.
+- **It also means the fix has not been shown to work.** `correctContentSizeIfNeeded`
+  is in `Sources/GtkBackend/GtkBackend.swift` and is called from `updateWindow`,
+  so the code is present in the tree that produced these numbers, yet the drop
+  is still there. The `todo.md` item is open, and the 2026-09-01 line claiming
+  it "is now fixed" is annotated above rather than deleted, because a fix that
+  was written and then assumed to work is the exact shape worth keeping visible.
+- **Upgraded 2026-09-04 from "not shown to work" to "shown not to work."** A
+  read-back was added after the correction, so there is now an *after* value and
+  not only a *before* one:
+
+  ```
+  content size: requested 900x600 allocated 900x561 shortfall 0x39
+  content size: grew the window to 900x639
+  content size after correction (+250ms):  allocated 900x561 shortfall 0x39
+  content size after correction (+1500ms): allocated 900x561 shortfall 0x39
+  ```
+
+  Two delays on purpose: one late reading cannot separate "the correction did
+  nothing" from "the correction worked and I measured too early", because both
+  print the old number. A timing artefact would give two *different* numbers.
+  The same number twice means the assignment is a no-op.
+
+  It hid for three days because the reading and the correction sat inside one
+  once-only guard, so *ran* and *worked* printed identically. The cause is in
+  the same file as the fix: `setSizeLimits` already documents that a size
+  request on the toplevel is only a launch hint once the window is realised, and
+  `gtk_window_set_default_size` is the same kind of hint. The correction runs
+  after the window is mapped by construction — the shortfall cannot be measured
+  before then — so **the one moment it can measure is the one moment it can no
+  longer act.** See `bugs/Gtk4-bugs.md` section 5 and task #79.
+- **Frame sizes, for the same requests, are constant per backend and differ
+  between backends** — so comparing frames across backends says nothing about
+  who honoured the request:
+
+  | app | `.defaultSize` | gtk4 frame | WinUI frame |
+  |---|---|---|---|
+  | P31 | 780x560 | 808x589 (+28/+29) | 796x599 (+16/+39) |
+  | P16 | 900x600 | 928x629 (+28/+29) | 916x639 (+16/+39) |
+
+  WinUI's +16/+39 is Windows non-client area drawn *around* a client of exactly
+  the requested size. WinUI honours the request; a larger frame is not a
+  shortfall.
+
+#### P31 on Windows/GtkBackend: Tab and Space work, Escape cannot be tested
+
+- Driven by `testapp/actions/win/P31-tab-and-escape.csv`, a new file. Regenerate
+  with `zsh testapp/run.zsh P31 -actionfile testapp/actions/win/P31-tab-and-escape.csv`
+  and read `p31-debug-events.log` **in the directory you ran it from**.
+- **Focus moves and Space activates.** `key tab` out of the `TextField` followed
+  by `key space` produced `button clicked count=1`. SwiftCrossUI has no focus
+  API — no `@FocusState`, no `.focused`, no `.focusable` — so this is entirely
+  GTK-on-Windows behaviour, and it is a genuine positive for the focus half of
+  the SwiftUI-parity focus/keyboard task. Steps 1 and 2 of the P31 plan are now
+  measured rather than assumed.
+- **Escape did not dismiss the alert, and that is not a P31 result.** The key
+  never reached the dialog: `Win32Synthesiser.ownWindow()` returns the
+  largest-area visible top-level window of the process, a `Gtk.MessageDialog` is
+  a smaller separate top-level window, and `SetForegroundWindow` on the main
+  window then pulls focus off the modal. Written up as `bugs/Gtk4-bugs.md` §6.
+  Nothing can currently be tested inside a dialog from an action file.
+- **Escape is not a portable dismissal.** `testapp/actions/mac/README.md`
+  recommends it because "it reaches a key window without a coordinate". True on
+  macOS, false on Windows. Both READMEs now say so.
+
+#### Where the Pn debug logs actually land
+
+- **Every `testapp/P*.swift` that writes a debug log writes it to the current
+  working directory**, via `FileManager.default.currentDirectoryPath`. **38 of
+  the 49** do; the other 11 write no log. `splitview-debug.log` is the same
+  (`Sources/SwiftCrossUI/Views/SplitView.swift:215`). Re-derive with
+  `grep -l currentDirectoryPath testapp/P*.swift | wc -l`.
+
+  Corrected 2026-09-07, from "35 of the 47", and so was the command beside it:
+  `grep -c` prints one count per file, so it never produced the total it was
+  offered as the derivation of. A regeneration command that does not regenerate
+  the number is worse than none, because it looks checkable.
+- So there is **one** convention, not two. Docs that name
+  `testapp/output/p28-debug-events.log` are right only because that flow `cd`s
+  into `testapp/output` first; `testapp/run.zsh` launches by absolute path and
+  never changes directory, so anything driven through it leaves its log at the
+  repo root. Following a doc that names `testapp/output/` after a `run.zsh`
+  launch means looking in an empty directory and reading it as "the app logged
+  nothing".
+

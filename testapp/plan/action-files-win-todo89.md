@@ -175,9 +175,9 @@ and AndroidBackend did not implement it, so `clipped()` went through
 on Windows/GtkBackend the question is not "does it abort" but "does it actually
 cut".
 
-No issue number. **P44 is absent from `UI-test-plan overall-en.md` entirely**
+No issue number. **P44 is absent from `UI-test-plan-en.md#overall-plan-p0-p41` entirely**
 (the plan stops at P41) and absent from `issues.csv`, `P0-P26-windows-findings.md`
-and `UI-test-results_overall_en.md`. Its own header is the only specification;
+and `UI-test-plan-en.md#results-log`. Its own header is the only specification;
 that is not a defect in the app, but it means there is no second source to
 cross-check against.
 
@@ -185,7 +185,7 @@ cross-check against.
 Android 上沒有任何東西用到 `BackendFeatures.Clipping`，而 AndroidBackend 並未實作它。**GtkBackend
 確實符合該 conformance**（`Sources/GtkBackend/GtkBackend.swift:49`），因此在 Windows/GtkBackend 上，
 問題不是「會不會中止」，而是「究竟有沒有裁切」。無 issue 編號。**P44 完全未出現在
-`UI-test-plan overall-en.md` 中**（該計畫停在 P41），亦未出現於 `issues.csv` 與各結果文件。
+`UI-test-plan-en.md#overall-plan-p0-p41` 中**（該計畫停在 P41），亦未出現於 `issues.csv` 與各結果文件。
 
 ### 2. Interactive controls, in layout order / 可互動控制項（依版面順序）
 
@@ -302,7 +302,7 @@ that has never been run on this machine at all.
 
 ### 1. What it is for / 它的用途
 
-`testapp/P11.swift`. Three AppKitBackend issues, per `UI-test-plan overall-en.md`
+`testapp/P11.swift`. Three AppKitBackend issues, per `UI-test-plan-en.md#overall-plan-p0-p41`
 lines 546-552 and `issues.csv`:
 
 - **#82** (`repro-p11`, AppKitBackend) — sliders jitter when two of them
@@ -458,7 +458,7 @@ conformance is *not* a degradation: `@CastBackend` expands to
 `fatalError("'GtkBackend' does not implement ...")`, so an app containing a
 `WebView` aborted the moment that view was laid out, and `AngularGradient` did
 the same. This app shows both. **If the window appears at all, neither
-aborted.** No issue number; `UI-test-plan overall-en.md` lines 1332-1355 is the
+aborted.** No issue number; `UI-test-plan-en.md#overall-plan-p0-p41` lines 1332-1355 is the
 plan section.
 
 Since then it also grew a second row of three gradient cases (lines 130-155)
@@ -635,7 +635,7 @@ transition rather than the override, and the open question closes.
   anything under a *light* theme — under a dark one, a window that comes up dark
   proves nothing. The plan's P15 run line is `GTK_THEME=Adwaita:dark ./P15` for
   the opposite reason; for P15-DARK the launch must be under light.
-- **`UI-test-plan overall-en.md` lines 670-676 will mislead whoever reads it
+- **`UI-test-plan-en.md#overall-plan-p0-p41` lines 670-676 will mislead whoever reads it
   next.** It states, as something *"checked in the source before writing these
   steps"*, that `GtkBackend.swift` declares
   `canOverrideWindowColorScheme = false` with a
@@ -656,7 +656,7 @@ transition rather than the override, and the open question closes.
   nothing.
 
 - **系統主題是前提，不是細節。** 此測試僅在**淺色**主題下具有意義。
-- **`UI-test-plan overall-en.md` 670-676 行會誤導下一位讀者。** 它以「撰寫這些步驟前已查核原始碼」
+- **`UI-test-plan-en.md#overall-plan-p0-p41` 670-676 行會誤導下一位讀者。** 它以「撰寫這些步驟前已查核原始碼」
   的口吻聲稱 `canOverrideWindowColorScheme = false`，並據此斷定配色按鈕在 GtkBackend 上「預期不會
   有任何作用」。**原始碼現在說的正好相反**：`GtkBackend.swift:207` 為 `true`，且 `updateWindow`
   已實作之；`issues.csv` 中 #386 的狀態為 **`fixed-gtk-p15`**。照計畫執行的人，會把一個正確的深色
@@ -707,7 +707,7 @@ true and neither is the binding constraint on Windows. **Contamination is.**
 
 `testapp/P37.swift`. Does `.topmost()` (line 84, equivalently
 `.windowLevel(.floating)`) keep the window in front? Plan section
-`UI-test-plan overall-en.md` 1835-1892. **Zero interactive controls**, and line
+`UI-test-plan-en.md#overall-plan-p0-p41` 1835-1892. **Zero interactive controls**, and line
 117-119 says the omission is deliberate: *"Deliberately an instruction rather
 than a button. Raising another window is the test, and no button inside this
 window can do that to itself."* Lines 93-131 are all `Text`, including a
@@ -717,7 +717,7 @@ four-line instruction block.
 
 **Can, without any input:** the readout at line 103,
 `supported levels -> ...`. On Windows it must list `automatic, normal,
-floating`; in WSL only the first two. `UI-test-results_overall_en.md:149`
+floating`; in WSL only the first two. `UI-test-plan-en.md#results-log:149`
 already records exactly that split, measured. Line 105-109's conditional
 sentence must read *"floating is supported: this window should stay in front"*.
 Neither is contaminated by the pin — they are readouts of
@@ -743,7 +743,7 @@ reader will take a topmost window in the capture as a pass.
 
 ### Not drivable. Three independent sources already say so, and they are right.
 
-- `UI-test-plan overall-en.md:1303-1305`: *"this cannot be driven by an action
+- `UI-test-plan-en.md#overall-plan-p0-p41:1303-1305`: *"this cannot be driven by an action
   file. Drag and drop is an OS-level negotiation, not a sequence of mouse
   events, so `InputEvent` cannot synthesise it."*
 - `P0-P26-windows-findings.md:125,141-145`: *"drag and drop is an OLE
@@ -886,7 +886,7 @@ captures. Each is chosen because it is falsifiable and has a built-in control:
 ### Caveats / 注意事項
 
 - **P39 and P40 have a Windows history that a fresh capture must be read
-  against.** `UI-test-results_overall_en.md:151` records that on Windows/WinUI
+  against.** `UI-test-plan-en.md#results-log:151` records that on Windows/WinUI
   only opacity changed pixels — blur, saturation, brightness, contrast,
   grayscale and hue rotation all returned `mean_diff=0.00` — and that this was
   **superseded 2026-09-02** when Win2D effects landed. **That is the WinUI
@@ -908,7 +908,7 @@ captures. Each is chosen because it is falsifiable and has a built-in control:
   looks like a rounded square at a glance. Recorded so it does not get filed.
 
 - **P39 與 P40 有一段 Windows 歷史，新的擷圖必須對照它來讀。**
-  `UI-test-results_overall_en.md:151` 所記錄「僅 opacity 改變像素」者是 **WinUI backend，不是
+  `UI-test-plan-en.md#results-log:151` 所記錄「僅 opacity 改變像素」者是 **WinUI backend，不是
   GtkBackend**；GtkBackend 有記錄的結果來自 WSLg。Windows `-gtk4` 尚無任何先前記錄，**請勿把 WinUI
   的數字搬過來**。
 - **P39 的視窗高度是關鍵，且曾經出過事**（`:62-71`）：第十個樣本曾落在視窗之外而從未被配置，未被
@@ -978,7 +978,7 @@ next reader, and four of them would change how a result is judged.
 一項結果如何被判定。
 
 1. **`canOverrideWindowColorScheme` — the plan says `false`, the source says
-   `true`.** `UI-test-plan overall-en.md:670-676` presents *"checked in the
+   `true`.** `UI-test-plan-en.md#overall-plan-p0-p41:670-676` presents *"checked in the
    source before writing these steps"* and concludes the scheme buttons *"are
    therefore expected to do nothing on GtkBackend"*.
    `Sources/GtkBackend/GtkBackend.swift:207` is `true`, `updateWindow`
@@ -1036,7 +1036,7 @@ next reader, and four of them would change how a result is judged.
    replay is not evidence, and under the "no controls" framing it looks like it
    is.
 
-6. **`UI-test-plan overall-en.md` stops at P41 and never covers P42-P46.**
+6. **`UI-test-plan-en.md#overall-plan-p0-p41` stops at P41 and never covers P42-P46.**
    P43 and P44 — two of these ten, and P44 is the single best candidate — have
    **no plan section, no `issues.csv` row, and no entry in
    `P0-P26-windows-findings.md`**. P44 appears in no `.md` in `testapp/` at all;
