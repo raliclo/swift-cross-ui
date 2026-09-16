@@ -36,6 +36,30 @@ extension AppKitBackend: BackendFeatures.ScrollingLists {
         // and it is the one line that would be wrong the other way round.
         // document 保有它的完整高度;被限制在視口大小的只有那個捲動視圖。那正是讓 table「捲動」
         // 而不是「縮小」的原因,也是唯一一行反過來寫就會錯的地方。
+        // Assigned only when it CHANGES.
+        //
+        // `setViewportHeight` runs on every commit, and assigning `frame` makes
+        // `NSScrollView` re-tile even when the value is identical. Skipping the
+        // no-op is worth doing on its own.
+        //
+        // **It is NOT what fixed wheel scrolling, and the first version of this
+        // comment said it was.** That claim was a hypothesis written before it
+        // was tested: a scrolled list really was snapping back to the top, and
+        // this looked like the cause. It was not -- the list still snapped back
+        // with this guard in place. The cause was two defects in the test
+        // synthesiser, an inverted wheel delta and a fallback that hid it; see
+        // `AppKitSynthesiser.postScroll`.
+        //
+        // 只在它**改變時**才指派。
+        //
+        // `setViewportHeight` 每一次 commit 都會執行,而指派 `frame` 會讓 `NSScrollView` 重新 tile
+        // ——即使值完全相同。省掉這個空操作,本身就值得做。
+        //
+        // **它**不是**修好滾輪捲動的原因,而本註解的第一版曾經這麼宣稱。** 那個宣稱是一個「在被測試
+        // 之前就寫下的假設」:當時確實有一份被捲動的清單會彈回頂端,而這看起來像是原因。它不是
+        // ——加上這道防護之後,那份清單照樣彈回去。真正的原因是測試合成器裡的兩個缺陷:一個反了的
+        // 滾輪 delta,以及一道把它蓋住的退路;見 `AppKitSynthesiser.postScroll`。
+        guard scrollView.frame.size.height != CGFloat(height) else { return }
         var frame = scrollView.frame
         frame.size.height = CGFloat(height)
         scrollView.frame = frame

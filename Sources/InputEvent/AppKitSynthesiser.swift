@@ -703,17 +703,33 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
     private func postScroll(dx: Int, dy: Int, at point: NSPoint, in window: NSWindow) throws {
         guard dx != 0 || dy != 0 else { return }
 
-        // The sign is not inverted here. `dy` is positive downwards, and
-        // AppKit's line deltas use the same convention. Windows is the one that
-        // has to negate.
+        // **The sign IS inverted here, and the note that said otherwise was the
+        // defect.** `dy` is positive downwards in the action-file format; an
+        // `NSEvent` scrolling delta is the FINGER's direction, so moving the
+        // viewport down is a negative delta -- the same inversion the iOS
+        // runner documents for its drags.
+        //
+        // Measured on P57, 2026-09-17, with the clip view's origin printed
+        // either side of the event: at y=192, one `scroll 0,8` -- nominally
+        // downward -- took it to 0. Upward. It hid behind the compensation
+        // below, which moved the view down by exactly what the event had just
+        // moved it up; see mistakes entry 18.
+        //
+        // **此處的符號**確實**要反轉,而先前那句「不需要反轉」的註解正是那個缺陷。**
+        // 在動作檔格式中 `dy` 為正代表向下;`NSEvent` 的 scrolling delta 講的是**手指**的方向,
+        // 因此「把視口往下移」是一個**負的** delta——與 iOS runner 為它的拖曳所記載的是同一種反轉。
+        //
+        // 2026-09-17 在 P57 上,把 clip view 的原點印在事件兩側量到:位於 y=192 時,一次名義上
+        // 向下的 `scroll 0,8` 把它帶到了 0。是向上。它藏在下面那段補償後面——補償把 view 往下移了
+        // 「事件剛剛往上移的同一個量」;見 mistakes 第 18 條。
         // 此處不反轉符號。`dy` 以向下為正，而 AppKit 的行 delta 亦採相同慣例。需要取負的是 Windows。
         guard
             let cg = CGEvent(
                 scrollWheelEvent2Source: nil,
                 units: .line,
                 wheelCount: 2,
-                wheel1: Int32(dy),
-                wheel2: Int32(dx),
+                wheel1: Int32(-dy),
+                wheel2: Int32(-dx),
                 wheel3: 0
             ),
             let event = NSEvent(cgEvent: cg)
@@ -762,19 +778,79 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
 
         hit.scrollWheel(with: event)
 
+        // **Give the event a turn before deciding it did nothing.**
+        // `NSScrollView` applies a wheel event on a later pass, so the check
+        // below always read "unchanged" and the compensation always fired --
+        // which is how an inverted delta stayed invisible. Mistakes entry 18.
+        //
+        // **先給那個事件一個回合,再判斷它什麼都沒做。** `NSScrollView` 是在稍後的一輪才套用滾輪
+        // 事件,因此下面那個檢查永遠讀到「沒有改變」、補償每次都開火——而那正是一個反了的 delta
+        // 得以隱形的方式。見 mistakes 第 18 條。
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+
+        // Says what it found and what it did, the way the hit tester does for
+        // clicks. **A scroll that moves nothing is the one outcome this method
+        // cannot report by its result** -- it throws when there is nothing under
+        // the pointer and otherwise returns successfully either way, so an
+        // impossible scroll, a view that swallows the wheel, and a scroll view
+        // already at the end all produce the same silence.
+        //
+        // 說出它找到了什麼、做了什麼——與 hit tester 對點擊所做的相同。**一次「什麼都沒移動」的
+        // 捲動,正是這個方法唯一無法由其回傳值回報的結果**——指標下方沒有東西時它會拋錯,除此之外
+        // 兩種情況都成功返回,因此「不可能的捲動量」、「吞掉滾輪的 view」、「已經到底的 scroll
+        // view」會產生同一種沉默。
+        let after = scrollView?.contentView.bounds.origin
+        func describe(_ origin: NSPoint?) -> String {
+            origin.map { "(\(Int($0.x)),\(Int($0.y)))" } ?? "none"
+        }
+        var note =
+            "-scroll: dx=\(dx) dy=\(dy) at (\(Int(point.x)),\(Int(point.y))) "
+            + "hit=\(type(of: hit)) "
+            + "scrollView=\(scrollView.map { "\(type(of: $0))" } ?? "none") "
+            + "before=\(describe(before)) afterEvent=\(describe(after))"
+        if let scrollView {
+            let doc = scrollView.documentView?.frame.height ?? 0
+            let clip = scrollView.contentView.bounds.height
+            note += " doc=\(Int(doc)) clip=\(Int(clip)) range=\(Int(max(0, doc - clip)))"
+        }
+
         if let scrollView, let before, scrollView.contentView.bounds.origin == before {
             // Lines to points, using the scroll view's own line height rather
             // than a number chosen here, so a file scrolls by as much as a real
             // notch would in that view.
             // 由「行」換算為「點」，採用該 scroll view 自身的行高而非此處自訂的數字，使動作檔捲動的
             // 幅度與該 view 中真實的一格相同。
+            // CLAMPED to what the scroll view can actually show. An unclamped
+            // target is how a scroll up at the top drew nothing at all:
+            // `contentView.scroll(to:)` accepts a point above the document, and
+            // a clip view parked there shows empty space -- measured at y=-192,
+            // five hundred rows with none of them on screen. AppKit's own wheel
+            // handling clamps; this path replaced it and had not.
+            //
+            // 夾在這個 scroll view 真正顯示得出來的範圍內。沒有夾範圍的目標點,正是「在頂端往上捲
+            // 會什麼都不畫」的成因:`contentView.scroll(to:)` 接受文件上方的點,而停在那裡的
+            // clip view 顯示的是空白——量到 y=-192:五百列,畫面上一列都沒有。AppKit 自己的滾輪
+            // 處理會夾範圍;這條路徑取代了它,卻沒有夾。
+            let document = scrollView.documentView?.frame.size ?? .zero
+            let visible = scrollView.contentView.bounds.size
             let target = NSPoint(
-                x: before.x + Double(dx) * scrollView.horizontalLineScroll,
-                y: before.y + Double(dy) * scrollView.verticalLineScroll
+                x: min(
+                    max(0, before.x + Double(dx) * scrollView.horizontalLineScroll),
+                    max(0, document.width - visible.width)
+                ),
+                y: min(
+                    max(0, before.y + Double(dy) * scrollView.verticalLineScroll),
+                    max(0, document.height - visible.height)
+                )
             )
             scrollView.contentView.scroll(to: target)
             scrollView.reflectScrolledClipView(scrollView.contentView)
+            note +=
+                " compensated target=(\(Int(target.x)),\(Int(target.y)))"
+                + " lineScroll=\(Int(scrollView.verticalLineScroll))"
+                + " afterCompensation=\(describe(scrollView.contentView.bounds.origin))"
         }
+        FileHandle.standardError.write(Data((note + "\n").utf8))
     }
 
     // MARK: - Keyboard
