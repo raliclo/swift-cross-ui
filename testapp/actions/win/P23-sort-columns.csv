@@ -1,0 +1,69 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, WinUIBackend: does clicking a column HEADER sort the table? (#125)
+#
+# Two different things are driven here and they fail separately, which is why
+# both are in one file:
+#
+#   the BUTTON     "Sort by Number" writes the binding directly. It proves the
+#                  app sorts and the readout works, and it needs nothing from
+#                  the backend at all
+#   the HEADER     clicking "Number" in the table itself goes through
+#                  TableColumnSorting: the backend hit-tests the x against its
+#                  column widths and reports column 3. THIS is the half a probe
+#                  cannot fake
+#
+# WHAT EACH STEP ASSERTS:
+#
+#   1  Sort by Number      sort: column 3 ascending, first/last id 1/8
+#   2  Sort by Number      column 3 DESCENDING and first/last 8/1 -- the same
+#      again              control clicked twice must FLIP, and "sorted by 3"
+#                         alone cannot tell a working second click from one that
+#                         did nothing
+#   3  the Number header   column 3 ascending again. A header click starts a
+#                          fresh ascending sort here because the previous order
+#                          was descending on that same column, so this also
+#                          proves the header reached the SAME column the button
+#                          did -- a backend reporting column 0 would read as
+#                          "sorted by ID" and still look like it worked
+#   4  Clear sort          sort: none, and the ids back to 1/8
+#
+# first/last id is the part that says the ROWS moved. The binding can be written
+# correctly while the app's sort does nothing, and every "sort: column 3" line
+# would look identical.
+#
+# Coordinates measured off p23-sort-layout-20260916-190930.png (822x652), frame
+# origin because that capture includes the title bar.
+#
+# P23 於 Windows、WinUIBackend:點擊欄位**標題**會讓表格排序嗎?(#125)
+#
+# 此處驅動的是**兩件會各自失敗的事**,所以放在同一個檔案裡:
+#
+#   **按鈕**    「Sort by Number」直接寫入 binding。它證明的是「app 會排序」與「讀數正確」,
+#               而且**完全不需要 backend**
+#   **標題**    點擊表格裡的「Number」會走 `TableColumnSorting`:backend 依欄寬對 x 做命中測試、
+#               回報第 3 欄。**這一半是探針偽造不了的**
+#
+# 每一步各自主張什麼:
+#
+#   1  Sort by Number   sort: column 3 ascending、first/last id 1/8
+#   2  再按一次          第 3 欄 **descending**、first/last 變成 8/1——同一個控制項被點兩次
+#                       **必須翻轉**,而單看「sorted by 3」分不出「第二次有效」與「什麼都沒做」
+#   3  點 Number 標題    再次回到第 3 欄 ascending。標題點擊在此會開始一次**新的遞增排序**,
+#                       因為前一個狀態是同一欄的遞減;因此這一步同時證明**標題打到的是與按鈕
+#                       相同的那一欄**——一個回報第 0 欄的 backend 會顯示成「依 ID 排序」,
+#                       而看起來仍然像是成功了
+#   4  Clear sort       sort: none,且 id 回到 1/8
+#
+# **first/last id 才是「那些列真的動了」的證據。** binding 可以被正確寫入、而 app 的排序什麼都
+# 沒做,那樣每一行「sort: column 3」看起來會完全一樣。
+#
+# 座標量自 `p23-sort-layout-20260916-190930.png`(822x652),採 frame origin,因為該擷圖含標題列。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,76,308,frame,left,,,"Sort by Number -- expect column 3 ascending, ids 1/8",windows
+sleep,,,,,,900000,observe the first sort,windows
+click,76,308,frame,left,,,again -- expect column 3 DESCENDING and ids 8/1,windows
+sleep,,,,,,900000,observe the flip,windows
+click,632,400,frame,left,,,"the Number HEADER itself -- the backend must report column 3",windows
+sleep,,,,,,900000,observe ascending again via the backend path,windows
+click,182,308,frame,left,,,Clear sort -- expect none and ids 1/8,windows
+sleep,,,,,,1200000,hold for the final capture,windows

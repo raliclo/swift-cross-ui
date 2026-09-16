@@ -28,6 +28,21 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
     ///
     /// 沒有給 binding 時為 nil,而那正是讓「不含選取的初始化式」行為完全不變的東西。
     private var selection: Binding<Int?>?
+    /// Which column the table is sorted by and in which direction, when the
+    /// table was given a sort binding.
+    ///
+    /// **The framework never sorts.** It reports the click, flips the direction
+    /// when the same column is clicked twice, and writes the result here; the
+    /// app reorders its own `rows`. See ``BackendFeatures/TableColumnSorting``
+    /// for why there is no other option: a column is a closure, not a key path,
+    /// so nothing between the click and the app knows how two rows compare.
+    ///
+    /// 這個表格依哪一欄、以哪個方向排序——在它有拿到 sort binding 時。
+    ///
+    /// **框架從不排序。** 它回報點擊、在同一欄被點第二次時翻轉方向,並把結果寫在這裡;
+    /// 由 **app** 重新排列自己的 `rows`。為何別無選擇見 ``BackendFeatures/TableColumnSorting``:
+    /// 一個欄位是 closure、不是 key path,因此在點擊與 app 之間沒有任何一層知道兩列該怎麼比較。
+    private var sortOrder: Binding<TableSortOrder?>?
 
     /// Creates a table that computes its cell values based on a collection of
     /// rows.
@@ -43,6 +58,54 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         self.rows = rows
         self.columns = columns()
         self.selection = nil
+        self.sortOrder = nil
+    }
+
+    /// Creates a table whose sort order is bound to `sortOrder`.
+    ///
+    /// Clicking a column header writes here; clicking the same header again
+    /// flips `ascending`. **The rows do not move until the app moves them** --
+    /// sort its own array on the binding's change. A backend that does not
+    /// implement ``BackendFeatures/TableColumnSorting`` draws the table it drew
+    /// before, with headers that do nothing.
+    ///
+    /// 建立一個「排序狀態與 `sortOrder` 綁定」的表格。
+    ///
+    /// 點擊欄位標題會寫入此處;再次點擊同一個標題會翻轉 `ascending`。
+    /// **在 app 自己動手之前,那些列不會移動**——請在 binding 改變時排序自己的陣列。
+    /// 未實作 ``BackendFeatures/TableColumnSorting`` 的 backend,畫出來的仍是先前那個表格,
+    /// 只是標題點了沒有反應。
+    public init(
+        _ rows: [RowValue],
+        sortOrder: Binding<TableSortOrder?>,
+        @TableRowBuilder<RowValue> _ columns: () -> RowContent
+    ) {
+        self.rows = rows
+        self.columns = columns()
+        self.selection = nil
+        self.sortOrder = sortOrder
+    }
+
+    /// Creates a table with both a selection and a sort order.
+    ///
+    /// Present because the two are independent features that a real table wants
+    /// together, and because four initialisers is still fewer than making either
+    /// one a modifier that can be applied twice.
+    ///
+    /// 建立一個同時具備選取與排序狀態的表格。
+    ///
+    /// 之所以存在,是因為這兩者是**互相獨立**、而真實的表格會同時想要的功能;也因為四個建構式
+    /// 仍然好過「把其中一個做成可以被套用兩次的 modifier」。
+    public init(
+        _ rows: [RowValue],
+        selection: Binding<Int?>,
+        sortOrder: Binding<TableSortOrder?>,
+        @TableRowBuilder<RowValue> _ columns: () -> RowContent
+    ) {
+        self.rows = rows
+        self.columns = columns()
+        self.selection = selection
+        self.sortOrder = sortOrder
     }
 
     /// Creates a table whose selected row is bound to `selection`.
@@ -70,6 +133,7 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
         self.rows = rows
         self.columns = columns()
         self.selection = selection
+        self.sortOrder = nil
     }
 
     func children<Backend: BaseAppBackend>(
@@ -289,6 +353,31 @@ public struct Table<RowValue, RowContent: TableRowContent<RowValue>>: TypeSafeVi
                 backend.setSelectedRow(ofTable: table, to: selection.wrappedValue)
             }
             installSelection(selectable)
+        }
+
+        // **The direction flip lives here, not in the backend.** Every backend
+        // would otherwise implement the same three lines -- same column flips,
+        // different column starts ascending -- and they would drift. The
+        // backend's job is to say which header was clicked.
+        //
+        // **方向的翻轉放在這裡,不放在 backend。** 否則每一個 backend 都要實作同樣的三行
+        // ——同一欄就翻轉、不同欄就從遞增開始——而它們會各自漂移。backend 的職責是說出
+        // 「哪一個標題被點了」。
+        if let sortOrder, let sortable = backend as? any BackendFeatures.TableColumnSorting {
+            func installSorting<S: BackendFeatures.TableColumnSorting>(_ backend: S) {
+                let table = widget as! S.Widget
+                backend.setSortHandler(ofTable: table) { column in
+                    sortOrder.wrappedValue =
+                        sortOrder.wrappedValue?.toggled(byClicking: column)
+                        ?? TableSortOrder(column: column)
+                }
+                backend.setSortIndicator(
+                    ofTable: table,
+                    column: sortOrder.wrappedValue?.column,
+                    ascending: sortOrder.wrappedValue?.ascending ?? true
+                )
+            }
+            installSorting(sortable)
         }
     }
 }

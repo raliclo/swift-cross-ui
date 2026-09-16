@@ -142,6 +142,11 @@ struct P23RootView: View {
     /// selection -- two different features that would otherwise be read as one.
     /// #125 的列選取。與 `isSelectable`(那是**文字**選取)分開:兩個不同的功能,不分開會被讀成同一個。
     @State var selectedRow: Int?
+    /// #125 sort order. The app sorts; the framework only reports which header
+    /// was clicked and which way it should now point. See `sortedRows`.
+    /// #125 的排序狀態。**排序由 app 做**;框架只回報「哪個標題被點了」以及「現在該朝哪個方向」。
+    /// 見 `sortedRows`。
+    @State var sortOrder: TableSortOrder?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -204,6 +209,41 @@ struct P23RootView: View {
                 "row selection supported: "
                     + "\(backend is any BackendFeatures.TableSelection ? "yes" : "NO")"
             )
+            // #125 sorting. The readout names the column AND the direction,
+            // because "sorted by 3" cannot tell a working second click from one
+            // that did nothing: clicking the same header twice must flip the
+            // arrow, and only the direction says whether it did.
+            //
+            // #125 的排序。這行讀數同時說出**欄**與**方向**,因為單看「sorted by 3」分不出
+            // 「第二次點擊有效」與「第二次點擊什麼都沒做」:同一個標題被點兩次必須翻轉箭頭,
+            // 而只有方向說得出它有沒有翻。
+            HStack(spacing: 8) {
+                Button("Sort by Number") {
+                    sortOrder = sortOrder?.toggled(byClicking: 3) ?? TableSortOrder(column: 3)
+                }
+                Button("Clear sort") { sortOrder = nil }
+                Text(
+                    "sort: "
+                        + (sortOrder.map {
+                            "column \($0.column) \($0.ascending ? "ascending" : "descending")"
+                        } ?? "none")
+                )
+            }
+            Text(
+                "column sorting supported: "
+                    + "\(backend is any BackendFeatures.TableColumnSorting ? "yes" : "NO")"
+            )
+            // First and last row on screen, so a sort that reordered nothing and
+            // a sort that reversed the table are distinguishable without reading
+            // the picture. `id` because it is the one column whose order is
+            // obvious at a glance.
+            // 畫面上的**第一列與最後一列**,好讓「什麼都沒重排的排序」與「把表格整個反過來的排序」
+            // 不必看圖也分得出來。用 `id`,因為那是唯一一眼就看得出順序的欄。
+            Text(
+                "first/last id: "
+                    + "\(sortedRows.first.map { String($0.id) } ?? "-")"
+                    + "/\(sortedRows.last.map { String($0.id) } ?? "-")"
+            )
 
             // Deliberately not wrapped in P23Measured. The measuring overlay sits
             // on top of what it measures, and a table under it never sees a
@@ -217,7 +257,7 @@ struct P23RootView: View {
             // `selectable`，標題與儲存格都無法被選取。欄寬仍可由截圖判讀，而那正是步驟 1 與 2
             // 實際要比較的內容。
             Group {
-                Table(Array(p23Rows.prefix(rowCount)), selection: $selectedRow) {
+                Table(sortedRows, selection: $selectedRow, sortOrder: $sortOrder) {
                     // #125, added 2026-09-10. `.width(200)` on ID -- the column
                     // with the NARROWEST content -- and nothing on the other
                     // three.
@@ -318,6 +358,59 @@ struct P23RootView: View {
                 "SELECTION now \(selectedRow.map(String.init) ?? "none")"
             )
         }
+        // The first and last id go in the same line as the sort order, so the
+        // log answers "did the rows actually move" and not only "was the
+        // binding written". Those two fail separately: a backend can report the
+        // header click perfectly while the app's sort is wrong, and the binding
+        // would look right either way.
+        //
+        // 第一列與最後一列的 id 與排序狀態寫在**同一行**,好讓 log 回答的是「那些列真的動了嗎」,
+        // 而不只是「binding 有沒有被寫入」。這兩者會各自失敗:backend 可以完美地回報標題點擊,
+        // 而 app 的排序是錯的——那樣 binding 看起來仍然是對的。
+        .onChange(of: sortOrder) {
+            P23Diagnostics.write(
+                "SORT now "
+                    + (sortOrder.map {
+                        "column \($0.column) \($0.ascending ? "ascending" : "descending")"
+                    } ?? "none")
+                    + " firstId=\(sortedRows.first.map { String($0.id) } ?? "-")"
+                    + " lastId=\(sortedRows.last.map { String($0.id) } ?? "-")"
+            )
+        }
+    }
+
+    /// The rows as the table should show them, sorted by whichever column the
+    /// user clicked.
+    ///
+    /// **This is the app's job, and doing it here is the point of the feature's
+    /// shape.** The framework cannot sort: a `TableColumn` is a closure, so
+    /// nothing between the header click and this line knows that column 0 means
+    /// `id` and column 3 means `number`. Only the app knows -- and it also knows
+    /// that `number` is a numeric string, which is why it is compared as an Int
+    /// rather than as text where "1117" sorts before "2234" but after "11170".
+    ///
+    /// 表格應該顯示的那些列,依使用者點擊的欄位排序。
+    ///
+    /// **這是 app 的工作,而「在這裡做」正是這個功能形狀的用意。** 框架排不了序:`TableColumn`
+    /// 是一個 closure,因此在「標題被點」與這一行之間,沒有任何一層知道第 0 欄代表 `id`、
+    /// 第 3 欄代表 `number`。只有 app 知道——而且它還知道 `number` 是一個**數字字串**,
+    /// 所以那一欄以 Int 比較,而不是以文字比較(文字比較下「1117」排在「2234」前面,
+    /// 卻排在「11170」後面)。
+    var sortedRows: [P23Row] {
+        let visible = Array(p23Rows.prefix(rowCount))
+        guard let sortOrder else { return visible }
+        let ordered: [P23Row]
+        switch sortOrder.column {
+        case 0: ordered = visible.sorted { $0.id < $1.id }
+        case 1: ordered = visible.sorted { $0.short < $1.short }
+        case 2: ordered = visible.sorted { $0.long < $1.long }
+        case 3:
+            ordered = visible.sorted {
+                (Int($0.number) ?? 0) < (Int($1.number) ?? 0)
+            }
+        default: return visible
+        }
+        return sortOrder.ascending ? ordered : ordered.reversed()
     }
 
     /// `--select-probe`: moves the selection on a timer, with no mouse.

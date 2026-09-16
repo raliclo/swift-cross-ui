@@ -38,3 +38,29 @@ extension GtkBackend: BackendFeatures.TableSelection {
         (table as! Gtk.Table).selectRow(index)
     }
 }
+
+/// Clickable column headers for `Gtk.Table` (#125).
+///
+/// **The same click gesture answers both**, because `gtk_grid_query_child`
+/// returns the column and the row together: row 0 is a header and anything
+/// below it is a row. That is why the gesture went on the grid rather than on
+/// the cells -- a per-cell gesture would have had nothing to attach to for the
+/// header, whose children are plain `GtkLabel`s.
+///
+/// `Gtk.Table` 的可點欄位標題(#125)。
+///
+/// **同一個點擊 gesture 同時回答兩者**,因為 `gtk_grid_query_child` 是把欄與列**一起**回傳的:
+/// 第 0 列是標題,其下則是資料列。這正是那個 gesture 掛在 grid 上、而不是掛在儲存格上的理由
+/// ——逐儲存格的 gesture 在標題那一列根本無處可掛,因為那裡的子元件是單純的 `GtkLabel`。
+extension GtkBackend: BackendFeatures.TableColumnSorting {
+    public func setSortHandler(
+        ofTable table: Widget,
+        to action: @escaping (Int) -> Void
+    ) {
+        (table as! Gtk.Table).onColumnHeaderClicked = action
+    }
+
+    public func setSortIndicator(ofTable table: Widget, column: Int?, ascending: Bool) {
+        (table as! Gtk.Table).setSortIndicator(column: column, ascending: ascending)
+    }
+}

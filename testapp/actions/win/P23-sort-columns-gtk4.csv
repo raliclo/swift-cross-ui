@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, GtkBackend: does clicking a column HEADER sort the table? (#125)
+#
+# The GTK twin of P23-sort-columns.csv, and a separate file for the same reason
+# the selection files are separate: this window is 848x688 and the WinUI one is
+# 822x652, so nothing about the coordinates transfers. The Number header is at
+# x=790 here and x=632 there.
+#
+# The GTK path differs from WinUI's in a way worth stating, because it is why
+# the header click is a real test on both and not the same test twice. GTK reads
+# the column out of `gtk_grid_query_child`, which returns column and row
+# together, so a header click is (column, 0) and there is no x arithmetic at
+# all. WinUI has no such call: it accumulates `ColumnDefinition.actualWidth`
+# against the x, the same shape as its row hit test. Two mechanisms, one
+# expected answer.
+#
+#   1  Sort by Number      sort: column 3 ascending, first/last id 1/8
+#   2  the same again      column 3 DESCENDING, ids 8/1 -- clicking twice must
+#                          flip, and the direction is the only thing that says so
+#   3  the Number HEADER   column 3 ascending, through the backend rather than
+#                          the button. A backend reporting the wrong column
+#                          would read as "sorted by ID" and still look fine
+#   4  Clear sort          none, ids back to 1/8
+#
+# first/last id is what says the ROWS moved rather than just the binding.
+#
+# Coordinates measured off p23gtk-sort-layout-20260916-191500.png, frame origin.
+#
+# P23 於 Windows、GtkBackend:點擊欄位**標題**會讓表格排序嗎?(#125)
+#
+# 這是 `P23-sort-columns.csv` 的 GTK 版,獨立成檔的理由與選取那兩個檔相同:此視窗為 848x688,
+# WinUI 那個是 822x652,座標完全不能共用——「Number」標題在這裡是 x=790,在那裡是 x=632。
+#
+# GTK 的路徑與 WinUI **不同**,而這點值得寫明,因為那正是「標題點擊在兩邊都是真正的測試、
+# 而不是同一個測試做兩次」的原因:GTK 從 `gtk_grid_query_child` 讀出欄號,而該呼叫是把欄與列
+# **一起**回傳的,因此標題點擊就是 (column, 0),**完全不需要對 x 做任何算術**;WinUI 沒有這種呼叫,
+# 它是拿 x 去累加 `ColumnDefinition.actualWidth`,與它的列命中測試同一個形狀。
+# 兩種機制,同一個預期答案。
+#
+#   1  Sort by Number   sort: column 3 ascending、first/last id 1/8
+#   2  再按一次          第 3 欄 **descending**、ids 8/1——點兩次必須翻轉,而唯一說得出這件事的
+#                       就是方向
+#   3  點 Number 標題    第 3 欄 ascending,走的是 **backend** 而不是按鈕。一個回報錯欄的 backend
+#                       會顯示成「依 ID 排序」,而看起來仍然正常
+#   4  Clear sort       none,ids 回到 1/8
+#
+# **first/last id 才是「那些列真的動了」而非「只有 binding 被寫入」的證據。**
+#
+# 座標量自 `p23gtk-sort-layout-20260916-191500.png`,採 frame origin。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,94,353,frame,left,,,"Sort by Number -- expect column 3 ascending, ids 1/8",windows
+sleep,,,,,,900000,observe the first sort,windows
+click,94,353,frame,left,,,again -- expect column 3 DESCENDING and ids 8/1,windows
+sleep,,,,,,900000,observe the flip,windows
+click,790,451,frame,left,,,"the Number HEADER itself -- the backend must report column 3",windows
+sleep,,,,,,900000,observe ascending again via the backend path,windows
+click,210,353,frame,left,,,Clear sort -- expect none and ids 1/8,windows
+sleep,,,,,,1200000,hold for the final capture,windows

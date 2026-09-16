@@ -29,6 +29,17 @@ import GtkCHelpers
 public class Table: ScrolledWindow {
     private let grid = Grid()
     private var headerLabels: [Label] = []
+    /// The column titles as given, without any sort arrow.
+    ///
+    /// Kept because a `GtkLabel`'s current text is not a reliable source for
+    /// what the column is called once an indicator has been appended to it:
+    /// stripping an arrow back off cannot tell an arrow this class added from
+    /// one that is part of the title.
+    /// 欄位標題的**原始**字串,不含任何排序箭頭。
+    ///
+    /// 之所以保留,是因為一旦指示符被附加上去,`GtkLabel` 當下的文字就不再是「這一欄叫什麼」的
+    /// 可靠來源:把箭頭剝回去的操作,分不出「本類別加上的箭頭」與「標題本身就有的箭頭」。
+    private var columnLabels: [String] = []
     private var cellWidgets: [Widget] = []
     private var columnCount = 0
     private var rowCount = 0
@@ -63,6 +74,7 @@ public class Table: ScrolledWindow {
     /// 設定標題列，並同時決定欄數。
     public func setColumnLabels(_ labels: [String]) {
         columnCount = labels.count
+        columnLabels = labels
 
         for label in headerLabels {
             grid.remove(child: label)
@@ -105,6 +117,12 @@ public class Table: ScrolledWindow {
             grid.attach(child: label, left: column, top: 0, width: 1, height: 1)
         }
 
+        // The labels were just rebuilt from the plain titles, so an indicator
+        // set earlier is no longer on screen. Same shape as the selection
+        // highlight being reapplied after `setCells`.
+        // 那些 label 剛剛才依「未加工的標題」重建過,因此先前設定的指示符已經不在畫面上。
+        // 與選取高亮在 `setCells` 之後重新套用,是同一個形狀。
+        applySortIndicator()
         applyWidth(toHeaders: true)
     }
 
@@ -220,6 +238,65 @@ public class Table: ScrolledWindow {
     /// 這段程式碼的存在就順帶變得可點。
     public var onRowSelected: ((Int?) -> Void)? {
         didSet { attachClickGestureIfNeeded() }
+    }
+
+    /// Called with a column index when the user clicks that column's header.
+    ///
+    /// Installs the same gesture as ``onRowSelected``, so a table that wants
+    /// only sorting gets clickable headers without becoming row-selectable, and
+    /// the other way round.
+    ///
+    /// 使用者點擊某欄標題時,以該欄索引呼叫。
+    ///
+    /// 它安裝的是與 ``onRowSelected`` 相同的那個 gesture,因此一個**只要排序**的表格會得到可點的
+    /// 標題、而不會因此變得可選列;反之亦然。
+    public var onColumnHeaderClicked: ((Int) -> Void)? {
+        didSet { attachClickGestureIfNeeded() }
+    }
+
+    /// Which column carries the sort indicator, and which way it points.
+    /// 哪一欄帶著排序指示符,以及它朝哪個方向。
+    private var sortColumn: Int?
+    private var sortAscending = true
+
+    /// Shows the sort indicator on one column, or on none.
+    ///
+    /// **The arrow is appended to the header's TEXT rather than drawn as a
+    /// separate widget.** A `GtkGrid` header cell holds one label; adding an
+    /// icon beside it would mean a box per column, and those boxes would then be
+    /// the grid children that ``handleClick(x:y:)`` walks up to -- changing what
+    /// a click resolves to in order to draw a triangle.
+    ///
+    /// The labels are re-set from `columnLabels` every time rather than having
+    /// arrows stripped off them, because "remove the arrow I added" and "remove
+    /// the arrow that is part of this column's name" are the same string
+    /// operation and only one of them is right.
+    ///
+    /// 把排序指示符顯示在某一欄上,或都不顯示。
+    ///
+    /// **那個箭頭是**附加在標題的**文字**上,而不是另外畫一個 widget。`GtkGrid` 的標題格裡只有
+    /// 一個 label;要在旁邊加一個圖示,就得為每一欄包一個 box,而那些 box 接著會變成
+    /// ``handleClick(x:y:)`` 往上走時碰到的 grid 子元件——**為了畫一個三角形而改變了「一次點擊
+    /// 會解析成什麼」**。
+    ///
+    /// 每次都從 `columnLabels` **重新設定**文字,而不是把箭頭從現有文字上剝掉,因為
+    /// 「移除我加上的那個箭頭」與「移除這一欄名字裡本來就有的箭頭」是同一個字串操作,
+    /// 而其中只有一個是對的。
+    public func setSortIndicator(column: Int?, ascending: Bool) {
+        sortColumn = column
+        sortAscending = ascending
+        applySortIndicator()
+    }
+
+    private func applySortIndicator() {
+        for (index, label) in headerLabels.enumerated() {
+            guard index < columnLabels.count else { continue }
+            if index == sortColumn {
+                label.label = columnLabels[index] + (sortAscending ? " \u{25B2}" : " \u{25BC}")
+            } else {
+                label.label = columnLabels[index]
+            }
+        }
     }
 
     private var selectedRow: Int?
@@ -346,6 +423,20 @@ public class Table: ScrolledWindow {
 
         // Row 0 is the header; a click there is not a row selection.
         // 第 0 列是標題;點在那裡不是一次列選取。
+        // Row 0 is the header, and it is not a dead zone: a click there is a
+        // SORT request when anybody asked for one. The row and the column come
+        // out of the same `queryChild` call, so this costs nothing beyond the
+        // branch -- and it is the reason the gesture stayed on the grid rather
+        // than on the cells.
+        // 第 0 列是標題,而它**不是死區**:當有人要求排序時,點在那裡是一次**排序請求**。
+        // 列號與欄號來自**同一次** `queryChild` 呼叫,因此除了這個分支之外不花任何成本
+        // ——這也正是那個 gesture 掛在 grid 上、而不是掛在儲存格上的理由。
+        if position.row == 0 {
+            guard position.column < columnCount else { return }
+            onColumnHeaderClicked?(position.column)
+            return
+        }
+
         guard position.row >= 1 else { return }
         let index = position.row - 1
         guard index < rowCount else { return }

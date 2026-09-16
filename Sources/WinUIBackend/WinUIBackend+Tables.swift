@@ -72,6 +72,31 @@ extension WinUIBackend: BackendFeatures.TableSelection {
     }
 }
 
+/// Clickable column headers for `WinUITable` (#125).
+///
+/// The same `pointerPressed` answers both, because the hit test already had to
+/// find which row the y fell in; a header click is index 0, and the x -- needed
+/// nowhere else -- picks the column out of the same column definitions the
+/// layout uses.
+///
+/// `WinUITable` 的可點欄位標題(#125)。
+///
+/// 同一個 `pointerPressed` 同時回答兩者,因為那個命中測試本來就得算出 y 落在哪一列;
+/// 標題點擊就是索引 0,而 x——在別處都用不到——則從版面所用的同一組 column definition
+/// 裡挑出欄號。
+extension WinUIBackend: BackendFeatures.TableColumnSorting {
+    public func setSortHandler(
+        ofTable table: Widget,
+        to action: @escaping (Int) -> Void
+    ) {
+        (table as! WinUITable).onColumnHeaderClicked = action
+    }
+
+    public func setSortIndicator(ofTable table: Widget, column: Int?, ascending: Bool) {
+        (table as! WinUITable).setSortIndicator(column: column, ascending: ascending)
+    }
+}
+
 /// A table drawn with a `Grid`.
 ///
 /// `Grid` rather than the `Canvas` every other container in this backend uses,
@@ -141,6 +166,10 @@ final class WinUITable: WinUI.Grid {
     /// 哪些，其狀態成本高於重建——而表頭本身也是子元件，因此少了這個陣列，它們會在第一次資料更新時
     /// 消失。
     private var headerLabels: [WinUI.TextBlock] = []
+    /// The column titles as given, without any sort arrow. See
+    /// ``setColumnLabels(_:environment:)``.
+    /// 欄位標題的原始字串,不含任何排序箭頭。見 ``setColumnLabels(_:environment:)``。
+    private var columnLabels: [String] = []
     private var cellWidgets: [WinUI.FrameworkElement] = []
 
     /// Reapplied on every `setCells`, not only when the setting changes.
@@ -164,6 +193,14 @@ final class WinUITable: WinUI.Grid {
 
     func setColumnLabels(_ labels: [String], environment: EnvironmentValues) {
         columnCount = labels.count
+        // The titles WITHOUT any sort arrow. A TextBlock's current text stops
+        // being a reliable source for the column's name once an indicator has
+        // been appended, and stripping one back off cannot tell an arrow this
+        // class added from one that belongs to the title.
+        // 不含任何排序箭頭的**原始**標題。一旦指示符被附加上去,`TextBlock` 當下的文字就不再是
+        // 「這一欄叫什麼」的可靠來源;而把箭頭剝回去的操作,分不出「本類別加上的」與
+        // 「標題本身就有的」。
+        columnLabels = labels
 
         columnDefinitions.clear()
         columnDefinitionObjects = []
@@ -197,6 +234,12 @@ final class WinUITable: WinUI.Grid {
             return block
         }
 
+        // The blocks were just built from the plain titles, so an indicator set
+        // earlier is no longer on screen -- the same reapplication the selection
+        // highlight needs after `setCells`.
+        // 那些 block 剛依「未加工的標題」建好,因此先前設定的指示符已經不在畫面上
+        // ——與選取高亮在 `setCells` 之後需要重新套用,是同一件事。
+        applySortIndicator()
         rebuildChildren(rowHeights: [])
     }
 
@@ -286,6 +329,61 @@ final class WinUITable: WinUI.Grid {
     /// 設定它同時會安裝 pointer handler,因此沒有人要求可選取的表格不會開始對點擊有反應。
     var onRowSelected: ((Int?) -> Void)? {
         didSet { attachPointerHandlerIfNeeded() }
+    }
+
+    /// Called with a column index when the user clicks that column's header.
+    /// Installs the same pointer handler as ``onRowSelected``.
+    /// 使用者點擊某欄標題時,以該欄索引呼叫。它安裝的是與 ``onRowSelected`` 相同的 pointer handler。
+    var onColumnHeaderClicked: ((Int) -> Void)? {
+        didSet { attachPointerHandlerIfNeeded() }
+    }
+
+    private var sortColumn: Int?
+    private var sortAscending = true
+
+    /// Shows the sort indicator on one column, or on none.
+    ///
+    /// The arrow goes into the header's TEXT, matching GtkBackend, and for the
+    /// reason that side records: a separate glyph would need a wrapper per
+    /// column, and those wrappers are what a hit test would then resolve to.
+    ///
+    /// 把排序指示符顯示在某一欄上,或都不顯示。
+    ///
+    /// 那個箭頭放進標題的**文字**裡,與 GtkBackend 一致,理由也是那一側所記載的:另外畫一個字符
+    /// 需要為每一欄包一層,而那些包裝層接著就會變成命中測試解析到的東西。
+    func setSortIndicator(column: Int?, ascending: Bool) {
+        sortColumn = column
+        sortAscending = ascending
+        applySortIndicator()
+    }
+
+    private func applySortIndicator() {
+        for (index, label) in headerLabels.enumerated() {
+            guard index < columnLabels.count else { continue }
+            if index == sortColumn {
+                label.text = columnLabels[index] + (sortAscending ? " \u{25B2}" : " \u{25BC}")
+            } else {
+                label.text = columnLabels[index]
+            }
+        }
+    }
+
+    /// Which column an x coordinate falls in, by accumulating the columns'
+    /// actual widths -- the same shape as the row hit test, and correct for the
+    /// same reason: the columns here are not all the same width, because
+    /// `setColumnWidths` exists.
+    ///
+    /// 某個 x 座標落在哪一欄——以累加各欄的**實際寬度**求得,與列的命中測試同一個形狀,
+    /// 正確的理由也相同:此處各欄的寬度**並不一致**,因為 `setColumnWidths` 是存在的。
+    private func columnIndex(atX x: Double) -> Int? {
+        guard x >= 0 else { return nil }
+        var offset = 0.0
+        for (index, definition) in columnDefinitionObjects.enumerated() {
+            let width = definition.actualWidth
+            if x < offset + width { return index }
+            offset += width
+        }
+        return nil
     }
 
     /// Placed BEHIND the cells, and that is what `insertAt(0,)` in
@@ -416,7 +514,10 @@ final class WinUITable: WinUI.Grid {
             // whichever one the compiler picks.
             // 此處 `Point.y` 是 `Float`,而 `RowDefinition.actualHeight` 是 `Double`,
             // 因此明確轉換,而不是交給編譯器去挑一個。
-            self.handleClick(atY: Double(point?.position.y ?? -1))
+            self.handleClick(
+                atX: Double(point?.position.x ?? -1),
+                y: Double(point?.position.y ?? -1)
+            )
         }
     }
 
@@ -434,7 +535,7 @@ final class WinUITable: WinUI.Grid {
     /// 走訪各 row definition 的 `actualHeight`,而不是拿一個名目列高去除:此處各列的像素高度是
     /// SwiftCrossUI 個別給定的,而標題列是 `auto`——根本不存在單一的列高可供相除。標題是第 0 列,
     /// 且會在任何資料列能夠命中之前先耗掉它自己的高度,那正是「點在欄位標題上不會選到任何東西」的原因。
-    private func handleClick(atY y: Double) {
+    private func handleClick(atX x: Double, y: Double) {
         WinUITable.traceTable(
             "handleClick y=\(y) rowDefs=\(rowDefinitionObjects.count) rowCount=\(rowCount)"
                 + " heights=\(rowDefinitionObjects.prefix(4).map { $0.actualHeight })"
@@ -445,8 +546,17 @@ final class WinUITable: WinUI.Grid {
             let height = definition.actualHeight
             if y < offset + height {
                 WinUITable.traceTable("handleClick matched definition index=\(index)")
-                // Row 0 is the header; a click there is not a selection.
-                // 第 0 列是標題;點在那裡不是一次選取。
+                // Row 0 is the header. Not a selection -- but a SORT request
+                // when anybody asked for one, which is the only place the x
+                // coordinate is needed at all.
+                // 第 0 列是標題。它不是一次選取——但**當有人要求排序時**,它是一次排序請求;
+                // 而那也是**唯一**需要用到 x 座標的地方。
+                if index == 0 {
+                    guard let column = columnIndex(atX: x) else { return }
+                    WinUITable.traceTable("handleClick header column=\(column)")
+                    onColumnHeaderClicked?(column)
+                    return
+                }
                 guard index >= 1 else { return }
                 let row = index - 1
                 guard row < rowCount else { return }
