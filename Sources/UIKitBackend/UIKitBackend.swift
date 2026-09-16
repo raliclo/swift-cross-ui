@@ -513,6 +513,14 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
+        // A fresh generation of shortcut tokens for this rebuild. See
+        // `MenuShortcutActions`: a table that only grew would keep every
+        // closure from every rebuild, including ones capturing view state that
+        // has since been replaced.
+        // 為這次重建開始新一代的快捷鍵 token。見 `MenuShortcutActions`:一張只增不減的表,會保留
+        // **每一次**重建的每一個 closure,包括那些捕捉了「後來已被替換的 view 狀態」的。
+        MenuShortcutActions.beginRebuild()
+
         for submenu in menu {
             let menuIdentifier = mapMenuIdentifier(submenu.label)
             let menu = UIKitBackend.buildMenu(

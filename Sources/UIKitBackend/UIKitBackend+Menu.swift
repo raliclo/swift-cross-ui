@@ -13,25 +13,51 @@ extension UIKitBackend {
         environment: EnvironmentValues
     ) -> RenderedMenuItem {
         switch item {
-            // `environment.keyboardShortcut` is NOT read here, and that is a
-            // statement rather than an oversight.
-            //
-            // `UIAction` takes a closure and carries no key; `UIKeyCommand`
-            // carries a key and takes a SELECTOR, dispatched through the
-            // responder chain -- so an object holding the closure is not enough,
-            // something in the chain has to implement the selector. That is a
-            // real piece of work and it is not this one. GTK, WinUI and AppKit
-            // all read it; UIKit is the gap.
-            //
-            // 此處**沒有**讀取 `environment.keyboardShortcut`,而那是一句陳述、不是疏漏。
-            //
-            // `UIAction` 收的是 closure,帶不了按鍵;`UIKeyCommand` 帶得了按鍵,但收的是 **selector**,
-            // 經由 responder chain 派送——因此「一個持有該 closure 的物件」還不夠,必須有 chain 上的
-            // 某個東西實作那個 selector。那是一件真正的工作,而它不是這一件。GTK、WinUI、AppKit 都讀了
-            // 它;UIKit 是那個缺口。
             case .button(let label, let action):
+                // A `UIKeyCommand` when there is a shortcut, a `UIAction`
+                // otherwise, because on UIKit those are different TYPES rather
+                // than one type with an optional key.
+                //
+                // **`UIKeyCommand` takes a selector, not a closure**, and that
+                // is the whole reason this took a detour. The selector is
+                // dispatched through the responder chain, so an object holding
+                // the closure is not enough -- something already IN the chain
+                // has to implement it. `ApplicationDelegate` is a `UIResponder`
+                // and is the object that builds this menu, so it is that
+                // something; `propertyList` carries the token that says which
+                // closure to run, which is what that parameter exists for.
+                //
+                // 有快捷鍵時用 `UIKeyCommand`,沒有時用 `UIAction`;因為在 UIKit 上,那是兩個**不同的
+                // 型別**,而不是同一個型別加一個 optional 的按鍵。
+                //
+                // **`UIKeyCommand` 收的是 selector,不是 closure**,而那正是這件事繞了一圈的全部原因。
+                // 那個 selector 經由 responder chain 派送,因此「一個持有該 closure 的物件」還不夠——
+                // 必須有**已經在 chain 上**的東西實作它。`ApplicationDelegate` 是一個 `UIResponder`,
+                // 而且它就是建出這個選單的那個物件,所以它就是那個東西;`propertyList` 負責攜帶
+                // 「該跑哪一個 closure」的 token,而那正是那個參數存在的用途。
+                // Expression form, like every other case here. An early
+                // `return` in one arm turns the whole `switch` from an
+                // expression into a statement, and the other arms then fail to
+                // infer `.item` and `.separator` at all -- an error that names
+                // those two and not the arm that caused it.
+                // 與此處其餘每一個 case 一樣採運算式形式。任何一支提早 `return`,都會讓整個 `switch`
+                // 從運算式變成陳述句,而其餘各支便完全推不出 `.item` 與 `.separator`——那個錯誤指名的
+                // 是這兩者,而不是真正肇事的那一支。
                 if let action, environment.isEnabled {
-                    .item(UIAction(title: label) { _ in action() })
+                    if let shortcut = environment.keyboardShortcut {
+                        .item(
+                            UIKeyCommand(
+                                title: label,
+                                image: nil,
+                                action: #selector(ApplicationDelegate.scuiPerformKeyCommand(_:)),
+                                input: String(shortcut.key.character).lowercased(),
+                                modifierFlags: modifierFlags(for: shortcut),
+                                propertyList: MenuShortcutActions.register(action)
+                            )
+                        )
+                    } else {
+                        .item(UIAction(title: label) { _ in action() })
+                    }
                 } else {
                     .item(UIAction(title: label, attributes: .disabled) { _ in })
                 }
