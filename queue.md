@@ -408,6 +408,7 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 | 缺口 | 誰 | 備註 |
 | --- | --- | --- |
 | **UIKit `keyboardShortcut`(#121)** | **Mac** | **已實作、編得過、但驅動不了。** `UIKeyCommand` + `propertyList` 帶 token + selector 掛在 `ApplicationDelegate`(它是 responder chain 上唯一既是 `UIResponder`、又建出這個選單的物件)。**驅動被卡住,而卡點是量出來的**:iPhone 上 `buildMenu` 從不以 `.main` 被呼叫,因此沒有任何 key command 被登記;改到 iPad(iPad Pro 13-inch M5 / iOS 27.0)三個計數仍是 0。**正對照定了案**:P70 在 `SCUI_P70_AUTOFOCUS` 下顯示 `focused field: email` 且游標在欄位裡,而以同一條路徑送出的三個普通字母**一個都沒進去**——所以按鍵根本沒抵達 app,那個零對實作毫無發言權。`simctl` 沒有 `sendkey`、`idb` 未安裝、DeviceHub 不透過 AX 暴露選單列。**需要的是一條把主機鍵盤接到裝置的途徑。** |
+| **Android 應用程式選單(`setApplicationMenu`)** | **Mac** | **整段被註解掉**(`AndroidBackend.swift:544`),帶著上游的 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」。因此 `.commands` / `CommandMenu` 在 Android 上**什麼都不產生**。這比 #121 更根本:**#121 在 Android 上卡在它後面**。2026-09-16 由 P71 量到——`input keycombination` 送出 CTRL+S / CTRL+SHIFT+E / CTRL+D,三個計數全為 0,而那條驅動路徑本身是通的 |
 | GTK `LazyListRows`(#117) | Windows | 目前只 conform `LazyListRowLifetimes`(回收那一半);「按需建列」那一半未做。他們標為 active |
 | GTK `Accessibility`(#123) | Windows | `gtk_accessible_update_property`(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。**`gtk_widget_set_tooltip_text` 不是 hint**,交接已寫明 |
 | WinUI `Accessibility`(#123) | Windows | `AutomationProperties.Name` / `HelpText` / `ItemStatus` |
