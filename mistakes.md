@@ -387,7 +387,33 @@ Do that first, whenever the thing that changed is mine.
 
 ## 6. 用 grep 過濾出來的一行,宣告整個測試套件「通過了」
 
-**2026-09-10,1 次 / 1 天。**
+**2 次 / 2 天(2026-09-10、2026-09-16)。**
+
+### 第二次(2026-09-16):同一條,換了一個偽裝
+
+這一次不是 `grep`,是 `tail`,而且是在**背景建置**裡:
+
+```sh
+zsh testapp/compile.zsh P23 2>&1 | tail -6     # 背景執行
+```
+
+管線中的 stdout 是**區塊緩衝**、stderr **不是**,於是最後六行剛好全是編譯器警告——`Done.` 與
+那一行 `error:` **都被切掉了**,而我讀到的退出碼是 `tail` 的、不是編譯器的。我據此寫下
+「0 errors」並開始下一件事。
+
+**推翻它的不是那份 log**,因為 log 裡已經沒有證據了。是**產物本身**:`P23-WinUI.exe` 的時間戳
+仍是兩小時前——那正是第 9 條的矯正措施。改成把完整輸出導到檔案再讀 `$?`,得到 `rc=1`、一個
+真正的錯誤(`getCurrentPoint` 會 throw)。
+
+*Second occurrence, a new disguise: `| tail -6` on a backgrounded build. stdout is block-buffered
+through a pipe and stderr is not, so the tail held only warnings -- `Done.` and the single `error:`
+were both cut -- and the exit status was tail's. What contradicted it was the ARTEFACT's timestamp,
+entry 9's corrective, not the log.*
+
+**因此矯正措施加一句:在判斷建置成敗的那一個指令裡,永遠不要把建置接進 `tail` 或 `grep`。**
+把整份 log 導到檔案,分開讀 `$?`。
+
+### 第一次(2026-09-10)
 
 ### 症狀
 
