@@ -385,13 +385,98 @@ open class Window: Widget {
     /// **2026-09-10 實測:一條「光禿的」`GtkHeaderBar` 量得 47,而不是視窗自己那條所佔的 39。**
     /// 本方法的第一版就是回傳那個 47,那會**過度修正 8px**——與它原本要修的那個 39 屬於同一類錯誤。
     /// 此處保留為參數,好讓三種變體能在**同一次執行中**互相對照,而不是拿來爭論。
+    /// Measures the header bar GTK builds for itself, on a window that is
+    /// realized and never presented.
+    ///
+    /// Returns `nil` when no `GtkHeaderBar` is among the children, which is the
+    /// honest answer for a platform or theme that decorates some other way --
+    /// and is reported rather than silently treated as zero, because a zero
+    /// allowance and an unmeasurable one produce the same wrong window.
+    ///
+    /// 在一個「realize 過、但從不 present」的視窗上,量測 GTK 為它自己建立的那條 header bar。
+    ///
+    /// 當子節點中沒有任何 `GtkHeaderBar` 時回傳 `nil`——對於一個以其他方式繪製裝飾的平台或佈景主題,
+    /// 那才是誠實的答案;而且它會被**回報**、而不是默默當成零,因為「allowance 為零」與
+    /// 「allowance 量不到」會產生同一個錯誤的視窗。
+    private static func probeGtkOwnDecorationHeight() -> Int? {
+        guard
+            let host = gtk_window_new().map({
+                UnsafeMutableRawPointer($0).assumingMemoryBound(to: GtkWindow.self)
+            })
+        else { return nil }
+        defer { gtk_window_destroy(host) }
+
+        // No `gtk_window_set_titlebar`. That call is exactly what the other
+        // probes do and exactly why they measure 47: it replaces GTK's own
+        // decoration with ours before anything is measured.
+        // **此處不呼叫 `gtk_window_set_titlebar`。** 那個呼叫正是其他探針所做的事,也正是它們量到 47
+        // 的原因:它在任何量測發生之前,就把 GTK 自己的裝飾換成了我們的。
+        let hostWidget = UnsafeMutableRawPointer(host)
+            .assumingMemoryBound(to: GtkWidget.self)
+        gtk_widget_realize(hostWidget)
+
+        var child = gtk_widget_get_first_child(hostWidget)
+        while let current = child {
+            let instance = UnsafeRawPointer(current)
+                .assumingMemoryBound(to: GTypeInstance.self)
+            let typeName = String(cString: g_type_name(instance.pointee.g_class.pointee.g_type))
+            if typeName == "GtkHeaderBar" {
+                var minimum: gint = 0
+                var natural: gint = 0
+                var minimumBaseline: gint = 0
+                var naturalBaseline: gint = 0
+                gtk_widget_measure(
+                    current,
+                    GTK_ORIENTATION_VERTICAL,
+                    -1,
+                    &minimum,
+                    &natural,
+                    &minimumBaseline,
+                    &naturalBaseline
+                )
+                return Int(minimum)
+            }
+            child = gtk_widget_get_next_sibling(current)
+        }
+        return nil
+    }
+
     public enum HeaderBarProbeKind {
         case bare
         case withTitlebarClass
         case insideAWindow
+        /// GTK's OWN decoration, not one we installed.
+        ///
+        /// **The other three all measure a `GtkHeaderBar` this code created, and
+        /// that is why they all report 47 while the real window's header lays
+        /// out at 39.** `.insideAWindow` calls `gtk_window_set_titlebar`, so it
+        /// measures our header bar inside a window rather than the window's own.
+        ///
+        /// GTK's default decoration IS a `GtkHeaderBar` -- the after-map probe
+        /// finds one among the window's children -- but
+        /// `gtk_window_get_titlebar` returns NULL for it, because that getter
+        /// only answers for a CUSTOM titlebar. Walking the children is what
+        /// reaches it, which `childMeasurements` already does after the window
+        /// is mapped. This does the same walk on a throwaway window that is
+        /// realized and never presented.
+        ///
+        /// GTK **自己的**裝飾,而不是我們安裝上去的那一條。
+        ///
+        /// **其餘三種量的都是這段程式碼自己建立的 `GtkHeaderBar`,而那正是它們全都回報 47、
+        /// 真實視窗的 header 卻排版成 39 的原因。** `.insideAWindow` 呼叫了
+        /// `gtk_window_set_titlebar`,因此它量的是「放在視窗裡的我們的 header bar」,不是視窗自己的。
+        ///
+        /// GTK 的預設裝飾**就是**一個 `GtkHeaderBar`——map 之後的探針正是在視窗的子節點中找到它的
+        /// ——但 `gtk_window_get_titlebar` 對它回傳 NULL,因為那個 getter 只回答**自訂**的 titlebar。
+        /// 走訪子節點才構得著它,而 `childMeasurements` 在視窗被 map 之後做的就是這件事。
+        /// 此處是在一個「realize 過、但從不 present」的用完即棄視窗上做同樣的走訪。
+        case gtkOwnDecoration
     }
 
     public static func probeHeaderBarHeight(_ kind: HeaderBarProbeKind) -> Int? {
+        if kind == .gtkOwnDecoration {
+            return probeGtkOwnDecorationHeight()
+        }
         guard let probe = gtk_header_bar_new() else { return nil }
         // Sink the floating reference so the widget is owned here, then release
         // it. Without the sink, `g_object_unref` on a floating reference warns.
@@ -402,6 +487,16 @@ open class Window: Widget {
 
         var host: UnsafeMutablePointer<GtkWindow>?
         switch kind {
+            case .gtkOwnDecoration:
+                // Returned at the top of this function; it measures a child of
+                // a window rather than the `probe` header bar built above, so it
+                // cannot share this body. Listed because Swift requires the
+                // switch to be exhaustive, and listing it is better than a
+                // `default` that would silently swallow a future kind.
+                // 已在本函式開頭返回;它量的是某個視窗的子節點,而非上方建立的那條 `probe` header bar,
+                // 因此無法共用這段主體。此處列出是因為 Swift 要求 switch 必須窮舉,而明確列出
+                // 勝過用一個 `default`——後者會默默吞掉未來新增的種類。
+                break
             case .bare:
                 break
             case .withTitlebarClass:
@@ -426,16 +521,36 @@ open class Window: Widget {
                 }
                 if let host {
                     gtk_window_set_titlebar(host, probe)
-                    // Realize, do NOT present. Measured 2026-09-10: an
-                    // unrealized header bar measures 47 and the one in a live
-                    // window is 39, and `.insideAWindow` alone still gave 47 --
-                    // so the difference is realization, not the CSS context.
-                    // `gtk_widget_realize` creates the surface without ever
-                    // putting a window on screen.
-                    // **Realize,但不要 present。** 2026-09-10 實測:一條未 realize 的 header bar
-                    // 量得 47,而活在視窗中的那條是 39,且**單靠 `.insideAWindow` 仍然得到 47**
-                    // ——因此差別在於 **realize**,不在 CSS context。`gtk_widget_realize` 會建立
-                    // surface,而完全不需要讓任何視窗出現在螢幕上。
+                    // Realize, do NOT present. `gtk_widget_realize` creates the
+                    // surface without ever putting a window on screen.
+                    //
+                    // ~~"an unrealized header bar measures 47 and the one in a
+                    // live window is 39, and `.insideAWindow` alone still gave
+                    // 47 -- so the difference is realization"~~ **MEASURED AND
+                    // FALSE, 2026-09-16.** This branch realizes, and still
+                    // reports 47. Realization was never the variable.
+                    //
+                    // The variable is WHOSE header bar is being measured. Every
+                    // kind here calls `gtk_window_set_titlebar` or measures a
+                    // detached bar, so all three measure a `GtkHeaderBar` this
+                    // code built -- 47 in each case. GTK's own decoration is a
+                    // different instance and lays out at 39. `.gtkOwnDecoration`
+                    // is the kind that reaches it, by walking a realized
+                    // window's children instead of installing anything.
+                    //
+                    // **Realize,但不要 present。** `gtk_widget_realize` 會建立 surface,
+                    // 而完全不需要讓任何視窗出現在螢幕上。
+                    //
+                    // ~~「一條未 realize 的 header bar 量得 47,而活在視窗中的那條是 39,且單靠
+                    // `.insideAWindow` 仍然得到 47——因此差別在於 realize」~~
+                    // **2026-09-16 實測,此說為假。** 這個分支**有** realize,而它依然回報 47。
+                    // realize 從來就不是那個變因。
+                    //
+                    // 真正的變因是**被量的是誰的 header bar**。此處每一種 kind 不是呼叫
+                    // `gtk_window_set_titlebar`、就是量一條游離的 bar,因此三者量到的都是
+                    // **這段程式碼自己建立的** `GtkHeaderBar`——每次都是 47。GTK 自己的裝飾是另一個
+                    // 實例,排版成 39。`.gtkOwnDecoration` 才是構得著它的那一種:它走訪一個 realize 過的
+                    // 視窗的子節點,而不安裝任何東西。
                     gtk_widget_realize(
                         UnsafeMutableRawPointer(host)
                             .assumingMemoryBound(to: GtkWidget.self)

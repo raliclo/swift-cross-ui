@@ -29,9 +29,15 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 5. #122/#123 focus/accessibility: protocol plan exists; inspect and implement
    GTK/WinUI reporting and native accessibility exposure.
    焦點／無障礙：待 GTK/WinUI 實作與原生讀取驗證。
-6. #79 GTK: content-height shortfall remains open; measure native frame/content
-   sizes before choosing compensation, without a hardcoded 39-pixel allowance.
-   GTK 高度差：待量測及修正，不以固定 39px 補償。
+6. #79 GTK: **DONE 2026-09-16, and measured rather than hardcoded -- which was
+   the whole of option (c).** The decoration IS queryable before present: create
+   a window, do NOT set a titlebar, realize it, and walk its children for the
+   `GtkHeaderBar` GTK built for itself. That reports 39 before the window is ever
+   shown. Shortfall on an app with no menu bar went `0x-9` -> `0x0`, exact.
+   #79 GTK:**2026-09-16 完成,而且是量出來的、不是寫死的——那正是選項 (c) 的全部要求。**
+   該裝飾在 present 之前**是**查得到的:建一個視窗、**不要**設 titlebar、realize 它,然後走訪它的
+   子節點找出 GTK 為自己建立的那條 `GtkHeaderBar`。它在視窗被顯示之前就回報 39。
+   沒有選單列的 app,shortfall 由 `0x-9` 變為 `0x0`,精確。
 7. P38/P41 WinUI: reproduce WebView completion and graphical DatePicker binding
    against current sources before changing their implementations.
    WebView／DatePicker：先以現行版本重現 callback 與 binding 問題。
@@ -45,6 +51,57 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
     EdgeInsets：原始碼已完成 Double 化；小數 padding 回歸驗證另計。
 
 ## Verification log / 驗證紀錄
+
+- 2026-09-16 (Win-gtk4): **#79 closed by measuring GTK's own decoration, and the
+  reason it resisted for so long was that every probe measured the wrong widget.**
+
+  Three probe kinds existed and all three reported 47, while the header GTK lays
+  out for itself is 39. They agreed because they were all measuring the same
+  thing: a `GtkHeaderBar` this code had built, either detached or installed with
+  `gtk_window_set_titlebar`. GTK's own decoration is a different instance.
+
+  A comment in `Window.swift` blamed realization -- "an unrealized header bar
+  measures 47 and the one in a live window is 39, so the difference is
+  realization". That is false and is now struck through in place: the
+  `.insideAWindow` branch DOES realize, and still reports 47.
+
+  `gtk_window_get_titlebar` cannot reach GTK's own bar -- it answers only for a
+  CUSTOM titlebar -- but the widget is an ordinary child, so walking the
+  children finds it. `.gtkOwnDecoration` creates a window, sets no titlebar,
+  realizes it, walks for a `GtkHeaderBar` and measures its minimum:
+
+      decoration probe BEFORE present:
+        headerbar bare=47 titlebarClass=47 inWindow=47 gtkOwn=39
+      decoration probe AFTER map:
+        GtkHeaderBar=39
+
+  39 before present, matching what the live window lays out. Switching the
+  allowance from `.bare` to `.gtkOwnDecoration`:
+
+      P57 (no menu bar)   requested 640x700  allocated 640x700  shortfall 0x0
+      P20 (menu bar)      requested 660x460  allocated 660x461  shortfall 0x-1
+
+  Exact where there is no menu bar, and 1px on the menu-bar path -- down from 9.
+  That remaining pixel is the menu-bar path's, not the titlebar's, and is not
+  claimed as fixed. Regenerate with `SCUI_DEBUG_DECORATION=1 zsh
+  testapp/run.zsh P57 --debug` and read the `content size settled` lines.
+
+- 2026-09-16(Win-gtk4):**#79 以「量測 GTK 自己的裝飾」收尾,而它之所以拖了這麼久,是因為
+  每一個探針量的都是錯的 widget。**
+
+  原有三種探針全都回報 47,而 GTK 為自己排版的那條是 39。它們會一致,是因為它們量的是同一種東西:
+  **這段程式碼自己建立的** `GtkHeaderBar`——不是游離的,就是用 `gtk_window_set_titlebar` 裝上去的。
+  GTK 自己的裝飾是另一個實例。
+
+  `Window.swift` 裡有一段註解把原因歸給 realize——「未 realize 的量得 47、活在視窗中的是 39,
+  所以差別在 realize」。**那是錯的**,現已就地加上刪除線:`.insideAWindow` 分支**確實有** realize,
+  而它依然回報 47。
+
+  `gtk_window_get_titlebar` 構不著 GTK 自己那條(它只回答**自訂**的 titlebar),但那個 widget 是
+  一個普通的子節點,因此走訪子節點就找得到。數據與結果見上方英文區塊:present 之前量到 39,
+  與真實視窗的排版一致;把 allowance 由 `.bare` 改為 `.gtkOwnDecoration` 之後,無選單列的 app
+  shortfall 為 `0x0`(精確),有選單列的為 `0x-1`(原本是 −9)。**剩下那 1px 屬於選單列路徑、
+  不屬於 titlebar,此處不宣稱它已修好。**
 
 - 2026-09-16 (Windows): **#121 verified on both backends, after a harness fix
   that is worth more than the item itself.**

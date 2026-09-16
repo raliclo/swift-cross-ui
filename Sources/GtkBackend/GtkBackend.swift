@@ -1342,7 +1342,20 @@ public final class GtkBackend:
         // 「這個修法沒有效」一模一樣,而不是「這個修法沒有被執行」。**那是 mistakes.md 第 4 條
         // 換了一身衣服**,而它花掉了一輪建置。
         if let defaultSize {
-            let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.bare) ?? 0
+            // `.gtkOwnDecoration`, not `.bare`. Measured 2026-09-16: the three
+            // older probes all report 47 because each measures a `GtkHeaderBar`
+            // this code created, while the header GTK lays out for itself is 39.
+            // Adding 47 overshot by 8-9 (`shortfall 0x-9`), which is 47 - 39.
+            // The new probe walks a realized, never-presented window's children
+            // for GTK's OWN header bar and reports 39 before present -- which is
+            // what #79 option (c) asked for: the decoration measured rather than
+            // a constant written down.
+            // 用 `.gtkOwnDecoration`,不是 `.bare`。2026-09-16 實測:三個舊探針全都回報 47,
+            // 因為它們量的都是**這段程式碼自己建立的** `GtkHeaderBar`,而 GTK 為它自己排版的那條是 39。
+            // 加 47 會超出 8~9(`shortfall 0x-9`),而那正是 47 − 39。新的探針會在一個 realize 過、
+            // 從不 present 的視窗子節點中找出 **GTK 自己的** header bar,並在 present 之前回報 39
+            // ——那正是 #79 選項 (c) 所要求的:**量出來的**裝飾,而不是一個被寫死的常數。
+            let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration) ?? 0
             window.defaultSize = Size(
                 width: defaultSize.x,
                 height: defaultSize.y + titlebarAllowance
@@ -1398,6 +1411,8 @@ public final class GtkBackend:
                 + (Gtk.Window.probeHeaderBarHeight(.withTitlebarClass).map(String.init) ?? "nil")
                 + " inWindow="
                 + (Gtk.Window.probeHeaderBarHeight(.insideAWindow).map(String.init) ?? "nil")
+                + " gtkOwn="
+                + (Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration).map(String.init) ?? "nil")
         )
 
         // `gtk_window_set_default_size` sizes the WINDOW, and with client-side
@@ -2097,10 +2112,20 @@ public final class GtkBackend:
         let liveHeaderHeight = window.childMeasurements
             .first { $0.typeName == "GtkHeaderBar" }?
             .naturalHeight
+        // The last resort is `.gtkOwnDecoration` rather than `.bare` for the
+        // reason the paragraph above gives: a header bar built here measures 47
+        // and the window's own lays out at 39, so the stand-in was 8px looser
+        // than the thing it stands in for. Measuring GTK's own decoration on a
+        // throwaway realized window closes that gap, which makes the fallback
+        // agree with the live reading instead of merely approximating it.
+        // 最後的退路改用 `.gtkOwnDecoration` 而非 `.bare`,理由就是上一段所說的:在此處建立的
+        // header bar 量得 47,而視窗自己的那條排版成 39,因此那個頂替者比它所頂替的對象鬆了 8px。
+        // 改為在一個用完即棄、realize 過的視窗上量測 **GTK 自己的**裝飾,即可補上這個落差——
+        // 使這條退路**與實際讀數一致**,而不只是近似它。
         let titlebarHeight =
             window.titlebarNaturalHeight
             ?? liveHeaderHeight
-            ?? Gtk.Window.probeHeaderBarHeight(.bare)
+            ?? Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration)
             ?? 0
         window.size = Size(
             width: newSize.x,
