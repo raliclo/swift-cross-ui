@@ -262,6 +262,12 @@ an empty queue -- mistakes.md entry 1.
   adjacent enough to ask first. Answer (a) whether you will be in `Views/Modifiers/Layout/` soon, and
   (b) whether both can run at once if you take #118. Until then this side is on #32 and stays out of
   layout.*
+  - **本條的前提已經過期(2026-09-16 查證):`EdgeInsets` 已經是 `Double`。**
+    `Sources/SwiftCrossUI/Views/Modifiers/Layout/PaddingModifier.swift:46-54` 的 `top`/`bottom`/
+    `leading`/`trailing` 四個欄位都是 `Double`,`todo.md` 2026-09-12 的交接段也寫明「不要重做 Int → Double」。
+    上面引用的 `PaddingModifier.swift:34-42` 是改動之前的行號。**仍然開著的只剩驗證**:`.padding(8.5)`
+    在兩個 Windows backend 上從未被量過畫面——P36 有這個案例,但 `results.csv2` 只有 WSL(失敗、無擷圖)
+    與 iOS 的紀錄。協調請求 (a)(b) 因此不再需要回覆。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 
@@ -299,7 +305,7 @@ last two do not have a known size yet.
     看不見繼承而來的 conformance**。同一條目裡先寫對、再照著錯的方式重述一次,說明光是把陷阱寫下來
     並不足以擋住它。
 - [x] **9. #79 GTK 39px / #109 popover anchor API — 兩項都已定案並落地(2026-09-16),此條為重複指標,一併關閉** — 原文是「需要你決定」;#79 見 M3a(已驅動驗收 `shortfall 0x0`),#109 見 M3b(兩個 Windows backend 已成對驗收)。
-- [~] **10. #80 P42 縮放通知 — WinUI 通過;GTK 的值已修好(2026-09-16),執行期變更那一半待量** — 需要人在機器前改顯示縮放。
+- [x] **10. #80 P42 縮放通知 — WinUI 通過;GTK 值與執行期變更皆已完成並驅動驗收(2026-09-16,`cd90458e`)** — 需要人在機器前改顯示縮放。
   - **WinUI:通過。** 使用者把顯示縮放由 100% 改為 125%、**全程未碰視窗**,而該視窗自己記到
     `1.0 (change 1)` → `1.25 (change 2)`;畫面顯示 `changes observed: 1`、歷程 `1.0 x5 -> 1.25 x2`。
     **判決在歷程、不在當前值**:單看 `1.25` 對「通知有沒有觸發」毫無發言權,因為在改完之後才啟動的

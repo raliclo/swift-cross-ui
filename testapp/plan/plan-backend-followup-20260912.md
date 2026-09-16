@@ -90,8 +90,21 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    The blocker note about remote desktop refusing mouse injection was wrong and
    is corrected in queue.md: it drove fine with CDP connected.
    Table：待 selection／sortOrder 回報與驗證。
+   **Superseded 2026-09-16: sorting is DONE too.** `BackendFeatures.TableColumnSorting`
+   is conformed at `GtkBackend+TableSelection.swift:55` and `WinUIBackend+Tables.swift:87`,
+   driven by `actions/win/P23-sort-columns.csv`, `-sort-indicator.csv` and their `-gtk4`
+   twins. The "sorting still needs its own protocol" line above is kept as written.
+   **2026-09-16 起已過期:排序也已完成。** 兩個 Windows backend 皆 conform
+   `TableColumnSorting`,並以 P23 的排序動作檔(含 `-gtk4` 版)驅動。上面那句保留原樣。
 9. #109 popover: arrowEdge hint implementation and placement tests remain.
    Popover：待 arrowEdge 提示及位置驗證。
+   **Superseded 2026-09-16: DONE on both Windows backends, verified in pairs.**
+   `BackendFeatures.PopoverArrowEdges`; WinUI via `Flyout.placement`, GTK via
+   `GtkPopover.position`, where the beak GTK draws states the direction in the capture.
+   Action files `actions/win/P50-arrow-edge.csv`, `-gtk4.csv`, `-bottom-gtk4.csv`.
+   Remaining: AppKit, UIKit, Android (Mac side).
+   **2026-09-16 起已過期:兩個 Windows backend 皆完成並成對驗收。** 剩下 AppKit / UIKit /
+   Android,屬 Mac 那邊。
 10. #128: already implemented in source. PaddingModifier.swift has Double top,
     bottom, leading and trailing. Fractional-padding regression verification is
     still distinct from this source check; do not repeat the Int-to-Double change.

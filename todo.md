@@ -39,6 +39,17 @@ ListView draft, and WinUI #117 still owes a visual and scrolling regression test
 `testapp/plan/plan-backend-followup-20260912.md`。#128 已使用 Double；GTK #117
 尚為未接入 backend 的雛形，WinUI #117 的記憶體量測不代表畫面與捲動已通過。
 
+**Superseded 2026-09-16 -- GTK #117 is no longer a draft.** `GtkBackend+LazyListRows.swift:4`
+conforms to `LazyListRowLifetimes`, which refines `LazyListRows`; the plan file's verification log
+records Win-gtk4 at 1 / 400 / 10,000 rows on 2026-09-14. The line above is kept because it was true
+when written. Open Windows work as of today, checked against code and results.csv2: P38 WebView2,
+P41 graphical DatePicker write-back, #128 fractional-padding visual check, #32 magnify/rotate.
+
+**2026-09-16 起已過期——GTK #117 不再是雛形。** `GtkBackend+LazyListRows.swift:4` conform
+`LazyListRowLifetimes`(它 refine 了 `LazyListRows`);計畫檔的驗證紀錄記有 2026-09-14 Win-gtk4 的
+1 / 400 / 10,000 列。上一段保留,因為寫下時為真。截至今日、對照程式碼與 results.csv2 確認仍開著的
+Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padding 畫面驗證、#32 縮放/旋轉。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as
