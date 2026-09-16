@@ -1,27 +1,62 @@
 action,x,y,origin,button,key,micros,note,platform
-# Windows GTK4 at scale 1 and default 640x700 content. --debug -rows 10000.
-sleep,,,,,,4000000,Wait for rendering,windows
-click,70,442,,left,,,Select row 1,windows
-sleep,,,,,,1000000,Observe selection,windows
-move,300,530,,,,,Pointer over list,windows
-scroll,0,6,,,,,Wheel down,windows
-sleep,,,,,,1500000,Wait for scrolling,windows
-click,70,455,,left,,,Select a scrolled row,windows
-sleep,,,,,,1000000,Observe changed selection,windows
-click,245,185,,left,,,Update rows,windows
-sleep,,,,,,1000000,Revision 1,windows
-click,48,185,,left,,,Clear selection,windows
-sleep,,,,,,1000000,Selection none,windows
-click,362,185,,left,,,Shrink to one,windows
-sleep,,,,,,1000000,One row,windows
-click,362,185,,left,,,Restore count,windows
-sleep,,,,,,1000000,Ten thousand rows,windows
-click,136,185,,left,,,Select last,windows
-sleep,,,,,,1000000,Selection 9999,windows
-click,48,185,,left,,,Clear again,windows
-sleep,,,,,,1000000,Selection none,windows
-move,300,530,,,,,Pointer over list,windows
-scroll,0,-6,,,,,Wheel back,windows
-sleep,,,,,,1500000,Wait for scrolling,windows
-click,70,442,,left,,,Select rebuilt row,windows
-sleep,,,,,,3000000,Final screenshot,windows
+# P57 on Win-gtk4: does the lazy list scroll and select under real pointer input? (#117)
+#
+# The WinUI half is P57-lazy-list-winui.csv. Two files because the same view is
+# laid out at different sizes by the two backends -- this window captures 668x768
+# with 34px rows, WinUI's is 642x732 with 40px rows -- so one set of coordinates
+# cannot serve both.
+#
+# Coordinates measured off screen-20260916-105801.png, a wincap taken with rows
+# rendering. FRAME origin and explicit, because that capture includes the title
+# bar and so its y values are frame-relative.
+#
+# RE-MEASURED 2026-09-16 after merging origin/develop, and the previous numbers
+# are why this file says so. P57 gained two self-report lines (`lazy rows:` and
+# `control -- scrolling lists:`) which pushed every row down. The old y=442 for
+# "row 1" then landed in the gap above row 0: the replay still reported 25 of 25
+# actions REPLAYED, and the app log simply had no `selection=1` line in it. A
+# stale coordinate does not fail loudly -- it misses, or it selects the wrong
+# row, and every count in the log still looks like a pass.
+#
+# THE SCROLL STEP IS THE ASSERTION, which is why both clicks use the SAME y.
+# Clicking a different row at a different place proves nothing; clicking the same
+# point and getting a different row is what says the list scrolled rather than
+# merely redrew.
+#
+# P57 於 Win-gtk4:這份 lazy 清單在真實指標輸入下,捲動與選取是否正常?(#117)
+#
+# WinUI 那一半是 P57-lazy-list-winui.csv。之所以兩個檔案,是因為同一個 view 被兩個 backend 排成
+# 不同尺寸——這個視窗擷取為 668x768、列高 34px,WinUI 的是 642x732、列高 40px——因此一組座標
+# 無法同時服務兩者。
+#
+# 座標量自 screen-20260916-105801.png(在列已算繪的狀態下擷取)。採**明確的 frame origin**,
+# 因為該擷圖含標題列,其 y 值是相對於 frame 的。
+#
+# 2026-09-16 合併 origin/develop 之後**重新量測**,而本檔之所以寫明這件事,正是因為舊的數字。
+# P57 多了兩行自述文字(`lazy rows:` 與 `control -- scrolling lists:`),把每一列往下推。
+# 於是舊的「row 1」y=442 落進了 row 0 上方的空隙:重放**仍然回報 25 個動作全部完成**,
+# 而 app 的 log 裡就是沒有 `selection=1` 那一行。**一個過期的座標不會大聲失敗**——它會落空、
+# 或選到錯的列,而 log 裡每一個計數看起來都仍然像通過。
+#
+# 捲動那一步才是斷言,這正是兩次點擊使用**同一個 y** 的原因。在不同位置點到不同的列什麼都證明不了;
+# 在同一個點點擊卻得到不同的列,才是「清單確實捲動了、而不只是重繪」的證據。
+sleep,,,,,,4000000,let the window settle and the first rows bind,windows
+click,85,506,frame,left,,,select row 1,windows
+sleep,,,,,,1000000,observe selection=1,windows
+move,300,600,frame,,,,pointer over the list before scrolling,windows
+scroll,0,6,frame,,,,wheel down six notches,windows
+sleep,,,,,,1500000,let the scroll settle and new rows bind,windows
+click,85,506,frame,left,,,"same y as before: a different row now means the list scrolled",windows
+sleep,,,,,,1000000,observe the changed selection,windows
+click,259,197,frame,left,,,Update rows,windows
+sleep,,,,,,1000000,observe revision=1,windows
+click,61,197,frame,left,,,Clear,windows
+sleep,,,,,,1000000,observe selection=none,windows
+click,377,197,frame,left,,,Toggle count down to one,windows
+sleep,,,,,,1000000,observe rows=1,windows
+click,377,197,frame,left,,,Toggle count back to ten thousand,windows
+sleep,,,,,,1500000,observe rows=10000,windows
+click,150,197,frame,left,,,Select last,windows
+sleep,,,,,,1000000,observe selection=9999 outside the realized window,windows
+click,61,197,frame,left,,,Clear again,windows
+sleep,,,,,,1000000,observe selection=none,windows

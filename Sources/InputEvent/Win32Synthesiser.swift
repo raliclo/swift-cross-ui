@@ -1569,6 +1569,19 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                         + "\(GetSystemMetrics(SM_YVIRTUALSCREEN)))-"
                         + "(\(GetSystemMetrics(SM_CXVIRTUALSCREEN)), "
                         + "\(GetSystemMetrics(SM_CYVIRTUALSCREEN)))"
+                        // `SM_MOUSEPRESENT` is asked because "plug a mouse into
+                        // the remote machine" is a recurring fix for exactly
+                        // this symptom on remote sessions, and a machine with no
+                        // pointing device does not maintain a cursor the way one
+                        // with a mouse does. Zero here would explain both the
+                        // refused moves and the cursor being absent from a local
+                        // capture, and it is one call to find out instead of an
+                        // argument about it.
+                        // 之所以詢問 `SM_MOUSEPRESENT`,是因為在遠端連線上,針對這一模一樣的症狀,
+                        // 「在遠端機器上插一支滑鼠」是一個反覆出現的解法;而一台沒有指標裝置的機器,
+                        // 維護游標的方式與有滑鼠的不同。此處若為零,就同時解釋了「移動被拒絕」與
+                        // 「本機擷圖中沒有游標」——而查清楚它只需要一次呼叫,不需要一場爭論。
+                        + ", mousePresent=\(GetSystemMetrics(SM_MOUSEPRESENT))"
                 )
                 throw SynthesiserError.toolFailed("SetCursorPos", status: setCursorPosError)
             }

@@ -6,9 +6,21 @@ action,x,y,origin,button,key,micros,note,platform
 # -- so one set of coordinates cannot serve both. P57-lazy-list-gtk4.csv is the
 # other half; the two assert the same things at different points.
 #
-# Coordinates measured off screen-20260916-081440.png, a wincap of the WinUI
+# Coordinates measured off screen-20260916-104328.png, a wincap of the WinUI
 # window taken with rows rendering. Frame origin, because that capture includes
 # the title bar and so its y values are frame-relative.
+#
+# RE-MEASURED after merging origin/develop. P57 gained two self-report lines --
+# `lazy rows:` and `control -- scrolling lists:` -- which pushed every row down
+# by 8px and changed the window from 642x760 to 642x732. The buttons did not
+# move; the rows did. A file whose coordinates are one merge old does not fail
+# loudly, it selects the wrong row, so the numbers in the log would still look
+# like a pass.
+#
+# 合併 origin/develop 之後**重新量測**。P57 多了兩行自述文字(`lazy rows:` 與
+# `control -- scrolling lists:`),把每一列往下推了 8px,視窗也從 642x760 變成 642x732。
+# 按鈕沒有移動,列移動了。一個「座標落後一次合併」的檔案**不會大聲失敗**,它會選到**錯的列**,
+# 而 log 裡的數字看起來仍然像通過。
 #
 # THE INSTRUMENT IS p57-debug-events.log, NOT THE SCREENSHOT. P57 writes a line
 # on every selection, revision and row-count change, so the pass is a sequence of
@@ -40,12 +52,12 @@ action,x,y,origin,button,key,micros,note,platform
 # 捲動那一步才是關鍵,這也正是第二次點擊要沿用第一次 y 座標的原因:在不同位置點到不同的列,
 # 什麼都證明不了;**在同一個點點擊卻得到不同的列**,才是那個斷言。
 sleep,,,,,,4000000,let the window settle and the first rows bind,windows
-click,78,417,frame,left,,,select row 1,windows
+click,78,465,frame,left,,,select row 1,windows
 sleep,,,,,,1000000,observe selection=1,windows
-move,300,500,frame,,,,pointer over the list before scrolling,windows
+move,300,550,frame,,,,pointer over the list before scrolling,windows
 scroll,0,6,frame,,,,wheel down six notches,windows
 sleep,,,,,,1500000,let the scroll settle and new rows bind,windows
-click,78,417,frame,left,,,"same y as before: a different row now means the list scrolled",windows
+click,78,465,frame,left,,,"same y as before: a different row now means the list scrolled",windows
 sleep,,,,,,1000000,observe the changed selection,windows
 click,221,167,frame,left,,,Update rows,windows
 sleep,,,,,,1000000,observe revision=1,windows
