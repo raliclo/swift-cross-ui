@@ -199,12 +199,13 @@ fi
 case "$(uname -s)" in
     MINGW* | MSYS* | CYGWIN*)
         if ! zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1; then
-            printf '!! Windows is refusing synthesised input right now:\n' >&2
-            zsh "$script_dir/enable_input.zsh" --check 2>&1 \
-                | grep 'BLOCKER RUNNING' | sed 's/^/!!   /' >&2
-            printf '!! Action files will report success while nothing reaches the app.\n' >&2
-            printf '!! Clear it first:  zsh testapp/enable_input.zsh\n' >&2
-            printf '!! (elevated:       testapp/enable_input.ps1)\n' >&2
+            printf '!! Windows may refuse synthesised input for this run:\n' >&2
+            # Its own words, not a summary. The two cases need opposite advice --
+            # an elevated blocker should be stopped, a remote-desktop host must
+            # NOT be -- and a fixed message here would be wrong for one of them.
+            # 印出它自己的說法,而不是一段摘要。兩種情況需要的建議完全相反——提權的阻擋者應該停掉、
+            # 遠端桌面主機**絕對不可以**——而此處若寫死一段訊息,對其中一種必然是錯的。
+            zsh "$script_dir/enable_input.zsh" --check 2>&1 | sed 's/^/!! /' >&2
         fi
         ;;
 esac

@@ -65,6 +65,51 @@ known_blockers=(
     'AsMonitorControl.exe'
 )
 
+# Blockers that must NEVER be stopped, only reported.
+#
+# **Stopping a remote-desktop host disconnects the person running this.** That
+# is not a trade-off to make on someone's behalf, however stuck the pointer is,
+# so these are a separate list with a separate verb: named, explained, left
+# alone.
+#
+# Chrome Remote Desktop is listed as a SUSPECT, not a proven cause, and the
+# distinction is deliberate: automating a mouse over CRD works for plenty of
+# people, so its mere presence does not make it the culprit. It earns a place
+# here because on 2026-09-16 it was running while mouse injection failed for
+# every coordinate, keyboard injection worked in the same minutes, and a local
+# desktop capture contained no cursor at all -- which is the one symptom nothing
+# else in this list produced.
+#
+# That keyboard worked while mouse did not is what rules out a locked desktop, a
+# wrong desktop and UIPI in one go: both go through the same checks.
+#
+# The experiment that would settle it has not been run, because it needs the
+# remote session disconnected and that is the user's call, not this script's.
+#
+# Chrome Remote Desktop 在此是**嫌疑者**、不是已證實的成因,而這個區別是刻意的:透過 CRD 自動化
+# 滑鼠對許多人是可行的,因此「它在跑」本身並不使它成為元兇。它之所以被列入,是因為 2026-09-16 當時
+# 它正在執行,而滑鼠注入對每一個座標都失敗、同一段時間內鍵盤注入正常、且本機桌面擷圖中完全沒有游標
+# ——那是本清單中其餘成因都產生不出來的症狀。
+#
+# 「鍵盤可以而滑鼠不行」這一點,一次排除了桌面鎖定、桌面錯誤與 UIPI:兩者走的是同一道檢查。
+#
+# 能夠了結此事的那個實驗**尚未執行**,因為它需要中斷遠端連線,而那是使用者的決定、不是這支腳本的。
+#
+# 絕對**不可以**停掉、只能回報的阻擋者。
+#
+# **停掉一個遠端桌面主機,會把正在操作的那個人斷線。** 無論指標卡得多嚴重,那都不是可以代替別人
+# 做的取捨;因此它們獨立成一份清單、配一個不同的動詞:指名、說明、不碰。
+#
+# Chrome Remote Desktop,2026-09-16 實測。它透過自己的虛擬輸入驅動握有指標,而破案的關鍵是一個
+# 其餘成因都產生不出來的症狀:**本機桌面擷圖裡完全沒有游標**——因為 CRD 是在**用戶端**繪製它,
+# 而不是合成到主機桌面上。滑鼠注入對每一個座標都失敗,而**鍵盤注入仍然正常**——兩者走的是同一道
+# 桌面與完整性檢查,這一點同時排除了桌面鎖定、桌面錯誤與 UIPI。
+typeset -a report_only_blockers
+report_only_blockers=(
+    'remoting_desktop.exe'
+    'remoting_host.exe'
+)
+
 check_only=0
 from_log=''
 
@@ -108,6 +153,36 @@ fi
 
 found=0
 stopped=0
+remote=0
+
+# Checked FIRST, because when one of these is running it is almost certainly the
+# answer, and everything below would otherwise read as "no blocker found".
+# 先檢查這一類,因為只要其中之一在跑,它幾乎肯定就是答案;否則下方的一切會被讀成「沒有找到阻擋者」。
+for image in "${report_only_blockers[@]}"; do
+    running="$(tasklist //FI "IMAGENAME eq ${image}" 2>/dev/null | grep -c -i "$image")"
+    [[ "$running" -eq 0 ]] && continue
+    remote=$(( remote + 1 ))
+    printf 'REMOTE SESSION: %s (%s instance(s)) -- NOT stopped, on purpose\n' "$image" "$running"
+done
+
+if [[ "$remote" -gt 0 ]]; then
+    printf -- '---\n'
+    printf 'A remote-desktop host is running. This is a CORRELATION, not a proven\n'
+    printf 'cause, and the difference matters: plenty of people automate a mouse\n'
+    printf 'over Chrome Remote Desktop, so it is not inherently a blocker.\n'
+    printf '\n'
+    printf 'What WAS measured here on 2026-09-16, while it was connected:\n'
+    printf '  - mouse injection failed for every coordinate, SetCursorPos and\n'
+    printf '    SendInput alike, including a point inside our own window\n'
+    printf '  - keyboard injection worked in the same minutes\n'
+    printf '  - a local desktop capture contained no cursor at all\n'
+    printf '\n'
+    printf 'To settle it: disconnect the remote session, or run at the physical\n'
+    printf 'machine, and drive one mouse action file. If it works then and not\n'
+    printf 'now, this is the cause; if it fails both ways, it is not.\n'
+    printf 'Nothing was stopped: that would disconnect whoever is using it.\n'
+    exit 4
+fi
 
 for image in "${known_blockers[@]}"; do
     # `//FI` not `-fi`: the double slash is what stops Git Bash rewriting the
