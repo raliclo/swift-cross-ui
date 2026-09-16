@@ -4,6 +4,24 @@ import WinSDK
 import WinUI
 import WindowsFoundation
 
+/// This thread's COM apartment, as `CoGetApartmentType` states it, for the
+/// WebView2 timeline (P38). Logged at three points -- before
+/// `SwiftApplication.main()`, in `onLaunched`, and where the web view starts --
+/// because one reading can say WHAT the apartment is but not WHEN it became
+/// that. `type` 0 STA, 1 MTA, 2 NA, 3 MAINSTA; `qualifier` 6 is an application
+/// STA. `hr` 0x800401f0 (`CO_E_NOTINITIALIZED`) means COM is not initialised
+/// on this thread yet.
+///
+/// 本執行緒的 COM apartment,以 `CoGetApartmentType` 的說法表示,供 WebView2 的時間軸使用(P38)。
+/// 在三個時間點記錄——`SwiftApplication.main()` 之前、`onLaunched` 之中、web view 啟動之處——
+/// 因為**單一讀數說得出 apartment 是什麼,卻說不出它是何時變成那樣的**。
+func comApartmentDescription() -> String {
+    var aptType = APTTYPE(rawValue: -1)
+    var aptQualifier = APTTYPEQUALIFIER(rawValue: -1)
+    let result = CoGetApartmentType(&aptType, &aptQualifier)
+    return "thread=\(GetCurrentThreadId()) hr=\(String(format: "0x%08x", UInt32(bitPattern: result))) type=\(aptType.rawValue) qualifier=\(aptQualifier.rawValue)"
+}
+
 extension WinUIBackend: BackendFeatures.WebViews {
     public func createWebView() -> Widget {
         WebViewWidget()
@@ -21,7 +39,7 @@ extension WinUIBackend: BackendFeatures.WebViews {
 
     public func navigateWebView(_ webView: Widget, to url: URL) {
         let webView = webView as! WebViewWidget
-        webView.source = WindowsFoundation.Uri(url.absoluteString)
+        webView.control.source = WindowsFoundation.Uri(url.absoluteString)
     }
 }
 
@@ -45,7 +63,39 @@ extension WinUIBackend: BackendFeatures.WebViews {
 /// **此處原本寫著：控制項會按需啟動其繪製行程，因此無須任何人呼叫 `EnsureCoreWebView2Async`。
 /// 那是錯的**，而那正是這個 web view 自存在以來什麼都畫不出來的原因。詳見 `startCoreIfNeeded`，
 /// 以及記錄於 todo.md、尚未解決的另一半問題。
-final class WebViewWidget: WinUI.WebView2 {
+///
+/// **A `Grid` HOLDING a `WebView2`, not a subclass of one -- and subclassing was
+/// the crash.** Stack captured 2026-09-17 with cdb (WinDbg 1.2606, installed
+/// through winget; an earlier note said this machine had no debugger, which
+/// was checked only against PATH and `Windows Kits\10\Debuggers`):
+///
+///     swiftCore!swift_retainCount+0x3d      read at f777f777`f777f780 -- freed-memory fill
+///     P38_WinUI+0x8cd8f1                    Swift
+///     Microsoft_UI_Xaml_Controls!com_ptr<IWeakReferenceSource>::release_ref (dtor)
+///     Microsoft_UI_Xaml_Controls!WebView2::RegisterCoreEventHandlers+0x330
+///     Microsoft_UI_Xaml_Controls!WebView2::CreateCoreWebViewFromEnvironment
+///     EmbeddedBrowserWebView!...InitializeWebViewCompleted
+///
+/// When the core finishes, the control registers its event handlers and takes a
+/// weak reference to its OUTER object. With a Swift subclass the outer object is
+/// the Swift wrapper, and the release at the end of that call lands on a
+/// reference the binding never added: the object is freed, then read. Outside a
+/// debugger that surfaces as `c0000374` heap corruption. It never happened under
+/// MTA because the core never finished there. A `Grid` subclass is the pattern
+/// every other composite widget in this backend already uses; the control
+/// inside it has no Swift outer at all.
+///
+/// **是持有 `WebView2` 的 `Grid`,而不是它的子類別——子類別化正是當機的原因。** 2026-09-17 以 cdb
+/// 取得堆疊(WinDbg 1.2606,經 winget 安裝;先前寫「本機沒有除錯器」的那句,只查過 PATH 與
+/// `Windows Kits\10\Debuggers`)。core 完成時,控制項註冊事件處理器並對**它的外層物件**取一個 weak
+/// reference。以 Swift 子類別化時,外層物件就是 Swift 包裝,而該呼叫結尾的 release 落在綁定層從未
+/// 增加過的參考上:物件被釋放、接著被讀取。沒有除錯器時,它表現為 `c0000374` heap corruption。MTA 下
+/// 從未發生,因為 core 在那裡從未完成。`Grid` 子類別是本 backend 其他複合 widget 早已採用的形狀;
+/// 裡面那個控制項完全沒有 Swift 外層。
+final class WebViewWidget: WinUI.Grid {
+    /// The control, deliberately not subclassed. See the type's documentation.
+    /// 控制項本身,刻意不子類別化。見本型別的文件。
+    let control = WinUI.WebView2()
     var onNavigate: ((URL) -> Void)?
 
     private var startedCore = false
@@ -57,7 +107,6 @@ final class WebViewWidget: WinUI.WebView2 {
     /// registration unsubscribes it.
     /// 之所以要讓它活著，理由與任何一個 event handler 相同：丟掉這個註冊，就等於取消訂閱。
     private var loadedRegistration: WindowsFoundation.EventCleanup?
-
     /// Starts the browser process, once.
     ///
     /// The documentation on this class used to say the control starts the
@@ -109,13 +158,13 @@ final class WebViewWidget: WinUI.WebView2 {
         //
         // 此處會記下 `isLoaded`，好讓下一位讀者能直接看出這是哪一種情況，而不必重新推導。
         // 若它本來就是 true，那元素早已就緒，這次等待不花任何代價。
-        let alreadyLoaded = isLoaded
+        let alreadyLoaded = control.isLoaded
         logger.info("WebView2: starting core, isLoaded=\(alreadyLoaded)")
 
         if alreadyLoaded {
             beginEnsureCore()
         } else {
-            loadedRegistration = loaded.addHandler { [weak self] _, _ in
+            loadedRegistration = control.loaded.addHandler { [weak self] _, _ in
                 guard let self else { return }
                 logger.info("WebView2: Loaded fired, starting core now")
                 self.beginEnsureCore()
@@ -271,7 +320,113 @@ final class WebViewWidget: WinUI.WebView2 {
             CoUninitialize()
         }
 
-        guard let promise = try? ensureCoreWebView2Async() else {
+        // `CoGetApartmentType` as well, because the probe above CANNOT tell MTA
+        // from ASTA and the whole diagnosis above rests on it being MTA.
+        // `RPC_E_CHANGED_MODE` means "not a classic STA" -- a XAML UI thread is
+        // usually an APPLICATION STA (ASTA), and asking an ASTA thread for a
+        // classic STA is refused with the same code. The comment above chose
+        // `CoInitializeEx` because it "needs no COM enum types", and that
+        // convenience is exactly the ambiguity. APTTYPE: 0 STA, 1 MTA, 2 NA,
+        // 3 MAINSTA; qualifier 6 is APPLICATION_STA.
+        //
+        // 另外呼叫 `CoGetApartmentType`,因為上面那個探針**分不出 MTA 與 ASTA**,而上方整段診斷
+        // 都建立在「它是 MTA」之上。`RPC_E_CHANGED_MODE` 的意思是「不是傳統 STA」——XAML 的 UI
+        // 執行緒通常是 **APPLICATION STA(ASTA)**,而在 ASTA 執行緒上要求傳統 STA,拒絕碼一模一樣。
+        // 上方選 `CoInitializeEx` 的理由是「不需要 COM 列舉型別」,而那份方便正是這個歧義的來源。
+        //
+        // ============================================================
+        // 2026-09-16, THIRD PASS: the "RUN AND REFUTED" above was itself wrong,
+        // and the real state is one step further along.
+        //
+        // (1) THE APARTMENT, measured with `CoGetApartmentType` at three points
+        //     (`comApartmentDescription`): before `SwiftApplication.main()` the
+        //     thread is `CO_E_NOTINITIALIZED` -- nothing initialised COM first --
+        //     and in `onLaunched` and here it is type 1, a genuine MTA with no
+        //     qualifier. Not ASTA. So `.multi` in swift-winui is the whole cause
+        //     of the MTA, and nothing "between RoInitialize and here" changes it.
+        //
+        // (2) WHY THE `.single` EXPERIMENT SAID OTHERWISE: there are THREE
+        //     swift-winui checkouts -- `.build/checkouts`,
+        //     `testapp/.compile-work-winui/...` and `.compile-work-gtk4/...` --
+        //     and P38-WinUI is built from `.compile-work-winui`. The record says
+        //     "checkout edited" without saying which, and its positive control
+        //     (`Compiling WinUI` = 2 hits) proves a recompile, NOT that the
+        //     edited copy was the one compiled. Edited in `.compile-work-winui`
+        //     this time, the apartment reads type 3 (MAINSTA) and
+        //     `CoInitializeEx(STA)` returns S_FALSE. The fix DOES take effect.
+        //
+        // (3) AND WITH IT, THE HANDSHAKE COMPLETES: `EBWebView/` gains
+        //     `Default/` and `Local State`, which it never had under MTA. So the
+        //     MTA diagnosis was right all along.
+        //
+        // (4) BUT THE PROCESS THEN DIES: `c0000374` STATUS_HEAP_CORRUPTION in
+        //     ntdll (Windows Error Reporting, Application Error 1000), roughly a
+        //     second after core init starts, before the first `onAppear`. A
+        //     non-WebView app (P42-WinUI) under the same `.single` build is
+        //     fine: MAINSTA, renders, stays up. Bisected with environment
+        //     switches, all under STA, 15 s each:
+        //
+        //       no core init, no Source set     -> alive, renders
+        //       Source set only (implicit init) -> heap corruption
+        //       ensureCoreWebView2Async only    -> heap corruption
+        //       both                            -> heap corruption
+        //
+        //     and separately, with the `completed` handler AND the `Source`
+        //     property callback both skipped -> still heap corruption. So it is
+        //     not this file's callbacks: ANY WebView2 core initialisation
+        //     corrupts the heap once COM lets it proceed. Under MTA the same
+        //     code path was simply never reached, because the handshake never
+        //     completed.
+        //
+        // ~~NEXT, and it needs a debugger this machine does not have (no cdb,
+        // WinDbg or procdump)~~ -- WRONG: WinDbg 1.2606 IS installed, through
+        // winget, and `cdbX64.exe` is an execution alias under
+        // `%LOCALAPPDATA%\Microsoft\WindowsApps`. The check looked only at PATH
+        // and `Windows Kits\10\Debuggers`; the user asked for winget and scoop
+        // to be checked and winget had it.
+        //
+        // (5) RESOLVED 2026-09-17 with that debugger. The stack is on
+        //     `WebViewWidget`: subclassing `WebView2` in Swift is the heap
+        //     corruption, and the widget is now a `Grid` holding one. Under
+        //     `.single` P38 then renders example.com and reports two
+        //     navigations. CONTROL: the same `Grid` widget under `.multi` stays
+        //     type 1 and never completes in 45 s -- so BOTH halves are needed,
+        //     the container and the single-threaded apartment.
+        //
+        // ~~下一步需要本機沒有的除錯器~~——**錯**:WinDbg 1.2606 **有裝**(winget),`cdbX64.exe`
+        // 是 `%LOCALAPPDATA%\Microsoft\WindowsApps` 下的執行別名。先前只查了 PATH 與
+        // `Windows Kits\10\Debuggers`;使用者要求查 winget 與 scoop,winget 就有。
+        //
+        // (5) **2026-09-17 以該除錯器解決。** 堆疊記在 `WebViewWidget` 上:**在 Swift 子類別化
+        //     `WebView2` 就是 heap corruption 的原因**,widget 已改為持有它的 `Grid`。在 `.single`
+        //     下 P38 顯示 example.com 並回報兩次導覽。**對照組**:同一個 `Grid` widget 在 `.multi`
+        //     下維持 type 1、45 秒內從未完成——所以**兩半都需要**,容器與單執行緒 apartment。
+        //
+        // ============================================================
+        // **2026-09-16 第三輪:上面那段「實際跑過並推翻」本身是錯的,真實狀態還要再往前一步。**
+        //
+        // (1) **apartment**:以 `CoGetApartmentType` 在三個時間點量測。`SwiftApplication.main()`
+        //     之前是 `CO_E_NOTINITIALIZED`(沒有任何東西先初始化 COM);`onLaunched` 與此處是
+        //     type 1,**真正的 MTA**,不是 ASTA。所以 MTA 完全來自 swift-winui 的 `.multi`。
+        // (2) **為什麼 `.single` 的實驗說不是**:swift-winui 有**三份** checkout,P38-WinUI 用的是
+        //     `.compile-work-winui` 那份。紀錄只寫「checkout edited」沒說哪份,而正對照組
+        //     (`Compiling WinUI` 命中 2 次)證明的是**有重編**,不是**被改的那份有被編到**。
+        //     這次改在 `.compile-work-winui`,apartment 讀到 type 3(MAINSTA),改動確實生效。
+        // (3) **交握隨之完成**:`EBWebView/` 出現 `Default/` 與 `Local State`,MTA 下從未有過。
+        // (4) **但行程接著死掉**:ntdll 的 `c0000374` STATUS_HEAP_CORRUPTION,core 開始初始化後約
+        //     一秒、第一次 `onAppear` 之前。沒有 WebView 的 P42-WinUI 在同一個 `.single` 下完全正常。
+        //     以環境開關二分(全在 STA、各 15 秒):不初始化 core 也不設 Source → 存活;只設
+        //     Source(隱式初始化)→ 當;只呼叫 ensureCore → 當;兩者 → 當。另外把 `completed`
+        //     handler 與 `Source` 屬性回呼**都跳過** → 仍然當。所以不是本檔的回呼:**只要 COM 放行,
+        //     任何 WebView2 core 初始化都會破壞 heap。** MTA 下這條路徑根本到不了。
+        //
+        // **下一步需要本機沒有的除錯器**(沒有 cdb、WinDbg、procdump):取得破壞點的堆疊,最好開
+        // page heap 讓它在寫壞的那一刻就中斷。上游沒有人用過 WebView2(swift-winui 在 Generated/
+        // 之外零個呼叫處),這條綁定路徑很可能從沒跑過。二分用的開關已移除,每一臂都只是一個
+        // 提早 `return`。
+        logger.info("WebView2: apartment at beginEnsureCore \(comApartmentDescription())")
+
+        guard let promise = try? control.ensureCoreWebView2Async() else {
             logger.warning("WebView2: EnsureCoreWebView2Async threw immediately")
             return
         }
@@ -354,9 +509,10 @@ final class WebViewWidget: WinUI.WebView2 {
 
     override init() {
         super.init()
+        children.append(control)
 
-        _ = try? registerPropertyChangedCallback(Self.sourceProperty) { [weak self] _, _ in
-            guard let self, let source = self.source else { return }
+        _ = try? control.registerPropertyChangedCallback(WinUI.WebView2.sourceProperty) { [weak self] _, _ in
+            guard let self, let source = self.control.source else { return }
             guard let url = URL(string: source.absoluteUri) else {
                 logger.warning("web view navigated to an unparseable URL")
                 return

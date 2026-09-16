@@ -62,6 +62,7 @@ class WinUIApplication: SwiftApplication, @unchecked Sendable {
     static let onReceiveURL = Mutex<IncomingURLHandler?>(nil)
 
     override func onLaunched(_ args: WinUI.LaunchActivatedEventArgs) {
+        logger.info("WebView2: apartment in onLaunched \(comApartmentDescription())")
         if let url = Self.url(fromLaunchArguments: args.arguments) {
             Self.receive(url)
         }
@@ -553,6 +554,7 @@ public final class WinUIBackend:
         // `SwiftApplication.main()` 是在**這條**執行緒上呼叫 `RoInitialize` 的;若 WebView 那條執行緒
         // 的 id 不同,那麼此處所選定的 apartment 從來就不是 WebView2 實際執行所在的那一個。
         logger.info("WinUIApplication.main() on thread \(GetCurrentThreadId())")
+        logger.info("WebView2: apartment before main \(comApartmentDescription())")
         WinUIApplication.main()
     }
 
