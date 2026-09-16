@@ -393,8 +393,29 @@ public final class GtkBackend:
             Self.ensureGpuPreference()
         #endif
         Self.enableDirectCompositionIfRequested()
+        // SCUI_GTK_APP_ID overrides both, and exists for running two test apps at
+        // once. A SwiftPM executable has no metadata, so every app that does not
+        // supply an identifier gets the SAME one -- and GApplication is
+        // single-instance per identifier, so the second one hands its arguments
+        // to the first and exits 0 with an empty log. Measured again 2026-09-16:
+        // P61 launched while P42 was up produced no output at all, which reads
+        // exactly like a build that renders nothing.
+        //
+        // An environment variable rather than a flag: it has to be read before
+        // GApplication is constructed, which is before any argument parsing the
+        // app itself does.
+        //
+        // SCUI_GTK_APP_ID 會覆蓋以上兩者,其存在的目的是**同時執行兩支測試 app**。SwiftPM 的
+        // 可執行檔沒有 metadata,因此每一支未自行提供識別碼的 app 都拿到**同一個**——而
+        // GApplication 對同一識別碼是單一實例的,於是第二支會把自己的引數交給第一支,然後以 0
+        // 結束、留下一份空的 log。2026-09-16 再次實測:在 P42 開著時啟動 P61,完全沒有任何輸出,
+        // 而那讀起來與「一個什麼都畫不出來的建置」一模一樣。
+        //
+        // 用環境變數而非旗標:它必須在 GApplication 建構**之前**被讀到,而那早於 app 自己所做的
+        // 任何引數解析。
         gtkApp = Application(
-            applicationId: appIdentifier ?? "com.example.SwiftCrossUIApp",
+            applicationId: ProcessInfo.processInfo.environment["SCUI_GTK_APP_ID"]
+                ?? appIdentifier ?? "com.example.SwiftCrossUIApp",
             flags: SHIM_G_APPLICATION_HANDLES_OPEN
         )
         gtkApp.registerSession = true
