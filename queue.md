@@ -613,10 +613,27 @@ WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個
 **截圖是必要的,不是錦上添花。** log 看不見「一個從未被畫出來的高亮」——那正是 #117 在 WinUI 上
 記憶體量對了、畫面卻全空的那個形狀。
 
-**尚未驗證:backend → 框架(點擊變成 binding 的寫入)。** 它需要真實指標事件,而這台機器在遠端
-桌面連線時拒絕注入滑鼠。GTK 那側的路徑是 `gtk_widget_pick` → 往上走到 grid 直接子元件 →
-新增的 `Grid.queryChild`;WinUI 那側是 `pointerPressed` → 累加 `RowDefinition.actualHeight`。
-**兩者都只編過、沒被點過。**
+**~~尚未驗證:backend → 框架(點擊變成 binding 的寫入)。它需要真實指標事件,而這台機器在遠端
+桌面連線時拒絕注入滑鼠。~~ 同日以真實滑鼠驗完,而那句「拒絕注入」是錯的。**
+
+**那段阻擋警告不是結論,而我把它當成了結論。** 它自己寫著「這是**相關性**,不是已證實的成因」,
+而我卻用它來解釋為什麼不驗。實際去跑之後:`SetCursorPos` 生效(`cursor=(406, 621)` 與要求值相符),
+**CDP 連著時滑鼠是可用的**。先前那次「點了沒反應」的真正差別在於啟動方式(經 harness 與直接執行),
+不是輸入被拒絕。
+
+兩個動作檔都留在 repo 裡,各三次點擊,而**中間那次是拒絕對照**:
+
+| 檔案 | backend | 判決 |
+| --- | --- | --- |
+| `actions/win/P23-select-rows.csv` | WinUI | 第六列 → `SELECTION now 5`;**標題列 → 一行都沒有**;第一列 → `SELECTION now 0` |
+| `actions/win/P23-select-rows-gtk4.csv` | GTK | 完全相同的三個答案,而走的是完全不同的路徑 |
+
+**分成兩個檔案而非共用座標**,因為兩個視窗大小不同、列的位置也不同(GTK 848x688 自 y=368 起,
+WinUI 822x652 自 y=325 起)。照抄另一份會點到標題列與第一列,而**兩次點擊都仍然會回報成功**。
+
+WinUI 側以 `SCUI_WINUI_TABLE_TRACE` 量到機制:`handleClick y=172/10/32` 對上
+`heights=[18, 28, 28, 28]`,分別命中 definition 6/0/1。**標題列高 18、資料列高 28**——這正是
+命中測試累加 `actualHeight`、而不是拿列高去除的理由:若用相除,這三次會整整差一列。
 
 ### Selection, half done and verified the same day
 
@@ -629,11 +646,25 @@ painted -- and gone again when the selection clears. The log alone could not
 have shown that: a highlight that is never drawn logs exactly like one that is,
 which is how #117 passed on memory here while rendering nothing.
 
-The click-to-binding direction is NOT verified. It needs real pointer input,
-which this machine refuses while a remote-desktop host is connected. GTK hit
-tests through `gtk_widget_pick` and the new `Grid.queryChild`; WinUI accumulates
-`RowDefinition.actualHeight` under `pointerPressed`. Both compile; neither has
-been clicked.
+~~The click-to-binding direction is NOT verified; this machine refuses pointer
+input while a remote-desktop host is connected.~~ **Verified the same day with a
+real mouse, and that sentence was wrong.** The blocker note says of itself that
+it is a correlation rather than a proven cause, and I used it as a conclusion
+anyway. Driving it: `SetCursorPos` took, the cursor landed where it was asked to,
+and both backends selected. The earlier run that saw nothing differed in how the
+app was launched, not in whether input was accepted.
+
+Two action files are kept, three clicks each, the middle one a control:
+`actions/win/P23-select-rows.csv` (WinUI) and `-gtk4.csv` (GTK). Sixth row ->
+`SELECTION now 5`; the HEADER -> no line at all; first row -> `SELECTION now 0`.
+Separate files rather than shared coordinates because the windows differ in size
+and the rows sit elsewhere -- copying would click the header and still report
+success.
+
+`SCUI_WINUI_TABLE_TRACE` shows the mechanism on the WinUI side: y=172/10/32
+against heights [18, 28, 28, 28], matching definitions 6/0/1. The header is 18 px
+and the rows are 28, which is why the hit test accumulates `actualHeight` rather
+than dividing -- dividing puts all three clicks one row out.
 
 ## #125 Table selection and sortOrder: the shape, before writing any of it
 

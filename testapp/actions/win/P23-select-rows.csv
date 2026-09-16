@@ -1,0 +1,58 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, WinUIBackend: does CLICKING a row select it? (#125)
+#
+# This is the half a probe cannot answer. `--select-probe` writes the binding on
+# a timer and proves `setSelectedRow` draws the highlight; nothing inside the
+# process can prove that a POINTER landing on a row becomes a binding write,
+# because that is the part the toolkit does.
+#
+# WHAT EACH CLICK ASSERTS, and the third one is the reason this file has three:
+#
+#   row ID=6      "selected row: 5" -- zero-based, so the SIXTH row is index 5.
+#                 A backend that reported the ID, or the on-screen row number,
+#                 would print 6 here and look almost right
+#   the HEADER    NOTHING changes. A column title is not a row, and a hit test
+#                 that divides a y coordinate by a row height gets this wrong
+#                 by exactly one row -- which is invisible when the header is
+#                 the same height as a row, and this one is not
+#   row ID=1      "selected row: 0", which also proves the first click was not
+#                 a coincidence of where the highlight already was
+#
+# **Coordinates measured off p23-sel-none-20260916-134324.png**, a wincap of the
+# WinUI window at 822x652, frame origin because that capture includes the title
+# bar. Rows sit 28 px apart: ID=1 at y=325, ID=6 at y=465, header at y=303.
+#
+# They were re-measured on 2026-09-16 and the old P23-more-rows.csv shows why:
+# two rows of UI were added above the table that day, and its click at (83,225)
+# -- written for "Selection off" -- landed on the new "Select row 2" button
+# instead. It still reported every action as replayed, and the app still
+# responded, so nothing anywhere said the file was stale.
+#
+# P23 於 Windows、WinUIBackend:**點擊**某一列會選取它嗎?(#125)
+#
+# 這是探針回答不了的那一半。`--select-probe` 以計時器寫入 binding,證明的是 `setSelectedRow`
+# 會畫出高亮;而「指標落在某一列上會變成一次 binding 寫入」這件事,**行程內部無法證明**,
+# 因為那一段是 toolkit 在做的。
+#
+# 每一次點擊各自主張什麼——而第三次正是本檔需要三次點擊的理由:
+#
+#   ID=6 那一列   「selected row: 5」——零基底,因此**第六列**是索引 5。一個回報 ID、或回報
+#                 畫面上列號的 backend,在這裡會印出 6,看起來幾乎是對的
+#   **標題列**    什麼都不該改變。欄位標題不是一列;而一個「拿 y 座標去除以列高」的命中測試
+#                 會在此處**整整差一列**——當標題列與資料列等高時那是看不見的,而此處並不等高
+#   ID=1 那一列   「selected row: 0」,同時也證明第一次點擊不是「高亮本來就在那裡」的巧合
+#
+# **座標量自 `p23-sel-none-20260916-134324.png`**(WinUI 視窗的 wincap,822x652),採 frame origin,
+# 因為該擷圖含標題列。各列相距 28 像素:ID=1 在 y=325、ID=6 在 y=465、標題列在 y=303。
+#
+# 它們是 2026-09-16 重新量過的,而舊的 `P23-more-rows.csv` 正說明了為何必須重量:那天表格上方
+# 新增了兩列 UI,於是它原本寫給「Selection off」的那個 (83,225) 點擊,**落到了新的
+# 「Select row 2」按鈕上**。它照樣回報每一個動作都已重放、app 也照樣有反應,因此沒有任何東西
+# 說得出「這個檔案已經過期」。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,250,465,frame,left,,,the sixth row -- expect selected row: 5,windows
+sleep,,,,,,900000,observe the readout and the band,windows
+click,250,303,frame,left,,,the HEADER -- expect no change at all,windows
+sleep,,,,,,900000,observe that nothing moved,windows
+click,250,325,frame,left,,,the first row -- expect selected row: 0,windows
+sleep,,,,,,1200000,hold for the final capture,windows
