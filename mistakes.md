@@ -1432,3 +1432,103 @@ a short run that works and a long run that does not, with nothing changed betwee
 This is the first example in my own global CLAUDE.md's "check names before syntax" section. Knowing
 it was not enough; the corrective is to print `$PATH` at the first `command not found` rather than
 swapping the command out, which is what I did first and which changed nothing.
+
+---
+
+## 17. 在一個以「格數」計價的欄位裡填了像素大小的數字,然後把它的無反應讀成平台缺陷
+
+**次數:1 次 / 1 天(2026-09-16),但它產生了 *三* 份錯誤的紀錄。**
+
+**編號 17,並已先問過對面**(第 14 條的教訓):`git show origin/develop:mistakes.md | grep '^## '`
+顯示對面已用到 16。
+
+### 症狀 / What it looks like
+
+要讓 P57 的清單走過大量列,於是寫下:
+
+```
+scroll,0,400,client,,,,,ios          # iOS
+scroll,0,300,,,,,,android            # Android
+scroll,0,-45,,,,,,macos              # macOS
+```
+
+三個平台都**毫無反應**:iOS 事後的擷圖與啟動時逐像素相同;Android 的 logcat 說
+`replayed ... (4 actions)`——**沒有任何錯誤**;macOS 則是往上捲時整份清單一列都不畫。
+
+於是我寫下了三個結論,而**三個都是錯的**:
+
+| 我寫下的 | 實際上 |
+| --- | --- |
+| 「UIKit 未驅動——runner 的 scroll 沒有移動這份清單」 | 我要求了一次 16,000 點的拖曳 |
+| 「Android 的 scroll 不移動清單(但動詞沒拋錯)」 | 31,500 像素,在一個 2,400 像素高的螢幕上 |
+| 「AppKit 的清單對滾輪沒反應」(記為 queue M6) | 那一半後來以合理格數複驗**仍然成立**,但當初的量測本身是錯的尺寸 |
+
+**那個欄位的說明就寫在解析器裡**,而且說得很清楚:
+
+> 此處的 x 與 y 是滾輪**格數**而非位置。
+
+而 runner 裡也有一行:`private static let pointsPerNotch: CGFloat = 40`。
+
+### 為何沒有任何東西報錯
+
+一次終點在視窗外的拖曳,不是一個**錯誤**——它是一個合法的請求,只是沒有任何東西能對它作出有意義的
+反應。動作檔重放完成、退出碼為 0、截圖照拍。而「畫面沒變」與「這個功能不存在」在一張截圖上
+**完全一樣**。
+
+更糟的是第二層:因為畫面沒變,我轉而用「清單持有幾個節點」當證據,而那個數字**也**沒變——
+因為它是一個 `Text`,而捲動不改變任何狀態,所以它顯示的是**啟動時**的值。兩個都沒動的讀數,
+被我讀成了「這個平台做不到」。
+
+### 矯正 / Corrective
+
+1. **寫下任何 `scroll` 列之前,先把格數換算成點。** 一格 40 點(Android 再乘 density)。
+   一屏約 600–900 點,所以**一屏是 15–22 格**,不是 300 格。若算出來的位移大於螢幕高度數倍,
+   那不是一次捲動。
+2. **量尺不能是靜態的。** P57 的讀數現在由 `--debug` 下的一個計時器每秒重繪兩次;在那之前,
+   一個「正確、活著、但停在啟動值」的數字與一個「功能壞掉」的數字無從分辨。
+3. **讀數要成對,不要單一。** `rows built / held` 一起看才有意義:`held == built` 是「從未釋放」,
+   `held < built` 是「釋放了 built − held 個」。單看 `held: 6` 同時相容於「正確釋放」與
+   「從來沒被要求顯示超過六列」。
+
+---
+
+## 17. Pixel-sized numbers in a column priced in notches, and its silence read as a platform defect
+
+**Once, on 2026-09-16 -- and it produced THREE wrong records.** Numbered 17 after checking the
+other machine first, which is entry 14's lesson.
+
+### What it looks like
+
+To walk P57's list across many rows I wrote `scroll,0,400` on iOS, `scroll,0,300` on Android and
+`scroll,0,-45` on macOS. Nothing moved on any of them: the iOS capture afterwards was identical to
+launch, Android's logcat said `replayed ... (4 actions)` with no error at all, and macOS drew no
+rows when scrolled up.
+
+I then wrote three conclusions, all wrong: that the runner's scroll does not move this list on
+UIKit, that Android's scroll moves nothing while not throwing, and that AppKit's lazy list does not
+respond to the wheel. The parser says what the column is -- "x and y are wheel notches here, not a
+position" -- and the runner says what a notch is: `pointsPerNotch = 40`. So those rows asked for a
+16,000-point drag, a 31,500-pixel one on a 2,400-pixel screen, and an 1,800-point one.
+
+### Why nothing reported it
+
+A drag whose destination is outside the window is not an ERROR; it is a legal request that nothing
+can answer meaningfully. The file replayed, the exit status was zero, the screenshots were taken.
+"The screen did not change" and "this feature does not exist" are the same picture.
+
+The second layer made it worse: with the screen unchanged I turned to the count of rows the
+framework was holding, and that had not changed either -- because it is a `Text` and scrolling
+changes no state, so it was showing its value from launch. Two readings that had not moved, read
+as a platform that could not do the thing.
+
+### Corrective
+
+Convert notches to points before writing a scroll row: 40 points each, times density on Android.
+A screenful is 15 to 22 notches, not 300; a figure several screens tall is not a scroll.
+
+Make the instrument live -- P57's readouts now re-render twice a second under `--debug`, because
+before that a correct, live, launch-valued number was indistinguishable from a broken one.
+
+And read counters in pairs. `rows built / held` says what one number cannot: `held == built` is
+"nothing was ever released", `held < built` is "built minus held were". `held: 6` alone is equally
+consistent with a backend that releases properly and one that was never asked for a seventh row.

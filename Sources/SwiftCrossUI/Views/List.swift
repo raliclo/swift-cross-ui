@@ -237,6 +237,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                         environment: environment
                     )
                     children.lazyNodes[index] = node
+                    DebugFeatures.countLazyListRowBuilt()
                     DebugFeatures.recordLiveLazyListRows(children.lazyNodes.count)
                 }
                 // A lifetime-reporting backend frees each node precisely, when

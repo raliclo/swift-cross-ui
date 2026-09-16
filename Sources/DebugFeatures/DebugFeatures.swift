@@ -251,4 +251,41 @@ extension DebugFeatures {
         liveLazyListRows = count
         #endif
     }
+
+    /// How many lazy list-row nodes have been BUILT since launch, counting
+    /// every rebuild.
+    ///
+    /// **This is the half that makes the live count mean something.** On its
+    /// own, "holding 6" is consistent with a backend that releases properly and
+    /// with one that was never asked to show more than six rows -- and telling
+    /// those apart from a screenshot means reasoning about how far a scroll
+    /// travelled, which is exactly the kind of arithmetic that turns into a
+    /// claim nobody can check. Built against held answers it directly:
+    ///
+    ///     built 250, holding 6     rows are being released
+    ///     built 250, holding 250   nothing is
+    ///
+    /// Monotonic, and never reset. A reset would need a moment to reset AT, and
+    /// every candidate -- a commit, a reload, a row count change -- is a moment
+    /// this number is supposed to see through.
+    ///
+    /// 自啟動以來,總共**建立**過多少個 lazy 清單列節點——重建也算。
+    ///
+    /// **這是讓那個「現在持有幾個」有意義的另一半。** 單看「持有 6」,它既相容於「一個正確釋放的
+    /// backend」,也相容於「一個從未被要求顯示超過六列的 backend」——而要從一張截圖分辨這兩者,
+    /// 就得去推算一次捲動走了多遠,而那正是那種會變成「沒有人查得動的主張」的算術。
+    /// 「建過幾個」對上「持有幾個」直接回答了它:
+    ///
+    ///     建過 250、持有 6      各列正在被釋放
+    ///     建過 250、持有 250    什麼都沒有被釋放
+    ///
+    /// 單調遞增,永不重設。要重設就得有一個「重設的時點」,而每一個候選時點——一次 commit、一次
+    /// reload、一次列數改變——都正是這個數字應該要能看穿的東西。
+    nonisolated(unsafe) public private(set) static var builtLazyListRows = 0
+
+    public static func countLazyListRowBuilt() {
+        #if SCUI_DEBUG
+        builtLazyListRows += 1
+        #endif
+    }
 }

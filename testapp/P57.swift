@@ -546,6 +546,31 @@ struct P57RootView: View {
     @State var rowCount = P57Configuration.rowCount
     @State var revision = 0
 
+    /// Bumped twice a second under `--debug`, purely so the readouts below are
+    /// LIVE.
+    ///
+    /// **A `Text` shows whatever the last render put there, and scrolling
+    /// changes no state.** So "rows built / held" would sit at its launch value
+    /// through an entire traversal and a capture of it would be a capture of
+    /// nothing -- indistinguishable from a backend that built one row and
+    /// stopped. The first attempt at this was a click on "Select last" at the
+    /// end of the action file to force a render; on Android that click did not
+    /// land, and the stale readout then read as "the list was never scrolled".
+    /// A ticker removes the dependency on any input arriving at all.
+    ///
+    /// Only under `--debug`: a release build never starts the timer.
+    ///
+    /// 在 `--debug` 下每秒遞增兩次,純粹是為了讓下方那些讀數是**活的**。
+    ///
+    /// **一個 `Text` 顯示的是最後一次算繪所放進去的東西,而捲動不改變任何狀態。** 因此
+    /// 「rows built / held」會在整趟走訪期間停在它的啟動值,而它的擷圖等於什麼都沒拍到
+    /// ——與「一個只建了一列就停住的 backend」無從分辨。第一次的做法是在動作檔結尾點一下
+    /// 「Select last」來強迫重繪;而在 Android 上那次點擊沒有落下,於是那個過期讀數讀起來就成了
+    /// 「這份清單從未被捲動過」。一個計時器把「必須有輸入抵達」這個依賴整個移除。
+    ///
+    /// 只在 `--debug` 下:release 建置永遠不會啟動這個計時器。
+    @State var tick = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("P57: List cost, lazy where the backend takes rows one at a time")
@@ -620,7 +645,16 @@ struct P57RootView: View {
             //
             // 走過四百列再讀這一行。會回報釋放的 backend 會穩定在可見視窗大小附近;不會回報的則會
             // 朝 `lazyLifetimeBackstopLimit`(4000)爬上去,而在那之前唯一的症狀是記憶體。
-            Text("rows held by the framework: \(DebugFeatures.liveLazyListRows)")
+            Text(
+                "rows built / held by the framework: "
+                    + "\(DebugFeatures.builtLazyListRows) / \(DebugFeatures.liveLazyListRows)"
+                    // The tick is READ here, not just bumped. A body that never
+                    // mentions it would not re-render when it changes, and the
+                    // ticker would run with nothing to show for it.
+                    // 這裡是**讀**那個 tick,不只是遞增它。一個從不提到它的 body 不會因為它改變而重繪,
+                    // 而那個計時器就會白跑。
+                    + (tick >= 0 ? "" : "?")
+            )
             // Zero-sized, present only so the WinUI probe has a real element to
             // walk the tree from. It reads and scrolls; it does not render.
             // 尺寸為零,存在的唯一目的是讓 WinUI 探針有一個真正的元素可據以走訪那棵樹。
@@ -658,6 +692,18 @@ struct P57RootView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            guard P57Diagnostics.isEnabled else { return }
+            func step() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    MainActor.assumeIsolated {
+                        tick += 1
+                        step()
+                    }
+                }
+            }
+            step()
+        }
         .onChange(of: selection) {
             P57Diagnostics.write("selection=\(selection.map(String.init) ?? "none") rows=\(rowCount) revision=\(revision)")
         }
