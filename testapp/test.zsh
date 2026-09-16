@@ -205,7 +205,29 @@ case "$(uname -s)" in
             # NOT be -- and a fixed message here would be wrong for one of them.
             # 印出它自己的說法,而不是一段摘要。兩種情況需要的建議完全相反——提權的阻擋者應該停掉、
             # 遠端桌面主機**絕對不可以**——而此處若寫死一段訊息,對其中一種必然是錯的。
-            zsh "$script_dir/enable_input.zsh" --check 2>&1 | sed 's/^/!! /' >&2
+            # **`|| true`, and without it this block did the opposite of what
+            # the comment above promises.** This script runs under
+            # `set -euo pipefail`; `enable_input.zsh --check` exits 4 when it
+            # finds a remote-desktop host, `pipefail` makes the pipeline carry
+            # that 4, and `set -e` then killed test.zsh before the `exec` below.
+            #
+            # Measured 2026-09-16: `zsh testapp/test.zsh P23 --no-build` produced
+            # eighteen lines of warning, rc=4, and never started the app -- with
+            # or without a platform flag. Every test was blocked, including the
+            # ones that only build, log or screenshot and synthesise no input at
+            # all. The warning is advice about ONE class of test; it must not be
+            # a gate on all of them.
+            #
+            # **`|| true`,少了它,這段區塊做的事與上方註解所承諾的正好相反。** 本腳本在
+            # `set -euo pipefail` 之下執行;`enable_input.zsh --check` 偵測到遠端桌面主機時會
+            # 以 4 結束,`pipefail` 讓整條管線帶著那個 4,而 `set -e` 於是在下方的 `exec`
+            # **之前**就終止了 test.zsh。
+            #
+            # 2026-09-16 實測:`zsh testapp/test.zsh P23 --no-build` 印出十八行警告、rc=4,
+            # 而那支 app 從未被啟動——有沒有平台旗標都一樣。**所有**測試都被擋住了,包含那些
+            # 只建置、只讀 log、只截圖、根本不合成任何輸入的測試。這個警告是針對**其中一類**
+            # 測試的建議,不該變成所有測試的閘門。
+            zsh "$script_dir/enable_input.zsh" --check 2>&1 | sed 's/^/!! /' >&2 || true
         fi
         ;;
 esac
