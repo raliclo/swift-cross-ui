@@ -937,3 +937,111 @@ ask ORIGIN what already exists.
 `-S` searches content, not messages -- the other side may never name the symbol
 in a subject line. And on a shared branch, fetching is part of starting a TASK,
 not part of starting a session.
+
+---
+
+## 13. 讀了證據的一半,把過渡狀態當成判決
+
+**次數:1 次 / 1 天(2026-09-16)。而同一天稍早,我才因為「只讀了比較的一端」記下第 8 條。**
+
+**編號 13,不是 10。** 第一次寫下時編了 10,而 10、11、12 在同一天稍早的合併中已經由 Mac 端用掉了
+——`git pull` 之後沒有重讀這份檔案就接著寫。這與第 12 條(問了 queue、沒問 origin)是同一個形狀,
+發生在記錄第 12 條的那份檔案本身裡面。
+*Numbered 13, not 10: 10, 11 and 12 were taken by the other machine in a merge earlier the same day,
+and this was written without re-reading the file after pulling. Same shape as entry 12, inside the
+file that records entry 12.*
+
+### 症狀 / What it looks like
+
+一份動作檔重放完成,app 的 log 裡有這四行:
+
+```
+DISABLED FOCUS reported true
+TEXT FOCUS reported true
+DISABLED FOCUS reported false
+TEXT FOCUS reported false
+```
+
+我讀了第一行,宣告「停用的按鈕接受了焦點」,並據此在兩個 backend 上各寫了一段修法。
+
+**那四行是一個正確行為的完整軌跡。** 框架的寫法是:
+
+```swift
+if !backend.focus(widget) {
+    binding.wrappedValue = false
+}
+```
+
+app 自己先把 `@FocusState` 設為 `true`(第一行),框架接著問 backend,backend **回傳 false**,框架把它改回來(第三行)。**那個 `false` 就是拒絕在運作的證據**,而我把它讀成了失敗的證據。
+
+A replay finished and four lines appeared. I read the first, declared that a
+disabled control had taken focus, and wrote a fix on two backends. The four lines
+are the complete trace of CORRECT behaviour: the app sets the binding optimistically,
+the framework asks the backend, the backend refuses, and the framework writes it back.
+
+### 我自己的儀器早就答了,而我只讀了一半
+
+為了診斷,我在 `focus()` 裡加了記錄。它印出:
+
+```
+  2 took=false      ← 停用按鈕與純 Text
+ 51 took=true       ← 其餘可聚焦的 widget
+```
+
+**我看到 51 個 `true` 就停住了。** 那 2 個 `false` 正是應該被拒絕的那兩個——答案在同一段輸出裡,
+在我下結論之前就已經印出來了。
+
+I had already instrumented `focus()`. It printed 2 `took=false` against 51
+`took=true`, and the two falses were exactly the two that should be refused. I
+stopped reading at the 51.
+
+### 而畫面上寫著正確答案
+
+P70 把結論畫在視窗上:**`disabled button reports focused: no (correct)`**。
+那行字在我先前為了量座標而擷取的兩張圖裡都清清楚楚。這類 app 之所以把結論算繪出來,
+正是為了防這件事——而我相信了 log 裡的中間行,沒有相信畫面上的結論行。
+
+The app renders the verdict: `disabled button reports focused: no (correct)`. It
+was legible in two screenshots I had already taken. Rendering the verdict is what
+these apps do to prevent exactly this, and I believed an intermediate log line
+over it.
+
+### 為什麼「更仔細地看 log」擋不住它
+
+因為**每一行都是真的**。沒有任何東西失敗、沒有錯誤訊息、那四行都是誠實的事件回報。
+錯的是「在一串狀態轉換中,哪一行是結論」——而那個資訊不在 log 裡,在**產生它的程式碼**裡。
+
+這與第 8 條是同一個家族:那次我比較的兩端只量了一端,這次我讀的證據只讀了一半。
+兩次的共同點是**證據已經在手上**。
+
+Every line was true. Nothing failed. What was wrong was which line is the
+verdict, and that is not in the log -- it is in the code that emits it. Same
+family as entry 8: there I measured one side of a comparison, here I read half of
+the evidence. Both times the evidence was already in hand.
+
+### 矯正措施 / The corrective
+
+**一串狀態轉換裡,判決是最後一個值,不是第一個。** 在把某一行 log 當成缺陷之前:
+
+| 問題 | 做法 |
+|---|---|
+| 這是狀態轉換還是結論? | 找出寫出它的那行程式碼。`onChange` 印的是**轉換** |
+| 有沒有更晚的同名行? | `grep` 全部,看最後一個值,不要看第一個 |
+| app 有沒有把結論畫在畫面上? | 有就以畫面為準;那是它被畫出來的理由 |
+| 我自己的儀器印了什麼? | **讀完**。分佈的兩端都要看,不是只看多的那一端 |
+
+In a sequence of state transitions the verdict is the LAST value, not the first.
+Before calling a log line a defect: find the code that emits it (`onChange`
+prints transitions), grep for later lines with the same name and read the final
+value, prefer the verdict the app renders on screen, and finish reading your own
+instrument -- both ends of the distribution, not the big one.
+
+### 守衛 / The guard
+
+**在動作檔的標頭裡寫明「哪一行是判決」。** 動作檔已經會說明每一步在斷言什麼;
+此處要多寫一句:結論該從**哪裡**讀。`P70-focus.csv` 現在寫著:判決是 app 畫面上那行
+`refused (correct)`,而 log 中的 `DISABLED FOCUS reported true` 是 `@FocusState` 被樂觀設定、
+尚未經 backend 回寫的**過渡狀態**。
+
+State in the action file's header WHERE the verdict is read from. These files
+already say what each step asserts; this adds which line answers it.

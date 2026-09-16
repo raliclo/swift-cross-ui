@@ -21,6 +21,29 @@ action,x,y,origin,button,key,micros,note,platform
 # took it, and a backend that returns a plausible true there would make
 # @FocusState lie about where the keyboard is.
 #
+# **WHERE THE VERDICT IS READ FROM, because reading the wrong line cost a day.**
+# The refusal verdict is the line the app RENDERS -- "disabled button reports
+# focused: no (correct)" -- or the LAST `DISABLED FOCUS reported` line in the
+# log, not the first.
+#
+# The log shows `true` and then `false` in the same second, and both are correct.
+# `@FocusState` sets the binding optimistically, then the framework does
+#
+#     if !backend.focus(widget) { binding.wrappedValue = false }
+#
+# so the `false` IS the refusal working. `onChange` prints transitions; the
+# verdict is the final value. Read as a failure on 2026-09-16 -- see mistakes.md
+# entry 13.
+#
+# **判決要從哪裡讀——因為讀錯一行付出了一天的代價。**
+# 拒絕與否的判決,是 app **算繪在畫面上**的那一行(「disabled button reports focused: no (correct)」),
+# 或是 log 中**最後一個** `DISABLED FOCUS reported`,而不是第一個。
+#
+# log 會在同一秒內先後出現 `true` 與 `false`,而兩者都是對的。`@FocusState` 會先樂觀地設定該 binding,
+# 框架接著執行 `if !backend.focus(widget) { binding.wrappedValue = false }`——因此那個 `false`
+# **就是拒絕在運作**。`onChange` 印的是轉換;判決是最終值。2026-09-16 曾把它讀成失敗,見 mistakes.md
+# 第 13 條。
+#
 # The clicks on the two FIELDS come first and deliberately: they are the user
 # moving focus, which the app did not ask for, so they test the handler rather
 # than the setter. The programmatic buttons test the setter afterwards.
