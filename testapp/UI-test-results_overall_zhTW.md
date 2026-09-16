@@ -1,5 +1,20 @@
 # WinUI 手動測試結果紀錄
 
+## 2026-09-14：P57 GTK Lazy Rows (#117)
+
+先 WSLg、再 Windows GTK4；包含列生命週期修正的 release 編譯皆通過。
+原生探針確認初始 nil、選取第 9999 列、清除選取、更新首尾文字，以及列數
+10,000 -> 1 -> 10,000。10,000 列僅建立 205/206 個容器，縮至一列時降為 1。
+這段流程穩定後記憶體：WSL 327-328 MB，Windows 260-288 MB。
+
+兩端皆在 render marker 後保持顯示至少 30 秒。2026-09-14 已解決黑圖缺口：wincap
+改用 Windows Graphics Capture，並保留 PrintWindow fallback。WSLg 當時也卡在過期的
+COPY MODE；執行 `wsl --shutdown` 並重啟後，標題警告消失，WGC 可直接擷取。
+最終 GL 截圖非黑比例為 WSLg 92.2%、Windows 92.1%；PIL 量得兩張皆為 668x776，
+content bbox 皆為 (14,12)-(654,759)。原生 API 探針不等於真實指標輸入測試；WinUI
+回歸仍待驗證。
+證據及後續項目見 [backend 接續紀錄](plan/plan-backend-followup-20260912.md)。
+
 ## 2026-07-12
 
 ### P2：Controls And Styling

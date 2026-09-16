@@ -533,6 +533,14 @@ public final class WinUIBackend:
                 callback()
             }
         }
+        // Logged so the WebView2 apartment question can be answered with two
+        // thread ids rather than an inference. `SwiftApplication.main()` calls
+        // `RoInitialize` on THIS thread; if the WebView's thread id differs,
+        // the apartment that was chosen here was never the one WebView2 runs in.
+        // 記錄下來,好讓 WebView2 的 apartment 問題能用**兩個執行緒 id** 來回答,而不是用推論。
+        // `SwiftApplication.main()` 是在**這條**執行緒上呼叫 `RoInitialize` 的;若 WebView 那條執行緒
+        // 的 id 不同,那麼此處所選定的 apartment 從來就不是 WebView2 實際執行所在的那一個。
+        logger.info("WinUIApplication.main() on thread \(GetCurrentThreadId())")
         WinUIApplication.main()
     }
 
@@ -861,24 +869,159 @@ public final class WinUIBackend:
 
     public func show(widget _: Widget) {}
 
+    /// Hangs a ``KeyboardShortcut`` on a menu item as a `KeyboardAccelerator`.
+    ///
+    /// WinUI draws the accelerator's text beside the item by itself, so nothing
+    /// here has to format "Ctrl+S".
+    ///
+    /// 以一個 `KeyboardAccelerator` 的形式,把 ``KeyboardShortcut`` 掛到 menu item 上。
+    ///
+    /// WinUI 會自行在該項目旁邊繪出該加速鍵的文字,因此此處不必格式化「Ctrl+S」。
+    private func applyShortcut(_ shortcut: KeyboardShortcut?, to item: MenuFlyoutItemBase) {
+        guard let shortcut else { return }
+        guard let key = Self.virtualKey(for: shortcut.key) else {
+            // Loud rather than silent: an unbindable shortcut is a menu item
+            // that looks configured and does nothing when the key is pressed.
+            // 說出來而不是沉默:一個綁不上去的快捷鍵,會是一個「看起來設定好了、按下去卻毫無反應」
+            // 的 menu item。
+            debugLogOnce(
+                "no virtual key for keyboard shortcut '\(shortcut.key.character)';"
+                    + " that menu item has no shortcut"
+            )
+            return
+        }
+        let accelerator = KeyboardAccelerator()
+        accelerator.key = key
+        accelerator.modifiers = Self.virtualKeyModifiers(for: shortcut.modifiers)
+        item.keyboardAccelerators.append(accelerator)
+    }
+
+    /// ``EventModifiers`` as WinRT's `VirtualKeyModifiers`.
+    ///
+    /// **`VirtualKeyModifiers` is a `typealias` to a C enum with `static var`
+    /// members bolted on -- NOT a Swift `OptionSet`** -- so there is no `.union`
+    /// and combining is a bitwise or on `rawValue`. That is the same shape as
+    /// `ManipulationModes`, which cost a build break in this backend's gesture
+    /// file on 2026-09-11 with the message "value of type 'ManipulationModes'
+    /// has no member 'union'". Checked before writing this rather than after.
+    ///
+    /// **`.command` becomes Control and `.option` becomes `menu`.** SwiftUI's
+    /// default modifier is `.command` because it was written for macOS; Windows
+    /// has no Command key and Control plays its role, which is what
+    /// ``EventModifiers/command`` documents. WinRT calls the Alt key `menu`,
+    /// after the Win32 `VK_MENU` -- it is Alt, not a menu.
+    ///
+    /// `capsLock` and `numericPad` are dropped. They are keyboard STATES, not
+    /// accelerator modifiers, in WinRT exactly as in GTK; there is nothing to
+    /// map them to and a shortcut carrying one still binds on its real
+    /// modifiers.
+    ///
+    /// 以 WinRT 的 `VirtualKeyModifiers` 表示的 ``EventModifiers``。
+    ///
+    /// **`VirtualKeyModifiers` 是一個指向 C enum、再外掛 `static var` 成員的 `typealias`——
+    /// 而不是 Swift 的 `OptionSet`**——因此沒有 `.union`,組合的方式是對 `rawValue` 做位元或。
+    /// 那與 `ManipulationModes` 是同一個形狀,而後者在 2026-09-11 於本 backend 的手勢檔造成了一次
+    /// 建置中斷,訊息是「value of type 'ManipulationModes' has no member 'union'」。此處是**寫之前**
+    /// 查證的,不是之後。
+    ///
+    /// **`.command` 變成 Control,`.option` 變成 `menu`。** SwiftUI 的預設修飾鍵是 `.command`,
+    /// 因為它是為 macOS 寫的;Windows 沒有 Command 鍵,扮演其角色的是 Control,而
+    /// ``EventModifiers/command`` 記載的正是這件事。WinRT 把 Alt 鍵稱為 `menu`,承襲自 Win32 的
+    /// `VK_MENU`——它是 Alt,不是選單。
+    ///
+    /// `capsLock` 與 `numericPad` 會被丟棄。它們在 WinRT 中與在 GTK 中一樣是鍵盤**狀態**、不是加速鍵的
+    /// 修飾鍵;沒有東西可以對應過去,而一個帶著它們的快捷鍵仍會以它真正的修飾鍵綁定。
+    static func virtualKeyModifiers(for modifiers: EventModifiers) -> UWP.VirtualKeyModifiers {
+        var raw = UWP.VirtualKeyModifiers.none.rawValue
+        if modifiers.contains(.control) || modifiers.contains(.command) {
+            raw |= UWP.VirtualKeyModifiers.control.rawValue
+        }
+        if modifiers.contains(.shift) { raw |= UWP.VirtualKeyModifiers.shift.rawValue }
+        if modifiers.contains(.option) { raw |= UWP.VirtualKeyModifiers.menu.rawValue }
+        return UWP.VirtualKeyModifiers(rawValue: raw)
+    }
+
+    /// The `VirtualKey` for a ``KeyEquivalent``.
+    ///
+    /// **Letters and digits are derived by ARITHMETIC on `.a` and `.number0`,
+    /// not by naming thirty-six constants.** `VirtualKey`'s raw values are the
+    /// Win32 VK codes, where VK_A is 0x41 and VK_0 is 0x30 -- contiguous, and
+    /// equal to the ASCII codes of the uppercase forms. Deriving from
+    /// `VirtualKey.a.rawValue` also means this code never states what the raw
+    /// value's TYPE is, so it cannot be wrong about it.
+    ///
+    /// `delete` is U+007F, forward delete, and maps to `VirtualKey.delete`. The
+    /// separate `VirtualKey.back` (backspace) is deliberately not reachable
+    /// here, because ``KeyEquivalent`` has no constant for backspace and its own
+    /// documentation warns against conflating the two just because macOS labels
+    /// backspace "delete".
+    ///
+    /// ``KeyEquivalent`` 所對應的 `VirtualKey`。
+    ///
+    /// **字母與數字是由 `.a` 與 `.number0` 以算術推導的,而不是點名三十六個常數。** `VirtualKey` 的
+    /// raw value 就是 Win32 的 VK 碼,其中 VK_A 是 0x41、VK_0 是 0x30——它們是連續的,而且等於其大寫
+    /// 形式的 ASCII 碼。從 `VirtualKey.a.rawValue` 推導,也意謂著這段程式碼從未陳述那個 raw value 的
+    /// **型別**,因此它不可能把型別寫錯。
+    ///
+    /// `delete` 是 U+007F 的向前刪除,對應到 `VirtualKey.delete`。另一個 `VirtualKey.back`
+    /// (backspace)在此處刻意不可達,因為 ``KeyEquivalent`` 並沒有 backspace 的常數,而它自己的文件
+    /// 就在警告:不要只因為 macOS 把 backspace 標示為「delete」就把兩者混為一談。
+    static func virtualKey(for key: KeyEquivalent) -> UWP.VirtualKey? {
+        let scalars = Array(key.character.unicodeScalars)
+        guard scalars.count == 1, let scalar = scalars.first else { return nil }
+
+        switch scalar {
+            case "\u{F700}": return .up
+            case "\u{F701}": return .down
+            case "\u{F702}": return .left
+            case "\u{F703}": return .right
+            case "\u{1B}": return .escape
+            case "\u{7F}": return .delete
+            case "\u{F728}": return .delete
+            case "\u{F729}": return .home
+            case "\u{F72B}": return .end
+            case "\u{F72C}": return .pageUp
+            case "\u{F72D}": return .pageDown
+            case "\u{F739}": return .clear
+            case "\u{9}": return .tab
+            case " ": return .space
+            case "\r": return .enter
+            default: break
+        }
+
+        let upper = Character(scalar).uppercased()
+        guard let ascii = upper.unicodeScalars.first?.value, upper.count == 1 else { return nil }
+        if ascii >= 0x41, ascii <= 0x5A {
+            return UWP.VirtualKey(
+                rawValue: UWP.VirtualKey.a.rawValue + numericCast(ascii - 0x41)
+            )
+        }
+        if ascii >= 0x30, ascii <= 0x39 {
+            return UWP.VirtualKey(
+                rawValue: UWP.VirtualKey.number0.rawValue + numericCast(ascii - 0x30)
+            )
+        }
+        return nil
+    }
+
     private func renderMenuItem(
         _ item: ResolvedMenu.Item,
         environment: EnvironmentValues
     ) -> MenuFlyoutItemBase {
         switch item {
-            // NOT COMPILED HERE. Bound and unused so this file keeps building;
-            // WinUI's `KeyboardAccelerator` is the implementation, and it belongs
-            // to whoever can run it. Binding rather than `_` keeps the gap greppable.
-            // **此處未經編譯。** 綁定但未使用,只為讓本檔繼續建置;真正的實作是 WinUI 的
-            // `KeyboardAccelerator`,而它屬於跑得動它的人。用綁定而不是 `_`,是為了讓這個缺口
-            // grep 得到。
-            case .button(let label, let action, _):
+            case .button(let label, let action):
                 let widget = MenuFlyoutItem()
                 widget.text = label
                 widget.click.addHandler { _, _ in
                     action?()
                 }
                 widget.isEnabled = environment.isEnabled
+                // The shortcut arrives in the environment, on the same line as
+                // `isEnabled` and for the same reason -- see
+                // `EnvironmentValues.keyboardShortcut`.
+                // 快捷鍵是從 environment 來的,與 `isEnabled` 在同一行、基於同一個理由——
+                // 見 `EnvironmentValues.keyboardShortcut`。
+                applyShortcut(environment.keyboardShortcut, to: widget)
                 return widget
             case .toggle(let label, let value, let onChange):
                 let widget = ToggleMenuFlyoutItem()
@@ -889,6 +1032,7 @@ public final class WinUIBackend:
                     onChange(widget.isChecked)
                 }
                 widget.isEnabled = environment.isEnabled
+                applyShortcut(environment.keyboardShortcut, to: widget)
                 return widget
             case .separator:
                 return MenuFlyoutSeparator()
@@ -1471,6 +1615,21 @@ public final class WinUIBackend:
         var selectionHandler: ((_ selectedIndex: Int) -> Void)?
         var currentItems: [WinUI.ListViewItem] = []
         var cachedSelectedItem: Int? = nil
+
+        /// Set by `setLazyRows`. When present, the list is on the lazy path: its
+        /// content comes from here per visible row rather than from an eager
+        /// array, and selection is addressed by index instead of by holding
+        /// `ListViewItem` instances in `currentItems`.
+        /// 由 `setLazyRows` 設定。存在時,清單走 lazy 路徑:其內容逐可見列從這裡取得、而非取自一個
+        /// eager 陣列,選取也改以索引定址、而不是把 `ListViewItem` 實例留在 `currentItems` 裡。
+        var lazyProvider: ((Int) -> (widget: WinUI.FrameworkElement, height: Int)?)?
+
+        /// The `ContainerContentChanging` handler is attached at most once.
+        /// Re-attaching on every `setLazyRows` would fire the provider N times
+        /// per visible row, the shape this backend's slider hit as `began=5`.
+        /// `ContainerContentChanging` 的 handler 最多只掛一次。若每次 `setLazyRows` 都重掛,provider
+        /// 會為每一可見列觸發 N 次——正是本 backend slider 撞上的 `began=5` 那個形狀。
+        var lazyHandlerAttached = false
     }
 
     public func createSelectableListView() -> Widget {
@@ -1574,6 +1733,16 @@ public final class WinUIBackend:
             return
         }
         listView.cachedSelectedItem = index
+        // On the lazy path there are no retained `ListViewItem` instances to
+        // hand to `selectedItem` -- the containers are virtualized and most do
+        // not exist. Address the selection by index instead, which WinUI
+        // resolves against the item source whether or not the row is realized.
+        // 在 lazy 路徑上,沒有被保留的 `ListViewItem` 實例可以交給 `selectedItem`——容器是虛擬化的,
+        // 大多數並不存在。改以索引定址選取,WinUI 會對著 item source 解析它,無論該列是否已被實體化。
+        if listView.lazyProvider != nil {
+            listView.selectedIndex = Int32(index ?? -1)
+            return
+        }
         if let index {
             // We use `listView.currentItems` instead of `listView.items` because
             // `listView.items` isn't the original instances we added and WinUI

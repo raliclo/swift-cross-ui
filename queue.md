@@ -1,5 +1,28 @@
 # queue
 
+## 2026-09-12 Windows / WSL handover
+
+- [ ] **#117 GTK ListView integration and P57 verification (active)**:
+  GtkBackend now uses the native lazy factory. Release builds succeeded on
+  WSL and Windows including the latest lifetime change.
+  Initial WSL GL/D3D12 probes: 1/400/10,000 rows used 320/326/327 MB after
+  settling; 10,000 model rows had 205 realized containers (206 after scrolling).
+  Initial selection was nil and selecting the last row reported 9999.
+  Final native probes on both platforms also confirmed Clear, revision updates
+  and 10,000 -> 1 -> 10,000 rows; container counts changed 205/206 -> 1 -> 205.
+  Wincap now uses Windows Graphics Capture. After restarting a stale WSLg COPY
+  MODE bridge, final WSLg/Windows GL captures measured 92.2%/92.1% non-black;
+  PIL confirmed matching 668x776 images and content bounds. Track current
+  evidence and outstanding checks in
+  `testapp/plan/plan-backend-followup-20260912.md`.
+  GTK 接入、生命週期修正、兩端原生狀態及截圖驗證已完成；黑圖成因是過期的 WSLg
+  COPY MODE bridge，加上舊 PrintWindow 路徑無法讀取 GPU surface。真實指標輸入與
+  WinUI 回歸仍待驗證。2026-09-14 更新。
+
+Source corrections to older entries below: #128 is already Double
+(`cfe30184`), and WinUI #117 was implemented in `bde16de0`; neither remains
+an unimplemented conversion. 原始碼已完成上述兩項，舊條目不可直接當作現況。
+
 由 `heartbeats/heartbeat.zsh` 讀取。**未完成寫 `- [ ]`,完成改成 `- [x]`。**
 順序即優先序:第一個未完成項就是下一件事。
 
@@ -115,7 +138,7 @@ needs a measurement before a cause, the multi-file one is a decision, and the
 last two do not have a known size yet.
 
 - [x] **T3. AndroidBackend 已遷到 Swift 6 language mode(2026-09-16)** — 五個並行性問題修好並保留:stdio 緩衝移進 C shim(`stdout`/`stderr` 是可變 C 全域,Swift 6 拒絕引用);兩個 `@Entry` 改為手寫 key(macro 產生的是「非 `Sendable` 型別的 `static let`」,而教 macro 加 `nonisolated(unsafe)` 會讓整個套件的同一個診斷消音);一個泛型輔助函式移除了**永遠到不了**的 `default:` 參數;`SharedPreferences` 依 Android 自身的 thread-safety 保證加標註;`ActivityListener` 與兩個 AndroidKit 型別改 `@unchecked Sendable`,因為 **swift-java 的 `@JavaMethod` 展開會把 `self` 與每一個參數送過隔離邊界**。第六個不是模式問題:`CommandLine.arguments` 的 setter 在 Swift 6.0 **被廢除**,而少了它 Android 上 `--debug`/`-rows`/`-actionfile` 全部送不到(runtime 的 argv 是 JVM 的)。先試的「v5 單檔 target」在 `swift build` 下可用、在 swift-bundler 的 `swift build --product` 下**消失**(`no such module`,兩份 manifest 快取都清過,也列進 product 了,原因未明,已放棄)。落地的做法不需要任何 target:那個廢除是**編譯期**閘門,符號仍由 runtime 匯出(以 `nm -D libswiftCore.so` 在實際使用的 Android SDK 上查過),改以 `@_silgen_name` 抵達,`__owned` 明寫。**上機驗過**:四個旗標原樣抵達、零崩潰、程序存活,`focus changes heard: 3`、`refused (correct)`。**順帶抓到一個回歸並記為 mistakes 第 9 條**:把 `AndroidBackend` 加進 `migratedToSwift6` 會讓**非 Android** 的每一次建置以 manifest 自己的打字守衛死掉——而我是在 Android 上驗了五次的,那正是該缺陷不可能出現的平台。
-- [~] **T4. #121 step 2 — AppKit 已驅動驗證,Android 編過,UIKit/GTK/WinUI 待接** — `ResolvedMenu.Item.button` 新增第三個 associated value(而非另立 case:**多一個值會讓既有 `switch` 編不過**,直到有人對它作出交代;一個「快捷鍵靜默無效」的選單項目沒有人會回報)。新增 `.keyboardShortcut(_:modifiers:)`,它只覆寫 `_asMenuItems`——快捷鍵以**資料**形式一路走到 `Menu` 解析處,與標籤、動作一起被 backend 讀到。**測試 app 是新的 P71**,而它斷言的是**計數器**、不是選單:按鍵在選單**關著**時送出。macOS 以真實 `CGEvent` 驅動:`plain 1、shifted 1、disabled 0`——Cmd-S 觸發、Cmd-Shift-E 觸發(mask 存活)、停用項目的 Cmd-D **沒有**觸發。Android **編過未驅動**:`setAlphabeticShortcut`,`.command` 映射到 `META_CTRL_ON`;非 ASCII 按鍵跳過而不硬轉。**UIKit 綁定但未使用,並在原地寫明理由**:`UIAction` 收 closure、帶不了按鍵,而 `UIKeyCommand` 帶得了按鍵卻收 **selector**、經 responder chain 派送——光有一個持有 closure 的物件不夠。GTK/WinUI 同樣綁定未使用且**此處未編譯**(`set_accels_for_action` / `KeyboardAccelerator` 屬於跑得動它們的人)。
+- [~] **T4. #121 step 2 — 與 Windows 撞了同一個功能,採用他們的設計** — 合併時才發現兩邊都實作了 `.keyboardShortcut(_:modifiers:)`:**檔案不同,所以 git 沒報衝突,是編譯器報的**(`invalid redeclaration`)。他們走 **environment**(`environment(\.keyboardShortcut, …)`),而且**已在 GTK 與 WinUI 兩個 backend 上驗過**;我走的是「在 `ResolvedMenu.Item.button` 上加第三個 associated value」,只在 AppKit 驗過。**留他們的**——一個功能兩套機制比其中任何一套都糟,而他們那套已經有兩個 backend 在讀。我的 `ResolvedMenu`/`MenuItem`/`Menu.resolve` 改動與那個 modifier 全部還原,AppKit 與 Android 改讀 `environment.keyboardShortcut`。**AppKit 以 actionfile 重新驗過**(`actions/mac/P71-shortcuts.csv`,選單全程關著):`plain 1、shifted 1、disabled 0`。Android **編過未驅動**。**UIKit 是缺口**,並在原地寫明理由:`UIAction` 收 closure 帶不了按鍵,`UIKeyCommand` 帶得了按鍵卻收 selector、經 responder chain 派送。**測試 app 是新的 P71**,它斷言計數器而非選單外觀——每個 backend 都畫得出「⌘S」,而那樣的截圖與能用的一模一樣。
 - [ ] **4. 鍵盤快捷鍵 step 2(其餘四個 backend)**(Windows 表的 #121)— **真的,而且已查證**:`ResolvedMenu.Item` 沒有任何 shortcut 欄位,所以要動四個 backend 的 `.button`。Windows 端把它標為「卡在 Mac」
 - [ ] **5. focus / accessibility**(#122 / #123)— 任務自述「不可單機開始」,需要與 Windows 端協調
 - [x] **6. #74 `-GPU` on macOS — 已實作(AppKit + UIKit)** — 那個「設計問題」其實已被協定的形狀回答了:`GraphicsAdapter` 的三個欄位 `name`/`isRemovable`/`isLowPower` **就是 `MTLDevice` 的三個屬性**,而 `AdapterOutcome.requiresRestart` 的文件早就寫著「macOS 不需要這個,Metal 在執行期選擇」。AppKit 用 `MTLCopyAllDevices()`(系統預設排最前,因為 `.systemDefault` 取 `first`)、UIKit 用 `MTLCreateSystemDefaultDevice()`(`MTLCopyAllDevices` 僅限 macOS,而 iOS 只有一張且不可移除)。**明說它不做什麼**:它不會把視窗移到另一張 GPU——window server 依「視窗所在顯示器」決定合成用的 GPU,macOS 上沒有應用程式做得到。P68 驅動並列出介面卡。**Android 已補上**:回報一張以 SoC 命名的介面卡(`SOC_MANUFACTURER`/`SOC_MODEL`，早於 API 31 的裝置退回 `HARDWARE`),而**不是**空清單——空清單會讓框架解析為「沒有可用的繪圖介面卡」，那句話對每一台 Android 裝置都是假的。名字是 SoC 而非 GPU:真名要 `glGetString(GL_RENDERER)`，那需要對 `EGL_DEFAULT_DISPLAY` 做 `eglInitialize`/`eglTerminate`——也就是 app 正在算繪的那個 display，而這台機器驗不了它會不會弄壞算繪
@@ -264,3 +287,61 @@ the conclusion drawn from them does not. #123 exposes SwiftCrossUI's labels, not
 tree, and a UIA provider hung on the GTK window's HWND answers from a side table without touching
 `gtk_accessible` at all. All three pieces -- the HWND, hand-written COM vtables, the UIA provider
 API -- are already used in this tree. Real work, not impossible.*
+
+---
+
+## 減少不必要的重繪 / Reduction of unnecessary redraw
+
+加入佇列於 2026-09-11,起因是一個問題:「GTK 只在必要時更新畫面是否比較省電?」
+Added to the queue 2026-09-11, prompted by the question "does GTK's redraw-only-when-needed save
+power?" It does, and the interesting part is that the answer is a *framework* question, not a
+per-backend one.
+
+### 已經在位的部分 / What is already in place
+
+**兩個 backend 對「幀」的立場相反,而框架已經在兩者之上做了收斂。**
+The two backends take opposite positions and the framework already reconciles them.
+
+| | 閒置時 | 表達「我要幀」的方式 |
+| --- | --- | --- |
+| GTK | 不產生幀 | `gdk_frame_clock_begin_updating` / `end_updating`,計數成對 |
+| WinUI | `CompositionTarget.Rendering` **只要有人訂閱就每幀觸發** | 訂閱 / 取消訂閱 |
+
+`Sources/SwiftCrossUI/Animation/AnimationDriver.swift` 已經是 GDK 那套計數,只是計的是 tween:
+`startClockIfNeeded()` 在第一個 tween 註冊時才 `startFrameClock`,`stopClockIfIdle()` 在
+`tweens` 一空時 `stopFrameClock`,而 `tick(at:)` 的最後一行就是 `stopClockIfIdle()`——所以
+最後一個動畫結束的**那一幀**就把時鐘拆掉。WinUI 因此不必改:省電的唯一施力點是「閒置時不訂閱」。
+
+`AnimationDriver` is already GDK's refcount with tweens as the count. WinUI needs no change: the
+only lever is not being subscribed while idle, and that is what `stopFrameClock` is.
+
+### 沒有被跑過驗證的部分 / What has NOT been verified by running
+
+**這一段是設計對了,不是量到了。** P64 直接驅動 backend requirement,繞過 `AnimationDriver`,
+所以沒有任何量測顯示 `frameClockToken?.dispose()` 真的解除了 WinUI 的訂閱。
+
+The design is right; nothing has been measured. P64 drives the backend requirement directly and
+bypasses `AnimationDriver`, so no measurement shows that `frameClockToken?.dispose()` actually
+unsubscribes.
+
+決定性的實驗很便宜,而且**兩個結果都有意義**:start → stop → 再 start,量第二段的速率。
+The experiment is cheap and both outcomes say something: start, stop, start again, and measure the
+second window.
+
+- 仍是約 141 Hz → 取消訂閱有效
+- 約 283 Hz(兩倍)→ 第一次訂閱洩漏了,而每一次動畫都會再洩漏一次
+- ~141 Hz means the unsubscribe works; ~283 Hz means the first subscription leaked, and every
+  animation would leak another.
+
+**為什麼倍數是可讀的證據而不是巧合:** `CompositionTarget.Rendering` 每幀觸發一次,而 handler 是
+一個型別屬性——兩個活著的訂閱會讓同一幀被數兩次。若改用「有沒有跳」來驗,兩種情況都會跳,那個
+測試無法分辨它們。
+
+### 相鄰但**不同**的一項,不要混為一談 / An adjacent item that is NOT the same
+
+上面談的是**時鐘**的訂閱。「view 內容沒變卻仍重繪」是另一件事,尚未量測,也還沒有人主張它存在
+——本節不宣稱它。要提出它,需要的是一個計數:同一個 widget 在一次沒有狀態變動的 layout pass 中
+被要求重繪幾次。
+
+The above is about the CLOCK subscription. "A view redrawing when its content did not change" is a
+different thing, unmeasured, and not claimed here. Raising it needs a count first.

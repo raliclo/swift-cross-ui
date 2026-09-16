@@ -2,6 +2,113 @@ import DefaultBackend
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 
+#if canImport(CGtk)
+    import CGtk
+    import GtkCHelpers
+
+    enum P57GtkProbe {
+        nonisolated(unsafe) static var phase = 0
+        nonisolated(unsafe) static var didStart = false
+
+        static func start() {
+            guard CommandLine.arguments.contains("--gtk-list-probe"), !didStart else { return }
+            didStart = true
+            _ = g_timeout_add(2000, { _ in
+                let windows = gtk_window_get_toplevels()
+                for index in 0..<g_list_model_get_n_items(windows) {
+                    guard let object = g_list_model_get_item(windows, index) else { continue }
+                    let root = object.assumingMemoryBound(to: GtkWidget.self)
+                    P57GtkProbe.inspect(root)
+                    let commands = [2: "Clear", 3: "Update rows", 4: "Toggle count", 5: "Toggle count"]
+                    if let command = commands[P57GtkProbe.phase] {
+                        P57Diagnostics.write("GTK activate \(command)=\(P57GtkProbe.activate(command, in: root))")
+                    }
+                    g_object_unref(object)
+                }
+                P57GtkProbe.phase += 1
+                return P57GtkProbe.phase < 7 ? 1 : 0
+            }, nil)
+        }
+
+        static func inspect(_ widget: UnsafeMutablePointer<GtkWidget>) {
+            if String(cString: gtk_widget_get_css_name(widget)) == "listview",
+                let model = gtk_list_view_get_model(OpaquePointer(widget))
+            {
+                var realized = 0
+                var row = gtk_widget_get_first_child(widget)
+                while let current = row {
+                    realized += 1
+                    row = gtk_widget_get_next_sibling(current)
+                }
+                let count = g_list_model_get_n_items(model)
+                let selected = gtk_single_selection_get_selected(model)
+                P57Diagnostics.write(
+                    "GTK phase=\(phase) modelRows=\(count) realizedContainers=\(realized) "
+                    + "selected=\(selected == GTK_INVALID_LIST_POSITION ? "none" : String(selected)) "
+                    + "allocated=\(gtk_widget_get_width(widget))x\(gtk_widget_get_height(widget)) "
+                    + "residentMB=\(P57Memory.residentMegabytes)"
+                )
+                let labels = texts(in: widget)
+                P57Diagnostics.write("GTK phase=\(phase) first=\(labels.first ?? "none") last=\(labels.last ?? "none")")
+                if phase == 0, count > 0 {
+                    gtk_single_selection_set_selected(model, count - 1)
+                }
+                if phase == 1 {
+                    var ancestor = gtk_widget_get_parent(widget)
+                    while let parent = ancestor {
+                        if String(cString: gtk_widget_get_css_name(parent)) == "scrolledwindow" {
+                            let adjustment = gtk_scrolled_window_get_vadjustment(OpaquePointer(parent))
+                            gtk_adjustment_set_value(
+                                adjustment,
+                                gtk_adjustment_get_upper(adjustment) - gtk_adjustment_get_page_size(adjustment)
+                            )
+                            break
+                        }
+                        ancestor = gtk_widget_get_parent(parent)
+                    }
+                }
+                return
+            }
+            var child = gtk_widget_get_first_child(widget)
+            while let current = child {
+                inspect(current)
+                child = gtk_widget_get_next_sibling(current)
+            }
+        }
+
+        static func texts(in widget: UnsafeMutablePointer<GtkWidget>) -> [String] {
+            if String(cString: gtk_widget_get_css_name(widget)) == "label" {
+                return [String(cString: gtk_label_get_text(wrapped_gtk_widget_as_label(widget)))]
+            }
+            var result: [String] = []
+            var child = gtk_widget_get_first_child(widget)
+            while let current = child {
+                result += texts(in: current)
+                child = gtk_widget_get_next_sibling(current)
+            }
+            return result
+        }
+
+        static func activate(_ label: String, in widget: UnsafeMutablePointer<GtkWidget>) -> Bool {
+            if String(cString: gtk_widget_get_css_name(widget)) == "button",
+                texts(in: widget).contains(label)
+            {
+                return gtk_widget_activate(widget) != 0
+            }
+            var child = gtk_widget_get_first_child(widget)
+            while let current = child {
+                if activate(label, in: current) { return true }
+                child = gtk_widget_get_next_sibling(current)
+            }
+            return false
+        }
+    }
+#endif
+
+#if os(Windows)
+    import WinSDK
+#endif
+
 // P57: how expensive is an eager List, and at what size does it stop being
 // usable?
 //
@@ -103,6 +210,47 @@ enum P57Memory {
             }
             guard result == KERN_SUCCESS else { return -1 }
             return Int(info.resident_size) / 1_048_576
+        #elseif os(Windows)
+            // The Windows equivalent of the mach reading: `WorkingSetSize` from
+            // `GetProcessMemoryInfo` is the resident set -- the pages actually
+            // in physical memory -- which is what
+            // `MACH_TASK_BASIC_INFO.resident_size` is on macOS and what the
+            // second field of `/proc/self/statm` is below. All three branches
+            // therefore mean the same thing, which is what lets #117's
+            // cross-platform table compare like with like.
+            //
+            // Task Manager's "Memory" column is this same working set, so a run
+            // can be sanity-checked against it by eye.
+            //
+            // mach 讀數在 Windows 上的對應物:`GetProcessMemoryInfo` 的 `WorkingSetSize` 就是
+            // resident set——實際位於實體記憶體中的分頁——而那正是 macOS 上的
+            // `MACH_TASK_BASIC_INFO.resident_size`,也正是下方 `/proc/self/statm` 的第二個欄位。
+            // 因此三個分支意義相同,而那正是 #117 的跨平台表格得以「比較同一種東西」的前提。
+            //
+            // 工作管理員的「記憶體」欄就是這同一個工作集,因此一次執行可以用肉眼對著它做合理性檢查。
+            //
+            // `K32GetProcessMemoryInfo`, not `GetProcessMemoryInfo`. The latter
+            // is a psapi.h macro (`#define GetProcessMemoryInfo
+            // K32GetProcessMemoryInfo` at PSAPI_VERSION >= 2), and Swift's
+            // WinSDK overlay exposes the real kernel32-exported symbol but not
+            // the macro alias -- "cannot find 'GetProcessMemoryInfo' in scope",
+            // while the `PROCESS_MEMORY_COUNTERS` struct beside it resolves
+            // fine. Checked by building rather than assumed.
+            // 用 `K32GetProcessMemoryInfo`,不是 `GetProcessMemoryInfo`。後者是 psapi.h 的巨集
+            // (在 PSAPI_VERSION >= 2 時 `#define GetProcessMemoryInfo K32GetProcessMemoryInfo`),
+            // 而 Swift 的 WinSDK overlay 曝露的是 kernel32 真正匯出的那個符號、而非巨集別名——
+            // 「cannot find 'GetProcessMemoryInfo' in scope」,而它旁邊的 `PROCESS_MEMORY_COUNTERS`
+            // struct 則正常解析。以建置查證,非臆測。
+            var counters = PROCESS_MEMORY_COUNTERS()
+            counters.cb = DWORD(MemoryLayout<PROCESS_MEMORY_COUNTERS>.size)
+            guard
+                K32GetProcessMemoryInfo(
+                    GetCurrentProcess(),
+                    &counters,
+                    counters.cb
+                )
+            else { return -1 }
+            return Int(counters.WorkingSetSize) / 1_048_576
         #else
             // `/proc/self/statm`: total and resident, in PAGES.
             //
@@ -236,13 +384,25 @@ struct P57RootView: View {
     /// 選擇持有它而非忽略,因為 `.constant` 會讓這個清單無法被選取,而這支 app 量的是**尋常**的路徑,
     /// 不是它的某個特例。
     @State var selection: Int?
+    @State var rowCount = P57Configuration.rowCount
+    @State var revision = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("P57: List cost, lazy where the backend takes rows one at a time")
                 .font(.system(size: 20))
             Text("backend -> \(String(describing: DefaultBackend.self))")
-            Text("rows: \(P57Configuration.rowCount)")
+            Text("rows: \(rowCount)")
+            Text("selection: \(selection.map(String.init) ?? "none")")
+            HStack {
+                Button("Clear") { selection = nil }
+                Button("Select last") { selection = rowCount > 0 ? rowCount - 1 : nil }
+                Button("Update rows") { revision += 1 }
+                Button("Toggle count") {
+                    rowCount = rowCount == P57Configuration.rowCount ? 1 : P57Configuration.rowCount
+                    selection = nil
+                }
+            }
             // Kept, but the window's height is the measurement. This line is a
             // sanity check that the app got as far as onAppear at all.
             // 保留,但真正的量測是視窗的高度。這一行只是用來確認這支 app 至少走到了 onAppear。
@@ -290,12 +450,21 @@ struct P57RootView: View {
                     + "climbing: the row views are recycled now."
             )
 
-            List(Array(0..<P57Configuration.rowCount), id: \.self, selection: $selection) {
+            List(Array(0..<rowCount), id: \.self, selection: $selection) {
                 index in
-                Text("row \(index)")
+                Text("row \(index) revision \(revision)")
             }
         }
         .padding(16)
+        .onChange(of: selection) {
+            P57Diagnostics.write("selection=\(selection.map(String.init) ?? "none") rows=\(rowCount) revision=\(revision)")
+        }
+        .onChange(of: rowCount) {
+            P57Diagnostics.write("rows=\(rowCount) revision=\(revision)")
+        }
+        .onChange(of: revision) {
+            P57Diagnostics.write("revision=\(revision) rows=\(rowCount)")
+        }
         .onAppear {
             // `onAppear` fires after the first render, which is exactly the
             // point being measured -- the eager build has already happened by
@@ -306,9 +475,12 @@ struct P57RootView: View {
             let seconds = Date().timeIntervalSince(started)
             renderedIn = String(format: "%.3f s", seconds)
             P57Diagnostics.write(
-                "rows=\(P57Configuration.rowCount) firstRender=\(String(format: "%.3f", seconds))s"
+                "rows=\(rowCount) firstRender=\(String(format: "%.3f", seconds))s residentMB=\(P57Memory.residentMegabytes)"
             )
             P57Diagnostics.renderComplete()
+            #if canImport(CGtk)
+                P57GtkProbe.start()
+            #endif
         }
     }
 

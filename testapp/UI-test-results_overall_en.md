@@ -1,5 +1,24 @@
 # WinUI Manual Test Results
 
+## 2026-09-14: P57 GTK Lazy Rows (#117)
+
+WSLg tested first, followed by Windows GTK4; release builds passed with the
+row-lifetime fix. Native probes confirmed initial nil selection, selecting row
+9999, clearing selection, updating both endpoint labels and changing row count
+10,000 -> 1 -> 10,000. Only 205/206 containers were realized for 10,000 rows,
+falling to 1 when the model shrank. Settled memory was 327-328 MB on WSL and
+260-288 MB on Windows during this sequence.
+
+Both windows stayed open for at least 30 seconds after the render marker. The
+black-capture gap was resolved on 2026-09-14: wincap now uses Windows Graphics
+Capture and falls back to PrintWindow. WSLg was also in stale COPY MODE; after
+`wsl --shutdown` and restart, its title lost the warning and WGC captured it
+directly. Final GL captures measured 92.2% non-black on WSLg and 92.1% on
+Windows. PIL measured both at 668x776 with content bbox (14,12)-(654,759).
+Native API probes are not pointer-input tests, and WinUI regression remains
+outstanding. Evidence and remaining checks:
+[backend follow-up](plan/plan-backend-followup-20260912.md).
+
 ## 2026-07-12
 
 ### P2: Controls And Styling

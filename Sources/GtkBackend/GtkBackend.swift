@@ -242,7 +242,6 @@ public final class GtkBackend:
     let defaultSheetCornerRadius = 10
 
     var gtkApp: Application
-    private var selectableListStates: [ObjectIdentifier: SelectableListState] = [:]
 
     /// A window to be returned on the next call to ``GtkBackend/createWindow``.
     /// This is necessary because Gtk creates a root window no matter what, and
@@ -1343,7 +1342,20 @@ public final class GtkBackend:
         // 「這個修法沒有效」一模一樣,而不是「這個修法沒有被執行」。**那是 mistakes.md 第 4 條
         // 換了一身衣服**,而它花掉了一輪建置。
         if let defaultSize {
-            let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.bare) ?? 0
+            // `.gtkOwnDecoration`, not `.bare`. Measured 2026-09-16: the three
+            // older probes all report 47 because each measures a `GtkHeaderBar`
+            // this code created, while the header GTK lays out for itself is 39.
+            // Adding 47 overshot by 8-9 (`shortfall 0x-9`), which is 47 - 39.
+            // The new probe walks a realized, never-presented window's children
+            // for GTK's OWN header bar and reports 39 before present -- which is
+            // what #79 option (c) asked for: the decoration measured rather than
+            // a constant written down.
+            // 用 `.gtkOwnDecoration`,不是 `.bare`。2026-09-16 實測:三個舊探針全都回報 47,
+            // 因為它們量的都是**這段程式碼自己建立的** `GtkHeaderBar`,而 GTK 為它自己排版的那條是 39。
+            // 加 47 會超出 8~9(`shortfall 0x-9`),而那正是 47 − 39。新的探針會在一個 realize 過、
+            // 從不 present 的視窗子節點中找出 **GTK 自己的** header bar,並在 present 之前回報 39
+            // ——那正是 #79 選項 (c) 所要求的:**量出來的**裝飾,而不是一個被寫死的常數。
+            let titlebarAllowance = Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration) ?? 0
             window.defaultSize = Size(
                 width: defaultSize.x,
                 height: defaultSize.y + titlebarAllowance
@@ -1399,6 +1411,8 @@ public final class GtkBackend:
                 + (Gtk.Window.probeHeaderBarHeight(.withTitlebarClass).map(String.init) ?? "nil")
                 + " inWindow="
                 + (Gtk.Window.probeHeaderBarHeight(.insideAWindow).map(String.init) ?? "nil")
+                + " gtkOwn="
+                + (Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration).map(String.init) ?? "nil")
         )
 
         // `gtk_window_set_default_size` sizes the WINDOW, and with client-side
@@ -2098,10 +2112,20 @@ public final class GtkBackend:
         let liveHeaderHeight = window.childMeasurements
             .first { $0.typeName == "GtkHeaderBar" }?
             .naturalHeight
+        // The last resort is `.gtkOwnDecoration` rather than `.bare` for the
+        // reason the paragraph above gives: a header bar built here measures 47
+        // and the window's own lays out at 39, so the stand-in was 8px looser
+        // than the thing it stands in for. Measuring GTK's own decoration on a
+        // throwaway realized window closes that gap, which makes the fallback
+        // agree with the live reading instead of merely approximating it.
+        // 最後的退路改用 `.gtkOwnDecoration` 而非 `.bare`,理由就是上一段所說的:在此處建立的
+        // header bar 量得 47,而視窗自己的那條排版成 39,因此那個頂替者比它所頂替的對象鬆了 8px。
+        // 改為在一個用完即棄、realize 過的視窗上量測 **GTK 自己的**裝飾,即可補上這個落差——
+        // 使這條退路**與實際讀數一致**,而不只是近似它。
         let titlebarHeight =
             window.titlebarNaturalHeight
             ?? liveHeaderHeight
-            ?? Gtk.Window.probeHeaderBarHeight(.bare)
+            ?? Gtk.Window.probeHeaderBarHeight(.gtkOwnDecoration)
             ?? 0
         window.size = Size(
             width: newSize.x,
@@ -2279,6 +2303,132 @@ public final class GtkBackend:
         }
     }
 
+    /// Binds a ``KeyboardShortcut`` to a GAction, if there is one.
+    ///
+    /// `gtk_application_set_accels_for_action` is already how this backend gives
+    /// Ctrl+Q to `app.quit` (see `setUpQuitAction`), so the mechanism is one this
+    /// tree has run rather than one read from a header.
+    ///
+    /// 若有快捷鍵,就把一個 ``KeyboardShortcut`` 綁到某個 GAction 上。
+    ///
+    /// 本 backend 把 Ctrl+Q 給 `app.quit` 用的正是 `gtk_application_set_accels_for_action`
+    /// (見 `setUpQuitAction`),因此這個機制是這棵樹**跑過**的,不是從標頭讀來的。
+    private func applyShortcut(_ shortcut: KeyboardShortcut?, toAction action: String) {
+        guard let shortcut else { return }
+        guard let accelerator = Self.gtkAccelerator(for: shortcut) else {
+            // Loud rather than silent: an unbindable shortcut is a menu item
+            // that looks configured and does nothing when the key is pressed.
+            // 說出來而不是沉默:一個綁不上去的快捷鍵,會是一個「看起來設定好了、按下去卻毫無反應」
+            // 的 menu item。
+            debugLogOnce(
+                "no GTK accelerator for keyboard shortcut '\(shortcut.key.character)'"
+                    + " with modifiers \(shortcut.modifiers.rawValue); \(action) has no shortcut"
+            )
+            return
+        }
+        gtkApp.setAccelerators([accelerator], forAction: action)
+    }
+
+    /// A ``KeyboardShortcut`` in the syntax `gtk_accelerator_parse` accepts.
+    ///
+    /// **`.command` becomes Control.** SwiftUI's default modifier is `.command`
+    /// because it was written for macOS; on GTK there is no Command key, and the
+    /// key that plays its role is Control. ``EventModifiers/command`` documents
+    /// the same mapping, so a shortcut written against SwiftUI's names means
+    /// here what a user of this platform would expect.
+    ///
+    /// **`capsLock` and `numericPad` are dropped, and that is not a gap.** They
+    /// are not accelerator modifiers in GTK, X11 or Win32 -- they are keyboard
+    /// STATES. There is nothing to map them to and nothing is lost by ignoring
+    /// them; a shortcut carrying one still binds on its real modifiers.
+    ///
+    /// 以 `gtk_accelerator_parse` 所接受的語法表示的 ``KeyboardShortcut``。
+    ///
+    /// **`.command` 會變成 Control。** SwiftUI 的預設修飾鍵是 `.command`,因為它是為 macOS 寫的;
+    /// GTK 上沒有 Command 鍵,而扮演其角色的是 Control。``EventModifiers/command`` 記載的是同一個
+    /// 對應,因此照 SwiftUI 名稱所寫的快捷鍵,在此處的意義正是本平台使用者所預期的。
+    ///
+    /// **`capsLock` 與 `numericPad` 會被丟棄,而那不是一個缺口。** 它們在 GTK、X11 或 Win32 中都
+    /// **不是**加速鍵的修飾鍵——它們是鍵盤**狀態**。沒有東西可以對應過去,忽略它們也不會失去任何東西;
+    /// 一個帶著它們的快捷鍵,仍會以它真正的修飾鍵綁定。
+    static func gtkAccelerator(for shortcut: KeyboardShortcut) -> String? {
+        guard let key = gtkKeyName(for: shortcut.key) else { return nil }
+
+        var prefix = ""
+        if shortcut.modifiers.contains(.control) || shortcut.modifiers.contains(.command) {
+            prefix += "<Control>"
+        }
+        if shortcut.modifiers.contains(.shift) { prefix += "<Shift>" }
+        if shortcut.modifiers.contains(.option) { prefix += "<Alt>" }
+        return prefix + key
+    }
+
+    /// The GDK key name for a ``KeyEquivalent``.
+    ///
+    /// **The named keys are matched on their SCALAR, not by comparing against
+    /// `KeyEquivalent.escape` and friends.** Those constants are built from
+    /// specific scalars -- `escape` is U+001B, `delete` is U+007F, the arrows
+    /// are in the U+F700 private-use block that SwiftUI uses -- and matching the
+    /// scalar means a `KeyEquivalent("\u{1B}")` written by hand maps the same
+    /// way as `.escape`, which a `==` against the constant would also do but
+    /// less obviously.
+    ///
+    /// `delete` being U+007F and NOT U+0008 matters here: this returns GDK's
+    /// `Delete` (forward delete) for it, and `BackSpace` is a different key that
+    /// ``KeyEquivalent`` has no constant for. The type's own documentation warns
+    /// about the same conflation, which is why it is honoured rather than
+    /// quietly "corrected" to BackSpace because macOS labels that key delete.
+    ///
+    /// ``KeyEquivalent`` 所對應的 GDK 鍵名。
+    ///
+    /// **具名的鍵是以其 scalar 比對的,而不是拿去和 `KeyEquivalent.escape` 之類的常數相比。**
+    /// 那些常數本身就是由特定 scalar 建成的——`escape` 是 U+001B、`delete` 是 U+007F、方向鍵位於
+    /// SwiftUI 所使用的 U+F700 私有使用區——而比對 scalar 意謂著手寫的 `KeyEquivalent("\u{1B}")`
+    /// 與 `.escape` 對應到同一個地方。
+    ///
+    /// `delete` 是 U+007F 而**不是** U+0008,這件事在此處是有意義的:此處為它回傳 GDK 的 `Delete`
+    /// (向前刪除),而 `BackSpace` 是另一個鍵、``KeyEquivalent`` 並沒有對應的常數。該型別自己的文件
+    /// 就在警告同一種混淆,這正是此處遵守它、而不是因為「macOS 把那個鍵標示為 delete」就悄悄把它
+    /// 「修正」成 BackSpace 的原因。
+    private static func gtkKeyName(for key: KeyEquivalent) -> String? {
+        let scalars = Array(key.character.unicodeScalars)
+        guard scalars.count == 1, let scalar = scalars.first else {
+            // A grapheme cluster of more than one scalar has no single key.
+            // 由多個 scalar 組成的字素叢集,沒有單一的鍵可以對應。
+            return nil
+        }
+
+        switch scalar {
+            case "\u{F700}": return "Up"
+            case "\u{F701}": return "Down"
+            case "\u{F702}": return "Left"
+            case "\u{F703}": return "Right"
+            case "\u{1B}": return "Escape"
+            case "\u{7F}": return "Delete"
+            case "\u{F728}": return "Delete"
+            case "\u{F729}": return "Home"
+            case "\u{F72B}": return "End"
+            case "\u{F72C}": return "Page_Up"
+            case "\u{F72D}": return "Page_Down"
+            case "\u{F739}": return "Clear"
+            case "\u{9}": return "Tab"
+            case " ": return "space"
+            case "\r": return "Return"
+            default: break
+        }
+
+        // Anything else has to be a printable character GTK can name directly.
+        // The private-use block is checked explicitly: an unmapped F7xx scalar
+        // would otherwise be handed to GTK as a literal character, and
+        // `gtk_accelerator_parse` accepts it -- binding the shortcut to a key
+        // that does not exist, which is a silent failure rather than a refusal.
+        // 其餘的必須是 GTK 能直接命名的可列印字元。此處明確檢查私有使用區:否則一個未對應的 F7xx
+        // scalar 會被當成字面字元交給 GTK,而 `gtk_accelerator_parse` **會接受它**——把快捷鍵綁到一個
+        // 不存在的鍵上,那是一次沉默的失敗,而不是一次拒絕。
+        guard scalar.value >= 0x20, !(0xF700...0xF8FF).contains(scalar.value) else { return nil }
+        return String(scalar)
+    }
+
     private func renderMenu(
         _ menu: ResolvedMenu,
         actionMap: any GActionMap,
@@ -2300,19 +2450,22 @@ public final class GtkBackend:
             render(item: item, environment: environment)
             func render(item: ResolvedMenu.Item, environment: EnvironmentValues) {
                 switch item {
-// NOT COMPILED HERE. The shortcut is bound and unused so this file keeps
-                    // building; GTK's own `GtkApplication.set_accels_for_action` is the
-                    // implementation, and it belongs to whoever can run it. Binding rather
-                    // than `_` is what makes the gap greppable.
-                    // **此處未經編譯。** 這個 shortcut 被綁定但未使用,只為讓本檔繼續建置;真正的實作是
-                    // GTK 自己的 `GtkApplication.set_accels_for_action`,而它屬於跑得動它的人。
-                    // 用綁定而不是 `_`,是為了讓這個缺口 grep 得到。
-                    case .button(let label, let action, _):
+                    case .button(let label, let action):
                         if let action {
                             let gAction = GSimpleAction(name: actionName, action: action)
                             gAction.enabled = environment.isEnabled
                             actionMap.addAction(gAction)
                         }
+
+                        // The shortcut arrives in the environment, on the same
+                        // line as `isEnabled` and for the same reason -- see
+                        // `EnvironmentValues.keyboardShortcut`.
+                        // 快捷鍵是從 environment 來的,與 `isEnabled` 在同一行、基於同一個理由——
+                        // 見 `EnvironmentValues.keyboardShortcut`。
+                        applyShortcut(
+                            environment.keyboardShortcut,
+                            toAction: "\(actionNamespace).\(actionName)"
+                        )
 
                         currentSection.appendItem(
                             label: label,
@@ -2326,6 +2479,11 @@ public final class GtkBackend:
                         )
                         gAction.enabled = environment.isEnabled
                         actionMap.addAction(gAction)
+
+                        applyShortcut(
+                            environment.keyboardShortcut,
+                            toAction: "\(actionNamespace).\(actionName)"
+                        )
 
                         currentSection.appendItem(
                             label: label,
@@ -3520,42 +3678,11 @@ public final class GtkBackend:
         )
     }
 
-    /// A `GtkListBox` inside a `GtkScrolledWindow`, and the wrapper is the point.
-    ///
-    /// A bare `GtkListBox` does not scroll. Giving one a height smaller than its
-    /// rows CLIPS them -- and clipping is exactly what ``BackendFeatures/ScrollingLists``
-    /// warns about in its own documentation, because missing rows read as a
-    /// layout bug rather than as a backend that ignored a method. So the widget
-    /// this backend hands back for a `List` is the scrolled window, and the list
-    /// box lives inside it.
-    ///
-    /// The cost of that decision is that `Widget` is no longer the list box, so
-    /// every method taking a `listView` has to unwrap. That is what
-    /// ``listBox(of:)`` is for, and it is the only reason these methods do not
-    /// simply say `as! ListBox` any more.
-    ///
-    /// `propagateNaturalHeight` is left at GTK's default of `false`. That is
-    /// the property doing the actual work in #117: with it false the scrolled
-    /// window's natural height is its own minimum rather than its content's, so
-    /// a window containing a `List` stops growing with the row count. Setting it
-    /// true would restore the old behaviour exactly.
-    ///
-    /// 一個放在 `GtkScrolledWindow` 裡的 `GtkListBox`，而那層外包正是重點。
-    ///
-    /// 光禿禿的 `GtkListBox` 不會捲動。給它一個小於其列高總和的高度，會把列**裁掉**——而裁切正是
-    /// ``BackendFeatures/ScrollingLists`` 在自己的文件裡所警告的事，因為「少了幾列」讀起來像版面
-    /// bug，而不像某個 backend 忽略了一個方法。因此本 backend 為 `List` 交出去的 widget 是那個
-    /// scrolled window，list box 則住在它裡面。
-    ///
-    /// 這個決定的代價，是 `Widget` 不再是那個 list box，於是每個接收 `listView` 的方法都得拆一層。
-    /// ``listBox(of:)`` 就是為此而存在，也是這些方法不再單純寫 `as! ListBox` 的唯一原因。
-    ///
-    /// `propagateNaturalHeight` 保持 GTK 的預設值 `false`。在 #117 中真正起作用的就是這個屬性：
-    /// 為 false 時，scrolled window 的自然高度是它**自己**的最小值而非其內容的高度，因此含有 `List`
-    /// 的視窗不再隨列數長高。把它設為 true 會原封不動地還原舊行為。
+    /// A virtualized GtkListView inside a bounded GtkScrolledWindow (#117).
+    /// Natural-height propagation stays off so row count cannot enlarge the window.
+    /// 以原生 factory 按需建列；保留 ScrolledWindow 的視口高度限制。
     public func createSelectableListView() -> Widget {
-        let listView = ListBox()
-        listView.selectionMode = .single
+        let listView = Gtk.ListView()
         // No `navigation-sidebar` here. It used to be added unconditionally, so
         // every `List` was drawn as a sidebar whether it was one or not --
         // flat, no frame, sidebar row padding. The style now follows
@@ -3578,7 +3705,7 @@ public final class GtkBackend:
         return scrolled
     }
 
-    /// The `GtkListBox` inside the scrolled window `createSelectableListView`
+    /// The `GtkListView` inside the scrolled window `createSelectableListView`
     /// returned.
     ///
     /// Force-unwrapped rather than optional-returning on purpose. Every caller
@@ -3587,13 +3714,13 @@ public final class GtkBackend:
     /// would turn that bug into a silently ignored update, which is the failure
     /// mode this whole task exists to remove.
     ///
-    /// 位於 `createSelectableListView` 所回傳之 scrolled window 內部的那個 `GtkListBox`。
+    /// 位於 `createSelectableListView` 所回傳之 scrolled window 內部的那個 `GtkListView`。
     ///
     /// 刻意採強制解包而非回傳 optional。每一個呼叫端的引數都來自 `createSelectableListView`，
     /// 因此此處失手代表的是框架的 bug，而不是某個 `List` 到得了的狀態——而 optional 會把那個 bug
     /// 變成一次靜默被忽略的更新，那正是整個任務所要消除的失效樣態。
-    private func listBox(of listView: Widget) -> ListBox {
-        (listView as! ScrolledWindow).getChild() as! ListBox
+    func lazyList(of listView: Widget) -> Gtk.ListView {
+        (listView as! ScrolledWindow).getChild() as! Gtk.ListView
     }
 
     /// Applies `listStyle`, which until 2026-08-27 nothing read.
@@ -3622,7 +3749,7 @@ public final class GtkBackend:
         _ selectableListView: Widget,
         environment: EnvironmentValues
     ) {
-        let selectableListView = listBox(of: selectableListView)
+        let selectableListView = lazyList(of: selectableListView)
         selectableListView.sensitive = environment.isEnabled
 
         let pointer = selectableListView.widgetPointer
@@ -3649,105 +3776,46 @@ public final class GtkBackend:
         to items: [Widget],
         withRowHeights rowHeights: [Int]
     ) {
-        // NOTE: This implementation works under the same assumptions as
-        //   AppKitBackend's implementation. Read the comment in
-        //   AppKitBackend.setItems for more details. In short, we assume
-        //   that modifications made to `items` between `setItems` calls
-        //   are either all pops, or all appends (not a mix).
+        // ~~"we assume modifications between setItems calls are either all pops
+        // or all appends (not a mix)"~~ -- that was true of the GtkListBox
+        // implementation, which diffed against a previous row count and appended
+        // or removed the difference. This body appends nothing: it hands the
+        // list a provider closure over `items` and a count, and GtkListView asks
+        // for whatever it needs. Any mix of insertions and removals is fine now.
+        //
+        // Struck through rather than deleted, because the assumption is still
+        // load-bearing in AppKitBackend.setItems, and a reader arriving from
+        // that comment needs to know it stopped applying HERE rather than
+        // conclude the note was never true.
+        //
+        // ~~「我們假設 setItems 之間的變動,要麼全是 pop、要麼全是 append(不可混用)」~~——那對
+        // GtkListBox 的實作為真,因為它會比對先前的列數、再 append 或移除其差額。**本函式不 append
+        // 任何東西**:它交給清單的是一個對 `items` 取值的 provider closure 與一個列數,而 GtkListView
+        // 需要什麼就來要什麼。現在插入與移除任意混用都沒有問題。
+        //
+        // 保留刪除線而非直接刪掉,因為那個假設在 `AppKitBackend.setItems` 中仍然承重;而一個循著那段
+        // 註解找過來的讀者,需要知道它是**在此處**不再適用,而不是就此認定那段註記從來不成立。
 
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-
-        let previousRowCount = state.rowCount
-        state.rowCount = items.count
-
-        state.isProgrammaticSelectionUpdate = true
-        defer { state.isProgrammaticSelectionUpdate = false }
-
-        if items.count > previousRowCount {
-            for item in items[previousRowCount...] {
-                listView.append(item)
-            }
-        } else if items.count < previousRowCount {
-            for _ in 0..<(previousRowCount - items.count) {
-                listView.removeRow(at: items.count)
-            }
+        let listView = lazyList(of: listView)
+        listView.rowProvider = { index in
+            guard items.indices.contains(index) else { return nil }
+            return items[index]
         }
-
-        preserveNilSelection(of: listView, state: state)
+        listView.setRowCount(items.count)
+        listView.refreshBoundRows()
     }
 
     public func setSelectionHandler(
         forSelectableListView listView: Widget,
         to action: @escaping (_ selectedIndex: Int) -> Void
     ) {
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-        listView.rowSelected = { _, selectedRow in
-            guard !state.isProgrammaticSelectionUpdate else {
-                return
-            }
-            guard !state.isClearingNilSelection else {
-                self.preserveNilSelection(of: listView, state: state)
-                return
-            }
-            guard let selectedRow else {
-                return
-            }
-            let selection = Int(gtk_list_box_row_get_index(selectedRow))
-            guard selection != state.selection else {
-                return
-            }
-            state.selection = selection
-            action(selection)
+        lazyList(of: listView).onSelectionChange = { index in
+            if let index { action(index) }
         }
     }
 
     public func setSelectedItem(ofSelectableListView listView: Widget, toItemAt index: Int?) {
-        let listView = listBox(of: listView)
-        let state = state(for: listView)
-        state.selection = index
-        state.isProgrammaticSelectionUpdate = true
-        defer { state.isProgrammaticSelectionUpdate = false }
-        if let index {
-            listView.selectRow(at: index)
-        } else {
-            preserveNilSelection(of: listView, state: state)
-        }
-    }
-
-    private func preserveNilSelection(of listView: ListBox, state: SelectableListState) {
-        guard state.selection == nil else {
-            state.isClearingNilSelection = false
-            return
-        }
-
-        state.isClearingNilSelection = true
-        state.isProgrammaticSelectionUpdate = true
-        listView.unselectAll()
-        state.isProgrammaticSelectionUpdate = false
-
-        runInMainThread { [listView, state] in
-            guard state.selection == nil else {
-                state.isClearingNilSelection = false
-                return
-            }
-
-            state.isProgrammaticSelectionUpdate = true
-            listView.unselectAll()
-            state.isProgrammaticSelectionUpdate = false
-            state.isClearingNilSelection = false
-        }
-    }
-
-    private func state(for listView: ListBox) -> SelectableListState {
-        let key = ObjectIdentifier(listView)
-        if let state = selectableListStates[key] {
-            return state
-        }
-        let state = SelectableListState()
-        selectableListStates[key] = state
-        return state
+        lazyList(of: listView).selectedIndex = index
     }
 
     public func createTooltipContainer(wrapping child: Widget) -> Widget {
@@ -5754,13 +5822,6 @@ extension UnsafeMutablePointer {
         let pointer = UnsafeRawPointer(self).bindMemory(to: T.self, capacity: 1)
         return UnsafeMutablePointer<T>(mutating: pointer)
     }
-}
-
-private final class SelectableListState {
-    var selection: Int? = nil
-    var rowCount = 0
-    var isProgrammaticSelectionUpdate = false
-    var isClearingNilSelection = false
 }
 
 /// A custom label subclass that supports ellipsizing multi-line text. Regular

@@ -90,7 +90,12 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
             groupId: inout Int32
         ) {
             switch item {
-                case .button(let label, let action, let shortcut):
+                case .button(let label, let action):
+                    // From the ENVIRONMENT, the same place GTK, WinUI and
+                    // AppKit read it. See `EnvironmentValues.keyboardShortcut`.
+                    // 從 **environment** 來,與 GTK、WinUI、AppKit 讀取的是同一個地方。
+                    // 見 `EnvironmentValues.keyboardShortcut`。
+                    let shortcut = environment.keyboardShortcut
                     let menuItem = menu.add(
                         groupId,
                         0,

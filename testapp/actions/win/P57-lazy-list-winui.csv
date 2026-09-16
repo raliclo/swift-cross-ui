@@ -1,0 +1,61 @@
+action,x,y,origin,button,key,micros,note,platform
+# P57 on Win-WinUI: does the lazy list scroll and select under real pointer input? (#117)
+#
+# SEPARATE FROM THE GTK FILE ON PURPOSE. The two backends lay the same view out
+# at different sizes -- the GTK window captures 668x776 and the WinUI one 642x760
+# -- so one set of coordinates cannot serve both. P57-lazy-list-gtk4.csv is the
+# other half; the two assert the same things at different points.
+#
+# Coordinates measured off screen-20260916-081440.png, a wincap of the WinUI
+# window taken with rows rendering. Frame origin, because that capture includes
+# the title bar and so its y values are frame-relative.
+#
+# THE INSTRUMENT IS p57-debug-events.log, NOT THE SCREENSHOT. P57 writes a line
+# on every selection, revision and row-count change, so the pass is a sequence of
+# values rather than an impression of a picture:
+#
+#     selection=1      the click landed on row 1
+#     selection=<big>  after scrolling, the SAME y is a different row -- which is
+#                      what says the list scrolled rather than merely redrawn
+#     revision=1       the content update reached the rows
+#     rows=1/10000     the count changed both ways
+#     selection=9999   a row far outside the realized window can still be selected
+#
+# THE SCROLL STEP IS THE ONE THAT MATTERS and it is why the second click reuses
+# the first click's y. Clicking a different row at a different position proves
+# nothing; clicking the same point and getting a different row is the assertion.
+#
+# P57 於 Win-WinUI:這份 lazy 清單在真實指標輸入下,捲動與選取是否正常?(#117)
+#
+# 刻意與 GTK 那一份分開。兩個 backend 把同一個 view 排成不同尺寸——GTK 視窗擷取為 668x776、
+# WinUI 為 642x760——因此一組座標無法同時服務兩者。P57-lazy-list-gtk4.csv 是另一半;
+# 兩者在不同的位置上斷言同樣的事。
+#
+# 座標量自 screen-20260916-081440.png,那是在「列已算繪」狀態下對 WinUI 視窗的一次 wincap。
+# 採 frame origin,因為該擷圖含標題列,其 y 值是相對於 frame 的。
+#
+# 量測儀器是 p57-debug-events.log,不是截圖。P57 會在每一次選取、修訂與列數變更時寫下一行,
+# 因此「通過」是一串數值,而不是對一張圖的印象。
+#
+# 捲動那一步才是關鍵,這也正是第二次點擊要沿用第一次 y 座標的原因:在不同位置點到不同的列,
+# 什麼都證明不了;**在同一個點點擊卻得到不同的列**,才是那個斷言。
+sleep,,,,,,4000000,let the window settle and the first rows bind,windows
+click,78,417,frame,left,,,select row 1,windows
+sleep,,,,,,1000000,observe selection=1,windows
+move,300,500,frame,,,,pointer over the list before scrolling,windows
+scroll,0,6,frame,,,,wheel down six notches,windows
+sleep,,,,,,1500000,let the scroll settle and new rows bind,windows
+click,78,417,frame,left,,,"same y as before: a different row now means the list scrolled",windows
+sleep,,,,,,1000000,observe the changed selection,windows
+click,221,167,frame,left,,,Update rows,windows
+sleep,,,,,,1000000,observe revision=1,windows
+click,44,167,frame,left,,,Clear,windows
+sleep,,,,,,1000000,observe selection=none,windows
+click,329,167,frame,left,,,Toggle count down to one,windows
+sleep,,,,,,1000000,observe rows=1,windows
+click,329,167,frame,left,,,Toggle count back to ten thousand,windows
+sleep,,,,,,1500000,observe rows=10000,windows
+click,122,167,frame,left,,,Select last,windows
+sleep,,,,,,1000000,observe selection=9999 outside the realized window,windows
+click,44,167,frame,left,,,Clear again,windows
+sleep,,,,,,1000000,observe selection=none,windows

@@ -13,23 +13,23 @@ extension UIKitBackend {
         environment: EnvironmentValues
     ) -> RenderedMenuItem {
         switch item {
-            // The shortcut is bound and NOT used, and that is a statement, not
-            // an oversight.
+            // `environment.keyboardShortcut` is NOT read here, and that is a
+            // statement rather than an oversight.
             //
-            // `UIAction` takes a closure and cannot carry a key; `UIKeyCommand`
+            // `UIAction` takes a closure and carries no key; `UIKeyCommand`
             // carries a key and takes a SELECTOR, dispatched through the
             // responder chain -- so an object holding the closure is not enough,
             // something in the chain has to implement the selector. That is a
-            // real piece of work and it is not this one. Binding the value here
-            // rather than writing `_` is what keeps the gap greppable.
+            // real piece of work and it is not this one. GTK, WinUI and AppKit
+            // all read it; UIKit is the gap.
             //
-            // 這個 shortcut 被綁定了、而且**沒有被使用**;那是一句陳述,不是疏漏。
+            // 此處**沒有**讀取 `environment.keyboardShortcut`,而那是一句陳述、不是疏漏。
             //
             // `UIAction` 收的是 closure,帶不了按鍵;`UIKeyCommand` 帶得了按鍵,但收的是 **selector**,
             // 經由 responder chain 派送——因此「一個持有該 closure 的物件」還不夠,必須有 chain 上的
-            // 某個東西實作那個 selector。那是一件真正的工作,而它不是這一件。此處綁定該值、而不是寫成
-            // `_`,正是為了讓這個缺口 grep 得到。
-            case .button(let label, let action, _):
+            // 某個東西實作那個 selector。那是一件真正的工作,而它不是這一件。GTK、WinUI、AppKit 都讀了
+            // 它;UIKit 是那個缺口。
+            case .button(let label, let action):
                 if let action, environment.isEnabled {
                     .item(UIAction(title: label) { _ in action() })
                 } else {

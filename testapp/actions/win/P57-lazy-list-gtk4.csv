@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# Windows GTK4 at scale 1 and default 640x700 content. --debug -rows 10000.
+sleep,,,,,,4000000,Wait for rendering,windows
+click,70,442,,left,,,Select row 1,windows
+sleep,,,,,,1000000,Observe selection,windows
+move,300,530,,,,,Pointer over list,windows
+scroll,0,6,,,,,Wheel down,windows
+sleep,,,,,,1500000,Wait for scrolling,windows
+click,70,455,,left,,,Select a scrolled row,windows
+sleep,,,,,,1000000,Observe changed selection,windows
+click,245,185,,left,,,Update rows,windows
+sleep,,,,,,1000000,Revision 1,windows
+click,48,185,,left,,,Clear selection,windows
+sleep,,,,,,1000000,Selection none,windows
+click,362,185,,left,,,Shrink to one,windows
+sleep,,,,,,1000000,One row,windows
+click,362,185,,left,,,Restore count,windows
+sleep,,,,,,1000000,Ten thousand rows,windows
+click,136,185,,left,,,Select last,windows
+sleep,,,,,,1000000,Selection 9999,windows
+click,48,185,,left,,,Clear again,windows
+sleep,,,,,,1000000,Selection none,windows
+move,300,530,,,,,Pointer over list,windows
+scroll,0,-6,,,,,Wheel back,windows
+sleep,,,,,,1500000,Wait for scrolling,windows
+click,70,442,,left,,,Select rebuilt row,windows
+sleep,,,,,,3000000,Final screenshot,windows

@@ -137,6 +137,8 @@ final class WebViewWidget: WinUI.WebView2 {
     /// **一個強參照的代價不過是一個屬性。**
     @MainActor
     private func beginEnsureCore() {
+        let webViewThread = GetCurrentThreadId()
+        logger.info("WebView2: beginEnsureCore on thread \(webViewThread)")
         // ============================================================
         // THE CAUSE, CONFIRMED 2026-09-10: this thread is MTA, and WebView2
         // needs STA.
@@ -172,6 +174,48 @@ final class WebViewWidget: WinUI.WebView2 {
         // (`Compiling WinUI` zero hits; the object file was a day OLDER than the
         // edited source). The checkout was restored. So the fix is identified
         // and NOT yet verified, and this comment says which of those two it is.
+        //
+        // ~~"THE FIX IS UPSTREAM and is one word: `.multi` -> `.single`"~~
+        // **RUN AND REFUTED, 2026-09-16.** The experiment was made to actually
+        // run this time, and the fix does not work.
+        //
+        //   `.multi` -> `.single` in the checkout, then the WinUI module's build
+        //   products deleted so it could not be skipped. POSITIVE CONTROL:
+        //   `Compiling WinUI` = 2 hits, against the 0 that made the first
+        //   attempt meaningless. The change was genuinely in the binary.
+        //
+        //   The probe still returned `0x80010106`.
+        //
+        // The obvious escape -- "RoInitialize ran on a different thread from the
+        // WebView" -- was measured and closed too: `WinUIApplication.main()`
+        // logs thread 18076 and `beginEnsureCore` logs thread 18076. Same
+        // thread. So `RoInitialize(RO_INIT_SINGLETHREADED)` succeeded on this
+        // very thread and the thread was STILL not STA by the time WebView2
+        // asked.
+        //
+        // What that leaves: something between `RoInitialize` and here puts the
+        // thread into the multi-threaded apartment -- `Application.start`, the
+        // WindowsAppRuntime bootstrapper, or the XAML dispatcher setup. THAT is
+        // the next thing to measure, and it is a different question from the one
+        // this comment used to answer.
+        //
+        // ~~「修法在上游,而且只有一個字:`.multi` → `.single`」~~
+        // **2026-09-16 實際跑過並推翻。** 這一次那個實驗被真正跑起來了,而該修法**無效**。
+        //
+        //   在 checkout 中把 `.multi` 改為 `.single`,接著刪掉 WinUI 模組的建置產物,使它無法被略過。
+        //   **正對照組**:`Compiling WinUI` **命中 2 次**,相對於讓第一次嘗試毫無意義的那個 0。
+        //   那個改動確實進到了二進位檔裡。
+        //
+        //   而探針**仍然**回傳 `0x80010106`。
+        //
+        // 那個顯而易見的脫身說法——「`RoInitialize` 跑在與 WebView 不同的執行緒上」——也已量測並排除:
+        // `WinUIApplication.main()` 記錄的是執行緒 18076,`beginEnsureCore` 記錄的也是 18076。
+        // **同一條。** 因此 `RoInitialize(RO_INIT_SINGLETHREADED)` 就是在這條執行緒上成功的,
+        // 而等到 WebView2 來問的時候,它**依然**不是 STA。
+        //
+        // 剩下的可能:在 `RoInitialize` 與此處之間,有東西把這條執行緒放進了多執行緒 apartment
+        // ——`Application.start`、WindowsAppRuntime 的 bootstrapper,或 XAML 的 dispatcher 設定。
+        // **那才是下一個該量的東西**,而它與本註解原先所回答的,是不同的問題。
         //
         // ============================================================
         // **成因,2026-09-10 已確認:這條執行緒是 MTA,而 WebView2 需要 STA。**

@@ -685,7 +685,8 @@ GL 能自行實現的機器上則不會。
 > **2026-09-02 訂正——這段話有一半已經不成立，而另一半仍然成立，兩者必須分開讀。**
 >
 > **已被推翻**：「經 DComp 合成的視窗無法以視窗方式截圖」與「`screenshot.zsh -w` 會退回
-> 擷取桌面」。`-w` 現在只使用 `PrintWindow(PW_RENDERFULLCONTENT)`，且**失敗即失敗、絕不退回
+> 擷取桌面」。`-w` 現在先使用 Windows Graphics Capture，再以 `PrintWindow(PW_RENDERFULLCONTENT)`
+> fallback，且**失敗即失敗、絕不退回
 > 桌面**（見 `testapp/screenshot.zsh` 檔頭）。無法擷取的是 BitBlt，不是視窗。
 >
 > **仍然成立**：`>= 2` 這個門檻本身。理由已不再是「擷取不到」，而是 DComp 在此仍屬選用路徑，

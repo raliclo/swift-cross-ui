@@ -108,6 +108,40 @@ struct P20NestedMenusApp: App {
                 Menu("Submenu") {
                     Button("Also nothing") {}
                 }
+
+                Divider()
+
+                // **The one item here that does something, and it has to.**
+                // Everything above is deliberately inert because this app
+                // measures the menu bar's presence and height. A keyboard
+                // shortcut cannot be tested that way: pressing Ctrl+K on an
+                // item that does nothing is indistinguishable from pressing it
+                // on an item the accelerator never reached. The diagnostic line
+                // IS the measurement.
+                //
+                // `.keyboardShortcut("k")` defaults to `.command`, which both
+                // Windows backends map to Control -- see
+                // `EnvironmentValues.keyboardShortcut` for why the shortcut
+                // travels in the environment rather than in ResolvedMenu.Item.
+                //
+                // Ctrl+K rather than anything more obvious: Ctrl+Q already quits
+                // (P10 drives it), and a shortcut that also ends the process
+                // could not be told apart from one that worked.
+                //
+                // **此處唯一會做事的項目,而它必須會做事。** 上面每一項都刻意是惰性的,因為這支 app
+                // 量的是選單列的存在與高度。鍵盤快捷鍵沒辦法那樣測:對一個「什麼都不做」的項目按下
+                // Ctrl+K,與「加速鍵根本沒抵達該項目」在畫面上完全一樣。**那一行診斷輸出就是量測本身。**
+                //
+                // `.keyboardShortcut("k")` 預設是 `.command`,而兩個 Windows backend 都把它對應到
+                // Control——快捷鍵為何走 environment 而不是放進 ResolvedMenu.Item,見
+                // `EnvironmentValues.keyboardShortcut`。
+                //
+                // 用 Ctrl+K 而不是更順手的鍵:Ctrl+Q 已經是結束(由 P10 驅動),而一個「同時會終止行程」
+                // 的快捷鍵,無法與「它成功了」區分開來。
+                Button("Shortcut target") {
+                    P20Diagnostics.write("SHORTCUT FIRED: Ctrl+K reached the menu item")
+                }
+                .keyboardShortcut("k")
             }
         }
     }

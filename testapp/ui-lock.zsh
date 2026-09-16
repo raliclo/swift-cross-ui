@@ -412,7 +412,44 @@ case "$command" in
         #
         # 5 是 ERROR_ACCESS_DENIED，那才是訊號；至於恰好先被拒絕的是哪一個 Win32 呼叫則不是。
         # 寫上呼叫名稱，等於把這道閘門綁在一個「一次重構就會改變」的實作細節上——而它確實改變了。
-        if [[ "$text" == *'exited with status 5'* ]]; then
+        # A THIRD SPELLING, found 2026-09-11, and it is the one that fires
+        # EARLIEST -- which is why it mattered that it was missing.
+        #
+        # `prepareForReplay` refuses a key-carrying file it cannot bring to the
+        # foreground, and on a locked desktop `AttachThreadInput` is refused with
+        # 5 before ANY input is sent. So no `exited with status 5` line is ever
+        # produced: there was no send to fail. The gate was silent in exactly the
+        # case where the denial is detected soonest.
+        #
+        # Measured: driving P20-ctrl-k-shortcut.csv on Win-WinUI produced
+        #
+        #   AttachThreadInput to the foreground thread failed (5)
+        #   failed: could not bring our window to the front
+        #
+        # and `check` answered "says nothing about a replay". That is not a
+        # neutral answer -- it leaves the previous verdict standing, so a stale
+        # "desktop is fine" survives a run that was refused outright.
+        #
+        # Same lesson as the note above, one layer earlier: the status is the
+        # signal, but the MESSAGE FORMAT differs per code path, so each path has
+        # to be listed. Two are known; a third will need adding the same way.
+        #
+        # **第三種拼法,發現於 2026-09-11,而它是**觸發得最早**的那一種——這正是「它先前不在名單上」
+        # 為何要緊的原因。
+        #
+        # `prepareForReplay` 會拒絕一個它無法帶到前景的、含按鍵的檔案;而在鎖定的桌面上,
+        # `AttachThreadInput` 會在**任何輸入被送出之前**就以 5 被拒絕。因此 `exited with status 5`
+        # 那一行永遠不會出現:根本沒有任何一次送出可以失敗。這道閘門,恰恰在「拒絕最早被偵測到」
+        # 的情況下保持沉默。
+        #
+        # 實測:在 Win-WinUI 上驅動 P20-ctrl-k-shortcut.csv 產生了上述兩行,而 `check` 回答
+        # 「says nothing about a replay」。那不是一個中立的答案——它會讓**先前的**判決繼續成立,
+        # 於是一句過期的「桌面沒問題」得以在一次被斷然拒絕的執行之後存活下來。
+        #
+        # 與上方那段是同一個教訓,只是早了一層:狀態碼是訊號,但**訊息格式**逐條程式路徑而異,
+        # 因此每一條路徑都必須被列出。目前已知兩條;第三條出現時,以同樣方式加上去。
+        if [[ "$text" == *'exited with status 5'* ]] \
+            || [[ "$text" == *'to the foreground thread failed (5)'* ]]; then
             record_denial "$log"
             printf '!! the desktop refused this run every input it sent (ERROR_ACCESS_DENIED).\n' >&2
             printf '!! Nothing this run captured is evidence about the app: a window capture\n' >&2

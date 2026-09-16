@@ -362,25 +362,36 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         environment: EnvironmentValues
     ) -> NSMenuItem {
         switch item {
-            case .button(let label, let action, let shortcut):
+            case .button(let label, let action):
+                // The shortcut arrives in the ENVIRONMENT, on the same line as
+                // `isEnabled` and for the same reason -- see
+                // `EnvironmentValues.keyboardShortcut`. It was briefly a third
+                // associated value on `.button` here instead, which forced
+                // every backend's switch to stop compiling until it was
+                // handled; the environment is what GTK and WinUI already read,
+                // and two mechanisms for one feature is worse than either.
+                //
                 // Custom subclass is used to keep strong reference to action
                 // wrapper.
                 //
-                // The key equivalent goes in at construction, lowercased, with
-                // Shift carried by the modifier mask instead.
+                // The key equivalent goes in LOWERCASED, with Shift carried by
+                // the modifier mask alone. **An uppercase `keyEquivalent`
+                // already means Shift to AppKit**, so passing "E" for
+                // `.keyboardShortcut("e", modifiers: [.command, .shift])` would
+                // ask for Shift twice and the item would answer to neither
+                // Cmd-E nor Cmd-Shift-E reliably.
                 //
-                // **An uppercase `keyEquivalent` means Shift to AppKit**, so
-                // passing "S" for `.keyboardShortcut("S")` would ask for
-                // Cmd-Shift-S and the mask would then ask for Shift a second
-                // time. Lowercasing here makes the modifier set the only place
-                // Shift is stated, which is where the caller stated it.
+                // 快捷鍵是從 **environment** 來的,與 `isEnabled` 在同一行、基於同一個理由——見
+                // `EnvironmentValues.keyboardShortcut`。它一度在此處改成 `.button` 上的第三個
+                // associated value,那會強迫每一個 backend 的 switch 編不過、直到它被處理;而
+                // environment 正是 GTK 與 WinUI 已經在讀的東西,而「一個功能兩套機制」比其中任何
+                // 一套都糟。
                 //
-                // key equivalent 在建構時就放進去,轉成小寫,而 Shift 改由 modifier mask 承載。
-                //
-                // **對 AppKit 來說,大寫的 `keyEquivalent` 就意謂 Shift**,因此為
-                // `.keyboardShortcut("S")` 傳入 "S",等於要求 Cmd-Shift-S,而那個 mask 接著又會再
-                // 要求一次 Shift。在此轉小寫,讓「modifier 集合」成為 Shift 被陳述的唯一地方——
-                // 而那正是呼叫者陳述它的地方。
+                // key equivalent 以**小寫**放入,Shift 單獨由 modifier mask 承載。**對 AppKit 來說,
+                // 大寫的 `keyEquivalent` 本身就意謂 Shift**,因此為
+                // `.keyboardShortcut("e", modifiers: [.command, .shift])` 傳入 "E",等於要了兩次
+                // Shift,而該項目對 Cmd-E 與 Cmd-Shift-E 都不會穩定回應。
+                let shortcut = environment.keyboardShortcut
                 let renderedItem = NSCustomMenuItem(
                     title: label,
                     action: nil,

@@ -534,25 +534,26 @@ redirection surface, not what draws into it.
 Fixing only the title would therefore turn a visible fallback into a black PNG
 that looks like a successful capture. That is worse than the current behaviour.
 
-**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` handles all three cases.** It
-asks DWM to render the window rather than copying a surface. Measured on the two
-that gdigrab cannot do:
+**Update 2026-09-14:** the PrintWindow-only conclusion below was not stable.
+Current GTK GL and stale WSLg COPY MODE surfaces returned all-black data while
+PrintWindow still returned TRUE. Wincap now uses Windows Graphics Capture first
+and keeps PrintWindow only as a fallback. After `wsl --shutdown` cleared COPY
+MODE, WGC measured 92.2% non-black on WSLg and 92.1% on Windows GTK/GL. The old
+measurements remain useful historical observations:
 
     Windows + DComp   93.0% of pixels non-black, full window content
     WSL under WSLg    92.6% of pixels non-black, full window content
 
-Both images show chrome, headings, every tile and both text samples. So the
-capture limitation is gdigrab's, and one `PrintWindow` path fixes Windows and
-WSL together.
+Both old images show chrome, headings, every tile and both text samples, but
+they do not establish that PrintWindow works across later renderer/bridge state.
 
 **Count non-black pixels, always.** `PrintWindow` returns TRUE while producing an
 entirely black bitmap, exactly as gdigrab did above. A capture tool that reports
 only its exit status will report success for an empty image.
 
-As of 2026-08-29, `screenshot.zsh -w` uses this path as the only window-capture
-path on Windows/WSLg. If wincap cannot capture a matching window, the command
-fails closed. Desktop capture is still available by omitting `-w`, but it is no
-longer an automatic fallback for a named-window capture.
+As of 2026-09-14, `screenshot.zsh -w` uses wincap with WGC first and PrintWindow
+as fallback. If neither captures usable content, the command fails closed.
+Desktop capture is still available only by omitting `-w`.
 
 ## `screenshot.zsh -w` 以前為什麼會退回擷取桌面？現在如何修正？
 
@@ -575,14 +576,194 @@ composition swapchain——卻能被完美擷取，因此「D3D 內容無法被�
 
 因此**只修標題**會把一個「看得見的回退」變成一張「看起來像成功」的全黑 PNG，比現況更糟。
 
-**`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` 三種情況全部能處理。** 它要求 DWM 重新繪製
-該視窗，而非複製既有表面。對 gdigrab 做不到的那兩種實測：Windows + DComp 為 93.0% 非黑，
-WSLg 為 92.6% 非黑，兩張圖都完整呈現視窗框、標題、每一個 tile 與兩段文字樣本。所以擷取的限制
-屬於 gdigrab，而一條 `PrintWindow` 路徑可同時修好 Windows 與 WSL。
+**2026-09-14 更新：** 下方 PrintWindow-only 結論並不穩定。現行 GTK GL 與過期的 WSLg
+COPY MODE surface 都曾在 PrintWindow 回傳 TRUE 時取得全黑資料。wincap 現在先使用 Windows
+Graphics Capture，只保留 PrintWindow fallback。執行 `wsl --shutdown` 清除 COPY MODE 後，
+WGC 實測 WSLg 92.2%、Windows GTK/GL 92.1% 非黑。舊測量 Windows + DComp 93.0%、WSLg
+92.6% 仍是有效歷史觀察，但不能證明 PrintWindow 對後續 renderer／bridge 狀態都有效。
 
 **永遠要計算非黑像素。** `PrintWindow` 會在產出全黑點陣圖的同時回傳 TRUE，正如上文的 gdigrab。
 一個只回報結束碼的擷取工具，會把空白影像回報為成功。
 
-截至 2026-08-29，`screenshot.zsh -w` 在 Windows/WSLg 已將此路徑作為唯一的視窗擷取路徑。
-若 wincap 無法擷取符合的視窗，指令會 fail closed。桌面擷取仍可透過省略 `-w` 明確使用，
-但不再是指定視窗擷取的自動 fallback。
+截至 2026-09-14，`screenshot.zsh -w` 先走 wincap/WGC，再走 PrintWindow fallback；兩者都沒有
+可用內容時才 fail closed。桌面擷取仍只在省略 `-w` 時明確使用。
+
+## Why does GTK's frame clock not run at the display's refresh rate, and is that better for battery?
+
+**It is not a defect. GTK produces a frame when something needs one, and idles
+otherwise — and that is the power-saving design.** WinUI's
+`CompositionTarget.Rendering` is the opposite: it fires once per composed frame
+for as long as anything is subscribed.
+
+So **do not assert a rate against GtkBackend.** The assertion that means
+something there is "does it keep ticking while frames are being requested".
+Measuring a GTK app at 3 Hz says the app had nothing to redraw, not that its
+clock is broken.
+
+Asking for frames is explicit and reference-counted:
+
+- `gdk_frame_clock_begin_updating(clock)` — keep the cycle running
+- `gdk_frame_clock_end_updating(clock)` — stop asking
+
+`GtkBackend.startFrameClock` calls the first and `stopFrameClock` the second
+(`Sources/GtkBackend/GtkBackend+FrameClock.swift`). **A missing `end_updating`
+is the whole power argument thrown away**: the clock keeps running for the
+process's lifetime, and nothing observable goes wrong until someone measures a
+battery. Installing a tick callback alone is not enough — a tick callback is not
+a reason to redraw, and the Windows side measured exactly that: the callback ran
+once, then never again, while returning `G_SOURCE_CONTINUE` every time.
+
+**Measured 2026-09-11, both backends, same machine and same 144 Hz display.**
+`dxdiag /t` reports the current mode as 144 Hz, where one frame is 6.94ms.
+
+| | ticks / span | rate | gap min | gap median | gap max |
+| --- | --- | --- | --- | --- | --- |
+| Win-WinUI | 265 / 1.86s | 141.6 Hz | 3.4ms | **7.0ms** | 43.2ms |
+| Win-gtk4 | 103 / 1.90s | 53.7 Hz | **7.0ms** | 13.9ms | 766.7ms |
+
+**Read the two rows differently, which is the whole point of this answer.** For
+WinUI the rate is the assertion: 141.6 Hz against a 144 Hz display, median gap
+one frame. For GTK the rate is NOT the assertion — before
+`gdk_frame_clock_begin_updating` was added, the same app ticked **once** and then
+never again. 103 is the result. That its minimum gap is also 7.0ms says the GTK
+clock is locked to the same display; that its median is 13.9ms says it produced a
+frame every other one, which is a statement about how much redrawing the app
+asked for, not a defect. The 766.7ms maximum is a single stall while the window
+was still settling — the same run's log shows size probes out to +1500ms.
+
+Regenerate:
+
+```
+zsh testapp/compile.zsh P64          # WinUI (the default)
+zsh testapp/compile.zsh P64 -gtk4
+cd testapp/output && ./P64-WinUI.exe --debug
+SCUI_DEBUG_EVENTS_DIR=$PWD/testapp/output zsh testapp/run.zsh P64 --debug
+```
+
+The gtk4 build must go through `run.zsh`: launched directly it dies with
+`error while loading shared libraries: api-ms-win-crt-locale-l1-1-0.dll`, because
+nothing has put GTK's DLLs on `PATH`. Read the refresh rate with
+`dxdiag /t <file>` — `wmic` returns nothing on Windows 11 26200.
+
+**Two traps this answer exists to record.** First, that 141.6 Hz was read as a
+defect for a day because 60 Hz was ASSUMED and never measured — a number
+compared against a constant nobody checked. Second, the same measurement earlier
+reported a gap median of **0.0ms**, which is a statement about the clock being
+read rather than about the event: `ProcessInfo.systemUptime` on Windows is
+coarser than a frame, so several frames land on the same timestamp. That one was
+real and is fixed with `QueryPerformanceCounter` — GTK's own Windows backend
+reaches for the same counter (`gdksurface-win32.c:170`).
+
+**Does stopping the clock actually unsubscribe? Yes — measured, both backends.**
+This matters because the framework's whole power story rests on it:
+`AnimationDriver` starts the clock when the first tween registers and stops it
+when the last one finishes (`startClockIfNeeded`, `stopClockIfIdle`, and
+`tick(at:)` ends with `stopClockIfIdle`), which is GDK's begin/end refcount
+lifted to the framework. If the stop did not really unsubscribe, every animation
+would leak another subscription and an idle app would never go quiet.
+
+`P64 --debug --restart` measures, stops, waits half a second, and measures again:
+
+| | sub-frame gaps in pass 2 | verdict |
+| --- | --- | --- |
+| Win-WinUI | **0 of 297** | unsubscribe works |
+| Win-gtk4 | **0 of 189** | unsubscribe works |
+
+**The verdict counts near-zero gaps, and the two obvious statistics are both
+wrong here — recorded because each looked reasonable until it was run.** Two live
+subscriptions call the SAME handler (it is a type property) twice inside one
+composed frame, microseconds apart, so a leak inserts gaps of about zero rather
+than scaling anything.
+
+- **Rate ratio**: count over span, so one long stall drags a whole pass down —
+  and pass 1 always has one, while the window is still settling. gtk4 gave
+  72.5 Hz vs 88.3 Hz, a ratio of 1.22, from a single 450ms gap.
+- **Median gap**: survives that, but on GTK it is BIMODAL. Two runs with nothing
+  changed gave 13.9/13.9 and 7.0/13.9, because GTK produces a frame when
+  something needs one and the median measures how much the app asked to redraw.
+
+**What is still NOT measured, so that nobody quotes it as though it were:** the
+idle case. P64 displays its own tick count, so its view is invalidated on every
+tick and the app is never idle on either backend. "An idle WinUI app is woken
+144 times a second" is the expected consequence of the design difference above,
+not something this measured.
+
+## GTK 的 frame clock 為什麼不是照著螢幕更新率跑？那樣比較省電嗎？
+
+**那不是缺陷。GTK 是「有東西需要一幀時才產生一幀」，其餘時間閒置——而那正是省電的設計。**
+WinUI 的 `CompositionTarget.Rendering` 恰好相反:只要有人訂閱，它就每合成一幀觸發一次。
+
+因此**不要對 GtkBackend 斷言速率**。在那裡有意義的斷言是「當幀正在被請求時，它會不會持續跳」。
+量到某支 GTK app 只有 3 Hz，說的是「那支 app 沒有東西要重繪」，不是「它的時鐘壞了」。
+
+「請求產生幀」是明確且會計數的:
+
+- `gdk_frame_clock_begin_updating(clock)`——讓循環持續
+- `gdk_frame_clock_end_updating(clock)`——停止請求
+
+`GtkBackend.startFrameClock` 呼叫前者、`stopFrameClock` 呼叫後者
+(`Sources/GtkBackend/GtkBackend+FrameClock.swift`)。**少一次 `end_updating`，上述省電的理由就
+整個被丟掉了**:那個時鐘會持續運轉到行程結束，而在有人量電池之前，看不出任何異狀。只安裝一個
+tick callback並不足夠——tick callback 本身不構成重繪的理由，而 Windows 端量到的正是這件事:
+該 callback 執行了一次、之後再也沒有，而它每一次都回傳 `G_SOURCE_CONTINUE`。
+
+**2026-09-11 量到,兩個 backend,同一台機器、同一台 144 Hz 顯示器。** `dxdiag /t` 回報目前模式為
+144 Hz，一幀是 6.94ms。
+
+| | 次數 / 時距 | 速率 | gap min | gap 中位數 | gap max |
+| --- | --- | --- | --- | --- | --- |
+| Win-WinUI | 265 / 1.86s | 141.6 Hz | 3.4ms | **7.0ms** | 43.2ms |
+| Win-gtk4 | 103 / 1.90s | 53.7 Hz | **7.0ms** | 13.9ms | 766.7ms |
+
+**這兩列要用不同的方式讀,而那正是本則的全部重點。** WinUI 那列,**速率就是斷言**:141.6 Hz 對上
+144 Hz 的顯示器,間隔中位數是一幀。GTK 那列,**速率不是斷言**——在 `gdk_frame_clock_begin_updating`
+被加上去之前,同一支 app 只跳了**一次**、之後再也沒有。103 就是結果。它的最小間隔同樣是 7.0ms,
+說明 GTK 的時鐘鎖在同一台顯示器上;它的中位數是 13.9ms,說明它每隔一幀才產生一幀——那是一句關於
+「這支 app 要求了多少重繪」的陳述,不是缺陷。766.7ms 的最大值是視窗仍在 settle 時的單次停頓——
+同一次執行的 log 裡,尺寸探測一直持續到 +1500ms。
+
+重新產生:
+
+```
+zsh testapp/compile.zsh P64          # WinUI(預設)
+zsh testapp/compile.zsh P64 -gtk4
+cd testapp/output && ./P64-WinUI.exe --debug
+SCUI_DEBUG_EVENTS_DIR=$PWD/testapp/output zsh testapp/run.zsh P64 --debug
+```
+
+gtk4 的那個 build **必須**經由 `run.zsh`:直接啟動會死在
+`error while loading shared libraries: api-ms-win-crt-locale-l1-1-0.dll`,因為沒有任何東西把 GTK 的
+DLL 放上 `PATH`。更新率以 `dxdiag /t <檔案>` 讀取——`wmic` 在 Windows 11 26200 上什麼都不回傳。
+
+**本則要記下的兩個陷阱。** 其一，那個 141.6 Hz 曾被當成缺陷達一天，因為 60 Hz 是被**假定**的、
+從未被量過——一個拿去和「沒有人查證過的常數」相比的數字。其二，同一次量測稍早回報的間隔中位數是
+**0.0ms**,而那是一句關於「被讀取的那個時鐘」的陳述、不是關於那個事件:Windows 上的
+`ProcessInfo.systemUptime` 比一幀還粗，於是數幀落在同一個時間戳記上。這一個是真的，並已用
+`QueryPerformanceCounter` 修好——GTK 自己的 Windows backend 伸手拿的正是同一個計數器
+(`gdksurface-win32.c:170`)。
+
+**停掉時鐘真的解除訂閱了嗎?有——兩個 backend 都量過了。** 這件事之所以要緊,是因為框架整個省電的說法
+都建立在它上面:`AnimationDriver` 在第一個 tween 註冊時啟動時鐘、在最後一個結束時停掉
+(`startClockIfNeeded`、`stopClockIfIdle`,而 `tick(at:)` 的最後一行就是 `stopClockIfIdle`),那是把
+GDK 的 begin/end 計數提到框架層。若那個「停」並未真的解除訂閱,每一個動畫都會再洩漏一次訂閱,
+而一支閒置的 app 永遠不會安靜下來。
+
+`P64 --debug --restart` 會量一次、停掉、等半秒、再量一次:
+
+| | pass 2 中「次於一幀」的間隔 | 判定 |
+| --- | --- | --- |
+| Win-WinUI | **0 / 297** | 取消訂閱有效 |
+| Win-gtk4 | **0 / 189** | 取消訂閱有效 |
+
+**判準計數的是近乎零的間隔,而兩個最直覺的統計量在此都是錯的——記下來,因為它們在被跑之前都看起來
+很合理。** 兩個活著的訂閱會呼叫**同一個** handler(它是型別屬性),在同一個合成幀內相隔微秒呼叫兩次,
+因此洩漏插入的是約為零的間隔,而不是把什麼東西乘上一個倍數。
+
+- **速率比值**:它是「次數除以時距」,因此單獨一次長停頓就能把整段拉低——而 pass 1 一定有一次,
+  視窗還在 settle。gtk4 得到 72.5 Hz 對 88.3 Hz、比值 1.22,而它來自單獨一次 450ms 的間隔。
+- **間隔中位數**:它撐過了上述問題,但在 GTK 上它是**雙峰的**。兩次執行、中間什麼都沒改,分別給出
+  13.9/13.9 與 7.0/13.9——因為 GTK 有東西需要時才產生一幀,而中位數量到的是「這支 app 要求了多少重繪」。
+
+**此處仍然**沒有**量到的部分，寫明以免被當成量過的事引用:** 閒置的情況。P64 會顯示它自己的 tick 次數，
+因此每一次 tick 都會讓它的 view 失效，兩個 backend 上那支 app 都從未閒置過。「一支閒置的 WinUI app
+每秒被叫醒 144 次」是上述設計差異的**預期後果**，不是本次量到的東西。

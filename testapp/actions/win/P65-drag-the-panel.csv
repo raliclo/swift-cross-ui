@@ -1,0 +1,70 @@
+action,x,y,origin,button,key,micros,note,platform
+# P65 on Windows: does .onDragGesture report the right NUMBERS? (#32)
+#
+# ONE FILE FOR BOTH WINDOWS BACKENDS. The coordinates are frame-relative and the
+# panel is 260x90 with its top-left near (88, 225) in both builds, so a press at
+# (130, 250) is comfortably inside it either way. Measured off a wincap of the
+# WinUI build, screen-20260911-131326.png, which includes the title bar -- so
+# what was measured IS the frame origin the file addresses.
+#
+# THE ASSERTION IS `translation`, NOT `start` OR `now`. P65 prints all three:
+#
+#     drag changed: start (x, y) now (x, y) translation (dx, dy)
+#
+# and only translation means the same thing on both backends. WinUI's
+# ManipulationDelta carries a cumulative translation and no origin, so
+# WinUIBackend reports startLocation .zero; GtkBackend captures the press point
+# at `drag-begin` and adds GTK's offsets back, so it reports real positions.
+# Asserting `now` would therefore fail on one backend for a reason that is not a
+# defect. If the two disagree on TRANSLATION, that is a defect.
+#
+# EXPECTED: translation (120, 40) at the end.
+#
+# The two numbers are DIFFERENT and BOTH POSITIVE on purpose. Equal ones would
+# hide an axis swap; a negative one would hide a sign flip on the other axis.
+# 120 across and 40 down is the smallest pair that distinguishes x from y, both
+# signs, and a translation from a position.
+#
+# FIVE MOVES, NOT ONE JUMP. A single large move can fail to start a gesture at
+# all: WinUI's manipulation processor needs successive deltas to recognise one,
+# and GTK's GestureDrag has a drag threshold to cross before `drag-begin` fires.
+# A file that jumped straight to the end could report "no events" for a working
+# implementation.
+#
+# P65 於 Windows：.onDragGesture 回報的數字對不對？（#32）
+#
+# 一個檔案同時服務兩個 Windows backend。座標相對於 frame，而該面板為 260x90、左上角在兩個 build
+# 中都接近 (88, 225)，因此在 (130, 250) 按下，兩者都穩穩落在面板之內。座標量自 WinUI build 的
+# wincap（screen-20260911-131326.png），該圖含標題列——所以量到的**就是**本檔所定址的 frame 原點。
+#
+# 斷言的是 translation，不是 start 或 now。P65 三者都印，而只有 translation 在兩個 backend 上
+# 意義相同：WinUI 的 ManipulationDelta 帶的是累積位移、不帶原點，因此 WinUIBackend 回報的
+# startLocation 是 .zero；GtkBackend 則在 `drag-begin` 記下按下點、再把 GTK 的位移加回去，因此
+# 回報的是真實位置。若去斷言 `now`，會在其中一個 backend 上因為「不是缺陷的理由」而失敗。
+# 但若兩者在 translation 上不一致，那就是缺陷。
+#
+# 預期：結束時 translation (120, 40)。
+#
+# 這兩個數字刻意**不相等**且**同為正**。相等會藏住軸交換；其中一個為負則會藏住另一軸的正負號翻轉。
+# 橫向 120、縱向 40，是能同時區分 x 與 y、兩個正負號、以及「位移 vs 位置」的最小組合。
+#
+# 五次移動，不是一次跳躍。單一次大幅移動可能根本啟動不了手勢：WinUI 的 manipulation 處理器需要
+# 連續的差量才認得出來，而 GTK 的 GestureDrag 有一個必須跨過的拖曳門檻才會發出 `drag-begin`。
+# 一個直接跳到終點的檔案，會對一份可運作的實作回報「沒有任何事件」。
+sleep,,,,,,1500000,let the window settle and take the topmost pin,windows
+move,130,250,frame,,,,onto the drag panel near its left edge,windows
+sleep,,,,,,300000,let the pointer arrive before the press,windows
+mousedown,130,250,frame,left,,,press inside the drag panel,windows
+sleep,,,,,,200000,let the press register before the first move,windows
+move,154,258,frame,,,,step 1 of 5,windows
+sleep,,,,,,120000,,windows
+move,178,266,frame,,,,step 2 of 5,windows
+sleep,,,,,,120000,,windows
+move,202,274,frame,,,,step 3 of 5,windows
+sleep,,,,,,120000,,windows
+move,226,282,frame,,,,step 4 of 5,windows
+sleep,,,,,,120000,,windows
+move,250,290,frame,,,,"step 5 of 5: 120 across, 40 down from the press",windows
+sleep,,,,,,300000,let the last delta be reported before the release,windows
+mouseup,250,290,frame,left,,,"release: drag ended must read translation (120, 40)",windows
+sleep,,,,,,800000,let onEnded run and write its line,windows

@@ -605,12 +605,11 @@ capture() {
         printf '!! screenshot rejected on content: an image WAS written -- %s\n' \
             "${fraction:-non-black: unmeasured}" >&2
         printf '!! screenshot rejected on content: the file is %s\n' "$rejected_png" >&2
-        printf '!! Read this as a rendering fault, not a capture fault: the capture tool ran,\n' >&2
-        printf '!! the window was found and the picture was taken. The fraction above is the\n' >&2
-        printf '!! measurement that names the cause -- a healthy capture of the same window is\n' >&2
-        printf '!! upwards of 90%% non-black.\n' >&2
-        printf '!! 請把這讀成繪製故障，而非擷取故障：擷取工具跑過了、視窗找到了、照片也拍了。\n' >&2
-        printf '!! 上方的比例就是指認成因的量測值——同一個視窗健康時的擷取在 90%% 非黑以上。\n' >&2
+        printf '!! The window was found, but this capture contains no usable window content.\n' >&2
+        printf '!! This alone cannot distinguish an application rendering fault from a stale\n' >&2
+        printf '!! WSLg bridge or a capture-API limitation. Check the capture method and renderer log.\n' >&2
+        printf '!! 已找到視窗，但這次擷取沒有可用的視窗內容。單靠黑圖無法區分 app 繪製故障、\n' >&2
+        printf '!! WSLg bridge 過期或 capture API 限制；請一併檢查 capture method 與 renderer log。\n' >&2
         return 0
     fi
 

@@ -620,14 +620,54 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 + "thread=\(foreignThread) process=\(foreignProcess)"
         )
 
-        guard AttachThreadInput(ownThread, foreignThread, true) else {
+        // **A failed attach is not a failed request. Ask anyway, then look.**
+        //
+        // This used to `return false` the moment `AttachThreadInput` failed,
+        // which judges the MECHANISM rather than the OUTCOME -- and the
+        // mechanism can be unavailable while the outcome is still reachable.
+        // `SetForegroundWindow` is permitted for several reasons besides an
+        // attached input queue: the calling process was the last to receive
+        // input, no window currently holds the foreground, or the foreground is
+        // being released.
+        //
+        // Measured 2026-09-16: driving P20-ctrl-k-shortcut.csv failed with
+        // `AttachThreadInput ... failed (87)` -- ERROR_INVALID_PARAMETER, not
+        // the ACCESS_DENIED the comment above anticipates -- because the
+        // foreground was a `ConsoleWindowClass` window belonging to
+        // PowerToys.Awake.exe, and a console host thread cannot be attached to.
+        // The replay then refused a file it had every chance of running.
+        //
+        // The verification loop below was already the honest part of this
+        // function; it now covers both paths, so the answer comes from reading
+        // `GetForegroundWindow()` back rather than from whether a helper call
+        // returned true.
+        //
+        // **一次失敗的 attach,不等於一次失敗的請求。先照樣提出請求,然後去看結果。**
+        //
+        // 這裡原本在 `AttachThreadInput` 一失敗就 `return false`,那是在判定**機制**、而不是判定
+        // **結果**——而機制不可用時,結果仍然可能是拿得到的。除了「輸入佇列已附加」之外,
+        // `SetForegroundWindow` 在數種情況下同樣被允許:呼叫端行程是最後一個收到輸入的、
+        // 目前沒有任何視窗持有前景、或前景正在被釋放。
+        //
+        // 2026-09-16 實測:驅動 P20-ctrl-k-shortcut.csv 時以
+        // `AttachThreadInput ... failed (87)` 失敗——那是 ERROR_INVALID_PARAMETER,**不是**上方註解
+        // 所預期的 ACCESS_DENIED——因為當時的前景是 PowerToys.Awake.exe 的一個 `ConsoleWindowClass`
+        // 視窗,而 console host 的執行緒是附加不上去的。於是 replay 拒絕了一個它其實完全有機會跑完的檔案。
+        //
+        // 下方那個驗證迴圈本來就是本函式最誠實的部分;它現在涵蓋兩條路徑,因此答案來自「把
+        // `GetForegroundWindow()` 讀回來」,而不是來自「某個輔助呼叫有沒有回傳 true」。
+        let attached = AttachThreadInput(ownThread, foreignThread, true)
+        if !attached {
             ActionFileReplay.report(
                 "AttachThreadInput to the foreground thread failed (\(GetLastError())); "
-                    + "the window cannot take the foreground from here"
+                    + "asking for the foreground without it and checking the result"
             )
-            return false
         }
-        defer { _ = AttachThreadInput(ownThread, foreignThread, false) }
+        defer {
+            if attached {
+                _ = AttachThreadInput(ownThread, foreignThread, false)
+            }
+        }
 
         SetForegroundWindow(window)
         BringWindowToTop(window)
@@ -635,7 +675,9 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         for _ in 0..<50 {
             if GetForegroundWindow() == window {
                 ActionFileReplay.report(
-                    "took the foreground after attaching to the foreground thread"
+                    attached
+                        ? "took the foreground after attaching to the foreground thread"
+                        : "took the foreground WITHOUT attaching; the attach was not needed"
                 )
                 return true
             }
@@ -643,7 +685,9 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
         }
 
         ActionFileReplay.report(
-            "attached to the foreground thread and still did not take the foreground"
+            attached
+                ? "attached to the foreground thread and still did not take the foreground"
+                : "could not attach and could not take the foreground"
         )
         return false
     }
