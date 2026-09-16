@@ -1,0 +1,47 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on iOS: the header direction, and the reversal.
+#
+# **Two taps on the same header, ending on DESCENDING, is what makes this file
+# worth a capture.** With exactly two taps the end state distinguishes the three
+# things a single tap cannot:
+#
+#   descending  -- tap 1 made it ascending and tap 2 reversed it. Correct.
+#   ascending   -- the backend remembered nothing and restarted at ascending.
+#                  The arrow, the binding and the first tap were all right.
+#   none        -- the header is not wired up at all.
+#
+# UIKitBackend has no NSTableView to make this decision for it. AppKit's header
+# cycles on its own; here the toggle is written out in TableWidget, and this is
+# the file that checks the two ended up agreeing.
+#
+# The rows are the second reading: they arrive ascending by number, so
+# descending puts 8936 at the top. A capture that showed the arrow flipped and
+# the rows unmoved would mean the app never re-sorted, which is the half of
+# #125 that is deliberately NOT the backend's.
+#
+# Measured 2026-09-16 from p23-ios-final-20260916-190215.png, 1320 x 2868 px,
+# px/3 -> 440 x 956 pt. origin=client, mode actualView. The table's header band
+# begins at pt 518 and is 24 pt tall; column 3 of 4 spans pt 330 to 440.
+#
+# P23 #125 的 sortOrder 在 iOS 上:標題那個方向,以及那次反轉。
+#
+# **在同一個標題上點兩次、並停在「遞減」,正是這個檔案值得拍一張擷圖的原因。** 恰好兩次點擊時,
+# 最終狀態足以分辨單次點擊分辨不了的三件事:
+#
+#   遞減  -- 第 1 次點擊讓它變遞增、第 2 次把它反轉。正確。
+#   遞增  -- 這個 backend 什麼都沒記住,又從遞增重來。而箭頭、binding 與第一次點擊全都是對的。
+#   none  -- 那個標題根本沒接上。
+#
+# UIKitBackend 沒有 NSTableView 可以替它做這個決定。AppKit 的標題會自己循環;此處那個切換是寫在
+# TableWidget 裡的,而這個檔案檢查的就是兩者有沒有達成一致。
+#
+# 各列是第二個讀數:它們抵達時是依數字遞增的,因此遞減會把 8936 放到最上面。一張「箭頭翻了、列卻
+# 沒動」的擷圖,代表這個 app 從未重新排序——而那正是 #125 中刻意**不屬於** backend 的那一半。
+#
+# 2026-09-16 量自 p23-ios-final-20260916-190215.png,1320 x 2868 px,px/3 -> 440 x 956 pt。
+# origin=client,模式為 actualView。表格的標題帶始於 pt 518、高 24 pt;四欄中的第 3 欄跨 pt 330 到 440。
+sleep,,,,,,900000,let the scene settle before anything is sorted,ios
+click,380,528,client,left,,,the Number header -- column 3; this must become ascending,ios
+sleep,,,,,,800000,let the arrow be drawn and the rows re-sort,ios
+click,380,528,client,left,,,"the SAME header again: descending, not a restart",ios
+sleep,,,,,,900000,let the rows reverse before the capture,ios

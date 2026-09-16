@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on Android: a second header, which must start ascending.
+#
+# Pins the rule that a DIFFERENT column starts ascending rather than inheriting
+# the previous direction -- and, because the two taps land in different places,
+# it separates "the second tap did not arrive" from "the backend did not
+# remember", which two taps on the same header cannot tell apart when the answer
+# is ascending either way. That distinction was not hypothetical: on iOS the
+# same pair of taps first read as a backend that had forgotten, and the cause
+# was the app's own readout growing a line and moving the header out from under
+# the second tap.
+#
+# End state: sort column 0 ascending, ID running 1..8, the triangle on ID.
+#
+# P23 #125 的 sortOrder 在 Android 上:第二個標題,而它必須從遞增開始。
+#
+# 釘住的是「換一欄要從遞增開始、不沿用前一個方向」這條規則——而且因為兩次點擊落在不同位置,它把
+# 「第二次點擊沒抵達」與「backend 沒記住」分開了;在同一個標題上點兩次時,這兩者在答案同為遞增的
+# 情況下是分不開的。那個區分不是假想的:在 iOS 上,同樣這一對點擊一開始被讀成「backend 忘了」,
+# 而真正的原因是這個 app 自己的讀數多出一行,把那個標題從第二次點擊底下移走了。
+#
+# 最終狀態:sort column 0 ascending、ID 為 1..8、三角形在 ID 那一欄。
+sleep,,,,,,900000,let the table settle,android
+click,346,581,,left,,,the Number header -- column 3 ascending,android
+sleep,,,,,,900000,let that land,android
+click,65,581,,left,,,"the ID header -- column 0, and it must start ascending",android
+sleep,,,,,,1000000,let the rows re-sort before the capture,android

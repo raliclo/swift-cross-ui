@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on iOS: a second header, which must start ascending.
+#
+# **Two jobs in one file, and the second is why it exists.** Tapping column 3
+# and then column 0 pins the rule that a DIFFERENT column starts ascending
+# rather than inheriting the previous direction -- and, because the two taps
+# land in different places, it also separates "the second tap did not arrive"
+# from "the backend did not remember", which two taps on the SAME header
+# cannot tell apart when the result is ascending either way.
+#
+# End state: sort column 0 ascending, and the ID column runs 1..8.
+#
+# Coordinates as in P23-column-sorting.csv. Column 0 of 4 spans pt 0 to 110.
+#
+# P23 #125 的 sortOrder 在 iOS 上:第二個標題,而它必須從遞增開始。
+#
+# **一個檔案兩件事,而第二件才是它存在的理由。** 先點第 3 欄、再點第 0 欄,釘住的是「換一欄要從遞增
+# 開始、而不是沿用前一個方向」這條規則——而且因為兩次點擊落在不同的位置,它同時也把「第二次點擊沒
+# 抵達」與「backend 沒記住」分開了;而在**同一個**標題上點兩次時,這兩者在結果同為遞增的情況下是
+# 分不開的。
+#
+# 最終狀態:sort column 0 ascending,而 ID 欄為 1..8。
+#
+# 座標同 P23-column-sorting.csv。四欄中的第 0 欄跨 pt 0 到 110。
+sleep,,,,,,900000,let the scene settle,ios
+click,380,528,client,left,,,the Number header -- column 3 ascending,ios
+sleep,,,,,,800000,let that land,ios
+click,50,528,client,left,,,"the ID header -- column 0, and it must start ascending",ios
+sleep,,,,,,900000,let the rows re-sort before the capture,ios

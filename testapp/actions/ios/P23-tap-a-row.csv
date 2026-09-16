@@ -30,8 +30,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 「selected row: 4」,而高亮必須由第三列移到第五列。
 #
 # 座標同 P23-row-selection.csv,量自同一張擷圖。
+# Re-measured 2026-09-16 after #125 sortOrder added a control row to P23: the
+# table moved down, and a row coordinate that is off by a row still selects
+# something, so the readout is what catches it.
+# 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
+# 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the scene settle,ios
 click,66,317,client,left,,,Select row 2 first -- put the band somewhere the tap must move it from,ios
 sleep,,,,,,800000,let the band be drawn on the third row,ios
-click,100,492,client,left,,,row 5 -- the band must move here and the readout must read 4,ios
+click,100,632,client,left,,,row 5 -- the band must move here and the readout must read 4,ios
 sleep,,,,,,900000,let the layout pass move the band before the capture,ios

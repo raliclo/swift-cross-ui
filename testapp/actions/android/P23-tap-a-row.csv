@@ -28,8 +28,13 @@ action,x,y,origin,button,key,micros,note,platform
 # ——而它會無聲地失敗:一個看起來完全正確的 listener,只是永遠到不了。
 #
 # 座標同 P23-row-selection.csv,取自同一次 uiautomator dump。
+# Re-measured 2026-09-16 after #125 sortOrder added a control row to P23: the
+# table moved down, and a row coordinate that is off by a row still selects
+# something, so the readout is what catches it.
+# 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
+# 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the table settle,android
 click,78,339,,left,,,Select row 2 first -- put the band on the ID-3 row,android
 sleep,,,,,,900000,let the band be drawn there,android
-click,120,517,,left,,,the ID-2 row -- index 1; the band must move up here and the readout must read 1,android
+click,120,671,,left,,,the ID-2 row -- index 1; the band must move up here and the readout must read 1,android
 sleep,,,,,,1000000,let the invalidate reach the screen before the capture,android

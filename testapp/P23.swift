@@ -222,13 +222,39 @@ struct P23RootView: View {
                     sortOrder = sortOrder?.toggled(byClicking: 3) ?? TableSortOrder(column: 3)
                 }
                 Button("Clear sort") { sortOrder = nil }
-                Text(
-                    "sort: "
-                        + (sortOrder.map {
-                            "column \($0.column) \($0.ascending ? "ascending" : "descending")"
-                        } ?? "none")
-                )
             }
+            // On its own line, and that is not a layout preference.
+            //
+            // **Beside the buttons, this readout moved the table.** "sort: none"
+            // is one line; "sort: column 3 ascending" wraps to two on a phone,
+            // which pushes everything below it down by a line -- so an action
+            // file that taps a header twice has its SECOND tap land above the
+            // header it has just moved. Measured on iOS 2026-09-16: the capture
+            // showed a correct arrow and a correct readout and read as a backend
+            // that had forgotten its own sort order. It took tapping a DIFFERENT
+            // column to tell "the second tap did not arrive" apart from "the
+            // backend did not remember", because both end in ascending.
+            //
+            // Same shape as the note in P65: an app whose own reporting text
+            // changes width moves the thing being tested.
+            //
+            // 獨立成一行,而這不是版面偏好。
+            //
+            // **擺在按鈕旁邊時,這行讀數會移動那張表。**「sort: none」是一行;
+            // 「sort: column 3 ascending」在手機上會折成兩行,於是它底下的一切都被往下推了一行
+            // ——一個「在標題上點兩次」的動作檔,它的**第二次**點擊因此落在「它剛剛推走的那個標題」
+            // 上方。2026-09-16 在 iOS 上量到:擷圖顯示的是正確的箭頭與正確的讀數,讀起來像是一個
+            // 忘掉自己排序狀態的 backend。要分辨「第二次點擊沒抵達」與「backend 沒記住」,得改點
+            // **另一欄**才行,因為兩者都會停在遞增。
+            //
+            // 與 P65 那條註解是同一種形狀:一個「自己的回報文字會改變寬度」的 app,會移動正在被
+            // 測試的那個東西。
+            Text(
+                "sort: "
+                    + (sortOrder.map {
+                        "column \($0.column) \($0.ascending ? "ascending" : "descending")"
+                    } ?? "none")
+            )
             Text(
                 "column sorting supported: "
                     + "\(backend is any BackendFeatures.TableColumnSorting ? "yes" : "NO")"

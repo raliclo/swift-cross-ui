@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on iOS: setSortOrder, with the header never touched.
+#
+# The companion to P23-column-sorting.csv, separate because iOS gives back no
+# log -- P23Diagnostics writes into a simulator container and neither that file
+# nor the app's stdout returns, measured 2026-09-16 -- so each direction needs
+# its own final capture.
+#
+# One tap, on a BUTTON (`Sort by Number`, which the app turns into column 3). The table starts unsorted, so the arrow appearing at all
+# can only have been drawn by setSortOrder: nothing touched the header. That is
+# the direction a backend can fail while passing the other file completely,
+# because the reordering of the rows is this app's work and happens either way;
+# what would be missing is the indicator.
+#
+# P23 #125 的 sortOrder 在 iOS 上:setSortOrder,而標題全程沒被碰過。
+#
+# 這是 P23-column-sorting.csv 的搭檔,分開是因為 iOS 不回傳 log——P23Diagnostics 寫進的是模擬器的
+# 沙箱容器,該檔案與 app 的 stdout 都不會回來,2026-09-16 量過——因此每個方向都需要自己的最終擷圖。
+#
+# 只點一次,而且點的是一顆**按鈕**。這個表格起始時沒有排序,因此那個箭頭只要出現,就只可能是
+# setSortOrder 畫的:沒有任何東西碰過標題。那正是一個 backend 可能失敗、卻仍能完整通過另一個檔案的
+# 方向——因為各列的重新排序是這個 app 的工作、兩種情況下都會發生;少掉的會是那個指示符號。
+sleep,,,,,,900000,let the scene settle,ios
+click,80,388,client,left,,,Sort by Number -- the framework writing into the backend,ios
+sleep,,,,,,900000,let setSortOrder place the arrow before the capture,ios

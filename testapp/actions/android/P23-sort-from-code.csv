@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on Android: setSortOrder, with the header never touched.
+#
+# The companion to P23-column-sorting.csv, separate because Android gives back
+# no log -- no p23-debug-events.log comes off the device and the harness log
+# carries no "[P23]" line, measured 2026-09-16 -- so each direction needs its
+# own final capture.
+#
+# One tap, on a BUTTON (`Sort by Number`, which the app turns into column 3). The table starts unsorted, so the triangle appearing at
+# all can only have been drawn by setSortOrder. That direction can fail while
+# the other file passes completely: the rows are re-sorted by the app either
+# way, and what would be missing is the indicator.
+#
+# Coordinates as in P23-column-sorting.csv, from the same uiautomator dump.
+#
+# P23 #125 的 sortOrder 在 Android 上:setSortOrder,而標題全程沒被碰過。
+#
+# 這是 P23-column-sorting.csv 的搭檔,分開是因為 Android 不回傳 log——裝置上不會有任何
+# p23-debug-events.log 回來,harness 的 log 裡也沒有任何一行「[P23]」,2026-09-16 量過
+# ——因此每個方向都需要自己的最終擷圖。
+#
+# 只點一次,而且點的是一顆**按鈕**。這個表格起始時沒有排序,因此那個三角形只要出現,就只可能是
+# setSortOrder 畫的。那個方向可能失敗、而另一個檔案卻完整通過:各列無論如何都會被 app 重新排序,
+# 少掉的會是那個指示符號。
+sleep,,,,,,900000,let the table settle,android
+click,91,432,,left,,,Sort by Number -- the framework writing into the backend,android
+sleep,,,,,,1000000,let setSortOrder draw the triangle before the capture,android

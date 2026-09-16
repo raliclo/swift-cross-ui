@@ -59,6 +59,33 @@ final class TableWidget: BaseViewWidget {
     private var selectionHandler: ((Int?) -> Void)?
     private var tapRecognizer: UITapGestureRecognizer?
 
+    /// The sort arrow, one label moved between columns rather than one per
+    /// column.
+    ///
+    /// Only one column is sorted at a time, so per-column labels would be a set
+    /// of hidden views maintained in step with a column count that changes on
+    /// every `setColumnLabels`. Moving one is less to keep correct.
+    ///
+    /// **Not appended to the header's own text.** `setColumnLabels` rebuilds
+    /// every header label from the environment on every commit, so an arrow
+    /// baked into the string would be erased by the next update and would also
+    /// have to be stripped back out before the next one -- a round trip through
+    /// text that has nothing to do with what is being asked.
+    ///
+    /// 那個排序箭頭:一個 label 在欄位之間移動,而不是每欄一個。
+    ///
+    /// 同一時間只有一欄被用來排序,因此「每欄一個 label」會是一組隱藏的 view,還得跟著一個
+    /// 「每次 `setColumnLabels` 都會變」的欄數保持同步。移動一個,要維持正確的東西比較少。
+    ///
+    /// **不是附加在標題自己的文字上。** `setColumnLabels` 每次 commit 都會依 environment 重建每一個
+    /// 標題 label,因此被烤進字串裡的箭頭會被下一次更新抹掉,而且在那之前還得先被剝除——那是一趟
+    /// 與「被問的問題」毫無關係的文字往返。
+    private let sortIndicator = UILabel()
+
+    private var sortColumn: Int?
+    private var sortAscending = true
+    private var sortHandler: ((Int) -> Void)?
+
     /// Installs the tap recogniser once, and replaces the handler every time.
     ///
     /// The split matters because `Table.commit` calls this on every commit. A
@@ -74,6 +101,22 @@ final class TableWidget: BaseViewWidget {
     /// 寫同樣多次。協定要求的是取代,而 recogniser 正是那個不可以跟著被取代的部分。
     func setSelectionHandler(_ handler: @escaping (Int?) -> Void) {
         selectionHandler = handler
+        ensureTapRecognizer()
+    }
+
+    /// One recogniser for both channels.
+    ///
+    /// Hoisted out of `setSelectionHandler` when sorting arrived, because a
+    /// table given `sortOrder:` and no `selection:` needs taps and would
+    /// otherwise have had none -- and the failure would have been silent, a
+    /// header that simply never responded with every line of sorting code
+    /// present and correct.
+    /// 一個 recogniser 服務兩條通道。
+    ///
+    /// 排序加進來時把它從 `setSelectionHandler` 裡提出來,因為一個只給了 `sortOrder:`、沒有給
+    /// `selection:` 的表格也需要點擊,否則它一個都不會有——而那個失敗會是無聲的:一個從不反應的標題,
+    /// 而所有排序程式碼都在、也都正確。
+    private func ensureTapRecognizer() {
         guard tapRecognizer == nil else { return }
         let recognizer = UITapGestureRecognizer(
             target: self,
@@ -81,6 +124,18 @@ final class TableWidget: BaseViewWidget {
         )
         addGestureRecognizer(recognizer)
         tapRecognizer = recognizer
+    }
+
+    func setSortHandler(_ handler: @escaping (Int) -> Void) {
+        sortHandler = handler
+        ensureTapRecognizer()
+    }
+
+    func setSortIndicator(column: Int?, ascending: Bool) {
+        guard sortColumn != column || sortAscending != ascending else { return }
+        sortColumn = column
+        sortAscending = ascending
+        setNeedsLayout()
     }
 
     func setSelectedRow(_ index: Int?) {
@@ -102,8 +157,83 @@ final class TableWidget: BaseViewWidget {
     /// 在一個沒有鍵盤的表格上,那是唯一能用手清掉選取的方式,而 AppKit 對同樣位置的點擊也正是
     /// 這麼做的。
     @objc private func handleSelectionTap(_ recognizer: UITapGestureRecognizer) {
-        let y = recognizer.location(in: self).y
-        selectionHandler?(row(atY: y))
+        let point = recognizer.location(in: self)
+
+        // The header belongs to sorting when sorting was asked for, and to
+        // deselection otherwise. Not both: a tap that sorted AND cleared the
+        // selection would make the selection impossible to keep while
+        // reordering, which is the one time a user most wants to keep it.
+        // 當有人要求排序時,標題列歸排序所有;否則歸取消選取。不會兩者都做:一次「又排序又清掉選取」
+        // 的點擊,會讓「重新排序時保住選取」變成做不到的事——而那正是使用者最想保住它的時刻。
+        if point.y < headerHeight, let sortHandler, let column = column(atX: point.x) {
+            sortHandler(column)
+            return
+        }
+        selectionHandler?(row(atY: point.y))
+    }
+
+    /// Which header the tap landed on.
+    ///
+    /// **A column, not a decision.** The first version of this returned the
+    /// next `TableSortOrder`, which meant this backend carried its own copy of
+    /// the rule that a second click on the same column reverses -- and so did
+    /// the Android one, while AppKit got it from `NSTableView`. Three copies of
+    /// one rule, in a place where a difference between them would show up as a
+    /// header that behaves differently on one platform. The published protocol
+    /// asks only which header was clicked and applies
+    /// ``TableSortOrder/toggled(byClicking:)`` once, in the framework.
+    ///
+    /// 這次點擊落在哪一個標題上。
+    ///
+    /// **是一個欄位,不是一個決定。** 這個方法的第一版回傳的是下一個 `TableSortOrder`,那代表這個
+    /// backend 自己帶了一份「在同一欄上點第二次會反轉」的規則副本——Android 那個也帶了一份,而
+    /// AppKit 是從 `NSTableView` 拿的。同一條規則有三份副本,而它們之間的差異,會以「某個平台上的
+    /// 標題行為不一樣」的形式現身。已發布的協定只問「哪一個標題被點了」,並在框架裡套用
+    /// ``TableSortOrder/toggled(byClicking:)`` 一次。
+    private func column(atX x: CGFloat) -> Int? {
+        guard columnCount > 0 else { return nil }
+        let columnWidth = bounds.width / CGFloat(columnCount)
+        return min(columnCount - 1, max(0, Int(x / columnWidth)))
+    }
+
+    /// Places the arrow, or hides it.
+    ///
+    /// Right-aligned inside the sorted column's header cell, which is where
+    /// AppKit puts its triangle -- the two platforms should not disagree about
+    /// where a reader's eye goes for the same fact.
+    /// 放好那個箭頭,或把它藏起來。
+    ///
+    /// 在被排序那一欄的標題格內靠右對齊,那正是 AppKit 放它三角形的位置——同一件事實,兩個平台
+    /// 不該讓讀者的視線落在不同的地方。
+    private func layoutSortIndicator() {
+        if sortIndicator.superview !== self {
+            sortIndicator.isUserInteractionEnabled = false
+            sortIndicator.textAlignment = .right
+            addSubview(sortIndicator)
+        }
+        // Front, every pass, for the mirror of the reason the highlight goes to
+        // the back: `setColumnLabels` re-adds every header label, and each one
+        // lands above whatever was there before -- including this.
+        // 每一輪都送到最上層,理由與那道高亮被送到最底層恰好互為鏡像:`setColumnLabels` 會把每一個
+        // 標題 label 重新加入,而它們每一個都會落在原有內容之上——包括這個箭頭。
+        bringSubviewToFront(sortIndicator)
+
+        guard let sortColumn, columnCount > 0, sortColumn < columnCount else {
+            sortIndicator.isHidden = true
+            return
+        }
+        sortIndicator.isHidden = false
+        sortIndicator.text = sortAscending ? "▲" : "▼"
+        sortIndicator.font = .systemFont(ofSize: 10)
+        sortIndicator.textColor = .label
+
+        let columnWidth = bounds.width / CGFloat(columnCount)
+        sortIndicator.frame = CGRect(
+            x: CGFloat(sortColumn) * columnWidth,
+            y: 0,
+            width: columnWidth - 4,
+            height: headerHeight
+        )
     }
 
     private func row(atY y: CGFloat) -> Int? {
@@ -218,6 +348,7 @@ final class TableWidget: BaseViewWidget {
         // 放在 `columnCount` 的 guard 之前。一個欄位尚未抵達的表格,仍然有一個需要被清掉的選取;
         // 把色帶留在原處,會讓高亮停在一個「已經沒有那一列」的表格上。
         layoutSelectionHighlight()
+        layoutSortIndicator()
 
         guard columnCount > 0 else { return }
 

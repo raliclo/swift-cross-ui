@@ -37,8 +37,13 @@ action,x,y,origin,button,key,micros,note,platform
 # Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625 -> 411 x 914 點。座標以點書寫,
 # synthesiser 會再乘上 density。2026-09-16 量自執行中 app 的 `uiautomator dump --compressed`,
 # 而不是量自擷圖:第 3 列的 cell 會折成九行,各列並非等距,因此用目測挑出的列會落在錯的那一列上。
+# Re-measured 2026-09-16 after #125 sortOrder added a control row to P23: the
+# table moved down, and a row coordinate that is off by a row still selects
+# something, so the readout is what catches it.
+# 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
+# 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the table settle before anything is selected,android
-click,120,517,,left,,,row 2 -- index 1; a tap the app never asked for,android
+click,120,671,,left,,,row 2 -- index 1; a tap the app never asked for,android
 sleep,,,,,,800000,let the binding be written and the band drawn,android
 click,206,339,,left,,,Clear selection -- the band must go,android
 sleep,,,,,,800000,,android

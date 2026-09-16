@@ -32,8 +32,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-16 量自 testapp/output/screenshots/p23-ios-final-20260916-134212.png。
 # 擷取 1320 x 2868 px,故為 px/3 -> 440 x 956 pt。origin=client,模式為 actualView。
 # 已與 P23-add-table-rows.csv 交叉核對:該檔的「More rows」座標 154,247 在本次擷圖上落在同一顆按鈕。
+# Re-measured 2026-09-16 after #125 sortOrder added a control row to P23: the
+# table moved down, and a row coordinate that is off by a row still selects
+# something, so the readout is what catches it.
+# 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
+# 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the scene settle before anything is selected,ios
-click,100,492,client,left,,,row 5 -- a tap the app never asked for; index 4,ios
+click,100,632,client,left,,,row 5 -- a tap the app never asked for; index 4,ios
 sleep,,,,,,700000,let the binding be written and the band drawn,ios
 click,182,317,client,left,,,Clear selection -- the band must go,ios
 sleep,,,,,,700000,,ios

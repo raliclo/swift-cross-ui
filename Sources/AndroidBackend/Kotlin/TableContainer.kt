@@ -3,6 +3,7 @@ package dev.swiftcrossui.androidbackend
 import android.app.Activity
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -128,7 +129,7 @@ class TableContainer(val activity: Activity) : ViewGroup(activity) {
      * 唯一方式。在那裡提早返回,會留下一個「可以用手設定選取、卻永遠無法用手清除」的表格。
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (selectionAction == null) return false
+        if (selectionAction == null && sortAction == null) return false
         when (event.action) {
             // Consumed at DOWN, or UP never arrives. Android sends the rest of a gesture to
             // whoever accepted its first event; declining the press and then expecting the
@@ -137,12 +138,118 @@ class TableContainer(val activity: Activity) : ViewGroup(activity) {
             // 的那一方;拒絕了按下、卻期待收到放開,正是那種「什麼都選不動的表格」的形狀。
             MotionEvent.ACTION_DOWN -> return true
             MotionEvent.ACTION_UP -> {
-                tappedRow = rowAt(event.y.toInt())
+                val y = event.y.toInt()
+                // The header belongs to sorting when sorting was asked for, and to deselection
+                // otherwise -- the same split UIKitBackend's TableWidget makes, written the same
+                // way on purpose so a header tap does not mean different things on the two phones.
+                // 當有人要求排序時,標題列歸排序所有;否則歸取消選取——與 UIKitBackend 的 TableWidget
+                // 所做的區分相同,並刻意以同樣的方式寫下,好讓一次標題點擊在兩支手機上不會有不同的意思。
+                if (y < headerHeight && sortAction != null) {
+                    tappedColumn = columnAt(event.x.toInt())
+                    sortAction?.call()
+                    return true
+                }
+                tappedRow = rowAt(y)
                 selectionAction?.call()
                 return true
             }
         }
         return false
+    }
+
+    // MARK: Column sorting (#125)
+
+    /**
+     * -1 for "not sorted by any column", for the reason `selectedRow` gives.
+     *
+     * -1 代表「不依任何一欄排序」,理由與 `selectedRow` 所給的相同。
+     */
+    var sortedColumn = -1
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+
+    var sortAscending = true
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+
+    var tappedColumn = -1
+        private set
+
+    var sortAction: SwiftAction? = null
+
+    private fun columnAt(x: Int): Int {
+        if (headers.isEmpty()) return -1
+        val column = x / columnWidth(width)
+        return Math.min(headers.size - 1, Math.max(0, column))
+    }
+
+    /**
+     * The sort arrow, drawn as a triangle rather than set as text on the header.
+     *
+     * A `Path` here for the same reason the selection band is a `drawRect` here: this class already
+     * owns `onDraw`, and the header views are rebuilt from Swift on every `setColumnLabels`, so an
+     * arrow appended to a header's text would be erased by the next update. UIKitBackend reached
+     * the same conclusion from the opposite direction and moves a separate label, because a
+     * `UIView` has no equivalent of drawing beneath its own children.
+     *
+     * Points up for ascending, matching what `NSTableView` draws unprompted -- the same fact should
+     * not need reading twice on two platforms.
+     *
+     * 那個排序箭頭,是畫成一個三角形,而不是設定成標題的文字。
+     *
+     * 此處用 `Path`,理由與那道選取色帶在此用 `drawRect` 相同:這個類別本來就擁有 `onDraw`,而各個標題 view
+     * 在每一次 `setColumnLabels` 時都會由 Swift 那側重建,因此附加在標題文字上的箭頭會被下一次更新抹掉。
+     * UIKitBackend 從相反的方向得到了同一個結論、改為移動一個獨立的 label,因為一個 `UIView` 沒有
+     * 「畫在自己子元件底下」的對應機制。
+     *
+     * 遞增時朝上,與 `NSTableView` 未經要求就畫出來的方向一致——同一件事實,不該在兩個平台上被讀兩次。
+     */
+    private val sortArrow = Path()
+
+    private fun drawSortArrow(canvas: Canvas) {
+        val column = sortedColumn
+        if (column < 0 || column >= headers.size) return
+
+        val columnWidth = columnWidth(width)
+        val right = (column + 1) * columnWidth - columnWidth / 8f
+        val size = Math.min(headerHeight / 3f, columnWidth / 6f)
+        if (size <= 0f) return
+        val centerY = headerHeight / 2f
+
+        sortArrow.reset()
+        if (sortAscending) {
+            sortArrow.moveTo(right - size, centerY + size / 2f)
+            sortArrow.lineTo(right, centerY + size / 2f)
+            sortArrow.lineTo(right - size / 2f, centerY - size / 2f)
+        } else {
+            sortArrow.moveTo(right - size, centerY - size / 2f)
+            sortArrow.lineTo(right, centerY - size / 2f)
+            sortArrow.lineTo(right - size / 2f, centerY + size / 2f)
+        }
+        sortArrow.close()
+
+        // The header's own text colour, so the arrow is legible under whichever theme is running
+        // -- a hard-coded black disappears on a dark theme and reads as "the indicator never drew".
+        // 用標題自己的文字顏色,好讓這個箭頭在任何執行中的主題底下都看得見——寫死的黑色在深色主題上
+        // 會消失,而那讀起來會是「指示符號從來沒畫出來」。
+        selectionPaint.color = headerTextColor()
+        canvas.drawPath(sortArrow, selectionPaint)
+    }
+
+    private fun headerTextColor(): Int {
+        val header = headers.getOrNull(sortedColumn)
+        if (header is android.widget.TextView) return header.currentTextColor
+        val value = TypedValue()
+        if (!context.theme.resolveAttribute(android.R.attr.textColorPrimary, value, true)) {
+            return 0xFF000000.toInt()
+        }
+        return if (value.resourceId != 0) context.getColor(value.resourceId) else value.data
     }
 
     private fun rowAt(y: Int): Int {
@@ -158,6 +265,8 @@ class TableContainer(val activity: Activity) : ViewGroup(activity) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+
+        drawSortArrow(canvas)
 
         val row = selectedRow
         if (row < 0 || row >= rowHeights.size) return

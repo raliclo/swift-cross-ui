@@ -1403,6 +1403,14 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             return column
         }
         table.customDelegate.columnIndices = columnIndices
+        // Guarded, because removing a column removes its sort descriptor and
+        // `NSTableView` announces that as a sort change -- one this table
+        // performed on itself, on every commit. See the note on
+        // `isApplyingFrameworkChange`.
+        // 加上防護,因為移除一欄會連帶移除它的 sort descriptor,而 `NSTableView` 會把那宣告成一次
+        // 排序變更——一次由這個表格對它自己做出、而且每一次 commit 都發生的變更。
+        // 見 `isApplyingFrameworkChange` 上的說明。
+        table.customDelegate.isApplyingFrameworkChange = true
         for column in table.tableColumns {
             table.removeTableColumn(column)
         }
@@ -1410,6 +1418,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         for column in columns {
             table.addTableColumn(column)
         }
+        table.customDelegate.isApplyingFrameworkChange = false
     }
 
     public func setCells(
@@ -1954,6 +1963,41 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     /// 沿用清單那個 handler,等於要嘛丟掉那一次點擊、要嘛硬塞一個列號給它。
     var tableSelectionHandler: ((Int?) -> Void)?
 
+    /// Column sorting for ``SwiftCrossUI/BackendFeatures/TableColumnSorting``.
+    ///
+    /// `isApplyingFrameworkChange` is what stops the echo. `NSTableView` calls
+    /// `tableView(_:sortDescriptorsDidChange:)` for a PROGRAMMATIC change to
+    /// `sortDescriptors` as well as a user's click on a header, and it cannot
+    /// tell them apart.
+    ///
+    /// **It covers the whole of a framework call, not just `setSortOrder`, and
+    /// the first version covering only `setSortOrder` was wrong in a way that
+    /// looked like a working feature.** `setColumnLabels` removes and re-adds
+    /// every `NSTableColumn` on every commit, and removing the sorted column
+    /// drops its descriptor -- so the table announced an empty sort that no
+    /// user had asked for. The binding went to nil, the next commit wrote it
+    /// back, and P23's log read
+    /// `SORT now column 3 ascending / SORT now none / SORT now column 3
+    /// ascending / SORT now none`: a table that sorted, unsorted itself, and
+    /// sorted again, forever. It was only visible because the action file
+    /// printed the transitions; a screenshot of either end of that loop is a
+    /// screenshot of a table working.
+    ///
+    /// 為 ``SwiftCrossUI/BackendFeatures/TableColumnSorting`` 而設的欄位排序。
+    ///
+    /// `isApplyingFrameworkChange` 是用來擋住回音的。`NSTableView` 對「程式對 `sortDescriptors`
+    /// 的修改」與「使用者點擊標題」都會呼叫 `tableView(_:sortDescriptorsDidChange:)`,而它分不出兩者。
+    ///
+    /// **它涵蓋的是整個框架呼叫,不只是 `setSortOrder`;而第一版只涵蓋 `setSortOrder`,其錯誤的樣子
+    /// 看起來像是一個正常運作的功能。** `setColumnLabels` 每一次 commit 都會把每一個 `NSTableColumn`
+    /// 移除再加回去,而移除被排序的那一欄會丟掉它的 descriptor——於是這個表格宣告了一次「沒有任何
+    /// 使用者要求過」的空排序。binding 被設為 nil、下一次 commit 又把它寫回去,而 P23 的 log 讀起來是
+    /// `SORT now column 3 ascending / SORT now none / SORT now column 3 ascending / SORT now none`:
+    /// 一個排了序、又自己取消、再排一次,如此永遠下去的表格。它之所以現形,只因為那個動作檔把這些
+    /// **轉換**印了出來;那個迴圈任何一端的截圖,都是一張「表格正常運作」的截圖。
+    var sortHandler: ((Int) -> Void)?
+    var isApplyingFrameworkChange = false
+
     func numberOfRows(in tableView: NSTableView) -> Int {
         return rowCount
     }
@@ -2026,6 +2070,43 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
         }
         tableSelectionHandler?(proposedSelectionIndexes.first)
         return proposedSelectionIndexes
+    }
+
+    /// Reports a header click, unless this table is the one that caused it.
+    ///
+    /// The descriptor's `key` is the column index written as a string, set by
+    /// `setSortHandler`. Reading the index back out of the key rather than
+    /// searching `tableColumns` for the descriptor's column is deliberate:
+    /// `setColumnLabels` builds fresh `NSTableColumn` objects on every commit,
+    /// so an identity comparison would be against objects that no longer exist.
+    ///
+    /// 回報一次標題點擊——除非造成它的正是這個表格自己。
+    ///
+    /// descriptor 的 `key` 是以字串寫下的欄位索引,由 `setSortHandler` 設定。從 key 讀回索引、
+    /// 而不是在 `tableColumns` 裡搜尋該 descriptor 對應的欄位,是刻意的:`setColumnLabels` 在
+    /// 每一次 commit 都會建出全新的 `NSTableColumn` 物件,因此以身分比對會是拿「已經不存在的物件」
+    /// 在比。
+    func tableView(
+        _ tableView: NSTableView,
+        sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]
+    ) {
+        guard !isApplyingFrameworkChange, let handler = sortHandler else { return }
+        // The COLUMN only, not a direction. `NSTableView` flips `ascending`
+        // itself on a second click, but the protocol asks every backend to
+        // report which header was clicked and lets `TableSortOrder.toggled`
+        // decide what that means -- so the framework answers identically on the
+        // five platforms, four of which have no header that toggles anything.
+        // Reading AppKit's own direction here would make this the one backend
+        // whose toggle rule lives somewhere else.
+        // 只回報**欄位**,不回報方向。`NSTableView` 會在第二次點擊時自己翻轉 `ascending`,但協定
+        // 要求每一個 backend 回報「哪一個標題被點了」,再讓 `TableSortOrder.toggled` 決定那代表什麼
+        // ——於是框架在五個平台上給出完全相同的答案,而其中四個平台的標題根本不會自己切換任何東西。
+        // 在此讀取 AppKit 自己的方向,會讓這個 backend 成為「切換規則住在別處」的那一個。
+        guard let descriptor = tableView.sortDescriptors.first,
+              let key = descriptor.key,
+              let column = Int(key)
+        else { return }
+        handler(column)
     }
 
     /// The identifier is what makes `NSTableView` RECYCLE these.

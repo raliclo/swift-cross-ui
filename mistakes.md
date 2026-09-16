@@ -1232,3 +1232,117 @@ instrument -- both ends of the distribution, not the big one.
 
 State in the action file's header WHERE the verdict is read from. These files
 already say what each step asserts; this adds which line answers it.
+
+---
+
+## 15. 手寫的 CSV 裡有一個沒加引號的逗號,而那個檔案被**靜默**拒絕
+
+**次數:1 次 / 1 天(2026-09-16)。**
+
+**編號 15,並已先問過對面。** 依第 14 條自己的教訓,寫下之前先跑了
+`git fetch && git show origin/develop:mistakes.md | grep '^## '`——對面用到 14。
+
+### 症狀 / What it looks like
+
+寫完 `testapp/actions/mac/P23-column-sorting.csv`、跑了測試,然後:
+
+| 看到的東西 | 它說了什麼 |
+| --- | --- |
+| harness 的退出碼 | `0` |
+| 那支 app | 啟動、算繪、被截圖 |
+| 摘要 | `RENDER COMPLETE`,以及 app 自己的診斷行 |
+| 我 grep 那份 log | **什麼也沒有** |
+
+於是我認定「動作檔根本沒被重放」,並開始去讀 harness 的原始碼找原因。
+
+**真正的那一行在 `testapp/output/p23-actionfile.log` 裡:**
+
+```
+-actionfile: failed: line 48: unknown platform 'not restart'; expected any, macos, ...
+```
+
+肇因是我自己寫的一行:
+
+```
+click,430,385,frame,left,,,the SAME header again -- this must REVERSE, not restart,macos
+                                                                    ^ 這個逗號
+```
+
+note 欄裡的一個逗號,把它右邊每一欄都左移一格,於是 `platform` 欄拿到的是 `not restart`。
+
+**而我 grep 不到,不是因為那行不存在。** harness 的摘要只 grep `TEST_SUMMARY_PATTERN`
+(`RENDER COMPLETE|rows|selection|table|cell|header`),而 `P23-column-sorting.csv` 不含其中
+任何一個字。同一個 harness 在同一天稍早顯示過 `P23-row-**selection**.csv` 的那一行——**因為那個
+檔名裡剛好有 "selection"**。過濾器的樣式決定了我看不看得見一次失敗,而樣式是為了「好讀」寫的。
+
+### 為什麼既有的守衛都沒攔下它
+
+| 守衛 | 它問的問題 | 為何漏掉 |
+| --- | --- | --- |
+| `check_action_files.sh` | results.csv2 引用的檔案**存在嗎** | 它從不打開那些檔案 |
+| Swift 測試「every **tracked** action file parses」 | 已被 git 追蹤的檔案解析得過嗎 | 這個檔案五分鐘前才建立,還沒 `git add` |
+
+**「寫出一個檔案」到「提交它」之間,什麼都沒有**——而那正是一個動作檔最要緊的時刻:它是拿來跑的。
+
+### 矯正 / Corrective
+
+新增 `Scripts/check_action_file_fields.sh`,接在 `Scripts/test.sh` 中
+`check_action_files.sh` 之後。它掃描 `testapp/actions/*/*.csv`——**不問 git**——並回報
+「欄位數多於表頭」與「platform 欄不是已知平台」。
+
+寫出來之後**兩個方向都驗過**:把原來那一行放回去,它以 rc=1 指名該行;移除之後回到 rc=0。
+第一版還太嚴(寫死 `row[-1]` 取 platform,而帶 `target` 欄的檔案 platform 不在最後),在乾淨的樹上
+就誤報了 `P60-open-settings.csv`——那次誤報本身是好事:它是在「這個守衛第一次執行」時發生的。
+
+這與全域 CLAUDE.md 那條 CSV 規則是同一件事,只是從另一個方向抵達:那條講的是**讀** CSV 時不要用
+逗號切割;這一條講的是**寫** CSV 時,一個沒加引號的逗號同樣不會有人報錯。
+
+---
+
+## 15. An unquoted comma in a hand-written CSV, and the file was rejected in silence
+
+**Once, on 2026-09-16.** Numbered 15 after checking the other machine first, which is
+entry 14's own lesson: `git show origin/develop:mistakes.md | grep '^## '` said 14.
+
+### What it looks like
+
+The harness exited 0. The app launched, rendered and was screenshotted. The summary printed
+`RENDER COMPLETE` and the app's own diagnostics. My grep of the harness log for
+`actionfile|replay|error` found **nothing**, so I concluded the file had never been replayed and
+went to read the harness source.
+
+The line was in `testapp/output/p23-actionfile.log`:
+
+```
+-actionfile: failed: line 48: unknown platform 'not restart'
+```
+
+A comma inside an unquoted `note` field shifted every field after it one place left, and `platform`
+received `not restart`.
+
+**The grep missed it because the harness only greps its summary pattern** --
+`RENDER COMPLETE|rows|selection|table|cell|header` -- and this file's name contains none of those
+words. The same harness had shown me the equivalent line earlier the same day for
+`P23-row-selection.csv`, because that name happens to contain "selection".
+
+### Why neither existing guard caught it
+
+`check_action_files.sh` asks whether a cited file exists; it never opens one. The Swift suite's
+check is "every **tracked** action file parses" and enumerates `git ls-files`, so a file written
+five minutes ago is outside it. Between writing an action file and committing it there was nothing
+-- which is the window in which an action file is actually used.
+
+### Corrective
+
+`Scripts/check_action_file_fields.sh`, wired into `Scripts/test.sh` directly after
+`check_action_files.sh`. It reads every `testapp/actions/*/*.csv` without asking git, and reports
+rows with more fields than the header, or a `platform` column that is not a known platform.
+
+Proved in both directions before being trusted: it exits 1 and names the line with the original
+defect restored, and 0 without it. Its first version was too strict -- it took `platform` as the
+last column, which is wrong for files carrying a trailing `target` -- and reported
+`P60-open-settings.csv` on a clean tree. That false positive is worth recording: it happened on the
+guard's first run, which is the only cheap time to find one.
+
+Same defect as the global CSV rule, from the other direction: that rule is about splitting a CSV on
+commas when READING one. This is about writing one, where an unquoted comma is just as silent.

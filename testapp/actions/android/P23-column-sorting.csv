@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder on Android: the header direction, and the reversal.
+#
+# **Two taps on the same header, ending on DESCENDING.** With exactly two taps
+# the end state separates the three outcomes a single tap cannot:
+#
+#   descending  -- tap 1 made it ascending and tap 2 reversed it. Correct.
+#   ascending   -- the backend remembered nothing and restarted. The arrow, the
+#                  binding and the first tap were all right.
+#   none        -- the header is not wired up at all.
+#
+# On Android the remembering is `TableSortHandlers.current`, filled in by
+# `setSortOrder`. It is the easiest part of this to leave out, because without
+# it the FIRST tap, the triangle and the readout are all still correct.
+#
+# The rows are the second reading: they arrive ascending by number, so
+# descending puts 8936 at the top.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 px, density 2.625 -> 411 x 914 pt.
+# Coordinates are points; the synthesiser multiplies by the density. Measured
+# 2026-09-16 from a `uiautomator dump --compressed` of the running app, not from
+# a capture: row 3's cell wraps to nine lines, so the rows are not evenly spaced.
+#
+# P23 #125 的 sortOrder 在 Android 上:標題那個方向,以及那次反轉。
+#
+# **在同一個標題上點兩次,並停在「遞減」。** 恰好兩次點擊時,最終狀態足以分開單次點擊分不開的三種結果:
+#
+#   遞減  -- 第 1 次讓它變遞增、第 2 次把它反轉。正確。
+#   遞增  -- 這個 backend 什麼都沒記住,又從頭來。而箭頭、binding 與第一次點擊全都是對的。
+#   none  -- 那個標題根本沒接上。
+#
+# 在 Android 上,「記住」這件事是 `TableSortHandlers.current`,由 `setSortOrder` 填入。它是這整件事
+# 裡最容易被漏掉的部分,因為少了它,**第一次**點擊、那個三角形與那行讀數仍然全都是對的。
+#
+# 各列是第二個讀數:它們抵達時依數字遞增,因此遞減會把 8936 放到最上面。
+#
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 px、density 2.625 -> 411 x 914 pt。
+# 座標以點書寫,synthesiser 會再乘上 density。2026-09-16 量自執行中 app 的
+# `uiautomator dump --compressed`,不是量自擷圖:第 3 列的 cell 會折成九行,各列並非等距。
+sleep,,,,,,900000,let the table settle before anything is sorted,android
+click,346,581,,left,,,the Number header -- column 3; this must become ascending,android
+sleep,,,,,,900000,let the triangle be drawn and the rows re-sort,android
+click,346,581,,left,,,"the SAME header again: descending, not a restart",android
+sleep,,,,,,1000000,let the rows reverse before the capture,android

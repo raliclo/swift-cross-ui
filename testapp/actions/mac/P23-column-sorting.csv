@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 sortOrder: both directions, and the reversal that a single click
+# cannot test.
+#
+# **Clicking the same header twice is the point of this file.** A backend that
+# reports the column but remembers nothing restarts at ascending on every
+# click, and the FIRST click, the arrow it draws and the binding it writes are
+# all correct -- so one click proves nothing about the second. AppKit decides
+# the toggle itself inside NSTableView; the hand-rolled backends had to make
+# the same decision explicitly, and this is what checks they landed in the same
+# place.
+#
+# Order, and what each step is evidence of:
+#
+#   Number header   -> SORT now column 3 ascending. Rows do not move: they were
+#                      already ascending by number, which is why the ARROW is
+#                      the evidence here and not the row order.
+#   Number header   -> SORT now column 3 descending. Now the rows reverse, so
+#                      this step is readable without the arrow as well.
+#   Sort by Number  -> SORT now column 3 ascending, from a BUTTON. The capture
+#                      that follows shows the triangle pointing up again, and
+#                      only setSortOrder could have turned it: the header was
+#                      not touched.
+#
+# origin=frame. Window 820x648, capture 820px wide -- scale 1. Measured
+# 2026-09-16 from p23-macos-final-20260916-200932.png.
+#
+# P23 #125 的 sortOrder:兩個方向,外加一次「單次點擊測不到」的反轉。
+#
+# **在同一個標題上點兩次,正是本檔的重點。** 一個「會回報欄位、卻什麼都沒記住」的 backend,每次點擊
+# 都會從遞增重來,而**第一次**點擊、它畫出的箭頭、它寫入的 binding 全都是對的——所以一次點擊對第二次
+# 什麼也證明不了。AppKit 是在 NSTableView 內部自己決定這個切換的;那些自行實作的 backend 必須明確地
+# 做出同樣的決定,而這個檔案檢查的就是它們有沒有落在同一個地方。
+#
+# 順序,以及每一步各是什麼的證據:
+#
+#   Number 標題     -> SORT now column 3 ascending。各列不動:它們本來就已依數字遞增排好,
+#                      所以此處的證據是那個**箭頭**,不是列的順序。
+#   Number 標題     -> SORT now column 3 descending。這下各列反轉了,因此這一步不靠箭頭也讀得出來。
+#   Sort by Number  -> SORT now column 3 ascending,而且來自一顆**按鈕**。其後的擷圖會顯示三角形
+#                      重新朝上,而只有 setSortOrder 轉得動它:標題根本沒被碰過。
+#
+# origin=frame。視窗 820x648,擷取寬 820px——scale 1。2026-09-16 量自
+# p23-macos-final-20260916-200932.png。
+sleep,,,,,,700000,let the window settle before anything is sorted,macos
+click,430,413,frame,left,,,the Number header -- column 3; ascending first,macos
+sleep,,,,,,700000,let the indicator be drawn,macos
+click,430,413,frame,left,,,"the SAME header again -- this must REVERSE, not restart",macos
+sleep,,,,,,700000,let the rows reverse,macos
+click,77,292,frame,left,,,Sort by Number -- the framework writing into the backend,macos
+sleep,,,,,,900000,let setSortOrder redraw the indicator before the capture,macos

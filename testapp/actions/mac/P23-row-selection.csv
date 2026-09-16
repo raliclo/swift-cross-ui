@@ -17,7 +17,9 @@ action,x,y,origin,button,key,micros,note,platform
 # first row is ID 1. Getting that off by one would still highlight something,
 # which is why the readout is on screen next to the buttons.
 #
-# origin=frame. Window 820x648, capture 820px wide -- scale 1.
+# origin=frame. Window 820x648, capture 820px wide -- scale 1. Re-measured
+# 2026-09-16 after #125 sortOrder added a control row to P23: the table moved
+# down and the old row-5 coordinate landed on index 1, which the log said.
 #
 # P23 #125:列選取,兩個方向都走,而順序的安排讓單獨一次執行就能證明兩者。
 #
@@ -32,9 +34,10 @@ action,x,y,origin,button,key,micros,note,platform
 # 第 5 列是第五列、索引為 4,因為那個 binding 是索引,而 P23 的第一列 ID 是 1。差一格仍然會高亮到
 # 某個東西——那正是為何那行讀數就放在按鈕旁邊。
 #
-# origin=frame。視窗 820x648,擷取寬 820px——scale 1。
+# origin=frame。視窗 820x648,擷取寬 820px——scale 1。2026-09-16 於 #125 的 sortOrder
+# 為 P23 增加一列控制項之後重新量過:那張表往下移,舊的第 5 列座標落在索引 1——log 說了。
 sleep,,,,,,700000,let the window settle before anything is selected,macos
-click,100,441,frame,left,,,row 5 -- a click the app never asked for; index 4,macos
+click,100,558,frame,left,,,row 5 -- a click the app never asked for; index 4,macos
 sleep,,,,,,700000,let the binding be written and the highlight drawn,macos
 click,183,231,frame,left,,,Clear selection -- the highlight must go,macos
 sleep,,,,,,700000,,macos

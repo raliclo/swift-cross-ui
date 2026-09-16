@@ -43,4 +43,21 @@ class TableContainer: JavaObject {
 
     @JavaMethod
     func setSelectionAction(_ action: SwiftAction?)
+
+    // MARK: Column sorting (#125)
+
+    /// -1 for "not sorted by any column", the same sentinel `setSelectedRow`
+    /// carries and for the same reason.
+    /// -1 代表「不依任何一欄排序」,與 `setSelectedRow` 所帶的哨兵值相同,理由也相同。
+    @JavaMethod
+    func setSortedColumn(_ column: Int32)
+
+    @JavaMethod
+    func setSortAscending(_ ascending: Bool)
+
+    @JavaMethod
+    func getTappedColumn() -> Int32
+
+    @JavaMethod
+    func setSortAction(_ action: SwiftAction?)
 }

@@ -13,6 +13,15 @@ sh Scripts/check_submodules.sh || exit 1
 # 一句引用了「沒有人擁有的動作檔」的 `(VERIFIED …)`，是一個沒有人能檢查的主張，而它讀起來與一個
 # 可以檢查的主張完全相同。
 sh Scripts/check_action_files.sh || exit 1
+# Immediately after it, and they are not the same check: that one asks whether
+# a cited file EXISTS, this one whether its rows will parse -- and unlike the
+# Swift suite's "every tracked action file parses", this one covers a file that
+# git has not been told about yet, which is every action file at the moment it
+# matters most.
+# 緊接在它之後,而兩者不是同一項檢查:那一個問的是被引用的檔案**是否存在**,這一個問的是它的
+# 各列**解析得過嗎**——而且與 Swift 測試套件那個「every tracked action file parses」不同,
+# 這一個涵蓋「git 還不知道它存在」的檔案,而那正是每一個動作檔最要緊的那一刻。
+sh Scripts/check_action_file_fields.sh || exit 1
 sh Scripts/check_results_columns.sh || exit 1
 sh Scripts/check_mistakes_numbering.sh || exit 1
 
