@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 on Android: row selection, ending on the framework direction.
+#
+# **The highlight is DRAWN here, not a child view**, and that is a platform
+# difference rather than a preference. A `ViewGroup` draws itself in `onDraw`
+# and its children afterwards in `dispatchDraw`, so a rectangle painted in
+# `TableContainer.onDraw` is already behind every cell with no ordering to
+# maintain. UIKitBackend has no such split and had to make the band a sibling
+# sent to the back on every pass. Two shapes, one appearance -- which is what
+# the two captures are for.
+#
+# **Two files, because the verdict is on the screen.** `P23Diagnostics` appends
+# to a log in the working directory, and neither that file nor the app's stdout
+# comes back from the device -- measured 2026-09-16: the run pulls no
+# p23-debug-events.log and the harness log carries no "[P23]" line. A screen
+# holds one state, so the tap direction is P23-tap-a-row.csv and this file ends
+# on `setSelectedRow`.
+#
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625 -> 411 x 914
+# points. Coordinates are points; the synthesiser multiplies by the density.
+# Measured 2026-09-16 from a `uiautomator dump --compressed` of the running app,
+# not off the capture: row 3's cell wraps to nine lines and the rows are not
+# evenly spaced, so a row picked by eye lands on the wrong one.
+#
+# P23 #125 在 Android 上:列選取,結束於框架那個方向。
+#
+# **這裡的高亮是「畫」出來的,不是一個子 view**,而那是平台差異,不是偏好。一個 `ViewGroup` 先在
+# `onDraw` 畫自己、之後才在 `dispatchDraw` 畫子元件,因此在 `TableContainer.onDraw` 裡塗出的矩形
+# 本來就在每一個 cell 之後,沒有順序要維護。UIKitBackend 沒有這個區分,只好把色帶做成一個「每一輪
+# 都被送到最底層的同層 view」。兩種形狀、一種外觀——那正是這兩張擷圖的用途。
+#
+# **分成兩個檔案,因為判決在畫面上。** `P23Diagnostics` 會往工作目錄的一個 log 附加內容,而該檔案
+# 與 app 的 stdout 都沒有從裝置回來——2026-09-16 量過:該次執行沒有拉回任何 p23-debug-events.log,
+# harness 的 log 裡也沒有任何一行「[P23]」。一個畫面只承載一個狀態,因此點擊那個方向在
+# P23-tap-a-row.csv,而本檔結束於 `setSelectedRow`。
+#
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625 -> 411 x 914 點。座標以點書寫,
+# synthesiser 會再乘上 density。2026-09-16 量自執行中 app 的 `uiautomator dump --compressed`,
+# 而不是量自擷圖:第 3 列的 cell 會折成九行,各列並非等距,因此用目測挑出的列會落在錯的那一列上。
+sleep,,,,,,900000,let the table settle before anything is selected,android
+click,120,517,,left,,,row 2 -- index 1; a tap the app never asked for,android
+sleep,,,,,,800000,let the binding be written and the band drawn,android
+click,206,339,,left,,,Clear selection -- the band must go,android
+sleep,,,,,,800000,,android
+click,78,339,,left,,,Select row 2 -- the framework writing into the backend; index 2 is the ID-3 row,android
+sleep,,,,,,1000000,let the invalidate reach the screen before the capture,android

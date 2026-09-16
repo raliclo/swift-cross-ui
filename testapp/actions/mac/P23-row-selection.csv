@@ -1,0 +1,42 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125: row selection, both directions, in the order that lets one run
+# prove both.
+#
+# The two directions fail separately -- a backend can highlight under the
+# pointer and ignore `setSelectedRow`, or the reverse -- so neither is evidence
+# for the other. Only one of them can be the final screenshot, so the click
+# direction is proved in the LOG and the framework direction on the SCREEN:
+#
+#   click row 5      -> "SELECTION now 4". Nothing else in this app produces a
+#                       4, so that line can only have come from the click.
+#   Clear selection  -> "SELECTION now none". The highlight must go.
+#   Select row 2     -> "SELECTION now 2", and this is what the final capture
+#                       holds: a highlight the user never pointed at.
+#
+# Row 5 is the fifth row, index 4, because the binding is an index and P23's
+# first row is ID 1. Getting that off by one would still highlight something,
+# which is why the readout is on screen next to the buttons.
+#
+# origin=frame. Window 820x648, capture 820px wide -- scale 1.
+#
+# P23 #125:列選取,兩個方向都走,而順序的安排讓單獨一次執行就能證明兩者。
+#
+# 兩個方向會各自失敗——一個 backend 可能在指標下高亮卻忽略 `setSelectedRow`,也可能相反——因此
+# 兩者互不構成對方的證據。最終截圖只能是其中之一,所以點擊那個方向由 **log** 證明、框架那個方向
+# 由**畫面**證明:
+#
+#   點第 5 列    -> 「SELECTION now 4」。這個 app 裡沒有別的東西會產生 4,因此那一行只可能來自那次點擊。
+#   Clear selection -> 「SELECTION now none」。高亮必須消失。
+#   Select row 2 -> 「SELECTION now 2」,而最終擷圖留的就是這個:一道使用者從未指過的高亮。
+#
+# 第 5 列是第五列、索引為 4,因為那個 binding 是索引,而 P23 的第一列 ID 是 1。差一格仍然會高亮到
+# 某個東西——那正是為何那行讀數就放在按鈕旁邊。
+#
+# origin=frame。視窗 820x648,擷取寬 820px——scale 1。
+sleep,,,,,,700000,let the window settle before anything is selected,macos
+click,100,441,frame,left,,,row 5 -- a click the app never asked for; index 4,macos
+sleep,,,,,,700000,let the binding be written and the highlight drawn,macos
+click,183,231,frame,left,,,Clear selection -- the highlight must go,macos
+sleep,,,,,,700000,,macos
+click,67,231,frame,left,,,Select row 2 -- the framework writing into the backend,macos
+sleep,,,,,,900000,let the async selection land before the capture,macos

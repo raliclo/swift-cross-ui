@@ -36,6 +36,129 @@ final class TableWidget: BaseViewWidget {
     /// 保留此值，因為表頭佔用了一列，而該列並不在 `rowHeights` 之中。
     private let headerHeight: CGFloat = 24
 
+    // MARK: Row selection (#125)
+
+    /// The highlight, kept as a view rather than drawn.
+    ///
+    /// **A subview, because the cells are subviews.** Drawing the band in
+    /// `draw(_:)` would put it under everything this view draws itself, which
+    /// is nothing -- the cells are separate views and would still cover it or
+    /// not depending on their own opacity. A sibling sent to the back sits
+    /// behind the cells by the same rule that orders every other view here,
+    /// and it survives `setCells` removing and re-adding every cell.
+    ///
+    /// 那道高亮,做成一個 view,而不是畫出來的。
+    ///
+    /// **做成 subview,是因為 cell 就是 subview。** 在 `draw(_:)` 裡畫出這條色帶,會把它放在
+    /// 「這個 view 自己畫的東西」之下——而它自己什麼也沒畫;cell 是獨立的 view,會不會蓋住它
+    /// 仍取決於它們自身的不透明度。一個被送到最底層的同層 view,是依「此處其餘每個 view 所遵循的
+    /// 同一條規則」坐在 cell 後面的,而且它能撐過 `setCells` 把每一個 cell 移除再加回來。
+    private let selectionHighlight = UIView()
+
+    private var selectedRow: Int?
+    private var selectionHandler: ((Int?) -> Void)?
+    private var tapRecognizer: UITapGestureRecognizer?
+
+    /// Installs the tap recogniser once, and replaces the handler every time.
+    ///
+    /// The split matters because `Table.commit` calls this on every commit. A
+    /// recogniser added each time would deliver one tap as many taps as there
+    /// had been frames; a handler added rather than replaced would write the
+    /// binding just as many times. The protocol asks for replacement, and the
+    /// recogniser is the part that must not be replaced with it.
+    ///
+    /// 只安裝一次 tap recogniser,而每一次都取代 handler。
+    ///
+    /// 這個區分很重要,因為 `Table.commit` 每一次 commit 都會呼叫這裡。每次都加一個 recogniser,
+    /// 會讓一次點擊被送成「有過幾幀」那麼多次;而一個被**追加**而非取代的 handler,則會往 binding
+    /// 寫同樣多次。協定要求的是取代,而 recogniser 正是那個不可以跟著被取代的部分。
+    func setSelectionHandler(_ handler: @escaping (Int?) -> Void) {
+        selectionHandler = handler
+        guard tapRecognizer == nil else { return }
+        let recognizer = UITapGestureRecognizer(
+            target: self,
+            action: #selector(handleSelectionTap)
+        )
+        addGestureRecognizer(recognizer)
+        tapRecognizer = recognizer
+    }
+
+    func setSelectedRow(_ index: Int?) {
+        guard selectedRow != index else { return }
+        selectedRow = index
+        setNeedsLayout()
+    }
+
+    /// Turns a tap's position into a row, or into a deselection.
+    ///
+    /// **A tap on the header, or below the last row, means nothing selected**
+    /// rather than nothing happened. That is the only way to clear a selection
+    /// by hand on a table with no keyboard, and it is what AppKit does with a
+    /// click in the same places.
+    ///
+    /// 把一次點擊的位置變成一個列號,或變成一次取消選取。
+    ///
+    /// **點在表頭上、或點在最後一列下方,意思是「沒有選取任何一列」**,而不是「什麼也沒發生」。
+    /// 在一個沒有鍵盤的表格上,那是唯一能用手清掉選取的方式,而 AppKit 對同樣位置的點擊也正是
+    /// 這麼做的。
+    @objc private func handleSelectionTap(_ recognizer: UITapGestureRecognizer) {
+        let y = recognizer.location(in: self).y
+        selectionHandler?(row(atY: y))
+    }
+
+    private func row(atY y: CGFloat) -> Int? {
+        guard y >= headerHeight else { return nil }
+        var top = headerHeight
+        for (index, height) in rowHeights.enumerated() {
+            let bottom = top + CGFloat(height)
+            if y < bottom { return index }
+            top = bottom
+        }
+        return nil
+    }
+
+    /// Places the band, or hides it.
+    ///
+    /// Called from `layoutSubviews` rather than from `setSelectedRow`, because
+    /// a row's position is only known once the widths and heights for this
+    /// pass are in -- the same reason the cells are positioned there.
+    /// 放好色帶,或把它藏起來。
+    ///
+    /// 從 `layoutSubviews` 呼叫,而不是從 `setSelectedRow`——因為一列的位置要等到這一輪的寬高
+    /// 都到齊才知道,理由與 cell 也在那裡定位相同。
+    private func layoutSelectionHighlight() {
+        if selectionHighlight.superview !== self {
+            selectionHighlight.isUserInteractionEnabled = false
+            addSubview(selectionHighlight)
+        }
+        // Back, every pass. `setCells` re-adds every cell, and each of those
+        // lands above whatever was there before.
+        // 每一輪都送到最底層。`setCells` 會把每一個 cell 重新加入,而它們每一個都會落在原有內容之上。
+        sendSubviewToBack(selectionHighlight)
+
+        guard let selectedRow, selectedRow >= 0, selectedRow < rowHeights.count else {
+            selectionHighlight.isHidden = true
+            return
+        }
+        selectionHighlight.isHidden = false
+        // The view's own tint, not a colour chosen here. It follows the app's
+        // accent and the user's appearance settings, which a literal would not.
+        // 用這個 view 自己的 tint,而不是在此挑一個顏色。它會跟隨 app 的 accent 與使用者的外觀設定,
+        // 而一個寫死的字面值不會。
+        selectionHighlight.backgroundColor = tintColor.withAlphaComponent(0.25)
+
+        var top = headerHeight
+        for index in 0..<selectedRow {
+            top += CGFloat(rowHeights[index])
+        }
+        selectionHighlight.frame = CGRect(
+            x: 0,
+            y: top,
+            width: bounds.width,
+            height: CGFloat(rowHeights[selectedRow])
+        )
+    }
+
     func setColumnLabels(_ labels: [String], environment: EnvironmentValues) {
         headerLabels.forEach { $0.removeFromSuperview() }
         headerLabels = labels.map { text in
@@ -87,6 +210,14 @@ final class TableWidget: BaseViewWidget {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+
+        // Before the `columnCount` guard. A table whose columns have not
+        // arrived yet still has a selection to clear, and leaving the band
+        // where it was would leave a highlight over a table that no longer has
+        // the row it belonged to.
+        // 放在 `columnCount` 的 guard 之前。一個欄位尚未抵達的表格,仍然有一個需要被清掉的選取;
+        // 把色帶留在原處,會讓高亮停在一個「已經沒有那一列」的表格上。
+        layoutSelectionHighlight()
 
         guard columnCount > 0 else { return }
 

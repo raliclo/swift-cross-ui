@@ -315,7 +315,6 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         #endif
     }
 
-
     public func activate(window: Window) {
         window.makeKeyAndOrderFront(nil)
     }
@@ -1937,6 +1936,24 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     var allowSelections = false
     var selectionHandler: ((Int) -> Void)?
 
+    /// Row selection for ``SwiftCrossUI/BackendFeatures/TableSelection``, kept
+    /// separate from `selectionHandler` because the two disagree about what
+    /// "nothing selected" is.
+    ///
+    /// A selectable list's handler takes a plain `Int`: that list always has a
+    /// selected item and its API cannot say otherwise. A table's binding is
+    /// `Int?`, and clicking below the last row is a deselection the user
+    /// performed on purpose. Reusing the list's handler would have meant either
+    /// dropping that click or forcing a row number on it.
+    ///
+    /// 為 ``SwiftCrossUI/BackendFeatures/TableSelection`` 而設的列選取,與 `selectionHandler`
+    /// 分開,因為兩者對「沒有選取」是什麼並不同意。
+    ///
+    /// 一個可選取清單的 handler 收的是單純的 `Int`:那個清單永遠有一個被選中的項目,它的 API
+    /// 也說不出別的。表格的 binding 是 `Int?`,而點在最後一列下方,是使用者**刻意**做出的取消選取。
+    /// 沿用清單那個 handler,等於要嘛丟掉那一次點擊、要嘛硬塞一個列號給它。
+    var tableSelectionHandler: ((Int?) -> Void)?
+
     func numberOfRows(in tableView: NSTableView) -> Int {
         return rowCount
     }
@@ -1995,12 +2012,20 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
         _ tableView: NSTableView,
         selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet
     ) -> IndexSet {
-        if allowSelections {
-            selectionHandler?(proposedSelectionIndexes.first!)
-            return proposedSelectionIndexes
-        } else {
-            return []
+        guard allowSelections else { return [] }
+
+        // `first`, not `first!`. The force-unwrap was safe while the only
+        // caller was a selectable list, which never proposes an empty set;
+        // a table proposes one every time the user clicks below the last row,
+        // and that crash would have been the feature's first press.
+        // 用 `first`,不是 `first!`。當唯一的呼叫者是可選取清單時,強制解包是安全的——那種清單
+        // 從不提出空集合;而表格在使用者每一次點到最後一列下方時都會提出一個,那次崩潰會正好
+        // 發生在這項功能的第一次按下。
+        if let first = proposedSelectionIndexes.first {
+            selectionHandler?(first)
         }
+        tableSelectionHandler?(proposedSelectionIndexes.first)
+        return proposedSelectionIndexes
     }
 
     /// The identifier is what makes `NSTableView` RECYCLE these.

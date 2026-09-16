@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125 on iOS: row selection, both directions.
+#
+# **UIKitBackend's table is not a `UITableView`**, so none of this came for
+# free: `TableWidget` lays its own cells out in `layoutSubviews`, and selection
+# had to be built as a highlight view behind the cells plus a tap recogniser
+# over them. That is exactly why a tap on a row is worth replaying here and not
+# just on macOS -- on macOS `NSTableView` already had the click path and this
+# backend had none.
+#
+# Same order as the macOS file, and for the same reason: the two directions
+# fail separately, only one can be the final capture, so the tap is proved in
+# the LOG ("SELECTION now 4" -- nothing else in this app produces a 4) and
+# `setSelectedRow` on the SCREEN.
+#
+# Measured 2026-09-16 from testapp/output/screenshots/p23-ios-final-20260916-134212.png.
+# Capture 1320 x 2868 px, so px/3 -> 440 x 956 pt. origin=client, mode actualView.
+# Cross-checked against P23-add-table-rows.csv, whose "More rows" at 154,247
+# lands on the same button in this capture.
+#
+# P23 #125 在 iOS 上:列選取,兩個方向。
+#
+# **UIKitBackend 的表格不是 `UITableView`**,因此這些沒有一項是免費得來的:`TableWidget` 在
+# `layoutSubviews` 中自行排列 cell,而選取必須以「cell 後面的一個高亮 view」加上「cell 上面的一個
+# tap recogniser」蓋出來。那正是為何「點一列」值得在這裡重放、而不只在 macOS 上重放——在 macOS 上,
+# `NSTableView` 本來就有點擊路徑,而這個 backend 一條都沒有。
+#
+# 順序與 macOS 那個檔案相同,理由也相同:兩個方向會各自失敗,而最終擷圖只能是其中之一,所以那次
+# 輕點由 **log** 證明(「SELECTION now 4」——這個 app 裡沒有別的東西會產生 4),`setSelectedRow`
+# 由**畫面**證明。
+#
+# 2026-09-16 量自 testapp/output/screenshots/p23-ios-final-20260916-134212.png。
+# 擷取 1320 x 2868 px,故為 px/3 -> 440 x 956 pt。origin=client,模式為 actualView。
+# 已與 P23-add-table-rows.csv 交叉核對:該檔的「More rows」座標 154,247 在本次擷圖上落在同一顆按鈕。
+sleep,,,,,,900000,let the scene settle before anything is selected,ios
+click,100,492,client,left,,,row 5 -- a tap the app never asked for; index 4,ios
+sleep,,,,,,700000,let the binding be written and the band drawn,ios
+click,182,317,client,left,,,Clear selection -- the band must go,ios
+sleep,,,,,,700000,,ios
+click,66,317,client,left,,,Select row 2 -- the framework writing into the backend,ios
+sleep,,,,,,900000,let the layout pass place the band before the capture,ios
