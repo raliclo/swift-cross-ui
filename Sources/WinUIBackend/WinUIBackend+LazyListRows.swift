@@ -10,59 +10,75 @@ import WinUI
 // ——因此 `registerUpdateCallback` 收的是一個 closure literal,而這個 import 正是讓那個名字進入作用域的東西。
 @preconcurrency import WindowsFoundation
 
-// **THE CONFORMANCE IS WITHHELD ON PURPOSE. Do not re-add
-// `: BackendFeatures.LazyListRows` without first making the rows render.**
+// **The rows here did not render at all until 2026-09-16, and the memory
+// measurement could not see it. That is why this note is long.**
 //
-// This code virtualizes correctly and saves the memory it claims -- 10,000 rows
-// measured 143 MB against 328 MB eager, with a control. It also draws NOTHING.
-// Both were true at once, which is the entire lesson here.
+// The saving was real from the start -- 10,000 rows at 143 MB against 328 MB
+// eager, with a control -- and the list drew nothing. Containers virtualized,
+// the provider was called, the numbers were right, the screen was blank. Only a
+// screenshot separated a working list from a broken one.
 //
-// Measured on 2026-09-16, WinUI, P57 at 10,000 rows, three arrangements:
+// Four arrangements were measured before one worked. They are kept because each
+// looked correct, and because the first three are what a reader would naturally
+// try again:
 //
-//   content set in phase 0            rows render as their placeholder index,
-//                                     "0" "1" "2", because ListViewBase's own
-//                                     preparation runs afterwards and assigns
-//                                     Content from the data item
+//   content set in phase 0            rows draw their placeholder index -- "0",
+//                                     "1", "2" -- because ListViewBase's own
+//                                     preparation runs AFTER the handler and
+//                                     assigns Content from the data item
 //   `args.handled = true`             blank. Preparation is skipped wholesale,
-//                                     including presenting the content. Probed
-//                                     the container straight back: content=Canvas,
-//                                     so the assignment HAD worked
-//   `registerUpdateCallback`, later   blank. The callback fires and replaces the
-//   phase                             placeholder -- which is why the numbers
-//                                     disappear -- and the Canvas still shows
-//                                     nothing
+//                                     including the part that PRESENTS content.
+//                                     A probe read the container straight back:
+//                                     content=Canvas, so the assignment worked
+//   `registerUpdateCallback` in a     blank, and the placeholder numbers vanish
+//   later phase                       -- so that callback does fire and does
+//                                     replace the content. Still nothing drawn
+//   clear `contentTemplate` first     RENDERS
 //
-// The EAGER path renders correctly with the SAME Canvas widgets in the SAME
-// ListViewItem containers (captured 2026-09-16: "row 0 revision 0" and on down),
-// so a Canvas can be a ListViewItem's content. What differs on the lazy path has
-// not been found yet.
+// The cause: a container WinUI GENERATES for a data item carries a
+// `ContentTemplate` whose job is to render that item, here the boxed `Int32`
+// placeholder. A `UIElement` assigned as `Content` is normally displayed
+// directly -- but not while a template is in place to render it through. The
+// element goes in and nothing comes out.
 //
-// A list that renders nothing is worse than a list that uses more memory, and
-// `LazyListRows` is conformance-checked, so withholding it restores fully
-// correct behaviour at the eager path's cost. That is the trade taken here.
+// The eager path never hit this, which is what made it such a good control: it
+// builds its own `ListViewItem`s, and those have no template.
 //
-// **此處刻意不掛上 conformance。在讓那些列真的算繪出來之前,不要把
-// `: BackendFeatures.LazyListRows` 加回去。**
+// Two probes did the work, and both were cheap. Reading the container back after
+// the assignment is what ruled out "the assignment failed"; reading
+// `row.widget.parent` is what ruled out "the widget is already parented". Three
+// hypotheses were guessed before the first probe was written, and all three were
+// wrong.
 //
-// 這段程式碼的虛擬化是正確的,也確實省下了它所宣稱的記憶體——一萬列量到 143 MB,對照 eager 的
-// 328 MB,而且有對照組。它同時**什麼都畫不出來**。兩件事同時為真,而那就是此處的全部教訓。
+// **此處的那些列直到 2026-09-16 為止根本沒有算繪出來,而記憶體量測看不見這件事。**
+// 這正是本註解寫得這麼長的理由。
 //
-// 2026-09-16 在 WinUI 上以 P57、一萬列量測三種安排:
+// 那個節省從一開始就是真的——一萬列 143 MB,對照 eager 的 328 MB,而且有對照組——**而清單什麼都
+// 沒畫**。容器有虛擬化、provider 有被呼叫、數字都對、畫面是空的。只有截圖能把「會動的清單」與
+// 「壞掉的清單」分開。
 //
-//   在 phase 0 設定內容        列算繪成它的佔位索引「0」「1」「2」,因為 `ListViewBase` 自己的
-//                              準備工作在那之後才跑,並用 data item 指派 Content
-//   `args.handled = true`      空白。準備工作被整份跳過,包含「把內容呈現出來」。把容器直接讀回來
-//                              得到 content=Canvas,可見那次指派**是成功的**
-//   `registerUpdateCallback`   空白。該 callback 有觸發、也換掉了佔位值——這正是那些數字消失的原因
-//   改在較晚的 phase           ——而那個 Canvas 依然什麼都不顯示
+// 在其中一種成功之前,量過四種安排。它們被保留下來,因為每一種看起來都是對的,而且前三種正是讀者
+// 會自然而然再試一次的東西:
 //
-// **eager 路徑用同樣的 Canvas widget、放在同樣的 ListViewItem 容器裡,算繪是正確的**
-// (2026-09-16 擷圖:「row 0 revision 0」以下皆是),因此 Canvas 是可以當 ListViewItem 的內容的。
-// lazy 路徑上究竟差在哪裡,目前尚未找到。
+//   在 phase 0 設定內容          列畫出它的佔位索引「0」「1」「2」,因為 `ListViewBase` 自己的準備
+//                                工作是在 handler **之後**才跑,並用 data item 指派 Content
+//   `args.handled = true`        空白。準備工作被整份跳過,含「把內容呈現出來」那一部分。探針把容器
+//                                直接讀回來:content=Canvas,可見那次指派是成功的
+//   `registerUpdateCallback`     空白,而且佔位數字消失了——代表那個 callback 確實有觸發、也確實換掉了
+//   改在較晚的 phase             內容。依然什麼都沒畫出來
+//   先清掉 `contentTemplate`     **算繪成功**
 //
-// 一份什麼都畫不出來的清單,比一份比較耗記憶體的清單更糟;而 `LazyListRows` 是 conformance 檢查制,
-// 因此把它收回來,就能以「回到 eager 路徑的成本」換取完全正確的行為。此處採取的正是這個取捨。
-extension WinUIBackend {
+// 成因:WinUI 為某個 data item **產生**的容器,會帶著一個 `ContentTemplate`,其職責是算繪那個
+// item——此處就是那個 boxed `Int32` 佔位值。一個被指派為 `Content` 的 `UIElement` 通常會被直接顯示,
+// **但在「還有一個 template 要拿來算繪它」的情況下並非如此**。元素進得去,卻什麼都出不來。
+//
+// eager 路徑從未遇上這件事,而那正是它作為對照組如此好用的原因:它是自己建 `ListViewItem` 的,
+// 而那些沒有 template。
+//
+// 真正解決問題的是兩個探針,而且兩個都很便宜。「指派之後把容器讀回來」排除了「指派失敗」;
+// 「讀 `row.widget.parent`」排除了「該 widget 已經有 parent」。在寫下第一個探針之前,我猜了三次,
+// 而三次全錯。
+extension WinUIBackend: BackendFeatures.LazyListRows {
     /// Points the ListView at the framework instead of at an eager array.
     ///
     /// **`ListView` already virtualizes its containers** -- its default
@@ -237,6 +253,19 @@ extension WinUIBackend {
             container.content = nil
             return
         }
+        // **Cleared before the content is set.** A container WinUI generated for
+        // a data item carries a `ContentTemplate` whose job is to render that
+        // item -- here the boxed `Int32` placeholder. A `UIElement` assigned as
+        // `Content` is normally displayed directly, but not while a template is
+        // in place to render it through: the element goes in and nothing comes
+        // out. The eager path never hit this because it builds its own
+        // `ListViewItem`s, which have no template.
+        // **在設定內容之前先清掉它。** WinUI 為某個 data item 產生的容器,會帶著一個
+        // `ContentTemplate`,其職責是算繪那個 item——此處就是那個 boxed `Int32` 佔位值。一個被指派為
+        // `Content` 的 `UIElement` 通常會被直接顯示,但在「還有一個 template 要拿來算繪它」的情況下
+        // 並非如此:元素進得去,卻什麼都出不來。eager 路徑從未遇上這件事,因為它是自己建
+        // `ListViewItem` 的,而那些沒有 template。
+        container.contentTemplate = nil
         container.content = row.widget
         container.horizontalContentAlignment = .left
         container.padding = Thickness(left: 16, top: 8, right: 12, bottom: 8)

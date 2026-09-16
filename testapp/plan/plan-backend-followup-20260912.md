@@ -38,6 +38,60 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 
 ## Verification log / 驗證紀錄
 
+- 2026-09-16 (Windows, later the same day): **WinUI's rows render, and the cause
+  was one line.** A container WinUI GENERATES for a data item carries a
+  `ContentTemplate` whose job is to render that item -- here the boxed `Int32`
+  placeholder. A `UIElement` assigned as `Content` is normally shown directly,
+  but not while a template is in place to render it through: the element goes in
+  and nothing comes out. Clearing `container.contentTemplate` before assigning
+  the content fixes it. The eager path never hit this, which is exactly what made
+  it such a good control -- it builds its own `ListViewItem`s, and those have no
+  template.
+
+  The conformance is back on. Re-measured with rows actually rendering:
+
+  | rows | eager (control) | lazy |
+  | --- | --- | --- |
+  | 1 | -- | 130 MB |
+  | 400 | 143 MB | 139 MB |
+  | 10,000 | **328 MB** | **146 MB** |
+
+  Pointer pass, `actions/win/P57-lazy-list-winui.csv`, 20 actions replayed --
+  the same sequence GTK passed, at WinUI's own coordinates:
+
+      selection=1 -> selection=9   same y after six wheel notches, so it scrolled
+      revision=1                   content update reached the rows
+      selection=none               Clear
+      rows=1 -> rows=10000         count both ways
+      selection=9999               selected outside the realized window
+      selection=none               Clear again
+
+  Capture `screen-20260916-081927.png`: 96.0% non-black, rows reading
+  "row N revision 1". Both Windows backends now pass memory, scrolling, pointer
+  selection, content update and count change.
+
+  **Three hypotheses were guessed before the first probe was written, and all
+  three were wrong.** Reading the container back after the assignment is what
+  ruled out "the assignment failed"; reading `row.widget.parent` is what ruled
+  out "the widget is already parented". Both probes were a few lines.
+
+- 2026-09-16(Windows,同日稍晚):**WinUI 的列算繪出來了,而成因只有一行。** WinUI 為某個
+  data item **產生**的容器,會帶著一個 `ContentTemplate`,其職責是算繪那個 item——此處就是那個
+  boxed `Int32` 佔位值。一個被指派為 `Content` 的 `UIElement` 通常會被直接顯示,**但在「還有一個
+  template 要拿來算繪它」的情況下並非如此**:元素進得去,卻什麼都出不來。在指派內容之前先清掉
+  `container.contentTemplate` 即可修正。eager 路徑從未遇上這件事,而那正是它作為對照組如此好用的
+  原因——它是自己建 `ListViewItem` 的,那些沒有 template。
+
+  conformance 已接回。在**列確實算繪**的前提下重新量測(數字見上表),並以
+  `actions/win/P57-lazy-list-winui.csv` 重放 20 個動作,走完與 GTK 相同的序列:
+  `selection=1 → selection=9`(同一個 y、滾輪六格之後,代表確實捲動了)、`revision=1`、
+  `selection=none`、`rows=1 → rows=10000`、`selection=9999`(選到已實體化窗口之外)、`selection=none`。
+  擷圖 `screen-20260916-081927.png`:非黑 96.0%,列文字為「row N revision 1」。
+  **兩個 Windows backend 現在在記憶體、捲動、指標選取、內容更新與列數變更上全部通過。**
+
+  **在寫下第一個探針之前猜了三次,三次全錯。** 「指派之後把容器讀回來」排除了「指派失敗」;
+  「讀 `row.widget.parent`」排除了「該 widget 已經有 parent」。兩個探針都只有幾行。
+
 - 2026-09-16 (Windows): **the visual and pointer pass GTK owed is DONE, and it
   found that WinUI's half has never rendered.**
 
