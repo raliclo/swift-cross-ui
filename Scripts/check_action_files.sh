@@ -65,7 +65,24 @@ missing = {}
 for number, row in enumerate(rows[2:], start=3):
     if len(row) <= 8:
         continue
-    for name in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.csv", row[8]):
+# `(?![0-9A-Za-z])` so `.csv` does not match inside `.csv2`.
+    #
+    # Without it, a note citing a MEASUREMENT file -- they are `.csv2`, and
+    # testapp/measurements is full of them -- yields the name with the `2` cut
+    # off, which is then looked for under testapp/actions and never found. The
+    # guard failed the whole suite on 2026-09-17 over
+    # `window-sizes-winui-sta-20260917.csv2`, a file that exists and is not an
+    # action file at all. A guard that fires on correct work teaches people to
+    # ignore it.
+    #
+    # 加上 `(?![0-9A-Za-z])`,`\.csv` 才不會比對到 `.csv2` 的前半。
+    #
+    # 少了它,一則引用**量測檔**的備註——量測檔是 `.csv2`,而 testapp/measurements 裡全是——
+    # 會得到一個被砍掉 `2` 的名字,接著到 testapp/actions 底下去找、然後永遠找不到。
+    # 2026-09-17 這道守衛就因為 `window-sizes-winui-sta-20260917.csv2` 讓整個測試套件失敗,
+    # 而那是一個**存在的**檔案,而且根本不是動作檔。一道會對正確的工作開火的守衛,
+    # 會教會大家忽略它。
+    for name in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.csv(?![0-9A-Za-z])", row[8]):
         if name not in present:
             missing.setdefault(name, []).append((number, row[3]))
 
