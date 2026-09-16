@@ -1,0 +1,50 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 on Windows, GtkBackend: does arrowEdge move the popover? (#109)
+#
+# The GTK twin of P50-arrow-edge.csv, and a separate file because the windows
+# are not the same size: this one captures 808x1005 and the WinUI one 782x918,
+# so the cycle button is at y=756 here and y=702 there. Nothing transfers.
+#
+# THE ASSERTION IS GEOMETRY. `ARROW EDGE now top` says the binding changed and
+# nothing about where the panel landed, so the evidence is a PAIR of captures
+# taken while the popover is open: PANEL ALPHA must appear on opposite sides of
+# its button. One picture cannot tell "the app asked for .top" from "the
+# platform ran out of room below"; two can.
+#
+# GTK reaches this through `GtkPopover.position`, a different API from WinUI's
+# `FlyoutPlacementMode`, so driving both is two tests rather than one done
+# twice.
+#
+# The FIRST panel, not the second: the second button sits low in the window and
+# near its left edge, so on WinUI every preference flipped to the same place and
+# the pair could not differ. A pair that cannot differ proves nothing whichever
+# way the code behaves.
+#
+# P50 於 Windows、GtkBackend:`arrowEdge` 真的會移動 popover 嗎?(#109)
+#
+# 這是 `P50-arrow-edge.csv` 的 GTK 版,獨立成檔是因為兩個視窗大小不同:此處擷圖為 808x1005,
+# WinUI 那個是 782x918,因此循環按鈕在這裡是 y=756、在那裡是 y=702。**沒有任何座標可以共用。**
+#
+# **斷言在幾何。** `ARROW EDGE now top` 說的是 binding 改變了,對「面板落在哪裡」隻字未提;
+# 因此證據是**在 popover 開啟時拍下的一對擷圖**:PANEL ALPHA 必須出現在它那顆按鈕的相反兩側。
+# 一張圖分不出「app 要求了 `.top`」與「平台在下方沒空間」;兩張可以。
+#
+# GTK 走的是 `GtkPopover.position`,與 WinUI 的 `FlyoutPlacementMode` 是不同的 API,
+# 因此兩邊都驅動是**兩個測試**,而不是同一個做兩次。
+#
+# 用**第一個**面板而非第二個:第二顆按鈕位置偏低、也靠近左緣,在 WinUI 上每一個偏好都翻到了
+# 同一個位置,那組對照根本不可能不同——而不可能不同的對照,無論程式如何運作都證明不了任何事。
+#
+# Coordinates measured off p50gtk-layout-20260916-203746.png, frame origin.
+# 座標量自 p50gtk-layout-20260916-203746.png,採 frame origin。
+sleep,,,,,,3000000,let the window settle and take the foreground,windows
+click,207,756,frame,left,,,cycle 1: none -> TOP,windows
+sleep,,,,,,600000,observe the readout say top,windows
+click,252,712,frame,left,,,open PANEL ALPHA with arrowEdge .top,windows
+sleep,,,,,,3000000,FIRST CAPTURE is taken during this hold,windows
+click,650,200,frame,left,,,light-dismiss the panel by clicking far from it,windows
+sleep,,,,,,800000,let it close,windows
+click,207,756,frame,left,,,cycle 2: top -> BOTTOM,windows
+sleep,,,,,,600000,observe the readout say bottom,windows
+click,252,712,frame,left,,,open PANEL ALPHA with arrowEdge .bottom,windows
+sleep,,,,,,3000000,SECOND CAPTURE is taken during this hold,windows
