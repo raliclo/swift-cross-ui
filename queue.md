@@ -56,7 +56,28 @@ an empty queue -- mistakes.md entry 1.
 - [~] **M2. #125 Table 的 `selection` 與 `sortOrder` — selection 已完成於五個 backend(2026-09-16),`sortOrder` 未開始** — selection:`BackendFeatures.TableSelection` 落地,Windows 兩個 backend 由此側實作、AppKit/UIKit/Android 由 Mac 實作,**兩個方向都以真實輸入驅動驗過**(探針寫 binding + 動作檔點擊,含「點標題列不得選取」的拒絕對照)。`sortOrder`:`TableColumnSorting` 目前**只出現在文件註解裡**,沒有任何實作——那是下一批。以下為原始說明,保留作為背景:欄寬他們已完成並雙 backend 驗收(`2fd81acb`)。剩下兩項需要 **backend→view 的事件回報**,而 `BackendFeatures.Tables` 目前每個方法都是單向的。**關鍵事實:`Gtk.Table` 是包著 `Grid` 的 `ScrolledWindow`,不是 `GtkColumnView`**——對「選取的列」毫無概念,標題也只是不可點的 `Label`。**不要假設與 `NSTableView` 對等**
   - **`selection` 已五個 backend 到齊。** Windows 落地了協定 `BackendFeatures.TableSelection`、view 側的 `Table(rows, selection:)`、GtkBackend 與 WinUIBackend(`c933f1b7`);本機接著落地 AppKit / UIKit / Android,**三個平台的兩個方向都以 action file 實測過**(五支檔案,見 `matrix_coverage/results.csv2` 的三列)。
   - **本機補上了 Windows 補不到的那一半。** 他們那兩列寫明「click→binding **未**驗證:這台機器接著遠端桌面,滑鼠注入被拒」。mac 的 log 行 `SELECTION now 4`、iOS 與 Android 的「色帶必須移動」兩張擷圖,補的就是那一半。
-  - **仍未動的是 `sortOrder`。** 它是第二條 backend→view 通道(使用者點了哪一個標題),與 `selection` 刻意分開成兩個協定,理由寫在 `Tables.swift` 裡:一個 backend 完全可能做得到其中一個而非另一個。
+  - ~~**仍未動的是 `sortOrder`。**~~ **2026-09-16 19:30 完成於兩個 Windows backend,兩者都以
+    動作檔驅動通過。** 它是第二條 backend→view 通道(使用者點了哪一個標題),與 `selection`
+    刻意分開成兩個協定,理由寫在 `Tables.swift` 裡:一個 backend 完全可能做得到其中一個而非另一個。
+    `TableSortOrder` 帶的是**欄索引 + 方向,不是 comparator**——本框架的 `TableColumn` 是 closure、
+    沒有 key path,硬造 comparator 只能拿算繪出來的文字比較。**排序由 app 做,框架只做每個 app
+    都一樣的那部分**(哪一欄、哪個方向、同一欄再點就翻轉),而那段翻轉邏輯放在 `Table.commit`、
+    不放在各 backend,否則五份相同的三行會各自漂移。
+    判決(兩個 backend 完全相同,而命中機制完全不同):第 3 欄 ascending → 再點一次 descending
+    且 `firstId/lastId` 由 1/8 變成 8/1(**列真的動了**)→ 點標題回到 ascending(**走 backend**)
+    → Clear 後 none。
+    **唯一未取得的是排序指示符的畫面證據。** `actions/win/P23-sort-indicator-gtk4.csv` 就是為它
+    而寫的(點一次、停六秒),但**連續八次注入全被拒**。箭頭已實作(`setSortIndicator` 附加
+    U+25B2/U+25BC,並在 `setColumnLabels` 重建標題後重新套用),**但沒有人看過它出現在畫面上**;
+    log 的 `column 3 ascending` 在「有畫」與「沒畫」兩種情況下一模一樣,那正是 #117 在 WinUI 上的形狀。
+    **AppKit / UIKit / Android 的 `TableColumnSorting` 仍未實作**,那是 Mac 那邊的。
+
+  - **今天量到、值得下次照做的一件事(相關性,不是成因)**:兩次成功的排序驅動,都是在
+    **使用者剛與遠端桌面互動之後**的第一次嘗試;而中間那八次在完全沒有互動的情況下連續被拒。
+    下次要驗證需要滑鼠的東西時,請對方動一下、然後**立刻**跑。
+    *Both successful sort replays today began right after the user interacted with the remote
+    session; eight consecutive attempts with no interaction were all refused. Correlation, not a
+    proven cause -- but it is the cheapest thing to try first.*
 - [ ] **M3b. #109 popover `arrowEdge`** — 決定為 (1):加 `arrowEdge` 當**提示**、backend 可翻轉。**分工待答**(見下方回覆)
 - [x] **5c. #122 focus / #123 accessibility:protocol 形狀草案已出** — `testapp/plan/plan-focus-protocol.md`。四個方法、`focus` 回傳 `Bool`(Android touch mode 會正當失敗)、`setFocusChangeHandler` 為必要;**#123 與 #122 分開**且可先落地。**待 Windows 回答一個問題**:WinUI 的 `FocusManager.TryFocusAsync` 是非同步的,而草案的 `focus` 是同步的
 - [x] **5c-ANSWER(Windows 回覆,2026-09-10):同步的 `focus` 可以照用,形狀不必改。**

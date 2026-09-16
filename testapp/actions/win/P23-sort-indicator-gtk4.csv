@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, GtkBackend: is the sort INDICATOR actually drawn? (#125)
+#
+# **A second file for one click, because the other one ends with Clear sort.**
+# P23-sort-columns-gtk4.csv proves the four transitions and finishes with no
+# sort at all, so a capture taken after it shows a table with no arrow -- which
+# is correct for that moment and says nothing about whether an arrow can appear.
+#
+# This one clicks once and then holds, so a capture taken during the hold has
+# the indicator on screen or does not. That is the only way to tell: the log can
+# say `column 3 ascending` while `setSortIndicator` draws nothing, exactly as
+# #117's WinUI rows measured a perfect memory saving while rendering nothing.
+#
+# The arrow is appended to the header's text (" ▲"), so what the capture
+# should show is `Number ▲` and the other three titles unchanged.
+#
+# P23 於 Windows、GtkBackend:排序**指示符**真的有被畫出來嗎?(#125)
+#
+# **為了一次點擊而多開一個檔案,因為另一個檔案是以 Clear sort 收尾的。**
+# `P23-sort-columns-gtk4.csv` 證明的是四次轉換,而它結束時是「完全沒有排序」的狀態,
+# 因此在它之後拍的擷圖會是一張沒有箭頭的表格——那在那個時刻是**正確的**,卻對
+# 「箭頭究竟能不能出現」什麼都沒說。
+#
+# 這一個只點一次,然後停住;在停留期間拍到的擷圖,要嘛有指示符、要嘛沒有。那是唯一的分辨方式:
+# log 可以說出 `column 3 ascending`,而 `setSortIndicator` 卻什麼都沒畫——
+# 正如 #117 的 WinUI 列量到了完美的記憶體節省、畫面上卻空無一物。
+#
+# 箭頭是**附加在標題文字**上的(" ▲"),因此擷圖應該顯示 `Number ▲`,而其餘三個標題不變。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,94,353,frame,left,,,Sort by Number once -- ascending,windows
+sleep,,,,,,6000000,HOLD: this is the window the capture is taken in,windows
