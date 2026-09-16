@@ -398,3 +398,40 @@ backends looked like they had no magnify gesture) and it counted comments that
 merely name a protocol (so UIKit looked like it read `keyboardShortcut`, when
 those two hits were my own comment saying it does NOT). Run both controls before
 believing any zero.
+
+---
+
+## 五個 backend 的能力缺口,逐格開成待辦(2026-09-16 由原始碼查得)
+
+CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」。** 以下每一格都是那條規則下的一筆欠債。
+
+| 缺口 | 誰 | 備註 |
+| --- | --- | --- |
+| **UIKit `keyboardShortcut`(#121)** | **Mac** | 今天由我造成。`UIAction` 收 closure 帶不了按鍵;`UIKeyCommand` 帶得了卻收 selector、經 responder chain 派送。目前只有一段註解在守它,**執行期完全沉默** |
+| GTK `LazyListRows`(#117) | Windows | 目前只 conform `LazyListRowLifetimes`(回收那一半);「按需建列」那一半未做。他們標為 active |
+| GTK `Accessibility`(#123) | Windows | `gtk_accessible_update_property`(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。**`gtk_widget_set_tooltip_text` 不是 hint**,交接已寫明 |
+| WinUI `Accessibility`(#123) | Windows | `AutomationProperties.Name` / `HelpText` / `ItemStatus` |
+| GTK `FocusableViews`(#122) | Windows | `gtk_widget_grab_focus` 可直接呼叫 C 符號,不需產生綁定 |
+| WinUI `FocusableViews`(#122) | Windows | **仍未解的形狀衝突**:`FocusManager.TryFocusAsync` 是非同步的,而 `focus` 是同步且回傳 `Bool`。若非同步不可,請說,形狀要改 |
+
+**這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
+backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
+「沒有實作」。2026-09-16 我試著自動分辨兩者,那個判準抓到 0 個繼承項目——所以它是壞的,而我沒有拿它
+去開 39 條待辦。**要補完這張表,得先寫出一個能通過正反對照的探針。**
+
+---
+
+## The capability gaps, one todo per cell (read from the source, 2026-09-16)
+
+CLAUDE.md: no feature may be left "not supported" on these five. Each cell above
+is a debt under that rule. UIKit's `keyboardShortcut` is the Mac side's and was
+created today; the other five are the Windows side's, and `queue-windows.md`
+carries the details for each.
+
+Those six are verified. A full sweep reports more `NO`s and that list is NOT
+trustworthy yet: many protocols are satisfied by INHERITANCE from the base
+backend protocol rather than by a named `BackendFeatures.X` extension, so "the
+name does not appear" is not "it is not implemented". An attempt to separate the
+two automatically found zero inherited protocols, which means the discriminator
+is broken -- so it was not used to open 39 todos. Completing this table needs a
+probe that passes a positive and a negative control first.
