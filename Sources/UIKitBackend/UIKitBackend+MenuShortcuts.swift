@@ -125,3 +125,106 @@ extension ApplicationDelegate {
         MenuShortcutActions.perform(token: token)
     }
 }
+
+/// The closures behind the shortcuts an iPhone gets, kept apart from
+/// ``MenuShortcutActions`` on purpose.
+///
+/// **Two tables rather than one, because they have different generations.**
+/// `MenuShortcutActions.beginRebuild()` runs inside `buildMenu`, which the menu
+/// system calls whenever it likes; this table is rebuilt in
+/// `setApplicationMenu`, which is the framework telling the backend what the
+/// menu now is. Sharing one table would mean a rebuild of the menu silently
+/// invalidating every token the iPhone path was holding -- and a shortcut that
+/// finds nothing does nothing, which is the failure this whole file exists to
+/// remove.
+///
+/// iPhone 所取得的那些快捷鍵背後的 closure,刻意與 ``MenuShortcutActions`` 分開存放。
+///
+/// **用兩張表而不是一張,因為它們的「世代」不同。** `MenuShortcutActions.beginRebuild()` 在
+/// `buildMenu` 之內執行,而選單系統想什麼時候呼叫它就什麼時候呼叫;這張表則在 `setApplicationMenu`
+/// 中重建,那是「框架告訴 backend 現在的選單是什麼」。共用一張表,會讓一次選單重建默默作廢 iPhone
+/// 那條路所持有的每一個 token——而一個找不到東西的快捷鍵什麼也不做,那正是整個檔案要消除的失敗。
+enum FallbackShortcutActions {
+    nonisolated(unsafe) private static var actions: [Int: @MainActor () -> Void] = [:]
+    nonisolated(unsafe) private static var next = 0
+
+    @MainActor
+    static func beginRebuild() {
+        actions.removeAll()
+        next = 0
+    }
+
+    @MainActor
+    static func register(_ action: @escaping @MainActor () -> Void) -> Int {
+        next += 1
+        actions[next] = action
+        return next
+    }
+
+    @MainActor
+    static func perform(token: Int) {
+        actions[token]?()
+    }
+}
+
+extension UIKitBackend {
+    /// Every shortcut in a menu tree, flattened, with the environment each item
+    /// was resolved under.
+    ///
+    /// **`modifiedEnvironment` is the case that carries the shortcut**, so a
+    /// walk that skipped it would find every menu item and no keys at all --
+    /// `keyboardShortcut` reaches an item as an environment modification, not
+    /// as a property of the item.
+    ///
+    /// Disabled items are left out rather than registered and ignored: a
+    /// disabled command that swallows its key is worse than one that is absent,
+    /// because nothing further down the responder chain gets a turn.
+    ///
+    /// 一棵選單樹裡的每一個快捷鍵,攤平,並帶著各項目被解析時所處的 environment。
+    ///
+    /// **帶著那個快捷鍵的正是 `modifiedEnvironment` 這個 case**,因此一次略過它的走訪,會找到每一個
+    /// 選單項目、卻一個按鍵都找不到——`keyboardShortcut` 是以 environment 修改的形式抵達某個項目的,
+    /// 不是該項目的屬性。
+    ///
+    /// 被停用的項目是被略過,而不是註冊後忽略:一個「吞掉自己按鍵」的停用命令,比一個不存在的更糟,
+    /// 因為 responder chain 底下的任何東西都不會再輪到。
+    static func shortcuts(
+        in items: [ResolvedMenu.Item],
+        environment: EnvironmentValues
+    ) -> [(label: String, shortcut: KeyboardShortcut, action: @MainActor () -> Void)] {
+        var found: [(label: String, shortcut: KeyboardShortcut, action: @MainActor () -> Void)] = []
+        for item in items {
+            switch item {
+                case .button(let label, let action):
+                    if let action,
+                        environment.isEnabled,
+                        let shortcut = environment.keyboardShortcut
+                    {
+                        found.append((label, shortcut, action))
+                    }
+                case .submenu(let submenu):
+                    found += shortcuts(in: submenu.content.items, environment: environment)
+                case .modifiedEnvironment(let inner, let modification):
+                    found += shortcuts(in: [inner], environment: modification(environment))
+                case .toggle, .separator:
+                    break
+            }
+        }
+        return found
+    }
+}
+
+extension ApplicationDelegate {
+    /// The one selector the iPhone path dispatches to.
+    ///
+    /// Separate from ``scuiPerformKeyCommand(_:)`` because the two read
+    /// different tables; see ``FallbackShortcutActions``.
+    /// iPhone 那條路所派送到的那唯一一個 selector。
+    ///
+    /// 與 ``scuiPerformKeyCommand(_:)`` 分開,因為兩者讀的是不同的表;見 ``FallbackShortcutActions``。
+    @objc
+    func scuiPerformFallbackKeyCommand(_ sender: UIKeyCommand) {
+        guard let token = sender.propertyList as? Int else { return }
+        FallbackShortcutActions.perform(token: token)
+    }
+}

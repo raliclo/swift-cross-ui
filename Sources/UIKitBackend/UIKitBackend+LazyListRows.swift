@@ -36,3 +36,24 @@ extension UIKitBackend: BackendFeatures.LazyListRows {
         table.reloadData()
     }
 }
+
+extension UIKitBackend: BackendFeatures.LazyListRowLifetimes {
+    /// **`UITableViewDelegate` already reports this; nothing had asked.**
+    /// `didEndDisplaying` is the moment a cell stops showing a row, which is
+    /// exactly what the framework needs in order to release the node it built
+    /// for that row.
+    ///
+    /// Replaced, never appended to: `List` installs it on every commit.
+    ///
+    /// **`UITableViewDelegate` 本來就會回報這件事,只是先前沒有人問。** `didEndDisplaying` 正是
+    /// 「一個 cell 不再顯示某一列」的那一刻,而那恰好是框架釋放它為該列所建節點所需要的東西。
+    ///
+    /// 取代、絕不追加:`List` 每次 commit 都會安裝它。
+    public func setLazyRowReleaseHandler(
+        ofSelectableListView listView: Widget,
+        to handler: @escaping (Int) -> Void
+    ) {
+        let table = (listView as! WrapperWidget<UICustomTableView>).child
+        table.customDelegate.lazyReleaseHandler = handler
+    }
+}

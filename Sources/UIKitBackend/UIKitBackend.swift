@@ -422,6 +422,62 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     var menu: [ResolvedMenu.Submenu] = []
     var environment: EnvironmentValues?
 
+    // MARK: Keyboard shortcuts without a menu bar (#121 on iPhone)
+
+    /// The shortcuts, as key commands, for a device that never builds a main
+    /// menu.
+    ///
+    /// **`buildMenu(with:)` is never called with `.main` on iPhone**, because
+    /// there is no menu bar to build -- measured 2026-09-16 on an iPhone 17 Pro
+    /// Max and recorded in `actions/ios/P71-shortcuts.csv`. Every `UIKeyCommand`
+    /// this backend made lived inside that call, so on iPhone `.commands` and
+    /// every shortcut in it did nothing at all, while the same binary worked on
+    /// an iPad.
+    ///
+    /// **That is not "the platform has no API for this".** `UIResponder`
+    /// publishes `keyCommands` along the responder chain and a hardware keyboard
+    /// on an iPhone dispatches through it, with no menu involved. This is that
+    /// route.
+    ///
+    /// 一個永遠不會建出主選單的裝置,它的那些快捷鍵——以 key command 的形式。
+    ///
+    /// **在 iPhone 上,`buildMenu(with:)` 從不以 `.main` 被呼叫**,因為那裡沒有選單列可建
+    /// ——2026-09-16 在 iPhone 17 Pro Max 上量過,記於 `actions/ios/P71-shortcuts.csv`。
+    /// 這個 backend 所造出的每一個 `UIKeyCommand` 都住在那次呼叫之內,因此在 iPhone 上,`.commands`
+    /// 與其中的每一個快捷鍵**完全沒有作用**,而同一個二進位檔在 iPad 上卻能用。
+    ///
+    /// **那不是「這個平台沒有對應的 API」。** `UIResponder` 會沿著 responder chain 公布
+    /// `keyCommands`,而 iPhone 上的實體鍵盤正是經由它派送的,完全不牽涉選單。這就是那條路。
+    var fallbackKeyCommands: [UIKeyCommand] = []
+
+    /// Whether the menu system has built a main menu in this process.
+    ///
+    /// **The published commands are withheld once it has**, or an iPad would
+    /// carry each shortcut twice -- once from the menu and once from here -- and
+    /// a `UIKeyCommand` that appears twice in the chain runs its action twice.
+    /// For a "delete" command that is not a cosmetic difference.
+    ///
+    /// Read at key-press time rather than when the menu is set, because the
+    /// order is the other way round: `setApplicationMenu` asks for a rebuild and
+    /// `buildMenu` follows, so at the moment the commands are made nothing knows
+    /// yet whether a menu bar exists.
+    ///
+    /// 在這個行程中,選單系統是否曾建出一個主選單。
+    ///
+    /// **一旦建過,就不再公布那些 command**,否則 iPad 會把每一個快捷鍵帶兩份——一份來自選單、
+    /// 一份來自這裡——而一個在 chain 中出現兩次的 `UIKeyCommand` 會把它的動作執行兩次。
+    /// 對一個「刪除」命令來說,那不是外觀上的差別。
+    ///
+    /// 在**按鍵發生時**讀取,而不是在選單被設定時讀取,因為順序恰好相反:`setApplicationMenu` 先要求
+    /// 一次重建、`buildMenu` 隨後才來,因此在那些 command 被造出來的當下,還沒有任何東西知道是否
+    /// 存在一條選單列。
+    var hasBuiltMainMenu = false
+
+    open override var keyCommands: [UIKeyCommand]? {
+        guard !hasBuiltMainMenu, !fallbackKeyCommands.isEmpty else { return nil }
+        return fallbackKeyCommands
+    }
+
     public required override init() {
         super.init()
     }
@@ -520,6 +576,10 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
         // 為這次重建開始新一代的快捷鍵 token。見 `MenuShortcutActions`:一張只增不減的表,會保留
         // **每一次**重建的每一個 closure,包括那些捕捉了「後來已被替換的 view 狀態」的。
         MenuShortcutActions.beginRebuild()
+        // Recorded here, at the one place that proves a menu bar exists. See
+        // `hasBuiltMainMenu`.
+        // 在此記下,而這裡是唯一能證明「存在一條選單列」的地方。見 `hasBuiltMainMenu`。
+        hasBuiltMainMenu = true
 
         for submenu in menu {
             let menuIdentifier = mapMenuIdentifier(submenu.label)

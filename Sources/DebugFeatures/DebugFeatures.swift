@@ -212,3 +212,43 @@ public enum DebugFeatures {
         #endif
     }()
 }
+
+extension DebugFeatures {
+    /// How many lazy list-row nodes the framework is currently holding.
+    ///
+    /// **A conformance readout cannot answer the question this answers.** P57
+    /// already prints whether a backend conforms to
+    /// `BackendFeatures.LazyListRowLifetimes`, and that is a claim about a type,
+    /// not about a callback ever arriving -- Android once compiled a conformance
+    /// and took the other path anyway, which is why P57 asks the backend rather
+    /// than the file list in the first place. This counts the thing the feature
+    /// exists to bound: visit four hundred rows, and a list whose backend
+    /// reports releases settles near the size of the visible window, while one
+    /// that does not climbs towards
+    /// `ListViewChildren.lazyLifetimeBackstopLimit`.
+    ///
+    /// Written by `List` and read by a test app. `nonisolated(unsafe)` because
+    /// every access is on the main thread -- a layout pass writes it, a view
+    /// body reads it -- and because a lock here would be a cost paid by a
+    /// release build to serve a debug readout.
+    ///
+    /// 框架當下持有多少個 lazy 清單列節點。
+    ///
+    /// **一行 conformance 讀數回答不了這個問題。** P57 已經會印出某個 backend 是否 conform 到
+    /// `BackendFeatures.LazyListRowLifetimes`,而那是關於一個**型別**的主張,不是關於「那個回呼
+    /// 曾經抵達」的主張——Android 曾經把一個 conformance 編了進去、然後照樣走了另一條路,而那正是
+    /// P57 一開始就去問 backend、而不是去看有哪些檔案的理由。這個數字量的是這項功能存在所要限制的
+    /// 那個東西:走過四百列之後,一個「backend 會回報釋放」的清單會穩定在可見視窗大小附近,
+    /// 而一個不會回報的則會朝 `ListViewChildren.lazyLifetimeBackstopLimit` 爬上去。
+    ///
+    /// 由 `List` 寫入,由測試 app 讀取。標為 `nonisolated(unsafe)`,因為每一次存取都在主執行緒上
+    /// ——一次版面計算寫它,一個 view 的 body 讀它——也因為在此加鎖,會是讓 release 建置為了一行
+    /// debug 讀數而付出的代價。
+    nonisolated(unsafe) public private(set) static var liveLazyListRows = 0
+
+    public static func recordLiveLazyListRows(_ count: Int) {
+        #if SCUI_DEBUG
+        liveLazyListRows = count
+        #endif
+    }
+}

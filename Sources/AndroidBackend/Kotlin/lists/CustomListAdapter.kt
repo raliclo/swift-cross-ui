@@ -49,6 +49,45 @@ class CustomListAdapter : BaseAdapter() {
     private var heights = intArrayOf()
 
     /**
+     * Which row each handed-out view is showing, for `SwiftRowRecycler`.
+     *
+     * Two maps rather than one, because both questions get asked. `AbsListView` scraps a *view*
+     * and gives no position, so the reverse direction answers "which row was this"; and a position
+     * can be handed a NEW view while the old one is still on its way to the scrap heap, so the
+     * forward direction answers "is this still the view for that row". Reporting a release for a
+     * row that has already been rebuilt would drop a node the list is currently displaying, which
+     * leaves a visible row that nothing updates afterwards.
+     *
+     * `IdentityHashMap` because `View` inherits `Object.equals`, but two distinct rows are two
+     * distinct views and must never collapse into one key if a subclass ever overrides it.
+     *
+     * 每一個被交出去的 view 正在顯示哪一列——供 `SwiftRowRecycler` 使用。
+     *
+     * 用兩張表而不是一張,因為兩個問題都會被問到。`AbsListView` 丟棄的是一個 **view**、而且不給位置,
+     * 因此反向那張回答「這個 view 先前是哪一列」;而一個位置可能在舊的 view 還在前往 scrap heap 的
+     * 路上時,就已經被交付了一個**新的** view,因此正向那張回答「它是否仍是那一列的 view」。
+     * 為一個**已經被重建**的列回報釋放,會丟掉一個清單當下正在顯示的節點,留下一個其後不再被任何東西
+     * 更新的可見列。
+     *
+     * 使用 `IdentityHashMap`,因為 `View` 繼承的是 `Object.equals`;但兩個不同的列就是兩個不同的
+     * view,萬一某個子類別覆寫了它,它們也絕不可以塌縮成同一把鍵。
+     */
+    private val positionForView = java.util.IdentityHashMap<View, Int>()
+    private val viewForPosition = mutableMapOf<Int, View>()
+
+    /**
+     * The row this view had been showing, or -1 if it is no longer that row's view.
+     *
+     * 這個 view 先前在顯示的那一列;若它已不再是該列的 view 則為 -1。
+     */
+    fun releasePosition(view: View): Int {
+        val position = positionForView.remove(view) ?: return -1
+        if (viewForPosition[position] !== view) return -1
+        viewForPosition.remove(position)
+        return position
+    }
+
+    /**
      * Non-zero when rows come from Swift one at a time.
      *
      * The id, rather than a callback object, because the way back into Swift here is a JNI native
@@ -120,6 +159,14 @@ class CustomListAdapter : BaseAdapter() {
         if (view.foreground == null) {
             view.foreground = selectionOverlay()
         }
+
+        // Recorded AFTER the view exists and before it is returned, so a scrap arriving later can
+        // be turned back into a row index. Overwriting the forward entry is what makes a stale
+        // scrap answer -1 in `releasePosition`.
+        // 在該 view 已經存在、且尚未被回傳之前記下,好讓稍後抵達的一次 scrap 能被還原成一個列索引。
+        // 覆寫正向那筆,正是讓一次過期的 scrap 在 `releasePosition` 中得到 -1 的東西。
+        positionForView[view] = position
+        viewForPosition[position] = view
 
         val height =
             if (lazyId != 0) {

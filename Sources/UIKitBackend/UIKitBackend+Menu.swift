@@ -221,6 +221,47 @@ extension UIKitBackend: BackendFeatures.AttachedMenus {
             appDelegate.menu = submenus
             appDelegate.environment = environment
 
+            // The shortcuts again, this time as free-standing key commands.
+            //
+            // **Built here rather than in `buildMenu`, because on iPhone
+            // `buildMenu` never runs with `.main`** -- measured 2026-09-16 on an
+            // iPhone 17 Pro Max -- so everything the menu path produces is
+            // absent there and `.commands` did nothing at all on the device most
+            // people are holding. `ApplicationDelegate.keyCommands` publishes
+            // these along the responder chain, which needs no menu bar, and
+            // withholds them once a main menu HAS been built so an iPad does not
+            // carry each shortcut twice.
+            //
+            // A fresh generation each time this is called, for the reason
+            // `MenuShortcutActions` gives about stale closures -- in its own
+            // table, because the two are rebuilt at different moments.
+            //
+            // 那些快捷鍵,再一次,這回是獨立的 key command。
+            //
+            // **建在這裡而不是建在 `buildMenu` 裡,因為 iPhone 上的 `buildMenu` 從不以 `.main` 執行**
+            // ——2026-09-16 在 iPhone 17 Pro Max 上量過——因此選單那條路產出的一切在那裡都不存在,
+            // 而 `.commands` 在多數人手上的那種裝置上**完全沒有作用**。
+            // `ApplicationDelegate.keyCommands` 會沿著 responder chain 公布這些,那不需要選單列;
+            // 而一旦主選單**確實**被建出來過,它就不再公布,好讓 iPad 不會把每個快捷鍵帶兩份。
+            //
+            // 每次呼叫都是新的一代,理由與 `MenuShortcutActions` 就過期 closure 所給的相同
+            // ——但放在它自己的表裡,因為兩者重建的時機不同。
+            FallbackShortcutActions.beginRebuild()
+            appDelegate.fallbackKeyCommands = submenus.flatMap { submenu in
+                Self.shortcuts(in: submenu.content.items, environment: environment)
+            }.map { entry in
+                UIKeyCommand(
+                    title: entry.label,
+                    image: nil,
+                    action: #selector(
+                        ApplicationDelegate.scuiPerformFallbackKeyCommand(_:)
+                    ),
+                    input: String(entry.shortcut.key.character).lowercased(),
+                    modifierFlags: Self.modifierFlags(for: entry.shortcut),
+                    propertyList: FallbackShortcutActions.register(entry.action)
+                )
+            }
+
             // Storing the submenus is not enough: UIKit has already built the
             // menu by now, and will not build it again unless asked.
             //

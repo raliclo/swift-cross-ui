@@ -45,3 +45,26 @@ extension AppKitBackend: BackendFeatures.LazyListRows {
         table.reloadData()
     }
 }
+
+extension AppKitBackend: BackendFeatures.LazyListRowLifetimes {
+    /// **`NSTableView` already tells us this; nothing had asked.** The row view
+    /// lifecycle -- `didAdd`/`didRemove` -- is the same mechanism that makes
+    /// `rowViewForRow` worth recycling, and it reports exactly the moment the
+    /// framework needs: a row has stopped owning its content.
+    ///
+    /// Replaced, never appended to, for the reason every handler in this
+    /// backend carries: `List` installs it on each commit.
+    ///
+    /// **`NSTableView` 本來就會說出這件事,只是先前沒有人問。** row view 的生命週期
+    /// ——`didAdd`/`didRemove`——與「讓 `rowViewForRow` 值得回收」的是同一套機制,而它回報的
+    /// 正是框架需要的那一刻:某一列不再持有它的內容了。
+    ///
+    /// 取代、絕不追加,理由與本 backend 每一個 handler 所帶的相同:`List` 每次 commit 都會安裝它。
+    public func setLazyRowReleaseHandler(
+        ofSelectableListView listView: Widget,
+        to handler: @escaping (Int) -> Void
+    ) {
+        let table = (listView as! NSScrollView).documentView as! NSCustomTableView
+        table.customDelegate.lazyReleaseHandler = handler
+    }
+}

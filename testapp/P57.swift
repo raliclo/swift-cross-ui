@@ -1,3 +1,4 @@
+import DebugFeatures
 import DefaultBackend
 import Foundation
 @_spi(Backends) import SwiftCrossUI
@@ -600,6 +601,26 @@ struct P57RootView: View {
                 "row release reported: "
                     + "\(backend is any BackendFeatures.LazyListRowLifetimes ? "yes" : "NO")"
             )
+            // **The conformance above is a claim about a TYPE; this is the
+            // callback arriving.** Android has compiled a conformance and taken
+            // the other path before, which is why the line above asks the
+            // backend rather than the file list -- and the same gap exists one
+            // level further in: a backend can conform and never call the
+            // handler, and the list looks and scrolls identically.
+            //
+            // Visit four hundred rows and read this. A backend that reports
+            // releases settles near the size of the visible window; one that
+            // does not climbs towards `lazyLifetimeBackstopLimit`, which is
+            // 4000, and the only symptom before that is memory.
+            //
+            // **上面那行 conformance 是關於一個「型別」的主張;這一行是「那個回呼真的抵達了」。**
+            // Android 曾經把一個 conformance 編了進去、然後走了另一條路,而那正是上面那行要去問
+            // backend、而不是去看有哪些檔案的理由——同樣的缺口在再往裡一層仍然存在:一個 backend
+            // 可以 conform 卻從不呼叫那個 handler,而那個清單看起來與捲起來都一模一樣。
+            //
+            // 走過四百列再讀這一行。會回報釋放的 backend 會穩定在可見視窗大小附近;不會回報的則會
+            // 朝 `lazyLifetimeBackstopLimit`(4000)爬上去,而在那之前唯一的症狀是記憶體。
+            Text("rows held by the framework: \(DebugFeatures.liveLazyListRows)")
             // Zero-sized, present only so the WinUI probe has a real element to
             // walk the tree from. It reads and scrolls; it does not render.
             // 尺寸為零,存在的唯一目的是讓 WinUI 探針有一個真正的元素可據以走訪那棵樹。

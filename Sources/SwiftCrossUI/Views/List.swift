@@ -1,3 +1,4 @@
+import DebugFeatures
 import Foundation
 /// A view that displays a selectable list of views.
 public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View {
@@ -236,6 +237,7 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                         environment: environment
                     )
                     children.lazyNodes[index] = node
+                    DebugFeatures.recordLiveLazyListRows(children.lazyNodes.count)
                 }
                 // A lifetime-reporting backend frees each node precisely, when
                 // its native factory unbinds that row, so it does not want the
@@ -275,6 +277,14 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
                             ofSelectableListView: widget as! L.Widget
                         ) { [weak children] index in
                             children?.lazyNodes[index] = nil
+                            // Reported here rather than only where nodes are
+                            // added, because this is the line whose absence the
+                            // readout exists to make visible.
+                            // 在此回報,而不是只在節點被加入的地方回報,因為這正是那行讀數
+                            // 所要讓人看見「它有沒有發生」的那一行。
+                            DebugFeatures.recordLiveLazyListRows(
+                                children?.lazyNodes.count ?? 0
+                            )
                         }
                     }
                     installRelease(lifecycle)
@@ -638,6 +648,7 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
         while lazyOrder.count > limit {
             let evicted = lazyOrder.removeFirst()
             lazyNodes[evicted] = nil
+            DebugFeatures.recordLiveLazyListRows(lazyNodes.count)
             // The HEIGHT is kept. It costs a few bytes, it is what the backend
             // needs to keep the scrollbar steady for a row it has already
             // measured once, and throwing it away would make the list resize

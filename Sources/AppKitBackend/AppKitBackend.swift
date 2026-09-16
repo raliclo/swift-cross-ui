@@ -2113,6 +2113,70 @@ class NSCustomTableViewDelegate: NSObject, NSTableViewDelegate, NSTableViewDataS
     /// 這個識別碼正是讓 `NSTableView` **回收**它們的東西。
     static let rowViewIdentifier = NSUserInterfaceItemIdentifier("dev.swiftcrossui.listRow")
 
+    // MARK: Row lifetimes (BackendFeatures.LazyListRowLifetimes)
+
+    /// Called when a row stops being displayed, so the framework can drop the
+    /// view-graph node it built for it.
+    ///
+    /// Without this the framework keeps every node it has ever built, bounded
+    /// only by ``ListViewChildren/lazyLifetimeBackstopLimit`` -- four thousand
+    /// rows of nodes before anything is released. `NSTableView` recycles its own
+    /// views either way, so the growth is invisible in the view hierarchy and
+    /// shows up only as memory.
+    ///
+    /// 當某一列不再被顯示時呼叫,好讓框架丟掉它為那一列建立的 view graph 節點。
+    ///
+    /// 少了它,框架會保留它建過的**每一個**節點,上限只有
+    /// ``ListViewChildren/lazyLifetimeBackstopLimit``——也就是四千列的節點之後才會有東西被釋放。
+    /// `NSTableView` 無論如何都會回收它自己的 view,因此這種成長在 view 階層裡看不見,
+    /// 只會以記憶體的形式現身。
+    var lazyReleaseHandler: ((Int) -> Void)?
+
+    /// Which row each live `NSTableRowView` is showing.
+    ///
+    /// **`didRemove`'s own `forRow:` cannot be trusted for this.** AppKit
+    /// documents it as "the row index, or -1 if the row is no longer valid" --
+    /// and "no longer valid" is exactly the case this handler exists for, so
+    /// the parameter is absent precisely when it is needed. Recorded at
+    /// `didAdd`, when the index is certain.
+    ///
+    /// 每一個活著的 `NSTableRowView` 正在顯示哪一列。
+    ///
+    /// **`didRemove` 自己的 `forRow:` 在這件事上不可信。** AppKit 對它的說明是「該列的索引,
+    /// 或 -1——當該列已不再有效時」,而「已不再有效」正是這個 handler 存在的理由,因此那個參數
+    /// 恰恰在最需要它的時候缺席。改為在 `didAdd` 時記下,那時索引是確定的。
+    var rowIndexForRowView: [ObjectIdentifier: Int] = [:]
+
+    func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {
+        rowIndexForRowView[ObjectIdentifier(rowView)] = row
+    }
+
+    func tableView(
+        _ tableView: NSTableView,
+        didRemove rowView: NSTableRowView,
+        forRow row: Int
+    ) {
+        guard let index = rowIndexForRowView.removeValue(forKey: ObjectIdentifier(rowView))
+        else { return }
+        guard let lazyReleaseHandler else { return }
+
+        // **Not reported if that row is on screen again already.** A reload
+        // removes and re-adds row views, and the re-add can arrive first; the
+        // framework's handler drops the node for that index, so reporting a row
+        // the table is still showing would leave a live row whose Swift side
+        // has been released -- visible, and no longer updated by anything.
+        // Asking the table what it is showing is cheaper than ordering the
+        // callbacks.
+        //
+        // **若那一列已經又出現在畫面上,就不回報。** 一次 reload 會把 row view 移除再加回去,
+        // 而「加回去」可能先抵達;框架的 handler 會丟掉該索引的節點,因此回報一個表格仍在顯示的列,
+        // 會留下一個「Swift 那側已被釋放」的活著的列——它看得見,卻不再被任何東西更新。
+        // 去問表格「你正在顯示什麼」,比為這些回呼排順序便宜。
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard !NSLocationInRange(index, visible) else { return }
+        lazyReleaseHandler(index)
+    }
+
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
         // **Asked for from the reuse queue first, and this is a real leak fix
         // rather than a tidy-up.**
