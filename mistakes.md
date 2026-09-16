@@ -1346,3 +1346,89 @@ guard's first run, which is the only cheap time to find one.
 
 Same defect as the global CSV rule, from the other direction: that rule is about splitting a CSV on
 commas when READING one. This is about writing one, where an unquoted comma is just as silent.
+
+---
+
+## 16. 用 `path` 當迴圈變數,而那是 `PATH` —— 且症狀出現在十二行之外
+
+**次數:1 次 / 1 天(2026-09-16)。**
+
+**這一條寫在我自己的全域 CLAUDE.md 開頭第三段,標題是「轉換 sh/bash 腳本成 zsh —— 先檢查名稱,
+再檢查語法」,而那一段舉的第一個例子就是 `path`。我照樣寫了下去。**
+
+### 症狀 / What it looks like
+
+一支新的掃描腳本 `testapp/window_sizes.zsh`,先以三支 app 試跑:
+
+```
+P23  822x652
+P50  782x918
+P57  642x732
+```
+
+完全正常。接著跑完整的 22 支:
+
+```
+22 apps, backend -WinUI
+app      size         note
+testapp/window_sizes.zsh:118: command not found: mktemp
+```
+
+把 `mktemp` 換成具名目錄之後,同一行變成 `command not found: date`。**兩次都讀起來像是
+「這台機器的 coreutils 沒裝好」**,而我第一次也確實是那樣修的——把依賴換掉,而不是問「為什麼
+找不到」。
+
+一支獨立的探針(同一個 zsh、同樣的呼叫方式)顯示 `date`、`mktemp`、`mkdir`、`sleep`、`grep`
+全部存在。差別只在**腳本內部**。
+
+### 成因 / The cause
+
+```zsh
+for path in "$output_dir"/P*"$backend_suffix".exe; do
+```
+
+zsh 把 `path` 與 `PATH` 綁成同一個陣列。這個迴圈把整個搜尋路徑換成了一個 `.exe` 檔的路徑,
+此後每一個外部指令都找不到。**沒有任何警告,退出碼是 127,而 127 指向的是「那個指令」,
+不是「那個賦值」。**
+
+*zsh ties `path` to `PATH`. A loop variable named `path` replaces the search path with an .exe
+file, and every external command afterwards is not found. Nothing warns; the exit code names the
+command, not the assignment.*
+
+### 為什麼試跑擋不住它 / Why the trial run passed
+
+**指定 app 名稱的那條路徑根本不會進入那個迴圈。** `window_sizes.zsh P23 P50 P57` 走的是
+`if [ "${#wanted[@]}" -gt 0 ]` 分支;只有「不指定、掃全部」才會進入 glob 迴圈。
+
+於是:**短程試跑成功、長程掃描失敗**,而兩者之間我什麼都沒改。這比「一直失敗」更難查,因為
+它給了我一個「這支腳本是好的」的證據。
+
+### 矯正措施 / The corrective
+
+- **在 zsh 腳本中永遠不要用 `path` 當變數名**,即使是迴圈變數、即使只用一行。同類保留名稱還有
+  `status`、`options`、`argv`、`cdpath`、`manpath`、`fpath`、`watch`。
+- **`command not found` 出現在一支剛剛還能跑的腳本裡時,先印 `$PATH`**,不要先換掉那個指令。
+  第一次修法(把 `mktemp` 換成具名目錄)完全沒有碰到成因,而且讓下一個失敗換了個名字出現。
+- 修好一處之後 `grep -rn 'for path in'` 掃過同目錄的其他腳本——本次為零,但那是查過的零。
+
+*Never name a zsh variable `path`. When `command not found` appears in a script that worked a
+moment ago, print `$PATH` before replacing the command: the first fix here swapped `mktemp` for a
+named directory, touched nothing, and made the next failure wear a different name.*
+
+---
+
+## 16. `path` as a loop variable is `PATH`, and the symptom lands twelve lines away
+
+1 occurrence, 2026-09-16.
+
+A new sweep script worked for a three-app trial and then failed the full run with
+`command not found: mktemp`, then `command not found: date` after that dependency was replaced.
+Both read as missing coreutils. A standalone probe found every one of those commands present.
+
+The cause was `for path in "$output_dir"/P*.exe`, which in zsh replaces `PATH` with an .exe file.
+The trial passed because naming apps explicitly takes the other branch and never enters the loop --
+a short run that works and a long run that does not, with nothing changed between them.
+
+This is the first example in my own global CLAUDE.md's "check names before syntax" section. Knowing
+it was not enough; the corrective is to print `$PATH` at the first `command not found` rather than
+swapping the command out, which is what I did first and which changed nothing.
