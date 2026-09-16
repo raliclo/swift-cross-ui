@@ -555,7 +555,7 @@ public final class WinUIBackend:
         // 的 id 不同,那麼此處所選定的 apartment 從來就不是 WebView2 實際執行所在的那一個。
         logger.info("WinUIApplication.main() on thread \(GetCurrentThreadId())")
         logger.info("WebView2: apartment before main \(comApartmentDescription())")
-        WinUIApplication.main()
+        WinUIApplication.runSingleThreaded()
     }
 
     public func createWindow(withDefaultSize size: SIMD2<Int>?, id: String) -> Window {
