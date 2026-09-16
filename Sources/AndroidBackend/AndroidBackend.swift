@@ -541,13 +541,14 @@ public final class AndroidBackend: BaseAppBackend {
 
     public func activate(window: Window) {}
 
-    //    public func setApplicationMenu(
-    //        _ submenus: [ResolvedMenu.Submenu],
-    //        environment: EnvironmentValues
-    //    ) {
-    //        // TODO(stackotter): Register app menu items as shortcuts when we support keyboard
-    //        //   shortcuts.
-    //    }
+    // `setApplicationMenu` is implemented now, in
+    // `AndroidBackend+ApplicationMenus.swift`. The stub that stood here carried
+    // the TODO "Register app menu items as shortcuts when we support keyboard
+    // shortcuts", and that is precisely what it does, keyboard shortcuts having
+    // landed on 2026-09-16.
+    // `setApplicationMenu` 現已實作,位於 `AndroidBackend+ApplicationMenus.swift`。原本立在此處的樁
+    // 帶著 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」,而它做的
+    // 正是那件事——鍵盤快捷鍵已於 2026-09-16 落地。
 
     //    public func setIncomingURLHandler(to action: @escaping (Foundation.URL) -> Void) {
     //        // TODO(stackotter): Handle incoming URLs
