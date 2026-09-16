@@ -18,6 +18,30 @@ action,x,y,origin,button,key,micros,note,platform
 # stale coordinate does not fail loudly -- it misses, or it selects the wrong
 # row, and every count in the log still looks like a pass.
 #
+# RE-MEASURED AGAIN 2026-09-16 18:51, and this is the THIRD time the same cause
+# moved the rows: P57 gained `row release reported:` for the #117 lifetimes work,
+# which pushed the list down about 26 px. The old y=506 -- written as "row 1"
+# hours earlier -- is row 0 in the capture taken after that build. Row 1 is now
+# at y=532, measured off p57gtk-layout-20260916-185143.png (668x768, rows 34 px
+# apart from row 0 at y=498). The buttons did not move: they sit above the added
+# line, so y=197 is still correct for all four.
+#
+# **Adding a line to the app's own readout is the most common way these files
+# expire**, and it never announces itself: the replay reports every action, the
+# app responds to something, and only the missing `selection=` line says the
+# click went elsewhere. Anything that adds a row above the list invalidates the
+# row coordinates in this file and not the button ones.
+#
+# **2026-09-16 18:51 再次重量,而這已經是同一個成因第三次把那些列推走**:P57 為了 #117 的
+# 生命週期工作加上了 `row release reported:` 那一行,清單因此下移約 26 像素。幾小時前寫著
+# 「row 1」的舊座標 y=506,在那之後的擷圖裡是 **row 0**。row 1 現在在 y=532,量自
+# `p57gtk-layout-20260916-185143.png`(668x768,自 row 0 的 y=498 起每 34 像素一列)。
+# 按鈕沒有移動:它們在新增那一行的**上方**,因此四個按鈕的 y=197 仍然正確。
+#
+# **「在 app 的自我回報中多加一行」是這類檔案過期最常見的原因**,而且它從不出聲:重放會回報
+# 每一個動作都完成、app 也確實對某個東西有反應,只有「少了那行 `selection=`」說得出點擊落到了
+# 別處。任何在清單**上方**新增一列的改動,都會讓本檔的**列座標**失效,而按鈕座標不受影響。
+#
 # THE SCROLL STEP IS THE ASSERTION, which is why both clicks use the SAME y.
 # Clicking a different row at a different place proves nothing; clicking the same
 # point and getting a different row is what says the list scrolled rather than
@@ -41,12 +65,12 @@ action,x,y,origin,button,key,micros,note,platform
 # 捲動那一步才是斷言,這正是兩次點擊使用**同一個 y** 的原因。在不同位置點到不同的列什麼都證明不了;
 # 在同一個點點擊卻得到不同的列,才是「清單確實捲動了、而不只是重繪」的證據。
 sleep,,,,,,4000000,let the window settle and the first rows bind,windows
-click,85,506,frame,left,,,select row 1,windows
+click,85,532,frame,left,,,select row 1,windows
 sleep,,,,,,1000000,observe selection=1,windows
 move,300,600,frame,,,,pointer over the list before scrolling,windows
 scroll,0,6,frame,,,,wheel down six notches,windows
 sleep,,,,,,1500000,let the scroll settle and new rows bind,windows
-click,85,506,frame,left,,,"same y as before: a different row now means the list scrolled",windows
+click,85,532,frame,left,,,"same y as before: a different row now means the list scrolled",windows
 sleep,,,,,,1000000,observe the changed selection,windows
 click,259,197,frame,left,,,Update rows,windows
 sleep,,,,,,1000000,observe revision=1,windows
