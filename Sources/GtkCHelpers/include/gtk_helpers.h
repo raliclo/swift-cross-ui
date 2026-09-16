@@ -219,43 +219,6 @@ gboolean scui_window_set_dark_titlebar(GtkWidget *window, gboolean dark);
 // 小數,應繼續作為來源。本 helper 在非 Win32 上回傳 0,正是為此。
 double scui_window_display_scale(GtkWidget *window);
 
-// Called when the display scale under a watched window changes, with the new
-// scale already applied.
-// 受監看的視窗其顯示器縮放改變時的回呼,傳入的比例已經套用完成。
-typedef void (*ScuiDisplayScaleChangedFunc)(
-    GtkWidget *window, double scale, void *user_data
-);
-
-// Asks to be told when the value scui_window_display_scale returns changes.
-// Returns whether a watch was installed.
-//
-// **There is no GTK signal for this on Windows, which is the whole reason for
-// the function.** `notify::scale-factor` fires when GTK's INTEGER buffer scale
-// changes, and that integer is 1 at both 100% and 125% -- so the signal the
-// backend already listens to is silent across exactly the change #80 is about.
-// `notify::scale` on the surface is no better: the measurement above shows that
-// value is 1.0 at 125% too, so it has nothing to report a change in.
-//
-// So this subclasses the window procedure and watches for WM_DPICHANGED, which
-// is the notification Windows actually sends. It is idempotent per window, and
-// the replacement calls the original procedure before the callback so the
-// window has finished moving and resizing first.
-//
-// 詢問「scui_window_display_scale 的回傳值改變時請告訴我」。回傳是否成功安裝監看。
-//
-// **在 Windows 上並沒有對應的 GTK 訊號,而那正是本函式存在的全部理由。**
-// `notify::scale-factor` 是在 GTK 的**整數** buffer scale 改變時觸發,而該整數在 100% 與 125% 下
-// 都是 1——因此 backend 既有所監聽的那個訊號,**恰好在 #80 所談的那種變化上完全沉默**。
-// surface 的 `notify::scale` 也好不到哪去:上方的量測顯示該值在 125% 下同樣是 1.0,它根本沒有
-// 任何變化可報。
-//
-// 因此本函式改為 subclass window procedure,監看 WM_DPICHANGED——那才是 Windows 真正送出的通知。
-// 它對每個視窗具冪等性,且替換後的 procedure 會先呼叫原始 procedure 再回呼,使視窗先完成移動與
-// 尺寸調整。
-gboolean scui_window_watch_display_scale(
-    GtkWidget *window, ScuiDisplayScaleChangedFunc callback, void *user_data
-);
-
 // Every Win32 number that bears on the window's scale, in one newly-allocated
 // string. The caller owns it and must g_free it. Diagnostics, not policy:
 // nothing in the framework reads this, and P42's --scale-probe prints it.

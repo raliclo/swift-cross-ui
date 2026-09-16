@@ -313,11 +313,6 @@ public final class GtkBackend:
 
     private var rootEnvironmentChangeHandler: (() -> Void)?
 
-    /// One per window that has an environment-change handler, keyed by the
-    /// window. See ``DisplayScaleWatch``.
-    /// 每個裝有 environment-change handler 的視窗各一,以視窗為鍵。見 ``DisplayScaleWatch``。
-    private var displayScaleWatches: [ObjectIdentifier: DisplayScaleWatch] = [:]
-
     var borderedButtonPadding: SIMD2<Int>?
 
     private struct LogLocation: Hashable, Equatable {
@@ -393,6 +388,7 @@ public final class GtkBackend:
             Self.ensureGpuPreference()
         #endif
         Self.enableDirectCompositionIfRequested()
+        Self.enablePerMonitorDPIAwareness()
         // SCUI_GTK_APP_ID overrides both, and exists for running two test apps at
         // once. A SwiftPM executable has no metadata, so every app that does not
         // supply an identifier gets the SAME one -- and GApplication is
@@ -419,6 +415,60 @@ public final class GtkBackend:
             flags: SHIM_G_APPLICATION_HANDLES_OPEN
         )
         gtkApp.registerSession = true
+    }
+
+    /// Asks GDK to make the process per-monitor DPI aware on Windows, so the
+    /// display scale it reports follows the setting instead of freezing.
+    ///
+    /// **Without this the value is frozen, not merely late.** GTK's default
+    /// leaves the process SYSTEM_AWARE (`GetAwarenessFromDpiAwarenessContext`
+    /// reads 1), and Windows tells such a process the system DPI *as of process
+    /// start* and never sends it `WM_DPICHANGED` -- by design. Measured
+    /// 2026-09-16: with the display moved from 125% to 100% under a running
+    /// window, `GetDpiForWindow` called directly every two seconds reported 1.25
+    /// for 99 consecutive readings. Windows bitmap-scales the window instead, so
+    /// the app stays readable and stays blurry.
+    ///
+    /// With it, the same probe reads awareness 2 and the user driving the
+    /// display 100% -> 150% -> 125% -> 100% produced `windowScaleFactor`
+    /// 1.0 -> 1.5 -> 1.25 -> 1.0, with `windowDpi` 96 -> 144 -> 120 -> 96
+    /// alongside.
+    ///
+    /// **The geometry cost is zero, and that was the reason to measure rather
+    /// than decide.** Every coordinate in `testapp/actions/win/` was measured
+    /// against the current window geometry, so a mode that changed it would
+    /// invalidate all of them. Captured at 125% in both modes: `748x428` and
+    /// `748x428`. The two only differ AFTER a change, which is the case this is
+    /// for.
+    ///
+    /// `overwrite` is false, so `GDK_WIN32_PER_MONITOR_HIDPI=0` still wins --
+    /// this changes the default, it does not take the knob away. GDK reads it
+    /// when the display is opened, which is after this runs and before any
+    /// window exists.
+    ///
+    /// 在 Windows 上要求 GDK 讓行程成為 per-monitor DPI aware,使它回報的顯示器縮放會**跟隨設定**
+    /// 而非凍結。
+    ///
+    /// **沒有它,那個值是凍住的,而不只是慢。** GTK 的預設會讓行程停在 SYSTEM_AWARE
+    /// (`GetAwarenessFromDpiAwarenessContext` 讀到 1),而 Windows **依設計**只告訴這種行程
+    /// 「行程啟動當下」的系統 DPI,而且**永遠不送 `WM_DPICHANGED`**。2026-09-16 實測:視窗執行中
+    /// 把顯示器由 125% 改成 100%,每兩秒直接呼叫一次 `GetDpiForWindow`,連續 99 次都回報 1.25。
+    /// Windows 改為對視窗做點陣縮放,於是 app 仍然可讀、而且一直是糊的。
+    ///
+    /// 加上它之後,同一支探針讀到 awareness 為 2,而使用者把顯示器由 100% → 150% → 125% → 100%
+    /// 時,`windowScaleFactor` 記到 1.0 → 1.5 → 1.25 → 1.0,旁邊的 `windowDpi` 為
+    /// 96 → 144 → 120 → 96。
+    ///
+    /// **幾何成本為零,而這正是「要量、不要用判斷的」的理由。** `testapp/actions/win/` 中每一個座標
+    /// 都是對著現行視窗幾何量出來的,因此一個會改變它的模式會讓那些檔案全部失效。在 125% 下兩種模式
+    /// 各擷一次:`748x428` 與 `748x428`。兩者只在**變更之後**才有差別——而那正是本設定的用途。
+    ///
+    /// `overwrite` 為 false,因此 `GDK_WIN32_PER_MONITOR_HIDPI=0` 仍然勝出——這裡改的是預設值,
+    /// 不是把那個開關拿走。GDK 會在開啟 display 時讀取它,那晚於此處執行、早於任何視窗存在。
+    private static func enablePerMonitorDPIAwareness() {
+        #if os(Windows)
+            g_setenv("GDK_WIN32_PER_MONITOR_HIDPI", "1", 0)
+        #endif
     }
 
     /// Asks GDK for Direct Composition, so GTK can use a hardware renderer.
@@ -3415,95 +3465,38 @@ public final class GtkBackend:
             }
         }
 
-        // And WM_DPICHANGED on top, because on Windows the signal above is
-        // silent across the change this is for. GTK's scale factor is 1 at 100%
-        // and 1 at 125%, so `notify::scale-factor` never fires -- a window whose
-        // display scale changed under it kept the old value, which is the exact
-        // failure the paragraph above describes being fixed. It was fixed for
-        // integer steps only, and Windows' common scales are fractional.
+        // NOTHING WINDOWS-SPECIFIC IS NEEDED HERE, and that is a measurement
+        // rather than an omission -- so do not add a WM_DPICHANGED hook back.
         //
-        // Installed here rather than at window creation because the surface has
-        // to exist for there to be an HWND, and this runs after the window is
-        // shown. `scui_window_watch_display_scale` returns false when it does
-        // not -- and off Windows, where it is not needed.
+        // One was written on 2026-09-16, subclassing the window procedure,
+        // because `notify::scale-factor` is silent across a fractional change:
+        // GTK's integer scale is 1 at 100% and 1 at 125%. It was removed the
+        // same day, by its own control group. Two instances at once, both
+        // PER_MONITOR_AWARE, one with the subclass and one with it skipped: the
+        // user moved the display 100% -> 150% -> 125%, and BOTH recorded
+        // `1.0 -> 1.5 -> 1.25` at the same two timestamps, while the subclass
+        // logged nothing at all. Windows resizes a per-monitor-aware window on a
+        // DPI change, the resize runs a layout pass, and the layout pass
+        // recomputes this environment -- so the recompute was already happening
+        // and the subclass was dead weight.
         //
-        // 在其上再加 WM_DPICHANGED,因為在 Windows 上,上面那個訊號**恰好對這件事沉默**。GTK 的
-        // scale factor 在 100% 是 1、在 125% 也是 1,因此 `notify::scale-factor` 從不觸發——顯示器
-        // 縮放在其底下改變的視窗會保留舊值,而那正是上一段所描述「已經修好」的那個失敗。它只被修好了
-        // **整數級距**的部分,而 Windows 常用的縮放是小數。
+        // What makes that mechanism reliable is `enablePerMonitorDPIAwareness()`
+        // above; without it the window is not resized and the reported scale is
+        // frozen for the life of the process.
         //
-        // 安裝於此而非視窗建立時,因為要有 HWND 就必須先有 surface,而此處是在視窗顯示之後執行。
-        // 若沒有,`scui_window_watch_display_scale` 會回傳 false——在不需要它的非 Windows 平台亦然。
-        // SCUI_GTK_NO_DPI_WATCH is the control group, and it exists because the
-        // first driven run could not tell this notification from a side effect.
-        // Measured 2026-09-16 with GDK_WIN32_PER_MONITOR_HIDPI=1: the display
-        // went 100% -> 150% -> 125% -> 100% and windowScaleFactor followed,
-        // 1.0 -> 1.5 -> 1.25 -> 1.0. But in per-monitor mode Windows RESIZES the
-        // window on a DPI change, and a resize runs a layout pass that
-        // re-evaluates the body -- which produces the identical four lines. The
-        // two explanations are indistinguishable in that log. With this set, the
-        // watch is not installed, so a run that still follows the change proves
-        // the resize was doing it and a run that stops proves this was.
+        // **此處不需要任何 Windows 專屬的東西,而這是量出來的、不是漏掉的——所以不要再把一個
+        // `WM_DPICHANGED` 掛回來。**
         //
-        // SCUI_GTK_NO_DPI_WATCH 是對照組,它之所以存在,是因為第一次驅動執行**分不出**這個通知
-        // 與一個副作用。2026-09-16 帶 `GDK_WIN32_PER_MONITOR_HIDPI=1` 實測:顯示器
-        // 100% → 150% → 125% → 100%,而 `windowScaleFactor` 跟著走 1.0 → 1.5 → 1.25 → 1.0。
-        // 但在 per-monitor 模式下,Windows 會在 DPI 改變時**調整視窗大小**,而 resize 會跑一次
-        // layout pass 重新求值 body——那會產生**一模一樣的四行**。兩種解釋在那份 log 上無從分辨。
-        // 設下此變數後不會安裝監看,因此「仍然跟上」證明是 resize 在做,「不再跟上」則證明是它。
-        guard ProcessInfo.processInfo.environment["SCUI_GTK_NO_DPI_WATCH"] == nil else {
-            return
-        }
-
-        let watch = DisplayScaleWatch(action: action)
-        displayScaleWatches[ObjectIdentifier(window)] = watch
-        _ = scui_window_watch_display_scale(
-            window.widgetPointer,
-            { _, scale, userData in
-                guard let userData else { return }
-                let watch = Unmanaged<DisplayScaleWatch>
-                    .fromOpaque(userData)
-                    .takeUnretainedValue()
-                // Logged BEFORE action(), so the ordering in the log answers the
-                // question the control group above describes: this line
-                // immediately preceding a recorded scale change is the
-                // notification driving it, and a recorded change with no line
-                // before it came from somewhere else.
-                // 記錄於 action() **之前**,使 log 的先後順序回答上方對照組所描述的那個問題:
-                // 此行緊接在一次被記錄的縮放變化之前,代表是這個通知在驅動它;而一次「前面沒有
-                // 此行」的變化,則來自別處。
-                DebugFeatures.log("WM_DPICHANGED -> \(scale)")
-                // Same reasoning as `MainActor.assumeIsolated` above: a window
-                // procedure runs on the thread that pumps the message loop,
-                // which is the thread running the GTK main loop.
-                // 理由同上方的 `MainActor.assumeIsolated`:window procedure 執行於抽取訊息迴圈的
-                // 那個執行緒,也就是執行 GTK main loop 的執行緒。
-                MainActor.assumeIsolated {
-                    watch.action()
-                }
-            },
-            Unmanaged.passUnretained(watch).toOpaque()
-        )
-    }
-
-    /// Keeps a window's environment-change closure alive for the C callback,
-    /// which carries a raw pointer and cannot retain anything itself.
-    ///
-    /// Held in ``displayScaleWatches`` rather than passed with
-    /// `passRetained`: a retained pointer with no matching release is a leak
-    /// that nothing reports, and the backend already outlives its windows.
-    ///
-    /// 為 C callback 保住視窗的 environment-change closure——該 callback 帶的是原始指標,自己
-    /// 無法持有任何東西。
-    ///
-    /// 存放於 ``displayScaleWatches`` 而非以 `passRetained` 傳遞:一個沒有對應 release 的
-    /// retained 指標就是一處**無人回報**的洩漏,而 backend 本來就活得比它的視窗久。
-    final class DisplayScaleWatch {
-        let action: @MainActor () -> Void
-
-        init(action: @escaping @Sendable @MainActor () -> Void) {
-            self.action = action
-        }
+        // 2026-09-16 曾經寫過一個,以 subclass window procedure 的方式,理由是
+        // `notify::scale-factor` 對小數變化是沉默的:GTK 的整數縮放在 100% 是 1、125% 也是 1。
+        // 它在**同一天被它自己的對照組刪掉**。同時跑兩個實例,兩者都是 PER_MONITOR_AWARE,
+        // 一個裝了那支 subclass、一個略過:使用者把顯示器由 100% → 150% → 125%,
+        // **兩邊都在同樣的兩個時間戳記下記到 `1.0 → 1.5 → 1.25`**,而那支 subclass 一行都沒印。
+        // Windows 會在 DPI 改變時調整 per-monitor aware 視窗的大小,resize 會跑一次 layout pass,
+        // 而那次 layout pass 就會重算這個 environment——所以重算本來就在發生,subclass 是多餘的。
+        //
+        // 讓那個機制可靠的是上方的 `enablePerMonitorDPIAwareness()`;少了它,視窗不會被調整大小,
+        // 而回報的縮放會在行程的整個生命期內凍住。
     }
 
     public func setIncomingURLHandler(to action: @escaping (URL) -> Void) {
