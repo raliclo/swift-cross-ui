@@ -543,3 +543,83 @@ and its `ui key`; or an XCUITest target, which is the supported way and is why
 `testapp/actions/ios/` is still empty and marked planned. The third would move
 iOS from "the app reports on itself" to "the app can be driven", which pays for
 every Pn from P63 onward.
+
+---
+
+## #125 Table 的 selection 與 sortOrder:開工前先講形狀(2026-09-16,Windows 端)
+
+**先寫這一段再動手,理由是今天早上那次撞車(mistakes 第 12 條):`queue` 說「blocked on Mac」
+是寫的當下為真,而不是現在為真。** 這一段推出去之後我才開始寫,若 Mac 已經有別的形狀,請直接覆蓋
+這裡、我照著改。
+
+**先查證的事實,不是假設:** `git log origin/develop -S'sortOrder'` 與 `-S'TableSelection'` 在
+`Sources/` 之下**零命中**;`BackendFeatures/Tables.swift` 最近三次改動是 `2fd81acb`(逐欄寬度)、
+`6d52866a`(文字選取)、`f1bc7f23`(協定拆分),都沒有 backend→view 的事件。
+
+**兩個 backend 的真實結構(這決定了做法,而不是 `NSTableView` 的類比):**
+
+| | 是什麼 | 因此 |
+| --- | --- | --- |
+| `Gtk.Table` | `GtkScrolledWindow` 裡的 `GtkGrid`,標題是不可點的 `GtkLabel` | **沒有「列」這個物件**,也沒有現成的選取 |
+| `WinUITable` | 同樣是一個 `Grid` | 同上 |
+
+兩邊都**不是** GTK 的 `GtkColumnView` / WinUI 的 `DataGrid`,而那是刻意的:協定交給 backend 的是
+一個**已建好的 widget 扁平陣列**,走 model-driven 的元件等於把每個 cell 再包成 GObject 餵給一個
+隨即原樣交還的 model(理由寫在 `Sources/Gtk/Widgets/Table.swift` 檔頭)。所以選取與排序這兩件事,
+在這兩個 backend 上都得**自己做**:以 click gesture 命中列、以樣式畫出選取、把標題做成可點。
+
+**打算加的協定形狀**(與 `SelectableListViews` 對齊,那是這棵樹既有的答案):
+
+```swift
+public protocol TableSelection: Tables {
+    func setSelectionHandler(ofTable: Widget, to: @escaping (Int?) -> Void)
+    func setSelectedRow(ofTable: Widget, to index: Int?)
+}
+
+public protocol TableColumnSorting: Tables {
+    func setSortHandler(ofTable: Widget, to: @escaping (_ column: Int) -> Void)
+    func setSortIndicator(ofTable: Widget, column: Int?, ascending: Bool)
+}
+```
+
+- **兩個協定分開**,理由與 `LazyListRows` / `LazyListRowLifetimes` 分開相同:一個 backend 可能
+  做得到其中一個而不是另一個,而合成一個協定會讓「做得到一半」變成「宣稱兩個都有」。
+- **採 conformance 檢查**,所以未實作的 backend 行為完全不變。
+- **排序由 app 自己做。** backend 回報的是「使用者點了第 n 欄」,框架把它變成一個 binding 的更新,
+  由 app 重新排序自己的資料——框架不介入 comparator。這與 SwiftUI 的 `sortOrder` 精神一致,
+  但不需要 `KeyPathComparator` 那一整套。
+
+**分工(沿用 #121 那次講定的「各做自己編得動的」):** 協定與 view 端由我落地,GtkBackend 與
+WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個是 Mac 那邊的**——
+`NSTableView` 與 `UITableView` 本來就有選取與可點標題,成本應該遠低於這裡。
+
+**分兩批做,selection 先。** 它自成一件完整的事、可獨立驗收,而排序還要處理指示符的繪製。
+
+## #125 Table selection and sortOrder: the shape, before writing any of it
+
+Published before starting, because of this morning's collision (mistakes entry
+12): a queue line saying "blocked on Mac" was true when written, not now. If the
+Mac side already has a shape for this, overwrite this section and I will follow
+it.
+
+Checked rather than assumed: `-S'sortOrder'` and `-S'TableSelection'` find
+nothing under `Sources/` on origin, and the last three changes to `Tables.swift`
+(`2fd81acb`, `6d52866a`, `f1bc7f23`) add no backend-to-view event at all.
+
+Both Windows tables are a `Grid` -- GTK's inside a `ScrolledWindow`, with plain
+`Label` headers -- and deliberately not `GtkColumnView` or `DataGrid`, because
+the protocol hands the backend an array of already-built widgets. So there is no
+row object and no built-in selection on either: hit-testing a click, drawing the
+selection, and making a header clickable are all hand work here, which is the
+part worth knowing before anyone estimates it.
+
+Two protocols rather than one, for the reason `LazyListRows` and
+`LazyListRowLifetimes` are separate: a backend may manage one and not the other,
+and merging them turns "half of it" into a claim of both. Conformance-checked, so
+a backend that does not implement them behaves exactly as it does today. Sorting
+is reported, not performed: the backend says which column was clicked, and the
+app re-sorts its own rows.
+
+Split: protocol, view side, GtkBackend and WinUIBackend here; AppKit, UIKit and
+Android are the Mac side's, where `NSTableView` and `UITableView` already have
+selection and clickable headers. Selection lands first, on its own.
