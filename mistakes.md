@@ -8,6 +8,58 @@ and are read and written with `csv2`.
 
 ---
 
+## 撞號時怎麼辦:兩條都留,重新編號,絕不覆蓋
+
+兩台機器同一天各寫一條,拿到同一個編號,是**常態**而不是意外——編號取自「目前最大值 +1」,而兩邊
+在合併之前都看不到對方。2026-09-16 一天之內就發生了兩次(第 8 條與第 13 條)。
+
+**規則:**
+
+1. **兩條都活下來。** 一條 mistake 記的是一次**真實發生過、而且沒有任何工具會報錯**的事。讓一邊
+   蓋掉另一邊,等於宣稱那一次沒有發生過——而它發生過。
+2. **依日期重新編號**,不是依誰先推上來。較早發生的拿較小的號。
+3. **兩個檔案都要改:** `mistakes_counter.csv2` 的 `id` 欄,以及 `mistakes.md` 的 `## N.` 標題——
+   中英兩個標題都算。
+4. **不要合併兩條看起來相似的。** 2026-09-16 的第 13 與第 14 條都是「只讀了證據的一半」,但一個是
+   把過期文件當現況、另一個是把過渡狀態當判決。分開放,兩條都比合成一條有用。
+
+**檢查:**
+
+```sh
+csv2 -r -i mistakes_counter.csv2 | awk -F, '{print $1}' | sort | uniq -d   # 應該沒有輸出
+grep -o "^## [0-9]*\." mistakes.md | sort | uniq -c                        # 每個編號的標題數
+sh Scripts/check_mistakes_numbering.sh                                     # 上面兩者,會失敗
+```
+
+**哪一種合併會自動過、哪一種不會,已經各發生過一次:** 兩邊都**追加在檔尾**時,git 會把兩段都留下,
+不需要人介入——那是第 13/14 條。兩邊改到**同一行**時就會衝突——那是第 8 條,`mistakes_counter.csv2`
+的最後一列。**兩種情況的正確解法相同**,只是前一種不會提醒你去做。
+
+---
+
+## When two machines pick the same number: keep both, renumber, never overwrite
+
+Two machines writing on the same day land on the same number routinely rather
+than exceptionally -- the number is "highest so far, plus one", and neither side
+sees the other until the merge. It happened twice on 2026-09-16 alone, at entries
+8 and 13.
+
+1. **Both survive.** An entry records something that HAPPENED and that no tool
+   reported. Letting one overwrite the other claims it did not happen.
+2. **Renumber by date**, not by who pushed first.
+3. **Both files**: the `id` column in `mistakes_counter.csv2` and the `## N.`
+   headings in `mistakes.md` -- both the Chinese and the English one.
+4. **Do not fold two similar-looking entries into one.** 13 and 14 are both
+   "read half the evidence", and one is a stale document taken for the present
+   while the other is a transition taken for a verdict. Apart, each is usable.
+
+The two merge shapes have each occurred once: appending at the END of the file
+merges clean and never asks (13 and 14), while touching the SAME LINE conflicts
+and does (8, the last row of the counter). The correct resolution is identical;
+only the first one fails to prompt you for it.
+
+---
+
 ## 1. 在一份談好的佇列走到一半停下來,並以回報代替繼續
 
 **次數:3 次 / 2 天(2026-09-08、2026-09-09)。**

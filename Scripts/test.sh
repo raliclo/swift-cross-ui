@@ -14,6 +14,7 @@ sh Scripts/check_submodules.sh || exit 1
 # 可以檢查的主張完全相同。
 sh Scripts/check_action_files.sh || exit 1
 sh Scripts/check_results_columns.sh || exit 1
+sh Scripts/check_mistakes_numbering.sh || exit 1
 
 # `swift test` builds all targets in the package (even those not depended upon
 # by any test targets), which leads to `swift test` on its own being broken
