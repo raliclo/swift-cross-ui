@@ -12,6 +12,10 @@ GType scui_gtype_file_list(void) {
     return GDK_TYPE_FILE_LIST;
 }
 
+GType scui_gtype_boolean(void) {
+    return G_TYPE_BOOLEAN;
+}
+
 GdkDragAction scui_drag_action_copy(void) {
     return GDK_ACTION_COPY;
 }
