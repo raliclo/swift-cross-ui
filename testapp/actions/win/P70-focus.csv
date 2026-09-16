@@ -33,7 +33,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # so the `false` IS the refusal working. `onChange` prints transitions; the
 # verdict is the final value. Read as a failure on 2026-09-16 -- see mistakes.md
-# entry 13.
+# entry 14.
 #
 # **判決要從哪裡讀——因為讀錯一行付出了一天的代價。**
 # 拒絕與否的判決,是 app **算繪在畫面上**的那一行(「disabled button reports focused: no (correct)」),
@@ -42,7 +42,7 @@ action,x,y,origin,button,key,micros,note,platform
 # log 會在同一秒內先後出現 `true` 與 `false`,而兩者都是對的。`@FocusState` 會先樂觀地設定該 binding,
 # 框架接著執行 `if !backend.focus(widget) { binding.wrappedValue = false }`——因此那個 `false`
 # **就是拒絕在運作**。`onChange` 印的是轉換;判決是最終值。2026-09-16 曾把它讀成失敗,見 mistakes.md
-# 第 13 條。
+# 第 14 條。
 #
 # The clicks on the two FIELDS come first and deliberately: they are the user
 # moving focus, which the app did not ask for, so they test the handler rather

@@ -20,8 +20,33 @@ actions/
   wsl/        verified on WSLg with GtkBackend
   win/        verified on Windows
   mac/        verified on macOS
-  ios/        empty; planned
-  android/    empty; planned
+  ios/        driven through XCUITest -- testapp/iosContainer/xcodeTestRunner,
+              reached by `test_ios.zsh --actionfile`
+  android/    driven through AndroidSynthesiser, reached by
+              `test_android.zsh --actionfile`
+
+TWO OF THOSE LINES SAID "empty; planned" UNTIL 2026-09-16, by which point ios/
+held 58 files and android/ held 55. One of them cost a session most of an
+afternoon: a driver was written from scratch, twice, for a runner that already
+existed and had already driven real taps (mistakes.md entry 13).
+
+So this list no longer carries counts. COUNT THEM, it takes a second:
+
+    for d in wsl win mac ios android; do
+      printf "%-9s %s\n" "$d" "$(ls testapp/actions/$d | wc -l)"
+    done
+
+A number written here is wrong within days; a command is not. The same applies
+to "planned" -- before believing that a capability is absent, `git log --` the
+path it would live at and `grep` the scripts for its name.
+
+這份清單上曾有兩行寫著「empty; planned」,直到 2026-09-16——而當時 ios/ 有 58 個檔案、android/ 有
+55 個。其中一行害一個 session 花掉大半個下午:從零寫了兩次驅動器,而那個 runner 早就存在、也早就
+驅動過真實的點擊(mistakes.md 第 13 條)。
+
+因此這份清單**不再寫數字**。要數就用上面那個指令,一秒鐘的事。寫在這裡的數字幾天內就會是錯的,
+指令不會。「planned」同理:在相信某項能力不存在之前,先 `git log --` 它會住的路徑、`grep` 那些腳本
+找它的名字。
 ```
 
 ## Why per platform rather than one shared folder

@@ -940,16 +940,125 @@ not part of starting a session.
 
 ---
 
-## 13. 讀了證據的一半,把過渡狀態當成判決
+## 13. 讀了一份過期的 README,然後動手重建一個**已經存在而且用過**的東西
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+我需要在 iOS 上送鍵盤事件。`testapp/actions/README.md` 第 23 行寫著:
+
+```
+  ios/        empty; planned
+```
+
+我據此得出「iOS 沒有驅動途徑」,自己寫了三支 `CGEvent` 驅動器去打 Simulator、然後打 DeviceHub,
+失敗之後把「建一個 XCUITest target」列為第一優先,並在 queue 裡寫下**「這正是 `testapp/actions/ios/`
+至今空著的真正原因」**。
+
+`ls testapp/actions/ios/` 是 **58 個檔案**。那個 XCUITest runner 早就存在
+(`testapp/iosContainer/xcodeTestRunner/Tests/ActionFileUITests.swift`,278 行)、早就接進
+`test_ios.zsh --actionfile`、而且早就驅動過真實的點擊——`7f4193dc` 的 commit 訊息就寫著
+「P60 在 iOS 上被它的 action file 驅動,而那個 tap 差了 118 點」。
+
+**是使用者說「我記得我們以前做過這個」,我才去查 history 的。**
+
+### 為什麼沒有任何東西擋下來
+
+那句「empty; planned」在被寫下的當天是**真的**。它不會自己過期,而**一份過期的文件讀起來與一份
+正確的文件一模一樣**——沒有工具會回報一份 README 與它所描述的目錄不一致。
+
+而我還把它**寫進了新的 queue 條目**,等於把那個錯誤複製到第二個地方,並讓它看起來像是被查證過的。
+
+### 這與第 12 條是同一個病,換了一份文件
+
+第 12 條:問了 `queue.md`「輪到誰」,沒問 origin「已經有什麼」——結果 #121 被做了兩次。
+這一條:問了 `README.md`「有沒有」,沒問檔案系統與 git history——結果差點把一個 278 行、已在運作的
+runner 重造一次。
+
+**兩次的形狀完全相同:把一份「記錄了某人當時相信什麼」的文件,當成了現況。**
+
+### 真正的缺口(它很小,而且是大聲的)
+
+那個 runner 唯一沒做的是**按鍵**:
+
+```swift
+case "keydown", "keyup", "key":
+    throw ActionFileError.unsupported(action.kind, action.line)
+```
+
+它 **throw**,不是靜默略過——所以它從一開始就把自己的缺口說出來了。真正要做的是把這三個動作接到
+`XCUIElement.typeKey(_:modifierFlags:)`,而不是造一個 target。
+
+### 矯正措施
+
+> **在動手建任何基礎建設之前,先問檔案系統與 git,不要問文件。**
+>
+> ```sh
+> ls <那份文件說是空的目錄> | wc -l          # 它真的空嗎
+> git log --oneline -- <那個功能會住的路徑>   # 有人做過嗎
+> grep -rn "<那個功能的名字>" --include=*.zsh testapp/   # 有人接過嗎
+> ```
+>
+> 三個指令,幾秒鐘。今天它們會省下三支驅動器、兩次 iPad 全循環,以及一條寫錯的 queue 條目。
+
+而看到文件與現況不符時,**先修文件**——否則下一個人會踩同一個坑,而且會以為自己查證過了。
+
+---
+
+## 13. Read a stale README, then set out to rebuild something that already existed and had been used
+
+I needed to send key events on iOS. `testapp/actions/README.md:23` says
+`ios/  empty; planned`, so I concluded there was no way to drive iOS, wrote three
+`CGEvent` drivers aimed at Simulator and then DeviceHub, and after they failed I
+made "build an XCUITest target" the first priority -- writing into the queue that
+this was *the real reason `testapp/actions/ios/` is still empty*.
+
+`ls testapp/actions/ios/` is 58 files. The XCUITest runner already exists at
+`testapp/iosContainer/xcodeTestRunner/Tests/ActionFileUITests.swift`, is already
+wired into `test_ios.zsh --actionfile`, and has already driven real taps --
+commit `7f4193dc` is literally "P60 on iOS is driven by its action file, and the
+tap was missing by 118 points". I only checked because the user said they
+remembered doing it.
+
+Nothing caught it because "empty; planned" was TRUE the day it was written, and a
+stale document reads exactly like an accurate one. No tool reports that a README
+disagrees with the directory it describes. I then copied the error into a new
+queue entry, which made it look verified.
+
+This is entry 12 with a different document. That one asked the queue whose turn
+it was instead of asking origin what existed, and #121 got built twice. This one
+asked a README whether something existed instead of asking the filesystem and git
+history.
+
+The real gap is small and it is LOUD: the runner throws
+`ActionFileError.unsupported` for `keydown`, `keyup` and `key`. It says so
+itself. The work is wiring those three to
+`XCUIElement.typeKey(_:modifierFlags:)`, not building a target.
+
+The guard: before building any infrastructure, ask the filesystem and git, not
+the prose. `ls` the directory the document calls empty; `git log --` the path the
+feature would live at; `grep` the scripts for its name. Three commands, seconds.
+And when a document disagrees with the tree, fix the document first -- otherwise
+the next person walks into it believing they checked.
+
+---
+
+## 14. 讀了證據的一半,把過渡狀態當成判決
 
 **次數:1 次 / 1 天(2026-09-16)。而同一天稍早,我才因為「只讀了比較的一端」記下第 8 條。**
 
-**編號 13,不是 10。** 第一次寫下時編了 10,而 10、11、12 在同一天稍早的合併中已經由 Mac 端用掉了
-——`git pull` 之後沒有重讀這份檔案就接著寫。這與第 12 條(問了 queue、沒問 origin)是同一個形狀,
-發生在記錄第 12 條的那份檔案本身裡面。
-*Numbered 13, not 10: 10, 11 and 12 were taken by the other machine in a merge earlier the same day,
-and this was written without re-reading the file after pulling. Same shape as entry 12, inside the
-file that records entry 12.*
+**編號 14,不是 10,也不是 13——同一天被迫改號兩次。** 第一次寫下時編了 10,而 10、11、12 在同一天
+稍早的合併中已經由 Mac 端用掉了;改成 13 之後,Mac 端在當天下午又以 13 記下另一條(過期的 README),
+於是這一條再往後挪成 14。**兩次都不是打錯字,而是同一個形狀:在共用分支上,編號是一個共享資源,
+而本機的檔案看不見另一端已經取走哪一個。** 這與第 12 條(問了 queue「輪到誰」、沒問 origin
+「已經有什麼」)完全同形,並且發生在記錄第 12 條的那份檔案本身裡面。下一次寫新條目之前,
+先 `git fetch && git show origin/develop:mistakes.md | grep '^## '` 看對面用到哪一號。
+*Numbered 14 -- not 10, and not 13 either: renumbered twice in one day. 10-12 were taken by the other
+machine in a merge that morning, and 13 was taken by its stale-README entry that afternoon. Neither
+was a typo: on a shared branch the number is a shared resource, and the local file cannot see which
+one the other side has already claimed. Same shape as entry 12, inside the file that records entry 12.
+Check `git show origin/develop:mistakes.md | grep '^## '` before choosing a number.*
 
 ### 症狀 / What it looks like
 

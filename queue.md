@@ -408,6 +408,7 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 | 缺口 | 誰 | 備註 |
 | --- | --- | --- |
 | **UIKit `keyboardShortcut`(#121)** | **Mac** | **已實作、編得過、但驅動不了。** `UIKeyCommand` + `propertyList` 帶 token + selector 掛在 `ApplicationDelegate`(它是 responder chain 上唯一既是 `UIResponder`、又建出這個選單的物件)。**驅動被卡住,而卡點是量出來的**:iPhone 上 `buildMenu` 從不以 `.main` 被呼叫,因此沒有任何 key command 被登記;改到 iPad(iPad Pro 13-inch M5 / iOS 27.0)三個計數仍是 0。**正對照定了案**:P70 在 `SCUI_P70_AUTOFOCUS` 下顯示 `focused field: email` 且游標在欄位裡,而以同一條路徑送出的三個普通字母**一個都沒進去**——所以按鍵根本沒抵達 app,那個零對實作毫無發言權。`simctl` 沒有 `sendkey`、`idb` 未安裝、DeviceHub 不透過 AX 暴露選單列。**需要的是一條把主機鍵盤接到裝置的途徑。** |
+| **Android 應用程式選單(`setApplicationMenu`)** | **Mac** | **整段被註解掉**(`AndroidBackend.swift:544`),帶著上游的 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」。因此 `.commands` / `CommandMenu` 在 Android 上**什麼都不產生**。這比 #121 更根本:**#121 在 Android 上卡在它後面**。2026-09-16 由 P71 量到——`input keycombination` 送出 CTRL+S / CTRL+SHIFT+E / CTRL+D,三個計數全為 0,而那條驅動路徑本身是通的 |
 | GTK `LazyListRows`(#117) | Windows | 目前只 conform `LazyListRowLifetimes`(回收那一半);「按需建列」那一半未做。他們標為 active |
 | GTK `Accessibility`(#123) | Windows | `gtk_accessible_update_property`(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。**`gtk_widget_set_tooltip_text` 不是 hint**,交接已寫明 |
 | WinUI `Accessibility`(#123) | Windows | `AutomationProperties.Name` / `HelpText` / `ItemStatus` |
@@ -435,3 +436,54 @@ name does not appear" is not "it is not implemented". An attempt to separate the
 two automatically found zero inherited protocols, which means the discriminator
 is broken -- so it was not used to open 39 todos. Completing this table needs a
 probe that passes a positive and a negative control first.
+
+---
+
+## 停在待辦上:iOS 的按鍵驅動(低優先,2026-09-16)
+
+**UIKit 的 `keyboardShortcut` 已實作並提交(`cfc442aa`),卡的是「驗證」而不是「實作」。**
+
+按鍵送不進模擬裝置,而這是用**兩次正對照**量出來的,不是推論:
+
+| 嘗試 | 結果 |
+| --- | --- |
+| iPhone 17 Pro Max | `buildMenu` 從不以 `.main` 被呼叫——iPhone 沒有選單列,不會有 key command 被登記 |
+| iPad Pro 13" / iOS 27 | 三個計數皆 0 |
+| 正對照 #1 | P70 顯示 `focused field: email`、游標在欄位裡(**app 是活的**),而送出的 `a h v` 一個都沒進去 |
+| 正對照 #2 | 先送 ⇧⌘K(Simulator 的「把鍵盤輸入送到裝置」)再送,同樣沒進去 |
+
+已排除:`simctl` 沒有 `sendkey` 動詞、`idb` 未安裝、DeviceHub 不透過 AX 暴露選單列。
+
+**三條出路,依成本排序:**
+
+1. DeviceHub 自己的鍵盤開關——若那個 UI 上有,用 AX 或座標點它
+2. `brew install facebook/fb/idb-companion`,然後 `idb ui key`
+3. **XCUITest target** —— iOS 上受支援的驅動方式(`XCUIApplication().typeText()`)。這也是
+   `testapp/actions/ios/` 至今空著、其 README 標 `planned` 的真正原因
+
+第 3 條做完,iOS 就從「只能靠 app 自報」變成能被真實驅動,而那對 P63 之後的每一支 app 都有效。
+
+**在此之前,UIKit #121 的狀態是「實作完成、未驅動」,而依本樹的規矩那不算完成。**
+
+---
+
+## Parked: driving keys into iOS (low priority, 2026-09-16)
+
+UIKit's `keyboardShortcut` is implemented and committed (`cfc442aa`). What is
+blocked is the verification, not the implementation.
+
+Keystrokes do not reach the simulated device, established with two positive
+controls rather than inferred: P70 showed `focused field: email` with a caret --
+the app is alive and responding -- and three plain letters sent the same way did
+not appear in the field, with and without Simulator's ⇧⌘K toggle first. On an
+iPhone the question does not even arise: `buildMenu` is never called with
+`.main`, so no key command is registered.
+
+Ruled out: no `simctl sendkey` verb, `idb` not installed, DeviceHub exposes no
+menu bar over accessibility.
+
+Three ways out, cheapest first: a keyboard toggle inside DeviceHub itself; `idb`
+and its `ui key`; or an XCUITest target, which is the supported way and is why
+`testapp/actions/ios/` is still empty and marked planned. The third would move
+iOS from "the app reports on itself" to "the app can be driven", which pays for
+every Pn from P63 onward.

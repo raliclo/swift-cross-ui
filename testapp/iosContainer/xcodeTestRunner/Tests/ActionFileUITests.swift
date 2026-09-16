@@ -19,6 +19,86 @@ final class ActionFileUITests: XCTestCase {
     /// 內嵌，使得日後若有檔案需要不同手感時，只有一個地方要改。
     private static let pointsPerNotch: CGFloat = 40
 
+    /// The modifier a `keydown`/`keyup` names, or `nil` if it is not a modifier.
+    ///
+    /// The left/right distinction the format carries is dropped: XCUITest has
+    /// one flag per modifier and no side. Dropped rather than rejected, because
+    /// a file saying `rightCommand` means "Command is held" on every platform
+    /// and only macOS can tell the two apart -- refusing it would fail files
+    /// that are correct everywhere else.
+    ///
+    /// `command` is Command here, matching `EventModifiers.command` and the
+    /// AppKit synthesiser.
+    ///
+    /// 某個 `keydown`/`keyup` 所指名的 modifier;若它不是 modifier 則為 `nil`。
+    ///
+    /// 格式中帶有的左右之分在此被捨棄:XCUITest 每個 modifier 只有一個旗標,沒有左右。是**捨棄**而
+    /// 不是拒絕,因為一個寫著 `rightCommand` 的檔案,在每個平台上的意思都是「Command 被按著」,而
+    /// 只有 macOS 分得出兩者——拒絕它會讓一份在別處都正確的檔案失敗。
+    ///
+    /// `command` 在此就是 Command,與 `EventModifiers.command` 及 AppKit synthesiser 一致。
+    private static func modifierFlag(for key: String) -> XCUIElement.KeyModifierFlags? {
+        switch key {
+            case "command", "rightCommand": return .command
+            case "shift", "rightShift": return .shift
+            case "option", "rightOption": return .option
+            case "control", "rightControl": return .control
+            case "capsLock": return .capsLock
+            default: return nil
+        }
+    }
+
+    /// What `typeKey` should be given for a `key` action.
+    ///
+    /// A single character goes through as itself; the named keys map to
+    /// `XCUIKeyboardKey`. `nil` means the format names a key XCUITest has no
+    /// constant for, and the caller throws rather than substituting one --
+    /// typing the wrong key is worse than refusing.
+    ///
+    /// `delete` is Backspace, which is Mac's meaning and the format's; the
+    /// README warns that this surprises people who learned the names elsewhere,
+    /// and getting it backwards here would erase the wrong character silently.
+    ///
+    /// 一個 `key` 動作該交給 `typeKey` 什麼。
+    ///
+    /// 單一字元原樣通過;具名按鍵映射到 `XCUIKeyboardKey`。`nil` 代表格式指名了一個 XCUITest 沒有
+    /// 常數的按鍵,而呼叫端會 throw、不會拿另一個頂替——打錯鍵比拒絕更糟。
+    ///
+    /// `delete` 是 Backspace,那是 Mac 的語意、也是本格式的語意;README 警告過這會讓在別處學過這些
+    /// 名字的人意外,而在此處弄反,會**靜默地**刪掉錯誤的字元。
+    private static func typedKey(for key: String) -> String? {
+        if key.count == 1 { return key }
+        switch key {
+            case "return": return XCUIKeyboardKey.return.rawValue
+            case "tab": return XCUIKeyboardKey.tab.rawValue
+            case "space": return XCUIKeyboardKey.space.rawValue
+            case "escape": return XCUIKeyboardKey.escape.rawValue
+            case "delete": return XCUIKeyboardKey.delete.rawValue
+            case "forwardDelete": return XCUIKeyboardKey.forwardDelete.rawValue
+            case "leftArrow": return XCUIKeyboardKey.leftArrow.rawValue
+            case "rightArrow": return XCUIKeyboardKey.rightArrow.rawValue
+            case "upArrow": return XCUIKeyboardKey.upArrow.rawValue
+            case "downArrow": return XCUIKeyboardKey.downArrow.rawValue
+            case "home": return XCUIKeyboardKey.home.rawValue
+            case "end": return XCUIKeyboardKey.end.rawValue
+            case "pageUp": return XCUIKeyboardKey.pageUp.rawValue
+            case "pageDown": return XCUIKeyboardKey.pageDown.rawValue
+            default: return nil
+        }
+    }
+
+    /// Names the held modifiers for the log line.
+    /// 為紀錄行寫出目前按著的 modifier。
+    private static func describe(_ flags: XCUIElement.KeyModifierFlags) -> String {
+        var names: [String] = []
+        if flags.contains(.command) { names.append("command") }
+        if flags.contains(.shift) { names.append("shift") }
+        if flags.contains(.option) { names.append("option") }
+        if flags.contains(.control) { names.append("control") }
+        if flags.contains(.capsLock) { names.append("capsLock") }
+        return names.isEmpty ? "none" : names.joined(separator: "+")
+    }
+
     func testActionFile() throws {
         guard let path = ProcessInfo.processInfo.environment["IOS_ACTION_FILE"] else {
             XCTFail("IOS_ACTION_FILE is required")
@@ -29,6 +109,9 @@ final class ActionFileUITests: XCTestCase {
         let actions = try ActionFile.load(at: path)
         var pointer: XCUICoordinate?
         var dragStart: XCUICoordinate?
+        /// Modifiers currently held by `keydown`, spent by the next `key`.
+        /// 目前由 `keydown` 按住、將被下一個 `key` 花掉的 modifier。
+        var heldModifiers: XCUIElement.KeyModifierFlags = []
 
         // Say what is about to be replayed, and afterwards say that it was.
         //
@@ -128,8 +211,59 @@ final class ActionFileUITests: XCTestCase {
                 // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
                 // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
                 origin.press(forDuration: 0.05, thenDragTo: destination)
-            case "keydown", "keyup", "key":
-                throw ActionFileError.unsupported(action.kind, action.line)
+            case "keydown":
+                // A MODIFIER is held; anything else cannot be.
+                //
+                // XCUITest has no press-and-hold for an ordinary key: the unit
+                // is `typeKey(_:modifierFlags:)`, one press with whatever
+                // modifiers are down. So `keydown command` accumulates a flag
+                // and `key s` spends it. `keydown s` has no expression here and
+                // throws rather than quietly typing an `s` -- a held key that
+                // silently became a tap is the kind of difference a test is
+                // supposed to notice.
+                //
+                // **按住的必須是 modifier;其他任何鍵都不行。**
+                //
+                // XCUITest 沒有「按住一個普通按鍵」這種動作:它的單位是
+                // `typeKey(_:modifierFlags:)`——一次按下,連同當時按著的那些 modifier。因此
+                // `keydown command` 累積一個旗標,而 `key s` 把它花掉。`keydown s` 在此處無法表達,
+                // 於是 throw,而不是安靜地打出一個 `s`——一個「被靜默變成單擊的長按」,正是測試本該
+                // 察覺的那種差別。
+                guard let flag = Self.modifierFlag(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "keydown \(action.key) (only modifiers can be held on iOS)",
+                        action.line
+                    )
+                }
+                heldModifiers.insert(flag)
+            case "keyup":
+                guard let flag = Self.modifierFlag(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "keyup \(action.key) (only modifiers can be held on iOS)",
+                        action.line
+                    )
+                }
+                heldModifiers.remove(flag)
+            case "key":
+                guard let typed = Self.typedKey(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "key \(action.key) (no XCUIKeyboardKey for it)",
+                        action.line
+                    )
+                }
+                // Reported before it is sent, and with the modifiers spelled
+                // out, because a shortcut that does nothing is otherwise
+                // indistinguishable from one that was never sent -- the same
+                // reason the coordinate line above exists.
+                // 在送出之前先回報,而且把 modifier 明列出來;否則「一個什麼都沒做的快捷鍵」與
+                // 「一個從未被送出的快捷鍵」無從分辨——與上方那行座標紀錄存在的理由相同。
+                FileHandle.standardError.write(
+                    Data(
+                        ("-actionfile: line \(action.line) key '\(action.key)' "
+                            + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                    )
+                )
+                app.typeKey(typed, modifierFlags: heldModifiers)
             default:
                 throw ActionFileError.unsupported(action.kind, action.line)
             }
@@ -196,6 +330,15 @@ final class ActionFileUITests: XCTestCase {
 
 private struct Action {
     let kind: String
+    /// The `key` column, which the parser used to drop.
+    ///
+    /// It was dropped because nothing read it: `keydown`, `keyup` and `key` all
+    /// threw `unsupported`. Carrying it is the first half of not throwing.
+    /// `key` 欄位;parser 過去會把它丟掉。
+    ///
+    /// 之所以丟掉,是因為沒有人讀它:`keydown`、`keyup`、`key` 三者都 throw `unsupported`。
+    /// 把它帶上,是「不再 throw」的前半。
+    let key: String
     let x: CGFloat
     let y: CGFloat
     let origin: String
@@ -224,7 +367,7 @@ private enum ActionFile {
             let y = CGFloat(Double(fields[2]) ?? 0)
             let micros = Double(fields[6]).map(TimeInterval.init) ?? 0
             return Action(
-                kind: fields[0], x: x, y: y,
+                kind: fields[0], key: fields[5], x: x, y: y,
                 origin: fields[3].isEmpty ? "client" : fields[3],
                 microseconds: micros, line: line, hasPosition: hasPosition
             )
