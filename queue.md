@@ -74,7 +74,7 @@ an empty queue -- mistakes.md entry 1.
   `grep -rn keyCommands Sources/UIKitBackend` 回報 0:沒有任何地方覆寫 `UIResponder.keyCommands`,
   而那正是 iPhone 上「不需要選單列」的那條路。依 CLAUDE.md,這是待實作,不是可以記成 ✅ 的東西。
 
-- [ ] **M5. `LazyListRowLifetimes` 只有 GTK 與 WinUI — AppKit / UIKit / Android 沒有** — 三者只實作了
+- [~] **M5. `LazyListRowLifetimes` — 三個 backend 都已實作;AppKit 已驅動驗證,UIKit / Android 尚未大規模驅動** — 三者只實作了
   `LazyListRows`。被回收的列不會通知框架,只靠 `List.swift:617` 的 `lazyLifetimeBackstopLimit = 4000`
   兜底(WinUI 那份量到的差距是 72–76 MB)。**注意掃描方式:`LazyListRowLifetimes: LazyListRows`**,
   因此「找具名 extension」的 grep 會說 GtkBackend 沒有 `LazyListRows`——那是偽陰性,它由繼承而來。
@@ -102,6 +102,32 @@ an empty queue -- mistakes.md entry 1.
     加上三個沒有箭頭的對照欄,動作檔為 `actions/win/P23-sort-indicator.csv`)。
     **至此 #125 的每一個部分在兩個 Windows backend 上都有畫面證據。**
     **AppKit / UIKit / Android 的 `TableColumnSorting` 仍未實作**,那是 Mac 那邊的。
+  - **AppKit:完成並驅動驗證。** `didAdd`/`didRemove` 的 row view 生命週期就是那個訊號,先前沒有人問。
+    `didRemove` 自己的 `forRow:` 在「該列已不再有效」時是 -1——而那正是這個 handler 存在的情況——
+    所以索引改在 `didAdd` 記下。拖捲軸走完 500 列之後,`rows held by the framework` 是 **19**
+    (可見視窗大小),擷圖停在第 481–492 列。沒有這個回呼的話會是 ~500。
+  - **新增了一支量尺:`DebugFeatures.liveLazyListRows`**,由 `List` 寫入、P57 顯示。
+    上面那行 conformance 是關於**型別**的主張;這一行數的是**那個回呼真的抵達了**。
+  - **UIKit:實作完成、conformance 在執行期可見,但未驅動。** `didEndDisplaying` 是那個掛鉤。
+    30 列 scroll 完全沒有讓 P57 的清單移動——事後的擷圖與啟動時逐像素相同——因此那個計數從未被操練,
+    停在啟動值 1。**不列為通過。** 該 runner 的 scroll 在 P8/P27/P38 上是有效的,所以問題應在這支 app
+    的 view tree,不在那個動詞。
+  - **Android:實作完成、conformance 可見,釋放只在小尺度上被觀察到。**
+    `AbsListView.RecyclerListener.onMovedToScrapHeap` 是掛鉤(而不是 `getView` 的 `convertView`
+    ——後者只在被丟棄的 view **回來**時才觸發)。啟動時可見 row 0、1,按下 Select last(跳到 499)之後
+    讀數是 **2**,所以 0 與 1 確實被釋放了。但差距只有兩列:這台模擬器上清單只容得下約兩列,
+    而 scroll 沒有移動它(logcat 顯示重放完整跑完,所以那個動詞沒有拋錯)。**不列為大規模通過。**
+
+
+- [ ] **M6. AppKit 的 lazy 清單對滾輪沒有反應,往上捲還會把自己畫空** — 2026-09-16 在 P57(500 列)上量到,
+  兩個方向各 24 格:
+  - `scroll 0,45`(向下):清單**完全不動**,最上面仍是 row 0、捲軸拇指仍在頂端。
+  - `scroll 0,-45`(向上):清單**一列都不畫**,而拇指仍在頂端——所以不是捲過了頭。
+  - **拖捲軸拇指是正常的**,能一路走到第 481–492 列。
+  這**不是** `LazyListRowLifetimes` 造成的:把釋放 handler 拿掉的對照組會做出一模一樣的兩件事
+  (那個對照組是為了判定這件事才建的)。因此它是 `LazyListRows` 在 AppKit 上既有的缺陷,
+  而先前沒有 mac 的 P57 動作檔,所以沒有人走過這條路。證據見
+  `testapp/actions/mac/P57-scroll-the-whole-list.csv` 的檔頭。
 
   - **今天量到、值得下次照做的一件事(相關性,不是成因)**:**三次**成功的驅動,都是在
     **使用者剛與遠端桌面互動之後**的第一次嘗試(19:10 WinUI 排序、19:30 GTK 排序、19:36 指示符);

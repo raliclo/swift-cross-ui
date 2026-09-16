@@ -85,6 +85,54 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
     var allowSelections = false
     var selectionHandler: ((Int) -> Void)?
 
+    /// Called when a row stops being displayed, so the framework can drop the
+    /// view-graph node it built for it.
+    ///
+    /// Without this the framework keeps every node it has ever built, bounded
+    /// only by ``ListViewChildren/lazyLifetimeBackstopLimit``. `UITableView`
+    /// recycles its own cells either way, so the growth never shows in the view
+    /// hierarchy -- only in memory.
+    ///
+    /// 當某一列不再被顯示時呼叫,好讓框架丟掉它為那一列建立的 view graph 節點。
+    ///
+    /// 少了它,框架會保留它建過的每一個節點,上限只有
+    /// ``ListViewChildren/lazyLifetimeBackstopLimit``。`UITableView` 無論如何都會回收它自己的 cell,
+    /// 因此這種成長不會出現在 view 階層裡——只會出現在記憶體上。
+    var lazyReleaseHandler: ((Int) -> Void)?
+
+    // MARK: Row lifetimes (BackendFeatures.LazyListRowLifetimes)
+
+    /// The row that has just scrolled away.
+    ///
+    /// **UIKit hands the index over directly**, unlike AppKit, whose equivalent
+    /// callback documents its own row parameter as possibly -1. So there is no
+    /// bookkeeping here -- only the check that the row is not on screen again
+    /// already.
+    ///
+    /// A reload ends and begins displaying the same index, and the two can
+    /// arrive in either order; the framework's handler drops the node for that
+    /// index, so reporting a row the table is still showing would leave a
+    /// visible cell whose Swift side has been released and which nothing
+    /// updates afterwards.
+    ///
+    /// 剛剛捲離畫面的那一列。
+    ///
+    /// **UIKit 直接把索引交出來**,不像 AppKit——它的對應回呼對自己的 row 參數寫明「可能是 -1」。
+    /// 因此此處沒有任何簿記,只有一項檢查:那一列是不是已經又回到畫面上了。
+    ///
+    /// 一次 reload 會讓同一個索引先結束顯示、再開始顯示,而兩者抵達的順序不定;框架的 handler 會丟掉
+    /// 該索引的節點,因此回報一個表格仍在顯示的列,會留下一個「Swift 那側已被釋放」的可見 cell,
+    /// 其後不再有任何東西更新它。
+    func tableView(
+        _ tableView: UITableView,
+        didEndDisplaying cell: UITableViewCell,
+        forRowAt path: IndexPath
+    ) {
+        guard let lazyReleaseHandler else { return }
+        guard tableView.indexPathsForVisibleRows?.contains(path) != true else { return }
+        lazyReleaseHandler(path.row)
+    }
+
     // MARK: UITableViewDataSource
 
     func tableView(
