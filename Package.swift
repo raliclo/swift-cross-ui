@@ -860,16 +860,104 @@ let migratedToSwift6: Set<String> = [
     "Gtk",
     "AppKitBackend",
     "UIKitBackend",
+    "AndroidBackend",
 ]
 
-// A name that matches no target is a typo, and a typo here is silent: the
-// target stays on v5, the build passes, and the target reads as migrated when
-// nothing about it changed. Failing the manifest is the only loud option a
-// Package.swift has.
-// 對不上任何 target 的名稱就是打錯了，而此處的打錯是靜默的：該 target 仍留在 v5，建置照樣通過，
-// 於是它看起來像是已完成遷移，實際上什麼也沒變。讓 manifest 直接失敗，是 Package.swift 唯一
-// 能發出聲響的手段。
-for name in migratedToSwift6 where !allTargetNamesBeforeHostFilter.contains(name) {
+// `AndroidBackend` GOT HERE THROUGH ONE STATEMENT THAT SWIFT 6 REFUSES, and
+// how that was resolved is worth more than the fact that it was.
+//
+// Five concurrency problems were found and fixed on 2026-09-16 -- the stdio
+// buffering moved into the C shim, two environment keys hand-written because
+// `@Entry` emits a `static let` of a non-`Sendable` type, a dead `default:`
+// parameter removed from a generic helper, `SharedPreferences` annotated
+// against Android's own thread-safety guarantee, and `ActivityListener` plus
+// two AndroidKit types made `@unchecked Sendable` because swift-java's
+// `@JavaMethod` expansion sends `self` and every parameter across an isolation
+// boundary. All five stand on their own.
+//
+// The sixth was not a fixable pattern: `CommandLine.arguments`'s setter was
+// OBSOLETED in Swift 6.0, and `AndroidBackend+Arguments.swift` needs it, since
+// on Android the runtime's argv is the JVM's while `main` is called later from
+// JNI with the argv built from the launching intent. Deleting the assignment
+// compiles and makes `--debug`, `-rows` and `-actionfile` stop arriving.
+//
+// A language mode is per TARGET, so the first fix was a one-file target still
+// on v5. It builds under `swift build` and VANISHES under
+// `swift build --product P70`, which is what swift-bundler runs to package the
+// APK -- `no such module`, from a manifest `swift package dump-package` shows
+// the target in, with both manifest caches cleared and the target also listed
+// in the product. Unexplained; the approach was abandoned rather than pursued.
+//
+// What landed instead needs no target: the obsoletion is a COMPILE-TIME gate
+// and the symbol is still exported by the runtime, which was checked with
+// `nm -D libswiftCore.so` on the Android SDK in use here. See the
+// `@_silgen_name` in `AndroidBackend+Arguments.swift`, which carries the
+// verification and the cost.
+//
+// `AndroidBackend` 是**靠一個 Swift 6 拒絕的陳述句**走到這裡的,而那件事**如何被解決**,比「它被解決
+// 了」更有價值。
+//
+// 2026-09-16 找出並修好五個並行性問題——stdio 緩衝設定移進 C shim;兩個 environment key 改為手寫,
+// 因為 `@Entry` 產生的是「非 `Sendable` 型別的 `static let`」;一個泛型輔助函式移除了永遠到不了的
+// `default:` 參數;`SharedPreferences` 依 Android 自身的 thread-safety 保證加上標註;以及
+// `ActivityListener` 與兩個 AndroidKit 型別改為 `@unchecked Sendable`,因為 swift-java 的
+// `@JavaMethod` 展開會把 `self` 與**每一個參數**送過隔離邊界。這五項各自都站得住。
+//
+// 第六個不是一個修得掉的模式:`CommandLine.arguments` 的 setter 在 Swift 6.0 被**廢除**,而
+// `AndroidBackend+Arguments.swift` 需要它——因為在 Android 上,runtime 的 argv 是 JVM 的,而 `main`
+// 是稍後由 JNI 呼叫、帶著從啟動 intent 建出的 argv。把那次指派刪掉是編得過的,而 `--debug`、`-rows`、
+// `-actionfile` 會從此送不到。
+//
+// 語言模式是以 **target** 為單位的,因此第一個修法是一個仍停留在 v5 的單檔 target。它在
+// `swift build` 下建得起來,而在 `swift build --product P70` 下**消失**——後者正是 swift-bundler
+// 用來打包 APK 的指令:`no such module`,出自一份 `swift package dump-package` 明明看得到該 target 的
+// manifest;本地與全域快取都清過,也把該 target 列進了 product。原因未明;該路線被**放棄**,而不是
+// 繼續追下去。
+//
+// 真正落地的做法不需要任何 target:那個廢除是一道**編譯期**的閘門,而符號仍由 runtime 匯出——這是在
+// 此處實際使用的 Android SDK 上以 `nm -D libswiftCore.so` 查過的。見
+// `AndroidBackend+Arguments.swift` 裡的 `@_silgen_name`,那裡帶著查證與代價。
+//
+// `AndroidBackendShim` is a C target, and `.swiftLanguageMode` says nothing
+// about one; listing it would pass the typo check below -- the name IS a target
+// -- and then mean nothing.
+// `AndroidBackendShim` 是一個 C target,而 `.swiftLanguageMode` 對它沒有任何意義;把它列上去會通過
+// 下方那個打錯檢查——那個名字**確實**是一個 target——然後什麼也不代表。
+
+// Targets this manifest adds only under a flag, and which are therefore absent
+// from `allTargetNamesBeforeHostFilter` on a host that did not set it.
+//
+// **Naming one in `migratedToSwift6` used to be a fatal error, and that was the
+// typo check misfiring on a real name.** `AndroidBackend` exists only when
+// `SCUI_ANDROID=1`; adding it to the list made every macOS build of this
+// package die with "which is not a target in this package" -- true as stated,
+// and not a typo. Caught by `Scripts/test.sh` rather than by any Android build,
+// because the Android builds are exactly the ones where the name IS present.
+//
+// The guard keeps its value: a genuine typo matches neither the snapshot nor
+// this list, and adding a name here is a deliberate act that says "this target
+// is conditional", not a way to silence the check.
+//
+// 本 manifest 只在某個旗標下才加入、因而在沒有設定該旗標的 host 上不存在於
+// `allTargetNamesBeforeHostFilter` 中的那些 target。
+//
+// **把其中之一列進 `migratedToSwift6` 過去會造成 fatal error,而那是打字檢查對一個真實名稱誤擊。**
+// `AndroidBackend` 只在 `SCUI_ANDROID=1` 時存在;把它加進那份清單,會讓本套件在 macOS 上的**每一次**
+// 建置都以「which is not a target in this package」死掉——那句話就字面而言是真的,而它不是一個打錯。
+// 抓到它的是 `Scripts/test.sh`,而不是任何一次 Android 建置——因為 Android 建置恰恰就是「那個名字
+// **存在**」的那些場合。
+//
+// 這道守衛仍保有它的價值:一個真正的打錯,兩份名單都對不上;而把一個名字加到這裡是一個刻意的動作,
+// 意思是「這個 target 是條件性的」,不是一種讓檢查閉嘴的方式。
+let conditionallyIncludedTargetNames: Set<String> = [
+    "AndroidBackend",
+    "AndroidBackendShim",
+]
+
+for name in migratedToSwift6
+where !allTargetNamesBeforeHostFilter.contains(name)
+    && !conditionallyIncludedTargetNames.contains(name)
+{
     fatalError("migratedToSwift6 names '\(name)', which is not a target in this package")
 }
 

@@ -592,3 +592,74 @@ The guard: when a platform's artifact must be PACKAGED, the build's exit code is
 not the artifact's timestamp. `ls -l` the artifact in the same command that
 installs it, have the app print the fact under test on screen, and put a control
 beside it -- a control reading NO too would have pointed at the binary in seconds.
+
+---
+
+## 9. 在「那個缺陷不可能出現」的唯一平台上完成驗證
+
+**2026-09-16,1 次,1 天。**
+
+### 症狀
+
+把 `"AndroidBackend"` 加進 `Package.swift` 的 `migratedToSwift6`。該 target **只在
+`SCUI_ANDROID=1` 時存在**,因此在其餘每一種建置上,manifest 自己的打字守衛會開火:
+
+```
+Package.swift:928: Fatal error: migratedToSwift6 names 'AndroidBackend',
+which is not a target in this package
+```
+
+——套件**根本載入不了**。macOS、iOS、Linux、Windows 在那一刻全部壞掉。
+
+### 為什麼我完全沒看到
+
+因為我驗得很勤:**五次重建、一個 APK、一次上機、在 logcat 裡確認啟動旗標到位。** 每一次都在
+Android 上。
+
+而 Android 恰恰是那個名字**確實是一個 target** 的平台——也就是那個 fatal error **不可能發生**的
+平台。驗證做得越徹底,離那個缺陷越遠。
+
+抓到它的是幾分鐘後的 `Scripts/test.sh`,而不是那個 Android 迴圈裡的任何一步。
+
+### 這與第 4 關(「在我的平台上通過」)不同
+
+第 4 關是「我只在一個平台上驗過,別的沒驗」。這一條更窄也更刺:**這次改動本身是有條件的,而我選的
+驗證平台正是那個「條件成立」的分支。** 那不是覆蓋率不足——那是一個**結構上看不見**的實驗:
+
+| | 條件成立(Android) | 條件不成立(其餘四個) |
+| --- | --- | --- |
+| 那個名字是 target 嗎? | 是 | **否** |
+| 那個守衛會開火嗎? | 不會 | **會** |
+| 我跑過嗎? | 五次 | **零次** |
+
+### 矯正措施
+
+> 改動一份**每個平台都會讀**的檔案(manifest、共用腳本、設定)之前,先問:**哪些平台走的是另一條
+> 分支?** 然後在宣稱它可用之前,至少跑其中最便宜的那一個。在本樹上那就是 host 上的
+> `Scripts/test.sh`——它同時也是最便宜的那一個。
+
+**一次只在自身條件下被驗過的條件式改動,等於沒有被驗過。**
+
+---
+
+## 9. Verified on the one platform where the defect was impossible
+
+Adding `"AndroidBackend"` to `Package.swift`'s `migratedToSwift6`. That target
+exists only when `SCUI_ANDROID=1`, so on every other build the manifest's own
+typo guard fired -- `migratedToSwift6 names 'AndroidBackend', which is not a
+target in this package` -- and the package would not load at all. macOS, iOS,
+Linux and Windows were broken.
+
+I verified thoroughly: five rebuilds, an APK, a device run, launch flags checked
+in logcat. All of it on Android, which is exactly where the name IS a target and
+the fatal error cannot occur. The more carefully I checked, the further I was
+from the defect. `Scripts/test.sh` caught it minutes later.
+
+This is not gate 4 ("passes on my platform"). It is narrower: the change was
+CONDITIONAL, and the platform I chose to verify on was the branch where the
+condition holds. That is not thin coverage -- it is an experiment that cannot
+fail.
+
+The guard: before editing anything every platform reads, name the platforms that
+take the OTHER branch and run the cheapest one. A conditional change verified
+only under its own condition is unverified.

@@ -87,8 +87,12 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
     // stderr 依 C 標準是無緩衝的，不需要任何處理——這正是為什麼 `InputEvent` 的 `-actionfile:`
     // 各行一直都看得到，而測試 app 自身的 `print` 輸出卻看不到。那個不對稱曾被記錄為「Android app
     // 的 print 到不了 logcat」並當成平台限制；它其實是四行緩衝設定。
-    setvbuf(stdout, nil, _IOLBF, 0)
-    setvbuf(stderr, nil, _IONBF, 0)
+    // Both calls moved into `AndroidBackendShim`. `stdout` and `stderr` are
+    // mutable C globals and Swift 6 refuses to reference one; the reasoning,
+    // and what these two lines are actually for, is in `impl.c` beside them.
+    // 這兩個呼叫已移入 `AndroidBackendShim`。`stdout` 與 `stderr` 是可變的 C 全域變數,而 Swift 6
+    // 拒絕引用其中任何一個;推理與「這兩行究竟在做什麼」寫在它們旁邊的 `impl.c` 裡。
+    android_configure_stdio()
 
     // Arguments from the launching intent rather than none at all.
     //
@@ -126,9 +130,60 @@ extension App {
     }
 }
 
+/// These two are written out rather than declared with `@Entry`, and the public
+/// surface is identical either way.
+///
+/// **`@Entry` emits `static let defaultValue`, and under Swift 6 an immutable
+/// global of a NON-SENDABLE type is still an error** -- `Activity` is a Java
+/// object handle and `UnsafeMutablePointer<JNIEnv?>` is a pointer, so neither
+/// can be `Sendable`. Teaching the macro to add `nonisolated(unsafe)` was the
+/// obvious move and is the wrong one: it would silence the same diagnostic for
+/// every entry in the package, including the ones where it is reporting a real
+/// problem. The exception belongs where the exception is.
+///
+/// **Why the assertion is true here.** Both are set once, from
+/// `AndroidBackend`'s own start-up on the Android main thread, before any view
+/// exists to read them, and never written again. The JNI environment pointer is
+/// thread-local by JNI's own rules, which is why nothing else may pick it up
+/// and carry it elsewhere -- that restriction predates this annotation and is
+/// not created by it.
+///
+/// 這兩個是手寫的、而不是用 `@Entry` 宣告的;兩種寫法的公開介面完全相同。
+///
+/// **`@Entry` 產生的是 `static let defaultValue`,而在 Swift 6 底下,一個「非 Sendable 型別」的
+/// 不可變全域仍然是錯誤**——`Activity` 是一個 Java 物件 handle,`UnsafeMutablePointer<JNIEnv?>` 是
+/// 一個指標,兩者都不可能是 `Sendable`。「教那個 macro 加上 `nonisolated(unsafe)`」是最直覺的做法,
+/// 而它是錯的:那會讓整個套件裡**每一個** entry 的同一個診斷都被消音,包括那些它確實在回報真問題的
+/// 地方。例外應該待在例外所在之處。
+///
+/// **為何這個斷言在此處為真。** 兩者都只被設定一次,由 `AndroidBackend` 自己的啟動流程在 Android
+/// 主執行緒上設定,時點早於任何 view 存在而能讀它們,之後不再被寫入。那個 JNI environment 指標依
+/// JNI 自身的規則就是 thread-local 的,這正是「別的東西不得撿走它並帶到他處」的原因——那個限制早於
+/// 這個標註存在,不是它造成的。
+private struct __Key_androidActivity: EnvironmentKey {
+    // `Value` written out rather than inferred: an implicitly-unwrapped
+    // `Activity!` is `Optional<Activity>` wearing different sugar, and the
+    // inference through it does not reach the associated type.
+    // `Value` 明寫而非交由推論:一個隱式解包的 `Activity!` 只是 `Optional<Activity>` 換了一層語法糖,
+    // 而穿過它的推論到不了那個 associated type。
+    typealias Value = AndroidKit.Activity?
+    nonisolated(unsafe) static let defaultValue: AndroidKit.Activity? = nil
+}
+
+private struct __Key_jniEnv: EnvironmentKey {
+    nonisolated(unsafe) static let defaultValue: UnsafeMutablePointer<JNIEnv?>? = nil
+}
+
 extension EnvironmentValues {
-    @Entry public var androidActivity: AndroidKit.Activity! = nil
-    @Entry public var jniEnv: UnsafeMutablePointer<JNIEnv?>? = nil
+    public var androidActivity: AndroidKit.Activity! {
+        get { self[__Key_androidActivity.self] }
+        set { self[__Key_androidActivity.self] = newValue }
+    }
+
+    public var jniEnv: UnsafeMutablePointer<JNIEnv?>? {
+        get { self[__Key_jniEnv.self] }
+        set { self[__Key_jniEnv.self] = newValue }
+    }
 }
 
 public final class AndroidBackend: BaseAppBackend {

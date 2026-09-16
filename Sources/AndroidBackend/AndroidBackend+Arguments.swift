@@ -1,7 +1,58 @@
+
 import AndroidApp
 import AndroidContent
 import Foundation
 import SwiftJava
+
+/// The stdlib setter `CommandLine.arguments = ...` used to call, reached by its
+/// symbol because the Swift declaration is gone.
+///
+/// **The obsoletion is a COMPILE-TIME gate, not a removal.** `swift 6.0`
+/// obsoleted the setter, and the symbol is still exported by the runtime --
+/// checked on the Android SDK actually used here, not assumed:
+///
+///     nm -D libswiftCore.so | grep 11CommandLineO9arguments
+///     $ss11CommandLineO9argumentsSaySSGvsZ  ->  static CommandLine.arguments.setter
+///
+/// **`__owned` is the part that has to be right.** A Swift function parameter is
+/// passed `@guaranteed` by default; a property setter takes its value
+/// `@owned`. Declared without it the array would be released once too few and
+/// leak, or once too many and crash -- and neither shows up as a build error.
+/// It is spelled here rather than left to the default for exactly that reason.
+///
+/// **WHAT THIS BUYS, so the risk is weighed against something.** Without it
+/// `AndroidBackend` cannot move to Swift 6, because a language mode is per
+/// TARGET and this one statement is the only thing in forty files that Swift 6
+/// rejects. The alternative tried first -- a one-file target still on v5 --
+/// builds under `swift build` and vanishes under `swift build --product`, which
+/// is what swift-bundler runs.
+///
+/// **WHAT IT COSTS.** A hand-written mangled symbol is not covered by any
+/// source-compatibility promise. If a future runtime drops it the link fails,
+/// which is loud; if the calling convention ever changes it does not, which is
+/// not. P70 and P57 are the check: both take launch flags, and a flag that
+/// stops arriving is visible on screen.
+///
+/// `CommandLine.arguments = ...` 過去所呼叫的那個標準函式庫 setter;因為 Swift 宣告已不存在,改以
+/// **符號**抵達它。
+///
+/// **那個廢除是一道編譯期的閘門,不是移除。** Swift 6.0 廢除了該 setter,而 runtime 仍然匯出那個符號
+/// ——這是在此處實際使用的 Android SDK 上**查過**的,不是假設的(指令與輸出見上)。
+///
+/// **`__owned` 是非對不可的那一部分。** Swift 函式參數預設以 `@guaranteed` 傳遞;而一個 property
+/// setter 取得它的值是 `@owned`。少了它,那個陣列會少釋放一次而洩漏、或多釋放一次而崩潰——而兩者都
+/// **不會**表現為建置錯誤。此處明寫而不依賴預設,正是為了這個理由。
+///
+/// **它換到什麼,好讓風險有東西可以權衡。** 少了它,`AndroidBackend` 無法遷到 Swift 6,因為語言模式
+/// 是以 **target** 為單位的,而這一個陳述句是四十個檔案裡唯一被 Swift 6 拒絕的東西。先前試過的替代
+/// 方案——一個仍停留在 v5 的單檔 target——在 `swift build` 下建得起來,而在 `swift build --product`
+/// 下消失,後者正是 swift-bundler 所執行的。
+///
+/// **它的代價。** 一個手寫的 mangled 符號不受任何原始碼相容性承諾保護。若未來的 runtime 拿掉它,連結
+/// 會失敗——那很大聲;若呼叫慣例哪天改變,則不會——那不大聲。P70 與 P57 就是那道檢查:兩者都吃啟動
+/// 旗標,而一個「送不到的旗標」在畫面上看得見。
+@_silgen_name("$ss11CommandLineO9argumentsSaySSGvsZ")
+private func setCommandLineArguments(_ arguments: __owned [String])
 
 /// Command-line arguments for a platform that has no command line.
 ///
@@ -127,7 +178,7 @@ enum AndroidLaunchArguments {
         //
         // `CommandLine.arguments` 在標準函式庫中是一個已儲存的 `static var`，因此可以被取代。argv
         // 仍然會傳給 `main`，供任何直接讀取 argv 的東西使用。
-        CommandLine.arguments = arguments
+        setCommandLineArguments(arguments)
 
         log("launch arguments: \(arguments.dropFirst().joined(separator: " "))")
         log("CommandLine.arguments: \(CommandLine.arguments.joined(separator: " "))")
