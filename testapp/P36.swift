@@ -253,6 +253,29 @@ struct P36RootView: View {
             }
             .padding(8)
 
+            // #128: fractional padding, as something MEASURABLE rather than a
+            // claim. Three identical 40x40 squares inside a blue background,
+            // padded 8, 8.5 and 9 on every side. The blue boxes must measure
+            // 56, 57 and 58 logical pixels across. 57 is the point: no integer
+            // padding produces it, so if 8.5 were rounded anywhere between the
+            // modifier and the widget, its box would collide with one of its
+            // neighbours. Magenta, green and orange so each is findable by
+            // colour in a capture without knowing the layout.
+            //
+            // #128:小數 padding,以**可量測**的形式呈現,而非一句主張。三個相同的 40x40 方塊放在藍色
+            // 背景裡,四邊分別 padding 8、8.5、9。三個藍框的寬度必須是 56、57、58 個邏輯像素。**57 才是
+            // 重點**:任何整數 padding 都做不出它,因此若 8.5 在 modifier 與 widget 之間任何一處被取整,
+            // 它的框就會與鄰居之一撞在一起。用洋紅、綠、橘三色,讓每一個在擷圖中不必知道版面也找得到。
+            HStack(spacing: 24) {
+                Color(red: 1, green: 0, blue: 1).frame(width: 40, height: 40)
+                    .padding(8).background(Color(red: 0, green: 0, blue: 1))
+                Color(red: 0, green: 1, blue: 0).frame(width: 40, height: 40)
+                    .padding(8.5).background(Color(red: 0, green: 0, blue: 1))
+                Color(red: 1, green: 0.5, blue: 0).frame(width: 40, height: 40)
+                    .padding(9).background(Color(red: 0, green: 0, blue: 1))
+                Text("padding 8 / 8.5 / 9 -> 56 / 57 / 58")
+            }
+
             Divider()
             Text("SwiftUI-shaped call sites missing here")
                 .font(.system(size: 15))
@@ -303,7 +326,15 @@ struct P36RootView: View {
             Text("Button label builder and ButtonRole")
             Text("LocalizedStringKey Text, Text + Text, Image(systemName:), bundle image lookup")
             Text("List without selection, Section, onDelete, swipeActions, TextField axis/prompt/value-format")
-            Text("CGFloat geometry such as padding(8.5), cornerRadius(8.5), HStack(spacing: 8.5)")
+            // NARROWED 2026-09-17: padding(8.5) left this line. `padding` takes
+            // Double (PaddingModifier.swift:9) and is demonstrated above; the
+            // other two still take Int (CornerRadiusModifier.swift:2,
+            // HStack.swift:19), so they stay. Third narrowing of this list,
+            // for the reason the note above gives.
+            // 2026-09-17 縮減:`padding(8.5)` 從本行移除。`padding` 接受 Double
+            // (PaddingModifier.swift:9),並已在上方實際示範;另外兩者仍是 Int
+            // (CornerRadiusModifier.swift:2、HStack.swift:19),故保留。本清單第三次縮減,理由見上方註解。
+            Text("CGFloat geometry such as cornerRadius(8.5), HStack(spacing: 8.5)")
                 .font(.system(size: 13))
         }
         .padding(18)

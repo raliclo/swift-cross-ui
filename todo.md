@@ -44,11 +44,17 @@ conforms to `LazyListRowLifetimes`, which refines `LazyListRows`; the plan file'
 records Win-gtk4 at 1 / 400 / 10,000 rows on 2026-09-14. The line above is kept because it was true
 when written. Open Windows work as of today, checked against code and results.csv2: P38 WebView2,
 P41 graphical DatePicker write-back, #128 fractional-padding visual check, #32 magnify/rotate.
+**Update 2026-09-17:** P38 fixed (Grid-held WebView2 + backend-owned single-threaded
+startup) and #128 verified on both backends (56/57/58 px). Still open: P41 and #32, both
+waiting for a window in which pointer injection reaches the desktop -- see results.csv2.
 
 **2026-09-16 起已過期——GTK #117 不再是雛形。** `GtkBackend+LazyListRows.swift:4` conform
 `LazyListRowLifetimes`(它 refine 了 `LazyListRows`);計畫檔的驗證紀錄記有 2026-09-14 Win-gtk4 的
 1 / 400 / 10,000 列。上一段保留,因為寫下時為真。截至今日、對照程式碼與 results.csv2 確認仍開著的
 Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padding 畫面驗證、#32 縮放/旋轉。
+**2026-09-17 更新:** P38 已修好(以 Grid 持有 WebView2 + backend 自行以單執行緒啟動),#128 已在
+兩個 backend 驗收(56/57/58 px)。仍開著:P41 與 #32,兩者都在等一個「指標注入確實到達桌面」的時段
+——見 results.csv2。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
