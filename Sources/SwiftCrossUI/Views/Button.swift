@@ -420,7 +420,7 @@ extension Button: TypeSafeView {
 
     public var _asMenuItems: [MenuItem] {
         if let self = self as? Button<TupleView1<Text>> {
-            return [.button(self)]
+            return [.button(self, shortcut: nil)]
         } else {
             // TODO(stackotter): Figure out a better fallback for non-text buttons in menus
             return body._asMenuItems

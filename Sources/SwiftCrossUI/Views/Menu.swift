@@ -33,10 +33,14 @@ public struct Menu {
     @MainActor
     static func resolve(item: MenuItem) -> ResolvedMenu.Item {
         switch item {
-            case .button(let button):
-                .button(button.body.view0.view0.string, button.action)
+            case .button(let button, let shortcut):
+                .button(button.body.view0.view0.string, button.action, shortcut)
             case .text(let text):
-                .button(text.string, nil)
+                // Text in a menu is a disabled button, and a disabled button
+                // cannot have a shortcut -- there is nothing for the key to do.
+                // 選單裡的 Text 是一顆被停用的按鈕,而一顆被停用的按鈕不可能有快捷鍵——那個按鍵沒有
+                // 任何事情可做。
+                .button(text.string, nil, nil)
             case .toggle(let toggle):
                 .toggle(
                     toggle.label,

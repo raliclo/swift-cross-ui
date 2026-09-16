@@ -2300,7 +2300,14 @@ public final class GtkBackend:
             render(item: item, environment: environment)
             func render(item: ResolvedMenu.Item, environment: EnvironmentValues) {
                 switch item {
-                    case .button(let label, let action):
+// NOT COMPILED HERE. The shortcut is bound and unused so this file keeps
+                    // building; GTK's own `GtkApplication.set_accels_for_action` is the
+                    // implementation, and it belongs to whoever can run it. Binding rather
+                    // than `_` is what makes the gap greppable.
+                    // **此處未經編譯。** 這個 shortcut 被綁定但未使用,只為讓本檔繼續建置;真正的實作是
+                    // GTK 自己的 `GtkApplication.set_accels_for_action`,而它屬於跑得動它的人。
+                    // 用綁定而不是 `_`,是為了讓這個缺口 grep 得到。
+                    case .button(let label, let action, _):
                         if let action {
                             let gAction = GSimpleAction(name: actionName, action: action)
                             gAction.enabled = environment.isEnabled

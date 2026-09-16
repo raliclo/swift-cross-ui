@@ -90,7 +90,7 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
             groupId: inout Int32
         ) {
             switch item {
-                case .button(let label, let action):
+                case .button(let label, let action, let shortcut):
                     let menuItem = menu.add(
                         groupId,
                         0,
@@ -98,6 +98,42 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
                         charSequence(from: label)
                     )
                     .setEnabled(environment.isEnabled)!
+                    if let shortcut,
+                        let scalar = String(shortcut.key.character).lowercased().unicodeScalars
+                            .first
+                    {
+                        // `setAlphabeticShortcut(char, modifiers)`, with the
+                        // modifier mask separate from the key.
+                        //
+                        // **Android's shortcuts reach a hardware keyboard, not
+                        // the touch screen**, and that is the whole of what this
+                        // does: the item shows its shortcut in the overflow menu
+                        // and a keyboard fires it. A phone with no keyboard is
+                        // not a platform that fails this -- it is a platform
+                        // with no key to press, the same way `onHover` has no
+                        // pointer there.
+                        //
+                        // Non-ASCII keys are skipped rather than mangled: the
+                        // API takes a single `char`, and an arrow key or an
+                        // emoji has no alphabetic form to take. `first` being
+                        // nil is that case, and it leaves the item working
+                        // without a shortcut rather than with a wrong one.
+                        //
+                        // `setAlphabeticShortcut(char, modifiers)`,modifier mask 與按鍵分開。
+                        //
+                        // **Android 的快捷鍵抵達的是實體鍵盤,不是觸控螢幕**,而這就是它的全部:該項目
+                        // 會在溢位選單裡顯示它的快捷鍵,而鍵盤按下去會觸發它。一支沒有鍵盤的手機不是
+                        // 「在這一項上失敗」的平台——它是一個「沒有鍵可按」的平台,與 `onHover` 在那裡
+                        // 沒有指標是同一回事。
+                        //
+                        // 非 ASCII 的按鍵是被**跳過**、而不是被硬轉:那個 API 收的是單一個 `char`,
+                        // 而一個方向鍵或 emoji 沒有可取的字母形式。`first` 為 nil 就是那個情況,它讓該
+                        // 項目在「沒有快捷鍵」的狀態下正常運作,而不是帶著一個錯的快捷鍵。
+                        _ = menuItem.setAlphabeticShortcut(
+                            UInt16(scalar.value),
+                            AndroidBackend.keyModifiers(for: shortcut)
+                        )
+                    }
 
                     if environment.isEnabled {
                         let onClick = CustomMenuItemClickListener(
@@ -191,5 +227,43 @@ extension AndroidBackend: BackendFeatures.AttachedMenus {
             environment: environment,
             action: menu.show
         )
+    }
+}
+
+extension AndroidBackend {
+    /// Maps SwiftCrossUI's modifiers onto `KeyEvent`'s meta-state mask.
+    ///
+    /// `.command` becomes CTRL here, which is the convention
+    /// ``EventModifiers/command`` records: SwiftUI's `.command` is Command on
+    /// Apple platforms and Ctrl on the other three. Android also has META -- the
+    /// Command key on an attached Apple keyboard -- and mapping `.command` to
+    /// that instead would make every existing shortcut stop working on the
+    /// hardware most Android users actually have.
+    ///
+    /// The constants are spelled out because they are not in the generated
+    /// bindings, and a bare `0x1000` at the call site would say nothing about
+    /// which key it meant.
+    ///
+    /// 把 SwiftCrossUI 的 modifier 映射到 `KeyEvent` 的 meta-state mask。
+    ///
+    /// `.command` 在此成為 CTRL,而那正是 ``EventModifiers/command`` 所記載的慣例:SwiftUI 的
+    /// `.command` 在 Apple 平台上是 Command,在其餘三個平台上是 Ctrl。Android 同樣有 META——接上
+    /// Apple 鍵盤時的 Command 鍵——而把 `.command` 改映射到它,會讓既有的每一個快捷鍵在「多數 Android
+    /// 使用者手上真正擁有的硬體」上失效。
+    ///
+    /// 這些常數明寫出來,因為它們不在產生出來的綁定裡;而呼叫處光禿禿的 `0x1000`,說不出它指的是哪一個鍵。
+    static func keyModifiers(for shortcut: KeyboardShortcut) -> Int32 {
+        /// `KeyEvent.META_CTRL_ON`
+        let ctrl: Int32 = 0x1000
+        /// `KeyEvent.META_SHIFT_ON`
+        let shift: Int32 = 0x1
+        /// `KeyEvent.META_ALT_ON`
+        let alt: Int32 = 0x2
+        var mask: Int32 = 0
+        if shortcut.modifiers.contains(.command) { mask |= ctrl }
+        if shortcut.modifiers.contains(.control) { mask |= ctrl }
+        if shortcut.modifiers.contains(.shift) { mask |= shift }
+        if shortcut.modifiers.contains(.option) { mask |= alt }
+        return mask
     }
 }

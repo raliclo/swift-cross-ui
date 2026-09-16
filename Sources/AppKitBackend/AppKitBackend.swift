@@ -362,14 +362,33 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         environment: EnvironmentValues
     ) -> NSMenuItem {
         switch item {
-            case .button(let label, let action):
+            case .button(let label, let action, let shortcut):
                 // Custom subclass is used to keep strong reference to action
                 // wrapper.
+                //
+                // The key equivalent goes in at construction, lowercased, with
+                // Shift carried by the modifier mask instead.
+                //
+                // **An uppercase `keyEquivalent` means Shift to AppKit**, so
+                // passing "S" for `.keyboardShortcut("S")` would ask for
+                // Cmd-Shift-S and the mask would then ask for Shift a second
+                // time. Lowercasing here makes the modifier set the only place
+                // Shift is stated, which is where the caller stated it.
+                //
+                // key equivalent 在建構時就放進去,轉成小寫,而 Shift 改由 modifier mask 承載。
+                //
+                // **對 AppKit 來說,大寫的 `keyEquivalent` 就意謂 Shift**,因此為
+                // `.keyboardShortcut("S")` 傳入 "S",等於要求 Cmd-Shift-S,而那個 mask 接著又會再
+                // 要求一次 Shift。在此轉小寫,讓「modifier 集合」成為 Shift 被陳述的唯一地方——
+                // 而那正是呼叫者陳述它的地方。
                 let renderedItem = NSCustomMenuItem(
                     title: label,
                     action: nil,
-                    keyEquivalent: ""
+                    keyEquivalent: shortcut.map { String($0.key.character).lowercased() } ?? ""
                 )
+                if let shortcut {
+                    renderedItem.keyEquivalentModifierMask = Self.modifierMask(for: shortcut)
+                }
                 if let action, environment.isEnabled {
                     let wrappedAction = Action(action)
                     renderedItem.actionWrapper = wrappedAction
@@ -2416,5 +2435,30 @@ final class RadioGroup: NSStackView {
 
     @objc func buttonClicked(sender: NSButton) {
         onChange?(sender.tag)
+    }
+}
+
+extension AppKitBackend {
+    /// Maps SwiftCrossUI's modifiers onto AppKit's mask.
+    ///
+    /// `.command` is Command here and Ctrl on three of the five backends, which
+    /// is SwiftUI's own convention and is recorded on
+    /// ``EventModifiers/command``. `.capsLock` and `.numericPad` have AppKit
+    /// equivalents and are carried through rather than dropped, so a shortcut
+    /// that names one does not silently become a different shortcut.
+    /// 把 SwiftCrossUI 的 modifier 映射到 AppKit 的 mask。
+    ///
+    /// `.command` 在這裡是 Command,而在五個 backend 中的三個上是 Ctrl——那是 SwiftUI 自己的慣例,
+    /// 記在 ``EventModifiers/command`` 上。`.capsLock` 與 `.numericPad` 在 AppKit 有對應物,因此一併
+    /// 帶過去而不是丟掉;如此一個指名了它們的快捷鍵,才不會靜默地變成另一個快捷鍵。
+    static func modifierMask(for shortcut: KeyboardShortcut) -> NSEvent.ModifierFlags {
+        var mask: NSEvent.ModifierFlags = []
+        if shortcut.modifiers.contains(.command) { mask.insert(.command) }
+        if shortcut.modifiers.contains(.shift) { mask.insert(.shift) }
+        if shortcut.modifiers.contains(.option) { mask.insert(.option) }
+        if shortcut.modifiers.contains(.control) { mask.insert(.control) }
+        if shortcut.modifiers.contains(.capsLock) { mask.insert(.capsLock) }
+        if shortcut.modifiers.contains(.numericPad) { mask.insert(.numericPad) }
+        return mask
     }
 }

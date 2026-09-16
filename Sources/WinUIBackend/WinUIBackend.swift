@@ -866,7 +866,13 @@ public final class WinUIBackend:
         environment: EnvironmentValues
     ) -> MenuFlyoutItemBase {
         switch item {
-            case .button(let label, let action):
+            // NOT COMPILED HERE. Bound and unused so this file keeps building;
+            // WinUI's `KeyboardAccelerator` is the implementation, and it belongs
+            // to whoever can run it. Binding rather than `_` keeps the gap greppable.
+            // **此處未經編譯。** 綁定但未使用,只為讓本檔繼續建置;真正的實作是 WinUI 的
+            // `KeyboardAccelerator`,而它屬於跑得動它的人。用綁定而不是 `_`,是為了讓這個缺口
+            // grep 得到。
+            case .button(let label, let action, _):
                 let widget = MenuFlyoutItem()
                 widget.text = label
                 widget.click.addHandler { _, _ in
