@@ -1642,6 +1642,42 @@ public final class WinUIBackend:
         /// `ContainerContentChanging` 的 handler 最多只掛一次。若每次 `setLazyRows` 都重掛,provider
         /// 會為每一可見列觸發 N 次——正是本 backend slider 撞上的 `began=5` 那個形狀。
         var lazyHandlerAttached = false
+
+        /// Set by `setLazyRowReleaseHandler`. Called with a row's index when the
+        /// container that held it is recycled, so the framework can drop that
+        /// row's view-graph node.
+        /// 由 `setLazyRowReleaseHandler` 設定。當持有某列的容器被回收時,以該列的索引呼叫它,
+        /// 好讓框架丟掉那一列的 view-graph 節點。
+        var lazyRowReleaseHandler: ((Int) -> Void)?
+
+        // **~~Which row index each realized container is currently showing,
+        // keyed by `ObjectIdentifier`.~~ Measured wrong on 2026-09-16 and
+        // replaced by the container's own `Tag`.**
+        //
+        // `ObjectIdentifier` is the address of the SWIFT object, and the Swift
+        // objects here are wrappers the binding creates around a COM pointer --
+        // a fresh wrapper per access, freed straight after. The trace showed one
+        // address, `0x23c9c588cc0`, being handed out as the container for rows
+        // 2, 3, 4, 5, 6, 7 and then 14 through 18, with no recycle event
+        // between: not one container reused, but several wrappers landing at the
+        // same reused address. A map keyed on that answers a different question
+        // every time it is asked, and it never errors.
+        //
+        // `Tag` lives on the XAML element itself, so it survives whatever the
+        // binding does with wrappers, and it is the property XAML provides for
+        // exactly this. See `lazyRowIndex(of:)`.
+        //
+        // **~~每個已實體化的容器目前顯示哪一列,以 `ObjectIdentifier` 為鍵。~~
+        // 2026-09-16 量出這是錯的,改用容器自己的 `Tag`。**
+        //
+        // `ObjectIdentifier` 取的是 **Swift 物件**的位址,而這裡的 Swift 物件是綁定層圍繞 COM 指標
+        // 所建的 wrapper——每次存取都新建一個、用完立刻釋放。追蹤顯示同一個位址
+        // `0x23c9c588cc0` 被當成第 2、3、4、5、6、7 列,接著第 14 到 18 列的容器交出來,而其間
+        // **沒有任何回收事件**:那不是一個容器被重複使用,而是好幾個 wrapper 落在同一個被重用的位址上。
+        // 以它為鍵的表,每次被詢問時回答的都是另一個問題,而且永遠不會報錯。
+        //
+        // `Tag` 存在於 XAML 元素本身,因此不受綁定層如何處置 wrapper 的影響,而它正是 XAML 為此
+        // 提供的屬性。見 `lazyRowIndex(of:)`。
     }
 
     public func createSelectableListView() -> Widget {

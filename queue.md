@@ -414,7 +414,7 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 | ~~WinUI `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`,並於 `23c9cc61` 以 P69 實測讀回。** `AutomationProperties.Name` / `HelpText` / `ItemStatus` / `setAccessibilityView(.raw)`。**限制**:讀回是**行程內**的(`VisualTreeHelper`),它對 Narrator 實際唸出什麼沒有發言權 |
 | ~~GTK `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`。** `gtk_widget_grab_focus` 確實直接叫得到。踩到的一點:TextField 是包著 `GtkEntry` 的 wrapper,所以回報那一半用的是 `EventControllerFocus` 的 `enter`/`leave`,不是 `notify::has-focus` |
 | ~~WinUI `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`——形狀不必改,而那個答案 2026-09-10 就寫在上面 5c-ANSWER 了。** `UIElement.focus(_:) throws -> Bool` 是同步的;`TryFocusAsync` 是另一個變體,不是取代品。真正的陷阱不是同步與否:本 backend 交出去的每個 widget 都是 `Canvas`,而 `Canvas` 無條件接受焦點,所以得往內走到真正 `isEnabled && isTabStop` 的控制項 |
-| **WinUI `LazyListRowLifetimes`(#117)** | **Windows(新開,2026-09-16)** | 上面那一格查證時發現的**真缺口**,而且方向與表上寫的相反:**GTK 有、WinUI 沒有**。`WinUIBackend` 只 conform `LazyListRows`(`WinUIBackend+LazyListRows.swift`),因此列被回收時框架收不到通知,只能靠 `List.swift` 的 `lazyLifetimeBackstopLimit = 4000` 兜底。`ItemsRepeater` 有 `elementClearing`,那就是要接的訊號。**AppKit / UIKit / Android 同樣只有 GTK 有**——但那三個不是我編得動的,列在此僅供 Mac 判斷 |
+| ~~**WinUI `LazyListRowLifetimes`(#117)**~~ | **Windows,同日完成並量測** | 上面那一格查證時發現的**真缺口**,方向與原表相反:**GTK 有、WinUI 沒有**。**已實作並以對照組驗收**:同一支執行檔掃過 5000 列(約 9000 次 prepare / 9000 次 recycle),release 開啟 **146 / 150 MB**,`SCUI_WINUI_NO_LAZY_RELEASE=1` 的對照組 **221 / 222 MB**,交錯兩輪、無重疊;兩組的實體化容器都是 38,因此**差的 72–76 MB 全是框架端的 view-graph 節點**。對照組是必要的,因為 conform 這件事本身會把 `List.swift` 從 200 列 LRU 換成 4000 列兜底——少了它,「加了 conformance」與「回呼真的有觸發」會同時改變。訊號是 `ContainerContentChanging` 的 `inRecycleQueue` + `args.itemIndex`(不是 `ItemsRepeater.elementClearing`,`ListView` 走的是這條)。**三個看起來都對卻被量成假的假設**寫在 `WinUIBackend+LazyListRows.swift` 裡加了刪除線的註解中。**AppKit / UIKit / Android 仍只有 GTK 有**——那三個不是我編得動的,留給 Mac 判斷 |
 
 **這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
 backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
@@ -475,6 +475,24 @@ The two controls now exist as real cells, so neither has to be invented:
 A discriminator that gets both right can open the 39; one that gets a single cell
 right got it by luck.
 
+**The negative control was closed the same afternoon**, so a probe written after
+2026-09-16 needs another one -- `AppKitBackend`, `UIKitBackend` and
+`AndroidBackend` all still lack `LazyListRowLifetimes` and any of them serves.
+
+WinUI now conforms, measured rather than asserted: one binary, two runs
+interleaved twice, each sweeping 5,000 rows (~9,000 prepares, ~9,000 recycles).
+With the release callback: **146 and 150 MB**. With `SCUI_WINUI_NO_LAZY_RELEASE=1`,
+which keeps the conformance and withholds the callback: **221 and 222 MB**. No
+overlap between the groups, and both ran with 38 realized containers, so the
+72-76 MB is entirely framework row nodes. The control switch is not optional
+here: conforming is itself what moves `List.swift` from its 200-row LRU to the
+4,000-row backstop, so without holding one half still, "conformed" and "actually
+releases" change together and neither number means anything.
+
+The signal is `ContainerContentChanging` with `inRecycleQueue`, and the index is
+`args.itemIndex`. Three plausible alternatives were measured false first; they
+are kept, struck through, in `WinUIBackend+LazyListRows.swift`.
+
 ---
 
 ## 停在待辦上:iOS 的按鍵驅動(低優先,2026-09-16)
@@ -525,3 +543,83 @@ and its `ui key`; or an XCUITest target, which is the supported way and is why
 `testapp/actions/ios/` is still empty and marked planned. The third would move
 iOS from "the app reports on itself" to "the app can be driven", which pays for
 every Pn from P63 onward.
+
+---
+
+## #125 Table 的 selection 與 sortOrder:開工前先講形狀(2026-09-16,Windows 端)
+
+**先寫這一段再動手,理由是今天早上那次撞車(mistakes 第 12 條):`queue` 說「blocked on Mac」
+是寫的當下為真,而不是現在為真。** 這一段推出去之後我才開始寫,若 Mac 已經有別的形狀,請直接覆蓋
+這裡、我照著改。
+
+**先查證的事實,不是假設:** `git log origin/develop -S'sortOrder'` 與 `-S'TableSelection'` 在
+`Sources/` 之下**零命中**;`BackendFeatures/Tables.swift` 最近三次改動是 `2fd81acb`(逐欄寬度)、
+`6d52866a`(文字選取)、`f1bc7f23`(協定拆分),都沒有 backend→view 的事件。
+
+**兩個 backend 的真實結構(這決定了做法,而不是 `NSTableView` 的類比):**
+
+| | 是什麼 | 因此 |
+| --- | --- | --- |
+| `Gtk.Table` | `GtkScrolledWindow` 裡的 `GtkGrid`,標題是不可點的 `GtkLabel` | **沒有「列」這個物件**,也沒有現成的選取 |
+| `WinUITable` | 同樣是一個 `Grid` | 同上 |
+
+兩邊都**不是** GTK 的 `GtkColumnView` / WinUI 的 `DataGrid`,而那是刻意的:協定交給 backend 的是
+一個**已建好的 widget 扁平陣列**,走 model-driven 的元件等於把每個 cell 再包成 GObject 餵給一個
+隨即原樣交還的 model(理由寫在 `Sources/Gtk/Widgets/Table.swift` 檔頭)。所以選取與排序這兩件事,
+在這兩個 backend 上都得**自己做**:以 click gesture 命中列、以樣式畫出選取、把標題做成可點。
+
+**打算加的協定形狀**(與 `SelectableListViews` 對齊,那是這棵樹既有的答案):
+
+```swift
+public protocol TableSelection: Tables {
+    func setSelectionHandler(ofTable: Widget, to: @escaping (Int?) -> Void)
+    func setSelectedRow(ofTable: Widget, to index: Int?)
+}
+
+public protocol TableColumnSorting: Tables {
+    func setSortHandler(ofTable: Widget, to: @escaping (_ column: Int) -> Void)
+    func setSortIndicator(ofTable: Widget, column: Int?, ascending: Bool)
+}
+```
+
+- **兩個協定分開**,理由與 `LazyListRows` / `LazyListRowLifetimes` 分開相同:一個 backend 可能
+  做得到其中一個而不是另一個,而合成一個協定會讓「做得到一半」變成「宣稱兩個都有」。
+- **採 conformance 檢查**,所以未實作的 backend 行為完全不變。
+- **排序由 app 自己做。** backend 回報的是「使用者點了第 n 欄」,框架把它變成一個 binding 的更新,
+  由 app 重新排序自己的資料——框架不介入 comparator。這與 SwiftUI 的 `sortOrder` 精神一致,
+  但不需要 `KeyPathComparator` 那一整套。
+
+**分工(沿用 #121 那次講定的「各做自己編得動的」):** 協定與 view 端由我落地,GtkBackend 與
+WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個是 Mac 那邊的**——
+`NSTableView` 與 `UITableView` 本來就有選取與可點標題,成本應該遠低於這裡。
+
+**分兩批做,selection 先。** 它自成一件完整的事、可獨立驗收,而排序還要處理指示符的繪製。
+
+## #125 Table selection and sortOrder: the shape, before writing any of it
+
+Published before starting, because of this morning's collision (mistakes entry
+12): a queue line saying "blocked on Mac" was true when written, not now. If the
+Mac side already has a shape for this, overwrite this section and I will follow
+it.
+
+Checked rather than assumed: `-S'sortOrder'` and `-S'TableSelection'` find
+nothing under `Sources/` on origin, and the last three changes to `Tables.swift`
+(`2fd81acb`, `6d52866a`, `f1bc7f23`) add no backend-to-view event at all.
+
+Both Windows tables are a `Grid` -- GTK's inside a `ScrolledWindow`, with plain
+`Label` headers -- and deliberately not `GtkColumnView` or `DataGrid`, because
+the protocol hands the backend an array of already-built widgets. So there is no
+row object and no built-in selection on either: hit-testing a click, drawing the
+selection, and making a header clickable are all hand work here, which is the
+part worth knowing before anyone estimates it.
+
+Two protocols rather than one, for the reason `LazyListRows` and
+`LazyListRowLifetimes` are separate: a backend may manage one and not the other,
+and merging them turns "half of it" into a claim of both. Conformance-checked, so
+a backend that does not implement them behaves exactly as it does today. Sorting
+is reported, not performed: the backend says which column was clicked, and the
+app re-sorts its own rows.
+
+Split: protocol, view side, GtkBackend and WinUIBackend here; AppKit, UIKit and
+Android are the Mac side's, where `NSTableView` and `UITableView` already have
+selection and clickable headers. Selection lands first, on its own.

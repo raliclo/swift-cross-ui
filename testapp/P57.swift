@@ -105,6 +105,143 @@ import Foundation
     }
 #endif
 
+#if canImport(WinUI)
+    import WinUI
+    import WinUIBackend
+
+    /// `--winui-list-probe`: scrolls the list with no mouse, and reports what
+    /// the backend realizes and releases.
+    ///
+    /// **It exists because the mouse is the unreliable part of this machine,
+    /// not because reaching the tree is hard.** The GTK half of this app has had
+    /// `--gtk-list-probe` since #117 -- it selects, scrolls the adjustment and
+    /// counts realized containers from inside the process -- and the WinUI half
+    /// had nothing, so every WinUI recycling question needed synthesised input
+    /// that has been intermittent all day. Recycling cannot be observed at all
+    /// without scrolling, so "no input" meant "no measurement".
+    ///
+    /// Counts are read with `VisualTreeHelper` against the items panel, which is
+    /// the same thing `realizedContainers` means on the GTK side: how many row
+    /// containers exist right now, not how many rows the model has.
+    ///
+    /// `--winui-list-probe`:不用滑鼠就把清單捲起來,並回報 backend 實體化與釋放了什麼。
+    ///
+    /// **它存在的理由是這台機器上「滑鼠」才是不可靠的那一環,而不是「取得那棵樹」很難。**
+    /// 這支 app 的 GTK 那一半自 #117 起就有 `--gtk-list-probe`——它會選取、捲動 adjustment、
+    /// 並從行程內部數出已實體化的容器——而 WinUI 那一半什麼都沒有,於是每一個 WinUI 的回收問題
+    /// 都得靠合成輸入,而合成輸入整天都時好時壞。**沒有捲動就根本觀察不到回收**,因此「沒有輸入」
+    /// 等於「沒有量測」。
+    ///
+    /// 數量以 `VisualTreeHelper` 對著 items panel 讀取,與 GTK 那側的 `realizedContainers`
+    /// 意義相同:此刻存在多少個列容器,而不是 model 有多少列。
+    struct P57WinUIProbe: WinUIElementRepresentable {
+        typealias WinUIElementType = WinUI.Canvas
+
+        func makeWinUIElement(context: Context) -> WinUI.Canvas {
+            let canvas = WinUI.Canvas()
+            guard CommandLine.arguments.contains("--winui-list-probe") else { return canvas }
+            // 1.2s rather than P69's 0.6s: this one has to wait for the list to
+            // have laid out its first screenful of containers, not just for
+            // properties to be attached.
+            // 用 1.2 秒而非 P69 的 0.6 秒:這一個必須等到清單已經把第一屏的容器排好版,
+            // 而不只是等屬性被掛上。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                MainActor.assumeIsolated { P57WinUIProbe.step(0, from: canvas) }
+            }
+            return canvas
+        }
+
+        func updateWinUIElement(_ element: WinUI.Canvas, context: Context) {}
+
+        @MainActor
+        static func step(_ phase: Int, from element: WinUI.FrameworkElement) {
+            var root: WinUI.DependencyObject = element
+            while let parent = VisualTreeHelper.getParent(root) {
+                root = parent
+            }
+            guard let list = findListView(root) else {
+                P57Diagnostics.write("WINUI phase=\(phase) listView=NOT FOUND")
+                return
+            }
+
+            let modelRows = list.items?.count ?? 0
+            var realized = 0
+            if let panel = list.itemsPanelRoot {
+                realized = Int(VisualTreeHelper.getChildrenCount(panel))
+            }
+            P57Diagnostics.write(
+                "WINUI phase=\(phase) modelRows=\(modelRows) realizedContainers=\(realized) "
+                    + "selected=\(list.selectedIndex < 0 ? "none" : String(list.selectedIndex)) "
+                    + "residentMB=\(P57Memory.residentMegabytes)"
+            )
+
+            // **A sweep, not two jumps, and the difference is the whole
+            // measurement.** `scrollIntoView(9999)` realizes one screenful at
+            // the destination: about a dozen rows are ever prepared, so a
+            // release path that frees nothing and one that frees everything
+            // both end the run holding a dozen nodes. Walking the list in small
+            // steps prepares thousands of rows instead, which is the only
+            // arrangement where "released" and "kept" have different costs --
+            // at roughly 31 KB a node, `lazyLifetimeBackstopLimit` rows of
+            // difference is over a hundred megabytes.
+            //
+            // **是逐段掃過,而不是跳兩次;而這個差別就是整個量測的關鍵。**
+            // `scrollIntoView(9999)` 只會在目的地實體化一屏:全程被準備的列大約十幾個,於是
+            // 「完全沒釋放」與「全部釋放」兩種情況,在執行結束時都握著十幾個節點。改以小步走過清單,
+            // 會準備數以千計的列——那是唯一一種「有釋放」與「沒釋放」代價不同的安排:以每個節點
+            // 約 31 KB 計,`lazyLifetimeBackstopLimit` 列的差距超過一百 MB。
+            let target = phase * P57WinUIProbe.step
+            if phase > 0, target < modelRows, phase <= P57WinUIProbe.steps {
+                scroll(list, to: min(target, modelRows - 1))
+            } else if phase > P57WinUIProbe.steps {
+                // Back to the top, then one last reading: a release path that
+                // only works while scrolling down would pass everything above.
+                // 回到頂端,再讀最後一次:一條只在向下捲時有效的釋放路徑,會通過上面所有的檢查。
+                if phase == P57WinUIProbe.steps + 1 {
+                    scroll(list, to: 0)
+                } else {
+                    P57Diagnostics.write("WINUI LIST PROBE DONE")
+                    return
+                }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                MainActor.assumeIsolated { P57WinUIProbe.step(phase + 1, from: element) }
+            }
+        }
+
+        /// How far each step moves, and how many steps. 20 x 250 walks 5,000
+        /// rows -- past the 4,000-row backstop, so a run that releases nothing
+        /// hits the cap and a run that releases correctly never approaches it.
+        /// 每一步移動多遠、共走幾步。20 x 250 會走過 5,000 列——超過 4,000 列的兜底上限,
+        /// 因此「完全不釋放」的執行會撞到那個上限,而「正確釋放」的執行永遠不會接近它。
+        static let step = 20
+        static let steps = 250
+
+        @MainActor
+        static func scroll(_ list: WinUI.ListView, to index: Int) {
+            guard let items = list.items, index >= 0, index < items.count else { return }
+            do {
+                try list.scrollIntoView(items[index])
+                P57Diagnostics.write("WINUI scrollIntoView index=\(index)")
+            } catch {
+                P57Diagnostics.write("WINUI scrollIntoView index=\(index) FAILED \(error)")
+            }
+        }
+
+        @MainActor
+        static func findListView(_ node: WinUI.DependencyObject) -> WinUI.ListView? {
+            if let list = node as? WinUI.ListView { return list }
+            let count = VisualTreeHelper.getChildrenCount(node)
+            for index in 0..<count {
+                guard let child = VisualTreeHelper.getChild(node, index) else { continue }
+                if let found = findListView(child) { return found }
+            }
+            return nil
+        }
+    }
+#endif
+
 #if os(Windows)
     import WinSDK
 #endif
@@ -162,6 +299,27 @@ import Foundation
 // that curve and the build is not a variable.
 //
 //     zsh testapp/test.zsh P57 --no-build -- -rows 5000
+//
+// The two in-process probes, which need no mouse and no action file. Both walk
+// the list and report what the backend realized; neither renders anything.
+//
+//     ... -- -rows 10000 --gtk-list-probe --debug      GTK (since #117)
+//     ... -- -rows 10000 --winui-list-probe --debug    WinUI (since #117 row
+//                                                      lifetimes, 2026-09-16)
+//
+// `SCUI_WINUI_LAZY_TRACE=1` adds one stdout line per row prepared or recycled,
+// and `SCUI_WINUI_NO_LAZY_RELEASE=1` is the control group: the conformance stays
+// and the release callback is withheld. See `WinUIBackend+LazyListRows.swift`.
+//
+// 兩支行程內探針,不需要滑鼠、也不需要動作檔。兩者都會走過清單並回報 backend 實體化了什麼;
+// 兩者都不算繪任何東西。
+//
+//     ... -- -rows 10000 --gtk-list-probe --debug      GTK(自 #117 起)
+//     ... -- -rows 10000 --winui-list-probe --debug    WinUI(自 2026-09-16 的列生命週期起)
+//
+// `SCUI_WINUI_LAZY_TRACE=1` 會為每一列的準備或回收在 stdout 加一行;
+// `SCUI_WINUI_NO_LAZY_RELEASE=1` 則是對照組:保留 conformance、扣住釋放回呼。
+// 見 `WinUIBackend+LazyListRows.swift`。
 //
 // P57:一個 eager 的 List 有多貴,而在什麼規模下它會變得不堪用?
 //
@@ -427,6 +585,29 @@ struct P57RootView: View {
             // 一個對照組。`ScrollingLists` 幾週前就在五個 backend 上落地，而它在同一個檔案裡以同樣的
             // 方式被檢查;因此若它在此處也讀作 NO，那問題出在執行期的轉型，而不在這個 conformance。
             Text("control -- scrolling lists: \(backend is any BackendFeatures.ScrollingLists ? "yes" : "NO")")
+            // The OTHER half of #117, and it is a separate question from the
+            // line above. `LazyListRows` asks whether rows arrive one at a time;
+            // this asks whether the backend says so when one LEAVES. A backend
+            // answering yes above and NO here builds rows on demand and never
+            // drops them, which is bounded only by `List.swift`'s backstop cache
+            // and looks identical on screen.
+            //
+            // #117 的**另一半**,而它與上面那一行是不同的問題。`LazyListRows` 問的是「列是不是一次
+            // 來一個」;這一行問的是「列**離場**時 backend 有沒有說」。上面答 yes、這裡答 NO 的
+            // backend,會按需建列而從不丟棄,其上限只有 `List.swift` 的兜底快取——而它在畫面上
+            // 看起來一模一樣。
+            Text(
+                "row release reported: "
+                    + "\(backend is any BackendFeatures.LazyListRowLifetimes ? "yes" : "NO")"
+            )
+            // Zero-sized, present only so the WinUI probe has a real element to
+            // walk the tree from. It reads and scrolls; it does not render.
+            // 尺寸為零,存在的唯一目的是讓 WinUI 探針有一個真正的元素可據以走訪那棵樹。
+            // 它只負責讀取與捲動,不負責算繪。
+            #if canImport(WinUI)
+                P57WinUIProbe()
+                    .frame(width: 0, height: 0)
+            #endif
 
             // ~~"Baseline for #117. List builds every row up front"~~ -- it did,
             // until 2026-09-11. Struck through rather than replaced, for the
