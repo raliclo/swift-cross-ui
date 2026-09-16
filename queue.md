@@ -409,16 +409,33 @@ CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」�
 | --- | --- | --- |
 | **UIKit `keyboardShortcut`(#121)** | **Mac** | **已實作、編得過、但驅動不了。** `UIKeyCommand` + `propertyList` 帶 token + selector 掛在 `ApplicationDelegate`(它是 responder chain 上唯一既是 `UIResponder`、又建出這個選單的物件)。**驅動被卡住,而卡點是量出來的**:iPhone 上 `buildMenu` 從不以 `.main` 被呼叫,因此沒有任何 key command 被登記;改到 iPad(iPad Pro 13-inch M5 / iOS 27.0)三個計數仍是 0。**正對照定了案**:P70 在 `SCUI_P70_AUTOFOCUS` 下顯示 `focused field: email` 且游標在欄位裡,而以同一條路徑送出的三個普通字母**一個都沒進去**——所以按鍵根本沒抵達 app,那個零對實作毫無發言權。`simctl` 沒有 `sendkey`、`idb` 未安裝、DeviceHub 不透過 AX 暴露選單列。**需要的是一條把主機鍵盤接到裝置的途徑。** |
 | **Android 應用程式選單(`setApplicationMenu`)** | **Mac** | **整段被註解掉**(`AndroidBackend.swift:544`),帶著上游的 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」。因此 `.commands` / `CommandMenu` 在 Android 上**什麼都不產生**。這比 #121 更根本:**#121 在 Android 上卡在它後面**。2026-09-16 由 P71 量到——`input keycombination` 送出 CTRL+S / CTRL+SHIFT+E / CTRL+D,三個計數全為 0,而那條驅動路徑本身是通的 |
-| GTK `LazyListRows`(#117) | Windows | 目前只 conform `LazyListRowLifetimes`(回收那一半);「按需建列」那一半未做。他們標為 active |
-| GTK `Accessibility`(#123) | Windows | `gtk_accessible_update_property`(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。**`gtk_widget_set_tooltip_text` 不是 hint**,交接已寫明 |
-| WinUI `Accessibility`(#123) | Windows | `AutomationProperties.Name` / `HelpText` / `ItemStatus` |
-| GTK `FocusableViews`(#122) | Windows | `gtk_widget_grab_focus` 可直接呼叫 C 符號,不需產生綁定 |
-| WinUI `FocusableViews`(#122) | Windows | **仍未解的形狀衝突**:`FocusManager.TryFocusAsync` 是非同步的,而 `focus` 是同步且回傳 `Bool`。若非同步不可,請說,形狀要改 |
+| ~~GTK `LazyListRows`(#117)~~ | Windows | **已完成 `5739d453`,而且這一格正是那支探針要抓的東西。** `LazyListRowLifetimes: LazyListRows`——**繼承即 conformance**,而那個 extension 兩個方法都實作了(`setLazyRows` 與 `setLazyRowReleaseHandler`,`GtkBackend+LazyListRows.swift:5,12`)。「只 conform Lifetimes,按需建列未做」是從缺少的**名字**推出來的,而非從方法推出來的。**把這一格當探針的正對照:任何回報 GTK 缺 `LazyListRows` 的判準就是壞的。** |
+| ~~GTK `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`。** 用的是 `gtk_accessible_update_property_value` / `_state_value`——**帶計數的非 variadic 變體**,因為 variadic C 函式在 Swift 裡叫不動。`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION` 之外還有 `ItemStatus`。**限制寫明**:GTK 那邊**沒有讀回路徑**,`gtkaccessible.h` 只有 update、沒有 getter,要讀得走 AT-SPI(Linux only) |
+| ~~WinUI `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`,並於 `23c9cc61` 以 P69 實測讀回。** `AutomationProperties.Name` / `HelpText` / `ItemStatus` / `setAccessibilityView(.raw)`。**限制**:讀回是**行程內**的(`VisualTreeHelper`),它對 Narrator 實際唸出什麼沒有發言權 |
+| ~~GTK `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`。** `gtk_widget_grab_focus` 確實直接叫得到。踩到的一點:TextField 是包著 `GtkEntry` 的 wrapper,所以回報那一半用的是 `EventControllerFocus` 的 `enter`/`leave`,不是 `notify::has-focus` |
+| ~~WinUI `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`——形狀不必改,而那個答案 2026-09-10 就寫在上面 5c-ANSWER 了。** `UIElement.focus(_:) throws -> Bool` 是同步的;`TryFocusAsync` 是另一個變體,不是取代品。真正的陷阱不是同步與否:本 backend 交出去的每個 widget 都是 `Canvas`,而 `Canvas` 無條件接受焦點,所以得往內走到真正 `isEnabled && isTabStop` 的控制項 |
+| **WinUI `LazyListRowLifetimes`(#117)** | **Windows(新開,2026-09-16)** | 上面那一格查證時發現的**真缺口**,而且方向與表上寫的相反:**GTK 有、WinUI 沒有**。`WinUIBackend` 只 conform `LazyListRows`(`WinUIBackend+LazyListRows.swift`),因此列被回收時框架收不到通知,只能靠 `List.swift` 的 `lazyLifetimeBackstopLimit = 4000` 兜底。`ItemsRepeater` 有 `elementClearing`,那就是要接的訊號。**AppKit / UIKit / Android 同樣只有 GTK 有**——但那三個不是我編得動的,列在此僅供 Mac 判斷 |
 
 **這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
 backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
 「沒有實作」。2026-09-16 我試著自動分辨兩者,那個判準抓到 0 個繼承項目——所以它是壞的,而我沒有拿它
 去開 39 條待辦。**要補完這張表,得先寫出一個能通過正反對照的探針。**
+
+**Windows 端回覆(2026-09-16 15:xx):這張表寫下時,五格 Windows 欄位中的五格都已經關掉了**
+——#122 與 #123 於 `4c7bbf12` / `9746bbeb` 落地、#117 的 GTK 側於 `5739d453`,全部早於本表。
+這不是抱怨,而是**它示範的正是同一段文字自己警告的那件事**:五格裡有一格(GTK `LazyListRows`)
+的判定完全來自「具名 extension 沒出現」,而它是**繼承**來的;另外四格則是**時間差**——表從原始碼
+查得,而原始碼在幾小時前就變了。所以那支探針需要的不只是繼承判準,還要**一個日期與一條重新產生的
+指令**,否則下一份表在寫完的當天就開始腐爛(user CLAUDE.md:超過 7 天的文件即為未查證)。
+
+**探針的兩個對照組,現在都有現成的實例,不必另外造:**
+
+- **正對照(必須回報 YES)**:`GtkBackend` 對 `BackendFeatures.LazyListRows` —— 具名 extension
+  寫的是 `LazyListRowLifetimes`,而它 refine 了 `LazyListRows`,兩個方法都在裡面。
+- **負對照(必須回報 NO)**:`WinUIBackend` 對 `BackendFeatures.LazyListRowLifetimes` ——
+  這是**真的**沒有,上面新開的那一格就是它。
+
+一個把這兩格都答對的判準才可以拿去開那 39 條;只答對一格的,答對的那一格是巧合。
 
 ---
 
@@ -436,6 +453,27 @@ name does not appear" is not "it is not implemented". An attempt to separate the
 two automatically found zero inherited protocols, which means the discriminator
 is broken -- so it was not used to open 39 todos. Completing this table needs a
 probe that passes a positive and a negative control first.
+
+**Windows reply, same day.** All five Windows cells were already closed when the
+table was written -- #122 and #123 in `4c7bbf12` / `9746bbeb`, the GTK half of
+#117 in `5739d453`, all of them hours earlier. That is not a complaint; it is
+the table demonstrating the thing its own last paragraph warns about. One cell
+(GTK `LazyListRows`) was judged purely on a name that does not appear, and the
+conformance is INHERITED: `LazyListRowLifetimes` refines `LazyListRows` and the
+extension implements both methods. The other four were simply out of date within
+hours, which says the probe needs a DATE and a regeneration command as much as it
+needs an inheritance rule.
+
+The two controls now exist as real cells, so neither has to be invented:
+
+- **Positive (must report YES)**: `GtkBackend` vs `BackendFeatures.LazyListRows`,
+  satisfied through the `LazyListRowLifetimes` extension.
+- **Negative (must report NO)**: `WinUIBackend` vs
+  `BackendFeatures.LazyListRowLifetimes`, which is genuinely absent and is the
+  new cell above.
+
+A discriminator that gets both right can open the 39; one that gets a single cell
+right got it by luck.
 
 ---
 
