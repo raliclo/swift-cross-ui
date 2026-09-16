@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70: focus moving for a reason the app did not cause.
+#
+# Coordinates are origin=frame, read off testapp/output/screenshots/
+# p70-macos-final-20260916-085841.png, a 560x588 capture of a 560x560 window --
+# so 1x, and the 28px difference is the title bar the frame origin includes.
+#
+# The whole point is that NOTHING here presses "focus name" or "focus email".
+# Every move below is a click on a field, which is the case a `@FocusState`
+# written only by the app would get wrong: the caret would move and the property
+# would not. The counter is what makes that visible.
+#
+# P70:焦點因為 app 沒有造成的原因而移動。
+#
+# 座標為 origin=frame,量自 testapp/output/screenshots/p70-macos-final-20260916-085841.png
+# ——一張 560x588 的擷圖,對應一個 560x560 的視窗,因此是 1x;差的 28px 是 frame 原點所含的標題列。
+#
+# 整件事的重點是:此處**沒有任何一行**去按「focus name」或「focus email」。底下每一次移動都是點在
+# 某個欄位上,而那正是「一個只由 app 寫入的 `@FocusState`」會弄錯的情況:游標會動,而那個屬性不會。
+# 那個計數器就是讓這件事現形的東西。
+sleep,,,,,,600000,let the window settle and take its own first responder,macos
+click,280,257,frame,left,,,click the email field -- the app did not ask for this,macos
+sleep,,,,,,500000,,macos
+click,280,225,frame,left,,,and back to name,macos
+sleep,,,,,,500000,,macos
+click,85,375,frame,left,,,ask both for focus -- the disabled button must be refused,macos
+sleep,,,,,,700000,let the refusal be reported,macos

@@ -161,3 +161,136 @@ AppKit 上先前是**空的**:P17、P28、P34 的每一個 `AXButton`,title 與 
 2. **P28 那份「一秒延遲」的回報是在哪台機器上?** macOS 上兩條路徑都量完了:真實滑鼠事件
    click→body 為**冷啟 16.0 ms、預熱後 2.9–9.9 ms**,合成路徑 0–2 ms、到像素 69 ms。沒有一條
    接近一秒。若那份回報來自 Windows,那要重量的是 Windows 那一側。
+
+
+---
+
+# 追加 — 2026-09-11
+
+## A. 要你們轉換的兩個 backend:#117 phase 3(依需求建列)
+
+新增 `BackendFeatures.LazyListRows`(**conformance 檢查**,未 conform 的 backend 行為完全不變)。
+方向是反轉的:不再由框架建好每一列交出一個陣列,而是清單在要顯示第 N 列時回頭向框架要。
+
+已轉換並量過:
+
+| | 10,000 列(靜止) | 捲完整份清單 |
+| --- | --- | --- |
+| AppKit | 423 → **104 MB**(單列基準 102) | 225 MB 且爬升中 → **134 MB 且平** |
+| UIKit | 449 → **170 MB**(500 列同樣 170) | 未量(模擬器無捲動合成) |
+| Android | 385 → **92 MB**(單列 91,10,000 列 92) | 未量 |
+
+Android 這一列的量測是 `adb shell dumpsys meminfo` 的 `TOTAL PSS`,而非 app 自報的 resident
+size——在同一支 app 上,自報值(167 MB)與 `dumpsys`(92 MB)差了近一倍,兩者量的不是同一件事,
+因此欄位裡放的是**兩端用同一把尺**的那一個。10,000 列時 provider 被呼叫**不到 500 次**。
+
+**GtkBackend 與 WinUIBackend 尚未轉換。** 兩者原生都有這一側:`GtkListView` 帶 factory、
+`ItemsRepeater`。要實作的只有一個方法:
+
+```swift
+func setLazyRows(
+    ofSelectableListView listView: Widget,
+    count: Int,
+    estimatedRowHeight: Int,
+    provider: @escaping (Int) -> (widget: Widget, height: Int)?
+)
+```
+
+**兩個陷阱,兩個都是量出來的,請在寫之前讀:**
+
+1. **回答高度問題時不可以呼叫 `provider`。** 表格會逐列問高度以算出清單長度;若靠建立該列來回答,
+   第一次版面計算就會把一萬列全部建出來——正是本項所要避免的事。用 `estimatedRowHeight`,
+   並只對「已經建過」的列記住真實高度。
+2. **沒有識別碼的 row view 不會被回收,而那是一個先於本項就存在的洩漏。** AppKit 的
+   `rowViewForRow` 每列都 `NSTableRowView()` 且不設 identifier:捲動時存活的 row view 從 30 變成
+   **1,745**、行程從 104 MB 變成 225 MB。UIKit 是同一形狀的 `UITableViewCell()` 而非 `dequeue`。
+   **eager 路徑把它藏住了**——同一份清單本來就要 423 MB,另外那 120 MB 不會有人注意到。
+   請一併檢查你們那兩個 backend 的等價處。
+
+驗收用 **P57**,它現在自己讀常駐記憶體(Darwin 用 `MACH_TASK_BASIC_INFO`、其餘用 `/proc/self/statm`
+的**第二**個欄位——第一個是虛擬大小,在 64 位元行程上是數十 GB,看起來嚇人而毫無意義)。
+
+## B. Android 現在編得過了,而那不是程式碼問題
+
+先前每一次 `compile.zsh -android` 都以「module compiled with Swift 6.3.3 cannot be imported by the
+Swift 6.4 compiler」失敗,而**第一個錯誤指名的是建置目錄裡一個過期的 `SwiftSyntax.swiftmodule`**
+——那是症狀,不是成因。真正的成因是:主機 `swift` 是 6.4,安裝的 Android SDK 是
+`swift-6.3.3-RELEASE_android.artifactbundle`。**而一個相符的 toolchain 一直都裝在
+`~/Library/Developer/Toolchains` 裡。**
+
+`testapp/compile.zsh` 現在會自己比對兩者版本、選用相符的 toolchain 並印出它選了哪一個;找不到時
+會直接說出原因,而不是讓那面 module 格式錯誤的牆去當訊息。
+
+**代價是五個 Android backend 檔案被寫出來、提交,卻從未被編譯過**(手勢、frame clock、accessibility
+名稱、GraphicsAdapters、延遲列)。現在五個都編過了,而它們檔頭那句「此處未編譯」也一併更正為
+「編得過,但沒有在裝置上跑過」——因為那兩件事不是同一件事。
+
+## C. 自上次清單以來完成的其他項目
+
+| 項目 | 狀態 |
+| --- | --- |
+| #123 accessibility 名稱 | AppKit / UIKit / Android 三份完成並驅動(P67:`plain label` / `padded label` / `two` /(空)) |
+| #74 `-GPU` | 五個 backend 全部實作。AppKit/UIKit 走 Metal,Android 回報一張以 SoC 命名的介面卡(P68) |
+| #28 Animation | `withAnimation` + 四種曲線 + `Color` 插值;P66 量到 0.5 秒補間產出 31 個相異值、29 個相異顏色 |
+| `origin=popover` on AppKit | 完成。要**兩個**修正:事件要投給 popover 自己的視窗,且 `targetWindow()` 不能再回傳 popover(它會取得 key) |
+| P50 popover 版面缺陷 | `updatePopover` 把 content view 的 frame 設成 `.zero`,覆蓋掉 AppKit 的置中,內容被釘在外殼左下角。外殼 314x180 對內容 288x154,那 26 點被整份推到上緣與右緣 |
+
+
+---
+
+## #123 accessibility:Mac 側三份已落地,GTK/WinUI 待接手(2026-09-16)
+
+`BackendFeatures.Accessibility` 已存在,四個方法,**conformance 檢查**(未 conform 的 backend 只會
+`warnOnce`,不會 `fatalError`),與 `ScrollingLists`、`LazyListRows` 同一種安排:
+
+```swift
+func setAccessibilityLabel(ofWidget widget: Widget, to label: String?)
+func setAccessibilityHint(ofWidget widget: Widget, to hint: String?)
+func setAccessibilityValue(ofWidget widget: Widget, to value: String?)
+func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool)
+```
+
+AppKit / UIKit / Android 已實作並各自以外部探針驗過。**測試 app 是 P69**(新的;P67 不變,它問的是
+另一個問題)。
+
+**三件在 Mac 這邊踩過、你們很可能也會踩到的事:**
+
+| 陷阱 | 症狀 | 真正的原因 |
+| --- | --- | --- |
+| 在 `commit` 裡套用屬性 | modifier 看起來從未執行 | `updateButton` 在**下一幀的 `computeLayout`** 重寫標籤。屬性要在 `computeLayout` 裡、於子元件之後套用 |
+| 從外面找「內層那個真正的元素」 | 標籤落在一個螢幕閱讀器不造訪的包裝上 | 平台的「這是不是無障礙元素」旗標預設為 false;而「唯一的控制項」在按鈕裡是**兩個** |
+| 用 dump 工具驗 `hidden` | 被隱藏的文字看起來仍在 | Android 的 `uiautomator dump` 預設帶 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,要加 `--compressed` |
+
+第三列對 WinUI 特別相關:**先確認你們的檢視工具過濾的是什麼**,再下「沒生效」的結論。那一項在這邊
+花掉的時間,全部花在一個正確的實作上。
+
+GTK 側:`gtk_widget_set_tooltip_text` **不是** hint;`AtkObject` 的 `accessible-name` /
+`accessible-description` 才是,而 GTK4 的 `gtk_accessible_update_property` 是抵達它的現代寫法
+(`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION`)。此處查不到它在你們的綁定裡是否存在——那是
+一個要去**查**的問題,不是一個結論。
+
+
+---
+
+## #122 focus:Mac 側三份已落地,GTK/WinUI 待接手(2026-09-16)
+
+`BackendFeatures.FocusableViews` 已存在,形狀與 `plan-focus-protocol.md` 議定的完全一致,**`focus` 回傳
+`Bool`**,採 conformance 檢查(未 conform 只 `warnOnce`)。AppKit / UIKit / Android 已實作,**測試 app
+是 P70**。
+
+**WinUI 那一格當初唯一沒解的衝突:`FocusManager.TryFocusAsync` 是非同步的,而 `focus` 是同步的。**
+那個問題還在,而現在有一個從 Mac 這邊得到的資料點:`focus` 的回傳值**真的被用到**——P70 的
+`@FocusState` 在被拒絕時會把屬性寫回 `false`,那是畫面上看得見的一列。所以「同步回傳一個猜測的
+`true`」會是最糟的選項。若 WinUI 只能非同步,請直接說,形狀要改成 `focus` 不回傳、由
+`setFocusChangeHandler` 承擔全部的回報——那仍然表達得出拒絕,只是晚一拍。
+
+**三個在 Mac 這邊踩過、你們大機率也會踩到的坑:**
+
+| 陷阱 | 症狀 | 真正的原因 |
+| --- | --- | --- |
+| 把 handler 裝在 **widget** 上 | 焦點明明移動了,handler 從不觸發 | widget 是容器;平台的「焦點改變」回呼只為它被裝上的那個 view 觸發。要裝在**視窗/樹**那一層(AppKit:`NSWindow` 的 first responder;Android:`ViewTreeObserver.OnGlobalFocusChangeListener`) |
+| 每一幀重建 observer | 改變被**靜默**吞掉 | 這段從 `computeLayout` 跑,每幀都跑;新 observer 的基準值取自當下狀態,於是拿改變跟自己比。要保留 observer、只換 handler |
+| 相信 `.disabled(true)` 會擋住焦點 | 被停用的控制項拿得到鍵盤,Tab 落在上面且什麼都不做 | `.disabled` 走 environment,設在外層包裝上;responder 搜尋會越過它走到內層仍然啟用的控制項 |
+
+第一列與第二列**都不會報錯**,而且都會產生一個看起來完全正常的畫面。P70 之所以同時顯示「焦點在哪裡」
+與「被告知過幾次」,就是為了讓它們現形:計數器停在 0 而游標看得見,就是第一列。

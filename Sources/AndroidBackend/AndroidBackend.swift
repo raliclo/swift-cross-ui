@@ -143,6 +143,12 @@ public final class AndroidBackend: BaseAppBackend {
     @MainActor static var currentFrameClockHandler: (@MainActor (Double) -> Void)?
     @MainActor static var frameClockCallback: FrameClockCallback?
 
+    /// One id per adapter, so a list that updates keeps the id it already has
+    /// and the provider is replaced rather than accumulated.
+    /// 一個 adapter 一個 id——好讓一份更新中的清單沿用它已有的 id，而那個 provider 是被**取代**、
+    /// 不是被累積。
+    @MainActor static var lazyListIDs: [ObjectIdentifier: Int32] = [:]
+
     static let stdoutPipe = Pipe()
     static let stderrPipe = Pipe()
 

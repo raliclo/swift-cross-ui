@@ -1,6 +1,6 @@
 import DefaultBackend
 import Foundation
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 #if canImport(CGtk)
     import CGtk
@@ -197,8 +197,8 @@ import SwiftCrossUI
 ///
 /// `MACH_TASK_BASIC_INFO.resident_size` 正是 `ps` 所讀的東西，因此兩者一致。
 enum P57Memory {
-    #if canImport(Darwin)
-        static var residentMegabytes: Int {
+    static var residentMegabytes: Int {
+        #if canImport(Darwin)
             var info = mach_task_basic_info()
             var count = mach_msg_type_number_t(
                 MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size
@@ -210,24 +210,25 @@ enum P57Memory {
             }
             guard result == KERN_SUCCESS else { return -1 }
             return Int(info.resident_size) / 1_048_576
-        }
-    #elseif os(Windows)
-        /// The Windows equivalent of the mach reading: `WorkingSetSize` from
-        /// `GetProcessMemoryInfo` is the resident set -- the pages actually in
-        /// physical memory -- which is what `MACH_TASK_BASIC_INFO.resident_size`
-        /// is on macOS, so the two platforms' numbers mean the same thing and
-        /// #117's cross-platform table compares like with like.
-        ///
-        /// Task Manager's "Memory" column is this same working set, so a run can
-        /// be sanity-checked against it by eye.
-        ///
-        /// mach 讀數在 Windows 上的對應物:`GetProcessMemoryInfo` 的 `WorkingSetSize` 就是 resident
-        /// set——實際位於實體記憶體中的分頁——而那正是 macOS 上的
-        /// `MACH_TASK_BASIC_INFO.resident_size`,因此兩個平台的數字意義相同,#117 的跨平台表格是在
-        /// 比較同一種東西。
-        ///
-        /// 工作管理員的「記憶體」欄就是這同一個工作集,因此一次執行可以用肉眼對著它做合理性檢查。
-        static var residentMegabytes: Int {
+        #elseif os(Windows)
+            // The Windows equivalent of the mach reading: `WorkingSetSize` from
+            // `GetProcessMemoryInfo` is the resident set -- the pages actually
+            // in physical memory -- which is what
+            // `MACH_TASK_BASIC_INFO.resident_size` is on macOS and what the
+            // second field of `/proc/self/statm` is below. All three branches
+            // therefore mean the same thing, which is what lets #117's
+            // cross-platform table compare like with like.
+            //
+            // Task Manager's "Memory" column is this same working set, so a run
+            // can be sanity-checked against it by eye.
+            //
+            // mach 讀數在 Windows 上的對應物:`GetProcessMemoryInfo` 的 `WorkingSetSize` 就是
+            // resident set——實際位於實體記憶體中的分頁——而那正是 macOS 上的
+            // `MACH_TASK_BASIC_INFO.resident_size`,也正是下方 `/proc/self/statm` 的第二個欄位。
+            // 因此三個分支意義相同,而那正是 #117 的跨平台表格得以「比較同一種東西」的前提。
+            //
+            // 工作管理員的「記憶體」欄就是這同一個工作集,因此一次執行可以用肉眼對著它做合理性檢查。
+            //
             // `K32GetProcessMemoryInfo`, not `GetProcessMemoryInfo`. The latter
             // is a psapi.h macro (`#define GetProcessMemoryInfo
             // K32GetProcessMemoryInfo` at PSAPI_VERSION >= 2), and Swift's
@@ -250,19 +251,25 @@ enum P57Memory {
                 )
             else { return -1 }
             return Int(counters.WorkingSetSize) / 1_048_576
-        }
-    #elseif os(Linux)
-        static var residentMegabytes: Int {
-            guard let status = try? String(contentsOfFile: "/proc/self/status", encoding: .utf8),
-                let line = status.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }),
-                let kilobytes = line.split(whereSeparator: { $0.isWhitespace }).dropFirst().first,
-                let value = Int(kilobytes)
+        #else
+            // `/proc/self/statm`: total and resident, in PAGES.
+            //
+            // The second field, not the first. The first is virtual size, which
+            // on a 64-bit Android process is tens of gigabytes of address space
+            // and has nothing to do with what the device is holding -- a number
+            // that looks alarming and means nothing.
+            //
+            // `/proc/self/statm`:總量與常駐量，單位是**頁**。
+            //
+            // 取第二個欄位，不是第一個。第一個是虛擬大小，在一個 64 位元的 Android 行程上那是數十 GB
+            // 的位址空間，與「這台裝置實際持有多少」毫無關係——一個看起來嚇人、而毫無意義的數字。
+            guard let statm = try? String(contentsOfFile: "/proc/self/statm", encoding: .utf8),
+                let residentPages = statm.split(separator: " ").dropFirst().first,
+                let pages = Int(residentPages)
             else { return -1 }
-            return value / 1024
-        }
-    #else
-        static var residentMegabytes: Int { -1 }
-    #endif
+            return pages * 4096 / 1_048_576
+        #endif
+    }
 }
 
 enum P57Diagnostics {
@@ -351,6 +358,8 @@ struct P57ListCostApp: App {
 }
 
 struct P57RootView: View {
+    @Environment(\.backend) var backend
+
     /// Stamped when the first body runs, read when the first render completes.
     ///
     /// A `let` on the view would be re-stamped every time the view is
@@ -399,6 +408,25 @@ struct P57RootView: View {
             // 保留,但真正的量測是視窗的高度。這一行只是用來確認這支 app 至少走到了 onAppear。
             Text("first render: \(renderedIn)")
             Text("resident memory: \(P57Memory.residentMegabytes) MB")
+            // Whether the backend takes rows one at a time, asked of the
+            // backend rather than assumed from which files exist.
+            //
+            // Android compiled `BackendFeatures.LazyListRows` and then took the
+            // eager path anyway, and the only reason that was caught is that the
+            // memory did not move. A line on screen makes the question visible
+            // on every platform at once.
+            //
+            // 這個 backend 是不是「一次收一列」——去問 backend，而不是從「有哪些檔案存在」去假設。
+            //
+            // Android 把 `BackendFeatures.LazyListRows` 編了進去，然後照樣走了 eager 路徑;而那件事
+            // 之所以被抓到，唯一的原因是記憶體沒有動。畫面上的一行，讓這個問題在每個平台上同時可見。
+            Text("lazy rows: \(backend is any BackendFeatures.LazyListRows ? "yes" : "NO")")
+            // A control. `ScrollingLists` landed on all five backends weeks ago
+            // and is checked the same way in the same file, so if it also reads
+            // NO here the problem is the runtime cast, not this conformance.
+            // 一個對照組。`ScrollingLists` 幾週前就在五個 backend 上落地，而它在同一個檔案裡以同樣的
+            // 方式被檢查;因此若它在此處也讀作 NO，那問題出在執行期的轉型，而不在這個 conformance。
+            Text("control -- scrolling lists: \(backend is any BackendFeatures.ScrollingLists ? "yes" : "NO")")
 
             // ~~"Baseline for #117. List builds every row up front"~~ -- it did,
             // until 2026-09-11. Struck through rather than replaced, for the

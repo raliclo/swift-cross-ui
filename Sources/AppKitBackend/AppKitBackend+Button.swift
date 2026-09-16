@@ -175,12 +175,76 @@ public final class NSCustomButton: NSView {
         firstTextFieldValue(in: self)
     }
 
+    /// What ``View/accessibilityLabel(_:)`` and its siblings asked for, or
+    /// `nil` where they asked for nothing.
+    ///
+    /// **Held here rather than written onto a view from outside, because the
+    /// element that gets it is `fileprivate` and the timing is not the
+    /// caller's to know.** `refreshAccessibilityLabel` runs from `updateButton`
+    /// on every layout pass and derives a name from the button's own text; an
+    /// override written straight onto the inner `NSButton` is correct until the
+    /// next pass overwrites it. Measured on 2026-09-16: `ax_dump` reported
+    /// `desc='X'` on a button carrying `.accessibilityLabel("Close")` no matter
+    /// which pass the modifier wrote in. Storing the override and letting the
+    /// derivation consult it removes the race instead of winning it.
+    ///
+    /// ``View/accessibilityLabel(_:)`` 與它的兄弟們所要求的東西;它們沒有要求時為 `nil`。
+    ///
+    /// **存放在此,而不是由外部寫到某個 view 上——因為接收它的那個元素是 `fileprivate` 的,而時機
+    /// 也不是呼叫端該知道的事。** `refreshAccessibilityLabel` 會在每一次版面計算時由 `updateButton`
+    /// 呼叫,並從按鈕自己的文字推導出一個名字;一個直接寫到內層 `NSButton` 上的覆寫,在下一次
+    /// pass 蓋掉它之前都是正確的。2026-09-16 量到:無論那個 modifier 寫在哪一個 pass,`ax_dump` 對
+    /// 一顆帶著 `.accessibilityLabel("Close")` 的按鈕都回報 `desc='X'`。把覆寫存起來、讓推導去參考
+    /// 它,是**移除**這場競賽,而不是去贏它。
+    var accessibilityLabelOverride: String? {
+        didSet { refreshAccessibilityLabel() }
+    }
+    var accessibilityHintOverride: String? {
+        didSet { refreshAccessibilityLabel() }
+    }
+    var accessibilityValueOverride: String? {
+        didSet { refreshAccessibilityLabel() }
+    }
+
     /// Pushes the label onto the inner `NSButton`, and takes it off the label
     /// itself so it is announced once rather than twice.
     /// 把標籤推到內層的 `NSButton` 上，並將它從標籤自身移除，使它只被念一次而非兩次。
     func refreshAccessibilityLabel() {
-        let text = firstTextFieldValue(in: self)
-        button.setAccessibilityLabel(text)
+        // The override wins where there is one, and where there is not the
+        // derivation stands. `??` rather than a branch: "no override" and
+        // "override of nil" are the same request -- use the derived name --
+        // and giving them different code paths would invite them to differ.
+        // 有覆寫時覆寫獲勝,沒有時則維持推導。用 `??` 而不是分支:「沒有覆寫」與「覆寫為 nil」是
+        // 同一個要求——使用推導出的名字——而給它們兩條不同的程式路徑,等於邀請它們日後產生分歧。
+        button.setAccessibilityLabel(accessibilityLabelOverride ?? firstTextFieldValue(in: self))
+        button.setAccessibilityHelp(accessibilityHintOverride)
+        button.setAccessibilityValue(accessibilityValueOverride)
+        // Expose ONLY the inner button, so the name is announced once.
+        //
+        // **`setAccessibilityElement(false)` does not remove a view from the
+        // tree, which is what the loop below used to rely on.** Dumped on
+        // 2026-09-16: every button appeared as an `AXButton` AND an
+        // `AXStaticText` carrying the same words, so a screen reader read each
+        // button's name twice -- on a view this code had already called
+        // `setAccessibilityElement(false)` on. The flag declines to BE an
+        // element; it does not stop AppKit deriving one, and for `NSTextField`
+        // it derives one.
+        //
+        // Naming the children is what holds. The flag stays on the text fields
+        // as well, because the two answer different questions and a future
+        // parent that did expose them should still find them declining.
+        //
+        // 只暴露內層那顆按鈕,好讓名字只被唸一次。
+        //
+        // **`setAccessibilityElement(false)` 不會把一個 view 從樹上移除,而下方那個迴圈原本正是
+        // 依賴這件事。** 2026-09-16 傾印:每一顆按鈕都同時以 `AXButton` 與一個帶著相同文字的
+        // `AXStaticText` 出現,於是螢幕閱讀器把每顆按鈕的名字唸了兩次——而那個 view,這段程式早就
+        // 對它呼叫過 `setAccessibilityElement(false)` 了。那個旗標拒絕**成為**一個元素;它並不會
+        // 阻止 AppKit 推導出一個,而對 `NSTextField` 來說,它就是會推導出一個。
+        //
+        // 真正站得住的是指名子元件。旗標仍然留在那些文字欄位上,因為兩者回答的是不同的問題,而
+        // 未來若有某個父節點確實暴露了它們,它們仍應被發現是拒絕的。
+        setAccessibilityChildren([button])
         for subview in subviews where subview !== button {
             hideFromAccessibility(subview)
         }
