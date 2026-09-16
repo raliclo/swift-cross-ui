@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 on Windows, WinUIBackend: is the sort INDICATOR actually drawn? (#125)
+#
+# The WinUI twin of P23-sort-indicator-gtk4.csv. One click, then a hold, so a
+# capture taken during the hold either has the arrow or does not --
+# P23-sort-columns.csv ends with Clear sort and its capture is necessarily
+# arrow-free.
+#
+# What the capture should show: `Number ▲` and the other three headers
+# unchanged. The unchanged ones are the control: an implementation that appended
+# the arrow to every header, or that rebuilt the labels and lost it, both
+# produce a picture that is wrong in a way the log cannot describe.
+#
+# Coordinates measured off p23-sort-layout-20260916-190930.png (822x652), frame
+# origin.
+#
+# P23 於 Windows、WinUIBackend:排序**指示符**真的有被畫出來嗎?(#125)
+#
+# 這是 `P23-sort-indicator-gtk4.csv` 的 WinUI 版。點一次、然後停住,好讓停留期間拍到的擷圖
+# 要嘛有箭頭、要嘛沒有——`P23-sort-columns.csv` 是以 Clear sort 收尾的,它的擷圖必然沒有箭頭。
+#
+# 擷圖應該顯示:`Number ▲`,而其餘三個標題不變。**沒變的那三個就是對照組**:一個「把箭頭加到
+# 每個標題上」的實作,以及一個「重建 label 時把箭頭弄丟」的實作,兩者產出的畫面都是錯的,
+# 而那種錯誤是 log 描述不出來的。
+#
+# 座標量自 `p23-sort-layout-20260916-190930.png`(822x652),採 frame origin。
+sleep,,,,,,2500000,let the window settle and take the foreground,windows
+click,76,308,frame,left,,,Sort by Number once -- ascending,windows
+sleep,,,,,,6000000,HOLD: this is the window the capture is taken in,windows

@@ -73,6 +73,9 @@ an empty queue -- mistakes.md entry 1.
     `setSortIndicator` 有畫與沒畫時讀起來一模一樣,那正是 #117 在 WinUI 上的形狀。
     驅動用 `actions/win/P23-sort-indicator-gtk4.csv`(點一次、停六秒),**而它必須是獨立的檔案**:
     四步驟那個檔以 Clear sort 收尾,在它之後拍的擷圖必然沒有箭頭。
+    **WinUI 那張也在 19:39 拍到了**(`p23win-indicator-20260916-193911.png`,同樣是 `Number ▲`
+    加上三個沒有箭頭的對照欄,動作檔為 `actions/win/P23-sort-indicator.csv`)。
+    **至此 #125 的每一個部分在兩個 Windows backend 上都有畫面證據。**
     **AppKit / UIKit / Android 的 `TableColumnSorting` 仍未實作**,那是 Mac 那邊的。
 
   - **今天量到、值得下次照做的一件事(相關性,不是成因)**:**三次**成功的驅動,都是在
