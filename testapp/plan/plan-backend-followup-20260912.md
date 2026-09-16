@@ -12,9 +12,17 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    GTK：進行中。接入 LazyListRows，驗證列數、捲動、內容更新與 nil selection。
 2. #117 Android: pending implementation and emulator/device verification.
    Android：待實作及模擬器或實機驗證。
-3. #121 shortcuts: Windows implementations compiled previously; Ctrl+K replay
-   still needs to prove one callback on GTK/WinUI. Other backend coverage is separate.
-   快捷鍵：待 GTK/WinUI 動作重放確認一次按鍵只觸發一次。
+3. #121 shortcuts: **DONE on both Windows backends, 2026-09-16.**
+   `actions/win/P20-ctrl-k-shortcut.csv` replayed 5 actions on each, and
+   `SHORTCUT FIRED` appears in `p20-debug-events.log` exactly **once** per run --
+   not zero, which would mean the accelerator never reached the item, and not
+   twice, which is the `began=5` shape this tree has hit before. Regenerate:
+   `zsh testapp/compile.zsh P20 [-gtk4]`, run with `--debug -actionfile
+   ../actions/win/P20-ctrl-k-shortcut.csv`, then
+   `grep -c 'SHORTCUT FIRED' p20-debug-events.log`. Other backend coverage is separate.
+   快捷鍵:**2026-09-16 於兩個 Windows backend 完成。** 各重放 5 個動作,
+   `SHORTCUT FIRED` 每次執行**恰好出現一次**——不是 0(加速鍵沒抵達該項目),也不是 2
+   (本樹曾遇過的 `began=5` 形狀)。其餘 backend 的覆蓋另計。
 4. #32 gestures: drag has prior evidence; magnify/rotate need gesture input and
    callback/value checks. Do not label compile-only paths verified.
    手勢：縮放與旋轉仍待真實手勢輸入及數值驗證。
@@ -37,6 +45,46 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
     EdgeInsets：原始碼已完成 Double 化；小數 padding 回歸驗證另計。
 
 ## Verification log / 驗證紀錄
+
+- 2026-09-16 (Windows): **#121 verified on both backends, after a harness fix
+  that is worth more than the item itself.**
+
+  The replay refused every key-carrying file whenever another application held
+  the foreground, reporting `AttachThreadInput ... failed (87)`. 87 is
+  ERROR_INVALID_PARAMETER, not the ACCESS_DENIED the code anticipated: the
+  foreground was a `ConsoleWindowClass` window belonging to PowerToys.Awake.exe,
+  and a console host thread cannot be attached to.
+
+  `Win32Synthesiser.takeForegroundByAttachingInput` was judging the MECHANISM
+  rather than the OUTCOME -- it returned false the moment the attach failed,
+  without ever asking for the foreground. `SetForegroundWindow` is permitted for
+  several reasons besides an attached input queue. It now asks anyway and reads
+  `GetForegroundWindow()` back, which is what the function's own verification
+  loop was already doing on the other path.
+
+  With that, both backends pass without touching the offending application:
+
+      Win-WinUI   replayed 5 actions   SHORTCUT FIRED x1   (took the foreground
+                                                            WITHOUT attaching)
+      Win-gtk4    replayed 5 actions   SHORTCUT FIRED x1   (attached to Progman)
+
+  Exactly once is the assertion. Zero would mean the accelerator never reached
+  the item; twice is the `began=5` shape.
+
+- 2026-09-16(Windows):**#121 於兩個 backend 驗證通過,而其中那個 harness 修正,價值高過這個項目本身。**
+
+  只要有別的應用程式佔著前景,該 replay 就會拒絕每一個含按鍵的檔案,回報
+  `AttachThreadInput ... failed (87)`。87 是 ERROR_INVALID_PARAMETER,**不是**程式碼所預期的
+  ACCESS_DENIED:當時的前景是 PowerToys.Awake.exe 的一個 `ConsoleWindowClass` 視窗,
+  而 console host 的執行緒是附加不上去的。
+
+  `Win32Synthesiser.takeForegroundByAttachingInput` 判定的是**機制**而非**結果**——attach 一失敗
+  就回傳 false,從未真的去請求前景。而除了「輸入佇列已附加」之外,`SetForegroundWindow` 在數種情況下
+  同樣被允許。現在它會照樣請求,並把 `GetForegroundWindow()` 讀回來驗證——那正是該函式在另一條路徑上
+  本來就在做的事。
+
+  如此一來,**不必動到那個佔著前景的應用程式**,兩個 backend 都通過(數字見上方英文區塊)。
+  **恰好一次**才是那個斷言:0 代表加速鍵從未抵達該項目,2 則是 `began=5` 的形狀。
 
 - 2026-09-16 (Windows, later the same day): **WinUI's rows render, and the cause
   was one line.** A container WinUI GENERATES for a data item carries a
