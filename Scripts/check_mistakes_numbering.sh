@@ -31,7 +31,24 @@ if not md.exists() or not counter.exists():
 
 problems = []
 
-rows = [r for r in list(csv.reader(counter.open(newline="")))[2:] if r and r[0].strip()]
+# **`encoding="utf-8"` on BOTH reads, because Python does not default to it.**
+# `open()` uses the locale's preferred encoding, which on this Windows machine is
+# cp950, and both files are UTF-8 with Traditional Chinese in every entry. The
+# script died on its first Windows run with
+# `UnicodeDecodeError: 'cp950' codec can't decode byte 0x99` -- before reaching a
+# single check, so a repository with duplicate numbers would have looked exactly
+# the same. Measured 2026-09-16.
+#
+# **兩個讀取都要指定 `encoding="utf-8"`,因為 Python 不會預設用它。** `open()` 採用的是
+# locale 的偏好編碼,在這台 Windows 上是 cp950,而這兩個檔案都是 UTF-8、而且每一條都有中文。
+# 本腳本在 Windows 上第一次執行就以
+# `UnicodeDecodeError: 'cp950' codec can't decode byte 0x99` 死掉——**在跑到任何一項檢查之前**,
+# 因此一個編號重複的 repository 看起來會與此完全相同。2026-09-16 實測。
+rows = [
+    r
+    for r in list(csv.reader(counter.open(newline="", encoding="utf-8")))[2:]
+    if r and r[0].strip()
+]
 ids = [r[0].strip() for r in rows]
 for number, count in sorted(Counter(ids).items(), key=lambda kv: int(kv[0]) if kv[0].isdigit() else 0):
     if count > 1:
@@ -42,7 +59,7 @@ for number, count in sorted(Counter(ids).items(), key=lambda kv: int(kv[0]) if k
 # Either half alone is a record that reads complete and is not.
 # 計數檔裡的每一個 id 都需要散文裡的一個標題,反之亦然。只有其中一半的紀錄,讀起來是完整的,
 # 而它不是。
-headings = Counter(re.findall(r"^## (\d+)\.", md.read_text(), re.M))
+headings = Counter(re.findall(r"^## (\d+)\.", md.read_text(encoding="utf-8"), re.M))
 for number in sorted(set(ids) - set(headings), key=int):
     problems.append(f"counter id {number} has no '## {number}.' heading in mistakes.md")
 for number in sorted(set(headings) - set(ids), key=int):
