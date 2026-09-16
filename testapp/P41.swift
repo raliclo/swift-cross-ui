@@ -182,6 +182,41 @@ struct P41RootView: View {
             }
         }
         .padding(18)
+        .onAppear {
+            P41Diagnostics.write("RENDER COMPLETE -- P41 ready for date picker checks")
+        }
+    }
+}
+
+/// The event log for driven runs, written only with `--debug`. Same contract as
+/// the other apps: `SCUI_DEBUG_EVENTS_DIR` when set, else the launch directory.
+/// Added 2026-09-17 because the 2026-09-07 result row says "no log writer in
+/// P41.swift -- judge from the capture", and a capture cannot tell a calendar
+/// that wrote the date back from one that only highlighted it.
+///
+/// 驅動執行用的事件 log,只在 `--debug` 時寫入。約定與其他 app 相同:有 `SCUI_DEBUG_EVENTS_DIR`
+/// 時寫入該處,否則寫入啟動目錄。2026-09-17 加入,因為 2026-09-07 的結果列寫著「P41.swift 沒有
+/// log writer——只能看擷圖判斷」,而擷圖分不出「把日期寫回了的月曆」與「只是把那天標亮的月曆」。
+enum P41Diagnostics {
+    static let isEnabled = CommandLine.arguments.contains("--debug")
+
+    static func write(_ message: String) {
+        guard isEnabled else { return }
+        print("[P41] \(message)")
+        guard let data = "P41 \(Date()) \(message)\n".data(using: .utf8) else { return }
+        let url = URL(
+            fileURLWithPath: ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                ?? FileManager.default.currentDirectoryPath
+        ).appendingPathComponent("p41-debug-events.log")
+        if FileManager.default.fileExists(atPath: url.path),
+            let handle = try? FileHandle(forWritingTo: url)
+        {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 }
 
@@ -244,6 +279,19 @@ struct P41Cell: View {
             if supportedDatePickerStyles.contains(requires) {
                 DatePicker(label, selection: $date, displayedComponents: components)
                     .datePickerStyle(style)
+                    // A log line per change, so a driven click is judged by the
+                    // BINDING rather than by reading a date off a screenshot.
+                    // The text below says what is drawn; this says what the
+                    // app received, and "the calendar highlighted the day but
+                    // nothing was written back" is exactly the gap between them.
+                    // 每次變更記一行 log,讓一次驅動的點擊是以 **binding** 來判定,而不是從截圖上讀日期。
+                    // 下方文字說的是「畫出了什麼」,這一行說的是「app 收到了什麼」——而「月曆把那天
+                    // 標亮了、卻什麼都沒寫回」正好就是兩者之間的落差。
+                    .onChange(of: date) {
+                        P41Diagnostics.write(
+                            "\(label) -> \(P41Cell.string(from: date, format: format))"
+                        )
+                    }
 
                 Text(P41Cell.string(from: date, format: format))
                     .font(.system(size: 12))
