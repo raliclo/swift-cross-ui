@@ -3434,15 +3434,45 @@ public final class GtkBackend:
         //
         // 安裝於此而非視窗建立時,因為要有 HWND 就必須先有 surface,而此處是在視窗顯示之後執行。
         // 若沒有,`scui_window_watch_display_scale` 會回傳 false——在不需要它的非 Windows 平台亦然。
+        // SCUI_GTK_NO_DPI_WATCH is the control group, and it exists because the
+        // first driven run could not tell this notification from a side effect.
+        // Measured 2026-09-16 with GDK_WIN32_PER_MONITOR_HIDPI=1: the display
+        // went 100% -> 150% -> 125% -> 100% and windowScaleFactor followed,
+        // 1.0 -> 1.5 -> 1.25 -> 1.0. But in per-monitor mode Windows RESIZES the
+        // window on a DPI change, and a resize runs a layout pass that
+        // re-evaluates the body -- which produces the identical four lines. The
+        // two explanations are indistinguishable in that log. With this set, the
+        // watch is not installed, so a run that still follows the change proves
+        // the resize was doing it and a run that stops proves this was.
+        //
+        // SCUI_GTK_NO_DPI_WATCH 是對照組,它之所以存在,是因為第一次驅動執行**分不出**這個通知
+        // 與一個副作用。2026-09-16 帶 `GDK_WIN32_PER_MONITOR_HIDPI=1` 實測:顯示器
+        // 100% → 150% → 125% → 100%,而 `windowScaleFactor` 跟著走 1.0 → 1.5 → 1.25 → 1.0。
+        // 但在 per-monitor 模式下,Windows 會在 DPI 改變時**調整視窗大小**,而 resize 會跑一次
+        // layout pass 重新求值 body——那會產生**一模一樣的四行**。兩種解釋在那份 log 上無從分辨。
+        // 設下此變數後不會安裝監看,因此「仍然跟上」證明是 resize 在做,「不再跟上」則證明是它。
+        guard ProcessInfo.processInfo.environment["SCUI_GTK_NO_DPI_WATCH"] == nil else {
+            return
+        }
+
         let watch = DisplayScaleWatch(action: action)
         displayScaleWatches[ObjectIdentifier(window)] = watch
         _ = scui_window_watch_display_scale(
             window.widgetPointer,
-            { _, _, userData in
+            { _, scale, userData in
                 guard let userData else { return }
                 let watch = Unmanaged<DisplayScaleWatch>
                     .fromOpaque(userData)
                     .takeUnretainedValue()
+                // Logged BEFORE action(), so the ordering in the log answers the
+                // question the control group above describes: this line
+                // immediately preceding a recorded scale change is the
+                // notification driving it, and a recorded change with no line
+                // before it came from somewhere else.
+                // 記錄於 action() **之前**,使 log 的先後順序回答上方對照組所描述的那個問題:
+                // 此行緊接在一次被記錄的縮放變化之前,代表是這個通知在驅動它;而一次「前面沒有
+                // 此行」的變化,則來自別處。
+                DebugFeatures.log("WM_DPICHANGED -> \(scale)")
                 // Same reasoning as `MainActor.assumeIsolated` above: a window
                 // procedure runs on the thread that pumps the message loop,
                 // which is the thread running the GTK main loop.
