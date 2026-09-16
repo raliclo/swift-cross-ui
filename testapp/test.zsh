@@ -166,4 +166,47 @@ if [ ! -f "$test_script" ]; then
     exit 1
 fi
 
+# **On Windows, say so BEFORE the run when input is already blocked.**
+#
+# A higher-integrity foreground window makes Windows refuse every synthesised
+# event from this process, and refuses it SILENTLY: `SetCursorPos` returns false
+# without setting an error, a `SendInput` fallback moves nothing, and screen
+# capture keeps working -- so the run produces screenshots of an app that was
+# never touched. Measured 2026-09-16, when `AsMonitorControl.exe` cost four
+# rounds of debugging aimed at our own code before the cause was found.
+#
+# `--check` only: this REPORTS, it does not stop anything. A loader that killed
+# a process as a side effect of running a test would be a surprise, and the
+# blocker usually needs elevation anyway. The fix is one named command, printed
+# here so nobody has to go looking for it.
+#
+# Not fatal either. Plenty of tests assert on a build, a log or a capture and do
+# not synthesise input at all; failing those because an unrelated tray utility
+# holds the foreground would be worse than the warning.
+#
+# **在 Windows 上,若輸入已經被擋住,就在執行之前說出來。**
+#
+# 一個完整性等級較高的前景視窗,會讓 Windows 拒絕本行程送出的每一個合成事件,而且是**無聲**拒絕:
+# `SetCursorPos` 回傳 false 卻不設錯誤碼、`SendInput` 的退路推不動任何東西,而**螢幕擷取照常運作**
+# ——於是那次執行會產出一堆「那個 app 從未被碰過」的截圖。2026-09-16 實測:`AsMonitorControl.exe`
+# 讓四輪除錯都朝著我們自己的程式碼去找,之後才找到真正的成因。
+#
+# 只用 `--check`:此處僅**回報**,不停掉任何東西。一個「因為要跑測試而順手殺掉某個行程」的 loader
+# 會是個意外,而且那個阻擋者通常本來就需要提權。修法是一個具名指令,印在這裡,免得有人還要去找。
+#
+# 也不讓它變成致命錯誤。有大量測試判定的是建置、log 或擷圖,根本不合成任何輸入;因為一個不相干的
+# 系統匣工具佔著前景就讓那些測試失敗,會比這個警告更糟。
+case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+        if ! zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1; then
+            printf '!! Windows is refusing synthesised input right now:\n' >&2
+            zsh "$script_dir/enable_input.zsh" --check 2>&1 \
+                | grep 'BLOCKER RUNNING' | sed 's/^/!!   /' >&2
+            printf '!! Action files will report success while nothing reaches the app.\n' >&2
+            printf '!! Clear it first:  zsh testapp/enable_input.zsh\n' >&2
+            printf '!! (elevated:       testapp/enable_input.ps1)\n' >&2
+        fi
+        ;;
+esac
+
 exec zsh "$test_script" "${forward_args[@]}"
