@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# P71 on iOS: the three menu shortcuts, with the menu CLOSED the whole time.
+#
+# Runs on an iPad, and that is not a preference. On iPhone `buildMenu` is never
+# called with `.main` -- there is no menu bar -- so no `UIKeyCommand` is ever
+# registered and the app would report three zeros for a reason that has nothing
+# to do with the shortcut. Measured 2026-09-16 on an iPhone 17 Pro Max before
+# moving here.
+#
+# No tap appears below. Opening the menu and choosing the item tests the item,
+# which already worked; #121 is the half where the key works without the menu.
+#
+# P71 在 iOS 上:三個選單快捷鍵,而選單全程**關著**。
+#
+# 跑在 iPad 上,而那不是偏好。在 iPhone 上,`buildMenu` 從不以 `.main` 被呼叫——那裡沒有選單列——
+# 因此不會有任何 `UIKeyCommand` 被登記,而 app 會因為一個與快捷鍵毫無關係的理由回報三個零。
+# 2026-09-16 在 iPhone 17 Pro Max 上量過之後才改到這裡。
+#
+# 底下沒有任何一次點擊。開啟選單並選取項目,測到的是那個**項目**——而它本來就能用;#121 是
+# 「按鍵在不開選單的情況下也能用」的那一半。
+sleep,,,,,,900000,let the scene settle before the first key,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,s,,Cmd-S -- plain must fire once,ios
+keyup,,,,,command,,release,ios
+sleep,,,,,,500000,,ios
+keydown,,,,,command,,hold Command,ios
+keydown,,,,,shift,,and Shift,ios
+key,,,,,e,,Cmd-Shift-E -- the modifier flags must survive,ios
+keyup,,,,,shift,,,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,500000,,ios
+keydown,,,,,command,,hold Command,ios
+key,,,,,d,,Cmd-D -- DISABLED: this one must NOT fire,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,800000,let the counters settle before the capture,ios
