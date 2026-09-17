@@ -53,7 +53,89 @@ struct ScuiWebView {
     ScuiWebViewNavigatedFunc callback;
     void *user_data;
     GDestroyNotify destroy_user_data;
+    char *pending_uri;  // reported from an idle, see uri_changed
+    guint idle;
 };
+
+// WebKitGTK's UI process ABORTS -- taking the whole app with it -- when it
+// cannot create a surfaceless EGL display. Measured on WSL 2026-09-17 with
+// libwebkitgtk-6.0-4 installed: "Could not create surfaceless EGL display:
+// EGL_NOT_INITIALIZED. Aborting..." with no Mesa variables set, and the same
+// with GALLIUM_DRIVER=d3d12 (WSL has no DRM render node for that platform).
+// With LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe the page drew. Neither
+// WEBKIT_DISABLE_DMABUF_RENDERER=1 nor WEBKIT_DISABLE_COMPOSITING_MODE=1 avoided
+// the abort.
+//
+// So: probe the same thing in-process first. If hardware EGL works nothing is
+// changed -- a Linux desktop with a GPU keeps it. If not, fall back to llvmpipe
+// and probe again. If that fails too, the web view is not created at all and the
+// frame says why: an app that dies because it contains a WebView is worse than
+// one that shows a sentence.
+//
+// WebKitGTK 的 UI 行程在無法建立 surfaceless EGL display 時會 **abort**——把整個 app 一起帶走。
+// 2026-09-17 於裝好 libwebkitgtk-6.0-4 的 WSL 實測:未設任何 Mesa 變數時出現「Could not create
+// surfaceless EGL display: EGL_NOT_INITIALIZED. Aborting...」,GALLIUM_DRIVER=d3d12 時亦同(WSL 沒有
+// 該平台需要的 DRM render node)。改用 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe 時頁面畫得出來。
+// WEBKIT_DISABLE_DMABUF_RENDERER=1 與 WEBKIT_DISABLE_COMPOSITING_MODE=1 都擋不住 abort。
+//
+// 所以先在行程內探測同一件事。硬體 EGL 可用時什麼都不改——有 GPU 的 Linux 桌面保持原樣。不可用時
+// 退回 llvmpipe 再探測。仍然失敗就根本不建立 web view,由框說明原因:因為含有 WebView 而死掉的 app,
+// 比顯示一句話的 app 更糟。
+#define SCUI_EGL_PLATFORM_SURFACELESS_MESA 0x31DD
+
+static int surfaceless_egl_works(void) {
+    void *egl = dlopen("libEGL.so.1", RTLD_NOW | RTLD_GLOBAL);
+    if (egl == NULL) {
+        return 0;
+    }
+    void *(*get_platform_display)(unsigned int, void *, const int *) =
+        dlsym(egl, "eglGetPlatformDisplay");
+    int (*initialize)(void *, int *, int *) = dlsym(egl, "eglInitialize");
+    int (*terminate)(void *) = dlsym(egl, "eglTerminate");
+    if (get_platform_display == NULL || initialize == NULL || terminate == NULL) {
+        return 0;
+    }
+    void *display = get_platform_display(SCUI_EGL_PLATFORM_SURFACELESS_MESA, NULL, NULL);
+    if (display == NULL) {
+        return 0;
+    }
+    int major = 0, minor = 0;
+    int ok = initialize(display, &major, &minor);
+    if (ok) {
+        terminate(display);
+    }
+    return ok;
+}
+
+// NULL when WebKit can be created safely; otherwise the reason it cannot.
+// WebKit 可以安全建立時回傳 NULL;否則回傳無法建立的原因。
+static char *ensure_webkit_can_render(void) {
+    static int state = 0;  // 0 untried, 1 ok, -1 failed
+    if (state == 1) {
+        return NULL;
+    }
+    if (state == -1) {
+        return g_strdup(
+            "no surfaceless EGL display, even with LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe"
+        );
+    }
+    if (surfaceless_egl_works()) {
+        state = 1;
+        return NULL;
+    }
+    g_message(
+        "WebKitGTK: hardware surfaceless EGL is unavailable here; using llvmpipe "
+        "(LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe) so WebKit does not abort"
+    );
+    g_setenv("LIBGL_ALWAYS_SOFTWARE", "1", TRUE);
+    g_setenv("GALLIUM_DRIVER", "llvmpipe", TRUE);
+    if (surfaceless_egl_works()) {
+        state = 1;
+        return NULL;
+    }
+    state = -1;
+    return ensure_webkit_can_render();
+}
 
 static const WebKitFunctions *load_webkit(char **why) {
     static WebKitFunctions functions;
@@ -95,27 +177,56 @@ static const WebKitFunctions *load_webkit(char **why) {
     return &functions;
 }
 
+static gboolean report_pending_uri(gpointer data) {
+    ScuiWebView *view = data;
+    view->idle = 0;
+    if (view->pending_uri != NULL && view->callback != NULL) {
+        view->callback(view->pending_uri, view->user_data);
+    }
+    g_clear_pointer(&view->pending_uri, g_free);
+    return G_SOURCE_REMOVE;
+}
+
+// Reported from an IDLE, not from inside the signal. WebKit emits notify::uri
+// synchronously within webkit_web_view_load_uri, and that call is made while
+// SwiftCrossUI is navigating the view -- before updateWebView has necessarily
+// installed onNavigate. Measured 2026-09-17 on WSL: the page drew and P38 said
+// "Navigations reported: 0". An idle also matches WebView2, whose SourceChanged
+// is always asynchronous, so both backends report in the same order.
+// 從 **idle** 回報,而不是在訊號內部。WebKit 在 webkit_web_view_load_uri 之中**同步**發出
+// notify::uri,而那個呼叫發生在 SwiftCrossUI 正在導覽 view 的時候——此時 updateWebView 不一定已經裝好
+// onNavigate。2026-09-17 於 WSL 實測:頁面畫出來了,P38 卻顯示「Navigations reported: 0」。idle 也與
+// WebView2 一致(其 SourceChanged 一律非同步),兩個 backend 的回報順序因此相同。
 static void uri_changed(GObject *object, GParamSpec *pspec, gpointer data) {
     (void)pspec;
     ScuiWebView *view = data;
     char *unused = NULL;
     const WebKitFunctions *webkit = load_webkit(&unused);
     g_free(unused);
-    if (webkit == NULL || view->callback == NULL) {
+    if (webkit == NULL) {
         return;
     }
     const char *uri = webkit->get_uri(GTK_WIDGET(object));
-    if (uri != NULL && uri[0] != '\0') {
-        view->callback(uri, view->user_data);
+    if (uri == NULL || uri[0] == '\0') {
+        return;
+    }
+    g_free(view->pending_uri);
+    view->pending_uri = g_strdup(uri);
+    if (view->idle == 0) {
+        view->idle = g_idle_add(report_pending_uri, view);
     }
 }
 
 static void host_destroyed(GtkWidget *widget, gpointer data) {
     (void)widget;
     ScuiWebView *view = data;
+    if (view->idle != 0) {
+        g_source_remove(view->idle);
+    }
     if (view->destroy_user_data != NULL) {
         view->destroy_user_data(view->user_data);
     }
+    g_free(view->pending_uri);
     g_free(view->failure);
     g_free(view);
 }
@@ -131,6 +242,12 @@ ScuiWebView *scui_webview_new(GtkWidget *host) {
 
     char *why = NULL;
     const WebKitFunctions *webkit = load_webkit(&why);
+    if (webkit != NULL) {
+        why = ensure_webkit_can_render();
+        if (why != NULL) {
+            webkit = NULL;
+        }
+    }
     if (webkit == NULL) {
         view->failure = why;
         g_warning("WebKitGTK: %s", why);
