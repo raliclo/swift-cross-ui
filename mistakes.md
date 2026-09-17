@@ -1748,3 +1748,46 @@ reruns. The cause: `drag` was grouped with `rotate`, which takes a fifth number,
 press, the ComboBox as a click, so the bug was visible only where it looked like a platform limit.
 The tool's own output said `step 31 up`. Read the tool's output before suspecting the platform, and
 when a scratch tool and the repo tool disagree, diff the tools.
+
+---
+
+## 21. 只驗了新加的路徑,沒驗它與舊路徑共用的那一行;而 log 說「shown」
+
+**次數:1 次 / 1 天(2026-09-17)。**
+
+### 症狀 / What it looks like
+
+WinUI 上**沒有指定 arrowEdge 的 popover 完全不會出現**——而那是一般 app 的預設寫法。log 照樣寫
+`popover alpha shown`。2026-09-16 的 #109 驗收拍了成對的 `.top`/`.bottom` 擷圖並判定通過;一天後為了回答
+左右那一對的問題,多拍了一張「none」,才發現面板不在。
+
+### 為何沒有任何東西報錯
+
+- `presentPopover` 裡是 `placement = preferredPlacement ?? .auto`。驗收**只驅動了有設定的偏好**,`??` 右邊
+  從沒被走過;而 `FlyoutPlacementMode.auto` 在這裡什麼都不顯示、也不擲錯。
+- `popover ... shown` 是 app 在**呼叫** present 時寫的,不是面板出現時。既有的 GTK 動作檔
+  `P50-open-first-panel.csv` 的斷言正是 `log-contains popover alpha shown`——對這個缺陷而言它必然通過。
+- 行程外 UIA dump 的 0 個 PANEL 節點,需要正向對照(設 `.trailing` 時同一份 dump 找得到 `PANEL ALPHA`)
+  才能算證據。
+
+### 矯正 / Corrective
+
+1. **加一個偏好時,把「沒有偏好」也列入同一組驗收。** 成對的擷圖要是三張:A、B、以及預設。
+2. **「已呈現」的證據必須來自呈現之後的狀態**(UIA 節點、視窗矩形、擷圖),不是 app 自己在呼叫前寫的
+   log 行。
+
+---
+
+## 21. Verified only the new path, never the line it shares with the old one; and the log said "shown"
+
+**1 occurrence / 1 day (2026-09-17).**
+
+On WinUI a popover with NO arrowEdge, the default most apps use, never appeared, while the log
+still read `popover alpha shown`. The #109 verification the day before drove only SET preferences
+(`.top`/`.bottom` pair), so the `?? .auto` fallback was never exercised, and
+`FlyoutPlacementMode.auto` shows nothing without throwing. The log line is written when present is
+CALLED, and the existing `P50-open-first-panel.csv` asserts exactly that line, so it passes
+regardless. When adding a preference, verify the no-preference default in the same set: three
+captures, not two. Evidence that something was presented must come from after presentation (UIA
+node, window rect, capture), never from the app's own pre-call log line. A zero-node UIA result
+needs a positive control before it counts.

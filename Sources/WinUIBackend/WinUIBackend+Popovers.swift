@@ -162,30 +162,47 @@ extension WinUIBackend {
     public func presentPopover(_ popover: Popover, relativeTo anchor: Widget, window: Window) {
         popover.flyout.xamlRoot = window.content.xamlRoot
 
-        // `.auto` rather than a side this backend picked. It is the one
-        // `FlyoutPlacementMode` value that hands the decision back to XAML,
-        // which places the flyout from the anchor's rectangle and the room left
-        // around it on screen; the default is `.top`, so this is a choice and
-        // not the absence of one. A fixed side would be honoured even where
-        // there is no room for it, and a popover off the edge of the screen has
-        // shown nothing.
-        // 使用 `.auto`，而不是由本 backend 指定某一側。它是 `FlyoutPlacementMode` 中唯一會把決定權
-        // 交還給 XAML 的值——XAML 會依錨點的矩形、以及螢幕上四周所剩的空間來定位該 flyout；其預設值
-        // 是 `.top`，因此這是一項選擇，而不是「沒有做選擇」。釘死的一側即使在沒有空間的地方也會被
-        // 忠實遵守，而一個跑到螢幕邊緣外的 popover 等於什麼都沒顯示。
+        // With no preference from the app: `.bottom`, below the anchor. That is
+        // what the other four backends do; the Mac side aligned AppKit to it on
+        // the same day (cf4a4a88), and one app should not open its popover on a
+        // different side on one platform for no reason anybody chose. That
+        // commit's comment says WinUI's Flyout "auto-places below where it
+        // fits". It does not, as the next paragraph measures.
         //
-        // **A preference from the app overrides that choice, and does not
-        // contradict the paragraph above.** The values XAML calls `.top`,
-        // `.bottom`, `.left` and `.right` are themselves preferences: the
-        // flyout moves when there is no room, which is the behaviour the
-        // paragraph is protecting. What it rules out is this BACKEND picking a
-        // side nobody asked for, and a nil preference still means `.auto`.
+        // 沒有 app 的偏好時:`.bottom`,錨點下方。另外四個 backend 都這樣做,Mac 端同日也把 AppKit 對齊到
+        // 這一側(cf4a4a88);同一支 app 不該因為沒人選過的理由,在某個平台上把 popover 開在另一側。那個
+        // commit 的註解說 WinUI 的 Flyout「自動放在放得下的下方」——並不是,見下一段的量測。
         //
-        // **來自 app 的偏好會覆蓋那個選擇,而這與上一段並不矛盾。** XAML 的 `.top`、`.bottom`、
-        // `.left`、`.right` 本身就是**偏好**:空間不足時該 flyout 仍會移動,而那正是上一段要保護的
-        // 行為。上一段排除的是「由**這個 backend** 挑一個沒有人要求的側邊」,而偏好為 nil 時
-        // 仍然是 `.auto`。
-        popover.flyout.placement = popover.preferredPlacement ?? .auto
+        // **This used to be `.auto`, and `.auto` showed NOTHING.** Measured
+        // 2026-09-17 on P50: with no arrowEdge, both panels logged
+        // `popover ... shown` and neither appeared. An out-of-process UIA dump
+        // had no PANEL node, and a window capture and a desktop capture both
+        // showed no panel. The runs covered PANEL BETA, PANEL ALPHA, and ALPHA
+        // cycled through every edge back to none, 0 of 3 each. The positive
+        // control: with `.trailing` set, the same dump found `PANEL ALPHA`, so the
+        // probe can see an open flyout. Changing only this fallback to a side
+        // made both panels appear. The 2026-09-16 verification drove only SET
+        // preferences, which is how the default path went unexercised. `.auto`
+        // had been here since dea9ccff.
+        //
+        // The reason `.auto` was chosen does not hold either. That comment said a
+        // fixed side "would be honoured even where there is no room". Measured
+        // the day before, on this backend: `.bottom` on a button with no room
+        // below flipped the panel ABOVE it. The sided values are preferences, and
+        // XAML moves the flyout when they do not fit, so the side is not the
+        // BACKEND's choice in any way that matters.
+        //
+        // **這裡原本是 `.auto`,而 `.auto` 什麼都不顯示。** 2026-09-17 以 P50 實測:不帶 arrowEdge 時,
+        // 兩塊面板都記下 `popover ... shown`,卻都沒有出現——行程外 UIA dump 沒有 PANEL 節點,視窗擷取與
+        // 桌面擷取都沒有面板(PANEL BETA、PANEL ALPHA、以及把 ALPHA 循環一圈回到 none,各 0/3)。正向對照:
+        // 設為 `.trailing` 時同一份 dump 找得到 `PANEL ALPHA`,證明探針看得到打開的 flyout。**只把這個
+        // 預設值改成某一側**,兩塊面板就都出現了。2026-09-16 的驗收只驅動了**有設定**的偏好,預設路徑
+        // 因此從未被走過;`.auto` 自 dea9ccff 起就在這裡。
+        //
+        // 當初選 `.auto` 的理由也不成立。那段註解說釘死的一側「在沒有空間的地方也會被忠實遵守」;而前一天
+        // 在本 backend 上量到:下方沒有空間的按鈕設 `.bottom`,面板被翻到**上方**。有方向的值是**偏好**,
+        // 放不下時 XAML 會移動 flyout。
+        popover.flyout.placement = popover.preferredPlacement ?? .bottom
 
         do {
             try popover.flyout.showAt(anchor)
