@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, WinUIBackend: does a user edit of the SECONDS selector reach
+# the binding? (2026-09-17)
+#
+# WinUIBackend used to print ".hourMinuteAndSecond is not supported ... Falling
+# back to .hourAndMinute" and, worse, wrote the bound 09:46:40 back as 09:46:00
+# at launch with no input. The fix adds a 00-59 selector beside the TimePicker
+# and stops programmatic updates echoing into the binding.
+#
+# TWO ASSERTIONS, both in p41-debug-events.log:
+#   - before any input: NO `.hourMinuteAndSecond ->` and NO `.hourAndMinute ->`
+#     line. Their presence is the old data-loss defect.
+#   - after the edit: exactly `.hourMinuteAndSecond -> 2025-08-24 09:46:41`.
+#     Hours and minutes unchanged; only the seconds move, 40 -> 41.
+#
+# MOUSE ONLY, on purpose. The first version opened the list with a click and
+# then pressed downArrow + return; a file that presses keys must take the
+# foreground, AttachThreadInput failed with 5, and the replay stopped before its
+# first action. Clicking the item needs no focus.
+#
+# HOW IT WAS ACTUALLY DRIVEN, 2026-09-17: mouse injection was refused by then
+# (SetCursorPos status 0), so the same two taps went through synthetic touch,
+# which is a different API and still reached the window:
+#   zsh testapp/touch_gesture.zsh "P41 date picker" drag 860 624 860 624 1 30
+#   zsh testapp/touch_gesture.zsh "P41 date picker" drag 858 684 858 684 1 30
+# Result: `.hourMinuteAndSecond -> 2025-08-24 09:46:41`, nothing before it.
+# The list opens with the selected item over the box; in touch mode items are
+# ~49 px apart, so 41 sits ~49 px below 40. Mouse mode may space them closer --
+# re-measure (desktop capture; the list is its own popup window) if this misses.
+#
+# P41 於 Windows、WinUIBackend:使用者改**秒數**選擇器,會不會抵達 binding?(2026-09-17)
+#
+# **兩個斷言**,都在 p41-debug-events.log:任何輸入之前**不得**出現 `.hourMinuteAndSecond ->` 或
+# `.hourAndMinute ->`;編輯之後恰好是 `.hourMinuteAndSecond -> 2025-08-24 09:46:41`。
+#
+# **刻意只用滑鼠。** 第一版用點擊開清單、再按 downArrow + return;有按鍵的檔案必須取得前景,
+# AttachThreadInput 回傳 5,replay 在第一個動作前就停止。點擊項目不需要焦點。
+#
+# **2026-09-17 實際的驅動方式:** 當時滑鼠注入已被拒絕(SetCursorPos status 0),所以同樣兩下改走
+# 合成觸控——那是另一個 API,仍然到得了視窗(指令見上)。結果:`.hourMinuteAndSecond ->
+# 2025-08-24 09:46:41`,之前沒有任何一行。清單開啟時選中項目蓋在框上;觸控模式下項目間距約 49 px,
+# 滑鼠模式可能較密——若點不中請重量(用桌面擷圖,清單是獨立的彈出視窗)。
+#
+# Coordinates measured off p41-seconds-fix2-20260917-075714.png and a desktop
+# capture of the open list, frame origin.
+# 座標量自 p41-seconds-fix2-20260917-075714.png 與清單開啟時的桌面擷圖,採 frame origin。
+sleep,,,,,,3000000,let the window settle; the launch-time assertion is read here,windows
+click,860,624,frame,left,,,open the seconds selector showing 40,windows
+sleep,,,,,,1000000,let the list open,windows
+click,858,684,frame,left,,,pick 41 one row below 40,windows
+sleep,,,,,,1500000,let the binding change reach the log,windows

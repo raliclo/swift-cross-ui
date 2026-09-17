@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, WinUIBackend: does clicking a day in the .graphical calendar
+# write the date back to the binding?
+#
+# The 2026-08-27 records only ever established the READ direction: the calendar
+# opens on the bound month with the bound day ringed. Whether a user's click
+# reaches the binding was never measured, and a capture cannot say -- a
+# CalendarView highlights the clicked day by itself whether or not anything was
+# written back.
+#
+# So the assertion is the LOG, not the picture: p41-debug-events.log must gain
+# `.graphical -> 2025-08-13`. P41 logs one line per binding change since
+# 2026-09-17. The bound value is 2025-08-24, so 13 is a day the binding does not
+# already hold, and it is not 24 -- clicking the ringed day would prove nothing.
+#
+# Coordinates measured off p41-layout-20260917-074650.png (942x686), frame
+# origin. A day cell is ~42 px wide, so the few-pixel difference between the
+# capture's bounds and the window frame stays inside the cell.
+#
+# P41 於 Windows、WinUIBackend:在 `.graphical` 月曆上點一天,日期會不會寫回 binding?
+#
+# 2026-08-27 的紀錄只確立了**讀取**方向:月曆開在綁定的月份、綁定的那天有圈。使用者點擊是否抵達
+# binding 從未量過,而擷圖回答不了——CalendarView 不論有沒有寫回,都會自己把被點的那天標亮。
+#
+# 所以**斷言在 log,不在圖**:p41-debug-events.log 必須多出 `.graphical -> 2025-08-13`。綁定值是
+# 2025-08-24,所以 13 是 binding 尚未持有的日子,而且不是 24——點那個已經有圈的日子什麼都證明不了。
+#
+# 座標量自 p41-layout-20260917-074650.png(942x686),frame origin。日期格約 42 px 寬,擷圖邊界與
+# 視窗外框之間那幾個像素的差距,仍落在格子內。
+sleep,,,,,,3000000,let the window settle and take the foreground,windows
+click,654,365,frame,left,,,click the 13th in the .graphical calendar,windows
+sleep,,,,,,1500000,let the binding change reach the log,windows

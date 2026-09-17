@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P41 on Windows, GtkBackend: the GTK twin of P41-graphical-pick-day.csv.
+# A separate file because the windows differ (this capture is 968x736 with CSD
+# shadow, the WinUI one 942x686), so no coordinate transfers.
+#
+# ASSERTION IN THE LOG: p41-debug-events.log must gain `.graphical -> 2025-08-13`.
+# The bound day is 24; 13 is a day the binding does not already hold.
+#
+# P41 於 Windows、GtkBackend:P41-graphical-pick-day.csv 的 GTK 版。兩個視窗不同(此擷圖含 CSD 陰影
+# 為 968x736,WinUI 為 942x686),所以座標無法共用。**斷言在 log**:p41-debug-events.log 必須多出
+# `.graphical -> 2025-08-13`。綁定的是 24 日;13 日是 binding 尚未持有的日子。
+#
+# Coordinates measured off p41-gtk-layout-20260917-074858.png, frame origin.
+# 座標量自 p41-gtk-layout-20260917-074858.png,採 frame origin。
+sleep,,,,,,3000000,let the window settle and take the foreground,windows
+click,679,317,frame,left,,,click the 13th in the .graphical calendar,windows
+sleep,,,,,,1500000,let the binding change reach the log,windows

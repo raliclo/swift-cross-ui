@@ -47,6 +47,11 @@ P41 graphical DatePicker write-back, #128 fractional-padding visual check, #32 m
 **Update 2026-09-17:** P38 fixed (Grid-held WebView2 + backend-owned single-threaded
 startup) and #128 verified on both backends (56/57/58 px). Still open: P41 and #32, both
 waiting for a window in which pointer injection reaches the desktop -- see results.csv2.
+**Later the same day:** #32 and P41 both driven on both backends, with defects found and
+fixed on the way (WinUI gesture handlers multiplying, GTK rotation reading the wrong angle,
+WinUI `.hourMinuteAndSecond` degrading and zeroing seconds at launch). The four Windows
+items from 2026-09-16 are closed. One path is in code but not driven: a WinUI hour/minute
+edit keeping the bound seconds.
 
 **2026-09-16 起已過期——GTK #117 不再是雛形。** `GtkBackend+LazyListRows.swift:4` conform
 `LazyListRowLifetimes`(它 refine 了 `LazyListRows`);計畫檔的驗證紀錄記有 2026-09-14 Win-gtk4 的
@@ -55,6 +60,9 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 **2026-09-17 更新:** P38 已修好(以 Grid 持有 WebView2 + backend 自行以單執行緒啟動),#128 已在
 兩個 backend 驗收(56/57/58 px)。仍開著:P41 與 #32,兩者都在等一個「指標注入確實到達桌面」的時段
 ——見 results.csv2。
+**同日稍晚:** #32 與 P41 都已在兩個 backend 驅動完成,途中找到並修掉缺陷(WinUI 手勢 handler 不斷
+加掛、GTK 旋轉讀錯角度、WinUI `.hourMinuteAndSecond` 降級並在啟動時把秒歸零)。2026-09-16 列出的
+四項 Windows 工作全部結案。有一條路徑已寫進程式碼但**未驅動**:WinUI 修改時/分時保留綁定的秒數。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 

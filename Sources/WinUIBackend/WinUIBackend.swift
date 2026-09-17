@@ -3140,13 +3140,23 @@ public final class WinUIBackend:
     ) {
         let customDatePicker = datePicker as! CustomDatePicker
 
-        if components.contains(.hourMinuteAndSecond) {
-            print(
-                "DatePickerComponents.hourMinuteAndSecond is not supported in WinUIBackend. Falling back to .hourAndMinute."
-            )
-        }
-
-        customDatePicker.toggleTimeView(shown: components.contains(.hourAndMinute))
+        // `.hourMinuteAndSecond` used to print "is not supported in WinUIBackend.
+        // Falling back to .hourAndMinute." on every update and show hours and
+        // minutes only. The fallback was not merely incomplete: the bound value
+        // lost its seconds at launch with no user input (P41, 2026-09-17:
+        // 09:46:40 was written back as 09:46:00 before anything was touched).
+        // WinUI's TimePicker has no seconds, so a 00-59 selector now sits beside
+        // it -- the same H:M:S shape GtkBackend draws with spin buttons.
+        //
+        // `.hourMinuteAndSecond` 以前每次更新都印「is not supported in WinUIBackend. Falling back
+        // to .hourAndMinute.」,並且只顯示時與分。那個降級不只是不完整:**綁定值在啟動時、沒有任何
+        // 使用者操作之下就失去了秒數**(P41,2026-09-17:什麼都還沒碰,09:46:40 就被寫回成 09:46:00)。
+        // WinUI 的 TimePicker 沒有秒,所以現在在它旁邊放一個 00–59 的選擇器——與 GtkBackend 用 spin
+        // button 畫出的 H:M:S 同一個形狀。
+        customDatePicker.toggleTimeView(
+            shown: components.contains(.hourAndMinute),
+            seconds: components.contains(.hourMinuteAndSecond)
+        )
 
         if environment.timeZone != .current {
             print("environment.timeZone is has no effect in WinUIBackend.")
@@ -3740,6 +3750,7 @@ final class CustomDatePicker: StackPanel {
 
     deinit {
         timeChangedEvent?.dispose()
+        secondsChangedEvent?.dispose()
         dateChangedEvent?.dispose()
     }
 
@@ -3773,39 +3784,138 @@ final class CustomDatePicker: StackPanel {
 
     private var dateView: DateViewType?
     private var timeView: TimePicker?
+    /// The row holding `timeView` and, for `.hourMinuteAndSecond`,
+    /// `secondsView`. One child of this panel, so the date view stays at index 0.
+    /// 裝著 `timeView`(以及 `.hourMinuteAndSecond` 時的 `secondsView`)的那一列。它是本 panel 的
+    /// 單一子元件,因此日期檢視維持在索引 0。
+    private var timeRow: StackPanel?
+    private var secondsView: ComboBox?
     private var date = Date()
     private var calendar = Calendar.current
     private var needsUpdate = false
     var onChange: ((Date) -> Void)?
     private var timeChangedEvent: EventCleanup?
+    private var secondsChangedEvent: EventCleanup?
     private var dateChangedEvent: EventCleanup?
 
-    func toggleTimeView(shown: Bool) {
-        guard shown != (self.timeView != nil) else { return }
+    /// True while `updateIfNeeded` is pushing the bound value INTO the controls.
+    ///
+    /// **Programmatic assignment raises the controls' changed events**, and
+    /// those events were treated as user edits. Measured on P41 2026-09-17: at
+    /// launch, with no input, `.hourAndMinute` wrote 09:46:40 back as 09:46 and
+    /// `.hourMinuteAndSecond` as 09:46:00 -- TimePicker truncates, so the echo
+    /// of setting it is a different value, and that value went to the binding.
+    /// Handlers also skip `onChange` when the computed date equals the current
+    /// one, in case an echo arrives after this flag is cleared.
+    ///
+    /// `updateIfNeeded` 正在把綁定值**推進**控制項時為 true。
+    ///
+    /// **以程式設定值會觸發控制項的 changed 事件**,而那些事件先前被當成使用者的編輯。2026-09-17 於
+    /// P41 實測:啟動時沒有任何輸入,`.hourAndMinute` 就把 09:46:40 寫回成 09:46,
+    /// `.hourMinuteAndSecond` 寫成 09:46:00——TimePicker 會截斷,所以「設定它」的回聲是一個不同的值,
+    /// 而那個值進了 binding。為防回聲在旗標清除後才抵達,handler 在算出的日期與目前相同時也不呼叫
+    /// `onChange`。
+    private var isApplyingUpdate = false
 
-        if shown {
-            let timeView = TimePicker()
-            children.append(timeView)
-            self.timeView = timeView
-            timeChangedEvent = timeView.timeChanged.addHandler { [unowned self] _, change in
-                guard let change else { return }
-                self.date =
-                    calendar.startOfDay(for: date)
-                        + Double(change.newTime.duration) / ticksPerSecond
-                self.onChange?(self.date)
-            }
-            needsUpdate = true
-        } else {
+    /// Wide enough for "00" plus the drop-down chevron.
+    /// 足以容納「00」加上下拉箭頭的寬度。
+    static let secondsViewWidth = 72
+
+    private func timeOfDay(_ date: Date) -> TimeInterval {
+        date.timeIntervalSince(calendar.startOfDay(for: date))
+    }
+
+    /// The bound value's time of day, for a DATE edit to keep. `nil` when no
+    /// time is shown, which keeps the previous behaviour there. It used to be
+    /// `timeView?.selectedTime`, which has no seconds, so picking a day also
+    /// zeroed them.
+    /// 綁定值的時刻,供**日期**編輯保留。未顯示時間時為 `nil`,維持該處原本的行為。以前用的是
+    /// `timeView?.selectedTime`——它沒有秒——所以選一天也會把秒歸零。
+    private var keptTimeOfDay: TimeSpan? {
+        guard timeView != nil else { return nil }
+        return TimeSpan(duration: Int64(timeOfDay(date) * ticksPerSecond))
+    }
+
+    private func report(_ newDate: Date) {
+        guard !isApplyingUpdate, newDate != self.date else { return }
+        self.date = newDate
+        onChange?(newDate)
+    }
+
+    func toggleTimeView(shown: Bool, seconds: Bool) {
+        let hasSeconds = secondsView != nil
+        guard shown != (timeView != nil) || (shown && seconds != hasSeconds) else { return }
+
+        // Tear down whatever is there, then build what is asked for. Rebuilding
+        // the row on a seconds toggle is simpler than inserting into it, and
+        // toggling is rare.
+        // 先拆掉現有的,再建出所要求的。切換秒數時整列重建,比往裡面插入簡單,而切換本來就少見。
+        if timeRow != nil {
             timeChangedEvent?.dispose()
             timeChangedEvent = nil
+            secondsChangedEvent?.dispose()
+            secondsChangedEvent = nil
+            // Always the last child: the date view is inserted at 0 and the row
+            // appended. Not an identity search -- wrapper identity is not stable
+            // in this binding (see WinUIBackend+LazyListRows.swift).
+            // 永遠是最後一個子元件:日期檢視插在 0,這一列則是 append。不做身分搜尋——這個綁定的包裝
+            // 身分並不穩定(見 WinUIBackend+LazyListRows.swift)。
             children.removeAtEnd()
+            self.timeRow = nil
             self.timeView = nil
+            self.secondsView = nil
         }
+
+        guard shown else { return }
+
+        let row = StackPanel()
+        row.orientation = .horizontal
+        row.spacing = 6
+
+        let timeView = TimePicker()
+        row.children.append(timeView)
+        timeChangedEvent = timeView.timeChanged.addHandler { [unowned self] _, change in
+            guard let change else { return }
+            // Hours and minutes from the picker, SECONDS FROM THE BOUND VALUE:
+            // the picker cannot represent them, so taking its seconds would
+            // zero them on every edit.
+            // 時與分取自 picker,**秒取自綁定值**:picker 表示不了秒,取它的秒等於每次編輯都歸零。
+            let pickedMinutes =
+                (Double(change.newTime.duration) / ticksPerSecond / 60).rounded(.down) * 60
+            let keptSeconds = timeOfDay(self.date).truncatingRemainder(dividingBy: 60)
+            report(calendar.startOfDay(for: self.date) + pickedMinutes + keptSeconds)
+        }
+
+        if seconds {
+            let secondsView = ComboBox()
+            secondsView.width = Double(Self.secondsViewWidth)
+            secondsView.verticalAlignment = .center
+            for second in 0..<60 {
+                secondsView.items.append(String(format: "%02d", second))
+            }
+            row.children.append(secondsView)
+            secondsChangedEvent = secondsView.selectionChanged.addHandler {
+                [unowned self, unowned secondsView] _, _ in
+                let index = Int(secondsView.selectedIndex)
+                // -1 is WinUI's transient "no selection" while the list opens.
+                // -1 是清單開啟時 WinUI 暫時性的「無選取」。
+                guard index >= 0 else { return }
+                let wholeMinutes = (timeOfDay(self.date) / 60).rounded(.down) * 60
+                report(calendar.startOfDay(for: self.date) + wholeMinutes + Double(index))
+            }
+            self.secondsView = secondsView
+        }
+
+        children.append(row)
+        self.timeRow = row
+        self.timeView = timeView
+        needsUpdate = true
     }
 
     func setEnabled(to isEnabled: Bool) {
         dateView?.asControl.isEnabled = isEnabled
         timeView?.isEnabled = isEnabled
+        secondsView?.isEnabled = isEnabled
     }
 
     func changeDateView(to newDiscriminator: DateViewType.Discriminator?) {
@@ -3831,16 +3941,16 @@ final class CustomDatePicker: StackPanel {
                         return
                     }
 
-                    self.date = componentsToFoundationDate(
+                    let picked = componentsToFoundationDate(
                         dateTime: calendarView.selectedDates.getAt(0),
-                        timeSpan: timeView?.selectedTime
+                        timeSpan: keptTimeOfDay
                     )
 
                     if calendarView.selectedDates.size > 1 {
                         self.needsUpdate = true
                     }
 
-                    self.onChange?(self.date)
+                    report(picked)
                 }
                 needsUpdate = true
             case .calendarDatePicker:
@@ -3852,11 +3962,7 @@ final class CustomDatePicker: StackPanel {
                     [unowned self] _, change in
 
                     guard let newDate = change?.newDate else { return }
-                    self.date = componentsToFoundationDate(
-                        dateTime: newDate,
-                        timeSpan: timeView?.selectedTime
-                    )
-                    self.onChange?(self.date)
+                    report(componentsToFoundationDate(dateTime: newDate, timeSpan: keptTimeOfDay))
                 }
                 needsUpdate = true
             case .datePicker:
@@ -3868,11 +3974,7 @@ final class CustomDatePicker: StackPanel {
                     [unowned self] _, _ in
 
                     guard let selectedDate = datePicker.selectedDate else { return }
-                    self.date = componentsToFoundationDate(
-                        dateTime: selectedDate,
-                        timeSpan: timeView?.selectedTime
-                    )
-                    self.onChange?(self.date)
+                    report(componentsToFoundationDate(dateTime: selectedDate, timeSpan: keptTimeOfDay))
                 }
                 needsUpdate = true
             case nil:
@@ -3901,7 +4003,11 @@ final class CustomDatePicker: StackPanel {
 
     func updateIfNeeded(date: Date, calendar: Calendar) {
         if !needsUpdate && date == self.date && calendar == self.calendar { return }
-        defer { needsUpdate = false }
+        isApplyingUpdate = true
+        defer {
+            needsUpdate = false
+            isApplyingUpdate = false
+        }
 
         self.date = date
         self.calendar = calendar
@@ -3958,6 +4064,10 @@ final class CustomDatePicker: StackPanel {
 
         if let timeView {
             timeView.selectedTime = timeSpan
+        }
+        if let secondsView {
+            let seconds = Int(timeOfDay(date).rounded(.down)) % 60
+            secondsView.selectedIndex = Int32(seconds)
         }
     }
 
@@ -4021,6 +4131,26 @@ final class CustomDatePicker: StackPanel {
             } else {
                 SIMD2<Int>.zero
             }
+        // The seconds selector sits in the same row, after the row's spacing.
+        // 秒數選擇器位於同一列,在該列的間距之後。
+        //
+        // A FIXED size, not `WinUIBackend.naturalSize(of: secondsView)`. Measuring
+        // a ComboBox holding 60 items returned the height of its item list: the
+        // first build of this made P41's window 2757 px tall, drew the H:M:S row
+        // at the top of the cell and pushed its label ~1500 px below it.
+        // 用**固定**尺寸,而不是 `WinUIBackend.naturalSize(of: secondsView)`。量一個裝了 60 個項目的
+        // ComboBox,回傳的是它項目清單的高度:本修正的第一版把 P41 的視窗撐到 2757 px 高,H:M:S 那一列
+        // 畫在格子頂端,標籤則被推到它下方約 1500 px 處。
+        let secondsSize =
+            if secondsView != nil, let timeRow {
+                SIMD2(Self.secondsViewWidth + Int(timeRow.spacing), 32)
+            } else {
+                SIMD2<Int>.zero
+            }
+        let timeRowSize = SIMD2(
+            timeViewSize.x + secondsSize.x,
+            max(timeViewSize.y, secondsSize.y)
+        )
 
         let dateViewSize =
             if let dateControl = dateView?.asControl {
@@ -4031,13 +4161,13 @@ final class CustomDatePicker: StackPanel {
 
         if orientation == .horizontal {
             return SIMD2(
-                x: timeViewSize.x + dateViewSize.x + Int(self.spacing),
-                y: max(timeViewSize.y, dateViewSize.y)
+                x: timeRowSize.x + dateViewSize.x + Int(self.spacing),
+                y: max(timeRowSize.y, dateViewSize.y)
             )
         } else {
             return SIMD2(
-                x: max(timeViewSize.x, dateViewSize.x),
-                y: timeViewSize.y + dateViewSize.y + Int(self.spacing)
+                x: max(timeRowSize.x, dateViewSize.x),
+                y: timeRowSize.y + dateViewSize.y + Int(self.spacing)
             )
         }
     }
