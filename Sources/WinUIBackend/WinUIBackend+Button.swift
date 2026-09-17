@@ -20,6 +20,7 @@ extension WinUIBackend {
         button.action = action
         button.buttonStyle = environment.resolvedButtonStyle.kind
         button.enabled = environment.isEnabled
+        button.refreshAccessibilityName()
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
@@ -76,8 +77,77 @@ extension WinUIBackend {
 /// `updateButton(_:label:menu:environment:)`——最後一個是 menu/flyout 按鈕,與 #590 無關。
 /// 與 GtkBackend 不同,那三個方法從未被搬進本檔案,因此兩個類別都仍在使用中。合併它們會弄壞 menu
 /// 按鈕。
+/// Routes `.accessibilityLabel` to a view-label button, and reports whether
+/// `widget` was one.
+/// 把 `.accessibilityLabel` 交給 view-label 按鈕,並回報 `widget` 是否就是這種按鈕。
+func scuiSetButtonAccessibilityLabel(_ widget: WinUI.UIElement, to label: String?) -> Bool {
+    guard let button = widget as? ViewLabelCustomButton else {
+        return false
+    }
+    button.accessibilityLabelOverride = label
+    return true
+}
+
 fileprivate final class ViewLabelCustomButton: WinUI.Button {
     fileprivate var action: (() -> Void)?
+
+    /// What `.accessibilityLabel` asked for, or `nil` where it asked for nothing.
+    /// 由 `.accessibilityLabel` 所要求的標籤;未要求時為 `nil`。
+    fileprivate var accessibilityLabelOverride: String? {
+        didSet { refreshAccessibilityName() }
+    }
+
+    /// Names the button, and takes its content out of the automation tree once
+    /// it has a name.
+    ///
+    /// **Without this, an unlabelled button has an EMPTY UIA Name.** Measured
+    /// 2026-09-17 with p69_uia.zsh: `button name='' help='Removes the file
+    /// permanently'`, with `text 'Delete'` present only as a child. XAML
+    /// derives a Button's name from its content only when the content is a
+    /// string, and here the content is a view. AppKitBackend derives the name
+    /// from the first text in the label (`firstTextFieldValue`), and this
+    /// follows it, including hiding the content so the words are announced once
+    /// rather than as the button and again as its child.
+    ///
+    /// Runs from `updateButton` on every layout pass. That comes after the label
+    /// has laid out, and `Text` writes its string during layout, so the text is
+    /// already there to read. A label override, set by the modifier after this
+    /// pass, wins through `accessibilityLabelOverride`. A button with no text,
+    /// such as an image-only label, keeps its content exposed, because that
+    /// content is all it has to say.
+    ///
+    /// 為按鈕命名,並在它有了名字之後把內容移出 automation 樹。
+    ///
+    /// **少了這一步,未設標籤的按鈕 UIA Name 是空的。** 2026-09-17 以 p69_uia.zsh 實測:
+    /// `button name='' help='Removes the file permanently'`,`text 'Delete'` 只以子節點存在。XAML 只在
+    /// content 是字串時才從 content 推導 Button 的名稱,而這裡的 content 是一個 view。AppKitBackend 以
+    /// label 中第一段文字命名(`firstTextFieldValue`),此處照做,包括把內容藏起來,讓那些字只被念一次,
+    /// 而不是按鈕念一次、子節點再念一次。
+    ///
+    /// 由 `updateButton` 在每一次 layout pass 呼叫。那發生在 label 排版之後,而 `Text` 在排版時就寫入
+    /// 字串,所以文字已經在那裡可讀。modifier 在這一趟之後設定的標籤覆寫,經由
+    /// `accessibilityLabelOverride` 勝出。沒有文字的按鈕(例如只有圖片的 label)內容保持暴露,因為那是
+    /// 它唯一能說的東西。
+    fileprivate func refreshAccessibilityName() {
+        let label = content as? WinUI.UIElement
+        let name = accessibilityLabelOverride ?? label.flatMap(Self.firstText(in:))
+        AutomationProperties.setName(self, name ?? "")
+        if let label {
+            scuiSetAccessibilityView(ofSubtree: label, hidden: name != nil)
+        }
+    }
+
+    private static func firstText(in element: WinUI.UIElement) -> String? {
+        if let block = element as? WinUI.TextBlock, !block.text.isEmpty {
+            return block.text
+        }
+        for child in scuiChildren(of: element) {
+            if let text = firstText(in: child) {
+                return text
+            }
+        }
+        return nil
+    }
 
     private var isPointerCaptured = false
     fileprivate var isHighlighted = false {

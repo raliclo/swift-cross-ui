@@ -105,6 +105,12 @@ on first use.
 P69-gtk4.exe, the GTK build on Windows, which has no accessibility backend (see
 todo.md): exit 1, with label, hint, value and text_label all false. That shows
 the checks can fail.
+Later the same day, two UIA-only checks were added, `derived_names` and
+`no_duplicate_text`, which test that an unlabelled button is named from its
+text. Both were false on the previous build. After the WinUIBackend fix:
+18/18, exit 0.
+同日稍晚新增兩項僅 UIA 的檢查(未設標籤按鈕以文字命名、文字不重複);前一版建置兩項皆 false,
+WinUIBackend 修正後 18/18、exit 0。
 
 WinUI 版的外部探針,七項檢查與 AT-SPI 版相同,在 **control** 與 **content** 兩個 view 各跑一次,並在每份
 傾印中寫明 view——raw view 會列出螢幕閱讀器走不到的元素。第一次使用時以 clang 建置 `uia_tree.c`。

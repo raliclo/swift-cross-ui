@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 # Reads P69's accessibility tree through EXTERNAL UI Automation (Windows), in the
 # control and content views a screen reader walks -- the WinUI counterpart of
-# p69_atspi.zsh, with the same seven checks.
+# p69_atspi.zsh: its seven checks plus two for unlabelled button names.
 #
 #   zsh testapp/test_support/measure/p69_uia.zsh testapp/output/P69-WinUI.exe
 #   zsh testapp/test_support/measure/p69_uia.zsh --help
@@ -60,6 +60,11 @@ for view in control content; do
     check $view text_label "$([[ $(count "name='Half past twelve'") -eq 1 ]] && printf true || printf false)"
     check $view no_original_text "$([[ $(count "name='12:30'") -eq 0 ]] && printf true || printf false)"
     check $view hidden "$([[ $(count "name='decorative'") -eq 0 ]] && printf true || printf false)"
+    # UIA only: an unlabelled button named from its text, and that text not
+    # left behind as a child, which would be announced twice.
+    # 僅 UIA:未設標籤的按鈕以其文字命名,且該文字不留作子節點,否則會被念兩次。
+    check $view derived_names "$([[ $(count "button name='Delete' help=") -eq 1 && $(count "button name='Volume' status=") -eq 1 ]] && printf true || printf false)"
+    check $view no_duplicate_text "$([[ $(count "text name='Delete'") -eq 0 && $(count "text name='Volume'") -eq 0 ]] && printf true || printf false)"
 done
 
 exit $failed

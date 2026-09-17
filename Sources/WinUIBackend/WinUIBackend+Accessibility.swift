@@ -18,22 +18,16 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     /// 而一個「持續唸出一個該 view 已經不再擁有的名稱」的控制項,比一個沒有名稱的更糟:它是**有自信地
     /// 錯著**。
     ///
-    /// **On a button, the content leaves the automation tree while a label is
-    /// set.** Measured 2026-09-17 with an out-of-process UIA dump of P69 in the
-    /// CONTROL view, the one Narrator walks, and again in the content view:
-    /// `button 'Close'` still had `text 'X'` under it. Same shape and same
-    /// conditions as GtkBackend: only for a button, and only while a label is
-    /// set, because an unlabelled button's content is what it has to say.
+    /// **A view-label button holds the label instead**, because its name is
+    /// rewritten on every `updateButton`. See `ViewLabelCustomButton`.
     ///
-    /// **在按鈕上,只要設了標籤,內容就離開 automation 樹。** 2026-09-17 以行程外的 UIA dump 量 P69,
-    /// 看的是 Narrator 所走的 **control** view,content view 也看了:`button 'Close'` 底下仍有
-    /// `text 'X'`。形狀與條件都與 GtkBackend 相同:只針對按鈕,且只在設了標籤時,因為未設標籤的按鈕,
-    /// 它要說的正是這些內容。
+    /// **view-label 按鈕改為由按鈕自己持有標籤**,因為它的名稱在每一次 `updateButton` 都會被重寫。
+    /// 見 `ViewLabelCustomButton`。
     public func setAccessibilityLabel(ofWidget widget: Widget, to label: String?) {
-        AutomationProperties.setName(widget, label ?? "")
-        if let button = widget as? WinUI.Button, let content = button.content as? WinUI.UIElement {
-            setAccessibilityView(ofSubtree: content, hidden: label != nil)
+        if scuiSetButtonAccessibilityLabel(widget, to: label) {
+            return
         }
+        AutomationProperties.setName(widget, label ?? "")
     }
 
     /// `AutomationProperties.HelpText`, the supplementary description.
@@ -93,17 +87,21 @@ extension WinUIBackend: BackendFeatures.Accessibility {
     /// **清除**該值,而不是寫入 `.content`:有些元素預設就是 raw(本樹的 ContentPresenter 沒有被任何
     /// 東西設定,讀回卻是 raw),寫入 `.content` 會把從未被播報的 template 管路暴露出來。
     public func setAccessibilityHidden(ofWidget widget: Widget, to hidden: Bool) {
-        setAccessibilityView(ofSubtree: widget, hidden: hidden)
+        scuiSetAccessibilityView(ofSubtree: widget, hidden: hidden)
     }
+}
 
-    private func setAccessibilityView(ofSubtree element: WinUI.UIElement, hidden: Bool) {
-        if hidden {
-            AutomationProperties.setAccessibilityView(element, .raw)
-        } else {
-            try? element.clearValue(AutomationProperties.accessibilityViewProperty)
-        }
-        for child in scuiChildren(of: element) {
-            setAccessibilityView(ofSubtree: child, hidden: hidden)
-        }
+/// `raw` on `element` and everything under it, or the default back. Internal
+/// because a button hides its own content with it (WinUIBackend+Button.swift).
+/// 對 `element` 及其底下的一切設為 `raw`,或還原為預設。是 internal,因為按鈕也用它隱藏自己的內容
+/// (WinUIBackend+Button.swift)。
+func scuiSetAccessibilityView(ofSubtree element: WinUI.UIElement, hidden: Bool) {
+    if hidden {
+        AutomationProperties.setAccessibilityView(element, .raw)
+    } else {
+        try? element.clearValue(AutomationProperties.accessibilityViewProperty)
+    }
+    for child in scuiChildren(of: element) {
+        scuiSetAccessibilityView(ofSubtree: child, hidden: hidden)
     }
 }

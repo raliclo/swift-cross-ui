@@ -54,7 +54,11 @@ different depending on where "here" was.
   **2026-09-17:真缺陷,已修。** 新探針指明 view;兩個節點都在 Narrator 走的 control view 裡。
   `AccessibilityView.raw` 只作用於單一元素、子節點會被提升;改為設定整個子樹。修後兩個 view 14/14,
   ItemStatus 讀得到。Narrator 實際朗讀仍未聽過。
-- [ ] **WinUI: an unlabelled button has an EMPTY UIA Name.** In the same dump,
+- [x] **WinUI: an unlabelled button has an EMPTY UIA Name.** **Fixed the same
+  day:** the name is derived from the first text, as AppKit does, and the content
+  is hidden once the button is named. Probe 18/18. P67 on WinUI reads
+  plain label / padded label / two / (empty), identical to AppKit and iOS.
+  **同日已修**:比照 AppKit 從第一段文字命名並隱藏內容;探針 18/18;P67 與 AppKit/iOS 相同。 In the same dump,
   `button name='' help='Removes the file permanently'` and
   `button name='' status='40 percent'` each have their text only as a child
   `text 'Delete'` / `text 'Volume'`. AppKit names such a button from its first
