@@ -1,10 +1,16 @@
 import DefaultBackend
+import Foundation
 import SwiftCrossUI
 
 #if canImport(WinUIBackend)
     import UWP
     import WinUI
     import WinUIBackend
+#endif
+
+#if canImport(GtkBackend)
+    import Gtk
+    import GtkBackend
 #endif
 
 // P4 Windows exploration app:
@@ -44,8 +50,86 @@ struct P4WinUISpecificAndStressView: View {
     var windowSize: Int { 50 }
     var windowEnd: Int { min(rowCount, windowStart + windowSize) }
 
+    /// `--inspect-containers`: drive the `.inspect` overloads of `List` and
+    /// `NavigationSplitView`.
+    ///
+    /// Queue M8 repaired the overloads that cast a view's widget straight to the
+    /// control it names, after `TextField(...).inspect` trapped at launch on
+    /// three backends. These two were left as they were on both Windows
+    /// backends, and nothing here had ever run them: GtkBackend still reaches
+    /// for `scrolled.getChild() as! Gtk.ListBox` and `fixed.children[0] as!
+    /// Gtk.Paned`, which is the same shape that trapped. Opt-in, because P4's
+    /// action files are measured against its current layout.
+    ///
+    /// `--inspect-containers`:驅動 `List` 與 `NavigationSplitView` 的 `.inspect` overload。
+    ///
+    /// queue M8 修好的是那些「把 view 的 widget 直接轉型成它所命名之控制項」的 overload——起因是
+    /// `TextField(...).inspect` 在三個 backend 上一啟動就 trap。這兩個在兩個 Windows backend 上都維持原樣,
+    /// 而且從來沒有任何東西跑過它們:GtkBackend 至今仍是 `scrolled.getChild() as! Gtk.ListBox` 與
+    /// `fixed.children[0] as! Gtk.Paned`,正是當初 trap 的那個形狀。做成 opt-in,因為 P4 的動作檔是依現行版面量的。
+    static let inspectsContainers = CommandLine.arguments.contains("--inspect-containers")
+    @State var listSelection: String? = nil
+
+    static func report(_ message: String) {
+        FileHandle.standardError.write(Data("P4 inspect: \(message)\n".utf8))
+    }
+
     var body: some View {
         VStack(spacing: 14) {
+            if Self.inspectsContainers {
+                List(["row A", "row B"], id: \.self, selection: $listSelection) { value in
+                    Text(value)
+                }
+                // `.inspect` FIRST, and the closure's parameter type written out.
+                // Both matter, and both were measured on 2026-09-18.
+                // `List.inspect` is declared on `List`, so after `.frame(...)`
+                // the receiver is a modifier and only the generic
+                // `View.inspect` applies: with the frame first, an un-annotated
+                // closure reported `Canvas` three times, and the same code with
+                // the type written out did not compile
+                // ("cannot convert value of type '@Sendable (ListView) -> ()'").
+                // 兩件事都重要,而且都是 2026-09-18 量到的:`.inspect` 要在前面,閉包參數型別要寫出來。
+                // `List.inspect` 宣告在 `List` 上,因此接在 `.frame(...)` 之後時接收者已是 modifier、只剩通用的
+                // `View.inspect` 適用:frame 在前時,未標註型別的閉包回報了三次 `Canvas`,而把型別寫出來的同一段
+                // 程式碼則編不過(「cannot convert value of type '@Sendable (ListView) -> ()'」)。
+                #if canImport(WinUIBackend)
+                    .inspect(.afterUpdate) { (native: WinUI.ListView) in
+                        Self.report("List -> \(type(of: native))")
+                    }
+                    .frame(width: 220, height: 70)
+                #elseif canImport(GtkBackend)
+                    // `Gtk.ListView` since #117 made a List one; the overload
+                    // still said `Gtk.ListBox` and trapped when this first ran it.
+                    // 自 #117 起 List 就是 `Gtk.ListView`;那個 overload 仍寫著 `Gtk.ListBox`,於是在這裡第一次
+                    // 真的執行到它時就 trap 了。
+                    .inspect(.afterUpdate) { (native: Gtk.ListView) in
+                        Self.report("List -> \(type(of: native))")
+                    }
+                    .frame(width: 220, height: 70)
+                #else
+                    .frame(width: 220, height: 70)
+                #endif
+
+                NavigationSplitView {
+                    Text("sidebar")
+                } detail: {
+                    Text("detail")
+                }
+                #if canImport(WinUIBackend)
+                    .inspect(.afterUpdate) { (native: WinUI.SplitView) in
+                        Self.report("NavigationSplitView -> \(type(of: native))")
+                    }
+                    .frame(width: 320, height: 90)
+                #elseif canImport(GtkBackend)
+                    .inspect(.afterUpdate) { (native: Gtk.Paned) in
+                        Self.report("NavigationSplitView -> \(type(of: native))")
+                    }
+                    .frame(width: 320, height: 90)
+                #else
+                    .frame(width: 320, height: 90)
+                #endif
+            }
+
             Text("P4: WinUI-specific APIs and callback stress")
                 .font(.system(size: 18))
 
