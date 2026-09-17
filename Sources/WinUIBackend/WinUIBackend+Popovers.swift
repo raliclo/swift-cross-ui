@@ -1,4 +1,5 @@
 @_spi(Backends) import SwiftCrossUI
+import Foundation
 import UWP
 import WinUI
 import WindowsFoundation
@@ -7,15 +8,25 @@ import WindowsFoundation
 ///
 /// `Flyout` rather than `Popup`. Both put content above the page, but `Popup`
 /// takes raw coordinates and leaves light dismiss, placement, flipping at the
-/// screen edge, the beak and the shadow to the caller. `Flyout` is the control
-/// Windows itself uses for exactly this, and `showAt(_:)` takes the anchor
-/// directly -- which is the parameter the whole protocol exists for.
+/// screen edge and the shadow to the caller. `Flyout` is the control Windows
+/// itself uses for exactly this, and `showAt(_:)` takes the anchor directly --
+/// which is the parameter the whole protocol exists for.
+///
+/// **The arrow is NOT the Flyout's.** This comment used to list "the beak" among
+/// the things `Flyout` handles, and it draws none. The user reported it on
+/// 2026-09-17 ("There is no arrow"), looking at P50 captures where the panel
+/// was a plain rectangle, while GtkPopover beside it drew its beak. The arrow
+/// is drawn by `PopoverArrow` below.
 ///
 /// 為 WinUI 實作的 `.popover`，建構於 `Flyout` 之上。
 ///
 /// 選 `Flyout` 而非 `Popup`。兩者都能把內容放到頁面之上，但 `Popup` 接受的是原始座標，並把點擊
-/// 外部關閉、定位、在螢幕邊緣翻轉、尖角與陰影全部留給呼叫端。`Flyout` 則是 Windows 自己就用於
+/// 外部關閉、定位、在螢幕邊緣翻轉與陰影全部留給呼叫端。`Flyout` 則是 Windows 自己就用於
 /// 此事的控制項，而 `showAt(_:)` 直接接受錨點——那正是整個 protocol 之所以存在的那個參數。
+///
+/// **箭頭不是 Flyout 畫的。** 這段註解原本把「尖角」列為 `Flyout` 會處理的東西之一,而它一個也沒畫。
+/// 使用者 2026-09-17 回報(「There is no arrow」):P50 擷圖裡面板只是一個矩形,而旁邊的 GtkPopover
+/// 畫出了尖角。箭頭由下方的 `PopoverArrow` 繪製。
 extension WinUIBackend {
     @MainActor
     public final class Popover {
@@ -37,9 +48,31 @@ extension WinUIBackend {
         /// ——「錯一次、之後永遠對」,看起來像競態,其實不是。
         var preferredPlacement: WinUI.FlyoutPlacementMode?
 
+        /// The element the flyout was last shown at, which the arrow points to.
+        /// 上一次 flyout 顯示時所依附的元素,也就是箭頭要指向的地方。
+        weak var anchor: WinUI.FrameworkElement?
+
+        let arrow = PopoverArrow()
+
         init(content: WinUI.FrameworkElement) {
             flyout = WinUI.Flyout()
             flyout.content = content
+            // Placed only once XAML has laid the presenter out, which is after
+            // `opened`: at `opened` its size can still be zero. One turn of the
+            // main queue is enough; the same deferral P69's readback needs.
+            // 只在 XAML 排好 presenter 之後才放:`opened` 當下它的尺寸可能還是零。主佇列讓一輪就夠,
+            // 與 P69 讀回所需的延後相同。
+            flyout.opened.addHandler { [weak self] _, _ in
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self, let anchor = self.anchor else { return }
+                        self.arrow.show(for: self.flyout, anchoredTo: anchor)
+                    }
+                }
+            }
+            flyout.closing.addHandler { [weak self] _, _ in
+                self?.arrow.hide()
+            }
             // `closed` fires for both user and programmatic dismissals and
             // carries nothing to tell them apart. It no longer needs to: the
             // handler runs on both, which is SwiftUI's rule -- `onDismiss:` runs
@@ -203,7 +236,20 @@ extension WinUIBackend {
         // 在本 backend 上量到:下方沒有空間的按鈕設 `.bottom`,面板被翻到**上方**。有方向的值是**偏好**,
         // 放不下時 XAML 會移動 flyout。
         popover.flyout.placement = popover.preferredPlacement ?? .bottom
+        popover.anchor = anchor
 
+        // Plain `showAt(anchor)`, and the room for the arrow is made afterwards by
+        // `PopoverArrow`. `FlyoutShowOptions` was tried first and rejected, both
+        // measured on P50 on 2026-09-17:
+        // - `exclusionRect` alone: no effect. The gap stayed 4 DIP.
+        // - `position` plus `exclusionRect`: the gap became right, but a
+        //   `.leading` panel with no room on the left no longer flipped. It was
+        //   clamped to x=0 on top of its own button (panel 0-301, button
+        //   126-339).
+        // 用樸素的 `showAt(anchor)`,箭頭的空間之後由 `PopoverArrow` 讓出。先試過 `FlyoutShowOptions`
+        // 並放棄,兩者皆於 2026-09-17 以 P50 實測:只設 `exclusionRect` 沒有作用(間距仍是 4 DIP);
+        // 加上 `position` 間距對了,但左側沒空間的 `.leading` 面板**不再翻轉**,被夾到 x=0、蓋在自己的
+        // 按鈕上(面板 0–301,按鈕 126–339)。
         do {
             try popover.flyout.showAt(anchor)
         } catch {
@@ -296,5 +342,234 @@ extension WinUIBackend: BackendFeatures.PopoverArrowEdges {
                 case .trailing: return WinUI.FlyoutPlacementMode.right
             }
         }
+    }
+}
+
+/// The arrow between a popover and its anchor, which `Flyout` does not draw.
+///
+/// **It is placed from where the panel LANDED, not from where it was asked to
+/// go.** A placement is a preference, and XAML moves the flyout when the
+/// requested side has no room. Measured 2026-09-16: `.bottom` on a button near
+/// the window's bottom edge opened above it. An arrow drawn from the preference
+/// would point away from the anchor in exactly that case. So both rectangles
+/// are read after layout, and the side follows from them.
+///
+/// It is a separate `Popup` with two `Path`s. The first is a filled triangle
+/// whose base sinks into the panel far enough to cover the border line beneath
+/// it. The second strokes only the two slanted sides, so the arrow and the
+/// panel read as one outline. Both brushes are the presenter's own, whatever
+/// the theme resolved them to, so light, dark and acrylic are matched rather
+/// than guessed.
+///
+/// No arrow is drawn when the rectangles overlap (no side to point from), or
+/// when the edge facing the anchor is too short to hold one clear of the
+/// corners. A wrong arrow is worse than none.
+///
+/// popover 與其錨點之間的箭頭——`Flyout` 不畫它。
+///
+/// **位置依面板實際「落在」哪裡決定,不是依它被要求去哪裡。** placement 是偏好,要求的那一側沒有空間時
+/// XAML 會移動 flyout。2026-09-16 實測:靠近視窗底緣的按鈕設 `.bottom`,面板開在它上方。依偏好畫的箭頭,
+/// 在這種情況下正好會指離錨點。所以兩個矩形都在排版後讀取,側邊由它們推出。
+///
+/// 它是一個獨立的 `Popup`,內含兩個 `Path`:一個填滿的三角形(底邊陷入面板,足以蓋掉底下的邊框線),以及一條
+/// 只描兩條斜邊的線,讓箭頭與面板讀起來是同一條外框。兩支筆刷都取自 presenter 自己——無論主題把它們解析成
+/// 什麼——因此淺色、深色與壓克力都是對上的,而不是猜的。
+///
+/// 兩個矩形重疊(沒有可指的側邊),或面向錨點的那條邊太短、放不下一個避開圓角的箭頭時,就不畫。錯的箭頭比
+/// 沒有箭頭更糟。
+@MainActor
+final class PopoverArrow {
+    private let popup = WinUI.Popup()
+    private let canvas = WinUI.Canvas()
+    private let fill = WinUI.Path()
+    private let outline = WinUI.Path()
+
+    /// Base width and height of the triangle, in effective pixels.
+    /// 三角形的底寬與高,單位為 effective pixel。
+    private let baseWidth: Float = 20
+    static let depth: Float = 10
+    private var depth: Float { Self.depth }
+
+    init() {
+        canvas.isHitTestVisible = false
+        canvas.children.append(fill)
+        canvas.children.append(outline)
+        popup.child = canvas
+        popup.isHitTestVisible = false
+    }
+
+    func hide() {
+        popup.isOpen = false
+    }
+
+    func show(for flyout: WinUI.Flyout, anchoredTo anchor: WinUI.FrameworkElement) {
+        guard
+            let content = flyout.content,
+            let presenter = Self.presenter(containing: content)
+        else {
+            hide()
+            return
+        }
+        // A presenter can be reused between openings, so any shift left from
+        // the last one is removed before measuring.
+        // presenter 可能在多次開啟之間被重用,因此量測前先移除上一次留下的位移。
+        presenter.translation = WindowsFoundation.Vector3(x: 0, y: 0, z: 0)
+        guard
+            let root = anchor.xamlRoot?.content,
+            var panel = Self.bounds(of: presenter, in: root),
+            let target = Self.bounds(of: anchor, in: root)
+        else {
+            hide()
+            return
+        }
+
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_POPOVER_ARROW"] == "1" {
+            // stderr, unbuffered: a `print` into a pipe is lost when the process is killed.
+            // 寫到不緩衝的 stderr:`print` 寫進管線時,行程被結束就會遺失。
+            FileHandle.standardError.write(
+                Data(
+                    ("popover arrow: panel \(panel.minX),\(panel.minY)-\(panel.maxX),\(panel.maxY)"
+                        + " anchor \(target.minX),\(target.minY)-\(target.maxX),\(target.maxY)\n").utf8
+                )
+            )
+        }
+
+        let corner = Float(max(presenter.cornerRadius.topLeft, presenter.cornerRadius.bottomRight))
+        let border = Float(max(presenter.borderThickness.top, 1))
+        // How far the base sinks into the panel: past the border, so the fill
+        // hides the border line under the arrow.
+        // 底邊陷入面板的深度:越過邊框,讓填色蓋掉箭頭底下那段邊框線。
+        let sink = border + 1
+
+        // Points in root coordinates: tip, then the two base corners.
+        // 以 root 座標表示的點:尖端,再來是底邊的兩個角。
+        let tip: (Float, Float)
+        let baseA: (Float, Float)
+        let baseB: (Float, Float)
+        let half = baseWidth / 2
+
+        func along(_ centre: Float, _ low: Float, _ high: Float) -> Float? {
+            let lower = low + corner + half
+            let upper = high - corner - half
+            guard lower <= upper else { return nil }
+            return min(max(centre, lower), upper)
+        }
+
+        // XAML leaves about 4 DIP between panel and anchor, and the arrow needs
+        // its depth plus a little air, or its tip lands ON the button. Measured
+        // 2026-09-17 on P50: gap 4 DIP on all four sides, tip over the button's
+        // edge. The panel is moved the difference, away from the anchor, with
+        // `translation`, which leaves XAML's placement and flipping untouched.
+        // XAML 在面板與錨點之間只留約 4 DIP,而箭頭需要它的深度再加一點空隙,否則尖端會落在按鈕**上**。
+        // 2026-09-17 以 P50 實測:四個方向間距都是 4 DIP、尖端壓在按鈕邊緣。面板以 `translation` 往遠離錨點
+        // 的方向移動差額,這不會動到 XAML 的定位與翻轉。
+        let air: Float = 3
+        func shift(_ gap: Float) -> Float { max(0, depth + air - gap) }
+
+        if panel.minY >= target.maxY - 1, let x = along(target.midX, panel.minX, panel.maxX) {
+            // Panel below the anchor: arrow on its top edge, pointing up.
+            // 面板在錨點下方:箭頭在它的上緣,朝上。
+            let move = shift(panel.minY - target.maxY)
+            presenter.translation = WindowsFoundation.Vector3(x: 0, y: move, z: 0)
+            panel.minY += move
+            panel.maxY += move
+            tip = (x, panel.minY - depth)
+            baseA = (x - half, panel.minY + sink)
+            baseB = (x + half, panel.minY + sink)
+        } else if panel.maxY <= target.minY + 1, let x = along(target.midX, panel.minX, panel.maxX) {
+            let move = shift(target.minY - panel.maxY)
+            presenter.translation = WindowsFoundation.Vector3(x: 0, y: -move, z: 0)
+            panel.minY -= move
+            panel.maxY -= move
+            tip = (x, panel.maxY + depth)
+            baseA = (x - half, panel.maxY - sink)
+            baseB = (x + half, panel.maxY - sink)
+        } else if panel.minX >= target.maxX - 1, let y = along(target.midY, panel.minY, panel.maxY) {
+            let move = shift(panel.minX - target.maxX)
+            presenter.translation = WindowsFoundation.Vector3(x: move, y: 0, z: 0)
+            panel.minX += move
+            panel.maxX += move
+            tip = (panel.minX - depth, y)
+            baseA = (panel.minX + sink, y - half)
+            baseB = (panel.minX + sink, y + half)
+        } else if panel.maxX <= target.minX + 1, let y = along(target.midY, panel.minY, panel.maxY) {
+            let move = shift(target.minX - panel.maxX)
+            presenter.translation = WindowsFoundation.Vector3(x: -move, y: 0, z: 0)
+            panel.minX -= move
+            panel.maxX -= move
+            tip = (panel.maxX + depth, y)
+            baseA = (panel.maxX - sink, y - half)
+            baseB = (panel.maxX - sink, y + half)
+        } else {
+            hide()
+            return
+        }
+
+        let originX = min(tip.0, baseA.0, baseB.0)
+        let originY = min(tip.1, baseA.1, baseB.1)
+        func local(_ point: (Float, Float)) -> WindowsFoundation.Point {
+            WindowsFoundation.Point(x: point.0 - originX, y: point.1 - originY)
+        }
+
+        fill.data = Self.geometry([local(baseA), local(tip), local(baseB)], closed: true)
+        fill.fill = presenter.background
+        outline.data = Self.geometry([local(baseA), local(tip), local(baseB)], closed: false)
+        outline.stroke = presenter.borderBrush
+        outline.strokeThickness = Double(border)
+
+        popup.xamlRoot = anchor.xamlRoot
+        popup.shouldConstrainToRootBounds = flyout.shouldConstrainToRootBounds
+        popup.horizontalOffset = Double(originX)
+        popup.verticalOffset = Double(originY)
+        popup.isOpen = true
+    }
+
+    private static func presenter(containing element: WinUI.DependencyObject) -> WinUI.FlyoutPresenter? {
+        var current: WinUI.DependencyObject? = element
+        while let node = current {
+            if let presenter = node as? WinUI.FlyoutPresenter {
+                return presenter
+            }
+            current = VisualTreeHelper.getParent(node)
+        }
+        return nil
+    }
+
+    private struct Box {
+        var minX: Float
+        var minY: Float
+        var maxX: Float
+        var maxY: Float
+        var midX: Float { (minX + maxX) / 2 }
+        var midY: Float { (minY + maxY) / 2 }
+    }
+
+    private static func bounds(of element: WinUI.FrameworkElement, in root: WinUI.UIElement) -> Box? {
+        guard
+            element.actualWidth > 0, element.actualHeight > 0,
+            let transform = try? element.transformToVisual(root),
+            let rect = try? transform.transformBounds(
+                WindowsFoundation.Rect(
+                    x: 0, y: 0,
+                    width: Float(element.actualWidth), height: Float(element.actualHeight)
+                )
+            )
+        else { return nil }
+        return Box(minX: rect.x, minY: rect.y, maxX: rect.x + rect.width, maxY: rect.y + rect.height)
+    }
+
+    private static func geometry(_ points: [WindowsFoundation.Point], closed: Bool) -> WinUI.PathGeometry {
+        let geometry = WinUI.PathGeometry()
+        let figure = WinUI.PathFigure()
+        figure.startPoint = points[0]
+        figure.isClosed = closed
+        figure.isFilled = closed
+        for point in points.dropFirst() {
+            let segment = WinUI.LineSegment()
+            segment.point = point
+            figure.segments.append(segment)
+        }
+        geometry.figures.append(figure)
+        return geometry
     }
 }

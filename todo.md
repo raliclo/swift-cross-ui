@@ -210,6 +210,14 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
         它不顯示、也不擲錯,而 log 照樣寫 `shown`。已改為 `.bottom`,與 Mac 端同日把 AppKit 改到下方
         (cf4a4a88)的一致性決定相同;修後 ALPHA 在下方、BETA 放不下而翻到上方。見 mistakes #21。
         **cf4a4a88 註解裡「WinUI 的 Flyout 自動放在放得下的下方」這句不成立**——`.auto` 什麼都不顯示。
+      - **WinUI 的 popover 沒有箭頭(使用者回報,2026-09-17),已補上。** `Flyout` 不畫尖角,swift-winui
+        也沒投影 `TeachingTip`。`PopoverArrow` 依面板**實際落點**判斷側邊,用獨立 `Popup` 畫三角形,
+        顏色取 presenter 自己的筆刷;面板以 `translation` 讓出箭頭的空間,不影響 XAML 的翻轉。四個方向的
+        合成截圖:`p50w-popover-arrow-final.png`。
+- [ ] **WinUI:popover 內的按鈕按不到(以合成輸入而言)。** P50 的 `press me` 在 flyout 裡,動作檔點擊與
+      觸控點擊各 0/2;**沒有箭頭的舊版建置同樣 0/2**,所以不是箭頭造成的。GTK 那邊 2026-09-09 已記過
+      「重放器點不到 popover 內部」(`P50-press-inside-popover.csv`)。尚未區分是合成輸入到不了 flyout 的
+      popup,還是真的按不下去——**需要一次真人點擊**才能定案。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
