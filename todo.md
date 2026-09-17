@@ -65,6 +65,52 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 四項 Windows 工作全部結案。~~有一條路徑已寫進程式碼但**未驅動**:WinUI 修改時/分時保留綁定的秒數。~~
 同日上午已用鍵盤驅動:09:46:42 → 10:46:42。
 
+### 2026-09-17 (Mac) — 一個 8dp 的手勢奪取、兩個回報缺口、以及 iOS 的第一支外部無障礙探針
+
+全部已修並以動作檔在裝置上驅動過。列在此處,是因為其中兩項在**其他 backend 上可能同形**,
+而那部分我這裡驗不了。
+
+- [x] **Android:會捲動的祖先在一個 touch slop 處奪走手勢(8dp = 420 dpi 下 21 px)。**
+      `ContinuousGestureContainer` 把隨之而來的 `ACTION_CANCEL` 當成結束回報,其後每個 move 都靜靜
+      落在 `tracking` 守衛外。縮放停在 1.194(62 步的第 12 步,該接觸點移動 20.3 px),旋轉停在
+      0.633 rad(31 步的第 25 步,水平移動 20.4 px)——兩個手勢、兩個比例、同一個門檻。修法:
+      `ACTION_DOWN` 時 `requestDisallowInterceptTouchEvent(true)`。修後 `magnify ENDED: 2.000`、
+      `rotate ENDED: 0.785 rad`,正是那兩列所要求的。
+- [x] **同一個奪取也吃掉滑桿,而且更容易遇到。** `actions/android/P11-drag-the-first-slider.csv`
+      (新增;既有的 P11 檔只**點擊**滑桿,從未拖曳過)。修之前:讀數仍是 `minimum 20`、
+      `writes: min 0`,`uiautomator` 給滑塊 319..445 對上起於 368 的軌道(最起點、沒動),而**整頁**
+      向右捲了。修之後:`minimum 44`、`writes: min 8`,軌道 0..1078 沒有捲動,滑塊在 378..504。
+      **Material 的 `BaseSlider` 確實會自己呼叫 `requestDisallowInterceptTouchEvent`,而那不夠**
+      ——它那一次發生在它判定拖曳是水平的之後,那時水平捲動的父節點已經拿走了。垂直拖曳會把手勢
+      還回去,所以滑桿底下的清單仍捲得動。
+- [ ] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
+      之內,會不會在幾個 px 之後被容器接手?」GTK 有 `GtkGestureSingle` 的 propagation phase 與
+      `gtk_gesture_set_state(GTK_EVENT_SEQUENCE_CLAIMED)`;WinUI 有 `ManipulationMode` 與
+      `CapturePointer`。**我這裡沒有那兩個平台,無法驗。** 檢查方式與這裡相同:拖一個滑桿、拖遠一點,
+      看值有沒有跟到底、以及頁面有沒有反而捲動。
+- [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
+      Android 只就**頁面自己**發起的導覽詢問它;第一次載入由我們的 `loadUrl` 發起,因此從未被回報:
+      P38 畫出了 example.com 而旁邊寫著 `Navigations reported: 0`,AppKit 與 UIKit 都寫 1。改用
+      `onPageStarted`(等同兩個 Apple backend 的 `didCommit`)。之後:1,並列出 URL。
+- [x] **iOS:每一段文字都不在無障礙樹上。** 新增的外部探針(`test_ios.zsh --dump-tree`,印 XCUITest
+      解析的樹)第一份輸出就顯示**整支 app 只有一個 `StaticText`,而它屬於測試載具自己的按鈕**;
+      SwiftCrossUI 畫的每段文字都是沒有名字的 `Other`——VoiceOver 對這個 backend 上任何文字都無話
+      可說,而任何截圖都看不出來。原因:`UIKitBackend.TextView` 以 TextKit 自繪,是普通 `UIView`。
+      已修(設定文字時發布 `isAccessibilityElement`/`accessibilityLabel` + `.staticText` trait,
+      並讓 `namedChild` 認得它)。修後:七個 `StaticText` 各帶內容。
+- [x] **#123 複驗(應 Windows 之請):macOS 與 Android 乾淨。** macOS 的 `ax_dump` 新增 `--children`,
+      印出每顆具名按鈕**底下**有什麼:`Close`/`Delete`/`Volume` 三者皆無子節點,樹裡沒有 `X`、
+      沒有 `decorative`。Android 未壓縮的 dump 看得到 `Close → … → TextView 'X'`,**那不是缺陷**
+      ——普通 `uiautomator dump` 會設 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`;`--compressed`(與輔助技術
+      所走訪者相符的那一份)給的是 `Close` 0 個子節點、`decorative` 不存在。兩份同一次執行取得。
+- [ ] **(給 Windows / GTK)** AT-SPI **沒有**那種「不重要」過濾,所以你們看到的樹就是 AT 走訪的樹
+      ——`X` 在裡面就是真的在。線索(不是結論,我這裡無法驗):GTK4 可把內層 label 的 accessible role
+      設為 `NONE`/presentation,或對它
+      `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。Narrator 的實際朗讀
+      也仍未驗。
+- [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
+      是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as
