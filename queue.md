@@ -2,6 +2,12 @@
 
 ## 2026-09-12 Windows / WSL handover
 
+- [ ] **#123 external verification follow-up (2026-09-17)**: WSLg AT-SPI
+  reads label/hint/value and excludes decorative, but still exposes the original
+  `X` child. Windows external UIA also lists `X` and `decorative`; Narrator and
+  control/content-tree filtering remain unverified. See
+  `testapp/plan/verification-followup-20260917.md`. 外部探針已執行，不是完整通過。
+
 - [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**:
   GtkBackend now uses the native lazy factory. Release builds succeeded on
   WSL and Windows including the latest lifetime change.
@@ -17,7 +23,7 @@
   `testapp/plan/plan-backend-followup-20260912.md`.
   GTK 接入、生命週期修正、兩端原生狀態及截圖驗證已完成；黑圖成因是過期的 WSLg
   COPY MODE bridge，加上舊 PrintWindow 路徑無法讀取 GPU surface。真實指標輸入與
-  WinUI 回歸仍待驗證。2026-09-14 更新。
+  WinUI 回歸亦已完成，見以下 2026-09-16 更新。
   **2026-09-16 更新:GtkBackend 的 `LazyListRows` 已完成(`5739d453`),而一次原始碼掃描
   會說它沒有——它是由 `LazyListRowLifetimes` 繼承而來的,那個 extension 兩個方法都實作了。
   WinUI 的 `LazyListRowLifetimes` 也已完成並以對照組量過(release 146/150 MB 對
@@ -27,8 +33,10 @@
   `selection=none`;`Toggle count` 走過 `rows=1 → rows=400`,而重建後 `Select last` 仍正確地
   回報 399。**此條可以關掉了。****
   *2026-09-16: GTK's `LazyListRows` is done and INHERITED, so a name-based sweep reports it
-  missing; WinUI's `LazyListRowLifetimes` is done and measured against a control. What is left
-  here is the P57 gtk4 pointer replay, nothing else.*
+  missing; WinUI's `LazyListRowLifetimes` is done and measured against a control.
+  The final GTK pointer replay also completed at 18:58: selection 1 -> 8 after
+  scrolling, revision 1, cleared selection, rows 1 -> 400, and last selection 399.
+  GTK pointer replay and WinUI regression are complete.*
 
 Source corrections to older entries below: #128 is already Double
 (`cfe30184`), and WinUI #117 was implemented in `bde16de0`; neither remains
@@ -767,16 +775,15 @@ The two controls now exist as real cells, so neither has to be invented:
 
 - **Positive (must report YES)**: `GtkBackend` vs `BackendFeatures.LazyListRows`,
   satisfied through the `LazyListRowLifetimes` extension.
-- **Negative (must report NO)**: `WinUIBackend` vs
-  `BackendFeatures.LazyListRowLifetimes`, which is genuinely absent and is the
-  new cell above.
+- **Historical negative (no longer valid)**: `WinUIBackend` vs
+  `BackendFeatures.LazyListRowLifetimes`. This now reports YES.
 
 A discriminator that gets both right can open the 39; one that gets a single cell
 right got it by luck.
 
-**The negative control was closed the same afternoon**, so a probe written after
-2026-09-16 needs another one -- `AppKitBackend`, `UIKitBackend` and
-`AndroidBackend` all still lack `LazyListRowLifetimes` and any of them serves.
+**All five backends now implement the lifecycle protocol** (24319bd6).
+Use an explicit nonconforming test fixture for the negative control, not one of
+these production backends. 五個 backend 皆已實作，負對照應使用未 conform 的測試型別。
 
 WinUI now conforms, measured rather than asserted: one binary, two runs
 interleaved twice, each sweeping 5,000 rows (~9,000 prepares, ~9,000 recycles).

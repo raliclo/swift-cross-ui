@@ -68,3 +68,18 @@ Route tried and closed: build a `CGEvent`, set `type` to 30, wrap it with
 built and delivered; AppKit rejects it with "unrecognized type is 30". There is
 no public gesture initialiser on `NSEvent`. This is the specific API and what it
 did, rather than a claim from memory.
+
+## `p69_atspi.zsh` + `p69_atspi.py` — P69 在**外部** AT-SPI 上長什麼樣子(Linux/WSLg)
+
+```sh
+cd ~/proj/swift-cross-ui/testapp/output
+dbus-run-session -- zsh ../test_support/measure/p69_atspi.zsh "$PWD/P69"
+```
+
+需要 `python3-pyatspi`。以行程 ID 挑出 P69,走訪整棵樹並印出 JSON,再檢查 label、hint、value、
+隱藏與「原本的 `X` 不應出現」。2026-09-17 的結果不是完整通過:`X` 子節點仍在,詳見
+`testapp/plan/verification-followup-20260917.md`。
+
+Reads P69 through the external AT-SPI bus -- what a screen reader sees -- rather
+than P69's in-process readback. The 2026-09-17 run is not a full pass: the
+original `X` child is still exposed.

@@ -28,6 +28,19 @@ different depending on where "here" was.
 
 ## Now / 現在
 
+### #123 external verification / 外部驗證 (2026-09-17)
+
+- [ ] P69 WSLg AT-SPI: external readback now exists, but the original `X` child
+  remains after the button is renamed `Close`. Label/hint/value and hidden
+  decorative checks pass; the no-original-label assertion fails. Investigate
+  child exposure and screen-reader traversal, rather than closing this from
+  in-process properties. 外部探針已完成，但 `X` 子節點仍存在，尚未結案。
+- [ ] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
+  control/content views and Narrator speech. The available tree omits ItemStatus,
+  so it cannot validate the value. 尚需確認 UIA filter、ItemStatus 與 Narrator。
+
+Evidence and local commit split: `testapp/plan/verification-followup-20260917.md`.
+
 ### 2026-09-12 Windows handover / Windows 接續工作
 
 Current source takes precedence over the older dated notes below. Track the
