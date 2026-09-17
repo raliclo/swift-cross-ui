@@ -295,9 +295,37 @@ extension Button: TypeSafeView {
         if let proposedWidth = proposedSize.width {
             childProposal.width = max(proposedWidth - Double(buttonPadding.x), 0)
         }
-        if let proposedHeight = proposedSize.height {
-            childProposal.height = max(proposedHeight - Double(buttonPadding.y), 0)
-        }
+        // **The height is NOT proposed to the label, and that is what stops a
+        // button from being squeezed to a three-pixel bar.**
+        //
+        // A proposal of zero height reached the label, the label answered with
+        // nothing, and the button's minimum size became its padding. That
+        // number is not academic: a window opens at
+        // `max(minimumWindowSize, proposedWindowSize)`, so a page whose minimum
+        // is computed from squeezed buttons opens at a height where the buttons
+        // are squeezed. Measured with P50 on AppKit 2026-09-17: the window came
+        // up 780x825, section 2's three buttons were three-pixel bars with no
+        // legible text while every `Text` around them rendered, and the
+        // instrumented window pass reported `minimum (82, 797)` -- about 150
+        // points short of the height the same content needs to draw.
+        //
+        // A button's height is its label's height plus padding on every backend
+        // here; none of them stretch or compress one vertically. Letting the
+        // label answer with its own height is therefore not a new policy, it is
+        // the one the widgets already have.
+        //
+        // **高度不會被提議給標籤,而這正是「按鈕不會被壓成三像素長條」的原因。**
+        //
+        // 一個高度為零的提議抵達了標籤,標籤以「什麼都沒有」作答,於是這顆按鈕的最小尺寸變成只剩 padding。
+        // 那個數字不是紙上談兵:視窗會以 `max(minimumWindowSize, proposedWindowSize)` 開啟,因此一頁
+        // 「最小尺寸是由被壓扁的按鈕算出來的」內容,就會在「按鈕被壓扁」的那個高度開啟。2026-09-17 於
+        // AppKit 上以 P50 實測:視窗以 780x825 開啟,第 2 區塊的三顆按鈕是三像素高、文字無法辨讀的長條,
+        // 而周圍每一個 `Text` 都正常;加了儀器的視窗流程回報 `minimum (82, 797)`——比同一份內容真正需要
+        // 的高度少了約 150 點。
+        //
+        // 在此處的每一個 backend 上,一顆按鈕的高度都是「標籤高度加上 padding」;沒有任何一個會把按鈕
+        // 垂直拉伸或壓縮。因此讓標籤以它自己的高度作答,並不是一項新政策,而是那些 widget 本來就有的行為。
+        childProposal.height = nil
 
         // `styledLabel(in:)` rather than `body.view0`: it is rebuilt from the
         // current `isPressed` on every pass, so a press that came in since the

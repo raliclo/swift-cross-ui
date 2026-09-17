@@ -1,3 +1,4 @@
+import Foundation
 /// Holds the view graph and window handle for a single window.
 @MainActor
 final class WindowReference<SceneType: WindowingScene> {
@@ -385,6 +386,16 @@ final class WindowReference<SceneType: WindowingScene> {
                 maximumWindowSize = result.size
             case .automatic, .contentMinSize:
                 maximumWindowSize = nil
+        }
+
+        if ProcessInfo.processInfo.environment["SCUI_DEBUG_WINDOW_SIZE"] == "1" {
+            FileHandle.standardError.write(
+                Data(
+                    ("-window: proposed \(proposedWindowSize) minimum \(minimumWindowSize.vector) "
+                        + "maximum \(maximumWindowSize?.vector.description ?? "nil") "
+                        + "resizability \(environment.windowResizability)\n").utf8
+                )
+            )
         }
 
         let clampedWindowSize = ViewSize(
