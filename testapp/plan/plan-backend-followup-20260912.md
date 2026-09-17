@@ -1,15 +1,16 @@
 # Backend follow-up / Backend 接續工作
 
-Updated 2026-09-14 on develop. Verify WSLg first, then Windows. A build is not
+Updated 2026-09-17 on develop. Verify WSLg first, then Windows. A build is not
 a GUI pass. Preserve action files, logs and screenshots; use PIL measurements
 for geometry or visual assertions. No commit is requested for this work yet.
 
-2026-09-14，develop。先 WSLg，再 Windows。編譯通過不等於 GUI 通過；保留動作檔、
+2026-09-17，develop。先 WSLg，再 Windows。編譯通過不等於 GUI 通過；保留動作檔、
 log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 commit。
 
-1. #117 GTK: in progress. Connect the existing ListView draft to LazyListRows;
-   test P57 at 1/400/10,000 rows, scroll, change content/count and clear selection.
-   GTK：進行中。接入 LazyListRows，驗證列數、捲動、內容更新與 nil selection。
+1. #117 GTK: DONE. Native ListView and LazyListRowLifetimes are connected;
+   WSLg/Windows pointer, scrolling, content/count and selection checks are recorded
+   below. Final Windows GTK replay completed 2026-09-16 at 18:58.
+   GTK：已接入並完成測試；WSLg/Windows 操作證據見下方紀錄。
 1b. #117 WinUI row lifetimes: **DONE and measured 2026-09-16.** `WinUIBackend`
    conformed to `LazyListRows` but not `LazyListRowLifetimes`, so no row was ever
    reported as released. Now released on `ContainerContentChanging` +
@@ -23,9 +24,11 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
    WinUI 的列生命週期:**已完成並量測**。訊號是 `inRecycleQueue`,索引取自 `args.itemIndex`。
    以同一支執行檔、交錯兩輪、各掃 5000 列驗收:有釋放 **146 / 150 MB**,對照組 **221 / 222 MB**,
    兩組實體化容器皆為 38。對照組不可省略——conform 本身就會把快取上限從 200 換成 4000。
-   Still open elsewhere: AppKit, UIKit and Android have no `LazyListRowLifetimes`.
-2. #117 Android: pending implementation and emulator/device verification.
-   Android：待實作及模擬器或實機驗證。
+   AppKit, UIKit and Android also implement `LazyListRowLifetimes` (24319bd6).
+   Implementation is not proof of every platform's large-scroll verification;
+   UIKit traversal remains unverified in matrix_coverage/results.csv2.
+2. #117 Android: implemented, with device memory measurements recorded in queue.md.
+   Android：已實作並有裝置記憶體量測，不再列為待轉換。
 3. #121 shortcuts: **DONE on both Windows backends, 2026-09-16.**
    `actions/win/P20-ctrl-k-shortcut.csv` replayed 5 actions on each, and
    `SHORTCUT FIRED` appears in `p20-debug-events.log` exactly **once** per run --
@@ -40,8 +43,10 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 4. #32 gestures: drag has prior evidence; magnify/rotate need gesture input and
    callback/value checks. Do not label compile-only paths verified.
    手勢：縮放與旋轉仍待真實手勢輸入及數值驗證。
-5. #122/#123 focus/accessibility: **both DONE on both Windows backends,
-   2026-09-16, and both DRIVEN by action files rather than only built.**
+5. #122/#123 focus/accessibility: implementation and in-process checks completed
+   on both Windows backends. **#123 external verification is NOT complete.**
+   The 2026-09-17 AT-SPI probe exposes an extra `X` child; Windows UIA and
+   Narrator limitations are in `verification-followup-20260917.md`.
 
    #122: FocusableViews now has all five backends. P70-focus.csv and
    P70-focus-gtk4.csv drive all four protocol methods plus one refusal, 13
@@ -54,16 +59,14 @@ log 與截圖，幾何及外觀判定須有 PIL 量測。本次尚未要求 comm
 
    TWO LIMITS, stated so nobody has to discover them: the readback is
    in-process, so it confirms the backend ATTACHED what the modifier asked for
-   and says nothing about what Narrator resolves; and GTK has NO readback at
-   all, because gtkaccessible.h has update_property/update_state and no getters
-   -- reading needs AT-SPI, which is Linux-only. Win-gtk4 can set these
-   correctly and have nothing able to read them.
+   and says nothing about what Narrator resolves. GTK now has an external Linux
+   AT-SPI probe (2026-09-17); its result is not a full pass. The lack of GTK
+   in-process getters does not mean that external readback is unavailable.
 
    #122/#123:**2026-09-16 於兩個 Windows backend 皆完成,且都以動作檔驅動驗證,不只是編過。**
    細節見上方英文段。**兩個限制**寫明如下,免得有人自己去踩:讀回是**行程內**的,它確認的是
    「backend 掛上了該 modifier 所要求的東西」,對 Narrator 實際解析出什麼**一句話都沒說**;
-   而 **GTK 完全沒有讀回**,因為 `gtkaccessible.h` 只有 `update_property`/`update_state`、
-   沒有任何 getter——要讀必須靠 AT-SPI,而那僅限 Linux。Win-gtk4 可以正確設定,卻沒有東西讀得到。
+   GTK 已於 2026-09-17 加入 Linux AT-SPI 外部讀回；結果仍有 `X` 子節點暴露，尚非完整通過。
 6. #79 GTK: **DONE 2026-09-16, and measured rather than hardcoded -- which was
    the whole of option (c).** The decoration IS queryable before present: create
    a window, do NOT set a titlebar, realize it, and walk its children for the
