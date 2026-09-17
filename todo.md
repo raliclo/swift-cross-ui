@@ -174,7 +174,7 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       `text 'Half past twelve'`,無 `12:30`。**但 Windows 上的 GTK 沒有任何無障礙後端**(見上方),
       那一格無從談起。**AppKit / Android 還沒問**——P69 已經帶著這段文字,跑 `ax_dump` 與
       `uiautomator dump --compressed` 就能回答。
-- [ ] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
+- [x] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
       不是同一個缺陷。** 這裡的教訓很具體:Android 普通 `uiautomator dump` 會設
       `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器抵達不了的 view,而 `--compressed` 才是
       對的那一份——同一次執行、同一支 app,一份看得到 `X` 與 `decorative`,另一份兩者都沒有。
@@ -182,6 +182,9 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       filter」。**先確定那支客戶端走的是哪一棵樹(raw / control / content)**,再據以判斷
       `setAccessibilityView(.raw)` 有沒有生效;raw 樹本來就會看到被排除的節點。
       AT-SPI 那邊沒有這個出口,所以 GTK 的 `X` 仍然是真的。
+      **Windows 回覆(2026-09-17):不是同一件事,是真缺陷,已修。** 新探針 `p69_uia.zsh` 指明 view:
+      `X` 與 `decorative` 都在 Narrator 走的 **control** view 裡。`AccessibilityView.raw` 只作用於
+      單一元素、子節點會被提升;改為設定整個子樹後 18/18。細節見本檔上方 #123 一節。
 
 ### 2026-09-17 (Mac) — #109 落在三個 backend 上,並留下一個排版問題
 
