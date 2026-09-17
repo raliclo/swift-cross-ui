@@ -67,8 +67,17 @@ extension UIKitBackend: BackendFeatures.Accessibility {
     private func namedChild(of view: UIView) -> UIView? {
         var found: UIView?
         for subview in view.subviews {
+            // `TextView` joins the two UIKit classes: it is this backend's own
+            // text, it draws through TextKit rather than being a `UILabel`, and
+            // since it publishes an `accessibilityLabel` of its own a label
+            // written only on the wrapper would be the one VoiceOver does not
+            // read.
+            // `TextView` 與那兩個 UIKit 類別並列:它是本 backend 自己的文字,以 TextKit 繪製而非
+            // `UILabel`;而既然它會自行發布 `accessibilityLabel`,只寫在包裝上的標籤,就會是
+            // VoiceOver **不會**讀到的那一個。
             let candidate: UIView? =
-                (subview is UIControl || subview is UILabel)
+                (subview is UIControl || subview is UILabel
+                    || subview is UIKitBackend.TextView)
                 ? subview
                 : namedChild(of: subview)
             guard let candidate else { continue }

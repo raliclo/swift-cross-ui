@@ -148,6 +148,34 @@ final class ActionFileUITests: XCTestCase {
             Data("-actionfile: replaying \(fileName) with \(actions.count) actions\n".utf8)
         )
 
+        // `IOS_DUMP_TREE=1` prints the accessibility tree before anything is
+        // replayed. **This is the only EXTERNAL view of that tree on iOS.**
+        //
+        // macOS has `ax_dump`, which reads the real AX tree of a running app
+        // from outside it, and Android has `uiautomator dump`. iOS had neither:
+        // P69's #123 evidence was the app describing itself, which is an
+        // in-process walk of the views that FEED the tree -- and a label set on
+        // a wrapper a screen reader never visits reads as correct from there.
+        // XCUITest resolves the same tree an assistive technology does, so this
+        // is the missing third probe rather than a convenience.
+        //
+        // Off by default because it is long: P57 holds thousands of rows.
+        //
+        // `IOS_DUMP_TREE=1` 會在重放任何東西之前印出無障礙樹。**這是 iOS 上對那棵樹唯一的外部視角。**
+        //
+        // macOS 有 `ax_dump`,它從外部讀取一支執行中 app 的真正 AX 樹;Android 有 `uiautomator dump`。
+        // iOS 兩者都沒有:P69 為 #123 提出的證據是「app 自己描述自己」,那是對「餵養那棵樹的 view」
+        // 所做的行程內走訪——而一個設在螢幕閱讀器從不造訪之包裝上的標籤,從那裡看起來是正確的。
+        // XCUITest 解析的是與輔助技術相同的那棵樹,因此這是缺席的第三支探針,而不是便利功能。
+        //
+        // 預設關閉,因為它很長:P57 有數千列。
+        if ProcessInfo.processInfo.environment["IOS_DUMP_TREE"] == "1", !didDumpTree {
+            didDumpTree = true
+            FileHandle.standardError.write(
+                Data("-actionfile: element tree before replay:\n\(app.debugDescription)\n".utf8)
+            )
+        }
+
         for action in actions {
             switch action.kind {
             case "sleep":

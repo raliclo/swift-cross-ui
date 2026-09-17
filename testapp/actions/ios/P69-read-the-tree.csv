@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P69 #123: read the accessibility tree from OUTSIDE, on iOS.
+#
+# **This file replays almost nothing on purpose.** Its subject is the dump that
+# `--dump-tree` prints before the first row: the tree XCUITest resolves, which
+# is the tree an assistive technology walks. iOS is the platform where #123 had
+# no external probe -- macOS has `ax_dump` and Android has `uiautomator dump`,
+# and P69's iOS evidence until now was the app describing its own views, which
+# is the one place a label set on a wrapper nobody visits still looks right.
+#
+#   zsh testapp/test_ios.zsh P69 --dump-tree \
+#       --actionfile testapp/actions/ios/P69-read-the-tree.csv
+#
+# What to read, in the dump rather than in the capture: the button named
+# 'Close' must carry that name and must NOT have a StaticText 'X' under it, and
+# 'decorative' must not appear anywhere.
+#
+# P69 #123:在 iOS 上從**外部**讀取無障礙樹。
+#
+# **這個檔案刻意幾乎不重放任何東西。** 它的主題是 `--dump-tree` 在第一列之前印出的那份輸出:
+# XCUITest 所解析的那棵樹,也就是輔助技術所走訪的那棵樹。iOS 正是 #123 沒有外部探針的那個平台
+# ——macOS 有 `ax_dump`、Android 有 `uiautomator dump`,而 P69 在 iOS 上的證據,至今是「app 描述
+# 它自己的 view」——那恰好是「一個設在沒人造訪之包裝上的標籤」看起來依然正確的唯一地方。
+#
+# 讀什麼(讀那份輸出,不是讀擷圖):名為 'Close' 的按鈕必須帶著那個名字,且其底下**不得**有一個
+# StaticText 'X';而 'decorative' 不得出現在任何地方。
+sleep,,,,,,2500000,let the scene settle; the tree is printed before this row,ios

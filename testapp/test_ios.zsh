@@ -26,6 +26,7 @@ device_name="${IOS_SIM_DEVICE:-swift-cross-ui}"
 showtime_seconds=30
 do_build=1
 action_file=""
+dump_tree=0
 app_args=()
 
 usage() {
@@ -41,6 +42,8 @@ Options:
   --no-showtime              Return immediately after launch.
   --device <name|UDID>       Simulator device; default: $device_name.
   --actionfile <path>        Replay CSV through XCUITest after launch.
+  --dump-tree                Print the accessibility tree (the only external
+                             view of it on iOS) before the replay.
   --debug                    Pass --debug to the Pn app.
   -h, --help                 Show this help.
 
@@ -126,6 +129,15 @@ while [ "$#" -gt 0 ]; do
             fi
             ;;
         --actionfile=*) action_file="${1#*=}"; shift ;;
+        # The accessibility tree, printed by the XCUITest runner before it
+        # replays anything. It is the only EXTERNAL view of that tree on iOS --
+        # macOS has ax_dump and Android has uiautomator dump, and an app
+        # describing itself is not the same evidence. Off by default: the dump
+        # is long.
+        # 由 XCUITest runner 在重放任何東西之前印出的無障礙樹。這是 iOS 上對那棵樹唯一的**外部**
+        # 視角——macOS 有 ax_dump、Android 有 uiautomator dump,而「app 自己描述自己」不是同一種
+        # 證據。預設關閉:那份輸出很長。
+        --dump-tree) dump_tree=1; shift ;;
         --debug) app_args+=(--debug); shift ;;
         --)
             shift
@@ -394,6 +406,11 @@ if [ -n "$action_file" ]; then
     xcrun simctl launch "$device_name" "$bundle_id" "${app_args[@]}"
     /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:IOS_ACTION_FILE string $action_file" "$xctestrun_path" 2>/dev/null \
         || /usr/libexec/PlistBuddy -c "Set :iOSActionFileRunner:TestingEnvironmentVariables:IOS_ACTION_FILE $action_file" "$xctestrun_path"
+
+    if [ "$dump_tree" -eq 1 ]; then
+        /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:IOS_DUMP_TREE string 1" "$xctestrun_path" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :iOSActionFileRunner:TestingEnvironmentVariables:IOS_DUMP_TREE 1" "$xctestrun_path"
+    fi
 
     xcodebuild test-without-building \
         -xctestrun "$xctestrun_path" \
