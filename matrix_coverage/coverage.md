@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 902**
+**Runs recorded / 已記錄的執行筆數: 904**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|--------------------|--------------|
@@ -85,9 +85,9 @@ zsh matrix_coverage/coverage.zsh
 | P46           | -                            | -                              | -                        | pass 2026-09-08              | pass 2026-09-08        | pass 2026-09-07    |              |
 | P47           | pass 2026-09-08              | pass 2026-09-08                | -                        | -                            | -                      | -                  |              |
 | P48           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-12              | -                      | -                  |              |
-| P50           | pass 2026-09-17              | pass 2026-09-17                | -                        | pass 2026-09-17              | pass 2026-09-18        | pass 2026-09-17    |              |
+| P50           | pass 2026-09-17              | pass 2026-09-17                | -                        | pass 2026-09-18              | pass 2026-09-18        | pass 2026-09-17    |              |
 | P51           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-10              | -                      | -                  |              |
-| P52           | -                            | -                              | -                        | capture none 2026-09-10      | -                      | -                  |              |
+| P52           | -                            | -                              | -                        | pass 2026-09-18              | -                      | -                  |              |
 | P53           | -                            | -                              | -                        | -                            | pass 2026-09-08        | pass 2026-09-08    |              |
 | P54           | -                            | pass 2026-09-17                | -                        | pass 2026-09-09              | pass 2026-09-09        | pass 2026-09-09    |              |
 | P55           | -                            | -                              | -                        | pass 2026-09-09              | pass 2026-09-09        | pass 2026-09-09    |              |

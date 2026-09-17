@@ -212,7 +212,23 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 
 - [x] **#109 `PopoverArrowEdges` 在 AppKit / UIKit / Android 全部實作並成對驅動**,細節與擷圖名列在
       queue.md 的 M3b 條目裡。五個 backend 現在都 conform。
-- [ ] **(留給排版的人,AppKit)`P50` 的內容回報的理想高度,比它能正常繪製的高度少約 150 點。**
+- [x] **找到了,而且不是 AppKit 的:一顆按鈕在「被提議高度 0」時會被壓成只剩 padding,而視窗正是
+      以那個最小尺寸開啟的(2026-09-17 Mac 端;修在 `Views/Button.swift`,影響五個 backend)。**
+      `WindowReference.update` 以 `max(minimumWindowSize, proposedWindowSize)` 決定視窗大小,而
+      `minimumWindowSize` 是「內容在被提議 .zero 時的尺寸」。`Button.computeLayout` 會把
+      「提議高度減去 padding」傳給標籤,於是提議 0 時標籤答 0、按鈕只剩 padding——加了儀器的視窗流程
+      回報 `minimum (82, 797)`,比同一份內容真正需要的高度少約 150 點,而視窗就開在那裡,按鈕因此是
+      三像素高的長條。改為**不把高度提議給標籤**(`childProposal.height = nil`):在此處每一個 backend 上,
+      按鈕的高度本來就是「標籤高度加 padding」,沒有任何一個會垂直拉伸或壓縮按鈕。P50 的
+      `.frame(minHeight:)` 繞道已移除,按鈕在無繞道下正常繪製;P52(96 顆按鈕)與 iOS 的 P50 也各拍過一張。
+      **給 Windows:這是共用程式碼的改動,請在 GTK 與 WinUI 上看一眼按鈕的高度。**
+- [x] **順帶查明:AppKit 儲存的視窗框會蓋過 `.defaultSize`。** `createWindow` 會呼叫
+      `setFrameAutosaveName(id)`,而被還原的 frame 會覆寫剛設定的預設尺寸——這正是先前把
+      `.defaultSize` 從 700 改成 900 卻毫無變化的原因(`defaults delete P50` 之後才生效)。
+      **量測新視窗尺寸時要先清掉那個 domain**,否則量到的是上一次執行留下的東西。
+- [x] **新增一支可留下的儀器**:`SCUI_DEBUG_WINDOW_SIZE=1` 會讓每一次視窗更新印出
+      `proposed / minimum / maximum / resizability`。這三行就是上面兩項的證據來源。
+- [ ] ~~**(留給排版的人,AppKit)`P50` 的內容回報的理想高度,比它能正常繪製的高度少約 150 點。**~~
       症狀不是溢出也不是裁切,而是**壓扁**:視窗以理想尺寸 780x825 開啟,而第 2 區塊的三顆按鈕被畫成
       三像素高的長條,周圍每一個 `Text` 都正常。手動改成 780x1020 就正常;改成**更寬**的 1400x825 則
       沒有,所以是高度、不是換行。`.defaultSize(width:height:)` 蓋不過它(第一次排版後視窗會被改成
