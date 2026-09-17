@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: the DEFAULT side on AppKit -- no arrowEdge asked for at all.
+#
+# **The pair of files beside this one settled what `.top` and `.bottom` do; this
+# one asks what happens when an app says nothing**, which is what every popover
+# in the tree did before #109 and what most will keep doing.
+#
+# It matters because the four other backends agree with each other and AppKit
+# did not: GtkPopover's default position is below the anchor, PopupWindow's
+# showAsDropDown means below, WinUI's Flyout auto-places below where it fits,
+# and UIKit's [.up, .down] takes below when there is room. AppKit was passing
+# `.maxY`, which the driven captures showed is ABOVE.
+#
+# Coordinates as in P50-arrow-edge-top.csv: the anchor at (230, 720) in a
+# 780x1028 window frame.
+#
+# P50 #109:AppKit 上的**預設**側邊——完全不要求任何 arrowEdge。
+#
+# **旁邊那一對檔案定下了 `.top` 與 `.bottom` 各自做什麼;這一份問的是「當 app 什麼都不說時會怎樣」**
+# ——而在 #109 之前,樹中每一個 popover 都是這樣,日後大多數也還會是這樣。
+#
+# 這件事要緊,是因為另外四個 backend 彼此一致、而 AppKit 不一致:`GtkPopover` 的預設位置是錨點下方、
+# `PopupWindow` 的 `showAsDropDown` 就是下方、WinUI 的 `Flyout` 自動放在放得下的下方、
+# UIKit 的 `[.up, .down]` 在有空間時取下方。AppKit 傳的是 `.maxY`,而被驅動的擷圖顯示那是**上方**。
+#
+# 座標同 P50-arrow-edge-top.csv:錨點位於 780x1028 視窗外框中的 (230, 720)。
+sleep,,,,,,1200000,let the window settle before anything is clicked,macos
+click,230,720,frame,left,,,"open PANEL ALPHA with arrowEdge nil -- the readout must still say none (platform decides)",macos
+sleep,,,,,,1500000,leave the panel open for the final capture,macos

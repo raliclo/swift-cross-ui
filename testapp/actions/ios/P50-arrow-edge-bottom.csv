@@ -1,30 +1,43 @@
 action,x,y,origin,button,key,micros,note,platform
-# P50 #109: arrowEdge .bottom on UIKit -- the panel must open BELOW its button.
+# P50 #109: arrowEdge .bottom on UIKit -- and the side the panel ends up on when
+# it does not fit.
 #
-# **Written first as "this half cannot differ", and the run disproved that.**
-# The prediction was that a 200-point panel could not fit in the 144 points
-# below an anchor at y 812, so UIKit would keep the panel above and the pair
-# would be two pictures of the same thing. The capture shows it below, with the
-# arrow pointing up at the button: UIKit shrinks a popover to the room it has
-# rather than refusing the side. The prediction was an arithmetic guess about
-# another framework's behaviour; the run is the measurement.
+# **This file has been read three ways in one day, and only the third was
+# measured.** It was written predicting that `.top` and `.bottom` could not
+# differ here -- 144 points of room below an anchor at y 812, against a panel
+# about 200 points tall. The first run disproved that: UIKit SHRANK the popover
+# into the room below, and the capture showed `press me (0)` and `close this
+# panel` cut off the bottom edge. A popover that is present, anchored, obedient
+# and unusable.
 #
-# Read with P50-arrow-edge-top.csv, where the same anchor puts the panel above.
-# Two sides from one anchor, each with the app reporting which value is active,
-# is what makes either capture evidence -- the platform moves a popover that
-# does not fit, so a panel on one side is never on its own a demonstration that
-# anything was asked for.
+# So UIKit was aligned to Android, which MOVES a popup that does not fit rather
+# than shrinking it (`PopupWindow.showAsDropDown`). `UIKitBackend+Popover.swift`
+# now measures the room against the safe area and asks for the opposite side
+# when the requested one cannot hold the panel. This file's capture is therefore
+# the panel ABOVE the button, whole, with the readout still saying
+# `arrow edge: bottom` -- the request arrived, the platform had no room, and the
+# panel stayed usable.
 #
-# P50 #109:UIKit 上的 arrowEdge `.bottom`——面板必須開在它那顆按鈕的**下方**。
+# **That makes this pair non-discriminating on THIS device, deliberately**, in
+# exactly the way Android's is. The discriminating evidence for iOS is the
+# before/after of the alignment itself: p50-ios-final-20260917-161400.png
+# (shrunk, clipped) against -200019.png (moved, whole).
 #
-# **這一半原本寫的是「它不可能不同」,而那次執行推翻了這個說法。** 當初的預測是:錨點在 y 812,
-# 其下方只有 144 點,而面板約 200 點高,因此 UIKit 會把面板留在上方,這一對就會是同一件事的兩張照片。
-# 擷圖顯示它在**下方**,箭頭朝上指著那顆按鈕:UIKit 會把 popover 縮到它擁有的空間裡,而不是拒絕那一側。
-# 那個預測是對另一個框架行為所做的算術猜測;這次執行才是量測。
+# P50 #109:UIKit 上的 arrowEdge `.bottom`——以及「放不下時面板會落在哪一側」。
 #
-# 請與 P50-arrow-edge-top.csv 一起讀,在那裡同一個錨點把面板放在上方。同一個錨點得出兩側,而且每一張
-# 都有 app 回報「目前生效的是哪一個值」——這才讓任何一張擷圖成為證據:平台會移動放不下的 popover,
-# 因此「面板落在某一側」單獨看來,從來都不能證明有人要求過什麼。
+# **這個檔案在同一天裡被讀成三種樣子,而只有第三種是量出來的。** 它最初寫的是預測:`.top` 與
+# `.bottom` 在此不可能不同——錨點在 y 812,其下只有 144 點,而面板約 200 點高。第一次執行推翻了它:
+# UIKit 把 popover **縮**進下方那塊空間,而擷圖裡 `press me (0)` 與 `close this panel` 被下緣切掉了。
+# 一個存在、有錨定、也服從了要求,而且不能用的 popover。
+#
+# 因此 UIKit 被對齊到 Android 的做法——後者面對放不下的 popup 是**移動**它而不是縮小它
+# (`PopupWindow.showAsDropDown`)。`UIKitBackend+Popover.swift` 現在會對著 safe area 量出空間,
+# 在被要求的那一側容不下面板時改要求相反的一側。因此本檔的擷圖是面板在按鈕**上方**、完整,
+# 而讀數仍寫著 `arrow edge: bottom`——要求抵達了、平台沒有空間、而面板仍然可用。
+#
+# **這使得這一對在**這台裝置**上刻意成為「分辨不出東西」的一對**,與 Android 的情況完全相同。
+# iOS 這邊真正做得出差別的證據,是那次對齊本身的前後對照:
+# p50-ios-final-20260917-161400.png(被縮小、被切掉)對上 -200019.png(被移動、完整)。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
 click,85,845,,left,,,"cycle 1: none -> top (the row sits at 845 while the readout still reads the long default)",ios
 sleep,,,,,,500000,,ios
