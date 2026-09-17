@@ -123,6 +123,14 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       也仍未驗。
 - [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
       是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
+- [ ] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
+      不是同一個缺陷。** 這裡的教訓很具體:Android 普通 `uiautomator dump` 會設
+      `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器抵達不了的 view,而 `--compressed` 才是
+      對的那一份——同一次執行、同一支 app,一份看得到 `X` 與 `decorative`,另一份兩者都沒有。
+      你們的 plan 檔自己也寫了「this client does not expose ItemStatus or identify its UIA tree
+      filter」。**先確定那支客戶端走的是哪一棵樹(raw / control / content)**,再據以判斷
+      `setAccessibilityView(.raw)` 有沒有生效;raw 樹本來就會看到被排除的節點。
+      AT-SPI 那邊沒有這個出口,所以 GTK 的 `X` 仍然是真的。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
