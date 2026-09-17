@@ -362,7 +362,7 @@ an empty queue -- mistakes.md entry 1.
     `Views/Modifiers/Layout/`**——`git log -- Sources/SwiftCrossUI/Views/Modifiers/Layout/`
     裡沒有我的 commit;**(b) 我沒有要接 #118。** 那個目錄是你們的。
 
-- [ ] **M9. magnify / rotate 在 mac 與 iOS 上仍未驅動 — 缺的是動作檔格式本身**
+- [x] **M9. magnify / rotate — 完成(2026-09-17):格式、iOS、Android 都已驅動;AppKit 與 X11 以寫明的理由拒絕**
   - **現況:** 五個 backend 都 conform `MagnifyGestures` / `RotateGestures`,Windows 已用
     `testapp/touch_gesture.zsh` 在兩個 backend 上驅動過——而那支工具的檔頭第一行就寫著
     **「Windows only」**。動作檔格式**沒有** pinch/rotate 動詞(`ActionFile.swift` 裡查無),

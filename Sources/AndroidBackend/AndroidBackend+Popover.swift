@@ -168,6 +168,15 @@ extension AndroidBackend: BackendFeatures.Popovers {
         popover.as(PopupWindowContent.self)?.getContentView()?
             .setBackgroundColor(backgroundColor?.asColorInt() ?? 0)
 
+        // The same colour again, on the popup itself, because the tail is drawn
+        // by the popup's background and has to be the panel's colour rather
+        // than a window colour behind it. `nil` leaves the popup to resolve the
+        // theme's own background, which is what the panel shows in that case.
+        // 同一個顏色再設一次,設在 popup 自己身上,因為尾巴是由 popup 的背景繪製的,它必須是**面板的**
+        // 顏色,而不是它背後那個視窗的顏色。`nil` 時交由 popup 去解析主題自己的背景色——那也正是該情況下
+        // 面板所顯示的顏色。
+        popover.setPanelColor(backgroundColor?.asColorInt() ?? 0, backgroundColor != nil)
+
         let density = environment.androidActivity.getResources()
             .getDisplayMetrics().density
         popover.setWidth(Int32(Float(size.x) * density))
@@ -219,10 +228,43 @@ extension AndroidBackend: BackendFeatures.Popovers {
         // 畫面內,而下方沒有空間時它會自行把 popup 放到錨點上方。
         let anchorWidth = anchor.getWidth()
         let anchorHeight = anchor.getHeight()
+
+        // **The side is resolved against the room around the anchor, not taken
+        // as given, and the tail is drawn before anything is measured.**
+        //
+        // Both of those are alignments with the other backends rather than
+        // Android's own behaviour, and both were asked for after looking at the
+        // captures. `showAsDropDown` SHIFTS a popup that does not fit until it
+        // clears the screen edge, which can leave the panel covering the
+        // control it was opened from; UIKit was changed the same day to measure
+        // the room and take the opposite side instead, and `resolveEdge` is
+        // that same measurement. And Android draws no arrow on a `PopupWindow`
+        // at all, where the other four point at the anchor -- so
+        // `applyArrow` draws one and grows the popup to hold it, which is why
+        // the sizes are read AFTER it rather than before.
+        //
+        // **那一側是對著錨點四周的空間解析出來的,不是照單全收;而尾巴在任何量測之前就已畫好。**
+        //
+        // 這兩件都是向其他 backend 對齊、而非 Android 自己的行為,而且兩件都是看過擷圖之後才被要求的。
+        // `showAsDropDown` 會把放不下的 popup **推**到離開螢幕邊緣為止,那可能讓面板蓋住當初開啟它的
+        // 那個控制項;UIKit 已在同一天改為「量出空間、改取相反的一側」,而 `resolveEdge` 就是同一個量測。
+        // 至於 Android,它根本不會在 `PopupWindow` 上畫任何箭頭,而另外四個都會指向錨點——因此
+        // `applyArrow` 會畫一條,並把 popup 放大以容納它;這正是尺寸要在它**之後**才讀取的原因。
+        // 8dp of tail, in pixels. Read here rather than passed in: this method
+        // is handed a widget and a window and no environment, and the one
+        // conversion between points and pixels in this backend happens at the
+        // last moment, as it does in the synthesiser.
+        // 8dp 的尾巴,換算成像素。在此處讀取而非由外傳入:本方法只拿到一個 widget 與一個 window、
+        // 沒有 environment;而本 backend 中「點與像素之間的唯一換算」發生在最後一刻,與 synthesiser 相同。
+        let density = Self.activity?.getResources()?.getDisplayMetrics()?.density ?? 1
+        let arrowPixels = Int32((8.0 * Double(density)).rounded())
+        let resolved = popover.resolveEdge(anchor, popover.getPreferredEdge(), arrowPixels)
+        popover.applyArrow(resolved, arrowPixels, anchorWidth, anchorHeight)
+
         let popupWidth = popover.getWidth()
         let popupHeight = popover.getHeight()
 
-        switch Self.edge(forPreference: popover.getPreferredEdge()) {
+        switch Self.edge(forPreference: resolved) {
             case .top:
                 popover.showAsDropDown(anchor, 0, -(anchorHeight + popupHeight))
             case .bottom:
