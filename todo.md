@@ -132,6 +132,21 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       `setAccessibilityView(.raw)` 有沒有生效;raw 樹本來就會看到被排除的節點。
       AT-SPI 那邊沒有這個出口,所以 GTK 的 `X` 仍然是真的。
 
+### 2026-09-17 (Mac) — #109 落在三個 backend 上,並留下一個排版問題
+
+- [x] **#109 `PopoverArrowEdges` 在 AppKit / UIKit / Android 全部實作並成對驅動**,細節與擷圖名列在
+      queue.md 的 M3b 條目裡。五個 backend 現在都 conform。
+- [ ] **(留給排版的人,AppKit)`P50` 的內容回報的理想高度,比它能正常繪製的高度少約 150 點。**
+      症狀不是溢出也不是裁切,而是**壓扁**:視窗以理想尺寸 780x825 開啟,而第 2 區塊的三顆按鈕被畫成
+      三像素高的長條,周圍每一個 `Text` 都正常。手動改成 780x1020 就正常;改成**更寬**的 1400x825 則
+      沒有,所以是高度、不是換行。`.defaultSize(width:height:)` 蓋不過它(第一次排版後視窗會被改成
+      內容的理想尺寸),把 AppKit 儲存的視窗框從 user defaults 清掉也沒有改變任何事。
+      目前以 P50 自己 `.frame(minHeight: 1000)`(僅 AppKit)繞過,那是繞過、不是修好。
+- [ ] **(留給 Windows / GTK / WinUI)`.trailing` 那一半值得在你們那邊也看一眼。** Android 上
+      上/下這一對分辨不出東西(下方放不下,平台一律往上移),真正做得出差別的是左右;GTK 的
+      `GtkPopover.position` 與 WinUI 的 `Flyout.placement` 是否也有同樣的「不可證偽的一對」風險,
+      要看你們視窗裡那顆錨點的位置。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as

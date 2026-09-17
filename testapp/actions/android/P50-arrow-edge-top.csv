@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .top on Android -- the panel must open ABOVE its button.
+#
+# **Android is the one backend where this is arithmetic.** `PopupWindow` has no
+# placement property: `showAsDropDown(anchor)` means below, and every other side
+# is that same call with an offset computed from the anchor's and the popup's
+# own pixel sizes. See `AndroidBackend+Popover.swift`.
+#
+# Coordinates from `uiautomator dump --compressed` rather than off a picture:
+# the first anchor is [42,1937][777,2026] and the cycle button [42,2067][462,2156]
+# in a 1080x2400 screen at 420 dpi, which is (156, 755) and (96, 804) in points.
+#
+# Read with its pair, P50-arrow-edge-bottom.csv: a panel on one side proves
+# nothing on its own, because every one of these platforms moves a popover that
+# does not fit. The app's readout beside the button says which value is live.
+#
+# P50 #109:Android 上的 arrowEdge `.top`——面板必須開在它那顆按鈕的**上方**。
+#
+# **Android 是唯一「這件事是算術」的那個 backend。** `PopupWindow` 沒有表示位置的屬性:
+# `showAsDropDown(anchor)` 的意思就是下方,而其餘每一側都是同一個呼叫,加上一個由錨點與 popup 自身
+# 像素尺寸算出的位移。見 `AndroidBackend+Popover.swift`。
+#
+# 座標取自 `uiautomator dump --compressed`,而不是從圖上量:第一個錨點是 [42,1937][777,2026]、
+# 循環按鈕是 [42,2067][462,2156],螢幕 1080x2400、420 dpi,換算成點是 (156, 755) 與 (96, 804)。
+#
+# 請與它的另一半 P50-arrow-edge-bottom.csv 一起讀:單獨一側證明不了任何事,因為這些平台每一個都會
+# 移動放不下的 popover。按鈕旁的讀數會說出目前生效的是哪一個值。
+sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
+click,96,804,,left,,,"Cycle arrow edge: none -> top; the readout must say top",android
+sleep,,,,,,800000,let the readout redraw,android
+click,156,755,,left,,,open PANEL ALPHA -- the panel carrying the arrowEdge,android
+sleep,,,,,,1500000,leave the panel open for the final capture,android

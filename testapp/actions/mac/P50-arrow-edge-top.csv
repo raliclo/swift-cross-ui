@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .top on AppKit -- the panel must open ABOVE its button.
+#
+# **Read this file WITH its pair, P50-arrow-edge-bottom.csv.** A popover that
+# appears above its anchor looks the same whether the app asked for `.top` or
+# the platform ran out of room below; only the two captures together, with the
+# app's own readout of which value is active, say that the request is what moved
+# it. That is why P50 prints `arrow edge: top` beside the button.
+#
+# Coordinates measured off p50-macos-final-20260917-155651.png, a 780x1028
+# window frame. `frame` origin, so the y values include the 28-point title bar.
+#
+# P50 #109:AppKit 上的 arrowEdge `.top`——面板必須開在它那顆按鈕的**上方**。
+#
+# **本檔要與它的另一半 P50-arrow-edge-bottom.csv 一起讀。** 一個出現在錨點上方的 popover,不論是
+# app 要求了 `.top`、還是平台在下方沒有空間,看起來都一樣;唯有兩張擷圖並排、加上 app 自己印出「目前
+# 生效的是哪一個值」,才說得出「是那個要求移動了它」。這正是 P50 在按鈕旁印出 `arrow edge: top` 的理由。
+#
+# 座標量自 p50-macos-final-20260917-155651.png,視窗外框 780x1028。origin 為 `frame`,
+# 因此 y 值含 28 點的標題列。
+sleep,,,,,,1200000,let the window settle before anything is clicked,macos
+click,185,751,frame,left,,,"Cycle arrow edge: none -> top; the readout beside it must say top",macos
+sleep,,,,,,700000,let the readout redraw,macos
+click,230,720,frame,left,,,open PANEL ALPHA -- it carries the arrowEdge; PANEL BETA is the control,macos
+sleep,,,,,,1500000,leave the panel open for the final capture,macos
