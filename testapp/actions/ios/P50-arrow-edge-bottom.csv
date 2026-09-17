@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .bottom on UIKit -- the panel must open BELOW its button.
+#
+# **Written first as "this half cannot differ", and the run disproved that.**
+# The prediction was that a 200-point panel could not fit in the 144 points
+# below an anchor at y 812, so UIKit would keep the panel above and the pair
+# would be two pictures of the same thing. The capture shows it below, with the
+# arrow pointing up at the button: UIKit shrinks a popover to the room it has
+# rather than refusing the side. The prediction was an arithmetic guess about
+# another framework's behaviour; the run is the measurement.
+#
+# Read with P50-arrow-edge-top.csv, where the same anchor puts the panel above.
+# Two sides from one anchor, each with the app reporting which value is active,
+# is what makes either capture evidence -- the platform moves a popover that
+# does not fit, so a panel on one side is never on its own a demonstration that
+# anything was asked for.
+#
+# P50 #109:UIKit 上的 arrowEdge `.bottom`——面板必須開在它那顆按鈕的**下方**。
+#
+# **這一半原本寫的是「它不可能不同」,而那次執行推翻了這個說法。** 當初的預測是:錨點在 y 812,
+# 其下方只有 144 點,而面板約 200 點高,因此 UIKit 會把面板留在上方,這一對就會是同一件事的兩張照片。
+# 擷圖顯示它在**下方**,箭頭朝上指著那顆按鈕:UIKit 會把 popover 縮到它擁有的空間裡,而不是拒絕那一側。
+# 那個預測是對另一個框架行為所做的算術猜測;這次執行才是量測。
+#
+# 請與 P50-arrow-edge-top.csv 一起讀,在那裡同一個錨點把面板放在上方。同一個錨點得出兩側,而且每一張
+# 都有 app 回報「目前生效的是哪一個值」——這才讓任何一張擷圖成為證據:平台會移動放不下的 popover,
+# 因此「面板落在某一側」單獨看來,從來都不能證明有人要求過什麼。
+sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+click,85,845,,left,,,"cycle 1: none -> top (the row sits at 845 while the readout still reads the long default)",ios
+sleep,,,,,,500000,,ios
+click,85,824,,left,,,"cycle 2: top -> bottom. 824, not 845: the shorter readout lifts every row by 21 points",ios
+sleep,,,,,,700000,let the readout redraw,ios
+click,140,791,,left,,,open PANEL ALPHA with arrowEdge bottom,ios
+sleep,,,,,,1500000,leave the panel open for the final capture,ios

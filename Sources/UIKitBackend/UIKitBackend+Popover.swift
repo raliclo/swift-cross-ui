@@ -78,11 +78,45 @@ extension UIKitBackend {
         if let presentation = popover.popoverPresentationController {
             presentation.sourceView = anchor.view
             presentation.sourceRect = anchor.view.bounds
-            presentation.permittedArrowDirections = [.up, .down]
+            // **An arrow direction names where the ARROW is, which is the
+            // opposite side from where the panel is.** `.up` is an arrow on the
+            // popover's top edge, so the panel hangs BELOW the anchor -- and
+            // `Edge` in this protocol names the side of the ANCHOR the panel
+            // should be on. Getting this the natural-looking way round would
+            // produce a popover that obeys every request backwards, which is
+            // the kind of wrong that looks like a working feature until someone
+            // reads the pair of captures.
+            //
+            // The default stays `[.up, .down]` rather than `.any`: it is what
+            // this backend has always done, and widening it here would change
+            // the placement of every popover that asks for nothing.
+            //
+            // **一個 arrow direction 指的是那支「箭頭」在哪一側,而那與面板所在的是相反的一側。**
+            // `.up` 代表箭頭在 popover 的上緣,因此面板掛在錨點**下方**——而本協定裡的 `Edge` 指的是
+            // 「面板該位於錨點的哪一側」。若照直覺對應,會得到一個把每個要求都做反的 popover,
+            // 而那種錯誤在有人去讀那一對擷圖之前,看起來都像是功能正常。
+            //
+            // 沒有偏好時維持 `[.up, .down]` 而不是 `.any`:那是本 backend 一直以來的行為,
+            // 在此放寬它會改變每一個「什麼都沒要求」的 popover 的位置。
+            presentation.permittedArrowDirections =
+                popover.preferredArrowEdge.map(Self.arrowDirection(for:)) ?? [.up, .down]
             presentation.delegate = popover
         }
 
         window.rootViewController?.present(popover, animated: true)
+    }
+
+    /// The arrow direction that puts the panel on `edge` of its anchor.
+    /// 使面板位於錨點 `edge` 側的那個 arrow direction。
+    private static func arrowDirection(
+        for edge: SwiftCrossUI.Edge
+    ) -> UIPopoverArrowDirection {
+        switch edge {
+            case .top: return .down
+            case .bottom: return .up
+            case .leading: return .right
+            case .trailing: return .left
+        }
     }
 
     public func dismissPopover(_ popover: CustomPopover, window: Window) {
@@ -113,8 +147,56 @@ public final class CustomPopover: UIViewController, UIPopoverPresentationControl
     var onDismiss: (() -> Void)?
     var customContent: UIView?
 
+    /// Which side of the anchor this popover has been asked to appear on
+    /// (#109), or `nil` for the platform's own choice.
+    ///
+    /// Kept here because the presentation controller only exists while the
+    /// popover is being presented, and the protocol sets the preference before
+    /// that -- see `BackendFeatures.PopoverArrowEdges`.
+    ///
+    /// 這個 popover 被要求出現在錨點的哪一側(#109);`nil` 代表交由平台自行決定。
+    ///
+    /// 存放於此,是因為 presentation controller 只在呈現期間存在,而協定設定這個偏好的時機在那之前
+    /// ——見 `BackendFeatures.PopoverArrowEdges`。
+    var preferredArrowEdge: SwiftCrossUI.Edge?
+
     func dismissProgrammatically() {
         dismiss(animated: true)
+    }
+
+    /// **Stays a popover on a phone, and until 2026-09-17 it did not.**
+    ///
+    /// UIKit adapts a popover to a sheet in a horizontally compact size class
+    /// unless the delegate says otherwise, and on an iPhone that is every
+    /// popover. Measured with P50 that day: the panel filled the screen from
+    /// the top, anchored to nothing --
+    /// `p50-ios-final-20260917-161038.png`. Both of P50's panels looked
+    /// identical, so its own assertion -- "each panel must land NEXT TO THE
+    /// BUTTON THAT OPENED IT" -- had nothing to land on, and #109's edge
+    /// preference had no side to take.
+    ///
+    /// `.none` is the documented way to refuse the adaptation, and it is what
+    /// this backend's contract already promised: ``BackendFeatures/Popovers``
+    /// says an anchored panel is the whole difference between a popover and a
+    /// sheet, and a backend that quietly hands back a sheet is not implementing
+    /// the protocol it conforms to.
+    ///
+    /// **在手機上維持為 popover,而在 2026-09-17 之前它並沒有。**
+    ///
+    /// 在水平方向為 compact 的 size class 下,UIKit 會把 popover 調整成 sheet——除非 delegate 另有
+    /// 交代——而在 iPhone 上那就是每一個 popover。當天以 P50 實測:那塊面板從畫面頂端整片蓋下來、
+    /// 沒有錨定在任何東西上(`p50-ios-final-20260917-161038.png`)。P50 的兩塊面板看起來一模一樣,
+    /// 於是它自己的斷言——「每塊面板都必須落在**開啟它的那顆按鈕旁邊**」——沒有東西可落;而 #109 的
+    /// 邊偏好也沒有側邊可選。
+    ///
+    /// `.none` 是文件所載「拒絕該調整」的方式,而那也正是本 backend 的約定原本就承諾的:
+    /// ``BackendFeatures/Popovers`` 說「錨定」就是 popover 與 sheet 的全部差別,而一個悄悄交回一張
+    /// sheet 的 backend,並沒有實作它所 conform 的那個協定。
+    public func adaptivePresentationStyle(
+        for controller: UIPresentationController,
+        traitCollection: UITraitCollection
+    ) -> UIModalPresentationStyle {
+        .none
     }
 
     // Both paths report, and the programmatic one is NOT suppressed.
@@ -143,5 +225,25 @@ public final class CustomPopover: UIViewController, UIPopoverPresentationControl
     public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         onDismiss?()
+    }
+}
+
+extension UIKitBackend: BackendFeatures.PopoverArrowEdges {
+    /// Stores the preference; ``presentPopover(_:relativeTo:window:)`` spends it
+    /// on `permittedArrowDirections`.
+    ///
+    /// **A permitted direction is a constraint, not a position**, and that is
+    /// exactly the shape this protocol asks for: UIKit picks a direction from
+    /// the set that fits, so naming one asks for that side and still lets the
+    /// platform move the panel when there is no room -- it falls back to what
+    /// fits rather than drawing off screen.
+    ///
+    /// 存下這個偏好;由 ``presentPopover(_:relativeTo:window:)`` 用在 `permittedArrowDirections` 上。
+    ///
+    /// **「被允許的方向」是一個限制,而不是一個位置**,而那正是本協定所要的形狀:UIKit 會從集合中挑一個
+    /// 放得下的方向,因此指名其中一個等於要求那一側,同時仍讓平台在空間不足時移動面板
+    /// ——它會退回到放得下的位置,而不是畫到螢幕外。
+    public func setPreferredArrowEdge(ofPopover popover: CustomPopover, to edge: Edge?) {
+        popover.preferredArrowEdge = edge
     }
 }

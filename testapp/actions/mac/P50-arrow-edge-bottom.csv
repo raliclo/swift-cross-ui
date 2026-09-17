@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .bottom on AppKit -- the panel must open BELOW its button.
+#
+# The other half of the pair; see P50-arrow-edge-top.csv for why one capture on
+# its own proves nothing. Two cycles rather than one: the button walks
+# none -> top -> bottom, and the readout must say bottom before the panel opens.
+#
+# P50 #109:AppKit 上的 arrowEdge `.bottom`——面板必須開在它那顆按鈕的**下方**。
+#
+# 這是那一對的另一半;為何單獨一張擷圖證明不了任何事,見 P50-arrow-edge-top.csv。此處循環兩次而非一次:
+# 那顆按鈕會走 none -> top -> bottom,而在面板開啟之前,讀數必須寫著 bottom。
+sleep,,,,,,1200000,let the window settle before anything is clicked,macos
+click,185,751,frame,left,,,cycle 1: none -> top,macos
+sleep,,,,,,500000,,macos
+click,185,751,frame,left,,,cycle 2: top -> bottom; the readout must say bottom,macos
+sleep,,,,,,700000,let the readout redraw,macos
+click,230,720,frame,left,,,open PANEL ALPHA with arrowEdge bottom,macos
+sleep,,,,,,1500000,leave the panel open for the final capture,macos

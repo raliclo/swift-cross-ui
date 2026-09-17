@@ -112,18 +112,61 @@ extension AppKitBackend {
         relativeTo anchor: NSView,
         window: NSCustomWindow
     ) {
-        // `.maxY` puts it below the anchor, which is where a popover opened
-        // from a button belongs. AppKit moves it to another edge by itself when
-        // there is no room, which is the rule this backend is being left to
-        // keep.
-        // `.maxY` 會把它放在錨點下方,而那正是由按鈕開啟的 popover 該在的位置。空間不足時,AppKit
-        // 會自行把它移到另一側——那正是此處刻意讓這個 backend 保有的規則。
+        // `.maxY` when nothing was asked for: the value this call has carried
+        // since the popover landed. **It puts the panel ABOVE the anchor**, not
+        // below as the comment here used to claim -- see `rectEdge(for:)`, where
+        // the pair of captures that settled it is written down. Kept as the
+        // default anyway: it is the behaviour that shipped, and AppKit still
+        // moves the panel to another edge when there is no room, which is the
+        // rule this backend is being left to keep.
+        //
+        // 沒有任何要求時使用 `.maxY`:這是本呼叫自這個 popover 落地以來一直帶著的值。
+        // **它會把面板放在錨點上方**,而不是此處註解原本所宣稱的下方——見 `rectEdge(for:)`,
+        // 定案的那一對擷圖寫在那裡。仍維持為預設值:那是已出貨的行為;而空間不足時,AppKit 依然會
+        // 把面板移到另一側——那正是此處刻意讓這個 backend 保有的規則。
         popover.willPresent()
         popover.show(
             relativeTo: anchor.bounds,
             of: anchor,
-            preferredEdge: .maxY
+            preferredEdge: popover.preferredArrowEdge.map(Self.rectEdge(for:)) ?? .maxY
         )
+    }
+
+    /// `NSRectEdge` for a side of the anchor.
+    ///
+    /// **`.maxY` puts the panel ABOVE the anchor, and this pair was written the
+    /// other way round first.** The comment in `presentPopover` above said
+    /// `.maxY` meant "below", reasoning from this backend's flipped views, and
+    /// the first mapping here followed it: `.top` to `.minY`. Driven on
+    /// 2026-09-17 with P50, the two captures said the opposite --
+    /// `p50-macos-final-20260917-155815.png` has the app reporting
+    /// `arrow edge: top` with the panel BELOW its button, and `-155948.png` has
+    /// it reporting `bottom` with the panel ABOVE. The readout is what makes
+    /// that a measurement rather than two pictures of a popover: AppKit moves a
+    /// popover that does not fit, so a panel on the far side could always have
+    /// been the platform's doing.
+    ///
+    /// `NSPopover` therefore reads `preferredEdge` in AppKit's own y-up screen
+    /// space, not in the flipped space the anchor view is laid out in.
+    ///
+    /// 錨點某一側所對應的 `NSRectEdge`。
+    ///
+    /// **`.maxY` 會把面板放在錨點的上方,而這一組對應最初是寫反的。** 上面 `presentPopover` 的註解說
+    /// `.maxY` 是「下方」——那是從本 backend 的翻轉 view 推論來的——而此處第一版的對應也照著寫:
+    /// `.top` 對 `.minY`。2026-09-17 以 P50 驅動之後,那兩張擷圖說的正好相反:
+    /// `p50-macos-final-20260917-155815.png` 裡 app 回報 `arrow edge: top`,而面板在按鈕**下方**;
+    /// `-155948.png` 裡它回報 `bottom`,而面板在**上方**。使這成為一次量測、而非兩張 popover 照片的,
+    /// 正是那行讀數:AppKit 會移動放不下的 popover,因此「面板落在另一側」永遠有可能是平台自己做的。
+    ///
+    /// 由此可知,`NSPopover` 是在 AppKit 自己 y 向上的**螢幕**座標系裡解讀 `preferredEdge` 的,
+    /// 而不是在錨點 view 所處的那個翻轉空間裡。
+    private static func rectEdge(for edge: SwiftCrossUI.Edge) -> NSRectEdge {
+        switch edge {
+            case .top: return .maxY
+            case .bottom: return .minY
+            case .leading: return .minX
+            case .trailing: return .maxX
+        }
     }
 
     public func dismissPopover(_ popover: NSCustomPopover, window: NSCustomWindow) {
@@ -156,6 +199,19 @@ extension AppKitBackend {
 public final class NSCustomPopover: NSPopover, NSPopoverDelegate {
     var onDismiss: (() -> Void)?
     var customContent: NSView?
+
+    /// Which side of the anchor this popover has been asked to appear on
+    /// (#109), or `nil` for the platform's own choice.
+    ///
+    /// Held here rather than passed to ``AppKitBackend/presentPopover(_:relativeTo:window:)``
+    /// because the protocol sets it separately, before the popover is shown --
+    /// see `BackendFeatures.PopoverArrowEdges`.
+    ///
+    /// 這個 popover 被要求出現在錨點的哪一側(#109);`nil` 代表交由平台自行決定。
+    ///
+    /// 存放於此而非傳給 ``AppKitBackend/presentPopover(_:relativeTo:window:)``,因為協定是分開設定
+    /// 它的,且在該 popover 被顯示**之前**——見 `BackendFeatures.PopoverArrowEdges`。
+    var preferredArrowEdge: SwiftCrossUI.Edge?
 
     /// Whether this presentation's close has already been reported.
     ///
@@ -216,5 +272,31 @@ public final class NSCustomPopover: NSPopover, NSPopoverDelegate {
     /// 由 backend 在本 popover 被顯示時呼叫。
     func willPresent() {
         hasReportedClose = false
+    }
+}
+
+extension AppKitBackend: BackendFeatures.PopoverArrowEdges {
+    /// Stores the preference; ``presentPopover(_:relativeTo:window:)`` spends it.
+    ///
+    /// `NSPopover` takes its edge as an argument to `show(relativeTo:of:preferredEdge:)`
+    /// and keeps no settable property for it, so there is nothing to set on the
+    /// object at this point -- which is why this is a field on
+    /// ``NSCustomPopover`` and not a call into AppKit.
+    ///
+    /// **AppKit keeps its own rule when the preferred edge does not fit**, which
+    /// is what the protocol asks for: `preferredEdge` is documented as a
+    /// preference, and a popover with no room on that side is moved rather than
+    /// drawn off screen.
+    ///
+    /// 存下這個偏好;由 ``presentPopover(_:relativeTo:window:)`` 使用它。
+    ///
+    /// `NSPopover` 是把邊當成 `show(relativeTo:of:preferredEdge:)` 的引數來接收的,它沒有對應的
+    /// 可設定屬性,因此此刻在那個物件上沒有東西可設——這正是本項成為 ``NSCustomPopover`` 一個欄位、
+    /// 而非一次對 AppKit 呼叫的原因。
+    ///
+    /// **偏好的那一側放不下時,AppKit 會保有它自己的規則**,而那正是協定所要求的:`preferredEdge`
+    /// 的文件寫明它是一個偏好,而一個在該側沒有空間的 popover 會被移動,不會被畫到螢幕外。
+    public func setPreferredArrowEdge(ofPopover popover: NSCustomPopover, to edge: Edge?) {
+        popover.preferredArrowEdge = edge
     }
 }

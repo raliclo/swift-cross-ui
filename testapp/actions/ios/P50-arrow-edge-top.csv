@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .top on UIKit -- the panel must open ABOVE its button.
+#
+# **Read with its pair, P50-arrow-edge-bottom.csv, and read the note there
+# about what this phone cannot show.** The anchor sits at y 812 in a 956-point
+# window and the panel is about 200 points tall, so there is no room below it;
+# UIKit is documented to pick a permitted direction that FITS, and this file's
+# `.top` asks for the side that does. The pair still earns its keep: it shows
+# the request arriving and the app reporting it, and `bottom` is where the
+# platform's own rule becomes visible.
+#
+# Coordinates measured off p50-ios-final-20260917-160716.png at 3x.
+#
+# P50 #109:UIKit 上的 arrowEdge `.top`——面板必須開在它那顆按鈕的**上方**。
+#
+# **請與它的另一半 P50-arrow-edge-bottom.csv 一起讀,並讀那裡關於「這支手機顯示不出什麼」的說明。**
+# 錨點位於 956 點高視窗中的 y 812,而面板約 200 點高,因此它下方沒有空間;UIKit 的文件寫明它會從
+# 被允許的方向中挑一個**放得下**的,而本檔的 `.top` 要的正是放得下的那一側。這一對仍有其價值:
+# 它顯示那個要求確實抵達、app 也回報了它;而平台自己的規則會在 `bottom` 那一份裡現形。
+#
+# 座標量自 p50-ios-final-20260917-160716.png(3x)。
+sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+click,85,845,,left,,,"Cycle arrow edge: none -> top; the readout beside it must say top",ios
+sleep,,,,,,700000,let the readout redraw,ios
+click,140,791,,left,,,"open PANEL ALPHA -- it is the one carrying the arrowEdge. y 791 rather than 812: the readout row is shorter once it says a word instead of ""none (platform decides)"", and the rows above the button move up by 21 points with it -- the first run of this file aimed at the pre-tap layout and hit the cycle button a second time, which is why the capture showed bottom and no panel",ios
+sleep,,,,,,1500000,leave the panel open for the final capture,ios

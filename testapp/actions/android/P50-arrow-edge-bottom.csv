@@ -1,0 +1,36 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .bottom on Android -- the panel must open BELOW its button.
+#
+# The other half of the pair; see P50-arrow-edge-top.csv for the coordinates and
+# for why one capture on its own proves nothing. Two taps on the cycle button:
+# the value walks none -> top -> bottom.
+#
+# The anchor sits at y 755 in a 914-point window, so there are about 140 points
+# below it against a panel of about 200. **Driven: Android shifts it up.** The
+# capture is the same panel in the same place as the `.top` one, which means
+# this pair does NOT discriminate on this device -- `showAsDropDown` moves a
+# popup that does not fit below to above the anchor, and it would have put the
+# panel there whatever this file asked for. iOS answered the same arithmetic
+# differently, by shrinking the panel to the room it had, so neither answer was
+# predictable from the other.
+#
+# The side that does discriminate here is `.trailing`, and it has its own file.
+#
+# P50 #109:Android 上的 arrowEdge `.bottom`——面板必須開在它那顆按鈕的**下方**。
+#
+# 這是那一對的另一半;座標、以及「為何單獨一張擷圖證明不了任何事」,見 P50-arrow-edge-top.csv。
+# 循環按鈕要點兩次:該值會走 none -> top -> bottom。
+#
+# 錨點位於 914 點高視窗中的 y 755,因此其下方約有 140 點,而面板約 200 點。**實測:Android 把它往上移。**
+# 這張擷圖與 `.top` 那一張是同一塊面板、同一個位置,也就是說**這一對在這台裝置上分辨不出東西**
+# ——`showAsDropDown` 會把「下方放不下」的 popup 移到錨點上方,而無論本檔要求什麼,它都會放在那裡。
+# iOS 面對同樣的算術給了不同的答案(把面板縮到它擁有的空間),因此兩者誰也預測不了誰。
+#
+# 在此處真的做得出差別的是 `.trailing`,它有自己的檔案。
+sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
+click,96,804,,left,,,cycle 1: none -> top,android
+sleep,,,,,,600000,,android
+click,96,799,,left,,,"cycle 2: top -> bottom. 799, not 804: the readout goes from two lines to one and the row loses that height",android
+sleep,,,,,,800000,let the readout redraw,android
+click,156,755,,left,,,open PANEL ALPHA with arrowEdge bottom,android
+sleep,,,,,,1500000,leave the panel open for the final capture,android

@@ -9,6 +9,22 @@ extension AndroidKit.PopupWindow {
     @JavaMethod
     func showAsDropDown(_ anchor: AndroidKit.View?)
 
+    /// The offset form, which is the only way to ask for a side on Android.
+    ///
+    /// `PopupWindow` has no placement property: `showAsDropDown(anchor)` means
+    /// below, and every other side is that same call with an offset computed
+    /// from the anchor's and the popup's own measurements. AndroidKit binds
+    /// neither overload, so both are bound here beside the only code that calls
+    /// them.
+    ///
+    /// 帶位移的那一種——在 Android 上,那是唯一能要求某一側的方式。
+    ///
+    /// `PopupWindow` 沒有表示位置的屬性:`showAsDropDown(anchor)` 的意思就是「下方」,而其餘每一側
+    /// 都是同一個呼叫,加上一個由錨點與 popup 自身量測算出的位移。AndroidKit 兩個多載都沒有綁,
+    /// 因此兩個都綁在此處——就放在唯一會呼叫它們的程式旁邊。
+    @JavaMethod
+    func showAsDropDown(_ anchor: AndroidKit.View?, _ xoff: Int32, _ yoff: Int32)
+
     @JavaMethod
     func isShowing() -> Bool
 }
@@ -29,10 +45,16 @@ extension AndroidKit.PopupWindow {
 /// 那兩項行為:它必須接收觸控,而觸碰它以外之處必須把它關掉。兩者都在 ``createPopover(content:)``
 /// 中設定,而且都不是預設值。
 extension AndroidBackend: BackendFeatures.Popovers {
-    public typealias Popover = AndroidKit.PopupWindow
+    public typealias Popover = CustomPopupWindow
 
-    public func createPopover(content: Widget) -> AndroidKit.PopupWindow {
-        let popup = AndroidKit.PopupWindow(environment: Self.env)
+    public func createPopover(content: Widget) -> CustomPopupWindow {
+        // A subclass, for one field: which side was asked for. See
+        // `CustomPopupWindow.kt` -- `PopupWindow` has no placement property, so
+        // the preference has to be remembered from when it is set until the
+        // popup is shown.
+        // 用一個子類別,只為了一個欄位:被要求的是哪一側。見 `CustomPopupWindow.kt`
+        // ——`PopupWindow` 沒有表示位置的屬性,因此那個偏好必須從「被設定時」一路記到「popup 被顯示時」。
+        let popup = CustomPopupWindow(Self.activity, environment: Self.env)
         popup.setContentView(content)
 
         // Focusable so it receives touches at all, and outside-touchable so a
@@ -47,7 +69,7 @@ extension AndroidBackend: BackendFeatures.Popovers {
     }
 
     public func updatePopover(
-        _ popover: AndroidKit.PopupWindow,
+        _ popover: CustomPopupWindow,
         environment: EnvironmentValues,
         size: SIMD2<Int>,
         backgroundColor: SwiftCrossUI.Color.Resolved?,
@@ -161,7 +183,7 @@ extension AndroidBackend: BackendFeatures.Popovers {
     }
 
     public func presentPopover(
-        _ popover: AndroidKit.PopupWindow,
+        _ popover: CustomPopupWindow,
         relativeTo anchor: Widget,
         window: Window
     ) {
@@ -172,14 +194,97 @@ extension AndroidBackend: BackendFeatures.Popovers {
         // `showAsDropDown` 是帶錨點的那一種。`showAtLocation` 也存在,但它接收的是視窗座標,那會把
         // popup 放到呼叫端自行算出來的位置、而不是放在該 view 旁邊——而算出那個位置,恰恰就是此處
         // 要交給平台去做的工作。
-        popover.showAsDropDown(anchor)
+        //
+        // **The offsets are measured from the anchor and the popup, not
+        // guessed.** `showAsDropDown(anchor)` puts the popup's top-left at the
+        // anchor's bottom-left, so `top` has to lift it by the anchor's height
+        // AND its own, and the two sideways placements have to lift it by the
+        // anchor's height alone to sit beside the anchor rather than under it.
+        // The popup's own width and height are the pixel values
+        // ``updatePopover(_:environment:size:backgroundColor:onDismiss:)`` set a
+        // moment ago, so they are known here rather than pending a measure
+        // pass.
+        //
+        // **Android still moves a popup that does not fit**, which is what the
+        // protocol asks for: `showAsDropDown` shifts the popup on screen and
+        // will place it above the anchor itself when there is no room below.
+        //
+        // **那些位移是由錨點與 popup 量出來的,不是猜的。** `showAsDropDown(anchor)` 會把 popup 的
+        // 左上角放在錨點的左下角,因此 `top` 必須把它抬起「錨點的高度**加上**它自己的高度」,
+        // 而兩個側向的位置則只需抬起錨點的高度,好讓它落在錨點**旁邊**而不是下方。popup 自己的寬高就是
+        // ``updatePopover(_:environment:size:backgroundColor:onDismiss:)`` 片刻前設定的像素值,
+        // 因此在此處是已知的,不必等待一次 measure。
+        //
+        // **放不下時 Android 仍會移動它**,而那正是協定所要求的:`showAsDropDown` 會把 popup 移進
+        // 畫面內,而下方沒有空間時它會自行把 popup 放到錨點上方。
+        let anchorWidth = anchor.getWidth()
+        let anchorHeight = anchor.getHeight()
+        let popupWidth = popover.getWidth()
+        let popupHeight = popover.getHeight()
+
+        switch Self.edge(forPreference: popover.getPreferredEdge()) {
+            case .top:
+                popover.showAsDropDown(anchor, 0, -(anchorHeight + popupHeight))
+            case .bottom:
+                popover.showAsDropDown(anchor, 0, 0)
+            case .leading:
+                popover.showAsDropDown(anchor, -popupWidth, -anchorHeight)
+            case .trailing:
+                popover.showAsDropDown(anchor, anchorWidth, -anchorHeight)
+            case nil:
+                popover.showAsDropDown(anchor)
+        }
     }
 
-    public func dismissPopover(_ popover: AndroidKit.PopupWindow, window: Window) {
+    /// The stored number, as an ``SwiftCrossUI/Edge``. See `CustomPopupWindow.kt`.
+    /// 存下的那個數字,轉回 ``SwiftCrossUI/Edge``。見 `CustomPopupWindow.kt`。
+    private static func edge(forPreference value: Int32) -> SwiftCrossUI.Edge? {
+        switch value {
+            case 1: return .top
+            case 2: return .bottom
+            case 3: return .leading
+            case 4: return .trailing
+            default: return nil
+        }
+    }
+
+    fileprivate static func preference(for edge: SwiftCrossUI.Edge?) -> Int32 {
+        switch edge {
+            case .top: return 1
+            case .bottom: return 2
+            case .leading: return 3
+            case .trailing: return 4
+            case nil: return 0
+        }
+    }
+
+    public func dismissPopover(_ popover: CustomPopupWindow, window: Window) {
         popover.dismiss()
     }
 
-    public func size(ofPopover popover: AndroidKit.PopupWindow) -> SIMD2<Int> {
+    public func size(ofPopover popover: CustomPopupWindow) -> SIMD2<Int> {
         SIMD2(Int(popover.getWidth()), Int(popover.getHeight()))
+    }
+}
+
+extension AndroidBackend: BackendFeatures.PopoverArrowEdges {
+    /// Stores the preference on the popup; ``presentPopover(_:relativeTo:window:)``
+    /// turns it into the offsets `showAsDropDown` takes.
+    ///
+    /// **Android is the one backend of the five where this is arithmetic rather
+    /// than a property.** GTK sets `GtkPopover.position`, WinUI sets
+    /// `Flyout.placement`, AppKit and UIKit each pass an edge to the call that
+    /// presents the popover. `PopupWindow` has none of those: it knows how to
+    /// drop below an anchor, and every other side is that call with an offset.
+    ///
+    /// 把這個偏好存在 popup 上;由 ``presentPopover(_:relativeTo:window:)`` 轉換成 `showAsDropDown`
+    /// 所需的位移。
+    ///
+    /// **在五個 backend 之中,Android 是唯一「這件事是算術而不是一個屬性」的那一個。** GTK 設定
+    /// `GtkPopover.position`、WinUI 設定 `Flyout.placement`、AppKit 與 UIKit 各自把一個邊傳給呈現
+    /// popover 的那個呼叫。`PopupWindow` 三者皆無:它只會「掉在錨點下方」,而其餘每一側都是同一個呼叫
+    /// 加上一個位移。
+    public func setPreferredArrowEdge(ofPopover popover: CustomPopupWindow, to edge: Edge?) {
+        popover.setPreferredEdge(Self.preference(for: edge))
     }
 }

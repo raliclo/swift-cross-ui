@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 #109: arrowEdge .trailing on Android -- the side that can actually differ.
+#
+# **The top/bottom pair cannot discriminate on this device, and that is
+# measured.** The first anchor sits at y 755 in a 914-point window, so there are
+# about 140 points below it against a panel about 200 points tall. Android's
+# `showAsDropDown` moves a popup that does not fit below to above the anchor, so
+# `.top` and `.bottom` both produce a panel above -- and a comparison that
+# cannot come out differently proves nothing about the code, whatever it does.
+# Scrolling the anchor higher is not available either: the content ends at
+# y 2391 of a 2400-pixel screen, so there is nothing to scroll, which a `scroll`
+# row confirmed by changing no bounds at all.
+#
+# `.trailing` moves the panel on the OTHER axis: the offset puts it beside the
+# anchor rather than under it, level with the button instead of a row above it.
+# That difference survives the clamping Android does when the panel is wider
+# than the room to the right.
+#
+# Four taps on the cycle button: none -> top -> bottom -> leading -> trailing.
+#
+# P50 #109:Android 上的 arrowEdge `.trailing`——那個真的做得出差別的側邊。
+#
+# **上/下這一對在這台裝置上分辨不出東西,而這是量出來的。** 第一個錨點位於 914 點高視窗中的 y 755,
+# 其下方約有 140 點,而面板約 200 點高。Android 的 `showAsDropDown` 會把「下方放不下」的 popup 移到
+# 錨點上方,因此 `.top` 與 `.bottom` 都會得到一塊在上方的面板——而一個不可能出現不同結果的對照,
+# 無論程式怎麼寫都證明不了任何事。把錨點捲高也辦不到:內容在 2400 像素的螢幕上結束於 y 2391,
+# 根本沒有東西可捲,而一列 `scroll` 確認了這件事——它沒有改變任何一個 bounds。
+#
+# `.trailing` 是在**另一個軸**上移動面板:那個位移把它放到錨點**旁邊**而不是下方,與按鈕同高、
+# 而不是差一列。即使面板比右側剩餘空間更寬、Android 會把它夾回畫面內,那個差別依然看得出來。
+#
+# 循環按鈕點四次:none -> top -> bottom -> leading -> trailing。
+sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
+click,96,804,,left,,,cycle 1: none -> top,android
+sleep,,,,,,500000,,android
+click,96,799,,left,,,cycle 2: top -> bottom,android
+sleep,,,,,,500000,,android
+click,96,799,,left,,,cycle 3: bottom -> leading,android
+sleep,,,,,,500000,,android
+click,96,799,,left,,,cycle 4: leading -> trailing; the readout must say trailing,android
+sleep,,,,,,800000,let the readout redraw,android
+click,156,755,,left,,,open PANEL ALPHA with arrowEdge trailing,android
+sleep,,,,,,1500000,leave the panel open for the final capture,android

@@ -135,7 +135,21 @@ struct P50PopoverTitleApp: App {
         // 尺寸設定為一次容納全部內容。此處與 P51 不同，沒有 ScrollView：popover 錨定在某個 widget
         // 上，而一個被捲動的錨點與它的 popover，是兩個可能對「自己在哪裡」意見不合的東西。改為把
         // 內容維持得夠短。
-        .defaultSize(width: 780, height: 700)
+        // 700 became 900 on 2026-09-17, and the reason is visible in
+        // `p50-macos-final-20260917-154925.png`: #109's two extra rows -- the
+        // cycle button and the two readouts -- pushed section 2 past the
+        // window, and AppKit did not scroll or clip it. It SQUEEZED it: both
+        // anchor buttons and the cycle button were drawn as three-pixel bars
+        // with no legible text, while the last line of the section was still on
+        // screen, so the file's own "is the last line visible?" check passed
+        // while the middle of the section had become unreadable.
+        //
+        // 700 於 2026-09-17 改為 900,理由在 `p50-macos-final-20260917-154925.png` 裡看得見:
+        // #109 多出來的兩列——循環按鈕與兩行讀數——把第 2 區塊推出了視窗,而 AppKit 既沒有捲動也沒有
+        // 裁切,它把內容**壓扁**了:兩顆錨點按鈕與那顆循環按鈕都被畫成三個像素高的長條、文字無法辨讀,
+        // 而該區塊的最後一行仍在畫面上——於是本檔自己的「最後一行看得見嗎?」那項檢查通過了,
+        // 而該區塊的中段已經沒法讀。
+        .defaultSize(width: 780, height: 900)
     }
 }
 
@@ -182,6 +196,44 @@ struct P50RootView: View {
             )
         }
         .padding(16)
+        // **A floor on the height, because the window opens at whatever height
+        // this content ASKS for and the ask is too small.**
+        //
+        // Measured on macOS 2026-09-17: the window opened 780x825 (797 points of
+        // content) and section 2's three buttons were drawn as three-pixel bars
+        // with no legible text, while every `Text` around them rendered
+        // normally. Resizing the window by hand to 780x1020 made them whole;
+        // resizing it WIDER instead, to 1400x825, did not, so it is height and
+        // not wrapping. `.defaultSize(width:height:)` does not settle it either
+        // -- the window is resized to the content's own ideal size after the
+        // first layout, which overrides both that and AppKit's saved frame, and
+        // clearing the saved frame from user defaults changed nothing.
+        //
+        // So the ideal height this content reports is about 150 points less
+        // than the height at which it renders, and the shortfall comes out of
+        // the buttons. This line asks for the height that works; the underlying
+        // difference is written up in todo.md for whoever owns layout.
+        //
+        // **對高度設下限,因為視窗是以「這份內容所要求的高度」開啟的,而那個要求太小。**
+        //
+        // 2026-09-17 於 macOS 實測:視窗以 780x825(內容 797 點)開啟,而第 2 區塊的三顆按鈕被畫成
+        // 三個像素高的長條、文字無法辨讀,周圍的每一個 `Text` 卻正常。以手動把視窗改成 780x1020 後
+        // 它們就完整了;改成**更寬**的 1400x825 則沒有,因此問題在高度、不在換行。
+        // `.defaultSize(width:height:)` 也解決不了——視窗在第一次排版後會被改成「內容自己的理想尺寸」,
+        // 那會蓋過它、也蓋過 AppKit 儲存的視窗位置;而把那份儲存值從 user defaults 清掉並沒有改變任何事。
+        //
+        // 也就是說,這份內容回報的理想高度,比它真正能正常繪製的高度少了約 150 點,而那個差額是從按鈕
+        // 身上扣掉的。這一行要求的是那個行得通的高度;底下那個差異本身寫在 todo.md 裡,交給負責排版的人。
+        //
+        // AppKit only, because the shortfall is AppKit's: iOS and Android put
+        // this same content in a scrolling root, where a window shorter than
+        // the content scrolls rather than squeezing it. Asking for 1000 points
+        // there would make a phone scroll further for no reason.
+        // 僅限 AppKit,因為那個高度差額是 AppKit 的:iOS 與 Android 把同一份內容放在會捲動的根部裡,
+        // 視窗比內容短時它們是**捲動**而不是壓扁。在那兩者上要求 1000 點,只會讓手機無謂地多捲一段。
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+            .frame(minHeight: 1000)
+        #endif
         .onAppear {
             P50Diagnostics.renderComplete()
         }
