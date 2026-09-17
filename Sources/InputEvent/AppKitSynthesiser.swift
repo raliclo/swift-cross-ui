@@ -582,6 +582,41 @@ public final class AppKitSynthesiser: Synthesiser, @unchecked Sendable {
                 case .scroll(let dx, let dy):
                     try self.postScroll(dx: dx, dy: dy, at: try location(nil), in: window)
 
+                case .pinch, .rotate:
+                    // **Refused with a reason, and the reason was looked for
+                    // rather than assumed.** A magnify or rotate arrives in
+                    // AppKit as an `NSEvent` of type `.magnify` / `.rotate`,
+                    // and `NSEvent` publishes no initialiser that makes one:
+                    // `mouseEvent`, `keyEvent`, `enterExitEvent` and
+                    // `otherEvent` are the whole set, and `otherEvent` rejects
+                    // gesture types. `CGEvent` has no public gesture
+                    // constructor either -- the scroll path here works because
+                    // `scrollWheelEvent2Source` exists and has no counterpart
+                    // for gestures.
+                    //
+                    // So this is not "not implemented yet"; it is the platform
+                    // having no public way in, stated where someone looking for
+                    // it will find it. A trackpad in front of a person is the
+                    // route that works, and Windows drives the same feature
+                    // with its own injector -- see testapp/touch_gesture.zsh,
+                    // which says "Windows only" in its first line.
+                    //
+                    // **以理由拒絕,而那個理由是去找出來的,不是假設的。** 一次縮放或旋轉在 AppKit 中
+                    // 是型別為 `.magnify` / `.rotate` 的 `NSEvent`,而 `NSEvent` 沒有公開任何能造出它的
+                    // 初始化式:`mouseEvent`、`keyEvent`、`enterExitEvent` 與 `otherEvent` 就是全部,
+                    // 而 `otherEvent` 拒絕手勢型別。`CGEvent` 同樣沒有公開的手勢建構子——此處的捲動之所以
+                    // 行得通,是因為 `scrollWheelEvent2Source` 存在,而手勢沒有對應物。
+                    //
+                    // 因此這不是「還沒實作」,而是這個平台沒有公開的入口,並且寫在會有人來找的地方。
+                    // 真正行得通的路是「有人坐在觸控板前面」;而 Windows 以它自己的注入器驅動同一項功能
+                    // ——見 testapp/touch_gesture.zsh,它的第一行就寫著「Windows only」。
+                    throw SynthesiserError.unsupported(
+                        "pinch and rotate on macOS: NSEvent publishes no initialiser for a"
+                            + " .magnify or .rotate event, and CGEvent has no public gesture"
+                            + " constructor. Drive these on iOS or Android, or by hand on a"
+                            + " trackpad."
+                    )
+
                 case .doubleClick, .sleep, .focus:
                     // All three returned above; listed so a new case cannot be
                     // added without the compiler pointing here. `focus` joins

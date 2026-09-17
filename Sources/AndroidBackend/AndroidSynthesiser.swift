@@ -183,6 +183,37 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .scroll(let dx, let dy):
                 try scroll(dx: dx, dy: dy)
 
+            case .pinch, .rotate:
+                // **Not refused because the platform cannot; refused because
+                // this has not been built yet, and the route is named so the
+                // next person does not have to find it again.**
+                //
+                // `MotionEvent.obtain(downTime:eventTime:action:pointerCount:
+                // pointerProperties:pointerCoords:...)` is exposed by AndroidKit
+                // -- AndroidView/MotionEvent.swift, the overload taking
+                // `[MotionEvent.PointerProperties?]` and
+                // `[MotionEvent.PointerCoords?]` -- so a two-contact stream is
+                // constructible here. What it needs is ACTION_POINTER_DOWN and
+                // ACTION_POINTER_UP carrying the pointer index in the action's
+                // high bits, which the single-contact `dispatch` above does not
+                // model.
+                //
+                // **不是因為平台做不到而拒絕;是因為這件事還沒被建出來——而路已經寫在這裡,
+                // 下一個人不必再找一次。**
+                //
+                // `MotionEvent.obtain(downTime:eventTime:action:pointerCount:pointerProperties:
+                // pointerCoords:...)` 由 AndroidKit 公開(AndroidView/MotionEvent.swift 中收
+                // `[MotionEvent.PointerProperties?]` 與 `[MotionEvent.PointerCoords?]` 的那個多載),
+                // 因此雙接觸點的事件串在此是建得出來的。它還需要的是 ACTION_POINTER_DOWN 與
+                // ACTION_POINTER_UP——它們要把 pointer index 放在 action 的高位元裡,而上面那個
+                // 單接觸點的 `dispatch` 並沒有為此建模。
+                throw SynthesiserError.unsupported(
+                    "pinch and rotate on Android: not built yet. The route is"
+                        + " MotionEvent.obtain with pointerProperties/pointerCoords, plus"
+                        + " ACTION_POINTER_DOWN/UP carrying the pointer index in the action's"
+                        + " high bits. queue M9."
+                )
+
             case .sleep(let microseconds):
                 Thread.sleep(forTimeInterval: Double(microseconds) / 1_000_000)
 

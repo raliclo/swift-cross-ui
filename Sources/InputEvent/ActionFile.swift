@@ -181,6 +181,22 @@ public enum ActionFile {
                     throw ActionFileError.missingPosition(verb: verb, line: line)
                 }
                 return .scroll(dx: Int(point.x), dy: Int(point.y))
+            case "pinch", "rotate":
+                // x and y are not a position here, the same way they are not
+                // one for `scroll` -- see `InputAction.pinch` for what each
+                // column means. `origin` is meaningless for both and a `frame`
+                // on one of these rows is a sign the writer expected the
+                // gesture to move somewhere.
+                //
+                // 此處的 x 與 y 不是位置,與它們在 `scroll` 上不是位置是同一回事——各欄位的意義見
+                // `InputAction.pinch`。`origin` 對兩者都沒有意義,而這兩種列上出現 `frame`,
+                // 就代表撰寫者誤以為這個手勢會移動到某處。
+                guard let point else {
+                    throw ActionFileError.missingPosition(verb: verb, line: line)
+                }
+                return verb == "pinch"
+                    ? .pinch(scalePercent: Int(point.x), velocityPercent: Int(point.y))
+                    : .rotate(degrees: Int(point.x), degreesPerSecond: Int(point.y))
             case "keydown": return .keyDown(try key())
             case "keyup": return .keyUp(try key())
             case "key": return .key(try key())

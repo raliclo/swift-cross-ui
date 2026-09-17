@@ -41,7 +41,12 @@ public enum InputAction: Equatable, Sendable {
             // that later points are written against, rather than being written
             // against one itself.
             // `focus` 同樣不指定座標：它**選定**其後座標所依據的參考框架，而不是自己依據某個框架。
-            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus: nil
+            // `pinch` and `rotate` name no point for the same reason `scroll`
+            // does not: their two numeric columns are the gesture's own
+            // parameters, not a position.
+            // `pinch` 與 `rotate` 不指定座標,理由與 `scroll` 相同:它們的兩個數值欄位是這個手勢
+            // 自己的參數,不是位置。
+            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate: nil
         }
     }
 
@@ -92,6 +97,36 @@ public enum InputAction: Equatable, Sendable {
     /// 它刻意不帶自己的位置。滾輪事件會送往指標下方的元件，因此會捲動的檔案必須先把指標移到某處，
     /// 而 `move` 已能做到。若讓 `scroll` 也帶位置，就可能寫出「宣稱在某處、實際捲動另一處」的一列。
     case scroll(dx: Int, dy: Int)
+
+    /// A two-finger pinch, as a scale and a speed.
+    ///
+    /// **Percentages rather than fractions, because the format's numeric columns
+    /// are integers.** `x` is the scale times a hundred -- 200 doubles, 50
+    /// halves -- and `y` is the velocity times a hundred, with 0 meaning "the
+    /// implementation's own default". Same trick `scroll` uses when it reads its
+    /// two columns as wheel notches instead of a position: there is no spare
+    /// column to add, and a documented reinterpretation is cheaper than a format
+    /// change every platform has to learn.
+    ///
+    /// 一次雙指縮放,以「比例」與「速度」表示。
+    ///
+    /// **用百分比而非小數,因為這個格式的數值欄位是整數。** `x` 是比例乘以一百——200 放大兩倍、
+    /// 50 縮小一半——而 `y` 是速度乘以一百,0 代表「由實作挑它自己的預設」。與 `scroll` 把兩個欄位
+    /// 讀成滾輪格數而非位置,是同一個手法:沒有多餘的欄位可加,而一個寫明的重新詮釋,
+    /// 比一次「每個平台都得重學」的格式改動便宜。
+    case pinch(scalePercent: Int, velocityPercent: Int)
+
+    /// A two-finger rotation, in degrees.
+    ///
+    /// `x` is the angle, positive clockwise; `y` is degrees per second, 0 for
+    /// the implementation's default. Degrees rather than radians because a file
+    /// is written by a person and read back by one.
+    ///
+    /// 一次雙指旋轉,以「度」表示。
+    ///
+    /// `x` 是角度,正值為順時針;`y` 是每秒幾度,0 代表由實作挑預設。用度而不用弧度,
+    /// 因為這種檔案是人寫的,也是人讀回來的。
+    case rotate(degrees: Int, degreesPerSecond: Int)
 
     case sleep(microseconds: Int)
 

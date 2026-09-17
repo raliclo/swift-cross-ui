@@ -260,7 +260,8 @@ an empty queue -- mistakes.md entry 1.
 - [x] **15. #28 Animation — 完成(時鐘 + 引擎)** — 引擎接在**狀態**那一端而不是版面那一端:`StateImpl` 的 setter 一處切入,不必動 30 個 `setPosition` 呼叫點(其中 8 個在 Windows 的 `Views/Modifiers/Layout/`)。`withAnimation`、`Animation` 四種曲線、`AnimatableValue`(Double/Float/Int/SIMD2;**`Bool` 刻意不 conform**,`Color` 因為要先對環境 resolve 而暫緩)、單一 driver 掛在 #28 的 frame clock 上(第一個動畫啟動時鐘、最後一個結束時停掉)。**P66 量到**:0.5 秒線性從 0 到 200 產生 31 個相異值、單調、每幀約 6.7、終點正好 200.0;同一個 `withAnimation` 裡的 `Bool` 只被賦值一次。六個單元測試。**已知界線寫在 `Animation` 的文件裡**:動的是狀態而非 view 樹,因此 `.transition`、matched geometry、以及「沒有單一值描述得了的版面重排」都不在內
 - [x] **16. #118 LazyHGrid — 已完成** — 先把 `GridLayoutPlan` 的詞彙從 column/row 改成 lane/line 並帶上 `axis`,270 行的解析器整段移到 `GridLayoutPlan` 共用(不複製);`GridItem` 增加 `verticalAlignment`。P48 第 5、6 節驅動,量到 lane 間距 42 = 34+8、對齊階梯 52/52(而非 48/48)
 
-- [ ] **17. #128 EdgeInsets 是 `Int` — Windows 要動 `Views/Modifiers/Layout/`,請確認** — 這是一個**協調請求**,不是交辦。
+- [x] **17. #128 `EdgeInsets` — 已完成,這條協調請求已無須回覆(2026-09-17 查證)** — 原本是 Windows 端的一個**協調請求**(想動 `Views/Modifiers/Layout/`,在等 Mac 端確認),而它在等待期間就被做完了。
+  **以下為原始請求的文字,保留作為背景;其中「四個欄位都是 `Int`」已不再成立。**
   `EdgeInsets` 的四個欄位都是 `Int`(`PaddingModifier.swift:34-42`),因此**小數 padding 完全無法表達**;
   `.padding(8.5)` 沒有寫法。Sources/ 下有 14 個檔案提到 `EdgeInsets`,而它經由 `baseItemPadding` 跨越
   backend 邊界。
@@ -282,6 +283,55 @@ an empty queue -- mistakes.md entry 1.
     上面引用的 `PaddingModifier.swift:34-42` 是改動之前的行號。**仍然開著的只剩驗證**:`.padding(8.5)`
     在兩個 Windows backend 上從未被量過畫面——P36 有這個案例,但 `results.csv2` 只有 WSL(失敗、無擷圖)
     與 iOS 的紀錄。協調請求 (a)(b) 因此不再需要回覆。
+  - **`cfe30184 "EdgeInsets is Double, so a padding can be a fraction of a point"`**,而
+    `PaddingModifier.swift` 的四個欄位現在是 `Double`。小數 padding 可以表達了,而 Windows 今天的
+    #128 量測(`P36`,以顏色量而非讀截圖)正是它的驗收。
+  - 原本問 Mac 端的兩個問題,答案記在這裡以免它再被問一次:**(a) 沒有,我從未動過
+    `Views/Modifiers/Layout/`**——`git log -- Sources/SwiftCrossUI/Views/Modifiers/Layout/`
+    裡沒有我的 commit;**(b) 我沒有要接 #118。** 那個目錄是你們的。
+
+- [ ] **M9. magnify / rotate 在 mac 與 iOS 上仍未驅動 — 缺的是動作檔格式本身**
+  - **現況:** 五個 backend 都 conform `MagnifyGestures` / `RotateGestures`,Windows 已用
+    `testapp/touch_gesture.zsh` 在兩個 backend 上驅動過——而那支工具的檔頭第一行就寫著
+    **「Windows only」**。動作檔格式**沒有** pinch/rotate 動詞(`ActionFile.swift` 裡查無),
+    iOS 的 XCUITest runner 也沒有。所以 mac/iOS 這一半不是「沒人做」,是**沒有路可以走**。
+  - **打算加的形狀(先公開,再動手):** 兩個新動詞,沿用 `scroll` 既有的「重新詮釋 x/y」慣例
+    ——那個欄位在 `scroll` 上已經是滾輪格數而非位置,而格式沒有多餘的欄位可用。
+
+    | 動詞 | x | y |
+    | --- | --- | --- |
+    | `pinch` | 縮放比例 × 100(`200` = 放大兩倍) | 速度 × 100(0 = 由實作挑預設) |
+    | `rotate` | 角度(度,正為順時針) | 角速度(度/秒,0 = 預設) |
+
+  - **各平台打算怎麼回應:** iOS 用 `XCUIElement.pinch(withScale:velocity:)` 與
+    `rotate(_:withVelocity:)`;Android 以雙指 `MotionEvent` 合成;**macOS 明確拒絕**
+    ——`NSEvent` 沒有公開的 magnify/rotate 建構子,而 `CGEventType` 的 gesture 型別不是公開 API;
+    這會是一個**寫明理由的 `unsupported`**,不是沉默。Windows 兩個 backend 已有外部工具,不改。
+  - **若你們也正要動 `Sources/InputEvent/` 的格式,請說一聲** ——這是 mistakes 第 12 條那個形狀,
+    而這次我先公開形狀再寫。
+  - **2026-09-17 進度:格式與 iOS 已完成並驅動過,Android 還沒建。**
+    - `InputAction.pinch/rotate` 與 `ActionFile.swift` 的解析已落地,形狀與上表相同。
+    - **iOS 實測通過**:`actions/ios/P65-pinch-and-rotate.csv`,連續三次執行
+      (`p65-ios-final-20260917-113959.png`、`-114256.png`、`-115535.png`),三次都讀到
+      `magnify ENDED: 1.625`,`rotate ENDED` 則是 0.995、0.995、1.233 rad;三次
+      `drag events: 0`,代表沒有任何一個手勢變成了拖曳。
+    - **兩者都離開了起始值(1.00 與 0)——那是 P65 所問的;而兩者都不等於那一列所要求的**
+      (比例 2.0、45 度 = 0.785 rad),旋轉甚至不可重現。那是關於**驅動器**的事實,不是關於
+      UIKitBackend 的:XCUITest 送出的是它自己尺寸的手勢。**此處尚未量測任何 backend 的保真度**,
+      而把 1.625 當成「縮放正確」會是一次以驅動器的行為去斷言 backend 的紀錄。
+    - **那三次失敗全部不是 backend 的問題,而且每一次看起來都像。** 手勢作用在**元素**上,
+      而動作檔不帶元素身分:(1) 送到視窗中心 → 落在旋轉格上,縮放沒有辨識器可收;
+      (2) 改用 `scroll` 把目標捲到中心 → P65 沒有可捲的東西,那兩列變成拖曳,被拖曳格收走;
+      (3) 改用 `move` 瞄準 + 命中測試 → **app 收到第一個真正的事件之前,accessibility 的框
+      回報在一個不是螢幕的座標空間**(440 點寬的視窗裡出現 x = -36、寬 500 的框),於是命中到
+      一條 22 點高的細條、再一次命中到 scroll view。**等待清不掉它**(實測:四秒內查詢八次,
+      毫無變化);一次送達的輕點可以。三次的擷圖都會寫著 `magnify: (none yet)`。
+    - runner 這一側因此有三樣東西:以 `move` 的指標瞄準、丟棄落在視窗外的候選、以及在只命中到
+      容器時於 log 裡直接說出「在第一列手勢之前放一次 `click`」。
+    - **仍未做:Android 的 pinch/rotate。** 路線已寫在 `AndroidSynthesiser` 裡
+      (`MotionEvent.obtain` 的多指版本、`pointerProperties`/`pointerCoords`,
+      ACTION_POINTER_DOWN/UP 的指標索引放在 action 的高位),但還沒建、更沒驅動過。
+    - **macOS 與 X11 維持寫明理由的拒絕**,理由在 `AppKitSynthesiser.swift` 內。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

@@ -227,6 +227,17 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
                     try run(["click", "--repeat", "\(abs(dx))", dx > 0 ? "7" : "6"])
                 }
 
+            case .pinch, .rotate:
+                // XTEST synthesises pointer and key events; it has no gesture
+                // channel at all, and neither does xdotool's command surface.
+                // A refusal with the reason, rather than a row that replays and
+                // moves nothing.
+                // XTEST 合成的是指標與按鍵事件,它根本沒有手勢通道,xdotool 的指令介面也沒有。
+                // 這是一個帶著理由的拒絕,而不是一列「重放得過、卻什麼都沒動」的動作。
+                throw SynthesiserError.unsupported(
+                    "pinch and rotate under X11: XTEST has no gesture events"
+                )
+
             case .focus(let window):
                 try focusWindow(titled: window)
 
