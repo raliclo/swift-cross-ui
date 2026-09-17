@@ -221,7 +221,10 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       **同日定案並修正:真的按不下去,而且不限於 popover。** 使用者真實點擊也沒反應;UIA Invoke 同一顆按鈕則記下
       `popover counter 1`,所以壞的是點擊判定。原因:`.border` 是疊在上方的 `Rectangle().stroke(...)`,
       而 WinUI 的 `renderPath` 把看不見的填色設成**透明**筆刷——XAML 會對透明筆刷做點擊判定。改為 `nil` 後,
-      觸控 2/2、使用者真實點擊 3/3。**待查:GTK 的「重放器點不到 popover 內部」是否其實也是同一件事。**
+      觸控 2/2、使用者真實點擊 3/3。~~**待查:GTK 的「重放器點不到 popover 內部」是否其實也是同一件事。**~~
+      **查過,不是(2026-09-17):** Windows -gtk4 上以**觸控**點 popover 內的 `press me`,log 記下
+      `popover counter 1`、`2`(popover 擷圖 `p50g-popover-20260917-213155.png`)。GTK 的點擊判定沒有問題;
+      9/9 那份動作檔點不到,是滑鼠合成(SetCursorPos + SendInput)這條路的限制,與描邊無關。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
