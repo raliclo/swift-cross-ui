@@ -103,13 +103,53 @@ extension GtkBackend: BackendFeatures.DragGestures,
     public func createRotateGestureTarget(wrapping child: Widget) -> Widget {
         let box = GestureBox(child)
         let gesture = GestureRotate()
-        gesture.angleChanged = { [weak box] _, angle, _ in
+        gesture.angleChanged = { [weak box] _, _, angleDelta in
             guard let box else { return }
-            // GTK's angle grows counter-clockwise and this package reports
-            // clockwise positive, the same flip the AppKit side needs.
-            // GTK 的角度逆時針增加，而本套件回報順時針為正——與 AppKit 那一側需要的是同一次翻轉。
-            box.lastRadians = -angle
-            box.onRotateChange?(RotateGestureValue(radians: -angle))
+            // `angle_delta`, the SECOND Double, and not negated. Both were wrong
+            // until 2026-09-17, found by driving it with synthetic touch
+            // (testapp/touch_gesture.zsh, a 90-degree clockwise turn on P65):
+            //
+            //   - It read `angle`, the absolute angle of the line between the
+            //     two fingers. The log started at -4.752 -- the line's own
+            //     angle, not any rotation -- climbed to -6.243, wrapped, and the
+            //     gesture ENDED at -0.000 rad.
+            //   - It negated, per a comment saying GTK's angle grows
+            //     counter-clockwise "the same flip the AppKit side needs". That
+            //     holds in AppKit's y-up coordinates. GTK's are y-down, and the
+            //     absolute angle measurably INCREASED (4.75 -> 6.24) during a
+            //     clockwise turn. WinUIBackend reports +1.571 rad for the same
+            //     injection, so no flip here.
+            //
+            // **讀的是 `angle_delta`(第二個 Double),而且不取負號。** 兩者在 2026-09-17 之前都是錯的,
+            // 是以合成觸控驅動時發現的(testapp/touch_gesture.zsh,在 P65 上順時針轉 90 度):
+            //
+            //   - 它讀的是 `angle`——兩指連線的**絕對**角度。log 從 -4.752 開始(那是連線本身的角度,
+            //     不是任何旋轉量),爬到 -6.243 後繞回,手勢以 -0.000 rad 結束。
+            //   - 它取了負號,依據一句「GTK 角度逆時針增加,與 AppKit 那一側需要同一次翻轉」的註解。
+            //     那在 AppKit 的 y 軸向上座標中成立;GTK 是 y 軸向下,而順時針旋轉時絕對角度**實測是
+            //     增加的**(4.75 → 6.24)。WinUIBackend 對同一個注入回報 +1.571 rad,所以這裡不翻轉。
+            //
+            // UNWRAPPED, because GTK normalises `angle_delta` into [0, 2pi).
+            // Measured with a 45-degree COUNTER-clockwise turn: GTK reported
+            // 5.498 rad (2pi - 0.785). WinUIBackend reports the same injection
+            // as -0.772 and a 200-degree turn as 3.515 -- signed and unbounded --
+            // so each step here adds the shortest signed difference from the
+            // previous raw delta, and `begin` resets both.
+            //
+            // **展開(unwrap)**,因為 GTK 把 `angle_delta` 正規化到 [0, 2π)。以**逆時針** 45 度實測:
+            // GTK 回報 5.498 rad(2π − 0.785)。WinUIBackend 對同一個注入回報 -0.772,200 度回報
+            // 3.515——**有號、不設上限**——所以這裡每一步加上「與前一個原始 delta 的最短有號差」,
+            // 並在 `begin` 時把兩者歸零。
+            var step = angleDelta - box.lastRawAngleDelta
+            if step > .pi { step -= 2 * .pi }
+            if step < -.pi { step += 2 * .pi }
+            box.lastRawAngleDelta = angleDelta
+            box.lastRadians += step
+            box.onRotateChange?(RotateGestureValue(radians: box.lastRadians))
+        }
+        gesture.begin = { [weak box] _, _ in
+            box?.lastRadians = 0
+            box?.lastRawAngleDelta = 0
         }
         gesture.end = { [weak box] _, _ in
             guard let box else { return }
@@ -162,6 +202,10 @@ final class GestureBox: Box {
     var startY = 0.0
     var lastMagnification = 1.0
     var lastRadians = 0.0
+    /// GTK's own `angle_delta` from the previous `angle-changed`, kept to
+    /// unwrap the next one. See `createRotateGestureTarget`.
+    /// 上一次 `angle-changed` 時 GTK 的 `angle_delta`,用來展開下一次。見 `createRotateGestureTarget`。
+    var lastRawAngleDelta = 0.0
 
     var onDragChange: ((DragGestureValue) -> Void)?
     var onDragEnd: ((DragGestureValue) -> Void)?

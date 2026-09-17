@@ -1,5 +1,6 @@
 import Foundation
 import SwiftCrossUI
+import WinAppSDK
 import WinUI
 
 extension WinUIBackend: BackendFeatures.DragGestures,
@@ -15,13 +16,13 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// they ask for. Asking for only the mode that is wanted matters: with
     /// `.all`, a one-finger drag also produces scale noise.
     ///
-    /// **NOT COMPILED HERE (2026-09-10).** This machine cannot build
-    /// WinUIBackend. What to check, in order: the spelling of
-    /// `manipulationMode` and the `ManipulationModes` cases; that
-    /// `manipulationDelta` is an event with `addHandler`, as
-    /// `CompositionTarget.rendering` is in the frame clock; and that
-    /// `args.cumulative` carries `translation`, `scale` and `rotation` --
-    /// rotation in DEGREES, which is why it is converted here.
+    /// ~~**NOT COMPILED HERE (2026-09-10).**~~ Compiled since, and DRIVEN
+    /// 2026-09-17 with real synthetic touch (`testapp/touch_gesture.zsh`)
+    /// against P65: drag (180, 20) reported translation (173, 23); a pinch from
+    /// a 40 px gap to 160 px reported magnification 3.478; a 90-degree rotate
+    /// reported 1.531 rad. Manipulations need touch or pen -- a mouse never
+    /// raises them -- which is why the earlier mouse-only action files could
+    /// not have driven any of this.
     ///
     /// WinUI 的 manipulation 事件，它一次回報全部三者。
     ///
@@ -30,10 +31,10 @@ extension WinUIBackend: BackendFeatures.DragGestures,
     /// 差別只在於各自讀哪個欄位、以及要求哪一種模式。只要求「所要的那個模式」是有意義的:若用
     /// `.all`，一次單指拖曳也會產生縮放的雜訊。
     ///
-    /// **此處未編譯(2026-09-10)。** 這台機器建不了 WinUIBackend。依序要查的是:`manipulationMode`
-    /// 的寫法與 `ManipulationModes` 的各個 case;`manipulationDelta` 是否為一個帶 `addHandler` 的
-    /// 事件(一如 frame clock 中的 `CompositionTarget.rendering`);以及 `args.cumulative` 是否帶著
-    /// `translation`、`scale` 與 `rotation`——其中旋轉的單位是**度**，這正是此處要換算的原因。
+    /// ~~**此處未編譯(2026-09-10)。**~~ 之後已編譯,並於 2026-09-17 以真實的合成觸控
+    /// (`testapp/touch_gesture.zsh`)對 P65 **驅動**:拖曳 (180, 20) 回報 translation (173, 23);
+    /// 間距 40 px → 160 px 的捏合回報 magnification 3.478;90 度旋轉回報 1.531 rad。manipulation 需要
+    /// 觸控或筆——滑鼠從不觸發——這就是先前那些只用滑鼠的動作檔不可能驅動其中任何一項的原因。
     public func createDragGestureTarget(wrapping child: Widget) -> Widget {
         // `ManipulationModes` is a `typealias` to a C enum with `static var`
         // members bolted on -- not a Swift `OptionSet` -- so `.union` does not
@@ -42,8 +43,8 @@ extension WinUIBackend: BackendFeatures.DragGestures,
         // `ManipulationModes` 是一個 `typealias` 指向 C enum、再外掛上 `static var` 成員——
         // **不是** Swift 的 `OptionSet`——因此 `.union` 並不存在,組合的方式是對 `rawValue`
         // 做位元或。以建置量得:「value of type 'ManipulationModes' has no member 'union'」。
-        wrap(
-            child,
+        ManipulationTarget(
+            child: child,
             mode: ManipulationModes(
                 rawValue: ManipulationModes.translateX.rawValue
                     | ManipulationModes.translateY.rawValue
@@ -57,31 +58,35 @@ extension WinUIBackend: BackendFeatures.DragGestures,
         onChange: @escaping (DragGestureValue) -> Void,
         onEnd: @escaping (DragGestureValue) -> Void
     ) {
-        guard environment.isEnabled else { return }
-        _ = target.manipulationDelta.addHandler { _, args in
-            guard let args else { return }
-            let translation = args.cumulative.translation
+        let target = target as! ManipulationTarget
+        guard environment.isEnabled else {
+            target.clearHandlers()
+            return
+        }
+        target.onDelta = { (cumulative: WinAppSDK.ManipulationDelta, start: SIMD2<Double>) in
             onChange(
                 DragGestureValue(
-                    startLocation: .zero,
-                    location: SIMD2(Double(translation.x), Double(translation.y))
+                    startLocation: start,
+                    location: start + SIMD2(
+                        Double(cumulative.translation.x), Double(cumulative.translation.y)
+                    )
                 )
             )
         }
-        _ = target.manipulationCompleted.addHandler { _, args in
-            guard let args else { return }
-            let translation = args.cumulative.translation
+        target.onCompleted = { (cumulative: WinAppSDK.ManipulationDelta, start: SIMD2<Double>) in
             onEnd(
                 DragGestureValue(
-                    startLocation: .zero,
-                    location: SIMD2(Double(translation.x), Double(translation.y))
+                    startLocation: start,
+                    location: start + SIMD2(
+                        Double(cumulative.translation.x), Double(cumulative.translation.y)
+                    )
                 )
             )
         }
     }
 
     public func createMagnifyGestureTarget(wrapping child: Widget) -> Widget {
-        wrap(child, mode: .scale)
+        ManipulationTarget(child: child, mode: .scale)
     }
 
     public func updateMagnifyGestureTarget(
@@ -90,19 +95,21 @@ extension WinUIBackend: BackendFeatures.DragGestures,
         onChange: @escaping (MagnifyGestureValue) -> Void,
         onEnd: @escaping (MagnifyGestureValue) -> Void
     ) {
-        guard environment.isEnabled else { return }
-        _ = target.manipulationDelta.addHandler { _, args in
-            guard let args else { return }
-            onChange(MagnifyGestureValue(magnification: Double(args.cumulative.scale)))
+        let target = target as! ManipulationTarget
+        guard environment.isEnabled else {
+            target.clearHandlers()
+            return
         }
-        _ = target.manipulationCompleted.addHandler { _, args in
-            guard let args else { return }
-            onEnd(MagnifyGestureValue(magnification: Double(args.cumulative.scale)))
+        target.onDelta = { cumulative, _ in
+            onChange(MagnifyGestureValue(magnification: Double(cumulative.scale)))
+        }
+        target.onCompleted = { cumulative, _ in
+            onEnd(MagnifyGestureValue(magnification: Double(cumulative.scale)))
         }
     }
 
     public func createRotateGestureTarget(wrapping child: Widget) -> Widget {
-        wrap(child, mode: .rotate)
+        ManipulationTarget(child: child, mode: .rotate)
     }
 
     public func updateRotateGestureTarget(
@@ -111,42 +118,85 @@ extension WinUIBackend: BackendFeatures.DragGestures,
         onChange: @escaping (RotateGestureValue) -> Void,
         onEnd: @escaping (RotateGestureValue) -> Void
     ) {
-        guard environment.isEnabled else { return }
-        _ = target.manipulationDelta.addHandler { _, args in
-            guard let args else { return }
-            onChange(RotateGestureValue(radians: radians(args.cumulative.rotation)))
+        let target = target as! ManipulationTarget
+        guard environment.isEnabled else {
+            target.clearHandlers()
+            return
         }
-        _ = target.manipulationCompleted.addHandler { _, args in
-            guard let args else { return }
-            onEnd(RotateGestureValue(radians: radians(args.cumulative.rotation)))
+        target.onDelta = { cumulative, _ in
+            onChange(RotateGestureValue(radians: radians(cumulative.rotation)))
         }
-    }
-
-    private func wrap(_ child: Widget, mode: ManipulationModes) -> Widget {
-        let border = Border()
-        border.child = child
-        border.manipulationMode = mode
-        return border
+        target.onCompleted = { cumulative, _ in
+            onEnd(RotateGestureValue(radians: radians(cumulative.rotation)))
+        }
     }
 }
 
-/// WinUI reports rotation in degrees, clockwise positive, which is this
-/// package's direction already -- so this converts the unit and nothing else.
+/// A `Grid` that owns its manipulation handlers, registered exactly once.
+/// (A `Grid` rather than the `Border` this used to wrap with, because `Border`
+/// is `final` in the binding and a subclass is what holds the state.)
+/// (用 `Grid` 而不是原本包裹用的 `Border`,因為 `Border` 在綁定中是 `final`,而持有狀態需要子類別。)
 ///
-/// **A file-scope function rather than a method, and that is the fix rather
-/// than a style choice.** As a method it was called from inside the
-/// `manipulationDelta` closures, which made it an implicit `self` capture:
-/// "implicit use of 'self' in closure; use 'self.' to make capture semantics
-/// explicit", twice. Writing `self.radians(...)` would silence it and would
-/// also make each closure retain the backend for as long as the gesture lives,
-/// for a function that touches no instance state at all.
+/// **The handlers used to be added in `update*GestureTarget`, which runs on
+/// every update, and nothing ever removed them.** Measured 2026-09-17 on P65
+/// with synthetic touch: ONE drag logged `drag ended` 12 times, the pinch after
+/// it logged `magnify ENDED` 18 times, and the rotate after that 23 times -- the
+/// count growing with each gesture because each gesture's own updates added
+/// more. Same shape as the slider that reported `began=5`. Now the events are
+/// subscribed in `init` and `update` only swaps the closures they call.
 ///
-/// WinUI 以**度**回報旋轉、順時針為正，方向與本套件一致——因此此處只換算單位，不做別的。
+/// Disabling also clears the closures. Before, the `isEnabled` guard returned
+/// early and left every previously added handler live, so a disabled gesture
+/// kept firing.
 ///
-/// **它是檔案層級的函式而非方法,而那是修法本身、不是風格選擇。** 作為方法時,它被
-/// `manipulationDelta` 的 closure 從內部呼叫,於是構成一次隱含的 `self` 捕獲:
-/// 「implicit use of 'self' in closure」,兩次。改寫成 `self.radians(...)` 可以消掉那個錯誤,
-/// 但也會讓每個 closure 在手勢存活期間一直持有 backend——**而這個函式根本不碰任何實例狀態**。
+/// **`startLocation` was hard-coded to zero**, and `location` was the raw
+/// translation, so WinUI reported "start (0, 0)" for every drag while AppKit
+/// reports where the finger went down. The start now comes from
+/// `ManipulationStarted.position`.
+///
+/// 一個自己持有 manipulation handler、且**只註冊一次**的 `Border`。
+///
+/// **handler 以前是在 `update*GestureTarget` 裡加上的——那個方法每次更新都會執行——而且沒有任何東西
+/// 移除它們。** 2026-09-17 以合成觸控在 P65 實測:**一次**拖曳印了 12 次 `drag ended`,之後的捏合印了
+/// 18 次 `magnify ENDED`,再之後的旋轉印了 23 次——次數隨每個手勢遞增,因為每個手勢自己的更新又加掛了
+/// 更多。與回報 `began=5` 的 slider 同一個形狀。現在事件在 `init` 中訂閱,`update` 只替換它們呼叫的
+/// 閉包。停用時也會清掉閉包;以前 `isEnabled` 的 guard 提早 return,讓先前加上的 handler 全部保持
+/// 有效,於是被停用的手勢仍會觸發。
+///
+/// **`startLocation` 以前寫死為零**,`location` 則是原始的位移量,所以 WinUI 對每次拖曳都回報
+/// 「start (0, 0)」,而 AppKit 回報的是手指按下的位置。起點現在取自 `ManipulationStarted.position`。
+final class ManipulationTarget: WinUI.Grid {
+    typealias Handler = (WinAppSDK.ManipulationDelta, SIMD2<Double>) -> Void
+
+    var onDelta: Handler?
+    var onCompleted: Handler?
+    private var startLocation: SIMD2<Double> = .zero
+
+    init(child: WinUI.UIElement, mode: ManipulationModes) {
+        super.init()
+        children.append(child)
+        manipulationMode = mode
+
+        _ = manipulationStarted.addHandler { [weak self] _, args in
+            guard let self, let args else { return }
+            self.startLocation = SIMD2(Double(args.position.x), Double(args.position.y))
+        }
+        _ = manipulationDelta.addHandler { [weak self] _, args in
+            guard let self, let args else { return }
+            self.onDelta?(args.cumulative, self.startLocation)
+        }
+        _ = manipulationCompleted.addHandler { [weak self] _, args in
+            guard let self, let args else { return }
+            self.onCompleted?(args.cumulative, self.startLocation)
+        }
+    }
+
+    func clearHandlers() {
+        onDelta = nil
+        onCompleted = nil
+    }
+}
+
 private func radians(_ degrees: Float) -> Double {
     Double(degrees) * .pi / 180
 }
