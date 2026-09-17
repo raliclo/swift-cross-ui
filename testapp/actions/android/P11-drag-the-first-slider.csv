@@ -1,0 +1,46 @@
+action,x,y,origin,button,key,micros,note,platform
+# P11 #82: DRAG the first slider's thumb, inside the scrolling root.
+#
+# **A positive control for the touch-slop theft fixed in
+# ContinuousGestureContainer on 2026-09-17.** That defect was: a scrolling
+# ancestor takes a gesture once one contact has travelled eight dp, and the
+# child that owned the gesture sees ACTION_CANCEL. Every view that follows a
+# finger inside the scrolling root is exposed to the same thing, and a slider is
+# the one a user drags most. Material's `BaseSlider` is documented to call
+# `requestDisallowInterceptTouchEvent` itself -- this file is how that stops
+# being something read and becomes something measured.
+#
+# The existing P11 Android file only CLICKS the sliders, so a drag on one had
+# never been replayed here at all.
+#
+# `scroll` rather than mousedown/move/mouseup: on Android a `move` row posts no
+# event (there is no hover), so that trio is a press and a release with nothing
+# in between -- no ACTION_MOVE, and therefore not a drag. `scroll` is the verb
+# that presses, moves through intermediate points and releases.
+#
+# What to read: the first slider's thumb must END far to the RIGHT. If it stops
+# a few pixels from where it started, the scroll view took the gesture at 8dp
+# and Material does not in fact disallow interception.
+#
+# P11 #82:在會捲動的根部之內,**拖曳**第一個滑桿的滑塊。
+#
+# **這是 2026-09-17 在 ContinuousGestureContainer 修掉的那個 touch slop 奪取的正對照。**
+# 那個缺陷是:一個會捲動的祖先,在任一接觸點移動八個 dp 之後就把手勢拿走,而原本擁有該手勢的子節點
+# 收到 ACTION_CANCEL。**每一個「在捲動根部之內跟隨手指」的 view 都暴露在同一件事之下**,而滑桿正是
+# 使用者最常拖的那一個。Material 的 `BaseSlider` 據文件會自行呼叫
+# `requestDisallowInterceptTouchEvent`——這個檔案就是讓那句話從「讀來的」變成「量到的」。
+#
+# 既有的 P11 Android 檔只**點擊**滑桿,因此在此處從未重放過任何一次滑桿拖曳。
+#
+# 用 `scroll` 而不是 mousedown/move/mouseup:在 Android 上 `move` 列不投遞任何事件(沒有 hover),
+# 因此那三者是「按下」加「放開」、中間什麼都沒有——沒有 ACTION_MOVE,也就不是拖曳。`scroll` 才是那個
+# 會按下、經過中間點移動、再放開的動詞。
+#
+# 讀什麼:第一個滑桿的滑塊必須**停在很右邊**。若它只離起點幾個像素,就代表捲動視圖在 8dp 處拿走了
+# 這個手勢,而 Material 事實上並沒有拒絕攔截。
+sleep,,,,,,1500000,let P11 lay out both sliders,android
+click,80,482,,left,,,"""Separate them"" -- puts a thumb on each slider; without it the first thumb is off the track",android
+sleep,,,,,,1200000,let both sliders repaint,android
+move,8,376,,,,,the first slider's thumb -- measured off p11-android-final-20260917-151129.png at 420 dpi,android
+scroll,-4,0,,,,,"drag it 160 points to the right: press, eight intermediate moves, release",android
+sleep,,,,,,1200000,let the slider settle before the capture,android
