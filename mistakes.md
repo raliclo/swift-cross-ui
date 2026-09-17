@@ -1635,3 +1635,116 @@ the event land, and intervenes only if it genuinely did not.
 
 And record "no net effect" apart from "not supported". The first is two defects, the second is
 none, and their screenshots are the same.
+
+---
+
+## 19. 一個死掉的子行程加上一道吃掉證據的過濾器,被讀成「輸入到不了 WebKit」
+
+**次數:1 次 / 1 天(2026-09-17)。它讓一條已經通的路被記成「沒打通」,並寫進了 results.csv2。**
+
+**編號 19,已先問過對面**(第 14 條):origin 用到 18。
+
+### 症狀 / What it looks like
+
+在 WSLg 的 Wayland 視窗裡,從 Windows 注入觸控點擊與鍵盤到 P38 的網頁,**什麼都沒發生**:連結不開、
+焦點框不動、導覽 log 沒有新行。觸控拖曳標題列卻能移動視窗。我據此記下「輸入到得了 WSLg,只是到不了
+WebKit」,把它當成沒追完的限制交出去。
+
+### 兩個缺陷,一種沉默
+
+| 缺陷 | 它自己會造成什麼 |
+| --- | --- |
+| **app 由一次很快結束的 `wsl.exe` 以 `nohup` 啟動** | `nohup` 只讓 P38 忽略 SIGHUP;WebKit 產生子行程時把訊號處置重設回預設,session 一結束 `WebKitWebProcess` 就被殺掉。P38 仍活著、畫面停在最後一幀——**看起來完全正常,只是沒有任何東西在處理輸入。** |
+| **讀 log 用 `cut -c32- \| grep navigated`** | 時間戳恰好 31 個字元,`cut -c32-` 從第 32 字開始,把 `navigated` 的 `n` 切掉了。`grep` 於是一行都比對不到。修好行程問題之後,畫面上寫著 `Navigations reported: 6`,而我的指令仍回報零行。 |
+
+第一個在 14:54 讓結論成立(那次用 `cat`,零行是真的零行);第二個在 15:22 之後讓每一次「對照組」都失效
+——**包括本該證明探針有效的 XWayland 對照組**,它也回報零行。
+
+### 為何沒有任何東西報錯
+
+一個網頁子行程已死的 WebKit,與一個收不到輸入的 WebKit,在截圖、退出碼、主行程是否存活上完全相同。
+一個比對不到任何行的 `grep`,與一份沒有事件的 log,在終端機上也完全相同。**是 app 自己畫在畫面上的
+`Navigations reported: 6` 與空白的 grep 輸出互相矛盾,才讓第二個缺陷現形。**
+
+### 矯正 / Corrective
+
+1. **判定「輸入沒到」之前,先確認處理輸入的那個行程還活著**:`ps` 裡要看到 `WebKitWebProcess`。
+2. **WSLg 上的臨時啟動一律 `setsid … < /dev/null &`**,不要只用 `nohup`。專案正式流程
+   (test_common.zsh)讓 `wsl.exe` 一直跑到 app 結束,所以不受影響。
+3. **讀 log 不要 `cut` 之後再 `grep` 同一行的內容**;要嘛先 `grep` 再 `cut`,要嘛直接 `cat`。
+4. **對照組先證明自己會報陽性**:探針頁面在 `setsid` 下,XWayland 點擊記到
+   `pointerdown/mousedown/focus/focusin/click`,Wayland 下 Windows 觸控與 Tab 記到同一組加上
+   `keydown-Tab`——那一次才算通過。
+
+---
+
+## 19. A dead child process and a filter that ate the evidence, read as "input does not reach WebKit"
+
+**1 occurrence / 1 day (2026-09-17). It recorded a working path as broken, in results.csv2.**
+
+### What it looks like
+
+Touch taps and keys injected from Windows into P38's page in a Wayland WSLg window did nothing:
+no link opened, no focus ring, no navigation line -- while a touch drag on the title bar moved
+the window. I recorded "input reaches WSLg but not WebKit" and handed it over as a limit.
+
+### Two defects, one silence
+
+- **The app was started with `nohup` by a short-lived `wsl.exe`.** `nohup` makes P38 ignore
+  SIGHUP; WebKit resets signal dispositions for its children, so `WebKitWebProcess` died when the
+  session ended. P38 lived on with its last frame on screen -- normal-looking, and nothing
+  handling input.
+- **The log was read with `cut -c32- | grep navigated`.** The timestamp prefix is 31 characters,
+  so the cut removed the `n`, and grep matched nothing -- even after the process fix, while the
+  app itself displayed `Navigations reported: 6`.
+
+### Why nothing reported it
+
+A WebKit with a dead web process and a WebKit that gets no input look the same in a capture, an
+exit code and a live main process. A grep that matches nothing looks the same as an empty log.
+The contradiction between the app's own on-screen count and the empty grep exposed the second.
+
+### Corrective
+
+Before concluding "no input", check the process that handles it (`WebKitWebProcess` in `ps`).
+Start ad-hoc WSLg apps with `setsid … < /dev/null &`. Never `cut` a line and then grep for text
+the cut may have removed. And make the control prove it can say yes first.
+
+---
+
+## 20. 自己工具的參數解析錯誤,把「點擊」變成「長按」,被讀成 Chromium 的限制
+
+**次數:1 次 / 1 天(2026-09-17)。**
+
+### 症狀 / What it looks like
+
+`touch_gesture.zsh … drag 230 421 230 421 1 30` 在 WebView2 的連結上**從來點不開**(0/4),在 XAML 的
+ComboBox 上卻一直正常。我先後懷疑缺 `PRIMARY|FIRSTBUTTON` 旗標、放開後太快銷毀裝置——兩個假設都在交錯重跑
+中被推翻。
+
+### 為何沒有任何東西報錯
+
+`drag` 被和多一個參數的 `rotate` 歸在一組,所以 `[steps]` 從 `[ms]` 的位置讀取:`1 30` 變成
+**30 步 × 16 ms ≈ 500 ms 的長按**。每一次注入都回傳成功;Chromium 把長按當長按(不開連結),ComboBox
+把長按當點擊(照樣選取)——**於是這個錯只在一個平台上可見,而那個平台看起來像是有限制的那一個。**
+工具自己的輸出其實早就寫著 `step 31 up`。
+
+### 矯正 / Corrective
+
+1. **先讀工具自己印出的東西,再懷疑平台。** 一個「1 步」的點擊印出 32 行,答案就在那裡。
+2. **scratch 版與 repo 版結果不同時,比對的是兩支程式,不是平台的行為。** 精確複製時序的 scratch 版
+   3/3 成功,才把範圍縮到 repo 工具本身。
+
+---
+
+## 20. My own tool's argument parsing turned a tap into a long press, read as a Chromium limit
+
+**1 occurrence / 1 day (2026-09-17).**
+
+A one-step touch "tap" never followed a WebView2 link (0/4) while working on XAML's ComboBox.
+Two hypotheses (missing PRIMARY flags; destroying the device too soon) were refuted by interleaved
+reruns. The cause: `drag` was grouped with `rotate`, which takes a fifth number, so `1 30` became
+30 steps at 16 ms -- a ~500 ms press. Every injection succeeded; Chromium treated it as a long
+press, the ComboBox as a click, so the bug was visible only where it looked like a platform limit.
+The tool's own output said `step 31 up`. Read the tool's output before suspecting the platform, and
+when a scratch tool and the repo tool disagree, diff the tools.
