@@ -22,6 +22,7 @@ import ApplicationServices
 // 同時列出 AXButton 與 AXStaticText,因為 #123 需要兩種證據:一個名字**就是**所要求的那個,以及
 // 一棵被隱藏的子樹的文字**完全不在**那裡。後者無法由一份只列按鈕的輸出來證明。
 let appPath = CommandLine.arguments[1]
+let showChildren = CommandLine.arguments.contains("--children")
 func attr(_ e: AXUIElement, _ k: String) -> CFTypeRef? {
     var v: CFTypeRef?
     return AXUIElementCopyAttributeValue(e, k as CFString, &v) == .success ? v : nil
@@ -52,6 +53,35 @@ func walk(_ e: AXUIElement, _ d: Int) {
                 + " help='\(str(e, kAXHelpAttribute as String))'"
                 + " value='\(str(e, kAXValueAttribute as String))'"
         )
+
+        // What is UNDER a button, with `--children`.
+        //
+        // A button whose own name is right can still expose the label inside it
+        // as a child, and a screen reader then reads both: "Close" and then "X".
+        // The flat listing above cannot show that -- the child is an
+        // AXStaticText like any other, and there are several in this window.
+        // Asked for on 2026-09-17, after an external AT-SPI probe found exactly
+        // that on GTK.
+        //
+        // 以 `--children` 看一個按鈕**底下**有什麼。
+        //
+        // 一個自己的名字正確的按鈕,仍可能把它內部的標籤當成子節點暴露出去,而螢幕閱讀器於是會唸兩次:
+        // 先「Close」再「X」。上面那份扁平清單顯示不出這件事——那個子節點與其他任何一個一樣是
+        // AXStaticText,而這個視窗裡有好幾個。2026-09-17 提出,起因是一支外部 AT-SPI 探針在 GTK 上
+        // 恰好發現了這件事。
+        if showChildren {
+            let children = kids(e)
+            if children.isEmpty {
+                print("    (no children)")
+            }
+            for child in children {
+                print(
+                    "    child role=\(str(child, kAXRoleAttribute as String))"
+                        + " title='\(str(child, kAXTitleAttribute as String))'"
+                        + " value='\(str(child, kAXValueAttribute as String))'"
+                )
+            }
+        }
     }
     if role == kAXStaticTextRole as String {
         n += 1

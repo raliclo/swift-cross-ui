@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 863**
+**Runs recorded / 已記錄的執行筆數: 867**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|--------------------|--------------|
@@ -74,7 +74,7 @@ zsh matrix_coverage/coverage.zsh
 | P35           | -                            | -                              | no image 2026-09-07      | -                            | pass 2026-09-08        | pass 2026-09-06    |              |
 | P36           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | -                            | pass 2026-09-08        | pass 2026-09-06    |              |
 | P37           | -                            | -                              | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-06    |              |
-| P38           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-06    |              |
+| P38           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-17    |              |
 | P39           | pass 2026-08-29              | pass 2026-08-29                | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-06    |              |
 | P40           | pass 2026-08-29              | pass 2026-08-27                | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-06    |              |
 | P41           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | pass 2026-09-01              | pass 2026-09-08        | pass 2026-09-06    |              |
@@ -104,6 +104,6 @@ zsh matrix_coverage/coverage.zsh
 | P66           | -                            | -                              | -                        | pass 2026-09-11              | -                      | -                  |              |
 | P67           | -                            | -                              | -                        | pass 2026-09-12              | pass 2026-09-12        | -                  |              |
 | P68           | -                            | -                              | -                        | pass 2026-09-11              | -                      | -                  |              |
-| P69           | -                            | capture n/a 2026-09-16         | -                        | pass 2026-09-16              | pass 2026-09-16        | pass 2026-09-16    |              |
+| P69           | -                            | capture n/a 2026-09-16         | -                        | pass 2026-09-17              | pass 2026-09-17        | pass 2026-09-17    |              |
 | P70           | capture n/a 1/2 2026-09-16   | capture n/a 2026-09-16         | -                        | pass 2026-09-16              | pass 2026-09-16        | pass 2026-09-16    |              |
 | P71           | -                            | -                              | -                        | pass 2026-09-16              | pass 2026-09-16        | pass 2026-09-16    |              |
