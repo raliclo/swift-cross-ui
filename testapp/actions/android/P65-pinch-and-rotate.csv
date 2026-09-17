@@ -1,0 +1,50 @@
+action,x,y,origin,button,key,micros,note,platform
+# P65 #32: magnify and rotate on Android, DRIVEN.
+#
+# Two contacts, built here rather than borrowed: Android's replay posts its own
+# MotionEvents into this app's activity, so a pinch is
+# `MotionEvent.obtain(...)` with two `PointerProperties`/`PointerCoords` and the
+# pointer index packed into ACTION_POINTER_DOWN's high bits. The single-contact
+# `obtain` every click and drag uses cannot express a second finger at all.
+#
+#     pinch   x = scale x 100 (200 doubles), y = velocity x 100 (0 = default)
+#     rotate  x = degrees, positive clockwise, y = degrees/second (0 = default)
+#
+# **The `move` rows are the aim and they are not optional.** Android routes a
+# whole gesture to whatever the first ACTION_DOWN hit, so the contacts are laid
+# out around the last point a `move` named -- 40 points either side of it. The
+# numbers below were measured off p65-android-final-20260917-142308.png at 420
+# dpi (density 2.625): the magnify panel is y 521..580 and the rotate panel
+# y 625..683, both starting at x 0 and about 236 points wide. The centre is 130
+# rather than 118 so that a doubled pinch keeps both contacts inside the panel
+# instead of walking off the left edge.
+#
+# What to read: P65 shows a line per gesture. `magnify` and `rotate` must leave
+# their starting values -- 1.00 and 0 mean the gesture never arrived. The
+# numbers themselves are the synthesiser's, not a fidelity measurement.
+#
+# P65 #32:Android 上的縮放與旋轉,**已驅動**。
+#
+# 兩個接觸點是在此處建出來的,而不是借來的:Android 的重放會把它自己的 MotionEvent 投遞進這支 app 的
+# activity,因此一次 pinch 就是帶著兩組 `PointerProperties`/`PointerCoords`、並把 pointer index 放進
+# ACTION_POINTER_DOWN 高位元的 `MotionEvent.obtain(...)`。每一次點擊與拖曳所用的那個單接觸點
+# `obtain`,根本表達不出第二根手指。
+#
+#     pinch   x = 比例 × 100(200 為放大兩倍),y = 速度 × 100(0 為預設)
+#     rotate  x = 角度(度,正為順時針),y = 每秒幾度(0 為預設)
+#
+# **那兩列 `move` 就是瞄準,而且不是可有可無的。** Android 會把整個手勢路由給最初那個 ACTION_DOWN
+# 打中的東西,因此兩個接觸點是以「前一列 `move` 所指名的點」為中心、左右各 40 點排開的。下面的數字量自
+# p65-android-final-20260917-142308.png,420 dpi(density 2.625):縮放格是 y 521..580、旋轉格是
+# y 625..683,兩者都從 x 0 起、約 236 點寬。中心取 130 而非 118,是為了讓放大兩倍的縮放把兩個接觸點
+# 都留在該格之內,而不是從左緣走出去。
+#
+# 讀什麼:P65 每個手勢各有一行。`magnify` 與 `rotate` 必須離開它們的起始值——1.00 與 0 代表那個手勢
+# 從未抵達。那些數字本身是合成器的,不是一次保真度量測。
+sleep,,,,,,1500000,let the scene settle before any gesture,android
+move,130,550,,,,,aim at the magnify panel -- see the note on aim,android
+pinch,200,100,,,,,zoom to twice -- magnify must leave 1.00,android
+sleep,,,,,,900000,,android
+move,130,654,,,,,aim at the rotate panel,android
+rotate,45,90,,,,,turn 45 degrees clockwise -- rotate must leave 0,android
+sleep,,,,,,1200000,let the last report land before the capture,android

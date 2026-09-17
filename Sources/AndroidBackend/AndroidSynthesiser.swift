@@ -183,35 +183,26 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .scroll(let dx, let dy):
                 try scroll(dx: dx, dy: dy)
 
-            case .pinch, .rotate:
-                // **Not refused because the platform cannot; refused because
-                // this has not been built yet, and the route is named so the
-                // next person does not have to find it again.**
-                //
-                // `MotionEvent.obtain(downTime:eventTime:action:pointerCount:
-                // pointerProperties:pointerCoords:...)` is exposed by AndroidKit
-                // -- AndroidView/MotionEvent.swift, the overload taking
-                // `[MotionEvent.PointerProperties?]` and
-                // `[MotionEvent.PointerCoords?]` -- so a two-contact stream is
-                // constructible here. What it needs is ACTION_POINTER_DOWN and
-                // ACTION_POINTER_UP carrying the pointer index in the action's
-                // high bits, which the single-contact `dispatch` above does not
-                // model.
-                //
-                // **不是因為平台做不到而拒絕;是因為這件事還沒被建出來——而路已經寫在這裡,
-                // 下一個人不必再找一次。**
-                //
-                // `MotionEvent.obtain(downTime:eventTime:action:pointerCount:pointerProperties:
-                // pointerCoords:...)` 由 AndroidKit 公開(AndroidView/MotionEvent.swift 中收
-                // `[MotionEvent.PointerProperties?]` 與 `[MotionEvent.PointerCoords?]` 的那個多載),
-                // 因此雙接觸點的事件串在此是建得出來的。它還需要的是 ACTION_POINTER_DOWN 與
-                // ACTION_POINTER_UP——它們要把 pointer index 放在 action 的高位元裡,而上面那個
-                // 單接觸點的 `dispatch` 並沒有為此建模。
-                throw SynthesiserError.unsupported(
-                    "pinch and rotate on Android: not built yet. The route is"
-                        + " MotionEvent.obtain with pointerProperties/pointerCoords, plus"
-                        + " ACTION_POINTER_DOWN/UP carrying the pointer index in the action's"
-                        + " high bits. queue M9."
+            case .pinch(let scalePercent, let velocityPercent):
+                try twoContactGesture(
+                    scale: Double(scalePercent) / 100,
+                    radians: 0,
+                    speed: velocityPercent == 0 ? 1 : Double(velocityPercent) / 100
+                )
+
+            case .rotate(let degrees, let degreesPerSecond):
+                // The default angular speed is 1 radian per second because that
+                // is what the iOS runner picks when the row says 0, and a file
+                // that says nothing should mean the same thing on both.
+                // 預設角速度為每秒 1 弧度,因為當那一列寫 0 時 iOS 的 runner 就是這麼選的;
+                // 一份沒有指定的檔案,在兩者上應該是同一個意思。
+                let radians = Double(degrees) * .pi / 180
+                let perSecond =
+                    degreesPerSecond == 0 ? 1 : Double(degreesPerSecond) * .pi / 180
+                try twoContactGesture(
+                    scale: 1,
+                    radians: radians,
+                    speed: perSecond
                 )
 
             case .sleep(let microseconds):
@@ -303,6 +294,224 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         _ = try dispatch(action: actionUp, at: end, downTime: downTime)
         lastPoint = end
+    }
+
+    /// Half the distance between the two contacts a gesture starts with.
+    ///
+    /// In points, converted at dispatch like every other coordinate here. 40
+    /// points is a span of 80 -- wide enough that `ContinuousGestureContainer`
+    /// reads a real initial span (it refuses to track when that span is zero)
+    /// and narrow enough that doubling it stays on a phone screen.
+    ///
+    /// 手勢起始時,兩個接觸點之間距離的一半。
+    ///
+    /// 以「點」為單位,與此處每一個座標一樣在投遞時換算。40 點代表 80 點的跨距——寬到足以讓
+    /// `ContinuousGestureContainer` 讀到一個真實的初始跨距(跨距為零時它拒絕追蹤),窄到即使加倍
+    /// 也還留在手機螢幕上。
+    private static let gestureRadiusInPoints = 40.0
+
+    /// A pinch or a rotation, as two contacts moving around the last point a
+    /// `move` row named.
+    ///
+    /// **Aimed the same way the iOS runner aims**: the gesture happens around
+    /// the pointer, because a gesture recogniser lives on one view and a
+    /// gesture delivered to the middle of the window reaches whichever view is
+    /// there. The first contact is what chooses the target -- Android routes
+    /// the whole gesture to whatever the initial `ACTION_DOWN` hit -- so it goes
+    /// down at the centre and the second contact joins beside it.
+    ///
+    /// The stream is the one `ContinuousGestureContainer` reads: `ACTION_DOWN`,
+    /// then `ACTION_POINTER_DOWN` with the pointer index in the action's high
+    /// bits (that is where it takes the initial span and angle from), then
+    /// `ACTION_MOVE` with both contacts, then `ACTION_POINTER_UP`, which is
+    /// where it reports the end.
+    ///
+    /// 一次縮放或旋轉——兩個接觸點繞著「前一列 `move` 所指名的點」移動。
+    ///
+    /// **瞄準方式與 iOS 的 runner 相同**:手勢發生在指標周圍,因為一個手勢辨識器只長在一個 view 上,
+    /// 而一個送到視窗正中央的手勢,到達的是那裡剛好是誰。選定目標的是第一個接觸點——Android 會把整個
+    /// 手勢路由給最初那個 `ACTION_DOWN` 打中的東西——因此它落在中心,第二個接觸點再到它旁邊加入。
+    ///
+    /// 這個事件串正是 `ContinuousGestureContainer` 所讀的:`ACTION_DOWN`,接著是把 pointer index 放在
+    /// action 高位元裡的 `ACTION_POINTER_DOWN`(它由此取得初始跨距與角度),接著是兩個接觸點的
+    /// `ACTION_MOVE`,最後是 `ACTION_POINTER_UP`——它在那裡回報結束。
+    private func twoContactGesture(scale: Double, radians: Double, speed: Double) throws {
+        let centre = lastPoint
+        let radius = Self.gestureRadiusInPoints * density
+        let endRadius = radius * scale
+
+        // How long the gesture takes, from how far it has to travel and how
+        // fast the row asked to travel it. Clamped at both ends: a gesture
+        // shorter than a few frames has no `ACTION_MOVE` worth reading, and one
+        // longer than three seconds outlasts the sleep any action file puts
+        // after it, so its end would land after the screenshot.
+        //
+        // 這個手勢要花多久:由「要走多遠」與「那一列要求多快」算出。兩端都夾住:短於幾個影格的手勢,
+        // 不會有任何值得一讀的 `ACTION_MOVE`;而長於三秒的手勢,會比任何動作檔放在它後面的 sleep
+        // 還久——那樣它的結束會落在擷圖之後。
+        let travel = radians == 0 ? abs(scale - 1) : abs(radians)
+        let duration = min(max(travel / max(speed, 0.01), 0.15), 3.0)
+        let steps = min(max(Int(duration / 0.016), 8), 90)
+        let stepDelay = duration / Double(steps)
+
+        func contacts(at fraction: Double) -> [(x: Double, y: Double)] {
+            let r = radius + (endRadius - radius) * fraction
+            let angle = radians * fraction
+            let dx = cos(angle) * r
+            let dy = sin(angle) * r
+            return [
+                (x: centre.x - dx, y: centre.y - dy),
+                (x: centre.x + dx, y: centre.y + dy),
+            ]
+        }
+
+        let start = contacts(at: 0)
+        let downTime = try dispatchContacts(
+            action: actionDown,
+            contacts: [start[0]],
+            downTime: nil
+        )
+        _ = try dispatchContacts(
+            action: pointerAction(actionPointerDown, index: 1),
+            contacts: start,
+            downTime: downTime
+        )
+
+        for step in 1...steps {
+            Thread.sleep(forTimeInterval: stepDelay)
+            _ = try dispatchContacts(
+                action: actionMove,
+                contacts: contacts(at: Double(step) / Double(steps)),
+                downTime: downTime
+            )
+        }
+
+        let end = contacts(at: 1)
+        _ = try dispatchContacts(
+            action: pointerAction(actionPointerUp, index: 1),
+            contacts: end,
+            downTime: downTime
+        )
+        _ = try dispatchContacts(
+            action: actionUp,
+            contacts: [end[0]],
+            downTime: downTime
+        )
+    }
+
+    /// An action with the pointer index packed into its high bits.
+    ///
+    /// `ACTION_POINTER_DOWN` and `ACTION_POINTER_UP` say WHICH contact went
+    /// down or up, and Android carries that index in the same integer as the
+    /// action, shifted by `ACTION_POINTER_INDEX_SHIFT`. Sending the bare
+    /// constant instead names contact 0 -- the one that is still down -- and
+    /// the container would take the wrong pointer's coordinates without
+    /// anything reporting a problem.
+    ///
+    /// 把 pointer index packed 進高位元的 action。
+    ///
+    /// `ACTION_POINTER_DOWN` 與 `ACTION_POINTER_UP` 要說出**哪一個**接觸點按下或抬起,而 Android
+    /// 把那個索引與 action 放在同一個整數裡,位移量為 `ACTION_POINTER_INDEX_SHIFT`。若送出裸的常數,
+    /// 指名的會是接觸點 0——那個還按著的——而容器會取到錯誤指標的座標,且不會有任何東西回報問題。
+    private func pointerAction(_ action: Int32, index: Int32) -> Int32 {
+        action | (index << pointerIndexShift)
+    }
+
+    private var actionPointerDown: Int32 {
+        (try? JavaClass<MotionEvent>().ACTION_POINTER_DOWN) ?? 5
+    }
+
+    private var actionPointerUp: Int32 {
+        (try? JavaClass<MotionEvent>().ACTION_POINTER_UP) ?? 6
+    }
+
+    private var pointerIndexShift: Int32 {
+        (try? JavaClass<MotionEvent>().ACTION_POINTER_INDEX_SHIFT) ?? 8
+    }
+
+    private var toolTypeFinger: Int32 {
+        (try? JavaClass<MotionEvent>().TOOL_TYPE_FINGER) ?? 1
+    }
+
+    private var sourceTouchscreen: Int32 {
+        (try? JavaClass<InputDevice>().SOURCE_TOUCHSCREEN) ?? 0x1002
+    }
+
+    /// Builds one `MotionEvent` carrying any number of contacts and hands it to
+    /// the activity, on the main thread.
+    ///
+    /// The single-contact `dispatch` above stays as it is: it is what every
+    /// click, drag and scroll goes through, it has been driven on a device for
+    /// weeks, and the five-argument `obtain` it calls cannot express a second
+    /// contact. This is the fourteen-argument overload, which takes the
+    /// contacts as arrays of `PointerProperties` and `PointerCoords`.
+    ///
+    /// 建構一個帶有任意個接觸點的 `MotionEvent`,並在主執行緒上交給該 activity。
+    ///
+    /// 上面那個單接觸點的 `dispatch` 維持原樣:每一次點擊、拖曳與捲動都走它,它已經在實機上被驅動了
+    /// 好幾週,而它所呼叫的五參數 `obtain` 表達不出第二個接觸點。此處用的是十四參數的多載,它以
+    /// `PointerProperties` 與 `PointerCoords` 的陣列接收那些接觸點。
+    @discardableResult
+    private func dispatchContacts(
+        action: Int32,
+        contacts: [(x: Double, y: Double)],
+        downTime: Int64?
+    ) throws -> Int64 {
+        let clock = try JavaClass<SystemClock>()
+        let now = clock.uptimeMillis()
+        let down = downTime ?? now
+        let toolType = toolTypeFinger
+        let source = sourceTouchscreen
+
+        let dispatched = Self.onMainThread {
+            guard let activity = AndroidBackend.activity else { return false }
+            if !activity.hasWindowFocus() {
+                Self.reportPopupOnce()
+            }
+
+            var properties: [MotionEvent.PointerProperties?] = []
+            var coordinates: [MotionEvent.PointerCoords?] = []
+            for (index, contact) in contacts.enumerated() {
+                let property = MotionEvent.PointerProperties()
+                property.id = Int32(index)
+                property.toolType = toolType
+                properties.append(property)
+
+                let coordinate = MotionEvent.PointerCoords()
+                coordinate.x = Float(contact.x)
+                coordinate.y = Float(contact.y)
+                coordinate.pressure = 1
+                coordinate.size = 1
+                coordinates.append(coordinate)
+            }
+
+            guard
+                let event = try? JavaClass<MotionEvent>().obtain(
+                    down,
+                    now,
+                    action,
+                    Int32(contacts.count),
+                    properties,
+                    coordinates,
+                    Int32(0),  // metaState
+                    Int32(0),  // buttonState
+                    Float(1),  // xPrecision
+                    Float(1),  // yPrecision
+                    Int32(0),  // deviceId
+                    Int32(0),  // edgeFlags
+                    source,
+                    Int32(0)  // flags
+                )
+            else { return false }
+            _ = activity.dispatchTouchEvent(event)
+            event.recycle()
+            return true
+        }
+
+        guard dispatched else {
+            throw SynthesiserError.unsupported("posting a touch without an activity")
+        }
+        return down
     }
 
     private var actionDown: Int32 {
