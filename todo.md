@@ -141,6 +141,8 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       GDK 釋放了手勢仍握著的裝置,`_gdk_win32_get_cursor_pos` 存取違規(交錯 A/B:立即移除 4/6 崩、
       延後 3 秒 0/6)。真機上等同拔掉觸控螢幕或遠端桌面移除觸控裝置。已在
       `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。WSL 未驅動。細節見 results.csv2。
+      **回報上游那一項改記在 `todo-Gtk.md`**(2026-09-18 使用者指定):那是 GTK 自己的缺陷,而且對外回報
+      要先取得同意。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
       Android 只就**頁面自己**發起的導覽詢問它;第一次載入由我們的 `loadUrl` 發起,因此從未被回報:
       P38 畫出了 example.com 而旁邊寫著 `Navigations reported: 0`,AppKit 與 UIKit 都寫 1。改用
