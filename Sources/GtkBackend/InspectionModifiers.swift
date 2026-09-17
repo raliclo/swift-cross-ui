@@ -165,39 +165,47 @@ extension ScrollView {
 }
 
 extension List {
-    /// The signature still hands over a `Gtk.ListBox`, and that is deliberate:
-    /// the widget changed, the inspection contract did not.
+    /// `Gtk.ListView`, not `Gtk.ListBox`, and the old signature TRAPPED.
     ///
-    /// Since #117 a `List` is a `GtkScrolledWindow` wrapping the list box, so
-    /// this unwraps one level -- the same shape `NavigationSplitView` above has
-    /// used since it started returning a `Gtk.Fixed`. Passing the scrolled
-    /// window through instead would have been a source break for every caller,
-    /// to expose a wrapper nobody asked to inspect.
+    /// It used to hand over a `Gtk.ListBox`, unwrapped from a `ScrolledWindow`
+    /// with a forced cast, under a comment saying "the widget changed, the
+    /// inspection contract did not". #117 then replaced the list box with GTK's
+    /// native lazy `GtkListView`, and nothing ran this overload afterwards.
+    /// Driven for the first time on 2026-09-18 by `P4 --inspect-containers`, it
+    /// died at launch with "Could not cast value of type 'Gtk.ListView' to
+    /// 'Gtk.ListBox'". A contract that cannot be honoured is not a contract:
+    /// there is no list box to hand over any more.
     ///
-    /// 簽章依然交出一個 `Gtk.ListBox`，而那是刻意的：改變的是 widget，不是這份 inspection 的約定。
+    /// The search shape is the one queue M8 gave every other overload, so a
+    /// later change of wrapper does not trap again.
     ///
-    /// 自 #117 起，一個 `List` 是包住 list box 的 `GtkScrolledWindow`，因此此處往內拆一層——與上方
-    /// `NavigationSplitView` 自從改為回傳 `Gtk.Fixed` 之後所採用的形狀相同。改為直接把 scrolled
-    /// window 傳出去，會為了暴露一個沒有人要求檢視的外包層，而讓每一個呼叫端都編不過。
+    /// 交出的是 `Gtk.ListView` 而不是 `Gtk.ListBox`,而舊的簽章會**trap**。
+    ///
+    /// 它原本以強制轉型從 `ScrolledWindow` 拆出一個 `Gtk.ListBox`,並在註解裡寫著「改變的是 widget,不是這份
+    /// inspection 的約定」。其後 #117 以 GTK 原生的 lazy `GtkListView` 取代了 list box,而此後沒有任何東西跑過
+    /// 這個 overload。2026-09-18 首次以 `P4 --inspect-containers` 驅動,它一啟動就死於「Could not cast value of
+    /// type 'Gtk.ListView' to 'Gtk.ListBox'」。**一個無法被遵守的約定不是約定**:那個 list box 已經不存在了。
+    ///
+    /// 搜尋的形狀與 queue M8 給其他所有 overload 的相同,好讓外包層日後再變也不會再 trap。
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,
-        _ action: @escaping @MainActor @Sendable (Gtk.ListBox) -> Void
+        _ action: @escaping @MainActor @Sendable (Gtk.ListView) -> Void
     ) -> some View {
-        InspectView(child: self, inspectionPoints: inspectionPoints) {
-            (view: Gtk.ScrolledWindow) in
-            action(view.getChild() as! Gtk.ListBox)
-        }
+        scuiInspectFirst(inspectionPoints, Gtk.ListView.self, action)
     }
 }
 
 extension NavigationSplitView {
+    /// Searched rather than `view.children[0] as! Gtk.Paned`, for the reason the
+    /// `List` overload above records: the forced version of that cast trapped
+    /// the first time anything ran it.
+    /// 改為搜尋而非 `view.children[0] as! Gtk.Paned`,理由見上方 `List` overload:那種強制轉型的版本,在第一次
+    /// 真的被執行時就 trap 了。
     public func inspect(
         _ inspectionPoints: InspectionPoints = .onCreate,
         _ action: @escaping @MainActor @Sendable (Gtk.Paned) -> Void
     ) -> some View {
-        InspectView(child: self, inspectionPoints: inspectionPoints) { (view: Gtk.Fixed) in
-            action(view.children[0] as! Gtk.Paned)
-        }
+        scuiInspectFirst(inspectionPoints, Gtk.Paned.self, action)
     }
 }
 
