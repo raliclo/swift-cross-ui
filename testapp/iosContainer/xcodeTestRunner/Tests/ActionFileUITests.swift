@@ -19,6 +19,10 @@ final class ActionFileUITests: XCTestCase {
     /// 內嵌，使得日後若有檔案需要不同手感時，只有一個地方要改。
     private static let pointsPerNotch: CGFloat = 40
 
+    /// One tree dump per run; see `gestureTarget(at:in:)`.
+    /// 一次執行只印一棵樹;見 `gestureTarget(at:in:)`。
+    private var didDumpTree = false
+
     /// The modifier a `keydown`/`keyup` names, or `nil` if it is not a modifier.
     ///
     /// The left/right distinction the format carries is dropped: XCUITest has
@@ -211,6 +215,50 @@ final class ActionFileUITests: XCTestCase {
                 // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
                 // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
                 origin.press(forDuration: 0.05, thenDragTo: destination)
+            case "pinch", "rotate":
+                // **XCUITest has these natively, which is why iOS is the one
+                // platform where this costs nothing.** `pinch(withScale:
+                // velocity:)` and `rotate(_:withVelocity:)` synthesise a real
+                // two-contact gesture; AppKit publishes no initialiser for a
+                // magnify or rotate NSEvent, and X11's XTEST has no gesture
+                // channel at all, so both of those refuse with a reason.
+                //
+                // **Aimed by the preceding `move` row, not by the window.**
+                // `x` and `y` on these two rows are the gesture's own
+                // parameters, so the aim has to come from somewhere else, and
+                // the runner already carries a pointer that `move` sets. The
+                // first driven run of P65 sent both gestures to the window's
+                // centre: rotate registered (the centre sat on the rotate
+                // panel) and the pinch did not, which reads exactly like "iOS
+                // cannot pinch". A gesture recogniser lives on one view; a
+                // gesture aimed at the middle of the window reaches whichever
+                // view happens to be there. See `gestureTarget(at:in:)`.
+                //
+                // **由前一列 `move` 瞄準,而不是由視窗瞄準。** 這兩列的 `x` 與 `y` 是手勢自己的參數,
+                // 因此瞄準必須來自別處——而 runner 本來就帶著一個由 `move` 設定的指標。P65 第一次被
+                // 驅動時,兩個手勢都送到視窗中心:旋轉登記了(中心正好落在旋轉那一格),縮放沒有,
+                // 而那讀起來完全像是「iOS 無法縮放」。一個手勢辨識器只長在一個 view 上;一個瞄準
+                // 視窗正中央的手勢,到達的是那裡剛好是誰。見 `gestureTarget(at:in:)`。
+                //
+                // **XCUITest 原生就有這兩者,而那正是 iOS 成為「這件事零成本」的唯一平台的原因。**
+                // `pinch(withScale:velocity:)` 與 `rotate(_:withVelocity:)` 會合成一次真正的
+                // 雙接觸點手勢;AppKit 沒有公開任何能造出 magnify 或 rotate `NSEvent` 的初始化式,
+                // 而 X11 的 XTEST 根本沒有手勢通道,因此那兩者都以理由拒絕。
+                //
+                // 作用在視窗上而非某個定位到的元素:這些手勢講的是「它們底下的那個 view」,
+                // 而動作檔格式不帶元素身分——此處它的 `x` 與 `y` 是這個手勢自己的參數,不是位置。
+                // 見 `InputAction.pinch`。
+                let target = gestureTarget(at: pointer, in: app)
+                if action.kind == "pinch" {
+                    let scale = CGFloat(action.x) / 100
+                    let velocity = action.y == 0 ? 1 : CGFloat(action.y) / 100
+                    target.pinch(withScale: scale, velocity: velocity)
+                } else {
+                    let radians = CGFloat(action.x) * .pi / 180
+                    let velocity =
+                        action.y == 0 ? 1 : CGFloat(action.y) * .pi / 180
+                    target.rotate(radians, withVelocity: velocity)
+                }
             case "keydown":
                 // A MODIFIER is held; anything else cannot be.
                 //
@@ -272,6 +320,154 @@ final class ActionFileUITests: XCTestCase {
         FileHandle.standardError.write(
             Data("-actionfile: replayed \(fileName)\n".utf8)
         )
+    }
+
+    /// The element a pinch or rotate should act on: the smallest one whose
+    /// frame contains the point the last `move` row set.
+    ///
+    /// `XCUIElement.pinch` and `.rotate` act on an element and there is no
+    /// coordinate-based form of either, so "aim at a point" has to become "find
+    /// what is at that point". Smallest-containing rather than first-containing:
+    /// the window contains every point, and it is always in the list.
+    ///
+    /// **Every candidate is printed, not just the winner.** A pinch that lands
+    /// on the wrong view and a pinch the view ignored produce the same
+    /// screenshot; so does a point that matched nothing and fell back to the
+    /// window. Those three need different fixes and the log is the only thing
+    /// that separates them.
+    ///
+    /// 一次 pinch 或 rotate 該作用的元素:框住「前一列 `move` 所設之點」的元素中最小的那一個。
+    ///
+    /// `XCUIElement.pinch` 與 `.rotate` 作用在元素上,而兩者都沒有以座標為準的形式,因此
+    /// 「瞄準一個點」必須變成「找出那個點上是什麼」。取最小而非取第一個:視窗框住每一個點,
+    /// 而它永遠在清單裡。
+    ///
+    /// **每一個候選都印出來,不只印出勝出者。** 一次落在錯誤 view 上的縮放,與一次被該 view 忽略的
+    /// 縮放,產生同一張截圖;一個什麼都沒對上、於是退回視窗的點也是。那三者要修的東西不同,
+    /// 而這份 log 是唯一能把它們分開的東西。
+    private func gestureTarget(
+        at pointer: XCUICoordinate?,
+        in app: XCUIApplication
+    ) -> XCUIElement {
+        let window = app.windows.firstMatch
+        guard let pointer else {
+            FileHandle.standardError.write(
+                Data("-actionfile: gesture has no preceding move row; aiming at the window\n".utf8)
+            )
+            return window
+        }
+
+        // The whole tree, once, when a gesture is first aimed.
+        //
+        // The flat candidate list below says what contains the point; it does
+        // not say what those elements ARE, and the first aim of P65 produced a
+        // list that matched nothing in the screenshot -- eleven copies of a
+        // 500x463 frame in a 440-point window. Guessing at that from the
+        // numbers is how the last two runs were spent.
+        //
+        // 整棵樹,只印一次,在第一個手勢被瞄準時。
+        //
+        // 下方那份扁平的候選清單只說「什麼框住了這個點」,它不說那些元素**是什麼**;而 P65 的第一次
+        // 瞄準產生了一份與截圖對不起來的清單——在一個 440 點寬的視窗裡出現十一個 500x463 的框。
+        // 從那些數字去猜它是什麼,正是前兩次執行所花掉的東西。
+        if !didDumpTree {
+            didDumpTree = true
+            FileHandle.standardError.write(
+                Data("-actionfile: element tree at first gesture:\n\(app.debugDescription)\n".utf8)
+            )
+        }
+
+        let point = pointer.screenPoint
+        let windowFrame = window.frame
+        var best: XCUIElement?
+        var bestArea = CGFloat.greatestFiniteMagnitude
+        var report = "-actionfile: gesture aimed at \(point)\n"
+
+        // **Two coordinate spaces show up in one tree, and only one of them is
+        // the screen's.** P65's first aim listed eleven frames of 500x463 with
+        // x = -36 inside a 440-point window, and the panel actually under the
+        // point was not in the list at all; the same query after one delivered
+        // event listed the panel at its screen position. Those out-of-window
+        // frames are a layout the app has already left. An element that is not
+        // inside the window cannot be what is under a point on the screen, so
+        // they are dropped and the query is retried -- the retry is what waits
+        // for the tree to catch up, and `attempt` in the log says how long it
+        // took.
+        //
+        // **一棵樹裡會同時出現兩個座標系,而其中只有一個是螢幕的。** P65 的第一次瞄準,在一個 440 點寬的
+        // 視窗裡列出了十一個 x = -36 的 500x463 框,而真正位於該點下方的那一格根本不在清單裡;同一個查詢
+        // 在一個事件送出之後,則把那一格列在它的螢幕位置上。那些落在視窗外的框,是這個 app 已經離開的
+        // 一份佈局。一個不在視窗內的元素,不可能是螢幕上某一點底下的東西——因此它們被丟棄,並重試查詢;
+        // 等待那棵樹跟上的正是這個重試,而 log 裡的 `attempt` 說出它花了多久。
+        for attempt in 1...2 {
+            best = nil
+            bestArea = .greatestFiniteMagnitude
+            report += "-actionfile:   attempt \(attempt)\n"
+
+            for element in app.descendants(matching: .any)
+                .allElementsBoundByAccessibilityElement
+            {
+                let frame = element.frame
+                guard frame.width > 0, frame.height > 0, frame.contains(point) else { continue }
+                let inWindow = windowFrame.contains(frame)
+                report += "-actionfile:   candidate \(element.elementType.rawValue) "
+                    + "'\(element.identifier)' '\(element.label)' \(frame)"
+                    + (inWindow ? "\n" : " OUTSIDE THE WINDOW -- dropped\n")
+                guard inWindow else { continue }
+                let area = frame.width * frame.height
+                if area < bestArea {
+                    bestArea = area
+                    best = element
+                }
+            }
+
+            // A container is not an aim. The window, the application and the
+            // scroll view all contain every point inside them, so landing on
+            // one of those means nothing that was actually drawn at the point
+            // reported a usable frame -- which is the state above, not a
+            // result. Anything else is a view that is really there.
+            //
+            // 一個容器不是一次瞄準。視窗、application 與 scroll view 框住其中的每一個點,因此落在
+            // 那三者之一上,代表「真正畫在該點上的東西」沒有任何一個回報得出可用的框——那是上面所說的
+            // 那個狀態,不是一個結果。其餘任何東西,都是一個真的在那裡的 view。
+            let containers: [XCUIElement.ElementType] = [.window, .application, .scrollView]
+            if let best, !containers.contains(best.elementType) { break }
+
+            // **Waiting does not fix this, and that was measured rather than
+            // assumed.** Eight attempts with `activate()` between them -- four
+            // seconds -- left the tree exactly as it was, and the aim still
+            // landed on the scroll view. One delivered tap fixed it instantly:
+            // the query right after it put the panel at {{0, 332}, {267, 62}},
+            // the position the screenshot shows. So the retry is one, for a
+            // tree that is merely a frame behind, and the line below says what
+            // to do when it is the other thing.
+            //
+            // **等待修不好這件事,而這是量出來的、不是假設的。** 八次嘗試、其間穿插 `activate()`
+            // ——共四秒——那棵樹一動也沒動,瞄準依然落在 scroll view 上。而一次真正送達的輕點立刻
+            // 修好了它:緊接其後的查詢把那一格放在 {{0, 332}, {267, 62}},也就是截圖所顯示的位置。
+            // 因此重試只留一次,給那些只慢了一幀的樹;而下面那一行,說出遇到另一種情況時該做什麼。
+            app.activate()
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+
+        if let best, [XCUIElement.ElementType.window, .application, .scrollView]
+            .contains(best.elementType)
+        {
+            report += "-actionfile:   only a container is at that point. The app has not "
+                + "received an event yet, so its accessibility frames are still in an "
+                + "unconverted space. Put one delivered event -- a `click` row on inert "
+                + "background -- before the first gesture row.\n"
+        }
+
+        if let best {
+            report += "-actionfile:   chose \(best.elementType.rawValue) "
+                + "'\(best.identifier)' '\(best.label)' \(best.frame)\n"
+        } else {
+            report += "-actionfile:   nothing inside the window contains that point; "
+                + "aiming at the window\n"
+        }
+        FileHandle.standardError.write(Data(report.utf8))
+        return best ?? window
     }
 
     private func coordinate(

@@ -1,0 +1,123 @@
+action,x,y,origin,button,key,micros,note,platform
+# P65 #32: magnify and rotate, DRIVEN -- the half that had never been driven
+# anywhere but Windows.
+#
+# **This needed a format change, not just a test.** The action-file columns had
+# no way to say "pinch": `touch_gesture.zsh` drives these on Windows and says
+# "Windows only" in its first line, and the XCUITest runner threw on any verb it
+# did not know. `pinch` and `rotate` are new verbs whose x and y are the
+# gesture's own parameters rather than a position -- the same reinterpretation
+# `scroll` already makes for wheel notches, because the format has no spare
+# column and a documented reuse is cheaper than a change every platform must
+# learn.
+#
+#     pinch   x = scale x 100 (200 doubles), y = velocity x 100 (0 = default)
+#     rotate  x = degrees, positive clockwise, y = degrees/second (0 = default)
+#
+# **iOS is the one platform where this cost nothing**: XCUITest publishes
+# `pinch(withScale:velocity:)` and `rotate(_:withVelocity:)`. AppKit has no
+# public initialiser for a magnify or rotate NSEvent and X11's XTEST has no
+# gesture channel, so both refuse with the reason written where someone looking
+# will find it; Android's route exists and is named but is not built yet.
+#
+# What to read: P65 shows a line per gesture. `magnify` and `rotate` must leave
+# their starting values -- a scale of 1.00 and an angle of 0 mean the gesture
+# never arrived, which is what every capture before today showed.
+#
+# **Leaving the starting value is the whole assertion; the number is not.**
+# Three runs of this file asked for scale 2.0 and 45 degrees (0.785 rad) and got
+# 1.625 every time and 0.995, 0.995, 1.233 rad -- XCUITest delivers a gesture of
+# its own size around the one requested, and the rotation is not repeatable. Any
+# claim about how faithfully a backend reports a gesture needs a driver that
+# delivers what it was asked for, and this is not one.
+#
+# P65 #32:縮放與旋轉,**已驅動**——這是除了 Windows 之外從未被驅動過的那一半。
+#
+# **這需要的是一次格式改動,而不只是一個測試。** 動作檔的欄位原本說不出「pinch」這件事:
+# `touch_gesture.zsh` 在 Windows 上驅動它們,而它的第一行就寫著「Windows only」;
+# 而 XCUITest 的 runner 對任何它不認識的動詞都會拋錯。`pinch` 與 `rotate` 是新的動詞,
+# 它們的 x 與 y 是這個手勢自己的參數而非位置——與 `scroll` 早已對滾輪格數所做的重新詮釋相同,
+# 因為這個格式沒有多餘的欄位,而一次寫明的重用,比一次「每個平台都得重學」的改動便宜。
+#
+#     pinch   x = 比例 × 100(200 為放大兩倍),y = 速度 × 100(0 為預設)
+#     rotate  x = 角度(度,正為順時針),y = 每秒幾度(0 為預設)
+#
+# **iOS 是這件事零成本的唯一平台**:XCUITest 公開了 `pinch(withScale:velocity:)` 與
+# `rotate(_:withVelocity:)`。AppKit 沒有任何能造出 magnify 或 rotate `NSEvent` 的公開初始化式,
+# X11 的 XTEST 也沒有手勢通道,因此兩者都以「寫在會有人來找的地方」的理由拒絕;
+# Android 的路徑存在、也已寫明,但還沒建。
+#
+# 讀什麼:P65 每個手勢各有一行。`magnify` 與 `rotate` 必須離開它們的起始值——比例 1.00、角度 0
+# 代表那個手勢從未抵達,而那正是今天之前每一張擷圖所顯示的。
+#
+# **「離開起始值」就是全部的斷言;那個數字不是。** 本檔執行三次,要求的是比例 2.0 與 45 度
+# (0.785 rad),拿到的是三次 1.625、以及 0.995、0.995、1.233 rad——XCUITest 送出的是它自己尺寸的
+# 手勢,而且旋轉並不可重現。任何關於「某個 backend 回報手勢有多忠實」的主張,都需要一個會照著要求
+# 送出的驅動器,而這一個不是。
+#
+# **A gesture is aimed, and this file needed two tries to aim it.**
+# `XCUIElement.pinch` and `rotate` act on an element; there is no
+# coordinate-based form of either; and an action file carries no element
+# identity. So the runner first sent both gestures to the window's centre. The
+# result was `rotate ENDED: 1.019 rad` and `magnify: (none yet)` -- the centre
+# of a 440x956 window is y=478, which sits inside the rotate panel (y 446..507),
+# so rotate registered and the pinch, delivered to the same point, had no
+# magnify recogniser under it. Neither result was a bug.
+#
+# The second try scrolled the wanted panel under the centre. **That was wrong
+# too, and it did not fail quietly**: P65 has nothing to scroll, so the two
+# `scroll` rows became what a scroll is on a touch screen -- a drag -- and the
+# drag panel reported them (`translation (-16, 311)`), while `magnify` still
+# read `(none yet)`. A capture that shows a moved drag panel and an unmoved
+# magnify panel looks exactly like the first try.
+#
+# What works is the pointer the runner already keeps: a `move` row sets it and
+# the gesture then hit-tests for the smallest element containing that point.
+# The two `move` rows below are the aim, measured off the capture at 3x
+# (magnify panel y 332..394, rotate panel y 437..499, both x 0..267).
+#
+# **And the tap at the top is not decoration.** Until the app has received one
+# real event, its accessibility frames come back in a space that is not the
+# screen's: a 440-point window listing frames 500 wide at x = -36, with the
+# panel that is under the point missing from the list entirely. Aimed into that
+# tree the pinch chose a 22-point strip and, on the next try, the scroll view --
+# both of which accept a pinch and neither of which has a magnify recogniser, so
+# the app reported `magnify: (none yet)` and looked like a backend that cannot
+# magnify. Waiting does not clear it (measured: eight queries over four seconds,
+# no change). One delivered tap does, and the query straight after it put the
+# panel at its screen position. So the first row that touches anything is a tap
+# on empty background, and the runner says so in the log when it sees the
+# unconverted tree again.
+#
+# **手勢是需要瞄準的,而這個檔案瞄了兩次才中。**
+# `XCUIElement.pinch` 與 `rotate` 作用在元素上;兩者都沒有以座標為準的形式;而動作檔不帶元素身分。
+# 因此 runner 起初把兩個手勢都送到視窗中心。結果是 `rotate ENDED: 1.019 rad` 與
+# `magnify: (none yet)`——440x956 的視窗其中心在 y=478,那正落在旋轉那一格內(y 446..507),
+# 所以旋轉登記了,而送到同一點的縮放,底下沒有 magnify 辨識器。兩個結果都不是缺陷。
+#
+# 第二次嘗試改成把想要的那一格捲到中心底下。**那同樣是錯的,而且它並非安靜地失敗**:P65 沒有任何
+# 可捲動的東西,於是那兩列 `scroll` 變成了「捲動在觸控螢幕上的樣子」——一次拖曳——並且被拖曳那一格
+# 回報了(`translation (-16, 311)`),而 `magnify` 仍然是 `(none yet)`。一張「拖曳格動了、縮放格
+# 沒動」的擷圖,看起來與第一次嘗試完全相同。
+#
+# 真正可行的,是 runner 本來就保存的那個指標:一列 `move` 設定它,手勢再以命中測試找出框住該點的
+# 最小元素。下方那兩列 `move` 就是瞄準,量自 3x 的擷圖(縮放格 y 332..394、旋轉格 y 437..499,
+# 兩者 x 皆為 0..267)。
+#
+# **而最上面那一次輕點不是裝飾。** 在這個 app 收到第一個真正的事件之前,它的 accessibility 框回報在
+# 一個不是螢幕的座標空間裡:一個 440 點寬的視窗,卻列出 x = -36、寬 500 的框,而真正位於該點下方的
+# 那一格根本不在清單中。瞄進那樣一棵樹,縮放先是選中一條 22 點高的細條,下一次則選中 scroll view
+# ——兩者都接受 pinch,而兩者都沒有 magnify 辨識器,於是 app 回報 `magnify: (none yet)`,看起來就像
+# 一個無法縮放的 backend。等待清不掉它(實測:四秒內查詢八次,毫無變化)。一次真正送達的輕點可以,
+# 而緊接其後的查詢就把那一格放到了它的螢幕位置上。因此第一列會碰到東西的動作,是對空白背景的一次
+# 輕點;而 runner 在再次看到那棵未轉換的樹時,會在 log 裡把這件事說出來。
+sleep,,,,,,3000000,let the scene settle before any gesture -- see the note on settling,ios
+click,400,800,,left,,,"one harmless tap on empty background -- see the note on settling",ios
+sleep,,,,,,500000,,ios
+move,133,363,,,,,"aim at the magnify panel -- see the note on aim",ios
+sleep,,,,,,500000,,ios
+pinch,200,100,,,,,zoom to twice -- magnify must leave 1.00,ios
+sleep,,,,,,900000,,ios
+move,133,476,,,,,aim at the rotate panel,ios
+rotate,45,90,,,,,turn 45 degrees clockwise -- rotate must leave 0,ios
+sleep,,,,,,1200000,let the last report land before the capture,ios

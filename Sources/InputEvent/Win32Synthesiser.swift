@@ -818,6 +818,20 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                     try send(wheelFlags: MOUSEEVENTF_HWHEEL, delta: dx * Int(WHEEL_DELTA))
                 }
 
+            case .pinch, .rotate:
+                // Windows drives these already, but not through here:
+                // testapp/touch_gesture.zsh injects a two-contact touch stream
+                // with its own helper. Adding a second route through SendInput
+                // would give the same feature two implementations that could
+                // disagree, so this refuses and names the one that works.
+                // Windows 早就能驅動這兩者,只是不經過這裡:testapp/touch_gesture.zsh 以它自己的
+                // 輔助程式注入雙接觸點的觸控串流。再經由 SendInput 開第二條路,會讓同一項功能有兩份
+                // 可能互相矛盾的實作,因此此處拒絕,並指出那條行得通的路。
+                throw SynthesiserError.unsupported(
+                    "pinch and rotate on Windows: use testapp/touch_gesture.zsh, which injects"
+                        + " a two-contact touch stream"
+                )
+
             case .focus(let window):
                 try focusWindow(titled: window)
 
