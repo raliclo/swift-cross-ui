@@ -176,6 +176,25 @@ apt-get install -y --no-install-recommends pulseaudio-utils
 # netpbm 用於轉換其輸出，因為沒人打得開的擷取檔算不上證據。
 apt-get install -y --no-install-recommends xdotool x11-utils x11-apps netpbm
 
+# WebKitGTK 6.0, the engine behind GtkBackend's WebView on Linux (P38). The
+# RUNTIME package only: gtk_webkit.c loads libwebkitgtk-6.0.so.4 with dlopen, so
+# no headers are needed to build, and a machine without it still builds and
+# shows a frame naming this package. Installed here so WSL runs the real thing.
+#
+# One WSL-specific fact, measured 2026-09-17 after installing it: WebKit's UI
+# process aborts ("Could not create surfaceless EGL display") unless EGL runs on
+# llvmpipe, because WSL has no DRM render node for hardware surfaceless EGL.
+# gtk_webkit.c probes for that and switches to llvmpipe itself, so no variable
+# has to be set by hand.
+# WebKitGTK 6.0,GtkBackend 在 Linux 上 WebView 所用的引擎(P38)。只裝 **runtime** 套件:
+# gtk_webkit.c 以 dlopen 載入 libwebkitgtk-6.0.so.4,建置不需要標頭;沒有它的機器照樣建得出,
+# 框裡會寫出這個套件名稱。在此安裝,讓 WSL 跑的是真正的 web view。
+#
+# 一個 WSL 特有、2026-09-17 安裝後量到的事實:除非 EGL 跑在 llvmpipe 上,否則 WebKit 的 UI 行程會
+# abort(「Could not create surfaceless EGL display」),因為 WSL 沒有硬體 surfaceless EGL 所需的
+# DRM render node。gtk_webkit.c 會自行探測並切到 llvmpipe,因此不必手動設定任何變數。
+apt-get install -y --no-install-recommends libwebkitgtk-6.0-4
+
 # The NVIDIA CUDA repository, if present, must be signed or apt stops working.
 #
 # This machine had one added by hand with no keyring, so every `apt-get update`

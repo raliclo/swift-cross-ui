@@ -96,17 +96,19 @@ extension GtkBackend {
     // Measured before this: P38 on Windows -gtk4 showed the placeholder text and
     // "Navigations reported: 0" (results.csv2, p38-gtk4-test-20260917-082518.png).
     //
-    // The placeholder below is still what Linux and WSL get, and that is still
-    // the unacceptable state the paragraph above names -- webkitgtk-6.0 as a
-    // conditional dependency is the remaining work. It is also what Windows gets
-    // if WebView2.h was absent at build time.
+    // ~~The placeholder below is still what Linux and WSL get~~ -- superseded the
+    // same day: Linux and WSL load WebKitGTK 6.0 with dlopen (gtk_webkit.c), so
+    // no build dependency is added and the 2026-09-04 constraint still holds. A
+    // machine without libwebkitgtk-6.0-4 gets a frame naming the package. The
+    // placeholder below is now only for Windows builds made without WebView2.h.
     //
     // 2026-09-17:**Windows 已有上面那段決策所要求的真實實作。** 下方的 `WebViewHost` 是一個由 GTK
     // 排版的 widget,WebView2 瀏覽器以視窗 HWND 子視窗的形式保持覆蓋在它上面(gtk_webview2.c)。
     // 在此之前實測:P38 於 Windows -gtk4 顯示佔位文字與「Navigations reported: 0」。
     //
-    // 下方的佔位仍是 Linux 與 WSL 所得到的,而那**仍是**上段所說不可接受的狀態——以條件式相依引入
-    // webkitgtk-6.0 是剩下的工作。建置時若沒有 WebView2.h,Windows 也會得到它。
+    // ~~下方的佔位仍是 Linux 與 WSL 所得到的~~——同日已被取代:Linux 與 WSL 以 dlopen 載入
+    // WebKitGTK 6.0(gtk_webkit.c),因此不增加建置相依,2026-09-04 的限制依然成立。沒有
+    // libwebkitgtk-6.0-4 的機器會得到一個寫出套件名稱的框。下方的佔位現在只給沒有 WebView2.h 的 Windows 建置。
     public func createWebView() -> Widget {
         if scui_webview_is_compiled_in() != 0 {
             return WebViewHost()
@@ -160,20 +162,19 @@ extension GtkBackend {
     }
 }
 
-/// The GTK widget a WebView2 browser is kept over, on Windows.
+/// The GTK box a web view lives in: on Windows WebView2 is kept over it, on
+/// Linux/WSL the WebKitWebView is appended to it.
 ///
-/// A `Label` because it has a use while the browser is not there: if the
-/// browser cannot start -- no WebView2Loader.dll, no runtime, a thread that is
-/// not single-threaded -- the reason is written into it, so the frame says what
-/// is missing instead of staying blank. While the browser works it covers the
-/// label entirely.
+/// A `Box` rather than the `Label` the first Windows version used, because on
+/// Linux the browser is a real GtkWidget that has to go INSIDE the host, and a
+/// label cannot hold children. The C side still puts a label in the box when
+/// the engine cannot start, so the frame says what is missing.
 ///
-/// 在 Windows 上,WebView2 瀏覽器所覆蓋的那個 GTK widget。
+/// web view 所在的 GTK box:在 Windows 上 WebView2 覆蓋其上,在 Linux/WSL 上 WebKitWebView 被加進去。
 ///
-/// 用 `Label`,是因為在瀏覽器不在時它也有用處:瀏覽器若無法啟動——沒有 WebView2Loader.dll、沒有
-/// runtime、執行緒不是單執行緒——原因會寫進它,讓那個框說出缺了什麼,而不是一片空白。瀏覽器正常時
-/// 它會被完全蓋住。
-final class WebViewHost: Gtk.Label {
+/// 用 `Box` 而非第一版 Windows 所用的 `Label`,因為在 Linux 上瀏覽器是真正的 GtkWidget,必須放進
+/// host **裡面**,而 label 不能有子元件。引擎無法啟動時,C 端仍會在 box 裡放一個 label 說明缺了什麼。
+final class WebViewHost: Gtk.Box {
     var onNavigate: ((URL) -> Void)?
     private var view: OpaquePointer?
 
@@ -186,8 +187,11 @@ final class WebViewHost: Gtk.Label {
     }
 
     init() {
-        super.init(gtk_label_new(""))
-        wrap = true
+        // The raw constructor: `Box.init(orientation:spacing:)` is a convenience
+        // initialiser, unreachable through `super` (same as GestureBox).
+        // 使用原生建構式:`Box.init(orientation:spacing:)` 是 convenience initialiser,無法經由
+        // `super` 呼叫(與 GestureBox 相同)。
+        super.init(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0))
         view = scui_webview_new(widgetPointer)
         guard let view else { return }
         let box = Unmanaged.passRetained(CallbackBox(self)).toOpaque()

@@ -126,7 +126,19 @@ int wmain(int argc, wchar_t **argv) {
     if (!isPinch && !isRotate && !isDrag) {
         return usage();
     }
-    if ((isRotate || isDrag) && argc < 8) {
+    // Only ROTATE has a fifth number. `drag x0 y0 x1 y1` has four, like pinch.
+    // Until 2026-09-17 drag was grouped with rotate here, so its [steps] was
+    // read from the [ms] slot: `drag 230 421 230 421 1 30` became 30 steps at
+    // the default 16 ms -- a ~500 ms press-and-hold, not a tap. WebView2 treated
+    // it as a long press and never followed the link (0/4), while a scratch tool
+    // with the same flags and timing clicked it 4/4; XAML's ComboBox accepted the
+    // long press, which is why earlier "taps" there looked fine.
+    // 只有 **rotate** 有第五個數字。`drag x0 y0 x1 y1` 與 pinch 一樣是四個。2026-09-17 之前 drag 在
+    // 這裡和 rotate 歸成一組,於是它的 [steps] 從 [ms] 的位置讀取:`drag 230 421 230 421 1 30` 變成
+    // 以預設 16 ms 跑 30 步——約 500 ms 的**長按**,不是點擊。WebView2 把它當成長按而從不開連結
+    // (0/4),而旗標與時序相同的 scratch 工具 4/4 點得開;XAML 的 ComboBox 接受長按,這就是先前在那裡
+    // 的「點擊」看起來正常的原因。
+    if ((isRotate && argc < 8) || argc < 7) {
         return usage();
     }
 
@@ -134,8 +146,8 @@ int wmain(int argc, wchar_t **argv) {
     double cy = _wtof(argv[4]);
     double a = _wtof(argv[5]);
     double b = _wtof(argv[6]);
-    double c = (isRotate || isDrag) ? _wtof(argv[7]) : 0;
-    int nextArg = (isRotate || isDrag) ? 8 : 7;
+    double c = isRotate ? _wtof(argv[7]) : 0;
+    int nextArg = isRotate ? 8 : 7;
     UINT32 contactCount = isDrag ? 1 : 2;
     int steps = argc > nextArg ? _wtoi(argv[nextArg]) : 20;
     int ms = argc > nextArg + 1 ? _wtoi(argv[nextArg + 1]) : 16;
