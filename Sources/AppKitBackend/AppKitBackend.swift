@@ -853,7 +853,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
     }
 
     public func createTextView() -> Widget {
-        let field = NSTextField(wrappingLabelWithString: "")
+        let field = NSCustomTextField(wrappingLabelWithString: "")
         // Somewhat unintuitively, this changes the behaviour of the text field even
         // though it's not editable. It prevents the text from resetting to default
         // styles when clicked (yeah that happens...)
@@ -2641,5 +2641,44 @@ extension AppKitBackend {
         if shortcut.modifiers.contains(.capsLock) { mask.insert(.capsLock) }
         if shortcut.modifiers.contains(.numericPad) { mask.insert(.numericPad) }
         return mask
+    }
+}
+
+/// An `NSTextField` whose accessibility value can be replaced.
+///
+/// **`setAccessibilityValue(_:)` does nothing on a plain `NSTextField`, and it
+/// does it silently.** Measured 2026-09-17 with P69: the call ran on every
+/// commit -- twelve times, printed from inside the branch -- and `ax_dump` went
+/// on reading `AXStaticText '12:30'`. A control's value comes from its cell,
+/// and the view-level override never reaches the attribute.
+///
+/// That matters because static text is announced from its value. A
+/// `.accessibilityLabel` that only sets the description leaves the words on
+/// screen sitting in the attribute a reader takes for text, which is how this
+/// backend ended up the only one of four to keep saying `12:30` where GTK and
+/// WinUI report the label alone.
+///
+/// The shape is the one ``NSCustomButton`` already uses for its label: hold the
+/// override, answer with it when it is there, and defer to AppKit when it is
+/// not.
+///
+/// 一個「無障礙值可以被替換」的 `NSTextField`。
+///
+/// **`setAccessibilityValue(_:)` 在一個普通的 `NSTextField` 上什麼都不做,而且是靜默地不做。**
+/// 2026-09-17 以 P69 實測:那個呼叫每次 commit 都執行——從分支內印出來共十二次——而 `ax_dump` 依然
+/// 讀到 `AXStaticText '12:30'`。一個 control 的值來自它的 cell,而 view 層級的覆寫抵達不了那個屬性。
+///
+/// 這件事要緊,是因為靜態文字是**由它的值**被宣讀的。一個只設了 description 的 `.accessibilityLabel`,
+/// 會讓畫面上那串字仍留在「閱讀器讀文字時所取的那個屬性」裡——而這正是本 backend 成為四者中唯一
+/// 仍然說著 `12:30`(GTK 與 WinUI 只回報標籤)的原因。
+///
+/// 形狀與 ``NSCustomButton`` 對它的標籤所用的相同:持有覆寫值、有值時以它作答、沒有時交還給 AppKit。
+public final class NSCustomTextField: NSTextField {
+    /// Set by `setAccessibilityLabel(ofWidget:to:)`; `nil` restores the text.
+    /// 由 `setAccessibilityLabel(ofWidget:to:)` 設定;`nil` 會把文字還原回來。
+    public var accessibilityValueOverride: String?
+
+    override public func accessibilityValue() -> String? {
+        accessibilityValueOverride ?? super.accessibilityValue()
     }
 }

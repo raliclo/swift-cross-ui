@@ -86,7 +86,17 @@ func walk(_ e: AXUIElement, _ d: Int) {
     if role == kAXStaticTextRole as String {
         n += 1
         let text = str(e, kAXValueAttribute as String)
-        if !text.isEmpty { print("  AXStaticText '\(text)'") }
+        // The description as well as the value, because `.accessibilityLabel`
+        // on a `Text` lands on the description and the value keeps the words on
+        // screen. Printing only the value showed `12:30` and nothing else --
+        // which reads as "the label never arrived" whether or not it did.
+        // 除了值,也印出 description:`Text` 上的 `.accessibilityLabel` 會落在 description 上,
+        // 而 value 保留的是畫面上的那串字。只印值時看到的是 `12:30` 而別無其他——無論那個標籤是否送達,
+        // 那都讀起來像「標籤從未抵達」。
+        let described = str(e, kAXDescriptionAttribute as String)
+        if !text.isEmpty || !described.isEmpty {
+            print("  AXStaticText '\(text)' desc='\(described)'")
+        }
     }
     for c in kids(e) { walk(c, d + 1) }
 }

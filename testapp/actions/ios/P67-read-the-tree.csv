@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P67 #123: read the button names from OUTSIDE, on iOS.
+#
+# **Replays almost nothing on purpose.** Its subject is the dump that
+# `--dump-tree` prints before the first row -- the tree XCUITest resolves, which
+# is the tree an assistive technology walks. P67's own on-screen line states the
+# expected names, and that line is a claim; this is the reading.
+#
+#   zsh testapp/test_ios.zsh P67 --dump-tree \
+#       --actionfile testapp/actions/ios/P67-read-the-tree.csv
+#
+# What to read: four buttons named `plain label`, `padded label`, `two texts`
+# and nothing at all. `two texts` rather than `two` since 2026-09-17 -- a button
+# labelled with two Texts is named from both of them, which is what GTK read
+# over AT-SPI, what SwiftUI's VoiceOver speaks, and what WinUI and AppKit now
+# produce.
+#
+# P67 #123:在 iOS 上從**外部**讀取那些按鈕的名字。
+#
+# **刻意幾乎不重放任何東西。** 它的主題是 `--dump-tree` 在第一列之前印出的那份輸出——XCUITest 所解析的
+# 那棵樹,也就是輔助技術所走訪的那一棵。P67 畫面上那一行寫的是**預期**,那是一項主張;這裡才是讀數。
+#
+# 讀什麼:四顆按鈕,名字分別是 `plain label`、`padded label`、`two texts`,以及什麼都沒有。
+# 自 2026-09-17 起是 `two texts` 而非 `two`——一顆以兩個 Text 標示的按鈕,名字取自**兩段**,
+# 那正是 GTK 經 AT-SPI 讀到的、SwiftUI 的 VoiceOver 唸出的,也是 WinUI 與 AppKit 現在產出的。
+sleep,,,,,,2500000,let the scene settle; the tree is printed before this row,ios
