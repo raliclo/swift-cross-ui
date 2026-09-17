@@ -67,18 +67,10 @@ different depending on where "here" was.
   asks how names are derived, has never been run on Windows.
   **WinUI:沒設標籤的按鈕,UIA Name 是空的。** 文字只以子節點存在。AppKit 以第一段文字命名、GTK 由內容
   計算;WinUI 的 content 是 UIElement,XAML 推導不出來。P67 從未在 Windows 上跑過。
-- [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
-  with the same probe: P69-gtk4.exe exposes one UIA node, the window, and
-  nothing inside it. `GTK_A11Y=help` on the installed bundle prints
-  `accesskit - Disabled during GTK build` and `atspi - Not available on this
-  platform`. GTK 4.22 CAN provide Windows UIA, through its AccessKit backend,
-  but the gvsbuild release installed by `install_gtk4_windows.zsh` is built
-  without it. Every `.accessibility*` modifier is therefore a no-op on this
-  target. The fix is a GTK build with AccessKit enabled, not a change in
-  GtkBackend.
-  **Windows 上的 GtkBackend 完全沒有無障礙。** 同一探針:P69-gtk4.exe 只有視窗一個 UIA 節點。安裝的
-  bundle 以 `GTK_A11Y=help` 回報 `accesskit - Disabled during GTK build`。GTK 4.22 的 AccessKit 後端
-  **能**提供 UIA,只是 gvsbuild 發行版沒開。修法是一份開啟 AccessKit 的 GTK 建置,不是改 GtkBackend。
+- GtkBackend on Windows has no accessibility at all: moved to
+  **Lowest priority** at the end of this file, by the user's decision on
+  2026-09-17.
+  Windows 上的 GtkBackend 完全沒有無障礙:依使用者 2026-09-17 的決定,移到本檔末尾的**最低優先**。
 
 Evidence and local commit split: `testapp/plan/verification-followup-20260917.md`.
 
@@ -2492,3 +2484,42 @@ through; the shipped version walks its own subviews front to back instead.
 ——而且它修正了先前記錄於此的設計，該設計讓 container 在 `super.hitTest` 之後回傳 `nil`。那會使
 AppKit 停止搜尋，於是被停用的 overlay 會吞掉點擊而非讓它穿透；實際落地的版本改為自行由前到後
 走訪自己的 subviews。
+
+---
+
+## Lowest priority / 最低優先
+
+Set by the user on 2026-09-17. Pick these up only when nothing above is open.
+使用者 2026-09-17 指定。上方沒有待辦時才處理。
+
+- [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
+  with `testapp/test_support/measure/p69_uia.zsh`: P69-gtk4.exe exposes one UIA
+  node, the window, and nothing inside it (probe exit 1). `GTK_A11Y=help` on the
+  installed bundle prints `accesskit - Disabled during GTK build` and
+  `atspi - Not available on this platform`. GTK 4.22 CAN provide Windows UIA
+  through its AccessKit backend, but the gvsbuild release installed by
+  `install_gtk4_windows.zsh` is built without it. Every `.accessibility*`
+  modifier is therefore a no-op on this target. The fix is a GTK build with
+  AccessKit enabled, not a change in GtkBackend.
+
+  **No prebuilt bundle has it** (checked 2026-09-17):
+  - gvsbuild 2026.8.0: the Gtk4 recipe passes no `-Daccesskit`, and GTK
+    defaults it to `disabled`.
+  - MSYS2 `mingw-w64-gtk4` 4.24.0: no flag, and it is MinGW ABI anyway.
+  - conda-forge `gtk4` 4.22.5: MSVC-built, no flag in `build.bat`.
+  - vcpkg `gtk` 4.22.5: builds from source, no flag in `portfile.cmake`.
+  - GTK's own GitLab CI MSVC job (`.gitlab-ci/test-msvc.bat`) DOES build with
+    `-Daccesskit=enabled -Daccesskit-c:triplet=...`, installing rustup first,
+    but its artifacts are `meson-logs` only, with no DLLs.
+
+  **Likely cheapest path, NOT tried:** GTK's meson carries an `accesskit-c`
+  subproject that cargo builds. So rebuilding only GTK 4.22.4 against the
+  existing `C:/gtk4` dependencies and replacing `gtk-4-1.dll` may be enough,
+  rather than a full gvsbuild run. This needs Rust with the MSVC target. The
+  C: drive was 94% full (30 GB free) that day.
+
+  **Windows 上的 GtkBackend 完全沒有無障礙。** P69-gtk4.exe 只有視窗一個 UIA 節點;安裝的 bundle 回報
+  `accesskit - Disabled during GTK build`。**網路上沒有開 AccessKit 的預編版本**:gvsbuild、MSYS2、
+  conda-forge、vcpkg 都沒開;GTK 官方 CI 的 MSVC 工作有開,但只保存 log。**可能最便宜、尚未試過的路**:
+  沿用 `C:/gtk4` 既有依賴,只重編 GTK 4.22.4(meson 內建 `accesskit-c` 子專案,需 Rust MSVC target),
+  換掉 `gtk-4-1.dll`。
