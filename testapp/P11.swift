@@ -133,6 +133,28 @@ struct P11RootView: View {
     @State var date = Date()
     @State var status = "Ready. Drag a slider past the other to test #82."
 
+    /// `--nested-slider`: two sliders inside scrolling containers, for the check
+    /// the Android side asked of GTK and WinUI on 2026-09-17 -- does a scrolling
+    /// ancestor take a drag away from a slider after a few pixels? On Android it
+    /// did, at one touch slop. Opt-in because P11's layout is centred and has an
+    /// action file measured against it; adding the section unconditionally would
+    /// move every coordinate in that file.
+    ///
+    /// Two containers because the conflict depends on direction: a HORIZONTAL
+    /// scroller competes for the same horizontal drag the slider wants (Android's
+    /// case), a VERTICAL one only for the vertical component. Each write is
+    /// logged, so the assertion is "the value followed the finger to the end",
+    /// read as text.
+    ///
+    /// `--nested-slider`:兩個放在捲動容器內的滑桿,用於 Android 端 2026-09-17 請 GTK 與 WinUI 做的檢查
+    /// ——捲動中的祖先會不會在幾個 px 後把拖曳從滑桿手上搶走?Android 上會,就在一個 touch slop 處。
+    /// 做成 opt-in,是因為 P11 的版面置中、而且有一份依它量出來的動作檔;無條件加上這一段會移動那份檔案裡
+    /// 每一個座標。兩個容器是因為衝突取決於方向:**水平**捲動容器與滑桿搶的是同一個水平拖曳(Android 的
+    /// 情況),**垂直**的只搶垂直分量。每次寫入都記 log,斷言是「值跟著手指到了底」,以文字判讀。
+    static let showsNestedSliders = CommandLine.arguments.contains("--nested-slider")
+    @State var horizontalNested = 0.0
+    @State var verticalNested = 0.0
+
     /// What the active backend actually offers. Read rather than assumed, for
     /// the reason spelled out at the DatePicker below.
     /// 目前 backend 實際提供的項目。採取讀取而非假設，理由詳見下方 DatePicker 處的說明。
@@ -158,6 +180,48 @@ struct P11RootView: View {
                 .font(.system(size: 20))
 
             Text("backend -> \(String(describing: DefaultBackend.self))")
+
+            if P11RootView.showsNestedSliders {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(
+                        "Nested sliders: horizontal \(Int(horizontalNested))  /  vertical \(Int(verticalNested))"
+                    )
+                    // A marker at the start of the scrolled content: if the
+                    // scroller took the drag, this moves left in a capture.
+                    // 捲動內容開頭的標記:若捲動容器搶走了拖曳,擷圖中它會往左移。
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 20) {
+                            Text("|H")
+                            Slider(
+                                value: $horizontalNested.onChange { value in
+                                    P11Diagnostics.write("nested horizontal -> \(Int(value))")
+                                },
+                                in: 0...100
+                            )
+                            .frame(width: 400)
+                            Text(String(repeating: "wide content ", count: 12))
+                        }
+                    }
+                    .frame(width: 700, height: 50)
+
+                    ScrollView(.vertical) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("|V")
+                            Slider(
+                                value: $verticalNested.onChange { value in
+                                    P11Diagnostics.write("nested vertical -> \(Int(value))")
+                                },
+                                in: 0...100
+                            )
+                            .frame(width: 400)
+                            ForEach(Array(1...12), id: \.self) { index in
+                                Text("tall content \(index)")
+                            }
+                        }
+                    }
+                    .frame(width: 700, height: 90)
+                }
+            }
 
             Text(status)
                 .frame(width: 700, alignment: .leading)

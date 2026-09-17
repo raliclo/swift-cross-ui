@@ -102,11 +102,18 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       **Material 的 `BaseSlider` 確實會自己呼叫 `requestDisallowInterceptTouchEvent`,而那不夠**
       ——它那一次發生在它判定拖曳是水平的之後,那時水平捲動的父節點已經拿走了。垂直拖曳會把手勢
       還回去,所以滑桿底下的清單仍捲得動。
-- [ ] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
+- [x] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
       之內,會不會在幾個 px 之後被容器接手?」GTK 有 `GtkGestureSingle` 的 propagation phase 與
       `gtk_gesture_set_state(GTK_EVENT_SEQUENCE_CLAIMED)`;WinUI 有 `ManipulationMode` 與
       `CapturePointer`。**我這裡沒有那兩個平台,無法驗。** 檢查方式與這裡相同:拖一個滑桿、拖遠一點,
       看值有沒有跟到底、以及頁面有沒有反而捲動。
+      **Windows 回覆(2026-09-17):兩個 backend 都沒有被搶。** `P11 --nested-slider`(新旗標)把滑桿
+      分別放進水平與垂直 `ScrollView`,以單指合成觸控拖曳。WinUI:水平 29 次寫入到 100、垂直 30 次到
+      100。GTK:水平到 98 且容器不動、垂直 10/10 到 100。**對照組**(在滑桿外滑動,容器確實會捲)兩邊
+      都做了,排除「容器根本捲不動」。**途中找到 GTK 4.22.4 的崩潰**:觸控裝置在手勢剛結束時被移除,
+      GDK 釋放了手勢仍握著的裝置,`_gdk_win32_get_cursor_pos` 存取違規(交錯 A/B:立即移除 4/6 崩、
+      延後 3 秒 0/6)。真機上等同拔掉觸控螢幕或遠端桌面移除觸控裝置。已在
+      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。WSL 未驅動。細節見 results.csv2。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
       Android 只就**頁面自己**發起的導覽詢問它;第一次載入由我們的 `loadUrl` 發起,因此從未被回報:
       P38 畫出了 example.com 而旁邊寫著 `Navigations reported: 0`,AppKit 與 UIKit 都寫 1。改用

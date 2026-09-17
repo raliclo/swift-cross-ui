@@ -1195,6 +1195,11 @@ public final class GtkBackend:
             // 基準值；若置於其前，第一次通知會與預設值比較，於是白白觸發一次。
             self.subscribeToAmbientColorSchemeChanges()
 
+            // Before any window can receive touch: a device removed while a
+            // gesture still points at it crashes GTK. See the declaration.
+            // 必須在任何視窗能收到觸控之前:裝置在手勢仍指著它時被移除,會讓 GTK 崩潰。詳見宣告處。
+            scui_retain_removed_devices()
+
             callback()
 
             let provider = CSSProvider()
