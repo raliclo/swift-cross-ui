@@ -4,6 +4,15 @@ import WinSDK
 import WinUI
 import WindowsFoundation
 
+private let webViewDiagnosticsEnabled =
+    CommandLine.arguments.contains("--debug")
+    || ProcessInfo.processInfo.environment["SCUI_DEBUG_WEBVIEW"] == "1"
+
+func logWebViewDiagnostic(_ message: @autoclosure () -> String) {
+    guard webViewDiagnosticsEnabled else { return }
+    logger.info("\(message())")
+}
+
 /// This thread's COM apartment, as `CoGetApartmentType` states it, for the
 /// WebView2 timeline (P38). Logged at three points -- before
 /// `SwiftApplication.main()`, in `onLaunched`, and where the web view starts --
@@ -159,14 +168,14 @@ final class WebViewWidget: WinUI.Grid {
         // 此處會記下 `isLoaded`，好讓下一位讀者能直接看出這是哪一種情況，而不必重新推導。
         // 若它本來就是 true，那元素早已就緒，這次等待不花任何代價。
         let alreadyLoaded = control.isLoaded
-        logger.info("WebView2: starting core, isLoaded=\(alreadyLoaded)")
+        logWebViewDiagnostic("WebView2: starting core, isLoaded=\(alreadyLoaded)")
 
         if alreadyLoaded {
             beginEnsureCore()
         } else {
             loadedRegistration = control.loaded.addHandler { [weak self] _, _ in
                 guard let self else { return }
-                logger.info("WebView2: Loaded fired, starting core now")
+                logWebViewDiagnostic("WebView2: Loaded fired, starting core now")
                 self.beginEnsureCore()
             }
         }
@@ -187,7 +196,7 @@ final class WebViewWidget: WinUI.Grid {
     @MainActor
     private func beginEnsureCore() {
         let webViewThread = GetCurrentThreadId()
-        logger.info("WebView2: beginEnsureCore on thread \(webViewThread)")
+        logWebViewDiagnostic("WebView2: beginEnsureCore on thread \(webViewThread)")
         // ============================================================
         // THE CAUSE, CONFIRMED 2026-09-10: this thread is MTA, and WebView2
         // needs STA.
@@ -312,12 +321,14 @@ final class WebViewWidget: WinUI.Grid {
         //
         // 只有在它**確實初始化了**時才以 `CoUninitialize` 配對,因為不成對的 uninit 會拆掉
         // 別人的 apartment。
-        let staProbe = CoInitializeEx(nil, DWORD(COINIT_APARTMENTTHREADED.rawValue))
-        logger.info(
-            "WebView2: CoInitializeEx(STA) returned \(String(format: "0x%08x", UInt32(bitPattern: staProbe)))"
-        )
-        if staProbe == S_OK || staProbe == S_FALSE {
-            CoUninitialize()
+        if webViewDiagnosticsEnabled {
+            let staProbe = CoInitializeEx(nil, DWORD(COINIT_APARTMENTTHREADED.rawValue))
+            logWebViewDiagnostic(
+                "WebView2: CoInitializeEx(STA) returned \(String(format: "0x%08x", UInt32(bitPattern: staProbe)))"
+            )
+            if staProbe == S_OK || staProbe == S_FALSE {
+                CoUninitialize()
+            }
         }
 
         // `CoGetApartmentType` as well, because the probe above CANNOT tell MTA
@@ -424,7 +435,7 @@ final class WebViewWidget: WinUI.Grid {
         // page heap 讓它在寫壞的那一刻就中斷。上游沒有人用過 WebView2(swift-winui 在 Generated/
         // 之外零個呼叫處),這條綁定路徑很可能從沒跑過。二分用的開關已移除,每一臂都只是一個
         // 提早 `return`。
-        logger.info("WebView2: apartment at beginEnsureCore \(comApartmentDescription())")
+        logWebViewDiagnostic("WebView2: apartment at beginEnsureCore \(comApartmentDescription())")
 
         guard let promise = try? control.ensureCoreWebView2Async() else {
             logger.warning("WebView2: EnsureCoreWebView2Async threw immediately")
@@ -502,7 +513,7 @@ final class WebViewWidget: WinUI.Grid {
                 )
                 return
             }
-            logger.info("WebView2: the browser process started")
+            logWebViewDiagnostic("WebView2: the browser process started")
             _ = self
         }
     }
