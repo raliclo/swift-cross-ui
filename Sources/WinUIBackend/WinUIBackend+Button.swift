@@ -1,3 +1,4 @@
+import DebugFeatures
 import SwiftCrossUI
 import WinUI
 import UWP
@@ -276,10 +277,24 @@ extension PrimitiveButtonStyle.Kind {
 
         switch self {
             case .bordered:
-                _ = try? button.clearValue(WinUI.Button.backgroundProperty)
-                _ = try? button.clearValue(WinUI.Button.borderBrushProperty)
-                _ = try? button.clearValue(WinUI.Button.borderThicknessProperty)
-                _ = try? button.clearValue(WinUI.Button.cornerRadiusProperty)
+                // A failed clear leaves the previous style's value on the button:
+                // a plain button switched to bordered would keep a plain look.
+                // 清除失敗會把上一個樣式的值留在按鈕上:由 plain 切到 bordered 的按鈕會維持 plain 的外觀。
+                for property in [
+                    WinUI.Button.backgroundProperty,
+                    WinUI.Button.borderBrushProperty,
+                    WinUI.Button.borderThicknessProperty,
+                    WinUI.Button.cornerRadiusProperty,
+                ] {
+                    do {
+                        try button.clearValue(property)
+                    } catch {
+                        DebugFeatures.log(
+                            "WinUIBackend.Button: clearValue failed -- \(error). "
+                                + "A value from the previous button style is still applied."
+                        )
+                    }
+                }
 
                 _ = resources.remove("ButtonBackgroundPointerOver")
                 _ = resources.remove("ButtonBackgroundPressed")

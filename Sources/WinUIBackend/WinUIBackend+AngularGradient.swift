@@ -1,3 +1,4 @@
+import DebugFeatures
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import WinUI
@@ -144,7 +145,17 @@ final class AngularGradientCanvas: WinUI.Canvas {
             }
         }
 
-        try? bitmap.invalidate()
+        do {
+            try bitmap.invalidate()
+        } catch {
+            // The pixels are written but not presented: the gradient keeps
+            // showing whatever it showed before, which reads as a stale colour.
+            // 像素已寫入卻未呈現:漸層會繼續顯示先前的內容,看起來就像顏色沒更新。
+            DebugFeatures.log(
+                "WinUIBackend.AngularGradient: WriteableBitmap.invalidate failed -- \(error). "
+                    + "The new pixels are NOT on screen."
+            )
+        }
     }
 
     /// The gradient's color at a parametric position, with the ends held.
