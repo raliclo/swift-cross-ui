@@ -61,6 +61,9 @@ typedef enum {
 
 struct ScuiWebView {
     GtkWidget *host;
+    // A child of `host`, empty unless the browser fails -- then it says why.
+    // `host` 的子元件,平時為空,瀏覽器失敗時說明原因。
+    GtkWidget *label;
     HWND parent;
     ScuiWebViewState state;
     char *failure;
@@ -94,9 +97,9 @@ static void webview_release(ScuiWebView *view) {
 // 記錄失敗,**並且**立刻寫進 host label。失敗是從 completion handler 非同步抵達的,只在 view
 // 更新時才檢查的呼叫端,通常永遠看不到它們。
 static void show_failure(ScuiWebView *view) {
-    if (view->host != NULL && GTK_IS_LABEL(view->host) && view->failure != NULL) {
+    if (view->host != NULL && view->label != NULL && view->failure != NULL) {
         char *text = g_strdup_printf("WebView2 could not start: %s", view->failure);
-        gtk_label_set_text(GTK_LABEL(view->host), text);
+        gtk_label_set_text(GTK_LABEL(view->label), text);
         g_free(text);
     }
 }
@@ -396,6 +399,7 @@ static void host_destroyed(GtkWidget *widget, gpointer data) {
     (void)widget;
     ScuiWebView *view = data;
     view->host = NULL;
+    view->label = NULL;
     if (view->timer != 0) {
         g_source_remove(view->timer);
         view->timer = 0;
@@ -422,6 +426,11 @@ static void host_destroyed(GtkWidget *widget, gpointer data) {
 ScuiWebView *scui_webview_new(GtkWidget *host) {
     ScuiWebView *view = g_new0(ScuiWebView, 1);
     view->host = host;
+    view->label = gtk_label_new("");
+    gtk_label_set_wrap(GTK_LABEL(view->label), TRUE);
+    gtk_widget_set_hexpand(view->label, TRUE);
+    gtk_widget_set_vexpand(view->label, TRUE);
+    gtk_box_append(GTK_BOX(host), view->label);
     view->ref_count = 1;
     view->last_visible = -1;
     view->timer = g_timeout_add(50, tick, view);
@@ -458,7 +467,7 @@ gboolean scui_webview_is_compiled_in(void) {
     return TRUE;
 }
 
-#else  // no WebView2.h, or not Windows
+#elif defined(G_OS_WIN32)  // Windows without WebView2.h; Linux is gtk_webkit.c
 
 struct ScuiWebView {
     int unused;

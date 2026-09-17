@@ -239,21 +239,21 @@ double scui_window_display_scale(GtkWidget *window);
 // 亦即此處的 `awareness`。
 char *scui_window_scale_diagnostics(GtkWidget *window);
 
-// A WebView2 browser hosted over a GTK placeholder widget, on Windows.
-// Implemented in gtk_webview2.c, which records why WebView2 and not WebKitGTK,
-// and why the loader is loaded at runtime rather than linked.
+// A browser inside a GtkBox `host`. Windows: WebView2 kept over the box as a
+// child HWND (gtk_webview2.c). Linux/WSL: WebKitGTK 6.0 loaded with dlopen and
+// appended to the box (gtk_webkit.c). Each file records why.
 //
-// scui_webview_new returns NULL where it is not compiled in (not Windows, or
-// WebView2.h was absent at build time) -- ask scui_webview_is_compiled_in. The
-// object lives as long as `host`: destroying the widget closes the browser.
-// The callback receives the new top-level URI as UTF-8.
+// If the engine cannot start, the box shows a label saying why and which
+// package or file is missing. scui_webview_new returns NULL only on Windows
+// builds made without WebView2.h -- ask scui_webview_is_compiled_in. The object
+// lives as long as `host`. The callback receives the new top-level URI as UTF-8.
 //
-// 在 Windows 上,覆蓋於 GTK 佔位 widget 之上的 WebView2 瀏覽器。實作位於 gtk_webview2.c,該處記錄了
-// 為何用 WebView2 而非 WebKitGTK,以及為何 loader 在執行期載入而非連結。
+// 位於 GtkBox `host` 內的瀏覽器。Windows:以子 HWND 形式覆蓋在 box 上的 WebView2(gtk_webview2.c)。
+// Linux/WSL:以 dlopen 載入、加進 box 的 WebKitGTK 6.0(gtk_webkit.c)。各檔記錄了理由。
 //
-// 未編入時(非 Windows,或建置時沒有 WebView2.h)scui_webview_new 回傳 NULL——請用
-// scui_webview_is_compiled_in 詢問。此物件與 `host` 同壽:widget 銷毀時瀏覽器即關閉。回呼收到的是
-// 新的頂層 URI(UTF-8)。
+// 引擎無法啟動時,box 內會顯示 label,說明原因以及缺少哪個套件或檔案。只有在沒有 WebView2.h 的
+// Windows 建置上 scui_webview_new 才回傳 NULL——請用 scui_webview_is_compiled_in 詢問。此物件與
+// `host` 同壽。回呼收到的是新的頂層 URI(UTF-8)。
 typedef struct ScuiWebView ScuiWebView;
 typedef void (*ScuiWebViewNavigatedFunc)(const char *uri, void *user_data);
 gboolean scui_webview_is_compiled_in(void);
