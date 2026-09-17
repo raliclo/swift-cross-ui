@@ -50,8 +50,8 @@ waiting for a window in which pointer injection reaches the desktop -- see resul
 **Later the same day:** #32 and P41 both driven on both backends, with defects found and
 fixed on the way (WinUI gesture handlers multiplying, GTK rotation reading the wrong angle,
 WinUI `.hourMinuteAndSecond` degrading and zeroing seconds at launch). The four Windows
-items from 2026-09-16 are closed. One path is in code but not driven: a WinUI hour/minute
-edit keeping the bound seconds.
+items from 2026-09-16 are closed. ~~One path is in code but not driven: a WinUI hour/minute
+edit keeping the bound seconds.~~ Driven the same morning by keyboard: 09:46:42 -> 10:46:42.
 
 **2026-09-16 起已過期——GTK #117 不再是雛形。** `GtkBackend+LazyListRows.swift:4` conform
 `LazyListRowLifetimes`(它 refine 了 `LazyListRows`);計畫檔的驗證紀錄記有 2026-09-14 Win-gtk4 的
@@ -62,7 +62,8 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
 ——見 results.csv2。
 **同日稍晚:** #32 與 P41 都已在兩個 backend 驅動完成,途中找到並修掉缺陷(WinUI 手勢 handler 不斷
 加掛、GTK 旋轉讀錯角度、WinUI `.hourMinuteAndSecond` 降級並在啟動時把秒歸零)。2026-09-16 列出的
-四項 Windows 工作全部結案。有一條路徑已寫進程式碼但**未驅動**:WinUI 修改時/分時保留綁定的秒數。
+四項 Windows 工作全部結案。~~有一條路徑已寫進程式碼但**未驅動**:WinUI 修改時/分時保留綁定的秒數。~~
+同日上午已用鍵盤驅動:09:46:42 → 10:46:42。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
