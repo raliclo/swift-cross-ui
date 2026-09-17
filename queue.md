@@ -328,9 +328,21 @@ an empty queue -- mistakes.md entry 1.
       毫無變化);一次送達的輕點可以。三次的擷圖都會寫著 `magnify: (none yet)`。
     - runner 這一側因此有三樣東西:以 `move` 的指標瞄準、丟棄落在視窗外的候選、以及在只命中到
       容器時於 log 裡直接說出「在第一列手勢之前放一次 `click`」。
-    - **仍未做:Android 的 pinch/rotate。** 路線已寫在 `AndroidSynthesiser` 裡
-      (`MotionEvent.obtain` 的多指版本、`pointerProperties`/`pointerCoords`,
-      ACTION_POINTER_DOWN/UP 的指標索引放在 action 的高位),但還沒建、更沒驅動過。
+    - **Android 也完成了,而且是實機(emulator-5554)驅動過的。**
+      `actions/android/P65-pinch-and-rotate.csv`,擷圖 `p65-android-final-20260917-143345.png`:
+      `magnify ENDED: 2.000`(那一列要求 200)、`rotate ENDED: 0.785 rad`(那一列要求 45 度)、
+      `drag events: 0`。**精確**——與 iOS 不同,那裡 XCUITest 送出的是它自己尺寸的手勢。
+    - **而這次驅動抓到一個真正的 backend 缺陷。** 修好之前,同一份檔案兩次都回報
+      `magnify ENDED: 1.194` 與 `rotate ENDED: 0.633 rad`——數值相同,不是雜訊。原因是
+      **一個會捲動的祖先在「一個 touch slop 的位移」處奪走了手勢**(420 dpi 下 8dp = 21 px),
+      而 `ContinuousGestureContainer` 把隨之而來的 `ACTION_CANCEL` 當成結束回報,其後每一個 move
+      都靜靜落在 `tracking` 守衛之外。1.194 是 62 步中的第 12 步(第一個接觸點移動 20.3 px,
+      第 13 步會是 22.0);0.633 rad 是 31 步中的第 25 步(同一點水平移動 20.4 px)。
+      兩個手勢、兩個比例、同一個門檻。修法是 `ACTION_DOWN` 時
+      `requestDisallowInterceptTouchEvent(true)`——一根手指在任何可捲動區域裡的遭遇與合成器完全相同,
+      所以這是使用者也會碰到的缺陷,不只是測試工具的問題。
+    - **另一件量到的事:`--no-showtime` 會拍到重放進行到一半。** final 擷圖緊接在 5 秒那張之後拍,
+      而這些手勢要跑好幾秒——第一次 Android 執行讀到的部分值並不是錯的,只是早了。
     - **macOS 與 X11 維持寫明理由的拒絕**,理由在 `AppKitSynthesiser.swift` 內。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features

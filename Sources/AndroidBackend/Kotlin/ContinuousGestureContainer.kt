@@ -75,9 +75,47 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
 
     override fun onInterceptTouchEvent(event: MotionEvent) = true
 
+    /// **A scrolling ancestor steals this gesture at eight dp of travel, and
+    /// the theft looks exactly like a gesture that stopped early.**
+    ///
+    /// Measured on 2026-09-17 with P65 and a synthesised two-contact stream, at
+    /// 420 dpi where one touch slop is 8dp = 21 px. A pinch asked to double
+    /// reported 1.194 and stopped: that is step 12 of 62, where the first
+    /// contact has moved 20.3 px, and step 13 would have moved it 22.0. A
+    /// rotation asked for 45 degrees reported 0.633 rad: step 25 of 31, where
+    /// the same contact has moved 20.4 px horizontally, and step 26 crosses 21.
+    /// Two different gestures, two different fractions, one threshold.
+    ///
+    /// What happens is that the root scroll view passes the slop, takes the
+    /// gesture, and this view gets `ACTION_CANCEL` -- which it already reports
+    /// as an end, so the app printed `magnify ENDED: 1.194` and every later
+    /// move fell through the `tracking` guard in silence. Nothing was dropped
+    /// and nothing failed; the gesture simply belonged to somebody else from
+    /// there on, and that is as true of a finger as it is of a synthesiser.
+    ///
+    /// `requestDisallowInterceptTouchEvent` is the API for this: a child that
+    /// owns a gesture says so, and the flag is cleared by the framework on the
+    /// next `ACTION_DOWN`.
+    ///
+    /// **一個會捲動的祖先會在八個 dp 的位移處奪走這個手勢,而那次奪取看起來與「一個提早停止的手勢」
+    /// 完全相同。**
+    ///
+    /// 2026-09-17 以 P65 與一段合成的雙接觸點事件串實測,420 dpi 之下一個 touch slop 是 8dp = 21 px。
+    /// 一次要求放大兩倍的縮放停在 1.194:那是 62 步中的第 12 步,此時第一個接觸點移動了 20.3 px,
+    /// 而第 13 步會是 22.0。一次要求 45 度的旋轉停在 0.633 rad:31 步中的第 25 步,同一個接觸點的
+    /// 水平位移是 20.4 px,而第 26 步越過 21。兩個不同的手勢、兩個不同的比例、同一個門檻。
+    ///
+    /// 實際發生的是:根部的 scroll view 越過了 slop、接管了這個手勢,而本 view 收到 `ACTION_CANCEL`
+    /// ——它本來就把那當成結束回報,所以 app 印出了 `magnify ENDED: 1.194`,其後每一個 move 都靜靜地
+    /// 落在 `tracking` 的守衛之外。沒有東西被丟掉,也沒有東西失敗;那個手勢從那一刻起就屬於別人了,
+    /// 而這件事對一根手指與對一個合成器同樣成立。
+    ///
+    /// `requestDisallowInterceptTouchEvent` 正是為此而存在的 API:一個擁有某個手勢的子節點把這件事
+    /// 說出來,而該旗標會由框架在下一個 `ACTION_DOWN` 時清除。
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
                 startX = event.x
                 startY = event.y
                 currentX = event.x
