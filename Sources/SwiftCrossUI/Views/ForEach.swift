@@ -370,14 +370,16 @@ extension ForEach: TypeSafeView, View where Child: View {
         // 單純的重疊。同一個問題有兩個旗標就是多了一個,因此我們的移除、他們的保留——而且他們那套
         // 還帶著 `zStackContentAlignment`,那是重疊路徑做不到的,本檔過去正是把它記為一項已知限制。
         if environment.usesZStackLayout {
-            let result = LayoutSystem.computeZStackLayout(
-                container: widget,
-                children: children.layoutableChildren,
-                cache: &children.stackLayoutCache,
-                proposedSize: proposedSize,
-                environment: environment,
-                backend: backend
-            )
+            let result = children.withStackLayoutCache { cache in
+                LayoutSystem.computeZStackLayout(
+                    container: widget,
+                    children: children.layoutableChildren,
+                    cache: &cache,
+                    proposedSize: proposedSize,
+                    environment: environment,
+                    backend: backend
+                )
+            }
             children.stackLayoutCache = StackLayoutCache(
                 priorityGroups: [],
                 isHidden: [],
@@ -388,14 +390,16 @@ extension ForEach: TypeSafeView, View where Child: View {
             return result
         }
 
-        return LayoutSystem.computeStackLayout(
-            container: widget,
-            children: children.layoutableChildren,
-            cache: &children.stackLayoutCache,
-            proposedSize: proposedSize,
-            environment: environment,
-            backend: backend
-        )
+        return children.withStackLayoutCache { cache in
+            LayoutSystem.computeStackLayout(
+                container: widget,
+                children: children.layoutableChildren,
+                cache: &cache,
+                proposedSize: proposedSize,
+                environment: environment,
+                backend: backend
+            )
+        }
     }
 
     @MainActor
@@ -458,14 +462,16 @@ extension ForEach: TypeSafeView, View where Child: View {
 
         children.layoutableChildren = layoutableChildren
 
-        return LayoutSystem.computeStackLayout(
-            container: widget,
-            children: layoutableChildren,
-            cache: &children.stackLayoutCache,
-            proposedSize: proposedSize,
-            environment: environment,
-            backend: backend
-        )
+        return children.withStackLayoutCache { cache in
+            LayoutSystem.computeStackLayout(
+                container: widget,
+                children: layoutableChildren,
+                cache: &cache,
+                proposedSize: proposedSize,
+                environment: environment,
+                backend: backend
+            )
+        }
     }
 
     func commit<Backend: BaseAppBackend>(
@@ -518,26 +524,57 @@ extension ForEach: TypeSafeView, View where Child: View {
         }
 
         if environment.usesZStackLayout {
+            // A LOCAL copy, not `&children.stackLayoutCache`.
+            //
+            // **An `inout` on a class property holds an exclusive access for the
+            // whole call**, and this call commits every child -- which can come
+            // back here. P8 died at launch with "Simultaneous accesses to
+            // 0x...: previous access started at ForEach.commit + 1388, current
+            // access started at ForEach.commit + 1388" -- the same function at
+            // the same offset, entered twice through
+            // `layoutableChild`'s commit closure.
+            //
+            // Copying out and writing back means a re-entrant commit works on
+            // its own copy. The outer write-back wins, so a cache built by the
+            // inner pass is discarded and recomputed next time -- which is what
+            // a cache is allowed to do, and is not what a crash is allowed to do.
+            //
+            // 用**局部副本**,不要用 `&children.stackLayoutCache`。
+            //
+            // **對一個 class 屬性取 `inout`,會在整個呼叫期間持有一個獨占存取**,而這個呼叫會
+            // commit 每一個子節點——那可能繞回這裡。P8 一啟動就死於「Simultaneous accesses to
+            // 0x...:先前的存取始於 ForEach.commit + 1388,當下的存取始於 ForEach.commit + 1388」
+            // ——同一個函式、同一個位移,經由 `layoutableChild` 的 commit closure 進入了兩次。
+            //
+            // 先複製出來、結束後再寫回,重入的那次 commit 就會在它自己的副本上工作。外層的寫回勝出,
+            // 因此內層那一輪建立的快取會被丟棄、下一次重新計算——那是一個快取**被允許**做的事,
+            // 而崩潰不是。
+            var cache = children.stackLayoutCache
             LayoutSystem.commitZStackLayout(
                 container: widget,
                 children: children.layoutableChildren,
-                cache: &children.stackLayoutCache,
+                cache: &cache,
                 layout: layout,
                 environment: environment,
                 backend: backend
             )
+            children.stackLayoutCache = cache
             children.layoutableChildren = []
             return
         }
 
+        // A local copy, for the reason the ZStack branch above gives.
+        // 局部副本,理由見上面 ZStack 那個分支。
+        var cache = children.stackLayoutCache
         LayoutSystem.commitStackLayout(
             container: widget,
             children: children.layoutableChildren,
-            cache: &children.stackLayoutCache,
+            cache: &cache,
             layout: layout,
             environment: environment,
             backend: backend
         )
+        children.stackLayoutCache = cache
 
         // Reset layoutable children cache so that we recompute them during the
         // next update cycle. This is important at the moment because the `child`
@@ -565,6 +602,31 @@ class ForEachViewChildren<
 >: ViewGraphNodeChildren {
     /// The nodes for all current children of the ``ForEach`` view.
     var nodes: [AnyViewGraphNode<Child>] = []
+
+    /// Runs `body` with a COPY of the stack layout cache, writing it back after.
+    ///
+    /// **`&stackLayoutCache` holds an exclusive access for the whole call**, and
+    /// every caller of this cache goes on to compute or commit the children --
+    /// which can come back into the same `ForEach`. P8 died at launch with
+    /// "Simultaneous accesses to 0x...", both accesses reported at
+    /// `ForEach.commit + 1388`: the same function, the same line, entered twice
+    /// through a child's commit closure.
+    ///
+    /// A cache rebuilt a pass later is the cost. A process that stops is not.
+    ///
+    /// 以快取的**副本**執行 `body`,結束後再寫回。
+    ///
+    /// **`&stackLayoutCache` 會在整個呼叫期間持有一個獨占存取**,而這個快取的每一個使用者接著都會
+    /// 去計算或 commit 那些子節點——那可能繞回同一個 `ForEach`。P8 一啟動就死於
+    /// 「Simultaneous accesses to 0x...」,而兩次存取都被回報在 `ForEach.commit + 1388`:
+    /// 同一個函式、同一行,經由某個子節點的 commit closure 進入了兩次。
+    ///
+    /// 代價是一個晚一輪才重建的快取。而一個停掉的行程不是代價,是失敗。
+    func withStackLayoutCache<R>(_ body: (inout StackLayoutCache) -> R) -> R {
+        var copy = stackLayoutCache
+        defer { stackLayoutCache = copy }
+        return body(&copy)
+    }
 
     /// A map from element identifier to node index.
     var identifierMap: [ID: Int]
