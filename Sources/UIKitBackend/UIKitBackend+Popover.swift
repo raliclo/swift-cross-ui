@@ -99,11 +99,85 @@ extension UIKitBackend {
             // 沒有偏好時維持 `[.up, .down]` 而不是 `.any`:那是本 backend 一直以來的行為,
             // 在此放寬它會改變每一個「什麼都沒要求」的 popover 的位置。
             presentation.permittedArrowDirections =
-                popover.preferredArrowEdge.map(Self.arrowDirection(for:)) ?? [.up, .down]
+                popover.preferredArrowEdge.map { edge in
+                    Self.arrowDirection(
+                        for: Self.edgeThatFits(edge, for: popover, anchoredTo: anchor.view)
+                    )
+                } ?? [.up, .down]
             presentation.delegate = popover
         }
 
         window.rootViewController?.present(popover, animated: true)
+    }
+
+    /// The requested side, or the opposite one when the panel does not fit.
+    ///
+    /// **This is UIKit made to answer the way Android does, deliberately.**
+    /// Both platforms are given the same arithmetic when a side is asked for
+    /// and the panel is taller than the room on it, and until 2026-09-17 they
+    /// answered differently: `PopupWindow.showAsDropDown` MOVES a popup that
+    /// does not fit to the other side of the anchor, keeping it whole, while
+    /// UIKit SHRINKS the popover into whatever room the permitted direction
+    /// has. P50 showed what that costs -- the panel came up below its button
+    /// with `press me` and `close this panel` cut off the bottom edge, so the
+    /// popover was present, anchored, obedient, and unusable.
+    ///
+    /// So the fit is computed here and the opposite side is asked for instead,
+    /// which is Android's rule. UIKit's own behaviour is still the floor: when
+    /// neither side has room it shrinks, and that is better than nothing on
+    /// screen.
+    ///
+    /// The comparison is done in the window's coordinate space, against the
+    /// safe area, because a phone's rounded corners and home indicator are not
+    /// room the popover can use.
+    ///
+    /// 被要求的那一側;若面板放不下,則改為相反的那一側。
+    ///
+    /// **這是刻意讓 UIKit 用 Android 的方式作答。** 當「某一側被要求、而面板比那一側的空間更高」時,
+    /// 兩個平台面對的是同一道算術,而在 2026-09-17 之前它們的答案不同:
+    /// `PopupWindow.showAsDropDown` 會把放不下的 popup **移到**錨點的另一側、保持它完整,
+    /// 而 UIKit 會把 popover **縮**進被允許方向所擁有的空間裡。P50 顯示了那要付出什麼代價
+    /// ——面板出現在按鈕下方,而 `press me` 與 `close this panel` 被下緣切掉了:那個 popover 存在、
+    /// 有錨定、也服從了要求,而且不能用。
+    ///
+    /// 因此此處自行算出是否放得下,放不下就改要求相反的那一側,那正是 Android 的規則。UIKit 自己的行為
+    /// 仍是底線:兩側都沒有空間時它會縮小,而那總比畫面上什麼都沒有好。
+    ///
+    /// 比較是在視窗座標空間裡、對著 safe area 做的,因為手機的圓角與 home indicator 並不是這個 popover
+    /// 用得上的空間。
+    private static func edgeThatFits(
+        _ edge: SwiftCrossUI.Edge,
+        for popover: CustomPopover,
+        anchoredTo anchor: UIView
+    ) -> SwiftCrossUI.Edge {
+        guard let window = anchor.window else { return edge }
+
+        let frame = anchor.convert(anchor.bounds, to: window)
+        let safe = window.safeAreaInsets
+        let size = popover.preferredContentSize
+        // The arrow itself, which UIKit draws outside the content.
+        // 箭頭本身,UIKit 會把它畫在內容之外。
+        let arrow: CGFloat = 13
+
+        let roomAbove = frame.minY - safe.top
+        let roomBelow = window.bounds.maxY - safe.bottom - frame.maxY
+        let roomLeading = frame.minX - safe.left
+        let roomTrailing = window.bounds.maxX - safe.right - frame.maxX
+
+        switch edge {
+            case .top:
+                return roomAbove < size.height + arrow && roomBelow >= size.height + arrow
+                    ? .bottom : .top
+            case .bottom:
+                return roomBelow < size.height + arrow && roomAbove >= size.height + arrow
+                    ? .top : .bottom
+            case .leading:
+                return roomLeading < size.width + arrow && roomTrailing >= size.width + arrow
+                    ? .trailing : .leading
+            case .trailing:
+                return roomTrailing < size.width + arrow && roomLeading >= size.width + arrow
+                    ? .leading : .trailing
+        }
     }
 
     /// The arrow direction that puts the panel on `edge` of its anchor.

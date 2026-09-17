@@ -112,23 +112,46 @@ extension AppKitBackend {
         relativeTo anchor: NSView,
         window: NSCustomWindow
     ) {
-        // `.maxY` when nothing was asked for: the value this call has carried
-        // since the popover landed. **It puts the panel ABOVE the anchor**, not
-        // below as the comment here used to claim -- see `rectEdge(for:)`, where
-        // the pair of captures that settled it is written down. Kept as the
-        // default anyway: it is the behaviour that shipped, and AppKit still
-        // moves the panel to another edge when there is no room, which is the
-        // rule this backend is being left to keep.
+        // **`.minY` when nothing is asked for: below the anchor, which is what
+        // the other four backends do and what this call always MEANT to do.**
         //
-        // 沒有任何要求時使用 `.maxY`:這是本呼叫自這個 popover 落地以來一直帶著的值。
-        // **它會把面板放在錨點上方**,而不是此處註解原本所宣稱的下方——見 `rectEdge(for:)`,
-        // 定案的那一對擷圖寫在那裡。仍維持為預設值:那是已出貨的行為;而空間不足時,AppKit 依然會
-        // 把面板移到另一側——那正是此處刻意讓這個 backend 保有的規則。
+        // It carried `.maxY` from the day the popover landed, under a comment
+        // saying that put the panel below the button, "which is where a popover
+        // opened from a button belongs". The comment's intent was right and its
+        // claim was wrong: driven on 2026-09-17 with no `arrowEdge` at all, P50
+        // opened its panel ABOVE the button
+        // (`p50-macos-final-20260917-195515.png`, the readout reading
+        // `arrow edge: none (platform decides)`).
+        //
+        // The other four agree with each other: `GtkPopover`'s default position
+        // is below, `PopupWindow.showAsDropDown` means below, WinUI's `Flyout`
+        // auto-places below where it fits, and UIKit's `[.up, .down]` takes
+        // below when there is room. AppKit was the only one placing a
+        // no-preference popover above, so this is one app looking different on
+        // one platform for no reason anybody chose.
+        //
+        // AppKit still moves the panel when there is no room below, which is
+        // the rule this backend is being left to keep.
+        //
+        // **沒有任何要求時使用 `.minY`:錨點下方——那是另外四個 backend 的做法,也是本呼叫一直以來
+        // 所「打算」做的事。**
+        //
+        // 它自這個 popover 落地那天起就帶著 `.maxY`,而其上的註解說那會把面板放在按鈕下方、
+        // 「那正是由按鈕開啟的 popover 該在的位置」。那個註解的**意圖**是對的,它的**主張**是錯的:
+        // 2026-09-17 在完全不給 `arrowEdge` 的情況下驅動,P50 把面板開在按鈕**上方**
+        // (`p50-macos-final-20260917-195515.png`,讀數寫著 `arrow edge: none (platform decides)`)。
+        //
+        // 另外四個彼此一致:`GtkPopover` 的預設位置是下方、`PopupWindow.showAsDropDown` 就是下方、
+        // WinUI 的 `Flyout` 自動放在放得下的下方、UIKit 的 `[.up, .down]` 在有空間時取下方。
+        // 只有 AppKit 把「沒有偏好」的 popover 放在上方——那是同一支 app 在同一件事上,因為沒有人選擇過
+        // 的理由而在某個平台上長得不一樣。
+        //
+        // 空間不足時 AppKit 依然會移動面板,那正是此處刻意讓這個 backend 保有的規則。
         popover.willPresent()
         popover.show(
             relativeTo: anchor.bounds,
             of: anchor,
-            preferredEdge: popover.preferredArrowEdge.map(Self.rectEdge(for:)) ?? .maxY
+            preferredEdge: popover.preferredArrowEdge.map(Self.rectEdge(for:)) ?? .minY
         )
     }
 
