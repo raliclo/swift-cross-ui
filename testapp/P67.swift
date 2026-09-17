@@ -142,8 +142,16 @@ struct P67RootView: View {
                     .frame(width: 24, height: 24)
             }
 
-            Text("Expected names: plain label / padded label / two / (none)")
-            Text("預期的名字:plain label / padded label / two /(無)")
+            // `two texts`, not `two`, since 2026-09-17. The old expectation was
+            // what AppKit happened to produce (the first text only). GtkBackend
+            // under WSLg read `two texts` over AT-SPI, and SwiftUI's VoiceOver
+            // reads both texts too. WinUIBackend now joins them the same way;
+            // AppKit and UIKit still read `two` until they do (todo.md).
+            // 自 2026-09-17 起是 `two texts` 而不是 `two`。舊預期只是 AppKit 碰巧產出的結果(只取第一段)。
+            // WSLg 上的 GtkBackend 以 AT-SPI 讀到 `two texts`,SwiftUI 的 VoiceOver 也會唸出兩段。WinUIBackend
+            // 已改為同樣串接;AppKit 與 UIKit 在跟進之前仍會讀成 `two`(見 todo.md)。
+            Text("Expected names: plain label / padded label / two texts / (none)")
+            Text("預期的名字:plain label / padded label / two texts /(無)")
         }
         .padding(20)
         .onAppear {

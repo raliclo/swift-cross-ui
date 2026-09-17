@@ -104,10 +104,17 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     /// 2026-09-17 with p69_uia.zsh: `button name='' help='Removes the file
     /// permanently'`, with `text 'Delete'` present only as a child. XAML
     /// derives a Button's name from its content only when the content is a
-    /// string, and here the content is a view. AppKitBackend derives the name
-    /// from the first text in the label (`firstTextFieldValue`), and this
-    /// follows it, including hiding the content so the words are announced once
-    /// rather than as the button and again as its child.
+    /// string, and here the content is a view. The name is EVERY text in the
+    /// label, in order, joined by spaces. The content is then hidden, so the
+    /// words are announced once rather than as the button and again as its
+    /// child.
+    ///
+    /// **All texts, not the first.** The first version followed AppKitBackend's
+    /// `firstTextFieldValue`, and P67's `HStack { Text("two"); Text("texts") }`
+    /// read `two`. On 2026-09-17 the same button on GtkBackend under WSLg read
+    /// `two texts` over AT-SPI, since GTK computes the name from all of its
+    /// content, and SwiftUI's VoiceOver reads both texts too. Taking only the
+    /// first cut the name short.
     ///
     /// Runs from `updateButton` on every layout pass. That comes after the label
     /// has laid out, and `Text` writes its string during layout, so the text is
@@ -120,9 +127,13 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     ///
     /// **少了這一步,未設標籤的按鈕 UIA Name 是空的。** 2026-09-17 以 p69_uia.zsh 實測:
     /// `button name='' help='Removes the file permanently'`,`text 'Delete'` 只以子節點存在。XAML 只在
-    /// content 是字串時才從 content 推導 Button 的名稱,而這裡的 content 是一個 view。AppKitBackend 以
-    /// label 中第一段文字命名(`firstTextFieldValue`),此處照做,包括把內容藏起來,讓那些字只被念一次,
-    /// 而不是按鈕念一次、子節點再念一次。
+    /// content 是字串時才從 content 推導 Button 的名稱,而這裡的 content 是一個 view。名稱是 label 中
+    /// **所有**文字依序以空白串接,並把內容藏起來,讓那些字只被念一次,而不是按鈕念一次、子節點再念一次。
+    ///
+    /// **取全部,不是第一段。** 第一版照 AppKitBackend 的 `firstTextFieldValue`,P67 的
+    /// `HStack { Text("two"); Text("texts") }` 讀成 `two`。2026-09-17 同一顆按鈕在 WSLg 的 GtkBackend 上
+    /// 以 AT-SPI 讀到 `two texts`(GTK 由全部內容計算名稱),SwiftUI 的 VoiceOver 也會唸出兩段——只取第一段
+    /// 是把名字截斷了。
     ///
     /// 由 `updateButton` 在每一次 layout pass 呼叫。那發生在 label 排版之後,而 `Text` 在排版時就寫入
     /// 字串,所以文字已經在那裡可讀。modifier 在這一趟之後設定的標籤覆寫,經由
@@ -130,23 +141,19 @@ fileprivate final class ViewLabelCustomButton: WinUI.Button {
     /// 它唯一能說的東西。
     fileprivate func refreshAccessibilityName() {
         let label = content as? WinUI.UIElement
-        let name = accessibilityLabelOverride ?? label.flatMap(Self.firstText(in:))
+        let texts = label.map(Self.texts(in:)) ?? []
+        let name = accessibilityLabelOverride ?? (texts.isEmpty ? nil : texts.joined(separator: " "))
         AutomationProperties.setName(self, name ?? "")
         if let label {
             scuiSetAccessibilityView(ofSubtree: label, hidden: name != nil)
         }
     }
 
-    private static func firstText(in element: WinUI.UIElement) -> String? {
-        if let block = element as? WinUI.TextBlock, !block.text.isEmpty {
-            return block.text
+    private static func texts(in element: WinUI.UIElement) -> [String] {
+        if let block = element as? WinUI.TextBlock {
+            return block.text.isEmpty ? [] : [block.text]
         }
-        for child in scuiChildren(of: element) {
-            if let text = firstText(in: child) {
-                return text
-            }
-        }
-        return nil
+        return scuiChildren(of: element).flatMap(texts(in:))
     }
 
     private var isPointerCaptured = false
