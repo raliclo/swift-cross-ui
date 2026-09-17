@@ -49,6 +49,44 @@ extension AppKitBackend: BackendFeatures.Accessibility {
             button.accessibilityLabelOverride = label
         } else {
             widget.setAccessibilityLabel(label)
+
+            // **Static text is announced from its VALUE, so the label alone is
+            // not enough: the words on screen would still be there for a reader
+            // to speak instead of the name the author gave.**
+            //
+            // Measured 2026-09-17 with P69's `Text("12:30")
+            // .accessibilityLabel("Half past twelve")`: `ax_dump` read
+            // `AXStaticText '12:30' desc='Half past twelve'` -- the label had
+            // arrived, and `12:30` was still sitting in the attribute a screen
+            // reader reads for text. GTK over AT-SPI and WinUI over UIA both
+            // report the label and NOT the original words, and P69's own
+            // on-screen expectation says `'12:30' does not appear`, so this is
+            // the one backend of the four that would have disagreed.
+            //
+            // `nil` puts the value back: an `NSTextField` with no explicit
+            // accessibility value answers with its `stringValue`, which is the
+            // text again.
+            //
+            // **靜態文字是由它的 value 被宣讀的,因此只設 label 還不夠:畫面上那串字仍然留在那裡,
+            // 讓閱讀器可以拿它來唸,而不是唸作者給的名字。**
+            //
+            // 2026-09-17 以 P69 的 `Text("12:30").accessibilityLabel("Half past twelve")` 實測:
+            // `ax_dump` 讀到 `AXStaticText '12:30' desc='Half past twelve'`——標籤確實抵達了,
+            // 而 `12:30` 仍坐在「螢幕閱讀器讀文字時會讀的那個屬性」裡。GTK 經 AT-SPI 與 WinUI 經 UIA
+            // 都只回報標籤、不回報原文,而 P69 畫面上的預期也寫著「`12:30` 不出現」——因此四者之中,
+            // 這是唯一一個原本會不一致的 backend。
+            //
+            // `nil` 會把值放回去:一個沒有明確無障礙值的 `NSTextField`,會以它的 `stringValue` 作答,
+            // 那就是那段文字本身。
+            //
+            // `NSCustomTextField` rather than `setAccessibilityValue(_:)` on the
+            // field: that call is accepted and ignored, which the type's own
+            // documentation records with the measurement.
+            // 用 `NSCustomTextField` 而不是在該 field 上呼叫 `setAccessibilityValue(_:)`:後者會被接受
+            // 然後被忽略,那個型別自己的說明裡記著這次量測。
+            if let field = widget as? NSCustomTextField {
+                field.accessibilityValueOverride = label
+            }
         }
     }
 

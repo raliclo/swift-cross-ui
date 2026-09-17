@@ -1,0 +1,40 @@
+action,x,y,origin,button,key,micros,note,platform
+# P50 section 2's control panel, on iOS: BETA must land beside its OWN button.
+#
+# **This is the assertion P50 has always made and iOS could never meet.** Until
+# 2026-09-17 UIKit adapted every popover to a sheet in a compact size class, so
+# both panels covered the screen from the top and neither was anchored to
+# anything -- "each panel must land NEXT TO THE BUTTON THAT OPENED IT, and the
+# two must not land in the same place" had nothing to be true or false about.
+# CustomPopover now refuses the adaptation, so the assertion can finally be
+# read.
+#
+# BETA rather than ALPHA on purpose: ALPHA carries #109's `arrowEdge` and has
+# been driven from both sides already, while BETA takes no preference at all.
+# It is the control -- if the two panels landed in the same place, the
+# difference would have to come from the anchors rather than from a parameter.
+#
+# Coordinates measured off p50-ios-final-20260918-042422.png at 3x: the second
+# anchor's text sits at y 911, x 16..329. **Re-measured**: the first attempt
+# used y 889 from a capture taken before the Windows side reworded the readout
+# to "arrow edge (first panel only)", and every row below that line had moved.
+# The tap landed on nothing and the capture showed no panel -- which looks
+# exactly like a popover that failed to open.
+#
+# P50 第 2 區塊的對照面板,在 iOS 上:BETA 必須落在**它自己那顆**按鈕旁邊。
+#
+# **這是 P50 一直以來的斷言,而 iOS 一直無法滿足它。** 在 2026-09-17 之前,UIKit 會在 compact 寬度下
+# 把每一個 popover 都改成 sheet,因此兩塊面板都從畫面頂端整片蓋下、都沒有錨定在任何東西上
+# ——「每塊面板都必須落在**開啟它的那顆按鈕旁邊**,而兩塊不可落在同一處」根本沒有可判真假的對象。
+# `CustomPopover` 現在拒絕該調整,那句斷言終於讀得出來了。
+#
+# 刻意用 BETA 而不是 ALPHA:ALPHA 帶著 #109 的 `arrowEdge`、兩側都已驅動過,而 BETA 完全不帶偏好。
+# 它是對照組——如果兩塊面板落在同一處,那個差別就必須來自錨點,而不是來自某個參數。
+#
+# 座標量自 p50-ios-final-20260918-042422.png(3x):第二個錨點的文字位於 y 911、x 16..329。
+# **重新量過**:第一次用的 y 889 來自 Windows 那邊把讀數改寫成「arrow edge (first panel only)」之前的
+# 擷圖,而那一行以下的每一列都移動了。那一下點在空處,擷圖裡沒有面板——而那看起來,與「一個開不起來的
+# popover」一模一樣。
+sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
+click,172,911,,left,,,open PANEL BETA from the SECOND anchor -- it takes no arrowEdge,ios
+sleep,,,,,,1500000,leave the panel open for the final capture,ios

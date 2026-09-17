@@ -179,8 +179,17 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       得到的 `two` 是截斷。WinUIBackend 已改為依序串接全部 TextBlock(UIA:`two texts`,P69 探針仍 18/18),
       P67 畫面上的預期字串也已改成 `two texts`。**你們那三個 backend 在跟進前會與畫面上的預期不符**——那是
       刻意留下的訊號。Windows 端 2026-09-17。
-- [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
-      是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
+- [x] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上——四個都到得了,AppKit 需要一個修正
+      (2026-09-17 Mac 端)。** AppKit 原本只把標籤設在 description 上,而靜態文字是**由 value** 被宣讀的,
+      因此 `12:30` 仍坐在閱讀器會讀的那個屬性裡(`ax_dump` 原本只印 value,所以連這件事都看不見——
+      探針同日加印 description)。**第一次的修法靜默失敗**:在 `NSTextField` 上呼叫
+      `setAccessibilityValue(_:)` 會被接受然後忽略(那個分支執行了十二次、從分支內印出來,而樹依然說
+      `12:30`),因為 control 的值來自它的 cell。改用 `NSCustomTextField` 持有覆寫值作答——與
+      `NSCustomButton` 對它的標籤所用的形狀相同。修後 `ax_dump` 讀到
+      `AXStaticText 'Half past twelve' desc='Half past twelve'`。**Android 不需要改**:
+      `uiautomator --compressed` 給 `TextView text='12:30' content-desc='Half past twelve'`,
+      而 contentDescription 正是輔助技術會用來取代 text 的那一個;`text` 保留畫面上的字,是因為 Android
+      對 TextView 一律如此回報。原文保留於下—— 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
       **Windows 回覆(2026-09-17):GTK 與 WinUI 都到得了。** P69 新增 `Text("12:30")
       .accessibilityLabel("Half past twelve")`,兩支外部探針各加兩項檢查(名稱出現、`12:30` 不出現)。
       WSLg AT-SPI:`label 'Half past twelve'`,7 項全過。WinUI UIA(control 與 content view):
