@@ -41,9 +41,40 @@ different depending on where "here" was.
   has no children, `Delete`/`Volume` unchanged. Orca speech itself still not heard.
   **2026-09-17 已修:** 設了標籤的按鈕會把內容標為 HIDDEN;外部探針 5 項全過、exit 0。
   Orca 實際朗讀仍未聽過。
-- [ ] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
+- [x] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
   control/content views and Narrator speech. The available tree omits ItemStatus,
   so it cannot validate the value. 尚需確認 UIA filter、ItemStatus 與 Narrator。
+  **2026-09-17: a real defect, and fixed.** A new probe (`p69_uia.zsh`) names
+  the view it walks. Both nodes were in the CONTROL view, the one Narrator uses,
+  and in the content view. `AccessibilityView.raw` applies only to the element
+  it is set on, and UIA promotes that element's children. WinUIBackend now sets
+  the whole subtree, and does the same for a labelled button's content. After
+  the fix: 14/14 in both views, and ItemStatus reads `40 percent`. Narrator
+  speech itself has still not been heard.
+  **2026-09-17:真缺陷,已修。** 新探針指明 view;兩個節點都在 Narrator 走的 control view 裡。
+  `AccessibilityView.raw` 只作用於單一元素、子節點會被提升;改為設定整個子樹。修後兩個 view 14/14,
+  ItemStatus 讀得到。Narrator 實際朗讀仍未聽過。
+- [ ] **WinUI: an unlabelled button has an EMPTY UIA Name.** In the same dump,
+  `button name='' help='Removes the file permanently'` and
+  `button name='' status='40 percent'` each have their text only as a child
+  `text 'Delete'` / `text 'Volume'`. AppKit names such a button from its first
+  text (`firstTextFieldValue`), and GTK computes it from content. On WinUI the
+  Button's content is a UIElement, so XAML derives nothing. P67, the app that
+  asks how names are derived, has never been run on Windows.
+  **WinUI:沒設標籤的按鈕,UIA Name 是空的。** 文字只以子節點存在。AppKit 以第一段文字命名、GTK 由內容
+  計算;WinUI 的 content 是 UIElement,XAML 推導不出來。P67 從未在 Windows 上跑過。
+- [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
+  with the same probe: P69-gtk4.exe exposes one UIA node, the window, and
+  nothing inside it. `GTK_A11Y=help` on the installed bundle prints
+  `accesskit - Disabled during GTK build` and `atspi - Not available on this
+  platform`. GTK 4.22 CAN provide Windows UIA, through its AccessKit backend,
+  but the gvsbuild release installed by `install_gtk4_windows.zsh` is built
+  without it. Every `.accessibility*` modifier is therefore a no-op on this
+  target. The fix is a GTK build with AccessKit enabled, not a change in
+  GtkBackend.
+  **Windows 上的 GtkBackend 完全沒有無障礙。** 同一探針:P69-gtk4.exe 只有視窗一個 UIA 節點。安裝的
+  bundle 以 `GTK_A11Y=help` 回報 `accesskit - Disabled during GTK build`。GTK 4.22 的 AccessKit 後端
+  **能**提供 UIA,只是 gvsbuild 發行版沒開。修法是一份開啟 AccessKit 的 GTK 建置,不是改 GtkBackend。
 
 Evidence and local commit split: `testapp/plan/verification-followup-20260917.md`.
 
@@ -141,6 +172,12 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       WinUI 那一項仍開著,見上方。
 - [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
       是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
+      **Windows 回覆(2026-09-17):GTK 與 WinUI 都到得了。** P69 新增 `Text("12:30")
+      .accessibilityLabel("Half past twelve")`,兩支外部探針各加兩項檢查(名稱出現、`12:30` 不出現)。
+      WSLg AT-SPI:`label 'Half past twelve'`,7 項全過。WinUI UIA(control 與 content view):
+      `text 'Half past twelve'`,無 `12:30`。**但 Windows 上的 GTK 沒有任何無障礙後端**(見上方),
+      那一格無從談起。**AppKit / Android 還沒問**——P69 已經帶著這段文字,跑 `ax_dump` 與
+      `uiautomator dump --compressed` 就能回答。
 - [ ] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
       不是同一個缺陷。** 這裡的教訓很具體:Android 普通 `uiautomator dump` 會設
       `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器抵達不了的 view,而 `--compressed` 才是

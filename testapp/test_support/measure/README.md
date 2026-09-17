@@ -83,3 +83,30 @@ dbus-run-session -- zsh ../test_support/measure/p69_atspi.zsh "$PWD/P69"
 Reads P69 through the external AT-SPI bus -- what a screen reader sees -- rather
 than P69's in-process readback. The 2026-09-17 run is not a full pass: the
 original `X` child is still exposed.
+
+**Later on 2026-09-17:** that was fixed in GtkBackend, and the probe gained two
+checks for `.accessibilityLabel` on a `Text` (`text_label`,
+`no_original_text`). WSLg run: all 7 checks true, exit 0.
+**2026-09-17 稍晚:** 上述問題已在 GtkBackend 修正;探針新增兩項 `Text` 上 `.accessibilityLabel` 的
+檢查。WSLg:7 項全過、exit 0。
+
+## `p69_uia.zsh` + `uia_tree.c` — P69 在**外部** UI Automation 上長什麼樣子(Windows)
+
+```sh
+zsh testapp/test_support/measure/p69_uia.zsh testapp/output/P69-WinUI.exe
+```
+
+The WinUI counterpart of the AT-SPI probe, with the same seven checks. It runs
+each check in both the CONTROL and the CONTENT view, and names the view in
+every dump (`testapp/output/p69-uia-<view>.txt`), because a raw-view reading
+lists elements a screen reader never reaches. It builds `uia_tree.c` with clang
+on first use.
+2026-09-17: 14/14 true and exit 0 on P69-WinUI. The negative control is
+P69-gtk4.exe, the GTK build on Windows, which has no accessibility backend (see
+todo.md): exit 1, with label, hint, value and text_label all false. That shows
+the checks can fail.
+
+WinUI 版的外部探針,七項檢查與 AT-SPI 版相同,在 **control** 與 **content** 兩個 view 各跑一次,並在每份
+傾印中寫明 view——raw view 會列出螢幕閱讀器走不到的元素。第一次使用時以 clang 建置 `uia_tree.c`。
+2026-09-17:P69-WinUI 14/14、exit 0;反向對照為 Windows 上的 P69-gtk4.exe(無無障礙後端):exit 1,
+label/hint/value/text_label 皆為 false——證明檢查不是空轉。

@@ -254,6 +254,15 @@ struct P69RootView: View {
             Button("Volume") { presses += 1 }
                 .accessibilityValue("40 percent")
 
+            // The same override on plain text rather than a control. Only iOS
+            // had been asked this; on a backend whose Text widget is a wrapper
+            // the label can land on the wrapper and the reader still says
+            // "12:30". Absence of "12:30" is the half that proves it.
+            // 同一個覆寫,改加在純文字而非控制項上。此前只在 iOS 上問過;在 Text 的 widget 是外包層的
+            // backend 上,標籤可能落在外包層,而閱讀器仍唸 "12:30"。"12:30" 不出現,才是證明的那一半。
+            Text("12:30")
+                .accessibilityLabel("Half past twelve")
+
             // Decorative, and its CHILD is what proves the point: hiding only
             // the container would leave "decorative" behind to be announced,
             // which is the failure that looks like success.
@@ -267,11 +276,13 @@ struct P69RootView: View {
             Text(
                 "Expected from the OUTSIDE probe: 'Close' appears and 'X' does not; "
                     + "'Delete' carries the hint; 'Volume' has value '40 percent'; "
+                    + "'Half past twelve' appears and '12:30' does not; "
                     + "'decorative' appears nowhere. This text is the claim, not the evidence."
             )
             Text(
                 "外部探針的預期:出現 'Close' 而不出現 'X';'Delete' 帶有那個提示;'Volume' 的值是 "
-                    + "'40 percent';'decorative' 完全不出現。這段文字是**主張**,不是證據。"
+                    + "'40 percent';'Half past twelve' 出現而 '12:30' 不出現;'decorative' 完全不出現。"
+                    + "這段文字是**主張**,不是證據。"
             )
         }
         .padding(20)

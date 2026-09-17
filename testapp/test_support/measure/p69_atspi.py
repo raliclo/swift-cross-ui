@@ -36,6 +36,8 @@ checks = {
     "value": any(n["name"] == "Volume" and
                  (n.get("value_text") == "40 percent" or
                   "valuetext:40 percent" in n["attributes"]) for n in nodes),
+    "text_label": any(n["name"] == "Half past twelve" for n in nodes),
+    "no_original_text": not any(n["name"] == "12:30" for n in nodes),
     "hidden": not any(n["name"] == "decorative" for n in nodes),
 }
 print(json.dumps({"checks": checks}))

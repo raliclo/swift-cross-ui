@@ -11,6 +11,13 @@
   the WSLg AT-SPI probe passes all five checks (exit 0). Still open: WinUI's UIA tree
   (which view the client read) and actual Narrator/Orca speech.
   **GTK 那一半同日稍晚已修**,外部探針 5 項全過;WinUI 的 UIA 樹與實際朗讀仍開著。
+  **WinUI half fixed the same evening:** `p69_uia.zsh` names the view. `X` and
+  `decorative` were really in the control view, because `AccessibilityView.raw`
+  does not cover children. It is now applied to the subtree, and the probe
+  passes 14/14. Found: GtkBackend on Windows has no accessibility backend at
+  all, since the gvsbuild GTK is built without AccessKit. See todo.md. Still
+  open: actual Narrator/Orca speech.
+  **WinUI 那一半同晚已修**(子樹設 raw,14/14);另發現 Windows 上的 GTK 完全沒有無障礙後端。朗讀仍未聽過。
 
 - [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**:
   GtkBackend now uses the native lazy factory. Release builds succeeded on
