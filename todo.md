@@ -214,10 +214,14 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
         也沒投影 `TeachingTip`。`PopoverArrow` 依面板**實際落點**判斷側邊,用獨立 `Popup` 畫三角形,
         顏色取 presenter 自己的筆刷;面板以 `translation` 讓出箭頭的空間,不影響 XAML 的翻轉。四個方向的
         合成截圖:`p50w-popover-arrow-final.png`。
-- [ ] **WinUI:popover 內的按鈕按不到(以合成輸入而言)。** P50 的 `press me` 在 flyout 裡,動作檔點擊與
+- [x] **WinUI:popover 內的按鈕按不到(以合成輸入而言)。** P50 的 `press me` 在 flyout 裡,動作檔點擊與
       觸控點擊各 0/2;**沒有箭頭的舊版建置同樣 0/2**,所以不是箭頭造成的。GTK 那邊 2026-09-09 已記過
       「重放器點不到 popover 內部」(`P50-press-inside-popover.csv`)。尚未區分是合成輸入到不了 flyout 的
       popup,還是真的按不下去——**需要一次真人點擊**才能定案。
+      **同日定案並修正:真的按不下去,而且不限於 popover。** 使用者真實點擊也沒反應;UIA Invoke 同一顆按鈕則記下
+      `popover counter 1`,所以壞的是點擊判定。原因:`.border` 是疊在上方的 `Rectangle().stroke(...)`,
+      而 WinUI 的 `renderPath` 把看不見的填色設成**透明**筆刷——XAML 會對透明筆刷做點擊判定。改為 `nil` 後,
+      觸控 2/2、使用者真實點擊 3/3。**待查:GTK 的「重放器點不到 popover 內部」是否其實也是同一件事。**
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 

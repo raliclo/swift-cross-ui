@@ -522,7 +522,12 @@ struct P50PopoverSection: View {
                         )
                     }
                     Text(
-                        "arrow edge: \(arrowEdge.map(String.init(describing:)) ?? "none (platform decides)")"
+                        // "first panel only": BETA is the control and ignores it,
+                        // and on 2026-09-17 a manual tester cycled the edge, opened
+                        // BETA, and reasonably reported the arrow as not following.
+                        // 「first panel only」:BETA 是對照組、不理會它;2026-09-17 手動測試者循環切換後打開
+                        // BETA,合理地回報箭頭沒有跟著變。
+                        "arrow edge (first panel only): \(arrowEdge.map(String.init(describing:)) ?? "none (platform decides)")"
                     )
                 }
                 Text(

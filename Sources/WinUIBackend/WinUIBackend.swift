@@ -3097,7 +3097,24 @@ public final class WinUIBackend:
         let winUiPath = container as! WinUI.Path
         let strokeStyle = overrideStrokeStyle ?? path.strokeStyle!
 
-        winUiPath.fill = Self.brush(for: fillStyle, in: environment)
+        // **No brush at all for an invisible fill, not a transparent one.** XAML
+        // hit-tests a transparent brush and skips a null one. A stroked shape
+        // therefore swallowed every click inside its outline. `.border` is an
+        // overlay of `Rectangle().stroke(...)`, so on 2026-09-17 P50's popover
+        // `press me` did nothing for a real click from the user, while UIA
+        // Invoke on the same button logged `popover counter 1`. The panel
+        // carries `.border(accent, width: 2)`. SwiftUI does not hit-test the
+        // clear inside of a stroke either.
+        // **看不見的填色就完全不給筆刷,而不是給透明筆刷。** XAML 會對透明筆刷做點擊判定、對 null 則略過,
+        // 於是描邊形狀吞掉了外框內的每一次點擊。`.border` 是一個疊在上方的 `Rectangle().stroke(...)`,
+        // 因此 2026-09-17 P50 popover 裡的 `press me` 對使用者的真實點擊毫無反應,而對同一顆按鈕做 UIA
+        // Invoke 卻記下 `popover counter 1`——那塊面板帶著 `.border(accent, width: 2)`。SwiftUI 也不會對
+        // 描邊內部的透明區域做點擊判定。
+        if case .color(let colour) = fillStyle, colour.opacity == 0 {
+            winUiPath.fill = nil
+        } else {
+            winUiPath.fill = Self.brush(for: fillStyle, in: environment)
+        }
         winUiPath.stroke = Self.brush(for: strokeFill, in: environment)
         winUiPath.strokeThickness = strokeStyle.width
 
