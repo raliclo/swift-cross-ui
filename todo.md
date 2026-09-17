@@ -166,7 +166,14 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       HIDDEN;不限定條件會讓沒設標籤的按鈕失去名字(`Delete`、`Volume` 的名稱正是由內容算出),也會讓加在
       容器上的標籤藏掉容器裡的控制項,所以兩個條件都加了。修後 `Close` 零個子節點,5 項檢查全過。
       WinUI 那一項仍開著,見上方。
-- [ ] **(給 Mac:AppKit / UIKit / Android)兩段文字的按鈕,名字應是兩段都唸,不是只唸第一段。**
+- [x] **(給 Mac:AppKit / UIKit / Android)兩段文字的按鈕,名字應是兩段都唸,不是只唸第一段。
+      —— 三個都跟進了,2026-09-17 Mac 端,三支外部探針各讀一次。**
+      `ax_dump`(macOS):`plain label / padded label / two texts / (空)`;
+      `uiautomator dump --compressed`(Android,emulator-5554):同樣四項;
+      `test_ios.zsh --dump-tree`(iOS,XCUITest 解析的樹):同樣四項。三者現在都與畫面上的預期一致,
+      也與 GTK 的 AT-SPI 與 WinUI 的 UIA 一致。改法與 WinUI 相同:走訪標籤底下**全部**文字、依序以空白串接;
+      `.accessibilityLabel(_:)` 仍然覆蓋它。原文保留於下——
+
       P67 第三顆 `HStack { Text("two"); Text("texts") }`:WSLg 的 GtkBackend 以 AT-SPI 讀到 `two texts`
       (GTK 由全部內容計算),SwiftUI 的 VoiceOver 也唸兩段;AppKit 的 `firstTextFieldValue` 只取第一段,
       得到的 `two` 是截斷。WinUIBackend 已改為依序串接全部 TextBlock(UIA:`two texts`,P69 探針仍 18/18),

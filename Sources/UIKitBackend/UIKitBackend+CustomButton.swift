@@ -59,30 +59,48 @@ extension UIKitBackend {
         button.accessibilityLabel = Self.firstText(in: button)
     }
 
-    /// The first non-empty text anywhere below this view.
+    /// **Every non-empty text below this view, in order, joined by spaces.**
+    ///
+    /// It used to be the first one only, and the name says so -- kept, because
+    /// it is what the call site reads. P67's second button is the case that
+    /// changed it: a button labelled with two `Text`s announced itself as
+    /// "two", dropping "texts" from beside it. GtkBackend read externally over
+    /// AT-SPI names it `two texts`, SwiftUI's VoiceOver reads both, and
+    /// WinUIBackend and AppKitBackend now join them too. See
+    /// `AppKitBackend+Button.swift` for the three readings that settled it.
     ///
     /// An image-only button still gets nothing, and that is what
-    /// `.accessibilityLabel(_:)` (#123) is for: a guess about which of several
-    /// texts names a button is worse than no guess, but no text at all is a
-    /// button a screen reader cannot announce.
+    /// `.accessibilityLabel(_:)` (#123) is for: no text at all is a button a
+    /// screen reader cannot announce, and an author who wants a different name
+    /// from the joined one says so.
     ///
-    /// 這個 view 底下任何一層的第一段非空文字。
+    /// **這個 view 底下每一段非空文字,依序、以空白串接。**
     ///
-    /// 純圖示的按鈕仍然什麼都得不到，而那正是 `.accessibilityLabel(_:)`(#123)的用途:在數段文字之間
-    /// 猜「哪一段是這顆按鈕的名字」比不猜更糟，但完全沒有文字，就是一顆螢幕閱讀器念不出來的按鈕。
+    /// 它原本只取第一段,而這個名字仍留著——因為呼叫處讀的是它。改變它的是 P67 的第二顆按鈕:
+    /// 一顆以兩個 `Text` 標示的按鈕把自己宣告為「two」,丟掉了旁邊的「texts」。經 AT-SPI 由外部讀到的
+    /// GtkBackend 命名為 `two texts`,SwiftUI 的 VoiceOver 會唸出兩段,而 WinUIBackend 與 AppKitBackend
+    /// 現在也串接。定案所依據的三份讀數見 `AppKitBackend+Button.swift`。
+    ///
+    /// 純圖示的按鈕仍然什麼都得不到,而那正是 `.accessibilityLabel(_:)`(#123)的用途:完全沒有文字,
+    /// 就是一顆螢幕閱讀器念不出來的按鈕;而想要一個不同於串接結果的名字的作者,自己說出來。
     static func firstText(in view: UIView) -> String? {
+        var texts: [String] = []
+        collectTexts(in: view, into: &texts)
+        return texts.isEmpty ? nil : texts.joined(separator: " ")
+    }
+
+    private static func collectTexts(in view: UIView, into texts: inout [String]) {
         for subview in view.subviews {
             if let wrapper = subview as? WrapperWidget<TextView>, !wrapper.child.text.isEmpty {
-                return wrapper.child.text
+                texts.append(wrapper.child.text)
+                continue
             }
             if let label = subview as? UILabel, let text = label.text, !text.isEmpty {
-                return text
+                texts.append(text)
+                continue
             }
-            if let nested = firstText(in: subview) {
-                return nested
-            }
+            collectTexts(in: subview, into: &texts)
         }
-        return nil
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {

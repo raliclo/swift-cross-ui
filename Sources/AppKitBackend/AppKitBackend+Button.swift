@@ -259,16 +259,51 @@ public final class NSCustomButton: NSView {
         }
     }
 
+    /// **Every text in the label, in order, joined by spaces -- not just the
+    /// first one.**
+    ///
+    /// It used to be the first: `firstTextFieldValue`. That was not a decision
+    /// so much as the first thing that worked, and P67's second button is
+    /// exactly the case it got wrong -- a button labelled with two `Text`s
+    /// announced itself as "two", dropping the word "texts" that was sitting
+    /// beside it on screen.
+    ///
+    /// Settled on 2026-09-17 by comparing three readings rather than reasoning
+    /// from one: GtkBackend under WSLg, read externally over AT-SPI, names it
+    /// `two texts`; SwiftUI's VoiceOver reads both texts; WinUIBackend now
+    /// joins them the same way. The first-text rule was the odd one out, and it
+    /// was the truncated one. P67's on-screen expectation reads `two texts`.
+    ///
+    /// `.accessibilityLabel(_:)` (#123) still overrides all of this, which is
+    /// what an author reaches for when the joined text is not the name they
+    /// want.
+    ///
+    /// **標籤中的每一段文字,依序、以空白串接——而不是只取第一段。**
+    ///
+    /// 它原本取的是第一段(`firstTextFieldValue`)。那與其說是一個決定,不如說是「第一個能動的做法」,
+    /// 而 P67 的第二顆按鈕正是它答錯的那個情況:一顆以兩個 `Text` 標示的按鈕,把自己宣告為「two」,
+    /// 丟掉了畫面上就在旁邊的「texts」。
+    ///
+    /// 2026-09-17 以「比對三份讀數」而非「從一份推論」定案:WSLg 上的 GtkBackend 經 AT-SPI 由外部讀到的是
+    /// `two texts`;SwiftUI 的 VoiceOver 會唸出兩段;WinUIBackend 現在也以同樣方式串接。取第一段的那條
+    /// 規則是唯一不同的一個,而且是被截斷的那一個。P67 畫面上的預期現在寫著 `two texts`。
+    ///
+    /// `.accessibilityLabel(_:)`(#123)仍然覆蓋這一切——當串接出來的文字不是作者要的名字時,
+    /// 那才是他要用的東西。
     private func firstTextFieldValue(in view: NSView) -> String? {
+        var texts: [String] = []
+        collectTextFieldValues(in: view, into: &texts)
+        return texts.isEmpty ? nil : texts.joined(separator: " ")
+    }
+
+    private func collectTextFieldValues(in view: NSView, into texts: inout [String]) {
         for subview in view.subviews {
             if let field = subview as? NSTextField, !field.stringValue.isEmpty {
-                return field.stringValue
+                texts.append(field.stringValue)
+                continue
             }
-            if let nested = firstTextFieldValue(in: subview) {
-                return nested
-            }
+            collectTextFieldValues(in: subview, into: &texts)
         }
-        return nil
     }
 
     override public func draw(_ dirtyRect: NSRect) {

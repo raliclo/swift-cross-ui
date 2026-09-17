@@ -83,23 +83,48 @@ class CustomButton(activity: Activity) : FrameLayout(activity) {
     /// 一個 `FrameLayout` 預設不可取得焦點，因此光有描述並不會被念出來——`isFocusable` 與它一起設定。
     /// 兩者都必要，缺任何一個都是靜默的。
     fun refreshAccessibilityName() {
-        val name = firstText(this)
+        val name = joinedText(this)
         contentDescription = name
         isFocusable = name != null
     }
 
-    private fun firstText(view: View): CharSequence? {
+    /// **Every text in the label, in order, joined by spaces -- not just the
+    /// first.**
+    ///
+    /// It took the first one until 2026-09-17. P67's second button is the case
+    /// that got wrong: a button labelled with two `Text`s announced itself as
+    /// "two", dropping "texts" from beside it on screen. Three readings settled
+    /// it rather than one opinion -- GtkBackend read externally over AT-SPI
+    /// names it `two texts`, SwiftUI's VoiceOver reads both texts, and
+    /// WinUIBackend joins them -- so the first-only rule was the odd one out
+    /// and the truncated one. `.accessibilityLabel(_:)` still overrides it.
+    ///
+    /// **標籤裡的每一段文字,依序、以空白串接——不是只取第一段。**
+    ///
+    /// 在 2026-09-17 之前它取的是第一段。P67 的第二顆按鈕正是它答錯的情況:一顆以兩個 `Text` 標示的
+    /// 按鈕把自己宣告為「two」,丟掉了畫面上就在旁邊的「texts」。定案靠的是三份讀數而不是一種意見
+    /// ——經 AT-SPI 由外部讀到的 GtkBackend 命名為 `two texts`、SwiftUI 的 VoiceOver 會唸出兩段、
+    /// WinUIBackend 也串接——因此「只取第一段」是唯一不同、而且被截斷的那一個。
+    /// `.accessibilityLabel(_:)` 仍然覆蓋它。
+    private fun joinedText(view: View): CharSequence? {
+        val texts = mutableListOf<CharSequence>()
+        collectText(view, texts)
+        return if (texts.isEmpty()) null else texts.joinToString(" ")
+    }
+
+    private fun collectText(view: View, into: MutableList<CharSequence>) {
         if (view is TextView) {
             val text = view.text
-            if (!text.isNullOrEmpty()) return text
+            if (!text.isNullOrEmpty()) {
+                into.add(text)
+                return
+            }
         }
         if (view is ViewGroup) {
             for (index in 0 until view.childCount) {
-                val found = firstText(view.getChildAt(index))
-                if (found != null) return found
+                collectText(view.getChildAt(index), into)
             }
         }
-        return null
     }
 
     fun updateButtonStyle(isDarkMode: Boolean) {
