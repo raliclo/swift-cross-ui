@@ -76,7 +76,63 @@ struct P54RootView: View {
     @State var lastRefresh = "(none)"
     @State var rows = 6
 
+    /// `--toggle-refreshable`: a button above the scroll view turns the handler
+    /// off and on, on the SAME ScrollView widget.
+    ///
+    /// It exists for a WinUI fix recorded "fixed, unverified" in todo.md on
+    /// 2026-09-09. `setRefreshHandler(to: nil)` used to leave the Refresh button
+    /// behind, and re-enabling nested a second Grid. `.refreshable` cannot be
+    /// removed from a view, and an `if` around the ScrollView would rebuild the
+    /// widget and never reach the nil path. So this passes the environment value
+    /// `.refreshable` itself writes, as nil while off. Opt-in, so the default
+    /// layout and its action file are unchanged.
+    ///
+    /// `--toggle-refreshable`:捲動視圖上方的按鈕,在**同一個** ScrollView widget 上把 handler 關掉再打開。
+    ///
+    /// 它為 todo.md 2026-09-09 記為「fixed, unverified」的 WinUI 修正而設:`setRefreshHandler(to: nil)` 過去會
+    /// 留下 Refresh 按鈕,重新啟用時又巢狀一個 Grid。`.refreshable` 無法從 view 上移除,而在 ScrollView 外包一個
+    /// `if` 會重建 widget、永遠走不到 nil 那條路,因此這裡直接傳 `.refreshable` 自己寫入的那個環境值,關閉時為
+    /// nil。做成 opt-in,預設版面與它的動作檔都不變。
+    static let togglesRefreshable = CommandLine.arguments.contains("--toggle-refreshable")
+    @State var refreshEnabled = true
+
     var body: some View {
+        if P54RootView.togglesRefreshable {
+            VStack(alignment: .leading, spacing: 8) {
+                Button("Toggle refreshable (now \(refreshEnabled ? "on" : "off"))") {
+                    refreshEnabled.toggle()
+                    P54Diagnostics.write("refreshable \(refreshEnabled ? "on" : "off")")
+                }
+                .padding(.horizontal, 16)
+                scrollContent
+                    .environment(\.onRefresh, refreshAction)
+            }
+            .onAppear { announce() }
+        } else {
+            scrollContent
+                .refreshable { refresh() }
+                .onAppear { announce() }
+        }
+    }
+
+    var refreshAction: (@MainActor @Sendable () -> Void)? {
+        guard refreshEnabled else { return nil }
+        return { refresh() }
+    }
+
+    func refresh() {
+        refreshes += 1
+        rows += 2
+        lastRefresh = "\(rows)"
+        P54Diagnostics.write("refresh \(refreshes) -> rows=\(rows)")
+    }
+
+    func announce() {
+        P54Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
+        P54Diagnostics.renderComplete()
+    }
+
+    var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 Text("P54: refreshable")
@@ -114,16 +170,6 @@ struct P54RootView: View {
                 }
             }
             .padding(16)
-        }
-        .refreshable {
-            refreshes += 1
-            rows += 2
-            lastRefresh = "\(rows)"
-            P54Diagnostics.write("refresh \(refreshes) -> rows=\(rows)")
-        }
-        .onAppear {
-            P54Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
-            P54Diagnostics.renderComplete()
         }
     }
 }

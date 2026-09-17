@@ -1,3 +1,4 @@
+import DebugFeatures
 import SwiftCrossUI
 import WinUI
 
@@ -99,7 +100,16 @@ func scuiSetAccessibilityView(ofSubtree element: WinUI.UIElement, hidden: Bool) 
     if hidden {
         AutomationProperties.setAccessibilityView(element, .raw)
     } else {
-        try? element.clearValue(AutomationProperties.accessibilityViewProperty)
+        do {
+            try element.clearValue(AutomationProperties.accessibilityViewProperty)
+        } catch {
+            // A failed clear leaves the element hidden from screen readers.
+            // 清除失敗會讓這個元素繼續對螢幕閱讀器隱藏。
+            DebugFeatures.log(
+                "WinUIBackend.Accessibility: clearValue(AccessibilityView) failed -- \(error). "
+                    + "This element is still hidden from screen readers."
+            )
+        }
     }
     for child in scuiChildren(of: element) {
         scuiSetAccessibilityView(ofSubtree: child, hidden: hidden)

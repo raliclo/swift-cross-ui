@@ -1,3 +1,4 @@
+import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
@@ -16,12 +17,22 @@ extension WinUIBackend: BackendFeatures.Alerts {
         func showAttached() {
             let promise = try! showAsync()!
             promise.completed = { [weak self] operation, status in
-                guard
-                    let self,
-                    status == .completed,
-                    let operation,
-                    let result = try? operation.getResults()
-                else {
+                guard let self, status == .completed, let operation else {
+                    return
+                }
+                // Said out loud rather than `try?`: a failure here means the
+                // alert closed and its response handler never ran, which looks
+                // exactly like the user dismissing it.
+                // 明講而不是 `try?`:此處失敗代表對話框關了、回應 handler 卻沒有執行,而那看起來與使用者
+                // 關閉它一模一樣。
+                let result: ContentDialogResult
+                do {
+                    result = try operation.getResults()
+                } catch {
+                    DebugFeatures.log(
+                        "WinUIBackend.Alert: getResults failed -- \(error). "
+                            + "The response handler was NOT called."
+                    )
                     return
                 }
 

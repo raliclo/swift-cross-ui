@@ -1,3 +1,4 @@
+import DebugFeatures
 @_spi(Backends) import SwiftCrossUI
 import WinUI
 
@@ -137,16 +138,26 @@ final class WinUIButtonPressTracker {
         let tracker = WinUIButtonPressTracker(button: button, handler: handler)
         trackers[key] = tracker
 
-        // `try?` and not `try!`: the registration is a COM call, and a button
+        // Caught and not `try!`: the registration is a COM call, and a button
         // that cannot report its press state is a button that draws in one
-        // style, not a reason to abort.
-        // 使用 `try?` 而非 `try!`：這次註冊是一個 COM 呼叫，而一顆無法回報按下狀態的按鈕，
-        // 只是一顆樣式不會變化的按鈕，不構成中止的理由。
-        _ = try? button.registerPropertyChangedCallback(WinUI.ButtonBase.isPressedProperty) {
-            _, _ in
-            MainActor.assumeIsolated {
-                tracker.update()
+        // style, not a reason to abort. But it is logged, not `try?`: that one
+        // style is exactly what a working button looks like before it is
+        // pressed.
+        // 以 catch 接住而非 `try!`：這次註冊是一個 COM 呼叫，而一顆無法回報按下狀態的按鈕，
+        // 只是一顆樣式不會變化的按鈕，不構成中止的理由。但要記錄而不是 `try?`：那種「樣式不變」正是一顆正常
+        // 按鈕在被按下之前的樣子。
+        do {
+            _ = try button.registerPropertyChangedCallback(WinUI.ButtonBase.isPressedProperty) {
+                _, _ in
+                MainActor.assumeIsolated {
+                    tracker.update()
+                }
             }
+        } catch {
+            DebugFeatures.log(
+                "WinUIBackend.ButtonPressState: registerPropertyChangedCallback failed -- \(error). "
+                    + "This button will never report isPressed."
+            )
         }
     }
 
