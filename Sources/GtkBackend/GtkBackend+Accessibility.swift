@@ -8,8 +8,39 @@ extension GtkBackend: BackendFeatures.Accessibility {
     /// announces for the widget.
     ///
     /// 螢幕閱讀器為這個 widget 所唸出的東西,對應 `GTK_ACCESSIBLE_PROPERTY_LABEL`。
+    ///
+    /// **On a button, the content goes out of the accessibility tree while a
+    /// label is set.** Measured 2026-09-17 with an external AT-SPI dump of P69
+    /// on WSLg: `button 'Close' -> panel -> panel -> label 'X'`. The label
+    /// property named the button correctly and the visible "X" was still a
+    /// node underneath it, so a screen reader walking the tree would reach
+    /// both. AT-SPI has no "not important" filter to hide it the way Android's
+    /// compressed tree does. AppKit resolves the same case by giving the button
+    /// no accessibility children.
+    ///
+    /// Only for the BUTTON role, and only while a label is set. An unlabelled
+    /// button's name is computed from that very content -- P69's `Delete` and
+    /// `Volume` are named that way -- so hiding it unconditionally would leave
+    /// them nameless. And `.accessibilityLabel` on a container must not hide
+    /// the controls inside it.
+    ///
+    /// **在按鈕上,只要設了標籤,內容就離開無障礙樹。** 2026-09-17 以 WSLg 上 P69 的外部 AT-SPI dump
+    /// 量到:`button 'Close' -> panel -> panel -> label 'X'`。label 屬性正確地為按鈕命名,而看得見的
+    /// 「X」仍是它底下的一個節點,因此走訪樹的螢幕閱讀器兩者都會抵達。AT-SPI 沒有 Android 壓縮樹那種
+    /// 「不重要」過濾可以藏掉它。AppKit 處理同一情形的方式,是讓按鈕沒有無障礙子節點。
+    ///
+    /// 只針對 BUTTON 角色,且只在設了標籤時。未設標籤的按鈕,名稱正是從這些內容算出來的——P69 的
+    /// `Delete` 與 `Volume` 就是如此——無條件隱藏會讓它們沒有名字。而加在容器上的 `.accessibilityLabel`
+    /// 不應該把容器裡的控制項藏起來。
     public func setAccessibilityLabel(ofWidget widget: Widget, to label: String?) {
         updateStringProperty(of: widget, GTK_ACCESSIBLE_PROPERTY_LABEL, to: label)
+        guard gtk_accessible_get_accessible_role(accessible(widget)) == GTK_ACCESSIBLE_ROLE_BUTTON
+        else { return }
+        var child = gtk_widget_get_first_child(widget.widgetPointer)
+        while let current = child {
+            setHiddenState(of: OpaquePointer(current), to: label != nil)
+            child = gtk_widget_get_next_sibling(current)
+        }
     }
 
     /// `GTK_ACCESSIBLE_PROPERTY_DESCRIPTION`, the supplementary text.
@@ -47,12 +78,16 @@ extension GtkBackend: BackendFeatures.Accessibility {
         // 用 `scui_gtype_boolean()`,不是 `G_TYPE_BOOLEAN`。G_TYPE_* 這組名稱是巨集,Swift 看不到,
         // 而那正是 drop target 早已有 `scui_gtype_string()` 的原因——此處是在它旁邊補上 boolean,
         // 而不是另外發明第二套機制。
+        setHiddenState(of: accessible(widget), to: hidden)
+    }
+
+    private func setHiddenState(of target: OpaquePointer, to hidden: Bool) {
         var state = GTK_ACCESSIBLE_STATE_HIDDEN
         var value = GValue()
         g_value_init(&value, scui_gtype_boolean())
         g_value_set_boolean(&value, hidden ? 1 : 0)
         defer { g_value_unset(&value) }
-        gtk_accessible_update_state_value(accessible(widget), 1, &state, &value)
+        gtk_accessible_update_state_value(target, 1, &state, &value)
     }
 
     /// Sets one string-valued accessible property, or clears it with `nil`.

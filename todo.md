@@ -30,11 +30,17 @@ different depending on where "here" was.
 
 ### #123 external verification / 外部驗證 (2026-09-17)
 
-- [ ] P69 WSLg AT-SPI: external readback now exists, but the original `X` child
+- [x] P69 WSLg AT-SPI: external readback now exists, but the original `X` child
   remains after the button is renamed `Close`. Label/hint/value and hidden
   decorative checks pass; the no-original-label assertion fails. Investigate
   child exposure and screen-reader traversal, rather than closing this from
   in-process properties. 外部探針已完成，但 `X` 子節點仍存在，尚未結案。
+  **Fixed 2026-09-17:** the depth dump showed `button 'Close' -> panel -> panel ->
+  label 'X'`; a labelled BUTTON now marks its content HIDDEN (unlabelled buttons keep
+  their content-derived names). External probe: all five checks true, exit 0; `Close`
+  has no children, `Delete`/`Volume` unchanged. Orca speech itself still not heard.
+  **2026-09-17 已修:** 設了標籤的按鈕會把內容標為 HIDDEN;外部探針 5 項全過、exit 0。
+  Orca 實際朗讀仍未聽過。
 - [ ] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
   control/content views and Narrator speech. The available tree omits ItemStatus,
   so it cannot validate the value. 尚需確認 UIA filter、ItemStatus 與 Narrator。
@@ -116,11 +122,16 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       沒有 `decorative`。Android 未壓縮的 dump 看得到 `Close → … → TextView 'X'`,**那不是缺陷**
       ——普通 `uiautomator dump` 會設 `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`;`--compressed`(與輔助技術
       所走訪者相符的那一份)給的是 `Close` 0 個子節點、`decorative` 不存在。兩份同一次執行取得。
-- [ ] **(給 Windows / GTK)** AT-SPI **沒有**那種「不重要」過濾,所以你們看到的樹就是 AT 走訪的樹
+- [x] **(給 Windows / GTK)** AT-SPI **沒有**那種「不重要」過濾,所以你們看到的樹就是 AT 走訪的樹
       ——`X` 在裡面就是真的在。線索(不是結論,我這裡無法驗):GTK4 可把內層 label 的 accessible role
       設為 `NONE`/presentation,或對它
       `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。Narrator 的實際朗讀
       也仍未驗。
+      **Windows 回覆(2026-09-17):用了第二個線索,已修並以外部探針驗過。** 帶層級的 dump 顯示 `X` 是
+      按鈕的**子孫**(button → panel → panel → label)。設了標籤的 BUTTON 角色會把直接子元件標為
+      HIDDEN;不限定條件會讓沒設標籤的按鈕失去名字(`Delete`、`Volume` 的名稱正是由內容算出),也會讓加在
+      容器上的標籤藏掉容器裡的控制項,所以兩個條件都加了。修後 `Close` 零個子節點,5 項檢查全過。
+      WinUI 那一項仍開著,見上方。
 - [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
       是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
 - [ ] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
