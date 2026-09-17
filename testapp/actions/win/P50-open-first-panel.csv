@@ -4,6 +4,15 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # expect: log-contains popover alpha shown
 #
+# **That line cannot tell whether a panel appeared.** P50 writes it when present
+# is CALLED. Measured 2026-09-17 on WinUIBackend: with no arrowEdge the flyout
+# showed nothing (placement `.auto`) and the log still wrote this line (mistakes
+# #21). Treat a pass here as "the button was pressed", and take evidence that
+# the panel is there from a capture, a window rect or a UIA node.
+# **這一行分辨不出面板有沒有出現。** P50 在「呼叫」present 時就寫它。2026-09-17 於 WinUIBackend 實測:
+# 沒設 arrowEdge 時 flyout 什麼都沒顯示,log 照樣寫這一行(mistakes #21)。此處通過只代表「按鈕被按了」;
+# 面板在不在,要看擷圖、視窗矩形或 UIA 節點。
+#
 # WHY THIS FILE EXISTS. `.popover` landed 2026-09-08 and was verified only as
 # far as "the anchor button renders". The capture
 # gtk4-P50-20260908-114209.png shows both trigger buttons and the line

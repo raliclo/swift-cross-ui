@@ -196,10 +196,20 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       沒有,所以是高度、不是換行。`.defaultSize(width:height:)` 蓋不過它(第一次排版後視窗會被改成
       內容的理想尺寸),把 AppKit 儲存的視窗框從 user defaults 清掉也沒有改變任何事。
       目前以 P50 自己 `.frame(minHeight: 1000)`(僅 AppKit)繞過,那是繞過、不是修好。
-- [ ] **(留給 Windows / GTK / WinUI)`.trailing` 那一半值得在你們那邊也看一眼。** Android 上
+- [x] **(留給 Windows / GTK / WinUI)`.trailing` 那一半值得在你們那邊也看一眼。** Android 上
       上/下這一對分辨不出東西(下方放不下,平台一律往上移),真正做得出差別的是左右;GTK 的
       `GtkPopover.position` 與 WinUI 的 `Flyout.placement` 是否也有同樣的「不可證偽的一對」風險,
       要看你們視窗裡那顆錨點的位置。
+      **Windows 回覆(2026-09-17):兩邊都有那個風險,換了位置之後兩邊都分得出來。**
+      - **WinUI:** 在預設的 782 寬視窗裡,這一對**分不出來**:第一顆按鈕左側只有約 127 px,而面板約
+        285 px 寬,於是 `.leading` 被翻到右邊,兩張圖一模一樣。把視窗拉寬到 1500 後(內容置中)就分得出來:
+        leading 在左、trailing 在右。
+      - **GTK:** popover 受的是**螢幕**限制,所以要看視窗在螢幕上的位置。主視窗固定在 x=600 時,以視窗
+        矩形量兩輪都一致:leading 在左(右緣 = 按鈕左緣)、trailing 在右、none 在下方。
+      - **途中找到的真缺陷(WinUI):沒設 arrowEdge 的 popover 根本不會出現。** 那是 `.auto`,
+        它不顯示、也不擲錯,而 log 照樣寫 `shown`。已改為 `.bottom`,與 Mac 端同日把 AppKit 改到下方
+        (cf4a4a88)的一致性決定相同;修後 ALPHA 在下方、BETA 放不下而翻到上方。見 mistakes #21。
+        **cf4a4a88 註解裡「WinUI 的 Flyout 自動放在放得下的下方」這句不成立**——`.auto` 什麼都不顯示。
 
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
