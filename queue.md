@@ -7,6 +7,10 @@
   `X` child. Windows external UIA also lists `X` and `decorative`; Narrator and
   control/content-tree filtering remain unverified. See
   `testapp/plan/verification-followup-20260917.md`. 外部探針已執行，不是完整通過。
+  **GTK half fixed later on 2026-09-17:** a labelled button's content is now HIDDEN;
+  the WSLg AT-SPI probe passes all five checks (exit 0). Still open: WinUI's UIA tree
+  (which view the client read) and actual Narrator/Orca speech.
+  **GTK 那一半同日稍晚已修**,外部探針 5 項全過;WinUI 的 UIA 樹與實際朗讀仍開著。
 
 - [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**:
   GtkBackend now uses the native lazy factory. Release builds succeeded on
