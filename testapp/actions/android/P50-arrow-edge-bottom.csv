@@ -6,27 +6,36 @@ action,x,y,origin,button,key,micros,note,platform
 # the value walks none -> top -> bottom.
 #
 # The anchor sits at y 755 in a 914-point window, so there are about 140 points
-# below it against a panel of about 200. **Driven: Android shifts it up.** The
-# capture is the same panel in the same place as the `.top` one, which means
-# this pair does NOT discriminate on this device -- `showAsDropDown` moves a
-# popup that does not fit below to above the anchor, and it would have put the
-# panel there whatever this file asked for. iOS answered the same arithmetic
-# differently, by shrinking the panel to the room it had, so neither answer was
-# predictable from the other.
+# below it against a panel of about 200, so the panel cannot go below and the
+# capture shows it above -- the same place as the `.top` one. **This pair does
+# not discriminate on this device, and since 2026-09-17 it does not for the
+# same reason as on iOS**: both backends now measure the room and take the
+# opposite side, rather than Android shifting a popup until it clears the screen
+# and UIKit shrinking one into the room it has.
 #
-# The side that does discriminate here is `.trailing`, and it has its own file.
+# What DOES read differently here now is the tail: it is drawn on the side
+# facing the anchor, so this capture shows the panel above its button with the
+# tail pointing down at it. Before the same day, an Android popover had no tail
+# at all -- `PopupWindow` draws none -- while the other four point at their
+# anchors.
+#
+# The side that discriminates by position is `.trailing`, and it has its own file.
 #
 # P50 #109:Android 上的 arrowEdge `.bottom`——面板必須開在它那顆按鈕的**下方**。
 #
 # 這是那一對的另一半;座標、以及「為何單獨一張擷圖證明不了任何事」,見 P50-arrow-edge-top.csv。
 # 循環按鈕要點兩次:該值會走 none -> top -> bottom。
 #
-# 錨點位於 914 點高視窗中的 y 755,因此其下方約有 140 點,而面板約 200 點。**實測:Android 把它往上移。**
-# 這張擷圖與 `.top` 那一張是同一塊面板、同一個位置,也就是說**這一對在這台裝置上分辨不出東西**
-# ——`showAsDropDown` 會把「下方放不下」的 popup 移到錨點上方,而無論本檔要求什麼,它都會放在那裡。
-# iOS 面對同樣的算術給了不同的答案(把面板縮到它擁有的空間),因此兩者誰也預測不了誰。
+# 錨點位於 914 點高視窗中的 y 755,其下方約有 140 點、而面板約 200 點,因此面板去不了下方,擷圖顯示它
+# 在上方——與 `.top` 那一張同一個位置。**這一對在這台裝置上分辨不出東西,而自 2026-09-17 起,它與 iOS
+# 是因為同一個理由**:兩個 backend 現在都會量出空間並改取相反的一側,而不再是「Android 把 popup 推到
+# 離開螢幕邊緣為止、UIKit 把 popover 縮進剩下的空間」。
 #
-# 在此處真的做得出差別的是 `.trailing`,它有自己的檔案。
+# 在此處**現在**讀得出差別的是那條尾巴:它畫在面向錨點的那一側,因此這張擷圖是面板在按鈕上方、
+# 尾巴朝下指著它。在同一天之前,Android 的 popover **完全沒有尾巴**——`PopupWindow` 不畫——
+# 而另外四個都會指向自己的錨點。
+#
+# 以位置做出差別的那一側是 `.trailing`,它有自己的檔案。
 sleep,,,,,,1500000,let P50 lay out before anything is tapped,android
 click,96,804,,left,,,cycle 1: none -> top,android
 sleep,,,,,,600000,,android
