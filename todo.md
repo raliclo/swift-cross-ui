@@ -41,9 +41,36 @@ different depending on where "here" was.
   has no children, `Delete`/`Volume` unchanged. Orca speech itself still not heard.
   **2026-09-17 已修:** 設了標籤的按鈕會把內容標為 HIDDEN;外部探針 5 項全過、exit 0。
   Orca 實際朗讀仍未聽過。
-- [ ] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
+- [x] P69 WinUI: external UIA output contains `X` and `decorative`; verify the
   control/content views and Narrator speech. The available tree omits ItemStatus,
   so it cannot validate the value. 尚需確認 UIA filter、ItemStatus 與 Narrator。
+  **2026-09-17: a real defect, and fixed.** A new probe (`p69_uia.zsh`) names
+  the view it walks. Both nodes were in the CONTROL view, the one Narrator uses,
+  and in the content view. `AccessibilityView.raw` applies only to the element
+  it is set on, and UIA promotes that element's children. WinUIBackend now sets
+  the whole subtree, and does the same for a labelled button's content. After
+  the fix: 14/14 in both views, and ItemStatus reads `40 percent`. Narrator
+  speech itself has still not been heard.
+  **2026-09-17:真缺陷,已修。** 新探針指明 view;兩個節點都在 Narrator 走的 control view 裡。
+  `AccessibilityView.raw` 只作用於單一元素、子節點會被提升;改為設定整個子樹。修後兩個 view 14/14,
+  ItemStatus 讀得到。Narrator 實際朗讀仍未聽過。
+- [x] **WinUI: an unlabelled button has an EMPTY UIA Name.** **Fixed the same
+  day:** the name is derived from the first text, as AppKit does, and the content
+  is hidden once the button is named. Probe 18/18. P67 on WinUI reads
+  plain label / padded label / two / (empty), identical to AppKit and iOS.
+  **同日已修**:比照 AppKit 從第一段文字命名並隱藏內容;探針 18/18;P67 與 AppKit/iOS 相同。 In the same dump,
+  `button name='' help='Removes the file permanently'` and
+  `button name='' status='40 percent'` each have their text only as a child
+  `text 'Delete'` / `text 'Volume'`. AppKit names such a button from its first
+  text (`firstTextFieldValue`), and GTK computes it from content. On WinUI the
+  Button's content is a UIElement, so XAML derives nothing. P67, the app that
+  asks how names are derived, has never been run on Windows.
+  **WinUI:沒設標籤的按鈕,UIA Name 是空的。** 文字只以子節點存在。AppKit 以第一段文字命名、GTK 由內容
+  計算;WinUI 的 content 是 UIElement,XAML 推導不出來。P67 從未在 Windows 上跑過。
+- GtkBackend on Windows has no accessibility at all: moved to
+  **Lowest priority** at the end of this file, by the user's decision on
+  2026-09-17.
+  Windows 上的 GtkBackend 完全沒有無障礙:依使用者 2026-09-17 的決定,移到本檔末尾的**最低優先**。
 
 Evidence and local commit split: `testapp/plan/verification-followup-20260917.md`.
 
@@ -102,11 +129,18 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       **Material 的 `BaseSlider` 確實會自己呼叫 `requestDisallowInterceptTouchEvent`,而那不夠**
       ——它那一次發生在它判定拖曳是水平的之後,那時水平捲動的父節點已經拿走了。垂直拖曳會把手勢
       還回去,所以滑桿底下的清單仍捲得動。
-- [ ] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
+- [x] **(給 Windows / GTK / WinUI)同形的檢查還沒人做:** 「一個跟隨手指的子 view,在會捲動的容器
       之內,會不會在幾個 px 之後被容器接手?」GTK 有 `GtkGestureSingle` 的 propagation phase 與
       `gtk_gesture_set_state(GTK_EVENT_SEQUENCE_CLAIMED)`;WinUI 有 `ManipulationMode` 與
       `CapturePointer`。**我這裡沒有那兩個平台,無法驗。** 檢查方式與這裡相同:拖一個滑桿、拖遠一點,
       看值有沒有跟到底、以及頁面有沒有反而捲動。
+      **Windows 回覆(2026-09-17):兩個 backend 都沒有被搶。** `P11 --nested-slider`(新旗標)把滑桿
+      分別放進水平與垂直 `ScrollView`,以單指合成觸控拖曳。WinUI:水平 29 次寫入到 100、垂直 30 次到
+      100。GTK:水平到 98 且容器不動、垂直 10/10 到 100。**對照組**(在滑桿外滑動,容器確實會捲)兩邊
+      都做了,排除「容器根本捲不動」。**途中找到 GTK 4.22.4 的崩潰**:觸控裝置在手勢剛結束時被移除,
+      GDK 釋放了手勢仍握著的裝置,`_gdk_win32_get_cursor_pos` 存取違規(交錯 A/B:立即移除 4/6 崩、
+      延後 3 秒 0/6)。真機上等同拔掉觸控螢幕或遠端桌面移除觸控裝置。已在
+      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。WSL 未驅動。細節見 results.csv2。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
       Android 只就**頁面自己**發起的導覽詢問它;第一次載入由我們的 `loadUrl` 發起,因此從未被回報:
       P38 畫出了 example.com 而旁邊寫著 `Navigations reported: 0`,AppKit 與 UIKit 都寫 1。改用
@@ -134,7 +168,13 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       WinUI 那一項仍開著,見上方。
 - [ ] **還沒問的那一半:`.accessibilityLabel` 加在 `Text` 上,在 AppKit / Android / GTK / WinUI 上
       是不是真的到得了那段文字?** 這次只在 iOS 上被問到(並在該處補上 `namedChild` 認得 `TextView`)。
-- [ ] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
+      **Windows 回覆(2026-09-17):GTK 與 WinUI 都到得了。** P69 新增 `Text("12:30")
+      .accessibilityLabel("Half past twelve")`,兩支外部探針各加兩項檢查(名稱出現、`12:30` 不出現)。
+      WSLg AT-SPI:`label 'Half past twelve'`,7 項全過。WinUI UIA(control 與 content view):
+      `text 'Half past twelve'`,無 `12:30`。**但 Windows 上的 GTK 沒有任何無障礙後端**(見上方),
+      那一格無從談起。**AppKit / Android 還沒問**——P69 已經帶著這段文字,跑 `ax_dump` 與
+      `uiautomator dump --compressed` 就能回答。
+- [x] **(給 Windows / WinUI)你們的 UIA 輸出裡 `decorative` 也在——那可能與 Android 是同一件事,
       不是同一個缺陷。** 這裡的教訓很具體:Android 普通 `uiautomator dump` 會設
       `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器抵達不了的 view,而 `--compressed` 才是
       對的那一份——同一次執行、同一支 app,一份看得到 `X` 與 `decorative`,另一份兩者都沒有。
@@ -142,6 +182,9 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       filter」。**先確定那支客戶端走的是哪一棵樹(raw / control / content)**,再據以判斷
       `setAccessibilityView(.raw)` 有沒有生效;raw 樹本來就會看到被排除的節點。
       AT-SPI 那邊沒有這個出口,所以 GTK 的 `X` 仍然是真的。
+      **Windows 回覆(2026-09-17):不是同一件事,是真缺陷,已修。** 新探針 `p69_uia.zsh` 指明 view:
+      `X` 與 `decorative` 都在 Narrator 走的 **control** view 裡。`AccessibilityView.raw` 只作用於
+      單一元素、子節點會被提升;改為設定整個子樹後 18/18。細節見本檔上方 #123 一節。
 
 ### 2026-09-17 (Mac) — #109 落在三個 backend 上,並留下一個排版問題
 
@@ -2444,3 +2487,42 @@ through; the shipped version walks its own subviews front to back instead.
 ——而且它修正了先前記錄於此的設計，該設計讓 container 在 `super.hitTest` 之後回傳 `nil`。那會使
 AppKit 停止搜尋，於是被停用的 overlay 會吞掉點擊而非讓它穿透；實際落地的版本改為自行由前到後
 走訪自己的 subviews。
+
+---
+
+## Lowest priority / 最低優先
+
+Set by the user on 2026-09-17. Pick these up only when nothing above is open.
+使用者 2026-09-17 指定。上方沒有待辦時才處理。
+
+- [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
+  with `testapp/test_support/measure/p69_uia.zsh`: P69-gtk4.exe exposes one UIA
+  node, the window, and nothing inside it (probe exit 1). `GTK_A11Y=help` on the
+  installed bundle prints `accesskit - Disabled during GTK build` and
+  `atspi - Not available on this platform`. GTK 4.22 CAN provide Windows UIA
+  through its AccessKit backend, but the gvsbuild release installed by
+  `install_gtk4_windows.zsh` is built without it. Every `.accessibility*`
+  modifier is therefore a no-op on this target. The fix is a GTK build with
+  AccessKit enabled, not a change in GtkBackend.
+
+  **No prebuilt bundle has it** (checked 2026-09-17):
+  - gvsbuild 2026.8.0: the Gtk4 recipe passes no `-Daccesskit`, and GTK
+    defaults it to `disabled`.
+  - MSYS2 `mingw-w64-gtk4` 4.24.0: no flag, and it is MinGW ABI anyway.
+  - conda-forge `gtk4` 4.22.5: MSVC-built, no flag in `build.bat`.
+  - vcpkg `gtk` 4.22.5: builds from source, no flag in `portfile.cmake`.
+  - GTK's own GitLab CI MSVC job (`.gitlab-ci/test-msvc.bat`) DOES build with
+    `-Daccesskit=enabled -Daccesskit-c:triplet=...`, installing rustup first,
+    but its artifacts are `meson-logs` only, with no DLLs.
+
+  **Likely cheapest path, NOT tried:** GTK's meson carries an `accesskit-c`
+  subproject that cargo builds. So rebuilding only GTK 4.22.4 against the
+  existing `C:/gtk4` dependencies and replacing `gtk-4-1.dll` may be enough,
+  rather than a full gvsbuild run. This needs Rust with the MSVC target. The
+  C: drive was 94% full (30 GB free) that day.
+
+  **Windows 上的 GtkBackend 完全沒有無障礙。** P69-gtk4.exe 只有視窗一個 UIA 節點;安裝的 bundle 回報
+  `accesskit - Disabled during GTK build`。**網路上沒有開 AccessKit 的預編版本**:gvsbuild、MSYS2、
+  conda-forge、vcpkg 都沒開;GTK 官方 CI 的 MSVC 工作有開,但只保存 log。**可能最便宜、尚未試過的路**:
+  沿用 `C:/gtk4` 既有依賴,只重編 GTK 4.22.4(meson 內建 `accesskit-c` 子專案,需 Rust MSVC target),
+  換掉 `gtk-4-1.dll`。

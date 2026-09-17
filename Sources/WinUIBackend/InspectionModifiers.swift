@@ -50,7 +50,11 @@ private func scuiFirstDescendant<T: WinUI.UIElement>(
     return nil
 }
 
-private func scuiChildren(of element: WinUI.UIElement) -> [WinUI.UIElement] {
+/// Internal rather than private: WinUIBackend+Accessibility.swift walks the same
+/// children to hide a subtree, and a second walker would drift from this one.
+/// 是 internal 而非 private:WinUIBackend+Accessibility.swift 為了隱藏子樹走的是同一批子節點,
+/// 而第二份走訪程式會與這份漸行漸遠。
+func scuiChildren(of element: WinUI.UIElement) -> [WinUI.UIElement] {
     if let panel = element as? WinUI.Panel {
         return (0..<panel.children.size).compactMap { panel.children.getAt($0) }
     }

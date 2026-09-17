@@ -239,6 +239,51 @@ double scui_window_display_scale(GtkWidget *window);
 // 亦即此處的 `awareness`。
 char *scui_window_scale_diagnostics(GtkWidget *window);
 
+// Takes one extra reference on every device the default seat removes, and
+// never gives it back.
+//
+// It stops a crash inside GTK. Measured 2026-09-17 on Windows -gtk4, GTK
+// 4.22.4, P11 --nested-slider, with a synthetic touch drag on the slider inside
+// a vertical ScrollView. When the touch device was destroyed right after the
+// UP event, 4 of 6 runs logged
+// `gdk_device_get_display: assertion 'GDK_IS_DEVICE (device)' failed` about
+// 50 ms later. Every crash report recorded an access violation at the same
+// offset, gtk-4-1.dll+0x4ec0b1, which the GTK PDB resolves to
+// `_gdk_win32_get_cursor_pos` (gdkevents-win32.c:166). A NULL display reaches
+// it from `gdk_device_winpointer_query_state`. When the device was destroyed
+// 3 s after UP instead, 0 of 6 runs crashed. The runs alternated.
+//
+// The mechanism, from the 4.22.4 source: on WM_POINTERDEVICECHANGE,
+// `winpointer_enumerate_devices` drops both of GTK's own references -- the
+// seat's and the device manager's -- while something in the gesture machinery
+// still holds the raw pointer and queries it. The seat emits "device-removed"
+// before either unref, which is why taking a reference there works. Real
+// hardware reaches the same path: unplugging a touch screen or tablet, or a
+// remote-desktop session dropping its touch device.
+//
+// The cost is one small GObject per device removal for the life of the process.
+// A timed release was rejected. The 3 s figure is simply how long this one
+// holder happened to wait, and a device unplugged mid-touch never delivers the
+// UP that ends it.
+//
+// 為預設 seat 移除的每一個裝置多取一個參考,並且永不歸還。
+//
+// 它擋住的是 GTK 內部的崩潰。2026-09-17 於 Windows -gtk4(GTK 4.22.4)以 P11 --nested-slider 實測,
+// 對垂直 ScrollView 內的滑桿做合成觸控拖曳。觸控裝置在 UP 之後立即銷毀時,6 輪中有 4 輪在約 50 ms
+// 後記錄到 `gdk_device_get_display: assertion 'GDK_IS_DEVICE (device)' failed`。每一份崩潰報告都在
+// 同一個位移 gtk-4-1.dll+0x4ec0b1 記錄到存取違規,GTK 的 PDB 將它解析為 `_gdk_win32_get_cursor_pos`
+// (gdkevents-win32.c:166),NULL display 是從 `gdk_device_winpointer_query_state` 傳進去的。改為在
+// UP 之後 3 秒才銷毀時,6 輪中 0 輪崩潰。兩種條件是交錯執行的。
+//
+// 機制(讀自 4.22.4 原始碼):收到 WM_POINTERDEVICECHANGE 時,`winpointer_enumerate_devices` 會丟掉
+// GTK 自己的兩個參考(seat 的與 device manager 的),而手勢機制裡仍有東西握著裸指標並查詢它。seat 在
+// 兩次 unref 之前發出 "device-removed",所以在那裡取參考有效。真實硬體也會走到同一條路:拔掉觸控螢幕
+// 或繪圖板,或遠端桌面工作階段移除它的觸控裝置。
+//
+// 代價是每移除一個裝置,就留下一個小 GObject 直到行程結束。不採用定時釋放:3 秒只是這一個持有者
+// 碰巧等待的時間,而在觸控途中被拔掉的裝置,永遠不會送出結束手勢的 UP。
+void scui_retain_removed_devices(void);
+
 // A browser inside a GtkBox `host`. Windows: WebView2 kept over the box as a
 // child HWND (gtk_webview2.c). Linux/WSL: WebKitGTK 6.0 loaded with dlopen and
 // appended to the box (gtk_webkit.c). Each file records why.
