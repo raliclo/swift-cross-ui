@@ -239,6 +239,37 @@ double scui_window_display_scale(GtkWidget *window);
 // 亦即此處的 `awareness`。
 char *scui_window_scale_diagnostics(GtkWidget *window);
 
+// A WebView2 browser hosted over a GTK placeholder widget, on Windows.
+// Implemented in gtk_webview2.c, which records why WebView2 and not WebKitGTK,
+// and why the loader is loaded at runtime rather than linked.
+//
+// scui_webview_new returns NULL where it is not compiled in (not Windows, or
+// WebView2.h was absent at build time) -- ask scui_webview_is_compiled_in. The
+// object lives as long as `host`: destroying the widget closes the browser.
+// The callback receives the new top-level URI as UTF-8.
+//
+// 在 Windows 上,覆蓋於 GTK 佔位 widget 之上的 WebView2 瀏覽器。實作位於 gtk_webview2.c,該處記錄了
+// 為何用 WebView2 而非 WebKitGTK,以及為何 loader 在執行期載入而非連結。
+//
+// 未編入時(非 Windows,或建置時沒有 WebView2.h)scui_webview_new 回傳 NULL——請用
+// scui_webview_is_compiled_in 詢問。此物件與 `host` 同壽:widget 銷毀時瀏覽器即關閉。回呼收到的是
+// 新的頂層 URI(UTF-8)。
+typedef struct ScuiWebView ScuiWebView;
+typedef void (*ScuiWebViewNavigatedFunc)(const char *uri, void *user_data);
+gboolean scui_webview_is_compiled_in(void);
+ScuiWebView *scui_webview_new(GtkWidget *host);
+// `destroy` is called with `user_data` when the host widget is destroyed, so
+// the caller can release whatever `user_data` keeps alive.
+// host widget 銷毀時會以 `user_data` 呼叫 `destroy`,讓呼叫端釋放 `user_data` 所保住的東西。
+void scui_webview_set_navigated_callback(
+    ScuiWebView *view, ScuiWebViewNavigatedFunc callback, void *user_data,
+    GDestroyNotify destroy
+);
+void scui_webview_navigate(ScuiWebView *view, const char *uri);
+// NULL while nothing has failed; otherwise why the browser could not start.
+// 尚未失敗時為 NULL;否則說明瀏覽器為何無法啟動。
+const char *scui_webview_unavailable_reason(ScuiWebView *view);
+
 // Swift suddenly stopped finding these corresponding `G_*` enum members on its
 // own on macOS. Weirdly everything worked in one command run, and then it started
 // failing in the next (with identical code). Then when I tried recreating the

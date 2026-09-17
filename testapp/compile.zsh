@@ -920,6 +920,18 @@ if [ "$force_gtk4" -eq 1 ]; then
             case "$flag" in -I*) gtk_build_flags+=(-Xcc "$flag") ;; esac
         done
 
+        # WebView2.h for GtkBackend's web view, only when the installer put it
+        # there. Absent, gtk_webview2.c compiles its stubs and the web view is
+        # the labelled placeholder -- the build does not fail over an optional SDK.
+        # 僅在安裝腳本放了 WebView2.h 時才加入,供 GtkBackend 的 web view 使用。沒有時
+        # gtk_webview2.c 編譯 stub、web view 為有文字說明的佔位——不會因為選配 SDK 而讓建置失敗。
+        if [ -f "$gtk_prefix/include/webview2/WebView2.h" ]; then
+            gtk_build_flags+=(-Xcc "-I$gtk_prefix/include/webview2")
+        else
+            printf '==> WebView2.h not under %s/include/webview2: GTK web view will be a placeholder.\n' "$gtk_prefix"
+            printf '    Run: zsh testapp/install_gtk4_windows.zsh\n'
+        fi
+
         # Exported, not just used for the line above. SwiftPM resolves the CGtk
         # systemLibrary itself and needs to find gtk4.pc, which is a separate
         # thing from the -Xcc include paths. Without it the build runs to

@@ -235,8 +235,20 @@ if [ "$show_changes" -eq 1 ]; then
     grep -E '^[+-](prefix=|.*gtk-build)' "$patch_file" | head -12 | sed 's/^/      /'
     printf '      ... (%s lines total)\n' "$(wc -l < "$patch_file")"
 fi
-if [ -f "$patch_file" ] \
-    && (cd "$prefix/lib/pkgconfig" && patch -p1 --forward --silent < "$patch_file") 2>/dev/null; then
+# Already relocated -> nothing to do. Without this, a SECOND run broke an
+# installed prefix, measured 2026-09-17: `patch --forward` saw every hunk as
+# already applied, wrote 302 `.rej` files into lib/pkgconfig, and the check
+# below then found the build prefix inside those rejects and exited 1 -- on a
+# prefix that was fine. So re-running the installer, which is how a new step
+# (the WebView2 SDK) reaches an existing machine, failed before reaching it.
+# 已重定位 -> 不需處理。少了這段,**第二次**執行會把已安裝的 prefix 判成壞的,2026-09-17 實測:
+# `patch --forward` 認為每個 hunk 都已套用,把 302 個 `.rej` 寫進 lib/pkgconfig,下方的檢查接著在
+# 這些 reject 檔裡找到建置 prefix 而以 1 結束——而 prefix 本身完好。於是「重跑安裝腳本」這個讓新步驟
+# (WebView2 SDK)抵達既有機器的唯一方式,在抵達之前就失敗了。
+if ! grep -rq --include='*.pc' "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null; then
+    printf '    already relocated\n'
+elif [ -f "$patch_file" ] \
+    && (cd "$prefix/lib/pkgconfig" && patch -p1 --forward --silent --reject-file=- < "$patch_file") 2>/dev/null; then
     rewritten="$(grep -c '^diff ' "$patch_file")"
     printf '    patch applied to %s files\n' "$rewritten"
 else
@@ -258,9 +270,9 @@ else
     printf '    %s files rewritten\n' "$rewritten"
 fi
 
-if grep -rq "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null; then
+if grep -rq --include='*.pc' "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null; then
     printf 'Some .pc files still reference %s after rewriting.\n' "$built_prefix" >&2
-    grep -rl "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null | head -3 >&2
+    grep -rl --include='*.pc' "$built_prefix" "$prefix/lib/pkgconfig/" 2>/dev/null | head -3 >&2
     exit 1
 fi
 
@@ -276,6 +288,54 @@ fi
 
 printf '\n==> Installed\n'
 printf '    gtk4.pc : %s/lib/pkgconfig/gtk4.pc\n' "$prefix"
+
+# WebView2 SDK, for GtkBackend's web view on Windows (P38). WebKitGTK has no
+# Windows port, so the GTK build hosts WebView2 instead -- see
+# Sources/GtkCHelpers/gtk_webview2.c. Two files are taken from the official
+# NuGet package, nothing else:
+#   include/webview2/WebView2.h  compile time; compile.zsh adds it only if present
+#   bin/WebView2Loader.dll       run time, loaded with LoadLibraryW, beside GTK's DLLs
+# Neither is linked, so a machine without them still builds GtkBackend and the
+# web view says in its own frame what is missing. The Edge WebView2 RUNTIME is
+# separate and ships with Windows 11.
+# Pinned: 1.0.3179.45 is the version the implementation was measured against.
+#
+# WebView2 SDK,供 GtkBackend 在 Windows 上的 web view 使用(P38)。WebKitGTK 沒有 Windows 版本,
+# 所以 GTK 建置改為掛載 WebView2——見 Sources/GtkCHelpers/gtk_webview2.c。只從官方 NuGet 套件取兩個
+# 檔案:標頭(編譯期,存在時 compile.zsh 才會加入)與 loader DLL(執行期以 LoadLibraryW 載入,
+# 放在 GTK 的 DLL 旁)。兩者都不連結,所以沒有它們的機器仍建得出 GtkBackend,web view 會在自己的
+# 框裡說出缺了什麼。Edge WebView2 **runtime** 是另一回事,Windows 11 內建。
+# 固定版本:1.0.3179.45 是本實作量測時所用的版本。
+webview2_version="1.0.3179.45"
+webview2_package="microsoft.web.webview2.${webview2_version}.nupkg"
+webview2_url="https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/${webview2_version}"
+
+printf '\n==> WebView2 SDK %s -> %s\n' "$webview2_version" "$prefix"
+if [ -f "$prefix/include/webview2/WebView2.h" ] && [ -f "$prefix/bin/WebView2Loader.dll" ]; then
+    printf '    already installed\n'
+else
+    mkdir -p "$work"
+    if [ ! -s "$work/$webview2_package" ]; then
+        curl -fL --progress-bar -o "$work/$webview2_package" "$webview2_url"
+    fi
+    # A .nupkg is a zip. Extract only the two paths used, into a scratch
+    # directory, then copy -- the package's own layout stays out of the prefix.
+    # .nupkg 就是 zip。只解出用到的兩個路徑到暫存目錄再複製——套件自己的目錄結構不進 prefix。
+    rm -rf "$work/webview2"
+    unzip -q -o "$work/$webview2_package" \
+        'build/native/include/WebView2.h' \
+        'runtimes/win-x64/native/WebView2Loader.dll' \
+        -d "$work/webview2"
+    mkdir -p "$prefix/include/webview2" "$prefix/bin"
+    cp "$work/webview2/build/native/include/WebView2.h" "$prefix/include/webview2/"
+    cp "$work/webview2/runtimes/win-x64/native/WebView2Loader.dll" "$prefix/bin/"
+fi
+if [ ! -f "$prefix/include/webview2/WebView2.h" ] || [ ! -f "$prefix/bin/WebView2Loader.dll" ]; then
+    printf 'WebView2 SDK files missing under %s after extraction.\n' "$prefix" >&2
+    exit 1
+fi
+printf '    WebView2.h        : %s/include/webview2/WebView2.h\n' "$prefix"
+printf '    WebView2Loader.dll: %s/bin/WebView2Loader.dll\n' "$prefix"
 
 # pkg-config has to be told where to look, and the DLLs have to be on PATH at
 # run time. These are printed rather than written to a profile, because which

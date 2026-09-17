@@ -1,6 +1,7 @@
 import CGtk
 import Foundation
 import Gtk
+import GtkCHelpers
 @_spi(Backends) import SwiftCrossUI
 
 extension GtkBackend {
@@ -88,7 +89,28 @@ extension GtkBackend {
     // 「靜默空白」——空白區域看起來像版面 bug，而文字會說出缺少的是哪一個功能、以及原因。待
     // WebKitGTK 的實作完成時，即可取代此檔案。
 
+    // ============================================================
+    // 2026-09-17: WINDOWS HAS THE REAL IMPLEMENTATION the decision above called
+    // for. `WebViewHost` below is a GTK widget that GTK lays out, with a WebView2
+    // browser kept over it as a child of the window's HWND (gtk_webview2.c).
+    // Measured before this: P38 on Windows -gtk4 showed the placeholder text and
+    // "Navigations reported: 0" (results.csv2, p38-gtk4-test-20260917-082518.png).
+    //
+    // The placeholder below is still what Linux and WSL get, and that is still
+    // the unacceptable state the paragraph above names -- webkitgtk-6.0 as a
+    // conditional dependency is the remaining work. It is also what Windows gets
+    // if WebView2.h was absent at build time.
+    //
+    // 2026-09-17:**Windows 已有上面那段決策所要求的真實實作。** 下方的 `WebViewHost` 是一個由 GTK
+    // 排版的 widget,WebView2 瀏覽器以視窗 HWND 子視窗的形式保持覆蓋在它上面(gtk_webview2.c)。
+    // 在此之前實測:P38 於 Windows -gtk4 顯示佔位文字與「Navigations reported: 0」。
+    //
+    // 下方的佔位仍是 Linux 與 WSL 所得到的,而那**仍是**上段所說不可接受的狀態——以條件式相依引入
+    // webkitgtk-6.0 是剩下的工作。建置時若沒有 WebView2.h,Windows 也會得到它。
     public func createWebView() -> Widget {
+        if scui_webview_is_compiled_in() != 0 {
+            return WebViewHost()
+        }
         // A plain Gtk.Label, not the CustomLabel that createTextView returns.
         // CustomLabel is SwiftCrossUI's own widget and expects to be driven by
         // updateTextView; handing one back from a different feature left it
@@ -114,6 +136,10 @@ extension GtkBackend {
         environment: EnvironmentValues,
         onNavigate: @escaping (URL) -> Void
     ) {
+        if let host = webView as? WebViewHost {
+            host.onNavigate = onNavigate
+            return
+        }
         // Nothing to navigate, so nothing ever calls back. Deliberately not
         // calling `onNavigate` with anything: inventing a navigation the user
         // never made would be worse than staying silent.
@@ -122,10 +148,69 @@ extension GtkBackend {
     }
 
     public func navigateWebView(_ webView: Widget, to url: URL) {
+        if let host = webView as? WebViewHost {
+            host.navigate(to: url)
+            return
+        }
         // Same reasoning as updateWebView. The placeholder does not change to
         // show the URL, because a view that displays a URL as text is not a web
         // view and should not be mistaken for one at a glance.
         // 理由同 updateWebView。此佔位不會改為顯示該 URL，因為「把 URL 當成文字顯示的 view」並非
         // web view，不應在匆匆一瞥之下被誤認為是。
+    }
+}
+
+/// The GTK widget a WebView2 browser is kept over, on Windows.
+///
+/// A `Label` because it has a use while the browser is not there: if the
+/// browser cannot start -- no WebView2Loader.dll, no runtime, a thread that is
+/// not single-threaded -- the reason is written into it, so the frame says what
+/// is missing instead of staying blank. While the browser works it covers the
+/// label entirely.
+///
+/// 在 Windows 上,WebView2 瀏覽器所覆蓋的那個 GTK widget。
+///
+/// 用 `Label`,是因為在瀏覽器不在時它也有用處:瀏覽器若無法啟動——沒有 WebView2Loader.dll、沒有
+/// runtime、執行緒不是單執行緒——原因會寫進它,讓那個框說出缺了什麼,而不是一片空白。瀏覽器正常時
+/// 它會被完全蓋住。
+final class WebViewHost: Gtk.Label {
+    var onNavigate: ((URL) -> Void)?
+    private var view: OpaquePointer?
+
+    /// Holds the host weakly for the C callback, and is released by the C side
+    /// when the widget is destroyed -- so neither side outlives the other.
+    /// 為 C 回呼弱持有 host,並由 C 端在 widget 銷毀時釋放——兩邊都不會活得比對方久。
+    private final class CallbackBox {
+        weak var host: WebViewHost?
+        init(_ host: WebViewHost) { self.host = host }
+    }
+
+    init() {
+        super.init(gtk_label_new(""))
+        wrap = true
+        view = scui_webview_new(widgetPointer)
+        guard let view else { return }
+        let box = Unmanaged.passRetained(CallbackBox(self)).toOpaque()
+        scui_webview_set_navigated_callback(
+            view,
+            { uri, userData in
+                guard let uri, let userData else { return }
+                let box = Unmanaged<CallbackBox>.fromOpaque(userData).takeUnretainedValue()
+                guard let host = box.host, let url = URL(string: String(cString: uri)) else {
+                    return
+                }
+                host.onNavigate?(url)
+            },
+            box,
+            { userData in
+                guard let userData else { return }
+                Unmanaged<CallbackBox>.fromOpaque(userData).release()
+            }
+        )
+    }
+
+    func navigate(to url: URL) {
+        guard let view else { return }
+        scui_webview_navigate(view, url.absoluteString)
     }
 }
