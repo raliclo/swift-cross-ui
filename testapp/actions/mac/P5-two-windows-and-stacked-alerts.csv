@@ -9,7 +9,31 @@ action,x,y,origin,button,key,micros,note,platform
 # This is the only file here that opens an alert on purpose, and it is the one
 # most likely to strand the app. An NSAlert maps Escape to a button titled
 # Cancel and P5's alerts may not have one, in which case the Escape below does
-# nothing and the app sits modal until the sweep kills it. That failure is
+# nothing and the app sits modal until the sweep kills it.
+#
+# **That is not a risk any more, it is something that happened, and the file
+# dismissed nothing for as long as it existed.** Driven on macOS 2026-09-18:
+# the alert came up reading `Alert A (Secondary)` with ONE button, `OK`, and
+# every `escape` row after it did nothing at all -- the app sat modal, the three
+# later clicks landed on a window that could not receive them, and P5's own log
+# held exactly one line, `Secondary: showing Alert A`. The capture looked calm
+# because the harness photographs the main window and the modal was on the
+# other one. The only earlier macOS record of this app, 2026-09-01, says "no
+# marker configured; capture is timed" -- so nothing had ever checked.
+#
+# `return` instead: an `NSAlert` gives its FIRST button the Return key, and P5's
+# alerts have exactly one. Escape needed a button this app never had; Return
+# needs the button it always has.
+#
+# **那不再是一個風險,而是一件已經發生的事,而且這個檔案從存在以來就沒有關掉過任何一個警示。**
+# 2026-09-18 於 macOS 驅動:警示以 `Alert A (Secondary)` 出現、只有**一顆** `OK` 按鈕,
+# 其後每一列 `escape` 完全沒有作用——app 卡在 modal,後面三次點擊落在一個收不到它們的視窗上,
+# 而 P5 自己的 log 只有一行 `Secondary: showing Alert A`。擷圖看起來風平浪靜,是因為 harness 拍的是
+# 主視窗,而那個 modal 在另一個視窗上。本 app 在 macOS 上唯一一筆更早的紀錄(2026-09-01)寫的是
+# 「no marker configured; capture is timed」——也就是從來沒有人檢查過。
+#
+# 改用 `return`:`NSAlert` 會把 Return 鍵給它的**第一顆**按鈕,而 P5 的警示正好只有一顆。
+# Escape 需要一顆這支 app 從未有過的按鈕;Return 需要的是它一直都有的那一顆。 That failure is
 # contained to P5 and is worth the risk, because #675 cannot be checked without
 # an alert on screen; a file that avoided them would test only the button that
 # opens a window.
@@ -30,13 +54,13 @@ click,270,219,frame,left,,,Open another window,macos
 sleep,,,,,,2000000,let the second window settle,macos
 click,69,251,frame,left,,,Show Alert A,macos
 sleep,,,,,,2000000,,macos
-key,,,,,escape,,dismiss A,macos
+key,,,,,return,,dismiss A -- Return is the alert's OK; see the note on escape,macos
 sleep,,,,,,1500000,,macos
 click,270,283,frame,left,,,Show A+B+C at once -- the stacking half of #675,macos
 sleep,,,,,,2500000,,macos
-key,,,,,escape,,dismiss the topmost; the one under it must come back,macos
+key,,,,,return,,dismiss the topmost; the one under it must come back,macos
 sleep,,,,,,1500000,,macos
-key,,,,,escape,,and the next,macos
+key,,,,,return,,and the next,macos
 sleep,,,,,,1500000,,macos
-key,,,,,escape,,and the last -- Ready. must return,macos
+key,,,,,return,,and the last -- Ready. must return,macos
 sleep,,,,,,2000000,,macos
