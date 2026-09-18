@@ -977,14 +977,49 @@ enum StackOverflowReport {
         // the simulator before this was changed.
         // 以組裝方式產生，而非寫成多行字面值。帶有反斜線續行的 `"""` 區塊會保留每一行的縮排，
         // 使訊息抵達 log 時夾帶著連續空白——這是在改成現在這樣之前於模擬器上量到的。
+        // **Say what it is, what it looks like, and what to change -- in that
+        // order, and say the severity out loud.**
+        //
+        // The line this replaced said only what the arithmetic was, and a
+        // reader who met it in a log had three questions it did not answer: is
+        // this fatal, is it MY app's doing, and what do I do about it. Asked on
+        // 2026-09-18 after the same message turned up in a sweep of every test
+        // app: the sweep could tell that P27 was affected and P21 was not, but
+        // only because whoever read it already knew what the words meant.
+        //
+        // The starved child is named in the sentence as well as in the
+        // metadata: the metadata is what a structured log can filter on, and
+        // the sentence is what a person sees in a terminal, where SwiftLog
+        // prints metadata BEFORE the message and it reads as noise ahead of the
+        // first word.
+        //
+        // **說清楚它是什麼、看起來會怎樣、要改什麼——依這個順序,並且把嚴重程度直接講出來。**
+        //
+        // 被取代的那一行只說了算術,而一個在 log 裡遇到它的人有三個它答不出的問題:這會不會當掉、
+        // 是不是我的 app 造成的、我該做什麼。2026-09-18 在掃過每一支測試 app 之後被問到:那次掃描
+        // 之所以分得出 P27 有事、P21 沒事,只是因為讀它的人本來就知道那些字的意思。
+        //
+        // 那個被餓到的子節點在句子裡與 metadata 裡各出現一次:metadata 是結構化 log 能過濾的東西,
+        // 而句子是人在終端機裡看到的——在終端機上 SwiftLog 會把 metadata 印在訊息**之前**,
+        // 讀起來像是擋在第一個字前面的雜訊。
         let message = [
-            "\(orientation) stack ran out of space:",
-            "\(childCount) children were offered \(Int(proposedLength.rounded()))",
-            "and took \(Int(usedLength.rounded())).",
-            "At least one child was offered zero, so it is drawn at its own",
-            "minimum rather than at a size this stack chose.",
-            "Text offered zero wraps one character per line, which makes its",
-            "column tall and pushes a centred stack's other children out of line.",
+            "layout warning (the app keeps running and the window is still drawn):",
+            "a \(orientation) stack ran out of space.",
+            "\(childCount) children were offered \(Int(proposedLength.rounded())) points",
+            "and asked for \(Int(usedLength.rounded())),",
+            "so at least one was offered zero and is drawn at its own minimum",
+            "rather than at a size this stack chose.",
+            "The first child to be starved is \(starvedChild).",
+            "What it looks like on screen: a Text offered zero wraps one character",
+            "per line, which makes its column tall and pushes a centred stack's",
+            "other children out of line; other children are simply clipped.",
+            "What to change, in the order most likely to be right:",
+            "open the window with more room than its content's minimum",
+            "(a larger .defaultSize, or a window whose size is not the minimum),",
+            "put the content in a ScrollView,",
+            "or let the starved child shrink -- a fixed .frame on it is the usual cause.",
+            "This is the stack having less room than its children need;",
+            "it is not a defect in the child that happens to be last.",
         ].joined(separator: " ")
 
         logger.warning(
