@@ -140,7 +140,10 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       都做了,排除「容器根本捲不動」。**途中找到 GTK 4.22.4 的崩潰**:觸控裝置在手勢剛結束時被移除,
       GDK 釋放了手勢仍握著的裝置,`_gdk_win32_get_cursor_pos` 存取違規(交錯 A/B:立即移除 4/6 崩、
       延後 3 秒 0/6)。真機上等同拔掉觸控螢幕或遠端桌面移除觸控裝置。已在
-      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。WSL 未驅動。細節見 results.csv2。
+      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。細節見 results.csv2。
+      ~~WSL 未驅動。~~ **WSL 已補(2026-09-18):** `GDK_BACKEND=x11` 下以 xdotool 拖曳(WSLg 沒有合成觸控裝置,
+      所以是**滑鼠**拖曳;`GtkScrolledWindow` 只對**觸控**做平移,因此這裡只回答滑桿那一半,容器搶不搶仍以
+      Windows 的量測為準)。座標另外在 WSLg 上擷圖量過(視窗 760x710),水平到 99、垂直到 97,app 存活,沒有被搶。
       **回報上游那一項改記在 `todo-Gtk.md`**(2026-09-18 使用者指定):那是 GTK 自己的缺陷,而且對外回報
       要先取得同意。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
