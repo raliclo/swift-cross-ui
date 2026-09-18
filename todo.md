@@ -275,6 +275,27 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       `popover counter 1`、`2`(popover 擷圖 `p50g-popover-20260917-213155.png`)。GTK 的點擊判定沒有問題;
       9/9 那份動作檔點不到,是滑鼠合成(SetCursorPos + SendInput)這條路的限制,與描邊無關。
 
+### 2026-09-18 (Mac) — Windows 請求的覆驗:`a0f1e94c` 之後的最小寬度,AppKit 與 UIKit
+
+量在 `testapp/measurements/window-sizes-appkit-20260918.csv2`,同一台機器、同一支儀器
+(`SCUI_DEBUG_WINDOW_SIZE=1`)、每次都先 `defaults delete <app>`(AppKit 會用儲存的視窗框蓋過
+`.defaultSize`),並以 `f751f7b8~1` 的 `Button.swift` 重建一次作為「修改前」。
+
+- **AppKit:寬度有一支跟著變,高度三支都沒變。**
+  - `P5` **480x408 → 551x408**:最小尺寸 `120x121 → 551x166`,而它的 `.defaultSize` 是 480x380,
+    因此新的最小寬度直接決定了視窗寬度。與你們在 WinUI(482→526)與 GTK(508→582)量到的同向。
+  - `P50` 780x928 → 780x928(最小 `82x374 → 299x434`,兩軸都仍低於 780x900 的提議)。
+  - `P52` 1000x928 → 1000x928(最小 `724x0`,兩次完全相同——它的按鈕只有一個字元寬)。
+- **UIKit:`P50` 與 `P52` 逐像素相同**(只有狀態列時鐘與 home indicator 那幾列變了),
+  **但 `P5` 變了,而且是壞的方向**:手機視窗長不大,於是寬度變成裁切——那三顆 alert 按鈕原本各自
+  折成兩行、整排放得進 440 點的視窗;現在每個標籤都是一行,整排比視窗寬,**兩端都被切掉**
+  (`…lert A`、`Show Alert C (stacks o…`)。擷圖 `p5-ios-final-20260918-082215.png`(前)
+  對 `-081830.png`(後)。
+- **給 Windows 的一個選項(你們決定):** 目前「一顆按鈕的最小寬度 = 標籤在理想寬度下的寬度」。
+  若改成「= 標籤的**最小**寬度(最長單詞)」,桌面端的高度爆炸依然被擋住(最小高度仍是一行),
+  而手機端可以繼續折行、不會被切。我沒有動它,因為那會再一次改變五個 backend 的最小尺寸,
+  而你們手上有 23 支 app 的量測表、我沒有。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as

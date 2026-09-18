@@ -1,0 +1,8 @@
+app,backend,before_window,after_window,before_minimum,after_minimum,note
+app,backend,修改前視窗,修改後視窗,修改前最小,修改後最小,備註
+P5,appkit,480x408,551x408,120x121,551x166,"WIDTH GREW 480 -> 551. The window is max(minimum, proposed) and the proposal is .defaultSize 480x380, so a minimum width of 551 now sets the width. Height unchanged."
+P50,appkit,780x928,780x928,82x374,299x434,"Minimum width 82 -> 299 and minimum height 374 -> 434, but both stay under the 780x900 proposal, so the window is unchanged on both axes."
+P52,appkit,1000x928,1000x928,724x0,724x0,"Unchanged in every number. Its buttons are one character wide, so neither Button change moves anything here."
+P5,uikit,n/a,n/a,n/a,n/a,"A phone window cannot grow, so the width shows up as layout: the three alert buttons used to wrap to two lines each and fit inside the 440-point window; now each label is one line, the row is wider than the window and CLIPPED at both edges (-lert A ... Show Alert C (stacks o-). Captures p5-ios-final-20260918-082215.png (before) and -081830.png (after)."
+P50,uikit,n/a,n/a,n/a,n/a,"Pixel-identical before and after apart from the status bar clock and the home indicator: changed rows are y 80..130 and y 2832..2840 only. Captures -082312.png and -081959.png."
+P52,uikit,n/a,n/a,n/a,n/a,"Pixel-identical on the same test as P50. Captures -082410.png and -082059.png."
