@@ -319,6 +319,34 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
   而手機端可以繼續折行、不會被切(現在 P5 在 iPhone 上是兩端被裁掉的)。我沒有動它,因為那會再一次
   改變五個 backend 的最小尺寸,而那需要在 Windows 上重跑一次那 23 支的表才算數。
 
+### 2026-09-18 (Mac) — 用 `SCUI_DEBUG_WINDOW_SIZE` 掃過 72 支 app 的視窗尺寸
+
+新工具 `testapp/window_sizes_mac.zsh`(`window_sizes.zsh` 的 AppKit 對應版本),每支 app 印出
+**視窗 / 提議 / 最小**,並在「視窗被最小尺寸決定」時標記出來;每次啟動前先 `defaults delete <app>`,
+否則量到的是上一次執行留下的視窗框。表在
+`testapp/measurements/window-sizes-appkit-sweep-20260918.csv2`。
+
+72 支裡只有兩支被標記,另有一支數字看似對不上:
+
+- **P5**:寬度由最小尺寸決定(480 → 551)。那是 2026-09-17 Button 改動的已知後果,已記錄。
+- **P27:高度由最小尺寸決定,而且框架自己在抱怨。** `.defaultSize(760, 520)` 比內容的最小高度
+  539 還小,於是視窗開在 539,而 SwiftCrossUI 印出
+  `vertical stack ran out of space: 8 children were offered 503 and took 533.
+  At least one child was offered zero`,底部的 web view 被視窗邊緣切掉。
+  **P27 一顆 Button 都沒有**,所以與前一天的 Button 工作無關——那個數字只是比內容需要的小,而且已經
+  小了一陣子。已改為 620:視窗 760x648、警告歸零。
+- **P53 看似對不上(視窗 600、提議 548),是它自己的 toolbar**——多出來的 52 點是視窗外框,不是異常。
+
+**另外有 8 支的最小高度是 0(P21、P22、P46、P47、P48、P51、P52、P54)——驗過了,不需要修。**
+
+- 7 支各自含有 `ScrollView`(P51 三個、P54 五個),那是「最小高度為零」正當的來源。
+- **只有 P46 兩者都沒有**(`ScrollView` 與 `List` 都是零命中),因此它是唯一需要另外看的。
+- **驗法是把視窗強制壓到 600x300 再看**:8 支全部 `ran out of space` 警告 **0 次**、SwiftCrossUI 警告
+  總數 **0**;畫面上是**被視窗裁切**(P46 還帶著捲軸、P52 的文字被下緣切掉),而不是內容被壓扁——
+  按鈕、Stepper、Gauge 都維持正常尺寸。
+- **陽性對照**:同一個警告在同一天的 P27 上**確實會印**(`8 children were offered 503 and took 533`),
+  因此「這 8 支沒有印」是有意義的零,不是一個永遠不會響的檢查。
+
 ### In flight on the WINDOWS side, 2026-09-09 — resume here
 
 **Read this before starting anything in this file, and delete the entries as
