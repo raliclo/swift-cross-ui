@@ -159,6 +159,32 @@ void gtk_custom_root_widget_set_minimum_size(
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
+// A preempted size must be READABLE, which is the whole point of preempting it.
+//
+// This wrote the two numbers and left `has_been_allocated` false, so
+// `gtk_custom_root_widget_get_size` kept answering 0x0 until GTK's own
+// allocation arrived. `GtkBackend.size(ofWindow:)` reads exactly that, and
+// `WindowReference` proposes it as the window size on every update triggered
+// before the first allocation.
+//
+// Measured 2026-09-18 with `SCUI_DEBUG_WINDOW_SIZE=1` on P52, whose benchmark
+// updates the window immediately: pass 1 proposed 1000x900 (its `.defaultSize`),
+// pass 2 proposed **0x0**, and the window settled at `max(minimum 724x0, 0x0)`
+// -- 752x68 on screen, a title bar with nothing under it. Resized by hand the
+// content drew correctly, so only the size was ever wrong. P51 and P54, which
+// have the same ScrollView root but no early update, were unaffected, and WinUI
+// proposed 1000x900 on all three passes.
+//
+// 被預先設定的尺寸必須讀得到,那正是「預先設定」的全部用意。
+//
+// 此處原本只寫入兩個數字、卻讓 `has_been_allocated` 維持 false,於是在 GTK 自己的配置抵達之前,
+// `gtk_custom_root_widget_get_size` 一直回答 0x0。`GtkBackend.size(ofWindow:)` 讀的正是它,而
+// `WindowReference` 會把它當成視窗尺寸提議出去——只要有任何一次更新發生在第一次配置之前。
+//
+// 2026-09-18 以 `SCUI_DEBUG_WINDOW_SIZE=1` 在 P52 上量到(它的基準測試會立刻觸發視窗更新):第一趟提議
+// 1000x900(它的 `.defaultSize`),第二趟提議 **0x0**,視窗於是停在 `max(最小 724x0, 0x0)`——畫面上是
+// 752x68,一條標題列、底下什麼都沒有。手動放大後內容繪製完全正常,錯的自始至終只有尺寸。P51 與 P54 有同樣的
+// ScrollView root 但沒有那麼早的更新,因此不受影響;WinUI 三趟都提議 1000x900。
 void gtk_custom_root_widget_preempt_allocated_size(
     GtkCustomRootWidget *self,
     gint allocated_width,
@@ -166,6 +192,7 @@ void gtk_custom_root_widget_preempt_allocated_size(
 ) {
     self->allocated_width = allocated_width;
     self->allocated_height = allocated_height;
+    self->has_been_allocated = true;
 }
 
 void gtk_custom_root_widget_set_resize_callback(
