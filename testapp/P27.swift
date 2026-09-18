@@ -49,7 +49,21 @@ struct P27BackendCoverageApp: App {
                 P27RootView()
             }
         }
-        .defaultSize(width: 760, height: 520)
+        // 520 became 620 on 2026-09-18, found by sweeping every built app with
+        // `window_sizes_mac.zsh`. At 520 this window opened at its own minimum
+        // instead -- 760x539 -- and SwiftCrossUI printed its own warning:
+        // "vertical stack ran out of space: 8 children were offered 503 and
+        // took 533. At least one child was offered zero". The web view at the
+        // bottom was cut by the window edge. Nothing about this app has
+        // buttons, so it is not the Button layout work of the previous day; the
+        // number was simply smaller than the content has needed for a while.
+        //
+        // 520 於 2026-09-18 改為 620,是以 `window_sizes_mac.zsh` 掃過每一支已建置的 app 時發現的。
+        // 在 520 之下,這個視窗會改以它自己的最小尺寸開啟——760x539——而 SwiftCrossUI 自己印出了警告:
+        // 「vertical stack ran out of space: 8 children were offered 503 and took 533.
+        // At least one child was offered zero」。底部那個 web view 被視窗邊緣切掉。這支 app 完全沒有
+        // 按鈕,因此與前一天的 Button 版面工作無關;那個數字只是比內容所需要的小,而且已經小了一陣子。
+        .defaultSize(width: 760, height: 620)
     }
 }
 
