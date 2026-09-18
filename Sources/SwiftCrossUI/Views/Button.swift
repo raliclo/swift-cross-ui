@@ -327,6 +327,51 @@ extension Button: TypeSafeView {
         // 垂直拉伸或壓縮。因此讓標籤以它自己的高度作答,並不是一項新政策,而是那些 widget 本來就有的行為。
         childProposal.height = nil
 
+        // **And no WIDTH either, when the width proposed is zero.** That probe is
+        // the window asking for a minimum size, and a button's minimum is its
+        // label at its ideal width plus padding -- not its label squeezed into
+        // no width at all.
+        //
+        // Without this, the line above lands the layout system in the case
+        // `Text`'s own documentation calls out: with no height limit, a text view
+        // proposed zero width puts one WORD (or, at width 1, one CHARACTER) per
+        // line, and that height becomes the window's minimum. Measured
+        // 2026-09-18 on Windows, where windows open at
+        // `max(minimumWindowSize, proposedWindowSize)`: 8 of the 23 apps in
+        // `testapp/measurements/window-sizes-winui-sta-20260917.csv2` opened far
+        // taller than before, P50 at 782x2198 against 782x918 -- and P50's five
+        // button labels hold 110 characters, which at ~20 points a line is the
+        // 1280 points it grew by. GTK was the same: P50 808x1005 -> 808x1228.
+        //
+        // With the width probe left unproposed, every one of those heights is
+        // back where it was, on both Windows backends, and the collapse this
+        // change set out to fix stays fixed: at a zero proposal a button now
+        // reports one line plus padding rather than padding alone.
+        //
+        // What it does change is minimum WIDTH, and that is the honest half: a
+        // window can no longer be narrower than its widest button. P5 measured
+        // 482x412 -> 526x412 on WinUI and 508x448 -> 582x448 on GTK. Heights on
+        // both: unchanged.
+        //
+        // **當被提議的寬度為零時,連寬度也不提議。** 那次探詢是視窗在問最小尺寸,而一顆按鈕的最小尺寸,是
+        // 「標籤在其理想寬度下的大小加上 padding」——不是「標籤被擠進零寬度」。
+        //
+        // 少了這一步,上一行就會把版面系統帶進 `Text` 自己的文件所點名的那個情況:在沒有高度限制時,被提議
+        // 零寬度的文字會一行放一個**單詞**(在寬度 1 時是一個**字元**),而那個高度會變成視窗的最小高度。
+        // 2026-09-18 於 Windows 實測(該處視窗以 `max(minimumWindowSize, proposedWindowSize)` 開啟):
+        // `testapp/measurements/window-sizes-winui-sta-20260917.csv2` 中 23 支 app 有 8 支開得遠高於先前,
+        // P50 為 782x2198 對上 782x918——而 P50 的五個按鈕標籤共 110 個字元,以每行約 20 點計,正是它多出來的
+        // 1280 點。GTK 相同:P50 808x1005 → 808x1228。
+        //
+        // 把寬度那一側留為「未提議」之後,上述每一個高度在兩個 Windows backend 上都回到原值,而這次改動原本
+        // 要修的塌陷依然是修好的:在零提議下,按鈕現在回報的是「一行加上 padding」,而不是只有 padding。
+        //
+        // 真正改變的是最小**寬度**,而那是誠實的另一半:視窗不再能比它最寬的按鈕更窄。P5 在 WinUI 上量到
+        // 482x412 → 526x412,在 GTK 上 508x448 → 582x448;兩者的高度都沒有變。
+        if proposedSize.width == 0 {
+            childProposal.width = nil
+        }
+
         // `styledLabel(in:)` rather than `body.view0`: it is rebuilt from the
         // current `isPressed` on every pass, so a press that came in since the
         // last layout produces a new configuration and a fresh `makeBody`
