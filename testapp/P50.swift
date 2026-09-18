@@ -135,6 +135,19 @@ struct P50PopoverTitleApp: App {
         // 尺寸設定為一次容納全部內容。此處與 P51 不同，沒有 ScrollView：popover 錨定在某個 widget
         // 上，而一個被捲動的錨點與它的 popover，是兩個可能對「自己在哪裡」意見不合的東西。改為把
         // 內容維持得夠短。
+        // **The cause was found the next day and fixed in `Button.swift`, so
+        // the height below is now a size rather than a workaround.** The
+        // squeeze described here was a button collapsing to its padding when
+        // proposed zero height -- which is the layout a window's minimum size
+        // is computed from -- not anything about this file. Raising the number
+        // was how it was noticed; `.defaultSize` alone never moved the window,
+        // because AppKit restores its saved frame over it.
+        //
+        // **成因在隔天查明,並修在 `Button.swift` 裡,因此下面那個高度現在只是一個尺寸,不是繞道。**
+        // 此處描述的壓扁,是「一顆按鈕在被提議高度 0 時縮成只剩 padding」——而視窗的最小尺寸正是由那個
+        // 佈局算出來的——與本檔無關。調高這個數字是發現它的過程;而單靠 `.defaultSize` 從來沒有移動過
+        // 視窗,因為 AppKit 會用它儲存的視窗框覆蓋它。
+        //
         // 700 became 900 on 2026-09-17, and the reason is visible in
         // `p50-macos-final-20260917-154925.png`: #109's two extra rows -- the
         // cycle button and the two readouts -- pushed section 2 past the
