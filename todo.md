@@ -2613,6 +2613,30 @@ AppKit 停止搜尋，於是被停用的 overlay 會吞掉點擊而非讓它穿�
 Set by the user on 2026-09-17. Pick these up only when nothing above is open.
 使用者 2026-09-17 指定。上方沒有待辦時才處理。
 
+- [x] **P52's window opens COLLAPSED on GtkBackend/Windows: 752x68, title bar and
+  nothing else**, against `.defaultSize(width: 1000, height: 900)`. Measured
+  2026-09-18. **FIXED the same day:** `gtk_custom_root_widget_preempt_allocated_size`
+  wrote the size but left `has_been_allocated` false, so `getSize` kept answering
+  0x0 and any window update before GTK's first allocation proposed ZERO. P52
+  triggers one immediately. After: 1028x968, every arm drawn, all three passes
+  proposing 1000x900, the same on WSLg; P50/P51/P54/P11/P23 unchanged; 101 tests pass.
+  **同日已修:** `preempt_allocated_size` 沒有把 `has_been_allocated` 設為 true,於是 `getSize` 持續回答 0x0,
+  任何發生在 GTK 第一次配置之前的視窗更新都會提議零尺寸。修後 1028x968、內容完整,WSLg 相同,其他五支 GTK
+  視窗尺寸不變。 The app itself is fine -- resized by hand to 1000x900 it draws all
+  three arms and its results (`p52g-resized-20260918-145444.png`), and the
+  benchmark runs either way. Ruled out: the shared `Button.computeLayout` change
+  (identical with `Button.swift` at `f751f7b8^`), the button count (`--buttons=4`
+  and `48` both), the benchmark itself (752x68 at t+3s, before warm-up ends, and
+  at t+30s), and "a ScrollView root" in general (P51 948x928 and P54 748x688 are
+  both ScrollView roots and correct). GtkBackend never logs its
+  `content size: requested ... allocated ...` line for P52, and that log is
+  guarded by `allocated.height > 0`, so the content is allocated ZERO height.
+  WinUI is correct: 1002x932 with every arm drawn.
+  **P52 的視窗在 GtkBackend/Windows 上開成 752x68(只有標題列)**,而它要求的是 1000x900。手動放大後內容完全
+  正常,基準測試兩種情況都會跑完。已排除:共用的 Button 改動、按鈕數量、量測過程本身,以及「root 是 ScrollView」
+  (P51、P54 同樣是 ScrollView root 且正常)。GtkBackend 對 P52 從未印出 `content size:` 那行診斷,而該行有
+  `allocated.height > 0` 的守衛——也就是內容被配置到**零高度**。WinUI 正常(1002x932)。
+
 - [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
   with `testapp/test_support/measure/p69_uia.zsh`: P69-gtk4.exe exposes one UIA
   node, the window, and nothing inside it (probe exit 1). `GTK_A11Y=help` on the
