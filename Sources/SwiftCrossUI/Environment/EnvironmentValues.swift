@@ -649,6 +649,34 @@ extension EnvironmentValues {
     /// Set by ``Window/windowResizability(_:)->Scene``.
     @Entry internal var windowResizability: WindowResizability = .automatic
 
+    /// Whether this window's size is fixed by the system rather than by its
+    /// content.
+    ///
+    /// **A phone's window is the screen, and that changes what a minimum size
+    /// is for.** On a desktop, a view's minimum size is a request the window
+    /// can meet: `WindowReference` opens a window at
+    /// `max(minimumWindowSize, proposedWindowSize)`, so a wider minimum makes a
+    /// wider window. On iOS and Android nothing can grow, so the same wider
+    /// minimum is a promise the layout cannot keep, and the overflow is drawn
+    /// off the edge of the screen.
+    ///
+    /// Set from ``BackendFeatures/Core/isWindowProgrammaticallyResizable(_:)``
+    /// -- the same answer `WindowReference` already uses to decide whether to
+    /// re-propose a clamped size -- so it is one fact read in one place, not a
+    /// second guess at which platforms are phones.
+    ///
+    /// 這個視窗的大小是由系統決定,而不是由它的內容決定。
+    ///
+    /// **手機的視窗就是整個螢幕,而那改變了「最小尺寸」的意義。** 在桌面上,一個 view 的最小尺寸是
+    /// 視窗滿足得了的要求:`WindowReference` 會以 `max(minimumWindowSize, proposedWindowSize)`
+    /// 開啟視窗,因此較寬的最小尺寸會換來較寬的視窗。在 iOS 與 Android 上沒有任何東西能變大,
+    /// 於是同一個「較寬的最小尺寸」變成版面守不住的承諾,而溢出的部分會被畫到螢幕之外。
+    ///
+    /// 其值來自 ``BackendFeatures/Core/isWindowProgrammaticallyResizable(_:)``
+    /// ——與 `WindowReference` 判斷「要不要重新提議被夾住的尺寸」所用的是同一個答案——
+    /// 因此這是「一個事實、在一個地方讀」,而不是再猜一次哪些平台是手機。
+    @Entry internal var windowSizeIsFixed: Bool = false
+
     /// Where windows sit in the stack of windows on screen.
     ///
     /// Set by ``Scene/windowLevel(_:)``.

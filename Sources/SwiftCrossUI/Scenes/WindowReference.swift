@@ -342,6 +342,26 @@ final class WindowReference<SceneType: WindowingScene> {
                     windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
                 )
             }
+        // **Tell the content whether its window can grow.** A minimum size is a
+        // request a desktop window can meet -- this function opens one at
+        // `max(minimumWindowSize, proposedWindowSize)` -- and a phone's window
+        // cannot meet it at all. `Button` reads this to decide how much of
+        // itself may be compressed when it is probed for a minimum; see
+        // `EnvironmentValues.windowSizeIsFixed`.
+        //
+        // Read from the same call the `windowSizeIsFinal` arguments already use
+        // at the four call sites above, so there is one answer to "can this
+        // window be resized" rather than two.
+        //
+        // **告訴內容:它的視窗長不長得大。** 最小尺寸是桌面視窗滿足得了的要求——本函式正是以
+        // `max(minimumWindowSize, proposedWindowSize)` 開啟視窗——而手機的視窗根本滿足不了。
+        // `Button` 會讀這個值,以決定「當它被詢問最小尺寸時,自己有多少可以被壓縮」;
+        // 見 `EnvironmentValues.windowSizeIsFixed`。
+        //
+        // 取自上方四個呼叫點的 `windowSizeIsFinal` 引數所用的同一個呼叫,因此「這個視窗能不能調整大小」
+        // 只有一個答案,不是兩個。
+        environment.windowSizeIsFixed = !backend.isWindowProgrammaticallyResizable(window)
+
         let outerColorScheme = environment.colorScheme
 
         // Update environment with latest cached value before first update to

@@ -325,7 +325,39 @@ extension Button: TypeSafeView {
         //
         // 在此處的每一個 backend 上,一顆按鈕的高度都是「標籤高度加上 padding」;沒有任何一個會把按鈕
         // 垂直拉伸或壓縮。因此讓標籤以它自己的高度作答,並不是一項新政策,而是那些 widget 本來就有的行為。
-        childProposal.height = nil
+        //
+        // **Except where the window cannot grow, and there the old behaviour is
+        // the right one.** All of the above is about a minimum size the window
+        // will be opened at; on iOS and Android the window is the screen and a
+        // minimum is not a request anybody can grant. Measured 2026-09-18:
+        // after the width half of this landed, P5 on an iPhone went from three
+        // alert buttons that wrapped to two lines each and fitted inside the
+        // 440-point window, to three one-line labels in a row wider than the
+        // window, cut off at both ends. Nothing had asked for a wider window
+        // because nothing could.
+        //
+        // So a fixed-size window keeps the proposal it always had: the button
+        // may be compressed, its label wraps, and the content stays on screen.
+        // The flag comes from the window layer rather than from a check on the
+        // operating system -- the question is whether THIS window can grow, and
+        // `WindowReference` already asks the backend exactly that.
+        //
+        // **除了「視窗長不大」的情況,而在那裡,舊行為才是對的。** 以上這一切講的都是「視窗將據以開啟的
+        // 最小尺寸」;在 iOS 與 Android 上,視窗就是螢幕,而最小尺寸不是任何人給得起的要求。
+        // 2026-09-18 實測:寬度那一半落地之後,iPhone 上的 P5 從「三顆 alert 按鈕各自折成兩行、
+        // 整排放得進 440 點視窗」,變成「三個一行的標籤排成一列、比視窗更寬、兩端被切掉」。
+        // 沒有任何東西要求過更寬的視窗,因為沒有任何東西要得起。
+        //
+        // 因此固定大小的視窗維持它一直以來的提議:按鈕可以被壓縮、它的標籤會折行、內容留在畫面上。
+        // 這個旗標來自視窗層而不是對作業系統的判斷——要問的是「**這個**視窗能不能長大」,
+        // 而 `WindowReference` 本來就正在問 backend 這件事。
+        if environment.windowSizeIsFixed {
+            if let proposedHeight = proposedSize.height {
+                childProposal.height = max(proposedHeight - Double(buttonPadding.y), 0)
+            }
+        } else {
+            childProposal.height = nil
+        }
 
         // **And no WIDTH either, when the width proposed is zero.** That probe is
         // the window asking for a minimum size, and a button's minimum is its
@@ -368,7 +400,14 @@ extension Button: TypeSafeView {
         //
         // 真正改變的是最小**寬度**,而那是誠實的另一半:視窗不再能比它最寬的按鈕更窄。P5 在 WinUI 上量到
         // 482x412 → 526x412,在 GTK 上 508x448 → 582x448;兩者的高度都沒有變。
-        if proposedSize.width == 0 {
+        //
+        // Not on a window that cannot grow: see the note above on
+        // `windowSizeIsFixed`. There the point of the probe is reversed -- the
+        // layout needs to know how small this button CAN be, because nothing
+        // is going to widen the screen for it.
+        // 在長不大的視窗上不適用:見上方關於 `windowSizeIsFixed` 的說明。在那裡這次探詢的用意是相反的
+        // ——版面要知道的是這顆按鈕**能縮到多小**,因為不會有人為了它把螢幕變寬。
+        if proposedSize.width == 0 && !environment.windowSizeIsFixed {
             childProposal.width = nil
         }
 
