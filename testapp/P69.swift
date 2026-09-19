@@ -155,17 +155,17 @@ enum P69Diagnostics {
         guard let data = "P69 \(Date()) \(message)\n".data(using: .utf8) else { return }
         let directory =
             ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-            ?? {
-                #if os(iOS) || os(tvOS)
-                    return NSHomeDirectory() + "/Documents"
-                #else
-                    return FileManager.default.currentDirectoryPath
-                #endif
-            }()
+                ?? {
+                    #if os(iOS) || os(tvOS)
+                        return NSHomeDirectory() + "/Documents"
+                    #else
+                        return FileManager.default.currentDirectoryPath
+                    #endif
+                }()
         let url = URL(fileURLWithPath: directory)
             .appendingPathComponent("p69-debug-events.log")
         if FileManager.default.fileExists(atPath: url.path),
-            let handle = try? FileHandle(forWritingTo: url)
+           let handle = try? FileHandle(forWritingTo: url)
         {
             _ = try? handle.seekToEnd()
             try? handle.write(contentsOf: data)
@@ -273,15 +273,45 @@ struct P69RootView: View {
             }
             .accessibilityHidden()
 
+            // **The labelled-Text line differs per platform, and the first
+            // version of this claim did not say so.** It read "'Half past
+            // twelve' appears and '12:30' does not", which is true on AppKit and
+            // false on Android -- not because Android ignores the label, but
+            // because `contentDescription` is an OVERRIDE a screen reader reads
+            // INSTEAD OF the text, while AppKit's `accessibilityLabel` replaces
+            // what the AX tree reports. Measured 2026-09-19:
+            //
+            //   AppKit   AXStaticText 'Half past twelve' desc='Half past twelve'
+            //            and no '12:30' anywhere in the tree
+            //   Android  one TextView with text='12:30'
+            //            AND content-desc='Half past twelve'
+            //
+            // A claim that says "'12:30' does not appear" reads the Android dump
+            // as a failure when the label is doing exactly its job, which is the
+            // worst kind of wrong assertion: it points at working code.
+            //
+            // **「被標籤的 Text」那一行,各平台的結果不同,而這段主張的第一版沒有說。** 它原本寫的是
+            // 「出現 'Half past twelve' 而不出現 '12:30'」——那在 AppKit 上為真、在 Android 上為假;
+            // 而假的原因不是 Android 忽略了那個標籤,是因為 `contentDescription` 是一個「螢幕閱讀器
+            // **改讀它、而不是讀 text**」的覆寫,而 AppKit 的 `accessibilityLabel` 則是替換掉 AX 樹
+            // 所回報的內容。2026-09-19 實測(數據見上方英文區塊)。
+            //
+            // 一段寫著「'12:30' 不會出現」的主張,會把 Android 的 dump 讀成失敗——而那時標籤正在正確
+            // 地做它的事。那是最糟的一種錯誤斷言:它指著能用的程式碼。
             Text(
                 "Expected from the OUTSIDE probe: 'Close' appears and 'X' does not; "
                     + "'Delete' carries the hint; 'Volume' has value '40 percent'; "
-                    + "'Half past twelve' appears and '12:30' does not; "
-                    + "'decorative' appears nowhere. This text is the claim, not the evidence."
+                    + "'decorative' appears nowhere. The labelled text differs by platform: "
+                    + "AppKit and UIKit report 'Half past twelve' with no '12:30'; Android "
+                    + "keeps text='12:30' and adds content-desc='Half past twelve', which is "
+                    + "the override a reader uses instead. This text is the claim, not the "
+                    + "evidence."
             )
             Text(
                 "外部探針的預期:出現 'Close' 而不出現 'X';'Delete' 帶有那個提示;'Volume' 的值是 "
-                    + "'40 percent';'Half past twelve' 出現而 '12:30' 不出現;'decorative' 完全不出現。"
+                    + "'40 percent';'decorative' 完全不出現。被標籤的那段文字各平台不同:AppKit 與 "
+                    + "UIKit 回報 'Half past twelve' 且沒有 '12:30';Android 則保留 text='12:30'、"
+                    + "另加 content-desc='Half past twelve'——那是閱讀器會改讀的覆寫。"
                     + "這段文字是**主張**,不是證據。"
             )
         }
@@ -328,12 +358,12 @@ struct P69RootView: View {
                 }
             }
         #elseif canImport(WinUI)
-            // The WinUI readback runs from `P69WinUIProbe`, which is embedded in
-            // the view body so it has a real element to walk the tree from.
-            // Nothing to do here, and saying so beats an empty branch that reads
-            // like an oversight.
-            // WinUI 的讀回由 `P69WinUIProbe` 執行,它被嵌入在 view body 中,好讓它有一個真正的元素
-            // 可以據以走訪那棵樹。此處無事可做——而把這件事寫出來,勝過留下一個「看起來像疏漏」的空分支。
+        // The WinUI readback runs from `P69WinUIProbe`, which is embedded in
+        // the view body so it has a real element to walk the tree from.
+        // Nothing to do here, and saying so beats an empty branch that reads
+        // like an oversight.
+        // WinUI 的讀回由 `P69WinUIProbe` 執行,它被嵌入在 view body 中,好讓它有一個真正的元素
+        // 可以據以走訪那棵樹。此處無事可做——而把這件事寫出來,勝過留下一個「看起來像疏漏」的空分支。
         #else
             P69Diagnostics.write(
                 "macOS: run testapp/test_support/measure/ax_dump.swift against this app"

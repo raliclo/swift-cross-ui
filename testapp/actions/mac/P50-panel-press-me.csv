@@ -1,4 +1,16 @@
 action,x,y,origin,button,key,micros,note,platform,target
+#
+# COORDINATE RE-MEASURED 2026-09-19. The button was at (227,646) and is at
+# (231,677): P50's window is 780x900 points and the capture it was first
+# measured against was a different size. A click at the old point lands on an
+# NSCustomTextField -- the replay still exits 0, and the only sign is that the
+# geometry line says `popover=none` afterwards. Measured from
+# testapp/output/screenshots/P50-layout-20260919-220806.png, a 780x928 capture.
+#
+# 座標於 2026-09-19 重新量過。那顆按鈕原本在 (227,646),現在在 (231,677):P50 的視窗是 780x900 點,
+# 而它最初量測時所依據的擷圖是另一個尺寸。點在舊的位置上會打到一個 NSCustomTextField——重放仍然
+# 以 0 結束,唯一的跡象是事後那行 geometry 寫著 `popover=none`。
+#
 # P50: open the first panel, then press the button INSIDE it.
 #
 # This is the file `origin=popover` was added to AppKit for. Before it, the
@@ -42,7 +54,7 @@ action,x,y,origin,button,key,micros,note,platform,target
 # 判定的是那一行 **log**，不是圖:P50 會印出「panel button presses so far: N」。一張擷圖分辨不出
 # 「一次打中的按壓」與「一個剛好在那個時刻關掉的 popover」。
 sleep,,,,,,1200000,let P50 lay out,macos,
-click,227,646,frame,left,,,open the first panel (top anchor),macos,
+click,231,677,frame,left,,,open the first panel (top anchor),macos,
 sleep,,,,,,1500000,let the popover appear and be measured,macos,
 click,62,106,popover,left,,,press me -- inside the popover's own window,macos,
 sleep,,,,,,800000,let the press be logged,macos,

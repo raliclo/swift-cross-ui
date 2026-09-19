@@ -1,4 +1,16 @@
 action,x,y,origin,button,key,micros,note,platform,target
+#
+# COORDINATE RE-MEASURED 2026-09-19. The button was at (227,646) and is at
+# (231,677): P50's window is 780x900 points and the capture it was first
+# measured against was a different size. A click at the old point lands on an
+# NSCustomTextField -- the replay still exits 0, and the only sign is that the
+# geometry line says `popover=none` afterwards. Measured from
+# testapp/output/screenshots/P50-layout-20260919-220806.png, a 780x928 capture.
+#
+# 座標於 2026-09-19 重新量過。那顆按鈕原本在 (227,646),現在在 (231,677):P50 的視窗是 780x900 點,
+# 而它最初量測時所依據的擷圖是另一個尺寸。點在舊的位置上會打到一個 NSCustomTextField——重放仍然
+# 以 0 結束,唯一的跡象是事後那行 geometry 寫著 `popover=none`。
+#
 # P50: open the first panel and stop. The control for P50-panel-press-me.csv.
 #
 # Two files rather than one with a flag, because the assertion is a COMPARISON
@@ -30,5 +42,5 @@ action,x,y,origin,button,key,micros,note,platform,target
 # 座標是相對於 frame 的點。這支 app 的視窗擷圖是 2x（780 點寬的視窗擷出 1560 像素），因此擷圖的
 # 一個像素等於半個點。
 sleep,,,,,,1200000,let P50 lay out,macos,
-click,227,646,frame,left,,,open the first panel (top anchor),macos,
+click,231,677,frame,left,,,open the first panel (top anchor),macos,
 sleep,,,,,,1500000,let the popover appear,macos,
