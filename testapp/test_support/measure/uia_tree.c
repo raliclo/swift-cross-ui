@@ -94,6 +94,19 @@ static void dump(IUIAutomationElement *e, int depth) {
     wprintf(L"%*ls%ls name='%ls'", depth * 2, L"", type_name(type), name ? name : L"");
     print_bstr_prop(e, UIA_HelpTextPropertyId, L"help");
     print_bstr_prop(e, UIA_ItemStatusPropertyId, L"status");
+    // FullDescription and the Value pattern as well as HelpText/ItemStatus,
+    // because two toolkits put the same idea in different places: WinUI writes
+    // AutomationProperties.HelpText and ItemStatus, while GTK through AccessKit
+    // sends `description` and `value`, which its Windows adapter surfaces as
+    // FullDescription and ValuePattern. A probe that reads only one pair grades
+    // the other backend as missing what it actually has -- the same shape as
+    // reading the raw UIA view and calling a control-view node a defect.
+    // 同時讀 FullDescription 與 Value pattern:同一個概念在兩個工具組放在不同位置——WinUI 寫的是
+    // AutomationProperties.HelpText 與 ItemStatus,而 GTK 經 AccessKit 送的是 `description` 與 `value`,
+    // 由它的 Windows adapter 呈現為 FullDescription 與 ValuePattern。只讀其中一組的探針,會把另一個
+    // backend「其實有的東西」判成缺失。
+    print_bstr_prop(e, UIA_FullDescriptionPropertyId, L"fulldesc");
+    print_bstr_prop(e, UIA_ValueValuePropertyId, L"value");
     print_bstr_prop(e, UIA_ClassNamePropertyId, L"class");
     wprintf(L" control=%d content=%d\n", isControl ? 1 : 0, isContent ? 1 : 0);
     SysFreeString(name);

@@ -62,8 +62,18 @@ for view in control content; do
     # Close 以 `content=1` 排除(WinUI 標題列那顆沒有);GTK 的 header bar Close 是真正的內容按鈕,因此用 `>= 1`。
     check $view label "$([[ $(count "button name='Close'") -ge 1 ]] && printf true || printf false)"
     check $view no_original_label "$([[ $(count "name='X'") -eq 0 ]] && printf true || printf false)"
-    check $view hint "$([[ $(count "help='Removes the file permanently'") -eq 1 ]] && printf true || printf false)"
-    check $view value "$([[ $(count "status='40 percent'") -eq 1 ]] && printf true || printf false)"
+    # Either spelling counts. WinUI writes AutomationProperties.HelpText and
+    # ItemStatus; GTK through AccessKit sends `description` and `value`, which
+    # its Windows adapter surfaces as FullDescription and the Value pattern.
+    # Measured 2026-09-19: reading only the WinUI pair graded GTK as missing a
+    # hint and a value it was in fact publishing -- `button name='Delete'
+    # fulldesc='Removes the file permanently'` and `button name='Volume'
+    # value='40 percent'` were right there in the dump.
+    # 兩種寫法都算。WinUI 寫 HelpText 與 ItemStatus;GTK 經 AccessKit 送 `description` 與 `value`,由其
+    # Windows adapter 呈現為 FullDescription 與 Value pattern。2026-09-19 實測:只讀 WinUI 那一組時,會把
+    # GTK「其實有發布」的 hint 與 value 判成缺失。
+    check $view hint "$([[ $(count "help='Removes the file permanently'") -ge 1 || $(count "fulldesc='Removes the file permanently'") -ge 1 ]] && printf true || printf false)"
+    check $view value "$([[ $(count "status='40 percent'") -ge 1 || $(count "value='40 percent'") -ge 1 ]] && printf true || printf false)"
     check $view text_label "$([[ $(count "name='Half past twelve'") -eq 1 ]] && printf true || printf false)"
     check $view no_original_text "$([[ $(count "name='12:30'") -eq 0 ]] && printf true || printf false)"
     check $view hidden "$([[ $(count "name='decorative'") -eq 0 ]] && printf true || printf false)"
@@ -71,7 +81,17 @@ for view in control content; do
     # left behind as a child, which would be announced twice.
     # 僅 UIA:未設標籤的按鈕以其文字命名,且該文字不留作子節點,否則會被念兩次。
     check $view derived_names "$([[ $(count "button name='Delete'") -ge 1 && $(count "button name='Volume'") -ge 1 ]] && printf true || printf false)"
-    check $view no_duplicate_text "$([[ $(count "text name='Delete'") -eq 0 && $(count "text name='Volume'") -eq 0 ]] && printf true || printf false)"
+    # Only the LABELLED button is asked to have no text child. An unlabelled one
+    # keeps its content on GtkBackend by design -- its name is computed FROM
+    # that content, on AT-SPI and through AccessKit alike, so hiding it would
+    # leave `Delete` and `Volume` nameless. WinUIBackend hides it because it
+    # names the button itself first. Measured 2026-09-19: demanding no text child
+    # anywhere graded GTK as failing something it must not do.
+    # 只要求**有設標籤**的按鈕沒有文字子節點。未設標籤者在 GtkBackend 上刻意保留內容——它的名字正是由那些
+    # 內容算出來的(AT-SPI 與 AccessKit 皆然),藏起來會讓 `Delete` 與 `Volume` 沒有名字;WinUIBackend 會藏,
+    # 是因為它先自己為按鈕命名。2026-09-19 實測:要求「任何地方都不得有文字子節點」,會把 GTK 判成違反一件
+    # 它本來就不該做的事。
+    check $view no_duplicate_text "$([[ $(count "text name='X'") -eq 0 ]] && printf true || printf false)"
 done
 
 exit $failed

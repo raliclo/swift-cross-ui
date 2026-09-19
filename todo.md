@@ -2716,7 +2716,7 @@ Set by the user on 2026-09-17. Pick these up only when nothing above is open.
   **2026-09-18 完成,而且走的就是上面那條最省的路。** 以現有 `C:/gtk4` 的依賴重建 GTK 4.22.4(開啟 AccessKit),
   安裝到 `C:/gtk4-accesskit`,配方已提交為 `testapp/install_gtk4_accesskit_windows.zsh`。
 
-- [ ] **AccessKit maps the NAME and the hidden state, and not the rest.** With
+- [x] **AccessKit maps the NAME and the hidden state, and not the rest.** With
   the new build, `p69_uia.zsh` (now class-agnostic, so it grades both Windows
   backends; WinUI still 18/18) passes `label`, `hidden` and `derived_names` on
   GTK and fails four: `hint` (GTK's accessible DESCRIPTION does not arrive as
@@ -2729,3 +2729,29 @@ Set by the user on 2026-09-17. Pick these up only when nothing above is open.
   **AccessKit 只帶過來「名稱」與「隱藏狀態」。** 新建置下 GTK 通過 label、hidden、derived_names,
   另外四項未過:hint、value、`Text` 的標籤覆寫,以及具名按鈕仍保留文字子節點。是 AccessKit 的對應、GTK 的
   AccessKit context,還是本 backend 的責任,尚待釐清。
+
+  **Answered 2026-09-19, and two of the four were the PROBE, not the backend.**
+  - `hint` and `value` were arriving all along, in the other place: WinUI writes
+    `AutomationProperties.HelpText`/`ItemStatus`, GTK through AccessKit sends
+    `description`/`value`, and the Windows adapter surfaces those as
+    `FullDescription` and the Value pattern. `uia_tree.c` now prints both pairs,
+    and the dump reads `button name='Delete' fulldesc='Removes the file
+    permanently'` and `button name='Volume' value='40 percent'`. Same shape as
+    the raw/control view mix-up: a probe that reads one spelling grades the
+    other backend as missing what it publishes.
+  - `no_duplicate_text` was asking GTK to do something it must not: an
+    unlabelled button's name is COMPUTED from its content there, so hiding the
+    child would leave `Delete` and `Volume` nameless. The check now applies to a
+    button the app labelled, which both backends satisfy.
+  - What remains is one real gap, and it is not ours: a `Text` carrying
+    `.accessibilityLabel` reads `12:30` through AccessKit and `Half past twelve`
+    on AT-SPI. GTK maps the property to `accesskit_node_set_label` and then
+    attaches the Pango layout as text runs, and the node reaching UIA is named
+    from the runs. Recorded in `todo-Gtk.md` for upstream.
+  - Score now: WinUI 18/18; GTK 14 of 18, the four failures being `text_label`
+    and `no_original_text` in both views.
+
+  **2026-09-19 已回答,而四項中有兩項是探針而非 backend 的問題。** `hint` 與 `value` 一直都有抵達,只是位置不同
+  (GTK 經 AccessKit 是 `FullDescription` 與 Value pattern);`no_duplicate_text` 則是在要求 GTK 做一件它不該做
+  的事(未設標籤的按鈕靠內容算名字)。真正剩下的一項是 `Text` 的標籤覆寫,已記入 `todo-Gtk.md` 交上游。
+  目前計分:WinUI 18/18、GTK 18 項中 14 項通過。
