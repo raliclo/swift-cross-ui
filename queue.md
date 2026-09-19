@@ -538,7 +538,22 @@ an empty queue -- mistakes.md entry 1.
     app 之後仍持續算繪(沒有卡住);調換順序會改變「哪一個動作觸發」。同一段序列在 11:21、於捲動與
     快照加入之前是跑得完的。**它不是捲動的缺陷**——`actions/ios/P72-scroll.csv`(只有捲動)通過,
     而 macOS 那份六項全過。該檔頭部已加上不會被誤讀為通過的警示。
-  - **SoftPCB §10.7 剩下的三項:** 原始按鍵、游標、右鍵選單。
+  - **[🔨 建好、未驅動] §10.7 第 4 項「原始按鍵」與第 5 項的焦點那一半(2026-09-19):**
+    `BackendFeatures.KeyEvents` + `KeyPress` + `.onKeyPress`,AppKit 與 UIKit 皆已實作、皆編得過。
+    **但 macOS 上至今一次按鍵都沒有送達那個 view,因此它不算完成。** 依這棵樹自己的標準:編得過不等於會動。
+    - 重用既有的 `KeyEquivalent` 與 `EventModifiers`,不另造第二套按鍵語彙。連帶繼承其限制並寫明:
+      它是**字元**而非實體按鍵,所以 **AZERTY 上的 WASD 是 ZQSD**。
+    - `KeyPress.key` 可為 `nil`,代表「只有修飾鍵改變」——SwiftUI 的 `KeyPress` 沒有這個情況,而
+      §10.7 第 4 項(「修飾鍵切換拖曳模式」)要的正是它。
+    - **追到哪裡為止:** target 有被建立(`createKeyEventTarget` 有被呼叫)、有進到 window
+      (`viewDidMoveToWindow` 有跑),但在那一刻 `window.isKeyWindow` 是 **false**、
+      `window.firstResponder` 是 **nil**。改為在 `NSWindow.didBecomeKeyNotification` 時才搶焦點
+      (那是正確的 AppKit 做法),**仍然**一行 KEY 都沒有。下一步該查的是:那個 target 是否真的成為了
+      first responder、以及 `-actionfile` 的 `key` 列是送到哪裡去了(P71 的選單快捷鍵走的是選單,
+      不經過 responder chain,因此它能過並不能證明 responder chain 是通的)。
+    - UIKit 那一份用 `pressesBegan`/`pressesEnded`(不是 `UIKeyCommand`——後者回報不了鍵放開、也回報不了
+      單獨按住修飾鍵),**完全未驅動**:模擬器沒有實體鍵盤,而 iOS runner 也還沒有 key 這個動作。
+  - **SoftPCB §10.7 剩下的:** 原始按鍵(上面那一項,未驅動)、游標、右鍵選單。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

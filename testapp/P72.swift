@@ -233,6 +233,10 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     /// 一個被夾住的距離,加上記在 log 裡的方向,才說得出它往哪邊走。
     @SwiftCrossUI.Published var cameraDistance: Float = 3.4
 
+    /// How high the camera sits. The arrow keys move it.
+    /// 相機的高度。方向鍵會移動它。
+    @SwiftCrossUI.Published var cameraHeight: Float = 1.3
+
     /// How many scroll events have arrived, and what the last one carried.
     /// 已經送達幾個捲動事件,以及最後一個帶了什麼。
     /// **Two bounded readouts rather than one sentence, and that is a fix for a
@@ -257,6 +261,24 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     ///
     /// 一支「在自己的動作檔執行途中改變版面」的測試 app,會讓那份檔案所依據的座標作廢。因此這兩個讀數
     /// 以固定寬度格式化。
+    /// What the keyboard has done: how many presses, the last key, and whether
+    /// Shift is held right now.
+    ///
+    /// **`shiftHeld` is the assertion SoftPCB's gap 4 is actually about.** The
+    /// gap is "modifier keys switch drag mode", which is a view behaving
+    /// differently while Shift is down and before any other key is touched. A
+    /// counter of key presses would not show it: a modifier alone produces no
+    /// key at all, which is why ``KeyPress`` has a `nil` key case.
+    ///
+    /// 鍵盤做了什麼:按了幾次、最後一個鍵是什麼,以及此刻 Shift 是否被按住。
+    ///
+    /// **`shiftHeld` 才是 SoftPCB 第 4 項缺口真正在講的那個斷言。** 那個缺口是「修飾鍵切換拖曳模式」
+    /// ——也就是一個 view 在 Shift 被按住時、且在還沒碰到任何其他鍵之前就表現不同。一個「按鍵次數」的
+    /// 計數器顯示不出它:單獨的修飾鍵根本不產生任何鍵,而那正是 ``KeyPress`` 有 `nil` 鍵這個情況的理由。
+    @SwiftCrossUI.Published var keyCount = 0
+    @SwiftCrossUI.Published var lastKey = " "
+    @SwiftCrossUI.Published var shiftHeld = false
+
     @SwiftCrossUI.Published var scrollCount = 0
     @SwiftCrossUI.Published var lastScrollDeltaY: Double = 0
 
@@ -403,7 +425,7 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         return Mesh3DScene(
             meshes: [cube],
             camera: Mesh3DCamera(
-                position: SIMD3(radius * sin(orbit), 1.3, radius * cos(orbit)),
+                position: SIMD3(radius * sin(orbit), cameraHeight, radius * cos(orbit)),
                 target: SIMD3(0, 0, 0),
                 fieldOfView: 45
             ),
@@ -480,6 +502,52 @@ final class P72Model: SwiftCrossUI.ObservableObject {
                 value.isPrecise ? "precise" : "notched",
                 before,
                 cameraDistance
+            )
+        )
+    }
+
+    /// Arrow keys nudge the camera's height; Shift makes the step ten times
+    /// bigger; every press and modifier change is recorded.
+    ///
+    /// **The step size is the point, not the nudge.** An app that only moved on
+    /// an arrow would prove keys arrive. Making Shift change HOW FAR proves the
+    /// modifier state arrived too, and that it was current at the time -- which
+    /// is the thing a `keyDown`-only implementation gets wrong: it sees Shift
+    /// only when a key is pressed with it, never when it is held alone.
+    ///
+    /// 方向鍵微調相機高度;Shift 讓步幅變成十倍;每一次按鍵與修飾鍵變化都會被記錄。
+    ///
+    /// **重點是步幅,不是那個微調。** 一支「只有按方向鍵才會動」的 app 只證明了按鍵有送達。讓 Shift
+    /// 改變**移動多遠**,才證明修飾鍵狀態也送達了、而且在當下是最新的——那正是一個「只做 keyDown」的
+    /// 實作會弄錯的地方:它只在「有鍵與 Shift 一起按下」時看得到 Shift,單獨按住時永遠看不到。
+    func keyPressed(_ press: KeyPress) {
+        shiftHeld = press.modifiers.contains(.shift)
+
+        guard let key = press.key else {
+            P72Diagnostics.write(
+                "MODIFIERS \(press.phase == .down ? "down" : "up") shift=\(shiftHeld)"
+            )
+            return
+        }
+        guard press.phase != .up else { return }
+
+        keyCount += 1
+        lastKey = String(key.character)
+        let step: Float = shiftHeld ? 1.0 : 0.1
+        switch key {
+            case .upArrow: cameraHeight += step
+            case .downArrow: cameraHeight -= step
+            default: break
+        }
+        cameraHeight = min(6, max(-6, cameraHeight))
+        P72Diagnostics.write(
+            String(
+                format: "KEY %d '%@' shift=%@ step %.1f height %.2f",
+                keyCount,
+                lastKey == " " ? "space" : lastKey,
+                shiftHeld ? "yes" : "no",
+                Double(step),
+                Double(cameraHeight)
             )
         )
     }
@@ -690,6 +758,9 @@ struct P72RootView: View {
             .onScrollGesture { value in
                 P72Model.shared.scrolled(value)
             }
+            .onKeyPress { press in
+                P72Model.shared.keyPressed(press)
+            }
             .frame(width: 340, height: 240)
 
             Text("renderer: \(model.renderer)")
@@ -773,6 +844,16 @@ struct P72RootView: View {
                 "scroll gestures supported: "
                     + "\(backend is any BackendFeatures.ScrollGestures ? "yes" : "NO")"
             )
+            Text(
+                String(
+                    format: "keys: %4d  last %@  shift %@  high %5.2f",
+                    model.keyCount,
+                    model.lastKey == " " ? "_" : model.lastKey,
+                    model.shiftHeld ? "Y" : "n",
+                    Double(model.cameraHeight)
+                )
+            )
+            .frame(width: 260, alignment: .leading)
             Text(
                 String(
                     format: "scrolls: %4d  dy %7.2f  dist %5.2f",
