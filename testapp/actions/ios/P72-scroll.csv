@@ -1,0 +1,52 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on iOS: does a scroll reach a view that draws its own content?
+#
+# Measured 2026-09-19 from a launch capture of the running app: the mesh view
+# spans about px y 540..1278 and px x 63..1112, so its centre is pt (196, 350).
+# Device: iPhone 16 Pro Max simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window
+# 440 x 956 pt, capture 1320 x 2868 px, coordinates are px/3.
+#
+# **One row, on purpose, and the reason is a replay fault rather than a scroll
+# one.** On this app only the FIRST interaction after launch lands. Verified on
+# 2026-09-19: a file whose first click is `Export .glb` gets `EXPORTED` and
+# nothing after it; a file whose first click is `Snapshot` gets `SNAPSHOT` and
+# nothing after it; a file that scrolls first gets its scroll and nothing after
+# it. The coordinates are not the problem -- they agree between
+# `test_ios.zsh --dump-tree` (`Export .glb {{35.0, 685.7}, {85.3, 22.6}}`) and a
+# capture, and the app keeps rendering afterwards, so it has not hung.
+# `P72-stop-and-check.csv` carries the multi-tap sequence and does not complete
+# on iOS for that reason; the macOS file covers those assertions today.
+#
+# What this asserts, and it is the whole of gap 2 in SoftPCB's plan.md §10.7:
+#
+#   SCROLL <n> dy <positive> dx -0.00 precise distance <a> -> <b>, with b < a
+#
+# Measured: one four-notch row produces 17 change events, every one `precise`,
+# taking the camera from 3.400 to 2.058. macOS reports ONE `notched` event of
+# dy 80.00 for five notches -- different shapes, same sign, because
+# `ScrollGestureValue` fixes the sign in the framework rather than per backend.
+#
+# P72 在 iOS 上:一次捲動,到得了一個「自己畫自己內容」的 view 嗎?
+#
+# 2026-09-19 量自執行中 app 的啟動擷圖:mesh view 約在 px y 540..1278、px x 63..1112,故中心為
+# pt (196, 350)。裝置:iPhone 16 Pro Max 模擬器——視窗 440 x 956 點、擷圖 1320 x 2868 像素,座標為像素除以 3。
+#
+# **只有一列,而且是刻意的;理由是一個重放端的缺陷,不是捲動的缺陷。** 在這支 app 上,啟動後只有**第一個**
+# 互動會落地。2026-09-19 查證:第一個點擊是 `Export .glb` 的檔案會得到 `EXPORTED`、之後什麼都沒有;
+# 第一個點擊是 `Snapshot` 的會得到 `SNAPSHOT`、之後什麼都沒有;先捲動的會得到捲動、之後什麼都沒有。
+# 座標不是問題——`test_ios.zsh --dump-tree` 與擷圖兩者的量測一致
+# (`Export .glb {{35.0, 685.7}, {85.3, 22.6}}`),而且 app 之後仍持續算繪,並沒有卡住。
+# `P72-stop-and-check.csv` 帶著那段多次點擊的序列,而它在 iOS 上因此跑不完;那些斷言目前由 macOS 那份檔案涵蓋。
+#
+# 它所斷言的,就是 SoftPCB plan.md §10.7 第 2 項缺口的全部:
+#
+#   SCROLL <n> dy <正值> dx -0.00 precise distance <a> -> <b>,其中 b < a
+#
+# 實測:一列四格的 scroll 產生 17 個變更事件、每一個都是 `precise`,把相機由 3.400 帶到 2.058。
+# macOS 那邊是五格產生**一個** dy 80.00 的 `notched` 事件——形狀不同、符號相同,因為
+# `ScrollGestureValue` 把符號固定在框架裡,而不是交給各 backend 各自決定。
+sleep,,,,,,2000000,let P72 lay out and the clock run,ios
+move,196,350,client,,,,the centre of the mesh view -- the drag must stay inside it,ios
+sleep,,,,,,300000,,ios
+scroll,0,4,,,,,four notches down: many precise events and the camera must come CLOSER,ios
+sleep,,,,,,800000,let the readout settle,ios

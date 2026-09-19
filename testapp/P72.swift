@@ -217,6 +217,49 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     /// 跑的相機」的唯一辦法。
     @SwiftCrossUI.Published var spinning = true
 
+    /// How far the camera sits from the cube. Scrolling changes it.
+    ///
+    /// **Clamped, and the clamp is the assertion's other half.** Without one, a
+    /// scroll that arrived with the wrong sign would push the camera through the
+    /// cube and out the far side, and the readout would still show a number
+    /// changing -- which is what "the scroll arrived" would look like if the
+    /// direction were backwards. A clamped distance plus the recorded direction
+    /// in the log says which way it went.
+    ///
+    /// 相機離立方體多遠。捲動會改變它。
+    ///
+    /// **有上下限,而那個上下限是這個斷言的另一半。** 少了它,一個帶著錯誤符號的捲動會把相機推穿立方體、
+    /// 跑到另一側去,而讀數上仍然會有一個在變化的數字——那正是「方向反了」時,「捲動有送達」會長的樣子。
+    /// 一個被夾住的距離,加上記在 log 裡的方向,才說得出它往哪邊走。
+    @SwiftCrossUI.Published var cameraDistance: Float = 3.4
+
+    /// How many scroll events have arrived, and what the last one carried.
+    /// 已經送達幾個捲動事件,以及最後一個帶了什麼。
+    /// **Two bounded readouts rather than one sentence, and that is a fix for a
+    /// real failure.** The first version printed
+    /// `last: dy 8.4 precise, distance 2.06`, which is much longer than the
+    /// `last: none` it starts as. On iOS the longer text wrapped to a second
+    /// line the moment the first scroll arrived, every row below moved up, and
+    /// the four clicks the action file makes AFTER the scroll all missed --
+    /// silently, because a click that lands on nothing reports nothing. The
+    /// export happened to survive and the other four did not, which read as
+    /// "the snapshot button is broken".
+    ///
+    /// A test app whose layout changes while its own action file is running
+    /// invalidates the coordinates that file was measured against. So these are
+    /// formatted to a fixed width.
+    ///
+    /// **兩個長度受限的讀數,而不是一個句子——而那是針對一次真實失敗的修正。** 第一版印的是
+    /// `last: dy 8.4 precise, distance 2.06`,比它起始的 `last: none` 長得多。在 iOS 上,第一個捲動一到,
+    /// 較長的文字就換行成兩行、底下每一列都往上移,而動作檔在捲動**之後**的那四次點擊全部落空——而且是
+    /// 靜默落空,因為一次點在空處的點擊什麼都不會回報。匯出那一次剛好還在、另外四次沒了,那讀起來像
+    /// 「Snapshot 按鈕壞了」。
+    ///
+    /// 一支「在自己的動作檔執行途中改變版面」的測試 app,會讓那份檔案所依據的座標作廢。因此這兩個讀數
+    /// 以固定寬度格式化。
+    @SwiftCrossUI.Published var scrollCount = 0
+    @SwiftCrossUI.Published var lastScrollDeltaY: Double = 0
+
     /// The two numbers the action file asserts on.
     ///
     /// **Together they ask whether the view draws only when it is asked to.**
@@ -242,11 +285,35 @@ final class P72Model: SwiftCrossUI.ObservableObject {
 
     /// What the last `.glb` export did, as one line for the readout.
     /// 上一次 `.glb` 匯出做了什麼,以一行呈現在讀數區。
-    @SwiftCrossUI.Published var exportResult = "not exported"
+    /// Fixed width, like the scroll readouts and for a reason measured on iOS.
+    ///
+    /// **A readout that gets WIDER moves the buttons sideways, not just down.**
+    /// `glTF export: not exported` becoming `glTF export: wrote 2360 bytes`, and
+    /// `snapshot: not taken` becoming `snapshot: 1020x720 px, 3 colours, centre
+    /// 13,35,61`, made the column wider than a 440-point phone. The column is
+    /// centred, so it slid LEFT -- and up, since the longest line then wrapped.
+    /// Every click after the export missed, and the replay still passed: an
+    /// XCUITest coordinate tap on empty space is not an error.
+    ///
+    /// The numbers that matter are in the diagnostics log, which has no width.
+    /// These are the short, constant-width version for the screen.
+    ///
+    /// 固定寬度,與捲動那兩個讀數相同,而理由是在 iOS 上量出來的。
+    ///
+    /// **一個變**寬**的讀數,會把按鈕往旁邊移,不只是往下。** `glTF export: not exported` 變成
+    /// `glTF export: wrote 2360 bytes`、`snapshot: not taken` 變成
+    /// `snapshot: 1020x720 px, 3 colours, centre 13,35,61`,使整欄比一支 440 點寬的手機還寬。那一欄是
+    /// 置中的,於是它往**左**滑——而且往上,因為最長的那一行接著換了行。匯出之後的每一次點擊都落空,
+    /// 而重放仍然**通過**:XCUITest 在空白處的一次座標點擊,不算錯誤。
+    ///
+    /// 真正重要的數字在診斷 log 裡,而 log 沒有寬度問題。畫面上的這兩個,是短的、等寬的版本。
+    @SwiftCrossUI.Published var exportBytes = 0
 
     /// What the last snapshot found.
     /// 上一次快照發現了什麼。
-    @SwiftCrossUI.Published var snapshotResult = "not taken"
+    @SwiftCrossUI.Published var snapshotWidth = 0
+    @SwiftCrossUI.Published var snapshotHeight = 0
+    @SwiftCrossUI.Published var snapshotColours = 0
 
     /// The handle the view fills in so this model can ask it for pixels.
     /// 那個由 view 填上的把手,好讓這個 model 能向它要像素。
@@ -328,7 +395,7 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         // 會繼承同一個自轉,而不是每支 app 各自重做一遍。
         //
         // 自轉是兩者中較慢的那一個,好讓兩種運動用肉眼就分得開。兩者都由同一個 `FrameClocks` 跳動驅動。
-        let radius: Float = 3.4
+        let radius = cameraDistance
         let orbit = Float(angle)
         let spin = spinning ? Float(angle) * 0.45 : 0
         var cube = P72Cube.mesh
@@ -386,6 +453,37 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         P72Diagnostics.write("STOPPED at frame \(framesAtStop)")
     }
 
+    /// Moves the camera in or out, from a scroll.
+    ///
+    /// **`delta.y` positive is forward through the content, which here means
+    /// closer.** That mapping is a choice this app makes; what the framework
+    /// fixes is only the sign's meaning, and `ScrollGestureValue` states it.
+    /// Scrolling down a page and zooming in are the same gesture on a trackpad
+    /// in every map application, so that is the direction taken.
+    ///
+    /// 依一次捲動把相機拉近或推遠。
+    ///
+    /// **`delta.y` 為正表示往內容的前方,而在此處那代表「更近」。** 那個對應是這支 app 自己的選擇;
+    /// 框架固定下來的只有那個符號的**意義**,而 `ScrollGestureValue` 已經寫明。在每一個地圖應用程式裡,
+    /// 觸控板上「往下捲一頁」與「放大」都是同一個動作,因此此處採這個方向。
+    func scrolled(_ value: ScrollGestureValue) {
+        scrollCount += 1
+        let before = cameraDistance
+        cameraDistance = min(12, max(1.6, cameraDistance - Float(value.delta.y) * 0.01))
+        lastScrollDeltaY = value.delta.y
+        P72Diagnostics.write(
+            String(
+                format: "SCROLL %d dy %.2f dx %.2f %@ distance %.3f -> %.3f",
+                scrollCount,
+                value.delta.y,
+                value.delta.x,
+                value.isPrecise ? "precise" : "notched",
+                before,
+                cameraDistance
+            )
+        )
+    }
+
     /// Turns the XY spin on or off, leaving the clock and the orbit alone.
     /// 開關 XY 自轉,不動時鐘、也不動公轉。
     func toggleSpin() {
@@ -421,10 +519,10 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         let data = scene.glbData()
         do {
             try data.write(to: url)
-            exportResult = "wrote \(data.count) bytes"
+            exportBytes = data.count
             P72Diagnostics.write("EXPORTED \(data.count) bytes to \(url.path)")
         } catch {
-            exportResult = "failed: \(error)"
+            exportBytes = -1
             P72Diagnostics.write("EXPORT FAILED \(error)")
         }
     }
@@ -459,12 +557,12 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     /// 一張視窗的照片。
     func takeSnapshot() {
         guard snapshotter.isAvailable else {
-            snapshotResult = "this backend does not implement WidgetSnapshots"
+            snapshotColours = -1
             P72Diagnostics.write("SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance")
             return
         }
         guard let shot = snapshotter.snapshot() else {
-            snapshotResult = "the backend returned nothing"
+            snapshotColours = -2
             P72Diagnostics.write("SNAPSHOT NIL -- the backend returned no pixels")
             return
         }
@@ -473,7 +571,9 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         let centre = shot.pixel(x: shot.width / 2, y: shot.height / 2)
         let centreText =
             centre.map { "\($0.r),\($0.g),\($0.b)" } ?? "none"
-        snapshotResult = "\(shot.width)x\(shot.height) px, \(colours) colours, centre \(centreText)"
+        snapshotWidth = shot.width
+        snapshotHeight = shot.height
+        snapshotColours = colours
         P72Diagnostics.write(
             "SNAPSHOT \(shot.width)x\(shot.height) px, \(colours) distinct colours, "
                 + "centre pixel \(centreText)"
@@ -587,6 +687,9 @@ struct P72RootView: View {
                 onFrame: { info in P72Model.shared.record(info) },
                 snapshotter: model.snapshotter
             )
+            .onScrollGesture { value in
+                P72Model.shared.scrolled(value)
+            }
             .frame(width: 340, height: 240)
 
             Text("renderer: \(model.renderer)")
@@ -642,22 +745,63 @@ struct P72RootView: View {
                     P72Model.shared.takeSnapshot()
                 }
             }
-            Text("glTF export: \(model.exportResult)")
-            Text("snapshot: \(model.snapshotResult)")
+            // **Pinned to a width, because `%7d` is fixed in CHARACTERS and
+            // this font is proportional.** `      0` and `   2360` are both
+            // seven characters and the second is wider, because a space is
+            // narrower than a digit. That was enough to push the column past
+            // the screen on iOS, eat the 20-point padding, and move every
+            // button left by 20 points -- after which the clicks this app's own
+            // action file makes all missed. A frame is fixed in points, which
+            // is the unit the problem is in.
+            //
+            // **釘死寬度,因為 `%7d` 固定的是「字元數」,而這個字型是比例字型。** `      0` 與 `   2360`
+            // 都是七個字元,而後者比較寬——因為空格比數字窄。那就足以把整欄推出螢幕、吃掉那 20 點的
+            // padding、把每一顆按鈕往左移 20 點——在那之後,這支 app 自己的動作檔所做的點擊全部落空。
+            // 一個 frame 固定的是**點**,而那正是問題所在的單位。
+            Text(String(format: "glTF: %7d bytes", model.exportBytes))
+                .frame(width: 260, alignment: .leading)
+            Text(
+                String(
+                    format: "snap: %5dx%5d %3d col",
+                    model.snapshotWidth,
+                    model.snapshotHeight,
+                    model.snapshotColours
+                )
+            )
+            .frame(width: 260, alignment: .leading)
+            Text(
+                "scroll gestures supported: "
+                    + "\(backend is any BackendFeatures.ScrollGestures ? "yes" : "NO")"
+            )
+            Text(
+                String(
+                    format: "scrolls: %4d  dy %7.2f  dist %5.2f",
+                    model.scrollCount,
+                    model.lastScrollDeltaY,
+                    Double(model.cameraDistance)
+                )
+            )
+            .frame(width: 260, alignment: .leading)
 
             Text(
                 "frames at the stop: \(model.framesAtStop)   "
                     + "at the check: \(model.framesAtCheck)"
             )
-            Text(
-                "Two captures a second apart must differ in BOTH: the frame count and the "
-                    + "cube's angle. One without the other is a failure, not a partial pass. "
-                    + "Then: stop, wait, check -- the two counts must be within 2."
-            )
-            Text(
-                "相隔一秒的兩張擷圖,必須在**兩件事**上都不同:幀計數,以及立方體的角度。"
-                    + "只有其一,是失敗,不是部分通過。接著:停止、等待、檢查——兩個計數的差必須在 2 以內。"
-            )
+            // **Two short lines, not two paragraphs, and the reason is the
+            // same defect the readouts had.** The explanation used to be two
+            // wrapping paragraphs, which made the content taller than a phone;
+            // the column is centred, so every height change moved every button,
+            // and the clicks this app's own action files make landed on nothing
+            // -- while the replay still passed. What those paragraphs said now
+            // lives in the action files, where it is read by whoever is about
+            // to change a coordinate.
+            //
+            // **兩行短句,不是兩段文字,而理由與那些讀數的缺陷相同。** 這段說明原本是兩段會換行的文字,
+            // 那使內容比一支手機還高;而那一欄是置中的,於是任何高度變化都會移動每一顆按鈕,而這支 app
+            // 自己的動作檔所做的點擊就落在空處——同時重放還是**通過**。那兩段話的內容現在寫在動作檔裡,
+            // 由「即將要改動某個座標的人」讀到。
+            Text("Two captures a second apart: count AND angle must differ.")
+            Text("相隔一秒的兩張擷圖:計數與角度都必須不同。")
         }
         .padding(20)
         .onAppear {

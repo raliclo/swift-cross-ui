@@ -517,9 +517,28 @@ an empty queue -- mistakes.md entry 1.
   - **仍然沒做:** Android(我的)、GTK 與 WinUI(你們的)的 `Mesh3DViews` 與 `WidgetSnapshots`;
     那三個 backend 目前走 `Mesh3DView` 的降級路徑——畫一個空盒子、每個 backend 警告一次,
     而不是 `fatalError`。
-  - **SoftPCB §10.7 剩下的四項(2026-09-19 之後):** 捲動(滾輪)、原始按鍵、游標、右鍵選單。
-    快照本來排在它們前面,理由是它同時也是「量得到一個內嵌原生 view 輸出了什麼」的唯一手段——
-    現在那個手段有了,其餘四項各自都有得驗。
+  - **§10.7 第 2 項「滾輪縮放」已關掉(2026-09-19):** `BackendFeatures.ScrollGestures` +
+    `ScrollGestureValue` + `.onScrollGesture`。**它不是 `ScrollContainers`**——捲動容器自己移動內容、
+    應用程式看不到事件;這個把事件交出去、自己什麼都不動,那才是「自己畫自己內容」的 view 需要的。
+    符號約定寫在框架裡一次(`delta.y` 為正 = 往內容的前方),不交給五個 backend 各自決定。
+    採 conformance 檢查而非 `@CastBackend`(理由同 `Mesh3DViews`)。
+    - **AppKit**:`NSView.scrollWheel(with:)`(AppKit 沒有捲動辨識器)。實測:五格滾輪 → 一個
+      `dy 80.00`、`notched` 的事件(每行 16 點),相機 3.400 → 2.600 → 3.400。**已證明會失敗**:
+      把指標移到 view 之外再捲,SCROLL 行數為**零**。
+    - **UIKit**:帶 `allowedScrollTypesMask` 的 `UIPanGestureRecognizer`。**一指,不是兩指**——
+      第一版寫成兩指,結果 iOS 動作檔裡每一列 scroll 都被送達然後靜默忽略;觸控螢幕上 scroll view
+      是一指捲的,而這棵樹自己的 iOS runner 也正是把 scroll 轉成一指拖曳。實測:四格 → 20 個
+      `precise` 事件,相機 3.400 → 1.944。
+    - **UIKit 的一個誠實缺口**:`UIPanGestureRecognizer` **沒有** `scrollType`(查證過,是編譯錯誤),
+      承載 `.scroll` 的 `UIEvent` 也不會交給 action 方法,因此 iOS 上 `isPrecise` 一律為 true;
+      接了滑鼠的 iPad 上,一格滾輪會被誤報為 precise。AppKit 有 `hasPreciseScrollingDeltas`。
+      這一點寫在程式碼裡,而不是靜默採用預設值。
+  - **[!] 開著的問題:`actions/ios/P72-stop-and-check.csv` 在 iOS 上跑不完。** 啟動後只有**第一個**
+    互動會落地,其後每一列都毫無作用。以三種方式查證過:座標在 `--dump-tree` 與擷圖之間一致;
+    app 之後仍持續算繪(沒有卡住);調換順序會改變「哪一個動作觸發」。同一段序列在 11:21、於捲動與
+    快照加入之前是跑得完的。**它不是捲動的缺陷**——`actions/ios/P72-scroll.csv`(只有捲動)通過,
+    而 macOS 那份六項全過。該檔頭部已加上不會被誤讀為通過的警示。
+  - **SoftPCB §10.7 剩下的三項:** 原始按鍵、游標、右鍵選單。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

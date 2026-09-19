@@ -16,6 +16,25 @@ action,x,y,origin,button,key,micros,note,platform
 # 75/191 to 190/305 while y stayed at 511. Twice in one day, which is the
 # argument for the note above rather than against it.
 #
+# AND A SIXTH TIME, after a fixed 400x640 frame was put around the column and
+# then taken off again. The frame was an attempt to stop the column moving; it
+# did not fix what it was aimed at (on iOS only the first tap after launch lands,
+# whatever the layout does) and it moved every coordinate on both platforms, so
+# it was removed. The column is narrower than the 520-point window and centred,
+# which is why x is 69 here rather than the 20 of the padding.
+#
+# AND A FIFTH TIME when scroll arrived: the two readout lines it added moved the
+# first row from 478 to 467 and the second from 507 to 496, and the mesh view's
+# centre from y 242 to 235.
+#
+# **The fifth re-measurement found a defect rather than just a number.** The
+# scroll readout was first written as one sentence that grew from `last: none`
+# to `last: dy 8.4 precise, distance 2.06` the moment a scroll arrived. On iOS
+# that wrapped to a second line MID-REPLAY, every row below moved up, and the
+# four clicks this file makes after the scroll all missed -- silently, since a
+# click on nothing reports nothing. The readouts are fixed-width now. A test app
+# whose layout changes while its own action file runs invalidates the file.
+#
 # AND A FOURTH TIME when "Snapshot" joined "Export .glb" on the second row and
 # a "snapshot:" readout line was added under it: the first row went from y 483
 # to y 481 and the second from 511 to 510. Small, and still enough to miss a
@@ -57,6 +76,8 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # Expected in testapp/p72-debug-events.log:
 #
+#   SCROLL 1 dy 80.00 dx -0.00 notched distance 3.400 -> 2.600
+#   SCROLL 2 dy -80.00 dx -0.00 notched distance 2.600 -> 3.400
 #   SNAPSHOT <w>x<h> px, <n> distinct colours, centre pixel <r,g,b>
 #   SNAPSHOT PNG <n> bytes to <path>
 #   EXPORTED <n> bytes to <path>
@@ -71,6 +92,19 @@ action,x,y,origin,button,key,micros,note,platform
 # with the cube: 3 colours, centre 222,163,45 (the orange +X face shaded). With
 # `meshes: []` and nothing else changed: 1 colour, centre 20,23,33, which is the
 # background 0.08/0.09/0.13 exactly.
+#
+# **The two scroll rows assert three things at once and the pointer move is part
+# of the assertion.** A scroll goes to whatever is under the pointer, so the
+# `move` is what aims it at the mesh view rather than at the text below. dy +80
+# is five notches at the 16 points per line AppKitBackend applies; `notched`
+# rather than `precise` is the wheel being told apart from a trackpad; and the
+# distance returning to exactly 3.400 is the sign convention holding in both
+# directions rather than the value merely changing.
+#
+# Checked that it can fail: the same file with the `move` aimed at y 660 -- the
+# text under the buttons -- reports ZERO scroll lines. The events are reaching
+# the view because it is under the pointer, not because something is catching
+# them window-wide.
 #
 # with D a small number. Each button press commits the view, and a commit hands
 # the view a scene and asks for one frame. Measured here on 2026-09-19: D = 1 on
@@ -88,6 +122,14 @@ action,x,y,origin,button,key,micros,note,platform
 # 這是在 mesh view 由 440x300 點縮為 340x240 點之後**重新量過**的——而那非縮不可:440 加上左右各 20 的
 # padding,整欄會比一支 440 點寬的手機還寬,於是 iOS 把每一行的兩側都切掉了。那讓這一列上移 30 像素,
 # 由 y 541 變成 y 511,而舊座標會點到下面那一行。對著某一次建置量出來的檔案,不是對著下一次建置量的。
+#
+# **第五次重新量測**發生在捲動加入時:它多出的兩行讀數,把第一列由 478 移到 467、第二列由 507 移到 496,
+# 而 mesh view 的中心由 y 242 移到 235。
+#
+# **第五次重量測找到的是一個缺陷,不只是一個數字。** 捲動的讀數原本寫成一個句子,會在第一個捲動到達的
+# 瞬間,由 `last: none` 長成 `last: dy 8.4 precise, distance 2.06`。在 iOS 上那會**在重放途中**換行成兩行,
+# 底下每一列都往上移,而這份檔案在捲動之後的四次點擊全部落空——而且是靜默落空,因為點在空處不會回報任何事。
+# 現在那些讀數已改為固定寬度。一支「在自己的動作檔執行途中改變版面」的測試 app,會讓那份檔案作廢。
 #
 # 在「Auto spin」作為第三個按鈕加入時**再一次重新量過**:x 由 75/191 變成 190/305,y 仍然是 511。
 # 一天之內兩次——那是支持上面那段註記的理由,不是反對它的理由。
@@ -124,19 +166,33 @@ action,x,y,origin,button,key,micros,note,platform
 # 都會通過。2026-09-19 兩種都量過——有立方體時:3 種顏色、中心 222,163,45(受光的橘色 +X 面);把
 # `meshes:` 改成 `[]`、其餘不動時:1 種顏色、中心 20,23,33,正好就是背景色 0.08/0.09/0.13。
 #
+# **那兩列 scroll 一次斷言三件事,而那個 move 是斷言的一部分。** 捲動會送到指標底下的東西,因此那個
+# `move` 才是把它瞄準 mesh view、而不是瞄準下方文字的原因。dy +80 是五格滾輪乘以 AppKitBackend 所採用的
+# 「每行 16 點」;回報 `notched` 而非 `precise`,是滾輪被與觸控板分辨開來;而距離**精確地**回到 3.400,
+# 是那個符號約定在兩個方向上都成立——而不只是「數值有變」。
+#
+# 已查證它會失敗:同一份檔案把 `move` 瞄準 y 660(按鈕下方的文字)時,SCROLL 的行數是**零**。那些事件
+# 之所以到得了那個 view,是因為它在指標底下,而不是因為有什麼東西在整個視窗範圍內攔截它們。
+#
 # 而 D 是一個小數字。每一次按鈕按下都會使 view commit,而一次 commit 會把場景交給 view 並要求一幀。
 # 2026-09-19 在此實測:AppKit 的 D = 1、UIKit 的 D = 3(在 UIKit 上,一次點擊還會讓按鈕經過
 # touch-down 與 touch-up)。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況,而那也是這份
 # 檔案唯一視為失敗的結果——一個嚴到能區分 1 與 3 的門檻,斷言的會是「一次按下經過幾個狀態」,
 # 而那不是此處要測的東西。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,macos
-click,64,510,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
+move,239,236,frame,,,,put the pointer over the mesh view -- a scroll goes where the pointer is,macos
 sleep,,,,,,300000,,macos
-click,160,510,frame,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",macos
+scroll,0,5,,,,,five notches down: dy +80 and the camera must come CLOSER,macos
+sleep,,,,,,400000,,macos
+scroll,0,-5,,,,,and five back up: dy -80 and the distance must return,macos
+sleep,,,,,,400000,,macos
+click,113,496,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
 sleep,,,,,,300000,,macos
-click,70,481,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
+click,210,496,frame,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",macos
+sleep,,,,,,300000,,macos
+click,120,467,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,macos
-click,190,481,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
+click,238,467,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",macos
-click,305,481,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
+click,354,467,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
 sleep,,,,,,500000,let the readout settle before the capture,macos

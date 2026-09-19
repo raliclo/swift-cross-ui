@@ -1,4 +1,28 @@
 action,x,y,origin,button,key,micros,note,platform
+# !! THIS FILE DOES NOT COMPLETE ON iOS AS OF 2026-09-19, AND THAT IS NOT A
+# !! COORDINATE PROBLEM. Only the FIRST interaction after launch lands: whichever
+# !! click comes first fires, and every row after it does nothing. Checked three
+# !! ways -- the coordinates agree between `test_ios.zsh --dump-tree` and a
+# !! capture; the app keeps rendering afterwards, so it has not hung; and
+# !! reordering the rows moves which single action fires. The same sequence
+# !! completed on 2026-09-19 at 11:21 before scroll and snapshot were added, so
+# !! something between those two states is responsible and it has not been found.
+# !!
+# !! `actions/ios/P72-scroll.csv` carries the one assertion that is verified on
+# !! iOS. The macOS file `actions/mac/P72-stop-and-check.csv` carries all six and
+# !! passes. Do not read a green replay here as a pass: an XCUITest coordinate tap
+# !! on empty space is not an error.
+# !!
+# !! 本檔於 2026-09-19 在 iOS 上**跑不完**,而那不是座標問題。啟動後只有**第一個**互動會落地:
+# !! 排在最前面的那個點擊會觸發,其後每一列都毫無作用。以三種方式查證過——座標在
+# !! `test_ios.zsh --dump-tree` 與擷圖兩者之間一致;app 之後仍持續算繪,並未卡住;而調換列的順序
+# !! 會改變「哪一個動作觸發」。同一段序列在 2026-09-19 11:21、於捲動與快照加入之前是跑得完的,
+# !! 因此responsible 的東西落在那兩個狀態之間,而它尚未被找到。
+# !!
+# !! `actions/ios/P72-scroll.csv` 帶著在 iOS 上唯一已驗證的那個斷言。macOS 的
+# !! `actions/mac/P72-stop-and-check.csv` 帶著全部六項且通過。不要把此處「重放成功」讀成通過:
+# !! XCUITest 在空白處的一次座標點擊,不算錯誤。
+#
 # P72: does the mesh view draw ONLY when it is asked to? (iOS half)
 #
 # Measured 2026-09-19 from a 1100x100 crop at px (0,1790) of the running app,
@@ -13,6 +37,41 @@ action,x,y,origin,button,key,micros,note,platform
 # the screen and an extra row moves everything up by half a row. The same thing
 # happened on macOS and was not predicted there either.
 #
+# **The scroll is LAST, and that order was measured too.** On iOS a scroll is a
+# one-finger drag; it lands on the mesh view, and every click after it missed --
+# the drag moved the column. With the scroll last, every click uses the
+# launch-time coordinates the tree gives, and the only thing that happens after
+# the move is that nobody clicks anything else. The macOS file puts its scroll
+# FIRST, because there a scroll is a wheel rather than a drag and moves nothing.
+#
+# **MEASURED FROM THE ACCESSIBILITY TREE, NOT FROM A SCREENSHOT, and from here
+# on that is the only way this file should be measured.** `test_ios.zsh
+# --dump-tree` prints each button's frame in points:
+#
+#   Auto spin: on   {{35.0, 654.8}, {102.8, 22.6}}   centre  86, 666
+#   Stop the clock  {{148.0, 654.8}, {113.1, 22.6}}  centre 205, 666
+#   Check again     {{271.4, 654.8}, {96.6, 22.6}}   centre 320, 666
+#   Export .glb     {{35.0, 685.7}, {85.3, 22.6}}    centre  78, 697
+#   Snapshot        {{130.6, 685.7}, {75.0, 22.6}}   centre 168, 697
+#
+# The mesh view is not in the tree, so it is bracketed by the labels that are:
+# 'mesh view supported' ends at y 268.3 and 'renderer' starts at 531.5, so the
+# view spans about 276..523 and its centre is (205, 400).
+#
+# Reading these off a capture had me clicking `Auto spin` while intending
+# `Export .glb` -- the readout said `glTF: 0 bytes` and `Auto spin: off`, which
+# reads as a broken exporter and was a wrong coordinate. P72 now pins its whole
+# column to a fixed 400x640 frame so these numbers stay true.
+#
+# RE-MEASURED A FIFTH TIME when scroll arrived, and the fifth one found a
+# defect. The scroll readout was first one sentence that grew from `last: none`
+# to `last: dy 8.4 precise, distance 2.06` as soon as a scroll landed; at this
+# width it wrapped to a second line MID-REPLAY, every row below moved up, and
+# the four clicks after the scroll all missed. Nothing reported it: a click on
+# nothing is silent, and the run looked like "the Snapshot button is broken".
+# The readouts are fixed-width now, and the rows sit at px y 1711 and 1803
+# (pt 570 and 601) before and after a scroll alike.
+#
 # RE-MEASURED AGAIN when "Snapshot" joined the second row and a "snapshot:"
 # readout was added under it. Fourth measurement of this file in one day.
 #
@@ -20,6 +79,15 @@ action,x,y,origin,button,key,micros,note,platform
 # clock" px x 405..742, "Check again" px x 775..1060.
 # Second row, centred on px y 1830: "Export .glb" spans px x 62..315 and
 # "Snapshot" px x 350..572.
+#
+# **The scroll row is one finger here and a wheel on macOS, and both reach the
+# same protocol.** The iOS runner turns a `scroll` row into a one-finger
+# press-and-drag, because a touch screen has no wheel; UIKitBackend's recogniser
+# therefore takes one finger, not the two a macOS trackpad would suggest. The
+# first version required two and every scroll row was delivered and silently
+# ignored. Measured after the fix: one four-notch row produces 17 change events,
+# all reported `precise`, taking the camera from 3.400 to 2.058. macOS reports
+# one `notched` event of dy 80 for five notches. Different shapes, same sign.
 #
 # The snapshot must report MORE THAN ONE distinct colour and a centre pixel that
 # is a face colour rather than the background. SoftPCB `plan.md` §10.7 lists this
@@ -63,12 +131,38 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-19 在「Export .glb」作為第二列加入之後**重新量過**:那把第一列由 px y 1838 抬到 1748——
 # 因為內容在螢幕中置中,多一列會把所有東西往上抬半列。macOS 上發生了同一件事,而那邊也沒有事先料到。
 #
+# **捲動是最後一個動作,而那個順序也是量出來的。** 在 iOS 上,一次捲動是一根手指的拖曳;它落在 mesh view
+# 上,而它之後的每一次點擊都落空了——那次拖曳讓這一欄移動了。把捲動排到最後,每一次點擊用的就都是
+# 「啟動當下、由樹量出來」的座標,而唯一在移動之後才發生的事,是沒有人再去點任何東西。
+# macOS 那份檔案把捲動排在最前面,因為那裡的捲動是滾輪、不是拖曳,不會移動任何東西。
+#
+# **座標量自無障礙樹,而不是量自截圖;從此以後這份檔案也只該這樣量。** `test_ios.zsh --dump-tree` 會以
+# 「點」為單位印出每一顆按鈕的 frame(見上方英文區塊)。mesh view 不在樹裡,因此以它上下兩個在樹裡的
+# 標籤夾出來:「mesh view supported」結束於 y 268.3、「renderer」開始於 531.5,故該 view 約在 276..523,
+# 中心為 (205, 400)。
+#
+# 從截圖讀座標,曾讓我在想按 `Export .glb` 時按到了 `Auto spin`——讀數顯示 `glTF: 0 bytes` 與
+# `Auto spin: off`,那看起來像匯出壞了,實際上是座標錯了。P72 現在把整欄釘在一個固定的 400x640 frame 上,
+# 好讓這些數字維持為真。
+#
+# **第五次重新量測**發生在捲動加入時,而這一次找到的是一個缺陷。捲動的讀數原本是一個句子,一有捲動落地
+# 就由 `last: none` 長成 `last: dy 8.4 precise, distance 2.06`;在這個寬度下它會**在重放途中**換行成
+# 兩行,底下每一列都往上移,而捲動之後的四次點擊全部落空。沒有任何東西回報這件事:點在空處是靜默的,
+# 而那次執行看起來像是「Snapshot 按鈕壞了」。現在讀數已改為固定寬度,兩列在捲動前後都位於
+# px y 1711 與 1803(即 pt 570 與 601)。
+#
 # 在「Snapshot」加入第二列、且其下多了一行「snapshot:」讀數之後**再次重新量過**。這是這份檔案一天之內
 # 的第四次量測。
 #
 # 第一列(以 px y 1736 為中心):「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨
 # px x 405..742、「Check again」橫跨 px x 775..1060。
 # 第二列(以 px y 1830 為中心):「Export .glb」橫跨 px x 62..315、「Snapshot」橫跨 px x 350..572。
+#
+# **這裡的 scroll 列是一根手指,在 macOS 上是一顆滾輪,而兩者到達的是同一個協定。** iOS runner 會把一列
+# `scroll` 轉成一次一指的按住拖曳,因為觸控螢幕沒有滾輪;因此 UIKitBackend 的辨識器取一指,而不是
+# macOS 觸控板會讓人聯想到的兩指。第一版要求兩指,結果每一列 scroll 都被送達、然後被靜默忽略。修好後實測:
+# 一列四格的 scroll 產生 17 個變更事件、全部回報 `precise`,把相機從 3.400 帶到 2.058。macOS 那邊是
+# 五格產生一個 dy 80 的 `notched` 事件。形狀不同,符號相同。
 #
 # 快照必須回報**多於一種**相異顏色,且中心像素是某個面的顏色、不是背景。SoftPCB `plan.md` §10.7 把這一項
 # 列為「沒有出路」的缺口——一張視窗截圖不論那個 MTKView 畫了什麼都拍得到那支 app。macOS 上兩種都量過:
@@ -94,13 +188,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
 # 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
-click,63,610,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
+click,67,625,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
+sleep,,,,,,1500000,"a full 1.5s: 300ms was not enough and the next tap was swallowed",ios
+click,159,625,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",ios
 sleep,,,,,,300000,,ios
-click,154,610,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",ios
-sleep,,,,,,300000,,ios
-click,73,579,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
+click,75,597,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
-click,191,579,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
+click,192,597,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
-click,307,579,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
-sleep,,,,,,500000,let the readout settle before the capture,ios
+click,308,597,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
+sleep,,,,,,500000,let the readout settle,ios
