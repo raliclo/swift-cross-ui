@@ -240,6 +240,10 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var framesAtStop = -1
     @SwiftCrossUI.Published var framesAtCheck = -1
 
+    /// What the last `.glb` export did, as one line for the readout.
+    /// 上一次 `.glb` 匯出做了什麼,以一行呈現在讀數區。
+    @SwiftCrossUI.Published var exportResult = "not exported"
+
     /// The last frame the renderer reported, held UNPUBLISHED on purpose.
     ///
     /// Publishing it straight from the callback closes a loop: a new frame
@@ -381,6 +385,42 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         P72Diagnostics.write("AUTO SPIN \(spinning ? "on" : "off")")
     }
 
+    /// Writes the scene as it stands to a binary glTF file.
+    ///
+    /// **Exported as it stands, spin included, and that is the assertion.** The
+    /// cube's angle lives in `Mesh3DTransform`, which becomes the node's
+    /// rotation quaternion in the file -- so an exporter that dropped the
+    /// transform would still write a perfectly valid cube, just an unrotated
+    /// one. Pressing this while the cube is visibly turned, and then reading the
+    /// angle back out of the file, is what separates those two.
+    ///
+    /// 把當下的場景寫成一份二進位 glTF 檔。
+    ///
+    /// **「當下」包含自轉,而那正是斷言本身。** 立方體的角度住在 `Mesh3DTransform` 裡,而它在檔案中會
+    /// 變成 node 的旋轉四元數——因此一個把變換丟掉的匯出器,仍然會寫出一個完全合法的立方體,只是沒轉。
+    /// 在立方體明顯轉過去的時候按下它,再從檔案裡把角度讀回來,才分得開這兩者。
+    func exportGLB() {
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                ?? {
+                    #if os(iOS) || os(tvOS)
+                        return NSHomeDirectory() + "/Documents"
+                    #else
+                        return FileManager.default.currentDirectoryPath
+                    #endif
+                }()
+        let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-scene.glb")
+        let data = scene.glbData()
+        do {
+            try data.write(to: url)
+            exportResult = "wrote \(data.count) bytes"
+            P72Diagnostics.write("EXPORTED \(data.count) bytes to \(url.path)")
+        } catch {
+            exportResult = "failed: \(error)"
+            P72Diagnostics.write("EXPORT FAILED \(error)")
+        }
+    }
+
     /// Reads the count again without touching the clock.
     /// 在不碰那個時鐘的情況下,再讀一次計數。
     func checkAgain() {
@@ -499,6 +539,27 @@ struct P72RootView: View {
                     P72Model.shared.checkAgain()
                 }
             }
+            // A second row rather than a fourth button beside the other three,
+            // to keep the row above readable at phone width.
+            //
+            // **It does NOT leave the coordinates above it alone, which is what
+            // this comment first claimed.** The window is a fixed 660 points and
+            // the content is centred in it, so one more row lifts EVERYTHING by
+            // half a row: the button row above moved from y 511 to y 483. The
+            // capture said so; the reasoning had not. Any change to this view's
+            // height means re-measuring both action files, wherever the change
+            // is made.
+            //
+            // 這裡用第二列、而不是在那三顆旁邊再加第四顆,是為了讓上面那一列在手機寬度下仍然讀得出來。
+            //
+            // **它並**不會**讓它上方的座標維持不動——而那正是這段註解一開始的說法。** 視窗固定 660 點、
+            // 內容在其中置中,因此多一列會把**所有東西**往上抬半列:上面那一列的按鈕由 y 511 移到 y 483。
+            // 是擷圖這麼說的,推理並沒有。只要改動這個 view 的高度,不管改在哪裡,兩份動作檔都要重新量。
+            Button("Export .glb") {
+                P72Model.shared.exportGLB()
+            }
+            Text("glTF export: \(model.exportResult)")
+
             Text(
                 "frames at the stop: \(model.framesAtStop)   "
                     + "at the check: \(model.framesAtCheck)"

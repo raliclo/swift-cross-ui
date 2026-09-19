@@ -8,8 +8,20 @@ action,x,y,origin,button,key,micros,note,platform
 # 440 x 956 pt, capture 1320 x 2868 px, i.e. 3:1. Every coordinate below is
 # px/3, in points, which is what the XCUITest runner normalises against
 # window.frame. The two labels were read off a 900x100 crop at px (0,1790):
-# "Auto spin: on" spans px x 65..375, "Stop the clock" px x 405..740 and
-# "Check again" px x 778..1062, all three centred on px y 1838.
+# RE-MEASURED 2026-09-19 after "Export .glb" was added as a second row: that
+# lifted the first row from px y 1838 to 1748, because the content is centred in
+# the screen and an extra row moves everything up by half a row. The same thing
+# happened on macOS and was not predicted there either.
+#
+# First row, centred on px y 1748: "Auto spin: on" spans px x 65..375, "Stop the
+# clock" px x 405..742, "Check again" px x 775..1060.
+# Second row, centred on px y 1842: "Export .glb" spans px x 62..315.
+#
+# **The export is the FIRST click, and the order is the assertion.** "Auto spin"
+# sets the rotation back to zero, so exporting after it writes a file whose node
+# rotation is the identity -- exactly what an exporter that silently dropped
+# `Mesh3DTransform` would write. Measured both ways on macOS: spinning gives
+# z 0.7986 rad, after the spin is off it gives z 0.0000.
 #
 # **The same assertion as the macOS file, and it has to be run here too.** The
 # renderer is one shared target -- `SwiftCrossUIMetal` -- so it is tempting to
@@ -37,8 +49,16 @@ action,x,y,origin,button,key,micros,note,platform
 # 按鈕加入之後——先前兩顆按鈕時的座標(77 與 193)已經過時,會點到錯的控制項。裝置:iPhone 16 Pro Max 模擬器
 # (IOS_SIM_DEVICE=swift-cross-ui)——視窗 440 x 956 點、擷圖 1320 x 2868 像素,即 3:1。以下每個
 # 座標都是像素除以 3(單位為點),那正是 XCUITest runner 用來對 window.frame 正規化的單位。兩個
-# 「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨 px x 405..740、「Check again」橫跨
-# px x 778..1062,三者都以 px y 1838 為中心。
+# 2026-09-19 在「Export .glb」作為第二列加入之後**重新量過**:那把第一列由 px y 1838 抬到 1748——
+# 因為內容在螢幕中置中,多一列會把所有東西往上抬半列。macOS 上發生了同一件事,而那邊也沒有事先料到。
+#
+# 第一列(以 px y 1748 為中心):「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨
+# px x 405..742、「Check again」橫跨 px x 775..1060。
+# 第二列(以 px y 1842 為中心):「Export .glb」橫跨 px x 62..315。
+#
+# **匯出是第一次點擊,而那個順序就是斷言本身。** 「Auto spin」會把旋轉歸零,因此在它之後匯出,寫出的
+# 檔案其 node 旋轉會是單位四元數——那恰恰也是一個「靜默地把 `Mesh3DTransform` 丟掉」的匯出器會寫出來的
+# 東西。在 macOS 上兩種都量過:自轉中是 z 0.7986 弧度,關掉自轉之後是 z 0.0000。
 #
 # **與 macOS 那份是同一個斷言,而它必須在這裡也跑一次。** renderer 是同一個共用 target
 # ——`SwiftCrossUIMetal`——因此很容易覺得 AppKit 通過就等於兩邊都通過。並不等於:讓這個 view 不自走的
@@ -56,9 +76,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
 # 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
-click,73,613,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
+click,63,614,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
+sleep,,,,,,300000,,ios
+click,73,583,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
-click,191,613,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
+click,191,583,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
-click,307,613,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
+click,307,583,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
 sleep,,,,,,500000,let the readout settle before the capture,ios
