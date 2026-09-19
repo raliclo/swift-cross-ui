@@ -15,7 +15,138 @@ Sources read: `/Volumes/LinuxCS/render/three.js` (submodule at `ea56c2f4`, versi
 
 ---
 
-## 1. What is actually missing
+## 0. CORRECTION, same day, before any code was written
+
+**Section 1's headline claim — "there is no view in this framework that hands an
+application a surface to draw on" — is false, and the thing that disproves it is
+an application built on this fork.**
+
+`/Volumes/Windows/proj_Win/SoftPCB/SoftPCB-UI` renders a 3D board view with
+Metal **today**: `Sources/SoftPCB-UI/Render/MetalBoxRenderer.swift` is an
+`MTKView` behind `NSViewRepresentable`, with its own shader source, and
+`MeshBenchmark.swift` measures the same shaders. Its `Package.swift` takes
+`AppKitBackend` as a macOS-only dependency to do it.
+
+And it is not only AppKit. Every backend already ships an escape hatch:
+
+| Backend | File |
+| --- | --- |
+| AppKit | `NSViewRepresentable.swift` |
+| UIKit | `UIViewRepresentable.swift`, `UIViewControllerRepresentable.swift` |
+| Android | `AndroidViewRepresentable.swift`, `AndroidxFragmentRepresentable.swift` |
+| GTK | `GtkWidgetRepresentable.swift` |
+| WinUI | `WinUIElementRepresentable.swift` |
+
+So the question is not "can an app draw on the GPU" — it can, on all five — but
+**what it costs**: an app must write one view per backend and import each
+backend to do it, which is what SoftPCB's manifest shows.
+
+**第 1 節的那句主張——「這個框架裡沒有任何一種 view 會把可以自己畫的表面交給 app」——是錯的,
+而推翻它的,正是一支建在這個 fork 上的 app。** SoftPCB-UI 今天就用 Metal 畫 3D 板:
+`MetalBoxRenderer.swift` 是放在 `NSViewRepresentable` 後面的 `MTKView`。而且不只 AppKit——
+五個 backend 各自都有逃生門(見上表)。因此問題不是「app 能不能用 GPU 畫」(五個都能),
+而是**代價**:app 得為每個 backend 各寫一個 view、各 import 一個 backend。
+
+### What that makes the real gap
+
+1. **Portability.** Five hatches, no shared shape. An app wanting one 3D view on
+   five platforms writes five views and takes five backend dependencies.
+2. **The input and output a 3D view needs**, which SoftPCB listed against this
+   source in its own `plan.md` §10.7 as nine items. Re-checked here on
+   2026-09-19, four of the nine have closed since they wrote it:
+
+   | # | Their gap | Today |
+   | --- | --- | --- |
+   | 1 | Drag to rotate: "no DragGesture" | **closed** — `BackendFeatures.DragGestures`, driven on five backends (P65) |
+   | 2 | Scroll to zoom | **open** — no scroll API; the `scrollWheel` in the tree is a list workaround |
+   | 3 | Pinch to zoom: "no MagnificationGesture" | **closed** — `MagnifyGestures` and `RotateGestures`, driven on five (P65) |
+   | 4 | Modifier keys / key events | **partly** — `keyboardShortcut` (#121) on five backends; no raw key events |
+   | 5 | Focus: "no focus API at all" | **closed** — `FocusableViews.focus(_:)` (#122, P70) |
+   | 6 | Cursor while dragging | **open** — `NSCursor` appears nowhere |
+   | 7 | Context menu | **open** — `Menu` is menu-bar bound |
+   | 8 | Per-frame timing | **closed** — `FrameClocks` |
+   | 9 | Export the render as an image | **open** — no snapshot API |
+
+3. **Their second "real obstacle", which is this tree's own problem**: nothing
+   can test what an embedded native view drew. `InspectionModifiers` inspects
+   SwiftCrossUI's widget tree, not the pixels an `MTKView` produced. **Item 9
+   answers item 3**: a snapshot API is both the export an application asks for
+   and the hook a test needs, which is why it goes first.
+
+### The direction, decided by the user on 2026-09-19
+
+> "raise the Metal renderer in protocol level and then move most Metal renderer
+> in macOS and iOS backend first, we will do the rest platforms later"
+
+So not a handle to a surface, and not snapshot-first: **the renderer itself is
+lifted into the framework.** An application describes a mesh and a camera; the
+backend draws it. That is the same relationship `Paths` already has for 2D, and
+it is what stops the next application from writing SoftPCB's `MTKView` and
+shaders a second time.
+
+**方向由使用者於 2026-09-19 定下:把 renderer 升到協定層,Metal 實作先進 macOS 與 iOS 的 backend,
+其餘平台後補。** 因此不是「交出一塊表面」,也不是「先做快照」:**是把 renderer 本身放進框架**。
+app 描述一個 mesh 與一台相機,由 backend 畫出來——那正是 `Paths` 在 2D 上已有的關係,
+也是讓下一支 app 不必再寫一次 SoftPCB 那份 `MTKView` 與著色器的方式。
+
+#### The shape
+
+In `SwiftCrossUI`, backend-agnostic values only — no Metal type crosses this line:
+
+```swift
+public struct Mesh3DVertex { var position, normal, colour: SIMD3<Float> }
+public struct Mesh3D       { var vertices: [Mesh3DVertex]; var indices: [UInt32] }
+public struct Mesh3DCamera { var eye, target, up: SIMD3<Float>; var fieldOfView, near, far: Float }
+public struct Mesh3DScene  { var meshes: [Mesh3D]; var camera: Mesh3DCamera
+                             var background: Color; var lightDirection: SIMD3<Float> }
+
+extension BackendFeatures {
+    @MainActor public protocol Mesh3DViews<Widget>: Core {
+        func createMesh3DView() -> Widget
+        func updateMesh3DView(_ view: Widget, scene: Mesh3DScene, environment: EnvironmentValues)
+    }
+}
+```
+
+Conformance-checked, like `TableSelection` and `PopoverArrowEdges`: a backend
+that has not implemented it yet keeps building and the app's own readout says
+`mesh view supported: NO`.
+
+#### Where the Metal lives
+
+One new target, `SwiftCrossUIMetal`, depended on by **both** AppKitBackend and
+UIKitBackend. `MTKView` is the same class from MetalKit on macOS and iOS, so the
+renderer, the shaders and the scene-to-buffer mapping are written once. Writing
+them twice is how the two backends end up disagreeing about what a mesh looks
+like, and this tree has spent this week fixing exactly that kind of divergence
+in popovers and accessibility.
+
+Metal 實作放在一個新 target `SwiftCrossUIMetal`,由 AppKitBackend 與 UIKitBackend **共同**依賴。
+`MTKView` 在 macOS 與 iOS 上是 MetalKit 的同一個類別,因此 renderer、著色器與「scene 轉 buffer」只寫一次。
+寫兩次正是兩個 backend 對「一個 mesh 該長什麼樣」各說各話的起點——而本週這棵樹才剛在 popover 與
+accessibility 上修完同一類分歧。
+
+#### Judged by
+
+**P72**: a cube, `FrameClocks` turning it, a readout naming the backend, the
+drawable size in pixels and the frame count. Two captures a second apart must
+show the count advanced **and** the cube at a different angle. One picture of a
+cube proves the pipeline compiles and nothing about it running — the same
+distinction M9 turned on.
+
+#### Then, in order
+
+1. AppKit — the renderer, and P72 driven on macOS.
+2. UIKit — the same target, P72 driven on the simulator.
+3. Android (mine), GTK and WinUI (Windows side) — later, by the user's decision
+   above. The protocol is conformance-checked so they stay green meanwhile.
+4. The five input/output gaps from the table above (scroll, raw keys, cursor,
+   context menu, snapshot) as separate work, snapshot first, because it is also
+   the only way a test can judge what was drawn.
+
+---
+
+## 1. What is actually missing (as first written, kept for the trail)
 
 `three.js` is a scene graph plus a renderer: `Scene`, `Object3D`, `Mesh`,
 `BufferGeometry`, materials, textures, `PerspectiveCamera`, lights, an animation
