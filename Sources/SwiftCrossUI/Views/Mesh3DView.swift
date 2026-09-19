@@ -229,6 +229,46 @@ public struct Mesh3DFrameInfo: Equatable, Sendable {
     }
 }
 
+/// A handle an application holds so it can ask a ``Mesh3DView`` for its pixels.
+///
+/// **A view cannot be asked for anything -- it is a value that is rebuilt on
+/// every update -- so the question has to be left somewhere that outlives it.**
+/// This is that somewhere. The view fills it in when it commits, against
+/// whichever widget the backend gave it, and empties it when the backend cannot
+/// read pixels back at all.
+///
+/// 一個由應用程式持有的把手,用來向 ``Mesh3DView`` 要它的像素。
+///
+/// **一個 view 是問不了問題的——它是一個在每次更新時都會被重建的值——因此那個問題必須被放在某個
+/// 比它活得久的地方。** 這就是那個地方。view 在 commit 時把它填上(針對 backend 交給它的那個 widget),
+/// 而當 backend 根本讀不回像素時則把它清空。
+@MainActor
+public final class Mesh3DSnapshotter {
+    private var take: (() -> WidgetSnapshot?)?
+
+    public init() {}
+
+    /// Whether the backend behind this view can read its pixels back.
+    ///
+    /// False before the view has committed once, and false on a backend with no
+    /// ``BackendFeatures/WidgetSnapshots`` conformance. An application should
+    /// show which of those it is rather than a disabled button with no reason.
+    ///
+    /// 這個 view 背後的 backend 是否讀得回它的像素。
+    ///
+    /// 在 view 第一次 commit 之前為 false;在沒有 ``BackendFeatures/WidgetSnapshots`` conformance 的
+    /// backend 上也是 false。應用程式應該顯示「是哪一種」,而不是一顆沒有理由的停用按鈕。
+    public var isAvailable: Bool { take != nil }
+
+    /// Reads the pixels, or `nil` if there are none to read.
+    /// 讀回那些像素;沒有東西可讀時回傳 `nil`。
+    public func snapshot() -> WidgetSnapshot? { take?() }
+
+    fileprivate func bind(_ take: (() -> WidgetSnapshot?)?) {
+        self.take = take
+    }
+}
+
 /// A view that shows a ``Mesh3DScene``.
 ///
 /// **What a backend that has not implemented this does, and why it is not a
@@ -252,13 +292,16 @@ public struct Mesh3DView: ElementaryView {
 
     private var scene: Mesh3DScene
     private var onFrame: (@MainActor (Mesh3DFrameInfo) -> Void)?
+    private var snapshotter: Mesh3DSnapshotter?
 
     public init(
         _ scene: Mesh3DScene,
-        onFrame: (@MainActor (Mesh3DFrameInfo) -> Void)? = nil
+        onFrame: (@MainActor (Mesh3DFrameInfo) -> Void)? = nil,
+        snapshotter: Mesh3DSnapshotter? = nil
     ) {
         self.scene = scene
         self.onFrame = onFrame
+        self.snapshotter = snapshotter
     }
 
     public func asWidget<Backend: BaseAppBackend>(backend: Backend) -> Backend.Widget {
@@ -305,12 +348,39 @@ public struct Mesh3DView: ElementaryView {
         environment: EnvironmentValues
     ) {
         let onFrame = self.onFrame
+        let typedWidget = widget as! Backend.Widget
         backend.updateMesh3DView(
-            widget as! Backend.Widget,
+            typedWidget,
             scene: scene,
             onFrame: { info in onFrame?(info) },
             environment: environment
         )
+
+        // Rebound on every commit rather than once. The widget a backend hands
+        // back is not promised to be the same object across updates, and a
+        // closure holding a stale one would read pixels from a view that is no
+        // longer on screen -- which returns an image, not an error.
+        // 每次 commit 都重新綁定,而不是只綁一次。backend 交回的那個 widget,並不保證在多次更新之間
+        // 是同一個物件;而一個抓著舊 widget 的 closure,會從一個已經不在畫面上的 view 讀出像素
+        // ——那會回傳一張影像,不是一個錯誤。
+        if let snapshotter {
+            if let snapshotBackend = backend as? any BaseAppBackend & BackendFeatures
+                .WidgetSnapshots
+            {
+                bind(snapshotter, to: snapshotBackend, widget: typedWidget)
+            } else {
+                snapshotter.bind(nil)
+            }
+        }
+    }
+
+    private func bind<Backend: BaseAppBackend & BackendFeatures.WidgetSnapshots>(
+        _ snapshotter: Mesh3DSnapshotter,
+        to backend: Backend,
+        widget: Any
+    ) {
+        let typed = widget as! Backend.Widget
+        snapshotter.bind { backend.snapshotWidget(typed) }
     }
 }
 

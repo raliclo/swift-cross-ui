@@ -240,6 +240,18 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var framesAtStop = -1
     @SwiftCrossUI.Published var framesAtCheck = -1
 
+    /// What the last `.glb` export did, as one line for the readout.
+    /// 上一次 `.glb` 匯出做了什麼,以一行呈現在讀數區。
+    @SwiftCrossUI.Published var exportResult = "not exported"
+
+    /// What the last snapshot found.
+    /// 上一次快照發現了什麼。
+    @SwiftCrossUI.Published var snapshotResult = "not taken"
+
+    /// The handle the view fills in so this model can ask it for pixels.
+    /// 那個由 view 填上的把手,好讓這個 model 能向它要像素。
+    let snapshotter = Mesh3DSnapshotter()
+
     /// The last frame the renderer reported, held UNPUBLISHED on purpose.
     ///
     /// Publishing it straight from the callback closes a loop: a new frame
@@ -381,6 +393,111 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         P72Diagnostics.write("AUTO SPIN \(spinning ? "on" : "off")")
     }
 
+    /// Writes the scene as it stands to a binary glTF file.
+    ///
+    /// **Exported as it stands, spin included, and that is the assertion.** The
+    /// cube's angle lives in `Mesh3DTransform`, which becomes the node's
+    /// rotation quaternion in the file -- so an exporter that dropped the
+    /// transform would still write a perfectly valid cube, just an unrotated
+    /// one. Pressing this while the cube is visibly turned, and then reading the
+    /// angle back out of the file, is what separates those two.
+    ///
+    /// 把當下的場景寫成一份二進位 glTF 檔。
+    ///
+    /// **「當下」包含自轉,而那正是斷言本身。** 立方體的角度住在 `Mesh3DTransform` 裡,而它在檔案中會
+    /// 變成 node 的旋轉四元數——因此一個把變換丟掉的匯出器,仍然會寫出一個完全合法的立方體,只是沒轉。
+    /// 在立方體明顯轉過去的時候按下它,再從檔案裡把角度讀回來,才分得開這兩者。
+    func exportGLB() {
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                ?? {
+                    #if os(iOS) || os(tvOS)
+                        return NSHomeDirectory() + "/Documents"
+                    #else
+                        return FileManager.default.currentDirectoryPath
+                    #endif
+                }()
+        let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-scene.glb")
+        let data = scene.glbData()
+        do {
+            try data.write(to: url)
+            exportResult = "wrote \(data.count) bytes"
+            P72Diagnostics.write("EXPORTED \(data.count) bytes to \(url.path)")
+        } catch {
+            exportResult = "failed: \(error)"
+            P72Diagnostics.write("EXPORT FAILED \(error)")
+        }
+    }
+
+    /// Reads the mesh view's pixels back and says what is in them.
+    ///
+    /// **This is the gap SoftPCB `plan.md` §10.7 calls the one with no way out:
+    /// "what an `MTKView` drew inside itself is invisible" to the inspection
+    /// machinery.** So the assertion is not a screenshot of the window -- the
+    /// window capture already exists and shows the app, not the view. It is the
+    /// view's own pixels, read off its own texture, and three numbers taken from
+    /// them:
+    ///
+    /// - the size, which must be the drawable size and not the layout size
+    /// - the distinct colour count, which is 1 for a view that drew nothing
+    /// - the centre pixel, which must be a face colour and not the background
+    ///
+    /// A blank render passes none of those. A window screenshot passes all three
+    /// whatever the view did, because it is a picture of the window.
+    ///
+    /// 把 mesh view 的像素讀回來,並說出裡面有什麼。
+    ///
+    /// **這正是 SoftPCB `plan.md` §10.7 稱為「沒有出路」的那個缺口:`MTKView` 內部畫了什麼,對那套
+    /// inspection 機制而言是「看不到的」。** 因此這裡的斷言**不是**視窗截圖——視窗截圖本來就有,而它拍到的
+    /// 是那支 app、不是那個 view。斷言的是那個 view 自己的像素、從它自己的 texture 讀出來,再從中取三個數字:
+    ///
+    /// - 尺寸,它必須是 drawable 尺寸、不是版面尺寸
+    /// - 相異顏色數,一個什麼都沒畫的 view 會是 1
+    /// - 中心像素,它必須是某個面的顏色、不是背景色
+    ///
+    /// 一張空白的算繪,這三項一項都過不了。而一張視窗截圖,無論那個 view 做了什麼都三項全過——因為它是
+    /// 一張視窗的照片。
+    func takeSnapshot() {
+        guard snapshotter.isAvailable else {
+            snapshotResult = "this backend does not implement WidgetSnapshots"
+            P72Diagnostics.write("SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance")
+            return
+        }
+        guard let shot = snapshotter.snapshot() else {
+            snapshotResult = "the backend returned nothing"
+            P72Diagnostics.write("SNAPSHOT NIL -- the backend returned no pixels")
+            return
+        }
+
+        let colours = shot.distinctColourCount()
+        let centre = shot.pixel(x: shot.width / 2, y: shot.height / 2)
+        let centreText =
+            centre.map { "\($0.r),\($0.g),\($0.b)" } ?? "none"
+        snapshotResult = "\(shot.width)x\(shot.height) px, \(colours) colours, centre \(centreText)"
+        P72Diagnostics.write(
+            "SNAPSHOT \(shot.width)x\(shot.height) px, \(colours) distinct colours, "
+                + "centre pixel \(centreText)"
+        )
+
+        let directory =
+            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
+                ?? {
+                    #if os(iOS) || os(tvOS)
+                        return NSHomeDirectory() + "/Documents"
+                    #else
+                        return FileManager.default.currentDirectoryPath
+                    #endif
+                }()
+        let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-snapshot.png")
+        do {
+            let png = try shot.pngData()
+            try png.write(to: url)
+            P72Diagnostics.write("SNAPSHOT PNG \(png.count) bytes to \(url.path)")
+        } catch {
+            P72Diagnostics.write("SNAPSHOT PNG FAILED \(error)")
+        }
+    }
+
     /// Reads the count again without touching the clock.
     /// 在不碰那個時鐘的情況下,再讀一次計數。
     func checkAgain() {
@@ -465,9 +582,11 @@ struct P72RootView: View {
                     + "\(backend is any BackendFeatures.Mesh3DViews ? "yes" : "NO")"
             )
 
-            Mesh3DView(model.scene) { info in
-                P72Model.shared.record(info)
-            }
+            Mesh3DView(
+                model.scene,
+                onFrame: { info in P72Model.shared.record(info) },
+                snapshotter: model.snapshotter
+            )
             .frame(width: 340, height: 240)
 
             Text("renderer: \(model.renderer)")
@@ -499,6 +618,33 @@ struct P72RootView: View {
                     P72Model.shared.checkAgain()
                 }
             }
+            // A second row rather than a fourth button beside the other three,
+            // to keep the row above readable at phone width.
+            //
+            // **It does NOT leave the coordinates above it alone, which is what
+            // this comment first claimed.** The window is a fixed 660 points and
+            // the content is centred in it, so one more row lifts EVERYTHING by
+            // half a row: the button row above moved from y 511 to y 483. The
+            // capture said so; the reasoning had not. Any change to this view's
+            // height means re-measuring both action files, wherever the change
+            // is made.
+            //
+            // 這裡用第二列、而不是在那三顆旁邊再加第四顆,是為了讓上面那一列在手機寬度下仍然讀得出來。
+            //
+            // **它並**不會**讓它上方的座標維持不動——而那正是這段註解一開始的說法。** 視窗固定 660 點、
+            // 內容在其中置中,因此多一列會把**所有東西**往上抬半列:上面那一列的按鈕由 y 511 移到 y 483。
+            // 是擷圖這麼說的,推理並沒有。只要改動這個 view 的高度,不管改在哪裡,兩份動作檔都要重新量。
+            HStack(spacing: 10) {
+                Button("Export .glb") {
+                    P72Model.shared.exportGLB()
+                }
+                Button("Snapshot") {
+                    P72Model.shared.takeSnapshot()
+                }
+            }
+            Text("glTF export: \(model.exportResult)")
+            Text("snapshot: \(model.snapshotResult)")
+
             Text(
                 "frames at the stop: \(model.framesAtStop)   "
                     + "at the check: \(model.framesAtCheck)"

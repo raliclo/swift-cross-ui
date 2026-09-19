@@ -58,3 +58,66 @@ extension UIKitBackend: BackendFeatures.Mesh3DViews {
         widget.child.setScene(scene, background: scene.background.resolve(in: environment))
     }
 }
+
+/// Reading back what a widget drew (SoftPCB `plan.md` §10.7, gap 9).
+///
+/// **The same two paths as AppKit, and the same reason for the order.**
+/// `UIGraphicsImageRenderer.image { view.layer.render(in:) }` walks the layer
+/// tree with Core Graphics, which is right for a label and blank for an
+/// `MTKView` -- Metal never touches that layer's contents. `drawHierarchy` does
+/// capture Metal, and it captures whatever is on screen at the time including
+/// anything in front of the view, so it answers a different question than "what
+/// did this widget draw". The mesh view path is taken first.
+///
+/// 把一個 widget 畫出來的東西讀回來(SoftPCB `plan.md` §10.7 的第 9 項缺口)。
+///
+/// **與 AppKit 相同的兩條路徑,順序的理由也相同。**
+/// `UIGraphicsImageRenderer.image { view.layer.render(in:) }` 是以 Core Graphics 走訪 layer 樹——那對
+/// 一個標籤是對的,對一個 `MTKView` 則是空白:Metal 從來不碰那個 layer 的 contents。`drawHierarchy`
+/// 確實抓得到 Metal,但它抓的是「當下螢幕上的樣子」,包含擋在那個 view 前面的任何東西——因此它回答的
+/// 是與「這個 widget 畫了什麼」不同的問題。mesh view 的路徑排在前面。
+extension UIKitBackend: BackendFeatures.WidgetSnapshots {
+    public func snapshotWidget(_ widget: Widget) -> WidgetSnapshot? {
+        if let wrapper = widget as? WrapperWidget<Mesh3DMetalView> {
+            return wrapper.child.snapshot()
+        }
+
+        let view = widget.view!
+        let bounds = view.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return nil }
+
+        let scale = view.window?.screen.scale ?? UIScreen.main.scale
+        let width = Int((bounds.width * scale).rounded())
+        let height = Int((bounds.height * scale).rounded())
+        guard width > 0, height > 0 else { return nil }
+
+        var rgba = [UInt8](repeating: 0, count: width * height * 4)
+        let ok = rgba.withUnsafeMutableBytes { raw -> Bool in
+            guard
+                let context = CGContext(
+                    data: raw.baseAddress,
+                    width: width,
+                    height: height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )
+            else { return false }
+            // UIKit's origin is top-left and Core Graphics' is bottom-left, so
+            // the layer renders upside down into a raw context unless the
+            // transform is applied. Leaving it out gives a snapshot that is
+            // correct in every way except vertically mirrored -- which on a
+            // symmetric view is invisible.
+            // UIKit 的原點在左上、Core Graphics 的在左下,因此若不套用這個變換,layer 畫進一個裸 context
+            // 時會上下顛倒。漏掉它,得到的快照在每一方面都正確,只是上下鏡像——而在一個上下對稱的 view 上,
+            // 那是看不出來的。
+            context.translateBy(x: 0, y: CGFloat(height))
+            context.scaleBy(x: scale, y: -scale)
+            view.layer.render(in: context)
+            return true
+        }
+        guard ok else { return nil }
+        return WidgetSnapshot(width: width, height: height, rgbaData: rgba)
+    }
+}

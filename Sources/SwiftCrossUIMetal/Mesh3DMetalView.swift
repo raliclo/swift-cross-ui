@@ -291,11 +291,54 @@
 
         fileprivate func render() {
             guard
-                let pipeline,
                 let commandQueue,
                 let descriptor = currentRenderPassDescriptor,
                 let drawable = currentDrawable,
-                let buffer = commandQueue.makeCommandBuffer(),
+                let buffer = commandQueue.makeCommandBuffer()
+            else { return }
+
+            encodeScene(into: descriptor, commandBuffer: buffer)
+            buffer.present(drawable)
+            buffer.commit()
+
+            framesDrawn += 1
+            let info = Mesh3DFrameInfo(
+                renderer: rendererName,
+                drawableSize: SIMD2(Int(drawableSize.width), Int(drawableSize.height)),
+                frameCount: framesDrawn
+            )
+            // Delivered synchronously, not through a `Task`. `MTKView` draws on
+            // the main thread, so the hop would only delay the count by a frame
+            // -- and a readout that lags the picture by one frame is exactly the
+            // ambiguity P72's two captures exist to remove.
+            //
+            // 同步送出,而不是經由 `Task`。`MTKView` 在主執行緒上繪製,因此那一跳只會讓計數
+            // 慢一幀——而一個「比畫面慢一幀」的讀數,正是 P72 那兩張擷圖所要消除的那種歧義。
+            MainActor.assumeIsolated { onFrame?(info) }
+        }
+
+        /// The one place the scene is turned into draw calls.
+        ///
+        /// **Shared by the screen and by ``snapshot()``, on purpose.** A
+        /// snapshot taken through a second, separate encode path would be a
+        /// picture of that path rather than of what the user is looking at, and
+        /// the two would drift the first time either was touched. This is the
+        /// whole value of the read-back: the bytes it returns went through the
+        /// same pipeline, the same uniforms and the same buffers as the frame on
+        /// screen.
+        ///
+        /// 場景被轉成 draw call 的唯一一個地方。
+        ///
+        /// **刻意由畫面與 ``snapshot()`` 共用。** 一張「經由第二條、獨立的編碼路徑」取得的快照,拍到的是
+        /// 那條路徑、而不是使用者正在看的東西;而兩者會在任何一邊第一次被改動時就開始漂移。這正是這個
+        /// 讀回機制的全部價值:它回傳的位元組,走的是與畫面上那一幀相同的 pipeline、相同的 uniform、
+        /// 相同的 buffer。
+        private func encodeScene(
+            into descriptor: MTLRenderPassDescriptor,
+            commandBuffer buffer: MTLCommandBuffer
+        ) {
+            guard
+                let pipeline,
                 let encoder = buffer.makeRenderCommandEncoder(descriptor: descriptor)
             else { return }
 
@@ -336,23 +379,127 @@
             }
 
             encoder.endEncoding()
-            buffer.present(drawable)
-            buffer.commit()
+        }
 
-            framesDrawn += 1
-            let info = Mesh3DFrameInfo(
-                renderer: rendererName,
-                drawableSize: SIMD2(Int(drawableSize.width), Int(drawableSize.height)),
-                frameCount: framesDrawn
+        /// Draws one more frame into a texture of its own and reads the pixels
+        /// back.
+        ///
+        /// **Not a capture of the drawable, and the reason is lifetime.** A
+        /// `CAMetalDrawable`'s texture belongs to a pool that reuses it as soon
+        /// as the frame is presented, so reading it afterwards returns whatever
+        /// was drawn next -- intermittently, and more often on a fast machine
+        /// than a slow one, which is the worst shape a defect can have. Its
+        /// `framebufferOnly` is also true by default, and reading from such a
+        /// texture is undefined rather than an error. An offscreen texture this
+        /// view owns has neither problem.
+        ///
+        /// The cost is one extra frame per snapshot and a `waitUntilCompleted`.
+        /// Both are correct here: a snapshot is a deliberate act, not something
+        /// that happens sixty times a second.
+        ///
+        /// 把場景再畫一幀到一張它自己的 texture 上,然後把像素讀回來。
+        ///
+        /// **不是去擷取那個 drawable,理由是生命週期。** 一個 `CAMetalDrawable` 的 texture 屬於一個
+        /// pool,而該 pool 在這一幀被呈現之後就會立刻重用它;因此事後去讀它,讀到的是「接下來畫的東西」
+        /// ——而且是間歇性的,在快的機器上比慢的機器上更常發生,那是一個缺陷所能擁有的最糟糕形狀。
+        /// 它的 `framebufferOnly` 預設也是 true,而從那樣的 texture 讀取是**未定義**、不是錯誤。
+        /// 一張由這個 view 自己持有的離屏 texture,兩個問題都沒有。
+        ///
+        /// 代價是每次快照多畫一幀,外加一次 `waitUntilCompleted`。在這裡兩者都是對的:拍一張快照是一個
+        /// 刻意的動作,不是每秒發生六十次的事。
+        @MainActor
+        public func snapshot() -> WidgetSnapshot? {
+            let width = Int(drawableSize.width)
+            let height = Int(drawableSize.height)
+            guard
+                width > 0, height > 0,
+                let device,
+                let commandQueue
+            else { return nil }
+
+            let colourDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: colorPixelFormat,
+                width: width,
+                height: height,
+                mipmapped: false
             )
-            // Delivered synchronously, not through a `Task`. `MTKView` draws on
-            // the main thread, so the hop would only delay the count by a frame
-            // -- and a readout that lags the picture by one frame is exactly the
-            // ambiguity P72's two captures exist to remove.
-            //
-            // 同步送出,而不是經由 `Task`。`MTKView` 在主執行緒上繪製,因此那一跳只會讓計數
-            // 慢一幀——而一個「比畫面慢一幀」的讀數,正是 P72 那兩張擷圖所要消除的那種歧義。
-            MainActor.assumeIsolated { onFrame?(info) }
+            colourDescriptor.usage = [.renderTarget, .shaderRead]
+            #if os(macOS) && !targetEnvironment(macCatalyst)
+                // `.managed` on macOS so `getBytes` sees what the GPU wrote; a
+                // `.private` texture cannot be read from the CPU at all, and
+                // `.shared` is not available for every macOS texture.
+                // macOS 上用 `.managed`,好讓 `getBytes` 看得到 GPU 寫下的內容;`.private` 的 texture
+                // 根本無法由 CPU 讀取,而 `.shared` 並非對每一種 macOS texture 都可用。
+                colourDescriptor.storageMode = .managed
+            #else
+                colourDescriptor.storageMode = .shared
+            #endif
+
+            let depthDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: depthStencilPixelFormat,
+                width: width,
+                height: height,
+                mipmapped: false
+            )
+            depthDescriptor.usage = [.renderTarget]
+            depthDescriptor.storageMode = .private
+
+            guard
+                let colourTexture = device.makeTexture(descriptor: colourDescriptor),
+                let depthTexture = device.makeTexture(descriptor: depthDescriptor),
+                let buffer = commandQueue.makeCommandBuffer()
+            else { return nil }
+
+            let pass = MTLRenderPassDescriptor()
+            pass.colorAttachments[0].texture = colourTexture
+            pass.colorAttachments[0].loadAction = .clear
+            pass.colorAttachments[0].storeAction = .store
+            pass.colorAttachments[0].clearColor = clearColor
+            pass.depthAttachment.texture = depthTexture
+            pass.depthAttachment.loadAction = .clear
+            pass.depthAttachment.clearDepth = 1
+            pass.depthAttachment.storeAction = .dontCare
+
+            encodeScene(into: pass, commandBuffer: buffer)
+            #if os(macOS) && !targetEnvironment(macCatalyst)
+                if let blit = buffer.makeBlitCommandEncoder() {
+                    // A managed texture the GPU wrote is not visible to the CPU
+                    // until it is synchronised. Without this, `getBytes` returns
+                    // the texture's initial contents -- zeroes, which read as a
+                    // perfectly plausible black image.
+                    // GPU 寫過的 managed texture,在同步之前 CPU 是看不到的。少了這一步,`getBytes`
+                    // 回傳的是那張 texture 的初始內容——全零,而那讀起來是一張完全合理的黑色影像。
+                    blit.synchronize(resource: colourTexture)
+                    blit.endEncoding()
+                }
+            #endif
+            buffer.commit()
+            buffer.waitUntilCompleted()
+
+            var bgra = [UInt8](repeating: 0, count: width * height * 4)
+            bgra.withUnsafeMutableBytes { raw in
+                colourTexture.getBytes(
+                    raw.baseAddress!,
+                    bytesPerRow: width * 4,
+                    from: MTLRegionMake2D(0, 0, width, height),
+                    mipmapLevel: 0
+                )
+            }
+
+            // The view's pixel format is `.bgra8Unorm` and `WidgetSnapshot` is
+            // RGBA, so red and blue swap. Getting this wrong produces an image
+            // that looks like a plausible render of a scene with different
+            // colours, which is exactly the kind of wrong that survives a glance.
+            // 這個 view 的像素格式是 `.bgra8Unorm`,而 `WidgetSnapshot` 是 RGBA,因此紅與藍要對調。
+            // 弄錯的話,產生的會是一張「看起來像是某個換了配色的場景的合理算繪」——而那正是那種
+            // 「瞄一眼看不出來」的錯。
+            var rgba = bgra
+            var i = 0
+            while i + 3 < rgba.count {
+                rgba.swapAt(i, i + 2)
+                i += 4
+            }
+            return WidgetSnapshot(width: width, height: height, rgbaData: rgba)
         }
 
         private func viewProjectionMatrix() -> simd_float4x4 {
