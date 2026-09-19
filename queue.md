@@ -444,7 +444,7 @@ an empty queue -- mistakes.md entry 1.
     等價檢查(這次只在 iOS 上被問到)。
 
 - [ ] **M10. 一塊 GPU 表面 —— 以 three.js 為量尺,缺的是「app 自己畫」的那一層(2026-09-19,先公開形狀)**
-  - **完整分析在 `testapp/plan/plan-gpu-surface-20260919.md`**,依據是
+  - **完整分析在 `testapp/plan/plan-3D.md`**,依據是
     `/Volumes/LinuxCS/render/three.js`(submodule `ea56c2f4`,0.185.0)、該處的 wiki 筆記、
     `/Volumes/LinuxCS/render/metal-tools`,以及本 repo 的 `BackendFeatures/`。
   - **缺的不是一項功能,而是一整層,但它們全都等同一件事:** three.js 是「scene graph + renderer」;

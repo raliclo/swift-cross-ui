@@ -1,4 +1,14 @@
-# A GPU surface, measured against three.js — plan, 2026-09-19 (Mac)
+# plan-3D — 3D in SwiftCrossUI, measured against three.js
+
+Started 2026-09-19 (Mac) as `plan-gpu-surface-20260919.md` and renamed the same
+day: the subject is 3D in this framework, not one surface, and the file is meant
+to outlive the first slice. `three.js` is named throughout on purpose -- it is
+the yardstick this work is measured against, and a comparison whose reference is
+unnamed cannot be checked.
+
+2026-09-19(Mac)以 `plan-gpu-surface-20260919.md` 開始,同日更名:主題是「這個框架裡的 3D」,
+而不是某一塊表面,而這個檔案要活得比第一刀更久。全文刻意指名 `three.js`——它是這件工作所對照的量尺,
+而一份「參照對象沒有名字」的比較是無法被查證的。
 
 Published before any code is written, which is the rule mistakes entry 12 exists
 to enforce. What follows is what this tree has today, what `three.js` has, and
