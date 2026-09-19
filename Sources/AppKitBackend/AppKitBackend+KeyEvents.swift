@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import SwiftCrossUI
 
 extension AppKitBackend: BackendFeatures.KeyEvents {
@@ -14,6 +15,7 @@ extension AppKitBackend: BackendFeatures.KeyEvents {
         let target = target as! NSKeyEventTarget
         target.isEnabled = environment.isEnabled
         target.onKey = onKey
+        FileHandle.standardError.write("[ke] updateKeyEventTarget set onKey\n".data(using: .utf8)!)
     }
 }
 
@@ -98,19 +100,36 @@ final class NSKeyEventTarget: NSView {
 
     @objc
     private func windowBecameKey() {
+        FileHandle.standardError.write("[ke] windowBecameKey\n".data(using: .utf8)!)
         claimFocus()
     }
 
     private func claimFocus() {
+        FileHandle.standardError
+            .write(
+                "[ke] claimFocus enabled=\(isEnabled) window=\(window != nil) responder=\(type(of: window?.firstResponder as Any)) isSelf=\(window?.firstResponder === self)\n"
+                    .data(using: .utf8)!
+            )
         guard isEnabled, let window, window.firstResponder !== self else { return }
         // A text control keeps focus: typing into one is the case where taking
         // it away is plainly wrong. Everything else in this window is scenery.
         // 文字控制項保有焦點:「正在輸入」正是把焦點搶走明顯錯誤的那個情況。此 window 中其餘的東西都是布景。
         guard !(window.firstResponder is NSText) else { return }
-        window.makeFirstResponder(self)
+        let ok = window.makeFirstResponder(self)
+        FileHandle.standardError
+            .write("[ke] claim ok=\(ok) key=\(window.isKeyWindow)\n".data(using: .utf8)!)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self, let w = self.window else { return }
+            FileHandle.standardError
+                .write(
+                    "[ke] 2s later: responder=\(type(of: w.firstResponder as Any)) isSelf=\(w.firstResponder === self) key=\(w.isKeyWindow)\n"
+                        .data(using: .utf8)!
+                )
+        }
     }
 
     override func keyDown(with event: NSEvent) {
+        FileHandle.standardError.write("[ke] keyDown onKey=\(onKey != nil)\n".data(using: .utf8)!)
         guard isEnabled, report(event, phase: event.isARepeat ? .repeat : .down) else {
             super.keyDown(with: event)
             return

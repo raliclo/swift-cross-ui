@@ -1791,3 +1791,75 @@ regardless. When adding a preference, verify the no-preference default in the sa
 captures, not two. Evidence that something was presented must come from after presentation (UIA
 node, window rect, capture), never from the app's own pre-call log line. A zero-node UIA result
 needs a positive control before it counts.
+
+---
+
+## 22. Measured a window I had resized in the source, and replayed against the one the app had saved
+
+**1 occurrence / 1 day (2026-09-19).**
+
+P72's `.defaultSize` went from 660 to 780 points so its title would stop being clipped. A
+hand-launched capture showed 780 and every coordinate in `actions/mac/P72-stop-and-check.csv` was
+re-measured against it. Under `test.zsh` the window was still 688px — 660 points — because
+`createWindow` calls `setFrameAutosaveName`, and the BUNDLE has its own defaults domain
+(`dev.swiftcrossui.testapp.p72`), which is not the one I had been deleting all day (`P72`, the bare
+executable). Five clicks landed on nothing. The replay exited 0. The diagnostics simply lacked five
+lines, which I read as bad coordinates and re-measured twice more before capturing DURING a harness
+run and seeing 688.
+
+`window_sizes_mac.zsh` documents this trap and does the `defaults delete` before each of ITS
+launches. `test.zsh` does not do it before a replay, so a file measured after any `.defaultSize`
+change is measured against a window the replay will not use.
+
+**Corrective.** Clear the app's own defaults domain — the bundle id — and take the measurement from
+a capture made during a harness run, not a hand-launched one. `sips -g pixelHeight` on that capture
+before trusting a single coordinate.
+
+**量到的是我在原始碼裡改過的視窗,重放跑的卻是 app 自己存下來的那一個**
+
+P72 的 `.defaultSize` 由 660 點改成 780,好讓標題不再被切掉。手動啟動的擷圖顯示 780,而動作檔裡每一個
+座標都是照它重量的。但在 `test.zsh` 之下,視窗仍然是 688 像素(660 點)——因為 `createWindow` 呼叫了
+`setFrameAutosaveName`,而那個 **bundle** 有它自己的 defaults domain(`dev.swiftcrossui.testapp.p72`),
+不是我整天在刪的那一個(`P72`,裸執行檔)。五次點擊落在空處。重放結束碼 0。診斷只是少了五行,而我把那
+讀成「座標不對」,又重量了兩次,直到在**重放進行中**擷圖、看到 688 為止。
+
+`window_sizes_mac.zsh` 記載了這個陷阱,並在它自己每一次啟動前都做 `defaults delete`;`test.zsh` 在重放
+前不做。因此任何在改過 `.defaultSize` 之後量出來的檔案,量的都是重放不會使用的那個視窗。
+
+---
+
+## 23. Discarded a tool's output, then reported the silence as a missing feature — and committed that
+
+**1 occurrence / 1 day (2026-09-19).**
+
+A throwaway action file used the key name `up`. The valid name is `upArrow`, so the parser rejected
+the file. Every run was `zsh test.zsh P72 --macos --actionfile=... >/dev/null 2>&1`, so the
+rejection never appeared anywhere I looked.
+
+No `KEY` line reached the log across six attempts. I concluded `BackendFeatures.KeyEvents` was built
+but not driven: instrumented the backend four times, rewrote its focus logic twice, and committed
+`b4975123` under the title **"BUILT AND NOT DRIVEN"** with a careful trace of everything I had ruled
+out. Keys had worked from the first build. Fixing the key name produced all four assertions
+immediately — and then exposed two real synthesiser defects that the same run measured.
+
+This is entry 6 from the other direction. That one read a PASS out of a filtered log; this read a
+FAILURE out of a discarded one, and wrote it into git history, where the next person inherits it as
+a fact about the code rather than about my shell.
+
+**Corrective.** Never redirect a replay to `/dev/null` while judging whether the thing under test
+works. A negative conclusion needs MORE output than a positive one, not less: when the claim is
+"nothing happened", the run's own report is the only thing that separates *the file was rejected*
+from *the feature is dead*.
+
+**把工具的輸出丟掉,然後把那份寂靜當成「功能不存在」回報——而且提交了出去**
+
+一份臨時動作檔用了按鍵名稱 `up`,而合法的名稱是 `upArrow`,於是解析器拒絕了整個檔案。每一次執行都是
+`zsh test.zsh ... >/dev/null 2>&1`,因此那個拒絕從來沒有出現在我看得到的任何地方。
+
+連續六次嘗試,log 裡一行 `KEY` 都沒有。我判定 `BackendFeatures.KeyEvents` 是「建好、未驅動」:替 backend
+加了四次儀器、把焦點邏輯重寫兩次,並以 **「BUILT AND NOT DRIVEN」** 為題提交了 `b4975123`,還附上一份
+「我已排除了什麼」的仔細追蹤。按鍵從第一次建置起就是好的。把按鍵名稱改對之後,四項斷言立刻全部成立
+——而且同一次執行還量出了兩個真實的 synthesiser 缺陷。
+
+這是第 6 條的反面。那一條是從「被過濾過的 log」裡讀出一個**通過**;這一條是從「被丟掉的輸出」裡讀出一個
+**失敗**,並把它寫進了 git 歷史——下一個人會把它當成關於程式碼的事實繼承下去,而它其實只是關於我的 shell。

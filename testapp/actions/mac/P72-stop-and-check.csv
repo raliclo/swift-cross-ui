@@ -2,7 +2,7 @@ action,x,y,origin,button,key,micros,note,platform
 # P72: does the mesh view draw ONLY when it is asked to?
 #
 # Coordinates are origin=frame, read off testapp/output/screenshots/
-# P72-measure3-20260919-181212.png, a 520x688 capture of a 520x660 window -- so
+# P72-taller-20260919-213420.png, a 520x808 capture of a 520x780 window -- so
 # 1x, and the 28px difference is the title bar the frame origin includes.
 #
 # RE-MEASURED after the mesh view was narrowed from 440x300 to 340x240 points,
@@ -15,6 +15,29 @@ action,x,y,origin,button,key,micros,note,platform
 # RE-MEASURED AGAIN when "Auto spin" was added as a third button: x moved from
 # 75/191 to 190/305 while y stayed at 511. Twice in one day, which is the
 # argument for the note above rather than against it.
+#
+# **The four key rows need no coordinates, which is the one pleasant thing about
+# them.** A key goes to the first responder, and AppKitBackend's key target makes
+# itself first responder when the window becomes key. So these rows cannot be
+# invalidated by a layout change, and they are last so nothing after them can be.
+#
+# They assert four things, and two of them were failing until 2026-09-19:
+#
+#   KEY 1 'U+F700' shift=no  step 0.1  height 1.40
+#   MODIFIERS down shift=true          <- a modifier alone, with no key
+#   KEY 2 'U+F700' shift=yes step 1.0  height 2.40
+#   MODIFIERS up shift=false
+#
+# The U+F700 was U+001E before the synthesiser was fixed, so the arrow matched
+# nothing and the height never moved; and the last line said shift=TRUE, because
+# the synthesiser released the modifier after building the event rather than
+# before. Both are fixed in AppKitSynthesiser and both are recorded there.
+#
+# AND A SEVENTH TIME, when the window grew from 660 to 780 points. It had to:
+# with the key readout added the content no longer fitted, and the title was
+# clipped at the top of the window -- reported by a person looking at it, not by
+# anything here. Nothing in this tree measures whether an app's own text is cut
+# off, which is worth knowing given how much of this file is about measurement.
 #
 # AND A SIXTH TIME, after a fixed 400x640 frame was put around the column and
 # then taken off again. The frame was an attempt to stop the column moving; it
@@ -117,11 +140,23 @@ action,x,y,origin,button,key,micros,note,platform
 # P72:這個 mesh view 是否**只在被要求時**才繪製?
 #
 # 座標為 origin=frame,量自 testapp/output/screenshots/P72-measure3-20260919-181212.png
-# ——一張 520x688 的擷圖、對應 520x660 的視窗,因此是 1x,而那 28 像素的差是 frame 原點所含的標題列。
+# ——一張 520x808 的擷圖、對應 520x780 的視窗,因此是 1x,而那 28 像素的差是 frame 原點所含的標題列。
 #
 # 這是在 mesh view 由 440x300 點縮為 340x240 點之後**重新量過**的——而那非縮不可:440 加上左右各 20 的
 # padding,整欄會比一支 440 點寬的手機還寬,於是 iOS 把每一行的兩側都切掉了。那讓這一列上移 30 像素,
 # 由 y 541 變成 y 511,而舊座標會點到下面那一行。對著某一次建置量出來的檔案,不是對著下一次建置量的。
+#
+# **那四列按鍵不需要座標,而那是它們唯一令人愉快的地方。** 一個按鍵會送到 first responder,而
+# AppKitBackend 的按鍵 target 會在 window 成為 key 時讓自己成為 first responder。因此這幾列不會被任何
+# 版面變動作廢;而它們排在最後,所以也沒有東西會被它們影響。
+#
+# 它們斷言四件事,而其中兩件在 2026-09-19 之前是壞的(內容見上方英文區塊)。修好之前:U+F700 是 U+001E,
+# 因此方向鍵什麼都對不上、高度從來沒動過;而最後一行寫的是 shift=TRUE,因為 synthesiser 是在建構事件
+# **之後**才釋放修飾鍵、而不是之前。兩者都已在 AppKitSynthesiser 修正,也都記在該處。
+#
+# **第七次重新量測**發生在視窗由 660 點加高到 780 點時。非加不可:加上按鍵讀數之後內容已經放不下,
+# 標題在視窗頂端被切掉——那是**由人看出來的**,不是這裡任何東西量出來的。這棵樹沒有任何機制會去量
+# 「一支 app 自己的文字有沒有被切掉」,而考慮到這份檔案有多大篇幅在談量測,那件事值得知道。
 #
 # **第五次重新量測**發生在捲動加入時:它多出的兩行讀數,把第一列由 478 移到 467、第二列由 507 移到 496,
 # 而 mesh view 的中心由 y 242 移到 235。
@@ -180,19 +215,27 @@ action,x,y,origin,button,key,micros,note,platform
 # 檔案唯一視為失敗的結果——一個嚴到能區分 1 與 3 的門檻,斷言的會是「一次按下經過幾個狀態」,
 # 而那不是此處要測的東西。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,macos
-move,239,236,frame,,,,put the pointer over the mesh view -- a scroll goes where the pointer is,macos
+move,239,284,frame,,,,put the pointer over the mesh view -- a scroll goes where the pointer is,macos
 sleep,,,,,,300000,,macos
 scroll,0,5,,,,,five notches down: dy +80 and the camera must come CLOSER,macos
 sleep,,,,,,400000,,macos
 scroll,0,-5,,,,,and five back up: dy -80 and the distance must return,macos
 sleep,,,,,,400000,,macos
-click,113,496,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
+click,113,547,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
 sleep,,,,,,300000,,macos
-click,210,496,frame,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",macos
+click,210,547,frame,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",macos
 sleep,,,,,,300000,,macos
-click,120,467,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
+click,120,518,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,macos
-click,238,467,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
+click,238,518,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",macos
-click,354,467,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
+click,354,518,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
 sleep,,,,,,500000,let the readout settle before the capture,macos
+key,,,,,upArrow,,plain Up -- height must rise by 0.1 and the key must be U+F700,macos
+sleep,,,,,,300000,,macos
+keydown,,,,,shift,,"hold Shift -- MODIFIERS down shift=true, with NO key",macos
+sleep,,,,,,300000,,macos
+key,,,,,upArrow,,Shift-Up -- the step must be 1.0 rather than 0.1,macos
+sleep,,,,,,300000,,macos
+keyup,,,,,shift,,release -- MODIFIERS up shift=false,macos
+sleep,,,,,,500000,,macos

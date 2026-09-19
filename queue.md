@@ -538,22 +538,32 @@ an empty queue -- mistakes.md entry 1.
     app 之後仍持續算繪(沒有卡住);調換順序會改變「哪一個動作觸發」。同一段序列在 11:21、於捲動與
     快照加入之前是跑得完的。**它不是捲動的缺陷**——`actions/ios/P72-scroll.csv`(只有捲動)通過,
     而 macOS 那份六項全過。該檔頭部已加上不會被誤讀為通過的警示。
-  - **[🔨 建好、未驅動] §10.7 第 4 項「原始按鍵」與第 5 項的焦點那一半(2026-09-19):**
-    `BackendFeatures.KeyEvents` + `KeyPress` + `.onKeyPress`,AppKit 與 UIKit 皆已實作、皆編得過。
-    **但 macOS 上至今一次按鍵都沒有送達那個 view,因此它不算完成。** 依這棵樹自己的標準:編得過不等於會動。
-    - 重用既有的 `KeyEquivalent` 與 `EventModifiers`,不另造第二套按鍵語彙。連帶繼承其限制並寫明:
-      它是**字元**而非實體按鍵,所以 **AZERTY 上的 WASD 是 ZQSD**。
-    - `KeyPress.key` 可為 `nil`,代表「只有修飾鍵改變」——SwiftUI 的 `KeyPress` 沒有這個情況,而
-      §10.7 第 4 項(「修飾鍵切換拖曳模式」)要的正是它。
-    - **追到哪裡為止:** target 有被建立(`createKeyEventTarget` 有被呼叫)、有進到 window
-      (`viewDidMoveToWindow` 有跑),但在那一刻 `window.isKeyWindow` 是 **false**、
-      `window.firstResponder` 是 **nil**。改為在 `NSWindow.didBecomeKeyNotification` 時才搶焦點
-      (那是正確的 AppKit 做法),**仍然**一行 KEY 都沒有。下一步該查的是:那個 target 是否真的成為了
-      first responder、以及 `-actionfile` 的 `key` 列是送到哪裡去了(P71 的選單快捷鍵走的是選單,
-      不經過 responder chain,因此它能過並不能證明 responder chain 是通的)。
-    - UIKit 那一份用 `pressesBegan`/`pressesEnded`(不是 `UIKeyCommand`——後者回報不了鍵放開、也回報不了
-      單獨按住修飾鍵),**完全未驅動**:模擬器沒有實體鍵盤,而 iOS runner 也還沒有 key 這個動作。
-  - **SoftPCB §10.7 剩下的:** 原始按鍵(上面那一項,未驅動)、游標、右鍵選單。
+  - **§10.7 第 4 項「原始按鍵」與第 5 項的焦點那一半已關掉(2026-09-19,macOS):**
+    `BackendFeatures.KeyEvents` + `KeyPress` + `.onKeyPress`。macOS 實測全部四項:
+    `KEY 1 'U+F700' shift=no step 0.1 height 1.40` / `MODIFIERS down shift=true` /
+    `KEY 2 'U+F700' shift=yes step 1.0 height 2.40` / `MODIFIERS up shift=false`。
+    - 重用既有的 `KeyEquivalent` 與 `EventModifiers`,不另造第二套語彙;連帶繼承其限制並寫明:
+      它是**字元**而非實體按鍵,**AZERTY 上的 WASD 是 ZQSD**。
+    - `KeyPress.key` 可為 `nil` = 只有修飾鍵改變。SwiftUI 沒有這個情況,而第 4 項要的正是它。
+    - 焦點由 backend 在 `NSWindow.didBecomeKeyNotification` 時取得(第 5 項的一半)。
+      **先前版本在 `viewDidMoveToWindow` 就搶,那時 `isKeyWindow` 是 false、`firstResponder` 是 nil,
+      因此什麼都沒搶到。**
+  - **我先前把這一項判成「建好、未驅動」,那是錯的,而錯在我自己的臨時動作檔。** 我寫了
+    `key,,,,,up`,而合法的名稱是 `upArrow`;同時我每次都用 `>/dev/null` 丟掉重放本身的輸出,
+    因此那個解析錯誤從來沒有浮出來。教訓:**丟掉重放的輸出,等於把「檔案根本沒跑」偽裝成「功能沒作用」。**
+  - **這一刀在 synthesiser 裡抓到兩個真缺陷(`AppKitSynthesiser`,兩個都會靜默地騙人):**
+    1. **方向鍵送達的是 U+001E,不是 U+F700。** `UCKeyTranslate` 對 `kVK_UpArrow` 回傳 ASCII 的記錄
+       分隔符,而 AppKit 在任何 view 看到事件之前會換成 `NSUpArrowFunctionKey`。因此**重放的方向鍵與
+       實體方向鍵是不同的鍵**:任何以方向鍵為主的測試,都會自己跟自己一致、卻跟現實不一致。
+       已加 `functionKeyCharacter(for:)`,涵蓋方向鍵、F1–F20、home/end/pageUp/pageDown/forwardDelete。
+    2. **修飾鍵放開時,事件仍聲稱它被按住。** `.keyUp` 是先 post 再 `release`,而 flagsChanged 帶的是
+       「此刻」的狀態。於是一個「看修飾鍵切換模式」的 app 會切進去、再也切不回來。已改為先 release。
+  - **另一個關於測試設備的發現:`test.zsh` 不會清掉 app 自己存的視窗尺寸。** 把 `.defaultSize` 由 660 改成
+    780 之後,重放跑的仍是舊的 660(bundle id `dev.swiftcrossui.testapp.p72` 有自己的 autosave domain),
+    於是每一個座標都落空。`window_sizes_mac.zsh` 記過這個陷阱,但 `test.zsh` 沒有清。
+  - **UIKit 那一份仍未驅動**:用 `pressesBegan`/`pressesEnded`(不是 `UIKeyCommand`——後者回報不了鍵放開、
+    也回報不了單獨按住修飾鍵),但模擬器沒有實體鍵盤,iOS runner 也還沒有 key 這個動作。
+  - **SoftPCB §10.7 剩下的:** 游標、右鍵選單。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

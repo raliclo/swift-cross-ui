@@ -544,7 +544,8 @@ final class P72Model: SwiftCrossUI.ObservableObject {
             String(
                 format: "KEY %d '%@' shift=%@ step %.1f height %.2f",
                 keyCount,
-                lastKey == " " ? "space" : lastKey,
+                lastKey == " " ? "space" :
+                    "U+\(String(format: "%04X", key.character.unicodeScalars.first!.value))",
                 shiftHeld ? "yes" : "no",
                 Double(step),
                 Double(cameraHeight)
@@ -732,7 +733,7 @@ struct P72App: App {
                 P72RootView()
             }
         }
-        .defaultSize(width: 520, height: 660)
+        .defaultSize(width: 520, height: 780)
     }
 }
 
