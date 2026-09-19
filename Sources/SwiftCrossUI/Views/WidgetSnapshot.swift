@@ -1,4 +1,5 @@
 import Foundation
+import ImageFormats
 
 /// The pixels a widget drew, plus enough to write them to a file.
 ///
@@ -71,119 +72,44 @@ public struct WidgetSnapshot: Equatable, Sendable {
 
     /// Encodes the snapshot as a PNG.
     ///
-    /// **Uncompressed, and that is a deliberate trade rather than an oversight.**
-    /// The deflate stream is written as stored blocks, which is a valid deflate
-    /// stream that every PNG reader accepts and which needs no zlib: about
-    /// eighty lines of CRC-32 and Adler-32 instead of a C dependency that five
-    /// backends -- one of them Android, one of them Windows -- would each have to
-    /// resolve. A 1020x720 snapshot lands around 2.9 MB. These files exist to be
-    /// looked at once and deleted, so size is the cheap axis; a build that fails
-    /// to link zlib on one platform is not.
+    /// **This was eighty hand-written lines until 2026-09-19, and the argument
+    /// for them did not survive being checked.** The note here used to say that
+    /// writing the deflate stream as stored blocks avoided "a zlib dependency
+    /// that five backends would each have to resolve". PNG does require a zlib
+    /// STREAM -- the format defines IDAT that way -- but not the zlib LIBRARY,
+    /// because stored blocks are valid deflate. That part was right. What was
+    /// wrong was the premise: `SwiftCrossUI` already depends on `ImageFormats`
+    /// unconditionally, for every platform and every build, and `ImageFormats`
+    /// already links libpng and zlib. The dependency being avoided was already
+    /// present, so the whole trade was paying file size for nothing -- and the
+    /// size it was paying was not the "about 4x" the old note guessed either.
+    /// Measured on P72's snapshot, 2026-09-19: 326,728 bytes stored against
+    /// 1,416 through libpng, a factor of 231. A flat-shaded cube is nearly all
+    /// runs of one colour, which is the case deflate is best at.
+    ///
+    /// The hand-written encoder did produce valid files -- python's `zlib` and
+    /// `sips` both read one. It was correct and pointless, which is a harder
+    /// thing to notice than a defect.
     ///
     /// 把這張快照編碼成 PNG。
     ///
-    /// **未壓縮,而那是刻意的取捨,不是疏漏。** deflate 串流是以 stored block 寫出的——那是一個合法的
-    /// deflate 串流,每一個 PNG 讀取器都接受,而且**不需要 zlib**:大約八十行的 CRC-32 與 Adler-32,
-    /// 換掉一個「五個 backend(其中一個是 Android、一個是 Windows)各自都要想辦法解析」的 C 相依。
-    /// 一張 1020x720 的快照大約 2.9 MB。這些檔案的用途是被看一次然後刪掉,因此檔案大小是便宜的那一軸;
-    /// 而「在某個平台上連不起 zlib 的建置」不是。
-    public func pngData() -> Data {
-        var raw = Data()
-        raw.reserveCapacity(height * (1 + width * 4))
-        for y in 0..<height {
-            // Filter byte 0 (None) per scanline. PNG requires one, and None is
-            // the right one here: the filters exist to help compression, and
-            // nothing is compressing this.
-            // 每一條掃描線前面一個 filter 位元組 0(None)。PNG 要求要有一個,而此處 None 是對的:
-            // filter 的用途是幫助壓縮,而這裡沒有任何東西在壓縮。
-            raw.append(0)
-            let start = y * width * 4
-            raw.append(contentsOf: rgbaData[start..<min(start + width * 4, rgbaData.count)])
-        }
-
-        var png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
-
-        var ihdr = Data()
-        ihdr.append(bigEndian: UInt32(width))
-        ihdr.append(bigEndian: UInt32(height))
-        ihdr.append(contentsOf: [8, 6, 0, 0, 0]) // 8-bit, RGBA, deflate, no filter, no interlace
-        png.append(chunk: "IHDR", ihdr)
-        png.append(chunk: "IDAT", zlibStored(raw))
-        png.append(chunk: "IEND", Data())
-        return png
-    }
-}
-
-/// A zlib stream whose deflate blocks are all stored (uncompressed).
-/// 一個 zlib 串流,其 deflate 區塊全部是 stored(未壓縮)。
-private func zlibStored(_ raw: Data) -> Data {
-    // 0x78 0x01: deflate, 32K window, no preset dictionary, fastest level. The
-    // two bytes must satisfy (CMF << 8 | FLG) % 31 == 0 or a reader rejects the
-    // stream -- 0x7801 does.
-    // 0x78 0x01:deflate、32K 視窗、無預設字典、最快等級。這兩個位元組必須滿足
-    // (CMF << 8 | FLG) % 31 == 0,否則讀取器會拒絕整個串流——0x7801 滿足。
-    var out = Data([0x78, 0x01])
-    let blockSize = 65535
-    var offset = 0
-    repeat {
-        let count = min(blockSize, raw.count - offset)
-        let isLast = offset + count >= raw.count
-        out.append(isLast ? 1 : 0)
-        out.append(littleEndian16: UInt16(count))
-        out.append(littleEndian16: UInt16(count) ^ 0xFFFF)
-        out.append(raw[raw.startIndex + offset..<raw.startIndex + offset + count])
-        offset += count
-    } while offset < raw.count
-    out.append(bigEndian: adler32(raw))
-    return out
-}
-
-private func adler32(_ data: Data) -> UInt32 {
-    var a: UInt32 = 1
-    var b: UInt32 = 0
-    for byte in data {
-        a = (a + UInt32(byte)) % 65521
-        b = (b + a) % 65521
-    }
-    return (b << 16) | a
-}
-
-private let crcTable: [UInt32] = (0..<256).map { i -> UInt32 in
-    var c = UInt32(i)
-    for _ in 0..<8 {
-        c = (c & 1) != 0 ? 0xEDB8_8320 ^ (c >> 1) : c >> 1
-    }
-    return c
-}
-
-private func crc32(_ data: Data) -> UInt32 {
-    var c: UInt32 = 0xFFFF_FFFF
-    for byte in data {
-        c = crcTable[Int((c ^ UInt32(byte)) & 0xFF)] ^ (c >> 8)
-    }
-    return c ^ 0xFFFF_FFFF
-}
-
-extension Data {
-    fileprivate mutating func append(bigEndian value: UInt32) {
-        Swift.withUnsafeBytes(of: value.bigEndian) { append(contentsOf: $0) }
-    }
-
-    fileprivate mutating func append(littleEndian16 value: UInt16) {
-        Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
-    }
-
-    /// A PNG chunk: length, type, payload, then a CRC over the TYPE AND THE
-    /// PAYLOAD -- not over the length. Including the length is the classic
-    /// mistake here, and it produces a file that every reader rejects with
-    /// "CRC error" rather than one that half-works.
-    /// 一個 PNG chunk:長度、型別、內容,然後是一個涵蓋**型別與內容**的 CRC——**不含長度**。把長度也算
-    /// 進去是此處的經典錯誤,而它產生的是一個「每個讀取器都以 CRC error 拒絕」的檔案,不是一個半能用的檔案。
-    fileprivate mutating func append(chunk type: String, _ payload: Data) {
-        append(bigEndian: UInt32(payload.count))
-        var body = Data(type.utf8)
-        body.append(payload)
-        append(body)
-        append(bigEndian: crc32(body))
+    /// **在 2026-09-19 之前,這裡是八十行手寫的程式,而支持它們的那個論證經不起查證。** 此處的註解原本
+    /// 寫著:把 deflate 串流寫成 stored block,可以避開「一個五個 backend 各自都要解決的 zlib 相依」。
+    /// PNG 確實需要一個 zlib **串流**(格式就是這樣定義 IDAT 的),但不需要 zlib **函式庫**——因為
+    /// stored block 本來就是合法的 deflate。那一半是對的。錯的是前提:`SwiftCrossUI` 本來就**無條件**
+    /// 相依 `ImageFormats`(每個平台、每種建置都一樣),而 `ImageFormats` 本來就連結了 libpng 與 zlib。
+    /// 那個被「避開」的相依,原本就已經在了;於是整個取捨等於白白付出檔案大小——而且付出的量,也不是舊註解
+    /// 所猜的「大約四倍」。2026-09-19 以 P72 的快照實測:stored 是 326,728 位元組,經 libpng 是 1,416,
+    /// 相差 231 倍。一個平面著色的立方體幾乎全是同色的連續段,而那正是 deflate 最擅長的情況。
+    ///
+    /// 那個手寫的編碼器確實產生得出合法檔案——python 的 `zlib` 與 `sips` 都讀得進去。它是**正確而無用的**,
+    /// 而那比一個缺陷更難被察覺。
+    public func pngData() throws -> Data {
+        let image = ImageFormats.Image<RGBA>(
+            width: width,
+            height: height,
+            bytes: rgbaData
+        )
+        return Data(try image.encodeToPNG())
     }
 }

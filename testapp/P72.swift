@@ -489,8 +489,8 @@ final class P72Model: SwiftCrossUI.ObservableObject {
                     #endif
                 }()
         let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-snapshot.png")
-        let png = shot.pngData()
         do {
+            let png = try shot.pngData()
             try png.write(to: url)
             P72Diagnostics.write("SNAPSHOT PNG \(png.count) bytes to \(url.path)")
         } catch {
