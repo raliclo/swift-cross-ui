@@ -140,7 +140,10 @@ Windows 工作:P38 WebView2、P41 圖形版 DatePicker 寫回、#128 小數 padd
       都做了,排除「容器根本捲不動」。**途中找到 GTK 4.22.4 的崩潰**:觸控裝置在手勢剛結束時被移除,
       GDK 釋放了手勢仍握著的裝置,`_gdk_win32_get_cursor_pos` 存取違規(交錯 A/B:立即移除 4/6 崩、
       延後 3 秒 0/6)。真機上等同拔掉觸控螢幕或遠端桌面移除觸控裝置。已在
-      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。WSL 未驅動。細節見 results.csv2。
+      `GtkCHelpers/gtk_device_lifetime.c` 防護,修後 10/10 存活。細節見 results.csv2。
+      ~~WSL 未驅動。~~ **WSL 已補(2026-09-18):** `GDK_BACKEND=x11` 下以 xdotool 拖曳(WSLg 沒有合成觸控裝置,
+      所以是**滑鼠**拖曳;`GtkScrolledWindow` 只對**觸控**做平移,因此這裡只回答滑桿那一半,容器搶不搶仍以
+      Windows 的量測為準)。座標另外在 WSLg 上擷圖量過(視窗 760x710),水平到 99、垂直到 97,app 存活,沒有被搶。
       **回報上游那一項改記在 `todo-Gtk.md`**(2026-09-18 使用者指定):那是 GTK 自己的缺陷,而且對外回報
       要先取得同意。
 - [x] **Android WebView 少報一次導覽。** `CustomWebView` 只從 `shouldOverrideUrlLoading` 回報,而
@@ -2666,7 +2669,7 @@ Set by the user on 2026-09-17. Pick these up only when nothing above is open.
   (P51、P54 同樣是 ScrollView root 且正常)。GtkBackend 對 P52 從未印出 `content size:` 那行診斷,而該行有
   `allocated.height > 0` 的守衛——也就是內容被配置到**零高度**。WinUI 正常(1002x932)。
 
-- [ ] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
+- [x] **GtkBackend on Windows has NO accessibility at all.** Measured 2026-09-17
   with `testapp/test_support/measure/p69_uia.zsh`: P69-gtk4.exe exposes one UIA
   node, the window, and nothing inside it (probe exit 1). `GTK_A11Y=help` on the
   installed bundle prints `accesskit - Disabled during GTK build` and
@@ -2697,3 +2700,32 @@ Set by the user on 2026-09-17. Pick these up only when nothing above is open.
   conda-forge、vcpkg 都沒開;GTK 官方 CI 的 MSVC 工作有開,但只保存 log。**可能最便宜、尚未試過的路**:
   沿用 `C:/gtk4` 既有依賴,只重編 GTK 4.22.4(meson 內建 `accesskit-c` 子專案,需 Rust MSVC target),
   換掉 `gtk-4-1.dll`。
+
+  **DONE 2026-09-18, and that cheapest path was the one that worked.** GTK 4.22.4
+  was rebuilt with `-Daccesskit=enabled` against the existing `C:/gtk4`
+  dependencies, into `C:/gtk4-accesskit`, and the recipe is committed as
+  `testapp/install_gtk4_accesskit_windows.zsh`. `GTK_A11Y=help` now reads
+  `accesskit - Use the AccessKit accessibility backend`, and an out-of-process
+  UIA dump of P69 holds the whole tree where it held one node. Five obstacles,
+  each written into the script: vcvars in 8.3 form, the bundle's `pkgconf` (the
+  `pkg-config` on PATH splits its search path on `:`), `C:/gtk4/bin` on PATH for
+  the bundle's tools, **clang-cl instead of cl** (MSVC dies with `C1060 out of
+  heap` on the 7.3 MB generated `gtkresources.c`), and two flags GTK gives only
+  to `msvc` (`-D_USE_MATH_DEFINES`, `-Df16c=disabled`). One local source patch:
+  `gtk/gtksvg.c`'s `<tgmath.h>` against the MSVC CRT's complex types.
+  **2026-09-18 完成,而且走的就是上面那條最省的路。** 以現有 `C:/gtk4` 的依賴重建 GTK 4.22.4(開啟 AccessKit),
+  安裝到 `C:/gtk4-accesskit`,配方已提交為 `testapp/install_gtk4_accesskit_windows.zsh`。
+
+- [ ] **AccessKit maps the NAME and the hidden state, and not the rest.** With
+  the new build, `p69_uia.zsh` (now class-agnostic, so it grades both Windows
+  backends; WinUI still 18/18) passes `label`, `hidden` and `derived_names` on
+  GTK and fails four: `hint` (GTK's accessible DESCRIPTION does not arrive as
+  UIA HelpText), `value` (VALUE_TEXT does not arrive as ItemStatus),
+  `text_label`/`no_original_text` (a `Text` with `.accessibilityLabel` still
+  reads `12:30`, while AT-SPI on WSLg reads `Half past twelve`), and
+  `no_duplicate_text` (a named button keeps its label child, which AT-SPI also
+  does). Whether each belongs to AccessKit's mapping, GTK's AccessKit context,
+  or this backend is the open question.
+  **AccessKit 只帶過來「名稱」與「隱藏狀態」。** 新建置下 GTK 通過 label、hidden、derived_names,
+  另外四項未過:hint、value、`Text` 的標籤覆寫,以及具名按鈕仍保留文字子節點。是 AccessKit 的對應、GTK 的
+  AccessKit context,還是本 backend 的責任,尚待釐清。

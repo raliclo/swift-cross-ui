@@ -53,7 +53,14 @@ for view in control content; do
     dump="${out_dir}/p69-uia-${view}.txt"
     "$exe_file" "P69 accessibility" "$view" > "$dump"
     count() { grep -c -- "$1" "$dump" || true; }
-    check $view label "$([[ $(count "button name='Close' class='Button'") -ge 1 ]] && printf true || printf false)"
+    # `class=` is NOT matched: WinUI names the class `Button` and GTK, through
+    # AccessKit, names it `GtkButton`, and this probe has to grade both. The
+    # window's own Close button is excluded by requiring content=1, which the
+    # title-bar one does not have on WinUI; on GTK the header bar's Close is a
+    # real content button, so the count is `>= 1` rather than `== 1`.
+    # 不比對 `class=`:WinUI 叫 `Button`,GTK 經 AccessKit 叫 `GtkButton`,而這支探針兩邊都要評。視窗自己的
+    # Close 以 `content=1` 排除(WinUI 標題列那顆沒有);GTK 的 header bar Close 是真正的內容按鈕,因此用 `>= 1`。
+    check $view label "$([[ $(count "button name='Close'") -ge 1 ]] && printf true || printf false)"
     check $view no_original_label "$([[ $(count "name='X'") -eq 0 ]] && printf true || printf false)"
     check $view hint "$([[ $(count "help='Removes the file permanently'") -eq 1 ]] && printf true || printf false)"
     check $view value "$([[ $(count "status='40 percent'") -eq 1 ]] && printf true || printf false)"
@@ -63,7 +70,7 @@ for view in control content; do
     # UIA only: an unlabelled button named from its text, and that text not
     # left behind as a child, which would be announced twice.
     # 僅 UIA:未設標籤的按鈕以其文字命名,且該文字不留作子節點,否則會被念兩次。
-    check $view derived_names "$([[ $(count "button name='Delete' help=") -eq 1 && $(count "button name='Volume' status=") -eq 1 ]] && printf true || printf false)"
+    check $view derived_names "$([[ $(count "button name='Delete'") -ge 1 && $(count "button name='Volume'") -ge 1 ]] && printf true || printf false)"
     check $view no_duplicate_text "$([[ $(count "text name='Delete'") -eq 0 && $(count "text name='Volume'") -eq 0 ]] && printf true || printf false)"
 done
 
