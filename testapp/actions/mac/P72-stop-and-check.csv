@@ -1,0 +1,91 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72: does the mesh view draw ONLY when it is asked to?
+#
+# Coordinates are origin=frame, read off testapp/output/screenshots/
+# P72-measure3-20260919-181212.png, a 520x688 capture of a 520x660 window -- so
+# 1x, and the 28px difference is the title bar the frame origin includes.
+#
+# RE-MEASURED after the mesh view was narrowed from 440x300 to 340x240 points,
+# which it had to be: at 440 plus 20 of padding each side the column was wider
+# than a 440-point phone and iOS clipped both edges of every line. That moved
+# this row 30px up, from y 541 to y 511, and the old coordinates would have
+# clicked the line below. A file measured against one build is not a file
+# measured against the next one.
+#
+# RE-MEASURED AGAIN when "Auto spin" was added as a third button: x moved from
+# 75/191 to 190/305 while y stayed at 511. Twice in one day, which is the
+# argument for the note above rather than against it.
+#
+# **The cube turning is not what this file tests.** That is read from two
+# captures a second apart, which needs no input at all. What needs input is the
+# opposite question: with the clock STOPPED, does the frame count stay put?
+#
+# `MTKView` defaults to driving itself at 60 Hz. `Mesh3DMetalView` sets
+# `enableSetNeedsDisplay = true` so that the framework's `FrameClocks` is the
+# only thing that makes it draw. If that line were deleted, every other piece of
+# evidence in this app would look exactly the same -- the cube would turn, the
+# count would climb, two captures would differ -- and the renderer would be
+# burning a GPU on a still picture in every app that ever shows a mesh. This
+# file is the only thing here that would notice.
+#
+# **The line is named from a measurement, not from memory.** Deleting
+# `isPaused = true` was tried first, on the assumption that it was the one doing
+# the work; the count still moved by 1 and the file still passed.
+# `enableSetNeedsDisplay = true` makes the view ignore `isPaused` entirely.
+# Deleting THAT gave 90, which is 1.5 seconds at 60 Hz. Both runs are on record
+# in the note at that line.
+#
+# Expected in testapp/p72-debug-events.log:
+#
+#   STOPPED at frame N
+#   CHECK at frame M, D since the stop
+#
+# with D a small number. Each button press commits the view, and a commit hands
+# the view a scene and asks for one frame. Measured here on 2026-09-19: D = 1 on
+# AppKit, and 3 on UIKit, where a tap also puts the button through touch-down
+# and touch-up. Anything near 90 (1.5 seconds at 60 Hz) is the free-running
+# case, and that is the only outcome this file calls a failure -- a threshold
+# tight enough to separate 1 from 3 would be asserting how many states a press
+# goes through, which is not what is being tested.
+#
+# P72:這個 mesh view 是否**只在被要求時**才繪製?
+#
+# 座標為 origin=frame,量自 testapp/output/screenshots/P72-measure3-20260919-181212.png
+# ——一張 520x688 的擷圖、對應 520x660 的視窗,因此是 1x,而那 28 像素的差是 frame 原點所含的標題列。
+#
+# 這是在 mesh view 由 440x300 點縮為 340x240 點之後**重新量過**的——而那非縮不可:440 加上左右各 20 的
+# padding,整欄會比一支 440 點寬的手機還寬,於是 iOS 把每一行的兩側都切掉了。那讓這一列上移 30 像素,
+# 由 y 541 變成 y 511,而舊座標會點到下面那一行。對著某一次建置量出來的檔案,不是對著下一次建置量的。
+#
+# 在「Auto spin」作為第三個按鈕加入時**再一次重新量過**:x 由 75/191 變成 190/305,y 仍然是 511。
+# 一天之內兩次——那是支持上面那段註記的理由,不是反對它的理由。
+#
+# **立方體會不會轉,不是這份檔案在測的東西。** 那是從相隔一秒的兩張擷圖讀出來的,根本不需要輸入。
+# 需要輸入的是相反的那個問題:在時鐘**停掉**之後,幀計數會不會停住?
+#
+# `MTKView` 預設會自己以 60 Hz 驅動自己。`Mesh3DMetalView` 設了 `enableSetNeedsDisplay = true`,
+# 好讓框架的 `FrameClocks` 成為唯一讓它繪製的東西。若那一行被刪掉,本 app 中其他每一項證據看起來都會
+# 一模一樣——立方體會轉、計數會爬、兩張擷圖會不同——而那個 renderer 會在每一支顯示 mesh 的 app 裡,
+# 為了一張靜止畫面燒掉一顆 GPU。此處只有這份檔案會發覺。
+#
+# **那一行是量出來的,不是憑印象寫的。** 一開始刪的是 `isPaused = true`,以為起作用的是它;結果計數
+# 仍然只動了 1,這份檔案照樣通過。`enableSetNeedsDisplay = true` 會讓這個 view 完全忽略 `isPaused`。
+# 刪掉**那一行**才得到 90——也就是 1.5 秒乘以 60 Hz。兩次執行都記在該行的註解裡。
+#
+# 預期出現在 testapp/p72-debug-events.log:
+#
+#   STOPPED at frame N
+#   CHECK at frame M, D since the stop
+#
+# 而 D 是一個小數字。每一次按鈕按下都會使 view commit,而一次 commit 會把場景交給 view 並要求一幀。
+# 2026-09-19 在此實測:AppKit 的 D = 1、UIKit 的 D = 3(在 UIKit 上,一次點擊還會讓按鈕經過
+# touch-down 與 touch-up)。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況,而那也是這份
+# 檔案唯一視為失敗的結果——一個嚴到能區分 1 與 3 的門檻,斷言的會是「一次按下經過幾個狀態」,
+# 而那不是此處要測的東西。
+sleep,,,,,,2000000,let the clock run so the count is plainly moving first,macos
+click,70,511,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
+sleep,,,,,,1000000,long enough for a capture to show the camera still moving,macos
+click,190,511,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
+sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",macos
+click,305,511,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
+sleep,,,,,,500000,let the readout settle before the capture,macos

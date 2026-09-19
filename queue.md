@@ -443,7 +443,7 @@ an empty queue -- mistakes.md entry 1.
   - **仍未做**:Narrator 的實際朗讀(那邊)、以及 `.accessibilityLabel` 對 `Text` 在其他 backend 上的
     等價檢查(這次只在 iOS 上被問到)。
 
-- [ ] **M10. 一塊 GPU 表面 —— 以 three.js 為量尺,缺的是「app 自己畫」的那一層(2026-09-19,先公開形狀)**
+- [~] **M10. 一塊 GPU 表面 —— 以 three.js 為量尺,缺的是「app 自己畫」的那一層(2026-09-19,Apple 兩個 backend 已落地)**
   - **完整分析在 `testapp/plan/plan-3D.md`**,依據是
     `/Volumes/LinuxCS/render/three.js`(submodule `ea56c2f4`,0.185.0)、該處的 wiki 筆記、
     `/Volumes/LinuxCS/render/metal-tools`,以及本 repo 的 `BackendFeatures/`。
@@ -480,6 +480,29 @@ an empty queue -- mistakes.md entry 1.
     enum 裡,因此補上它們是實作、不是改協定。
   - **給你們一個問題(不是假設,我這裡建不了 WinUI):** 在 2026-09-17 那個單執行緒 apartment 啟動之下,
     XAML island 裡的 `SwapChainPanel` 行為正常嗎?若否,那個 case 可能要改成 composition surface。
+  - **2026-09-19 第一刀已落地並驗過(macOS + iOS):**
+    - `BackendFeatures.Mesh3DViews`(conformance 檢查)、`Mesh3DView`、`Mesh3D`、`Mesh3DVertex`、
+      `Mesh3DTransform`、`Mesh3DCamera`、`Mesh3DScene`、`Mesh3DFrameInfo`。
+    - 新 target **`SwiftCrossUIMetal`**:一個 `MTKView` 子類別,著色器在執行期由原始碼編譯(不放
+      `.metal` 檔,因為 `Bundle.module` 的查找正是那種「在某個平台上找不到」的東西),AppKit 與
+      UIKit **共用同一份**。非 Apple 主機上它整份包在 `#if canImport(MetalKit)` 裡,編成空模組。
+    - **`Mesh3DTransform` 在協定層,不在 app 層。** 先前版本是 app 自己旋轉那 24 個頂點,結果 renderer
+      每秒重傳 60 次幾何資料去畫同一個立方體;把變換移進 `Mesh3D` 之後,幾何只上傳一次、角度以 uniform
+      傳遞,而 Android/GTK/WinUI 會**繼承**同一個自轉,不必每支 app 各自重做。
+    - **P72**:立方體、相機繞 Y 公轉、mesh 在 XY 平面自轉、`Auto spin` 開關、`Stop the clock` /
+      `Check again`。驗收擷圖:macOS frames 176→249、iOS 659→743,兩邊角度都不同。
+    - 動作檔 **`actions/mac/P72-stop-and-check.csv`** 與 **`actions/ios/P72-stop-and-check.csv`**
+      都已重放通過(AppKit 停鐘後 1 幀、UIKit 3 幀;自走的話是 90)。
+  - **這一刀抓到三個「不會報錯」的缺陷,都記在程式碼裡:**
+    1. `SIMD3<Float>` 的 stride 是 **16 不是 12**,`Mesh3DVertex` 因此是 48 位元組而著色器那邊是 36。
+       畫出來的不是崩潰也不是空白,是一團立方體大小、被拉長、顏色漸層的三角形散射——看起來像投影矩陣壞了。
+    2. `FrameClocks` 給的是**開機以來的秒數**(量到 177182)。轉成 `Float` 後精度間距 0.0156,而每幀只前進
+       0.01 弧度,於是旋轉會量化成階梯。改為減去第一個時間戳。
+    3. 擋住 `MTKView` 自走 60 Hz 的是 **`enableSetNeedsDisplay`,不是 `isPaused`**。這是「預期它會失敗
+       而去跑、結果它沒失敗」量出來的——先刪 `isPaused` 得到 1 幀,刪 `enableSetNeedsDisplay` 才得到 90。
+  - **仍然沒做:** Android(我的)、GTK 與 WinUI(你們的)的 `Mesh3DViews`;那三個 backend 目前走
+    `Mesh3DView` 的降級路徑——畫一個空盒子、每個 backend 警告一次,而不是 `fatalError`。
+    另外 **3D 交換格式的匯出(glTF 2.0 / `.glb`)尚未開始**,見 `plan-3D.md`。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

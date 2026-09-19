@@ -398,9 +398,32 @@ let package = Package(
         // replay on macOS.
         // 僅在 debug 功能開啟時才依賴 InputEvent，與下方 GtkBackend 的做法及理由完全相同——見該處
         // 的說明。AppKitBackend 是在 -actionfile 學會於 macOS 上重放時取得此依賴的。
+        // The Metal renderer behind `BackendFeatures.Mesh3DViews`, shared by
+        // AppKitBackend and UIKitBackend (M10).
+        //
+        // Declared for every host rather than conditioned on Apple platforms,
+        // because SwiftPM cannot make a target conditional -- only a DEPENDENCY
+        // on one. Its single source file is wrapped in `#if canImport(MetalKit)`,
+        // so on Linux and Windows it compiles to an empty module, which costs a
+        // build nothing and keeps `swift test` on those hosts from stopping at a
+        // dependency it cannot resolve. Only the two Apple backends name it.
+        //
+        // `BackendFeatures.Mesh3DViews` 背後的 Metal renderer，由 AppKitBackend 與 UIKitBackend
+        // 共用（M10）。
+        //
+        // 它對所有主機都宣告，而不是以 Apple 平台為條件——因為 SwiftPM 無法讓 target 帶條件，
+        // 只能讓「對 target 的**依賴**」帶條件。它唯一的原始檔整份包在 `#if canImport(MetalKit)`
+        // 之內，因此在 Linux 與 Windows 上它編出一個空模組：對建置毫無成本，也讓那些主機上的
+        // `swift test` 不會停在一個無法解析的依賴上。只有那兩個 Apple backend 指名它。
+        .target(
+            name: "SwiftCrossUIMetal",
+            dependencies: ["SwiftCrossUI"],
+            swiftSettings: debugSwiftSettings
+        ),
         .target(
             name: "AppKitBackend",
-            dependencies: ["SwiftCrossUI"] + (debugFeaturesEnabled ? ["InputEvent"] : []),
+            dependencies: ["SwiftCrossUI", "SwiftCrossUIMetal"]
+                + (debugFeaturesEnabled ? ["InputEvent"] : []),
             swiftSettings: debugSwiftSettings
         ),
         .target(
@@ -509,7 +532,7 @@ let package = Package(
         // 什麼都沒印,在有人去翻 manifest 而非翻程式碼之前,已經花掉一次重建與一次模擬器執行。
         .target(
             name: "UIKitBackend",
-            dependencies: ["SwiftCrossUI"],
+            dependencies: ["SwiftCrossUI", "SwiftCrossUIMetal"],
             swiftSettings: debugSwiftSettings
         ),
         .target(
@@ -861,6 +884,7 @@ let migratedToSwift6: Set<String> = [
     "AppKitBackend",
     "UIKitBackend",
     "AndroidBackend",
+    "SwiftCrossUIMetal",
 ]
 
 // `AndroidBackend` GOT HERE THROUGH ONE STATEMENT THAT SWIFT 6 REFUSES, and

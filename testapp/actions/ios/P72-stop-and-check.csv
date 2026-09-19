@@ -1,0 +1,64 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72: does the mesh view draw ONLY when it is asked to? (iOS half)
+#
+# Measured 2026-09-19 from a 1100x100 crop at px (0,1790) of the running app,
+# taken after "Auto spin" was added as a third button -- the earlier two-button
+# coordinates (77 and 193) are stale and would land on the wrong control.
+# Device: iPhone 16 Pro Max simulator (IOS_SIM_DEVICE=swift-cross-ui) -- window
+# 440 x 956 pt, capture 1320 x 2868 px, i.e. 3:1. Every coordinate below is
+# px/3, in points, which is what the XCUITest runner normalises against
+# window.frame. The two labels were read off a 900x100 crop at px (0,1790):
+# "Auto spin: on" spans px x 65..375, "Stop the clock" px x 405..740 and
+# "Check again" px x 778..1062, all three centred on px y 1838.
+#
+# **The same assertion as the macOS file, and it has to be run here too.** The
+# renderer is one shared target -- `SwiftCrossUIMetal` -- so it is tempting to
+# treat AppKit's pass as covering both. It does not: `enableSetNeedsDisplay` is
+# the line that stops the view free-running, and whether `MTKView` honours it
+# the same way on UIKit is a property of UIKit's `MTKView`, not of the code this
+# tree wrote. A shared renderer makes the two backends agree about what a mesh
+# looks like; it says nothing about when the platform decides to draw one.
+#
+# Expected in the app's p72-debug-events.log:
+#
+#   STOPPED at frame N
+#   CHECK at frame M, D since the stop
+#
+# with D a small number. Measured here on 2026-09-19, over three consecutive
+# replays: D = 3 every time. AppKit's file measures 1 for the same sequence; the
+# extra two are the touch-down and touch-up states a tap puts a UIButton
+# through, each of which commits the view. Anything near 90 (1.5 seconds at
+# 60 Hz) is the free-running case, which is what the macOS file measured when
+# `enableSetNeedsDisplay` was removed on purpose.
+#
+# P72:這個 mesh view 是否**只在被要求時**才繪製?(iOS 的那一半)
+#
+# 2026-09-19 量自執行中 app 的一張裁切圖(自 px (0,1790) 起、1100x100),拍攝於「Auto spin」作為第三個
+# 按鈕加入之後——先前兩顆按鈕時的座標(77 與 193)已經過時,會點到錯的控制項。裝置:iPhone 16 Pro Max 模擬器
+# (IOS_SIM_DEVICE=swift-cross-ui)——視窗 440 x 956 點、擷圖 1320 x 2868 像素,即 3:1。以下每個
+# 座標都是像素除以 3(單位為點),那正是 XCUITest runner 用來對 window.frame 正規化的單位。兩個
+# 「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨 px x 405..740、「Check again」橫跨
+# px x 778..1062,三者都以 px y 1838 為中心。
+#
+# **與 macOS 那份是同一個斷言,而它必須在這裡也跑一次。** renderer 是同一個共用 target
+# ——`SwiftCrossUIMetal`——因此很容易覺得 AppKit 通過就等於兩邊都通過。並不等於:讓這個 view 不自走的
+# 是 `enableSetNeedsDisplay` 那一行,而「UIKit 的 `MTKView` 是否以相同方式遵守它」是 UIKit 那個
+# `MTKView` 的性質,不是這棵樹所寫的程式的性質。共用 renderer 讓兩個 backend 對「一個 mesh 長什麼樣」
+# 取得一致;它對「平台何時決定去畫」什麼都沒說。
+#
+# 預期出現在該 app 的 p72-debug-events.log:
+#
+#   STOPPED at frame N
+#   CHECK at frame M, D since the stop
+#
+# 而 D 是一個小數字。2026-09-19 在此連續重放三次實測:每一次 D 都是 3。AppKit 那份檔案在同一段序列上
+# 量到的是 1;多出來的兩幀,是一次點擊讓 UIButton 經過的 touch-down 與 touch-up 兩個狀態,而每一個都會
+# 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
+# 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
+sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
+click,73,613,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
+sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
+click,191,613,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
+sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
+click,307,613,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
+sleep,,,,,,500000,let the readout settle before the capture,ios
