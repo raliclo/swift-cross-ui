@@ -16,6 +16,11 @@ action,x,y,origin,button,key,micros,note,platform
 # 75/191 to 190/305 while y stayed at 511. Twice in one day, which is the
 # argument for the note above rather than against it.
 #
+# AND A FOURTH TIME when "Snapshot" joined "Export .glb" on the second row and
+# a "snapshot:" readout line was added under it: the first row went from y 483
+# to y 481 and the second from 511 to 510. Small, and still enough to miss a
+# 20-point button if it had gone the other way.
+#
 # AND A THIRD TIME when "Export .glb" was added as a row BELOW this one. That
 # was expected to change nothing here and it moved this row from y 511 to
 # y 483: the window is a fixed 660 points and the content is centred in it, so
@@ -52,10 +57,20 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # Expected in testapp/p72-debug-events.log:
 #
+#   SNAPSHOT <w>x<h> px, <n> distinct colours, centre pixel <r,g,b>
+#   SNAPSHOT PNG <n> bytes to <path>
 #   EXPORTED <n> bytes to <path>
 #   AUTO SPIN off
 #   STOPPED at frame N
 #   CHECK at frame M, D since the stop
+#
+# and the snapshot must report MORE THAN ONE distinct colour with a centre
+# pixel that is a face colour, not the background. That is the assertion SoftPCB
+# `plan.md` §10.7 says cannot be made: a window screenshot shows the app whatever
+# the MTKView drew, so it passes either way. Measured both ways on 2026-09-19 --
+# with the cube: 3 colours, centre 222,163,45 (the orange +X face shaded). With
+# `meshes: []` and nothing else changed: 1 colour, centre 20,23,33, which is the
+# background 0.08/0.09/0.13 exactly.
 #
 # with D a small number. Each button press commits the view, and a commit hands
 # the view a scene and asks for one frame. Measured here on 2026-09-19: D = 1 on
@@ -104,17 +119,24 @@ action,x,y,origin,button,key,micros,note,platform
 #   STOPPED at frame N
 #   CHECK at frame M, D since the stop
 #
+# 而快照必須回報**多於一種**相異顏色,且中心像素是某個面的顏色、不是背景。那正是 SoftPCB `plan.md`
+# §10.7 說「做不到」的那個斷言:一張視窗截圖不論那個 MTKView 畫了什麼都拍得到那支 app,因此兩種情況它
+# 都會通過。2026-09-19 兩種都量過——有立方體時:3 種顏色、中心 222,163,45(受光的橘色 +X 面);把
+# `meshes:` 改成 `[]`、其餘不動時:1 種顏色、中心 20,23,33,正好就是背景色 0.08/0.09/0.13。
+#
 # 而 D 是一個小數字。每一次按鈕按下都會使 view commit,而一次 commit 會把場景交給 view 並要求一幀。
 # 2026-09-19 在此實測:AppKit 的 D = 1、UIKit 的 D = 3(在 UIKit 上,一次點擊還會讓按鈕經過
 # touch-down 與 touch-up)。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況,而那也是這份
 # 檔案唯一視為失敗的結果——一個嚴到能區分 1 與 3 的門檻,斷言的會是「一次按下經過幾個狀態」,
 # 而那不是此處要測的東西。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,macos
-click,65,511,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
+click,64,510,frame,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",macos
 sleep,,,,,,300000,,macos
-click,70,483,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
+click,160,510,frame,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",macos
+sleep,,,,,,300000,,macos
+click,70,481,frame,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",macos
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,macos
-click,190,483,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
+click,190,481,frame,left,,,"Stop the clock -- writes STOPPED at frame N",macos
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",macos
-click,305,483,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
+click,305,481,frame,left,,,"Check again -- writes CHECK at frame M and the delta",macos
 sleep,,,,,,500000,let the readout settle before the capture,macos

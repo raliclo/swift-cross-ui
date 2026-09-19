@@ -13,9 +13,20 @@ action,x,y,origin,button,key,micros,note,platform
 # the screen and an extra row moves everything up by half a row. The same thing
 # happened on macOS and was not predicted there either.
 #
-# First row, centred on px y 1748: "Auto spin: on" spans px x 65..375, "Stop the
+# RE-MEASURED AGAIN when "Snapshot" joined the second row and a "snapshot:"
+# readout was added under it. Fourth measurement of this file in one day.
+#
+# First row, centred on px y 1736: "Auto spin: on" spans px x 65..375, "Stop the
 # clock" px x 405..742, "Check again" px x 775..1060.
-# Second row, centred on px y 1842: "Export .glb" spans px x 62..315.
+# Second row, centred on px y 1830: "Export .glb" spans px x 62..315 and
+# "Snapshot" px x 350..572.
+#
+# The snapshot must report MORE THAN ONE distinct colour and a centre pixel that
+# is a face colour rather than the background. SoftPCB `plan.md` §10.7 lists this
+# as the gap with no way out -- a window screenshot shows the app whatever the
+# MTKView drew. Measured both ways on macOS: with the cube, 3 colours and centre
+# 222,163,45; with `meshes: []`, 1 colour and centre 20,23,33, the background
+# exactly.
 #
 # **The export is the FIRST click, and the order is the assertion.** "Auto spin"
 # sets the rotation back to zero, so exporting after it writes a file whose node
@@ -52,9 +63,16 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-19 在「Export .glb」作為第二列加入之後**重新量過**:那把第一列由 px y 1838 抬到 1748——
 # 因為內容在螢幕中置中,多一列會把所有東西往上抬半列。macOS 上發生了同一件事,而那邊也沒有事先料到。
 #
-# 第一列(以 px y 1748 為中心):「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨
+# 在「Snapshot」加入第二列、且其下多了一行「snapshot:」讀數之後**再次重新量過**。這是這份檔案一天之內
+# 的第四次量測。
+#
+# 第一列(以 px y 1736 為中心):「Auto spin: on」橫跨 px x 65..375、「Stop the clock」橫跨
 # px x 405..742、「Check again」橫跨 px x 775..1060。
-# 第二列(以 px y 1842 為中心):「Export .glb」橫跨 px x 62..315。
+# 第二列(以 px y 1830 為中心):「Export .glb」橫跨 px x 62..315、「Snapshot」橫跨 px x 350..572。
+#
+# 快照必須回報**多於一種**相異顏色,且中心像素是某個面的顏色、不是背景。SoftPCB `plan.md` §10.7 把這一項
+# 列為「沒有出路」的缺口——一張視窗截圖不論那個 MTKView 畫了什麼都拍得到那支 app。macOS 上兩種都量過:
+# 有立方體時 3 種顏色、中心 222,163,45;`meshes: []` 時 1 種顏色、中心 20,23,33,正好是背景色。
 #
 # **匯出是第一次點擊,而那個順序就是斷言本身。** 「Auto spin」會把旋轉歸零,因此在它之後匯出,寫出的
 # 檔案其 node 旋轉會是單位四元數——那恰恰也是一個「靜默地把 `Mesh3DTransform` 丟掉」的匯出器會寫出來的
@@ -76,11 +94,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
 # 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
-click,63,614,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
+click,63,610,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
 sleep,,,,,,300000,,ios
-click,73,583,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
+click,154,610,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",ios
+sleep,,,,,,300000,,ios
+click,73,579,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
-click,191,583,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
+click,191,579,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
-click,307,583,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
+click,307,579,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
 sleep,,,,,,500000,let the readout settle before the capture,ios

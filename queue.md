@@ -500,9 +500,26 @@ an empty queue -- mistakes.md entry 1.
        0.01 弧度,於是旋轉會量化成階梯。改為減去第一個時間戳。
     3. 擋住 `MTKView` 自走 60 Hz 的是 **`enableSetNeedsDisplay`,不是 `isPaused`**。這是「預期它會失敗
        而去跑、結果它沒失敗」量出來的——先刪 `isPaused` 得到 1 幀,刪 `enableSetNeedsDisplay` 才得到 90。
-  - **仍然沒做:** Android(我的)、GTK 與 WinUI(你們的)的 `Mesh3DViews`;那三個 backend 目前走
-    `Mesh3DView` 的降級路徑——畫一個空盒子、每個 backend 警告一次,而不是 `fatalError`。
-    另外 **3D 交換格式的匯出(glTF 2.0 / `.glb`)尚未開始**,見 `plan-3D.md`。
+  - **glTF 2.0 匯出已落地(2026-09-19):** `Mesh3DScene.glbData()` 在 `SwiftCrossUI` 裡、手寫、零相依。
+    驗證用的是 **three.js 自己的 `GLTFLoader`**,不是在 writer 旁邊寫的 reader——而那個選擇當場就有回報:
+    GLB magic 被我寫成 `gltF`(與 `glTF` 差一個位元),長度、兩個 chunk 標頭、JSON 與 buffer 全都正確,
+    因此 Swift 這一側寫的每一項檢查都通過,只有 three.js 拒絕它。驗證腳本:
+    `testapp/test_support/measure/gltf_check.mjs`。
+  - **§10.7 第 9 項「渲染結果匯出成圖檔」已關掉(2026-09-19):**
+    `BackendFeatures.WidgetSnapshots` + `WidgetSnapshot`(RGBA8,與 `Images` 同一個格式)+ 自帶的 PNG
+    編碼器(stored deflate,不需要 zlib)。AppKit 與 UIKit 各有兩條路徑:`Mesh3DMetalView` 走**離屏
+    texture 重畫一幀再讀回**(不是去擷取 drawable——那個 texture 屬於一個會立刻重用它的 pool),
+    其餘 widget 走 `cacheDisplay` / `layer.render(in:)`。
+    **這一項關掉的是 SoftPCB `plan.md` §10.7 那張「真正的阻礙」表裡的第二列**——「`MTKView` 內部畫了
+    什麼,inspection 看不到」。P72 的斷言不是視窗截圖(那不論 view 畫了什麼都會過),而是**那個 view
+    自己的像素**:尺寸、相異顏色數、中心像素。兩種都量過——有立方體時 3 色、中心 222,163,45;
+    `meshes: []` 時 1 色、中心 20,23,33(正好是背景色)。
+  - **仍然沒做:** Android(我的)、GTK 與 WinUI(你們的)的 `Mesh3DViews` 與 `WidgetSnapshots`;
+    那三個 backend 目前走 `Mesh3DView` 的降級路徑——畫一個空盒子、每個 backend 警告一次,
+    而不是 `fatalError`。
+  - **SoftPCB §10.7 剩下的四項(2026-09-19 之後):** 捲動(滾輪)、原始按鍵、游標、右鍵選單。
+    快照本來排在它們前面,理由是它同時也是「量得到一個內嵌原生 view 輸出了什麼」的唯一手段——
+    現在那個手段有了,其餘四項各自都有得驗。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 
