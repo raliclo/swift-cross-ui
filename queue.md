@@ -587,7 +587,24 @@ an empty queue -- mistakes.md entry 1.
     於是每一個座標都落空。`window_sizes_mac.zsh` 記過這個陷阱,但 `test.zsh` 沒有清。
   - **UIKit 那一份仍未驅動**:用 `pressesBegan`/`pressesEnded`(不是 `UIKeyCommand`——後者回報不了鍵放開、
     也回報不了單獨按住修飾鍵),但模擬器沒有實體鍵盤,iOS runner 也還沒有 key 這個動作。
-  - **SoftPCB §10.7 剩下的:** 游標、右鍵選單。
+  - **§10.7 第 6 項「游標」:AppKit 已落地,侷限性**未**驗證(2026-09-19):**
+    `BackendFeatures.Cursors` + `Cursor`(七個 case)+ `.cursor(_:)`。AppKit 走
+    `NSTrackingArea` 的 `.cursorUpdate`,**不是** `addCursorRect`——後者靠 `resetCursorRects` 重建,
+    而 AppKit 不認為「尺寸以程式設定、未經視窗縮放」的 view 算失效,而這棵樹每次 commit 都在設尺寸。
+    - **`Cursor` 刻意很小**:七個 case,每一個在 AppKit、GTK、WinUI、Android 上都存在。
+      **沒有 `wait`**(AppKit 沒有公開的忙碌游標),**沒有 `grab`/`grabbing`**(WinUI 沒有對應的系統形狀)。
+      一個「五個之中有一個會靜默退回箭頭」的 case,是一個會說謊的 case。
+    - **已驗證**:`.cursor(.crosshair)` 確實生效——P72 的 `screencapture -C` 拍到一個十字,
+      而那不是該視窗上方的系統預設。
+    - **未驗證,而且以現有工具驗不了**:那個十字被侷限在 mesh view 之內。動作檔的 `move` 走
+      `NSApp.postEvent`,它把合成事件送給**應用程式**、**不移動實體指標**;因此 `screencapture -C`
+      畫的是實體滑鼠當下所在之處。我一度把「十字出現在距離該 view 三百點之外」讀成「區域錯了」,
+      那是錯的讀法——正確的讀法是「滑鼠在那邊」。要驗侷限性需要 `CGWarpMouseCursorPosition`,或一個人。
+    - **過程中改掉一個真實的設計錯誤**:第一版從 `mouseEntered` 與屬性的 `didSet` 也呼叫 `NSCursor.set()`,
+      而 `set()` 是**全域**的——指標離開之後十字仍會留著,因為普通文字 view 不會把它改回來。
+      現在只在 `cursorUpdate` 裡設,那是同一組 API 中協作的那一半。
+  - **SoftPCB §10.7 剩下的:** 游標的侷限性驗證(需要真指標)、UIKit/GTK/WinUI/Android 的 `Cursors`、
+    以及第 7 項右鍵選單。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

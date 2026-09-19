@@ -762,7 +762,34 @@ struct P72RootView: View {
             .onKeyPress { press in
                 P72Model.shared.keyPressed(press)
             }
+            // **Crosshairs, because that is what the gap is for.** SoftPCB's
+            // §10.7 gap 6 is a board that shows crosshairs while picking; a
+            // view that draws its own content is exactly the case where the
+            // platform cannot guess the right pointer. The evidence is a
+            // capture taken with `screencapture -C`, which includes the
+            // pointer -- the default excludes it, so an ordinary screenshot of
+            // this app proves nothing about its cursor either way.
+            //
+            // **十字準星,因為這個缺口就是為它而設。** SoftPCB §10.7 第 6 項講的是一塊「取點時顯示
+            // 十字」的板子;而一個自己畫自己內容的 view,正是「平台猜不出正確指標」的那個情況。
+            // 證據是一張以 `screencapture -C` 取得的擷圖——那個旗標會**納入指標**;預設是不納入的,
+            // 因此這支 app 的一般截圖,對它的游標無論如何都證明不了任何事。
             .frame(width: 340, height: 240)
+            // **After `.frame`, not before, and the first version had it before.**
+            // A modifier wraps what is above it, so `.cursor` applied first wraps
+            // the mesh view at whatever size it had been proposed -- not the
+            // 340x240 the frame settles on. Measured 2026-09-19: the crosshair
+            // appeared over the `snap:` readout, well below the mesh view, which
+            // is a cursor region far larger than the thing it belongs to. Nothing
+            // reports that; the cursor simply looks wrong in a place nobody
+            // thought to check.
+            //
+            // **放在 `.frame` 之後、而不是之前;第一版放在之前。** 一個 modifier 包住的是它上面的東西,
+            // 因此先套用的 `.cursor` 包住的是「mesh view 在當時被提議的尺寸」——不是 frame 最後定下來的
+            // 340x240。2026-09-19 實測:十字準星出現在 `snap:` 那行讀數上方,遠在 mesh view 下面——
+            // 那是一塊遠大於它所屬之物的游標區域。沒有任何東西會回報這件事;那個游標只是在一個沒人想到
+            // 要檢查的地方顯示錯了。
+            .cursor(.crosshair)
 
             Text("renderer: \(model.renderer)")
             Text("drawable: \(model.drawablePixels)")
