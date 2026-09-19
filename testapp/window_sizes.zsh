@@ -127,8 +127,11 @@ printf '%-8s %-12s %s\n' 'app' 'size' 'note'
 # GTK 需要它的 runtime 在 PATH 上,否則行程會在繪製之前就結束,而其錯誤訊息談的是某個 UCRT DLL
 # ——那會把人指向 Visual C++,而不是指向 GTK。
 if [ "$backend_suffix" = "-gtk4" ]; then
-    gtk_bin="/c/gtk4/bin"
-    [ -d "$gtk_bin" ] && export PATH="$gtk_bin:$PATH"
+    # Which runtime, and why there can be two, is answered in one place.
+    # 「用哪一份 runtime、為什麼會有兩份」,在同一個地方回答。
+    source "${script_dir}/test_support/gtk_runtime.zsh"
+    gtk_path="$(scui_gtk_runtime_path)"
+    [ -d "${gtk_path%%:*}" ] && export PATH="$gtk_path:$PATH"
 fi
 
 # One directory per sweep, named by the clock, so a failed run's logs are still

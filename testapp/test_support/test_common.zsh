@@ -969,11 +969,13 @@ run_windows() {
     # 在放進 PATH 之前先轉為 POSIX 形式。此處的 `:` 是分隔符，因此 `C:/gtk4/bin` 並非單一項目——
     # 它是 `C` 與 `/gtk4/bin` 兩項，兩者都不存在；原本要修好啟動問題的那一項，反而新增了兩個壞掉的
     # 項目。本修正的第一次嘗試正是如此，且毫無作用。
-    local gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
-    local gtk_bin
-    gtk_bin="$(posix_path "$gtk_prefix/bin")"
-    if [ -d "$gtk_bin" ]; then
-        export PATH="$gtk_bin:$PATH"
+    # Which runtime, and why there can be two, is answered in one place.
+    # 「用哪一份 runtime、為什麼會有兩份」,在同一個地方回答。
+    source "${support_dir}/gtk_runtime.zsh"
+    local gtk_path
+    gtk_path="$(scui_gtk_runtime_path)"
+    if [ -d "${gtk_path%%:*}" ]; then
+        export PATH="$gtk_path:$PATH"
     fi
 
     if [ "$do_build" -eq 1 ]; then
