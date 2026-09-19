@@ -114,14 +114,17 @@ fi
 # is not one entry but two -- `C` and `/gtk4/bin`, neither of which exists.
 # 在接觸 PATH 之前先轉為 POSIX 形式。此處的 `:` 是分隔符，因此 C:/gtk4/bin 並非單一項目——而是
 # `C` 與 `/gtk4/bin` 兩項，兩者皆不存在。
-gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
-gtk_bin="$(cygpath -u "$gtk_prefix/bin" 2>/dev/null || printf '%s' "$gtk_prefix/bin")"
+# Which runtime, and why there can be two, is answered in one place.
+# 「用哪一份 runtime、為什麼會有兩份」,在同一個地方回答。
+source "${script_dir}/test_support/gtk_runtime.zsh"
+gtk_path="$(scui_gtk_runtime_path)"
+gtk_bin="${gtk_path%%:*}"
 if [ ! -d "$gtk_bin" ]; then
-    printf 'GTK 4 not found at %s\n' "$gtk_prefix" >&2
+    printf 'GTK 4 not found at %s\n' "$gtk_bin" >&2
     printf 'Run: zsh testapp/install_gtk4_windows.zsh\n' >&2
     exit 1
 fi
-export PATH="$gtk_bin:$PATH"
+export PATH="$gtk_path:$PATH"
 
 # The path after `-actionfile`, resolved here rather than left to the app.
 #
