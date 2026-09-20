@@ -186,6 +186,22 @@ final class ActionFileUITests: XCTestCase {
                 let target = try coordinateIfPresent(for: action, current: pointer, in: app)
                 target.tap()
                 pointer = target
+            case "longpress":
+                // **The one verb that exists FOR this runner.** A context menu on
+                // a touch screen is raised by holding, and the down/up pair above
+                // cannot express it: `mouseup` presses for a fixed 0.1s whatever
+                // `sleep` rows sit between, because a `sleep` pauses the replay
+                // and not the finger. The desktop synthesisers refuse this verb
+                // rather than turning it into a right-click, so a file that uses
+                // it says plainly which platform it is for.
+                //
+                // **唯一為這個 runner 而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,
+                // 而上面那組 down/up 表達不了它:`mouseup` 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`
+                // ——因為 `sleep` 暫停的是重放、不是那根手指。桌面的各 synthesiser 會**拒絕**這個動作,
+                // 而不是把它變成右鍵,因此一份用到它的檔案,會明白地說出它是為哪個平台寫的。
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                target.press(forDuration: action.microseconds / 1_000_000)
+                pointer = target
             case "doubleclick":
                 let target = try coordinateIfPresent(for: action, current: pointer, in: app)
                 target.doubleTap()

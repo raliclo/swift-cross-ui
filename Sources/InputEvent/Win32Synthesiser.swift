@@ -779,6 +779,14 @@ public final class Win32Synthesiser: Synthesiser, Sendable {
                 try send(mouseFlags: Self.downFlag(for: button))
                 try send(mouseFlags: Self.upFlag(for: button))
 
+            case .longPress:
+                // Not a right-click in disguise. See `InputAction.longPress`.
+                // 不是偽裝成長按的右鍵。見 `InputAction.longPress`。
+                throw SynthesiserError.unsupported(
+                    "longpress: a long press does not raise a context menu here; "
+                        + "use `click ... right`"
+                )
+
             case .doubleClick(let button, let point):
                 try performDoubleClick(button, at: point, in: geometry)
 

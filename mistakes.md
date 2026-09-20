@@ -843,6 +843,29 @@ only under its own condition is unverified.
 
 ---
 
+
+**Second occurrence, 2026-09-20.** `UIKitBackend+KeyEvents.swift` was committed under a message
+saying everything compiled. It never had. A plain `swift build` on a macOS host does not build
+UIKitBackend -- the manifest drops it, the same mechanism this entry is already about -- and I never
+ran `compile.zsh -ios` after writing the file. It overrode `didMoveToWindow`, a `UIView` method, on
+`ContainerWidget`, which is a view CONTROLLER. Three compile errors, found days later by an
+unrelated iOS build while adding a different feature.
+
+The first occurrence was a manifest edit verified under the one condition that made the fault
+impossible. This one is the same shape with the platforms swapped: a UIKit file verified by a build
+that excludes UIKit. The corrective stands and was simply not followed -- after touching a
+platform-specific target, build that platform, and `compile.zsh -ios` is the cheapest way here.
+
+**第二次發生,2026-09-20。** `UIKitBackend+KeyEvents.swift` 被提交時,commit 訊息寫著一切都編得過。
+它從來沒有。在 macOS 主機上,一個單純的 `swift build` **不會**建 UIKitBackend——manifest 會把它拿掉,
+而那正是本條目原本就在講的同一個機制——而我寫完那個檔案之後,從來沒有跑過 `compile.zsh -ios`。
+它在 `ContainerWidget` 上覆寫了 `didMoveToWindow`(一個 `UIView` 的方法),而 `ContainerWidget` 是一個
+view **controller**。三個編譯錯誤,在幾天後因為一次為了別的功能而做的 iOS 建置才被發現。
+
+第一次是「一次 manifest 修改,只在那個讓缺陷不可能發生的條件下被驗證」。這一次是同樣的形狀、把平台
+對調:一個 UIKit 的檔案,被一個**排除 UIKit** 的建置所驗證。矯正措施本身是對的,只是沒有被遵守——
+動過某個平台專屬的 target 之後,就去建那個平台;在這裡 `compile.zsh -ios` 是最便宜的做法。
+
 ## 11. 把測試紀錄丟在錯的目錄裡,而 `.gitignore` 讓它永遠不會被回報
 
 **2026-09-16,1 次,1 天。**

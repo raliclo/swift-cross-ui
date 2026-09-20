@@ -88,6 +88,7 @@ action,x,y,origin,button,key,micros,note,platform
 | `move` | `x`, `y` | move the pointer, no button change |
 | `click` | `button`, optional `x`, `y` | press and release once; moves first if a position is given |
 | `doubleclick` | `button`, optional `x`, `y` | two press-release pairs inside the platform's double-click time |
+| `longpress` | `micros`, optional `x`, `y` | hold for `micros`; **iOS only** -- the desktop synthesisers refuse it, because a long press is not how a context menu is raised there and `click ... right` is |
 | `mousedown` | `button`, optional `x`, `y` | press and hold |
 | `mouseup` | `button`, optional `x`, `y` | release |
 | `scroll` | `x`, `y` as **wheel notches** | turn the wheel where the pointer is |

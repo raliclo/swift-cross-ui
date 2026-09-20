@@ -9,6 +9,32 @@ public enum InputAction: Equatable, Sendable {
     case move(Point)
     case click(MouseButton, at: Point?)
     case doubleClick(MouseButton, at: Point?)
+
+    /// A press held for `micros`, which is how a touch screen raises a context
+    /// menu.
+    ///
+    /// **Its own verb rather than `mousedown`, `sleep`, `mouseup`, because that
+    /// sequence does not express it.** The iOS runner turns a down/up pair into
+    /// `press(forDuration: 0.1, thenDragTo:)` -- a fixed tenth of a second,
+    /// whatever `sleep` rows sit between them, because a `sleep` pauses the
+    /// REPLAY and not the finger. A context menu needs about half a second, so
+    /// the duration has to be part of the action.
+    ///
+    /// On the desktop synthesisers this is `unsupported`: a long press is not
+    /// how a context menu is raised there, and `click ... right` is. A verb that
+    /// quietly became a right-click on three platforms would hide exactly the
+    /// difference a cross-platform test is looking for.
+    ///
+    /// 一次持續 `micros` 的按壓——觸控螢幕就是這樣叫出右鍵選單的。
+    ///
+    /// **它自成一個動作,而不是 `mousedown`、`sleep`、`mouseup` 三連,因為那個序列表達不了它。**
+    /// iOS runner 會把一組 down/up 轉成 `press(forDuration: 0.1, thenDragTo:)`——固定的十分之一秒,
+    /// 不論中間夾了幾列 `sleep`;因為 `sleep` 暫停的是**重放**,不是那根手指。一個右鍵選單需要大約
+    /// 半秒,因此那個時長必須是這個動作的一部分。
+    ///
+    /// 在桌面的各 synthesiser 上,這是 `unsupported`:在那裡,長按不是叫出右鍵選單的方式,
+    /// `click ... right` 才是。一個「在三個平台上靜默變成右鍵」的動作,會藏起跨平台測試正要找的那個差異。
+    case longPress(at: Point?, micros: Int)
     case mouseDown(MouseButton, at: Point?)
     case mouseUp(MouseButton, at: Point?)
     case keyDown(Key)
@@ -27,9 +53,10 @@ public enum InputAction: Equatable, Sendable {
     /// `origin=popover` 重新量測。
     public var point: Point? {
         switch self {
+            case .longPress(let point, _): point
             case .move(let point): point
             case .click(_, let point), .doubleClick(_, let point),
-                .mouseDown(_, let point), .mouseUp(_, let point): point
+                 .mouseDown(_, let point), .mouseUp(_, let point): point
             // `scroll` names no point on purpose -- ActionFile:176 rejects an
             // `origin` on a scroll row outright, because scrolling does not move
             // the pointer and a frame there means the writer expected it to.
@@ -269,28 +296,103 @@ public enum MouseButton: String, Equatable, Sendable {
 ///   action file exercising a shortcut cannot be identical across platforms
 ///   even though its key names are.
 public enum Key: String, Equatable, Sendable, CaseIterable {
-    case a, b, c, d, e, f, g, h, i, j, k, l, m
-    case n, o, p, q, r, s, t, u, v, w, x, y, z
+    case a
+    case b
+    case c
+    case d
+    case e
+    case f
+    case g
+    case h
+    case i
+    case j
+    case k
+    case l
+    case m
+    case n
+    case o
+    case p
+    case q
+    case r
+    case s
+    case t
+    case u
+    case v
+    case w
+    case x
+    case y
+    case z
 
-    case zero = "0", one = "1", two = "2", three = "3", four = "4"
+    case zero = "0"
+    case one = "1"
+    case two = "2"
+    case three = "3"
+    case four = "4"
     case five = "5", six = "6", seven = "7", eight = "8", nine = "9"
 
     case delete, forwardDelete
-    case escape, space, tab, `return`
+    case escape
+    case space
+    case tab
+    case `return`
 
-    case leftArrow, rightArrow, upArrow, downArrow
-    case home, end, pageUp, pageDown
+    case leftArrow
+    case rightArrow
+    case upArrow
+    case downArrow
+    case home
+    case end
+    case pageUp
+    case pageDown
 
-    case shift, control, option, command
-    case rightShift, rightControl, rightOption, rightCommand
-    case capsLock, function
+    case shift
+    case control
+    case option
+    case command
+    case rightShift
+    case rightControl
+    case rightOption
+    case rightCommand
+    case capsLock
+    case function
 
-    case f1, f2, f3, f4, f5, f6, f7, f8, f9, f10
-    case f11, f12, f13, f14, f15, f16, f17, f18, f19, f20
+    case f1
+    case f2
+    case f3
+    case f4
+    case f5
+    case f6
+    case f7
+    case f8
+    case f9
+    case f10
+    case f11
+    case f12
+    case f13
+    case f14
+    case f15
+    case f16
+    case f17
+    case f18
+    case f19
+    case f20
 
-    case keypad0, keypad1, keypad2, keypad3, keypad4
-    case keypad5, keypad6, keypad7, keypad8, keypad9
-    case keypadDecimal, keypadPlus, keypadMinus
-    case keypadMultiply, keypadDivide, keypadEnter
-    case keypadEquals, keypadClear
+    case keypad0
+    case keypad1
+    case keypad2
+    case keypad3
+    case keypad4
+    case keypad5
+    case keypad6
+    case keypad7
+    case keypad8
+    case keypad9
+    case keypadDecimal
+    case keypadPlus
+    case keypadMinus
+    case keypadMultiply
+    case keypadDivide
+    case keypadEnter
+    case keypadEquals
+    case keypadClear
 }

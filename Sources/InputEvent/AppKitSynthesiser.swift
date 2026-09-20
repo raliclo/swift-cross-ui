@@ -552,6 +552,14 @@
                 }
 
                 switch action {
+                    case .longPress:
+                        // Not a right-click in disguise. See `InputAction.longPress`.
+                        // 不是偽裝成長按的右鍵。見 `InputAction.longPress`。
+                        throw SynthesiserError.unsupported(
+                            "longpress: a long press does not raise a context menu here; "
+                                + "use `click ... right`"
+                        )
+
                     case .move(let point):
                         // **The PHYSICAL pointer is moved too, and until
                         // 2026-09-20 it was not.** `NSApp.postEvent` delivers a

@@ -1,0 +1,41 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on iOS: does a long press raise the view's menu, and does its item run?
+#
+# Measured 2026-09-20 from a capture of the menu open: 'Reset the camera' sits at
+# px (351, 1397) on a 1320x2868 capture, so pt (117, 466). The mesh view centre
+# is pt (205, 400). Device: iPhone 16 Pro Max simulator, window 440 x 956 pt.
+#
+# **`longpress` is a verb that exists for this file.** A context menu on a touch
+# screen is raised by holding, and mousedown/mouseup could not express it: the
+# runner presses for a fixed 0.1s whatever `sleep` rows sit between them, because
+# a `sleep` pauses the replay and not the finger. The desktop synthesisers REFUSE
+# `longpress` rather than turning it into a right-click, so this file says plainly
+# which platform it is for -- the macOS equivalent is
+# `actions/mac/P72-context-menu.csv`, which uses `click ... right`.
+#
+# The 2.5s after the press is not padding. The menu animates in over about half a
+# second, and a capture taken during it is a black dimmed backdrop with no menu --
+# which reads exactly like a menu that never opened.
+#
+# Expected: CONTEXT MENU reset the camera: dist 3.40 high 1.30
+#
+# P72 在 iOS 上:長按會叫出這個 view 的選單嗎?而它的項目會執行嗎?
+#
+# 2026-09-20 量自一張「選單已開啟」的擷圖:「Reset the camera」位於 1320x2868 擷圖的 px (351, 1397),
+# 即 pt (117, 466)。mesh view 中心為 pt (205, 400)。裝置:iPhone 16 Pro Max 模擬器,視窗 440 x 956 點。
+#
+# **`longpress` 是為這份檔案而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,而 mousedown/
+# mouseup 表達不了它:runner 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`——因為 `sleep` 暫停的是重放、
+# 不是那根手指。桌面的各 synthesiser 會**拒絕** `longpress`,而不是把它變成右鍵,因此這份檔案明白地
+# 說出它是為哪個平台寫的——macOS 的對應版本是 `actions/mac/P72-context-menu.csv`,那邊用的是
+# `click ... right`。
+#
+# 按壓之後那 2.5 秒不是填充。那個選單的進場動畫大約半秒,而在動畫中途拍到的是一片變暗的黑色背景、
+# 沒有選單——那讀起來就像「選單從來沒打開過」。
+#
+# 預期:CONTEXT MENU reset the camera: dist 3.40 high 1.30
+sleep,,,,,,2000000,let P72 lay out,ios
+longpress,205,400,client,,,700000,hold on the mesh view -- the context menu must open,ios
+sleep,,,,,,2500000,let the menu finish presenting; it animates for about half a second,ios
+click,117,466,client,left,,,"tap 'Reset the camera' -- CONTEXT MENU must appear in the log",ios
+sleep,,,,,,1500000,,ios

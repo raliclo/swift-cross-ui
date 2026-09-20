@@ -40,7 +40,8 @@ public enum ActionFile {
             // header treated as data.
             if fields.first == "action" { continue }
 
-            guard let action = try parseRow(fields, line: number, platform: platform) else { continue }
+            guard let action = try parseRow(fields, line: number, platform: platform)
+            else { continue }
             actions.append(action)
         }
         return actions
@@ -127,7 +128,7 @@ public enum ActionFile {
         // corner and look like a missed target.
         let point: Point?
         switch (value(1), value(2)) {
-            case let (rawX?, rawY?):
+            case (let rawX?, let rawY?):
                 guard let x = Double(rawX), let y = Double(rawY) else {
                     throw ActionFileError.badNumber("\(rawX),\(rawY)", line: line)
                 }
@@ -164,10 +165,22 @@ public enum ActionFile {
 
         switch verb {
             case "move":
-                guard let point else { throw ActionFileError.missingPosition(verb: verb, line: line) }
+                guard let point
+                else { throw ActionFileError.missingPosition(verb: verb, line: line) }
                 return .move(point)
             case "click": return .click(try button(), at: point)
             case "doubleclick": return .doubleClick(try button(), at: point)
+            case "longpress":
+                // `micros` is the hold, and it is REQUIRED: a long press with no
+                // duration is a tap, and a row that silently became a tap would
+                // pass while testing nothing. 500000 is the usual figure; the
+                // row has to say so.
+                // `micros` 是按住的時長,而且是**必填**:一個沒有時長的長按就是一次點擊,而一列
+                // 「靜默變成點擊」的動作會通過、卻什麼也沒測到。慣用值是 500000;那一列必須自己寫出來。
+                guard let raw = value(6), let micros = Int(raw), micros > 0 else {
+                    throw ActionFileError.missingDuration(verb: verb, line: line)
+                }
+                return .longPress(at: point, micros: micros)
             case "mousedown": return .mouseDown(try button(), at: point)
             case "mouseup": return .mouseUp(try button(), at: point)
             case "scroll":
@@ -236,6 +249,7 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
     case missingKey(verb: String, line: Int)
     case missingButton(verb: String, line: Int)
     case missingPosition(verb: String, line: Int)
+    case missingDuration(verb: String, line: Int)
     case missingWindowTitle(line: Int)
     case incompletePosition(line: Int)
     case badNumber(String, line: Int)
@@ -262,6 +276,8 @@ public enum ActionFileError: Error, Equatable, CustomStringConvertible {
                 "line \(line): 'focus' needs a window title in the 'target' column"
             case .missingPosition(let verb, let line):
                 "line \(line): '\(verb)' needs x and y"
+            case .missingDuration(let verb, let line):
+                "line \(line): '\(verb)' needs a hold in micros; 500000 is the usual figure"
             case .incompletePosition(let line):
                 "line \(line): x given without y, or y without x"
             case .badNumber(let raw, let line):

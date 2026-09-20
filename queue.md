@@ -615,9 +615,31 @@ an empty queue -- mistakes.md entry 1.
       右鍵 → 下鍵 → Return → log 出現 `CONTEXT MENU reset the camera: dist 3.40 high 1.30`。
       **已證明會失敗**:把右鍵點擊移到純文字上(y 140),CONTEXT MENU 行數為**零**——那個選單屬於
       那個 view,不屬於那個視窗。
+  - **UIKit 的 `Cursors` 與 `ContextMenus` 已落地(2026-09-20):**
+    - **`ContextMenus` 已驗證**:`UIContextMenuInteraction`,長按叫出選單,**而且項目會執行**
+      (`actions/ios/P72-context-menu.csv` → `CONTEXT MENU reset the camera: dist 3.40 high 1.30`)。
+      形狀與 AppKit 不同:UIKit 先要一份 configuration、等到要呈現時才要 `UIMenu`,因此項目是在
+      **呈現當下**才建立;每次都重建、不快取,否則會執行昨天那個 action。
+      **兩個 backend 唯一使用者看得見的差異**:UIKit 沒有分隔線元素(分段靠巢狀 inline `UIMenu`),
+      因此 `.separator` 被丟棄。
+    - **`Cursors` 已實作、未驗證**:`UIPointerInteraction`。**UIKit 沒有游標集合**——查證過,iOS 27 SDK
+      的形狀 case 只有 `path` / `roundedRect` / `beam` / `verticalBeam` / `horizontalBeam`,
+      **沒有** `crosshair`。因此 crosshair、兩個 resize 與 notAllowed 都是**畫出來的路徑**,
+      `text` → `.verticalBeam`,`pointingHand` → `.highlight` 效果。
+      **驗不了的原因寫明**:iPhone 模擬器沒有指標裝置,而 `UIPointerInteraction` 沒有指標時是惰性的。
+      要驗需要 iPad 模擬器加上指標,或實機加觸控板。
+  - **為了驗 iOS 的右鍵選單,動作檔格式多了一個動作:`longpress`。**
+    觸控螢幕上的右鍵選單是靠「按住」叫出來的,而 mousedown/mouseup 表達不了——runner 固定按壓 0.1 秒,
+    不論中間夾了幾列 `sleep`(`sleep` 暫停的是重放、不是手指)。**桌面的三個 synthesiser 都會拒絕它**
+    並指向 `click ... right`;一個「在三個平台上靜默變成右鍵」的動作,會藏起跨平台測試正要找的那個差異。
+    `micros` 是**必填**:沒有時長的長按就是一次點擊。
+  - **[!] 我先前說 `UIKitBackend+KeyEvents.swift` 編得過,那是錯的——它從來沒編過。**
+    macOS 主機上的 `swift build` 不會建 UIKitBackend,而我寫完之後沒跑過 `compile.zsh -ios`。
+    它在 `ContainerWidget`(一個 view **controller**)上覆寫了 `didMoveToWindow`(一個 `UIView` 的方法)。
+    已改為 `viewDidAppear`,現在 iOS 建得起來。記為 **mistakes 第 10 條的第二次發生**。
   - **SoftPCB §10.7 全部九項到此都有了答案。** 其中 macOS 上做完並驗過的是:拖曳、縮放/旋轉、焦點、
-    每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的是「其餘四個 backend」**:
-    UIKit / GTK / WinUI / Android 的 `Cursors` 與 `ContextMenus`,以及 UIKit 的 `KeyEvents` 未驅動
+    每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的**:GTK / WinUI / Android 的 `Cursors` 與 `ContextMenus`(GTK 與 WinUI 是你們的);
+    UIKit 的 `Cursors` 未驗證(需要 iPad 模擬器加指標);UIKit 的 `KeyEvents` 未驅動
     (模擬器沒有實體鍵盤)。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features

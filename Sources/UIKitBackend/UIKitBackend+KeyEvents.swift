@@ -58,9 +58,24 @@ final class KeyEventWidget: ContainerWidget {
     /// 因此沒有任何按鍵到得了它。
     override var canBecomeFirstResponder: Bool { isEnabled }
 
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window != nil else { return }
+    /// `viewDidAppear`, not `didMoveToWindow`.
+    ///
+    /// **A `ContainerWidget` is a view CONTROLLER, and the first version of this
+    /// file overrode a `UIView` method on it.** It never compiled -- and it was
+    /// committed saying it did, because UIKitBackend is not built by a plain
+    /// `swift build` on a macOS host and I never ran `compile.zsh -ios` after
+    /// writing it. That is mistakes.md entry 10 exactly: verified on the one
+    /// platform where the defect was impossible.
+    ///
+    /// 用 `viewDidAppear`,不是 `didMoveToWindow`。
+    ///
+    /// **`ContainerWidget` 是一個 view **controller**,而本檔的第一版在它上面覆寫了一個 `UIView` 的方法。**
+    /// 它從來沒有編譯過——而它被提交時還說它編得過,因為在 macOS 主機上,一個單純的 `swift build`
+    /// 不會建 UIKitBackend,而我寫完之後沒有跑過 `compile.zsh -ios`。那正是 mistakes.md 第 10 條:
+    /// 在「那個缺陷不可能發生」的唯一平台上驗證。
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard view.window != nil else { return }
         // Deferred for the reason AppKit's is: during assembly the request is
         // accepted and then superseded.
         // 延後一輪,理由與 AppKit 那邊相同:在組裝期間這個要求會被接受、然後被取代。
@@ -97,7 +112,7 @@ final class KeyEventWidget: ContainerWidget {
                 let bare = key.charactersIgnoringModifiers
                 onKey?(
                     KeyPress(
-                        key: bare.first.map(KeyEquivalent.init),
+                        key: bare.first.map { KeyEquivalent($0) },
                         characters: key.characters,
                         modifiers: modifiers,
                         phase: phase

@@ -194,6 +194,14 @@ public final class XdotoolSynthesiser: Synthesiser, Sendable {
                 try moveIfNeeded(point, in: geometry)
                 try run(["click", Self.number(for: button)])
 
+            case .longPress:
+                // Not a right-click in disguise. See `InputAction.longPress`.
+                // 不是偽裝成長按的右鍵。見 `InputAction.longPress`。
+                throw SynthesiserError.unsupported(
+                    "longpress: a long press does not raise a context menu here; "
+                        + "use `click ... right`"
+                )
+
             case .doubleClick(let button, let point):
                 try performDoubleClick(button, at: point, in: geometry)
 
