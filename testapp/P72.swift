@@ -553,6 +553,15 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         )
     }
 
+    /// Puts the camera back where it started, so a menu item has an effect the
+    /// readout can show.
+    /// 把相機放回它一開始的位置,好讓一個選單項目有一個「讀數看得見」的效果。
+    func resetCamera() {
+        cameraDistance = 3.4
+        cameraHeight = 1.3
+        P72Diagnostics.write("CONTEXT MENU reset the camera: dist 3.40 high 1.30")
+    }
+
     /// Turns the XY spin on or off, leaving the clock and the orbit alone.
     /// 開關 XY 自轉,不動時鐘、也不動公轉。
     func toggleSpin() {
@@ -790,6 +799,25 @@ struct P72RootView: View {
             // 那是一塊遠大於它所屬之物的游標區域。沒有任何東西會回報這件事;那個游標只是在一個沒人想到
             // 要檢查的地方顯示錯了。
             .cursor(.crosshair)
+            // **A context menu whose items DO something, because one that only
+            // appears proves less than it looks.** A menu that opens is a menu
+            // that opens; an item that resets the camera to a value the readout
+            // prints is an item whose action was actually run. The action file
+            // right-clicks, presses Return on the first item, and the assertion
+            // is `dist 3.40` in the readout plus a CONTEXT MENU line in the log.
+            //
+            // **一個「項目真的會做事」的右鍵選單,因為「只會出現」的選單,證明的比看起來少。**
+            // 一個會打開的選單就只是一個會打開的選單;而一個「把相機重設成讀數上印得出來的值」的項目,
+            // 才是一個「它的動作真的跑過」的項目。動作檔會右鍵點擊、對第一個項目按 Return,
+            // 而斷言是讀數上的 `dist 3.40`,加上 log 裡的一行 CONTEXT MENU。
+            .contextMenu {
+                Button("Reset the camera") {
+                    P72Model.shared.resetCamera()
+                }
+                Button("Snapshot") {
+                    P72Model.shared.takeSnapshot()
+                }
+            }
 
             Text("renderer: \(model.renderer)")
             Text("drawable: \(model.drawablePixels)")

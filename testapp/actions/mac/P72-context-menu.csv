@@ -1,0 +1,43 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72: does a secondary click raise a menu on the view, and do its items run?
+#
+# Coordinates are origin=frame, read off testapp/output/screenshots/
+# P72-taller-20260919-213420.png, a 520x808 capture of a 520x780 window.
+#
+# **The assertion is the ITEM RUNNING, not the menu appearing.** A menu that
+# opens is a menu that opens; SoftPCB's §10.7 gap 7 is about a view that can
+# offer actions, so the file activates the first item and reads the effect:
+#
+#   CONTEXT MENU reset the camera: dist 3.40 high 1.30
+#
+# Down-then-Return rather than a click on the item: an NSMenu runs its own event
+# tracking loop, and the keyboard path through it needs no second coordinate
+# measured against a menu whose position this file does not control.
+#
+# Checked that it can fail: the same file with the secondary click moved to
+# y 140 -- plain text, outside the view that owns the menu -- produces ZERO
+# CONTEXT MENU lines. The menu belongs to the view, not to the window.
+#
+# P72:次要點擊會在這個 view 上叫出選單嗎?而它的項目會執行嗎?
+#
+# 座標為 origin=frame,量自 testapp/output/screenshots/P72-taller-20260919-213420.png
+# ——一張 520x808 的擷圖、對應 520x780 的視窗。
+#
+# **斷言的是「項目有執行」,不是「選單有出現」。** 一個會打開的選單就只是一個會打開的選單;
+# SoftPCB §10.7 第 7 項講的是「一個 view 能不能提供動作」,因此這份檔案會**啟用第一個項目**並讀取其效果
+# (見上方那一行)。
+#
+# 用「下鍵再 Return」而不是去點那個項目:一個 NSMenu 會跑它自己的事件追蹤迴圈,而走鍵盤這條路,
+# 就不需要再量一個「本檔案並不控制其位置」的選單座標。
+#
+# 已查證它會失敗:同一份檔案把次要點擊移到 y 140(純文字、在擁有該選單的 view 之外),
+# CONTEXT MENU 的行數是**零**。那個選單屬於那個 view,不屬於那個視窗。
+sleep,,,,,,1500000,let P72 lay out,macos
+click,238,518,frame,left,,,stop the clock first so the readout is stable,macos
+sleep,,,,,,500000,,macos
+click,239,284,frame,right,,,secondary click on the mesh view -- the context menu must open,macos
+sleep,,,,,,1200000,let the menu open and start tracking,macos
+key,,,,,downArrow,,highlight the first item,macos
+sleep,,,,,,300000,,macos
+key,,,,,return,,"activate 'Reset the camera' -- CONTEXT MENU must appear in the log",macos
+sleep,,,,,,1000000,,macos

@@ -605,7 +605,20 @@ an empty queue -- mistakes.md entry 1.
     **`.click` 刻意仍然不 warp**:這棵樹每一份已驗證的動作檔,都是在「點擊不會動到指標」的前提下量的。
     - **我為此錯讀過一次證據並記在程式碼裡**:我看到十字出現在距離該 view 三百點外,判定「游標區域太大」,
       還據此改了 modifier 順序。正確的讀法是「滑鼠在那邊」——那張擷圖畫的是我的實體滑鼠。
-  - **SoftPCB §10.7 剩下的:** UIKit / GTK / WinUI / Android 的 `Cursors`,以及第 7 項右鍵選單。
+  - **§10.7 第 7 項「右鍵選單」已關掉(2026-09-20,AppKit):**
+    `BackendFeatures.ContextMenus` + `.contextMenu { }`。**選單是一個 `ResolvedMenu`**——與
+    `PopoverMenus` 所取的同一個值,由同一個 renderer 轉成 `NSMenuItem`。第二套選單表示法,等於多一個
+    地方讓 submenu / toggle / 分隔線的意思產生些微差異。
+    - AppKit 那一側**只設 `NSView.menu`**:AppKit 會從被點擊的 view 往上走、逐一詢問各自的 `menu`,
+      因此不需要手勢辨識器、不需要覆寫 `rightMouseDown`、也不需要自己彈出選單。
+    - **斷言的是「項目有執行」,不是「選單有出現」**(`actions/mac/P72-context-menu.csv`):
+      右鍵 → 下鍵 → Return → log 出現 `CONTEXT MENU reset the camera: dist 3.40 high 1.30`。
+      **已證明會失敗**:把右鍵點擊移到純文字上(y 140),CONTEXT MENU 行數為**零**——那個選單屬於
+      那個 view,不屬於那個視窗。
+  - **SoftPCB §10.7 全部九項到此都有了答案。** 其中 macOS 上做完並驗過的是:拖曳、縮放/旋轉、焦點、
+    每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的是「其餘四個 backend」**:
+    UIKit / GTK / WinUI / Android 的 `Cursors` 與 `ContextMenus`,以及 UIKit 的 `KeyEvents` 未驅動
+    (模擬器沒有實體鍵盤)。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 
