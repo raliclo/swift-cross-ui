@@ -553,6 +553,54 @@
 
                 switch action {
                     case .move(let point):
+                        // **The PHYSICAL pointer is moved too, and until
+                        // 2026-09-20 it was not.** `NSApp.postEvent` delivers a
+                        // synthetic mouse-moved event to this application; the
+                        // cursor on screen does not follow it. Everything driven
+                        // by the event stream worked -- hit testing, hover, drag
+                        // -- so nothing complained for months. What does not work
+                        // is anything that reads the REAL pointer: the cursor
+                        // shape (`.cursor(_:)` and `NSTrackingArea.cursorUpdate`),
+                        // `NSEvent.mouseLocation`, and any `screencapture -C`,
+                        // which draws the pointer where the mouse physically is.
+                        //
+                        // This module's own README says the verb is "move the
+                        // pointer". It now does.
+                        //
+                        // `.click` deliberately still does not warp, even though
+                        // the README says it "moves first if a position is
+                        // given": every verified action file in this tree was
+                        // measured with clicks that left the pointer alone, and
+                        // moving it could put the real cursor over something that
+                        // reacts to hover. That is a separate change with its own
+                        // re-verification, not a free rider on this one.
+                        //
+                        // **實體指標也會被移動了,而在 2026-09-20 之前並不會。** `NSApp.postEvent` 送出的是
+                        // 一個給「本應用程式」的合成 mouse-moved 事件;螢幕上的游標不會跟著走。凡是由事件流
+                        // 驅動的東西都能運作——hit testing、hover、拖曳——所以幾個月來沒有任何東西抗議。
+                        // 不能運作的是「讀取**真實**指標」的那些東西:游標形狀(`.cursor(_:)` 與
+                        // `NSTrackingArea.cursorUpdate`)、`NSEvent.mouseLocation`,以及任何
+                        // `screencapture -C`——它畫的是滑鼠實體所在之處。
+                        //
+                        // 本模組自己的 README 寫著這個動作是「移動指標」。現在它真的會。
+                        //
+                        // `.click` **刻意**仍然不 warp,即使 README 說它「若帶位置則先移動」:這棵樹裡每一份
+                        // 已驗證的動作檔,都是在「點擊不會動到指標」的前提下量出來的,而移動它可能把真實游標
+                        // 放到某個會對 hover 起反應的東西上。那是另一次變更、要有它自己的重新驗證,
+                        // 不能搭這一次的順風車。
+                        do {
+                            let screen = try geometry.screenPosition(of: point)
+                            CGWarpMouseCursorPosition(
+                                CGPoint(x: Double(screen.x), y: Double(screen.y))
+                            )
+                            // Without this the hardware mouse stays disconnected
+                            // from the cursor for about a quarter of a second, so
+                            // a person nudging the mouse right after a replay sees
+                            // it jump back.
+                            // 少了這一行,實體滑鼠會與游標失聯約四分之一秒;於是重放結束後立刻動一下滑鼠的人,
+                            // 會看到游標跳回去。
+                            CGAssociateMouseAndMouseCursorPosition(1)
+                        }
                         try self.postMouse(
                             .mouseMoved,
                             .left,

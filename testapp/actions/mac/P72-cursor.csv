@@ -1,0 +1,44 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72: does .cursor(_:) change the pointer, and only over the view it is on?
+#
+# Coordinates are origin=frame, read off testapp/output/screenshots/
+# P72-taller-20260919-213420.png, a 520x808 capture of a 520x780 window.
+#
+# **THIS FILE CANNOT BE JUDGED FROM THE HARNESS OUTPUT. It needs a capture that
+# INCLUDES THE POINTER, which is `screencapture -C`; the default excludes it.**
+# Run it and take two captures during the two holds:
+#
+#   zsh testapp/test.zsh P72 --macos --actionfile=testapp/actions/mac/P72-cursor.csv &
+#   sleep 12; screencapture -x -C /tmp/mesh.png     # pointer on the mesh view
+#   sleep 10; screencapture -x -C /tmp/text.png     # pointer on plain text
+#
+# Expected: a CROSSHAIR in the first and an ARROW in the second. The second is
+# the assertion that matters -- a crosshair everywhere would also produce a
+# crosshair in the first.
+#
+# **This only works because `move` warps the physical pointer, which it did not
+# until 2026-09-20.** Before that it posted a synthetic mouse-moved event to the
+# application and left the real cursor where the mouse was, so every
+# `screencapture -C` showed the pointer somewhere else entirely. The clock is
+# stopped first so the cube does not move between captures.
+#
+# P72:`.cursor(_:)` 會改變指標嗎?而且只在它所屬的那個 view 上方嗎?
+#
+# 座標為 origin=frame,量自 testapp/output/screenshots/P72-taller-20260919-213420.png
+# ——一張 520x808 的擷圖、對應 520x780 的視窗。
+#
+# **這份檔案無法從 harness 的輸出判定。它需要一張「包含指標」的擷圖,也就是 `screencapture -C`;
+# 預設是不包含的。** 執行它,並在兩段 hold 期間各拍一張(指令見上方英文區塊)。
+#
+# 預期:第一張是**十字**、第二張是**箭頭**。真正關鍵的是第二張——如果到處都是十字,第一張也會是十字。
+#
+# **這件事之所以行得通,是因為 `move` 會 warp 實體指標;而在 2026-09-20 之前它不會。** 在那之前,
+# 它送出的是一個給應用程式的合成 mouse-moved 事件,實體游標留在滑鼠原處,因此每一張 `screencapture -C`
+# 拍到的指標都在完全不同的地方。先把時鐘停掉,好讓立方體不會在兩張擷圖之間移動。
+sleep,,,,,,1500000,let P72 lay out,macos
+click,238,518,frame,left,,,stop the clock so the cube does not move between captures,macos
+sleep,,,,,,500000,,macos
+move,239,284,frame,,,,pointer onto the mesh view -- CROSSHAIR expected,macos
+sleep,,,,,,8000000,"hold: take the crosshair capture here",macos
+move,239,140,frame,,,,"pointer onto plain text -- ARROW expected, and this is the real assertion",macos
+sleep,,,,,,8000000,"hold: take the arrow capture here",macos
