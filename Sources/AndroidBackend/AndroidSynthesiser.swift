@@ -171,6 +171,9 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .doubleClick(let button, let point):
                 try performDoubleClick(button, at: point, in: geometry)
 
+            case .longPress(let point, let micros):
+                try longPress(at: point, micros: micros, in: geometry)
+
             case .mouseDown(_, let point):
                 let position = try resolve(point, in: geometry)
                 pressDownTime = try dispatch(action: actionDown, at: position, downTime: nil)
@@ -294,6 +297,52 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         _ = try dispatch(action: actionUp, at: end, downTime: downTime)
         lastPoint = end
+    }
+
+    /// A press held down, which is how a finger raises a context menu.
+    ///
+    /// **The hold is real elapsed time and it has to be.** Android does not read
+    /// a duration out of the events: `View.onTouchEvent` posts a
+    /// `CheckForLongPress` runnable on ACTION_DOWN and cancels it on ACTION_UP,
+    /// so the long click happens if, and only if, the main thread's message
+    /// queue gets to that runnable before the release arrives. A down and an up
+    /// posted back to back with an `eventTime` 500 ms apart is a tap -- the
+    /// timestamps are not what is measured.
+    ///
+    /// That is also why the sleep stays on the replay thread. `dispatch` hops to
+    /// the main thread per event and returns; sleeping here leaves the main
+    /// thread free to run the runnable that this verb exists to trigger.
+    /// Sleeping on the main thread instead would hold the queue shut for exactly
+    /// the interval in which the long press was supposed to fire, and the row
+    /// would degrade into a tap with nothing to say so.
+    ///
+    /// No ACTION_MOVE is sent. A move within the touch slop would be harmless
+    /// and one beyond it cancels the pending long press, so the useful number of
+    /// move events here is zero.
+    ///
+    /// 一次被按住的按壓,也就是手指叫出脈絡選單的方式。
+    ///
+    /// **這個「按住」是真實流逝的時間,而且必須是。** Android 並不從事件裡讀取時長:
+    /// `View.onTouchEvent` 在 ACTION_DOWN 時 post 一個 `CheckForLongPress` runnable,並在 ACTION_UP
+    /// 時取消它;因此長按會發生,若且唯若主執行緒的訊息佇列在釋放事件抵達之前跑到了那個 runnable。
+    /// 兩個背靠背投遞、`eventTime` 相差 500 毫秒的 down 與 up,就是一次點擊——被量的不是那些時間戳。
+    ///
+    /// 那也正是睡眠留在重放執行緒上的原因。`dispatch` 是每個事件跳一次主執行緒然後返回;在此處睡眠,
+    /// 會讓主執行緒有空去跑那個「本動作正是為了觸發它而存在」的 runnable。改在主執行緒上睡,則會在
+    /// 「長按本該觸發」的那段區間裡把佇列關死,而那一列會退化成一次點擊,且沒有任何東西會說出這件事。
+    ///
+    /// 不送 ACTION_MOVE。在 touch slop 之內的移動無害,超出的則會取消待處理的長按;因此此處有用的
+    /// move 事件數量是零。
+    private func longPress(
+        at point: Point?,
+        micros: Int,
+        in geometry: WindowGeometry
+    ) throws {
+        let position = try resolve(point, in: geometry)
+        let downTime = try dispatch(action: actionDown, at: position, downTime: nil)
+        Thread.sleep(forTimeInterval: Double(micros) / 1_000_000)
+        _ = try dispatch(action: actionUp, at: position, downTime: downTime)
+        lastPoint = position
     }
 
     /// Half the distance between the two contacts a gesture starts with.
@@ -493,14 +542,14 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                     Int32(contacts.count),
                     properties,
                     coordinates,
-                    Int32(0),  // metaState
-                    Int32(0),  // buttonState
-                    Float(1),  // xPrecision
-                    Float(1),  // yPrecision
-                    Int32(0),  // deviceId
-                    Int32(0),  // edgeFlags
+                    Int32(0), // metaState
+                    Int32(0), // buttonState
+                    Float(1), // xPrecision
+                    Float(1), // yPrecision
+                    Int32(0), // deviceId
+                    Int32(0), // edgeFlags
                     source,
-                    Int32(0)  // flags
+                    Int32(0) // flags
                 )
             else { return false }
             _ = activity.dispatchTouchEvent(event)

@@ -637,10 +637,47 @@ an empty queue -- mistakes.md entry 1.
     macOS 主機上的 `swift build` 不會建 UIKitBackend,而我寫完之後沒跑過 `compile.zsh -ios`。
     它在 `ContainerWidget`(一個 view **controller**)上覆寫了 `didMoveToWindow`(一個 `UIView` 的方法)。
     已改為 `viewDidAppear`,現在 iOS 建得起來。記為 **mistakes 第 10 條的第二次發生**。
+  - **Android 的 `Cursors` 與 `ContextMenus` 已落地(2026-09-21):**
+    - **`ContextMenus` 已驗證,而且項目會執行。** Android 有**兩種**叫出脈絡選單的方式,分屬兩個
+      listener 插槽:手指長按(`View.OnLongClickListener`)、滑鼠/觸控筆次要點擊
+      (`View.OnContextClickListener`)。兩個都裝上,並共用 `AttachedMenus` 本來就在建的那個
+      `PopupMenu`——不另造一套選單表示法。沒有用 `registerForContextMenu`,因為它會繞經
+      `Activity.onCreateContextMenu`,那個 callback 不知道是哪個 view 在問。
+      **證據**:`testapp/actions/android/P72-context-menu.csv`(新的 `longpress` 動作)長按 mesh view,
+      `p72-android-final-20260921-181017.png` 裡有帶著 **Reset the camera** / **Snapshot** 的彈出選單;
+      接著 `adb shell input tap 254 1063` 讓 logcat 印出
+      `CONTEXT MENU reset the camera: dist 3.40 high 1.30`。
+      **已證明會失敗**:同一份檔案把長按移到標題文字(點 y 34),完全沒有彈出選單。
+    - **為什麼按項目那一步不是動作檔的一列。** `AndroidSynthesiser.dispatch` 走
+      `Activity.dispatchTouchEvent`,只抵達本 activity 的視窗;`PopupMenu` 是 WindowManager 持有的
+      **另一個視窗**。這正是 P2/P17/P19/P20 都在一次點擊後停住的同一個限制
+      (`AndroidSynthesiser.swift:566` 已寫明)。因此那一步改用 `adb shell input tap` 在系統層級注入。
+    - **`longpress` 現在在 Android 上是真的按住。** Android 不從事件裡讀時長:`View.onTouchEvent` 在
+      ACTION_DOWN 時 post 一個 `CheckForLongPress`、在 ACTION_UP 時取消它,所以兩個背靠背投遞、
+      `eventTime` 相差 500 毫秒的事件就只是一次點擊。睡眠留在重放執行緒上,好讓主執行緒有空跑那個
+      runnable。
+    - **`Cursors` 已實作、未驗證,而這次「未驗證」是可以指出原因的。** `View.setPointerIcon` +
+      `PointerIcon.getSystemIcon`,七個 case 全部對應真正的系統圖示(`TYPE_NO_DROP` 是禁止圈,
+      兩個縮放用雙向箭頭)。**這個 AVD 根本沒有指標裝置**:`dumpsys input` 的 Event Hub 只有
+      `gpio-keys` 與十二個 `virtio_input_multi_touch_*`,`MousePointerControllers` 是空的,
+      而三次以 `uinput` 註冊虛擬滑鼠(root 與 shell 各試)都沒有產生裝置。沒有 `PointerController`
+      就沒有 sprite 可畫。**能驗的已經驗了**:conformance 確實被採用——`CursorDegradation` 的警告從
+      logcat 消失,而 `Mesh3DViews` / `ScrollGestures` / `KeyEvents` 的警告仍在。
+      要看到十字,需要一台帶真滑鼠的裝置或模擬器。
+  - **[!] Android 的整個 `SwiftCrossUI` 核心,從 M10 落地那天起就沒有編過。**
+    `Sources/SwiftCrossUI/Views/Mesh3DExport.swift` 在 `SIMD3<Float>` 上呼叫 `sin(euler.x / 2)`。
+    Darwin 的數學模組有 `Float` 多載,Bionic 的 `math.h` 只有 `sin(double)` 與 `sinf(float)`——
+    於是 Android 上連 `/` 是什麼意思都定不下來,一次六個錯誤;`testapp/P72.swift` 的相機環繞也同一行。
+    那不是 backend 的檔案,是**每個平台都連結的核心**,因此 macOS 與 iOS 全綠的那幾天裡,
+    Android 一個二進位都產不出來。已改為以 `Double` 運算再轉回 `Float`(不需要 `#if`)。
+    記為 **mistakes 第 24 條**,也是本樹第一次記下 `mistakes_prevention` 的**關口 4**。
+    修好之後已重跑 macOS 的 `actions/mac/P72-stop-and-check.csv`:十項斷言全數重現,
+    `.glb` 仍通過 three.js 的 `GLTFLoader`(2356 bytes,node euler z 1.0829 rad)。
   - **SoftPCB §10.7 全部九項到此都有了答案。** 其中 macOS 上做完並驗過的是:拖曳、縮放/旋轉、焦點、
-    每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的**:GTK / WinUI / Android 的 `Cursors` 與 `ContextMenus`(GTK 與 WinUI 是你們的);
-    UIKit 的 `Cursors` 未驗證(需要 iPad 模擬器加指標);UIKit 的 `KeyEvents` 未驅動
-    (模擬器沒有實體鍵盤)。
+    每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的**:GTK / WinUI 的 `Cursors` 與
+    `ContextMenus`(那是你們的);Android / GTK / WinUI 的 `Mesh3DViews`、`WidgetSnapshots`、
+    `ScrollGestures`、`KeyEvents`;UIKit 與 Android 的 `Cursors` 未驗證(兩者都沒有指標裝置);
+    UIKit 的 `KeyEvents` 未驅動(模擬器沒有實體鍵盤)。
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

@@ -418,14 +418,27 @@ final class P72Model: SwiftCrossUI.ObservableObject {
         //
         // 自轉是兩者中較慢的那一個,好讓兩種運動用肉眼就分得開。兩者都由同一個 `FrameClocks` 跳動驅動。
         let radius = cameraDistance
-        let orbit = Float(angle)
+        // `Double` for the turn, `Float` for the result. `sin(Float)` exists on
+        // Darwin and not on Android -- Bionic's math.h has `sin(double)` and
+        // `sinf(float)` and nothing else -- so this same line built on macOS and
+        // did not type-check at all for Android. Same fix, same reason, as
+        // `quaternion(fromEulerZYX:)` in Mesh3DExport.swift.
+        // 轉角用 `Double`、結果用 `Float`。`sin(Float)` 在 Darwin 上存在,在 Android 上不存在
+        // ——Bionic 的 math.h 只有 `sin(double)` 與 `sinf(float)`,沒有別的——因此同一行在 macOS 上
+        // 建得起來,對 Android 卻連型別檢查都過不了。與 Mesh3DExport.swift 的
+        // `quaternion(fromEulerZYX:)` 是同一個修法、同一個理由。
+        let orbit = Double(angle)
         let spin = spinning ? Float(angle) * 0.45 : 0
         var cube = P72Cube.mesh
         cube.transform = .rotatedInXY(spin)
         return Mesh3DScene(
             meshes: [cube],
             camera: Mesh3DCamera(
-                position: SIMD3(radius * sin(orbit), cameraHeight, radius * cos(orbit)),
+                position: SIMD3(
+                    Float(Double(radius) * sin(orbit)),
+                    cameraHeight,
+                    Float(Double(radius) * cos(orbit))
+                ),
                 target: SIMD3(0, 0, 0),
                 fieldOfView: 45
             ),

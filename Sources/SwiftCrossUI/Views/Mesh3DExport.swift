@@ -279,12 +279,27 @@ private struct Quaternion {
 /// 而用了一條為別的順序所寫的公式,產生的檔案只有在三個角當中有兩個不為零時才會錯——而一個只繞單軸自轉的
 /// 立方體,永遠不會讓那件事顯露出來。
 private func quaternion(fromEulerZYX euler: SIMD3<Float>) -> Quaternion {
-    let sx = sin(euler.x / 2)
-    let cx = cos(euler.x / 2)
-    let sy = sin(euler.y / 2)
-    let cy = cos(euler.y / 2)
-    let sz = sin(euler.z / 2)
-    let cz = cos(euler.z / 2)
+    // **Halved and turned in `Double`, because `sin(Float)` is not a function
+    // every target has.** The `Float` overload comes from the platform's own
+    // maths module -- Darwin has one, Bionic does not: its `math.h` offers
+    // `double sin(double)` and `float sinf(float)` and nothing in between. So a
+    // bare `sin(euler.x / 2)` type-checks on macOS, and on Android the compiler
+    // cannot even settle what `/` means, which is what it reported. Going
+    // through `Double` needs no `#if` and no `sinf`, and the extra precision is
+    // free at six calls.
+    //
+    // **先取半、以 `Double` 運算,因為 `sin(Float)` 不是每個目標都有的函式。** 那個 `Float` 多載來自
+    // 平台自己的數學模組——Darwin 有,Bionic 沒有:它的 `math.h` 只給 `double sin(double)` 與
+    // `float sinf(float)`,中間什麼都沒有。因此一句光禿禿的 `sin(euler.x / 2)` 在 macOS 上型別檢查
+    // 得過,而在 Android 上編譯器連 `/` 是什麼意思都定不下來——它回報的正是那個。走 `Double` 不需要
+    // 任何 `#if`、也不需要 `sinf`,而六次呼叫多出來的精度不花什麼。
+    let half = SIMD3<Double>(Double(euler.x), Double(euler.y), Double(euler.z)) / 2
+    let sx = Float(sin(half.x))
+    let cx = Float(cos(half.x))
+    let sy = Float(sin(half.y))
+    let cy = Float(cos(half.y))
+    let sz = Float(sin(half.z))
+    let cz = Float(cos(half.z))
     return Quaternion(
         x: sx * cy * cz + cx * sy * sz,
         y: cx * sy * cz - sx * cy * sz,

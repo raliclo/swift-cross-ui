@@ -1886,3 +1886,56 @@ from *the feature is dead*.
 
 這是第 6 條的反面。那一條是從「被過濾過的 log」裡讀出一個**通過**;這一條是從「被丟掉的輸出」裡讀出一個
 **失敗**,並把它寫進了 git 歷史——下一個人會把它當成關於程式碼的事實繼承下去,而它其實只是關於我的 shell。
+
+## 24. Used a Darwin-only maths overload in code every backend builds
+
+**1 occurrence / 1 day (2026-09-21).**
+
+`Sources/SwiftCrossUI/Views/Mesh3DExport.swift` computes a quaternion from Euler angles and wrote
+`sin(euler.x / 2)` where `euler` is a `SIMD3<Float>`. Darwin's maths module carries a `Float`
+overload of `sin`; Bionic's `math.h` carries `double sin(double)` and `float sinf(float)` and
+nothing in between. So on Android the compiler could not settle what `/` meant either, and reported
+six errors at once. `testapp/P72.swift` had the same line for its camera orbit.
+
+macOS and iOS built, ran, replayed action files, and were reported done. The file that could not
+compile is not in a backend — it is in `SwiftCrossUI`, the core every platform links — so
+**AndroidBackend had not built at all** from the day it was added until today, and nothing said so.
+I only found it because the next task happened to be Android.
+
+This is **gate 4** of the `mistakes_prevention` skill, and the first occurrence of that gate
+recorded in this tree. It is the same class as the skill's own example: `fnmatch` is POSIX and
+Windows does not have it; `sin(Float)` is Darwin and Bionic does not have it. Green on three
+platforms says nothing whatever about the fourth.
+
+**It is not entry 10.** That one is narrower — a *conditional* change verified under the one
+condition that made its defect impossible. This file is unconditional, read by every build, and was
+still only ever compiled by one family of them.
+
+**Corrective.** Before calling any C maths or POSIX function from `Sources/SwiftCrossUI`, build one
+non-Darwin target before calling the feature done. `zsh testapp/compile.zsh -android <Pn>` is the
+cheapest such build on this host and the only one with Bionic's `math.h`. For trigonometry, prefer
+`Double` and convert the result — that needs no `#if` and costs nothing at six calls.
+
+**在每一個 backend 都會建置的程式碼裡,用了一個只有 Darwin 才有的數學多載**
+
+`Sources/SwiftCrossUI/Views/Mesh3DExport.swift` 由 Euler 角算四元數,寫的是 `sin(euler.x / 2)`,
+而 `euler` 是 `SIMD3<Float>`。Darwin 的數學模組帶有 `sin` 的 `Float` 多載;Bionic 的 `math.h` 只有
+`double sin(double)` 與 `float sinf(float)`,中間什麼都沒有。因此在 Android 上,編譯器連 `/` 是什麼意思
+都定不下來,一次回報六個錯誤。`testapp/P72.swift` 的相機環繞也有同一行。
+
+macOS 與 iOS 建得起來、跑得動、重放過動作檔,並且被回報為完成。而那個編不過的檔案**不在**任何一個
+backend 裡——它在 `SwiftCrossUI`,是每個平台都會連結的核心——因此從它被加入的那一天起,
+**AndroidBackend 根本從未建置成功過**,而沒有任何東西說出這件事。我會發現,只是因為下一項工作剛好是
+Android。
+
+這是 `mistakes_prevention` skill 的**關口 4**,也是本樹第一次記下該關口的發生。它與該 skill 自己的例子
+同類:`fnmatch` 屬於 POSIX 而 Windows 沒有;`sin(Float)` 屬於 Darwin 而 Bionic 沒有。三個平台全綠,
+對第四個平台什麼也沒說。
+
+**它不是第 10 條。** 那一條更窄——一次**條件式**的修改,只在那個讓其缺陷不可能發生的條件下被驗證。
+這個檔案是無條件的、每一次建置都會讀到,卻仍然只被其中一族建置過。
+
+**矯正措施。** 在 `Sources/SwiftCrossUI` 裡呼叫任何 C 數學或 POSIX 函式之前,先建一個非 Darwin 的目標,
+再說這項功能完成了。`zsh testapp/compile.zsh -android <Pn>` 是本機上最便宜的那一個,也是唯一帶著
+Bionic `math.h` 的那一個。三角函數請優先用 `Double` 再轉回來——那不需要任何 `#if`,而六次呼叫的代價
+是零。

@@ -1,0 +1,49 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Android: does a long press on the mesh view raise a context menu?
+#
+# Measured 2026-09-21 from testapp/output/screenshots/p72-android-final-20260921-180847.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. The mesh view is `.frame(width: 340, height: 240)`, which
+# is 892 x 630 pixels; on that capture it is the blank band from pixel y 348 to
+# y 1026, starting at x 54. Its centre is pixel (500, 687), which is point
+# (190, 262) -- the longpress row below.
+#
+# **Why a long press and not a right-click row.** Android raises a context menu
+# two ways and keeps them on two listener slots: a finger long-presses, a mouse
+# secondary-clicks. AndroidBackend installs both (AndroidBackend+ContextMenus.swift),
+# and an emulator driven by this harness has a touch screen, not a mouse -- so
+# the touch half is the half this file can drive. The mouse half needs a pointer
+# device the replay does not have.
+#
+# **Why this file stops at the menu appearing, and what finishes the check.**
+# `AndroidSynthesiser.dispatch` delivers through `Activity.dispatchTouchEvent`,
+# which reaches this activity's window and nothing else. A `PopupMenu` is a
+# SEPARATE window owned by the WindowManager, so no row in any Android action
+# file can press an item in it -- the same limit that stops P2, P17, P19 and P20
+# after one click, and it is written out at AndroidSynthesiser.swift:566.
+# Pressing the item therefore goes through `adb shell input tap`, which injects
+# at system level; that step and its result are recorded in
+# testapp/measurements/ rather than here, because it is not a row.
+#
+# P72 於 Android:在 mesh view 上長按,會叫出一個脈絡選單嗎?
+#
+# 2026-09-21 量自 testapp/output/screenshots/p72-android-final-20260921-180847.png。
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625,因此視窗為 411 x 914 點。
+# mesh view 是 `.frame(width: 340, height: 240)`,即 892 x 630 像素;在那張擷圖上,它是從像素
+# y 348 到 y 1026、自 x 54 起的那一條空白帶。其中心為像素 (500, 687),即點 (190, 262)
+# ——也就是下方的 longpress 列。
+#
+# **為何用長按而不是右鍵列。** Android 有兩種叫出脈絡選單的方式,分屬兩個 listener 插槽:手指長按、
+# 滑鼠次要點擊。AndroidBackend 兩個都裝(AndroidBackend+ContextMenus.swift),而由本 harness 驅動的
+# emulator 有的是觸控螢幕、不是滑鼠——因此觸控那一半才是這份檔案驅動得了的一半。滑鼠那一半需要一個
+# 重放並不具備的指標裝置。
+#
+# **為何這份檔案止於「選單出現」,以及是什麼補完了這項檢查。**
+# `AndroidSynthesiser.dispatch` 是經由 `Activity.dispatchTouchEvent` 投遞的,它只抵達本 activity 的
+# 視窗、抵達不了別的。`PopupMenu` 是由 WindowManager 持有的**獨立視窗**,因此任何 Android 動作檔裡的
+# 任何一列都按不到它裡面的項目——這正是讓 P2、P17、P19、P20 在一次點擊後就停止的同一個限制,
+# 並寫在 AndroidSynthesiser.swift:566。按下該項目因此改走 `adb shell input tap`(它在系統層級注入);
+# 那一步與其結果記在 testapp/measurements/,而不是此處,因為它不是一列動作。
+sleep,,,,,,2000000,let P72 lay out and the frame clock settle,android
+longpress,190,262,,,,800000,"long press the centre of the mesh view -- a PopupMenu carrying 'Reset the camera' and 'Snapshot' must appear over the window (VERIFIED 2026-09-21 in p72-android-final-20260921-181017.png: the popup covers pixels x 50-565, y 995-1245 and reads 'Reset the camera' / 'Snapshot'; adb shell input tap 254 1063 then produced 'CONTEXT MENU reset the camera: dist 3.40 high 1.30' in logcat, so the item's action ran. CAN FAIL: the same row moved to the title text at point y 34 produces no popup)",android
+sleep,,,,,,1500000,let the popup window open and settle before the capture,android
