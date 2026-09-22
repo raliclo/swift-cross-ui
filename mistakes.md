@@ -2021,3 +2021,88 @@ Shift 被永遠按住了。
 **矯正措施。** 在任何 backend 或 synthesiser 上新增或審查按鍵路徑時,驅動一組
 `keydown` / `key` / `keyup`,並讀**最後一行**。要斷言的不是那個修飾鍵**抵達了**,而是它**離開了**。
 一個停在「按下」的按鍵測試,看不見這件事。
+
+## 26. A counter tool from another tree, whose column numbers pointed at prose here
+
+**1 occurrence / 1 day (2026-09-23).**
+
+`~/.claude/skills/mistakes_prevention/scripts/counter.zsh` hardcodes its columns:
+
+```
+C_TOTAL=3; C_SAMEDAY=4; C_SDATE=5; C_DAYS=6; C_LAST=8; C_CORR=9
+```
+
+Those are right for the eleven-column schema `/Volumes/LinuxCS/mistakes_counter.csv2` uses
+(`id,title,total,sameday_max,sameday_date,days_seen,first_seen,last_seen,corrective,shape,guard`).
+This tree's file has **nine** columns and no `sameday_max` or `sameday_date`, so every constant
+after the third points somewhere else here.
+
+`counter.zsh bump 13 2026-09-23` therefore computed `$(( 2026-09-16 + 1 ))` — zsh reads that as
+arithmetic and returns **2002** — and wrote it into `last`. Then it wrote the date into `shape`,
+**destroying 650 characters of prose**. It exited 0 and printed:
+
+```
+#13 → total=2 last_seen=2026-09-23
+```
+
+Both halves of that line are true. Neither describes what happened to the file.
+
+**The quieter half is worse.** `check` reads `C_CORR=9`, which is `guard` here — so both ✓ it
+printed earlier in the same session were about the wrong column, and the rule it exists to enforce
+("`total > 5` 時 `corrective` 不得為空") has never actually been checked against this file.
+
+**This is not the comma-splitting failure the global rule is about, and that is the point.**
+`counter.zsh` obeys that rule completely: every cell goes through `csv2 -get`. A real parser does
+not help when the *index* is wrong. The file was read correctly and written correctly, to the wrong
+place. What was missing is that **a column is identified by its name**.
+
+The only reason it was noticed: the confirmation said `days` had not moved, while the value printed
+back for `last` was `2002` — four digits where a date belongs.
+
+**Corrective.** `Scripts/bump_mistake.sh`, which resolves `total`/`days`/`last` against the header
+row by name and refuses when a name is absent, so a schema change fails loudly instead of landing
+on whatever sits at that index. Proved in three directions before being trusted: it moves exactly
+those three cells and leaves `corrective`/`shape`/`guard` byte-identical; a header with `last`
+renamed makes it exit 1 naming the column and printing the whole header; an unknown id exits 1.
+
+Do not run `counter.zsh` against this repository's counter.
+
+**一支來自另一棵樹的計數工具,而它的欄號在這裡指著散文**
+
+`~/.claude/skills/mistakes_prevention/scripts/counter.zsh` 把欄號寫死:
+
+```
+C_TOTAL=3; C_SAMEDAY=4; C_SDATE=5; C_DAYS=6; C_LAST=8; C_CORR=9
+```
+
+那些對 `/Volumes/LinuxCS/mistakes_counter.csv2` 的十一欄 schema 是正確的
+(`id,title,total,sameday_max,sameday_date,days_seen,first_seen,last_seen,corrective,shape,guard`)。
+這棵樹的檔案只有**九**欄,沒有 `sameday_max` 也沒有 `sameday_date`;因此第三欄之後的每一個常數,
+在此處都指向別的地方。
+
+於是 `counter.zsh bump 13 2026-09-23` 算出了 `$(( 2026-09-16 + 1 ))`——zsh 會把它當算式,得到
+**2002**——並寫進 `last`。接著它把日期寫進了 `shape`,**毀掉 650 個字元的散文**。它以 0 結束並印出:
+
+```
+#13 → total=2 last_seen=2026-09-23
+```
+
+那一行的兩半都是真的。兩半都沒有描述那個檔案發生了什麼事。
+
+**更安靜的那一半更糟。** `check` 讀的是 `C_CORR=9`,在此處那是 `guard`——因此它在同一次 session 中
+印過的兩個 ✓,講的都是錯的欄位;而它存在所要執行的那條規則(「`total > 5` 時 `corrective` 不得為空」),
+對這個檔案**從來沒有真正被檢查過**。
+
+**這不是全域規則所針對的「切逗號」失敗,而那正是重點。** `counter.zsh` 完全遵守了那條規則:每一格都
+經由 `csv2 -get`。當**索引**是錯的時候,一個真正的解析器幫不上忙。那個檔案被正確地讀、也被正確地寫
+——寫到了錯的地方。缺的是這件事:**一個欄位是由它的名字來識別的。**
+
+它之所以被發現,唯一的理由是:那行確認訊息說 `days` 沒有變,而印回來的 `last` 是 `2002`
+——一個日期的位置上出現了四位數。
+
+**矯正措施。** `Scripts/bump_mistake.sh`:以表頭列的**名稱**解析 `total`/`days`/`last`,名稱不存在時
+拒絕寫入,因此 schema 改變會**大聲失敗**,而不是落在「剛好坐在那個索引上的東西」上面。在被信任之前已從
+三個方向證明過:它只動那三格,`corrective`/`shape`/`guard` 逐位元組不變;把表頭的 `last` 改名會讓它以 1
+結束並印出該欄名與整個表頭;未知的 id 以 1 結束。
+
+請不要對本倉庫的 counter 執行 `counter.zsh`。
