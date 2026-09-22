@@ -21,6 +21,13 @@ import SwiftJava
 
 @_spi(Backends) import SwiftCrossUI
 
+/// Spelled out because this file deliberately imports submodules rather than `AndroidKit`, and
+/// because a bare `KeyEvent` next to this module's `Key` invites exactly the confusion the import
+/// comment above is about.
+/// 明寫出來,因為本檔刻意 import 各子模組而非 `AndroidKit`;也因為一個光禿禿的 `KeyEvent` 擺在本模組的
+/// `Key` 旁邊,正好會招來上方那段 import 註解所談的那種混淆。
+private typealias AndroidKeyEvent = AndroidView.KeyEvent
+
 /// Replaying an action file on Android, by posting touches into our own
 /// activity.
 ///
@@ -36,11 +43,14 @@ import SwiftJava
 /// application, which is the failure `SendInput` and XTEST can have and cannot
 /// report.
 ///
-/// **What it does not do: keys.** `dispatchKeyEvent` exists and a `KeyEvent`
-/// can be built the same way, but a key row needs a keycode mapping from this
-/// module's ``Key`` to Android's, and no Android action file uses one today.
-/// Rather than write a mapping nothing exercises, a key row throws and says so.
-/// The iOS runner rejects key rows for the same reason.
+/// **Keys, since 2026-09-22.** This file used to refuse them, on the grounds
+/// that a keycode mapping nothing exercised was not worth writing. `.onKeyPress`
+/// on Android made something exercise it, so the mapping is here now: ``Key`` to
+/// `KeyEvent`'s keycodes, with the held modifiers tracked so that a `keydown`
+/// for shift reaches the next row as a meta state. The keys Android genuinely
+/// has no code for -- F13 through F20 -- are refused BY NAME rather than the
+/// whole verb being refused, so a file that uses F5 works and a file that uses
+/// F13 is told which row is the problem.
 ///
 /// 在 Android 上重放動作檔——把觸控事件投遞進我們自己的 activity。
 ///
@@ -53,10 +63,11 @@ import SwiftJava
 /// 自己的視窗。此處的任何東西都無法驅動另一個應用程式——而那正是 `SendInput` 與 XTEST 可能發生、
 /// 且無法回報的失敗。
 ///
-/// **它不做的事：按鍵。** `dispatchKeyEvent` 是存在的，`KeyEvent` 也能以同樣方式建構，但按鍵列需要
-/// 一份「本模組的 ``Key`` 到 Android keycode」的對照表，而今天沒有任何 Android 動作檔用到它。與其
-/// 寫一份沒有任何東西會去驗證的對照表，不如讓按鍵列拋出錯誤並說明原因。iOS 的 runner 基於相同理由
-/// 拒絕按鍵列。
+/// **按鍵,自 2026-09-22 起。** 本檔過去拒絕按鍵,理由是「一份沒有任何東西會去驗證的 keycode 對照表
+/// 不值得寫」。Android 上的 `.onKeyPress` 讓它有東西可驗了,因此那份對照表現在在這裡:``Key`` 對到
+/// `KeyEvent` 的 keycode,並追蹤被按住的修飾鍵,好讓一列 shift 的 `keydown` 能以 meta state 的形式
+/// 抵達下一列。Android 確實沒有對應碼的那些鍵——F13 到 F20——是**逐一具名**拒絕的,而不是整個動作
+/// 一起拒絕;因此用到 F5 的檔案能跑,用到 F13 的檔案會被告知是哪一列有問題。
 final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// Points to pixels.
     ///
@@ -211,8 +222,15 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .sleep(let microseconds):
                 Thread.sleep(forTimeInterval: Double(microseconds) / 1_000_000)
 
-            case .keyDown, .keyUp, .key:
-                throw SynthesiserError.unsupported("key rows on Android")
+            case .keyDown(let key):
+                try dispatchKey(key, action: keyActionDown)
+
+            case .keyUp(let key):
+                try dispatchKey(key, action: keyActionUp)
+
+            case .key(let key):
+                try dispatchKey(key, action: keyActionDown)
+                try dispatchKey(key, action: keyActionUp)
 
             case .focus:
                 // Returned above; listed so a new case cannot be added without
@@ -343,6 +361,212 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         Thread.sleep(forTimeInterval: Double(micros) / 1_000_000)
         _ = try dispatch(action: actionUp, at: position, downTime: downTime)
         lastPoint = position
+    }
+
+    /// The meta state a `keydown` row has left held.
+    ///
+    /// **Android does not remember this for you, and neither does the window.** A synthesised
+    /// `KeyEvent` carries its own `metaState` field, and nothing infers it from earlier events --
+    /// so a `keydown,shift` followed by `key,upArrow` delivers an arrow with no shift unless the
+    /// bit is carried here. That is exactly the shape of the AppKit defect found on 2026-09-19,
+    /// where a modifier was released before the event that was supposed to carry it.
+    ///
+    /// 一個 `keydown` 列所留下、仍被按住的 meta state。
+    ///
+    /// **Android 不會替你記住它,那個視窗也不會。** 一個合成的 `KeyEvent` 自帶 `metaState` 欄位,
+    /// 而沒有任何東西會從先前的事件推導它——因此 `keydown,shift` 之後接 `key,upArrow`,送出的會是一個
+    /// **沒有** shift 的方向鍵,除非那個位元由此處帶過去。那正是 2026-09-19 在 AppKit 上找到的缺陷的
+    /// 形狀:一個修飾鍵在「本該帶著它的那個事件」之前就被放開了。
+    private var heldModifiers: Int32 = 0
+
+    private var keyActionDown: Int32 {
+        (try? JavaClass<AndroidKeyEvent>().ACTION_DOWN) ?? 0
+    }
+
+    private var keyActionUp: Int32 {
+        (try? JavaClass<AndroidKeyEvent>().ACTION_UP) ?? 1
+    }
+
+    private func dispatchKey(_ key: Key, action: Int32) throws {
+        guard let code = Self.keyCode(for: key) else {
+            throw SynthesiserError.unsupported(
+                "key '\(key.rawValue)' on Android: android.view.KeyEvent has no keycode for it"
+            )
+        }
+
+        // **Both edges happen BEFORE the event is built, and the release is the one that was
+        // wrong first.** A real keyboard's shift-down carries META_SHIFT_ON and its shift-UP does
+        // not: Android clears the bit as it generates the release, so the event that says "shift
+        // came up" reports shift not held. The first version here removed the bit after
+        // dispatching, and the app printed `MODIFIERS up shift=true` -- a release that still
+        // claims to be held, which reads as a stuck modifier rather than as a synthesiser bug.
+        // AppKitSynthesiser had the identical defect on 2026-09-19 and its fix was the identical
+        // move.
+        // **兩個邊緣都發生在事件被建構**之前**,而「放開」那一邊正是一開始寫錯的那個。** 實體鍵盤的
+        // shift-down 帶有 META_SHIFT_ON,而它的 shift-**up** 沒有:Android 在產生放開事件的同時就
+        // 清掉那個位元,因此「shift 放開了」這個事件回報的是「shift 未被按住」。此處第一版是在投遞
+        // **之後**才移除那個位元,於是 app 印出 `MODIFIERS up shift=true`——一次「仍宣稱被按住」的放開,
+        // 讀起來像是修飾鍵卡住,而不像 synthesiser 的臭蟲。AppKitSynthesiser 在 2026-09-19 有一模一樣
+        // 的缺陷,而它的修法也一模一樣。
+        if let bit = Self.modifierBit(for: key) {
+            if action == keyActionDown {
+                heldModifiers |= bit
+            } else {
+                heldModifiers &= ~bit
+            }
+        }
+
+        let clock = try JavaClass<SystemClock>()
+        let now = clock.uptimeMillis()
+        let metaState = heldModifiers
+
+        let dispatched = Self.onMainThread {
+            guard let activity = AndroidBackend.activity else { return false }
+            let event = AndroidKeyEvent(
+                now, // downTime
+                now, // eventTime
+                action,
+                code,
+                Int32(0), // repeatCount
+                metaState
+            )
+            _ = activity.dispatchKeyEvent(event)
+            return true
+        }
+
+        guard dispatched else {
+            throw SynthesiserError.unsupported("posting a key without an activity")
+        }
+    }
+
+    /// `KeyEvent.META_*` for the four modifier keys an action file can hold.
+    ///
+    /// Left and right spellings set the same bit, because that is what `metaState` records: the
+    /// `*_LEFT_ON` / `*_RIGHT_ON` bits exist too, but a view asking "is shift held" reads
+    /// `META_SHIFT_ON`, and setting only the side-specific bit would answer no.
+    ///
+    /// 四個「動作檔可以按住」的修飾鍵所對應的 `KeyEvent.META_*`。
+    ///
+    /// 左右兩種寫法設定同一個位元,因為 `metaState` 記的就是那個:`*_LEFT_ON` / `*_RIGHT_ON` 也存在,
+    /// 但一個 view 問「shift 是不是被按住了」時讀的是 `META_SHIFT_ON`;只設側邊專屬的位元,會得到「否」。
+    private static func modifierBit(for key: Key) -> Int32? {
+        switch key {
+            case .shift, .rightShift: 0x1 // META_SHIFT_ON
+            case .option, .rightOption: 0x2 // META_ALT_ON
+            case .control, .rightControl: 0x1000 // META_CTRL_ON
+            case .command, .rightCommand: 0x1_0000 // META_META_ON
+            default: nil
+        }
+    }
+
+    /// ``Key`` to `android.view.KeyEvent`'s keycodes.
+    ///
+    /// **Spelled out rather than computed, and F13 upward is the reason it has to be a table.**
+    /// The letters and digits are contiguous and could be arithmetic; the function keys are
+    /// contiguous only up to F12, because `KEYCODE_F12` is the last one Android defines. Returning
+    /// nil there, rather than F12 plus one, is what makes `dispatchKey` able to name the row.
+    ///
+    /// ``Key`` 到 `android.view.KeyEvent` keycode 的對照。
+    ///
+    /// **逐項寫出而不是用算的,而「F13 以上」正是它必須是一張表的理由。** 字母與數字是連續的、確實可以
+    /// 用算術;功能鍵則只連續到 F12,因為 `KEYCODE_F12` 是 Android 定義的最後一個。在那裡回傳 nil、
+    /// 而不是「F12 加一」,才讓 `dispatchKey` 說得出是哪一列有問題。
+    private static func keyCode(for key: Key) -> Int32? {
+        switch key {
+            case .a: 29
+            case .b: 30
+            case .c: 31
+            case .d: 32
+            case .e: 33
+            case .f: 34
+            case .g: 35
+            case .h: 36
+            case .i: 37
+            case .j: 38
+            case .k: 39
+            case .l: 40
+            case .m: 41
+            case .n: 42
+            case .o: 43
+            case .p: 44
+            case .q: 45
+            case .r: 46
+            case .s: 47
+            case .t: 48
+            case .u: 49
+            case .v: 50
+            case .w: 51
+            case .x: 52
+            case .y: 53
+            case .z: 54
+            case .zero: 7
+            case .one: 8
+            case .two: 9
+            case .three: 10
+            case .four: 11
+            case .five: 12
+            case .six: 13
+            case .seven: 14
+            case .eight: 15
+            case .nine: 16
+            case .delete: 67 // KEYCODE_DEL, which is backspace
+            case .forwardDelete: 112 // KEYCODE_FORWARD_DEL
+            case .escape: 111
+            case .space: 62
+            case .tab: 61
+            case .return: 66 // KEYCODE_ENTER
+            case .leftArrow: 21
+            case .rightArrow: 22
+            case .upArrow: 19
+            case .downArrow: 20
+            case .home: 122 // KEYCODE_MOVE_HOME, not KEYCODE_HOME (that is the Home BUTTON)
+            case .end: 123 // KEYCODE_MOVE_END
+            case .pageUp: 92
+            case .pageDown: 93
+            case .shift: 59 // KEYCODE_SHIFT_LEFT
+            case .rightShift: 60
+            case .control: 113 // KEYCODE_CTRL_LEFT
+            case .rightControl: 114
+            case .option: 57 // KEYCODE_ALT_LEFT
+            case .rightOption: 58
+            case .command: 117 // KEYCODE_META_LEFT
+            case .rightCommand: 118
+            case .capsLock: 115
+            case .function: 119
+            case .f1: 131
+            case .f2: 132
+            case .f3: 133
+            case .f4: 134
+            case .f5: 135
+            case .f6: 136
+            case .f7: 137
+            case .f8: 138
+            case .f9: 139
+            case .f10: 140
+            case .f11: 141
+            case .f12: 142
+            // F13 to F20: android.view.KeyEvent stops at KEYCODE_F12.
+            case .f13, .f14, .f15, .f16, .f17, .f18, .f19, .f20: nil
+            case .keypad0: 144
+            case .keypad1: 145
+            case .keypad2: 146
+            case .keypad3: 147
+            case .keypad4: 148
+            case .keypad5: 149
+            case .keypad6: 150
+            case .keypad7: 151
+            case .keypad8: 152
+            case .keypad9: 153
+            case .keypadDecimal: 158 // KEYCODE_NUMPAD_DOT
+            case .keypadPlus: 157
+            case .keypadMinus: 156
+            case .keypadMultiply: 155
+            case .keypadDivide: 154
+            case .keypadEnter: 160
+            case .keypadEquals: 161
+            // KEYCODE_CLEAR (28) is the general clear key, not the keypad's.
+            case .keypadClear: nil
+        }
     }
 
     /// Half the distance between the two contacts a gesture starts with.
@@ -779,4 +1003,28 @@ extension Activity {
     /// AndroidKit 產生的 `Activity` 中沒有這個方法，因此在此處綁定——就放在唯一呼叫它的東西旁邊。
     @JavaMethod
     func dispatchTouchEvent(_ event: MotionEvent?) -> Bool
+}
+
+extension AndroidApp.Activity {
+    /// Not in the generated bindings, though `dispatchTouchEvent` is.
+    ///
+    /// Both come from `Window.Callback`, which `Activity` implements; the generator bound one and
+    /// not the other. Declared here the way `AndroidBackend+Fonts.swift` declares
+    /// `TextView.setGravity`, for the same reason and with the same shape.
+    ///
+    /// Through the ACTIVITY rather than through `getWindow().getDecorView()`: the decor view's
+    /// `dispatchKeyEvent` skips the window callback, which is what gives the activity its chance
+    /// at Back and at menu shortcuts. A synthesiser that bypassed it would be driving a slightly
+    /// different keyboard from the one a person has.
+    ///
+    /// 不在產生出來的綁定裡,而 `dispatchTouchEvent` 在。
+    ///
+    /// 兩者都來自 `Activity` 所實作的 `Window.Callback`;產生器綁了其中一個、沒綁另一個。此處的宣告
+    /// 方式與 `AndroidBackend+Fonts.swift` 宣告 `TextView.setGravity` 相同,理由與形狀也相同。
+    ///
+    /// 走 **activity** 而不是 `getWindow().getDecorView()`:decor view 的 `dispatchKeyEvent` 會跳過
+    /// window callback,而那正是 activity 得以處理 Back 與選單快捷鍵的地方。一個繞過它的 synthesiser,
+    /// 驅動的會是一個與真人手上稍有不同的鍵盤。
+    @JavaMethod
+    func dispatchKeyEvent(_ arg0: AndroidView.KeyEvent?) -> Bool
 }

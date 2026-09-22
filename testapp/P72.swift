@@ -44,20 +44,47 @@ enum P72Diagnostics {
     static let isEnabled = CommandLine.arguments.contains("--debug")
     nonisolated(unsafe) private static var didAnnounceRender = false
 
+    /// Where this app writes its log, its `.glb` and its snapshot PNG.
+    ///
+    /// **Android needs its own branch, and the reason was a real failure rather than a
+    /// precaution.** The `#else` arm is the process's current directory, and on Android that is
+    /// `/` -- the root of a read-only filesystem. On 2026-09-22 the snapshot itself succeeded
+    /// (`SNAPSHOT 892x630 px`) and writing it out failed with
+    /// `Code=642 "The volume is read only." NSFilePath=/p72-snapshot.png`. The failure was loud,
+    /// which is the only reason it did not read as a broken snapshot.
+    ///
+    /// `NSTemporaryDirectory()` is the app's own cache directory there, which is writable and can
+    /// be read back with `adb exec-out run-as <package> cat`.
+    ///
+    /// 這支 app 把它的 log、`.glb` 與快照 PNG 寫到哪裡。
+    ///
+    /// **Android 需要自己的分支,而理由是一次真正的失敗,不是預防措施。** `#else` 那一支用的是行程的
+    /// 當前目錄,而在 Android 上那是 `/`——一個唯讀檔案系統的根。2026-09-22 當天,快照本身是成功的
+    /// (`SNAPSHOT 892x630 px`),而把它寫出去失敗了:
+    /// `Code=642 "The volume is read only." NSFilePath=/p72-snapshot.png`。那次失敗很大聲,
+    /// 而那是它沒有被讀成「快照壞了」的唯一原因。
+    ///
+    /// `NSTemporaryDirectory()` 在那裡是這支 app 自己的 cache 目錄,可寫,而且可以用
+    /// `adb exec-out run-as <package> cat` 讀回來。
+    static var outputDirectory: String {
+        if let named = ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"] {
+            return named
+        }
+        #if os(iOS) || os(tvOS)
+            return NSHomeDirectory() + "/Documents"
+        #elseif os(Android)
+            return NSTemporaryDirectory()
+        #else
+            return FileManager.default.currentDirectoryPath
+        #endif
+    }
+
     static func write(_ message: String) {
         guard isEnabled else { return }
         print("[P72] \(message)")
 
         guard let data = "P72 \(Date()) \(message)\n".data(using: .utf8) else { return }
-        let directory =
-            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? {
-                    #if os(iOS) || os(tvOS)
-                        return NSHomeDirectory() + "/Documents"
-                    #else
-                        return FileManager.default.currentDirectoryPath
-                    #endif
-                }()
+        let directory = outputDirectory
         let url = URL(fileURLWithPath: directory)
             .appendingPathComponent("p72-debug-events.log")
         if FileManager.default.fileExists(atPath: url.path),
@@ -597,15 +624,7 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     /// 變成 node 的旋轉四元數——因此一個把變換丟掉的匯出器,仍然會寫出一個完全合法的立方體,只是沒轉。
     /// 在立方體明顯轉過去的時候按下它,再從檔案裡把角度讀回來,才分得開這兩者。
     func exportGLB() {
-        let directory =
-            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? {
-                    #if os(iOS) || os(tvOS)
-                        return NSHomeDirectory() + "/Documents"
-                    #else
-                        return FileManager.default.currentDirectoryPath
-                    #endif
-                }()
+        let directory = P72Diagnostics.outputDirectory
         let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-scene.glb")
         let data = scene.glbData()
         do {
@@ -670,15 +689,7 @@ final class P72Model: SwiftCrossUI.ObservableObject {
                 + "centre pixel \(centreText)"
         )
 
-        let directory =
-            ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-                ?? {
-                    #if os(iOS) || os(tvOS)
-                        return NSHomeDirectory() + "/Documents"
-                    #else
-                        return FileManager.default.currentDirectoryPath
-                    #endif
-                }()
+        let directory = P72Diagnostics.outputDirectory
         let url = URL(fileURLWithPath: directory).appendingPathComponent("p72-snapshot.png")
         do {
             let png = try shot.pngData()

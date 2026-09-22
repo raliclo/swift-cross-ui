@@ -337,9 +337,53 @@ public struct Mesh3DView: ElementaryView {
         backend: Backend
     ) {
         backend.setSize(of: widget, to: layout.size.vector)
+        // **Bound here rather than inside `update`, because the two conformances are
+        // independent and binding them together made one of them untestable.**
+        // Until 2026-09-22 this lived in `update`, which only runs when the backend implements
+        // ``BackendFeatures/Mesh3DViews``. AndroidBackend implements ``BackendFeatures/WidgetSnapshots``
+        // and not that, so the snapshotter stayed nil and P72 reported
+        // `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance` on a backend that HAD the
+        // conformance. The message was wrong and there was no way to tell from the app.
+        //
+        // A snapshot of the degraded view is a snapshot of an empty box, and that is a true
+        // answer: it says the backend can rasterise a widget. `mesh view supported: NO` is printed
+        // next to it, so nobody reads the empty box as a scene.
+        //
+        // **綁在此處而不是 `update` 裡,因為那兩個 conformance 互相獨立,而把它們綁在一起讓其中一個
+        // 變得無法測試。** 在 2026-09-22 之前,這段住在 `update` 裡,而 `update` 只有在 backend 實作了
+        // ``BackendFeatures/Mesh3DViews`` 時才會執行。AndroidBackend 實作了
+        // ``BackendFeatures/WidgetSnapshots`` 而沒有實作前者,於是 snapshotter 一直是 nil,
+        // P72 就在一個**確實有**該 conformance 的 backend 上印出
+        // `SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance`。那句話是錯的,而從 app 這一側
+        // 看不出來。
+        //
+        // 對降級後的 view 取快照,得到的是一個空盒子的快照,而那是一個真實的答案:它說明這個 backend
+        // 有能力把一個 widget 光柵化。它旁邊就印著 `mesh view supported: NO`,因此沒有人會把那個空盒子
+        // 讀成一個場景。
+        bindSnapshotter(backend, widget: widget)
         guard let backend = backend as? any BaseAppBackend & BackendFeatures.Mesh3DViews
         else { return }
         update(backend, widget: widget, environment: environment)
+    }
+
+    /// Rebound on every commit rather than once. The widget a backend hands back is not promised
+    /// to be the same object across updates, and a closure holding a stale one would read pixels
+    /// from a view that is no longer on screen -- which returns an image, not an error.
+    /// 每次 commit 都重新綁定,而不是只綁一次。backend 交回的那個 widget,並不保證在多次更新之間是同一個
+    /// 物件;而一個抓著舊 widget 的 closure,會從一個已經不在畫面上的 view 讀出像素——那會回傳一張影像,
+    /// 不是一個錯誤。
+    private func bindSnapshotter<Backend: BaseAppBackend>(
+        _ backend: Backend,
+        widget: Backend.Widget
+    ) {
+        guard let snapshotter else { return }
+        guard
+            let snapshotBackend = backend as? any BaseAppBackend & BackendFeatures.WidgetSnapshots
+        else {
+            snapshotter.bind(nil)
+            return
+        }
+        bind(snapshotter, to: snapshotBackend, widget: widget)
     }
 
     private func update<Backend: BaseAppBackend & BackendFeatures.Mesh3DViews>(
@@ -356,22 +400,6 @@ public struct Mesh3DView: ElementaryView {
             environment: environment
         )
 
-        // Rebound on every commit rather than once. The widget a backend hands
-        // back is not promised to be the same object across updates, and a
-        // closure holding a stale one would read pixels from a view that is no
-        // longer on screen -- which returns an image, not an error.
-        // 每次 commit 都重新綁定,而不是只綁一次。backend 交回的那個 widget,並不保證在多次更新之間
-        // 是同一個物件;而一個抓著舊 widget 的 closure,會從一個已經不在畫面上的 view 讀出像素
-        // ——那會回傳一張影像,不是一個錯誤。
-        if let snapshotter {
-            if let snapshotBackend = backend as? any BaseAppBackend & BackendFeatures
-                .WidgetSnapshots
-            {
-                bind(snapshotter, to: snapshotBackend, widget: typedWidget)
-            } else {
-                snapshotter.bind(nil)
-            }
-        }
     }
 
     private func bind<Backend: BaseAppBackend & BackendFeatures.WidgetSnapshots>(

@@ -1,0 +1,60 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Android: does a drag over the mesh view scroll it, and do arrow keys reach it?
+#
+# Measured 2026-09-22 from testapp/output/screenshots/p72-android-final-20260922-092754.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, so the window
+# is 411 x 914 points. The mesh view is `.frame(width: 340, height: 240)` and shows
+# on that capture as the grey band from pixel y 366 to y 996, x 54 to x 946 --
+# 892 x 630 pixels, which is 340 x 240 points times the density. Its centre is
+# pixel (500, 681), which is point (190, 259).
+#
+# **Two notches, not two hundred.** The x and y of a `scroll` row are WHEEL NOTCHES
+# and a notch is 40 points; mistakes.md entry 17 is a row that asked for 300 of
+# them, which is a 31,500-pixel drag on a 2,400-pixel screen -- a legal request
+# nothing can answer, so the file replayed, exited zero, and moved nothing.
+# Two notches is 80 points, and P72 turns 80 points into 0.8 of camera distance.
+#
+# **The scroll arrives as a DRAG here, so the count is not the macOS count.**
+# A touch screen has no wheel, so `AndroidSynthesiser.scroll` spells the verb as a
+# single-contact drag in eight steps. Each step is one `onChange`, so one row
+# produces eight SCROLL lines of ten points each rather than macOS's one of eighty.
+# The assertion is the DISTANCE at the end, which is the same number on both.
+#
+# **The keys are real KeyEvents through the activity, new on 2026-09-22.**
+# `AndroidSynthesiser` refused key rows until this file needed them. `keydown,shift`
+# sets META_SHIFT_ON and the next row carries it, which is what makes the step
+# change from 0.1 to 1.0 -- that step change is the assertion, not the arrow.
+#
+# P72 於 Android:在 mesh view 上拖曳會捲動嗎?方向鍵抵達得了它嗎?
+#
+# 2026-09-22 量自 testapp/output/screenshots/p72-android-final-20260922-092754.png。
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625,因此視窗為 411 x 914 點。
+# mesh view 是 `.frame(width: 340, height: 240)`,在那張擷圖上是像素 y 366 到 996、x 54 到 946 的
+# 灰色帶——892 x 630 像素,正是 340 x 240 點乘上 density。其中心為像素 (500, 681),即點 (190, 259)。
+#
+# **兩格,不是兩百。** `scroll` 列的 x 與 y 是**滾輪格數**,一格是 40 點;mistakes.md 第 17 條記的
+# 正是一列要了三百格——那在 2,400 像素高的螢幕上是 31,500 像素的拖曳,一個「合法但無人能回應」的請求,
+# 於是檔案重放完成、退出碼為零、而什麼都沒有移動。兩格是 80 點,而 P72 把 80 點換成 0.8 的相機距離。
+#
+# **此處的捲動是以拖曳抵達的,因此次數與 macOS 不同。** 觸控螢幕沒有滾輪,所以
+# `AndroidSynthesiser.scroll` 把這個動作寫成一次分八步的單接觸點拖曳。每一步是一次 `onChange`,
+# 因此一列會產生八行、各十點的 SCROLL,而不是 macOS 的一行八十點。斷言的是**結束時的距離**,
+# 而那在兩邊是同一個數字。
+#
+# **那些按鍵是經由 activity 送出的真正 KeyEvent,2026-09-22 新增。** 在這份檔案需要它們之前,
+# `AndroidSynthesiser` 是拒絕按鍵列的。`keydown,shift` 會設定 META_SHIFT_ON,而下一列會帶著它
+# ——那正是步長從 0.1 變成 1.0 的原因;斷言的是那個**步長改變**,不是那個方向鍵。
+sleep,,,,,,2000000,let P72 lay out and the frame clock settle,android
+move,190,259,,,,,"put the next gesture over the centre of the mesh view; on a touch screen this posts no event, it only records where",android
+scroll,0,2,,,,,"scroll forward two notches -- dist must fall 3.40 -> 2.60",android
+sleep,,,,,,800000,,android
+scroll,0,-2,,,,,"scroll back two notches -- dist must return to 3.40",android
+sleep,,,,,,800000,,android
+key,,,,,upArrow,,"arrow with no modifier -- KEY 1 'U+F700' shift=no step 0.1, height 1.30 -> 1.40",android
+sleep,,,,,,400000,,android
+keydown,,,,,shift,,"MODIFIERS down shift=true must appear",android
+sleep,,,,,,300000,,android
+key,,,,,upArrow,,"same arrow with shift held -- KEY 2 shift=yes step 1.0, height 1.40 -> 2.40",android
+sleep,,,,,,300000,,android
+keyup,,,,,shift,,"MODIFIERS up shift=false must appear",android
+sleep,,,,,,1200000,let the readouts redraw before the capture,android

@@ -1,0 +1,39 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Android: can the backend read a widget's pixels back?
+#
+# Measured 2026-09-22 from testapp/output/screenshots/p72-android-final-20260922-092754.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, window 411 x 914
+# points. The "Snapshot" button's grey rectangle occupies pixels x 360-616,
+# y 1530-1605; its centre is pixel (487, 1567), which is point (186, 597).
+#
+# **The assertion is the SIZE and that it is not nil, not the picture.** Android has
+# no Mesh3DViews conformance yet, so the widget under the snapshotter is an empty
+# container of the size the layout gave it -- 340 x 240 points, 892 x 630 pixels.
+# A snapshot of it is a legitimate snapshot of an empty box, and what it proves is
+# the thing this gap was about: the backend can rasterise a widget and hand the
+# bytes back. When Mesh3DViews lands the same row will start reporting the cube's
+# colours, and THAT is when a colour count becomes worth asserting.
+#
+# Three outcomes are distinguishable and P72 prints which:
+#   SNAPSHOT UNAVAILABLE -- no WidgetSnapshots conformance (what Android printed before today)
+#   SNAPSHOT NIL         -- conformance taken, no pixels came back
+#   SNAPSHOT WxH px, N distinct colours, centre pixel r,g,b
+#
+# P72 於 Android:backend 讀得回一個 widget 的像素嗎?
+#
+# 2026-09-22 量自 testapp/output/screenshots/p72-android-final-20260922-092754.png。
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625,視窗 411 x 914 點。
+# 「Snapshot」按鈕的灰色矩形佔據像素 x 360-616、y 1530-1605,中心為像素 (487, 1567),即點 (186, 597)。
+#
+# **斷言的是**尺寸**與「它不是 nil」,不是那張圖。** Android 還沒有 Mesh3DViews 的 conformance,
+# 因此 snapshotter 底下那個 widget 是一個「排版給它多大就多大」的空容器——340 x 240 點、892 x 630 像素。
+# 對它的快照是一張貨真價實的「空盒子的快照」,而它所證明的正是這個缺口所談的事:backend 能把一個 widget
+# 光柵化並把位元組交回來。等 Mesh3DViews 落地,同一列就會開始回報立方體的顏色——**那時**顏色數才值得斷言。
+#
+# 三種結果是可以區分的,而 P72 會印出是哪一種:
+#   SNAPSHOT UNAVAILABLE -- 沒有 WidgetSnapshots conformance(這是今天之前 Android 印的)
+#   SNAPSHOT NIL         -- conformance 有,但沒有像素回來
+#   SNAPSHOT WxH px, N distinct colours, centre pixel r,g,b
+sleep,,,,,,2000000,let P72 lay out and the mesh view reach its 340x240,android
+click,186,597,,left,,,"Snapshot -- the log must read SNAPSHOT 892x630 px and the readout must stop saying 0x0 (VERIFIED 2026-09-22, see the note in AndroidBackend+WidgetSnapshots.swift)",android
+sleep,,,,,,1500000,let the snap: readout redraw,android
