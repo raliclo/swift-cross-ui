@@ -754,11 +754,18 @@ an empty queue -- mistakes.md entry 1.
     那是「游標有沒有被侷限在提出要求的那個 view」的唯一檢驗方式,而任何擷圖都顯示不出這件事。
     - **[!] macOS 仍然未驗證,而且我一度回報成已驗證——那是錯的。** 有一次執行給出
       「view 內 crosshair、view 外 arrow」,我據此把它寫成通過。**原封不動連跑三次**的結果是
-      (arrow, crosshair)、(arrow, arrow)、(crosshair, arrow)——三次三個樣。那個形態是
-      **讀數慢一個事件**:第一列的 mouse-moved 在第二列的暫停期間才被處理。
-      試過四件事都無法讓三次一致:50 毫秒 pump、250 毫秒、把移動事件投遞兩次並在中間 pump、
-      以及改讀 `NSCursor.currentSystem` 而非 `NSCursor.current`。**在同步被修好之前,
-      `actions/mac/P72-cursor.csv` 在 macOS 上跑出什麼都不算數**,而那份檔案的檔頭就是這麼寫的。
+      (arrow, crosshair)、(arrow, arrow)、(crosshair, arrow)——三次三個樣。
+    - **2026-09-23:飄的問題解決了,而答案變成一個**可重現的否定**。** 找到並處理了三個成因:
+      (1) 讀數原本是用**固定時間**等一個非同步效果,現在改為等一個**訊號**(游標改變),
+      並把「始終沒改變」的列標記為 `unchanged after Nms`,而不是印出過期值;
+      (2) `NSCursorTarget` 的 tracking area 是 `.activeInKeyWindow`——只要有東西搶走 key 狀態,
+      AppKit 就**完全不送** `cursorUpdate`,因此該動作現在會先要求 key 狀態;
+      (3) 那份檔案的座標是過期的(**又一次 mistakes 第 22 條**):量自 520x780 的視窗,
+      而 harness 底下的 content view 是 421x705,mesh view 在 client (0,346 340x240)。
+      三者都處理之後,**三次執行完全一致**——一致同意的是:**兩個位置都是 `arrow (unchanged)`**。
+      也就是說在 harness 之下那個游標根本沒有改變。那是一個比出發時更窄的問題,而工作停在這裡:
+      剩下的候選是座標換算(frame 與 client 在這個視窗上的關係),以及「當 app 是以程式方式被啟用時,
+      `cursorUpdate` 到底有沒有抵達那個 view」。細節記在 `actions/mac/P72-cursor.csv` 的檔頭。
     - **量測本身另外踩了兩個坑,寫在 `AppKitSynthesiser` 裡。** `NSCursor.current` 是**應用程式**的
       堆疊、而且是黏著的(離開 view 時沒有東西彈掉它);而 `NSCursor.currentSystem` 交回的是一份
       **複本**,識別比對一律失敗,因此改以熱點與影像尺寸比對(兩者相同時如實回報

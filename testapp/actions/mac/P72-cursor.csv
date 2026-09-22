@@ -13,19 +13,53 @@ action,x,y,origin,button,key,micros,note,platform
 # window would pass the first row and fail this one, and until 2026-09-22
 # nothing in this tree could tell those apart.
 #
-# **AND ON macOS IT STILL CANNOT, BECAUSE THE READING IS RACY. This file does not
-# pass here yet, and saying so is the point of this paragraph.** Run three times
-# in a row on 2026-09-22, unchanged, it reported (arrow, crosshair), then
-# (arrow, arrow), then (crosshair, arrow). The pattern is a reading one event
-# late: the mouse-moved from row one is processed during row two's pause. Four
-# things were tried -- a 50 ms pump, 250 ms, posting the move twice with a pump
-# between, and reading NSCursor.currentSystem instead of NSCursor.current -- and
-# none of them made three consecutive runs agree. Android's equivalent
-# (actions/android/P72-cursor.csv) has no such problem, because it asks
-# onResolvePointerIcon a direct question instead of waiting for a side effect.
+# **THIS FILE DOES NOT PASS ON macOS YET. It is now REPRODUCIBLE, which is not
+# the same thing, and the difference is the point of this paragraph.**
 #
-# So: the verb is right and the file is right; the synchronisation is not. Until
-# it is, a green run here means nothing and a red one means nothing either.
+# 2026-09-22, the first version: three runs of the unchanged file gave
+# (arrow, crosshair), (arrow, arrow), (crosshair, arrow). Flaky, so no reading
+# could be believed. Two causes were found.
+#
+#   1. The reading waited a fixed time for an asynchronous effect. It now waits
+#      for a SIGNAL -- the cursor changing -- and labels a row that never
+#      changed as `unchanged after Nms` instead of printing a stale value.
+#   2. `NSCursorTarget`'s tracking area is `.activeInKeyWindow`, so if anything
+#      has taken key status AppKit sends no `cursorUpdate` at all. The verb now
+#      asks for key status before warping.
+#   3. These coordinates were stale, which is mistakes.md entry 22 again -- see
+#      the paragraph below.
+#
+# 2026-09-23, after all three: three runs agree exactly, and what they agree on
+# is `arrow ... (unchanged after ~1890ms)` in BOTH positions. So the cursor is
+# not changing at all under the harness. That is a reproducible negative and a
+# narrower question than the one this file started with, and it is where the
+# work stopped: the remaining candidates are the coordinate arithmetic (frame vs
+# client on a window whose content view is 421x705) and whether `cursorUpdate`
+# reaches the view at all when the app is activated programmatically.
+#
+# Android's equivalent (actions/android/P72-cursor.csv) has none of this,
+# because it asks `onResolvePointerIcon` a direct question instead of waiting
+# for a side effect.
+#
+# **這份檔案在 macOS 上還不算通過。它現在是**可重現的**,而那不是同一件事;這一段的重點就是那個差別。**
+#
+# 2026-09-22 第一版:同一份未修改的檔案連跑三次,得到 (arrow, crosshair)、(arrow, arrow)、
+# (crosshair, arrow)。會飄,因此任何讀數都不能信。後來找到兩個成因:
+#
+#   1. 那個讀數是用**固定時間**去等一個非同步的效果。現在改為等一個**訊號**——游標改變——
+#      並把「始終沒有改變」的那一列標記為 `unchanged after Nms`,而不是印出一個過期的值。
+#   2. `NSCursorTarget` 的 tracking area 是 `.activeInKeyWindow`;因此只要有任何東西搶走 key 狀態,
+#      AppKit 就完全不送 `cursorUpdate`。這個動作現在會在 warp 之前先要求 key 狀態。
+#   3. 這些座標是過期的——又是 mistakes.md 第 22 條,見下一段。
+#
+# 2026-09-23,三者都處理之後:三次執行結果**完全一致**,而它們一致同意的是:**兩個位置**都是
+# `arrow ... (unchanged after ~1890ms)`。也就是說,在 harness 之下那個游標根本沒有改變。
+# 那是一個**可重現的否定**,也是一個比本檔一開始所問更窄的問題;工作停在這裡。剩下的候選是:
+# 座標換算(在一個 content view 為 421x705 的視窗上,frame 與 client 的關係),
+# 以及「當 app 是以程式方式被啟用時,`cursorUpdate` 到底有沒有抵達那個 view」。
+#
+# Android 的對應檔(actions/android/P72-cursor.csv)完全沒有這些問題,因為它是去問
+# `onResolvePointerIcon` 一個**直接的問題**,而不是等一個副作用。
 #
 # **而在 macOS 上它仍然分不出來,因為這個讀數有競爭條件。這份檔案在此處還不算通過,而說出這件事
 # 正是這一段的重點。** 2026-09-22 原封不動連跑三次,結果依序是 (arrow, crosshair)、(arrow, arrow)、
@@ -38,10 +72,29 @@ action,x,y,origin,button,key,micros,note,platform
 # 也就是說:動作本身是對的、這份檔案也是對的;不對的是同步。在它被修好之前,此處跑出綠的不代表什麼,
 # 跑出紅的也不代表什麼。
 #
-# Coordinates are origin=frame, from testapp/output/screenshots/
-# P72-taller-20260919-213420.png, a 520x808 capture of a 520x780 window.
-# Point (239, 284) is the middle of the 340x240 mesh view; (239, 140) is the
-# line of plain text above it.
+# **The coordinates were stale, and that was the second of the two causes.**
+# They came from a 520x808 capture of a 520x780 window; the window under the
+# harness has a 421x705 content view, and the mesh view sits at
+# NSContextMenuTarget(0, 346 340x240) in client coordinates. Frame y is client y
+# plus 28 (frame origin 75, client origin 103), so the old row at frame y 284 was
+# at client 256 -- ABOVE the mesh view -- and reported the arrow it actually
+# found. mistakes.md entry 22 is this exact shape and its corrective is the one
+# that applies: measure from a capture taken DURING a harness run, not from a
+# hand-launched window.
+#
+# Now: (170, 494) in frame coordinates is client (170, 466), the middle of the
+# mesh view; (170, 140) is client (170, 112), a text field, which claims the
+# I-beam for itself.
+#
+# **那些座標是過期的,而那是兩個成因中的第二個。** 它們量自一張 520x808 的擷圖(對應 520x780 的視窗);
+# 而 harness 底下那個視窗的 content view 是 421x705,mesh view 在 client 座標中位於
+# NSContextMenuTarget(0, 346 340x240)。frame y 等於 client y 加 28(frame 原點 75、client 原點 103),
+# 因此舊的那一列「frame y 284」其實在 client 256——在 mesh view **上方**——而它回報的正是它真正找到的
+# 那個箭頭。mistakes.md 第 22 條就是這個形狀,而適用的也正是它的矯正措施:座標要量自**harness 執行期間**
+# 拍下的擷圖,不是手動啟動的視窗。
+#
+# 現在:frame 座標 (170, 494) 即 client (170, 466),是 mesh view 的中央;(170, 140) 即
+# client (170, 112),是一個文字欄位——它會為自己認領 I 形游標。
 #
 # `hover` warps the PHYSICAL pointer (CGWarpMouseCursorPosition), which `move`
 # also does since 2026-09-20 and `click` deliberately still does not. Expect the
@@ -65,7 +118,7 @@ action,x,y,origin,button,key,micros,note,platform
 # `hover` 會 warp **實體**指標(`CGWarpMouseCursorPosition`),`move` 自 2026-09-20 起也會,而 `click`
 # 刻意仍然不會。執行期間滑鼠會跳動;沒有任何東西會把它放回去,因此在旁邊看的人會看到它停在最後一列的座標上。
 sleep,,,,,,1500000,let P72 lay out,macos
-hover,239,284,frame,,,,"pointer onto the mesh view -- must report crosshair. NOT YET A PASS ON macOS: see the header, the reading is one event late on most runs",macos
+hover,170,494,frame,,,,"pointer onto the mesh view -- must report crosshair; reports arrow (unchanged) as of 2026-09-23, see the header",macos
 sleep,,,,,,500000,,macos
-hover,239,140,frame,,,,"pointer onto the plain text above it -- must report arrow, which is what would prove the crosshair is the VIEW's and not the window's. NOT YET A PASS ON macOS: see the header",macos
+hover,170,140,frame,,,,"pointer onto a text field above it -- must report text (the I-beam), which is what would prove the crosshair is the VIEW's and not the window's: something else claimed the cursor and got it. Reports arrow (unchanged) as of 2026-09-23",macos
 sleep,,,,,,500000,,macos
