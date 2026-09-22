@@ -552,6 +552,90 @@
                 }
 
                 switch action {
+                    case .hover(let point):
+                        // **The same warp as `move`, and then the question `move` does not ask.**
+                        // A cursor is the one thing `BackendFeatures.Cursors` produces that no
+                        // ordinary capture contains: `screencapture` omits the pointer unless
+                        // given `-C`, and even with it the picture shows the shape without saying
+                        // which shape it is. `NSCursor.current` is the top of the application's
+                        // cursor stack -- what `cursorUpdate` last set -- so reading it after the
+                        // move is asking AppKit what it decided rather than asserting what we
+                        // asked for.
+                        //
+                        // A 50 ms pump before the read, because `cursorUpdate` is delivered as an
+                        // event: reading immediately gets the cursor from BEFORE the move, which
+                        // would make every hover row report the previous row's answer and a
+                        // one-row file report the desktop's.
+                        //
+                        // **與 `move` 相同的 warp,然後問一個 `move` 不會問的問題。** 游標是
+                        // `BackendFeatures.Cursors` 所產生、而任何一般擷圖都不包含的那一樣東西:
+                        // `screencapture` 除非加上 `-C` 否則不含指標,而即使加了,那張圖也只顯示形狀、
+                        // 不會說出它是哪一個形狀。`NSCursor.current` 是應用程式游標堆疊的頂端
+                        // ——也就是 `cursorUpdate` 最後設定的那一個——因此在移動之後讀它,問的是
+                        // 「AppKit 決定了什麼」,而不是斷言「我們要求了什麼」。
+                        //
+                        // 讀取前先跑 50 毫秒的 runloop,因為 `cursorUpdate` 是以事件送達的:立刻讀會拿到
+                        // **移動之前**的游標,那會讓每一列 hover 都回報上一列的答案,而單列的檔案回報的
+                        // 是桌面的答案。
+                        do {
+                            let screen = try geometry.screenPosition(of: point)
+                            CGWarpMouseCursorPosition(
+                                CGPoint(x: Double(screen.x), y: Double(screen.y))
+                            )
+                            CGAssociateMouseAndMouseCursorPosition(1)
+                        }
+                        // **Posted TWICE with a pump between, and that is not belt and braces.**
+                        // A single move can be coalesced away before `cursorUpdate` runs, and the
+                        // symptom is not a missing answer -- it is the PREVIOUS row's answer,
+                        // which reads as a cursor that is in the wrong place rather than a
+                        // reading that is one event late. Measured across four runs on
+                        // 2026-09-22: 50 ms lagged, 250 ms lagged on two runs out of three, and
+                        // the same file reported crosshair/arrow once and arrow/crosshair once.
+                        // A second event at the same point cannot be coalesced with the first
+                        // once the first has been delivered.
+                        // **投遞兩次、中間夾一次 pump,而那不是多此一舉。** 單一次移動可能在
+                        // `cursorUpdate` 執行之前就被合併掉,而其症狀不是「沒有答案」——是**上一列**的
+                        // 答案;那讀起來像是「游標出現在錯的地方」,而不像「讀數慢了一個事件」。
+                        // 2026-09-22 四次執行的實測:50 毫秒會慢一拍,250 毫秒三次裡有兩次慢一拍,
+                        // 而同一份檔案曾回報 crosshair/arrow 一次、arrow/crosshair 一次。
+                        // 第一個事件送達之後,第二個位於同一點的事件就不會再與它合併。
+                        let where0 = try location(point)
+                        try self.postMouse(.mouseMoved, .left, at: where0, in: window, clicks: 0)
+                        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                        try self.postMouse(.mouseMoved, .left, at: where0, in: window, clicks: 0)
+                        // **250 ms, and 50 was not enough.** `cursorUpdate` is delivered as an
+                        // event and the SYSTEM cursor changes a cycle after the application's
+                        // does, so a short pump reads the previous row's answer: on 2026-09-22 a
+                        // 50 ms pump reported the arrow's hot spot while entering the view and
+                        // the crosshair's while leaving it -- both correct, both one row late,
+                        // and together they look exactly like a cursor that is not confined.
+                        // **250 毫秒,而 50 毫秒不夠。** `cursorUpdate` 是以事件送達的,而**系統**游標
+                        // 比應用程式的游標晚一個週期改變;因此太短的 pump 讀到的是上一列的答案:
+                        // 2026-09-22 當天,50 毫秒的 pump 在「進入 view」時回報箭頭的熱點、在「離開」時
+                        // 回報十字的熱點——兩個都正確、兩個都慢了一列,而它們合起來看起來就像
+                        // 「一個沒有被侷限的游標」。
+                        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+                        // **Both, because they answer different questions and the difference is
+                        // the whole of what this verb had to find out.** `NSCursor.current` is the
+                        // top of THIS APPLICATION's cursor stack -- what the app last set --
+                        // and it is sticky: nothing pops it when the pointer leaves the view that
+                        // set it. `NSCursor.currentSystem` is what is actually on screen. On
+                        // 2026-09-22 the first reported `crosshair` in both positions and the
+                        // second reported `crosshair` then `arrow`, which is how the confinement
+                        // question finally got an answer. Printing only `current` would have
+                        // recorded a defect that does not exist.
+                        // **兩個都印,因為它們回答的是不同的問題,而那個差別正是這個動作必須查清楚的全部。**
+                        // `NSCursor.current` 是**本應用程式**游標堆疊的頂端——也就是 app 最後設定的那一個
+                        // ——而且它是黏著的:指標離開那個設定它的 view 時,沒有任何東西把它彈掉。
+                        // `NSCursor.currentSystem` 才是螢幕上真正顯示的那一個。2026-09-22 當天,前者在兩個
+                        // 位置都回報 `crosshair`,而後者回報 `crosshair` 然後 `arrow`——「侷限性」這個問題
+                        // 就是這樣才終於有了答案。只印 `current` 會記下一個並不存在的缺陷。
+                        let onScreen = NSCursor.currentSystem.map(Self.cursorName) ?? "unavailable"
+                        ActionFileReplay.report(
+                            "cursor at (\(Int(point.x)), \(Int(point.y))) is \(onScreen) "
+                                + "(app stack: \(Self.cursorName(NSCursor.current)))"
+                        )
+
                     case .longPress:
                         // Not a right-click in disguise. See `InputAction.longPress`.
                         // 不是偽裝成長按的右鍵。見 `InputAction.longPress`。
@@ -1369,6 +1453,55 @@
             return try DispatchQueue.main.sync {
                 try MainActor.assumeIsolated(body)
             }
+        }
+    }
+
+    @MainActor
+    extension AppKitSynthesiser {
+        /// Names a cursor, because `NSCursor` has no name and a pointer in a photograph has no
+        /// name either.
+        ///
+        /// Compared by IDENTITY against the system cursors, not by any property:
+        /// `NSCursor.crosshair` is a singleton and `===` against it is exact, while comparing
+        /// images would be comparing two renderings of the same thing. Anything unrecognised is
+        /// reported as `other` with the hot spot rather than guessed at -- a wrong name here
+        /// would be read as a wrong cursor.
+        ///
+        /// 為一個游標命名,因為 `NSCursor` 沒有名字,而照片裡的一個指標也沒有名字。
+        ///
+        /// 以**識別**與系統游標比較,不是比較任何屬性:`NSCursor.crosshair` 是單例,對它用 `===`
+        /// 是精確的;而比較影像則會變成「比較同一個東西的兩次算繪」。認不出來的東西回報為 `other`
+        /// 並附上熱點,而不是用猜的——此處一個錯的名字,會被讀成一個錯的游標。
+        static func cursorName(_ cursor: NSCursor) -> String {
+            let known: [(String, NSCursor)] = [
+                ("arrow", .arrow),
+                ("pointingHand", .pointingHand),
+                ("crosshair", .crosshair),
+                ("text", .iBeam),
+                ("resizeHorizontal", .resizeLeftRight),
+                ("resizeVertical", .resizeUpDown),
+                ("notAllowed", .operationNotAllowed),
+                ("openHand", .openHand),
+                ("closedHand", .closedHand),
+            ]
+            for (name, candidate) in known where cursor === candidate { return name }
+
+            // **`currentSystem` hands back a COPY, so identity finds nothing, and the first
+            // version of this reported every system cursor as `other`.** Matched on hot spot and
+            // image size instead: those are the two things a copy preserves. Ambiguity is
+            // reported rather than resolved -- if two system cursors share both, the answer names
+            // both, because picking one would be a guess printed as a measurement.
+            // **`currentSystem` 交回的是一份**複本**,因此以識別比對什麼也找不到;本函式的第一版把
+            // 每一個系統游標都回報成 `other`。** 改以熱點與影像尺寸比對:那是複本會保留的兩樣東西。
+            // 有歧義時如實回報、不去消解——若兩個系統游標在這兩項上相同,答案就把兩個都寫出來;
+            // 挑一個,等於把一個猜測印成一次量測。
+            let matches = known.filter {
+                $0.1.hotSpot == cursor.hotSpot && $0.1.image.size == cursor.image.size
+            }
+            .map(\.0)
+            if matches.count == 1 { return matches[0] }
+            if matches.count > 1 { return "one of \(matches.joined(separator: "/"))" }
+            return "other (hotSpot \(cursor.hotSpot), size \(cursor.image.size))"
         }
     }
 

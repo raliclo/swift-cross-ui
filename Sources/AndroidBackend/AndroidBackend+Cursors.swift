@@ -32,29 +32,41 @@ import SwiftJava
 /// 沒有自己的圖示時才退回自己的。因此設在容器上的圖示,會覆蓋每一個未曾認領圖示的後代——那恰好就是
 /// AppKit 從 tracking area 得到的那塊區域。多包一層 view 只會白白多一級排版。
 ///
-/// **What was verified on 2026-09-21, and what was not.** VERIFIED: the
-/// conformance is taken and the call runs. Before this file, `CursorDegradation`
-/// logged `AndroidBackend does not implement BackendFeatures.Cursors` on every
-/// launch of P72; after it that line is gone from logcat while the warnings for
-/// `Mesh3DViews`, `ScrollGestures` and `KeyEvents` are still there, and
-/// `try! JavaClass<PointerIcon>()` would have trapped had the class or the
-/// static fields been missing. NOT VERIFIED: the shape the pointer takes. The
-/// AVD has no pointer device at all -- `dumpsys input`'s Event Hub lists
-/// `gpio-keys` and twelve `virtio_input_multi_touch_*` and nothing else,
-/// `MousePointerControllers` is empty, and three attempts to register a virtual
-/// mouse through `uinput` (as root and as shell) produced no device. With no
-/// `PointerController` there is no sprite to draw and nothing to photograph.
-/// Seeing the crosshair needs an Android device or emulator with a real mouse.
+/// **VERIFIED a different way on 2026-09-22, and Android is the platform that allows it.**
+/// (The day before, this file said NOT VERIFIED and offered only that the conformance was taken:
+/// `CursorDegradation`'s warning had stopped appearing in logcat while the ones for `Mesh3DViews`,
+/// `ScrollGestures` and `KeyEvents` were still there. True, and not an answer about the cursor.)
+/// `View.onResolvePointerIcon(MotionEvent, pointerIndex)` is public, and it is the method Android
+/// itself calls to decide. `ViewGroup`'s implementation hit-tests down to the child under the
+/// coordinates, asks it, and only then falls back to its own icon -- so posting an
+/// ACTION_HOVER_MOVE from SOURCE_MOUSE and reading the answer tests the REGION as well as the
+/// shape, with no pointer device anywhere. `actions/android/P72-cursor.csv` reports
+/// `cursor at (190, 259) is crosshair` over the mesh view and `none` over the title text, `none`
+/// being the null that means "no view here claims an icon" -- which is what confinement looks
+/// like. What remains unproved is only the drawing: given a pointer, this resolution is what draws
+/// it, and this AVD has no pointer to draw.
 ///
-/// **2026-09-21 驗證了什麼、沒驗證什麼。** **已驗證**:這個 conformance 有被採用,而且那次呼叫真的執行了。
-/// 在本檔存在之前,`CursorDegradation` 會在 P72 每次啟動時印出
-/// `AndroidBackend does not implement BackendFeatures.Cursors`;在本檔之後,logcat 裡那一行消失了,
-/// 而 `Mesh3DViews`、`ScrollGestures`、`KeyEvents` 的警告仍在;而且若該類別或那些靜態欄位不存在,
-/// `try! JavaClass<PointerIcon>()` 早就會 trap。**未驗證**:指標實際呈現的形狀。這個 AVD 根本沒有指標裝置
-/// ——`dumpsys input` 的 Event Hub 只列出 `gpio-keys` 與十二個 `virtio_input_multi_touch_*`,
-/// `MousePointerControllers` 是空的,而三次以 `uinput`(root 與 shell 各試)註冊虛擬滑鼠都沒有產生裝置。
-/// 沒有 `PointerController` 就沒有 sprite 可畫,也就沒有東西可拍。要看到那個十字,需要一台帶真滑鼠的
-/// Android 裝置或模擬器。
+/// UIKit has no equivalent. There is no "which pointer style would you show at this point" query
+/// on iOS: the whole decision lives in the app-supplied `UIPointerInteractionDelegate`, so there
+/// is nothing to ask and nothing to compare against. That asymmetry is why Android's cursor row
+/// in the coverage matrix can move and UIKit's cannot.
+///
+/// **2026-09-22 以另一種方式驗證了,而 Android 是允許這麼做的那個平台。**
+/// (前一天,本檔寫的是「未驗證」,能提出的只有「這個 conformance 有被採用」:`CursorDegradation`
+/// 的警告已從 logcat 消失,而 `Mesh3DViews`、`ScrollGestures`、`KeyEvents` 的警告仍在。那是真的,
+/// 但不是一個關於**游標**的答案。)
+/// `View.onResolvePointerIcon(MotionEvent, pointerIndex)` 是公開的,而那正是 Android **自己**用來
+/// 決定的方法。`ViewGroup` 的實作會往下 hit-test 到座標底下的子 view、問它,之後才退回自己的圖示
+/// ——因此投遞一個來自 SOURCE_MOUSE 的 ACTION_HOVER_MOVE 並讀取答案,同時檢驗了**區域**與形狀,
+/// 而且完全不需要指標裝置。`actions/android/P72-cursor.csv` 回報:mesh view 上是
+/// `cursor at (190, 259) is crosshair`,標題文字上是 `none`——而 `none` 就是那個代表
+/// 「此處沒有任何 view 認領圖示」的 null,也正是「被侷限」的樣子。仍未被證明的只剩**繪製**:
+/// 有了指標,畫出它的就是這一次解析;而這個 AVD 沒有指標可畫。
+///
+/// UIKit 沒有對應的東西。iOS 上沒有「你在這一點會顯示哪一種指標樣式」的查詢:整個決定都住在由 app
+/// 提供的 `UIPointerInteractionDelegate` 裡,因此沒有東西可問、也沒有東西可比對。那個不對稱,正是
+/// Android 的游標那一列在涵蓋矩陣裡動得了、而 UIKit 那一列動不了的原因。
+///
 extension AndroidBackend: BackendFeatures.Cursors {
     public func createCursorTarget(wrapping child: Widget) -> Widget {
         child

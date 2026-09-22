@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on iOS: do raw key presses reach a view through UIKitBackend?
+#
+# **No coordinates anywhere in this file, and that is the point.** `.onKeyPress`
+# makes its target able to become first responder and the backend claims focus
+# itself, so a key pressed anywhere in the app must arrive without the file
+# touching the screen first. That also sidesteps the open iOS problem where only
+# the first coordinate interaction after launch lands (see
+# actions/ios/P72-scroll.csv) -- `typeKey` goes through the simulator's hardware
+# keyboard rather than through a synthesised touch.
+#
+# **The hardware keyboard has to be connected or every row is a no-op that
+# reports success.** `defaults read com.apple.iphonesimulator` must show
+# `ConnectHardwareKeyboard = 1`; it was already 1 on this machine on 2026-09-22.
+# Without it the simulator routes keystrokes to the host and XCUITest still
+# returns, so the replay exits zero having pressed nothing -- the shape of
+# mistakes.md entry 23.
+#
+# **The assertion is the STEP SIZE, not the arrow.** An arrow alone proves a key
+# arrived. Shift changing the step from 0.1 to 1.0 proves the modifier arrived
+# WITH it, which is the half that the AppKit synthesiser got wrong on 2026-09-19
+# and the Android one got wrong on 2026-09-22 -- both released the modifier
+# before the event that was meant to carry it.
+#
+# Expected, and these are the same lines macOS and Android print:
+#   KEY 1 'U+F700' shift=no step 0.1 height 1.40
+#   MODIFIERS down shift=true
+#   KEY 2 'U+F700' shift=yes step 1.0 height 2.40
+#   MODIFIERS up shift=false
+#
+# P72 於 iOS:原始按鍵抵達得了一個經由 UIKitBackend 的 view 嗎?
+#
+# **本檔沒有任何座標,而那正是重點。** `.onKeyPress` 會讓它的目標能夠成為 first responder,而 backend
+# 自己會取得焦點;因此在 app 中任何地方按下的鍵,都必須在「這個檔案完全沒有碰螢幕」的前提下抵達。
+# 那也順帶避開了 iOS 上那個未解的問題——啟動後只有第一次座標互動會生效(見 actions/ios/P72-scroll.csv)
+# ——`typeKey` 走的是模擬器的實體鍵盤,不是一次合成的觸控。
+#
+# **實體鍵盤必須是連上的,否則每一列都是「回報成功的空操作」。** `defaults read com.apple.iphonesimulator`
+# 必須顯示 `ConnectHardwareKeyboard = 1`;2026-09-22 在本機上它本來就是 1。少了它,模擬器會把鍵盤輸入
+# 送回主機,而 XCUITest 照樣返回,於是重放「什麼都沒按」地以零退出——那正是 mistakes.md 第 23 條的形狀。
+#
+# **斷言的是**步長**,不是那個方向鍵。** 單獨一個方向鍵只證明「有一個鍵抵達了」。Shift 讓步長從 0.1
+# 變成 1.0,證明的是那個修飾鍵**與它一起**抵達——而那一半正是 AppKit 的 synthesiser 在 2026-09-19、
+# Android 的在 2026-09-22 各自弄錯的地方:兩者都在「本該帶著它的那個事件」之前就放開了修飾鍵。
+sleep,,,,,,3000000,let P72 lay out and the key target claim first responder,ios
+key,,,,,upArrow,,"arrow with no modifier -- KEY 1 'U+F700' shift=no step 0.1, height 1.30 -> 1.40",ios
+sleep,,,,,,500000,,ios
+keydown,,,,,shift,,"hold shift -- MODIFIERS down shift=true must appear",ios
+sleep,,,,,,300000,,ios
+key,,,,,upArrow,,"the same arrow with shift held -- KEY 2 shift=yes step 1.0, height 1.40 -> 2.40",ios
+sleep,,,,,,300000,,ios
+keyup,,,,,shift,,"release -- MODIFIERS up shift=false, not shift=true",ios
+sleep,,,,,,1500000,let the readouts redraw before the capture,ios

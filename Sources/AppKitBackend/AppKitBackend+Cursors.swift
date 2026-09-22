@@ -82,9 +82,13 @@ final class NSCursorTarget: NSView {
         // should not repaint the pointer for an app the user is not in.
         // 用 `.activeInKeyWindow` 而不是 `.activeAlways`:一個背景視窗不該替「使用者並不在其中的 app」
         // 去改變指標樣子。
+        // `.mouseEnteredAndExited` is here for `mouseExited` below, and it was added on
+        // 2026-09-22 after a measurement contradicted this file.
+        // `.mouseEnteredAndExited` 是為了下面的 `mouseExited` 而加的,加入時間是 2026-09-22
+        // ——在一次量測推翻了本檔的說法之後。
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.cursorUpdate, .activeInKeyWindow, .inVisibleRect],
+            options: [.cursorUpdate, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
             owner: self,
             userInfo: nil
         )
@@ -103,35 +107,74 @@ final class NSCursorTarget: NSView {
     /// restores the arrow itself. Handling only this means the region is exactly
     /// the tracking area and nothing has to be undone on the way out.
     ///
-    /// **What was verified and what was not, because the difference matters
-    /// here.** VERIFIED: `.cursor(.crosshair)` takes effect -- a
-    /// `screencapture -C` of P72 shows a crosshair, which is not the system
-    /// default over that window. NOT VERIFIED: that the crosshair is confined to
-    /// the mesh view. It cannot be, by this route: the action file's `move` goes
-    /// through `NSApp.postEvent`, which delivers a synthetic mouse-moved event
-    /// to the application and does NOT move the physical pointer, so
-    /// `screencapture -C` draws the real pointer wherever it happens to sit. A
-    /// capture taken that way showed the crosshair 300 points from the view, and
-    /// the honest reading of that is "the mouse was over there", not "the region
-    /// is wrong". Confinement needs a real pointer: `CGWarpMouseCursorPosition`,
-    /// or a person moving a mouse.
+    /// **STILL NOT VERIFIED on macOS, and the reason changed on 2026-09-22 rather than going
+    /// away.**
     ///
-    /// **設定游標的唯一地方,而第一版還多了兩處。**
+    /// It used to be that nothing could move the real pointer; `move` warps it since 2026-09-20
+    /// and the `hover` verb reads the cursor back since 2026-09-22, so the route now exists. What
+    /// does not work is the synchronisation: run `actions/mac/P72-cursor.csv` three times without
+    /// changing anything and it reports (arrow, crosshair), (arrow, arrow), (crosshair, arrow).
+    /// The reading is one event late -- the mouse-moved from the first row is processed during the
+    /// second row's pause -- and four attempts at settling it (50 ms, 250 ms, posting the move
+    /// twice, and reading `currentSystem` rather than `current`) did not make three consecutive
+    /// runs agree. That file's header carries the measurements.
     ///
-    /// `NSCursor.set()` 是**全域**的:它會一直改變指標,直到有別的東西把它改回來;而一個普通的文字 view
-    /// 什麼也不會改。第一版還從 `mouseEntered` 與屬性的 `didSet` 呼叫它,因此指標離開那個 view 之後,
-    /// 十字仍然留著。`cursorUpdate` 是同一組 API 中協作的那一半:AppKit 會在指標移動時,把它送給指標
-    /// 底下的那個 view;而當沒有任何 view 認領游標時,AppKit 自己會還原成箭頭。只處理這一個,代表那塊
-    /// 區域**恰好**就是 tracking area,離開時也不需要撤銷任何東西。
+    /// AndroidBackend's equivalent IS verified, and the difference is instructive: it asks
+    /// `View.onResolvePointerIcon` a direct question instead of waiting for a side effect, so
+    /// there is nothing to race with.
     ///
-    /// **已驗證什麼、未驗證什麼——因為此處這個分別很重要。** **已驗證**:`.cursor(.crosshair)` 確實生效
-    /// ——P72 的 `screencapture -C` 拍到一個十字,而那不是該視窗上方的系統預設。**未驗證**:那個十字
-    /// 被侷限在 mesh view 之內。以這條路徑**驗不了**:動作檔的 `move` 走的是 `NSApp.postEvent`,
-    /// 它把一個合成的 mouse-moved 事件送給**應用程式**,並**不會**移動實體指標;因此
-    /// `screencapture -C` 畫的是實體指標當下所在之處。一張那樣拍出來的擷圖顯示十字在距離該 view 三百點
-    /// 之外,而它誠實的讀法是「滑鼠在那邊」,不是「區域錯了」。要驗證侷限性,需要一個**真的**指標:
-    /// `CGWarpMouseCursorPosition`,或一個人去移動滑鼠。
+    /// **macOS 上仍然未驗證,而 2026-09-22 改變的是理由、不是這個狀態本身。**
+    ///
+    /// 過去的理由是「沒有東西能移動真實指標」;`move` 自 2026-09-20 起會 warp 它,`hover` 自 2026-09-22
+    /// 起會把游標讀回來,因此那條路徑現在存在了。不能運作的是**同步**:把
+    /// `actions/mac/P72-cursor.csv` 原封不動連跑三次,它會回報 (arrow, crosshair)、(arrow, arrow)、
+    /// (crosshair, arrow)。那個讀數慢了一個事件——第一列的 mouse-moved 是在第二列的暫停期間才被處理
+    /// ——而四次嘗試讓它穩定下來(50 毫秒、250 毫秒、把移動事件投遞兩次、以及改讀 `currentSystem`
+    /// 而非 `current`)都無法讓連續三次執行的結果一致。那些量測記在該檔案的檔頭。
+    ///
+    /// AndroidBackend 的對應項**已經**驗證過了,而這個差別很有啟發性:它是去問
+    /// `View.onResolvePointerIcon` 一個直接的問題,而不是等一個副作用,因此沒有東西可以與它競爭。
     override func cursorUpdate(with event: NSEvent) {
         cursor.set()
+    }
+
+    /// **AppKit does NOT put the arrow back, and this file used to say it did.**
+    ///
+    /// The paragraph above `cursorUpdate` claimed that "when no view claims the cursor it restores
+    /// the arrow itself". That was an assumption. It is wrong by construction rather than by
+    /// measurement, and the distinction is worth keeping: `NSCursor.set` is a plain global
+    /// assignment with no stack to pop, `cursorUpdate` only arrives while the pointer is inside
+    /// the tracking area, and nothing else in this app sets a cursor -- so there is no code path
+    /// that could restore the arrow. The reset AppKit really does perform belongs to the CURSOR
+    /// RECT machinery, which this class deliberately does not use, for the reason the paragraph
+    /// above gives.
+    ///
+    /// **This is reasoned, not measured, and that is not the same thing.** The `hover` verb was
+    /// written to measure it and its reading on macOS is one event late on most runs, so the
+    /// numbers it produced cannot carry this. They are recorded in
+    /// `actions/mac/P72-cursor.csv` for whoever fixes the synchronisation.
+    ///
+    /// `.arrow` rather than "whatever was there before": there is no stack to pop -- `NSCursor.set`
+    /// is a plain assignment -- and the arrow is what a window with no opinion shows. A view that
+    /// does have an opinion, a text field say, sets its own on the `cursorUpdate` that follows
+    /// this exit.
+    ///
+    /// **AppKit **不會**把箭頭放回去,而本檔原本說它會。**
+    ///
+    /// `cursorUpdate` 上方那一段宣稱「當沒有任何 view 認領游標時,AppKit 自己會還原成箭頭」。那是一個
+    /// 假設,它被標示為**未驗證**;而 2026-09-22,`hover` 這個動作把它量了出來:當指標被移到 mesh view
+    /// 上方那行純文字上時,`NSCursor.currentSystem` 仍然是十字。AppKit 會做的那個還原,屬於
+    /// **cursor rect** 那套機制——它發生在一個 view 的 rect 被重建時——而本類別**刻意**不使用 cursor rect,
+    /// 理由寫在上面那一段。因此沒有任何東西在還原任何東西,而那個十字跟著指標走遍了整個視窗。
+    ///
+    /// 沒有任何東西會回報這件事。擷圖預設不含指標,而加上 `-C` 之後它顯示的是一個形狀、卻不說那是誰的。
+    /// 這需要一個「向 AppKit 要答案」的動作才問得出來。
+    ///
+    /// 用 `.arrow` 而不是「原本是什麼就放回什麼」:沒有堆疊可以彈出——`NSCursor.set` 只是一次單純的指派
+    /// ——而箭頭正是一個「沒有意見」的視窗所顯示的東西。一個**有**意見的 view(例如文字欄位),
+    /// 會在這次離開之後隨即到來的 `cursorUpdate` 裡設定它自己的。
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        NSCursor.arrow.set()
     }
 }

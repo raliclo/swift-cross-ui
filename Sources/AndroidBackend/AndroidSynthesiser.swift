@@ -185,6 +185,9 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             case .longPress(let point, let micros):
                 try longPress(at: point, micros: micros, in: geometry)
 
+            case .hover(let point):
+                try hover(at: point, in: geometry)
+
             case .mouseDown(_, let point):
                 let position = try resolve(point, in: geometry)
                 pressDownTime = try dispatch(action: actionDown, at: position, downTime: nil)
@@ -315,6 +318,114 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         _ = try dispatch(action: actionUp, at: end, downTime: downTime)
         lastPoint = end
+    }
+
+    /// Move a mouse pointer there and report the cursor Android would draw.
+    ///
+    /// **`onResolvePointerIcon` is Android's own answer, not ours, and that is the whole value of
+    /// this verb.** `AndroidBackend+Cursors.swift` calls `View.setPointerIcon`; checking that the
+    /// setter was called proves nothing about which view the pointer is over. `ViewGroup`'s
+    /// implementation hit-tests down to the child under the coordinates, asks it, and falls back
+    /// to its own icon -- so calling it on the decor view with a hover event at a point exercises
+    /// the REGION as well as the shape. A row inside the mesh view and a row outside it therefore
+    /// answer the question a capture cannot: whether the crosshair is confined to the view that
+    /// asked for it.
+    ///
+    /// **The event has to say it came from a mouse.** `onResolvePointerIcon` is only meaningful
+    /// for a pointer device; an event left at the default source is a touch, and a touch has no
+    /// icon. `setSource(SOURCE_MOUSE)` after `obtain` is what makes it one -- the six-argument
+    /// `obtain` has no source parameter.
+    ///
+    /// **This does NOT prove a pointer is drawn on screen.** This AVD has no pointer device at all
+    /// (`dumpsys input` lists only `gpio-keys` and twelve `virtio_input_multi_touch`), so nothing
+    /// is rendered and nothing can be photographed. What is proved is the decision: given a
+    /// pointer at that coordinate, this is the icon Android resolves.
+    ///
+    /// 把一個滑鼠指標移到那裡,並回報 Android 會畫出的游標。
+    ///
+    /// **`onResolvePointerIcon` 是 Android 自己的答案、不是我們的,而那正是這個動作的全部價值。**
+    /// `AndroidBackend+Cursors.swift` 呼叫的是 `View.setPointerIcon`;而「確認 setter 被呼叫過」
+    /// 對「指標正位於哪個 view 之上」什麼也證明不了。`ViewGroup` 的實作會往下 hit-test 到座標底下的
+    /// 子 view、問它,然後才退回自己的圖示——因此在 decor view 上以一個 hover 事件呼叫它,同時檢驗了
+    /// **區域**與形狀。於是一列在 mesh view 之內、一列在它之外,就回答了擷圖回答不了的問題:
+    /// 那個十字**有沒有被侷限**在提出要求的那個 view 之內。
+    ///
+    /// **那個事件必須說明自己來自滑鼠。** `onResolvePointerIcon` 只對指標裝置有意義;一個維持預設來源的
+    /// 事件是觸控,而觸控沒有圖示。`obtain` 之後的 `setSource(SOURCE_MOUSE)` 才讓它成為指標事件
+    /// ——六參數的 `obtain` 沒有 source 參數。
+    ///
+    /// **這**不**證明螢幕上畫出了一個指標。** 這個 AVD 根本沒有指標裝置(`dumpsys input` 只列出
+    /// `gpio-keys` 與十二個 `virtio_input_multi_touch`),因此什麼都不會被繪製、也沒有東西可拍。
+    /// 被證明的是那個**決定**:若有一個指標位於該座標,Android 解析出來的就是這個圖示。
+    private func hover(at point: Point, in geometry: WindowGeometry) throws {
+        let position = try geometry.screenPosition(of: point)
+        lastPoint = (Double(position.x), Double(position.y))
+
+        let clock = try JavaClass<SystemClock>()
+        let now = clock.uptimeMillis()
+
+        let name = Self.onMainThread { () -> String in
+            guard
+                let activity = AndroidBackend.activity,
+                let decor = activity.getWindow()?.getDecorView(),
+                let motionClass = try? JavaClass<MotionEvent>(),
+                let deviceClass = try? JavaClass<InputDevice>(),
+                let event = try? motionClass.obtain(
+                    now,
+                    now,
+                    motionClass.ACTION_HOVER_MOVE,
+                    Float(position.x),
+                    Float(position.y),
+                    Int32(0)
+                )
+            else { return "no activity" }
+
+            event.setSource(deviceClass.SOURCE_MOUSE)
+            _ = decor.dispatchGenericMotionEvent(event)
+            let icon = decor.onResolvePointerIcon(event, 0)
+            event.recycle()
+            return Self.pointerIconName(icon, in: activity)
+        }
+
+        ActionFileReplay.report(
+            "cursor at (\(Int(point.x)), \(Int(point.y))) is \(name)"
+        )
+    }
+
+    /// Names a `PointerIcon` by asking for each system icon and comparing.
+    ///
+    /// `PointerIcon` has no readable type, so the only way to name one is to ask for the icons
+    /// whose names are known and compare. `equals` compares the type, and `getSystemIcon` returns
+    /// a cached instance per type, so this is exact rather than approximate. An icon that matches
+    /// none of them is reported as `other`, not guessed at.
+    ///
+    /// 以「逐一索取系統圖示並比較」的方式為一個 `PointerIcon` 命名。
+    ///
+    /// `PointerIcon` 沒有可讀取的 type,因此為它命名的唯一方式,就是去索取那些**名字已知**的圖示再比較。
+    /// `equals` 比較的是 type,而 `getSystemIcon` 對每個 type 回傳一個快取實例,因此這是精確的、
+    /// 不是近似的。與任何一個都不相符的圖示會被回報為 `other`,而不是用猜的。
+    private static func pointerIconName(
+        _ icon: PointerIcon?,
+        in context: AndroidApp.Activity
+    ) -> String {
+        guard let icon, let iconClass = try? JavaClass<PointerIcon>() else { return "none" }
+        let named: [(String, Int32)] = [
+            ("arrow", iconClass.TYPE_ARROW),
+            ("pointingHand", iconClass.TYPE_HAND),
+            ("crosshair", iconClass.TYPE_CROSSHAIR),
+            ("text", iconClass.TYPE_TEXT),
+            ("resizeHorizontal", iconClass.TYPE_HORIZONTAL_DOUBLE_ARROW),
+            ("resizeVertical", iconClass.TYPE_VERTICAL_DOUBLE_ARROW),
+            ("notAllowed", iconClass.TYPE_NO_DROP),
+            ("default", iconClass.TYPE_DEFAULT),
+            ("null", iconClass.TYPE_NULL),
+        ]
+        for (name, type) in named
+            where iconClass.getSystemIcon(context, type)?.equals(icon.as(JavaObject.self)) == true
+        {
+            return name
+        }
+        return "other"
     }
 
     /// A press held down, which is how a finger raises a context menu.

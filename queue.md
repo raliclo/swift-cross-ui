@@ -747,12 +747,60 @@ an empty queue -- mistakes.md entry 1.
     - **量測附記:本 app 不能用 `uiautomator dump` 來量。** 它回報
       `ERROR: could not get idle state`——那個 frame clock 從不讓視窗進入 idle。
       對本處任何一支會動的測試 app 都適用。
+  - **動作檔多了一個動作:`hover`,而它是「游標」那一項唯一的量測方式(2026-09-22)。**
+    它移動**真實**指標,然後印出**平台**回報的游標:`-actionfile: cursor at (x, y) is <name>`。
+    macOS 讀 `NSCursor.currentSystem`;Android 投遞一個來自 SOURCE_MOUSE 的 ACTION_HOVER_MOVE、
+    再讀 `View.onResolvePointerIcon`。**第二列才是斷言**:一列在 view 內、一列在 view 外,
+    那是「游標有沒有被侷限在提出要求的那個 view」的唯一檢驗方式,而任何擷圖都顯示不出這件事。
+    - **[!] macOS 仍然未驗證,而且我一度回報成已驗證——那是錯的。** 有一次執行給出
+      「view 內 crosshair、view 外 arrow」,我據此把它寫成通過。**原封不動連跑三次**的結果是
+      (arrow, crosshair)、(arrow, arrow)、(crosshair, arrow)——三次三個樣。那個形態是
+      **讀數慢一個事件**:第一列的 mouse-moved 在第二列的暫停期間才被處理。
+      試過四件事都無法讓三次一致:50 毫秒 pump、250 毫秒、把移動事件投遞兩次並在中間 pump、
+      以及改讀 `NSCursor.currentSystem` 而非 `NSCursor.current`。**在同步被修好之前,
+      `actions/mac/P72-cursor.csv` 在 macOS 上跑出什麼都不算數**,而那份檔案的檔頭就是這麼寫的。
+    - **量測本身另外踩了兩個坑,寫在 `AppKitSynthesiser` 裡。** `NSCursor.current` 是**應用程式**的
+      堆疊、而且是黏著的(離開 view 時沒有東西彈掉它);而 `NSCursor.currentSystem` 交回的是一份
+      **複本**,識別比對一律失敗,因此改以熱點與影像尺寸比對(兩者相同時如實回報
+      `one of arrow/notAllowed`,而不是挑一個)。
+    - **`NSCursorTarget` 還是加了 `mouseExited` 還原 `.arrow`,但那是**推論**、不是量測。**
+      理由是構造上的:`NSCursor.set` 是一次沒有堆疊可彈的全域指派,`cursorUpdate` 只在指標位於
+      tracking area 內時才送達,而這支 app 裡沒有別的東西會設定游標——因此**不存在**任何能把箭頭放回去
+      的程式路徑。AppKit 真正會做的那個還原屬於 cursor rect 那套機制,而本類別刻意不用它。
+      這個分別有寫進該檔:推論出來的,與量出來的,不是同一件事。
+    - **Android 已驗證,而且完全不需要指標裝置。** `View.onResolvePointerIcon` 是公開的,
+      而那正是 Android 自己用來決定的方法;`ViewGroup` 的實作會往下 hit-test,因此它同時檢驗了**區域**。
+      結果:mesh view 上 `crosshair`,標題文字上 `none`(null,代表「此處沒有 view 認領圖示」)。
+    - **UIKit 仍是未驅動,而理由現在是精確的。** 需要兩樣東西,這台主機兩樣都沒有:一個指標裝置
+      (`xcrun simctl ui` 沒有指標選項;Simulator 的「Send Pointer to Device」是選單項目,
+      三次探查都找不到對應的偏好鍵),以及一個「向平台詢問它會顯示什麼」的查詢——**iOS 沒有**。
+      整個決定都住在由 app 提供的 `UIPointerInteractionDelegate` 裡,去呼叫它等於自己問自己。
+      要驗它需要什麼,寫在 `UIKitBackend+Cursors.swift` 的開頭:一台 iPad(或由人手動開啟
+      Send Pointer to Device 的 iPad 模擬器)、把指標移到 mesh view 上,然後
+      `xcrun simctl io <device> screenshot`——iPadOS 會把自己的指標畫進 frame buffer。
+    - **Windows 與 Linux 的 `hover` 尚未實作,且是具名拒絕。** 各自該用的 API 寫在拒絕訊息裡:
+      Win32 是 `SetCursorPos` 加 `GetCursorInfo`(把 `hCursor` 與 `LoadCursorW(nil, IDC_*)` 比對),
+      X11 是 `xdotool mousemove` 加 `XFixesGetCursorImage`。
+  - **UIKit 的 `KeyEvents` 已驅動(2026-09-22),而它一跑就抓到一個缺陷。**
+    `actions/ios/P72-keys.csv` **完全沒有座標**:backend 自己會取得 first responder,因此經由模擬器
+    實體鍵盤的 `typeKey` 就夠了;那也順帶避開了 iOS 上「啟動後只有第一次座標互動會生效」那個未解問題。
+    - **第一次執行印出 `keys: 2 ... high 1.30`,而且 `last U`。** UIKit 的
+      `charactersIgnoringModifiers` 對方向鍵回傳的是 `UIKeyCommand.inputUpArrow`——一個十八字元的
+      字串 `"UIKeyInputUpArrow"`;取它的第一個字元就是字母 `U`,而那是**另一個鍵**的合法
+      `KeyEquivalent`。於是 app 的 switch 落到 `default`:按鍵計數上升、相機不動,而沒有任何東西回報。
+      具名按鍵現已改由 `UIKey.keyCode`(HID usage)對照到 AppKit 與 AndroidBackend 所用的同一組
+      私有使用區 scalar。
+    - **第二次執行接著抓到 `MODIFIERS up shift=true`** ——mistakes 第 25 條的第三次發生。
+      這一次不在 synthesiser 裡:Shift 的 `pressesEnded` 上,`UIKey.modifierFlags` **確實**仍含有
+      `.shift`,因此必須由 backend 自己減掉。
+    - 兩個都修好之後,iOS 印出的四行與 macOS、Android **逐字相同**。
   - **SoftPCB §10.7 全部九項到此都有了答案。** 其中 macOS 上做完並驗過的是:拖曳、縮放/旋轉、焦點、
     每幀時序、捲動、原始按鍵、游標、右鍵選單、快照。**仍欠的**:GTK / WinUI 的 `Mesh3DViews`、
     `WidgetSnapshots`、`ScrollGestures`、`KeyEvents`、`Cursors` 與 `ContextMenus`(那是你們的);
-    UIKit 與 Android 的 `Cursors` 未驗證(兩者都沒有指標裝置);
-    UIKit 的 `KeyEvents` 未驅動(模擬器沒有實體鍵盤)。
-    **Android 這一側的 M10 與 §10.7 到此全部關閉。**
+    **UIKit 的 `Cursors`** 仍未被驅動(理由見上:iOS 沒有對應的查詢,這台主機也沒有指標裝置);
+    **macOS 的 `Cursors` 仍未驗證**——不是因為缺路徑,而是因為 `hover` 在 macOS 上的讀數有競爭條件,
+    那是一項獨立的待辦。Windows 與 Linux 的 `hover` 動作尚未實作(拒絕訊息裡寫了各自該用的 API)。
+    **Android 這一側的 M10 與 §10.7 到此全部關閉。iOS 只剩游標,macOS 只剩游標的量測同步。**
 
 ## 為什麼缺陷排在功能之前 / Why the defects moved above the features
 

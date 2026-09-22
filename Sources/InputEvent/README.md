@@ -89,6 +89,7 @@ action,x,y,origin,button,key,micros,note,platform
 | `click` | `button`, optional `x`, `y` | press and release once; moves first if a position is given |
 | `doubleclick` | `button`, optional `x`, `y` | two press-release pairs inside the platform's double-click time |
 | `longpress` | `micros`, optional `x`, `y` | hold for `micros`; **iOS only** -- the desktop synthesisers refuse it, because a long press is not how a context menu is raised there and `click ... right` is |
+| `hover` | `x`, `y` | move the POINTER there and report the cursor the platform draws, as `-actionfile: cursor at (x, y) is <name>`. macOS reads `NSCursor.currentSystem`; Android posts an ACTION_HOVER_MOVE from SOURCE_MOUSE and reads `View.onResolvePointerIcon`, which is a null -- reported as `none` -- when no view under the point claims an icon. **The second row is the assertion**: one inside the view and one outside is what shows a cursor is confined to the view that asked for it, and no capture can show that. Refused on iOS (no pointer) and not implemented yet on Windows or Linux |
 | `mousedown` | `button`, optional `x`, `y` | press and hold |
 | `mouseup` | `button`, optional `x`, `y` | release |
 | `scroll` | `x`, `y` as **wheel notches** | turn the wheel where the pointer is |

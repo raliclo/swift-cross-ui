@@ -1,0 +1,50 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Android: does `.cursor(.crosshair)` take, and is it CONFINED to the view?
+#
+# **This AVD has no pointer device, and the file still answers the question.**
+# `dumpsys input` lists `gpio-keys` and twelve `virtio_input_multi_touch` and
+# nothing else; `MousePointerControllers` is empty, and three attempts to
+# register a virtual mouse through `uinput` produced no device. So nothing is
+# drawn and nothing can be photographed -- but `View.onResolvePointerIcon` is
+# public, and it is the method Android itself calls to decide. `hover` posts an
+# ACTION_HOVER_MOVE from SOURCE_MOUSE at the coordinate and prints what the decor
+# view resolves.
+#
+# That is not the backend answering about itself. `ViewGroup.onResolvePointerIcon`
+# hit-tests down to the child under the point, asks it, and only then falls back
+# to its own icon -- so the second row, over plain text, is a real test of the
+# REGION. A backend that set the icon on the whole window would pass the first
+# row and fail the second.
+#
+# What it does NOT prove: that a pointer appears on screen. Put a mouse on a
+# device and this same resolution is what draws it; this file stops one step
+# short of the drawing.
+#
+# Coordinates from testapp/output/screenshots/p72-android-final-20260922-102042.png:
+# density 2.625, the mesh view is the band from pixel y 366 to 996 starting at
+# x 54, centre pixel (500, 681) = point (190, 259). Point (190, 34) is the title
+# text at the top of the page.
+#
+# P72 於 Android:`.cursor(.crosshair)` 有生效嗎?而它有被**侷限**在那個 view 裡嗎?
+#
+# **這個 AVD 沒有指標裝置,而這份檔案仍然回答得了那個問題。** `dumpsys input` 只列出 `gpio-keys` 與
+# 十二個 `virtio_input_multi_touch`,其餘沒有;`MousePointerControllers` 是空的,而三次以 `uinput`
+# 註冊虛擬滑鼠都沒有產生裝置。因此什麼都不會被繪製、也沒有東西可拍——但 `View.onResolvePointerIcon`
+# 是公開的,而那正是 Android **自己**用來決定的那個方法。`hover` 會在該座標投遞一個來自 SOURCE_MOUSE
+# 的 ACTION_HOVER_MOVE,並印出 decor view 解析出來的結果。
+#
+# 那不是 backend 在回答關於它自己的問題。`ViewGroup.onResolvePointerIcon` 會往下 hit-test 到該點底下的
+# 子 view、問它,之後才退回自己的圖示——因此第二列(在純文字上)是對**區域**的真實檢驗。一個「把圖示
+# 設在整個視窗上」的 backend 會通過第一列、在第二列失敗。
+#
+# 它**不**證明的是:螢幕上真的出現了一個指標。在一台有滑鼠的裝置上,畫出它的正是這同一次解析;
+# 這份檔案停在「繪製」的前一步。
+#
+# 座標量自 testapp/output/screenshots/p72-android-final-20260922-102042.png:density 2.625,
+# mesh view 是自 x 54 起、像素 y 366 到 996 的那一條帶,中心像素 (500, 681) 即點 (190, 259)。
+# 點 (190, 34) 是頁面頂端的標題文字。
+sleep,,,,,,2500000,let P72 lay out and the surface be created,android
+hover,190,259,,,,,"pointer onto the mesh view -- must report crosshair (VERIFIED 2026-09-22: -actionfile: cursor at (190, 259) is crosshair)",android
+sleep,,,,,,500000,,android
+hover,190,34,,,,,"pointer onto the title text -- must report none, and that IS the pass: onResolvePointerIcon returns null when no view under the point claims an icon, which is how confinement looks on Android. A crosshair here would mean the icon was set on the window (VERIFIED 2026-09-22: crosshair inside, none outside)",android
+sleep,,,,,,500000,,android

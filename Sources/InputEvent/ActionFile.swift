@@ -168,6 +168,15 @@ public enum ActionFile {
                 guard let point
                 else { throw ActionFileError.missingPosition(verb: verb, line: line) }
                 return .move(point)
+            case "hover":
+                // A position is required, like `move`'s and for the same reason: a hover with no
+                // coordinates would report the cursor wherever the pointer happens to be, which
+                // is a number about the machine rather than about the app.
+                // 與 `move` 一樣必填座標,理由相同:一次沒有座標的 hover,回報的是「指標剛好在哪裡」
+                // 的游標——那是一個關於這台機器、而不是關於這個 app 的數字。
+                guard let point
+                else { throw ActionFileError.missingPosition(verb: verb, line: line) }
+                return .hover(at: point)
             case "click": return .click(try button(), at: point)
             case "doubleclick": return .doubleClick(try button(), at: point)
             case "longpress":

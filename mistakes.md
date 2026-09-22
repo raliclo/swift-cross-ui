@@ -1939,3 +1939,56 @@ Android。
 再說這項功能完成了。`zsh testapp/compile.zsh -android <Pn>` 是本機上最便宜的那一個,也是唯一帶著
 Bionic `math.h` 的那一個。三角函數請優先用 `Double` 再轉回來——那不需要任何 `#if`,而六次呼叫的代價
 是零。
+
+## 25. A modifier key release that still reports itself as held
+
+**3 occurrences / 3 days (2026-09-19, 2026-09-22 ×2).**
+
+A modifier goes down and never comes up. Every backend reports the *press* correctly — the
+shortcut fires, the step size changes from 0.1 to 1.0 — and then the release event carries the
+modifier still set, so an application tracking `press.modifiers` believes Shift is held forever.
+
+Nothing errors, and nothing in the obvious test notices: the down path is the path anyone checks.
+
+| Where | What was actually wrong |
+| --- | --- |
+| `AppKitSynthesiser`, 2026-09-19 | The synthesiser released the flag **after** building the event. |
+| `AndroidSynthesiser`, 2026-09-22 | Same shape: the meta-state bit was cleared after `dispatchKeyEvent`. |
+| `UIKitBackend`, 2026-09-22 | Not the synthesiser at all. `UIKey.modifierFlags` on `pressesEnded` for Shift genuinely still contains `.shift`, so the backend has to subtract it. |
+
+Three independent places, one shape. In each case the entire visible symptom was one wrong word at
+the end of a log: `MODIFIERS up shift=true`.
+
+**What found it, all three times, was the same thing.** An action file whose last row is a `keyup`
+and whose note says what that row must print. `actions/mac/P72-stop-and-check.csv`,
+`actions/android/P72-scroll-and-keys.csv` and `actions/ios/P72-keys.csv` all end that way, and all
+three would have passed their first three lines while failing the last.
+
+**Corrective.** When adding or reviewing a key path on any backend or synthesiser, drive a
+`keydown` / `key` / `keyup` triple and read the LAST line. The assertion is not that the modifier
+arrived; it is that it left. A key test that stops at the press cannot see this.
+
+**一個「放開時仍宣稱自己被按住」的修飾鍵**
+
+修飾鍵按下去,然後永遠沒有放開。每一個 backend 都正確回報了**按下**——快捷鍵會觸發、步長會從 0.1 變成
+1.0——而接著那個放開事件帶著仍然被設定的修飾鍵;於是一個追蹤 `press.modifiers` 的應用程式,會認為
+Shift 被永遠按住了。
+
+沒有任何東西報錯,而顯而易見的那種測試也不會察覺:按下那條路徑,正是任何人都會檢查的那一條。
+
+| 位置 | 真正的問題 |
+| --- | --- |
+| `AppKitSynthesiser`,2026-09-19 | synthesiser 在**建好事件之後**才放開那個旗標。 |
+| `AndroidSynthesiser`,2026-09-22 | 同一個形狀:meta-state 的位元在 `dispatchKeyEvent` **之後**才清掉。 |
+| `UIKitBackend`,2026-09-22 | 根本不是 synthesiser。Shift 的 `pressesEnded` 上,`UIKey.modifierFlags` **確實**仍含有 `.shift`,因此必須由 backend 自己把它減掉。 |
+
+三個互不相干的地方、同一個形狀。而每一次,全部可見的症狀就是 log 結尾的一個錯字:
+`MODIFIERS up shift=true`。
+
+**三次都是同一樣東西找出來的。** 一份「最後一列是 `keyup`、而那一列的 note 寫明它必須印出什麼」的
+動作檔。`actions/mac/P72-stop-and-check.csv`、`actions/android/P72-scroll-and-keys.csv` 與
+`actions/ios/P72-keys.csv` 都是這樣結尾的;而三者都會通過前三行、在最後一行失敗。
+
+**矯正措施。** 在任何 backend 或 synthesiser 上新增或審查按鍵路徑時,驅動一組
+`keydown` / `key` / `keyup`,並讀**最後一行**。要斷言的不是那個修飾鍵**抵達了**,而是它**離開了**。
+一個停在「按下」的按鍵測試,看不見這件事。

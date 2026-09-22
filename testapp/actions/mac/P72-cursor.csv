@@ -1,44 +1,71 @@
 action,x,y,origin,button,key,micros,note,platform
-# P72: does .cursor(_:) change the pointer, and only over the view it is on?
+# P72 on macOS: does `.cursor(.crosshair)` take, and is it CONFINED to the view?
 #
-# Coordinates are origin=frame, read off testapp/output/screenshots/
+# **This file used to be two `move` rows and two eight-second pauses for a human
+# with `screencapture -C`.** It is now two `hover` rows, which move the real
+# pointer and then print the cursor AppKit decided on. The old shape could show
+# a crosshair in a photograph; it could not say whether the crosshair belonged
+# to the mesh view or to the window, and the comment in
+# AppKitBackend+Cursors.swift said so: "NOT VERIFIED: that the crosshair is
+# confined to the mesh view."
+#
+# The second row is the assertion. A backend that set the cursor on the whole
+# window would pass the first row and fail this one, and until 2026-09-22
+# nothing in this tree could tell those apart.
+#
+# **AND ON macOS IT STILL CANNOT, BECAUSE THE READING IS RACY. This file does not
+# pass here yet, and saying so is the point of this paragraph.** Run three times
+# in a row on 2026-09-22, unchanged, it reported (arrow, crosshair), then
+# (arrow, arrow), then (crosshair, arrow). The pattern is a reading one event
+# late: the mouse-moved from row one is processed during row two's pause. Four
+# things were tried -- a 50 ms pump, 250 ms, posting the move twice with a pump
+# between, and reading NSCursor.currentSystem instead of NSCursor.current -- and
+# none of them made three consecutive runs agree. Android's equivalent
+# (actions/android/P72-cursor.csv) has no such problem, because it asks
+# onResolvePointerIcon a direct question instead of waiting for a side effect.
+#
+# So: the verb is right and the file is right; the synchronisation is not. Until
+# it is, a green run here means nothing and a red one means nothing either.
+#
+# **而在 macOS 上它仍然分不出來,因為這個讀數有競爭條件。這份檔案在此處還不算通過,而說出這件事
+# 正是這一段的重點。** 2026-09-22 原封不動連跑三次,結果依序是 (arrow, crosshair)、(arrow, arrow)、
+# (crosshair, arrow)。那個形態是「讀數慢了一個事件」:第一列的 mouse-moved 是在第二列的暫停期間
+# 才被處理的。試過四件事——50 毫秒的 pump、250 毫秒、把移動事件投遞兩次並在中間 pump、以及改讀
+# `NSCursor.currentSystem` 而非 `NSCursor.current`——沒有一個能讓連續三次執行的結果一致。
+# Android 的對應檔(actions/android/P72-cursor.csv)沒有這個問題,因為它是去問
+# `onResolvePointerIcon` 一個**直接的問題**,而不是等一個副作用。
+#
+# 也就是說:動作本身是對的、這份檔案也是對的;不對的是同步。在它被修好之前,此處跑出綠的不代表什麼,
+# 跑出紅的也不代表什麼。
+#
+# Coordinates are origin=frame, from testapp/output/screenshots/
 # P72-taller-20260919-213420.png, a 520x808 capture of a 520x780 window.
+# Point (239, 284) is the middle of the 340x240 mesh view; (239, 140) is the
+# line of plain text above it.
 #
-# **THIS FILE CANNOT BE JUDGED FROM THE HARNESS OUTPUT. It needs a capture that
-# INCLUDES THE POINTER, which is `screencapture -C`; the default excludes it.**
-# Run it and take two captures during the two holds:
+# `hover` warps the PHYSICAL pointer (CGWarpMouseCursorPosition), which `move`
+# also does since 2026-09-20 and `click` deliberately still does not. Expect the
+# mouse to jump while this runs; it is put back by nothing, so a person watching
+# will see it sitting on the last row's coordinate.
 #
-#   zsh testapp/test.zsh P72 --macos --actionfile=testapp/actions/mac/P72-cursor.csv &
-#   sleep 12; screencapture -x -C /tmp/mesh.png     # pointer on the mesh view
-#   sleep 10; screencapture -x -C /tmp/text.png     # pointer on plain text
+# P72 於 macOS:`.cursor(.crosshair)` 有生效嗎?而它有被**侷限**在那個 view 裡嗎?
 #
-# Expected: a CROSSHAIR in the first and an ARROW in the second. The second is
-# the assertion that matters -- a crosshair everywhere would also produce a
-# crosshair in the first.
+# **這份檔案原本是兩列 `move` 加兩段八秒的停頓,等一個人拿 `screencapture -C` 去拍。** 現在它是兩列
+# `hover`:移動真實指標,然後印出 AppKit 所決定的游標。舊的形狀能在照片裡顯示一個十字;它說不出那個
+# 十字屬於 mesh view 還是屬於整個視窗,而 AppKitBackend+Cursors.swift 的註解也是這麼寫的:
+# 「**未驗證**:那個十字被侷限在 mesh view 之內。」
 #
-# **This only works because `move` warps the physical pointer, which it did not
-# until 2026-09-20.** Before that it posted a synthetic mouse-moved event to the
-# application and left the real cursor where the mouse was, so every
-# `screencapture -C` showed the pointer somewhere else entirely. The clock is
-# stopped first so the cube does not move between captures.
-#
-# P72:`.cursor(_:)` 會改變指標嗎?而且只在它所屬的那個 view 上方嗎?
+# 第二列才是斷言。一個「把游標設在整個視窗上」的 backend,會通過第一列、而在這一列失敗;
+# 而在 2026-09-22 之前,這棵樹裡沒有任何東西分得出這兩者。
 #
 # 座標為 origin=frame,量自 testapp/output/screenshots/P72-taller-20260919-213420.png
-# ——一張 520x808 的擷圖、對應 520x780 的視窗。
+# ——一張 520x808 的擷圖、對應 520x780 的視窗。點 (239, 284) 是 340x240 mesh view 的中央;
+# (239, 140) 是它上方那一行純文字。
 #
-# **這份檔案無法從 harness 的輸出判定。它需要一張「包含指標」的擷圖,也就是 `screencapture -C`;
-# 預設是不包含的。** 執行它,並在兩段 hold 期間各拍一張(指令見上方英文區塊)。
-#
-# 預期:第一張是**十字**、第二張是**箭頭**。真正關鍵的是第二張——如果到處都是十字,第一張也會是十字。
-#
-# **這件事之所以行得通,是因為 `move` 會 warp 實體指標;而在 2026-09-20 之前它不會。** 在那之前,
-# 它送出的是一個給應用程式的合成 mouse-moved 事件,實體游標留在滑鼠原處,因此每一張 `screencapture -C`
-# 拍到的指標都在完全不同的地方。先把時鐘停掉,好讓立方體不會在兩張擷圖之間移動。
+# `hover` 會 warp **實體**指標(`CGWarpMouseCursorPosition`),`move` 自 2026-09-20 起也會,而 `click`
+# 刻意仍然不會。執行期間滑鼠會跳動;沒有任何東西會把它放回去,因此在旁邊看的人會看到它停在最後一列的座標上。
 sleep,,,,,,1500000,let P72 lay out,macos
-click,238,518,frame,left,,,stop the clock so the cube does not move between captures,macos
+hover,239,284,frame,,,,"pointer onto the mesh view -- must report crosshair. NOT YET A PASS ON macOS: see the header, the reading is one event late on most runs",macos
 sleep,,,,,,500000,,macos
-move,239,284,frame,,,,pointer onto the mesh view -- CROSSHAIR expected,macos
-sleep,,,,,,8000000,"hold: take the crosshair capture here",macos
-move,239,140,frame,,,,"pointer onto plain text -- ARROW expected, and this is the real assertion",macos
-sleep,,,,,,8000000,"hold: take the arrow capture here",macos
+hover,239,140,frame,,,,"pointer onto the plain text above it -- must report arrow, which is what would prove the crosshair is the VIEW's and not the window's. NOT YET A PASS ON macOS: see the header",macos
+sleep,,,,,,500000,,macos

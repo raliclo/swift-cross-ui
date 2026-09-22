@@ -103,16 +103,36 @@ final class KeyEventWidget: ContainerWidget {
         for press in presses {
             guard let key = press.key else { continue }
             handled = true
-            let modifiers = Self.modifiers(from: key.modifierFlags)
-            if Self.modifierKeyCodes.contains(key.keyCode) {
+            var modifiers = Self.modifiers(from: key.modifierFlags)
+            if let own = Self.modifierBit(for: key.keyCode) {
+                // **A modifier's own RELEASE still reports itself as held, and this is the third
+                // backend where that was true.**
+                //
+                // `UIKey.modifierFlags` on `pressesEnded` for the Shift key still contains
+                // `.shift`, so a caller watching `press.modifiers` sees Shift go down and never
+                // come up -- a stuck modifier, which reads as the app being wrong rather than the
+                // backend. Measured on 2026-09-22: P72 printed `MODIFIERS up shift=true`.
+                // AppKitSynthesiser had it on 2026-09-19 and AndroidSynthesiser on 2026-09-22;
+                // this is the same shape a third time, here in a backend rather than a
+                // synthesiser. AppKit's `flagsChanged` reports the state AFTER the change, which
+                // is the behaviour being matched.
+                //
+                // **一個修飾鍵自己的**放開**仍然回報自己被按住,而這已經是第三個出現這件事的 backend。**
+                //
+                // Shift 的 `pressesEnded` 上,`UIKey.modifierFlags` 仍然含有 `.shift`;因此一個觀察
+                // `press.modifiers` 的呼叫端會看到 Shift 按下去、而且永遠沒有放開——一個卡住的修飾鍵,
+                // 讀起來像是 app 錯了、而不是 backend 錯了。2026-09-22 實測:P72 印出
+                // `MODIFIERS up shift=true`。AppKitSynthesiser 在 2026-09-19、AndroidSynthesiser 在
+                // 2026-09-22 各有一次;這是同一個形狀的第三次,而這次在 backend 裡、不在 synthesiser 裡。
+                // AppKit 的 `flagsChanged` 回報的是變化**之後**的狀態,而此處要對齊的就是那個行為。
+                if phase == .up { modifiers.remove(own) }
                 onKey?(
                     KeyPress(key: nil, characters: "", modifiers: modifiers, phase: phase)
                 )
             } else {
-                let bare = key.charactersIgnoringModifiers
                 onKey?(
                     KeyPress(
-                        key: bare.first.map { KeyEquivalent($0) },
+                        key: Self.equivalent(for: key),
                         characters: key.characters,
                         modifiers: modifiers,
                         phase: phase
@@ -123,16 +143,92 @@ final class KeyEventWidget: ContainerWidget {
         return handled
     }
 
-    private static let modifierKeyCodes: Set<UIKeyboardHIDUsage> = [
-        .keyboardLeftShift,
-        .keyboardRightShift,
-        .keyboardLeftControl,
-        .keyboardRightControl,
-        .keyboardLeftAlt,
-        .keyboardRightAlt,
-        .keyboardLeftGUI,
-        .keyboardRightGUI,
-    ]
+    /// **`charactersIgnoringModifiers` is a WORD for an arrow key on iOS, and taking its first
+    /// character silently produced the letter U.**
+    ///
+    /// That is what this file did until 2026-09-22. AppKit hands back a single scalar in the
+    /// private-use block -- U+F700 for the up arrow -- and the obvious transliteration,
+    /// `bare.first.map(KeyEquivalent.init)`, reads correctly and is wrong here: UIKit returns
+    /// `UIKeyCommand.inputUpArrow`, whose value is the eighteen-character string
+    /// `"UIKeyInputUpArrow"`. Its first character is `U`, which is a perfectly valid
+    /// ``KeyEquivalent`` for a completely different key.
+    ///
+    /// Nothing reports that. An app switching on `press.key` falls through to `default`, so the
+    /// arrow does nothing while the press count rises -- P72 showed `keys: 2 ... high 1.30`, two
+    /// presses and a camera that had not moved, and the giveaway was the readout printing
+    /// `last U`.
+    ///
+    /// The `keyCode` is a HID usage and is unambiguous, so the named keys are mapped from it. The
+    /// scalars are ``KeyEquivalent``'s own, which is what makes `press.key == .upArrow` mean the
+    /// same thing on AppKit, UIKit and AndroidBackend. `AndroidBackend+KeyEvents.swift` maps
+    /// Android keycodes onto the same set, for the same reason.
+    ///
+    /// **在 iOS 上,方向鍵的 `charactersIgnoringModifiers` 是一個**單字**,而取它的第一個字元會
+    /// 靜默地產生字母 U。**
+    ///
+    /// 那正是本檔在 2026-09-22 之前所做的事。AppKit 交回的是私有使用區的單一 scalar——上方向鍵是
+    /// U+F700——而那個看起來理所當然的音譯 `bare.first.map(KeyEquivalent.init)` 讀起來沒問題,在此處卻是
+    /// 錯的:UIKit 回傳的是 `UIKeyCommand.inputUpArrow`,其值是十八個字元的字串
+    /// `"UIKeyInputUpArrow"`。它的第一個字元是 `U`,而那是一個**完全不同的按鍵**的合法 ``KeyEquivalent``。
+    ///
+    /// 沒有任何東西會回報這件事。一個對 `press.key` 做 switch 的 app 會落到 `default`,於是方向鍵什麼都
+    /// 不做、而按鍵計數照常上升——P72 顯示的是 `keys: 2 ... high 1.30`:兩次按鍵,而相機沒有移動;
+    /// 露餡的是讀數上那個 `last U`。
+    ///
+    /// `keyCode` 是 HID usage、毫無歧義,因此具名的按鍵改由它對照。那些 scalar 是 ``KeyEquivalent``
+    /// 自己的那一組,那正是讓 `press.key == .upArrow` 在 AppKit、UIKit 與 AndroidBackend 上意義相同的
+    /// 原因。`AndroidBackend+KeyEvents.swift` 把 Android 的 keycode 對到同一組,理由相同。
+    private static func equivalent(for key: UIKey) -> KeyEquivalent? {
+        let named: Character? =
+            switch key.keyCode {
+                case .keyboardUpArrow: "\u{F700}"
+                case .keyboardDownArrow: "\u{F701}"
+                case .keyboardLeftArrow: "\u{F702}"
+                case .keyboardRightArrow: "\u{F703}"
+                case .keyboardTab: "\u{9}"
+                case .keyboardReturnOrEnter, .keypadEnter: "\r"
+                case .keyboardDeleteOrBackspace: "\u{7F}"
+                case .keyboardDeleteForward: "\u{F728}"
+                case .keyboardHome: "\u{F729}"
+                case .keyboardEnd: "\u{F72B}"
+                case .keyboardPageUp: "\u{F72C}"
+                case .keyboardPageDown: "\u{F72D}"
+                case .keyboardEscape: "\u{1B}"
+                case .keyboardSpacebar: " "
+                default: nil
+            }
+        if let named { return KeyEquivalent(named) }
+        // An ordinary printable key: `charactersIgnoringModifiers` really is one character for
+        // these, and using it keeps the layout the user is typing on rather than a US-QWERTY
+        // guess derived from the HID usage.
+        // 一個普通的可列印按鍵:對這些而言 `charactersIgnoringModifiers` 確實是一個字元,而用它可以
+        // 保留使用者實際使用的鍵盤配置,而不是從 HID usage 推導出的一個「美式 QWERTY」猜測。
+        let bare = key.charactersIgnoringModifiers
+        guard bare.count == 1, let first = bare.first else { return nil }
+        return KeyEquivalent(first)
+    }
+
+    /// Which modifier a key IS, or nil if it is not one.
+    ///
+    /// Replaces the flat `modifierKeyCodes` set this file used to carry: the set could say "this
+    /// is a modifier" and not which, and the release fix above needs which. Left and right map to
+    /// the same ``EventModifiers`` case because that is all this package's modifier set can
+    /// express -- the same collapse `AndroidSynthesiser.modifierBit(for:)` makes.
+    ///
+    /// 一個按鍵**是**哪一個修飾鍵;若它不是修飾鍵則為 nil。
+    ///
+    /// 取代本檔原本那個扁平的 `modifierKeyCodes` 集合:那個集合說得出「這是一個修飾鍵」、說不出是哪一個,
+    /// 而上面那個「放開」的修法需要知道是哪一個。左右兩側對到同一個 ``EventModifiers`` case,因為那是
+    /// 本套件的修飾鍵集合所能表達的全部——與 `AndroidSynthesiser.modifierBit(for:)` 所做的是同一種塌縮。
+    private static func modifierBit(for keyCode: UIKeyboardHIDUsage) -> EventModifiers? {
+        switch keyCode {
+            case .keyboardLeftShift, .keyboardRightShift: .shift
+            case .keyboardLeftControl, .keyboardRightControl: .control
+            case .keyboardLeftAlt, .keyboardRightAlt: .option
+            case .keyboardLeftGUI, .keyboardRightGUI: .command
+            default: nil
+        }
+    }
 
     private static func modifiers(from flags: UIKeyModifierFlags) -> EventModifiers {
         var modifiers: EventModifiers = []

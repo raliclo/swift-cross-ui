@@ -189,7 +189,14 @@ public enum ActionFileReplay {
     /// 數行**：讓這個豁免站得住腳的是「量」，因此任何逐事件觸發的輸出都應改放在 `--debug` 之後，
     /// 並且經由此處輸出、而非繞過它。`Win32Synthesiser.reportMouseMove` 正是促使寫下這段的案例；
     /// 而「每次執行僅一行」在被讀到時就已經是假的——讓它過時的，正是同一次加入第二行的改動。
-    static func report(_ message: String) {
+    /// `public` since 2026-09-22, because `AndroidSynthesiser` lives in AndroidBackend rather
+    /// than in this module and the `hover` verb reports from there. The alternative was a second
+    /// stderr writer with the same `-actionfile:` prefix, which is exactly the drift this
+    /// function's own note asks callers to avoid.
+    /// 自 2026-09-22 起改為 `public`,因為 `AndroidSynthesiser` 住在 AndroidBackend 而不是本模組,
+    /// 而 `hover` 這個動作是從那裡回報的。另一個選項是再寫一個帶著相同 `-actionfile:` 前綴的 stderr
+    /// 輸出點,而那正是本函式自己的註記要求呼叫端避免的漂移。
+    public static func report(_ message: String) {
         let line = "-actionfile: \(message)\n"
         FileHandle.standardError.write(Data(line.utf8))
 

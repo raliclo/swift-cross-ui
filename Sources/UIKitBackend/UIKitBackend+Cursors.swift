@@ -1,6 +1,35 @@
 import SwiftCrossUI
 import UIKit
 
+/// **Still not driven on 2026-09-22, and the reason is now precise rather than "no pointer".**
+///
+/// Two things are needed and this host has neither. A pointer device: the iPhone simulator has
+/// none, `xcrun simctl ui` has no pointer option, and the Simulator's "Send Pointer to Device"
+/// is a menu item with no preference key found. And a way to ask the platform what it WOULD show:
+/// Android has one -- `View.onResolvePointerIcon`, which is how
+/// `AndroidBackend+Cursors.swift` got verified with no pointer at all -- and iOS does not. There
+/// is no query on `UIPointerInteraction`; the entire decision lives in the delegate below, so
+/// calling it would be this file asking itself.
+///
+/// So the honest state is: the mapping is here, the interaction is installed, and nothing has
+/// exercised iPadOS's side of it. What would: an iPad (or an iPad simulator with Send Pointer to
+/// Device switched on by hand), the pointer moved over the mesh view, and
+/// `xcrun simctl io <device> screenshot` -- iPadOS draws its own pointer into the frame buffer, so
+/// unlike macOS a plain capture would contain it.
+///
+/// **2026-09-22 仍未被驅動,而理由現在是精確的、不再只是「沒有指標」。**
+///
+/// 需要兩樣東西,而這台主機兩樣都沒有。其一是**指標裝置**:iPhone 模擬器沒有,`xcrun simctl ui` 沒有
+/// 指標選項,而 Simulator 的「Send Pointer to Device」是一個選單項目、找不到對應的偏好設定鍵。
+/// 其二是**向平台詢問「你會顯示什麼」的方法**:Android 有——`View.onResolvePointerIcon`,
+/// `AndroidBackend+Cursors.swift` 正是靠它在完全沒有指標的情況下完成驗證——而 iOS 沒有。
+/// `UIPointerInteraction` 上沒有任何查詢;整個決定都住在下面那個 delegate 裡,因此去呼叫它,
+/// 等於本檔在問它自己。
+///
+/// 因此誠實的狀態是:對照表在這裡、interaction 有裝上,而 iPadOS 那一側沒有任何東西驗證過。
+/// 什麼能驗:一台 iPad(或一台由人手動開啟 Send Pointer to Device 的 iPad 模擬器),把指標移到
+/// mesh view 上,然後 `xcrun simctl io <device> screenshot`——iPadOS 會把它自己的指標畫進 frame
+/// buffer,因此與 macOS 不同,一張普通的擷圖就會含有它。
 extension UIKitBackend: BackendFeatures.Cursors {
     public func createCursorTarget(wrapping child: Widget) -> Widget {
         CursorWidget(child: child)

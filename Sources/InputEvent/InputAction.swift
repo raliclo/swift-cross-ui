@@ -35,6 +35,34 @@ public enum InputAction: Equatable, Sendable {
     /// 在桌面的各 synthesiser 上,這是 `unsupported`:在那裡,長按不是叫出右鍵選單的方式,
     /// `click ... right` 才是。一個「在三個平台上靜默變成右鍵」的動作,會藏起跨平台測試正要找的那個差異。
     case longPress(at: Point?, micros: Int)
+
+    /// Move a POINTER to a position and report the cursor the platform shows there.
+    ///
+    /// **`move` is not this, and the difference is the report.** `move` puts the pointer
+    /// somewhere so that a later click without coordinates has a target; it asserts nothing.
+    /// This one asks the platform which cursor it would draw at that position and prints the
+    /// answer, which is the only externally observable thing ``BackendFeatures/Cursors`` produces
+    /// -- a screenshot does not include the pointer on macOS by default and does not include it
+    /// at all on Android.
+    ///
+    /// That makes it the verb for the cursor gap, and for the half of it a capture cannot reach:
+    /// whether the shape is CONFINED to the view that asked for it. Two rows, one inside and one
+    /// outside, answer that; one row cannot.
+    ///
+    /// Refused where there is no pointer to move -- the iOS runner and any touch-only device.
+    ///
+    /// 把一個**指標**移到某個位置,並回報平台在該處所顯示的游標。
+    ///
+    /// **`move` 不是這個,差別在於「有沒有回報」。** `move` 只是把指標放到某處,好讓後續一個沒有座標的
+    /// 點擊有目標可落;它不斷言任何東西。這一個會**詢問平台**「你在那個位置會畫哪一個游標」並印出答案
+    /// ——而那是 ``BackendFeatures/Cursors`` 唯一可從外部觀察到的東西:macOS 的擷圖預設不含指標,
+    /// Android 的擷圖則根本不含。
+    ///
+    /// 這使它成為「游標」那個缺口的動作,也涵蓋了擷圖到不了的那一半:那個形狀**有沒有被侷限**在提出要求
+    /// 的那個 view 之內。兩列——一列在內、一列在外——回答得了它;一列不行。
+    ///
+    /// 在沒有指標可移的地方會被拒絕——iOS 的 runner,以及任何純觸控的裝置。
+    case hover(at: Point)
     case mouseDown(MouseButton, at: Point?)
     case mouseUp(MouseButton, at: Point?)
     case keyDown(Key)
@@ -55,6 +83,7 @@ public enum InputAction: Equatable, Sendable {
         switch self {
             case .longPress(let point, _): point
             case .move(let point): point
+            case .hover(let point): point
             case .click(_, let point), .doubleClick(_, let point),
                  .mouseDown(_, let point), .mouseUp(_, let point): point
             // `scroll` names no point on purpose -- ActionFile:176 rejects an
