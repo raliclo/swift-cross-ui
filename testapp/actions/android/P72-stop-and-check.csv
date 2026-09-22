@@ -1,0 +1,51 @@
+action,x,y,origin,button,key,micros,note,platform
+# P72 on Android: does the GL renderer draw only when asked, or does it drive itself?
+#
+# **This is the whole point of P72 and the reason it prints a frame count.** A still
+# of a cube proves the pipeline compiled. A count that keeps climbing after the app's
+# own clock has stopped is a renderer running its own loop, and on a phone that is a
+# battery bug that no screenshot shows. GLSurfaceView defaults to
+# RENDERMODE_CONTINUOUSLY -- about sixty frames a second whatever happens -- so the
+# number this file reads is the one that says whether RENDERMODE_WHEN_DIRTY took.
+#
+# Measured 2026-09-22 from testapp/output/screenshots/p72-android-final-20260922-102042.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, window 411 x 914
+# points. NOTE THAT THE BUTTONS MOVED on the build that added the renderer: the
+# renderer string ("Android Emulator OpenGL ES Translator (ANGLE ... SwiftShader)")
+# wraps to five lines, which pushes every control below the mesh view down by about
+# 100 points. The coordinates in P72-snapshot.csv were measured before that and are
+# re-measured here.
+#
+#   Stop the clock  px (538, 1693)  pt (205, 645)
+#   Check again     px (871, 1693)  pt (332, 645)
+#   Export .glb     px (192, 1831)  pt (73, 698)
+#   Snapshot        px (487, 1831)  pt (186, 698)
+#
+# uiautomator dump cannot be used to measure this app: it reports
+# "ERROR: could not get idle state", because the frame clock never lets the window go
+# idle. That is worth knowing before reaching for it on any animating test app here.
+#
+# P72 於 Android:這個 GL renderer 只在被要求時才畫,還是自己在跑?
+#
+# **這就是 P72 的全部重點,也是它印出一個幀計數的理由。** 一張立方體的靜止畫面證明的是 pipeline 編得過;
+# 一個「在 app 自己的時鐘停下之後仍持續攀升」的計數,是一個跑著自己迴圈的 renderer,而在手機上那是一個
+# 沒有任何擷圖看得出來的耗電缺陷。`GLSurfaceView` 預設是 `RENDERMODE_CONTINUOUSLY`——不論發生什麼,
+# 每秒約六十幀——因此這份檔案所讀的那個數字,正是「`RENDERMODE_WHEN_DIRTY` 有沒有生效」的答案。
+#
+# 2026-09-22 量自 testapp/output/screenshots/p72-android-final-20260922-102042.png。
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625,視窗 411 x 914 點。
+# **請注意按鈕位置在「加入 renderer 的那個版本」之後改變了**:renderer 字串
+# (「Android Emulator OpenGL ES Translator (ANGLE ... SwiftShader)」)會折成五行,
+# 把 mesh view 以下的每一個控制項往下推約 100 點。P72-snapshot.csv 的座標是在那之前量的,此處重量。
+#
+# 本 app 無法用 uiautomator dump 來量:它會回報 "ERROR: could not get idle state",
+# 因為那個 frame clock 從不讓視窗進入 idle。在對本處任何一支會動的測試 app 動用它之前,這件事值得先知道。
+sleep,,,,,,2500000,let the surface be created and the first frames land,android
+click,205,645,,left,,,"Stop the clock -- the log must print STOPPED at frame N with N > 0",android
+sleep,,,,,,1500000,"a second and a half in which a self-driving renderer would draw about 90 frames",android
+click,332,645,,left,,,"Check again -- CHECK at frame M, and M minus N must be a few, not ninety",android
+sleep,,,,,,800000,,android
+click,73,698,,left,,,"Export .glb -- EXPORTED with a byte count; the scene is the same value the Metal renderer exports",android
+sleep,,,,,,800000,,android
+click,186,698,,left,,,"Snapshot -- SNAPSHOT 892x630 px with MORE THAN ONE distinct colour, which is what separates a read of the GL surface (4) from a read of the hole a SurfaceView punches in the layout (1). The centre pixel is deliberately NOT asserted: the camera orbits, so which face is at the centre depends on the moment",android
+sleep,,,,,,1500000,let the readouts redraw before the capture,android

@@ -362,18 +362,12 @@ private func quaternion(
     }
 }
 
-private func normalized(_ v: SIMD3<Float>) -> SIMD3<Float> {
-    let length = (v.x * v.x + v.y * v.y + v.z * v.z).squareRoot()
-    return length > 0 ? v / length : v
-}
-
-private func cross(_ a: SIMD3<Float>, _ b: SIMD3<Float>) -> SIMD3<Float> {
-    SIMD3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
-    )
-}
+// `normalized` and `cross` used to be file-private here. They now live beside the matrices in
+// `Mesh3DMatrix.swift`, which needs the same two and would otherwise have been a second copy --
+// and a second copy of `cross` is a sign error waiting to disagree with this file's quaternion.
+// `normalized` 與 `cross` 原本是本檔的 file-private 函式。它們現在與各矩陣一同住在
+// `Mesh3DMatrix.swift`——那邊需要同樣這兩個,否則就會是第二份;而第二份 `cross` 是一個
+// 「等著與本檔四元數對不上的正負號錯誤」。
 
 extension Data {
     /// glTF is little-endian everywhere, on every platform, whatever the host is.

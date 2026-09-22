@@ -30,6 +30,28 @@ import SwiftJava
 /// 通道錯位了。
 extension AndroidBackend: BackendFeatures.WidgetSnapshots {
     public func snapshotWidget(_ widget: Widget) -> WidgetSnapshot? {
+        // **The mesh view first, because the generic path returns a blank box for it rather than
+        // failing.** A `GLSurfaceView` is a `SurfaceView`: its pixels live on a surface the window
+        // compositor owns and the view itself is a hole punched in the layout, so
+        // `View.draw(Canvas)` faithfully draws the hole. AppKitBackend checks for
+        // `Mesh3DMetalView` before reaching for `cacheDisplay` for exactly the same reason, and
+        // its comment says the same thing about Metal content and `drawRect`.
+        // **先處理 mesh view,因為通用路徑對它會回傳一個空盒子、而不是失敗。** `GLSurfaceView` 是一個
+        // `SurfaceView`:它的像素住在一個由視窗合成器持有的 surface 上,而那個 view 本身是版面上挖的一個
+        // 洞;因此 `View.draw(Canvas)` 會忠實地把那個洞畫出來。AppKitBackend 在動用 `cacheDisplay`
+        // 之前先檢查 `Mesh3DMetalView`,理由完全相同;它的註解對 Metal 內容與 `drawRect` 說的是同一件事。
+        if let mesh = widget.as(Mesh3DSurfaceView.self), mesh.getDrawableWidth() > 0 {
+            let pixels = mesh.snapshotPixels()
+            let width = Int(mesh.getDrawableWidth())
+            let height = Int(mesh.getDrawableHeight())
+            guard pixels.count >= width * height * 4 else { return nil }
+            return WidgetSnapshot(
+                width: width,
+                height: height,
+                rgbaData: pixels.prefix(width * height * 4).map { UInt8(bitPattern: $0) }
+            )
+        }
+
         let width = widget.getWidth()
         let height = widget.getHeight()
         // A view that has not been laid out has no pixels, and a zero-sized bitmap is a crash

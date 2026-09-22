@@ -506,12 +506,13 @@
             let size = drawableSize
             let aspect = size.height > 0 ? Float(size.width / size.height) : 1
             let camera = scene.camera
-            return perspective(
-                fovyDegrees: camera.fieldOfView,
-                aspect: aspect,
-                near: camera.near,
-                far: camera.far
-            ) * lookAt(eye: camera.position, target: camera.target, up: camera.up)
+            // `.zeroToOne`, because this is Metal. The GL renderers pass `.minusOneToOne`;
+            // getting that wrong renders correctly until something is behind something else.
+            // 用 `.zeroToOne`,因為這裡是 Metal。GL 的 renderer 傳的是 `.minusOneToOne`;
+            // 選錯的話,在「沒有東西擋住東西」之前都畫得正確。
+            return metal(
+                .viewProjection(camera: camera, aspect: aspect, depthRange: .zeroToOne)
+            )
         }
 
         private struct Uniforms {
@@ -604,108 +605,44 @@
         }
     }
 
-    // MARK: - The three matrices, written out
+    // MARK: - The three matrices, which no longer live here
 
-    /// Scale, then rotate (Z, then Y, then X), then translate -- the order
-    /// ``Mesh3DTransform`` documents, written in one place so that no backend
-    /// can pick a different one.
-    /// 先縮放、再旋轉(Z、Y、X 之序)、最後平移——即 ``Mesh3DTransform`` 所載明的順序;寫在同一個地方,
-    /// 好讓沒有任何 backend 能挑一個不同的順序。
+    /// `Mesh3DMatrix4` to Metal's own type, and this conversion is the whole of what is left.
+    ///
+    /// **The four matrix functions moved to `SwiftCrossUI/Views/Mesh3DMatrix.swift` on 2026-09-22,
+    /// because AndroidBackend needed the same four.** They each carried a comment recording a
+    /// convention -- the Z-then-Y-then-X Euler order, the right-handed look-at, the depth range --
+    /// and writing a second set for a second renderer is four more chances to choose differently.
+    /// A cube that is subtly wrong on one platform is not something a screenshot comparison
+    /// reliably catches.
+    ///
+    /// `simd_float4x4` and `Mesh3DMatrix4` are both four `SIMD4<Float>` columns, so this is a
+    /// re-label rather than a copy; `simd` itself is Apple-only, which is why the shared type
+    /// could not simply be it.
+    ///
+    /// `Mesh3DMatrix4` 轉成 Metal 自己的型別,而剩下的就只有這個轉換。
+    ///
+    /// **那四個矩陣函式已於 2026-09-22 移到 `SwiftCrossUI/Views/Mesh3DMatrix.swift`,因為
+    /// AndroidBackend 需要同樣的四個。** 它們各自帶著一段記錄慣例的註解——Z 再 Y 再 X 的 Euler 順序、
+    /// 右手系 look-at、深度範圍——而為第二個 renderer 再寫一組,就是多四次「可以選得不一樣」的機會。
+    /// 一個「在某個平台上細微地錯了」的立方體,並不是擷圖比對可靠抓得到的東西。
+    ///
+    /// `simd_float4x4` 與 `Mesh3DMatrix4` 都是四個 `SIMD4<Float>` column,因此這是換個名字、不是複製;
+    /// `simd` 本身是 Apple 專屬的,那正是那個共用型別不能直接就是它的原因。
+    private func metal(_ matrix: Mesh3DMatrix4) -> simd_float4x4 {
+        simd_float4x4(
+            matrix.columns.0,
+            matrix.columns.1,
+            matrix.columns.2,
+            matrix.columns.3
+        )
+    }
+
     private func modelMatrix(_ transform: Mesh3DTransform) -> simd_float4x4 {
-        let s = transform.scale
-        let scale = simd_float4x4(
-            SIMD4(s.x, 0, 0, 0),
-            SIMD4(0, s.y, 0, 0),
-            SIMD4(0, 0, s.z, 0),
-            SIMD4(0, 0, 0, 1)
-        )
-        var m = rotationMatrix(transform.rotation) * scale
-        m.columns.3 = SIMD4(
-            transform.translation.x,
-            transform.translation.y,
-            transform.translation.z,
-            1
-        )
-        return m
+        metal(.model(transform))
     }
 
-    /// The rotation alone, as Euler angles applied Z, then Y, then X.
-    /// 只有旋轉,以 Euler 角依 Z、Y、X 之序套用。
     private func rotationMatrix(_ euler: SIMD3<Float>) -> simd_float4x4 {
-        let sx = sin(euler.x)
-        let cx = cos(euler.x)
-        let sy = sin(euler.y)
-        let cy = cos(euler.y)
-        let sz = sin(euler.z)
-        let cz = cos(euler.z)
-        let rx = simd_float4x4(
-            SIMD4(1, 0, 0, 0),
-            SIMD4(0, cx, sx, 0),
-            SIMD4(0, -sx, cx, 0),
-            SIMD4(0, 0, 0, 1)
-        )
-        let ry = simd_float4x4(
-            SIMD4(cy, 0, -sy, 0),
-            SIMD4(0, 1, 0, 0),
-            SIMD4(sy, 0, cy, 0),
-            SIMD4(0, 0, 0, 1)
-        )
-        let rz = simd_float4x4(
-            SIMD4(cz, sz, 0, 0),
-            SIMD4(-sz, cz, 0, 0),
-            SIMD4(0, 0, 1, 0),
-            SIMD4(0, 0, 0, 1)
-        )
-        return rx * ry * rz
-    }
-
-    /// Right-handed look-at, the same construction three.js's `Matrix4.lookAt`
-    /// makes, kept here rather than pulled from a maths package: it is eleven
-    /// lines, and a dependency for eleven lines is a dependency to update.
-    /// 右手系的 look-at,與 three.js `Matrix4.lookAt` 的構造相同;留在此處而不引入數學套件:
-    /// 它只有十一行,而為了十一行引入相依,就是多一個要維護的相依。
-    private func lookAt(
-        eye: SIMD3<Float>,
-        target: SIMD3<Float>,
-        up: SIMD3<Float>
-    ) -> simd_float4x4 {
-        let forward = normalize(target - eye)
-        let right = normalize(cross(forward, up))
-        let trueUp = cross(right, forward)
-        return simd_float4x4(
-            SIMD4(right.x, trueUp.x, -forward.x, 0),
-            SIMD4(right.y, trueUp.y, -forward.y, 0),
-            SIMD4(right.z, trueUp.z, -forward.z, 0),
-            SIMD4(-dot(right, eye), -dot(trueUp, eye), dot(forward, eye), 1)
-        )
-    }
-
-    /// Perspective with Metal's depth range of [0, 1], **not** OpenGL's [-1, 1].
-    ///
-    /// A matrix copied from a GL tutorial renders a scene that looks right until
-    /// something is behind something else, and then the depth test decides
-    /// wrongly in the half of the range that got squashed. Named here because the
-    /// symptom appears far from the cause.
-    ///
-    /// 採 Metal 的深度範圍 [0, 1],**不是** OpenGL 的 [-1, 1]。
-    ///
-    /// 從 GL 教學抄來的矩陣,畫出來的場景在「沒有東西擋住東西」之前都看起來正確;一旦有遮擋,
-    /// 深度測試就會在被壓扁的那半個範圍裡做出錯誤判斷。此處寫明,是因為那個症狀離成因很遠。
-    private func perspective(
-        fovyDegrees: Float,
-        aspect: Float,
-        near: Float,
-        far: Float
-    ) -> simd_float4x4 {
-        let fovy = fovyDegrees * .pi / 180
-        let y = 1 / tan(fovy * 0.5)
-        let x = y / max(aspect, 0.0001)
-        let z = far / (near - far)
-        return simd_float4x4(
-            SIMD4(x, 0, 0, 0),
-            SIMD4(0, y, 0, 0),
-            SIMD4(0, 0, z, -1),
-            SIMD4(0, 0, z * near, 0)
-        )
+        metal(.rotation(euler))
     }
 #endif
