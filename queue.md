@@ -770,9 +770,20 @@ an empty queue -- mistakes.md entry 1.
       (3) 那份檔案的座標是過期的(**又一次 mistakes 第 22 條**):量自 520x780 的視窗,
       而 harness 底下的 content view 是 421x705,mesh view 在 client (0,346 340x240)。
       三者都處理之後,**三次執行完全一致**——一致同意的是:**兩個位置都是 `arrow (unchanged)`**。
-      也就是說在 harness 之下那個游標根本沒有改變。那是一個比出發時更窄的問題,而工作停在這裡:
-      剩下的候選是座標換算(frame 與 client 在這個視窗上的關係),以及「當 app 是以程式方式被啟用時,
-      `cursorUpdate` 到底有沒有抵達那個 view」。細節記在 `actions/mac/P72-cursor.csv` 的檔頭。
+      也就是說在 harness 之下那個游標根本沒有改變。那是一個比出發時更窄的問題。
+    - **2026-09-23:加了儀器,六個候選被量測排除,而問題仍未解。** `NSCursorTarget` 現在會印出
+      `-cursor:` 行(以 `DebugFeatures.isEnabled` 為條件,與 `-hittest:` 完全一致),它回答了讀數
+      回答不了的那個問題:**`cursorUpdate` 一次都沒有被呼叫**。已排除:讀數時序、讀哪個屬性、
+      座標(`NSEvent.mouseLocation` 確認指標落在 AppKit y 511,而目標佔 391..631)、
+      啟用狀態(`app active=true window key=true`)、tracking area 的存在與尺寸(bounds 0,0,340,240)、
+      以及「它在視窗成為 key 之前註冊」(現已在 `didBecomeKeyNotification` 重新註冊,log 同時看得到
+      `key=false` 與 `key=true` 兩次重建)。事件來源也換過:從 `CGWarpMouseCursorPosition`
+      (不產生事件,因此本來就永遠不可能奏效)換成投遞到 `.cghidEventTap` 的真正 `CGEvent`
+      ——**必要而不充分**。
+      **剩下兩個候選**,都寫在 `actions/mac/P72-cursor.csv` 的檔頭:(a) 在 P72 裡 `.cursor` 套用在
+      `.contextMenu` **之前**,因此 `NSCursorTarget` 是 `NSContextMenuTarget` 的子 view,
+      AppKit 可能把更新送給了外層;把 `.cursor` 移到最外層,一次執行就能回答。
+      (b) `NSWindow.acceptsMouseMovedEvents` 預設為 false。
     - **量測本身另外踩了兩個坑,寫在 `AppKitSynthesiser` 裡。** `NSCursor.current` 是**應用程式**的
       堆疊、而且是黏著的(離開 view 時沒有東西彈掉它);而 `NSCursor.currentSystem` 交回的是一份
       **複本**,識別比對一律失敗,因此改以熱點與影像尺寸比對(兩者相同時如實回報

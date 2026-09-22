@@ -13,64 +13,71 @@ action,x,y,origin,button,key,micros,note,platform
 # window would pass the first row and fail this one, and until 2026-09-22
 # nothing in this tree could tell those apart.
 #
-# **THIS FILE DOES NOT PASS ON macOS YET. It is now REPRODUCIBLE, which is not
-# the same thing, and the difference is the point of this paragraph.**
+# **THIS FILE DOES NOT PASS ON macOS. It is reproducible, the diagnosis is
+# narrow, and six candidates have been eliminated by measurement.**
 #
-# 2026-09-22, the first version: three runs of the unchanged file gave
-# (arrow, crosshair), (arrow, arrow), (crosshair, arrow). Flaky, so no reading
-# could be believed. Two causes were found.
+# 2026-09-22, first version: three runs of the unchanged file gave three
+# different pairs. Flaky, so nothing could be believed.
 #
-#   1. The reading waited a fixed time for an asynchronous effect. It now waits
-#      for a SIGNAL -- the cursor changing -- and labels a row that never
-#      changed as `unchanged after Nms` instead of printing a stale value.
-#   2. `NSCursorTarget`'s tracking area is `.activeInKeyWindow`, so if anything
-#      has taken key status AppKit sends no `cursorUpdate` at all. The verb now
-#      asks for key status before warping.
-#   3. These coordinates were stale, which is mistakes.md entry 22 again -- see
-#      the paragraph below.
+# 2026-09-23: an instrument was added -- `-cursor:` lines from
+# `NSCursorTarget`, gated on `DebugFeatures.isEnabled` exactly as the `-hittest:`
+# lines are. It answers the one question the reading cannot: did the pointer
+# reach the view at all? The answer is no, every time, and here is what that is
+# NOT:
 #
-# 2026-09-23, after all three: three runs agree exactly, and what they agree on
-# is `arrow ... (unchanged after ~1890ms)` in BOTH positions. So the cursor is
-# not changing at all under the harness. That is a reproducible negative and a
-# narrower question than the one this file started with, and it is where the
-# work stopped: the remaining candidates are the coordinate arithmetic (frame vs
-# client on a window whose content view is 421x705) and whether `cursorUpdate`
-# reaches the view at all when the app is activated programmatically.
+#   1. Not the reading's timing. It now waits for the cursor to CHANGE rather
+#      than for a fixed pause, and labels a row that never changed.
+#   2. Not which property is read. `currentSystem` (the screen) and `current`
+#      (the app's sticky stack) agree.
+#   3. Not the coordinates. The action file's were stale and were re-measured
+#      from a harness run; `NSEvent.mouseLocation` now confirms the pointer
+#      lands at AppKit y 511 inside a target occupying 391..631.
+#   4. Not activation. The hover line reports `app active=true window key=true`.
+#   5. Not the tracking area's existence or size:
+#      `trackingArea rebuilt: bounds (0.0, 0.0, 340.0, 240.0)`.
+#   6. Not that it was registered before the window became key. It is now
+#      re-registered on `didBecomeKeyNotification`, and the log shows both a
+#      `key=false` and a `key=true` rebuild.
 #
-# Android's equivalent (actions/android/P72-cursor.csv) has none of this,
-# because it asks `onResolvePointerIcon` a direct question instead of waiting
-# for a side effect.
+# And not the event source either: `CGWarpMouseCursorPosition` generates no
+# event, so `hover` now posts a real `CGEvent` mouse-moved to `.cghidEventTap`.
+# That is necessary and was not sufficient -- still no `cursorUpdate`.
 #
-# **這份檔案在 macOS 上還不算通過。它現在是**可重現的**,而那不是同一件事;這一段的重點就是那個差別。**
+# So: every precondition holds and AppKit delivers no cursor update to the view.
+# Two candidates are left for whoever continues. (a) `NSCursorTarget` is a
+# SUBVIEW of `NSContextMenuTarget` here, because P72 applies `.cursor` before
+# `.contextMenu`; AppKit may be routing the update to the outer view. Moving
+# `.cursor` outermost in P72 would answer it in one run. (b)
+# `NSWindow.acceptsMouseMovedEvents` is false by default.
 #
-# 2026-09-22 第一版:同一份未修改的檔案連跑三次,得到 (arrow, crosshair)、(arrow, arrow)、
-# (crosshair, arrow)。會飄,因此任何讀數都不能信。後來找到兩個成因:
+# A green run here still means nothing until one of those is ruled in.
 #
-#   1. 那個讀數是用**固定時間**去等一個非同步的效果。現在改為等一個**訊號**——游標改變——
-#      並把「始終沒有改變」的那一列標記為 `unchanged after Nms`,而不是印出一個過期的值。
-#   2. `NSCursorTarget` 的 tracking area 是 `.activeInKeyWindow`;因此只要有任何東西搶走 key 狀態,
-#      AppKit 就完全不送 `cursorUpdate`。這個動作現在會在 warp 之前先要求 key 狀態。
-#   3. 這些座標是過期的——又是 mistakes.md 第 22 條,見下一段。
+# **本檔在 macOS 上不通過。它是可重現的、診斷已經很窄,而且已有六個候選被量測排除。**
 #
-# 2026-09-23,三者都處理之後:三次執行結果**完全一致**,而它們一致同意的是:**兩個位置**都是
-# `arrow ... (unchanged after ~1890ms)`。也就是說,在 harness 之下那個游標根本沒有改變。
-# 那是一個**可重現的否定**,也是一個比本檔一開始所問更窄的問題;工作停在這裡。剩下的候選是:
-# 座標換算(在一個 content view 為 421x705 的視窗上,frame 與 client 的關係),
-# 以及「當 app 是以程式方式被啟用時,`cursorUpdate` 到底有沒有抵達那個 view」。
+# 2026-09-22 第一版:同一份未修改的檔案連跑三次,三個不同的結果。會飄,因此什麼都不能信。
 #
-# Android 的對應檔(actions/android/P72-cursor.csv)完全沒有這些問題,因為它是去問
-# `onResolvePointerIcon` 一個**直接的問題**,而不是等一個副作用。
+# 2026-09-23:加了一個儀器——來自 `NSCursorTarget` 的 `-cursor:` 行,以 `DebugFeatures.isEnabled`
+# 為條件,與 `-hittest:` 行完全一致。它回答了讀數回答不了的那個問題:指標到底有沒有抵達那個 view?
+# 答案每一次都是「沒有」。而以下是它**不是**什麼:
 #
-# **而在 macOS 上它仍然分不出來,因為這個讀數有競爭條件。這份檔案在此處還不算通過,而說出這件事
-# 正是這一段的重點。** 2026-09-22 原封不動連跑三次,結果依序是 (arrow, crosshair)、(arrow, arrow)、
-# (crosshair, arrow)。那個形態是「讀數慢了一個事件」:第一列的 mouse-moved 是在第二列的暫停期間
-# 才被處理的。試過四件事——50 毫秒的 pump、250 毫秒、把移動事件投遞兩次並在中間 pump、以及改讀
-# `NSCursor.currentSystem` 而非 `NSCursor.current`——沒有一個能讓連續三次執行的結果一致。
-# Android 的對應檔(actions/android/P72-cursor.csv)沒有這個問題,因為它是去問
-# `onResolvePointerIcon` 一個**直接的問題**,而不是等一個副作用。
+#   1. 不是讀數的時序。它現在等的是游標**改變**、不是一段固定的暫停,而且會標記「始終沒改變」的列。
+#   2. 不是讀哪一個屬性。`currentSystem`(螢幕上的)與 `current`(app 那個黏著的堆疊)一致。
+#   3. 不是座標。那些座標原本是過期的,已改為量自 harness 執行;而 `NSEvent.mouseLocation` 現在確認
+#      指標落在 AppKit y 511,而目標佔據 391..631。
+#   4. 不是啟用狀態。hover 那一行回報 `app active=true window key=true`。
+#   5. 不是 tracking area 的存在或尺寸:`trackingArea rebuilt: bounds (0.0, 0.0, 340.0, 240.0)`。
+#   6. 不是「它在視窗成為 key 之前才註冊」。它現在會在 `didBecomeKeyNotification` 時重新註冊,
+#      而 log 同時顯示一次 `key=false` 與一次 `key=true` 的重建。
 #
-# 也就是說:動作本身是對的、這份檔案也是對的;不對的是同步。在它被修好之前,此處跑出綠的不代表什麼,
-# 跑出紅的也不代表什麼。
+# 也不是事件來源:`CGWarpMouseCursorPosition` 不產生事件,因此 `hover` 現在會對 `.cghidEventTap`
+# 投遞一個真正的 `CGEvent` mouse-moved。那是**必要**條件,而它**不充分**——`cursorUpdate` 依然沒有觸發。
+#
+# 也就是說:每一個前提都成立,而 AppKit 就是不送 cursor update 給那個 view。留給接手的人兩個候選。
+# (a) 在此處 `NSCursorTarget` 是 `NSContextMenuTarget` 的**子 view**,因為 P72 先套 `.cursor`
+# 再套 `.contextMenu`;AppKit 可能把那個更新送給了外層的 view。把 P72 的 `.cursor` 移到最外層,
+# 一次執行就能回答。(b) `NSWindow.acceptsMouseMovedEvents` 預設為 false。
+#
+# 在其中之一被確認之前,此處跑出綠的仍然不代表什麼。
 #
 # **The coordinates were stale, and that was the second of the two causes.**
 # They came from a 520x808 capture of a 520x780 window; the window under the

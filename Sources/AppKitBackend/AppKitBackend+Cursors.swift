@@ -1,4 +1,6 @@
 import AppKit
+import DebugFeatures
+import Foundation
 import SwiftCrossUI
 
 extension AppKitBackend: BackendFeatures.Cursors {
@@ -75,6 +77,47 @@ final class NSCursorTarget: NSView {
 
     override var isFlipped: Bool { true }
 
+    /// **Every `-cursor: trackingArea rebuilt` line this class has ever printed said
+    /// `window key=false`, and `updateTrackingAreas` is only called again on a bounds change.**
+    ///
+    /// The area is therefore registered once, during layout, while the window has not been
+    /// activated yet -- and `.activeInKeyWindow` is about the window's state, so an area added in
+    /// that state is the one candidate the instrument pointed at that had not been tried.
+    /// Re-registering when the window becomes key costs one notification and removes the question.
+    ///
+    /// `NSKeyEventTarget` watches the same notification for the same shape of reason: something
+    /// that must be claimed cannot be claimed before the window is key.
+    ///
+    /// **本類別印出過的每一行 `-cursor: trackingArea rebuilt` 都寫著 `window key=false`,
+    /// 而 `updateTrackingAreas` 只有在 bounds 改變時才會再被呼叫。**
+    ///
+    /// 也就是說那塊區域只在排版期間註冊過一次,而當時視窗還沒有被啟用;而 `.activeInKeyWindow`
+    /// 講的正是視窗的狀態——「在那個狀態下加入的區域」,是儀器所指向、而尚未被嘗試過的唯一候選。
+    /// 在視窗成為 key 時重新註冊,代價是一個通知,而那個問題就沒了。
+    ///
+    /// `NSKeyEventTarget` 基於同樣形狀的理由監看同一個通知:一個必須被認領的東西,
+    /// 在視窗成為 key 之前認領不了。
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self)
+        guard let window else { return }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowBecameKey),
+            name: NSWindow.didBecomeKeyNotification,
+            object: window
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc
+    private func windowBecameKey() {
+        updateTrackingAreas()
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
@@ -94,6 +137,10 @@ final class NSCursorTarget: NSView {
         )
         addTrackingArea(area)
         trackingArea = area
+        Self.report(
+            "trackingArea rebuilt: bounds \(bounds), window "
+                + "\(window == nil ? "nil" : "key=\(window!.isKeyWindow)")"
+        )
     }
 
     /// **The only place the cursor is set, and the first version had two more.**
@@ -136,6 +183,37 @@ final class NSCursorTarget: NSView {
     /// `View.onResolvePointerIcon` 一個直接的問題,而不是等一個副作用,因此沒有東西可以與它競爭。
     override func cursorUpdate(with event: NSEvent) {
         cursor.set()
+        Self.report(
+            "cursorUpdate on a \(bounds.width)x\(bounds.height) target at "
+                + "\(convert(bounds.origin, to: nil)) -> set"
+        )
+    }
+
+    /// **The instrument this class did not have, and the absence of which cost four attempts at
+    /// the wrong problem.**
+    ///
+    /// `actions/mac/P72-cursor.csv` reads the cursor back after moving the pointer, and when the
+    /// answer is wrong there are two entirely different reasons: the pointer never reached this
+    /// view, or it reached it and the reading is stale. From outside they are one symptom. This
+    /// line separates them -- a hover row with no `-cursor:` line beside it did not reach the
+    /// view, whatever the reading says.
+    ///
+    /// Gated on `DebugFeatures.isEnabled` and written to stderr, exactly as
+    /// `AppKitBackend+HitTesting.swift`'s `-hittest:` lines are, and for the same reason: that is
+    /// the stream the action file's own lines already use.
+    ///
+    /// **本類別原本沒有的那個儀器,而它的缺席讓四次嘗試都花在錯的問題上。**
+    ///
+    /// `actions/mac/P72-cursor.csv` 會在移動指標之後把游標讀回來;而當答案是錯的時,可能有兩個
+    /// 截然不同的理由:指標根本沒有抵達這個 view,或者它抵達了而讀數是過期的。從外面看,那是同一個症狀。
+    /// 這一行把它們分開——一列 hover 旁邊沒有 `-cursor:` 行,就代表它沒有抵達這個 view,
+    /// 不論讀數說了什麼。
+    ///
+    /// 以 `DebugFeatures.isEnabled` 為條件並寫入 stderr,與 `AppKitBackend+HitTesting.swift` 的
+    /// `-hittest:` 行完全一致,理由也相同:那正是動作檔各行本來就使用的串流。
+    private static func report(_ message: String) {
+        guard DebugFeatures.isEnabled else { return }
+        FileHandle.standardError.write(Data("-cursor: \(message)\n".utf8))
     }
 
     /// **AppKit does NOT put the arrow back, and this file used to say it did.**
@@ -176,5 +254,6 @@ final class NSCursorTarget: NSView {
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         NSCursor.arrow.set()
+        Self.report("mouseExited -> arrow")
     }
 }

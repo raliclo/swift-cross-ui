@@ -637,20 +637,58 @@
                         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 
                         let before = Self.cursorReading()
+                        // **A CGEvent through the HID tap, not `CGWarpMouseCursorPosition` and
+                        // not `NSApp.postEvent`, and neither of those was an arbitrary choice.**
+                        //
+                        // `move` uses the warp and it is right for `move`: that verb only needs
+                        // the pointer to BE somewhere. This verb needs AppKit to notice it get
+                        // there, and a warp is documented as moving the cursor WITHOUT generating
+                        // an event -- so the tracking-area machinery, which runs off the window
+                        // server's event stream, sees nothing. `NSApp.postEvent` does not help
+                        // either: it hands an NSEvent to the application's own queue, below the
+                        // level where cursor rects and tracking areas are resolved.
+                        //
+                        // **NECESSARY AND NOT SUFFICIENT, and saying which is the point.** The
+                        // reasoning above holds -- a warp cannot produce a cursor update because
+                        // it produces no event -- and changing to this did NOT make
+                        // `cursorUpdate` fire. It is kept because it is what a real pointer does
+                        // and the warp demonstrably could never work here; it is not kept as a
+                        // fix, and `actions/mac/P72-cursor.csv` carries the six things that have
+                        // been eliminated so far.
+                        //
+                        // **是必要條件,而不是充分條件;把哪一個說清楚,正是重點。** 上面那段推理成立
+                        // ——warp 不產生事件,因此它產生不了 cursor update——而改成這個**並沒有**讓
+                        // `cursorUpdate` 觸發。保留它,是因為它才是真實指標的行為、而 warp 在此處
+                        // 顯然永遠不可能奏效;保留它**不是**因為它修好了什麼。目前已排除的六件事,
+                        // 記在 `actions/mac/P72-cursor.csv`。
+                        //
+                        // **經由 HID tap 的 CGEvent,不是 `CGWarpMouseCursorPosition`、也不是
+                        // `NSApp.postEvent`;而這兩者都不是隨便挑的。**
+                        //
+                        // `move` 用的是 warp,而那對 `move` 是對的:那個動作只需要指標**位於**某處。
+                        // 這個動作需要的是「AppKit 注意到它抵達了」,而 warp 的文件寫明它移動游標
+                        // **而不產生事件**——於是那套「跑在視窗伺服器事件流之上」的 tracking area 機制
+                        // 什麼也看不到。`NSApp.postEvent` 也幫不上忙:它把一個 NSEvent 交給應用程式
+                        // 自己的佇列,而那在「cursor rect 與 tracking area 被解析」的層級之下。
+                        //
+                        // 2026-09-23 實測,而它是把其餘一切都排除之後才得到的。在用 warp 的情況下,
+                        // 兩列 hover 之間 `NSCursorTarget.cursorUpdate` **一次都沒有**被呼叫,
+                        // 而其餘每一個前提都成立:tracking area 存在且 bounds 正確 (0, 0, 340, 240)、
+                        // app 回報 `active=true`、視窗 `key=true`,而 `NSEvent.mouseLocation` 確認
+                        // 指標確實落在那個目標之內。萬事俱備,只差一個「說出這件事」的事件。
                         do {
                             let screen = try geometry.screenPosition(of: point)
-                            CGWarpMouseCursorPosition(
-                                CGPoint(x: Double(screen.x), y: Double(screen.y))
+                            let move = CGEvent(
+                                mouseEventSource: nil,
+                                mouseType: .mouseMoved,
+                                mouseCursorPosition: CGPoint(
+                                    x: Double(screen.x),
+                                    y: Double(screen.y)
+                                ),
+                                mouseButton: .left
                             )
-                            CGAssociateMouseAndMouseCursorPosition(1)
+                            move?.post(tap: .cghidEventTap)
                         }
-                        try self.postMouse(
-                            .mouseMoved,
-                            .left,
-                            at: try location(point),
-                            in: window,
-                            clicks: 0
-                        )
 
                         let deadline = Date().addingTimeInterval(2)
                         var elapsed = 0
@@ -673,6 +711,7 @@
                         ActionFileReplay.report(
                             "cursor at (\(Int(point.x)), \(Int(point.y))) is \(reading.name)"
                                 + (reading == before ? " (unchanged after \(elapsed)ms)" : "")
+                                + " [app active=\(NSApp.isActive) window key=\(window.isKeyWindow)]"
                         )
 
                     case .longPress:
