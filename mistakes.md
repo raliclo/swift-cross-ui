@@ -1911,10 +1911,42 @@ platforms says nothing whatever about the fourth.
 condition that made its defect impossible. This file is unconditional, read by every build, and was
 still only ever compiled by one family of them.
 
-**Corrective.** Before calling any C maths or POSIX function from `Sources/SwiftCrossUI`, build one
-non-Darwin target before calling the feature done. `zsh testapp/compile.zsh -android <Pn>` is the
-cheapest such build on this host and the only one with Bionic's `math.h`. For trigonometry, prefer
-`Double` and convert the result — that needs no `#if` and costs nothing at six calls.
+**Corrective, as of 2026-09-23: `Scripts/check_android_build.sh`, wired into `Scripts/test.sh`.**
+A written rule was the corrective for one day and it is not one — this entry exists because three
+platforms being green is convincing. The check compiles for Android when the diff against
+`origin/develop` touches `Package.swift` or any `Sources/` directory that is not a non-Android
+platform backend. An EXCLUDE list, not an include list, so a target nobody has classified yet
+triggers the check rather than slipping past it.
+
+Gated, because an unconditional Android compile on every test run buys nothing for the many changes
+that cannot break it: **0.25 s when nothing relevant changed, 73 s when it runs.**
+
+Proved in both directions before being trusted, which is this tree's rule for a new check:
+reintroducing `sin(euler.x)` in `Mesh3DMatrix.swift` made it exit 1 naming that line, and reverting
+made it exit 0 having actually compiled.
+
+A missing Android SDK is a **loud** skip that still exits 0. A contributor without the SDK must not
+be blocked, and must not be able to read silence as "Android is fine" — that is entry 4, a tool
+whose nothing came from never running.
+
+For trigonometry the fix remains: compute in `Double` and convert, which needs no `#if`.
+
+**矯正措施,自 2026-09-23 起:`Scripts/check_android_build.sh`,已接入 `Scripts/test.sh`。**
+「寫下來的規則」當了一天的矯正措施,而它不是一個——本條目之所以存在,正是因為「三個平台全綠」很有
+說服力。該檢查會在「與 `origin/develop` 的差異觸及 `Package.swift`、或觸及任何一個不屬於非 Android
+平台 backend 的 `Sources/` 目錄」時,為 Android 編譯一次。用的是**排除**清單、不是納入清單,
+因此一個還沒有人分類過的 target 會**觸發**檢查,而不是溜過去。
+
+有閘門,因為「每次測試都無條件編一次 Android」對那些不可能弄壞它的改動什麼也買不到:
+**無相關改動時 0.25 秒,真的要跑時 73 秒。**
+
+在被信任之前已雙向證明過——那是這棵樹對「新增檢查」的規定:把 `sin(euler.x)` 放回
+`Mesh3DMatrix.swift` 會讓它以 1 結束並指出那一行,改回來則會讓它在**真的編過之後**以 0 結束。
+
+找不到 Android SDK 時是一次**大聲的**跳過,而且仍然以 0 結束。沒有 SDK 的貢獻者不該被擋住,
+也不該能把沉默讀成「Android 沒問題」——那是第 4 條:一個「什麼都沒印,是因為它從未執行」的工具。
+
+三角函數的修法不變:以 `Double` 運算再轉回來,那不需要任何 `#if`。
 
 **在每一個 backend 都會建置的程式碼裡,用了一個只有 Darwin 才有的數學多載**
 
@@ -1935,10 +1967,7 @@ Android。
 **它不是第 10 條。** 那一條更窄——一次**條件式**的修改,只在那個讓其缺陷不可能發生的條件下被驗證。
 這個檔案是無條件的、每一次建置都會讀到,卻仍然只被其中一族建置過。
 
-**矯正措施。** 在 `Sources/SwiftCrossUI` 裡呼叫任何 C 數學或 POSIX 函式之前,先建一個非 Darwin 的目標,
-再說這項功能完成了。`zsh testapp/compile.zsh -android <Pn>` 是本機上最便宜的那一個,也是唯一帶著
-Bionic `math.h` 的那一個。三角函數請優先用 `Double` 再轉回來——那不需要任何 `#if`,而六次呼叫的代價
-是零。
+
 
 ## 25. A modifier key release that still reports itself as held
 

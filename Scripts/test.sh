@@ -25,6 +25,20 @@ sh Scripts/check_action_file_fields.sh || exit 1
 sh Scripts/check_results_columns.sh || exit 1
 sh Scripts/check_mistakes_numbering.sh || exit 1
 
+# The only check here that costs real time, and it is gated so that it usually
+# costs none. It compiles for Android when the change touches code Android
+# links, because `swift test` below builds this host's targets and says nothing
+# whatever about a platform it cannot build -- which is how the SwiftCrossUI
+# core went two days without compiling for Android while macOS and iOS were
+# green. mistakes.md entry 24; the script's own header has the measurements and
+# says what a skip means.
+#
+# 此處唯一真正花時間的檢查,而它有閘門,因此通常一毛錢也不花。當改動觸及 Android 會連結的程式碼時,
+# 它會為 Android 編譯一次——因為下面的 `swift test` 建的是**這台主機**的 target,對一個它建不起來的
+# 平台什麼也沒說;而那正是 SwiftCrossUI 的核心在 macOS 與 iOS 全綠的情況下、兩天沒有為 Android
+# 編譯成功過的原因。mistakes.md 第 24 條;量測數字與「跳過代表什麼」寫在該腳本自己的檔頭。
+sh Scripts/check_android_build.sh || exit 1
+
 # `swift test` builds all targets in the package (even those not depended upon
 # by any test targets), which leads to `swift test` on its own being broken
 # for SwiftCrossUI
