@@ -27,8 +27,7 @@ import kotlin.math.hypot
 ///
 /// 數值以屬性讀回，而不是傳給那個 callback，因為 `SwiftAction` 不帶參數。`FrameClockCallback` 與
 /// `CustomSlider` 都記載了同一項限制。
-class ContinuousGestureContainer(context: Context, private val kind: Int) :
-    ViewGroup(context) {
+class ContinuousGestureContainer(context: Context, private val kind: Int) : ViewGroup(context) {
 
     companion object {
         const val KIND_DRAG = 0
@@ -41,20 +40,52 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
 
     var startX = 0f
         private set
+
     var startY = 0f
         private set
+
     var currentX = 0f
         private set
+
     var currentY = 0f
         private set
+
     var magnification = 1f
         private set
+
     var radians = 0f
         private set
 
     private var initialSpan = 0f
     private var initialAngle = 0f
     private var tracking = false
+
+    /**
+     * Pixels to points, because `DragGestureValue` is documented in points and a `MotionEvent` is
+     * in pixels.
+     *
+     * **This was missing until 2026-09-23 and nothing reported it.** AndroidBackend lays out in
+     * points multiplied by this same density -- a `.frame(width: 340, height: 240)` measures 892 x
+     * 630 pixels at density 2.625 -- and `AndroidSynthesiser` multiplies an action file's points by
+     * it on the way in. Handing `event.x` over unscaled made every drag distance 2.625 times too
+     * large on that device and a different wrong number on the next one, which reads as an
+     * over-sensitive gesture rather than as a unit mistake. Found while writing
+     * `ScrollGestureContainer`, which had the conversion from its first line.
+     *
+     * Only the drag needs it. A magnification is a ratio of two spans and a rotation is an angle;
+     * both cancel the units out, which is why they were right all along.
+     *
+     * 像素換算成點,因為 `DragGestureValue` 是以點為單位載明的,而 `MotionEvent` 是像素。
+     *
+     * **在 2026-09-23 之前這件事是缺的,而沒有任何東西回報過它。** AndroidBackend 的排版就是 「點乘上這同一個 density」——`.frame(width:
+     * 340, height: 240)` 在 density 2.625 下量到 892 x 630 像素——而 `AndroidSynthesiser` 在入口處把動作檔的點乘上它。把
+     * `event.x` 未經換算 交出去,會讓那台裝置上每一段拖曳距離都大 2.625 倍,換一台就是另一個錯數字;那讀起來像 「手勢太敏感」,而不像一個單位錯誤。它是在寫
+     * `ScrollGestureContainer` 時被發現的 ——那一支從第一行就有這個換算。
+     *
+     * 只有拖曳需要它。縮放是兩個 span 的比值、旋轉是一個角度,兩者都把單位約掉了 ——那正是它們一直都是對的原因。
+     */
+    private val density: Float
+        get() = resources.displayMetrics.density
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         // The child fills this container, which is what every wrapping container
@@ -67,10 +98,7 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
 
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
         measureChildren(widthSpec, heightSpec)
-        setMeasuredDimension(
-            resolveSize(0, widthSpec),
-            resolveSize(0, heightSpec),
-        )
+        setMeasuredDimension(resolveSize(0, widthSpec), resolveSize(0, heightSpec))
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent) = true
@@ -116,10 +144,10 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
-                startX = event.x
-                startY = event.y
-                currentX = event.x
-                currentY = event.y
+                startX = event.x / density
+                startY = event.y / density
+                currentX = event.x / density
+                currentY = event.y / density
                 tracking = kind == KIND_DRAG
             }
 
@@ -137,8 +165,8 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
                 if (!tracking) return true
                 when (kind) {
                     KIND_DRAG -> {
-                        currentX = event.x
-                        currentY = event.y
+                        currentX = event.x / density
+                        currentY = event.y / density
                     }
 
                     KIND_MAGNIFY ->
@@ -164,8 +192,8 @@ class ContinuousGestureContainer(context: Context, private val kind: Int) :
             MotionEvent.ACTION_POINTER_UP -> {
                 if (tracking) {
                     if (kind == KIND_DRAG) {
-                        currentX = event.x
-                        currentY = event.y
+                        currentX = event.x / density
+                        currentY = event.y / density
                     }
                     tracking = false
                     onEnd?.call()

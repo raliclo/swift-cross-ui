@@ -498,6 +498,36 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         (try? JavaClass<AndroidKeyEvent>().ACTION_UP) ?? 1
     }
 
+    /// **What a key row reaches, and the one thing it does not.**
+    ///
+    /// `Activity.dispatchKeyEvent` reaches the view hierarchy, so a view that overrides
+    /// `dispatchKeyEvent` sees it -- which is why P72's `.onKeyPress` is driven from an action
+    /// file and passes. An APP-MENU shortcut is not in the view hierarchy: it lives in
+    /// `View.OnUnhandledKeyEventListener`, which `ViewRootImpl` runs after the whole hierarchy has
+    /// declined the key, one level above anything an app can post to.
+    ///
+    /// Measured on 2026-09-23 with P71, and the pair is what makes it a finding rather than a
+    /// guess: `actions/android/P71-shortcuts.csv` replayed all 21 of its actions and left the
+    /// counters at 0/0/0, while `adb shell input keycombination -t 120 113 47` -- the same Ctrl-S,
+    /// injected at system level -- fired it. The shortcuts work; this route does not carry them.
+    ///
+    /// Same family as the `PopupMenu` limit on the touch side, and with the same escape: a tool
+    /// holding INJECT_EVENTS. `adb shell input keycombination` is that tool.
+    ///
+    /// **一個按鍵列抵達得了什麼,以及它唯一抵達不了的東西。**
+    ///
+    /// `Activity.dispatchKeyEvent` 抵達得了 view 階層,因此一個覆寫了 `dispatchKeyEvent` 的 view 看得到它
+    /// ——那正是 P72 的 `.onKeyPress` 能被動作檔驅動並通過的原因。而一個 **app 選單**快捷鍵不在 view 階層裡:
+    /// 它住在 `View.OnUnhandledKeyEventListener`,由 `ViewRootImpl` 在整個階層都拒絕該按鍵之後才執行,
+    /// 位於任何 app 投遞得到的層級之上。
+    ///
+    /// 2026-09-23 以 P71 實測,而「成對」正是它之所以是一項發現、而不是一個猜測的原因:
+    /// `actions/android/P71-shortcuts.csv` 把 21 個動作全部重放完成,計數器停在 0/0/0;
+    /// 而 `adb shell input keycombination -t 120 113 47`——同樣的 Ctrl-S、在系統層級注入——觸發了它。
+    /// 那些快捷鍵是好的;是**這條路徑**載不動它們。
+    ///
+    /// 與觸控那一側的 `PopupMenu` 限制同族,而且有同一個逃生口:一個握有 INJECT_EVENTS 的工具。
+    /// `adb shell input keycombination` 就是那個工具。
     private func dispatchKey(_ key: Key, action: Int32) throws {
         guard let code = Self.keyCode(for: key) else {
             throw SynthesiserError.unsupported(

@@ -1,0 +1,53 @@
+action,x,y,origin,button,key,micros,note,platform
+# P65 on Android: is a drag reported in POINTS, as the protocol says, or in pixels?
+#
+# **The translation is the assertion, and it is the only figure here that does
+# not depend on where the panel is.** `start` and `now` are in the container's
+# own coordinates, so they move when the layout does; the difference between
+# them does not. Before 2026-09-23 `ContinuousGestureContainer` handed `event.x`
+# over unscaled, so an 80-point drag on this emulator reported 210 -- 80 times
+# the 2.625 density. That reads as an over-sensitive gesture rather than as a
+# unit mistake, and nothing reported it: every number was a real number.
+#
+# **Two rows, not three, because Android's `move` posts no event.** A touch
+# screen has no hover, so `AndroidSynthesiser` records where a `move` row points
+# and dispatches nothing (its own comment says so). A drag is therefore
+# `mousedown` then `mouseup`: ACTION_DOWN sets `start`, ACTION_UP sets `now` and
+# fires `onEnded`. No ACTION_MOVE means `onChange` never fires, so `drag events`
+# stays 0 and the readout is the ENDED line -- which carries the number this
+# file is about.
+#
+# Measured 2026-09-23 from testapp/output/screenshots/p65-android-final-20260923-071704.png.
+# Emulator swift-cross-ui-api36, 1080 x 2400 pixels, density 2.625, window
+# 411 x 914 points. The drag panel is `.frame(width: 260, height: 90)` and shows
+# as the light blue band at pixels y 1014-1242 with its right edge at x 618; its
+# left edge is off-screen at x -64, because the readouts above it are
+# `.frame(width: 460)` on a 411-point window and push the centred content left.
+# Both rows therefore sit in the visible part: point (60, 430) is pixel
+# (158, 1129) and point (140, 430) is pixel (368, 1129), both inside the band.
+#
+# P65 於 Android:一次拖曳回報的是**點**(協定所寫的),還是像素?
+#
+# **斷言的是 translation,而它是此處唯一一個不依賴「面板在哪裡」的數字。** `start` 與 `now` 是那個
+# 容器自己的座標,版面一動它們就跟著動;而兩者之差不會。2026-09-23 之前,`ContinuousGestureContainer`
+# 把 `event.x` 未經換算交出去,因此在這台模擬器上,一次 80 點的拖曳回報的是 210——80 乘上 2.625 的
+# density。那讀起來像「手勢太敏感」,而不像一個單位錯誤;而且沒有任何東西回報它:每一個數字都是
+# 一個真實的數字。
+#
+# **兩列、不是三列,因為 Android 的 `move` 不投遞事件。** 觸控螢幕沒有 hover,所以
+# `AndroidSynthesiser` 只記錄 `move` 列指向哪裡、不投遞任何東西(它自己的註解就是這麼寫的)。
+# 因此一次拖曳是 `mousedown` 接 `mouseup`:ACTION_DOWN 設定 `start`,ACTION_UP 設定 `now` 並觸發
+# `onEnded`。沒有 ACTION_MOVE 就代表 `onChange` 不會觸發,於是 `drag events` 維持 0,而讀數是那一行
+# ENDED——它帶著這份檔案所關心的那個數字。
+#
+# 2026-09-23 量自 testapp/output/screenshots/p65-android-final-20260923-071704.png。
+# Emulator 為 swift-cross-ui-api36,1080 x 2400 像素、density 2.625,視窗 411 x 914 點。
+# 拖曳面板是 `.frame(width: 260, height: 90)`,顯示為像素 y 1014-1242、右緣在 x 618 的淺藍色帶;
+# 它的左緣在 x -64、在螢幕外——因為它上方那些讀數是 `.frame(width: 460)`,而視窗只有 411 點寬,
+# 於是把置中的內容往左推。因此兩列都落在可見的部分:點 (60, 430) 是像素 (158, 1129),
+# 點 (140, 430) 是像素 (368, 1129),兩者都在那條帶子裡。
+sleep,,,,,,2000000,let P65 lay out,android
+mousedown,60,430,,left,,,press inside the drag panel -- this sets start,android
+sleep,,,,,,400000,,android
+mouseup,140,430,,left,,,"release 80 points to the right -- the log must read translation (80, 0). VERIFIED 2026-09-23 BOTH WAYS on emulator-5554: with the density conversion, drag ended: start (84, 43) now (164, 43) translation (80, 0); with it removed and the APK rebuilt, start (221, 114) now (431, 114) translation (210, 0), which is 80 x 2.625",android
+sleep,,,,,,1200000,let the readout redraw,android

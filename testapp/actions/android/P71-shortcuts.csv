@@ -1,0 +1,122 @@
+action,x,y,origin,button,key,micros,note,platform
+# P71 on Android: do menu shortcuts fire with no menu open, and does a DISABLED
+# item stay silent?
+#
+# **THIS FILE DOES NOT PASS ON ANDROID AND CANNOT, AND THE ROWS ARE STILL RIGHT.**
+# Read this before reading a green replay of it.
+#
+# The three key presses below are correct and they reach nothing. `AndroidSynthesiser`
+# dispatches through `Activity.dispatchKeyEvent`, which reaches the view hierarchy --
+# that is why P72's `.onKeyPress` IS driven from an action file -- but an app-menu
+# shortcut does not live in the view hierarchy. It lives in
+# `View.OnUnhandledKeyEventListener`, which `ViewRootImpl` runs AFTER the whole
+# hierarchy has declined the key, one level above anything an app can post to. The
+# same limit stops a replay pressing an item in a `PopupMenu`, and
+# `AndroidSynthesiser.swift` writes that one out too.
+#
+# Measured 2026-09-23 on emulator-5554, and the pair is what makes it a finding
+# rather than a guess:
+#
+#   this file, all 21 actions replayed     PLAIN 0  SHIFTED 0  DISABLED 0
+#   adb shell input keycombination ...     PLAIN 1  SHIFTED 1  DISABLED 0
+#
+#     adb shell input keycombination -t 120 113 47      # Ctrl-S      -> PLAIN fired, now 1
+#     adb shell input keycombination -t 120 113 59 33   # Ctrl-Shift-E -> SHIFTED fired, now 1
+#     adb shell input keycombination -t 120 113 32      # Ctrl-D      -> nothing, which is the pass
+#
+# `input keycombination` injects at system level, so it goes through ViewRootImpl the
+# way a real keyboard does. Those three lines ARE the Android verification of #121
+# step 2, including the disabled item staying silent; this file is the record of why
+# they are not rows.
+#
+# **本檔在 Android 上不會通過,而且通不了;那些列仍然是對的。** 在讀它的任何一次綠色重放之前,先讀這一段。
+#
+# 下面那三次按鍵是正確的,而它們抵達不了任何東西。`AndroidSynthesiser` 是經由
+# `Activity.dispatchKeyEvent` 投遞的,它抵達得了 view 階層——那正是 P72 的 `.onKeyPress` 能夠被動作檔
+# 驅動的原因——但一個 app 選單快捷鍵**不住在 view 階層裡**。它住在
+# `View.OnUnhandledKeyEventListener`,而那是由 `ViewRootImpl` 在**整個階層都拒絕了該按鍵之後**才執行的,
+# 位於任何 app 投遞得到的層級**之上**。同一個限制讓重放按不到 `PopupMenu` 裡的項目,
+# 而 `AndroidSynthesiser.swift` 也把那一個寫了出來。
+#
+# 2026-09-23 於 emulator-5554 實測,而「成對」正是它之所以是一項發現、而不是一個猜測的原因:
+#
+#   本檔,21 個動作全部重放完成          PLAIN 0  SHIFTED 0  DISABLED 0
+#   adb shell input keycombination ...   PLAIN 1  SHIFTED 1  DISABLED 0
+#
+# `input keycombination` 在系統層級注入,因此它與真實鍵盤一樣會經過 ViewRootImpl。
+# 上面那三行**就是** #121 step 2 在 Android 上的驗證,包含「已停用項目保持沉默」那一項;
+# 而本檔是「它們為何不是幾列動作」的紀錄。
+#
+# **This file presses `control`, and the macOS one presses `command`, for the
+# same three shortcuts.** That is not a discrepancy to be tidied away; it is the
+# convention `EventModifiers.command` records, seen from the driving side.
+# SwiftUI's `.command` is Command on Apple platforms and Ctrl everywhere else,
+# so `.keyboardShortcut("s")` -- whose default modifier is `.command` -- is
+# Cmd-S on macOS and Ctrl-S on Android. `AndroidBackend.keyModifiers(for:)` maps
+# both `.command` and `.control` onto META_CTRL_ON, and
+# `ApplicationShortcuts.matches` masks the incoming meta state to
+# META_CTRL_ON | META_SHIFT_ON | META_ALT_ON before comparing.
+#
+# A `keydown command` row here would press KEYCODE_META_LEFT, whose META_META_ON
+# bit that mask discards -- so the comparison would see no modifier at all and
+# nothing would fire. The row would replay, the file would exit zero, and the
+# counters would read 0/0/0, which is indistinguishable from a backend that
+# never registered the shortcuts.
+#
+# **No menu is opened, which is the assertion.** On Android these go through
+# `View.OnUnhandledKeyEventListener` -- it runs only after every view in the
+# hierarchy has declined the key, which is what an app-level shortcut must do.
+# A backend that had wired them to the menu's own `setAlphabeticShortcut` would
+# need the menu open and would score 0 here. There is no menu bar on Android to
+# open in the first place; `SwiftUnhandledKeyListener` says why.
+#
+# **The third row is the one worth having.** A backend that registers a key
+# without consulting `isEnabled` fires the disabled item and the counter moves.
+# The first two rows only prove keys arrive.
+#
+# No coordinates anywhere: a shortcut is not a place.
+#
+# P71 於 Android:在沒有任何選單開啟的情況下,選單快捷鍵會觸發嗎?而一個**已停用**的項目會保持沉默嗎?
+#
+# **這份檔案按的是 `control`,而 macOS 那份按的是 `command`,對應的卻是同樣那三個快捷鍵。**
+# 那不是一個該被「整理掉」的不一致,而是 `EventModifiers.command` 所記載的慣例,從驅動端看過去的樣子。
+# SwiftUI 的 `.command` 在 Apple 平台上是 Command、在其餘平台上是 Ctrl;因此
+# `.keyboardShortcut("s")`(其預設修飾鍵就是 `.command`)在 macOS 上是 Cmd-S、在 Android 上是 Ctrl-S。
+# `AndroidBackend.keyModifiers(for:)` 把 `.command` 與 `.control` 都對到 META_CTRL_ON,而
+# `ApplicationShortcuts.matches` 在比較之前,會把收到的 meta state 遮罩成
+# META_CTRL_ON | META_SHIFT_ON | META_ALT_ON。
+#
+# 此處若寫一列 `keydown command`,按下的會是 KEYCODE_META_LEFT,而它的 META_META_ON 位元會被那個遮罩
+# 丟掉——於是比較端會看到「完全沒有修飾鍵」,什麼也不會觸發。那一列會照樣重放、檔案會以零結束、
+# 而計數器會是 0/0/0——那與「一個從未註冊過快捷鍵的 backend」無法區分。
+#
+# **不開啟任何選單,而那正是斷言。** 在 Android 上這些走的是 `View.OnUnhandledKeyEventListener`
+# ——它只在 view 階層中每一個 view 都拒絕了該按鍵之後才執行,而那正是一個 app 層級快捷鍵**必須**做的事。
+# 一個把它們接到選單自己的 `setAlphabeticShortcut` 上的 backend,會需要選單開著,而在此處會得零分。
+# Android 上根本沒有選單列可開;`SwiftUnhandledKeyListener` 寫了為什麼。
+#
+# **第三列才是值得擁有的那一列。** 一個「註冊按鍵卻不看 `isEnabled`」的 backend,會讓那個已停用的項目
+# 觸發、計數器會動。前兩列只證明按鍵有抵達。
+#
+# 沒有任何座標:一個快捷鍵不是一個地方。
+sleep,,,,,,2500000,let P71 lay out and the listener attach,android
+keydown,,,,,control,,"hold Ctrl -- this is macOS's Command, see the header",android
+sleep,,,,,,200000,,android
+key,,,,,s,,"Ctrl-S -- PLAIN must fire, the readout going to 1",android
+sleep,,,,,,300000,,android
+keyup,,,,,control,,,android
+sleep,,,,,,300000,,android
+keydown,,,,,control,,,android
+keydown,,,,,shift,,,android
+sleep,,,,,,200000,,android
+key,,,,,e,,"Ctrl-Shift-E -- SHIFTED must fire, and PLAIN must NOT: the comparison is exact, not contains",android
+sleep,,,,,,300000,,android
+keyup,,,,,shift,,,android
+keyup,,,,,control,,,android
+sleep,,,,,,300000,,android
+keydown,,,,,control,,,android
+sleep,,,,,,200000,,android
+key,,,,,d,,"Ctrl-D -- the DISABLED item; this one must NOT fire and its counter must stay 0",android
+sleep,,,,,,300000,,android
+keyup,,,,,control,,,android
+sleep,,,,,,1200000,let the counters settle before the capture,android
