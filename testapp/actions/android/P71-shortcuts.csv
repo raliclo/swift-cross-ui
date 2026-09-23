@@ -29,6 +29,22 @@ action,x,y,origin,button,key,micros,note,platform
 # step 2, including the disabled item staying silent; this file is the record of why
 # they are not rows.
 #
+# **An app injecting into its own window was tried, and refused.** Instrumentation.
+# sendKeySync is public API and reaches ViewRootImpl; InputDispatcher's permission
+# check exempts an injector whose uid owns the focused window, which a replay's does.
+# Built, wired ahead of the activity path, run 2026-09-23, refused seven times out of
+# seven with "java.lang.SecurityException: Injecting input events requires the caller
+# (or the source of the instrumentation, if any) to have the INJECT_EVENTS
+# permission." The permission is checked before that exemption is reached. So the
+# limit is not a missing idea; it is a permission an application cannot hold.
+#
+# **試過「app 注入自己的視窗」,被拒絕了。** `Instrumentation.sendKeySync` 是公開 API、抵達得了
+# ViewRootImpl;而 InputDispatcher 的權限檢查對「uid 持有聚焦視窗」的注入者是豁免的,一次重放正是
+# 如此。2026-09-23 建好、接在 activity 路徑之前、實際執行,七次全數被拒:
+# 「java.lang.SecurityException: Injecting input events requires the caller (or the source of the
+# instrumentation, if any) to have the INJECT_EVENTS permission.」那個權限在豁免被觸及之前就檢查了。
+# 因此這個限制不是「少想到一個辦法」,而是一個應用程式**持有不了**的權限。
+#
 # **本檔在 Android 上不會通過,而且通不了;那些列仍然是對的。** 在讀它的任何一次綠色重放之前,先讀這一段。
 #
 # 下面那三次按鍵是正確的,而它們抵達不了任何東西。`AndroidSynthesiser` 是經由

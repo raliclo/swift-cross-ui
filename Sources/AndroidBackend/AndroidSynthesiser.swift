@@ -514,6 +514,32 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// Same family as the `PopupMenu` limit on the touch side, and with the same escape: a tool
     /// holding INJECT_EVENTS. `adb shell input keycombination` is that tool.
     ///
+    /// **An app cannot become that tool, and this was tried rather than assumed.**
+    /// `Instrumentation.sendKeySync` is public API and injects through `InputManager`, which
+    /// enters at `ViewRootImpl` the way a keyboard does. `InputDispatcher::checkInjectionPermission`
+    /// exempts an injector whose uid owns the focused window, and a replay injects into its own
+    /// app's own window -- so on paper it should have been allowed. It is not. Built, wired ahead
+    /// of the activity path, run on 2026-09-23, and refused seven times out of seven with:
+    ///
+    ///     java.lang.SecurityException: Injecting input events requires the caller (or the
+    ///     source of the instrumentation, if any) to have the INJECT_EVENTS permission.
+    ///
+    /// The permission is checked before that uid exemption is ever reached. The code is not kept:
+    /// a path that is refused on every supported configuration is dead weight that logs on every
+    /// key row, and the useful part of it was the sentence above.
+    ///
+    /// **一個 app 當不了那個工具,而這件事是**試過**的、不是假設的。**
+    /// `Instrumentation.sendKeySync` 是公開 API,它經由 `InputManager` 注入,而那會像鍵盤一樣從
+    /// `ViewRootImpl` 進入。`InputDispatcher::checkInjectionPermission` 對「uid 持有聚焦視窗」的注入者
+    /// 是豁免的,而一次重放注入的正是它自己這支 app 自己的視窗——紙上看它應該被允許。它沒有。
+    /// 2026-09-23 建好、接在 activity 路徑之前、實際執行,七次全數被拒:
+    ///
+    ///     java.lang.SecurityException: Injecting input events requires the caller (or the
+    ///     source of the instrumentation, if any) to have the INJECT_EVENTS permission.
+    ///
+    /// 那個權限在「uid 豁免」被觸及之前就檢查了。那段程式碼沒有保留:一條在每一個受支援組態下都會被拒絕
+    /// 的路徑,是會在每一列按鍵上輸出日誌的死重量;它真正有用的部分,就是上面這段話。
+    ///
     /// **一個按鍵列抵達得了什麼,以及它唯一抵達不了的東西。**
     ///
     /// `Activity.dispatchKeyEvent` 抵達得了 view 階層,因此一個覆寫了 `dispatchKeyEvent` 的 view 看得到它
