@@ -2,66 +2,69 @@ action,x,y,origin,button,key,micros,note,platform
 # P71 on Android: do menu shortcuts fire with no menu open, and does a DISABLED
 # item stay silent?
 #
-# **THIS FILE DOES NOT PASS ON ANDROID AND CANNOT, AND THE ROWS ARE STILL RIGHT.**
-# Read this before reading a green replay of it.
+# **IT PASSES NOW. It did not on 2026-09-23, it does on 2026-09-25, and the two
+# days in between are the interesting part.**
 #
-# The three key presses below are correct and they reach nothing. `AndroidSynthesiser`
-# dispatches through `Activity.dispatchKeyEvent`, which reaches the view hierarchy --
-# that is why P72's `.onKeyPress` IS driven from an action file -- but an app-menu
-# shortcut does not live in the view hierarchy. It lives in
-# `View.OnUnhandledKeyEventListener`, which `ViewRootImpl` runs AFTER the whole
-# hierarchy has declined the key, one level above anything an app can post to. The
-# same limit stops a replay pressing an item in a `PopupMenu`, and
-# `AndroidSynthesiser.swift` writes that one out too.
+#   2026-09-23   all 21 actions replayed, counters 0/0/0
+#   2026-09-25   PLAIN 1, SHIFTED 1, DISABLED 0
 #
-# Measured 2026-09-23 on emulator-5554, and the pair is what makes it a finding
-# rather than a guess:
+# What was wrong was never the shortcuts: `adb shell input keycombination` fired
+# all three from the first day. What was wrong was that the keys could not reach
+# them, and two things had to be found before that was fixable.
 #
-#   this file, all 21 actions replayed     PLAIN 0  SHIFTED 0  DISABLED 0
-#   adb shell input keycombination ...     PLAIN 1  SHIFTED 1  DISABLED 0
+#   1. Where the shortcuts lived. They were registered on the decor view as an
+#      `OnUnhandledKeyEventListener`, which `ViewRootImpl` runs AFTER
+#      `mView.dispatchKeyEvent` returns -- above anything an app can post to.
+#      `AndroidSynthesiser` posts through `Activity.dispatchKeyEvent`, below it.
+#      The way round that was tried and refused: `Instrumentation.sendKeySync`
+#      needs INJECT_EVENTS, quoted in AndroidSynthesiser.swift.
 #
-#     adb shell input keycombination -t 120 113 47      # Ctrl-S      -> PLAIN fired, now 1
-#     adb shell input keycombination -t 120 113 59 33   # Ctrl-Shift-E -> SHIFTED fired, now 1
-#     adb shell input keycombination -t 120 113 32      # Ctrl-D      -> nothing, which is the pass
+#   2. That a key event follows the FOCUS CHAIN. `ViewGroup.dispatchKeyEvent`
+#      dispatches to `mFocused` or to itself, and otherwise returns false -- it
+#      does not walk its children. P71 focuses nothing, so the decor's `mFocused`
+#      was null and no view below it saw the key at all. An instrumented build of
+#      `ShortcutHostLayout` logged NOTHING across 21 replayed actions, which is
+#      what turned this from a guess into a measurement.
 #
-# `input keycombination` injects at system level, so it goes through ViewRootImpl the
-# way a real keyboard does. Those three lines ARE the Android verification of #121
-# step 2, including the disabled item staying silent; this file is the record of why
-# they are not rows.
+# Both are now addressed by `ShortcutHostLayout`: it is the window's content
+# view, it consults the same table after `super.dispatchKeyEvent` declines --
+# the same moment "unhandled" meant, one level lower -- and it takes focus with
+# FOCUS_AFTER_DESCENDANTS, so it holds it only when nothing else wants it.
 #
-# **An app injecting into its own window was tried, and refused.** Instrumentation.
-# sendKeySync is public API and reaches ViewRootImpl; InputDispatcher's permission
-# check exempts an injector whose uid owns the focused window, which a replay's does.
-# Built, wired ahead of the activity path, run 2026-09-23, refused seven times out of
-# seven with "java.lang.SecurityException: Injecting input events requires the caller
-# (or the source of the instrumentation, if any) to have the INJECT_EVENTS
-# permission." The permission is checked before that exemption is reached. So the
-# limit is not a missing idea; it is a permission an application cannot hold.
+# Checked for the two things that change could have broken:
+#   nothing fires twice   after this file leaves PLAIN at 1, one system-injected
+#                         Ctrl-S takes it to 2, not 3
+#   focus still works     P70 on the same build reports `focused field: name`
+#                         and `focus changes heard: 1`, the text field winning
+#                         over the root exactly as FOCUS_AFTER_DESCENDANTS says
 #
-# **試過「app 注入自己的視窗」,被拒絕了。** `Instrumentation.sendKeySync` 是公開 API、抵達得了
-# ViewRootImpl;而 InputDispatcher 的權限檢查對「uid 持有聚焦視窗」的注入者是豁免的,一次重放正是
-# 如此。2026-09-23 建好、接在 activity 路徑之前、實際執行,七次全數被拒:
-# 「java.lang.SecurityException: Injecting input events requires the caller (or the source of the
-# instrumentation, if any) to have the INJECT_EVENTS permission.」那個權限在豁免被觸及之前就檢查了。
-# 因此這個限制不是「少想到一個辦法」,而是一個應用程式**持有不了**的權限。
+# **它現在會通過了。2026-09-23 不會,2026-09-25 會;而中間那兩天才是有意思的部分。**
 #
-# **本檔在 Android 上不會通過,而且通不了;那些列仍然是對的。** 在讀它的任何一次綠色重放之前,先讀這一段。
+#   2026-09-23   21 個動作全部重放完成,計數器 0/0/0
+#   2026-09-25   PLAIN 1、SHIFTED 1、DISABLED 0
 #
-# 下面那三次按鍵是正確的,而它們抵達不了任何東西。`AndroidSynthesiser` 是經由
-# `Activity.dispatchKeyEvent` 投遞的,它抵達得了 view 階層——那正是 P72 的 `.onKeyPress` 能夠被動作檔
-# 驅動的原因——但一個 app 選單快捷鍵**不住在 view 階層裡**。它住在
-# `View.OnUnhandledKeyEventListener`,而那是由 `ViewRootImpl` 在**整個階層都拒絕了該按鍵之後**才執行的,
-# 位於任何 app 投遞得到的層級**之上**。同一個限制讓重放按不到 `PopupMenu` 裡的項目,
-# 而 `AndroidSynthesiser.swift` 也把那一個寫了出來。
+# 出問題的從來不是那些快捷鍵:`adb shell input keycombination` 從第一天就能觸發三個。出問題的是
+# 「按鍵抵達不了它們」,而在那件事可修之前,得先找到兩樣東西。
 #
-# 2026-09-23 於 emulator-5554 實測,而「成對」正是它之所以是一項發現、而不是一個猜測的原因:
+#   1. 那些快捷鍵住在哪裡。它們註冊在 decor view 上、是一個 `OnUnhandledKeyEventListener`,
+#      而 `ViewRootImpl` 是在 `mView.dispatchKeyEvent` 回傳**之後**才執行它——那在任何 app 投遞得到的
+#      層級之上。`AndroidSynthesiser` 經由 `Activity.dispatchKeyEvent` 投遞,在它之下。
+#      繞過去的辦法試過也被拒了:`Instrumentation.sendKeySync` 需要 INJECT_EVENTS,
+#      那個例外引在 AndroidSynthesiser.swift 裡。
 #
-#   本檔,21 個動作全部重放完成          PLAIN 0  SHIFTED 0  DISABLED 0
-#   adb shell input keycombination ...   PLAIN 1  SHIFTED 1  DISABLED 0
+#   2. 一個按鍵事件跟著**焦點鏈**走。`ViewGroup.dispatchKeyEvent` 只把事件派給 `mFocused` 或自己,
+#      否則直接回傳 false——它**不會**走訪子節點。P71 沒有聚焦任何東西,因此 decor 的 `mFocused` 是 null,
+#      它底下沒有任何 view 看到過那個按鍵。一個對 `ShortcutHostLayout` 加了儀器的版本,在 21 個重放動作
+#      之間**一行都沒印**——那正是把這件事從猜測變成量測的那一步。
 #
-# `input keycombination` 在系統層級注入,因此它與真實鍵盤一樣會經過 ViewRootImpl。
-# 上面那三行**就是** #121 step 2 在 Android 上的驗證,包含「已停用項目保持沉默」那一項;
-# 而本檔是「它們為何不是幾列動作」的紀錄。
+# 兩者現在都由 `ShortcutHostLayout` 處理:它就是視窗的 content view,在 `super.dispatchKeyEvent`
+# 拒絕之後查同一張表——與「unhandled」原本所指的是同一個時刻,只是低一層——而且它以
+# FOCUS_AFTER_DESCENDANTS 取得焦點,因此只有在沒有別的東西要焦點時才持有它。
+#
+# 那個改動可能弄壞的兩件事,都查過了:
+#   不會觸發兩次   本檔跑完讓 PLAIN 停在 1 之後,再送一次系統層級的 Ctrl-S,它變成 2、不是 3
+#   焦點仍然正常   同一個版本上的 P70 回報 `focused field: name` 與 `focus changes heard: 1`,
+#                 文字欄位贏過根節點,正如 FOCUS_AFTER_DESCENDANTS 所言
 #
 # **This file presses `control`, and the macOS one presses `command`, for the
 # same three shortcuts.** That is not a discrepancy to be tidied away; it is the
@@ -118,21 +121,21 @@ action,x,y,origin,button,key,micros,note,platform
 sleep,,,,,,2500000,let P71 lay out and the listener attach,android
 keydown,,,,,control,,"hold Ctrl -- this is macOS's Command, see the header",android
 sleep,,,,,,200000,,android
-key,,,,,s,,"Ctrl-S -- PLAIN must fire, the readout going to 1",android
+key,,,,,s,,"Ctrl-S -- PLAIN must fire, the readout going to 1 (VERIFIED 2026-09-25)",android
 sleep,,,,,,300000,,android
 keyup,,,,,control,,,android
 sleep,,,,,,300000,,android
 keydown,,,,,control,,,android
 keydown,,,,,shift,,,android
 sleep,,,,,,200000,,android
-key,,,,,e,,"Ctrl-Shift-E -- SHIFTED must fire, and PLAIN must NOT: the comparison is exact, not contains",android
+key,,,,,e,,"Ctrl-Shift-E -- SHIFTED must fire, and PLAIN must NOT: the comparison is exact, not contains (VERIFIED 2026-09-25: SHIFTED 1, PLAIN still 1)",android
 sleep,,,,,,300000,,android
 keyup,,,,,shift,,,android
 keyup,,,,,control,,,android
 sleep,,,,,,300000,,android
 keydown,,,,,control,,,android
 sleep,,,,,,200000,,android
-key,,,,,d,,"Ctrl-D -- the DISABLED item; this one must NOT fire and its counter must stay 0",android
+key,,,,,d,,"Ctrl-D -- the DISABLED item; this one must NOT fire and its counter must stay 0 (VERIFIED 2026-09-25: no DISABLED line at all)",android
 sleep,,,,,,300000,,android
 keyup,,,,,control,,,android
 sleep,,,,,,1200000,let the counters settle before the capture,android

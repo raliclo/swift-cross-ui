@@ -293,6 +293,27 @@ public final class AndroidBackend: BaseAppBackend {
     /// 而非 `Window` 上,因為它是該 Activity 的 content view,而 Activity 只有一個。
     nonisolated(unsafe) static var rootStack: AndroidKit.LinearLayout?
 
+    /// The same view as ``rootStack``, kept at its own type so `setApplicationMenu` can hand it
+    /// the shortcut table without casting back.
+    /// 與 ``rootStack`` 是同一個 view,以它自己的型別另存一份,好讓 `setApplicationMenu` 不必再轉型
+    /// 就能把快捷鍵表交給它。
+    nonisolated(unsafe) static var shortcutHost: ShortcutHostLayout?
+
+    /// The app-menu shortcut listener, kept so the content view can be given it whichever order
+    /// the two arrive in.
+    ///
+    /// `setApplicationMenu` and the window's content view are created by different passes and
+    /// neither is reliably first: on the opening pass the menu is set before there is a content
+    /// view, and on a later rebuild the content view is already there. Storing it means both
+    /// orders end with the same thing attached, instead of one of them silently ending with none.
+    ///
+    /// app 選單的快捷鍵 listener,存起來,好讓 content view 不論兩者以哪個順序抵達都能拿到它。
+    ///
+    /// `setApplicationMenu` 與視窗的 content view 是由不同的階段建立的,而兩者都不保證先到:
+    /// 開場那一輪是「選單先設、還沒有 content view」,而之後的重建則是 content view 已經在了。
+    /// 存起來,兩種順序就都以「同一個東西被掛上」收尾,而不是其中一種靜默地什麼都沒掛。
+    nonisolated(unsafe) static var applicationShortcutListener: SwiftUnhandledKeyListener?
+
     /// The toolbar row, once one has been asked for. `nil` means no row is in
     /// the stack at all, which is not the same as a row that is empty -- an
     /// empty row still takes its height from the content.
@@ -317,8 +338,8 @@ public final class AndroidBackend: BaseAppBackend {
         _supportedWindowLevels.withLock { levels in
             levels =
                 helpers.canFloat(Self.activity)
-                ? [.automatic, .normal, .floating]
-                : [.automatic, .normal]
+                    ? [.automatic, .normal, .floating]
+                    : [.automatic, .normal]
         }
 
         let fragmentActivity = Self.activity.as(FragmentActivity.self)!
@@ -453,7 +474,14 @@ public final class AndroidBackend: BaseAppBackend {
         // content view,而 Android 的 `setContentView` 在活著的視窗上會丟棄它所替換掉的整棵 view
         // 樹——app 已建好的每一個 widget 都會在第一次出現 `.toolbar` 時被重建,捲動位置與輸入到
         // 一半的文字也隨之消失。一個恆常存在的 LinearLayout 只值一個 view。
-        let stack = AndroidKit.LinearLayout(Self.activity, environment: Self.env)
+        // `ShortcutHostLayout`, not a plain `LinearLayout`, and the difference is one override.
+        // It offers an unconsumed key to the app's shortcut table after the whole hierarchy has
+        // declined it -- the same moment an unhandled-key listener would, one level lower, which
+        // is the level an action file can reach. Its own header carries why that matters.
+        // 用 `ShortcutHostLayout` 而不是一個普通的 `LinearLayout`,差別只有一個覆寫。它會在整個階層都
+        // 拒絕一個按鍵之後,把它交給 app 的快捷鍵表——與 unhandled-key listener 同一個時刻,只是低一層,
+        // 而那一層正是動作檔抵達得了的。為什麼這件事重要,寫在它自己的檔頭。
+        let stack = ShortcutHostLayout(context: Self.activity, environment: Self.env)
         stack.setOrientation(try! JavaClass<AndroidKit.LinearLayout>().VERTICAL)
         let matchParentDimension = try! JavaClass<AndroidKit.ViewGroup.LayoutParams>().MATCH_PARENT
         stack.addView(
@@ -472,7 +500,9 @@ public final class AndroidBackend: BaseAppBackend {
             .as(AndroidKit.ViewGroup.LayoutParams.self)
         )
         Self.activity.setContentView(stack)
-        Self.rootStack = stack
+        Self.rootStack = stack.as(AndroidKit.LinearLayout.self)
+        Self.shortcutHost = stack
+        stack.setShortcutListener(Self.applicationShortcutListener)
         window.content = container
         updateInsets(ofWindow: window)
     }
@@ -559,7 +589,6 @@ public final class AndroidBackend: BaseAppBackend {
             action()
         }
     }
-
 
     /// Reads the device class and the styles that follow from it.
     ///
@@ -690,39 +719,39 @@ public final class AndroidBackend: BaseAppBackend {
             timeZone = Foundation.TimeZone(identifier: identifier)
         }
 
-            // Foundation's own default as well, not only the environment's.
-            //
-            // `TimeZone.current` does not find the device's zone on Android --
-            // that is why these two lines exist at all. But an app does not
-            // only read `environment.timeZone`: a plain `DateFormatter` with no
-            // zone set uses Foundation's default, and there is no way for the
-            // app to know it has to override it. Measured 2026-09-03 on an
-            // emulator set to Asia/Taipei: P41 formatted 1756000000 as
-            // "2025-08-23" while its own date picker, which goes through
-            // `environment.timeZone`, showed 24 August. Both were reading the
-            // same instant. The app was not wrong; it asked Foundation and
-            // Foundation did not know.
-            //
-            // Assigned rather than worked around for the same reason
-            // `CommandLine.arguments` is in AndroidBackend+Arguments.swift: the
-            // platform does not populate something every Swift program expects
-            // to be populated, the backend is the one piece of code that knows
-            // the real value, and the alternative is every app carrying the
-            // workaround.
-            //
-            // 也設定 Foundation 自己的預設值，而不只是 environment 的。
-            //
-            // `TimeZone.current` 在 Android 上找不到裝置的時區——那正是上面這兩行存在的原因。但一支
-            // app 讀取的不只是 `environment.timeZone`：一個未設定時區的普通 `DateFormatter` 用的是
-            // Foundation 的預設值，而 app 沒有任何辦法知道自己必須覆寫它。2026-09-03 於設定為
-            // Asia/Taipei 的 emulator 上實測：P41 把 1756000000 格式化為「2025-08-23」，而它自己的
-            // 日期選擇器（走 `environment.timeZone`）顯示的是 8 月 24 日。兩者讀的是同一個瞬間。
-            // 那支 app 沒有錯；它問了 Foundation，而 Foundation 不知道。
-            //
-            // 選擇直接指派而非繞過，理由與 AndroidBackend+Arguments.swift 中的
-            // `CommandLine.arguments` 相同：平台沒有填入某個「每一支 Swift 程式都預期已被填入」的
-            // 東西，而 backend 是唯一知道真實值的那段程式碼；另一種做法是讓每一支 app 各自攜帶
-            // 這個變通。
+        // Foundation's own default as well, not only the environment's.
+        //
+        // `TimeZone.current` does not find the device's zone on Android --
+        // that is why these two lines exist at all. But an app does not
+        // only read `environment.timeZone`: a plain `DateFormatter` with no
+        // zone set uses Foundation's default, and there is no way for the
+        // app to know it has to override it. Measured 2026-09-03 on an
+        // emulator set to Asia/Taipei: P41 formatted 1756000000 as
+        // "2025-08-23" while its own date picker, which goes through
+        // `environment.timeZone`, showed 24 August. Both were reading the
+        // same instant. The app was not wrong; it asked Foundation and
+        // Foundation did not know.
+        //
+        // Assigned rather than worked around for the same reason
+        // `CommandLine.arguments` is in AndroidBackend+Arguments.swift: the
+        // platform does not populate something every Swift program expects
+        // to be populated, the backend is the one piece of code that knows
+        // the real value, and the alternative is every app carrying the
+        // workaround.
+        //
+        // 也設定 Foundation 自己的預設值，而不只是 environment 的。
+        //
+        // `TimeZone.current` 在 Android 上找不到裝置的時區——那正是上面這兩行存在的原因。但一支
+        // app 讀取的不只是 `environment.timeZone`：一個未設定時區的普通 `DateFormatter` 用的是
+        // Foundation 的預設值，而 app 沒有任何辦法知道自己必須覆寫它。2026-09-03 於設定為
+        // Asia/Taipei 的 emulator 上實測：P41 把 1756000000 格式化為「2025-08-23」，而它自己的
+        // 日期選擇器（走 `environment.timeZone`）顯示的是 8 月 24 日。兩者讀的是同一個瞬間。
+        // 那支 app 沒有錯；它問了 Foundation，而 Foundation 不知道。
+        //
+        // 選擇直接指派而非繞過，理由與 AndroidBackend+Arguments.swift 中的
+        // `CommandLine.arguments` 相同：平台沒有填入某個「每一支 Swift 程式都預期已被填入」的
+        // 東西，而 backend 是唯一知道真實值的那段程式碼；另一種做法是讓每一支 app 各自攜帶
+        // 這個變通。
         if let timeZone {
             environment.timeZone = timeZone
             NSTimeZone.default = timeZone

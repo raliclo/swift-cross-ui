@@ -189,6 +189,44 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
         }
 
         let id = ApplicationShortcuts.setTable(entries, reusing: Self.applicationShortcutID)
+
+        // **The content view is attached on every call, the decor listener only on the first, and
+        // that asymmetry is a bug this file had for one build.**
+        //
+        // `setApplicationMenu` runs from the scene graph, which reaches it BEFORE the window's
+        // content view exists on the first pass -- so a one-shot install left
+        // `Self.shortcutHost` nil for the life of the app and the action-file path never worked.
+        // The symptom was the one this whole change exists to remove: a replay that completes
+        // with the counters at zero. The decor listener must still be added once, because
+        // `addOnUnhandledKeyEventListener` appends and a listener per refresh would run every
+        // action as many times as the scene graph had been rebuilt; `setShortcutListener`
+        // replaces, so calling it every time is free.
+        //
+        // **content view 每次呼叫都掛,decor 的 listener 只掛第一次;而那個不對稱,是本檔有過一個版本的臭蟲。**
+        //
+        // `setApplicationMenu` 由場景圖呼叫,而它在第一輪抵達此處時,視窗的 content view 還不存在
+        // ——因此「只裝一次」會讓 `Self.shortcutHost` 在這支 app 的餘生都是 nil,動作檔那條路從來沒有通過。
+        // 症狀正是這整個改動所要消除的那一個:一次「跑完而計數器是零」的重放。decor 的 listener 仍然只能
+        // 加一次,因為 `addOnUnhandledKeyEventListener` 是**附加**的,每次刷新加一個會讓每個動作執行
+        // 「場景圖被重建過幾次」那麼多次;而 `setShortcutListener` 是**替換**,因此每次都呼叫不花什麼。
+        let listener = SwiftUnhandledKeyListener(id, environment: Self.env)
+        // **And the same listener on the content view, which is the half an action file can
+        // reach.** The decor listener is what a real keyboard uses; it runs from `ViewRootImpl`,
+        // above anything an application can post to, so a replay never reaches it --
+        // measured on 2026-09-23, P71's counters at 0/0/0 while `adb shell input keycombination`
+        // fired the same keys. `ShortcutHostLayout` consults the table at the same moment, after
+        // the hierarchy has declined, one level lower. Whichever sees the key first answers, and
+        // the content view is always first, so nothing fires twice.
+        //
+        // **而同一個 listener 也掛在 content view 上,那正是動作檔抵達得了的那一半。** decor 上的那個
+        // 是真鍵盤走的路;它由 `ViewRootImpl` 執行,位於任何應用程式投遞得到的層級之上,因此一次重放
+        // 永遠到不了它——2026-09-23 實測:P71 的計數器停在 0/0/0,而同樣那些按鍵用
+        // `adb shell input keycombination` 就觸發了。`ShortcutHostLayout` 在同一個時刻查那張表
+        // ——階層都拒絕之後——只是低一層。誰先看到那個按鍵誰回答,而 content view 永遠先看到,
+        // 因此不會有東西觸發兩次。
+        Self.applicationShortcutListener = listener
+        Self.shortcutHost?.setShortcutListener(listener)
+
         guard Self.applicationShortcutID == nil else { return }
         Self.applicationShortcutID = id
 
@@ -207,9 +245,9 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
         // 背後的表,而那才是真正會變的部分。
         Self.activity.getWindow()?.getDecorView()?
             .addOnUnhandledKeyEventListener(
-                SwiftUnhandledKeyListener(id, environment: Self.env)
-                    .as(AndroidKit.View.OnUnhandledKeyEventListener.self)
+                listener.as(AndroidKit.View.OnUnhandledKeyEventListener.self)
             )
+
     }
 
     /// Walks the items, keeping only those that carry both a shortcut and an
@@ -233,7 +271,7 @@ extension AndroidBackend: BackendFeatures.ApplicationMenus {
                 case .button(let label, let action):
                     _ = label
                     guard let action, let shortcut = environment.keyboardShortcut,
-                        environment.isEnabled
+                          environment.isEnabled
                     else { continue }
                     entries.append(.init(shortcut: shortcut, action: action))
                 case .submenu(let submenu):
