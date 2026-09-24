@@ -101,6 +101,30 @@ final class NSCursorTarget: NSView {
         super.viewDidMoveToWindow()
         NotificationCenter.default.removeObserver(self)
         guard let window else { return }
+
+        // **`acceptsMouseMovedEvents` is false by default, and a tracking area does not switch it
+        // on for you.**
+        //
+        // A window that does not accept mouse-moved events is not told the pointer moved, and
+        // `cursorUpdate` is delivered as part of that processing -- so the area can be registered
+        // at the right bounds, in a key window of an active app that is frontmost with nothing
+        // over it, and still never be asked. Every one of those was measured before this line was
+        // written; `actions/mac/P72-cursor.csv` lists them.
+        //
+        // Set here rather than on every window, because the cost belongs to the feature that
+        // needs it: a window with no `.cursor(_:)` in it has no reason to be woken for every
+        // pixel the pointer crosses.
+        //
+        // **`acceptsMouseMovedEvents` 預設是 false,而一個 tracking area **不會**替你打開它。**
+        //
+        // 一個不接受 mouse-moved 事件的視窗,不會被告知指標移動過;而 `cursorUpdate` 正是在那個處理過程中
+        // 被送出的——因此那塊區域可以用正確的 bounds 註冊在一個「使用中 app 的 key 視窗、而且位於最前方、
+        // 上面什麼都沒有」的視窗裡,卻依然從來不被詢問。上述每一項都在寫下這一行之前量過;
+        // `actions/mac/P72-cursor.csv` 列出了它們。
+        //
+        // 設在此處而不是設在每一個視窗上,因為這個代價該由需要它的那項功能承擔:一個裡面沒有任何
+        // `.cursor(_:)` 的視窗,沒有理由為指標經過的每一個像素被叫醒。
+        window.acceptsMouseMovedEvents = true
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowBecameKey),

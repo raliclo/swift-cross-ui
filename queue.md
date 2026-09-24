@@ -780,10 +780,17 @@ an empty queue -- mistakes.md entry 1.
       `key=false` 與 `key=true` 兩次重建)。事件來源也換過:從 `CGWarpMouseCursorPosition`
       (不產生事件,因此本來就永遠不可能奏效)換成投遞到 `.cghidEventTap` 的真正 `CGEvent`
       ——**必要而不充分**。
-      **剩下兩個候選**,都寫在 `actions/mac/P72-cursor.csv` 的檔頭:(a) 在 P72 裡 `.cursor` 套用在
-      `.contextMenu` **之前**,因此 `NSCursorTarget` 是 `NSContextMenuTarget` 的子 view,
-      AppKit 可能把更新送給了外層;把 `.cursor` 移到最外層,一次執行就能回答。
-      (b) `NSWindow.acceptsMouseMovedEvents` 預設為 false。
+      **2026-09-25 再排除三個,剩一個。** (7) 不是 hit-test 路徑:一次執行的 30,168 行 `-hittest:`
+      全部落在固定的六個點上,沒有一個是指標所在之處——AppKit 根本沒在指標位置做 hit test。
+      (8) 不是遮擋:在執行**當中**向 window server 取樣,P72 的視窗在 (700, 75, 520, 808)、
+      hover 點在它裡面,排在它前面的只有 Window Server 與 Dock。
+      (9) 不是 `NSWindow.acceptsMouseMovedEvents`:預設 false 而 tracking area 不會替你開它,
+      所以這是真候選;設成 true 之後沒有變化。
+      **唯一還站著的候選是巢狀結構**:P72 先套 `.cursor` 再套 `.contextMenu`,因此 `NSCursorTarget`
+      是 `NSContextMenuTarget` 的**子 view**。把那兩行對調,一次執行就能回答,而那還沒試過。
+      **追這件事做了三個改動,沒有一個讓症狀改變**——`mouseExited` 還原箭頭、tracking area 在
+      `didBecomeKeyNotification` 重新註冊、設定 `acceptsMouseMovedEvents`。三者在構造上都是對的,
+      而也**只**基於這個理由被保留;那比平常更弱,因此在檔頭與此處都明說。
     - **量測本身另外踩了兩個坑,寫在 `AppKitSynthesiser` 裡。** `NSCursor.current` 是**應用程式**的
       堆疊、而且是黏著的(離開 view 時沒有東西彈掉它);而 `NSCursor.currentSystem` 交回的是一份
       **複本**,識別比對一律失敗,因此改以熱點與影像尺寸比對(兩者相同時如實回報

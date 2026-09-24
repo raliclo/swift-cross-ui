@@ -39,18 +39,57 @@ action,x,y,origin,button,key,micros,note,platform
 #      re-registered on `didBecomeKeyNotification`, and the log shows both a
 #      `key=false` and a `key=true` rebuild.
 #
-# And not the event source either: `CGWarpMouseCursorPosition` generates no
+#   7. Not the hit-test path. 30,168 `-hittest:` lines were recorded during one
+#      run and every one of them is at a fixed set of six points -- (121,630),
+#      (170,668), (101,610) and three more -- none of them the pointer's. AppKit
+#      is not hit-testing where the pointer is, so nothing downstream of that is
+#      the cause either.
+#   8. Not occlusion. Sampled from the window server DURING a run: the P72
+#      window is on screen at (700, 75, 520, 808), the hover point is inside it,
+#      and the only things in front of it are Window Server and the Dock.
+#   9. Not `NSWindow.acceptsMouseMovedEvents`. It is false by default and a
+#      tracking area does not switch it on, so it was a real candidate. Set to
+#      true on any window carrying a cursor target: no change.
+#
+# And not the event source either:
+ `CGWarpMouseCursorPosition` generates no
 # event, so `hover` now posts a real `CGEvent` mouse-moved to `.cghidEventTap`.
 # That is necessary and was not sufficient -- still no `cursorUpdate`.
 #
 # So: every precondition holds and AppKit delivers no cursor update to the view.
-# Two candidates are left for whoever continues. (a) `NSCursorTarget` is a
-# SUBVIEW of `NSContextMenuTarget` here, because P72 applies `.cursor` before
-# `.contextMenu`; AppKit may be routing the update to the outer view. Moving
-# `.cursor` outermost in P72 would answer it in one run. (b)
-# `NSWindow.acceptsMouseMovedEvents` is false by default.
+# The one candidate still standing is the nesting: P72 applies `.cursor` before
+# `.contextMenu`, so `NSCursorTarget` is a SUBVIEW of `NSContextMenuTarget`.
+# Swapping those two lines in P72 answers it in one run and has not been tried.
 #
-# A green run here still means nothing until one of those is ruled in.
+# **Three changes were made while hunting this and NONE of them moved the
+# symptom.** Each is correct by construction and each is kept on that basis
+# alone, which is a weaker reason than usual and is said here rather than
+# implied: `mouseExited` restoring the arrow (nothing else could), the tracking
+# area being re-registered on `didBecomeKeyNotification` (it was first
+# registered while the window was not key), and `acceptsMouseMovedEvents` being
+# set (a window that does not accept them is not told the pointer moved).
+#
+# A green run here still means nothing until the nesting is ruled in or out.
+
+# 7. 不是 hit-test 路徑。一次執行記錄了 30,168 行 `-hittest:`,而它們全部落在固定的六個點上
+#    ——(121,630)、(170,668)、(101,610) 等——沒有一個是指標所在之處。AppKit 根本沒有在指標的位置
+#    做 hit test,因此它下游的任何東西也都不是成因。
+# 8. 不是遮擋。在執行**當中**向 window server 取樣:P72 的視窗就在螢幕上、位於 (700, 75, 520, 808),
+#    hover 的點在它裡面,而排在它前面的只有 Window Server 與 Dock。
+# 9. 不是 `NSWindow.acceptsMouseMovedEvents`。它預設為 false,而 tracking area 不會替你打開它,
+#    所以這是一個真正的候選。對「帶有 cursor target」的視窗設為 true:沒有變化。
+#
+# 因此:每一個前提都成立,而 AppKit 就是不送 cursor update 給那個 view。**唯一還站著的候選是巢狀結構**:
+# P72 先套 `.cursor` 再套 `.contextMenu`,所以 `NSCursorTarget` 是 `NSContextMenuTarget` 的**子 view**。
+# 把 P72 那兩行對調,一次執行就能回答,而那還沒有試過。
+#
+# **追這件事的過程中做了三個改動,而沒有一個讓症狀改變。** 每一個都在構造上是對的,而每一個也**只**基於
+# 這個理由被保留——那是一個比平常更弱的理由,因此在此明說而不是暗示:`mouseExited` 還原箭頭
+# (沒有別的東西做得到)、tracking area 在 `didBecomeKeyNotification` 時重新註冊
+# (它第一次註冊時視窗還不是 key)、以及設定 `acceptsMouseMovedEvents`
+# (一個不接受它們的視窗不會被告知指標移動過)。
+#
+# 在那個巢狀結構被確認或排除之前,此處跑出綠的仍然不代表什麼。
 #
 # **本檔在 macOS 上不通過。它是可重現的、診斷已經很窄,而且已有六個候選被量測排除。**
 #
