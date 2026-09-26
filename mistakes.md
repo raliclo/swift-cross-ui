@@ -2106,3 +2106,78 @@ C_TOTAL=3; C_SAMEDAY=4; C_SDATE=5; C_DAYS=6; C_LAST=8; C_CORR=9
 結束並印出該欄名與整個表頭;未知的 id 以 1 結束。
 
 請不要對本倉庫的 counter 執行 `counter.zsh`。
+
+---
+
+## 27. A string replacement split a comment in half, and half of it became an action
+
+**2026-09-25, `testapp/actions/mac/P72-cursor.csv`, found 2026-09-26, one occurrence.**
+
+I was adding a paragraph to the header of an action file and did it with a python string
+replacement rather than an editor. The replacement matched, the script exited 0, and it turned
+
+```
+# And not the event source either: `CGWarpMouseCursorPosition` generates no
+```
+
+into
+
+```
+# And not the event source either:
+ `CGWarpMouseCursorPosition` generates no
+```
+
+The second line has no leading `#`. It is no longer a comment; it is row 55 of a CSV whose
+first column is the verb. `ActionFile.parse` throws `unknown action` on it, so the file replays
+nothing — and it went into commit `02110ae2` in that state, where it sat for a day.
+
+**Everything downstream agreed the file was fine.** `Scripts/check_action_files.sh` passed.
+`Scripts/check_action_file_fields.sh` passed, and its reason is written into the script: it only
+flags rows with **more** fields than the header, because fewer means trailing optional columns
+were left off, which is legal and common. Prose has one field. A sentence is indistinguishable
+from a short row by width alone.
+
+**This is the same act as skill rule 5** — "不要用腳本的字串替換代替編輯器" — and it failed the
+same way it did there: the replacement aims at a literal that is **not on screen**, so damage
+to the text around the match is invisible at the moment it is done. `git diff` would have shown
+it; I read the diff for the paragraph I had added and not for the line above it.
+
+**Corrective.** Two, because the habit and the hole are separate.
+
+1. Edit files with the editor. The reason is not tidiness: an `Edit` call must quote the
+   surrounding text, so a split line cannot be produced without being seen.
+2. `check_action_file_fields.sh` now reads the verb table out of `ActionFile.swift`
+   (`case "..."` lines, so it cannot drift from the parser) and rejects any row whose first
+   column is not one of them, saying "if this is a comment, its leading # is missing". Proved
+   in three directions: the repaired file exits 0; the file re-broken at line 55 exits 1 naming
+   line 55; and with the `case` lines commented out in `ActionFile.swift`, an empty verb set
+   exits **1** with a refusal rather than passing everything — the third was measured only after
+   a first attempt reported `RC=0`, which was `head`'s status through a pipe and not the
+   script's.
+
+**一次字串替換把一句註解切成兩半,而其中一半變成了一個動作**
+
+2026-09-25 於 `testapp/actions/mac/P72-cursor.csv`,2026-09-26 發現,一次。
+
+我在替一個動作檔的檔頭加一段文字,而用的是 python 字串替換、不是編輯器。替換命中了、腳本以 0 結束,
+然後把原本一行的註解切成兩行——第二行沒有開頭的 `#`。它不再是註解,而是這個 CSV 的第 55 列,而第一欄
+是動作名稱。`ActionFile.parse` 會對它丟出 `unknown action`,因此整個檔案一個動作都不會重放;而它就以
+那個狀態進了 commit `02110ae2`,在那裡待了一天。
+
+**下游每一個東西都說這個檔案沒問題。** `check_action_files.sh` 通過。`check_action_file_fields.sh`
+通過,而它的理由就寫在腳本裡:它只標記欄位數**多於**表頭的列,因為「少」代表尾端的選用欄位被省略了
+——那是合法而且常見的。散文只有一個欄位。**單看寬度,一個句子與一列很短的資料無法區分。**
+
+**這與 skill 第 5 條是同一件事**,而且以同樣的方式失敗:字串替換瞄準的是一段**不在畫面上**的字面值,
+因此對命中處周圍文字造成的破壞,在做的當下是看不見的。`git diff` 看得出來;我讀了那段「我加進去的」
+文字的 diff,沒有讀它上面那一行。
+
+**矯正措施**有兩個,因為「習慣」與「漏洞」是兩件事。
+
+1. 改檔用編輯器。理由不是整潔:`Edit` 的呼叫**必須引出周圍的文字**,因此一行被切開不可能不被看見。
+2. `check_action_file_fields.sh` 現在會從 `ActionFile.swift` 讀出動作表(讀 `case "..."` 那些行,
+   因此不會與解析器漂移),並拒絕任何第一欄不在表中的列,訊息是「如果這是註解,它開頭的 # 掉了」。
+   已從三個方向證明:修好的檔案以 0 結束;在第 55 列重新弄壞的檔案以 1 結束並指名第 55 列;
+   而把 `ActionFile.swift` 裡的 `case` 行註解掉、使動作表為空時,它以 **1** 結束並拒絕檢查,
+   而不是讓每一列都通過——第三項是在第一次量測回報 `RC=0` 之後才真正測到的,那個 0 是管線裡 `head`
+   的結束狀態,不是那支腳本的。

@@ -55,9 +55,42 @@
 set -eu
 cd "$(dirname "$0")/.."
 exec python3 - "$@" <<'PY'
-import csv, glob, sys
+import csv, glob, pathlib, re, sys
 
 PLATFORMS = {"any", "macos", "windows", "gtk", "ios", "android"}
+
+
+def known_verbs():
+    """Every verb `ActionFile.parseRow` switches on, read out of the source.
+
+    Read rather than listed, so that adding an action does not mean adding it in two places, and
+    so this cannot drift away from the parser it stands in for.
+
+    從原始碼讀出、而不是列在這裡:如此新增一個動作就不必在兩個地方各加一次,
+    而這個檢查也不會與它所代表的那個解析器漂移。
+    """
+    source = pathlib.Path("Sources/InputEvent/ActionFile.swift").read_text(encoding="utf-8")
+    verbs = set()
+    for line in source.splitlines():
+        stripped = line.strip()
+        if stripped.startswith('case "'):
+            verbs.update(re.findall(r'"([a-z]+)"', stripped))
+    if not verbs:
+        # An empty set would make every row pass, which is the failure mode this whole file is
+        # about: a check that finds nothing because it looked at nothing.
+        # 一個空集合會讓每一列都通過,而那正是整個檔案所針對的失敗形態:
+        # 一個「因為什麼都沒看所以什麼都沒找到」的檢查。
+        print(
+            "check_action_file_fields: read no verbs from Sources/InputEvent/ActionFile.swift;"
+            " refusing to check action names against an empty set.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    verbs.add("action")
+    return verbs
+
+
+VERBS = known_verbs()
 
 problems = []
 for path in sorted(glob.glob("testapp/actions/*/*.csv")):
@@ -76,6 +109,29 @@ for path in sorted(glob.glob("testapp/actions/*/*.csv")):
     platform_at = header.index("platform") if "platform" in header else None
     for number, row in enumerate(rows[1:], start=2):
         if not row or row[0].lstrip().startswith("#"):
+            continue
+        # **The verb, and this is the check that was missing until 2026-09-26.**
+        #
+        # A comment whose leading `#` is lost stops being a comment and becomes a data row. The
+        # width check below cannot see that: prose has ONE field, fewer than the header, and fewer
+        # is legal here because trailing optional columns get left off all the time. So
+        # `actions/mac/P72-cursor.csv` went into a commit carrying
+        # " `CGWarpMouseCursorPosition` generates no" as row 55 -- which the replay rejects with
+        # `unknown action` -- and every guard in this repository said the file was fine.
+        #
+        # **那個動作名稱,而這正是 2026-09-26 之前缺少的檢查。**
+        #
+        # 一句「開頭的 `#` 掉了」的註解,就不再是註解,而成為一列資料。下面那個寬度檢查看不見它:
+        # 散文只有**一個**欄位,比表頭少;而「少」在此處是合法的,因為尾端的選用欄位本來就經常被省略。
+        # 於是 `actions/mac/P72-cursor.csv` 帶著第 55 列「 `CGWarpMouseCursorPosition` generates no」
+        # 進了一個 commit——重放會以 `unknown action` 拒絕它——而本倉庫裡每一個守衛都說那個檔案沒問題。
+        verb = row[0].strip()
+        if verb and verb not in VERBS:
+            problems.append((
+                path, number,
+                f"'{verb[:48]}' is not an action"
+                " -- if this is a comment, its leading # is missing",
+            ))
             continue
         # Only MORE fields than the header is a defect. Fewer means trailing
         # optional columns were left off, which every file with a `target`

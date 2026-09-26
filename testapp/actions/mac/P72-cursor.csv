@@ -51,8 +51,7 @@ action,x,y,origin,button,key,micros,note,platform
 #      tracking area does not switch it on, so it was a real candidate. Set to
 #      true on any window carrying a cursor target: no change.
 #
-# And not the event source either:
- `CGWarpMouseCursorPosition` generates no
+# And not the event source either: `CGWarpMouseCursorPosition` generates no
 # event, so `hover` now posts a real `CGEvent` mouse-moved to `.cghidEventTap`.
 # That is necessary and was not sufficient -- still no `cursorUpdate`.
 #
