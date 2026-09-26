@@ -1,0 +1,198 @@
+#!/usr/bin/env zsh
+# Drive and photograph every macOS or iOS action file, one at a time.
+#
+#   zsh testapp/sweep_apple.zsh --macos            every file under actions/mac/
+#   zsh testapp/sweep_apple.zsh --ios              every file under actions/ios/
+#   zsh testapp/sweep_apple.zsh --ios P57 P72      only those apps' files
+#
+# Writes output/<platform>-sweep.csv2, one row per ACTION FILE -- not per app,
+# for the reason sweep_android.zsh gives: several apps carry more than one file,
+# and a sweep that takes the first file per app quietly drops scenarios.
+#
+# **What a `pass` here means, and what it does not.** Three things, each read
+# from something the run produced rather than inferred:
+#
+#   replay    the replay's own `-actionfile: replayed <file>` line -- on macOS
+#             from the app's actionfile log, on iOS from the XCUITest runner's
+#             output. A `failed:` line, or no line at all, is not a replay.
+#   capture   a `<app>-<platform>-final-*.png` written DURING this run, found by
+#             comparing against a marker touched before it started. An older
+#             capture of the same app is exactly what a run that never reached
+#             the screenshot leaves behind.
+#   exit      test.zsh's own status.
+#
+# It does NOT mean each file's assertions held. An XCUITest tap on empty space
+# is not an error and neither is a click that lands on the wrong control; the
+# assertion lives in the file's header and a person or a later check reads it
+# off the capture. This is the same standard the Android column was filled by,
+# and it is said here so a green row is not read as more than it is.
+#
+# **One run at a time, and a watchdog on each.** An app that hangs would
+# otherwise stop the whole sweep; after `--timeout` seconds (default 600) the
+# run is killed and recorded as `timeout`.
+#
+# macOS runs move the REAL pointer and bring windows to the front. Do not use
+# the Mac while a macOS sweep runs, and do not run the two platforms at once:
+# the Simulator window can end up over a macOS test app.
+#
+# 逐一驅動並拍攝每一份 macOS 或 iOS 動作檔。
+#
+# 寫出 output/<平台>-sweep.csv2,每一列對應一份**動作檔**而不是一支 app——理由與 sweep_android.zsh
+# 相同:有幾支 app 帶著不只一份檔案,而「每支 app 取第一份」的 sweep 會默默丟掉情境。
+#
+# **此處的 `pass` 代表什麼、不代表什麼。**三件事,每一件都讀自那次執行產出的東西,而不是推測:
+#
+#   replay    重放自己的 `-actionfile: replayed <檔名>` 那一行——macOS 讀自 app 的 actionfile log,
+#             iOS 讀自 XCUITest runner 的輸出。一行 `failed:`、或者根本沒有那一行,都不算重放。
+#   capture   一張在**本次執行期間**寫出的 `<app>-<平台>-final-*.png`,以「執行開始前 touch 的標記檔」
+#             比對找出。同一支 app 較舊的擷圖,正是一次「沒走到截圖那一步」的執行會留下的東西。
+#   exit      test.zsh 自己的結束狀態。
+#
+# 它**不**代表每一份檔案的斷言都成立。XCUITest 在空白處的一次點擊不算錯誤,點到錯的控制項也不算;
+# 斷言寫在檔頭,要由人或之後的檢查從擷圖上讀出來。這與 Android 那一欄當初被填入的標準相同,而在此明說,
+# 以免一列綠色被讀成比它實際更多的意思。
+#
+# **一次一個,而且每一個都有看門狗。**一支卡住的 app 否則會讓整輪停住;超過 `--timeout` 秒(預設 600)
+# 就結束它,並記為 `timeout`。
+#
+# macOS 的執行會移動**真實**指標並把視窗帶到最前面。macOS sweep 執行期間不要使用這台 Mac,也不要兩個平台
+# 同時跑:Simulator 的視窗可能會蓋到 macOS 的測試 app 上。
+
+set -u
+script_dir="${0:A:h}"
+repo_root="${script_dir:h}"
+
+platform=""
+timeout_s=600
+apps=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --macos) platform=macos; shift ;;
+        --ios) platform=ios; shift ;;
+        --timeout) timeout_s="$2"; shift 2 ;;
+        -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+        P[0-9]*) apps+=("$1"); shift ;;
+        *) echo "unknown argument: $1" >&2; exit 64 ;;
+    esac
+done
+if [ -z "$platform" ]; then
+    echo "usage: sweep_apple.zsh --macos|--ios [--timeout seconds] [Pn ...]" >&2
+    exit 64
+fi
+
+case "$platform" in
+    macos) action_dir="$script_dir/actions/mac"; backend=appkit ;;
+    ios) action_dir="$script_dir/actions/ios"; backend=uikit ;;
+esac
+
+output_dir="$script_dir/output"
+shots_dir="$output_dir/screenshots"
+run_dir="$output_dir/sweep-$platform"
+out_csv="$output_dir/$platform-sweep.csv2"
+mkdir -p "$run_dir" "$shots_dir"
+
+files=()
+for f in "$action_dir"/P*.csv(N); do
+    app="${${f:t}%%-*}"
+    if [ "${#apps[@]}" -gt 0 ] && (( ! ${apps[(Ie)$app]} )); then
+        continue
+    fi
+    files+=("$f")
+done
+if [ "${#files[@]}" -eq 0 ]; then
+    echo "no action files matched under $action_dir" >&2
+    exit 1
+fi
+print "==> $platform sweep: ${#files[@]} action files"
+
+rows_file="$run_dir/rows.tsv"
+: > "$rows_file"
+
+for f in "${files[@]}"; do
+    name="${f:t}"
+    app="${name%%-*}"
+    stem="${name%.csv}"
+    log="$run_dir/$stem.log"
+    marker="$run_dir/.started-$stem"
+    touch "$marker"
+    started=$(date +%s)
+
+    if [ "$platform" = macos ]; then
+        rm -f "$output_dir/${app:l}-actionfile.log"
+        zsh "$script_dir/test.zsh" "$app" --macos --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+    else
+        zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+    fi
+    pid=$!
+    state=""
+    while kill -0 "$pid" 2>/dev/null; do
+        if (( $(date +%s) - started > timeout_s )); then
+            kill "$pid" 2>/dev/null
+            pkill -f "debugTarget" 2>/dev/null
+            state=timeout
+            break
+        fi
+        sleep 2
+    done
+    wait "$pid" 2>/dev/null
+    rc=$?
+    [ "$state" = timeout ] && rc=124
+    elapsed=$(( $(date +%s) - started ))
+
+    if [ "$platform" = macos ]; then
+        replay_source="$output_dir/${app:l}-actionfile.log"
+        [ -f "$replay_source" ] && cp "$replay_source" "$run_dir/$stem-actionfile.log"
+    else
+        replay_source="$log"
+    fi
+    replay=fail
+    replay_note=""
+    if [ -f "$replay_source" ] && grep -aq -- "-actionfile: replayed $name" "$replay_source"; then
+        replay=ok
+    elif [ -f "$replay_source" ]; then
+        replay_note=$(grep -a -m1 -- "-actionfile: failed" "$replay_source" | cut -c1-160)
+    fi
+
+    capture=fail
+    shot=""
+    for s in "$shots_dir"/${app:l}-$platform-final-*.png(N.om); do
+        if [ "$s" -nt "$marker" ]; then
+            capture=ok
+            shot="${s:t}"
+        fi
+        break
+    done
+
+    result=fail
+    [ "$rc" -eq 0 ] && [ "$replay" = ok ] && [ "$capture" = ok ] && result=pass
+    [ "$state" = timeout ] && result=timeout
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note" >> "$rows_file"
+    printf '    %-6s %-44s %-7s rc=%-3s replay=%-4s capture=%-4s %4ss\n' \
+        "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed"
+    rm -f "$marker"
+done
+
+# Written with a real CSV writer: the note column carries error text with
+# commas in it, and this tree has paid for splitting on commas twice.
+# 以真正的 CSV writer 寫出:note 欄帶著含逗號的錯誤訊息,而這棵樹已經為「以逗號切割」付過兩次代價。
+python3 - "$rows_file" "$out_csv" "$platform" "$backend" <<'PY'
+import csv, sys, datetime
+rows_path, out_path, platform, backend = sys.argv[1:5]
+today = datetime.date.today().isoformat()
+with open(rows_path, newline="", encoding="utf-8") as handle:
+    rows = [line.rstrip("\n").split("\t") for line in handle if line.strip()]
+with open(out_path, "w", newline="", encoding="utf-8") as handle:
+    writer = csv.writer(handle)
+    writer.writerow(["date", "platform", "backend", "app", "action_file", "result",
+                     "exit", "replay", "capture", "seconds", "screenshot", "note"])
+    writer.writerow(["日期", "平台", "backend", "app", "動作檔", "結果",
+                     "結束碼", "重放", "擷取", "秒數", "擷圖", "備註"])
+    for app, name, result, rc, replay, capture, secs, shot, note in rows:
+        writer.writerow([today, platform, backend, app, name, result,
+                         rc, replay, capture, secs, shot, note])
+total = len(rows)
+passed = sum(1 for r in rows if r[2] == "pass")
+print(f"==> {platform}: {passed} of {total} action files pass; written to {out_path}")
+PY

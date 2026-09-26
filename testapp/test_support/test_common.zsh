@@ -1374,6 +1374,33 @@ run_macos() {
     # 呼叫。現在它有了。
     capture -d 1 -w "$title" "$label-1s"
     if wait_for_marker_macos; then
+        # **Wait for the replay to END before the showtime starts.** Until
+        # 2026-09-27 the showtime ran from the render marker, so a replay longer
+        # than the showtime was cut off by the window closing and the "final"
+        # capture showed it half done. Found by sweep_apple.zsh: with a 2-second
+        # showtime, two of P72's three files logged `replaying` and never
+        # `replayed`; at the default 30 seconds the same happens to any file
+        # longer than that. iOS does not need this -- its XCUITest runner
+        # returns only when the replay has finished.
+        #
+        # **先等重放**結束**,再開始 showtime。**2026-09-27 之前,showtime 從算繪 marker 起算,
+        # 因此一段比 showtime 長的重放會被「視窗關閉」截斷,而「final」擷圖拍到的是做到一半的畫面。
+        # 由 sweep_apple.zsh 發現:showtime 設為 2 秒時,P72 三份檔案中有兩份記下了 `replaying`、
+        # 卻從未記下 `replayed`;在預設的 30 秒下,任何比那更長的檔案也會如此。iOS 不需要這個——
+        # 它的 XCUITest runner 只在重放結束之後才回傳。
+        if [ -n "$action_file" ]; then
+            local replay_waited=0
+            printf '==> Waiting for the replay to finish'
+            while [ "$replay_waited" -lt 600 ]; do
+                if grep -aqE -- '-actionfile: (replayed|failed)' "$action_log" 2>/dev/null; then
+                    break
+                fi
+                sleep 1
+                replay_waited=$((replay_waited + 1))
+                printf '.'
+            done
+            printf ' %ss\n' "$replay_waited"
+        fi
         showtime "macOS $app"
         capture -d 1 -w "$title" "$label-final"
     else
