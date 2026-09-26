@@ -1,169 +1,73 @@
 action,x,y,origin,button,key,micros,note,platform
 # P72 on macOS: does `.cursor(.crosshair)` take, and is it CONFINED to the view?
 #
-# **This file used to be two `move` rows and two eight-second pauses for a human
-# with `screencapture -C`.** It is now two `hover` rows, which move the real
-# pointer and then print the cursor AppKit decided on. The old shape could show
-# a crosshair in a photograph; it could not say whether the crosshair belonged
-# to the mesh view or to the window, and the comment in
-# AppKitBackend+Cursors.swift said so: "NOT VERIFIED: that the crosshair is
-# confined to the mesh view."
+# Two `hover` rows. Each moves the real pointer and prints the cursor AppKit
+# chose. The second row is the assertion: a backend that set the cursor on the
+# whole window would pass the first row and fail this one.
 #
-# The second row is the assertion. A backend that set the cursor on the whole
-# window would pass the first row and fail this one, and until 2026-09-22
-# nothing in this tree could tell those apart.
+# **PASSES as of 2026-09-27, and the readings agree with photographs.** A
+# `screencapture -C` taken during each row shows a crosshair over the mesh view
+# and an arrow over the label above it -- the same two names these rows print.
 #
-# **THIS FILE DOES NOT PASS ON macOS. It is reproducible, the diagnosis is
-# narrow, and six candidates have been eliminated by measurement.**
+# It failed from 2026-09-22 to 2026-09-26, and ten candidates were eliminated
+# by measurement along the way (timing, which property is read, activation,
+# the tracking area's size and registration, hit-testing, occlusion,
+# `acceptsMouseMovedEvents`, the event source, and the `.cursor`/`.contextMenu`
+# nesting). None of them was the cause. There were two, and a photograph of
+# where the pointer actually was found both in one run:
 #
-# 2026-09-22, first version: three runs of the unchanged file gave three
-# different pairs. Flaky, so nothing could be believed.
+#   1. The coordinates. On 2026-09-23 the original (239, 284) was "corrected"
+#      from `NSContextMenuTarget(0, 346 340x240)`, a frame RELATIVE TO ITS
+#      SUPERVIEW -- x=0 was the tell; the mesh view sits at x 69 in the window.
+#      The corrected rows pointed at plain text labels below and above the mesh
+#      view, where an arrow is the right answer. There is also no text field in
+#      this window, so the old second row's expected I-beam could never appear.
+#      Measure from a `screencapture -C` of a harness run, not from a layout dump.
 #
-# 2026-09-23: an instrument was added -- `-cursor:` lines from
-# `NSCursorTarget`, gated on `DebugFeatures.isEnabled` exactly as the `-hittest:`
-# lines are. It answers the one question the reading cannot: did the pointer
-# reach the view at all? The answer is no, every time, and here is what that is
-# NOT:
+#   2. The reading. `hover` waited inside `onMain` with `RunLoop.run(until:)`,
+#      which does not hand queued events to `sendEvent` -- and `sendEvent` is
+#      what reaches the tracking area. `cursorUpdate` fired only after the row
+#      returned, so every reading was the previous row's cursor. The wait now
+#      dispatches events; see AppKitSynthesiser.swift.
 #
-#   1. Not the reading's timing. It now waits for the cursor to CHANGE rather
-#      than for a fixed pause, and labels a row that never changed.
-#   2. Not which property is read. `currentSystem` (the screen) and `current`
-#      (the app's sticky stack) agree.
-#   3. Not the coordinates. The action file's were stale and were re-measured
-#      from a harness run; `NSEvent.mouseLocation` now confirms the pointer
-#      lands at AppKit y 511 inside a target occupying 391..631.
-#   4. Not activation. The hover line reports `app active=true window key=true`.
-#   5. Not the tracking area's existence or size:
-#      `trackingArea rebuilt: bounds (0.0, 0.0, 340.0, 240.0)`.
-#   6. Not that it was registered before the window became key. It is now
-#      re-registered on `didBecomeKeyNotification`, and the log shows both a
-#      `key=false` and a `key=true` rebuild.
+# Coordinates are origin=frame, measured from a full-screen `screencapture -C`
+# on 2026-09-27: window at screen (700, 75), mesh view at screen x 769..1109,
+# y 239..479 -- frame x 69..409, y 164..404. (239, 284) is its centre; (239, 124)
+# is the `backend -> AppKitBackend` label above it.
 #
-#   7. Not the hit-test path. 30,168 `-hittest:` lines were recorded during one
-#      run and every one of them is at a fixed set of six points -- (121,630),
-#      (170,668), (101,610) and three more -- none of them the pointer's. AppKit
-#      is not hit-testing where the pointer is, so nothing downstream of that is
-#      the cause either.
-#   8. Not occlusion. Sampled from the window server DURING a run: the P72
-#      window is on screen at (700, 75, 520, 808), the hover point is inside it,
-#      and the only things in front of it are Window Server and the Dock.
-#   9. Not `NSWindow.acceptsMouseMovedEvents`. It is false by default and a
-#      tracking area does not switch it on, so it was a real candidate. Set to
-#      true on any window carrying a cursor target: no change.
-#
-# And not the event source either: `CGWarpMouseCursorPosition` generates no
-# event, so `hover` now posts a real `CGEvent` mouse-moved to `.cghidEventTap`.
-# That is necessary and was not sufficient -- still no `cursorUpdate`.
-#
-# So: every precondition holds and AppKit delivers no cursor update to the view.
-# The one candidate still standing is the nesting: P72 applies `.cursor` before
-# `.contextMenu`, so `NSCursorTarget` is a SUBVIEW of `NSContextMenuTarget`.
-# Swapping those two lines in P72 answers it in one run and has not been tried.
-#
-# **Three changes were made while hunting this and NONE of them moved the
-# symptom.** Each is correct by construction and each is kept on that basis
-# alone, which is a weaker reason than usual and is said here rather than
-# implied: `mouseExited` restoring the arrow (nothing else could), the tracking
-# area being re-registered on `didBecomeKeyNotification` (it was first
-# registered while the window was not key), and `acceptsMouseMovedEvents` being
-# set (a window that does not accept them is not told the pointer moved).
-#
-# A green run here still means nothing until the nesting is ruled in or out.
-
-# 7. 不是 hit-test 路徑。一次執行記錄了 30,168 行 `-hittest:`,而它們全部落在固定的六個點上
-#    ——(121,630)、(170,668)、(101,610) 等——沒有一個是指標所在之處。AppKit 根本沒有在指標的位置
-#    做 hit test,因此它下游的任何東西也都不是成因。
-# 8. 不是遮擋。在執行**當中**向 window server 取樣:P72 的視窗就在螢幕上、位於 (700, 75, 520, 808),
-#    hover 的點在它裡面,而排在它前面的只有 Window Server 與 Dock。
-# 9. 不是 `NSWindow.acceptsMouseMovedEvents`。它預設為 false,而 tracking area 不會替你打開它,
-#    所以這是一個真正的候選。對「帶有 cursor target」的視窗設為 true:沒有變化。
-#
-# 因此:每一個前提都成立,而 AppKit 就是不送 cursor update 給那個 view。**唯一還站著的候選是巢狀結構**:
-# P72 先套 `.cursor` 再套 `.contextMenu`,所以 `NSCursorTarget` 是 `NSContextMenuTarget` 的**子 view**。
-# 把 P72 那兩行對調,一次執行就能回答,而那還沒有試過。
-#
-# **追這件事的過程中做了三個改動,而沒有一個讓症狀改變。** 每一個都在構造上是對的,而每一個也**只**基於
-# 這個理由被保留——那是一個比平常更弱的理由,因此在此明說而不是暗示:`mouseExited` 還原箭頭
-# (沒有別的東西做得到)、tracking area 在 `didBecomeKeyNotification` 時重新註冊
-# (它第一次註冊時視窗還不是 key)、以及設定 `acceptsMouseMovedEvents`
-# (一個不接受它們的視窗不會被告知指標移動過)。
-#
-# 在那個巢狀結構被確認或排除之前,此處跑出綠的仍然不代表什麼。
-#
-# **本檔在 macOS 上不通過。它是可重現的、診斷已經很窄,而且已有六個候選被量測排除。**
-#
-# 2026-09-22 第一版:同一份未修改的檔案連跑三次,三個不同的結果。會飄,因此什麼都不能信。
-#
-# 2026-09-23:加了一個儀器——來自 `NSCursorTarget` 的 `-cursor:` 行,以 `DebugFeatures.isEnabled`
-# 為條件,與 `-hittest:` 行完全一致。它回答了讀數回答不了的那個問題:指標到底有沒有抵達那個 view?
-# 答案每一次都是「沒有」。而以下是它**不是**什麼:
-#
-#   1. 不是讀數的時序。它現在等的是游標**改變**、不是一段固定的暫停,而且會標記「始終沒改變」的列。
-#   2. 不是讀哪一個屬性。`currentSystem`(螢幕上的)與 `current`(app 那個黏著的堆疊)一致。
-#   3. 不是座標。那些座標原本是過期的,已改為量自 harness 執行;而 `NSEvent.mouseLocation` 現在確認
-#      指標落在 AppKit y 511,而目標佔據 391..631。
-#   4. 不是啟用狀態。hover 那一行回報 `app active=true window key=true`。
-#   5. 不是 tracking area 的存在或尺寸:`trackingArea rebuilt: bounds (0.0, 0.0, 340.0, 240.0)`。
-#   6. 不是「它在視窗成為 key 之前才註冊」。它現在會在 `didBecomeKeyNotification` 時重新註冊,
-#      而 log 同時顯示一次 `key=false` 與一次 `key=true` 的重建。
-#
-# 也不是事件來源:`CGWarpMouseCursorPosition` 不產生事件,因此 `hover` 現在會對 `.cghidEventTap`
-# 投遞一個真正的 `CGEvent` mouse-moved。那是**必要**條件,而它**不充分**——`cursorUpdate` 依然沒有觸發。
-#
-# 也就是說:每一個前提都成立,而 AppKit 就是不送 cursor update 給那個 view。留給接手的人兩個候選。
-# (a) 在此處 `NSCursorTarget` 是 `NSContextMenuTarget` 的**子 view**,因為 P72 先套 `.cursor`
-# 再套 `.contextMenu`;AppKit 可能把那個更新送給了外層的 view。把 P72 的 `.cursor` 移到最外層,
-# 一次執行就能回答。(b) `NSWindow.acceptsMouseMovedEvents` 預設為 false。
-#
-# 在其中之一被確認之前,此處跑出綠的仍然不代表什麼。
-#
-# **The coordinates were stale, and that was the second of the two causes.**
-# They came from a 520x808 capture of a 520x780 window; the window under the
-# harness has a 421x705 content view, and the mesh view sits at
-# NSContextMenuTarget(0, 346 340x240) in client coordinates. Frame y is client y
-# plus 28 (frame origin 75, client origin 103), so the old row at frame y 284 was
-# at client 256 -- ABOVE the mesh view -- and reported the arrow it actually
-# found. mistakes.md entry 22 is this exact shape and its corrective is the one
-# that applies: measure from a capture taken DURING a harness run, not from a
-# hand-launched window.
-#
-# Now: (170, 494) in frame coordinates is client (170, 466), the middle of the
-# mesh view; (170, 140) is client (170, 112), a text field, which claims the
-# I-beam for itself.
-#
-# **那些座標是過期的,而那是兩個成因中的第二個。** 它們量自一張 520x808 的擷圖(對應 520x780 的視窗);
-# 而 harness 底下那個視窗的 content view 是 421x705,mesh view 在 client 座標中位於
-# NSContextMenuTarget(0, 346 340x240)。frame y 等於 client y 加 28(frame 原點 75、client 原點 103),
-# 因此舊的那一列「frame y 284」其實在 client 256——在 mesh view **上方**——而它回報的正是它真正找到的
-# 那個箭頭。mistakes.md 第 22 條就是這個形狀,而適用的也正是它的矯正措施:座標要量自**harness 執行期間**
-# 拍下的擷圖,不是手動啟動的視窗。
-#
-# 現在:frame 座標 (170, 494) 即 client (170, 466),是 mesh view 的中央;(170, 140) 即
-# client (170, 112),是一個文字欄位——它會為自己認領 I 形游標。
-#
-# `hover` warps the PHYSICAL pointer (CGWarpMouseCursorPosition), which `move`
-# also does since 2026-09-20 and `click` deliberately still does not. Expect the
-# mouse to jump while this runs; it is put back by nothing, so a person watching
-# will see it sitting on the last row's coordinate.
+# `hover` moves the PHYSICAL pointer. Expect the mouse to jump while this runs;
+# nothing puts it back.
 #
 # P72 於 macOS:`.cursor(.crosshair)` 有生效嗎?而它有被**侷限**在那個 view 裡嗎?
 #
-# **這份檔案原本是兩列 `move` 加兩段八秒的停頓,等一個人拿 `screencapture -C` 去拍。** 現在它是兩列
-# `hover`:移動真實指標,然後印出 AppKit 所決定的游標。舊的形狀能在照片裡顯示一個十字;它說不出那個
-# 十字屬於 mesh view 還是屬於整個視窗,而 AppKitBackend+Cursors.swift 的註解也是這麼寫的:
-# 「**未驗證**:那個十字被侷限在 mesh view 之內。」
+# 兩列 `hover`。每一列移動真實指標,並印出 AppKit 所選的游標。第二列才是斷言:一個「把游標設在
+# 整個視窗上」的 backend,會通過第一列、而在這一列失敗。
 #
-# 第二列才是斷言。一個「把游標設在整個視窗上」的 backend,會通過第一列、而在這一列失敗;
-# 而在 2026-09-22 之前,這棵樹裡沒有任何東西分得出這兩者。
+# **2026-09-27 起通過,而且讀數與照片一致。** 每一列執行期間拍下的 `screencapture -C`,
+# 在 mesh view 上是十字、在它上方的標籤上是箭頭——正是這兩列印出的兩個名字。
 #
-# 座標為 origin=frame,量自 testapp/output/screenshots/P72-taller-20260919-213420.png
-# ——一張 520x808 的擷圖、對應 520x780 的視窗。點 (239, 284) 是 340x240 mesh view 的中央;
-# (239, 140) 是它上方那一行純文字。
+# 它從 2026-09-22 失敗到 2026-09-26,期間以量測排除了十個候選(時序、讀哪個屬性、啟用狀態、
+# tracking area 的尺寸與註冊時機、hit-test、遮擋、`acceptsMouseMovedEvents`、事件來源、
+# 以及 `.cursor`/`.contextMenu` 的巢狀順序)。沒有一個是成因。成因有兩個,而一張「指標實際在哪裡」
+# 的照片,在一次執行裡就把兩個都找到了:
 #
-# `hover` 會 warp **實體**指標(`CGWarpMouseCursorPosition`),`move` 自 2026-09-20 起也會,而 `click`
-# 刻意仍然不會。執行期間滑鼠會跳動;沒有任何東西會把它放回去,因此在旁邊看的人會看到它停在最後一列的座標上。
+#   1. 座標。2026-09-23 把原本的 (239, 284)「修正」掉,依據是 `NSContextMenuTarget(0, 346 340x240)`
+#      ——那是一個**相對於父 view** 的 frame;x=0 就是破綻,mesh view 在視窗裡位於 x 69。
+#      修正後的兩列指向的是 mesh view 下方與上方的純文字標籤,而在那裡箭頭才是對的答案。這個視窗裡
+#      也沒有文字欄位,所以舊的第二列所期待的 I 形游標根本不可能出現。
+#      座標要量自 harness 執行時的 `screencapture -C`,不是量自 layout 傾印。
+#
+#   2. 讀數。`hover` 在 `onMain` 裡以 `RunLoop.run(until:)` 等待,而那不會把佇列中的事件交給
+#      `sendEvent`——而把事件送到 tracking area 的正是 `sendEvent`。`cursorUpdate` 要等那一列回傳
+#      之後才觸發,因此每一個讀數都是上一列的游標。等待迴圈現在會分派事件;見 AppKitSynthesiser.swift。
+#
+# 座標為 origin=frame,量自 2026-09-27 一張全螢幕 `screencapture -C`:視窗位於螢幕 (700, 75),
+# mesh view 位於螢幕 x 769..1109、y 239..479——即 frame x 69..409、y 164..404。
+# (239, 284) 是它的中心;(239, 124) 是它上方那行 `backend -> AppKitBackend` 標籤。
+#
+# `hover` 會移動**實體**指標。執行期間滑鼠會跳動;沒有任何東西會把它放回去。
 sleep,,,,,,1500000,let P72 lay out,macos
-hover,170,494,frame,,,,"pointer onto the mesh view -- must report crosshair; reports arrow (unchanged) as of 2026-09-23, see the header",macos
+hover,239,284,frame,,,,"pointer onto the centre of the mesh view -- must report crosshair (VERIFIED 2026-09-27, photographed)",macos
 sleep,,,,,,500000,,macos
-hover,170,140,frame,,,,"pointer onto a text field above it -- must report text (the I-beam), which is what would prove the crosshair is the VIEW's and not the window's: something else claimed the cursor and got it. Reports arrow (unchanged) as of 2026-09-23",macos
+hover,239,124,frame,,,,"pointer onto the label above it -- must report arrow, which is what proves the crosshair is the VIEW's and not the window's (VERIFIED 2026-09-27, photographed)",macos
 sleep,,,,,,500000,,macos

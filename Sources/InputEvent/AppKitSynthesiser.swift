@@ -648,19 +648,15 @@
                         // either: it hands an NSEvent to the application's own queue, below the
                         // level where cursor rects and tracking areas are resolved.
                         //
-                        // **NECESSARY AND NOT SUFFICIENT, and saying which is the point.** The
-                        // reasoning above holds -- a warp cannot produce a cursor update because
-                        // it produces no event -- and changing to this did NOT make
-                        // `cursorUpdate` fire. It is kept because it is what a real pointer does
-                        // and the warp demonstrably could never work here; it is not kept as a
-                        // fix, and `actions/mac/P72-cursor.csv` carries the six things that have
-                        // been eliminated so far.
+                        // **Necessary, and on its own not sufficient.** When this change was made
+                        // `cursorUpdate` still did not fire, because the event it posts then sat
+                        // in the queue until the wait below had finished -- the wait did not
+                        // dispatch events. With both, the reading is right; see the comment on
+                        // `dispatchEvents` and `actions/mac/P72-cursor.csv`.
                         //
-                        // **是必要條件,而不是充分條件;把哪一個說清楚,正是重點。** 上面那段推理成立
-                        // ——warp 不產生事件,因此它產生不了 cursor update——而改成這個**並沒有**讓
-                        // `cursorUpdate` 觸發。保留它,是因為它才是真實指標的行為、而 warp 在此處
-                        // 顯然永遠不可能奏效;保留它**不是**因為它修好了什麼。目前已排除的六件事,
-                        // 記在 `actions/mac/P72-cursor.csv`。
+                        // **必要,但單獨不充分。** 做這個改動時 `cursorUpdate` 仍然沒有觸發,因為它投遞的
+                        // 事件接著就排在佇列裡,直到下方的等待結束——那個等待不會分派事件。兩者都做了,
+                        // 讀數才是對的;見 `dispatchEvents` 上的註解與 `actions/mac/P72-cursor.csv`。
                         //
                         // **經由 HID tap 的 CGEvent,不是 `CGWarpMouseCursorPosition`、也不是
                         // `NSApp.postEvent`;而這兩者都不是隨便挑的。**
@@ -690,11 +686,46 @@
                             move?.post(tap: .cghidEventTap)
                         }
 
+                        // **Dispatch the events, do not just spin the run loop -- and this was
+                        // the defect behind every earlier version of this verb.**
+                        //
+                        // This block runs inside `onMain`, so while it waits the main thread is
+                        // HERE and not in `NSApplication.run`. `RunLoop.run(until:)` services
+                        // timers and sources; it does not take the mouse-moved event off the
+                        // queue and hand it to `sendEvent`, and it is `sendEvent` that routes it
+                        // to the tracking area and so to `cursorUpdate`. The move sat queued
+                        // until this action returned and the next `sleep` row freed the main
+                        // thread, so every reading reported the PREVIOUS row's cursor. Measured
+                        // 2026-09-27: `cursorUpdate ... -> set` in the log, a crosshair in a
+                        // `screencapture -C` of the mesh view and an arrow over the label above
+                        // it -- and the readings (arrow, crosshair), one row late.
+                        //
+                        // **把事件分派出去,不要只轉 run loop——而這正是這個動作先前每一個版本背後的缺陷。**
+                        //
+                        // 本段跑在 `onMain` 裡,因此等待期間主執行緒在**這裡**、不在 `NSApplication.run`。
+                        // `RunLoop.run(until:)` 處理 timer 與 source;它不會把 mouse-moved 事件從佇列取出、
+                        // 交給 `sendEvent`,而正是 `sendEvent` 把它送到 tracking area、進而送到 `cursorUpdate`。
+                        // 那次移動一直排在佇列裡,直到這個動作回傳、下一列 `sleep` 把主執行緒放開為止,
+                        // 因此每一個讀數回報的都是**上一列**的游標。2026-09-27 實測:log 裡有
+                        // `cursorUpdate ... -> set`、`screencapture -C` 在 mesh view 上拍到十字、在它上方的
+                        // 標籤上拍到箭頭——而讀數是 (arrow, crosshair),晚了一列。
+                        @MainActor func dispatchEvents(for seconds: Double) {
+                            let until = Date().addingTimeInterval(seconds)
+                            while let event = NSApp.nextEvent(
+                                matching: .any,
+                                until: until,
+                                inMode: .default,
+                                dequeue: true
+                            ) {
+                                NSApp.sendEvent(event)
+                            }
+                        }
+
                         let deadline = Date().addingTimeInterval(2)
                         var elapsed = 0
                         var reading = before
                         while Date() < deadline {
-                            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+                            dispatchEvents(for: 0.02)
                             elapsed += 20
                             reading = Self.cursorReading()
                             if reading != before { break }
@@ -705,7 +736,7 @@
                         // 改變之後再多跑一段,好讓「先離開、再進入」的一次移動,回報的是它**結束**之處,
                         // 而不是它中途經過的那個箭頭。
                         if reading != before {
-                            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+                            dispatchEvents(for: 0.1)
                             reading = Self.cursorReading()
                         }
                         ActionFileReplay.report(

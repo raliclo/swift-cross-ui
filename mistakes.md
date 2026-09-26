@@ -2181,3 +2181,66 @@ it; I read the diff for the paragraph I had added and not for the line above it.
    而把 `ActionFile.swift` 裡的 `case` 行註解掉、使動作表為空時,它以 **1** 結束並拒絕檢查,
    而不是讓每一列都通過——第三項是在第一次量測回報 `RC=0` 之後才真正測到的,那個 0 是管線裡 `head`
    的結束狀態,不是那支腳本的。
+
+---
+
+## 28. Ten candidates eliminated, and nobody looked at where the pointer was
+
+**2026-09-22 to 2026-09-26, the macOS cursor in P72, solved 2026-09-27.**
+
+For five days `actions/mac/P72-cursor.csv` reported the arrow over the mesh view, and ten
+candidates were eliminated by measurement: timing, which property is read, activation, the
+tracking area's size, its registration, hit-testing, occlusion, `acceptsMouseMovedEvents`,
+the event source, and the modifier nesting. Each elimination was real. None was the cause.
+
+The first `screencapture -C` of the pointer DURING a row found both causes in one run:
+
+1. The pointer was not on the mesh view. On 2026-09-23 the correct coordinates (239, 284)
+   had been "corrected" from `NSContextMenuTarget(0, 346 340x240)` -- a frame relative to its
+   superview, x=0 being the tell -- and both rows then pointed at plain text labels, where an
+   arrow is the right answer. The window also has no text field, so the second row's expected
+   I-beam could never have appeared. The "confirmation" that the pointer landed inside
+   391..631 compared it against that same wrong frame.
+2. The reading was one row late, which the 2026-09-22 comment in `AppKitBackend+Cursors.swift`
+   had already described exactly. Every fix attempted then waited longer; the wait was the
+   defect. It ran inside `onMain` with `RunLoop.run(until:)`, which does not give queued
+   events to `sendEvent`.
+
+**The shape:** every check asked AppKit a question about its own state, and every answer was
+consistent with the pointer being where the file said. Nothing asked the one thing outside
+AppKit -- a picture of the screen -- and a coordinate check that uses the same geometry as the
+coordinates cannot catch the geometry being wrong.
+
+Side-effect of the same artefact: the forced `NSCursor.arrow.set()` in `mouseExited` was
+justified by a one-row-late reading. Removed and re-measured: AppKit restores the arrow itself.
+
+**Corrective.** When a pointer, touch or click "does nothing", photograph where it went before
+eliminating anything downstream -- `screencapture -C` on macOS, `screencap` on Android,
+`simctl io screenshot` on iOS -- and measure coordinates from that photograph, never from a
+layout dump whose origin is not the window's.
+
+**排除了十個候選,而沒有人看過指標在哪裡**
+
+2026-09-22 到 2026-09-26,P72 的 macOS 游標;2026-09-27 解決。
+
+五天來 `actions/mac/P72-cursor.csv` 在 mesh view 上回報箭頭,期間以量測排除了十個候選。每一次排除都是真的,
+沒有一個是成因。第一張「在某一列執行**期間**」拍下指標的 `screencapture -C`,一次就找到兩個成因:
+
+1. 指標根本不在 mesh view 上。2026-09-23 依據 `NSContextMenuTarget(0, 346 340x240)`——一個**相對於
+   父 view** 的 frame,x=0 就是破綻——把正確的 (239, 284)「修正」掉,之後兩列都指向純文字標籤,
+   而在那裡箭頭才是對的答案。這個視窗也沒有文字欄位,所以第二列期待的 I 形游標不可能出現。
+   而「指標落在 391..631 之內」的那個「確認」,比對的正是同一個錯的 frame。
+2. 讀數晚了一列——而 `AppKitBackend+Cursors.swift` 在 2026-09-22 的註解早已精確描述過。當時每一個
+   修法都是等更久,而等待本身就是缺陷:它跑在 `onMain` 裡,`RunLoop.run(until:)` 不會把佇列中的事件交給
+   `sendEvent`。
+
+**形狀:**每一個檢查都在問 AppKit 關於它自己狀態的問題,而每一個答案都與「指標在檔案所說之處」相容。
+沒有任何東西問過 AppKit 以外的那一樣東西——一張螢幕的照片;而一個與座標共用同一套幾何的座標檢查,
+抓不到「那套幾何是錯的」。
+
+同一個假象的副作用:`mouseExited` 裡強制的 `NSCursor.arrow.set()`,依據的是一個晚一列的讀數。
+拿掉之後重新量測:AppKit 會自己還原箭頭。
+
+**矯正措施。**當一次指標、觸控或點擊「什麼都沒發生」時,在排除任何下游候選之前,先拍下它到了哪裡——
+macOS 用 `screencapture -C`、Android 用 `screencap`、iOS 用 `simctl io screenshot`——並從那張照片量座標,
+絕不從一個原點不是視窗的 layout 傾印量。
