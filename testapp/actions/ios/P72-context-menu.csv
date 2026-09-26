@@ -1,6 +1,37 @@
 action,x,y,origin,button,key,micros,note,platform
 # P72 on iOS: does a long press raise the view's menu, and does its item run?
 #
+# **The assertion is visible, and it needs the scroll in front of it.** P72's
+# `CONTEXT MENU` line goes to stderr, which neither the simulator log nor the app
+# container keeps, and "Reset the camera" on a camera that never moved leaves the
+# readout at `dist 3.40` either way -- a tap that missed and a tap that ran look
+# the same. So the file first scrolls four notches, which takes `dist` below
+# 3.40, and the item must bring it back to exactly 3.40.
+#
+# Re-measured 2026-09-27 from a capture of the menu open, on the build where the
+# layout no longer jumps under the first touch (see actions/ios/P72-stop-and-
+# check.csv): mesh view at pt x 26..375, y 187..433, centre (200, 310); menu item
+# 'Reset the camera' at screen pt (118, 496), i.e. (118, 494) against the
+# window's y origin of 2. The 2026-09-20 figures below -- (117, 466) and a view
+# centre of (205, 400) -- were measured on a layout that has since stopped
+# existing, and the item row sat 28 points off.
+#
+# **The second tap is the one that did not land before 2026-09-27**, for the
+# same reason every second tap on iOS did not: the first touch moved the layout.
+#
+# **斷言看得見,而它需要前面那次捲動。** P72 的 `CONTEXT MENU` 那一行寫到 stderr,而模擬器 log 與 app
+# 容器都不保留它;對一個從沒動過的相機按「Reset the camera」,讀數不論如何都是 `dist 3.40`——一次沒打中的
+# 點擊與一次有執行的點擊,看起來一模一樣。因此本檔先捲動四格,讓 `dist` 小於 3.40,再要求那個項目把它
+# 恰好帶回 3.40。
+#
+# 2026-09-27 在「版面不再於第一次觸控時跳動」的建置上(見 actions/ios/P72-stop-and-check.csv)重新量自一張
+# 「選單已開啟」的擷圖:mesh view 位於 pt x 26..375、y 187..433,中心 (200, 310);選單項目
+# 「Reset the camera」位於螢幕 pt (118, 496),扣掉視窗 y 原點 2 即 (118, 494)。下方 2026-09-20 的數字
+# ——(117, 466) 與 view 中心 (205, 400)——量自一個之後已不存在的版面,項目那一列差了 28 點。
+#
+# **第二次點擊正是 2026-09-27 之前落空的那一次**,理由與 iOS 上每一次第二次點擊落空的理由相同:
+# 第一次觸控讓版面移動了。
+#
 # Measured 2026-09-20 from a capture of the menu open: 'Reset the camera' sits at
 # px (351, 1397) on a 1320x2868 capture, so pt (117, 466). The mesh view centre
 # is pt (205, 400). Device: iPhone 16 Pro Max simulator, window 440 x 956 pt.
@@ -35,7 +66,11 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 預期:CONTEXT MENU reset the camera: dist 3.40 high 1.30
 sleep,,,,,,2000000,let P72 lay out,ios
-longpress,205,400,client,,,700000,hold on the mesh view -- the context menu must open,ios
+move,200,310,client,,,,the centre of the mesh view,ios
+sleep,,,,,,300000,,ios
+scroll,0,4,,,,,"four notches: the camera comes closer, so dist drops below 3.40",ios
+sleep,,,,,,1000000,let the readout settle,ios
+longpress,200,310,client,,,700000,hold on the mesh view -- the context menu must open,ios
 sleep,,,,,,2500000,let the menu finish presenting; it animates for about half a second,ios
-click,117,466,client,left,,,"tap 'Reset the camera' -- CONTEXT MENU must appear in the log",ios
+click,118,494,client,left,,,"tap 'Reset the camera' -- dist must read exactly 3.40 again",ios
 sleep,,,,,,1500000,,ios

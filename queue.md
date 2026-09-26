@@ -1,5 +1,19 @@
 # queue
 
+## 2026-09-27 found while driving iOS
+
+- [ ] **UIKit: a long press on P72's mesh view raises the software keyboard.**
+  Seen in every capture of the open context menu on 2026-09-27 (and once as
+  the simulator's one-time "Speed up your typing" sheet). Suspected, NOT
+  verified: the view takes first-responder status for `.onKeyPress`, and UIKit
+  shows a keyboard for a first responder that accepts text input. SwiftUI's
+  `.onKeyPress` does not raise one. Check `UIKitBackend+KeyEvents.swift` for
+  `UIKeyInput` / `canBecomeFirstResponder` before changing anything.
+  **UIKit:P72 的 mesh view 被長按時會叫出螢幕鍵盤。** 2026-09-27 每一張「選單已開啟」的擷圖都看得到
+  (其中一次是模擬器一次性的「Speed up your typing」面板)。推測、**未查證**:那個 view 為了 `.onKeyPress`
+  取得 first responder,而 UIKit 會為一個接受文字輸入的 first responder 顯示鍵盤。SwiftUI 的 `.onKeyPress`
+  不會叫出鍵盤。動手之前先看 `UIKitBackend+KeyEvents.swift` 裡的 `UIKeyInput` / `canBecomeFirstResponder`。
+
 ## 2026-09-12 Windows / WSL handover
 
 - [ ] **#123 external verification follow-up (2026-09-17)**: WSLg AT-SPI
