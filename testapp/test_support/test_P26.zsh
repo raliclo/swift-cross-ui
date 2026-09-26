@@ -219,7 +219,15 @@ fi
 
 printf '\n'
 export TEST_APP="P26"
-export TEST_TITLE="P26 networking"
+# "P26: networking", colon included, because that is P26.swift's WindowGroup
+# title and the capture matches it as a substring. Until 2026-09-27 this read
+# "P26 networking", which is a substring of nothing on screen, so every macOS
+# capture of P26 fell back to the whole desktop and still counted as a capture.
+# Found by the first macOS sweep, which checks capture sizes.
+# 「P26: networking」,連冒號一起,因為那是 P26.swift 的 WindowGroup 標題,而擷圖以子字串比對它。
+# 2026-09-27 之前這裡寫的是「P26 networking」,它不是畫面上任何東西的子字串,因此 P26 在 macOS 上的
+# 每一張擷圖都退回成整個桌面,卻仍然被算成一張擷圖。由第一次 macOS sweep 發現——它會檢查擷圖尺寸。
+export TEST_TITLE="P26: networking"
 export TEST_LOG_NAME="p26-debug-events.log"
 export TEST_MARKER="RENDER COMPLETE"
 export TEST_SUMMARY_PATTERN="RENDER COMPLETE|cache dir|index rows"

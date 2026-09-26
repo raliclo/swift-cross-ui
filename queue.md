@@ -2,6 +2,25 @@
 
 ## 2026-09-27 found while driving iOS
 
+- [ ] **AppKit: an ENABLED `Toggle` with `.toggleStyle(.switch)` cannot be
+  switched on.** P21's readout stays `ToggleSwitch style -- false` after a click
+  on the enabled NSSwitch, and the switch is drawn off. Not the coordinates:
+  `-hittest: hit NSSwitch at (104,408)` for the synthesised click. Not the
+  synthesiser either: a system-level CGEvent click through the HID tap, which is
+  what a real mouse produces, hits the same NSSwitch and leaves it off too.
+  `updateSwitch` does set `onAction`, so the fault is further down -- how
+  `onAction` is wired for NSSwitch, whether `AppKitHitTestingContainer` keeps
+  the tracking loop from reaching the switch, or an update resetting the state.
+  The macOS sweep counts P21 as a pass (it replays and captures), which is
+  exactly the limit sweep_apple.zsh's header states; the matrix row is amber.
+  **AppKit:一個**啟用中**、套用 `.toggleStyle(.switch)` 的 `Toggle` 無法被打開。**點擊啟用的
+  NSSwitch 之後,P21 的讀數仍是 `ToggleSwitch style -- false`,開關也畫成關的。不是座標:合成的點擊
+  `-hittest: hit NSSwitch at (104,408)`。也不是合成器:經由 HID tap 的系統層級 CGEvent 點擊(也就是真實
+  滑鼠產生的東西)命中同一個 NSSwitch,它一樣沒有打開。`updateSwitch` 確實設了 `onAction`,所以問題在更下層
+  ——NSSwitch 的 `onAction` 怎麼接、`AppKitHitTestingContainer` 是否讓追蹤迴圈到不了開關、或某次更新把狀態
+  重設了。macOS sweep 把 P21 算成通過(它有重放、有擷圖),而那正是 sweep_apple.zsh 檔頭所說的限制;
+  矩陣那一列標為琥珀色。
+
 - [ ] **UIKit: a long press on P72's mesh view raises the software keyboard.**
   Seen in every capture of the open context menu on 2026-09-27 (and once as
   the simulator's one-time "Speed up your typing" sheet). Suspected, NOT
