@@ -1,6 +1,33 @@
 action,x,y,origin,button,key,micros,note,platform
 # P57 #117: the row-release callback ARRIVING, read as BUILT against HELD.
 #
+# **DRIVEN AND PASSING ON iOS as of 2026-09-27: `rows built / held by the
+# framework: 1734 / 8`**, against `1 / 1` at launch -- the list was built 1734
+# times over and never held more than eight rows. B is above List.swift's
+# non-conforming cap of 200 but below the conforming cap of 4000 that applies
+# here, so the difference is release and cannot be LRU eviction.
+#
+# **Until 2026-09-27 no drag in this file touched the list.** A `scroll` row with
+# no `move` before it starts at the window centre, (220, 476), which on P57 is
+# the paragraph of text above the list; the page is wider than the phone, so the
+# root scroll view scrolls only sideways and a vertical drag moves nothing.
+# Photographed every three seconds DURING a replay: without the move, 25 shots
+# and no change at all; with `move 200,810`, the list passes row 207 mid-run and
+# comes back. The 2026-09-16 note below blames the notch size -- that was a
+# second, real problem, but not this one -- and the one earlier "pass" here,
+# `500 / 6`, came from "Select last", which scrolls the list to row 499 by
+# itself.
+#
+# **2026-09-27 起在 iOS 上已驅動並通過:`rows built / held by the framework: 1734 / 8`**,
+# 啟動時是 `1 / 1`——那個清單被反覆建了 1734 次,而同一時間從未持有超過八列。B 高於 List.swift 給
+# 未 conform backend 的上限 200,但低於此處適用的 conform 上限 4000,因此那個差額是釋放,不可能是 LRU 逐出。
+#
+# **2026-09-27 之前,本檔沒有任何一次拖曳碰到那個清單。** 一列前面沒有 `move` 的 `scroll`,起點是視窗
+# 中心 (220, 476),在 P57 上那是清單上方的一段文字;這一頁比手機寬,所以根捲動視圖只能水平捲,垂直拖曳
+# 什麼也推不動。在重放**當下**每三秒拍一張:沒有 move 時,25 張、完全沒有變化;加上 `move 200,810` 後,
+# 清單在中途經過 row 207 再回來。下方 2026-09-16 的註記把它歸因於「一格是多少」——那是第二個、真實的問題,
+# 但不是這一個——而此處先前唯一一次「通過」`500 / 6`,來自「Select last」,它會自己把清單捲到第 499 列。
+#
 # **"row release reported: yes" is a claim about a TYPE.** Android has compiled
 # a conformance and taken the other path before -- which is why P57 asks the
 # backend rather than the file list -- and the same gap exists one level in: a
@@ -66,6 +93,7 @@ action,x,y,origin,button,key,micros,note,platform
 # Coordinates in points; capture 1320 x 2868 px, so px/3.
 # 座標以點計;擷取 1320 x 2868 px,故為 px/3。
 sleep,,,,,,1200000,let the list settle and report its launch count,ios
+move,200,810,client,,,,"onto the list -- without this every drag starts at the window centre, on text, and moves nothing",ios
 scroll,0,6,client,,,,,ios
 sleep,,,,,,200000,,ios
 scroll,0,6,client,,,,,ios
