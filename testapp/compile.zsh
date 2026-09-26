@@ -1620,14 +1620,72 @@ if [ "$target_platform" = "ios" ]; then
         exit 1
     fi
 
+    # **Where xcodebuild writes, stated rather than inherited -- and until
+    # 2026-09-27 it was inherited from Xcode's own preferences.**
+    #
+    # Swift Bundler passes `-derivedDataPath <package>/.build/<arch>-apple-
+    # iphonesimulator` and then copies the executable from `Build/Products`
+    # under it. This machine's Xcode is set to a CUSTOM build location
+    # (`IDEBuildLocationStyle = Custom`, products and intermediates in
+    # /Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build), and that preference wins
+    # over `-derivedDataPath`. So the fresh build went there, the bundler copied
+    # the last executable left under `Build/Products` -- 2026-09-25 06:40 -- and
+    # every iOS build after that succeeded, carried a new timestamp, and
+    # installed a two-day-old program. `SYMROOT` and `OBJROOT` on the command
+    # line outrank the preference, so the build lands where the bundler reads,
+    # whatever the IDE is set to. The preference itself is left alone; it is
+    # this machine's, and it is a reasonable one for Xcode projects.
+    #
+    # **xcodebuild 寫到哪裡,由這裡明說、不再繼承——而 2026-09-27 之前,它是從 Xcode 自己的偏好設定繼承來的。**
+    #
+    # Swift Bundler 傳入 `-derivedDataPath <package>/.build/<arch>-apple-iphonesimulator`,再從其下的
+    # `Build/Products` 複製執行檔。這台機器的 Xcode 設成**自訂**建置位置(`IDEBuildLocationStyle = Custom`,
+    # 產物與中間檔都在 /Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build),而那個偏好設定優先於
+    # `-derivedDataPath`。於是新的建置寫到了那裡,bundler 複製的是 `Build/Products` 底下留著的最後一份執行檔
+    # ——2026-09-25 06:40——而那之後的每一次 iOS 建置都成功、都帶著新的時間戳,裝上去的卻是兩天前的程式。
+    # 命令列上的 `SYMROOT` 與 `OBJROOT` 優先於那個偏好設定,因此不論 IDE 怎麼設,建置都會落在 bundler
+    # 讀取的地方。偏好設定本身不動;它是這台機器的,而且對 Xcode 專案而言是合理的設定。
+    ios_derived_data="$package_dir/.build/$(uname -m)-apple-iphonesimulator"
+
     for app_name in $app_names; do
         echo "==> Bundling $app_name for the iOS Simulator"
+        # Anything the bundle holds must be newer than this. `touch` rather than
+        # `date`, because the comparison below is `-nt` between two files.
+        # bundle 裡的東西必須比這個檔案新。用 `touch` 而不是 `date`,因為下面的比較是兩個檔案之間的 `-nt`。
+        bundle_started="$package_dir/.build/.bundle-started-$app_name"
+        mkdir -p "$package_dir/.build"
+        touch "$bundle_started"
         (
             cd "$package_dir"
             "$bundler_bin" bundle "$app_name" \
                 --platform iOSSimulator \
-                -c "$build_config"
+                -c "$build_config" \
+                --Xxcodebuild "SYMROOT=$ios_derived_data/Build/Products" \
+                --Xxcodebuild "OBJROOT=$ios_derived_data/Build/Intermediates.noindex"
         )
+
+        # **The executable the bundler copied must be one THIS build produced.**
+        # A copy gives the bundle a fresh timestamp whatever it copied, so the
+        # bundle's own date proves nothing; the source of the copy is what has
+        # to be new. This is the check that would have caught the custom build
+        # location on its first day instead of its third.
+        #
+        # **bundler 複製的執行檔,必須是**這一次**建置產生的。** 不論複製的是什麼,複製都會給 bundle 一個新的
+        # 時間戳,因此 bundle 自己的日期什麼也證明不了;必須是新的,是那份複製的**來源**。這正是那個檔頭
+        # 若在第一天就存在、就會在第一天(而不是第三天)抓到自訂建置位置的檢查。
+        built_exe="$ios_derived_data/Build/Products/${(C)build_config}-iphonesimulator/$app_name"
+        if [ ! -f "$built_exe" ] || [ ! "$built_exe" -nt "$bundle_started" ]; then
+            echo "error: the executable the bundler copied was not produced by this build:" >&2
+            echo "  $built_exe" >&2
+            if [ -f "$built_exe" ]; then
+                echo "  last written $(stat -f '%Sm' "$built_exe"), before this bundle step began." >&2
+            else
+                echo "  it does not exist." >&2
+            fi
+            echo "  xcodebuild wrote its products somewhere else. Check Xcode's build location:" >&2
+            echo "    defaults read com.apple.dt.Xcode | grep -i BuildLocation" >&2
+            exit 1
+        fi
 
         app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
         if [ -d "$app_bundle" ]; then

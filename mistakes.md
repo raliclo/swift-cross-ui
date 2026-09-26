@@ -2244,3 +2244,101 @@ layout dump whose origin is not the window's.
 **矯正措施。**當一次指標、觸控或點擊「什麼都沒發生」時,在排除任何下游候選之前,先拍下它到了哪裡——
 macOS 用 `screencapture -C`、Android 用 `screencap`、iOS 用 `simctl io screenshot`——並從那張照片量座標,
 絕不從一個原點不是視窗的 layout 傾印量。
+
+**Second occurrence, found the same day: iOS, 2026-09-19.** `actions/ios/P72-stop-and-check.csv`
+declared "only the first interaction lands, and that is NOT a coordinate problem", having checked
+the accessibility tree against a capture taken at LAUNCH. Nobody photographed the screen after
+the first tap. `RootScrollHost` moved the whole column 25 points left and 29 up on the first
+touch, so it was exactly a coordinate problem, made by the app. Twenty-two screenshots two
+seconds apart found it on 2026-09-27.
+
+**第二次發生,同一天發現:iOS,2026-09-19。** `actions/ios/P72-stop-and-check.csv` 宣稱「只有第一個互動
+會生效,而那**不是**座標問題」,依據是把無障礙樹與一張**啟動當下**的擷圖對過。沒有人在第一次點擊**之後**拍過
+螢幕。`RootScrollHost` 在第一次觸控時把整欄往左推 25 點、往上推 29 點,所以那**正是**座標問題,只是是 app
+造成的。2026-09-27 以每兩秒一張、共二十二張的擷圖找到它。
+
+---
+
+## 29. Every iOS build for two days installed the same old executable
+
+**2026-09-25 06:40 to 2026-09-27, found 2026-09-27.**
+
+`zsh testapp/compile.zsh -ios P72` compiled, linked, printed `** BUILD SUCCEEDED **`, bundled,
+installed, and launched. The app bundle, the copy in `testapp/output/`, and the installed
+`debugTarget` all carried the current minute as their timestamp. Every one of them was the
+executable from 2026-09-25 06:40.
+
+**Cause.** This machine's Xcode is set to a custom build location:
+
+```
+IDEBuildLocationStyle = Custom
+IDECustomBuildProductsPath = "/Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build"
+IDECustomBuildLocationType = Absolute
+```
+
+That preference outranks the `-derivedDataPath` Swift Bundler passes, so xcodebuild wrote the
+fresh executable to `Mac_Apps/Xcode_Build/Release-iphonesimulator/P72`. Swift Bundler then copied
+from `<derivedDataPath>/Build/Products/Release-iphonesimulator/P72`, which was where the last
+build before the preference had left a file: 2026-09-25 06:40. The copy stamped it with the
+current time. Nothing failed, because nothing was missing.
+
+**How it was found.** A diagnostic `NSLog` added to `RootScrollHost` never appeared. Instead of
+suspecting the log, the binary was searched: `grep -ac ROOTSCROLL-PROBE` gave 0 for the installed
+app and 1 for the object file, and comparing every `P72` on disk by time and content showed the
+two-day gap.
+
+**What it cost.** A fix to `RootScrollHost` was reported, on 2026-09-27, as "the layout is now
+stable" -- from a run of the OLD executable, which happened not to jump that time. The fix had
+not been run at all. No commit between 2026-09-25 06:40 and the discovery touched iOS, so nothing
+committed rests on a stale iOS run; the damage stayed in one session.
+
+**This is entry 2's family and it is worse.** Entry 2 was a stale object file that made the
+LINKER fail. Here nothing failed: the stale file was a complete, valid program, so every step
+downstream was satisfied. A copy step gives the copy a fresh timestamp, so the date of what you
+install says nothing about the date of what you built.
+
+**Corrective.** `testapp/compile.zsh` passes `SYMROOT` and `OBJROOT` to xcodebuild through
+`--Xxcodebuild`, which outrank the IDE preference, so products land where the bundler reads. The
+preference itself was left alone; it is this machine's. And the bundle step now refuses an
+executable older than the moment it started, naming the file, its time, and the `defaults read`
+that shows the build location. Proved both ways: with the fix, RC=0 and the installed binary
+contains the new code; with the two settings removed from a throwaway copy of the script, the
+real preference sends the build away again and the step exits 1 naming the 06:09 file.
+
+**Rule of thumb:** when a change seems to have no effect, grep the INSTALLED binary for a string
+the change added before reasoning about why the code does not work.
+
+**兩天來,每一次 iOS 建置裝上去的都是同一個舊執行檔**
+
+2026-09-25 06:40 到 2026-09-27;2026-09-27 發現。
+
+`zsh testapp/compile.zsh -ios P72` 編譯、連結、印出 `** BUILD SUCCEEDED **`、打包、安裝、啟動。app bundle、
+`testapp/output/` 裡的副本、裝上去的 `debugTarget`,時間戳全都是「剛剛」。而它們每一個都是 2026-09-25 06:40
+的那個執行檔。
+
+**成因。**這台機器的 Xcode 設定了自訂建置位置(`IDEBuildLocationStyle = Custom`,產物位於
+`/Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build`)。那個偏好設定優先於 Swift Bundler 傳入的
+`-derivedDataPath`,於是 xcodebuild 把新的執行檔寫到 `Mac_Apps/Xcode_Build/Release-iphonesimulator/P72`。
+Swift Bundler 接著從 `<derivedDataPath>/Build/Products/Release-iphonesimulator/P72` 複製——那裡留著的是
+偏好設定生效前最後一次建置的檔案:2026-09-25 06:40。複製給了它現在的時間。沒有任何東西失敗,因為沒有任何東西缺席。
+
+**怎麼發現的。**加進 `RootScrollHost` 的診斷 `NSLog` 一直沒有出現。沒有去懷疑 log,而是去搜二進位:
+`grep -ac ROOTSCROLL-PROBE` 對裝上去的 app 是 0、對目的檔是 1;再把磁碟上每一個 `P72` 依時間與內容比對,
+就看到了那兩天的落差。
+
+**代價。**2026-09-27 對 `RootScrollHost` 的一個修正被回報為「版面現在穩定了」——依據的是一次**舊**執行檔的
+執行,而它那一次碰巧沒有跳。那個修正根本還沒跑過。2026-09-25 06:40 到發現之間沒有任何碰到 iOS 的 commit,
+因此已提交的東西都不依賴過期的 iOS 執行;傷害留在同一個 session 裡。
+
+**這與第 2 條是同一族,而且更糟。**第 2 條是一個過期的目的檔讓**連結器**失敗。這裡什麼都沒失敗:那個過期的
+檔案是一個完整、有效的程式,所以下游每一步都被滿足了。複製會給副本一個新的時間戳,因此「裝上去的東西的日期」
+對「建出來的東西的日期」什麼也沒說。
+
+**矯正措施。**`testapp/compile.zsh` 以 `--Xxcodebuild` 把 `SYMROOT` 與 `OBJROOT` 傳給 xcodebuild,
+它們優先於 IDE 偏好設定,因此產物會落在 bundler 讀取之處。偏好設定本身不動;它是這台機器的。打包步驟現在也會
+拒絕「比它開始的那一刻還舊」的執行檔,並指名該檔案、它的時間,以及顯示建置位置的那條 `defaults read`。
+兩個方向都證明過:有修正時 RC=0,裝上去的二進位含有新的程式碼;在一份暫時的腳本副本裡拿掉那兩個設定,
+真實的偏好設定再次把建置送走,而該步驟以 1 結束並指名那個 06:09 的檔案。
+
+**經驗法則:**一個改動看起來沒有效果時,先在**裝上去的**二進位裡 grep 一段那個改動加進去的字串,
+再去推理程式碼為什麼不動。

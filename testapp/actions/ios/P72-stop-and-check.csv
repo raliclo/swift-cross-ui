@@ -1,27 +1,52 @@
 action,x,y,origin,button,key,micros,note,platform
-# !! THIS FILE DOES NOT COMPLETE ON iOS AS OF 2026-09-19, AND THAT IS NOT A
-# !! COORDINATE PROBLEM. Only the FIRST interaction after launch lands: whichever
-# !! click comes first fires, and every row after it does nothing. Checked three
-# !! ways -- the coordinates agree between `test_ios.zsh --dump-tree` and a
-# !! capture; the app keeps rendering afterwards, so it has not hung; and
-# !! reordering the rows moves which single action fires. The same sequence
-# !! completed on 2026-09-19 at 11:21 before scroll and snapshot were added, so
-# !! something between those two states is responsible and it has not been found.
-# !!
-# !! `actions/ios/P72-scroll.csv` carries the one assertion that is verified on
-# !! iOS. The macOS file `actions/mac/P72-stop-and-check.csv` carries all six and
-# !! passes. Do not read a green replay here as a pass: an XCUITest coordinate tap
-# !! on empty space is not an error.
-# !!
-# !! 本檔於 2026-09-19 在 iOS 上**跑不完**,而那不是座標問題。啟動後只有**第一個**互動會落地:
-# !! 排在最前面的那個點擊會觸發,其後每一列都毫無作用。以三種方式查證過——座標在
-# !! `test_ios.zsh --dump-tree` 與擷圖兩者之間一致;app 之後仍持續算繪,並未卡住;而調換列的順序
-# !! 會改變「哪一個動作觸發」。同一段序列在 2026-09-19 11:21、於捲動與快照加入之前是跑得完的,
-# !! 因此responsible 的東西落在那兩個狀態之間,而它尚未被找到。
-# !!
-# !! `actions/ios/P72-scroll.csv` 帶著在 iOS 上唯一已驗證的那個斷言。macOS 的
-# !! `actions/mac/P72-stop-and-check.csv` 帶著全部六項且通過。不要把此處「重放成功」讀成通過:
-# !! XCUITest 在空白處的一次座標點擊,不算錯誤。
+# **PASSES ON iOS as of 2026-09-27: all five taps land.** The final capture reads
+# `glTF: 2360 bytes`, `snap: 1020x 720 3 col`, `Auto spin: off`, the clock
+# `(stopped)`, and `frames at the stop: 682  at the check: 685` -- a delta of 3,
+# the figure P72 records for UIKit, against ~90 for a view that drives itself.
+#
+# From 2026-09-19 to 2026-09-26 only the FIRST interaction after launch landed,
+# and it WAS a coordinate problem, made by the app rather than by this file.
+# `RootScrollHost` shifted its content so the top-left of the content sat at
+# the scroll view's origin -- also when that top-left was POSITIVE, i.e. when
+# nothing overflowed. Its first layout pass runs before the content's children
+# are placed (box (0, 0, 428, 926), no shift); `UIScrollView` lays out again on
+# the first touch, when the box is (25, 29, 377, 773), and the whole column
+# jumped 25 points left and 29 up under that first tap. Every later row aimed at
+# the launch-time layout and missed. Reordering the rows moved which one fired
+# because whichever came first still hit the unshifted layout. The same jump is
+# what this file's older note blames on "the drag moved the column": a drag is a
+# touch. Fixed in RootScrollHost.swift: only a NEGATIVE extent is shifted.
+#
+# The coordinates below were re-measured from `test_ios.zsh --dump-tree` on the
+# fixed build (Auto spin {{25.7, 565.4}, {102.8, 22.6}}, Export .glb
+# {{25.7, 596.2}, {85.3, 22.6}}, ...), centres minus the window's y origin of 2.
+# The older measurements further down describe layouts that no longer exist.
+#
+# A second defect hid the first for a day: from 2026-09-25 06:40 every iOS build
+# installed THAT day's executable, because Xcode's custom build location sent
+# the fresh one elsewhere. compile.zsh now pins SYMROOT/OBJROOT and refuses a
+# bundle whose executable predates the build; see the note there.
+#
+# **2026-09-27 起在 iOS 上通過:五次點擊全部生效。** 最後的擷圖顯示 `glTF: 2360 bytes`、
+# `snap: 1020x 720 3 col`、`Auto spin: off`、時鐘 `(stopped)`,以及 `frames at the stop: 682
+# at the check: 685`——差 3,正是 P72 為 UIKit 記錄的數字;一個自己驅動自己的 view 會是約 90。
+#
+# 2026-09-19 到 2026-09-26 之間,啟動後只有**第一個**互動會生效,而那**就是**座標問題——只是座標是被 app
+# 弄錯的,不是被這份檔案。`RootScrollHost` 會平移內容,讓內容的左上角落在捲動視圖的原點——連那個左上角
+# 是**正數**、也就是根本沒有溢出的時候也照樣平移。它的第一次版面計算發生在內容的子 view 排好之前
+# (box (0, 0, 428, 926),不平移);`UIScrollView` 在第一次觸控時會再算一次,那時 box 是
+# (25, 29, 377, 773),於是整欄在第一次點擊的底下往左跳 25 點、往上跳 29 點。其後每一列瞄準的都是啟動時的
+# 版面,全部落空。調換列的順序會改變哪一列生效,是因為排在最前面的那一列仍然打在未平移的版面上。本檔較舊的
+# 註記把同一個跳動歸因於「那次拖曳讓這一欄移動了」:拖曳也是一次觸控。已在 RootScrollHost.swift 修正:
+# 只平移**負的**延伸。
+#
+# 下方座標是在修正後的建置上以 `test_ios.zsh --dump-tree` 重新量的(Auto spin {{25.7, 565.4},
+# {102.8, 22.6}}、Export .glb {{25.7, 596.2}, {85.3, 22.6}} 等),取中心再減去視窗的 y 原點 2。
+# 更下方較舊的量測,描述的是已經不存在的版面。
+#
+# 還有第二個缺陷把第一個藏了一天:自 2026-09-25 06:40 起,每一次 iOS 建置裝上去的都是**那一天**的執行檔,
+# 因為 Xcode 的自訂建置位置把新的執行檔送到了別處。compile.zsh 現在會釘住 SYMROOT/OBJROOT,並拒絕一個
+# 「執行檔比建置還舊」的 bundle;見該處的註記。
 #
 # P72: does the mesh view draw ONLY when it is asked to? (iOS half)
 #
@@ -188,13 +213,13 @@ action,x,y,origin,button,key,micros,note,platform
 # 使 view commit。接近 90(1.5 秒 x 60 Hz)的任何數字才是那個自由奔跑的情況——那正是 macOS 那份檔案在
 # 刻意移除 `enableSetNeedsDisplay` 之後量到的值。
 sleep,,,,,,2000000,let the clock run so the count is plainly moving first,ios
-click,67,625,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note",ios
+click,68,606,client,left,,,"Export .glb FIRST -- while the cube is still turned; see the note (VERIFIED 2026-09-27: glTF 2360 bytes)",ios
 sleep,,,,,,1500000,"a full 1.5s: 300ms was not enough and the next tap was swallowed",ios
-click,159,625,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note",ios
+click,159,606,client,left,,,"Snapshot -- reads the mesh view's own pixels back; see the note (VERIFIED 2026-09-27: 1020x720, 3 colours)",ios
 sleep,,,,,,300000,,ios
-click,75,597,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going",ios
+click,77,575,client,left,,,"Auto spin -- writes AUTO SPIN off; the orbit must keep going (VERIFIED 2026-09-27)",ios
 sleep,,,,,,1000000,long enough for a capture to show the camera still moving,ios
-click,192,597,client,left,,,"Stop the clock -- writes STOPPED at frame N",ios
+click,195,575,client,left,,,"Stop the clock -- writes STOPPED at frame N (VERIFIED 2026-09-27: 682)",ios
 sleep,,,,,,1500000,"1.5s of nothing: 90 frames if the view drives itself",ios
-click,308,597,client,left,,,"Check again -- writes CHECK at frame M and the delta",ios
+click,310,575,client,left,,,"Check again -- writes CHECK at frame M and the delta (VERIFIED 2026-09-27: 685, delta 3)",ios
 sleep,,,,,,500000,let the readout settle,ios

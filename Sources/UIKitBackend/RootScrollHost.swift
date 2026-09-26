@@ -182,14 +182,35 @@ final class RootScrollHost: UIScrollView {
 
         switch mode {
             case .actualView:
-                // Shifted so the leftmost and topmost content sits at the
+                // Shifted so content overflowing to the LEFT or TOP lands at the
                 // scroll view's origin. Without this the overflow to the left
                 // is unreachable however large contentSize is.
-                // 平移，使最左與最上的內容落在捲動視圖的原點。少了這一步，無論 contentSize 多大，
-                // 左側的溢出都無法觸及。
-                content.frame.origin = CGPoint(x: -box.minX, y: -box.minY)
-                contentSize = box.size
-                isScrollEnabled = box.width > bounds.width || box.height > bounds.height
+                //
+                // **Only a negative extent is shifted, and until 2026-09-27 a
+                // positive one was too -- that was iOS's "only the first
+                // interaction lands".** The first layout pass runs before the
+                // content's children are placed, so the box starts at (0, 0)
+                // and nothing moves. `UIScrollView` lays out again on the first
+                // touch; by then P72's box starts at (26, 30), and shifting by
+                // that moved the whole column 26 points left and 30 up, under
+                // the first tap. Every later row aimed at the launch-time layout
+                // and missed. Content already on screen needs no shift to be
+                // reachable, so it no longer gets one, and the two passes agree.
+                //
+                // 平移，使溢出到**左側或上方**的內容落在捲動視圖的原點。少了這一步，無論 contentSize
+                // 多大，左側的溢出都無法觸及。
+                //
+                // **只平移負的延伸;2026-09-27 之前正的也會被平移——那正是 iOS「只有第一次互動生效」。**
+                // 第一次版面計算發生在內容的子 view 排好之前,因此 box 從 (0, 0) 開始,什麼都不動。
+                // `UIScrollView` 會在第一次觸控時再算一次版面;那時 P72 的 box 從 (26, 30) 開始,
+                // 按它平移就把整欄往左推 26 點、往上推 30 點——就在第一次點擊的底下。其後每一列瞄準的都是
+                // 啟動時的版面,全部落空。已經在畫面內的內容不需要平移也構得到,所以不再平移它,
+                // 兩次版面計算的結果也就一致了。
+                let shift = CGPoint(x: max(-box.minX, 0), y: max(-box.minY, 0))
+                content.frame.origin = shift
+                contentSize = CGSize(width: box.maxX + shift.x, height: box.maxY + shift.y)
+                isScrollEnabled = contentSize.width > bounds.width
+                    || contentSize.height > bounds.height
             case .rwdView:
                 let scale = box.width > bounds.width && bounds.width > 0
                     ? bounds.width / box.width
