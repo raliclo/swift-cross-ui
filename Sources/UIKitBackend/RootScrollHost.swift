@@ -178,6 +178,21 @@ final class RootScrollHost: UIScrollView {
         // 量測前先清除 transform，否則量到的會包含上一次的縮放，內容會在每一次版面計算中又縮小一些。
         content.transform = .identity
         content.frame.origin = .zero
+        // **Lay the content out FIRST, or the box is measured from frames that are not
+        // there yet.** A layout pass runs top-down, so this method runs before the
+        // content resolves the constraints SwiftCrossUI set on its children; without
+        // this line the first pass measured an empty box -- (0, 0, 0, 0) for P0,
+        // (0, 0, 428, 926) for P72 -- and the real one was only seen when something
+        // else happened to request another pass, usually the first touch. That was the
+        // jump under the first tap, and it is also why P30's left overflow stayed out
+        // of reach: the shift that brings it into view was computed from a box that
+        // did not contain it.
+        // **先讓內容排版,否則 box 量的是還不存在的 frame。**一輪排版由上往下,因此本方法在內容解出
+        // SwiftCrossUI 對其子 view 設下的約束**之前**就執行;少了這一行,第一輪量到的是空的 box——P0 是
+        // (0, 0, 0, 0)、P72 是 (0, 0, 428, 926)——真正的 box 要等別的東西碰巧再要求一輪排版才看得到,
+        // 通常是第一次觸控。那就是第一次點擊底下的跳動,也是 P30 左側溢出一直構不到的原因:把它帶進畫面的
+        // 平移,是從一個不包含它的 box 算出來的。
+        content.layoutIfNeeded()
         let box = contentBounds(of: content)
 
         switch mode {
