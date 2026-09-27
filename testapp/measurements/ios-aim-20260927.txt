@@ -1,0 +1,135 @@
+# iOS action files: where each positioned row lands, 2026-09-27
+#
+# Measured against accessibility trees dumped (test_ios.zsh --dump-tree) from builds
+# carrying RootScrollHost's layoutIfNeeded fix (150446ef). Format per row:
+#   file:line verb (x,y) now=<element the point lands on> | note='<row note>' -> <element whose label matches the note> (centre, window coords)
+# 'now=nothing' means only containers are under the point. A '->' is a candidate, not a
+# decision: toggles need the Switch element rather than its label, rows whose target is not
+# in the launch tree (overlays, rows, menus, later screens) need a capture, and content wider
+# than 440 pt needs a horizontal scroll before any x above 440.
+
+P0-appstorage.csv:11 click (169,416) now=nothing | note='Increment @AppStorage -- launch count must ri' -> Button 'Increment @AppStorage' (193,472)
+P0-appstorage.csv:13 click (169,416) now=nothing | note='Increment again -- launch count must rise by ' 
+P0-appstorage.csv:15 click (296,416) now=nothing | note='Reset -- launch count must return to 0 (VERIF' -> Button 'Reset' (322,472)
+P1-open-file-dialog.csv:14 click (196,336) now=nothing | note='Open file dialog -- the Open line must stop s' -> Button 'Open file dialog' (220,391)
+P10-hit-testing.csv:34 click (198,443) now=StaticText 'Under a transparent over' | note='Click me too -- Covered clicks must rise by o' -> Button 'Click me too' (202,498)
+P10-hit-testing.csv:36 click (350,464) now=nothing | note='the orange allowsHitTesting(false) block -- H' 
+P10-hit-testing.csv:38 click (366,563) now=nothing | note='Transparent overlay present -- the switch mus' -> StaticText 'Transparent overlay pres' (210,598)
+P11-collide-the-sliders.csv:107 click (141,442) now=Slider '' | note='Collide them -- both sliders must end up draw' -> Button 'Collide them' (328,486)
+P12-set-opposite-toggle-states.csv:42 click (128,634) now=StaticText 'Toggle' | note='Set opposite -- the Forced on toggle must be ' -> Button 'Set opposite' (168,663)
+P13-narrow-the-split-view.csv:47 click (299,526) now=Button 'Narrower (400)' | note='Narrower (400) -- the label must become (340)' -> Button 'Narrower (400)' (305,516)
+P14-smoke.csv:2 click (195,400) now=nothing | note='tap the center of the P14 view' 
+P15-DARK-the-override-survives-a-tap.csv:80 click (196,463) now=TextField '' | note='A button -- its action is empty, so the windo' 
+P15-colour-scheme.csv:15 click (183,317) now=StaticText 'Colour scheme (#386)' | note='Dark -- Requested must become dark and Resolv' -> Button 'Dark' (207,377)
+P15-colour-scheme.csv:17 click (137,317) now=StaticText 'Colour scheme (#386)' | note='Light -- Requested must become light' -> Button 'Light' (160,377)
+P15-colour-scheme.csv:19 click (81,317) now=StaticText 'Colour scheme (#386)' | note='System -- Requested must go back to system' -> Button 'System' (102,377)
+P15-colour-scheme.csv:21 click (296,439) now=nothing | note='Toggle -- the switch must flip (VERIFIED)' -> StaticText 'Toggle' (106,498)
+P15-colour-scheme.csv:23 click (74,588) now=StaticText 'Content area: 300 x 24' | note='Use tall content -- the button must become Us' -> Button 'Use tall content' (86,629)
+P16-switch-to-three-columns.csv:42 click (288,172) now=nothing | note='Switch to 3 column -- a middle pane must appe' -> Button 'Switch to 3 column' (334,186)
+P17-DOE-both-directions-clip.csv:99 move (380,650) now=nothing | note='park the finger near the right edge so a 160 ' 
+P17-picker-and-sizes.csv:50 click (208,263) now=nothing | note='Longest -- Selected must become L (VERIFIED 2' -> Button 'Longest' (433,420)
+P17-picker-and-sizes.csv:52 click (66,263) now=nothing | note='Shortest -- Selected must return to S (VERIFI' -> Button 'Shortest' (287,420)
+P17-picker-and-sizes.csv:54 click (165,511) now=nothing | note='Taller -- the teal block must grow and Shorte' -> Button 'Taller' (385,673)
+P17-picker-and-sizes.csv:58 click (221,789) now=nothing | note='More height -- the stack line must read a hei' -> Button 'More height' (444,947)
+P18-open-a-file.csv:12 click (59,371) now=StaticText 'Each button opens one di' | note='Open a file -- the line below must stop readi' -> Button 'Open a file' (68,432)
+P19-open-the-menu.csv:12 click (77,394) now=StaticText 'One menu, one level, eve' | note='Open the menu -- a menu must appear and "last' -> Button 'Open the menu' (86,442) [2 same]
+P2-picker-and-controls.csv:16 click (348,125) now=StaticText 'P2: control updates and ' | note='Use expanded Picker options -- "options: 2" m' -> StaticText 'Use expanded Picker opti' (266,179)
+P2-picker-and-controls.csv:18 click (350,167) now=nothing | note='Reset -- Selected must return to Vanilla and ' -> Button 'Reset' (489,219)
+P2-picker-and-controls.csv:20 click (348,547) now=TextView '' | note='Enable button row -- the row below must becom' -> StaticText 'Enable button row' (223,616)
+P2-picker-and-controls.csv:22 click (208,588) now=nothing | note='Always enabled -- this one must act whatever ' -> Button 'Always enabled' (345,662)
+P20-open-the-nested-menu.csv:11 click (77,412) now=StaticText 'Three levels deep, with ' | note='Open the menu -- level 1 must appear' -> Button 'Open the menu' (88,449) [2 same]
+P21-disabled-button-refuses-input.csv:40 click (124,316) now=StaticText 'Button — clicks: 0' | note='the Disabled button -- clicks must stay 0' 
+P21-disabled-button-refuses-input.csv:42 click (49,316) now=nothing | note='the Enabled button -- clicks must become exac' 
+P22-wrapping-width.csv:11 click (53,735) now=nothing | note='Narrower -- the heading must read a width bel' -> Button 'Narrower' (61,747)
+P22-wrapping-width.csv:13 click (120,735) now=nothing | note='Wider -- the width must return to 300pt' -> Button 'Wider' (130,747)
+P23-add-table-rows.csv:37 click (154,247) now=Button 'More rows' | note='More rows -- the counter must read 12 and row' -> Button 'More rows' (157,245)
+P23-column-sorting.csv:44 click (380,528) now=StaticText 'Number' | note='the Number header -- column 3; this must beco' 
+P23-column-sorting.csv:46 click (380,528) now=StaticText 'Number' | note='the SAME header again: descending, not a rest' 
+P23-row-selection.csv:41 click (100,632) now=nothing | note='row 5 -- a tap the app never asked for; index' 
+P23-row-selection.csv:43 click (182,317) now=Button 'Clear selection' | note='Clear selection -- the band must go' -> Button 'Clear selection' (182,315)
+P23-row-selection.csv:45 click (66,317) now=Button 'Select row 2' | note='Select row 2 -- the framework writing into th' -> Button 'Select row 2' (67,315)
+P23-sort-from-code.csv:24 click (80,388) now=Button 'Sort by Number' | note='Sort by Number -- the framework writing into ' -> Button 'Sort by Number' (81,384)
+P23-sort-two-columns.csv:26 click (380,528) now=StaticText 'Number' | note='the Number header -- column 3 ascending' 
+P23-sort-two-columns.csv:28 click (50,528) now=StaticText 'ID' | note='the ID header -- column 0, and it must start ' 
+P23-tap-a-row.csv:39 click (66,317) now=Button 'Select row 2' | note='Select row 2 first -- put the band somewhere ' 
+P23-tap-a-row.csv:41 click (100,632) now=nothing | note='row 5 -- the band must move here and the read' 
+P24-push-pop-and-counter.csv:14 click (88,228) now=Button 'Increment counter' | note='Increment counter -- counter must go 0 -> 1 (' -> Button 'Increment counter' (90,226)
+P24-push-pop-and-counter.csv:16 click (156,579) now=Button 'Push level 1' | note='Record a push -- pushes recorded must go 0 ->' -> Button 'Record a push' (180,619)
+P24-push-pop-and-counter.csv:18 click (146,537) now=StaticText 'Level 0' | note='Push level 1 -- the stack must show Level 1' -> Button 'Push level 1' (169,588)
+P24-push-pop-and-counter.csv:20 click (209,228) now=Button 'Pop to root' | note='Pop to root -- the stack must return to Level' -> Button 'Pop to root' (214,226)
+P25-reach-the-refusing-drop-area.csv:54 move (380,500) now=nothing | note='into the sliver of the refusing area that is ' 
+P26-open-the-swiftcrossui-tab.csv:41 click (213,84) now=Button 'SwiftCrossUI' | note='the SwiftCrossUI tab -- the summary table mus' 
+P27-scroll-past-the-webview.csv:52 move (60,300) now=StaticText 'Gradients' | note='the left margin, clear of the WebView and of ' 
+P27-scroll-to-the-angular-gradients.csv:45 move (60,300) now=StaticText 'Gradients' | note='the left margin, clear of the WebView and of ' 
+P28-hit-testing.csv:9 click (179,481) now=nothing | note='tap the blue overlay -- Clicks received must ' 
+P28-hit-testing.csv:11 click (179,481) now=nothing | note='tap it again -- Clicks received must go 1 -> ' 
+P29-enable-the-editor.csv:12 click (296,648) now=TextView 'Type here if this is not' | note='Enable it -- the button must become Disable i' -> Button 'Enable it' (416,671)
+P3-detail-selection.csv:12 click (126,439) now=Table '' | note='Detail B -- the detail pane must change away ' -> StaticText 'Detail B' (317,162)
+P3-detail-selection.csv:14 click (126,473) now=Table '' | note='Detail C -- the detail pane must change again' -> StaticText 'Detail C' (318,197)
+P3-detail-selection.csv:16 click (353,405) now=Table '' | note='Small -- the image must take its smaller size' -> Button 'Small' (613,407)
+P30-frame-and-effects.csv:35 click (60,200) now=nothing | note='the frame button -- "frame width: 120" must b' 
+P31-button-toggle-and-slider.csv:12 click (40,465) now=nothing | note='Button 0 -- the label must become Button 1' -> Button 'Button 0' (59,522)
+P31-button-toggle-and-slider.csv:14 click (130,464) now=nothing | note='the switch -- it must flip on' 
+P32-labelled-controls.csv:11 click (78,335) now=StaticText 'Inspect with Accerciser ' | note='Labelled button -- it must respond rather tha' -> Button 'Labelled button' (86,370)
+P32-labelled-controls.csv:13 click (350,456) now=nothing | note='Toggle label -- the switch must flip on' -> StaticText 'Toggle label' (72,472)
+P33-stepper-and-details.csv:29 click (134,448) now=nothing | note='plus -- value must go 0 -> 1' 
+P33-stepper-and-details.csv:31 click (134,448) now=nothing | note='plus again -- value must go 1 -> 2' 
+P33-stepper-and-details.csv:33 click (36,448) now=nothing | note='minus -- value must come back to 1 (VERIFIED)' 
+P33-stepper-and-details.csv:35 click (64,528) now=StaticText 'DisclosureGroup approxim' | note='Hide details -- the paragraph must go and the' -> Button 'Hide details' (65,564)
+P34-first-click-alone.csv:32 click (42,295) now=StaticText 'Present but NOT lazy: La' | note='Show +100 alone -- the header must read showi' 
+P34-more-rows.csv:50 click (42,295) now=StaticText 'Present but NOT lazy: La' | note='Show +100 -- the header must go from "showing' -> Button 'Show +100' (70,373)
+P34-more-rows.csv:52 click (173,295) now=StaticText 'Present but NOT lazy: La' | note='Show all capped rows -- the header must reach' -> Button 'Show all capped rows' (207,373)
+P35-increment-and-toggle.csv:9 click (57,423) now=StaticText 'State baseline: count 0,' | note='Increment -- the baseline line must go count ' -> Button 'Increment' (58,473)
+P35-increment-and-toggle.csv:11 click (350,422) now=nothing | note='Toggle state -- the same line must go toggle ' -> StaticText 'Toggle state' (154,473)
+P36-picker-and-button.csv:13 click (89,341) now=StaticText 'V' | note='String label button -- it must respond' -> Button 'String label button' (91,410)
+P36-picker-and-button.csv:15 click (150,424) now=nothing | note='next -- Int spacing must change away from 8' -> StaticText 'next' (154,583)
+P36-picker-and-button.csv:17 click (49,267) now=StaticText 'Labelled' | note='the Vanilla picker -- a selection list must a' 
+P37-the-app-switcher-covers-it.csv:61 move (196,846) now=nothing | note='onto the home indicator at the bottom edge of' 
+P38-follow-a-link-in-the-web-view.csv:38 click (238,520) now=WebView '' | note='the Learn more link inside the page -- the UR' 
+P39-scroll-to-the-third-column.csv:75 move (380,500) now=nothing | note='the right margin, level with the saturation r' 
+P4-callback-rows.csv:11 click (55,401) now=Button 'Load next rows' | note='Run 0 -- "Selected row: none" must become row' -> Button 'Run 0' (62,476)
+P4-callback-rows.csv:13 click (54,450) now=nothing | note='Run 1 -- selected row must become 1' -> Button 'Run 1' (61,513)
+P4-callback-rows.csv:15 click (81,341) now=TextField '' | note='Load next rows -- the visible range must exte' -> Button 'Load next rows' (94,404)
+P40-scroll-to-the-cut-off-tiles.csv:84 move (380,620) now=StaticText 'TOP' | note='the right margin, level with the rotate 30 to' 
+P41-scroll-to-the-time-component.csv:53 move (60,700) now=nothing | note='the left margin, clear of every date picker' 
+P43-gradient-clipped-to-the-shape.csv:51 move (380,760) now=nothing | note='the right side, below the shapes, so a leftwa' 
+P44-clip-the-third-cell.csv:41 click (104,207) now=nothing | note='the "Clip the third cell" button -- cell 3 mu' 
+P45-press-the-computed-binding-toggle.csv:61 click (65,666) now=nothing | note='seed the sibling selection -- the line must r' 
+P45-press-the-computed-binding-toggle.csv:63 click (183,666) now=nothing | note='seed the sibling field -- the line must read ' 
+P45-press-the-computed-binding-toggle.csv:65 click (353,416) now=nothing | note='the Binding(get:set:) toggle that keeps the i' 
+P46-increment-the-state-object.csv:52 click (77,649) now=StaticText 'model.count = 0' | note='the "Increment model" button -- model.count m' 
+P5-second-window-and-alerts.csv:28 click (295,456) now=StaticText 'Verifies #675 (Fixed): a' | note='Open another window -- the status line must s' -> Button 'Open another window' (221,494)
+P5-second-window-and-alerts.csv:30 click (295,548) now=Button 'Show Alert C (stacks on ' | note='Show A+B+C at once -- three alerts must be pr' -> Button 'Show A+B+C at once' (221,587)
+P50-arrow-edge-bottom.csv:42 click (85,845) now=StaticText '因此「點了卻沒有面板」就是失敗。每塊面板都必須落' | note='cycle 1: none -> top (the row sits at 845 whi' 
+P50-arrow-edge-bottom.csv:44 click (85,824) now=StaticText '成功＝出現一塊寫著 PANEL ALPHA 或 ' | note='cycle 2: top -> bottom. 824, not 845: the sho' 
+P50-arrow-edge-bottom.csv:46 click (140,791) now=StaticText 'parameter' | note='open PANEL ALPHA with arrowEdge bottom' 
+P50-arrow-edge-top.csv:23 click (85,845) now=StaticText '因此「點了卻沒有面板」就是失敗。每塊面板都必須落' | note='Cycle arrow edge: none -> top; the readout be' 
+P50-arrow-edge-top.csv:25 click (140,791) now=StaticText 'parameter' | note='open PANEL ALPHA -- it is the one carrying th' 
+P50-beta-panel.csv:39 click (172,911) now=Button 'Open the first panel (to' | note='open PANEL BETA from the SECOND anchor -- it ' 
+P53-press-toolbar-items.csv:21 click (28,82) now=StaticText 'actualView' | note='the + item (leading) -- add must become 1' 
+P53-press-toolbar-items.csv:23 click (28,82) now=StaticText 'actualView' | note='the + item again -- add must become 2' 
+P53-press-toolbar-items.csv:25 click (365,82) now=Button 'Info' | note='the trash item (trailing) -- trash must becom' 
+P54-pull-to-refresh.csv:20 move (196,200) now=StaticText 'last refresh added rows ' | note='start the pull near the top of the content --' 
+P54-pull-to-refresh.csv:23 move (196,200) now=StaticText 'last refresh added rows ' | note='' 
+P55-press-the-styled-button.csv:33 click (45,210) now=StaticText 'P55: ButtonStyle isPress' | note='press -- clicks must become 1 and pressed dra' 
+P55-press-the-styled-button.csv:35 click (45,210) now=StaticText 'P55: ButtonStyle isPress' | note='press again -- clicks must become 2' 
+P56-jump-to-row-59.csv:27 click (140,166) now=StaticText 'backend -> UIKitBackend' | note='Jump to 59 -- the last rows must be on screen' -> Button 'Jump to 59' (165,225)
+P57-walk-the-list.csv:96 move (200,810) now=Cell '' | note='onto the list -- without this every drag star' 
+P57-walk-the-list.csv:210 click (151,245) now=Button 'Select last' | note='Select last -- a state change so the readout ' -> Button 'Select last' (152,242)
+P60-open-settings.csv:36 click (55,218) now=nothing | note='open settings -- expect a sheet over this win' -> Button 'open settings' (70,476)
+P65-pinch-and-rotate.csv:115 click (400,800) now=nothing | note='one harmless tap on empty background -- see t' 
+P65-pinch-and-rotate.csv:117 move (133,363) now=nothing | note='aim at the magnify panel -- see the note on a' 
+P65-pinch-and-rotate.csv:121 move (133,476) now=nothing | note='aim at the rotate panel' 
+P7-select-a-list-row.csv:65 click (76,448) now=StaticText 'Apple' | note='the Cherry row of the plain List -- Cherry mu' 
+P72-context-menu.csv:69 move (200,310) now=nothing | note='the centre of the mesh view' 
+P72-context-menu.csv:73 longpress (200,310) now=nothing | note='hold on the mesh view -- the context menu mus' 
+P72-context-menu.csv:75 click (118,494) now=nothing | note='tap 'Reset the camera' -- dist must read exac' 
+P72-scroll.csv:49 move (196,350) now=nothing | note='the centre of the mesh view -- the drag must ' 
+P72-stop-and-check.csv:216 click (68,606) now=Button 'Export .glb' | note='Export .glb FIRST -- while the cube is still ' 
+P72-stop-and-check.csv:218 click (159,606) now=Button 'Snapshot' | note='Snapshot -- reads the mesh view's own pixels ' -> Button 'Snapshot' (159,606)
+P72-stop-and-check.csv:220 click (77,575) now=Button 'Auto spin: on' | note='Auto spin -- writes AUTO SPIN off; the orbit ' 
+P72-stop-and-check.csv:222 click (195,575) now=Button 'Stop the clock' | note='Stop the clock -- writes STOPPED at frame N (' -> Button 'Stop the clock' (195,575)
+P72-stop-and-check.csv:224 click (310,575) now=Button 'Check again' | note='Check again -- writes CHECK at frame M and th' -> Button 'Check again' (310,575)
+P8-nested-scroll-views.csv:49 move (196,500) now=nothing | note='into the outer vertical list, below the red b' 
+P9-field-and-text-width.csv:40 click (103,479) now=nothing | note='Wider -- the given width must rise from 200 t' -> Button 'Wider' (117,670)
+P9-field-and-text-width.csv:42 click (175,479) now=nothing | note='Zero width -- the band must collapse and no t' -> Button 'Zero width' (191,670)

@@ -2,6 +2,27 @@
 
 ## 2026-09-27 found while driving iOS
 
+- [ ] **Re-measure the iOS action files: most of them no longer aim at their
+  controls.** The iOS sweep replayed and captured all 73 files, and that meant
+  nothing, because a tap on empty space is not an error. Checked against the
+  accessibility tree on the corrected layout (RootScrollHost 150446ef), only 15
+  files have every positioned row landing on its named target; the rest land on
+  nothing, or on the wrong thing -- a heading, a paragraph, the neighbouring
+  button. They were measured on the old layout, which jumped under the first
+  touch by an amount that depended on timing. The row-by-row table, with a
+  candidate for each, is `testapp/measurements/ios-aim-20260927.txt`. Three
+  kinds of fix: (1) a named control -- take the tree centre, minus the window's
+  y origin of 2; (2) a toggle -- the Switch element, not its label; (3) content
+  wider than 440 pt (P2, P3, P17, ...) -- a horizontal scroll first, because the
+  corrected layout starts at the left edge and scrolls to reach the rest, where
+  the old one centred the content and cut both sides. Check every file's
+  assertion on its capture before counting it; results.csv2 carries
+  `replay=misaimed` for the 49 apps still waiting, so coverage.md says so.
+  **重新量 iOS 動作檔:它們大多已不再瞄準自己的控制項。**iOS sweep 重放並擷圖了全部 73 份檔案,而那
+  什麼也沒證明,因為點在空白處不算錯誤。以修正後版面(RootScrollHost 150446ef)的無障礙樹核對,只有 15 份
+  檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
+  `testapp/measurements/ios-aim-20260927.txt`。
+
 - [ ] **Core crash, ViewGraphNode.swift:13 (`_widget!`): a publish that arrives
   while the view graph is still being built.** Reported 2026-09-27 by the
   SoftPCB-mac session, measured THERE on AppKitBackend at 1113a310; **not yet
