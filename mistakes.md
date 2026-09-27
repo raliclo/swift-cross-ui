@@ -2342,3 +2342,55 @@ Swift Bundler 接著從 `<derivedDataPath>/Build/Products/Release-iphonesimulato
 
 **經驗法則:**一個改動看起來沒有效果時,先在**裝上去的**二進位裡 grep 一段那個改動加進去的字串,
 再去推理程式碼為什麼不動。
+
+---
+
+## 30. A defect read off a final state whose starting state was never checked
+
+**2026-09-27, P21's ToggleSwitch on macOS, withdrawn the same day.**
+
+The macOS sweep's capture of P21 read `ToggleSwitch style -- false` after the action file
+clicked the enabled switch. I read that as "the switch cannot be turned on", checked that the
+click hit the NSSwitch, sent a system-level HID click to rule out the synthesiser, saw `false`
+again, and wrote it up as an AppKitBackend defect: in queue.md, in two amber matrix cells, in a
+results.csv2 note, in commit a2cdb65d's message, and to the user.
+
+P21 declares `@State var switchState = true`. The switch starts ON. A probe in `updateSwitch`
+and `setState` showed `setState true` at launch and, on the click, `onAction state=0`,
+`onChange(false)`, `setState false`. The enabled switch flipped true -> false; the disabled one
+never fired. `false` is the correct readout.
+
+**Why the "confirmation" confirmed nothing.** The HID click was a better way of pressing the
+switch, and it was read the same way: by the final value. Every check I ran asked "what is it
+now?" and none asked "what was it before?", so all of them agreed with a conclusion that one
+line of P21.swift contradicts. The action file's own note -- `ToggleSwitch enabled` with no
+expected value -- did not say what the switch should become, and I supplied an expectation
+without looking it up.
+
+**Corrective.** Before calling a state wrong, establish the state it started from: read the
+app's initial value, or capture the screen before the action as well as after. A final reading
+alone cannot tell "did not change" from "changed from the other side". And an action file row
+that toggles something should say what it must become, so the expectation is written by the
+person who knew the starting value, not guessed by whoever reads the capture.
+
+**一個只看最終狀態、卻從未確認起始狀態就讀出來的缺陷**
+
+2026-09-27,macOS 上 P21 的 ToggleSwitch,同一天撤回。
+
+macOS sweep 拍到的 P21 在動作檔點了啟用的開關之後顯示 `ToggleSwitch style -- false`。我把它讀成「這個開關
+打不開」,確認了點擊命中 NSSwitch、送了一次系統層級的 HID 點擊來排除合成器、又看到 `false`,於是把它寫成
+AppKitBackend 的缺陷:寫進 queue.md、兩格琥珀色的矩陣、一則 results.csv2 備註、commit a2cdb65d 的訊息,
+也回報給了使用者。
+
+P21 宣告的是 `@State var switchState = true`。開關一開始就是**開**的。在 `updateSwitch` 與 `setState` 加上
+探針後顯示:啟動時 `setState true`,點擊時 `onAction state=0`、`onChange(false)`、`setState false`。啟用的
+開關從 true 翻到 false;停用的從未觸發。`false` 正是正確的讀數。
+
+**為什麼那次「確認」什麼也沒確認。**HID 點擊是一種更好的「按下開關」的方式,但讀它的方式一樣:看最終值。
+我做的每一個檢查都在問「它現在是什麼?」,沒有一個問「它之前是什麼?」,所以它們全都同意了一個 P21.swift
+一行程式就推翻的結論。動作檔自己的註記——`ToggleSwitch enabled`,沒有預期值——並沒有說開關應該變成什麼,
+而我沒有去查,就自己補上了一個預期。
+
+**矯正措施。**在說一個狀態是錯的之前,先確立它的起始狀態:讀 app 的初始值,或在動作之前也拍一張擷圖。
+單憑最終讀數,分不出「沒有改變」與「從另一邊改變過來」。而一列會切換某個東西的動作,應該寫明它必須變成什麼,
+讓預期由「知道起始值的人」寫下,而不是由讀擷圖的人去猜。

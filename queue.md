@@ -60,8 +60,21 @@
   多一次主佇列跳轉 10 次崩 1 次——機率降低,同一個競態。`ef26b83e` 的六個靜態形狀重現不了它,因為沒有一個在
   init 期間發布;留著當反例。下一步:先寫一支獨立的 Pn 重現它,重現之後才修。
 
-- [ ] **AppKit: an ENABLED `Toggle` with `.toggleStyle(.switch)` cannot be
-  switched on.** P21's readout stays `ToggleSwitch style -- false` after a click
+- [x] **WITHDRAWN 2026-09-27 -- there is no defect; the entry below was wrong.**
+  P21 declares `@State var switchState = true`, so the switch STARTS on. A probe
+  in `updateSwitch`/`setState` showed the whole sequence: `setState true` at
+  launch, then on the click `onAction state=0` (on -> off), `onChange(false)`,
+  `setState false`. The enabled switch flipped true -> false, the disabled one
+  never fired an action, and `false` is exactly the readout a correct backend
+  produces. The "defect" was read from the final state without checking the
+  initial one; the HID-click "confirmation" looked at the same final state and
+  could not have said otherwise. mistakes.md entry 30.
+  **2026-09-27 撤回——沒有缺陷;下面這條是錯的。**P21 宣告 `@State var switchState = true`,所以開關
+  一開始就是開的。探針顯示完整順序:啟動時 `setState true`,點擊時 `onAction state=0`(開 -> 關)、
+  `onChange(false)`、`setState false`。啟用的開關從 true 翻到 false,停用的從未觸發 action,而 `false`
+  正是正確的 backend 會產生的讀數。那個「缺陷」是只看最終狀態、沒有確認初始狀態就讀出來的。
+  ~~**AppKit: an ENABLED `Toggle` with `.toggleStyle(.switch)` cannot be
+  switched on.**~~ P21's readout stays `ToggleSwitch style -- false` after a click
   on the enabled NSSwitch, and the switch is drawn off. Not the coordinates:
   `-hittest: hit NSSwitch at (104,408)` for the synthesised click. Not the
   synthesiser either: a system-level CGEvent click through the HID tap, which is
