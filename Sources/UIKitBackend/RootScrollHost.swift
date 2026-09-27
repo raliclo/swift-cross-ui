@@ -72,6 +72,27 @@ final class RootScrollHost: UIScrollView {
 
     private(set) var mode: Mode = .actualView
     private weak var content: UIView?
+    /// Whether a person -- or an action file -- has dragged the content yet.
+    ///
+    /// Until then every layout puts the scroll position at the content's top-left;
+    /// after it, the position is theirs and layout leaves it alone. "Once, on the
+    /// first real box" was tried first and is wrong: the first box this host sees
+    /// can be measured from a hierarchy that is still being built -- P17's was
+    /// (-228, -61, 8, 39) -- and an offset taken from it stayed for the life of the
+    /// window. Following the box until the first drag cannot pin a wrong one.
+    ///
+    /// 使用者(或動作檔)是否已經拖曳過內容。在那之前,每一次排版都把捲動位置放到內容的左上角;在那之後,
+    /// 位置屬於他們,排版不再動它。「只在第一次拿到真正的 box 時做一次」先試過,是錯的:這個 host 看到的第一個
+    /// box 可能是從一個還在建構中的階層量出來的——P17 的是 (-228, -61, 8, 39)——而依它設下的捲動位置會一直
+    /// 留到視窗關閉。在第一次拖曳之前一路跟著 box 走,就不可能釘住一個錯的值。
+    private var userHasScrolled = false
+    private var observesPan = false
+
+    @objc private func panStateChanged(_ gesture: UIPanGestureRecognizer) {
+        if gesture.state == .began {
+            userHasScrolled = true
+        }
+    }
 
     /// The full bounding box, negative coordinates included.
     ///
@@ -120,6 +141,23 @@ final class RootScrollHost: UIScrollView {
         // 因此,一個什麼都不畫的 view 只貢獻它的子節點。一個會畫東西的 view 則額外貢獻它自己的框,
         // 而那正是「當一個標籤、圖片或填色形狀溢出時仍然構得到」的保證。
         var box = draws(view) ? CGRect(origin: .zero, size: view.bounds.size) : .null
+        // **Stop at a control, a scroll view, or anything that clips: their subviews
+        // cannot widen what is visible, and a control's are private and move.**
+        // Measured 2026-09-28 on P15: tapping its UISwitch animates the switch's own
+        // internal views, and while they moved the box reached x -172. The scroll
+        // position followed it, the column moved 172 points under the next tap, and
+        // every button after a switch stopped responding -- the point landed outside
+        // the content view's bounds, where hit testing does not look. A control is
+        // counted by its own frame; an inner scroll view by its frame, not its
+        // content, which it clips anyway.
+        // **遇到控制項、捲動視圖、或任何會裁切的 view 就停:它們的子 view 不可能讓可見範圍變大,而控制項的
+        // 子 view 是私有的、而且會移動。**2026-09-28 於 P15 實測:點它的 UISwitch 會讓開關內部的 view 做動畫,
+        // 在它們移動的期間 box 延伸到 x -172。捲動位置跟著它走,整欄在下一次點擊底下移動了 172 點,於是每一次
+        // 點過開關之後按鈕都不再回應——點落在內容 view 的 bounds 之外,而命中測試不會去那裡找。控制項以它自己的
+        // frame 計算;內嵌的捲動視圖以它的 frame 計算,而不是它的內容——那些內容本來就被它裁切掉了。
+        if view is UIControl || view is UIScrollView || view.clipsToBounds {
+            return CGRect(origin: .zero, size: view.bounds.size)
+        }
         for subview in view.subviews where !subview.isHidden {
             let sub = contentBounds(of: subview).offsetBy(
                 dx: subview.frame.minX,
@@ -163,21 +201,76 @@ final class RootScrollHost: UIScrollView {
         addSubview(view)
     }
 
+    /// Asks the `RootScrollHost` above `view`, if there is one, to lay out again.
+    ///
+    /// **Called whenever the backend moves or resizes a widget, and until
+    /// 2026-09-28 nothing did.** SwiftCrossUI places widgets after the window is
+    /// up, through `setPosition` and `setSize`, and those change constraints deep
+    /// inside the content -- which marks the containers that own them, never this
+    /// host. So the host measured its content once, early, from a hierarchy that
+    /// was not built yet, and kept that answer: probed on P17, the only pass saw a
+    /// box of (-228, -61, 8, 39), set the offset from it, disabled scrolling, and
+    /// never ran again -- the content sat 228 points to the right and nothing below
+    /// y 919 could be reached. The same missing signal is why the first touch used
+    /// to "fix" the layout by moving it: a touch was the only thing that happened
+    /// to request another pass. `setNeedsLayout` coalesces within a run-loop turn,
+    /// so calling it per widget costs one layout, not one per call.
+    ///
+    /// 請 `view` 上方的 `RootScrollHost`(若有的話)重新排版。
+    ///
+    /// **backend 每次移動或改變 widget 尺寸時都會呼叫;2026-09-28 之前沒有任何東西這麼做。**SwiftCrossUI 在
+    /// 視窗出現之後才透過 `setPosition` 與 `setSize` 放置 widget,而那會改變內容深處的約束——被標記的是擁有
+    /// 那些約束的容器,從來不是這個 host。於是 host 只在很早的時候、從一個還沒建好的階層量了一次內容,然後
+    /// 就一直用那個答案:在 P17 上探測,唯一的一輪看到的 box 是 (-228, -61, 8, 39),依它設了捲動位置、停用了
+    /// 捲動,之後再也沒跑過——內容被擺在右邊 228 點處,y 919 以下的東西都構不到。以前「第一次觸控會移動版面」
+    /// 也是缺了同一個訊號:觸控是唯一碰巧要求再排一次版的東西。`setNeedsLayout` 會在同一輪 run loop 內合併,
+    /// 因此每個 widget 呼叫一次,成本是一次排版,不是每次呼叫一次。
+    static func invalidate(containing view: UIView) {
+        var candidate: UIView? = view.superview
+        while let current = candidate {
+            if let host = current as? RootScrollHost {
+                // Not while the host is laying out: the content's layout during that
+                // pass is the host's own doing, and answering it with another pass is
+                // how P2 and P53 hung in rwdView on 2026-09-28 -- each pass set the
+                // content's transform, which laid the content out, which asked for
+                // another pass, and XCUITest waited 600 s for an idle app.
+                // host 排版期間不理會:那一輪裡內容的排版是 host 自己造成的,再回應一輪,正是 P2 與 P53
+                // 在 2026-09-28 於 rwdView 卡住的方式——每一輪都設定內容的 transform,那讓內容重新排版,
+                // 內容又要求再一輪,而 XCUITest 等了 600 秒都等不到 app 閒下來。
+                if !host.isLayingOut {
+                    host.setNeedsLayout()
+                }
+                return
+            }
+            candidate = current.superview
+        }
+    }
+
+    fileprivate(set) var isLayingOut = false
+
     func setMode(_ newMode: Mode) {
         mode = newMode
+        userHasScrolled = false
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
         guard let content else { return }
+        isLayingOut = true
+        defer { isLayingOut = false }
 
-        // Measured with the transform cleared, or the measurement includes the
-        // previous scale and the content shrinks a little further on every
-        // layout pass.
-        // 量測前先清除 transform，否則量到的會包含上一次的縮放，內容會在每一次版面計算中又縮小一些。
-        content.transform = .identity
-        content.frame.origin = .zero
+        // **The content's transform and origin are no longer reset on every pass.**
+        // `contentBounds` reads the content's own `bounds` and its subviews' frames in
+        // the content's coordinates, and neither is affected by a transform on the
+        // content itself, so the measurement does not need them cleared. Clearing and
+        // re-applying them each pass made every pass lay the content out again, which
+        // -- once the content's layout started asking the host for a pass -- never
+        // stopped. Each mode below assigns them only when they differ.
+        // **不再於每一輪重設內容的 transform 與 origin。**`contentBounds` 讀的是內容自己的 `bounds` 以及
+        // 子 view 在內容座標系中的 frame,兩者都不受內容本身 transform 的影響,所以量測不需要把它們清掉。每一輪
+        // 清掉再套回去,會讓每一輪都重新排版內容——而一旦內容的排版開始要求 host 再排一輪,就永遠停不下來。
+        // 下面各模式只在值不同時才指派。
         // **Lay the content out FIRST, or the box is measured from frames that are not
         // there yet.** A layout pass runs top-down, so this method runs before the
         // content resolves the constraints SwiftCrossUI set on its children; without
@@ -221,22 +314,88 @@ final class RootScrollHost: UIScrollView {
                 // 按它平移就把整欄往左推 26 點、往上推 30 點——就在第一次點擊的底下。其後每一列瞄準的都是
                 // 啟動時的版面,全部落空。已經在畫面內的內容不需要平移也構得到,所以不再平移它,
                 // 兩次版面計算的結果也就一致了。
-                let shift = CGPoint(x: max(-box.minX, 0), y: max(-box.minY, 0))
-                content.frame.origin = shift
-                contentSize = CGSize(width: box.maxX + shift.x, height: box.maxY + shift.y)
-                isScrollEnabled = contentSize.width > bounds.width
-                    || contentSize.height > bounds.height
+                //
+                // **The overflow goes into `contentInset`, and the content itself never
+                // moves -- until later on 2026-09-27 it was shifted by the overflow.**
+                // A wide app's content is centred in a container wider than the phone,
+                // so it overflows on both sides; when a readout gets longer the
+                // container widens and the LEFT overflow grows with it. Shifting the
+                // content by that overflow moved the whole column sideways every time
+                // a label changed length -- measured on P10: "Click me" at x 20.6 at
+                // launch and about 145 after three taps, with the readouts pushed off
+                // the right edge. An inset makes the overflow reachable without
+                // moving anything: the content stays where it is on screen, and only
+                // the range the scroll view can reach changes.
+                //
+                // The scroll position is put at the top-left of the content once, on
+                // the first real box, so launch looks exactly as it did.
+                //
+                // **溢出放進 `contentInset`,內容本身永遠不動——2026-09-27 稍晚之前,它是依溢出量被平移的。**
+                // 寬版 app 的內容置中在一個比手機寬的容器裡,因此兩側都溢出;某個讀數變長時,容器跟著變寬,
+                // **左側**的溢出也跟著變多。依溢出量平移內容,就會在每一次某個標籤長度改變時把整欄往旁邊推
+                // ——於 P10 實測:「Click me」啟動時在 x 20.6,點三下之後約在 145,讀數被推出右邊界。用 inset
+                // 就能構到溢出的部分而不移動任何東西:內容在畫面上留在原地,只有捲動視圖構得到的範圍改變。
+                //
+                // 捲動位置只在第一次拿到真正的 box 時放到內容的左上角一次,所以啟動時的樣子與原本完全相同。
+                let overflow = UIEdgeInsets(
+                    top: max(-box.minY, 0),
+                    left: max(-box.minX, 0),
+                    bottom: 0,
+                    right: 0
+                )
+                if content.transform != .identity {
+                    content.transform = .identity
+                }
+                if content.frame.origin != .zero {
+                    content.frame.origin = .zero
+                }
+                if contentInset != overflow {
+                    contentInset = overflow
+                }
+                let size = CGSize(width: max(box.maxX, 0), height: max(box.maxY, 0))
+                if contentSize != size {
+                    contentSize = size
+                }
+                if !observesPan {
+                    panGestureRecognizer.addTarget(self, action: #selector(panStateChanged(_:)))
+                    observesPan = true
+                }
+                let topLeft = CGPoint(x: -overflow.left, y: -overflow.top)
+                if !userHasScrolled, contentOffset != topLeft {
+                    contentOffset = topLeft
+                }
+                // A refresh control needs the pull even when nothing overflows:
+                // `.refreshable` puts it on this host, and a host that fits its
+                // content would otherwise switch the gesture off underneath it
+                // (P54, `refreshes: 0`).
+                // refresh 控制項即使沒有溢出也需要下拉：`.refreshable` 把它裝在這個 host 上，
+                // 而內容塞得下的 host 否則會把手勢從它底下關掉（P54，`refreshes: 0`）。
+                isScrollEnabled = refreshControl != nil
+                    || overflow.left + contentSize.width > bounds.width
+                    || overflow.top + contentSize.height > bounds.height
             case .rwdView:
                 let scale = box.width > bounds.width && bounds.width > 0
                     ? bounds.width / box.width
                     : 1
-                content.transform = CGAffineTransform(scaleX: scale, y: scale)
+                let transform = CGAffineTransform(scaleX: scale, y: scale)
+                if content.transform != transform {
+                    content.transform = transform
+                }
                 // After the transform, not before: scaling is about the centre,
                 // so the frame moves and the origin has to be set again.
                 // 在 transform 之後而非之前：縮放是繞中心進行的，frame 會移動，因此原點必須重新設定。
-                content.frame.origin = CGPoint(x: -box.minX * scale, y: -box.minY * scale)
-                contentSize = CGSize(width: bounds.width, height: box.height * scale)
-                isScrollEnabled = box.height * scale > bounds.height
+                let origin = CGPoint(x: -box.minX * scale, y: -box.minY * scale)
+                if content.frame.origin != origin {
+                    content.frame.origin = origin
+                }
+                if contentInset != .zero {
+                    contentInset = .zero
+                }
+                let size = CGSize(width: bounds.width, height: box.height * scale)
+                if contentSize != size {
+                    contentSize = size
+                }
+                isScrollEnabled = refreshControl != nil || box.height * scale > bounds.height
         }
     }
 }

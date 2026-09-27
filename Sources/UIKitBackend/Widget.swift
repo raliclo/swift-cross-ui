@@ -271,6 +271,27 @@ class BaseViewWidget: UIView, WidgetProtocolHelpers {
         updateTopConstraint()
     }
 
+    /// Tells the root scroll host that a widget's frame has actually been applied.
+    ///
+    /// **This is the moment the host needs, and `setSize`/`setPosition` are not.**
+    /// Those only change constraint constants; the frames follow in a later layout
+    /// pass. A static app (P39, 2026-09-28) sets every size and position before its
+    /// content is even inside the host, so those calls find no host to tell, and the
+    /// host's single pass saw a box of (-116, 63, 0, 0), switched scrolling off, and
+    /// never ran again -- P39's third column could not be reached at all. Here the
+    /// frames are real. `setNeedsLayout` coalesces, and the host's own pass lays the
+    /// content out first, so this costs at most one more pass, not a loop.
+    ///
+    /// 告訴根捲動視圖:某個 widget 的 frame 已經真正套用了。**host 需要的是這個時刻,不是 `setSize`/
+    /// `setPosition`。**那些只改變約束的常數;frame 要到之後的一輪排版才跟上。一支靜態的 app(P39,
+    /// 2026-09-28)在內容放進 host 之前就設好了所有尺寸與位置,因此那些呼叫找不到 host 可通知,而 host 唯一的
+    /// 一輪看到的 box 是 (-116, 63, 0, 0),關掉了捲動,之後再也沒跑過——P39 的第三欄完全構不到。這裡的 frame
+    /// 是真的。`setNeedsLayout` 會合併,而 host 自己那一輪會先讓內容排版,所以成本最多是多一輪,不是迴圈。
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        RootScrollHost.invalidate(containing: self)
+    }
+
     func add(childWidget: some WidgetProtocol) {
         if childWidget.parentWidget === self { return }
         childWidget.removeFromParentWidget()

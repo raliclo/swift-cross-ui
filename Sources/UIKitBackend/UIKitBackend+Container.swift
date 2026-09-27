@@ -174,6 +174,9 @@ extension UIKitBackend {
         let child = container.childWidgets[index]
         child.x = position.x
         child.y = position.y
+        // The root scroll host measures its content; see `RootScrollHost.invalidate`.
+        // 根捲動視圖會量測它的內容;見 `RootScrollHost.invalidate`。
+        RootScrollHost.invalidate(containing: child.view)
     }
 
     public func remove(childAt index: Int, from container: Widget) {
@@ -208,6 +211,8 @@ extension UIKitBackend {
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
         widget.width = size.x
         widget.height = size.y
+        // See `RootScrollHost.invalidate`. 見 `RootScrollHost.invalidate`。
+        RootScrollHost.invalidate(containing: widget.view)
     }
 
     public func createScrollContainer(for child: Widget) -> Widget {
