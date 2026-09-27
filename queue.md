@@ -23,10 +23,18 @@
   檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
   `testapp/measurements/ios-aim-20260927.txt`。
 
-- [ ] **Core crash, ViewGraphNode.swift:13 (`_widget!`): a publish that arrives
-  while the view graph is still being built.** Reported 2026-09-27 by the
-  SoftPCB-mac session, measured THERE on AppKitBackend at 1113a310; **not yet
-  reproduced in this tree.** This is the "empty ForEach" crash of 2026-09-08,
+- [x] **Core crash, ViewGraphNode.swift:13 (`_widget!`): a publish that arrives
+  while the view graph is still being built.** **FIXED 2026-09-27 and verified on
+  macOS and iOS; Android not built (toolchain, see the matrix note), GTK/WinUI
+  are the Windows side's.** Reproduced here with testapp/P73 -- `.onAppear`
+  publishes, then spins the run loop as `waitUntilExit` does: macOS 10/10
+  crashed, 0/10 after the fix, control 0/10 both ways; iOS crashed before and
+  shows the published value after. The nested run loop in SoftPCB-UI was its own
+  `waitUntilExit` inside `body` (their full backtrace, frame 50); the fix is in
+  `ViewGraphNode.bottomUpUpdate`: a node that has not had its first layout does
+  not start a bottom-up update. The original report follows.
+  Reported 2026-09-27 by the
+  SoftPCB-mac session, measured THERE on AppKitBackend at 1113a310. This is the "empty ForEach" crash of 2026-09-08,
   and the diagnosis it had was wrong: it is timing, not structure.
   Backtrace, top down: `ViewGraphNode.widget.getter` <- `computeLayout` <-
   `bottomUpUpdate` <- `updateEnvironment` closure (~8 levels) <- closure in

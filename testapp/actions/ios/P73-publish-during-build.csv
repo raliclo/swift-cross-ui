@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P73 on iOS: the same assertion as actions/mac/P73-publish-during-build.csv, whose
+# header explains it. Nothing is tapped; the publish lands before the first frame.
+# Pass: the capture reads "report: done -- published while the graph may still be
+# building" and "running: no". Before the ViewGraphNode fix: no app, a crash.
+# P73 於 iOS:與 actions/mac/P73-publish-during-build.csv 相同的斷言,說明見該檔檔頭。什麼都不點;
+# 發布在第一幀之前就抵達。通過:擷圖顯示 "report: done ..." 與 "running: no"。修正前:沒有 app,只有崩潰。
+sleep,,,,,,2000000,let P73 lay out; the publish has already happened by the first frame,ios

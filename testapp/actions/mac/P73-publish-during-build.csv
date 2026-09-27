@@ -1,0 +1,34 @@
+action,x,y,origin,button,key,micros,note,platform
+# P73 on macOS: does the app survive a publish that lands while its view graph is
+# still being built, and does the published value reach the screen?
+#
+# Nothing is pressed. The whole test happens before the first frame: P73's
+# `.onAppear` starts a job that publishes via DispatchQueue.main.async at once, then
+# spins the run loop for 0.2 s the way Process.waitUntilExit() does, so the publish is
+# delivered in the middle of the root node's construction. This file only has to
+# keep the window open long enough to photograph it.
+#
+# Pass: a window, reading `report: done -- published while the graph may still be
+# building` and `running: no`. Before the ViewGraphNode fix of 2026-09-27 there was
+# no window: the process died with SIGTRAP (exit 133) at ViewGraphNode.swift:13,
+# 10 launches in 10, while `P73 --no-spin` -- the same job with no spin -- survived
+# 10 in 10.
+#
+# The second line is the half of the assertion that matters after the fix. The
+# guard drops the bottom-up update that arrived too early; if the node's first
+# top-down layout did not then read the model, the window would read `pending`
+# and `running: yes` for ever.
+#
+# P73 於 macOS:當一次發布在 view graph 還在建構時抵達,app 活得下來嗎?而發布的值有到達畫面嗎?
+#
+# 什麼都不按。整個測試發生在第一幀之前:P73 的 `.onAppear` 啟動一個立刻透過 DispatchQueue.main.async
+# 發布的工作,接著像 Process.waitUntilExit() 那樣轉 0.2 秒 run loop,於是那次發布在根節點建構的中途被送達。
+# 本檔只需要讓視窗開著夠久、拍得到它。
+#
+# 通過:有視窗,顯示 `report: done -- published while the graph may still be building` 與 `running: no`。
+# 2026-09-27 修正 ViewGraphNode 之前根本沒有視窗:行程以 SIGTRAP(結束碼 133)死在 ViewGraphNode.swift:13,
+# 啟動 10 次死 10 次;而 `P73 --no-spin`——同樣的工作、不轉 run loop——10 次活 10 次。
+#
+# 第二行才是修正後真正重要的那一半斷言。守衛丟掉了那次來得太早的由下往上更新;如果節點第一次由上往下
+# 排版時沒有去讀 model,視窗就會永遠顯示 `pending` 與 `running: yes`。
+sleep,,,,,,1500000,let P73 lay out; the publish has already happened by the first frame,macos

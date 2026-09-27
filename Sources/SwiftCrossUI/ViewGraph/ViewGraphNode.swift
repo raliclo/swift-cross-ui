@@ -171,6 +171,42 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     }
 
     private func bottomUpUpdate() {
+        // **A node its parent has never laid out does not start a bottom-up update.**
+        //
+        // A node builds its children (init, `view.children`) BEFORE its own widget
+        // (`view.asWidget`, then `_widget = widget`), and `asWidget` runs app code:
+        // `body`, and `.onAppear`'s action. If that code spins the run loop --
+        // `Process.waitUntilExit()` does, and so does anything modal -- the main queue
+        // drains in the middle of construction, a queued publish reaches a child that
+        // already observes it, the child resizes, and `onResize` climbs to this node
+        // while `_widget` is still nil. `computeLayout` then read `widget` and trapped
+        // at `_widget!`. SoftPCB-UI hit it with a `waitUntilExit` inside `body`
+        // (2026-09-27, 8 levels of onResize above a half-built RootView); P73
+        // reproduces it 10 times in 10 and its control 0 in 10.
+        //
+        // Dropping the update loses nothing. A node that has not had its first layout
+        // will get one top-down, from its parent, and that reads the current state.
+        // Going ahead would also be wrong for a node that DOES have a widget: its
+        // first layout calls `backend.show`, which must wait until the widget has been
+        // added to its parent's -- the comment in `computeLayout` says so -- and a
+        // parent still inside `asWidget` has not done that yet.
+        //
+        // **一個父節點從未排版過的節點,不發起由下往上的更新。**
+        //
+        // 節點先建子節點(init、`view.children`),**之後**才建自己的 widget(`view.asWidget`,接著
+        // `_widget = widget`),而 `asWidget` 會執行 app 的程式碼:`body` 與 `.onAppear` 的動作。若那段
+        // 程式碼轉了 run loop——`Process.waitUntilExit()` 會,任何模態的東西也會——主佇列就會在建構中途被
+        // 清空,一個排隊中的發布抵達一個早已在觀察它的子節點,子節點改變尺寸,`onResize` 爬到本節點,而此時
+        // `_widget` 仍是 nil。`computeLayout` 接著讀 `widget`,在 `_widget!` 處中止。SoftPCB-UI 以 `body`
+        // 裡的一個 `waitUntilExit` 撞上它(2026-09-27,在一個建到一半的 RootView 之上爬了 8 層 onResize);
+        // P73 以 10 次中 10 次重現它,而它的對照組 10 次中 0 次。
+        //
+        // 丟掉這次更新不會損失任何東西。一個還沒有第一次排版的節點,會從父節點那裡得到一次由上往下的排版,
+        // 而那一次讀的就是當下的狀態。若照常進行,對一個**已經有** widget 的節點也是錯的:它的第一次排版會呼叫
+        // `backend.show`,而那必須等到 widget 已被加進父節點的 widget 之後——`computeLayout` 裡的註解就是
+        // 這麼說的——而一個仍在 `asWidget` 裡的父節點還沒做到這件事。
+        guard hasHadFirstUpdate else { return }
+
         // First we compute what size the view will be after the update. If it will change size,
         // propagate the update to this node's parent instead of updating straight away.
         let currentSize = currentLayout?.size

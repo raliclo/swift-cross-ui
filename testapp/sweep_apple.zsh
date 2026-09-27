@@ -163,9 +163,29 @@ for f in "${files[@]}"; do
         break
     done
 
+    # **A crash report written during the run overrides everything above.** On iOS
+    # the replay runs in the XCUITest process, so it reports `replayed` and exits 0
+    # whether or not the app survived, and the final capture is then the home
+    # screen. Measured 2026-09-27 with P73 before its fix: `replayed`, exit 0, a
+    # capture -- and debugTarget-2026-09-27-222247.ips, EXC_BREAKPOINT. Both
+    # platforms install the app as `debugTarget`, so one check covers both.
+    # **執行期間寫出的崩潰報告,凌駕上面的一切。**iOS 上重放在 XCUITest 行程裡執行,因此不論 app 有沒有
+    # 活下來,它都會回報 `replayed` 並以 0 結束,而最終擷圖就成了主畫面。2026-09-27 以修正前的 P73 實測:
+    # `replayed`、結束碼 0、有擷圖——以及 debugTarget-2026-09-27-222247.ips,EXC_BREAKPOINT。兩個平台
+    # 都把 app 裝成 `debugTarget`,因此一個檢查涵蓋兩者。
+    crash=""
+    for c in "$HOME"/Library/Logs/DiagnosticReports/debugTarget-*.ips(N.om); do
+        [ "$c" -nt "$marker" ] && crash="${c:t}"
+        break
+    done
+
     result=fail
     [ "$rc" -eq 0 ] && [ "$replay" = ok ] && [ "$capture" = ok ] && result=pass
     [ "$state" = timeout ] && result=timeout
+    if [ -n "$crash" ]; then
+        result=crash
+        replay_note="crash report $crash${replay_note:+; $replay_note}"
+    fi
 
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note" >> "$rows_file"
