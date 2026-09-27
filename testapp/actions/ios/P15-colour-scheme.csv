@@ -12,13 +12,13 @@ action,x,y,origin,button,key,micros,note,platform
 # Toggle here is the switch style and does render; the checkbox style does not
 # exist on UIKitBackend at all. Window resizing is not a thing on iOS so the
 # #289 half of this app cannot be exercised by a tap beyond the content switch.
-click,183,317,client,left,,,Dark -- Requested must become dark and Resolved must follow,ios
+click,207,377,client,left,,,Dark -- Requested must become dark and Resolved must follow,ios
 sleep,,,,,,500000,let the appearance change propagate,ios
-click,137,317,client,left,,,Light -- Requested must become light,ios
+click,160,389,client,left,,,Light -- Requested must become light,ios
 sleep,,,,,,500000,let the appearance change propagate,ios
-click,81,317,client,left,,,System -- Requested must go back to system,ios
+click,102,389,client,left,,,System -- Requested must go back to system,ios
 sleep,,,,,,400000,let the appearance change propagate,ios
-click,296,439,client,left,,,Toggle -- the switch must flip (VERIFIED),ios
-sleep,,,,,,400000,let the switch animate,ios
-click,74,588,client,left,,,Use tall content -- the button must become Use short content (VERIFIED),ios
+click,322,509,client,left,,,Toggle -- the switch must flip (VERIFIED),ios
+sleep,,,,,,1000000,"let the switch animate AND the scheme change finish: after System the status line drops from two lines to one and the column moves up 12 points, and a tap during that move missed (2026-09-27)",ios
+click,86,636,client,left,,,Use tall content -- y 636 is inside the button in both the two-line and the one-line layout -- the button must become Use short content (VERIFIED),ios
 sleep,,,,,,500000,let the layout settle,ios

@@ -33,5 +33,5 @@ action,x,y,origin,button,key,micros,note,platform
 # runner 本身從來沒有錯——它回報視窗框 (0, 0, 393, 852)、舊座標的正規化值 (0.153, 0.117)，完全符合
 # 規格。其餘的由 app 自己的 log 判定：openSettings() 從未被呼叫，因此那一下是沒打中，而不是被忽略。
 sleep,,,,,,1500000,let P60 lay out,ios
-click,55,218,client,left,,,open settings -- expect a sheet over this window,ios
+click,70,476,client,left,,,open settings -- expect a sheet over this window,ios
 sleep,,,,,,1500000,let the sheet present,ios

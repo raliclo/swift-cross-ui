@@ -32,5 +32,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 這支 app 沒有任何問題;錯的是座標。
 #
 # 該按鈕本身的範圍是 x 0..119、y 190..210,因此 60, 200 是它的中心。
-click,60,200,client,left,,,"the frame button -- ""frame width: 120"" must become 260 and the button must relabel to ""Use narrow frame"" (VERIFIED 2026-09-09 in p30-ios-final-20260908-234732.png: all three -- the number, the label and the width of the blue rectangle)",ios
+click,80,360,client,left,,,"the frame button -- ""frame width: 120"" must become 260 and the button must relabel to ""Use narrow frame"" (VERIFIED 2026-09-09 in p30-ios-final-20260908-234732.png: all three -- the number, the label and the width of the blue rectangle)",ios
 sleep,,,,,,500000,let the layout settle,ios

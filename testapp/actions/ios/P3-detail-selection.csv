@@ -9,9 +9,12 @@ action,x,y,origin,button,key,micros,note,platform
 # P3: the sidebar list overlaps the detail pane on this screen and most of the
 # view is black; the image sits half off the right edge. The three Detail rows
 # are still hit-testable where they are drawn.
-click,126,439,client,left,,,Detail B -- the detail pane must change away from Detail A,ios
+click,277,162,client,left,,,Detail B -- the detail pane must change away from Detail A,ios
 sleep,,,,,,400000,let the detail pane swap,ios
-click,126,473,client,left,,,Detail C -- the detail pane must change again,ios
+click,278,197,client,left,,,Detail C -- the detail pane must change again,ios
 sleep,,,,,,400000,let the detail pane swap,ios
-click,353,405,client,left,,,Small -- the image must take its smaller size,ios
+move,300,895,client,,,,"below the tables and right of Force state update -- the root scroll view, not a table or the third column's own ScrollView",ios
+scroll,6,0,,,,,"six notches right: the third column's Small/Medium/Large start at x 591, off a 440-point screen",ios
+sleep,,,,,,600000,let the scroll settle,ios
+click,333,407,client,left,,,Small -- the image must take its smaller size,ios
 sleep,,,,,,500000,let the layout settle,ios

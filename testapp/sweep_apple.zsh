@@ -141,11 +141,33 @@ for f in "${files[@]}"; do
     touch "$marker"
     started=$(date +%s)
 
+    # **Launch arguments a file needs, read from the file itself.** P34's files say
+    # in prose that they need `-rows 500` -- at the default of 100 both of its buttons
+    # are no-ops by design -- and a sweep that cannot read prose launched them
+    # without it, so they replayed, captured, and could not have passed. A file that
+    # needs arguments now states them on one line, `# launch-args: -rows 500`, and
+    # they reach the app on both platforms through TEST_APP_ARGS, keeping the
+    # harness's own `--debug`.
+    # **一份檔案需要的啟動參數,從檔案本身讀出來。**P34 的檔案以散文寫著需要 `-rows 500`——在預設的
+    # 100 之下它的兩顆按鈕依設計都是 no-op——而讀不懂散文的 sweep 就不帶參數啟動它們,於是它們有重放、
+    # 有擷圖、卻不可能通過。需要參數的檔案現在用一行 `# launch-args: -rows 500` 寫明,參數在兩個平台上
+    # 都經由 TEST_APP_ARGS 送達 app,並保留 harness 自己的 `--debug`。
+    launch_args="$(grep -m1 -E '^# *launch-args:' "$f" | sed -E 's/^# *launch-args: *//')"
     if [ "$platform" = macos ]; then
         rm -f "$output_dir/${app:l}-actionfile.log"
-        zsh "$script_dir/test.zsh" "$app" --macos --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+        TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
+            zsh "$script_dir/test.zsh" "$app" --macos --showtime 2 --actionfile "$f" > "$log" 2>&1 &
     else
-        zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+        # Through TEST_APP_ARGS, not `--`: test.zsh hands its options to test_common,
+        # which rejects `--`, and test_common forwards TEST_APP_ARGS to test_ios.zsh.
+        # 經由 TEST_APP_ARGS 而不是 `--`:test.zsh 把選項交給 test_common,而它拒絕 `--`;
+        # test_common 會把 TEST_APP_ARGS 轉給 test_ios.zsh。
+        if [ -n "$launch_args" ]; then
+            TEST_APP_ARGS="--debug $launch_args" \
+                zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+        else
+            zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
+        fi
     fi
     pid=$!
     state=""

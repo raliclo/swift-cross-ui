@@ -62,5 +62,5 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 量測自 effect sweep 自身的 control 擷取,那是目前這個 build 上該 app 的初始狀態,因此座標與
 # 「取得它的那張畫面」是同一張。
-click,76,448,client,left,,,"the Cherry row of the plain List -- Cherry must become the selected row and no other row may be (VERIFIED: grey highlight on Cherry only)",ios
+click,100,522,client,left,,,"the Cherry row of the plain List -- Cherry must become the selected row and no other row may be (VERIFIED: grey highlight on Cherry only)",ios
 sleep,,,,,,700000,let the row highlight,ios

@@ -11,11 +11,11 @@ action,x,y,origin,button,key,micros,note,platform
 # so either the coordinate misses that button or the button does nothing here --
 # worth one look before the coordinate is blamed. Push and Pop cannot be told
 # apart by a capture at the end because the pop undoes the push.
-click,88,228,client,left,,,Increment counter -- counter must go 0 -> 1 (VERIFIED),ios
+click,90,226,client,left,,,Increment counter -- counter must go 0 -> 1 (VERIFIED),ios
 sleep,,,,,,400000,let the label redraw,ios
-click,156,579,client,left,,,Record a push -- pushes recorded must go 0 -> 1 (TODAY IT STAYS 0),ios
+click,180,619,client,left,,,Record a push -- pushes recorded must go 0 -> 1 (TODAY IT STAYS 0),ios
 sleep,,,,,,400000,let the label redraw,ios
-click,146,537,client,left,,,Push level 1 -- the stack must show Level 1,ios
+click,169,588,client,left,,,Push level 1 -- the stack must show Level 1,ios
 sleep,,,,,,800000,let the push animate,ios
-click,209,228,client,left,,,Pop to root -- the stack must return to Level 0 and the counter must stay 1,ios
+click,214,226,client,left,,,Pop to root -- the stack must return to Level 0 and the counter must stay 1,ios
 sleep,,,,,,800000,let the pop animate,ios

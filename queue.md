@@ -2,8 +2,13 @@
 
 ## 2026-09-27 found while driving iOS
 
-- [ ] **Re-measure the iOS action files: most of them no longer aim at their
-  controls.** The iOS sweep replayed and captured all 73 files, and that meant
+- [x] **Re-measure the iOS action files: most of them no longer aim at their
+  controls.** **DONE 2026-09-28**: full sweep `testapp/output/ios-sweep-full4.csv2`,
+  74 of 74 replayed, every capture read against its file's assertion; the four
+  misses that sweep still counted as passes (P29, P31, P46, P65) were re-aimed
+  and re-run. Along the way RootScrollHost stopped disabling the pull under a
+  refresh control (P54). Seven apps stay out of the matrix because the capture
+  cannot evidence them -- see results.csv2 for 2026-09-28. The iOS sweep replayed and captured all 73 files, and that meant
   nothing, because a tap on empty space is not an error. Checked against the
   accessibility tree on the corrected layout (RootScrollHost 150446ef), only 15
   files have every positioned row landing on its named target; the rest land on
@@ -22,6 +27,18 @@
   什麼也沒證明,因為點在空白處不算錯誤。以修正後版面(RootScrollHost 150446ef)的無障礙樹核對,只有 15 份
   檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
   `testapp/measurements/ios-aim-20260927.txt`。
+
+- [ ] **iOS P24: "Record a push" leaves `pushes recorded (outside the stack)` at
+  0.** Found 2026-09-02, still so on 2026-09-28. The tap is at (180, 619) and the
+  button is at about (183, 621) on p24-ios-final-20260928-054747.png, so it is
+  probably not the aim -- but that is inferred, not shown: the app's `[P24]` lines
+  (`push recorded at level ...`) do not reach ios-P24-debugTarget.log, so nothing
+  says whether `onPush` ran. Next step: get the app's stdout on iOS, then tell
+  "tap missed" from "state written inside a NavigationStack destination does not
+  reach the view outside it".
+  **iOS P24:「Record a push」讓 `pushes recorded (outside the stack)` 停在 0。**點擊在 (180, 619),
+  按鈕約在 (183, 621),所以大概不是瞄準問題——但那是推論:app 的 `[P24]` 輸出沒有進到 log,沒有東西說明
+  `onPush` 有沒有執行。下一步:在 iOS 上取得 app 的 stdout,再分辨「沒點到」與「stack 內寫入的狀態傳不到外面」。
 
 - [x] **Core crash, ViewGraphNode.swift:13 (`_widget!`): a publish that arrives
   while the view graph is still being built.** **FIXED 2026-09-27 and verified on

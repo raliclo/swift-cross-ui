@@ -1579,6 +1579,16 @@ delegated_args() {
 run_ios() {
     local -a args
     args=("${(@f)$(delegated_args)}")
+    # App arguments, when a caller set TEST_APP_ARGS. Until 2026-09-28 they were never
+    # forwarded to test_ios.zsh, so an iOS file that needs `-rows 500` (P34) could not
+    # be run through test.zsh at all -- and passing `--` to test.zsh stopped here with
+    # "Unknown option". test_ios.zsh takes app arguments after `--`.
+    # app 參數(當呼叫端設了 TEST_APP_ARGS 時)。2026-09-28 之前它們從未被轉給 test_ios.zsh,因此一份需要
+    # `-rows 500` 的 iOS 檔案(P34)根本無法經由 test.zsh 執行——而把 `--` 交給 test.zsh 則會在這裡以
+    # 「Unknown option」停下。test_ios.zsh 在 `--` 之後接收 app 參數。
+    if [ -n "${TEST_APP_ARGS:-}" ]; then
+        args+=(-- ${(z)TEST_APP_ARGS})
+    fi
     exec zsh "$script_dir/test_ios.zsh" "$app" "${args[@]}"
 }
 

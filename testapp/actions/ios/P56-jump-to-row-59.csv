@@ -24,5 +24,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 並不是真正會捲動的那一個,對它呼叫 `setContentOffset` 會成功、而且什麼都不會移動。畫面上出現
 # 45-59 列就是分辨兩者的依據;第 0 列仍留在頂端則是失敗,而那看起來與靜止狀態一模一樣。
 sleep,,,,,,1000000,let P56 render,ios
-click,140,166,client,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",ios
+click,159,185,client,left,,,"Jump to 59 -- the last rows must be on screen and the status line must read 59",ios
 sleep,,,,,,1000000,let the scroll settle,ios

@@ -207,5 +207,5 @@ sleep,,,,,,200000,,ios
 scroll,0,-6,client,,,,,ios
 sleep,,,,,,200000,,ios
 sleep,,,,,,800000,back at the top,ios
-click,151,245,client,left,,,Select last -- a state change so the readout re-renders,ios
+click,109,242,client,left,,,Select last -- a state change so the readout re-renders,ios
 sleep,,,,,,1200000,,ios

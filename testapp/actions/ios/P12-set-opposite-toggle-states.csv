@@ -39,5 +39,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p12-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。
-click,128,634,client,left,,,"Set opposite -- the Forced on toggle must be tinted and the Forced off toggle plain; they must not look alike (VERIFIED: Forced on is filled blue with white text, Forced off is plain, status reads Opposite states)",ios
+click,168,663,client,left,,,"Set opposite -- the Forced on toggle must be tinted and the Forced off toggle plain; they must not look alike (VERIFIED: Forced on is filled blue with white text, Forced off is plain, status reads Opposite states)",ios
 sleep,,,,,,700000,let both toggles redraw,ios

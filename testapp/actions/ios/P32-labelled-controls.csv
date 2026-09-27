@@ -8,9 +8,9 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P32: the accessibility attributes this app is about cannot be read from a tap;
 # what a replay can show is that each labelled control is present and responds.
-click,78,335,client,left,,,Labelled button -- it must respond rather than sit inert,ios
+click,86,370,client,left,,,Labelled button -- it must respond rather than sit inert,ios
 sleep,,,,,,400000,let the app react,ios
-click,350,456,client,left,,,Toggle label -- the switch must flip on,ios
+click,404,471,client,left,,,Toggle label -- the switch must flip on,ios
 sleep,,,,,,400000,let the switch animate,ios
 mousedown,149,499,client,left,,,take hold of the slider knob,ios
 mouseup,250,499,client,left,,,drag it right -- the slider must move and the progress bar must not,ios

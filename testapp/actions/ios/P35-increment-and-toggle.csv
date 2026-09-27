@@ -6,7 +6,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # REPLAYED AND VERIFIED 2026-09-02: the line read "State baseline: count 1,
 # toggle false" afterwards and the switch was off.
-click,57,423,client,left,,,Increment -- the baseline line must go count 0 -> count 1 (VERIFIED),ios
+click,58,473,client,left,,,Increment -- the baseline line must go count 0 -> count 1 (VERIFIED),ios
 sleep,,,,,,400000,let the label redraw,ios
-click,350,422,client,left,,,Toggle state -- the same line must go toggle true -> toggle false (VERIFIED),ios
+click,397,472,client,left,,,Toggle state -- the same line must go toggle true -> toggle false (VERIFIED),ios
 sleep,,,,,,500000,let the label redraw,ios

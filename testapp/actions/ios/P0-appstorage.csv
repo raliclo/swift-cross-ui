@@ -8,9 +8,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 0 after the replay and the status line read "Reset @AppStorage". The two
 # Increment rows are NOT verified -- Reset runs after them so a single capture at
 # the end cannot distinguish an increment that landed from one that did not.
-click,169,416,client,left,,,Increment @AppStorage -- launch count must rise by one,ios
+click,193,472,client,left,,,Increment @AppStorage -- launch count must rise by one,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,169,416,client,left,,,Increment again -- launch count must rise by one more,ios
+click,193,472,client,left,,,Increment again -- launch count must rise by one more,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,296,416,client,left,,,Reset -- launch count must return to 0 (VERIFIED),ios
+click,322,472,client,left,,,Reset -- launch count must return to 0,ios
 sleep,,,,,,500000,let the last state settle,ios

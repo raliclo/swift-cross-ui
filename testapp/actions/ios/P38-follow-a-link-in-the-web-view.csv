@@ -35,5 +35,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p38-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。
-click,238,520,client,left,,,"the Learn more link inside the page -- the URL list must gain a second entry and the frame must show the new page (VERIFIED: https://www.iana.o... listed under https://example.co..., and the IANA page is drawn in the frame; the count itself is off the right edge once the longer URL widens the page)",ios
+click,200,564,client,left,,,"the Learn more link inside the page -- at (200, 564) on a capture of 2026-09-28; (238, 520) was on the paragraph above it -- the URL list must gain a second entry and the frame must show the new page (VERIFIED: https://www.iana.o... listed under https://example.co..., and the IANA page is drawn in the frame; the count itself is off the right edge once the longer URL widens the page)",ios
 sleep,,,,,,2500000,let the navigation start and the delegate report it,ios

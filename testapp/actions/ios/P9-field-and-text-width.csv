@@ -37,7 +37,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 該列位於 y 479,第一次點擊後移到 476——240 px 時該色帶仍維持三行,因此它的高度幾乎沒變。479 在
 # 兩種狀態下都落在一顆約 20 點高的按鈕之內,所以一個座標可以同時服務這兩列。這是查證過的,不是
 # 假設的:P17 的動作檔正是因為同樣的理由,必須在兩次點擊之間重新捲到底。
-click,103,479,client,left,,,"Wider -- the given width must rise from 200 to 240 and the blue band must grow (VERIFIED 2026-09-09 in p9-ios-final-20260909-001756.png)",ios
+click,117,670,client,left,,,"Wider -- the given width must rise from 200 to 240 and the blue band must grow (VERIFIED 2026-09-09 in p9-ios-final-20260909-001756.png)",ios
 sleep,,,,,,400000,let the layout settle,ios
-click,175,479,client,left,,,"Zero width -- the band must collapse and no text may paint outside it (VERIFIED 2026-09-09 in p9-ios-final-20260909-002133.png: the width reads 0 px, the band is gone and no text paints where it was)",ios
+click,191,670,client,left,,,"Zero width -- the band must collapse and no text may paint outside it (VERIFIED 2026-09-09 in p9-ios-final-20260909-002133.png: the width reads 0 px, the band is gone and no text paints where it was)",ios
 sleep,,,,,,500000,let the layout settle,ios

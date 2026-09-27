@@ -96,6 +96,24 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p17-doe-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client。scroll 每格 40 pt 且符號相反，故 x 為正是以向左拖曳達成向右捲動。
+#
+# **Superseded 2026-09-28: the root view scrolls now, and this row's assertion is
+# inverted.** "UIKitBackend does not put the root view in one" stopped being true
+# with RootScrollHost, and "the content does not move" was the defect the
+# RootScrollHost fixes of 2026-09-27/28 removed -- its only measurement was taken
+# before the content existed, so it never had anything to scroll. The paragraph
+# above is kept as the record of what this file used to assert and why. The row
+# now asks for the opposite: the scroll must bring B: clipped() into view, and B
+# must be clipped there as well -- the orange block's top and bottom on the blue
+# box's own (p17-doe-ios-final-20260928-052414.png). The window here is 440 x 956
+# (the simulator in use since 2026-09-17), not the 393 x 852 measured above.
+#
+# **2026-09-28 起作廢:根 view 現在會捲,本列的斷言因此反轉。**「UIKitBackend 不會把 root view 放進一個
+# 裡面」自 RootScrollHost 起就不再成立,而「內容沒有移動」正是 2026-09-27/28 的 RootScrollHost 修正所移除
+# 的缺陷——它唯一的一次量測發生在內容存在之前,所以它從來沒有東西可捲。上面那段保留下來,作為本檔以前斷言
+# 什麼、以及為什麼的紀錄。本列現在要求相反的事:這次捲動必須把 B: clipped() 帶進畫面,而且 B 在那裡同樣
+# 要被裁切——橘色方塊的上下緣落在藍框自己的上下緣上(p17-doe-ios-final-20260928-052414.png)。這裡的視窗
+# 是 440 x 956(自 2026-09-17 起使用的模擬器),不是上面量測時的 393 x 852。
 move,380,650,client,,,,park the finger near the right edge so a 160 pt leftward drag stays inside the window,ios
-scroll,4,0,client,,,,"scroll right four notches -- B: clipped() must NOT come into view, because P17-DOE has no ScrollView (VERIFIED: the capture is pixel-identical to the launch capture below the status bar; the same is true of a vertical scroll of three notches)",ios
+scroll,4,0,client,,,,"scroll right four notches -- B: clipped() must come into view, clipped: orange top and bottom on the blue box's (VERIFIED 2026-09-28: A and B both whole on screen, Control off the left edge, orange flush with blue in both, p17-doe-ios-final-20260928-052414.png)",ios
 sleep,,,,,,600000,let any momentum settle before the capture,ios

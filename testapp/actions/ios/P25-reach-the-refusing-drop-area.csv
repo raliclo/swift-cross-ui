@@ -51,7 +51,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p25-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。靜止時接受區橫跨 x 18-338、y 412-613，拒絕區自 x 354 起。
-move,380,500,client,,,,"into the sliver of the refusing area that is on screen, at the right edge (VERIFIED: the drag started there and moved the content, so the strip at x 354-393 is the refusing area and not padding)",ios
+move,220,800,client,,,,"below both drop areas, on the root scroll view itself. Until 2026-09-28 this row aimed into the refusing area's visible sliver at (380, 500); on the corrected layout a drag started there no longer moved the content, and blank space under the areas is not a drop target of any kind",ios
 sleep,,,,,,400000,,ios
 scroll,8,0,,,,,"scroll right to the end: the refusing area must become readable in full -- title Refuses (offers an unused type), state idle, received (nothing yet), type -, count 0 -- and the accepting area must leave the screen to the left (VERIFIED: all five lines of the refusing area are readable and the accepting area is down to a bare green strip at the left edge, measured at about 37 points against the 39 the geometry predicts; the scroll stopped at the content end, 299 points, not the 320 asked for)",ios
 sleep,,,,,,1000000,,ios

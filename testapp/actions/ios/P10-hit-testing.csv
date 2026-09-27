@@ -31,9 +31,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 捲動視圖的原點，因此整頁的水平偏移量是「內容總寬度」的函數。任何會改變頁面上最寬元素的東西，
 # 都會移動該頁上的每一個座標。「x 過期而 y 仍然正確」就是它的特徵——那三個 y 值全都準確到一點以內。
 #
-click,198,443,client,left,,,"Click me too -- Covered clicks must rise by one (VERIFIED 1)",ios
+click,202,498,client,left,,,"Click me too -- Covered clicks must rise by one (VERIFIED 1)",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,350,464,client,left,,,"the orange allowsHitTesting(false) block -- Hidden clicks must RISE; the modifier lets the click through (VERIFIED 1, and the status line reads Hidden button received a click)",ios
+click,393,498,client,left,,,"the orange allowsHitTesting(false) block -- Hidden clicks must RISE; the modifier lets the click through (VERIFIED 1, and the status line reads Hidden button received a click)",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,366,563,client,left,,,Transparent overlay present -- the switch must flip to off (VERIFIED),ios
+click,374,599,client,left,,,Transparent overlay present -- the switch must flip to off (VERIFIED),ios
 sleep,,,,,,500000,let the overlay disappear,ios

@@ -9,5 +9,5 @@ action,x,y,origin,button,key,micros,note,platform
 # P18: one tap. As with P1 the dialog is a presented controller and this runner
 # has no way to dismiss one -- there is no key row on iOS and no measured
 # coordinate for a sheet that did not exist at capture time.
-click,59,371,client,left,,,Open a file -- the line below must stop reading "open -> nothing yet",ios
+click,68,432,client,left,,,Open a file -- the line below must stop reading "open -> nothing yet",ios
 sleep,,,,,,1000000,let the presentation animate in,ios

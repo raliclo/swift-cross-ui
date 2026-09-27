@@ -8,7 +8,7 @@ action,x,y,origin,button,key,micros,note,platform
 # in opposite directions and the heading read "Wrapping at 300pt" both before
 # and after, which is what both landing and neither landing look like. A
 # verifier has to read the heading between the rows rather than at the end.
-click,53,735,client,left,,,Narrower -- the heading must read a width below 300pt and the paragraph must rewrap,ios
+click,55,707,client,left,,,Narrower -- the heading must read a width below 300pt and the paragraph must rewrap,ios
 sleep,,,,,,400000,let the paragraph rewrap,ios
-click,120,735,client,left,,,Wider -- the width must return to 300pt,ios
+click,123,707,client,left,,,Wider -- the width must return to 300pt,ios
 sleep,,,,,,500000,let the paragraph rewrap,ios

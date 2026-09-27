@@ -25,7 +25,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 量測自 effect sweep 自身的 control 擷取,那是目前這個 build 上該 app 的初始狀態,因此座標與
 # 「取得它的那張畫面」是同一張。
-click,295,456,client,left,,,Open another window -- the status line must stop saying Ready,ios
+click,221,494,client,left,,,Open another window -- the status line must stop saying Ready,ios
 sleep,,,,,,800000,let the second window appear,ios
-click,295,548,client,left,,,Show A+B+C at once -- three alerts must be presented rather than queued,ios
+click,221,587,client,left,,,Show A+B+C at once -- three alerts must be presented rather than queued,ios
 sleep,,,,,,1000000,let the alerts present,ios

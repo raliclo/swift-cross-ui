@@ -104,5 +104,5 @@ action,x,y,origin,button,key,micros,note,platform
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client。P11 在 393 pt 的視窗中寬 700 pt 且不會捲動，因此每一張擷取畫面裡大多數文字行
 # 的兩端都被切掉；那是 app 本身，不是座標抓錯。
-click,141,442,client,left,,,"Collide them -- both sliders must end up drawing the same bar, fill x 19.0..357.5 pt at y 341 and y 377, where slider 1 had no fill at all before; the text must read minimum 50 / maximum 50 (VERIFIED: both measured exactly, and the whole layout moved 174.3 pt right and 25.4 pt up as a side effect)",ios
+click,328,486,client,left,,,"Collide them -- both sliders must end up drawing the same bar, fill x 19.0..357.5 pt at y 341 and y 377, where slider 1 had no fill at all before; the text must read minimum 50 / maximum 50 (VERIFIED: both measured exactly, and the whole layout moved 174.3 pt right and 25.4 pt up as a side effect)",ios
 sleep,,,,,,600000,let the relayout that this click triggers finish before the capture,ios

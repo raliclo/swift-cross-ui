@@ -8,11 +8,21 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P36: the Picker opens a presented list on iOS whose rows were not in the
 # capture; the file taps it and stops there rather than guessing at an option
-# position. The button and the spacing control below it are pressed first so the
-# replay still records something if the picker swallows what follows.
-click,89,341,client,left,,,String label button -- it must respond,ios
+# position. The button is pressed first so the replay still records something if
+# the picker swallows what follows.
+#
+# **A row that tapped "next" was removed on 2026-09-27.** It expected "Int spacing
+# 8" to change, and nothing in P36 can do that: `HStack(spacing: 8) { Text("Int
+# spacing 8"); Text("next") }` is two plain labels showing an Int spacing, with no
+# action on either. The row's note called it a "spacing control"; it never was one,
+# on any backend. It replayed without error for as long as it existed, because a
+# tap on plain text is not an error, and once the coordinates were right it could
+# be seen to change nothing.
+# **一列點擊「next」的動作於 2026-09-27 移除。**它期待「Int spacing 8」改變,而 P36 裡沒有任何東西做得到:
+# `HStack(spacing: 8) { Text("Int spacing 8"); Text("next") }` 是兩個展示整數間距的純文字標籤,兩者都沒有
+# 動作。那一列的註記稱它為「間距控制項」;它在任何 backend 上都從來不是。它存在的期間一直重放無誤,因為點在
+# 純文字上不算錯誤;而座標一旦對了,就看得出它什麼也沒改變。
+click,91,410,client,left,,,String label button -- it must respond,ios
 sleep,,,,,,400000,let the app react,ios
-click,150,424,client,left,,,next -- Int spacing must change away from 8,ios
-sleep,,,,,,400000,let the layout settle,ios
-click,49,267,client,left,,,the Vanilla picker -- a selection list must appear,ios
+click,130,270,client,left,,,the Vanilla picker -- a selection list must appear,ios
 sleep,,,,,,1000000,let the picker present,ios

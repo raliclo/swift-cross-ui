@@ -114,10 +114,10 @@ action,x,y,origin,button,key,micros,note,platform
 sleep,,,,,,3000000,let the scene settle before any gesture -- see the note on settling,ios
 click,400,800,,left,,,"one harmless tap on empty background -- see the note on settling",ios
 sleep,,,,,,500000,,ios
-move,133,363,,,,,"aim at the magnify panel -- see the note on aim",ios
+move,133,572,,,,,"aim at the magnify panel -- see the note on aim. At y 572 on p65-ios-final-20260928-062622.png (panel about y 542-602); the 363 this row had is above it on the 956-point window, and magnify stayed (none yet)",ios
 sleep,,,,,,500000,,ios
 pinch,200,100,,,,,zoom to twice -- magnify must leave 1.00,ios
 sleep,,,,,,900000,,ios
-move,133,476,,,,,aim at the rotate panel,ios
-rotate,45,90,,,,,turn 45 degrees clockwise -- rotate must leave 0,ios
+move,133,677,,,,,"aim at the rotate panel -- y 677, the middle of about 647-707 on the same capture",ios
+rotate,45,90,,,,,"turn 45 degrees clockwise -- rotate must leave 0 (VERIFIED 2026-09-28: magnify ENDED 1.625, rotate ENDED 1.009 rad, p65-ios-final-20260928-064216.png)",ios
 sleep,,,,,,1200000,let the last report land before the capture,ios

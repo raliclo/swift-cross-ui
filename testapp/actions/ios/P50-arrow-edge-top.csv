@@ -19,8 +19,19 @@ action,x,y,origin,button,key,micros,note,platform
 # 它顯示那個要求確實抵達、app 也回報了它;而平台自己的規則會在 `bottom` 那一份裡現形。
 #
 # 座標量自 p50-ios-final-20260917-160716.png(3x)。
+# **Scrolled first, from 2026-09-28.** Since the RootScrollHost fixes of 2026-09-27/28
+# the page is taller than the window and scrolls, so the buttons below are no longer
+# at the y values above; the old rows hit "Open the first panel" or empty space. The
+# scroll runs to the end of the content, which is what makes it repeatable, and the
+# rows are measured on p50-ios-final-20260928-051620.png, taken after it.
+# **自 2026-09-28 起先捲動。**2026-09-27/28 修正 RootScrollHost 之後,頁面比視窗高而且會捲,下方的按鈕
+# 不再位於上面寫的 y;舊的列點到的是「Open the first panel」或空白處。這次捲動一路捲到內容底端,那正是它
+# 可重現的原因;下面各列量自捲動之後拍下的 p50-ios-final-20260928-051620.png。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
-click,85,845,,left,,,"Cycle arrow edge: none -> top; the readout beside it must say top",ios
+move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
+scroll,0,5,,,,,"to the end of the content -- the bottom clamp is what fixes the layout the rows below were measured on",ios
+sleep,,,,,,1500000,let the scroll come to rest,ios
+click,84,705,client,left,,,"Cycle arrow edge: none -> top; the readout beside it must say top",ios
 sleep,,,,,,700000,let the readout redraw,ios
-click,140,791,,left,,,"open PANEL ALPHA -- it is the one carrying the arrowEdge. y 791 rather than 812: the readout row is shorter once it says a word instead of ""none (platform decides)"", and the rows above the button move up by 21 points with it -- the first run of this file aimed at the pre-tap layout and hit the cycle button a second time, which is why the capture showed bottom and no panel",ios
+click,143,686,client,left,,,"open PANEL ALPHA -- it is the one carrying the arrowEdge. y 686, not the 672 it sat at before the cycle: the shorter readout lets a line above reflow, the content gets shorter, the scroll view re-clamps to the new bottom and every row moves DOWN 14 points (p50-ios-final-20260928-051712.png) (VERIFIED 2026-09-28: PANEL ALPHA opens ABOVE its button, readout top, p50-ios-final-20260928-051835.png)",ios
 sleep,,,,,,1500000,leave the panel open for the final capture,ios

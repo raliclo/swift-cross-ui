@@ -21,5 +21,5 @@ move,196,200,client,,,,"start the pull near the top of the content -- a scroll r
 scroll,0,-8,,,,,"pull down past the refresh threshold -- refreshes must become 1",ios
 sleep,,,,,,2000000,let the control finish and the rows rebuild,ios
 move,196,200,client,,,,,ios
-scroll,0,-8,,,,,"pull down again -- refreshes must become 2 and the rows must reach 10",ios
+scroll,0,-8,,,,,"pull down again -- refreshes must become 2 and the rows must reach 10 (VERIFIED 2026-09-28: refreshes: 2, rows up to 10, p54-ios-final-20260928-051507.png -- after RootScrollHost stopped switching its scrolling off under a refresh control)",ios
 sleep,,,,,,1500000,settle before the photograph,ios

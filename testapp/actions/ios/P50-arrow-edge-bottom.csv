@@ -38,10 +38,17 @@ action,x,y,origin,button,key,micros,note,platform
 # **這使得這一對在**這台裝置**上刻意成為「分辨不出東西」的一對**,與 Android 的情況完全相同。
 # iOS 這邊真正做得出差別的證據,是那次對齊本身的前後對照:
 # p50-ios-final-20260917-161400.png(被縮小、被切掉)對上 -200019.png(被移動、完整)。
+# **Scrolled first, from 2026-09-28** -- see P50-arrow-edge-top.csv for why; the rows
+# are measured on p50-ios-final-20260928-051620.png, taken after this scroll.
+# **自 2026-09-28 起先捲動**——原因見 P50-arrow-edge-top.csv;各列量自捲動之後的
+# p50-ios-final-20260928-051620.png。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
-click,85,845,,left,,,"cycle 1: none -> top (the row sits at 845 while the readout still reads the long default)",ios
+move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
+scroll,0,5,,,,,to the end of the content,ios
+sleep,,,,,,1500000,let the scroll come to rest,ios
+click,84,705,client,left,,,cycle 1: none -> top,ios
 sleep,,,,,,500000,,ios
-click,85,824,,left,,,"cycle 2: top -> bottom. 824, not 845: the shorter readout lifts every row by 21 points",ios
+click,84,719,client,left,,,"cycle 2: top -> bottom. y 719, not 705: after cycle 1 the shorter readout shortens the content, the scroll view re-clamps to the new bottom and every row moves down 14 points -- at 705 this tap missed and the readout stayed at top (p50-ios-final-20260928-051731.png)",ios
 sleep,,,,,,700000,let the readout redraw,ios
-click,140,791,,left,,,open PANEL ALPHA with arrowEdge bottom,ios
+click,143,708,client,left,,,"open PANEL ALPHA with arrowEdge bottom -- y 708: the readout's width sets how the lines above wrap, so each value it shows gives the page a different height and the bottom-clamped rows a different y. With ""bottom"" the text rewraps longer and this button sits at 708 (p50-ios-final-20260928-051854.png, where a tap at 686 missed) (VERIFIED 2026-09-28: PANEL ALPHA opens BELOW its button, readout b..., p50-ios-final-20260928-051926.png)",ios
 sleep,,,,,,1500000,leave the panel open for the final capture,ios

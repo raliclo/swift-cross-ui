@@ -46,7 +46,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=client. Screen 393pt wide, measured off a 3x simulator capture.
 # origin=client。畫面寬 393pt，量自 3x 的模擬器擷取。
-move,196,500,client,,,,"into the outer vertical list, below the red block",ios
+move,220,590,client,,,,"into the outer vertical list, between Outer row 1 and Outer row 2 -- y 500 was on the ""#426 horizontal strip"" label above the list once the root view hosted the page at its real layout (p8-ios-final-20260928-050130.png: label at 491, Outer row 0 at 524)",ios
 sleep,,,,,,400000,,ios
-scroll,0,3,,,,,"the list must move and the page must not: Outer row 0-3 becomes 7-11, title and red block unmoved (verified)",ios
+scroll,0,3,,,,,"the list must move and the page must not: Outer row 0-3 becomes 7-11, title and red block unmoved (VERIFIED 2026-09-28: Outer row 7-11 shown, title and red block where they were, p8-ios-final-20260928-052043.png)",ios
 sleep,,,,,,1000000,,ios

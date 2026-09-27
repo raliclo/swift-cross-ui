@@ -77,5 +77,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p15-dark-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client。內容垂直置中，沒有任何東西會捲動。
-click,196,463,client,left,,,"A button -- its action is empty, so the window must be unchanged: background still (0,0,0), the line still reading Resolved: dark, and the label still #007AFF (VERIFIED: capture pixel-identical to the pre-tap one below the status bar)",ios
+click,220,513,client,left,,,"A button -- its action is empty, so the window must be unchanged: background still (0,0,0), the line still reading Resolved: dark, and the label still #007AFF (VERIFIED: capture pixel-identical to the pre-tap one below the status bar)",ios
 sleep,,,,,,600000,let any trait change that a touch might have triggered land before the capture,ios

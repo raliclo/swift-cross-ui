@@ -37,7 +37,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p21-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。P21 塞得進寬度，沒有東西需要捲動。
-click,124,316,client,left,,,"the Disabled button -- clicks must stay 0",ios
+click,127,316,client,left,,,"the Disabled button -- clicks must stay 0",ios
 sleep,,,,,,400000,let the counter redraw if it is going to,ios
-click,49,316,client,left,,,"the Enabled button -- clicks must become exactly 1, which also proves the previous row did nothing",ios
+click,50,316,client,left,,,"the Enabled button -- clicks must become exactly 1, which also proves the previous row did nothing",ios
 sleep,,,,,,500000,let the counter redraw,ios

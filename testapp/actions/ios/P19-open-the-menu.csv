@@ -9,5 +9,5 @@ action,x,y,origin,button,key,micros,note,platform
 # P19: opens the menu and stops. The menu is presented above the app so its item
 # positions were not in the capture; a second file can add them once one run has
 # recorded where UIKitBackend puts them.
-click,77,394,client,left,,,Open the menu -- a menu must appear and "last action" may stay unchanged,ios
+click,86,442,client,left,,,Open the menu -- a menu must appear and "last action" may stay unchanged,ios
 sleep,,,,,,1000000,let the menu present,ios

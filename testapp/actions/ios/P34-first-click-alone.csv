@@ -1,4 +1,6 @@
 action,x,y,origin,button,key,micros,note,platform
+# launch-args: -rows 500
+# (Read by testapp/sweep_apple.zsh since 2026-09-27. 自 2026-09-27 起由 sweep_apple.zsh 讀取。)
 # P34 on iOS: the FIRST click alone, which is the only way to verify it.
 #
 # `P34-more-rows.csv` presses both buttons and ends at "showing first 500" -- a
@@ -29,5 +31,5 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 需要 `-rows 500`,與 P34-more-rows.csv 相同,否則兩顆按鈕依設計都是 no-op。
 sleep,,,,,,800000,let P34 render,ios
-click,42,295,client,left,,,"Show +100 alone -- the header must read showing first 200",ios
+click,70,373,client,left,,,"Show +100 alone -- the header must read showing first 200",ios
 sleep,,,,,,1000000,let the rows build,ios

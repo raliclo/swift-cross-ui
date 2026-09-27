@@ -8,5 +8,5 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # P20: same limit as P19 -- the file opens level 1 and stops. Levels 2 and 3 need
 # coordinates that only a run with the menu open can supply.
-click,77,412,client,left,,,Open the menu -- level 1 must appear,ios
+click,88,449,client,left,,,Open the menu -- level 1 must appear,ios
 sleep,,,,,,1000000,let the menu present,ios

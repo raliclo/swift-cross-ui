@@ -42,20 +42,33 @@ action,x,y,origin,button,key,micros,note,platform
 # 軌跡就是證據。Longest 之後接 Shortest 會讓 picker 回到它一開始的值,因此事後拍下的畫面,與一支
 # 沒有人碰過的 app 完全相同。`presses: >LS+` 能分辨「這四次都抵達了,而且是這個順序」與
 # 「檔案跑完了但每一列都落空」。
+#
+# **No scrolling any more, from 2026-09-28.** The rows below are measured on the
+# launch layout, where all four buttons are already on screen. The scroll rows this
+# file used to have started at the window centre with no `move`, and until the
+# RootScrollHost fixes of 2026-09-27/28 the root view could not scroll at all (its
+# only measurement was taken before the content existed), so they moved nothing and
+# the coordinates were measured on a layout nobody could reproduce. Now the root
+# does scroll, and those rows would move the buttons out from under the taps.
+# **自 2026-09-28 起不再捲動。**下面的列量自啟動時的版面,四顆按鈕在那裡都已經在畫面上。本檔以前的捲動列
+# 從視窗中心開始、沒有 `move`,而在 2026-09-27/28 修正 RootScrollHost 之前,根 view 根本不能捲(它唯一的一次
+# 量測發生在內容存在之前),所以那些列什麼也沒移動,座標是在一個沒人能重現的版面上量的。現在根 view 會捲了,
+# 那些列會把按鈕從點擊底下移走。
+#
+# One scroll remains, at the END, after every tap: the presses line is off the right
+# edge on the launch layout, and without it in the photograph Longest followed by
+# Shortest leaves nothing to see. That is how a Longest row that missed was found.
+# 還留一次捲動,在**最後**、所有點擊之後:presses 那一行在啟動版面上位於右邊界之外,而照片裡沒有它,
+# Longest 接著 Shortest 就什麼也看不出來。一列落空的 Longest 就是這樣被找到的。
 sleep,,,,,,800000,let P17 render,ios
-scroll,10,0,,,,,"scroll right until the buttons are on screen -- the content is wider than the window",ios
-sleep,,,,,,600000,let the scroll settle,ios
-scroll,0,12,,,,,"scroll to the bottom so More height is reachable too",ios
-sleep,,,,,,800000,let the scroll settle,ios
-click,208,263,client,left,,,"Longest -- Selected must become L (VERIFIED 2026-09-08: the trail reads LS+> in p17-ios-final-20260908-233736.png). The picker width does NOT change with the selection on this backend -- the readout stays 24 x 22 -- which is #161 itself, not a fault in this row",ios
+click,410,367,client,left,,,"Longest -- Selected must become L. At (410, 367): the (420, 380) this row had was below the button's text (359-375) and the trail read S+> -- p17-ios-final-20260928-052223.png, the first capture of this layout with the trail in it. The 2026-09-08 VERIFIED (LS+> in p17-ios-final-20260908-233736.png) belonged to the old layout. (VERIFIED 2026-09-28: presses: LS+> in p17-ios-final-20260928-052258.png) The picker width does NOT change with the selection on this backend -- the readout stays 24 x 22 -- which is #161 itself, not a fault in this row",ios
 sleep,,,,,,400000,let the picker resize,ios
-click,66,263,client,left,,,"Shortest -- Selected must return to S (VERIFIED: Selected reads S and the trail's second character is S, which is what tells this apart from never pressing)",ios
+click,250,365,client,left,,,"Shortest -- measured AFTER Longest: the longest option widens the picker and the centred column with it, which moves every button below, so this row comes from a capture taken in that state (2026-09-28). Choosing Shortest does NOT put the layout back to launch -- a capture after it shows Taller and More height where they were after Longest -- so the next two rows use that layout too -- Selected must return to S (VERIFIED: Selected reads S and the trail's second character is S, which is what tells this apart from never pressing)",ios
 sleep,,,,,,400000,let the picker resize,ios
-click,165,511,client,left,,,"Taller -- the teal block must grow and Shorter must read 125 (VERIFIED: Shorter (125))",ios
+click,362,618,client,left,,,"Taller -- the teal block must grow and Shorter must read 125 (VERIFIED: Shorter (125))",ios
 sleep,,,,,,600000,let the teal block settle,ios
-scroll,0,4,,,,,"scroll back to the bottom before the last click -- Taller grew the teal block by 5 pt and the view was already clamped there, so everything below it moved and 789 stopped being where More height is. Re-clamping restores the state the coordinate was measured in; guessing a compensation did not (794 missed)",ios
-sleep,,,,,,600000,let the scroll settle,ios
-click,221,789,client,left,,,"More height -- the stack line must read a height above 140 and the trail must end in > (VERIFIED: stack: 178 x 160, trail LS+>)",ios
-sleep,,,,,,600000,let the stack settle,ios
-scroll,0,-14,,,,,"back to the top, so the presses line is in the photograph",ios
-sleep,,,,,,800000,settle before the photograph,ios
+click,405,891,client,left,,,"More height -- Taller has just pushed this row down 5 pt, and y 891 is inside it both before and after -- the stack line must read a height above 140 and the trail must end in > (VERIFIED: stack: 178 x 160, trail LS+>)",ios
+sleep,,,,,,800000,let the stack settle,ios
+move,100,600,client,,,,"the empty gutter left of the column -- nothing under the finger",ios
+scroll,5,0,,,,,"to the right, AFTER every tap: the presses line is off the right edge at launch, and Selected: S alone is also what an untouched app shows, so without the trail in the photograph Longest has no evidence at all (p17-ios-final-20260928-052150.png)",ios
+sleep,,,,,,1000000,settle before the photograph,ios

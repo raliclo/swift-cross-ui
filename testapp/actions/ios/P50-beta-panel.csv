@@ -35,6 +35,13 @@ action,x,y,origin,button,key,micros,note,platform
 # **重新量過**:第一次用的 y 889 來自 Windows 那邊把讀數改寫成「arrow edge (first panel only)」之前的
 # 擷圖,而那一行以下的每一列都移動了。那一下點在空處,擷圖裡沒有面板——而那看起來,與「一個開不起來的
 # popover」一模一樣。
+# **Scrolled first, from 2026-09-28** -- see P50-arrow-edge-top.csv for why. At
+# y 911 without the scroll the tap opened PANEL ALPHA, from the first button.
+# **自 2026-09-28 起先捲動**——原因見 P50-arrow-edge-top.csv。不捲動時 y 911 開出的是第一顆按鈕的
+# PANEL ALPHA。
 sleep,,,,,,2000000,let the scene settle before anything is tapped,ios
-click,172,911,,left,,,open PANEL BETA from the SECOND anchor -- it takes no arrowEdge,ios
+move,436,600,client,,,,"the right margin, where nothing is under the finger",ios
+scroll,0,5,,,,,to the end of the content,ios
+sleep,,,,,,1500000,let the scroll come to rest,ios
+click,172,771,client,left,,,"open PANEL BETA from the SECOND anchor -- it takes no arrowEdge (VERIFIED 2026-09-28: PANEL BETA, anchored to the second button, p50-ios-final-20260928-051749.png)",ios
 sleep,,,,,,1500000,leave the panel open for the final capture,ios

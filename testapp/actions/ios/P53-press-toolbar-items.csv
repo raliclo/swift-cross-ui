@@ -18,9 +18,12 @@ action,x,y,origin,button,key,micros,note,platform
 # add 按**兩次**、trash 按**一次**,好讓三個計數器停在不同的值上。若各按一次會留下 1、1、0,而一個
 # 「把每個項目都送到同一個 action」的接線錯誤,在剛好命中那兩個時同樣會產生 1、1、0。2、1、0 走不到
 # 那條路上。
-click,28,82,client,left,,,"the + item (leading) -- add must become 1",ios
+mousedown,55,84,client,left,,,"the floating actualView control, which sits exactly over the leading + item",ios
+mouseup,220,880,client,left,,,"drag it to the bottom of the screen -- it is draggable for this reason. Until 2026-09-28 the two + taps below landed on this control and switched the view mode twice instead, which is why add stayed at 0",ios
+sleep,,,,,,600000,let the control settle,ios
+click,34,84,client,left,,,"the + item (leading) -- add must become 1",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,28,82,client,left,,,"the + item again -- add must become 2",ios
+click,34,84,client,left,,,"the + item again -- add must become 2",ios
 sleep,,,,,,400000,let the counter redraw,ios
-click,365,82,client,left,,,"the trash item (trailing) -- trash must become 1, add must stay at 2",ios
+click,406,84,client,left,,,"the trash item (trailing) -- trash must become 1, add must stay at 2. At (406, 84) on a capture of 2026-09-28; the old x of 365 was on the info item",ios
 sleep,,,,,,800000,settle before the photograph,ios

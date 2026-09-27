@@ -30,7 +30,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 而不是透過這支 app 看得見的手勢辨識器,因此一次壞掉的接線會讓按鈕維持灰色、而 action 照樣觸發——
 # `clicks` 增加而 `pressed draws` 停在 0 正是那個失敗,而它在「放開之後拍的照片」裡是看不見的。
 sleep,,,,,,1000000,let P55 render,ios
-click,45,210,client,left,,,"press -- clicks must become 1 and pressed draws must rise above 0",ios
+click,64,355,client,left,,,"press -- clicks must become 1 and pressed draws must rise above 0",ios
 sleep,,,,,,600000,let the counters redraw,ios
-click,45,210,client,left,,,"press again -- clicks must become 2",ios
+click,64,355,client,left,,,"press again -- clicks must become 2",ios
 sleep,,,,,,800000,settle before the photograph,ios

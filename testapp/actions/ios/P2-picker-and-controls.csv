@@ -13,11 +13,13 @@ action,x,y,origin,button,key,micros,note,platform
 # Note the app is clipped horizontally on this screen: the TextEditor block and
 # its "border check" heading start left of x=0. Nothing below is measured from
 # the clipped region.
-click,348,125,client,left,,,Use expanded Picker options -- "options: 2" must rise,ios
+click,55,84,client,left,,,"the actualView control -- switch to rwdView, which scales P2 to the screen's width. P2's content is centred and wider than the phone, so in actualView its right-hand controls move further right each time something widens it, and a scroll offset measured before a tap is wrong after it (2026-09-27). Every coordinate below is from a capture in rwdView.",ios
+sleep,,,,,,1000000,let the scale settle,ios
+click,353,105,client,left,,,Use expanded Picker options -- "options: 2" must rise,ios
 sleep,,,,,,400000,let the picker rebuild,ios
-click,350,167,client,left,,,Reset -- Selected must return to Vanilla and changes must move,ios
+click,325,137,client,left,,,"Reset -- Selected must return to Vanilla and changes to 0. NOT evidenced by the final capture: Vanilla and 0 are also the launch values (Reset sets pickerChangeCount = 0), so a tap that missed looks the same. The note used to say changes must move, which Reset never does",ios
 sleep,,,,,,400000,let the label redraw,ios
-click,348,547,client,left,,,Enable button row -- the row below must become enabled,ios
+click,353,439,client,left,,,Enable button row -- the row below must become enabled,ios
 sleep,,,,,,400000,let the row redraw,ios
-click,208,588,client,left,,,Always enabled -- this one must act whatever the row state,ios
+click,215,475,client,left,,,Always enabled -- this one must act whatever the row state,ios
 sleep,,,,,,500000,let the last state settle,ios

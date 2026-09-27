@@ -11,5 +11,5 @@ action,x,y,origin,button,key,micros,note,platform
 # because XCUITest rows are taps and there is no measured coordinate for a
 # sheet that did not exist when the capture was taken. The file therefore stops
 # at the open and the evidence is the status line plus a screenshot.
-click,196,336,client,left,,,Open file dialog -- the Open line must stop saying "No open result yet",ios
+click,220,391,client,left,,,Open file dialog -- the Open line must stop saying "No open result yet",ios
 sleep,,,,,,1000000,let the presentation animate in,ios
