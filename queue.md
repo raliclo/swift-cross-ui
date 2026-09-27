@@ -2,6 +2,35 @@
 
 ## 2026-09-27 found while driving iOS
 
+- [ ] **Core crash, ViewGraphNode.swift:13 (`_widget!`): a publish that arrives
+  while the view graph is still being built.** Reported 2026-09-27 by the
+  SoftPCB-mac session, measured THERE on AppKitBackend at 1113a310; **not yet
+  reproduced in this tree.** This is the "empty ForEach" crash of 2026-09-08,
+  and the diagnosis it had was wrong: it is timing, not structure.
+  Backtrace, top down: `ViewGraphNode.widget.getter` <- `computeLayout` <-
+  `bottomUpUpdate` <- `updateEnvironment` closure (~8 levels) <- closure in
+  `ViewGraphNode.init(for:backend:snapshot:environment:)` <- closure in
+  `Publisher.observeAsUIUpdater`. So an observer registered during init fires a
+  bottom-up update that reaches a node whose `_widget` is not assigned yet.
+  Evidence: an `.onAppear` job that publishes back via `DispatchQueue.main.async`
+  crashes when it finishes at once and not when it sleeps 0.5 s or 2 s first;
+  6/10 crash unchanged, 1/10 with one extra main-queue hop -- lower odds, same
+  race. Guarding or moving the ForEach, or making every conditional non-empty,
+  all still crashed in SoftPCB-UI. `ef26b83e`'s six static shapes cannot
+  reproduce it because none publishes during init; keep them as negatives.
+  Next: build a standalone Pn (a model whose `.onAppear` publishes almost at
+  once, with enough views that construction spans more than one main-queue
+  turn), reproduce, and only then fix -- probably by deferring or dropping
+  bottom-up updates that reach an unbuilt node. The SoftPCB-UI recipe is kept in
+  that session: SOFTPCB_ROOT holding only analysis/workflows.csv2, CLAUDE.md and
+  an executable scripts/solver_preflight.zsh containing `exit 0`.
+  **核心崩潰,ViewGraphNode.swift:13(`_widget!`):view graph 還在建構時就有一次發布抵達。**
+  2026-09-27 由 SoftPCB-mac session 回報,在**那邊**以 AppKitBackend、1113a310 量到;**這棵樹裡尚未重現。**
+  它就是 2026-09-08 的「空 ForEach」崩潰,而當時的診斷是錯的:它是時序,不是結構。證據:一個 `.onAppear`
+  的工作透過 `DispatchQueue.main.async` 發布回來,立即結束就崩、先睡 0.5 秒或 2 秒就不崩;未修改 10 次崩 6 次,
+  多一次主佇列跳轉 10 次崩 1 次——機率降低,同一個競態。`ef26b83e` 的六個靜態形狀重現不了它,因為沒有一個在
+  init 期間發布;留著當反例。下一步:先寫一支獨立的 Pn 重現它,重現之後才修。
+
 - [ ] **AppKit: an ENABLED `Toggle` with `.toggleStyle(.switch)` cannot be
   switched on.** P21's readout stays `ToggleSwitch style -- false` after a click
   on the enabled NSSwitch, and the switch is drawn off. Not the coordinates:
