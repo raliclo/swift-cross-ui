@@ -43,9 +43,17 @@
   Fix candidates: stop a child's state change from re-evaluating an ancestor's body
   (the real deviation), or have ObservedObject keep its carried object when the
   incoming one was produced by the wrapped-value initialiser. Core, all backends;
-  measured on macOS only. SoftPCB-mac reports a similar reset with `@State var
-  model = XModel()` in GeometryRenderTab, which this mechanism does NOT explain
-  (State carries storage) -- probably a node replacement; waiting for their shape.
+  measured on macOS only. SoftPCB-mac's GeometryRenderTab reset with `@State var
+  model = XModel()` (seen 2026-09-07) does NOT reproduce on 2026-09-28: with two
+  extra @State properties changed in the same action, one model ObjectIdentifier
+  throughout and the selection kept -- consistent with State carrying its storage.
+  The 09-07 shape was never committed; cause unknown, closed on their side. Their
+  side finding belongs here: `XModel.init` ran 28 times in one short run, because
+  every re-creation of the view struct evaluates the @State initial-value
+  expression. The stored object wins and the new one is discarded, but any side
+  effect in an initialiser runs each time -- the same over-eager re-creation, seen
+  from a wrapper that survives it. SwiftUI evaluates that expression on struct
+  init too, but re-creates structs far less often.
   **核心:view 自己的 @State 改變會讓父層重建它,而內嵌的 `@ObservedObject var m = Model()` 每次都被換掉。**
   2026-09-28 以 P45 在 macOS 實測:一次執行建構了 8 次 model;按鈕的 flip 落在舊實例上,畫面上是新的那一個。
   @State 與 @StateObject 會沿用先前的 storage,不受影響。
