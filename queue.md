@@ -28,7 +28,25 @@
   檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
   `testapp/measurements/ios-aim-20260927.txt`。
 
-- [ ] **Core: a view's own @State change re-creates it from its parent, and an inline
+- [x] **FIXED 2026-09-28 (the lost model; the over-eager re-creation remains).**
+  `ObservedObject.update` keeps its carried object when the incoming one is
+  referenced by nothing but the wrapper's own storage -- an object built by the
+  wrapper's `= Model()` during a re-creation, which cannot be a parent's next
+  object -- and still adopts one a parent holds and passes. Tests:
+  `ObservedObjectTests`, two directions, each shown to fail with its half of the
+  rule removed (the first version passed either way: without `commit()` the layout
+  cache returned before the new view was looked at). P45 model button on macOS:
+  honest true, writes 1, presses 1, siblings kept. Android still compiles (with the
+  26.5 SDK workaround). NOT changed: re-creation itself, so an initialiser used as
+  a @State or @ObservedObject default still RUNS on every re-creation (SoftPCB-mac
+  counted 28) -- that needs the parent to stop re-evaluating `body` on a child's
+  resize, a layout-system change left open below.
+- [ ] **Core: a child's resize makes its parent re-evaluate `body`, so views are
+  re-created on every state change that changes a size.** Every `computeLayout`
+  evaluates `body`, and `bottomUpUpdate` climbs through `onResize`. Consequence
+  left after the ObservedObject fix: initial-value expressions of wrappers run far
+  more often than in SwiftUI.
+- [x] **Core: a view's own @State change re-creates it from its parent, and an inline
   `@ObservedObject var m = Model()` is replaced each time.** Measured 2026-09-28 on
   macOS with P45 (a construction counter was added to P45Model): one run of
   P45-press-the-model-button.csv constructed the model 8 times -- at launch, on each

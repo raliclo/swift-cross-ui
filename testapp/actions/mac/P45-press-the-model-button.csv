@@ -32,5 +32,5 @@ click,64,482,frame,left,,,seed the sibling selection -- the line must read "sele
 sleep,,,,,,400000,,macos
 click,179,482,frame,left,,,seed the sibling field -- the line must read typed: "seeded",macos
 sleep,,,,,,400000,,macos
-click,64,426,frame,left,,,pressing the button control,macos
+click,64,426,frame,left,,,"pressing the button control -- the capture must read honest: true, setter writes: 1, button presses: 1, with selection 2 and typed seeded kept. Before the ObservedObject fix of 2026-09-28 it read writes 0 and honest false: the button also writes @State, the view was re-created, and the inline model was replaced (VERIFIED after the fix: p45-macos-final-20260928-125541.png)",macos
 sleep,,,,,,1200000,let any rebuild settle,macos
