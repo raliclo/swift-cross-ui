@@ -58,7 +58,14 @@
   failures came from example.com now serving localized pages (macOS now follows
   the link with Option-Tab; iOS loads P38's own fixed page via -url). Launch still
   builds the root view a few times (the window probes its minimum and maximum
-  sizes with the scene); that is bounded and was left alone. Original entry:
+  sizes with the scene); that is bounded and was left alone.
+  **Independently confirmed 2026-09-29 by SoftPCB-mac on 268502a8 (clean
+  sources):** GeometryRenderModel.init 28 -> 7, 9, 7 over three runs of the same
+  action file (tab 9, a coupon clicked twice); every init before the first
+  `select` -- launch and the tab switch -- and none after either click; one model
+  ObjectIdentifier throughout, selection held. Probe reverted on their side.
+  **2026-09-29 由 SoftPCB-mac 在 268502a8 上獨立確認:**28 次降為三次執行的 7、9、7,全部發生在啟動與切換分頁時,兩次
+  點擊之後一次也沒有;model 全程同一個物件,選取保住。Original entry:
   **Core: a child's resize makes its parent re-evaluate `body`, so views are
   re-created on every state change that changes a size.** Every `computeLayout`
   evaluates `body`, and `bottomUpUpdate` climbs through `onResize`. Consequence
