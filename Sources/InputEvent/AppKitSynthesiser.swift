@@ -961,6 +961,10 @@
             in window: NSWindow,
             clicks: Int
         ) throws {
+            if Self.isOutOfProcessPanel(window) {
+                try postMouseThroughHID(type, button, at: location, in: window)
+                return
+            }
             guard
                 let event = NSEvent.mouseEvent(
                     with: type,
@@ -994,6 +998,89 @@
             } else {
                 NSApp.postEvent(event, atStart: false)
             }
+        }
+
+        /// Whether `window` is an open or save panel, whose content lives in
+        /// another process.
+        ///
+        /// **Events posted into this process do not reach that content.** Since
+        /// the sandboxed-panel change NSOpenPanel and NSSavePanel draw their browser
+        /// and buttons in a separate service process, and the NSWindow this app
+        /// holds is a host for a remote view. `NSApp.postEvent` addressed to it --
+        /// a click on Cancel, an Escape -- is consumed on this side and never
+        /// crosses. Measured 2026-09-28 with P1 and P18 on macOS 27: Escape after
+        /// "Open file dialog" left the panel open in every macOS capture back to
+        /// 2026-09-01, and a click at Cancel's own position did too, so every row
+        /// after the first dialog in both files hit a panel that ignored it.
+        ///
+        /// `NSSavePanel` covers `NSOpenPanel`, its subclass.
+        ///
+        /// `window` 是否為 open 或 save panel——其內容位於另一個行程。
+        ///
+        /// **投遞進本行程的事件到不了那些內容。**自沙盒化面板的變更起,NSOpenPanel 與 NSSavePanel 的瀏覽器
+        /// 與按鈕由另一個服務行程繪製,而本 app 所持有的 NSWindow 只是一個遠端 view 的宿主。以 `NSApp.postEvent`
+        /// 送給它的事件——一次點在 Cancel 上、一次 Escape——在這一側就被消化,從未跨過去。2026-09-28 在 macOS 27
+        /// 以 P1 與 P18 實測:"Open file dialog" 之後的 Escape,讓面板在回溯到 2026-09-01 的每一張 macOS 擷圖裡
+        /// 都保持開著;點在 Cancel 本身的位置也一樣,因此兩個檔在第一個對話框之後的每一列,打到的都是一個忽略它
+        /// 的面板。
+        @MainActor
+        static func isOutOfProcessPanel(_ window: NSWindow) -> Bool {
+            window is NSSavePanel
+        }
+
+        /// A mouse event through the HID tap, for a window whose content is in
+        /// another process.
+        ///
+        /// The one path that reaches it: the window server routes an HID event to
+        /// whatever is under the point, remote views included. It needs the
+        /// Accessibility grant, which is why it is confined to panels and every
+        /// other window keeps the in-process path; without the grant the post is
+        /// silently dropped, so the error below names it.
+        ///
+        /// 經由 HID tap 的滑鼠事件,給內容位於另一個行程的視窗用。
+        ///
+        /// 唯一到得了它的路徑:視窗伺服器會把 HID 事件路由給位於該點之下的任何東西,遠端 view 也包括在內。
+        /// 它需要輔助使用權限,因此只限用於面板,其餘每一個視窗仍走行程內的路徑;沒有權限時 post 會被靜默丟棄,
+        /// 所以下面的錯誤會點名它。
+        @MainActor
+        private func postMouseThroughHID(
+            _ type: NSEvent.EventType,
+            _ button: MouseButton,
+            at location: NSPoint,
+            in window: NSWindow
+        ) throws {
+            guard AXIsProcessTrusted() else {
+                throw SynthesiserError.unsupported(
+                    "a click into an open/save panel needs the Accessibility grant: the panel's"
+                        + " content is in another process and only an HID event reaches it"
+                )
+            }
+            let onScreen = window.convertPoint(toScreen: location)
+            // Quartz global coordinates start at the top of the primary display;
+            // AppKit's screen coordinates start at its bottom.
+            // Quartz 全域座標從主螢幕頂端起算;AppKit 的螢幕座標從它的底端起算。
+            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+            let point = CGPoint(x: onScreen.x, y: primaryHeight - onScreen.y)
+            guard let cgType = CGEventType(rawValue: UInt32(type.rawValue)) else {
+                throw SynthesiserError.unsupported("no CGEvent type for \(type)")
+            }
+            let cgButton: CGMouseButton =
+                switch button {
+                    case .left: .left
+                    case .right: .right
+                    case .middle: .center
+                }
+            guard
+                let event = CGEvent(
+                    mouseEventSource: nil,
+                    mouseType: cgType,
+                    mouseCursorPosition: point,
+                    mouseButton: cgButton
+                )
+            else {
+                throw SynthesiserError.unsupported("could not construct an HID \(type) event")
+            }
+            event.post(tap: .cghidEventTap)
         }
 
         @MainActor
@@ -1111,6 +1198,61 @@
             let scrollView = hit.enclosingScrollView
             let before = scrollView?.contentView.bounds.origin
 
+            // **A real wheel event when the grant is there.** Calling
+            // `scrollWheel(with:)` on the hit view is not what a wheel does, and on
+            // a SwiftCrossUI ScrollView -- an NSScrollView whose document is an
+            // NSStackView pinned to the clip view's top -- it went the wrong way:
+            // P8's outer view logged `before=(0,0) afterEvent=(0,-30)` for a
+            // downward scroll, bounced back to 0, and never showed a row past 0 in
+            // any macOS capture since 2026-09-17. A wheel event posted through the
+            // HID tap at the same point, measured 2026-09-28, moved it from Outer
+            // row 0 to Outer row 1 at the top. The window server routes that event
+            // exactly as it routes the user's, so this path is taken whenever it
+            // can be; the in-process one stays for a machine without the grant.
+            //
+            // **有權限時送一個真正的滾輪事件。**對 hit 到的 view 呼叫 `scrollWheel(with:)` 並不是滾輪會做的事,
+            // 而在 SwiftCrossUI 的 ScrollView 上——document 是釘在 clip view 頂端的 NSStackView——它走反方向:
+            // P8 的外層向下捲時記下 `before=(0,0) afterEvent=(0,-30)`,彈回 0,自 2026-09-17 起任何一張 macOS
+            // 擷圖都沒出現過 row 0 之後的列。2026-09-28 實測,在同一點經 HID tap 送出的滾輪事件把它從頂端的
+            // Outer row 0 移到 Outer row 1。視窗伺服器路由那個事件的方式與使用者的完全相同,所以只要可以就走這條
+            // 路;行程內的那條保留給沒有權限的機器。
+            if AXIsProcessTrusted() {
+                let onScreen = window.convertPoint(toScreen: point)
+                let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+                let at = CGPoint(x: onScreen.x, y: primaryHeight - onScreen.y)
+                CGEvent(
+                    mouseEventSource: nil,
+                    mouseType: .mouseMoved,
+                    mouseCursorPosition: at,
+                    mouseButton: .left
+                )?.post(tap: .cghidEventTap)
+                cg.location = at
+                cg.post(tap: .cghidEventTap)
+                // Dispatched, not just waited for: this runs on the main thread,
+                // so the event reaches the scroll view only when it is taken off
+                // the queue -- the lesson of the hover path above.
+                // 要分派,不能只是等:這段在主執行緒上,事件只有在被取出佇列時才會送到 scroll view——上面 hover
+                // 路徑的教訓。
+                let until = Date().addingTimeInterval(0.35)
+                while let queued = NSApp.nextEvent(
+                    matching: .any, until: until, inMode: .default, dequeue: true
+                ) {
+                    NSApp.sendEvent(queued)
+                }
+                let after = scrollView?.contentView.bounds.origin
+                let describe: (NSPoint?) -> String = { origin in
+                    origin.map { "(\(Int($0.x)),\(Int($0.y)))" } ?? "none"
+                }
+                FileHandle.standardError.write(
+                    Data(
+                        ("-scroll: dx=\(dx) dy=\(dy) via HID at (\(Int(point.x)),\(Int(point.y)))"
+                            + " scrollView=\(scrollView.map { "\(type(of: $0))" } ?? "none")"
+                            + " before=\(describe(before)) after=\(describe(after))\n").utf8
+                    )
+                )
+                return
+            }
+
             hit.scrollWheel(with: event)
 
             // **Give the event a turn before deciding it did nothing.**
@@ -1197,6 +1339,30 @@
             }
 
             let modifiers = currentModifiers()
+
+            // An open or save panel's content is in another process; see
+            // `isOutOfProcessPanel`. Escape posted in-process never reached it.
+            // open 或 save panel 的內容位於另一個行程;見 `isOutOfProcessPanel`。在行程內投遞的 Escape
+            // 從未送達它。
+            if Self.isOutOfProcessPanel(window) {
+                guard AXIsProcessTrusted() else {
+                    throw SynthesiserError.unsupported(
+                        "a key into an open/save panel needs the Accessibility grant"
+                    )
+                }
+                guard
+                    let event = CGEvent(
+                        keyboardEventSource: nil,
+                        virtualKey: CGKeyCode(code),
+                        keyDown: down
+                    )
+                else {
+                    throw SynthesiserError.unsupported("could not construct an HID key event")
+                }
+                event.flags = CGEventFlags(rawValue: UInt64(modifiers.rawValue))
+                event.post(tap: .cghidEventTap)
+                return
+            }
 
             // A modifier key is a flagsChanged event, not a keyDown. Posting it as
             // a keyDown gives a control a keystroke it cannot interpret, and gives
