@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.swiftcrossui.logtts"
+    android:versionCode="1"
+    android:versionName="1">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
+    <application android:label="SCUI log TTS">
+        <service
+            android:name=".LogTtsService"
+            android:exported="true"
+            android:label="SCUI log TTS">
+            <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data android:name="android.speech.tts" android:resource="@xml/tts_engine" />
+        </service>
+    </application>
+</manifest>

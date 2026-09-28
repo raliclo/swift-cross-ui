@@ -232,6 +232,22 @@
   all, since the gvsbuild GTK is built without AccessKit. See todo.md. Still
   open: actual Narrator/Orca speech.
   **WinUI 那一半同晚已修**(子樹設 raw,14/14);另發現 Windows 上的 GTK 完全沒有無障礙後端。朗讀仍未聽過。
+  **2026-09-29, from the Mac side: speech no longer needs a listener -- TalkBack is
+  done this way** (see the closed #123 複驗 item and
+  `testapp/measurements/talkback-p69-20260929.txt`). The same idea for the two
+  readers left here, both on the Windows machine and not runnable from the Mac:
+  - **Orca (WSLg):** `orca --debug --debug-file=/tmp/orca.log`, or point
+    speech-dispatcher at its `dummy` output module; the debug log records each
+    utterance's text. Touch/keyboard-navigate P69 and grep the log for Close,
+    Removes the file permanently, 40 percent, Half past twelve, and the absence
+    of X and decorative.
+  - **Narrator:** it cannot be given another voice, but its utterances are the
+    UIA names/help/values it reads, and NVDA -- scriptable, with a speech log at
+    log level "debug" -- reads the same tree. An NVDA transcript of P69 is the
+    mechanical equivalent; a Narrator-only difference would need a person.
+  **2026-09-29,來自 Mac 這一側:朗讀不再需要有人聽——TalkBack 已經這樣驗證。**剩下的兩個閱讀器都在 Windows 那台機器上,
+  Mac 這邊跑不了:Orca 用 debug log 或 speech-dispatcher 的 dummy 模組取得逐字稿;Narrator 無法換聲音,但 NVDA 讀的是同一棵
+  UIA 樹且可取得語音 log,可作為機器可驗證的等價物。
 
 - [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**:
   GtkBackend now uses the native lazy factory. Release builds succeeded on
@@ -645,7 +661,20 @@ an empty queue -- mistakes.md entry 1.
       而這些手勢要跑好幾秒——第一次 Android 執行讀到的部分值並不是錯的,只是早了。
     - **macOS 與 X11 維持寫明理由的拒絕**,理由在 `AppKitSynthesiser.swift` 內。
 
-- [ ] **#123 複驗(2026-09-17,應 Windows 之請):我們這三個 backend 乾淨,但複驗本身找到一個更大的洞**
+- [x] **CLOSED 2026-09-29 -- TalkBack's actual speech verified, no human listening.**
+  `testapp/test_support/android_log_tts` is a TTS engine that logs every utterance
+  (tag SCUI-TTS) and speaks none; as the default engine it receives everything
+  TalkBack says. P69 on the api36 emulator, each element touch-explored through the
+  real touchscreen device (`adb input tap` bypasses the accessibility filter):
+  Close -> "Close, Button" (no "X"); Delete -> "Delete, Button. Removes the file
+  permanently"; Volume -> "40 percent, Volume, Button"; the 12:30 text -> "Half past
+  twelve" (12:30 not spoken, so the contentDescription override is what a reader
+  uses -- the one thing this item had not heard); decorative -> nothing.
+  Transcript: `testapp/measurements/talkback-p69-20260929.txt`. What remains is
+  Narrator, on the Windows machine, tracked in the item above.
+  **2026-09-29 關閉:TalkBack 的實際朗讀已驗證,不需要有人聽。**記錄每段朗讀的 TTS 引擎 + 真正的觸控事件;五項主張全部
+  以「唸出的內容」成立。剩下的 Narrator 在 Windows 那台機器上,由上面那一項追蹤。原條目:
+  **#123 複驗(2026-09-17,應 Windows 之請):我們這三個 backend 乾淨,但複驗本身找到一個更大的洞**
   - **起因**:那邊的外部 AT-SPI 探針發現 GTK 的 Close 按鈕仍把 `X` 子節點暴露出去。
   - **macOS:沒有這個問題,而且現在證得出來。** `ax_dump` 加了 `--children`,會印出每一顆具名按鈕
     **底下**有什麼:`desc='Close'`(無子節點)、`desc='Delete' help='Removes the file permanently'`

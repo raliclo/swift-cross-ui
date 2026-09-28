@@ -1,0 +1,34 @@
+# P69 on Android: what TalkBack actually says (2026-09-29)
+
+Emulator swift-cross-ui-api36 (android-36 google_apis, arm64), TalkBack 16.0.0.738667889.
+Speech captured with testapp/test_support/android_log_tts: a TTS engine that logs every
+utterance (tag SCUI-TTS) and speaks none, installed as the default engine. Each element was
+touch-explored with a real touchscreen event (sendevent on /dev/input/event1, via
+/data/local/tmp/touch.sh); `adb shell input tap` bypasses the accessibility input filter and
+TalkBack never sees it. Coordinates from `uiautomator dump --compressed` and a capture.
+
+模擬器 swift-cross-ui-api36、TalkBack 16。朗讀以 android_log_tts 擷取:一個記下每段朗讀(tag SCUI-TTS)、什麼都不唸的
+TTS 引擎,設為預設引擎。每個元素以真正的觸控螢幕事件做觸控探索;`adb shell input tap` 會繞過無障礙輸入過濾器,TalkBack
+看不到它。
+
+== touch Close(X) at (96,626)
+   Close
+   Button
+   Double-tap to activate
+== touch Delete at (147,741)
+   Delete
+   Button. Removes the file permanently
+   Double-tap to activate
+== touch Volume at (160,857)
+   40 percent
+   Volume
+   Button
+   Double-tap to activate
+== touch 12:30 at (109,959)
+   Half past twelve
+== touch decorative at (160,1050)
+
+Verdict: every #123 claim holds as SPOKEN on Android. 'Close' and not 'X'; the hint after
+Delete; 'Volume' with its value '40 percent'; the text labelled 'Half past twelve' is read as
+that and '12:30' is not spoken although the node keeps text='12:30' (the override the P69
+header describes); 'decorative' produces no speech at all.
