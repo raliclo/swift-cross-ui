@@ -113,10 +113,37 @@ public struct ObservedObject<Value: ObservableObject>: ObservableProperty {
         // 傳進來的東西建構完成，而那才是應該被觀察的物件。整份接收先前的儲存體——那是 ``State``
         // 與 ``StateObject`` 正確的做法——會把這個 view 釘死在它最初看到的那個物件上，並靜默忽略
         // 父層此後交給它的每一個。
-        let incoming = box.value.value
+        //
+        // **Except an object nobody else holds.** This framework re-creates a view
+        // struct far more often than SwiftUI: every layout pass evaluates `body`,
+        // and a child's resize lays its parent out again, so a view's OWN @State
+        // change rebuilds it from its parent. An inline `@ObservedObject var m =
+        // Model()` then arrived as a brand-new Model each time and replaced the
+        // one holding the app's data -- measured 2026-09-28 with P45: the model
+        // constructed 8 times in one run, and a button that wrote @State and the
+        // model left the model's writes at 0.
+        //
+        // An object a parent really passed down is one the parent holds too, so
+        // its reference count is at least two. One that only this wrapper's
+        // storage references was built by the wrapper's own initial-value
+        // expression during this re-creation, and cannot be "the parent's next
+        // object"; adopting it would only discard the carried one's state. So the
+        // carried object is kept. A parent that switches to an object it keeps --
+        // the case the paragraph above protects -- is still adopted.
+        //
+        // **除非那個物件沒有別人持有。**本框架重建 view struct 的頻率遠高於 SwiftUI:每次排版都會求值
+        // `body`,子節點改變尺寸會讓父節點重新排版,所以 view **自己的** @State 改變就會讓父層重建它。內嵌的
+        // `@ObservedObject var m = Model()` 於是每次都以全新的 Model 抵達,並取代掌握 app 資料的那一個——
+        // 2026-09-28 以 P45 實測:一次執行建構了 8 次 model,一顆同時寫 @State 與 model 的按鈕讓 model 的
+        // writes 停在 0。父層真正傳下來的物件,父層自己也持有,參考計數至少為二;只被這個 wrapper 的儲存體參考
+        // 的物件,是 wrapper 自己的初始值運算式在這次重建中建出來的,不可能是「父層的下一個物件」,採用它只會
+        // 丟掉沿用那一個的狀態。所以保留沿用的物件。父層改用一個它自己持有的物件——上一段所保護的情況——仍會被採用。
+        let incomingStorage = box.value
         let carried = previousValue.box.value
-        if carried.value !== incoming {
-            carried.value = incoming
+        if carried.value !== incomingStorage.value,
+            !isKnownUniquelyReferenced(&incomingStorage.value)
+        {
+            carried.value = incomingStorage.value
             carried.relink()
         }
         box.value = carried
