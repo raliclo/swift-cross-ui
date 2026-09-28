@@ -1648,7 +1648,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         window: Window?,
         responseHandler handleResponse: @escaping (Int) -> Void
     ) {
-        let completionHandler: (NSApplication.ModalResponse) -> Void = { response in
+        let respondToAlert: (NSApplication.ModalResponse) -> Void = { response in
             guard response != .stop, response != .continue else {
                 return
             }
@@ -1663,9 +1663,66 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             handleResponse(action)
         }
 
+        // Escape answers a one-button alert, as it does on the other backends.
+        //
+        // NSAlert binds Escape only to a button titled Cancel, so an alert whose
+        // sole button is OK -- the shape `.alert` gives when an app lists no
+        // actions -- could not be dismissed from the keyboard at all. Measured
+        // with P31 ("Open alert for Escape test"): in every macOS capture back to
+        // 2026-09-01 the alert was still up after the file's Escape. WinUI's
+        // ContentDialog closes on Escape, and a single button has no other
+        // meaning than "acknowledged", so Escape presses it. Alerts with more
+        // than one button keep NSAlert's own rule.
+        //
+        // Escape 回應只有一顆按鈕的 alert,與其他 backend 一致。NSAlert 只把 Escape 綁到標題為 Cancel 的
+        // 按鈕,因此唯一按鈕是 OK 的 alert——app 沒列出任何動作時 `.alert` 給的就是這個形狀——完全無法用
+        // 鍵盤關閉。以 P31("Open alert for Escape test")實測:回溯到 2026-09-01 的每一張 macOS 擷圖中,
+        // 動作檔按下 Escape 之後 alert 都還在。WinUI 的 ContentDialog 按 Escape 會關閉,而單一按鈕除了
+        // 「知道了」之外沒有別的意思,所以 Escape 就按下它。多於一顆按鈕的 alert 保留 NSAlert 自己的規則。
+        var escapeMonitor: Any?
+        if alert.buttons.count == 1 {
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard
+                    // 53 is kVK_Escape; Carbon is not imported here for one constant.
+                    // 53 即 kVK_Escape;不為了一個常數在此 import Carbon。
+                    event.keyCode == 53,
+                    event.window === alert.window,
+                    let button = alert.buttons.first
+                else {
+                    return event
+                }
+                button.performClick(nil)
+                return nil
+            }
+        }
+        let completionHandler: (NSApplication.ModalResponse) -> Void = { response in
+            if let monitor = escapeMonitor {
+                NSEvent.removeMonitor(monitor)
+                escapeMonitor = nil
+            }
+            respondToAlert(response)
+        }
+
         if let window {
+            // On the topmost sheet, so alerts stack rather than queue.
+            //
+            // `beginSheetModal(for: window)` while `window` already has a sheet
+            // waits for that sheet to end. With "Show A+B+C at once" on P5 the
+            // log read A dismissed, B dismissed, C dismissed -- a queue -- where
+            // #675 asks for the later alert on top and the earlier one restored
+            // when it closes: C, then B, then A, as UIKitBackend now does. A sheet
+            // may itself carry a sheet, so the next alert goes on the last one.
+            //
+            // 放在最上層的 sheet 上,讓 alert 疊起來而不是排隊。`window` 已掛著 sheet 時呼叫
+            // `beginSheetModal(for: window)` 會等那個 sheet 結束。P5 的 "Show A+B+C at once" 的 log 讀到
+            // A、B、C 依序關閉——那是排隊——而 #675 要求後來的 alert 在上面、關掉它時還原前一個:C、B、A,
+            // 與 UIKitBackend 現在的做法相同。sheet 本身可以再掛 sheet,所以下一個 alert 放在最後一個上。
+            var host: NSWindow = window
+            while let sheet = host.attachedSheet {
+                host = sheet
+            }
             alert.beginSheetModal(
-                for: window,
+                for: host,
                 completionHandler: completionHandler
             )
         } else {
@@ -1676,7 +1733,11 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
 
     public func dismissAlert(_ alert: Alert, window: Window?) {
         if let window {
-            window.endSheet(alert.window)
+            // Its own parent, which is `window` only for the first alert: a
+            // stacked one hangs off the sheet below it (see `showAlert`).
+            // 由它自己的父視窗結束;只有第一個 alert 的父視窗是 `window`,疊上去的那些掛在它下面那個 sheet 上
+            // (見 `showAlert`)。
+            (alert.window.sheetParent ?? window).endSheet(alert.window)
         } else {
             NSApplication.shared.stopModal()
         }
