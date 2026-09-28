@@ -60,9 +60,15 @@ action,x,y,origin,button,key,micros,note,platform
 # 於 2026-09-02 重放。p30-debug-events.log 依序記下 wide=true、wide=false、wide=true，而該次執行
 # 自己的最終擷取量得矩形為 142.0..401.5pt，標籤讀作「frame width: 260」。geometry 那一行是
 # `frame=(530.0, 115.0) client=(530.0, 143.0) scale=1.0`，即本資料夾其他檔案提到的 28pt 標題列。
-click,199,204,frame,left,,,"Use wide frame -- the label must read 260 and the rectangle must reach x 401.5pt (VERIFIED: log line ""size toggled wide=true"")",macos
+# **Re-aimed 2026-09-28: y 217, not 204.** On p30-macos-final-20260928-085459.png
+# (860 x 648) the button spans y 207-228, and the capture read "frame width: 120" with
+# the button still saying Use wide frame -- none of the three clicks had landed. The
+# VERIFIED notes below are from an earlier layout.
+# **2026-09-28 重新瞄準:y 217 而非 204。**在 p30-macos-final-20260928-085459.png(860 x 648)上按鈕在 y 207-228,
+# 而那張擷圖讀到 "frame width: 120"、按鈕仍寫著 Use wide frame——三下都沒有命中。下面的 VERIFIED 來自較早的版面。
+click,199,217,frame,left,,,"Use wide frame -- the label must read 260 and the rectangle must reach x 401.5pt (VERIFIED on an earlier layout: log line ""size toggled wide=true"")",macos
 sleep,,,,,,600000,let the layout settle,macos
-click,199,204,frame,left,,,"Use narrow frame -- back to 120 (VERIFIED: ""size toggled wide=false"")",macos
+click,199,217,frame,left,,,"Use narrow frame -- back to 120 (VERIFIED on an earlier layout: ""size toggled wide=false"")",macos
 sleep,,,,,,600000,,macos
-click,199,204,frame,left,,,"wide again so the final capture shows 260 (VERIFIED: ""size toggled wide=true""; the final capture measures the rectangle at 142.0..401.5pt and the label reads ""frame width: 260"")",macos
+click,199,217,frame,left,,,"wide again so the final capture shows 260 -- frame width: 260 and the button reading Use narrow frame",macos
 sleep,,,,,,900000,let the last state settle before the screenshot,macos

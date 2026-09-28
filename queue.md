@@ -28,7 +28,34 @@
   檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
   `testapp/measurements/ios-aim-20260927.txt`。
 
-- [ ] **Read every macOS capture against its file's assertion, as was done for iOS.**
+- [ ] **Core: a view's own @State change re-creates it from its parent, and an inline
+  `@ObservedObject var m = Model()` is replaced each time.** Measured 2026-09-28 on
+  macOS with P45 (a construction counter was added to P45Model): one run of
+  P45-press-the-model-button.csv constructed the model 8 times -- at launch, on each
+  seed button (@State), and on the model button, which also writes @State
+  `presses`. The model button's flip lands on the old instance and the screen then
+  shows the new one: button presses 1, setter writes 0. The toggles that only touch
+  the model keep their state, because nothing re-creates the view. `bottomUpUpdate`
+  propagates to the parent, the parent re-evaluates its body, `P45RootView()` is
+  built anew, and `ObservedObject.update(previousValue:)` adopts the incoming
+  object whenever it differs. `@State` and `@StateObject` carry their previous
+  storage and survive (P45's own `presses`, P46). SwiftUI re-runs only the body.
+  Fix candidates: stop a child's state change from re-evaluating an ancestor's body
+  (the real deviation), or have ObservedObject keep its carried object when the
+  incoming one was produced by the wrapped-value initialiser. Core, all backends;
+  measured on macOS only. SoftPCB-mac reports a similar reset with `@State var
+  model = XModel()` in GeometryRenderTab, which this mechanism does NOT explain
+  (State carries storage) -- probably a node replacement; waiting for their shape.
+  **核心:view 自己的 @State 改變會讓父層重建它,而內嵌的 `@ObservedObject var m = Model()` 每次都被換掉。**
+  2026-09-28 以 P45 在 macOS 實測:一次執行建構了 8 次 model;按鈕的 flip 落在舊實例上,畫面上是新的那一個。
+  @State 與 @StateObject 會沿用先前的 storage,不受影響。
+
+- [x] **Read every macOS capture against its file's assertion, as was done for iOS.**
+  **DONE 2026-09-28.** Every capture of the full macOS sweep read; the misses
+  re-aimed or rewritten, three real defects fixed (open/save panels unreachable,
+  scroll direction on SwiftCrossUI ScrollViews, Escape on one-button alerts, plus
+  alert stacking), one core defect found (above). Second full sweep 83 of 83 with
+  every capture read; results.csv2 for 2026-09-28 has the list.
   The 2026-09-27 macOS sweep (81 of 81) checked that each replay ran and took a
   capture, not what the capture shows. P2 proves that is not enough: its y values
   were 12-17 pt off, the capture read `options: 2` with the button row still

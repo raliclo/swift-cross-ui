@@ -26,7 +26,5 @@ move,380,590,frame,,,,into the WebView,macos
 sleep,,,,,,500000,,macos
 scroll,0,4,,,,,the page must move inside the view and not scroll the window,macos
 sleep,,,,,,1000000,,macos
-scroll,0,4,,,,,further,macos
-sleep,,,,,,1000000,,macos
-scroll,0,-8,,,,,and back to the top,macos
+scroll,0,4,,,,,"further. The claim this file can evidence is the NEGATIVE half: P27's own content -- the title and the six gradients -- must not move. example.com is shorter than the frame, so the page inside has nowhere to go and does not move either (p27-macos-final of the 2026-09-28 second sweep, identical to launch below the title bar); a page that scrolls is P38-scroll-the-web-view.csv's job. This row cannot tell 'delivered and correctly ignored' from 'missed', which is why the file is not counted as evidence for WebView scrolling",macos
 sleep,,,,,,1200000,,macos

@@ -26,5 +26,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 執行本檔之後,「cover opens」必須讀作 1、「coverShown」必須讀作 true——而 cover 本身必須蓋在那兩行
 # 之上,因此若你仍讀得到它們,就表示呈現並未發生。
 sleep,,,,,,1500000,let P49 render,macos
-click,81,346,frame,left,,,"the ""Show the cover"" button -- the cover must fill the window and cover opens must read 1",macos
+click,80,329,frame,left,,,"the ""Show the cover"" button -- the cover must fill the window and cover opens must read 1. At (80, 329) on p49-macos-final-20260928-090128.png (780 x 648, window frame); the (81, 346) this row had is below the button, and that capture read cover opens: 0 (2026-09-28)",macos
 sleep,,,,,,1500000,let the presentation animate in,macos

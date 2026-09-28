@@ -44,11 +44,9 @@ click,359,332,frame,left,,,the toggle under light,macos
 sleep,,,,,,600000,,macos
 click,260,356,frame,left,,,and the button,macos
 sleep,,,,,,800000,,macos
-click,380,235,frame,left,,,Dark,macos
-sleep,,,,,,1200000,,macos
-click,359,332,frame,left,,,the toggle again under dark,macos
-sleep,,,,,,800000,,macos
 click,256,235,frame,left,,,System -- the one case where Requested and Resolved may differ,macos
 sleep,,,,,,1200000,,macos
-click,240,446,frame,left,,,Use tall content -- the content area must stop being 300 x 24,macos
+click,380,235,frame,left,,,"Dark, LAST of the three -- the capture must read Requested: dark. Until 2026-09-28 System came last and the toggle was pressed twice, so the capture showed the launch state (Requested: system, toggle on) and could not tell a working run from one that missed every click. The coordinates are for the SHORT layout: the content is centred, so after Use tall content everything above the extra rows sits 58 points higher on the capture than where it was clicked",macos
+sleep,,,,,,1200000,,macos
+click,240,446,frame,left,,,"Use tall content -- six Extra rows must appear and the status line must read Content is taller. The Content area line stays 300 x 24 by construction: its GeometryReader has a fixed .frame(width: 300, height: 24), so the old expectation that it would change was wrong",macos
 sleep,,,,,,1200000,,macos

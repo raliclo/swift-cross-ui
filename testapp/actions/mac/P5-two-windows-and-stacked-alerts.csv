@@ -62,5 +62,5 @@ key,,,,,return,,dismiss the topmost; the one under it must come back,macos
 sleep,,,,,,1500000,,macos
 key,,,,,return,,and the next,macos
 sleep,,,,,,1500000,,macos
-key,,,,,return,,and the last -- Ready. must return,macos
+key,,,,,return,,"and the last -- Ready. must return. The capture cannot show the order, so debug-events/p5-debug-events.log is the evidence: after 'requesting A, B and C together' it must list Alert C dismissed, Alert B dismissed, Alert A dismissed -- the later alert on top. On 2026-09-28 before the AppKitBackend fix it listed A, B, C: beginSheetModal queued each alert behind the one already attached",macos
 sleep,,,,,,2000000,,macos

@@ -25,5 +25,5 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 座標同 P50-arrow-edge-top.csv:錨點位於 780x1028 視窗外框中的 (230, 720)。
 sleep,,,,,,1200000,let the window settle before anything is clicked,macos
-click,230,720,frame,left,,,"open PANEL ALPHA with arrowEdge nil -- the readout must still say none (platform decides)",macos
+click,231,677,frame,left,,,"open PANEL ALPHA with arrowEdge nil -- the readout must still say none (platform decides) and the panel must be up. At (231, 677), Open the first panel; the (230, 720) this row had is the gap between Cycle and the second panel's button, and the 2026-09-28 capture showed no panel",macos
 sleep,,,,,,1500000,leave the panel open for the final capture,macos

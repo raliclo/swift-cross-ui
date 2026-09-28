@@ -38,8 +38,10 @@ key,,,,,escape,,and close it without choosing,macos
 sleep,,,,,,800000,,macos
 click,410,331,frame,left,,,into the text field which already has a value,macos
 sleep,,,,,,500000,,macos
-key,,,,,end,,go to the end rather than replacing what is there,macos
+keydown,,,,,command,,"go to the end with Cmd-Right, the macOS way. End does not move the insertion point in an NSTextField -- it is a Windows convention -- so on 2026-09-28 the digits went in where the click put the caret: SwiftCros12sUI TextField (p36-macos-final-20260928-085706.png)",macos
+key,,,,,rightArrow,,,macos
+keyup,,,,,command,,,macos
 sleep,,,,,,300000,,macos
 key,,,,,1,,,macos
-key,,,,,2,,two characters appended; the existing text must survive,macos
+key,,,,,2,,"two characters appended; the existing text must survive: the field must read SwiftCrossUI TextField12",macos
 sleep,,,,,,1200000,,macos

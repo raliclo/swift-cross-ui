@@ -37,6 +37,8 @@ action,x,y,origin,button,key,micros,note,platform
 # 那些點擊。第二個視窗會開在**同一組座標的上層**，因此三次點擊全部落在視窗 B——探針證實了這一點：
 # 三次 SET，每一次都是 sceneID=p59-second。當時的截圖顯示視窗 A 的 scene 那一列是空的，而那是
 # 「量錯了視窗」的測試所給出的**正確**結果。先打字、後開窗，就徹底消除了這個歧義。
+click,220,239,frame,left,,,"clear -- first, because both drafts persist between runs: on 2026-09-28 the capture read twelve A's after four runs of three appends (p59-macos-final-20260928-090548.png), so the count said how often the file had run, not whether this run's clicks landed. After this row the three appends must leave exactly AAA",macos
+sleep,,,,,,400000,,macos
 click,54,239,frame,left,,,append A -- window A is the only window open at this point,macos
 sleep,,,,,,300000,,macos
 click,54,239,frame,left,,,again,macos

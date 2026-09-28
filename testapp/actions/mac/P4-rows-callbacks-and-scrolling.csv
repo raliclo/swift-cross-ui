@@ -40,7 +40,5 @@ scroll,0,8,,,,,near the bottom; on Windows this slides the row window,macos
 sleep,,,,,,1000000,,macos
 scroll,0,-8,,,,,and back to the top,macos
 sleep,,,,,,1000000,,macos
-click,330,125,frame,left,,,More rows,macos
-sleep,,,,,,600000,,macos
-click,234,125,frame,left,,,Fewer rows,macos
+click,330,125,frame,left,,,"More rows -- the file stops here: the capture must read Rows: 275. A Fewer rows used to follow, and 250 + 25 - 25 ends where Rows 250 left it, so the capture could not show that either had landed (p4-macos-final-20260928-085819.png read Rows: 250) (2026-09-28)",macos
 sleep,,,,,,1000000,,macos

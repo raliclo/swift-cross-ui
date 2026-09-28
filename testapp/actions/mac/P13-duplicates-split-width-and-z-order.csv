@@ -31,17 +31,21 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 900x907 points, capture 1800px wide -- scale 2.
 # origin=frame。視窗 900x907 點，擷取寬 1800px——scale 2。
-click,252,147,frame,left,,,More duplicates (3) -> 4,macos
+# **Re-measured 2026-09-28 from p13-macos-final-20260928-084709.png (900 x 943, the
+# window frame).** More duplicates was clicked at y 147 with the button at 196, and
+# Narrower at 413 with the button at 433; the capture still read "More duplicates
+# (3)" and "Narrower (400)". Reverse is pressed once, not twice: twice ends where the
+# app starts.
+# **2026-09-28 依 p13-macos-final-20260928-084709.png(900 x 943,視窗外框)重新量測。**More duplicates
+# 點在 y 147,按鈕在 196;Narrower 點在 413,按鈕在 433;擷圖仍讀到 "More duplicates (3)" 與
+# "Narrower (400)"。Reverse 只按一次:按兩次會停在 app 啟動時的樣子。
+click,253,196,frame,left,,,More duplicates (3) -> 4,macos
 sleep,,,,,,700000,,macos
-click,252,147,frame,left,,,-> 5,macos
+click,253,196,frame,left,,,-> 5: the button must read More duplicates (5),macos
 sleep,,,,,,700000,,macos
-click,307,413,frame,left,,,Narrower (400),macos
+click,300,451,frame,left,,,"Narrower (400) -> 340. y 451, not 433: two more duplicate rows make the content taller and it is centred, so everything below the duplicates sits 18 points lower than on the launch layout (p13-macos-final-20260928-100824.png)",macos
 sleep,,,,,,700000,,macos
-click,307,413,frame,left,,,and again -- below the sidebar's own minimum,macos
+click,300,451,frame,left,,,"and again -> 280: below the sidebar's own minimum; the button must read Narrower (280) and the Detail pane must still be visible. No Wider row any more (2026-09-28): the button row is centred over the split view, so each Narrower moves it right, and a Wider at its launch x landed on Narrower and took the frame to 220",macos
 sleep,,,,,,900000,the Detail pane must still be visible,macos
-click,402,413,frame,left,,,Wider,macos
-sleep,,,,,,700000,,macos
-click,374,879,frame,left,,,Reverse -- "Top of the stack" must stop saying blue,macos
-sleep,,,,,,700000,,macos
-click,374,879,frame,left,,,Reverse again -- and say blue once more,macos
+click,378,883,frame,left,,,"Reverse -- once, at y 883 on the same capture: the middle square must change colour and Top of the stack must stop saying blue",macos
 sleep,,,,,,1000000,,macos

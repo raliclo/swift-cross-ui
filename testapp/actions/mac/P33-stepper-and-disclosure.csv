@@ -39,7 +39,5 @@ click,120,347,frame,left,,,plus,macos
 sleep,,,,,,500000,,macos
 click,120,347,frame,left,,,plus -- three ups against one down,macos
 sleep,,,,,,800000,,macos
-click,64,407,frame,left,,,Hide details -- the conditional content must go,macos
-sleep,,,,,,900000,,macos
-click,64,407,frame,left,,,and come back; the button's own label must follow,macos
+click,64,407,frame,left,,,"Hide details -- the conditional content must go and the button must read Show details. The file stops here (2026-09-28). The content is centred in the window, so hiding the details moves everything down about 13 points; a second click at 407 then landed above the button (p33-macos-final-20260928-085611.png shows it at 411-431 after the first click). Ending on the reopened state would also have ended on the launch state, which a capture cannot tell from a miss",macos
 sleep,,,,,,1000000,,macos

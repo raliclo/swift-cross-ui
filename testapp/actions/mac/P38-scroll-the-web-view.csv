@@ -21,11 +21,22 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 818x686 points, capture 1640px wide -- scale 2.
 # origin=frame。視窗 818x686 點，擷取寬 1640px——scale 2。
+# **Rewritten 2026-09-28: follow the link first, then scroll the page it opens.**
+# example.com fits inside the frame with room to spare
+# (p38-macos-final-20260928-085739.png), so there was nothing to scroll: the old rows
+# scrolled down and back up and the capture was the launch picture, which a run
+# where every row missed also gives. The IANA page Learn more opens is long.
+# Navigations reported must read 2 (the click), the page must be scrolled away from
+# its top (the scroll), and it must still read 2 afterwards (a scroll is not a
+# navigation -- the claim this file was written for).
+# **2026-09-28 改寫:先點連結,再捲它打開的那一頁。**example.com 在框內綽綽有餘,根本沒有東西可捲:舊的列往下捲又
+# 捲回來,擷圖就是啟動時的畫面,而每一列都落空的一次也會是那樣。Learn more 打開的 IANA 頁面很長。Navigations
+# reported 必須讀到 2(點擊),頁面必須離開頂端(捲動),而且之後仍是 2(捲動不是導向——本檔原本要問的事)。
+click,222,398,frame,left,,,Learn more -- Navigations reported must become 2 and the IANA page must load in the frame,macos
+sleep,,,,,,3500000,let the navigation finish,macos
 move,409,439,frame,,,,into the framed page,macos
 sleep,,,,,,500000,,macos
-scroll,0,5,,,,,the page moves; Navigations reported must stay 1,macos
+scroll,0,5,,,,,the page moves,macos
 sleep,,,,,,1000000,,macos
-scroll,0,5,,,,,further,macos
-sleep,,,,,,1000000,,macos
-scroll,0,-10,,,,,and back,macos
+scroll,0,5,,,,,"further -- the capture must show the IANA page scrolled away from its top, with Navigations reported still 2",macos
 sleep,,,,,,1200000,,macos

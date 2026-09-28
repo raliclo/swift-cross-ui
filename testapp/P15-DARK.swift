@@ -33,6 +33,10 @@ struct P15DarkApp: App {
 
 struct P15DarkView: View {
     @Environment(\.colorScheme) var resolved
+    // Counted in the button's own label, so "it must respond" can be read off a
+    // capture; the action was empty. 計數寫在按鈕自己的標籤裡,「它必須有反應」才能從擷圖讀出;
+    // 它的動作原本是空的。
+    @State var presses = 0
 
     var body: some View {
         VStack(spacing: 12) {
@@ -42,7 +46,9 @@ struct P15DarkView: View {
             Text("Requested: dark   Resolved: \(resolved == .dark ? "dark" : "light")")
 
             Text("Plain text on the default background")
-            Button("A button") {}
+            Button("A button (\(presses))") {
+                presses += 1
+            }
             Text("Expected under a light theme: this window is dark and readable.")
         }
         .padding(20)

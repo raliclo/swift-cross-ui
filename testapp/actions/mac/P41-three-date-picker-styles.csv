@@ -49,15 +49,24 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 940x648 points, capture 1880px wide -- scale 2.
 # origin=frame。視窗 940x648 點，擷取寬 1880px——scale 2。
-click,201,258,frame,left,,,.automatic stepper up -- 2025-08-24 must move,macos
+# **Re-measured 2026-09-28 from p41-macos-final-20260928-085856.png (940 x 648).**
+# The .automatic stepper's halves are y 260-268 (up) and 269-278 (down) at x 205; the
+# rows clicked 258, 258 and 267, all three counted as up, and the field read
+# 11/24/2025 -- three months on, where up, up, down is one. The stepper steps the
+# selected field, which is the month, so "one day forward" was never what it did.
+# The graphical picker ends on the 17th: going back to the 24th ended on the launch
+# date, which a miss also shows.
+# **2026-09-28 依 p41-macos-final-20260928-085856.png(940 x 648)重新量測。**.automatic 步進器的兩半在 x 205、
+# y 260-268(上)與 269-278(下);那些列點在 258、258、267,三下都被算成「上」,欄位讀到 11/24/2025——多了三個月,
+# 而「上、上、下」應該是一個月。步進器步進的是被選取的欄位,也就是月份,所以「往前一天」從來不是它做的事。
+# graphical 那一個停在 17 日:點回 24 日會停在啟動日期,而落空也會是那樣。
+click,205,264,frame,left,,,.automatic stepper up -- the month field moves,macos
 sleep,,,,,,700000,,macos
-click,201,258,frame,left,,,again,macos
+click,205,264,frame,left,,,again,macos
 sleep,,,,,,700000,,macos
-click,201,267,frame,left,,,and down once -- net one day forward,macos
+click,205,274,frame,left,,,"and down once -- net one month forward: .automatic must read 9/24/2025",macos
 sleep,,,,,,900000,,macos
-click,194,396,frame,left,,,.compact stepper up -- its own label must move and the others must not,macos
+click,198,395,frame,left,,,".compact stepper up -- its own label must move to 9/24/2025 and the others must not",macos
 sleep,,,,,,900000,,macos
-click,565,289,frame,left,,,.graphical -- the 17th,macos
-sleep,,,,,,1200000,,macos
-click,564,307,frame,left,,,and back to the 24th,macos
+click,569,303,frame,left,,,".graphical -- the 17th: the calendar must highlight 17, and the other two must keep their own dates",macos
 sleep,,,,,,1200000,,macos

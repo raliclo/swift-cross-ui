@@ -25,23 +25,32 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 896x784 points, capture 1800px wide -- scale 2.
 # origin=frame。視窗 896x784 點，擷取寬 1800px——scale 2。
-click,307,264,frame,left,,,Shortest -- picker: 350 x 18 must change or must not,macos
+# **Re-measured 2026-09-28 from p17-macos-final-20260928-084857.png (900 x 788, the
+# window frame).** Only the last two rows had been landing: that capture's trail read
+# "<>", with the picker row clicked at y 264 (buttons at 330), the picker at 239 (it
+# is at 305) and Shorter/Taller at 490 (they are at 536). None of those changed the
+# layout, so the capture is also the layout the clicks meet. The capture must read
+# presses: SML--++<> -- every row leaves its own character in order.
+# **2026-09-28 依 p17-macos-final-20260928-084857.png(900 x 788,視窗外框)重新量測。**原本只有最後兩列命中:
+# 那張擷圖的軌跡是 "<>";picker 那列點在 y 264(按鈕在 330)、picker 本身點在 239(它在 305)、Shorter/Taller
+# 點在 490(它們在 536)。那些都沒有改變版面,所以擷圖也就是點擊當下的版面。擷圖必須讀到 presses: SML--++<>。
+click,305,330,frame,left,,,Shortest -- picker: 350 x 18 must change or must not,macos
 sleep,,,,,,800000,,macos
-click,386,264,frame,left,,,Medium,macos
+click,385,330,frame,left,,,Medium,macos
 sleep,,,,,,800000,,macos
-click,463,264,frame,left,,,Longest -- the widest selection,macos
+click,469,330,frame,left,,,Longest -- the widest selection,macos
 sleep,,,,,,800000,,macos
-click,445,239,frame,left,,,open the picker itself,macos
+click,440,305,frame,left,,,open the picker itself,macos
 sleep,,,,,,1200000,,macos
 key,,,,,escape,,and close it without choosing,macos
 sleep,,,,,,800000,,macos
-click,329,490,frame,left,,,Shorter (120) -- #266a; the scroll bar may come and go,macos
+click,327,536,frame,left,,,Shorter (120) -- #266a; the scroll bar may come and go,macos
 sleep,,,,,,800000,,macos
-click,329,490,frame,left,,,shorter again,macos
+click,327,536,frame,left,,,shorter again,macos
 sleep,,,,,,800000,,macos
-click,415,490,frame,left,,,Taller,macos
+click,418,536,frame,left,,,Taller,macos
 sleep,,,,,,800000,,macos
-click,415,490,frame,left,,,taller again -- it must settle rather than flicker,macos
+click,418,536,frame,left,,,taller again -- it must settle rather than flicker,macos
 sleep,,,,,,1000000,,macos
 click,332,736,frame,left,,,Less height (140) -- #266b; the three bands must stay equal width,macos
 sleep,,,,,,800000,,macos

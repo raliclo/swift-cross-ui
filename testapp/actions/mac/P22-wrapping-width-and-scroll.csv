@@ -13,13 +13,22 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 762x730 points, capture 1524x1460 -- scale 2.
 # origin=frame。視窗 762x730 點，擷取 1524x1460——scale 2。
-click,56,516,frame,left,,,Narrower -- the two-line paragraph must rewrap,macos
+# **Rewritten 2026-09-28: Wider, Wider, Narrower -- ends at 350pt.** Two problems with
+# the old rows. They ended at 300pt, the launch width, which a run that missed every
+# click also shows; and at 300pt the paragraph is THREE lines on this build, putting
+# the buttons at y 532 (p22-macos-final-20260928-085049.png), while the rows clicked
+# 516 -- where the buttons sit when the paragraph is two lines. Widening to 350 makes
+# it two lines, so the first row clicks the three-line layout and the rest the
+# two-line one. A missed row ends at 300 or 400 instead.
+# **2026-09-28 改寫:Wider、Wider、Narrower——停在 350pt。**舊的列有兩個問題:它們停在 300pt 這個啟動寬度,
+# 而每一下都落空的一次也會是那樣;而且在這個 build 上 300pt 時段落是**三**行,按鈕在 y 532,那些列卻點 516——
+# 那是段落兩行時按鈕的位置。加寬到 350 會變成兩行,所以第一列點三行版面,其餘點兩行版面。任何一列落空都會
+# 停在 300 或 400。
+click,135,532,frame,left,,,"Wider -- 300 -> 350pt; the paragraph goes from three lines to two and the buttons move up to y 516",macos
 sleep,,,,,,800000,,macos
-click,56,516,frame,left,,,Narrower again,macos
+click,135,516,frame,left,,,Wider again -- 350 -> 400pt,macos
 sleep,,,,,,800000,,macos
-click,130,516,frame,left,,,Wider,macos
-sleep,,,,,,800000,,macos
-click,130,516,frame,left,,,Wider again -- back to the launch width,macos
+click,57,516,frame,left,,,"Narrower -- 400 -> 350pt: after the scroll back to the top the capture must read Wrapping at 350pt",macos
 sleep,,,,,,1000000,,macos
 move,380,400,frame,,,,put the pointer over the content before turning the wheel,macos
 sleep,,,,,,300000,,macos

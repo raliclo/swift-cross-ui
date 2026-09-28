@@ -30,7 +30,5 @@ click,90,311,frame,left,,,-> 3,macos
 sleep,,,,,,800000,,macos
 click,186,311,frame,left,,,Toggle state -- the count must stay at 3,macos
 sleep,,,,,,800000,,macos
-click,90,311,frame,left,,,-> 4 after the toggle,macos
-sleep,,,,,,600000,,macos
-click,186,311,frame,left,,,and toggle back,macos
+click,90,311,frame,left,,,"-> 4 after the toggle -- the file stops here: the capture must read count 4, toggle false. A last row used to toggle back, which put the toggle on its launch value and hid whether either toggle had landed (p35-macos-final-20260928-085649.png read toggle true, the launch state) (2026-09-28)",macos
 sleep,,,,,,1000000,,macos

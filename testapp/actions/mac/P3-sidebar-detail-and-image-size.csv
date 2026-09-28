@@ -17,21 +17,27 @@ action,x,y,origin,button,key,micros,note,platform
 # origin=frame，座標為擷取影像座標的一半。P3 的視窗為 960x628 點，擷取所得為 1920x1256 的影像：
 # 該顯示器為 scale 2，而另一台上的 P18 是 1:1。縮放比例是「視窗剛好開在哪一台顯示器」的性質，
 # 而非 app 的性質，因此逐張擷取讀出，不做一次性的假設。
-click,50,329,frame,left,,,sidebar -> Split layout,macos
+# **Re-measured 2026-09-28 from p3-macos-final-20260928-085444.png (960 x 628, the
+# window frame).** The sidebar and middle-list rows clicked y 301-359 with the rows
+# at 89-145, and Force state update 393 with the button at 605; that capture still
+# read Selected detail: A. The size buttons had landed, but the file ended on Large,
+# the launch size. It now ends on Medium, with Detail C selected.
+# **2026-09-28 依 p3-macos-final-20260928-085444.png(960 x 628,視窗外框)重新量測。**sidebar 與中間清單的列
+# 點在 y 301-359,那些列卻在 89-145;Force state update 點在 393,按鈕在 605;那張擷圖仍讀到 Selected detail: A。
+# 尺寸按鈕有命中,但檔案停在 Large,也就是啟動尺寸。現在停在 Medium,並選著 Detail C。
+click,54,117,frame,left,,,sidebar -> Split layout,macos
 sleep,,,,,,800000,,macos
-click,50,357,frame,left,,,sidebar -> Details,macos
+click,41,145,frame,left,,,sidebar -> Details,macos
 sleep,,,,,,800000,,macos
-click,110,301,frame,left,,,sidebar -> back to Image clipping,macos
+click,62,89,frame,left,,,sidebar -> back to Image clipping,macos
 sleep,,,,,,800000,,macos
-click,330,331,frame,left,,,middle list -> Detail B; "Selected detail" must become B,macos
+click,264,117,frame,left,,,middle list -> Detail B; "Selected detail" must become B,macos
 sleep,,,,,,800000,,macos
-click,330,359,frame,left,,,middle list -> Detail C,macos
+click,264,145,frame,left,,,middle list -> Detail C,macos
 sleep,,,,,,800000,,macos
-click,629,307,frame,left,,,Small; the image and the reported scale must both change,macos
+click,623,307,frame,left,,,Small; the image and the reported scale must both change,macos
 sleep,,,,,,800000,,macos
-click,700,307,frame,left,,,Medium,macos
-sleep,,,,,,800000,,macos
-click,771,307,frame,left,,,Large -- back to the launch state,macos
+click,699,307,frame,left,,,"Medium -- the capture must read Image size: Medium and Selected detail: C",macos
 sleep,,,,,,1000000,,macos
-click,110,393,frame,left,,,Force state update,macos
+click,110,605,frame,left,,,Force state update,macos
 sleep,,,,,,1000000,,macos

@@ -27,20 +27,32 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 760x648 points, capture 1520px wide -- scale 2.
 # origin=frame。視窗 760x648 點，擷取寬 1520px——scale 2。
-click,86,307,frame,left,,,Reset counters -- writes must go to min 0 max 0,macos
+# **Re-measured 2026-09-28 from p11-macos-final-20260928-084628.png (760 x 648, the
+# window frame).** The rows had been about 22 points above their controls: Reset,
+# Separate and Collide were clicked at y 307 with the buttons at 329, the knob was
+# grabbed at 255 with the minimum slider at 276, and the capture still read
+# "minimum 0 / maximum 41" -- nothing but the list scroll and one stepper click had
+# landed. The stepper rows now go up, up, down so the date ends one month on from
+# launch; the old up-then-down ended on the launch date, which a run where both
+# clicks missed also shows.
+# **2026-09-28 依 p11-macos-final-20260928-084628.png(760 x 648,視窗外框)重新量測。**各列原本比控制項
+# 高了約 22 點:Reset、Separate、Collide 點在 y 307,按鈕卻在 329;旋鈕抓在 255,最小值滑桿卻在 276;擷圖
+# 仍讀到 "minimum 0 / maximum 41"——除了清單捲動與一次步進器點擊,沒有一下命中。步進器改為上、上、下,讓日期
+# 停在啟動後一個月;舊的「上再下」停在啟動日期,而兩下都落空的一次也會是那樣。
+click,86,329,frame,left,,,Reset counters -- writes must go to min 0 max 0,macos
 sleep,,,,,,600000,,macos
-mousedown,40,255,frame,left,,,grab the minimum slider's knob at the far left,macos
-move,200,255,frame,,,,,macos
+mousedown,40,276,frame,left,,,grab the minimum slider's knob at the far left,macos
+move,200,276,frame,,,,,macos
 sleep,,,,,,200000,,macos
-move,400,255,frame,,,,,macos
+move,400,276,frame,,,,,macos
 sleep,,,,,,200000,,macos
-move,700,255,frame,,,,past where the maximum sits -- #82's clamp,macos
+move,700,276,frame,,,,past where the maximum sits -- #82's clamp,macos
 sleep,,,,,,300000,,macos
-mouseup,700,255,frame,left,,,,macos
+mouseup,700,276,frame,left,,,,macos
 sleep,,,,,,1000000,,macos
-click,207,307,frame,left,,,Separate them,macos
+click,211,329,frame,left,,,Separate them,macos
 sleep,,,,,,800000,,macos
-click,319,307,frame,left,,,Collide them,macos
+click,328,329,frame,left,,,"Collide them -- the capture must read minimum 50 / maximum 50 and Both at 50",macos
 sleep,,,,,,800000,,macos
 move,385,420,frame,,,,put the pointer inside the forty-row list,macos
 sleep,,,,,,300000,,macos
@@ -48,9 +60,11 @@ scroll,0,5,,,,,five notches -- #485 asks which way it goes,macos
 sleep,,,,,,800000,,macos
 scroll,0,-5,,,,,and back,macos
 sleep,,,,,,800000,,macos
-click,260,527,frame,left,,,DatePicker stepper up,macos
+click,263,534,frame,left,,,DatePicker stepper up -- the month field is selected at launch,macos
 sleep,,,,,,600000,,macos
-click,260,536,frame,left,,,and down -- back to the launch date,macos
+click,263,534,frame,left,,,up again,macos
 sleep,,,,,,600000,,macos
-click,317,531,frame,left,,,Reference,macos
+click,263,544,frame,left,,,"down -- the date must end one month after launch: two ups and a down. A missed down ends two months on, a missed up on the launch month",macos
+sleep,,,,,,600000,,macos
+click,322,539,frame,left,,,Reference,macos
 sleep,,,,,,1000000,,macos

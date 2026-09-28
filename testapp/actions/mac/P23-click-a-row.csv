@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P23 #125: a click on a row must move the selection -- proved on the screen.
+#
+# P23-row-selection.csv proves the click direction in the LOG ("SELECTION now 4")
+# and the framework direction on the screen. The log is rewritten on every launch,
+# so in a sweep the next P23 file erases that line before anyone reads it: on
+# 2026-09-28 debug-events/p23-debug-events.log held only the last P23 run's three
+# startup lines. This file puts the click direction on the screen instead: the code
+# selects row 2 first, so the highlight is somewhere the click has to move it from,
+# and the capture must read "selected row: 4" with row 5 highlighted. A click that
+# missed leaves "selected row: 2".
+#
+# Coordinates from p23-macos-final-20260928-085120.png (window frame, 1x):
+# Select row 2 at (67, 231), row 5 at y 558.
+#
+# P23 #125:點一列必須移動選取——在畫面上證明。
+#
+# P23-row-selection.csv 在 **log** 裡證明點擊方向("SELECTION now 4"),在畫面上證明框架方向。log 每次啟動都會
+# 重寫,所以在 sweep 裡下一個 P23 檔會在任何人讀它之前抹掉那一行:2026-09-28 的
+# debug-events/p23-debug-events.log 只剩最後一次 P23 執行的三行啟動紀錄。本檔改把點擊方向放在畫面上:程式先選
+# 第 2 列,讓高亮在一個「點擊必須把它移走」的地方,擷圖必須讀到 "selected row: 4" 且第 5 列高亮。點擊落空會留下
+# "selected row: 2"。
+sleep,,,,,,700000,let the window settle,macos
+click,67,231,frame,left,,,Select row 2 -- the framework puts the highlight on index 2,macos
+sleep,,,,,,700000,let the highlight be drawn,macos
+click,100,558,frame,left,,,"row 5 -- the capture must read selected row: 4 with row 5 highlighted",macos
+sleep,,,,,,900000,let the readout redraw before the capture,macos

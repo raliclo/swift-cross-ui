@@ -23,15 +23,31 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 716x584 points, capture 1440px wide -- scale 2.
 # origin=frame。視窗 716x584 點，擷取寬 1440px——scale 2。
+# **Rewritten 2026-09-28 to the iOS file's shape.** The old order recorded a push and
+# then popped, and Pop to root sets pushCount = 0 (P24.swift), so the capture always
+# read pushes 0 and Level 0 -- the launch state for both -- and only the counter
+# (3) was evidence (p24-macos-final-20260928-085155.png). A pushed level carries a
+# Back bar, so its buttons sit lower than the root's: Push level N+1 at (352, 411),
+# Record at (359, 440), measured on p24-macos-final-20260928-095748.png. This order
+# ends at Level 1, pushes 1, counter 2; a missed pop ends at Level 3 with pushes 2,
+# a missed final push at Level 0, a missed final record at pushes 0.
+# **2026-09-28 比照 iOS 檔的形狀改寫。**舊順序記錄一次 push 之後就 pop,而 Pop to root 會把 pushCount 設為 0,
+# 所以擷圖永遠讀到 pushes 0 與 Level 0——兩者都是啟動狀態——只有 counter 是證據。推入的層級有 Back 列,按鈕比根層低。
+# 新順序停在 Level 1、pushes 1、counter 2;pop 落空停在 Level 3、pushes 2,最後的 push 落空停在 Level 0,最後的
+# record 落空則是 pushes 0。
 click,84,169,frame,left,,,Increment counter -> 1,macos
 sleep,,,,,,600000,,macos
 click,84,169,frame,left,,,-> 2,macos
 sleep,,,,,,600000,,macos
-click,338,420,frame,left,,,Record a push -- the outside-the-stack tally,macos
-sleep,,,,,,600000,,macos
-click,330,392,frame,left,,,Push level 1,macos
+click,330,392,frame,left,,,Push level 1 (the root's link),macos
 sleep,,,,,,1500000,,macos
-click,202,169,frame,left,,,Pop to root -- the header does not move with the stack,macos
+click,352,411,frame,left,,,Push level 2 (a pushed level's link),macos
+sleep,,,,,,1500000,,macos
+click,359,440,frame,left,,,Record a push at level 2 -- pushes recorded 0 -> 1,macos
+sleep,,,,,,600000,,macos
+click,202,169,frame,left,,,"Pop to root -- the header does not move with the stack; Level 0, and pushes back to 0 (the app resets it)",macos
 sleep,,,,,,1200000,,macos
-click,84,169,frame,left,,,increment once more -- the counter must resume from 2 not 0,macos
+click,330,392,frame,left,,,Push level 1 again,macos
+sleep,,,,,,1500000,,macos
+click,359,440,frame,left,,,"Record a push at level 1 -- the capture must read Level 1, pushes recorded -> 1, counter -> 2",macos
 sleep,,,,,,1000000,,macos

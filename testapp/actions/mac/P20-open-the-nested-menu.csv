@@ -21,5 +21,28 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 654x484 points, capture 1320px wide -- scale 2.
 # origin=frame。視窗 654x484 點，擷取寬 1320px——scale 2。
+# **Rewritten 2026-09-28: driven three levels down by keyboard, not just opened.**
+# The menu is a window of its own and is not in the capture, which read "last action
+# -> nothing yet" whether or not it had opened (p20-macos-final-20260928-085014.png).
+# Down skips the disabled item, right opens a submenu on its first item.
+# **2026-09-28 改寫:以鍵盤往下操作三層,而不只是打開。**選單是自己的視窗、不在擷圖裡,無論有沒有打開,
+# 擷圖都讀到 "last action -> nothing yet"。下方向鍵會跳過停用的項目,右方向鍵會打開子選單並停在第一項。
 click,85,240,frame,left,,,Open the menu,macos
-sleep,,,,,,3000000,leave it open long enough to be seen,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Level 1 item,macos
+key,,,,,downArrow,,"Level 2 submenu -- the disabled item is skipped",macos
+key,,,,,rightArrow,,into level 2: Level 2 item,macos
+key,,,,,downArrow,,Level 3 submenu,macos
+key,,,,,rightArrow,,into level 3: Level 3 item,macos
+key,,,,,downArrow,,Level 3 toggle,macos
+key,,,,,return,,flip it -- level 3 toggle -> true,macos
+sleep,,,,,,1200000,let the menu close,macos
+click,85,240,frame,left,,,Open the menu again,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Level 1 item,macos
+key,,,,,downArrow,,Level 2 submenu,macos
+key,,,,,rightArrow,,Level 2 item,macos
+key,,,,,downArrow,,Level 3 submenu,macos
+key,,,,,rightArrow,,Level 3 item,macos
+key,,,,,return,,"choose it -- the capture must read last action -> level 3 and level 3 toggle -> true",macos
+sleep,,,,,,1200000,let the menu close,macos

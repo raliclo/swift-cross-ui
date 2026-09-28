@@ -81,6 +81,10 @@ enum P45Diagnostics {
     static func write(_ message: String) {
         guard isEnabled else { return }
         print("[P45] \(message)")
+        // Flushed: redirected to a file, print is fully buffered and the buffer
+        // dies with the app, so the harness's log held none of these lines.
+        // 要 flush:導向檔案時 print 是全緩衝的,緩衝區隨 app 一起消失,harness 的 log 裡一行都沒有。
+        fflush(stdout)
     }
 
     static func renderComplete() {
@@ -110,6 +114,18 @@ enum P45Diagnostics {
 final class P45Model: SwiftCrossUI.ObservableObject {
     @SwiftCrossUI.Published var honest = false
     @SwiftCrossUI.Published var writes = 0
+
+    // Every construction is logged. The model is declared `@ObservedObject var
+    // model = P45Model()`, so a second construction means the root view was
+    // re-created and the model it carried was replaced -- which is what the
+    // model-button capture looks like (button presses: 1, setter writes: 0).
+    // 每次建構都記下來。model 宣告為 `@ObservedObject var model = P45Model()`,所以第二次建構代表根 view
+    // 被重建、它帶著的 model 被換掉——model-button 的擷圖看起來正是那樣(button presses: 1, setter writes: 0)。
+    nonisolated(unsafe) static var constructions = 0
+    init() {
+        Self.constructions += 1
+        P45Diagnostics.write("P45Model constructed #\(Self.constructions)")
+    }
 
     /// A field whose getter does **not** return what the setter was given.
     ///

@@ -1,5 +1,12 @@
 action,x,y,origin,button,key,micros,note,platform
+# launch-args: -rows 500
 # P34: raise the row count past the cap, then scroll through what arrived.
+#
+# **-rows 500 from 2026-09-28, as the iOS files have.** At the default of 100 both
+# buttons are no-ops by design, so with the clicks re-aimed onto them the capture
+# still read requested rows: 100.
+# **自 2026-09-28 起帶 -rows 500,與 iOS 檔相同。**預設 100 時兩顆按鈕依設計都是 no-op,所以即使點擊已瞄準,
+# 擷圖仍讀到 requested rows: 100。
 #
 # The row count is the measurement. P34 says "requested rows: 100; showing first
 # 100" and lists the lazy containers SwiftCrossUI does not have, so every row
@@ -22,17 +29,21 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 780x648 points, capture 1560px wide -- scale 2.
 # origin=frame。視窗 780x648 點，擷取寬 1560px——scale 2。
-click,120,213,frame,left,,,Show +100 -- requested rows must reach 200,macos
+# **Re-aimed 2026-09-28 from p34-macos-final-20260928-085632.png (780 x 648).** Show
+# +100 spans x 150-240 at y 210 and the rows clicked x 120, left of it; that capture
+# still read "requested rows: 100". The file also no longer scrolls back to Row 0 at
+# the end, which put the list back where it started.
+# **2026-09-28 依 p34-macos-final-20260928-085632.png(780 x 648)重新瞄準。**Show +100 在 x 150-240、y 210,那些列
+# 點的是 x 120,在它左邊;那張擷圖仍讀到 "requested rows: 100"。本檔也不再在最後捲回 Row 0,那會把清單放回原處。
+click,194,210,frame,left,,,Show +100 -- requested rows must reach 200,macos
 sleep,,,,,,1200000,,macos
-click,120,213,frame,left,,,and 300,macos
+click,194,210,frame,left,,,and 300,macos
 sleep,,,,,,1200000,,macos
-click,248,213,frame,left,,,Show all capped rows -- the cap is what "showing first 100" names,macos
+click,327,210,frame,left,,,"Show all capped rows -- the header must read requested rows: 500; showing first 500 (VERIFIED 2026-09-28 with -rows 500)",macos
 sleep,,,,,,2000000,let an eager build of every row finish,macos
 move,165,425,frame,,,,into the list,macos
 sleep,,,,,,300000,,macos
 scroll,0,10,,,,,ten notches down,macos
 sleep,,,,,,1000000,,macos
-scroll,0,10,,,,,ten more,macos
-sleep,,,,,,1000000,,macos
-scroll,0,-20,,,,,and back to Row 0,macos
+scroll,0,10,,,,,"ten more -- the capture must show rows well past Row 0 at the top of the list",macos
 sleep,,,,,,1200000,,macos

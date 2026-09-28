@@ -27,5 +27,5 @@ action,x,y,origin,button,key,micros,note,platform,target
 # 而不要沿用從另一支 app 記下來的數字。本檔的第一個版本用了 (540, 851)，那在一個高 728 點的視窗
 # 底部之外：該次點擊什麼也沒打到、重放回報成功，而擷圖看起來就像一顆壞掉的按鈕。
 sleep,,,,,,1200000,let P50 lay out,macos,
-click,270,428,frame,left,,,"Show title B -- the title bar must become 'P50 TITLE B ...'",macos,
+click,273,457,frame,left,,,"Show title B -- the title bar must become 'P50 TITLE B ...'. At (273, 457) on p50-macos-final-20260928-090240.png (780 x 928, window frame); the (270, 428) this row had is above the button, and the 2026-09-28 capture's title bar still read P50 TITLE A",macos,
 sleep,,,,,,1500000,let the title change reach the window,macos,

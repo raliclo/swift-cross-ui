@@ -39,31 +39,19 @@ click,390,307,frame,left,,,into the text field -- the only click in this file,ma
 sleep,,,,,,600000,,macos
 key,,,,,t,,,macos
 key,,,,,a,,,macos
-key,,,,,b,,type something the field can lose,macos
+key,,,,,b,,"type something -- the field must keep reading tab at the end",macos
 sleep,,,,,,600000,,macos
-key,,,,,tab,,focus must leave the field for Button 0,macos
-sleep,,,,,,700000,,macos
-key,,,,,space,,space activates a focused button; Button 0 must count,macos
-sleep,,,,,,700000,,macos
-key,,,,,tab,,on to the Toggle,macos
-sleep,,,,,,700000,,macos
-key,,,,,space,,which must flip,macos
-sleep,,,,,,700000,,macos
-key,,,,,tab,,on to the slider,macos
-sleep,,,,,,700000,,macos
-key,,,,,rightArrow,,a focused slider moves with the arrows,macos
-sleep,,,,,,500000,,macos
-key,,,,,rightArrow,,,macos
-sleep,,,,,,700000,,macos
-keydown,,,,,shift,,hold shift,macos
-key,,,,,tab,,shift-tab must walk focus back,macos
-keyup,,,,,shift,,release it,macos
-sleep,,,,,,700000,,macos
-keydown,,,,,shift,,,macos
-key,,,,,tab,,and back again,macos
-keyup,,,,,shift,,,macos
-sleep,,,,,,800000,,macos
-click,107,372,frame,left,,,Open alert for Escape test,macos
+# **The Tab / Space / arrow rows are removed (2026-09-28).** Whether Tab stops on a
+# button is macOS's Keyboard navigation setting (AppleKeyboardUIMode), not the app's
+# or the backend's: it is off by default and off on this machine, so Tab stayed in
+# the only text field and Space and the arrows edited its text. Every macOS capture
+# back to 2026-09-01 showed Button 0 uncounted and the field emptied by those keys.
+# With the setting on they are meaningful and belong in a file of their own.
+# **Tab / Space / 方向鍵那幾列已移除(2026-09-28)。**Tab 會不會停在按鈕上,是 macOS 的「鍵盤導覽」設定
+# (AppleKeyboardUIMode)決定的,不是 app 也不是 backend:它預設關閉,這台機器上也是關的,所以 Tab 一直留在唯一的
+# 文字欄位裡,Space 與方向鍵則改了欄位的文字。回溯到 2026-09-01 的每一張 macOS 擷圖都顯示 Button 0 沒被計數、欄位
+# 被那些鍵清空。設定開啟時它們才有意義,應該放在自己的檔案裡。
+click,107,372,frame,left,,,Open alert for Escape test -- the log writes alert opened,macos
 sleep,,,,,,2000000,,macos
-key,,,,,escape,,the row P31 is really asking about,macos
+key,,,,,escape,,"the row P31 is really asking about: the alert must close. AppKitBackend makes Escape answer a one-button alert from 2026-09-28 -- NSAlert binds Escape only to a button titled Cancel, and until then the alert was still up in every capture. The capture must show no alert and the field reading tab; debug-events/p31-debug-events.log must hold alert opened",macos
 sleep,,,,,,2000000,,macos

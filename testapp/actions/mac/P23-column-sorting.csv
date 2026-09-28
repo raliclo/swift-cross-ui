@@ -43,9 +43,17 @@ action,x,y,origin,button,key,micros,note,platform
 # origin=frame。視窗 820x648,擷取寬 820px——scale 1。2026-09-16 量自
 # p23-macos-final-20260916-200932.png。
 sleep,,,,,,700000,let the window settle before anything is sorted,macos
-click,430,413,frame,left,,,the Number header -- column 3; ascending first,macos
-sleep,,,,,,700000,let the indicator be drawn,macos
-click,430,413,frame,left,,,"the SAME header again -- this must REVERSE, not restart",macos
-sleep,,,,,,700000,let the rows reverse,macos
-click,77,292,frame,left,,,Sort by Number -- the framework writing into the backend,macos
-sleep,,,,,,900000,let setSortOrder redraw the indicator before the capture,macos
+# **Reordered 2026-09-28: Sort by Number first, then the header once.** The old order
+# ended with Sort by Number, which sets ascending whatever came before, so the
+# capture's "column 3 ascending" (p23-macos-final-20260928-085107.png) said nothing
+# about whether the second header click had reversed. Now the header click must
+# reverse the order the code set: the capture must read column 3 descending. A missed
+# Sort by Number leaves the header click to start at ascending, and a missed header
+# click leaves ascending too.
+# **2026-09-28 調整順序:先 Sort by Number,再按表頭一次。**舊順序以 Sort by Number 結束,而它不論之前如何都設為
+# ascending,所以擷圖上的 "column 3 ascending" 完全說明不了第二次點表頭有沒有反轉。現在點表頭必須反轉程式設定的
+# 順序:擷圖必須讀到 column 3 descending。
+click,77,292,frame,left,,,Sort by Number -- the framework writing into the backend: column 3 ascending,macos
+sleep,,,,,,900000,let setSortOrder redraw the indicator,macos
+click,430,413,frame,left,,,"the Number header -- it must REVERSE the order the code set, not restart: the capture must read sort: column 3 descending and the rows run 8 to 1",macos
+sleep,,,,,,900000,let the rows reverse before the capture,macos

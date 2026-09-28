@@ -23,5 +23,5 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 560x328 points, capture 1120px wide -- scale 2.
 # origin=frame。視窗 560x328 點，擷取寬 1120px——scale 2。
-click,280,209,frame,left,,,A button -- it must respond inside an overridden window,macos
+click,280,209,frame,left,,,"A button -- it must respond inside an overridden window: its label must read A button (1), and Resolved must still say dark. P15-DARK counts presses in the label from 2026-09-28; the action was empty, so a capture could not show a response",macos
 sleep,,,,,,1200000,,macos

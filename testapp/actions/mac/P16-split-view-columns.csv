@@ -33,7 +33,7 @@ click,516,103,frame,left,,,Switch to 3 column,macos
 sleep,,,,,,1200000,,macos
 click,78,189,frame,left,,,Science -- a middle column and a detail pane must both fill,macos
 sleep,,,,,,800000,,macos
-click,78,241,frame,left,,,Humanities,macos
+click,62,206,frame,left,,,"Humanities -- the sidebar row, the middle column and the detail pane must all move to Humanities. At (62, 206) on p16-macos-final-20260928-084820.png; the (78, 241) this row had is below the list, and that capture still had Science selected",macos
 sleep,,,,,,800000,,macos
 click,377,103,frame,left,,,Force update again in three columns,macos
 sleep,,,,,,1000000,,macos

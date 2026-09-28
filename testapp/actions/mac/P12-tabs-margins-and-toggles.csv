@@ -46,9 +46,9 @@ click,142,509,frame,left,,,the forced-on Toggle,macos
 sleep,,,,,,600000,,macos
 click,220,509,frame,left,,,the forced-off one,macos
 sleep,,,,,,700000,,macos
-click,157,535,frame,left,,,Set both on,macos
+click,181,587,frame,left,,,"the switch-styled toggle for comparison -- BEFORE the two Set buttons, not after. It is bound to the same toggleOn as the forced-on toggle, so pressed last it switched forced-on off again and the capture showed two identical off toggles, which is correct and evidences nothing (p12-macos-final-20260928-084651.png)",macos
 sleep,,,,,,700000,,macos
-click,261,535,frame,left,,,Set opposite -- #544; the two must now differ visibly,macos
-sleep,,,,,,800000,,macos
-click,181,585,frame,left,,,the switch-styled toggle for comparison,macos
+click,157,537,frame,left,,,Set both on,macos
+sleep,,,,,,700000,,macos
+click,261,537,frame,left,,,"Set opposite -- #544; the capture must show forced-on and forced-off looking different, and the switch on",macos
 sleep,,,,,,1000000,,macos

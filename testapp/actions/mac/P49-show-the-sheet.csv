@@ -17,5 +17,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 本檔存在的唯一理由,是讓「cover 填滿視窗」成為一項**比較**而非一項斷言。同樣的內容以兩種方式呈現;
 # 若兩張擷取看起來相像,那麼 fullScreenCover 就是一個 sheet。
 sleep,,,,,,1500000,let P49 render,macos
-click,81,406,frame,left,,,"the ""Show the sheet"" button -- the sheet must NOT fill the window",macos
+click,80,451,frame,left,,,"the ""Show the sheet"" button -- the sheet must NOT fill the window, and sheetShown must read true. At (80, 451) on p49-macos-final-20260928-090128.png; the (81, 406) this row had is between the popover button and the sheet's caption, and the sheet run read sheetShown = false (2026-09-28)",macos
 sleep,,,,,,1500000,let the presentation animate in,macos

@@ -19,9 +19,18 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 三個 alert 按鈕刻意不按。每一個都會開啟一個在被關閉前持有事件迴圈的 modal，而關閉它需要該 alert
 # 自身的幾何資訊——那是本檔無法定址的另一個視窗。AppStorage 這一半才是點擊本身就能判定的部分。
-click,230,200,frame,left,,,Increment @AppStorage,macos
+# **Rewritten 2026-09-28: Increment, Reset, Increment, Increment -- ends at 2.** The
+# old order ended with Reset at 0, the launch value, so the capture could not tell a
+# working run from one where every click missed (p0-macos-final-20260928-084523.png
+# reads 0 and "Reset @AppStorage"). The first Increment makes the stored value
+# non-zero whatever the last run left, so a missed Reset ends at 3 or more.
+# **2026-09-28 改寫:Increment、Reset、Increment、Increment——停在 2。**舊順序以 Reset 結束、停在啟動值 0,
+# 擷圖分不出正常的一次與每一下都落空的一次。第一次 Increment 讓存值不為 0,因此 Reset 落空會停在 3 以上。
+click,225,197,frame,left,,,Increment @AppStorage -- makes the stored value non-zero before Reset,macos
 sleep,,,,,,400000,,macos
-click,230,200,frame,left,,,and again -- the count must rise twice,macos
+click,351,197,frame,left,,,Reset -- to 0,macos
 sleep,,,,,,400000,,macos
-click,347,200,frame,left,,,Reset -- the count must go back to its floor,macos
+click,225,197,frame,left,,,Increment -- 0 -> 1,macos
+sleep,,,,,,400000,,macos
+click,225,197,frame,left,,,Increment -- 1 -> 2: the capture must read Launch count stored in @AppStorage: 2,macos
 sleep,,,,,,600000,let the label settle,macos

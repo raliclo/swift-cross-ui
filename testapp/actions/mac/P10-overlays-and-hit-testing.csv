@@ -31,7 +31,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 622x490 points, capture 1240px wide -- scale 2.
 # origin=frame。視窗 622x490 點，擷取寬 1240px——scale 2。
-click,79,261,frame,left,,,Click me -- Direct clicks 0 -> 1,macos
+click,75,275,frame,left,,,"Click me -- Direct clicks 0 -> 1. At (75, 275): the button spans about y 265-285 on p10-macos-final-20260928-084606.png, and the (79, 261) this row had is above it -- that capture read Direct clicks: 0",macos
 sleep,,,,,,600000,,macos
 click,224,261,frame,left,,,Click me too under the transparent overlay -- Covered 0 -> 1,macos
 sleep,,,,,,600000,,macos
@@ -39,7 +39,7 @@ click,455,261,frame,left,,,"the opaque allowsHitTesting(false) region -- Hidden 
 sleep,,,,,,600000,,macos
 click,310,341,frame,left,,,remove the transparent overlay,macos
 sleep,,,,,,800000,,macos
-click,79,261,frame,left,,,Click me again -- Direct 1 -> 2,macos
+click,75,275,frame,left,,,"Click me again -- Direct 1 -> 2; the capture must read Direct 2, Covered 2, Hidden 2",macos
 sleep,,,,,,600000,,macos
 click,224,261,frame,left,,,and the second button with nothing over it -- Covered 1 -> 2,macos
 sleep,,,,,,600000,,macos

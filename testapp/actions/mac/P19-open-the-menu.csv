@@ -22,5 +22,21 @@ action,x,y,origin,button,key,micros,note,platform
 # 全螢幕擷取則不能。
 #
 # 因此項目座標並非用猜的。待 hit testing 修復後重新量測再補上；下方的按鈕點擊已經是正確的，不會移動。
+# **Rewritten 2026-09-28: the menu is driven to an item, not just opened.** An NSMenu
+# is a window of its own and the capture is of the app's window, so a file that only
+# opened the menu produced a capture identical to one where the click missed:
+# "last action -> nothing yet" (p19-macos-final-20260928-084932.png). Arrow keys skip
+# items that cannot be chosen, so down, down lands on the toggle past the text item.
+# **2026-09-28 改寫:把選單操作到某個項目,而不只是打開。**NSMenu 是自己的一個視窗,擷圖拍的是 app 的
+# 視窗,因此只打開選單的檔案,拍出來與點擊落空的一次完全相同。方向鍵會跳過不能選的項目。
 click,72,232,frame,left,,,Open the menu,macos
-sleep,,,,,,3000000,leave it open long enough to be seen,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Button item,macos
+key,,,,,downArrow,,"Toggle item -- the text item and the divider are skipped",macos
+key,,,,,return,,choose it -- toggle item -> true,macos
+sleep,,,,,,1200000,let the menu close,macos
+click,72,232,frame,left,,,Open the menu again,macos
+sleep,,,,,,1200000,let it open,macos
+key,,,,,downArrow,,Button item,macos
+key,,,,,return,,"choose it -- the capture must read last action -> button item and toggle item -> true",macos
+sleep,,,,,,1200000,let the menu close,macos

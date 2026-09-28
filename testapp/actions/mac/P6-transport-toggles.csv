@@ -22,19 +22,26 @@ action,x,y,origin,button,key,micros,note,platform
 # origin=frame. Window 1074x825 points, capture 2152x1650 -- scale 2, so these are
 # the image coordinates halved.
 # origin=frame。視窗 1074x825 點，擷取 2152x1650——scale 2，因此下列為影像座標的一半。
-click,769,756,frame,left,,,Sound -- it starts on; the button must lose its highlight,macos
+# **Rewritten 2026-09-28 from p6-macos-final-20260928-090607.png (1120 x 828).** The
+# transport row is at y 741 and the rows clicked 752-760, below it; Speed and FPS are
+# pop-up menus ("1x", "30" with the up-down glyph), not steppers, so "stepper up" and
+# "stepper down" clicks meant nothing even where they landed; and every control was
+# operated twice, so a working run ended on the launch state. Each control is now
+# operated once, and the two pop-ups are driven by keyboard as P19 drives a menu.
+# **2026-09-28 依 p6-macos-final-20260928-090607.png(1120 x 828)改寫。**傳輸列在 y 741,那些列點的是 752-760,
+# 在它下面;Speed 與 FPS 是彈出選單,不是步進器,所以「上/下」的點擊即使命中也沒有意義;而且每個控制項都操作兩次,
+# 正常的一次會停在啟動狀態。現在每個控制項只操作一次,兩個彈出選單比照 P19 用鍵盤操作。
+click,803,750,frame,left,,,"Sound -- y 750: the transport row sat at 741 on one run and 755 on the next (p6-macos-final-20260928-102712.png), and every row at 741 missed on the second; 750 is inside the buttons in both. It starts on; the button must lose its highlight and the status line must say Sound off",macos
 sleep,,,,,,800000,,macos
-click,849,756,frame,left,,,Frame drop -- the status line says "Frame drop off." and must stop,macos
+click,880,750,frame,left,,,"Frame drop -- it starts off (P6Diagnostics.isFrameDropEnabled is false under the harness); the status line must say Frame drop on",macos
 sleep,,,,,,800000,,macos
-click,367,752,frame,left,,,Speed stepper up -- 1x must rise,macos
-sleep,,,,,,600000,,macos
-click,367,760,frame,left,,,Speed stepper down -- back to 1x,macos
-sleep,,,,,,600000,,macos
-click,488,752,frame,left,,,FPS stepper up -- 30 must rise,macos
-sleep,,,,,,600000,,macos
-click,488,760,frame,left,,,FPS stepper down -- back to 30,macos
-sleep,,,,,,800000,,macos
-click,849,756,frame,left,,,Frame drop again -- and the status line must return to off,macos
-sleep,,,,,,800000,,macos
-click,769,756,frame,left,,,Sound again,macos
+click,362,750,frame,left,,,open the Speed pop-up -- 1x is checked,macos
 sleep,,,,,,1000000,,macos
+key,,,,,downArrow,,the next speed,macos
+key,,,,,return,,"choose it -- the status line must stop saying 1x",macos
+sleep,,,,,,1000000,,macos
+click,505,750,frame,left,,,open the FPS pop-up -- 30 is checked,macos
+sleep,,,,,,1000000,,macos
+key,,,,,downArrow,,the next rate,macos
+key,,,,,return,,"choose it -- the status line must stop saying 30 FPS",macos
+sleep,,,,,,1200000,,macos
