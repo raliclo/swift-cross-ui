@@ -269,11 +269,14 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) -> ViewLayoutResult {
-        return body.computeLayout(
+        // The kept body when the node supplies one; see `resolvedBody`. The cache
+        // values are removed before going below this view.
+        // 節點提供了保存的 body 時就用它;見 `resolvedBody`。往這個 view 之下傳之前移除快取值。
+        return resolvedBody(environment).computeLayout(
             widget,
             children: children,
             proposedSize: proposedSize,
-            environment: environment,
+            environment: environment.withoutBodyCache(),
             backend: backend
         )
     }
@@ -301,11 +304,14 @@ extension View {
         environment: EnvironmentValues,
         backend: Backend
     ) {
-        return body.commit(
+        // The body that was laid out, kept by the node, so what is committed is
+        // what was measured -- and a commit builds no views of its own.
+        // 用節點保存的、剛排版過的那個 body,讓 commit 的正是量測過的東西——而且 commit 自己不會建出任何 view。
+        return resolvedBody(environment).commit(
             widget,
             children: children,
             layout: layout,
-            environment: environment,
+            environment: environment.withoutBodyCache(),
             backend: backend
         )
     }

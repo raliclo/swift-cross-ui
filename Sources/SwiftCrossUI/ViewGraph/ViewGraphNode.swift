@@ -43,6 +43,13 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     /// A cache of update results keyed by the proposed size they were for. Gets
     /// cleared before the results' sizes become invalid.
     var resultCache: [ProposedViewSize: ViewLayoutResult]
+    /// The body the view's default layout evaluated last, kept so that a
+    /// re-layout and the commit use it instead of evaluating `body` again. Nil for
+    /// views that do not use the default layout. See
+    /// `EnvironmentValues.reusesBodies`.
+    /// view 的預設排版上次求值出的 body,保存下來讓重新排版與 commit 使用,而不是再求值一次 `body`。不使用預設
+    /// 排版的 view 則為 nil。見 `EnvironmentValues.reusesBodies`。
+    private var lastBody: Any?
     /// The most recent size proposed by the parent view. Used when updating the wrapped
     /// view as a result of a state change rather than the parent view updating. Proposals
     /// that get cached responses don't update this size, as this size should stay in sync
@@ -170,7 +177,10 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
         return "\(title)\u{1e}\(toolbar)"
     }
 
-    private func bottomUpUpdate() {
+    /// - Parameter reusingBodies: True when a child's resize started this update,
+    ///   false when this node's own state did. See
+    ///   `EnvironmentValues.reusesBodies`.
+    private func bottomUpUpdate(reusingBodies: Bool = false) {
         // **A node its parent has never laid out does not start a bottom-up update.**
         //
         // A node builds its children (init, `view.children`) BEFORE its own widget
@@ -210,9 +220,11 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
         // First we compute what size the view will be after the update. If it will change size,
         // propagate the update to this node's parent instead of updating straight away.
         let currentSize = currentLayout?.size
+        var passEnvironment = parentEnvironment
+        passEnvironment.reusesBodies = reusingBodies
         let newLayout = self.computeLayout(
             proposedSize: lastProposedSize,
-            environment: parentEnvironment
+            environment: passEnvironment
         )
 
         self.currentLayout = newLayout
@@ -254,7 +266,10 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
     private func updateEnvironment(_ environment: EnvironmentValues) -> EnvironmentValues {
         environment.with(\.onResize) { [weak self] _ in
             guard let self else { return }
-            self.bottomUpUpdate()
+            // A child resized; this node itself did not change, so it re-lays out
+            // its kept body. See `EnvironmentValues.reusesBodies`.
+            // 子節點改變了尺寸;這個節點本身沒變,所以它重新排版保存的 body。見 `EnvironmentValues.reusesBodies`。
+            self.bottomUpUpdate(reusingBodies: true)
         }
     }
 
@@ -310,7 +325,14 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             return cachedResult
         }
 
-        parentEnvironment = environment
+        // Stored without the pass-only values: `reusesBodies` belongs to this pass,
+        // and the body cache belongs to whichever view it was meant for. Kept, the
+        // first would make this node's own later update skip evaluating its body.
+        // 存下時不帶只屬於這一趟的值:`reusesBodies` 屬於這一趟,body 快取屬於它原本要給的那個 view。若留著,前者
+        // 會讓這個節點之後自己的更新跳過求值 body。
+        var storedEnvironment = environment.withoutBodyCache()
+        storedEnvironment.reusesBodies = false
+        parentEnvironment = storedEnvironment
         lastProposedSize = proposedSize
 
         let previousView: NodeView?
@@ -321,9 +343,29 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             previousView = nil
         }
 
-        let viewEnvironment = updateEnvironment(environment)
+        var viewEnvironment = updateEnvironment(environment)
 
         dynamicPropertyUpdater.update(view, with: viewEnvironment, previousValue: previousView)
+
+        // The kept body on a re-layout, a fresh one recorded otherwise. Always
+        // assigned, so a cache meant for an ancestor never reaches this view.
+        //
+        // A re-layout DOES hand this node a view -- the parent lays out its kept
+        // body, which contains this node's view as it was -- so `newView` being
+        // set does not mean anything changed. Nothing above changed in a
+        // re-layout by definition; a change arrives as a full update.
+        //
+        // 重新排版時用保存的 body,否則求值新的並記下。一律賦值,讓給祖先的快取永遠到不了這個 view。重新排版**確實**
+        // 會交給這個節點一個 view——父層排版的是它保存的 body,裡面裝著這個節點原本的 view——所以 `newView` 有值
+        // 不代表有東西變了。依定義,重新排版時上面什麼都沒變;改變是以完整更新的形式抵達的。
+        let owner = ObjectIdentifier(NodeView.self)
+        let capture = BodyCapture(owner: owner)
+        viewEnvironment.bodyCapture = capture
+        if environment.reusesBodies, let lastBody {
+            viewEnvironment.cachedBody = CachedBody(owner: owner, body: lastBody)
+        } else {
+            viewEnvironment.cachedBody = nil
+        }
 
         let result = view.computeLayout(
             widget,
@@ -332,6 +374,9 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             environment: viewEnvironment,
             backend: backend
         )
+        if let body = capture.body {
+            lastBody = body
+        }
 
         // We assume that the view's sizing behaviour won't change between consecutive
         // layout computations and the following commit, because groups of updates
@@ -372,11 +417,17 @@ public class ViewGraphNode<NodeView: View, Backend: BaseAppBackend>: Sendable {
             )
         }
 
+        // Committed with the body that was laid out; see `lastBody`.
+        // 以排版過的那個 body commit;見 `lastBody`。
+        var commitEnvironment = parentEnvironment
+        commitEnvironment.cachedBody = lastBody.map {
+            CachedBody(owner: ObjectIdentifier(NodeView.self), body: $0)
+        }
         view.commit(
             widget,
             children: children,
             layout: currentLayout,
-            environment: parentEnvironment,
+            environment: commitEnvironment,
             backend: backend
         )
         resultCache = [:]

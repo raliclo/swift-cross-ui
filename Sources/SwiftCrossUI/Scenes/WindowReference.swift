@@ -269,15 +269,21 @@ final class WindowReference<SceneType: WindowingScene> {
             .with(\.onResize) { [weak self] _ in
                 guard let self else { return }
                 self.cachedWindowSize = nil
-                // TODO: Figure out whether this would still work if we didn't recompute the
-                //   scene's body. I have a vague feeling that it wouldn't work in all cases?
-                //   But I don't have the time to come up with a counterexample right now.
+                // The scene is NOT recomputed and the content re-lays out its kept
+                // bodies (`reusesBodies`). The content resized because a node in it
+                // changed, and that node already applied the change; recomputing the
+                // scene built the root view and every view below it anew on each
+                // such resize (P45 on 2026-09-28: its model constructed 8 times in
+                // one run). Upstream's TODO here asked exactly whether this works.
+                // 不重算 scene,內容重新排版保存的 body(`reusesBodies`)。內容改變尺寸是因為其中某個節點變了,而那個
+                // 節點已經套用過;重算 scene 會在每一次這種改變時重建根 view 與其下的每一個 view(2026-09-28 的 P45:
+                // 一次執行建構了 8 次 model)。上游在此留的 TODO 問的正是這件事行不行得通。
                 self.update(
-                    self.scene,
+                    nil,
                     proposedWindowSize: backend.size(ofWindow: window),
                     needsWindowSizeCommit: false,
                     backend: backend,
-                    environment: environment,
+                    environment: environment.with(\.reusesBodies, true),
                     // The two sibling call sites -- the resize handler and the
                     // environment-change handler -- both pass this, and this one
                     // did not, so it took the default of `false`. That permits
@@ -333,12 +339,14 @@ final class WindowReference<SceneType: WindowingScene> {
             // 日後必須靠人手與第一條保持同步。
             .with(\.requestWindowUpdate) { [weak self] in
                 guard let self else { return }
+                // As the resize handler above: the chrome changed, the scene did not.
+                // 同上方的 resize handler:改變的是外框,不是 scene。
                 self.update(
-                    self.scene,
+                    nil,
                     proposedWindowSize: backend.size(ofWindow: window),
                     needsWindowSizeCommit: false,
                     backend: backend,
-                    environment: environment,
+                    environment: environment.with(\.reusesBodies, true),
                     windowSizeIsFinal: !backend.isWindowProgrammaticallyResizable(window)
                 )
             }

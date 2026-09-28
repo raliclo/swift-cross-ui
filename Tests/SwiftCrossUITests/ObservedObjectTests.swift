@@ -107,19 +107,13 @@ struct ObservedObjectTests {
         try await Task.sleep(nanoseconds: 300_000_000)
 
         #expect(GrowingChild.text?.wrappedValue == "a much longer label than before")
-        // Known, and not fixable by withholding the new view: laying the parent
-        // out evaluates its `body`, and evaluating `VStack { GrowingChild() }`
-        // BUILDS the child whether or not its node takes it. Tried 2026-09-29
-        // with a pass-only "reuse child views" flag -- this expectation failed
-        // identically with and without it, and it was reverted. The fix is for a
-        // re-layout not to evaluate `body` at all. queue.md has the item; when it
-        // lands this known issue stops occurring and the test says so.
-        // 已知,而且無法靠「不收下新 view」修掉:排版父層就會求值它的 `body`,而求值 `VStack { GrowingChild() }`
-        // 就會**建出**子 view,不論它的節點收不收下。2026-09-29 以一個只屬於該趟的「沿用子 view」旗標試過——這個
-        // 預期在有無旗標時失敗得一模一樣,旗標已撤回。修法是讓重新排版根本不求值 `body`。
-        withKnownIssue("a re-layout evaluates body, which re-creates children") {
-            #expect(GrowingChild.constructions == afterLaunch)
-        }
+        // The re-layout this resize starts lays out the parent's KEPT body
+        // (`EnvironmentValues.reusesBodies`). Evaluating it again builds the
+        // child -- a first attempt that only withheld the new view from the node
+        // failed this line identically with and without it (2026-09-29).
+        // 這次尺寸改變所發起的重新排版,排的是父層**保存的** body。再求值一次就會建出子 view——第一次只把新 view
+        // 擋在節點外的嘗試,在有無它時這一行失敗得一模一樣(2026-09-29)。
+        #expect(GrowingChild.constructions == afterLaunch)
     }
 
     @MainActor

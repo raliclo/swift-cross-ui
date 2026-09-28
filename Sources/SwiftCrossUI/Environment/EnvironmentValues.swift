@@ -111,6 +111,52 @@ public struct EnvironmentValues {
     /// proposal received by each view must be its intended final proposal.
     var allowLayoutCaching: Bool = false
 
+    /// Whether this layout pass re-lays out without re-evaluating any `body`.
+    ///
+    /// Set for the pass a child's resize starts, and by the window when its
+    /// content resized. Nothing above the child changed -- the child's own node
+    /// already applied its new state in a full update -- so every node on the path
+    /// lays out the body it computed last time instead of evaluating `body` again.
+    ///
+    /// Evaluating it again was not harmless. It BUILT every view below: an
+    /// ancestor's `VStack { Child() }` constructs `Child`, runs each wrapper's
+    /// initial-value expression, and hands the node a new struct -- which is how
+    /// P45's inline `@ObservedObject` model was constructed 8 times in one run and
+    /// SoftPCB-UI saw one @State default's initialiser run 28 times (2026-09-28).
+    /// SwiftUI re-evaluates only the body whose dependencies changed.
+    ///
+    /// A pass flag: nodes pass it down for the pass and never store it, so a
+    /// node's own later update evaluates its body as it must.
+    ///
+    /// 這一趟排版是否在**不**重新求值任何 `body` 的情況下重新排版。由子節點改變尺寸所發起的那一趟會設定它,
+    /// 視窗在內容改變尺寸時也會。子節點之上什麼都沒變——子節點自己的節點已在一次完整更新中套用了新狀態——所以
+    /// 路徑上每個節點都排版它上次算出的 body,而不是再求值一次。再求值一次並非無害:它會**建出**底下每一個 view——
+    /// 祖先的 `VStack { Child() }` 會建構 `Child`、再跑每個 wrapper 的初始值運算式、把新的 struct 交給節點——
+    /// P45 的內嵌 `@ObservedObject` model 就是這樣在一次執行中被建構了 8 次,SoftPCB-UI 也看到一個 @State
+    /// 預設值的初始化跑了 28 次(2026-09-28)。SwiftUI 只重新求值依賴有變的那個 body。這是一個只屬於該趟的旗標:
+    /// 節點會往下傳,但從不存下它,所以節點之後自己的更新仍會照規矩求值 body。
+    var reusesBodies: Bool = false
+
+    /// Where a view's default layout records the body it evaluated, for its node
+    /// to keep. Owned by one view type; see `View.resolvedBody(_:)`.
+    /// 預設排版記下它求值過的 body 的地方,供它的節點保存。只屬於一個 view 型別;見 `View.resolvedBody(_:)`。
+    var bodyCapture: BodyCapture?
+
+    /// The body a node kept, handed to its own view's default layout or commit
+    /// instead of evaluating `body`. Owned by one view type.
+    /// 節點保存的 body,交給它自己的 view 的預設排版或 commit,取代求值 `body`。只屬於一個 view 型別。
+    var cachedBody: CachedBody?
+
+    /// Removes the body-cache values, before an environment is passed below the
+    /// view they were meant for. `reusesBodies` stays: it is for the whole pass.
+    /// 在 environment 往它們所屬 view 之下傳之前,移除 body 快取的值。`reusesBodies` 保留:它屬於整趟。
+    func withoutBodyCache() -> EnvironmentValues {
+        var copy = self
+        copy.bodyCapture = nil
+        copy.cachedBody = nil
+        return copy
+    }
+
     /// Backing storage for observable subscript
     private var observableObjects: [ObjectIdentifier: any ObservableObject]
 

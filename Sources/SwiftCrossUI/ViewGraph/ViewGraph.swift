@@ -63,13 +63,17 @@ public class ViewGraph<Root: View> {
         proposedSize: ProposedViewSize,
         environment: EnvironmentValues
     ) -> ViewLayoutResult {
-        parentEnvironment = environment
+        // Stored without the pass-only flag; the root receives it for this pass.
+        // 存下時不帶只屬於這一趟的旗標;根節點在這一趟收到它。
+        var storedEnvironment = environment
+        storedEnvironment.reusesBodies = false
+        parentEnvironment = storedEnvironment
         latestProposal = proposedSize
 
         let result = rootNode.computeLayout(
             with: newView ?? view,
             proposedSize: proposedSize,
-            environment: parentEnvironment
+            environment: environment
         )
         self.currentRootViewResult = result
         if let newView {
