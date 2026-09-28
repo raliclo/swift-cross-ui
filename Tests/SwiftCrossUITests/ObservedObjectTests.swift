@@ -71,6 +71,57 @@ struct ObservedObjectTests {
         #expect(node.view.model.count == 3)
     }
 
+    /// A child whose @State change makes it wider, counting its constructions.
+    struct GrowingChild: View {
+        nonisolated(unsafe) static var constructions = 0
+        nonisolated(unsafe) static var text: Binding<String>?
+        @State var label = "a"
+        init() { Self.constructions += 1 }
+        var body: some View {
+            let _ = { Self.text = $label }()
+            Text(label)
+        }
+    }
+
+    struct ParentOfGrowingChild: View {
+        var body: some View {
+            VStack { GrowingChild() }
+        }
+    }
+
+    @MainActor
+    @Test("A child's own state change does not make its parent re-create it")
+    func childStateChangeDoesNotRecreateIt() async throws {
+        let backend = DummyBackend()
+        let window = backend.createWindow(withDefaultSize: nil, id: "window")
+        let environment = EnvironmentValues(backend: backend).with(\.window, window)
+
+        GrowingChild.constructions = 0
+        let node = ViewGraphNode(for: ParentOfGrowingChild(), backend: backend, environment: environment)
+        layout(node, environment: environment)
+        let afterLaunch = GrowingChild.constructions
+        #expect(afterLaunch > 0)
+
+        // Longer text: the child resizes, which lays its parent out again.
+        GrowingChild.text?.wrappedValue = "a much longer label than before"
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        #expect(GrowingChild.text?.wrappedValue == "a much longer label than before")
+        // Known, and not fixable by withholding the new view: laying the parent
+        // out evaluates its `body`, and evaluating `VStack { GrowingChild() }`
+        // BUILDS the child whether or not its node takes it. Tried 2026-09-29
+        // with a pass-only "reuse child views" flag -- this expectation failed
+        // identically with and without it, and it was reverted. The fix is for a
+        // re-layout not to evaluate `body` at all. queue.md has the item; when it
+        // lands this known issue stops occurring and the test says so.
+        // 已知,而且無法靠「不收下新 view」修掉:排版父層就會求值它的 `body`,而求值 `VStack { GrowingChild() }`
+        // 就會**建出**子 view,不論它的節點收不收下。2026-09-29 以一個只屬於該趟的「沿用子 view」旗標試過——這個
+        // 預期在有無旗標時失敗得一模一樣,旗標已撤回。修法是讓重新排版根本不求值 `body`。
+        withKnownIssue("a re-layout evaluates body, which re-creates children") {
+            #expect(GrowingChild.constructions == afterLaunch)
+        }
+    }
+
     @MainActor
     @Test("A model the parent holds and passes is still adopted")
     func passedModelIsAdopted() {

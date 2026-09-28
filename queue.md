@@ -46,6 +46,22 @@
   evaluates `body`, and `bottomUpUpdate` climbs through `onResize`. Consequence
   left after the ObservedObject fix: initial-value expressions of wrappers run far
   more often than in SwiftUI.
+  **Attempted 2026-09-29, reverted.** A pass-only `reusesChildViews` flag, set by
+  `onResize` (node and window) and never stored, so nodes keep their views and the
+  window stops recomputing the scene. The whole test product still passed, but the
+  new test -- a child's @State change must not construct the child again -- failed
+  IDENTICALLY with and without it: laying the parent out evaluates its body, and
+  evaluating `VStack { Child() }` builds `Child` whether or not its node takes it.
+  The flag only prevented the adoption, which the ObservedObject fix already
+  handles, at the price of relayouts no longer applying new views on every
+  backend. **What a real fix needs:** a re-layout that does not evaluate `body` --
+  each node keeping the body value it last computed and laying that out, which
+  touches every default implementation in `View` (children, layoutableChildren,
+  asWidget, computeLayout, commit). The test stays in `ObservedObjectTests` under
+  `withKnownIssue`; it will report when this is fixed.
+  **2026-09-29 試過並撤回。**只屬於該趟的 `reusesChildViews` 旗標無法阻止子 view 被建出:排版父層就會求值 body,
+  而求值本身就會建出子 view。真正的修法是重新排版時不求值 body——每個節點保留上次算出的 body 值並排版它,這會
+  動到 `View` 所有預設實作。測試以 `withKnownIssue` 留在 `ObservedObjectTests`,修好時會自己報告。
 - [x] **Core: a view's own @State change re-creates it from its parent, and an inline
   `@ObservedObject var m = Model()` is replaced each time.** Measured 2026-09-28 on
   macOS with P45 (a construction counter was added to P45Model): one run of
@@ -178,7 +194,15 @@
   重設了。macOS sweep 把 P21 算成通過(它有重放、有擷圖),而那正是 sweep_apple.zsh 檔頭所說的限制;
   矩陣那一列標為琥珀色。
 
-- [ ] **UIKit: a long press on P72's mesh view raises the software keyboard.**
+- [x] **CLOSED 2026-09-29 -- does not reproduce.** A long press held with the menu
+  open, captured three times (p72-ios-final-20260929-000335/000434/000453.png):
+  Reset the camera and Snapshot shown, no keyboard in any of them. The suspected
+  cause does not exist either: `KeyEventWidget` is a view CONTROLLER that becomes
+  first responder and adopts no `UIKeyInput`, so UIKit has no text input to show a
+  keyboard for. The 2026-09-27 captures predate the RootScrollHost and
+  first-responder changes of 09-27/28 and the simulator's one-time typing sheet;
+  which of those it was is not known. Original entry:
+  **UIKit: a long press on P72's mesh view raises the software keyboard.**
   Seen in every capture of the open context menu on 2026-09-27 (and once as
   the simulator's one-time "Speed up your typing" sheet). Suspected, NOT
   verified: the view takes first-responder status for `.onKeyPress`, and UIKit
