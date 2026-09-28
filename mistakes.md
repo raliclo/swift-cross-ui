@@ -2394,3 +2394,29 @@ P21 宣告的是 `@State var switchState = true`。開關一開始就是**開**�
 **矯正措施。**在說一個狀態是錯的之前,先確立它的起始狀態:讀 app 的初始值,或在動作之前也拍一張擷圖。
 單憑最終讀數,分不出「沒有改變」與「從另一邊改變過來」。而一列會切換某個東西的動作,應該寫明它必須變成什麼,
 讓預期由「知道起始值的人」寫下,而不是由讀擷圖的人去猜。
+
+**Second occurrence, 2026-09-28: P24 on iOS, "Record a push stays 0".** The action file had
+said so since 2026-09-02 (`TODAY IT STAYS 0`), and I carried it into queue.md as an open
+defect the same morning, with a careful note that the aim looked right. The file recorded a
+push and then pressed Pop to root -- and Pop to root is `path = NavigationPath(); pushCount
+= 0` in P24.swift. The zero was the app doing what its own code says. Captured stdout showed
+`push recorded at level 0` and, on the next Increment, `pushes 1`. The macOS capture read 0
+for the same reason and was taken as agreement. Nothing checked what the LAST action does to
+the value being read, which is the same shape as the first occurrence: the evidence was a
+final state, and the step that set it was never looked up.
+
+**Added to the corrective:** before reading a value off a capture, read what every row after
+the one that set it does to it. And an action file should end in a state no single miss can
+reach -- P24 now ends at Level 1, pushes 1, counter 1, where a missed pop, push or record
+each leaves a different picture.
+
+**第二次發生,2026-09-28:iOS 上的 P24,「Record a push 停在 0」。**動作檔從 2026-09-02 起就這麼寫
+(`TODAY IT STAYS 0`),而我同一天早上把它當成未解的缺陷寫進 queue.md,還仔細註明瞄準看起來是對的。本檔
+記錄一次 push 之後按了 Pop to root——而 Pop to root 在 P24.swift 裡就是 `path = NavigationPath(); pushCount
+= 0`。那個 0 就是 app 照它自己的程式在做事。擷取到的 stdout 顯示 `push recorded at level 0`,下一次
+Increment 時則是 `pushes 1`。macOS 的擷圖因同一原因讀到 0,卻被當成佐證。沒有任何東西檢查過**最後一個**
+動作對被讀的那個值做了什麼——與第一次同型:證據是一個最終狀態,而設定它的那一步從未被查過。
+
+**矯正措施補充:**從擷圖讀一個值之前,先讀清楚「設定它的那一列之後的每一列」會對它做什麼。動作檔應該停在
+「任何單一一步落空都到不了」的狀態——P24 現在停在 Level 1、pushes 1、counter 1,pop、push 或 record 任何
+一步落空都會留下不同的畫面。

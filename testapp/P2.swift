@@ -36,6 +36,13 @@ struct P2ControlsAndStylingView: View {
         On WinUI, the unfocused TextEditor should not show a thin border.
         """
     @State var enabled = false
+    // Counted in the button's own label, so a press is visible on a capture. The
+    // action used to be empty, and "this one must act whatever the row state" could
+    // not be shown by anything. In the label rather than on a new line so nothing
+    // below moves.
+    // 計數寫在按鈕自己的標籤裡,按下與否在擷圖上看得見。它的動作以前是空的,「不論該列狀態如何都必須
+    // 有作用」沒有任何東西能證明。放在標籤而非新的一行,下方的東西就不會移動。
+    @State var alwaysEnabledPresses = 0
 
     var pickerOptions: [String] {
         if useExpandedPickerOptions {
@@ -105,7 +112,9 @@ struct P2ControlsAndStylingView: View {
                     Button("Disabled action") {}
                         .disabled(!enabled)
 
-                    Button("Always enabled") {}
+                    Button("Always enabled (\(alwaysEnabledPresses))") {
+                        alwaysEnabledPresses += 1
+                    }
 
                     Toggle("Disabled toggle", isOn: $enabled)
                         .disabled(true)

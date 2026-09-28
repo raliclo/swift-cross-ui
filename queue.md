@@ -28,7 +28,23 @@
   檔案的每一個定位動作都落在它所指名的目標上;其餘的落在空處,或落在錯的東西上。逐列對照表與候選座標在
   `testapp/measurements/ios-aim-20260927.txt`。
 
-- [ ] **iOS P24: "Record a push" leaves `pushes recorded (outside the stack)` at
+- [ ] **Read every macOS capture against its file's assertion, as was done for iOS.**
+  The 2026-09-27 macOS sweep (81 of 81) checked that each replay ran and took a
+  capture, not what the capture shows. P2 proves that is not enough: its y values
+  were 12-17 pt off, the capture read `options: 2` with the button row still
+  disabled, and it was counted a pass and filled ✅ in the matrix. Fixed for P2 on
+  2026-09-28; the other 80 files have not been read. Tell SoftPCB-mac before and
+  after, since the runs take the screen.
+  **像 iOS 那樣,把每一張 macOS 擷圖對照它檔案的斷言讀一遍。**2026-09-27 的 macOS sweep(81/81)只檢查
+  重放有沒有跑、有沒有擷圖,不看擷圖內容。P2 證明那不夠:它的 y 值偏了 12-17 點,擷圖讀到 `options: 2`、
+  按鈕列仍停用,卻被算成通過並在矩陣填了 ✅。P2 已於 2026-09-28 修好;其餘 80 份尚未讀過。
+
+- [x] **WITHDRAWN 2026-09-28 -- not a defect.** Pop to root sets pushCount = 0
+  (P24.swift), and the action file popped after recording. With the app's stdout
+  captured (test_ios.zsh now launches through a pty) the record logs "push recorded
+  at level 0" and the next Increment logs "pushes 1"; the capture reads 1. The file
+  is rewritten to end at Level 1 / pushes 1 / counter 1, and passes. Original entry:
+  **iOS P24: "Record a push" leaves `pushes recorded (outside the stack)` at
   0.** Found 2026-09-02, still so on 2026-09-28. The tap is at (180, 619) and the
   button is at about (183, 621) on p24-ios-final-20260928-054747.png, so it is
   probably not the aim -- but that is inferred, not shown: the app's `[P24]` lines

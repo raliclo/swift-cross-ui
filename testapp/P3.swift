@@ -111,8 +111,16 @@ struct P3LayoutAndClippingView: View {
                         }
                     }
 
+                    // White, because this column's background is black and the
+                    // default text colour in a light appearance is black too: on
+                    // iOS these two readouts were drawn and could not be seen, so
+                    // no capture could say which size or detail was selected.
+                    // 白色,因為這一欄的背景是黑的,而淺色外觀下文字的預設顏色也是黑的:在 iOS 上這兩行讀數
+                    // 有畫出來卻看不見,因此沒有任何擷圖能說出選的是哪個尺寸、哪個 detail。
                     Text("Image size: \(imageSize.rawValue), scale: \(imageSize.scaleText)")
+                        .foregroundColor(.white)
                     Text("Selected detail: \(selectedDetail ?? "nil")")
+                        .foregroundColor(.white)
                 }
                 .padding(18)
                 .frame(minWidth: 360, maxWidth: .infinity, alignment: .top)

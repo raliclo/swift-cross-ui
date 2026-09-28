@@ -11,11 +11,34 @@ action,x,y,origin,button,key,micros,note,platform
 # so either the coordinate misses that button or the button does nothing here --
 # worth one look before the coordinate is blamed. Push and Pop cannot be told
 # apart by a capture at the end because the pop undoes the push.
-click,90,226,client,left,,,Increment counter -- counter must go 0 -> 1 (VERIFIED),ios
+#
+# **Rewritten 2026-09-28. The "TODAY IT STAYS 0" above was never a defect.** Pop to
+# root sets pushCount = 0 (P24.swift), and this file popped after recording, so a
+# zero at the end was the app doing what it says. Probed with --debug and the app's
+# stdout: Record a push logs "push recorded at level 0" and the next Increment logs
+# "pushes 1", and the capture then reads pushes recorded -> 1.
+# The old order also ended where the app starts (Level 0, pushes 0), so a capture
+# could not tell a working run from one where every tap missed. This order ends at
+# Level 1 with pushes 1 and counter 1, and each miss leaves a different picture:
+# a missed pop ends at Level 3 with pushes 2; a missed final push ends at Level 0;
+# a missed final record ends at pushes 0.
+# **2026-09-28 改寫。上面的「TODAY IT STAYS 0」從來不是缺陷。**Pop to root 會把 pushCount 設為 0
+# (P24.swift),而本檔在記錄之後才 pop,所以最後的 0 就是 app 照它說的在做事。以 --debug 與 app 的 stdout
+# 探測過:Record a push 記下 "push recorded at level 0",下一次 Increment 記下 "pushes 1",擷圖也讀到
+# pushes recorded -> 1。舊的順序同時停在 app 啟動時的樣子(Level 0、pushes 0),因此擷圖分不出「正常的一次」
+# 與「每一下都落空的一次」。新順序停在 Level 1、pushes 1、counter 1,而任何一步落空都會留下不同的畫面:
+# pop 落空會停在 Level 3、pushes 2;最後一次 push 落空會停在 Level 0;最後一次 record 落空會是 pushes 0。
+click,90,226,client,left,,,Increment counter -- counter must go 0 -> 1,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,180,619,client,left,,,Record a push -- pushes recorded must go 0 -> 1 (TODAY IT STAYS 0),ios
-sleep,,,,,,400000,let the label redraw,ios
-click,169,588,client,left,,,Push level 1 -- the stack must show Level 1,ios
+click,169,588,client,left,,,Push level 1,ios
 sleep,,,,,,800000,let the push animate,ios
-click,214,226,client,left,,,Pop to root -- the stack must return to Level 0 and the counter must stay 1,ios
+click,198,611,client,left,,,"Push level 2 -- a pushed level carries a Back bar and its content sits lower than the root's: link at (198, 611), Record at (207, 642) on p24-ios-final-20260928-072830.png. At the root's (180, 619) a tap on a pushed level hits its Push link instead",ios
+sleep,,,,,,800000,let the push animate,ios
+click,207,642,client,left,,,Record a push at level 2 -- pushes recorded 0 -> 1,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,214,226,client,left,,,Pop to root -- Level 0 and pushes recorded back to 0 (the app resets it),ios
 sleep,,,,,,800000,let the pop animate,ios
+click,169,588,client,left,,,Push level 1 again,ios
+sleep,,,,,,800000,let the push animate,ios
+click,207,642,client,left,,,"Record a push at level 1 -- the capture must read Level 1, pushes recorded -> 1, counter -> 1 (VERIFIED 2026-09-28: all three, p24-ios-final-20260928-072921.png; stdout: push recorded at level 2, popped to root, push recorded at level 1)",ios
+sleep,,,,,,800000,settle before the photograph,ios

@@ -8,7 +8,19 @@ action,x,y,origin,button,key,micros,note,platform
 # in opposite directions and the heading read "Wrapping at 300pt" both before
 # and after, which is what both landing and neither landing look like. A
 # verifier has to read the heading between the rows rather than at the end.
-click,55,707,client,left,,,Narrower -- the heading must read a width below 300pt and the paragraph must rewrap,ios
-sleep,,,,,,400000,let the paragraph rewrap,ios
-click,123,707,client,left,,,Wider -- the width must return to 300pt,ios
-sleep,,,,,,500000,let the paragraph rewrap,ios
+# **Rewritten 2026-09-28: two Narrower, then one Wider, ending at 250pt.** The old
+# Narrower-then-Wider ended at 300pt, the launch value, so a capture could not tell
+# it from a run where both taps missed. Now each miss ends somewhere else: a missed
+# Wider ends at 200, one missed Narrower at 300. The paragraph rewraps as it narrows
+# and pushes the buttons down -- 3 lines at 300 and 250 (buttons at y 710), 5 lines
+# at 200 (buttons at y 755) -- so each row is measured on the layout it meets.
+# **2026-09-28 改寫:兩次 Narrower、一次 Wider,停在 250pt。**舊的「Narrower 後 Wider」停在 300pt,也就是
+# 啟動值,擷圖分不出它與兩下都落空的一次。現在任一步落空都會停在別處:Wider 落空停在 200,少一次 Narrower
+# 停在 300。段落變窄時會重排並把按鈕往下推——300 與 250 時 3 行(按鈕在 y 710),200 時 5 行(按鈕在
+# y 755)——因此每一列都量自它所面對的版面。
+click,48,710,client,left,,,Narrower -- 300 -> 250pt,ios
+sleep,,,,,,600000,let the paragraph rewrap,ios
+click,48,710,client,left,,,Narrower -- 250 -> 200pt; the paragraph goes to five lines and the buttons move down to y 755,ios
+sleep,,,,,,600000,let the paragraph rewrap,ios
+click,123,755,client,left,,,"Wider -- 200 -> 250pt: the heading must read Wrapping at 250pt, three lines (VERIFIED 2026-09-28, p22-ios-final-20260928-073243.png)",ios
+sleep,,,,,,600000,let the paragraph rewrap,ios

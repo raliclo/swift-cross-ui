@@ -17,9 +17,13 @@ click,55,84,client,left,,,"the actualView control -- switch to rwdView, which sc
 sleep,,,,,,1000000,let the scale settle,ios
 click,353,105,client,left,,,Use expanded Picker options -- "options: 2" must rise,ios
 sleep,,,,,,400000,let the picker rebuild,ios
-click,325,137,client,left,,,"Reset -- Selected must return to Vanilla and changes to 0. NOT evidenced by the final capture: Vanilla and 0 are also the launch values (Reset sets pickerChangeCount = 0), so a tap that missed looks the same. The note used to say changes must move, which Reset never does",ios
+click,219,137,client,left,,,"open the Flavor picker -- the menu lists Vanilla, Chocolate, Strawberry, Mint, Coffee (p2-ios-final-20260928-074131.png)",ios
+sleep,,,,,,1000000,let the menu open,ios
+click,258,231,client,left,,,Chocolate -- Selected: Chocolate and changes: 1,ios
+sleep,,,,,,800000,let the menu close,ios
+click,325,137,client,left,,,"Reset -- the capture must read Selected: Vanilla, changes: 1. Not 0: Reset writes pickerChangeCount = 0 and selectedFlavor = Vanilla, and the second write fires onChange(of: selectedFlavor), which counts it -- as SwiftUI's onChange does for any change, programmatic included. Each miss reads differently: a missed Reset leaves Chocolate, 1; a missed Chocolate leaves Vanilla, 0. (A version that picked Strawberry afterwards ended at changes: 2 whether Reset landed or not, p2-ios-final-20260928-074239.png.)",ios
 sleep,,,,,,400000,let the label redraw,ios
 click,353,439,client,left,,,Enable button row -- the row below must become enabled,ios
 sleep,,,,,,400000,let the row redraw,ios
-click,215,475,client,left,,,Always enabled -- this one must act whatever the row state,ios
+click,215,475,client,left,,,"Always enabled -- its label must read Always enabled (1). P2 counts presses in the label from 2026-09-28; the action was empty before, so nothing could show it acted (VERIFIED 2026-09-28: Selected: Vanilla, options: 5, changes: 1; Always enabled (1); the row enabled -- p2-ios-final-20260928-074332.png)",ios
 sleep,,,,,,500000,let the last state settle,ios

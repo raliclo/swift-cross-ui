@@ -27,18 +27,18 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1054**
+**Runs recorded / 已記錄的執行筆數: 1062**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|--------------------|--------------|
 | accessibility | n/a 2026-09-11               | n/a 2026-09-11                 | -                        | -                            | -                      | -                  |              |
-| P0            | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
+| P0            | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
 | -             | - 2026-09-09                 | -                              | -                        | -                            | pass 2026-09-28        | -                  |              |
 | P1            | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
-| P2            | no line 2026-09-07           | pass 2026-08-28                | no image 2026-09-08      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
-| P3            | no line 2026-09-07           | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
+| P2            | no line 2026-09-07           | pass 2026-08-28                | no image 2026-09-08      | pass 2026-09-28              | pass 2026-09-28        | pass 2026-09-06    |              |
+| P3            | no line 2026-09-07           | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
 | P4            | pass 2026-09-18              | pass 2026-09-18                | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
-| P5            | pass 2026-09-08              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-18    |              |
+| P5            | pass 2026-09-08              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-18    |              |
 | P6            | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-09    |              |
 | P6-v2         | -                            | -                              | no image 0/2 2026-09-07  | -                            | -                      | -                  |              |
 | P7            | pass 2/2 2026-09-07          | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
@@ -58,9 +58,9 @@ zsh matrix_coverage/coverage.zsh
 | P19           | no image 0/2 2026-09-08      | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P20           | capture n/a 2026-09-16       | capture n/a 2026-09-16         | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P21           | pass 2026-09-06              | pass 2026-08-28                | no image 0/2 2026-09-08  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
-| P22           | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
+| P22           | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
 | P23           | pass 2026-09-16              | pass 2026-09-16                | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-16    |              |
-| P24           | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
+| P24           | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
 | P25           | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P26           | pass 2026-09-06              | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-06    |              |
 | P27           | pass 2026-08-27              | pass 2026-08-27                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
@@ -73,7 +73,7 @@ zsh matrix_coverage/coverage.zsh
 | P34           | pass 2026-09-11              | pass 2026-09-11                | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P35           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P36           | pass 2026-09-17              | pass 2026-09-17                | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
-| P37           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
+| P37           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-06    |              |
 | P38           | pass 2026-09-17              | pass 2026-09-17                | pass 2026-09-17          | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-17    |              |
 | P39           | pass 2026-08-29              | pass 2026-08-29                | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |
 | P40           | pass 2026-08-29              | pass 2026-08-27                | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06    |              |

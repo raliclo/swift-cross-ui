@@ -25,7 +25,28 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 量測自 effect sweep 自身的 control 擷取,那是目前這個 build 上該 app 的初始狀態,因此座標與
 # 「取得它的那張畫面」是同一張。
-click,221,494,client,left,,,Open another window -- the status line must stop saying Ready,ios
-sleep,,,,,,800000,let the second window appear,ios
-click,221,587,client,left,,,Show A+B+C at once -- three alerts must be presented rather than queued,ios
-sleep,,,,,,1000000,let the alerts present,ios
+#
+# **Rewritten 2026-09-28, with a UIKitBackend fix.** Show A+B+C at once presented A
+# and dropped B and C: showAlert presented from the root view controller, which
+# fails silently when it already presents something. After OK on A the window was
+# empty with B and C still isPresented, and a later "Show Alert B" did nothing,
+# since B was already true. Alerts now stack on the top of the presentation chain,
+# so the same-window half of #675 can be driven: C is on top, OK shows B, OK shows
+# A. The capture must show Alert A, and --debug stdout (output/p5-ios-stdout.log)
+# must list C dismissed, then B. A missed OK leaves B or C on screen instead.
+# The "Open another window" row is gone: on an iPhone the second scene is not shown
+# beside the first and left nothing on a capture or in the log. The cross-window
+# half is not covered by this file.
+# **2026-09-28 改寫,並附一個 UIKitBackend 修正。**Show A+B+C at once 只呈現了 A、丟掉了 B 與 C:showAlert
+# 從 root view controller 呈現,而它已經在呈現東西時會靜默失敗。按下 A 的 OK 之後視窗是空的,B 與 C 仍是
+# isPresented,之後再按 "Show Alert B" 也沒有作用,因為 B 本來就是 true。現在 alert 疊在呈現鏈的最上層,
+# #675 的同一視窗那一半因此可以驅動:C 在最上面,OK 露出 B,再 OK 露出 A。擷圖必須顯示 Alert A,--debug 的
+# stdout(output/p5-ios-stdout.log)必須依序列出 C dismissed、B dismissed。OK 落空則會留下 B 或 C。
+# "Open another window" 那一列已移除:在 iPhone 上第二個 scene 不會出現在第一個旁邊,擷圖與 log 上都沒有
+# 留下任何東西。跨視窗那一半不在本檔的涵蓋範圍內。
+click,221,587,client,left,,,Show A+B+C at once -- Alert C must be on top,ios
+sleep,,,,,,2500000,let the three present one after another,ios
+click,220,523,client,left,,,OK on Alert C -- Alert B must be revealed,ios
+sleep,,,,,,1500000,let C dismiss,ios
+click,220,523,client,left,,,"OK on Alert B -- Alert A must be revealed and stay for the capture (VERIFIED 2026-09-28: Alert A (Main) on screen, stdout lists Alert C dismissed then Alert B dismissed, p5-ios-final-20260928-074855.png)",ios
+sleep,,,,,,1500000,let B dismiss,ios

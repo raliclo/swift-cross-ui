@@ -403,7 +403,24 @@ if [ -n "$action_file" ]; then
     # 保留 Xcode 產生的 host 作為 UI-test target；測試方法再依固定 Bundle identifier
     # 啟動 debugTarget。
     xcrun simctl install "$device_name" "$bundle_dir"
-    xcrun simctl launch "$device_name" "$bundle_id" "${app_args[@]}"
+    # The app's own stdout, into a file. Without it every `[Pn]` diagnostic line an
+    # app prints under --debug is lost on iOS, and "the tap missed" cannot be told
+    # from "the tap landed and the state did not reach the view" (P24, 2026-09-28).
+    # app 自己的 stdout 寫進檔案。少了它,app 在 --debug 下印出的每一行 `[Pn]` 診斷在 iOS 上都會遺失,
+    # 「沒點到」與「點到了但狀態沒傳到 view」就分不出來(P24,2026-09-28)。
+    # Through a pty, not `--stdout=file`: to a file Swift's print is fully buffered,
+    # and the buffer dies with the app when the run ends -- measured, a --debug run
+    # left eight lines, all from swift-log, which flushes, and none of the app's own.
+    # A pty is line-buffered. `--console-pty` stays attached until the app exits, so
+    # it runs in the background.
+    # 經由 pty,而不是 `--stdout=檔案`:寫到檔案時 Swift 的 print 是全緩衝的,而緩衝區會在執行結束時
+    # 隨 app 一起消失——實測一次 --debug 執行只留下八行,全部來自會 flush 的 swift-log,app 自己的一行都
+    # 沒有。pty 是行緩衝的。`--console-pty` 會一直附著到 app 結束,因此放在背景執行。
+    app_stdout="$output_dir/${target:l}-ios-stdout.log"
+    rm -f "$app_stdout"
+    xcrun simctl launch --console-pty --terminate-running-process \
+        "$device_name" "$bundle_id" "${app_args[@]}" > "$app_stdout" 2>&1 < /dev/null &
+    sleep 2
     /usr/libexec/PlistBuddy -c "Add :iOSActionFileRunner:TestingEnvironmentVariables:IOS_ACTION_FILE string $action_file" "$xctestrun_path" 2>/dev/null \
         || /usr/libexec/PlistBuddy -c "Set :iOSActionFileRunner:TestingEnvironmentVariables:IOS_ACTION_FILE $action_file" "$xctestrun_path"
 

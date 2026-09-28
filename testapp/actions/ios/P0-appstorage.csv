@@ -8,9 +8,33 @@ action,x,y,origin,button,key,micros,note,platform
 # 0 after the replay and the status line read "Reset @AppStorage". The two
 # Increment rows are NOT verified -- Reset runs after them so a single capture at
 # the end cannot distinguish an increment that landed from one that did not.
-click,193,472,client,left,,,Increment @AppStorage -- launch count must rise by one,ios
+# **Rewritten 2026-09-28: Increment, Reset, Increment, Increment -- ends at 2.** The
+# old order ended with Reset at 0, the value an untouched app shows, so the capture
+# evidenced nothing. @AppStorage survives between runs, which is why the first
+# Increment comes BEFORE Reset: it makes the value non-zero whatever the last run
+# left, so a Reset that missed ends at 3 or more, and a missed Increment at 1.
+# Buttons at y 486, measured on p0-ios-final-20260928-052642.png; the 472 used
+# before is on the top edge of the text.
+# **2026-09-28 改寫:Increment、Reset、Increment、Increment——停在 2。**舊順序以 Reset 結束、停在 0,也就是
+# 沒人碰過的 app 所顯示的值,擷圖什麼也證明不了。@AppStorage 會跨次保存,所以第一次 Increment 排在 Reset
+# **之前**:不論上一次留下什麼,它都讓值不為 0,於是 Reset 落空會停在 3 以上,Increment 落空會停在 1。
+# 按鈕在 y 486,量自 p0-ios-final-20260928-052642.png;先前用的 472 在文字的上緣。
+# **y 480, not 486, and the reason is the event line at the bottom.** The content is
+# centred vertically. At launch that line is one line and the buttons' text spans
+# about y 476-496; after the first press it reads "Window appeared. Incremented
+# @AppStorage to N." over two lines, the block grows and re-centres, and the text
+# moves to about 464-484. At 486 only the first tap landed -- five runs read 1, 2,
+# 3, 4, 5, one more per run, where four landed taps give 2 every time. 480 is
+# inside the buttons in both layouts.
+# **y 480 而非 486,原因是底部那一行事件文字。**內容是垂直置中的。啟動時那一行只有一行,按鈕文字約在
+# y 476-496;第一次按下之後它變成兩行的 "Window appeared. Incremented @AppStorage to N.",整塊變高並重新
+# 置中,文字移到約 464-484。在 486 只有第一下命中——五次執行讀到 1、2、3、4、5,每次只多一;四下都命中
+# 應該每次都是 2。480 在兩種版面裡都落在按鈕內。
+click,193,480,client,left,,,Increment @AppStorage -- makes the stored value non-zero before Reset,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,193,472,client,left,,,Increment again -- launch count must rise by one more,ios
+click,321,480,client,left,,,Reset -- the stored value to 0,ios
 sleep,,,,,,400000,let the label redraw,ios
-click,322,472,client,left,,,Reset -- launch count must return to 0,ios
+click,193,480,client,left,,,Increment -- 0 -> 1,ios
+sleep,,,,,,400000,let the label redraw,ios
+click,193,480,client,left,,,"Increment -- 1 -> 2: the capture must read Launch count stored in @AppStorage: 2 (VERIFIED 2026-09-28: 2 on three runs in a row starting from a stored 5, p0-ios-final-20260928-073824/073839/073855.png)",ios
 sleep,,,,,,500000,let the last state settle,ios

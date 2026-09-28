@@ -162,12 +162,13 @@ for f in "${files[@]}"; do
         # which rejects `--`, and test_common forwards TEST_APP_ARGS to test_ios.zsh.
         # 經由 TEST_APP_ARGS 而不是 `--`:test.zsh 把選項交給 test_common,而它拒絕 `--`;
         # test_common 會把 TEST_APP_ARGS 轉給 test_ios.zsh。
-        if [ -n "$launch_args" ]; then
-            TEST_APP_ARGS="--debug $launch_args" \
-                zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
-        else
+        # `--debug` always, as on macOS: without it an app prints none of its `[Pn]`
+        # lines, and output/<app>-ios-stdout.log is how a tap that landed is told from
+        # one that missed.
+        # 一律帶 `--debug`,與 macOS 相同:少了它 app 不會印出任何 `[Pn]` 行,而
+        # output/<app>-ios-stdout.log 正是分辨「點到了」與「沒點到」的依據。
+        TEST_APP_ARGS="--debug${launch_args:+ $launch_args}" \
             zsh "$script_dir/test.zsh" "$app" --ios --showtime 2 --actionfile "$f" > "$log" 2>&1 &
-        fi
     fi
     pid=$!
     state=""
