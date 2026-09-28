@@ -32,7 +32,13 @@ action,x,y,origin,button,key,micros,note,platform
 # **2026-09-28 改寫:先點連結,再捲它打開的那一頁。**example.com 在框內綽綽有餘,根本沒有東西可捲:舊的列往下捲又
 # 捲回來,擷圖就是啟動時的畫面,而每一列都落空的一次也會是那樣。Learn more 打開的 IANA 頁面很長。Navigations
 # reported 必須讀到 2(點擊),頁面必須離開頂端(捲動),而且之後仍是 2(捲動不是導向——本檔原本要問的事)。
-click,222,398,frame,left,,,Learn more -- Navigations reported must become 2 and the IANA page must load in the frame,macos
+click,60,600,frame,left,,,"a blank spot inside the frame, to give the page keyboard focus. The link itself is NOT clicked by position: example.com now serves a localized page -- Chinese and centred on one run, Arabic on another (2026-09-29 sweep) -- so Learn more moves, and the (222, 398) this row had missed it",macos
+sleep,,,,,,600000,,macos
+keydown,,,,,option,,"Option-Tab, not Tab: macOS WebKit moves between links only with Option held unless the user has turned on 'Press Tab to highlight each item' -- plain Tab left Navigations reported at 1",macos
+key,,,,,tab,,to the page's only link -- Learn more,macos
+keyup,,,,,option,,,macos
+sleep,,,,,,400000,,macos
+key,,,,,return,,"follow it -- Navigations reported must become 2 and the IANA page must load in the frame",macos
 sleep,,,,,,3500000,let the navigation finish,macos
 move,409,439,frame,,,,into the framed page,macos
 sleep,,,,,,500000,,macos

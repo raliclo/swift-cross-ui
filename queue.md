@@ -41,7 +41,25 @@
   a @State or @ObservedObject default still RUNS on every re-creation (SoftPCB-mac
   counted 28) -- that needs the parent to stop re-evaluating `body` on a child's
   resize, a layout-system change left open below.
-- [ ] **Core: a child's resize makes its parent re-evaluate `body`, so views are
+- [x] **FIXED 2026-09-29: a re-layout reuses each node's kept body.** A node keeps
+  the body its view's default layout evaluated (`BodyCapture` / `lastBody`); a pass
+  started by a child's resize -- or by the window when its content resized, which
+  no longer recomputes the scene -- carries `EnvironmentValues.reusesBodies`, and
+  every node on it lays out its kept body instead of evaluating `body`. Commit
+  always uses the laid-out body, so a commit builds no views. The flag and the
+  cache are pass-only and never stored, so a node's own update still evaluates its
+  body. Evidence: the `withKnownIssue` test began reporting "known issue was not
+  recorded" and is now a plain expectation that fails without the change (shown);
+  whole test product passes. P45Model: 7 constructions per run on macOS before,
+  now the 4 at launch and none on any state change; Android 2 at launch and none
+  after. Full sweeps on the change: macOS 83/83 and iOS 74/74, each capture
+  compared pixel-wise with the last verified one -- all identical but the pages
+  that change by themselves (spinning cube, video, network images) and P38, whose
+  failures came from example.com now serving localized pages (macOS now follows
+  the link with Option-Tab; iOS loads P38's own fixed page via -url). Launch still
+  builds the root view a few times (the window probes its minimum and maximum
+  sizes with the scene); that is bounded and was left alone. Original entry:
+  **Core: a child's resize makes its parent re-evaluate `body`, so views are
   re-created on every state change that changes a size.** Every `computeLayout`
   evaluates `body`, and `bottomUpUpdate` climbs through `onResize`. Consequence
   left after the ObservedObject fix: initial-value expressions of wrappers run far

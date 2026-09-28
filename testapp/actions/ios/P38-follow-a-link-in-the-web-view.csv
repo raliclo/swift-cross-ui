@@ -35,5 +35,18 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p38-ios-final-*.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）。
-click,200,564,client,left,,,"the Learn more link inside the page -- at (200, 564) on a capture of 2026-09-28; (238, 520) was on the paragraph above it -- the URL list must gain a second entry and the frame must show the new page (VERIFIED: https://www.iana.o... listed under https://example.co..., and the IANA page is drawn in the frame; the count itself is off the right edge once the longer URL widens the page)",ios
+#
+# **From 2026-09-29 the page is P38's own, passed with -url.** example.com now serves
+# a localized page -- Chinese on one run, right-to-left Arabic on another -- so
+# Learn more moved between runs and a tap by position missed it; Option-Tab does
+# not move WebKit focus on iOS either. The page below is one link, 90 px, at the
+# top-left of the frame, pointing at the same IANA page. A data: page is not
+# reported as a navigation, so the count starts at 0 (measured) and the tap must
+# make it 1 with the IANA URL listed.
+# **自 2026-09-29 起頁面是 P38 自己的,經 -url 傳入。**example.com 現在回傳本地化的頁面——一次是中文、另一次是由右到左的
+# 阿拉伯文——Learn more 每次位置不同,依座標點會落空;iOS 上 Option-Tab 也不會移動 WebKit 的焦點。下面這一頁只有一個
+# 90px 的連結,位於框內左上角,指向同一個 IANA 頁面。data: 頁面不計為一次導向,所以計數從 0 開始(實測),點擊必須讓它
+# 變成 1 並列出 IANA 的網址。
+# launch-args: -url data:text/html,%3Ca%20href%3D%22https%3A%2F%2Fwww.iana.org%2Fhelp%2Fexample-domains%22%20style%3D%22display%3Ablock%3Bfont-size%3A90px%3Bpadding%3A20px%22%3ELearn%20more%3C%2Fa%3E
+click,190,520,client,left,,,"Learn more, at (190, 520) on the fixed page -- Navigations reported must become 1, the list must show https://www.iana.org/help/example-domains, and the frame must show the IANA page",ios
 sleep,,,,,,2500000,let the navigation start and the delegate report it,ios
