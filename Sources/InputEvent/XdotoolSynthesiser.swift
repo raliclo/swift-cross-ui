@@ -262,6 +262,14 @@
                         "pinch and rotate under X11: XTEST has no gesture events"
                     )
 
+                case .orientation:
+                    // A phone and tablet verb (2026-09-29, added from the Mac side
+                    // for iOS). An X11 window has a size, not an orientation.
+                    // 手機與平板的動作(2026-09-29 由 Mac 這一側為 iOS 加入)。X11 視窗有尺寸,沒有方向。
+                    throw SynthesiserError.unsupported(
+                        "orient: an X11 window has no device orientation; resize it instead"
+                    )
+
                 case .focus(let window):
                     try focusWindow(titled: window)
 

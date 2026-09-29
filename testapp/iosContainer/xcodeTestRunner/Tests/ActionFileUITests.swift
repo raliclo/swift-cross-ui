@@ -336,6 +336,22 @@ final class ActionFileUITests: XCTestCase {
                     )
                 }
                 heldModifiers.remove(flag)
+            case "orient":
+                // Turns the simulated device, as a person turning the phone does;
+                // see `InputAction.orientation`. The app gets the same size
+                // change and trait update a real rotation gives it.
+                // 轉動模擬的裝置,就像一個人轉動手機那樣;見 `InputAction.orientation`。app 收到的尺寸改變與 trait
+                // 更新,和一次真正的旋轉完全相同。
+                let orientation: UIDeviceOrientation
+                switch action.key {
+                case "portrait": orientation = .portrait
+                case "portraitUpsideDown": orientation = .portraitUpsideDown
+                case "landscapeLeft": orientation = .landscapeLeft
+                case "landscapeRight": orientation = .landscapeRight
+                default:
+                    throw ActionFileError.unsupported("orient \(action.key)", action.line)
+                }
+                XCUIDevice.shared.orientation = orientation
             case "key":
                 guard let typed = Self.typedKey(for: action.key) else {
                     throw ActionFileError.unsupported(

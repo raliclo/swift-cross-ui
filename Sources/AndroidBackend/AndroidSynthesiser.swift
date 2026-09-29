@@ -235,6 +235,32 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 try dispatchKey(key, action: keyActionDown)
                 try dispatchKey(key, action: keyActionUp)
 
+            case .orientation(let name):
+                // The activity asks for the orientation, which is how an Android
+                // app is turned without a person holding the device; the
+                // configuration change that follows is the same one a rotation
+                // produces. `landscapeLeft` is the device turned left, which
+                // Android calls landscape; `landscapeRight` is reverse landscape.
+                // 由 activity 要求方向——這是在沒有人拿著裝置時轉動 Android app 的方式;隨之而來的組態改變,和一次
+                // 旋轉產生的完全相同。`landscapeLeft` 是裝置向左轉,Android 稱為 landscape;`landscapeRight` 則是
+                // reverse landscape。
+                // `ActivityInfo.SCREEN_ORIENTATION_*` values, fixed in the platform
+                // since API 1 (LANDSCAPE 0, PORTRAIT 1) and API 9 (REVERSE_* 8, 9).
+                // Written out rather than read from `AndroidContent`, which this
+                // file keeps out on purpose (see the imports).
+                // `ActivityInfo.SCREEN_ORIENTATION_*` 的值,自 API 1(LANDSCAPE 0、PORTRAIT 1)與 API 9
+                // (REVERSE_* 8、9)起在平台中固定。直接寫出,而不是從本檔刻意不引入的 `AndroidContent` 讀取。
+                let requested: Int32 =
+                    switch name {
+                        case "landscapeLeft": 0
+                        case "landscapeRight": 8
+                        case "portraitUpsideDown": 9
+                        default: 1
+                    }
+                Self.onMainThread {
+                    AndroidBackend.activity?.setRequestedOrientation(requested)
+                }
+
             case .focus:
                 // Returned above; listed so a new case cannot be added without
                 // the compiler pointing here.

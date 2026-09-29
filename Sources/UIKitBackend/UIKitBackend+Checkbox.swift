@@ -82,6 +82,11 @@ final class UIButtonCheckbox: WrapperWidget<UIButton>, CheckboxWidget {
     func update(environment: EnvironmentValues, onChange: @escaping (Bool) -> Void) {
         child.isEnabled = environment.isEnabled
         child.imageView?.tintColor = UIKitBackend.resolvedForegroundColor(environment)
+        // Dimmed when disabled: the unchecked box is a flat fill that looks the
+        // same either way, and P21 showed the enabled and disabled checkboxes as
+        // two identical grey squares.
+        // 停用時變淡:未勾選的方塊是一塊平塗,啟用與停用看起來一樣,P21 把兩者顯示成兩個相同的灰色方塊。
+        child.alpha = environment.isEnabled ? 1 : 0.4
         self.onChange = onChange
     }
 

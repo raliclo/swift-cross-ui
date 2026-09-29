@@ -385,11 +385,24 @@ if [ -n "$action_file" ]; then
     cp -R "$xctest_template/Tests" "$bundle_root/xcodeTestRunner/"
     xctest_build="$bundle_root/xcodeTestRunnerProject.build"
     printf '==> Replaying iOS action file: %s\n' "${action_file:t}"
+    # SYMROOT and OBJROOT pinned, as compile.zsh pins them for the app (mistakes.md
+    # entry 29). With Xcode's build location set to Custom, `-derivedDataPath`
+    # alone does not decide where the products go: the runner compiled into the
+    # custom folder while the Runner.app tested here stayed the one built on
+    # 2026-09-22. Found 2026-09-29 when a new runner verb was "unsupported" -- the
+    # source had it, the binary under test did not. No runner change between
+    # 09-22 and then existed, so no earlier result was affected.
+    # 釘住 SYMROOT 與 OBJROOT,與 compile.zsh 為 app 所做的相同(mistakes.md 第 29 條)。Xcode 建置位置設為 Custom 時,
+    # 單靠 `-derivedDataPath` 決定不了產物放哪:runner 被編進自訂資料夾,而這裡拿來測的 Runner.app 一直是 2026-09-22 建的
+    # 那一個。2026-09-29 一個新的 runner 動作被報成「不支援」時發現——原始碼有它,受測的二進位檔沒有。09-22 到那時之間
+    # 沒有任何 runner 改動,所以先前的結果都不受影響。
     xcodebuild \
         -project "$xctest_root/iOSActionFileRunner.xcodeproj" \
         -scheme iOSActionFileRunner \
         -destination "$destination" \
         -derivedDataPath "$xctest_build" \
+        SYMROOT="$xctest_build/Build/Products" \
+        OBJROOT="$xctest_build/Build/Intermediates.noindex" \
         build-for-testing
 
     xctestrun_path="$(find "$xctest_build/Build/Products" -name '*.xctestrun' -print -quit)"

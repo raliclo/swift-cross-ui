@@ -219,6 +219,14 @@ public enum ActionFile {
                 return verb == "pinch"
                     ? .pinch(scalePercent: Int(point.x), velocityPercent: Int(point.y))
                     : .rotate(degrees: Int(point.x), degreesPerSecond: Int(point.y))
+            case "orient":
+                // The orientation's name in the `key` column; see
+                // `InputAction.orientation`. 方向名稱寫在 `key` 欄;見 `InputAction.orientation`。
+                let names = ["portrait", "portraitUpsideDown", "landscapeLeft", "landscapeRight"]
+                guard let name = value(5), names.contains(name) else {
+                    throw ActionFileError.missingKey(verb: verb, line: line)
+                }
+                return .orientation(name)
             case "keydown": return .keyDown(try key())
             case "keyup": return .keyUp(try key())
             case "key": return .key(try key())

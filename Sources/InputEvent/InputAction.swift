@@ -102,7 +102,9 @@ public enum InputAction: Equatable, Sendable {
             // parameters, not a position.
             // `pinch` 與 `rotate` 不指定座標,理由與 `scroll` 相同:它們的兩個數值欄位是這個手勢
             // 自己的參數,不是位置。
-            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate: nil
+            // `orientation` turns the device, not the pointer.
+            // `orientation` 轉的是裝置,不是指標。
+            case .keyDown, .keyUp, .key, .scroll, .sleep, .focus, .pinch, .rotate, .orientation: nil
         }
     }
 
@@ -220,6 +222,21 @@ public enum InputAction: Equatable, Sendable {
     /// 標題採**完全相符**。前綴或模糊比對會在「視窗標題共用前綴」的 app 中靜默選中錯誤的視窗，
     /// 而「選錯視窗」正是這個動作存在所要修正的失敗。
     case focus(window: String)
+
+    /// Turns the device to an orientation: `portrait`, `portraitUpsideDown`,
+    /// `landscapeLeft` or `landscapeRight`, named in the `key` column.
+    ///
+    /// **A phone and tablet verb.** The iOS runner drives it with
+    /// `XCUIDevice.shared.orientation`, which rotates the simulator as a person
+    /// turning the device does -- the only way P14's "size proposals across
+    /// rotation" could be driven there. The desktop synthesisers refuse it with the
+    /// reason: a window has a size, not an orientation, and P14 exercises the same
+    /// width change on them by resizing.
+    ///
+    /// 把裝置轉到某個方向:`portrait`、`portraitUpsideDown`、`landscapeLeft` 或 `landscapeRight`,寫在 `key` 欄。
+    /// **手機與平板的動作。**iOS runner 以 `XCUIDevice.shared.orientation` 驅動它,就像一個人轉動裝置那樣旋轉模擬器——
+    /// P14 的「跨旋轉的尺寸提議」在那裡唯一能被驅動的方式。桌面合成器以理由拒絕它:視窗有尺寸,沒有方向。
+    case orientation(String)
 }
 
 /// A position and the origin it is measured from.

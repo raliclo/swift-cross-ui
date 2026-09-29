@@ -913,6 +913,13 @@
                                 + " trackpad."
                         )
 
+                    case .orientation:
+                        // A phone and tablet verb; a Mac window has a size, not an
+                        // orientation. 手機與平板的動作;Mac 視窗有尺寸,沒有方向。
+                        throw SynthesiserError.unsupported(
+                            "orient: a macOS window has no device orientation; resize it instead"
+                        )
+
                     case .doubleClick, .sleep, .focus:
                         // All three returned above; listed so a new case cannot be
                         // added without the compiler pointing here. `focus` joins

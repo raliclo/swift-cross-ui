@@ -345,20 +345,60 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
             window.windowScene?.windowingBehaviors?.isMiniaturizable = minimizable
         }
 
-        logger.notice("ignoring resizability change")
+        // Applied, no longer "ignoring resizability change". A window that must
+        // not be resized has its scene's size restrictions pinned to its current
+        // size -- the way UIKit expresses it on iPadOS, where windows are resized
+        // in Stage Manager, and on Mac Catalyst. On iPhone there are no
+        // restrictions to set (`sizeRestrictions` is nil) and nothing a user can
+        // resize, so this changes nothing there.
+        // 真的套用,不再「忽略可調整大小的改變」。不可調整大小的視窗,其 scene 的尺寸限制會被釘在目前的尺寸——這正是
+        // UIKit 在 iPadOS(Stage Manager 中可調整視窗大小)與 Mac Catalyst 上表達它的方式。iPhone 上沒有限制可設
+        // (`sizeRestrictions` 為 nil),也沒有使用者能調整的東西,所以這在那裡不改變任何事。
+        WindowSizePolicy.of(window).resizable = resizable
+        WindowSizePolicy.of(window).apply(to: window)
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
         #if os(visionOS)
             window.bounds.size = CGSize(width: CGFloat(newSize.x), height: CGFloat(newSize.y))
         #else
-            logger.notice(
-                "ignoring \(#function) call",
-                metadata: [
-                    "currentWindowSize": "\(window.bounds.width) x \(window.bounds.height)",
-                    "proposedWindowSize": "\(newSize.x) x \(newSize.y)",
-                ]
-            )
+            #if targetEnvironment(macCatalyst)
+                // Mac Catalyst: a geometry request with the new frame.
+                // Mac Catalyst:以新的框架發出幾何請求。
+                if #available(macCatalyst 16, *), let scene = window.windowScene {
+                    let frame = CGRect(
+                        origin: window.frame.origin,
+                        size: CGSize(width: CGFloat(newSize.x), height: CGFloat(newSize.y))
+                    )
+                    scene.requestGeometryUpdate(.Mac(systemFrame: frame)) { error in
+                        logger.notice(
+                            "window size request declined",
+                            metadata: ["reason": "\(error.localizedDescription)"]
+                        )
+                    }
+                }
+            #else
+                // iOS and iPadOS have no programmatic window size, and that was
+                // checked, not assumed (2026-09-29): in the iOS 27 SDK
+                // `UIWindowSceneGeometryPreferencesIOS` has exactly one property,
+                // `interfaceOrientations`, and its only initialisers are `init` and
+                // `initWithInterfaceOrientations:`; the frame-taking preferences are
+                // the Mac and visionOS ones. A window's size there belongs to the
+                // user (Stage Manager) or the device -- which is why
+                // `isWindowProgrammaticallyResizable` is false on iOS and the
+                // framework does not ask for this.
+                // iOS 與 iPadOS 沒有以程式設定視窗大小的方法,而且這是查證過的,不是假設(2026-09-29):iOS 27 SDK
+                // 的 `UIWindowSceneGeometryPreferencesIOS` 只有一個屬性 `interfaceOrientations`,初始化方法也只有
+                // `init` 與 `initWithInterfaceOrientations:`;能帶框架的是 Mac 與 visionOS 那兩個。那裡的視窗大小屬於
+                // 使用者(Stage Manager)或裝置——所以 iOS 上 `isWindowProgrammaticallyResizable` 為 false。
+                logger.notice(
+                    "\(#function): iOS has no programmatic window size",
+                    metadata: [
+                        "currentWindowSize": "\(window.bounds.width) x \(window.bounds.height)",
+                        "proposedWindowSize": "\(newSize.x) x \(newSize.y)",
+                    ]
+                )
+            #endif
         #endif
     }
 
@@ -367,15 +407,54 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
         minimum minimumSize: SIMD2<Int>,
         maximum maximumSize: SIMD2<Int>?
     ) {
-        // if windowScene is nil, either the window isn't shown or it must be fullscreen
-        // if sizeRestrictions is nil, the device doesn't support setting window size bounds
-        window.windowScene?.sizeRestrictions?.minimumSize =
-            CGSize(width: minimumSize.x, height: minimumSize.y)
-        window.windowScene?.sizeRestrictions?.maximumSize =
-            if let maximumSize {
-                CGSize(width: maximumSize.x, height: maximumSize.y)
-            } else {
-                CGSize(width: Double.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
-            }
+        // Stored and applied together with resizability, so a later limit does
+        // not undo "not resizable". 與可調整大小一起存下並套用,讓之後的限制不會把「不可調整」蓋掉。
+        let policy = WindowSizePolicy.of(window)
+        policy.minimum = CGSize(width: minimumSize.x, height: minimumSize.y)
+        policy.maximum = maximumSize.map { CGSize(width: $0.x, height: $0.y) }
+        policy.apply(to: window)
+    }
+}
+
+/// A window's resizability and size limits, kept together because both become
+/// the scene's `sizeRestrictions`.
+///
+/// If windowScene is nil, either the window isn't shown or it must be
+/// fullscreen; if sizeRestrictions is nil, the device doesn't support setting
+/// window size bounds (iPhone).
+///
+/// 視窗的可調整大小與尺寸限制,放在一起是因為兩者都會變成 scene 的 `sizeRestrictions`。
+final class WindowSizePolicy {
+    var resizable = true
+    var minimum = CGSize.zero
+    var maximum: CGSize?
+
+    nonisolated(unsafe) private static var key: UInt8 = 0
+
+    @MainActor
+    static func of(_ window: UIWindow) -> WindowSizePolicy {
+        if let existing = objc_getAssociatedObject(window, &key) as? WindowSizePolicy {
+            return existing
+        }
+        let policy = WindowSizePolicy()
+        objc_setAssociatedObject(window, &key, policy, .OBJC_ASSOCIATION_RETAIN)
+        return policy
+    }
+
+    @MainActor
+    func apply(to window: UIWindow) {
+        guard let restrictions = window.windowScene?.sizeRestrictions else { return }
+        if resizable {
+            restrictions.minimumSize = minimum
+            restrictions.maximumSize =
+                maximum
+                ?? CGSize(width: Double.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        } else {
+            // Pinned: minimum and maximum both the size the window has now.
+            // 釘住:最小與最大都是視窗現在的尺寸。
+            let size = window.bounds.size
+            restrictions.minimumSize = size
+            restrictions.maximumSize = size
+        }
     }
 }

@@ -866,6 +866,14 @@
                             + " a two-contact touch stream"
                     )
 
+                case .orientation:
+                    // A phone and tablet verb (2026-09-29, added from the Mac side
+                    // for iOS). A desktop window has a size, not an orientation.
+                    // 手機與平板的動作(2026-09-29 由 Mac 這一側為 iOS 加入)。桌面視窗有尺寸,沒有方向。
+                    throw SynthesiserError.unsupported(
+                        "orient: a desktop window has no device orientation; resize it instead"
+                    )
+
                 case .focus(let window):
                     try focusWindow(titled: window)
 

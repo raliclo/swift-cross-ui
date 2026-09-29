@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P14 on iOS: turn the device to landscape and back, and read the width history.
+#
+# P14 records every width its content is proposed, and "size proposals across
+# rotation" (#324) is exactly what that history is for. Until 2026-09-29 nothing
+# could rotate the simulator from an action file -- P14-smoke.csv only tapped the
+# centre -- so the iOS cell stayed "-". The `orient` verb turns the device through
+# XCUIDevice, as a person turning the phone does.
+#
+# The final capture is portrait again, so the evidence is the history line: it must
+# show the portrait width, then a larger landscape width, then the portrait width
+# again -- three entries a run that never rotated cannot produce.
+#
+# P14 在 iOS 上:把裝置轉成橫向再轉回來,並讀取寬度歷史。P14 會記下內容被提議的每一個寬度,而「跨旋轉的尺寸提議」
+# (#324)正是那段歷史存在的理由。2026-09-29 之前沒有任何東西能從動作檔旋轉模擬器,所以 iOS 那一格一直是 "-"。
+# `orient` 動作經由 XCUIDevice 轉動裝置。最後的擷圖又是直向,所以證據是歷史那一行:它必須依序出現直向寬度、較大的
+# 橫向寬度、再一次直向寬度——從未旋轉過的一次跑不出這三筆。
+sleep,,,,,,1500000,let P14 render,ios
+orient,,,,,landscapeLeft,,turn the device left -- the proposed width must grow,ios
+sleep,,,,,,2500000,let the rotation finish and the width be recorded,ios
+orient,,,,,portrait,,and back -- the width must return,ios
+sleep,,,,,,2500000,settle before the photograph,ios

@@ -107,6 +107,13 @@ extension UIKitBackend {
         setButtonTitle(toggleWidget.child, label, environment: environment)
         toggleWidget.onChange = onChange
         toggleWidget.child.isEnabled = environment.isEnabled
+        // Dimmed when disabled. The title is an attributed string with its colour
+        // pinned for `.normal`, so UIButton's own disabled dimming never shows, and
+        // P21's toggle-button row drew "Disabled" exactly like "Enabled"
+        // (p21-ios-final-20260929-052250.png) -- the #390 question on UIKit.
+        // 停用時變淡。標題是 `.normal` 狀態下釘死顏色的 attributed string,所以 UIButton 自己的停用變淡永遠不會出現,
+        // P21 的 toggle-button 列把 "Disabled" 畫得和 "Enabled" 一模一樣——這就是 UIKit 上的 #390 問題。
+        toggleWidget.child.alpha = environment.isEnabled ? 1 : 0.4
         toggleWidget.updateAppearance()
     }
 
