@@ -1509,7 +1509,19 @@ on_interrupt() {
     release_ui_lock
     exit 130
 }
-trap on_interrupt INT
+# TERM too, since 2026-09-30: an untrapped TERM kills zsh without running the
+# EXIT trap, so a harness killed from outside left testapp/.ui-lock held by
+# test-<app> and blocked every later run until someone released it by hand
+# (it happened with test-p10 and test-p21). on_interrupt ends in `exit`, so the
+# script does not resume after the handler -- the trap bug SoftPCB-UI found in
+# its own `trap cleanup EXIT INT TERM`, which released the lock and then took six
+# more captures.
+# 自 2026-09-30 起也攔 TERM：未攔截的 TERM 會讓 zsh 直接結束而不執行 EXIT trap，因此從外部被 kill
+# 的 harness 會讓 testapp/.ui-lock 留在 test-<app> 手上，擋住之後每一次執行，直到有人手動釋放
+# （test-p10 與 test-p21 都發生過）。on_interrupt 以 `exit` 結束，所以處理完後腳本不會繼續往下跑
+# ——那正是 SoftPCB-UI 在自己的 `trap cleanup EXIT INT TERM` 中發現的 trap 缺陷：它釋放了鎖，然後又
+# 多拍了六張。
+trap on_interrupt INT TERM
 
 # Not for the delegated targets: `exec` replaces this process, so neither the
 # release below nor an EXIT trap would ever run, and the lock would be held by
