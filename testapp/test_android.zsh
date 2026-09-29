@@ -514,12 +514,23 @@ fi
 # (sweep_apple.zsh、test_common.zsh)。2026-09-30 之前 Android 兩者都不讀,所以 P38 固定的
 # `-url data:...` 頁面與 P34 的 `-rows 500` 到不了這裡的 app,帶著它們的檔案是對著預設值重放的。
 # `scui_args` 以空白切分,這正是 P38 的頁面採百分比編碼而不是加引號的原因。
+#
+# `if`, not `[ ... ] && ...`: under `set -e` a false test as the last command of
+# the enclosing `if` made the whole script exit 1 with no message, right after
+# "Pushing ...", for every file WITHOUT a launch-args line (2026-09-30, P75).
+# 用 `if` 而不是 `[ ... ] && ...`：在 `set -e` 之下，一個為假的判斷若是外層 `if` 的最後一個指令，
+# 會讓整支腳本在「Pushing ...」之後不留訊息地以 1 結束——凡是**沒有** launch-args 的檔案都如此
+# (2026-09-30,P75)。
 launch_args=()
 if [ -n "$action_file" ]; then
-    launch_line="$(grep -m1 -E '^# *launch-args:' "$action_file" | sed -E 's/^# *launch-args: *//')"
-    [ -n "$launch_line" ] && launch_args=(${=launch_line})
+    launch_line="$(grep -m1 -E '^# *launch-args:' "$action_file" | sed -E 's/^# *launch-args: *//' || true)"
+    if [ -n "$launch_line" ]; then
+        launch_args=(${=launch_line})
+    fi
 fi
-[ -n "${TEST_APP_ARGS:-}" ] && launch_args=(${=TEST_APP_ARGS} $launch_args)
+if [ -n "${TEST_APP_ARGS:-}" ]; then
+    launch_args=(${=TEST_APP_ARGS} $launch_args)
+fi
 if [ "${#launch_args}" -gt 0 ]; then
     print "==> App arguments: ${launch_args[*]}"
     app_args+=($launch_args)

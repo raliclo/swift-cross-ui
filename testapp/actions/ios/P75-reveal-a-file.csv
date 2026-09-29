@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on iOS: write p75-reveal.txt into the app's Documents and reveal it. Pass: the
+# system document browser opens at that folder and p75-reveal.txt is listed in it.
+# Before 2026-09-30 UIKitBackend had no RevealFiles, `revealFile` was nil, and the
+# line read "revealFile is nil on this backend".
+#
+# P75 在 iOS 上：把 p75-reveal.txt 寫進 app 的 Documents 並顯示它。通過：系統文件瀏覽器在該資料夾開啟，
+# 其中列出 p75-reveal.txt。2026-09-30 之前 UIKitBackend 沒有 RevealFiles，`revealFile` 是 nil。
+sleep,,,,,,1500000,let P75 render,ios
+click,140,410,client,left,,,Reveal a file,ios
+sleep,,,,,,3000000,let the document browser open at the folder,ios

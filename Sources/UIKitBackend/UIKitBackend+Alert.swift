@@ -66,7 +66,7 @@ extension UIKitBackend {
     /// 呈現就會把它們疊起來——C 疊在 B 上、B 疊在 A 上——關掉最上面那一個就會露出下面那一個,那正是
     /// #675 對 backend 的要求。轉場中的 view controller 同樣不能呈現,而一次更新裡的三個要求都在 A 還在
     /// 動畫進場時抵達,所以下一個要等那段轉場結束。
-    static func presentOnTop(_ alert: Alert, in window: Window) {
+    static func presentOnTop(_ alert: UIViewController, in window: Window) {
         guard var top = window.rootViewController else { return }
         while let presented = top.presentedViewController, !presented.isBeingDismissed {
             top = presented

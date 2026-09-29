@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on iOS: Open URL -> openURL(https://www.iana.org/help/example-domains). Pass:
+# Safari comes forward on the IANA page. UIKitBackend had ExternalURLs already; this
+# is its first recorded run.
+#
+# P75 在 iOS 上：Open URL -> openURL(...)。通過：Safari 移到前景並顯示 IANA 頁面。UIKitBackend 原本就有
+# ExternalURLs；這是它第一次有紀錄的執行。
+sleep,,,,,,1500000,let P75 render,ios
+click,135,476,client,left,,,Open URL,ios
+sleep,,,,,,5000000,let Safari load the page,ios

@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Android: Close this window -> dismissWindow(). The activity is the window,
+# so AndroidBackend runs the close handler and finishes it. Pass: P75's activity is
+# no longer resumed (the launcher is), and logcat has "close requested". Before
+# 2026-09-30 dismissWindow() warned once and the activity stayed.
+#
+# P75 在 Android 上：Close this window -> dismissWindow()。activity 就是視窗，所以 AndroidBackend 執行
+# close handler 並 finish 它。通過：P75 的 activity 不再處於 resumed（改為桌面），logcat 有 "close
+# requested"。2026-09-30 之前 dismissWindow() 只會警告一次，activity 仍在。
+sleep,,,,,,1500000,let P75 render,android
+click,172,635,,left,,,Close this window,android
+sleep,,,,,,2000000,let the activity finish,android

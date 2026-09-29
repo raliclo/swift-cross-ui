@@ -1776,7 +1776,7 @@ when a scratch tool and the repo tool disagree, diff the tools.
 
 ## 21. 只驗了新加的路徑,沒驗它與舊路徑共用的那一行;而 log 說「shown」
 
-**次數:1 次 / 1 天(2026-09-17)。**
+**次數:2 次 / 2 天(2026-09-17、2026-09-30)。**
 
 ### 症狀 / What it looks like
 
@@ -1799,11 +1799,18 @@ WinUI 上**沒有指定 arrowEdge 的 popover 完全不會出現**——而那�
 2. **「已呈現」的證據必須來自呈現之後的狀態**(UIA 節點、視窗矩形、擷圖),不是 app 自己在呼叫前寫的
    log 行。
 
+**第二次發生,2026-09-30:`test_android.zsh` 的 launch-args。**我讓它讀取動作檔的 `# launch-args:` 與
+`TEST_APP_ARGS`,只用 P38(**有**那一行的檔案)驗證就提交了(bcec00a2)。沒有那一行的檔案——也就是幾乎全部——
+在 `set -euo pipefail` 之下,`grep -m1` 無命中讓指令替換失敗,腳本在「Pushing ...」之後不留一個字地以 1
+結束。又是只驗了新路徑:「有參數」是新增的,「沒有參數」是所有既有檔案共用的舊路徑,而那條沒被跑過。下一支
+沒有 launch-args 的 P75 就撞上了。**補充矯正:**改動一支被許多檔案共用的腳本時,至少重跑一個**不使用**新功能
+的既有案例,再提交。
+
 ---
 
 ## 21. Verified only the new path, never the line it shares with the old one; and the log said "shown"
 
-**1 occurrence / 1 day (2026-09-17).**
+**2 occurrences / 2 days (2026-09-17, 2026-09-30).**
 
 On WinUI a popover with NO arrowEdge, the default most apps use, never appeared, while the log
 still read `popover alpha shown`. The #109 verification the day before drove only SET preferences
@@ -1814,6 +1821,16 @@ regardless. When adding a preference, verify the no-preference default in the sa
 captures, not two. Evidence that something was presented must come from after presentation (UIA
 node, window rect, capture), never from the app's own pre-call log line. A zero-node UIA result
 needs a positive control before it counts.
+
+**Second occurrence, 2026-09-30: `test_android.zsh` and launch-args.** I taught it to read an
+action file's `# launch-args:` line and `TEST_APP_ARGS`, verified it with P38 -- a file that HAS
+the line -- and committed (bcec00a2). For a file without the line, which is nearly all of them,
+`grep -m1` found nothing, `pipefail` failed the command substitution, and `set -e` ended the
+script with status 1 and no message right after "Pushing ...". The new path was "a file with
+arguments"; the old path every existing file shares was "a file without them", and that is the
+one I never ran. The next file without the line, P75's, hit it. **Added to the corrective:** when
+changing a script many files go through, re-run at least one existing case that does NOT use the
+new feature before committing.
 
 ---
 
@@ -2456,3 +2473,34 @@ Increment 時則是 `pushes 1`。macOS 的擷圖因同一原因讀到 0,卻被�
 **矯正措施補充:**從擷圖讀一個值之前,先讀清楚「設定它的那一列之後的每一列」會對它做什麼。動作檔應該停在
 「任何單一一步落空都到不了」的狀態——P24 現在停在 Level 1、pushes 1、counter 1,pop、push 或 record 任何
 一步落空都會留下不同的畫面。
+
+---
+
+## 31. 依名稱而非定義實作了一個視窗層級,而 app 隨即印出一句假話
+
+**次數:1 次 / 1 天(2026-09-30)。**
+
+UIKitBackend 補上 `WindowLevels` 時,我把 `.floating` 列入支援,並映射為 `UIWindow.Level.normal + 1`——
+疊在 app 自己的其他視窗之上。但 `WindowLevel.floating` 的定義是「位於所有視窗之上,**包括其他 app 的**」,
+那是任何 UIKit app 都做不到的。P37 在 iOS 上隨即印出「floating is supported: this window should stay in
+front」。它編譯通過、執行正常、讀起來像一次改進;那句話是假的。同一個 session 內讀了 `WindowLevel.swift`
+才發現,尚未提交。
+
+**矯正措施。**實作一個共用 enum 的 case 之前,先讀它的文件註解,並把它陳述的契約寫進實作的註解裡。做不到
+契約的 backend,用協定自己的機制說出來(此處是 `supportedWindowLevels`)——那是協定設計好的回答,不是降級。
+
+## 31. Implemented a window level from its name, not its definition, and the app printed a false claim
+
+**1 occurrence / 1 day (2026-09-30).**
+
+Adding `WindowLevels` to UIKitBackend, I listed `.floating` and mapped it to
+`UIWindow.Level.normal + 1`, above the app's own other windows. `WindowLevel.floating` is
+defined as above every window *including other applications'*, which no UIKit app can do. P37
+on iOS then printed "floating is supported: this window should stay in front". It compiled,
+ran, and read like an improvement; the claim was false. Caught in the same session by reading
+`WindowLevel.swift`, before any commit.
+
+**Corrective.** Before implementing a case of a shared enum, read its doc comment and write the
+contract it states into the implementation's comment. A backend that cannot meet the contract
+says so through the protocol's own mechanism -- here `supportedWindowLevels` -- which is the
+answer the protocol was designed to receive, not a degradation.

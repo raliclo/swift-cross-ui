@@ -74,4 +74,22 @@ class AndroidBackendHelpers: JavaObject {
 
     @JavaMethod
     func launchFolderActivity(_ urlString: JavaString?)
+
+    @JavaMethod
+    func registerSaveResult(_ activity: FragmentActivity!, _ callback: FolderActivityCallback!)
+
+    @JavaMethod
+    func launchSaveActivity(_ defaultName: String)
+
+    @JavaMethod
+    func stagingPathForSave(_ activity: Activity?, _ uriString: String, _ name: String)
+        -> JavaString?
+
+    /// nil on success, otherwise why it failed.
+    @JavaMethod
+    func openExternalUrl(_ activity: Activity?, _ urlString: String) -> JavaString?
+
+    /// nil on success, otherwise why it failed.
+    @JavaMethod
+    func revealFile(_ activity: Activity?, _ path: String) -> JavaString?
 }

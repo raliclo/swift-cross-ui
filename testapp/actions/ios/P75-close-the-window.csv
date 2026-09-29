@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on iOS (iPhone): Close this window -> dismissWindow().
+#
+# The first run of this file (2026-09-30) expected the app to leave the screen and
+# it did not. The system log said why, in UIKit's words: "Invalid attempt to call
+# -[UIApplication requestSceneSessionDestruction:] from an unsupported device." An
+# app without multiple scenes has no public way to close its only window, and on
+# iPhone SwiftUI's dismissWindow has no effect either. So on iPhone the pass
+# condition is that the window STAYS, the close handler does not run (no "close
+# handler" line), and stdout carries UIKitBackend's notice "dismissWindow() left
+# the app's only window open". The multi-scene path (iPad, Catalyst) ends the
+# scene session instead.
+#
+# P75 在 iOS（iPhone）上：Close this window -> dismissWindow()。本檔第一次執行（2026-09-30）預期 app 離開
+# 畫面，結果沒有。系統記錄以 UIKit 自己的話說明原因（見上方英文）：不支援多個 scene 的 app 沒有公開方法
+# 能關閉它唯一的視窗；在 iPhone 上 SwiftUI 的 dismissWindow 也沒有作用。因此在 iPhone 上的通過條件是：
+# 視窗**留著**、close handler 不執行、stdout 出現 UIKitBackend 的說明「dismissWindow() left the app's only
+# window open」。多 scene 的路徑（iPad、Catalyst）則會結束 scene session。
+sleep,,,,,,1500000,let P75 render,ios
+click,164,640,client,left,,,Close this window,ios
+sleep,,,,,,2500000,let anything the close started finish,ios

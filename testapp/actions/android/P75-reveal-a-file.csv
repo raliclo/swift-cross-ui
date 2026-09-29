@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Android: write p75-reveal.txt into the shared Download folder and reveal
+# it. Pass: DocumentsUI (the Files app) comes forward at Download and lists
+# p75-reveal.txt. Before 2026-09-30 AndroidBackend had no RevealFiles and
+# `revealFile` was nil.
+#
+# P75 在 Android 上：把 p75-reveal.txt 寫進共用的 Download 資料夾並顯示它。通過：DocumentsUI（檔案 app）
+# 在 Download 開啟並列出 p75-reveal.txt。2026-09-30 之前 AndroidBackend 沒有 RevealFiles。
+sleep,,,,,,1500000,let P75 render,android
+click,147,367,,left,,,Reveal a file,android
+sleep,,,,,,3000000,let the file manager open,android

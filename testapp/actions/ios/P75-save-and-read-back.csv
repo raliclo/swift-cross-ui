@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on iOS: Save..., accept the export dialog's default location, then read the
+# line back. UIKitBackend saves by exporting a placeholder and hands back where it
+# landed; the app then writes "saved by P75" to that URL. Pass: "read back: saved by
+# P75". Before 2026-09-30 chooseFileSaveDestination warned and returned nil, so the
+# line read "save: cancelled or unavailable".
+#
+# P75 在 iOS 上：按 Save...，接受匯出對話框的預設位置，再把那一行讀回來。UIKitBackend 以匯出佔位檔的方式存檔，
+# 並交回它抵達的位置；app 接著把 "saved by P75" 寫進那個 URL。通過：「read back: saved by P75」。
+sleep,,,,,,1500000,let P75 render,ios
+click,122,542,client,left,,,Save...,ios
+sleep,,,,,,3000000,let the export browser open,ios
+click,382,118,client,left,,,"Save, top right of the export browser (it opens in the app's own folder, debugTarget, with Save as p75-saved)",ios
+sleep,,,,,,2500000,let the file move and P75 write and read it back,ios

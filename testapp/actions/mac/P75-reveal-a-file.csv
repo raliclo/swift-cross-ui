@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on macOS: write p75-reveal.txt into the temporary folder and reveal it. Pass:
+# Finder comes forward with p75-reveal.txt selected -- read back from Finder's own
+# selection, not only from a screenshot. AppKitBackend has had RevealFiles
+# (activateFileViewerSelecting); this is its first recorded run.
+#
+# P75 在 macOS 上：把 p75-reveal.txt 寫進暫存資料夾並顯示它。通過：Finder 移到前景且選取 p75-reveal.txt
+# ——由 Finder 自己的選取讀回，而不只是看截圖。AppKitBackend 原本就有 RevealFiles；這是它第一次有紀錄的執行。
+sleep,,,,,,1500000,let P75 render,macos
+click,236,165,frame,left,,,Reveal a file,macos
+sleep,,,,,,2500000,let Finder come forward,macos

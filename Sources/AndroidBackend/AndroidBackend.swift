@@ -272,6 +272,10 @@ public final class AndroidBackend: BaseAppBackend {
 
     static var fileDialogCallback: (([Foundation.URL]) -> Void)?
     static var folderDialogCallback: ((Foundation.URL?) -> Void)?
+    /// The content:// URI the save dialog created, or nil when it was cancelled.
+    static var saveDialogCallback: ((String?) -> Void)?
+    /// The one window's close handler; see `close(window:)`.
+    static var closeHandler: (() -> Void)?
 
     /// A reference used to keep the tickler alive.
     var tickler: MainRunLoopTickler?
@@ -371,6 +375,15 @@ public final class AndroidBackend: BaseAppBackend {
         folderCallback.setAction(folderAction)
 
         helpers.registerActivityResults(fragmentActivity, filesCallback, folderCallback)
+
+        let saveCallback = FolderActivityCallback(environment: Self.env)
+        let saveAction = SwiftAction(environment: Self.env) {
+            let uri = saveCallback.getUrlString()?.toString()
+            AndroidBackend.saveDialogCallback?(uri)
+            AndroidBackend.saveDialogCallback = nil
+        }
+        saveCallback.setAction(saveAction)
+        helpers.registerSaveResult(fragmentActivity, saveCallback)
     }
 
     public convenience init(delegate: any ActivityDelegate) {
@@ -427,9 +440,6 @@ public final class AndroidBackend: BaseAppBackend {
         // Doesn't mean anything on Android until we support split screen
     }
 
-    //    public func setCloseHandler(ofWindow window: Window, to action: @escaping () -> Void) {
-    //        // TODO(stackotter): Set close handler?
-    //    }
 
     public func setTitle(ofWindow window: Window, to title: String) {
         // TODO(stackotter): Handle navigation titles.

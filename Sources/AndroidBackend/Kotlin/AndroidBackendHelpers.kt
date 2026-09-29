@@ -2,7 +2,13 @@ package dev.swiftcrossui.androidbackend
 
 import android.R
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.res.Configuration
+import android.os.Environment
+import android.os.FileObserver
+import android.provider.DocumentsContract
+import java.io.File
 import android.icu.util.TimeZone
 import android.net.Uri
 import android.os.Build
@@ -340,5 +346,134 @@ class AndroidBackendHelpers {
 
     fun launchFolderActivity(urlString: String?) {
         folderLauncher.launch(urlString?.let { Uri.parse(it) })
+    }
+
+    private var saveLauncher: ActivityResultLauncher<String>? = null
+
+    // Registered separately from the other two so their signature does not
+    // change; it has to happen at the same point, before the activity starts,
+    // which is where AndroidBackend calls it.
+    //
+    // 與另外兩個分開註冊，以免改動它們的簽章；它必須在同一個時間點、activity 開始之前完成，而
+    // AndroidBackend 正是在那裡呼叫它。
+    fun registerSaveResult(activity: FragmentActivity, callback: FolderActivityCallback) {
+        saveLauncher =
+            activity.registerForActivityResult(
+                ActivityResultContracts.CreateDocument("*/*"),
+                callback,
+            )
+    }
+
+    fun launchSaveActivity(defaultName: String) {
+        saveLauncher?.launch(defaultName)
+    }
+
+    private val saveMirrors = mutableListOf<FileObserver>()
+
+    // A path a plain write can use, for a document the save dialog created.
+    //
+    // CREATE_DOCUMENT answers with a content:// URI, and a Swift caller writes
+    // a destination with FileManager or Data.write(to:), which cannot open one.
+    // So the caller gets a file in this app's cache, and every time that file
+    // is closed after writing, its bytes are copied into the document through
+    // the content resolver -- the one route the platform gives an app to a
+    // document it did not create.
+    //
+    // Not /proc/self/fd/N for a descriptor opened on the URI, which was the
+    // first version: measured on the API 36 emulator 2026-09-30 with P75, the
+    // write failed with EACCES. Opening that link resolves back to the FUSE
+    // path of a file DocumentsUI created, which this app may not open.
+    //
+    // 為存檔對話框建立的文件提供一個「一般寫入就能用」的路徑。CREATE_DOCUMENT 回傳的是 content://
+    // URI，而 Swift 呼叫端用 FileManager 或 Data.write(to:) 寫入目的地，兩者都開不了它。因此呼叫端
+    // 拿到的是本 app cache 中的一個檔案；每當該檔案在寫入後被關閉，它的位元組就經由 content resolver
+    // 複製到該文件——那是平台給 app 通往「非自己建立的文件」的唯一途徑。第一版用的是「對該 URI 開啟的
+    // descriptor 的 /proc/self/fd/N」：2026-09-30 以 P75 於 API 36 emulator 實測，寫入以 EACCES
+    // 失敗。開啟那個連結會解析回 DocumentsUI 所建立之檔案的 FUSE 路徑，而本 app 不得開啟它。
+    fun stagingPathForSave(activity: Activity, uriString: String, name: String): String? {
+        val uri = Uri.parse(uriString)
+        val folder = File(activity.cacheDir, "save-${System.nanoTime()}")
+        if (!folder.mkdirs()) return null
+        val file = File(folder, name.ifEmpty { "Untitled" })
+        if (!file.createNewFile()) return null
+
+        val resolver = activity.contentResolver
+        val observer =
+            object : FileObserver(file, FileObserver.CLOSE_WRITE) {
+                override fun onEvent(event: Int, path: String?) {
+                    try {
+                        resolver.openOutputStream(uri, "wt")?.use { output ->
+                            file.inputStream().use { it.copyTo(output) }
+                        }
+                    } catch (error: Exception) {
+                        android.util.Log.e("SwiftCrossUI", "could not copy the save to $uri", error)
+                    }
+                }
+            }
+        observer.startWatching()
+        saveMirrors.add(observer)
+        return file.absolutePath
+    }
+
+    // Both return null on success and a sentence on failure, so the Swift side
+    // can throw something a person can read instead of a bare `false`.
+    //
+    // 兩者成功時回傳 null，失敗時回傳一句話，讓 Swift 端能拋出人讀得懂的錯誤，而不是光禿禿的 `false`。
+
+    fun openExternalUrl(activity: Activity, urlString: String): String? {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(urlString))
+        return try {
+            activity.startActivity(intent)
+            null
+        } catch (error: ActivityNotFoundException) {
+            "no installed app handles $urlString"
+        }
+    }
+
+    // Opens the system file manager (DocumentsUI) at the file's folder.
+    //
+    // DocumentsUI answers ACTION_VIEW on a directory document of the external
+    // storage provider -- measured on the API 36 emulator 2026-09-30:
+    // `am start -a android.intent.action.VIEW -t vnd.android.document/directory
+    // -d content://com.android.externalstorage.documents/document/primary%3ADownload`
+    // resumed com.android.documentsui.files.FilesActivity listing the file.
+    //
+    // A file in the app's private storage is refused with a reason, not
+    // ignored: no system file manager can list it, because the platform's
+    // sandbox keeps every other app -- DocumentsUI included -- out of it. The
+    // same is true of Android/data since Android 11.
+    //
+    // 在檔案所在的資料夾開啟系統檔案管理員（DocumentsUI）。DocumentsUI 會回應 external storage
+    // provider 上目錄文件的 ACTION_VIEW——2026-09-30 於 API 36 emulator 實測，上述指令使
+    // FilesActivity 進入前景並列出該檔案。app 私有儲存區內的檔案會附上理由被拒絕，而不是被忽略：
+    // 沒有任何系統檔案管理員能列出它，因為平台的沙箱把包括 DocumentsUI 在內的所有其他 app 擋在外面；
+    // 自 Android 11 起 Android/data 亦同。
+    fun revealFile(activity: Activity, path: String): String? {
+        val file = File(path).absoluteFile
+        val folder = (if (file.isDirectory) file else file.parentFile)
+            ?: return "$path has no enclosing folder"
+        val storageRoot = Environment.getExternalStorageDirectory().absolutePath
+        val folderPath = folder.path.replaceFirst("/sdcard", storageRoot)
+        val inShared =
+            (folderPath == storageRoot || folderPath.startsWith("$storageRoot/")) &&
+                !folderPath.startsWith("$storageRoot/Android/")
+        if (!inShared) {
+            return "$path is in storage private to an app, which no file manager can list; " +
+                "reveal works for files under $storageRoot"
+        }
+        val relative = folderPath.removePrefix(storageRoot).trimStart('/')
+        val uri = DocumentsContract.buildDocumentUri(
+            "com.android.externalstorage.documents",
+            "primary:$relative",
+        )
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return try {
+            activity.startActivity(intent)
+            null
+        } catch (error: ActivityNotFoundException) {
+            "no file manager handles $uri"
+        }
     }
 }

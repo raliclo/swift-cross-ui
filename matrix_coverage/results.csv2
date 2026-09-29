@@ -1089,3 +1089,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-30,android,android,P34,ok,ok,screen,default,"Inner list drag scrolled the whole page (RootScrollHost stole it); fixed by nested scrolling in ScrollContainer.kt -- list at Row 2, header unmoved."
 2026-09-30,android,android,P8,ok,ok,screen,default,"Regression check after the nested-scroll change: vertical drag on the horizontal strip still moves the outer view 183 px, H0 fixed at x 10."
 2026-09-30,android,android,P38,ok,ok,screen,default,"Fixed data: page via -url; tap on Learn more -> Navigations reported 1, IANA example-domains listed and drawn in the WebView."
+2026-09-30,macos,appkit,P75,ok,ok,window,default,Reveal: Finder frontmost with p75-reveal.txt selected.
+2026-09-30,ios,uikit,P75,ok,ok,window,default,"Reveal opens the document browser in Documents/P75 listing the file; open URL -> Safari on IANA; save -> Documents/p75-saved.txt reads back; close on iPhone refused by UIKit (unsupported device), window kept with a notice."
+2026-09-30,android,android,P75,ok,ok,screen,default,"Reveal -> DocumentsUI at Download listing the file; open URL -> Chrome on IANA; save -> Download/p75-saved.txt holds the line (FileObserver mirror); close -> activity finished, handler ran."
+2026-09-30,ios,uikit,P37,ok,ok,window,default,"UIKit now conforms to WindowLevels and reports automatic, normal: floating is defined as above other applications, which UIKit cannot do; a first version that listed it printed a false claim and was withdrawn."

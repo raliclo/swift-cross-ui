@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Android: Open URL -> openURL(https://www.iana.org/help/example-domains).
+# Pass: the browser comes forward on the IANA page. Before 2026-09-30 AndroidBackend
+# had no ExternalURLs and openURL warned once and did nothing.
+#
+# P75 在 Android 上：Open URL -> openURL(...)。通過：瀏覽器移到前景並顯示 IANA 頁面。2026-09-30 之前
+# AndroidBackend 沒有 ExternalURLs，openURL 只會警告一次、什麼也不做。
+sleep,,,,,,1500000,let P75 render,android
+click,139,445,,left,,,Open URL,android
+sleep,,,,,,6000000,let the browser load the page,android

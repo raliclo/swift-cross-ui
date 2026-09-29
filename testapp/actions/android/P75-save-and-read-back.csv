@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on Android: Save..., accept DocumentsUI's CREATE_DOCUMENT dialog as it opens
+# (Downloads, p75-saved.txt), then write "saved by P75" and read it back. The dialog
+# answers with a content:// URI; AndroidBackend opens it and hands back
+# /proc/self/fd/N, so an ordinary Data.write reaches the document. Pass: "read back:
+# saved by P75", and /sdcard/Download/p75-saved.txt holds that text. Before
+# 2026-09-30 chooseFileSaveDestination warned once and returned nil.
+#
+# THE SAVE BUTTON IS PRESSED FROM THE HOST. The dialog belongs to DocumentsUI, a
+# different app, and this file's touches are injected into P75's own window -- the
+# replay says so ("this activity does not have window focus") and the first run's
+# tap on SAVE reached nothing. As with P72's popup, the step is
+#   adb shell input tap 927 2274      (px; SAVE at [812,2211]-[1043,2337])
+# issued during the long sleep below.
+#
+# P75 在 Android 上：Save...，接受 DocumentsUI 的 CREATE_DOCUMENT 對話框開啟時的預設（Downloads、
+# p75-saved.txt），再寫入 "saved by P75" 並讀回。對話框回傳 content:// URI；AndroidBackend 開啟它並交回
+# /proc/self/fd/N，讓一般的 Data.write 能寫到該文件。**SAVE 由主機端按下**：對話框屬於 DocumentsUI 這個
+# 別的 app，而本檔的觸控只注入 P75 自己的視窗——重放記錄就這麼說，第一次執行按 SAVE 什麼也沒碰到。
+# 與 P72 的彈出選單相同，於下方的長 sleep 期間執行上面那一行 adb 指令。
+sleep,,,,,,1500000,let P75 render,android
+click,126,523,,left,,,Save...,android
+sleep,,,,,,9000000,"the host taps SAVE (adb shell input tap 927 2274) during this wait; P75 then writes and reads back",android
