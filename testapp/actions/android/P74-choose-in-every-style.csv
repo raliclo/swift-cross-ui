@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# P74 on Android: choose a non-default option in each picker style, then try the
+# disabled radio group, which must refuse.
+#
+# Measured 2026-09-29 from `uiautomator dump --compressed` on the api36 emulator
+# (1080 x 2400 px at density 2.625), converted to dp as the other Android files
+# are. The segmented control is AndroidBackend's new CustomSegmentedGroup -- before
+# 2026-09-29 `.segmented` was `fatalError("Unsupported picker style")` here. The
+# wheel is a NumberPicker; tapping its next row (Tue) advances it. The capture
+# must read: segmented -> Three, radioGroup -> Blue, wheel -> Tue. The last row
+# taps Green in the DISABLED group, bound to the same state, so radioGroup still
+# reading Blue proves it refused.
+#
+# P74 在 Android 上:在每種 picker 樣式中選一個非預設的選項,再試點停用的 radio group,它必須拒絕。segmented 是
+# AndroidBackend 新的 CustomSegmentedGroup——2026-09-29 之前 `.segmented` 在這裡是 `fatalError`。擷圖必須讀到
+# segmented -> Three、radioGroup -> Blue、wheel -> Tue。
+sleep,,,,,,1500000,let P74 render,android
+click,173,275,,left,,,segmented: Three -- segmented -> Three,android
+sleep,,,,,,600000,,android
+click,49,418,,left,,,radioGroup: Blue -- radioGroup -> Blue,android
+sleep,,,,,,600000,,android
+click,48,625,,left,,,wheel: the next row (Tue) -- wheel -> Tue,android
+sleep,,,,,,1000000,let the wheel settle,android
+click,56,772,,left,,,"the DISABLED radio group's Green -- must be refused: radioGroup must still read Blue",android
+sleep,,,,,,1000000,settle before the photograph,android

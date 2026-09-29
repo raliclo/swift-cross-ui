@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P74 on iOS: choose a non-default option in each picker style, then try the
+# disabled radio group, which must refuse.
+#
+# Measured 2026-09-29 from p74-ios-final-20260929-221916.png (440 x 956 pt). The
+# radio group is UIKitBackend's new UIRadioGroupPicker -- before 2026-09-29 this
+# style terminated the app on iOS. A tap on a visible row of a UIPickerView
+# selects it, so the wheel row taps Wed rather than dragging. The capture must
+# read: segmented -> Three, radioGroup -> Blue, wheel -> Wed. The last row taps
+# Green in the DISABLED group, bound to the same state, so radioGroup still reading
+# Blue proves the disabled group refused.
+#
+# P74 在 iOS 上:在每種 picker 樣式中選一個非預設的選項,再試點停用的 radio group,它必須拒絕。radio group 是 UIKitBackend
+# 新的 UIRadioGroupPicker——2026-09-29 之前這個樣式在 iOS 上會終止 app。點 UIPickerView 看得見的一列就會選中它,所以滾輪那
+# 一列點的是 Wed,而不是拖曳。擷圖必須讀到 segmented -> Three、radioGroup -> Blue、wheel -> Wed。
+sleep,,,,,,1500000,let P74 render,ios
+click,158,262,client,left,,,segmented: Three -- segmented -> Three,ios
+sleep,,,,,,600000,,ios
+click,60,399,client,left,,,radioGroup: Blue -- radioGroup -> Blue,ios
+sleep,,,,,,600000,,ios
+click,180,626,client,left,,,wheel: Wed -- a tap on a visible row selects it -- wheel -> Wed,ios
+sleep,,,,,,1200000,let the wheel settle,ios
+click,60,789,client,left,,,"the DISABLED radio group's Green -- must be refused: radioGroup must still read Blue",ios
+sleep,,,,,,1000000,settle before the photograph,ios

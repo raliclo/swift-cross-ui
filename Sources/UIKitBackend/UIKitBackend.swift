@@ -114,10 +114,15 @@ public final class UIKitBackend:
                 [.segmented]
             }
         #else
+            // `.radioGroup` from 2026-09-29: `UIRadioGroupPicker`. Until then an
+            // app asking for it was downgraded to `.automatic`, and one that
+            // reached `createPicker` with it terminated.
+            // `.radioGroup` 自 2026-09-29 起:`UIRadioGroupPicker`。在那之前要求它的 app 會被降級為 `.automatic`,
+            // 而以它抵達 `createPicker` 的則會被終止。
             if #available(iOS 14, macCatalyst 14, *) {
-                [.menu, .segmented, .wheel]
+                [.menu, .segmented, .wheel, .radioGroup]
             } else {
-                [.segmented, .wheel]
+                [.segmented, .wheel, .radioGroup]
             }
         #endif
     }

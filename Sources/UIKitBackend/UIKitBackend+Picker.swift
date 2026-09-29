@@ -300,7 +300,7 @@ extension UIKitBackend {
                     preconditionFailure("Current OS is too old to support menu buttons.")
                 }
             case .radioGroup:
-                preconditionFailure("radioGroup is unsupported in UIKitBackend")
+                UIRadioGroupPicker()
             case .segmented:
                 UISegmentedControlPicker()
             case .wheel:
@@ -333,5 +333,106 @@ extension UIKitBackend {
     public func setSelectedOption(ofPicker picker: Widget, to selectedOption: Int?) {
         let pickerWidget = picker as! any Picker
         pickerWidget.setSelectedOption(to: selectedOption)
+    }
+}
+
+/// `.radioGroup` on UIKit: one row per option, each a button with a radio mark.
+///
+/// **Implemented rather than refused.** This style used to be
+/// `preconditionFailure("radioGroup is unsupported in UIKitBackend")`, so any app
+/// that asked for it on iOS terminated at launch. UIKit has no radio control of its
+/// own, and iOS apps draw the same thing this does: a column of choices, the
+/// chosen one marked -- the shape of Settings' single-choice lists.
+///
+/// `.radioGroup` 在 UIKit 上:每個選項一列,每列是一顆帶圓形選取記號的按鈕。**是實作,不是拒絕。**這個樣式原本是
+/// `preconditionFailure("radioGroup is unsupported in UIKitBackend")`,所以任何在 iOS 上要求它的 app 一啟動就被終止。
+/// UIKit 沒有自己的 radio 控制項,而 iOS app 畫的就是這樣的東西:一欄選項、被選中的那一個加上記號——正是「設定」裡
+/// 單選清單的樣子。
+final class UIRadioGroupPicker: WrapperWidget<UIStackView>, Picker {
+    private var options: [String] = []
+    private var selected: Int?
+    private var onSelect: ((Int?) -> Void)?
+    private var buttons: [UIButton] = []
+    private var font = UIFont.preferredFont(forTextStyle: .body)
+    private var textColor: UIColor = .label
+    private var markColor: UIColor = .link
+
+    init() {
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .leading
+        stack.spacing = 6
+        super.init(child: stack)
+    }
+
+    /// A stack view has no intrinsic size of its own; this is the size its rows
+    /// need. 堆疊視圖本身沒有 intrinsic size;這是它的各列所需的大小。
+    override var intrinsicContentSize: CGSize {
+        child.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+    }
+
+    func setOptions(to options: [String]) {
+        guard options != self.options else { return }
+        self.options = options
+        for button in buttons { button.removeFromSuperview() }
+        buttons = options.indices.map { index in
+            let button = UIButton(type: .system)
+            button.tag = index
+            button.contentHorizontalAlignment = .leading
+            button.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
+            child.addArrangedSubview(button)
+            return button
+        }
+        refresh()
+        invalidateIntrinsicContentSize()
+    }
+
+    func setChangeHandler(to onChange: @escaping (Int?) -> Void) {
+        onSelect = onChange
+    }
+
+    func setSelectedOption(to index: Int?) {
+        selected = index
+        refresh()
+    }
+
+    func updateEnvironment(_ environment: EnvironmentValues) {
+        font = environment.resolvedFont.uiFont
+        textColor = environment.foregroundColor?.resolve(in: environment).uiColor ?? .label
+        markColor = .link
+        child.isUserInteractionEnabled = environment.isEnabled
+        // Dimmed when disabled, as every UIKit control is; a radio group that
+        // looked the same enabled and disabled would say nothing about refusing
+        // input. 停用時變淡,和每個 UIKit 控制項一樣。
+        child.alpha = environment.isEnabled ? 1 : 0.4
+        refresh()
+        invalidateIntrinsicContentSize()
+    }
+
+    private func refresh() {
+        let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: font.pointSize)
+        for (index, button) in buttons.enumerated() {
+            let isSelected = index == selected
+            let mark = UIImage(
+                systemName: isSelected ? "largecircle.fill.circle" : "circle",
+                withConfiguration: symbolConfiguration
+            )
+            button.setImage(mark, for: .normal)
+            button.tintColor = markColor
+            button.setAttributedTitle(
+                NSAttributedString(
+                    string: "  " + options[index],
+                    attributes: [.font: font, .foregroundColor: textColor]
+                ),
+                for: .normal
+            )
+            button.accessibilityTraits = isSelected ? [.button, .selected] : [.button]
+        }
+    }
+
+    @objc private func tapped(_ sender: UIButton) {
+        selected = sender.tag
+        refresh()
+        onSelect?(sender.tag)
     }
 }

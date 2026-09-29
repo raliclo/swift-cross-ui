@@ -39,6 +39,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         .menu,
         .segmented,
         .radioGroup,
+        // From 2026-09-29: `WheelPicker`. 自 2026-09-29 起:`WheelPicker`。
+        .wheel,
     ]
     public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = true
@@ -1040,10 +1042,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
                 return NSSegmentedControl()
             case .radioGroup:
                 return RadioGroup()
-            default:
-                let message = "unsupported picker style \(style)"
-                logger.critical("\(message)")
-                fatalError(message)
+            case .wheel:
+                return WheelPicker()
         }
     }
 
@@ -1093,6 +1093,9 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         } else if let picker = picker as? RadioGroup {
             picker.update(options: options, environment: environment)
             picker.onChange = onChange
+        } else if let picker = picker as? WheelPicker {
+            picker.update(options: options, environment: environment)
+            picker.onChange = onChange
         }
     }
 
@@ -1106,6 +1109,8 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         } else if let picker = picker as? NSSegmentedControl {
             picker.selectedSegment = selectedOption ?? -1
         } else if let picker = picker as? RadioGroup {
+            picker.setSelectedIndex(to: selectedOption)
+        } else if let picker = picker as? WheelPicker {
             picker.setSelectedIndex(to: selectedOption)
         }
     }
@@ -2677,6 +2682,102 @@ final class RadioGroup: NSStackView {
 
     @objc func buttonClicked(sender: NSButton) {
         onChange?(sender.tag)
+    }
+}
+
+/// `.wheel` on AppKit: a short scrolling list with one row selected.
+///
+/// **Implemented rather than refused.** AppKit has no spinning wheel and this
+/// style was `fatalError("unsupported picker style wheel")` -- an app that asked
+/// for it on macOS never opened a window -- while the modifier had already
+/// downgraded it to `.automatic` for anyone who went through `.pickerStyle`. A
+/// wheel is a visible run of options that scrolls, with the chosen one marked;
+/// on the Mac that is a small single-column table, which is what Mac Catalyst's
+/// UIKit shows for the same style (`UITableViewPicker`).
+///
+/// `.wheel` 在 AppKit 上:一段會捲動的短清單,選中一列。**是實作,不是拒絕。**AppKit 沒有旋轉滾輪,而這個樣式原本是
+/// `fatalError`——在 macOS 上要求它的 app 永遠開不出視窗——走 `.pickerStyle` 的則早已被 modifier 降級為 `.automatic`。
+/// 滾輪就是一段看得見、會捲動、選中者被標出的選項;在 Mac 上那就是一個小的單欄表格,也正是 Mac Catalyst 的 UIKit
+/// 對同一樣式顯示的東西(`UITableViewPicker`)。
+final class WheelPicker: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
+    private let table = NSTableView()
+    private var options: [String] = []
+    private var font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    private var isUpdatingSelection = false
+    var onChange: ((Int?) -> Void)?
+
+    /// Five rows tall, as a wheel shows a few options around the chosen one.
+    /// 五列高,就像滾輪在選中項周圍露出幾個選項。
+    static let visibleRows = 5
+
+    override var intrinsicContentSize: NSSize {
+        let widest = options.map {
+            ($0 as NSString).size(withAttributes: [.font: font]).width
+        }.max() ?? 0
+        return NSSize(
+            width: ceil(widest) + 32,
+            height: (table.rowHeight + table.intercellSpacing.height)
+                * Double(Self.visibleRows) + 4
+        )
+    }
+
+    init() {
+        super.init(frame: .zero)
+        let column = NSTableColumn(identifier: .init("option"))
+        table.addTableColumn(column)
+        table.headerView = nil
+        table.allowsEmptySelection = true
+        table.allowsMultipleSelection = false
+        table.dataSource = self
+        table.delegate = self
+        table.rowHeight = 22
+        table.style = .plain
+        documentView = table
+        hasVerticalScroller = true
+        borderType = .bezelBorder
+        setAccessibilityRole(.list)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("not used")
+    }
+
+    func update(options: [String], environment: EnvironmentValues) {
+        font = AppKitBackend.font(for: environment.resolvedFont)
+        table.rowHeight = ceil(font.boundingRectForFont.height) + 4
+        table.isEnabled = environment.isEnabled
+        alphaValue = environment.isEnabled ? 1 : 0.5
+        if options != self.options {
+            self.options = options
+            table.reloadData()
+        }
+        invalidateIntrinsicContentSize()
+    }
+
+    func setSelectedIndex(to index: Int?) {
+        isUpdatingSelection = true
+        defer { isUpdatingSelection = false }
+        if let index, index < options.count {
+            table.selectRowIndexes([index], byExtendingSelection: false)
+            table.scrollRowToVisible(index)
+        } else {
+            table.deselectAll(nil)
+        }
+    }
+
+    func numberOfRows(in _: NSTableView) -> Int {
+        options.count
+    }
+
+    func tableView(_: NSTableView, viewFor _: NSTableColumn?, row: Int) -> NSView? {
+        let label = NSTextField(labelWithString: options[row])
+        label.font = font
+        return label
+    }
+
+    func tableViewSelectionDidChange(_: Notification) {
+        guard !isUpdatingSelection else { return }
+        onChange?(table.selectedRow >= 0 ? table.selectedRow : nil)
     }
 }
 

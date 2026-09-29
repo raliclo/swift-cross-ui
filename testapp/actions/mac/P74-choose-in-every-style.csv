@@ -1,0 +1,29 @@
+action,x,y,origin,button,key,micros,note,platform
+# P74 on macOS: choose a non-default option in each of the four picker styles,
+# then try the disabled radio group, which must refuse.
+#
+# Measured 2026-09-29 from p74-macos-final-20260929-221521.png (520 x 648, window
+# frame). The menu is a pop-up, a window of its own, so it is driven by keyboard
+# as P19 drives a menu. The capture must read: menu -> Cherry, segmented -> Three,
+# radioGroup -> Blue, wheel -> Thu. The last row clicks Green in the DISABLED group,
+# which is bound to the same state, so radioGroup still reading Blue proves it
+# refused; reading Green would mean the disabled control accepted input.
+#
+# P74 在 macOS 上:在四種 picker 樣式中各選一個非預設的選項,然後試點停用的 radio group,它必須拒絕。選單是自己的視窗,
+# 比照 P19 用鍵盤操作。擷圖必須讀到 menu -> Cherry、segmented -> Three、radioGroup -> Blue、wheel -> Thu。最後一列點的是
+# 停用群組裡的 Green,它綁的是同一個狀態,所以 radioGroup 仍讀到 Blue 就證明它拒絕了。
+sleep,,,,,,1200000,let P74 render,macos
+click,114,138,frame,left,,,open the menu picker,macos
+sleep,,,,,,1000000,let it open,macos
+key,,,,,downArrow,,Banana,macos
+key,,,,,downArrow,,Cherry,macos
+key,,,,,return,,choose it -- menu -> Cherry,macos
+sleep,,,,,,800000,let the menu close,macos
+click,180,193,frame,left,,,segmented: Three -- segmented -> Three,macos
+sleep,,,,,,600000,,macos
+click,100,297,frame,left,,,radioGroup: Blue -- radioGroup -> Blue,macos
+sleep,,,,,,600000,,macos
+click,102,413,frame,left,,,wheel: Thu -- wheel -> Thu,macos
+sleep,,,,,,600000,,macos
+click,100,518,frame,left,,,"the DISABLED radio group's Green -- must be refused: radioGroup must still read Blue",macos
+sleep,,,,,,1000000,settle before the photograph,macos

@@ -6,7 +6,9 @@ import AndroidKit
 // implements BackendFeatures.Pickers
 extension AndroidBackend {
     public var supportedPickerStyles: [BackendPickerStyle] {
-        [.menu, .radioGroup, .wheel]
+        // `.segmented` from 2026-09-29: `CustomSegmentedGroup`.
+        // `.segmented` 自 2026-09-29 起:`CustomSegmentedGroup`。
+        [.menu, .radioGroup, .wheel, .segmented]
     }
 
     public func createPicker(style: BackendPickerStyle) -> Widget {
@@ -26,9 +28,15 @@ extension AndroidBackend {
                     Self.activity,
                     environment: Self.env
                 ).as(AndroidKit.View.self)!
-            default:
-                // TODO(bbrk24): Implement .segmented using MaterialButtonToggleGroup
-                fatalError("Unsupported picker style \(style)")
+            case .segmented:
+                // A styled horizontal RadioGroup rather than Material's
+                // MaterialButtonToggleGroup, which is a library this backend does
+                // not link. 以樣式化的水平 RadioGroup 實作,而非 Material 的
+                // MaterialButtonToggleGroup——那是本 backend 沒有連結的函式庫。
+                return CustomSegmentedGroup(
+                    Self.activity,
+                    environment: Self.env
+                ).as(AndroidKit.View.self)!
         }
     }
 
@@ -39,6 +47,21 @@ extension AndroidBackend {
         onChange: @escaping (Int?) -> Void
     ) {
         if let picker = picker.as(CustomRadioGroup.self) {
+            let action = SwiftAction(environment: Self.env) {
+                let selectedOption = picker.getSelectedOption()
+                onChange(selectedOption < 0 ? nil : Int(selectedOption))
+            }
+            let textStyle = getTextStyle(from: environment)
+            picker.update(
+                action,
+                options,
+                environment.isEnabled,
+                color: textStyle.color,
+                fontSize: textStyle.fontSize,
+                lineHeight: textStyle.lineHeightPixels,
+                textStyle.typeface
+            )
+        } else if let picker = picker.as(CustomSegmentedGroup.self) {
             let action = SwiftAction(environment: Self.env) {
                 let selectedOption = picker.getSelectedOption()
                 onChange(selectedOption < 0 ? nil : Int(selectedOption))
@@ -75,6 +98,8 @@ extension AndroidBackend {
 
     public func setSelectedOption(ofPicker picker: Widget, to selectedOption: Int?) {
         if let picker = picker.as(CustomRadioGroup.self) {
+            picker.selectOption(Int32(selectedOption ?? -1))
+        } else if let picker = picker.as(CustomSegmentedGroup.self) {
             picker.selectOption(Int32(selectedOption ?? -1))
         } else if let picker = picker.as(CustomSpinner.self) {
             if let selectedOption {
