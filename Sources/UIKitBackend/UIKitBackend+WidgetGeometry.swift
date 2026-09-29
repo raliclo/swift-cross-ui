@@ -23,7 +23,22 @@ extension UIKitBackend: BackendFeatures.WidgetGeometry {
     /// 檢查 `window` 不是形式:一個 view 會在進入視窗之前先被排版，而對一個沒有視窗的 view 呼叫
     /// `convert(_:to: nil)`，回傳的是它最上層 superview 中的座標——一個數字、沒有錯誤、量自別的地方。
     public func originInWindow(ofWidget widget: Widget) -> SIMD2<Int>? {
-        guard let view = widget.view, view.window != nil else { return nil }
+        guard let view = widget.view, let window = view.window else { return nil }
+        // Widgets are placed by Auto Layout constraints (`updateLeftConstraint`
+        // and friends), and a frame reflects a constraint only after a layout
+        // pass. Asked from `commit`, or from the main-queue retry that follows
+        // it, the pass has not run yet -- main-queue blocks run before Core
+        // Animation's commit in the same run-loop turn -- so the frame was
+        // still (0, 0) and P63 on iOS read global x=0 y=0 with its marker at
+        // about (49, 583) points (2026-09-30). Resolving the constraints here
+        // is what makes the answer the position the view will be drawn at.
+        //
+        // widget 由 Auto Layout 約束放置(`updateLeftConstraint` 等),而 frame 要經過一次版面
+        // 計算才會反映約束。從 `commit` 或其後的主佇列重試來問時,那一次計算還沒跑——同一輪 run loop
+        // 中,主佇列的區塊先於 Core Animation 的 commit 執行——所以 frame 仍是 (0, 0),而 iOS 上的
+        // P63 讀到 global x=0 y=0,標記卻約在 (49, 583) 點(2026-09-30)。在此解算約束,答案才會是
+        // 這個 view 實際被畫出的位置。
+        window.layoutIfNeeded()
         let inWindow = view.convert(CGPoint.zero, to: nil)
         return SIMD2(Int(inWindow.x.rounded()), Int(inWindow.y.rounded()))
     }

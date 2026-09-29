@@ -87,7 +87,19 @@ public struct GeometryReader<Content: View>: TypeSafeView, View {
             )
         )
 
-        let environment = environment.with(\.layoutAlignment, .leading)
+        var environment = environment.with(\.layoutAlignment, .leading)
+        // The content is built fresh from the closure on every pass, so a body
+        // kept from the last pass is not this content's body. Reusing it is
+        // right for the children of a kept body -- their values did not change
+        // -- and wrong here: with it on, P63 on iOS logged the new origin from
+        // inside the closure while its Text still drew x=0 y=0, because each
+        // node below served its old body to commit (2026-09-30).
+        //
+        // 內容每一輪都由 closure 重新建立,所以上一輪保留下來的 body 並不是這份內容的 body。對「被保留
+        // 的 body」的子元件而言重用是對的——它們的值沒有改變——在這裡則是錯的:開著它時,iOS 上的
+        // P63 在 closure 內記下了新的原點,它的 Text 卻仍畫著 x=0 y=0,因為底下每個節點交給 commit 的
+        // 都是舊的 body(2026-09-30)。
+        environment.reusesBodies = false
 
         let contentNode: AnyViewGraphNode<Content>
         if let node = children.node {
@@ -131,7 +143,69 @@ public struct GeometryReader<Content: View>: TypeSafeView, View {
         let origin = Self.originInWindow(of: widget, backend: backend)
         if origin != nil, origin != (children.originUsed ?? nil) {
             children.originUsed = origin
-            environment.requestWindowUpdate()
+            // Deferred, not called here. This runs INSIDE the commit, and every
+            // node keeps its layout cache until its commit ends
+            // (`ViewGraphNode.commit` clears it after `view.commit`). An update
+            // requested now re-entered layout with those caches still full, so
+            // each node returned its old layout and the reader was never
+            // recomputed: on iOS P63 kept global x=0 y=0 after UIKit had
+            // answered (47, 558) -- traced 2026-09-30 -- and AppKit only showed
+            // the right numbers because unrelated passes followed.
+            //
+            // 延後，而不是在這裡呼叫。這段執行於 commit **之中**，而每個節點的版面快取要到它的 commit
+            // 結束時才清除（`ViewGraphNode.commit` 在 `view.commit` 之後清除）。在此時要求的更新會在
+            // 快取仍滿的情況下重新進入版面計算，於是每個節點都回傳舊的版面、reader 從未被重算:iOS 上的
+            // P63 在 UIKit 已回答 (47, 558) 之後仍是 global x=0 y=0——2026-09-30 追蹤得知——而 AppKit
+            // 之所以顯示正確數字，只是因為之後剛好有無關的輪次。
+            //
+            // And through `onResize`, not `requestWindowUpdate`. This
+            // environment is the PARENT node's, so `onResize` makes the parent
+            // re-lay out its subtree with its kept body -- recomputing this
+            // reader with the new origin -- and then commit that subtree, the
+            // path a child resize takes. A deferred window update still left
+            // the screen at x=0 y=0 while the log read (47, 558): the
+            // recomputed content never reached the widgets.
+            //
+            // 並且經由 `onResize` 而非 `requestWindowUpdate`。此處的 environment 是**父**節點的,
+            // 所以 `onResize` 會讓父節點以保留的 body 重排它的子樹——以新的原點重算這個 reader——然後
+            // commit 該子樹,也就是子元件改變尺寸時所走的路徑。延後的視窗更新仍讓畫面停在 x=0 y=0,
+            // 而 log 已讀到 (47, 558):重算出的內容從未抵達 widget。
+            let size = layout.size
+            backend.runInMainThread {
+                environment.onResize(size)
+            }
+        } else if origin == nil, !children.retryScheduled {
+            // No answer yet, because the widget is not in a window yet. Ask
+            // once more on the next turn of the main loop, after the tree
+            // is attached. Without this, a backend that says nil at the first
+            // commit is never asked again unless something else happens to
+            // update the window: on iOS nothing does, and P63 showed
+            // global x=0 y=0 permanently while its marker sat at about
+            // (49, 583) points (2026-09-30). AppKit only looked right because
+            // later passes happened to follow. One retry per nil answer, and
+            // a retry that is still nil schedules nothing, so this cannot
+            // loop.
+            //
+            // 還沒有答案，因為 widget 還不在視窗裡。在主迴圈的下一輪、樹掛上之後再問一次。沒有這一步，
+            // 一個在第一次 commit 回答 nil 的 backend 就再也不會被問，除非別的東西剛好更新了視窗:在
+            // iOS 上沒有任何東西會，而 P63 就永遠顯示 global x=0 y=0，儘管它的標記約在 (49, 583) 點
+            // (2026-09-30)。AppKit 看起來正確，只是因為之後剛好有別的輪次。每個 nil 答案只重試一次，
+            // 而重試仍為 nil 時不再排程任何東西，因此不會形成迴圈。
+            children.retryScheduled = true
+            let widget = AnyWidget(widget)
+            let size = layout.size
+            backend.runInMainThread { [weak children] in
+                guard let children else { return }
+                children.retryScheduled = false
+                let later = Self.originInWindow(
+                    of: widget.into() as Backend.Widget,
+                    backend: backend
+                )
+                if later != nil, later != (children.originUsed ?? nil) {
+                    children.originUsed = later
+                    environment.onResize(size)
+                }
+            }
         }
     }
 }
@@ -166,6 +240,10 @@ class GeometryReaderChildren<Content: View>: ViewGraphNodeChildren {
     /// 保留它，是為了能分辨「位置改變了」與「位置沒有變」——而那正是「再要求一輪」與「從此每一輪
     /// 都要求一輪」之間的差別。
     var originUsed: SIMD2<Int>??
+
+    /// A deferred "where did it land?" is pending; see `commit`.
+    /// 一次延後的「它落在哪裡?」正在等待;見 `commit`。
+    var retryScheduled = false
 
     var widgets: [AnyWidget] {
         [node?.widget].compactMap { $0 }

@@ -1107,3 +1107,4 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-30,macos,appkit,P51,ok,ok,window,default,All six containers draw as captioned.
 2026-09-30,macos,appkit,P52,ok,ok,window,default,Benchmark completed unattended.
 2026-09-30,macos,appkit,P68,ok,ok,window,default,"adapters: 1, -GPU default 1."
+2026-09-30,ios,uikit,P63,ok,ok,window,default,"GeometryReader.frame(in:) stayed x=0 y=0 on iOS for the whole run; fixed in three places (UIKit layoutIfNeeded before convert; GeometryReader retries a nil origin on the next turn and re-lays out through onResize after its commit; no body reuse for the closure-built content). Now global 47,558 and named box 24,52, equal to the marker in app points (the screen is zoomed 1.032x: the binary declares SDK 15, see the UIScene finding)."
