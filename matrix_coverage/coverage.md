@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1107**
+**Runs recorded / 已記錄的執行筆數: 1108**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -99,7 +99,7 @@ zsh matrix_coverage/coverage.zsh
 | P60           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | -                         |              |
 | P61           | pass 2026-09-16              | -                              | -                        | pass 2026-09-27              | -                      | -                         |              |
 | P62           | -                            | -                              | -                        | pass 2026-09-27              | -                      | -                         |              |
-| P63           | -                            | -                              | -                        | pass 2026-09-12              | -                      | -                         |              |
+| P63           | -                            | -                              | -                        | pass 2026-09-12              | pass 2026-09-30        | -                         |              |
 | P64           | fail 2026-09-10              | fail 2026-09-10                | -                        | pass 2026-09-10              | pass 2026-09-10        | -                         |              |
 | P65           | pass 2026-09-17              | pass 2026-09-17                | -                        | pass 2026-09-10              | misaimed 2026-09-27    | pass 2026-09-17           |              |
 | P66           | -                            | -                              | -                        | pass 2026-09-11              | -                      | -                         |              |

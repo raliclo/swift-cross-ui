@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P75 on iPad: Close this window -> dismissWindow(), the multi-scene path. Run with
+#   IOS_SIM_DEVICE="iPad Pro 11-inch (M5)" zsh testapp/test.zsh P75 --ios --actionfile=<this>
+# An iPad app that declares UIApplicationSupportsMultipleScenes closes a window by
+# ending its scene session. Pass: stdout has "close requested" and the close
+# handler line, no "left the app's only window open" notice, and the system log
+# has no "Invalid attempt ... requestSceneSessionDestruction" -- the error the
+# iPhone file records instead.
+#
+# P75 在 iPad 上：Close this window -> dismissWindow()，多 scene 路徑。宣告了多 scene 的 iPad app 以結束
+# scene session 關閉視窗。通過條件見上方英文；iPhone 檔記錄的正是相反的那個錯誤。
+sleep,,,,,,1500000,let P75 render,ios
+click,372,756,client,left,,,Close this window,ios
+sleep,,,,,,3000000,let the scene session end,ios

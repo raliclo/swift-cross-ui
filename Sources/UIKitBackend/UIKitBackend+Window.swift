@@ -318,7 +318,40 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
         }
     }
 
+    /// Shows a window, asking for a scene of its own when it has none.
+    ///
+    /// A window after the first is created without a scene, and a sceneless
+    /// `UIWindow` is never drawn. Where the app can have several scenes (iPad,
+    /// Mac Catalyst, visionOS) a new scene session is requested and
+    /// `SceneDelegate` hands it this window when it connects -- a real,
+    /// separately managed window, as a second window is on the desktop. Where
+    /// it cannot (iPhone), the window joins the main window's scene and is
+    /// shown over it.
+    ///
+    /// 顯示一個視窗,在它沒有 scene 時為它要求一個。第一個之後的視窗建立時沒有 scene,而沒有 scene 的
+    /// `UIWindow` 永遠不會被畫出來。在 app 可以擁有多個 scene 之處(iPad、Mac Catalyst、visionOS),
+    /// 會要求一個新的 scene session,並由 `SceneDelegate` 在它連上時把這個視窗交給它——一個真正、獨立
+    /// 管理的視窗,就如桌面上的第二個視窗。做不到之處(iPhone),該視窗加入主視窗的 scene,顯示在它之上。
     public func show(window: Window) {
+        if window.windowScene == nil, window !== Self.mainWindow {
+            if UIApplication.shared.supportsMultipleScenes {
+                if !Self.pendingSceneWindows.contains(where: { $0 === window }) {
+                    Self.pendingSceneWindows.append(window)
+                    UIApplication.shared.requestSceneSessionActivation(
+                        nil,
+                        userActivity: nil,
+                        options: nil
+                    ) { error in
+                        logger.error(
+                            "could not open a scene for a new window",
+                            metadata: ["error": "\(error)"]
+                        )
+                    }
+                }
+                return
+            }
+            window.windowScene = Self.mainWindow?.windowScene
+        }
         window.makeKeyAndVisible()
     }
 
@@ -448,7 +481,10 @@ final class WindowSizePolicy {
             restrictions.minimumSize = minimum
             restrictions.maximumSize =
                 maximum
-                ?? CGSize(width: Double.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+                    ?? CGSize(
+                        width: Double.greatestFiniteMagnitude,
+                        height: .greatestFiniteMagnitude
+                    )
         } else {
             // Pinned: minimum and maximum both the size the window has now.
             // 釘住:最小與最大都是視窗現在的尺寸。

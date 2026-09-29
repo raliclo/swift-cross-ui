@@ -50,6 +50,10 @@ public final class UIKitBackend:
 
     static var onWindowEnvironmentChange: (() -> Void)?
     static var onBecomeActive: (() -> Void)?
+
+    /// Windows waiting for the scene `show(window:)` requested for them; the
+    /// next connecting scene takes the first. See `SceneDelegate`.
+    static var pendingSceneWindows: [UIWindow] = []
     static var onReceiveURL: ((URL) -> Void)?
     static var queuedURLs: [URL] = []
 
@@ -69,7 +73,20 @@ public final class UIKitBackend:
 
     public let requiresImageUpdateOnScaleFactorChange = false
 
-    public let supportsMultipleWindows = false
+    /// The platform's answer, not a constant. On iPad, Mac Catalyst and
+    /// visionOS an app that declares `UIApplicationSupportsMultipleScenes` can
+    /// open a window per scene (see `show(window:)`); on iPhone it cannot.
+    /// This was `false` everywhere until 2026-09-30, so on iPad `openWindow`
+    /// logged "the backend doesn't support multi-window, ignoring" and P5's
+    /// second window never appeared.
+    ///
+    /// 平台自己的答案，而不是常數。在 iPad、Mac Catalyst 與 visionOS 上，宣告了
+    /// `UIApplicationSupportsMultipleScenes` 的 app 可以每個 scene 開一個視窗（見 `show(window:)`）;
+    /// 在 iPhone 上不行。2026-09-30 之前這在所有地方都是 `false`，所以在 iPad 上 `openWindow` 會記下
+    /// 「the backend doesn't support multi-window, ignoring」，P5 的第二個視窗從未出現。
+    public var supportsMultipleWindows: Bool {
+        UIApplication.shared.supportsMultipleScenes
+    }
     public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
@@ -492,6 +509,32 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
     /// - Important: If you override this method in a subclass, you must call
     /// `super.applicationDidBecomeActive(application)` as the first step of your
     /// implementation.
+    /// Every scene is driven by `SceneDelegate`.
+    ///
+    /// Required, not optional: an app linked against the iOS 27 SDK that does
+    /// not adopt the scene life cycle is refused at launch -- measured
+    /// 2026-09-30, UIKit logged "Application failed to launch: UIScene life
+    /// cycle" and the app went straight to the home screen. The test apps only
+    /// ran because their binaries claimed SDK 15, which also made iOS run them
+    /// zoomed at 428x926 on a 440x956 screen.
+    ///
+    /// 每個 scene 都由 `SceneDelegate` 驅動。這是必要的而非可選的:以 iOS 27 SDK 連結、卻未採用
+    /// scene 生命週期的 app 會在啟動時被拒——2026-09-30 實測,UIKit 記下「Application failed to
+    /// launch: UIScene life cycle」,app 直接回到主畫面。測試 app 之所以能跑,只是因為它們的執行檔宣稱
+    /// SDK 15,而那也讓 iOS 在 440x956 的螢幕上以 428x926 放大執行它們。
+    open func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(
+            name: "Default",
+            sessionRole: connectingSceneSession.role
+        )
+        configuration.delegateClass = SceneDelegate.self
+        return configuration
+    }
+
     open func applicationDidBecomeActive(_ application: UIApplication) {
         UIKitBackend.onBecomeActive?()
 
@@ -609,13 +652,22 @@ open class ApplicationDelegate: UIResponder, UIApplicationDelegate {
 /// SwiftCrossUI apps do not have to be scene-based. If you are writing a scene-based app,
 /// derive your scene delegate from this class.
 open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-    public var window: UIWindow? {
-        willSet {
-            UIKitBackend.mainWindow = newValue
-        }
-    }
+    public var window: UIWindow?
 
     /// Tells the delegate about the addition of a scene to the app.
+    ///
+    /// The first scene gets the app's main window and starts the app. A later
+    /// scene was requested by `show(window:)` for a window SwiftCrossUI had
+    /// already created -- a second `WindowGroup` window, or `openWindow` -- and
+    /// takes that window rather than making a new one. That is how a
+    /// SwiftCrossUI window becomes an iPad window: before 2026-09-30 every
+    /// window after the first was a sceneless `UIWindow()`, and this delegate
+    /// was never installed at all.
+    ///
+    /// 第一個 scene 取得 app 的主視窗並啟動 app。之後的 scene 是 `show(window:)` 為 SwiftCrossUI
+    /// 已經建立的視窗所請求的——第二個 `WindowGroup` 視窗,或 `openWindow`——它接手那個視窗,而不是
+    /// 另建一個。SwiftCrossUI 的視窗就是這樣成為 iPad 視窗的:2026-09-30 之前,第一個之後的每個視窗都
+    /// 是沒有 scene 的 `UIWindow()`,而這個 delegate 根本從未被安裝。
     ///
     /// - Important: If you override this method in a subclass, you must call
     /// `super.scene(scene, willConnectTo: session, options: connectionOptions)`
@@ -626,8 +678,19 @@ open class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         options connectionOptions: UIScene.ConnectionOptions
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
-        let window = UIWindow(windowScene: windowScene)
+
+        if let pending = UIKitBackend.pendingSceneWindows.first {
+            UIKitBackend.pendingSceneWindows.removeFirst()
+            pending.windowScene = windowScene
+            self.window = pending
+            pending.makeKeyAndVisible()
+            return
+        }
+
+        let window = UIKitBackend.mainWindow ?? UIWindow(windowScene: windowScene)
+        window.windowScene = windowScene
         self.window = window
+        UIKitBackend.mainWindow = window
 
         UIKitBackend.onBecomeActive?()
 

@@ -1688,6 +1688,40 @@ if [ "$target_platform" = "ios" ]; then
         fi
 
         app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
+
+        # **The executable must name the SDK it was linked against.** xcodebuild
+        # links it with `-target arm64-apple-ios15.0-simulator -sdk
+        # iPhoneSimulator27.0.sdk`, and the product's LC_BUILD_VERSION still reads
+        # `sdk 15.0` (measured 2026-09-30 with `vtool -show-build`; the XCUITest
+        # runner from the same Xcode reads `sdk 27.0`). iOS treats such an app
+        # as one built before the current SDK: it runs it zoomed -- a 428x926
+        # window on a 440x956 screen, so every capture was scaled 1.03x -- and
+        # skips the launch check that requires the UIScene life cycle, which
+        # UIKitBackend had never adopted. The sdk field is set to the SDK
+        # actually used and the bundle re-signed; the deployment target is kept.
+        #
+        # **執行檔必須標明它實際連結的 SDK。**xcodebuild 以上述參數連結它,產物的 LC_BUILD_VERSION
+        # 卻寫著 `sdk 15.0`(2026-09-30 以 `vtool -show-build` 實測;同一個 Xcode 建出的 XCUITest
+        # runner 寫的是 `sdk 27.0`)。iOS 會把這樣的 app 當成在目前 SDK 之前建置的:它以放大方式執行
+        # ——440x956 的螢幕上一個 428x926 的視窗,所以每一張擷圖都被放大了 1.03 倍——並略過「必須採用
+        # UIScene 生命週期」的啟動檢查,而 UIKitBackend 從未採用它。此處把 sdk 欄位設為實際使用的 SDK
+        # 並重新簽署;部署目標保持不變。
+        ios_exe="$app_bundle/$app_name"
+        if [ -f "$ios_exe" ]; then
+            sdk_used="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+            build_info="$(xcrun vtool -show-build "$ios_exe")"
+            declared_sdk="$(print -r -- "$build_info" | sed -nE 's/^ *sdk ([0-9.]+).*/\1/p' | head -1)"
+            declared_minos="$(print -r -- "$build_info" | sed -nE 's/^ *minos ([0-9.]+).*/\1/p' | head -1)"
+            if [ -n "$declared_sdk" ] && [ "$declared_sdk" != "$sdk_used" ]; then
+                echo "    LC_BUILD_VERSION sdk $declared_sdk -> $sdk_used (minos $declared_minos kept)"
+                xcrun vtool -set-build-version iossim "$declared_minos" "$sdk_used" \
+                    -replace -output "$ios_exe.sdkfix" "$ios_exe" 2>/dev/null
+                mv "$ios_exe.sdkfix" "$ios_exe"
+                chmod +x "$ios_exe"
+                codesign -f -s - "$app_bundle" >/dev/null 2>&1
+            fi
+        fi
+
         if [ -d "$app_bundle" ]; then
             ios_output="$output_dir/${app_name}-ios.app"
             rm -rf "$ios_output"
