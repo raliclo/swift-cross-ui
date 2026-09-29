@@ -2359,6 +2359,26 @@ Swift Bundler 接著從 `<derivedDataPath>/Build/Products/Release-iphonesimulato
 **經驗法則:**一個改動看起來沒有效果時,先在**裝上去的**二進位裡 grep 一段那個改動加進去的字串,
 再去推理程式碼為什麼不動。
 
+**Second occurrence, 2026-09-29: the XCUITest runner, the build this fix did not reach.**
+The corrective above pinned SYMROOT/OBJROOT for the APP's build in compile.zsh; test_ios.zsh
+builds the action-file RUNNER with its own `xcodebuild build-for-testing`, and that call
+still had only `-derivedDataPath`. A new runner verb (`orient`) failed as "Unsupported iOS
+action 'orient'" although the source had it and the log said the file compiled and TEST
+BUILD SUCCEEDED. The Runner.app under test held a binary dated 2026-09-22. Found by this
+entry's own rule of thumb -- `strings` on the tested binary found none of the new text. No
+runner change had landed between 09-22 and 09-29, so no earlier iOS result rested on stale
+runner code. **Corrective extended:** test_ios.zsh passes SYMROOT/OBJROOT to that
+xcodebuild too; the next run's binary is dated the same minute and rotates the device.
+The lesson this adds: a fix for "a build writes somewhere else" has to be applied to every
+xcodebuild call in the tree, not the one that surfaced it -- `grep -n xcodebuild` finds them.
+**第二次發生,2026-09-29:XCUITest runner,這個修正沒有碰到的那一次建置。**上面的矯正措施替 compile.zsh 裡**app** 的建置
+釘住了 SYMROOT/OBJROOT;test_ios.zsh 以自己的 `xcodebuild build-for-testing` 建置動作檔 **runner**,而那個呼叫仍然只有
+`-derivedDataPath`。一個新的 runner 動作(`orient`)被報成「Unsupported」,儘管原始碼裡有它、log 也說檔案編譯了、TEST BUILD
+SUCCEEDED。受測的 Runner.app 裡是 2026-09-22 的二進位檔。靠本條自己的經驗法則找到——對受測的二進位檔做 `strings`,找不到任何
+新文字。09-22 到 09-29 之間沒有 runner 改動,所以先前的 iOS 結果都不建立在過期的 runner 程式碼上。**矯正措施延伸:**
+test_ios.zsh 也把 SYMROOT/OBJROOT 傳給那個 xcodebuild。補上的教訓:「建置寫到別處」的修正必須套用在樹裡**每一個**
+xcodebuild 呼叫上,不只是讓它浮現的那一個——`grep -n xcodebuild` 就找得到它們。
+
 ---
 
 ## 30. A defect read off a final state whose starting state was never checked
