@@ -1,0 +1,32 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21's lower half: the disabled TextField, the SecureField, the TextEditor and
+# ContentUnavailableView -- steps 6-7 of the P21 row, all below the window's
+# bottom edge until the page is scrolled.
+#
+# The evidence is the "TextField — <text>" label, which echoes the shared
+# binding. Typing into the DISABLED field first must leave it reading
+# "editable"; typing into the enabled field afterwards must change it. A run
+# where the disabled field accepted the key shows the Q in that label.
+#
+# P21 的下半部：停用的 TextField、SecureField、TextEditor 與 ContentUnavailableView——P21 那一列的
+# 第 6–7 步，在頁面捲動之前全都在視窗下緣之外。證據是「TextField — <text>」這個標籤，它回顯共用的
+# binding。先對**停用的**欄位打字，標籤必須仍是「editable」；之後對啟用的欄位打字才必須改變它。
+# 停用欄位若接受了按鍵，標籤裡就會出現那個 Q。
+sleep,,,,,,1500000,settle,macos
+move,400,500,frame,,,,,macos
+scroll,0,120,,,,,"to the bottom (verified 2026-09-29: after=(0,-566), p21-macos-final-20260929-234736.png)",macos
+sleep,,,,,,1000000,,macos
+click,200,520,frame,left,,,"focus the TextEditor first: at launch the ENABLED field holds focus with its text selected, so a key after a refused click would land there and read as the disabled field accepting it (2026-09-29: the label read qz)",macos
+click,400,385,frame,left,,,the DISABLED TextField,macos
+key,,,,,q,,"refused: the q lands in the editor (textq) and the label still reads editable; accepted: the label reads editableq. VERIFIED 2026-09-29 (p21-macos-final-20260929-235212.png): editor reads textqx, label editablez",macos
+sleep,,,,,,500000,,macos
+click,780,352,frame,left,,,"the enabled TextField, at the end of its text",macos
+key,,,,,rightArrow,,drop the selection so the key appends,macos
+key,,,,,z,,the label must now read editablez,macos
+sleep,,,,,,300000,,macos
+click,400,446,frame,left,,,the SecureField,macos
+key,,,,,c,,one more dot -- and no echo of the letter,macos
+sleep,,,,,,300000,,macos
+click,200,520,frame,left,,,the TextEditor,macos
+key,,,,,x,,an x must appear in the editor after the q,macos
+sleep,,,,,,800000,settle before the photograph -- Nothing here must still be visible,macos

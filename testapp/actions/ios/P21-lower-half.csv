@@ -1,0 +1,31 @@
+action,x,y,origin,button,key,micros,note,platform
+# P21's lower half on iOS: the disabled TextField, the SecureField, the TextEditor
+# and ContentUnavailableView -- steps 6-7 of the P21 row, below the screen's
+# bottom edge until the page is dragged up.
+#
+# The "TextField — <text>" label echoes the binding the enabled and disabled
+# fields share, so a key typed while the ENABLED field holds focus changes it
+# either way and proves nothing. Focus goes to the SecureField first: if the
+# disabled field refuses the tap, the q lands there (one more dot) and the label
+# still reads "editable"; if it accepts, the label reads "editableq".
+#
+# P21 在 iOS 上的下半部。「TextField — <text>」標籤回顯啟用與停用兩個欄位共用的 binding，所以在
+# **啟用的**欄位持有焦點時打字，不論如何都會改變它，什麼也證明不了。因此先讓 SecureField 取得焦點：
+# 停用欄位若拒絕點擊，q 會落在 SecureField（多一個點），標籤仍是「editable」；若接受，標籤會變成
+# 「editableq」。
+sleep,,,,,,1500000,settle,ios
+move,20,600,client,,,,"the left margin, clear of every slider",ios
+scroll,0,8,,,,,,ios
+sleep,,,,,,800000,,ios
+move,20,600,client,,,,,ios
+scroll,0,8,,,,,,ios
+sleep,,,,,,800000,,ios
+move,20,600,client,,,,,ios
+scroll,0,8,,,,,"to the bottom (verified 2026-09-29: p21-ios-final-20260929-235353.png shows Nothing here)",ios
+sleep,,,,,,1000000,,ios
+click,60,596,client,left,,,the SecureField -- takes focus,ios
+sleep,,,,,,800000,let the keyboard settle,ios
+click,60,528,client,left,,,the DISABLED TextField,ios
+sleep,,,,,,500000,,ios
+key,,,,,q,,"refused: the q lands in the SecureField and the label still reads editable; accepted: the label reads editableq. VERIFIED 2026-09-29 (p21-ios-final-20260929-235515.png): label editable, SecureField shows ONE dot -- a UITextField with isSecureTextEntry clears when editing begins, so the seven dots became the q alone",ios
+sleep,,,,,,1000000,settle before the photograph,ios
