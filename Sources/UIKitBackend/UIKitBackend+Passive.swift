@@ -47,9 +47,22 @@ extension UIKitBackend {
     ) {
         let wrapper = textView as! WrapperWidget<TextView>
         wrapper.child.overrideUserInterfaceStyle = environment.colorScheme.userInterfaceStyle
+        // Through `resolvedForegroundColor`, so a Text in a disabled scope takes
+        // the dimmed default as AppKit's text already does. Measured with P21 on
+        // 2026-09-30: the labels of the disabled Toggle and ToggleSwitch were
+        // grey on macOS and full black on iOS beside dimmed switches, because
+        // this path used `.label` without consulting `isEnabled`. Only here and
+        // not in `attributedString`, which buttons share and dim by alpha
+        // themselves.
+        //
+        // 經由 `resolvedForegroundColor`，使停用範圍內的 Text 採用調暗後的預設色，與 AppKit 的文字
+        // 一致。2026-09-30 以 P21 實測：停用的 Toggle 與 ToggleSwitch 的標籤在 macOS 上是灰的，在 iOS
+        // 上卻在調暗的開關旁維持全黑，因為這條路徑用的是 `.label`、沒有查看 `isEnabled`。只改這裡而不改
+        // `attributedString`，因為按鈕也共用它，並且自行以 alpha 調暗。
         wrapper.child.attributedText = UIKitBackend.attributedString(
             text: content,
-            environment: environment
+            environment: environment,
+            defaultForegroundColor: UIKitBackend.resolvedForegroundColor(environment)
         )
         wrapper.child.isSelectable = environment.isTextSelectionEnabled
     }

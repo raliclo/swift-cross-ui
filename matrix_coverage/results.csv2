@@ -1095,3 +1095,4 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-30,ios,uikit,P37,ok,ok,window,default,"UIKit now conforms to WindowLevels and reports automatic, normal: floating is defined as above other applications, which UIKit cannot do; a first version that listed it printed a false claim and was withdrawn."
 2026-09-30,macos,appkit,P42,ok,ok,window,default,Screen switched 1x->2x->1x by a HiDPI virtual display: scale factor 1.0 -> 2.0 -> 1.0; control 1.0 only.
 2026-09-30,ios,uikit,P42,ok,ok,window,default,Scene displayScale trait override 2 then removed: 1.0 -> 3.0 -> 2.0 -> 3.0; control 1.0 -> 3.0.
+2026-09-30,ios,uikit,P21,ok,n/a,window,default,Disabled Toggle and ToggleSwitch labels now dimmed like AppKit (darkest pixel 0 -> 172); enabled labels unchanged; button labels not double-dimmed.
