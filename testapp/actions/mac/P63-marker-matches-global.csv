@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P63 on macOS: GeometryProxy.frame(in:). Pass: the LAST "FRAMES" line's global x/y
+# equals the black marker's top-left in the window content (measured 2026-09-30:
+# global x=92 y=287, marker at 92,287). The first-pass line has every origin 0 --
+# see P63Diagnostics.recordFrames -- so read the last one.
+# P63 在 macOS 上：global 的 x/y 必須等於黑色標記在內容區的左上角。讀**最後一行** FRAMES。
+sleep,,,,,,2000000,let the reader be laid out,macos

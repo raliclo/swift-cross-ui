@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P47 on macOS: every symbol in the table, drawn. Nothing to press -- the assertion
+# is the picture. Pass: 36 glyphs in the grid with none drawn as its name, and the
+# unknown name drawn as its own text (VERIFIED 2026-09-30). P47's "symbols 36" line
+# does not match the harness's summary pattern and is not kept anywhere -- read the
+# capture, not the log.
+# P47 在 macOS 上：表中每一個符號都畫出來。沒有要按的——斷言是畫面與 log。
+sleep,,,,,,2000000,"let P47 draw the 36 symbols -- read the grid and ""symbols 36""",macos

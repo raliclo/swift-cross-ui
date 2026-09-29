@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P48 on macOS: the five LazyVGrid / LazyHGrid layouts. Pass: the diagnostics line
+# "grids flexible-3 fixed-90.5x2 adaptive-120 hgrid-fixed34x2 hgrid-aligned3", and
+# in the capture no cell pushed off the edge or stacked under the wrong neighbour.
+# P48 在 macOS 上：五種格線版面。通過條件見上方英文。
+sleep,,,,,,2000000,let the grids lay out,macos

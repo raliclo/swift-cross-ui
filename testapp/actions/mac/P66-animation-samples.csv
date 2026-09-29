@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P66 on macOS: withAnimation produces a SEQUENCE. Pass: "SAMPLES n over ~0.6s;
+# first 0.0 last 200.0; monotonic yes" with n well above 2, and "BOOL assignments: 1"
+# (measured 2026-09-30: 32 samples over 0.59 s).
+# P66 在 macOS 上：withAnimation 產生的是一個**序列**。通過條件見上方英文。
+sleep,,,,,,2500000,let the animation run and be summarised,macos

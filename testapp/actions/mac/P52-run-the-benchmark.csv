@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P52 on macOS: the button-style cost benchmark runs by itself after its warm-up.
+# Pass: the diagnostics end with "BENCHMARK COMPLETE" and PRESS / MOUNT lines for
+# all three arms. The numbers are the product; this file only makes sure they are
+# produced where no one is watching.
+# P52 在 macOS 上：按鈕樣式成本的基準測試在暖機後自行執行。通過：診斷以 "BENCHMARK COMPLETE" 結束。
+sleep,,,,,,45000000,let the ten rounds run,macos

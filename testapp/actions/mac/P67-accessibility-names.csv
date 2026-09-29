@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P67 on macOS: what a screen reader hears. Read from OUTSIDE, as the app says:
+#   swiftc -O -o /tmp/ax_dump testapp/test_support/measure/ax_dump.swift
+#   /tmp/ax_dump testapp/output/P67
+# Pass: the four AXButton desc values are 'plain label', 'padded label',
+# 'two texts', '' -- VERIFIED 2026-09-30, all four. This file only renders the app
+# for the harness; the dump is the host step, as P72's popup tap is on Android.
+# P67 在 macOS 上：螢幕閱讀器聽到什麼。依 app 所說從**外部**讀取（上方兩行指令）；四個名字 2026-09-30 驗證相符。
+sleep,,,,,,2000000,let P67 render; run ax_dump from the host,macos

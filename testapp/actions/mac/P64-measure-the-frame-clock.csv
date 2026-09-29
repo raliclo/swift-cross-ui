@@ -1,0 +1,5 @@
+action,x,y,origin,button,key,micros,note,platform
+# P64 on macOS: the frame clock's RATE. Pass: "PASS 1 TICKS n in ~2s -> ~60 Hz" with a
+# median gap near 16.7 ms (measured 2026-09-30: 121 ticks in 1.99 s, 60.2 Hz).
+# P64 在 macOS 上：frame clock 的**速率**。通過：約 60 Hz，間隔中位數約 16.7 ms。
+sleep,,,,,,4000000,let pass 1 finish and be reported,macos

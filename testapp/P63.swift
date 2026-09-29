@@ -48,17 +48,17 @@ enum P63Diagnostics {
         guard let data = "P63 \(Date()) \(message)\n".data(using: .utf8) else { return }
         let directory =
             ProcessInfo.processInfo.environment["SCUI_DEBUG_EVENTS_DIR"]
-            ?? {
-                #if os(iOS) || os(tvOS)
-                    return NSHomeDirectory() + "/Documents"
-                #else
-                    return FileManager.default.currentDirectoryPath
-                #endif
-            }()
+                ?? {
+                    #if os(iOS) || os(tvOS)
+                        return NSHomeDirectory() + "/Documents"
+                    #else
+                        return FileManager.default.currentDirectoryPath
+                    #endif
+                }()
         let url = URL(fileURLWithPath: directory)
             .appendingPathComponent("p63-debug-events.log")
         if FileManager.default.fileExists(atPath: url.path),
-            let handle = try? FileHandle(forWritingTo: url)
+           let handle = try? FileHandle(forWritingTo: url)
         {
             _ = try? handle.seekToEnd()
             try? handle.write(contentsOf: data)
@@ -72,6 +72,28 @@ enum P63Diagnostics {
         guard !didAnnounceRender else { return }
         didAnnounceRender = true
         write("RENDER COMPLETE -- P63 ready for coordinate space checks")
+    }
+
+    nonisolated(unsafe) private static var lastFrames = ""
+
+    /// Every distinct set of frames the reader is given, not only the first.
+    ///
+    /// The `onAppear` lines below report the FIRST pass, and on AppKit that pass
+    /// has the sizes right and every origin at 0 -- positions are assigned
+    /// after it (measured 2026-09-30: the log read global x=0 y=0 while the
+    /// window showed x=92 y=287 and the marker sat at exactly 92,287). So the
+    /// log alone read like a broken frame(in:). The last FRAMES line is the one
+    /// the screen shows; the first-pass zeros are the startup ordering P42
+    /// records as open.
+    ///
+    /// reader 收到的每一組相異 frame，而不只是第一組。下方 `onAppear` 那幾行回報的是**第一次**
+    /// 計算，而在 AppKit 上那一次尺寸正確、所有原點都是 0——位置是在它之後才指派的（2026-09-30 實測：
+    /// log 讀到 global x=0 y=0，而視窗顯示 x=92 y=287，標記正好在 92,287）。因此單看 log 會像是
+    /// frame(in:) 壞了。最後一行 FRAMES 才是畫面所顯示的；第一次的零即是 P42 記為未解的啟動順序問題。
+    static func recordFrames(_ line: String) {
+        guard line != lastFrames else { return }
+        lastFrames = line
+        write("FRAMES \(line)")
     }
 }
 
@@ -128,6 +150,10 @@ struct P63Probe: View {
             let box = proxy.frame(in: .named("box"))
 
             VStack(alignment: .leading, spacing: 2) {
+                let _ = P63Diagnostics.recordFrames(
+                    "\(fmt("local", local)) | \(fmt("global", global)) | \(fmt("named box", box))"
+                )
+
                 // The marker, first and unpadded, so its own top-left IS the
                 // reader's top-left.
                 // 這個標記排在最前面且不加內距，如此它自己的左上角**就是**該 reader 的左上角。

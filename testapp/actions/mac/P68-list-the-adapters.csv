@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P68 on macOS: -GPU N and the adapter list. Pass: "adapters: n" with the list shown,
+# and "-GPU requested" naming what was chosen (this Mac: 1 adapter, so every request
+# resolves to it -- the list is what makes that visible).
+# P68 在 macOS 上：-GPU N 與轉接器清單。通過條件見上方英文。
+sleep,,,,,,2000000,let P68 list the adapters,macos

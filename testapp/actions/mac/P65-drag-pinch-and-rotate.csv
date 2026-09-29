@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P65 on macOS: all three continuous gestures, each read back as a NUMBER.
+#
+# The drag is mousedown / move / mouseup. Pinch and rotate are trackpad gesture
+# events posted through the HID tap -- see AppKitSynthesiser.postGesture for why
+# this was once refused as impossible and how it is done. Pass, from the window's
+# own labels: the drag readout shows a translation near (+140, +30); "magnify
+# ENDED: 1.500" (pinch 150); "rotate ENDED: 0.524 rad" (rotate 30 clockwise).
+# Before 2026-09-30 macOS had no P65 file at all and the pinch/rotate verbs threw.
+#
+# P65 在 macOS 上：三種連續手勢，每一種都讀回一個**數字**。拖曳用 mousedown / move / mouseup；縮放與旋轉
+# 是經 HID tap 送出的觸控板手勢事件——為何它曾被當成不可能而拒絕、以及如何做到，見
+# AppKitSynthesiser.postGesture。通過條件見上方英文。
+sleep,,,,,,1500000,let P65 render,macos
+mousedown,120,267,frame,left,,,press inside the blue drag panel,macos
+move,190,282,frame,,,,,macos
+sleep,,,,,,100000,,macos
+move,260,297,frame,,,,,macos
+sleep,,,,,,100000,,macos
+mouseup,260,297,frame,left,,,release -- the translation must be about (+140 +30),macos
+sleep,,,,,,500000,,macos
+move,210,378,frame,,,,over the orange magnify panel,macos
+pinch,150,0,,,,,"scale 1.5 -- must read magnify ENDED: 1.500",macos
+sleep,,,,,,500000,,macos
+move,210,474,frame,,,,over the green rotate panel,macos
+rotate,30,0,,,,,"30 degrees clockwise -- must read rotate ENDED: 0.524 rad",macos
+sleep,,,,,,1000000,settle before the photograph,macos

@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P51 on macOS: GroupBox, ControlGroup, LazyVGrid/GridItem, Grid/GridRow and
+# labelStyle, drawn. Pass: RENDER COMPLETE and every section in the capture has
+# content -- the file exists because "it compiled" was the whole evidence before.
+# P51 在 macOS 上：六種新容器畫出來。通過：RENDER COMPLETE，且擷圖中每一段都有內容。
+sleep,,,,,,2000000,let P51 render,macos

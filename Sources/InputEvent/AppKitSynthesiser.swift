@@ -112,6 +112,22 @@
         /// 在檔案首次移動或點擊之前為 `nil`，而那也是「以真實游標為答案」唯一誠實的時刻。
         private var lastPoint: NSPoint?
 
+        /// The button a `mousedown` row pressed and no `mouseup` has released.
+        ///
+        /// While it is held, a `move` is a DRAG: a real mouse moved with a
+        /// button down produces `.leftMouseDragged`, and a view's drag gesture
+        /// listens for that and ignores `.mouseMoved`. Until 2026-09-30 every
+        /// move was `.mouseMoved`, so P65's drag panel read "drag: (none yet)"
+        /// after a mousedown / move / mouseup that crossed it -- while P11's
+        /// slider still worked, because NSSlider runs its own tracking loop.
+        ///
+        /// `mousedown` 按下而尚未被 `mouseup` 放開的按鈕。按住期間,`move` 就是**拖曳**:真實滑鼠
+        /// 按住按鈕移動時產生的是 `.leftMouseDragged`,而 view 的拖曳手勢聽的是它、忽略 `.mouseMoved`。
+        /// 2026-09-30 之前每一次 move 都是 `.mouseMoved`,所以 P65 的拖曳面板在一次橫越它的
+        /// mousedown / move / mouseup 之後仍顯示「drag: (none yet)」——而 P11 的滑桿照樣能動,
+        /// 因為 NSSlider 跑的是它自己的追蹤迴圈。
+        private var heldButton: MouseButton?
+
         public init() {}
 
         /// The user's own double-click interval, read live.
@@ -802,9 +818,16 @@
                             // 會看到游標跳回去。
                             CGAssociateMouseAndMouseCursorPosition(1)
                         }
+                        let moveType: NSEvent.EventType =
+                            switch self.heldButton {
+                                case .left: .leftMouseDragged
+                                case .right: .rightMouseDragged
+                                case .middle: .otherMouseDragged
+                                case nil: .mouseMoved
+                            }
                         try self.postMouse(
-                            .mouseMoved,
-                            .left,
+                            moveType,
+                            self.heldButton ?? .left,
                             at: try location(point),
                             in: window,
                             clicks: 0
@@ -828,6 +851,7 @@
                         )
 
                     case .mouseDown(let button, let point):
+                        self.heldButton = button
                         try self.postMouse(
                             Self.downType(button),
                             button,
@@ -837,6 +861,7 @@
                         )
 
                     case .mouseUp(let button, let point):
+                        self.heldButton = nil
                         try self.postMouse(
                             Self.upType(button),
                             button,
@@ -878,39 +903,28 @@
                     case .scroll(let dx, let dy):
                         try self.postScroll(dx: dx, dy: dy, at: try location(nil), in: window)
 
-                    case .pinch, .rotate:
-                        // **Refused with a reason, and the reason was looked for
-                        // rather than assumed.** A magnify or rotate arrives in
-                        // AppKit as an `NSEvent` of type `.magnify` / `.rotate`,
-                        // and `NSEvent` publishes no initialiser that makes one:
-                        // `mouseEvent`, `keyEvent`, `enterExitEvent` and
-                        // `otherEvent` are the whole set, and `otherEvent` rejects
-                        // gesture types. `CGEvent` has no public gesture
-                        // constructor either -- the scroll path here works because
-                        // `scrollWheelEvent2Source` exists and has no counterpart
-                        // for gestures.
-                        //
-                        // So this is not "not implemented yet"; it is the platform
-                        // having no public way in, stated where someone looking for
-                        // it will find it. A trackpad in front of a person is the
-                        // route that works, and Windows drives the same feature
-                        // with its own injector -- see testapp/touch_gesture.zsh,
-                        // which says "Windows only" in its first line.
-                        //
-                        // **以理由拒絕,而那個理由是去找出來的,不是假設的。** 一次縮放或旋轉在 AppKit 中
-                        // 是型別為 `.magnify` / `.rotate` 的 `NSEvent`,而 `NSEvent` 沒有公開任何能造出它的
-                        // 初始化式:`mouseEvent`、`keyEvent`、`enterExitEvent` 與 `otherEvent` 就是全部,
-                        // 而 `otherEvent` 拒絕手勢型別。`CGEvent` 同樣沒有公開的手勢建構子——此處的捲動之所以
-                        // 行得通,是因為 `scrollWheelEvent2Source` 存在,而手勢沒有對應物。
-                        //
-                        // 因此這不是「還沒實作」,而是這個平台沒有公開的入口,並且寫在會有人來找的地方。
-                        // 真正行得通的路是「有人坐在觸控板前面」;而 Windows 以它自己的注入器驅動同一項功能
-                        // ——見 testapp/touch_gesture.zsh,它的第一行就寫著「Windows only」。
-                        throw SynthesiserError.unsupported(
-                            "pinch and rotate on macOS: NSEvent publishes no initialiser for a"
-                                + " .magnify or .rotate event, and CGEvent has no public gesture"
-                                + " constructor. Drive these on iOS or Android, or by hand on a"
-                                + " trackpad."
+                    case .pinch(let scalePercent, let velocityPercent):
+                        let scale = Double(scalePercent) / 100
+                        let perSecond = velocityPercent == 0 ? 1 : Double(velocityPercent) / 100
+                        try self.postGesture(
+                            magnify: true,
+                            total: scale - 1,
+                            seconds: max(0.1, abs(scale - 1) / perSecond),
+                            at: try location(nil),
+                            in: window
+                        )
+
+                    case .rotate(let degrees, let degreesPerSecond):
+                        // The same default as the iOS runner and Android: one
+                        // radian per second when the row says 0.
+                        // 與 iOS runner 及 Android 相同的預設:該列寫 0 時為每秒一弧度。
+                        let perSecond = degreesPerSecond == 0 ? 180 / .pi : Double(degreesPerSecond)
+                        try self.postGesture(
+                            magnify: false,
+                            total: Double(degrees),
+                            seconds: max(0.1, abs(Double(degrees)) / perSecond),
+                            at: try location(nil),
+                            in: window
                         )
 
                     case .orientation:
@@ -1128,6 +1142,105 @@
         /// 兩項需要誠實說明的後果。此路徑略過事件佇列，因此一次捲動可能超前緊接在它之前 post 的點擊
         /// ——動作檔本來就會在步驟之間放置 `sleep` 列，本模組的 README 亦已如此要求。另外，送達事件的
         /// `locationInWindow` 是橋接產生的值而非目標座標；scroll view 讀取的是 delta，而那是正確的。
+        /// A trackpad magnify or rotate, as a began / changed x10 / ended sequence
+        /// of gesture events posted through the HID tap.
+        ///
+        /// **Until 2026-09-30 this was refused as impossible**, with a comment
+        /// saying NSEvent has no initialiser for `.magnify` / `.rotate` and
+        /// CGEvent no public gesture constructor. Both statements were true and
+        /// the conclusion was not: `CGEvent(source:)` makes a blank event whose
+        /// type can be set to 29 (the gesture type AppKit turns into `.magnify`
+        /// and `.rotate`), and `setIntegerValueField` / `setDoubleValueField` --
+        /// public API -- fill in the fields AppKit reads. The field NUMBERS are
+        /// undocumented: 110 is the HID event type (8 zoom, 5 rotation), 113
+        /// the zoom delta, 114 the rotation in degrees (positive
+        /// counter-clockwise), 132 the phase (1 began, 2 changed, 4 ended).
+        /// This is test tooling, never shipped in an app's normal path.
+        ///
+        /// Measured with P65: posted with `postToPid` nothing arrived; through
+        /// the HID tap with the pointer over the panel, ten steps of 0.05 read
+        /// "magnify ENDED: 1.500" and ten of 3 degrees read "rotate ENDED:
+        /// -0.524 rad". Like the HID scroll path it needs Accessibility trust.
+        ///
+        /// 觸控板的縮放或旋轉,以 began / changed x10 / ended 的手勢事件序列經 HID tap 送出。
+        /// **2026-09-30 之前這被當成「不可能」而拒絕**:註解說 NSEvent 沒有 `.magnify` / `.rotate`
+        /// 的初始化式、CGEvent 沒有公開的手勢建構子。兩句都對,結論卻錯:`CGEvent(source:)` 能造出
+        /// 空白事件,其型別可設為 29(AppKit 會把它轉成 `.magnify` 與 `.rotate` 的手勢型別),而公開的
+        /// `setIntegerValueField` / `setDoubleValueField` 能填入 AppKit 讀取的欄位。欄位**編號**是未
+        /// 文件化的(見上方英文)。這是測試工具,不在 app 的正常路徑中。以 P65 實測:用 `postToPid` 什麼都
+        /// 沒送到;經 HID tap 且指標位於面板上時,十步 0.05 讀到「magnify ENDED: 1.500」,十步 3 度讀到
+        /// 「rotate ENDED: -0.524 rad」。與 HID 捲動路徑相同,需要輔助使用權限。
+        @MainActor
+        private func postGesture(
+            magnify: Bool,
+            total: Double,
+            seconds: Double,
+            at point: NSPoint,
+            in window: NSWindow
+        ) throws {
+            guard AXIsProcessTrusted() else {
+                throw SynthesiserError.unsupported(
+                    "pinch and rotate on macOS are posted through the HID tap, which needs"
+                        + " Accessibility permission for this process"
+                )
+            }
+            let onScreen = window.convertPoint(toScreen: point)
+            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+            let at = CGPoint(x: onScreen.x, y: primaryHeight - onScreen.y)
+            CGEvent(
+                mouseEventSource: nil,
+                mouseType: .mouseMoved,
+                mouseCursorPosition: at,
+                mouseButton: .left
+            )?.post(tap: .cghidEventTap)
+
+            let steps = 10
+            // AppKit's rotation is positive counter-clockwise; the action-file
+            // verb is positive clockwise.
+            // AppKit 的旋轉以逆時針為正;動作檔的動詞以順時針為正。
+            let perStep = magnify ? total / Double(steps) : -total / Double(steps)
+            func post(phase: Int64, value: Double) throws {
+                guard let event = CGEvent(source: nil) else {
+                    throw SynthesiserError.unsupported("could not construct a gesture event")
+                }
+                event.type = CGEventType(rawValue: 29)!
+                event.location = at
+                event.setIntegerValueField(CGEventField(rawValue: 110)!, value: magnify ? 8 : 5)
+                event.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
+                event.setDoubleValueField(
+                    CGEventField(rawValue: magnify ? 113 : 114)!,
+                    value: value
+                )
+                event.post(tap: .cghidEventTap)
+            }
+            func pump(_ interval: Double) {
+                let until = Date().addingTimeInterval(interval)
+                while let next = NSApp.nextEvent(
+                    matching: .any,
+                    until: until,
+                    inMode: .default,
+                    dequeue: true
+                ) {
+                    NSApp.sendEvent(next)
+                }
+            }
+
+            try post(phase: 1, value: 0)
+            for _ in 0..<steps {
+                pump(seconds / Double(steps))
+                try post(phase: 2, value: perStep)
+            }
+            pump(0.02)
+            try post(phase: 4, value: 0)
+            pump(0.1)
+            FileHandle.standardError.write(
+                Data(
+                    ("-\(magnify ? "pinch" : "rotate"): total \(total) over \(seconds)s"
+                        + " via HID gesture events at (\(Int(point.x)),\(Int(point.y)))\n").utf8
+                )
+            )
+        }
+
         @MainActor
         private func postScroll(dx: Int, dy: Int, at point: NSPoint, in window: NSWindow) throws {
             guard dx != 0 || dy != 0 else { return }
@@ -1242,7 +1355,10 @@
                 // 路徑的教訓。
                 let until = Date().addingTimeInterval(0.35)
                 while let queued = NSApp.nextEvent(
-                    matching: .any, until: until, inMode: .default, dequeue: true
+                    matching: .any,
+                    until: until,
+                    inMode: .default,
+                    dequeue: true
                 ) {
                     NSApp.sendEvent(queued)
                 }

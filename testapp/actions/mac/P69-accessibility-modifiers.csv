@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P69 on macOS: the four .accessibility* modifiers, read from OUTSIDE:
+#   /tmp/ax_dump testapp/output/P69       (build it as in P67's file)
+# Pass: AXButton 'Close' and no 'X'; 'Delete' with help 'Removes the file
+# permanently'; 'Volume' with value '40 percent'; 'Half past twelve'; 'decorative'
+# absent -- VERIFIED 2026-09-30, all five.
+# P69 在 macOS 上：四個 .accessibility* 修飾，從**外部**讀取；五項 2026-09-30 皆驗證相符。
+sleep,,,,,,2000000,let P69 render; run ax_dump from the host,macos

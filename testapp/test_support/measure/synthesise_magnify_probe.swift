@@ -1,5 +1,12 @@
 import AppKit
 
+// SUPERSEDED 2026-09-30: this probe's route (a type-30 event wrapped in NSEvent and
+// posted in-process) stays closed, but the gesture CAN be synthesised: a type-29
+// gesture event with field 110 = 8 (zoom) or 5 (rotation), 113/114 the value and
+// 132 the phase, posted through the HID tap with the pointer over the view. See
+// AppKitSynthesiser.postGesture, measured with P65 (magnify 1.500, rotate 0.524 rad).
+// 已被取代(2026-09-30):本探針的途徑仍是封閉的,但手勢**可以**合成——見 AppKitSynthesiser.postGesture。
+//
 // 一支只做一件事的探針:試著合成一個 magnify 手勢,看 NSMagnificationGestureRecognizer 會不會觸發。
 final class D: NSObject, NSApplicationDelegate {
     var window: NSWindow!
