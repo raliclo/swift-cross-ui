@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P42 on iOS: a display-scale change while the app runs, through the scene's
+# displayScale trait (see P42SceneScaleDriver in P42.swift for why an override and
+# not a second screen). Nothing is touched; the app changes the trait itself at +3 s
+# and removes the change at +6 s. Pass, read from p42-ios-stdout.log in change order:
+# "scale factor -> 3.0", "OVERRIDE displayScale = 2", "-> 2.0", "OVERRIDE removed",
+# "-> 3.0". A run without --scale-override is the control.
+#
+# P42 在 iOS 上：app 執行中的顯示縮放變更，經由 scene 的 displayScale trait。不碰任何東西；app 在 +3 秒自己
+# 改變 trait，+6 秒撤銷。通過條件見上方英文；不帶 --scale-override 的執行即為對照組。
+# The launch-args line is read by sweep_apple.zsh; by hand, pass them yourself:
+#   TEST_APP_ARGS="--debug --scale-override" zsh testapp/test.zsh P42 --ios --actionfile=<this>
+# and use --actionfile for the control too (TEST_APP_ARGS="--debug"): without an
+# action file test_ios.zsh launches through `simctl launch` and does not capture
+# stdout, so a "control" run leaves the previous run's log in place -- which is how
+# the first control read here showed the override lines.
+# VERIFIED 2026-09-30: override 1.0 -> 3.0 -> 2.0 -> 3.0 (changes 1-4); control
+# 1.0 -> 3.0 only.
+# launch-args: --scale-override
+sleep,,,,,,9000000,let the override be set and removed,ios

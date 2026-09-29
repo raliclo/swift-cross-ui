@@ -196,6 +196,54 @@ enum P42History {
     }
 }
 
+#if os(iOS)
+    import UIKit
+
+    /// `--scale-override`: changes the scene's display scale while the app runs.
+    ///
+    /// An iPhone never changes its own scale, and an iPad changes it when a
+    /// scene moves to a screen of another scale -- which these single-scene
+    /// test apps cannot do. `UIWindowScene.traitOverrides.displayScale` (iOS 17)
+    /// is how UIKit lets a scene take on a different scale, and it reaches the
+    /// windows the same way a screen change does: through the displayScale
+    /// trait, which UIKitBackend observes with `registerForTraitChanges`. So
+    /// the backend's path is exercised end to end; only the source of the
+    /// change is the app instead of a second screen.
+    ///
+    /// After 3 s the override is set to 2 (below the simulator's 3), after 3 s
+    /// more it is removed. Pass: "scale factor -> 3.0", "-> 2.0", "-> 3.0" in
+    /// that change order, with the OVERRIDE lines between them.
+    ///
+    /// `--scale-override`：在 app 執行時改變 scene 的顯示縮放。iPhone 從不改變自己的縮放；iPad 會在
+    /// scene 移到不同縮放的螢幕時改變——而這些單一 scene 的測試 app 做不到。
+    /// `UIWindowScene.traitOverrides.displayScale`（iOS 17）是 UIKit 讓 scene 採用不同縮放的方式，
+    /// 它抵達視窗的路徑與換螢幕相同：displayScale trait，而 UIKitBackend 以
+    /// `registerForTraitChanges` 觀察它。因此 backend 的路徑是端到端被走過的；只有變化的來源是 app
+    /// 而不是第二個螢幕。
+    @MainActor
+    enum P42SceneScaleDriver {
+        static func startIfRequested() {
+            guard CommandLine.arguments.contains("--scale-override") else { return }
+            guard #available(iOS 17.0, *) else {
+                P42Diagnostics.write("OVERRIDE unavailable: traitOverrides needs iOS 17")
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                for scene in UIApplication.shared.connectedScenes {
+                    (scene as? UIWindowScene)?.traitOverrides.displayScale = 2
+                }
+                P42Diagnostics.write("OVERRIDE displayScale = 2")
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                for scene in UIApplication.shared.connectedScenes {
+                    (scene as? UIWindowScene)?.traitOverrides.remove(UITraitDisplayScale.self)
+                }
+                P42Diagnostics.write("OVERRIDE removed")
+            }
+        }
+    }
+#endif
+
 @main
 @HotReloadable
 struct P42ScaleFactorApp: App {
@@ -254,6 +302,9 @@ struct P42RootView: View {
             P42Diagnostics.renderComplete()
             #if canImport(CGtk)
                 P42GtkProbe.start()
+            #endif
+            #if os(iOS)
+                P42SceneScaleDriver.startIfRequested()
             #endif
         }
     }
