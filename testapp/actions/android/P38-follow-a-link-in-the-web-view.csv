@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P38 on Android: follow a link inside the WebView, the counterpart of the iOS and
+# macOS files. The page is P38's own, passed with -url, for the reason the iOS
+# file gives: example.com now serves a localized page whose link moves between
+# runs. A data: page is not reported as a navigation, so the count starts at 0 and
+# the tap must make it 1 with the IANA URL listed.
+#
+# The older P38-touch-the-rendered-error-page.csv proved only that touching the
+# view does not crash: the app had no INTERNET permission then and every load
+# ended in net::ERR_CACHE_MISS. The Android WebView row stayed "-" because nothing
+# had ever shown a page load or a navigation here.
+#
+# P38 在 Android 上：在 WebView 內點一個連結，對應 iOS 與 macOS 的檔案。頁面是 P38 自己的，經 -url 傳入，
+# 理由同 iOS 檔：example.com 現在回傳本地化頁面，連結位置每次不同。data: 頁面不計為一次導向，所以計數從 0 開始，
+# 點擊必須讓它變成 1 並列出 IANA 的網址。較早的 P38-touch-the-rendered-error-page.csv 只證明觸碰不會崩潰：
+# 當時 app 沒有 INTERNET 權限，每次載入都以 net::ERR_CACHE_MISS 結束。
+# launch-args: -url data:text/html,%3Ca%20href%3D%22https%3A%2F%2Fwww.iana.org%2Fhelp%2Fexample-domains%22%20style%3D%22display%3Ablock%3Bfont-size%3A90px%3Bpadding%3A20px%22%3ELearn%20more%3C%2Fa%3E
+sleep,,,,,,3000000,let the page load and paint,android
+click,152,498,,left,,,"Learn more, drawn at about (400, 1307) px -- Navigations reported must become 1 and the list must show https://www.iana.org/help/example-domains. VERIFIED 2026-09-30: the dump reads Navigations reported: 1 with that URL, and the view shows IANA's Example Domains page (p38-android-after-tap-20260930.png). The run without the tap read 0. Do not pass --no-showtime: the final capture then comes before the replay finishes and still shows the link",android
+sleep,,,,,,4000000,let the navigation start and the client report it,android

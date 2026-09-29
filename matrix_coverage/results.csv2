@@ -1088,3 +1088,4 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-30,android,android,P33,ok,ok,screen,default,"Re-aimed Hide details to 550 dp (577 hit the detail line); relabels to Show details, line removed."
 2026-09-30,android,android,P34,ok,ok,screen,default,"Inner list drag scrolled the whole page (RootScrollHost stole it); fixed by nested scrolling in ScrollContainer.kt -- list at Row 2, header unmoved."
 2026-09-30,android,android,P8,ok,ok,screen,default,"Regression check after the nested-scroll change: vertical drag on the horizontal strip still moves the outer view 183 px, H0 fixed at x 10."
+2026-09-30,android,android,P38,ok,ok,screen,default,"Fixed data: page via -url; tap on Learn more -> Navigations reported 1, IANA example-domains listed and drawn in the WebView."

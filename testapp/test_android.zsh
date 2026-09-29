@@ -503,6 +503,28 @@ if [ -n "$action_file" ]; then
     app_args=(--debug -actionfile "$device_action_file")
 fi
 
+# The arguments a file needs, read from the file, and TEST_APP_ARGS -- the two
+# ways macOS and iOS already get them (sweep_apple.zsh, test_common.zsh). Android
+# took neither until 2026-09-30, so P38's fixed `-url data:...` page and P34's
+# `-rows 500` could not reach the app here, and a file carrying them replayed
+# against the defaults. `scui_args` is split on whitespace, which is why the
+# P38 page is percent-encoded rather than quoted.
+#
+# 檔案所需的參數從檔案本身讀出,另加 TEST_APP_ARGS——正是 macOS 與 iOS 已經取得它們的兩條路
+# (sweep_apple.zsh、test_common.zsh)。2026-09-30 之前 Android 兩者都不讀,所以 P38 固定的
+# `-url data:...` 頁面與 P34 的 `-rows 500` 到不了這裡的 app,帶著它們的檔案是對著預設值重放的。
+# `scui_args` 以空白切分,這正是 P38 的頁面採百分比編碼而不是加引號的原因。
+launch_args=()
+if [ -n "$action_file" ]; then
+    launch_line="$(grep -m1 -E '^# *launch-args:' "$action_file" | sed -E 's/^# *launch-args: *//')"
+    [ -n "$launch_line" ] && launch_args=(${=launch_line})
+fi
+[ -n "${TEST_APP_ARGS:-}" ] && launch_args=(${=TEST_APP_ARGS} $launch_args)
+if [ "${#launch_args}" -gt 0 ]; then
+    print "==> App arguments: ${launch_args[*]}"
+    app_args+=($launch_args)
+fi
+
 if [ "${#app_args}" -gt 0 ]; then
     # Quoted for the shell ON THE DEVICE, which is a second round of word
     # splitting `adb shell` does not protect against: it joins its arguments
