@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P45 control 4 on iOS: the button that calls a model method while also writing
+# @State. Before the ObservedObject fix of 2026-09-28 that @State write re-created
+# the view and replaced the inline model, so the capture read "setter writes: 0,
+# honest: false" no matter how often the button was pressed. The matrix row
+# "inline @ObservedObject survives the view's own @State change" had macOS and
+# Android evidence and nothing on iOS.
+#
+# P45 在 iOS 上的第 4 個控制項：呼叫 model 方法、同時也寫入 @State 的按鈕。2026-09-28 的 ObservedObject
+# 修正之前，那次 @State 寫入會重建 view 並替換掉 inline model，所以不論按幾次，擷圖都讀作「setter writes: 0,
+# honest: false」。矩陣中「inline @ObservedObject 撐過 view 自身的 @State 變更」一列有 macOS 與 Android 的
+# 證據，iOS 則沒有。
+sleep,,,,,,1500000,let P45 render,ios
+click,73,681,client,left,,,"seed the sibling selection -- the line must read ""selection: 2""",ios
+sleep,,,,,,400000,,ios
+click,193,681,client,left,,,"seed the sibling field -- the line must read typed: ""seeded""",ios
+sleep,,,,,,400000,,ios
+click,58,617,client,left,,,"flip honest -- the capture must read honest: true, setter writes: 1, button presses: 1, with selection 2 and typed seeded kept",ios
+sleep,,,,,,1200000,let any rebuild settle,ios

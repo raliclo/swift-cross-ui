@@ -1082,3 +1082,9 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-29,macos,appkit,P10,ok,ok,window,default,#478: Cmd-Q quits. Control run without the key: debugTarget still running at +9 s; with Cmd-Q: gone at +9 s.
 2026-09-29,macos,appkit,P21,ok,ok,window,default,"Lower half (steps 6-7) via actions/mac/P21-lower-half.csv: HID scroll to the bottom, focus to the TextEditor, tap the disabled TextField, type q -- editor reads textqx, label stays editable; enabled field then reads editablez; ContentUnavailableView visible."
 2026-09-29,ios,uikit,P21,ok,ok,window,default,"Lower half (steps 6-7) via actions/ios/P21-lower-half.csv: three drags to the bottom, focus to the SecureField, tap the disabled TextField, type q -- label stays editable, the q went to the SecureField (secure fields clear on begin-editing, hence one dot); ContentUnavailableView visible before the keyboard came up."
+2026-09-29,ios,uikit,P45,ok,ok,window,default,"Model button (control 4) after seeding the siblings: honest true, setter writes 1, presses 1, selection 2 and typed seeded kept -- the inline @ObservedObject survived the @State write."
+2026-09-30,android,android,P43,ok,ok,screen,default,"Fresh build: rectangle red->purple->blue, control flat green, ring hollow. Gradient overload in use since 56ef8dd5."
+2026-09-30,android,android,P73,ok,ok,screen,default,"Spin mode: report done, running no, process alive."
+2026-09-30,android,android,P33,ok,ok,screen,default,"Re-aimed Hide details to 550 dp (577 hit the detail line); relabels to Show details, line removed."
+2026-09-30,android,android,P34,ok,ok,screen,default,"Inner list drag scrolled the whole page (RootScrollHost stole it); fixed by nested scrolling in ScrollContainer.kt -- list at Row 2, header unmoved."
+2026-09-30,android,android,P8,ok,ok,screen,default,"Regression check after the nested-scroll change: vertical drag on the horizontal strip still moves the outer view 183 px, H0 fixed at x 10."

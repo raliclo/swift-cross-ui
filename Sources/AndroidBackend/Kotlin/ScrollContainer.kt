@@ -21,6 +21,20 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
         addView(child)
     }
 
+    // Nested scrolling is enabled on both, because every one of these sits
+    // inside another scroll view: RootScrollHost wraps the whole page. Without
+    // it the OUTER ScrollView's onInterceptTouchEvent takes any vertical drag
+    // past touch slop, since it only stands back when a child has started a
+    // nested scroll. P34 showed it on 2026-09-30: a drag inside its
+    // 360-point list moved the whole page (header y 404 -> 109) and left
+    // "Row 0" at the top of the list. With it enabled the inner view scrolls
+    // first and hands what it cannot consume -- at either end -- to the page.
+    //
+    // 兩者都啟用 nested scrolling，因為每一個都位於另一個捲動視圖之內：RootScrollHost 包住了整個
+    // 頁面。沒有它時，**外層** ScrollView 的 onInterceptTouchEvent 會搶走任何超過 touch slop 的
+    // 垂直拖曳，因為只有在子元件已開始 nested scroll 時它才會讓開。P34 在 2026-09-30 呈現了這一點：
+    // 在它 360 點高的清單裡拖曳，移動的是整個頁面（標題 y 404 -> 109），而清單頂端仍是「Row 0」。
+    // 啟用之後，內層先捲，捲不動的部分——在任一端——再交給頁面。
     private val verticalScrollView =
         ScrollView(activity).apply {
             layoutParams =
@@ -29,6 +43,7 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     Gravity.FILL,
                 )
+            isNestedScrollingEnabled = true
         }
 
     private val horizontalScrollView =
@@ -39,6 +54,7 @@ class ScrollContainer(activity: Activity, child: View) : FrameLayout(activity) {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     Gravity.FILL,
                 )
+            isNestedScrollingEnabled = true
         }
 
     private var isVerticalScrollViewAdded = false
