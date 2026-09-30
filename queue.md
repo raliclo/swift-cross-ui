@@ -1,5 +1,41 @@
 # queue
 
+## 2026-10-01 open after the UIScene change (8272b7a2) -- in this order
+
+1-4 first, in the order 4, 1, 2, 3 (the user's choice); the iPad plan after all four.
+
+- [ ] **4. Why the iOS executable says `sdk 15.0`.** xcodebuild links it with
+  `-target arm64-apple-ios15.0-simulator -sdk iPhoneSimulator27.0.sdk` and
+  LC_BUILD_VERSION still reads sdk 15.0 (the XCUITest runner from the same
+  Xcode reads 27.0). compile.zsh now rewrites the field with `vtool` and
+  re-signs; find the cause so the rewrite can go.
+- [ ] **1. Re-aim every iOS action file.** Apps now run at native size (440x956
+  points instead of a zoomed 428x926), so layouts moved; P21-lower-half already
+  misses. Sweep with `testapp/sweep_apple.zsh`, read each capture against its
+  file's assertion, re-measure the misses.
+- [ ] **2. Write the missing action files.** iOS 14: P47 P48 P49 P51 P52 P58
+  P59 P61 P62 P63 P64 P66 P68 P70 (captured 2026-09-30, but at the zoomed size
+  -- re-measure). Android 20: P15-DARK P17-DOE P47 P48 P49 P51 P52 P59 P60 P61
+  P62 P63 P64 P66 P67 P68 P69 P70 P73 (+ P6-v2, GTK-only, never).
+- [ ] **3. P5 on iPad: alerts on two windows at the same time.** The second
+  window opens as its own scene; showing both needs windowed mode (see below).
+
+### Then: iPad testing (after 1-4)
+
+How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
+
+- [ ] **Windowed mode.** Fastest: set it once by hand in the iPad Simulator,
+  Settings > Multitasking & Gestures > Windowed Apps (it persists). Durable:
+  have the XCUITest runner drive the Settings app (`com.apple.Preferences`) so
+  a fresh Simulator can be set up unattended. `defaults write
+  com.apple.WindowManager GloballyEnabled` and `com.apple.springboard
+  SBChamoisWindowingEnabled` did NOT switch it (2026-09-30).
+- [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad
+  capture (834x1210 points, @2x: points = pixels / 2). One exists:
+  `P75-close-the-window-ipad.csv` (verified).
+- [ ] **What to test on iPad:** multi-window P5, P59, P62; closing a window
+  P75 (done); pointer hover and cursors P72 (iPhone has neither); rotation P14.
+
 ## 2026-09-27 found while driving iOS
 
 - [x] **Re-measure the iOS action files: most of them no longer aim at their

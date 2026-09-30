@@ -176,6 +176,30 @@ reports, and says so if none exists rather than failing further in.
 adb serial for Android. `IOS_SIM_DEVICE` and `ANDROID_AVD_NAME` do the same
 thing from the environment.
 
+### iPad
+
+Same harness, a different Simulator:
+
+```sh
+xcrun simctl list devices available | grep -i ipad        # pick one
+zsh testapp/test.zsh P5 --ios --device "iPad Pro 11-inch (M5)" \
+    --actionfile=testapp/actions/ios/P75-close-the-window-ipad.csv
+```
+
+- **Coordinates are per device.** An iPad is 834x1210 points (@2x) against the
+  iPhone's 440x956, so an iPhone action file taps the wrong places. iPad files
+  are named `<Pn>-<what>-ipad.csv` and measured on an iPad capture:
+  points = capture pixels / 2.
+- **What only an iPad shows:** a second window as its own scene (P5, P59, P62
+  -- `openWindow` opens a new scene there, and attaches over the main one on
+  iPhone), closing a window (`dismissWindow`, P75), pointer hover and cursors
+  (P72), rotation (P14).
+- **Two windows side by side need windowed mode.** A fresh iPad Simulator runs
+  every scene full screen, so the second window hides the first ("2 Hidden
+  Windows"). Set it once by hand in the Simulator: Settings > Multitasking &
+  Gestures > Windowed Apps. Setting `defaults` keys did not switch it
+  (2026-09-30).
+
 ### Screenshots
 
 Every platform captures, into `testapp/output/screenshots/<label>-<timestamp>.png`.
