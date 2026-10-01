@@ -198,23 +198,39 @@ struct P48RootView: View {
                 }
 
                 // Every lane alignment in one grid, so a lane that ignored its
-                // own `verticalAlignment` is visible rather than plausible: the
-                // three rows are 40pt tall and the cells are not, so top,
-                // centre and bottom sit at three different heights.
-                // 把三種 lane 對齊方式放在同一個格線裡，好讓「一條忽略了自身 `verticalAlignment`
-                // 的 lane」是看得見的、而不只是說得通的:三條列都是 40 點高而儲存格不是，因此
-                // 靠上、置中與靠下會落在三個不同的高度。
-                Text("6. LazyHGrid rows aligned top / center / bottom -- expect a staircase")
-                LazyHGrid(
-                    rows: [
-                        GridItem(.fixed(40), verticalAlignment: .top),
-                        GridItem(.fixed(40), verticalAlignment: .center),
-                        GridItem(.fixed(40), verticalAlignment: .bottom),
-                    ],
-                    spacing: 8
-                ) {
-                    ForEach(Array(1...6), id: \.self) { n in
-                        P48Cell(number: n)
+                // own `verticalAlignment` is visible rather than plausible.
+                //
+                // The lanes are DRAWN, behind the grid, and that is what makes it
+                // visible. Three equal cells in three equal lanes are always
+                // evenly spaced -- top-to-centre and centre-to-bottom add the
+                // same offset -- so spacing alone shows nothing, and with 40pt
+                // lanes around 38pt cells the steps were 1pt (2026-10-01). Now the
+                // lanes are 60pt and grey: each cell must sit against the top,
+                // in the middle, and against the bottom of its own band.
+                // 把三種 lane 對齊方式放在同一個格線裡，好讓「忽略了自身 `verticalAlignment` 的
+                // lane」是看得見的。lane 被**畫出來**（在格線後方），這才是看得見的原因：三個等高
+                // 的儲存格放在三條等高的 lane 裡，間距永遠相等——光看間距什麼也看不出來；而 40 點
+                // 的 lane 配 38 點的儲存格，每階只有 1 點（2026-10-01）。現在 lane 是 60 點的灰帶：
+                // 每個儲存格必須分別貼著自己那條帶子的頂端、置中、貼著底端。
+                Text("6. LazyHGrid rows aligned top / center / bottom -- each cell against the top, middle, bottom of its grey lane")
+                ZStack(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: P48Lanes.spacing) {
+                        ForEach(Array(0..<3), id: \.self) { _ in
+                            Color(red: 0.5, green: 0.5, blue: 0.5, opacity: 0.3)
+                                .frame(width: 220, height: P48Lanes.height)
+                        }
+                    }
+                    LazyHGrid(
+                        rows: [
+                            GridItem(.fixed(P48Lanes.height), verticalAlignment: .top),
+                            GridItem(.fixed(P48Lanes.height), verticalAlignment: .center),
+                            GridItem(.fixed(P48Lanes.height), verticalAlignment: .bottom),
+                        ],
+                        spacing: P48Lanes.spacing
+                    ) {
+                        ForEach(Array(1...6), id: \.self) { n in
+                            P48Cell(number: n)
+                        }
                     }
                 }
 
@@ -231,6 +247,14 @@ struct P48RootView: View {
             P48Diagnostics.renderComplete()
         }
     }
+}
+
+/// Grid 6's lane height and spacing, shared by the grid and the bands drawn
+/// behind it so the two cannot disagree.
+/// grid 6 的 lane 高度與間距，由格線與其後方的灰帶共用，兩者因此不會不一致。
+enum P48Lanes {
+    static let height: Double = 60
+    static let spacing = 8
 }
 
 /// A numbered cell with a visible edge.

@@ -223,6 +223,7 @@ public enum LayoutSystem {
             proposedSize: proposedSize,
             environment: environment
         )
+        cache.proposedLength = stackLength
 
         let renderedChildren = computeLayouts(
             of: children,
@@ -384,9 +385,15 @@ public enum LayoutSystem {
         let perpendicularOrientation = orientation.perpendicular
 
         if cache.redistributeSpaceOnCommit {
+            // Never more than the stack was proposed -- see
+            // `StackLayoutCache.proposedLength`.
+            // 絕不超過 stack 被提議的長度——見 `StackLayoutCache.proposedLength`。
             _ = computeLayouts(
                 of: children,
-                proposedLength: layout.size[component: orientation],
+                proposedLength: min(
+                    layout.size[component: orientation],
+                    cache.proposedLength ?? .infinity
+                ),
                 proposedPerpendicular: layout.size[component: perpendicularOrientation],
                 cache: cache,
                 environment: environment,

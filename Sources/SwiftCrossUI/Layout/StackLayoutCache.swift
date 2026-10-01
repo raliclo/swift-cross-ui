@@ -30,6 +30,23 @@ struct StackLayoutCache {
     /// Whether to redistribute space on commit or not. `true` if and only if the
     /// stack was provided a proposed size with an unspecified perpendicular axis.
     let redistributeSpaceOnCommit: Bool
+    /// The length the stack was proposed along its axis when this cache was
+    /// computed, or nil when it was proposed none.
+    ///
+    /// Commit-time redistribution must not offer the children more than this.
+    /// It used to offer the stack's resulting length, and when the children
+    /// overflowed the proposal that result is LARGER than what they were laid
+    /// out in: P51's two columns, proposed 408, came to 494 + 28 = 522, were
+    /// re-offered 522, and the second column took 247 instead of 190. The
+    /// stack reported 522 and drew 579, so the root scroll view stopped 57 pt
+    /// short of the content (2026-10-01).
+    ///
+    /// stack 計算此快取時沿主軸被提議的長度；未被提議時為 nil。commit 時的重新分配不得
+    /// 提供子元件超過此值的空間。它原本提供的是 stack 的結果長度，而當子元件超出提議時，
+    /// 那個結果**大於**它們當初被排版的空間:P51 的兩欄被提議 408,得到 494 + 28 = 522,
+    /// 再被重新提議 522,第二欄便取了 247 而非 190。stack 回報 522、實際畫到 579,root
+    /// scroll view 因此在內容之前 57 點就停住了(2026-10-01)。
+    var proposedLength: Double? = nil
 
     /// The initial value of the cache (just a dummy value, shouldn't ever be used).
     static let initial = StackLayoutCache(
