@@ -207,8 +207,14 @@ adb_if_ready() {
 # `am force-stop com.google.android.documentsui` 之後,完全相同的指令記錄了一行。這就是
 # 「P18 在批次中失敗、單獨執行則通過」的全部成因——而它最初依據「一次失敗與三次通過」被寫成了
 # 模擬器偶發。
+# The browser joined the list on 2026-10-02: P38 and P75 open URLs now that
+# Android's openURL works, Chrome stayed in front with its first-run notice,
+# and the next app's (P4's) capture was a photograph of Chrome.
+# 瀏覽器於 2026-10-02 加入清單:Android 的 openURL 能用之後,P38 與 P75 會開網址,Chrome 帶著首次啟動
+# 提示留在最前面，下一支 app(P4)的擷圖拍到的就是 Chrome。
 close_leftover_system_ui() {
-    for leftover in com.google.android.documentsui com.android.documentsui; do
+    for leftover in com.google.android.documentsui com.android.documentsui \
+        com.android.chrome; do
         adb_if_ready shell am force-stop "$leftover" >/dev/null 2>&1
     done
 }

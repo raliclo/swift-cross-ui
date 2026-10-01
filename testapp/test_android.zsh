@@ -502,6 +502,12 @@ capture() {
 print "==> Installing $apk_path"
 ANDROID_SERIAL="$serial" "$adb" install -r "$apk_path" >/dev/null
 ANDROID_SERIAL="$serial" "$adb" shell am force-stop "$package_id" || true
+# Stylus handwriting off. With it on, Gboard answers a synthesised tap in a text
+# field with a full-screen "Try out your stylus" sheet, and seven captures of
+# the 2026-10-02 sweep (P2 P9 P15 P21 P31 P32 P36) photographed that sheet.
+# 關閉手寫筆輸入。開啟時，對文字欄的合成點擊會讓 Gboard 跳出全螢幕的「Try out your stylus」,
+# 2026-10-02 的 sweep 有七張擷圖(P2 P9 P15 P21 P31 P32 P36)拍到的是那個畫面。
+ANDROID_SERIAL="$serial" "$adb" shell settings put secure stylus_handwriting_enabled 0 || true
 # Start the declared launcher activity directly. `monkey` can return a non-zero
 # status for emulator input limitations even when it does not provide a useful
 # readiness check for action-file replay.
