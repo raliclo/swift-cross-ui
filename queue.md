@@ -30,6 +30,18 @@
   P59 P61 P62 P63 P64 P66 P68 P70 (captured 2026-09-30, but at the zoomed size
   -- re-measure). Android 20: P15-DARK P17-DOE P47 P48 P49 P51 P52 P59 P60 P61
   P62 P63 P64 P66 P67 P68 P69 P70 P73 (+ P6-v2, GTK-only, never).
+  - [x] iOS: 16 files written 2026-10-01, measured from the native-size tree and
+    each replayed and read. Two defects found and fixed on the way:
+    DocumentGroup's binding never redrew its window (P62 read (empty) while
+    its log said AA; macOS hid it because opening a second document redrew
+    window 1), and a sheet whose content was wider than the window was laid
+    out at that width and centred, cutting both ends of every line (P49).
+  - [ ] Android: the 20 above.
+  - [ ] **Stack ideal width undercounts (P51).** On iPhone the outer VStack
+    reports 522 pt while the two-column HStack inside it draws to 579, so the
+    root scroll host stops 57 pt short and the second column is cut even
+    scrolled to the end. Not iOS-specific -- any window narrower than the two
+    columns. Evidence: a dumptree row after P51's scroll.
 - [ ] **3. P5 on iPad: alerts on two windows at the same time.** The second
   window opens as its own scene; showing both needs windowed mode (see below).
 

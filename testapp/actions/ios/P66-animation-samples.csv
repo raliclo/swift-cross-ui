@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P66 on iOS: withAnimation. Pass: the SAMPLES line reports samples running from
+# 0.0 to 200.0 and monotonic, offset 20, flag true.
+# Measured 2026-10-01 at native size, p66-ios-final-20261001-113023.png:
+# "SAMPLES 31 over 0.59s; first 0.0 last 200.0; monotonic" (VERIFIED).
+# P66 在 iOS 上:withAnimation。通過:SAMPLES 由 0.0 到 200.0 且單調。
+sleep,,,,,,2500000,let the animation run and be summarised,ios

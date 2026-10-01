@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P68 on iOS: the graphics adapters. Pass: "adapters: 1" with the simulator's GPU
+# named under it, and "-GPU requested: (not given, so 1)".
+# Measured 2026-10-01 at native size from the launch tree: "adapters: 1",
+# "Apple iOS simulator GPU" (VERIFIED).
+# P68 在 iOS 上:顯示卡列表。通過:adapters: 1,下方列出模擬器的 GPU。
+sleep,,,,,,2000000,let P68 list the adapters,ios

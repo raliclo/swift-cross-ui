@@ -1,0 +1,22 @@
+action,x,y,origin,button,key,micros,note,platform
+# P48 on iOS: the LazyVGrid / LazyHGrid layouts. Pass: grid 1 three flexible
+# columns 1 2 3 / 4 5 6 / 7 8; grid 2 a narrow two-wide block; grid 3 several per
+# row; grid 5 reads 1/2, 3/4, 5/6 across; grid 6 a staircase -- and no cell pushed
+# off the edge or stacked under the wrong neighbour.
+# At native size (2026-10-01) grids 1-5 are on the launch screen and grid 6 is
+# below it, so the file scrolls down after the photograph-worthy part has drawn.
+#
+# Grid 6's staircase is 1 pt per step and cannot be seen by eye, on any backend:
+# P48Cell is 22 pt of text plus 8 pt padding, 38 pt in a 40 pt row, so top /
+# centre / bottom place it 0, 1 and 2 pt down. Read it from the tree instead --
+# measured 2026-10-01, the labels of cells 1, 2, 3 sit at y 951, 1000, 1049:
+# 49 pt apart, which is the 48 pt row pitch plus the 1 pt step. Rows that ignored
+# their alignment would be 48 apart.
+# grid 6 的階梯每階只有 1 點,在任何 backend 上都看不出來:cell 38 點高、row 40 點,三種對齊
+# 只差 0、1、2 點。改從 tree 讀:cell 1/2/3 的標籤在 y 951、1000、1049,間距 49 = 48 + 1;
+# 忽略對齊的話會是 48。
+# P48 在 iOS 上:各 LazyVGrid / LazyHGrid 版面。grid 1-5 在啟動畫面上,grid 6 在下方,所以向下捲。
+sleep,,,,,,2000000,let the grids lay out,ios
+move,220,700,client,,,,the middle of the page,ios
+scroll,0,6,,,,,down to grid 6 -- the staircase must be in the photograph,ios
+sleep,,,,,,1000000,let the scroll settle,ios

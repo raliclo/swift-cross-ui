@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P63 on iOS: GeometryProxy.frame(in:). Pass: the global x/y readout equals the
+# black marker's top-left in the window.
+#
+# Measured 2026-10-01 at native size (440 x 956 pt), p63-ios-final-20261001-112836.png:
+# the readout says global x=45 y=574 and the marker's top-left is at 45,574 in the
+# capture (VERIFIED). Before 89545b40 this read x=0 y=0 on iOS.
+#
+# P63 在 iOS 上:GeometryProxy.frame(in:)。通過:global x/y 讀數等於黑色方塊在視窗中的左上角。
+# 2026-10-01 量測:讀數 global x=45 y=574,方塊左上角在擷圖的 45,574(VERIFIED)。
+sleep,,,,,,2000000,let the reader be laid out,ios

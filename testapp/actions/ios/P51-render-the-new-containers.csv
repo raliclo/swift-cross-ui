@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# P51 on iOS: GroupBox, ControlGroup, LazyVGrid/GridItem, Grid/GridRow and
+# labelStyle, drawn. Pass: every section in the capture has content.
+# At native size (2026-10-01) the page is two columns wide and the second column
+# (GroupBox, ControlGroup, LabelStyle) is cut off at the right edge, so the file
+# scrolls right to put it in the photograph; the first column was read off the
+# launch capture.
+#
+# OPEN DEFECT, found 2026-10-01 and queued in queue.md: even scrolled to the end
+# the second column is cut at the right edge. A dumptree row after the scroll
+# shows why -- the outer VStack reports 522 pt wide (x -98 to 424) while the
+# two-column HStack inside it draws from -98 to 481, so the root scroll host is
+# told the content is 57 pt narrower than it is. Every section is still on
+# screen with content, which is this file's assertion; the cut is the defect.
+# 未解缺陷(2026-10-01,已列入 queue.md):捲到底後第二欄仍被右緣截掉。外層 VStack 回報 522 點寬,
+# 而其中的兩欄 HStack 畫到 481,所以 root scroll host 得到的內容寬度比實際少 57 點。
+# P51 在 iOS 上:五種新容器都畫出來。第二欄在右緣被截掉,所以向右捲。
+sleep,,,,,,2000000,let P51 render,ios
+move,300,800,client,,,,the lower right of the page,ios
+scroll,10,0,,,,,"right, to the end -- the second column must be whole in the photograph (six notches left GroupBox's paragraph cut at the right edge)",ios
+sleep,,,,,,1000000,let the scroll settle,ios

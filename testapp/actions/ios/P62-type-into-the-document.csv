@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P62 on iOS (iPhone): one document window, so the second-window check is iPad
+# work (see queue.md). Pass: the document's text reads AA.
+# The first replay (2026-10-01) read (empty) while the app's own log said
+# "text is now 'AA'": DocumentGroup's binding stored the edit and told no one, and
+# on macOS opening the second document happened to redraw window 1. Fixed in
+# DocumentGroup.swift the same day (VERIFIED: AA, on iOS and on macOS without
+# opening a second document).
+# 第一次重放讀到 (empty),而 app 自己的 log 說 'AA':DocumentGroup 的 binding 存下編輯卻沒通知任何人。
+# Measured 2026-10-01 at native size from the launch tree: "type A" x 16-66,
+# "clear" x 131-169, both y 426-448.
+# P62 在 iOS(iPhone)上:只有一個文件視窗,第二視窗的檢查屬於 iPad。通過:文件文字讀 AA。
+sleep,,,,,,1200000,let the document window lay out,ios
+click,150,437,client,left,,,clear,ios
+sleep,,,,,,300000,,ios
+click,41,437,client,left,,,type A,ios
+sleep,,,,,,300000,,ios
+click,41,437,client,left,,,type A again -- the text must read AA,ios
+sleep,,,,,,700000,settle before the photograph,ios

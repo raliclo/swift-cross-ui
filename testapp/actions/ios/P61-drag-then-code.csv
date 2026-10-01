@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P61 on iOS: Slider.onEditingChanged reports a drag, and only a drag. Pass: after
+# one drag and one press of "move it from code", began 1 and ended 1 -- the code
+# move changes the value and leaves both counts alone.
+# Measured 2026-10-01 at native size from the launch tree: the slider is x 17-337,
+# y 447-481 at 50%, so the thumb is near x 177; "move it from code" is x 17-203,
+# y 489-511.
+# P61 在 iOS 上:onEditingChanged 只回報拖曳。通過:一次拖曳加一次「從程式移動」之後 began 1、ended 1。
+sleep,,,,,,1200000,let P61 lay out,ios
+mousedown,177,464,client,left,,,press on the thumb,ios
+sleep,,,,,,200000,,ios
+move,230,464,client,,,,drag,ios
+sleep,,,,,,150000,,ios
+move,290,464,client,,,,drag further,ios
+sleep,,,,,,150000,,ios
+mouseup,290,464,client,left,,,let go -- one begin and one end so far,ios
+sleep,,,,,,600000,,ios
+click,110,500,client,left,,,"move it from code -- the counts must NOT change",ios
+sleep,,,,,,800000,,ios

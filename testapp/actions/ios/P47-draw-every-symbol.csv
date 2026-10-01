@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P47 on iOS: every symbol in the table, drawn. Nothing to press -- the assertion
+# is the picture. Pass: 36 glyphs in the grid with none drawn as its name, and the
+# unknown name drawn as its own text.
+#
+# Measured 2026-10-01 at native size (440 x 956 pt), p47-ios-final-20261001-112040.png:
+# 36 SF Symbols glyphs, "+ Add / Delete / Search" with their glyphs, and
+# definitely.not.a.symbol drawn as text (VERIFIED).
+#
+# P47 在 iOS 上:表中每一個符號都畫出來。沒有要按的——斷言是畫面:格中 36 個字形、沒有一個畫成它的
+# 名字,而未知名稱畫成它自己的文字。
+sleep,,,,,,2000000,"let P47 draw the 36 symbols -- read the grid and the unknown name drawn as text",ios

@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on iOS: popover. Pass: the popover is anchored to its button rather than
+# centred in the window, and "popover opens" reads 1.
+# Measured 2026-10-01 at native size from the launch tree: "Show the popover" is
+# x 23-161, y 528-550.
+# P49 在 iOS 上:popover。通過:popover 錨定在按鈕上而非視窗正中,popover opens 讀到 1。
+sleep,,,,,,1500000,let P49 render,ios
+click,92,539,client,left,,,"Show the popover -- anchored to the button",ios
+sleep,,,,,,1500000,let the popover animate in,ios

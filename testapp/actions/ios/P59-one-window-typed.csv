@@ -1,0 +1,18 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on iOS (iPhone): one window, so the two-window comparison is iPad work (see
+# queue.md). What an iPhone can show: both storages take the same three appends
+# and both survive into the capture. Pass: scene draft AAA and app draft AAA.
+# clear goes first because both drafts persist between runs.
+# Measured 2026-10-01 at native size from the launch tree: "append A" x 16-89,
+# "clear" x 178-216, both y 409-431.
+# P59 在 iOS(iPhone)上:只有一個視窗,雙視窗比較屬於 iPad 的工作。iPhone 能呈現的:兩種儲存都收到
+# 同樣三次 append。通過:scene draft 與 app draft 都讀 AAA。先 clear,因為兩份草稿會跨執行保留。
+sleep,,,,,,1200000,let P59 render,ios
+click,197,420,client,left,,,clear -- both drafts persist between runs,ios
+sleep,,,,,,400000,,ios
+click,52,420,client,left,,,append A,ios
+sleep,,,,,,300000,,ios
+click,52,420,client,left,,,again,ios
+sleep,,,,,,300000,,ios
+click,52,420,client,left,,,and again -- both rows must read AAA,ios
+sleep,,,,,,700000,settle before the photograph,ios

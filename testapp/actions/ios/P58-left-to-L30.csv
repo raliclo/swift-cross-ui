@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on iOS: one press moves ONE column. Pass: the left column scrolls to L30 and
+# the right column stays at R0.
+# Measured 2026-10-01 at native size from the launch tree: "left to L30" is
+# x 16-95, y 171-193.
+# P58 在 iOS 上:一次按下只移動一欄。通過:左欄捲到 L30,右欄停在 R0。
+sleep,,,,,,1200000,let P58 lay out,ios
+click,55,182,client,left,,,left to L30,ios
+sleep,,,,,,800000,let the scroll finish,ios

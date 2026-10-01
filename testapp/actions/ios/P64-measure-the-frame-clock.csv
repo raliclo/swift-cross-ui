@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P64 on iOS: the frame clock's RATE. Pass: "PASS 1 TICKS n in ~2s -> ~60 Hz" with a
+# median gap near 16.7 ms, read off the screen.
+#
+# Measured 2026-10-01 at native size, p64-ios-final-20261001-112930.png:
+# "PASS 1 TICKS 120 in 1.98s -> 60.0 Hz; gap min 16.7ms median 16.7ms max 18.1ms"
+# (VERIFIED).
+#
+# P64 在 iOS 上:frame clock 的速率。通過:畫面上讀到約 60 Hz、中位間隔約 16.7 ms。
+sleep,,,,,,4000000,let pass 1 finish and be reported,ios

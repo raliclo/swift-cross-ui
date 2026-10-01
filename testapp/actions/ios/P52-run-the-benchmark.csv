@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P52 on iOS: the button-style cost benchmark runs by itself after its warm-up.
+# Pass: the page's per-round table is filled for all three arms. The numbers are
+# the product; this file only makes sure they are produced.
+# P52 在 iOS 上:按鈕樣式成本基準測試會自己跑完。通過:三組的每輪表格都填滿。
+sleep,,,,,,45000000,let the ten rounds run,ios

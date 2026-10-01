@@ -1,0 +1,9 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on iOS: the other column. Pass: the right column scrolls to R45 and the left
+# column stays at L0.
+# Measured 2026-10-01 at native size from the launch tree: "right to R45" is
+# x 103-194, y 171-193.
+# P58 在 iOS 上:另一欄。通過:右欄捲到 R45,左欄停在 L0。
+sleep,,,,,,1200000,let P58 lay out,ios
+click,148,182,client,left,,,right to R45,ios
+sleep,,,,,,800000,let the scroll finish,ios
