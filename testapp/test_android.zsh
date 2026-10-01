@@ -64,7 +64,12 @@ fi
 app="${1:u}"
 app_id="${app:l}"
 shift
-[[ "$app" == P<-> ]] || die "Invalid test target: $app"
+# A test target is any testapp/<name>.swift, as test_ios.zsh decides it. The old
+# `P<->` pattern refused P15-DARK and P17-DOE, which exist and build, so they had
+# no Android action file and could not get one.
+# 測試目標是任何 testapp/<名稱>.swift，與 test_ios.zsh 的判定相同。舊的 `P<->` 樣式拒絕了
+# P15-DARK 與 P17-DOE——它們存在也建得起來——因此它們沒有、也無法有 Android 動作檔。
+[ -f "$script_dir/$app.swift" ] || die "Invalid test target: $app"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -220,6 +225,35 @@ android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
 # 因為它無法高過 swift.org 已發布的版本。詳見 testapp/build_time_android.md。
 swift_toolchain="${SWIFT_ANDROID_TOOLCHAIN:-swift-latest}"
 swift_bin="${SWIFT_BIN:-$HOME/Library/Developer/Toolchains/${swift_toolchain}.xctoolchain/usr/bin/swift}"
+# The macOS SDK the Android toolchain compiles HOST code against -- the package
+# manifest and build plugins. Xcode 27's SDK ships Foundation interfaces whose
+# module flags include `-target-arch-variant`, which the snapshot toolchain does
+# not know, so every manifest compile failed with "unknown argument:
+# '-target-arch-variant'" and "Invalid manifest". It had worked until 2026-10-01
+# only because a module cache still held Foundation built from those interfaces
+# earlier; once the cache was cleared nothing could rebuild it. The first SDK
+# whose Foundation interface the toolchain can read is used; ANDROID_HOST_SDKROOT
+# overrides the choice.
+# Android toolchain 編譯「主機端」程式碼（package manifest 與 build plugin）所用的 macOS SDK。
+# Xcode 27 的 SDK 附帶的 Foundation 介面，其 module flags 含 `-target-arch-variant`，快照版
+# toolchain 不認得，於是每一次 manifest 編譯都以 "unknown argument: '-target-arch-variant'" 與
+# "Invalid manifest" 失敗。2026-10-01 之前能成功，只是因為 module cache 裡還留著先前由那些介面
+# 建出的 Foundation；cache 一被清掉就再也建不回來。這裡選第一個 toolchain 讀得懂其 Foundation
+# 介面的 SDK；ANDROID_HOST_SDKROOT 可覆寫。
+android_host_sdk="${ANDROID_HOST_SDKROOT:-}"
+if [ -z "$android_host_sdk" ]; then
+    for candidate in "$(xcrun --sdk macosx --show-sdk-path 2>/dev/null)" \
+        /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk(N/On); do
+        interface="$candidate/System/Library/Frameworks/Foundation.framework/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface"
+        [ -f "$interface" ] || continue
+        if ! grep -q -- '-target-arch-variant' "$interface"; then
+            android_host_sdk="$candidate"
+            break
+        fi
+    done
+fi
+[ -n "$android_host_sdk" ] || die "No macOS SDK the Android toolchain can read (every Foundation interface uses -target-arch-variant); set ANDROID_HOST_SDKROOT"
+export SDKROOT="$android_host_sdk"
 package_dir="$script_dir/.compile-work-android/TestApps"
 apk_path="$apk_dir/$app.apk"
 # Lowercased. The APK's application id is lowercase, so `adb shell am start`
@@ -227,7 +261,9 @@ apk_path="$apk_dir/$app.apk"
 # reports success -- the failure looks like the app refusing to launch.
 # 轉為小寫。APK 的 application id 是小寫的，因此以 "dev.swiftcrossui.testapp.P12" 執行
 # `adb shell am start` 會找不到該套件，而安裝本身卻回報成功——該失敗看起來會像是 app 拒絕啟動。
-package_id="dev.swiftcrossui.testapp.$app_id"
+# Without the `-`, matching the identifier compile.zsh writes for Android.
+# 去掉 `-`，與 compile.zsh 為 Android 寫入的 identifier 一致。
+package_id="dev.swiftcrossui.testapp.${app_id//-/}"
 adb="$android_root/platform-tools/adb"
 emulator="$android_root/emulator/emulator"
 
@@ -536,6 +572,9 @@ if [ "${#launch_args}" -gt 0 ]; then
     app_args+=($launch_args)
 fi
 
+# The device's clock at launch, so the crash check below reads this run's log only.
+# 啟動時裝置的時鐘，讓下方的崩潰檢查只讀這一次執行的 log。
+launch_log_time="$(ANDROID_SERIAL="$serial" "$adb" shell "date '+%m-%d %H:%M:%S.000'" | tr -d '\r')"
 if [ "${#app_args}" -gt 0 ]; then
     # Quoted for the shell ON THE DEVICE, which is a second round of word
     # splitting `adb shell` does not protect against: it joins its arguments
@@ -607,6 +646,29 @@ if [ "$showtime_seconds" -gt 0 ]; then
 fi
 
 capture "${app_id}-android-final"
+
+# Did the app die? `am start -W` returns once the activity is created, so an app
+# that throws in onCreate a moment later still "launched", and the captures then
+# photograph whatever was in front before it. P15-DARK did exactly that on
+# 2026-10-01 -- UnsatisfiedLinkError in setup(), exit 0, and a capture of P73
+# filed as p15-dark-android-final. Reading the front activity would misjudge the
+# files that leave the app on purpose (P38's browser, P75's file manager and
+# close), so this reads the crash records instead: a Java FATAL EXCEPTION or a
+# native crash naming this package since launch.
+# app 死了嗎?`am start -W` 在 activity 建立後就返回，所以一個稍後在 onCreate 中拋出例外的 app
+# 仍算「已啟動」,而擷圖拍到的是它之前在前景的東西。2026-10-01 的 P15-DARK 正是如此——setup() 拋出
+# UnsatisfiedLinkError、以 0 結束、一張 P73 的擷圖被存成 p15-dark-android-final。改讀前景 activity
+# 會誤判那些刻意離開 app 的檔案(P38 的瀏覽器、P75 的檔案管理員與關窗),所以這裡讀的是崩潰紀錄:
+# 自啟動以來，指名此 package 的 Java FATAL EXCEPTION 或原生崩潰。
+crash_lines="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
+    | grep -E "Process: $package_id, PID|>>> $package_id <<<" || true)"
+if [ -n "$crash_lines" ]; then
+    print -u2 -r -- "!! $package_id crashed after launch; the captures above are not this app:"
+    ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
+        | grep -E "FATAL EXCEPTION|Process: $package_id|UnsatisfiedLinkError|>>> $package_id <<<|signal [0-9]+" \
+        | head -8 >&2 || true
+    exit 1
+fi
 if [ "$screenshot_failures" -gt 0 ]; then
     print -u2 -r -- "!! $screenshot_failures screenshot(s) could not be taken"
 fi

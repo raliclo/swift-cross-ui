@@ -1433,7 +1433,22 @@ fi
     printf 'format_version = 2\n'
     for app_name in $app_names; do
         printf '\n[apps.%s]\n' "$app_name"
-        printf "identifier = 'dev.swiftcrossui.testapp.%s'\n" "$app_name"
+        # An Android application id is dot-separated Java identifiers, and a
+        # hyphen is not allowed in one: P15-DARK and P17-DOE could not be
+        # packaged. iOS accepts the hyphen, so only Android drops it. Dropped,
+        # not spelled `_`: swift-bundler builds the JNI name of the setup
+        # function by replacing dots alone, and JNI escapes `_` as `_1`, so
+        # `p15_dark` packaged, installed and died at launch with
+        # UnsatisfiedLinkError on ..._p15_1dark_MainActivity_setup (2026-10-01).
+        # Android 的 application id 由以點分隔的 Java 識別字組成，其中不得有連字號:P15-DARK 與
+        # P17-DOE 因此無法打包。iOS 接受連字號，所以只有 Android 把它拿掉。是拿掉而非改成 `_`:
+        # swift-bundler 組 setup 函式的 JNI 名稱時只替換點，而 JNI 把 `_` 轉義成 `_1`,於是
+        # `p15_dark` 能打包、能安裝，啟動時卻以 UnsatisfiedLinkError 結束(2026-10-01)。
+        if [ "$target_platform" = "android" ]; then
+            printf "identifier = 'dev.swiftcrossui.testapp.%s'\n" "${app_name//-/}"
+        else
+            printf "identifier = 'dev.swiftcrossui.testapp.%s'\n" "$app_name"
+        fi
         printf "product = '%s'\n" "$app_name"
         printf "version = '0.1.0'\n"
         if [ "$target_platform" = "android" ]; then
