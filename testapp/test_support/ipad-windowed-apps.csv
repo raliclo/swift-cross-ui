@@ -1,0 +1,25 @@
+action,x,y,origin,button,key,micros,note,platform
+# Turns on Windowed Apps in an iPad Simulator's Settings, so two scenes of one app
+# can be on screen side by side (P5's alerts on two windows, P59, P62).
+#
+#   zsh testapp/test.zsh P5 --ios --device "iPad Pro 11-inch (M5)" \
+#       --actionfile=testapp/test_support/ipad-windowed-apps.csv
+#
+# Any app serves as the host; the rows drive com.apple.Preferences by label,
+# because Settings' layout differs per device and OS and a label survives that.
+# The setting persists in the Simulator, so this is run once per fresh device.
+# `defaults write` did NOT switch it (2026-09-30). Checked 2026-10-02 on the
+# iPad Pro 11-inch (M5), iOS 27: the Windowed Apps button reads Selected after.
+#
+# 在 iPad 模擬器的「設定」中打開 Windowed Apps,讓同一 app 的兩個 scene 能並排顯示。任何 app 都可當宿主;
+# 各列以標籤驅動 com.apple.Preferences。設定會保留在模擬器中，每台新裝置執行一次即可。
+sleep,,,,,,1000000,let the host app settle,ios
+activate,,,,,com.apple.Preferences,,Settings,ios
+sleep,,,,,,2500000,,ios
+taplabel,,,,,Multitasking & Gestures,,,ios
+sleep,,,,,,2000000,,ios
+taplabel,,,,,Windowed Apps,,"select it; the button then reads Selected",ios
+sleep,,,,,,1500000,,ios
+dumptree,,,,,,,the Windowed Apps button must carry Selected,ios
+activate,,,,,,,back to the app under test,ios
+sleep,,,,,,1000000,,ios

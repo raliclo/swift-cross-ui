@@ -420,6 +420,19 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
                 // user (Stage Manager) or the device -- which is why
                 // `isWindowProgrammaticallyResizable` is false on iOS and the
                 // framework does not ask for this.
+                //
+                // `sizeRestrictions` was tried as the way round it on 2026-10-02
+                // (iPad Pro 11-inch Simulator, iOS 27, Windowed Apps on):
+                // pinning minimumSize and maximumSize to 480 x 380 left the
+                // window at 834 x 1210 a second later, and three runs out of
+                // four the Simulator's render server (backboardd) aborted in
+                // Metal texture validation and took the XCUITest session with
+                // it. A window is sized on iPad by its resize grip, which is how
+                // the iPad action files do it.
+                // 2026-10-02 曾以 `sizeRestrictions` 作為替代途徑(iPad Pro 11-inch 模擬器、iOS 27、Windowed
+                // Apps 開啟):把 minimumSize 與 maximumSize 釘在 480 x 380,一秒後視窗仍是 834 x 1210;四次中
+                // 有三次模擬器的渲染伺服器(backboardd)在 Metal 貼圖驗證中中止，並連帶結束 XCUITest 工作階段。
+                // iPad 上視窗的大小由它的縮放把手決定，iPad 動作檔就是那樣做的。
                 // iOS 與 iPadOS 沒有以程式設定視窗大小的方法,而且這是查證過的,不是假設(2026-09-29):iOS 27 SDK
                 // 的 `UIWindowSceneGeometryPreferencesIOS` 只有一個屬性 `interfaceOrientations`,初始化方法也只有
                 // `init` 與 `initWithInterfaceOrientations:`;能帶框架的是 Mac 與 visionOS 那兩個。那裡的視窗大小屬於

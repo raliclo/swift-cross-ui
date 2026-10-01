@@ -64,6 +64,18 @@ fi
 
 mkdir -p "$script_dir/output"
 
+# Read before the app list, which is every remaining argument. It used to be
+# read after, so `--fresh` was first taken for an app name -- "no matches found:
+# actions/android/--fresh-*.csv", zero files run -- and then still wiped the CSV
+# (2026-10-02).
+# 必須在 app 清單(其餘所有引數)之前讀取。原本在其後讀取，於是 `--fresh` 先被當成 app 名稱——
+# 「no matches found: actions/android/--fresh-*.csv」、一個檔案也沒跑——接著仍把 CSV 清空(2026-10-02)。
+fresh=0
+if [ "${1:-}" = "--fresh" ]; then
+    fresh=1
+    shift
+fi
+
 if [ "$#" -gt 0 ]; then
     action_files=()
     for wanted in "$@"; do
@@ -89,11 +101,6 @@ fi
 # 且回答不了任何問題，因此已存在於 CSV 中的「app/情境」組合會被略過，除非明確要求。這些組合是以真正的
 # CSV 解析器讀回的，絕不以逗號切割：note 欄位存放的錯誤文字本身含有逗號，而以 `,` 切割會讓其右每一欄
 # 靜默左移，且不會失敗。
-fresh=0
-if [ "${1:-}" = "--fresh" ]; then
-    fresh=1
-    shift
-fi
 
 if [ "$fresh" -eq 1 ] || [ ! -f "$out_csv" ]; then
     python3 - "$out_csv" <<'PY'

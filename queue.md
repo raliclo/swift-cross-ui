@@ -59,12 +59,28 @@
     columns. Evidence: a dumptree row after P51's scroll.
 - [ ] **3. P5 on iPad: alerts on two windows at the same time.** The second
   window opens as its own scene; showing both needs windowed mode (see below).
+  Findings 2026-10-02 (iPad Pro 11-inch Simulator, iOS 27):
+  - Windowed Apps was already selected on this Simulator. The iOS runner can
+    now set it on a fresh one: `testapp/test_support/ipad-windowed-apps.csv`
+    (new `activate`, `taplabel` verbs; `dumptree` prints the front app).
+  - New windows open full size, so the second covers the first. No API sizes
+    an iPad window: `sizeRestrictions` min=max=480x380 left it at 834x1210, and
+    3 runs of 4 crashed the Simulator's backboardd (Metal texture validation);
+    reverted, and recorded in UIKitBackend+Window.swift `setSize`.
+  - Dragging the resize grip with XCUITest DOES resize (to 375x486), but window
+    frames persist between runs, dragging the window itself (top edge, the
+    "..." controls) did not move it, and the runner's window list goes stale
+    (the main window once reported 187x243 at 0,0). So a fixed-coordinate file
+    is not reproducible yet.
+  - Next: a runner verb that reads each window's frame and drags its grip and
+    title from there, or check this on a physical iPad by hand.
 
 ### Then: iPad testing (after 1-4)
 
 How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
 
-- [ ] **Windowed mode.** Fastest: set it once by hand in the iPad Simulator,
+- [x] **Windowed mode.** DONE 2026-10-02: `test_support/ipad-windowed-apps.csv`.
+  Fastest: set it once by hand in the iPad Simulator,
   Settings > Multitasking & Gestures > Windowed Apps (it persists). Durable:
   have the XCUITest runner drive the Settings app (`com.apple.Preferences`) so
   a fresh Simulator can be set up unattended. `defaults write

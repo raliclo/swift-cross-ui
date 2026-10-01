@@ -113,6 +113,9 @@ final class ActionFileUITests: XCTestCase {
         let actions = try ActionFile.load(at: path)
         var pointer: XCUICoordinate?
         var dragStart: XCUICoordinate?
+        /// The app `activate` last brought forward; `taplabel` searches it.
+        /// `activate` 最後帶到前景的 app;`taplabel` 在其中搜尋。
+        var frontApp = app
         /// Modifiers currently held by `keydown`, spent by the next `key`.
         /// 目前由 `keydown` 按住、將被下一個 `key` 花掉的 modifier。
         var heldModifiers: XCUIElement.KeyModifierFlags = []
@@ -189,7 +192,50 @@ final class ActionFileUITests: XCTestCase {
                 // 這一列當下的樹。上面那份在第一列之前取得,所以一個「要等前面幾列改變版面之後
                 // 才出現、或才在那個位置」的目標,無法從它量出來(P17 的「More height」,2026-10-01)。
                 FileHandle.standardError.write(
-                    Data("-actionfile: element tree at dumptree row:\n\(app.debugDescription)\n".utf8)
+                    Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
+                )
+            case "activate":
+                // Brings another app to the front -- the key column is its
+                // bundle identifier; empty means the app under test. For
+                // setting the device up (iPad windowed mode lives in
+                // com.apple.Preferences), not for testing it.
+                // 把另一個 app 帶到前景——key 欄是它的 bundle identifier;空白代表受測 app。
+                // 用於設定裝置(iPad 的視窗化模式在 com.apple.Preferences 裡),不是用來測試它。
+                let target = action.key.isEmpty
+                    ? app : XCUIApplication(bundleIdentifier: action.key)
+                target.activate()
+                frontApp = target
+                FileHandle.standardError.write(
+                    Data("-actionfile: activated \(action.key.isEmpty ? bundleIdentifier : action.key)\n".utf8)
+                )
+            case "taplabel":
+                // Taps the first hittable element labelled `key` in whichever
+                // app is frontmost. Other apps' layouts differ by device and
+                // OS, so a label survives where a coordinate would not. A
+                // missing label is an error, not a skipped row.
+                // 在最前方的 app 中，點第一個標籤為 `key` 且可點的元素。其他 app 的版面因裝置與系統
+                // 而異，標籤能存活之處座標不能。找不到標籤是錯誤，不是略過的一列。
+                // By type and `firstMatch`, never `descendants(.any)` resolved
+                // in full: on Settings that query never returned and the run
+                // timed out after 600 s (2026-10-02).
+                // 依型別並用 `firstMatch`,絕不完整解析 `descendants(.any)`:在「設定」上那個查詢
+                // 一直沒有返回，執行在 600 秒後逾時(2026-10-02)。
+                let queries: [XCUIElementQuery] = [
+                    frontApp.buttons, frontApp.cells, frontApp.switches,
+                    frontApp.staticTexts, frontApp.otherElements,
+                ]
+                let match = queries.lazy
+                    .map { $0.matching(NSPredicate(format: "label == %@", action.key)).firstMatch }
+                    .first { $0.waitForExistence(timeout: 1) && $0.isHittable }
+                guard let element = match else {
+                    throw ActionFileError.unsupported(
+                        "taplabel '\(action.key)': no hittable element with that label",
+                        action.line
+                    )
+                }
+                element.tap()
+                FileHandle.standardError.write(
+                    Data("-actionfile: tapped '\(action.key)'\n".utf8)
                 )
             case "move":
                 pointer = try coordinate(for: action, in: app)
