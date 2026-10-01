@@ -178,214 +178,213 @@ final class ActionFileUITests: XCTestCase {
 
         for action in actions {
             switch action.kind {
-                case "sleep":
-                    Thread.sleep(forTimeInterval: action.microseconds / 1_000_000)
-                case "dumptree":
-                    // The tree as it stands at this row. The dump above is taken
-                    // before the first row, so a target that only exists, or only
-                    // sits where it does, after earlier rows have changed the
-                    // layout could not be measured from it (P17's "More height",
-                    // 2026-10-01).
-                    // 這一列當下的樹。上面那份在第一列之前取得,所以一個「要等前面幾列改變版面之後
-                    // 才出現、或才在那個位置」的目標,無法從它量出來(P17 的「More height」,2026-10-01)。
-                    FileHandle.standardError.write(
-                        Data("-actionfile: element tree at dumptree row:\n\(app.debugDescription)\n"
-                            .utf8)
-                    )
-                case "move":
-                    pointer = try coordinate(for: action, in: app)
-                case "click":
-                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+            case "sleep":
+                Thread.sleep(forTimeInterval: action.microseconds / 1_000_000)
+            case "dumptree":
+                // The tree as it stands at this row. The dump above is taken
+                // before the first row, so a target that only exists, or only
+                // sits where it does, after earlier rows have changed the
+                // layout could not be measured from it (P17's "More height",
+                // 2026-10-01).
+                // 這一列當下的樹。上面那份在第一列之前取得,所以一個「要等前面幾列改變版面之後
+                // 才出現、或才在那個位置」的目標,無法從它量出來(P17 的「More height」,2026-10-01)。
+                FileHandle.standardError.write(
+                    Data("-actionfile: element tree at dumptree row:\n\(app.debugDescription)\n".utf8)
+                )
+            case "move":
+                pointer = try coordinate(for: action, in: app)
+            case "click":
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                target.tap()
+                pointer = target
+            case "longpress":
+                // **The one verb that exists FOR this runner.** A context menu on
+                // a touch screen is raised by holding, and the down/up pair above
+                // cannot express it: `mouseup` presses for a fixed 0.1s whatever
+                // `sleep` rows sit between, because a `sleep` pauses the replay
+                // and not the finger. The desktop synthesisers refuse this verb
+                // rather than turning it into a right-click, so a file that uses
+                // it says plainly which platform it is for.
+                //
+                // **唯一為這個 runner 而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,
+                // 而上面那組 down/up 表達不了它:`mouseup` 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`
+                // ——因為 `sleep` 暫停的是重放、不是那根手指。桌面的各 synthesiser 會**拒絕**這個動作,
+                // 而不是把它變成右鍵,因此一份用到它的檔案,會明白地說出它是為哪個平台寫的。
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                target.press(forDuration: action.microseconds / 1_000_000)
+                pointer = target
+            case "doubleclick":
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                target.doubleTap()
+                pointer = target
+            case "mousedown":
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                pointer = target
+                dragStart = target
+            case "mouseup":
+                let target = try coordinateIfPresent(for: action, current: pointer, in: app)
+                if let start = dragStart {
+                    start.press(forDuration: 0.1, thenDragTo: target)
+                    dragStart = nil
+                } else {
                     target.tap()
-                    pointer = target
-                case "longpress":
-                    // **The one verb that exists FOR this runner.** A context menu on
-                    // a touch screen is raised by holding, and the down/up pair above
-                    // cannot express it: `mouseup` presses for a fixed 0.1s whatever
-                    // `sleep` rows sit between, because a `sleep` pauses the replay
-                    // and not the finger. The desktop synthesisers refuse this verb
-                    // rather than turning it into a right-click, so a file that uses
-                    // it says plainly which platform it is for.
-                    //
-                    // **唯一為這個 runner 而存在的動作。** 觸控螢幕上的右鍵選單是靠「按住」叫出來的,
-                    // 而上面那組 down/up 表達不了它:`mouseup` 固定按壓 0.1 秒,不論中間夾了幾列 `sleep`
-                    // ——因為 `sleep` 暫停的是重放、不是那根手指。桌面的各 synthesiser 會**拒絕**這個動作,
-                    // 而不是把它變成右鍵,因此一份用到它的檔案,會明白地說出它是為哪個平台寫的。
-                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                    target.press(forDuration: action.microseconds / 1_000_000)
-                    pointer = target
-                case "doubleclick":
-                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                    target.doubleTap()
-                    pointer = target
-                case "mousedown":
-                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                    pointer = target
-                    dragStart = target
-                case "mouseup":
-                    let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                    if let start = dragStart {
-                        start.press(forDuration: 0.1, thenDragTo: target)
-                        dragStart = nil
-                    } else {
-                        target.tap()
-                    }
-                    pointer = target
-                case "scroll":
-                    // A wheel notch becomes a drag, because a touch screen has no
-                    // wheel.
-                    //
-                    // The sign inverts, and that is the part to get right. In the
-                    // action-file format a positive `dy` scrolls *down* -- the
-                    // viewport moves further down the content. A finger does that by
-                    // moving *up*. Same for `dx`: scrolling right means dragging
-                    // left. Getting this backwards produces a scroll that works,
-                    // moves the right distance, and goes the wrong way, which reads
-                    // as the app scrolling oddly rather than as the runner being
-                    // wrong.
-                    //
-                    // Until this existed the runner threw `unsupported` on every
-                    // scroll row, so P8, P27 and P38 -- the three apps whose whole
-                    // subject is scrolling -- had no iOS action file at all.
-                    //
-                    // 一格滾輪變成一次拖曳，因為觸控螢幕沒有滾輪。
-                    //
-                    // 符號要反過來，而那正是必須弄對的地方。在動作檔格式中，`dy` 為正代表向**下**捲動
-                    // ——視口沿著內容往下移。手指要達成這件事，是往**上**移動。`dx` 亦然：向右捲動意味著
-                    // 向左拖曳。若把方向弄反，會得到一個「能運作、距離正確、方向相反」的捲動，那讀起來
-                    // 像是 app 的捲動行為古怪，而不像是 runner 寫錯了。
-                    //
-                    // 在此之前，runner 對每一列 scroll 都會拋出 `unsupported`，因此 P8、P27 與 P38
-                    // ——那三支整個主題就是捲動的 app——在 iOS 上完全沒有動作檔。
-                    let origin = pointer ?? app.windows.firstMatch.coordinate(
-                        withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+                }
+                pointer = target
+            case "scroll":
+                // A wheel notch becomes a drag, because a touch screen has no
+                // wheel.
+                //
+                // The sign inverts, and that is the part to get right. In the
+                // action-file format a positive `dy` scrolls *down* -- the
+                // viewport moves further down the content. A finger does that by
+                // moving *up*. Same for `dx`: scrolling right means dragging
+                // left. Getting this backwards produces a scroll that works,
+                // moves the right distance, and goes the wrong way, which reads
+                // as the app scrolling oddly rather than as the runner being
+                // wrong.
+                //
+                // Until this existed the runner threw `unsupported` on every
+                // scroll row, so P8, P27 and P38 -- the three apps whose whole
+                // subject is scrolling -- had no iOS action file at all.
+                //
+                // 一格滾輪變成一次拖曳，因為觸控螢幕沒有滾輪。
+                //
+                // 符號要反過來，而那正是必須弄對的地方。在動作檔格式中，`dy` 為正代表向**下**捲動
+                // ——視口沿著內容往下移。手指要達成這件事，是往**上**移動。`dx` 亦然：向右捲動意味著
+                // 向左拖曳。若把方向弄反，會得到一個「能運作、距離正確、方向相反」的捲動，那讀起來
+                // 像是 app 的捲動行為古怪，而不像是 runner 寫錯了。
+                //
+                // 在此之前，runner 對每一列 scroll 都會拋出 `unsupported`，因此 P8、P27 與 P38
+                // ——那三支整個主題就是捲動的 app——在 iOS 上完全沒有動作檔。
+                let origin = pointer ?? app.windows.firstMatch.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+                )
+                let destination = origin.withOffset(CGVector(
+                    dx: -action.x * Self.pointsPerNotch,
+                    dy: -action.y * Self.pointsPerNotch
+                ))
+                // A brief press before the drag, as the mouseup case does. A
+                // drag with no press is delivered as a flick, whose momentum
+                // carries the content past where the row asked for and leaves
+                // the next row measuring a position nobody chose.
+                // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
+                // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
+                origin.press(forDuration: 0.05, thenDragTo: destination)
+            case "pinch", "rotate":
+                // **XCUITest has these natively, which is why iOS is the one
+                // platform where this costs nothing.** `pinch(withScale:
+                // velocity:)` and `rotate(_:withVelocity:)` synthesise a real
+                // two-contact gesture; AppKit publishes no initialiser for a
+                // magnify or rotate NSEvent, and X11's XTEST has no gesture
+                // channel at all, so both of those refuse with a reason.
+                //
+                // **Aimed by the preceding `move` row, not by the window.**
+                // `x` and `y` on these two rows are the gesture's own
+                // parameters, so the aim has to come from somewhere else, and
+                // the runner already carries a pointer that `move` sets. The
+                // first driven run of P65 sent both gestures to the window's
+                // centre: rotate registered (the centre sat on the rotate
+                // panel) and the pinch did not, which reads exactly like "iOS
+                // cannot pinch". A gesture recogniser lives on one view; a
+                // gesture aimed at the middle of the window reaches whichever
+                // view happens to be there. See `gestureTarget(at:in:)`.
+                //
+                // **由前一列 `move` 瞄準,而不是由視窗瞄準。** 這兩列的 `x` 與 `y` 是手勢自己的參數,
+                // 因此瞄準必須來自別處——而 runner 本來就帶著一個由 `move` 設定的指標。P65 第一次被
+                // 驅動時,兩個手勢都送到視窗中心:旋轉登記了(中心正好落在旋轉那一格),縮放沒有,
+                // 而那讀起來完全像是「iOS 無法縮放」。一個手勢辨識器只長在一個 view 上;一個瞄準
+                // 視窗正中央的手勢,到達的是那裡剛好是誰。見 `gestureTarget(at:in:)`。
+                //
+                // **XCUITest 原生就有這兩者,而那正是 iOS 成為「這件事零成本」的唯一平台的原因。**
+                // `pinch(withScale:velocity:)` 與 `rotate(_:withVelocity:)` 會合成一次真正的
+                // 雙接觸點手勢;AppKit 沒有公開任何能造出 magnify 或 rotate `NSEvent` 的初始化式,
+                // 而 X11 的 XTEST 根本沒有手勢通道,因此那兩者都以理由拒絕。
+                //
+                // 作用在視窗上而非某個定位到的元素:這些手勢講的是「它們底下的那個 view」,
+                // 而動作檔格式不帶元素身分——此處它的 `x` 與 `y` 是這個手勢自己的參數,不是位置。
+                // 見 `InputAction.pinch`。
+                let target = gestureTarget(at: pointer, in: app)
+                if action.kind == "pinch" {
+                    let scale = CGFloat(action.x) / 100
+                    let velocity = action.y == 0 ? 1 : CGFloat(action.y) / 100
+                    target.pinch(withScale: scale, velocity: velocity)
+                } else {
+                    let radians = CGFloat(action.x) * .pi / 180
+                    let velocity =
+                        action.y == 0 ? 1 : CGFloat(action.y) * .pi / 180
+                    target.rotate(radians, withVelocity: velocity)
+                }
+            case "keydown":
+                // A MODIFIER is held; anything else cannot be.
+                //
+                // XCUITest has no press-and-hold for an ordinary key: the unit
+                // is `typeKey(_:modifierFlags:)`, one press with whatever
+                // modifiers are down. So `keydown command` accumulates a flag
+                // and `key s` spends it. `keydown s` has no expression here and
+                // throws rather than quietly typing an `s` -- a held key that
+                // silently became a tap is the kind of difference a test is
+                // supposed to notice.
+                //
+                // **按住的必須是 modifier;其他任何鍵都不行。**
+                //
+                // XCUITest 沒有「按住一個普通按鍵」這種動作:它的單位是
+                // `typeKey(_:modifierFlags:)`——一次按下,連同當時按著的那些 modifier。因此
+                // `keydown command` 累積一個旗標,而 `key s` 把它花掉。`keydown s` 在此處無法表達,
+                // 於是 throw,而不是安靜地打出一個 `s`——一個「被靜默變成單擊的長按」,正是測試本該
+                // 察覺的那種差別。
+                guard let flag = Self.modifierFlag(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "keydown \(action.key) (only modifiers can be held on iOS)",
+                        action.line
                     )
-                    let destination = origin.withOffset(CGVector(
-                        dx: -action.x * Self.pointsPerNotch,
-                        dy: -action.y * Self.pointsPerNotch
-                    ))
-                    // A brief press before the drag, as the mouseup case does. A
-                    // drag with no press is delivered as a flick, whose momentum
-                    // carries the content past where the row asked for and leaves
-                    // the next row measuring a position nobody chose.
-                    // 拖曳前先短暫按住，與 mouseup 的處理相同。沒有按住的拖曳會被視為快速滑動，其慣性
-                    // 會把內容帶過該列所要求的位置，使下一列量到的是一個沒有人選擇過的位置。
-                    origin.press(forDuration: 0.05, thenDragTo: destination)
-                case "pinch", "rotate":
-                    // **XCUITest has these natively, which is why iOS is the one
-                    // platform where this costs nothing.** `pinch(withScale:
-                    // velocity:)` and `rotate(_:withVelocity:)` synthesise a real
-                    // two-contact gesture; AppKit publishes no initialiser for a
-                    // magnify or rotate NSEvent, and X11's XTEST has no gesture
-                    // channel at all, so both of those refuse with a reason.
-                    //
-                    // **Aimed by the preceding `move` row, not by the window.**
-                    // `x` and `y` on these two rows are the gesture's own
-                    // parameters, so the aim has to come from somewhere else, and
-                    // the runner already carries a pointer that `move` sets. The
-                    // first driven run of P65 sent both gestures to the window's
-                    // centre: rotate registered (the centre sat on the rotate
-                    // panel) and the pinch did not, which reads exactly like "iOS
-                    // cannot pinch". A gesture recogniser lives on one view; a
-                    // gesture aimed at the middle of the window reaches whichever
-                    // view happens to be there. See `gestureTarget(at:in:)`.
-                    //
-                    // **由前一列 `move` 瞄準,而不是由視窗瞄準。** 這兩列的 `x` 與 `y` 是手勢自己的參數,
-                    // 因此瞄準必須來自別處——而 runner 本來就帶著一個由 `move` 設定的指標。P65 第一次被
-                    // 驅動時,兩個手勢都送到視窗中心:旋轉登記了(中心正好落在旋轉那一格),縮放沒有,
-                    // 而那讀起來完全像是「iOS 無法縮放」。一個手勢辨識器只長在一個 view 上;一個瞄準
-                    // 視窗正中央的手勢,到達的是那裡剛好是誰。見 `gestureTarget(at:in:)`。
-                    //
-                    // **XCUITest 原生就有這兩者,而那正是 iOS 成為「這件事零成本」的唯一平台的原因。**
-                    // `pinch(withScale:velocity:)` 與 `rotate(_:withVelocity:)` 會合成一次真正的
-                    // 雙接觸點手勢;AppKit 沒有公開任何能造出 magnify 或 rotate `NSEvent` 的初始化式,
-                    // 而 X11 的 XTEST 根本沒有手勢通道,因此那兩者都以理由拒絕。
-                    //
-                    // 作用在視窗上而非某個定位到的元素:這些手勢講的是「它們底下的那個 view」,
-                    // 而動作檔格式不帶元素身分——此處它的 `x` 與 `y` 是這個手勢自己的參數,不是位置。
-                    // 見 `InputAction.pinch`。
-                    let target = gestureTarget(at: pointer, in: app)
-                    if action.kind == "pinch" {
-                        let scale = CGFloat(action.x) / 100
-                        let velocity = action.y == 0 ? 1 : CGFloat(action.y) / 100
-                        target.pinch(withScale: scale, velocity: velocity)
-                    } else {
-                        let radians = CGFloat(action.x) * .pi / 180
-                        let velocity =
-                            action.y == 0 ? 1 : CGFloat(action.y) * .pi / 180
-                        target.rotate(radians, withVelocity: velocity)
-                    }
-                case "keydown":
-                    // A MODIFIER is held; anything else cannot be.
-                    //
-                    // XCUITest has no press-and-hold for an ordinary key: the unit
-                    // is `typeKey(_:modifierFlags:)`, one press with whatever
-                    // modifiers are down. So `keydown command` accumulates a flag
-                    // and `key s` spends it. `keydown s` has no expression here and
-                    // throws rather than quietly typing an `s` -- a held key that
-                    // silently became a tap is the kind of difference a test is
-                    // supposed to notice.
-                    //
-                    // **按住的必須是 modifier;其他任何鍵都不行。**
-                    //
-                    // XCUITest 沒有「按住一個普通按鍵」這種動作:它的單位是
-                    // `typeKey(_:modifierFlags:)`——一次按下,連同當時按著的那些 modifier。因此
-                    // `keydown command` 累積一個旗標,而 `key s` 把它花掉。`keydown s` 在此處無法表達,
-                    // 於是 throw,而不是安靜地打出一個 `s`——一個「被靜默變成單擊的長按」,正是測試本該
-                    // 察覺的那種差別。
-                    guard let flag = Self.modifierFlag(for: action.key) else {
-                        throw ActionFileError.unsupported(
-                            "keydown \(action.key) (only modifiers can be held on iOS)",
-                            action.line
-                        )
-                    }
-                    heldModifiers.insert(flag)
-                case "keyup":
-                    guard let flag = Self.modifierFlag(for: action.key) else {
-                        throw ActionFileError.unsupported(
-                            "keyup \(action.key) (only modifiers can be held on iOS)",
-                            action.line
-                        )
-                    }
-                    heldModifiers.remove(flag)
-                case "orient":
-                    // Turns the simulated device, as a person turning the phone does;
-                    // see `InputAction.orientation`. The app gets the same size
-                    // change and trait update a real rotation gives it.
-                    // 轉動模擬的裝置,就像一個人轉動手機那樣;見 `InputAction.orientation`。app 收到的尺寸改變與 trait
-                    // 更新,和一次真正的旋轉完全相同。
-                    let orientation: UIDeviceOrientation
-                    switch action.key {
-                        case "portrait": orientation = .portrait
-                        case "portraitUpsideDown": orientation = .portraitUpsideDown
-                        case "landscapeLeft": orientation = .landscapeLeft
-                        case "landscapeRight": orientation = .landscapeRight
-                        default:
-                            throw ActionFileError.unsupported("orient \(action.key)", action.line)
-                    }
-                    XCUIDevice.shared.orientation = orientation
-                case "key":
-                    guard let typed = Self.typedKey(for: action.key) else {
-                        throw ActionFileError.unsupported(
-                            "key \(action.key) (no XCUIKeyboardKey for it)",
-                            action.line
-                        )
-                    }
-                    // Reported before it is sent, and with the modifiers spelled
-                    // out, because a shortcut that does nothing is otherwise
-                    // indistinguishable from one that was never sent -- the same
-                    // reason the coordinate line above exists.
-                    // 在送出之前先回報,而且把 modifier 明列出來;否則「一個什麼都沒做的快捷鍵」與
-                    // 「一個從未被送出的快捷鍵」無從分辨——與上方那行座標紀錄存在的理由相同。
-                    FileHandle.standardError.write(
-                        Data(
-                            ("-actionfile: line \(action.line) key '\(action.key)' "
-                                + "modifiers=\(Self.describe(heldModifiers))\n").utf8
-                        )
+                }
+                heldModifiers.insert(flag)
+            case "keyup":
+                guard let flag = Self.modifierFlag(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "keyup \(action.key) (only modifiers can be held on iOS)",
+                        action.line
                     )
-                    app.typeKey(typed, modifierFlags: heldModifiers)
+                }
+                heldModifiers.remove(flag)
+            case "orient":
+                // Turns the simulated device, as a person turning the phone does;
+                // see `InputAction.orientation`. The app gets the same size
+                // change and trait update a real rotation gives it.
+                // 轉動模擬的裝置,就像一個人轉動手機那樣;見 `InputAction.orientation`。app 收到的尺寸改變與 trait
+                // 更新,和一次真正的旋轉完全相同。
+                let orientation: UIDeviceOrientation
+                switch action.key {
+                case "portrait": orientation = .portrait
+                case "portraitUpsideDown": orientation = .portraitUpsideDown
+                case "landscapeLeft": orientation = .landscapeLeft
+                case "landscapeRight": orientation = .landscapeRight
                 default:
-                    throw ActionFileError.unsupported(action.kind, action.line)
+                    throw ActionFileError.unsupported("orient \(action.key)", action.line)
+                }
+                XCUIDevice.shared.orientation = orientation
+            case "key":
+                guard let typed = Self.typedKey(for: action.key) else {
+                    throw ActionFileError.unsupported(
+                        "key \(action.key) (no XCUIKeyboardKey for it)",
+                        action.line
+                    )
+                }
+                // Reported before it is sent, and with the modifiers spelled
+                // out, because a shortcut that does nothing is otherwise
+                // indistinguishable from one that was never sent -- the same
+                // reason the coordinate line above exists.
+                // 在送出之前先回報,而且把 modifier 明列出來;否則「一個什麼都沒做的快捷鍵」與
+                // 「一個從未被送出的快捷鍵」無從分辨——與上方那行座標紀錄存在的理由相同。
+                FileHandle.standardError.write(
+                    Data(
+                        ("-actionfile: line \(action.line) key '\(action.key)' "
+                            + "modifiers=\(Self.describe(heldModifiers))\n").utf8
+                    )
+                )
+                app.typeKey(typed, modifierFlags: heldModifiers)
+            default:
+                throw ActionFileError.unsupported(action.kind, action.line)
             }
         }
 
@@ -625,7 +624,7 @@ private enum ActionFile {
             guard fields[0] != "action" else { return nil }
             guard fields.count >= 7 else { throw ActionFileError.malformed(line) }
             if fields.count > 8, !fields[8].isEmpty,
-               fields[8] != "any", fields[8] != "ios"
+                fields[8] != "any", fields[8] != "ios"
             {
                 throw ActionFileError.wrongPlatform(fields[8], line)
             }
@@ -635,14 +634,9 @@ private enum ActionFile {
             let y = CGFloat(Double(fields[2]) ?? 0)
             let micros = Double(fields[6]).map(TimeInterval.init) ?? 0
             return Action(
-                kind: fields[0],
-                key: fields[5],
-                x: x,
-                y: y,
+                kind: fields[0], key: fields[5], x: x, y: y,
                 origin: fields[3].isEmpty ? "client" : fields[3],
-                microseconds: micros,
-                line: line,
-                hasPosition: hasPosition
+                microseconds: micros, line: line, hasPosition: hasPosition
             )
         }
     }
@@ -684,11 +678,11 @@ private enum ActionFileError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-            case .malformed(let line): return "Malformed action file row at line \(line)"
-            case .invalidCoordinate(let line): return "Invalid iOS coordinate at line \(line)"
-            case .unsupported(let action, let line): return "Unsupported iOS action '\(action)' at line \(line)"
-            case .wrongPlatform(let platform, let line):
-                return "Action file platform '\(platform)' is not valid for iOS at line \(line)"
+        case .malformed(let line): return "Malformed action file row at line \(line)"
+        case .invalidCoordinate(let line): return "Invalid iOS coordinate at line \(line)"
+        case .unsupported(let action, let line): return "Unsupported iOS action '\(action)' at line \(line)"
+        case .wrongPlatform(let platform, let line):
+            return "Action file platform '\(platform)' is not valid for iOS at line \(line)"
         }
     }
 }
