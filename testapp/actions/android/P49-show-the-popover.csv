@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on Android: popover. Pass: the popover is anchored to its button, not
+# centred in the window. "Show the popover" is x 16-182, y 487-521.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P49 在 Android 上:popover。通過:popover 錨定在按鈕上，而不是視窗正中。
+sleep,,,,,,1500000,let P49 render,android
+click,99,504,,left,,,Show the popover -- anchored to the button,android
+sleep,,,,,,1500000,let the popover animate in,android

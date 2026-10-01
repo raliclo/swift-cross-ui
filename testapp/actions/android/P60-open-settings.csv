@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P60 on Android: open settings as a sheet, then increment from inside it.
+# Pass: a sheet titled "P60 settings" over the window, and after "+1" its count
+# reads 1. The main window's count, read after the sheet is dismissed, is the
+# shared-state half of the check; the capture shows the sheet.
+# Coordinates are POINTS (px / 2.625), measured 2026-10-01 from uiautomator dumps:
+# "open settings" x 16-146, y 425-459 on the window; "+1" x 43-85, y 808-842 in
+# the open sheet.
+# P60 在 Android 上:以 sheet 開啟設定，再在其中按 +1。通過:sheet 出現，其中 count 讀 1。
+sleep,,,,,,1500000,let P60 lay out,android
+click,81,442,,left,,,open settings -- expect a sheet over this window,android
+sleep,,,,,,1500000,let the sheet present,android
+click,64,825,,left,,,+1 inside settings -- its count must read 1,android
+sleep,,,,,,800000,let the count redraw,android

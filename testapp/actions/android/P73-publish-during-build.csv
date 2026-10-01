@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+# P73 on Android: a publish that lands while the view graph is being built.
+# Nothing is tapped. Pass: "report: done -- published while the graph may still
+# be building" and "running: no" (VERIFIED 2026-10-01). Before the ViewGraphNode
+# fix: a crash.
+# P73 在 Android 上:不需點擊。通過:report: done、running: no。
+sleep,,,,,,2000000,let P73 lay out; the publish has already happened by the first frame,android

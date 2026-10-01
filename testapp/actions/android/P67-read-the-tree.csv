@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P67 #123 on Android: read the button names from OUTSIDE, with uiautomator dump.
+# Nothing to press. Pass: the four buttons are named plain label / padded label /
+# two texts / (none) -- read 2026-10-01 from the dump: 'plain label',
+# 'padded label', 'two texts', '' (VERIFIED).
+#   adb shell uiautomator dump /sdcard/ui.xml
+# P67 在 Android 上:以 uiautomator dump 從外部讀按鈕名稱。
+sleep,,,,,,2500000,let the scene settle; dump the tree from the host,android

@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on Android: sheet, for comparison with the cover. Pass: the sheet does NOT
+# fill the window, and its text wraps inside it. "Show the sheet" is x 16-161,
+# y 590-624.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P49 在 Android 上:sheet。通過:sheet 不覆蓋整個視窗，文字在其中換行。
+sleep,,,,,,1500000,let P49 render,android
+click,88,607,,left,,,Show the sheet -- must not fill the window,android
+sleep,,,,,,1500000,let the presentation animate in,android

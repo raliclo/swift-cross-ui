@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P63 on Android: GeometryProxy.frame(in:). Pass: the global x/y readout equals
+# the black marker's top-left in the window.
+# Until 2026-10-01 this read "global: x=0 y=0": originInWindow summed getLeft()/
+# getTop(), which Android only updates on its next layout pass, and in pixels.
+# Measured after the fix: "global: x=44 y=558", the marker at x 44, y 556-558.
+# P63 在 Android 上:global x/y 必須等於黑色方塊的左上角。2026-10-01 前讀 x=0 y=0。
+sleep,,,,,,2000000,let the reader be laid out,android

@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P17-DOE on Android: the #389 clipping verdict. No controls -- three static
+# columns, each a blue viewport with an orange block centred in it. Column A is
+# on screen at launch; the page scrolls right to bring B (clipped()) in. Pass: in
+# B the orange stays inside the blue box top and bottom.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P17-DOE 在 Android 上:沒有控制項，向右捲讓 B 欄(clipped())進入畫面;B 欄的橘色必須留在藍框內。
+sleep,,,,,,1500000,let P17-DOE render,android
+move,380,650,,,,,"near the right edge, so a leftward drag stays inside the window",android
+scroll,4,0,,,,,scroll right four notches -- column B must come into view,android
+sleep,,,,,,800000,let the scroll settle,android

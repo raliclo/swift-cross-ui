@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P66 on Android: withAnimation. Pass: the SAMPLES line runs from 0.0 to 200.0 and
+# is monotonic, offset 20, flag true -- the animation interpolates rather than
+# jumping.
+#
+# Measured 2026-10-02 on the idle emulator: "SAMPLES 7 over 0.69s" and "7 over
+# 0.74s", monotonic both times; iOS gives 31 over 0.57 s. Before the main dispatch
+# queue was attached to the Looper (2026-10-01) it was 3 over 1.24 s, because the
+# 8 ms sampler only ran on the tickler's 50 ms ticks. Seven is now the animation's
+# own frame count -- each animated frame is a full update that takes about
+# 100 ms here -- and that cost is queued in queue.md.
+# P66 在 Android 上:通過:SAMPLES 由 0.0 到 200.0 且單調。目前 7 個樣本(iOS 31 個);每幀更新約 100 ms,
+# 已列入 queue.md。
+sleep,,,,,,2500000,let the animation run and be summarised,android

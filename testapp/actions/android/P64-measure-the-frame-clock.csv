@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P64 on Android: the frame clock's RATE. Pass: "PASS 1 TICKS n in ~2s" with a
+# median gap of 16.7 ms -- the Choreographer cadence.
+#
+# Measured 2026-10-02 on the idle API-36 emulator, two runs: 67 ticks in 1.78 s
+# (37.0 Hz) and 74 in 1.87 s (39.1 Hz), median 16.7 ms both times, max 166.7 and
+# 133.3 ms. The median says the clock is the display's; the rate says frames are
+# being dropped, because each tick redraws the "ticks so far" label and some of
+# those updates take several frames. That cost is queued in queue.md; this file
+# records the reading so a change in either number is visible.
+# P64 在 Android 上:frame clock 的速率。中位數 16.7 ms 代表時脈正確;約 38 Hz 代表有掉幀(每次 tick
+# 重繪標籤，部分更新耗時數幀)。成本問題已列入 queue.md。
+sleep,,,,,,4000000,let pass 1 finish and be reported,android

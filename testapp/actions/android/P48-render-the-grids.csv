@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P48 on Android: the LazyVGrid / LazyHGrid layouts. Pass: grid 1 three flexible
+# columns; grid 2 a narrow two-wide block; grid 3 several per row; grid 5 reads
+# 1/2, 3/4, 5/6 across; grid 6 has its three lanes drawn as grey bands and each
+# cell sits against the top, in the middle, and against the bottom of its band.
+# Grid 6 is below the launch screen, so the file scrolls down.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P48 在 Android 上:各格線版面。grid 6 在啟動畫面下方，所以向下捲;每個儲存格須分別貼灰帶頂端、置中、底端。
+sleep,,,,,,2000000,let the grids lay out,android
+move,200,700,,,,,the middle of the page,android
+scroll,0,8,,,,,down to grid 6 -- the grey lanes must be in the photograph,android
+sleep,,,,,,1000000,let the scroll settle,android

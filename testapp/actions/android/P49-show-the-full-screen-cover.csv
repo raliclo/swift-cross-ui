@@ -1,0 +1,10 @@
+action,x,y,origin,button,key,micros,note,platform
+# P49 on Android: fullScreenCover. Pass: the cover fills the window with no drag
+# indicator. "Show the cover" is x 16-161, y 384-418.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P49 在 Android 上:fullScreenCover。通過:cover 覆蓋整個視窗、沒有拖曳指示器。
+sleep,,,,,,1500000,let P49 render,android
+click,88,401,,left,,,Show the cover -- the cover must fill the window,android
+sleep,,,,,,1500000,let the presentation animate in,android

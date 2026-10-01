@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P59 on Android: one window, so the two-window comparison is a desktop or iPad
+# check. Pass: scene draft AAA and app draft AAA. clear goes first because both
+# drafts persist between runs. "append A" x 16-114, "clear" x 228-290, y 377-411.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P59 在 Android 上:只有一個視窗。通過:scene draft 與 app draft 都讀 AAA。先 clear。
+sleep,,,,,,1200000,let P59 render,android
+click,259,394,,left,,,clear -- both drafts persist between runs,android
+sleep,,,,,,400000,,android
+click,65,394,,left,,,append A,android
+sleep,,,,,,300000,,android
+click,65,394,,left,,,again,android
+sleep,,,,,,300000,,android
+click,65,394,,left,,,and again -- both rows must read AAA,android
+sleep,,,,,,700000,settle before the photograph,android

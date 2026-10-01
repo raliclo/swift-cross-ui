@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P15-DARK on Android: tap the one control; the dark override must still hold.
+# P15-DARK hard-codes preferredColorScheme(.dark) and has one button whose action
+# is empty. Pass: the window stays black, "Requested: dark  Resolved: dark", and
+# the button reads "A button (1)".
+# Until 2026-10-01 P15-DARK could not run on Android at all: test_android.zsh
+# refused any target that was not P<number>, and the hyphen made an invalid
+# application id. Both fixed the same day.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P15-DARK 在 Android 上:點那唯一的控制項，深色覆寫必須仍然有效。
+sleep,,,,,,1500000,let P15-DARK render,android
+click,205,494,,left,,,"A button -- must read A button (1); the window must stay dark",android
+sleep,,,,,,800000,let any configuration change land before the capture,android

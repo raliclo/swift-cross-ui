@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P52 on Android: the button-style cost benchmark runs by itself after its
+# warm-up. Pass: the three arms are drawn and the run completes; the numbers are
+# the product. Run with --debug for p52-debug-events.log.
+# P52 在 Android 上:基準測試自己跑完。
+sleep,,,,,,45000000,let the ten rounds run,android

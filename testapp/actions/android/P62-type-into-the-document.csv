@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P62 on Android: one document window. Pass: the document's text reads AA -- the
+# DocumentGroup binding redraws its window on an edit (fixed 2026-10-01).
+# "type A" x 16-88, "clear" x 176-238, y 365-399.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P62 在 Android 上:通過:文件文字讀 AA。
+sleep,,,,,,1200000,let the document window lay out,android
+click,207,382,,left,,,clear,android
+sleep,,,,,,300000,,android
+click,52,382,,left,,,type A,android
+sleep,,,,,,300000,,android
+click,52,382,,left,,,type A again -- the text must read AA,android
+sleep,,,,,,700000,settle before the photograph,android

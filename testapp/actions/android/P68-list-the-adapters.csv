@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+# P68 on Android: the graphics adapters. Pass: "adapters: 1" with the emulator's
+# GPU named under it (AOSP ranchu, 2026-10-01) and "-GPU requested: (not given,
+# so 1)".
+# P68 在 Android 上:adapters: 1,下方列出模擬器的 GPU。
+sleep,,,,,,2000000,let P68 list the adapters,android

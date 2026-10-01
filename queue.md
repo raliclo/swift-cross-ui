@@ -36,8 +36,23 @@
     its log said AA; macOS hid it because opening a second document redrew
     window 1), and a sheet whose content was wider than the window was laid
     out at that width and centred, cutting both ends of every line (P49).
-  - [ ] Android: the 20 above.
-  - [ ] **Stack ideal width undercounts (P51).** On iPhone the outer VStack
+  - [x] Android: all 20 written 2026-10-01/02, measured from uiautomator dumps and
+    replayed (sweep_android 19/19 launched; each capture read). On the way:
+    the Android host SDK (Xcode 27 Foundation interfaces the snapshot toolchain
+    cannot read) broke every Android build; test_android refused P15-DARK and
+    P17-DOE, and a hyphen made an invalid application id; an app that crashed at
+    launch still exited 0 and photographed the app behind it; P63 read global
+    x=0 y=0 (pending LayoutParams, pixels); a default popover had no panel; a
+    popover wider than the window ran off it (Android and iOS); taps aimed into a
+    sheet or popover reached the activity behind (P60); main-queue work waited
+    up to 50 ms for the tickler. All fixed.
+  - [ ] **Android per-frame update cost.** P66 gets 7 animation samples in
+    0.7 s where iOS gets 31 in 0.57 s; P64's clock has a 16.7 ms median but
+    37-39 Hz overall with 130-166 ms gaps. Each frame's SwiftCrossUI update takes
+    ~100 ms on the emulator. Needs a profile (simpleperf) before any change.
+  - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
+    redistribution offered the stack's overflowed result (522) instead of its
+    proposal (408); it now offers the smaller of the two. On iPhone the outer VStack
     reports 522 pt while the two-column HStack inside it draws to 579, so the
     root scroll host stops 57 pt short and the second column is cut even
     scrolled to the end. Not iOS-specific -- any window narrower than the two

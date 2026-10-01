@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P69 #123 on Android: accessibility modifiers, read from outside.
+# Nothing to press. Two probes, and they see different things:
+#   uiautomator dump -- Close is the button's content-desc; Delete carries the
+#     hint "Removes the file permanently"; 12:30 keeps its text and gains
+#     content-desc "Half past twelve" (all VERIFIED 2026-10-01).
+#   TalkBack -- what a reader actually says: "40 percent, Volume" and nothing for
+#     'decorative'. The dump lists the X glyph and 'decorative' as nodes and has
+#     no state-description for Volume, so those three are judged by TalkBack,
+#     not by the dump.
+# P69 在 Android 上:以 uiautomator 與 TalkBack 從外部讀無障礙屬性;Volume 的值與 decorative 的隱藏以 TalkBack 判定。
+sleep,,,,,,2500000,let the scene settle; dump the tree from the host,android

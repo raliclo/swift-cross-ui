@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P70 on Android: focus state (#122). Pass: tapping between the two fields changes
+# "focused field" and raises "focus changes heard"; after "ask both for focus" the
+# disabled button reports focused: no.
+# name field y 259-304, email y 314-359 (x 20-390); "ask both for focus" x 20-188,
+# y 491-525.
+# Coordinates are POINTS (px / 2.625 on this 420-dpi emulator), measured
+# 2026-10-01 from a uiautomator dump of the launch screen.
+# 座標是點(像素 / 2.625),2026-10-01 量自啟動畫面的 uiautomator dump。
+# P70 在 Android 上:焦點狀態。
+sleep,,,,,,800000,let the window settle,android
+click,205,337,,left,,,the email field -- the app did not ask for this,android
+sleep,,,,,,600000,,android
+click,205,282,,left,,,and back to name,android
+sleep,,,,,,600000,,android
+click,104,508,,left,,,ask both for focus -- the disabled button must be refused,android
+sleep,,,,,,800000,let the refusal be reported,android
