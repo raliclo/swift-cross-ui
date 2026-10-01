@@ -4,11 +4,17 @@
 
 1-4 first, in the order 4, 1, 2, 3 (the user's choice); the iPad plan after all four.
 
-- [ ] **4. Why the iOS executable says `sdk 15.0`.** xcodebuild links it with
-  `-target arm64-apple-ios15.0-simulator -sdk iPhoneSimulator27.0.sdk` and
-  LC_BUILD_VERSION still reads sdk 15.0 (the XCUITest runner from the same
-  Xcode reads 27.0). compile.zsh now rewrites the field with `vtool` and
-  re-signs; find the cause so the rewrite can go.
+- [x] **4. Why the iOS executable says `sdk 15.0`.** DONE 2026-10-01. The Swift
+  driver's link job hands clang `--sysroot <SDK>`; clang reads an SDK's version
+  only from `-isysroot` or $SDKROOT, so it fell back to the deployment target:
+  the logged link line re-run with `-###` gave `-platform_version ios-simulator
+  15.0.0 15.0.0`, and `15.0.0 27.0` with -isysroot. Not Homebrew's CC (an Apple
+  clang build gave the same), not swift-bundler's metadata object, not any link
+  flag (each removed in turn). Fixed at the source:
+  `testapp/iosContainer/link-sdk.xcconfig` adds `-Xclang-linker -isysroot`
+  through XCODE_XCCONFIG_FILE, and the link now writes sdk 27.0 itself. The
+  `vtool` rewrite is gone; compile.zsh only CHECKS the field and stops the build
+  if it is wrong (shown to fail on an sdk-15 copy).
 - [ ] **1. Re-aim every iOS action file.** Apps now run at native size (440x956
   points instead of a zoomed 428x926), so layouts moved; P21-lower-half already
   misses. Sweep with `testapp/sweep_apple.zsh`, read each capture against its

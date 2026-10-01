@@ -1,0 +1,14 @@
+// Applied to every iOS Simulator build of the test apps (compile.zsh sets
+// XCODE_XCCONFIG_FILE to this file for the swift-bundler / xcodebuild step).
+//
+// The Swift driver's link job gives clang `--sysroot <SDK>`, and clang reads an
+// SDK's version only from `-isysroot` or $SDKROOT. Without either it falls back
+// to the deployment target, so the executable said `sdk 15.0` while linked
+// against the iOS 27 SDK -- measured 2026-10-01 by re-running the logged link
+// line with `-###`: `"-platform_version" "ios-simulator" "15.0.0" "15.0.0"`,
+// and "15.0.0" "27.0" with -isysroot added. iOS treats an app that claims an
+// old SDK as an old app: it runs it zoomed and skips the UIScene launch check.
+//
+// $(inherited) matters: swift-bundler sets OTHER_LDFLAGS on the command line as
+// "-lmetadata ... ${OTHER_LDFLAGS}", which picks this value up.
+OTHER_LDFLAGS = $(inherited) -Xclang-linker -isysroot -Xclang-linker $(SDKROOT)

@@ -1657,6 +1657,9 @@ if [ "$target_platform" = "ios" ]; then
         touch "$bundle_started"
         (
             cd "$package_dir"
+            # The link must learn the SDK's version; see link-sdk.xcconfig.
+            # 連結步驟必須得知 SDK 的版本;見 link-sdk.xcconfig。
+            XCODE_XCCONFIG_FILE="$script_dir/iosContainer/link-sdk.xcconfig" \
             "$bundler_bin" bundle "$app_name" \
                 --platform iOSSimulator \
                 -c "$build_config" \
@@ -1689,36 +1692,28 @@ if [ "$target_platform" = "ios" ]; then
 
         app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
 
-        # **The executable must name the SDK it was linked against.** xcodebuild
-        # links it with `-target arm64-apple-ios15.0-simulator -sdk
-        # iPhoneSimulator27.0.sdk`, and the product's LC_BUILD_VERSION still reads
-        # `sdk 15.0` (measured 2026-09-30 with `vtool -show-build`; the XCUITest
-        # runner from the same Xcode reads `sdk 27.0`). iOS treats such an app
-        # as one built before the current SDK: it runs it zoomed -- a 428x926
-        # window on a 440x956 screen, so every capture was scaled 1.03x -- and
-        # skips the launch check that requires the UIScene life cycle, which
-        # UIKitBackend had never adopted. The sdk field is set to the SDK
-        # actually used and the bundle re-signed; the deployment target is kept.
+        # **The executable must name the SDK it was linked against -- checked, not
+        # patched.** Until link-sdk.xcconfig existed it said `sdk 15.0` while
+        # linked against the iOS 27 SDK, and iOS ran it as an old app: zoomed (a
+        # 428x926 window on a 440x956 screen) and without the UIScene launch
+        # check. The cause and the fix are in that file. From 2026-09-30 to
+        # 2026-10-01 this step rewrote the field with `vtool`; now the link gets
+        # it right, so a wrong value means the fix stopped applying, and the
+        # build says so instead of quietly correcting it.
         #
-        # **執行檔必須標明它實際連結的 SDK。**xcodebuild 以上述參數連結它,產物的 LC_BUILD_VERSION
-        # 卻寫著 `sdk 15.0`(2026-09-30 以 `vtool -show-build` 實測;同一個 Xcode 建出的 XCUITest
-        # runner 寫的是 `sdk 27.0`)。iOS 會把這樣的 app 當成在目前 SDK 之前建置的:它以放大方式執行
-        # ——440x956 的螢幕上一個 428x926 的視窗,所以每一張擷圖都被放大了 1.03 倍——並略過「必須採用
-        # UIScene 生命週期」的啟動檢查,而 UIKitBackend 從未採用它。此處把 sdk 欄位設為實際使用的 SDK
-        # 並重新簽署;部署目標保持不變。
+        # **執行檔必須標明它實際連結的 SDK——這裡是檢查,不是修補。**在 link-sdk.xcconfig 之前,它以
+        # iOS 27 SDK 連結卻寫著 `sdk 15.0`,而 iOS 把它當成舊 app:放大執行(440x956 的螢幕上 428x926
+        # 的視窗),且不做 UIScene 啟動檢查。原因與修正見該檔。2026-09-30 至 10-01 此步驟以 `vtool` 改寫
+        # 該欄位;現在連結本身就是對的,所以值若錯了,代表修正不再生效,建置會直接說出來而不是默默修正。
         ios_exe="$app_bundle/$app_name"
         if [ -f "$ios_exe" ]; then
             sdk_used="$(xcrun --sdk iphonesimulator --show-sdk-version)"
-            build_info="$(xcrun vtool -show-build "$ios_exe")"
-            declared_sdk="$(print -r -- "$build_info" | sed -nE 's/^ *sdk ([0-9.]+).*/\1/p' | head -1)"
-            declared_minos="$(print -r -- "$build_info" | sed -nE 's/^ *minos ([0-9.]+).*/\1/p' | head -1)"
-            if [ -n "$declared_sdk" ] && [ "$declared_sdk" != "$sdk_used" ]; then
-                echo "    LC_BUILD_VERSION sdk $declared_sdk -> $sdk_used (minos $declared_minos kept)"
-                xcrun vtool -set-build-version iossim "$declared_minos" "$sdk_used" \
-                    -replace -output "$ios_exe.sdkfix" "$ios_exe" 2>/dev/null
-                mv "$ios_exe.sdkfix" "$ios_exe"
-                chmod +x "$ios_exe"
-                codesign -f -s - "$app_bundle" >/dev/null 2>&1
+            declared_sdk="$(xcrun vtool -show-build "$ios_exe" | sed -nE 's/^ *sdk ([0-9.]+).*/\1/p' | head -1)"
+            if [ "$declared_sdk" != "$sdk_used" ]; then
+                echo "error: $app_name declares sdk '$declared_sdk' but was linked against $sdk_used." >&2
+                echo "  iOS would run it zoomed and skip the UIScene launch check." >&2
+                echo "  Check that testapp/iosContainer/link-sdk.xcconfig still reaches the link step." >&2
+                exit 1
             fi
         fi
 
