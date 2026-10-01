@@ -133,7 +133,16 @@ struct P62EditorView: View {
     ///
     /// 使用由計數器初始化的 `@State`，而非由外部傳入的值：那個編輯器 closure 只收到 document
     /// binding，沒有東西可傳；而兩個由同一個 closure 建出來的視窗，否則在截圖裡無從分辨。
-    @State var windowNumber = P62EditorView.nextWindowNumber()
+    ///
+    /// The number is taken in `onAppear`, not in the initial-value expression.
+    /// That expression runs every time the view struct is built, and the
+    /// window rebuilds its content on every edit, so the counter ran on: the
+    /// second window read "window 7" on 2026-10-01. `@State` kept only the
+    /// first value, but each rebuild still spent one.
+    /// 號碼在 `onAppear` 取得，而不是在初始值運算式裡。那個運算式在每次建立 view struct 時都會
+    /// 執行，而視窗在每次編輯時都會重建內容，於是計數器一直往上加:2026-10-01 第二個視窗顯示
+    /// 「window 7」。`@State` 只保留第一個值，但每次重建仍會耗掉一個號碼。
+    @State var windowNumber = 0
 
     nonisolated(unsafe) static var windowCounter = 0
     static func nextWindowNumber() -> Int {
@@ -175,6 +184,9 @@ struct P62EditorView: View {
         }
         .padding(16)
         .onAppear {
+            if windowNumber == 0 {
+                windowNumber = P62EditorView.nextWindowNumber()
+            }
             P62Diagnostics.write("window \(windowNumber) appeared")
             P62Diagnostics.renderComplete()
         }

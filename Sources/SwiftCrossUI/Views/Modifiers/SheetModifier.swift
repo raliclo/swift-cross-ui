@@ -229,6 +229,27 @@ struct SheetModifier<Content: View, SheetContent: View>: TypeSafeView {
                     environment: sheetEnvironment
                 )
                 result = children.sheetContentNode!.commit()
+            } else {
+                // A sheet is never wider than the window it is presented on.
+                // The ideal size of text is one unwrapped line, and a UIKit
+                // page sheet is as wide as the phone whatever it is told, so
+                // P49's sheet was laid out 600-odd points wide and centred in
+                // 440: both ends of every line were cut off (2026-10-01). Only
+                // content wider than the window gets the second pass, so a
+                // sheet that already fits is laid out exactly as before.
+                // sheet 永遠不會比呈現它的視窗寬。文字的理想尺寸是一整行不換行,而 UIKit 的 page
+                // sheet 不論被告知什麼都與手機同寬,因此 P49 的 sheet 被排成六百多點寬、置中在 440
+                // 點裡:每一行的兩端都被截掉(2026-10-01)。只有比視窗寬的內容才走第二輪,已經放得下
+                // 的 sheet 排版與先前完全相同。
+                let windowSize = backend.size(ofWindow: window as! NewBackend.Window)
+                if result.size.width > Double(windowSize.x) {
+                    _ = children.sheetContentNode!.computeLayout(
+                        with: sheetContent(),
+                        proposedSize: ProposedViewSize(Double(windowSize.x), nil),
+                        environment: sheetEnvironment
+                    )
+                    result = children.sheetContentNode!.commit()
+                }
             }
 
             let preferences = result.preferences
