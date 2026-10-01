@@ -39,23 +39,47 @@ extension AndroidBackend: BackendFeatures.WidgetGeometry {
         // `typealias Widget = AndroidKit.View`——因此沒有東西需要解開，這與「`Widget` 持有一個 view」
         // 的 UIKit 那一半不同。
         let view = widget
+        guard view.getParent() != nil else { return nil }
 
+        // Positions are read from what SwiftCrossUI SET, not from where Android
+        // last laid the view out. `setPosition` writes a CustomContainer
+        // LayoutParams and Android applies it on its NEXT layout pass, so
+        // `getLeft()`/`getTop()` asked during the update that placed a view
+        // still say 0 -- P63 read "global: x=0 y=0" on every run (2026-10-01).
+        // The pending LayoutParams are the position SwiftCrossUI computed;
+        // `getLeft()`/`getTop()` are used only for views it did not place
+        // (the activity's own decor). Pixels, scaled back to points at the end,
+        // and a scrolling parent's offset is subtracted so that `.global`
+        // follows the content as it scrolls.
+        // 位置讀自 SwiftCrossUI **設定**的值，而不是 Android 上一次排版的結果。`setPosition` 寫入的是
+        // CustomContainer 的 LayoutParams,Android 要到**下一次**排版才套用，所以在放置某 view 的那次
+        // 更新中詢問 `getLeft()`/`getTop()`,得到的仍是 0——P63 每次都讀到 "global: x=0 y=0"
+        // (2026-10-01)。待套用的 LayoutParams 就是 SwiftCrossUI 算出的位置;`getLeft()`/`getTop()`
+        // 只用於它沒有放置的 view(activity 自身的 decor)。單位是像素，最後換回點;捲動中父節點的位移
+        // 會被扣除，好讓 `.global` 隨內容捲動。
         var x: Int32 = 0
         var y: Int32 = 0
         var current: AndroidKit.View? = view
         var hops = 0
         while let node = current, hops < 64 {
-            x += node.getLeft()
-            y += node.getTop()
+            if let params = node.getLayoutParams()?.as(CustomContainer.LayoutParams.self) {
+                x += params.getX()
+                y += params.getY()
+            } else {
+                x += node.getLeft()
+                y += node.getTop()
+            }
             current = node.getParent()?.as(View.self)
+            if let parent = current {
+                x -= parent.getScrollX()
+                y -= parent.getScrollY()
+            }
             hops += 1
         }
-        // A view that has never been attached reports zero for every hop, which
-        // is indistinguishable from one at the corner. `getParent()` being nil
-        // on the FIRST hop is the signal that it is not in a tree at all.
-        // 一個從未被附加過的 view，每一跳都回報零——那與一個位於角落的 view 無從分辨。真正的訊號是
-        // 「**第一跳**的 `getParent()` 就是 nil」，那代表它根本不在任何樹裡。
-        guard view.getParent() != nil else { return nil }
-        return SIMD2(Int(x), Int(y))
+        let density = view.getResources().getDisplayMetrics().density
+        return SIMD2(
+            Int((Float(x) / density).rounded()),
+            Int((Float(y) / density).rounded())
+        )
     }
 }

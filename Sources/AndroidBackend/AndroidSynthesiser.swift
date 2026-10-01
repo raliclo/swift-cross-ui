@@ -931,9 +931,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         let dispatched = Self.onMainThread {
             guard let activity = AndroidBackend.activity else { return false }
-            if !activity.hasWindowFocus() {
-                Self.reportPopupOnce()
-            }
+            let frontWindowHasFocus = !activity.hasWindowFocus()
 
             var properties: [MotionEvent.PointerProperties?] = []
             var coordinates: [MotionEvent.PointerCoords?] = []
@@ -969,7 +967,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                     Int32(0) // flags
                 )
             else { return false }
-            _ = activity.dispatchTouchEvent(event)
+            Self.deliver(event, activity: activity, frontWindowHasFocus: frontWindowHasFocus)
             event.recycle()
             return true
         }
@@ -978,6 +976,30 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             throw SynthesiserError.unsupported("posting a touch without an activity")
         }
         return down
+    }
+
+    /// To the activity, or -- when a sheet or popover of this app has focus --
+    /// to that window instead. Until 2026-10-01 every touch went to the
+    /// activity, so a tap aimed inside a sheet pressed whatever lay behind it
+    /// (P60's "+1"). Platform menus and dropdowns are not reachable this way
+    /// and are still reported.
+    /// 交給 activity;若本 app 的某個 sheet 或 popover 有焦點，則改交給那個視窗。2026-10-01 之前
+    /// 每一次觸控都交給 activity,因此瞄準 sheet 內部的點擊按到的是它後方的東西(P60 的「+1」)。
+    /// 平台的選單與下拉仍無法以此碰到，照樣會回報。
+    private static func deliver(
+        _ event: MotionEvent,
+        activity: Activity,
+        frontWindowHasFocus: Bool
+    ) {
+        if frontWindowHasFocus {
+            if let frontWindows = try? JavaClass<FrontWindows>(),
+                frontWindows.dispatch(activity, event)
+            {
+                return
+            }
+            reportPopupOnce()
+        }
+        _ = activity.dispatchTouchEvent(event)
     }
 
     private var actionDown: Int32 {
@@ -1067,9 +1089,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
             //
             // 失去視窗焦點就是那個訊號，而且它是精確的：一個 activity 除非有另一個視窗奪走了焦點，
             // 否則就擁有視窗焦點；而對這支 app 而言，那個「另一個視窗」就是彈出視窗。
-            if !activity.hasWindowFocus() {
-                Self.reportPopupOnce()
-            }
+            let frontWindowHasFocus = !activity.hasWindowFocus()
             guard
                 let event = try? JavaClass<MotionEvent>().obtain(
                     down,
@@ -1080,7 +1100,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                     Int32(0)
                 )
             else { return false }
-            _ = activity.dispatchTouchEvent(event)
+            Self.deliver(event, activity: activity, frontWindowHasFocus: frontWindowHasFocus)
             event.recycle()
             return true
         }
@@ -1188,6 +1208,19 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 座標：299 點在 density 2.625 下是 785 像素，而「Increment counter」位於 942——785 落在分頁列上。
     /// 按下分頁按鈕會清空視窗，而在同一個按鈕上執行 `adb shell input tap` 也會，因此那屬於
     /// AndroidBackend，不屬於本檔。詳見 `bugs/bug-Android.md`。
+}
+
+/// Sheets and popovers in front of the activity -- see FrontWindows.kt.
+/// activity 前方的 sheet 與 popover——見 FrontWindows.kt。
+@JavaClass("dev.swiftcrossui.androidbackend.FrontWindows")
+class FrontWindows: JavaObject {}
+
+extension JavaClass<FrontWindows> {
+    /// Delivers a touch given in activity-window coordinates to the focused
+    /// sheet or popover; false when the activity's own window has focus.
+    /// 把以 activity 視窗座標表示的觸控交給有焦點的 sheet 或 popover;activity 自己的視窗有焦點時回傳 false。
+    @JavaStaticMethod
+    func dispatch(_ activity: Activity?, _ event: MotionEvent?) -> Bool
 }
 
 extension Activity {

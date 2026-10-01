@@ -62,6 +62,19 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
 
     var preferredEdge: Int = EDGE_PLATFORM
 
+    // Registered while shown, so the synthesiser can reach the popover -- see
+    // FrontWindows. Every showAsDropDown overload ends in this one.
+    // 顯示期間登記，好讓 synthesiser 碰得到 popover——見 FrontWindows。每個 showAsDropDown 多載最終都走這一個。
+    override fun showAsDropDown(anchor: View?, xoff: Int, yoff: Int, gravity: Int) {
+        super.showAsDropDown(anchor, xoff, yoff, gravity)
+        contentView?.rootView?.let { FrontWindows.add(it) }
+    }
+
+    override fun dismiss() {
+        contentView?.rootView?.let { FrontWindows.remove(it) }
+        super.dismiss()
+    }
+
     private var panelColor: Int = Color.WHITE
     private var hasPanelColor: Boolean = false
 
@@ -126,9 +139,25 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
     /// 尾巴,會吃掉它一行內容。
     fun applyArrow(edge: Int, arrowPx: Int, anchorWidthPx: Int, anchorHeightPx: Int) {
         if (edge == EDGE_PLATFORM || arrowPx <= 0) {
-            setBackgroundDrawable(null)
+            // A panel without an arrow, never no panel. This used to set a
+            // null background, and a PopupWindow with none is transparent: the
+            // default popover -- no preferred arrow edge, which is what most
+            // code asks for -- drew its text straight over the page beneath it
+            // (P49 on Android, 2026-10-01).
+            // 沒有箭頭的面板，而不是沒有面板。這裡原本把背景設為 null,而沒有背景的 PopupWindow 是
+            // 透明的:預設的 popover(未指定箭頭方向，也是多數程式碼的寫法)把文字直接畫在下方頁面上
+            // (Android 上的 P49,2026-10-01)。
+            setBackgroundDrawable(
+                android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = dp(12f).toFloat()
+                    setColor(if (hasPanelColor) panelColor else themeBackground())
+                }
+            )
+            elevation = dp(8f).toFloat()
             return
         }
+        elevation = dp(8f).toFloat()
 
         val corner = dp(12f)
         val horizontal = edge == EDGE_LEADING || edge == EDGE_TRAILING

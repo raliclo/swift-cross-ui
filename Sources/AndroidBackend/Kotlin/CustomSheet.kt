@@ -52,6 +52,19 @@ class CustomSheet(var content: View?) : BottomSheetDialogFragment() {
         return dialog
     }
 
+    // Registered while shown, so the synthesiser can reach the sheet -- see
+    // FrontWindows.
+    // 顯示期間登記，好讓 synthesiser 碰得到 sheet——見 FrontWindows。
+    override fun onStart() {
+        super.onStart()
+        dialog?.window?.decorView?.let { FrontWindows.add(it) }
+    }
+
+    override fun onStop() {
+        dialog?.window?.decorView?.let { FrontWindows.remove(it) }
+        super.onStop()
+    }
+
     override fun onCancel(dialog: DialogInterface) {
         onDismissListener?.call()
         super.onCancel(dialog)

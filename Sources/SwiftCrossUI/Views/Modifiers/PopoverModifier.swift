@@ -154,9 +154,29 @@ struct PopoverModifier<Content: View, PopoverContent: View>: TypeSafeView {
                 proposedSize: .unspecified,
                 environment: environment.with(\.dismiss, dismissAction)
             )
-            let result = children.popoverContentNode!.commit()
+            var result = children.popoverContentNode!.commit()
 
             let window = environment.window!
+
+            // Ideal size, but never wider than the window less a 16-point
+            // margin each side. The ideal width of text is one unwrapped line,
+            // so P49's popover ran off the right edge of the phone on Android
+            // and on iOS (2026-10-01) -- the same defect SheetModifier has the
+            // same guard for. Content that already fits is laid out once, as
+            // before.
+            // 理想尺寸，但絕不寬於「視窗寬減去兩側各 16 點」。文字的理想寬度是一整行不換行，因此 P49
+            // 的 popover 在 Android 與 iOS 上都跑出手機右緣(2026-10-01)——與 SheetModifier 以同一道
+            // 防護處理的是同一個缺陷。已經放得下的內容與先前一樣只排版一次。
+            let windowWidth = Double(backend.size(ofWindow: window as! NewBackend.Window).x)
+            let widest = max(windowWidth - 32, 0)
+            if result.size.width > widest {
+                _ = children.popoverContentNode!.computeLayout(
+                    with: popoverContent(),
+                    proposedSize: ProposedViewSize(widest, nil),
+                    environment: environment.with(\.dismiss, dismissAction)
+                )
+                result = children.popoverContentNode!.commit()
+            }
             // The same field `SheetModifier` reads, from the same place: the
             // content's own commit result. `presentationBackground` was already
             // a modifier and a `PreferenceValues` field before this -- only the

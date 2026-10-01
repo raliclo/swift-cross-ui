@@ -1,6 +1,7 @@
 module AndroidBackendShim [system] {
   header "header.h"
   link "log"
+  link "android"
 
   export *
 }

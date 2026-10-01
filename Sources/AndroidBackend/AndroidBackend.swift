@@ -402,6 +402,21 @@ public final class AndroidBackend: BaseAppBackend {
     public func runMainLoop(
         _ callback: @escaping @MainActor () -> Void
     ) {
+        // Main-queue work runs when it is enqueued, not at the tickler's next
+        // 50 ms tick -- see `android_attach_main_queue_to_looper` in
+        // AndroidBackendShim. The tickler stays: Foundation `Timer`s on
+        // RunLoop.main still need the run loop itself to be run.
+        // 主佇列的工作在被排入時就執行，而不是等 tickler 下一次 50 ms 的 tick——見
+        // AndroidBackendShim 的 `android_attach_main_queue_to_looper`。tickler 保留:RunLoop.main
+        // 上的 Foundation `Timer` 仍需要 run loop 本身被執行。
+        let attached = android_attach_main_queue_to_looper()
+        if attached != 0 {
+            logger.warning(
+                "main dispatch queue not attached to the Looper; main-actor work waits for the 50 ms tick",
+                metadata: ["status": "\(attached)"]
+            )
+        }
+
         let tickler = MainRunLoopTickler(environment: Self.env)
         tickler.start()
         self.tickler = tickler

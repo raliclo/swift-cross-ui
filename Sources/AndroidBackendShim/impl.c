@@ -1,6 +1,10 @@
 #include "header.h"
 
 #include <stdio.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <android/looper.h>
 
 void android_log(int priority, const char *tag, const char *message) {
     __android_log_write(priority, tag, message);
@@ -40,4 +44,62 @@ void android_log(int priority, const char *tag, const char *message) {
 void android_configure_stdio(void) {
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
+}
+
+// The main dispatch queue, drained when it has work rather than when polled.
+//
+// Until 2026-10-01 the only thing that drained it was MainRunLoopTickler, which
+// runs RunLoop.main from a Handler posted every 50 ms at most. libdispatch hands
+// main-queue work to a run loop by signalling a file descriptor; nothing was
+// watching that descriptor, so every `Task { @MainActor }`,
+// `DispatchQueue.main.async` and `asyncAfter` waited for the next tick. P66's
+// 8 ms sampler saw 3 values of a 0.5 s animation where iOS saw 31, and every
+// runInMainThread on Android carried up to 50 ms of latency.
+//
+// The descriptor is an eventfd on Linux-family platforms. The Looper watches it
+// and calls back on the main thread; the callback empties the counter (the
+// descriptor is set non-blocking first, so an empty counter cannot block) and
+// drains the queue exactly as CFRunLoop would.
+//
+// 主 dispatch 佇列，在它有工作時就排空，而不是被輪詢時才排空。
+//
+// 2026-10-01 之前，唯一排空它的是 MainRunLoopTickler——它從一個最多每 50 ms 投遞一次的 Handler
+// 執行 RunLoop.main。libdispatch 是以「對一個檔案描述子發訊號」把主佇列的工作交給 run loop 的;沒有
+// 任何東西在看那個描述子，所以每一個 `Task { @MainActor }`、`DispatchQueue.main.async` 與
+// `asyncAfter` 都要等下一次 tick。P66 的 8 ms 取樣器在 0.5 秒的動畫中只看到 3 個值，iOS 看到 31 個;
+// Android 上每一次 runInMainThread 都帶著最多 50 ms 的延遲。
+//
+// 在 Linux 系平台上那個描述子是一個 eventfd。Looper 監看它並在主執行緒回呼;回呼先清空計數(描述子
+// 事先設為非阻塞，計數為空時不會卡住),再如 CFRunLoop 一樣排空佇列。
+extern int _dispatch_get_main_queue_handle_4CF(void);
+extern void _dispatch_main_queue_callback_4CF(void *msg);
+
+static int android_main_queue_ready(int fd, int events, void *data) {
+    (void)events;
+    (void)data;
+    uint64_t count;
+    while (read(fd, &count, sizeof count) > 0) {
+    }
+    _dispatch_main_queue_callback_4CF(NULL);
+    return 1; // keep watching
+}
+
+int android_attach_main_queue_to_looper(void) {
+    ALooper *looper = ALooper_forThread();
+    if (looper == NULL) {
+        return -1;
+    }
+    int fd = _dispatch_get_main_queue_handle_4CF();
+    if (fd < 0) {
+        return -2;
+    }
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags >= 0 && !(flags & O_NONBLOCK)) {
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+    if (ALooper_addFd(looper, fd, ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT,
+                      android_main_queue_ready, NULL) != 1) {
+        return -3;
+    }
+    return 0;
 }
