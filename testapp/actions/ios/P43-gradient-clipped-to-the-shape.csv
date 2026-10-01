@@ -50,5 +50,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 沒有，因此兩個實作差一個正負號，而對稱的漸層會把它藏起來。
 move,380,760,client,,,,"the right side, below the shapes, so a leftward drag stays inside the window",ios
 sleep,,,,,,400000,,ios
-scroll,6,0,,,,,"the page must move left until the stroked circle is whole (VERIFIED: the ring is complete, its middle is empty, and the gradient runs red at the top to blue at the bottom around it)",ios
+scroll,7,0,,,,,"(7 notches from 2026-10-01: at native size 6 left the ring's right edge about 4 pt off screen) the page must move left until the stroked circle is whole (VERIFIED: the ring is complete, its middle is empty, and the gradient runs red at the top to blue at the bottom around it)",ios
 sleep,,,,,,900000,let the scroll settle,ios

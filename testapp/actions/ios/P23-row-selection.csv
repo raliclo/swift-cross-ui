@@ -38,7 +38,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-16 於 #125 的 sortOrder 為 P23 增加一列控制項之後重新量過:那張表往下移,而一個差了一列的
 # 座標仍然會選到**某個東西**,因此抓到它的是那行讀數。
 sleep,,,,,,900000,let the scene settle before anything is selected,ios
-click,100,632,client,left,,,row 5 -- a tap the app never asked for; index 4,ios
+click,100,615,client,left,,,"row 5 -- a tap the app never asked for; index 4 (re-aimed 2026-10-01 at native size: row 1 at y 534, rows 20 pt apart, so row 5 is y 615; y 632 is row 6)",ios
 sleep,,,,,,700000,let the binding be written and the band drawn,ios
 click,182,317,client,left,,,Clear selection -- the band must go,ios
 sleep,,,,,,700000,,ios

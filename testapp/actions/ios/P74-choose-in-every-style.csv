@@ -18,7 +18,7 @@ click,158,262,client,left,,,segmented: Three -- segmented -> Three,ios
 sleep,,,,,,600000,,ios
 click,60,399,client,left,,,radioGroup: Blue -- radioGroup -> Blue,ios
 sleep,,,,,,600000,,ios
-click,180,626,client,left,,,wheel: Wed -- a tap on a visible row selects it -- wheel -> Wed,ios
+click,180,612,client,left,,,"(re-aimed 2026-10-01 at native size: the wheel's centre row is y 550 and rows are 31 pt apart, so Wed -- two below Mon -- is y 612; (180,626) selected Thu) wheel: Wed",ios
 sleep,,,,,,1200000,let the wheel settle,ios
 click,60,789,client,left,,,"the DISABLED radio group's Green -- must be refused: radioGroup must still read Blue",ios
 sleep,,,,,,1000000,settle before the photograph,ios

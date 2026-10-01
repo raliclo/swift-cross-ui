@@ -41,7 +41,7 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-16 量自 p23-ios-final-20260916-190215.png,1320 x 2868 px,px/3 -> 440 x 956 pt。
 # origin=client,模式為 actualView。表格的標題帶始於 pt 518、高 24 pt;四欄中的第 3 欄跨 pt 330 到 440。
 sleep,,,,,,900000,let the scene settle before anything is sorted,ios
-click,371,525,client,left,,,the Number header -- column 3; this must become ascending,ios
+click,371,513,client,left,,,"the Number header -- column 3; this must become ascending (re-aimed 2026-10-01 at native size: the header spans 321-422 x 501-525, and y 525 is its bottom edge; the sweep read sort: none)",ios
 sleep,,,,,,800000,let the arrow be drawn and the rows re-sort,ios
-click,371,525,client,left,,,"the SAME header again: descending, not a restart",ios
+click,371,513,client,left,,,"the SAME header again: descending, not a restart",ios
 sleep,,,,,,900000,let the rows reverse before the capture,ios

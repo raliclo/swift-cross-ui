@@ -15,10 +15,17 @@
   through XCODE_XCCONFIG_FILE, and the link now writes sdk 27.0 itself. The
   `vtool` rewrite is gone; compile.zsh only CHECKS the field and stops the build
   if it is wrong (shown to fail on an sdk-15 copy).
-- [ ] **1. Re-aim every iOS action file.** Apps now run at native size (440x956
-  points instead of a zoomed 428x926), so layouts moved; P21-lower-half already
-  misses. Sweep with `testapp/sweep_apple.zsh`, read each capture against its
-  file's assertion, re-measure the misses.
+- [x] **1. Re-aim every iOS action file.** DONE 2026-10-01. Apps now run at
+  native size (440x956 points instead of a zoomed 428x926), so layouts moved.
+  Swept all 84 files, read each capture against its file's assertion, re-aimed
+  the misses (P2 P3 P13 P17 P21 ×2 P22 P23 ×5 P33 P43 P44 P45 ×2 P46 P74 P75
+  save) and replayed every re-aimed file until its capture showed the
+  assertion. Two tools came out of it: `testapp/test_support/ios_aim_check.py`
+  checks each positioned row against the accessibility tree, and the iOS runner
+  takes a `dumptree` row that prints the tree mid-file, for targets that only
+  sit where they do after earlier rows (P17's More height was mis-aimed from a
+  capture taken after the closing scroll). P75 deletes last run's saved file on
+  launch so the save file is repeatable.
 - [ ] **2. Write the missing action files.** iOS 14: P47 P48 P49 P51 P52 P58
   P59 P61 P62 P63 P64 P66 P68 P70 (captured 2026-09-30, but at the zoomed size
   -- re-measure). Android 20: P15-DARK P17-DOE P47 P48 P49 P51 P52 P59 P60 P61

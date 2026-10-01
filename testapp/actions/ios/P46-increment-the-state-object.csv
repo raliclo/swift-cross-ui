@@ -49,5 +49,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-08 已重放並驗證:重放 3 個動作、XCUITest EXECUTE SUCCEEDED,其後的擷取讀作
 # 「P46Model constructions: 1」、「model.count = 1」與「observed child sees count = 1」。
 sleep,,,,,,1500000,let P46 lay out its sections,ios
-click,78,632,client,left,,,"the ""Increment model"" button, at (78, 632) on p46-ios-final-20260928-061213.png, where a tap at (85, 670) had left model.count at 0 (VERIFIED 2026-09-28: count 1, constructions 1, child 1, p46-ios-final-20260928-064025.png) -- model.count must read 1, P46Model constructions must still read 1, and the observed child must read 1",ios
+click,76,615,client,left,,,"(re-aimed 2026-10-01 at native size: Button 'Increment model' spans 12-141 x 604-626) the ""Increment model"" button, at (78, 632) on p46-ios-final-20260928-061213.png, where a tap at (85, 670) had left model.count at 0 (VERIFIED 2026-09-28: count 1, constructions 1, child 1, p46-ios-final-20260928-064025.png) -- model.count must read 1, P46Model constructions must still read 1, and the observed child must read 1",ios
 sleep,,,,,,1200000,let the three lines redraw,ios

@@ -10,5 +10,5 @@ action,x,y,origin,button,key,micros,note,platform
 sleep,,,,,,1500000,let P75 render,ios
 click,122,542,client,left,,,Save...,ios
 sleep,,,,,,3000000,let the export browser open,ios
-click,382,118,client,left,,,"Save, top right of the export browser (it opens in the app's own folder, debugTarget, with Save as p75-saved)",ios
+click,385,104,client,left,,,"(re-aimed 2026-10-01 to the centre of Save, x 354-416 and y 86-122 on screen; (382,118) sat on its bottom edge and the export browser stayed open) Save, top right of the export browser (it opens in the app's own folder, debugTarget, with Save as p75-saved)",ios
 sleep,,,,,,2500000,let the file move and P75 write and read it back,ios

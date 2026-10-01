@@ -23,9 +23,9 @@ sleep,,,,,,800000,,ios
 move,20,600,client,,,,,ios
 scroll,0,8,,,,,"to the bottom (verified 2026-09-29: p21-ios-final-20260929-235353.png shows Nothing here)",ios
 sleep,,,,,,1000000,,ios
-click,60,596,client,left,,,the SecureField -- takes focus,ios
+click,60,608,client,left,,,"(re-aimed 2026-10-01 at native size from the scrolled capture: the SecureField's dots at y 608; (60,596) left seven dots and no keyboard) the SecureField -- takes focus",ios
 sleep,,,,,,800000,let the keyboard settle,ios
-click,60,528,client,left,,,the DISABLED TextField,ios
+click,60,541,client,left,,,"(re-aimed 2026-10-01: the disabled field at y 541) the DISABLED TextField",ios
 sleep,,,,,,500000,,ios
 key,,,,,q,,"refused: the q lands in the SecureField and the label still reads editable; accepted: the label reads editableq. VERIFIED 2026-09-29 (p21-ios-final-20260929-235515.png): label editable, SecureField shows ONE dot -- a UITextField with isSecureTextEntry clears when editing begins, so the seven dots became the q alone",ios
 sleep,,,,,,1000000,settle before the photograph,ios

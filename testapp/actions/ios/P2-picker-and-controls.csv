@@ -13,17 +13,24 @@ action,x,y,origin,button,key,micros,note,platform
 # Note the app is clipped horizontally on this screen: the TextEditor block and
 # its "border check" heading start left of x=0. Nothing below is measured from
 # the clipped region.
-click,55,84,client,left,,,"the actualView control -- switch to rwdView, which scales P2 to the screen's width. P2's content is centred and wider than the phone, so in actualView its right-hand controls move further right each time something widens it, and a scroll offset measured before a tap is wrong after it (2026-09-27). Every coordinate below is from a capture in rwdView.",ios
-sleep,,,,,,1000000,let the scale settle,ios
-click,353,105,client,left,,,Use expanded Picker options -- "options: 2" must rise,ios
-sleep,,,,,,400000,let the picker rebuild,ios
-click,219,137,client,left,,,"open the Flavor picker -- the menu lists Vanilla, Chocolate, Strawberry, Mint, Coffee (p2-ios-final-20260928-074131.png)",ios
-sleep,,,,,,1000000,let the menu open,ios
-click,258,231,client,left,,,Chocolate -- Selected: Chocolate and changes: 1,ios
-sleep,,,,,,800000,let the menu close,ios
-click,325,137,client,left,,,"Reset -- the capture must read Selected: Vanilla, changes: 1. Not 0: Reset writes pickerChangeCount = 0 and selectedFlavor = Vanilla, and the second write fires onChange(of: selectedFlavor), which counts it -- as SwiftUI's onChange does for any change, programmatic included. Each miss reads differently: a missed Reset leaves Chocolate, 1; a missed Chocolate leaves Vanilla, 0. (A version that picked Strawberry afterwards ended at changes: 2 whether Reset landed or not, p2-ios-final-20260928-074239.png.)",ios
+#
+# RE-MEASURED 2026-10-01 at native size (440x956; until 2026-09-30 the app ran
+# zoomed at 428x926 -- see testapp/iosContainer/link-sdk.xcconfig). The file no
+# longer switches to rwdView: the tap on the mode control did not switch it at
+# native size, and in actualView every control used here stays put -- after
+# Chocolate the capture still shows Reset at (408,187). Centres from the
+# accessibility tree (testapp/test_support/ios_aim_check.py); the Switches run
+# past x=440, so their taps are on the visible part.
+sleep,,,,,,1500000,let P2 render,ios
+click,430,148,client,left,,,"Use expanded Picker options switch -- ""options: 2"" must become 5",ios
+sleep,,,,,,600000,let the picker rebuild,ios
+click,268,186,client,left,,,"open the Flavor picker -- the menu lists Vanilla, Chocolate, Strawberry, Mint, Coffee",ios
+sleep,,,,,,1200000,let the menu open,ios
+click,133,248,client,left,,,"Chocolate -- Selected: Chocolate, options: 5, changes: 1 (VERIFIED 2026-10-01 at native size)",ios
+sleep,,,,,,1000000,let the menu close,ios
+click,408,187,client,left,,,"Reset -- the capture must read Selected: Vanilla, changes: 1. Not 0: Reset writes pickerChangeCount = 0 and selectedFlavor = Vanilla, and the second write fires onChange(of: selectedFlavor), which counts it -- as SwiftUI's onChange does for any change, programmatic included. Each miss reads differently: a missed Reset leaves Chocolate, 1; a missed Chocolate leaves Vanilla, 0. (A version that picked Strawberry afterwards ended at changes: 2 whether Reset landed or not, p2-ios-final-20260928-074239.png.)",ios
 sleep,,,,,,400000,let the label redraw,ios
-click,353,439,client,left,,,Enable button row -- the row below must become enabled,ios
+click,430,570,client,left,,,Enable button row switch -- the row below must become enabled,ios
 sleep,,,,,,400000,let the row redraw,ios
-click,215,475,client,left,,,"Always enabled -- its label must read Always enabled (1). P2 counts presses in the label from 2026-09-28; the action was empty before, so nothing could show it acted (VERIFIED 2026-09-28: Selected: Vanilla, options: 5, changes: 1; Always enabled (1); the row enabled -- p2-ios-final-20260928-074332.png)",ios
+click,270,625,client,left,,,"Always enabled -- its label must read Always enabled (1). P2 counts presses in the label from 2026-09-28; the action was empty before, so nothing could show it acted (VERIFIED 2026-09-28: Selected: Vanilla, options: 5, changes: 1; Always enabled (1); the row enabled -- p2-ios-final-20260928-074332.png)",ios
 sleep,,,,,,500000,let the last state settle,ios

@@ -44,5 +44,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 2026-09-02 量自 testapp/output/screenshots/p13-after-splitfix.png。
 # iPhone 16 模擬器，視窗 393 x 852 pt，擷取 1179 x 2556 px，故為 px/3。
 # origin=client，模式為 actualView（預設）——沒有任何東西被縮放，因此這些就是 app 自己排版時的座標。
-click,287,498,client,left,,,"Narrower (400) -- the label must become (340) and the split view must re-lay out its two panes at the new width (VERIFIED: status reads 340 px wide and the sidebar pane moved with the frame)",ios
+click,279,486,client,left,,,"(re-aimed 2026-10-01 at native size: Button 'Narrower (400)' spans 220-338 x 475-497) Narrower (400) -- the label must become (340) and the split view must re-lay out its two panes at the new width (VERIFIED: status reads 340 px wide and the sidebar pane moved with the frame)",ios
 sleep,,,,,,700000,let the split view settle,ios

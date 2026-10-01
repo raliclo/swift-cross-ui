@@ -18,9 +18,9 @@ action,x,y,origin,button,key,micros,note,platform
 # 啟動值,擷圖分不出它與兩下都落空的一次。現在任一步落空都會停在別處:Wider 落空停在 200,少一次 Narrower
 # 停在 300。段落變窄時會重排並把按鈕往下推——300 與 250 時 3 行(按鈕在 y 710),200 時 5 行(按鈕在
 # y 755)——因此每一列都量自它所面對的版面。
-click,48,710,client,left,,,Narrower -- 300 -> 250pt,ios
-sleep,,,,,,600000,let the paragraph rewrap,ios
-click,48,710,client,left,,,Narrower -- 250 -> 200pt; the paragraph goes to five lines and the buttons move down to y 755,ios
-sleep,,,,,,600000,let the paragraph rewrap,ios
-click,123,755,client,left,,,"Wider -- 200 -> 250pt: the heading must read Wrapping at 250pt, three lines (VERIFIED 2026-09-28, p22-ios-final-20260928-073243.png)",ios
+click,54,668,client,left,,,"Narrower -- 300 -> 250pt (re-aimed 2026-10-01 at native size: Narrower spans 18-89 x 657-679; at 250pt the paragraph stays three lines and the buttons stay put)",ios
+sleep,,,,,,800000,let the paragraph rewrap,ios
+click,54,668,client,left,,,"Narrower -- 250 -> 200pt; the paragraph goes to five lines and the buttons move down to y 713 (measured from the capture after two taps)",ios
+sleep,,,,,,800000,let the paragraph rewrap,ios
+click,120,713,client,left,,,"Wider -- 200 -> 250pt: the heading must read Wrapping at 250pt, three lines (VERIFIED 2026-09-28, p22-ios-final-20260928-073243.png)",ios
 sleep,,,,,,600000,let the paragraph rewrap,ios

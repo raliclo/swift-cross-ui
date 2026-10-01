@@ -158,6 +158,23 @@ struct P75RootView: View {
         }
         .padding(18)
         .onAppear {
+            #if os(iOS)
+                // The export dialog saves into the app's own Documents by
+                // default, so a second run met "Replace Existing Item" and the
+                // replay's tap on Save hit the dialog instead (2026-10-01).
+                // Starting without the last run's file keeps the file
+                // repeatable.
+                // 匯出對話框預設存到 app 自己的 Documents,所以第二次執行會遇到「Replace Existing
+                // Item」,重放點 Save 時點到的是那個對話框(2026-10-01)。啟動時先移除上一次的檔案,
+                // 動作檔才可重複執行。
+                let documents = FileManager.default.urls(
+                    for: .documentDirectory,
+                    in: .userDomainMask
+                )[0]
+                try? FileManager.default.removeItem(
+                    at: documents.appendingPathComponent("p75-saved.txt")
+                )
+            #endif
             P75Diagnostics.write("backend \(String(describing: DefaultBackend.self))")
             P75Diagnostics.write("RENDER COMPLETE -- P75 ready")
         }

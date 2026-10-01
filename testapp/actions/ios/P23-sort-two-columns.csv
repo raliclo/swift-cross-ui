@@ -23,7 +23,7 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # 座標同 P23-column-sorting.csv。四欄中的第 0 欄跨 pt 0 到 110。
 sleep,,,,,,900000,let the scene settle,ios
-click,371,525,client,left,,,the Number header -- column 3 ascending,ios
+click,371,513,client,left,,,"the Number header -- column 3 ascending (re-aimed 2026-10-01: headers span y 501-525; 525 is their bottom edge)",ios
 sleep,,,,,,800000,let that land,ios
-click,69,525,client,left,,,"the ID header -- column 0, and it must start ascending",ios
+click,69,513,client,left,,,"the ID header -- column 0, and it must start ascending",ios
 sleep,,,,,,900000,let the rows re-sort before the capture,ios

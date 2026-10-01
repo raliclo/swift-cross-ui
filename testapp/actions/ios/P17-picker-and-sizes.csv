@@ -67,7 +67,7 @@ click,250,365,client,left,,,"Shortest -- measured AFTER Longest: the longest opt
 sleep,,,,,,400000,let the picker resize,ios
 click,362,618,client,left,,,"Taller -- the teal block must grow and Shorter must read 125 (VERIFIED: Shorter (125))",ios
 sleep,,,,,,600000,let the teal block settle,ios
-click,405,891,client,left,,,"More height -- Taller has just pushed this row down 5 pt, and y 891 is inside it both before and after -- the stack line must read a height above 140 and the trail must end in > (VERIFIED: stack: 178 x 160, trail LS+>)",ios
+click,395,878,client,left,,,"(re-aimed 2026-10-01 at native size from a dumptree row after Taller: 'More height' is x 356-448, y 867-889. (405,891) left the trail at LS+ and the stack at 178 x 140; (218,878), read off a capture taken after the closing scroll, pressed Less height and the trail read LS+<) More height -- Taller has just pushed this row down 5 pt, and y 891 is inside it both before and after -- the stack line must read a height above 140 and the trail must end in > (VERIFIED: stack: 178 x 160, trail LS+>)",ios
 sleep,,,,,,800000,let the stack settle,ios
 move,100,600,client,,,,"the empty gutter left of the column -- nothing under the finger",ios
 scroll,5,0,,,,,"to the right, AFTER every tap: the presses line is off the right edge at launch, and Selected: S alone is also what an untouched app shows, so without the trail in the photograph Longest has no evidence at all (p17-ios-final-20260928-052150.png)",ios

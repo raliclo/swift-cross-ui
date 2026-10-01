@@ -21,5 +21,5 @@ action,x,y,origin,button,key,micros,note,platform
 # setSortOrder 畫的:沒有任何東西碰過標題。那正是一個 backend 可能失敗、卻仍能完整通過另一個檔案的
 # 方向——因為各列的重新排序是這個 app 的工作、兩種情況下都會發生;少掉的會是那個指示符號。
 sleep,,,,,,900000,let the scene settle,ios
-click,80,388,client,left,,,Sort by Number -- the framework writing into the backend,ios
+click,78,376,client,left,,,(re-aimed 2026-10-01 at native size: Button spans 18-139 x 365-387) Sort by Number -- the framework writing into the backend,ios
 sleep,,,,,,900000,let setSortOrder place the arrow before the capture,ios

@@ -38,5 +38,5 @@ action,x,y,origin,button,key,micros,note,platform
 # iOS 的行為符合這支 app 的要求。第 1 格是 605 x 303 像素 = 202 x 101 點，藍色角落完好；第 2 格是
 # 361 x 182 = 120 x 61，完全沒有藍色；第 3 格跟隨按鈕。macOS 則不然——見 macOS 的那份檔案。
 sleep,,,,,,1500000,let P44 lay out its three cells,ios
-click,82,226,client,left,,,"the ""Clip the third cell"" button -- cell 3 must go from 202 x 101 points with a blue corner to 120 x 61 with none, and the label must read ""third cell: clipped()"", while cells 1 and 2 do not move. REPLAYED 2026-09-04",ios
+click,104,200,client,left,,,"(re-aimed 2026-10-01 at native size: the button spans 40-168 x 189-211) the ""Clip the third cell"" button -- cell 3 must go from 202 x 101 points with a blue corner to 120 x 61 with none, and the label must read ""third cell: clipped()"", while cells 1 and 2 do not move. REPLAYED 2026-09-04",ios
 sleep,,,,,,1500000,let the third cell redraw,ios
