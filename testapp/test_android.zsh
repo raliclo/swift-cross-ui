@@ -407,6 +407,18 @@ fi
 if [[ "$device_name" == emulator-* ]]; then
     serial="$device_name"
 else
+    # The AVD's data can live on another volume behind a symlink -- on this
+    # machine ~/.android/avd/<name>.avd points into /Volumes/Windows since
+    # 2026-10-02, because its qcow2 overlay grows with every APK install
+    # (10 GB) and filled the system disk mid-sweep. If that volume is not
+    # mounted, say so here rather than let the emulator fail to boot.
+    # AVD 的資料可能透過 symlink 放在別的磁碟上——本機自 2026-10-02 起
+    # ~/.android/avd/<name>.avd 指向 /Volumes/Windows,因為它的 qcow2 每裝一次 APK 就變大
+    # (10 GB),曾在 sweep 中途塞滿系統碟。那顆磁碟沒掛上時，在這裡講清楚，而不是讓模擬器開不起來。
+    avd_dir="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$device_name.avd"
+    if [ -L "$avd_dir" ] && [ ! -d "$avd_dir" ]; then
+        die "AVD $device_name points to ${avd_dir:A}, which is not there -- is its volume mounted?"
+    fi
     print "==> Booting Android AVD: $device_name"
     # `-no-metrics`, or the emulator can block before it ever boots.
     #
@@ -649,6 +661,31 @@ capture "${app_id}-android-1s"
 
 if [ "$showtime_seconds" -gt 0 ]; then
     sleep "$showtime_seconds"
+fi
+
+# With an action file, the final capture waits for the replay to finish. A
+# fixed delay photographed P72-stop-and-check half way through on 2026-10-02:
+# its log printed EXPORTED and SNAPSHOT, and the capture, taken first, read
+# "glTF: 0 bytes". The replay prints `-actionfile: replayed` (or `failed:`)
+# when it is done; up to 60 s is allowed, then the capture is taken anyway and
+# says so.
+# 有動作檔時，最後一張擷圖要等重放結束。2026-10-02 以固定延遲拍下的 P72-stop-and-check 停在半途:
+# log 印出了 EXPORTED 與 SNAPSHOT,而先拍下的擷圖讀到「glTF: 0 bytes」。重放結束時會印出
+# `-actionfile: replayed`(或 `failed:`);最多等 60 秒，逾時仍會拍並說明。
+if [ -n "$action_file" ]; then
+    replay_waited=0
+    until ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
+        | grep -qE -- "-actionfile: (replayed|failed)"; do
+        if [ "$replay_waited" -ge 60 ]; then
+            print -u2 -r -- "!! the replay had not finished after 60 s; capturing anyway"
+            break
+        fi
+        sleep 1
+        replay_waited=$((replay_waited + 1))
+    done
+    # One more second for the last action's redraw to reach the screen.
+    # 再一秒，讓最後一個動作的重繪抵達畫面。
+    sleep 1
 fi
 
 capture "${app_id}-android-final"

@@ -46,16 +46,17 @@
     popover wider than the window ran off it (Android and iOS); taps aimed into a
     sheet or popover reached the activity behind (P60); main-queue work waited
     up to 50 ms for the tickler. All fixed.
-  - [ ] **Re-aim the Android action files (2026-10-02 full sweep, 98/98
-    launched, captures read).** Like iOS item 1: launching is not passing.
-    Taps that now miss because the layout moved since they were measured:
-    P10 P12 P23 P24 P28 P46 (and check the rest; P4 re-aimed and verified).
-    Verified NOT caused by today's stack change (P28 laid out identically
-    with LayoutSystem reverted). Two harness causes fixed on the way: Chrome
-    left in front by P38/P75 (sweep now closes it) and Gboard's stylus sheet
-    (test_android now turns stylus handwriting off). P4 crashed at launch:
-    AndroidBackend's `.inspect` cast TextField's widget to EditText -- now
-    searched for, as UIKit/AppKit already did.
+  - [x] **Re-aim the Android action files.** DONE 2026-10-02. Every file's taps
+    checked against a uiautomator dump (`ios_aim_check.py` reads .xml now), 16
+    re-aimed, and a full sweep -- 98/98 launched, no crash, every replay
+    finished -- read capture by capture against each file's assertion. Fixed on
+    the way: launch focus went to the first text field (keyboard over P2 P15
+    P21 P36, and P21's buttons scrolled away on a relayout) -- ShortcutHostLayout
+    now takes the default focus; P72's long-press menu had been unreachable since
+    the scroll-gesture container took every touch -- it now takes a touch only
+    past the slop and hands a still press to the long-click ancestor; the final
+    capture now waits for the replay to finish; P75 reveal writes a fresh name
+    when the old file belongs to an earlier install.
   - [ ] **Android per-frame update cost.** P66 gets 7 animation samples in
     0.7 s where iOS gets 31 in 0.57 s; P64's clock has a 16.7 ms median but
     37-39 Hz overall with 130-166 ms gaps. Each frame's SwiftCrossUI update takes

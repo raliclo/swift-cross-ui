@@ -96,9 +96,24 @@ struct P75RootView: View {
             Text("backend -> \(String(describing: DefaultBackend.self))")
 
             Button("Reveal a file") {
-                let file = p75RevealFolder().appendingPathComponent("p75-reveal.txt")
+                var file = p75RevealFolder().appendingPathComponent("p75-reveal.txt")
                 do {
-                    try "revealed by P75\n".write(to: file, atomically: false, encoding: .utf8)
+                    do {
+                        try "revealed by P75\n".write(to: file, atomically: false, encoding: .utf8)
+                    } catch {
+                        // On Android the shared Download folder keeps a file
+                        // after the app that wrote it is uninstalled, and the
+                        // next install -- a new owner -- may not overwrite it:
+                        // "Permission denied" on every sweep after the first
+                        // (2026-10-02). A fresh name is always ours.
+                        // 在 Android 上，共用的 Download 資料夾會在寫檔的 app 解除安裝後保留該檔，而下一次
+                        // 安裝(新的擁有者)可能無法覆寫它：第一次之後的每一次 sweep 都是「Permission
+                        // denied」(2026-10-02)。新檔名一定屬於自己。
+                        file = p75RevealFolder().appendingPathComponent(
+                            "p75-reveal-\(Int(Date().timeIntervalSince1970)).txt"
+                        )
+                        try "revealed by P75\n".write(to: file, atomically: false, encoding: .utf8)
+                    }
                 } catch {
                     revealStatus = "could not write \(file.path): \(error)"
                     P75Diagnostics.write("reveal: \(revealStatus)")

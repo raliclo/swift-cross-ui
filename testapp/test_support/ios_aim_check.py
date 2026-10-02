@@ -39,7 +39,8 @@ ELEMENT = re.compile(
     # first version did not allow, so every disabled control was skipped.
     r"(?:,.*)?$"
 )
-CONTAINERS = {"Application", "Window", "Other", "ScrollView", "Group", "Cell", "Table"}
+CONTAINERS = {"Application", "Window", "Other", "ScrollView", "Group", "Cell", "Table",
+              "FrameLayout", "LinearLayout", "ViewGroup", "HorizontalScrollView", "View"}
 POSITIONED = {"click", "longpress", "doubleclick", "mousedown"}
 SCREEN_CHANGING = {"scroll", "mouseup", "orient", "pinch", "rotate", "key", "keydown"}
 
@@ -57,6 +58,40 @@ def read_tree(path):
             "label": m.group("label") or "",
             "depth": len(m.group("indent")),
         })
+    return elements
+
+
+def read_tree_android(path, density):
+    """A uiautomator dump, in points: bounds are screen pixels divided by the
+    density, which is what Android action files are written in.
+    uiautomator dump,換算為點:bounds 是螢幕像素除以密度，正是 Android 動作檔所用的單位。"""
+    import xml.etree.ElementTree as ET
+    elements = []
+    for depth_node in ET.parse(path).iter("node"):
+        n = depth_node
+        x1, y1, x2, y2 = map(int, re.findall(r"-?\d+", n.get("bounds", "[0,0][0,0]")))
+        label = n.get("text") or n.get("content-desc") or ""
+        cls = n.get("class", "").split(".")[-1]
+        clickable = n.get("clickable") == "true"
+        kind = cls if (clickable or label or cls in ("EditText", "SeekBar", "Switch")) else "Other"
+        elements.append({
+            "type": kind,
+            "frame": (x1 / density, y1 / density, (x2 - x1) / density, (y2 - y1) / density),
+            "label": label,
+            "depth": 0,
+            "clickable": clickable,
+        })
+    # A clickable node with no text of its own is named by its text children
+    # (an Android Button holds a TextView), so give it the first one inside it.
+    # 本身沒有文字的可點擊節點，以其內部文字命名(Android 的 Button 裡面是 TextView)。
+    for e in elements:
+        if e.get("clickable") and not e["label"]:
+            ex, ey, ew, eh = e["frame"]
+            for c in elements:
+                cx, cy, cw, ch = c["frame"]
+                if c["label"] and ex <= cx and ey <= cy and cx + cw <= ex + ew + 0.5 and cy + ch <= ey + eh + 0.5:
+                    e["label"] = c["label"]
+                    break
     return elements
 
 
@@ -109,7 +144,10 @@ def describe(e):
 
 
 def main(tree_path, action_paths):
-    elements = read_tree(tree_path)
+    if tree_path.endswith(".xml"):
+        elements = read_tree_android(tree_path, float(DENSITY))
+    else:
+        elements = read_tree(tree_path)
     ox, oy = window_origin(elements)
     totals = {"HIT": 0, "MISS": 0, "AFTER": 0, "UNNAMED": 0}
     for path in action_paths:
@@ -152,6 +190,12 @@ def main(tree_path, action_paths):
                     changed = True
     print("TOTAL " + " ".join(f"{k}={v}" for k, v in totals.items()))
 
+
+# Android: pass a uiautomator .xml instead of the XCUITest dump; the density
+# (2.625 on the swift-cross-ui-api36 emulator) comes from SCUI_ANDROID_DENSITY.
+# Android:改傳 uiautomator 的 .xml;密度由 SCUI_ANDROID_DENSITY 提供(預設 2.625)。
+import os
+DENSITY = os.environ.get("SCUI_ANDROID_DENSITY", "2.625")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

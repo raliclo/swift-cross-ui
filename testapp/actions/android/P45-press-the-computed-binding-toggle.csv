@@ -79,9 +79,9 @@ action,x,y,origin,button,key,micros,note,platform
 # logcat 照樣印出啟動參數,而截圖拍到的只是一個「根本沒有被驅動」的 app。本檔第一次執行時,看起來
 # 與「一個動作檔什麼都沒做的通過執行」完全相同。
 sleep,,,,,,1500000,let P45 render,android
-click,78,670,,left,,,"seed the sibling selection -- the line must read ""selection: 2""",android
+click,77,663,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: selection = 2 is y 646-680) seed the sibling selection -- the line must read ""selection: 2""",android
 sleep,,,,,,400000,,android
-click,221,670,,left,,,"seed the sibling field -- the line must read typed: ""seeded""",android
+click,219,663,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: typed = seeded is x 147-291) seed the sibling field -- the line must read typed: ""seeded""",android
 sleep,,,,,,400000,,android
-click,60,331,,left,,,"the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",android
+click,60,344,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: the honest toggle is y 320-368) the Binding(get:set:) toggle that keeps the invariant. Expected: honest becomes true, setter writes becomes 1, and selection stays 2 with typed still seeded. If the siblings reset, the report is a framework bug",android
 sleep,,,,,,1200000,let any rebuild settle,android

@@ -59,5 +59,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 那顆按鈕現在在此處與在其他各處一樣是看不見的，因此下方的按壓抵達的是一個沒有人看得見的東西
 # ——而那正是此項主張的全部。
 sleep,,,,,,1500000,let P10 render,android
-click,352,457,,left,,,"the ""Hidden button"" under the opaque orange overlay -- ""Hidden clicks:"" must read 1 afterwards. It reads 0 at launch. REPLAYED 2026-09-03: it read 1, with the orange solid and the button not visible at all (p10-android-zorder-fixed.png). An earlier replay the same day also read 1, but with the button drawn on top of the overlay; see the header",android
+click,349,476,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: Hidden button is x 287-411, y 459-493) the ""Hidden button"" under the opaque orange overlay -- ""Hidden clicks:"" must read 1 afterwards. It reads 0 at launch. REPLAYED 2026-09-03: it read 1, with the orange solid and the button not visible at all (p10-android-zorder-fixed.png). An earlier replay the same day also read 1, but with the button drawn on top of the overlay; see the header",android
 sleep,,,,,,1200000,let the counter repaint,android

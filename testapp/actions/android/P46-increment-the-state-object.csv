@@ -44,5 +44,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 也會隨之攀升;而那個計數正是 P46 存在的全部理由。一次「count 增加、但 constructions 也增加」的按下
 # 是失敗,而若只讀 `model.count`,它看起來與通過完全相同。
 sleep,,,,,,1500000,let P46 lay out its sections,android
-click,91,714,,left,,,"the ""Increment model"" button -- model.count must read 1 and ""P46Model constructions"" must still read 1",android
+click,91,679,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: Increment model is y 662-696) the ""Increment model"" button -- model.count must read 1 and ""P46Model constructions"" must still read 1",android
 sleep,,,,,,1200000,let the two lines redraw,android

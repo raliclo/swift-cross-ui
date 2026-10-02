@@ -17,7 +17,7 @@ action,x,y,origin,button,key,micros,note,platform
 # emulator and must be rechecked against the launched screen.
 # P12 Android smoke sequence。座標使用 Android emulator 的 logical points，須依啟動畫面重新確認。
 sleep,,,,,,1500000,allow P12 to render,android
-click,90,260,,left,,,select the First tab,android
+click,102,332,,left,,,(re-aimed 2026-10-02 from a uiautomator dump: First is y 315-349) select the First tab,android
 sleep,,,,,,500000,allow the state update to settle,android
-click,128,306,,left,,,increment the counter,android
+click,158,372,,left,,,(re-aimed 2026-10-02 from a uiautomator dump: Increment counter is y 355-389) increment the counter,android
 sleep,,,,,,1000000,hold the launched app for inspection,android

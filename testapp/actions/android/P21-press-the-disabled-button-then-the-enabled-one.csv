@@ -63,7 +63,14 @@ action,x,y,origin,button,key,micros,note,platform
 # accessibility tree 所說的，而不是 widget 實際會做的——Android 的 view 可以既 clickable 又
 # not enabled——但這正是本檔選擇「按下去」而非「讀樹」的理由。
 sleep,,,,,,1500000,let P21 lay out the button row,android
-click,162,312,,left,,,"the DISABLED button -- it must refuse the press, so ""Button — clicks:"" must still read 0 after it",android
+# The page now opens scrolled to the window's origin, which on this phone is below
+# the Button row (the launch dump starts at the ToggleSwitch row), so the file
+# scrolls to the top first. 2026-10-02.
+# 頁面現在開啟時捲在視窗原點，在這支手機上那已經在 Button 列下方，所以先捲到頂端。
+move,405,300,,,,,"the right-hand gutter, clear of every control -- from (300,400) the drag began on a slider and the page did not reach the top",android
+scroll,0,-8,,,,,"up to the top: P21: input controls and the Button row must be on screen",android
+sleep,,,,,,800000,let the scroll settle,android
+click,159,305,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump taken after the scroll above: Disabled is x 114-205, y 288-322) the DISABLED button -- it must refuse the press, so ""Button — clicks:"" must still read 0 after it",android
 sleep,,,,,,1200000,let any counter change that should not happen happen,android
-click,62,312,,left,,,"the ENABLED button -- after both presses the line must read ""Button — clicks: 1"" exactly: 0 means the enabled button is broken too, 2 means the disable is only cosmetic. REPLAYED 2026-09-03 and IT READS 1: the dump after the pair gives ""Button — clicks: 1"" at [47,663]-[417,726], and both buttons are still at y 757-883, so the second press landed where the file said it would. AndroidBackend refuses a press on a disabled Button while still accepting one on its enabled neighbour -- the disable is real and not cosmetic, despite the accessibility tree reporting clickable=true for both",android
+click,61,305,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump taken after the scroll above: Enabled is x 18-104, y 288-322) the ENABLED button -- after both presses the line must read ""Button — clicks: 1"" exactly: 0 means the enabled button is broken too, 2 means the disable is only cosmetic. REPLAYED 2026-09-03 and IT READS 1: the dump after the pair gives ""Button — clicks: 1"" at [47,663]-[417,726], and both buttons are still at y 757-883, so the second press landed where the file said it would. AndroidBackend refuses a press on a disabled Button while still accepting one on its enabled neighbour -- the disable is real and not cosmetic, despite the accessibility tree reporting clickable=true for both",android
 sleep,,,,,,1200000,let the counter repaint,android

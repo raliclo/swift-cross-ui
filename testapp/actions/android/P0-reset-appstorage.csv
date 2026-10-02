@@ -35,5 +35,5 @@ action,x,y,origin,button,key,micros,note,platform
 # 只按一次，因為這一按會改變版面：計數行與狀態行都會重寫，且狀態行長度改變，因此同一檔中的第二次
 # 點擊，將是對「已被第一次點擊移動過的頁面」下判斷。
 sleep,,,,,,1500000,let P0 render,android
-click,319,425,,left,,,"Reset -- the count line must read ""Launch count stored in @AppStorage: 0"" and the status line must read ""Reset @AppStorage"" (VERIFIED 2026-09-03 in p0-android-final-20260903-083547.png: the count line reads 0 where it read 1 before the tap, the status line reads ""Reset @AppStorage"" where it read ""Window appeared. Incremented @AppStorage to 1."", and every other row of the page is unchanged)",android
+click,319,445,,left,,,"(re-aimed 2026-10-02 from a uiautomator dump: Reset is x 285-352, y 428-462) Reset -- the count line must read ""Launch count stored in @AppStorage: 0"" and the status line must read ""Reset @AppStorage"" (VERIFIED 2026-09-03 in p0-android-final-20260903-083547.png: the count line reads 0 where it read 1 before the tap, the status line reads ""Reset @AppStorage"" where it read ""Window appeared. Incremented @AppStorage to 1."", and every other row of the page is unchanged)",android
 sleep,,,,,,1200000,let the two labels redraw,android
