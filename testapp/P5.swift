@@ -145,6 +145,28 @@ struct P5AlertWindowView: View {
                 showAlertC = true
             }
 
+            // Below "Show A+B+C at once", so every existing action file's
+            // coordinates stay where they were.
+            // 放在「Show A+B+C at once」下方，所有既有動作檔的座標因此不變。
+            //
+            // Delayed, so an alert can be raised on a window that is no longer
+            // in front. On an iPad a second window opens exactly over the
+            // first, and dragging windows in the Simulator crashed its render
+            // server (2026-10-02), so "alerts on two windows at once" is set up
+            // as: press this here, open the other window, show an alert there,
+            // and this one arrives while that one is up. The accessibility tree
+            // then lists one alert per window.
+            // 延遲顯示，好讓 alert 能出現在已經不在最前面的視窗上。iPad 上第二個視窗會剛好開在第一個
+            // 上面，而在模擬器裡拖動視窗曾讓它的渲染伺服器崩潰(2026-10-02),所以「兩個視窗同時有
+            // alert」的做法是：在這裡按下它，打開另一個視窗並在那裡顯示 alert,這一個會在那一個還開著
+            // 時抵達。無障礙樹裡就會列出每個視窗各一個 alert。
+            Button("Show Alert A in 3 seconds") {
+                note("Alert A requested in 3 seconds")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    note("showing Alert A (delayed)")
+                    showAlertA = true
+                }
+            }
             Text(eventLog)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

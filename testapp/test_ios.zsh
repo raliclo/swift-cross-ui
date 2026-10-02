@@ -367,6 +367,20 @@ capture() {
     return 0
 }
 
+# `# fresh-install` in an action file uninstalls the app first, which also
+# discards its scene sessions. iPadOS reopens every window an app had open when
+# it last ran, so a file that opens a second window met two at launch on its
+# next run, and restoring them crashed the Simulator's render server
+# (P5 on iPad, 2026-10-02). Opt-in, because P0 and P59 assert on what an
+# earlier run stored.
+# 動作檔中的 `# fresh-install` 會先解除安裝 app,連同它的 scene session 一併丟棄。iPadOS 會重新打開
+# app 上次執行時開著的每一個視窗，所以開了第二個視窗的檔案，下次執行時一啟動就有兩個視窗，而恢復它們
+# 讓模擬器的渲染伺服器崩潰(iPad 上的 P5,2026-10-02)。採 opt-in,因為 P0 與 P59 要斷言前一次執行存下的東西。
+if [ -n "$action_file" ] && grep -q '^# fresh-install' "$action_file"; then
+    printf '==> Uninstalling %s first (# fresh-install)\n' "$bundle_id"
+    xcrun simctl uninstall "$device_name" "$bundle_id" 2>/dev/null || true
+fi
+
 printf '==> Installing %s as %s\n' "$target" "$bundle_id"
 xcrun simctl install "$device_name" "$bundle_dir"
 if [ -z "$action_file" ]; then

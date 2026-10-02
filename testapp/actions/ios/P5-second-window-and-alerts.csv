@@ -44,9 +44,9 @@ action,x,y,origin,button,key,micros,note,platform
 # stdout(output/p5-ios-stdout.log)必須依序列出 C dismissed、B dismissed。OK 落空則會留下 B 或 C。
 # "Open another window" 那一列已移除:在 iPhone 上第二個 scene 不會出現在第一個旁邊,擷圖與 log 上都沒有
 # 留下任何東西。跨視窗那一半不在本檔的涵蓋範圍內。
-click,221,587,client,left,,,Show A+B+C at once -- Alert C must be on top,ios
+taplabel,,,,,Show A+B+C at once,,"(by label from 2026-10-02: adding P5's delayed-alert button moved the centred column up 17 pt, and (221,587) pressed the new button instead) Show A+B+C at once -- Alert C must be on top",ios
 sleep,,,,,,2500000,let the three present one after another,ios
-click,220,523,client,left,,,OK on Alert C -- Alert B must be revealed,ios
+click,220,515,client,left,,,"(OK by point, not label, from 2026-10-02: the three stacked alerts each have an OK and a label match picked the lowest one; OK spans y 491-539) OK on Alert C -- Alert B must be revealed",ios
 sleep,,,,,,1500000,let C dismiss,ios
-click,220,523,client,left,,,"OK on Alert B -- Alert A must be revealed and stay for the capture (VERIFIED 2026-09-28: Alert A (Main) on screen, stdout lists Alert C dismissed then Alert B dismissed, p5-ios-final-20260928-074855.png)",ios
+click,220,515,client,left,,,"(OK by point, not label, from 2026-10-02: the three stacked alerts each have an OK and a label match picked the lowest one; OK spans y 491-539) OK on Alert B -- Alert A must be revealed and stay for the capture (VERIFIED 2026-09-28: Alert A (Main) on screen, stdout lists Alert C dismissed then Alert B dismissed, p5-ios-final-20260928-074855.png)",ios
 sleep,,,,,,1500000,let B dismiss,ios

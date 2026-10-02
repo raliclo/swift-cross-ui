@@ -194,6 +194,16 @@ final class ActionFileUITests: XCTestCase {
                 FileHandle.standardError.write(
                     Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
                 )
+            case "windowframes":
+                // Every window of the app under test, in screen points, so a
+                // file can be measured against where the windows really are.
+                // 受測 app 的每一個視窗(螢幕點)，讓動作檔可以依視窗的實際位置來量。
+                let windows = app.windows.allElementsBoundByIndex
+                var lines = "-actionfile: \(windows.count) window(s)\n"
+                for (index, window) in windows.enumerated() {
+                    lines += "-actionfile: window \(index) frame=\(window.frame)\n"
+                }
+                FileHandle.standardError.write(Data(lines.utf8))
             case "activate":
                 // Brings another app to the front -- the key column is its
                 // bundle identifier; empty means the app under test. For
@@ -224,9 +234,19 @@ final class ActionFileUITests: XCTestCase {
                     frontApp.buttons, frontApp.cells, frontApp.switches,
                     frontApp.staticTexts, frontApp.otherElements,
                 ]
-                let match = queries.lazy
-                    .map { $0.matching(NSPredicate(format: "label == %@", action.key)).firstMatch }
-                    .first { $0.waitForExistence(timeout: 1) && $0.isHittable }
+                // Hittable first; failing that, the first that exists. An alert's
+                // buttons report isHittable == false although a tap on them
+                // works, so P5's "OK" was never found (2026-10-02); preferring
+                // a hittable match still picks the front window's button when
+                // a window behind it has one with the same label.
+                // 優先選可點擊的;沒有時，選第一個存在的。alert 的按鈕回報 isHittable == false,但點下去有效，
+                // 所以 P5 的「OK」一直找不到(2026-10-02);優先選可點擊者，在後方視窗也有同名按鈕時仍會選到
+                // 前方視窗的那一個。
+                let candidates = queries.map {
+                    $0.matching(NSPredicate(format: "label == %@", action.key)).firstMatch
+                }
+                let match = candidates.first { $0.exists && $0.isHittable }
+                    ?? candidates.first { $0.waitForExistence(timeout: 3) }
                 guard let element = match else {
                     throw ActionFileError.unsupported(
                         "taplabel '\(action.key)': no hittable element with that label",
@@ -269,7 +289,21 @@ final class ActionFileUITests: XCTestCase {
                 dragStart = target
             case "mouseup":
                 let target = try coordinateIfPresent(for: action, current: pointer, in: app)
-                if let start = dragStart {
+                if let start = dragStart, action.microseconds > 0 {
+                    // A `micros` on the mouseup row is how long to hold before
+                    // moving, and the drag goes slowly. iPadOS starts a window
+                    // move or resize only from a held press; a 0.1 s press
+                    // dragged at the default speed did nothing to a window.
+                    // mouseup 列上的 `micros` 是移動前要按住多久，拖曳會放慢。iPadOS 只有在按住之後
+                    // 才開始移動或調整視窗;0.1 秒的按壓以預設速度拖曳，對視窗毫無作用。
+                    start.press(
+                        forDuration: action.microseconds / 1_000_000,
+                        thenDragTo: target,
+                        withVelocity: 300,
+                        thenHoldForDuration: 0.3
+                    )
+                    dragStart = nil
+                } else if let start = dragStart {
                     start.press(forDuration: 0.1, thenDragTo: target)
                     dragStart = nil
                 } else {
@@ -593,6 +627,21 @@ final class ActionFileUITests: XCTestCase {
     ) throws -> XCUICoordinate {
         guard action.origin != "frame" else {
             throw ActionFileError.unsupported("frame origin on iOS", action.line)
+        }
+
+        // `screen`: points from the top-left of the SCREEN, through SpringBoard,
+        // whose frame is the whole display. Every other row is relative to
+        // `app.windows.firstMatch`, which on an iPad in windowed mode is neither
+        // at the origin nor reliably the same window -- the drags that were
+        // meant to move and size P5's windows were computed against whichever
+        // window XCUITest listed first (2026-10-02).
+        // `screen`:自**螢幕**左上角起算的點，經由 SpringBoard(其 frame 即整個螢幕)。其他列都相對於
+        // `app.windows.firstMatch`,而在視窗化模式的 iPad 上，它既不在原點、也不一定是同一個視窗——那些
+        // 要移動並調整 P5 視窗的拖曳，算的是 XCUITest 剛好列在第一個的視窗(2026-10-02)。
+        if action.origin == "screen" {
+            let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            return springboard.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: action.x, dy: action.y))
         }
 
         let window = app.windows.firstMatch

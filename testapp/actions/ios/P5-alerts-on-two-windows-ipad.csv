@@ -1,0 +1,35 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+#
+# P5 on iPad (#675): alerts on two windows at the same time.
+#
+#   zsh testapp/test.zsh P5 --ios --device "iPad Pro 11-inch (M5)" \
+#       --actionfile=testapp/actions/ios/P5-alerts-on-two-windows-ipad.csv
+#
+# Needs Windowed Apps on (test_support/ipad-windowed-apps.csv). A second window
+# opens exactly over the first, and dragging windows in the iPad Simulator
+# crashed its render server (backboardd, Metal "invalid pixelFormat (0)"), so
+# nothing here moves a window. Instead the main window is asked for an alert in
+# 3 seconds, the second window opens and shows its own, and the main window's
+# arrives while that one is still up.
+#
+# Pass: the dumptree row lists TWO alerts, one in each window --
+# 'Alert A (Secondary)' in the front window and 'Alert A (Main)' in the one
+# behind it. The capture shows only the front one; the tree is the evidence.
+# VERIFIED 2026-10-02 on the iPad Pro 11-inch (M5), iOS 27, both ways: with the
+# delayed press, two alerts; without it (the control), only the Secondary one.
+#
+# `# fresh-install` (first line): iPadOS reopens every window the app last had
+# open, and restoring two windows at launch crashed the Simulator.
+#
+# P5 在 iPad 上(#675):兩個視窗同時有 alert。主視窗先要求 3 秒後顯示 alert,接著開第二個視窗並顯示它自己的
+# alert,主視窗的 alert 在那一個還開著時抵達。通過:dumptree 列出兩個 alert,每個視窗各一個。擷圖只看得到前面
+# 那個;證據是樹。2026-10-02 兩個方向都驗證過：有延遲按鈕時兩個，沒有時(對照組)只有一個。
+sleep,,,,,,2000000,let P5 render,ios
+taplabel,,,,,Show Alert A in 3 seconds,,the main window -- its alert arrives later,ios
+taplabel,,,,,Open another window,,,ios
+sleep,,,,,,1500000,let the second window open over the first,ios
+taplabel,,,,,Show Alert A,,the second window's own alert,ios
+sleep,,,,,,3500000,the main window's delayed alert arrives while the second's is up,ios
+windowframes,,,,,,,,ios
+dumptree,,,,,,,must list 'Alert A (Secondary)' and 'Alert A (Main)' together,ios

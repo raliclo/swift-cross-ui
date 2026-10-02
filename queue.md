@@ -68,23 +68,22 @@
     root scroll host stops 57 pt short and the second column is cut even
     scrolled to the end. Not iOS-specific -- any window narrower than the two
     columns. Evidence: a dumptree row after P51's scroll.
-- [ ] **3. P5 on iPad: alerts on two windows at the same time.** The second
-  window opens as its own scene; showing both needs windowed mode (see below).
-  Findings 2026-10-02 (iPad Pro 11-inch Simulator, iOS 27):
-  - Windowed Apps was already selected on this Simulator. The iOS runner can
-    now set it on a fresh one: `testapp/test_support/ipad-windowed-apps.csv`
-    (new `activate`, `taplabel` verbs; `dumptree` prints the front app).
-  - New windows open full size, so the second covers the first. No API sizes
-    an iPad window: `sizeRestrictions` min=max=480x380 left it at 834x1210, and
-    3 runs of 4 crashed the Simulator's backboardd (Metal texture validation);
-    reverted, and recorded in UIKitBackend+Window.swift `setSize`.
-  - Dragging the resize grip with XCUITest DOES resize (to 375x486), but window
-    frames persist between runs, dragging the window itself (top edge, the
-    "..." controls) did not move it, and the runner's window list goes stale
-    (the main window once reported 187x243 at 0,0). So a fixed-coordinate file
-    is not reproducible yet.
-  - Next: a runner verb that reads each window's frame and drags its grip and
-    title from there, or check this on a physical iPad by hand.
+- [x] **3. P5 on iPad: alerts on two windows at the same time.** DONE 2026-10-02.
+  `actions/ios/P5-alerts-on-two-windows-ipad.csv`: the main window is asked for
+  an alert in 3 s (P5's new button), the second window opens over it and shows
+  its own, and the dumptree lists 'Alert A (Secondary)' and 'Alert A (Main)'
+  together. Verified twice, and the control (no delayed press) lists only one.
+  Windows are not moved or sized: the iPad Simulator's backboardd aborts in
+  Metal ("invalid pixelFormat (0)") during window drags and scene restores, and
+  no API sizes an iPad window. `# fresh-install` in an iOS action file now
+  uninstalls first, so last run's windows are not restored. Runner: `screen`
+  origin, `windowframes`, held slow drags, `taplabel` falls back to a
+  non-hittable match (alert buttons report isHittable false).
+  - [ ] Android P5 still taps (206,589): the new button moved the centred
+    column up ~17 pt, as it did on iPhone (now by label) and macOS (re-aimed,
+    verified C -> B -> A). Re-aim when the emulator is back -- a qemu process
+    stuck in state UE since /Volumes/Windows dropped holds emulator-5554 and
+    only a Mac reboot clears it.
 
 ### Then: iPad testing (after 1-4)
 

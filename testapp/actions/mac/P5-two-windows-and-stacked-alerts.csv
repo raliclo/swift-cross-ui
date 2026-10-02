@@ -50,13 +50,13 @@ action,x,y,origin,button,key,micros,note,platform
 #
 # origin=frame. Window 533x404 points, capture 1078px wide -- scale 2.
 # origin=frame。視窗 533x404 點，擷取寬 1078px——scale 2。
-click,270,219,frame,left,,,Open another window,macos
+click,270,202,frame,left,,,"(re-aimed 2026-10-02: P5's added delayed-alert button moved the centred column up about 17 pt) Open another window",macos
 sleep,,,,,,2000000,let the second window settle,macos
-click,69,251,frame,left,,,Show Alert A,macos
+click,69,235,frame,left,,,Show Alert A,macos
 sleep,,,,,,2000000,,macos
 key,,,,,return,,dismiss A -- Return is the alert's OK; see the note on escape,macos
 sleep,,,,,,1500000,,macos
-click,270,283,frame,left,,,Show A+B+C at once -- the stacking half of #675,macos
+click,270,267,frame,left,,,Show A+B+C at once -- the stacking half of #675,macos
 sleep,,,,,,2500000,,macos
 key,,,,,return,,dismiss the topmost; the one under it must come back,macos
 sleep,,,,,,1500000,,macos
