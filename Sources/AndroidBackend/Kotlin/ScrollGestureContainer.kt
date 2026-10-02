@@ -93,7 +93,75 @@ class ScrollGestureContainer(context: Context) : ViewGroup(context) {
         setMeasuredDimension(resolveSize(0, widthSpec), resolveSize(0, heightSpec))
     }
 
-    override fun onInterceptTouchEvent(event: MotionEvent) = true
+    /**
+     * Takes the touch only once it has MOVED past the touch slop.
+     *
+     * It used to return true for every event, so the child never saw a touch
+     * at all: P72's context menu -- a long-click listener on the mesh view this
+     * container wraps -- was verified on 2026-09-21, and from the next day,
+     * when this container arrived, no long press could raise it; a stationary
+     * press was even counted as 31 scroll changes of zero (2026-10-02). Until
+     * the finger travels, the child keeps the touch, so long presses and taps
+     * reach it; a drag past the slop is taken from it (it gets ACTION_CANCEL)
+     * and becomes the scroll gesture. A child that does not want touches at all
+     * sends ACTION_DOWN straight to `onTouchEvent` below, which tracks it.
+     *
+     * 只在觸控**移動**超過 touch slop 之後才把它拿走。原本對每個事件都回傳 true,子元件因此完全收不到觸控:
+     * P72 的 context menu(本容器所包住之 mesh view 上的長按 listener)於 2026-09-21 驗證過，而從隔天本容器
+     * 加入起，就沒有任何長按能叫出它;一次靜止的按壓甚至被算成 31 次為零的捲動變化(2026-10-02)。手指移動
+     * 之前觸控歸子元件，所以長按與點擊都送得到;超過 slop 的拖曳會從子元件手上拿走(它收到 ACTION_CANCEL)
+     * 並成為捲動手勢。完全不收觸控的子元件，會把 ACTION_DOWN 直接交給下面的 `onTouchEvent`,由它追蹤。
+     */
+    override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                lastX = event.x
+                lastY = event.y
+                downX = event.x
+                downY = event.y
+                travelX = 0f
+                travelY = 0f
+                deltaX = 0f
+                deltaY = 0f
+                isPrecise = true
+                tracking = false
+                return false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val slop = ViewConfiguration.get(context).scaledTouchSlop
+                if (Math.abs(event.x - downX) > slop || Math.abs(event.y - downY) > slop) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    tracking = true
+                    return true
+                }
+                return false
+            }
+        }
+        return false
+    }
+
+    private var downX = 0f
+    private var downY = 0f
+
+    /**
+     * A press held still for the long-press timeout goes to the nearest
+     * ancestor that takes long clicks. This container consumes the touch, so
+     * an ancestor's long-click listener -- P72's `.contextMenu`, applied
+     * outside `.onScrollGesture` -- never saw one (2026-10-02).
+     * 一次靜止按住到長按逾時的按壓，交給最近一個接受長按的祖先。本容器會吃掉觸控，因此祖先上的長按 listener
+     * ——P72 套在 `.onScrollGesture` 外面的 `.contextMenu`——從來收不到(2026-10-02)。
+     */
+    private val longPress = Runnable {
+        var ancestor = parent
+        while (ancestor is android.view.View) {
+            if (ancestor.isLongClickable) {
+                ancestor.performLongClick()
+                return@Runnable
+            }
+            ancestor = ancestor.parent
+        }
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -105,16 +173,29 @@ class ScrollGestureContainer(context: Context) : ViewGroup(context) {
                 parent?.requestDisallowInterceptTouchEvent(true)
                 lastX = event.x
                 lastY = event.y
+                downX = event.x
+                downY = event.y
                 travelX = 0f
                 travelY = 0f
                 deltaX = 0f
                 deltaY = 0f
                 isPrecise = true
-                tracking = true
+                // Not a scroll until the finger has travelled past the slop: a
+                // finger at rest produced a stream of zero-delta changes.
+                // 手指移動超過 slop 之前不算捲動：一根靜止的手指曾產生一連串為零的變化。
+                tracking = false
+                postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (!tracking) return true
+                if (!tracking) {
+                    val slop = ViewConfiguration.get(context).scaledTouchSlop
+                    if (Math.abs(event.x - downX) <= slop && Math.abs(event.y - downY) <= slop) {
+                        return true
+                    }
+                    removeCallbacks(longPress)
+                    tracking = true
+                }
                 // **The sign is the content's, not the finger's.** `ScrollGestureValue` defines
                 // delta.y positive as moving FORWARD through the content, and dragging a finger
                 // UP moves forward -- so the delta is last minus current, not current minus last.
@@ -131,6 +212,7 @@ class ScrollGestureContainer(context: Context) : ViewGroup(context) {
 
             MotionEvent.ACTION_UP,
             MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPress)
                 if (tracking) {
                     tracking = false
                     deltaX = 0f

@@ -82,7 +82,21 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // `KeyEventContainer` 基於同樣的理由使用同一組設定。
         isFocusable = true
         isFocusableInTouchMode = true
-        descendantFocusability = FOCUS_AFTER_DESCENDANTS
+        // BEFORE, not AFTER, from 2026-10-02. AFTER made the window's DEFAULT
+        // focus -- the one Android assigns on the first layout, which no
+        // field asked for -- go to the first text field. The soft keyboard
+        // rose over every app that had one (P2 P15 P21 P36), and when a
+        // button press relaid the page the root ScrollView scrolled the
+        // focused field into view, carrying P21's buttons off screen. BEFORE
+        // gives the default focus to this view; a field that is tapped, or
+        // focused from code (`FocusState`), calls requestFocus() on itself,
+        // which BEFORE does not block, so it still gets focus.
+        // 自 2026-10-02 起用 BEFORE 而非 AFTER。AFTER 讓視窗的**預設**焦點(Android 在第一次排版時指派、
+        // 沒有任何欄位要求過的那個)落在第一個文字欄位：每一支有文字欄位的 app 都彈出軟體鍵盤(P2 P15 P21
+        // P36),而按鈕觸發重新排版時，根 ScrollView 會把有焦點的欄位捲進畫面，把 P21 的按鈕捲出畫面。
+        // BEFORE 讓預設焦點給本 view;被點擊、或由程式碼(`FocusState`)聚焦的欄位，是對自己呼叫
+        // requestFocus(),BEFORE 不會阻擋，因此仍然取得焦點。
+        descendantFocusability = FOCUS_BEFORE_DESCENDANTS
     }
 
     override fun onAttachedToWindow() {
