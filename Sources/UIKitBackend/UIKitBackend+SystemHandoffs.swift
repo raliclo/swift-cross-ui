@@ -106,7 +106,17 @@
                 forExporting: [placeholder],
                 asCopy: false
             )
+            // The app's Documents when the caller names no folder. Left nil,
+            // the picker reopens wherever the last document browser was --
+            // after P75's reveal that was "On My iPhone", a location that takes
+            // no files, so Save did nothing and the export never returned
+            // (2026-10-03). AppKit's save panel likewise opens in a writable
+            // place by default.
+            // 呼叫端沒指定資料夾時，開在 app 的 Documents。若留 nil,選擇器會開在上一次文件瀏覽器
+            // 停留的位置——P75 的 reveal 之後那是「On My iPhone」,一個不能放檔案的位置，於是 Save
+            // 沒有作用、匯出永遠不返回(2026-10-03)。AppKit 的存檔面板預設同樣開在可寫入的位置。
             picker.directoryURL = fileDialogOptions.initialDirectory
+                ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             picker.shouldShowFileExtensions = true
 
             let delegate = FilePickerDelegate { result in

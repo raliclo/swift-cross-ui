@@ -121,6 +121,15 @@ for f in "$action_dir"/P*.csv(N); do
     if [ "${#apps[@]}" -gt 0 ] && (( ! ${apps[(Ie)$app]} )); then
         continue
     fi
+    # `-ipad` files open several windows and the sweep runs on the iPhone
+    # Simulator, where there is one: P59-two-windows-ipad failed there on
+    # 2026-10-03. They are run on an iPad by hand (testapp/README.md > iPad).
+    # `-ipad` 檔會開多個視窗，而 sweep 跑在只有一個視窗的 iPhone 模擬器上:2026-10-03
+    # P59-two-windows-ipad 在那裡失敗。它們在 iPad 上手動執行(見 testapp/README.md > iPad)。
+    if [[ "${f:t}" == *-ipad.csv ]]; then
+        echo "${f:t}: an iPad file, skipped on the iPhone sweep" >&2
+        continue
+    fi
     files+=("$f")
 done
 if [ "${#files[@]}" -eq 0 ]; then

@@ -25,8 +25,6 @@ public class Publisher {
     private let serialUpdateHandlingQueue = DispatchQueue(
         label: "serial update handling"
     )
-    private let semaphore = DispatchSemaphore(value: 1)
-
     /// Creates a new independent publisher.
     public init() {}
 
@@ -98,7 +96,19 @@ public class Publisher {
         backend: Backend,
         action: @escaping @MainActor @Sendable () -> Void
     ) -> Cancellable {
-        let semaphore = self.semaphore
+        // One slot PER OBSERVER, not per publisher. The slot used to belong to
+        // the publisher, so when two view graphs observed the same one -- every
+        // window's @AppStorage("draft") shares a publisher -- the first observer
+        // took the slot and the second's update was counted as "merged" and
+        // dropped: on an iPad, P59's window A kept "AA" while window B showed
+        // "AAB", and its body was never re-evaluated (2026-10-02). Merging is
+        // meant to collapse repeated updates of ONE view graph, which this still
+        // does.
+        // 每個**訂閱者**一個名額，而不是每個 publisher 一個。名額原本屬於 publisher,所以當兩個 view graph
+        // 訂閱同一個 publisher 時(每個視窗的 @AppStorage("draft") 共用一個),第一個訂閱者拿走名額，第二個的
+        // 更新被算成「已合併」而丟掉：在 iPad 上,P59 的 A 視窗停在 "AA",B 視窗顯示 "AAB",A 的 body 從未
+        // 重算(2026-10-02)。合併的本意是把**同一個** view graph 的重複更新收成一次，這點仍然成立。
+        let semaphore = DispatchSemaphore(value: 1)
         let serialUpdateHandlingQueue = self.serialUpdateHandlingQueue
         let updateStatistics = self.updateStatistics
         return observe {

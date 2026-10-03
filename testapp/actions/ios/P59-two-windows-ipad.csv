@@ -1,0 +1,28 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+#
+# P59 on iPad: @SceneStorage is per window, @AppStorage is shared.
+#
+#   zsh testapp/test.zsh P59 --ios --device "iPad Pro 11-inch (M5)" \
+#       --actionfile=testapp/actions/ios/P59-two-windows-ipad.csv
+#
+# Needs Windowed Apps on. Window A takes "A A", then the second window opens
+# over it and takes "B". Pass, read from the dumptree row: window B's scene
+# draft reads B and window A's reads AA (scene storage did not leak), and BOTH
+# windows' app draft reads AAB (app storage is one value). The window behind is
+# in the tree although it is covered, which is why nothing is dragged -- see
+# P5-alerts-on-two-windows-ipad.csv for why windows are not moved here.
+# P59 在 iPad 上:@SceneStorage 每個視窗各自一份,@AppStorage 共用。通過(讀 dumptree):B 視窗 scene=B、
+# A 視窗 scene=AA,兩個視窗的 app 都是 AAB。
+sleep,,,,,,2000000,let P59 render,ios
+taplabel,,,,,clear,,both drafts persist between runs,ios
+sleep,,,,,,500000,,ios
+taplabel,,,,,append A,,,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,append A,,window A now holds AA in both rows,ios
+sleep,,,,,,500000,,ios
+taplabel,,,,,open second window,,,ios
+sleep,,,,,,2500000,let window B open over A,ios
+taplabel,,,,,append B,,window B -- the front one,ios
+sleep,,,,,,1500000,,ios
+dumptree,,,,,,,"scene: B in one window and AA in the other; app: AAB in both",ios

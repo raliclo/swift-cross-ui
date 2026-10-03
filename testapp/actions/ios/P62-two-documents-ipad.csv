@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+#
+# P62 on iPad: DocumentGroup gives each document its own window and value.
+#
+#   zsh testapp/test.zsh P62 --ios --device "iPad Pro 11-inch (M5)" \
+#       --actionfile=testapp/actions/ios/P62-two-documents-ipad.csv
+#
+# Needs Windowed Apps on. Document 1 takes "AA", then "new document" opens a
+# second window over it. Pass, read from the dumptree row: one window's text
+# reads AA and the other's reads (empty) -- two windows showing the same text
+# would mean every window shares one document.
+# P62 在 iPad 上:每份文件各有自己的視窗與值。通過(讀 dumptree):一個視窗是 AA,另一個是 (empty)。
+sleep,,,,,,2000000,let the first document window lay out,ios
+taplabel,,,,,type A,,,ios
+sleep,,,,,,300000,,ios
+taplabel,,,,,type A,,document 1 now reads AA,ios
+sleep,,,,,,500000,,ios
+taplabel,,,,,new document,,,ios
+sleep,,,,,,2500000,let the second document window open,ios
+dumptree,,,,,,,"one window reads AA, the other (empty)",ios

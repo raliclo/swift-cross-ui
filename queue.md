@@ -96,6 +96,18 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   a fresh Simulator can be set up unattended. `defaults write
   com.apple.WindowManager GloballyEnabled` and `com.apple.springboard
   SBChamoisWindowingEnabled` did NOT switch it (2026-09-30).
+- [x] **P59 / P62 on iPad** (2026-10-03): `P59-two-windows-ipad.csv`,
+  `P62-two-documents-ipad.csv`, read from the dumptree. P59 found a core bug:
+  `Publisher.observeAsUIUpdater` kept ONE merge slot per publisher, so when two
+  windows observed the same @AppStorage the second window's update was dropped
+  as "merged" (window A stayed AA, B showed AAB). Now one slot per observer;
+  verified twice, and full macOS (97/97) and iOS (103/103) sweeps compared
+  capture by capture. `-ipad` files are skipped by the iPhone sweep.
+- [ ] **Mac input source.** Since 2026-10-03 the active input source is Zhuyin
+  (com.apple.inputmethod.TCIM.Zhuyin), and the macOS synthesiser's keys go
+  through it: P71's Cmd-S / Cmd-Shift-E fire 0 times and P9 types kana instead
+  of "hi" -- with the old Publisher too, so not a code change. Switch to ABC
+  before macOS sweeps, or make the synthesiser select an ASCII source itself.
 - [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad
   capture (834x1210 points, @2x: points = pixels / 2). One exists:
   `P75-close-the-window-ipad.csv` (verified).
