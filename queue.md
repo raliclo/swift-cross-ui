@@ -108,6 +108,13 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   through it: P71's Cmd-S / Cmd-Shift-E fire 0 times and P9 types kana instead
   of "hi" -- with the old Publisher too, so not a code change. Switch to ABC
   before macOS sweeps, or make the synthesiser select an ASCII source itself.
+- [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.csv` -- proposed
+  width 802 portrait, 1178 landscape, 802 again, read from the tree.
+- [ ] **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.csv` and the
+  runner's `hover` verb are ready, and UIKitBackend prints the pointer style the
+  system asks for under --debug; but the Simulator delivers no hover to apps --
+  neither the style request nor a UIHoverGestureRecognizer fired across two
+  hovers the runner logged. Run it on an iPad with a trackpad.
 - [ ] **iPad action files**, named `<Pn>-<what>-ipad.csv`, measured on an iPad
   capture (834x1210 points, @2x: points = pixels / 2). One exists:
   `P75-close-the-window-ipad.csv` (verified).

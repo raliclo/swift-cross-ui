@@ -1,0 +1,30 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+# launch-args: --debug
+#
+# P72 on iPad: `.cursor(.crosshair)` takes, and only over the mesh view.
+#
+#   zsh testapp/test_ios.zsh P72 --device "iPad Pro 11-inch (M5)" --debug \
+#       --actionfile testapp/actions/ios/P72-cursor-ipad.csv
+#
+# iPadOS draws the pointer itself and nothing outside the app can read its
+# style, so the evidence is UIKitBackend's own line, printed under --debug when
+# the system asks the view for a style: "-cursor: pointer style requested for
+# crosshair". Pass, from p72-ios-stdout.log: that line appears after the hover
+# over the mesh view (x 192-532, y 326-566 on this iPad) and NO new one after the
+# hover over the text below it -- a cursor region larger than its view would ask
+# there too.
+# **Physical iPad with a trackpad or mouse only.** In the iPad Simulator,
+# XCUITest's hover() reaches no app: on 2026-10-03 neither this style request
+# nor a UIHoverGestureRecognizer added to the same view fired once across both
+# hover rows, while the runner logged both hovers. The Simulator has no pointer
+# to move, so nothing here can pass there.
+# **只能在接觸控板或滑鼠的實體 iPad 上執行。** iPad 模擬器中 XCUITest 的 hover() 送不到任何 app:2026-10-03
+# 這個樣式要求與加在同一個 view 上的 UIHoverGestureRecognizer 都一次也沒觸發，而 runner 記錄了兩次 hover。
+# P72 在 iPad 上:`.cursor(.crosshair)` 有作用，且只在 mesh view 上。證據是 --debug 下 UIKitBackend 印出的
+# 「-cursor: pointer style requested for crosshair」:hover 到 mesh view 上後出現，hover 到下方文字時不再出現。
+sleep,,,,,,2500000,let P72 lay out,ios
+hover,360,446,client,,,,the centre of the mesh view -- a crosshair request must be printed,ios
+sleep,,,,,,1500000,,ios
+hover,360,700,client,,,,"the text below it -- no new request",ios
+sleep,,,,,,1500000,,ios

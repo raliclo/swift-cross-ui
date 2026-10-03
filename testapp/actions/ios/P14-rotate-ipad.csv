@@ -1,0 +1,21 @@
+action,x,y,origin,button,key,micros,note,platform
+# fresh-install
+#
+# P14 on iPad: rotation. Pass, read from the dumptree rows: "Current proposed
+# width" changes after the turn to landscape and returns after the turn back,
+# and the width history records both.
+#
+#   zsh testapp/test.zsh P14 --ios --device "iPad Pro 11-inch (M5)" \
+#       --actionfile=testapp/actions/ios/P14-rotate-ipad.csv
+#
+# P14 在 iPad 上:旋轉。通過(讀 dumptree):轉成橫向後 proposed width 改變，轉回後恢復，history 記下兩者。
+sleep,,,,,,2000000,let P14 render,ios
+windowframes,,,,,,,,ios
+orient,,,,,landscapeLeft,,turn the device left,ios
+sleep,,,,,,3000000,let the rotation finish,ios
+windowframes,,,,,,,,ios
+dumptree,,,,,,,the proposed width must differ from portrait,ios
+orient,,,,,portrait,,and back,ios
+sleep,,,,,,3000000,,ios
+windowframes,,,,,,,,ios
+dumptree,,,,,,,the width must return; the history must show both,ios

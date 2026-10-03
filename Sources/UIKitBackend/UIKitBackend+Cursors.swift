@@ -104,6 +104,16 @@ extension CursorWidget: UIPointerInteractionDelegate {
         _ interaction: UIPointerInteraction,
         styleFor region: UIPointerRegion
     ) -> UIPointerStyle? {
+        // Under --debug, say which cursor the system asked for. iPadOS draws
+        // the pointer itself and nothing outside the app can read its style,
+        // so this request is the only evidence a hover reached the right
+        // view (P72-cursor-ipad.csv reads it).
+        // --debug 時，說出系統要求的是哪一個游標。iPadOS 自己畫指標，app 外沒有任何東西讀得到它的樣式，
+        // 所以這個要求是「hover 抵達正確 view」的唯一證據(P72-cursor-ipad.csv 讀它)。
+        if Self.logsPointerRequests {
+            print("-cursor: pointer style requested for \(cursor)")
+            fflush(stdout)
+        }
         let targeted = UITargetedPreview(view: view)
         switch cursor {
             case .arrow:
@@ -132,6 +142,8 @@ extension CursorWidget: UIPointerInteractionDelegate {
     /// like a drawing mistake.
     /// 這些形狀以原點為中心繪製,因為 `UIPointerShape.path` 會把路徑對齊到指標中心。一條由 (0,0) 向外
     /// 畫出的路徑會偏移它自身的一半——那看起來像「熱點不對的游標」,而不像一個繪圖錯誤。
+    static let logsPointerRequests = CommandLine.arguments.contains("--debug")
+
     private static func crosshairPath() -> UIBezierPath {
         let arm: CGFloat = 9
         let thickness: CGFloat = 1.5

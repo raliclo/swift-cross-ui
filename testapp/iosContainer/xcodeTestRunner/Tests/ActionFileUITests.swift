@@ -194,6 +194,16 @@ final class ActionFileUITests: XCTestCase {
                 FileHandle.standardError.write(
                     Data("-actionfile: element tree at dumptree row:\n\(frontApp.debugDescription)\n".utf8)
                 )
+            case "hover":
+                // Moves the iPad pointer to a point without pressing. A no-op
+                // on iPhone, which has no pointer.
+                // 把 iPad 指標移到某點而不按下。iPhone 沒有指標，不做事。
+                let target = try coordinate(for: action, in: app)
+                target.hover()
+                pointer = target
+                FileHandle.standardError.write(
+                    Data("-actionfile: hovered (\(action.x), \(action.y))\n".utf8)
+                )
             case "windowframes":
                 // Every window of the app under test, in screen points, so a
                 // file can be measured against where the windows really are.
