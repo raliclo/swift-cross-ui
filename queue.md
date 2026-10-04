@@ -153,11 +153,17 @@
     booted ones), DerivedData, clang module cache, Instruments cache, emulator
     crash db, helper processes left by a dead emulator. Opt-in: --erase-sims,
     --wipe-avd, --deep (SwiftPM/Gradle/Homebrew). First run: 11 -> 18 GB free.
-    - [ ] scui-wear AVD (1.4 GB, unregistered, untouched since 2026-09-05) and
-      its android-34 wear image (4.1 GB) on /Volumes/Windows: delete? Needs
-      the user's call; the script only reports them.
-    - [ ] test_ios.zsh leaves a new DerivedData/iOSActionFileRunner-<hash> per
-      run (166 on 2026-10-04): give the runner a fixed -derivedDataPath.
+    - [x] scui-wear AVD (1.4 GB, unregistered, untouched since 2026-09-05) and
+      its android-34 wear image (4.1 GB): removed 2026-10-04 at the user's
+      request (image via sdkmanager --uninstall).
+    - [x] test_ios.zsh left a new DerivedData/iOSActionFileRunner-<hash> per
+      run (166 on 2026-10-04): `test-without-building` had no
+      -derivedDataPath. Fixed; two runs after, zero new folders.
+    - [ ] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
+      build, and the .xctestrun it edits with PlistBuddy) across all apps, and
+      compile.zsh shares one .compile-work-<backend> tree per backend, so two
+      runs on the same platform at once are not safe -- they were not before
+      the DerivedData fix either.
   - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
     recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
     Kotlin helpers do several things per crossing, pure JNI would add crossings.

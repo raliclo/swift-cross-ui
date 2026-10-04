@@ -456,9 +456,17 @@ if [ -n "$action_file" ]; then
             || /usr/libexec/PlistBuddy -c "Set :iOSActionFileRunner:TestingEnvironmentVariables:IOS_DUMP_TREE 1" "$xctestrun_path"
     fi
 
+    # `-derivedDataPath` here too. Without it the test step wrote its logs and
+    # TestResults into ~/Library/Developer/Xcode/DerivedData under a new
+    # iOSActionFileRunner-<hash> on each run: 166 of them on 2026-10-04, on the
+    # system disk. With it they go beside the runner build and are reused.
+    # 這裡也要 `-derivedDataPath`。少了它，測試這一步每跑一次就把日誌與 TestResults 寫進
+    # ~/Library/Developer/Xcode/DerivedData 底下一個新的 iOSActionFileRunner-<hash>:2026-10-04 時有 166 個，
+    # 都在系統碟上。加上之後它們放在 runner 建置旁邊，並且重複使用。
     xcodebuild test-without-building \
         -xctestrun "$xctestrun_path" \
         -destination "$destination" \
+        -derivedDataPath "$xctest_build" \
         -only-testing:iOSActionFileRunner/ActionFileUITests/testActionFile
 fi
 
