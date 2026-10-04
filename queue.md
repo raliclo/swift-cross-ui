@@ -159,6 +159,22 @@
     - [x] test_ios.zsh left a new DerivedData/iOSActionFileRunner-<hash> per
       run (166 on 2026-10-04): `test-without-building` had no
       -derivedDataPath. Fixed; two runs after, zero new folders.
+    - [x] Stale build trees removed 2026-10-04 (44 GB on /Volumes/Windows):
+      testapp/.compile-work (retired, no suffix), the android31 debug trees
+      under .compile-work-android (harness builds release), android28,
+      Examples/.build. **Vendor/swift-bundler/.build was removed too and had
+      to be rebuilt:** the root `swift-bundler` binary loads its
+      ErrorKit_ErrorKit resource bundle from that .build by absolute path, so
+      "not modified in 7 days" meant read-only use, not unused. Android P1 then
+      died bundling with "unable to find bundle named ErrorKit_ErrorKit"; after
+      `swift build -c debug --product swift-bundler` there, Android P1 and iOS
+      P12 build and run. Never delete Vendor/swift-bundler/.build.
+    - [ ] `.swift-bundler-stamp` says the root binary was built from
+      swift-bundler 4ad3f14f, the submodule is at 922ba2a7: the installer
+      would rebuild it. Pre-existing drift, not changed here.
+    - [ ] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
+      is ~1 GB per app, 85 GB in all, regenerated on each build. Candidate for
+      cleanup.zsh once confirmed a build recreates it.
     - [ ] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
       build, and the .xctestrun it edits with PlistBuddy) across all apps, and
       compile.zsh shares one .compile-work-<backend> tree per backend, so two
