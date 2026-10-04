@@ -831,11 +831,13 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func removeAllChildren(of container: Widget) {
+        Self.childPositions.forget(container)
         let container = container.as(CustomContainer.self)!
         container.removeAllViews()
     }
 
     public func insert(_ child: Widget, into container: Widget, at index: Int) {
+        Self.childPositions.forget(container)
         let container = container.as(CustomContainer.self)!
         container.addView(child, Int32(index))
     }
@@ -845,6 +847,12 @@ public final class AndroidBackend: BaseAppBackend {
         in container: Widget,
         to position: SIMD2<Int>
     ) {
+        // Unchanged positions cost no JNI at all -- see LastSet.
+        // 沒有改變的位置完全不經過 JNI——見 LastSet。
+        var known = Self.childPositions.value(for: container) ?? [:]
+        if known[index] == position { return }
+        known[index] = position
+        Self.childPositions.set(known, for: container)
         let density = container.getResources().getDisplayMetrics().density
 
         let container = container.as(CustomContainer.self)!
@@ -868,11 +876,13 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func remove(childAt index: Int, from container: Widget) {
+        Self.childPositions.forget(container)
         let container = container.as(CustomContainer.self)!
         container.removeViewAt(Int32(index))
     }
 
     public func swap(childAt firstIndex: Int, withChildAt secondIndex: Int, in container: Widget) {
+        Self.childPositions.forget(container)
         let container = container.as(CustomContainer.self)!
         let largerIndex = Int32(max(firstIndex, secondIndex))
         let smallerIndex = Int32(min(firstIndex, secondIndex))
@@ -900,7 +910,12 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
+        if Self.widgetSizes.value(for: widget) == size { return }
         guard let layoutParams = widget.getLayoutParams() else { return }
+        // Remembered only once it has actually been applied: with no layout
+        // params yet nothing was set, and the next call must try again.
+        // 只在真正套用之後才記下：還沒有 layout params 時什麼都沒設，下一次呼叫必須再試。
+        Self.widgetSizes.set(size, for: widget)
         let density = widget.getResources().getDisplayMetrics().density
         let width = Self.layoutLength(size.x, density: density)
         let height = Self.layoutLength(size.y, density: density)
@@ -994,14 +1009,19 @@ public final class AndroidBackend: BaseAppBackend {
         content: String,
         environment: EnvironmentValues
     ) {
-        let textView = textView.as(AndroidKit.TextView.self)!
-        // setText relays the text out and requests a layout even when the
-        // string is the same; about half of P66's calls were (2026-10-04).
-        // 即使字串相同,setText 也會重新排版文字並要求一次排版;P66 的呼叫約有一半是如此(2026-10-04)。
-        if textView.getText()?.toString() != content {
-            let content = JavaString(content, environment: Self.env)
-            textView.setText(content.as(CharSequence.self))
-        }
+        // Same text in the same style: nothing to send. setText relays the
+        // text out and requests a layout even for an identical string, and
+        // about half of P66's calls were identical (2026-10-04); the check is
+        // on the Swift side so that it costs no JNI -- see LastSet.
+        // 同樣樣式的同樣文字：不必送出。即使字串相同,setText 也會重新排版文字並要求一次排版，而 P66 的呼叫
+        // 約有一半是相同的(2026-10-04);比較放在 Swift 這一側，因此不花任何 JNI——見 LastSet。
+        let memo = "\(textStyleKey(for: environment))\u{1}\(content)"
+        if Self.textContents.value(for: textView) == memo { return }
+        Self.textContents.set(memo, for: textView)
+        let widget = textView
+        let textView = widget.as(AndroidKit.TextView.self)!
+        let content = JavaString(content, environment: Self.env)
+        textView.setText(content.as(CharSequence.self))
         getTextStyle(from: environment).apply(to: textView)
     }
 

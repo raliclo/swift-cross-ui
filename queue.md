@@ -85,6 +85,17 @@
     cached by key, unchanged positions/sizes/text are skipped. P66 16-22 ->
     24-28 samples (iOS 31); P64 54-56 -> 57-58 Hz, max gap 117-167 -> 67-100 ms.
     Full Android sweep 98/98, captures compared with the run before.
+    PARITY 2026-10-04 (third pass): the remaining read-back checks were
+    themselves JNI calls (updateTextView 27 %, setPosition 22 %), and
+    swift-java's per-call method lookup was 29 %. The last value set on each
+    widget is now kept on the Swift side (AndroidBackend+LastSet.swift), so an
+    unchanged call costs a dictionary lookup. P66 29-31 samples (iOS 31), P64
+    59.0-59.5 Hz with a 33-50 ms worst gap (iOS 58.9-59.8 Hz, 22-43 ms). Not
+    done, and not needed at parity: a method-ID cache in swift-java (a fork).
+  - [ ] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
+    an env var that makes SwiftCrossUI print update-time statistics (count,
+    median, p95, max) at exit; the sweeps collect them per platform so every
+    Pn is compared Android vs iOS vs macOS on the same action file.
   - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
     redistribution offered the stack's overflowed result (522) instead of its
     proposal (408); it now offers the smaller of the two. On iPhone the outer VStack
