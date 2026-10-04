@@ -356,11 +356,16 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   as "merged" (window A stayed AA, B showed AAB). Now one slot per observer;
   verified twice, and full macOS (97/97) and iOS (103/103) sweeps compared
   capture by capture. `-ipad` files are skipped by the iPhone sweep.
-- [ ] **Mac input source.** Since 2026-10-03 the active input source is Zhuyin
+- [x] **Mac input source.** Since 2026-10-03 the active input source is Zhuyin
   (com.apple.inputmethod.TCIM.Zhuyin), and the macOS synthesiser's keys go
   through it: P71's Cmd-S / Cmd-Shift-E fire 0 times and P9 types kana instead
   of "hi" -- with the old Publisher too, so not a code change. Switch to ABC
   before macOS sweeps, or make the synthesiser select an ASCII source itself.
+  DONE 2026-10-05: AppKitSynthesiser.prepareForReplay switches to the ASCII
+  keyboard layout when the file sends keys and the current source is not one,
+  reports it, and finishReplay restores the original. Verified with Zhuyin
+  selected: P71 plain 1 / shifted 1 / disabled 0, P9 typed "hi", the log reads
+  "Zhuyin -> ABC ... restored to Zhuyin", and Zhuyin was current afterwards.
 - [x] **P14 rotation on iPad** (2026-10-03): `P14-rotate-ipad.csv` -- proposed
   width 802 portrait, 1178 landscape, 802 again, read from the tree.
 - [ ] **P72 cursor on iPad: physical iPad only.** `P72-cursor-ipad.csv` and the
