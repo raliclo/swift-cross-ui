@@ -399,27 +399,17 @@ else
     print "==> Reusing $apk_path"
 fi
 
+running_serial=""
 if [ -z "$device_name" ]; then
+    running_serial="$("$adb" devices | awk '/^emulator-[0-9]+[[:space:]]+device$/{print $1; exit}')"
     device_name="$($emulator -list-avds 2>/dev/null | head -n 1 || true)"
     [ -n "$device_name" ] || die "No Android AVD exists; create one before delivery"
 fi
 
-if [[ "$device_name" == emulator-* ]]; then
-    serial="$device_name"
-else
-    # The AVD's data can live on another volume behind a symlink -- on this
-    # machine ~/.android/avd/<name>.avd points into /Volumes/Windows since
-    # 2026-10-02, because its qcow2 overlay grows with every APK install
-    # (10 GB) and filled the system disk mid-sweep. If that volume is not
-    # mounted, say so here rather than let the emulator fail to boot.
-    # AVD 的資料可能透過 symlink 放在別的磁碟上——本機自 2026-10-02 起
-    # ~/.android/avd/<name>.avd 指向 /Volumes/Windows,因為它的 qcow2 每裝一次 APK 就變大
-    # (10 GB),曾在 sweep 中途塞滿系統碟。那顆磁碟沒掛上時，在這裡講清楚，而不是讓模擬器開不起來。
-    avd_dir="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$device_name.avd"
-    if [ -L "$avd_dir" ] && [ ! -d "$avd_dir" ]; then
-        die "AVD $device_name points to ${avd_dir:A}, which is not there -- is its volume mounted?"
-    fi
-    print "==> Booting Android AVD: $device_name"
+# Boot an AVD and wait until adb lists it; sets \$serial.
+# 啟動一個 AVD,等到 adb 列出它為止；設定 \$serial。
+boot_emulator() {
+    print "==> Booting Android AVD: $1"
     # `-no-metrics`, or the emulator can block before it ever boots.
     #
     # Measured 2026-09-05: `emulator -avd ... -no-snapshot -no-boot-anim` logged
@@ -435,7 +425,13 @@ else
     # 「Showing crashdialog to get consent.」然後就停在那裡。`adb devices` 一直是空的，下方的六十秒
     # 等待逾時，而失敗訊息是「Android emulator did not appear in adb devices」——那聽起來像是啟動太慢，
     # 而不是「一個模態對話框正在等一次點擊，而無人值守的執行永遠不會給它」。
-    "$emulator" -avd "$device_name" -no-snapshot -no-boot-anim -no-metrics \
+    #
+    # `-gpu host`: draw with this Mac's GPU. Left to `auto`, the emulator chose
+    # for itself, and under memory pressure it chose software GL -- see the
+    # renderer check after boot, which is what actually enforces this.
+    # `-gpu host`:用這台 Mac 的 GPU 繪圖。留給 `auto` 時由模擬器自己挑，而記憶體吃緊時它挑過軟體 GL——
+    # 真正把關的是開機後的 renderer 檢查。
+    "$emulator" -avd "$1" -no-snapshot -no-boot-anim -no-metrics -gpu host \
         >/dev/null 2>&1 &
     serial=""
     for _ in {1..60}; do
@@ -444,17 +440,90 @@ else
         sleep 1
     done
     [ -n "$serial" ] || die "Android emulator did not appear in adb devices"
+}
+
+wait_booted() {
+    ANDROID_SERIAL="$serial" "$adb" wait-for-device
+    ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || {
+        for _ in {1..60}; do
+            sleep 1
+            ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed 2>/dev/null | grep -q 1 && break
+        done
+    }
+    ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || die "Android device did not finish booting"
+}
+
+# An emulator already running is used rather than a second one started on the
+# same AVD. The second instance used to fail on the AVD lock and go away, but
+# when the running one is restarted on the host GPU below, a stray second
+# instance can win the race for the AVD with whatever flags it was given.
+# 已在執行的模擬器直接沿用，不在同一個 AVD 上再啟動第二個。第二個實例原本會因 AVD 鎖而失敗並消失，但下方以主機
+# GPU 重開執行中的那一台時，多出來的實例可能搶先拿到該 AVD,帶著它自己的旗標開機。
+if [[ "$device_name" == emulator-* ]]; then
+    serial="$device_name"
+elif [ -n "$running_serial" ]; then
+    serial="$running_serial"
+    print "==> Using running emulator: $serial"
+else
+    # The AVD's data can live on another volume behind a symlink -- on this
+    # machine ~/.android/avd/<name>.avd points into /Volumes/Windows since
+    # 2026-10-02, because its qcow2 overlay grows with every APK install
+    # (10 GB) and filled the system disk mid-sweep. If that volume is not
+    # mounted, say so here rather than let the emulator fail to boot.
+    # AVD 的資料可能透過 symlink 放在別的磁碟上——本機自 2026-10-02 起
+    # ~/.android/avd/<name>.avd 指向 /Volumes/Windows,因為它的 qcow2 每裝一次 APK 就變大
+    # (10 GB),曾在 sweep 中途塞滿系統碟。那顆磁碟沒掛上時，在這裡講清楚，而不是讓模擬器開不起來。
+    avd_dir="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$device_name.avd"
+    if [ -L "$avd_dir" ] && [ ! -d "$avd_dir" ]; then
+        die "AVD $device_name points to ${avd_dir:A}, which is not there -- is its volume mounted?"
+    fi
+    boot_emulator "$device_name"
 fi
 
 print "==> Waiting for Android device"
-ANDROID_SERIAL="$serial" "$adb" wait-for-device
-ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || {
-    for _ in {1..60}; do
-        sleep 1
-        ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed 2>/dev/null | grep -q 1 && break
-    done
+wait_booted
+
+# Hardware rendering, by default and checked rather than assumed. `-gpu host`
+# above covers only an emulator this script boots; one already running keeps
+# whatever it was started with, and an AVD left on `auto` has fallen back to
+# software GL under memory pressure. SurfaceFlinger names the renderer it
+# actually got: on this Mac the host GPU reads "OpenGL ES Translator (Apple M4)
+# ... Metal", software reads SwiftShader. Timings and animation captures from a
+# software renderer are not comparable with any other run, so an emulator found
+# on one is restarted on the host GPU -- no flag needed -- and a run that still
+# cannot get it stops here.
+# 預設使用硬體繪圖，並且檢查而非假設。上面的 `-gpu host` 只管本腳本開機的模擬器；已在執行中的那一台保留它
+# 啟動時的設定，而停在 `auto` 的 AVD 在記憶體吃緊時退回過軟體 GL。SurfaceFlinger 會說出它實際拿到的
+# renderer:在這台 Mac 上，主機 GPU 是「OpenGL ES Translator (Apple M4) ... Metal」,軟體則是 SwiftShader。
+# 軟體 renderer 的計時與動畫截圖無法與其他任何一次比較，因此發現模擬器跑在軟體上時，就以主機 GPU 重開——
+# 不需要任何旗標——重開後仍拿不到的話，就在這裡停下。
+renderer() {
+    ANDROID_SERIAL="$serial" "$adb" shell dumpsys SurfaceFlinger 2>/dev/null | grep -m1 '^GLES:' || true
 }
-ANDROID_SERIAL="$serial" "$adb" shell getprop sys.boot_completed | grep -q 1 || die "Android device did not finish booting"
+is_software() {
+    [[ -z "$1" || "$1" == *[Ss]wift[Ss]hader* || "$1" == *llvmpipe* || "$1" == *lavapipe* ]]
+}
+if [[ "$serial" == emulator-* ]]; then
+    gles="$(renderer)"
+    if is_software "$gles"; then
+        running_avd="$(ANDROID_SERIAL="$serial" "$adb" emu avd name 2>/dev/null | head -n 1 | tr -d '\r')"
+        print "==> $serial renders in software (${gles:-no GLES line}); restarting ${running_avd:-it} on the host GPU"
+        [ -n "$running_avd" ] || die "cannot tell which AVD $serial is, so cannot restart it on the host GPU"
+        ANDROID_SERIAL="$serial" "$adb" emu kill >/dev/null 2>&1 || true
+        for _ in {1..60}; do
+            "$adb" devices | grep -q "^${serial}[[:space:]]" || break
+            sleep 1
+        done
+        boot_emulator "$running_avd"
+        wait_booted
+        gles="$(renderer)"
+    fi
+    print "==> Renderer: ${gles:-unknown}"
+    if is_software "$gles"; then
+        die "the emulator is not rendering on the host GPU (${gles:-no GLES line})"
+    fi
+fi
+
 
 
 # Screenshots, into the same place and with the same naming every other platform

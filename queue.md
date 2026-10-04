@@ -123,15 +123,31 @@
       at x 525 and .wheel at x 499 in a 440-pt window and scrolls too; the two
       action files simply end at different scroll positions. Android's large
       calendar header is the Material picker's own look.
-    - [ ] iOS, the other way: P57's 500-row List builds 29,718 rows on iOS against
-      403 on Android -- UIKit's lazy list does far more work.
+    - [x] iOS, the other way: P57's 500-row List built 29,718 rows on iOS against
+      403 on Android. FIXED 2026-10-04 (bca777db): setLazyRows reloaded the whole
+      table on every update (343 reloads), and each reload released and rebuilt
+      the visible rows; same-count updates now refresh visible rows in place.
+      Now 1,913 / 8. A per-cell trace of that run shows 1,906 cellForRowAt calls,
+      so each build is one row coming on screen. The rest of the gap to Android
+      is the walk, not waste: on iOS the same `scroll 6` rows reach row 446 and
+      back (~900), plus a 0..499 burst and 455 scattered rows (6, 33, 71, 119 ...)
+      that look like XCUITest's accessibility snapshot making UITableView vend
+      off-screen cells -- not yet proven.
     - [ ] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
       earlier app; the sweep does not clear the task stack between apps.
-  - [ ] **Emulator GPU.** It uses host GPU (GLES: Apple M4 Metal) and Apple
-    Hypervisor today, but falls back to software GL under memory pressure (seen
-    2026-10-03: 4.2 GB free of 5.1 GB needed); the broken old AVD ran
-    SwiftShader. Pin hw.gpu.mode=host and have test_android warn on a software
-    renderer.
+  - [x] **Emulator GPU.** DONE 2026-10-04. AVD config pinned to
+    hw.gpu.enabled=yes / hw.gpu.mode=host (was no / auto, which fell back to
+    software GL under memory pressure). test_android.zsh and sweep_android.zsh
+    boot with `-gpu host`; test_android reuses a running emulator, reads the
+    renderer from SurfaceFlinger, and if it is SwiftShader/llvmpipe/lavapipe
+    restarts that AVD on the host GPU by itself (no flag) and stops if it still
+    cannot get one. Proven on an emulator booted with swiftshader_indirect:
+    restarted, `Renderer: ... Apple M4 ... Metal`, P1 ran. Full Android sweep
+    afterwards: 99 / 99 launched; finals against the previous sweep: 66
+    identical, the rest differ only in content (clock, frame counters, files
+    the earlier runs saved in Downloads/Recents). That previous sweep was
+    already on the host GPU (P72 prints its renderer), so this shows pinning
+    changed nothing; it is not a comparison against software rendering.
   - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
     recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
     Kotlin helpers do several things per crossing, pure JNI would add crossings.

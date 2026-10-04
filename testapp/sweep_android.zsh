@@ -280,7 +280,7 @@ if ! device_ready; then
     # swift-cross-ui-api36 在 2026-10-03 資料損壞、另建替代品之後仍會一直被啟動。
     avd_name="${ANDROID_AVD:-$("$android_root/emulator/emulator" -list-avds 2>/dev/null | head -n 1)}"
     "$android_root/emulator/emulator" -avd "$avd_name" \
-        -no-snapshot -no-boot-anim -no-metrics >/dev/null 2>&1 &
+        -no-snapshot -no-boot-anim -no-metrics -gpu host >/dev/null 2>&1 &
     for _ in {1..180}; do
         device_ready && break
         sleep 2
