@@ -69,7 +69,7 @@ script_dir="${script_path:h}"
 
 target="${1:-P12}"
 serial="${ANDROID_SERIAL:-emulator-5554}"
-package="dev.swiftcrossui.testapp.${target:l}"
+package="dev.swiftcrossui.testapp.${${target//-/}:l}"
 shots="$script_dir/output/screenshots"
 scratch="${TMPDIR:-/tmp}/rootscroll-android-$target"
 

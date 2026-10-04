@@ -189,8 +189,15 @@ toolchain was installed (2026-10-05); it is done below.
       back (~900), plus a 0..499 burst and 455 scattered rows (6, 33, 71, 119 ...)
       that look like XCUITest's accessibility snapshot making UITableView vend
       off-screen cells -- not yet proven.
-    - [ ] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
+    - [x] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
       earlier app; the sweep does not clear the task stack between apps.
+      FIXED 2026-10-05: the sweep did force-stop and uninstall each app after its
+      file, but as dev.swiftcrossui.testapp.${app:l} -- "p17-doe", while the
+      package is "p17doe" (test_android.zsh drops the hyphen). am force-stop of a
+      package that does not exist says nothing, so P17-DOE and P15-DARK were never
+      stopped or removed. Same spelling fixed in verify_effect_android.zsh,
+      verify_replay_android.zsh and test_rootscroll_android.zsh. Verified: sweep
+      of P17-DOE then P75 -- close-the-window now ends on the home screen.
   - [x] **Emulator GPU.** DONE 2026-10-04. AVD config pinned to
     hw.gpu.enabled=yes / hw.gpu.mode=host (was no / auto, which fell back to
     software GL under memory pressure). test_android.zsh and sweep_android.zsh

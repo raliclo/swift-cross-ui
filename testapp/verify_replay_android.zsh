@@ -155,7 +155,7 @@ for action in $action_files; do
     done
     [ -n "$app" ] || app="${base%%-*}"
     scenario="${base#*-}"
-    package="dev.swiftcrossui.testapp.${app:l}"
+    package="dev.swiftcrossui.testapp.${${app//-/}:l}"
     apk="$script_dir/.androidApk/$app.apk"
 
     if [ ! -f "$apk" ]; then

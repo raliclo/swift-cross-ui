@@ -341,7 +341,7 @@ for action in $action_files; do
 
     if [ "$rc" -ne 0 ] && [ -f "$log" ] && emulator_wedged "$log"; then
         note_prefix="retried after an emulator failure: "
-        adb_if_ready shell am force-stop "dev.swiftcrossui.testapp.${app:l}" >/dev/null 2>&1
+        adb_if_ready shell am force-stop "dev.swiftcrossui.testapp.${${app//-/}:l}" >/dev/null 2>&1
         rc=$(run_one "$app" "$action" "$log")
     else
         note_prefix=""
@@ -399,8 +399,8 @@ PY
     printf "%-6s %-34s %-7s %-9s %-6s %-28s %s\n" \
         "$app" "${scenario:0:33}" "$build_state" "$launched" "$shots" "$box" "$note"
 
-    adb_if_ready shell am force-stop "dev.swiftcrossui.testapp.${app:l}" >/dev/null 2>&1
-    adb_if_ready uninstall "dev.swiftcrossui.testapp.${app:l}" >/dev/null 2>&1
+    adb_if_ready shell am force-stop "dev.swiftcrossui.testapp.${${app//-/}:l}" >/dev/null 2>&1
+    adb_if_ready uninstall "dev.swiftcrossui.testapp.${${app//-/}:l}" >/dev/null 2>&1
 done
 
 print
