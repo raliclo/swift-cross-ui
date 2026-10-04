@@ -102,8 +102,10 @@
       Android has no leading file.
     - [x] 3. FIXED 2026-10-04 (CustomRadioGroup dims disabled options to 0.4). P74 disabled radio group: labels stay full black on Android; iOS dims
       them.
-    - [ ] 2. P23 table: a long cell wraps to many lines and spills over the text
-      below; iOS truncates with an ellipsis.
+    - [x] 2. FIXED 2026-10-04 (TableContainer clips to its own frame). P23 table: a long cell wraps to many lines and spills over the text
+      below; iOS truncates with an ellipsis. Remaining difference, part of 4:
+      Android cells wrap to several lines (column = width / 4) so only ~2.5 of
+      12 rows fit, where iOS keeps each row to one truncated line.
     - [ ] 4. Text in narrow places breaks one character per line on Android
       ("Sci enc e" P16 sidebar, "Disa ble it" P29, "Re mo ve 3" P51 ControlGroup,
       "u n k n o w n" P47) where iOS keeps words; partly Android buttons'

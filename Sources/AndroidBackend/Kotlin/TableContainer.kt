@@ -117,6 +117,34 @@ class TableContainer(val activity: Activity) : ViewGroup(activity) {
     }
 
     /**
+     * Nothing draws outside the table's own frame.
+     *
+     * Rows are laid out at the heights SwiftCrossUI computed, and when they add
+     * up to more than the table was given the last rows landed below it. The
+     * parent is a CustomContainer, which deliberately does not clip, so P23's
+     * long row 3 spilled over the paragraph under the table (2026-10-04). P23
+     * accepts a long cell truncated, scrolled or clipped -- not spilled -- and
+     * UIKit's table clips to its bounds.
+     *
+     * 任何東西都不畫在表格自己的範圍外。列依 SwiftCrossUI 算好的高度排列，加總超過表格得到的高度時，最後幾列
+     * 落在表格下方。父 view 是刻意不裁切的 CustomContainer,所以 P23 很長的第 3 列蓋到了表格下方的段落
+     * (2026-10-04)。P23 接受長儲存格被截斷、捲動或裁切——但不接受溢出——而 UIKit 的表格會裁到自己的範圍。
+     */
+    override fun dispatchDraw(canvas: Canvas) {
+        canvas.save()
+        canvas.clipRect(0, 0, width, height)
+        super.dispatchDraw(canvas)
+        canvas.restore()
+    }
+
+    override fun draw(canvas: Canvas) {
+        canvas.save()
+        canvas.clipRect(0, 0, width, height)
+        super.draw(canvas)
+        canvas.restore()
+    }
+
+    /**
      * Whether a tap is worth reporting, which is not the same as whether it hit a row.
      *
      * A tap on the header or below the last row reports -1: that is a deselection the user
