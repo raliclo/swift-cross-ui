@@ -61,6 +61,18 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
         var meshCounts: [Int32] = []
 
         for mesh in scene.meshes {
+            // Lines, points, unlit triangles and overlays (2026-10-05) are drawn by the
+            // Metal renderer only so far; the GLES path is queued in queue.md (M10
+            // follow-up). Skipping with a warning keeps this from drawing them wrong:
+            // a line list has no indices, so it would otherwise vanish in silence.
+            // **Not compiled on the machine that wrote it** -- it had no Android toolchain.
+            // 線段、點、不打光的三角形與覆蓋層(2026-10-05)目前只有 Metal renderer 會畫;GLES 那條路
+            // 排在 queue.md(M10 後續)。略過並警告,避免把它們畫錯:線段清單沒有索引,否則會無聲地消失。
+            // **寫下這段的那台機器沒有編譯過它**——它沒有 Android 工具鏈。
+            guard mesh.primitive == .triangles, mesh.lit, mesh.depthTested else {
+                Mesh3DAndroidPending.reportOnce()
+                continue
+            }
             let base = vertices.count / 9
             guard base + mesh.vertices.count <= Int(Int16.max) else {
                 logger.warning(
@@ -146,5 +158,24 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
         )
 
         view.redraw()
+    }
+}
+
+/// One warning per process for mesh options the GLES renderer does not draw yet.
+/// 每個行程只對「GLES renderer 尚未支援的 mesh 選項」警告一次。
+enum Mesh3DAndroidPending {
+    nonisolated(unsafe) private static var reported = false
+
+    static func reportOnce() {
+        guard !reported else { return }
+        reported = true
+        logger.warning(
+            """
+            render warning (the app keeps running and the rest of the scene is drawn): \
+            a mesh uses lines, points, lit: false or depthTested: false, which \
+            AndroidBackend does not draw yet, so that mesh is skipped. What to change: \
+            the GLES path for these in Mesh3DSurfaceView.kt, queued in queue.md under M10.
+            """
+        )
     }
 }

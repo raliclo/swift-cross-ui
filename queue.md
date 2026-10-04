@@ -1,5 +1,47 @@
 # queue
 
+## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
+
+SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew
+indexed triangles only. The user's decision: Apple and Android first, Windows and
+WSL to the Windows side. This machine has no Android toolchain and the user said
+not to install one, so Android is queued here, not done.
+
+- [x] **Apple (AppKit + UIKit, one shared `SwiftCrossUIMetal`).** `Mesh3DPrimitive`
+  (`.triangles` indexed; `.lines` and `.points(size:)` drawn straight from the
+  vertex array, so no index-width limit), `Mesh3D.lit`, `Mesh3D.depthTested`,
+  `Mesh3DCamera.Projection.orthographic(height:)` (shared matrix, both depth
+  ranges unit-tested), `.glb` modes 0/1 and an orthographic camera. Fixed on the
+  way: a mesh with no triangle shifted every later mesh onto its predecessor's
+  transform. Verified with P76 on macOS and on the iOS simulator, each with
+  `P76-projection.csv`; `Mesh3DTests` added.
+- [x] **iOS builds without Swift Bundler by default.** `compile.zsh -ios` runs
+  `xcodebuild -scheme <Pn>` and wraps the executable in
+  `iosContainer/appTemplate.app` (name, identifier `dev.swiftcrossui.testapp.<Pn>`,
+  ad-hoc signature); the bundler is the fallback when that fails. P76 built,
+  installed directly with `simctl install`, and replayed through `test.zsh --ios`.
+  Other Pn have not been rebuilt this way yet -- the first full iOS sweep is the
+  check, and any Pn that falls back says so in its build log (`built by:`).
+- [ ] **Android: the GLES path for the same options.** Until then
+  `AndroidBackend+Mesh3DView.swift` skips such meshes with a one-time warning
+  (written without an Android toolchain -- **not compiled**; compile it first).
+  - B: 32-bit indices -- `setEGLContextClientVersion(3)` (GLES 3 has
+    `GL_UNSIGNED_INT`) or check `OES_element_index_uint` at run time; `IntBuffer`
+    instead of `ShortBuffer`. Today the guard is `Int16.max`: a scene past
+    **32,767 vertices in total** is refused, because every mesh shares one index
+    space.
+  - D: lines and points with `glDrawArrays` (no index buffer); `gl_PointSize` for
+    points.
+  - unlit and `depthTested: false` in the fragment shader / depth state;
+    orthographic needs nothing, it comes from the shared matrix.
+  - Acceptance: P76 on the emulator showing the same six claims, plus a mesh past
+    1,000,000 vertices with no missing or crossed triangles.
+- [ ] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side.
+- [ ] **Skip the per-commit geometry comparison.** `setScene` compares every
+  vertex of every mesh on each commit to decide whether to re-upload; at SoftPCB's
+  sizes (a 92,529-node mesh's edges) that runs on every drag frame. A revision
+  token on `Mesh3D` would make it O(1). Not designed yet.
+
 ## 2026-10-01 open after the UIScene change (8272b7a2) -- in this order
 
 1-4 first, in the order 4, 1, 2, 3 (the user's choice); the iPad plan after all four.

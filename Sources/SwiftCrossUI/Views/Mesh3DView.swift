@@ -31,17 +31,54 @@ public struct Mesh3DVertex: Equatable, Sendable {
     }
 }
 
-/// An indexed triangle mesh.
+/// What a ``Mesh3D``'s vertices are drawn as.
 ///
-/// Indices are triples, so `indices.count` is three times the triangle count. A
+/// **Triangles are indexed; lines and points are not.** A triangle mesh shares a
+/// vertex between the faces that meet at it, which is what indices are for. A
+/// line list or a point cloud has nothing to share, so it is drawn straight from
+/// the vertex array -- two vertices per line, one per point -- and its `indices`
+/// must be empty. That also means a line or point mesh has no index-width limit
+/// on any backend: the only bound is how many vertices fit in memory.
+///
+/// **Lines and points are never lit.** Lighting needs a surface normal, and a
+/// line or a point has none; shading one would make its colour depend on an
+/// arbitrary vector, which reads as data that is not there. Their `normal`
+/// field is ignored.
+///
+/// ``Mesh3D`` 的頂點要畫成什麼。
+///
+/// **三角形帶索引,線段與點不帶。** 三角網格讓相鄰的面共用頂點,那正是索引的用途。線段清單與點雲
+/// 沒有可共用的東西,因此直接依頂點陣列畫——每條線兩個頂點、每個點一個——而它的 `indices` 必須是空的。
+/// 這也表示線段與點的 mesh 在任何 backend 上都沒有索引寬度的上限:唯一的限制是記憶體放得下多少頂點。
+///
+/// **線段與點永遠不打光。** 光照需要表面法線,而線段與點沒有;替它們打光會讓顏色取決於一個任意的向量,
+/// 讀起來像是一份並不存在的資料。它們的 `normal` 欄位會被忽略。
+public enum Mesh3DPrimitive: Equatable, Sendable {
+    /// Indexed triangles; `indices` are triples.
+    /// 帶索引的三角形;`indices` 以三個為一組。
+    case triangles
+    /// A line list: vertices 0-1 are one line, 2-3 the next. An odd last vertex
+    /// is not drawn. `indices` must be empty.
+    /// 線段清單:頂點 0-1 是一條線、2-3 是下一條。落單的最後一個頂點不畫。`indices` 必須是空的。
+    case lines
+    /// One point per vertex, `size` pixels across in the drawable. `indices`
+    /// must be empty.
+    /// 每個頂點一個點,在 drawable 中寬 `size` 像素。`indices` 必須是空的。
+    case points(size: Float)
+}
+
+/// A mesh: indexed triangles by default, or a line list or point cloud (see
+/// ``Mesh3DPrimitive``).
+///
+/// For triangles, indices are triples, so `indices.count` is three times the triangle count. A
 /// mesh whose index count is not a multiple of three is a programming error the
 /// backend will not try to repair: it draws the whole triples and ignores the
 /// remainder, because silently inventing a vertex is worse than a missing
 /// triangle nobody asked for.
 ///
-/// 一個帶索引的三角網格。
+/// 一個 mesh:預設是帶索引的三角形,也可以是線段清單或點雲(見 ``Mesh3DPrimitive``)。
 ///
-/// 索引以三個為一組,因此 `indices.count` 是三角形數量的三倍。索引數不是三的倍數,是呼叫端的錯誤,
+/// 三角形的索引以三個為一組,因此 `indices.count` 是三角形數量的三倍。索引數不是三的倍數,是呼叫端的錯誤,
 /// 而 backend 不會試著替它修補:它會畫出完整的那些三元組、忽略餘數——因為「靜默地生出一個頂點」
 /// 比「少一個沒人要求的三角形」更糟。
 public struct Mesh3D: Equatable, Sendable {
@@ -71,14 +108,40 @@ public struct Mesh3D: Equatable, Sendable {
     /// 而那正是讓 backend 能跳過上傳的條件:一個以 60 Hz 轉動的立方體,一個位元組都不必重傳。
     public var transform: Mesh3DTransform
 
+    /// What the vertices are drawn as. / 頂點要畫成什麼。
+    public var primitive: Mesh3DPrimitive
+
+    /// Whether triangles are shaded by the scene's light. `false` draws each
+    /// vertex's colour exactly, so a face can match a legend swatch pixel for
+    /// pixel. Lines and points are never lit, whatever this says.
+    ///
+    /// 三角形是否受場景的光照影響。`false` 會原樣畫出每個頂點的顏色,好讓一個面能與圖例色塊逐像素相同。
+    /// 線段與點無論此處怎麼寫都不打光。
+    public var lit: Bool
+
+    /// Whether this mesh is hidden by what is in front of it. `false` draws it
+    /// over everything drawn before it and writes no depth, which is what a
+    /// highlight or an overlay needs. Meshes are drawn in array order, so an
+    /// overlay belongs at the end.
+    ///
+    /// 這個 mesh 是否會被前方的東西擋住。`false` 會把它畫在先前畫過的一切之上、且不寫入深度——那正是
+    /// 高亮與覆蓋層所需要的。mesh 依陣列順序繪製,因此覆蓋層應放在最後。
+    public var depthTested: Bool
+
     public init(
         vertices: [Mesh3DVertex],
-        indices: [UInt32],
-        transform: Mesh3DTransform = Mesh3DTransform()
+        indices: [UInt32] = [],
+        transform: Mesh3DTransform = Mesh3DTransform(),
+        primitive: Mesh3DPrimitive = .triangles,
+        lit: Bool = true,
+        depthTested: Bool = true
     ) {
         self.vertices = vertices
         self.indices = indices
         self.transform = transform
+        self.primitive = primitive
+        self.lit = lit
+        self.depthTested = depthTested
     }
 }
 
@@ -135,6 +198,28 @@ public struct Mesh3DTransform: Equatable, Sendable {
 /// 一個位置、一個目標、一個上方向,加上以「度」為單位的垂直視角與近遠平面——與 three.js 的
 /// `PerspectiveCamera` 所取的是同樣五件事、名字也相同,好讓看得懂其中一邊的人看得懂另一邊。
 public struct Mesh3DCamera: Equatable, Sendable {
+    /// How the camera projects the scene.
+    ///
+    /// **Orthographic exists for measurement, not for looks.** Under perspective
+    /// the same length draws shorter the further away it is, so a scale bar or a
+    /// tick along an axis can only be read at one depth. Under orthographic
+    /// projection every length along a given direction draws the same, which is
+    /// what an engineering view needs. `height` is how many world units span the
+    /// view vertically; the width follows from the aspect ratio.
+    ///
+    /// 相機如何投影場景。
+    ///
+    /// **正交投影是為了量測,不是為了好看。** 透視下同一段長度離得越遠畫得越短,因此比例尺或軸上的刻度只在
+    /// 某一個深度上讀得準。正交投影下,同一方向上的每段長度畫出來都一樣長——那是工程視圖所需要的。
+    /// `height` 是畫面垂直方向涵蓋多少個世界單位;寬度由長寬比推出。
+    public enum Projection: Equatable, Sendable {
+        /// Uses ``Mesh3DCamera/fieldOfView``. / 使用 ``Mesh3DCamera/fieldOfView``。
+        case perspective
+        /// `height` world units from the bottom of the view to the top.
+        /// 畫面由下到上涵蓋 `height` 個世界單位。
+        case orthographic(height: Float)
+    }
+
     public var position: SIMD3<Float>
     public var target: SIMD3<Float>
     public var up: SIMD3<Float>
@@ -143,6 +228,7 @@ public struct Mesh3DCamera: Equatable, Sendable {
     public var fieldOfView: Float
     public var near: Float
     public var far: Float
+    public var projection: Projection
 
     public init(
         position: SIMD3<Float> = SIMD3(0, 0, 3),
@@ -150,7 +236,8 @@ public struct Mesh3DCamera: Equatable, Sendable {
         up: SIMD3<Float> = SIMD3(0, 1, 0),
         fieldOfView: Float = 50,
         near: Float = 0.1,
-        far: Float = 100
+        far: Float = 100,
+        projection: Projection = .perspective
     ) {
         self.position = position
         self.target = target
@@ -158,6 +245,7 @@ public struct Mesh3DCamera: Equatable, Sendable {
         self.fieldOfView = fieldOfView
         self.near = near
         self.far = far
+        self.projection = projection
     }
 }
 

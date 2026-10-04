@@ -22,6 +22,9 @@
         private var commandQueue: MTLCommandQueue?
         private var pipeline: MTLRenderPipelineState?
         private var depthState: MTLDepthStencilState?
+        /// For meshes with `depthTested == false`: always passes, writes nothing.
+        /// 給 `depthTested == false` 的 mesh:一律通過、不寫入深度。
+        private var overlayDepthState: MTLDepthStencilState?
 
         private var vertexBuffer: MTLBuffer?
         private var indexBuffer: MTLBuffer?
@@ -39,7 +42,25 @@
         /// 每個 mesh 一次 draw call——因為現在每個 mesh 各自帶著自己的 ``Mesh3DTransform``,而變換是
         /// uniform、不是頂點資料。另一條路——在上傳前把各自的變換烘進頂點——會變成「只要有東西動,
         /// 每一幀都要重傳每一個 mesh」,而那正是這個設計要避開的代價。
-        private var meshRanges: [(offset: Int, count: Int)] = []
+        ///
+        /// **Each range names its mesh.** Until 2026-10-05 a range was matched to
+        /// `scene.meshes` by its position in this array, while a mesh with no whole
+        /// triangle got no range -- so one empty mesh shifted every later mesh onto
+        /// its predecessor's transform. Line and point meshes made that case
+        /// ordinary rather than rare: they have no indices at all.
+        ///
+        /// **每一段都記著自己屬於哪個 mesh。** 2026-10-05 之前,一段是以「它在此陣列中的位置」對到
+        /// `scene.meshes` 的,而一個沒有完整三角形的 mesh 不會產生任何一段——於是一個空 mesh 會讓之後
+        /// 每個 mesh 都套上前一個的變換。線段與點的 mesh 根本沒有索引,讓這種情況從罕見變成常態。
+        private var meshRanges: [DrawRange] = []
+
+        private struct DrawRange {
+            var mesh: Int
+            /// Indexed triangles start in the index buffer; lines and points in
+            /// the vertex buffer. / 三角形從索引 buffer 起算;線段與點從頂點 buffer 起算。
+            var start: Int
+            var count: Int
+        }
 
         /// What was last uploaded, so a scene that only moves its camera does not
         /// re-upload its geometry every frame.
@@ -65,7 +86,7 @@
         /// 變換頂點來讓立方體自轉的,因此它的 mesh 每一幀都不同,而這裡每一幀都重新上傳——無論如何,那也是
         /// 更該先被測到的路徑:一個無法接受新幾何的 renderer,不算 renderer。「跳過」會發生在
         /// 「一次 commit 沒有改變幾何」的時候;在 P72 裡,那就是它的動作檔所按下的那兩個按鈕。
-        private var uploadedGeometry: [([Mesh3DVertex], [UInt32])] = []
+        private var uploadedGeometry: [([Mesh3DVertex], [UInt32], Mesh3DPrimitive)] = []
 
         private var scene = Mesh3DScene()
 
@@ -160,7 +181,7 @@
                 blue: Double(background.blue),
                 alpha: Double(background.opacity)
             )
-            let geometry = scene.meshes.map { ($0.vertices, $0.indices) }
+            let geometry = scene.meshes.map { ($0.vertices, $0.indices, $0.primitive) }
             if !geometryMatchesUpload(geometry) {
                 upload(scene.meshes)
                 uploadedGeometry = geometry
@@ -173,11 +194,11 @@
         }
 
         private func geometryMatchesUpload(
-            _ geometry: [([Mesh3DVertex], [UInt32])]
+            _ geometry: [([Mesh3DVertex], [UInt32], Mesh3DPrimitive)]
         ) -> Bool {
             guard geometry.count == uploadedGeometry.count else { return false }
             for (new, old) in zip(geometry, uploadedGeometry) where
-                new.0 != old.0 || new.1 != old.1
+                new.0 != old.0 || new.1 != old.1 || new.2 != old.2
             {
                 return false
             }
@@ -210,6 +231,11 @@
             depth.depthCompareFunction = .less
             depth.isDepthWriteEnabled = true
             depthState = device.makeDepthStencilState(descriptor: depth)
+
+            let overlay = MTLDepthStencilDescriptor()
+            overlay.depthCompareFunction = .always
+            overlay.isDepthWriteEnabled = false
+            overlayDepthState = device.makeDepthStencilState(descriptor: overlay)
         }
 
         private func upload(_ meshes: [Mesh3D]) {
@@ -247,7 +273,7 @@
             var indices: [UInt32] = []
             var vertexCount = 0
             meshRanges = []
-            for mesh in meshes {
+            for (meshIndex, mesh) in meshes.enumerated() {
                 let offset = UInt32(vertexCount)
                 for vertex in mesh.vertices {
                     vertices += [
@@ -262,7 +288,30 @@
                         vertex.colour.z,
                     ]
                 }
+                let base = vertexCount
                 vertexCount += mesh.vertices.count
+                // Lines and points are drawn straight from the vertex array, so they
+                // carry no index and have no index-width limit. A stray index on one
+                // is a caller error and is ignored rather than guessed at.
+                // 線段與點直接依頂點陣列繪製,因此不帶索引、也沒有索引寬度的上限。它們若帶了索引,
+                // 是呼叫端的錯誤,此處忽略而不猜測其意圖。
+                switch mesh.primitive {
+                    case .lines:
+                        let whole = (mesh.vertices.count / 2) * 2
+                        if whole > 0 {
+                            meshRanges.append(DrawRange(mesh: meshIndex, start: base, count: whole))
+                        }
+                        continue
+                    case .points:
+                        if !mesh.vertices.isEmpty {
+                            meshRanges.append(
+                                DrawRange(mesh: meshIndex, start: base, count: mesh.vertices.count)
+                            )
+                        }
+                        continue
+                    case .triangles:
+                        break
+                }
                 let start = indices.count
                 indices.append(contentsOf: mesh.indices.map { $0 + offset })
                 // Whole triples only. A mesh whose index count is not a multiple
@@ -271,7 +320,9 @@
                 // 只取完整的三元組。索引數不是三的倍數,是 `Mesh3D` 已載明的呼叫端錯誤,此處不予修補:
                 // 憑空生出一個頂點,比少畫一個三角形更糟。
                 let whole = ((indices.count - start) / 3) * 3
-                if whole > 0 { meshRanges.append((offset: start, count: whole)) }
+                if whole > 0 {
+                    meshRanges.append(DrawRange(mesh: meshIndex, start: start, count: whole))
+                }
             }
 
             guard !vertices.isEmpty, !meshRanges.isEmpty else {
@@ -284,7 +335,9 @@
             vertexBuffer = vertices.withUnsafeBytes { bytes in
                 device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
             }
-            indexBuffer = indices.withUnsafeBytes { bytes in
+            // A scene of lines and points alone has no indices, and a zero-length
+            // buffer is not one Metal will make. / 只有線段與點的場景沒有索引,而 Metal 不建零長度的 buffer。
+            indexBuffer = indices.isEmpty ? nil : indices.withUnsafeBytes { bytes in
                 device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
             }
         }
@@ -342,21 +395,35 @@
                 let encoder = buffer.makeRenderCommandEncoder(descriptor: descriptor)
             else { return }
 
-            if let vertexBuffer, let indexBuffer, !meshRanges.isEmpty {
+            if let vertexBuffer, !meshRanges.isEmpty {
                 let viewProjection = viewProjectionMatrix()
                 let light = normalize(scene.lightDirection)
                 encoder.setRenderPipelineState(pipeline)
-                if let depthState { encoder.setDepthStencilState(depthState) }
                 encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-                for (index, range) in meshRanges.enumerated()
-                    where index < scene.meshes.count
-                {
-                    let transform = scene.meshes[index].transform
+                for range in meshRanges where range.mesh < scene.meshes.count {
+                    let mesh = scene.meshes[range.mesh]
+                    let transform = mesh.transform
+                    let pointSize: Float
+                    let lit: Bool
+                    let type: MTLPrimitiveType
+                    switch mesh.primitive {
+                        case .triangles:
+                            (type, pointSize, lit) = (.triangle, 1, mesh.lit)
+                        case .lines:
+                            (type, pointSize, lit) = (.line, 1, false)
+                        case .points(let size):
+                            (type, pointSize, lit) = (.point, max(size, 1), false)
+                    }
+                    if let state = mesh.depthTested ? depthState : overlayDepthState {
+                        encoder.setDepthStencilState(state)
+                    }
                     var uniforms = Uniforms(
                         modelViewProjection: viewProjection * modelMatrix(transform),
                         normalMatrix: rotationMatrix(transform.rotation),
-                        lightDirection: light
+                        lightDirection: light,
+                        pointSize: pointSize,
+                        lit: lit ? 1 : 0
                     )
                     encoder.setVertexBytes(
                         &uniforms,
@@ -368,13 +435,22 @@
                         length: MemoryLayout<Uniforms>.stride,
                         index: 0
                     )
-                    encoder.drawIndexedPrimitives(
-                        type: .triangle,
-                        indexCount: range.count,
-                        indexType: .uint32,
-                        indexBuffer: indexBuffer,
-                        indexBufferOffset: range.offset * MemoryLayout<UInt32>.stride
-                    )
+                    if type == .triangle {
+                        guard let indexBuffer else { continue }
+                        encoder.drawIndexedPrimitives(
+                            type: .triangle,
+                            indexCount: range.count,
+                            indexType: .uint32,
+                            indexBuffer: indexBuffer,
+                            indexBufferOffset: range.start * MemoryLayout<UInt32>.stride
+                        )
+                    } else {
+                        encoder.drawPrimitives(
+                            type: type,
+                            vertexStart: range.start,
+                            vertexCount: range.count
+                        )
+                    }
                 }
             }
 
@@ -534,6 +610,11 @@
             /// 它所屬的面了。旋轉是兩種算法下都相同的那一部分,也正是法線需要的那一部分,因此單獨傳送。
             var normalMatrix: simd_float4x4
             var lightDirection: SIMD3<Float>
+            /// Pixels across, for points; ignored otherwise. / 點的像素寬度;其他圖元忽略。
+            var pointSize: Float
+            /// 1 to shade with the light, 0 to draw the vertex colour as is.
+            /// 1 為依光照著色,0 為原樣畫出頂點顏色。
+            var lit: Float
         }
 
         /// The shaders, as text.
@@ -568,12 +649,17 @@
                 float4x4 modelViewProjection;
                 float4x4 normalMatrix;
                 float3 lightDirection;
+                float pointSize;
+                float lit;
             };
 
             struct VertexOut {
                 float4 position [[position]];
                 float3 normal;
                 float3 colour;
+                // Read by the rasteriser for point primitives only; harmless for
+                // the others. / 只有點圖元時光柵器才讀它;對其他圖元無害。
+                float pointSize [[point_size]];
             };
 
             vertex VertexOut mesh3d_vertex(const device VertexIn *vertices [[buffer(0)]],
@@ -583,11 +669,15 @@
                 out.position = uniforms.modelViewProjection * float4(vertices[id].position, 1.0);
                 out.normal = (uniforms.normalMatrix * float4(vertices[id].normal, 0.0)).xyz;
                 out.colour = float3(vertices[id].colour);
+                out.pointSize = uniforms.pointSize;
                 return out;
             }
 
             fragment float4 mesh3d_fragment(VertexOut in [[stage_in]],
                                             constant Uniforms &uniforms [[buffer(0)]]) {
+                if (uniforms.lit < 0.5) {
+                    return float4(in.colour, 1.0);
+                }
                 float3 n = normalize(in.normal);
                 float3 l = normalize(-uniforms.lightDirection);
                 float lambert = max(dot(n, l), 0.0);

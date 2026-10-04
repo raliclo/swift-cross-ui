@@ -39,10 +39,15 @@ extension Mesh3DScene {
         var nodes: [[String: Any]] = []
         var nodeIndices: [Int] = []
 
-        for mesh in meshes where !mesh.vertices.isEmpty && mesh.indices.count >= 3 {
-            let positions = mesh.vertices.map(\.position)
-            let normals = mesh.vertices.map(\.normal)
-            let colours = mesh.vertices.map(\.colour)
+        for mesh in meshes where mesh.isExportable {
+            // An odd last vertex of a line list is not drawn, so it is not written.
+            // 線段清單落單的最後一個頂點不會被畫出,因此也不寫出。
+            let drawn =
+                mesh.primitive == .lines
+                ? Array(mesh.vertices.prefix((mesh.vertices.count / 2) * 2)) : mesh.vertices
+            let positions = drawn.map(\.position)
+            let normals = drawn.map(\.normal)
+            let colours = drawn.map(\.colour)
             // Whole triples only, the same rule `Mesh3D` states and the renderer
             // follows. An exporter that padded the remainder would write a file
             // that disagrees with what the app is looking at.
@@ -71,29 +76,34 @@ extension Mesh3DScene {
                 bufferViews: &bufferViews,
                 accessors: &accessors
             )
-            let indexAccessor = appendIndices(
-                indices,
-                to: &binary,
-                bufferViews: &bufferViews,
-                accessors: &accessors
-            )
-
-            meshEntries.append([
-                "primitives": [
-                    [
-                        "attributes": [
-                            "POSITION": positionAccessor,
-                            "NORMAL": normalAccessor,
-                            "COLOR_0": colourAccessor,
-                        ],
-                        "indices": indexAccessor,
-                        // 4 is TRIANGLES. Named rather than written as a bare
-                        // integer would be better, and glTF gives no name for it.
-                        // 4 就是 TRIANGLES。能具名當然比裸整數好,而 glTF 沒有給它名字。
-                        "mode": 4,
-                    ]
+            var primitive: [String: Any] = [
+                "attributes": [
+                    "POSITION": positionAccessor,
+                    "NORMAL": normalAccessor,
+                    "COLOR_0": colourAccessor,
                 ]
-            ])
+            ]
+            // glTF's modes: 0 POINTS, 1 LINES, 4 TRIANGLES. Lines and points are
+            // written without indices, as they are drawn. A point's pixel size and a
+            // mesh's `lit` and `depthTested` have no slot in glTF 2.0 core and are
+            // not written.
+            // glTF 的 mode:0 POINTS、1 LINES、4 TRIANGLES。線段與點照它們被繪製的方式,不寫索引。
+            // 點的像素大小,以及 mesh 的 `lit` 與 `depthTested`,在 glTF 2.0 核心規格中沒有位置,不寫出。
+            switch mesh.primitive {
+                case .triangles:
+                    primitive["indices"] = appendIndices(
+                        indices,
+                        to: &binary,
+                        bufferViews: &bufferViews,
+                        accessors: &accessors
+                    )
+                    primitive["mode"] = 4
+                case .lines:
+                    primitive["mode"] = 1
+                case .points:
+                    primitive["mode"] = 0
+            }
+            meshEntries.append(["primitives": [primitive]])
 
             let t = mesh.transform
             let q = quaternion(fromEulerZYX: t.rotation)
@@ -120,14 +130,10 @@ extension Mesh3DScene {
             "rotation": [cameraQ.x, cameraQ.y, cameraQ.z, cameraQ.w],
         ])
 
-        let json: [String: Any] = [
-            "asset": ["version": "2.0", "generator": "SwiftCrossUI Mesh3DScene"],
-            "scene": 0,
-            "scenes": [["nodes": nodeIndices]],
-            "nodes": nodes,
-            "meshes": meshEntries,
-            "cameras": [
-                [
+        let cameraEntry: [String: Any]
+        switch camera.projection {
+            case .perspective:
+                cameraEntry = [
                     "type": "perspective",
                     "perspective": [
                         // glTF wants radians; `Mesh3DCamera` is in degrees,
@@ -140,7 +146,29 @@ extension Mesh3DScene {
                         "zfar": camera.far,
                     ],
                 ]
-            ],
+            case .orthographic(let height):
+                // glTF stores half-extents, and both are required. The scene does
+                // not know the view's aspect ratio, so xmag is written equal to
+                // ymag: a square view of the same height.
+                // glTF 存的是半寬與半高,兩者皆必填。場景不知道 view 的長寬比,因此 xmag 寫成與 ymag
+                // 相同:一個同高的正方形視野。
+                cameraEntry = [
+                    "type": "orthographic",
+                    "orthographic": [
+                        "xmag": height / 2,
+                        "ymag": height / 2,
+                        "znear": camera.near,
+                        "zfar": camera.far,
+                    ],
+                ]
+        }
+        let json: [String: Any] = [
+            "asset": ["version": "2.0", "generator": "SwiftCrossUI Mesh3DScene"],
+            "scene": 0,
+            "scenes": [["nodes": nodeIndices]],
+            "nodes": nodes,
+            "meshes": meshEntries,
+            "cameras": [cameraEntry],
             "bufferViews": bufferViews,
             "accessors": accessors,
             "buffers": [["byteLength": binary.count]],
@@ -379,5 +407,17 @@ extension Data {
         // 寫成 `Swift.withUnsafeBytes`:不加限定時,它會解析到 `Data` 自己的實例方法——那讀的是**這份
         // data**、不是那個值,而且什麼也不會附加上去。
         Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
+    }
+}
+
+extension Mesh3D {
+    /// Whether this mesh has anything to write: a whole triangle, a whole line,
+    /// or a point. / 這個 mesh 是否有東西可寫:一個完整的三角形、一條完整的線,或一個點。
+    var isExportable: Bool {
+        switch primitive {
+            case .triangles: return !vertices.isEmpty && indices.count >= 3
+            case .lines: return vertices.count >= 2
+            case .points: return !vertices.isEmpty
+        }
     }
 }

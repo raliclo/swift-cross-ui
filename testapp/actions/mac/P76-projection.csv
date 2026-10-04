@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P76: switch the camera from orthographic to perspective.
+#
+# Geometry: a 520x720 window captured at 1040x1496 px, so scale 2 and a frame of
+# 520x748 points including the 28-point title bar. Coordinates are origin=frame,
+# read off testapp/output/screenshots/P76-ortho-20261005-023822.png: the
+# "Projection: orthographic" button spans x 90-250, y 195-215.
+#
+# What the capture after this file must show: the button reads "Projection:
+# perspective", and the three white ticks at the right of the view are no longer
+# equal -- the nearest is the tallest. Everything else (lines, points, the flat
+# right cube, the yellow line on top of the left cube, the cyan coil ring) is
+# still there.
+#
+# P76:把相機由正交切換為透視。
+#
+# 幾何:520x720 的視窗擷取為 1040x1496 像素,因此比例 2,含 28 點標題列的 frame 為 520x748 點。
+# 座標為 origin=frame,量自上述截圖:「Projection: orthographic」按鈕的範圍是 x 90-250、y 195-215。
+#
+# 這支檔案之後的截圖必須顯示:按鈕寫著「Projection: perspective」,而視圖右側三根白色刻度不再等高——
+# 最近的那根最高。其餘(線段、點、平的右立方體、左立方體上的黃線、青色線圈)都還在。
+sleep,,,,,,2500000,wait for the first frame,macos
+click,165,205,frame,left,,,"projection button (VERIFIED 2026-10-05: label reads perspective, ticks unequal)",macos
+sleep,,,,,,12000000,hold still while screenshot.zsh captures this window,macos

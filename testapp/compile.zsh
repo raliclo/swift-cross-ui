@@ -1617,70 +1617,97 @@ if [ "$target_platform" = "ios" ]; then
         exit 1
     fi
 
-    # Swift Bundler produces the .app bundle that a bare xcodebuild cannot: it
-    # writes the Info.plist and bundle identifier that simctl requires. It lives
-    # in Vendor/swift-bundler as a submodule; build it via the Android installer
-    # script, which already knows how to patch its ZIPFoundationModern
-    # dependency for Swift 6.3+.
-    # Swift Bundler 能產生單靠 xcodebuild 無法得到的 .app bundle：它會寫入 simctl
-    # 所需的 Info.plist 與 bundle identifier。它以 submodule 形式位於
-    # Vendor/swift-bundler，可透過 Android 安裝腳本建置，該腳本已知道如何為
-    # Swift 6.3+ 修補其 ZIPFoundationModern 依賴。
+    # **xcodebuild first; Swift Bundler only when that fails (2026-10-05).**
+    # Swift Bundler was used for two things: to run `xcodebuild -scheme <Pn>`, and
+    # to wrap the executable in a .app with the Info.plist and bundle identifier
+    # simctl requires. The first is one command. The second is what
+    # iosContainer/appTemplate.app already exists for -- test_ios.zsh has wrapped
+    # every Pn in it since 2026-09 -- so the bundle is assembled from that template
+    # here, with this app's executable name and identifier. Measured 2026-10-05 on
+    # a machine with no swift-bundler: P76 built this way, declared sdk 27.0,
+    # installed, and its action file replayed. Swift Bundler (Vendor/swift-bundler,
+    # built by Scripts/build-tool-install-android-on-Mac.sh) stays as the fallback,
+    # so a Pn the direct build cannot handle still builds where the bundler exists.
+    #
+    # **先用 xcodebuild;只有它失敗時才用 Swift Bundler(2026-10-05)。** Swift Bundler 在這裡做兩件事:
+    # 執行 `xcodebuild -scheme <Pn>`,以及把執行檔包成帶有 simctl 所需 Info.plist 與 bundle identifier
+    # 的 .app。前者只是一道指令;後者正是 iosContainer/appTemplate.app 存在的理由——test_ios.zsh 自 2026-09
+    # 起就用它包每一支 Pn——因此這裡改以該範本組出 bundle,填入這支 app 的執行檔名與 identifier。
+    # 2026-10-05 在一台沒有 swift-bundler 的機器上實測:P76 以此方式建置、標明 sdk 27.0、可安裝,動作檔也
+    # 重放成功。Swift Bundler(Vendor/swift-bundler,由 Scripts/build-tool-install-android-on-Mac.sh 建置)
+    # 保留為後備,讓直接建置處理不了的 Pn 在有 bundler 的機器上仍建得起來。
     sim_device="${IOS_SIM_DEVICE:-swift-cross-ui}"
     bundler_bin="$repo_root/swift-bundler"
-    if [ ! -x "$bundler_bin" ]; then
-        echo "Swift Bundler is required to build an installable iOS app." >&2
-        echo "Build it with:" >&2
-        echo "  bash Scripts/build-tool-install-android-on-Mac.sh" >&2
-        exit 1
-    fi
+    ios_template="$script_dir/iosContainer/appTemplate.app"
 
-    # **Where xcodebuild writes, stated rather than inherited -- and until
-    # 2026-09-27 it was inherited from Xcode's own preferences.**
-    #
-    # Swift Bundler passes `-derivedDataPath <package>/.build/<arch>-apple-
-    # iphonesimulator` and then copies the executable from `Build/Products`
-    # under it. This machine's Xcode is set to a CUSTOM build location
-    # (`IDEBuildLocationStyle = Custom`, products and intermediates in
-    # /Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build), and that preference wins
-    # over `-derivedDataPath`. So the fresh build went there, the bundler copied
-    # the last executable left under `Build/Products` -- 2026-09-25 06:40 -- and
-    # every iOS build after that succeeded, carried a new timestamp, and
-    # installed a two-day-old program. `SYMROOT` and `OBJROOT` on the command
-    # line outrank the preference, so the build lands where the bundler reads,
-    # whatever the IDE is set to. The preference itself is left alone; it is
-    # this machine's, and it is a reasonable one for Xcode projects.
-    #
-    # **xcodebuild 寫到哪裡,由這裡明說、不再繼承——而 2026-09-27 之前,它是從 Xcode 自己的偏好設定繼承來的。**
-    #
-    # Swift Bundler 傳入 `-derivedDataPath <package>/.build/<arch>-apple-iphonesimulator`,再從其下的
-    # `Build/Products` 複製執行檔。這台機器的 Xcode 設成**自訂**建置位置(`IDEBuildLocationStyle = Custom`,
-    # 產物與中間檔都在 /Volumes/Windows/proj_Win/Mac_Apps/Xcode_Build),而那個偏好設定優先於
-    # `-derivedDataPath`。於是新的建置寫到了那裡,bundler 複製的是 `Build/Products` 底下留著的最後一份執行檔
-    # ——2026-09-25 06:40——而那之後的每一次 iOS 建置都成功、都帶著新的時間戳,裝上去的卻是兩天前的程式。
-    # 命令列上的 `SYMROOT` 與 `OBJROOT` 優先於那個偏好設定,因此不論 IDE 怎麼設,建置都會落在 bundler
-    # 讀取的地方。偏好設定本身不動;它是這台機器的,而且對 Xcode 專案而言是合理的設定。
     ios_derived_data="$package_dir/.build/$(uname -m)-apple-iphonesimulator"
 
     for app_name in $app_names; do
-        echo "==> Bundling $app_name for the iOS Simulator"
+        echo "==> Building $app_name for the iOS Simulator"
         # Anything the bundle holds must be newer than this. `touch` rather than
         # `date`, because the comparison below is `-nt` between two files.
         # bundle 裡的東西必須比這個檔案新。用 `touch` 而不是 `date`,因為下面的比較是兩個檔案之間的 `-nt`。
         bundle_started="$package_dir/.build/.bundle-started-$app_name"
         mkdir -p "$package_dir/.build"
         touch "$bundle_started"
-        (
+        ios_products="$ios_derived_data/Build/Products/${(C)build_config}-iphonesimulator"
+        built_by=""
+        if (
             cd "$package_dir"
             # The link must learn the SDK's version; see link-sdk.xcconfig.
             # 連結步驟必須得知 SDK 的版本;見 link-sdk.xcconfig。
             XCODE_XCCONFIG_FILE="$script_dir/iosContainer/link-sdk.xcconfig" \
-            "$bundler_bin" bundle "$app_name" \
-                --platform iOSSimulator \
-                -c "$build_config" \
-                --Xxcodebuild "SYMROOT=$ios_derived_data/Build/Products" \
-                --Xxcodebuild "OBJROOT=$ios_derived_data/Build/Intermediates.noindex"
-        )
+            xcodebuild build \
+                -scheme "$app_name" \
+                -destination 'generic/platform=iOS Simulator' \
+                -configuration "${(C)build_config}" \
+                "SYMROOT=$ios_derived_data/Build/Products" \
+                "OBJROOT=$ios_derived_data/Build/Intermediates.noindex"
+        ) && [ -f "$ios_products/$app_name" ] && [ "$ios_products/$app_name" -nt "$bundle_started" ]; then
+            # The container's bundle, given this app's name and identifier -- the
+            # same identifier Bundler.toml declares, so either path installs as the
+            # same app. / 用 container 的 bundle,填入這支 app 的名稱與 identifier——與 Bundler.toml
+            # 宣告的相同,因此兩條路裝上去都是同一支 app。
+            app_bundle="$ios_derived_data/container/$app_name.app"
+            rm -rf "$app_bundle"
+            mkdir -p "$app_bundle"
+            cp "$ios_template/Info.plist" "$ios_template/PkgInfo" "$app_bundle/"
+            /usr/libexec/PlistBuddy \
+                -c "Set :CFBundleExecutable $app_name" \
+                -c "Set :CFBundleName $app_name" \
+                -c "Set :CFBundleIdentifier dev.swiftcrossui.testapp.$app_name" \
+                "$app_bundle/Info.plist"
+            cp "$ios_products/$app_name" "$app_bundle/$app_name"
+            # SwiftPM resources land beside the executable as <package>_<target>.bundle.
+            # SwiftPM 的資源以 <package>_<target>.bundle 的形式放在執行檔旁邊。
+            for resources in "$ios_products"/*_"$app_name".bundle(N); do
+                cp -R "$resources" "$app_bundle/"
+            done
+            codesign --force --deep --sign - "$app_bundle" >/dev/null
+            built_by="xcodebuild + iosContainer"
+        elif [ -x "$bundler_bin" ]; then
+            echo "==> xcodebuild did not produce $app_name; falling back to Swift Bundler" >&2
+            echo "==> xcodebuild 沒有產出 $app_name;改用 Swift Bundler" >&2
+            touch "$bundle_started"
+            (
+                cd "$package_dir"
+                XCODE_XCCONFIG_FILE="$script_dir/iosContainer/link-sdk.xcconfig" \
+                "$bundler_bin" bundle "$app_name" \
+                    --platform iOSSimulator \
+                    -c "$build_config" \
+                    --Xxcodebuild "SYMROOT=$ios_derived_data/Build/Products" \
+                    --Xxcodebuild "OBJROOT=$ios_derived_data/Build/Intermediates.noindex"
+            )
+            app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
+            built_by="Swift Bundler"
+        else
+            echo "error: xcodebuild did not produce $app_name, and there is no Swift Bundler to fall back to." >&2
+            echo "  The xcodebuild output above says why. To try the bundler, build it with:" >&2
+            echo "    bash Scripts/build-tool-install-android-on-Mac.sh" >&2
+            echo "錯誤:xcodebuild 沒有產出 $app_name,而且沒有 Swift Bundler 可以退回使用。" >&2
+            exit 1
+        fi
+        echo "    built by: $built_by"
 
         # **The executable the bundler copied must be one THIS build produced.**
         # A copy gives the bundle a fresh timestamp whatever it copied, so the
@@ -1693,7 +1720,7 @@ if [ "$target_platform" = "ios" ]; then
         # 若在第一天就存在、就會在第一天(而不是第三天)抓到自訂建置位置的檢查。
         built_exe="$ios_derived_data/Build/Products/${(C)build_config}-iphonesimulator/$app_name"
         if [ ! -f "$built_exe" ] || [ ! "$built_exe" -nt "$bundle_started" ]; then
-            echo "error: the executable the bundler copied was not produced by this build:" >&2
+            echo "error: the executable in the bundle was not produced by this build:" >&2
             echo "  $built_exe" >&2
             if [ -f "$built_exe" ]; then
                 echo "  last written $(stat -f '%Sm' "$built_exe"), before this bundle step began." >&2
@@ -1704,8 +1731,6 @@ if [ "$target_platform" = "ios" ]; then
             echo "    defaults read com.apple.dt.Xcode | grep -i BuildLocation" >&2
             exit 1
         fi
-
-        app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
 
         # **The executable must name the SDK it was linked against -- checked, not
         # patched.** Until link-sdk.xcconfig existed it said `sdk 15.0` while

@@ -231,6 +231,39 @@ extension Mesh3DMatrix4 {
         }
     }
 
+    /// An orthographic projection `height` units tall, for a right-handed view
+    /// space looking down -Z: view depth `-near` maps to the near end of
+    /// `depthRange` and `-far` to the far end, as ``perspective`` does.
+    ///
+    /// 高 `height` 個單位的正交投影,用於沿 -Z 看的右手視圖空間:視圖深度 `-near` 對應到 `depthRange`
+    /// 的近端、`-far` 對應到遠端,與 ``perspective`` 相同。
+    public static func orthographic(
+        height: Float,
+        aspect: Float,
+        near: Float,
+        far: Float,
+        depthRange: Mesh3DDepthRange
+    ) -> Mesh3DMatrix4 {
+        let y = 2 / max(height, 0.0001)
+        let x = y / max(aspect, 0.0001)
+        switch depthRange {
+            case .zeroToOne:
+                return Mesh3DMatrix4(
+                    SIMD4(x, 0, 0, 0),
+                    SIMD4(0, y, 0, 0),
+                    SIMD4(0, 0, 1 / (near - far), 0),
+                    SIMD4(0, 0, near / (near - far), 1)
+                )
+            case .minusOneToOne:
+                return Mesh3DMatrix4(
+                    SIMD4(x, 0, 0, 0),
+                    SIMD4(0, y, 0, 0),
+                    SIMD4(0, 0, 2 / (near - far), 0),
+                    SIMD4(0, 0, (far + near) / (near - far), 1)
+                )
+        }
+    }
+
     /// Projection times view, for a camera and an aspect ratio.
     /// 投影乘以視圖,給定一台相機與一個長寬比。
     public static func viewProjection(
@@ -238,13 +271,26 @@ extension Mesh3DMatrix4 {
         aspect: Float,
         depthRange: Mesh3DDepthRange
     ) -> Mesh3DMatrix4 {
-        perspective(
-            fovyDegrees: camera.fieldOfView,
-            aspect: aspect,
-            near: camera.near,
-            far: camera.far,
-            depthRange: depthRange
-        ) * lookAt(eye: camera.position, target: camera.target, up: camera.up)
+        let projection: Mesh3DMatrix4
+        switch camera.projection {
+            case .perspective:
+                projection = perspective(
+                    fovyDegrees: camera.fieldOfView,
+                    aspect: aspect,
+                    near: camera.near,
+                    far: camera.far,
+                    depthRange: depthRange
+                )
+            case .orthographic(let height):
+                projection = orthographic(
+                    height: height,
+                    aspect: aspect,
+                    near: camera.near,
+                    far: camera.far,
+                    depthRange: depthRange
+                )
+        }
+        return projection * lookAt(eye: camera.position, target: camera.target, up: camera.up)
     }
 }
 
