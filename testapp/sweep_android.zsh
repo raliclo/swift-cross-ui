@@ -273,7 +273,13 @@ if ! device_ready; then
     # 中。在讀到那一行日誌之前，已經有三次啟動嘗試耗在錯誤的解釋上——先是「太慢」，接著是「兩個模擬器
     # 共用一個 AVD」，然後是 adb。把該資料庫移除之後，同一道指令在 35 秒內就緒。
     rm -rf "/tmp/android-${USER}/emu-crash-"*.db 2>/dev/null
-    "$android_root/emulator/emulator" -avd "${ANDROID_AVD:-swift-cross-ui-api36}" \
+    # The first AVD the emulator lists, as test_android.zsh picks it, unless
+    # ANDROID_AVD names one. A fixed name kept booting swift-cross-ui-api36 after
+    # its data went bad on 2026-10-03 and a replacement was made.
+    # 除非 ANDROID_AVD 指定，否則用模擬器列出的第一個 AVD,與 test_android.zsh 相同。寫死名稱的話，
+    # swift-cross-ui-api36 在 2026-10-03 資料損壞、另建替代品之後仍會一直被啟動。
+    avd_name="${ANDROID_AVD:-$("$android_root/emulator/emulator" -list-avds 2>/dev/null | head -n 1)}"
+    "$android_root/emulator/emulator" -avd "$avd_name" \
         -no-snapshot -no-boot-anim -no-metrics >/dev/null 2>&1 &
     for _ in {1..180}; do
         device_ready && break

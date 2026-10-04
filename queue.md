@@ -79,11 +79,10 @@
   uninstalls first, so last run's windows are not restored. Runner: `screen`
   origin, `windowframes`, held slow drags, `taplabel` falls back to a
   non-hittable match (alert buttons report isHittable false).
-  - [ ] Android P5 still taps (206,589): the new button moved the centred
-    column up ~17 pt, as it did on iPhone (now by label) and macOS (re-aimed,
-    verified C -> B -> A). Re-aim when the emulator is back -- a qemu process
-    stuck in state UE since /Volumes/Windows dropped holds emulator-5554 and
-    only a Mac reboot clears it.
+  - [x] Android P5 re-aimed (2026-10-04, verified: Alert C on top). The AVD
+    whose data went bad when /Volumes/Windows dropped was replaced by
+    swift-cross-ui-api36b on /Volumes/Windows and the old one deleted; full
+    Android sweep on it: 98/98 launched, every capture read.
 
 ### Then: iPad testing (after 1-4)
 
