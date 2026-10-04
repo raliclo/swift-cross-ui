@@ -130,6 +130,93 @@
 
         public init() {}
 
+        // MARK: - Input source
+
+        /// The input source a replay switched away from, by ID, so it can be put back.
+        ///
+        /// Key events are posted into this process and go through the user's
+        /// current input source. With an input method active -- Zhuyin, here,
+        /// since 2026-10-03 -- the method takes the keystrokes: P71's Cmd-S and
+        /// Cmd-Shift-E fired 0 times and P9 typed kana instead of "hi". An action
+        /// file names keys, not what an input method composes from them, so a
+        /// replay that sends keys runs on an ASCII keyboard layout and restores the
+        /// user's source afterwards. The switch is reported, because it is a
+        /// change to the whole machine for as long as the replay lasts.
+        ///
+        /// 重放切換前的輸入法(以 ID 記錄),以便還原。按鍵事件投遞到本行程，會經過使用者目前的輸入法。
+        /// 輸入法啟用時(此處自 2026-10-03 起是注音),按鍵被它拿走:P71 的 Cmd-S 與 Cmd-Shift-E 觸發 0 次，
+        /// P9 打出假名而不是「hi」。動作檔指名的是按鍵，不是輸入法用按鍵組出的字，因此送按鍵的重放在
+        /// ASCII 鍵盤佈局上執行，結束後還原使用者的輸入法。這次切換會回報，因為重放期間它改變的是整台機器。
+        private var replacedInputSourceID: String?
+
+        public func prepareForReplay(_ actions: [InputAction]) throws {
+            let sendsKeys = actions.contains { action in
+                switch action {
+                    case .key, .keyDown, .keyUp: return true
+                    default: return false
+                }
+            }
+            guard sendsKeys else { return }
+            let switched: (from: String, to: String)? = onMain {
+                guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+                    return nil
+                }
+                if Self.isASCIIKeyboardLayout(current) { return nil }
+                guard
+                    let ascii = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?
+                        .takeRetainedValue(),
+                    TISSelectInputSource(ascii) == noErr
+                else { return nil }
+                return (Self.inputSourceID(current) ?? "?", Self.inputSourceID(ascii) ?? "?")
+            }
+            guard let switched else { return }
+            lock.lock()
+            replacedInputSourceID = switched.from
+            lock.unlock()
+            ActionFileReplay.report(
+                "input source \(switched.from) -> \(switched.to) for the replay's keys; restored after"
+            )
+        }
+
+        public func finishReplay() {
+            lock.lock()
+            let original = replacedInputSourceID
+            replacedInputSourceID = nil
+            lock.unlock()
+            guard let original else { return }
+            let restored: Bool = onMain {
+                let filter = [kTISPropertyInputSourceID as String: original] as CFDictionary
+                guard
+                    let list = TISCreateInputSourceList(filter, false)?.takeRetainedValue()
+                        as? [TISInputSource],
+                    let source = list.first
+                else { return false }
+                return TISSelectInputSource(source) == noErr
+            }
+            ActionFileReplay.report(
+                restored
+                    ? "input source restored to \(original)"
+                    : "input source NOT restored: \(original) could not be selected"
+            )
+        }
+
+        private static func inputSourceID(_ source: TISInputSource) -> String? {
+            guard let pointer = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
+                return nil
+            }
+            return Unmanaged<CFString>.fromOpaque(pointer).takeUnretainedValue() as String
+        }
+
+        private static func isASCIIKeyboardLayout(_ source: TISInputSource) -> Bool {
+            guard
+                let type = TISGetInputSourceProperty(source, kTISPropertyInputSourceType),
+                let ascii = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsASCIICapable)
+            else { return false }
+            let isLayout = CFEqual(
+                Unmanaged<CFString>.fromOpaque(type).takeUnretainedValue(), kTISTypeKeyboardLayout)
+            return isLayout && CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(ascii).takeUnretainedValue())
+        }
+
         /// The user's own double-click interval, read live.
         ///
         /// `NSEvent.doubleClickInterval` is in seconds and is a main-thread-ish
