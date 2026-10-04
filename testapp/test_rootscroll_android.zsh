@@ -138,10 +138,10 @@ capture() {
     local args="${2:-}"
     "$adb" -s "$serial" shell am force-stop "$package" >/dev/null 2>&1 || true
     if [ -n "$args" ]; then
-        "$adb" -s "$serial" shell am start -n "$package/.MainActivity" \
+        "$adb" -s "$serial" shell am start -n "$package/dev.swiftcrossui.testapp.MainActivity" \
             --es scui_args "$args" >/dev/null 2>&1
     else
-        "$adb" -s "$serial" shell am start -n "$package/.MainActivity" >/dev/null 2>&1
+        "$adb" -s "$serial" shell am start -n "$package/dev.swiftcrossui.testapp.MainActivity" >/dev/null 2>&1
     fi
     # Long enough for the Swift runtime, the JNI entrypoint and the first layout
     # pass. Three seconds was enough on iOS and is not here: a cold Android

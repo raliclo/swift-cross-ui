@@ -1601,11 +1601,13 @@ if [ "$target_platform" = "android" ]; then
     manifest_summary
     # `-android` compiles; it does not produce anything a device can run.
     #
-    # The build here goes to `.build/`, while the APK is packaged by
-    # `test_android.zsh` from a SEPARATE swift-bundler build under `.build-bundler/`.
-    # So a successful run of this script leaves whatever APK was there before --
-    # and installing that APK succeeds, the app starts, and every screenshot and
-    # measurement taken afterwards is of the PREVIOUS build.
+    # The build here goes to `.build/`, and since 2026-10-05 the APK is packaged
+    # from this same build by `package_android.zsh`, which `test_android.zsh`
+    # runs after this script. (Until then it came from a separate swift-bundler
+    # build under `.build-bundler/`.) This script alone still packages nothing,
+    # so a successful run leaves whatever APK was there before -- and installing
+    # that APK succeeds, the app starts, and every screenshot and measurement
+    # taken afterwards is of the PREVIOUS build.
     #
     # That is how 2026-09-15 spent an hour concluding a protocol conformance was
     # "invisible at runtime on Android". The Swift was correct from the start; the
@@ -1619,8 +1621,9 @@ if [ "$target_platform" = "android" ]; then
     #
     # `-android` 只做編譯;它不會產生任何裝置跑得起來的東西。
     #
-    # 此處建置的產物落在 `.build/`,而 APK 是由 `test_android.zsh` 從 `.build-bundler/` 底下**另一次**
-    # swift-bundler 建置打包出來的。因此本腳本成功跑完之後,原本那個 APK 還留在那裡——而安裝它會成功、
+    # 此處建置的產物落在 `.build/`;自 2026-10-05 起,APK 由 `package_android.zsh` 從這同一份建置打包,
+    # `test_android.zsh` 會在本腳本之後執行它。(在那之前是從 `.build-bundler/` 底下**另一次** swift-bundler
+    # 建置打包。)單跑本腳本仍然不會打包,因此成功跑完之後,原本那個 APK 還留在那裡——而安裝它會成功、
     # app 會啟動,其後每一張截圖與每一次量測,量的都是**上一次**的建置。
     #
     # 2026-09-15 就是這樣花了一小時,得出「某個 protocol conformance 在 Android 上執行期看不到」的結論。

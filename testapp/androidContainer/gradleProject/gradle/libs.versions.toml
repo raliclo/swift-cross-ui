@@ -1,0 +1,22 @@
+# The versions Swift Bundler's APKBundler generated (Vendor/swift-bundler,
+# generateGradleLibsVersions), kept as they were so that replacing the bundler
+# changes how the APK is assembled and not what goes into it.
+# 與 Swift Bundler 的 APKBundler 所產生的版本相同，原樣保留，讓「拿掉 bundler」只改變 APK 的組裝方式，
+# 不改變裡面的內容。
+[versions]
+agp = "8.13.0"
+kgp = "2.3.10"
+appcompat = "1.6.1"
+material = "1.10.0"
+activity = "1.8.0"
+constraintlayout = "2.1.4"
+
+[libraries]
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kgp" }

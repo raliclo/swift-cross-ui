@@ -176,10 +176,10 @@ shoot() {
     close_leftover_system_ui
     "$adb" -s "$serial" logcat -c >/dev/null 2>&1
     if [ -n "$args" ]; then
-        "$adb" -s "$serial" shell am start -W -n "$package/.MainActivity" \
+        "$adb" -s "$serial" shell am start -W -n "$package/dev.swiftcrossui.testapp.MainActivity" \
             --es scui_args "'$args'" >/dev/null 2>&1
     else
-        "$adb" -s "$serial" shell am start -W -n "$package/.MainActivity" >/dev/null 2>&1
+        "$adb" -s "$serial" shell am start -W -n "$package/dev.swiftcrossui.testapp.MainActivity" >/dev/null 2>&1
     fi
     sleep "$settle"
     if [ "${SCUI_RWD:-0}" = "1" ]; then

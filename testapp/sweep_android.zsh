@@ -363,7 +363,7 @@ for action in $action_files; do
     # 才能讓計數保持單一值。
     launched=$(count_in "$log" "==> Launched")
     shots=$(count_in "$log" "==> Screenshot")
-    built=$(count_in "$log" "==> Bundling")
+    built=$(count_in "$log" "==> Packaging")
 
     box=$(adb_if_ready logcat -d \
         | grep -o "box=([-0-9]*,[-0-9]*)-([-0-9]*,[-0-9]*)" | tail -1 | sed 's/^box=//')

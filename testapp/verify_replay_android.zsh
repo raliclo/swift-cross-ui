@@ -180,7 +180,7 @@ for action in $action_files; do
     # 內層引號是給**裝置上的** shell 的：`adb shell` 會把它的引數併成一行命令，再由裝置端的 shell
     # 重新斷詞。少了它們，`am` 會把 `-actionfile` 讀成 `-a ctionfile`。理由與 test_android.zsh 相同，
     # 少了它也會以相同的方式失敗。
-    "$adb" -s "$serial" shell am start -W -n "$package/.MainActivity" \
+    "$adb" -s "$serial" shell am start -W -n "$package/dev.swiftcrossui.testapp.MainActivity" \
         --es scui_args "'--debug -actionfile /data/local/tmp/$app-actions.csv'" >/dev/null 2>&1
 
     sleep 12

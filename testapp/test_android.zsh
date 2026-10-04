@@ -121,61 +121,6 @@ android_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-${repo_root:h}/.android-sdk}}"
 # macOS 27 可能讓 adb 啟動 server 時卡在舊版 IOKit USB backend。libusb 可讓僅使用
 # emulator 的測試正常啟動；若有需要，呼叫端仍可覆寫此設定。
 export ADB_LIBUSB="${ADB_LIBUSB:-1}"
-if [ -n "${SWIFT_BUNDLER:-}" ]; then
-    bundler_bin="$SWIFT_BUNDLER"
-elif [ -x "$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler" ]; then
-    # Use the build-tree executable because ErrorKit's resource bundle is kept
-    # beside it. The copied root binary may fail before parsing arguments when
-    # that resource bundle is absent.
-    # 使用 build tree 的執行檔，因為 ErrorKit resource bundle 會與它放在一起；若缺少該
-    # resource bundle，複製到 repository root 的 binary 可能在解析引數前就失敗。
-    bundler_bin="$repo_root/Vendor/swift-bundler/.build/out/Products/Debug/swift-bundler"
-else
-    bundler_bin="$repo_root/swift-bundler"
-fi
-
-# The strip is default, and this is what makes "default" mean something.
-#
-# `.swift_ast` is removed from the packaged library by a patch this tree keeps
-# against Vendor/swift-bundler -- 43 MB off every APK, 212 down to 169. A
-# bundler built without that patch produces a correct APK that is simply larger,
-# so nothing fails and nobody notices until the download doubles. That is the
-# shape of failure this project spends the most effort refusing.
-#
-# The marker is the flag's own name, which only exists in a patched build. If it
-# is missing, say so once and carry on: a fat APK is still a testable APK, and
-# stopping the run would make a size optimisation into a blocker.
-#
-# 剝除是預設行為，而這一段正是讓「預設」這個詞有意義的東西。
-#
-# `.swift_ast` 是由本樹針對 Vendor/swift-bundler 所保存的一份 patch，從打包的 library 中移除的
-# ——每支 APK 少 43 MB，由 212 降到 169。一個未套用該 patch 的 bundler 會產生完全正確、只是比較大的
-# APK，因此不會有任何東西失敗，也不會有人發現，直到下載量翻倍為止。那正是本專案最不遺餘力拒絕的
-# 那種失敗形狀。
-#
-# 此處的標記是那個旗標自己的名稱，它只存在於已套用 patch 的建置中。若它不存在，就說一次然後繼續：
-# 一個肥大的 APK 仍然是可測試的 APK，而中止執行會把一項體積最佳化變成一道阻礙。
-# `grep -c` into a variable, not `grep -q` in a condition. Under this script's
-# `set -o pipefail`, `grep -q` exits as soon as it matches, `strings` takes
-# SIGPIPE, the pipeline reports failure, and the `!` turns that into the warning
-# it was meant to suppress. The first version of this check fired on a bundler
-# that did carry the marker -- the test manufactured the fault it was looking
-# for.
-#
-# 使用 `grep -c` 並存進變數，而不是在條件式中使用 `grep -q`。在本腳本的 `set -o pipefail` 之下，
-# `grep -q` 一旦命中就會結束，`strings` 收到 SIGPIPE，整條管線回報失敗，而 `!` 又把它轉成了它本該
-# 抑制的那則警告。這項檢查的第一版，正是在一個確實帶有該標記的 bundler 上觸發的——那個測試自己
-# 製造了它所要尋找的故障。
-strip_marker=$(strings "$bundler_bin" 2>/dev/null | grep -c "SCUI_KEEP_SWIFT_AST") || strip_marker=0
-if [ "${strip_marker:-0}" -eq 0 ]; then
-    printf '%s\n' \
-        "==> WARNING: this swift-bundler does not strip .swift_ast." \
-        "    Every APK it builds will be about 43 MB larger than it needs to be." \
-        "    Fix with: bash Scripts/build-android-bundler.sh" \
-        "==> 警告：這個 swift-bundler 不會剝除 .swift_ast。" \
-        "    它所建置的每一支 APK 都會比必要大小多出約 43 MB。" \
-        "    修正方式：bash Scripts/build-android-bundler.sh" >&2
-fi
 # 31, matching compile.zsh and androidContainer/Bundler.android.toml.
 #
 # This said 28 while the other two said 31, which is worse than all three
@@ -276,7 +221,6 @@ zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
 
 if [ "$do_apk" -eq 1 ]; then
     [ -x "$swift_bin" ] || die "Missing Swift Android toolchain: $swift_bin; run Scripts/build-tool-install-android-on-Mac.sh"
-    [ -x "$bundler_bin" ] || die "Missing Swift Bundler: $bundler_bin; run Scripts/build-tool-install-android-on-Mac.sh"
 
     print "==> Building $app for Android"
     ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
@@ -284,131 +228,24 @@ if [ "$do_apk" -eq 1 ]; then
         ANDROID_TRIPLE="$android_triple" SWIFT_BIN="$swift_bin" \
         SCUI_ANDROID=1 zsh "$script_dir/compile.zsh" -android "$app"
 
-    print "==> Bundling $app APK"
-    mkdir -p "$apk_dir"
-    # Both overrides have to be handed to the bundler explicitly.
+    print "==> Packaging $app APK"
+    # Packaged from compile.zsh's own build, without Swift Bundler.
     #
-    # Swift Bundler runs its own `swift build`, and it inherits neither
-    # of the two things an Android build here needs. Measured
-    # 2026-09-02, its invocation was
+    # The bundler ran a second `swift build` of the same app in .build-bundler,
+    # against a symlinked SDK silo that made SwiftPM treat the two trees as
+    # different, and regenerated a Gradle project per app on every bundle.
+    # package_android.zsh relinks the product compile.zsh just built as
+    # lib<app>.so and builds the one Gradle project in androidContainer; its
+    # header lists the steps, which are the bundler's.
     #
-    #   /usr/bin/env swift build -c debug --product P12 --arch aarch64
-    #     --swift-sdks-path ~/Library/Caches/.../sdk-silos/...
-    #     --swift-sdk aarch64-unknown-linux-android31 ...
-    #
-    # -- Xcode's swift, and the default swiftbuild build system. So it
-    # reproduced the six SwiftJava static-linkage errors that
-    # compile.zsh already works around, after compile.zsh had just
-    # built the same product successfully.
-    #
-    # `--toolchain` fixes the compiler, `--Xswiftpm` passes the build
-    # system through. See testapp/build_time_android.md for why each is
-    # needed.
-    #
-    # 兩個覆寫都必須明確交給 bundler。
-    #
-    # Swift Bundler 會執行它自己的 `swift build`，而此處 Android 建置所需的那兩件事，它一件
-    # 也不繼承。2026-09-02 實測其呼叫如上方英文所示——用的是 Xcode 的 swift，以及預設的
-    # swiftbuild 建置系統。於是它重現了 compile.zsh 早已繞過的那六條 SwiftJava 靜態連結錯誤，
-    # 而 compile.zsh 才剛剛成功建出同一個 product。
-    #
-    # `--toolchain` 修正編譯器，`--Xswiftpm` 把建置系統傳遞下去。各自的理由見
-    # testapp/build_time_android.md。
-    #
-    # The comment above used to sit between the environment assignments and the
-    # command, after a line continuation. zsh ends the continuation at the
-    # comment, so SCUI_ANDROID and the four ANDROID_* variables applied to
-    # nothing and the build failed with "Unknown backend selected" from
-    # DefaultBackend -- an error about backend selection caused by a misplaced
-    # comment.
-    #
-    # 上方的註解原本位於環境變數指派與指令之間、且緊接在續行符號之後。zsh 會在註解處結束續行，
-    # 因此 SCUI_ANDROID 與那四個 ANDROID_* 變數等於沒有套用到任何東西，建置以 DefaultBackend 的
-    # 「Unknown backend selected」失敗——一個關於 backend 選擇的錯誤，成因卻是一個位置放錯的註解。
-    #
-    # A scratch path of its own, so the two entry points stop erasing each
-    # other.
-    #
-    # Both defaulted to `<package>/.build`, but Swift Bundler builds against a
-    # Swift SDK *silo* -- a symlink farm under its cache that exists to
-    # disambiguate SDKs sharing a target triple -- and passes that path as
-    # `--swift-sdks-path`. compile.zsh uses the SDK's real location. Same
-    # scratch directory, different SDK path, so SwiftPM saw different inputs and
-    # rebuilt everything; then the next `compile.zsh -android` rebuilt
-    # everything back. Ten minutes each way, for a tree that was already warm.
-    #
-    # Two trees cost disk. One tree cost ten minutes every time anyone switched.
-    #
-    # 給它自己的 scratch path，讓兩個入口不再互相清除對方的成果。
-    #
-    # 兩者原本都預設為 `<package>/.build`，但 Swift Bundler 是針對 Swift SDK 的 *silo* 建置的
-    # ——那是位於其快取下的一片符號連結，存在目的是為共用 target triple 的多個 SDK 消歧義——並把該
-    # 路徑以 `--swift-sdks-path` 傳入。compile.zsh 用的則是 SDK 的實際位置。相同的 scratch 目錄、
-    # 不同的 SDK 路徑，於是 SwiftPM 認定輸入不同而全部重建；接著下一次 `compile.zsh -android`
-    # 又全部重建回去。來回各十分鐘，而那棵樹本來是熱的。
-    #
-    # 兩棵樹的代價是磁碟。一棵樹的代價是每次有人切換就十分鐘。
-    bundler_scratch="$package_dir/.build-bundler"
-    (
-        cd "$package_dir"
-        # SCUI_DEBUG=1, as the iOS path already does, and for the reason that
-        # path spells out: SCUI_DEBUG -- not BUILD_CONFIG -- decides whether a
-        # replay exists in the binary at all. Without it an --actionfile run
-        # here installs, launches, warns in logcat that it cannot replay, exits
-        # 0 and takes a screenshot of an app that was never touched. That
-        # capture is indistinguishable from a replay that ran and changed
-        # nothing, which is the failure this whole harness exists to avoid.
-        # Measured 2026-09-09 with P58: two runs read as passes before anyone
-        # looked at logcat.
-        #
-        # SCUI_DEBUG=1，與 iOS 那條路徑一致，理由也正是該處寫明的那一條：決定「重放是否存在於
-        # 二進位檔中」的是 SCUI_DEBUG，而不是 BUILD_CONFIG。少了它，此處的 --actionfile 執行會
-        # 安裝、啟動、在 logcat 中警告自己無法重放、以 0 結束，並拍下一張「從未被碰過的 app」的
-        # 截圖。那張截圖與「重放跑了但什麼都沒改變」無從區分，而那正是整套 harness 存在所要避免的
-        # 失敗。2026-09-09 以 P58 實測：在有人去看 logcat 之前，兩次執行都讀起來像通過。
-        SCUI_DEBUG="${SCUI_DEBUG:-1}" \
-            SCUI_ANDROID=1 ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
-            ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
-            "$bundler_bin" bundle "$app" --platform Android -c "${BUILD_CONFIG:-release}" \
-                --toolchain "${swift_bin:h:h:h}" \
-                --scratch-path "$bundler_scratch" \
-                --Xswiftpm --build-system --Xswiftpm "${ANDROID_BUILD_SYSTEM:-native}"
-    )
-    # Read back out of the same scratch path it was written into.
-    #
-    # These were two separate literals and they disagreed: the bundle went to
-    # `.build-bundler/...` and this looked in `.build/...`. Every app died with
-    # "Bundler succeeded but APK was not found" after a four-minute build --
-    # every app except P12, because a stale P12 APK from an earlier run was
-    # still sitting at the old path. So P12 alone appeared to pass, and what it
-    # installed was not what had just been built. A survey of 23 apps was run
-    # against that.
-    #
-    # One variable now, used in both places, so they cannot drift again.
-    #
-    # 從寫入時所用的同一個 scratch path 讀回來。
-    #
-    # 這裡原本是兩個各自獨立的字面值，而它們並不一致：bundle 產到 `.build-bundler/...`，此處卻去
-    # `.build/...` 找。每一支 app 都在四分鐘的建置之後死於「Bundler succeeded but APK was not
-    # found」——除了 P12，因為舊路徑上還躺著先前某次執行留下的 P12 APK。於是只有 P12 看起來通過，
-    # 而它所安裝的並不是剛剛建出來的那一支。一份涵蓋 23 支 app 的普查就是在那個狀態下跑的。
-    #
-    # 現在只有一個變數、兩處共用，因此它們不可能再各自漂移。
-    generated_apk="$bundler_scratch/bundler/apps/$app/$app.apk"
-    [ -f "$generated_apk" ] || die "Bundler succeeded but APK was not found: $generated_apk"
-    # Moved, and the app's Gradle project dropped, so only one Gradle project is
-    # on disk at a time. Swift Bundler deletes and regenerates <app>.project on
-    # every bundle (APKBundler.swift, "if project.root.exists() ... removeItem"),
-    # so nothing in it is reused by the next build -- the shared state is in
-    # ~/.gradle and the Gradle daemon. Left in place, each app kept ~1 GB of it
-    # plus a second copy of its APK: 85 GB over 99 apps on 2026-10-04.
-    # 用搬移的，並丟掉該 app 的 Gradle 專案，讓磁碟上同時只有一個 Gradle 專案。Swift Bundler 每次打包都會刪除並
-    # 重新產生 <app>.project,因此下一次建置用不到裡面的任何東西——共用的狀態在 ~/.gradle 與 Gradle daemon。
-    # 留著的話，每支 app 各佔約 1 GB,外加一份重複的 APK:2026-10-04 時 99 支共 85 GB。
-    mv -f "$generated_apk" "$apk_path"
-    gradle_project="$bundler_scratch/bundler/apps/$app/$app.project"
-    [[ "$gradle_project" == */.build-bundler/bundler/apps/?*/?*.project ]] && rm -rf -- "$gradle_project"
-    print "    -> $apk_path"
+    # 由 compile.zsh 自己的建置打包，不經 Swift Bundler。bundler 會在 .build-bundler 把同一支 app 再
+    # `swift build` 一次(對著一個符號連結的 SDK silo,讓 SwiftPM 把兩棵樹視為不同),並在每次打包時為每支
+    # app 重新產生 Gradle 專案。package_android.zsh 把 compile.zsh 剛建好的 product 重新連結成
+    # lib<app>.so,再建置 androidContainer 裡那一個 Gradle 專案；步驟列在它的檔頭，與 bundler 相同。
+    ANDROID_HOME="$android_root" ANDROID_SDK_ROOT="$android_root" \
+        ANDROID_NDK_HOME="$android_ndk_home" ANDROID_NDK_ROOT="$android_ndk_home" \
+        ANDROID_TRIPLE="$android_triple" BUILD_CONFIG="${BUILD_CONFIG:-release}" \
+        zsh "$script_dir/package_android.zsh" "$app" "$apk_path"
 else
     [ -f "$apk_path" ] || die "Missing cached APK: $apk_path; omit -noApk to build it"
     print "==> Reusing $apk_path"
@@ -698,10 +535,10 @@ if [ "${#app_args}" -gt 0 ]; then
     # `-actionfile` 讀成 `-a ctionfile`——它把 intent 的 ACTION 設為「ctionfile」，並把該路徑當成
     # component（輸出見上方英文）。此事於 emulator 上實測：app 根本沒有啟動，而腳本停下時沒有任何
     # 一行說明原因。
-    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" \
+    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/dev.swiftcrossui.testapp.MainActivity" \
         --es scui_args "'${app_args[*]}'" >/dev/null
 else
-    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/.MainActivity" >/dev/null
+    ANDROID_SERIAL="$serial" "$adb" shell am start -W -n "$package_id/dev.swiftcrossui.testapp.MainActivity" >/dev/null
 fi
 
 print "==> Launched $package_id on $serial"

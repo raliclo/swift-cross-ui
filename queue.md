@@ -228,6 +228,23 @@ toolchain was installed (2026-10-05); it is done below.
     - [ ] `.swift-bundler-stamp` says the root binary was built from
       swift-bundler 4ad3f14f, the submodule is at 922ba2a7: the installer
       would rebuild it. Pre-existing drift, not changed here.
+    - [x] **Swift Bundler replaced for Android** (2026-10-05). One tracked Gradle
+      project, testapp/androidContainer/gradleProject, built in place at
+      .compile-work-android/gradleProject; testapp/package_android.zsh relinks
+      compile.zsh's product as lib<Pn>.so from SwiftPM's own link command, strips
+      .swift_ast, copies the needed .so files (llvm-readelf), builds libshim.so
+      with the NDK's clang, and runs Gradle with the app as -P properties. The
+      second Swift build in .build-bundler is gone (27 GB deleted). MainActivity
+      is now dev.swiftcrossui.testapp.MainActivity in every app; the four
+      scripts that launched `<pkg>/.MainActivity` were updated. Verified:
+      bundler and new APKs of P1 hold the same 27 entries, and their manifests
+      differ only in that class name; full Android sweep 99/99, finals against
+      the bundler sweep of the same day 69 identical, the rest P72 (Mesh3D work
+      landed between the runs), P38 (live web page), P57/P75 (counters, files).
+      Gradle for a second app: 3-4 s, Kotlin UP-TO-DATE. A first version read
+      the 111 MB build plan with yaml.safe_load, 17.5 s per app; now 0.04 s.
+      Swift Bundler is still built by the installer for compile.zsh -ios's
+      fallback; Android no longer needs it.
     - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
       was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
       regenerates the project on every bundle (APKBundler.swift), so a shared
