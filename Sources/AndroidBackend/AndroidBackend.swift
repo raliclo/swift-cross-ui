@@ -851,8 +851,18 @@ public final class AndroidBackend: BaseAppBackend {
         let child = container.getChildAt(Int32(index))!
 
         let layoutParams = child.getLayoutParams().as(CustomContainer.LayoutParams.self)!
-        layoutParams.setX(Int32(Float(position.x) * density))
-        layoutParams.setY(Int32(Float(position.y) * density))
+        let x = Int32(Float(position.x) * density)
+        let y = Int32(Float(position.y) * density)
+        // Nothing to do when the child is already there. `setLayoutParams`
+        // calls requestLayout, so every unchanged position still cost an
+        // Android layout pass: in P66's animation 94 % of these calls (5796 of
+        // 6193) and 96 % of `setSize`'s were unchanged (2026-10-04).
+        // 子元件已經在那裡就不做事。`setLayoutParams` 會呼叫 requestLayout,所以每一次沒有改變的位置
+        // 仍然花掉一次 Android 排版:P66 的動畫中，這些呼叫有 94%(6193 次中的 5796 次)、`setSize` 有 96%
+        // 是沒有改變的(2026-10-04)。
+        guard layoutParams.getX() != x || layoutParams.getY() != y else { return }
+        layoutParams.setX(x)
+        layoutParams.setY(y)
 
         child.setLayoutParams(layoutParams.as(ViewGroup.LayoutParams.self))
     }
@@ -892,8 +902,13 @@ public final class AndroidBackend: BaseAppBackend {
     public func setSize(of widget: Widget, to size: SIMD2<Int>) {
         guard let layoutParams = widget.getLayoutParams() else { return }
         let density = widget.getResources().getDisplayMetrics().density
-        layoutParams.width = Self.layoutLength(size.x, density: density)
-        layoutParams.height = Self.layoutLength(size.y, density: density)
+        let width = Self.layoutLength(size.x, density: density)
+        let height = Self.layoutLength(size.y, density: density)
+        // Unchanged sizes skipped, for the reason `setPosition` gives.
+        // 沒有改變的尺寸跳過，理由見 `setPosition`。
+        guard layoutParams.width != width || layoutParams.height != height else { return }
+        layoutParams.width = width
+        layoutParams.height = height
         widget.setLayoutParams(layoutParams)
     }
 
@@ -980,8 +995,13 @@ public final class AndroidBackend: BaseAppBackend {
         environment: EnvironmentValues
     ) {
         let textView = textView.as(AndroidKit.TextView.self)!
-        let content = JavaString(content, environment: Self.env)
-        textView.setText(content.as(CharSequence.self))
+        // setText relays the text out and requests a layout even when the
+        // string is the same; about half of P66's calls were (2026-10-04).
+        // 即使字串相同,setText 也會重新排版文字並要求一次排版;P66 的呼叫約有一半是如此(2026-10-04)。
+        if textView.getText()?.toString() != content {
+            let content = JavaString(content, environment: Self.env)
+            textView.setText(content.as(CharSequence.self))
+        }
         getTextStyle(from: environment).apply(to: textView)
     }
 
@@ -992,7 +1012,41 @@ public final class AndroidBackend: BaseAppBackend {
         proposedHeight: Int?,
         environment: EnvironmentValues
     ) -> SIMD2<Int> {
-        let widget = createTextView()
+        // Measured once per (text, style, proposal). This used to construct a
+        // new Java TextView and apply a full text style for EVERY measurement,
+        // and a Text is measured several times per layout pass; on 2026-10-04
+        // this function was 50.5 % of P66's main thread during an animation.
+        // The answer is a pure function of the key, so it is cached; one
+        // TextView, kept, does the measuring when the key is new.
+        // 依(文字、樣式、提議尺寸)只量一次。原本**每一次**量測都新建一個 Java TextView 並套用完整文字樣式,
+        // 而一個 Text 每次排版會被量好幾次;2026-10-04 動畫期間本函式佔 P66 主執行緒的 50.5%。結果完全由鍵
+        // 決定，所以快取;鍵是新的時候，由一個保留下來的 TextView 負責量。
+        let key = "\(textStyleKey(for: environment))|\(proposedWidth ?? -1)|"
+            + "\(proposedHeight ?? -1)|\(text)"
+        if let cached = Self.textSizes[key] {
+            return cached
+        }
+        if Self.textSizes.count > 4096 {
+            Self.textSizes.removeAll(keepingCapacity: true)
+        }
+        let widget: Widget
+        if let existing = Self.measuringTextView {
+            widget = existing
+        } else {
+            widget = createTextView()
+            // Layout params, although it never joins a parent: once measured,
+            // TextView.setText calls checkForRelayout, which reads
+            // mLayoutParams.width -- a NullPointerException on a reused view
+            // that has none (P66, 2026-10-04). A fresh view per measurement
+            // never had a layout, so never got there.
+            // 雖然它從不加入任何父 view,仍給它 layout params:量過一次之後,TextView.setText 會呼叫
+            // checkForRelayout,讀取 mLayoutParams.width——重複使用且沒有 params 的 view 會丟出
+            // NullPointerException(P66,2026-10-04)。每次量測都用新 view 時從未有過 layout,也就走不到那裡。
+            widget.setLayoutParams(
+                AndroidKit.ViewGroup.LayoutParams(-2, -2, environment: Self.env)
+            )
+            Self.measuringTextView = widget
+        }
         updateTextView(widget, content: text, environment: environment)
 
         // 0x80000000 = View.MeasureSpec.AT_MOST
@@ -1014,8 +1068,17 @@ public final class AndroidBackend: BaseAppBackend {
         widget.measure(widthSpec, heightSpec)
         let width = Double(widget.getMeasuredWidth()) / environment.windowScaleFactor
         let height = Double(widget.getMeasuredHeight()) / environment.windowScaleFactor
-        return SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
+        let size = SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
+        Self.textSizes[key] = size
+        return size
     }
+
+    /// Text measurements by key -- see `size(of:whenDisplayedIn:...)`.
+    /// 文字量測結果，依鍵存放——見 `size(of:whenDisplayedIn:...)`。
+    @MainActor static var textSizes: [String: SIMD2<Int>] = [:]
+    /// The one TextView every measurement uses.
+    /// 所有量測共用的那一個 TextView。
+    @MainActor static var measuringTextView: Widget?
 
     // The four of these were `fatalError` until 2026-09-03. `NavigationSplitView`
     // is not an optional part of the framework -- P16 is built around it -- and

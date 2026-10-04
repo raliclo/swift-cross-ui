@@ -76,9 +76,15 @@
       prototyped in the checkout removed it but cut main-thread CPU only ~5 %
       (2.38 s -> 2.26 s over 6 s) and did not move P66, so it was reverted; a
       swift-java fork is not justified by that alone.
-    Next: profile the stall at animation start, and how many JNI calls one
-    frame makes (setSize/setPosition per widget per frame?) rather than their
-    unit cost.
+    FIXED 2026-10-04 (second pass, counting calls rather than their cost):
+    `AndroidBackend.size(of:whenDisplayedIn:)` built a new Java TextView and a
+    full TextStyle for every text measurement (50.5 % of the main thread),
+    `getTextStyle` rebuilt Typeface/classes every call (19.6 %), and 94-96 % of
+    setPosition/setSize calls and ~half of setText calls changed nothing yet
+    each requested an Android layout. Now: measurements and text styles are
+    cached by key, unchanged positions/sizes/text are skipped. P66 16-22 ->
+    24-28 samples (iOS 31); P64 54-56 -> 57-58 Hz, max gap 117-167 -> 67-100 ms.
+    Full Android sweep 98/98, captures compared with the run before.
   - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
     redistribution offered the stack's overflowed result (522) instead of its
     proposal (408); it now offers the smaller of the two. On iPhone the outer VStack

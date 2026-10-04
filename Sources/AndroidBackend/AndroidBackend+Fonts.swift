@@ -27,7 +27,40 @@ extension AndroidBackend {
         }
     }
 
+    /// What a text style is a function of, as a string key. The colour is in
+    /// it because a TextStyle carries one; the scale because the line height
+    /// is converted to pixels.
+    /// 文字樣式所取決的一切，組成字串鍵。顏色在內，因為 TextStyle 帶著顏色;縮放比例在內，因為行高會換算成像素。
+    func textStyleKey(for environment: EnvironmentValues) -> String {
+        let font = environment.resolvedFont
+        let color = environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
+        return "\(font.design)|\(font.weight)|\(font.isItalic)|\(font.pointSize)|"
+            + "\(font.lineHeight)|\(color)|\(environment.multilineTextAlignment)|"
+            + "\(environment.windowScaleFactor)"
+    }
+
+    /// TextStyles already built, by `textStyleKey`.
+    ///
+    /// Building one looks up three Java classes and creates a Typeface, all
+    /// through JNI, and it ran for every Text on every update -- and, through
+    /// the measurement below, several more times per Text per layout pass.
+    /// On 2026-10-04 `getTextStyle` was 19.6 % of P66's main thread.
+    /// 已建立的 TextStyle,依 `textStyleKey` 存放。建立一個要經由 JNI 查三個 Java 類別並建立一個
+    /// Typeface,而它原本對每個 Text 的每次更新都執行一次——透過下方的量測，每個 Text 每次排版還會再
+    /// 執行好幾次。2026-10-04 `getTextStyle` 佔 P66 主執行緒的 19.6%。
+    @MainActor static var textStyles: [String: TextStyle] = [:]
+
     func getTextStyle(from environment: EnvironmentValues) -> TextStyle {
+        let key = textStyleKey(for: environment)
+        if let cached = Self.textStyles[key] {
+            return cached
+        }
+        let style = makeTextStyle(from: environment)
+        Self.textStyles[key] = style
+        return style
+    }
+
+    private func makeTextStyle(from environment: EnvironmentValues) -> TextStyle {
         let resolvedFont = environment.resolvedFont
 
         let typefaceClass = try! JavaClass<AndroidKit.Typeface>()
