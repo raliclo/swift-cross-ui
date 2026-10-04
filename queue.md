@@ -285,6 +285,15 @@ toolchain was installed (2026-10-05); it is done below.
         the C targets with it, explicit modules off ("did not match the configured
         compiler", 354 times in one P12 build). compile.zsh unsets CC and CXX for
         xcodebuild only; the next P12 build: 0 and 0, BUILD SUCCEEDED.
+      - [x] The purge is automatic (2026-10-05, at the user's request): before the
+        iOS build loop compile.zsh lists every SourcePackages path in
+        XCBuildData/PIFCache, and if any is not $ios_derived_data/SourcePackages it
+        says so and removes XCBuildData (one full rebuild). Proven both ways: on
+        the clean tree P12 built with no message and XCBuildData untouched; with a
+        PIF naming DerivedData/TestApps-fake planted, the run named it, removed
+        the cache, rebuilt from scratch (rc 0, xcodebuild), and the rebuilt cache
+        names only this tree. Covers clones built before 5deb2156 and trees that
+        have moved, without a manual step.
     - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
       was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
       regenerates the project on every bundle (APKBundler.swift), so a shared

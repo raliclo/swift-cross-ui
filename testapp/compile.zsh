@@ -1708,6 +1708,40 @@ if [ "$target_platform" = "ios" ]; then
 
     ios_derived_data="$package_dir/.build/$(uname -m)-apple-iphonesimulator"
 
+    # **Xcode's PIF cache must name only this tree's SourcePackages.**
+    #
+    # Each target's cached PIF under XCBuildData holds absolute package paths,
+    # and Xcode reuses a target's PIF while its content is unchanged. Before
+    # 5deb2156 xcodebuild resolved packages into ~/Library/.../DerivedData/
+    # TestApps-* and Swift Bundler into $ios_derived_data, over one OBJROOT; a
+    # stale PIF kept the old checkout's include paths beside the new ones, and
+    # SwiftCrossUIMacrosPlugin failed with "Redefinition of module
+    # '_SwiftSyntaxCShims'" (2026-10-05). The -derivedDataPath fix stops new
+    # stale entries; this removes old ones, in any clone built before it or
+    # moved since, instead of asking every machine to remember a manual step.
+    # The cost is one full rebuild, said out loud.
+    #
+    # **Xcode 的 PIF 快取只能指向本樹的 SourcePackages。** XCBuildData 底下每個 target 的 PIF 快取都帶著
+    # 套件的絕對路徑，而 target 內容沒變時 Xcode 會沿用它。5deb2156 之前 xcodebuild 把套件解析到
+    # ~/Library/.../DerivedData/TestApps-*,Swift Bundler 則解析到 $ios_derived_data,兩者共用一個 OBJROOT;
+    # 舊的 PIF 讓舊 checkout 的 include 路徑與新的並列，SwiftCrossUIMacrosPlugin 因而以「Redefinition of
+    # module '_SwiftSyntaxCShims'」失敗(2026-10-05)。-derivedDataPath 的修正擋住新的舊路徑；這一段清掉已存在
+    # 的——在修正前建過、或之後搬過位置的任何 clone——而不是要求每台機器記得一個手動步驟。代價是一次完整
+    # 重建，會明說。
+    xcbuild_data="$ios_derived_data/Build/Intermediates.noindex/XCBuildData"
+    if [ -d "$xcbuild_data/PIFCache" ]; then
+        foreign_packages="$(grep -rhoE '"/[^"]*/SourcePackages/' "$xcbuild_data/PIFCache" 2>/dev/null \
+            | sort -u | grep -vxF "\"$ios_derived_data/SourcePackages/" || true)"
+        if [ -n "$foreign_packages" ]; then
+            echo "==> Xcode's PIF cache names SourcePackages outside this tree:" >&2
+            print -r -- "$foreign_packages" | sed 's/^"/      /' >&2
+            echo "    Removing $xcbuild_data; this iOS build starts from scratch." >&2
+            echo "==> Xcode 的 PIF 快取指向本樹以外的 SourcePackages;刪除 XCBuildData,這次 iOS 建置會從頭來。" >&2
+            [[ "$xcbuild_data" == */.compile-work-ios/*/Build/Intermediates.noindex/XCBuildData ]] \
+                && rm -rf -- "$xcbuild_data"
+        fi
+    fi
+
     for app_name in $app_names; do
         echo "==> Building $app_name for the iOS Simulator"
         # Anything the bundle holds must be newer than this. `touch` rather than
