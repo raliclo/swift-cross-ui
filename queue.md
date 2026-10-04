@@ -57,10 +57,28 @@
     past the slop and hands a still press to the long-click ancestor; the final
     capture now waits for the replay to finish; P75 reveal writes a fresh name
     when the old file belongs to an earlier install.
-  - [ ] **Android per-frame update cost.** P66 gets 7 animation samples in
-    0.7 s where iOS gets 31 in 0.57 s; P64's clock has a 16.7 ms median but
-    37-39 Hz overall with 130-166 ms gaps. Each frame's SwiftCrossUI update takes
-    ~100 ms on the emulator. Needs a profile (simpleperf) before any change.
+  - [ ] **Android per-frame update cost.** Re-measured 2026-10-04 on the new AVD
+    after the reboot: P64 54-56 Hz (median gap 16.7 ms, max 117-150 ms), P66
+    16-22 samples in 0.6 s (iOS 31). The earlier 37 Hz / 7 samples were the
+    stuck emulator eating 7 cores. Findings, all measured, nothing changed yet:
+    - Not the update pipeline: no merged or throttled updates during P66's
+      animation; each SwiftCrossUI update takes 4-10 ms and runs every frame.
+    - Main thread is busy ~20 ms per frame during the animation (P66's 8 ms
+      sampler runs every 20-30 ms then, every 8 ms after), and values sometimes
+      advance two frames at once -- dropped frames.
+    - A ~100 ms main-thread stall at the animation's start (sampler t=76 ->
+      178), the same shape as P64's 117-150 ms max gap; ART's JIT thread is
+      6-10 % of the process then, so first-run JIT/class loading is the lead.
+    - simpleperf: libart 28 %, libswiftCore 18 %. The top symbol was
+      `art::mirror::Class::FindClassMethod` (8.9 %): swift-java's
+      `javaMethodLookup` runs GetObjectClass + GetMethodID on EVERY call (from
+      AndroidBackend.setSize -> setLayoutParams among others). A method-ID cache
+      prototyped in the checkout removed it but cut main-thread CPU only ~5 %
+      (2.38 s -> 2.26 s over 6 s) and did not move P66, so it was reverted; a
+      swift-java fork is not justified by that alone.
+    Next: profile the stall at animation start, and how many JNI calls one
+    frame makes (setSize/setPosition per widget per frame?) rather than their
+    unit cost.
   - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
     redistribution offered the stack's overflowed result (522) instead of its
     proposal (408); it now offers the smaller of the two. On iPhone the outer VStack
