@@ -245,6 +245,15 @@ toolchain was installed (2026-10-05); it is done below.
       the 111 MB build plan with yaml.safe_load, 17.5 s per app; now 0.04 s.
       Swift Bundler is still built by the installer for compile.zsh -ios's
       fallback; Android no longer needs it.
+    - [ ] **iOS: an xcodebuild failure is a defect to root-cause, not something
+      for the Swift Bundler fallback to absorb** (user, 2026-10-05). The
+      fallback at compile.zsh ~1759 prints one stderr line and carries on, which
+      is how P76/P77's "Redefinition of module '_SwiftSyntaxCShims'" at 05:24
+      went unnoticed until read back later. Next time it happens: stop, find the
+      cause, fix it. Then make the fallback fail loudly (or count it in the
+      build manifest and the sweep CSV) so a run that used it cannot read as a
+      clean xcodebuild pass, and remove it once xcodebuild has held across a
+      full iOS sweep. SoftPCB-mac is chasing the _SwiftSyntaxCShims case now.
     - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
       was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
       regenerates the project on every bundle (APKBundler.swift), so a shared
