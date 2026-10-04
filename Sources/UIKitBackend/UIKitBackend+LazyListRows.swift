@@ -22,6 +22,46 @@ extension UIKitBackend: BackendFeatures.LazyListRows {
     ) {
         let table = (listView as! WrapperWidget<UICustomTableView>).child
         let delegate = table.customDelegate
+
+        // Same rows, new content: update the visible cells in place.
+        //
+        // `reloadData()` on every update made UIKit end and re-request every
+        // visible cell, and each round trip released the row's node and built
+        // it again. P57's readout ticks twice a second, so walking its 500 rows
+        // took 343 reloads and 29,718 row builds on iOS against 403 on Android
+        // (2026-10-04). When the count is unchanged, re-running the provider
+        // for the visible rows refreshes their cached nodes without rebuilding
+        // them, and UIKit is asked to re-measure only if a height changed.
+        // 列不變、內容變：在原地更新可見的 cell。每次更新都 `reloadData()` 會讓 UIKit 結束並重新索取每一個
+        // 可見 cell,而每一趟都會釋放該列的節點再重建。P57 的讀數每秒更新兩次，所以走完 500 列在 iOS 上花了
+        // 343 次 reload、建立了 29,718 列，Android 只有 403 列(2026-10-04)。列數不變時，對可見列重跑 provider
+        // 就能更新它們已快取的節點而不重建;只有列高改變時才請 UIKit 重新量測。
+        if delegate.lazyProvider != nil, delegate.rowCount == count {
+            delegate.lazyProvider = provider
+            delegate.estimatedRowHeight = max(1, estimatedRowHeight)
+            var heightsChanged = false
+            for path in table.indexPathsForVisibleRows ?? [] {
+                guard let built = provider(path.row),
+                    let cell = table.cellForRow(at: path)
+                else { continue }
+                if delegate.knownRowHeights[path.row] != built.height {
+                    delegate.knownRowHeights[path.row] = built.height
+                    heightsChanged = true
+                }
+                if built.widget.view.superview !== cell.contentView {
+                    for subview in cell.contentView.subviews {
+                        subview.removeFromSuperview()
+                    }
+                    cell.contentView.addSubview(built.widget.view)
+                }
+            }
+            if heightsChanged {
+                table.beginUpdates()
+                table.endUpdates()
+            }
+            return
+        }
+
         delegate.lazyProvider = provider
         delegate.estimatedRowHeight = max(1, estimatedRowHeight)
         delegate.rowCount = count
