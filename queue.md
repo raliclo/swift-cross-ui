@@ -118,8 +118,11 @@
         becomes 3 lines (iOS 2).
       Not changed: a 440-pt AVD would invalidate every Android action file's
       coordinates, and 411 pt is a common Android width.
-    - [ ] 5. P41 date pickers: the graphical calendar and the wheel are clipped on
-      Android; iOS fits them.
+    - [x] 5. NOT A DEFECT (measured 2026-10-04). P41 date pickers "clipped" on
+      Android: the page is wider than the phone on BOTH -- iOS puts .graphical
+      at x 525 and .wheel at x 499 in a 440-pt window and scrolls too; the two
+      action files simply end at different scroll positions. Android's large
+      calendar header is the Material picker's own look.
     - [ ] iOS, the other way: P57's 500-row List builds 29,718 rows on iOS against
       403 on Android -- UIKit's lazy list does far more work.
     - [ ] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
