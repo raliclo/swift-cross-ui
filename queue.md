@@ -254,6 +254,22 @@ toolchain was installed (2026-10-05); it is done below.
       build manifest and the sweep CSV) so a run that used it cannot read as a
       clean xcodebuild pass, and remove it once xcodebuild has held across a
       full iOS sweep. SoftPCB-mac is chasing the _SwiftSyntaxCShims case now.
+      - [x] Fallback made loud (2026-10-05): compile.zsh -ios keeps the xcodebuild
+        output in testapp/output/ios-xcodebuild-<Pn>.log, and on failure appends
+        the state (product, DerivedData/TestApps-* with creation times, the
+        Redefinition lines) and exits 1. Swift Bundler runs only with
+        SCUI_IOS_BUNDLER_FALLBACK=1, reported as a warning and in "built by".
+        Proven on a real failure: P12 at 07:00 and 07:05, both
+        "Redefinition of module '_SwiftSyntaxCShims'", deterministic. The first
+        version died with `print: bad option: -` on its own heading -- the check
+        would have read as working until a failure tried to use it.
+      - [ ] Root cause, now reproducible: xcodebuild created
+        DerivedData/TestApps-chx.../SourcePackages at 07:00:27 while
+        .compile-work-ios's build state still names the bundler's
+        .build/arm64-apple-iphonesimulator/SourcePackages (2026-08-29); the
+        macro plugin sees both checkouts. Candidate fix:
+        -clonedSourcePackagesDirPath to one location. Evidence handed to
+        SoftPCB-mac.
     - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
       was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
       regenerates the project on every bundle (APKBundler.swift), so a shared
