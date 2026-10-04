@@ -7,6 +7,18 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 
 class CustomRadioGroup(activity: Activity) : RadioGroup(activity) {
+    companion object {
+        /**
+         * How a disabled option is dimmed. `setTextColor` with a plain colour
+         * replaces RadioButton's own colour state list, so a disabled group's
+         * labels stayed full black while iOS dims them (P74, 2026-10-04).
+         * CustomSegmentedGroup dims the same way.
+         * 停用選項的淡化方式。`setTextColor` 傳入單一顏色會取代 RadioButton 自己的顏色狀態清單，所以停用的
+         * 群組標籤一直是全黑，而 iOS 會淡化(P74,2026-10-04)。CustomSegmentedGroup 以同樣方式淡化。
+         */
+        const val DISABLED_ALPHA = 0.4f
+    }
+
     fun getSelectedOption() = getCheckedRadioButtonId()
 
     fun update(
@@ -24,6 +36,7 @@ class CustomRadioGroup(activity: Activity) : RadioGroup(activity) {
                 val button = getChildAt(i) as RadioButton
                 button.text = options[i]
                 button.setEnabled(isEnabled)
+                button.alpha = if (isEnabled) 1f else DISABLED_ALPHA
                 button.setTextColor(color)
                 button.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
                 button.lineHeight = lineHeight
@@ -35,6 +48,7 @@ class CustomRadioGroup(activity: Activity) : RadioGroup(activity) {
                 button.text = options[i]
                 button.id = i
                 button.setEnabled(isEnabled)
+                button.alpha = if (isEnabled) 1f else DISABLED_ALPHA
                 button.setTextColor(color)
                 button.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
                 button.lineHeight = lineHeight
@@ -46,6 +60,7 @@ class CustomRadioGroup(activity: Activity) : RadioGroup(activity) {
                 val button = getChildAt(i) as RadioButton
                 button.text = options[i]
                 button.setEnabled(isEnabled)
+                button.alpha = if (isEnabled) 1f else DISABLED_ALPHA
                 button.setTextColor(color)
                 button.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
                 button.lineHeight = lineHeight

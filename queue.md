@@ -100,7 +100,7 @@
       top-aligned with the anchor; Android shifts a panel that does not fit, and
       the arrow is computed for the unshifted position. Leading shares the code;
       Android has no leading file.
-    - [ ] 3. P74 disabled radio group: labels stay full black on Android; iOS dims
+    - [x] 3. FIXED 2026-10-04 (CustomRadioGroup dims disabled options to 0.4). P74 disabled radio group: labels stay full black on Android; iOS dims
       them.
     - [ ] 2. P23 table: a long cell wraps to many lines and spills over the text
       below; iOS truncates with an ellipsis.
