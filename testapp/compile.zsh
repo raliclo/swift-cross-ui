@@ -1712,6 +1712,12 @@ if [ "$target_platform" = "ios" ]; then
         mkdir -p "$package_dir/.build"
         touch "$bundle_started"
         ios_products="$ios_derived_data/Build/Products/${(C)build_config}-iphonesimulator"
+        # Removed first, so an up-to-date build relinks it rather than leaving the old file:
+        # the freshness check below would otherwise reject a build that rightly changed nothing
+        # (nine Pn on the first sweep after the switch, 2026-10-05, each "BUILD SUCCEEDED").
+        # 先刪掉,讓「無需更新」的建置重新連結它,而不是留下舊檔:否則下面的新舊檢查會拒絕一次本來就
+        # 不需要改變任何東西的建置(2026-10-05 換路徑後第一次 sweep 有九支 Pn 如此,每支都是 BUILD SUCCEEDED)。
+        rm -f "$ios_products/$app_name"
         built_by=""
         if (
             cd "$package_dir"

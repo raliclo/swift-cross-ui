@@ -20,8 +20,10 @@ not to install one, so Android is queued here, not done.
   `iosContainer/appTemplate.app` (name, identifier `dev.swiftcrossui.testapp.<Pn>`,
   ad-hoc signature); the bundler is the fallback when that fails. P76 built,
   installed directly with `simctl install`, and replayed through `test.zsh --ios`.
-  Other Pn have not been rebuilt this way yet -- the first full iOS sweep is the
-  check, and any Pn that falls back says so in its build log (`built by:`).
+  **Full sweep 2026-10-05: all 101 iOS action files pass with no bundler on the
+  machine** (92 on the first pass; the other 9 failed in 4 s because an up-to-date
+  xcodebuild did not relink, so the freshness check rejected an old executable --
+  compile.zsh now removes it first, and those 9 then passed). No Pn fell back.
 - [ ] **Android: the GLES path for the same options.** Until then
   `AndroidBackend+Mesh3DView.swift` skips such meshes with a one-time warning
   (written without an Android toolchain -- **not compiled**; compile it first).
