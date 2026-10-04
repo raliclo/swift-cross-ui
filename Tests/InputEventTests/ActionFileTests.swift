@@ -238,13 +238,48 @@ struct ActionFileTests {
             "wsl": .gtk,
         ]
 
+        // **iOS files are run by the XCUITest runner, which knows four verbs the
+        // in-app replay cannot synthesise** -- tapping a label, activating another
+        // app, printing the window frames or the element tree. The shared parser
+        // is right to reject them: an in-app replay that skipped `taplabel` would
+        // finish having done less than the file says. So for `ios/` those rows are
+        // set aside before parsing, and the runner's own source is checked to
+        // still handle each one, so this list cannot outlive the runner.
+        // Until 2026-10-05 this test failed on five iPad files for exactly these
+        // verbs, and `Scripts/test.sh` stopped there on every Mac run.
+        //
+        // **iOS 的檔案由 XCUITest runner 執行,而它認得四個 app 內重放無法合成的動詞**——點標籤、
+        // 啟用另一個 app、印出視窗框或元素樹。共用解析器拒絕它們是對的:一個略過 `taplabel` 的 app 內
+        // 重放,會在做得比檔案所寫還少的情況下跑完。因此對 `ios/`,這些列在解析前先被剔除,並檢查 runner
+        // 自己的原始碼仍處理每一個,讓這份清單不會比 runner 活得久。2026-10-05 之前,本測試就因為這些
+        // 動詞在五個 iPad 檔案上失敗,而 `Scripts/test.sh` 每次在 Mac 上都停在那裡。
+        let runnerOnlyVerbs = ["activate", "dumptree", "taplabel", "windowframes"]
+        let runnerSource = try String(
+            contentsOf: root.appendingPathComponent(
+                "testapp/iosContainer/xcodeTestRunner/Tests/ActionFileUITests.swift"),
+            encoding: .utf8
+        )
+        for verb in runnerOnlyVerbs {
+            #expect(runnerSource.contains("case \"\(verb)\":"), "iOS runner no longer handles \(verb)")
+        }
+
         var parsed = 0
         for (directory, platform) in platforms.sorted(by: { $0.key < $1.key }) {
             let folder = actions.appendingPathComponent(directory)
             let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
             for name in names.sorted() where name.hasSuffix(".csv") {
                 let path = folder.appendingPathComponent(name)
-                let text = try String(contentsOf: path, encoding: .utf8)
+                var text = try String(contentsOf: path, encoding: .utf8)
+                if platform == .ios {
+                    // Blank rather than drop, so a reported line number still
+                    // points at the file's own line. / 清空而非刪除,讓回報的行號仍指向檔案中的那一行。
+                    text = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+                        .map { row in
+                            let verb = row.prefix { $0 != "," }
+                            return runnerOnlyVerbs.contains(String(verb)) ? "" : String(row)
+                        }
+                        .joined(separator: "\n")
+                }
                 #expect(throws: Never.self, "\(directory)/\(name)") {
                     _ = try ActionFile.parse(text, platform: platform)
                 }

@@ -92,6 +92,47 @@ def known_verbs():
 
 VERBS = known_verbs()
 
+
+def ios_runner_verbs():
+    """The verbs the iOS XCUITest runner handles beyond the shared parser's.
+
+    Files under testapp/actions/ios/ are run by that runner, which also taps labels, activates
+    other apps and prints window frames or the element tree -- things the in-app replay cannot
+    synthesise, so the shared parser rightly rejects them. Read from the runner's
+    `switch action.kind`, at the indentation of its own `case` lines, because a nested
+    `switch action.key` inside it lists orientations that are not verbs. Until 2026-10-05 this
+    check flagged five iPad files for these verbs and stopped Scripts/test.sh on every Mac run.
+
+    iOS XCUITest runner 在共用解析器之外處理的動詞。testapp/actions/ios/ 底下的檔案由那個 runner 執行,
+    它還會點標籤、啟用其他 app、印出視窗框或元素樹——那些是 app 內重放合成不出來的,因此共用解析器拒絕
+    它們是對的。從 runner 的 `switch action.kind` 讀出,且只取與它自己的 `case` 同縮排的那些,因為其中
+    巢狀的 `switch action.key` 列出的方向不是動詞。2026-10-05 之前,本檢查因這些動詞標出五個 iPad 檔案,
+    讓 Scripts/test.sh 每次在 Mac 上都停下。
+    """
+    lines = pathlib.Path(
+        "testapp/iosContainer/xcodeTestRunner/Tests/ActionFileUITests.swift"
+    ).read_text(encoding="utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if "switch action.kind {" in line)
+    indent = None
+    verbs = set()
+    for line in lines[start + 1:]:
+        stripped = line.strip()
+        width = len(line) - len(line.lstrip())
+        if indent is None and stripped.startswith('case "'):
+            indent = width
+        if indent is not None and width == indent:
+            if stripped.startswith("default:"):
+                break
+            if stripped.startswith('case "'):
+                verbs.update(re.findall(r'"([a-z]+)"', stripped))
+    if not verbs:
+        print("check_action_file_fields: read no verbs from the iOS runner; refusing.", file=sys.stderr)
+        sys.exit(1)
+    return verbs - VERBS
+
+
+IOS_RUNNER_VERBS = ios_runner_verbs()
+
 problems = []
 for path in sorted(glob.glob("testapp/actions/*/*.csv")):
     with open(path, newline="", encoding="utf-8") as handle:
@@ -126,7 +167,8 @@ for path in sorted(glob.glob("testapp/actions/*/*.csv")):
         # 於是 `actions/mac/P72-cursor.csv` 帶著第 55 列「 `CGWarpMouseCursorPosition` generates no」
         # 進了一個 commit——重放會以 `unknown action` 拒絕它——而本倉庫裡每一個守衛都說那個檔案沒問題。
         verb = row[0].strip()
-        if verb and verb not in VERBS:
+        allowed = VERBS | IOS_RUNNER_VERBS if "/actions/ios/" in path else VERBS
+        if verb and verb not in allowed:
             problems.append((
                 path, number,
                 f"'{verb[:48]}' is not an action"

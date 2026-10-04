@@ -1079,8 +1079,8 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-29,android,android,P74,ok,ok,window,default,"P74: segmented -> Three via the new CustomSegmentedGroup, radioGroup -> Blue, wheel -> Tue; disabled group refused."
 2026-09-29,ios,uikit,P14,ok,ok,window,default,"Rotation driven for the first time: the new `orient` action (InputAction.orientation) turns the simulator through XCUIDevice. Width history 0 -> 774 -> 0 -> 396. Found on the way: the XCUITest runner under test was the binary built 2026-09-22 -- Xcode's Custom build location ignored -derivedDataPath; test_ios.zsh now pins SYMROOT/OBJROOT (mistakes entry 29, second occurrence). No runner change existed between 09-22 and 09-29."
 2026-09-29,ios,uikit,P21,ok,ok,window,default,Disabled toggle-button and checkbox now visibly dimmed (alpha 0.4); UIKit window resizability applied through sizeRestrictions instead of ignored.
-2026-09-29,macos,appkit,P10,ok,ok,window,default,#478: Cmd-Q quits. Control run without the key: debugTarget still running at +9 s; with Cmd-Q: gone at +9 s.
-2026-09-29,macos,appkit,P21,ok,ok,window,default,"Lower half (steps 6-7) via actions/mac/P21-lower-half.csv: HID scroll to the bottom, focus to the TextEditor, tap the disabled TextField, type q -- editor reads textqx, label stays editable; enabled field then reads editablez; ContentUnavailableView visible."
+2026-09-29,mac,appkit,P10,ok,ok,window,default,#478: Cmd-Q quits. Control run without the key: debugTarget still running at +9 s; with Cmd-Q: gone at +9 s.
+2026-09-29,mac,appkit,P21,ok,ok,window,default,"Lower half (steps 6-7) via actions/mac/P21-lower-half.csv: HID scroll to the bottom, focus to the TextEditor, tap the disabled TextField, type q -- editor reads textqx, label stays editable; enabled field then reads editablez; ContentUnavailableView visible."
 2026-09-29,ios,uikit,P21,ok,ok,window,default,"Lower half (steps 6-7) via actions/ios/P21-lower-half.csv: three drags to the bottom, focus to the SecureField, tap the disabled TextField, type q -- label stays editable, the q went to the SecureField (secure fields clear on begin-editing, hence one dot); ContentUnavailableView visible before the keyboard came up."
 2026-09-29,ios,uikit,P45,ok,ok,window,default,"Model button (control 4) after seeding the siblings: honest true, setter writes 1, presses 1, selection 2 and typed seeded kept -- the inline @ObservedObject survived the @State write."
 2026-09-30,android,android,P43,ok,ok,screen,default,"Fresh build: rectangle red->purple->blue, control flat green, ring hollow. Gradient overload in use since 56ef8dd5."
@@ -1089,24 +1089,24 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-09-30,android,android,P34,ok,ok,screen,default,"Inner list drag scrolled the whole page (RootScrollHost stole it); fixed by nested scrolling in ScrollContainer.kt -- list at Row 2, header unmoved."
 2026-09-30,android,android,P8,ok,ok,screen,default,"Regression check after the nested-scroll change: vertical drag on the horizontal strip still moves the outer view 183 px, H0 fixed at x 10."
 2026-09-30,android,android,P38,ok,ok,screen,default,"Fixed data: page via -url; tap on Learn more -> Navigations reported 1, IANA example-domains listed and drawn in the WebView."
-2026-09-30,macos,appkit,P75,ok,ok,window,default,Reveal: Finder frontmost with p75-reveal.txt selected.
+2026-09-30,mac,appkit,P75,ok,ok,window,default,Reveal: Finder frontmost with p75-reveal.txt selected.
 2026-09-30,ios,uikit,P75,ok,ok,window,default,"Reveal opens the document browser in Documents/P75 listing the file; open URL -> Safari on IANA; save -> Documents/p75-saved.txt reads back; close on iPhone refused by UIKit (unsupported device), window kept with a notice."
 2026-09-30,android,android,P75,ok,ok,screen,default,"Reveal -> DocumentsUI at Download listing the file; open URL -> Chrome on IANA; save -> Download/p75-saved.txt holds the line (FileObserver mirror); close -> activity finished, handler ran."
 2026-09-30,ios,uikit,P37,ok,ok,window,default,"UIKit now conforms to WindowLevels and reports automatic, normal: floating is defined as above other applications, which UIKit cannot do; a first version that listed it printed a false claim and was withdrawn."
-2026-09-30,macos,appkit,P42,ok,ok,window,default,Screen switched 1x->2x->1x by a HiDPI virtual display: scale factor 1.0 -> 2.0 -> 1.0; control 1.0 only.
+2026-09-30,mac,appkit,P42,ok,ok,window,default,Screen switched 1x->2x->1x by a HiDPI virtual display: scale factor 1.0 -> 2.0 -> 1.0; control 1.0 only.
 2026-09-30,ios,uikit,P42,ok,ok,window,default,Scene displayScale trait override 2 then removed: 1.0 -> 3.0 -> 2.0 -> 3.0; control 1.0 -> 3.0.
 2026-09-30,ios,uikit,P21,ok,n/a,window,default,Disabled Toggle and ToggleSwitch labels now dimmed like AppKit (darkest pixel 0 -> 172); enabled labels unchanged; button labels not double-dimmed.
-2026-09-30,macos,appkit,P65,ok,ok,window,default,"Drag (140,30), magnify 1.500, rotate 0.524 rad -- first macOS run; drag needed leftMouseDragged, pinch/rotate HID gesture events."
-2026-09-30,macos,appkit,P63,ok,ok,window,default,"Last FRAMES line global 92,287 equals the marker at 92,287; first pass logs zero origins (startup ordering)."
-2026-09-30,macos,appkit,P64,ok,ok,window,default,"PASS 1: 121 ticks in 1.98 s, 60.5 Hz, median gap 16.7 ms."
-2026-09-30,macos,appkit,P66,ok,ok,window,default,"32 samples over 0.61 s, monotonic, BOOL assignments 1."
-2026-09-30,macos,appkit,P67,ok,ok,window,default,ax_dump: plain label / padded label / two texts / empty -- as expected.
-2026-09-30,macos,appkit,P69,ok,ok,window,default,"ax_dump: Close (no X), Delete with hint, Volume 40 percent, Half past twelve, decorative absent."
-2026-09-30,macos,appkit,P47,ok,ok,window,default,"36 glyphs drawn, unknown name drawn as text."
-2026-09-30,macos,appkit,P48,ok,ok,window,default,All five grid layouts as captioned.
-2026-09-30,macos,appkit,P51,ok,ok,window,default,All six containers draw as captioned.
-2026-09-30,macos,appkit,P52,ok,ok,window,default,Benchmark completed unattended.
-2026-09-30,macos,appkit,P68,ok,ok,window,default,"adapters: 1, -GPU default 1."
+2026-09-30,mac,appkit,P65,ok,ok,window,default,"Drag (140,30), magnify 1.500, rotate 0.524 rad -- first macOS run; drag needed leftMouseDragged, pinch/rotate HID gesture events."
+2026-09-30,mac,appkit,P63,ok,ok,window,default,"Last FRAMES line global 92,287 equals the marker at 92,287; first pass logs zero origins (startup ordering)."
+2026-09-30,mac,appkit,P64,ok,ok,window,default,"PASS 1: 121 ticks in 1.98 s, 60.5 Hz, median gap 16.7 ms."
+2026-09-30,mac,appkit,P66,ok,ok,window,default,"32 samples over 0.61 s, monotonic, BOOL assignments 1."
+2026-09-30,mac,appkit,P67,ok,ok,window,default,ax_dump: plain label / padded label / two texts / empty -- as expected.
+2026-09-30,mac,appkit,P69,ok,ok,window,default,"ax_dump: Close (no X), Delete with hint, Volume 40 percent, Half past twelve, decorative absent."
+2026-09-30,mac,appkit,P47,ok,ok,window,default,"36 glyphs drawn, unknown name drawn as text."
+2026-09-30,mac,appkit,P48,ok,ok,window,default,All five grid layouts as captioned.
+2026-09-30,mac,appkit,P51,ok,ok,window,default,All six containers draw as captioned.
+2026-09-30,mac,appkit,P52,ok,ok,window,default,Benchmark completed unattended.
+2026-09-30,mac,appkit,P68,ok,ok,window,default,"adapters: 1, -GPU default 1."
 2026-09-30,ios,uikit,P63,ok,ok,window,default,"GeometryReader.frame(in:) stayed x=0 y=0 on iOS for the whole run; fixed in three places (UIKit layoutIfNeeded before convert; GeometryReader retries a nil origin on the next turn and re-lays out through onResize after its commit; no body reuse for the closure-built content). Now global 47,558 and named box 24,52, equal to the marker in app points (the screen is zoomed 1.032x: the binary declares SDK 15, see the UIScene finding)."
-2026-10-05,macos,appkit,P76,ok,ok,window,default,"P76-projection.csv: orthographic capture shows RGB axes, wire boxes, 9x9 points, flat unlit right cube, yellow overlay over the left cube, three equal ticks and a closed 120000-vertex helix; after the click the label reads perspective and the ticks are unequal."
+2026-10-05,mac,appkit,P76,ok,ok,window,default,"P76-projection.csv: orthographic capture shows RGB axes, wire boxes, 9x9 points, flat unlit right cube, yellow overlay over the left cube, three equal ticks and a closed 120000-vertex helix; after the click the label reads perspective and the ticks are unequal."
 2026-10-05,ios,uikit,P76,ok,ok,window,default,"Built WITHOUT swift-bundler: compile.zsh -ios now runs xcodebuild and wraps the executable in iosContainer/appTemplate.app (built by: xcodebuild + iosContainer, sdk 27.0, ad-hoc signed). Same six claims as macOS; P76-projection.csv switched to perspective."
