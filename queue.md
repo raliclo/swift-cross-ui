@@ -106,10 +106,18 @@
       below; iOS truncates with an ellipsis. Remaining difference, part of 4:
       Android cells wrap to several lines (column = width / 4) so only ~2.5 of
       12 rows fit, where iOS keeps each row to one truncated line.
-    - [ ] 4. Text in narrow places breaks one character per line on Android
-      ("Sci enc e" P16 sidebar, "Disa ble it" P29, "Re mo ve 3" P51 ControlGroup,
-      "u n k n o w n" P47) where iOS keeps words; partly Android buttons'
-      larger padding -- investigate before changing.
+    - [x] 4. NOT A DEFECT (measured 2026-10-04). Text in narrow places breaking
+      per character on Android ("Sci enc e" P16, "Disa ble it" P29, "Re mo ve 3"
+      P51, "u n k n o w n" P47, P23's multi-line cells):
+      - P16: identical on iOS -- sidebar 106 pt on both, "Science" 2 lines and
+        "Humanities" 3 lines there too; the iOS capture compared was cropped.
+      - P51: content wider than any phone; iOS overlaps where Android wraps.
+      - P47, P29: the emulator is 411 pt wide against iPhone's 440, Roboto runs
+        ~4 % wider than SF (178 vs 171 pt), and Material buttons carry more
+        padding. With `wm density 393` (440 pt wide) P29's button fits and P47
+        becomes 3 lines (iOS 2).
+      Not changed: a 440-pt AVD would invalidate every Android action file's
+      coordinates, and 411 pt is a common Android width.
     - [ ] 5. P41 date pickers: the graphical calendar and the wheel are clipped on
       Android; iOS fits them.
     - [ ] iOS, the other way: P57's 500-row List builds 29,718 rows on iOS against
