@@ -190,7 +190,11 @@ fi
 # 而本腳本接著會在自己的建置樹中以 28 重建同一支 app，於是受測的 APK 並不是剛才檢查過的那一個。
 # 這三處是同一個決定，必須一起移動。
 android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android31}"
-android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
+# NDK r30, the one the Swift 6.4.0 Android SDK requires; testapp/install_tools_android.zsh
+# installs it and is where the version is decided (2026-10-05; was 27.0.12077973).
+# NDK r30，Swift 6.4.0 的 Android SDK 需要它；由 testapp/install_tools_android.zsh 安裝，版本以那裡為準
+# （2026-10-05；原為 27.0.12077973）。
+android_ndk_version="${ANDROID_NDK_VERSION:-30.0.16248370}"
 android_ndk_home="${ANDROID_NDK_HOME:-$android_root/ndk/$android_ndk_version}"
 # A toolchain matching the Android SDK, and explicitly not Xcode's.
 #

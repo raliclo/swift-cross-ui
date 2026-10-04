@@ -7,23 +7,32 @@
 # to re-run after a partial failure.
 #
 #   Scripts/build-tool-install-android-on-Mac.sh             # install, then verify
+#   Scripts/build-tool-install-android-on-Mac.sh -cleanup    # same, and remove older versions
 #   Scripts/build-tool-install-android-on-Mac.sh --verify     # verify only
 #   Scripts/build-tool-install-android-on-Mac.sh --print-env  # print env exports
+#
+# Since 2026-10-05 the Swift toolchain, the Swift Android SDK, the NDK and Google's
+# SDK are installed by testapp/install_tools_android.zsh, which this calls; this
+# script keeps Swift Bundler and the CounterExample check. It used to pin its own
+# 6.3 snapshot, NDK r27d and API 28, which disagreed with the testapp scripts
+# (6.3.3 release, API 31) and would have put back what the other one removed.
+#
+# 自 2026-10-05 起，Swift toolchain、Swift Android SDK、NDK 與 Google 的 SDK 由
+# testapp/install_tools_android.zsh 安裝，本腳本呼叫它；本腳本只保留 Swift Bundler 與 CounterExample
+# 的驗證。它原本自己釘住 6.3 snapshot、NDK r27d 與 API 28，與 testapp 的腳本（6.3.3 release、API 31）
+# 不一致，而且會把另一支剛移除的東西裝回去。
 
 set -euo pipefail
 
 # ==============================================================================
-# Versions. The Swift toolchain and the Android SDK must be the SAME snapshot:
-# a Swift SDK is built against one specific compiler and its module format is
-# not compatible across versions.
+# Versions live in testapp/install_tools_android.zsh: the Swift toolchain and the
+# Android SDK must be the SAME version, and one place keeps them so. It points
+# `swift-latest` at the toolchain it installs, which is what this uses.
 # ==============================================================================
-SWIFT_SNAPSHOT="swift-6.3-DEVELOPMENT-SNAPSHOT-2026-06-07-a"
-SWIFT_ANDROID_SDK_CHECKSUM="16bbdf1d75b651488c0c478218fff1a5fa86f3d5572ec2572a1a5759f8fc87db"
-NDK_VERSION="r27d"
 
-# The Android API level that the Swift SDK exposes. Note this is 28, not the 24
-# that an older comment in .github/workflows/build-test-and-docs.yml implies.
-ANDROID_API=28
+# The API level the testapp scripts build for (compile.zsh, test_android.zsh,
+# androidContainer/Bundler.android.toml). This said 28 while they said 31.
+ANDROID_API=31
 ANDROID_TRIPLE="aarch64-unknown-linux-android${ANDROID_API}"
 
 # Google's SDK components. Only API 36 is installed: compile_sdk is 36 for every
@@ -34,12 +43,12 @@ ANDROID_TRIPLE="aarch64-unknown-linux-android${ANDROID_API}"
 BUILD_TOOLS_VERSION="34.0.0"
 ANDROID_PLATFORMS=("platforms;android-36")
 
-TOOLCHAIN_DIR="$HOME/Library/Developer/Toolchains/${SWIFT_SNAPSHOT}.xctoolchain"
+TOOLCHAIN_DIR="$HOME/Library/Developer/Toolchains/swift-latest.xctoolchain"
 TOOLCHAIN_BIN="$TOOLCHAIN_DIR/usr/bin"
-SDK_BUNDLE="$HOME/Library/org.swift.swiftpm/swift-sdks/${SWIFT_SNAPSHOT}_android.artifactbundle"
-ANDROID_SDK_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+# Where install_tools_android.zsh keeps Google's SDK: the project volume.
+ANDROID_SDK_HOME="${ANDROID_HOME:-$(cd "$repo_root/.." && pwd)/.android-sdk}"
 work_dir="${TMPDIR:-/tmp}/scui-android-install"
 # Records which Vendor commits the checked-in swift-bundler binary was built
 # from, so a submodule bump forces a rebuild instead of reusing a stale binary.
@@ -63,110 +72,23 @@ if [ "${1:-}" = "--print-env" ]; then
 fi
 
 verify_only=0
-[ "${1:-}" = "--verify" ] && verify_only=1
+cleanup_flag=()
+case "${1:-}" in
+    --verify) verify_only=1 ;;
+    -cleanup|--cleanup) cleanup_flag=(-cleanup) ;;
+esac
 
 # ==============================================================================
-# 1. Swift toolchain
+# 1-4. The Swift toolchain, the Swift Android SDK, the NDK and Google's SDK.
 #
-# The Android SDK requires an open source toolchain; Xcode's own Swift cannot
-# cross-compile for Android. Note there is no open source Swift 6.4 -- the "Apple
-# Swift version 6.4" reported by Xcode 27 is Apple's own numbering, and
-# swift.org's API returns 404 for a 6.4 Android SDK. 6.3 is the newest usable
-# branch. Installed to the user's home, so no sudo is needed.
+# One installer for all four, so versions cannot drift between two scripts:
+# testapp/install_tools_android.zsh (Swift 6.4.0, NDK r30 since 2026-10-05).
+# `-cleanup` is passed through and removes older versions there.
 # ==============================================================================
-install_toolchain() {
-    if [ -x "$TOOLCHAIN_BIN/swift" ]; then
-        log "Swift toolchain already installed: $SWIFT_SNAPSHOT"
-        return
-    fi
-
-    log "Downloading Swift toolchain ($SWIFT_SNAPSHOT, ~1.7GB)"
-    mkdir -p "$work_dir"
-    local pkg="$work_dir/swift-toolchain.pkg"
-    curl -fSL --progress-bar -o "$pkg" \
-        "https://download.swift.org/swift-6.3-branch/xcode/${SWIFT_SNAPSHOT}/${SWIFT_SNAPSHOT}-osx.pkg"
-
-    log "Installing to home directory (no sudo required)"
-    installer -pkg "$pkg" -target CurrentUserHomeDirectory >/dev/null
-    rm -f "$pkg"
-
-    [ -x "$TOOLCHAIN_BIN/swift" ] || die "Toolchain install failed"
-}
-
-# ==============================================================================
-# 2. Swift Android SDK
-# ==============================================================================
-install_swift_android_sdk() {
-    if [ -d "$SDK_BUNDLE" ]; then
-        log "Swift Android SDK already installed"
-        return
-    fi
-
-    log "Installing Swift Android SDK"
-    "$TOOLCHAIN_BIN/swift" sdk install \
-        "https://download.swift.org/swift-6.3-branch/android-sdk/${SWIFT_SNAPSHOT}/${SWIFT_SNAPSHOT}_android.artifactbundle.tar.gz" \
-        --checksum "$SWIFT_ANDROID_SDK_CHECKSUM"
-}
-
-# ==============================================================================
-# 3. Android NDK
-#
-# The Swift SDK ships without an NDK and links to one through ndk-sysroot. The
-# NDK is Google's C/C++ toolchain and cannot be built from Swift sources.
-# ==============================================================================
-install_ndk() {
-    local ndk_dir="$SDK_BUNDLE/swift-android/android-ndk-${NDK_VERSION}"
-    if [ -d "$SDK_BUNDLE/swift-android/ndk-sysroot" ] && [ -d "$ndk_dir" ]; then
-        log "Android NDK already linked: $NDK_VERSION"
-        return
-    fi
-
-    if [ ! -d "$ndk_dir" ]; then
-        log "Downloading Android NDK ($NDK_VERSION, ~800MB)"
-        mkdir -p "$work_dir"
-        local zip="$work_dir/ndk.zip"
-        curl -fSL --progress-bar -o "$zip" \
-            "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-darwin.zip"
-        log "Extracting NDK"
-        (cd "$work_dir" && rm -rf "android-ndk-${NDK_VERSION}" && unzip -qo "$zip")
-        mv "$work_dir/android-ndk-${NDK_VERSION}" "$SDK_BUNDLE/swift-android/"
-        rm -f "$zip"
-    fi
-
-    log "Linking NDK into the Swift SDK"
-    (cd "$SDK_BUNDLE/swift-android" && ANDROID_NDK_HOME="$ndk_dir" ./scripts/setup-android-sdk.sh)
-}
-
-# ==============================================================================
-# 4. Google's Android SDK -- only needed to package an APK, not to compile Swift.
-# ==============================================================================
-install_android_sdk() {
-    if [ ! -x "$ANDROID_SDK_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-        command -v brew >/dev/null || die "Homebrew is required to install the Android SDK"
-        log "Installing Android command line tools"
-        brew install --cask android-commandlinetools
-    else
-        log "Android command line tools already installed"
-    fi
-
-    local sdkmanager="$ANDROID_SDK_HOME/cmdline-tools/latest/bin/sdkmanager"
-    local missing=()
-    [ -d "$ANDROID_SDK_HOME/build-tools/$BUILD_TOOLS_VERSION" ] || missing+=("build-tools;$BUILD_TOOLS_VERSION")
-    [ -d "$ANDROID_SDK_HOME/platform-tools" ] || missing+=("platform-tools")
-    for platform in "${ANDROID_PLATFORMS[@]}"; do
-        [ -d "$ANDROID_SDK_HOME/platforms/${platform#platforms;}" ] || missing+=("$platform")
-    done
-
-    if [ ${#missing[@]} -eq 0 ]; then
-        log "Android SDK components already installed"
-        return
-    fi
-
-    log "Accepting licenses"
-    yes 2>/dev/null | ANDROID_HOME="$ANDROID_SDK_HOME" "$sdkmanager" --licenses >/dev/null 2>&1 || true
-
-    log "Installing SDK components: ${missing[*]}"
-    ANDROID_HOME="$ANDROID_SDK_HOME" "$sdkmanager" "${missing[@]}" >/dev/null
+install_android_tools() {
+    log "Installing the Android toolchain, SDK and NDK (testapp/install_tools_android.zsh)"
+    zsh "$repo_root/testapp/install_tools_android.zsh" ${cleanup_flag[@]+"${cleanup_flag[@]}"} \
+        || die "testapp/install_tools_android.zsh failed"
 }
 
 # ==============================================================================
@@ -294,10 +216,7 @@ main() {
     fi
 
     if [ "$verify_only" -eq 0 ]; then
-        install_toolchain
-        install_swift_android_sdk
-        install_ndk
-        install_android_sdk
+        install_android_tools
         install_swift_bundler
     fi
 

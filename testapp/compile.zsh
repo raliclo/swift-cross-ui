@@ -83,7 +83,11 @@ android_triple="${ANDROID_TRIPLE:-aarch64-unknown-linux-android31}"
 # `native` 已標記為 deprecated，因此這是一個有到期日的權宜之計：待 swiftbuild 不再拒絕它，或
 # swift-java 改變形狀時，即可移除。
 android_build_system="${ANDROID_BUILD_SYSTEM:-native}"
-android_ndk_version="${ANDROID_NDK_VERSION:-27.0.12077973}"
+# NDK r30, the one the Swift 6.4.0 Android SDK requires; testapp/install_tools_android.zsh
+# installs it and is where the version is decided (2026-10-05; was 27.0.12077973).
+# NDK r30，Swift 6.4.0 的 Android SDK 需要它；由 testapp/install_tools_android.zsh 安裝，版本以那裡為準
+# （2026-10-05；原為 27.0.12077973）。
+android_ndk_version="${ANDROID_NDK_VERSION:-30.0.16248370}"
 android_ndk_home="${ANDROID_NDK_HOME:-$android_sdk_root/ndk/$android_ndk_version}"
 # Set after the flags are parsed, because -gtk4 needs its own tree. See the
 # note there.
@@ -1488,31 +1492,88 @@ if [ "$target_platform" = "android" ]; then
     #
     # 而一個相符的 toolchain 一直都裝在 ~/Library/Developer/Toolchains 裡。此處會找出版本與該 SDK
     # 相符的那一個並選用它;若一個都沒有，它會**說出來**，而不是讓那些 module 格式錯誤去當訊息。
+    # Three corrections, 2026-10-05, when the Android set moved to Swift 6.4.0:
+    # - The NEWEST installed Android SDK is used, not the first `ls` listed; with
+    #   6.3.3 and 6.4.0 both present the old code picked 6.3.3.
+    # - Versions compare with trailing ".0" removed: the swift.org 6.4.0 toolchain
+    #   reports "Swift version 6.4" while its SDK is named 6.4.0.
+    # - Xcode's swift is never chosen because its number matches. Xcode 27 reports
+    #   6.4 too, and building with it against the 6.4.0 SDK failed ("module compiled
+    #   with Swift 6.3.3 cannot be imported" style errors, measured); swift.org's
+    #   guide requires an open-source toolchain of exactly the SDK's version. Once
+    #   the numbers were normalised the old "host matches, keep it" branch would
+    #   have chosen Xcode's.
+    # 三項修正，2026-10-05，Android 這一組換到 Swift 6.4.0 時：
+    # - 用**最新**的 Android SDK，而不是 `ls` 列出的第一個；6.3.3 與 6.4.0 並存時，舊寫法選到 6.3.3。
+    # - 比較版本前去掉結尾的「.0」：swift.org 的 6.4.0 toolchain 回報「Swift version 6.4」，而它的 SDK
+    #   叫 6.4.0。
+    # - 不因為版本號相同就選 Xcode 的 swift。Xcode 27 也回報 6.4，而用它搭配 6.4.0 SDK 建置會失敗
+    #   （實測）；swift.org 的指南要求版本完全相同的 open-source toolchain。版本號一正規化，舊的
+    #   「主機相符就沿用」分支就會選到 Xcode 的那一個。
+    normalised_version() { echo "$1" | sed -E 's/(\.0)+$//'; }
     if [ -z "${TOOLCHAINS:-}" ]; then
         android_sdk_swift=$(
-            ls -d "$HOME/Library/org.swift.swiftpm/swift-sdks/"*android.artifactbundle 2>/dev/null                 | head -1 | sed -E 's|.*/swift-([0-9.]+)-.*|\1|'
+            ls -d "$HOME/Library/org.swift.swiftpm/swift-sdks/"*android.artifactbundle 2>/dev/null \
+                | sed -E 's|.*/swift-([0-9.]+)-.*|\1|' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1
         )
         if [ -n "$android_sdk_swift" ]; then
-            host_swift=$("$swift_bin" --version 2>/dev/null | sed -nE 's/.*Apple Swift version ([0-9.]+).*/\1/p' | head -1)
-            if [ "$host_swift" != "$android_sdk_swift" ]; then
-                for toolchain in "$HOME/Library/Developer/Toolchains/"*.xctoolchain; do
-                    [ -x "$toolchain/usr/bin/swift" ] || continue
-                    toolchain_swift=$("$toolchain/usr/bin/swift" --version 2>/dev/null | sed -nE 's/.*Apple Swift version ([0-9.]+).*/\1/p' | head -1)
-                    if [ "$toolchain_swift" = "$android_sdk_swift" ]; then
-                        export TOOLCHAINS=$(plutil -extract CFBundleIdentifier raw "$toolchain/Info.plist" 2>/dev/null)
-                        echo "==> Android SDK is Swift $android_sdk_swift and the host is $host_swift; using toolchain $TOOLCHAINS"
-                        break
-                    fi
-                done
-                if [ -z "${TOOLCHAINS:-}" ]; then
-                    echo "!! The Android SDK is Swift $android_sdk_swift and this host's swift is $host_swift." >&2
-                    echo "!! No toolchain in ~/Library/Developer/Toolchains matches the SDK, so the build" >&2
-                    echo "!! below will fail with \"module compiled with Swift $android_sdk_swift cannot be imported\"." >&2
-                    echo "!! Install a Swift $android_sdk_swift toolchain, or an Android SDK built for $host_swift." >&2
+            host_swift=$("$swift_bin" --version 2>/dev/null | sed -nE 's/.*Swift version ([0-9.]+).*/\1/p' | head -1)
+            wanted=$(normalised_version "$android_sdk_swift")
+            for toolchain in "$HOME/Library/Developer/Toolchains/"*.xctoolchain; do
+                [ -x "$toolchain/usr/bin/swift" ] || continue
+                toolchain_swift=$("$toolchain/usr/bin/swift" --version 2>/dev/null | sed -nE 's/.*Swift version ([0-9.]+).*/\1/p' | head -1)
+                if [ "$(normalised_version "$toolchain_swift")" = "$wanted" ]; then
+                    export TOOLCHAINS=$(plutil -extract CFBundleIdentifier raw "$toolchain/Info.plist" 2>/dev/null)
+                    echo "==> Android SDK is Swift $android_sdk_swift and the host is $host_swift; using toolchain $TOOLCHAINS (${toolchain##*/})"
+                    break
                 fi
+            done
+            if [ -z "${TOOLCHAINS:-}" ]; then
+                echo "!! The Android SDK is Swift $android_sdk_swift and this host's swift is $host_swift." >&2
+                echo "!! No swift.org toolchain in ~/Library/Developer/Toolchains matches the SDK, and" >&2
+                echo "!! Xcode's cannot be used for it. Run testapp/install_tools_android.zsh." >&2
+                echo "!! ~/Library/Developer/Toolchains 裡沒有與 SDK 相符的 swift.org toolchain，而 Xcode 的不能用；" >&2
+                echo "!! 請執行 testapp/install_tools_android.zsh。" >&2
+                exit 1
             fi
         fi
     fi
+
+    # The macOS SDK the Android toolchain compiles HOST code against (the package
+    # manifest and build plugins) -- the same choice and the same override as
+    # test_android.zsh, which has made it since 2026-10-02. Xcode 27's Foundation
+    # interfaces carry `-target-arch-variant`, which the 6.3.3 snapshot toolchain
+    # does not know; without this, `compile.zsh -android` failed every manifest
+    # with "unknown argument: '-target-arch-variant'" and "Invalid manifest"
+    # (measured 2026-10-05: 20 such errors with SDK 27, a clean `dump-package`
+    # with SDK 26.5). Only the emulator path had the fix, so a compile-only check
+    # of AndroidBackend could not run at all.
+    # Android toolchain 編譯「主機端」程式碼（package manifest 與 build plugin）所用的 macOS SDK——
+    # 與 test_android.zsh 自 2026-10-02 起的選法與覆寫方式相同。Xcode 27 的 Foundation 介面帶有
+    # `-target-arch-variant`，6.3.3 快照 toolchain 不認得；少了這段，`compile.zsh -android` 的每一個
+    # manifest 都以 "unknown argument: '-target-arch-variant'" 與 "Invalid manifest" 失敗（2026-10-05
+    # 實測：SDK 27 出現 20 次，SDK 26.5 的 `dump-package` 乾淨通過）。原本只有模擬器那條路有這個修正，
+    # 因此「只編譯 AndroidBackend」的檢查根本跑不起來。
+    android_host_sdk="${ANDROID_HOST_SDKROOT:-}"
+    if [ -z "$android_host_sdk" ]; then
+        for candidate in "$(xcrun --sdk macosx --show-sdk-path 2>/dev/null)" \
+            $(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null | sort -r); do
+            interface="$candidate/System/Library/Frameworks/Foundation.framework/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface"
+            [ -f "$interface" ] || continue
+            if ! grep -q -- '-target-arch-variant' "$interface"; then
+                android_host_sdk="$candidate"
+                break
+            fi
+        done
+    fi
+    if [ -z "$android_host_sdk" ]; then
+        echo "!! No macOS SDK the Android toolchain can read (every Foundation interface uses" >&2
+        echo "!! -target-arch-variant); set ANDROID_HOST_SDKROOT." >&2
+        echo "!! 找不到 Android toolchain 讀得懂的 macOS SDK；請設定 ANDROID_HOST_SDKROOT。" >&2
+        exit 1
+    fi
+    echo "==> Host SDK for the Android toolchain: $android_host_sdk"
+    export SDKROOT="$android_host_sdk"
 
     export ANDROID_SDK_ROOT="$android_sdk_root"
     export ANDROID_NDK_HOME="$android_ndk_home"
