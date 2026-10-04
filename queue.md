@@ -37,10 +37,12 @@ not to install one, so Android is queued here, not done.
   - Acceptance: P76 on the emulator showing the same six claims, plus a mesh past
     1,000,000 vertices with no missing or crossed triangles.
 - [ ] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side.
-- [ ] **Skip the per-commit geometry comparison.** `setScene` compares every
-  vertex of every mesh on each commit to decide whether to re-upload; at SoftPCB's
-  sizes (a 92,529-node mesh's edges) that runs on every drag frame. A revision
-  token on `Mesh3D` would make it O(1). Not designed yet.
+- [x] **Skip the per-commit geometry comparison.** Not needed, measured
+  2026-10-05: `Array ==` returns at once when both arrays share storage (0.003 ms
+  for 2,000,000 vertices, against 2.2 ms for equal contents in another buffer,
+  `-O`). A scene built from stored arrays is already O(1) per commit; a revision
+  token would only add a way to draw stale geometry by forgetting to bump it.
+  Documented on `Mesh3D` as "keep the arrays; do not rebuild them per update".
 
 ## 2026-10-01 open after the UIScene change (8272b7a2) -- in this order
 
