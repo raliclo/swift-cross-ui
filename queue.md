@@ -94,7 +94,8 @@
     done, and not needed at parity: a method-ID cache in swift-java (a fork).
   - [ ] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
-    - [ ] 1. P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
+    - [x] 1. FIXED 2026-10-04 (CustomPopupWindow.showBeside + resolveEdge; new
+      P50-arrow-edge-leading.csv). P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
       and the arrow does not point at it. presentPopover places leading/trailing
       top-aligned with the anchor; Android shifts a panel that does not fit, and
       the arrow is computed for the unshifted position. Leading shares the code;
@@ -118,11 +119,11 @@
     2026-10-03: 4.2 GB free of 5.1 GB needed); the broken old AVD ran
     SwiftShader. Pin hw.gpu.mode=host and have test_android warn on a software
     renderer.
-  - [ ] **Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
+  - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
     recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
     Kotlin helpers do several things per crossing, pure JNI would add crossings.
     Only worth it to drop the Kotlin/Gradle build dependency.
-  - [ ] **swift-java method-ID cache (fork): deferred** -- not needed at parity.
+  - [-] **CANCELLED 2026-10-04. swift-java method-ID cache (fork): deferred** -- not needed at parity.
   - [ ] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
     an env var that makes SwiftCrossUI print update-time statistics (count,
     median, p95, max) at exit; the sweeps collect them per platform so every

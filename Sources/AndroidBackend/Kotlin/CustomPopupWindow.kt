@@ -118,12 +118,24 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
                 if (roomAbove < neededHeight && roomBelow >= neededHeight) EDGE_BOTTOM else EDGE_TOP
             EDGE_BOTTOM ->
                 if (roomBelow < neededHeight && roomAbove >= neededHeight) EDGE_TOP else EDGE_BOTTOM
-            EDGE_LEADING ->
-                if (roomLeading < neededWidth && roomTrailing >= neededWidth) EDGE_TRAILING
-                else EDGE_LEADING
-            else ->
-                if (roomTrailing < neededWidth && roomLeading >= neededWidth) EDGE_LEADING
-                else EDGE_TRAILING
+            else -> {
+                val preferred = if (requested == EDGE_LEADING) roomLeading else roomTrailing
+                val other = if (requested == EDGE_LEADING) roomTrailing else roomLeading
+                when {
+                    preferred >= neededWidth -> requested
+                    other >= neededWidth ->
+                        if (requested == EDGE_LEADING) EDGE_TRAILING else EDGE_LEADING
+                    // Neither side has room: above or below, whichever fits.
+                    // Without this the panel was clamped on screen over the
+                    // very button it belongs to -- P50's first button is 280
+                    // of 411 points wide (2026-10-04). UIKit's popover makes
+                    // the same choice.
+                    // 兩側都放不下：改放上方或下方，看哪邊放得下。少了這一段，面板會被夾在畫面內、蓋住它所屬的
+                    // 那顆按鈕——P50 第一顆按鈕寬 280 點、畫面 411 點(2026-10-04)。UIKit 的 popover 也是這樣選。
+                    roomAbove >= neededHeight -> EDGE_TOP
+                    else -> EDGE_BOTTOM
+                }
+            }
         }
     }
 
@@ -183,6 +195,47 @@ class CustomPopupWindow(private val activity: Activity) : PopupWindow(activity) 
         } else {
             height = panelHeight + arrowPx
         }
+    }
+
+    /**
+     * Shows the panel beside [anchor] -- [EDGE_LEADING] or [EDGE_TRAILING] --
+     * centred on it vertically and kept on screen, with the arrow pointing at
+     * the anchor's centre wherever the panel ended up.
+     *
+     * `showAsDropDown(anchor, anchorWidth, -anchorHeight)` top-aligned the
+     * panel with the anchor, and when it did not fit Android moved it up on its
+     * own while the arrow stayed where the top-aligned layout put it: P50's
+     * trailing panel sat above its button with the arrow pointing at nothing
+     * (2026-10-04). Here the position is computed and clamped first and the
+     * arrow follows it.
+     *
+     * 把面板顯示在 [anchor] 旁邊(左或右),與它垂直置中並保持在畫面內，箭頭指向 anchor 的中心——不論面板最後
+     * 落在哪裡。原本 `showAsDropDown(anchor, anchorWidth, -anchorHeight)` 讓面板與 anchor 頂端對齊，放不下時
+     * Android 自己把它往上推，而箭頭仍停在頂端對齊時的位置:P50 的 trailing 面板跑到按鈕上方，箭頭什麼也沒指到
+     * (2026-10-04)。這裡先算出並夾住位置，箭頭再跟著它。
+     */
+    fun showBeside(anchor: View, edge: Int, arrowPx: Int) {
+        val location = IntArray(2)
+        anchor.getLocationOnScreen(location)
+        val frame = Rect()
+        anchor.getWindowVisibleDisplayFrame(frame)
+        val panelWidth = width
+        val panelHeight = height
+        val anchorCentreY = location[1] + anchor.height / 2
+
+        val x = (if (edge == EDGE_LEADING) location[0] - panelWidth else location[0] + anchor.width)
+            .coerceIn(frame.left, maxOf(frame.left, frame.right - panelWidth))
+        val y = (anchorCentreY - panelHeight / 2)
+            .coerceIn(frame.top, maxOf(frame.top, frame.bottom - panelHeight))
+
+        val corner = dp(12f)
+        val along = (anchorCentreY - y)
+            .coerceIn(corner + arrowPx, maxOf(corner + arrowPx, panelHeight - corner - arrowPx))
+        setBackgroundDrawable(
+            PopoverBackground(edge, if (hasPanelColor) panelColor else themeBackground(), arrowPx, corner.toFloat(), along)
+        )
+        showAtLocation(anchor, android.view.Gravity.NO_GRAVITY, x, y)
+        contentView?.rootView?.let { FrontWindows.add(it) }
     }
 
     private fun dp(value: Float): Int =

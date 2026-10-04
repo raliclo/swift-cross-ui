@@ -36,6 +36,9 @@ public class CustomPopupWindow: AndroidKit.PopupWindow {
     /// The side the panel will actually take, given the room around the anchor.
     /// 在錨點四周空間的條件下,面板實際會採取的那一側。
     @JavaMethod
+    func showBeside(_ anchor: AndroidKit.View?, _ edge: Int32, _ arrowPx: Int32)
+
+    @JavaMethod
     func resolveEdge(_ anchor: AndroidKit.View?, _ requested: Int32, _ arrowPx: Int32) -> Int32
 
     /// Draws the tail on the side facing the anchor and grows the popup to hold it.

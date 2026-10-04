@@ -261,7 +261,6 @@ extension AndroidBackend: BackendFeatures.Popovers {
         let resolved = popover.resolveEdge(anchor, popover.getPreferredEdge(), arrowPixels)
         popover.applyArrow(resolved, arrowPixels, anchorWidth, anchorHeight)
 
-        let popupWidth = popover.getWidth()
         let popupHeight = popover.getHeight()
 
         switch Self.edge(forPreference: resolved) {
@@ -269,10 +268,11 @@ extension AndroidBackend: BackendFeatures.Popovers {
                 popover.showAsDropDown(anchor, 0, -(anchorHeight + popupHeight))
             case .bottom:
                 popover.showAsDropDown(anchor, 0, 0)
-            case .leading:
-                popover.showAsDropDown(anchor, -popupWidth, -anchorHeight)
-            case .trailing:
-                popover.showAsDropDown(anchor, anchorWidth, -anchorHeight)
+            case .leading, .trailing:
+                // Placed and clamped in Kotlin, with the arrow following --
+                // see CustomPopupWindow.showBeside.
+                // 在 Kotlin 中定位並夾住，箭頭跟著走——見 CustomPopupWindow.showBeside。
+                popover.showBeside(anchor, resolved, arrowPixels)
             case nil:
                 popover.showAsDropDown(anchor)
         }
