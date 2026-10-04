@@ -65,23 +65,40 @@ public struct ScrollViewReader<Content: View>: View {
     // 使用 `some View` 而非具體的 `EnvironmentModifier<Content>`。那個型別是 internal 的,而一個
     // public 屬性無法指名它——錯誤訊息是 `property cannot be declared public because its type uses
     // an internal type`,而它指向的是這個屬性、而不是那個 modifier,那才是令人困惑的一半。
-    public var body: some View { storage }
-
-    private let storage: EnvironmentModifier<Content>
-
-    public init(@ViewBuilder content: (ScrollViewProxy) -> Content) {
-        // Created here, once per reader, and captured by both the proxy and the
-        // environment. Creating it inside `body` would make a new registry on
-        // every update, and the proxy the content is holding would keep looking
-        // in the previous one -- a scroll that finds nothing, every time, with
-        // nothing failing.
-        //
-        // 在此處建立,每個 reader 一個,並同時被 proxy 與 environment 捕捉。若改在 `body` 中建立,
-        // 每次更新都會產生一個新的 registry,而內容手上握著的那個 proxy 會一直在前一個裡面找——
-        // 一次「什麼都找不到」的捲動,每次皆然,而且沒有任何東西會失敗。
-        let registry = ScrollAnchorRegistry()
-        storage = EnvironmentModifier(content(ScrollViewProxy(registry: registry))) { environment in
+    public var body: some View {
+        let registry = holder.registry
+        return EnvironmentModifier(content(ScrollViewProxy(registry: registry))) { environment in
             environment.with(\.scrollAnchors, registry)
         }
     }
+
+    // **Held in `@State`, so it lives as long as the view-graph node, not as long
+    // as this struct.** Until 2026-10-05 the registry was created in `init`, "once
+    // per reader" -- but a reader is a value, rebuilt every time its parent's body
+    // runs, so every update brought a new registry. The node laid out with the
+    // newest one, so the ScrollView and every `.id` registered there, while a
+    // proxy captured earlier -- by `onAppear`, or by a closure dispatched a moment
+    // later -- kept looking in the one before: measured, `0 anchors, 0 scrollers`
+    // in the registry the proxy held, with 500 rows on screen. `scrollTo` then did
+    // nothing and nothing failed. The registry sits in a struct because `@State`
+    // deprecates a bare non-observable class; it needs no change notification,
+    // only to survive.
+    //
+    // **放在 `@State` 裡,讓它活得跟 view graph 的節點一樣久,而不是跟這個 struct 一樣久。**
+    // 2026-10-05 之前,registry 在 `init` 中建立,「每個 reader 一個」——但 reader 是一個值,父層的
+    // body 每執行一次就重建一次,所以每次更新都帶來一個新的 registry。節點以最新的那個排版,ScrollView
+    // 與每一個 `.id` 都登記在那裡;而較早被捕捉的 proxy——被 `onAppear`,或被稍後才派送的閉包——仍在
+    // 前一個裡面找:實測 proxy 手上的 registry 是 `0 anchors, 0 scrollers`,而畫面上有 500 列。
+    // `scrollTo` 因此什麼都沒做,也沒有任何東西失敗。registry 包在 struct 裡,是因為 `@State` 不建議
+    // 直接放非 observable 的 class;它不需要變更通知,只需要存活。
+    @State private var holder = RegistryHolder()
+    private let content: (ScrollViewProxy) -> Content
+
+    public init(@ViewBuilder content: @escaping (ScrollViewProxy) -> Content) {
+        self.content = content
+    }
+}
+
+private struct RegistryHolder {
+    let registry = ScrollAnchorRegistry()
 }

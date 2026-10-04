@@ -64,7 +64,10 @@ public final class ScrollAnchorRegistry {
     /// 實例,因此一個容器會替換掉**自己**的項目,而不是每一幀都多加一個。
     private var scrollers: [(container: AnyWidget, perform: (AnyWidget, UnitPoint?) -> Void)] = []
 
-    public init() {}
+    // Nonisolated: a `ScrollViewReader` creates it as a `@State` default, outside the main
+    // actor. It only sets empty collections. / nonisolated:`ScrollViewReader` 以 `@State` 預設值
+    // 建立它,不在 main actor 上;它只設定空的集合。
+    nonisolated public init() {}
 
     func register(_ widget: AnyWidget, for id: AnyHashable) {
         anchors[id] = widget
