@@ -243,6 +243,14 @@ final class P72Model: SwiftCrossUI.ObservableObject {
     /// 停下來的就是變換。那是「單憑一張擷圖,判斷出讓立方體轉起來的是 `Mesh3DTransform` 而不是繞著它
     /// 跑的相機」的唯一辦法。
     @SwiftCrossUI.Published var spinning = true
+    /// Whether each frame reports its render time (`Mesh3DScene.measuresRenderTime`).
+    /// Off by default; the button beside Export/Snapshot turns it on. The label is
+    /// refreshed on the clock tick with the other readouts, so showing it never asks
+    /// for a frame of its own (2026-10-05).
+    /// 每一幀是否回報算繪時間(`Mesh3DScene.measuresRenderTime`)。預設關閉;Export/Snapshot 旁的
+    /// 按鈕開啟它。標籤與其他讀數一起在時鐘 tick 時更新,因此「顯示它」從不額外要求一幀(2026-10-05)。
+    @SwiftCrossUI.Published var measuringRenderTime = false
+    @SwiftCrossUI.Published var renderTimeLabel = "Render: off"
 
     /// How far the camera sits from the cube. Scrolling changes it.
     ///
@@ -469,8 +477,14 @@ final class P72Model: SwiftCrossUI.ObservableObject {
                 target: SIMD3(0, 0, 0),
                 fieldOfView: 45
             ),
-            background: Color(red: 0.08, green: 0.09, blue: 0.13)
+            background: Color(red: 0.08, green: 0.09, blue: 0.13),
+            measuresRenderTime: measuringRenderTime
         )
+    }
+
+    func toggleRenderTime() {
+        measuringRenderTime.toggle()
+        renderTimeLabel = measuringRenderTime ? "… µs" : "Render: off"
     }
 
     func record(_ info: Mesh3DFrameInfo) {
@@ -745,6 +759,9 @@ final class P72Model: SwiftCrossUI.ObservableObject {
                 self.renderer = frame.renderer
                 self.drawablePixels = "\(frame.drawableSize.x) x \(frame.drawableSize.y) px"
                 self.framesDrawn = frame.frameCount
+                if let micros = frame.renderMicros {
+                    self.renderTimeLabel = "\(micros) µs"
+                }
             }
             if self.ticks % 60 == 0 {
                 P72Diagnostics.write(
@@ -895,6 +912,13 @@ struct P72RootView: View {
                 Button("Snapshot") {
                     P72Model.shared.takeSnapshot()
                 }
+                // Fixed width, at the end of the row: the column is centred, so a row
+                // wider than the 340-point mesh view would move every button.
+                // 固定寬度、放在列尾:這一欄是置中的,比 340 點的 mesh view 更寬的一列會讓每顆按鈕移位。
+                Button(model.renderTimeLabel) {
+                    P72Model.shared.toggleRenderTime()
+                }
+                .frame(width: 130, alignment: .leading)
             }
             // **Pinned to a width, because `%7d` is fixed in CHARACTERS and
             // this font is proportional.** `      0` and `   2360` are both

@@ -4,8 +4,8 @@
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew
 indexed triangles only. The user's decision: Apple and Android first, Windows and
-WSL to the Windows side. This machine has no Android toolchain and the user said
-not to install one, so Android is queued here, not done.
+WSL to the Windows side. Android was queued here until the 6.4.0 Android
+toolchain was installed (2026-10-05); it is done below.
 
 - [x] **Apple (AppKit + UIKit, one shared `SwiftCrossUIMetal`).** `Mesh3DPrimitive`
   (`.triangles` indexed; `.lines` and `.points(size:)` drawn straight from the
@@ -24,20 +24,30 @@ not to install one, so Android is queued here, not done.
   machine** (92 on the first pass; the other 9 failed in 4 s because an up-to-date
   xcodebuild did not relink, so the freshness check rejected an old executable --
   compile.zsh now removes it first, and those 9 then passed). No Pn fell back.
-- [ ] **Android: the GLES path for the same options.** Until then
-  `AndroidBackend+Mesh3DView.swift` skips such meshes with a one-time warning
-  (written without an Android toolchain -- **not compiled**; compile it first).
-  - B: 32-bit indices -- `setEGLContextClientVersion(3)` (GLES 3 has
-    `GL_UNSIGNED_INT`) or check `OES_element_index_uint` at run time; `IntBuffer`
-    instead of `ShortBuffer`. Today the guard is `Int16.max`: a scene past
-    **32,767 vertices in total** is refused, because every mesh shares one index
-    space.
-  - D: lines and points with `glDrawArrays` (no index buffer); `gl_PointSize` for
-    points.
-  - unlit and `depthTested: false` in the fragment shader / depth state;
-    orthographic needs nothing, it comes from the shared matrix.
-  - Acceptance: P76 on the emulator showing the same six claims, plus a mesh past
-    1,000,000 vertices with no missing or crossed triangles.
+- [x] **Android: the GLES path for the same options.** DONE 2026-10-05, built with
+  the swift.org 6.4.0 toolchain and the 6.4.0 Android SDK, NDK r30, AVD
+  `swift-cross-ui-api36b`.
+  - B: 32-bit indices when the context is GLES 3 or has `OES_element_index_uint`
+    (`IntBuffer`, `GL_UNSIGNED_INT`); otherwise `ShortBuffer` while every index fits,
+    and a one-time warning past 65,535. The old `Int16.max` refusal is gone.
+  - D: lines and points with `glDrawArrays`, `gl_PointSize` from a uniform; both
+    unlit. `lit` and `depthTested` per mesh (`GL_ALWAYS` + depth mask off), the
+    mask restored before `glClear`. Every mesh now gets a draw entry, so the
+    matrices stay aligned with it.
+  - Accepted: P76 shows all six claims on the emulator and on the iOS simulator;
+    P77 (new: 1,002,001 vertices, 2,000,000 triangles, largest index 1,002,000)
+    shows one gradient with no hole and no streak on Android, iOS and macOS.
+- [x] **Render time in microseconds, off by default.** `Mesh3DScene.measuresRenderTime`
+  and `Mesh3DFrameInfo.renderMicros` (nil when not measured): from the start of
+  the frame until the GPU finishes it -- `waitUntilCompleted` on Metal, `glFinish`
+  on GLES. P72, P76 and P77 have a button for it. Measured once each (not a
+  benchmark): macOS P72 329, P76 4437, P77 12312 us; Android emulator P76 3929,
+  P77 40144 us. Showing a reading redraws the view; the apps skip the frame that
+  redraw produces, so the loop stops (CPU 0% against 10.6-13.7% without the guard).
+- [x] **`P72-stop-and-check.csv` on Android missed every target since the api36b
+  AVD.** That AVD's renderer string is three lines, not five, so the controls sit
+  about 62 pt higher; "Stop" landed on Snapshot and the readout stayed at
+  "frames at the stop: -1" with nothing failing. Re-measured: stop 190, check 193.
 - [ ] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side.
 - [x] **Skip the per-commit geometry comparison.** Not needed, measured
   2026-10-05: `Array ==` returns at once when both arrays share storage (0.003 ms

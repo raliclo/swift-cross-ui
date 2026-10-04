@@ -99,4 +99,18 @@ struct Mesh3DTests {
         let ortho = try #require(camera["orthographic"] as? [String: Double])
         #expect(ortho["ymag"] == 3)
     }
+
+    /// Render time is measured only when asked: measuring waits for the GPU, so it is off by
+    /// default (the user's decision, 2026-10-05), and an unmeasured frame says `nil`, not 0.
+    /// 算繪時間只在要求時量測:量測要等 GPU,因此預設關閉(使用者 2026-10-05 的決定);沒量的幀回報
+    /// `nil`,而不是 0。
+    @Test("Render time is off by default and unmeasured frames report nil")
+    func renderTimeOffByDefault() {
+        #expect(Mesh3DScene().measuresRenderTime == false)
+        let info = Mesh3DFrameInfo(renderer: "r", drawableSize: SIMD2(1, 1), frameCount: 1)
+        #expect(info.renderMicros == nil)
+        var scene = Mesh3DScene()
+        scene.measuresRenderTime = true
+        #expect(scene != Mesh3DScene(), "turning it on must change the scene, so the view updates")
+    }
 }

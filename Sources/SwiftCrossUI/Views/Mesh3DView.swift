@@ -284,17 +284,31 @@ public struct Mesh3DScene: Equatable, Sendable {
     /// backend.
     /// 光行進的方向(世界座標);由 backend 做正規化。
     public var lightDirection: SIMD3<Float>
+    /// Whether each frame reports how long it took to render, in
+    /// ``Mesh3DFrameInfo/renderMicros``. **Off by default, because measuring
+    /// costs something:** "how long" means until the GPU has finished the frame,
+    /// so the backend waits for it (Metal `waitUntilCompleted`, GLES `glFinish`)
+    /// instead of letting the next frame overlap -- which is what a user waits
+    /// for, and what slows the view slightly while it is on (2026-10-05).
+    ///
+    /// 每一幀是否在 ``Mesh3DFrameInfo/renderMicros`` 回報算繪花了多久。**預設關閉,因為量測本身有代價:**
+    /// 「多久」指的是到 GPU 完成這一幀為止,因此 backend 會等它(Metal `waitUntilCompleted`、GLES
+    /// `glFinish`),而不讓下一幀重疊——那是使用者實際等待的時間,也是開啟期間讓這個 view 稍慢一點的原因
+    /// (2026-10-05)。
+    public var measuresRenderTime: Bool
 
     public init(
         meshes: [Mesh3D] = [],
         camera: Mesh3DCamera = Mesh3DCamera(),
         background: Color = Color(red: 0.1, green: 0.1, blue: 0.12),
-        lightDirection: SIMD3<Float> = SIMD3(-0.4, -0.8, -0.45)
+        lightDirection: SIMD3<Float> = SIMD3(-0.4, -0.8, -0.45),
+        measuresRenderTime: Bool = false
     ) {
         self.meshes = meshes
         self.camera = camera
         self.background = background
         self.lightDirection = lightDirection
+        self.measuresRenderTime = measuresRenderTime
     }
 }
 
@@ -322,11 +336,24 @@ public struct Mesh3DFrameInfo: Equatable, Sendable {
     /// Frames drawn since the view was created.
     /// 自這個 view 被建立以來已畫出的幀數。
     public var frameCount: Int
+    /// Microseconds from the start of this frame's draw until the GPU finished
+    /// it, or `nil` when ``Mesh3DScene/measuresRenderTime`` is off. `nil`
+    /// rather than 0, so an unmeasured frame cannot read as an instant one.
+    ///
+    /// 從這一幀開始繪製到 GPU 完成它所經過的微秒數;``Mesh3DScene/measuresRenderTime`` 關閉時為 `nil`。
+    /// 用 `nil` 而不是 0,好讓一個沒量的幀不會被讀成「瞬間完成」。
+    public var renderMicros: Int?
 
-    public init(renderer: String, drawableSize: SIMD2<Int>, frameCount: Int) {
+    public init(
+        renderer: String,
+        drawableSize: SIMD2<Int>,
+        frameCount: Int,
+        renderMicros: Int? = nil
+    ) {
         self.renderer = renderer
         self.drawableSize = drawableSize
         self.frameCount = frameCount
+        self.renderMicros = renderMicros
     }
 }
 

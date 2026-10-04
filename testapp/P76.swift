@@ -192,6 +192,34 @@ enum P76Scene {
     }
 }
 
+/// The render-time button's label, and the guard that keeps showing it from redrawing forever.
+/// A measured frame updates the label once; that update redraws the view, and the frame it draws
+/// is not shown, so the loop stops there. Off by default (`Mesh3DScene.measuresRenderTime`).
+/// 算繪時間按鈕的標籤,以及讓「顯示它」不會無止盡重繪的防護。量到一幀就更新標籤一次;那次更新會讓
+/// view 重畫,而它畫出的那一幀不再顯示,迴圈到此為止。預設關閉(`Mesh3DScene.measuresRenderTime`)。
+final class P76RenderTime: SwiftCrossUI.ObservableObject {
+    static let shared = P76RenderTime()
+    @SwiftCrossUI.Published var on = false
+    @SwiftCrossUI.Published var label = "Render: off"
+    private var ownRedraw = false
+
+    func record(_ info: Mesh3DFrameInfo) {
+        guard let micros = info.renderMicros else { return }
+        if ownRedraw {
+            ownRedraw = false
+            return
+        }
+        ownRedraw = true
+        label = "\(micros) µs"
+    }
+
+    func toggle() {
+        on.toggle()
+        ownRedraw = false
+        label = on ? "… µs" : "Render: off"
+    }
+}
+
 @main
 struct P76App: App {
     var body: some Scene {
@@ -207,6 +235,7 @@ struct P76App: App {
 struct P76RootView: View {
     @State var orthographic = true
     @Environment(\.backend) var backend
+    @ObservedObject var renderTime = P76RenderTime.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -217,13 +246,30 @@ struct P76RootView: View {
                     + "\(backend is any BackendFeatures.Mesh3DViews ? "yes" : "NO")"
             )
             Text("helix: \(P76Scene.helixVertexCount) line vertices (16-bit index limit 65,536)")
-            Button("Projection: \(orthographic ? "orthographic" : "perspective")") {
-                orthographic.toggle()
+            // Beside the projection button, fixed width, so neither the row's height nor the
+            // column's width changes and the action files' coordinates stay valid (2026-10-05).
+            // 放在投影按鈕旁、固定寬度,好讓列高與欄寬都不變,動作檔的座標仍然有效(2026-10-05)。
+            HStack(spacing: 10) {
+                Button("Projection: \(orthographic ? "orthographic" : "perspective")") {
+                    orthographic.toggle()
+                }
+                Button(renderTime.label) { P76RenderTime.shared.toggle() }
+                    .frame(width: 130, alignment: .leading)
             }
             // No `onFrame` into `@State`: that redraws on every frame, because the
             // update it causes commits the scene and the commit asks for a frame.
+            // `P76RenderTime` shows a measured frame once and skips the frame that
+            // showing it causes, so the render-time readout does not loop either.
             // 不把 `onFrame` 寫進 `@State`:那會每幀重畫——它引起的更新會 commit 場景,而 commit 又要求一幀。
-            Mesh3DView(P76Scene.scene(orthographic: orthographic))
+            // `P76RenderTime` 量到一幀只顯示一次,並略過「顯示它」所引起的那一幀,因此算繪時間的讀數也不會循環。
+            Mesh3DView(
+                {
+                    var scene = P76Scene.scene(orthographic: orthographic)
+                    scene.measuresRenderTime = renderTime.on
+                    return scene
+                }(),
+                onFrame: { info in P76RenderTime.shared.record(info) }
+            )
             .frame(width: 360, height: 300)
             Text("1 lines: RGB axes, white wire boxes")
             Text("2 points: 9x9 white dots under the cubes")

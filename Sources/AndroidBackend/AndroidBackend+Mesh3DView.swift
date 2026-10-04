@@ -19,11 +19,17 @@ import AndroidKit
 /// bytes where the shader expects 36, and what that produces is scattered stretched triangles
 /// rather than an error. The Metal renderer carries the same note at its upload.
 ///
-/// **Indices narrow to `UInt16`.** GLES 2.0 has no `GL_UNSIGNED_INT` element type without the
-/// `OES_element_index_uint` extension, so a mesh with more than 65,536 vertices cannot be drawn
-/// this way. That is stated in the degradation message rather than silently truncated -- a
-/// truncated index draws a wrong triangle, which is the failure mode this repository's rules are
-/// about.
+/// **Indices go across as 32 bits (2026-10-05).** They used to narrow to 16, which refused any
+/// scene past 32,767 vertices in total -- every mesh shares one index space. GLES 2.0 draws
+/// `GL_UNSIGNED_INT` elements when `OES_element_index_uint` is present (core in GLES 3); the Kotlin
+/// side checks for it and, on a device without it, refuses triangles whose indices exceed 65,535
+/// with a warning rather than truncating them, because a truncated index draws a wrong triangle.
+///
+/// **Lines and points are drawn from the vertex array, never lit; any mesh may skip the depth
+/// test.** The same rules as `Mesh3DMetalView`, carried per mesh in `modes`, `pointSizes` and
+/// `flags`. Every mesh gets an entry, empty ones included, so the per-mesh matrices line up: the
+/// version that skipped meshes it could not draw still sent a matrix for each of them, shifting
+/// every later mesh onto its predecessor's transform.
 ///
 /// Android 上的 M10:框架描述一個場景,由 OpenGL ES 2.0 畫出它。
 ///
@@ -39,9 +45,14 @@ import AndroidKit
 /// 是 16 位元組而不是 12;每個頂點放三個就是 48 位元組,而 shader 期待的是 36——那產生的是四散拉長的
 /// 三角形,不是一個錯誤。Metal renderer 在它的上傳處帶著同一段註記。
 ///
-/// **索引收窄為 `UInt16`。** GLES 2.0 在沒有 `OES_element_index_uint` 擴充時沒有 `GL_UNSIGNED_INT`
-/// 元素型別,因此超過 65,536 個頂點的 mesh 無法以這種方式繪製。那件事寫在降級訊息裡,而不是靜默地
-/// 截斷——一個被截斷的索引畫出的是一個**錯的三角形**,而那正是本倉庫的規則所針對的失敗形態。
+/// **索引以 32 位元送過去(2026-10-05)。** 原本收窄為 16 位元,於是整個場景超過 32,767 個頂點就被拒絕
+/// ——所有 mesh 共用一個索引空間。GLES 2.0 在有 `OES_element_index_uint`(GLES 3 的核心功能)時可畫
+/// `GL_UNSIGNED_INT` 元素;Kotlin 端會檢查它,在沒有它的裝置上,索引超過 65,535 的三角形會被拒絕並警告,
+/// 而不是被截斷——被截斷的索引畫出的是一個錯的三角形。
+///
+/// **線段與點依頂點陣列繪製、永不打光;任何 mesh 都可以略過深度測試。** 規則與 `Mesh3DMetalView` 相同,
+/// 以 `modes`、`pointSizes`、`flags` 逐 mesh 帶過去。每個 mesh 都有一筆,空的也算,好讓逐 mesh 的矩陣
+/// 對齊:先前那個略過畫不了的 mesh 的版本,仍為每一個送出矩陣,於是後面每個 mesh 都套上了前一個的變換。
 extension AndroidBackend: BackendFeatures.Mesh3DViews {
     public func createMesh3DView() -> Widget {
         Mesh3DSurfaceView(context: Self.activity).as(AndroidKit.View.self)!
@@ -56,39 +67,28 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
         guard let view = view.as(Mesh3DSurfaceView.self) else { return }
 
         var vertices: [Float] = []
-        var indices: [Int16] = []
-        var meshStarts: [Int32] = []
-        var meshCounts: [Int32] = []
-
+        var indices: [Int32] = []
+        var modes: [Int32] = []
+        var starts: [Int32] = []
+        var counts: [Int32] = []
+        var pointSizes: [Float] = []
+        var flags: [Int32] = []
+        let totalVertices = scene.meshes.reduce(0) { $0 + $1.vertices.count }
+        // A Java array is indexed by a 32-bit Int, and the vertex array holds nine floats each.
+        // Java 陣列以 32 位元的 Int 為索引,而頂點陣列每個頂點占九個 float。
+        guard totalVertices <= Int(Int32.max) / 9 else {
+            logger.warning(
+                """
+                render warning (the app keeps running; this scene is not drawn): it has \
+                \(totalVertices) vertices, past the \(Int(Int32.max) / 9) that fit one Java \
+                float array at nine floats each. What to change: split the scene.
+                """
+            )
+            return
+        }
+        vertices.reserveCapacity(totalVertices * 9)
         for mesh in scene.meshes {
-            // Lines, points, unlit triangles and overlays (2026-10-05) are drawn by the
-            // Metal renderer only so far; the GLES path is queued in queue.md (M10
-            // follow-up). Skipping with a warning keeps this from drawing them wrong:
-            // a line list has no indices, so it would otherwise vanish in silence.
-            // **Not compiled on the machine that wrote it** -- it had no Android toolchain.
-            // 線段、點、不打光的三角形與覆蓋層(2026-10-05)目前只有 Metal renderer 會畫;GLES 那條路
-            // 排在 queue.md(M10 後續)。略過並警告,避免把它們畫錯:線段清單沒有索引,否則會無聲地消失。
-            // **寫下這段的那台機器沒有編譯過它**——它沒有 Android 工具鏈。
-            guard mesh.primitive == .triangles, mesh.lit, mesh.depthTested else {
-                Mesh3DAndroidPending.reportOnce()
-                continue
-            }
             let base = vertices.count / 9
-            guard base + mesh.vertices.count <= Int(Int16.max) else {
-                logger.warning(
-                    """
-                    render warning (the app keeps running and the rest of the scene is drawn): \
-                    a mesh would put this scene past 32,767 vertices, and AndroidBackend draws \
-                    with GLES 2.0, whose element type is GL_UNSIGNED_SHORT. Narrowing the index \
-                    anyway would draw a wrong triangle rather than fail. What to change: split \
-                    the mesh, or add the OES_element_index_uint path to \
-                    Mesh3DSurfaceView.kt.
-                    """
-                )
-                break
-            }
-            meshStarts.append(Int32(indices.count))
-            meshCounts.append(Int32(mesh.indices.count))
             for vertex in mesh.vertices {
                 vertices.append(contentsOf: [
                     vertex.position.x,
@@ -102,12 +102,42 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
                     vertex.colour.z,
                 ])
             }
-            for index in mesh.indices {
-                indices.append(Int16(bitPattern: UInt16(truncatingIfNeeded: Int(index) + base)))
+            // Whole groups only, as on Metal: the remainder of the triangle indices, or an odd last
+            // line vertex, is not drawn rather than repaired.
+            // 只畫完整的組,與 Metal 相同:三角形索引的餘數、或線段落單的最後一個頂點不畫,也不修補。
+            let lit: Bool
+            switch mesh.primitive {
+                case .triangles:
+                    let whole = mesh.indices.count - mesh.indices.count % 3
+                    modes.append(0)
+                    starts.append(Int32(indices.count))
+                    counts.append(Int32(whole))
+                    pointSizes.append(1)
+                    // Truncating, not trapping: an index past the mesh's own vertices is the
+                    // caller's error and draws a wrong triangle on Metal too; it must not crash.
+                    // 截斷而不是中止:超出 mesh 自身頂點的索引是呼叫端的錯誤,在 Metal 上也會畫出錯的
+                    // 三角形;它不該讓程式崩潰。
+                    for index in mesh.indices.prefix(whole) {
+                        indices.append(Int32(truncatingIfNeeded: Int(index) + base))
+                    }
+                    lit = mesh.lit
+                case .lines:
+                    modes.append(1)
+                    starts.append(Int32(base))
+                    counts.append(Int32(mesh.vertices.count - mesh.vertices.count % 2))
+                    pointSizes.append(1)
+                    lit = false
+                case .points(let size):
+                    modes.append(2)
+                    starts.append(Int32(base))
+                    counts.append(Int32(mesh.vertices.count))
+                    pointSizes.append(max(size, 1))
+                    lit = false
             }
+            flags.append((lit ? 1 : 0) | (mesh.depthTested ? 2 : 0))
         }
-
-        view.setGeometry(vertices, indices, meshStarts, meshCounts)
+        view.setGeometry(vertices, indices, modes, starts, counts, pointSizes, flags)
+        view.setMeasureRenderTime(scene.measuresRenderTime)
 
         // The DRAWABLE's size, not the widget's, and on Android they are the same number of pixels
         // -- `setSize(of:)` has already put the layout's points times the density into the view.
@@ -151,31 +181,13 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
                         Int(view.getDrawableWidth()),
                         Int(view.getDrawableHeight())
                     ),
-                    frameCount: Int(view.getFrameCount())
+                    frameCount: Int(view.getFrameCount()),
+                    renderMicros: { let micros = view.getRenderMicros(); return micros >= 0 ? Int(micros) : nil }()
                 )
                 Task { @MainActor in onFrame(info) }
             })
         )
 
         view.redraw()
-    }
-}
-
-/// One warning per process for mesh options the GLES renderer does not draw yet.
-/// 每個行程只對「GLES renderer 尚未支援的 mesh 選項」警告一次。
-enum Mesh3DAndroidPending {
-    nonisolated(unsafe) private static var reported = false
-
-    static func reportOnce() {
-        guard !reported else { return }
-        reported = true
-        logger.warning(
-            """
-            render warning (the app keeps running and the rest of the scene is drawn): \
-            a mesh uses lines, points, lit: false or depthTested: false, which \
-            AndroidBackend does not draw yet, so that mesh is skipped. What to change: \
-            the GLES path for these in Mesh3DSurfaceView.kt, queued in queue.md under M10.
-            """
-        )
     }
 }

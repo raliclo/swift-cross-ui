@@ -16,10 +16,18 @@ action,x,y,origin,button,key,micros,note,platform
 # 100 points. The coordinates in P72-snapshot.csv were measured before that and are
 # re-measured here.
 #
-#   Stop the clock  px (538, 1693)  pt (205, 645)
-#   Check again     px (871, 1693)  pt (332, 645)
-#   Export .glb     px (192, 1831)  pt (73, 698)
-#   Snapshot        px (487, 1831)  pt (186, 698)
+# RE-MEASURED 2026-10-05 from p72-android-final-20261005-051711.png on AVD
+# swift-cross-ui-api36b. That AVD draws with the host GPU, so the renderer string
+# ("... (Apple M4) / OpenGL ES 3.0 (4.1 Metal - 91.7)") is three lines, not five,
+# and every control sits about 62 points higher. With the old numbers this file
+# still ran to the end: "Stop" landed on Snapshot and "Check again" on empty space,
+# so the readout said "frames at the stop: -1" and nothing failed (the 2026-10-04
+# capture shows it). The coordinates depend on the renderer string's line count.
+#
+#   Stop the clock  px (538, 1532)  pt (205, 584)
+#   Check again     px (871, 1532)  pt (332, 584)
+#   Export .glb     px (192, 1670)  pt (73, 636)
+#   Snapshot        px (487, 1670)  pt (186, 636)
 #
 # uiautomator dump cannot be used to measure this app: it reports
 # "ERROR: could not get idle state", because the frame clock never lets the window go
@@ -38,14 +46,20 @@ action,x,y,origin,button,key,micros,note,platform
 # (「Android Emulator OpenGL ES Translator (ANGLE ... SwiftShader)」)會折成五行,
 # 把 mesh view 以下的每一個控制項往下推約 100 點。P72-snapshot.csv 的座標是在那之前量的,此處重量。
 #
+# 2026-10-05 依 AVD swift-cross-ui-api36b 上的 p72-android-final-20261005-051711.png 重量。該 AVD
+# 以主機 GPU 繪製,renderer 字串(「... (Apple M4) / OpenGL ES 3.0 (4.1 Metal - 91.7)」)是三行而非五行,
+# 每個控制項因此高了約 62 點。用舊座標時這份檔案照樣跑完:「Stop」點到 Snapshot、「Check again」點到
+# 空白處,讀數停在「frames at the stop: -1」而沒有任何東西報錯(2026-10-04 的截圖即如此)。
+# 座標取決於 renderer 字串折成幾行。
+#
 # 本 app 無法用 uiautomator dump 來量:它會回報 "ERROR: could not get idle state",
 # 因為那個 frame clock 從不讓視窗進入 idle。在對本處任何一支會動的測試 app 動用它之前,這件事值得先知道。
 sleep,,,,,,2500000,let the surface be created and the first frames land,android
-click,205,645,,left,,,"Stop the clock -- the log must print STOPPED at frame N with N > 0",android
+click,205,584,,left,,,"Stop the clock -- the log must print STOPPED at frame N with N > 0",android
 sleep,,,,,,1500000,"a second and a half in which a self-driving renderer would draw about 90 frames",android
-click,332,645,,left,,,"Check again -- CHECK at frame M, and M minus N must be a few, not ninety",android
+click,332,584,,left,,,"Check again -- CHECK at frame M, and M minus N must be a few, not ninety",android
 sleep,,,,,,800000,,android
-click,73,698,,left,,,"Export .glb -- EXPORTED with a byte count; the scene is the same value the Metal renderer exports",android
+click,73,636,,left,,,"Export .glb -- EXPORTED with a byte count; the scene is the same value the Metal renderer exports",android
 sleep,,,,,,800000,,android
-click,186,698,,left,,,"Snapshot -- SNAPSHOT 892x630 px with MORE THAN ONE distinct colour, which is what separates a read of the GL surface (4) from a read of the hole a SurfaceView punches in the layout (1). The centre pixel is deliberately NOT asserted: the camera orbits, so which face is at the centre depends on the moment",android
+click,186,636,,left,,,"Snapshot -- SNAPSHOT 892x630 px with MORE THAN ONE distinct colour, which is what separates a read of the GL surface (4) from a read of the hole a SurfaceView punches in the layout (1). The centre pixel is deliberately NOT asserted: the camera orbits, so which face is at the centre depends on the moment",android
 sleep,,,,,,1500000,let the readouts redraw before the capture,android

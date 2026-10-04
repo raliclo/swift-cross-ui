@@ -29,6 +29,12 @@ import javax.microedition.khronos.opengles.GL10
  * fixed 0.25 ambient. Keeping the constants identical is what makes a cube look the same on both,
  * and a difference here would show up as "Android's cube is darker" with nothing to point at.
  *
+ * **Per mesh, the same choices as Metal (2026-10-05).** Indexed triangles, or lines and points
+ * drawn straight from the vertex array; lines and points are never lit; `lit == false` draws the
+ * vertex colour as is; `depthTested == false` always passes and writes no depth. Indices are 32
+ * bits: `GL_UNSIGNED_INT` needs `OES_element_index_uint` on GLES 2.0 (core in 3.0), and a device
+ * without it refuses triangles past index 65,535 with a warning instead of truncating them.
+ *
  * 以 OpenGL ES 2.0 繪製的 `Mesh3DScene`。
  *
  * **`RENDERMODE_WHEN_DIRTY`,而它是本檔最重要的一行。** `GLSurfaceView` 預設是
@@ -41,6 +47,11 @@ import javax.microedition.khronos.opengles.GL10
  *
  * **著色器是 Metal 那一份的音譯。** 一盞方向光的 Lambert 加上固定的 0.25 環境光。常數保持一致, 才讓同一個立方體在兩邊看起來一樣;此處的差異會表現為「Android
  * 的立方體比較暗」,而且無從指認。
+ *
+ * **逐 mesh 的選擇與 Metal 相同(2026-10-05)。** 帶索引的三角形,或直接依頂點陣列畫的線段與點;線段與點
+ * 永不打光;`lit == false` 原樣畫出頂點顏色;`depthTested == false` 一律通過、不寫深度。索引為 32 位元:
+ * GLES 2.0 上 `GL_UNSIGNED_INT` 需要 `OES_element_index_uint`(3.0 為核心功能);沒有它的裝置會拒絕索引
+ * 超過 65,535 的三角形並警告,而不是截斷它們。
  */
 class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
     var onFrame: SwiftAction? = null
@@ -57,12 +68,30 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
     var drawableHeight = 0
         private set
 
+    /** Microseconds the last frame took until the GPU finished it; -1 when not measured. */
+    var renderMicros = -1L
+        private set
+
+    @Volatile private var measureRenderTime = false
+
+    /**
+     * Off by default: measuring means `glFinish` at the end of each frame, waiting for the GPU
+     * instead of letting the next frame overlap (Mesh3DScene.measuresRenderTime).
+     * 預設關閉:量測代表每幀結尾 `glFinish`,等待 GPU 而不讓下一幀重疊(Mesh3DScene.measuresRenderTime)。
+     */
+    fun setMeasureRenderTime(on: Boolean) {
+        measureRenderTime = on
+    }
+
     private val lock = Any()
 
     private var vertices: FloatArray = FloatArray(0)
-    private var indices: ShortArray = ShortArray(0)
+    private var indices: IntArray = IntArray(0)
+    private var meshModes: IntArray = IntArray(0)
     private var meshStarts: IntArray = IntArray(0)
     private var meshCounts: IntArray = IntArray(0)
+    private var meshPointSizes: FloatArray = FloatArray(0)
+    private var meshFlags: IntArray = IntArray(0)
     private var mvpMatrices: FloatArray = FloatArray(0)
     private var normalMatrices: FloatArray = FloatArray(0)
     private var light = floatArrayOf(-0.4f, -0.7f, -0.6f)
@@ -84,17 +113,31 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
         renderMode = RENDERMODE_WHEN_DIRTY
     }
 
+    /**
+     * One entry per mesh in `modes` .. `flags`, in scene order. `modes`: 0 indexed triangles,
+     * 1 lines, 2 points; `starts`/`counts` are indices for triangles, vertices otherwise;
+     * `flags` bit 0 lit, bit 1 depth-tested.
+     *
+     * `modes` 到 `flags` 每個 mesh 一筆、依場景順序。`modes`:0 帶索引的三角形、1 線段、2 點;
+     * `starts`/`counts` 對三角形是索引、其餘是頂點;`flags` bit 0 打光、bit 1 深度測試。
+     */
     fun setGeometry(
         vertices: FloatArray,
-        indices: ShortArray,
-        meshStarts: IntArray,
-        meshCounts: IntArray,
+        indices: IntArray,
+        modes: IntArray,
+        starts: IntArray,
+        counts: IntArray,
+        pointSizes: FloatArray,
+        flags: IntArray,
     ) {
         synchronized(lock) {
             this.vertices = vertices
             this.indices = indices
-            this.meshStarts = meshStarts
-            this.meshCounts = meshCounts
+            this.meshModes = modes
+            this.meshStarts = starts
+            this.meshCounts = counts
+            this.meshPointSizes = pointSizes
+            this.meshFlags = flags
             geometryDirty = true
         }
     }
@@ -169,9 +212,16 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
         private var mvpUniform = 0
         private var normalUniform = 0
         private var lightUniform = 0
+        private var pointSizeUniform = 0
+        private var litUniform = 0
 
         private var vertexBuffer: java.nio.FloatBuffer? = null
-        private var indexBuffer: java.nio.ShortBuffer? = null
+        // Exactly one of the two is used: 32-bit when the context can draw them, 16-bit otherwise.
+        // 兩者只用其一:context 能畫 32 位元索引時用它,否則用 16 位元。
+        private var intIndexBuffer: java.nio.IntBuffer? = null
+        private var shortIndexBuffer: java.nio.ShortBuffer? = null
+        private var uint32Indices = false
+        private var refusedWideIndices = false
 
         override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
             program = buildProgram()
@@ -181,7 +231,14 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             mvpUniform = GLES20.glGetUniformLocation(program, "uMvp")
             normalUniform = GLES20.glGetUniformLocation(program, "uNormal")
             lightUniform = GLES20.glGetUniformLocation(program, "uLight")
+            pointSizeUniform = GLES20.glGetUniformLocation(program, "uPointSize")
+            litUniform = GLES20.glGetUniformLocation(program, "uLit")
             GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+            val version = GLES20.glGetString(GLES20.GL_VERSION) ?: ""
+            val extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS) ?: ""
+            uint32Indices =
+                version.startsWith("OpenGL ES 3") ||
+                    extensions.split(' ').contains("GL_OES_element_index_uint")
             rendererName =
                 (GLES20.glGetString(GLES20.GL_RENDERER) ?: "") +
                     " / " +
@@ -199,18 +256,40 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
         }
 
         override fun onDrawFrame(gl: GL10?) {
+            val measuring = measureRenderTime
+            val started = if (measuring) System.nanoTime() else 0L
             val snapshot =
                 synchronized(lock) {
                     if (geometryDirty) {
                         vertexBuffer = floatBuffer(vertices)
-                        indexBuffer = shortBuffer(indices)
+                        intIndexBuffer = null
+                        shortIndexBuffer = null
+                        if (uint32Indices) {
+                            intIndexBuffer = intBuffer(indices)
+                        } else if (indices.all { it in 0..0xFFFF }) {
+                            shortIndexBuffer = shortBuffer(indices)
+                        } else if (!refusedWideIndices) {
+                            refusedWideIndices = true
+                            android.util.Log.w(
+                                "SwiftCrossUI",
+                                "render warning (the app keeps running; lines and points are still " +
+                                    "drawn): this GLES context has no OES_element_index_uint and the " +
+                                    "scene's triangles use indices past 65,535, so they are not drawn " +
+                                    "rather than drawn wrong. What to change: a GLES 3 device, or " +
+                                    "fewer than 65,536 vertices before the last triangle mesh.",
+                            )
+                        }
                         geometryDirty = false
                     }
                     Frame(
                         vertexBuffer,
-                        indexBuffer,
+                        intIndexBuffer,
+                        shortIndexBuffer,
+                        meshModes.copyOf(),
                         meshStarts.copyOf(),
                         meshCounts.copyOf(),
+                        meshPointSizes.copyOf(),
+                        meshFlags.copyOf(),
                         mvpMatrices.copyOf(),
                         normalMatrices.copyOf(),
                         light.copyOf(),
@@ -225,11 +304,16 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
                 snapshot.background[2],
                 snapshot.background[3],
             )
+            // Depth writes back on before the clear: glClear honours glDepthMask, and an overlay
+            // drawn last in the previous frame left it off, which would keep that frame's depth.
+            // 清除前先把深度寫入打開:glClear 會遵守 glDepthMask,而上一幀最後畫的覆蓋層把它關掉了,
+            // 那會讓上一幀的深度留下來。
+            GLES20.glDepthMask(true)
+            GLES20.glDepthFunc(GLES20.GL_LESS)
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
             val vertexBuffer = snapshot.vertices
-            val indexBuffer = snapshot.indices
-            if (program != 0 && vertexBuffer != null && indexBuffer != null) {
+            if (program != 0 && vertexBuffer != null) {
                 GLES20.glUseProgram(program)
                 GLES20.glUniform3f(
                     lightUniform,
@@ -243,24 +327,57 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
                 bind(normalAttribute, vertexBuffer, 3, stride)
                 bind(colourAttribute, vertexBuffer, 6, stride)
 
-                for (i in snapshot.meshStarts.indices) {
+                for (i in snapshot.modes.indices) {
                     if (i * 16 + 16 > snapshot.mvps.size) break
+                    val count = snapshot.counts[i]
+                    if (count <= 0) continue
+                    val flags = snapshot.flags[i]
                     GLES20.glUniformMatrix4fv(mvpUniform, 1, false, snapshot.mvps, i * 16)
                     GLES20.glUniformMatrix4fv(normalUniform, 1, false, snapshot.normals, i * 16)
-                    indexBuffer.position(snapshot.meshStarts[i])
-                    GLES20.glDrawElements(
-                        GLES20.GL_TRIANGLES,
-                        snapshot.meshCounts[i],
-                        GLES20.GL_UNSIGNED_SHORT,
-                        indexBuffer,
-                    )
+                    GLES20.glUniform1f(pointSizeUniform, snapshot.pointSizes[i])
+                    GLES20.glUniform1f(litUniform, if (flags and 1 != 0) 1f else 0f)
+                    if (flags and 2 != 0) {
+                        GLES20.glDepthFunc(GLES20.GL_LESS)
+                        GLES20.glDepthMask(true)
+                    } else {
+                        GLES20.glDepthFunc(GLES20.GL_ALWAYS)
+                        GLES20.glDepthMask(false)
+                    }
+                    val start = snapshot.starts[i]
+                    when (snapshot.modes[i]) {
+                        0 -> {
+                            val wide = snapshot.intIndices
+                            val narrow = snapshot.shortIndices
+                            if (wide != null) {
+                                wide.position(start)
+                                GLES20.glDrawElements(
+                                    GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_INT, wide)
+                            } else if (narrow != null) {
+                                narrow.position(start)
+                                GLES20.glDrawElements(
+                                    GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_SHORT, narrow)
+                            }
+                        }
+                        1 -> GLES20.glDrawArrays(GLES20.GL_LINES, start, count)
+                        2 -> GLES20.glDrawArrays(GLES20.GL_POINTS, start, count)
+                    }
                 }
+                GLES20.glDepthMask(true)
+                GLES20.glDepthFunc(GLES20.GL_LESS)
 
                 GLES20.glDisableVertexAttribArray(positionAttribute)
                 GLES20.glDisableVertexAttribArray(normalAttribute)
                 GLES20.glDisableVertexAttribArray(colourAttribute)
             }
 
+            // Before onFrame, so the Swift side reads this frame's figure, not the previous one's.
+            // 在 onFrame 之前,好讓 Swift 那邊讀到的是這一幀的數字,而不是上一幀的。
+            if (measuring) {
+                GLES20.glFinish()
+                renderMicros = (System.nanoTime() - started) / 1_000
+            } else {
+                renderMicros = -1L
+            }
             frameCount += 1
             onFrame?.call()
 
@@ -322,9 +439,13 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
 
     private class Frame(
         val vertices: java.nio.FloatBuffer?,
-        val indices: java.nio.ShortBuffer?,
-        val meshStarts: IntArray,
-        val meshCounts: IntArray,
+        val intIndices: java.nio.IntBuffer?,
+        val shortIndices: java.nio.ShortBuffer?,
+        val modes: IntArray,
+        val starts: IntArray,
+        val counts: IntArray,
+        val pointSizes: FloatArray,
+        val flags: IntArray,
         val mvps: FloatArray,
         val normals: FloatArray,
         val light: FloatArray,
@@ -343,13 +464,25 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
         return buffer
     }
 
-    private fun shortBuffer(values: ShortArray): java.nio.ShortBuffer? {
+    private fun intBuffer(values: IntArray): java.nio.IntBuffer? {
+        if (values.isEmpty()) return null
+        val buffer =
+            ByteBuffer.allocateDirect(values.size * 4)
+                .order(ByteOrder.nativeOrder())
+                .asIntBuffer()
+        buffer.put(values)
+        buffer.position(0)
+        return buffer
+    }
+
+    /** Only called once every index is known to fit in 16 bits. / 只在確認每個索引都放得進 16 位元後呼叫。 */
+    private fun shortBuffer(values: IntArray): java.nio.ShortBuffer? {
         if (values.isEmpty()) return null
         val buffer =
             ByteBuffer.allocateDirect(values.size * 2)
                 .order(ByteOrder.nativeOrder())
                 .asShortBuffer()
-        buffer.put(values)
+        for (value in values) buffer.put(value.toShort())
         buffer.position(0)
         return buffer
     }
@@ -401,6 +534,7 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             """
             uniform mat4 uMvp;
             uniform mat4 uNormal;
+            uniform float uPointSize;
             attribute vec3 aPosition;
             attribute vec3 aNormal;
             attribute vec3 aColour;
@@ -408,6 +542,9 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             varying vec3 vColour;
             void main() {
                 gl_Position = uMvp * vec4(aPosition, 1.0);
+                // Read by the rasteriser for GL_POINTS only, as Metal's [[point_size]] is.
+                // 只有 GL_POINTS 會讀它,與 Metal 的 [[point_size]] 相同。
+                gl_PointSize = uPointSize;
                 vNormal = (uNormal * vec4(aNormal, 0.0)).xyz;
                 vColour = aColour;
             }
@@ -417,9 +554,14 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             """
             precision mediump float;
             uniform vec3 uLight;
+            uniform float uLit;
             varying vec3 vNormal;
             varying vec3 vColour;
             void main() {
+                if (uLit < 0.5) {
+                    gl_FragColor = vec4(vColour, 1.0);
+                    return;
+                }
                 vec3 n = normalize(vNormal);
                 vec3 l = normalize(-uLight);
                 float lambert = max(dot(n, l), 0.0);

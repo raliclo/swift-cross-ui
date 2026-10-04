@@ -1,4 +1,5 @@
 #if canImport(MetalKit)
+    import Dispatch
     import Metal
     import MetalKit
     import SwiftCrossUI
@@ -350,15 +351,28 @@
                 let buffer = commandQueue.makeCommandBuffer()
             else { return }
 
+            // Measured only when the scene asks: from here until the GPU has finished,
+            // which means waiting for the command buffer instead of overlapping the
+            // next frame (see `Mesh3DScene.measuresRenderTime`).
+            // 只在場景要求時量測:從這裡到 GPU 完成為止,也就是等待 command buffer,而不讓下一幀重疊
+            // (見 `Mesh3DScene.measuresRenderTime`)。
+            let measuring = scene.measuresRenderTime
+            let started = measuring ? DispatchTime.now().uptimeNanoseconds : 0
             encodeScene(into: descriptor, commandBuffer: buffer)
             buffer.present(drawable)
             buffer.commit()
+            var renderMicros: Int?
+            if measuring {
+                buffer.waitUntilCompleted()
+                renderMicros = Int((DispatchTime.now().uptimeNanoseconds - started) / 1_000)
+            }
 
             framesDrawn += 1
             let info = Mesh3DFrameInfo(
                 renderer: rendererName,
                 drawableSize: SIMD2(Int(drawableSize.width), Int(drawableSize.height)),
-                frameCount: framesDrawn
+                frameCount: framesDrawn,
+                renderMicros: renderMicros
             )
             // Delivered synchronously, not through a `Task`. `MTKView` draws on
             // the main thread, so the hop would only delay the count by a frame

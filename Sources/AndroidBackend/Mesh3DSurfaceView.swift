@@ -25,11 +25,25 @@ class Mesh3DSurfaceView: AndroidKit.View {
     @JavaMethod func getRendererName() -> String
     @JavaMethod func getDrawableWidth() -> Int32
     @JavaMethod func getDrawableHeight() -> Int32
+    /// Microseconds the last frame took until the GPU finished it, or -1 when not measured.
+    /// 上一幀到 GPU 完成所花的微秒數;沒有量測時為 -1。
+    @JavaMethod func getRenderMicros() -> Int64
+    @JavaMethod func setMeasureRenderTime(_ on: Bool)
+    /// One entry per mesh in `modes` ... `flags`, in scene order, so the matrices from
+    /// `setMatrices` line up with them. `modes`: 0 indexed triangles, 1 lines, 2 points.
+    /// `starts`/`counts` are indices for triangles and vertices for lines and points.
+    /// `flags`: bit 0 lit, bit 1 depth-tested.
+    /// `modes` 到 `flags` 每個 mesh 一筆、依場景順序,好讓 `setMatrices` 的矩陣與它們對齊。`modes`:
+    /// 0 帶索引的三角形、1 線段、2 點。`starts`/`counts` 對三角形是索引,對線段與點是頂點。
+    /// `flags`:bit 0 打光、bit 1 深度測試。
     @JavaMethod func setGeometry(
         _ vertices: [Float],
-        _ indices: [Int16],
-        _ meshStarts: [Int32],
-        _ meshCounts: [Int32]
+        _ indices: [Int32],
+        _ modes: [Int32],
+        _ starts: [Int32],
+        _ counts: [Int32],
+        _ pointSizes: [Float],
+        _ flags: [Int32]
     )
     @JavaMethod func setMatrices(_ mvps: [Float], _ normals: [Float])
     @JavaMethod func setLight(_ x: Float, _ y: Float, _ z: Float)
