@@ -92,6 +92,37 @@
     unchanged call costs a dictionary lookup. P66 29-31 samples (iOS 31), P64
     59.0-59.5 Hz with a 33-50 ms worst gap (iOS 58.9-59.8 Hz, 22-43 ms). Not
     done, and not needed at parity: a method-ID cache in swift-java (a fork).
+  - [ ] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
+    2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
+    - [ ] 1. P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
+      and the arrow does not point at it. presentPopover places leading/trailing
+      top-aligned with the anchor; Android shifts a panel that does not fit, and
+      the arrow is computed for the unshifted position. Leading shares the code;
+      Android has no leading file.
+    - [ ] 3. P74 disabled radio group: labels stay full black on Android; iOS dims
+      them.
+    - [ ] 2. P23 table: a long cell wraps to many lines and spills over the text
+      below; iOS truncates with an ellipsis.
+    - [ ] 4. Text in narrow places breaks one character per line on Android
+      ("Sci enc e" P16 sidebar, "Disa ble it" P29, "Re mo ve 3" P51 ControlGroup,
+      "u n k n o w n" P47) where iOS keeps words; partly Android buttons'
+      larger padding -- investigate before changing.
+    - [ ] 5. P41 date pickers: the graphical calendar and the wheel are clipped on
+      Android; iOS fits them.
+    - [ ] iOS, the other way: P57's 500-row List builds 29,718 rows on iOS against
+      403 on Android -- UIKit's lazy list does far more work.
+    - [ ] Harness: P75-close-the-window's capture shows P17-DOE left behind by an
+      earlier app; the sweep does not clear the task stack between apps.
+  - [ ] **Emulator GPU.** It uses host GPU (GLES: Apple M4 Metal) and Apple
+    Hypervisor today, but falls back to software GL under memory pressure (seen
+    2026-10-03: 4.2 GB free of 5.1 GB needed); the broken old AVD ran
+    SwiftShader. Pin hw.gpu.mode=host and have test_android warn on a software
+    renderer.
+  - [ ] **Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
+    recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
+    Kotlin helpers do several things per crossing, pure JNI would add crossings.
+    Only worth it to drop the Kotlin/Gradle build dependency.
+  - [ ] **swift-java method-ID cache (fork): deferred** -- not needed at parity.
   - [ ] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
     an env var that makes SwiftCrossUI print update-time statistics (count,
     median, p95, max) at exit; the sweeps collect them per platform so every
