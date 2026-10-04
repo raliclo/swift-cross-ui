@@ -148,6 +148,16 @@
     the earlier runs saved in Downloads/Recents). That previous sweep was
     already on the host GPU (P72 prints its renderer), so this shows pinning
     changed nothing; it is not a comparison against software rendering.
+  - [x] **Disk cleanup: testapp/cleanup.zsh** (2026-10-04). Report by default,
+    --apply removes regenerable items: iOS simulators' unified logs (skips
+    booted ones), DerivedData, clang module cache, Instruments cache, emulator
+    crash db, helper processes left by a dead emulator. Opt-in: --erase-sims,
+    --wipe-avd, --deep (SwiftPM/Gradle/Homebrew). First run: 11 -> 18 GB free.
+    - [ ] scui-wear AVD (1.4 GB, unregistered, untouched since 2026-09-05) and
+      its android-34 wear image (4.1 GB) on /Volumes/Windows: delete? Needs
+      the user's call; the script only reports them.
+    - [ ] test_ios.zsh leaves a new DerivedData/iOSActionFileRunner-<hash> per
+      run (166 on 2026-10-04): give the runner a fixed -derivedDataPath.
   - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
     recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
     Kotlin helpers do several things per crossing, pure JNI would add crossings.
