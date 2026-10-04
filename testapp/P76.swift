@@ -137,11 +137,20 @@ enum P76Scene {
         for s in 0..<segments {
             for k in 0..<2 {
                 let t = Float(s + k) / Float(segments) * 2 * .pi
+                // Typed steps rather than one expression: the 6.3.3 toolchain the Android build
+                // uses could not type-check the single `SIMD3(...)` in reasonable time
+                // (2026-10-05); the arithmetic is unchanged.
+                // 拆成有型別的步驟而不是單一運算式：Android 建置用的 6.3.3 toolchain 無法在合理時間內
+                // 推出那一個 `SIMD3(...)` 的型別（2026-10-05）；運算本身不變。
+                // In Double, then narrowed once: Android's libc has no Float `cos`/`sin` overloads,
+                // so `cos(t)` on a Float resolved to the Double one there and would not store.
+                // 以 Double 計算、最後收窄一次：Android 的 libc 沒有 Float 版的 `cos`／`sin`，
+                // Float 的 `cos(t)` 在那裡解析成 Double 版，存不回 Float。
+                let angle = Double(t)
+                let radius = 2.6 + 0.12 * cos(angle * 60)
+                let height = 0.12 * sin(angle * 60) + 0.9
                 let p = SIMD3<Float>(
-                    (2.6 + 0.12 * cos(t * 60)) * cos(t),
-                    0.12 * sin(t * 60) + 0.9,
-                    (2.6 + 0.12 * cos(t * 60)) * sin(t)
-                )
+                    Float(radius * cos(angle)), Float(height), Float(radius * sin(angle)))
                 helix.append(Mesh3DVertex(position: p, normal: .zero, colour: SIMD3(0.4, 0.9, 1)))
             }
         }
