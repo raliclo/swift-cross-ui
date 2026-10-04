@@ -392,7 +392,18 @@ if [ "$do_apk" -eq 1 ]; then
     # 現在只有一個變數、兩處共用，因此它們不可能再各自漂移。
     generated_apk="$bundler_scratch/bundler/apps/$app/$app.apk"
     [ -f "$generated_apk" ] || die "Bundler succeeded but APK was not found: $generated_apk"
-    cp "$generated_apk" "$apk_path"
+    # Moved, and the app's Gradle project dropped, so only one Gradle project is
+    # on disk at a time. Swift Bundler deletes and regenerates <app>.project on
+    # every bundle (APKBundler.swift, "if project.root.exists() ... removeItem"),
+    # so nothing in it is reused by the next build -- the shared state is in
+    # ~/.gradle and the Gradle daemon. Left in place, each app kept ~1 GB of it
+    # plus a second copy of its APK: 85 GB over 99 apps on 2026-10-04.
+    # 用搬移的，並丟掉該 app 的 Gradle 專案，讓磁碟上同時只有一個 Gradle 專案。Swift Bundler 每次打包都會刪除並
+    # 重新產生 <app>.project,因此下一次建置用不到裡面的任何東西——共用的狀態在 ~/.gradle 與 Gradle daemon。
+    # 留著的話，每支 app 各佔約 1 GB,外加一份重複的 APK:2026-10-04 時 99 支共 85 GB。
+    mv -f "$generated_apk" "$apk_path"
+    gradle_project="$bundler_scratch/bundler/apps/$app/$app.project"
+    [[ "$gradle_project" == */.build-bundler/bundler/apps/?*/?*.project ]] && rm -rf -- "$gradle_project"
     print "    -> $apk_path"
 else
     [ -f "$apk_path" ] || die "Missing cached APK: $apk_path; omit -noApk to build it"

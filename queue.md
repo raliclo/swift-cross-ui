@@ -214,9 +214,13 @@ not to install one, so Android is queued here, not done.
     - [ ] `.swift-bundler-stamp` says the root binary was built from
       swift-bundler 4ad3f14f, the submodule is at 922ba2a7: the installer
       would rebuild it. Pre-existing drift, not changed here.
-    - [ ] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
-      is ~1 GB per app, 85 GB in all, regenerated on each build. Candidate for
-      cleanup.zsh once confirmed a build recreates it.
+    - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
+      was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
+      regenerates the project on every bundle (APKBundler.swift), so a shared
+      folder would reuse nothing; test_android.zsh now moves the APK out and
+      drops the project, so one Gradle project exists at a time (2026-10-05).
+      Existing ones removed: 400 -> 456 GB free. P1 then P12 built and
+      launched; P12's bundle 33 s against 32 s before.
     - [ ] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
       build, and the .xctestrun it edits with PlistBuddy) across all apps, and
       compile.zsh shares one .compile-work-<backend> tree per backend, so two
