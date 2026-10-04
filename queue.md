@@ -253,7 +253,7 @@ toolchain was installed (2026-10-05); it is done below.
       cause, fix it. Then make the fallback fail loudly (or count it in the
       build manifest and the sweep CSV) so a run that used it cannot read as a
       clean xcodebuild pass, and remove it once xcodebuild has held across a
-      full iOS sweep. SoftPCB-mac is chasing the _SwiftSyntaxCShims case now.
+      full iOS sweep. The _SwiftSyntaxCShims case is root-caused below.
       - [x] Fallback made loud (2026-10-05): compile.zsh -ios keeps the xcodebuild
         output in testapp/output/ios-xcodebuild-<Pn>.log, and on failure appends
         the state (product, DerivedData/TestApps-* with creation times, the
@@ -263,13 +263,28 @@ toolchain was installed (2026-10-05); it is done below.
         "Redefinition of module '_SwiftSyntaxCShims'", deterministic. The first
         version died with `print: bad option: -` on its own heading -- the check
         would have read as working until a failure tried to use it.
-      - [ ] Root cause, now reproducible: xcodebuild created
-        DerivedData/TestApps-chx.../SourcePackages at 07:00:27 while
-        .compile-work-ios's build state still names the bundler's
-        .build/arm64-apple-iphonesimulator/SourcePackages (2026-08-29); the
-        macro plugin sees both checkouts. Candidate fix:
-        -clonedSourcePackagesDirPath to one location. Evidence handed to
-        SoftPCB-mac.
+      - [x] Root cause found and fixed (2026-10-05). xcodebuild had no
+        -derivedDataPath, so it resolved packages into
+        ~/Library/Developer/Xcode/DerivedData/TestApps-*/SourcePackages while
+        Swift Bundler (-derivedDataPath = $ios_derived_data) resolved them into
+        .compile-work-ios/.../arm64-apple-iphonesimulator/SourcePackages, and both
+        shared OBJROOT. Every target's cached PIF (XCBuildData/PIFCache) carries
+        the swift-syntax prebuilts' absolute path, and an unchanged target keeps
+        its cached PIF: SwiftCrossUIMacrosPlugin's (2026-09-29, bundler) named
+        .build's checkout, MacroToolkit's (regenerated) named DerivedData's, and
+        the plugin got both sets of -I. Fix: compile.zsh passes the same
+        -derivedDataPath as the bundler, and the stale XCBuildData was removed
+        once. Verified: P12, which failed twice in a row, builds; after the
+        purge xcodebuild -> bundler -> xcodebuild all succeed with the plugin
+        recompiled each time and 0 DerivedData/TestApps paths in any log; P76 and
+        P77 run on the simulator built by xcodebuild. Adding the flag WITHOUT the
+        purge passed P12 but still showed DerivedData paths from the old PIFs --
+        the purge is part of the fix on any tree built before it.
+      - [x] Homebrew clang in iOS builds (found in the same log): a shell profile
+        exporting CC/CXX=/opt/homebrew/opt/llvm/bin/clang made xcodebuild compile
+        the C targets with it, explicit modules off ("did not match the configured
+        compiler", 354 times in one P12 build). compile.zsh unsets CC and CXX for
+        xcodebuild only; the next P12 build: 0 and 0, BUILD SUCCEEDED.
     - [x] .compile-work-android/.build-bundler/bundler/apps/<Pn>/<Pn>.project
       was ~1 GB per app plus a duplicate APK each. Swift Bundler deletes and
       regenerates the project on every bundle (APKBundler.swift), so a shared

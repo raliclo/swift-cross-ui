@@ -1732,11 +1732,38 @@ if [ "$target_platform" = "ios" ]; then
             cd "$package_dir"
             # The link must learn the SDK's version; see link-sdk.xcconfig.
             # 連結步驟必須得知 SDK 的版本;見 link-sdk.xcconfig。
+            #
+            # -derivedDataPath is the one Swift Bundler passes, so packages resolve into ONE
+            # SourcePackages. Without it xcodebuild resolved them into
+            # ~/Library/Developer/Xcode/DerivedData/TestApps-*, the bundler into
+            # $ios_derived_data/SourcePackages, and both shared OBJROOT. Every target's cached
+            # PIF (XCBuildData/PIFCache) carries the swift-syntax prebuilts' absolute path, and an
+            # unchanged target keeps its cached PIF: SwiftCrossUIMacrosPlugin's still named the
+            # bundler's checkout while MacroToolkit's, regenerated, named DerivedData's. The
+            # plugin then got both sets of -I and failed with "Redefinition of module
+            # '_SwiftSyntaxCShims'" (2026-10-05, P76/P77/P12).
+            # -derivedDataPath 與 Swift Bundler 傳的相同,讓套件只解析到**一份** SourcePackages。沒有它時,
+            # xcodebuild 解析到 ~/Library/Developer/Xcode/DerivedData/TestApps-*,bundler 解析到
+            # $ios_derived_data/SourcePackages,兩者卻共用 OBJROOT。每個 target 快取的 PIF
+            # (XCBuildData/PIFCache)都帶著 swift-syntax prebuilts 的絕對路徑,而內容沒變的 target 會沿用
+            # 快取的 PIF:SwiftCrossUIMacrosPlugin 的仍指向 bundler 那份,重新產生的 MacroToolkit 則指向
+            # DerivedData 那份。plugin 於是拿到兩組 -I,以「Redefinition of module '_SwiftSyntaxCShims'」
+            # 失敗(2026-10-05,P76/P77/P12)。
+            #
+            # xcodebuild takes CC and CXX from the environment as build settings, and a shell
+            # profile may point them at Homebrew LLVM: the C targets were then compiled by
+            # /opt/homebrew/opt/llvm/bin/clang with explicit modules off ("did not match the
+            # configured compiler"). The iOS build uses Xcode's clang. Unset here only.
+            # xcodebuild 會把環境中的 CC 與 CXX 當成建置設定,而 shell 設定檔可能把它們指向 Homebrew LLVM:
+            # C target 於是由 /opt/homebrew/opt/llvm/bin/clang 編譯,且 explicit modules 被關閉(「did not
+            # match the configured compiler」)。iOS 建置用 Xcode 的 clang。只在這裡取消設定。
+            unset CC CXX
             XCODE_XCCONFIG_FILE="$script_dir/iosContainer/link-sdk.xcconfig" \
             xcodebuild build \
                 -scheme "$app_name" \
                 -destination 'generic/platform=iOS Simulator' \
                 -configuration "${(C)build_config}" \
+                -derivedDataPath "$ios_derived_data" \
                 "SYMROOT=$ios_derived_data/Build/Products" \
                 "OBJROOT=$ios_derived_data/Build/Intermediates.noindex" 2>&1 \
                 | tee "$xcodebuild_log"
