@@ -94,3 +94,49 @@ Android 的 `RenderEffect` 與 animation matrix。
 我曾以這句話拒絕為 UIKitBackend 實作 `VisualEffects`，理由是 `CALayer.filters` 在 iOS 上不參與
 合成。該拒絕未被接受。若某個平台確實無法表達某項功能，那必須被證明——列出所嘗試的具體 API 及其
 結果——而不是憑印象斷言；而且答案仍然是去找出該平台**做得到**的方式。
+
+## Edit every file through csv2
+
+The user's rule (2026-10-05): csv2 is the editor for every file in this tree --
+`.md`, `.zsh`, `.swift` as well as CSVs -- not Python string replacement, which
+matches an invisible span and has changed the wrong line here. Line mode is
+`--headers 0`: each line is one record of one field, the record number is the
+line number, and bytes are kept as they are (LF and the trailing newline too).
+
+- Find: `csv2 --headers 0 -contains 'text' -i FILE` (reports line numbers).
+- One line: `-update-where 'old line' 'new line' -i FILE --in-place`. It refuses
+  unless exactly one line matches, so it is the safe default.
+- A block: `-update N:1 --value-file F -i FILE --in-place`. F must not end in a
+  newline, or a blank line appears. One `-update` per call with `--value-file`.
+- Separate calls shift line numbers, so edit bottom-up. Several `-insert N` at the
+  same N keep their order.
+- A `.csv`/`.csv2` suffix forces CSV parsing even with `--headers 0`, and action
+  files (`#` lines) are refused that way: read them from stdin,
+  `csv2 -si --headers 0 -get N:1 < file.csv`.
+- A new or rewritten file: `print -rl -- "${lines[@]}" | csv2 -si --headers 0 -r -o FILE`.
+  `-append` fails on an empty file.
+- Real CSVs: `testapp/test_support/csv2_rows.zsh` (`csv2_new`, `csv2_append`,
+  `csv2_has`). Every CSV is LF.
+- Afterwards: `git diff`, and `zsh -n` for scripts.
+
+If csv2 cannot express an edit, say so and name the tool used instead.
+
+## 每個檔案都透過 csv2 編輯
+
+使用者的規則(2026-10-05):csv2 是本樹每個檔案的編輯器——`.md`、`.zsh`、`.swift` 與 CSV 皆然——
+而不是 Python 字串替換；後者會比對到一段看不見的文字，在這裡曾經改錯行。逐行模式是 `--headers 0`:
+每一行是一筆只有一個欄位的紀錄，紀錄編號就是行號，位元組原樣保留(LF 與結尾換行亦然)。
+
+- 找：`csv2 --headers 0 -contains '文字' -i FILE`(回報行號)。
+- 改一行：`-update-where '舊行' '新行' -i FILE --in-place`。恰好一行相符才會執行，所以是安全的預設。
+- 改一段：`-update N:1 --value-file F -i FILE --in-place`。F 不可以換行結尾，否則會多出一行空行。
+  配合 `--value-file` 時一次只能一個 `-update`。
+- 分開呼叫會讓行號位移，所以由下往上改。同一個 N 的多個 `-insert N` 會保持順序。
+- `.csv`/`.csv2` 副檔名即使加了 `--headers 0` 也會強制以 CSV 解析，動作檔(`#` 開頭的行)因此被拒：
+  改從 stdin 讀，`csv2 -si --headers 0 -get N:1 < file.csv`。
+- 新建或整份重寫：`print -rl -- "${lines[@]}" | csv2 -si --headers 0 -r -o FILE`。
+  空檔案上 `-append` 會失敗。
+- 真正的 CSV:`testapp/test_support/csv2_rows.zsh`(`csv2_new`、`csv2_append`、`csv2_has`)。所有 CSV 都是 LF。
+- 改完之後：`git diff`,腳本再加 `zsh -n`。
+
+csv2 表達不了某個修改時，要明講，並說出改用了哪個工具。
