@@ -1,5 +1,74 @@
 # queue
 
+## 2026-10-05 code review: gaps against the five-backend rule
+
+Read from the source, not from this file: every `BackendFeatures` protocol
+(typealiases such as `Controls`, `PassiveViews` and `FullAppBackend` expanded,
+protocol inheritance followed, comments stripped) against each backend's
+declared conformances; `fatalError` / "unsupported" paths in the five shipped
+backends; the 113 TODO/FIXME comments in SwiftCrossUI and those backends, each
+checked against the code beside it. Items marked "verify" were not confirmed
+by running anything. Not gaps: `BaseStubs` (a scaffold for writing a backend),
+`AttachedMenus` vs `PopoverMenus` (two ways to do menus, either one), and
+UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
+
+這次 review 以原始碼為準：每個 `BackendFeatures` 協定(展開 `Controls`、`PassiveViews`、`FullAppBackend`
+等型別別名，跟隨協定繼承，去掉註解)對照每個 backend 宣告的 conformance;五個已發布 backend 中的
+`fatalError` 與「不支援」路徑；SwiftCrossUI 與這些 backend 的 113 個 TODO/FIXME,逐一對照旁邊的程式碼。
+標為 "verify" 的沒有實際跑過。不算缺口的：`BaseStubs`(寫 backend 用的鷹架)、`AttachedMenus` 與
+`PopoverMenus`(選單的兩種做法，擇一即可)、UIKit 的三個滑桿 `fatalError`(`#else` 是 tvOS)。
+
+### On this Mac
+
+- [ ] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part
+  of `FullAppBackend`; GTK, WinUI, AppKit and UIKit have it, Android does not
+  declare it, and `AndroidBackend.swift:609` still carries upstream's commented
+  "Handle incoming URLs". An app opened by a link on Android never hears about it.
+- [ ] **File dialogs never filter by type, on any platform.** The core never sets
+  it: `PresentSingleFileOpenDialogAction.swift:54`, `PresentMultipleFileOpenDialogAction.swift:73`
+  and `PresentFileSaveDialogAction.swift:49` all pass `allowedContentTypes: []`,
+  and `DocumentGroup` does not hand its `FileDocument`'s readable types to the
+  open dialog. Backends: Android maps them to MIME types; UIKit has `TODO(#235)`
+  (`UIKitBackend+FilePicker.swift:37`); AppKit ignores them in both panels
+  (`AppKitBackend.swift:1764`, `:1803`); GTK and WinUI never read the field.
+  Needs a public API first, then the three backends.
+- [ ] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
+  "TODO: Implement decimalPlaces"). The other four read it.
+- [ ] **`Picker.inspect` is commented out on all five backends**
+  ("Repair Picker.inspect implementations post PickerStyle refactor" in each
+  `InspectionModifiers.swift`; Android has none at all). Every other control
+  has its `.inspect`.
+- [ ] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
+  (`UIKitBackend+Window.swift:283`) only paints the background from
+  `colorScheme` and carries "TODO: Support preferredColorScheme"; views set
+  `overrideUserInterfaceStyle` one by one (Symbols, Passive), system controls in
+  between may not follow. P15 on iOS is the check.
+- [ ] **Android TODOs to verify, each a possible gap:** navigation titles
+  (`AndroidBackend.swift:460`), orientation and configuration changes (`:580`),
+  live system light/dark changes (`:804`), per-window environment changes
+  (`:822`), more than one `createWindow` (`:430`), sheet background and detents
+  (`AndroidBackend+Sheets.swift:51`), `dismantleAndroidView`
+  (`AndroidViewRepresentable.swift:53`). UIKit: sheet detents before iOS 16
+  (`UIKitBackend+Sheet.swift:171`).
+- [ ] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
+  `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
+  `Scripts/check_action_files.sh`, `Scripts/check_action_file_fields.sh`,
+  `Scripts/check_mistakes_numbering.sh`, `Scripts/check_results_columns.sh`.
+
+### Windows side (GTK and WinUI)
+
+- [ ] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
+  `Cursors`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` (AppKit, UIKit and
+  Android have all five). `Mesh3DViews` is the sixth, already its own item above.
+- [ ] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
+  `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
+  (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
+  CLAUDE.md rules out on shipped backends. AppKit, UIKit and Android have all four.
+- [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
+  (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
+  (`:2033`), no notification when the window's scale factor changes (`:1151`),
+  fullscreen not detected (`:726`). GTK: button label colour from the environment
+  (`GtkBackend+Button.swift:17`).
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew
