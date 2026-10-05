@@ -262,7 +262,10 @@ toolchain was installed (2026-10-05); it is done below.
       more -- Android packages through package_android.zsh, and compile.zsh -ios
       no longer has a bundler fallback. CI builds its own from the Vendor commit
       (cache keyed by it), so it never used this binary. The untracked root
-      swift-bundler and .swift-bundler-stamp can be deleted.
+      swift-bundler and .swift-bundler-stamp were deleted the same day, at the
+      user's request. Scripts/build-tool-install-android-on-Mac.sh (its
+      CounterExample check) and Scripts/build-android-bundler.sh still build and
+      copy them there, so running either brings them back.
     - [x] **Swift Bundler replaced for Android** (2026-10-05). One tracked Gradle
       project, testapp/androidContainer/gradleProject, built in place at
       .compile-work-android/gradleProject; testapp/package_android.zsh relinks
