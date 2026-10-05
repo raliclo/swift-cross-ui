@@ -198,6 +198,16 @@ toolchain was installed (2026-10-05); it is done below.
       stopped or removed. Same spelling fixed in verify_effect_android.zsh,
       verify_replay_android.zsh and test_rootscroll_android.zsh. Verified: sweep
       of P17-DOE then P75 -- close-the-window now ends on the home screen.
+    - [x] Android aim after the AVD change (2026-10-05). SoftPCB-mac found P72
+      measured on the old api36/SwiftShader AVD, ~62 pt off on api36b. Every
+      app with an Android file was launched and its uiautomator tree checked
+      against every positioned row (test_support/ios_aim_check.py): 68 apps, 59
+      HIT, 6 AFTER (screen changed first; covered by the sweep captures), 36
+      MISS -- each read against its note: all land on their target, the MISS is
+      the checker failing to match a note written as an action ("cycle 1: none
+      -> top") or a target with no text (drop zone, effect tiles, web view).
+      None re-aimed. P72 could not be dumped (it animates, uiautomator never
+      idles); its files were re-measured by SoftPCB-mac the same day.
   - [x] **Emulator GPU.** DONE 2026-10-04. AVD config pinned to
     hw.gpu.enabled=yes / hw.gpu.mode=host (was no / auto, which fell back to
     software GL under memory pressure). test_android.zsh and sweep_android.zsh
@@ -318,10 +328,24 @@ toolchain was installed (2026-10-05); it is done below.
     Kotlin helpers do several things per crossing, pure JNI would add crossings.
     Only worth it to drop the Kotlin/Gradle build dependency.
   - [-] **CANCELLED 2026-10-04. swift-java method-ID cache (fork): deferred** -- not needed at parity.
-  - [ ] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
+  - [x] **Per-Pn performance table.** Only P52/P64/P66 report numbers. Proposed:
     an env var that makes SwiftCrossUI print update-time statistics (count,
     median, p95, max) at exit; the sweeps collect them per platform so every
     Pn is compared Android vs iOS vs macOS on the same action file.
+    DONE 2026-10-05. SCUI_UPDATE_STATS=1 (or --update-stats, which is how it
+    reaches an Android app) makes UpdateTimings.swift time every update in
+    Publisher.observeAsUIUpdater and print a cumulative "update-stats: count
+    median_ms p95_ms max_ms" line on stderr after 1.5 s of quiet, and every 5 s
+    while an app animates without pause -- not at exit, since apps under test
+    are killed. test_android / test_ios / test_common (macOS, Windows) pass the
+    flag and print the last line as "==> update-stats:"; the sweeps export it
+    and write testapp/output/update-stats-<platform>.csv2;
+    testapp/update_stats_table.zsh joins the three into one Markdown table.
+    Verified on all three with P12 and P66 (P66: android 1.6/3.2/9.3 ms n=309,
+    ios 1.1/4.0/16.2 n=231, macos 1.3/1.9/2.4 n=310). The sweep CSVs are now
+    written through csv2 (test_support/csv2_rows.zsh) instead of Python csv,
+    whose writer put CRLF on every line. Not yet: WSL (print_summary_wsl reads
+    the log through wsl.exe) and a full three-platform sweep to fill the table.
   - [x] **Stack ideal width undercounts (P51).** FIXED 2026-10-01: commit-time
     redistribution offered the stack's overflowed result (522) instead of its
     proposal (408); it now offers the smaller of the two. On iPhone the outer VStack

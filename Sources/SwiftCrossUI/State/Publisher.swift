@@ -141,6 +141,7 @@ public class Publisher {
                     let start = ProcessInfo.processInfo.systemUptime
                     action()
                     let elapsed = ProcessInfo.processInfo.systemUptime - start
+                    UpdateTimings.record(elapsed)
 
                     // I chose exponential smoothing because it's simple to compute, doesn't
                     // require storing a window of previous values, and quickly converges to

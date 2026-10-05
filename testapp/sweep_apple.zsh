@@ -140,6 +140,19 @@ print "==> $platform sweep: ${#files[@]} action files"
 
 rows_file="$run_dir/rows.tsv"
 : > "$rows_file"
+# Written through csv2 (test_support/csv2_rows.zsh), one record per file as it
+# finishes, not by Python's csv module at the end (CRLF on every line, and a run
+# cut short wrote nothing). The update timings go beside it.
+# 經由 csv2 寫入(test_support/csv2_rows.zsh),每份檔案跑完就寫一筆，而不是最後才由 Python 的 csv 模組寫
+# (每行都是 CRLF,而且中途被打斷的執行什麼都不會寫)。更新耗時放在旁邊。
+source "$script_dir/test_support/csv2_rows.zsh"
+export SCUI_UPDATE_STATS=1
+today="$(date +%Y-%m-%d)"
+stats_csv="$output_dir/update-stats-$platform.csv2"
+rm -f "$stats_csv"
+csv2_new "$out_csv" \
+    "date,platform,backend,app,action_file,result,exit,replay,capture,seconds,screenshot,note" \
+    "日期,平台,backend,app,動作檔,結果,結束碼,重放,擷取,秒數,擷圖,備註"
 
 for f in "${files[@]}"; do
     name="${f:t}"
@@ -245,6 +258,8 @@ for f in "${files[@]}"; do
 
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note" >> "$rows_file"
+    csv2_append "$out_csv" "$today" "$platform" "$backend" "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed" "$shot" "$replay_note"
+    update_stats_record "$stats_csv" "$app" "${name%.csv}" "$log"
     printf '    %-6s %-44s %-7s rc=%-3s replay=%-4s capture=%-4s %4ss\n' \
         "$app" "$name" "$result" "$rc" "$replay" "$capture" "$elapsed"
     rm -f "$marker"
@@ -253,22 +268,6 @@ done
 # Written with a real CSV writer: the note column carries error text with
 # commas in it, and this tree has paid for splitting on commas twice.
 # 以真正的 CSV writer 寫出:note 欄帶著含逗號的錯誤訊息,而這棵樹已經為「以逗號切割」付過兩次代價。
-python3 - "$rows_file" "$out_csv" "$platform" "$backend" <<'PY'
-import csv, sys, datetime
-rows_path, out_path, platform, backend = sys.argv[1:5]
-today = datetime.date.today().isoformat()
-with open(rows_path, newline="", encoding="utf-8") as handle:
-    rows = [line.rstrip("\n").split("\t") for line in handle if line.strip()]
-with open(out_path, "w", newline="", encoding="utf-8") as handle:
-    writer = csv.writer(handle)
-    writer.writerow(["date", "platform", "backend", "app", "action_file", "result",
-                     "exit", "replay", "capture", "seconds", "screenshot", "note"])
-    writer.writerow(["日期", "平台", "backend", "app", "動作檔", "結果",
-                     "結束碼", "重放", "擷取", "秒數", "擷圖", "備註"])
-    for app, name, result, rc, replay, capture, secs, shot, note in rows:
-        writer.writerow([today, platform, backend, app, name, result,
-                         rc, replay, capture, secs, shot, note])
-total = len(rows)
-passed = sum(1 for r in rows if r[2] == "pass")
-print(f"==> {platform}: {passed} of {total} action files pass; written to {out_path}")
-PY
+total=$(csv2 -r --json -i "$out_csv" | grep -c '"record":' || true)
+passed=$(csv2 -r --json -i "$out_csv" | grep -c '"result":"pass"' || true)
+print "==> $platform: $passed of $total action files pass; written to $out_csv"

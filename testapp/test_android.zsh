@@ -506,6 +506,12 @@ fi
 if [ -n "${TEST_APP_ARGS:-}" ]; then
     launch_args=(${=TEST_APP_ARGS} $launch_args)
 fi
+# SCUI_UPDATE_STATS=1: the app reports its update timings (UpdateTimings.swift);
+# the environment does not reach an Android app, so it goes as an argument.
+# SCUI_UPDATE_STATS=1:app 回報它的更新耗時(UpdateTimings.swift);環境變數到不了 Android app,所以用參數傳。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+    launch_args+=(--update-stats)
+fi
 if [ "${#launch_args}" -gt 0 ]; then
     print "==> App arguments: ${launch_args[*]}"
     app_args+=($launch_args)
@@ -632,6 +638,21 @@ if [ -n "$crash_lines" ]; then
         | grep -E "FATAL EXCEPTION|Process: $package_id|UnsatisfiedLinkError|>>> $package_id <<<|signal [0-9]+" \
         | head -8 >&2 || true
     exit 1
+fi
+# The app's own update timings, when asked for: the last cumulative line since
+# launch. It is printed once updates have been quiet for 1.5 s, so wait a little
+# for it after the final capture.
+# 要求時，取 app 自己的更新耗時：自啟動以來最後一行累計值。它在更新安靜 1.5 秒後才印，所以在最後一張擷圖
+# 之後稍等一下。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+    update_stats=""
+    for _ in 1 2 3 4; do
+        update_stats="$(ANDROID_SERIAL="$serial" "$adb" logcat -d -T "$launch_log_time" 2>/dev/null \
+            | grep -o "update-stats: .*" | tail -1 || true)"
+        [ -n "$update_stats" ] && break
+        sleep 1
+    done
+    print -r -- "==> ${update_stats:-update-stats: none reported}"
 fi
 if [ "$screenshot_failures" -gt 0 ]; then
     print -u2 -r -- "!! $screenshot_failures screenshot(s) could not be taken"

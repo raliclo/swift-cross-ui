@@ -76,6 +76,11 @@ mac_app_pid=""
 do_build=1
 summary_pattern="${TEST_SUMMARY_PATTERN:-RENDER COMPLETE|content:|geometry|size|scroll|Scroll|#}"
 app_args="${TEST_APP_ARGS:---debug}"
+# SCUI_UPDATE_STATS=1: the app reports its update timings (UpdateTimings.swift).
+# SCUI_UPDATE_STATS=1:app 回報它的更新耗時(UpdateTimings.swift)。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+    app_args="$app_args --update-stats"
+fi
 host_uname="$(uname -s 2>/dev/null || printf unknown)"
 
 windows_path_mixed() {
@@ -754,6 +759,13 @@ print_summary_windows() {
     grep -hE "$summary_pattern" "$events_dir/$log_name" ${extra_log:+"$out/$extra_log"} 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
     print_actionfile_report "$out/$actionfile_log"
+    # The app's update timings, when SCUI_UPDATE_STATS=1 asked for them: the last
+    # cumulative line on its stderr (UpdateTimings.swift).
+    # SCUI_UPDATE_STATS=1 要求時，取 app 的更新耗時：它 stderr 上最後一行累計值(UpdateTimings.swift)。
+    if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+        update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$out/$actionfile_log" 2>/dev/null | tail -1 || true)"
+        printf '==> %s\n' "${update_stats:-update-stats: none reported}"
+    fi
 }
 
 # What the backend said about the replay, if one was asked for.
@@ -1443,6 +1455,14 @@ print_summary_macos() {
     printf '\n==> macOS %s diagnostics\n' "$app"
     grep -hE "$summary_pattern" "$events_dir/$log_name" "$out/$actionfile_log" 2>/dev/null \
         | sed "s/^$app [0-9-]* [0-9:]* +0000 //" | sort -u || true
+    # The app's update timings, when SCUI_UPDATE_STATS=1 asked for them (see
+    # print_summary_windows).
+    # SCUI_UPDATE_STATS=1 要求時，取 app 的更新耗時(見 print_summary_windows)。
+    if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+        local update_stats
+        update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$out/$actionfile_log" 2>/dev/null | tail -1 || true)"
+        printf '==> %s\n' "${update_stats:-update-stats: none reported}"
+    fi
 }
 
 # Ctrl-C closes the app rather than orphaning it.

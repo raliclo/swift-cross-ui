@@ -102,38 +102,27 @@ fi
 # CSV 解析器讀回的，絕不以逗號切割：note 欄位存放的錯誤文字本身含有逗號，而以 `,` 切割會讓其右每一欄
 # 靜默左移，且不會失敗。
 
+# Written through csv2 (test_support/csv2_rows.zsh), not Python's csv module,
+# whose writer ended every line in CRLF.
+# 經由 csv2 寫入(test_support/csv2_rows.zsh),而不是 Python 的 csv 模組——它的 writer 每行都以 CRLF 結尾。
+source "$script_dir/test_support/csv2_rows.zsh"
+# The update timings of every file, beside the sweep CSV; see UpdateTimings.swift.
+# 每份檔案的更新耗時，放在 sweep CSV 旁邊；見 UpdateTimings.swift。
+export SCUI_UPDATE_STATS=1
+stats_csv="$script_dir/output/update-stats-android.csv2"
 if [ "$fresh" -eq 1 ] || [ ! -f "$out_csv" ]; then
-    python3 - "$out_csv" <<'PY'
-import csv, sys
-with open(sys.argv[1], "w", newline="") as handle:
-    writer = csv.writer(handle)
-    writer.writerow(["app", "scenario", "build", "launched", "screenshots", "content_box", "overflow", "note"])
-    writer.writerow(["應用程式", "情境", "建置", "已啟動", "截圖數", "內容框", "溢出", "備註"])
-PY
+    csv2_new "$out_csv" \
+        "app,scenario,build,launched,screenshots,content_box,overflow,note" \
+        "應用程式,情境,建置,已啟動,截圖數,內容框,溢出,備註"
+    rm -f "$stats_csv"
 fi
 
 already_done() {
-    python3 - "$out_csv" "$1" "$2" <<'PY'
-import csv, sys
-path, app, scenario = sys.argv[1], sys.argv[2], sys.argv[3]
-try:
-    with open(path, newline="") as handle:
-        rows = list(csv.reader(handle))
-except FileNotFoundError:
-    sys.exit(1)
-for row in rows[2:]:
-    if len(row) >= 2 and row[0] == app and row[1] == scenario:
-        sys.exit(0)
-sys.exit(1)
-PY
+    csv2_has "$out_csv" "$1" "$2"
 }
 
 append_row() {
-    python3 - "$out_csv" "$@" <<'PY'
-import csv, sys
-with open(sys.argv[1], "a", newline="") as handle:
-    csv.writer(handle).writerow(sys.argv[2:])
-PY
+    csv2_append "$out_csv" "$@"
 }
 
 # True only when the device is listed and ready.
@@ -396,6 +385,7 @@ PY
 
     build_state=$([ "$built" -gt 0 ] && print ok || print FAILED)
     append_row "$app" "$scenario" "$build_state" "$launched" "$shots" "$box" "$overflow" "$note"
+    update_stats_record "$stats_csv" "$app" "$scenario" "$log"
     printf "%-6s %-34s %-7s %-9s %-6s %-28s %s\n" \
         "$app" "${scenario:0:33}" "$build_state" "$launched" "$shots" "$box" "$note"
 

@@ -381,6 +381,11 @@ if [ -n "$action_file" ] && grep -q '^# fresh-install' "$action_file"; then
     xcrun simctl uninstall "$device_name" "$bundle_id" 2>/dev/null || true
 fi
 
+# SCUI_UPDATE_STATS=1: the app reports its update timings; see below.
+# SCUI_UPDATE_STATS=1:app 回報它的更新耗時；見下方。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+    app_args+=(--update-stats)
+fi
 printf '==> Installing %s as %s\n' "$target" "$bundle_id"
 xcrun simctl install "$device_name" "$bundle_dir"
 if [ -z "$action_file" ]; then
@@ -468,6 +473,21 @@ if [ -n "$action_file" ]; then
         -destination "$destination" \
         -derivedDataPath "$xctest_build" \
         -only-testing:iOSActionFileRunner/ActionFileUITests/testActionFile
+fi
+
+# The app's own update timings, when asked for (UpdateTimings.swift): the last
+# cumulative line in its stdout, which is printed after updates go quiet, so wait
+# a little for it. Only with an action file: that is when stdout is kept.
+# 要求時，取 app 自己的更新耗時(UpdateTimings.swift):它 stdout 中最後一行累計值；那一行在更新安靜後才印，
+# 所以稍等一下。只在有動作檔時：那時才會保留 stdout。
+if [ "${SCUI_UPDATE_STATS:-0}" = 1 ] && [ -n "$action_file" ]; then
+    update_stats=""
+    for _ in 1 2 3 4; do
+        update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$app_stdout" 2>/dev/null | tail -1 || true)"
+        [ -n "$update_stats" ] && break
+        sleep 1
+    done
+    printf '==> %s\n' "${update_stats:-update-stats: none reported}"
 fi
 
 if [ "$showtime_seconds" -gt 0 ]; then
