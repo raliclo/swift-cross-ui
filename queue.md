@@ -113,7 +113,7 @@ toolchain was installed (2026-10-05); it is done below.
     past the slop and hands a still press to the long-click ancestor; the final
     capture now waits for the replay to finish; P75 reveal writes a fresh name
     when the old file belongs to an earlier install.
-  - [ ] **Android per-frame update cost.** Re-measured 2026-10-04 on the new AVD
+  - [x] **Android per-frame update cost.** Re-measured 2026-10-04 on the new AVD
     after the reboot: P64 54-56 Hz (median gap 16.7 ms, max 117-150 ms), P66
     16-22 samples in 0.6 s (iOS 31). The earlier 37 Hz / 7 samples were the
     stuck emulator eating 7 cores. Findings, all measured, nothing changed yet:
@@ -148,6 +148,19 @@ toolchain was installed (2026-10-05); it is done below.
     unchanged call costs a dictionary lookup. P66 29-31 samples (iOS 31), P64
     59.0-59.5 Hz with a 33-50 ms worst gap (iOS 58.9-59.8 Hz, 22-43 ms). Not
     done, and not needed at parity: a method-ID cache in swift-java (a fork).
+    CLOSED 2026-10-05 with all three platforms measured the same way (full
+    sweeps with SCUI_UPDATE_STATS=1, table in
+    testapp/measurements/update-stats-20261005.md). Steady state is at parity:
+    for the four apps with >= 50 updates, Android median / p95 vs iOS -- P52
+    5.8/114 vs 9.5/52, P64 2.5/3.8 vs 3.6/5.1, P66 2.3/5.3 vs 1.0/1.9, P72
+    7.4/10.0 vs 5.3/6.1 ms. The gap left is elsewhere, see the next item.
+  - [ ] **Android: the first updates after launch.** Over 58 apps the Android
+    median is 1.44x iOS (median of medians 17.0 vs 10.8 ms, p95 52.5 vs 29.2),
+    and the difference sits in apps with few updates, i.e. the first ones after
+    launch: P2 83 vs 11 ms for its one update, P4 69 vs 28, P7 max 140 vs 50.
+    Likely first-run JIT, class loading and first View creation through JNI --
+    unproven. Next: have UpdateTimings report the first update separately, then
+    decide whether a warm-up or an ART baseline profile is worth it.
   - [ ] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
     - [x] 1. FIXED 2026-10-04 (CustomPopupWindow.showBeside + resolveEdge; new
