@@ -78,20 +78,11 @@ else
         | sed 's|.*/||' | sort -t P -k2 -n | sed "s|^|$script_dir/actions/android/|")"})
 fi
 
-python3 - "$out_csv" <<'PY'
-import csv, sys
-with open(sys.argv[1], "w", newline="") as handle:
-    writer = csv.writer(handle)
-    writer.writerow(["app", "scenario", "installed", "replayed_lines", "replayed_what", "app_report", "verdict"])
-    writer.writerow(["應用程式", "情境", "已安裝", "replayed 行數", "重放了什麼", "app 自述", "判定"])
-PY
+source "$script_dir/test_support/csv2_rows.zsh"  # the CSV is written through csv2: LF, quoted fields
+csv2_new "$out_csv" 'app,scenario,installed,replayed_lines,replayed_what,app_report,verdict' '應用程式,情境,已安裝,replayed 行數,重放了什麼,app 自述,判定'
 
 append_row() {
-    python3 - "$out_csv" "$@" <<'PY'
-import csv, sys
-with open(sys.argv[1], "a", newline="") as handle:
-    csv.writer(handle).writerow(sys.argv[2:])
-PY
+    csv2_append "$out_csv" "$@"
 }
 
 count_in_text() {

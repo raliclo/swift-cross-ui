@@ -81,22 +81,13 @@ fi
 #
 # Android 的驗證器在每次呼叫時都會截斷自己的 CSV,而為了追查一個偶發問題而重跑三次某支 app,
 # 就讓那個檔案從四十六列只剩一列。見 mistakes.csv2 第 89 條。
+source "$script_dir/test_support/csv2_rows.zsh"  # the CSV is written through csv2: LF, quoted fields
 if [ "$#" -eq 0 ] || [ ! -f "$out_csv" ]; then
-    python3 - "$out_csv" <<'PY'
-import csv, sys
-with open(sys.argv[1], "w", newline="") as handle:
-    w = csv.writer(handle)
-    w.writerow(["app", "scenario", "changed_px", "max_delta", "bbox", "actions", "verdict"])
-    w.writerow(["應用程式", "情境", "相異像素", "最大差", "範圍", "動作數", "判定"])
-PY
+    csv2_new "$out_csv" 'app,scenario,changed_px,max_delta,bbox,actions,verdict' '應用程式,情境,相異像素,最大差,範圍,動作數,判定'
 fi
 
 append_row() {
-    python3 - "$out_csv" "$@" <<'PY'
-import csv, sys
-with open(sys.argv[1], "a", newline="") as handle:
-    csv.writer(handle).writerow(sys.argv[2:])
-PY
+    csv2_append "$out_csv" "$@"
 }
 
 newest_final() {
