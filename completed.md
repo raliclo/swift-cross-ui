@@ -563,3 +563,552 @@ headings say which queue.md section each block came from.
 - [x] #117 phase 2 / 4a / 5:五個 backend 的 list viewport
 - [x] Review 4:兩個 ScrollViewReader,AppKit 與 Android 雙向驅動(P58)
 - [x] heartbeats/:兩台機器以 session id 送達並實測
+
+## 背景資料,2026-10-05 從 queue.md 搬來 / Background notes moved from queue.md (2026-10-05)
+
+這些不是已完成的項目，而是 queue.md 末尾的背景、決定、回覆與當時的量測，原文照搬。內容反映各自寫下的日期，不代表現況。
+Not finished items: the background, decisions, answers and measurements that ended queue.md, moved
+verbatim. Each reflects the date it was written, not the present.
+
+## 這份佇列是怎麼來的 / Where this list comes from
+
+**它現在合併了三個來源,而先前只有一個。** 2026-09-09 對照 `todo.md`(樹裡唯一的待辦檔)與 Windows
+端貼過來的表之後重建;先前的版本只反映了 Mac 這一側自己推進的工作,因此 Windows 端正在追蹤的項目
+一個都不在上面。
+
+**對照的第一個結果是刪掉工作,不是加上工作。** `todo.md` 中「六項交給 Mac」的表裡,有**五項在讀到它
+時就已經完成了**——Swift 6 語言模式(AppKit 與 UIKit 都已在 `migratedToSwift6`)、前景色寫死
+(`resolvedForegroundColor` 在兩個 backend 共 8 處)、Android 的 `.onHover`(已有
+`AndroidBackend+HoverGestures.swift`)、UIKit 的 popover `onDismiss`(已完成)、UIKit 與 Android 的
+`.navigationTitle`(兩邊的 toolbar 都會畫)。那張表自己就寫著「若條目超過一兩天,請先對照程式碼再
+相信它」,而那正是它們被查證、而不是被重做的原因。
+
+The list now merges three sources where it used to reflect one. Reconciling
+against `todo.md` first REMOVED work rather than adding it: five of the six
+items that file assigns to the Mac were already done when it was read, and its
+own warning is why they were checked instead of started. A list of work is a
+claim about the code, and it drifts towards describing work nobody needs to do.
+
+## Q8 note — what was measured before writing any code
+
+`Settings` cannot simply be a second window. Measured 2026-09-09:
+
+| backend | `supportsMultipleWindows` | what a second window does |
+| --- | --- | --- |
+| AppKit | true | a real window |
+| Gtk | true | a real window |
+| WinUI | true | a real window |
+| UIKit | **false** | `createWindow` builds a second `UIWindow` |
+| Android | **false** | `createWindow` returns a fresh `Window()` value with a `TODO` beside it — **nothing appears** |
+
+So a window-based `Settings` would be silently invisible on Android, which is
+the shape CLAUDE.md forbids. `AlertScene` takes `window: nil` and lets the
+backend choose; `presentSheet` needs a concrete `Window`. The single-window path
+is the design question, and it is the whole of the work — not the scene struct.
+
+---
+
+## Windows 端回覆 — 2026-09-10 晚 / Answers from the Windows side
+
+回覆 `testapp/plan/queue-windows.md`。**先講四項你以為還開著、但已經收掉的**,因為那份清單寫在
+你 pull 到今天下午的收尾之前。
+
+Answering `testapp/plan/queue-windows.md`. Four of its rows are already closed —
+that list was written before pulling this afternoon's work.
+
+| 那份清單說 | 實況 |
+| --- | --- |
+| 1b「仍要回答 focus 是否非同步」 | **已答**,`9d870549`(15:27) |
+| 1a「要問 WinUI 的 `TransformToVisual` 是否同步」 | **已答**,`627582d7` |
+| 2c「#79 仍在,每次正常執行都少 39px」 | **已收尾**,`20b03488`。現在是**多 8px**,不是少 39px |
+| 2d「P38 the frame is still empty」 | **根因已定**,`45d049a1`。UI 執行緒是 MTA,COM 直接說的 |
+
+### 四個決定
+
+1. **#127 走 (b)——加 backend requirement。** (a) 的 46 個呼叫點有數個落在 `Views/Modifiers/Layout/`,
+   那是核心型別的簽章,與 #128 重疊;(c) 有迴圈風險。**(b) 的兩個 Windows 格子都不含未知數**:
+   `gtk_widget_compute_point` 本樹已在用(`Widgets/ScrolledWindow.swift:131`),
+   `transformToVisual` 同步回傳 `GeneralTransform`(`Microsoft.UI.Xaml.swift:3702`)。
+2. **#122 形狀不必改。** `UIElement.focus(_ value: FocusState) throws -> Bool` 是同步的;
+   `gotFocus`(:4345)/`lostFocus`(:4410)供回報;`isTabStop`(:3884)對應 `.focusable()`。
+3. **#109 分工照你的提案。** 我做 SwiftCrossUI 層 + Gtk + WinUI,你做 AppKit / UIKit / Android。
+4. **#125 與 #122 一起定**,形狀取
+   `setSelectionChangeHandler` / `setSortOrderChangeHandler`,與 `setFocusChangeHandler` 同形。
+   **但 GTK 那格不是包裝、是真工作**:`Gtk.Table` 是 `ScrolledWindow` 包 `Grid`,對「選取的列」
+   毫無概念,標題也只是不可點的 `Label`——要逐 cell 加 `GestureClick`、自己畫高亮、把標題變成可點。
+   設計時請不要假設它與 `NSTableView` 對等。
+
+### 兩個量測問題的答案
+
+**#113 的「0.3 秒」是 Windows/GtkBackend 量的,而且方法是紮實的。**
+出處是 `testapp/P52-buttonstyle-findings.md`,它自己寫著「Windows 11 上的 GtkBackend、100% 顯示
+縮放、release 建置」:每臂 48 顆按鈕、10 輪、每輪 5 趟、交錯輪替、每輪旋轉起始臂,外加一條控制臂
+量固定開銷(236 µs,佔約 300,000 µs 的 0.08%,所以兩臂確實主導了量測)。數字是
+**6,034 µs / transition / button × 48 ≈ 0.29 s**。
+
+**但在斷定「差 30 倍」之前,有一格要先對齊:兩邊量的可能不是同一件事。**
+Windows 量的是 **`.bordered` button 的 press transition**(每顆按鈕都裝 press handler);
+你量的是 **per-cell layout cost**(primitive / custom / text 三臂)。同一支 P52、不同的被測量。
+在那一格對齊之前,30 倍是兩個不同量之間的比值,而不是同一個量的跨 backend 差異。
+
+**P28 的「一秒」:這棵樹裡沒有任何 Windows 紀錄可以支撐它。**
+`matrix_coverage/results.csv2` 中 P28 有 mac、android、ios、wsl 的列,**windows 一列都沒有**。
+所以那份回報若來自 Windows,它從未被記錄下來;若來自 macOS,你已經量完並推翻(冷啟 16 ms)。
+`queue.md` 自己也早就標註過它是「**一次觀察而不是一個量測**」。**這一格由 Windows 端補上量測。**
+
+*The 0.3 s is a Windows/GtkBackend measurement with a stated method — but it measured button press
+transitions, not per-cell layout cost, so the 30x is a ratio between two different quantities until
+that is aligned. The one-second P28 report has no Windows row anywhere in results.csv2 to support it;
+this side will measure it.*
+
+---
+
+## 更正:#123 在 GTK/Windows 上**做得到**,我先前說反了
+
+### Correction: #123 IS reachable on GTK/Windows
+
+2026-09-11。我先前寫下「Windows 上的 accessibility 是 WinUI-only,除非 GTK 上游補上 UIA bridge」。
+**那句話是錯的**,而且它正是 CLAUDE.md 明令禁止的形狀——把「這個平台沒有內建 X」說成「這個平台
+做不到 X」。使用者當場指出來,而規則寫得很清楚:那是**待查證的主張,不是結論**,而且答案仍然是
+去找出該平台**做得到**的方式。
+
+錯誤的部分不是量測,是從量測推出的結論。量測本身仍然成立:`C:/gtk4` 有 **0** 個 atk/at-spi
+程式庫(對照 67 個 dll),`gtk-4-1.dll` 有 **130** 處 `gtk_accessible` 與 **0** 個 UIA 符號
+(對照 `gtk_widget_grab_focus` 2)。**GTK 確實不會把它自己的樹送給任何輔助技術。**
+但那不是本專案要送的樹。
+
+### 為什麼那不擋路
+
+**#123 要暴露的是 SwiftCrossUI 的 `.accessibilityLabel(...)`,不是 GTK 的 accessible 樹。**
+那個資訊在 SwiftCrossUI 層產生,GtkBackend 只需要把它存起來再交出去——而「存進側表再回答」
+正是這個 backend 已經為 slider 的編輯狀態、table 的欄寬做過的事。
+
+三個環節都已查證,每一個都已經在本樹中被使用:
+
+| 環節 | 證據 |
+| --- | --- |
+| 取得 GTK 視窗的 HWND | `GtkBackend.swift:1904` 自述「on Windows a GTK window is an ordinary `HWND`」,且 `SetWindowPos` 已在用它 |
+| 手寫 COM 介面與 IID | `D3D11VideoInterop.swift:176` 明說「hand-declared IIDs rather than linking against dxguid.lib, so no extra linker settings are needed」;`lpVtbl`/`QueryInterface` 出現在四個檔案 |
+| UIA 的 provider 端 | 基於 HWND:回應 `WM_GETOBJECT`、回傳 `IRawElementProviderSimple`。`UIAutomationCore.h` 位於 Windows Kits 10.0.22621.0 |
+
+也就是說:**GTK 缺的是「把它自己的樹送出去」,而我們要送的本來就不是它的樹。**
+一個掛在該 HWND 上的 UIA provider,從 SwiftCrossUI 的標籤側表回答,完全不經過 `gtk_accessible`。
+
+### 誠實的成本
+
+這不是一個旗標,是一份實作:視窗程序的 `WM_GETOBJECT`、一組手寫 vtable、以及把
+`IRawElementProviderFragment` 的父/子/兄弟關係映射到 view 樹。**但它不是「不可能」,
+而先前那句話讓它讀起來像不可能。**
+
+*Correcting myself: "accessibility is WinUI-only on Windows" was wrong, and wrong in the shape
+CLAUDE.md forbids -- "no built-in bridge" restated as "the platform cannot". The measurements stand;
+the conclusion drawn from them does not. #123 exposes SwiftCrossUI's labels, not GTK's accessible
+tree, and a UIA provider hung on the GTK window's HWND answers from a side table without touching
+`gtk_accessible` at all. All three pieces -- the HWND, hand-written COM vtables, the UIA provider
+API -- are already used in this tree. Real work, not impossible.*
+
+---
+
+## 減少不必要的重繪 / Reduction of unnecessary redraw
+
+加入佇列於 2026-09-11,起因是一個問題:「GTK 只在必要時更新畫面是否比較省電?」
+Added to the queue 2026-09-11, prompted by the question "does GTK's redraw-only-when-needed save
+power?" It does, and the interesting part is that the answer is a *framework* question, not a
+per-backend one.
+
+### 已經在位的部分 / What is already in place
+
+**兩個 backend 對「幀」的立場相反,而框架已經在兩者之上做了收斂。**
+The two backends take opposite positions and the framework already reconciles them.
+
+| | 閒置時 | 表達「我要幀」的方式 |
+| --- | --- | --- |
+| GTK | 不產生幀 | `gdk_frame_clock_begin_updating` / `end_updating`,計數成對 |
+| WinUI | `CompositionTarget.Rendering` **只要有人訂閱就每幀觸發** | 訂閱 / 取消訂閱 |
+
+`Sources/SwiftCrossUI/Animation/AnimationDriver.swift` 已經是 GDK 那套計數,只是計的是 tween:
+`startClockIfNeeded()` 在第一個 tween 註冊時才 `startFrameClock`,`stopClockIfIdle()` 在
+`tweens` 一空時 `stopFrameClock`,而 `tick(at:)` 的最後一行就是 `stopClockIfIdle()`——所以
+最後一個動畫結束的**那一幀**就把時鐘拆掉。WinUI 因此不必改:省電的唯一施力點是「閒置時不訂閱」。
+
+`AnimationDriver` is already GDK's refcount with tweens as the count. WinUI needs no change: the
+only lever is not being subscribed while idle, and that is what `stopFrameClock` is.
+
+### 沒有被跑過驗證的部分 / What has NOT been verified by running
+
+**這一段是設計對了,不是量到了。** P64 直接驅動 backend requirement,繞過 `AnimationDriver`,
+所以沒有任何量測顯示 `frameClockToken?.dispose()` 真的解除了 WinUI 的訂閱。
+
+The design is right; nothing has been measured. P64 drives the backend requirement directly and
+bypasses `AnimationDriver`, so no measurement shows that `frameClockToken?.dispose()` actually
+unsubscribes.
+
+決定性的實驗很便宜,而且**兩個結果都有意義**:start → stop → 再 start,量第二段的速率。
+The experiment is cheap and both outcomes say something: start, stop, start again, and measure the
+second window.
+
+- 仍是約 141 Hz → 取消訂閱有效
+- 約 283 Hz(兩倍)→ 第一次訂閱洩漏了,而每一次動畫都會再洩漏一次
+- ~141 Hz means the unsubscribe works; ~283 Hz means the first subscription leaked, and every
+  animation would leak another.
+
+**為什麼倍數是可讀的證據而不是巧合:** `CompositionTarget.Rendering` 每幀觸發一次,而 handler 是
+一個型別屬性——兩個活著的訂閱會讓同一幀被數兩次。若改用「有沒有跳」來驗,兩種情況都會跳,那個
+測試無法分辨它們。
+
+### 相鄰但**不同**的一項,不要混為一談 / An adjacent item that is NOT the same
+
+上面談的是**時鐘**的訂閱。「view 內容沒變卻仍重繪」是另一件事,尚未量測,也還沒有人主張它存在
+——本節不宣稱它。要提出它,需要的是一個計數:同一個 widget 在一次沒有狀態變動的 layout pass 中
+被要求重繪幾次。
+
+The above is about the CLOCK subscription. "A view redrawing when its content did not change" is a
+different thing, unmeasured, and not claimed here. Raising it needs a count first.
+
+---
+
+## 這份 queue 會漂,而重新產生它的指令在這裡(2026-09-16)
+
+本檔上方有五條描述的是**已經完成**的工作,卻讀起來像未開始。那不是誰偷懶:**一個 queue 檔記錄的是
+「某人寫下它時相信什麼」**,而它不會自己過期。同一天這件事讓 #121 被實作了兩次(`mistakes.md` 第 12 條)。
+
+**不要讀這份表來判斷某件事做完了沒有。去問原始碼:**
+
+```sh
+# 每個 backend 真正宣告的 BackendFeatures conformance
+for be in GtkBackend WinUIBackend AppKitBackend UIKitBackend AndroidBackend; do
+  echo "--- ${be%Backend}"
+  grep -rhoE "BackendFeatures\.[A-Za-z]+" Sources/$be/ | sed 's/BackendFeatures\.//' | sort -u | tr '\n' ' '
+  echo
+done
+```
+
+**用 `grep -rhoE "BackendFeatures\.[A-Za-z]+"`,不要用 `extension X: BackendFeatures\.Y`。** 後者是我
+2026-09-16 的第一個版本,它**兩個方向都錯**:多行的 conformance 寫法
+
+```swift
+extension AppKitBackend:
+    BackendFeatures.DragGestures,
+    BackendFeatures.MagnifyGestures,
+```
+
+被漏掉(偽陰性,害我以為五個 backend 都沒有 magnify),而註解裡提到協定名稱的行被算進去(偽陽性,
+害我以為 UIKit 讀了 `keyboardShortcut`,其實那兩處是我自己寫的「此處**沒有**讀取」)。
+
+**先跑正對照再相信任何一個零**:一個確定存在的名字(`WidgetGeometry` 五個都該有)與一個確定不存在的
+(`ZZZNotARealProtocol` 應回傳空)。
+
+---
+
+## The command that regenerates this, because this file drifts (2026-09-16)
+
+Five open items above described work that was FINISHED. That is not laziness: a
+queue file records what someone believed when they wrote it, and it does not
+expire. On the same day, that cost `#121` a second implementation
+(`mistakes.md` entry 12).
+
+Do not read this table to decide whether something is done. Ask the source, with
+the command above.
+
+Use `grep -rhoE "BackendFeatures\.[A-Za-z]+"`, not a pattern anchored on
+`extension X: BackendFeatures.Y`. The latter was my first version and it was
+wrong in BOTH directions: it missed multi-line conformances (so all five
+backends looked like they had no magnify gesture) and it counted comments that
+merely name a protocol (so UIKit looked like it read `keyboardShortcut`, when
+those two hits were my own comment saying it does NOT). Run both controls before
+believing any zero.
+
+---
+
+## 五個 backend 的能力缺口,逐格開成待辦(2026-09-16 由原始碼查得)
+
+CLAUDE.md:**任何功能都不得在這五個 backend 上維持「不支援」。** 以下每一格都是那條規則下的一筆欠債。
+
+| 缺口 | 誰 | 備註 |
+| --- | --- | --- |
+| ~~UIKit `keyboardShortcut`(#121)~~ | **完成** | **已驅動並通過**:iPad(iOS 27)上 `plain 1、shifted 1、disabled 0`,選單全程關著,走 `test_ios.zsh --actionfile`。**根因不是快捷鍵**:`UIKitBackend` 的 `ApplicationMenus` conformance 被關在 `#if targetEnvironment(macCatalyst)` 裡,因此在真正的 iOS 上,框架的 `backend as? any BackendFeatures.ApplicationMenus` 直接失敗、`setApplicationMenu` 從不被呼叫,而 `buildMenu` 對著一份**空清單**建選單(讓它寫出自己看到的東西才追出來:`buildMenu system==main: true submenus=0`)。所以 `.commands` 與 `CommandMenu` 在 iOS 上**完全沒有作用**,不只是快捷鍵。那個 `#if` 帶著上游自己的條件——「等快捷鍵實作出來,或許就能推廣到 Catalyst 以外」——而今天的工作讓它成立了。 |
+| ~~Android 應用程式選單(`setApplicationMenu`)~~ | **完成** | **已實作並驅動驗證**:`plain 1、shifted 1、disabled 0`,以 `adb shell input keycombination` 驅動,選單全程不開。那個註解掉的樁帶著上游的 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」——現在它做的正是那件事。**Android 沒有應用程式選單可畫,而那是平台的答案、不是留下的缺口**:全域動作屬於 toolbar 溢位或側邊抽屜,那是 app 自己的版面;在此畫一條,等於替 Android 上每一支 app 都加上橫槓,無論它有沒有宣告 `.commands`。用 `addOnUnhandledKeyEventListener` 而非 `setOnKeyListener`——unhandled 那個變體只在每一個 view 都拒絕之後才跑,因此 Cmd-S 不會在聚焦的文字欄位看到它之前被吞掉,而打進該欄位的普通 `s` 根本不會抵達。修飾鍵比較採**完全相等**(否則 Ctrl-Shift-S 會連帶觸發單純的 Ctrl-S),並遮掉 CAPS_LOCK/NUM_LOCK(否則 Caps Lock 一開,每個快捷鍵都失效)。 |
+| ~~GTK `LazyListRows`(#117)~~ | Windows | **已完成 `5739d453`,而且這一格正是那支探針要抓的東西。** `LazyListRowLifetimes: LazyListRows`——**繼承即 conformance**,而那個 extension 兩個方法都實作了(`setLazyRows` 與 `setLazyRowReleaseHandler`,`GtkBackend+LazyListRows.swift:5,12`)。「只 conform Lifetimes,按需建列未做」是從缺少的**名字**推出來的,而非從方法推出來的。**把這一格當探針的正對照:任何回報 GTK 缺 `LazyListRows` 的判準就是壞的。** |
+| ~~GTK `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`。** 用的是 `gtk_accessible_update_property_value` / `_state_value`——**帶計數的非 variadic 變體**,因為 variadic C 函式在 Swift 裡叫不動。`GTK_ACCESSIBLE_PROPERTY_LABEL` / `_DESCRIPTION` 之外還有 `ItemStatus`。**限制寫明**:GTK 那邊**沒有讀回路徑**,`gtkaccessible.h` 只有 update、沒有 getter,要讀得走 AT-SPI(Linux only) |
+| ~~WinUI `Accessibility`(#123)~~ | Windows | **已完成 `9746bbeb`,並於 `23c9cc61` 以 P69 實測讀回。** `AutomationProperties.Name` / `HelpText` / `ItemStatus` / `setAccessibilityView(.raw)`。**限制**:讀回是**行程內**的(`VisualTreeHelper`),它對 Narrator 實際唸出什麼沒有發言權 |
+| ~~GTK `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`。** `gtk_widget_grab_focus` 確實直接叫得到。踩到的一點:TextField 是包著 `GtkEntry` 的 wrapper,所以回報那一半用的是 `EventControllerFocus` 的 `enter`/`leave`,不是 `notify::has-focus` |
+| ~~WinUI `FocusableViews`(#122)~~ | Windows | **已完成 `4c7bbf12`——形狀不必改,而那個答案 2026-09-10 就寫在上面 5c-ANSWER 了。** `UIElement.focus(_:) throws -> Bool` 是同步的;`TryFocusAsync` 是另一個變體,不是取代品。真正的陷阱不是同步與否:本 backend 交出去的每個 widget 都是 `Canvas`,而 `Canvas` 無條件接受焦點,所以得往內走到真正 `isEnabled && isTabStop` 的控制項 |
+| ~~**WinUI `LazyListRowLifetimes`(#117)**~~ | **Windows,同日完成並量測** | 上面那一格查證時發現的**真缺口**,方向與原表相反:**GTK 有、WinUI 沒有**。**已實作並以對照組驗收**:同一支執行檔掃過 5000 列(約 9000 次 prepare / 9000 次 recycle),release 開啟 **146 / 150 MB**,`SCUI_WINUI_NO_LAZY_RELEASE=1` 的對照組 **221 / 222 MB**,交錯兩輪、無重疊;兩組的實體化容器都是 38,因此**差的 72–76 MB 全是框架端的 view-graph 節點**。對照組是必要的,因為 conform 這件事本身會把 `List.swift` 從 200 列 LRU 換成 4000 列兜底——少了它,「加了 conformance」與「回呼真的有觸發」會同時改變。訊號是 `ContainerContentChanging` 的 `inRecycleQueue` + `args.itemIndex`(不是 `ItemsRepeater.elementClearing`,`ListView` 走的是這條)。**三個看起來都對卻被量成假的假設**寫在 `WinUIBackend+LazyListRows.swift` 裡加了刪除線的註解中。**AppKit / UIKit / Android 仍只有 GTK 有**——那三個不是我編得動的,留給 Mac 判斷 |
+
+**這六格是查證過的。** 一次完整的掃描會列出更多 `NO`,但那份清單目前**不可信**:很多協定是由基底
+backend 協定**繼承**而來、而不是以 `BackendFeatures.X` 具名 extension 實作的,因此「名字沒出現」不等於
+「沒有實作」。2026-09-16 我試著自動分辨兩者,那個判準抓到 0 個繼承項目——所以它是壞的,而我沒有拿它
+去開 39 條待辦。**要補完這張表,得先寫出一個能通過正反對照的探針。**
+
+**Windows 端回覆(2026-09-16 15:xx):這張表寫下時,五格 Windows 欄位中的五格都已經關掉了**
+——#122 與 #123 於 `4c7bbf12` / `9746bbeb` 落地、#117 的 GTK 側於 `5739d453`,全部早於本表。
+這不是抱怨,而是**它示範的正是同一段文字自己警告的那件事**:五格裡有一格(GTK `LazyListRows`)
+的判定完全來自「具名 extension 沒出現」,而它是**繼承**來的;另外四格則是**時間差**——表從原始碼
+查得,而原始碼在幾小時前就變了。所以那支探針需要的不只是繼承判準,還要**一個日期與一條重新產生的
+指令**,否則下一份表在寫完的當天就開始腐爛(user CLAUDE.md:超過 7 天的文件即為未查證)。
+
+**探針的兩個對照組,現在都有現成的實例,不必另外造:**
+
+- **正對照(必須回報 YES)**:`GtkBackend` 對 `BackendFeatures.LazyListRows` —— 具名 extension
+  寫的是 `LazyListRowLifetimes`,而它 refine 了 `LazyListRows`,兩個方法都在裡面。
+- **負對照(必須回報 NO)**:`WinUIBackend` 對 `BackendFeatures.LazyListRowLifetimes` ——
+  這是**真的**沒有,上面新開的那一格就是它。
+
+一個把這兩格都答對的判準才可以拿去開那 39 條;只答對一格的,答對的那一格是巧合。
+
+---
+
+## The capability gaps, one todo per cell (read from the source, 2026-09-16)
+
+CLAUDE.md: no feature may be left "not supported" on these five. Each cell above
+is a debt under that rule. UIKit's `keyboardShortcut` is the Mac side's and was
+created today; the other five are the Windows side's, and `queue-windows.md`
+carries the details for each.
+
+Those six are verified. A full sweep reports more `NO`s and that list is NOT
+trustworthy yet: many protocols are satisfied by INHERITANCE from the base
+backend protocol rather than by a named `BackendFeatures.X` extension, so "the
+name does not appear" is not "it is not implemented". An attempt to separate the
+two automatically found zero inherited protocols, which means the discriminator
+is broken -- so it was not used to open 39 todos. Completing this table needs a
+probe that passes a positive and a negative control first.
+
+**Windows reply, same day.** All five Windows cells were already closed when the
+table was written -- #122 and #123 in `4c7bbf12` / `9746bbeb`, the GTK half of
+#117 in `5739d453`, all of them hours earlier. That is not a complaint; it is
+the table demonstrating the thing its own last paragraph warns about. One cell
+(GTK `LazyListRows`) was judged purely on a name that does not appear, and the
+conformance is INHERITED: `LazyListRowLifetimes` refines `LazyListRows` and the
+extension implements both methods. The other four were simply out of date within
+hours, which says the probe needs a DATE and a regeneration command as much as it
+needs an inheritance rule.
+
+The two controls now exist as real cells, so neither has to be invented:
+
+- **Positive (must report YES)**: `GtkBackend` vs `BackendFeatures.LazyListRows`,
+  satisfied through the `LazyListRowLifetimes` extension.
+- **Historical negative (no longer valid)**: `WinUIBackend` vs
+  `BackendFeatures.LazyListRowLifetimes`. This now reports YES.
+
+A discriminator that gets both right can open the 39; one that gets a single cell
+right got it by luck.
+
+**All five backends now implement the lifecycle protocol** (24319bd6).
+Use an explicit nonconforming test fixture for the negative control, not one of
+these production backends. 五個 backend 皆已實作，負對照應使用未 conform 的測試型別。
+
+WinUI now conforms, measured rather than asserted: one binary, two runs
+interleaved twice, each sweeping 5,000 rows (~9,000 prepares, ~9,000 recycles).
+With the release callback: **146 and 150 MB**. With `SCUI_WINUI_NO_LAZY_RELEASE=1`,
+which keeps the conformance and withholds the callback: **221 and 222 MB**. No
+overlap between the groups, and both ran with 38 realized containers, so the
+72-76 MB is entirely framework row nodes. The control switch is not optional
+here: conforming is itself what moves `List.swift` from its 200-row LRU to the
+4,000-row backstop, so without holding one half still, "conformed" and "actually
+releases" change together and neither number means anything.
+
+The signal is `ContainerContentChanging` with `inRecycleQueue`, and the index is
+`args.itemIndex`. Three plausible alternatives were measured false first; they
+are kept, struck through, in `WinUIBackend+LazyListRows.swift`.
+
+---
+
+## 停在待辦上:iOS 的按鍵驅動(低優先,2026-09-16)
+
+**UIKit 的 `keyboardShortcut` 已實作並提交(`cfc442aa`),卡的是「驗證」而不是「實作」。**
+
+按鍵送不進模擬裝置,而這是用**兩次正對照**量出來的,不是推論:
+
+| 嘗試 | 結果 |
+| --- | --- |
+| iPhone 17 Pro Max | `buildMenu` 從不以 `.main` 被呼叫——iPhone 沒有選單列,不會有 key command 被登記 |
+| iPad Pro 13" / iOS 27 | 三個計數皆 0 |
+| 正對照 #1 | P70 顯示 `focused field: email`、游標在欄位裡(**app 是活的**),而送出的 `a h v` 一個都沒進去 |
+| 正對照 #2 | 先送 ⇧⌘K(Simulator 的「把鍵盤輸入送到裝置」)再送,同樣沒進去 |
+
+已排除:`simctl` 沒有 `sendkey` 動詞、`idb` 未安裝、DeviceHub 不透過 AX 暴露選單列。
+
+**三條出路,依成本排序:**
+
+1. DeviceHub 自己的鍵盤開關——若那個 UI 上有,用 AX 或座標點它
+2. `brew install facebook/fb/idb-companion`,然後 `idb ui key`
+3. **XCUITest target** —— iOS 上受支援的驅動方式(`XCUIApplication().typeText()`)。這也是
+   `testapp/actions/ios/` 至今空著、其 README 標 `planned` 的真正原因
+
+第 3 條做完,iOS 就從「只能靠 app 自報」變成能被真實驅動,而那對 P63 之後的每一支 app 都有效。
+
+**在此之前,UIKit #121 的狀態是「實作完成、未驅動」,而依本樹的規矩那不算完成。**
+
+---
+
+## Parked: driving keys into iOS (low priority, 2026-09-16)
+
+UIKit's `keyboardShortcut` is implemented and committed (`cfc442aa`). What is
+blocked is the verification, not the implementation.
+
+Keystrokes do not reach the simulated device, established with two positive
+controls rather than inferred: P70 showed `focused field: email` with a caret --
+the app is alive and responding -- and three plain letters sent the same way did
+not appear in the field, with and without Simulator's ⇧⌘K toggle first. On an
+iPhone the question does not even arise: `buildMenu` is never called with
+`.main`, so no key command is registered.
+
+Ruled out: no `simctl sendkey` verb, `idb` not installed, DeviceHub exposes no
+menu bar over accessibility.
+
+Three ways out, cheapest first: a keyboard toggle inside DeviceHub itself; `idb`
+and its `ui key`; or an XCUITest target, which is the supported way and is why
+`testapp/actions/ios/` is still empty and marked planned. The third would move
+iOS from "the app reports on itself" to "the app can be driven", which pays for
+every Pn from P63 onward.
+
+---
+
+## #125 Table 的 selection 與 sortOrder:開工前先講形狀(2026-09-16,Windows 端)
+
+**先寫這一段再動手,理由是今天早上那次撞車(mistakes 第 12 條):`queue` 說「blocked on Mac」
+是寫的當下為真,而不是現在為真。** 這一段推出去之後我才開始寫,若 Mac 已經有別的形狀,請直接覆蓋
+這裡、我照著改。
+
+**先查證的事實,不是假設:** `git log origin/develop -S'sortOrder'` 與 `-S'TableSelection'` 在
+`Sources/` 之下**零命中**;`BackendFeatures/Tables.swift` 最近三次改動是 `2fd81acb`(逐欄寬度)、
+`6d52866a`(文字選取)、`f1bc7f23`(協定拆分),都沒有 backend→view 的事件。
+
+**兩個 backend 的真實結構(這決定了做法,而不是 `NSTableView` 的類比):**
+
+| | 是什麼 | 因此 |
+| --- | --- | --- |
+| `Gtk.Table` | `GtkScrolledWindow` 裡的 `GtkGrid`,標題是不可點的 `GtkLabel` | **沒有「列」這個物件**,也沒有現成的選取 |
+| `WinUITable` | 同樣是一個 `Grid` | 同上 |
+
+兩邊都**不是** GTK 的 `GtkColumnView` / WinUI 的 `DataGrid`,而那是刻意的:協定交給 backend 的是
+一個**已建好的 widget 扁平陣列**,走 model-driven 的元件等於把每個 cell 再包成 GObject 餵給一個
+隨即原樣交還的 model(理由寫在 `Sources/Gtk/Widgets/Table.swift` 檔頭)。所以選取與排序這兩件事,
+在這兩個 backend 上都得**自己做**:以 click gesture 命中列、以樣式畫出選取、把標題做成可點。
+
+**打算加的協定形狀**(與 `SelectableListViews` 對齊,那是這棵樹既有的答案):
+
+```swift
+public protocol TableSelection: Tables {
+    func setSelectionHandler(ofTable: Widget, to: @escaping (Int?) -> Void)
+    func setSelectedRow(ofTable: Widget, to index: Int?)
+}
+
+public protocol TableColumnSorting: Tables {
+    func setSortHandler(ofTable: Widget, to: @escaping (_ column: Int) -> Void)
+    func setSortIndicator(ofTable: Widget, column: Int?, ascending: Bool)
+}
+```
+
+- **兩個協定分開**,理由與 `LazyListRows` / `LazyListRowLifetimes` 分開相同:一個 backend 可能
+  做得到其中一個而不是另一個,而合成一個協定會讓「做得到一半」變成「宣稱兩個都有」。
+- **採 conformance 檢查**,所以未實作的 backend 行為完全不變。
+- **排序由 app 自己做。** backend 回報的是「使用者點了第 n 欄」,框架把它變成一個 binding 的更新,
+  由 app 重新排序自己的資料——框架不介入 comparator。這與 SwiftUI 的 `sortOrder` 精神一致,
+  但不需要 `KeyPathComparator` 那一整套。
+
+**分工(沿用 #121 那次講定的「各做自己編得動的」):** 協定與 view 端由我落地,GtkBackend 與
+WinUIBackend 兩個實作也由我做並驗收;**AppKit / UIKit / Android 三個是 Mac 那邊的**——
+`NSTableView` 與 `UITableView` 本來就有選取與可點標題,成本應該遠低於這裡。
+
+**分兩批做,selection 先。** 它自成一件完整的事、可獨立驗收,而排序還要處理指示符的繪製。
+
+### selection 進度(2026-09-16 當天完成一半並驗收)
+
+**`BackendFeatures.TableSelection` 已落地,兩個 Windows backend 都實作並以畫面驗過。**
+`Table(rows, selection: Binding<Int?>)` 為 view 端的新初始化式;選取以**索引**表示,因為
+`RowValue` 沒有任何約束——沒有 `Identifiable`、連 `Equatable` 都沒有——所以沒有東西可以拿來
+比對把某一列找回來。
+
+**已驗證:框架 → backend(`setSelectedRow`)。** P23 新增 `--select-probe`,以計時器寫入 binding,
+完全不需要滑鼠(機制與 P70 的 `SCUI_P70_AUTOFOCUS` 相同,而那支在兩個 backend 上都重放過)。
+
+| | log | 畫面 |
+| --- | --- | --- |
+| WinUI | `row selection supported: yes`、`SELECTION now 2 / 5 / none` | `p23-sel-row5-20260916-134321.png`:ID=3 那列(索引 2)整列有底、文字仍可讀;`p23-sel-none-…png`:底色消失 |
+| GTK | 同上 | `p23gtk-sel-row5-20260916-134434.png`:ID=6 那列(索引 **5**)有底——與 WinUI 那張是**不同的列**,所以高亮是跟著 binding 走、不是畫死的 |
+
+**截圖是必要的,不是錦上添花。** log 看不見「一個從未被畫出來的高亮」——那正是 #117 在 WinUI 上
+記憶體量對了、畫面卻全空的那個形狀。
+
+**~~尚未驗證:backend → 框架(點擊變成 binding 的寫入)。它需要真實指標事件,而這台機器在遠端
+桌面連線時拒絕注入滑鼠。~~ 同日以真實滑鼠驗完,而那句「拒絕注入」是錯的。**
+
+**那段阻擋警告不是結論,而我把它當成了結論。** 它自己寫著「這是**相關性**,不是已證實的成因」,
+而我卻用它來解釋為什麼不驗。實際去跑之後:`SetCursorPos` 生效(`cursor=(406, 621)` 與要求值相符),
+**CDP 連著時滑鼠是可用的**。先前那次「點了沒反應」的真正差別在於啟動方式(經 harness 與直接執行),
+不是輸入被拒絕。
+
+兩個動作檔都留在 repo 裡,各三次點擊,而**中間那次是拒絕對照**:
+
+| 檔案 | backend | 判決 |
+| --- | --- | --- |
+| `actions/win/P23-select-rows.csv` | WinUI | 第六列 → `SELECTION now 5`;**標題列 → 一行都沒有**;第一列 → `SELECTION now 0` |
+| `actions/win/P23-select-rows-gtk4.csv` | GTK | 完全相同的三個答案,而走的是完全不同的路徑 |
+
+**分成兩個檔案而非共用座標**,因為兩個視窗大小不同、列的位置也不同(GTK 848x688 自 y=368 起,
+WinUI 822x652 自 y=325 起)。照抄另一份會點到標題列與第一列,而**兩次點擊都仍然會回報成功**。
+
+WinUI 側以 `SCUI_WINUI_TABLE_TRACE` 量到機制:`handleClick y=172/10/32` 對上
+`heights=[18, 28, 28, 28]`,分別命中 definition 6/0/1。**標題列高 18、資料列高 28**——這正是
+命中測試累加 `actualHeight`、而不是拿列高去除的理由:若用相除,這三次會整整差一列。
+
+### Selection, half done and verified the same day
+
+`BackendFeatures.TableSelection` has landed and both Windows backends implement
+it. The framework-to-backend direction is verified with pictures: P23's new
+mouse-free `--select-probe` writes the binding on a timer, and the captures show
+the band on the ID=3 row under WinUI and the ID=6 row under GTK -- different
+rows, so the highlight follows the binding rather than sitting where it was
+painted -- and gone again when the selection clears. The log alone could not
+have shown that: a highlight that is never drawn logs exactly like one that is,
+which is how #117 passed on memory here while rendering nothing.
+
+~~The click-to-binding direction is NOT verified; this machine refuses pointer
+input while a remote-desktop host is connected.~~ **Verified the same day with a
+real mouse, and that sentence was wrong.** The blocker note says of itself that
+it is a correlation rather than a proven cause, and I used it as a conclusion
+anyway. Driving it: `SetCursorPos` took, the cursor landed where it was asked to,
+and both backends selected. The earlier run that saw nothing differed in how the
+app was launched, not in whether input was accepted.
+
+Two action files are kept, three clicks each, the middle one a control:
+`actions/win/P23-select-rows.csv` (WinUI) and `-gtk4.csv` (GTK). Sixth row ->
+`SELECTION now 5`; the HEADER -> no line at all; first row -> `SELECTION now 0`.
+Separate files rather than shared coordinates because the windows differ in size
+and the rows sit elsewhere -- copying would click the header and still report
+success.
+
+`SCUI_WINUI_TABLE_TRACE` shows the mechanism on the WinUI side: y=172/10/32
+against heights [18, 28, 28, 28], matching definitions 6/0/1. The header is 18 px
+and the rows are 28, which is why the hit test accumulates `actualHeight` rather
+than dividing -- dividing puts all three clicks one row out.
+
+## #125 Table selection and sortOrder: the shape, before writing any of it
+
+Published before starting, because of this morning's collision (mistakes entry
+12): a queue line saying "blocked on Mac" was true when written, not now. If the
+Mac side already has a shape for this, overwrite this section and I will follow
+it.
+
+Checked rather than assumed: `-S'sortOrder'` and `-S'TableSelection'` find
+nothing under `Sources/` on origin, and the last three changes to `Tables.swift`
+(`2fd81acb`, `6d52866a`, `f1bc7f23`) add no backend-to-view event at all.
+
+Both Windows tables are a `Grid` -- GTK's inside a `ScrolledWindow`, with plain
+`Label` headers -- and deliberately not `GtkColumnView` or `DataGrid`, because
+the protocol hands the backend an array of already-built widgets. So there is no
+row object and no built-in selection on either: hit-testing a click, drawing the
+selection, and making a header clickable are all hand work here, which is the
+part worth knowing before anyone estimates it.
+
+Two protocols rather than one, for the reason `LazyListRows` and
+`LazyListRowLifetimes` are separate: a backend may manage one and not the other,
+and merging them turns "half of it" into a claim of both. Conformance-checked, so
+a backend that does not implement them behaves exactly as it does today. Sorting
+is reported, not performed: the backend says which column was clicked, and the
+app re-sorts its own rows.
+
+Split: protocol, view side, GtkBackend and WinUIBackend here; AppKit, UIKit and
+Android are the Mac side's, where `NSTableView` and `UITableView` already have
+selection and clickable headers. Selection lands first, on its own.

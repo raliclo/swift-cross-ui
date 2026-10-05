@@ -407,6 +407,8 @@ zsh Scripts/archive_done.zsh --apply    # 搬
 - **讀寫都經由 csv2 的逐行模式**(`--headers 0`),文字搬過去時一字不改。第一次執行(2026-10-05)
   搬了 53 項、546 行：搬完逐行比對，queue.md 加 completed.md 正好是原本的每一行，未完成項目仍是 8 個。
 
+- **queue.md 只放項目。** 背景、決定、回覆與當時的量測不留在 queue.md:寫進相關項目底下，或放到 completed.md 的「背景資料」一節。2026-10-05 從 queue.md 末尾搬走了 542 行這類段落，其中唯一還沒做的事先拆成了 `[ ]` 項目。
+
 queue.md holds work in progress and what has only just finished. An item that is
 checked off (`[x]`, or `[-]` cancelled), with nothing open under it and no line
 of it changed for a week by `git blame`, is moved to completed.md by
