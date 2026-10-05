@@ -216,8 +216,7 @@ fi
 # One iOS run at a time: the simulator, .compile-work-ios and testapp/.bundledApp
 # (whose .xctestrun is edited per run) are shared; see test_support/platform_lock.zsh.
 # 一次只跑一個 iOS:simulator、.compile-work-ios 與 testapp/.bundledApp(每次都改寫其 .xctestrun)是共用的。
-source "$script_dir/test_support/platform_lock.zsh"
-platform_lock ios
+source "$script_dir/test_support/platform_lock.zsh" ios
 
 if [ "$do_build" -eq 1 ]; then
     printf '==> Building %s for the iOS Simulator\n' "$target"

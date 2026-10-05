@@ -644,7 +644,7 @@ elif [ "$force_gtk4" -eq 1 ]; then
 elif [ "$target_platform" = "android" ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-android")"
     # One Android run at a time; see test_support/platform_lock.zsh. / 一次只跑一個 Android。
-    source "$script_dir/test_support/platform_lock.zsh"; platform_lock android
+    source "$script_dir/test_support/platform_lock.zsh" android
 elif [ "$target_platform" = "ios" ]; then
     # iOS gets its own tree because it is the one path that RENAMES the package.
     # It names the package after the single app it builds, so that
@@ -674,7 +674,7 @@ elif [ "$target_platform" = "ios" ]; then
     # 分開目錄樹才是解法。改套件名稱不是：那是拿「慢的建置」換「壞掉的建置」。
     compile_work_dir="$(windows_path "$script_dir/.compile-work-ios")"
     # One iOS run at a time; see test_support/platform_lock.zsh. / 一次只跑一個 iOS。
-    source "$script_dir/test_support/platform_lock.zsh"; platform_lock ios
+    source "$script_dir/test_support/platform_lock.zsh" ios
 else
     # Every tree is named after the backend it holds. There is deliberately no
     # suffix-less `.compile-work` any more.
