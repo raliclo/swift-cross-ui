@@ -657,6 +657,11 @@ if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
         sleep 1
     done
     print -r -- "==> ${update_stats:-update-stats: none reported}"
+else
+    # Said, not left out: with no line at all, a run that never measured reads like an
+    # app that never updated (2026-10-05, seven runs thrown away).
+    # 明講，而不是不印：一行都沒有時，「根本沒在量」看起來就像「app 沒有更新」(2026-10-05,作廢七次)。
+    print -r -- "==> update-stats: off (set SCUI_UPDATE_STATS=1)"
 fi
 if [ "$screenshot_failures" -gt 0 ]; then
     print -u2 -r -- "!! $screenshot_failures screenshot(s) could not be taken"

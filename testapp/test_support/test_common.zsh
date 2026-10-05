@@ -765,6 +765,10 @@ print_summary_windows() {
     if [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
         update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$out/$actionfile_log" 2>/dev/null | tail -1 || true)"
         printf '==> %s\n' "${update_stats:-update-stats: none reported}"
+    else
+        # Said, not left out: a run that never measured otherwise reads like an app
+        # that never updated (2026-10-05). / 明講：否則「沒在量」看起來就像「app 沒有更新」。
+        printf '==> %s\n' "update-stats: off (set SCUI_UPDATE_STATS=1)"
     fi
 }
 
@@ -1462,6 +1466,9 @@ print_summary_macos() {
         local update_stats
         update_stats="$(grep -ao "update-stats: [^[:cntrl:]]*" "$out/$actionfile_log" 2>/dev/null | tail -1 || true)"
         printf '==> %s\n' "${update_stats:-update-stats: none reported}"
+    else
+        # Said, not left out (see print_summary_windows). / 明講(見 print_summary_windows)。
+        printf '==> %s\n' "update-stats: off (set SCUI_UPDATE_STATS=1)"
     fi
 }
 

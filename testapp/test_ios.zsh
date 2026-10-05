@@ -493,6 +493,13 @@ if [ "${SCUI_UPDATE_STATS:-0}" = 1 ] && [ -n "$action_file" ]; then
         sleep 1
     done
     printf '==> %s\n' "${update_stats:-update-stats: none reported}"
+elif [ "${SCUI_UPDATE_STATS:-0}" = 1 ]; then
+    printf '==> %s\n' "update-stats: not collected (needs --actionfile, which keeps the app's stdout)"
+else
+    # Said, not left out: with no line at all, a run that never measured reads like an
+    # app that never updated (2026-10-05, seven runs thrown away).
+    # 明講，而不是不印：一行都沒有時，「根本沒在量」看起來就像「app 沒有更新」(2026-10-05,作廢七次)。
+    printf '==> %s\n' "update-stats: off (set SCUI_UPDATE_STATS=1)"
 fi
 
 if [ "$showtime_seconds" -gt 0 ]; then
