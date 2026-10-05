@@ -216,6 +216,11 @@ package_id="dev.swiftcrossui.testapp.${app_id//-/}"
 adb="$android_root/platform-tools/adb"
 emulator="$android_root/emulator/emulator"
 
+# One Android run at a time: the emulator, .compile-work-android and the one
+# Gradle project are shared, so a second run waits here (test_support/platform_lock.zsh).
+# 一次只跑一個 Android:emulator、.compile-work-android 與那一個 Gradle 專案是共用的，所以第二次執行在此等待。
+source "$script_dir/test_support/platform_lock.zsh"
+platform_lock android
 zsh "$script_dir/install_tools_android.zsh" --check >/dev/null
 [ -x "$adb" ] || die "Missing adb: $adb"
 

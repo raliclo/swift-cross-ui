@@ -10,6 +10,7 @@
 # 2026-09-04 -- it was the fallback, so its contents depended on the host rather
 # than on its name, and nobody could tell whether it was safe to delete.
 /testapp/.compile-work-*
+/testapp/.platform-lock-*
 
 # The executables compile.zsh copies out of those trees, plus screenshots, run
 # logs, and build-manifest.csv2 -- the record of which configuration produced
