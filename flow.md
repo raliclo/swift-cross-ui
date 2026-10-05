@@ -387,6 +387,33 @@ that re-enters from inside the session doing the work -- not because cron cannot
 reach a session, which this page previously claimed and which is false. Tick the
 box in the same commit as the work.
 
+### 3e-4. 完成滿一週的項目搬到 completed.md / Finished items move to completed.md after a week
+
+queue.md 只放還在進行的事，以及剛結束、可能還會被回頭查的事。一個項目勾成 `[x]`(或取消為 `[-]`)
+之後，只要它的任何一行一週內沒再被改動，就由腳本搬到 `completed.md`,queue.md 原處只留一行指標。
+
+```sh
+zsh Scripts/archive_done.zsh            # 列出會搬哪些，什麼都不改
+zsh Scripts/archive_done.zsh --apply    # 搬
+```
+
+- **何時跑**:每次結案一項、commit 之前跑一次列表；有東西可搬就 `--apply`,與那次結案一起 commit。
+- **「一週」怎麼算**:以 `git blame` 為準，不看散文裡寫的日期(DONE / FIXED / CLOSED 寫法不一，有的
+  沒寫)。項目本身、續行、子項目，**任何一行**七天內改過就不搬；還沒 commit 的行算作「剛改過」,所以進行中
+  的工作永遠不會被搬走。
+- **底下還有未完成的子項目就不搬**——`[ ]` 永遠留在 queue.md,`heartbeats/heartbeat.zsh` 讀的就是它們。
+- **原處留指標，不留空白**:別的條目會寫「見下方」「上一項」;一行
+  `- [x] <開頭幾個字> -> completed.md (archived 日期)` 讓那些引用仍讀得通。
+- **讀寫都經由 csv2 的逐行模式**(`--headers 0`),文字搬過去時一字不改。第一次執行(2026-10-05)
+  搬了 53 項、546 行：搬完逐行比對，queue.md 加 completed.md 正好是原本的每一行，未完成項目仍是 8 個。
+
+queue.md holds work in progress and what has only just finished. An item that is
+checked off (`[x]`, or `[-]` cancelled), with nothing open under it and no line
+of it changed for a week by `git blame`, is moved to completed.md by
+`Scripts/archive_done.zsh --apply`, leaving one pointer line behind. Run the
+listing before each commit that closes an item; uncommitted lines count as
+changed now, so nothing in progress moves.
+
 ### 3e-0. 提交之前,先跑動作檔就緒檢查
 
 ```sh
