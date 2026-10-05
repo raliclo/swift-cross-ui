@@ -242,9 +242,14 @@ toolchain was installed (2026-10-05); it is done below.
       died bundling with "unable to find bundle named ErrorKit_ErrorKit"; after
       `swift build -c debug --product swift-bundler` there, Android P1 and iOS
       P12 build and run. Never delete Vendor/swift-bundler/.build.
-    - [ ] `.swift-bundler-stamp` says the root binary was built from
+    - [x] `.swift-bundler-stamp` says the root binary was built from
       swift-bundler 4ad3f14f, the submodule is at 922ba2a7: the installer
       would rebuild it. Pre-existing drift, not changed here.
+      CLOSED 2026-10-05, moot: nothing in the harness runs the root binary any
+      more -- Android packages through package_android.zsh, and compile.zsh -ios
+      no longer has a bundler fallback. CI builds its own from the Vendor commit
+      (cache keyed by it), so it never used this binary. The untracked root
+      swift-bundler and .swift-bundler-stamp can be deleted.
     - [x] **Swift Bundler replaced for Android** (2026-10-05). One tracked Gradle
       project, testapp/androidContainer/gradleProject, built in place at
       .compile-work-android/gradleProject; testapp/package_android.zsh relinks
@@ -262,7 +267,7 @@ toolchain was installed (2026-10-05); it is done below.
       the 111 MB build plan with yaml.safe_load, 17.5 s per app; now 0.04 s.
       Swift Bundler is still built by the installer for compile.zsh -ios's
       fallback; Android no longer needs it.
-    - [ ] **iOS: an xcodebuild failure is a defect to root-cause, not something
+    - [x] **iOS: an xcodebuild failure is a defect to root-cause, not something
       for the Swift Bundler fallback to absorb** (user, 2026-10-05). The
       fallback at compile.zsh ~1759 prints one stderr line and carries on, which
       is how P76/P77's "Redefinition of module '_SwiftSyntaxCShims'" at 05:24
@@ -271,6 +276,10 @@ toolchain was installed (2026-10-05); it is done below.
       build manifest and the sweep CSV) so a run that used it cannot read as a
       clean xcodebuild pass, and remove it once xcodebuild has held across a
       full iOS sweep. The _SwiftSyntaxCShims case is root-caused below.
+      DONE 2026-10-05: after the root-cause fix, a full iOS sweep built all 101
+      files with xcodebuild (101 x "built by: xcodebuild + iosContainer",
+      101/101 pass), so the fallback was removed from compile.zsh: an xcodebuild
+      failure exits 1 with its log and state, and nothing else runs.
       - [x] Fallback made loud (2026-10-05): compile.zsh -ios keeps the xcodebuild
         output in testapp/output/ios-xcodebuild-<Pn>.log, and on failure appends
         the state (product, DerivedData/TestApps-* with creation times, the
@@ -318,11 +327,19 @@ toolchain was installed (2026-10-05); it is done below.
       drops the project, so one Gradle project exists at a time (2026-10-05).
       Existing ones removed: 400 -> 456 GB free. P1 then P12 built and
       launched; P12's bundle 33 s against 32 s before.
-    - [ ] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
+    - [x] Concurrency: test_ios.zsh shares testapp/.bundledApp (runner project,
       build, and the .xctestrun it edits with PlistBuddy) across all apps, and
       compile.zsh shares one .compile-work-<backend> tree per backend, so two
       runs on the same platform at once are not safe -- they were not before
       the DerivedData fix either.
+      DONE 2026-10-05 as serialisation, not parallelism: test_support/
+      platform_lock.zsh gives Android and iOS a lock each (mkdir + owner PID,
+      dead-owner takeover, re-entrant for a child, released through zshexit),
+      taken by test_android.zsh, test_ios.zsh and compile.zsh -android/-ios. A
+      second run now waits. Verified on both: two runs started 3 s apart, the
+      second printed "waiting for the <platform> lock" and ran after the first,
+      both rc 0, the nested compile.zsh passed straight through. True parallel
+      runs would need a device and a 5-15 GB tree per run; not done.
   - [-] **CANCELLED 2026-10-04. Kotlin -> pure JNI rewrite (CustomSegmentedGroup etc.): not
     recommended.** Profiling shows the cost is the NUMBER of JNI crossings;
     Kotlin helpers do several things per crossing, pure JNI would add crossings.

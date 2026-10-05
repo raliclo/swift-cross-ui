@@ -643,6 +643,8 @@ elif [ "$force_gtk4" -eq 1 ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-gtk4")"
 elif [ "$target_platform" = "android" ]; then
     compile_work_dir="$(windows_path "$script_dir/.compile-work-android")"
+    # One Android run at a time; see test_support/platform_lock.zsh. / 一次只跑一個 Android。
+    source "$script_dir/test_support/platform_lock.zsh"; platform_lock android
 elif [ "$target_platform" = "ios" ]; then
     # iOS gets its own tree because it is the one path that RENAMES the package.
     # It names the package after the single app it builds, so that
@@ -671,6 +673,8 @@ elif [ "$target_platform" = "ios" ]; then
     #
     # 分開目錄樹才是解法。改套件名稱不是：那是拿「慢的建置」換「壞掉的建置」。
     compile_work_dir="$(windows_path "$script_dir/.compile-work-ios")"
+    # One iOS run at a time; see test_support/platform_lock.zsh. / 一次只跑一個 iOS。
+    source "$script_dir/test_support/platform_lock.zsh"; platform_lock ios
 else
     # Every tree is named after the backend it holds. There is deliberately no
     # suffix-less `.compile-work` any more.
@@ -1689,21 +1693,15 @@ if [ "$target_platform" = "ios" ]; then
     # every Pn in it since 2026-09 -- so the bundle is assembled from that template
     # here, with this app's executable name and identifier. Measured 2026-10-05 on
     # a machine with no swift-bundler: P76 built this way, declared sdk 27.0,
-    # installed, and its action file replayed. Swift Bundler (Vendor/swift-bundler,
-    # built by Scripts/build-tool-install-android-on-Mac.sh) is no longer a silent
-    # fallback: an xcodebuild failure stops the build, and the bundler runs only
-    # when SCUI_IOS_BUNDLER_FALLBACK=1 asks for it (see the else branch below).
+    # installed, and its action file replayed. Since 2026-10-05 Swift Bundler is not used here at all: a full iOS sweep built all 101 files with xcodebuild.
     #
     # **先用 xcodebuild;只有它失敗時才用 Swift Bundler(2026-10-05)。** Swift Bundler 在這裡做兩件事:
     # 執行 `xcodebuild -scheme <Pn>`,以及把執行檔包成帶有 simctl 所需 Info.plist 與 bundle identifier
     # 的 .app。前者只是一道指令;後者正是 iosContainer/appTemplate.app 存在的理由——test_ios.zsh 自 2026-09
     # 起就用它包每一支 Pn——因此這裡改以該範本組出 bundle,填入這支 app 的執行檔名與 identifier。
     # 2026-10-05 在一台沒有 swift-bundler 的機器上實測:P76 以此方式建置、標明 sdk 27.0、可安裝,動作檔也
-    # 重放成功。Swift Bundler(Vendor/swift-bundler,由 Scripts/build-tool-install-android-on-Mac.sh 建置)
-    # 不再是靜默的後備:xcodebuild 失敗就停止建置,只有 SCUI_IOS_BUNDLER_FALLBACK=1 明確要求時才用 bundler
-    # (見下方 else 分支)。
+    # 重放成功。2026-10-05 起這裡完全不用 Swift Bundler:一次完整的 iOS sweep,101 份檔案全部由 xcodebuild 建置。
     sim_device="${IOS_SIM_DEVICE:-swift-cross-ui}"
-    bundler_bin="$repo_root/swift-bundler"
     ios_template="$script_dir/iosContainer/appTemplate.app"
 
     ios_derived_data="$package_dir/.build/$(uname -m)-apple-iphonesimulator"
@@ -1835,15 +1833,11 @@ if [ "$target_platform" = "ios" ]; then
             # checkouts whose include paths appeared beside ours in that failure,
             # and when they were created.
             #
-            # SCUI_IOS_BUNDLER_FALLBACK=1 still allows the bundler, as an explicit
-            # and loudly reported choice, never as the default.
-            #
             # **xcodebuild 失敗就停止建置(2026-10-05)。** 從前它印一行就退回 Swift Bundler,而 bundler 的成功
             # 把失敗蓋掉了:P76 與 P77 05:24 在這裡以「Redefinition of module '_SwiftSyntaxCShims'」失敗,
             # 直到事後讀 log 才有人看到。使用者的裁定:xcodebuild 不該失敗,失敗時要找出原因，而不是吸收掉。
             # 因此這是錯誤，並趁現場還在時記下調查所需的東西：完整 log、那次失敗中與我們的 include 路徑並列出現的
-            # 舊 DerivedData checkout,以及它們的建立時間。SCUI_IOS_BUNDLER_FALLBACK=1 仍可用 bundler,但那是明確
-            # 且大聲回報的選擇，永遠不是預設。
+            # 舊 DerivedData checkout,以及它們的建立時間。不再退回 Swift Bundler。
             # Matched before anything is appended, or the search finds its own heading.
             # 在附加任何內容之前先搜尋，否則會找到自己的標題。
             redefinitions="$(grep -n -E '_SwiftSyntaxCShims|Redefinition of module' "$xcodebuild_log" | head -20 || true)"
@@ -1868,28 +1862,12 @@ if [ "$target_platform" = "ios" ]; then
             echo "  Full xcodebuild output and the state at the failure: $xcodebuild_log" >&2
             echo "錯誤:xcodebuild 沒有產出 $app_name。這是要找出根本原因的缺陷，不是要繞過的問題。" >&2
             echo "  完整 xcodebuild 輸出與失敗當下的狀態:$xcodebuild_log" >&2
-            if [ "${SCUI_IOS_BUNDLER_FALLBACK:-0}" != 1 ]; then
-                echo "  (SCUI_IOS_BUNDLER_FALLBACK=1 builds with Swift Bundler instead, as an explicit choice.)" >&2
-                exit 1
-            fi
-            [ -x "$bundler_bin" ] || {
-                echo "  SCUI_IOS_BUNDLER_FALLBACK=1, but there is no Swift Bundler at $bundler_bin." >&2
-                exit 1
-            }
-            echo "==> WARNING: SCUI_IOS_BUNDLER_FALLBACK=1 -- building $app_name with Swift Bundler; xcodebuild FAILED" >&2
-            echo "==> 警告:SCUI_IOS_BUNDLER_FALLBACK=1——以 Swift Bundler 建置 $app_name;xcodebuild 失敗了" >&2
-            touch "$bundle_started"
-            (
-                cd "$package_dir"
-                XCODE_XCCONFIG_FILE="$script_dir/iosContainer/link-sdk.xcconfig" \
-                "$bundler_bin" bundle "$app_name" \
-                    --platform iOSSimulator \
-                    -c "$build_config" \
-                    --Xxcodebuild "SYMROOT=$ios_derived_data/Build/Products" \
-                    --Xxcodebuild "OBJROOT=$ios_derived_data/Build/Intermediates.noindex"
-            )
-            app_bundle="$package_dir/.build/bundler/apps/$app_name/$app_name.app"
-            built_by="Swift Bundler (SCUI_IOS_BUNDLER_FALLBACK=1; xcodebuild FAILED, see $xcodebuild_log)"
+            # No Swift Bundler fallback any more (2026-10-05): a full iOS sweep,
+            # 101 of 101 files, built every app with xcodebuild, so the fallback
+            # had nothing left to do but hide the next failure.
+            # 不再有 Swift Bundler 後備(2026-10-05):一次完整的 iOS sweep,101 份檔案全部由 xcodebuild 建置，
+            # 後備已沒有別的用處，只剩把下一次失敗藏起來。
+            exit 1
         fi
         echo "    built by: $built_by"
 
