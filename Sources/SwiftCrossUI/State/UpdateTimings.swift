@@ -7,7 +7,15 @@ import Foundation
 /// ``Publisher/observeAsUIUpdater(backend:action:)`` runs is timed, and once
 /// updates have been quiet for 1.5 s a cumulative line goes to stderr:
 ///
-///     update-stats: count=412 median_ms=4.1 p95_ms=9.8 max_ms=31.0
+///     update-stats: count=412 median_ms=4.1 p95_ms=9.8 max_ms=31.0 first_ms=83.0 rest_median_ms=4.0
+///
+/// `first_ms` is the first update after launch on its own, and `rest_median_ms` the
+/// median of every other one, so a cost paid once at start-up (first-run JIT, class
+/// loading, the first views created) can be told apart from a steady per-update
+/// cost. Added 2026-10-05 because Android's gap to iOS sat in apps with few updates.
+/// `first_ms` 是啟動後的第一次更新本身,`rest_median_ms` 是其餘每一次的中位數,好把只在啟動時付一次
+/// 的代價(首次 JIT、類別載入、最早建立的 view)與每次更新都要付的代價分開。2026-10-05 加入，因為
+/// Android 與 iOS 的差距集中在更新次數少的 app。
 ///
 /// Cumulative, so the last such line in a run's log is the run's total; the
 /// sweeps read that one. Printed on quiet rather than at exit because Android
@@ -38,6 +46,7 @@ enum UpdateTimings {
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var samples: [Double] = []
+    nonisolated(unsafe) private static var first: Double?
     nonisolated(unsafe) private static var generation = 0
     nonisolated(unsafe) private static var lastReport = ProcessInfo.processInfo.systemUptime
     private static let reportQueue = DispatchQueue(label: "SwiftCrossUI.UpdateTimings")
@@ -55,6 +64,8 @@ enum UpdateTimings {
         let now = ProcessInfo.processInfo.systemUptime
         lock.lock()
         samples.append(seconds)
+        if first == nil { first = seconds }
+        let firstNow = first
         generation += 1
         let mine = generation
         let overdue = now - lastReport >= 5
@@ -62,7 +73,8 @@ enum UpdateTimings {
         let sortedNow = overdue ? samples.sorted() : []
         lock.unlock()
         if overdue {
-            FileHandle.standardError.write(Data((summary(of: sortedNow) + "\n").utf8))
+            FileHandle.standardError.write(
+                Data((summary(of: sortedNow, first: firstNow) + "\n").utf8))
         }
         reportQueue.asyncAfter(deadline: .now() + 1.5) {
             lock.lock()
@@ -72,20 +84,32 @@ enum UpdateTimings {
             }
             lastReport = ProcessInfo.processInfo.systemUptime
             let sorted = samples.sorted()
+            let firstNow = first
             lock.unlock()
-            FileHandle.standardError.write(Data((summary(of: sorted) + "\n").utf8))
+            FileHandle.standardError.write(
+                Data((summary(of: sorted, first: firstNow) + "\n").utf8))
         }
     }
 
-    /// The line itself, from durations sorted ascending.
-    /// 那一行本身，由遞增排序的耗時算出。
-    static func summary(of sorted: [Double]) -> String {
+    /// The line itself, from durations sorted ascending, and the first update's
+    /// duration when known. `rest_median_ms` is left out when there is no other
+    /// update to take a median of.
+    /// 那一行本身，由遞增排序的耗時算出，已知時再加上第一次更新的耗時。沒有其他更新可取中位數時，
+    /// 不印 `rest_median_ms`。
+    static func summary(of sorted: [Double], first: Double? = nil) -> String {
         guard !sorted.isEmpty else { return "update-stats: count=0" }
         func ms(_ seconds: Double) -> String { String(format: "%.1f", seconds * 1000) }
-        func rank(_ fraction: Double) -> Double {
-            sorted[min(sorted.count - 1, Int((Double(sorted.count - 1) * fraction).rounded()))]
+        func rank(_ values: [Double], _ fraction: Double) -> Double {
+            values[min(values.count - 1, Int((Double(values.count - 1) * fraction).rounded()))]
         }
-        return "update-stats: count=\(sorted.count) median_ms=\(ms(rank(0.5))) "
-            + "p95_ms=\(ms(rank(0.95))) max_ms=\(ms(sorted[sorted.count - 1]))"
+        var line = "update-stats: count=\(sorted.count) median_ms=\(ms(rank(sorted, 0.5))) "
+            + "p95_ms=\(ms(rank(sorted, 0.95))) max_ms=\(ms(sorted[sorted.count - 1]))"
+        if let first {
+            line += " first_ms=\(ms(first))"
+            var rest = sorted
+            if let index = rest.firstIndex(of: first) { rest.remove(at: index) }
+            if !rest.isEmpty { line += " rest_median_ms=\(ms(rank(rest, 0.5)))" }
+        }
+        return line
     }
 }

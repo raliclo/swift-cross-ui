@@ -154,15 +154,32 @@ toolchain was installed (2026-10-05); it is done below.
     for the four apps with >= 50 updates, Android median / p95 vs iOS -- P52
     5.8/114 vs 9.5/52, P64 2.5/3.8 vs 3.6/5.1, P66 2.3/5.3 vs 1.0/1.9, P72
     7.4/10.0 vs 5.3/6.1 ms. The gap left is elsewhere, see the next item.
-  - [ ] **Android: the first updates after launch.** Over 58 apps the Android
+  - [x] **Android: the first updates after launch.** Over 58 apps the Android
     median is 1.44x iOS (median of medians 17.0 vs 10.8 ms, p95 52.5 vs 29.2),
     and the difference sits in apps with few updates, i.e. the first ones after
     launch: P2 83 vs 11 ms for its one update, P4 69 vs 28, P7 max 140 vs 50.
     Likely first-run JIT, class loading and first View creation through JNI --
     unproven. Next: have UpdateTimings report the first update separately, then
     decide whether a warm-up or an ART baseline profile is worth it.
-  - [ ] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
+    DONE 2026-10-05, and the guess was wrong. The line now ends in
+    `first_ms=` and `rest_median_ms=` (UpdateTimings.swift, its tests,
+    csv2_rows.zsh and update_stats_table.zsh carry the two columns; files from
+    before have them blank). Android, three runs each, first / rest median ms:
+    P1 open-the-root-sheet 15.4 / 55.3, 19.5 / 102.6, 22.6 / 43.0; P2
+    expand-the-picker-options 70.1 / 92.4, 161.1 / 96.0, 62.6 / 98.1; P12
+    increment-the-counter 35.2 / 69.5, 36.5 / 68.7, 36.4 / 12.1. One run each
+    of P0 13.0 / 13.3, P4 59.1 / 50.9, P7 32.3 / 9.0, P66 11.0 / 1.8. The
+    slow updates are the later ones that open a sheet or a picker, not the
+    first after launch, so a warm-up or baseline profile aimed at start-up is
+    not supported; only P7 looks like a start-up cost. (iOS runs use different
+    action files, so they are not compared per app.) See the next item.
+  - [ ] **Android: updates that create views are slow** (found 2026-10-05,
+    above). P1's sheet 43-103 ms and P2's picker 92-98 ms on Android. Next:
+    time where those updates go -- widget creation through JNI, layout, or the
+    Kotlin side -- before choosing a fix.
+  - [x] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
+    2026-10-05: ticked -- every item under it was already [x].
     - [x] 1. FIXED 2026-10-04 (CustomPopupWindow.showBeside + resolveEdge; new
       P50-arrow-edge-leading.csv). P50 `arrowEdge(.trailing)`: the panel is pushed up above the button
       and the arrow does not point at it. presentPopover places leading/trailing

@@ -9,7 +9,9 @@
 #   zsh testapp/update_stats_table.zsh            Markdown table on stdout
 #   zsh testapp/update_stats_table.zsh -o FILE    also write it to FILE
 #
-# Each cell is "median / p95 / max ms (n updates)" for that platform's run. An
+# Each cell is "median / p95 / max ms (n updates)" for that platform's run, with
+# ", first F / rest R" inside the parentheses when the run reported the first
+# update apart (files written before 2026-10-05 do not have it). An
 # app with several action files on one platform shows the one with the most
 # updates, and says how many others there were, because the action files are
 # written per platform and do not line up one to one. "none" means the app ran
@@ -19,7 +21,8 @@
 # Read with `csv2 -r --json`, never by splitting on commas.
 #
 # 每支測試 app 的更新耗時，Android、iOS、macOS 並列成一張表，資料來自 sweep 寫出的檔案。每格是該平台
-# 那次執行的「中位數 / p95 / 最大 ms(n 次更新)」。一支 app 在同一平台有多份動作檔時，取更新次數最多的
+# 那次執行的「中位數 / p95 / 最大 ms(n 次更新)」;該次執行有分開回報第一次更新時，括號內再加上
+# 「, first F / rest R」(2026-10-05 以前寫的檔案沒有)。一支 app 在同一平台有多份動作檔時，取更新次數最多的
 # 那一份，並註明還有幾份，因為動作檔是依平台分別寫的，不是一一對應。「none」表示 app 跑了但什麼都沒
 # 回報；空白表示該平台沒有這支 app 的檔案。以 `csv2 -r --json` 讀取，絕不以逗號切割。
 
@@ -76,7 +79,11 @@ for app in apps:
             cells.append("0 updates" + more)
         else:
             median, p95, top = f["median_ms"], f["p95_ms"], f["max_ms"]
-            cells.append(f"{median} / {p95} / {top} ms (n={count}){more}")
+            first, rest = f.get("first_ms", ""), f.get("rest_median_ms", "")
+            split = ""
+            if first:
+                split = f", first {first}" + (f" / rest {rest}" if rest else "")
+            cells.append(f"{median} / {p95} / {top} ms (n={count}{split}){more}")
     print(f"| {app} | " + " | ".join(cells) + " |")
 ')"
 

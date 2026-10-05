@@ -26,4 +26,24 @@ struct UpdateTimingsTests {
                 == "update-stats: count=1 median_ms=4.2 p95_ms=4.2 max_ms=4.2"
         )
     }
+
+    @Test("the first update is reported on its own and left out of rest_median_ms")
+    func firstApart() {
+        // A slow first update (83 ms) then 2, 3, 4 ms: the overall median moves up to
+        // 4 ms, the rest's stays at 3 ms.
+        let sorted = [0.002, 0.003, 0.004, 0.083]
+        #expect(
+            UpdateTimings.summary(of: sorted, first: 0.083)
+                == "update-stats: count=4 median_ms=4.0 p95_ms=83.0 max_ms=83.0 "
+                + "first_ms=83.0 rest_median_ms=3.0"
+        )
+    }
+
+    @Test("a single update has a first_ms but no rest to take a median of")
+    func firstOnly() {
+        #expect(
+            UpdateTimings.summary(of: [0.083], first: 0.083)
+                == "update-stats: count=1 median_ms=83.0 p95_ms=83.0 max_ms=83.0 first_ms=83.0"
+        )
+    }
 }

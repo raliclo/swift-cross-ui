@@ -54,19 +54,24 @@ csv2_has() {
 # 從一次執行的 log 取出 `update-stats: ...`;app 什麼都沒回報時記為 none。
 update_stats_record() {
     local file="$1" app="$2" scenario="$3" log="$4" line count median p95 max
+    local first="" rest=""
     [ -f "$file" ] || csv2_new "$file" \
-        'app,scenario,count,median_ms,p95_ms,max_ms' \
-        '應用程式,情境,更新次數,中位數毫秒,p95毫秒,最大毫秒'
+        'app,scenario,count,median_ms,p95_ms,max_ms,first_ms,rest_median_ms' \
+        '應用程式,情境,更新次數,中位數毫秒,p95毫秒,最大毫秒,第一次毫秒,其餘中位數毫秒'
     line="$(grep -ao 'update-stats: count=[0-9]*[^[:cntrl:]]*' "$log" 2>/dev/null | tail -1 || true)"
     count="${${line#*count=}%% *}"
     median="${${line#*median_ms=}%% *}"
     p95="${${line#*p95_ms=}%% *}"
     max="${${line#*max_ms=}%% *}"
+    # Only when the key is there: `${line#*first_ms=}` with no match is the whole line.
+    # 只在該鍵存在時取值：沒有相符時 `${line#*first_ms=}` 會是整行。
+    [[ "$line" == *" first_ms="* ]] && first="${${line#* first_ms=}%% *}"
+    [[ "$line" == *" rest_median_ms="* ]] && rest="${${line#* rest_median_ms=}%% *}"
     if [ -z "$line" ]; then
-        csv2_append "$file" "$app" "$scenario" none "" "" ""
+        csv2_append "$file" "$app" "$scenario" none "" "" "" "" ""
     elif [ "$count" = 0 ]; then
-        csv2_append "$file" "$app" "$scenario" 0 "" "" ""
+        csv2_append "$file" "$app" "$scenario" 0 "" "" "" "" ""
     else
-        csv2_append "$file" "$app" "$scenario" "$count" "$median" "$p95" "$max"
+        csv2_append "$file" "$app" "$scenario" "$count" "$median" "$p95" "$max" "$first" "$rest"
     fi
 }
