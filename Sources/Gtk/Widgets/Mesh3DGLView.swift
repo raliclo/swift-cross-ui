@@ -31,6 +31,9 @@ public class Mesh3DGLView: GLArea {
     private var renderer: OpaquePointer?
     private var didRealize = false
     private var pendingGeometry: (vertices: [Float], indices: [UInt32])?
+    /// The geometry last uploaded, re-sent after the context is recreated.
+    /// 最後一次上傳的幾何，context 重建後重新送出。
+    private var uploadedGeometry: (vertices: [Float], indices: [UInt32])?
 
     public var frame = Frame()
     public private(set) var shaderError: String?
@@ -49,6 +52,7 @@ public class Mesh3DGLView: GLArea {
         self.init(gtk_gl_area_new())
         renderer = scui_mesh3d_renderer_new()
         hasDepthBuffer = true
+        connectUnrealize()
         render = { [weak self] area, _ in
             guard let self else { return false }
             self.drawFrame()
@@ -57,7 +61,60 @@ public class Mesh3DGLView: GLArea {
     }
 
     deinit {
+        if unrealizeHandlerID != 0 {
+            g_signal_handler_disconnect(UnsafeMutableRawPointer(widgetPointer), unrealizeHandlerID)
+        }
         scui_mesh3d_renderer_free(renderer)
+    }
+
+    /// The GL objects belong to the area's context, and GTK destroys that context
+    /// on unrealize -- removing the view and adding it back, or moving it to
+    /// another window, gives it a new one. So the objects are deleted here,
+    /// while the old context is still current (this handler runs before
+    /// GtkGLArea's own), the renderer is marked unrealised, and the last
+    /// geometry is queued again for the next context. Until 2026-10-07 the
+    /// renderer kept the dead handles (review, Codex).
+    /// GL 物件屬於 area 的 context,而 GTK 在 unrealize 時會銷毀它——移除再加回 view、或移到另一個視窗，都會拿到
+    /// 新的 context。所以在這裡、舊 context 仍為 current 時(此處理器在 GtkGLArea 自己的之前執行)刪除物件，把
+    /// renderer 標為未初始化，並把最後的幾何重新排入，給下一個 context。2026-10-07 之前 renderer 會沿用失效的
+    /// handle(review,Codex)。
+    private var unrealizeHandlerID: gulong = 0
+
+    /// Connected with `g_signal_connect_data` and no AFTER flag, not through
+    /// `addSignal`: that connects AFTER, and by then GtkGLArea's own unrealize
+    /// has destroyed the context -- measured, "gtk_gl_area_make_current:
+    /// assertion gtk_widget_get_realized failed". Connected once, in `init`,
+    /// rather than in `registerSignals`, which runs again on every reparent.
+    /// 以 `g_signal_connect_data` 且不帶 AFTER 連接，而不是經由 `addSignal`:後者以 AFTER 連接，那時 GtkGLArea
+    /// 自己的 unrealize 已經銷毀了 context——實測出現「gtk_gl_area_make_current: assertion
+    /// gtk_widget_get_realized failed」。只在 `init` 中連接一次，不放在每次換 parent 都會重跑的 `registerSignals`。
+    private func connectUnrealize() {
+        let handler: @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Void = {
+            _, data in
+            guard let data else { return }
+            Unmanaged<Mesh3DGLView>.fromOpaque(data).takeUnretainedValue().releaseGL()
+        }
+        unrealizeHandlerID = g_signal_connect_data(
+            UnsafeMutableRawPointer(widgetPointer),
+            "unrealize",
+            unsafeBitCast(handler, to: GCallback.self),
+            Unmanaged.passUnretained(self).toOpaque(),
+            nil,
+            SHIM_G_CONNECT_DEFAULT
+        )
+    }
+
+    private func releaseGL() {
+        guard let handle = renderer, didRealize else { return }
+        gtk_gl_area_make_current(castedPointer())
+        if gtk_gl_area_get_error(castedPointer()) == nil {
+            scui_mesh3d_renderer_release(handle)
+        }
+        didRealize = false
+        shaderError = nil
+        if pendingGeometry == nil {
+            pendingGeometry = uploadedGeometry
+        }
     }
 
     public func setGeometry(vertices: [Float], indices: [UInt32]) {
@@ -104,6 +161,7 @@ public class Mesh3DGLView: GLArea {
 
         if let geometry = pendingGeometry {
             pendingGeometry = nil
+            uploadedGeometry = geometry
             geometry.vertices.withUnsafeBufferPointer { vertices in
                 geometry.indices.withUnsafeBufferPointer { indices in
                     scui_mesh3d_renderer_set_geometry(

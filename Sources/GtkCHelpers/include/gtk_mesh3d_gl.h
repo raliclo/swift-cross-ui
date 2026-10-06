@@ -25,6 +25,11 @@ void scui_mesh3d_renderer_free(SCUIMesh3DRenderer *renderer);
 /// context current. Returns 0 on failure, with the reason in `error`.
 int scui_mesh3d_renderer_realize(SCUIMesh3DRenderer *renderer);
 const char *scui_mesh3d_renderer_error(const SCUIMesh3DRenderer *renderer);
+
+/// Deletes the GL objects, with the context still current (the GLArea's
+/// `unrealize`), and returns the renderer to its unrealised state so the next
+/// context can realize it again.
+void scui_mesh3d_renderer_release(SCUIMesh3DRenderer *renderer);
 /// "GL_RENDERER / GL_VERSION", valid after realize.
 const char *scui_mesh3d_renderer_name(const SCUIMesh3DRenderer *renderer);
 

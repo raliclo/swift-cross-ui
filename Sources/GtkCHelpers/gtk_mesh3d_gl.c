@@ -134,6 +134,16 @@ int scui_mesh3d_renderer_realize(SCUIMesh3DRenderer *renderer) {
     return 1;
 }
 
+void scui_mesh3d_renderer_release(SCUIMesh3DRenderer *renderer) {
+    if (renderer->ebo) glDeleteBuffers(1, &renderer->ebo);
+    if (renderer->vbo) glDeleteBuffers(1, &renderer->vbo);
+    if (renderer->vao) glDeleteVertexArrays(1, &renderer->vao);
+    if (renderer->program) glDeleteProgram(renderer->program);
+    renderer->ebo = renderer->vbo = renderer->vao = renderer->program = 0;
+    free(renderer->error);
+    renderer->error = NULL;
+}
+
 const char *scui_mesh3d_renderer_error(const SCUIMesh3DRenderer *renderer) {
     return renderer->error;
 }
