@@ -54,10 +54,17 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     `"."` as a save choice accepts any name. Windows machine.
   - [ ] **WinUI: the save dialog ignores `defaultFileName`** (no
     `suggestedFileName`), seen while editing it.
-  - [ ] **`DocumentGroup`'s doc says it opens through the open dialog and
+  - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
-    doc or the scene is wrong.
+    doc or the scene is wrong. FIXED 2026-10-06, the scene: `saveDocument()`
+    (environment action in every document window) writes to the file, or
+    through the save dialog (writableContentTypes, "<title>.<ext>") when
+    untitled or `saveAs: true`; the window takes the file's name. P62 gains
+    "save"; actions/mac/P62-save-untitled.csv: type A, save, Return ->
+    "save -> true", window titled Untitled.txt, the file holds "A" (it lands in
+    the panel's default folder, ~/Documents here; removed after the run).
+    The doc now says what the scene does.
 - [x] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
   "TODO: Implement decimalPlaces"). DONE 2026-10-06, 585788b5: rounded as UIKit
   does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.csv

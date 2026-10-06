@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform,target
+sleep,,,,,,1200000,let the document window lay out,macos,
+click,48,237,frame,left,,,type A -- the document reads A,macos,
+sleep,,,,,,300000,,macos,
+click,260,237,frame,left,,,"save -- untitled, so the save panel opens with Untitled.txt",macos,
+sleep,,,,,,2500000,let the save panel appear,macos,
+key,,,,,return,,"Return -- saves; the window must then be titled Untitled.txt",macos,
+sleep,,,,,,2500000,hold for the capture,macos,

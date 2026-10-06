@@ -780,6 +780,20 @@ extension EnvironmentValues {
         OpenDocumentAction(environment: self)
     }
 
+    /// Saves the document this view belongs to: to the file it came from, or
+    /// through the save dialog when it has none (or with `saveAs: true`).
+    /// 儲存此 view 所屬的文件：存回它的來源檔，沒有來源檔(或 `saveAs: true`)時經由儲存對話框。
+    @MainActor
+    public var saveDocument: SaveDocumentAction {
+        SaveDocumentAction(environment: self)
+    }
+
+    /// The document of the window a view is in, set by ``DocumentGroup``; `nil`
+    /// outside a document window.
+    /// view 所在視窗的文件，由 ``DocumentGroup`` 設定；不在文件視窗中時為 `nil`。
+    @Entry internal var documentSaveStore: UncheckedSendable<DocumentSaveStore?> =
+        UncheckedSendable(wrappedValue: nil)
+
     /// Where a ``DocumentGroup`` leaves "new" and "open".
     /// ``DocumentGroup`` 存放「新增」與「開啟」之處。
     internal var documentRegistry: DocumentRegistry {

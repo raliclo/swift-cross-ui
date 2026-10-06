@@ -14,8 +14,12 @@ import Foundation
 /// the document changed -- there is no separate "mark dirty" call to forget.
 ///
 /// **WHAT THIS DOES AND DOES NOT DO, said here rather than discovered.** It
-/// opens one untitled document at launch, opens files through the platform's
-/// open dialog, and writes them back through the save dialog. It does NOT yet
+/// opens one untitled document at launch; `openDocument(url)` opens a file in
+/// a window of its own (present `chooseFile(allowedContentTypes:
+/// openDocument.readableContentTypes)` first); `saveDocument()` writes a
+/// window's document back, through the save dialog when it has no file yet
+/// (until 2026-10-06 this paragraph claimed the dialogs and nothing saved at
+/// all). It does NOT yet
 /// do: autosave, versions, the "unsaved changes" prompt on close, or reopening
 /// the documents that were open last time. Those are each a decision about
 /// behaviour rather than plumbing, and a scene that silently did half of them
@@ -26,8 +30,10 @@ import Foundation
 /// 那個編輯器 closure 收到的是一個 `Binding`,因此「透過它寫入」本身就是「文件被改動了」——不存在
 /// 另一個「標記為已修改」的呼叫可以忘記。
 ///
-/// **它做什麼、不做什麼,在此處說明,而不是留給人去發現。** 它會在啟動時開啟一份未命名文件、透過平台的
-/// 開啟對話框開檔、並透過儲存對話框寫回。它**尚未**做:自動儲存、版本、關閉時的「尚未儲存」提示,
+/// **它做什麼、不做什麼,在此處說明,而不是留給人去發現。** 它會在啟動時開啟一份未命名文件;`openDocument(url)`
+/// 在獨立視窗開啟檔案(先呈現 `chooseFile(allowedContentTypes: openDocument.readableContentTypes)`);
+/// `saveDocument()` 把視窗的文件寫回，尚無檔案時經由儲存對話框(2026-10-06 之前這段宣稱有對話框，而實際上
+/// 什麼都沒存)。它**尚未**做:自動儲存、版本、關閉時的「尚未儲存」提示,
 /// 以及「重新開啟上次開著的那些文件」。這些每一項都是關於**行為**的決定、而非管線問題;而一個
 /// 「默默做了其中一半」的 scene,會比一個「說清楚自己做了哪一半」的更糟。
 public struct DocumentGroup<Document: FileDocument, Content: View>: Scene {
@@ -142,7 +148,8 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
 
     private var scene: DocumentGroup<Document, Content>
     private var documents: [UUID: OpenDocument<Document>] = [:]
-    private var windows: [UUID: WindowReference<DocumentWindowScene<Content>>] = [:]
+    private var windows: [UUID: WindowReference<DocumentWindowScene<DocumentEditorHost<Content>>>] =
+        [:]
 
     public init<Backend: BaseAppBackend>(
         from scene: DocumentGroup<Document, Content>,
@@ -230,12 +237,13 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
         for id: UUID,
         backend: Backend,
         environment: EnvironmentValues
-    ) -> DocumentWindowScene<Content> {
+    ) -> DocumentWindowScene<DocumentEditorHost<Content>> {
         let editor = scene.editor
         return DocumentWindowScene(
             title: documents[id]?.title ?? "Untitled",
             content: { [weak self] in
-                editor(
+                DocumentEditorHost(
+                    content: editor(
                     Binding(
                         get: { self?.documents[id]?.document ?? Document() },
                         set: { newValue in
@@ -264,6 +272,41 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
                             }
                         }
                     )
+                    ),
+                    store: self?.saveStore(for: id, backend: backend, environment: environment)
+                )
+            }
+        )
+    }
+
+    /// The save half of a document window: its URL, its name, and the write,
+    /// which also gives the window the file's name. `nil` once the document is
+    /// gone (its window closed).
+    /// 文件視窗的存檔部分：它的 URL、名字，以及寫出——寫出後視窗也改用該檔名。文件已不在(視窗已關)時為 `nil`。
+    private func saveStore<Backend: BaseAppBackend>(
+        for id: UUID,
+        backend: Backend,
+        environment: EnvironmentValues
+    ) -> DocumentSaveStore? {
+        guard documents[id] != nil else { return nil }
+        return DocumentSaveStore(
+            url: { [weak self] in self?.documents[id]?.url },
+            suggestedName: { [weak self] in
+                let title = self?.documents[id]?.title ?? "Untitled"
+                guard self?.documents[id]?.url == nil,
+                    let fileExtension = Document.writableContentTypes.first?.fileExtensions.first
+                else { return title }
+                return "\(title).\(fileExtension)"
+            },
+            writableContentTypes: Document.writableContentTypes,
+            write: { [weak self] url in
+                guard let self, let open = self.documents[id] else { return }
+                try open.document.data().write(to: url, options: .atomic)
+                open.url = url
+                self.windows[id]?.update(
+                    self.windowScene(for: id, backend: backend, environment: environment),
+                    backend: backend,
+                    environment: environment
                 )
             }
         )
@@ -295,5 +338,17 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
         )
         windows[id] = reference
         reference.update(nil, backend: backend, environment: environment)
+    }
+}
+/// The editor of one document window, with that window's save store in its
+/// environment -- which is how ``SaveDocumentAction`` knows which document it
+/// saves.
+/// 一個文件視窗的編輯器，其 environment 中帶著該視窗的存檔資料——``SaveDocumentAction`` 就是靠這個知道要存哪份文件。
+struct DocumentEditorHost<Content: View>: View {
+    var content: Content
+    var store: DocumentSaveStore?
+
+    var body: some View {
+        content.environment(\.documentSaveStore, UncheckedSendable(wrappedValue: store))
     }
 }

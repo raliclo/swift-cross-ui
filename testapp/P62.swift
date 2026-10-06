@@ -124,6 +124,7 @@ struct P62EditorView: View {
     @Environment(\.newDocument) var newDocument
     @Environment(\.openDocument) var openDocument
     @Environment(\.chooseFile) var chooseFile
+    @Environment(\.saveDocument) var saveDocument
 
     /// A per-window label, so a capture of two windows says which is which.
     ///
@@ -165,6 +166,12 @@ struct P62EditorView: View {
                 Button("type B") { append("B") }
                 Button("open…") {
                     Task { await openText() }
+                }
+                Button("save") {
+                    Task {
+                        let saved = await saveDocument()
+                        P62Diagnostics.write("window \(windowNumber) save -> \(saved)")
+                    }
                 }
                 Button("clear") {
                     document.text = ""

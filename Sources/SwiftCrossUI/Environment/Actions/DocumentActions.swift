@@ -65,3 +65,72 @@ public struct OpenDocumentAction {
         environment.documentRegistry.writableContentTypes
     }
 }
+/// One document window's file: where it is, what to call it, and how to write
+/// it. Set by ``DocumentGroup`` on each document window's environment.
+/// 一個文件視窗的檔案：它在哪裡、叫什麼、如何寫出。由 ``DocumentGroup`` 設定在每個文件視窗的 environment 上。
+@MainActor
+final class DocumentSaveStore {
+    let url: () -> URL?
+    let suggestedName: () -> String
+    let writableContentTypes: [ContentType]
+    let write: (URL) throws -> Void
+
+    init(
+        url: @escaping () -> URL?,
+        suggestedName: @escaping () -> String,
+        writableContentTypes: [ContentType],
+        write: @escaping (URL) throws -> Void
+    ) {
+        self.url = url
+        self.suggestedName = suggestedName
+        self.writableContentTypes = writableContentTypes
+        self.write = write
+    }
+}
+
+/// Saves the document of the window this environment belongs to.
+///
+/// **Added 2026-10-06, because `DocumentGroup` said it did this and did not.**
+/// Its documentation promised "writes them back through the save dialog";
+/// nothing in the tree wrote a document anywhere. To the file it was opened
+/// from, or -- untitled, or `saveAs: true` -- to wherever the save dialog
+/// returns, offering the document's `writableContentTypes`. The window then
+/// takes the file's name.
+///
+/// 儲存此 environment 所屬視窗的文件。**2026-10-06 加入，因為 `DocumentGroup` 說它做了這件事、卻沒有做。**
+/// 它的文件承諾「經由儲存對話框寫回」;整棵樹裡沒有任何東西把文件寫到任何地方。存回它被開啟的檔案；未命名、
+/// 或 `saveAs: true` 時，存到儲存對話框回傳的位置，並提供文件的 `writableContentTypes`。之後視窗改用該檔名。
+@MainActor
+public struct SaveDocumentAction {
+    let environment: EnvironmentValues
+
+    /// - Returns: Whether the document was written. `false` when the dialog
+    ///   was cancelled, when the write failed (logged), or outside a
+    ///   document window (logged).
+    /// - Returns:文件是否已寫出。對話框被取消、寫入失敗(有記錄)或不在文件視窗中(有記錄)時為 `false`。
+    @discardableResult
+    public func callAsFunction(saveAs: Bool = false) async -> Bool {
+        guard let store = environment.documentSaveStore.wrappedValue else {
+            logger.warning("saveDocument() called outside a DocumentGroup window")
+            return false
+        }
+        var destination = saveAs ? nil : store.url()
+        if destination == nil {
+            destination = await environment.chooseFileSaveDestination(
+                defaultFileName: store.suggestedName(),
+                allowedContentTypes: store.writableContentTypes
+            )
+        }
+        guard let destination else { return false }
+        do {
+            try store.write(destination)
+            return true
+        } catch {
+            logger.warning(
+                "could not save document",
+                metadata: ["url": "\(destination.path)", "error": "\(error)"]
+            )
+            return false
+        }
+    }
+}
