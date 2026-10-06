@@ -64,6 +64,11 @@ if [ "$print_env" -eq 1 ]; then
     print 'export ANDROID_SDK_ROOT="$ANDROID_HOME"'
     print "export ANDROID_NDK_HOME=\"$android_root/ndk/$android_ndk_version\""
     print 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"'
+    # xcode-select 指向 CommandLineTools 時，swift-bundler 缺 `xcstringstool` 而建不起來（2026-10-06）。
+    # With xcode-select on CommandLineTools, swift-bundler lacks `xcstringstool` and fails (2026-10-06).
+    if [[ "$(xcode-select -p 2>/dev/null)" == *CommandLineTools* && -d /Applications/Xcode.app ]]; then
+        print 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer'
+    fi
     exit 0
 fi
 
@@ -72,8 +77,13 @@ fi
 if [ "$check_only" -eq 0 ]; then
     mkdir -p "$android_root"
     yes 2>/dev/null | "$sdkmanager" --sdk_root="$android_root" --licenses >/dev/null 2>&1 || true
+    # `cmdline-tools;latest` 裝進 SDK root：Homebrew 的 avdmanager 對這個 SDK root 建 AVD 會以
+    # "Package path is not valid" 失敗，SDK root 裡自己的那一份才行（2026-10-06 實測）。
+    # `cmdline-tools;latest` goes into the SDK root: Homebrew's avdmanager fails to create an AVD
+    # against this SDK root with "Package path is not valid"; the copy inside the root works
+    # (measured 2026-10-06).
     ANDROID_HOME="$android_root" "$sdkmanager" --sdk_root="$android_root" \
-        emulator platform-tools "$android_platform" "$android_build_tools" "$system_image"
+        emulator platform-tools "cmdline-tools;latest" "$android_platform" "$android_build_tools" "$system_image"
 fi
 
 # The NDK from the official DMG, checked against Google's published SHA-1 before
