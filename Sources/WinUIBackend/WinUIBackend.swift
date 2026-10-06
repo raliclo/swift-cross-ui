@@ -2443,124 +2443,31 @@ public final class WinUIBackend:
         }
     }
 
+    // Both dialogs go through the Win32 shell `IFileDialog` now; the WinRT
+    // pickers that were here could not take a start folder, a title, hidden
+    // files or a name-field label, and aborted on more than one folder. See
+    // WinUIBackend+FileDialogs.swift for the measurement.
+    // 兩種對話框現在都經由 Win32 shell 的 `IFileDialog`;原本的 WinRT picker 無法指定起始資料夾、標題、
+    // 隱藏檔或檔名欄標籤,選多個資料夾還會中止行程。量測記錄見 WinUIBackend+FileDialogs.swift。
     public func showOpenDialog(
         fileDialogOptions: FileDialogOptions,
         openDialogOptions: OpenDialogOptions,
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
     ) {
-        switch openDialogOptions.singleKindSelectionMode {
-            case .files:
-                showFileOpenDialog(
-                    fileDialogOptions: fileDialogOptions,
-                    openDialogOptions: openDialogOptions,
-                    window: window,
-                    resultHandler: handleResult
-                )
-            case .directories:
-                showFolderOpenDialog(
-                    fileDialogOptions: fileDialogOptions,
-                    openDialogOptions: openDialogOptions,
-                    window: window,
-                    resultHandler: handleResult
-                )
-        }
-    }
-
-    private func showFileOpenDialog(
-        fileDialogOptions: FileDialogOptions,
-        openDialogOptions: OpenDialogOptions,
-        window: Window?,
-        resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
-    ) {
-        let picker = FileOpenPicker()
-
         let window = window ?? windows[0]
         let hwnd = window.getHWND()!
-        let interface: SwiftIInitializeWithWindow = try! picker.thisPtr.QueryInterface()
-        try! interface.initialize(with: hwnd)
-
-        // The allowed extensions, or everything when there are none or others
-        // are allowed too. Until 2026-10-06 always everything. Not yet run on
-        // Windows.
-        // 允許的副檔名；沒有指定、或也允許其他型別時為全部。2026-10-06 之前一律全部。尚未在 Windows 上執行過。
-        let extensions = fileDialogOptions.allowedContentTypes.flatMap(\.fileExtensions)
-        if extensions.isEmpty || fileDialogOptions.allowOtherContentTypes {
-            picker.fileTypeFilter.append("*")
-        }
-        for fileExtension in extensions {
-            picker.fileTypeFilter.append("." + fileExtension)
-        }
-
-        if openDialogOptions.allowMultipleSelections {
-            let promise = try! picker.pickMultipleFilesAsync()!
-            promise.completed = { operation, status in
-                let result: DialogResult<[URL]> = Self.handleAsyncOperationCompletion(
-                    operation,
-                    status
-                ) { result in
-                    let files = Array(result).compactMap { $0 }
-                        .map(\.path)
-                        .map(URL.init(fileURLWithPath:))
-                    return .success(files)
-                } onFailure: {
-                    return .cancelled
-                }
-                Self.restoreForeground(of: hwnd)
-                handleResult(result)
+        let kind: ShellDialogKind =
+            switch openDialogOptions.singleKindSelectionMode {
+                case .files: .openFiles(multiple: openDialogOptions.allowMultipleSelections)
+                case .directories: .openFolders(multiple: openDialogOptions.allowMultipleSelections)
             }
+        let urls = Self.runShellFileDialog(kind, options: fileDialogOptions, owner: hwnd)
+        Self.restoreForeground(of: hwnd)
+        if let urls, !urls.isEmpty {
+            handleResult(.success(urls))
         } else {
-            let promise = try! picker.pickSingleFileAsync()!
-            promise.completed = { operation, status in
-                let result: DialogResult<[URL]> = Self.handleAsyncOperationCompletion(
-                    operation,
-                    status
-                ) { result in
-                    let file = URL(fileURLWithPath: result.path)
-                    return .success([file])
-                } onFailure: {
-                    return .cancelled
-                }
-                Self.restoreForeground(of: hwnd)
-                handleResult(result)
-            }
-        }
-    }
-
-    private func showFolderOpenDialog(
-        fileDialogOptions: FileDialogOptions,
-        openDialogOptions: OpenDialogOptions,
-        window: Window?,
-        resultHandler handleResult: @escaping (DialogResult<[URL]>) -> Void
-    ) {
-        precondition(
-            !openDialogOptions.allowMultipleSelections,
-            "WinUIBackend does not support selecting multiple folders"
-        )
-
-        let picker = FolderPicker()
-
-        let window = window ?? windows[0]
-        let hwnd = window.getHWND()!
-        let interface: SwiftIInitializeWithWindow = try! picker.thisPtr.QueryInterface()
-        try! interface.initialize(with: hwnd)
-
-        picker.commitButtonText = fileDialogOptions.defaultButtonLabel
-        picker.fileTypeFilter.append("*")
-
-        let promise = try! picker.pickSingleFolderAsync()!
-        promise.completed = { operation, status in
-            let result: DialogResult<[URL]> = Self.handleAsyncOperationCompletion(
-                operation,
-                status
-            ) { result in
-                let folder = URL(fileURLWithPath: result.path)
-                return .success([folder])
-            } onFailure: {
-                return .cancelled
-            }
-            Self.restoreForeground(of: hwnd)
-            handleResult(result)
+            handleResult(.cancelled)
         }
     }
 
@@ -2570,43 +2477,16 @@ public final class WinUIBackend:
         window: Window?,
         resultHandler handleResult: @escaping (DialogResult<URL>) -> Void
     ) {
-        let picker = FileSavePicker()
-
         let window = window ?? windows[0]
         let hwnd = window.getHWND()!
-        let interface: SwiftIInitializeWithWindow = try! picker.thisPtr.QueryInterface()
-        try! interface.initialize(with: hwnd)
-
-        // One choice per content type, then "All files" when there are none or
-        // others are allowed. Until 2026-10-06 every save offered only
-        // "Text (.txt)", whatever the app was saving. "." as the extension list
-        // is meant to accept any name -- an assumption, not yet run on Windows.
-        // 每個內容型別一個選項；沒有指定、或允許其他型別時再加「All files」。2026-10-06 之前每次儲存都只
-        // 提供「Text (.txt)」,不論 app 要存的是什麼。以 "." 作為副檔名清單是為了接受任何檔名——這是假設，
-        // 尚未在 Windows 上執行過。
-        for contentType in fileDialogOptions.allowedContentTypes
-        where !contentType.fileExtensions.isEmpty {
-            _ = picker.fileTypeChoices.insert(
-                contentType.name,
-                contentType.fileExtensions.map { "." + $0 }.toVector()
-            )
-        }
-        if fileDialogOptions.allowedContentTypes.isEmpty || fileDialogOptions.allowOtherContentTypes {
-            _ = picker.fileTypeChoices.insert("All files", ["."].toVector())
-        }
-        let promise = try! picker.pickSaveFileAsync()!
-        promise.completed = { operation, status in
-            let result: DialogResult<URL> = Self.handleAsyncOperationCompletion(
-                operation,
-                status
-            ) { result in
-                let file = URL(fileURLWithPath: result.path)
-                return .success(file)
-            } onFailure: {
-                return .cancelled
-            }
-            Self.restoreForeground(of: hwnd)
-            handleResult(result)
+        let urls = Self.runShellFileDialog(
+            .save(saveDialogOptions), options: fileDialogOptions, owner: hwnd
+        )
+        Self.restoreForeground(of: hwnd)
+        if let url = urls?.first {
+            handleResult(.success(url))
+        } else {
+            handleResult(.cancelled)
         }
     }
 
@@ -2624,52 +2504,6 @@ public final class WinUIBackend:
     /// 少了這步，選完檔案後 app 會留在原本壓在它上面的視窗後面。
     private static func restoreForeground(of hwnd: HWND) {
         _ = SetForegroundWindow(hwnd)
-    }
-
-    /// A helper method that abstracts out the common failure case handling code
-    /// from all of our file dialog related async operation completion handlers.
-    private static func handleAsyncOperationCompletion<T, R>(
-        _ operation: AnyIAsyncOperation<T?>?,
-        _ status: AsyncStatus,
-        onSuccess handleSuccess: (T) -> R,
-        onFailure handleFailure: () -> R
-    ) -> R {
-        guard let operation else {
-            logger.warning(
-                "operation parameter unexpectedly nil",
-                metadata: [
-                    "function": #function
-                ]
-            )
-            return handleFailure()
-        }
-
-        guard
-            status == .completed,
-            let result = try? operation.getResults()
-        else {
-            if status == .error {
-                logger.error(
-                    "\(WindowsFoundation.Error(hr: operation.errorCode))",
-                    metadata: [
-                        "function": #function
-                    ]
-                )
-
-                if UInt32(bitPattern: operation.errorCode) == 0x80004005 {
-                    // https://github.com/microsoft/WindowsAppSDK/issues/4625#issuecomment-2281358235
-                    logger.warning(
-                        """
-                        This may indicate that you're attempting to launch a \
-                        file picker from an app launched as administrator
-                        """
-                    )
-                }
-            }
-            return handleFailure()
-        }
-
-        return handleSuccess(result)
     }
 
     /// How long a press must last to count as a long press.

@@ -50,10 +50,27 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   not-text.png is greyed (it was selectable with the old AppKit code), on iOS
   too; also-text.swift stays selectable on both, correctly -- Swift source
   conforms to plain text. GTK compiled only (no open panel driven).
-  - [ ] **WinUI: compile and run the file-dialog filters.** Unverified: that
-    `"."` as a save choice accepts any name. Windows machine.
-  - [ ] **WinUI: the save dialog ignores `defaultFileName`** (no
-    `suggestedFileName`), seen while editing it.
+  - [x] **WinUI: compile and run the file-dialog filters.** DONE 2026-10-07,
+    after replacing the WinRT pickers with the Win32 shell dialogs
+    (`IFileOpenDialog` / `IFileSaveDialog`, `WinUIBackend+FileDialogs.swift`):
+    WinRT could start only at a `PickerLocationId`, so `initialDirectory` was
+    lost (P62 landed in Documents, P75 in OneDrive Documents). P62 "open…"
+    starts in `%TEMP%\p62-open`, offers "Plain text", lists readable.txt only,
+    and opening it brings up window 2 titled readable.txt
+    (`p62w-open-filter-20261007-033800.png`). The "." question is moot: with no
+    types the save dialog offers "All files" (`*.*`) and P75 saved
+    p75-saved.txt under that exact name. P18: open, folder (`Select`), save
+    destination and Cancel all reach the app (`p18w-*-20261007-03*.png`).
+    Difference from macOS/iOS: `ContentType` is extension-only, so Windows also
+    hides also-text.swift, which UTType conformance keeps selectable there.
+    完成 2026-10-07：以 Win32 shell 對話框取代 WinRT picker（WinRT 只能從
+    `PickerLocationId` 開始，`initialDirectory` 因此遺失）。P62 開檔從 `%TEMP%\p62-open`
+    開始、只列 readable.txt、開啟後出現 readable.txt 視窗；無類型時存檔提供「All files」；
+    P18 開檔、資料夾、存檔、取消皆回到 app。與 macOS/iOS 的差異：`ContentType` 只有副檔名，
+    所以 Windows 也隱藏 also-text.swift。
+  - [x] **WinUI: the save dialog ignores `defaultFileName`** -- FIXED 2026-10-07
+    by the same change (`SetFileName`): P18's save dialog shows "p18-example",
+    P62's "Untitled". 同一變更修正（`SetFileName`）：P18 顯示 p18-example、P62 顯示 Untitled。
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
@@ -86,8 +103,16 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   graph (`InspectView.init(child:inspectionPoints:searching:)`), all five
   backends. AdvancedCustomizationExample runs on AppKit and on Gtk-on-macOS with
   its Picker block restored; P4 runs on iOS and Android.
-  - [ ] **WinUI: compile and run AdvancedCustomizationExample** -- the WinUI
+  - [x] **WinUI: compile and run AdvancedCustomizationExample** -- the WinUI
     half was written here and has not been compiled. Windows machine.
+    **Done 2026-10-07 on Windows:** `swift build --product AdvancedCustomizationExample`
+    in Examples/ built with 0 errors (first build 1117 s). Run: the magenta custom
+    native button, the red `+` with a 10-point top-left corner, and the red picker
+    all show (`ace-winui-20261007-030552.png`); through UIA, + + - read
+    `Count: 1`. Not checked by eye: the slider thumb tooltip, the selectable count
+    text and the green text-field selection highlight.
+    **2026-10-07 已在 Windows 完成:** 編譯 0 error;洋紅按鈕、左上圓角 10 的紅色 `+`、紅色選單都正確顯示,
+    經 UIA 按 + + - 讀到 `Count: 1`。滑桿提示、可選取文字與綠色選取色未以肉眼確認。
   - [x] **Gtk (macOS): the example's red `+` button stays grey** -- its
     `.inspect(.afterUpdate)` sets `css backgroundColor`, and nothing trapped, so
     the closure ran; whether the CSS is overridden by the theme is not known.
