@@ -80,9 +80,14 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   its Picker block restored; P4 runs on iOS and Android.
   - [ ] **WinUI: compile and run AdvancedCustomizationExample** -- the WinUI
     half was written here and has not been compiled. Windows machine.
-  - [ ] **Gtk (macOS): the example's red `+` button stays grey** -- its
+  - [x] **Gtk (macOS): the example's red `+` button stays grey** -- its
     `.inspect(.afterUpdate)` sets `css backgroundColor`, and nothing trapped, so
     the closure ran; whether the CSS is overridden by the theme is not known.
+    FIXED 2026-10-06: not the theme. The button's own rules and the app's
+    `css` share one CssProvider and each `loadCss` replaced the other, so the
+    next `updateButton` erased the red. `Widget.reloadCSS()` is open now and
+    GtkCustomButton writes both, the app's under a more specific selector.
+    The example's `+` is red on Gtk-on-macOS.
 - [x] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
   (`UIKitBackend+Window.swift:283`) only paints the background from
   `colorScheme` and carries "TODO: Support preferredColorScheme"; views set

@@ -152,6 +152,20 @@ fileprivate final class GtkCustomButton: Gtk.Button {
         }
     }
 
+    /// The button's own rules, from `loadCSS(environment:)`.
+    /// 按鈕自己的規則，來自 `loadCSS(environment:)`。
+    private var baseCSS = ""
+
+    /// Both rule sets in the one provider: the button's, then the app's `css`
+    /// under `button.customButton.<class>` -- more specific than every rule
+    /// above that sets a background, and later than the equally specific
+    /// `.flat` one, so what the app asked for wins.
+    /// 兩組規則放在同一個 provider:先是按鈕的，再是 app 的 `css`,選擇器為 `button.customButton.<class>`——
+    /// 比上方所有設定背景的規則更具體，且排在同樣具體的 `.flat` 規則之後，因此 app 所要求的勝出。
+    override func reloadCSS() {
+        cssProvider.loadCss(from: baseCSS + "\nbutton.customButton" + css.stringRepresentation)
+    }
+
     init() {
         super.init(gtk_button_new())
 
@@ -160,8 +174,16 @@ fileprivate final class GtkCustomButton: Gtk.Button {
 
     @MainActor
     func loadCSS(environment: EnvironmentValues) {
+        // The button's own rules and the app's `css` share one provider, and
+        // `loadCss` replaces what a provider holds. Until 2026-10-06 each update
+        // replaced the other, so `.inspect { button.css.set(...) }` lost to the
+        // next `updateButton` -- AdvancedCustomizationExample's red `+` stayed
+        // grey on GtkBackend. `reloadCSS` below writes both.
+        // 按鈕自己的規則與 app 的 `css` 共用一個 provider,而 `loadCss` 會取代 provider 的內容。2026-10-06
+        // 之前兩者每次更新都互相取代，所以 `.inspect { button.css.set(...) }` 輸給下一次 `updateButton`——
+        // AdvancedCustomizationExample 的紅色 `+` 在 GtkBackend 上一直是灰的。下方的 `reloadCSS` 兩者都寫。
         let backgroundColor = GtkBackend.controlBackgroundColor(for: environment)
-        cssProvider.loadCss(from: """
+        baseCSS = """
                 button.customButton {
                     min-width: 0px;
                     min-height: 0px;
@@ -187,7 +209,8 @@ fileprivate final class GtkCustomButton: Gtk.Button {
                 button.customButton.flat:disabled {
                     opacity: 0.5;
                 }
-            """)
+            """
+        reloadCSS()
         // Why 50% disabled opacity was chosen:
         // https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/css-variables.html#opacity
         // (switch to the variable when we have adwaita)

@@ -53,8 +53,17 @@ open class Widget: GObject {
     public lazy var css: CSSBlock = CSSBlock(forClass: customCSSClass) {
         didSet {
             guard oldValue != css else { return }
-            cssProvider.loadCss(from: css.stringRepresentation)
+            reloadCSS()
         }
+    }
+
+    /// Loads `css` into this widget's provider. Open so a widget that writes
+    /// rules of its own into the same provider can keep both -- a second
+    /// `loadCss` replaces the provider's contents, it does not add to them.
+    /// 把 `css` 載入本 widget 的 provider。設為 open,讓會在同一個 provider 寫入自己規則的 widget 能兩者並存——
+    /// 第二次 `loadCss` 會取代 provider 的內容，而不是附加。
+    open func reloadCSS() {
+        cssProvider.loadCss(from: css.stringRepresentation)
     }
 
     /// A unique CSS class for this widget. The class is lazily added to the
