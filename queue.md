@@ -32,8 +32,14 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   (`UIKitBackend+FilePicker.swift:37`); AppKit ignores them in both panels
   (`AppKitBackend.swift:1764`, `:1803`); GTK and WinUI never read the field.
   Needs a public API first, then the three backends.
-- [ ] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
-  "TODO: Implement decimalPlaces"). The other four read it.
+- [x] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
+  "TODO: Implement decimalPlaces"). DONE 2026-10-06, 585788b5: rounded as UIKit
+  does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.csv
+  read 0.10666666666666667 before, 0.11 after. "The other four read it" was
+  wrong -- WinUI does not either (next item).
+- [ ] **WinUI: `Slider` ignores `decimalPlaces`** (`WinUIBackend.swift:1907`,
+  `decimalPlaces _: Int`). Found 2026-10-06 while fixing AppKit. Round in the
+  ValueChanged handler as UIKit and AppKit do. Windows machine.
 - [ ] **`Picker.inspect` is commented out on all five backends**
   ("Repair Picker.inspect implementations post PickerStyle refactor" in each
   `InspectionModifiers.swift`; Android has none at all). Every other control
