@@ -179,6 +179,12 @@ struct P61RootView: View {
         .padding(16)
         .onChange(of: value) {
             valueCount += 1
+            // The value as the backend reported it, unformatted: the label above
+            // shows two places whatever the backend sends, so only this line can
+            // tell a backend that honours `decimalPlaces` from one that does not.
+            // 後端回報的原始值，不經格式化：上方標籤無論後端送什麼都只顯示兩位，
+            // 只有這一行能分辨後端是否遵守 `decimalPlaces`。
+            P61Diagnostics.write("value \(value)")
         }
         .onAppear {
             P61Diagnostics.write("backend \(String(describing: DefaultBackend.self))")

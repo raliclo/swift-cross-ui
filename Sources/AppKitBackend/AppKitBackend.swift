@@ -975,13 +975,21 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         onChange: @escaping (Double) -> Void,
         onEditingChanged: @escaping (Bool) -> Void
     ) {
-        // TODO: Implement decimalPlaces
         let slider = slider as! NSCustomSlider
         slider.minValue = minimum
         slider.maxValue = maximum
         slider.onAction = { [weak slider] control in
             let control = control as! NSCustomSlider
-            onChange(control.doubleValue)
+            // Rounded to `decimalPlaces` before it is reported, as UIKit and
+            // Android do (GTK sets `digits`). Until 2026-10-06 this backend
+            // ignored the argument and reported the raw `doubleValue`.
+            // 回報前先依 `decimalPlaces` 四捨五入，與 UIKit、Android 相同(GTK 設定 `digits`)。
+            // 2026-10-06 之前本 backend 忽略這個參數，直接回報原始的 `doubleValue`。
+            let places = Double(max(0, min(decimalPlaces, 17)))
+            onChange(
+                (control.doubleValue * pow(10.0, places)).rounded(.toNearestOrEven)
+                    / pow(10.0, places)
+            )
 
             // The event that caused this action, which AppKit leaves on
             // `NSApp.currentEvent` for exactly this kind of question.
