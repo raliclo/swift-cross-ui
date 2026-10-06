@@ -155,6 +155,16 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 - [ ] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
   `Cursors`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` (AppKit, UIKit and
   Android have all five). `Mesh3DViews` is the sixth, already its own item above.
+  GTK DONE 2026-10-06 (GtkBackend+InputTargets.swift, a `Fixed` per target, and a
+  hand-written Gtk.EventControllerScroll). Driven on GtkBackend on macOS with P80
+  (new) and synthetic events: keys ("a" down/up, Escape), wheel scroll
+  (translation 0,16 per notch, one gesture per notch), long press opens the
+  menu every time (a kept popover opened once only -- now one per showing),
+  snapshot of a red label 56x36 with 1856 of 2016 pixels red. NOT verified:
+  choosing a menu item (on GTK-macOS synthetic clicks into a popover do not
+  activate it -- the existing `Menu` would not even open that way), right-click
+  delivery from CGEvent, cursor shapes (seen only by a person). The snapshot is
+  in logical pixels, AppKit's in backing pixels. WinUI's five remain.
 - [ ] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
   `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
   (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
