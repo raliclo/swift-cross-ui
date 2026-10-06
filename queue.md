@@ -235,6 +235,17 @@ toolchain was installed (2026-10-05); it is done below.
   about 62 pt higher; "Stop" landed on Snapshot and the readout stayed at
   "frames at the stop: -1" with nothing failing. Re-measured: stop 190, check 193.
 - [ ] **GTK and WinUI: no `Mesh3DViews` at all yet** -- Windows side.
+  GTK DONE 2026-10-06: a GtkGLArea (`Gtk.Mesh3DGLView`) drawing with core GL 3.3
+  through libepoxy (GtkCHelpers/gtk_mesh3d_gl.c, the NV12 renderer's footing),
+  AndroidBackend's shaders and packing with 32-bit indices; snapshots read the
+  framebuffer back in device pixels. Run on GtkBackend on macOS (Apple M4 /
+  4.1 Metal): P72 cube lit and spinning, Snapshot 680x480 5 colours and the
+  PNG upright; P76 all six claims (lines, 9x9 points, unlit vs shaded, overlay
+  through the left cube only, ortho ticks, cyan helix); P77 1,002,001 vertices
+  as one smooth gradient. Not yet run on Linux or Windows GTK. NOTE for an
+  incremental build elsewhere: the new header in GtkCHelpers/include was not
+  seen until the stale GtkCHelpers-*.pcm module cache was deleted
+  ("cannot find scui_mesh3d_renderer_new in scope"). WinUI remains.
 - [x] **Skip the per-commit geometry comparison.** Not needed, measured
   2026-10-05: `Array ==` returns at once when both arrays share storage (0.003 ms
   for 2,000,000 vertices, against 2.2 ms for equal contents in another buffer,

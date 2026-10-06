@@ -298,6 +298,14 @@ extension GtkBackend: BackendFeatures.WidgetSnapshots {
     /// `.inspect`.
     /// 同上，但不需要 backend 實例：只需要 widget 所在的視窗。公開，讓測試能讀回任何經由 `.inspect` 取得的 widget。
     public static func snapshot(of widget: Widget) -> WidgetSnapshot? {
+        // A mesh view draws its own frame and reads its framebuffer back, in
+        // device pixels, as the Metal and GLES mesh views do.
+        // mesh view 自己畫一幀並讀回 framebuffer(裝置像素),與 Metal、GLES 的 mesh view 相同。
+        if let mesh = widget as? Mesh3DGLView {
+            return mesh.snapshot().map {
+                WidgetSnapshot(width: $0.width, height: $0.height, rgbaData: $0.rgba)
+            }
+        }
         let width = Int(gtk_widget_get_width(widget.widgetPointer))
         let height = Int(gtk_widget_get_height(widget.widgetPointer))
         guard width > 0, height > 0,
