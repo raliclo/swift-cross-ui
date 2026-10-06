@@ -87,8 +87,8 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   -- moving them would mean stripping lines and losing the line numbers their
   reports cite. The only writer, fill_matrix_from_sweep.py, already passes
   `lineterminator="\n"`, so the CRLF that the sweep writers produced does not
-  happen here. All six run from Scripts/test.sh on every machine, including
-  ones without csv2.
+  happen here. The four check_*.sh run from Scripts/test.sh on every machine,
+  including ones without csv2.
 
 ### Windows side (GTK and WinUI)
 
