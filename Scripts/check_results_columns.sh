@@ -37,12 +37,17 @@ if not results.exists() or not script.exists():
 # check would then pass on rows the matrix still drops.
 # 這些欄位是從那個 renderer 自己讀出來的,而不是在此另抄一份。另抄一份會讓這道檢查與那個矩陣可能
 # 各說各話,而這道檢查便會在「矩陣仍然會丟掉」的列上通過。
-known = set(re.findall(r'key\[\d+\]\s*=\s*"([^"]+)"', script.read_text()))
+known = set(re.findall(r'key\[\d+\]\s*=\s*"([^"]+)"', script.read_text(encoding="utf-8")))
 if not known:
     print("check_results_columns: found no key[] entries in coverage.zsh", file=sys.stderr)
     sys.exit(1)
 
-rows = list(csv.reader(results.open(newline="")))[2:]
+# UTF-8 stated, as check_mistakes_numbering.sh learned: Python opens files in
+# the locale's encoding, cp950 on the Windows machine, and both files hold
+# Chinese -- UnicodeDecodeError before any check ran (review, 2026-10-07).
+# 明確指定 UTF-8,與 check_mistakes_numbering.sh 學到的相同:Python 以 locale 編碼開檔，Windows 上是 cp950,
+# 而兩個檔案都有中文——在任何檢查之前就 UnicodeDecodeError(review,2026-10-07)。
+rows = list(csv.reader(results.open(newline="", encoding="utf-8")))[2:]
 bad = {}
 for i, r in enumerate(rows, start=3):
     if len(r) < 3 or not r[1] or r[1] == "-":

@@ -167,7 +167,13 @@ for path in sorted(glob.glob("testapp/actions/*/*.csv")):
         # 於是 `actions/mac/P72-cursor.csv` 帶著第 55 列「 `CGWarpMouseCursorPosition` generates no」
         # 進了一個 commit——重放會以 `unknown action` 拒絕它——而本倉庫裡每一個守衛都說那個檔案沒問題。
         verb = row[0].strip()
-        allowed = VERBS | IOS_RUNNER_VERBS if "/actions/ios/" in path else VERBS
+        # Separators normalised: on Windows glob returns backslashes, and every
+        # iOS-only verb (taplabel, windowframes, dumptree...) was rejected there --
+        # 21 false reports, found by review on 2026-10-07.
+        # 先統一分隔符號:Windows 上 glob 回傳反斜線，iOS 專用動作(taplabel、windowframes、dumptree…)
+        # 因此全被拒絕——21 筆誤報,2026-10-07 由 review 發現。
+        is_ios = "/actions/ios/" in path.replace("\\", "/")
+        allowed = VERBS | IOS_RUNNER_VERBS if is_ios else VERBS
         if verb and verb not in allowed:
             problems.append((
                 path, number,
