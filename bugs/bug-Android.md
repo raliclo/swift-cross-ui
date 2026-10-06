@@ -64,6 +64,35 @@ P41 的動作檔會按下月份滾輪的其中一列。2026-09-04 計數：以�
 
 受影響的是一份檔案中的一次按壓。其餘每一份 Android 動作檔的重放都是穩定的。
 
+## Fixed 2026-10-06: Mesh3DView's first frame was stretched sideways
+
+P76 in orthographic view, launched and left alone: the helix ring touched both
+edges of the view and one of the three white ticks was outside it. Pressing
+"Render: off", which does not touch the camera, redrew it correct. The view is
+about 945 x 787 px, and the first frame was about 1.2 times too wide, which is the
+ratio between them.
+
+`updateMesh3DView` took the aspect from `view.getWidth()/getHeight()`. Those
+report the previous layout pass, and `commit` calls `setSize(of:)` and then
+`update` before Android has laid the view out, so on the first update both were
+0 and `max(..., 1)` made the aspect 1. After a resize they would be one layout
+stale in the same way. The fix reads the layout params that `setSize(of:)` has
+just written, and uses the view's own size only when a param is MATCH_PARENT or
+WRAP_CONTENT. Measured after the fix: the first frame and the frame after the
+press are pixel-identical inside the view, and the view still draws correctly
+after rotating to landscape.
+
+## 已修 2026-10-06：Mesh3DView 的第一幀被橫向拉長
+
+P76 正交視圖，啟動後不操作：螺旋環碰到 view 的左右兩邊，三根白色刻度之一落在 view 之外。按下不影響
+相機的 "Render: off" 後重畫就正確了。view 約為 945 x 787 px，第一幀約寬了 1.2 倍，正是兩者的比例。
+
+`updateMesh3DView` 以 `view.getWidth()/getHeight()` 計算長寬比。它們回報的是上一次排版的結果，而
+`commit` 先呼叫 `setSize(of:)`、再在 Android 排版之前呼叫 `update`，所以第一次更新時兩者皆為 0，
+`max(..., 1)` 讓長寬比變成 1。改變大小之後也會同樣落後一次排版。修法是讀取 `setSize(of:)` 剛寫入的
+layout params，只有在它是 MATCH_PARENT 或 WRAP_CONTENT 時才退回用 view 自己的尺寸。修正後實測：
+第一幀與按下之後那一幀在 view 範圍內逐像素相同，轉成橫向後 view 仍畫得正確。
+
 ## Fixed 2026-09-06: P18 replayed alone and not in a batch, and it was the file picker
 
 `P18-open-a-file` reports zero replayed lines and zero changed pixels when

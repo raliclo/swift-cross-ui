@@ -139,13 +139,25 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
         view.setGeometry(vertices, indices, modes, starts, counts, pointSizes, flags)
         view.setMeasureRenderTime(scene.measuresRenderTime)
 
-        // The DRAWABLE's size, not the widget's, and on Android they are the same number of pixels
-        // -- `setSize(of:)` has already put the layout's points times the density into the view.
-        // A wrong aspect ratio does not fail; it draws an oval cube.
-        // 用**drawable** 的尺寸而不是 widget 的;在 Android 上它們是同一個像素數——`setSize(of:)` 已經
-        // 把「排版的點乘上 density」放進那個 view 了。長寬比錯了不會失敗,它會畫出一個橢圓的立方體。
-        let width = Float(max(view.getWidth(), 1))
-        let height = Float(max(view.getHeight(), 1))
+        // The DRAWABLE's size, which is the one `setSize(of:)` has just put into the layout params
+        // -- not `getWidth()`/`getHeight()`, which report the PREVIOUS layout pass. `commit` sets
+        // the size and then calls this before Android has laid the view out, so on the first
+        // update both read 0, `max(..., 1)` made the aspect 1, and the first frame was stretched
+        // sideways until an unrelated state change ran this again (measured on P76, 2026-10-06).
+        // After a resize they are one layout stale in the same way. A layout param below 1 is
+        // MATCH_PARENT or WRAP_CONTENT rather than a length, and only then is the view's own size
+        // used. A wrong aspect ratio does not fail; it draws an oval cube.
+        // 用 **drawable** 的尺寸,也就是 `setSize(of:)` 剛放進 layout params 的那個——而不是
+        // `getWidth()`/`getHeight()`,它們回報的是**上一次**排版的結果。`commit` 先設尺寸、接著在
+        // Android 排版之前呼叫這裡,所以第一次更新時兩者都是 0,`max(..., 1)` 讓長寬比變成 1,第一幀
+        // 被橫向拉長,直到某個無關的狀態變更再跑一次這裡(P76 實測,2026-10-06)。改變大小之後也同樣
+        // 落後一次排版。layout param 小於 1 是 MATCH_PARENT 或 WRAP_CONTENT 而不是長度,只有那時才
+        // 退回用 view 自己的尺寸。長寬比錯了不會失敗,它會畫出一個橢圓的立方體。
+        let params = view.getLayoutParams()
+        let paramWidth = params.map { Int($0.width) } ?? 0
+        let paramHeight = params.map { Int($0.height) } ?? 0
+        let width = Float(paramWidth > 0 ? paramWidth : max(Int(view.getWidth()), 1))
+        let height = Float(paramHeight > 0 ? paramHeight : max(Int(view.getHeight()), 1))
         let viewProjection = Mesh3DMatrix4.viewProjection(
             camera: scene.camera,
             aspect: width / height,
