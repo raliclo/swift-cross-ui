@@ -57,11 +57,18 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - [ ] **Gtk (macOS): the example's red `+` button stays grey** -- its
     `.inspect(.afterUpdate)` sets `css backgroundColor`, and nothing trapped, so
     the closure ran; whether the CSS is overridden by the theme is not known.
-- [ ] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
+- [x] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
   (`UIKitBackend+Window.swift:283`) only paints the background from
   `colorScheme` and carries "TODO: Support preferredColorScheme"; views set
   `overrideUserInterfaceStyle` one by one (Symbols, Passive), system controls in
-  between may not follow. P15 on iOS is the check.
+  between may not follow. P15 on iOS is the check. DONE 2026-10-06: they did
+  not follow -- P15-DARK (now with a TextField and a Toggle) on a light
+  simulator showed an unreadable placeholder and light-style controls on the
+  dark background. The window now carries `overrideUserInterfaceStyle` while
+  the scheme differs from the system's, and the system's is read from the window
+  scene (the override would otherwise read back as the system's). Captures
+  p15-dark-ios-final-20261006-130110 (after) / -130141 (before). Not yet
+  exercised: removing the preference at runtime.
 - [ ] **Android TODOs to verify, each a possible gap:** navigation titles
   (`AndroidBackend.swift:460`), orientation and configuration changes (`:580`),
   live system light/dark changes (`:804`), per-window environment changes

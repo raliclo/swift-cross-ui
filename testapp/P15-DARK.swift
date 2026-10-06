@@ -37,6 +37,8 @@ struct P15DarkView: View {
     // capture; the action was empty. 計數寫在按鈕自己的標籤裡,「它必須有反應」才能從擷圖讀出;
     // 它的動作原本是空的。
     @State var presses = 0
+    @State var text = ""
+    @State var isOn = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -49,6 +51,13 @@ struct P15DarkView: View {
             Button("A button (\(presses))") {
                 presses += 1
             }
+            // System controls, not drawn by SwiftCrossUI: they follow the
+            // preference only if the WINDOW carries it. On iOS before 2026-10-06
+            // the background was dark and these stayed light.
+            // 系統控制項，不是 SwiftCrossUI 畫的：只有 window 本身帶著偏好，它們才會跟著。
+            // 2026-10-06 之前在 iOS 上背景是暗的，而這些仍是亮的。
+            TextField("A text field", text: $text)
+            Toggle("A toggle", isOn: $isOn)
             Text("Expected under a light theme: this window is dark and readable.")
         }
         .padding(20)

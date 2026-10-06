@@ -219,7 +219,13 @@ public final class UIKitBackend:
         environment.toggleStyle = .switch
         environment.timeZone = .current
 
-        switch UITraitCollection.current.userInterfaceStyle {
+        // The system's scheme, not `UITraitCollection.current`: the window now
+        // carries `overrideUserInterfaceStyle` for `preferredColorScheme`, and
+        // read through it the preference would come back as the system's and
+        // stay after the preference is removed. See `updateWindow`.
+        // 系統的配色，不是 `UITraitCollection.current`:window 現在為 `preferredColorScheme` 設定了
+        // `overrideUserInterfaceStyle`,經由它讀，偏好會被當成系統配色，並在偏好移除後留下。見 `updateWindow`。
+        switch Self.systemUserInterfaceStyle {
             case .light:
                 environment.colorScheme = .light
             case .dark:

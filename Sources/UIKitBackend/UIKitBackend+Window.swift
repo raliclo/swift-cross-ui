@@ -280,11 +280,34 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
-        // TODO(stackotter): Support preferredColorScheme
+        // `preferredColorScheme`, for the whole window. Until 2026-10-06 only
+        // the background followed it; views set `overrideUserInterfaceStyle`
+        // one at a time (symbols, passive views), so system controls in
+        // between -- switches, date pickers, menus -- kept the system's
+        // scheme. `.unspecified` when the scheme IS the system's: an
+        // overridden window gets no trait change when the system flips, so
+        // the override is set only while it differs.
+        // 整個 window 套用 `preferredColorScheme`。2026-10-06 之前只有背景跟著它；view 一個一個設定
+        // `overrideUserInterfaceStyle`(符號、passive view),其間的系統控制項——開關、日期選擇器、選單——
+        // 仍用系統配色。配色與系統相同時設為 `.unspecified`:被 override 的 window 在系統切換時收不到
+        // trait 變更，所以只在兩者不同時才 override。
+        let style = environment.colorScheme.userInterfaceStyle
+        window.overrideUserInterfaceStyle =
+            style == Self.systemUserInterfaceStyle ? .unspecified : style
         window.backgroundColor = switch environment.colorScheme {
             case .light: .white
             case .dark: .black
         }
+    }
+
+    /// The system's light/dark setting, read from a window scene: overrides
+    /// set on a window flow down from it, never up into the scene.
+    /// 系統的明暗設定，從 window scene 讀取:window 上設定的 override 只往下傳，不會往上進到 scene。
+    static var systemUserInterfaceStyle: UIUserInterfaceStyle {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.traitCollection.userInterfaceStyle
+            ?? UITraitCollection.current.userInterfaceStyle
     }
 
     public func setTitle(ofWindow window: Window, to title: String) {
