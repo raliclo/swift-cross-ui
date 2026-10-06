@@ -142,8 +142,10 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     is false, as on iPhone. On tablets Android can run several activities
     (multi-instance); doing it means one activity per window and an
     `AndroidBackend.activity` that is no longer a singleton. Not started.
-  - [ ] **UIKit: sheet detents on iOS 13-14** need a custom
+  - [-] **UIKit: sheet detents on iOS 13-14** need a custom
     UIPresentationController (no sheetPresentationController there). Not started.
+    CANCELLED 2026-10-06 by the user ("no need"): no iOS 13/14 runtime here to
+    test it on.
 - [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
   `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
   `Scripts/check_action_files.sh`, `Scripts/check_action_file_fields.sh`,
