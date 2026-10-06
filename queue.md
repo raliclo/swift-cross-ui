@@ -62,8 +62,9 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     through the save dialog (writableContentTypes, "<title>.<ext>") when
     untitled or `saveAs: true`; the window takes the file's name. P62 gains
     "save"; actions/mac/P62-save-untitled.csv: type A, save, Return ->
-    "save -> true", window titled Untitled.txt, the file holds "A" (it lands in
-    the panel's default folder, ~/Documents here; removed after the run).
+    "save -> true", window titled Untitled.txt, the file holds "A". P62 passes
+    `saveDocument(initialDirectory:)` a fresh temp folder, so a sweep neither
+    litters ~/Documents nor meets a "replace?" prompt.
     The doc now says what the scene does.
 - [x] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
   "TODO: Implement decimalPlaces"). DONE 2026-10-06, 585788b5: rounded as UIKit

@@ -169,7 +169,18 @@ struct P62EditorView: View {
                 }
                 Button("save") {
                     Task {
-                        let saved = await saveDocument()
+                        // The test's own folder, not the panel's default (~/Documents):
+                        // a sweep would otherwise leave Untitled.txt there and meet a
+                        // "replace?" prompt on its next run.
+                        // 用測試自己的資料夾，而不是面板的預設(~/Documents):否則 sweep 會在那裡留下
+                        // Untitled.txt,下次執行時遇到「要取代嗎?」。
+                        let folder = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("p62-save", isDirectory: true)
+                        try? FileManager.default.removeItem(at: folder)
+                        try? FileManager.default.createDirectory(
+                            at: folder, withIntermediateDirectories: true
+                        )
+                        let saved = await saveDocument(initialDirectory: folder)
                         P62Diagnostics.write("window \(windowNumber) save -> \(saved)")
                     }
                 }

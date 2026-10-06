@@ -104,12 +104,17 @@ final class DocumentSaveStore {
 public struct SaveDocumentAction {
     let environment: EnvironmentValues
 
+    /// - Parameters:
+    ///   - saveAs: Ask where to save even when the document has a file.
+    ///   - initialDirectory: Where the save dialog starts, when one is shown.
+    ///   - saveAs:即使文件已有檔案也詢問存檔位置。
+    ///   - initialDirectory:顯示儲存對話框時，它從哪個目錄開始。
     /// - Returns: Whether the document was written. `false` when the dialog
     ///   was cancelled, when the write failed (logged), or outside a
     ///   document window (logged).
     /// - Returns:文件是否已寫出。對話框被取消、寫入失敗(有記錄)或不在文件視窗中(有記錄)時為 `false`。
     @discardableResult
-    public func callAsFunction(saveAs: Bool = false) async -> Bool {
+    public func callAsFunction(saveAs: Bool = false, initialDirectory: URL? = nil) async -> Bool {
         guard let store = environment.documentSaveStore.wrappedValue else {
             logger.warning("saveDocument() called outside a DocumentGroup window")
             return false
@@ -117,6 +122,7 @@ public struct SaveDocumentAction {
         var destination = saveAs ? nil : store.url()
         if destination == nil {
             destination = await environment.chooseFileSaveDestination(
+                initialDirectory: initialDirectory,
                 defaultFileName: store.suggestedName(),
                 allowedContentTypes: store.writableContentTypes
             )
