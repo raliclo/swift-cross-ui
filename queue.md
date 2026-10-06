@@ -40,10 +40,23 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 - [ ] **WinUI: `Slider` ignores `decimalPlaces`** (`WinUIBackend.swift:1907`,
   `decimalPlaces _: Int`). Found 2026-10-06 while fixing AppKit. Round in the
   ValueChanged handler as UIKit and AppKit do. Windows machine.
-- [ ] **`Picker.inspect` is commented out on all five backends**
+- [x] **`Picker.inspect` is commented out on all five backends**
   ("Repair Picker.inspect implementations post PickerStyle refactor" in each
   `InspectionModifiers.swift`; Android has none at all). Every other control
-  has its `.inspect`.
+  has its `.inspect`. DONE 2026-10-06 on four of five: `.inspect { picker in }`
+  hands over the `.menu` control (NSPopUpButton / UIButton / Gtk.DropDown /
+  WinUI.ComboBox / Spinner), `.inspect(as: T.self) { }` any other. Found on the
+  way: a typed `.inspect` at `.onCreate` trapped whenever the control sits in a
+  container (the example's Slider) -- descendants are not in
+  the container until the first update -- so the search now also walks the view
+  graph (`InspectView.init(child:inspectionPoints:searching:)`), all five
+  backends. AdvancedCustomizationExample runs on AppKit and on Gtk-on-macOS with
+  its Picker block restored; P4 runs on iOS and Android.
+  - [ ] **WinUI: compile and run AdvancedCustomizationExample** -- the WinUI
+    half was written here and has not been compiled. Windows machine.
+  - [ ] **Gtk (macOS): the example's red `+` button stays grey** -- its
+    `.inspect(.afterUpdate)` sets `css backgroundColor`, and nothing trapped, so
+    the closure ran; whether the CSS is overridden by the theme is not known.
 - [ ] **UIKit: `preferredColorScheme` on the window -- verify.** `updateWindow`
   (`UIKitBackend+Window.swift:283`) only paints the background from
   `colorScheme` and carries "TODO: Support preferredColorScheme"; views set

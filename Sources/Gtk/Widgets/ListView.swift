@@ -204,6 +204,13 @@ open class ListView: Widget {
         }
     }
 
+    /// Whether GTK draws a separator between rows: `GtkListView:show-separators`.
+    /// AdvancedCustomizationExample sets it from `List.inspect`, and without
+    /// this the example did not compile against GtkBackend (2026-10-06).
+    /// GTK 是否在列之間畫分隔線：`GtkListView:show-separators`。AdvancedCustomizationExample
+    /// 經由 `List.inspect` 設定它；少了這個屬性，該範例在 GtkBackend 下無法編譯(2026-10-06)。
+    @GObjectProperty(named: "show-separators") public var showSeparators: Bool
+
     open override func registerSignals() {
         super.registerSignals()
         // Parent changes register signals again; these handlers are owned here.

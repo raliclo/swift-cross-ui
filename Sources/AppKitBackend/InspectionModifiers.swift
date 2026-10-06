@@ -65,8 +65,15 @@ private func scuiInspecting<Child: View, T: NSView>(
     _ type: T.Type,
     _ action: @escaping @MainActor @Sendable (T) -> Void
 ) -> InspectView<Child> {
-    InspectView(child: child, inspectionPoints: inspectionPoints) { (view: NSView) in
-        guard let match = scuiFirstDescendant(type, in: view) else {
+    InspectView(child: child, inspectionPoints: inspectionPoints) {
+        (view: NSView, graph: [NSView]) in
+        // The view graph too: at `.onCreate` the descendants are not in `view`
+        // yet (see `InspectView.init(child:inspectionPoints:searching:)`).
+        // 也搜尋 view graph:在 `.onCreate` 時子孫還不在 `view` 底下。
+        guard
+            let match = scuiFirstDescendant(type, in: view)
+                ?? graph.lazy.compactMap({ scuiFirstDescendant(type, in: $0) }).first
+        else {
             fatalError(
                 "inspect: no \(T.self) at or below this view. The tree is:\n"
                     + scuiDescribe(view)
@@ -121,15 +128,36 @@ extension Slider {
     }
 }
 
-// TODO(stackotter): Repair Picker.inspect implementations post PickerStyle refactor
-// extension Picker {
-//     public func inspect(
-//         _ inspectionPoints: InspectionPoints = .onCreate,
-//         _ action: @escaping @MainActor @Sendable (NSPopUpButton) -> Void
-//     ) -> some View {
-//         InspectView(child: self, inspectionPoints: inspectionPoints, action: action)
-//     }
-// }
+// `Picker.inspect` was commented out upstream when pickers gained styles: the
+// native control stopped being one type. Two forms now. The first names the
+// control of the default `.menu` style, so `.inspect { picker in ... }` keeps
+// the meaning it had; the second takes the type, for the other styles --
+// `NSSegmentedControl` for `.segmented`, `NSView` for `.radioGroup` and
+// `.wheel`, whose controls are this backend's own. Asking for a type the
+// picker's style does not create stops with the widget tree, as every other
+// `.inspect` here does. Restored 2026-10-06.
+//
+// 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
+// 第一種給預設 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
+// 給其他樣式用——`.segmented` 是 `NSSegmentedControl`,`.radioGroup` 與 `.wheel` 是本 backend 自己的
+// 控制項，用 `NSView`。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
+// 2026-10-06 恢復。
+extension Picker {
+    public func inspect(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        _ action: @escaping @MainActor @Sendable (NSPopUpButton) -> Void
+    ) -> some View {
+        scuiInspecting(self, inspectionPoints, NSPopUpButton.self, action)
+    }
+
+    public func inspect<Control: NSView>(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        as type: Control.Type,
+        _ action: @escaping @MainActor @Sendable (Control) -> Void
+    ) -> some View {
+        scuiInspecting(self, inspectionPoints, type, action)
+    }
+}
 
 extension TextField {
     public func inspect(

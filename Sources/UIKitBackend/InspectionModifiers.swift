@@ -80,8 +80,14 @@ extension View {
         _ action: @escaping @MainActor @Sendable (T) -> Void
     ) -> some View {
         InspectView(child: self, inspectionPoints: inspectionPoints) {
-            (widget: any WidgetProtocol) in
-            guard let match = scuiFirstDescendant(type, in: widget.view) else {
+            (widget: any WidgetProtocol, graph: [any WidgetProtocol]) in
+            // The view graph too: at `.onCreate` the descendants are not in the
+            // widget yet (see `InspectView.init(child:inspectionPoints:searching:)`).
+            // 也搜尋 view graph:在 `.onCreate` 時子孫還不在 widget 底下。
+            guard
+                let match = scuiFirstDescendant(type, in: widget.view)
+                    ?? graph.lazy.compactMap({ scuiFirstDescendant(type, in: $0.view) }).first
+            else {
                 fatalError(
                     "inspect: no \(T.self) at or below this view. The tree is:\n"
                         + scuiDescribe(widget.view)
@@ -120,57 +126,36 @@ extension Slider {
     }
 }
 
-// TODO(stackotter): Repair Picker.inspect implementations post PickerStyle refactor
-// extension SwiftCrossUI.Picker {
-//     /// Inspects the picker's underlying `UIView` on Mac Catalyst. Will be a
-//     /// `UIPickerView` if running on Mac Catalyst 14.0+ with the Mac user
-//     /// interface idiom, and a `UIPickerView` otherwise.
-//     @available(macCatalyst 13.0, *)
-//     @available(iOS, unavailable)
-//     @available(tvOS, unavailable)
-//     @available(visionOS, unavailable)
-//     public func inspect(
-//         _ inspectionPoints: InspectionPoints = .onCreate,
-//         _ action: @escaping @MainActor @Sendable (UIView) -> Void
-//     ) -> some View {
-//         InspectView(child: self, inspectionPoints: inspectionPoints) { (view: any WidgetProtocol) in
-//             if let view = view as? UITableViewPicker {
-//                 action(view.child)
-//             } else if let view = view as? UIPickerViewPicker {
-//                 action(view.child)
-//             } else {
-//                 action(view.view)
-//             }
-//         }
-//     }
+// `Picker.inspect` was commented out upstream when pickers gained styles: the
+// native control stopped being one type. Two forms now. The first names the
+// control of the `.menu` style, so `.inspect { picker in ... }` keeps the
+// meaning it had; the second takes the type, for the other styles --
+// `UISegmentedControl` for `.segmented` (the default on tvOS), `UIStackView`
+// for `.radioGroup`, `UIPickerView` for `.wheel` (`UITableView` under Mac
+// Catalyst with the Mac idiom).
+// Asking for a type the picker's style does not create stops with the widget
+// tree, as every other `.inspect` here does. Restored 2026-10-06.
+//
+// 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
+// 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
+// 給其他樣式用——`.segmented`(tvOS 的預設)是 `UISegmentedControl`,`.radioGroup` 是 `UIStackView`,`.wheel` 是 `UIPickerView`(Mac Catalyst 的 Mac 介面下是 `UITableView`)。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
+// 2026-10-06 恢復。
+extension SwiftCrossUI.Picker {
+    public func inspect(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        _ action: @escaping @MainActor @Sendable (UIButton) -> Void
+    ) -> some View {
+        scuiInspectFirst(inspectionPoints, UIButton.self, action)
+    }
 
-//     /// Inspects the picker's underlying `UITableView` on tvOS.
-//     @available(tvOS 13.0, *)
-//     @available(iOS, unavailable)
-//     @available(visionOS, unavailable)
-//     @available(macCatalyst, unavailable)
-//     public func inspect(
-//         _ inspectionPoints: InspectionPoints = .onCreate,
-//         _ action: @escaping @MainActor @Sendable (UITableView) -> Void
-//     ) -> some View {
-//         inspectAsWrapperWidget(inspectionPoints) { wrapper in
-//             action(wrapper.child)
-//         }
-//     }
-
-//     /// Inspects the picker's underlying `UIPickerView` on iOS or visionOS.
-//     @available(iOS 13.0, visionOS 1.0, *)
-//     @available(tvOS, unavailable)
-//     @available(macCatalyst, unavailable)
-//     public func inspect(
-//         _ inspectionPoints: InspectionPoints = .onCreate,
-//         _ action: @escaping @MainActor @Sendable (UIPickerView) -> Void
-//     ) -> some View {
-//         inspectAsWrapperWidget(inspectionPoints) { wrapper in
-//             action(wrapper.child)
-//         }
-//     }
-// }
+    public func inspect<Control: UIView>(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        as type: Control.Type,
+        _ action: @escaping @MainActor @Sendable (Control) -> Void
+    ) -> some View {
+        scuiInspectFirst(inspectionPoints, type, action)
+    }
+}
 
 extension TextField {
     public func inspect(

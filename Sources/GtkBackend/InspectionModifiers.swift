@@ -79,8 +79,15 @@ extension View {
         _ type: T.Type,
         _ action: @escaping @MainActor @Sendable (T) -> Void
     ) -> some View {
-        InspectView(child: self, inspectionPoints: inspectionPoints) { (widget: Gtk.Widget) in
-            guard let match = scuiFirstDescendant(type, in: widget) else {
+        InspectView(child: self, inspectionPoints: inspectionPoints) {
+            (widget: Gtk.Widget, graph: [Gtk.Widget]) in
+            // The view graph too: at `.onCreate` the descendants are not in the
+            // widget yet (see `InspectView.init(child:inspectionPoints:searching:)`).
+            // 也搜尋 view graph:在 `.onCreate` 時子孫還不在 widget 底下。
+            guard
+                let match = scuiFirstDescendant(type, in: widget)
+                    ?? graph.lazy.compactMap({ scuiFirstDescendant(type, in: $0) }).first
+            else {
                 fatalError(
                     "inspect: no \(T.self) at or below this view. The tree is:\n"
                         + scuiDescribe(widget)
@@ -136,15 +143,35 @@ extension Slider {
     }
 }
 
-// TODO(stackotter): Repair Picker.inspect implementations post PickerStyle refactor
-// extension Picker {
-//     public func inspect(
-//         _ inspectionPoints: InspectionPoints = .onCreate,
-//         _ action: @escaping @MainActor @Sendable (Gtk.DropDown) -> Void
-//     ) -> some View {
-//         InspectView(child: self, inspectionPoints: inspectionPoints, action: action)
-//     }
-// }
+// `Picker.inspect` was commented out upstream when pickers gained styles: the
+// native control stopped being one type. Two forms now. The first names the
+// control of the `.menu` style, so `.inspect { picker in ... }` keeps the
+// meaning it had; the second takes the type, for the other styles --
+// `Gtk.Widget` for `.segmented` and `.radioGroup`, whose controls are this
+// backend's own boxes.
+// Asking for a type the picker's style does not create stops with the widget
+// tree, as every other `.inspect` here does. Restored 2026-10-06.
+//
+// 上游在 picker 加入樣式時把 `Picker.inspect` 註解掉了：原生控制項不再只有一種型別。現在有兩種形式。
+// 第一種給 `.menu` 樣式的控制項，所以 `.inspect { picker in ... }` 維持原意；第二種帶型別參數，
+// 給其他樣式用——`.segmented` 與 `.radioGroup` 用 `Gtk.Widget`,它們是本 backend 自己的 box。要求的型別不是該樣式建立的，會印出 widget 樹並停止，與這裡其他 `.inspect` 相同。
+// 2026-10-06 恢復。
+extension Picker {
+    public func inspect(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        _ action: @escaping @MainActor @Sendable (Gtk.DropDown) -> Void
+    ) -> some View {
+        scuiInspectFirst(inspectionPoints, Gtk.DropDown.self, action)
+    }
+
+    public func inspect<Control: Gtk.Widget>(
+        _ inspectionPoints: InspectionPoints = .onCreate,
+        as type: Control.Type,
+        _ action: @escaping @MainActor @Sendable (Control) -> Void
+    ) -> some View {
+        scuiInspectFirst(inspectionPoints, type, action)
+    }
+}
 
 extension TextField {
     public func inspect(

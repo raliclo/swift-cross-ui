@@ -87,29 +87,23 @@ struct CounterApp: App {
                             }
                     #endif
 
-                    // TODO(stackotter): Repair Picker.inspect implementations post
-                    //   PickerStyle refactor
-                    //     Picker(of: ["Red", "Green", "Blue"], selection: $color)
-                    //         .inspect(.afterUpdate) { picker in
-                    //             #if canImport(AppKitBackend)
-                    //                 picker.preferredEdge = .maxX
-                    //             #elseif canImport(UIKitBackend) && os(iOS)
-                    //                 // Can't think of something to do to the
-                    //                 // UIPickerView, but the point is that you
-                    //                 // could do something if you needed to!
-                    //                 // This would be a UITableView on tvOS.
-                    //                 // And could be either a UITableView or a
-                    //                 // UIPickerView on Mac Catalyst depending
-                    //                 // on Mac Catalyst version and interface
-                    //                 // idiom.
-                    //             #elseif canImport(WinUIBackend)
-                    //                 let brush = WinUI.SolidColorBrush()
-                    //                 brush.color = .init(a: 255, r: 255, g: 0, b: 0)
-                    //                 picker.background = brush
-                    //             #elseif canImport(GtkBackend)
-                    //                 picker.enableSearch = true
-                    //             #endif
-                    //         }
+                    Picker(of: ["Red", "Green", "Blue"], selection: $color)
+                        .inspect(.afterUpdate) { picker in
+                            #if canImport(AppKitBackend)
+                                picker.preferredEdge = .maxX
+                            #elseif canImport(UIKitBackend)
+                                // A UIButton with a menu, the default style.
+                                picker.tintColor = .systemRed
+                            #elseif canImport(WinUIBackend)
+                                let brush = WinUI.SolidColorBrush()
+                                brush.color = .init(a: 255, r: 255, g: 0, b: 0)
+                                picker.background = brush
+                            #elseif canImport(GtkBackend)
+                                picker.enableSearch = true
+                            #elseif canImport(AndroidBackend)
+                                picker.setBackgroundColor(Int32(bitPattern: 0xffff0000))
+                            #endif
+                        }
 
                     TextField("Name", text: $name)
                         .inspect(.afterUpdate) { textField in
@@ -184,7 +178,12 @@ struct CounterApp: App {
                     }
 
                     #if !canImport(AndroidBackend)
-                        Image(Bundle.module.bundleURL.appendingPathComponent("Banner.png"))
+                        // `url(forResource:)`, not `bundleURL` + the name: with SwiftPM's
+                        // current build system the bundle is a real macOS bundle
+                        // and the file is under Contents/Resources, so the joined
+                        // path loaded nothing and `.inspect` found no image view.
+                        // 用 `url(forResource:)`,不是 `bundleURL` 加檔名：檔案在 Contents/Resources 底下。
+                        Image(Bundle.module.url(forResource: "Banner", withExtension: "png")!)
                             .resizable()
                             .inspect(.afterUpdate) { image in
                                 #if canImport(AppKitBackend)
