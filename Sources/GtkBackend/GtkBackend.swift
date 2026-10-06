@@ -4978,7 +4978,14 @@ public final class GtkBackend:
             let filters = g_list_store_new(gtk_file_filter_get_type())
             var filtersToAdd: [(name: String, mimeTypes: [String], suffixes: [String], patterns: [String])] =
                 fileDialogOptions.allowedContentTypes.map {
-                    ($0.name, $0.mimeTypes, $0.fileExtensions, [])
+                    // Opening also takes the narrower types by suffix (`swift` for
+                    // plain text): on Windows GIO types files by extension, so the
+                    // MIME type alone does not reach them. A save keeps its own.
+                    // 開檔時也依後綴接受較窄的型別(純文字的 `swift`):在 Windows 上 GIO 依副檔名判斷
+                    // 型別，單靠 MIME 型別碰不到它們。存檔維持型別自己的副檔名。
+                    ($0.name, $0.mimeTypes,
+                     kind == .save ? $0.fileExtensions : $0.fileExtensions + $0.conformingFileExtensions,
+                     [])
                 }
             if fileDialogOptions.allowOtherContentTypes {
                 filtersToAdd.append(("All files", [], [], ["*"]))

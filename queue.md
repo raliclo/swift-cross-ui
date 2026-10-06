@@ -63,14 +63,32 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     destination and Cancel all reach the app (`p18w-*-20261007-03*.png`).
     Difference from macOS/iOS: `ContentType` is extension-only, so Windows also
     hides also-text.swift, which UTType conformance keeps selectable there.
+    **FIXED later the same day:** `ContentType.conformingFileExtensions` holds
+    the 95 extensions macOS 27.2 maps to types conforming to public.plain-text
+    (measured with `UTType(filenameExtension:)?.conforms(to: .plainText)`);
+    WinUI and GTK add them to the open filter only. P62 on WinUI and on GTK on
+    Windows (which also shows the shell dialog) lists also-text.swift beside
+    readable.txt, still hides not-text.png, and opens it as window 2
+    (p62w-/p62g-open-conforming-20261007-07*.png). Not run: GTK on WSL (GIO
+    types by MIME there; the suffixes are added as well). Android: see below.
     完成 2026-10-07：以 Win32 shell 對話框取代 WinRT picker（WinRT 只能從
     `PickerLocationId` 開始，`initialDirectory` 因此遺失）。P62 開檔從 `%TEMP%\p62-open`
     開始、只列 readable.txt、開啟後出現 readable.txt 視窗；無類型時存檔提供「All files」；
     P18 開檔、資料夾、存檔、取消皆回到 app。與 macOS/iOS 的差異：`ContentType` 只有副檔名，
-    所以 Windows 也隱藏 also-text.swift。
+    所以 Windows 也隱藏 also-text.swift。**同日稍後已修：**`ContentType.conformingFileExtensions`
+    (macOS 27.2 上 95 個屬於 public.plain-text 的副檔名),WinUI 與 Windows 上的 GTK 現在都會列出並開啟 also-text.swift。
   - [x] **WinUI: the save dialog ignores `defaultFileName`** -- FIXED 2026-10-07
     by the same change (`SetFileName`): P18's save dialog shows "p18-example",
     P62's "Untitled". 同一變更修正（`SetFileName`）：P18 顯示 p18-example、P62 顯示 Untitled。
+  - [ ] **Android: plain-text open hides source files such as also-text.swift.**
+    Unverified on a device, reasoned from the API: the picker filters by the
+    MIME type the storage provider reports, and an extension Android's
+    `MimeTypeMap` does not know (`swift`) is reported as
+    `application/octet-stream`, so `text/plain` cannot reach it and
+    `conformingFileExtensions` has no MIME to add. Run P62 "open…" on the
+    emulator first; if hidden, find the way Android does express it (e.g.
+    mapping the extensions it does know through `MimeTypeMap`).
+    Android 依 provider 回報的 MIME 過濾，`swift` 會被報成 octet-stream;先在模擬器上跑 P62 確認。
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
@@ -214,14 +232,23 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   activate it -- the existing `Menu` would not even open that way), right-click
   delivery from CGEvent, cursor shapes (seen only by a person). The snapshot is
   in logical pixels, AppKit's in backing pixels. WinUI's five remain.
-- [ ] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
+- [x] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
   `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
   (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
   CLAUDE.md rules out on shipped backends. AppKit, UIKit and Android have all four.
   GTK DONE 2026-10-06 (GtkBackend/WheelPicker.swift: a five-row ListBox in a
   ScrolledWindow, the shape AppKit uses; it was a `fatalError` before). P74
   built against GtkBackend on macOS: the wheel shows Mon..Fri, a click on Wed
-  reads "wheel -> Wed". WinUI's two remain (Windows machine).
+  reads "wheel -> Wed". WinUI DONE 2026-10-07 (WinUIBackend+PickerStyles.swift):
+  `.segmented` is a row of mutually exclusive ToggleButtons (WinUI 3 has no
+  segmented control); `.wheel` a five-row ListView like AppKit and GTK, measured
+  with its height held because `naturalSize(of:)` clears width/height and the
+  first build came out seven rows tall. P74 on WinUI, driven through UIA
+  (Toggle / SelectionItem.Select): "segmented -> Two" with only Two pressed,
+  pressing Two again keeps it; "wheel -> Wed", then Sun scrolls into view and
+  reads "wheel -> Sun" (p74w-after/-edge-20261007-0754*.png).
+  WinUI 於 2026-10-07 完成：`.segmented` 為一列互斥的 ToggleButton,`.wheel` 為五列高的 ListView;
+  P74 經 UIA 驅動，兩者讀數皆正確，選 Sun 時會自動捲動到它。
 - [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),

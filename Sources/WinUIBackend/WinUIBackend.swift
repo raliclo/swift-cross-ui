@@ -206,7 +206,7 @@ public final class WinUIBackend:
         .compact,
         .wheel,
     ]
-    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .radioGroup]
+    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .segmented, .radioGroup, .wheel]
     public let canOverrideWindowColorScheme = true
     public let restoresWindowFrames = false
 
@@ -1349,6 +1349,8 @@ public final class WinUIBackend:
             // https://github.com/marcelwgn/microsoft-ui-xaml/blob/ff21f9b212cea2191b959649e45e52486c8465aa/src/controls/dev/CommonStyles/DatePicker_themeresources.xaml#L261
             // Height is experimentally 29 which I don't see anywhere in that file.
             return SIMD2(296, 29)
+        } else if let wheel = widget as? WheelPicker {
+            return wheel.naturalSize()
         }
 
         let oldWidth = widget.width
@@ -1982,10 +1984,10 @@ public final class WinUIBackend:
                 }
 
                 return picker
-            default:
-                let message = "unsupported picker style \(style)"
-                logger.critical("\(message)")
-                fatalError(message)
+            case .segmented:
+                return SegmentedPicker()
+            case .wheel:
+                return WheelPicker()
         }
     }
 
@@ -2050,6 +2052,12 @@ public final class WinUIBackend:
             }
 
             picker.onChangeSelection = onChange
+        } else if let picker = picker as? SegmentedPicker {
+            picker.update(options: options, environment: environment)
+            picker.onChangeSelection = onChange
+        } else if let picker = picker as? WheelPicker {
+            picker.update(options: options, environment: environment)
+            picker.onChangeSelection = onChange
         }
     }
 
@@ -2062,6 +2070,10 @@ public final class WinUIBackend:
             picker.selectedIndex = selectedIndex
         } else if let picker = picker as? RadioButtons {
             picker.selectedIndex = Int32(selectedOption ?? -1)
+        } else if let picker = picker as? SegmentedPicker {
+            picker.setSelectedIndex(to: selectedOption)
+        } else if let picker = picker as? WheelPicker {
+            picker.setSelectedIndex(to: selectedOption)
         }
     }
 

@@ -150,8 +150,17 @@ extension WinUIBackend {
         if case .openFolders = kind {} else {
             var specs: [COMDLG_FILTERSPEC] = []
             var firstExtension: String?
+            // Opening also matches the narrower types (`swift` for plain text),
+            // as AppKit and UIKit do through UTType conformance; a save keeps
+            // the type's own extensions, since the first one names the file.
+            // 開檔時也比對較窄的型別(純文字的 `swift`)，如同 AppKit 與 UIKit 透過 UTType 從屬關係所做的；
+            // 存檔只用型別自己的副檔名，因為第一個副檔名會用來命名檔案。
+            func extensions(of contentType: ContentType) -> [String] {
+                if case .save = kind { return contentType.fileExtensions }
+                return contentType.fileExtensions + contentType.conformingFileExtensions
+            }
             for contentType in options.allowedContentTypes where !contentType.fileExtensions.isEmpty {
-                let pattern = contentType.fileExtensions.map { "*." + $0 }.joined(separator: ";")
+                let pattern = extensions(of: contentType).map { "*." + $0 }.joined(separator: ";")
                 specs.append(COMDLG_FILTERSPEC(pszName: wide(contentType.name), pszSpec: wide(pattern)))
                 firstExtension = firstExtension ?? contentType.fileExtensions.first
             }
