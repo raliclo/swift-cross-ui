@@ -159,6 +159,10 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
   (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
   CLAUDE.md rules out on shipped backends. AppKit, UIKit and Android have all four.
+  GTK DONE 2026-10-06 (GtkBackend/WheelPicker.swift: a five-row ListBox in a
+  ScrolledWindow, the shape AppKit uses; it was a `fatalError` before). P74
+  built against GtkBackend on macOS: the wheel shows Mon..Fri, a click on Wed
+  reads "wheel -> Wed". WinUI's two remain (Windows machine).
 - [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),

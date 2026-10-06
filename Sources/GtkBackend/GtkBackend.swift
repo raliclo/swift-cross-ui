@@ -230,7 +230,8 @@ public final class GtkBackend:
     // `.menu` stays first: `defaultPickerStyle` is the first entry, so it is
     // what `.automatic` resolves to, and a dropdown is what a GTK app shows for
     // a picker with no style of its own.
-    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .segmented, .radioGroup]
+    // `.wheel` since 2026-10-06 (WheelPicker.swift). `.wheel` 自 2026-10-06 起(WheelPicker.swift)。
+    public let supportedPickerStyles: [BackendPickerStyle] = [.menu, .segmented, .radioGroup, .wheel]
     // #386: preferredColorScheme is honoured (see updateWindow). The override is
     // per-display rather than per-window, since GTK has no per-window theme
     // variant, so two windows asking for opposite schemes cannot both win.
@@ -4452,10 +4453,8 @@ public final class GtkBackend:
                 return SegmentedPicker()
             case .radioGroup:
                 return RadioGroupPicker()
-            default:
-                let message = "unsupported picker style \(style)"
-                logger.critical("\(message)")
-                fatalError(message)
+            case .wheel:
+                return WheelPicker()
         }
     }
 
@@ -4472,6 +4471,12 @@ public final class GtkBackend:
             picker.onChange = onChange
             return
         } else if let picker = picker as? RadioGroupPicker {
+            picker.sensitive = environment.isEnabled
+            picker.update(options: options)
+            applyLabelStyles(to: picker, environment: environment)
+            picker.onChange = onChange
+            return
+        } else if let picker = picker as? WheelPicker {
             picker.sensitive = environment.isEnabled
             picker.update(options: options)
             applyLabelStyles(to: picker, environment: environment)
@@ -4539,6 +4544,10 @@ public final class GtkBackend:
     }
 
     public func setSelectedOption(ofPicker picker: Widget, to selectedOption: Int?) {
+        if let picker = picker as? WheelPicker {
+            picker.setSelectedIndex(to: selectedOption)
+            return
+        }
         if let picker = picker as? SegmentedPicker {
             picker.setSelectedIndex(to: selectedOption)
             return
