@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform,target
+sleep,,,,,,1500000,let the window lay out and the key target take focus,macos,
+key,,,,,a,,"a -- last key must read a, 2 events (down, up)",macos,
+sleep,,,,,,1500000,hold for the capture,macos,
