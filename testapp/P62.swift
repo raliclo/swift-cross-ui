@@ -122,6 +122,8 @@ struct P62EditorView: View {
     @Binding var document: P62TextFile
 
     @Environment(\.newDocument) var newDocument
+    @Environment(\.openDocument) var openDocument
+    @Environment(\.chooseFile) var chooseFile
 
     /// A per-window label, so a capture of two windows says which is which.
     ///
@@ -161,6 +163,9 @@ struct P62EditorView: View {
             HStack(spacing: 8) {
                 Button("type A") { append("A") }
                 Button("type B") { append("B") }
+                Button("open…") {
+                    Task { await openText() }
+                }
                 Button("clear") {
                     document.text = ""
                     P62Diagnostics.write("window \(windowNumber) cleared")
@@ -190,6 +195,38 @@ struct P62EditorView: View {
             P62Diagnostics.write("window \(windowNumber) appeared")
             P62Diagnostics.renderComplete()
         }
+    }
+
+    /// Opens a file through the platform's open dialog, offering only what the
+    /// document can read. The folder holds two files the filter must offer --
+    /// Swift source is a kind of plain text, and macOS offers conforming types
+    /// -- and one it must not, so a capture of the dialog shows whether it
+    /// filtered.
+    /// 經由平台的開啟對話框開檔，只提供文件讀得了的型別。資料夾裡有兩個過濾後必須出現的檔案——Swift 原始碼是一種
+    /// 純文字，而 macOS 會提供符合的子型別——以及一個不能出現的檔案，
+    /// 因此對話框的擷圖就看得出它有沒有過濾。
+    func openText() async {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("p62-open", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for name in ["readable.txt", "also-text.swift", "not-text.png"] {
+            try? Data("P62 \(name)\n".utf8).write(to: folder.appendingPathComponent(name))
+        }
+        P62Diagnostics.write(
+            "window \(windowNumber) open dialog offers "
+                + openDocument.readableContentTypes.map(\.name).joined(separator: ", ")
+        )
+        guard
+            let url = await chooseFile(
+                initialDirectory: folder,
+                allowedContentTypes: openDocument.readableContentTypes
+            )
+        else {
+            P62Diagnostics.write("window \(windowNumber) open dialog cancelled")
+            return
+        }
+        P62Diagnostics.write("window \(windowNumber) opening \(url.lastPathComponent)")
+        openDocument(url)
     }
 
     func append(_ letter: String) {

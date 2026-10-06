@@ -1769,7 +1769,15 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         panel.showsHiddenFiles = fileDialogOptions.showHiddenFiles
         panel.allowsOtherFileTypes = fileDialogOptions.allowOtherContentTypes
 
-        // TODO: allowedContentTypes
+        // Only the allowed types are selectable. `allowsOtherFileTypes` above is
+        // a save-panel setting that an open panel ignores, so "others allowed"
+        // means not restricting at all. Ignored until 2026-10-06, so every open
+        // panel offered every file.
+        // 只有允許的型別可以選。上方的 `allowsOtherFileTypes` 是儲存面板的設定，開啟面板不理會它，
+        // 因此「允許其他型別」就是完全不限制。2026-10-06 之前被忽略，所以每個開啟面板都提供所有檔案。
+        if !fileDialogOptions.allowOtherContentTypes {
+            panel.allowedContentTypes = fileDialogOptions.allowedContentTypes.flatMap(\.utTypes)
+        }
 
         panel.allowsMultipleSelection = openDialogOptions.allowMultipleSelections
         panel.canChooseFiles = openDialogOptions.allowSelectingFiles
@@ -1808,7 +1816,12 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         panel.showsHiddenFiles = fileDialogOptions.showHiddenFiles
         panel.allowsOtherFileTypes = fileDialogOptions.allowOtherContentTypes
 
-        // TODO: allowedContentTypes
+        // The types the file may be saved as; `allowsOtherFileTypes` above
+        // decides whether the user may type another extension. Ignored until
+        // 2026-10-06, so every save panel accepted any name.
+        // 檔案可儲存成的型別；上方的 `allowsOtherFileTypes` 決定使用者能否打其他副檔名。
+        // 2026-10-06 之前被忽略，所以每個儲存面板都接受任何檔名。
+        panel.allowedContentTypes = fileDialogOptions.allowedContentTypes.flatMap(\.utTypes)
 
         panel.nameFieldLabel = saveDialogOptions.nameFieldLabel ?? panel.nameFieldLabel
         panel.nameFieldStringValue = saveDialogOptions.defaultFileName ?? ""

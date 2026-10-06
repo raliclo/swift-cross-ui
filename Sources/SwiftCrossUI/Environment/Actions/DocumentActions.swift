@@ -48,4 +48,20 @@ public struct OpenDocumentAction {
         }
         openDocument(url)
     }
+
+    /// What the `DocumentGroup`'s document can read: the
+    /// `allowedContentTypes` for the open dialog that comes before this call.
+    /// Until 2026-10-06 nothing carried these to a dialog, so an app had to
+    /// repeat its document's types or offer every file.
+    /// `DocumentGroup` 的文件能讀取的型別：在這個呼叫之前的那個開啟對話框所用的
+    /// `allowedContentTypes`。2026-10-06 之前沒有東西把它們帶到對話框，app 只能重抄文件的型別或提供所有檔案。
+    public var readableContentTypes: [ContentType] {
+        environment.documentRegistry.readableContentTypes
+    }
+
+    /// What the document can write: the `allowedContentTypes` for a save dialog.
+    /// 文件能寫出的型別：儲存對話框的 `allowedContentTypes`。
+    public var writableContentTypes: [ContentType] {
+        environment.documentRegistry.writableContentTypes
+    }
 }

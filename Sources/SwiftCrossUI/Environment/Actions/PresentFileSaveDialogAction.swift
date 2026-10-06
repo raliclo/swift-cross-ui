@@ -21,6 +21,16 @@ public struct PresentFileSaveDialogAction: Sendable {
     ///     Defaults to `nil`, which uses the backend-specific default.
     ///   - defaultFileName: The default file name. Defaults to `nil`, which
     ///     uses the backend-specific default.
+    ///   - allowedContentTypes: The kinds of file the dialog offers. Empty, the
+    ///     default, offers every file. For a `DocumentGroup`, pass
+    ///     `openDocument.readableContentTypes`.
+    ///   - allowOtherContentTypes: Whether a file of another type may still be
+    ///     chosen (or, when saving, given another extension). Ignored when
+    ///     `allowedContentTypes` is empty.
+    ///   - allowedContentTypes:對話框提供的檔案種類。空(預設)代表所有檔案。
+    ///     `DocumentGroup` 請傳 `openDocument.readableContentTypes`。
+    ///   - allowOtherContentTypes:是否仍可選擇其他型別的檔案(儲存時：是否可用其他副檔名)。
+    ///     `allowedContentTypes` 為空時不使用。
     /// - Returns: The URL of the user's chosen save destination, or `nil` if
     ///   the user cancelled the dialog.
     public func callAsFunction(
@@ -30,7 +40,9 @@ public struct PresentFileSaveDialogAction: Sendable {
         initialDirectory: URL? = nil,
         showHiddenFiles: Bool = false,
         nameFieldLabel: String? = nil,
-        defaultFileName: String? = nil
+        defaultFileName: String? = nil,
+        allowedContentTypes: [ContentType] = [],
+        allowOtherContentTypes: Bool = false
     ) async -> URL? {
         guard let backend = backend as? any BackendFeatures.FileSaveDialogs else {
             logger.warnOnce("\(type(of: backend)) does not support file save dialogs")
@@ -46,9 +58,9 @@ public struct PresentFileSaveDialogAction: Sendable {
                         fileDialogOptions: FileDialogOptions(
                             title: title,
                             defaultButtonLabel: defaultButtonLabel,
-                            allowedContentTypes: [],
+                            allowedContentTypes: allowedContentTypes,
                             showHiddenFiles: showHiddenFiles,
-                            allowOtherContentTypes: true,
+                            allowOtherContentTypes: allowOtherContentTypes,
                             initialDirectory: initialDirectory
                         ),
                         saveDialogOptions: SaveDialogOptions(

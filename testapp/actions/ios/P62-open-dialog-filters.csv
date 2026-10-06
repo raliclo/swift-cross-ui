@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+sleep,,,,,,1500000,let the document window lay out,ios
+click,156,437,client,left,,,"open… -- the document picker, filtered to plain text",ios
+sleep,,,,,,4000000,hold the picker for the capture,ios

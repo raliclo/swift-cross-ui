@@ -24,14 +24,32 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   of `FullAppBackend`; GTK, WinUI, AppKit and UIKit have it, Android does not
   declare it, and `AndroidBackend.swift:609` still carries upstream's commented
   "Handle incoming URLs". An app opened by a link on Android never hears about it.
-- [ ] **File dialogs never filter by type, on any platform.** The core never sets
+- [x] **File dialogs never filter by type, on any platform.** The core never sets
   it: `PresentSingleFileOpenDialogAction.swift:54`, `PresentMultipleFileOpenDialogAction.swift:73`
   and `PresentFileSaveDialogAction.swift:49` all pass `allowedContentTypes: []`,
   and `DocumentGroup` does not hand its `FileDocument`'s readable types to the
   open dialog. Backends: Android maps them to MIME types; UIKit has `TODO(#235)`
   (`UIKitBackend+FilePicker.swift:37`); AppKit ignores them in both panels
   (`AppKitBackend.swift:1764`, `:1803`); GTK and WinUI never read the field.
-  Needs a public API first, then the three backends.
+  Needs a public API first, then the three backends. DONE 2026-10-06 except
+  WinUI's run: `chooseFile`/`chooseFiles`/`chooseFileSaveDestination` take
+  `allowedContentTypes` and `allowOtherContentTypes`; `openDocument` exposes
+  `readableContentTypes` / `writableContentTypes`. AppKit sets the panels'
+  `allowedContentTypes`, UIKit passes the type identifiers to the picker (and
+  names an exported file with an allowed extension), GTK adds a `GtkFileFilter`
+  per type, WinUI fills `fileTypeFilter` / `fileTypeChoices`. P62 has an
+  "open…" button; actions/{mac,ios}/P62-open-dialog-filters.csv: on macOS
+  not-text.png is greyed (it was selectable with the old AppKit code), on iOS
+  too; also-text.swift stays selectable on both, correctly -- Swift source
+  conforms to plain text. GTK compiled only (no open panel driven).
+  - [ ] **WinUI: compile and run the file-dialog filters.** Unverified: that
+    `"."` as a save choice accepts any name. Windows machine.
+  - [ ] **WinUI: the save dialog ignores `defaultFileName`** (no
+    `suggestedFileName`), seen while editing it.
+  - [ ] **`DocumentGroup`'s doc says it opens through the open dialog and
+    writes back through the save dialog; it does neither.** It only registers
+    `newDocument` / `openDocument(url)`; nothing saves a document. Either the
+    doc or the scene is wrong.
 - [x] **AppKit: `Slider` ignores `decimalPlaces`** (`AppKitBackend.swift:978`,
   "TODO: Implement decimalPlaces"). DONE 2026-10-06, 585788b5: rounded as UIKit
   does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.csv

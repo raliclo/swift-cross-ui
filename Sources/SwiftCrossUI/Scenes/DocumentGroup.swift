@@ -192,6 +192,8 @@ public final class DocumentGroupNode<Document: FileDocument, Content: View>: Sce
                 environment: environment
             )
         }
+        registry.readableContentTypes = Document.readableContentTypes
+        registry.writableContentTypes = Document.writableContentTypes
         registry.openDocument = { [weak self] url in
             guard let self else { return }
             do {

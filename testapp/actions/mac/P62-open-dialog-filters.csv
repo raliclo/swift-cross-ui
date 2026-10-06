@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform,target
+sleep,,,,,,1200000,let the document window lay out,macos,
+click,192,237,frame,left,,,open… -- the panel must offer readable.txt and also-text.swift (Swift source conforms to plain text) and grey out not-text.png,macos,
+sleep,,,,,,2500000,let the open panel appear,macos,
+keydown,,,,,command,,"Cmd-2: list view, which shows the folder itself; column view stays scrolled to the root",macos,
+key,,,,,2,,,macos,
+keyup,,,,,command,,,macos,
+sleep,,,,,,3000000,hold the open panel for the capture,macos,

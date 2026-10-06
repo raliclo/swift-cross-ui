@@ -85,7 +85,25 @@
         ) {
             let staging = FileManager.default.temporaryDirectory
                 .appendingPathComponent("save-\(UUID().uuidString)", isDirectory: true)
-            let name = saveDialogOptions.defaultFileName ?? "Untitled"
+            var name = saveDialogOptions.defaultFileName ?? "Untitled"
+            // The exported file's extension is the only place an iOS save can
+            // say what type it is: the export picker has no type filter. So a
+            // name without an allowed extension gets the first one -- unless
+            // other types are allowed and the name already carries its own.
+            // 匯出檔的副檔名是 iOS 儲存唯一能表達型別的地方：匯出選擇器沒有型別過濾。因此沒有允許之副檔名的
+            // 檔名會加上第一個——除非允許其他型別、且檔名已帶有自己的副檔名。
+            if let firstExtension = fileDialogOptions.allowedContentTypes.first?.fileExtensions.first {
+                let allowed = Set(
+                    fileDialogOptions.allowedContentTypes.flatMap(\.fileExtensions)
+                        .map { $0.lowercased() }
+                )
+                let current = (name as NSString).pathExtension.lowercased()
+                if !allowed.contains(current)
+                    && !(fileDialogOptions.allowOtherContentTypes && !current.isEmpty)
+                {
+                    name += "." + firstExtension
+                }
+            }
             let placeholder = staging.appendingPathComponent(name)
             do {
                 try FileManager.default.createDirectory(

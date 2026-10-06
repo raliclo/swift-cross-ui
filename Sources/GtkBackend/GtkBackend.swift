@@ -4957,6 +4957,45 @@ public final class GtkBackend:
             gtk_file_dialog_set_initial_name(dialog, defaultFileName)
         }
 
+        // One filter per content type, by MIME type and by suffix, so a file
+        // whose type GIO cannot sniff is still matched by its name; then "All
+        // files" when other types are allowed. The first filter is the one
+        // shown. Not set until 2026-10-06, so every GTK file dialog offered
+        // every file and a save had no type.
+        // 每個內容型別一個 filter,依 MIME 型別也依副檔名，讓 GIO 判斷不出型別的檔案仍能以檔名符合；允許
+        // 其他型別時再加「All files」。顯示的是第一個 filter。2026-10-06 之前沒有設定，所以每個 GTK 檔案
+        // 對話框都提供所有檔案，儲存也沒有型別。
+        if !fileDialogOptions.allowedContentTypes.isEmpty {
+            let filters = g_list_store_new(gtk_file_filter_get_type())
+            var filtersToAdd: [(name: String, mimeTypes: [String], suffixes: [String], patterns: [String])] =
+                fileDialogOptions.allowedContentTypes.map {
+                    ($0.name, $0.mimeTypes, $0.fileExtensions, [])
+                }
+            if fileDialogOptions.allowOtherContentTypes {
+                filtersToAdd.append(("All files", [], [], ["*"]))
+            }
+            for (index, entry) in filtersToAdd.enumerated() {
+                let filter = gtk_file_filter_new()
+                gtk_file_filter_set_name(filter, entry.name)
+                for mimeType in entry.mimeTypes {
+                    gtk_file_filter_add_mime_type(filter, mimeType)
+                }
+                for suffix in entry.suffixes {
+                    gtk_file_filter_add_suffix(filter, suffix)
+                }
+                for pattern in entry.patterns {
+                    gtk_file_filter_add_pattern(filter, pattern)
+                }
+                g_list_store_append(filters, UnsafeMutableRawPointer(filter))
+                if index == 0 {
+                    gtk_file_dialog_set_default_filter(dialog, filter)
+                }
+                g_object_unref(UnsafeMutableRawPointer(filter))
+            }
+            gtk_file_dialog_set_filters(dialog, filters)
+            g_object_unref(UnsafeMutableRawPointer(filters))
+        }
+
         let request = FileDialogRequest(kind: kind, handleResult: handleResult)
         let userData = Unmanaged.passRetained(request).toOpaque()
         let parent: UnsafeMutablePointer<GtkWindow>? = (window ?? windows.first)?

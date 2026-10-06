@@ -2480,7 +2480,17 @@ public final class WinUIBackend:
         let interface: SwiftIInitializeWithWindow = try! picker.thisPtr.QueryInterface()
         try! interface.initialize(with: hwnd)
 
-        picker.fileTypeFilter.append("*")
+        // The allowed extensions, or everything when there are none or others
+        // are allowed too. Until 2026-10-06 always everything. Not yet run on
+        // Windows.
+        // 允許的副檔名；沒有指定、或也允許其他型別時為全部。2026-10-06 之前一律全部。尚未在 Windows 上執行過。
+        let extensions = fileDialogOptions.allowedContentTypes.flatMap(\.fileExtensions)
+        if extensions.isEmpty || fileDialogOptions.allowOtherContentTypes {
+            picker.fileTypeFilter.append("*")
+        }
+        for fileExtension in extensions {
+            picker.fileTypeFilter.append("." + fileExtension)
+        }
 
         if openDialogOptions.allowMultipleSelections {
             let promise = try! picker.pickMultipleFilesAsync()!
@@ -2567,7 +2577,23 @@ public final class WinUIBackend:
         let interface: SwiftIInitializeWithWindow = try! picker.thisPtr.QueryInterface()
         try! interface.initialize(with: hwnd)
 
-        _ = picker.fileTypeChoices.insert("Text", [".txt"].toVector())
+        // One choice per content type, then "All files" when there are none or
+        // others are allowed. Until 2026-10-06 every save offered only
+        // "Text (.txt)", whatever the app was saving. "." as the extension list
+        // is meant to accept any name -- an assumption, not yet run on Windows.
+        // 每個內容型別一個選項；沒有指定、或允許其他型別時再加「All files」。2026-10-06 之前每次儲存都只
+        // 提供「Text (.txt)」,不論 app 要存的是什麼。以 "." 作為副檔名清單是為了接受任何檔名——這是假設，
+        // 尚未在 Windows 上執行過。
+        for contentType in fileDialogOptions.allowedContentTypes
+        where !contentType.fileExtensions.isEmpty {
+            _ = picker.fileTypeChoices.insert(
+                contentType.name,
+                contentType.fileExtensions.map { "." + $0 }.toVector()
+            )
+        }
+        if fileDialogOptions.allowedContentTypes.isEmpty || fileDialogOptions.allowOtherContentTypes {
+            _ = picker.fileTypeChoices.insert("All files", ["."].toVector())
+        }
         let promise = try! picker.pickSaveFileAsync()!
         promise.completed = { operation, status in
             let result: DialogResult<URL> = Self.handleAsyncOperationCompletion(

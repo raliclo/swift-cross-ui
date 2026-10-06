@@ -28,5 +28,11 @@ public final class DocumentRegistry: @unchecked Sendable {
     /// 在自己的視窗中開啟位於這個 URL 的檔案。
     var openDocument: (@MainActor (URL) -> Void)?
 
+    /// The document type's readable and writable content types, for the
+    /// app's open and save dialogs. Empty with no `DocumentGroup`.
+    /// 文件型別可讀、可寫的內容型別，供 app 的開啟與儲存對話框使用。沒有 `DocumentGroup` 時為空。
+    var readableContentTypes: [ContentType] = []
+    var writableContentTypes: [ContentType] = []
+
     public init() {}
 }
