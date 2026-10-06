@@ -1112,3 +1112,124 @@ app re-sorts its own rows.
 Split: protocol, view side, GtkBackend and WinUIBackend here; AppKit, UIKit and
 Android are the Mac side's, where `NSTableView` and `UITableView` already have
 selection and clickable headers. Selection lands first, on its own.
+
+## Archived 2026-10-06 from queue.md
+
+### 2026-09-27 found while driving iOS
+
+- [x] **FIXED 2026-09-29: a re-layout reuses each node's kept body.** A node keeps
+  the body its view's default layout evaluated (`BodyCapture` / `lastBody`); a pass
+  started by a child's resize -- or by the window when its content resized, which
+  no longer recomputes the scene -- carries `EnvironmentValues.reusesBodies`, and
+  every node on it lays out its kept body instead of evaluating `body`. Commit
+  always uses the laid-out body, so a commit builds no views. The flag and the
+  cache are pass-only and never stored, so a node's own update still evaluates its
+  body. Evidence: the `withKnownIssue` test began reporting "known issue was not
+  recorded" and is now a plain expectation that fails without the change (shown);
+  whole test product passes. P45Model: 7 constructions per run on macOS before,
+  now the 4 at launch and none on any state change; Android 2 at launch and none
+  after. Full sweeps on the change: macOS 83/83 and iOS 74/74, each capture
+  compared pixel-wise with the last verified one -- all identical but the pages
+  that change by themselves (spinning cube, video, network images) and P38, whose
+  failures came from example.com now serving localized pages (macOS now follows
+  the link with Option-Tab; iOS loads P38's own fixed page via -url). Launch still
+  builds the root view a few times (the window probes its minimum and maximum
+  sizes with the scene); that is bounded and was left alone.
+  **Independently confirmed 2026-09-29 by SoftPCB-mac on 268502a8 (clean
+  sources):** GeometryRenderModel.init 28 -> 7, 9, 7 over three runs of the same
+  action file (tab 9, a coupon clicked twice); every init before the first
+  `select` -- launch and the tab switch -- and none after either click; one model
+  ObjectIdentifier throughout, selection held. Probe reverted on their side.
+  **2026-09-29 由 SoftPCB-mac 在 268502a8 上獨立確認:**28 次降為三次執行的 7、9、7,全部發生在啟動與切換分頁時,兩次
+  點擊之後一次也沒有;model 全程同一個物件,選取保住。Original entry:
+  **Core: a child's resize makes its parent re-evaluate `body`, so views are
+  re-created on every state change that changes a size.** Every `computeLayout`
+  evaluates `body`, and `bottomUpUpdate` climbs through `onResize`. Consequence
+  left after the ObservedObject fix: initial-value expressions of wrappers run far
+  more often than in SwiftUI.
+  **Attempted 2026-09-29, reverted.** A pass-only `reusesChildViews` flag, set by
+  `onResize` (node and window) and never stored, so nodes keep their views and the
+  window stops recomputing the scene. The whole test product still passed, but the
+  new test -- a child's @State change must not construct the child again -- failed
+  IDENTICALLY with and without it: laying the parent out evaluates its body, and
+  evaluating `VStack { Child() }` builds `Child` whether or not its node takes it.
+  The flag only prevented the adoption, which the ObservedObject fix already
+  handles, at the price of relayouts no longer applying new views on every
+  backend. **What a real fix needs:** a re-layout that does not evaluate `body` --
+  each node keeping the body value it last computed and laying that out, which
+  touches every default implementation in `View` (children, layoutableChildren,
+  asWidget, computeLayout, commit). The test stays in `ObservedObjectTests` under
+  `withKnownIssue`; it will report when this is fixed.
+  **2026-09-29 試過並撤回。**只屬於該趟的 `reusesChildViews` 旗標無法阻止子 view 被建出:排版父層就會求值 body,
+  而求值本身就會建出子 view。真正的修法是重新排版時不求值 body——每個節點保留上次算出的 body 值並排版它,這會
+  動到 `View` 所有預設實作。測試以 `withKnownIssue` 留在 `ObservedObjectTests`,修好時會自己報告。
+- [x] **CLOSED 2026-09-29 -- does not reproduce.** A long press held with the menu
+  open, captured three times (p72-ios-final-20260929-000335/000434/000453.png):
+  Reset the camera and Snapshot shown, no keyboard in any of them. The suspected
+  cause does not exist either: `KeyEventWidget` is a view CONTROLLER that becomes
+  first responder and adopts no `UIKeyInput`, so UIKit has no text input to show a
+  keyboard for. The 2026-09-27 captures predate the RootScrollHost and
+  first-responder changes of 09-27/28 and the simulator's one-time typing sheet;
+  which of those it was is not known. Original entry:
+  **UIKit: a long press on P72's mesh view raises the software keyboard.**
+  Seen in every capture of the open context menu on 2026-09-27 (and once as
+  the simulator's one-time "Speed up your typing" sheet). Suspected, NOT
+  verified: the view takes first-responder status for `.onKeyPress`, and UIKit
+  shows a keyboard for a first responder that accepts text input. SwiftUI's
+  `.onKeyPress` does not raise one. Check `UIKitBackend+KeyEvents.swift` for
+  `UIKeyInput` / `canBecomeFirstResponder` before changing anything.
+  **UIKit:P72 的 mesh view 被長按時會叫出螢幕鍵盤。** 2026-09-27 每一張「選單已開啟」的擷圖都看得到
+  (其中一次是模擬器一次性的「Speed up your typing」面板)。推測、**未查證**:那個 view 為了 `.onKeyPress`
+  取得 first responder,而 UIKit 會為一個接受文字輸入的 first responder 顯示鍵盤。SwiftUI 的 `.onKeyPress`
+  不會叫出鍵盤。動手之前先看 `UIKitBackend+KeyEvents.swift` 裡的 `UIKeyInput` / `canBecomeFirstResponder`。
+
+### 2026-09-12 Windows / WSL handover
+
+- [x] **CLOSED 2026-09-29 -- TalkBack's actual speech verified, no human listening.**
+  `testapp/test_support/android_log_tts` is a TTS engine that logs every utterance
+  (tag SCUI-TTS) and speaks none; as the default engine it receives everything
+  TalkBack says. P69 on the api36 emulator, each element touch-explored through the
+  real touchscreen device (`adb input tap` bypasses the accessibility filter):
+  Close -> "Close, Button" (no "X"); Delete -> "Delete, Button. Removes the file
+  permanently"; Volume -> "40 percent, Volume, Button"; the 12:30 text -> "Half past
+  twelve" (12:30 not spoken, so the contentDescription override is what a reader
+  uses -- the one thing this item had not heard); decorative -> nothing.
+  Transcript: `testapp/measurements/talkback-p69-20260929.txt`. What remains is
+  Narrator, on the Windows machine, tracked in the item above.
+  **2026-09-29 關閉:TalkBack 的實際朗讀已驗證,不需要有人聽。**記錄每段朗讀的 TTS 引擎 + 真正的觸控事件;五項主張全部
+  以「唸出的內容」成立。剩下的 Narrator 在 Windows 那台機器上,由上面那一項追蹤。原條目:
+  **#123 複驗(2026-09-17,應 Windows 之請):我們這三個 backend 乾淨,但複驗本身找到一個更大的洞**
+  - **起因**:那邊的外部 AT-SPI 探針發現 GTK 的 Close 按鈕仍把 `X` 子節點暴露出去。
+  - **macOS:沒有這個問題,而且現在證得出來。** `ax_dump` 加了 `--children`,會印出每一顆具名按鈕
+    **底下**有什麼:`desc='Close'`(無子節點)、`desc='Delete' help='Removes the file permanently'`
+    (無子節點)、`desc='Volume' value='40 percent'`(無子節點),整棵樹裡沒有 `X`、也沒有
+    `decorative`。原本那份扁平清單**不可能**顯示出子節點——同一個量測,現在被問了一個它先前答不出的問題。
+  - **Android:未壓縮的 dump 確實看得到 `Button desc='Close' → … → TextView text='X'`,以及
+    `decorative`。那不是缺陷**,而且原始碼早就寫著:`uiautomator` 的普通 dump 會設
+    `FLAG_INCLUDE_NOT_IMPORTANT_VIEWS`,列出螢幕閱讀器永遠抵達不了的 view。`--compressed`
+    ——也就是與輔助技術所走訪者相符的那一份——給的是 `Button desc='Close'` **0 個子節點**、
+    `decorative` 完全不存在。兩份 dump 同一次執行取得,因此差別在旗標,不在建置。
+  - **iOS:在今天之前根本沒有外部探針,而一裝上就抓到東西。** XCUITest 的 runner 現在支援
+    `--dump-tree`(`test_ios.zsh`),印出的是輔助技術所走訪的同一棵樹。第一份輸出:**整支 app 只解析出
+    一個 `StaticText`,而它屬於測試載具自己的 `actualView` 按鈕**;SwiftCrossUI 畫出的每一段文字都是
+    沒有名字的 `Other`——**VoiceOver 對這個 backend 上任何 app 的任何文字都無話可說**。原因是
+    `UIKitBackend.TextView` 以 TextKit 自行繪製,因此是普通 `UIView`、不是無障礙元素。已修:設定文字時
+    一併發布 `isAccessibilityElement`/`accessibilityLabel` 並加上 `.staticText` trait,並讓
+    `namedChild` 認得 `TextView`。修後:七個 `StaticText` 各自帶著自己的內容,
+    Close/Delete/Volume 仍帶著名字且**沒有** `X` 子節點,`decorative` 不出現。
+  - **給那邊的一條線索(GTK)**:AT-SPI **沒有** Android 那種「不重要」過濾,所以那棵樹就是 AT 走訪的樹
+    ——`X` 若在裡面就是真的在裡面。GTK4 可以把內層 label 的 accessible role 設為 `NONE`/presentation,
+    或對它 `gtk_accessible_update_state(... GTK_ACCESSIBLE_STATE_HIDDEN, TRUE ...)`。我這邊沒有 GTK,
+    無法驗,所以這是線索不是結論。
+  - **`.accessibilityLabel` 對 `Text` 的等價檢查已完成(2026-09-19,AppKit 與 Android)**,而它找到的
+    不是實作缺陷、是 **P69 自己的主張寫錯了**:
+    - **AppKit**:`AXStaticText 'Half past twelve' desc='Half past twelve'`,整棵樹裡沒有 `12:30`。
+    - **Android**(`uiautomator --compressed`):**同一個** TextView 同時帶著 `text='12:30'` 與
+      `content-desc='Half past twelve'`。
+    - P69 原本的主張寫著「出現 'Half past twelve' 而**不出現** '12:30'」——那是 macOS/iOS 的形狀,
+      被當成普世規則寫下。在 Android 上 `contentDescription` 是一個「閱讀器**改讀它**、而不是讀 text」
+      的**覆寫**,不是替換;`12:30` 留在節點上是正確的。那段主張會把 Android 的 dump 讀成失敗,
+      而當時標籤正在正確地做它的事——**最糟的一種錯誤斷言:它指著能用的程式碼。** 已改為逐平台敘述。
+    - **兩邊都確認 `decorative` 不出現**(Android 上唯一的那次出現,是在 P69 自己的主張字串裡)。
+  - **仍未做**:Narrator / TalkBack 的**實際朗讀**(要有人聽);Android 上「閱讀器會改讀
+    contentDescription」是平台的既定行為,我沒有聽過,因此與 Narrator 那一項同列。
