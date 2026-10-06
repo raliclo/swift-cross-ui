@@ -76,10 +76,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   (`AndroidBackend+Sheets.swift:51`), `dismantleAndroidView`
   (`AndroidViewRepresentable.swift:53`). UIKit: sheet detents before iOS 16
   (`UIKitBackend+Sheet.swift:171`).
-- [ ] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
+- [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
   `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
   `Scripts/check_action_files.sh`, `Scripts/check_action_file_fields.sh`,
   `Scripts/check_mistakes_numbering.sh`, `Scripts/check_results_columns.sh`.
+  CLOSED, no change, 2026-10-06. The global rule is csv2 *or Python's csv
+  module*; what it forbids is splitting on commas, and none of these does. Three
+  read action files, whose `#` comment lines csv2 refuses by design
+  ("record 1 (line 2) starts with '#'. csv2 has no comment syntax", measured)
+  -- moving them would mean stripping lines and losing the line numbers their
+  reports cite. The only writer, fill_matrix_from_sweep.py, already passes
+  `lineterminator="\n"`, so the CRLF that the sweep writers produced does not
+  happen here. All six run from Scripts/test.sh on every machine, including
+  ones without csv2.
 
 ### Windows side (GTK and WinUI)
 
