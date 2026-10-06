@@ -195,6 +195,9 @@ class AndroidBackendHelpers {
         }
     }
 
+    /** The URL an intent carries (`am start -d`, a tapped link), or null. */
+    fun getIntentDataString(intent: Intent?): String? = intent?.dataString
+
     fun getTimeZoneIdentifier(): String? {
         val tz = TimeZone.getDefault()
 

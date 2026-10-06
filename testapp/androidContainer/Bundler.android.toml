@@ -151,6 +151,16 @@ permissions = [
 # 重點：它不會在下次更新 SDK 時自行移動。
 target_sdk = 35
 
+# The URL schemes a link may open these apps with, for `.onOpenURL`
+# (BackendFeatures.IncomingURLs, 2026-10-06). One scheme for every test app;
+# `am start -a android.intent.action.VIEW -d scui-testapp://x <package>` picks
+# the app by package. Read by package_android.zsh, which writes one VIEW
+# intent-filter per entry.
+# 可用來開啟這些 app 的 URL scheme,供 `.onOpenURL` 使用(BackendFeatures.IncomingURLs,2026-10-06)。
+# 所有測試 app 共用一個 scheme;`am start ... <package>` 以 package 選 app。package_android.zsh 會為每一項
+# 寫一個 VIEW intent-filter。
+url_schemes = ["scui-testapp"]
+
 # The API used to compile the Kotlin helpers in Sources/AndroidBackend/Kotlin.
 # Kept equal to targetSDK rather than raised. It was briefly 36 while
 # AndroidBackendHelpers.kt called TimeZone.getIanaID, which is API 36; b33f6246

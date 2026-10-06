@@ -62,6 +62,14 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func getTimeZoneIdentifier() -> JavaString?
 
+    /// The URL an intent carries, or `nil`. Through Kotlin because
+    /// AndroidKit declares `Intent.getDataString()` as returning a
+    /// non-optional `String`, and an intent with no data returns null.
+    /// intent 所帶的 URL,或 `nil`。經由 Kotlin,因為 AndroidKit 把 `Intent.getDataString()` 宣告成回傳
+    /// 非 optional 的 `String`,而沒有資料的 intent 回傳的是 null。
+    @JavaMethod
+    func getIntentDataString(_ intent: Intent?) -> JavaString?
+
     @JavaMethod
     func registerActivityResults(
         _ activity: FragmentActivity!,

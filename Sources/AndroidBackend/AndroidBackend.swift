@@ -605,9 +605,8 @@ public final class AndroidBackend: BaseAppBackend {
     // 帶著 TODO「Register app menu items as shortcuts when we support keyboard shortcuts」,而它做的
     // 正是那件事——鍵盤快捷鍵已於 2026-09-16 落地。
 
-    //    public func setIncomingURLHandler(to action: @escaping (Foundation.URL) -> Void) {
-    //        // TODO(stackotter): Handle incoming URLs
-    //    }
+    // `setIncomingURLHandler` is in `AndroidBackend+IncomingURLs.swift` (2026-10-06).
+    // `setIncomingURLHandler` 位於 `AndroidBackend+IncomingURLs.swift`(2026-10-06)。
 
     public func runInMainThread(action: @escaping @MainActor () -> Void) {
         Task { @MainActor in

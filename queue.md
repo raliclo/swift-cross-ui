@@ -20,10 +20,18 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 ### On this Mac
 
-- [ ] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part
+- [x] **Android: `BackendFeatures.IncomingURLs` is not implemented.** It is part
   of `FullAppBackend`; GTK, WinUI, AppKit and UIKit have it, Android does not
   declare it, and `AndroidBackend.swift:609` still carries upstream's commented
   "Handle incoming URLs". An app opened by a link on Android never hears about it.
+  DONE 2026-10-06 (AndroidBackend+IncomingURLs.swift): the launch intent's data
+  is read when the handler is set, `onNewIntent` through an ActivityListener
+  installed for it; early URLs queue and replay. The manifest gains one VIEW
+  filter per `url_schemes` entry in Bundler.android.toml (`scui-testapp`) and
+  `launchMode="singleTop"`, so a link to the app in front is `onNewIntent`
+  rather than a second activity. P78 (new): cold start with
+  scui-testapp://launch, then scui-testapp://running while in front ->
+  "received 2" in order on the emulator.
 - [x] **File dialogs never filter by type, on any platform.** The core never sets
   it: `PresentSingleFileOpenDialogAction.swift:54`, `PresentMultipleFileOpenDialogAction.swift:73`
   and `PresentFileSaveDialogAction.swift:49` all pass `allowedContentTypes: []`,

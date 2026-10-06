@@ -206,6 +206,19 @@ manifest = pathlib.Path(sys.argv[2])
 permissions = "".join(
     f'    <uses-permission android:name="{p if "." in p else "android.permission." + p}" />\n'
     for p in settings.get("permissions", []))
+# One VIEW filter per URL scheme, so a link reaches the app (BackendFeatures.IncomingURLs).
+# singleTop on the activity, so a link while the app is in front arrives as onNewIntent
+# rather than as a second activity on top of the first.
+# 每個 URL scheme 一個 VIEW filter,讓連結能到達 app;activity 設 singleTop,app 在前景時的連結會以
+# onNewIntent 送達，而不是在第一個 activity 上再疊一個。
+url_filters = "".join(
+    "            <intent-filter>\n"
+    "                <action android:name=\"android.intent.action.VIEW\" />\n"
+    "                <category android:name=\"android.intent.category.DEFAULT\" />\n"
+    "                <category android:name=\"android.intent.category.BROWSABLE\" />\n"
+    f"                <data android:scheme=\"{scheme}\" />\n"
+    "            </intent-filter>\n"
+    for scheme in settings.get("url_schemes", []))
 text = f'''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -215,12 +228,13 @@ text = f'''<?xml version="1.0" encoding="utf-8"?>
         android:label="@string/app_name"
         android:theme="@style/Theme.AppTheme"
         tools:targetApi="{settings["target_sdk"]}">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+{url_filters}        </activity>
         <service
             android:name="dev.swiftcrossui.androidbackend.OverlayService"
             android:exported="false"
