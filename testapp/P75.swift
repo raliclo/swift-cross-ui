@@ -153,7 +153,12 @@ struct P75RootView: View {
                         return
                     }
                     do {
-                        try Data("saved by P75".utf8).write(to: destination)
+                        // Atomically, as DocumentGroup's saveDocument writes: a write
+                        // that replaces the file rather than rewriting it is the case
+                        // Android's save mirror missed until 2026-10-07.
+                        // 以 atomic 寫入，與 DocumentGroup 的 saveDocument 相同：取代檔案而非改寫它的寫入，
+                        // 正是 Android 的存檔鏡像在 2026-10-07 之前漏掉的情況。
+                        try Data("saved by P75".utf8).write(to: destination, options: .atomic)
                         saveStatus = "wrote \(destination.path)"
                         readBack = (try? String(contentsOf: destination, encoding: .utf8))
                             ?? "(could not read it back)"

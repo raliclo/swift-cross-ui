@@ -454,9 +454,21 @@ class AndroidBackendHelpers {
         if (!file.createNewFile()) return null
 
         val resolver = activity.contentResolver
+        // The FOLDER is watched, for CLOSE_WRITE and MOVED_TO on this name: a
+        // plain write closes the file, an atomic one (`Data.write(options:
+        // .atomic)`, which DocumentGroup's saveDocument uses) renames a temporary
+        // file over it, and a watch on the file alone would see only the first.
+        // Measured 2026-10-07 on the API 36 emulator with P75 writing atomically:
+        // the copy arrived either way, so Foundation did not rename there -- but
+        // that is an implementation detail, and this covers both.
+        // 監看的是**資料夾**,針對這個檔名的 CLOSE_WRITE 與 MOVED_TO:一般寫入會關閉檔案,atomic 寫入
+        // (DocumentGroup 的 saveDocument 所用的 `Data.write(options: .atomic)`)會把暫存檔改名蓋過它，只監看
+        // 檔案本身只會看到前者。2026-10-07 以 P75 在 API 36 emulator 上 atomic 寫入實測：兩種都複製成功，所以
+        // Foundation 在那裡沒有改名——但那是實作細節，這裡兩者都涵蓋。
         val observer =
-            object : FileObserver(file, FileObserver.CLOSE_WRITE) {
+            object : FileObserver(folder, FileObserver.CLOSE_WRITE or FileObserver.MOVED_TO) {
                 override fun onEvent(event: Int, path: String?) {
+                    if (path != file.name) return
                     try {
                         resolver.openOutputStream(uri, "wt")?.use { output ->
                             file.inputStream().use { it.copyTo(output) }
