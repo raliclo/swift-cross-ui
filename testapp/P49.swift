@@ -54,6 +54,7 @@ struct P49RootView: View {
     @State var coverDismissals = 0
     @State var popoverShown = false
     @State var popoverOpens = 0
+    @State var detentSheetShown = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -96,6 +97,11 @@ struct P49RootView: View {
                 sheetShown = true
                 P49Diagnostics.write("sheet requested")
             }
+            Text("4. sheet with detents -- half height first, round corners, a handle")
+            Button("Show the detent sheet") {
+                detentSheetShown = true
+                P49Diagnostics.write("detent sheet requested")
+            }
 
             Text(
                 "Expected: the cover covers the whole window and the sheet does not. "
@@ -119,6 +125,21 @@ struct P49RootView: View {
                 detail: "This must fill the window. No drag indicator, no rounded corners.",
                 onClose: { coverShown = false }
             )
+        }
+        // Two detents, a 32-point corner and a visible drag indicator, so a
+        // capture shows whether the backend applied each: half-height first,
+        // round top corners, a handle. Added 2026-10-06 with Android's detents.
+        // 兩個 detent、32 點圓角與可見的拖曳指示器，讓擷圖看得出 backend 是否套用了每一項：先是半高、
+        // 上方圓角、一個把手。2026-10-06 隨 Android 的 detents 加入。
+        .sheet(isPresented: $detentSheetShown) {
+            P49PresentedContent(
+                title: "DETENT SHEET",
+                detail: "Half height first, rounded top corners, a drag handle. Drag up for full height.",
+                onClose: { detentSheetShown = false }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationCornerRadius(32)
+            .presentationDragIndicatorVisibility(.visible)
         }
         .sheet(isPresented: $sheetShown) {
             P49PresentedContent(

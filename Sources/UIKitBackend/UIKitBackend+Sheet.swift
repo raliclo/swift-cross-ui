@@ -150,7 +150,10 @@ extension UIKitBackend {
                                         }
                                     )
                                 } else {
-                                    return .medium()
+                                    // iOS 15 has only `.medium` and `.large`
+                                    // (`.custom` is iOS 16), so the nearer of the two.
+                                    // iOS 15 只有 `.medium` 與 `.large`,因此取較接近的那一個。
+                                    return fraction > 0.75 ? .large() : .medium()
                                 }
                             case .height(let height):
                                 if #available(iOS 16.0, *) {
@@ -161,14 +164,26 @@ extension UIKitBackend {
                                         }
                                     )
                                 } else {
-                                    return .medium()
+                                    // iOS 15 has only `.medium` and `.large`
+                                    // (`.custom` is iOS 16), so the nearer of the
+                                    // two: past three quarters of the screen is large.
+                                    // iOS 15 只有 `.medium` 與 `.large`(`.custom` 是 iOS 16),
+                                    // 因此取較接近的那一個：超過螢幕四分之三為 large。
+                                    let screen = sheet.view.window?.bounds.height
+                                        ?? UIScreen.main.bounds.height
+                                    return height > screen * 0.75 ? .large() : .medium()
                                 }
                         }
                     }
                 }
             #endif
         } else {
-            // TODO: Maybe we can backport the detent behaviour?
+            // iOS 13 and 14 have no sheetPresentationController: a sheet there
+            // is a page sheet of fixed height. Detents there would need a custom
+            // UIPresentationController -- not written yet (queue.md). iOS 15 is
+            // handled above with the nearest of medium/large.
+            // iOS 13 與 14 沒有 sheetPresentationController:那裡的 sheet 是固定高度的 page sheet;要有 detent
+            // 需要自訂 UIPresentationController——尚未撰寫(queue.md)。iOS 15 已在上方以 medium/large 中較接近者處理。
             debugLogOnce(
                 """
                 your current OS version doesn't support variable sheet heights; \

@@ -208,7 +208,12 @@ permissions = "".join(
     for p in settings.get("permissions", []))
 # One VIEW filter per URL scheme, so a link reaches the app (BackendFeatures.IncomingURLs).
 # singleTop on the activity, so a link while the app is in front arrives as onNewIntent
-# rather than as a second activity on top of the first.
+# rather than as a second activity on top of the first. configChanges, so rotation,
+# light/dark, density and font scale reach onConfigurationChanged instead of destroying
+# the activity -- which restarted the Swift app and lost its state
+# (AndroidBackend+ConfigurationChanges.swift).
+# configChanges:讓旋轉、深淺色、密度與字體縮放送到 onConfigurationChanged,而不是銷毀 activity——那會讓
+# Swift app 重新啟動並失去狀態。
 # 每個 URL scheme 一個 VIEW filter,讓連結能到達 app;activity 設 singleTop,app 在前景時的連結會以
 # onNewIntent 送達，而不是在第一個 activity 上再疊一個。
 url_filters = "".join(
@@ -229,7 +234,8 @@ text = f'''<?xml version="1.0" encoding="utf-8"?>
         android:theme="@style/Theme.AppTheme"
         tools:targetApi="{settings["target_sdk"]}">
         <activity android:name=".MainActivity" android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -195,6 +195,22 @@ class AndroidBackendHelpers {
         }
     }
 
+    /**
+     * The window title: the activity's title, which accessibility services
+     * announce, and the task's label in Recents, which is where a user sees it.
+     */
+    fun setWindowTitle(activity: Activity, title: String) {
+        activity.title = title
+        val description =
+            if (Build.VERSION.SDK_INT >= 33) {
+                android.app.ActivityManager.TaskDescription.Builder().setLabel(title).build()
+            } else {
+                @Suppress("DEPRECATION")
+                android.app.ActivityManager.TaskDescription(title)
+            }
+        activity.setTaskDescription(description)
+    }
+
     /** The URL an intent carries (`am start -d`, a tapped link), or null. */
     fun getIntentDataString(intent: Intent?): String? = intent?.dataString
 

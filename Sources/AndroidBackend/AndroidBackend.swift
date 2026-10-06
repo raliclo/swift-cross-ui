@@ -457,7 +457,14 @@ public final class AndroidBackend: BaseAppBackend {
 
 
     public func setTitle(ofWindow window: Window, to title: String) {
-        // TODO(stackotter): Handle navigation titles.
+        // The window's title, not `.navigationTitle` (that is a row in the
+        // root stack, AndroidBackend+Toolbar.swift). Upstream's TODO here said
+        // "navigation titles"; what was missing was the activity title and the
+        // Recents label, which an Android user sees for the window. 2026-10-06.
+        // 視窗的標題，不是 `.navigationTitle`(那是 root stack 中的一列，見 AndroidBackend+Toolbar.swift)。
+        // 上游在此的 TODO 寫的是「導覽標題」;實際缺的是 activity 標題與「最近使用」中的標籤——Android
+        // 使用者看到視窗標題的地方。2026-10-06。
+        helpers.setWindowTitle(Self.activity, title)
     }
 
     public func setResizability(ofWindow window: Window, to resizable: Bool) {}
@@ -577,8 +584,11 @@ public final class AndroidBackend: BaseAppBackend {
         ofWindow window: Window,
         to action: @escaping (_ newSize: SIMD2<Int>) -> Void
     ) {
-        // TODO(stackotter): Handle orientation changes and other changes such
-        //   as density changes
+        // Rotation and anything else that changes the window's size -- see
+        // AndroidBackend+ConfigurationChanges.swift.
+        // 旋轉與其他改變視窗大小的事——見 AndroidBackend+ConfigurationChanges.swift。
+        Self.resizeHandler = action
+        installConfigurationListener()
     }
 
     public func show(window: Window) {
@@ -800,8 +810,11 @@ public final class AndroidBackend: BaseAppBackend {
     public func setRootEnvironmentChangeHandler(
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO(stackotter): Listen for system theme changes
-        // and call helpers.clearTextSizeCache()
+        // Light/dark and the rest of the configuration -- see
+        // AndroidBackend+ConfigurationChanges.swift.
+        // 深淺色與其餘設定——見 AndroidBackend+ConfigurationChanges.swift。
+        Self.rootEnvironmentChangeHandler = action
+        installConfigurationListener()
     }
 
     public func computeWindowEnvironment(
@@ -818,8 +831,10 @@ public final class AndroidBackend: BaseAppBackend {
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO(stackotter): React to per-window environment changes. See
-        //   computeWindowEnvironment
+        // Density and font scale -- see AndroidBackend+ConfigurationChanges.swift.
+        // 密度與字體縮放——見 AndroidBackend+ConfigurationChanges.swift。
+        Self.windowEnvironmentChangeHandler = action
+        installConfigurationListener()
     }
 
     public func show(widget: Widget) {}

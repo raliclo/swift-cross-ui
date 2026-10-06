@@ -62,6 +62,9 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func getTimeZoneIdentifier() -> JavaString?
 
+    @JavaMethod
+    func setWindowTitle(_ activity: Activity?, _ title: String)
+
     /// The URL an intent carries, or `nil`. Through Kotlin because
     /// AndroidKit declares `Intent.getDataString()` as returning a
     /// non-optional `String`, and an intent with no data returns null.

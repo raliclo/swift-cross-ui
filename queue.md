@@ -95,13 +95,42 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   scene (the override would otherwise read back as the system's). Captures
   p15-dark-ios-final-20261006-130110 (after) / -130141 (before). Not yet
   exercised: removing the preference at runtime.
-- [ ] **Android TODOs to verify, each a possible gap:** navigation titles
+- [x] **Android TODOs to verify, each a possible gap:** navigation titles
   (`AndroidBackend.swift:460`), orientation and configuration changes (`:580`),
   live system light/dark changes (`:804`), per-window environment changes
   (`:822`), more than one `createWindow` (`:430`), sheet background and detents
   (`AndroidBackend+Sheets.swift:51`), `dismantleAndroidView`
   (`AndroidViewRepresentable.swift:53`). UIKit: sheet detents before iOS 16
   (`UIKitBackend+Sheet.swift:171`).
+  CHECKED 2026-10-06, six of seven were real gaps and are fixed:
+  - navigation titles were already a row (Toolbar); the empty one was the
+    WINDOW title -- now the activity title and the Recents label (P78:
+    `dumpsys activity recents` shows label="P78 incoming URLs").
+  - rotation, light/dark, density, font scale RESTARTED THE APP: no
+    `configChanges`, so the activity was recreated and `setup()` ran the Swift
+    app again in the same process (P78: received 2 -> rotate -> received 0,
+    same PID). The manifest declares them now and onConfigurationChanged feeds
+    the resize, root- and window-environment handlers (all three were empty
+    TODOs). P78 after: rotate and night mode keep "received 2", same PID, the
+    layout goes landscape and the background dark.
+  - sheet detents, corner radius, drag indicator: implemented in CustomSheet.kt
+    (BottomSheetBehavior peek / half-expanded / expanded, MaterialShapeDrawable,
+    BottomSheetDragHandleView); the frame is as tall as the largest detent, which
+    was the "background" problem. P49 gains a detent sheet: half height, round
+    corners, handle, drags to full; P1's green background and the plain sheet
+    unchanged.
+  - `dismantleAndroidView` added, run when the node is released (as UIKit). P79
+    (new): show, hide, show, hide -> made 2, dismantled 2.
+  - UIKit before iOS 16: `.fraction`/`.height` map to the nearer of medium/large
+    on iOS 15 instead of always medium. Built, not run (only an iOS 27 runtime
+    here).
+  - [ ] **Android: more than one `createWindow`** (`AndroidBackend.swift:430`).
+    One activity, so a second window replaces the first; `supportsMultipleWindows`
+    is false, as on iPhone. On tablets Android can run several activities
+    (multi-instance); doing it means one activity per window and an
+    `AndroidBackend.activity` that is no longer a singleton. Not started.
+  - [ ] **UIKit: sheet detents on iOS 13-14** need a custom
+    UIPresentationController (no sheetPresentationController there). Not started.
 - [-] **The csv2 rule (CLAUDE.md) in the tools that still use Python's csv:**
   `testapp/test_support/ios_aim_check.py`, `Scripts/fill_matrix_from_sweep.py`,
   `Scripts/check_action_files.sh`, `Scripts/check_action_file_fields.sh`,

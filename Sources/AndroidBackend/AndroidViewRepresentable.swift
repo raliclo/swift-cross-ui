@@ -50,8 +50,22 @@ public protocol AndroidViewRepresentable: SwiftCrossUI.View where Content == Nev
         context: Self.Context
     ) -> ViewSize
 
-    // TODO(bbrk24): Support dismantleAndroidView
-    // View doesn't have the same kind of lifecycle as Fragment, so it's not straightforward
+    /// Called when the view leaves the view graph, to undo what
+    /// `makeAndroidView` set up (observers, timers, listeners). The default does
+    /// nothing.
+    ///
+    /// Run when the view graph node holding the view is released, the same
+    /// moment UIKitBackend calls `dismantleUIView` -- not from an Android View
+    /// lifecycle callback, which has no single "this view is done" event (a
+    /// detach also happens on every scroll-out). Upstream left this as a TODO
+    /// for that reason; added 2026-10-06.
+    ///
+    /// view 離開 view graph 時呼叫，用來撤銷 `makeAndroidView` 所設定的東西(觀察者、計時器、監聽器)。
+    /// 預設什麼都不做。在持有該 view 的 view graph 節點被釋放時執行，與 UIKitBackend 呼叫
+    /// `dismantleUIView` 的時機相同——而不是來自 Android View 的生命週期回呼，那裡沒有單一的「這個 view
+    /// 結束了」事件(每次捲出畫面也會 detach)。上游因此留下 TODO;2026-10-06 加入。
+    @MainActor
+    static func dismantleAndroidView(_ view: ViewType, coordinator: Coordinator)
 }
 
 extension AndroidViewRepresentable {
@@ -93,6 +107,26 @@ extension AndroidViewRepresentable {
         let height = Double(view.getMeasuredHeight()) / density
 
         return ViewSize(width, height)
+    }
+}
+
+extension AndroidViewRepresentable {
+    @MainActor
+    public static func dismantleAndroidView(_: ViewType, coordinator _: Coordinator) {}
+}
+
+/// The representable's node children: none, plus the dismantle call, made
+/// when the node -- and so this object -- is released.
+/// representable 節點的 children:沒有子節點，只帶著 dismantle 呼叫；在節點(因而此物件)被釋放時執行。
+final class AndroidRepresentableChildren: ViewGraphNodeChildren {
+    var widgets: [AnyWidget] { [] }
+    var erasedNodes: [ErasedViewGraphNode] { [] }
+    var dismantle: (@MainActor () -> Void)?
+
+    deinit {
+        if let dismantle {
+            Task { @MainActor in dismantle() }
+        }
     }
 }
 
@@ -168,7 +202,7 @@ extension SwiftCrossUI.View where Self: AndroidViewRepresentable {
         snapshots _: [ViewGraphSnapshotter.NodeSnapshot]?,
         environment _: EnvironmentValues
     ) -> any ViewGraphNodeChildren {
-        EmptyViewChildren()
+        AndroidRepresentableChildren()
     }
 
     public func layoutableChildren<Backend: BaseAppBackend>(
@@ -205,6 +239,16 @@ extension SwiftCrossUI.View where Self: AndroidViewRepresentable {
             proposedSize: proposedSize,
             representable: self
         )
+        if let children = children as? AndroidRepresentableChildren, children.dismantle == nil {
+            children.dismantle = {
+                guard let child = widget.getChild()?.as(ViewType.self),
+                    let context = widget.getSwiftContext()?.value() as? Context
+                else {
+                    return
+                }
+                Self.dismantleAndroidView(child, coordinator: context.coordinator)
+            }
+        }
         return ViewLayoutResult.leafView(size: size)
     }
 
