@@ -13,6 +13,7 @@ import android.icu.util.TimeZone
 import android.net.Uri
 import android.os.Build
 import android.util.TypedValue
+import android.view.View
 import android.view.WindowInsets
 import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
@@ -209,6 +210,42 @@ class AndroidBackendHelpers {
                 android.app.ActivityManager.TaskDescription(title)
             }
         activity.setTaskDescription(description)
+    }
+
+    /** Opens a window after the first as a ScuiWindowActivity; see that file. */
+    fun openWindow(
+        from: Activity,
+        token: String,
+        title: String,
+        content: View,
+        onClosed: SwiftAction,
+        onResized: SwiftAction,
+    ) {
+        ScuiWindows.contents[token] = content
+        ScuiWindows.titles[token] = title
+        ScuiWindows.onClosed[token] = onClosed
+        ScuiWindows.onResized[token] = onResized
+        val intent =
+            Intent(from, ScuiWindowActivity::class.java)
+                .putExtra(ScuiWindowActivity.EXTRA_TOKEN, token)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_DOCUMENT or
+                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
+                        Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT
+                )
+        from.startActivity(intent)
+    }
+
+    fun closeWindow(token: String) {
+        ScuiWindows.activities[token]?.finish()
+    }
+
+    /** The window's activity once it exists, else null. */
+    fun windowActivity(token: String): Activity? = ScuiWindows.activities[token]
+
+    fun setTitleOfWindow(token: String, title: String) {
+        ScuiWindows.titles[token] = title
+        ScuiWindows.activities[token]?.let { setWindowTitle(it, title) }
     }
 
     /** The URL an intent carries (`am start -d`, a tapped link), or null. */

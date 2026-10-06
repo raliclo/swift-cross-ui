@@ -23,10 +23,20 @@ import Foundation
 /// activity 所做的事。close handler 先執行，趁 scene graph 仍能觸及它即將釋放的視窗。
 extension AndroidBackend: BackendFeatures.WindowClosing {
     public func setCloseHandler(ofWindow window: Window, to action: @escaping () -> Void) {
+        if window.token != nil {
+            window.closeHandler = action
+            return
+        }
         Self.closeHandler = action
     }
 
     public func close(window: Window) {
+        if let token = window.token {
+            // The activity's onDestroy runs the close handler (show(window:)).
+            // activity 的 onDestroy 會執行關閉處理器(見 show(window:))。
+            helpers.closeWindow(token)
+            return
+        }
         let handler = Self.closeHandler
         Self.closeHandler = nil
         handler?()

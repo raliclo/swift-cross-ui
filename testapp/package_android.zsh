@@ -241,6 +241,10 @@ text = f'''<?xml version="1.0" encoding="utf-8"?>
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 {url_filters}        </activity>
+        <activity
+            android:name="dev.swiftcrossui.androidbackend.ScuiWindowActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection" />
         <service
             android:name="dev.swiftcrossui.androidbackend.OverlayService"
             android:exported="false"

@@ -65,6 +65,25 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func setWindowTitle(_ activity: Activity?, _ title: String)
 
+    @JavaMethod
+    func openWindow(
+        _ from: Activity?,
+        _ token: String,
+        _ title: String,
+        _ content: AndroidKit.View?,
+        _ onClosed: SwiftAction?,
+        _ onResized: SwiftAction?
+    )
+
+    @JavaMethod
+    func closeWindow(_ token: String)
+
+    @JavaMethod
+    func windowActivity(_ token: String) -> Activity?
+
+    @JavaMethod
+    func setTitleOfWindow(_ token: String, _ title: String)
+
     /// The URL an intent carries, or `nil`. Through Kotlin because
     /// AndroidKit declares `Intent.getDataString()` as returning a
     /// non-optional `String`, and an intent with no data returns null.

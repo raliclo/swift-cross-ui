@@ -137,11 +137,25 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - UIKit before iOS 16: `.fraction`/`.height` map to the nearer of medium/large
     on iOS 15 instead of always medium. Built, not run (only an iOS 27 runtime
     here).
-  - [ ] **Android: more than one `createWindow`** (`AndroidBackend.swift:430`).
+  - [x] **Android: more than one `createWindow`** (`AndroidBackend.swift:430`).
     One activity, so a second window replaces the first; `supportsMultipleWindows`
     is false, as on iPhone. On tablets Android can run several activities
     (multi-instance); doing it means one activity per window and an
-    `AndroidBackend.activity` that is no longer a singleton. Not started.
+    `AndroidBackend.activity` that is no longer a singleton. DONE 2026-10-06:
+    every window after the first is a `ScuiWindowActivity` (Kotlin), started
+    with NEW_DOCUMENT|MULTIPLE_TASK|LAUNCH_ADJACENT; its content is built in
+    Swift and handed over by token. Per-window title, background, insets, size,
+    toolbar stack, resize and environment handlers (the static single handlers
+    were the last window's, so a second window took the first's away);
+    close by finish/back runs the close handler. `supportsMultipleWindows` is
+    true. P59 on the emulator: "open second window" put B beside A in split
+    screen, both relaid to their halves; append B in B -> scene draft B only in
+    B (A keeps A), app draft AB in both; Back closed B and A went full screen;
+    reopening B restored its scene draft. P1 (one window, sheets) unchanged.
+    - [ ] **Android: presentations from a later window** -- sheets, alerts,
+      popovers, file dialogs and the synthesiser still use the first activity
+      (`AndroidBackend.activity`), so they appear over window A. Views in a
+      later window are created with the first activity's context.
   - [-] **UIKit: sheet detents on iOS 13-14** need a custom
     UIPresentationController (no sheetPresentationController there). Not started.
     CANCELLED 2026-10-06 by the user ("no need"): no iOS 13/14 runtime here to

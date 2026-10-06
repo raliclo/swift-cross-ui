@@ -26,9 +26,26 @@ import SwiftJava
 /// 這些變更，activity 會留下,`onConfigurationChanged` 經由 `ActivityListener` 抵達。先清掉文字大小快取，
 /// 因為字體縮放也是變更的項目之一。
 extension AndroidBackend {
-    nonisolated(unsafe) static var resizeHandler: ((SIMD2<Int>) -> Void)?
+    /// Every window that asked to hear about size or environment changes.
+    /// Per window since 2026-10-06: a single static handler was the last
+    /// window's, so opening a second window took the first one's away.
+    /// 每個要求得知尺寸或 environment 變更的視窗。自 2026-10-06 起每個視窗一份：單一的 static 處理器屬於最後一個
+    /// 視窗，開第二個視窗就把第一個的搶走了。
+    nonisolated(unsafe) static var windows: [WeakWindow] = []
+
+    final class WeakWindow {
+        weak var window: Window?
+        init(_ window: Window) { self.window = window }
+    }
+
+    func register(_ window: Window) {
+        Self.windows.removeAll { $0.window == nil }
+        if !Self.windows.contains(where: { $0.window === window }) {
+            Self.windows.append(WeakWindow(window))
+        }
+        installConfigurationListener()
+    }
     nonisolated(unsafe) static var rootEnvironmentChangeHandler: (@MainActor () -> Void)?
-    nonisolated(unsafe) static var windowEnvironmentChangeHandler: (@MainActor () -> Void)?
     nonisolated(unsafe) static var didInstallConfigurationListener = false
 
     func installConfigurationListener() {
@@ -44,8 +61,17 @@ extension AndroidBackend {
     func configurationDidChange() {
         helpers.clearTextSizeCache()
         Self.rootEnvironmentChangeHandler?()
-        Self.windowEnvironmentChangeHandler?()
-        Self.resizeHandler?(size(ofWindow: Window()))
+        for window in Self.windows.compactMap(\.window) {
+            window.environmentChangeHandler?()
+        }
+        // The first window only: a later window reports its own size from its
+        // activity's layout (show(window:)), and this listener is the first
+        // activity's.
+        // 只處理第一個視窗：之後的視窗由自己 activity 的排版回報尺寸(show(window:)),而這個監聽器屬於第一個 activity。
+        for window in Self.windows.compactMap(\.window) where window.token == nil {
+            updateInsets(ofWindow: window)
+            window.resizeHandler?(size(ofWindow: window))
+        }
     }
 }
 

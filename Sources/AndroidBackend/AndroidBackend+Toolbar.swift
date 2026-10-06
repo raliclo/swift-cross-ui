@@ -47,7 +47,7 @@ extension AndroidBackend: BackendFeatures.Toolbars {
         to items: [SwiftCrossUI.ToolbarItem],
         title: String?
     ) {
-        guard let stack = Self.rootStack else { return }
+        guard let stack = window.rootStack ?? Self.rootStack else { return }
         setNavigationTitle(title, in: stack)
 
         guard !items.isEmpty else {

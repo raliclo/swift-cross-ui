@@ -187,8 +187,28 @@ extension EnvironmentValues {
 }
 
 public final class AndroidBackend: BaseAppBackend {
+    /// One SwiftCrossUI window. The first is the activity the app started in;
+    /// each later one has a `token` and becomes a `ScuiWindowActivity` of its
+    /// own when shown (Kotlin/ScuiWindowActivity.kt).
+    /// 一個 SwiftCrossUI 視窗。第一個是 app 啟動時的 activity;之後的每一個都有 `token`,顯示時成為自己的
+    /// `ScuiWindowActivity`(Kotlin/ScuiWindowActivity.kt)。
     public final class Window {
         var content: Widget?
+        /// `nil` for the first window. 第一個視窗為 `nil`。
+        let token: String?
+        /// The stack `setChild` built: toolbar rows go here. `setChild` 建的 stack:工具列在這裡。
+        var rootStack: AndroidKit.LinearLayout?
+        var title = ""
+        var closeHandler: (() -> Void)?
+        var resizeHandler: ((SIMD2<Int>) -> Void)?
+        var environmentChangeHandler: (@MainActor () -> Void)?
+        var isOpen = false
+        /// What a later window's activity takes as its content. 之後的視窗的 activity 所採用的內容。
+        var contentRoot: AndroidKit.View?
+
+        init(token: String?) {
+            self.token = token
+        }
     }
 
     public typealias Widget = AndroidKit.View
@@ -244,7 +264,12 @@ public final class AndroidBackend: BaseAppBackend {
     public private(set) var deviceClass = DeviceClass.phone
 
     public let defaultPaddingAmount = 10
-    public let supportsMultipleWindows = false
+    // True since 2026-10-06: a window after the first is an activity of its
+    // own (ScuiWindowActivity.kt) -- a separate task in Recents on a phone, beside
+    // the first in split screen on a tablet.
+    // 自 2026-10-06 起為 true:第一個之後的視窗是自己的 activity(ScuiWindowActivity.kt)——在手機上是「最近使用」
+    // 中的獨立工作，在平板上可在分割畫面中並排。
+    public let supportsMultipleWindows = true
     // True since 2026-09-03, and the false it replaced was not a statement about
     // Android. `WindowReference` reads this flag before it does anything: false
     // makes it discard `preferredColorScheme` entirely, so `.colorScheme(.dark)`
@@ -276,6 +301,9 @@ public final class AndroidBackend: BaseAppBackend {
     static var saveDialogCallback: ((String?) -> Void)?
     /// The one window's close handler; see `close(window:)`.
     static var closeHandler: (() -> Void)?
+    /// Whether the first window -- the launch activity's -- has been created.
+    /// 第一個視窗(啟動 activity 的那個)是否已建立。
+    nonisolated(unsafe) static var didCreateMainWindow = false
 
     /// A reference used to keep the tickler alive.
     var tickler: MainRunLoopTickler?
@@ -427,8 +455,13 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func createWindow(withDefaultSize defaultSize: SIMD2<Int>?, id: String) -> Window {
-        // TODO(stackotter): Properly support multiple calls to createWindow
-        return Window()
+        // The first window is the activity the app started in; every later one
+        // gets a token and its own activity when shown. Until 2026-10-06 this
+        // was upstream's TODO and every call returned the same placeholder.
+        // 第一個視窗是 app 啟動時的 activity;之後每一個都拿到 token,顯示時有自己的 activity。2026-10-06
+        // 之前這裡是上游的 TODO,每次呼叫都回傳同一個佔位物件。
+        defer { Self.didCreateMainWindow = true }
+        return Window(token: Self.didCreateMainWindow ? UUID().uuidString : nil)
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
@@ -443,7 +476,9 @@ public final class AndroidBackend: BaseAppBackend {
         // 那是 backend 唯一一處拿到「某個視窗的」environment 而非「某個 widget 的」environment。
         // 為何此前沒有任何東西抵達這裡，見上方的 `canOverrideWindowColorScheme`；至於用哪個顏色、
         // 以及為何不用字面值，見 AndroidBackendHelpers.kt 的 `setWindowBackground`。
-        helpers.setWindowBackground(Self.activity, environment.colorScheme == .dark)
+        if let activity = activity(of: window) {
+            helpers.setWindowBackground(activity, environment.colorScheme == .dark)
+        }
         updateInsets(ofWindow: window)
     }
 
@@ -464,7 +499,12 @@ public final class AndroidBackend: BaseAppBackend {
         // 視窗的標題，不是 `.navigationTitle`(那是 root stack 中的一列，見 AndroidBackend+Toolbar.swift)。
         // 上游在此的 TODO 寫的是「導覽標題」;實際缺的是 activity 標題與「最近使用」中的標籤——Android
         // 使用者看到視窗標題的地方。2026-10-06。
-        helpers.setWindowTitle(Self.activity, title)
+        window.title = title
+        if let token = window.token {
+            helpers.setTitleOfWindow(token, title)
+        } else {
+            helpers.setWindowTitle(Self.activity, title)
+        }
     }
 
     public func setResizability(ofWindow window: Window, to resizable: Bool) {}
@@ -531,6 +571,16 @@ public final class AndroidBackend: BaseAppBackend {
             )
             .as(AndroidKit.ViewGroup.LayoutParams.self)
         )
+        window.rootStack = stack.as(AndroidKit.LinearLayout.self)
+        stack.setShortcutListener(Self.applicationShortcutListener)
+        window.content = container
+        if window.token != nil {
+            // A later window: its activity takes `stack` when `show` starts it.
+            // 之後的視窗:`show` 啟動它的 activity 時，該 activity 會接手 `stack`。
+            window.contentRoot = stack.as(AndroidKit.View.self)
+            updateInsets(ofWindow: window)
+            return
+        }
         Self.activity.setContentView(stack)
         Self.rootStack = stack.as(AndroidKit.LinearLayout.self)
         Self.shortcutHost = stack
@@ -539,7 +589,7 @@ public final class AndroidBackend: BaseAppBackend {
         updateInsets(ofWindow: window)
     }
 
-    private func updateInsets(ofWindow window: Window) {
+    func updateInsets(ofWindow window: Window) {
         guard let container = window.content else {
             logger.warning("Attempted to update insets of window without content")
             return
@@ -547,8 +597,9 @@ public final class AndroidBackend: BaseAppBackend {
 
         let matchParent = try! JavaClass<AndroidKit.ViewGroup.LayoutParams>().MATCH_PARENT
 
-        let leftInset = Int(helpers.getSafeAreaLeftInset(Self.activity))
-        let topInset = Int(helpers.getSafeAreaTopInset(Self.activity))
+        let insetsActivity = activity(of: window) ?? Self.activity
+        let leftInset = Int(helpers.getSafeAreaLeftInset(insetsActivity))
+        let topInset = Int(helpers.getSafeAreaTopInset(insetsActivity))
         let fullWindowSize = SIMD2(Int(matchParent), Int(matchParent))
         setSize(of: container, to: fullWindowSize)
         setPosition(ofChildAt: 0, in: container, to: SIMD2(leftInset, topInset))
@@ -559,8 +610,12 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func size(ofWindow window: Window) -> SIMD2<Int> {
-        let width = Int(helpers.getSafeWindowWidth(Self.activity))
-        let height = Int(helpers.getSafeWindowHeight(Self.activity))
+        // A later window before its activity exists measures as the first: the
+        // same screen, and the activity will report its own size once it runs.
+        // 之後的視窗在其 activity 存在前，以第一個視窗的尺寸量測：同一個螢幕，activity 一跑起來就會回報自己的尺寸。
+        let sizeActivity = activity(of: window) ?? Self.activity
+        let width = Int(helpers.getSafeWindowWidth(sizeActivity))
+        let height = Int(helpers.getSafeWindowHeight(sizeActivity))
         return SIMD2(Int(width), Int(height))
     }
 
@@ -587,12 +642,37 @@ public final class AndroidBackend: BaseAppBackend {
         // Rotation and anything else that changes the window's size -- see
         // AndroidBackend+ConfigurationChanges.swift.
         // 旋轉與其他改變視窗大小的事——見 AndroidBackend+ConfigurationChanges.swift。
-        Self.resizeHandler = action
+        window.resizeHandler = action
+        register(window)
         installConfigurationListener()
     }
 
     public func show(window: Window) {
         log("Show window")
+
+        if let token = window.token {
+            guard !window.isOpen, let root = window.contentRoot else { return }
+            window.isOpen = true
+            helpers.openWindow(
+                Self.activity,
+                token,
+                window.title,
+                root,
+                SwiftAction(environment: Self.env) { [weak window] in
+                    guard let window else { return }
+                    window.isOpen = false
+                    let handler = window.closeHandler
+                    window.closeHandler = nil
+                    handler?()
+                },
+                SwiftAction(environment: Self.env) { [weak self, weak window] in
+                    guard let self, let window else { return }
+                    self.updateInsets(ofWindow: window)
+                    window.resizeHandler?(self.size(ofWindow: window))
+                }
+            )
+            return
+        }
 
         #if SCUI_DEBUG
             // Only ever fires for the first window, and only when -actionfile
@@ -605,6 +685,16 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func activate(window: Window) {}
+
+    /// The activity a window lives in: the app's for the first window, the
+    /// window's own `ScuiWindowActivity` for a later one once it has started,
+    /// `nil` before that.
+    /// 視窗所在的 activity:第一個視窗是 app 的 activity,之後的視窗在啟動後是它自己的 `ScuiWindowActivity`,
+    /// 啟動前為 `nil`。
+    func activity(of window: Window) -> Activity? {
+        guard let token = window.token else { return Self.activity }
+        return helpers.windowActivity(token)
+    }
 
     // `setApplicationMenu` is implemented now, in
     // `AndroidBackend+ApplicationMenus.swift`. The stub that stood here carried
@@ -833,7 +923,8 @@ public final class AndroidBackend: BaseAppBackend {
     ) {
         // Density and font scale -- see AndroidBackend+ConfigurationChanges.swift.
         // 密度與字體縮放——見 AndroidBackend+ConfigurationChanges.swift。
-        Self.windowEnvironmentChangeHandler = action
+        window.environmentChangeHandler = action
+        register(window)
         installConfigurationListener()
     }
 
