@@ -151,7 +151,7 @@ toolchain was installed (2026-10-05); it is done below.
   sit where they do after earlier rows (P17's More height was mis-aimed from a
   capture taken after the closing scroll). P75 deletes last run's saved file on
   launch so the save file is repeatable.
-- [ ] **2. Write the missing action files.** iOS 14: P47 P48 P49 P51 P52 P58
+- [x] **2. Write the missing action files.** iOS 14: P47 P48 P49 P51 P52 P58
   P59 P61 P62 P63 P64 P66 P68 P70 (captured 2026-09-30, but at the zoomed size
   -- re-measure). Android 20: P15-DARK P17-DOE P47 P48 P49 P51 P52 P59 P60 P61
   P62 P63 P64 P66 P67 P68 P69 P70 P73 (+ P6-v2, GTK-only, never).
@@ -242,10 +242,42 @@ toolchain was installed (2026-10-05); it is done below.
     first after launch, so a warm-up or baseline profile aimed at start-up is
     not supported; only P7 looks like a start-up cost. (iOS runs use different
     action files, so they are not compared per app.) See the next item.
-  - [ ] **Android: updates that create views are slow** (found 2026-10-05,
+  - [x] **Android: updates that create views are slow** (found 2026-10-05,
     above). P1's sheet 43-103 ms and P2's picker 92-98 ms on Android. Next:
     time where those updates go -- widget creation through JNI, layout, or the
     Kotlin side -- before choosing a fix.
+    - [x] **P2: a quarter of the update was swift-java class lookups** (2026-10-05).
+      simpleperf on the emulator (cpu-clock plus --trace-offcpu, dwarf stacks,
+      symbols from the unstripped libP2.so), aligned to the update by a temporary
+      end-time marker from UpdateTimings (removed again): of P2's 103.9 ms picker
+      update, 25.5 ms was `_withJNIClassFromCustomClassLoader` ->
+      `JavaClassLoader.loadClass`, reached from `AndroidBackend.updateButton`
+      building a new `SwiftAction` and `SwiftObject` for every button on every
+      update, and from `JavaClass<CustomButton>()` reads of constants in
+      `buttonPadding` and `kotlinRepresentation`. Also in the window: 28 ms with no
+      sample at all (the vCPU not running; likely the emulator), 6 ms Kotlin button
+      styling, 3.5 ms ART class loading on the main thread. Fixed in
+      AndroidBackend+CustomButton.swift: the Java action is built once per button
+      and calls a Swift box whose closure is swapped on each update; `set` is called
+      only when style, enabled state or colour scheme change (`LastSet`); the
+      constants are read once. P2's picker update, three runs each: 92.4 / 96.0 /
+      98.1 ms before, 82.6 / 62.7 / 72.5 after. Checked: P12 clicked twice reads
+      "counter: 2" (the swapped closure is the one that runs), P21 reads
+      "Button -- clicks: 1" with the disabled one dimmed. Not checked: a button whose
+      enabled state changes while the app runs.
+    - [x] **P1: the sheet is not this.** 63.0 / 51.4 / 57.8 ms after the fix against
+      55.3 / 102.6 / 43.0 before -- no clear change. Next: the same profile on P1.
+      DONE 2026-10-05: P1's sheet is a cost paid once, the first time. The same
+      profile on its 104.4 ms update: 35 ms on the main thread's CPU and one 57.9 ms
+      stretch with no sample at all, inside `__swift_instantiateGenericMetadata` ->
+      `swift_getGenericMetadata` (the same four libswiftCore frames on both sides of
+      the gap; resolved with llvm-symbolizer against the 6.4.0 Android SDK's
+      libswiftCore.so). Opening the sheet three times in one run (open, dismiss,
+      open, dismiss, open) gave 82.3 then at most 17.7 ms, and 54.9 then at most
+      21.3 ms: only the first open is slow. So it is the runtime building the sheet
+      view type's generic metadata, plus the emulator not running the vCPU for part
+      of it, not per-update work in AndroidBackend. Not pursued: warming that
+      metadata at launch would move the cost, not remove it.
   - [x] **Android vs iOS UI gaps (side-by-side of every app's latest capture,
     2026-10-04).** Fix order agreed: 1, 3, 2, then investigate 4 and 5.
     2026-10-05: ticked -- every item under it was already [x].

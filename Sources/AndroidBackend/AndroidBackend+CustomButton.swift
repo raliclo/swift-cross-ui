@@ -34,22 +34,67 @@ extension AndroidBackend {
         environment: EnvironmentValues,
         action: @escaping () -> Void
     ) {
-        let button = button.as(CustomButton.self)!
-        button.set(
-            action: SwiftAction(environment: Self.env, action: action),
-            buttonStyle: environment.resolvedButtonStyle.kotlinRepresentation,
-            isEnabled: environment.isEnabled,
-            isDarkMode: environment.colorScheme == .dark
+        let buttonStyle = environment.resolvedButtonStyle.kotlinRepresentation
+        let isEnabled = environment.isEnabled
+        let isDarkMode = environment.colorScheme == .dark
+
+        // The click action lives in a Swift box the Java `SwiftAction` calls through, so a
+        // new closure is one assignment here and not two new Java objects. Every update
+        // used to build a `SwiftAction` and a `SwiftObject`, and swift-java looks each
+        // class up through the app's class loader on every construction: 25.5 ms of a
+        // 104 ms update in P2 on Android (simpleperf, 2026-10-05). `CustomButton.set` is
+        // called only when the style, enabled state or colour scheme actually changes.
+        //
+        // 點擊動作放在一個 Swift 盒子裡，由 Java 的 `SwiftAction` 轉呼叫，因此換一個新的 closure 在這裡只是一次
+        // 指派，而不是兩個新的 Java 物件。原本每次更新都建立一個 `SwiftAction` 與一個 `SwiftObject`,而
+        // swift-java 每次建構都要經由 app 的 class loader 查找類別：在 Android 上 P2 一次 104 ms 的更新中佔了
+        // 25.5 ms(simpleperf,2026-10-05)。只有在樣式、啟用狀態或配色真的改變時才呼叫 `CustomButton.set`。
+        if var state = Self.buttonStates.value(for: button) {
+            state.box.action = action
+            guard
+                state.buttonStyle != buttonStyle
+                    || state.isEnabled != isEnabled
+                    || state.isDarkMode != isDarkMode
+            else { return }
+            state.buttonStyle = buttonStyle
+            state.isEnabled = isEnabled
+            state.isDarkMode = isDarkMode
+            Self.buttonStates.set(state, for: button)
+            button.as(CustomButton.self)!.set(
+                action: state.javaAction,
+                buttonStyle: buttonStyle,
+                isEnabled: isEnabled,
+                isDarkMode: isDarkMode
+            )
+            return
+        }
+
+        let box = ButtonActionBox(action)
+        let javaAction = SwiftAction(environment: Self.env, action: { box.action() })
+        Self.buttonStates.set(
+            ButtonSetState(
+                box: box,
+                javaAction: javaAction,
+                buttonStyle: buttonStyle,
+                isEnabled: isEnabled,
+                isDarkMode: isDarkMode
+            ),
+            for: button
+        )
+        button.as(CustomButton.self)!.set(
+            action: javaAction,
+            buttonStyle: buttonStyle,
+            isEnabled: isEnabled,
+            isDarkMode: isDarkMode
         )
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
-        let buttonClass = try! JavaClass<CustomButton>()
         return switch environment.resolvedButtonStyle.kind {
             case .bordered:
                 SIMD2(
-                    Int(buttonClass.horizontalPadding) * 2,
-                    Int(buttonClass.verticalPadding) * 2
+                    Int(CustomButtonConstants.horizontalPadding) * 2,
+                    Int(CustomButtonConstants.verticalPadding) * 2
                 )
             case .plain, .borderless: SIMD2(0, 0)
         }
@@ -58,15 +103,51 @@ extension AndroidBackend {
     public func defaultButtonStyle() -> PrimitiveButtonStyle {
         .bordered
     }
+
+    /// Each button's action box and what `CustomButton.set` was last given; see `LastSet`.
+    /// 每顆按鈕的動作盒子，以及上一次交給 `CustomButton.set` 的值；見 `LastSet`。
+    @MainActor static let buttonStates = LastSet<ButtonSetState>()
+}
+
+/// The closure a button's Java `SwiftAction` runs, swapped in place on each update.
+/// 按鈕的 Java `SwiftAction` 所執行的 closure,每次更新時就地替換。
+final class ButtonActionBox {
+    var action: () -> Void
+
+    init(_ action: @escaping () -> Void) {
+        self.action = action
+    }
+}
+
+struct ButtonSetState {
+    let box: ButtonActionBox
+    let javaAction: SwiftAction
+    var buttonStyle: Int16
+    var isEnabled: Bool
+    var isDarkMode: Bool
+}
+
+/// `CustomButton`'s companion constants, read once. They are Kotlin `const val`s, so they
+/// cannot change while the process runs, and each read through `JavaClass<CustomButton>()`
+/// used to cost a class lookup.
+/// `CustomButton` companion 的常數，只讀一次。它們是 Kotlin 的 `const val`,在程序執行期間不可能改變，
+/// 而原本每次經由 `JavaClass<CustomButton>()` 讀取都要花一次類別查找。
+@MainActor
+enum CustomButtonConstants {
+    static let horizontalPadding: Int32 = try! JavaClass<CustomButton>().horizontalPadding
+    static let verticalPadding: Int32 = try! JavaClass<CustomButton>().verticalPadding
+    static let borderedButtonStyle: Int16 = try! JavaClass<CustomButton>().borderedButtonStyle
+    static let plainButtonStyle: Int16 = try! JavaClass<CustomButton>().plainButtonStyle
+    static let borderlessButtonStyle: Int16 = try! JavaClass<CustomButton>().borderlessButtonStyle
 }
 
 extension PrimitiveButtonStyle {
+    @MainActor
     var kotlinRepresentation: Int16 {
-        let buttonClass = try! JavaClass<CustomButton>()
         return switch self.kind {
-            case .bordered: buttonClass.borderedButtonStyle
-            case .plain: buttonClass.plainButtonStyle
-            case .borderless: buttonClass.borderlessButtonStyle
+            case .bordered: CustomButtonConstants.borderedButtonStyle
+            case .plain: CustomButtonConstants.plainButtonStyle
+            case .borderless: CustomButtonConstants.borderlessButtonStyle
         }
     }
 }
