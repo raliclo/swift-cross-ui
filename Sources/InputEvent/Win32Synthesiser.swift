@@ -790,19 +790,61 @@
                     try send(mouseFlags: Self.downFlag(for: button))
                     try send(mouseFlags: Self.upFlag(for: button))
 
-                case .hover:
-                    // NOT IMPLEMENTED HERE, and named rather than silently skipped.
-                    // The verb reports which cursor the platform draws at a point, which
-                    // is the only externally observable thing `BackendFeatures.Cursors`
-                    // produces. This platform can answer it -- SetCursorPos plus GetCursorInfo, comparing hCursor against LoadCursorW(nil, IDC_*) --
-                    // and nobody has. Refusing by name keeps a file that uses it from
-                    // passing here while asserting nothing.
-                    // **此處未實作**,而且是具名拒絕、不是靜默跳過。這個動作回報的是平台在某一點
-                    // 所畫的游標,而那是 `BackendFeatures.Cursors` 唯一可從外部觀察到的東西。
-                    // 這個平台答得出來——SetCursorPos plus GetCursorInfo, comparing hCursor against LoadCursorW(nil, IDC_*)——只是還沒有人做。
-                    // 具名拒絕,可以避免一份用到它的檔案在此處「通過卻什麼都沒斷言」。
-                    throw SynthesiserError.unsupported(
-                        "hover: reporting the cursor shape is not implemented on this platform yet"
+                case .hover(let point):
+                    // Move there with real input, then WAIT FOR THE ANSWER TO CHANGE,
+                    // then report -- the shape AppKitSynthesiser settled on, for the
+                    // same reason: the cursor is set by the app's thread when it
+                    // processes the move, asynchronously to this one.
+                    //
+                    // **Stepped `SendInput` moves, not `SetCursorPos`.** Measured
+                    // 2026-10-07 on P80 (WinUI): after a `SetCursorPos` jump plus a
+                    // one-pixel nudge, five of six labels still read `arrow`; the same
+                    // labels reached in ten absolute moves read hand, cross, ibeam,
+                    // both resize arrows and "no". WinUI re-evaluates the cursor on
+                    // pointer input, and a jump is not input.
+                    //
+                    // **No change is REPORTED, not hidden**: a move between two
+                    // points with the same cursor and a move that never arrived look
+                    // the same from here, so the line says `unchanged after Nms`.
+                    //
+                    // The cursor is named by comparing `GetCursorInfo`'s handle with
+                    // the shared system cursors from `LoadCursorW(nil, IDC_*)`, with
+                    // the names AppKitSynthesiser prints.
+                    //
+                    // 以真實輸入移動過去，然後**等那個答案改變**,再回報——與 AppKitSynthesiser 的形狀相同、
+                    // 理由也相同：游標由 app 的執行緒在處理那次移動時設定，與本執行緒非同步。
+                    // **用分段的 `SendInput` 移動，不用 `SetCursorPos`。** 2026-10-07 在 P80(WinUI)實測:
+                    // `SetCursorPos` 跳過去再推一個像素，六個標籤中五個仍讀到 `arrow`;以十次絕對移動抵達同樣的
+                    // 標籤，則讀到手形、十字、I 形、兩種調整大小箭頭與「禁止」。WinUI 依指標輸入重新決定游標，
+                    // 而跳過去不是輸入。**沒有改變時照實回報，不藏起來**:在兩個游標相同的點之間移動，與一次根本
+                    // 沒送達的移動，從這裡看起來一樣，因此那一行會寫 `unchanged after Nms`。游標名稱以
+                    // `GetCursorInfo` 的 handle 對照 `LoadCursorW(nil, IDC_*)` 的共用系統游標而得，名稱與
+                    // AppKitSynthesiser 印出的相同。
+                    let target = try geometry.screenPosition(of: point)
+                    let before = Self.cursorName()
+                    var from = POINT()
+                    _ = GetCursorPos(&from)
+                    for step in 1...10 {
+                        sendAbsoluteMouseMove(to: (
+                            x: Int(from.x) + (target.x - Int(from.x)) * step / 10,
+                            y: Int(from.y) + (target.y - Int(from.y)) * step / 10
+                        ))
+                        Thread.sleep(forTimeInterval: 0.015)
+                    }
+                    var elapsed = 0
+                    var reading = before
+                    while elapsed < 2000 {
+                        Thread.sleep(forTimeInterval: 0.02)
+                        elapsed += 20
+                        reading = Self.cursorName()
+                        if reading != before { break }
+                    }
+                    var landed = POINT()
+                    _ = GetCursorPos(&landed)
+                    ActionFileReplay.report(
+                        "cursor at (\(Int(point.x)), \(Int(point.y))) is \(reading)"
+                            + (reading == before ? " (unchanged after \(elapsed)ms)" : "")
+                            + " [pointer at \(landed.x),\(landed.y), wanted \(target.x),\(target.y)]"
                     )
 
                 case .longPress:
@@ -1501,6 +1543,33 @@
         /// `Sendable`——本類別的 conformance 沒有用 `@unchecked`,而在其中放一個 raw pointer 會終結它。
         nonisolated(unsafe) private static var focusedWindowBits = 0
         private static let focusLock = NSLock()
+
+        /// The system cursor showing now, by the names AppKitSynthesiser uses;
+        /// `other` for one this table does not hold (an app's own cursor).
+        /// 目前顯示的系統游標，名稱與 AppKitSynthesiser 相同;表中沒有的(app 自己的游標)為 `other`。
+        private static func cursorName() -> String {
+            var info = CURSORINFO()
+            info.cbSize = DWORD(MemoryLayout<CURSORINFO>.size)
+            guard GetCursorInfo(&info) else { return "unavailable" }
+            guard let showing = info.hCursor else { return "hidden" }
+            let known: [(String, Int)] = [
+                ("arrow", 32512),            // IDC_ARROW
+                ("pointingHand", 32649),     // IDC_HAND
+                ("crosshair", 32515),        // IDC_CROSS
+                ("text", 32513),             // IDC_IBEAM
+                ("resizeHorizontal", 32644), // IDC_SIZEWE
+                ("resizeVertical", 32645),   // IDC_SIZENS
+                ("notAllowed", 32648),       // IDC_NO
+                ("wait", 32514),             // IDC_WAIT
+            ]
+            for (name, id) in known {
+                let resource = UnsafePointer<WCHAR>(bitPattern: UInt(id))
+                if let cursor = LoadCursorW(nil, resource), cursor == showing {
+                    return name
+                }
+            }
+            return "other"
+        }
 
         private static func rememberFocus(_ window: HWND) {
             focusLock.lock()

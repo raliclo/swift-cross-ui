@@ -1,0 +1,17 @@
+action,x,y,origin,button,key,micros,note,platform
+# P80 on Windows: the `hover` verb, which reads back the cursor the platform draws
+# at a point -- the only externally observable thing BackendFeatures.Cursors
+# produces. Written 2026-10-07 with the Win32 implementation of the verb.
+# Positions are the six labels' centres in a window capture of P80 (WinUI). The
+# last row is the control: a plain label OUTSIDE every cursor target must read
+# arrow, which is what shows each shape belongs to its view, not the window.
+# P80(Windows):`hover` 讀回平台在某一點畫的游標。最後一列是對照：任何游標 target 之外的普通標籤必須讀到
+# arrow,證明每個形狀屬於它的 view,而不是整個視窗。
+sleep,,,,,,1500000,let P80 lay out,windows
+hover,174,228,frame,,,,hand label -- must report pointingHand,windows
+hover,214,228,frame,,,,cross label -- must report crosshair,windows
+hover,249,228,frame,,,,text label -- must report text,windows
+hover,276,228,frame,,,,left-right label -- must report resizeHorizontal,windows
+hover,296,228,frame,,,,up-down label -- must report resizeVertical,windows
+hover,320,228,frame,,,,no label -- must report notAllowed,windows
+hover,220,202,frame,,,,"the 'cursors -- hover each:' label, outside every target -- must report arrow",windows
