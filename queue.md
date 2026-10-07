@@ -237,6 +237,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   happen here. The four check_*.sh run from Scripts/test.sh on every machine,
   including ones without csv2.
 
+- [ ] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07).
+  `sweep_drive_macos.zsh P77..P81` recorded P78-P81 "never launched" three
+  times; each time `ui-lock.zsh status` showed the lock held by the last app
+  that failed (test-p81, test-p79) with no such process alive, and every later
+  app waited on it until the 900 s timeout. Run alone with test.zsh, each of
+  those apps launched in seconds, and a sweep of P81 alone recorded ok. So a
+  test.zsh that dies (or is killed by the sweep's `timeout 900`) does not
+  release the UI lock, and one failure cascades into the rest of the sweep.
+  The bogus rows were removed before commit; the stale locks were released
+  with `ui-lock.zsh release`. Fix: release the lock on every exit path of
+  test.zsh (trap, as platform_lock.zsh does), and find why the first app in
+  the cascade failed.
+
 ### Windows side (GTK and WinUI)
 
 - [ ] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
