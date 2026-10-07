@@ -1,3 +1,4 @@
+import DebugFeatures
 import Foundation
 @_spi(Backends) import SwiftCrossUI
 import UWP
@@ -340,9 +341,61 @@ final class D3D11MeshRenderer {
     private var depthView: UnsafeMutablePointer<ID3D11DepthStencilView>?
 
     init() throws {
-        d3d = try RawD3D11Device()
+        let adapter = Self.preferredAdapter()
+        defer { release(adapter) }
+        d3d = try RawD3D11Device(adapter: adapter)
         name = Self.adapterName(of: d3d.device) + " / Direct3D 11"
         try buildPipeline()
+    }
+
+    /// The adapter to render on. The default adapter is the one driving the
+    /// primary display, and that is right whenever it is real hardware. When it
+    /// is Microsoft's Basic Render Driver -- WARP, the CPU rasteriser -- while a
+    /// GPU sits beside it, the GPU is chosen instead: measured 2026-10-07 on a
+    /// laptop whose integrated AMD adapter had dropped to the Basic Display
+    /// Driver, DXGI listed "Microsoft Basic Render Driver" first and the RTX
+    /// 4060 second with no outputs, so the default put every mesh on the CPU.
+    /// A swap chain on another adapter still composes; DXGI copies the frames
+    /// across. `-GPU 0` keeps WARP on purpose, as a no-GPU baseline.
+    /// 繪製所用的介面卡。預設介面卡是驅動主要顯示器的那一張，只要它是真正的硬體就是對的。當它是微軟的 Basic Render
+    /// Driver——WARP,CPU 光柵化器——而旁邊另有 GPU 時，改選 GPU:2026-10-07 在一台內顯 AMD 已退回 Basic Display Driver
+    /// 的筆電上實測,DXGI 先列出「Microsoft Basic Render Driver」、再列出沒有輸出的 RTX 4060,預設因此把每個 mesh 都放在
+    /// CPU 上。位於另一張介面卡的 swap chain 仍可合成，由 DXGI 跨卡複製畫面。`-GPU 0` 刻意保留 WARP,作為不用 GPU 的基準線。
+    private static func preferredAdapter() -> UnsafeMutablePointer<IDXGIAdapter>? {
+        var factoryIID = D3D11IID.IDXGIFactory1
+        var factoryRaw: UnsafeMutableRawPointer?
+        guard CreateDXGIFactory1(&factoryIID, &factoryRaw) >= 0, let factoryRaw else { return nil }
+        let factory = factoryRaw.assumingMemoryBound(to: IDXGIFactory1.self)
+        defer { _ = factory.pointee.lpVtbl.pointee.Release(factory) }
+
+        let softwareVendor: UINT = 0x1414
+        let wantsSoftware = DebugFeatures.gpuSelection == 0
+        var defaultIsSoftware = false
+        var index: UINT = 0
+        while true {
+            var adapter: UnsafeMutablePointer<IDXGIAdapter1>?
+            guard factory.pointee.lpVtbl.pointee.EnumAdapters1(factory, index, &adapter) >= 0,
+                let adapter
+            else { return nil }
+            var description = DXGI_ADAPTER_DESC1()
+            _ = adapter.pointee.lpVtbl.pointee.GetDesc1(adapter, &description)
+            let isSoftware =
+                description.VendorId == softwareVendor
+                || description.Flags & UINT(DXGI_ADAPTER_FLAG_SOFTWARE.rawValue) != 0
+            if index == 0 {
+                if isSoftware == wantsSoftware {
+                    // The default already is what is wanted: let DXGI choose.
+                    // 預設正是所要的：交給 DXGI 選。
+                    _ = adapter.pointee.lpVtbl.pointee.Release(adapter)
+                    return nil
+                }
+                defaultIsSoftware = isSoftware
+            } else if isSoftware == wantsSoftware || (defaultIsSoftware && !isSoftware) {
+                return UnsafeMutableRawPointer(adapter).assumingMemoryBound(to: IDXGIAdapter.self)
+            }
+            _ = adapter.pointee.lpVtbl.pointee.Release(adapter)
+            index += 1
+        }
     }
 
     deinit {

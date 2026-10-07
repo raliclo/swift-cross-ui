@@ -20,7 +20,6 @@ struct SCUIMesh3DRenderer {
 };
 
 static const char *VERTEX_SOURCE =
-    "#version 330 core\n"
     "layout(location = 0) in vec3 aPosition;\n"
     "layout(location = 1) in vec3 aNormal;\n"
     "layout(location = 2) in vec3 aColour;\n"
@@ -37,7 +36,6 @@ static const char *VERTEX_SOURCE =
     "}\n";
 
 static const char *FRAGMENT_SOURCE =
-    "#version 330 core\n"
     "uniform vec3 uLight;\n"
     "uniform float uLit;\n"
     "in vec3 vNormal;\n"
@@ -60,7 +58,19 @@ static void set_error(SCUIMesh3DRenderer *renderer, const char *what, const char
 
 static GLuint compile(SCUIMesh3DRenderer *renderer, GLenum type, const char *source) {
     GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, NULL);
+    // The version line is chosen per context. GTK creates whichever its EGL
+    // or GLX layer prefers: desktop GL 3.3 on macOS, but an OpenGL ES 3.0
+    // context under WSLg (Mesa d3d12; GDK_DEBUG=opengl: "es:yes"), where a
+    // "#version 330 core" shader fails to compile and the view drew nothing,
+    // silently (2026-10-07). The bodies are valid GLSL 330 and GLSL ES 300.
+    // 版本行依 context 而定。GTK 建立的是其 EGL 或 GLX 層偏好的那種:macOS 上是桌面 GL 3.3,但在 WSLg
+    // (Mesa d3d12;GDK_DEBUG=opengl 顯示「es:yes」)下是 OpenGL ES 3.0,「#version 330 core」的 shader 在那裡
+    // 編譯失敗，畫面便無聲地什麼都沒畫(2026-10-07)。主體同時是合法的 GLSL 330 與 GLSL ES 300。
+    const char *header = epoxy_is_desktop_gl()
+        ? "#version 330 core\n"
+        : "#version 300 es\nprecision highp float;\n";
+    const char *sources[2] = { header, source };
+    glShaderSource(shader, 2, sources, NULL);
     glCompileShader(shader);
     GLint ok = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
@@ -198,7 +208,10 @@ long scui_mesh3d_renderer_render(
     if (renderer->program && renderer->vao) {
         // gl_PointSize is ignored in a core profile unless this is on.
         // 在 core profile 中，除非開啟這項，否則 gl_PointSize 會被忽略。
-        glEnable(GL_PROGRAM_POINT_SIZE);
+        // A desktop-GL capability only: in OpenGL ES the enum is invalid and
+        // points are always sized by gl_PointSize.
+        // 僅限桌面 GL:在 OpenGL ES 中此列舉無效，點的大小一律由 gl_PointSize 決定。
+        if (epoxy_is_desktop_gl()) glEnable(GL_PROGRAM_POINT_SIZE);
         glUseProgram(renderer->program);
         glUniform3f(renderer->u_light, light[0], light[1], light[2]);
         glBindVertexArray(renderer->vao);

@@ -494,6 +494,32 @@ toolchain was installed (2026-10-05); it is done below.
   here gives only "GDI Generic" OpenGL 1.1 (probed directly), so a GL 3.3 mesh
   cannot draw in this session. Rerun P72/P76/P77 -gtk4 at a session with a real
   GPU. WSL GTK: not run yet.
+  **Later the same evening -- why WARP and GDI Generic, and both mostly fixed.**
+  Not a session problem: the tests run in session 2 "Console" beside
+  explorer.exe. The registry lists two adapters with drivers, NVIDIA GeForce RTX
+  4060 Laptop (32.0.16.1742) and AMD Radeon (32.0.11038.3), but DXGI lists
+  "Microsoft Basic Render Driver" first with the only output (\\.\DISPLAY1,
+  "Microsoft Basic Display Driver"), the RTX 4060 second with none, and no AMD
+  adapter at all -- the integrated adapter that drives the panel has dropped to
+  the basic display driver. The default D3D adapter is therefore WARP, and WGL on
+  that display is GDI Generic. (Probe: scratch adapters.c, EnumAdapters1 +
+  EnumDisplayDevices.)
+  - WinUI now picks a hardware adapter when the default one is software
+    (`-GPU 0` keeps WARP): P72 reads "NVIDIA GeForce RTX 4060 Laptop GPU /
+    Direct3D 11", cube drawn, frames counting; the swap chain on the RTX still
+    composes on the basic display. P77 render time 30,107 us (WARP: 76,680).
+  - **WSL GTK DONE:** under WSLg GTK makes an OpenGL ES 3.0 context (Mesa
+    d3d12 on the RTX 4060), which rejected the "#version 330 core" shaders, so
+    the view was blank with nothing reported. The version line is now chosen per
+    context (330 core / 300 es), and a shader failure is reported once on stderr.
+    P72 "D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU) / OpenGL ES 3.1", cube lit
+    and spinning; P76 all six claims; P77 one smooth gradient.
+  - Windows GTK drawing stays unverified: WGL follows the display adapter, and
+    that is the basic display driver until the AMD adapter works again.
+  - Found on the way: twice tonight `test.zsh --wsl` printed a WSL build error
+    and still returned 0 and ran the previous binary.
+  傍晚稍後：WARP 與 GDI Generic 的原因已查明——內顯 AMD 退回 Basic Display Driver,預設 D3D 介面卡因此是 WARP。WinUI 現改用
+  硬體介面卡(RTX 4060);WSL GTK 修正 GLES shader 後 P72/P76/P77 全部成立;Windows GTK 須等 AMD 介面卡恢復。
   WinUI 於 2026-10-07 完成(D3D11 + SwapChainPanel,在 WARP 上 P72/P76/P77 全部成立)。Windows GTK:修好一個崩潰(產生的
   GLArea binding 把 void 處理常式接到回傳指標的 create-context),但本工作階段只有 GDI Generic OpenGL 1.1,繪製未能驗證。
 - [x] **Skip the per-commit geometry comparison.** Not needed, measured

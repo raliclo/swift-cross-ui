@@ -278,7 +278,9 @@ public final class RawD3D11Device {
     public private(set) var width: UInt32 = 0
     public private(set) var height: UInt32 = 0
 
-    public init() throws {
+    /// `adapter` nil is DXGI's default, the adapter driving the primary display.
+    /// `adapter` 為 nil 時是 DXGI 的預設，即驅動主要顯示器的介面卡。
+    public init(adapter: UnsafeMutablePointer<IDXGIAdapter>? = nil) throws {
         var device: UnsafeMutablePointer<ID3D11Device>?
         var context: UnsafeMutablePointer<ID3D11DeviceContext>?
         var obtainedLevel = D3D_FEATURE_LEVEL_11_0
@@ -288,8 +290,8 @@ public final class RawD3D11Device {
             "D3D11CreateDevice",
             levels.withUnsafeBufferPointer { levelsPtr in
                 D3D11CreateDevice(
-                    nil,
-                    D3D_DRIVER_TYPE_HARDWARE,
+                    adapter,
+                    adapter == nil ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN,
                     nil,
                     0,
                     levelsPtr.baseAddress,

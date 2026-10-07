@@ -153,6 +153,12 @@ public class Mesh3DGLView: GLArea {
             if scui_mesh3d_renderer_realize(handle) == 0 {
                 shaderError = scui_mesh3d_renderer_error(handle).map { String(cString: $0) }
                     ?? "unknown shader failure"
+                // Said once, on stderr: the view otherwise stays blank with no
+                // sign of why -- under WSLg a GLES context rejected the GL 3.3
+                // shaders and nothing anywhere reported it (2026-10-07).
+                // 在 stderr 說一次：否則 view 只是一片空白、看不出原因——WSLg 下 GLES context 拒絕了 GL 3.3
+                // 的 shader,而任何地方都沒有回報(2026-10-07)。
+                FileHandle.standardError.write(Data("Mesh3DGLView: \(shaderError ?? "")\n".utf8))
                 return
             }
             rendererName = String(cString: scui_mesh3d_renderer_name(handle))
