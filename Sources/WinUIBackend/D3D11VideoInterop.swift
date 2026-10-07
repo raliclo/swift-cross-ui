@@ -37,7 +37,7 @@ extension D3D11Error: CustomStringConvertible {
     }
 }
 
-private func D3D11_CHECK(_ step: String, _ hr: HRESULT) throws {
+func D3D11_CHECK(_ step: String, _ hr: HRESULT) throws {
     if hr < 0 {
         throw D3D11Error.failed(step, hr)
     }

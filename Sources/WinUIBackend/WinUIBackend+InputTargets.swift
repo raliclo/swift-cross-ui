@@ -395,6 +395,13 @@ extension WinUIBackend: BackendFeatures.WidgetSnapshots {
     /// widget 無法繪製：回傳 `nil`。
     @MainActor
     public static func snapshot(of widget: Widget) -> WidgetSnapshot? {
+        // A mesh view draws into a swap chain, which `RenderTargetBitmap` does
+        // not see; it reads its own back buffer instead, as the Metal, GLES and
+        // GL mesh views do. mesh view 畫進 swap chain,`RenderTargetBitmap` 看不到;改讀它自己的 back buffer,
+        // 與 Metal、GLES、GL 的 mesh view 相同。
+        if let mesh = widget as? Mesh3DD3DView {
+            return mesh.snapshot()
+        }
         guard widget.isLoaded else { return nil }
         let bitmap = RenderTargetBitmap()
         guard let render = try? bitmap.renderAsync(widget),

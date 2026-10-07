@@ -473,6 +473,29 @@ toolchain was installed (2026-10-05); it is done below.
   incremental build elsewhere: the new header in GtkCHelpers/include was not
   seen until the stale GtkCHelpers-*.pcm module cache was deleted
   ("cannot find scui_mesh3d_renderer_new in scope"). WinUI remains.
+  **WinUI DONE 2026-10-07** (WinUIBackend+Mesh3DView.swift): Direct3D 11 into a
+  SwapChainPanel (the existing `RawSwapChainPanel` / `RawD3D11Device`), HLSL
+  compiled at run time with `D3DCompile` (the GL shaders, same packing and
+  lighting), depth 0...1, points as geometry-shader quads (D3D11 has no point
+  size), per-mesh lit/depthTested, geometry re-uploaded only when the arrays
+  change, snapshot from the back buffer through a staging texture, render time
+  to GPU completion with an event query. This session has no GPU (the renderer
+  reads "Microsoft Basic Render Driver", i.e. WARP), and on it: P72 cube lit and
+  spinning, frames counting, Snapshot 340x240 4 colours, PNG upright; P76 all six
+  claims (three ticks 30/30/30 px in orthographic, unequal in perspective); P77
+  1,002,001 vertices as one smooth gradient, render time 76,680 us on WARP.
+  **Windows GTK: a crash found and fixed, drawing NOT verified.** P72-gtk4 died
+  at realize (rc 139; lldb: `g_type_check_instance_is_fundamentally_a(0x200000003)`
+  under `create-context`): the generated GLArea binding connected a VOID
+  handler to that pointer-returning signal, so GTK took the return register's
+  leftovers as the GL context -- on macOS by luck it survived. GtkCodeGen now
+  excludes `create-context`, and GLArea.swift no longer connects it. After the
+  fix P72 runs, but the GL area shows "No GL implementation is available": WGL
+  here gives only "GDI Generic" OpenGL 1.1 (probed directly), so a GL 3.3 mesh
+  cannot draw in this session. Rerun P72/P76/P77 -gtk4 at a session with a real
+  GPU. WSL GTK: not run yet.
+  WinUI 於 2026-10-07 完成(D3D11 + SwapChainPanel,在 WARP 上 P72/P76/P77 全部成立)。Windows GTK:修好一個崩潰(產生的
+  GLArea binding 把 void 處理常式接到回傳指標的 create-context),但本工作階段只有 GDI Generic OpenGL 1.1,繪製未能驗證。
 - [x] **Skip the per-commit geometry comparison.** Not needed, measured
   2026-10-05: `Array ==` returns at once when both arrays share storage (0.003 ms
   for 2,000,000 vertices, against 2.2 ms for equal contents in another buffer,
@@ -1476,7 +1499,19 @@ last two do not have a known size yet.
 - [x] **T3. AndroidBackend 已遷到 Swift 6 language mode(2026-09-16)** — 五個並行性問題修好並保留:stdi... -> completed.md (archived 2026-10-05)
 - [x] **macOS `Cursors`:驗證(由 M10 拆出,2026-10-05)。** 已實作;未驗證的原因是 `hover` 在 macOS 上的讀數有競爭條件(見 M10 的「游標」段)。要的是一份不靠那個讀數也站得住的量測。
   - **2026-10-05 結案——其實 2026-09-27 就已完成(`1fea7901` "The macOS cursor works"),我拆出這一項時依據的是 M10 裡 9/23、9/25 的舊段落,沒有查最新紀錄。** 真正的兩個原因當時已找到並修好：座標是照「相對於父 view」的 frame 量的，以及 `hover` 等待時沒有把排隊的事件交給 `sendEvent`。今天重跑 `actions/mac/P72-cursor.csv`,用不依賴 hover 讀數的證據確認:`NSCursorTarget` 自己的 `-cursor:` 行顯示指標在 340x240 的 mesh view 內時 `cursorUpdate ... -> set`(34 次),移出時 `mouseExited`;讀數也一致——(239,284) crosshair、(239,124) arrow。
-- [ ] **Windows 與 Linux 的 `hover` 動作(由 M10 拆出,2026-10-05)。** 目前是具名拒絕,各自該用的 API 寫在拒絕訊息裡;要在那兩台機器上實作並驅動。
+- [x] **Windows 與 Linux 的 `hover` 動作(由 M10 拆出,2026-10-05)。** 目前是具名拒絕,各自該用的 API 寫在拒絕訊息裡;要在那兩台機器上實作並驅動。
+  **DONE 2026-10-07, both.** Win32: ten stepped SendInput moves (a SetCursorPos
+  jump left WinUI's cursor at arrow), then GetCursorInfo against the shared
+  IDC_* cursors; actions/win/P80-cursor.csv -> pointingHand, crosshair, text,
+  resizeHorizontal, resizeVertical, notAllowed, and arrow outside every target.
+  xdotool: mousemove, then the XFixes cursor NAME read through python3 ctypes
+  (no X11 link in InputEvent); actions/wsl/P80-cursor.csv under WSLg gives the
+  same six and "arrow (unnamed default)" for the control -- XWayland reports the
+  inherited default cursor with no name, and the line says so. Both wait for
+  the reading to change (2 s limit) and print AppKitSynthesiser's format.
+  Run with the default showtime: one `--no-showtime` run closed P80 after five
+  of the seven rows.
+  **2026-10-07 兩者皆完成。** Win32 與 xdotool 的 `hover` 都已實作並以 P80 驅動，六個游標與對照列皆正確。
 - [x] **WinUI:`frameClockToken?.dispose()` 真的取消訂閱了嗎(由背景段落拆出,2026-10-05)。** 設計上對,但從沒量過:P64 繞過 `AnimationDriver`。實驗很便宜:start → stop → 再 start,量第二段速率——仍約 141 Hz 表示取消有效,約 283 Hz 表示第一次訂閱洩漏、每次動畫再洩漏一次。原文在 completed.md「減少不必要的重繪」一節。Windows 那台機器上做。
   **DONE 2026-10-07 (Windows):** `P64-WinUI.exe --debug --restart` (start, stop, start; no input needed): pass 1 78 ticks / 1.79 s = 42.9 Hz, pass 2 88 / 2.05 s = 42.4 Hz, **0 of 87 sub-frame gaps in pass 2 -> UNSUBSCRIBE OK.** A leaked first subscription would put a second tick inside each frame. The rate itself was 42 Hz, not the ~141 Hz above -- this run was over a Chrome Remote Desktop session, presumably why; the gap count, not the rate, is the verdict (P64 says both rates are weak).
   **2026-10-07 完成(Windows):** P64 `--restart`:第二段 87 個間隔中 0 個落在同一幀內 -> 取消訂閱有效。速率 42 Hz(經 Chrome 遠端桌面執行),判定依據是間隔而非速率。
