@@ -122,6 +122,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     "P62 also-text.swift\nA". Regression, P75 save-and-read-back: the new
     "p75-saved.txt (1)" holds "saved by P75". Not checked: a provider that grants
     read only (its saves would log "could not copy the save" and stay local).
+    FOLLOW-UP 2026-10-07: that silent case is closed. `stagingPathForOpen` probes
+    the document with `openFileDescriptor(uri, "wa")` (nothing written); if it
+    cannot be opened for writing, the copy and its folder are made read-only and
+    no mirror is started, so the save fails in Swift (`saveDocument` returns
+    false and logs) rather than "succeeding" locally. Not COLUMN_FLAGS: a text
+    file in Documents > Download (MediaDocumentsProvider) reported flags=4, no
+    FLAG_SUPPORTS_WRITE, and the "wt" write-back to it succeeded anyway -- a
+    flag-based check, tried first, made that file read-only (Swift: Code=513
+    "Permission denied", original untouched). With the probe, P62 on the API 36
+    emulator: that media document "type A" + "save" wrote back "revealed by
+    P75\nA"; also-text.swift in Download wrote back "...ABA". Not found on the
+    emulator: a provider that actually refuses "wa", so the read-only branch is
+    proven only from the save side (the 513 above), not from the probe failing.
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
@@ -356,7 +369,18 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),
   fullscreen not detected (`:726`). GTK: button label colour from the environment
-  (`GtkBackend+Button.swift:17`).
+  (`GtkBackend+Button.swift:17`) -- GTK DONE 2026-10-07, no change needed: the
+  TODO was stale. `updateSimpleButton` already sets `cssProperties`, whose
+  `color` the label inherits; on GtkBackend (macOS) Menu labels drew red, blue,
+  orange from a parent, and a disabled green dimmed. The TODO is replaced by
+  that note. WinUI items remain (Windows session).
+- [ ] **`Button(_:role: .destructive)` changes nothing on any backend** (found
+  2026-10-07). The core passes the role to `updateButton` in the environment
+  (`Button.swift:438`), and no backend reads it there: on GtkBackend (macOS)
+  "button, destructive" drew like any other button. Only GTK's
+  `updateSimpleButton` (the Menu trigger, which has no role) uses it. Needs a
+  decision on what each platform shows -- red label as on iOS, or the
+  platform's own destructive style -- before five implementations.
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew

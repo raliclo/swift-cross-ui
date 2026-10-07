@@ -14,7 +14,10 @@ extension GtkBackend {
         environment: EnvironmentValues,
         action: @escaping () -> Void
     ) {
-        // TODO: Update button label color using environment
+        // The label colour comes from `cssProperties` below, whose `color` the
+        // button's label inherits. Measured on GtkBackend (macOS, 2026-10-07):
+        // Menu labels drew red, blue, orange from a parent, and a disabled green
+        // dimmed. 標籤顏色來自下方 `cssProperties` 的 `color`,按鈕的標籤會繼承它。實測見上。
         let button = button as! Gtk.Button
         button.sensitive = environment.isEnabled
         button.label = label

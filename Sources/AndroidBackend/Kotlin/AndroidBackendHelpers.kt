@@ -566,6 +566,36 @@ class AndroidBackendHelpers {
             }
         }
 
+        // Read only when the document cannot be written: then the copy and its
+        // folder are made read-only too, so a save fails in Swift (saveDocument
+        // returns false and logs, as for a read-only file on a desktop) instead
+        // of writing the copy, failing the write-back in logcat alone, and
+        // reporting success.
+        //
+        // Probed by opening the document for append and closing it without a
+        // byte written, not read from COLUMN_FLAGS. MediaDocumentsProvider
+        // reported flags=4 (delete only, no FLAG_SUPPORTS_WRITE) for a text file
+        // in Download, and a "wt" write-back to it succeeded all the same
+        // (API 36 emulator, 2026-10-07) -- the flag would have made a writable
+        // file read-only. "wa", because "w" may truncate on open.
+        //
+        // 文件無法寫入時以唯讀開啟：副本與其資料夾也設為唯讀，讓存檔在 Swift 端失敗(saveDocument 回傳 false
+        // 並記錄，如同桌面上的唯讀檔),而不是寫進副本、回寫只在 logcat 失敗、卻回報成功。
+        // 以「附加模式開啟、一個位元組都不寫就關閉」實際探測，而非讀 COLUMN_FLAGS。MediaDocumentsProvider 對
+        // Download 中的文字檔回報 flags=4(只能刪除，沒有 FLAG_SUPPORTS_WRITE),而對它的 "wt" 回寫照樣成功
+        // (API 36 emulator,2026-10-07)——依那個 flag 會把可寫的檔案變成唯讀。用 "wa",因為 "w" 可能在開啟時截斷。
+        val writable =
+            try {
+                resolver.openFileDescriptor(uri, "wa")?.use { true } ?: false
+            } catch (refused: Exception) {
+                false
+            }
+        if (!writable) {
+            file.setWritable(false, false)
+            folder.setWritable(false, false)
+            android.util.Log.i("SwiftCrossUI", "opened $uri read-only; saves to it will fail")
+            return file.absolutePath
+        }
         mirrorBack(activity, folder, file, uri)
         return file.absolutePath
     }
