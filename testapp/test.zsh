@@ -247,7 +247,19 @@ case "$(uname -s)" in
             printf '!! A known input blocker is still running; NOT starting the test.\n' >&2
             zsh "$script_dir/enable_input.zsh" --check 2>&1 | grep -E 'BLOCKER RUNNING' \
                 | sed 's/^/!! /' >&2 || true
-            printf '!! Stop it with: powershell -File testapp/enable_input.ps1 (approve UAC at the machine)\n' >&2
+            # The exact kill command for each survivor, so the reader knows what
+            # to kill and how (the user's instruction, 2026-10-07). It needs an
+            # elevated prompt: these run elevated, and from a normal shell
+            # taskkill prints "Access is denied".
+            # 為每個仍存活者印出確切的 kill 指令，讓讀者知道要關哪個、怎麼關(使用者 2026-10-07 指示)。需要以系統管理員
+            # 身分開啟的命令提示字元：它們是提權執行的，一般 shell 的 taskkill 會印出「Access is denied」。
+            printf '!! Kill it from an administrator prompt (Run as administrator):\n' >&2
+            zsh "$script_dir/enable_input.zsh" --check 2>&1 \
+                | grep -oE 'BLOCKER RUNNING: [^ ]+' | cut -d' ' -f3 \
+                | while read -r image; do
+                    printf '!!     taskkill /F /IM %s\n' "$image" >&2
+                done || true
+            printf '!! or run testapp\\enable_input.ps1 and approve its UAC prompt at the machine.\n' >&2
             exit 5
         fi
         if [ "$blocker_status" -ne 0 ]; then
