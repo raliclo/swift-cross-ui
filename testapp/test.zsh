@@ -229,9 +229,26 @@ case "$(uname -s)" in
             fi
             blocker_status=0
             zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1 || blocker_status=$?
-            if [ "$blocker_status" -eq 0 ]; then
+            if [ "$blocker_status" -ne 3 ]; then
                 printf '    input blocker: stopped\n' >&2
             fi
+        fi
+        # **A known blocker still running is now a gate, not a warning** (the
+        # user's instruction, 2026-10-07, naming AsHotplugCtrl.exe). It keeps
+        # taking the foreground back, so a run started beside it produces
+        # results that look like broken input handling -- which is how most of
+        # that afternoon went. The remote-desktop case (status 4) below stays a
+        # warning: nothing may stop that host, and tests that synthesise no
+        # input still run under it.
+        # **仍在執行的已知阻擋者現在是閘門，不再只是警告**(使用者 2026-10-07 指示，點名 AsHotplugCtrl.exe)。
+        # 它會一再搶回前景，在它旁邊啟動的測試，結果看起來就像輸入處理壞掉——那天下午大半就是這樣過的。下方的遠端
+        # 桌面情形(狀態 4)仍只是警告：那台主機誰都不能停，而且不合成輸入的測試在它底下照樣能跑。
+        if [ "$blocker_status" -eq 3 ]; then
+            printf '!! A known input blocker is still running; NOT starting the test.\n' >&2
+            zsh "$script_dir/enable_input.zsh" --check 2>&1 | grep -E 'BLOCKER RUNNING' \
+                | sed 's/^/!! /' >&2 || true
+            printf '!! Stop it with: powershell -File testapp/enable_input.ps1 (approve UAC at the machine)\n' >&2
+            exit 5
         fi
         if [ "$blocker_status" -ne 0 ]; then
             printf '!! Windows may refuse synthesised input for this run:\n' >&2
