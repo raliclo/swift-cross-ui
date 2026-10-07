@@ -80,7 +80,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - [x] **WinUI: the save dialog ignores `defaultFileName`** -- FIXED 2026-10-07
     by the same change (`SetFileName`): P18's save dialog shows "p18-example",
     P62's "Untitled". 同一變更修正（`SetFileName`）：P18 顯示 p18-example、P62 顯示 Untitled。
-  - [ ] **Android: plain-text open hides source files such as also-text.swift.**
+  - [x] **Android: plain-text open hides source files such as also-text.swift.**
     Unverified on a device, reasoned from the API: the picker filters by the
     MIME type the storage provider reports, and an extension Android's
     `MimeTypeMap` does not know (`swift`) is reported as
@@ -89,6 +89,27 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     emulator first; if hidden, find the way Android does express it (e.g.
     mapping the extensions it does know through `MimeTypeMap`).
     Android 依 provider 回報的 MIME 過濾，`swift` 會被報成 octet-stream;先在模擬器上跑 P62 確認。
+    DONE 2026-10-07. Confirmed first, on the API 36 emulator with ACTION_OPEN_DOCUMENT
+    and the three files in /sdcard/Download/p62-open (uiautomator `enabled`):
+    `text/plain` -> readable.txt yes, also-text.swift NO, not-text.png no; `*/*` -> all
+    three yes; `text/plain` + `application/octet-stream` -> txt yes, swift yes, png no.
+    Fixed in FilesActivityContract.kt: the open dialog now gets every allowed
+    extension (`fileExtensions` + `conformingFileExtensions`), maps each through
+    `MimeTypeMap`, and adds octet-stream when one has no MIME type; what comes back is
+    then checked by display name, so an unknown binary is refused with a warning
+    instead of opened as text. P62 "open…" after the change: txt yes, swift yes, png
+    no, data.bin offered (octet-stream) and refused on choosing it ("open dialog:
+    data.bin is not one of [txt, text, swift, ...]").
+  - [ ] **Android: a document chosen in the open dialog cannot be read.** Found
+    2026-10-07 while checking the item above: choosing also-text.swift in P62 logs
+    "could not open document" with NSURLErrorDomain -1002 "unsupported URL" for
+    `content://com.android.externalstorage.documents/...`, because
+    `DocumentGroup.swift:207` reads it with `Data(contentsOf:)`, which Foundation on
+    Android cannot do for content:// URIs. Every file opened this way should fail
+    the same way (reasoned; only the .swift file was tried). The save side already
+    avoids handing content:// back (AndroidBackend+SystemHandoffs.swift); the open
+    side needs a decision: copy into the app's cache and return a file URL, or read
+    through ContentResolver -- and how a later save reaches the original.
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the

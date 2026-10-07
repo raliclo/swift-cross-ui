@@ -18,6 +18,7 @@ extension AndroidBackend: BackendFeatures.FileOpenDialogs {
                 openDialogOptions.allowMultipleSelections,
                 fileDialogOptions.allowedContentTypes.flatMap(\.mimeTypes),
                 startingFolder,
+                fileDialogOptions.allowedContentTypes.flatMap { $0.fileExtensions + $0.conformingFileExtensions },
                 environment: Self.env
             )
             Self.fileDialogCallback = {

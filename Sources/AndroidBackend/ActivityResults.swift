@@ -27,6 +27,7 @@ class FilesActivityContract: JavaObject {
             _ allowMultiple: Bool,
             _ mimeTypes: [String],
             _ rootDirectory: JavaString?,
+            _ extensions: [String],
             environment: JNIEnvironment? = nil
         )
     }
