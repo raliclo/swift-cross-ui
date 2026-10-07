@@ -1,0 +1,26 @@
+action,x,y,origin,button,key,micros,note,platform
+# P82 on Windows, WinUIBackend: hover, hold and release the destructive buttons.
+# Written 2026-10-08 after the same sequence was driven by hand with SendInput.
+# What it checks: the critical red stays on the label in every pointer state --
+# WinUI repaints the button's chrome on hover and press (measured background 45
+# at rest, 47 hovered, 39 held, 50 released) and the label must not lose the
+# colour to that. Measured label colour: (255,153,164) in all four states.
+# The last click is on the DISABLED one: it must not fire, so the capture taken
+# during the final hold must read "pressed: destructive, borderless".
+# Positions are button centres from UIA bounding rects minus the window's
+# GetWindowRect origin (182,182), origin=frame, 100% display scale, 496x499.
+# P82(Windows,WinUIBackend):對危險按鈕做滑過、按住、放開。檢查：WinUI 在滑過與按下時會重畫按鈕外框
+# (背景實測 45 靜止、47 滑過、39 按住、50 放開),標籤的紅色不可因此消失;四種狀態實測皆為 (255,153,164)。
+# 最後一下點在「停用」的那顆：不可觸發，所以最後停留時的截圖必須顯示 "pressed: destructive, borderless"。
+# 座標是 UIA 邊界矩形的中心減去視窗 GetWindowRect 原點 (182,182),origin=frame,100% 縮放,496x499。
+sleep,,,,,,1500000,let P82 lay out,windows
+hover,106,225,frame,,,,"destructive, bordered -- hovered; the label stays red",windows
+sleep,,,,,,500000,let the hover visual settle,windows
+mousedown,106,225,frame,left,,,"hold 'destructive, bordered' down; the label stays red over the pressed chrome",windows
+sleep,,,,,,1000000,held,windows
+mouseup,106,225,frame,left,,,"release; the label must read 'pressed: destructive, bordered'",windows
+sleep,,,,,,500000,let the label update,windows
+click,97,258,frame,left,,,"press 'destructive, borderless'; the label must change to it",windows
+sleep,,,,,,500000,let the label update,windows
+click,104,290,frame,left,,,"press 'destructive, disabled'; must NOT fire -- the label stays 'destructive, borderless'",windows
+sleep,,,,,,20000000,"hold 20s; the app exits when the replay ends, so the hold has to outlast the capture",windows

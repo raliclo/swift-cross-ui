@@ -438,8 +438,12 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - WinUI DONE 2026-10-08: the hook returns `SystemFillColorCriticalBrush` from
     the app's theme resources (WinUI has no destructive button style). P82:
     bordered and borderless in the critical red, disabled dimmed, 'blue set'
-    blue, save/cancel unchanged. Hover/pressed not driven (input blocked by an
-    elevated ASUS window at the time).
+    blue, save/cancel unchanged. Hover/pressed driven later the same day (real
+    SendInput on 'destructive, bordered'): the label stays (255,153,164) at rest,
+    hovered, held down and released; only WinUI's own chrome changes (background
+    45 -> 47 hovered, 39 held, 50 released). The click fires: the app shows
+    'pressed: destructive, bordered'. Earlier this line read "Hover/pressed not
+    driven (input blocked by an elevated ASUS window at the time)".
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew
