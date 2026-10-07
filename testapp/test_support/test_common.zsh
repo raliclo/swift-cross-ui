@@ -949,6 +949,36 @@ print_renderer_wsl() {
     fi
 }
 
+# Runs a build, prints the lines matching $1, and ends the run when the build
+# fails. The three build steps used to be `compile.zsh ... | grep PATTERN ||
+# true`, and the `|| true` discarded compile.zsh's status along with grep's: a
+# failed build was followed by launching whatever binary the last good build
+# left, and test.zsh returned 0. Reported from Windows on 2026-10-07, twice in
+# one evening on --wsl, where the run then tested the old GTK shaders. The
+# full log is kept in a file so the failure can show its tail, since the
+# filter would hide most of a compiler error.
+# 執行建置、印出符合 $1 的行，建置失敗時結束本次執行。三個建置步驟原本是
+# `compile.zsh ... | grep PATTERN || true`,而 `|| true` 連同 grep 的結束碼把 compile.zsh 的也丟掉了:
+# 建置失敗之後照樣啟動上一次成功建置留下的執行檔，test.zsh 回傳 0。2026-10-07 由 Windows 回報，同一晚在
+# --wsl 上發生兩次，那幾次測的是舊的 GTK shader。完整記錄寫進檔案，失敗時才能顯示尾段——過濾器會藏掉
+# 編譯錯誤的大半。
+run_build() {
+    local pattern="$1"
+    shift
+    local build_log rc=0
+    build_log="$(mktemp)"
+    "$@" >"$build_log" 2>&1 || rc=$?
+    grep -E "$pattern" "$build_log" || true
+    if [ "$rc" -ne 0 ]; then
+        printf '!! build of %s failed (exit %s); not launching an older binary. Last lines:\n' \
+            "$app" "$rc" >&2
+        tail -25 "$build_log" | sed 's/^/    /' >&2
+        rm -f -- "${build_log:?}"
+        exit 1
+    fi
+    rm -f -- "${build_log:?}"
+}
+
 run_windows() {
     local out="$script_dir/output"
     local label="${app:l}-windows"
@@ -1004,8 +1034,8 @@ run_windows() {
         # 只要要重放動作檔就帶上 SCUI_DEBUG=1，因為少了它，該旗標根本不存在於執行檔中。省略它的
         # 建置會產生一個完全忽略 -actionfile 的執行檔——那正是 DebugFeatures 的目的，而本腳本當時
         # 把它回報為「app 從未看到該旗標」。正確，但毫無用處。
-        SCUI_DEBUG="${action_file:+1}" \
-            zsh "$script_dir/compile.zsh" "$app" | grep -E 'error:|Build of product' || true
+        run_build 'error:|Build of product' \
+            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "$app"
     fi
 
     mkdir -p "$out"
@@ -1142,9 +1172,9 @@ run_wsl() {
         # See the Windows branch: without SCUI_DEBUG=1 the -actionfile flag is
         # not compiled into the binary at all.
         # 見 Windows 分支：少了 SCUI_DEBUG=1，-actionfile 旗標根本不會被編入執行檔。
-        MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui -- \
-            zsh -lc "SCUI_DEBUG='${action_file:+1}' zsh testapp/compile.zsh $app" 2>&1 \
-            | grep -E 'error:|Build of product' || true
+        run_build 'error:|Build of product' \
+            env MSYS2_ARG_CONV_EXCL='*' wsl.exe -d Ubuntu --cd /home/lowei/proj/swift-cross-ui -- \
+            zsh -lc "SCUI_DEBUG='${action_file:+1}' zsh testapp/compile.zsh $app"
     fi
 
     # The event log is created on the LINUX side, in the Linux copy of the repo.
@@ -1278,8 +1308,8 @@ run_macos() {
 
     if [ "$do_build" -eq 1 ]; then
         printf '==> Building %s for macOS\n' "$app"
-        SCUI_DEBUG="${action_file:+1}" \
-            zsh "$script_dir/compile.zsh" "$app" | grep -E 'error:|Build complete|Build of product' || true
+        run_build 'error:|Build complete|Build of product' \
+            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "$app"
     fi
 
     mkdir -p "$out"
