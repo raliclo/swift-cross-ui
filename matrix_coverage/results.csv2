@@ -1158,3 +1158,6 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-08,windows,winui,P4,ok,n/a,window,default,"Temporary edit (reverted): a default and a .sidebar List side by side; sidebar has the NavigationView pane background, 36 px rows and 12 px leading padding, default stays transparent with 40 px rows."
 2026-10-08,mac,appkit,P83,ok,n/a,window,default,"The .sidebar list is a source list (sidebar background, inset rounded selection); the default list unchanged. Before the change the two were identical."
 2026-10-08,ios,uikit,P83,ok,n/a,window,default,"The .sidebar list on the grouped background, no separators, rounded inset selection; the default list keeps separators and the full-width selection."
+2026-10-08,windows,winui,P83,ok,n/a,window,default,"default vs .sidebar side by side: the sidebar list has the NavigationView pane background and shorter rows; default stays transparent with 40 px rows; both select Inbox."
+2026-10-08,windows,gtk4,P83,ok,n/a,window,default,"default selects with a full-width blue row, .sidebar with GTK's navigation-sidebar rounded grey pill; both show Inbox selected."
+2026-10-08,wsl,gtk4,P83,ok,n/a,window,default,"Under WSLg (light): default blue full-width selection, .sidebar rounded grey pill (navigation-sidebar)."
