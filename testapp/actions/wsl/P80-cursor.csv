@@ -1,0 +1,14 @@
+action,x,y,origin,button,key,micros,note,platform
+# P80 under WSLg (GtkBackend, GDK_BACKEND=x11): the `hover` verb, read back
+# through XFixes. Written 2026-10-07 with the xdotool implementation of the verb.
+# Client coordinates measured off a WSLg window capture of P80. The last row is
+# the control: a plain label outside every cursor target must read arrow.
+# P80(WSLg):`hover` 經 XFixes 讀回游標。最後一列是對照：任何游標 target 之外的普通標籤必須讀到 arrow。
+sleep,,,,,,1500000,let P80 lay out,gtk
+hover,152,196,,,,,hand label -- must report pointingHand,gtk
+hover,199,196,,,,,cross label -- must report crosshair,gtk
+hover,244,196,,,,,text label -- must report text,gtk
+hover,277,196,,,,,left-right label -- must report resizeHorizontal,gtk
+hover,302,196,,,,,up-down label -- must report resizeVertical,gtk
+hover,331,196,,,,,no label -- must report notAllowed,gtk
+hover,200,169,,,,,"the 'cursors -- hover each:' label, outside every target -- must report arrow",gtk

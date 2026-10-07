@@ -195,19 +195,34 @@
                     try moveIfNeeded(point, in: geometry)
                     try run(["click", Self.number(for: button)])
 
-                case .hover:
-                    // NOT IMPLEMENTED HERE, and named rather than silently skipped.
-                    // The verb reports which cursor the platform draws at a point, which
-                    // is the only externally observable thing `BackendFeatures.Cursors`
-                    // produces. This platform can answer it -- xdotool mousemove plus an XFixesGetCursorImage read of the cursor name --
-                    // and nobody has. Refusing by name keeps a file that uses it from
-                    // passing here while asserting nothing.
-                    // **此處未實作**,而且是具名拒絕、不是靜默跳過。這個動作回報的是平台在某一點
-                    // 所畫的游標,而那是 `BackendFeatures.Cursors` 唯一可從外部觀察到的東西。
-                    // 這個平台答得出來——xdotool mousemove plus an XFixesGetCursorImage read of the cursor name——只是還沒有人做。
-                    // 具名拒絕,可以避免一份用到它的檔案在此處「通過卻什麼都沒斷言」。
-                    throw SynthesiserError.unsupported(
-                        "hover: reporting the cursor shape is not implemented on this platform yet"
+                case .hover(let point):
+                    // Move there, then WAIT FOR THE ANSWER TO CHANGE, then report --
+                    // AppKitSynthesiser's shape and its line format, so one file reads
+                    // the same on every platform. `xdotool mousemove` goes through
+                    // XTest, so GTK sees real motion and sets the cursor of the
+                    // surface under it; XFixes then reports that cursor's NAME, which
+                    // GDK's X11 backend sets from the CSS names
+                    // (`gtk_widget_set_cursor_from_name`). Read through python3's
+                    // ctypes rather than by linking libXfixes into this module.
+                    // No change is REPORTED as `unchanged after Nms`, not hidden.
+                    // 移過去，然後**等那個答案改變**,再回報——與 AppKitSynthesiser 的形狀和輸出格式相同，讓同一份
+                    // 檔案在每個平台讀起來一樣。`xdotool mousemove` 經由 XTest,所以 GTK 看到的是真實移動，並設定其下
+                    // surface 的游標;XFixes 再回報那個游標的**名稱**,而 GDK 的 X11 backend 正是以 CSS 名稱設定它的。以
+                    // python3 的 ctypes 讀取，而不是把 libXfixes 連結進本模組。沒有改變時照實回報 `unchanged after Nms`。
+                    let position = try geometry.screenPosition(of: point)
+                    let before = Self.cursorName()
+                    try run(["mousemove", "\(position.x)", "\(position.y)"])
+                    var elapsed = 0
+                    var reading = before
+                    while elapsed < 2000 {
+                        Thread.sleep(forTimeInterval: 0.02)
+                        elapsed += 20
+                        reading = Self.cursorName()
+                        if reading != before { break }
+                    }
+                    ActionFileReplay.report(
+                        "cursor at (\(Int(point.x)), \(Int(point.y))) is \(reading)"
+                            + (reading == before ? " (unchanged after \(elapsed)ms)" : "")
                     )
 
                 case .longPress:
@@ -555,6 +570,52 @@
                 )
             }
             return String(data: data, encoding: .utf8) ?? ""
+        }
+
+        /// The X cursor showing now, by the names AppKitSynthesiser prints;
+        /// `other(<x name>)` for one outside the table, `unavailable` when it
+        /// cannot be read (no python3, no libXfixes, no display).
+        /// 目前顯示的 X 游標，名稱與 AppKitSynthesiser 印出的相同;表外的為 `other(<X 名稱>)`,讀不到時為 `unavailable`。
+        private static func cursorName() -> String {
+            let script = """
+                import ctypes
+                x = ctypes.cdll.LoadLibrary("libX11.so.6")
+                f = ctypes.cdll.LoadLibrary("libXfixes.so.3")
+                class Image(ctypes.Structure):
+                    _fields_ = [("x", ctypes.c_short), ("y", ctypes.c_short),
+                                ("width", ctypes.c_ushort), ("height", ctypes.c_ushort),
+                                ("xhot", ctypes.c_ushort), ("yhot", ctypes.c_ushort),
+                                ("serial", ctypes.c_ulong), ("pixels", ctypes.c_void_p),
+                                ("atom", ctypes.c_ulong), ("name", ctypes.c_char_p)]
+                x.XOpenDisplay.restype = ctypes.c_void_p
+                f.XFixesGetCursorImage.restype = ctypes.POINTER(Image)
+                f.XFixesGetCursorImage.argtypes = [ctypes.c_void_p]
+                d = x.XOpenDisplay(None)
+                i = f.XFixesGetCursorImage(d) if d else None
+                print(i.contents.name.decode() if i and i.contents.name else "")
+                """
+            guard
+                let raw = try? capture(URL(fileURLWithPath: "/usr/bin/python3"), ["-c", script])
+            else { return "unavailable" }
+            let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch name {
+                case "default", "left_ptr", "arrow", "top_left_arrow": return "arrow"
+                // No name: a surface that set no cursor shows the inherited default,
+                // which XWayland reports unnamed -- P80's plain label read "" here
+                // (2026-10-07). Said as such, since an unnamed custom cursor reads
+                // the same. 沒有名稱：未設定游標的 surface 顯示繼承來的預設游標，XWayland 回報為未命名——
+                // P80 的普通標籤在此讀到 ""(2026-10-07)。照實寫出，因為未命名的自訂游標也會讀到同樣的值。
+                case "": return "arrow (unnamed default)"
+                case "pointer", "hand2", "hand1", "hand": return "pointingHand"
+                case "crosshair", "cross", "tcross": return "crosshair"
+                case "text", "xterm", "ibeam": return "text"
+                case "ew-resize", "col-resize", "sb_h_double_arrow", "h_double_arrow":
+                    return "resizeHorizontal"
+                case "ns-resize", "row-resize", "sb_v_double_arrow", "v_double_arrow":
+                    return "resizeVertical"
+                case "not-allowed", "crossed_circle", "circle", "no-drop": return "notAllowed"
+                default: return "other(\(name))"
+            }
         }
 
         private static func number(for button: MouseButton) -> String {

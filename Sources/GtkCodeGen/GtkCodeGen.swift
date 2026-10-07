@@ -53,7 +53,23 @@ struct GtkCodeGen {
     /// clash with the methods of the same name that actually perform the
     /// actions. Will have to implement some better signal naming to avoid
     /// this issue if these ever need to be reintroduced.
+    ///
+    /// `create-context` (GLArea) must never be connected by default. It returns
+    /// a `GdkGLContext*` with a first-wins accumulator, and connected handlers
+    /// run before GTK's own, so ANY handler replaces the default context. This
+    /// generator emitted a void handler for it (`signalReturnType` keeps pointer
+    /// returns void), and GTK took whatever the return register held as the
+    /// context: on Windows P72 crashed at realize in
+    /// `g_type_check_instance_is_fundamentally_a(0x200000003)` (lldb,
+    /// 2026-10-07); on macOS it happened to survive. Excluded until a binding
+    /// can return a real context.
+    /// `create-context`(GLArea)預設絕不可連接。它以「第一個回傳者勝出」的累加器回傳 `GdkGLContext*`,而已連接的
+    /// 處理常式先於 GTK 自身執行，因此**任何**處理常式都會取代預設的 context。本產生器為它輸出了 void 處理常式
+    /// (`signalReturnType` 將回傳指標者維持為 void),GTK 便把回傳暫存器裡的殘留值當成 context:在 Windows 上 P72
+    /// 於 realize 時崩潰在 `g_type_check_instance_is_fundamentally_a(0x200000003)`(lldb,2026-10-07);在 macOS 上
+    /// 只是碰巧沒事。在 binding 能回傳真正的 context 之前，一律排除。
     static let excludedSignals: [String] = [
+        "create-context",
         "format-value",
         "populate-popup",
         "notify::mnemonic-widget",
@@ -617,6 +633,11 @@ struct GtkCodeGen {
             // return (GLArea's `create-context`) has no such value -- null would
             // be a claim, not an absence -- so it keeps the void form it always
             // had rather than inventing an answer.
+            // **Not "no worse" for create-context, it turned out:** the void form
+            // replaced GTK's own context with garbage and crashed P72 on Windows;
+            // that signal is now in `excludedSignals` (2026-10-07).
+            // **對 create-context 而言其實並非「不會更差」:**void 形式以垃圾值取代了 GTK 自己的 context,在 Windows
+            // 上讓 P72 崩潰;該 signal 現已列入 `excludedSignals`(2026-10-07)。
             //
             // 僅限具有明確「無答案」值的型別，因為有回傳值的 signal 即使 app 未設定處理常式也必須
             // 回傳一個值。`false` 與 `0` 正是此機制存在之前 GTK 所讀到的內容，因此對未處理的 signal

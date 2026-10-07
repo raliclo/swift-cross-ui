@@ -122,11 +122,6 @@ open class GLArea: Widget {
     open override func registerSignals() {
         super.registerSignals()
 
-        addSignal(name: "create-context") { [weak self] () in
-            guard let self else { return }
-            self.createContext?(self)
-        }
-
         let handler1: @convention(c) (
             UnsafeMutableRawPointer, OpaquePointer, UnsafeMutableRawPointer
         ) -> Bool = { _, value1, data in
@@ -288,17 +283,6 @@ open class GLArea: Widget {
     /// If set to %TRUE the widget will try to create a `GdkGLContext` using
     /// OpenGL ES instead of OpenGL.
     @GObjectProperty(named: "use-es") public var useEs: Bool
-
-    /// Emitted when the widget is being realized.
-    ///
-    /// This allows you to override how the GL context is created.
-    /// This is useful when you want to reuse an existing GL context,
-    /// or if you want to try creating different kinds of GL options.
-    ///
-    /// If context creation fails then the signal handler can use
-    /// [method@Gtk.GLArea.set_error] to register a more detailed error
-    /// of how the construction failed.
-    public var createContext: ((GLArea) -> Void)?
 
     /// Emitted every time the contents of the `GtkGLArea` should be redrawn.
     ///
