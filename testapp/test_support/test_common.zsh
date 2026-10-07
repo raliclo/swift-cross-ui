@@ -1526,6 +1526,10 @@ ui_lock_held=0
 
 release_ui_lock() {
     [ "$ui_lock_held" -eq 1 ] || return 0
+    # Not from a `$(...)` subshell: it inherits ui_lock_held=1 and would free the
+    # parent's lock while the parent runs on. 不可由 `$(...)` 子 shell 釋放:它繼承了
+    # ui_lock_held=1,會在父行程仍在執行時放掉父行程的鎖。
+    (( ZSH_SUBSHELL == 0 )) || return 0
     ui_lock_held=0
     zsh "$ui_lock_script" release "$ui_lock_holder" >/dev/null 2>&1 || true
 }
@@ -1562,6 +1566,24 @@ case "$target" in
             zsh "$ui_lock_script" acquire "$ui_lock_holder"
             ui_lock_held=1
             trap release_ui_lock EXIT
+            # ZERR as well, because the EXIT trap alone does not run when
+            # errexit fires inside a function -- and run_macos, run_wsl and
+            # run_windows are functions. Measured with zsh 5.9: `set -e`, an EXIT
+            # trap, and `f() { false; }; f` exit 1 without running the trap; a
+            # top-level `false` runs it. So any failing step in run_macos before
+            # "Launching" (2026-10-07: a log path that could not be truncated)
+            # ended the run with the lock still held, and every later app in
+            # sweep_drive_macos.zsh waited 900 s for it and was recorded
+            # "never launched". ZERR fires before errexit exits, in a function
+            # too. It also fires under `noerrexit` (capture() turns errexit off),
+            # where the script carries on, hence the `-o errexit` test.
+            # 也攔 ZERR,因為 errexit 若發生在函式內，單靠 EXIT trap 不會執行——而 run_macos、run_wsl、
+            # run_windows 都是函式。zsh 5.9 實測:`set -e`、一個 EXIT trap、`f() { false; }; f` 以 1 結束而
+            # 不執行 trap;頂層的 `false` 則會執行。所以 run_macos 在「Launching」之前任何一步失敗(2026-10-07:
+            # 一個無法清空的 log 路徑)都會帶著鎖結束，而 sweep_drive_macos.zsh 之後的每一支 app 都等它 900 秒、
+            # 被記成「never launched」。ZERR 在 errexit 結束前觸發，函式內亦然。它在 `noerrexit` 下也會觸發
+            # (capture() 關掉了 errexit),那時腳本會繼續，所以要檢查 `-o errexit`。
+            trap '[[ -o errexit ]] && release_ui_lock' ZERR
         fi
         ;;
 esac

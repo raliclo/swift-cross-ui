@@ -237,7 +237,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   happen here. The four check_*.sh run from Scripts/test.sh on every machine,
   including ones without csv2.
 
-- [ ] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07).
+- [x] **macOS sweep leaves the UI lock held after a failed run** (2026-10-07).
   `sweep_drive_macos.zsh P77..P81` recorded P78-P81 "never launched" three
   times; each time `ui-lock.zsh status` showed the lock held by the last app
   that failed (test-p81, test-p79) with no such process alive, and every later
@@ -249,6 +249,17 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   with `ui-lock.zsh release`. Fix: release the lock on every exit path of
   test.zsh (trap, as platform_lock.zsh does), and find why the first app in
   the cascade failed.
+  **Done (2026-10-07):** the cause was zsh, not a kill. Under `set -e` the EXIT
+  trap does not run when errexit fires inside a function (zsh 5.9:
+  `f() { false; }; f` exits 1 with no trap), and run_macos is a function, so
+  any failing step before "Launching" left the lock held. test_common.zsh now
+  also traps ZERR (only while errexit is on, so capture()'s `noerrexit` does
+  not free it) and never releases from a `$(...)` subshell. Proved with a log
+  path made a directory: before, `ui lock: held by test-p80` after the run;
+  after, free, and a sweep of P80 P81 recorded P81 ok right behind the failed
+  P80. The sweep note now carries test.zsh's last line. **Not found:** what
+  made P78/P79/P81 fail on 2026-10-07 -- that output was discarded; the next
+  occurrence will say.
 
 ### Windows side (GTK and WinUI)
 

@@ -240,7 +240,12 @@ for app in "${apps[@]}"; do
         *"Launching"*)
             launch='no marker'; note="declares a marker that never appeared" ;;
         *)
-            launch=fail; note="never launched" ;;
+            # With the last line test.zsh printed: the output is not kept, and a
+            # bare "never launched" was all three stale-lock sweeps of 2026-10-07
+            # left to go on. 附上 test.zsh 印出的最後一行：輸出不會保存，而 2026-10-07 那三次殘鎖
+            # sweep 留下的線索只有一句「never launched」。
+            local -a out_lines; out_lines=("${(@f)out}")
+            launch=fail; note="never launched${out_lines[(R)?*]:+: ${out_lines[(R)?*][1,160]}}" ;;
     esac
 
     # The replay verdict is read from the app's own log, not from this
