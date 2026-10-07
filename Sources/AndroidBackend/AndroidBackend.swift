@@ -691,6 +691,16 @@ public final class AndroidBackend: BaseAppBackend {
     /// `nil` before that.
     /// 視窗所在的 activity:第一個視窗是 app 的 activity,之後的視窗在啟動後是它自己的 `ScuiWindowActivity`,
     /// 啟動前為 `nil`。
+    /// The activity to present over for a window, or the first activity when
+    /// there is none (no window given, or a later window not started yet).
+    /// Sheets, alerts and file dialogs use it, so a presentation from a later
+    /// window appears over that window. 2026-10-07.
+    /// 為某個視窗做呈現時所用的 activity;沒有時(未指定視窗、或之後的視窗尚未啟動)用第一個 activity。sheet、alert
+    /// 與檔案對話框都用它，讓來自之後視窗的呈現出現在那個視窗上。2026-10-07。
+    func presentingActivity(for window: Window?) -> Activity {
+        window.flatMap { activity(of: $0) } ?? Self.activity
+    }
+
     func activity(of window: Window) -> Activity? {
         guard let token = window.token else { return Self.activity }
         return helpers.windowActivity(token)

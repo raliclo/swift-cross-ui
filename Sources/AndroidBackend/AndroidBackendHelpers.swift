@@ -112,6 +112,15 @@ class AndroidBackendHelpers: JavaObject {
     func launchSaveActivity(_ defaultName: String)
 
     @JavaMethod
+    func launchFilesActivityFrom(_ activity: Activity?, _ options: FilesActivityContract.Options!)
+
+    @JavaMethod
+    func launchFolderActivityFrom(_ activity: Activity?, _ urlString: JavaString?)
+
+    @JavaMethod
+    func launchSaveActivityFrom(_ activity: Activity?, _ defaultName: String)
+
+    @JavaMethod
     func stagingPathForSave(_ activity: Activity?, _ uriString: String, _ name: String)
         -> JavaString?
 

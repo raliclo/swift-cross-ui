@@ -23,7 +23,7 @@ extension AndroidBackend: BackendFeatures.FileOpenDialogs {
             Self.fileDialogCallback = {
                 handleResult($0.isEmpty ? .cancelled : .success($0))
             }
-            helpers.launchFilesActivity(options)
+            helpers.launchFilesActivityFrom(presentingActivity(for: window), options)
         } else if openDialogOptions.allowSelectingDirectories {
             Self.folderDialogCallback = { url in
                 if let url {
@@ -32,7 +32,7 @@ extension AndroidBackend: BackendFeatures.FileOpenDialogs {
                     handleResult(.cancelled)
                 }
             }
-            helpers.launchFolderActivity(startingFolder)
+            helpers.launchFolderActivityFrom(presentingActivity(for: window), startingFolder)
         } else {
             preconditionFailure("Neither file nor directory selection allowed?!")
         }

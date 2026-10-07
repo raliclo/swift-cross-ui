@@ -23,7 +23,8 @@ extension AndroidBackend: BackendFeatures.Sheets {
 
     public func presentSheet(_ sheet: CustomSheet, window: Window, parentSheet: CustomSheet?) {
         let fragmentManager =
-            parentSheet?.getChildFragmentManager() ?? Self.activity.as(FragmentActivity.self)!
+            parentSheet?.getChildFragmentManager()
+            ?? presentingActivity(for: window).as(FragmentActivity.self)!
                 .getSupportFragmentManager()
         sheet.show(fragmentManager, "CustomSheet")
     }

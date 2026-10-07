@@ -68,7 +68,7 @@ extension AndroidBackend: BackendFeatures.FileSaveDialogs {
             }
             handleResult(.success(Foundation.URL(fileURLWithPath: path)))
         }
-        helpers.launchSaveActivity(name)
+        helpers.launchSaveActivityFrom(presentingActivity(for: window), name)
     }
 }
 

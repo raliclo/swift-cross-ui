@@ -28,7 +28,10 @@ extension AndroidBackend: BackendFeatures.Alerts {
         }
 
         alert.setAction(action)
-        let fragmentActivity = Self.activity.as(FragmentActivity.self)!
+        // The alert's window's activity: from a later window, its own
+        // ScuiWindowActivity, so the alert shows over that window (2026-10-07).
+        // alert 所屬視窗的 activity:來自之後的視窗時是它自己的 ScuiWindowActivity,讓 alert 顯示在那個視窗上。
+        let fragmentActivity = presentingActivity(for: window).as(FragmentActivity.self)!
         alert.show(fragmentActivity.getSupportFragmentManager(), "AlertFragment")
     }
 

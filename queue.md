@@ -205,10 +205,20 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     screen, both relaid to their halves; append B in B -> scene draft B only in
     B (A keeps A), app draft AB in both; Back closed B and A went full screen;
     reopening B restored its scene draft. P1 (one window, sheets) unchanged.
-    - [ ] **Android: presentations from a later window** -- sheets, alerts,
+    - [x] **Android: presentations from a later window** -- sheets, alerts,
       popovers, file dialogs and the synthesiser still use the first activity
       (`AndroidBackend.activity`), so they appear over window A. Views in a
       later window are created with the first activity's context.
+      FIXED 2026-10-07: sheets and alerts use the window's own activity's
+      FragmentManager (`presentingActivity(for:)`); open, folder and save
+      dialogs from a later window register a one-shot launcher on that
+      activity's ActivityResultRegistry, so DocumentsUI opens in its task.
+      Popovers already followed the anchor's window. P81 (new) on the
+      emulator, split screen: sheet, alert, popover and the open dialog from
+      window B all appeared over B naming B, the picked file came back to B;
+      window A's sheet still over A. Save dialog from B not driven (same path
+      as open). Views of a later window are still built with the first
+      activity's context; nothing seen to depend on it.
   - [-] **UIKit: sheet detents on iOS 13-14** need a custom
     UIPresentationController (no sheetPresentationController there). Not started.
     CANCELLED 2026-10-06 by the user ("no need"): no iOS 13/14 runtime here to

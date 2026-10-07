@@ -264,12 +264,67 @@ class AndroidBackendHelpers {
 
     private lateinit var filesLauncher: ActivityResultLauncher<FilesActivityContract.Options>
     private lateinit var folderLauncher: ActivityResultLauncher<Uri?>
+    private var filesResult: FilesActivityCallback? = null
+    private var folderResult: FolderActivityCallback? = null
+    private var saveResult: FolderActivityCallback? = null
+
+    // A dialog asked for from a window after the first starts from THAT
+    // window's activity, so DocumentsUI returns to it rather than bringing the
+    // first window's task to the front. The launchers above were registered on
+    // the first activity before it started, which is the only time
+    // registerForActivityResult allows; a later window registers one launcher
+    // on its own registry for this one request and unregisters it with the
+    // result. 2026-10-07.
+    //
+    // 由第一個之後的視窗要求的對話框，從**該**視窗的 activity 啟動，讓 DocumentsUI 回到它，而不是把第一個
+    // 視窗的工作帶到前面。上面的 launcher 是在第一個 activity 啟動前註冊的——registerForActivityResult 只允許
+    // 那個時機；之後的視窗則在自己的 registry 上為這一次要求註冊一個 launcher,拿到結果就註銷。2026-10-07。
+    private fun <I, O> launchOnce(
+        activity: ScuiWindowActivity,
+        contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
+        callback: androidx.activity.result.ActivityResultCallback<O>,
+        input: I,
+    ) {
+        var launcher: ActivityResultLauncher<I>? = null
+        launcher =
+            activity.activityResultRegistry.register("scui-${System.nanoTime()}", contract) { result ->
+                callback.onActivityResult(result)
+                launcher?.unregister()
+            }
+        launcher.launch(input)
+    }
+
+    fun launchFilesActivityFrom(activity: Activity?, options: FilesActivityContract.Options) {
+        val window = activity as? ScuiWindowActivity
+        val callback = filesResult
+        if (window == null || callback == null) return launchFilesActivity(options)
+        launchOnce(window, FilesActivityContract(), callback, options)
+    }
+
+    fun launchFolderActivityFrom(activity: Activity?, urlString: String?) {
+        val window = activity as? ScuiWindowActivity
+        val callback = folderResult
+        if (window == null || callback == null) return launchFolderActivity(urlString)
+        launchOnce(
+            window, ActivityResultContracts.OpenDocumentTree(), callback,
+            urlString?.let { Uri.parse(it) },
+        )
+    }
+
+    fun launchSaveActivityFrom(activity: Activity?, defaultName: String) {
+        val window = activity as? ScuiWindowActivity
+        val callback = saveResult
+        if (window == null || callback == null) return launchSaveActivity(defaultName)
+        launchOnce(window, ActivityResultContracts.CreateDocument("*/*"), callback, defaultName)
+    }
 
     fun registerActivityResults(
         activity: FragmentActivity,
         filesCallback: FilesActivityCallback,
         folderCallback: FolderActivityCallback,
     ) {
+        filesResult = filesCallback
+        folderResult = folderCallback
         filesLauncher = activity.registerForActivityResult(FilesActivityContract(), filesCallback)
 
         folderLauncher =
@@ -413,6 +468,7 @@ class AndroidBackendHelpers {
     // 與另外兩個分開註冊，以免改動它們的簽章；它必須在同一個時間點、activity 開始之前完成，而
     // AndroidBackend 正是在那裡呼叫它。
     fun registerSaveResult(activity: FragmentActivity, callback: FolderActivityCallback) {
+        saveResult = callback
         saveLauncher =
             activity.registerForActivityResult(
                 ActivityResultContracts.CreateDocument("*/*"),
