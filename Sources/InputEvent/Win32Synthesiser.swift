@@ -2050,8 +2050,43 @@
             return false
         }
 
+        /// Keys this replay has sent down with `keydown` and not yet released.
+        ///
+        /// Asking Windows is not enough for a screen reader's chord. Measured
+        /// 2026-10-08 replaying P69-narrator-walk.csv: `keydown,capsLock`, `key,0`,
+        /// `keyup,capsLock` made Narrator say "not a Narrator command", because the
+        /// `0` went out as a Unicode character (VK_PACKET) rather than the 0 key.
+        /// Adding VK_CAPITAL and VK_INSERT to `anyModifierHeld` was tried first and
+        /// changed NOTHING on a rebuilt P69: Narrator swallows Caps Lock in its
+        /// low-level hook, so this thread's `GetKeyState` never sees it down. The
+        /// replay knows what it pressed, so it asks itself. The same chord sent as
+        /// virtual keys (a separate SendInput tool) read the item's advanced info.
+        /// Static and `nonisolated(unsafe)` for the same reason as `focusedWindowBits`.
+        ///
+        /// 本次重放以 `keydown` 按下、尚未放開的鍵。對螢幕閱讀器的組合鍵，只問 Windows 不夠。2026-10-08 重放
+        /// P69-narrator-walk.csv 實測:`keydown,capsLock`、`key,0`、`keyup,capsLock` 讓 Narrator 回應「not a
+        /// Narrator command」,因為 `0` 是以 Unicode 字元(VK_PACKET)而非 0 鍵送出。先試過把 VK_CAPITAL 與
+        /// VK_INSERT 加進 `anyModifierHeld`,重建 P69 後**毫無改變**:Narrator 在低階 hook 中吃掉 Caps Lock,
+        /// 本執行緒的 `GetKeyState` 永遠看不到它被按下。重放自己知道按了什麼，所以問自己。同一組合以 virtual
+        /// key 送出(另一支 SendInput 工具)時，則讀出了該項目的進階資訊。static 與 `nonisolated(unsafe)` 的
+        /// 理由與 `focusedWindowBits` 相同。
+        nonisolated(unsafe) private static var heldByReplay: Set<Key> = []
+        private static let heldLock = NSLock()
+
+        /// Records `key` going down or up, and says whether some OTHER key this
+        /// replay pressed is still held -- i.e. whether `key` is part of a chord.
+        /// 記錄 `key` 的按下或放開，並回答本次重放按下的「另一個」鍵是否仍按著——也就是 `key` 是否屬於組合鍵。
+        private static func inChord(_ key: Key, up: Bool) -> Bool {
+            heldLock.lock()
+            defer { heldLock.unlock() }
+            let others = !heldByReplay.subtracting([key]).isEmpty
+            if up { heldByReplay.remove(key) } else { heldByReplay.insert(key) }
+            return others
+        }
+
         private func send(key: Key, up: Bool) throws {
-            if !Self.anyModifierHeld, let scalar = Self.printableScalar(for: key) {
+            let chord = Self.inChord(key, up: up)
+            if !chord, !Self.anyModifierHeld, let scalar = Self.printableScalar(for: key) {
                 try sendUnicode(scalar, up: up)
                 return
             }

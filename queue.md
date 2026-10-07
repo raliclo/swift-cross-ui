@@ -1048,6 +1048,23 @@ How to run it is in `testapp/README.md` > Devices > iPad (and README_zhTW.md).
   **2026-09-29,來自 Mac 這一側:朗讀不再需要有人聽——TalkBack 已經這樣驗證。**剩下的兩個閱讀器都在 Windows 那台機器上,
   Mac 這邊跑不了:Orca 用 debug log 或 speech-dispatcher 的 dummy 模組取得逐字稿;Narrator 無法換聲音,但 NVDA 讀的是同一棵
   UIA 樹且可取得語音 log,可作為機器可驗證的等價物。
+  **Narrator on WinUI DONE 2026-10-08 (Windows), heard by a person.** One step
+  at a time, then replayed by `testapp/actions/win/P69-narrator-walk.csv`:
+  Tab -> "Close, button" (not "X"); Tab -> "Delete, button", "Removes the file
+  permanently"; Tab -> "Volume, button"; Caps Lock+0 -> "40 percent"; Caps
+  Lock+Right -> "Half past twelve" (not "12:30"); Caps Lock+Right -> the
+  Expected paragraph, the hidden "decorative" skipped. One gap: the value is
+  UIA ItemStatus, which Narrator speaks only on Caps Lock+0, while VoiceOver
+  says "Volume, 40 percent, button" unasked -- whether to expose it another way
+  is open. Found on the way: the Win32 replay sent `0` inside a Caps Lock chord
+  as a Unicode character (Narrator: "not a Narrator command"); it now tracks the
+  keys it holds and sends a chord's keys as virtual keys. `# narrator: on` in an
+  action file makes test.zsh start Narrator before the app, and the file turns
+  it off at the end. Orca (WSLg) speech is still unheard.
+  **WinUI 上的 Narrator 於 2026-10-08 完成，由人實際聽過。**逐步確認後由上述動作檔重放:X 唸成 Close、Delete 帶 hint、
+  12:30 唸成 Half past twelve、decorative 被跳過。缺口:Volume 的值是 UIA ItemStatus,Narrator 只在 Caps Lock+0 時才唸，
+  VoiceOver 則會主動唸——是否改用別的方式提供仍未定。途中修正：重放在 Caps Lock 組合鍵中把 `0` 送成 Unicode 字元，
+  現在會追蹤自己按住的鍵。動作檔的 `# narrator: on` 讓 test.zsh 先開 Narrator,動作檔最後再關掉。Orca(WSLg)仍未聽過。
 
 - [x] **#117 GTK ListView integration and P57 verification — 2026-09-16 完成**: -> completed.md (archived 2026-10-05)
 

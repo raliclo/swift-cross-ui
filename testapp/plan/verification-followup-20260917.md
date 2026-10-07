@@ -48,6 +48,17 @@ the value nor Narrator hidden-subtree behavior is established by that output.
 但工具未說明 UIA filter 且未輸出 ItemStatus，不能直接等同 Narrator 會朗讀。
 下一步是驗證 control/content view 與 Narrator 實際走訪，再修正重複標籤或隱藏子樹行為。
 
+**Update 2026-10-08: Narrator speech on WinUI verified by a person.** The bold
+line above was true when written and is kept. P69 (WinUI), heard step by step,
+then replayed with `testapp/actions/win/P69-narrator-walk.csv`: "Close, button"
+(not "X"); "Delete, button", "Removes the file permanently"; "Volume, button";
+Caps Lock+0 "40 percent"; "Half past twelve" (not "12:30"); "decorative" never
+spoken. Remaining gap: the value is ItemStatus, read only on Caps Lock+0. Orca
+on WSLg is still unheard, so #123 is not externally complete on every reader.
+
+**2026-10-08 更新:WinUI 上的 Narrator 朗讀已由人實際聽過。**上方粗體那行在寫下時為真，予以保留。結果如上；
+剩下的缺口是值以 ItemStatus 提供，只在 Caps Lock+0 時唸出。WSLg 的 Orca 仍未聽過，因此 #123 尚未在所有閱讀器上完成外部驗證。
+
 ## Local Commit Split / 本機提交拆分
 
 Published develop history was NOT rewritten. Local branch `review/split-5739d453`

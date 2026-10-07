@@ -1067,6 +1067,28 @@ run_windows() {
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
 
+    # An action file carrying the line `# narrator: on` is a screen-reader walk.
+    # Narrator is started here, before the app, so the app's window opens ON
+    # TOP of Narrator Home rather than under it, and the file's last rows turn
+    # it off again (Ctrl+Win+Enter) -- the user's rule, 2026-10-08: running only
+    # while testing, closed when the app closes. Left running, it reads every
+    # terminal redraw aloud ("space", "space", ...).
+    # 帶有 `# narrator: on` 這一行的動作檔是螢幕閱讀器走訪。Narrator 在 app 之前於此啟動，讓 app 的視窗開在
+    # Narrator Home 之上而非之下；動作檔的最後幾列再把它關掉(Ctrl+Win+Enter)——使用者 2026-10-08 的規則：
+    # 只在測試時執行，app 關閉時就關。不關的話，它會把終端機的每次重畫都唸出來(「space」、「space」……)。
+    local wants_narrator=0
+    if [ -n "$action_file" ] && grep -q '^# narrator: on' "$action_file"; then
+        wants_narrator=1
+        if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq Narrator.exe" 2>/dev/null \
+            | grep -qi 'Narrator.exe'; then
+            printf '==> Narrator: already running; the action file turns it off at the end\n'
+        else
+            printf '==> Narrator: starting it for this action file\n'
+            MSYS2_ARG_CONV_EXCL='*' cmd.exe /c start "" Narrator.exe
+            sleep 6
+        fi
+    fi
+
     printf '==> Launching %s.exe\n' "$app"
     # stderr kept, not discarded, when a file is being replayed. The backend
     # reports there whether the replay ran, and a failed replay leaves a window
@@ -1155,6 +1177,22 @@ run_windows() {
         printf '==> Closed %s\n' "$win_exe"
     else
         printf '==> WARNING: %s may still be running; check with tasklist\n' "$win_exe"
+    fi
+
+    # The action file turns Narrator off with its last rows; this only checks
+    # that it did. Narrator runs with uiAccess, so taskkill gets "Access is
+    # denied" and cannot be the fallback -- the hotkey is the only way out.
+    # 動作檔以最後幾列關閉 Narrator;此處只確認它真的關了。Narrator 以 uiAccess 執行，taskkill 會得到
+    # 「Access is denied」,不能當備援——快捷鍵是唯一的關法。
+    if [ "$wants_narrator" -eq 1 ]; then
+        sleep 2
+        if MSYS2_ARG_CONV_EXCL='*' tasklist.exe /NH /FI "IMAGENAME eq Narrator.exe" 2>/dev/null \
+            | grep -qi 'Narrator.exe'; then
+            printf '==> WARNING: Narrator is still running; the action file did not turn it off.\n'
+            printf '    Press Ctrl+Win+Enter to close it.\n'
+        else
+            printf '==> Narrator: off\n'
+        fi
     fi
 
     print_summary_windows

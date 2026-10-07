@@ -1,0 +1,62 @@
+action,x,y,origin,button,key,micros,note,platform
+# P69 on Windows, WinUIBackend: walk Narrator through the #123 controls.
+# narrator: on
+# Written 2026-10-08 for the #123 external check. The line above makes test.zsh
+# start Narrator before the app; the last rows here turn it off again
+# (Ctrl+Win+Enter), so it runs only while testing. The replay only moves focus,
+# and a PERSON listens -- nothing here records speech, so the verdict is what
+# was heard, not this file's rc.
+# Run it with a showtime longer than the file, or the app is closed mid-walk:
+#   TEST_BACKEND=WinUI zsh testapp/test.zsh P69 -win --no-build --showtime 60 \
+#       --actionfile testapp/actions/win/P69-narrator-walk.csv
+# A bare file name is resolved against the current directory, not actions/win.
+# Heard on 2026-10-08, one step at a time with a listener reporting each:
+#   Tab 1   "Close, button" -- not "X"
+#   Tab 2   "Delete, button", then "Removes the file permanently"
+#   Tab 3   "Volume, button" -- and NO "40 percent"
+#   Caps+0  (Narrator's read-advanced) "40 percent": the value is exposed as
+#           UIA ItemStatus, which Narrator reads only on demand
+#   Caps+Right  "Half past twelve" -- not "12:30"
+#   Caps+Right  the Expected paragraph, exactly as written; the hidden
+#           "decorative" was skipped. That paragraph itself contains the words
+#           X, Close and decorative, so hearing them THERE is not a failure.
+# The first click is on the 'presses: 0' text -- not a button, so it changes
+# nothing -- to give the window focus. (58,191) is its centre from UIA bounding
+# rects minus the window's GetWindowRect origin (104,104), 100% scale, 576x659.
+# The 4 s pauses are for speech to finish before focus moves on.
+# P69(Windows,WinUIBackend):讓 Narrator 依序走過 #123 的控制項。上方的 `# narrator: on` 讓 test.zsh
+# 在 app 之前啟動 Narrator,最後幾列再以 Ctrl+Win+Enter 關掉，因此只在測試時執行。重放只負責移動焦點，由**人**來聽——這裡不錄任何語音，所以判準是聽到了什麼，不是本檔的 rc。
+# showtime 要比本檔長，否則走到一半 app 就被關掉(見上方指令);只給檔名時是相對於目前目錄解析，不是 actions/win。
+# 2026-10-08 逐步實聽結果:Tab 1「Close, button」(不是 X);Tab 2「Delete, button」再「Removes the file
+# permanently」;Tab 3「Volume, button」,**沒有**「40 percent」;Caps+0(Narrator 讀進階資訊)才唸出
+# 「40 percent」——值是以 UIA ItemStatus 提供，Narrator 只在要求時才讀;Caps+→「Half past twelve」(不是 12:30);
+# 再 Caps+→ 照原文讀出說明段落，隱藏的「decorative」被跳過。該段落本身就含 X、Close、decorative 這些字，
+# 在那裡聽到不算失敗。第一下點在 'presses: 0' 文字上(不是按鈕)以取得焦點;(58,191) 是 UIA 邊界矩形中心
+# 減去視窗 GetWindowRect 原點 (104,104),100% 縮放,576x659。4 秒停頓讓語音唸完再移焦點。
+sleep,,,,,,1500000,let P69 lay out,windows
+click,58,191,frame,left,,,"click the 'presses: 0' text to give the window focus",windows
+sleep,,,,,,3000000,let Narrator announce the window,windows
+key,,,,,tab,,"focus the 'X' button -- must be heard as Close, button",windows
+sleep,,,,,,4000000,listen,windows
+key,,,,,tab,,"focus Delete -- must be heard with Removes the file permanently",windows
+sleep,,,,,,5000000,listen; the hint follows after a pause,windows
+key,,,,,tab,,"focus Volume -- heard as Volume, button; 40 percent is NOT spoken here",windows
+sleep,,,,,,4000000,listen,windows
+keydown,,,,,capsLock,,Narrator key down,windows
+key,,,,,0,,"Narrator read-advanced on Volume -- must be heard as 40 percent",windows
+keyup,,,,,capsLock,,Narrator key up,windows
+sleep,,,,,,4000000,listen,windows
+keydown,,,,,capsLock,,Narrator key down,windows
+key,,,,,rightArrow,,"Narrator next item -- the 12:30 text, heard as Half past twelve",windows
+keyup,,,,,capsLock,,Narrator key up,windows
+sleep,,,,,,4000000,listen,windows
+keydown,,,,,capsLock,,Narrator key down,windows
+key,,,,,rightArrow,,"Narrator next item -- the Expected paragraph; decorative must have been skipped",windows
+keyup,,,,,capsLock,,Narrator key up,windows
+sleep,,,,,,8000000,"hold 8s for the paragraph's first sentence; the run's showtime has to outlast it",windows
+keydown,,,,,control,,Narrator off: Ctrl,windows
+keydown,,,,,command,,Narrator off: Win,windows
+key,,,,,return,,"Narrator off: Enter -- test.zsh checks afterwards that Narrator.exe is gone",windows
+keyup,,,,,command,,,windows
+keyup,,,,,control,,,windows
+sleep,,,,,,2000000,let Narrator exit,windows
