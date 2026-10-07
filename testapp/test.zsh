@@ -247,19 +247,23 @@ case "$(uname -s)" in
             printf '!! A known input blocker is still running; NOT starting the test.\n' >&2
             zsh "$script_dir/enable_input.zsh" --check 2>&1 | grep -E 'BLOCKER RUNNING' \
                 | sed 's/^/!! /' >&2 || true
-            # The exact kill command for each survivor, so the reader knows what
-            # to kill and how (the user's instruction, 2026-10-07). It needs an
-            # elevated prompt: these run elevated, and from a normal shell
-            # taskkill prints "Access is denied".
-            # 為每個仍存活者印出確切的 kill 指令，讓讀者知道要關哪個、怎麼關(使用者 2026-10-07 指示)。需要以系統管理員
-            # 身分開啟的命令提示字元：它們是提權執行的，一般 shell 的 taskkill 會印出「Access is denied」。
-            printf '!! Kill it from an administrator prompt (Run as administrator):\n' >&2
-            zsh "$script_dir/enable_input.zsh" --check 2>&1 \
-                | grep -oE 'BLOCKER RUNNING: [^ ]+' | cut -d' ' -f3 \
-                | while read -r image; do
-                    printf '!!     taskkill /F /IM %s\n' "$image" >&2
-                done || true
-            printf '!! or run testapp\\enable_input.ps1 and approve its UAC prompt at the machine.\n' >&2
+            # One bare line that can be copied and run as it is (the user's
+            # instruction, 2026-10-07): no "!!" prefix, no indentation, and it
+            # elevates itself -- these blockers run elevated, so a plain
+            # `taskkill` from a normal shell only prints "Access is denied".
+            # Every survivor goes on the same line as another /IM. It works
+            # pasted into cmd, PowerShell or Git Bash: the argument starts with
+            # "Start-Process", so Git Bash does not rewrite the /F and /IM in it.
+            # 一行可直接複製執行的指令(使用者 2026-10-07 指示):沒有「!!」前綴、沒有縮排，而且自行提權——這些阻擋者是
+            # 提權執行的，一般 shell 的 `taskkill` 只會印出「Access is denied」。每個仍存活者都以另一個 /IM 放在同一行。
+            # 貼到 cmd、PowerShell 或 Git Bash 都能執行：該引數以「Start-Process」開頭，Git Bash 不會改寫其中的 /F 與 /IM。
+            kill_args=''
+            for image in ${(f)"$(zsh "$script_dir/enable_input.zsh" --check 2>&1 \
+                | grep -oE 'BLOCKER RUNNING: [^ ]+' | cut -d' ' -f3)"}; do
+                kill_args+=",'/IM','${image}'"
+            done
+            printf '!! Copy and run this line to kill them (it asks for UAC itself):\n' >&2
+            printf '%s\n' "powershell -NoProfile -Command \"Start-Process taskkill -Verb RunAs -ArgumentList '/F'${kill_args}\"" >&2
             exit 5
         fi
         if [ "$blocker_status" -ne 0 ]; then
