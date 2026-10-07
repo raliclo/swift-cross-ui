@@ -296,7 +296,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
 
 ### Windows side (GTK and WinUI)
 
-- [ ] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
+- [x] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
   `Cursors`, `KeyEvents`, `ScrollGestures`, `WidgetSnapshots` (AppKit, UIKit and
   Android have all five). `Mesh3DViews` is the sixth, already its own item above.
   GTK DONE 2026-10-06 (GtkBackend+InputTargets.swift, a `Fixed` per target, and a
@@ -309,6 +309,32 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   activate it -- the existing `Menu` would not even open that way), right-click
   delivery from CGEvent, cursor shapes (seen only by a person). The snapshot is
   in logical pixels, AppKit's in backing pixels. WinUI's five remain.
+  WinUI DONE 2026-10-07 (WinUIBackend+InputTargets.swift, a transparent Canvas
+  per target as the tap and hover targets use). Driven on P80 with real
+  SendInput (UIA only to locate elements):
+  - cursors: `ProtectedCursor` with `InputSystemCursor`, set on the target's
+    whole subtree -- hand, cross, ibeam, sizeWE, sizeNS and no read back with
+    `GetCursorInfo`. Whether the target alone suffices is NOT settled (the
+    target-only run was blocked, see below).
+  - context menu: `ContextFlyout` = a `MenuFlyout`; right-click opens First /
+    Second at the pointer, invoking Second reads "menu picked: Second".
+  - keys: A, Shift+A (modifier events too), Escape, and a KEYEVENTF_UNICODE "z"
+    (VK_PACKET, reported from CharacterReceived) -- 10 events. Fixed on the
+    way: focus is taken on the NEXT main-queue turn, because the root
+    ScrollViewer focuses itself after the target's PointerPressed and won.
+  - scroll: three wheel notches -> "scroll: 0, 16 ended: 3", as GTK.
+  - snapshot: `RenderTargetBitmap`, pumping messages until the async ops
+    finish (2 s limit). A red `Text("SNAP").padding(8).background(.red)`:
+    49x32, 1421 of 1568 pixels red, 64 ms. Checked with a temporary P80 edit,
+    reverted, not committed.
+  Most of the afternoon was lost to injected input being silently dropped:
+  first a leftover P75 window in front, then two ASUS utilities running
+  elevated (AsMonitorControl.exe, then AsHotplugCtrl.exe). test.zsh now stops
+  known blockers before a Windows test (user's instruction), and
+  enable_input.zsh no longer skips them while a remote session is connected.
+  WinUI 於 2026-10-07 完成五項(InputTargets.swift),P80 以真實 SendInput 驅動：游標六種、右鍵選單、按鍵(含
+  VK_PACKET)、捲動、截圖(1421/1568 紅)皆正確。只設 target 是否足以顯示游標尚未確定。下午大半時間耗在輸入被無聲丟棄：
+  先是殘留的 P75,後是兩支提權的華碩工具;test.zsh 現在會在 Windows 測試前停掉已知阻擋者。
 - [x] **Picker styles:** GTK lacks `.wheel` (`supportedPickerStyles`,
   `GtkBackend.swift:233`); WinUI lacks `.segmented` and `.wheel`
   (`WinUIBackend.swift:209`). An app asking for them is downgraded -- the path
