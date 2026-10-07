@@ -365,7 +365,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   reads "wheel -> Sun" (p74w-after/-edge-20261007-0754*.png).
   WinUI 於 2026-10-07 完成：`.segmented` 為一列互斥的 ToggleButton,`.wheel` 為五列高的 ListView;
   P74 經 UIA 驅動，兩者讀數皆正確，選 Sun 時會自動捲動到它。
-- [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
+- [x] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),
   fullscreen not detected (`:726`). GTK: button label colour from the environment
@@ -374,6 +374,30 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   `color` the label inherits; on GtkBackend (macOS) Menu labels drew red, blue,
   orange from a parent, and a disabled green dimmed. The TODO is replaced by
   that note. WinUI items remain (Windows session).
+  **WinUI DONE 2026-10-07 (Windows), all five:**
+  - foreground colour on date pickers: P41 with a temporary
+    `.foregroundColor(.red)` (reverted) -- DatePicker, TimePicker, `.compact`
+    date, seconds box and the graphical month header and days all red; with it
+    removed, the theme's colours return. `Foreground` alone reached only the
+    DatePicker and TimePicker. The others needed `CalendarItemForeground` and
+    painting the text blocks inside the templates. Overriding the
+    `CalendarDatePickerTextForeground` / `ComboBoxForeground` resources did
+    nothing.
+  - font design: `.monospaced` maps to "Cascadia Mono, Consolas, Courier New"
+    in both `apply(to:)`; P74 (temporary edit) drew "1111 WWWW iiii" in equal
+    columns beside a proportional line. Italic is now also cleared, not only set.
+  - picker font: the TODO was stale -- `apply(to: picker)` already ran; P74's
+    menu picker with `.font(.system(size: 22).italic())` showed 22 pt italic
+    closed and in all three drop-down items.
+  - scale-factor change: `WM_DPICHANGED` in the window procedure recomputes the
+    window environment on the next main-queue turn. BUILT ONLY: changing the
+    display scale would have disturbed the live session, so no real DPI change
+    was driven.
+  - fullscreen: `isWindowProgrammaticallyResizable` answers
+    `presenter.kind != .fullScreen`. BUILT ONLY: nothing in SwiftCrossUI puts a
+    WinUI window into full screen to drive it.
+  WinUI 五項於 2026-10-07 完成：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)經 P41/P74 暫時改動驗證;縮放變更與
+  全螢幕偵測僅建置，未實際驅動。
 - [ ] **`Button(_:role: .destructive)` changes nothing on any backend** (found
   2026-10-07). The core passes the role to `updateButton` in the environment
   (`Button.swift:438`), and no backend reads it there: on GtkBackend (macOS)

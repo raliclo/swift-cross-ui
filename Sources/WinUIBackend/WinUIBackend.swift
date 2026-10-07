@@ -723,8 +723,12 @@ public final class WinUIBackend:
     }
 
     public func isWindowProgrammaticallyResizable(_ window: Window) -> Bool {
-        // TODO: Detect whether window is fullscreen
-        return true
+        // A full-screen window answers false, as AppKitBackend and GtkBackend
+        // do, or the layout system keeps proposing sizes the window will not
+        // take. This was a constant `true` with a TODO beside it.
+        // 全螢幕視窗回答 false,與 AppKitBackend、GtkBackend 相同，否則版面系統會不斷提出視窗不會接受的尺寸。
+        // 此處原本是一個恆為 `true` 的值，旁邊附著 TODO。
+        window.appWindow.presenter.kind != .fullScreen
     }
 
     public func setSize(ofWindow window: Window, to newSize: SIMD2<Int>) {
@@ -1148,7 +1152,18 @@ public final class WinUIBackend:
         of window: Window,
         to action: @escaping @Sendable @MainActor () -> Void
     ) {
-        // TODO: Notify when window scale factor changes
+        // A scale change recomputes the environment the same way activation
+        // does, so `windowScaleFactor` follows the window across displays. It
+        // used to be a TODO: the value was right at creation and stayed there.
+        // 縮放變更與啟用一樣會重新計算 environment,讓 `windowScaleFactor` 隨視窗跨顯示器更新。這裡原本是 TODO:
+        // 值在建立時正確，之後就停在那裡。
+        window.scaleFactorChangeHandler = { [weak self] in
+            if let rootHandler = self?.rootEnvironmentChangeHandler {
+                rootHandler()
+            } else {
+                action()
+            }
+        }
 
         // NB: This event fires when the window is activated _or_ deactivated.
         window.activated.addHandler { _, _ in
@@ -1539,7 +1554,6 @@ public final class WinUIBackend:
         let block = textView as! TextBlock
         block.text = content
         block.isTextSelectionEnabled = environment.isTextSelectionEnabled
-        // TODO: Font design handling (monospace vs normal)
         environment.apply(to: block)
     }
 
@@ -2040,7 +2054,12 @@ public final class WinUIBackend:
                 picker.options = options
             }
 
-            // TODO: Picker font handling
+            // Font: `environment.apply(to: picker)` above already sets size,
+            // weight, style and family, and the drop-down items inherit them --
+            // P74 with `.font(.system(size: 22).italic())` showed Apple, Banana and
+            // Cherry at 22 pt italic when open (2026-10-07). A TODO said otherwise.
+            // 字型:上方的 `environment.apply(to: picker)` 已設定大小、粗細、樣式與家族，下拉項目會繼承——P74 以
+            // `.font(.system(size: 22).italic())` 展開時，三個項目皆為 22 pt 斜體(2026-10-07)。原本的 TODO 說的不對。
         } else if let picker = picker as? CustomRadioButtons {
             for i in 0..<min(picker.items.count, options.count) {
                 (picker.items[i] as! TextBlock).text = options[i]
@@ -3079,9 +3098,7 @@ public final class WinUIBackend:
         customDatePicker.setDateRange(to: range)
         customDatePicker.setEnabled(to: environment.isEnabled)
 
-        // TODO(parity): foreground color ignored
-        // Setting foreground like for other views works for TimePicker and DatePicker but not for
-        // CalendarView or CalendarDatePicker.
+        customDatePicker.setForeground(to: environment.explicitWinUIForegroundBrush)
     }
 
     // public func createTable(rows: Int, columns: Int) -> Widget {
@@ -3174,8 +3191,13 @@ extension EnvironmentValues {
             try! control.clearValue(WinUI.Control.foregroundProperty)
         }
         control.isEnabled = isEnabled
-        if resolvedFont.isItalic {
-            control.fontStyle = .italic
+        // Set both ways for the same reason: italic used to be set and never
+        // cleared, so a reused control stayed italic. 同一理由兩個方向都設：斜體原本只設不清，重用的控制項會一直是斜體。
+        control.fontStyle = resolvedFont.isItalic ? .italic : .normal
+        if let family = resolvedFont.winUIFontFamily {
+            control.fontFamily = family
+        } else if control.fontFamily?.source == winUIMonospacedFontFamilies {
+            try! control.clearValue(WinUI.Control.fontFamilyProperty)
         }
         switch colorScheme {
             case .light:
@@ -3196,14 +3218,35 @@ extension EnvironmentValues {
             try! textBlock.clearValue(WinUI.TextBlock.foregroundProperty)
         }
         textBlock.lineHeight = resolvedFont.lineHeight
-
-        if resolvedFont.isItalic {
-            textBlock.fontStyle = .italic
+        textBlock.fontStyle = resolvedFont.isItalic ? .italic : .normal
+        if let family = resolvedFont.winUIFontFamily {
+            textBlock.fontFamily = family
+        } else if textBlock.fontFamily?.source == winUIMonospacedFontFamilies {
+            try! textBlock.clearValue(WinUI.TextBlock.fontFamilyProperty)
         }
     }
 }
 
+/// The families `Font.Design.monospaced` maps to: Cascadia Mono ships with
+/// Windows 11, Consolas with every Windows since Vista, Courier New with all.
+/// Only this exact family is cleared when the design returns to default, so a
+/// family someone else set -- the icon fonts in WinUIBackend+Symbols.swift --
+/// is left alone. Until 2026-10-07 the design was ignored (a TODO in
+/// `updateTextView`), so `.monospaced` text was proportional on WinUI alone.
+/// `Font.Design.monospaced` 對應的字型家族:Windows 11 內建 Cascadia Mono,Vista 起皆有 Consolas,Courier New 則
+/// 處處皆有。設計回到預設時只清除這個確切的家族，別人設定的家族——WinUIBackend+Symbols.swift 的圖示字型——不受影響。
+/// 2026-10-07 之前設計被忽略(`updateTextView` 中的 TODO),因此 `.monospaced` 文字只在 WinUI 上是比例字型。
+let winUIMonospacedFontFamilies = "Cascadia Mono, Consolas, Courier New"
+
 extension Font.Resolved {
+    @MainActor
+    var winUIFontFamily: FontFamily? {
+        switch design {
+            case .monospaced: FontFamily(winUIMonospacedFontFamilies)
+            case .default: nil
+        }
+    }
+
     var winUIFontWeight: UInt16 {
         switch weight {
             case .ultraLight:
@@ -3367,6 +3410,9 @@ public class CustomWindow: WinUI.Window {
     var minimumContentSize = SIMD2<Int>(0, 0)
     var maximumContentSize: SIMD2<Int>?
     var originalWindowProc: WNDPROC?
+    /// Called from the window procedure on `WM_DPICHANGED`; set by
+    /// `setWindowEnvironmentChangeHandler`. 由視窗程序在 `WM_DPICHANGED` 時呼叫。
+    var scaleFactorChangeHandler: (() -> Void)?
 
     private(set) var menuBarIsVisible = false
     private(set) var toolbarIsVisible = false
@@ -3519,6 +3565,21 @@ public class CustomWindow: WinUI.Window {
                 let maximumWindowSize = window.windowTrackingSize(forContentSize: maximumContentSize)
                 info.pointee.ptMaxTrackSize.x = maximumWindowSize.x
                 info.pointee.ptMaxTrackSize.y = maximumWindowSize.y
+            }
+        }
+
+        // The window moved to a display with another scale, or the scale was
+        // changed in Settings. Reported on the next turn of the main queue,
+        // after the default processing has resized the window to the new DPI,
+        // so the environment is recomputed with `scaleFactor` already current.
+        // 視窗移到另一個縮放比例的顯示器，或在設定中改了縮放。於主佇列下一輪回報——那時預設處理已把視窗依新的 DPI
+        // 調整好大小——因此重新計算 environment 時，`scaleFactor` 已是新值。
+        if message == WM_DPICHANGED, let hwnd {
+            let key = Int(bitPattern: hwnd)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    CustomWindow.windowsByHWND[key]?.scaleFactorChangeHandler?()
+                }
             }
         }
 
@@ -3799,8 +3860,12 @@ final class CustomDatePicker: StackPanel {
                 guard index >= 0 else { return }
                 let wholeMinutes = (timeOfDay(self.date) / 60).rounded(.down) * 60
                 report(calendar.startOfDay(for: self.date) + wholeMinutes + Double(index))
+                DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
             }
             self.secondsView = secondsView
+            secondsView.loaded.addHandler { [weak self] _, _ in
+                DispatchQueue.main.async { [weak self] in self?.paintTemplateText() }
+            }
         }
 
         children.append(row)
@@ -3813,6 +3878,101 @@ final class CustomDatePicker: StackPanel {
         dateView?.asControl.isEnabled = isEnabled
         timeView?.isEnabled = isEnabled
         secondsView?.isEnabled = isEnabled
+    }
+
+    /// The environment's explicit foreground on every part, or the theme's
+    /// when there is none. It was ignored outright (a `TODO(parity)` in
+    /// `updateDatePicker`), with a note that `Foreground` works on `DatePicker`
+    /// and `TimePicker` but not on the two calendar controls. Measured on P41
+    /// with `.foregroundColor(.red)`, 2026-10-07: `Foreground` reddened the
+    /// DatePicker and TimePicker; a `CalendarView`'s day numbers needed
+    /// `CalendarItemForeground`; its month header, a `CalendarDatePicker`'s
+    /// date and the seconds box's selected value needed
+    /// `paintTemplateText()`. Days of the neighbouring months keep the
+    /// theme's dimmed colour, which is how the view marks them.
+    /// environment 明確指定的前景色套到每個部分，沒有時就用主題的。原本完全被忽略(`updateDatePicker` 中的
+    /// `TODO(parity)`),並註明 `Foreground` 對 `DatePicker` 與 `TimePicker` 有效、對兩個日曆控制項無效。2026-10-07 在 P41
+    /// 以 `.foregroundColor(.red)` 實測:`Foreground` 讓 DatePicker 與 TimePicker 變紅;`CalendarView` 的日期數字需要
+    /// `CalendarItemForeground`;其月份標題、`CalendarDatePicker` 的日期與秒數框選中的值需要 `paintTemplateText()`。
+    /// 相鄰月份的日期維持主題的淡色，那是該 view 標示它們的方式。
+    func setForeground(to brush: WinUI.Brush?) {
+        foregroundBrush = brush
+        func apply(_ control: Control?) {
+            guard let control else { return }
+            if let brush {
+                control.foreground = brush
+            } else {
+                try? control.clearValue(Control.foregroundProperty)
+            }
+        }
+        apply(timeView)
+        apply(secondsView)
+        switch dateView {
+            case .datePicker(let picker):
+                apply(picker)
+            case .calendarView(let view):
+                apply(view)
+                if let brush {
+                    view.calendarItemForeground = brush
+                } else {
+                    try? view.clearValue(CalendarView.calendarItemForegroundProperty)
+                }
+            case .calendarDatePicker(let picker):
+                apply(picker)
+            case nil:
+                break
+        }
+        paintTemplateText()
+        // Again once the templates exist: a control created in this update
+        // has no template parts until it is laid out.
+        // template 存在後再一次：本次更新中建立的控制項，在排版之前沒有 template 零件。
+        DispatchQueue.main.async { [weak self] in
+            self?.paintTemplateText()
+        }
+    }
+
+    private var foregroundBrush: WinUI.Brush?
+
+    /// `Foreground` did not reach the text of a `CalendarDatePicker` (the
+    /// date it shows) or of the seconds `ComboBox` (the selected second): on
+    /// P41 both stayed in the theme's colour with everything else red, and so
+    /// did overriding the `CalendarDatePickerTextForeground` and
+    /// `ComboBoxForeground` resources (2026-10-07). So the colour is set on
+    /// the text blocks inside their templates, a local value that wins over
+    /// the template's; cleared again when there is no colour. The seconds box
+    /// rebuilds its displayed item when the selection changes, so its
+    /// selection handler calls this too. The `CalendarView` month header is
+    /// painted the same way. `CalendarView` 的月份標題也以同樣方式上色。
+    /// `Foreground` 到不了 `CalendarDatePicker` 的文字(它顯示的日期)與秒數 `ComboBox` 的文字(選中的秒數):在 P41 上，
+    /// 其他東西都變紅時這兩者仍是主題顏色，覆寫 `CalendarDatePickerTextForeground` 與 `ComboBoxForeground` 資源也一樣
+    /// (2026-10-07)。因此把顏色設在它們 template 內的 text block 上——本地值勝過 template 的值；沒有顏色時再清除。秒數框在
+    /// 選取改變時會重建顯示項目，所以其選取 handler 也會呼叫這裡。
+    func paintTemplateText() {
+        func walk(_ element: WinUI.UIElement) {
+            if let text = element as? WinUI.TextBlock {
+                if let foregroundBrush {
+                    text.foreground = foregroundBrush
+                } else {
+                    try? text.clearValue(WinUI.TextBlock.foregroundProperty)
+                }
+            }
+            for child in scuiChildren(of: element) {
+                walk(child)
+            }
+        }
+        switch dateView {
+            case .calendarDatePicker(let picker):
+                walk(picker)
+            // The month header; the day numbers take `CalendarItemForeground`.
+            // 月份標題；日期數字則用 `CalendarItemForeground`。
+            case .calendarView(let view):
+                walk(view)
+            case .datePicker, nil:
+                break
+        }
+        if let secondsView {
+            walk(secondsView)
+        }
     }
 
     func changeDateView(to newDiscriminator: DateViewType.Discriminator?) {
