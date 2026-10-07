@@ -63,6 +63,11 @@ known_blockers=(
     # 2026-09-16: class ASHDRCONTROL held the foreground, AttachThreadInput 5.
     # 2026-09-16:類別 ASHDRCONTROL 佔著前景,AttachThreadInput 回 5。
     'AsMonitorControl.exe'
+    # 2026-10-07: class ASHOTPLUGCTRL held the foreground, SetCursorPos returned
+    # FALSE with no error, right after AsMonitorControl.exe had been stopped.
+    # 2026-10-07:類別 ASHOTPLUGCTRL 佔著前景,SetCursorPos 回傳 FALSE 且無錯誤碼——就在剛停掉
+    # AsMonitorControl.exe 之後。
+    'AsHotplugCtrl.exe'
 )
 
 # Blockers that must NEVER be stopped, only reported.
@@ -181,7 +186,13 @@ if [[ "$remote" -gt 0 ]]; then
     printf 'machine, and drive one mouse action file. If it works then and not\n'
     printf 'now, this is the cause; if it fails both ways, it is not.\n'
     printf 'Nothing was stopped: that would disconnect whoever is using it.\n'
-    exit 4
+    # No longer `exit 4` here (changed 2026-10-07). Exiting at once meant a
+    # known blocker was never even looked at while a remote session was
+    # connected -- AsHotplugCtrl.exe held the foreground that afternoon and
+    # neither this script nor test.zsh touched it. The remote host is still
+    # never stopped; status 4 is returned at the end instead.
+    # 此處不再 `exit 4`(2026-10-07 變更)。立刻結束代表只要連著遠端工作階段，已知阻擋者就根本不會被檢查
+    # ——那天下午 AsHotplugCtrl.exe 佔著前景，本腳本與 test.zsh 都沒碰它。遠端主機仍然絕不停止;改在最後回傳狀態 4。
 fi
 
 for image in "${known_blockers[@]}"; do
@@ -226,6 +237,7 @@ if [[ "$found" -eq 0 ]]; then
     printf 'no known blocker is running.\n'
     printf 'If input is still refused, the blocker is one this list has not seen.\n'
     printf 'Drive any action file, then: zsh %s --from-log <that log>\n' "$script_path"
+    [[ "$remote" -gt 0 ]] && exit 4
     exit 0
 fi
 
@@ -237,6 +249,9 @@ fi
 if [[ "$stopped" -eq "$found" ]]; then
     printf 'all %s blocker(s) stopped. Input should reach the apps again.\n' "$stopped"
     printf 'Verify by driving an action file rather than by trusting this line.\n'
+    # A remote session still running is reported by status 4 once the
+    # blockers are dealt with. 遠端工作階段仍在時，處理完阻擋者後以狀態 4 回報。
+    [[ "$remote" -gt 0 ]] && exit 4
     exit 0
 fi
 

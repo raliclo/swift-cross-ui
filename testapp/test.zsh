@@ -180,6 +180,14 @@ fi
 # blocker usually needs elevation anyway. The fix is one named command, printed
 # here so nobody has to go looking for it.
 #
+# **Changed 2026-10-07 at the user's instruction:** a KNOWN blocker (the list in
+# enable_input.zsh -- today only `AsMonitorControl.exe`) is now stopped before
+# the test, unelevated first and through enable_input.ps1's single UAC prompt
+# when it runs elevated. A remote-desktop host is still only reported, never
+# stopped. The paragraph above is kept because it was right when written; the
+# reason it changed is that the same utility cost a second hour of debugging on
+# 2026-10-07, reading as a broken WinUI key target and cursor.
+#
 # Not fatal either. Plenty of tests assert on a build, a log or a capture and do
 # not synthesise input at all; failing those because an unrelated tray utility
 # holds the foreground would be worse than the warning.
@@ -193,18 +201,45 @@ fi
 #
 # 只用 `--check`:此處僅**回報**,不停掉任何東西。一個「因為要跑測試而順手殺掉某個行程」的 loader
 # 會是個意外,而且那個阻擋者通常本來就需要提權。修法是一個具名指令,印在這裡,免得有人還要去找。
+# **2026-10-07 依使用者指示改變:**已知阻擋者(enable_input.zsh 的清單)現在會在測試前被停掉,
+# 必要時經 enable_input.ps1 跳一次 UAC。遠端桌面主機仍然只回報、絕不停止。上一段保留,因為它在寫下時是對的。
 #
 # 也不讓它變成致命錯誤。有大量測試判定的是建置、log 或擷圖,根本不合成任何輸入;因為一個不相干的
 # 系統匣工具佔著前景就讓那些測試失敗,會比這個警告更糟。
 case "$(uname -s)" in
     MINGW* | MSYS* | CYGWIN*)
-        if ! zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1; then
+        # `--check` exit status: 0 nothing running, 3 a known blocker is running,
+        # 4 a remote-desktop host is running (report only, never stopped).
+        # `--check` 的結束碼:0 什麼都沒在跑、3 有已知阻擋者在跑、4 有遠端桌面主機在跑(只回報、絕不停止)。
+        blocker_status=0
+        zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1 || blocker_status=$?
+        if [ "$blocker_status" -eq 3 ]; then
+            printf '==> A known input blocker is running; stopping it before the test\n' >&2
+            # Unelevated first: if it was started without elevation this is all
+            # it takes, and no UAC prompt appears.
+            # 先以非提權方式：若它當初不是以提權方式啟動，這樣就夠了，也不會跳出 UAC。
+            zsh "$script_dir/enable_input.zsh" 2>&1 | sed 's/^/   /' >&2 || true
+            if ! zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1; then
+                # Still there, so it is elevated: the sanctioned shim raises one
+                # UAC prompt and hands straight back to enable_input.zsh.
+                # 仍在，表示它已提權：由專案認可的 shim 跳出一次 UAC,再直接交回 enable_input.zsh。
+                printf '==> It runs elevated; approve the UAC prompt to stop it\n' >&2
+                MSYS2_ARG_CONV_EXCL='*' powershell.exe -NoProfile -ExecutionPolicy Bypass \
+                    -File "$(cygpath -w "$script_dir/enable_input.ps1")" >/dev/null 2>&1 || true
+            fi
+            blocker_status=0
+            zsh "$script_dir/enable_input.zsh" --check >/dev/null 2>&1 || blocker_status=$?
+            if [ "$blocker_status" -eq 0 ]; then
+                printf '    input blocker: stopped\n' >&2
+            fi
+        fi
+        if [ "$blocker_status" -ne 0 ]; then
             printf '!! Windows may refuse synthesised input for this run:\n' >&2
             # Its own words, not a summary. The two cases need opposite advice --
             # an elevated blocker should be stopped, a remote-desktop host must
             # NOT be -- and a fixed message here would be wrong for one of them.
-            # 印出它自己的說法,而不是一段摘要。兩種情況需要的建議完全相反——提權的阻擋者應該停掉、
-            # 遠端桌面主機**絕對不可以**——而此處若寫死一段訊息,對其中一種必然是錯的。
+            # 印出它自己的說法，而不是一段摘要。兩種情況需要的建議完全相反——提權的阻擋者應該停掉、
+            # 遠端桌面主機**絕對不可以**——而此處若寫死一段訊息，對其中一種必然是錯的。
             # **`|| true`, and without it this block did the opposite of what
             # the comment above promises.** This script runs under
             # `set -euo pipefail`; `enable_input.zsh --check` exits 4 when it
@@ -218,15 +253,15 @@ case "$(uname -s)" in
             # all. The warning is advice about ONE class of test; it must not be
             # a gate on all of them.
             #
-            # **`|| true`,少了它,這段區塊做的事與上方註解所承諾的正好相反。** 本腳本在
+            # **`|| true`,少了它，這段區塊做的事與上方註解所承諾的正好相反。** 本腳本在
             # `set -euo pipefail` 之下執行;`enable_input.zsh --check` 偵測到遠端桌面主機時會
             # 以 4 結束,`pipefail` 讓整條管線帶著那個 4,而 `set -e` 於是在下方的 `exec`
             # **之前**就終止了 test.zsh。
             #
             # 2026-09-16 實測:`zsh testapp/test.zsh P23 --no-build` 印出十八行警告、rc=4,
-            # 而那支 app 從未被啟動——有沒有平台旗標都一樣。**所有**測試都被擋住了,包含那些
+            # 而那支 app 從未被啟動——有沒有平台旗標都一樣。**所有**測試都被擋住了，包含那些
             # 只建置、只讀 log、只截圖、根本不合成任何輸入的測試。這個警告是針對**其中一類**
-            # 測試的建議,不該變成所有測試的閘門。
+            # 測試的建議，不該變成所有測試的閘門。
             zsh "$script_dir/enable_input.zsh" --check 2>&1 | sed 's/^/!! /' >&2 || true
         fi
         ;;
