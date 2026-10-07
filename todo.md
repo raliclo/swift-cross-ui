@@ -680,6 +680,15 @@ rows and 12/6 padding (eager and lazy rows alike) -- against the default's
 transparent background and 40 px rows. Checked with a temporary P4 edit
 (reverted): the two lists side by side differ as described. AppKit, UIKit and
 Android still ignore it (Mac side).
+**Mac side done 2026-10-08:** AppKit sets `NSTableView.style = .sourceList`
+(the sidebar background, inset rounded rows); UIKit, whose table style is fixed
+at init, draws it -- `systemGroupedBackground`, no separators, a rounded inset
+selection; Android draws a Material navigation drawer -- the theme's
+`colorBackgroundFloating`, no dividers, a pill selector in
+`colorControlHighlight` (`setListSidebar`). P83 puts a default and a `.sidebar`
+list side by side: macOS and the iOS simulator show the difference (before the
+change on macOS the two were identical). Android compiles into the APK but has
+NOT been seen: the emulator was offline.
 
 ### Swift 6 language mode, module by module (Windows)
 

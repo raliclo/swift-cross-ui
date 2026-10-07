@@ -19,6 +19,18 @@ extension UIKitBackend {
     ) {
         let listView = (selectableListView as! WrapperWidget<UICustomTableView>).child
         listView.customDelegate.allowSelections = environment.isEnabled
+        // `.sidebar`: the grouped background an iPad sidebar sits on, no
+        // separators, and rounded inset selections (`styleCell`). A UITableView's
+        // own style is fixed at init, so this is drawn rather than switched.
+        // `.sidebar`:iPad 側邊欄所在的 grouped 背景、沒有分隔線、內縮的圓角選取(`styleCell`)。UITableView 的
+        // style 在 init 時就固定了，所以這裡是畫出來而不是切換。
+        let isSidebar = environment.backendListStyle == .sidebar
+        if listView.customDelegate.isSidebar != isSidebar {
+            listView.customDelegate.isSidebar = isSidebar
+            listView.backgroundColor = isSidebar ? .systemGroupedBackground : .clear
+            listView.separatorStyle = isSidebar ? .none : .singleLine
+            listView.reloadData()
+        }
     }
 
     public func baseItemPadding(
@@ -83,6 +95,35 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
     static let cellIdentifier = "dev.swiftcrossui.listRow"
     var rowCount = 0
     var allowSelections = false
+    /// `.listStyle(.sidebar)`: see `UIKitBackend.updateSelectableListView`.
+    var isSidebar = false
+
+    /// A sidebar row has a clear background, so the table's shows through, and a
+    /// rounded selection inset from the edges, as an iPad sidebar draws it; a
+    /// default row keeps UIKit's. Cells are reused, so both branches set both.
+    /// 側邊欄的列背景透明，讓表格的背景透出，並有內縮的圓角選取，如 iPad 側邊欄;預設的列維持 UIKit 的樣子。
+    /// cell 會被重用，所以兩個分支都要設兩者。
+    func styleCell(_ cell: UITableViewCell) {
+        guard isSidebar else {
+            cell.backgroundColor = nil
+            cell.selectedBackgroundView = nil
+            return
+        }
+        cell.backgroundColor = .clear
+        let background = UIView()
+        let pill = UIView()
+        pill.backgroundColor = .systemGray4
+        pill.layer.cornerRadius = 10
+        pill.translatesAutoresizingMaskIntoConstraints = false
+        background.addSubview(pill)
+        NSLayoutConstraint.activate([
+            pill.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 8),
+            pill.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -8),
+            pill.topAnchor.constraint(equalTo: background.topAnchor, constant: 2),
+            pill.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -2),
+        ])
+        cell.selectedBackgroundView = background
+    }
     var selectionHandler: ((Int) -> Void)?
 
     /// Called when a row stops being displayed, so the framework can drop the
@@ -168,6 +209,7 @@ class UICustomTableViewDelegate: NSObject, UITableViewDelegate, UITableViewDataS
         let cell =
             tableView.dequeueReusableCell(withIdentifier: Self.cellIdentifier)
             ?? UITableViewCell(style: .default, reuseIdentifier: Self.cellIdentifier)
+        styleCell(cell)
         for subview in cell.contentView.subviews {
             subview.removeFromSuperview()
         }

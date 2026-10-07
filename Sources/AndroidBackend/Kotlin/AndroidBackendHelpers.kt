@@ -141,6 +141,41 @@ class AndroidBackendHelpers {
         return size
     }
 
+    // .listStyle(.sidebar) on a ListView, drawn as a Material navigation drawer:
+    // the theme's floating-surface background, no dividers, and a pill-shaped
+    // selection inset from the edges, tinted with colorControlHighlight. Off
+    // restores what createSelectableListView set: no background, the theme's
+    // listDivider, the flat grey selector.
+    // ListView 上的 .listStyle(.sidebar),畫成 Material 的 navigation drawer:主題的浮動表面背景、沒有分隔線、
+    // 內縮的膠囊形選取(colorControlHighlight)。關閉時還原 createSelectableListView 所設的樣子。
+    fun setListSidebar(listView: android.widget.ListView, sidebar: Boolean) {
+        val context = listView.context
+        fun themeColor(attr: Int): Int {
+            val value = TypedValue()
+            if (!context.theme.resolveAttribute(attr, value, true)) return 0
+            return if (value.resourceId != 0) context.getColor(value.resourceId) else value.data
+        }
+        if (sidebar) {
+            val density = context.resources.displayMetrics.density
+            listView.setBackgroundColor(themeColor(android.R.attr.colorBackgroundFloating))
+            listView.divider = null
+            listView.dividerHeight = 0
+            val pill = android.graphics.drawable.GradientDrawable()
+            pill.cornerRadius = 28 * density
+            pill.setColor(themeColor(android.R.attr.colorControlHighlight))
+            listView.selector = android.graphics.drawable.InsetDrawable(
+                pill, (8 * density).toInt(), (2 * density).toInt(),
+                (8 * density).toInt(), (2 * density).toInt()
+            )
+        } else {
+            listView.background = null
+            val attrs = context.obtainStyledAttributes(intArrayOf(android.R.attr.listDivider))
+            listView.divider = attrs.getDrawable(0)
+            attrs.recycle()
+            listView.selector = android.graphics.drawable.ColorDrawable(0x32a1a1a1)
+        }
+    }
+
     // The theme's colorError: the colour Material gives a destructive action, and
     // so the label colour of a ButtonRole.destructive button. 0 when the theme
     // defines none, which the Swift side reports rather than guessing a red.

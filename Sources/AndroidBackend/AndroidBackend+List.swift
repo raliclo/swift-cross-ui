@@ -99,6 +99,9 @@ class ListItemSelectedListener: JavaObject {
 
 // implements BackendFeatures.SelectableListViews
 extension AndroidBackend {
+    /// Whether each list was last drawn as a sidebar. 每個清單上次是否畫成側邊欄。
+    @MainActor static let listSidebarStates = LastSet<Bool>()
+
     public func createSelectableListView() -> Widget {
         let absListViewClass = try! JavaClass<AndroidKit.AbsListView>()
 
@@ -142,6 +145,16 @@ extension AndroidBackend {
             .getAdapter()!
             .as(CustomListAdapter.self)!
             .setEnabled(environment.isEnabled)
+
+        // `.sidebar` as a Material navigation drawer (`setListSidebar`). Only on
+        // change: the call builds drawables and resolves theme attributes.
+        // `.sidebar` 畫成 Material 的 navigation drawer(`setListSidebar`)。只在改變時呼叫：它會建立 drawable
+        // 並解析主題屬性。
+        let isSidebar = environment.backendListStyle == .sidebar
+        if (Self.listSidebarStates.value(for: selectableListView) ?? false) != isSidebar {
+            helpers.setListSidebar(selectableListView.as(AndroidKit.ListView.self), isSidebar)
+            Self.listSidebarStates.set(isSidebar, for: selectableListView)
+        }
     }
 
     public func baseItemPadding(ofSelectableListView listView: Widget) -> EdgeInsets {

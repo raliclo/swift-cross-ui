@@ -1156,3 +1156,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-08,windows,gtk4,P82,ok,n/a,window,default,"Dark variant: bordered destructive red with white text (destructive-action), borderless red from the hook's flat probe colour, disabled as Adwaita's insensitive, save and cancel unchanged."
 2026-10-08,wsl,gtk4,P82,ok,n/a,window,default,"Light variant under WSLg: bordered red/white, borderless #e01b24-like red, disabled insensitive, blue set blue text on red (app colour wins)."
 2026-10-08,windows,winui,P4,ok,n/a,window,default,"Temporary edit (reverted): a default and a .sidebar List side by side; sidebar has the NavigationView pane background, 36 px rows and 12 px leading padding, default stays transparent with 40 px rows."
+2026-10-08,mac,appkit,P83,ok,n/a,window,default,"The .sidebar list is a source list (sidebar background, inset rounded selection); the default list unchanged. Before the change the two were identical."
+2026-10-08,ios,uikit,P83,ok,n/a,window,default,"The .sidebar list on the grouped background, no separators, rounded inset selection; the default list keeps separators and the full-width selection."

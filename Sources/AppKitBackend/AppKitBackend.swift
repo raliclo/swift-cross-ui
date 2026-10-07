@@ -1195,6 +1195,18 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         let scrollView = selectableListView as! NSDisabledScrollView
         let listView = scrollView.documentView! as! NSCustomTableView
         listView.isEnabled = environment.isEnabled
+        // `.sidebar` is AppKit's source list: inset rounded rows and the sidebar
+        // selection, as Finder and Mail draw theirs. Set only on change, since a
+        // style change makes the table re-tile every row.
+        // `.sidebar` 即 AppKit 的 source list:內縮的圓角列與側邊欄的選取樣式，如 Finder 與 Mail。只在改變時設定，
+        // 因為改樣式會讓表格重新排每一列。
+        if #available(macOS 11.0, *) {
+            let style: NSTableView.Style =
+                environment.backendListStyle == .sidebar ? .sourceList : .plain
+            if listView.style != style {
+                listView.style = style
+            }
+        }
     }
 
     public func baseItemPadding(
