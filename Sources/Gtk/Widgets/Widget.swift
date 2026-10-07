@@ -68,7 +68,7 @@ open class Widget: GObject {
 
     /// A unique CSS class for this widget. The class is lazily added to the
     /// widget when this property is first accessed.
-    private lazy var customCSSClass: String = {
+    public private(set) lazy var customCSSClass: String = {
         let className = ObjectIdentifier(self).debugDescription
             .replacingOccurrences(of: "ObjectIdentifier(0x", with: "class_")
             .replacingOccurrences(of: ")", with: "")

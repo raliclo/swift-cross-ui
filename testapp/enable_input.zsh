@@ -68,6 +68,10 @@ known_blockers=(
     # 2026-10-07:類別 ASHOTPLUGCTRL 佔著前景,SetCursorPos 回傳 FALSE 且無錯誤碼——就在剛停掉
     # AsMonitorControl.exe 之後。
     'AsHotplugCtrl.exe'
+    # 2026-10-07: class AsusUpdater ("ASUS Updater") held the foreground with
+    # SetCursorPos returning FALSE, after Armoury Crate had been opened.
+    # 2026-10-07:類別 AsusUpdater(「ASUS Updater」)佔著前景,SetCursorPos 回傳 FALSE,發生在開啟 Armoury Crate 之後。
+    'AsusUpdater.exe'
 )
 
 # Blockers that must NEVER be stopped, only reported.

@@ -92,6 +92,19 @@ extension GtkBackend {
         button.clicked = { _ in action() }
         button.buttonStyle = environment.resolvedButtonStyle.kind
         button.sensitive = environment.isEnabled
+        // GTK's own class for a destructive action, as `updateSimpleButton`
+        // does for a Menu: the theme's warning style -- red on Adwaita -- not a
+        // colour of ours. Removed as well as added, since the widget is reused.
+        // Until 2026-10-07 only the Menu path read the role, so
+        // `Button("Delete", role: .destructive)` drew like any other button.
+        // GTK 自有的破壞性動作類別，與 `updateSimpleButton` 對 Menu 的做法相同：用主題的警示樣式(Adwaita 上是紅色),
+        // 而不是我們的顏色。有加也有移除，因為 widget 會被重複使用。2026-10-07 之前只有 Menu 路徑讀取 role,
+        // 因此 `Button("Delete", role: .destructive)` 畫得與其他按鈕無異。
+        if environment.buttonRole == .destructive {
+            gtk_widget_add_css_class(button.widgetPointer, "destructive-action")
+        } else {
+            gtk_widget_remove_css_class(button.widgetPointer, "destructive-action")
+        }
         button.loadCSS(environment: environment)
     }
 
@@ -186,12 +199,21 @@ fileprivate final class GtkCustomButton: Gtk.Button {
         // 之前兩者每次更新都互相取代，所以 `.inspect { button.css.set(...) }` 輸給下一次 `updateButton`——
         // AdvancedCustomizationExample 的紅色 `+` 在 GtkBackend 上一直是灰的。下方的 `reloadCSS` 兩者都寫。
         let backgroundColor = GtkBackend.controlBackgroundColor(for: environment)
+        // No background of ours on a destructive button: this provider outranks
+        // the theme, so a background here would silently beat the
+        // `destructive-action` class `updateButton` adds -- the trap
+        // `cssProperties(deferToThemeStyleClass:)` documents for the Menu button.
+        // 破壞性按鈕上不寫我們自己的背景：本 provider 位階高於主題，在此寫背景會靜默壓過 `updateButton`
+        // 加上的 `destructive-action` 類別——即 `cssProperties(deferToThemeStyleClass:)` 為 Menu 按鈕記載的陷阱。
+        let backgroundRule =
+            environment.buttonRole == .destructive
+            ? "" : "background: \(CSSProperty.rgba(backgroundColor));"
         baseCSS = """
                 button.customButton {
                     min-width: 0px;
                     min-height: 0px;
                     padding: 0px;
-                    background: \(CSSProperty.rgba(backgroundColor));
+                    \(backgroundRule)
                     border: none;
                     box-shadow: none;
                 }
@@ -213,6 +235,18 @@ fileprivate final class GtkCustomButton: Gtk.Button {
                     opacity: 0.5;
                 }
             """
+        // Scoped to THIS button. The provider is installed for the whole
+        // display, so a bare `button.customButton` rule from any one button
+        // reached every other: a plain button's grey background painted the
+        // destructive one beside it, which kept its white `destructive-action`
+        // text on a grey that was never its own (P2, WSLg and Windows GTK,
+        // 2026-10-07). The app's `css` was already scoped by its class.
+        // 限定在**這一顆**按鈕。provider 安裝在整個 display 上，因此任何一顆按鈕的 `button.customButton` 規則都會套到其他按鈕：
+        // 一顆普通按鈕的灰色背景畫到了旁邊的破壞性按鈕上，後者保有 `destructive-action` 的白字，底色卻不是自己的
+        // (P2,WSLg 與 Windows GTK,2026-10-07)。app 的 `css` 早已用它的類別限定範圍。
+        baseCSS = baseCSS.replacingOccurrences(
+            of: "button.customButton", with: "button.customButton.\(customCSSClass)"
+        )
         reloadCSS()
         // Why 50% disabled opacity was chosen:
         // https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/css-variables.html#opacity
