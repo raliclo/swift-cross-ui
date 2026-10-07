@@ -509,6 +509,71 @@ class AndroidBackendHelpers {
         val file = File(folder, name.ifEmpty { "Untitled" })
         if (!file.createNewFile()) return null
 
+        mirrorBack(activity, folder, file, uri)
+        return file.absolutePath
+    }
+
+    // A path a plain read can use, for a document the open dialog returned.
+    //
+    // ACTION_OPEN_DOCUMENT answers with content:// URIs, and DocumentGroup reads
+    // the chosen URL with Data(contentsOf:), which Foundation on Android cannot do
+    // for one: measured on the API 36 emulator 2026-10-07 with P62, "could not open
+    // document", NSURLErrorDomain -1002 "unsupported URL". So the document is
+    // copied into a folder of its own in the cache, under its display name (so the
+    // window title and the extension check read what the person chose), and the
+    // same mirror as a save writes it back when the app saves over that file.
+    // ACTION_OPEN_DOCUMENT grants write as well as read; the grants are made
+    // persistable so the write-back still works after the picker's activity is
+    // gone. A provider that grants read only still opens; its saves fail and log.
+    //
+    // 為開檔對話框回傳的文件提供一個「一般讀取就能用」的路徑。ACTION_OPEN_DOCUMENT 回傳 content:// URI,
+    // 而 DocumentGroup 以 Data(contentsOf:) 讀取選到的 URL,Foundation 在 Android 上對它辦不到:2026-10-07
+    // 以 P62 於 API 36 emulator 實測,「could not open document」,NSURLErrorDomain -1002「unsupported URL」。
+    // 因此文件以其顯示名稱複製到 cache 中自己的資料夾(讓視窗標題與副檔名檢查讀到使用者選的名字),並由與存檔
+    // 相同的鏡像在 app 存回那個檔案時寫回去。ACTION_OPEN_DOCUMENT 會同時授予讀與寫;這些授權被設為可持久，
+    // 好讓選擇器的 activity 結束之後寫回仍然有效。只授予讀取的 provider 仍可開啟，其存檔會失敗並記錄。
+    fun stagingPathForOpen(activity: Activity, uriString: String): String? {
+        val uri = Uri.parse(uriString)
+        val resolver = activity.contentResolver
+        val name =
+            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+                ?.takeIf { it.isNotEmpty() && !it.contains('/') }
+                ?: (uri.lastPathSegment?.substringAfterLast('/')?.ifEmpty { null } ?: "Untitled")
+        val folder = File(activity.cacheDir, "open-${System.nanoTime()}")
+        if (!folder.mkdirs()) return null
+        val file = File(folder, name)
+        try {
+            resolver.openInputStream(uri)?.use { input ->
+                file.outputStream().use { input.copyTo(it) }
+            } ?: return null
+        } catch (error: Exception) {
+            android.util.Log.e("SwiftCrossUI", "could not read the opened document $uri", error)
+            return null
+        }
+
+        val readWrite =
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        try {
+            resolver.takePersistableUriPermission(uri, readWrite)
+        } catch (writeRefused: SecurityException) {
+            try {
+                resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (notPersistable: SecurityException) {
+                // A provider without persistable grants still opened; the
+                // session's grant covers a save made while the app runs.
+                // 不支援可持久授權的 provider 仍已開啟;本次執行期間的授權涵蓋 app 執行中的存檔。
+            }
+        }
+
+        mirrorBack(activity, folder, file, uri)
+        return file.absolutePath
+    }
+
+    // Copies `file` into the document at `uri` each time the app finishes writing it.
+    //
+    // 每當 app 寫完 `file`,就把它複製到 `uri` 所指的文件。
+    private fun mirrorBack(activity: Activity, folder: File, file: File, uri: Uri) {
         val resolver = activity.contentResolver
         // The FOLDER is watched, for CLOSE_WRITE and MOVED_TO on this name: a
         // plain write closes the file, an atomic one (`Data.write(options:
@@ -536,7 +601,6 @@ class AndroidBackendHelpers {
             }
         observer.startWatching()
         saveMirrors.add(observer)
-        return file.absolutePath
     }
 
     // Both return null on success and a sentence on failure, so the Swift side

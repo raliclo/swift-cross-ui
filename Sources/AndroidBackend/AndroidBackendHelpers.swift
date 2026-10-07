@@ -124,6 +124,12 @@ class AndroidBackendHelpers: JavaObject {
     func stagingPathForSave(_ activity: Activity?, _ uriString: String, _ name: String)
         -> JavaString?
 
+    /// A file in the cache holding a copy of the document the open dialog returned,
+    /// written back when the app saves over it; nil when it could not be read.
+    /// 存放開檔對話框所回傳文件副本的 cache 檔案，app 存回它時會寫回原文件；讀不到時為 nil。
+    @JavaMethod
+    func stagingPathForOpen(_ activity: Activity?, _ uriString: String) -> JavaString?
+
     /// nil on success, otherwise why it failed.
     @JavaMethod
     func openExternalUrl(_ activity: Activity?, _ urlString: String) -> JavaString?

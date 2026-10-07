@@ -100,7 +100,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     instead of opened as text. P62 "open…" after the change: txt yes, swift yes, png
     no, data.bin offered (octet-stream) and refused on choosing it ("open dialog:
     data.bin is not one of [txt, text, swift, ...]").
-  - [ ] **Android: a document chosen in the open dialog cannot be read.** Found
+  - [x] **Android: a document chosen in the open dialog cannot be read.** Found
     2026-10-07 while checking the item above: choosing also-text.swift in P62 logs
     "could not open document" with NSURLErrorDomain -1002 "unsupported URL" for
     `content://com.android.externalstorage.documents/...`, because
@@ -110,6 +110,18 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     avoids handing content:// back (AndroidBackend+SystemHandoffs.swift); the open
     side needs a decision: copy into the app's cache and return a file URL, or read
     through ContentResolver -- and how a later save reaches the original.
+    DONE 2026-10-07 (user: "fix Content issue"), the copy: the open dialog's
+    content:// URIs become files in the cache (`stagingPathForOpen`: each in its own
+    `open-<ns>` folder under its display name, read through ContentResolver,
+    persistable read+write grant taken when offered), and the save mirror that
+    `stagingPathForSave` already used is now `mirrorBack`, shared by both, so a save
+    over the opened file is written back with "wt". Checked on the API 36 emulator
+    with P62: before, /sdcard/Download/p62-open/also-text.swift held
+    "P62 also-text.swift"; "open…" -> also-text.swift opened and showed that text;
+    "type A" then "save" showed "...\nA", and the original on the device then read
+    "P62 also-text.swift\nA". Regression, P75 save-and-read-back: the new
+    "p75-saved.txt (1)" holds "saved by P75". Not checked: a provider that grants
+    read only (its saves would log "could not copy the save" and stay local).
   - [x] **`DocumentGroup`'s doc says it opens through the open dialog and
     writes back through the save dialog; it does neither.** It only registers
     `newDocument` / `openDocument(url)`; nothing saves a document. Either the
