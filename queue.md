@@ -365,7 +365,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   reads "wheel -> Sun" (p74w-after/-edge-20261007-0754*.png).
   WinUI 於 2026-10-07 完成：`.segmented` 為一列互斥的 ToggleButton,`.wheel` 為五列高的 ListView;
   P74 經 UIA 驅動，兩者讀數皆正確，選 Sun 時會自動捲動到它。
-- [x] **WinUI parity TODOs:** date picker ignores the foreground colour
+- [ ] **WinUI parity TODOs:** date picker ignores the foreground colour
   (`WinUIBackend.swift:3202`), font design / monospace (`:1540`), picker font
   (`:2033`), no notification when the window's scale factor changes (`:1151`),
   fullscreen not detected (`:726`). GTK: button label colour from the environment
@@ -374,7 +374,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   `color` the label inherits; on GtkBackend (macOS) Menu labels drew red, blue,
   orange from a parent, and a disabled green dimmed. The TODO is replaced by
   that note. WinUI items remain (Windows session).
-  **WinUI DONE 2026-10-07 (Windows), all five:**
+  **WinUI 2026-10-07 (Windows): four of five driven, the scale change is not:**
   - foreground colour on date pickers: P41 with a temporary
     `.foregroundColor(.red)` (reverted) -- DatePicker, TimePicker, `.compact`
     date, seconds box and the graphical month header and days all red; with it
@@ -390,14 +390,22 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     menu picker with `.font(.system(size: 22).italic())` showed 22 pt italic
     closed and in all three drop-down items.
   - scale-factor change: `WM_DPICHANGED` in the window procedure recomputes the
-    window environment on the next main-queue turn. BUILT ONLY: changing the
-    display scale would have disturbed the live session, so no real DPI change
-    was driven.
+    window environment on the next main-queue turn. **NOT DRIVEN -- this item
+    stays open for it.** The machine has one display (1920x1080, 96 DPI, read
+    with `GetDpiForMonitor`), so there is nowhere to drag the window to, and
+    changing the scale in Settings would disturb the live session. Drive it by
+    dragging P42 to a display with another scale and reading its
+    "scale factor ->" line.
   - fullscreen: `isWindowProgrammaticallyResizable` answers
-    `presenter.kind != .fullScreen`. BUILT ONLY: nothing in SwiftCrossUI puts a
-    WinUI window into full screen to drive it.
-  WinUI 五項於 2026-10-07 完成：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)經 P41/P74 暫時改動驗證;縮放變更與
-  全螢幕偵測僅建置，未實際驅動。
+    `presenter.kind != .fullScreen`. ~~BUILT ONLY: nothing in SwiftCrossUI puts a
+    WinUI window into full screen to drive it.~~ Wrong -- the app can do it
+    itself (pointed out by the Mac session). Driven the same evening with a
+    temporary P74 edit (reverted) calling `AppWindow.setPresenter(.fullScreen)`:
+    presenter read back full screen, the window 0,0 1920x1080, and it stayed
+    there through two relayouts (wheel -> Sun, segmented -> Three); `.default`
+    returned it to 536x659.
+  WinUI 項目：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)、全螢幕偵測已驅動驗證;**縮放變更未驅動**
+  (這台只有一台 96 DPI 的螢幕),因此本項維持未勾。
 - [ ] **`Button(_:role: .destructive)` changes nothing on any backend** (found
   2026-10-07). The core passes the role to `updateButton` in the environment
   (`Button.swift:438`), and no backend reads it there: on GtkBackend (macOS)
