@@ -40,7 +40,7 @@ struct P74PickerStylesApp: App {
                 P74RootView()
             }
         }
-        .defaultSize(width: 520, height: 620)
+        .defaultSize(width: 520, height: 760)
     }
 }
 

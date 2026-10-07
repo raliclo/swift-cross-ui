@@ -1,0 +1,33 @@
+action,x,y,origin,button,key,micros,note,platform
+# P74 on Windows: choose a value in every picker style, each by real input.
+# Written 2026-10-08. Positions are UIA centres minus the window's GetWindowRect
+# origin, WinUIBackend, 100% scale, window 536x799.
+# Pass: "menu -> Cherry", "segmented -> Three", "radioGroup -> Blue",
+# "wheel -> Thu" -- and still "radioGroup -> Blue" after the press on the
+# DISABLED group's Green, which must be refused.
+# P74's window was 520x620 until 2026-10-08; at that height only the disabled
+# group's first row was inside the window and Green could not be pressed. It is
+# now 520x760 (content sits in a top-aligned ScrollView, so the macOS file's
+# coordinates do not move).
+# P74(Windows):在每一種 picker 樣式中各以真實輸入選一個值。2026-10-08 撰寫。座標為 UIA 中心減去視窗
+# GetWindowRect 原點,WinUIBackend,100% 縮放，視窗 536x799。通過:"menu -> Cherry"、"segmented -> Three"、
+# "radioGroup -> Blue"、"wheel -> Thu",且按下**停用**群組的 Green 之後仍是 "radioGroup -> Blue"。
+# P74 視窗在 2026-10-08 之前是 520x620,那個高度下停用群組只有第一列在視窗內，按不到 Green;現在是 520x760
+# (內容位於靠上對齊的 ScrollView 中，因此 macOS 那份檔案的座標不受影響)。
+sleep,,,,,,1500000,let P74 lay out,windows
+click,140,148,frame,left,,,open the menu picker (shows Apple),windows
+sleep,,,,,,800000,let the drop-down open,windows
+key,,,,,downArrow,,Apple -> Banana,windows
+sleep,,,,,,200000,,windows
+key,,,,,downArrow,,Banana -> Cherry,windows
+sleep,,,,,,200000,,windows
+key,,,,,return,,"choose -- the label must read menu -> Cherry",windows
+sleep,,,,,,800000,let the drop-down close,windows
+click,226,215,frame,left,,,"segmented: Three",windows
+sleep,,,,,,500000,,windows
+click,158,371,frame,left,,,"radioGroup: Blue",windows
+sleep,,,,,,500000,,windows
+click,143,536,frame,left,,,"wheel: Thu",windows
+sleep,,,,,,500000,,windows
+click,158,685,frame,left,,,"the DISABLED group's Green -- must be refused: radioGroup must still read Blue",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

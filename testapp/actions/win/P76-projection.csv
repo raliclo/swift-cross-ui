@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P76 on Windows: switch the mesh camera from orthographic to perspective.
+# Written 2026-10-08. (169,207) is the "Projection: orthographic" button centre
+# from UIA minus the window origin, WinUIBackend, 100% scale, window 536x759.
+# Pass: the button reads "Projection: perspective" and the three white ticks at
+# the right, equal in height before, are now unequal. The rest of P76 (items 1-6
+# on screen) is a visual checklist read from the same capture.
+# P76(Windows):把網格相機從正交切換成透視。2026-10-08 撰寫。(169,207) 是 "Projection: orthographic"
+# 按鈕的 UIA 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 536x759。通過：按鈕變成 "Projection: perspective",
+# 右側三條白色刻度由等高變成不等高。P76 其餘部分(畫面上 1-6 項)是從同一張截圖讀的目視清單。
+sleep,,,,,,2000000,let the mesh draw a few frames,windows
+click,169,207,frame,left,,,"Projection: orthographic -> perspective",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

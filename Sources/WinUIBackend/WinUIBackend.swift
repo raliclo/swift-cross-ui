@@ -2101,6 +2101,15 @@ public final class WinUIBackend:
             // 字型:上方的 `environment.apply(to: picker)` 已設定大小、粗細、樣式與家族，下拉項目會繼承——P74 以
             // `.font(.system(size: 22).italic())` 展開時，三個項目皆為 22 pt 斜體(2026-10-07)。原本的 TODO 說的不對。
         } else if let picker = picker as? CustomRadioButtons {
+            // `apply(to:)` is what carries `.disabled` (it sets `isEnabled`), and
+            // this branch never called it: a disabled radioGroup took a click and
+            // changed the selection, and drew undimmed. Found 2026-10-08 by
+            // P74-choose-in-every-style.csv, pressing the disabled group's Green
+            // ("radioGroup -> Green"). The segmented and wheel styles already apply it.
+            // `apply(to:)` 正是傳遞 `.disabled` 的地方(它設定 `isEnabled`),而此分支從未呼叫它：停用的 radioGroup
+            // 接受點擊、改變了選取，且沒有變暗。2026-10-08 由 P74-choose-in-every-style.csv 按下停用群組的 Green
+            // 發現(「radioGroup -> Green」)。segmented 與 wheel 樣式本來就有套用。
+            environment.apply(to: picker)
             for i in 0..<min(picker.items.count, options.count) {
                 (picker.items[i] as! TextBlock).text = options[i]
             }

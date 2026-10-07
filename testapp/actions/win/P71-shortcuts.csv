@@ -1,0 +1,27 @@
+action,x,y,origin,button,key,micros,note,platform
+# P71 on Windows: menu keyboard shortcuts fire with the menu CLOSED, and a
+# disabled item's shortcut does not. Written 2026-10-08. On Windows the app's
+# Cmd shortcuts are Ctrl, so each chord is keydown control / key / keyup.
+# The first click is on the title text (139,156), not a control, only to give
+# the window focus; UIA centre minus the window origin, WinUIBackend, 536x439.
+# Pass: "Plain ... fired: 1", "Shifted ... fired: 1", "Disabled ... fired: 0".
+# P71(Windows):選單**關閉**時快捷鍵照樣觸發，而停用項目的快捷鍵不觸發。2026-10-08 撰寫。Windows 上 app 的
+# Cmd 快捷鍵是 Ctrl,所以每組都是 keydown control／key／keyup。第一下點在標題文字 (139,156) 上，不是控制項，
+# 只為取得焦點;UIA 中心減去視窗原點,WinUIBackend,536x439。通過:Plain fired: 1、Shifted fired: 1、Disabled fired: 0。
+sleep,,,,,,1500000,let P71 lay out,windows
+click,139,156,frame,left,,,give the window focus,windows
+sleep,,,,,,500000,,windows
+keydown,,,,,control,,,windows
+key,,,,,s,,"Ctrl+S -- Plain must fire once",windows
+keyup,,,,,control,,,windows
+sleep,,,,,,500000,,windows
+keydown,,,,,control,,,windows
+keydown,,,,,shift,,,windows
+key,,,,,e,,"Ctrl+Shift+E -- Shifted must fire once",windows
+keyup,,,,,shift,,,windows
+keyup,,,,,control,,,windows
+sleep,,,,,,500000,,windows
+keydown,,,,,control,,,windows
+key,,,,,d,,"Ctrl+D -- the item is disabled; Disabled must stay at 0",windows
+keyup,,,,,control,,,windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows
