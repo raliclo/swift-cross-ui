@@ -257,13 +257,31 @@ case "$(uname -s)" in
             # 一行可直接複製執行的指令(使用者 2026-10-07 指示):沒有「!!」前綴、沒有縮排，而且自行提權——這些阻擋者是
             # 提權執行的，一般 shell 的 `taskkill` 只會印出「Access is denied」。每個仍存活者都以另一個 /IM 放在同一行。
             # 貼到 cmd、PowerShell 或 Git Bash 都能執行：該引數以「Start-Process」開頭，Git Bash 不會改寫其中的 /F 與 /IM。
+            # A blocker that is a Windows service (enable_input.zsh prints a
+            # "  service:" line for it) needs `sc stop` before the kill, or its
+            # failure action restarts it within a second -- GameInputSvc did,
+            # 2026-10-08. The line then goes through an elevated cmd so both run.
+            # 屬於 Windows 服務的阻擋者(enable_input.zsh 會為它印一行「  service:」)要先 `sc stop` 再 kill,
+            # 否則它的失敗動作會在一秒內把它重啟——GameInputSvc 2026-10-08 就是這樣。此時該行改經提權的 cmd,兩者都會執行。
             kill_args=''
-            for image in ${(f)"$(zsh "$script_dir/enable_input.zsh" --check 2>&1 \
+            kill_words=''
+            sc_stops=''
+            check_out="$(zsh "$script_dir/enable_input.zsh" --check 2>&1 || true)"
+            for image in ${(f)"$(printf '%s\n' "$check_out" \
                 | grep -oE 'BLOCKER RUNNING: [^ ]+' | cut -d' ' -f3)"}; do
                 kill_args+=",'/IM','${image}'"
+                kill_words+=" /IM ${image}"
+            done
+            for svc in ${(f)"$(printf '%s\n' "$check_out" \
+                | grep -oE '^  service: [^ ]+' | cut -d' ' -f4)"}; do
+                sc_stops+="sc stop ${svc} & "
             done
             printf '!! Copy and run this line to kill them (it asks for UAC itself):\n' >&2
-            printf '%s\n' "powershell -NoProfile -Command \"Start-Process taskkill -Verb RunAs -ArgumentList '/F'${kill_args}\"" >&2
+            if [ -z "$sc_stops" ]; then
+                printf '%s\n' "powershell -NoProfile -Command \"Start-Process taskkill -Verb RunAs -ArgumentList '/F'${kill_args}\"" >&2
+            else
+                printf '%s\n' "powershell -NoProfile -Command \"Start-Process cmd -Verb RunAs -ArgumentList '/c ${sc_stops}taskkill /F${kill_words}'\"" >&2
+            fi
             exit 5
         fi
         if [ "$blocker_status" -ne 0 ]; then

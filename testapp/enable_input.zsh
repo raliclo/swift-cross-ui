@@ -81,6 +81,21 @@ known_blockers=(
     'GameInputSvc.exe'
 )
 
+# Blockers that are Windows services, by image name -> service name. taskkill
+# alone cannot stop one: measured 2026-10-08, an elevated taskkill of
+# GameInputSvc.exe succeeded and both processes were back with new PIDs within
+# the second, because the service's failure action is RESTART after 1000 ms.
+# `sc stop` is a clean stop, which that action does not answer. The service is
+# DEMAND_START, so a program that uses GameInput can start it again later.
+# 屬於 Windows 服務的阻擋者，映像檔名 -> 服務名。單靠 taskkill 停不了：2026-10-08 實測，提權的
+# taskkill 確實殺掉了 GameInputSvc.exe,但一秒內兩個行程就以新的 PID 回來，因為該服務的失敗動作是
+# 1000 ms 後 RESTART。`sc stop` 是正常停止，不會觸發該動作。此服務為 DEMAND_START,之後有程式用到
+# GameInput 時仍可能再被啟動。
+typeset -A blocker_services
+blocker_services=(
+    'GameInputSvc.exe' 'GameInputSvc'
+)
+
 # Blockers that must NEVER be stopped, only reported.
 #
 # **Stopping a remote-desktop host disconnects the person running this.** That
@@ -219,11 +234,24 @@ for image in "${known_blockers[@]}"; do
 
     found=$(( found + 1 ))
     printf 'BLOCKER RUNNING: %s (%s instance(s))\n' "$image" "$running"
+    # test.zsh reads this line to put `sc stop` into its copyable kill line.
+    # test.zsh 讀這一行，把 `sc stop` 放進它那行可複製的 kill 指令。
+    if [[ -n "${blocker_services[$image]:-}" ]]; then
+        printf '  service: %s\n' "${blocker_services[$image]}"
+    fi
 
     if [[ "$check_only" -eq 1 ]]; then
         continue
     fi
 
+    # A service is stopped through the service manager first. Killed, it counts
+    # as a crash and its failure action brings it straight back.
+    # 服務先經由服務管理員停止。直接 kill 會被當成當掉，失敗動作會立刻把它拉回來。
+    if [[ -n "${blocker_services[$image]:-}" ]]; then
+        sc.exe stop "${blocker_services[$image]}" 2>&1 | grep -E 'STATE|FAILED' \
+            | sed 's/^ */  sc stop: /'
+        sleep 2
+    fi
     taskkill -f -im "$image" 2>&1 | sed 's/^/  taskkill: /'
     sleep 1
 
