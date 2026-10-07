@@ -1,5 +1,5 @@
 import AppKit
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 extension AppKitBackend {
     public func createSimpleButton() -> Widget {
@@ -52,6 +52,18 @@ extension AppKitBackend {
         // 每次更新都做，而非在建立時做一次：標籤是一個子 view，它的文字會在這顆按鈕未被重建的
         // 情況下改變。
         button.refreshAccessibilityLabel()
+        // The control's own flag as well as the red label, so VoiceOver and
+        // anything else reading the NSButton know the action is destructive.
+        // 除了紅色標籤，也設控制項自己的旗標，讓 VoiceOver 等讀取 NSButton 的東西知道這是危險動作。
+        if #available(macOS 11, *) {
+            button.button.hasDestructiveAction = environment.buttonRole == .destructive
+        }
+    }
+
+    /// The system red, as AppKit draws a destructive action.
+    /// 系統紅，即 AppKit 繪製危險動作所用的顏色。
+    public func destructiveButtonLabelColor(in environment: EnvironmentValues) -> Color? {
+        .system(.red)
     }
 
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {

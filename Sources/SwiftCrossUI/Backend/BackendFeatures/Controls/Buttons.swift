@@ -89,6 +89,26 @@ extension BackendFeatures {
         func computeButtonLabelEnvironment(
             from environment: EnvironmentValues
         ) -> EnvironmentValues
+
+        /// The colour a ``ButtonRole/destructive`` button's label takes when the
+        /// application has named none, or `nil` to leave the label alone.
+        ///
+        /// Each platform marks a destructive button its own way, and on AppKit,
+        /// UIKit and Android that way is the label's colour: the system red on
+        /// the first two, the theme's `colorError` on Android. The label is a
+        /// SwiftCrossUI view rather than the native control's title, so the
+        /// colour has to reach it through the environment -- `updateButton`
+        /// alone cannot recolour it. A backend whose platform styles the control
+        /// itself (GTK's `destructive-action` class, which the label inherits)
+        /// returns `nil` and does that in `updateButton`. An application colour
+        /// always wins, as a `.foregroundColor` does on any other button.
+        ///
+        /// ``ButtonRole/destructive`` 按鈕的標籤在應用程式沒有指定顏色時所用的顏色;回傳 `nil` 則不動標籤。
+        /// 各平台以自己的方式標示危險按鈕，在 AppKit、UIKit 與 Android 上那方式就是標籤的顏色：前兩者是系統紅，
+        /// Android 是主題的 `colorError`。標籤是 SwiftCrossUI 的 view 而非原生控制項的 title,所以顏色必須經由
+        /// environment 送到它——單靠 `updateButton` 改不了它的顏色。平台自己替控制項上樣式的 backend(GTK 的
+        /// `destructive-action` class,標籤會繼承)回傳 `nil`,在 `updateButton` 裡處理。應用程式指定的顏色永遠優先。
+        func destructiveButtonLabelColor(in environment: EnvironmentValues) -> Color?
     }
 }
 
@@ -129,5 +149,13 @@ extension BackendFeatures.ViewLabelButtons {
         }
 
         return labelEnvironment
+    }
+}
+
+extension BackendFeatures.ViewLabelButtons {
+    /// `nil`: the backend styles a destructive button some other way, or not
+    /// through its label's colour.
+    public func destructiveButtonLabelColor(in environment: EnvironmentValues) -> Color? {
+        nil
     }
 }

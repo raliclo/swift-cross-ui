@@ -413,6 +413,21 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   `updateSimpleButton` (the Menu trigger, which has no role) uses it. Needs a
   decision on what each platform shows -- red label as on iOS, or the
   platform's own destructive style -- before five implementations.
+  Decided 2026-10-07: each platform's own style. Core: a new
+  `destructiveButtonLabelColor(in:)` on ViewLabelButtons (default nil); Button
+  hands it to the label when the role is destructive and the app named no
+  colour. P82 is the test app.
+  - AppKit DONE: `.system(.red)` plus `NSButton.hasDestructiveAction`; P82 red,
+    disabled dimmed, 'blue set' blue.
+  - UIKit DONE: `.system(.red)` (systemRed); P82 as on AppKit. Fixing it found
+    `Button("x").foregroundColor(...)` ambiguous on UIKitBackend
+    (KeyboardToolbar's ToolbarItem overload); now `@_disfavoredOverload`.
+  - Android: the theme's `colorError`, compiled into the P82 APK but NOT seen
+    -- the emulator went offline (adb shell hung, then "device offline").
+  - GTK (Windows session, 865d9b32): Adwaita `destructive-action`. On GtkBackend
+    (macOS) bordered is red; borderless draws grey (the default borderless
+    label colour overrides the inherited red) and disabled shows almost no red.
+  - WinUI (Windows session): in progress, via the hook.
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew

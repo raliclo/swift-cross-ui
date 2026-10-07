@@ -141,6 +141,17 @@ class AndroidBackendHelpers {
         return size
     }
 
+    // The theme's colorError: the colour Material gives a destructive action, and
+    // so the label colour of a ButtonRole.destructive button. 0 when the theme
+    // defines none, which the Swift side reports rather than guessing a red.
+    // 主題的 colorError:Material 給危險動作的顏色，也就是 ButtonRole.destructive 按鈕的標籤顏色。主題沒有定義時
+    // 回傳 0,由 Swift 端回報，而不是猜一個紅色。
+    fun getErrorColor(activity: Activity): Int {
+        val value = TypedValue()
+        if (!activity.theme.resolveAttribute(android.R.attr.colorError, value, true)) return 0
+        return if (value.resourceId != 0) activity.getColor(value.resourceId) else value.data
+    }
+
     fun getSmallTextSize(activity: Activity): Float {
         val size =
             smallTextSize

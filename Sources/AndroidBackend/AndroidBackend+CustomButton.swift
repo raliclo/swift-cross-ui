@@ -1,5 +1,5 @@
 import AndroidKit
-import SwiftCrossUI
+@_spi(Backends) import SwiftCrossUI
 
 // swiftlint:disable force_try
 extension AndroidBackend {
@@ -27,6 +27,22 @@ extension AndroidBackend {
         content.setImportantForAccessibility(4)
         button.addView(content, 0)
         return button.as(AndroidKit.View.self)!
+    }
+
+    /// The theme's `colorError`, the colour Material gives a destructive
+    /// action. Asked only for a destructive button whose app named no colour.
+    /// 主題的 `colorError`,Material 給危險動作的顏色。只有在危險按鈕且 app 沒有指定顏色時才會被問到。
+    public func destructiveButtonLabelColor(
+        in environment: EnvironmentValues
+    ) -> SwiftCrossUI.Color? {
+        let colorInt = helpers.getErrorColor(Self.activity)
+        guard colorInt != 0 else {
+            logger.warning(
+                "the theme defines no colorError; a destructive button keeps its usual label colour"
+            )
+            return nil
+        }
+        return SwiftCrossUI.Color(SwiftCrossUI.Color.Resolved(fromColorInt: colorInt))
     }
 
     public func updateButton(

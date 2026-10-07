@@ -202,6 +202,17 @@ extension ToolbarItem {
     }
 
     /// A toolbar item with the specified foreground color.
+    ///
+    /// Disfavoured, as `frame(width:)` above is: a `Button` with a string label
+    /// is a `ToolbarItem` too, so outside a toolbar `Button("x").foregroundColor(.red)`
+    /// matched both this and `View.foregroundColor` and did not compile on
+    /// UIKitBackend ("ambiguous use of foregroundColor", P82, 2026-10-07).
+    /// Inside a `ToolbarBuilder` the View overload returns no `ToolbarItem`, so
+    /// this one is still chosen there.
+    /// 與上方 `frame(width:)` 一樣標為 disfavored:字串標籤的 `Button` 也是 `ToolbarItem`,所以在 toolbar
+    /// 之外 `Button("x").foregroundColor(.red)` 同時符合此處與 `View.foregroundColor`,在 UIKitBackend 上無法編譯。
+    /// 在 `ToolbarBuilder` 內 View 版本不回傳 `ToolbarItem`,所以那裡仍會選到這一個。
+    @_disfavoredOverload
     public func foregroundColor(_ color: Color) -> some ToolbarItem {
         ColoredToolbarItem(base: self, color: color)
     }

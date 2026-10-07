@@ -125,6 +125,12 @@ extension UIKitBackend {
         .borderless
     }
 
+    /// `.systemRed`, the colour iOS gives a destructive action's title.
+    /// `.systemRed`,iOS 給危險動作標題的顏色。
+    public func destructiveButtonLabelColor(in environment: EnvironmentValues) -> Color? {
+        .system(.red)
+    }
+
     public func computeButtonLabelEnvironment(
         from environment: EnvironmentValues
     ) -> EnvironmentValues {

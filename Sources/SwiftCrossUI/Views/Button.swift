@@ -289,7 +289,19 @@ extension Button: TypeSafeView {
         // 在這一行以下，每一處都必須用調整過的那一個。
         let styleEnvironment = buttonEnvironment(from: environment)
         let buttonPadding = backend.buttonPadding(in: styleEnvironment)
-        let childEnvironment = backend.computeButtonLabelEnvironment(from: styleEnvironment)
+        // A destructive button's label takes the backend's destructive colour
+        // unless the application named one; see `destructiveButtonLabelColor`.
+        // Before the backend's own label rules, so a disabled destructive button
+        // dims the way any coloured label does.
+        // 危險按鈕的標籤採用 backend 的危險色，除非應用程式指定了顏色；見 `destructiveButtonLabelColor`。
+        // 放在 backend 自己的標籤規則之前，讓停用的危險按鈕像任何有顏色的標籤一樣變淡。
+        var labelSource = styleEnvironment
+        if role == .destructive, styleEnvironment.foregroundColor == nil,
+            let destructive = backend.destructiveButtonLabelColor(in: styleEnvironment)
+        {
+            labelSource = labelSource.with(\.foregroundColor, destructive)
+        }
+        let childEnvironment = backend.computeButtonLabelEnvironment(from: labelSource)
 
         var childProposal = proposedSize
         if let proposedWidth = proposedSize.width {
