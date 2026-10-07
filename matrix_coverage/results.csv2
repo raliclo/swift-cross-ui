@@ -1130,3 +1130,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-07,ios,uikit,P79,ok,n/a,window,default,"Launch and capture only: the app says Android only (UIKit has dismantleUIView); made 0, dismantled 0."
 2026-10-07,ios,uikit,P80,ok,n/a,window,default,"Launch and capture only: cursor row, menu target, key and scroll readouts render; no input driven on iOS."
 2026-10-07,ios,uikit,P81,ok,n/a,window,default,Launch and capture only: window A renders its five buttons; second window and presentations not driven on iOS.
+2026-10-07,android,android,P77,ok,n/a,screen,default,"Mesh3DView drew the 1,002,001-vertex grid as one smooth gradient, no holes or slivers (test.zsh --android). A first run right after cold boot was reported as a crash; logcat showed init restarting userspace (apexd killed), not the app, and the rerun was clean."
+2026-10-07,android,android,P80,ok,n/a,screen,default,"Launch only: cursor row, menu target, key and scroll labels drawn by AndroidBackend; no input was driven."
