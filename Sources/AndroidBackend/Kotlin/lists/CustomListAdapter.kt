@@ -45,6 +45,39 @@ class CustomListAdapter : BaseAdapter() {
         }
     }
 
+    // `.listStyle(.sidebar)`: the selected row wears a pill inset from the
+    // edges, as a Material navigation drawer's active indicator, instead of the
+    // full-width grey. Set by AndroidBackendHelpers.setListSidebar. Which kind
+    // each row's overlay is gets recorded, so a style change replaces it.
+    // `.listStyle(.sidebar)`:被選取的列戴上內縮的膠囊，如 Material navigation drawer 的 active indicator,
+    // 而非整列的灰色。由 AndroidBackendHelpers.setListSidebar 設定。記下每一列的 overlay 是哪一種，樣式改變時才換。
+    private var sidebar = false
+    private var pillColor = 0
+    private var density = 1f
+    private val overlayIsSidebar = java.util.WeakHashMap<View, Boolean>()
+
+    fun setSidebarStyle(on: Boolean, color: Int, density: Float) {
+        sidebar = on
+        pillColor = color
+        this.density = density
+        notifyDataSetChanged()
+    }
+
+    private fun sidebarOverlay(): StateListDrawable {
+        val pill = android.graphics.drawable.GradientDrawable()
+        pill.cornerRadius = 28 * density
+        pill.setColor(pillColor)
+        val horizontal = (8 * density).toInt()
+        val vertical = (2 * density).toInt()
+        val drawable = StateListDrawable()
+        drawable.addState(
+            intArrayOf(android.R.attr.state_activated),
+            android.graphics.drawable.InsetDrawable(pill, horizontal, vertical, horizontal, vertical)
+        )
+        drawable.addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+        return drawable
+    }
+
     private var views = arrayOf<View>()
     private var heights = intArrayOf()
 
@@ -156,8 +189,10 @@ class CustomListAdapter : BaseAdapter() {
         // state of whichever row was configured last.
         // 每一列各自一個 drawable，而非共用一個：StateListDrawable 會保有它自己的當前狀態，因此
         // 共用會使每一列都顯示「最後被設定的那一列」的狀態。
-        if (view.foreground == null) {
-            view.foreground = selectionOverlay()
+        val ours = overlayIsSidebar[view]
+        if (view.foreground == null || (ours != null && ours != sidebar)) {
+            view.foreground = if (sidebar) sidebarOverlay() else selectionOverlay()
+            overlayIsSidebar[view] = sidebar
         }
 
         // Recorded AFTER the view exists and before it is returned, so a scrap arriving later can

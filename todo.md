@@ -687,8 +687,13 @@ selection; Android draws a Material navigation drawer -- the theme's
 `colorBackgroundFloating`, no dividers, a pill selector in
 `colorControlHighlight` (`setListSidebar`). P83 puts a default and a `.sidebar`
 list side by side: macOS and the iOS simulator show the difference (before the
-change on macOS the two were identical). Android compiles into the APK but has
-NOT been seen: the emulator was offline.
+change on macOS the two were identical). Android, seen 2026-10-08 after the
+emulator restart: the first version changed nothing visible (colorBackgroundFloating
+equals the window background there, and the selected row's highlight is the
+adapter's per-row foreground, not the ListView selector), so the panel now lays
+colorControlHighlight over it and CustomListAdapter draws the selected row as an
+inset pill. P83: panel, no dividers, pill moves with a tap. Open: the pill's right
+inset is clipped at the panel edge (rows wider than the list).
 
 ### Swift 6 language mode, module by module (Windows)
 

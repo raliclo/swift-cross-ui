@@ -422,8 +422,8 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - UIKit DONE: `.system(.red)` (systemRed); P82 as on AppKit. Fixing it found
     `Button("x").foregroundColor(...)` ambiguous on UIKitBackend
     (KeyboardToolbar's ToolbarItem overload); now `@_disfavoredOverload`.
-  - Android: the theme's `colorError`, compiled into the P82 APK but NOT seen
-    -- the emulator went offline (adb shell hung, then "device offline").
+  - Android DONE: the theme's `colorError`; P82 on the emulator 2026-10-08:
+    destructive labels orange-red, disabled dimmed, save/cancel ordinary, blue kept.
   - GTK (Windows session, 865d9b32): Adwaita `destructive-action`. On GtkBackend
     (macOS) bordered is red; borderless draws grey (the default borderless
     label colour overrides the inherited red) and disabled shows almost no red.

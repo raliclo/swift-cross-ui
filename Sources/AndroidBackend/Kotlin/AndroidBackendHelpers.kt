@@ -157,7 +157,17 @@ class AndroidBackendHelpers {
         }
         if (sidebar) {
             val density = context.resources.displayMetrics.density
-            listView.setBackgroundColor(themeColor(android.R.attr.colorBackgroundFloating))
+            // The floating surface with the highlight laid over it, so the drawer
+            // reads as a panel: on the API 36 emulator colorBackgroundFloating
+            // alone equals the window background (P83, 2026-10-08).
+            // 浮動表面再疊上 highlight,讓抽屜看得出是一塊面板:API 36 emulator 上單用 colorBackgroundFloating
+            // 與視窗背景相同(P83,2026-10-08)。
+            listView.background = android.graphics.drawable.LayerDrawable(
+                arrayOf(
+                    android.graphics.drawable.ColorDrawable(themeColor(android.R.attr.colorBackgroundFloating)),
+                    android.graphics.drawable.ColorDrawable(themeColor(android.R.attr.colorControlHighlight))
+                )
+            )
             listView.divider = null
             listView.dividerHeight = 0
             val pill = android.graphics.drawable.GradientDrawable()
@@ -167,12 +177,19 @@ class AndroidBackendHelpers {
                 pill, (8 * density).toInt(), (2 * density).toInt(),
                 (8 * density).toInt(), (2 * density).toInt()
             )
+            // The selected row: a pill in the accent at a quarter strength, the
+            // drawer's active indicator. 被選取的列：四分之一強度的 accent 膠囊，即抽屜的 active indicator。
+            val accent = themeColor(android.R.attr.colorAccent)
+            (listView.adapter as? dev.swiftcrossui.androidbackend.lists.CustomListAdapter)
+                ?.setSidebarStyle(true, (accent and 0x00FFFFFF) or 0x40000000, density)
         } else {
             listView.background = null
             val attrs = context.obtainStyledAttributes(intArrayOf(android.R.attr.listDivider))
             listView.divider = attrs.getDrawable(0)
             attrs.recycle()
             listView.selector = android.graphics.drawable.ColorDrawable(0x32a1a1a1)
+            (listView.adapter as? dev.swiftcrossui.androidbackend.lists.CustomListAdapter)
+                ?.setSidebarStyle(false, 0, 1f)
         }
     }
 

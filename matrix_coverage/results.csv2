@@ -1161,3 +1161,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-08,windows,winui,P83,ok,n/a,window,default,"default vs .sidebar side by side: the sidebar list has the NavigationView pane background and shorter rows; default stays transparent with 40 px rows; both select Inbox."
 2026-10-08,windows,gtk4,P83,ok,n/a,window,default,"default selects with a full-width blue row, .sidebar with GTK's navigation-sidebar rounded grey pill; both show Inbox selected."
 2026-10-08,wsl,gtk4,P83,ok,n/a,window,default,"Under WSLg (light): default blue full-width selection, .sidebar rounded grey pill (navigation-sidebar)."
+2026-10-08,android,android,P82,ok,n/a,screen,default,"Destructive labels in the theme's colorError (orange-red), disabled one dimmed; save and cancel ordinary; 'blue set' blue."
+2026-10-08,android,android,P83,ok,n/a,screen,default,"The .sidebar list: a highlighted panel, no dividers, a pill selection in the accent; tapping Sent moved the pill and the label read right: Sent. The pill's right inset is clipped at the panel edge. First attempt (colorBackgroundFloating alone, selector-only pill) looked the same as the default and was redone."
