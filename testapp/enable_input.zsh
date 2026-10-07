@@ -72,6 +72,13 @@ known_blockers=(
     # SetCursorPos returning FALSE, after Armoury Crate had been opened.
     # 2026-10-07:類別 AsusUpdater(「ASUS Updater」)佔著前景,SetCursorPos 回傳 FALSE,發生在開啟 Armoury Crate 之後。
     'AsusUpdater.exe'
+    # 2026-10-08: class GameInputServiceWindow (Microsoft GameInput, not ASUS)
+    # held the foreground during the #123 Narrator run; two injected clicks into
+    # P69 left it there and SetForegroundWindow returned FALSE. Added at the
+    # user's instruction. It is a service, so it may come back on its own.
+    # 2026-10-08:類別 GameInputServiceWindow(Microsoft GameInput,不是 ASUS)在 #123 Narrator 測試時
+    # 佔著前景;對 P69 送了兩次點擊仍未讓出,SetForegroundWindow 回傳 FALSE。依使用者指示加入。它是服務，可能自行重啟。
+    'GameInputSvc.exe'
 )
 
 # Blockers that must NEVER be stopped, only reported.
