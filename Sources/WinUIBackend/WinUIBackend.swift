@@ -1906,7 +1906,7 @@ public final class WinUIBackend:
         _ slider: Widget,
         minimum: Double,
         maximum: Double,
-        decimalPlaces _: Int,
+        decimalPlaces: Int,
         environment: EnvironmentValues,
         onChange: @escaping (Double) -> Void,
         onEditingChanged: @escaping (Bool) -> Void
@@ -1915,7 +1915,15 @@ public final class WinUIBackend:
         slider.minimum = minimum
         slider.maximum = maximum
         environment.apply(to: slider)
-        internalState.sliderChangeActions[ObjectIdentifier(slider)] = onChange
+        // Rounded to `decimalPlaces` before it is reported, as UIKit, AppKit
+        // and Android do (GTK sets `digits`). Until 2026-10-07 this backend
+        // ignored the argument and reported the raw `Slider.value`.
+        // 回報前先依 `decimalPlaces` 四捨五入，與 UIKit、AppKit、Android 相同(GTK 設定 `digits`)。
+        // 2026-10-07 之前本 backend 忽略這個參數，直接回報原始的 `Slider.value`。
+        let scale = pow(10.0, Double(max(0, min(decimalPlaces, 17))))
+        internalState.sliderChangeActions[ObjectIdentifier(slider)] = { value in
+            onChange((value * scale).rounded(.toNearestOrEven) / scale)
+        }
         internalState.sliderEditingActions[ObjectIdentifier(slider)] = onEditingChanged
     }
 

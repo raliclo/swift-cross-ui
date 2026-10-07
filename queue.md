@@ -106,9 +106,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   does. P61 now logs the unformatted value; actions/mac/P61-drag-then-code.csv
   read 0.10666666666666667 before, 0.11 after. "The other four read it" was
   wrong -- WinUI does not either (next item).
-- [ ] **WinUI: `Slider` ignores `decimalPlaces`** (`WinUIBackend.swift:1907`,
+- [x] **WinUI: `Slider` ignores `decimalPlaces`** (`WinUIBackend.swift:1907`,
   `decimalPlaces _: Int`). Found 2026-10-06 while fixing AppKit. Round in the
   ValueChanged handler as UIKit and AppKit do. Windows machine.
+  DONE 2026-10-07: `updateSlider` wraps the change action, rounding with
+  `.toNearestOrEven` to `decimalPlaces` (clamped 0...17), the AppKit code.
+  P61 on WinUI (actions/win/P61-drag-the-trough.csv, rerun by hand with
+  SCUI_DEBUG_EVENTS_DIR): began=1 ended=1 values=1, "value 0.81" from the drag,
+  "value 0.91" from the code button. This run does NOT discriminate: WinUI's
+  `stepFrequency` is 0.01, so a drag already lands on a hundredth and 0.81 is
+  exact in Double either way. A value such as 57 * 0.01 = 0.5700000000000001
+  would show it; not reached by this file.
+  2026-10-07 完成：比照 AppKit 依 `decimalPlaces` 四捨五入。P61 讀到 0.81 與 0.91,但這次執行
+  無法區分修改前後——`stepFrequency` 為 0.01,拖曳本來就落在百分位上。
 - [x] **`Picker.inspect` is commented out on all five backends**
   ("Repair Picker.inspect implementations post PickerStyle refactor" in each
   `InspectionModifiers.swift`; Android has none at all). Every other control
