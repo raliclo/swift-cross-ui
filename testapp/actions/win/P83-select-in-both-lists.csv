@@ -1,0 +1,15 @@
+action,x,y,origin,button,key,micros,note,platform
+# P83 on Windows: select a row in each list, so the capture shows both styles
+# with a selection -- the sidebar's selected row is where the two differ most.
+# Written 2026-10-08. Positions are UIA row centres minus the window's
+# GetWindowRect origin, WinUIBackend, 100% scale, window 496x439.
+# Pass: the label reads "left: Drafts   right: Sent", and the right list keeps
+# its sidebar look (pane background, 36 px rows) with Sent selected.
+# P83(Windows):在兩個清單各選一列，讓截圖呈現兩種樣式各自的選取狀態——sidebar 與預設樣式差最多的就是選取列。
+# 2026-10-08 撰寫。座標為 UIA 列中心減去視窗 GetWindowRect 原點,WinUIBackend,100% 縮放，視窗 496x439。
+# 通過：標籤顯示 "left: Drafts   right: Sent",右側清單維持 sidebar 外觀(窗格背景、36 px 列高)且選中 Sent。
+sleep,,,,,,1500000,let P83 lay out,windows
+click,145,233,frame,left,,,"left (default) list: Drafts",windows
+sleep,,,,,,500000,,windows
+click,341,263,frame,left,,,"right (.sidebar) list: Sent",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

@@ -1,0 +1,11 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on Windows: the mirror of P58-left-to-L30 -- only the right column moves.
+# Written 2026-10-08. (166,142) is the "right to R45" centre from UIA minus the
+# window origin, WinUIBackend, 100% scale, window 776x659.
+# Pass: "asked to scroll to: R45", the right column shows R45, the left still L0.
+# P58(Windows):P58-left-to-L30 的鏡像——只有右欄移動。2026-10-08 撰寫。(166,142) 是 "right to R45" 的 UIA
+# 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 776x659。通過:"asked to scroll to: R45",右欄出現 R45,
+# 左欄仍在 L0。
+sleep,,,,,,1500000,let P58 render,windows
+click,166,142,frame,left,,,"right to R45",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

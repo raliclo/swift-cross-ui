@@ -1,0 +1,19 @@
+action,x,y,origin,button,key,micros,note,platform
+# P55 on Windows: press the styled button twice with a real held press.
+# Written 2026-10-08. mousedown / hold / mouseup rather than click, so the
+# pressed state lasts long enough to be drawn; a zero-length click could pass
+# clicks while drawing pressed zero times. (60,225) is the "Press me" centre
+# from UIA minus the window origin, WinUIBackend, 100% scale, window 656x499.
+# Pass: "clicks: 2" and "pressed draws: N" with N > 0.
+# P55(Windows):以真正按住的方式按兩次自訂樣式按鈕。2026-10-08 撰寫。用 mousedown／停留／mouseup 而非 click,
+# 讓按下狀態持續到足以被畫出來;零長度的點擊可能讓 clicks 增加、pressed 卻一次都沒畫。(60,225) 是 "Press me"
+# 的 UIA 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 656x499。通過:"clicks: 2" 且 "pressed draws: N" 的 N > 0。
+sleep,,,,,,1500000,let P55 render,windows
+mousedown,60,225,frame,left,,,"press and hold -- pressed draws must rise above 0",windows
+sleep,,,,,,400000,held,windows
+mouseup,60,225,frame,left,,,"release -- clicks must become 1",windows
+sleep,,,,,,600000,let the counters redraw,windows
+mousedown,60,225,frame,left,,,press again,windows
+sleep,,,,,,400000,held,windows
+mouseup,60,225,frame,left,,,"release -- clicks must become 2",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

@@ -1,0 +1,13 @@
+action,x,y,origin,button,key,micros,note,platform
+# P58 on Windows: one press must move ONE of the two scroll views.
+# Written 2026-10-08. One button per file, as on macOS: a file pressing both
+# would end with both moved and could not show which press moved which.
+# (71,142) is the "left to L30" centre from UIA minus the window origin,
+# WinUIBackend, 100% scale, window 776x659.
+# Pass: "asked to scroll to: L30", the left column shows L30, the right still R0.
+# P58(Windows):一次按下只能讓兩個捲動區中的**一個**移動。2026-10-08 撰寫。與 macOS 相同，一個檔案只按一顆：
+# 兩顆都按的檔案，結束時兩邊都動了，看不出哪一次按下動了哪一邊。(71,142) 是 "left to L30" 的 UIA 中心減去
+# 視窗原點,WinUIBackend,100% 縮放，視窗 776x659。通過:"asked to scroll to: L30",左欄出現 L30,右欄仍在 R0。
+sleep,,,,,,1500000,let P58 render,windows
+click,71,142,frame,left,,,"left to L30",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows

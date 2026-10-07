@@ -1,0 +1,12 @@
+action,x,y,origin,button,key,micros,note,platform
+# P56 on Windows: ScrollViewReader.scrollTo must actually scroll.
+# Written 2026-10-08. (167,142) is the "Jump to 59" centre from UIA minus the
+# window origin, WinUIBackend, 100% scale, window 636x559.
+# Pass: "asked to scroll to: 59" and rows in the 50s visible where row 0 was;
+# the label changing while the list stays at row 0 is the failure P56 exists for.
+# P56(Windows):ScrollViewReader.scrollTo 必須真的捲動。2026-10-08 撰寫。(167,142) 是 "Jump to 59" 的 UIA
+# 中心減去視窗原點,WinUIBackend,100% 縮放，視窗 636x559。通過:"asked to scroll to: 59",且原本 row 0 的位置
+# 看得到 50 幾的列；標籤變了、清單卻停在 row 0,正是 P56 要抓的失敗。
+sleep,,,,,,1500000,let P56 render,windows
+click,167,142,frame,left,,,"Jump to 59",windows
+sleep,,,,,,20000000,"hold 20s so the final capture lands while the window is up",windows
