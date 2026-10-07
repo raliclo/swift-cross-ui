@@ -388,6 +388,16 @@ done
 
 if [ -n "$action_file" ]; then
     action_file="${action_file:A}"
+    # Refused here, before the build, rather than discovered after a 30 s window
+    # that nothing touched. A bare name is resolved against the current
+    # directory, not actions/<platform>/, which is how this was found.
+    # 在建置之前就拒絕，而不是等一個 30 秒、沒有人碰過的視窗之後才發現。只給檔名時是相對於目前目錄解析，
+    # 而不是 actions/<platform>/——這正是發現它的經過。
+    if [ ! -f "$action_file" ]; then
+        printf 'Action file not found: %s\n' "$action_file" >&2
+        printf 'A bare name is read from the current directory; pass testapp/actions/<platform>/<file>.\n' >&2
+        exit 66
+    fi
 fi
 
 # ==============================================================================
@@ -542,6 +552,27 @@ fi
 # 錯誤的訊息掩蓋了一個主機層級的 EGL 故障，好幾個調查步驟花在追問 screenshot.zsh 是不是壞了，而
 # 56 張 PNG 就躺在磁碟上反駁著它自己的回報。
 screenshot_failures=0
+# Replays that did not run to the end; read at the bottom of this file.
+# 沒有跑完的重放次數；在本檔最底端讀取。
+replay_failures=0
+
+# Minimises every titled window on this desktop before an app is launched (the
+# user's rule, 2026-10-08: "Shrink all windows before testing"). A maximised
+# terminal or browser in front takes the clicks and the foreground, and the
+# result reads as the app's fault. winmin minimises -- never closes -- so each
+# window can be restored by whoever owns it; `winmin.exe --restore` undoes it.
+# 啟動 app 之前，把此桌面上每個有標題的視窗最小化(使用者 2026-10-08 的規則:「測試前把所有視窗縮小」)。
+# 前方一個最大化的終端機或瀏覽器會搶走點擊與前景，結果看起來像是 app 的錯。winmin 只最小化、絕不關閉，
+# 所以每個視窗都能由它的主人還原；`winmin.exe --restore` 可撤銷。
+clear_desktop_windows() {
+    local winmin="$script_dir/helper/bin/winmin.exe"
+    if [ ! -x "$winmin" ]; then
+        printf '==> Desktop: %s missing; windows NOT minimised\n' "${winmin:t}"
+        return 0
+    fi
+    "$winmin" --clear >/dev/null 2>&1 || true
+    printf '==> Desktop: minimised every window\n'
+}
 capture() {
     # errexit and pipefail are off for this function alone. The screenshot is
     # deliberately allowed to fail, and the pipeline below exists so that
@@ -883,6 +914,12 @@ print_actionfile_report() {
     #
     # 刻意捨棄它的結束狀態：本腳本的 exit code 表示「這次執行發生了」，而對桌面的判決是另一回事。
     # `check` 會用它自己印出的訊息說明結論。
+    # No "replayed" line, or a "failed" one, makes the run exit 6 at the end.
+    # 沒有「replayed」那一行、或有「failed」那一行，該次執行最後會以 exit 6 結束。
+    if [[ "$report" != *'-actionfile: replayed'* || "$report" == *'-actionfile: failed'* ]]; then
+        replay_failures=$(( replay_failures + 1 ))
+    fi
+
     zsh "$ui_lock_script" check "$report_source" || true
 }
 
@@ -908,6 +945,10 @@ print_summary_wsl() {
             printf '%s\n' "$report" | sed 's/^/    /'
         else
             printf '    no report -- the app exited before replaying, or never saw the flag\n'
+        fi
+        # Same verdict as print_actionfile_report. / 判準與 print_actionfile_report 相同。
+        if [[ "$report" != *'-actionfile: replayed'* || "$report" == *'-actionfile: failed'* ]]; then
+            replay_failures=$(( replay_failures + 1 ))
         fi
     fi
 }
@@ -1066,6 +1107,8 @@ run_windows() {
         args="$args -actionfile $(windows_path_mixed "$action_file")"
         printf '==> Action file: %s\n' "${action_file:t}"
     fi
+
+    clear_desktop_windows
 
     # An action file carrying the line `# narrator: on` is a screen-reader walk.
     # Narrator is started here, before the app, so the app's window opens ON
@@ -1285,6 +1328,7 @@ run_wsl() {
     # 字串的原因。
     local launch_env="SCUI_DEBUG_EVENTS_DIR=$wsl_events_dir $render_env $app_env"
 
+    clear_desktop_windows
     printf '==> Launching %s under WSLg\n' "$app"
     # Plain `$app_args`, deliberately unadorned. Unlike the Windows branch just
     # above -- which passes real argv words and so wants `(z)` -- this builds a
@@ -1765,4 +1809,19 @@ esac
 if [ "$screenshot_failures" -gt 0 ]; then
     printf '\n!! %d screenshot(s) did not succeed; the "!!" lines above say which kind each was.\n' \
         "$screenshot_failures" >&2
+fi
+
+# A replay that did not run is a failed test, not a quiet one. Measured
+# 2026-10-08: `--actionfile P69-narrator-walk.csv` from the repo root named a
+# file that did not exist, the app logged "-actionfile: failed ... The file
+# doesn't exist", the window sat for 30 s untouched, and test.zsh exited 0.
+# print_actionfile_report counts a report with no "replayed" line, or a
+# "failed" one; exit 6 says so.
+# 一次沒有執行的重放就是失敗的測試，而不是安靜的測試。2026-10-08 實測：在 repo 根目錄下
+# `--actionfile P69-narrator-walk.csv` 指向一個不存在的檔案,app 記下「-actionfile: failed ... The file
+# doesn't exist」,視窗原封不動地停了 30 秒，而 test.zsh 以 0 結束。print_actionfile_report 會計入
+# 沒有「replayed」那一行、或有「failed」那一行的報告;以 exit 6 表明。
+if [ "$replay_failures" -gt 0 ]; then
+    printf '\n!! the action file did not replay to the end; see "Action file report" above.\n' >&2
+    exit 6
 fi
