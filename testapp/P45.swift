@@ -171,7 +171,13 @@ struct P45ComputedBindingApp: App {
 }
 
 struct P45RootView: View {
-    @ObservedObject var model = P45Model()
+    // `@StateObject`: this view creates and owns its model. It was
+    // `@ObservedObject` until 2026-10-07, which kept the model only because
+    // ObservedObject refused any object nobody else held -- a rule that also
+    // pinned a child to the first object its parent passed, and was removed.
+    // `@StateObject`:此 view 建立並擁有自己的 model。2026-10-07 之前是 `@ObservedObject`,它能保住 model,
+    // 只是因為 ObservedObject 會拒絕沒有別人持有的物件——這條規則同時讓子 view 釘在父層第一次傳入的物件上，已移除。
+    @StateObject var model = P45Model()
 
     // The sibling state a subtree rebuild would clear. Both start at a value
     // that is not their default, so "was reset" and "was never touched" are

@@ -19,11 +19,6 @@ struct ObservedObjectTests {
         @SwiftCrossUI.Published var count = 0
     }
 
-    /// The P45 shape: the model is created by the wrapper's own initial value.
-    struct InlineModelView: View {
-        @ObservedObject var model = Counter()
-        var body: some View { Text("\(model.count)") }
-    }
 
     /// The parent-owned shape: the object is passed in.
     struct PassedModelView: View {
@@ -53,19 +48,51 @@ struct ObservedObjectTests {
     }
 
     @MainActor
-    @Test("An inline model survives the view being re-created by its parent")
-    func inlineModelSurvivesRecreation() {
+    @Test("A fresh object from the parent, held by nobody else, is adopted")
+    func freshPassedModelIsAdopted() {
+        // The review case (Codex, 2026-10-07): `Child(model: Model(...))`, where
+        // the parent keeps no reference. Until then such an object was refused
+        // and the child kept showing the first one.
+        // review 的情境(Codex,2026-10-07):`Child(model: Model(...))`,父層不保留參考。在那之前這種物件會被拒絕，
+        // 子 view 一直顯示第一個。
         let backend = DummyBackend()
         let window = backend.createWindow(withDefaultSize: nil, id: "window")
         let environment = EnvironmentValues(backend: backend).with(\.window, window)
 
-        let node = ViewGraphNode(for: InlineModelView(), backend: backend, environment: environment)
+        let node = ViewGraphNode(
+            for: PassedModelView(model: Counter()), backend: backend, environment: environment
+        )
+        layout(node, environment: environment)
+
+        let fresh = { () -> Counter in
+            let counter = Counter()
+            counter.count = 9
+            return counter
+        }
+        layout(node, with: PassedModelView(model: fresh()), environment: environment)
+
+        #expect(node.view.model.count == 9)
+    }
+
+    /// A view that owns its model, the way P45 now does.
+    struct OwnedModelView: View {
+        @StateObject var model = Counter()
+        var body: some View { Text("\(model.count)") }
+    }
+
+    @MainActor
+    @Test("A @StateObject survives the view being re-created by its parent")
+    func stateObjectSurvivesRecreation() {
+        let backend = DummyBackend()
+        let window = backend.createWindow(withDefaultSize: nil, id: "window")
+        let environment = EnvironmentValues(backend: backend).with(\.window, window)
+
+        let node = ViewGraphNode(for: OwnedModelView(), backend: backend, environment: environment)
         layout(node, environment: environment)
         let original = node.view.model
         original.count = 3
 
-        // What the parent does on every layout pass: build the view again.
-        layout(node, with: InlineModelView(), environment: environment)
+        layout(node, with: OwnedModelView(), environment: environment)
 
         #expect(node.view.model === original)
         #expect(node.view.model.count == 3)

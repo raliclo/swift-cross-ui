@@ -114,35 +114,23 @@ public struct ObservedObject<Value: ObservableObject>: ObservableProperty {
         // 與 ``StateObject`` 正確的做法——會把這個 view 釘死在它最初看到的那個物件上，並靜默忽略
         // 父層此後交給它的每一個。
         //
-        // **Except an object nobody else holds.** This framework re-creates a view
-        // struct far more often than SwiftUI: every layout pass evaluates `body`,
-        // and a child's resize lays its parent out again, so a view's OWN @State
-        // change rebuilds it from its parent. An inline `@ObservedObject var m =
-        // Model()` then arrived as a brand-new Model each time and replaced the
-        // one holding the app's data -- measured 2026-09-28 with P45: the model
-        // constructed 8 times in one run, and a button that wrote @State and the
-        // model left the model's writes at 0.
-        //
-        // An object a parent really passed down is one the parent holds too, so
-        // its reference count is at least two. One that only this wrapper's
-        // storage references was built by the wrapper's own initial-value
-        // expression during this re-creation, and cannot be "the parent's next
-        // object"; adopting it would only discard the carried one's state. So the
-        // carried object is kept. A parent that switches to an object it keeps --
-        // the case the paragraph above protects -- is still adopted.
-        //
-        // **除非那個物件沒有別人持有。**本框架重建 view struct 的頻率遠高於 SwiftUI:每次排版都會求值
-        // `body`,子節點改變尺寸會讓父節點重新排版,所以 view **自己的** @State 改變就會讓父層重建它。內嵌的
-        // `@ObservedObject var m = Model()` 於是每次都以全新的 Model 抵達,並取代掌握 app 資料的那一個——
-        // 2026-09-28 以 P45 實測:一次執行建構了 8 次 model,一顆同時寫 @State 與 model 的按鈕讓 model 的
-        // writes 停在 0。父層真正傳下來的物件,父層自己也持有,參考計數至少為二;只被這個 wrapper 的儲存體參考
-        // 的物件,是 wrapper 自己的初始值運算式在這次重建中建出來的,不可能是「父層的下一個物件」,採用它只會
-        // 丟掉沿用那一個的狀態。所以保留沿用的物件。父層改用一個它自己持有的物件——上一段所保護的情況——仍會被採用。
+        // **Every new object is adopted, as in SwiftUI (2026-10-07).** From
+        // 2026-09-28 an object nobody else held was refused, so that an inline
+        // `@ObservedObject var m = Model()` kept its data when the view was
+        // re-created. That also refused a parent's `Child(model: Model(item))` --
+        // a fresh object the parent does not keep -- and pinned the child to
+        // the first one it saw: a row showing stale data after its item
+        // changed (review, Codex). The two cases cannot be told apart at run
+        // time. A view that owns its object uses `@StateObject`, which keeps it
+        // across re-creation; `@ObservedObject` observes what it is given.
+        // **每個新物件都會被採用，與 SwiftUI 相同(2026-10-07)。** 自 2026-09-28 起，沒有別人持有的物件會被拒絕，
+        // 好讓內嵌的 `@ObservedObject var m = Model()` 在 view 重建時保住資料。但這同時拒絕了父層的
+        // `Child(model: Model(item))`——一個父層不保留的新物件——讓子 view 釘在它看到的第一個物件上：項目改了，
+        // 列仍顯示舊資料(review,Codex)。兩種情況在執行期無法分辨。自己擁有物件的 view 用 `@StateObject`,
+        // 它在重建時保留物件;`@ObservedObject` 觀察它被給的東西。
         let incomingStorage = box.value
         let carried = previousValue.box.value
-        if carried.value !== incomingStorage.value,
-            !isKnownUniquelyReferenced(&incomingStorage.value)
-        {
+        if carried.value !== incomingStorage.value {
             carried.value = incomingStorage.value
             carried.relink()
         }
