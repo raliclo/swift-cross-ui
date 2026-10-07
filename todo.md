@@ -674,6 +674,12 @@ same either way. Same for AppKit, UIKit, Android and Dummy. `.listStyle(_:)` is
 therefore honest on GtkBackend and a no-op elsewhere — which is the ordinary
 state of a backend feature here, not the "public API that does nothing anywhere"
 this section was written to prevent.
+**WinUI half done 2026-10-08 (Windows):** `.sidebar` draws the list as a
+NavigationView pane -- the `NavigationViewDefaultPaneBackground` resource, 36 px
+rows and 12/6 padding (eager and lazy rows alike) -- against the default's
+transparent background and 40 px rows. Checked with a temporary P4 edit
+(reverted): the two lists side by side differ as described. AppKit, UIKit and
+Android still ignore it (Mac side).
 
 ### Swift 6 language mode, module by module (Windows)
 

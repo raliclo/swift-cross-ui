@@ -108,6 +108,32 @@ extension GtkBackend {
         button.loadCSS(environment: environment)
     }
 
+    /// For a borderless or plain destructive button only: the colour the theme
+    /// gives a `.flat.destructive-action` button's text, read from an unshown
+    /// probe button so it follows the theme and its variant rather than a
+    /// value of ours. A bordered one returns nil: the class paints it, red
+    /// with white text, and the label inherits that. Without this a borderless
+    /// one drew grey (P82 on GtkBackend, found by the Mac session on
+    /// 2026-10-07) -- the core gives a desktop borderless label a dimmed
+    /// suggested colour, which outranks the colour inherited from the class.
+    /// 僅限無框或 plain 的危險按鈕：主題賦予 `.flat.destructive-action` 按鈕文字的顏色，從一顆不顯示的探針按鈕讀取，
+    /// 因此跟隨主題及其變體，而非我們自己的值。bordered 的回傳 nil:class 會把它畫成紅底白字，標籤會繼承。少了這個，
+    /// 無框的會是灰字(P82,GtkBackend,Mac session 於 2026-10-07 發現)——core 給桌面無框標籤一個淡化的建議色，
+    /// 位階高於從 class 繼承來的顏色。
+    public func destructiveButtonLabelColor(
+        in environment: EnvironmentValues
+    ) -> SwiftCrossUI.Color? {
+        guard environment.resolvedButtonStyle.kind != .bordered else { return nil }
+        let probe = Gtk.Button()
+        gtk_widget_add_css_class(probe.widgetPointer, "flat")
+        gtk_widget_add_css_class(probe.widgetPointer, "destructive-action")
+        let colour = probe.getColor()
+        return SwiftCrossUI.Color(
+            red: Double(colour.red), green: Double(colour.green),
+            blue: Double(colour.blue), opacity: Double(colour.alpha)
+        )
+    }
+
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
         switch environment.resolvedButtonStyle.kind {
             case .bordered: measureBorderedButtonPadding()

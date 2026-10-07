@@ -1152,3 +1152,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-07,wsl,gtk4,P2,ok,n/a,window,default,"Same under WSLg: the destructive Delete is Adwaita's red with white text; the plain Delete, Cancel and the disabled row unchanged."
 2026-10-07,mac,appkit,P82,ok,n/a,window,default,"Destructive bordered and borderless labels in system red, disabled one dimmed; save and cancel ordinary; 'blue set' stays blue (dark mode)."
 2026-10-07,ios,uikit,P82,ok,n/a,window,default,"Destructive labels systemRed, disabled one faded red; save and cancel in the default blue; 'blue set' blue. The keyboardToolbar check compiled."
+2026-10-08,windows,winui,P82,ok,n/a,window,default,"destructiveButtonLabelColor returns SystemFillColorCriticalBrush from the app theme: bordered and borderless destructive in the critical red, disabled dimmed, blue set blue, save and cancel unchanged."
+2026-10-08,windows,gtk4,P82,ok,n/a,window,default,"Dark variant: bordered destructive red with white text (destructive-action), borderless red from the hook's flat probe colour, disabled as Adwaita's insensitive, save and cancel unchanged."
+2026-10-08,wsl,gtk4,P82,ok,n/a,window,default,"Light variant under WSLg: bordered red/white, borderless #e01b24-like red, disabled insensitive, blue set blue text on red (app colour wins)."
+2026-10-08,windows,winui,P4,ok,n/a,window,default,"Temporary edit (reverted): a default and a .sidebar List side by side; sidebar has the NavigationView pane background, 36 px rows and 12 px leading padding, default stays transparent with 40 px rows."

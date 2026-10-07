@@ -427,7 +427,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   - GTK (Windows session, 865d9b32): Adwaita `destructive-action`. On GtkBackend
     (macOS) bordered is red; borderless draws grey (the default borderless
     label colour overrides the inherited red) and disabled shows almost no red.
-  - WinUI (Windows session): in progress, via the hook.
+    **Fixed 2026-10-08:** the GTK hook returns, for borderless/plain only, the
+    colour the theme gives a `.flat.destructive-action` button's text, read from
+    an unshown probe button (bordered stays nil; the class paints it). P82 on
+    Windows GTK (dark variant) and WSLg (light): bordered red with white text,
+    borderless red, save/cancel unchanged. Disabled: Adwaita draws a disabled
+    destructive bordered button as plain insensitive -- no red -- so the faint
+    look is the native one. 'blue set' is red with blue text: the app's colour
+    wins by design, left as is.
+  - WinUI DONE 2026-10-08: the hook returns `SystemFillColorCriticalBrush` from
+    the app's theme resources (WinUI has no destructive button style). P82:
+    bordered and borderless in the critical red, disabled dimmed, 'blue set'
+    blue, save/cancel unchanged. Hover/pressed not driven (input blocked by an
+    elevated ASUS window at the time).
 ## 2026-10-05 M10 follow-up: what SoftPCB's tab 9 needs from Mesh3DView
 
 SoftPCB-UI draws its board with its own Metal renderer because Mesh3DView drew

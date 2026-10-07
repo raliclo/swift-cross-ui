@@ -24,6 +24,25 @@ extension WinUIBackend {
         button.refreshAccessibilityName()
     }
 
+    /// Fluent's "critical" colour, `SystemFillColorCriticalBrush`, read from the
+    /// application's theme resources -- what WinUI itself uses for an error or
+    /// a destructive action. WinUI has no destructive button style, so the
+    /// label carries it, as on AppKit and UIKit; the chrome is left alone.
+    /// `nil` when the resource cannot be read, which leaves the label as is.
+    /// Fluent 的「critical」色 `SystemFillColorCriticalBrush`,自 app 的主題資源讀取——WinUI 本身用於錯誤與危險動作的顏色。
+    /// WinUI 沒有危險按鈕樣式，因此由標籤承載，與 AppKit、UIKit 相同；外框不動。讀不到資源時回傳 `nil`,標籤維持原樣。
+    public func destructiveButtonLabelColor(in environment: EnvironmentValues) -> SwiftCrossUI.Color? {
+        guard
+            let brush = WinUI.Application.current?.resources
+                .lookup("SystemFillColorCriticalBrush") as? WinUI.SolidColorBrush
+        else { return nil }
+        let colour = brush.color
+        return SwiftCrossUI.Color(
+            red: Double(colour.r) / 255, green: Double(colour.g) / 255, blue: Double(colour.b) / 255,
+            opacity: Double(colour.a) / 255
+        )
+    }
+
     public func buttonPadding(in environment: EnvironmentValues) -> SIMD2<Int> {
         switch environment.resolvedButtonStyle.kind {
             case .bordered: measureBorderedButtonPadding()

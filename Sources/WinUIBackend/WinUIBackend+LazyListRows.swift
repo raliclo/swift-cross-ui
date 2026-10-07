@@ -288,7 +288,11 @@ extension WinUIBackend: BackendFeatures.LazyListRows {
         container.contentTemplate = nil
         container.content = row.widget
         container.horizontalContentAlignment = .left
-        container.padding = Thickness(left: 16, top: 8, right: 12, bottom: 8)
+        if let row = container as? WinUI.ListViewItem {
+            listView.styleRow(row)
+        } else {
+            container.padding = listView.rowPadding
+        }
         traceLazyRow("prepare index=\(index)")
     }
 

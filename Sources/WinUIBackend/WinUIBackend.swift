@@ -1646,6 +1646,34 @@ public final class WinUIBackend:
         var currentItems: [WinUI.ListViewItem] = []
         var cachedSelectedItem: Int? = nil
 
+        /// `.listStyle(.sidebar)`: drawn as a NavigationView pane is -- the
+        /// pane background resource and 36-pixel rows with tighter padding --
+        /// rather than as a content list. Until 2026-10-07 this backend never
+        /// read `backendListStyle`, so `.sidebar` looked like `.default` here.
+        /// `.listStyle(.sidebar)`:畫成 NavigationView 窗格的樣子——窗格背景資源、36 像素高且內距較緊的列——而非內容清單。
+        /// 2026-10-07 之前本 backend 從未讀取 `backendListStyle`,因此 `.sidebar` 在這裡看起來與 `.default` 無異。
+        var isSidebar = false
+
+        static let sidebarRowHeight = 36
+        static let defaultRowHeight = 40
+
+        var rowPadding: Thickness {
+            isSidebar
+                ? Thickness(left: 12, top: 6, right: 12, bottom: 6)
+                : Thickness(left: 16, top: 8, right: 12, bottom: 8)
+        }
+
+        /// The padding and height every row gets, on the eager and lazy paths.
+        /// eager 與 lazy 兩條路徑上每一列都套用的內距與高度。
+        func styleRow(_ row: WinUI.ListViewItem) {
+            row.padding = rowPadding
+            if isSidebar {
+                row.minHeight = Double(Self.sidebarRowHeight)
+            } else {
+                try? row.clearValue(WinUI.FrameworkElement.minHeightProperty)
+            }
+        }
+
         /// Set by `setLazyRows`. When present, the list is on the lazy path: its
         /// content comes from here per visible row rather than from an eager
         /// array, and selection is addressed by index instead of by holding
@@ -1721,21 +1749,33 @@ public final class WinUIBackend:
     ) {
         let listView = selectableListView as! CustomListView
         listView.isEnabled = environment.isEnabled
+        let isSidebar = environment.backendListStyle == .sidebar
+        listView.isSidebar = isSidebar
+        if isSidebar,
+            let pane = WinUI.Application.current?.resources
+                .lookup("NavigationViewDefaultPaneBackground") as? WinUI.Brush
+        {
+            listView.background = pane
+        } else {
+            try? listView.clearValue(WinUI.Control.backgroundProperty)
+        }
     }
 
     public func baseItemPadding(ofSelectableListView listView: Widget) -> EdgeInsets {
-        EdgeInsets(
-            top: 8,
-            bottom: 8,
-            leading: 16,
-            trailing: 12
+        let padding = (listView as! CustomListView).rowPadding
+        return EdgeInsets(
+            top: padding.top,
+            bottom: padding.bottom,
+            leading: padding.left,
+            trailing: padding.right
         )
     }
 
     public func minimumRowSize(ofSelectableListView listView: Widget) -> SIMD2<Int> {
-        SIMD2(
+        let listView = listView as! CustomListView
+        return SIMD2(
             80,
-            40
+            listView.isSidebar ? CustomListView.sidebarRowHeight : CustomListView.defaultRowHeight
         )
     }
 
@@ -1769,7 +1809,7 @@ public final class WinUIBackend:
             }
             listItem.horizontalContentAlignment = .left
             listItem.content = item
-            listItem.padding = Thickness(left: 16, top: 8, right: 12, bottom: 8)
+            listView.styleRow(listItem)
             if items.count != listView.currentItems.count {
                 listItems.append(listItem)
                 listView.items.append(listItem)
