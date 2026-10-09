@@ -185,6 +185,9 @@ enum SVGPaintValue: Sendable {
     /// `opacity` is the fill- or stroke-opacity, applied on top of the stops.
     /// `opacity` 是 fill- 或 stroke-opacity,套用在色標之上。
     case gradient(SVGGradient, opacity: Double)
+    /// `opacity` is the fill- or stroke-opacity, applied on top of the tile.
+    /// `opacity` 是 fill- 或 stroke-opacity,套用在圖塊之上。
+    case pattern(SVGPattern, opacity: Double)
 
     /// A per-pixel colour source for drawing through `device` (user space to
     /// device pixels); nil when nothing can be drawn.
@@ -199,6 +202,12 @@ enum SVGPaintValue: Sendable {
                     let toGradient = device.concatenating(gradient.transform).inverted()
                 else { return nil }
                 return .gradient(gradient, toGradient: toGradient, opacity: Float(opacity))
+            case .pattern(let pattern, let opacity):
+                let toDevice = device.concatenating(pattern.transform)
+                guard opacity > 0, let toPattern = toDevice.inverted(),
+                    let tile = SVGPatternTile(pattern, toDevice: toDevice)
+                else { return nil }
+                return .pattern(tile, toPattern: toPattern, opacity: Float(opacity))
         }
     }
 }
@@ -208,6 +217,7 @@ enum SVGPaintValue: Sendable {
 enum SVGShader {
     case solid(SVGPremultiplied)
     case gradient(SVGGradient, toGradient: SVGTransform, opacity: Float)
+    case pattern(SVGPatternTile, toPattern: SVGTransform, opacity: Float)
 
     func color(x: Int, y: Int) -> SVGPremultiplied {
         switch self {
@@ -216,6 +226,9 @@ enum SVGShader {
             case .gradient(let gradient, let toGradient, let opacity):
                 let point = toGradient.apply(SVGPoint(Double(x) + 0.5, Double(y) + 0.5))
                 return gradient.color(at: point).scaled(opacity)
+            case .pattern(let tile, let toPattern, let opacity):
+                let point = toPattern.apply(SVGPoint(Double(x) + 0.5, Double(y) + 0.5))
+                return tile.color(at: point).scaled(opacity)
         }
     }
 }
@@ -385,12 +398,20 @@ extension SVGBuilder {
         return SVGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    /// A text run is drawn in text space, its anchor at the origin; a gradient
+    /// A text run is drawn in text space, its anchor at the origin; a gradient or pattern
     /// resolved against the `<text>` element's user space moves with it.
-    /// 一段文字在文字空間中繪製，錨點位於原點；針對 `<text>` 元素使用者空間解析的漸層需隨之平移。
+    /// 一段文字在文字空間中繪製，錨點位於原點；針對 `<text>` 元素使用者空間解析的漸層或圖樣需隨之平移。
     static func shifted(_ paint: SVGPaintValue?, x: Double, y: Double) -> SVGPaintValue? {
-        guard case .gradient(var gradient, let opacity)? = paint else { return paint }
-        gradient.transform = SVGTransform.translate(-x, -y).concatenating(gradient.transform)
-        return .gradient(gradient, opacity: opacity)
+        let shift = SVGTransform.translate(-x, -y)
+        switch paint {
+            case .gradient(var gradient, let opacity)?:
+                gradient.transform = shift.concatenating(gradient.transform)
+                return .gradient(gradient, opacity: opacity)
+            case .pattern(var pattern, let opacity)?:
+                pattern.transform = shift.concatenating(pattern.transform)
+                return .pattern(pattern, opacity: opacity)
+            default:
+                return paint
+        }
     }
 }

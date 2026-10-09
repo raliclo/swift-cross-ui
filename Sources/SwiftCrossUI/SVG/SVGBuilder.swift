@@ -250,7 +250,7 @@ final class SVGBuilder {
         return result
     }
 
-    private func parseViewBox(_ element: SVGXMLElement) -> SVGViewBox? {
+    func parseViewBox(_ element: SVGXMLElement) -> SVGViewBox? {
         guard let text = element[attribute: "viewBox"] else { return nil }
         guard let values = SVGNumberScanner.numbers(in: text), values.count == 4,
             values[2] > 0, values[3] > 0
@@ -261,7 +261,7 @@ final class SVGBuilder {
         return SVGViewBox(x: values[0], y: values[1], width: values[2], height: values[3])
     }
 
-    private func parseAspect(_ element: SVGXMLElement) -> SVGAspectRatio {
+    func parseAspect(_ element: SVGXMLElement) -> SVGAspectRatio {
         let text = element[attribute: "preserveAspectRatio"]
         if let aspect = SVGAspectRatio.parse(text) { return aspect }
         report(.invalidValue, element, "preserveAspectRatio='\(text ?? "")'")
@@ -456,7 +456,7 @@ final class SVGBuilder {
             }
             let id = reference.hasPrefix("#") ? String(reference.dropFirst()) : reference
             if let target = elementsByID[id] {
-                if Self.gradientNames.contains(target.localName) {
+                if Self.gradientNames.contains(target.localName) || target.localName == "pattern" {
                     return .server(target, fallback: fallback)
                 }
                 return .unsupported("paint server <\(target.localName)> (\(reference))", fallback: fallback)
@@ -484,7 +484,12 @@ final class SVGBuilder {
             case .currentColor:
                 color = style.color
             case .server(let target, _):
-                guard opacity > 0, let gradient = gradient(target, box: box(), style: style) else {
+                guard opacity > 0 else { return nil }
+                if target.localName == "pattern" {
+                    guard let pattern = pattern(target, box: box()) else { return nil }
+                    return .pattern(pattern, opacity: opacity)
+                }
+                guard let gradient = gradient(target, box: box(), style: style) else {
                     return nil
                 }
                 return .gradient(gradient, opacity: opacity)
