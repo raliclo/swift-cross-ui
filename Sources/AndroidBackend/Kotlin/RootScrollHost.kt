@@ -246,6 +246,15 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
     // 自己的預設尺寸排版,rwdView 以螢幕尺寸(AndroidBackend.size(ofWindow:))。
     private var onModeChange: SwiftAction? = null
 
+    // The mode button's light or dark chrome; see ViewModeButton.setDark.
+    // 模式按鈕的淺色或深色外觀;見 ViewModeButton.setDark。
+    fun setChromeDark(dark: Boolean) {
+        chromeDark = dark
+        button?.setDark(dark)
+    }
+
+    private var chromeDark = false
+
     fun setOnModeChange(action: SwiftAction?) {
         onModeChange = action
     }
@@ -324,6 +333,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         params.topMargin = topInset + margin
         addView(made, params)
         button = made
+        made.setDark(chromeDark)
     }
 }
 
@@ -586,6 +596,21 @@ private class ViewModeButton(context: Context, initial: Int, private val onToggl
         minHeight = (28 * density).toInt()
         minimumHeight = minHeight
         slop = 4 * density
+    }
+
+    // Light or dark chrome, as UIKit's systemBackground and label follow the
+    // window's scheme: white at 90% with black text, or black at 90% with white
+    // text. It stayed light on P15-DARK's black page (2026-10-09).
+    // 淺色或深色外觀，如同 UIKit 的 systemBackground 與 label 跟著視窗配色:白 90% 黑字，或黑 90% 白字。P15-DARK 的黑頁上它
+    // 一直是淺色(2026-10-09)。
+    fun setDark(dark: Boolean) {
+        val density = resources.displayMetrics.density
+        val face = android.graphics.drawable.GradientDrawable()
+        face.cornerRadius = 6 * density
+        face.setColor(if (dark) 0xE6000000.toInt() else 0xE6FFFFFF.toInt())
+        face.setStroke(maxOf(1, density.toInt()), if (dark) 0x99545458.toInt() else 0x4A3C3C43)
+        background = face
+        setTextColor(if (dark) 0xFFFFFFFF.toInt() else 0xFF000000.toInt())
     }
 
     fun setModeIndex(newMode: Int) {

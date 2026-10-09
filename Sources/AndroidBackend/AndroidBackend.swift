@@ -497,6 +497,7 @@ public final class AndroidBackend: BaseAppBackend {
         // 以及為何不用字面值，見 AndroidBackendHelpers.kt 的 `setWindowBackground`。
         if let activity = activity(of: window) {
             helpers.setWindowBackground(activity, environment.colorScheme == .dark)
+            window.scrollHost?.setChromeDark(environment.colorScheme == .dark)
         }
         updateInsets(ofWindow: window)
     }

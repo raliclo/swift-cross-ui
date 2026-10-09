@@ -51,4 +51,7 @@ class RootScrollHost: AndroidView.View {
 
     @JavaMethod
     func setOnModeChange(_ action: SwiftAction?)
+
+    @JavaMethod
+    func setChromeDark(_ dark: Bool)
 }
