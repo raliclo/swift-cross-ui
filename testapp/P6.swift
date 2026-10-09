@@ -928,6 +928,14 @@ struct P6StreamPlayerView: View {
                 Text("this screen still works.")
             }
             .frame(width: 960, alignment: .leading)
+            #elseif os(Android)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Playback unavailable on Android: no")
+                Text("ffmpeg is installed on the device, and P6")
+                Text("decodes by running ffmpeg. The rest of")
+                Text("this screen still works.")
+            }
+            .frame(width: 960, alignment: .leading)
             #endif
 
             ZStack(alignment: .center) {
@@ -985,6 +993,11 @@ struct P6StreamPlayerView: View {
                     // 完整原因寫在方框上方那一行與狀態列；此處只是讓這個黑色矩形不
                     // 至於被誤讀成壞掉的影像表面。
                     Text("Playback unavailable on iOS")
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .frame(width: 960, alignment: .leading)
+                    #elseif os(Android)
+                    Text("Playback unavailable on Android")
                         .foregroundColor(.white)
                         .padding(12)
                         .frame(width: 960, alignment: .leading)
@@ -1327,6 +1340,14 @@ final class P6StreamPlayerModel: SwiftCrossUI.ObservableObject {
             "Playback is unavailable on this platform: an app here cannot start "
             + "another program, and P6 decodes by running ffmpeg. Everything else "
             + "on this screen still works."
+        #elseif os(Android)
+        // Android can start a process, but no ffmpeg ships on the device, so the
+        // outcome is the same as on iOS and is said up front the same way (user,
+        // 2026-10-09). Android 可以啟動行程，但裝置上沒有 ffmpeg,結果與 iOS 相同，所以同樣一開始就說明(使用者,2026-10-09)。
+        return
+            "Playback is unavailable on this device: no ffmpeg is installed on "
+            + "Android, and P6 decodes by running ffmpeg. Everything else on this "
+            + "screen still works."
         #else
         return "Ready. ffmpeg, ffprobe, and zstd are searched on PATH plus platform tool directories."
         #endif
