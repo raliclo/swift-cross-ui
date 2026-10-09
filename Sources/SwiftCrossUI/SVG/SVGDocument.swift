@@ -119,16 +119,20 @@ public struct SVGDocument: Sendable, Equatable {
     ///
     /// 解析 SVG 原始碼。XML 格式錯誤或根元素不是 `<svg>` 時拋出 ``SVGParseError``;不那麼嚴重的
     /// 問題則記入 ``diagnostics``。
-    public init(data: [UInt8]) throws {
+    ///
+    /// `baseURL` is where the document was read from: an `<image>` may then refer
+    /// to a file in that folder or below. Without it only `data:` pictures draw.
+    /// `baseURL` 是文件讀取的位置：此時 `<image>` 可參照該資料夾及其下的檔案。沒有它時只畫 `data:` 圖片。
+    public init(data: [UInt8], baseURL: URL? = nil) throws {
         let root = try SVGXMLReader.parse(data)
         guard root.localName == "svg" else {
             throw SVGParseError(offset: 0, message: "the root element is <\(root.name)>, not <svg>")
         }
-        storage = SVGBuilder.build(root: root)
+        storage = SVGBuilder.build(root: root, baseURL: baseURL)
     }
 
-    public init(string: String) throws {
-        try self.init(data: Array(string.utf8))
+    public init(string: String, baseURL: URL? = nil) throws {
+        try self.init(data: Array(string.utf8), baseURL: baseURL)
     }
 
     /// Reads a local file. Remote URLs are refused, as in ``Image``.
@@ -137,7 +141,7 @@ public struct SVGDocument: Sendable, Equatable {
         guard url.isFileURL else {
             throw SVGParseError(offset: 0, message: "only file URLs are read: \(url)")
         }
-        try self.init(data: Array(try Data(contentsOf: url)))
+        try self.init(data: Array(try Data(contentsOf: url)), baseURL: url)
     }
 
     init(storage: Storage) {

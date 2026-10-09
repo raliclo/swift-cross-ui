@@ -5,12 +5,11 @@ import ImageFormats
 // formats ImageFormats decodes. The picture becomes a paint, and the element a
 // rectangle filled with it -- the viewport, or the placed picture where that
 // is smaller -- so its edges are antialiased like any other shape's.
-// A file reference (`href="photo.png"`) is still reported and outlined: a
-// document parsed from a string has no place to resolve it against.
+// File references and pictures that are SVGs: see SVGImageFiles.swift.
 //
 // 帶 `data:` URI 的 `<image>`(2026-10-10):PNG、JPEG 以及 ImageFormats 能解碼的其他點陣格式。圖片成為
 // 一種塗料，元素則是以它填充的矩形——視窗，或在較小時為放置後的圖片——因此邊緣與其他形狀一樣有抗鋸齒。
-// 檔案參照(`href="photo.png"`)仍會被回報並框出：從字串解析的文件沒有可供解析它的位置。
+// 檔案參照與內容為 SVG 的圖片見 SVGImageFiles.swift。
 
 /// A decoded picture and where its pixels go.
 /// 解碼後的圖片，以及其像素的位置。
@@ -91,18 +90,36 @@ extension SVGBuilder {
         return (payload.removingPercentEncoding ?? payload).utf8.map { $0 }
     }
 
-    /// The nodes of an `<image>` whose `href` is a raster `data:` URI; nil when
-    /// it is not one or cannot be decoded, for the caller to report.
-    /// `href` 為點陣 `data:` URI 之 `<image>` 的節點；不是或無法解碼時為 nil,由呼叫端回報。
+    /// The nodes of an `<image>`: a raster picture or an SVG, from a `data:`
+    /// URI or a file beside the document; `.failure` says why it is not drawn.
+    /// `<image>` 的節點：點陣圖片或 SVG,來自 `data:` URI 或文件旁的檔案；`.failure` 說明不繪製的原因。
     func imageNodes(_ element: SVGXMLElement, style: Style, transform: SVGTransform)
-        -> [SVGRenderNode]?
+        -> Result<[SVGRenderNode], SVGImageProblem>
     {
-        guard let href = element[attribute: "href"] ?? element[attribute: "xlink:href"],
-            let bytes = Self.dataURIBytes(href),
-            let picture = try? ImageFormats.Image<RGBA>.load(from: bytes),
+        guard let href = element[attribute: "href"] ?? element[attribute: "xlink:href"] else {
+            return .failure(SVGImageProblem("it has no href"))
+        }
+        let bytes: [UInt8]
+        var source: URL? = nil
+        if let data = Self.dataURIBytes(href) {
+            bytes = data
+        } else {
+            switch fileBytes(href) {
+                case .success(let found):
+                    bytes = found.bytes
+                    source = found.url
+                case .failure(let problem):
+                    return .failure(problem)
+            }
+        }
+        if SVGDocument.looksLikeSVG(bytes) {
+            return svgImageNodes(
+                bytes, source: source, element: element, style: style, transform: transform)
+        }
+        guard let picture = try? ImageFormats.Image<RGBA>.load(from: bytes),
             picture.width > 0, picture.height > 0
-        else { return nil }
-        guard style.visible else { return [] }
+        else { return .failure(SVGImageProblem("the picture cannot be decoded")) }
+        guard style.visible else { return .success([]) }
 
         // width/height absent or auto: the picture's own size (SVG 2).
         // 沒有 width/height 或為 auto:圖片本身的大小(SVG 2)。
@@ -116,7 +133,7 @@ extension SVGBuilder {
         let y = element[attribute: "y"].flatMap { length($0, axis: .y) } ?? 0
         let width = size("width", .x, intrinsic: picture.width)
         let height = size("height", .y, intrinsic: picture.height)
-        guard width > 0, height > 0 else { return [] }
+        guard width > 0, height > 0 else { return .success([]) }
 
         let placement = SVGTransform.translate(x, y).concatenating(
             parseAspect(element).transform(
@@ -132,7 +149,7 @@ extension SVGBuilder {
         let right = min(max(a.x, b.x), x + width)
         let top = max(min(a.y, b.y), y)
         let bottom = min(max(a.y, b.y), y + height)
-        guard right > left, bottom > top else { return [] }
+        guard right > left, bottom > top else { return .success([]) }
         var path = SVGPath()
         path.segments = [
             .move(SVGPoint(left, top)), .line(SVGPoint(right, top)),
@@ -143,6 +160,6 @@ extension SVGBuilder {
             fill: .image(SVGRasterImage(picture, transform: placement)), fillRule: .nonzero,
             stroke: nil, strokeWidth: 0, lineCap: .butt, lineJoin: .miter, miterLimit: 4,
             dashes: nil, dashOffset: 0)
-        return [.shape(shape)]
+        return .success([.shape(shape)])
     }
 }

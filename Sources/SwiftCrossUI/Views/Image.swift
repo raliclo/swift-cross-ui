@@ -201,7 +201,8 @@ extension Image: TypeSafeView {
                             image = nil
                             children.cachedSVG = Self.loadSVG(
                                 bytes, name: url.lastPathComponent,
-                                drawsText: backend is any BackendFeatures.SVGText)
+                                drawsText: backend is any BackendFeatures.SVGText,
+                                baseURL: url.isFileURL ? url : nil)
                         } else if useFileExtension {
                             image = try? ImageFormats.Image<RGBA>.load(
                                 from: bytes,
@@ -358,10 +359,12 @@ extension Image: TypeSafeView {
         return { request in MainActor.assumeIsolated { text.svgTextMask(request) } }
     }
 
-    static func loadSVG(_ bytes: [UInt8], name: String, drawsText: Bool = false) -> SVGDocument {
+    static func loadSVG(
+        _ bytes: [UInt8], name: String, drawsText: Bool = false, baseURL: URL? = nil
+    ) -> SVGDocument {
         let document: SVGDocument
         do {
-            document = try SVGDocument(data: bytes)
+            document = try SVGDocument(data: bytes, baseURL: baseURL)
         } catch {
             document = SVGDocument.unreadable(error)
         }

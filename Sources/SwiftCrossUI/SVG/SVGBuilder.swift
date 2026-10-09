@@ -107,9 +107,23 @@ final class SVGBuilder {
     /// The <clipPath> and <mask> elements being built, against cycles.
     /// 正在建構的 <clipPath> 與 <mask> 元素，用來防止循環。
     var effectStack: [ObjectIdentifier] = []
+    /// Where the document was read from, for `<image href="file">`; nil for a string.
+    /// 文件讀取的位置，供 `<image href="file">` 使用；從字串解析時為 nil。
+    var baseURL: URL?
+    /// The SVG files being drawn as images, outermost first, against cycles.
+    /// 正在當作影像繪製的 SVG 檔，最外層在前，用來防止循環。
+    var imageChain: [URL] = []
 
-    static func build(root: SVGXMLElement) -> SVGDocument.Storage {
+    static func build(
+        root: SVGXMLElement, baseURL: URL? = nil, chain: [URL] = []
+    ) -> SVGDocument.Storage {
         let builder = SVGBuilder()
+        builder.baseURL = baseURL
+        // The document itself counts, so a picture of itself stops at once.
+        // 文件本身也算在內，因此畫自己的圖片會立刻停止。
+        builder.imageChain =
+            chain.isEmpty
+            ? baseURL.map { [$0.standardizedFileURL.resolvingSymlinksInPath()] } ?? [] : chain
         return builder.run(root)
     }
 
@@ -694,14 +708,16 @@ final class SVGBuilder {
             case "text":
                 return buildText(element, style: style, transform: transform)
             case "image", "foreignObject", "video", "audio", "canvas", "iframe":
-                if name == "image", let nodes = imageNodes(element, style: style, transform: transform) {
-                    return wrap(nodes, style: style, element: element, transform: transform)
+                var detail = "<\(name)> is not drawn"
+                if name == "image" {
+                    switch imageNodes(element, style: style, transform: transform) {
+                        case .success(let nodes):
+                            return wrap(nodes, style: style, element: element, transform: transform)
+                        case .failure(let problem):
+                            detail = "<image> is not drawn: \(problem.detail)"
+                    }
                 }
-                report(
-                    .unsupportedElement, element,
-                    name == "image"
-                        ? "<image> is not drawn: only data: URIs of raster pictures are"
-                        : "<\(name)> is not drawn")
+                report(.unsupportedElement, element, detail)
                 let x = attributeLength(element, "x", axis: .x, style: style)
                 let y = attributeLength(element, "y", axis: .y, style: style)
                 let width = attributeLength(element, "width", axis: .x, style: style)

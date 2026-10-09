@@ -38,7 +38,7 @@
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
   - [ ] **SVG not yet drawn:** filter primitives outside the subset below (feTurbulence,
     feMorphology, feConvolveMatrix, lighting, feImage, feTile, feDisplacementMap) and `<image>`
-    with a file reference (only `data:` URIs are decoded);
+    with a file outside the document's folder or on the network (refused on purpose);
     each is reported and outlined today. (Gradients, clipPath, mask, patterns, markers, data: images and the
     common filters are drawn since 2026-10-10; P87 shows them together.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
@@ -105,6 +105,17 @@
       A file reference (`href="photo.png"`) is still reported and outlined: a
       document parsed from a string has nowhere to resolve it. Checked:
       SVGImageTests (8), all 83 SVG tests.
+    - [x] **`<image>` of a file, and of an SVG** (2026-10-10). A document read
+      from a file (`SVGDocument(contentsOf:)`, `baseURL:`, and `Image` for a
+      file URL) reads pictures from its own folder or below; absolute paths,
+      `../` escapes and network addresses are refused and reported, and a
+      document from a string still reads none. A picture that is an SVG (file
+      or `data:image/svg+xml`) is placed as vectors -- its nodes moved and
+      scaled into the viewport and clipped to it, text still through the text
+      engine -- and what it cannot draw is reported against the `<image>`
+      ("in inner.svg: ..."). Nesting stops at 8 and at a cycle (the document
+      itself included). Checked: SVGImageFileTests (7), all 104 SVG tests, the
+      full suite (208 + 14), `compile.zsh -android P87`.
     - [x] **Filters, the common subset** (2026-10-10), run on the element's
       layer in device pixels before its clip, mask and opacity:
       feGaussianBlur (three box blurs from 2 px, an exact kernel below),
