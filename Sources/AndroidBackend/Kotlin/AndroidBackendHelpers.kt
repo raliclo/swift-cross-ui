@@ -141,6 +141,28 @@ class AndroidBackendHelpers {
         return size
     }
 
+    // RootScrollHost.originDisplacement for the host `view` sits in, or 0,0 when
+    // it is in none. 取 `view` 所在宿主的 RootScrollHost.originDisplacement,沒有宿主時為 0,0。
+    fun rootScrollDisplacement(view: View): IntArray {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is RootScrollHost) return parent.originDisplacement()
+            parent = parent.parent
+        }
+        return intArrayOf(0, 0)
+    }
+
+    // RootScrollHost.reveal for the host `view` sits in, or 0,0 when it is in
+    // none. 取 `view` 所在宿主的 RootScrollHost.reveal,沒有宿主時為 0,0。
+    fun rootScrollReveal(view: View, x: Int, y: Int): IntArray {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is RootScrollHost) return parent.reveal(x, y)
+            parent = parent.parent
+        }
+        return intArrayOf(0, 0)
+    }
+
     // A ToggleButton (`.toggleStyle(.button)`, the default style) shows on and
     // off only by the colour of a thin underline, and on the API 36 emulator the
     // two looked the same: P12's "Opposite states: they must look different"

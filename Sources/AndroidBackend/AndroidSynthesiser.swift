@@ -133,7 +133,26 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// `client` 是同一個原點，且兩者皆為零。接著由 `WindowGeometry.screenPosition(of:)` 完成點到
     /// 像素的乘算——與其他每個平台在同一個地方。
     func currentWindowGeometry() throws -> WindowGeometry {
-        WindowGeometry(frameOrigin: (0, 0), clientOrigin: (0, 0), scale: density)
+        // The client origin follows the root scroll host: since 2026-10-09 an
+        // oversized root starts at its top-left (as on iOS), not at the window
+        // origin every Android action file was measured at, so the content has
+        // moved by `rootScrollDisplacement` pixels. Adding it keeps those files
+        // pressing the same views -- and keeps them right after a scroll.
+        // client 原點跟著 root scroll 宿主走：自 2026-10-09 起，超大的根從左上角開始(與 iOS 相同),而不是每份
+        // Android 動作檔量測時的視窗原點，所以內容移動了 `rootScrollDisplacement` 像素。加上它，那些檔案按到的
+        // 仍是同一個 view——捲動之後也一樣。
+        let density = self.density
+        let shift = Self.onMainThread { () -> [Int32] in
+            guard
+                let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
+                    .window?.content
+            else { return [0, 0] }
+            return AndroidBackendHelpers(environment: AndroidBackend.env)
+                .rootScrollDisplacement(content)
+        }
+        let origin =
+            shift.count == 2 ? (Double(shift[0]) / density, Double(shift[1]) / density) : (0, 0)
+        return WindowGeometry(frameOrigin: origin, clientOrigin: origin, scale: density)
     }
 
     /// Android's double-tap timeout, read rather than assumed.
@@ -164,7 +183,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
 
         switch action {
             case .move(let point):
-                let position = try geometry.screenPosition(of: point)
+                let position = try place(point, in: geometry, reveal: true)
                 lastPoint = (Double(position.x), Double(position.y))
                 // No event. A `move` row on a touch screen has nothing to post
                 // -- there is no hover -- so it only records where the next
@@ -193,7 +212,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                 pressDownTime = try dispatch(action: actionDown, at: position, downTime: nil)
 
             case .mouseUp(_, let point):
-                let position = try resolve(point, in: geometry)
+                let position = try resolve(point, in: geometry, reveal: false)
                 _ = try dispatch(action: actionUp, at: position, downTime: pressDownTime)
                 pressDownTime = nil
 
@@ -293,12 +312,59 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// 與擊中 `AppKitSynthesiser` 的是同一個破壞、理由也相同：本檔僅限 Android，因此「在不會 throw 的
     /// 函式裡加上 `try`」在任何建不了本 backend 的機器上都看不見。2026-09-10 由合併後的第一次
     /// Android 建置發現。
+    /// Pixels the replay has scrolled the root host by itself, to reach points
+    /// that started off screen. Subtracted from every later point, because the
+    /// file did not know about that scroll.
+    /// 重放自己把 root 宿主捲動的像素量(為了觸及一開始在畫面外的點)。之後的每個點都要減掉它，因為檔案不知道
+    /// 有這次捲動。
+    private var revealShift = (x: 0, y: 0)
+
+    /// A file point as a window pixel, brought on screen first when `reveal` is
+    /// set and the point is outside the root scroll host. See
+    /// RootScrollHost.reveal. Each scroll it makes is reported, so a capture
+    /// that ends scrolled says why.
+    /// 把檔案中的點換成視窗像素;`reveal` 為真且該點在 root 捲動宿主之外時，先把它捲進畫面。見 RootScrollHost.reveal。
+    /// 每次捲動都會回報，讓結束時是捲動狀態的截圖說得出原因。
+    private func place(
+        _ point: Point,
+        in geometry: WindowGeometry,
+        reveal: Bool
+    ) throws -> (x: Int, y: Int) {
+        let raw = try geometry.screenPosition(of: point)
+        var position = (x: raw.x - revealShift.x, y: raw.y - revealShift.y)
+        guard reveal else { return position }
+        let target = position
+        let moved = Self.onMainThread { () -> [Int32] in
+            guard
+                let content = AndroidBackend.windows.first(where: { $0.window?.token == nil })?
+                    .window?.content
+            else { return [0, 0] }
+            return AndroidBackendHelpers(environment: AndroidBackend.env)
+                .rootScrollReveal(content, Int32(target.x), Int32(target.y))
+        }
+        if moved.count == 2, moved[0] != 0 || moved[1] != 0 {
+            revealShift.x += Int(moved[0])
+            revealShift.y += Int(moved[1])
+            position.x -= Int(moved[0])
+            position.y -= Int(moved[1])
+            FileHandle.standardError.write(
+                Data(
+                    ("-actionfile: scrolled the root by (\(moved[0]), \(moved[1])) px to reach "
+                        + "(\(Int(point.x)), \(Int(point.y)))\n").utf8
+                )
+            )
+        }
+        return position
+    }
+
+
     private func resolve(
         _ point: Point?,
-        in geometry: WindowGeometry
+        in geometry: WindowGeometry,
+        reveal: Bool = true
     ) throws -> (x: Double, y: Double) {
         guard let point else { return lastPoint }
-        let position = try geometry.screenPosition(of: point)
+        let position = try place(point, in: geometry, reveal: reveal)
         lastPoint = (Double(position.x), Double(position.y))
         return lastPoint
     }
@@ -384,7 +450,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
     /// `gpio-keys` 與十二個 `virtio_input_multi_touch`),因此什麼都不會被繪製、也沒有東西可拍。
     /// 被證明的是那個**決定**:若有一個指標位於該座標,Android 解析出來的就是這個圖示。
     private func hover(at point: Point, in geometry: WindowGeometry) throws {
-        let position = try geometry.screenPosition(of: point)
+        let position = try place(point, in: geometry, reveal: true)
         lastPoint = (Double(position.x), Double(position.y))
 
         let clock = try JavaClass<SystemClock>()

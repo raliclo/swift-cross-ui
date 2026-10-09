@@ -42,6 +42,14 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func getErrorColor(_ activity: Activity?) -> Int32
 
+    /// See RootScrollHost.originDisplacement: x and y in pixels.
+    @JavaMethod
+    func rootScrollDisplacement(_ view: AndroidKit.View?) -> [Int32]
+
+    /// See RootScrollHost.reveal: the pixels scrolled, x and y.
+    @JavaMethod
+    func rootScrollReveal(_ view: AndroidKit.View?, _ x: Int32, _ y: Int32) -> [Int32]
+
     /// Tints a ToggleButton by its checked state.
     @JavaMethod
     func styleToggleButton(_ button: AndroidKit.ToggleButton?)

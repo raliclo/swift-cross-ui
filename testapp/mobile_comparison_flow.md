@@ -72,14 +72,14 @@ proves it.
 
 ## Known by-design differences (do not re-report)
 
-- **Where an oversized root starts.** Content larger than the phone is hosted
-  in a scroll view on both platforms and is reachable by scrolling on both. The
-  starting position differs on purpose: UIKit starts at the content's top-left
-  (RootScrollHost.swift); Android starts at the window origin, so content that
-  SwiftCrossUI centred past the left or top edge starts off screen
-  (RootScrollHost.kt -- 46 Android action files were measured against that
-  origin). A desktop-sized app (P2 is 600 pt wide) therefore shows its title on
-  iOS and needs a scroll on Android.
+- **Where an oversized root starts -- ALIGNED 2026-10-09 (user's decision).**
+  Content larger than the phone sits in a scroll view on both platforms. Android
+  used to start at the window origin, so a desktop-sized app that SwiftCrossUI
+  centred past the left/top edge launched with its title off screen; it now
+  starts at the content's top-left, just below the status bar, as UIKit does.
+  Old Android action files keep working: the replay adds how far the content
+  moved (`-actionfile: geometry ... client=`) and scrolls the root to reach a
+  point that starts off screen (`-actionfile: scrolled the root by ...`).
 - **Mid-word wrapping in a desktop-sized app.** When an app is wider than the
   phone, rows are squeezed and labels wrap inside words ("Rese/t",
   "Disable/d/toggle"). That is the app's size, not a backend defect.

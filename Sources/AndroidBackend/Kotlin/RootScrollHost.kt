@@ -130,54 +130,62 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         addView(horizontal, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    private var positioned = false
-
     fun host(view: View) {
         stage.host(view)
-        positioned = false
     }
 
-    // Scrolled to the content's own origin once, after the first layout.
+    // Starts at the content's top-left, as UIKitBackend's host does.
     //
-    // The shift `Stage` applies makes the leftmost pixel reachable, and that is
-    // the whole reason it exists; it also means scroll position zero shows the
-    // empty margin to the left of the content rather than the content. On P3
-    // that put the "Small" button at 1140..1371 on a 1080-wide screen, and
-    // every action file measured before this existed -- 46 of them, with
-    // coordinates like P3's `click 328,399` carrying a "VERIFIED 2026-09-03"
-    // note -- suddenly pressed nothing. Fifteen apps reported an action file
-    // that replayed and changed no pixel.
+    // Until 2026-10-09 this scrolled once to the window origin instead, so a
+    // desktop-sized app that SwiftCrossUI centred past the left or top edge
+    // launched with its title and left column off screen on Android while iOS
+    // showed them (P2: box (-246,-115)-(1329,2517) on a 1080x2400 screen). That
+    // was chosen so 46 Android action files measured against the origin kept
+    // working; the user chose to align with iOS (2026-10-09), and those files'
+    // coordinates are shifted to match. Scroll position zero IS the top-left,
+    // because `Stage` translates the content by the box's negative origin, so
+    // nothing is scrolled here.
     //
-    // Re-measuring 46 files was the alternative. This is better because the
-    // default view is the one the layout describes and the overflow stays
-    // reachable in both directions: scroll left for what is left of the origin,
-    // right for what is past the viewport.
-    //
-    // Once, not on every layout, or a scroll the user makes would be undone on
-    // the next pass.
-    //
-    // 在第一次版面計算之後,捲到內容自身的原點一次。
-    //
-    // `Stage` 所施加的位移讓最左邊的像素得以觸及,而那正是它存在的全部理由;但它同時也意味著
-    // 「捲動位置為零」顯示的是內容左側的空白邊界,而不是內容本身。在 P3 上,那把 "Small" 按鈕推到了
-    // 一個 1080 寬的螢幕上的 1140..1371;而所有在此機制存在之前量測的動作檔——共 46 份,座標如 P3 的
-    // `click 328,399`,並帶有「VERIFIED 2026-09-03」的備註——突然全都按不到任何東西。有十五支 app
-    // 回報「動作檔重放了,而且沒有改變任何一個像素」。
-    //
-    // 另一個選項是重新量測那 46 份檔案。此做法更好,因為預設畫面就是版面所描述的那一個,而溢出在兩個
-    // 方向上都仍可觸及:向左捲可看原點左側的部分,向右捲可看超出視口的部分。
-    //
-    // 只做一次,而不是每次版面計算都做,否則使用者自己捲動的結果會在下一輪被撤銷。
-    override protected fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        super.onLayout(changed, l, t, r, b)
-        if (positioned) return
+    // 與 UIKitBackend 的宿主一樣，從內容的左上角開始。2026-10-09 之前這裡會捲到視窗原點一次，所以被
+    // SwiftCrossUI 置中而超出左緣或上緣的桌面尺寸 app,在 Android 上啟動時標題與左欄在畫面外，iOS 則看得到。
+    // 當初是為了讓 46 份以原點量測的 Android 動作檔繼續可用;使用者選擇與 iOS 對齊(2026-10-09),那些檔案的
+    // 座標隨之位移。捲動位置零就是左上角，因為 `Stage` 會把內容平移 box 的負原點，所以這裡不捲。
+
+    /// How far the content's own (0,0) now sits, in pixels, from where it sat
+    /// when the host was scrolled to it -- the position every Android action
+    /// file was measured at before 2026-10-09. The replay adds this to each
+    /// point, so those files press the same views whatever the scroll.
+    /// 內容自身的 (0,0) 現在離「宿主捲到它時」的位置有多遠(像素)——2026-10-09 之前每一份 Android 動作檔都是在
+    /// 那個位置量的。重放會把它加到每個點上，因此不論捲到哪裡，那些檔案按到的都是同一個 view。
+    fun originDisplacement(): IntArray {
         val origin = stage.originOffset
-        if (origin.x == 0 && origin.y == 0 && stage.width == 0) return
-        positioned = true
-        post {
-            horizontal.scrollTo(origin.x, 0)
-            vertical.scrollTo(0, origin.y)
+        return intArrayOf(origin.x - horizontal.scrollX, origin.y - vertical.scrollY)
+    }
+
+    /// Scrolls just enough that the window point `x`,`y` (pixels) is inside this
+    /// host with a margin, and returns how far it scrolled. For the action-file
+    /// replay: a file measured when an oversized root started at the window
+    /// origin can name a control that, since the root starts at its top-left
+    /// (2026-10-09, as on iOS), begins off screen -- P3's "Small" at x 1370 on
+    /// a 1080 screen. The replay asks for it to be brought into view, as
+    /// XCUITest does for an element it taps.
+    /// 捲動剛好足夠的量，讓視窗座標 `x`,`y`(像素)帶著邊界落在本宿主內，並回傳捲了多少。給動作檔重放用：在超大
+    /// 的根從視窗原點開始時量的檔案，可能指向一個自從根改從左上角開始(2026-10-09,與 iOS 相同)後一開始就在畫面外的
+    /// 控制項——P3 的「Small」在 1080 寬的螢幕上位於 x 1370。重放要求把它捲進畫面，如同 XCUITest 點元件時所做的。
+    fun reveal(x: Int, y: Int): IntArray {
+        val location = IntArray(2)
+        getLocationInWindow(location)
+        val margin = (24 * resources.displayMetrics.density).toInt()
+        fun need(p: Int, start: Int, size: Int): Int = when {
+            p < start + margin -> p - (start + margin)
+            p > start + size - margin -> p - (start + size - margin)
+            else -> 0
         }
+        val beforeX = horizontal.scrollX
+        val beforeY = vertical.scrollY
+        horizontal.scrollBy(need(x, location[0], width), 0)
+        vertical.scrollBy(0, need(y, location[1], height))
+        return intArrayOf(horizontal.scrollX - beforeX, vertical.scrollY - beforeY)
     }
 
     fun getModeIndex(): Int = stage.mode
@@ -366,6 +374,25 @@ private class Stage(context: Context) : ViewGroup(context) {
         // 整棵子樹，而 `onLayout` 之後只移動根。
         child.layout(0, 0, child.measuredWidth, child.measuredHeight)
         RootScrollHost.contentBounds(child, box)
+        // The top and left edges come from the safe-area child's own overflow,
+        // not from the window-sized root. The root fills the window and puts
+        // the app's content at the insets (`updateInsets`), so content that
+        // overflows upward reached into the status bar: since scrolling starts
+        // at the top-left (as on iOS), P2's title sat under the status bar,
+        // where iOS shows it just below. Measured from the safe child, the
+        // topmost pixel lands at the inset instead. Content that does not
+        // overflow is unchanged: its child overflow is zero.
+        // 上緣與左緣取自安全區域子元件自身的溢出，而不是佔滿視窗的根。根佔滿視窗，並把 app 的內容放在 inset 處
+        // (`updateInsets`),所以往上溢出的內容伸進了狀態列：自從改為從左上角開始捲動(與 iOS 相同),P2 的標題就落在
+        // 狀態列底下，而 iOS 把它顯示在狀態列正下方。改從安全子元件量，最上面的像素就落在 inset 處。沒有溢出的內容不變：
+        // 它的子元件溢出為零。
+        val safe = (child as? ViewGroup)?.takeIf { it.childCount > 0 }?.getChildAt(0)
+        if (safe != null) {
+            val inner = Rect()
+            RootScrollHost.contentBounds(safe, inner)
+            box.left = minOf(0, inner.left)
+            box.top = minOf(0, inner.top)
+        }
 
         scale =
             if (
