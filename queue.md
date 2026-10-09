@@ -406,7 +406,7 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
     returned it to 536x659.
   WinUI 項目：日期選擇器前景色、等寬字型、picker 字型(TODO 已過時)、全螢幕偵測已驅動驗證;**縮放變更未驅動**
   (這台只有一台 96 DPI 的螢幕),因此本項維持未勾。
-- [ ] **`Button(_:role: .destructive)` changes nothing on any backend** (found
+- [x] **`Button(_:role: .destructive)` changes nothing on any backend** (found
   2026-10-07). The core passes the role to `updateButton` in the environment
   (`Button.swift:438`), and no backend reads it there: on GtkBackend (macOS)
   "button, destructive" drew like any other button. Only GTK's
@@ -548,7 +548,8 @@ toolchain was installed (2026-10-05); it is done below.
   - Windows GTK drawing stays unverified: WGL follows the display adapter, and
     that is the basic display driver until the AMD adapter works again.
   - Found on the way: twice tonight `test.zsh --wsl` printed a WSL build error
-    and still returned 0 and ran the previous binary.
+    and still returned 0 and ran the previous binary. FIXED 9cd24054 (run_build),
+    verified on --macos, --windows and --wsl.
   傍晚稍後：WARP 與 GDI Generic 的原因已查明——內顯 AMD 退回 Basic Display Driver,預設 D3D 介面卡因此是 WARP。WinUI 現改用
   硬體介面卡(RTX 4060);WSL GTK 修正 GLES shader 後 P72/P76/P77 全部成立;Windows GTK 須等 AMD 介面卡恢復。
   WinUI 於 2026-10-07 完成(D3D11 + SwapChainPanel,在 WARP 上 P72/P76/P77 全部成立)。Windows GTK:修好一個崩潰(產生的
