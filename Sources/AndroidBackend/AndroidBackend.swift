@@ -27,6 +27,18 @@ public func entrypoint(_ env: UnsafeMutablePointer<JNIEnv?>, _ object: jobject) 
 
     let holder = JavaObjectHolder(object: object, environment: env)
     AndroidBackend.activity = Activity(javaHolder: holder)
+    // Every MainActivity.onCreate lands here and runs the app again, so its
+    // first window belongs in THIS activity. The flag is a static and outlived
+    // the previous run: when the system recreated the activity -- a theme
+    // overlay applied shortly after boot does, and configChanges cannot cover
+    // an assets change -- the rerun's main window took a token, opened as a
+    // ScuiWindowActivity beside a blank MainActivity, and P83 showed an empty
+    // screen (API 36 emulator, 2026-10-09; reproduced by toggling
+    // `cmd overlay enable com.android.internal.display.cutout.emulation.corner`).
+    // 每次 MainActivity.onCreate 都會來到這裡、重新執行 app,所以它的第一個視窗屬於**這個** activity。
+    // 這個旗標是 static,活過了上一次執行：系統重建 activity 時(開機後不久套用主題覆蓋層就會，而 configChanges
+    // 涵蓋不了 assets 變更),重跑的主視窗拿到 token,變成空白 MainActivity 旁的 ScuiWindowActivity,P83 一片空白。
+    AndroidBackend.didCreateMainWindow = false
 
     // Source: https://phatbl.at/2019/01/08/intercepting-stdout-in-swift.html
     func makeMessageHandler(priority: UInt32) -> @Sendable (FileHandle) -> Void {

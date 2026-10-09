@@ -173,10 +173,24 @@ class AndroidBackendHelpers {
             val pill = android.graphics.drawable.GradientDrawable()
             pill.cornerRadius = 28 * density
             pill.setColor(themeColor(android.R.attr.colorControlHighlight))
-            listView.selector = android.graphics.drawable.InsetDrawable(
+            // An InsetDrawable reports its insets as padding, and AbsListView
+            // adds a selector's padding to the list padding it lays rows out
+            // in: every row moved 8 dp right and overflowed the right edge, so
+            // the pill's right inset was clipped away (P83, measured 2026-10-09:
+            // panel 561..1033 px, pill 603..1033). The insets stay in the
+            // drawing; the padding is reported as none.
+            // InsetDrawable 會把 inset 當成 padding 回報，而 AbsListView 把 selector 的 padding 加進排列各列的
+            // list padding:每一列右移 8 dp 並超出右緣，膠囊的右側內縮被裁掉(P83,2026-10-09 量測：面板 561..1033 px,
+            // 膠囊 603..1033)。inset 仍留在繪製中，padding 則回報為零。
+            listView.selector = object : android.graphics.drawable.InsetDrawable(
                 pill, (8 * density).toInt(), (2 * density).toInt(),
                 (8 * density).toInt(), (2 * density).toInt()
-            )
+            ) {
+                override fun getPadding(padding: android.graphics.Rect): Boolean {
+                    padding.set(0, 0, 0, 0)
+                    return false
+                }
+            }
             // The selected row: a pill in the accent at a quarter strength, the
             // drawer's active indicator. 被選取的列：四分之一強度的 accent 膠囊，即抽屜的 active indicator。
             val accent = themeColor(android.R.attr.colorAccent)

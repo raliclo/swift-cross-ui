@@ -692,8 +692,11 @@ emulator restart: the first version changed nothing visible (colorBackgroundFloa
 equals the window background there, and the selected row's highlight is the
 adapter's per-row foreground, not the ListView selector), so the panel now lays
 colorControlHighlight over it and CustomListAdapter draws the selected row as an
-inset pill. P83: panel, no dividers, pill moves with a tap. Open: the pill's right
-inset is clipped at the panel edge (rows wider than the list).
+inset pill. P83: panel, no dividers, pill moves with a tap. The pill's right
+inset was clipped at the panel edge -- FIXED 2026-10-09: the selector's InsetDrawable
+reported its insets as padding, which AbsListView adds to the list padding, so
+every row shifted 8 dp right; it now reports none (pill 582..1012 px in a
+561..1033 panel, 21 px each side).
 
 ### Swift 6 language mode, module by module (Windows)
 
