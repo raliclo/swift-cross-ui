@@ -1188,3 +1188,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P9,ok,n/a,screen,default,iOS/Android comparison: aligned with iOS (text-field chrome and glyph widths are the platforms').
 2026-10-09,ios,uikit,P10,ok,n/a,window,default,iOS/Android comparison: reference -- the default Toggle is a labelled UISwitch.
 2026-10-09,android,android,P10,ok,n/a,screen,default,"Default Toggle now a labelled switch, as on iOS (root environment toggleStyle = .switch); before, a ToggleButton clipped to 'Transpa'."
+2026-10-09,ios,uikit,P11,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P11,ok,n/a,screen,default,"Oversized root now starts at the text, as on iOS (was 18 dp in: a padding frame counted as content); Text has no font padding, so the 130-high list shows 5 rows as on iOS (was 4.5). Remaining ~1 dp per line is Roboto vs SF metrics."

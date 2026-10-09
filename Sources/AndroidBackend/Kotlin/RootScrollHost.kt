@@ -86,6 +86,46 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
                 into.union(child)
             }
         }
+
+        /**
+         * The box of what a view and its descendants actually draw, by UIKitBackend's rule
+         * (RootScrollHost.swift `contentBounds`): a plain `CustomContainer` with no background
+         * counts only through its children, anything else -- text, controls, scroll views,
+         * lists -- by its own bounds without descending, and children that are not VISIBLE
+         * not at all. False when nothing draws.
+         *
+         * Used for where an oversized root starts. Counting every container's frame put the
+         * start at the edge of a padding frame instead of the content: P11 began 18 dp in from
+         * the left on Android and at the text on iOS (2026-10-09).
+         *
+         * 一個 view 及其後代實際繪製的範圍，依 UIKitBackend 的規則:沒有背景的單純 `CustomContainer` 只透過子元件計算，
+         * 其餘(文字、控制項、捲動視圖、清單)以自身邊界計算、不往下展開，非 VISIBLE 的子元件不算。沒有東西繪製時回傳 false。
+         * 用來決定超大的根從哪裡開始。把每個容器的框都算進去，起點會落在 padding 框的邊緣而不是內容:P11 在 Android 上
+         * 從左邊 18 dp 處開始，iOS 則從文字開始(2026-10-09)。
+         */
+        fun drawnBounds(view: View, into: Rect): Boolean {
+            if (view !is CustomContainer) {
+                into.set(0, 0, view.width, view.height)
+                return true
+            }
+            var any = false
+            if (view.background != null) {
+                into.set(0, 0, view.width, view.height)
+                any = true
+            }
+            val child = Rect()
+            for (i in 0..<view.childCount) {
+                val subview = view.getChildAt(i)
+                if (subview.visibility != View.VISIBLE) continue
+                if (!drawnBounds(subview, child)) continue
+                child.offset(subview.x.toInt(), subview.y.toInt())
+                if (any) into.union(child) else {
+                    into.set(child)
+                    any = true
+                }
+            }
+            return any
+        }
     }
 
     private val stage = Stage(context)
@@ -389,9 +429,10 @@ private class Stage(context: Context) : ViewGroup(context) {
         val safe = (child as? ViewGroup)?.takeIf { it.childCount > 0 }?.getChildAt(0)
         if (safe != null) {
             val inner = Rect()
-            RootScrollHost.contentBounds(safe, inner)
-            box.left = minOf(0, inner.left)
-            box.top = minOf(0, inner.top)
+            if (RootScrollHost.drawnBounds(safe, inner)) {
+                box.left = minOf(0, inner.left)
+                box.top = minOf(0, inner.top)
+            }
         }
 
         scale =

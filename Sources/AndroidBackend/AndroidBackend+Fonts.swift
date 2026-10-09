@@ -24,6 +24,14 @@ extension AndroidBackend {
             textView.setTextSize(typedValue.COMPLEX_UNIT_SP, fontSize)
             textView.setLineHeight(lineHeightPixels)
             textView.setGravity(multilineTextAlignment)
+            // No font padding above the first line and below the last, so a line
+            // is the line height the text style asks for -- what UIKit measures.
+            // With it, every Text was about 2 dp taller than on iOS, and a fixed
+            // 140-high list showed 4.5 rows on Android to iOS's 5 (P11,
+            // 2026-10-09). The measuring TextView goes through here too.
+            // 第一行上方與最後一行下方不加字型內距，讓一行就是文字樣式要求的行高——也就是 UIKit 量到的。加了它，每個 Text 都比
+            // iOS 高約 2 dp,高度固定的清單在 Android 上露出 4.5 列、iOS 是 5 列(P11,2026-10-09)。量測用的 TextView 也經過這裡。
+            textView.setIncludeFontPadding(false)
         }
     }
 
@@ -130,4 +138,7 @@ extension AndroidBackend {
 extension TextView {
     @JavaMethod
     open func setGravity(_ arg0: Int32)
+
+    @JavaMethod
+    open func setIncludeFontPadding(_ arg0: Bool)
 }
