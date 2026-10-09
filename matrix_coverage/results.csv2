@@ -1240,3 +1240,11 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P22,ok,n/a,screen,default,Aligned with iOS: sizes and line heights match; the 300 pt paragraph wraps one word later on Android and so is not centred in its frame (SF wider than Roboto).
 2026-10-10,ios,uikit,P23,ok,n/a,window,default,Table clips to its frame (rows 7-8 were drawn over the paragraph below) and the long header ends in an ellipsis (was cut at 'tha' into the next column).
 2026-10-10,android,android,P23,ok,n/a,screen,default,"Rows at their measured height as on iOS (-1/-1; were 32 dp against 22 pt): five rows visible on both, header ellipsized on both."
+2026-10-10,ios,uikit,P24,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P24,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P25,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P25,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P25,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P25,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P26,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P26,ok,n/a,screen,default,Aligned with iOS; the tab bar's divider is drawn on both (212 on Android = 230 x 0.9255).
