@@ -60,8 +60,14 @@ extension AndroidBackend: BackendFeatures.Gradients {
     ) {
         let tileClass = try! JavaClass<AndroidGraphics.Shader.TileMode>()
         
-        let stops = gradient.gradient.stops.map { Float($0.location) }
-        let colors = gradient.gradient.stops.map { stop in
+        // adjustedStops, as UIKitBackend: the stops placed between the start and
+        // end radius (or angle), reversed when the end is the smaller. The raw
+        // stops ignored both, so P27's rings and reversed sweep drew as plain
+        // radial and full-circle gradients (2026-10-10).
+        // adjustedStops,與 UIKitBackend 相同：色標放在起始與結束半徑(或角度)之間，結束較小時反轉。原始色標兩者都忽略，
+        // 所以 P27 的圓環與反向掃描畫成了普通的放射漸層與整圈漸層(2026-10-10)。
+        let stops = gradient.adjustedStops.map { Float($0.location) }
+        let colors = gradient.adjustedStops.map { stop in
             stop.color.resolve(in: environment).asColorInt()
         }
 
@@ -105,8 +111,8 @@ extension AndroidBackend: BackendFeatures.Gradients {
     ) {
         let tileClass = try! JavaClass<AndroidGraphics.Shader.TileMode>()
 
-        let stops = gradient.gradient.stops.map { Float($0.location) }
-        let colors = gradient.gradient.stops.map { stop in
+        let stops = gradient.adjustedStops.map { Float($0.location) }
+        let colors = gradient.adjustedStops.map { stop in
             stop.color.resolve(in: environment).asColorInt()
         }
 

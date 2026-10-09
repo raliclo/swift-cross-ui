@@ -1248,3 +1248,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P25,ok,n/a,screen,default,Aligned with iOS.
 2026-10-10,ios,uikit,P26,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P26,ok,n/a,screen,default,Aligned with iOS; the tab bar's divider is drawn on both (212 on Android = 230 x 0.9255).
+2026-10-10,ios,uikit,P27,ok,n/a,window,default,iOS/Android comparison: reference (scrolled right with an action file to see the third column).
+2026-10-10,android,android,P27,ok,n/a,screen,default,"Radial and angular gradients use adjustedStops as UIKit: 'Ring (start 30)', 'Ring reversed' and 'Sweep reversed' now match iOS (were drawn as a plain radial / full-circle sweep)."
