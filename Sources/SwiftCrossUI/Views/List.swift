@@ -259,7 +259,10 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
 
                 let result = node.computeLayout(
                     with: rowView,
-                    proposedSize: ProposedViewSize(proposedRowWidth, nil),
+                    proposedSize: ProposedViewSize(
+                        children.committedRowWidth ?? proposedRowWidth,
+                        nil
+                    ),
                     environment: rowEnvironment
                 )
                 _ = node.commit()
@@ -348,7 +351,16 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
             // 一趟(`allowLayoutCaching` 預設為 false,只為探測而開啟);但若哪天那件事不再成立,其症狀
             // 會是「清單顯示著過期的列,而沒有任何東西回報錯誤」。
             if !environment.allowLayoutCaching {
-                install(lazyBackend)
+                // Deferred to `commit`: see `pendingLazyInstall`. Measured on
+                // iOS, P7 (2026-10-09): NavigationSplitView's width-0 probe of
+                // its sidebar is not a cached pass, so installing here rebuilt
+                // the List's visible rows at width 0 -- "Cherry" 144 pt tall,
+                // "Elderberry" 232 -- and the committed pass, cached, never
+                // replaced them: the sidebar showed two of five rows.
+                // 延到 `commit`:見 `pendingLazyInstall`。iOS P7(2026-10-09)實測:NavigationSplitView 對 sidebar 的寬度 0
+                // 探測不是快取的一趟，所以在這裡安裝會以寬度 0 重建 List 的可見列——「Cherry」高 144 pt、「Elderberry」232——
+                // 而被提交的那一趟走快取，從未換掉它們:sidebar 五列只顯示兩列。
+                children.pendingLazyInstall = { install(lazyBackend) }
             }
 
             // Nothing eager is left behind: a list that switches paths -- which
@@ -466,6 +478,16 @@ public struct List<SelectionValue: Hashable, RowView: View>: TypeSafeView, View 
         // 延遲路徑在每一列被建立時就已經在 provider 裡 commit 過了，因為那才是 backend 索取它的
         // 唯一時刻。此處沒有東西要交出去。
         if backend is any BackendFeatures.LazyListRows {
+            let committedWidth = max(
+                Double(backend.minimumRowSize(ofSelectableListView: widget).x),
+                layout.size.width - baseRowPadding.axisTotals.x
+            )
+            // Before the install runs, so rows are built at the committed
+            // width even when the provider came from an uncommitted pass.
+            // 在安裝執行之前設定，讓列以提交的寬度建立，即使 provider 來自未被提交的那一趟。
+            children.committedRowWidth = committedWidth
+            children.pendingLazyInstall?()
+            children.pendingLazyInstall = nil
             if let scrollingBackend = backend as? any BackendFeatures.ScrollingLists {
                 func setViewport<B: BackendFeatures.ScrollingLists>(backend: B) {
                     backend.setViewportHeight(
@@ -560,6 +582,17 @@ class ListViewChildren<RowView: View>: ViewGraphNodeChildren {
     /// height for a row it has already seen.
     /// 那些列所回報的高度——好讓 backend 對「它已經看過的列」得到真實高度。
     var lazyHeights: [Int: Int] = [:]
+
+    /// The lazy rows a layout pass would hand the backend, run by `commit`.
+    /// Not run during `computeLayout`, because a pass that is not committed
+    /// -- a split view proposing a width of 0 to ask what the sidebar needs --
+    /// would otherwise rebuild the backend's visible rows at that width.
+    /// 某次排版要交給 backend 的 lazy 列，由 `commit` 執行。不在 `computeLayout` 期間執行，因為一次不會被提交的排版
+    /// ——split view 提議寬度 0 來問 sidebar 需要多少——否則會以那個寬度重建 backend 的可見列。
+    var pendingLazyInstall: (@MainActor () -> Void)?
+    /// The row width of the committed layout. Rows are built at this width,
+    /// whichever pass built the provider. 提交版面的列寬。不論 provider 是哪一趟建的，列都以這個寬度建立。
+    var committedRowWidth: Double?
 
     /// Least-recently-used first. A plain array because the cap is in the
     /// hundreds: an `O(n)` remove on a 200-entry array is not worth an index.

@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1175**
+**Runs recorded / 已記錄的執行筆數: 1182**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -38,10 +38,10 @@ zsh matrix_coverage/coverage.zsh
 | P2            | pass 2026-10-07              | pass 2026-08-28                | pass 2026-10-07          | pass 2026-09-28              | pass 2026-09-28        | capture screen 2026-10-09 |              |
 | P3            | no line 2026-09-07           | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P4            | pass 2026-09-18              | pass 2026-10-08                | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
-| P5            | pass 2026-09-08              | -                              | no image 0/2 2026-09-07  | pass 2026-09-28              | pass 2026-09-28        | pass 2026-09-18           |              |
-| P6            | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-09           |              |
+| P5            | pass 2026-09-08              | -                              | no image 0/2 2026-09-07  | pass 2026-09-28              | pass 2026-10-09        | capture screen 2026-10-09 |              |
+| P6            | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P6-v2         | -                            | -                              | no image 0/2 2026-09-07  | -                            | -                      | -                         |              |
-| P7            | pass 2/2 2026-09-07          | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06           |              |
+| P7            | pass 2/2 2026-09-07          | -                              | no image 0/2 2026-09-07  | pass 2026-10-09              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P8            | pass 2026-09-06              | -                              | no image 0/2 2026-09-07  | pass 2026-09-28              | misaimed 2026-09-27    | capture screen 2026-09-30 |              |
 | P9            | pass 2026-09-06              | pass 2026-08-28                | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-09           |              |
 | P10           | capture n/a 1/3 2026-09-06   | -                              | no image 0/2 2026-09-07  | pass 2026-09-29              | misaimed 2026-09-27    | pass 2026-09-06           |              |
