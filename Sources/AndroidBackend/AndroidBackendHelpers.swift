@@ -42,6 +42,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func getErrorColor(_ activity: Activity?) -> Int32
 
+    /// Tints a ToggleButton by its checked state.
+    @JavaMethod
+    func styleToggleButton(_ button: AndroidKit.ToggleButton?)
+
     /// `.listStyle(.sidebar)` on, or back to the default.
     @JavaMethod
     func setListSidebar(_ listView: AndroidKit.ListView?, _ sidebar: Bool)

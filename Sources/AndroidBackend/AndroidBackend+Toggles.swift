@@ -6,10 +6,12 @@ extension AndroidBackend {
     public var requiresToggleSwitchSpacer: Bool { false }
 
     public func createToggle() -> Widget {
-        AndroidKit.ToggleButton(
+        let toggle = AndroidKit.ToggleButton(
             Self.activity,
             environment: Self.env
         )
+        helpers.styleToggleButton(toggle)
+        return toggle
     }
 
     public func createCheckbox() -> Widget {
@@ -59,6 +61,15 @@ extension AndroidBackend {
         toggle.setTextOff(charSequence)
 
         getTextStyle(from: environment).apply(to: toggle)
+        // `apply` sets one solid colour, which replaces the theme's state list
+        // and with it the faded disabled text: P2's `.disabled(true)` toggle
+        // read exactly like an enabled one. Material's disabled text is 38%.
+        // `apply` 設的是單一固定顏色，蓋掉了主題的狀態色表，連帶蓋掉停用時的淡化文字:P2 的 `.disabled(true)`
+        // 開關看起來和啟用的完全一樣。Material 的停用文字是 38%。
+        if !environment.isEnabled {
+            let color = environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
+            toggle.setTextColor((color & 0x00FF_FFFF) | 0x6100_0000)
+        }
     }
 
     public func updateCheckbox(

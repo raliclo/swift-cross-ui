@@ -141,6 +141,38 @@ class AndroidBackendHelpers {
         return size
     }
 
+    // A ToggleButton (`.toggleStyle(.button)`, the default style) shows on and
+    // off only by the colour of a thin underline, and on the API 36 emulator the
+    // two looked the same: P12's "Opposite states: they must look different"
+    // failed, and P2/P15's toggles gave no sign of being on. The body is tinted
+    // instead -- the accent when checked, the theme's button colour when not --
+    // as UIKit fills a selected button-style toggle.
+    // ToggleButton(`.toggleStyle(.button)`,即預設樣式)只靠一條細底線的顏色表示開關，在 API 36 emulator 上兩者
+    // 看起來一樣:P12 的「相反狀態必須看起來不同」不成立,P2/P15 的開關看不出是開的。改為替按鈕本體上色——
+    // 開時 accent,關時主題的按鈕色——如同 UIKit 把選取的按鈕樣式開關填滿。
+    fun styleToggleButton(button: android.widget.ToggleButton) {
+        val context = button.context
+        fun themeColor(attr: Int): Int {
+            val value = TypedValue()
+            if (!context.theme.resolveAttribute(attr, value, true)) return 0
+            return if (value.resourceId != 0) context.getColor(value.resourceId) else value.data
+        }
+        // The accent blended into the button colour rather than the accent
+        // itself: a full accent fill (a dark purple on this image) left the
+        // label black on dark, unreadable (P2, 2026-10-09).
+        // 把 accent 混進按鈕色，而不是直接用 accent:整片 accent(這個映像上是深紫)讓黑色標籤落在深色上，讀不到。
+        val on = themeColor(android.R.attr.colorAccent)
+        val off = themeColor(android.R.attr.colorButtonNormal)
+        fun blend(from: Int, to: Int, t: Float): Int {
+            fun ch(shift: Int) = (((from shr shift) and 0xFF) * (1 - t) + ((to shr shift) and 0xFF) * t).toInt()
+            return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+        }
+        button.backgroundTintList = android.content.res.ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(blend(off, on, 0.45f), off)
+        )
+    }
+
     // .listStyle(.sidebar) on a ListView, drawn as a Material navigation drawer:
     // the theme's floating-surface background, no dividers, and a pill-shaped
     // selection inset from the edges, tinted with colorControlHighlight. Off
