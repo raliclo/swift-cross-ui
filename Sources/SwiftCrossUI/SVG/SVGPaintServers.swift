@@ -188,6 +188,8 @@ enum SVGPaintValue: Sendable {
     /// `opacity` is the fill- or stroke-opacity, applied on top of the tile.
     /// `opacity` 是 fill- 或 stroke-opacity,套用在圖塊之上。
     case pattern(SVGPattern, opacity: Double)
+    /// An `<image>` picture, opacity left to the element. / `<image>` 的圖片，不透明度交給元素。
+    case image(SVGRasterImage)
 
     /// A per-pixel colour source for drawing through `device` (user space to
     /// device pixels); nil when nothing can be drawn.
@@ -208,6 +210,11 @@ enum SVGPaintValue: Sendable {
                     let tile = SVGPatternTile(pattern, toDevice: toDevice)
                 else { return nil }
                 return .pattern(tile, toPattern: toPattern, opacity: Float(opacity))
+            case .image(let image):
+                guard let toImage = device.concatenating(image.transform).inverted() else {
+                    return nil
+                }
+                return .image(image, toImage: toImage)
         }
     }
 }
@@ -218,6 +225,7 @@ enum SVGShader {
     case solid(SVGPremultiplied)
     case gradient(SVGGradient, toGradient: SVGTransform, opacity: Float)
     case pattern(SVGPatternTile, toPattern: SVGTransform, opacity: Float)
+    case image(SVGRasterImage, toImage: SVGTransform)
 
     func color(x: Int, y: Int) -> SVGPremultiplied {
         switch self {
@@ -229,6 +237,8 @@ enum SVGShader {
             case .pattern(let tile, let toPattern, let opacity):
                 let point = toPattern.apply(SVGPoint(Double(x) + 0.5, Double(y) + 0.5))
                 return tile.color(at: point).scaled(opacity)
+            case .image(let image, let toImage):
+                return image.color(at: toImage.apply(SVGPoint(Double(x) + 0.5, Double(y) + 0.5)))
         }
     }
 }

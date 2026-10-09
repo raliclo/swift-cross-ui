@@ -36,9 +36,9 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** filters,
-    `<image>`;
-    each is reported and outlined today. (Gradients, clipPath, mask, patterns and markers are drawn since 2026-10-10.)
+  - [ ] **SVG not yet drawn:** filters, and `<image>` with a file reference
+    (only `data:` URIs are decoded);
+    each is reported and outlined today. (Gradients, clipPath, mask, patterns, markers and data: images are drawn since 2026-10-10.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -95,6 +95,14 @@
       userSpaceOnUse; markerWidth/Height, viewBox, refX/refY; overflow hidden
       (the default) clips to the marker viewport. Checked: SVGMarkerTests (9),
       all 75 SVG tests.
+    - [x] **`<image>` with a `data:` URI** (2026-10-10): PNG, JPEG and the
+      other formats ImageFormats decodes, base64 or percent-encoded. The
+      picture is a paint and the element a rectangle filled with it, so edges
+      are antialiased; preserveAspectRatio (meet, slice cut to the viewport,
+      none), width/height auto from the picture, bilinear sampling, opacity.
+      A file reference (`href="photo.png"`) is still reported and outlined: a
+      document parsed from a string has nowhere to resolve it. Checked:
+      SVGImageTests (8), all 83 SVG tests.
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent

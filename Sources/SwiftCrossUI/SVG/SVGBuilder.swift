@@ -681,7 +681,14 @@ final class SVGBuilder {
             case "text":
                 return buildText(element, style: style, transform: transform)
             case "image", "foreignObject", "video", "audio", "canvas", "iframe":
-                report(.unsupportedElement, element, "<\(name)> is not drawn")
+                if name == "image", let nodes = imageNodes(element, style: style, transform: transform) {
+                    return wrap(nodes, style: style, element: element, transform: transform)
+                }
+                report(
+                    .unsupportedElement, element,
+                    name == "image"
+                        ? "<image> is not drawn: only data: URIs of raster pictures are"
+                        : "<\(name)> is not drawn")
                 let x = attributeLength(element, "x", axis: .x, style: style)
                 let y = attributeLength(element, "y", axis: .y, style: style)
                 let width = attributeLength(element, "width", axis: .x, style: style)
