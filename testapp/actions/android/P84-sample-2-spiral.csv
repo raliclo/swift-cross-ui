@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on android: sample 2: softpcb_spiral.
+# Emulator swift-cross-ui-api36b, 411x914 dp, capture 1080x2400 px, density 420 (scale 2.625); points read off p84-android-final-20261009-182500.png: sample buttons at y 333 (2 x 133, 3 x 172, 4 x 212, 5 x 252), smaller x 52 and larger x 134 at y 407.
+# Pass: left and right images both show the spiral board; difference max <= 96, mean <= 0.5; unsupported: none
+# P84(android):sample 2: softpcb_spiral。通過條件見上方英文；座標與幾何同上。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),android
+click,133,333,,left,,,"sample 2: softpcb_spiral (VERIFIED 2026-10-09: capture shows the stated pass)",android
+sleep,,,,,,4000000,hold for the capture,android

@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on macos: sample 5: unsupported.
+# origin=frame. Window 560x720 pt plus the 28 pt title bar, captured at 560x748 px on this display, i.e. scale 1; read off p84-macos-final-20261009-181504.png: sample buttons 1-5 at y 289 (2 x 213, 3 x 253, 4 x 294, 5 x 334), smaller x 130 and larger x 210 at y 342.
+# Pass: the left image has magenta outlines (gradient fill, clip-path, filter, text, image) and a magenta corner flag; 'unsupported: 6' and six lines listing them; reference: none
+# P84(macos):sample 5: unsupported。通過條件見上方英文；座標與幾何同上。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),macos
+click,334,289,frame,left,,,"sample 5: unsupported (VERIFIED 2026-10-09: capture shows the stated pass)",macos
+sleep,,,,,,4000000,hold for the capture,macos

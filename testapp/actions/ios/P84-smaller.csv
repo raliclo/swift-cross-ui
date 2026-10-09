@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on ios: smaller: 96 x 60 pt.
+# origin=client. iPhone 16 simulator (swift-cross-ui), 393x852 pt, capture 1179x2556 px, scale 3; read off p84-ios-final-20261009-182021.png: sample buttons at y 314 (2 x 114, 3 x 133, 4 x 151, 5 x 170), smaller x 58 and larger x 115 at y 375.
+# Pass: the size line reads 96 x 60 pt and the raster line 288 x 180 px
+# P84(ios):smaller: 96 x 60 pt。通過條件見上方英文；座標與幾何同上。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),ios
+click,58,375,client,left,,,"smaller: 96 x 60 pt (VERIFIED 2026-10-09: capture shows the stated pass)",ios
+sleep,,,,,,4000000,hold for the capture,ios

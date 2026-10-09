@@ -1,5 +1,31 @@
 # queue
 
+## 2026-10-09 SVG in Image (user request, priority one)
+
+- [x] **Image renders SVG with a pure-Swift renderer in the core** (Mac side).
+  `Sources/SwiftCrossUI/SVG/`: own XML reader (FoundationXML exists in the
+  Android 6.4.0 SDK too, but would add libxml2 + libFoundationXML to every
+  APK/Windows bundle), path data (all commands, arcs), shapes, transforms,
+  CSS (`style`, simple `<style>` selectors), colours, nonzero/evenodd,
+  stroker (caps, joins, miter limit, dashes), 16-subsample scanline AA,
+  group opacity. `Image(url)` picks it by `.svg` or by sniffing;
+  `Image(SVGDocument)`, `.svgRasterSize(width:height:)`; re-rasterised at
+  displayed size x scale, last 4 sizes cached. Anything not drawn is in
+  `SVGDocument.diagnostics`, logged once, outlined in magenta plus a corner flag.
+  Found on the way: AppKit, UIKit, Android and WinUI read `updateImageView`
+  bytes as premultiplied while ImageFormats gives straight alpha (AppKit
+  measured: (200,0,0,128) over white -> (255,127,127), correct 227); all four
+  now premultiply (`ImagePixels`). SVGTests: 27 tests incl. golden vs CoreSVG.
+  P84 (new): six action files each on macOS, iOS simulator, Android emulator,
+  every capture read.
+  - [ ] **Windows side: P84 on WinUI, GTK (Windows) and WSL.** The WinUI
+    premultiply edit in `WinUIBackend.updateImageView` has never been
+    compiled. Coordinates for `actions/win/` still to be measured. GTK on
+    macOS was not run either: gtk4 is not installed on this Mac.
+  - [ ] **SVG not yet drawn:** visible `<text>` (needs a font shared by all
+    backends), gradients, patterns, clipPath/mask, filters, markers, `<image>`;
+    each is reported and outlined today.
+
 ## 2026-10-05 code review: gaps against the five-backend rule
 
 Read from the source, not from this file: every `BackendFeatures` protocol
