@@ -71,7 +71,7 @@ class AndroidBackendHelpers: JavaObject {
     func setListSidebar(_ listView: AndroidKit.ListView?, _ sidebar: Bool, _ dark: Bool)
 
     @JavaMethod
-    func setButtonColorScheme(_ button: AndroidKit.Button?, _ dark: Bool)
+    func styleSimpleButton(_ button: AndroidKit.Button?)
 
     @JavaMethod
     func canFloat(_ activity: Activity?) -> Bool

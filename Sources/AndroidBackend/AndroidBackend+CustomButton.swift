@@ -153,6 +153,22 @@ extension AndroidBackend {
 
     @MainActor static var primaryColors: [Bool: SwiftCrossUI.Color?] = [:]
 
+    /// The environment for a label drawn in the tint, as UIKit draws a plain
+    /// UIButton's and a menu picker's: the app's foreground colour, else
+    /// colorPrimary (UIKit's .link), and 30% grey when disabled.
+    /// 以 tint 色繪製的標籤所用的 environment,與 UIKit 繪製單純 UIButton 及選單 picker 的方式相同:app 的前景色，
+    /// 否則 colorPrimary(UIKit 的 .link),停用時是 30% 的灰。
+    func tintedLabelEnvironment(_ environment: EnvironmentValues) -> EnvironmentValues {
+        if !environment.isEnabled {
+            return environment.with(
+                \.foregroundColor, environment.suggestedForegroundColor.opacity(0.3)
+            )
+        }
+        guard environment.foregroundColor == nil, let primary = primaryColor(for: environment)
+        else { return environment }
+        return environment.with(\.foregroundColor, primary)
+    }
+
     public func defaultButtonStyle() -> PrimitiveButtonStyle {
         // Borderless, as UIKit's default on a phone (user, 2026-10-09: Android
         // should line up with iOS). A Material bordered button's padding made

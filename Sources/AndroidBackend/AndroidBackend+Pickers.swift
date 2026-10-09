@@ -84,18 +84,9 @@ extension AndroidBackend {
 
                 onChange(selectedOption == invalidPosition ? nil : Int(selectedOption))
             }
-            // The label colour as UIButtonPicker's: the app's foreground colour,
-            // else colorPrimary (UIKit's .link); 30% grey when disabled.
-            // 標籤色與 UIButtonPicker 相同:app 的前景色，否則 colorPrimary(UIKit 的 .link);停用時是 30% 的灰。
-            var labelEnvironment = environment
-            if !environment.isEnabled {
-                labelEnvironment = environment.with(
-                    \.foregroundColor, environment.suggestedForegroundColor.opacity(0.3)
-                )
-            } else if environment.foregroundColor == nil, let primary = primaryColor(for: environment) {
-                labelEnvironment = environment.with(\.foregroundColor, primary)
-            }
-            let textStyle = getTextStyle(from: labelEnvironment)
+            // The label colour as UIButtonPicker's; see tintedLabelEnvironment.
+            // 標籤色與 UIButtonPicker 相同;見 tintedLabelEnvironment。
+            let textStyle = getTextStyle(from: tintedLabelEnvironment(environment))
             picker.update(
                 action,
                 options,

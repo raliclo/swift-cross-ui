@@ -1227,3 +1227,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,ios,uikit,P18,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P18,ok,n/a,screen,default,Aligned with iOS; the description wraps one word earlier on iOS (SF wider than Roboto).
 2026-10-10,android,android,P17-DOE,ok,n/a,screen,default,App: 80 pt above and below each viewport so the unclipped control no longer covers the description and its label (user request); iOS and Android identical.
+2026-10-10,ios,uikit,P19,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P19,ok,n/a,screen,default,"Menu button drawn as UIKit's plain UIButton: tinted label, no box, 6 dp above and below (34 pt tall like iOS); was black on a grey box. Tapped: the menu opens with all four item kinds."

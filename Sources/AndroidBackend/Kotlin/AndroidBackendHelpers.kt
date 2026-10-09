@@ -597,38 +597,40 @@ class AndroidBackendHelpers {
     //
     // 使用 `background_dark` 與 `background_light` 而非字面值，因為它們是平台自己對「在這個配色下
     // 視窗是什麼顏色」的回答，而寫死 0xFF000000 等於由本 backend 自行發明一個。
-    // A button's background is a drawable from the Activity's theme, and the
-    // theme does not know the app asked for a colour scheme. SwiftCrossUI sets
-    // the label colour from the environment, so making dark mode work turned
-    // P15's three scheme buttons into white text on the theme's light grey --
-    // the labels followed the request and the surface under them did not.
+    // A Menu's button, drawn as UIKitBackend's: a plain UIButton, the label in
+    // the tint and nothing around it. The framework Button is a filled grey box
+    // with a 48 dp minimum height (P19, 2026-10-10: "Open the menu" in black on
+    // grey where iOS shows blue text). The label colour comes from the Swift side,
+    // as a borderless button's does; the ripple is the borderless one, so a press
+    // still shows.
     //
-    // Tinted rather than replaced, so the button keeps the ripple, the pressed
-    // state and the rounded shape the platform drew; only the colour of that
-    // drawable changes.
+    // This replaces setButtonColorScheme, which tinted the grey box for a dark
+    // scheme: with no box there is nothing to tint.
     //
-    // `system_neutral1_*` is the platform's own neutral ramp, public since API
-    // 31 and this project's `min_sdk` is 31. The first attempt used
-    // `btn_default_material_dark`, which is what the framework's own button
-    // drawable references -- and it does not compile, because it is a private
-    // framework resource. It is named here so the next person does not spend
-    // the same build finding that out.
+    // Menu 的按鈕，畫成 UIKitBackend 的樣子：單純的 UIButton,標籤用 tint 色，周圍什麼都沒有。框架的 Button
+    // 是填滿的灰色方塊，最小高度 48 dp(P19,2026-10-10:"Open the menu" 是灰底黑字，iOS 是藍字)。標籤色與無框
+    // 按鈕一樣由 Swift 端決定;漣漪用無框的那一種，所以按下時仍有回饋。
     //
-    // 按鈕的背景是來自 Activity 主題的 drawable，而該主題並不知道 app 要求了某個配色。SwiftCrossUI
-    // 會依 environment 設定標籤顏色，因此「讓深色模式生效」這件事，把 P15 的三顆配色按鈕變成了
-    // 「主題淺灰底上的白字」——標籤跟隨了請求，而它們底下的表面沒有。
-    //
-    // 採用 tint 而非替換，使按鈕保留平台所繪製的漣漪效果、按下狀態與圓角形狀；只有該 drawable 的
-    // 顏色改變。
-    //
-    // `system_neutral1_*` 是平台自己的中性色階，自 API 31 起為公開資源，而本專案的 `min_sdk`
-    // 即為 31。第一次嘗試用的是 `btn_default_material_dark`——那正是框架自身按鈕 drawable 所引用的
-    // 資源——而它無法編譯，因為那是框架的私有資源。此處寫下它的名字，以免下一個人再花一次建置去
-    // 發現這件事。
-    fun setButtonColorScheme(button: android.widget.Button, dark: Boolean) {
-        val resource = if (dark) R.color.system_neutral1_700 else R.color.system_neutral1_100
-        button.backgroundTintList =
-            android.content.res.ColorStateList.valueOf(button.context.getColor(resource))
+    // 這取代了 setButtonColorScheme——它為深色配色替灰色方塊上 tint;沒有方塊，就沒有東西要 tint。
+    fun styleSimpleButton(button: android.widget.Button) {
+        val value = TypedValue()
+        button.background =
+            if (button.context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, value, true)) {
+                button.context.getDrawable(value.resourceId)
+            } else {
+                null
+            }
+        button.stateListAnimator = null
+        // 6 dp above and below: a plain UIButton with a 17 pt title is 34 pt
+        // tall, its 22 pt line plus 6 either side (P19). 上下各 6 dp:17 pt 標題的單純 UIButton
+        // 高 34 pt,即 22 pt 的行再加上下各 6(P19)。
+        val inset = (6 * button.resources.displayMetrics.density).toInt()
+        button.setPadding(0, inset, 0, inset)
+        button.minHeight = 0
+        button.minimumHeight = 0
+        button.minWidth = 0
+        button.minimumWidth = 0
+        button.includeFontPadding = false
     }
 
     // `.floating` on Android, and the answer is not a flag on the activity's

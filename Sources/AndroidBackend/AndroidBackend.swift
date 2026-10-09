@@ -1137,7 +1137,9 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func createSimpleButton() -> Widget {
-        AndroidKit.Button(Self.activity, environment: Self.env)
+        let button = AndroidKit.Button(Self.activity, environment: Self.env)
+        helpers.styleSimpleButton(button)
+        return button
     }
 
     /// Converts a Swift String to a Java CharSequence.
@@ -1159,14 +1161,9 @@ public final class AndroidBackend: BaseAppBackend {
         button.setOnClickListener(listener.as(AndroidView.View.OnClickListener.self))
         button.setAllCaps(false)
 
-        // The same call AppKitBackend makes here as `button.appearance`. See
-        // `setButtonColorScheme` for why the button needs telling separately
-        // from the window.
-        // 與 AppKitBackend 在此處呼叫 `button.appearance` 是同一件事。為何按鈕必須與視窗分開告知，
-        // 見 `setButtonColorScheme`。
-        helpers.setButtonColorScheme(button, environment.colorScheme == .dark)
-
-        getTextStyle(from: environment).apply(to: button)
+        // The label in the tint, as UIKit draws a plain UIButton's (Menu).
+        // 標籤用 tint 色，與 UIKit 繪製單純 UIButton 的方式相同(Menu)。
+        getTextStyle(from: tintedLabelEnvironment(environment)).apply(to: button)
     }
 
     public func createTextView() -> Widget {
