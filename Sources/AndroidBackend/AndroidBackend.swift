@@ -847,6 +847,14 @@ public final class AndroidBackend: BaseAppBackend {
 
         environment.androidActivity = Self.activity
         environment.jniEnv = Self.env
+        // A switch by default, as UIKitBackend sets: the platform's on/off
+        // control on both phones. The core default is `.button`, which put a
+        // ToggleButton where iOS draws a UISwitch -- P10's 260-wide toggle
+        // showed "Transpa" on Android and a labelled switch on iOS (2026-10-09).
+        // 預設為 switch,與 UIKitBackend 的設定相同：兩種手機上平台本身的開關控制項。core 的預設是 `.button`,
+        // 讓 Android 在 iOS 畫 UISwitch 的地方放了 ToggleButton——P10 那個 260 寬的開關在 Android 上只顯示「Transpa」,
+        // iOS 則是帶標籤的開關(2026-10-09)。
+        environment.toggleStyle = .switch
 
         if helpers.isNightMode(Self.activity) {
             environment.colorScheme = .dark

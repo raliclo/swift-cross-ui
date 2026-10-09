@@ -1182,3 +1182,9 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,ios,uikit,P7,ok,n/a,window,default,"NavigationSplitView sidebar List shows all five fruits (before the List fix: Apple and Banana only -- rows 3-5 were rebuilt at the split view's width-0 probe, 144/100/232 pt tall)."
 2026-10-09,android,android,P7,ok,n/a,screen,default,iOS/Android comparison: aligned; both lists show five rows (re-captured after the core List change).
 2026-10-09,mac,appkit,P7,ok,n/a,window,default,Re-captured after the core List change: both lists show five rows.
+2026-10-09,ios,uikit,P8,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P8,ok,n/a,screen,default,iOS/Android comparison: aligned with iOS (text-field chrome and glyph widths are the platforms').
+2026-10-09,ios,uikit,P9,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P9,ok,n/a,screen,default,iOS/Android comparison: aligned with iOS (text-field chrome and glyph widths are the platforms').
+2026-10-09,ios,uikit,P10,ok,n/a,window,default,iOS/Android comparison: reference -- the default Toggle is a labelled UISwitch.
+2026-10-09,android,android,P10,ok,n/a,screen,default,"Default Toggle now a labelled switch, as on iOS (root environment toggleStyle = .switch); before, a ToggleButton clipped to 'Transpa'."
