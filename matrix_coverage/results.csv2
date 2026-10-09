@@ -1202,3 +1202,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P10,ok,n/a,screen,default,"Switch sits at the trailing edge of its row, as on iOS (requiresToggleSwitchSpacer = true)."
 2026-10-09,android,android,P7,ok,n/a,screen,default,Re-compared from P6 on: aligned with iOS.
 2026-10-09,android,android,P8,ok,n/a,screen,default,Re-compared from P6 on: aligned with iOS.
+2026-10-09,ios,uikit,P12,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P12,ok,n/a,screen,default,Button-style toggles drawn as iOS draws them -- on: tint-filled with a white label; off: a borderless tint label -- and measured with their real label (was 'Tog'). Toggle section starts at the leading edge as on iOS.

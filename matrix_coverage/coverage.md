@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1202**
+**Runs recorded / 已記錄的執行筆數: 1204**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -46,7 +46,7 @@ zsh matrix_coverage/coverage.zsh
 | P9            | pass 2026-09-06              | pass 2026-08-28                | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P10           | capture n/a 1/3 2026-09-06   | -                              | no image 0/2 2026-09-07  | pass 2026-09-29              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P11           | pass 2026-09-17              | pass 2026-09-17                | pass 2026-09-18          | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
-| P12           | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06           |              |
+| P12           | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P13           | pass 2/2 2026-09-08          | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-27        | pass 2026-09-06           |              |
 | P14           | -                            | -                              | no image 0/2 2026-09-07  | pass 2026-09-27              | pass 2026-09-29        | pass 2026-09-06           |              |
 | P15           | GEOMETRY 1/2 2026-09-07      | pass 2026-08-28                | no image 0/2 2026-09-07  | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06           |              |

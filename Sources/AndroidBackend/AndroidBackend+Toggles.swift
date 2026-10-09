@@ -66,6 +66,12 @@ extension AndroidBackend {
         toggle.setAllCaps(false)
         toggle.setTextOn(charSequence)
         toggle.setTextOff(charSequence)
+        // The shown text too: setTextOn/Off take effect only at the next state
+        // change, so the toggle was measured with its default "OFF" and drew
+        // "Tog" once Material's 88 dp minimum width stopped hiding it (P12).
+        // 也設定目前顯示的文字:setTextOn/Off 要到下一次狀態改變才生效，所以開關是以預設的「OFF」量測的，一旦 Material 的
+        // 88 dp 最小寬度不再遮掩，就只畫出「Tog」(P12)。
+        toggle.setText(charSequence)
 
         getTextStyle(from: environment).apply(to: toggle)
         // `apply` sets one solid colour, which replaces the theme's state list
@@ -73,10 +79,10 @@ extension AndroidBackend {
         // read exactly like an enabled one. Material's disabled text is 38%.
         // `apply` 設的是單一固定顏色，蓋掉了主題的狀態色表，連帶蓋掉停用時的淡化文字:P2 的 `.disabled(true)`
         // 開關看起來和啟用的完全一樣。Material 的停用文字是 38%。
-        if !environment.isEnabled {
-            let color = environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
-            toggle.setTextColor((color & 0x00FF_FFFF) | 0x6100_0000)
-        }
+        // White on the filled (checked) state, the tint otherwise, 38% when
+        // disabled -- see AndroidBackendHelpers.applyToggleButtonTextColors.
+        // 開(填滿)時白色，其他時候強調色，停用時 38%——見 AndroidBackendHelpers.applyToggleButtonTextColors。
+        helpers.applyToggleButtonTextColors(toggle, environment.isEnabled)
     }
 
     public func updateCheckbox(

@@ -174,25 +174,51 @@ class AndroidBackendHelpers {
     // 開時 accent,關時主題的按鈕色——如同 UIKit 把選取的按鈕樣式開關填滿。
     fun styleToggleButton(button: android.widget.ToggleButton) {
         val context = button.context
-        fun themeColor(attr: Int): Int {
-            val value = TypedValue()
-            if (!context.theme.resolveAttribute(attr, value, true)) return 0
-            return if (value.resourceId != 0) context.getColor(value.resourceId) else value.data
-        }
-        // The accent blended into the button colour rather than the accent
-        // itself: a full accent fill (a dark purple on this image) left the
-        // label black on dark, unreadable (P2, 2026-10-09).
-        // 把 accent 混進按鈕色，而不是直接用 accent:整片 accent(這個映像上是深紫)讓黑色標籤落在深色上，讀不到。
-        val on = themeColor(android.R.attr.colorAccent)
-        val off = themeColor(android.R.attr.colorButtonNormal)
-        fun blend(from: Int, to: Int, t: Float): Int {
-            fun ch(shift: Int) = (((from shr shift) and 0xFF) * (1 - t) + ((to shr shift) and 0xFF) * t).toInt()
-            return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
-        }
-        button.backgroundTintList = android.content.res.ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(blend(off, on, 0.45f), off)
+        val primary = themeColorOf(context, android.R.attr.colorPrimary)
+        val density = context.resources.displayMetrics.density
+        // As UIKit draws a button-style toggle (user, 2026-10-09: Android lines
+        // up with iOS): off is a borderless label in the tint, on is the tint
+        // filled behind a white label. The earlier tinted grey Material button
+        // read as "a grey button, slightly purple" beside iOS's blue fill (P12).
+        // 與 UIKit 畫按鈕樣式開關的方式相同(使用者,2026-10-09:Android 對齊 iOS):關是強調色的無框標籤，開是強調色填滿、
+        // 白色標籤。先前那個上了色的灰色 Material 按鈕，在 iOS 的藍色填滿旁邊讀起來只是「偏紫的灰按鈕」(P12)。
+        val filled = android.graphics.drawable.GradientDrawable()
+        filled.cornerRadius = 8 * density
+        filled.setColor(primary)
+        val background = android.graphics.drawable.StateListDrawable()
+        background.addState(intArrayOf(android.R.attr.state_checked), filled)
+        background.addState(intArrayOf(), android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        button.background = background
+        button.backgroundTintList = null
+        button.stateListAnimator = null
+        button.elevation = 0f
+        val pad = (8 * density).toInt()
+        button.setPadding(pad, pad / 2, pad, pad / 2)
+        button.minHeight = 0
+        button.minimumHeight = 0
+        button.minWidth = 0
+        button.minimumWidth = 0
+    }
+
+    // The label colours for a button-style toggle: white on the filled (checked)
+    // state, the tint otherwise, both at 38% when disabled. Called after the text
+    // style, which sets one solid colour. 按鈕樣式開關的標籤顏色：填滿(開)時白色，其他時候強調色，停用時兩者都 38%。
+    // 在文字樣式之後呼叫，因為文字樣式只設單一顏色。
+    fun applyToggleButtonTextColors(button: android.widget.ToggleButton, enabled: Boolean) {
+        val primary = themeColorOf(button.context, android.R.attr.colorPrimary)
+        fun fade(c: Int) = if (enabled) c else (c and 0x00FFFFFF) or 0x61000000
+        button.setTextColor(
+            android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(fade(android.graphics.Color.WHITE), fade(primary))
+            )
         )
+    }
+
+    private fun themeColorOf(context: android.content.Context, attr: Int): Int {
+        val value = TypedValue()
+        if (!context.theme.resolveAttribute(attr, value, true)) return 0
+        return if (value.resourceId != 0) context.getColor(value.resourceId) else value.data
     }
 
     // .listStyle(.sidebar) on a ListView, drawn as a Material navigation drawer:

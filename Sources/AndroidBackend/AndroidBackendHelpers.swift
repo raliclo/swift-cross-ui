@@ -58,6 +58,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleToggleButton(_ button: AndroidKit.ToggleButton?)
 
+    /// Label colours for a button-style toggle; see the Kotlin side.
+    @JavaMethod
+    func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool)
+
     /// `.listStyle(.sidebar)` on, or back to the default.
     @JavaMethod
     func setListSidebar(_ listView: AndroidKit.ListView?, _ sidebar: Bool)
