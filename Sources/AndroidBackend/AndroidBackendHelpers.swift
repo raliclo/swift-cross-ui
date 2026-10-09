@@ -38,6 +38,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func getSmallTextSize(_ activity: Activity?) -> Float
 
+    /// The theme's colorPrimary as a colour int, or 0 when the theme has none.
+    @JavaMethod
+    func getPrimaryColor(_ activity: Activity?) -> Int32
+
     /// The theme's colorError as a colour int, or 0 when the theme has none.
     @JavaMethod
     func getErrorColor(_ activity: Activity?) -> Int32

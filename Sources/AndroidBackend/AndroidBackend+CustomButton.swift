@@ -116,8 +116,51 @@ extension AndroidBackend {
         }
     }
 
+    /// The label environment for a button, matching UIKit on a phone: a
+    /// borderless label is drawn in the platform's tint -- the theme's
+    /// colorPrimary here, as a Material text button is -- unless the app named
+    /// a colour, and a disabled one is a 30% grey. A bordered button keeps the
+    /// theme's button text.
+    /// 按鈕的標籤環境，與手機上的 UIKit 一致：無框標籤用平台的強調色(此處是主題的 colorPrimary,如 Material 文字按鈕),
+    /// 除非 app 指定了顏色;停用時是 30% 的灰。有框按鈕維持主題的按鈕文字。
+    public func computeButtonLabelEnvironment(
+        from environment: EnvironmentValues
+    ) -> EnvironmentValues {
+        guard environment.resolvedButtonStyle.kind == .borderless else { return environment }
+        if !environment.isEnabled {
+            return environment.with(
+                \.foregroundColor,
+                environment.suggestedForegroundColor.opacity(0.3)
+            )
+        }
+        guard environment.foregroundColor == nil, let primary = primaryColor(for: environment)
+        else { return environment }
+        return environment.with(\.foregroundColor, primary)
+    }
+
+    /// colorPrimary, read once per colour scheme rather than on every layout.
+    /// colorPrimary,每種配色只讀一次，而不是每次排版都讀。
+    private func primaryColor(for environment: EnvironmentValues) -> SwiftCrossUI.Color? {
+        let key = environment.colorScheme == .dark
+        if let cached = Self.primaryColors[key] { return cached }
+        let colorInt = helpers.getPrimaryColor(Self.activity)
+        let color =
+            colorInt == 0
+            ? nil : SwiftCrossUI.Color(SwiftCrossUI.Color.Resolved(fromColorInt: colorInt))
+        Self.primaryColors[key] = color
+        return color
+    }
+
+    @MainActor static var primaryColors: [Bool: SwiftCrossUI.Color?] = [:]
+
     public func defaultButtonStyle() -> PrimitiveButtonStyle {
-        .bordered
+        // Borderless, as UIKit's default on a phone (user, 2026-10-09: Android
+        // should line up with iOS). A Material bordered button's padding made
+        // every row of buttons wider and taller than on iOS -- P4's top row
+        // wrapped "Fe/wer rows" and showed 7 callback rows to iOS's 9.
+        // 無框，與手機上 UIKit 的預設相同(使用者,2026-10-09:Android 要與 iOS 對齊)。Material 有框按鈕的內距讓每一排
+        // 按鈕都比 iOS 寬且高——P4 頂端那排斷成「Fe/wer rows」,只顯示 7 列 callback,iOS 是 9 列。
+        .borderless
     }
 
     /// Each button's action box and what `CustomButton.set` was last given; see `LastSet`.

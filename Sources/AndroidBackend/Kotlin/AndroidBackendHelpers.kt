@@ -286,6 +286,16 @@ class AndroidBackendHelpers {
         return if (value.resourceId != 0) activity.getColor(value.resourceId) else value.data
     }
 
+    // The theme's colorPrimary: what a Material text button's label is drawn in,
+    // and so the label colour of a borderless button -- Android's counterpart
+    // of the blue UIKit gives one. 0 when the theme defines none.
+    // 主題的 colorPrimary:Material 文字按鈕的標籤顏色，也就是無框按鈕的標籤顏色——對應 UIKit 給的藍色。主題沒有定義時為 0。
+    fun getPrimaryColor(activity: Activity): Int {
+        val value = TypedValue()
+        if (!activity.theme.resolveAttribute(android.R.attr.colorPrimary, value, true)) return 0
+        return if (value.resourceId != 0) activity.getColor(value.resourceId) else value.data
+    }
+
     fun getSmallTextSize(activity: Activity): Float {
         val size =
             smallTextSize
