@@ -13,7 +13,15 @@ class CustomSpinner: JavaObject {
     )
 
     @JavaMethod
-    func update(_ onChange: SwiftAction?, _ options: [String], _ isEnabled: Bool)
+    func update(
+        _ onChange: SwiftAction?,
+        _ options: [String],
+        _ isEnabled: Bool,
+        color: Int32,
+        fontSize: Float,
+        lineHeight: Int32,
+        _ typeface: AndroidKit.Typeface?
+    )
 
     // Inheritied from Spinner; only present to avoid the extra as() call Swift-side.
     @JavaMethod

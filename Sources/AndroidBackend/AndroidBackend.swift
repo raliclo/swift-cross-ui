@@ -1170,7 +1170,7 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func createTextView() -> Widget {
-        AndroidKit.TextView(Self.activity, environment: Self.env)
+        FittedTextView(activity: Self.activity, environment: Self.env).as(AndroidKit.TextView.self)!
     }
 
     public func updateTextView(
@@ -1211,7 +1211,7 @@ public final class AndroidBackend: BaseAppBackend {
         // 而一個 Text 每次排版會被量好幾次;2026-10-04 動畫期間本函式佔 P66 主執行緒的 50.5%。結果完全由鍵
         // 決定，所以快取;鍵是新的時候，由一個保留下來的 TextView 負責量。
         let key = "\(textStyleKey(for: environment))|\(proposedWidth ?? -1)|"
-            + "\(proposedHeight ?? -1)|\(text)"
+            + "\(proposedHeight ?? -1)|\(environment.lineLimitSettings.map { "\($0.limit)/\($0.reservesSpace)" } ?? "-")|\(text)"
         if let cached = Self.textSizes[key] {
             return cached
         }
@@ -1247,16 +1247,32 @@ public final class AndroidBackend: BaseAppBackend {
             } else {
                 0x3FFFFFFF as Int32
             }
-        let heightSpec =
-            if let proposedHeight {
-                Int32(Double(proposedHeight) * environment.windowScaleFactor)
-            } else {
-                0x3FFFFFFF as Int32
-            }
-
-        widget.measure(widthSpec, heightSpec)
+        // Height unbounded, then cut to the whole lines the proposal has room
+        // for -- at least one -- as UIKit's boundingRect with
+        // truncatesLastVisibleLine does. The proposed height used to go in as a
+        // bare number, which MeasureSpec reads as UNSPECIFIED, so a Text always
+        // took every line it wrapped to: P17's "subject" came out 160 x 64 where
+        // iOS gives 159 x 22 (2026-10-10). FittedTextView then draws only the
+        // lines that fit, ending in an ellipsis.
+        // 高度不設限地量，再裁成提議尺寸放得下的整行(至少一行),與 UIKit 帶 truncatesLastVisibleLine 的
+        // boundingRect 相同。提議高度原本以裸數字傳入,MeasureSpec 把它讀成 UNSPECIFIED,所以 Text 永遠佔滿
+        // 它換行後的每一行:P17 的 "subject" 量出 160 x 64,iOS 是 159 x 22(2026-10-10)。之後由
+        // FittedTextView 只畫放得下的行，並以刪節號結尾。
+        widget.measure(widthSpec, 0x3FFFFFFF as Int32)
         let width = Double(widget.getMeasuredWidth()) / environment.windowScaleFactor
-        let height = Double(widget.getMeasuredHeight()) / environment.windowScaleFactor
+        var height = Double(widget.getMeasuredHeight()) / environment.windowScaleFactor
+        let lineHeight = Double(widget.as(AndroidKit.TextView.self)!.getLineHeight())
+            / environment.windowScaleFactor
+        if let proposedHeight, lineHeight > 0, height > Double(proposedHeight) {
+            height = max(1, (Double(proposedHeight) / lineHeight).rounded(.down)) * lineHeight
+        }
+        // `.lineLimit`, as UIKitBackend applies it. 與 UIKitBackend 相同地套用 `.lineLimit`。
+        if let lineLimitSettings = environment.lineLimitSettings, lineHeight > 0 {
+            let limitedHeight = Double(max(lineLimitSettings.limit, 1)) * lineHeight
+            if limitedHeight < height || lineLimitSettings.reservesSpace {
+                height = limitedHeight
+            }
+        }
         let size = SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
         Self.textSizes[key] = size
         return size

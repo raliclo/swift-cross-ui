@@ -140,7 +140,7 @@ extension AndroidBackend {
 
     /// colorPrimary, read once per colour scheme rather than on every layout.
     /// colorPrimary,每種配色只讀一次，而不是每次排版都讀。
-    private func primaryColor(for environment: EnvironmentValues) -> SwiftCrossUI.Color? {
+    func primaryColor(for environment: EnvironmentValues) -> SwiftCrossUI.Color? {
         let key = environment.colorScheme == .dark
         if let cached = Self.primaryColors[key] { return cached }
         let colorInt = helpers.getPrimaryColor(Self.activity)
