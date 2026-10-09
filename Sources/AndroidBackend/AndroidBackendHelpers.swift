@@ -68,7 +68,7 @@ class AndroidBackendHelpers: JavaObject {
 
     /// `.listStyle(.sidebar)` on, or back to the default.
     @JavaMethod
-    func setListSidebar(_ listView: AndroidKit.ListView?, _ sidebar: Bool)
+    func setListSidebar(_ listView: AndroidKit.ListView?, _ sidebar: Bool, _ dark: Bool)
 
     @JavaMethod
     func setButtonColorScheme(_ button: AndroidKit.Button?, _ dark: Bool)

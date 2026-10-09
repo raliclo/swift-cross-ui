@@ -1217,3 +1217,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P14,ok,n/a,screen,default,actualView at the app's default size: proposed width 388 on both. iOS still wraps two lines Android does not (SF ~5% wider than Roboto).
 2026-10-09,android,android,P15,ok,n/a,screen,default,actualView at the default size; aligned.
 2026-10-09,android,android,P15-DARK,ok,n/a,screen,default,"actualView button now dark under a dark scheme, as iOS's."
+2026-10-10,ios,uikit,P16,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P16,ok,n/a,screen,default,"Sidebar list on iOS's systemGroupedBackground (#F2F2F7 light, black dark, by the window's scheme) instead of the Material drawer grey. Pane readouts 244x22 / 596x22 match iOS."

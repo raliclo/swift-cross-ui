@@ -100,7 +100,7 @@ class ListItemSelectedListener: JavaObject {
 // implements BackendFeatures.SelectableListViews
 extension AndroidBackend {
     /// Whether each list was last drawn as a sidebar. 每個清單上次是否畫成側邊欄。
-    @MainActor static let listSidebarStates = LastSet<Bool>()
+    @MainActor static let listSidebarStates = LastSet<String>()
 
     public func createSelectableListView() -> Widget {
         let absListViewClass = try! JavaClass<AndroidKit.AbsListView>()
@@ -151,11 +151,16 @@ extension AndroidBackend {
         // `.sidebar` 畫成 Material 的 navigation drawer(`setListSidebar`)。只在改變時呼叫：它會建立 drawable
         // 並解析主題屬性。
         let isSidebar = environment.backendListStyle == .sidebar
+        // The scheme too: the sidebar panel is drawn in iOS's grouped background
+        // for the window's scheme, not the system's. 深淺色也算在內：側邊欄面板以視窗的配色
+        // (而非系統的)畫成 iOS 的 grouped 背景。
+        let isDark = environment.colorScheme == .dark
+        let sidebarState = "\(isSidebar)/\(isDark)"
         // Also on the first update (no state yet), so a default list gets its
         // background too. 第一次更新(尚無狀態)時也套用，讓預設清單也拿到背景。
-        if Self.listSidebarStates.value(for: selectableListView) != isSidebar {
-            helpers.setListSidebar(selectableListView.as(AndroidKit.ListView.self), isSidebar)
-            Self.listSidebarStates.set(isSidebar, for: selectableListView)
+        if Self.listSidebarStates.value(for: selectableListView) != sidebarState {
+            helpers.setListSidebar(selectableListView.as(AndroidKit.ListView.self), isSidebar, isDark)
+            Self.listSidebarStates.set(sidebarState, for: selectableListView)
         }
     }
 

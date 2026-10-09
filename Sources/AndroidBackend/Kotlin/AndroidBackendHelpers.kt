@@ -278,13 +278,13 @@ class AndroidBackendHelpers {
     }
 
     // .listStyle(.sidebar) on a ListView, drawn as a Material navigation drawer:
-    // the theme's floating-surface background, no dividers, and a pill-shaped
+    // iOS's grouped background for the window's scheme, no dividers, and a pill-shaped
     // selection inset from the edges, tinted with colorControlHighlight. Off
     // restores what createSelectableListView set: no background, the theme's
     // listDivider, the flat grey selector.
-    // ListView 上的 .listStyle(.sidebar),畫成 Material 的 navigation drawer:主題的浮動表面背景、沒有分隔線、
+    // ListView 上的 .listStyle(.sidebar),畫成 Material 的 navigation drawer:依視窗配色的 iOS grouped 背景、沒有分隔線、
     // 內縮的膠囊形選取(colorControlHighlight)。關閉時還原 createSelectableListView 所設的樣子。
-    fun setListSidebar(listView: android.widget.ListView, sidebar: Boolean) {
+    fun setListSidebar(listView: android.widget.ListView, sidebar: Boolean, dark: Boolean) {
         val context = listView.context
         fun themeColor(attr: Int): Int {
             val value = TypedValue()
@@ -293,16 +293,14 @@ class AndroidBackendHelpers {
         }
         if (sidebar) {
             val density = context.resources.displayMetrics.density
-            // The floating surface with the highlight laid over it, so the drawer
-            // reads as a panel: on the API 36 emulator colorBackgroundFloating
-            // alone equals the window background (P83, 2026-10-08).
-            // 浮動表面再疊上 highlight,讓抽屜看得出是一塊面板:API 36 emulator 上單用 colorBackgroundFloating
-            // 與視窗背景相同(P83,2026-10-08)。
-            listView.background = android.graphics.drawable.LayerDrawable(
-                arrayOf(
-                    android.graphics.drawable.ColorDrawable(themeColor(android.R.attr.colorBackgroundFloating)),
-                    android.graphics.drawable.ColorDrawable(themeColor(android.R.attr.colorControlHighlight))
-                )
+            // UIKit's systemGroupedBackground, which UIKitBackend gives a sidebar
+            // list: #F2F2F7 light, black dark, chosen by the window's scheme. The
+            // theme's floating surface with the highlight over it was a Material
+            // drawer, a darker grey than iOS's panel (P16, 2026-10-10).
+            // UIKit 的 systemGroupedBackground,即 UIKitBackend 給側邊欄清單的背景：淺色 #F2F2F7、深色黑色，依視窗配色
+            // 選擇。原本用主題的浮動表面再疊 highlight,是 Material 的抽屜，比 iOS 的面板更深(P16,2026-10-10)。
+            listView.background = android.graphics.drawable.ColorDrawable(
+                if (dark) 0xFF000000.toInt() else 0xFFF2F2F7.toInt()
             )
             listView.divider = null
             listView.dividerHeight = 0
