@@ -20,8 +20,22 @@
   every capture read.
   - [ ] **Windows side: P84 on WinUI, GTK (Windows) and WSL.** The WinUI
     premultiply edit in `WinUIBackend.updateImageView` has never been
-    compiled. Coordinates for `actions/win/` still to be measured. GTK on
-    macOS was not run either: gtk4 is not installed on this Mac.
+    compiled. Coordinates for `actions/win/` still to be measured.
+  - [x] **GTK on macOS: P84 verified 2026-10-09** (gtk4 4.24.1, libepoxy
+    1.5.10, graphene 1.10.8, pango 1.58.2, gdk-pixbuf 2.44.8, librsvg 2.63.2
+    via `testapp/install_tool_mac.zsh`). `compile.zsh -gtk4` now works on
+    macOS (Homebrew branch; output `P84-gtk4`; AppKitBackend dropped, since
+    DefaultBackend prefers `canImport(AppKitBackend)` and a stale module made
+    the second build an AppKit app). `TEST_BACKEND=gtk4 test.zsh Pn --macos`
+    runs it. Seven files `actions/mac/P84-*-gtk4.csv`, every capture read:
+    same difference numbers as macOS (boards max 14, features max 64 mean
+    0.104), larger/smaller sizes, sample 5's six diagnostics. Clicks: posted
+    NSEvents reach GDK as press/release but never fire a GtkButton, so
+    AppKitSynthesiser now sends GDK windows HID clicks (move, 150 ms, down,
+    150 ms, up; needs the Accessibility grant). Premultiplied alpha: GTK is
+    right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
+    (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
+    and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
   - [ ] **SVG not yet drawn:** visible `<text>` (needs a font shared by all
     backends), gradients, patterns, clipPath/mask, filters, markers, `<image>`;
     each is reported and outlined today.

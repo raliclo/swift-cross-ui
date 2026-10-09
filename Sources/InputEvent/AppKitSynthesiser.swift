@@ -1069,7 +1069,7 @@
             in window: NSWindow,
             clicks: Int
         ) throws {
-            if Self.isOutOfProcessPanel(window) {
+            if Self.isOutOfProcessPanel(window) || Self.isGdkWindow(window) {
                 try postMouseThroughHID(type, button, at: location, in: window)
                 return
             }
@@ -1136,6 +1136,27 @@
             window is NSSavePanel
         }
 
+        /// Whether `window` is GDK's (GtkBackend on macOS), whose buttons do not
+        /// fire on posted clicks.
+        ///
+        /// Measured 2026-10-09 with P84 on GTK 4.24.1 (Homebrew): a click posted
+        /// with `NSApp.postEvent` reaches GDK -- `GDK_DEBUG=events` logs a
+        /// GDK_BUTTON_PRESS and a GDK_BUTTON_RELEASE -- yet no `GtkButton` fired,
+        /// not with a 150 ms hold, not after warping the real cursor onto the
+        /// button, and not at points 28 pt above or below. One `CGEvent` click
+        /// through the HID tap at the same screen point picked the sample at once.
+        /// So GDK windows take the HID path the panels already use.
+        ///
+        /// `window` 是否為 GDK 的視窗(macOS 上的 GtkBackend)——它的按鈕不會因為投遞的點擊而觸發。
+        /// 2026-10-09 以 P84 在 GTK 4.24.1(Homebrew)上實測：以 `NSApp.postEvent` 投遞的點擊確實到達 GDK
+        /// (`GDK_DEBUG=events` 記下 GDK_BUTTON_PRESS 與 GDK_BUTTON_RELEASE),但沒有任何 `GtkButton` 觸發——
+        /// 按住 150 毫秒、先把真實游標移到按鈕上、或往上下偏 28 pt 都一樣。同一個螢幕點上經 HID tap 的一次
+        /// `CGEvent` 點擊立刻選到了樣本。因此 GDK 視窗改走面板已經在用的 HID 路徑。
+        @MainActor
+        static func isGdkWindow(_ window: NSWindow) -> Bool {
+            NSStringFromClass(type(of: window)).hasPrefix("Gdk")
+        }
+
         /// A mouse event through the HID tap, for a window whose content is in
         /// another process.
         ///
@@ -1159,8 +1180,8 @@
         ) throws {
             guard AXIsProcessTrusted() else {
                 throw SynthesiserError.unsupported(
-                    "a click into an open/save panel needs the Accessibility grant: the panel's"
-                        + " content is in another process and only an HID event reaches it"
+                    "a click into an open/save panel or a GTK window needs the Accessibility grant: the panel's"
+                        + " content is in another process (or, for a GTK window, GDK ignores posted clicks) and only an HID event reaches it"
                 )
             }
             let onScreen = window.convertPoint(toScreen: location)
@@ -1188,7 +1209,30 @@
             else {
                 throw SynthesiserError.unsupported("could not construct an HID \(type) event")
             }
+            // A GDK window needs the pointer to arrive before the press, and the
+            // press to last: measured 2026-10-09 with P84, a bare HID down+up at
+            // a GtkButton fired once in eight runs, while move, 150 ms, down,
+            // 150 ms, up fired in all eight runs. Probably GDK sets its pointer surface from
+            // motion and drops a press it has no pointer surface for (not
+            // confirmed in GDK). So a down is preceded by a move to the same point and
+            // both are given time to land. Panels are unaffected (no GDK).
+            // GDK 視窗需要指標先抵達、按壓也要持續一下:2026-10-09 以 P84 實測，對 GtkButton 直接送 HID
+            // down+up,八次只觸發一次；move、150 毫秒、down、150 毫秒、up 則八次全部觸發。推測 GDK 由移動事件決定
+            // 指標所在的 surface,沒有 pointer surface 的按壓被丟棄(未在 GDK 原始碼中確認)。因此 down 之前先移到同一點，並給兩者
+            // 落地的時間。面板(非 GDK)不受影響。
+            if Self.isGdkWindow(window), type == Self.downType(button) {
+                CGEvent(
+                    mouseEventSource: nil,
+                    mouseType: .mouseMoved,
+                    mouseCursorPosition: point,
+                    mouseButton: cgButton
+                )?.post(tap: .cghidEventTap)
+                usleep(150_000)
+            }
             event.post(tap: .cghidEventTap)
+            if Self.isGdkWindow(window), type == Self.downType(button) {
+                usleep(150_000)
+            }
         }
 
         @MainActor

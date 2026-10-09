@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+# P84 on macos with GtkBackend (TEST_BACKEND=gtk4): sample 3: softpcb_meander.
+# origin=frame. GtkBackend (Homebrew GTK 4.24.1) on macOS: the window is an NSWindow with the native 28 pt title bar, 560x720 pt content, captured at 560x748 px, i.e. scale 1; read off p84-macos-gtk4-final-20261009-201356.png: sample buttons 1-5 at y 282 (1 x 175, 2 x 225, 3 x 274, 4 x 324, 5 x 375), smaller x 142 and larger x 225 at y 348. GTK buttons are taller and wider than AppKit's, so the AppKit files miss them.
+# Pass: left and right images both show the meander board; difference within the golden bounds; unsupported: none
+# P84(macos,GtkBackend):sample 3: softpcb_meander。通過條件見上方英文；座標與幾何同上。
+sleep,,,,,,2500000,let P84 lay out (it rasterises five samples at launch),macos
+click,274,282,frame,left,,,"sample 3: softpcb_meander (VERIFIED 2026-10-09: p84-macos-gtk4-final-20261009-203156.png shows the stated pass)",macos
+sleep,,,,,,4000000,hold for the capture,macos

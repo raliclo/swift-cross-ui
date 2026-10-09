@@ -1387,11 +1387,23 @@ run_wsl() {
 run_macos() {
     local out="$script_dir/output"
     local label="${app:l}-macos"
+    # TEST_BACKEND=gtk4 runs the GtkBackend build (compile.zsh -gtk4, output/<app>-gtk4)
+    # in the same bundle, so action files, captures and the replay wait are shared
+    # with AppKit; the captures say gtk4 in their name.
+    # TEST_BACKEND=gtk4 在同一個 bundle 中執行 GtkBackend 建置(compile.zsh -gtk4、
+    # output/<app>-gtk4),動作檔、擷圖與重放等待與 AppKit 共用；擷圖檔名帶 gtk4。
+    local mac_exe="$app"
+    local mac_build_flags=()
+    if [ "${TEST_BACKEND:-}" = "gtk4" ]; then
+        mac_exe="$app-gtk4"
+        mac_build_flags=(-gtk4)
+        label="$label-gtk4"
+    fi
 
     if [ "$do_build" -eq 1 ]; then
-        printf '==> Building %s for macOS\n' "$app"
+        printf '==> Building %s for macOS (%s)\n' "$app" "${TEST_BACKEND:-appkit}"
         run_build 'error:|Build complete|Build of product' \
-            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "$app"
+            env SCUI_DEBUG="${action_file:+1}" zsh "$script_dir/compile.zsh" "${mac_build_flags[@]}" "$app"
     fi
 
     mkdir -p "$out"
@@ -1484,7 +1496,7 @@ run_macos() {
         "$mac_bundle_dir/Info.plist" >/dev/null
     printf '    bundle identifier: %s\n' "$bundle_id"
     rm -f "$mac_bundle_executable"
-    cp "$out/$app" "$mac_bundle_executable"
+    cp "$out/$mac_exe" "$mac_bundle_executable"
     chmod +x "$mac_bundle_executable"
 
     printf '==> Launching %s on macOS from .macApp/debugTarget.app\n' "$app"

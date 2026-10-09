@@ -879,6 +879,11 @@ windows_winui_products='.product(name: "WinUIBackend", package: "swift-cross-ui"
     .product(name: "UWP", package: "swift-winui", condition: .when(platforms: [.windows])),
     .product(name: "WindowsFoundation", package: "swift-winui", condition: .when(platforms: [.windows])),'
 
+# The AppKitBackend product, dropped under -gtk4 for the same reason on macOS;
+# see the Darwin branch below.
+# AppKitBackend product,-gtk4 時在 macOS 上基於同樣理由移除；見下方 Darwin 分支。
+macos_appkit_product='.product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),'
+
 # Dropped as well under -gtk4, not just its products. A package dependency with
 # nothing depending on it is still resolved and fetched.
 # -gtk4 時連同套件依賴一起移除，而不只是它的 product。無人依賴的套件依賴仍會被解析與取回。
@@ -898,6 +903,8 @@ if [ "$force_gtk4" -eq 1 ]; then
     windows_gtk_product='.product(name: "GtkBackend", package: "swift-cross-ui", condition: .when(platforms: [.windows])),
     .product(name: "Gtk", package: "swift-cross-ui", condition: .when(platforms: [.windows])),'
     windows_winui_products=""
+    # macOS: see the -gtk4 Darwin branch below. / macOS:見下方 -gtk4 的 Darwin 分支。
+    macos_appkit_product=""
     winui_package=""
 
     # This is what actually redirects the backend. Adding GtkBackend as a product
@@ -916,7 +923,42 @@ if [ "$force_gtk4" -eq 1 ]; then
     # SCUI_DEFAULT_BACKEND 是 Package.swift 既有的鉤子。
     export SCUI_DEFAULT_BACKEND=GtkBackend
 
-    if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        # macOS gets GTK from Homebrew (Package.swift: CGtk `providers: [.brew(["gtk4"])]`),
+        # and SwiftPM applies the pkg-config cflags itself, as on Linux. The one
+        # flag it does not get is the epoxy include: gtk4.pc lists epoxy as a
+        # private requirement, so `pkg-config --cflags gtk4` never names it and
+        # GtkCHelpers' GL files fail on <epoxy/gl.h>. install_tool_mac.zsh
+        # explains it and installs both. Before 2026-10-09 this branch did not
+        # exist and -gtk4 on macOS stopped at "GTK 4 not found at C:/gtk4".
+        # macOS 的 GTK 來自 Homebrew(Package.swift:CGtk `providers: [.brew(["gtk4"])]`),
+        # SwiftPM 會像在 Linux 上一樣自行套用 pkg-config 的 cflags。它拿不到的只有 epoxy 的
+        # include:gtk4.pc 把 epoxy 列為 private requirement,`pkg-config --cflags gtk4`
+        # 從不提及它，GtkCHelpers 的 GL 檔案便會在 <epoxy/gl.h> 失敗。原因與安裝見
+        # install_tool_mac.zsh。2026-10-09 之前沒有這個分支，macOS 上的 -gtk4 會停在
+        # 「GTK 4 not found at C:/gtk4」。
+        if ! pkg-config --exists gtk4 2>/dev/null; then
+            printf 'GTK 4 not found by pkg-config / pkg-config 找不到 GTK 4\n' >&2
+            printf 'Run: zsh testapp/install_tool_mac.zsh\n' >&2
+            exit 1
+        fi
+        gtk_build_flags+=(-Xcc "-I$(brew --prefix)/include")
+        printf '==> Forcing GtkBackend with Homebrew GTK %s\n' "$(pkg-config --modversion gtk4)"
+        # DefaultBackend.swift picks `#if canImport(AppKitBackend)` before
+        # GtkBackend, so the AppKitBackend product is dropped above AND any
+        # module an earlier build left in this tree is removed: canImport sees a
+        # stale .swiftmodule as readily as a fresh one. Measured 2026-10-09: the
+        # first -gtk4 P84 ran on GTK only because DefaultBackend happened to
+        # compile before AppKitBackend; the next build found the module and
+        # produced an AppKit app named P84-gtk4.
+        # DefaultBackend.swift 先判斷 `#if canImport(AppKitBackend)` 才輪到 GtkBackend,因此上方移除了
+        # AppKitBackend product,這裡也刪掉先前建置留在此樹中的模組：canImport 對陳舊的 .swiftmodule
+        # 與新的一視同仁。2026-10-09 實測：第一次 -gtk4 P84 跑在 GTK 上，只因 DefaultBackend 碰巧先於
+        # AppKitBackend 編譯；下一次建置找到了該模組，產出一支名為 P84-gtk4 的 AppKit app。
+        if [ -d "$package_dir/.build" ]; then
+            find "$package_dir/.build" -name 'AppKitBackend.swiftmodule' -prune -exec rm -rf {} +
+        fi
+    elif [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
         gtk_prefix="${GTK4_PREFIX:-C:/gtk4}"
         gtk_pkgconfig="$gtk_prefix/bin/pkg-config.exe"
         if [ ! -x "$gtk_pkgconfig" ]; then
@@ -1286,7 +1328,7 @@ let testAppDependencies: [Target.Dependency] = [
     // 由 CSV 檔驅動的合成輸入，供 -actionfile 使用。開放給每一支 Pn 而非少數幾支：下一支需要被
     // 驅動的是哪一個無法事先得知，而未使用時連結此模組並無成本。
     .product(name: "InputEvent", package: "swift-cross-ui"),
-    .product(name: "AppKitBackend", package: "swift-cross-ui", condition: .when(platforms: [.macOS])),
+    $macos_appkit_product
     $windows_winui_products
     $windows_gtk_product
     // Gtk, not GtkBackend: what a test app needs on Linux is the window type
@@ -1993,6 +2035,17 @@ for app_name in $app_names; do
         esac
     fi
 
+    # macOS is the exception to "one backend by construction" under -gtk4: the
+    # default build there is AppKit, so a GTK build copied to output/<app> would
+    # overwrite it and test.zsh would launch whichever ran last. Linux keeps the
+    # bare name, because GTK is its default and the two builds are the same.
+    # macOS 在 -gtk4 下不屬於「結構上只有一個 backend」:那裡的預設建置是 AppKit,GTK 建置若複製到
+    # output/<app> 會覆蓋它，test.zsh 便會啟動最後建出的那一個。Linux 維持無後綴，因為 GTK 本就是
+    # 它的預設，兩次建置相同。
+    plain_suffix=""
+    if [ "$force_gtk4" -eq 1 ] && [ "$manifest_host_os" = "macos" ]; then
+        plain_suffix="-gtk4"
+    fi
     exe_path=""
     triple_dir="$(find "$package_dir/.build" -maxdepth 1 -type d -name '*-*-*' | head -n 1 || true)"
     if [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name.exe" ]; then
@@ -2000,13 +2053,13 @@ for app_name in $app_names; do
         output_path="$output_dir/$app_name$backend_suffix.exe"
     elif [ -n "$triple_dir" ] && [ -f "$triple_dir/$build_config/$app_name" ]; then
         exe_path="$triple_dir/$build_config/$app_name"
-        output_path="$output_dir/$app_name"
+        output_path="$output_dir/$app_name$plain_suffix"
     elif [ -f "$package_dir/.build/$build_config/$app_name.exe" ]; then
         exe_path="$package_dir/.build/$build_config/$app_name.exe"
         output_path="$output_dir/$app_name$backend_suffix.exe"
     elif [ -f "$package_dir/.build/$build_config/$app_name" ]; then
         exe_path="$package_dir/.build/$build_config/$app_name"
-        output_path="$output_dir/$app_name"
+        output_path="$output_dir/$app_name$plain_suffix"
     else
         echo "Build succeeded but executable was not found for $app_name" >&2
         exit 1
