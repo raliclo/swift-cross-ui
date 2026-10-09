@@ -37,8 +37,8 @@
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
   - [ ] **SVG not yet drawn:** filters,
-    markers, `<image>`;
-    each is reported and outlined today. (Gradients, clipPath, mask and patterns are drawn since 2026-10-10.)
+    `<image>`;
+    each is reported and outlined today. (Gradients, clipPath, mask, patterns and markers are drawn since 2026-10-10.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -87,6 +87,14 @@
       attributes and content; fills, strokes and text. A zero-sized tile or
       empty content paints nothing; a pattern painting with itself is
       reported. Checked: SVGPatternTests (9), all 66 SVG tests.
+    - [x] **Markers: `marker-start`, `marker-mid`, `marker-end`** (2026-10-10),
+      on path, line, polyline and polygon, drawn after fill and stroke inside
+      the shape's opacity, clip and mask. Vertices with directions in and out
+      (curves by their end tangents, closed subpaths joined); orient auto,
+      auto-start-reverse and angles; markerUnits strokeWidth and
+      userSpaceOnUse; markerWidth/Height, viewBox, refX/refY; overflow hidden
+      (the default) clips to the marker viewport. Checked: SVGMarkerTests (9),
+      all 75 SVG tests.
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent

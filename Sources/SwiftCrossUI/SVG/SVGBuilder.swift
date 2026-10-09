@@ -39,7 +39,9 @@ final class SVGBuilder {
         var fontFamilies: [String] = []
         var fontBold = false
         var fontItalic = false
-        var markers = false
+        var markerStart: String? = nil
+        var markerMid: String? = nil
+        var markerEnd: String? = nil
         // Not inherited. / 不繼承。
         var opacity = 1.0
         var displayed = true
@@ -420,8 +422,17 @@ final class SVGBuilder {
                 style.mask = value == "none" ? nil : value
             case "filter":
                 style.filter = value == "none" ? nil : value
-            case "marker-start", "marker-mid", "marker-end", "marker":
-                style.markers = value != "none"
+            case "marker-start":
+                style.markerStart = value == "none" ? nil : value
+            case "marker-mid":
+                style.markerMid = value == "none" ? nil : value
+            case "marker-end":
+                style.markerEnd = value == "none" ? nil : value
+            case "marker":
+                let reference = value == "none" ? nil : value
+                style.markerStart = reference
+                style.markerMid = reference
+                style.markerEnd = reference
             case "transform":
                 style.transform = value
             default:
@@ -688,9 +699,6 @@ final class SVGBuilder {
             return []
         }
         guard let path = shapePath(element, name: name, style: style) else { return [] }
-        if style.markers {
-            report(.unsupportedAttribute, element, "markers (marker-start/mid/end) not drawn")
-        }
         guard style.visible else { return [] }
         if clipping {
             // In a <clipPath> only the geometry counts, filled with `clip-rule`.
@@ -711,14 +719,19 @@ final class SVGBuilder {
         let stroke = resolve(
             style.stroke, opacity: style.strokeOpacity, style: style, element: element,
             box: Self.bounds(of: path))
+        // Markers come after the fill and stroke, inside the shape's opacity, clip and mask.
+        // 標記畫在填色與描邊之後，位於形狀的不透明度、裁切與遮罩之內。
+        let markers =
+            Self.markableNames.contains(name)
+            ? markerNodes(for: element, path: path, style: style, transform: transform) : []
         if fill == nil && stroke == nil {
-            return wrap([], style: style, element: element, transform: transform)
+            return wrap(markers, style: style, element: element, transform: transform)
         }
         let shape = SVGShape(
             path: path, transform: transform, fill: fill, fillRule: style.fillRule, stroke: stroke,
             strokeWidth: style.strokeWidth, lineCap: style.lineCap, lineJoin: style.lineJoin,
             miterLimit: style.miterLimit, dashes: style.dashes, dashOffset: style.dashOffset)
-        var nodes: [SVGRenderNode] = [.shape(shape)]
+        var nodes: [SVGRenderNode] = [.shape(shape)] + markers
         // A substituted paint is outlined like any other unsupported item.
         // 被替換的塗料與其他不支援的項目一樣會被框出。
         if Self.isUnsupported(style.fill) && name != "line" || Self.isUnsupported(style.stroke),
