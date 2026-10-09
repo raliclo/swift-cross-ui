@@ -75,6 +75,18 @@ rather than settled here.
    evidence in the message. Anything left open goes to `queue.md`.
 8. **Next Pn.**
 
+## Alignment decisions so far (user, 2026-10-09)
+
+| Gap | Decision | Commit |
+| --- | --- | --- |
+| Where an oversized root starts | Android starts at the top-left below the status bar, as iOS | 12c8788b |
+| Old Android action files after that | The replay adds the displacement and scrolls to off-screen points | 12c8788b |
+| Default button style | Borderless text in colorPrimary, as iOS's blue buttons | 615a4b67 |
+| Text sizes | The core's mobile table (iOS points) in sp, not the theme's | 895d11a2 |
+
+Changes like these are global: a later Pn's "before" capture may already
+include them, and an earlier Pn's "after" does not.
+
 ## Known by-design differences (do not re-report)
 
 - **Where an oversized root starts -- ALIGNED 2026-10-09 (user's decision).**
