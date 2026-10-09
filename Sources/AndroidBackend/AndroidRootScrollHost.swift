@@ -83,13 +83,15 @@ enum AndroidRootScrollHost {
         _ content: AndroidView.View,
         activity: Activity,
         environment: JNIEnvironment?,
-        showModeControl: Bool
+        showModeControl: Bool,
+        onHost: (RootScrollHost) -> Void = { _ in }
     ) -> AndroidView.View {
         let host = RootScrollHost(
             activity.as(AndroidContent.Context.self),
             environment: environment
         )
         host.host(content)
+        onHost(host)
         if showModeControl {
             host.installModeButton(activity)
         }

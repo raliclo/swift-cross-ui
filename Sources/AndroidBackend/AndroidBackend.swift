@@ -217,6 +217,11 @@ public final class AndroidBackend: BaseAppBackend {
         var isOpen = false
         /// What a later window's activity takes as its content. 之後的視窗的 activity 所採用的內容。
         var contentRoot: AndroidKit.View?
+        /// The size the app asked for (`.defaultSize`), and the root scroll host
+        /// whose mode decides whether it is used -- see `size(ofWindow:)`.
+        /// App 要求的尺寸(`.defaultSize`),以及其模式決定是否採用它的 root scroll host——見 `size(ofWindow:)`。
+        var defaultSize: SIMD2<Int>?
+        var scrollHost: RootScrollHost?
 
         init(token: String?) {
             self.token = token
@@ -473,7 +478,9 @@ public final class AndroidBackend: BaseAppBackend {
         // 第一個視窗是 app 啟動時的 activity;之後每一個都拿到 token,顯示時有自己的 activity。2026-10-06
         // 之前這裡是上游的 TODO,每次呼叫都回傳同一個佔位物件。
         defer { Self.didCreateMainWindow = true }
-        return Window(token: Self.didCreateMainWindow ? UUID().uuidString : nil)
+        let window = Window(token: Self.didCreateMainWindow ? UUID().uuidString : nil)
+        window.defaultSize = defaultSize
+        return window
     }
 
     public func updateWindow(_ window: Window, environment: EnvironmentValues) {
@@ -573,7 +580,8 @@ public final class AndroidBackend: BaseAppBackend {
                 container,
                 activity: Self.activity,
                 environment: Self.env,
-                showModeControl: DebugFeatures.allowsRootScrollControl
+                showModeControl: DebugFeatures.allowsRootScrollControl,
+                onHost: { host in window.scrollHost = host }
             ),
             AndroidKit.LinearLayout.LayoutParams(
                 matchParentDimension,
@@ -586,6 +594,15 @@ public final class AndroidBackend: BaseAppBackend {
         window.rootStack = stack.as(AndroidKit.LinearLayout.self)
         stack.setShortcutListener(Self.applicationShortcutListener)
         window.content = container
+        // The mode control changes what size the window reports; lay out again.
+        // 模式切換控制項會改變視窗回報的尺寸;重新排版。
+        window.scrollHost?.setOnModeChange(
+            SwiftAction(environment: Self.env) { [weak self, weak window] in
+                guard let self, let window else { return }
+                self.updateInsets(ofWindow: window)
+                window.resizeHandler?(self.size(ofWindow: window))
+            }
+        )
         if window.token != nil {
             // A later window: its activity takes `stack` when `show` starts it.
             // 之後的視窗:`show` 啟動它的 activity 時，該 activity 會接手 `stack`。
@@ -622,6 +639,22 @@ public final class AndroidBackend: BaseAppBackend {
     }
 
     public func size(ofWindow window: Window) -> SIMD2<Int> {
+        // actualView lays an app out at the size it asked for, as on a desktop,
+        // not at the phone's: a layout that depends on the screen width is not
+        // the app's actual view, and iOS (411 dp vs 440 pt) wrapped differently
+        // (user, 2026-10-09: "Actual View 不應該有 screen width 問題", "不該換行").
+        // Test builds only -- where the mode control exists; a shipped app sizes
+        // to the screen, as SwiftUI ignores defaultSize on a phone. rwdView keeps
+        // the screen size and scales.
+        // actualView 以 app 要求的尺寸排版，如同在桌面上，而不是以手機的尺寸：依螢幕寬度而定的版面不是 app 的實際樣子，
+        // 而且 iOS(411 dp 對 440 pt)換行位置不同(使用者,2026-10-09)。只在有模式切換控制項的測試建置中;正式的 app 依螢幕
+        // 排版，如同 SwiftUI 在手機上忽略 defaultSize。rwdView 維持螢幕尺寸並縮放。
+        if DebugFeatures.allowsRootScrollControl,
+            let defaultSize = window.defaultSize,
+            (window.scrollHost?.getModeIndex() ?? 0) == 0
+        {
+            return defaultSize
+        }
         // A later window before its activity exists measures as the first: the
         // same screen, and the activity will report its own size once it runs.
         // 之後的視窗在其 activity 存在前，以第一個視窗的尺寸量測：同一個螢幕，activity 一跑起來就會回報自己的尺寸。

@@ -240,6 +240,16 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         return intArrayOf(horizontal.scrollX - beforeX, vertical.scrollY - beforeY)
     }
 
+    // Told when the control switches modes, so Swift can lay the window out
+    // again: actualView lays an app out at its own default size, rwdView at the
+    // screen's (AndroidBackend.size(ofWindow:)). 控制項切換模式時通知，讓 Swift 重新排版視窗:actualView 以 app
+    // 自己的預設尺寸排版,rwdView 以螢幕尺寸(AndroidBackend.size(ofWindow:))。
+    private var onModeChange: SwiftAction? = null
+
+    fun setOnModeChange(action: SwiftAction?) {
+        onModeChange = action
+    }
+
     fun getModeIndex(): Int = stage.mode
 
     fun setModeIndex(mode: Int) {
@@ -305,7 +315,10 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
         val topInset = (helpers.getSafeAreaTopInset(activity) * density).toInt()
         val leftInset = (helpers.getSafeAreaLeftInset(activity) * density).toInt()
 
-        val made = ViewModeButton(context, stage.mode) { mode -> stage.mode = mode }
+        val made = ViewModeButton(context, stage.mode) { mode ->
+            stage.mode = mode
+            onModeChange?.call()
+        }
         val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         params.leftMargin = leftInset + margin
         params.topMargin = topInset + margin
@@ -553,7 +566,25 @@ private class ViewModeButton(context: Context, initial: Int, private val onToggl
         val density = resources.displayMetrics.density
         val padding = (10 * density).toInt()
         setPadding(padding, padding / 2, padding, padding / 2)
-        elevation = 8 * density
+        // As UIKitBackend's ViewModeButton draws it (user, 2026-10-09: "should be
+        // transparent, like iOS"): the window background at 90%, a 1 dp
+        // separator-grey border, 6 dp corners, 12 sp medium text, 92x28 dp, no
+        // shadow -- instead of a grey raised Material button.
+        // 與 UIKitBackend 的 ViewModeButton 相同(使用者,2026-10-09:「應該是透明的，像 iOS」):視窗背景色 90%、1 dp 分隔線灰的
+        // 邊框、6 dp 圓角、12 sp 中等粗細文字、92x28 dp、沒有陰影——取代灰色凸起的 Material 按鈕。
+        val face = android.graphics.drawable.GradientDrawable()
+        face.cornerRadius = 6 * density
+        face.setColor(0xE6FFFFFF.toInt())
+        face.setStroke(maxOf(1, density.toInt()), 0x4A3C3C43)
+        background = face
+        stateListAnimator = null
+        elevation = 0f
+        setTextColor(0xFF000000.toInt())
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, 500, false)
+        minWidth = (92 * density).toInt()
+        minimumWidth = minWidth
+        minHeight = (28 * density).toInt()
+        minimumHeight = minHeight
         slop = 4 * density
     }
 

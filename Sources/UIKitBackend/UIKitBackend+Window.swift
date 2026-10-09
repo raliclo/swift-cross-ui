@@ -7,6 +7,24 @@ final class RootViewController: UIViewController {
     var resizeHandler: ((CGSize) -> Void)?
     private var childWidget: (any WidgetProtocol)?
     private let scrollHost = RootScrollHost()
+    /// The size the app asked for (`.defaultSize`). App 要求的尺寸(`.defaultSize`)。
+    var defaultSize: SIMD2<Int>?
+
+    /// The size the app is laid out at. actualView lays an app out at the size
+    /// it asked for, as on a desktop, not at the phone's -- a layout that
+    /// depends on the screen width is not its actual view, and Android (411 dp)
+    /// wrapped differently from iOS (440 pt) (user, 2026-10-09: "Actual View
+    /// 不應該有 screen width 問題"). Test builds only, where the mode control
+    /// exists: a shipped app sizes to the screen, as SwiftUI ignores
+    /// defaultSize on a phone. rwdView keeps the screen size and scales.
+    /// App 排版所用的尺寸。actualView 以 app 要求的尺寸排版(如同桌面),而非手機的尺寸。只在有模式控制項的測試建置中;
+    /// 正式 app 依螢幕排版。rwdView 維持螢幕尺寸並縮放。
+    func layoutSize(for screen: CGSize) -> CGSize {
+        guard DebugFeatures.allowsRootScrollControl, scrollHost.mode == .actualView,
+            let defaultSize
+        else { return screen }
+        return CGSize(width: defaultSize.x, height: defaultSize.y)
+    }
     private var viewModeButton: ViewModeButton?
 
     /// The toolbar's bar, and the targets its buttons point at.
@@ -237,6 +255,9 @@ final class RootViewController: UIViewController {
         guard DebugFeatures.allowsRootScrollControl, viewModeButton == nil else { return }
         let button = ViewModeButton.make(initial: scrollHost.mode) { [weak self] mode in
             self?.scrollHost.setMode(mode)
+            // actualView and rwdView lay the app out at different sizes.
+            // actualView 與 rwdView 以不同尺寸排版。
+            if let self { self.resizeHandler?(self.view.safeAreaLayoutGuide.layoutFrame.size) }
         }
         view.addSubview(button)
         // Top left by default, and draggable from there. It sits over the
@@ -256,7 +277,7 @@ final class RootViewController: UIViewController {
 extension UIKitBackend: BackendFeatures.WindowBehaviors {
     public typealias Window = UIWindow
 
-    public func createWindow(withDefaultSize _: SIMD2<Int>?, id: String) -> Window {
+    public func createWindow(withDefaultSize defaultSize: SIMD2<Int>?, id: String) -> Window {
         let window: UIWindow
 
         if !Self.hasReturnedAWindow {
@@ -275,7 +296,9 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
             window.backgroundColor = .systemBackground
         #endif
 
-        window.rootViewController = RootViewController(backend: self)
+        let rootViewController = RootViewController(backend: self)
+        rootViewController.defaultSize = defaultSize
+        window.rootViewController = rootViewController
         return window
     }
 
@@ -327,7 +350,8 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
         // area insets aren't even part of the window.
         // If/when this is updated, ``RootViewController`` and ``WidgetProtocolHelpers`` will
         // also need to be updated.
-        let size = window.safeAreaLayoutGuide.layoutFrame.size
+        let size = (window.rootViewController as! RootViewController)
+            .layoutSize(for: window.safeAreaLayoutGuide.layoutFrame.size)
         return SIMD2(Int(size.width), Int(size.height))
     }
 
@@ -337,7 +361,8 @@ extension UIKitBackend: BackendFeatures.WindowBehaviors {
     ) {
         let viewController = window.rootViewController as! RootViewController
         viewController.resizeHandler = { size in
-            action(SIMD2(Int(size.width), Int(size.height)))
+            let laidOut = viewController.layoutSize(for: size)
+            action(SIMD2(Int(laidOut.width), Int(laidOut.height)))
         }
     }
 

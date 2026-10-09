@@ -1212,3 +1212,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P15,ok,n/a,screen,default,"Switch drawn as a 52x32 pill with a white disc, on = colorPrimary; the checked switch no longer reads as off."
 2026-10-09,ios,uikit,P15-DARK,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-09,android,android,P15-DARK,ok,n/a,screen,default,Under preferredColorScheme(.dark): the off switch track is visible (foreground at 18%) and the text-field placeholder follows the foreground at 30% -- both were light-theme colours and nearly invisible on black.
+2026-10-09,ios,uikit,P13,ok,n/a,window,default,"actualView now lays the app out at its .defaultSize (900x760), not the 440 pt screen: no wrapping; aligned with Android."
+2026-10-09,android,android,P13,ok,n/a,screen,default,"actualView at the app's .defaultSize (900x760), as iOS: 'Show unidentified (crash)' on one line (wrapped at 411 dp before). actualView button now drawn as iOS's (translucent, 1 dp border)."

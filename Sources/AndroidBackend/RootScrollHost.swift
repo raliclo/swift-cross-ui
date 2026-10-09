@@ -48,4 +48,7 @@ class RootScrollHost: AndroidView.View {
     /// 是因為那個旗標在這一側：Kotlin 看不到 `CommandLine.arguments`，也看不到 `#if SCUI_DEBUG`。
     @JavaMethod
     func installModeButton(_ activity: Activity?)
+
+    @JavaMethod
+    func setOnModeChange(_ action: SwiftAction?)
 }
