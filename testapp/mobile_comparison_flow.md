@@ -20,6 +20,11 @@ rather than settled here.
 
 ## Rules
 
+- **Show the user both screenshots** (user, 2026-10-09) for every comparison,
+  and again after every fix: iOS left, Android right, sent with SendUserFile,
+  so the user can catch what the comparison missed.
+- **Yield the simulators to SoftPCB** whenever it asks for a UI test slot:
+  finish the current app, stop, and resume only when it says it is done.
 - **One platform at a time, one app at a time.** Never run the iOS and the
   Android harness together, and never a macOS run while either is going
   (user, 2026-10-09: "don't do it in parallel"). Reading screenshots is not a
