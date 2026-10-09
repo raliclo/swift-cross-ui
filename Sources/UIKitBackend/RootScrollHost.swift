@@ -158,7 +158,14 @@ final class RootScrollHost: UIScrollView {
         if view is UIControl || view is UIScrollView || view.clipsToBounds {
             return CGRect(origin: .zero, size: view.bounds.size)
         }
-        for subview in view.subviews where !subview.isHidden {
+        // Zero-area subviews are skipped: they draw nothing, and one left at its
+        // parent's origin (P6's empty `#if os(Windows)` slot in its top row,
+        // 0 wide at the row's left edge) made the layout start 40 pt left of
+        // the text on iOS while Android started at the text (user's decision,
+        // 2026-10-09). 寬或高為 0 的子 view 不算：它們什麼都不畫，而停在父 view 原點的那一個(P6 頂端那排裡 `#if os(Windows)`
+        // 的空位，寬 0、位於該排左緣)讓 iOS 的版面從文字左邊 40 pt 處開始,Android 則從文字開始(使用者決定,2026-10-09)。
+        for subview in view.subviews
+        where !subview.isHidden && subview.bounds.width > 0 && subview.bounds.height > 0 {
             let sub = contentBounds(of: subview).offsetBy(
                 dx: subview.frame.minX,
                 dy: subview.frame.minY

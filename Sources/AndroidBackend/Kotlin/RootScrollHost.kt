@@ -92,7 +92,8 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
          * (RootScrollHost.swift `contentBounds`): a plain `CustomContainer` with no background
          * counts only through its children, anything else -- text, controls, scroll views,
          * lists -- by its own bounds without descending, and children that are not VISIBLE
-         * not at all. False when nothing draws.
+         * not at all; a clipping container (`.clipped()`) by its own bounds, and one with
+         * nothing drawing below it by its own bounds too, as UIKit falls back. Always true.
          *
          * Used for where an oversized root starts. Counting every container's frame put the
          * start at the edge of a padding frame instead of the content: P11 began 18 dp in from
@@ -104,7 +105,7 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
          * 從左邊 18 dp 處開始，iOS 則從文字開始(2026-10-09)。
          */
         fun drawnBounds(view: View, into: Rect): Boolean {
-            if (view !is CustomContainer) {
+            if (view !is CustomContainer || view.clipChildren) {
                 into.set(0, 0, view.width, view.height)
                 return true
             }
@@ -117,6 +118,9 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
             for (i in 0..<view.childCount) {
                 val subview = view.getChildAt(i)
                 if (subview.visibility != View.VISIBLE) continue
+                // Zero-area children draw nothing; skipped as UIKitBackend skips them.
+                // 寬或高為 0 的子元件什麼都不畫;與 UIKitBackend 一樣略過。
+                if (subview.width == 0 || subview.height == 0) continue
                 if (!drawnBounds(subview, child)) continue
                 child.offset(subview.x.toInt(), subview.y.toInt())
                 if (any) into.union(child) else {
@@ -124,7 +128,15 @@ class RootScrollHost(context: Context) : FrameLayout(context) {
                     any = true
                 }
             }
-            return any
+            // Nothing below draws: the container's own bounds, as UIKit's rule
+            // falls back to. An empty frame therefore still marks where the
+            // content starts -- P6's 1040-wide padded frame holds a zero-width
+            // empty view at its left edge, and iOS starts the layout there,
+            // 40 pt left of the text (2026-10-09).
+            // 底下沒有任何東西繪製：使用容器自身的邊界，與 UIKit 規則的退路相同。所以空的框仍會標出內容從哪裡開始——P6 那個
+            // 1040 寬、加了 padding 的框，左緣有一個寬度為 0 的空 view,iOS 就從那裡開始排，比文字往左 40 pt(2026-10-09)。
+            if (!any) into.set(0, 0, view.width, view.height)
+            return true
         }
     }
 

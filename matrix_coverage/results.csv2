@@ -1191,3 +1191,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,ios,uikit,P11,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-09,android,android,P11,ok,n/a,screen,default,"Oversized root now starts at the text, as on iOS (was 18 dp in: a padding frame counted as content); Text has no font padding, so the 130-high list shows 5 rows as on iOS (was 4.5). Remaining ~1 dp per line is Roboto vs SF metrics."
 2026-10-09,android,android,P6,ok,n/a,screen,default,"Now says up front that playback is unavailable (no ffmpeg on the device), as iOS does (user, 2026-10-09). Open: iOS starts this 996 pt layout about 40 pt left of the text, Android at the text -- the drawn-bounds rules still differ somewhere for this app."
+2026-10-09,ios,uikit,P6,ok,n/a,window,default,"Now starts at the text, as Android: a zero-area view (the empty #if os(Windows) slot) at the top row's left edge no longer counts toward where the root starts (user's decision). P2 re-captured on iOS: identical."
+2026-10-09,android,android,P6,ok,n/a,screen,default,Aligned with iOS: both start at the text.
