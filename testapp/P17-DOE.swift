@@ -116,7 +116,13 @@ struct P17DOERootView: View {
         VStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 13))
+            // Room above and below for the control's spill, (280 - 120) / 2 each
+            // way, so the unclipped block does not cover the description or the
+            // column labels (user, 2026-10-10: "Don't let image block text").
+            // 上下各留出對照組溢出的空間，即 (280 - 120) / 2,讓沒被裁切的方塊不會蓋住說明文字或欄位標籤
+            // (使用者,2026-10-10:"Don't let image block text")。
             content()
+                .padding(.vertical, Double(blockHeight - viewportHeight) / 2)
         }
     }
 }

@@ -1222,3 +1222,8 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,ios,uikit,P17,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P17,ok,n/a,screen,default,"Text honours the proposed height as UIKit does (whole lines, ellipsis): subject 160x22 'en...' like iOS 159x22, was 160x64. Default .menu picker drawn as UIButtonPicker (label colour + up/down chevrons, no box, no 48 dp minimum): was 90x48. Dropdown still opens (tapped, screenshot)."
 2026-10-10,android,android,P17,ok,n/a,screen,default,"Every Text line is one line height, the last included, as UIKit (minimum = maximum line height): one line 22 dp like iOS, was 20, so the readouts cover the 22 dp views under them. Menu picker 27x22 like iOS (--debug), readout 'pi...' as on iOS."
+2026-10-10,ios,uikit,P17-DOE,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P17-DOE,ok,n/a,screen,default,Aligned with iOS: the image overflows its frame the same way on both.
+2026-10-10,ios,uikit,P18,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P18,ok,n/a,screen,default,Aligned with iOS; the description wraps one word earlier on iOS (SF wider than Roboto).
+2026-10-10,android,android,P17-DOE,ok,n/a,screen,default,App: 80 pt above and below each viewport so the unclipped control no longer covers the description and its label (user request); iOS and Android identical.
