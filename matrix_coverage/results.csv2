@@ -1233,3 +1233,4 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P20,ok,n/a,screen,default,Aligned with iOS (menu button as UIButton since c0175d93).
 2026-10-10,ios,uikit,P21,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P21,ok,n/a,screen,default,"Switch drawn as iOS 26's UISwitch (63x28, systemGreen, 37x24 capsule; bounds 62.9x27.8 dp); checkbox as UIButtonCheckbox (30 pt square, 10 pt corners, systemBlue + checkmark, 40% disabled); button-style toggle without side insets. Both tapped and toggled. Slider left as Material's (user). Open: disabled Text labels stay black on Android, grey on iOS."
+2026-10-10,android,android,P21,ok,n/a,screen,default,Disabled Text without a chosen colour now at 30% as UIKit's resolvedForegroundColor: the disabled checkbox's label is grey like iOS (was black).

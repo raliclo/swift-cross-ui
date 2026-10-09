@@ -1175,6 +1175,18 @@ public final class AndroidBackend: BaseAppBackend {
         content: String,
         environment: EnvironmentValues
     ) {
+        // In a disabled scope, the default colour at 30%, as UIKitBackend's
+        // resolvedForegroundColor gives a Text: P21's disabled checkbox was labelled
+        // in full black on Android and grey on iOS (2026-10-10). A colour the app
+        // chose is kept. Only Text: buttons dim their own labels.
+        // 在停用的範圍內，預設顏色取 30%,與 UIKitBackend 的 resolvedForegroundColor 給 Text 的相同:P21 停用的
+        // checkbox 標籤在 Android 上是全黑，在 iOS 上是灰色(2026-10-10)。app 選的顏色則保留。只限 Text:按鈕自行調暗標籤。
+        var environment = environment
+        if !environment.isEnabled, environment.foregroundColor == nil {
+            environment = environment.with(
+                \.foregroundColor, environment.suggestedForegroundColor.opacity(0.3)
+            )
+        }
         // Same text in the same style: nothing to send. setText relays the
         // text out and requests a layout even for an identical string, and
         // about half of P66's calls were identical (2026-10-04); the check is
