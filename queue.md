@@ -36,9 +36,9 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** patterns, clipPath/mask, filters,
+  - [ ] **SVG not yet drawn:** patterns, filters,
     markers, `<image>`;
-    each is reported and outlined today. (Gradients are drawn since 2026-10-10.)
+    each is reported and outlined today. (Gradients, clipPath and mask are drawn since 2026-10-10.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -69,6 +69,16 @@
       mask). No stops paints nothing, one stop paints solid. Only a broken
       reference falls back to the paint's fallback colour and stays reported.
       Checked: SVGPaintTests (10), all 44 SVG tests.
+    - [x] **`clip-path` and `mask`** (2026-10-10), in the core rasteriser: the
+      element's nodes go into a layer, multiplied by the clip's coverage and
+      the mask's value, then composited at the element's opacity. clipPath:
+      shapes, text (through the text mask) and use; geometry only, filled with
+      `clip-rule`; clipPathUnits both ways; a clip-path on the clipPath
+      intersects. mask: luminance (sRGB coefficients) or `mask-type: alpha`;
+      the region (x/y/width/height, -10%/120% default) in either maskUnits;
+      maskContentUnits both ways. Broken or circular references draw
+      unclipped/unmasked, reported and outlined. Checked: SVGEffectsTests (13),
+      all 57 SVG tests, the full suite (161 + 14).
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent

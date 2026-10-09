@@ -317,6 +317,10 @@ indirect enum SVGRenderNode: Sendable {
     /// A `<text>` run, drawn by the backend's text renderer when there is one.
     /// 一段 `<text>`,有 backend 文字繪製器時由它繪製。
     case text(SVGTextNode)
+    /// Children drawn into their own layer, multiplied by a clip and a mask,
+    /// then composited at the effects' opacity (see SVGEffects.swift).
+    /// 子節點畫進自己的圖層，乘上裁切與遮罩，再以效果的不透明度合成(見 SVGEffects.swift)。
+    case layer(SVGLayerEffects, children: [SVGRenderNode])
 }
 
 // MARK: - Rendering / 算繪
@@ -344,6 +348,34 @@ enum SVGRenderer {
                         children, into: &layer, viewport: viewport, markers: &markers,
                         textMasker: textMasker)
                     canvas.composite(layer, opacity: opacity)
+                case .layer(let effects, let children):
+                    var layer = SVGCanvas(width: canvas.width, height: canvas.height)
+                    render(
+                        children, into: &layer, viewport: viewport, markers: &markers,
+                        textMasker: textMasker)
+                    if let clip = effects.clip {
+                        var coverage = SVGCanvas(width: canvas.width, height: canvas.height)
+                        render(
+                            clip, into: &coverage, viewport: viewport, markers: &markers,
+                            textMasker: textMasker)
+                        layer.multiply(by: coverage.alphaValues())
+                    }
+                    if let mask = effects.mask {
+                        var content = SVGCanvas(width: canvas.width, height: canvas.height)
+                        render(
+                            mask.nodes, into: &content, viewport: viewport, markers: &markers,
+                            textMasker: textMasker)
+                        var region = SVGCanvas(width: canvas.width, height: canvas.height)
+                        region.fill(
+                            [mask.region.map(viewport.apply)], rule: .nonzero,
+                            color: SVGBuilder.clipWhite)
+                        var values = mask.luminance ? content.luminanceValues() : content.alphaValues()
+                        for (index, inside) in region.alphaValues().enumerated() {
+                            values[index] *= inside
+                        }
+                        layer.multiply(by: values)
+                    }
+                    canvas.composite(layer, opacity: effects.opacity)
                 case .text(let node):
                     drawText(
                         node, into: &canvas, viewport: viewport, textMasker: textMasker,

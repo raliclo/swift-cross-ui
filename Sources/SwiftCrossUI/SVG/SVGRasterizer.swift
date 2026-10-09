@@ -122,6 +122,40 @@ struct SVGCanvas {
         }
     }
 
+    /// Each pixel's alpha, the coverage a clip is read as.
+    /// 每個像素的 alpha,裁切讀取的覆蓋率。
+    func alphaValues() -> [Float] {
+        (0..<(width * height)).map { pixels[$0 * 4 + 3] }
+    }
+
+    /// Each pixel's luminance times its alpha, what a luminance mask reads:
+    /// the colours are premultiplied, so the product is the plain weighted
+    /// sum (sRGB coefficients, as browsers apply them by default).
+    /// 每個像素的亮度乘以其 alpha,也就是亮度遮罩讀取的值：顏色是預乘的，所以乘積就是加權和
+    /// (sRGB 係數，與瀏覽器的預設相同)。
+    func luminanceValues() -> [Float] {
+        (0..<(width * height)).map {
+            let index = $0 * 4
+            return min(
+                0.2125 * pixels[index] + 0.7154 * pixels[index + 1] + 0.0721 * pixels[index + 2],
+                1)
+        }
+    }
+
+    /// Scales every pixel (all four premultiplied channels) by `factors`.
+    /// 以 `factors` 縮放每個像素(全部四個預乘通道)。
+    mutating func multiply(by factors: [Float]) {
+        for pixel in 0..<min(width * height, factors.count) {
+            let factor = factors[pixel]
+            if factor >= 1 { continue }
+            let index = pixel * 4
+            pixels[index] *= factor
+            pixels[index + 1] *= factor
+            pixels[index + 2] *= factor
+            pixels[index + 3] *= factor
+        }
+    }
+
     /// Composites `layer` over this canvas at `opacity` (group opacity).
     /// 以 `opacity`(群組不透明度)把 `layer` 合成到此畫布上。
     mutating func composite(_ layer: SVGCanvas, opacity: Double) {

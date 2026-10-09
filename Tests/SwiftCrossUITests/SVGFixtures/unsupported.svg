@@ -16,7 +16,7 @@
   <rect x="90" y="10" width="60" height="40" fill="url(#fade)"/>
   <!-- gradient with a fallback: drawn too; the fallback is only for a broken reference / 有後備色的漸層：同樣繪製，後備色只用於參照失效時 -->
   <rect x="170" y="10" width="60" height="40" fill="url(#fade) orange"/>
-  <!-- clip-path and filter: drawn without them / clip-path 與 filter:不套用而照畫 -->
+  <!-- clip-path: applied since 2026-10-10; filter: drawn without it / clip-path:自 2026-10-10 起套用；filter:不套用而照畫 -->
   <circle cx="40" cy="110" r="30" fill="#36c" clip-path="url(#half)"/>
   <circle cx="120" cy="110" r="30" fill="#c63" filter="url(#blur)"/>
   <!-- visible text: outlined / 可見文字：框出 -->

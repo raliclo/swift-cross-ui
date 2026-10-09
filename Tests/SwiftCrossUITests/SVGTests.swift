@@ -367,12 +367,12 @@ struct SVGTests {
         let details = document.diagnostics.map(\.description)
         // Gradients are drawn since 2026-10-10 (SVGPaintTests), so they are no longer listed.
         // 漸層自 2026-10-10 起會被繪製(SVGPaintTests),因此不再列出。
-        #expect(details.contains { $0.contains("clip-path") })
+        // clip-path is drawn since 2026-10-10 too (SVGEffectsTests). / clip-path 也自 2026-10-10 起會被繪製(SVGEffectsTests)。
         #expect(details.contains { $0.contains("filter") })
         #expect(details.contains { $0.contains("text 'Hello SVG'") })
         #expect(details.contains { $0.contains("<image>") })
         #expect(!details.contains { $0.contains("hidden") })  // opacity="0" text is not a gap
-        #expect(document.diagnostics.count == 4)
+        #expect(document.diagnostics.count == 3)
 
         let image = document.rasterize(width: 320, height: 200)
         #expect(pixel(image, 1, 1) == [255, 0, 255, 255])  // corner flag

@@ -23,6 +23,7 @@ final class SVGBuilder {
         var fill: Paint = .color(SVGColor(red: 0, green: 0, blue: 0))
         var fillOpacity = 1.0
         var fillRule = SVGFillRule.nonzero
+        var clipRule = SVGFillRule.nonzero
         var stroke: Paint = .none
         var strokeOpacity = 1.0
         var strokeWidth = 1.0
@@ -46,6 +47,8 @@ final class SVGBuilder {
         var clipPath: String? = nil
         var mask: String? = nil
         var filter: String? = nil
+        /// `mask-type: alpha` on a <mask>. / <mask> 上的 `mask-type: alpha`。
+        var maskAlpha = false
 
         func resettingUninherited() -> Style {
             var copy = self
@@ -55,6 +58,7 @@ final class SVGBuilder {
             copy.clipPath = nil
             copy.mask = nil
             copy.filter = nil
+            copy.maskAlpha = false
             return copy
         }
     }
@@ -67,7 +71,7 @@ final class SVGBuilder {
         "stroke-dashoffset", "color", "visibility", "font-size", "text-anchor", "opacity",
         "font-family", "font-weight", "font-style",
         "display", "clip-path", "mask", "filter", "marker-start", "marker-mid", "marker-end",
-        "marker",
+        "marker", "clip-rule", "mask-type",
     ]
 
     /// Properties that change nothing this renderer draws, accepted without a
@@ -81,7 +85,7 @@ final class SVGBuilder {
         "alignment-baseline", "baseline-shift", "writing-mode", "direction", "unicode-bidi",
         "white-space", "line-height", "text-rendering", "shape-rendering", "image-rendering",
         "color-rendering", "color-interpolation", "color-interpolation-filters",
-        "color-profile", "pointer-events", "cursor", "overflow", "clip-rule",
+        "color-profile", "pointer-events", "cursor", "overflow",
         "enable-background", "solid-color", "solid-opacity", "isolation", "stop-color",
         "stop-opacity", "flood-color", "flood-opacity", "lighting-color", "transform-origin",
         "font-feature-settings", "font-variation-settings", "text-align", "text-indent",
@@ -95,6 +99,12 @@ final class SVGBuilder {
     private var viewportWidth = 300.0
     private var viewportHeight = 150.0
     private var useStack: [ObjectIdentifier] = []
+    /// True while building the content of a <clipPath>: geometry only, drawn opaque white.
+    /// 建構 <clipPath> 內容時為真：只取幾何，以不透明白色繪製。
+    var clipping = false
+    /// The <clipPath> and <mask> elements being built, against cycles.
+    /// 正在建構的 <clipPath> 與 <mask> 元素，用來防止循環。
+    var effectStack: [ObjectIdentifier] = []
 
     static func build(root: SVGXMLElement) -> SVGDocument.Storage {
         let builder = SVGBuilder()
@@ -149,7 +159,7 @@ final class SVGBuilder {
         var nodes: [SVGRenderNode] = []
         if style.displayed {
             nodes = buildChildren(of: root, style: style, transform: .identity)
-            nodes = wrap(nodes, style: style, element: root)
+            nodes = wrap(nodes, style: style, element: root, transform: .identity)
         }
         return SVGDocument.Storage(
             nodes: nodes, width: finalWidth, height: finalHeight, viewBox: viewBox,
@@ -183,7 +193,7 @@ final class SVGBuilder {
         }
     }
 
-    private func isSVGElement(_ element: SVGXMLElement) -> Bool {
+    func isSVGElement(_ element: SVGXMLElement) -> Bool {
         element.prefix == nil || element.prefix == "svg"
     }
 
@@ -398,6 +408,14 @@ final class SVGBuilder {
                 style.fontItalic = value == "italic" || value == "oblique"
             case "clip-path":
                 style.clipPath = value == "none" ? nil : value
+            case "clip-rule":
+                if let rule = SVGFillRule(rawValue: value) { style.clipRule = rule } else { invalid() }
+            case "mask-type":
+                switch value {
+                    case "alpha": style.maskAlpha = true
+                    case "luminance": style.maskAlpha = false
+                    default: invalid()
+                }
             case "mask":
                 style.mask = value == "none" ? nil : value
             case "filter":
@@ -480,7 +498,7 @@ final class SVGBuilder {
 
     // MARK: Tree / 樹
 
-    private func buildChildren(of element: SVGXMLElement, style: Style, transform: SVGTransform)
+    func buildChildren(of element: SVGXMLElement, style: Style, transform: SVGTransform)
         -> [SVGRenderNode]
     {
         var nodes: [SVGRenderNode] = []
@@ -490,28 +508,39 @@ final class SVGBuilder {
         return nodes
     }
 
-    /// Applies group opacity and reports the effects that are not applied.
-    /// 套用群組不透明度，並回報未套用的效果。
-    private func wrap(_ nodes: [SVGRenderNode], style: Style, element: SVGXMLElement)
-        -> [SVGRenderNode]
-    {
-        if style.clipPath != nil {
-            report(.unsupportedAttribute, element, "clip-path (drawn unclipped)")
-        }
-        if style.mask != nil {
-            report(.unsupportedAttribute, element, "mask (drawn unmasked)")
-        }
-        if style.filter != nil {
+    /// Applies opacity, clip-path and mask, and reports the effects that are not applied.
+    /// 套用不透明度、clip-path 與 mask,並回報未套用的效果。
+    private func wrap(
+        _ nodes: [SVGRenderNode], style: Style, element: SVGXMLElement, transform: SVGTransform
+    ) -> [SVGRenderNode] {
+        // Inside a <clipPath> only clip-path applies; opacity, mask and filter do not.
+        // <clipPath> 之中只有 clip-path 有作用；不透明度、mask 與 filter 都沒有。
+        let opacity = clipping ? 1 : style.opacity
+        let filtered = style.filter != nil && !clipping
+        if filtered {
             report(.unsupportedAttribute, element, "filter (drawn unfiltered)")
         }
         if nodes.isEmpty { return nodes }
-        var result = nodes
-        if style.opacity < 1 {
-            result = [.group(opacity: style.opacity, children: nodes)]
+        var clip: [SVGRenderNode]? = nil
+        var mask: SVGMaskLayer? = nil
+        var broken = false
+        if let reference = style.clipPath {
+            clip = clipNodes(reference, for: element, transform: transform, nodes: nodes)
+            broken = broken || clip == nil
         }
-        if style.clipPath != nil || style.mask != nil || style.filter != nil,
-            let box = Self.boundingMarker(of: nodes)
-        {
+        if let reference = style.mask, !clipping {
+            mask = maskLayer(reference, for: element, transform: transform, nodes: nodes)
+            broken = broken || mask == nil
+        }
+        var result = nodes
+        if clip != nil || mask != nil {
+            result = [
+                .layer(SVGLayerEffects(opacity: opacity, clip: clip, mask: mask), children: nodes)
+            ]
+        } else if opacity < 1 {
+            result = [.group(opacity: opacity, children: nodes)]
+        }
+        if broken || filtered, let box = Self.boundingMarker(of: nodes) {
             result.append(box)
         }
         return result
@@ -548,7 +577,7 @@ final class SVGBuilder {
                             }
                         }
                     }
-                case .group(_, let children):
+                case .group(_, let children), .layer(_, let children):
                     children.forEach(visit)
                 case .text(let node):
                     node.corners.forEach(include)
@@ -563,7 +592,7 @@ final class SVGBuilder {
         ])
     }
 
-    private static let shapeNames: Set<String> = [
+    static let shapeNames: Set<String> = [
         "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
     ]
 
@@ -579,7 +608,7 @@ final class SVGBuilder {
         "animate", "animateTransform", "animateMotion", "animateColor", "set",
     ]
 
-    private func elementTransform(_ element: SVGXMLElement, style: Style) -> SVGTransform? {
+    func elementTransform(_ element: SVGXMLElement, style: Style) -> SVGTransform? {
         let text = element[attribute: "transform"] ?? style.transform
         guard let text else { return .identity }
         if let transform = SVGTransformParser.parse(text) { return transform }
@@ -587,7 +616,7 @@ final class SVGBuilder {
         return nil
     }
 
-    private func build(_ element: SVGXMLElement, parent: Style, transform parentTransform: SVGTransform)
+    func build(_ element: SVGXMLElement, parent: Style, transform parentTransform: SVGTransform)
         -> [SVGRenderNode]
     {
         // Elements in other namespaces (sodipodi:, inkscape:) are editor
@@ -615,7 +644,7 @@ final class SVGBuilder {
         switch name {
             case "g", "a":
                 let nodes = buildChildren(of: element, style: style, transform: transform)
-                return wrap(nodes, style: style, element: element)
+                return wrap(nodes, style: style, element: element, transform: transform)
             case "switch":
                 // Draws the first child that is something this renderer
                 // draws; conditional attributes are not evaluated.
@@ -625,7 +654,7 @@ final class SVGBuilder {
                     if childName == "foreignObject" { continue }
                     if Self.shapeNames.contains(childName) || ["g", "a", "use", "svg", "text", "image"].contains(childName) {
                         let nodes = build(child, parent: style, transform: transform)
-                        return wrap(nodes, style: style, element: element)
+                        return wrap(nodes, style: style, element: element, transform: transform)
                     }
                 }
                 return []
@@ -658,6 +687,15 @@ final class SVGBuilder {
             report(.unsupportedAttribute, element, "markers (marker-start/mid/end) not drawn")
         }
         guard style.visible else { return [] }
+        if clipping {
+            // In a <clipPath> only the geometry counts, filled with `clip-rule`.
+            // 在 <clipPath> 中只有幾何算數，以 `clip-rule` 填充。
+            let shape = SVGShape(
+                path: path, transform: transform, fill: .color(Self.clipWhite),
+                fillRule: style.clipRule, stroke: nil, strokeWidth: 0, lineCap: .butt,
+                lineJoin: .miter, miterLimit: 4, dashes: nil, dashOffset: 0)
+            return wrap([.shape(shape)], style: style, element: element, transform: transform)
+        }
 
         let fill =
             name == "line"
@@ -669,7 +707,7 @@ final class SVGBuilder {
             style.stroke, opacity: style.strokeOpacity, style: style, element: element,
             box: Self.bounds(of: path))
         if fill == nil && stroke == nil {
-            return wrap([], style: style, element: element)
+            return wrap([], style: style, element: element, transform: transform)
         }
         let shape = SVGShape(
             path: path, transform: transform, fill: fill, fillRule: style.fillRule, stroke: stroke,
@@ -683,7 +721,7 @@ final class SVGBuilder {
         {
             nodes.append(box)
         }
-        return wrap(nodes, style: style, element: element)
+        return wrap(nodes, style: style, element: element, transform: transform)
     }
 
     private static func isUnsupported(_ paint: Paint) -> Bool {
@@ -793,7 +831,7 @@ final class SVGBuilder {
         }
         report(.unsupportedAttribute, element, "nested <svg> viewport is not clipped")
         let nodes = buildChildren(of: element, style: style, transform: inner)
-        return wrap(nodes, style: style, element: element)
+        return wrap(nodes, style: style, element: element, transform: transform)
     }
 
     private func buildUse(_ element: SVGXMLElement, style: Style, transform: SVGTransform)
@@ -831,11 +869,11 @@ final class SVGBuilder {
             }
             nodes = wrap(
                 buildChildren(of: target, style: symbolStyle, transform: inner), style: symbolStyle,
-                element: target)
+                element: target, transform: inner)
         } else {
             nodes = build(target, parent: style, transform: placed)
         }
-        return wrap(nodes, style: style, element: element)
+        return wrap(nodes, style: style, element: element, transform: transform)
     }
 
     /// Text is drawn by none of the backends' fonts here, because the result
@@ -854,7 +892,11 @@ final class SVGBuilder {
         if case .none = style.fill { fillVisible = false } else { fillVisible = style.fillOpacity > 0 }
         let strokeVisible: Bool
         if case .none = style.stroke { strokeVisible = false } else { strokeVisible = style.strokeOpacity > 0 }
-        guard style.visible, style.opacity > 0, fillVisible || strokeVisible, !content.isEmpty else {
+        // In a <clipPath> text clips whatever its fill, stroke and opacity.
+        // 在 <clipPath> 中，文字不論填色、描邊與不透明度都會裁切。
+        guard style.visible, clipping || (style.opacity > 0 && (fillVisible || strokeVisible)),
+            !content.isEmpty
+        else {
             return []
         }
         report(
@@ -884,7 +926,7 @@ final class SVGBuilder {
             anchor: SVGTextAnchor(rawValue: element[attribute: "text-anchor"] ?? style.textAnchor)
                 ?? .start)
         let textBox = SVGRect(x: left, y: top, width: width, height: size)
-        let node = SVGTextNode(
+        var node = SVGTextNode(
             run: run, transform: transform.concatenating(.translate(x, y)),
             fill: Self.shifted(
                 resolve(
@@ -895,7 +937,11 @@ final class SVGBuilder {
                     style.stroke, opacity: style.strokeOpacity, style: style, element: element,
                     box: textBox), x: x, y: y),
             strokeWidth: style.strokeWidth, corners: corners)
-        return wrap([.text(node)], style: style, element: element)
+        if clipping {
+            node.fill = .color(Self.clipWhite)
+            node.stroke = nil
+        }
+        return wrap([.text(node)], style: style, element: element, transform: transform)
     }
 
     /// `font-family` as a list, quotes removed, empty names dropped.
