@@ -18,6 +18,9 @@ struct SVGLayerEffects: Sendable {
     /// 以不透明白色繪製；其覆蓋率就是圖層顯示之處。`nil` 表示不裁切；空陣列則全部裁掉。
     var clip: [SVGRenderNode]?
     var mask: SVGMaskLayer?
+    /// Run on the layer first, before the clip and the mask (see SVGFilters.swift).
+    /// 最先在圖層上執行，在裁切與遮罩之前(見 SVGFilters.swift)。
+    var filter: SVGFilter? = nil
 }
 
 /// A `<mask>`, ready to draw. / 準備好可繪製的 `<mask>`。

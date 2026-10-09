@@ -353,6 +353,11 @@ enum SVGRenderer {
                     render(
                         children, into: &layer, viewport: viewport, markers: &markers,
                         textMasker: textMasker)
+                    // Filter first, then clip and mask, then opacity: SVG's order.
+                    // 先濾鏡，再裁切與遮罩，最後不透明度：SVG 的順序。
+                    if let filter = effects.filter {
+                        layer = SVGFilterRenderer.apply(filter, to: layer, viewport: viewport)
+                    }
                     if let clip = effects.clip {
                         var coverage = SVGCanvas(width: canvas.width, height: canvas.height)
                         render(

@@ -532,11 +532,22 @@ final class SVGBuilder {
         // Inside a <clipPath> only clip-path applies; opacity, mask and filter do not.
         // <clipPath> 之中只有 clip-path 有作用；不透明度、mask 與 filter 都沒有。
         let opacity = clipping ? 1 : style.opacity
-        let filtered = style.filter != nil && !clipping
-        if filtered {
-            report(.unsupportedAttribute, element, "filter (drawn unfiltered)")
-        }
         if nodes.isEmpty { return nodes }
+        var filter: SVGFilter? = nil
+        var unfiltered = false
+        if let reference = style.filter, !clipping {
+            switch filterEffect(reference, for: element, transform: transform, nodes: nodes) {
+                case .success(let built?):
+                    filter = built
+                case .success(nil):
+                    // An empty region, an empty box, or no primitives: not drawn (SVG 1.1 15.7).
+                    // 區域為空、外框為空或沒有 primitive:不繪製(SVG 1.1 15.7)。
+                    return []
+                case .failure(let problem):
+                    report(.unsupportedAttribute, element, "\(problem.detail) (drawn unfiltered)")
+                    unfiltered = true
+            }
+        }
         var clip: [SVGRenderNode]? = nil
         var mask: SVGMaskLayer? = nil
         var broken = false
@@ -549,14 +560,16 @@ final class SVGBuilder {
             broken = broken || mask == nil
         }
         var result = nodes
-        if clip != nil || mask != nil {
+        if clip != nil || mask != nil || filter != nil {
             result = [
-                .layer(SVGLayerEffects(opacity: opacity, clip: clip, mask: mask), children: nodes)
+                .layer(
+                    SVGLayerEffects(opacity: opacity, clip: clip, mask: mask, filter: filter),
+                    children: nodes)
             ]
         } else if opacity < 1 {
             result = [.group(opacity: opacity, children: nodes)]
         }
-        if broken || filtered, let box = Self.boundingMarker(of: nodes) {
+        if broken || unfiltered, let box = Self.boundingMarker(of: nodes) {
             result.append(box)
         }
         return result

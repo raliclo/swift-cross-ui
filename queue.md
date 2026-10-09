@@ -36,9 +36,11 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** filters, and `<image>` with a file reference
-    (only `data:` URIs are decoded);
-    each is reported and outlined today. (Gradients, clipPath, mask, patterns, markers and data: images are drawn since 2026-10-10.)
+  - [ ] **SVG not yet drawn:** filter primitives outside the subset below (feTurbulence,
+    feMorphology, feConvolveMatrix, lighting, feImage, feTile, feDisplacementMap) and `<image>`
+    with a file reference (only `data:` URIs are decoded);
+    each is reported and outlined today. (Gradients, clipPath, mask, patterns, markers, data: images and the
+    common filters are drawn since 2026-10-10; P87 shows them together.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -103,6 +105,19 @@
       A file reference (`href="photo.png"`) is still reported and outlined: a
       document parsed from a string has nowhere to resolve it. Checked:
       SVGImageTests (8), all 83 SVG tests.
+    - [x] **Filters, the common subset** (2026-10-10), run on the element's
+      layer in device pixels before its clip, mask and opacity:
+      feGaussianBlur (three box blurs from 2 px, an exact kernel below),
+      feOffset, feDropShadow, feFlood, feColorMatrix (matrix, saturate,
+      hueRotate, luminanceToAlpha), feComposite (all operators incl.
+      arithmetic), feMerge, feBlend (normal, multiply, screen, darken,
+      lighten), feComponentTransfer; in/in2/result, SourceGraphic and
+      SourceAlpha; filter region and primitive subregions in either unit;
+      color-interpolation-filters, linearRGB by default. A filter with any
+      other primitive or input is not applied at all and stays reported and
+      outlined. Blur under rotation stays axis-aligned in device pixels (an
+      approximation). Checked: SVGFilterTests (13), all 96 SVG tests, the full
+      suite (200 + 14); P87 (new, nine cells, 0 diagnostics) on macOS.
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent
