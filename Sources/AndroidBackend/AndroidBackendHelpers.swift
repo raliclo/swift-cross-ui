@@ -66,6 +66,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleCheckbox(_ checkBox: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
 
+    /// A progress bar as UIKitBackend draws it; see the Kotlin side. 與 UIKitBackend 相同的進度條;見 Kotlin 端。
+    @JavaMethod
+    func styleProgressBar(_ bar: AndroidKit.ProgressBar?)
+
     /// Label colours for a button-style toggle; see the Kotlin side.
     @JavaMethod
     func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool)

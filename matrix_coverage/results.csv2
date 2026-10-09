@@ -1250,3 +1250,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P26,ok,n/a,screen,default,Aligned with iOS; the tab bar's divider is drawn on both (212 on Android = 230 x 0.9255).
 2026-10-10,ios,uikit,P27,ok,n/a,window,default,iOS/Android comparison: reference (scrolled right with an action file to see the third column).
 2026-10-10,android,android,P27,ok,n/a,screen,default,"Radial and angular gradients use adjustedStops as UIKit: 'Ring (start 30)', 'Ring reversed' and 'Sweep reversed' now match iOS (were drawn as a plain radial / full-circle sweep)."
+2026-10-10,ios,uikit,P28,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P28,ok,n/a,screen,default,Aligned with iOS; content 14 dp further right because it is centred and SF is wider than Roboto.
+2026-10-10,ios,uikit,P29,ok,n/a,window,default,Indeterminate progress bar now draws a sliding tint segment (drew nothing: updateProgressBar returned early without a value).
+2026-10-10,android,android,P29,ok,n/a,screen,default,"Progress bar drawn as UIProgressView .bar: 3 dp tint over a clear track, sliding segment when indeterminate (was the framework's thick yellow bar and grey barber-pole). Disabled text field / editor text at 30% like iOS (was black)."

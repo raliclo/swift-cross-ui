@@ -351,6 +351,80 @@ class AndroidBackendHelpers {
 
     private val checkboxStyles = java.util.WeakHashMap<android.view.View, String>()
 
+    // A progress bar drawn as UIKitBackend's: UIProgressView's .bar style, 3 pt
+    // of the tint over a clear track, and without a value a third-width
+    // segment of the tint sliding back and forth (user, 2026-10-10). The
+    // framework's Widget.ProgressBar.Horizontal was a thick yellow bar and a
+    // grey barber-pole (P29).
+    // 進度條畫成 UIKitBackend 的樣子:UIProgressView 的 .bar 樣式，透明軌道上 3 pt 的 tint 色;沒有數值時，一段寬三分之一的
+    // tint 色段來回滑動(使用者,2026-10-10)。框架的 Widget.ProgressBar.Horizontal 是粗的黃色條與灰色斜紋(P29)。
+    fun styleProgressBar(bar: android.widget.ProgressBar) {
+        val density = bar.context.resources.displayMetrics.density
+        val tint = themeColorOf(bar.context, android.R.attr.colorPrimary)
+        val fill = android.graphics.drawable.ClipDrawable(
+            android.graphics.drawable.ColorDrawable(tint),
+            android.view.Gravity.START,
+            android.graphics.drawable.ClipDrawable.HORIZONTAL
+        )
+        val layers = android.graphics.drawable.LayerDrawable(
+            arrayOf(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT), fill)
+        )
+        layers.setId(0, android.R.id.background)
+        layers.setId(1, android.R.id.progress)
+        bar.progressTintList = null
+        bar.progressBackgroundTintList = null
+        bar.indeterminateTintList = null
+        bar.progressDrawable = layers
+        bar.indeterminateDrawable = SlidingSegment(tint)
+        val height = (3 * density).toInt()
+        bar.minHeight = height
+        bar.maxHeight = height
+        bar.minimumHeight = height
+    }
+
+    // The indeterminate segment. ProgressBar starts an Animatable indeterminate
+    // drawable while the bar is visible and stops it when it is not.
+    // 不確定狀態的色段。ProgressBar 會在進度條可見時啟動 Animatable 的不確定 drawable,不可見時停止。
+    private class SlidingSegment(color: Int) :
+        android.graphics.drawable.Drawable(), android.graphics.drawable.Animatable {
+        private val paint = android.graphics.Paint().apply { this.color = color }
+        private var fraction = 0f
+        private val animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1200
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener {
+                fraction = it.animatedValue as Float
+                invalidateSelf()
+            }
+        }
+
+        override fun draw(canvas: android.graphics.Canvas) {
+            val b = bounds
+            val width = b.width() / 3f
+            val left = b.left + fraction * (b.width() - width)
+            canvas.drawRect(left, b.top.toFloat(), left + width, b.bottom.toFloat(), paint)
+        }
+
+        override fun start() = animator.start()
+
+        override fun stop() = animator.cancel()
+
+        override fun isRunning() = animator.isRunning
+
+        override fun setAlpha(alpha: Int) {
+            paint.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+            paint.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+    }
+
     // One state of the checkbox: the rounded square, and SF Symbols' checkmark
     // when `mark` is not 0. 核取方塊的一種狀態：圓角方塊,`mark` 不為 0 時再加上 SF Symbols 的勾號。
     private class CheckboxFace(fill: Int, mark: Int, private val density: Float) :

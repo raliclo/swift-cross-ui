@@ -41,7 +41,17 @@ extension AndroidBackend {
         } else {
             textField.setOnSubmit(nil)
         }
-        getTextStyle(from: environment).apply(to: textField)
+        // Disabled, the text in the default colour at 30% unless the app chose
+        // one, as UIKitBackend's resolvedForegroundColor colours a text field and
+        // a text editor: P29's disabled editor read black on Android, grey on
+        // iOS (2026-10-10).
+        // 停用時，除非 app 選了顏色，文字用預設顏色的 30%,與 UIKitBackend 的 resolvedForegroundColor 為文字欄位
+        // 與文字編輯器上色的方式相同:P29 停用的編輯器在 Android 上是黑字，在 iOS 上是灰字(2026-10-10)。
+        let textEnvironment =
+            environment.isEnabled || environment.foregroundColor != nil
+            ? environment
+            : environment.with(\.foregroundColor, environment.suggestedForegroundColor.opacity(0.3))
+        getTextStyle(from: textEnvironment).apply(to: textField)
         // The placeholder in the current foreground at 30%, as UIKit's
         // placeholderText follows the window's scheme. The theme's hint colour
         // stayed light-theme grey under preferredColorScheme(.dark) and nearly

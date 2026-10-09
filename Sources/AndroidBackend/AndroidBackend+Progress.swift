@@ -19,6 +19,7 @@ extension AndroidBackend {
 
         widget.setMin(0)
         widget.setMax(10_000)
+        helpers.styleProgressBar(widget)
 
         return widget.as(AndroidKit.View.self)!
     }
