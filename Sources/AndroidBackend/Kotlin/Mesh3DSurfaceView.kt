@@ -116,10 +116,10 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
     /**
      * One entry per mesh in `modes` .. `flags`, in scene order. `modes`: 0 indexed triangles,
      * 1 lines, 2 points; `starts`/`counts` are indices for triangles, vertices otherwise;
-     * `flags` bit 0 lit, bit 1 depth-tested.
+     * `flags` bit 0 lit, bit 1 depth-tested, bits 8-15 255 x transparency (0 opaque).
      *
      * `modes` 到 `flags` 每個 mesh 一筆、依場景順序。`modes`:0 帶索引的三角形、1 線段、2 點;
-     * `starts`/`counts` 對三角形是索引、其餘是頂點;`flags` bit 0 打光、bit 1 深度測試。
+     * `starts`/`counts` 對三角形是索引、其餘是頂點;`flags` bit 0 打光、bit 1 深度測試、第 8-15 位為 255 x 透明度(0 不透明)。
      */
     fun setGeometry(
         vertices: FloatArray,
@@ -214,6 +214,7 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
         private var lightUniform = 0
         private var pointSizeUniform = 0
         private var litUniform = 0
+        private var opacityUniform = 0
 
         private var vertexBuffer: java.nio.FloatBuffer? = null
         // Exactly one of the two is used: 32-bit when the context can draw them, 16-bit otherwise.
@@ -233,6 +234,7 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             lightUniform = GLES20.glGetUniformLocation(program, "uLight")
             pointSizeUniform = GLES20.glGetUniformLocation(program, "uPointSize")
             litUniform = GLES20.glGetUniformLocation(program, "uLit")
+            opacityUniform = GLES20.glGetUniformLocation(program, "uOpacity")
             GLES20.glEnable(GLES20.GL_DEPTH_TEST)
             val version = GLES20.glGetString(GLES20.GL_VERSION) ?: ""
             val extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS) ?: ""
@@ -327,41 +329,55 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
                 bind(normalAttribute, vertexBuffer, 3, stride)
                 bind(colourAttribute, vertexBuffer, 6, stride)
 
-                for (i in snapshot.modes.indices) {
-                    if (i * 16 + 16 > snapshot.mvps.size) break
-                    val count = snapshot.counts[i]
-                    if (count <= 0) continue
-                    val flags = snapshot.flags[i]
-                    GLES20.glUniformMatrix4fv(mvpUniform, 1, false, snapshot.mvps, i * 16)
-                    GLES20.glUniformMatrix4fv(normalUniform, 1, false, snapshot.normals, i * 16)
-                    GLES20.glUniform1f(pointSizeUniform, snapshot.pointSizes[i])
-                    GLES20.glUniform1f(litUniform, if (flags and 1 != 0) 1f else 0f)
-                    if (flags and 2 != 0) {
-                        GLES20.glDepthFunc(GLES20.GL_LESS)
-                        GLES20.glDepthMask(true)
-                    } else {
-                        GLES20.glDepthFunc(GLES20.GL_ALWAYS)
-                        GLES20.glDepthMask(false)
-                    }
-                    val start = snapshot.starts[i]
-                    when (snapshot.modes[i]) {
-                        0 -> {
-                            val wide = snapshot.intIndices
-                            val narrow = snapshot.shortIndices
-                            if (wide != null) {
-                                wide.position(start)
-                                GLES20.glDrawElements(
-                                    GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_INT, wide)
-                            } else if (narrow != null) {
-                                narrow.position(start)
-                                GLES20.glDrawElements(
-                                    GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_SHORT, narrow)
-                            }
+                // Opaque meshes first, in scene order; then the translucent ones (flags bits 8-15
+                // hold 255 x transparency), blended over them with no depth writes. See Mesh3D.opacity.
+                // 先畫不透明的 mesh、依場景順序；再畫半透明的（flags 第 8-15 位存 255 x 透明度），
+                // 與其混合且不寫入深度。見 Mesh3D.opacity。
+                GLES20.glBlendFuncSeparate(
+                    GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA,
+                    GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+                for (pass in 0..1) {
+                    if (pass == 1) GLES20.glEnable(GLES20.GL_BLEND)
+                    for (i in snapshot.modes.indices) {
+                        if (i * 16 + 16 > snapshot.mvps.size) break
+                        val count = snapshot.counts[i]
+                        if (count <= 0) continue
+                        val flags = snapshot.flags[i]
+                        val transparency = (flags shr 8) and 255
+                        if ((transparency != 0) != (pass == 1)) continue
+                        GLES20.glUniform1f(opacityUniform, 1f - transparency / 255f)
+                        GLES20.glUniformMatrix4fv(mvpUniform, 1, false, snapshot.mvps, i * 16)
+                        GLES20.glUniformMatrix4fv(normalUniform, 1, false, snapshot.normals, i * 16)
+                        GLES20.glUniform1f(pointSizeUniform, snapshot.pointSizes[i])
+                        GLES20.glUniform1f(litUniform, if (flags and 1 != 0) 1f else 0f)
+                        if (flags and 2 != 0) {
+                            GLES20.glDepthFunc(GLES20.GL_LESS)
+                            GLES20.glDepthMask(pass == 0)
+                        } else {
+                            GLES20.glDepthFunc(GLES20.GL_ALWAYS)
+                            GLES20.glDepthMask(false)
                         }
-                        1 -> GLES20.glDrawArrays(GLES20.GL_LINES, start, count)
-                        2 -> GLES20.glDrawArrays(GLES20.GL_POINTS, start, count)
+                        val start = snapshot.starts[i]
+                        when (snapshot.modes[i]) {
+                            0 -> {
+                                val wide = snapshot.intIndices
+                                val narrow = snapshot.shortIndices
+                                if (wide != null) {
+                                    wide.position(start)
+                                    GLES20.glDrawElements(
+                                        GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_INT, wide)
+                                } else if (narrow != null) {
+                                    narrow.position(start)
+                                    GLES20.glDrawElements(
+                                        GLES20.GL_TRIANGLES, count, GLES20.GL_UNSIGNED_SHORT, narrow)
+                                }
+                            }
+                            1 -> GLES20.glDrawArrays(GLES20.GL_LINES, start, count)
+                            2 -> GLES20.glDrawArrays(GLES20.GL_POINTS, start, count)
+                        }
                     }
                 }
+                GLES20.glDisable(GLES20.GL_BLEND)
                 GLES20.glDepthMask(true)
                 GLES20.glDepthFunc(GLES20.GL_LESS)
 
@@ -555,17 +571,18 @@ class Mesh3DSurfaceView(context: Context) : GLSurfaceView(context) {
             precision mediump float;
             uniform vec3 uLight;
             uniform float uLit;
+            uniform float uOpacity;
             varying vec3 vNormal;
             varying vec3 vColour;
             void main() {
                 if (uLit < 0.5) {
-                    gl_FragColor = vec4(vColour, 1.0);
+                    gl_FragColor = vec4(vColour, uOpacity);
                     return;
                 }
                 vec3 n = normalize(vNormal);
                 vec3 l = normalize(-uLight);
                 float lambert = max(dot(n, l), 0.0);
-                gl_FragColor = vec4(vColour * (0.25 + 0.75 * lambert), 1.0);
+                gl_FragColor = vec4(vColour * (0.25 + 0.75 * lambert), uOpacity);
             }
             """
     }

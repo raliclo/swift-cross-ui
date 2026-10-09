@@ -36,9 +36,9 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** gradients, patterns, clipPath/mask, filters,
+  - [ ] **SVG not yet drawn:** patterns, clipPath/mask, filters,
     markers, `<image>`;
-    each is reported and outlined today.
+    each is reported and outlined today. (Gradients are drawn since 2026-10-10.)
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -60,6 +60,29 @@
       Win2D `CanvasRenderTarget` + `CanvasTextLayout` drawn white on a
       transparent target and read back as alpha; then P85 on WinUI (and GTK on
       Windows/WSL, which already has the PangoCairo path but has not been run).
+    - [x] **Gradients: `linearGradient` and `radialGradient`** (2026-10-10), in
+      the core rasteriser, so every backend has them: objectBoundingBox and
+      userSpaceOnUse, `gradientTransform`, spreadMethod pad/reflect/repeat, the
+      SVG 2 focal circle (`fx`, `fy`, `fr`), stop-color/stop-opacity from
+      attributes or `style`, `href` inheritance (16 links at most), stops
+      interpolated premultiplied; on shapes, strokes and text (through the text
+      mask). No stops paints nothing, one stop paints solid. Only a broken
+      reference falls back to the paint's fallback colour and stays reported.
+      Checked: SVGPaintTests (10), all 44 SVG tests.
+  - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
+    air box (a very light, highly transparent grey, the user's choice). Below 1
+    a mesh blends source-over, is depth-tested and writes no depth; translucent
+    meshes are drawn after every opaque one, in array order among themselves.
+    Metal (AppKit/UIKit) takes the opacity as a uniform; GTK and Android carry
+    it as 255 x transparency in bits 8-15 of the existing per-mesh flags, so no
+    C or JNI signature changed. P86 (new: a red square in front of a 50% veil
+    stays pure red, a blue square behind one turns light blue, a yellow strip
+    behind the veil still shows) passes on macOS, GTK on macOS, the iOS
+    simulator and the Android emulator. Open:
+    - [ ] **WinUI: `Mesh3D.opacity`.** WinUIBackend+Mesh3DView ignores it and
+      draws translucent meshes opaque. Needs a blend state (src-alpha /
+      one-minus-src-alpha), a depth state that tests without writing, the
+      opacity in the pixel shader, and the two passes; then P86 on WinUI.
 
 ## 2026-10-05 code review: gaps against the five-backend rule
 

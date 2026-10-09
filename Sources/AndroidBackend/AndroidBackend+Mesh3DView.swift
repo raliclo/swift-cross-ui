@@ -134,7 +134,7 @@ extension AndroidBackend: BackendFeatures.Mesh3DViews {
                     pointSizes.append(max(size, 1))
                     lit = false
             }
-            flags.append((lit ? 1 : 0) | (mesh.depthTested ? 2 : 0))
+            flags.append((lit ? 1 : 0) | (mesh.depthTested ? 2 : 0) | (mesh.transparencyByte << 8))
         }
         view.setGeometry(vertices, indices, modes, starts, counts, pointSizes, flags)
         view.setMeasureRenderTime(scene.measuresRenderTime)

@@ -15,6 +15,7 @@ struct SCUIMesh3DRenderer {
     GLint u_light;
     GLint u_point_size;
     GLint u_lit;
+    GLint u_opacity;
     char name[256];
     char *error;
 };
@@ -38,15 +39,16 @@ static const char *VERTEX_SOURCE =
 static const char *FRAGMENT_SOURCE =
     "uniform vec3 uLight;\n"
     "uniform float uLit;\n"
+    "uniform float uOpacity;\n"
     "in vec3 vNormal;\n"
     "in vec3 vColour;\n"
     "out vec4 colour;\n"
     "void main() {\n"
-    "    if (uLit < 0.5) { colour = vec4(vColour, 1.0); return; }\n"
+    "    if (uLit < 0.5) { colour = vec4(vColour, uOpacity); return; }\n"
     "    vec3 n = normalize(vNormal);\n"
     "    vec3 l = normalize(-uLight);\n"
     "    float lambert = max(dot(n, l), 0.0);\n"
-    "    colour = vec4(vColour * (0.25 + 0.75 * lambert), 1.0);\n"
+    "    colour = vec4(vColour * (0.25 + 0.75 * lambert), uOpacity);\n"
     "}\n";
 
 static void set_error(SCUIMesh3DRenderer *renderer, const char *what, const char *detail) {
@@ -121,6 +123,7 @@ int scui_mesh3d_renderer_realize(SCUIMesh3DRenderer *renderer) {
     renderer->u_light = glGetUniformLocation(renderer->program, "uLight");
     renderer->u_point_size = glGetUniformLocation(renderer->program, "uPointSize");
     renderer->u_lit = glGetUniformLocation(renderer->program, "uLit");
+    renderer->u_opacity = glGetUniformLocation(renderer->program, "uOpacity");
 
     glGenVertexArrays(1, &renderer->vao);
     glBindVertexArray(renderer->vao);
@@ -215,30 +218,42 @@ long scui_mesh3d_renderer_render(
         glUseProgram(renderer->program);
         glUniform3f(renderer->u_light, light[0], light[1], light[2]);
         glBindVertexArray(renderer->vao);
-        for (int i = 0; i < mesh_count; i++) {
-            if (counts[i] <= 0) continue;
-            glUniformMatrix4fv(renderer->u_mvp, 1, GL_FALSE, mvps + i * 16);
-            glUniformMatrix4fv(renderer->u_normal, 1, GL_FALSE, normals + i * 16);
-            glUniform1f(renderer->u_point_size, point_sizes[i]);
-            glUniform1f(renderer->u_lit, (flags[i] & 1) ? 1.0f : 0.0f);
-            if (flags[i] & 2) {
-                glDepthFunc(GL_LESS);
-                glDepthMask(GL_TRUE);
-            } else {
-                glDepthFunc(GL_ALWAYS);
-                glDepthMask(GL_FALSE);
-            }
-            switch (modes[i]) {
-                case 0:
-                    glDrawElements(
-                        GL_TRIANGLES, counts[i], GL_UNSIGNED_INT,
-                        (const void *)(uintptr_t)((size_t)starts[i] * sizeof(uint32_t))
-                    );
-                    break;
-                case 1: glDrawArrays(GL_LINES, starts[i], counts[i]); break;
-                case 2: glDrawArrays(GL_POINTS, starts[i], counts[i]); break;
+        /* Opaque meshes first, in scene order; then the translucent ones (flags bits 8-15 hold
+           255 x transparency), blended over them with no depth writes. See Mesh3D.opacity.
+           先畫不透明的 mesh、依場景順序；再畫半透明的（flags 第 8-15 位存 255 x 透明度），與其混合且
+           不寫入深度。見 Mesh3D.opacity。 */
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        for (int pass = 0; pass < 2; pass++) {
+            if (pass == 1) glEnable(GL_BLEND);
+            for (int i = 0; i < mesh_count; i++) {
+                if (counts[i] <= 0) continue;
+                int transparency = (flags[i] >> 8) & 255;
+                if ((transparency != 0) != (pass == 1)) continue;
+                glUniform1f(renderer->u_opacity, 1.0f - transparency / 255.0f);
+                glUniformMatrix4fv(renderer->u_mvp, 1, GL_FALSE, mvps + i * 16);
+                glUniformMatrix4fv(renderer->u_normal, 1, GL_FALSE, normals + i * 16);
+                glUniform1f(renderer->u_point_size, point_sizes[i]);
+                glUniform1f(renderer->u_lit, (flags[i] & 1) ? 1.0f : 0.0f);
+                if (flags[i] & 2) {
+                    glDepthFunc(GL_LESS);
+                    glDepthMask(pass == 0 ? GL_TRUE : GL_FALSE);
+                } else {
+                    glDepthFunc(GL_ALWAYS);
+                    glDepthMask(GL_FALSE);
+                }
+                switch (modes[i]) {
+                    case 0:
+                        glDrawElements(
+                            GL_TRIANGLES, counts[i], GL_UNSIGNED_INT,
+                            (const void *)(uintptr_t)((size_t)starts[i] * sizeof(uint32_t))
+                        );
+                        break;
+                    case 1: glDrawArrays(GL_LINES, starts[i], counts[i]); break;
+                    case 2: glDrawArrays(GL_POINTS, starts[i], counts[i]); break;
+                }
             }
         }
+        glDisable(GL_BLEND);
         glBindVertexArray(0);
         glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS);

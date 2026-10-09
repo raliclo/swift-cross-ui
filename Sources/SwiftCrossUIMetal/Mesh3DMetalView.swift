@@ -26,6 +26,9 @@
         /// For meshes with `depthTested == false`: always passes, writes nothing.
         /// 給 `depthTested == false` 的 mesh:一律通過、不寫入深度。
         private var overlayDepthState: MTLDepthStencilState?
+        /// For translucent meshes: tested against what is drawn, writes nothing.
+        /// 給半透明 mesh：與已畫的東西比較深度，不寫入。
+        private var translucentDepthState: MTLDepthStencilState?
 
         private var vertexBuffer: MTLBuffer?
         private var indexBuffer: MTLBuffer?
@@ -226,6 +229,15 @@
             descriptor.fragmentFunction = library.makeFunction(name: "mesh3d_fragment")
             descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
             descriptor.depthAttachmentPixelFormat = depthStencilPixelFormat
+            // Source-over for every mesh: an opaque fragment writes alpha 1 and
+            // so replaces what was there, exactly as with blending off.
+            // 所有 mesh 都用 source-over：不透明片段寫出 alpha 1，因此取代原有內容，與關閉混合時完全相同。
+            let colour = descriptor.colorAttachments[0]!
+            colour.isBlendingEnabled = true
+            colour.sourceRGBBlendFactor = .sourceAlpha
+            colour.destinationRGBBlendFactor = .oneMinusSourceAlpha
+            colour.sourceAlphaBlendFactor = .one
+            colour.destinationAlphaBlendFactor = .oneMinusSourceAlpha
             pipeline = try? device.makeRenderPipelineState(descriptor: descriptor)
 
             let depth = MTLDepthStencilDescriptor()
@@ -237,6 +249,11 @@
             overlay.depthCompareFunction = .always
             overlay.isDepthWriteEnabled = false
             overlayDepthState = device.makeDepthStencilState(descriptor: overlay)
+
+            let translucent = MTLDepthStencilDescriptor()
+            translucent.depthCompareFunction = .less
+            translucent.isDepthWriteEnabled = false
+            translucentDepthState = device.makeDepthStencilState(descriptor: translucent)
         }
 
         private func upload(_ meshes: [Mesh3D]) {
@@ -415,55 +432,63 @@
                 encoder.setRenderPipelineState(pipeline)
                 encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-                for range in meshRanges where range.mesh < scene.meshes.count {
-                    let mesh = scene.meshes[range.mesh]
-                    let transform = mesh.transform
-                    let pointSize: Float
-                    let lit: Bool
-                    let type: MTLPrimitiveType
-                    switch mesh.primitive {
-                        case .triangles:
-                            (type, pointSize, lit) = (.triangle, 1, mesh.lit)
-                        case .lines:
-                            (type, pointSize, lit) = (.line, 1, false)
-                        case .points(let size):
-                            (type, pointSize, lit) = (.point, max(size, 1), false)
-                    }
-                    if let state = mesh.depthTested ? depthState : overlayDepthState {
-                        encoder.setDepthStencilState(state)
-                    }
-                    var uniforms = Uniforms(
-                        modelViewProjection: viewProjection * modelMatrix(transform),
-                        normalMatrix: rotationMatrix(transform.rotation),
-                        lightDirection: light,
-                        pointSize: pointSize,
-                        lit: lit ? 1 : 0
-                    )
-                    encoder.setVertexBytes(
-                        &uniforms,
-                        length: MemoryLayout<Uniforms>.stride,
-                        index: 1
-                    )
-                    encoder.setFragmentBytes(
-                        &uniforms,
-                        length: MemoryLayout<Uniforms>.stride,
-                        index: 0
-                    )
-                    if type == .triangle {
-                        guard let indexBuffer else { continue }
-                        encoder.drawIndexedPrimitives(
-                            type: .triangle,
-                            indexCount: range.count,
-                            indexType: .uint32,
-                            indexBuffer: indexBuffer,
-                            indexBufferOffset: range.start * MemoryLayout<UInt32>.stride
+                // Opaque meshes first, in array order; then the translucent ones, which
+                // blend over them and write no depth (see `Mesh3D.opacity`).
+                // 先畫不透明的 mesh、依陣列順序；再畫半透明的，與其混合且不寫入深度（見 `Mesh3D.opacity`）。
+                for translucentPass in [false, true] {
+                    for range in meshRanges where range.mesh < scene.meshes.count {
+                        let mesh = scene.meshes[range.mesh]
+                        guard mesh.isTranslucent == translucentPass else { continue }
+                        let transform = mesh.transform
+                        let pointSize: Float
+                        let lit: Bool
+                        let type: MTLPrimitiveType
+                        switch mesh.primitive {
+                            case .triangles:
+                                (type, pointSize, lit) = (.triangle, 1, mesh.lit)
+                            case .lines:
+                                (type, pointSize, lit) = (.line, 1, false)
+                            case .points(let size):
+                                (type, pointSize, lit) = (.point, max(size, 1), false)
+                        }
+                        let depth = translucentPass ? translucentDepthState : depthState
+                        if let state = mesh.depthTested ? depth : overlayDepthState {
+                            encoder.setDepthStencilState(state)
+                        }
+                        var uniforms = Uniforms(
+                            modelViewProjection: viewProjection * modelMatrix(transform),
+                            normalMatrix: rotationMatrix(transform.rotation),
+                            lightDirection: light,
+                            pointSize: pointSize,
+                            lit: lit ? 1 : 0,
+                            opacity: mesh.opacity
                         )
-                    } else {
-                        encoder.drawPrimitives(
-                            type: type,
-                            vertexStart: range.start,
-                            vertexCount: range.count
+                        encoder.setVertexBytes(
+                            &uniforms,
+                            length: MemoryLayout<Uniforms>.stride,
+                            index: 1
                         )
+                        encoder.setFragmentBytes(
+                            &uniforms,
+                            length: MemoryLayout<Uniforms>.stride,
+                            index: 0
+                        )
+                        if type == .triangle {
+                            guard let indexBuffer else { continue }
+                            encoder.drawIndexedPrimitives(
+                                type: .triangle,
+                                indexCount: range.count,
+                                indexType: .uint32,
+                                indexBuffer: indexBuffer,
+                                indexBufferOffset: range.start * MemoryLayout<UInt32>.stride
+                            )
+                        } else {
+                            encoder.drawPrimitives(
+                                type: type,
+                                vertexStart: range.start,
+                                vertexCount: range.count
+                            )
+                        }
                     }
                 }
             }
@@ -629,6 +654,9 @@
             /// 1 to shade with the light, 0 to draw the vertex colour as is.
             /// 1 為依光照著色,0 為原樣畫出頂點顏色。
             var lit: Float
+            /// 0 to 1, the alpha the fragment writes; see `Mesh3D.opacity`.
+            /// 0 到 1，片段寫出的 alpha；見 `Mesh3D.opacity`。
+            var opacity: Float
         }
 
         /// The shaders, as text.
@@ -665,6 +693,7 @@
                 float3 lightDirection;
                 float pointSize;
                 float lit;
+                float opacity;
             };
 
             struct VertexOut {
@@ -690,13 +719,13 @@
             fragment float4 mesh3d_fragment(VertexOut in [[stage_in]],
                                             constant Uniforms &uniforms [[buffer(0)]]) {
                 if (uniforms.lit < 0.5) {
-                    return float4(in.colour, 1.0);
+                    return float4(in.colour, uniforms.opacity);
                 }
                 float3 n = normalize(in.normal);
                 float3 l = normalize(-uniforms.lightDirection);
                 float lambert = max(dot(n, l), 0.0);
                 float3 shaded = in.colour * (0.25 + 0.75 * lambert);
-                return float4(shaded, 1.0);
+                return float4(shaded, uniforms.opacity);
             }
             """
     }

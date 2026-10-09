@@ -141,13 +141,34 @@ public struct Mesh3D: Equatable, Sendable {
     /// 高亮與覆蓋層所需要的。mesh 依陣列順序繪製,因此覆蓋層應放在最後。
     public var depthTested: Bool
 
+    /// How much of what is behind this mesh it hides, 0 to 1. Below 1 the mesh
+    /// is blended over what is already drawn and **writes no depth**, so what
+    /// lies behind or inside it stays visible -- a region of air around a
+    /// board, a glass case around a part.
+    ///
+    /// **Translucent meshes are drawn after every opaque one**, in array order
+    /// among themselves; opaque meshes keep their array order exactly. Blending
+    /// over a surface that has not been drawn yet blends over the background,
+    /// and the result would depend on the order the application happened to
+    /// list its meshes in. Two translucent meshes are not sorted by depth: that
+    /// is exact for one translucent layer and an approximation for several.
+    ///
+    /// 這個 mesh 擋住後方多少東西，0 到 1。小於 1 時它與已畫好的東西混合、且**不寫入深度**，因此在它
+    /// 後方或內部的東西仍然看得見——電路板周圍的空氣、零件外的玻璃罩。
+    ///
+    /// **半透明 mesh 在所有不透明 mesh 之後才畫**，彼此之間依陣列順序；不透明 mesh 的順序完全不變。
+    /// 與一個還沒畫的表面混合，等於與背景混合，結果會取決於應用程式碰巧把 mesh 列在什麼順序。兩個半透明
+    /// mesh 之間不依深度排序：只有一層半透明時是精確的，多層時是近似。
+    public var opacity: Float
+
     public init(
         vertices: [Mesh3DVertex],
         indices: [UInt32] = [],
         transform: Mesh3DTransform = Mesh3DTransform(),
         primitive: Mesh3DPrimitive = .triangles,
         lit: Bool = true,
-        depthTested: Bool = true
+        depthTested: Bool = true,
+        opacity: Float = 1
     ) {
         self.vertices = vertices
         self.indices = indices
@@ -155,7 +176,19 @@ public struct Mesh3D: Equatable, Sendable {
         self.primitive = primitive
         self.lit = lit
         self.depthTested = depthTested
+        self.opacity = min(max(opacity, 0), 1)
     }
+
+    /// Whether this mesh is drawn in the translucent pass (see ``opacity``).
+    /// 這個 mesh 是否在半透明那一輪繪製（見 ``opacity``）。
+    public var isTranslucent: Bool { transparencyByte > 0 }
+
+    /// `opacity` as the eight bits a backend packs beside its other per-mesh
+    /// flags (bits 8 to 15): 0 opaque, 255 invisible. Inverted so that the 0
+    /// every existing flag word already holds there keeps meaning opaque.
+    /// `opacity` 換成 backend 與其他逐 mesh 旗標並排打包的八個位元（第 8 到 15 位）：0 不透明、
+    /// 255 全透明。反過來存，好讓既有旗標字在那裡本來就有的 0 仍然代表不透明。
+    public var transparencyByte: Int32 { Int32((255 * (1 - opacity)).rounded()) }
 }
 
 /// Where a ``Mesh3D`` is put before it is drawn: scaled, turned, then moved.

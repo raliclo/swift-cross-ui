@@ -69,7 +69,7 @@ extension GtkBackend: BackendFeatures.Mesh3DViews {
                     frame.pointSizes.append(max(size, 1))
                     lit = false
             }
-            frame.flags.append((lit ? 1 : 0) | (mesh.depthTested ? 2 : 0))
+            frame.flags.append((lit ? 1 : 0) | (mesh.depthTested ? 2 : 0) | Int32(mesh.transparencyByte << 8))
         }
 
         let width = max(Float(gtk_widget_get_width(view.widgetPointer)), 1)
