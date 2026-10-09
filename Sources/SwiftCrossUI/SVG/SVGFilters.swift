@@ -1,16 +1,20 @@
 import Foundation
 
-// `filter` (2026-10-10): a common subset, run on the element's layer in device
-// pixels before its clip, mask and opacity, as SVG orders them.
+// `filter` (2026-10-10): every SVG 1.1 filter primitive, run on the element's
+// layer in device pixels before its clip, mask and opacity, as SVG orders them.
 //
-// Drawn: feGaussianBlur, feOffset, feDropShadow, feFlood, feColorMatrix (all
+// Here: feGaussianBlur, feOffset, feDropShadow, feFlood, feColorMatrix (all
 // four types), feComposite (all operators, arithmetic included), feMerge,
 // feBlend (normal, multiply, screen, darken, lighten) and feComponentTransfer;
-// `in`, `in2` and `result`; SourceGraphic and SourceAlpha; the filter region and
+// in SVGFilterPrimitives.swift: feMorphology, feConvolveMatrix, feTile,
+// feDisplacementMap, feTurbulence, feDiffuseLighting and feSpecularLighting
+// with all three lights, and feImage. `in`, `in2` and `result`; SourceGraphic
+// and SourceAlpha; BackgroundImage, BackgroundAlpha, FillPaint and StrokePaint
+// as transparent, which is what browsers draw for them; the filter region and
 // primitive subregions in either unit; color-interpolation-filters, linearRGB
-// by default as SVG specifies. A filter with any other primitive or input is
-// not applied at all and stays reported and outlined: a filter drawn half-way
-// looks deliberate, and a reader cannot tell which half is missing.
+// by default as SVG specifies. A filter holding an element SVG does not define
+// is not applied at all and stays reported and outlined: a filter drawn
+// half-way looks deliberate, and a reader cannot tell which half is missing.
 //
 // The filter runs along the element's own axes. Where its user space is only
 // scaled and moved on screen, that is the device-pixel layer itself; where it
@@ -18,14 +22,17 @@ import Foundation
 // result resampled back (`applyInFilterSpace`), so a blur of "4 0" blurs along
 // the element's x axis however it is turned.
 //
-// `filter`(2026-10-10):常用子集，依 SVG 的順序在元素的裁切、遮罩與不透明度之前，以裝置像素在元素的
-// 圖層上執行。
+// `filter`(2026-10-10):SVG 1.1 的全部濾鏡 primitive,依 SVG 的順序在元素的裁切、遮罩與不透明度之前，
+// 以裝置像素在元素的圖層上執行。
 //
-// 會畫的：feGaussianBlur、feOffset、feDropShadow、feFlood、feColorMatrix(四種類型)、feComposite
+// 本檔：feGaussianBlur、feOffset、feDropShadow、feFlood、feColorMatrix(四種類型)、feComposite
 // (所有運算子，含 arithmetic)、feMerge、feBlend(normal、multiply、screen、darken、lighten)與
-// feComponentTransfer;`in`、`in2` 與 `result`;SourceGraphic 與 SourceAlpha;兩種單位下的濾鏡區域與
-// primitive 子區域；color-interpolation-filters,依 SVG 規定預設為 linearRGB。含有其他 primitive 或輸入
-// 的濾鏡完全不套用，並照舊回報與框出：只畫一半的濾鏡看起來像是刻意的，讀者分不出缺的是哪一半。
+// feComponentTransfer;SVGFilterPrimitives.swift:feMorphology、feConvolveMatrix、feTile、
+// feDisplacementMap、feTurbulence、feDiffuseLighting 與 feSpecularLighting(三種光源)以及 feImage。
+// `in`、`in2` 與 `result`;SourceGraphic 與 SourceAlpha;BackgroundImage、BackgroundAlpha、FillPaint 與
+// StrokePaint 視為透明，這也是瀏覽器畫出的結果；兩種單位下的濾鏡區域與 primitive 子區域；
+// color-interpolation-filters,依 SVG 規定預設為 linearRGB。含有 SVG 未定義之元素的濾鏡完全不套用，
+// 並照舊回報與框出：只畫一半的濾鏡看起來像是刻意的，讀者分不出缺的是哪一半。
 //
 // 濾鏡沿元素自己的座標軸執行。使用者空間在螢幕上只有縮放與平移時，那就是裝置像素圖層本身；有旋轉或斜切時，
 // 先把元素畫在濾鏡空間、再把結果重新取樣回來(`applyInFilterSpace`),因此 "4 0" 的模糊不論元素怎麼轉，
@@ -85,6 +92,17 @@ struct SVGFilterPrimitive: Sendable {
         case dropShadow(dx: Double, dy: Double, sx: Double, sy: Double, color: SVGColor)
         /// R, G, B, A; nil is identity. / R、G、B、A;nil 為恆等。
         case componentTransfer([SVGTransferFunction?])
+        /// Radii in user units. / 半徑以使用者單位計。
+        case morphology(dilate: Bool, rx: Double, ry: Double)
+        case convolve(SVGConvolution)
+        case tile
+        /// Scales in user units; channels 0 to 3 for R, G, B, A. / 縮放以使用者單位計；通道 0 到 3 為 R、G、B、A。
+        case displacement(scaleX: Double, scaleY: Double, x: Int, y: Int)
+        /// `tile` is the primitive subregion, for stitchTiles. / `tile` 為 primitive 子區域，供 stitchTiles 使用。
+        case turbulence(SVGTurbulence, tile: SVGRect)
+        case lighting(SVGLighting)
+        /// What feImage draws, in root space. / feImage 畫出的東西，位於根空間。
+        case image([SVGRenderNode])
     }
 
     var kind: Kind
@@ -105,7 +123,8 @@ struct SVGFilterPrimitive: Sendable {
 extension SVGBuilder {
     static let filterPrimitiveNames: Set<String> = [
         "feGaussianBlur", "feOffset", "feDropShadow", "feFlood", "feColorMatrix", "feComposite",
-        "feMerge", "feBlend", "feComponentTransfer",
+        "feMerge", "feBlend", "feComponentTransfer", "feMorphology", "feConvolveMatrix", "feTile",
+        "feDisplacementMap", "feTurbulence", "feDiffuseLighting", "feSpecularLighting", "feImage",
     ]
 
     /// The `<filter>` that `reference` names, for an element drawing `nodes`
@@ -119,6 +138,14 @@ extension SVGBuilder {
         guard let target = self.element(referencedBy: reference), target.localName == "filter" else {
             return .failure(FilterProblem("filter \(reference) does not name a <filter>"))
         }
+        // feImage can draw the very element being filtered; that must not recurse.
+        // feImage 可以畫出正被套用濾鏡的那個元素；這不能無限遞迴。
+        let identity = ObjectIdentifier(target)
+        guard !effectStack.contains(identity) else {
+            return .failure(FilterProblem("filter \(reference) refers to itself"))
+        }
+        effectStack.append(identity)
+        defer { effectStack.removeLast() }
         let box = Self.objectBounds(of: nodes, in: transform)
         let boxUnits = target[attribute: "filterUnits"] != "userSpaceOnUse"
         let primitiveBox = target[attribute: "primitiveUnits"] == "objectBoundingBox"
@@ -176,13 +203,8 @@ extension SVGBuilder {
             guard Self.filterPrimitiveNames.contains(name) else {
                 return .failure(FilterProblem("<\(name)> in filter \(reference) is not drawn"))
             }
-            for input in [child[attribute: "in"], child[attribute: "in2"]].compactMap({ $0 }) {
-                if ["BackgroundImage", "BackgroundAlpha", "FillPaint", "StrokePaint"].contains(input) {
-                    return .failure(FilterProblem("filter input \(input) is not drawn"))
-                }
-            }
             let space = child[attribute: "color-interpolation-filters"] ?? filterSpace
-            let kind: SVGFilterPrimitive.Kind
+            var kind: SVGFilterPrimitive.Kind
             switch name {
                 case "feGaussianBlur":
                     let values = numbers(child[attribute: "stdDeviation"])
@@ -242,6 +264,121 @@ extension SVGBuilder {
                         return .failure(FilterProblem("feBlend mode '\(mode)'"))
                     }
                     kind = .blend(mode)
+                case "feMorphology":
+                    let values = numbers(child[attribute: "radius"])
+                    let rx = values.first ?? 0
+                    let ry = values.count > 1 ? values[1] : rx
+                    guard let x = scaled(rx, .x), let y = scaled(ry, .y) else { return .success(nil) }
+                    kind = .morphology(dilate: child[attribute: "operator"] == "dilate", rx: x, ry: y)
+                case "feConvolveMatrix":
+                    let order = numbers(child[attribute: "order"] ?? "3").map { Int($0) }
+                    let ox = order.first ?? 3
+                    let oy = order.count > 1 ? order[1] : ox
+                    let kernel = numbers(child[attribute: "kernelMatrix"]).map(Float.init)
+                    guard ox > 0, oy > 0, kernel.count == ox * oy else {
+                        return .failure(
+                            FilterProblem("feConvolveMatrix needs \(max(ox, 0) * max(oy, 0)) kernel values"))
+                    }
+                    let sum = kernel.reduce(0, +)
+                    var divisor = Float(child[attribute: "divisor"] ?? "") ?? sum
+                    if divisor == 0 { divisor = 1 }
+                    let tx = Int(child[attribute: "targetX"] ?? "") ?? ox / 2
+                    let ty = Int(child[attribute: "targetY"] ?? "") ?? oy / 2
+                    guard (0..<ox).contains(tx), (0..<oy).contains(ty) else {
+                        return .failure(FilterProblem("feConvolveMatrix target outside the kernel"))
+                    }
+                    kind = .convolve(
+                        SVGConvolution(
+                            orderX: ox, orderY: oy, kernel: kernel, divisor: divisor,
+                            bias: Float(child[attribute: "bias"] ?? "0") ?? 0, targetX: tx, targetY: ty,
+                            edgeMode: child[attribute: "edgeMode"] ?? "duplicate",
+                            preserveAlpha: child[attribute: "preserveAlpha"] == "true"))
+                case "feTile":
+                    kind = .tile
+                case "feDisplacementMap":
+                    let scale = Double(child[attribute: "scale"] ?? "0") ?? 0
+                    guard let sx = scaled(scale, .x), let sy = scaled(scale, .y) else {
+                        return .success(nil)
+                    }
+                    func channel(_ name: String) -> Int {
+                        ["R": 0, "G": 1, "B": 2, "A": 3][child[attribute: name] ?? "A"] ?? 3
+                    }
+                    kind = .displacement(
+                        scaleX: sx, scaleY: sy, x: channel("xChannelSelector"),
+                        y: channel("yChannelSelector"))
+                case "feTurbulence":
+                    let values = numbers(child[attribute: "baseFrequency"])
+                    var fx = values.first ?? 0
+                    var fy = values.count > 1 ? values[1] : fx
+                    if primitiveBox {
+                        guard let box, box.width > 0, box.height > 0 else { return .success(nil) }
+                        fx /= box.width
+                        fy /= box.height
+                    }
+                    guard fx >= 0, fy >= 0 else {
+                        return .failure(FilterProblem("feTurbulence with a negative baseFrequency"))
+                    }
+                    kind = .turbulence(
+                        SVGTurbulence(
+                            frequencyX: fx, frequencyY: fy,
+                            octaves: Int(child[attribute: "numOctaves"] ?? "1") ?? 1,
+                            seed: Double(child[attribute: "seed"] ?? "0") ?? 0,
+                            fractalNoise: child[attribute: "type"] == "fractalNoise",
+                            stitch: child[attribute: "stitchTiles"] == "stitch"),
+                        tile: region)
+                case "feDiffuseLighting", "feSpecularLighting":
+                    let style = child[attribute: "style"].map(SVGCSS.declarations) ?? []
+                    let colorText =
+                        style.last { $0.name == "lighting-color" }?.value
+                        ?? child[attribute: "lighting-color"]
+                    let lightColor =
+                        colorText.flatMap(SVGColor.parse) ?? SVGColor(red: 1, green: 1, blue: 1)
+                    guard
+                        let source = child.children.first(where: {
+                            ["feDistantLight", "fePointLight", "feSpotLight"].contains($0.localName)
+                        })
+                    else { return .failure(FilterProblem("<\(name)> has no light source")) }
+                    func value(_ name: String, _ fallback: Double = 0) -> Double {
+                        Double(source[attribute: name] ?? "") ?? fallback
+                    }
+                    // Light positions in primitiveUnits; z of a box measured against its diagonal.
+                    // 光源位置以 primitiveUnits 計；外框單位下的 z 以對角線衡量。
+                    func position(_ px: String, _ py: String, _ pz: String) -> (Double, Double, Double)? {
+                        let (x, y, z) = (value(px), value(py), value(pz))
+                        guard primitiveBox else { return (x, y, z) }
+                        guard let box else { return nil }
+                        let diagonal = ((box.width * box.width + box.height * box.height) / 2).squareRoot()
+                        return (box.x + x * box.width, box.y + y * box.height, z * diagonal)
+                    }
+                    let light: SVGLight
+                    switch source.localName {
+                        case "feDistantLight":
+                            light = .distant(azimuth: value("azimuth"), elevation: value("elevation"))
+                        case "fePointLight":
+                            guard let p = position("x", "y", "z") else { return .success(nil) }
+                            light = .point(x: p.0, y: p.1, z: p.2)
+                        default:
+                            guard let p = position("x", "y", "z"),
+                                let at = position("pointsAtX", "pointsAtY", "pointsAtZ")
+                            else { return .success(nil) }
+                            light = .spot(
+                                x: p.0, y: p.1, z: p.2, atX: at.0, atY: at.1, atZ: at.2,
+                                exponent: value("specularExponent", 1),
+                                cone: source[attribute: "limitingConeAngle"].flatMap { Double($0) })
+                    }
+                    let specular = name == "feSpecularLighting"
+                    kind = .lighting(
+                        SVGLighting(
+                            specular: specular,
+                            surfaceScale: Double(child[attribute: "surfaceScale"] ?? "1") ?? 1,
+                            constant: Double(
+                                child[attribute: specular ? "specularConstant" : "diffuseConstant"] ?? "1")
+                                ?? 1,
+                            exponent: Double(child[attribute: "specularExponent"] ?? "1") ?? 1,
+                            color: lightColor, light: light))
+                case "feImage":
+                    // Filled in below, once the subregion is known. / 待子區域確定後於下方填入。
+                    kind = .image([])
                 default:  // feComponentTransfer
                     var functions: [SVGTransferFunction?] = [nil, nil, nil, nil]
                     for (index, funcName) in ["feFuncR", "feFuncG", "feFuncB", "feFuncA"].enumerated() {
@@ -284,6 +421,39 @@ extension SVGBuilder {
                     if let v = child[attribute: "height"], let l = length(v, axis: .y) { sub.height = l }
                 }
                 subregion = sub
+            }
+            if case .turbulence(let noise, _) = kind {
+                kind = .turbulence(noise, tile: subregion ?? region)
+            }
+            if name == "feImage" {
+                let area = subregion ?? region
+                guard let href = child[attribute: "href"] ?? child[attribute: "xlink:href"] else {
+                    return .failure(FilterProblem("feImage has no href"))
+                }
+                if href.hasPrefix("#") {
+                    // An element, drawn as `use` would draw it, in the filtered element's user space.
+                    // 一個元素，以 `use` 的方式繪製，位於被濾鏡元素的使用者空間。
+                    guard let shown = elementsByID[String(href.dropFirst())] else {
+                        return .failure(FilterProblem("feImage \(href) does not name an element"))
+                    }
+                    kind = .image(build(shown, parent: Style(), transform: transform))
+                } else {
+                    // A picture, placed in the subregion as <image> would place it.
+                    // 一張圖片，以 <image> 的方式放進子區域。
+                    let stand = SVGXMLElement(
+                        name: "image",
+                        attributes: [
+                            ("x", "\(area.x)"), ("y", "\(area.y)"), ("width", "\(area.width)"),
+                            ("height", "\(area.height)"),
+                            ("preserveAspectRatio", child[attribute: "preserveAspectRatio"] ?? "xMidYMid meet"),
+                            ("href", href),
+                        ])
+                    switch imageNodes(stand, style: Style(), transform: transform) {
+                        case .success(let nodes): kind = .image(nodes)
+                        case .failure(let problem):
+                            return .failure(FilterProblem("feImage: \(problem.detail)"))
+                    }
+                }
             }
             primitives.append(
                 SVGFilterPrimitive(
@@ -378,6 +548,15 @@ enum SVGFilterRenderer {
         }
         var results: [String: Buffer] = [:]
         var previous = source
+        // Each result's subregion, for feTile. / 每個結果的子區域，供 feTile 使用。
+        var regions: [String: SVGRect] = [:]
+        var previousRegion = filter.region
+        func inputRegion(_ name: String?) -> SVGRect {
+            switch name {
+                case nil: return previousRegion
+                case let named?: return regions[named] ?? filter.region
+            }
+        }
 
         func input(_ name: String?, linear: Bool) -> [Float] {
             let buffer: Buffer
@@ -385,6 +564,10 @@ enum SVGFilterRenderer {
                 case nil: buffer = previous
                 case "SourceGraphic"?: buffer = source
                 case "SourceAlpha"?: buffer = Buffer(pixels: sourceAlpha, linear: linear)
+                // Never drawn by browsers either: transparent, as they treat them.
+                // 瀏覽器也從不繪製：與它們一樣視為透明。
+                case "BackgroundImage"?, "BackgroundAlpha"?, "FillPaint"?, "StrokePaint"?:
+                    buffer = Buffer(pixels: [Float](repeating: 0, count: width * height * 4), linear: linear)
                 case let named?: buffer = results[named] ?? previous
             }
             return convert(buffer, toLinear: linear)
@@ -413,6 +596,44 @@ enum SVGFilterRenderer {
                     }
                 case .luminanceToAlpha:
                     out = map(a) { r, g, b, _ in [0, 0, 0, 0.2125 * r + 0.7154 * g + 0.0721 * b] }
+                case .morphology(let dilate, let rx, let ry):
+                    out = morphology(
+                        a, width: width, height: height, dilate: dilate,
+                        rx: Int((rx * scaleX).rounded()), ry: Int((ry * scaleY).rounded()))
+                case .convolve(let m):
+                    out = convolve(a, width: width, height: height, m)
+                case .tile:
+                    let r = inputRegion(primitive.inputs[0])
+                    let corners = [
+                        SVGPoint(r.x, r.y), SVGPoint(r.x + r.width, r.y + r.height),
+                    ].map(device.apply)
+                    let x0 = Int(min(corners[0].x, corners[1].x).rounded())
+                    let y0 = Int(min(corners[0].y, corners[1].y).rounded())
+                    let x1 = Int(max(corners[0].x, corners[1].x).rounded())
+                    let y1 = Int(max(corners[0].y, corners[1].y).rounded())
+                    out = tile(
+                        a, width: width, height: height, tile: (x0, y0, x1 - x0, y1 - y0))
+                case .displacement(let sx, let sy, let xc, let yc):
+                    let map = input(primitive.inputs[1], linear: linear)
+                    out = displace(
+                        a, map: map, width: width, height: height, scaleX: sx * scaleX,
+                        scaleY: sy * scaleY, xChannel: xc, yChannel: yc)
+                case .turbulence(let noise, let tileRect):
+                    if let toUser = device.inverted() {
+                        out = turbulence(
+                            noise, width: width, height: height, toUser: toUser, tile: tileRect)
+                    } else {
+                        out = [Float](repeating: 0, count: width * height * 4)
+                    }
+                case .lighting(let l):
+                    out = light(
+                        a, width: width, height: height, l, linear: linear, toDevice: device,
+                        zScale: (scaleX + scaleY) / 2)
+                case .image(let nodes):
+                    var picture = SVGCanvas(width: width, height: height)
+                    var ignored: [[SVGPoint]] = []
+                    SVGRenderer.render(nodes, into: &picture, viewport: viewport, markers: &ignored)
+                    out = convert(Buffer(pixels: picture.pixels, linear: false), toLinear: linear)
                 case .componentTransfer(let functions):
                     out = map(a) { r, g, b, alpha in
                         zip([r, g, b, alpha], functions).map { value, function in
@@ -452,7 +673,11 @@ enum SVGFilterRenderer {
             }
             out = clipped(out, mask)
             previous = Buffer(pixels: out, linear: linear)
-            if let name = primitive.result { results[name] = previous }
+            previousRegion = primitive.subregion ?? filter.region
+            if let name = primitive.result {
+                results[name] = previous
+                regions[name] = previousRegion
+            }
         }
         var result = layer
         result.pixels = convert(previous, toLinear: false)

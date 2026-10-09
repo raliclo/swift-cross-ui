@@ -158,12 +158,12 @@ struct SVGFilterTests {
         #expect(pixel(image, 10, 5)[3] == 0)
     }
 
-    @Test("A filter outside the subset draws unfiltered and is reported; an empty one hides the element")
+    @Test("A filter with an element SVG does not define draws unfiltered and is reported; an empty one hides the element")
     func unsupportedAndEmpty() throws {
         let unsupported = try document(
             10, 10,
-            #"<filter id="f"><feTurbulence baseFrequency="0.1"/></filter><rect width="10" height="10" fill="red" filter="url(#f)"/>"#)
-        #expect(unsupported.diagnostics.map(\.description).contains { $0.contains("<feTurbulence>") })
+            #"<filter id="f"><feCustom/></filter><rect width="10" height="10" fill="red" filter="url(#f)"/>"#)
+        #expect(unsupported.diagnostics.map(\.description).contains { $0.contains("<feCustom>") })
         let drawn = unsupported.rasterize(width: 10, height: 10, showsUnsupportedMarkers: false)
         #expect(pixel(drawn, 5, 5) == [255, 0, 0, 255])
         let empty = try render(

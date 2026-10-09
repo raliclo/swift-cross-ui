@@ -36,11 +36,11 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** filter primitives outside the subset below (feTurbulence,
-    feMorphology, feConvolveMatrix, lighting, feImage, feTile, feDisplacementMap) and `<image>`
-    with a file outside the document's folder or on the network (refused on purpose);
-    each is reported and outlined today. (Gradients, clipPath, mask, patterns, markers, data: images and the
-    common filters are drawn since 2026-10-10; P87 shows them together.)
+  - [x] **SVG features not drawn before 2026-10-10** -- all drawn now (sub-items below).
+    What stays reported and outlined is refused on purpose: `<image>` of a file outside
+    the document's folder or on the network, and a filter holding an element SVG does not
+    define. Gradients, clipPath, mask, patterns, markers, images and every SVG 1.1 filter
+    primitive are drawn since 2026-10-10; P87 shows the common ones together.
     - [x] **Visible `<text>`: drawn by each platform's own text engine**
       (2026-10-09). The user chose this over bundling a font, for size: no font
       file in the library, and every script the platform has fonts for draws,
@@ -130,6 +130,18 @@
       (drawn in filter space and resampled back, SVGFilterTests.rotatedBlur).
       Checked: SVGFilterTests (14), all 97 SVG tests, the full
       suite (200 + 14); P87 (new, nine cells, 0 diagnostics) on macOS.
+    - [x] **The rest of the SVG 1.1 filter primitives** (2026-10-10): feMorphology,
+      feConvolveMatrix (kernel turned 180 degrees, edgeMode, preserveAlpha), feTile
+      (the input's subregion), feDisplacementMap, feTurbulence (SVG 1.1 reference code,
+      stitchTiles), feDiffuseLighting and feSpecularLighting (distant, point and spot
+      lights, SVG's Sobel normals with edge forms), feImage (an element by #id, or a
+      picture placed in the subregion). BackgroundImage, BackgroundAlpha, FillPaint and
+      StrokePaint read as transparent, as browsers draw them. Written and tested in a
+      separate worktree first, so the shared tree never held a half-applied change.
+      Checked: SVGFilterMoreTests (10; diffuse at 30 degrees gives 128, N.L = 0.5), all
+      114 SVG tests, the full suite (218 + 14), `compile.zsh -android P87`. Not checked
+      against a browser: feTurbulence's values follow the reference code, but no
+      rendering of the same SVG was compared pixel for pixel.
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1
     a mesh blends source-over, is depth-tested and writes no depth; translucent

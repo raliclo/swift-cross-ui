@@ -8,7 +8,7 @@
   <defs>
     <linearGradient id="fade"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
     <clipPath id="half"><rect x="0" y="0" width="160" height="200"/></clipPath>
-    <filter id="noise"><feTurbulence baseFrequency="0.05"/></filter>
+    <filter id="noise"><feCustom/></filter>
   </defs>
   <!-- supported, for orientation / 受支援，作為對照 -->
   <rect x="10" y="10" width="60" height="40" fill="#4a4"/>
@@ -16,7 +16,7 @@
   <rect x="90" y="10" width="60" height="40" fill="url(#fade)"/>
   <!-- gradient with a fallback: drawn too; the fallback is only for a broken reference / 有後備色的漸層：同樣繪製，後備色只用於參照失效時 -->
   <rect x="170" y="10" width="60" height="40" fill="url(#fade) orange"/>
-  <!-- clip-path: applied since 2026-10-10; a filter outside the drawn subset (feTurbulence): drawn without it / clip-path:自 2026-10-10 起套用；繪製子集以外的濾鏡(feTurbulence):不套用而照畫 -->
+  <!-- clip-path: applied since 2026-10-10; a filter with an element SVG does not define (feCustom): drawn without it / clip-path:自 2026-10-10 起套用；含 SVG 未定義元素(feCustom)的濾鏡：不套用而照畫 -->
   <circle cx="40" cy="110" r="30" fill="#36c" clip-path="url(#half)"/>
   <circle cx="120" cy="110" r="30" fill="#c63" filter="url(#noise)"/>
   <!-- visible text: outlined / 可見文字：框出 -->
