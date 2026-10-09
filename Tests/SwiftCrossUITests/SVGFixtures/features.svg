@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SwiftCrossUI SVG feature sheet: one cell per supported feature.
+     SwiftCrossUI SVG 功能表：每一格一項受支援的功能。 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="160mm" height="100mm" viewBox="0 0 320 200">
+  <style>
+    .cell { fill: none; stroke: #c8c8c8; stroke-width: 0.5 }
+    .swatch { stroke: navy; stroke-width: 2 }
+    #blue-dot { fill: rgb(30, 90, 200) }
+  </style>
+  <!-- grid of 4 x 3 cells, 80 x 66 each -->
+  <g class="cell">
+    <rect x="0.5" y="0.5" width="79" height="65"/>
+    <rect x="80.5" y="0.5" width="79" height="65"/>
+    <rect x="160.5" y="0.5" width="79" height="65"/>
+    <rect x="240.5" y="0.5" width="79" height="65"/>
+    <rect x="0.5" y="66.5" width="79" height="65"/>
+    <rect x="80.5" y="66.5" width="79" height="65"/>
+    <rect x="160.5" y="66.5" width="79" height="65"/>
+    <rect x="240.5" y="66.5" width="79" height="65"/>
+    <rect x="0.5" y="132.5" width="79" height="66"/>
+    <rect x="80.5" y="132.5" width="79" height="66"/>
+    <rect x="160.5" y="132.5" width="79" height="66"/>
+    <rect x="240.5" y="132.5" width="79" height="66"/>
+  </g>
+
+  <!-- 1. absolute and relative lines, H, V -->
+  <path d="M10 10 L70 10 L70 30 H40 V55 h-20 v-20 l-10 0 Z" fill="#e05050"/>
+
+  <!-- 2. cubic C/S and quadratic Q/T -->
+  <path d="M90 50 C95 10 125 10 130 30 S 150 60 150 20" fill="none" stroke="#2a7" stroke-width="3"/>
+  <path d="M90 60 Q100 40 115 55 T140 55" fill="none" stroke="#a52" stroke-width="2"/>
+
+  <!-- 3. arcs: large/small, sweep flags, rotation, compressed flags -->
+  <path d="M175 40 a20 12 30 1 1 30 10" fill="none" stroke="purple" stroke-width="3"/>
+  <path d="M175 55a10 10 0 0030 0" fill="none" stroke="orange" stroke-width="3"/>
+  <path d="M210 15 A10 10 0 0 1 230 15 Z" fill="teal"/>
+
+  <!-- 4. fill rules: nonzero (left) vs evenodd (right) -->
+  <path d="M250 10 h25 v25 h-25 Z M255 15 h15 v15 h-15 Z" fill="#335" fill-rule="nonzero"/>
+  <path d="M285 10 h25 v25 h-25 Z M290 15 h15 v15 h-15 Z" fill="#335" fill-rule="evenodd"/>
+  <polygon points="265,40 275,62 252,48 278,48 255,62" fill="crimson" fill-rule="evenodd"/>
+  <polygon points="300,40 310,62 287,48 313,48 290,62" fill="crimson"/>
+
+  <!-- 5. stroke caps: butt, round, square -->
+  <g stroke="black" stroke-width="8">
+    <line x1="15" y1="80" x2="65" y2="80" stroke-linecap="butt"/>
+    <line x1="15" y1="98" x2="65" y2="98" stroke-linecap="round"/>
+    <line x1="15" y1="116" x2="65" y2="116" stroke-linecap="square"/>
+  </g>
+
+  <!-- 6. stroke joins: miter, round, bevel -->
+  <g fill="none" stroke="#147" stroke-width="7">
+    <polyline points="88,95 100,75 112,95" stroke-linejoin="miter"/>
+    <polyline points="113,95 125,75 137,95" stroke-linejoin="round"/>
+    <polyline points="138,95 150,75 162,95" stroke-linejoin="bevel" transform="translate(-6 0)"/>
+    <polyline points="90,125 150,110 90,115" stroke-linejoin="miter" stroke-miterlimit="2" stroke-width="4"/>
+  </g>
+
+  <!-- 7. transforms: translate, rotate, scale, skewX, matrix -->
+  <g transform="translate(200 99)">
+    <rect x="-8" y="-8" width="16" height="16" fill="#999"/>
+    <rect x="-8" y="-8" width="16" height="16" fill="#4a4" transform="rotate(30) translate(18 0)"/>
+    <rect x="-8" y="-8" width="16" height="16" fill="#44a" transform="translate(-22 -12) scale(0.6 1.4)"/>
+    <rect x="-8" y="-8" width="16" height="16" fill="#a44" transform="skewX(30) translate(-16 18)"/>
+    <rect x="-8" y="-8" width="16" height="16" fill="#aa4" transform="matrix(0.8 0.3 -0.3 0.8 22 20)"/>
+  </g>
+
+  <!-- 8. opacity: element, fill-opacity, stroke-opacity, group opacity -->
+  <circle cx="265" cy="90" r="16" fill="red" fill-opacity="0.6"/>
+  <circle cx="285" cy="90" r="16" fill="blue" opacity="0.5"/>
+  <g opacity="0.5">
+    <rect x="252" y="105" width="30" height="20" fill="green"/>
+    <rect x="268" y="112" width="30" height="20" fill="green"/>
+  </g>
+  <rect x="300" y="105" width="15" height="20" fill="yellow" stroke="black" stroke-width="4" stroke-opacity="0.4"/>
+
+  <!-- 9. rect rx/ry, circle, ellipse -->
+  <rect x="10" y="140" width="30" height="22" rx="6" fill="#fc6" class="swatch"/>
+  <rect x="45" y="140" width="28" height="22" rx="4" ry="10" fill="#6cf"/>
+  <circle id="blue-dot" cx="25" cy="180" r="12"/>
+  <ellipse cx="58" cy="180" rx="16" ry="9" fill="none" stroke="#c06" stroke-width="2.5"/>
+
+  <!-- 10. nested units: a group in mm via a scaled viewport and rgb()/rgba() colours -->
+  <g transform="scale(0.5)">
+    <rect x="180" y="280" width="120" height="100" fill="rgb(133, 194, 224)"/>
+    <circle cx="240" cy="330" r="35" fill="rgba(242, 98, 13, 0.8)"/>
+  </g>
+
+  <!-- 11. dashes and style-attribute styling -->
+  <path d="M170 145 h60 M170 160 h60 M170 175 q30 -20 60 0"
+        style="fill:none; stroke:#333; stroke-width:3; stroke-dasharray:8 4; stroke-linecap:round"/>
+  <line x1="170" y1="190" x2="230" y2="190" stroke="#c00" stroke-width="2" stroke-dasharray="1,5" stroke-dashoffset="2"/>
+
+  <!-- 12. currentColor, colour forms, use -->
+  <defs>
+    <path id="chev" d="M0 0 l10 8 l-10 8" fill="none" stroke-width="3"/>
+  </defs>
+  <g color="#06c" stroke="currentColor">
+    <use href="#chev" x="250" y="140"/>
+    <use href="#chev" x="265" y="140"/>
+  </g>
+  <rect x="285" y="140" width="10" height="16" fill="#f80"/>
+  <rect x="297" y="140" width="10" height="16" fill="#ff8800" fill-opacity="0.5"/>
+  <rect x="250" y="165" width="57" height="10" fill="rgba(0, 128, 0, 0.5)"/>
+  <rect x="250" y="180" width="57" height="10" fill="darkslateblue"/>
+</svg>

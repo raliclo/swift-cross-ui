@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Things the SwiftCrossUI renderer does not draw. Each must appear in the
+     diagnostics list and be outlined in magenta; none may vanish silently.
+     SwiftCrossUI 算繪器不畫的東西。每一項都必須出現在診斷清單中並以洋紅色框出；
+     沒有任何一項可以靜默消失。 -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="320" height="200" viewBox="0 0 320 200">
+  <defs>
+    <linearGradient id="fade"><stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+    <clipPath id="half"><rect x="0" y="0" width="160" height="200"/></clipPath>
+    <filter id="blur"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+  <!-- supported, for orientation / 受支援，作為對照 -->
+  <rect x="10" y="10" width="60" height="40" fill="#4a4"/>
+  <!-- gradient without fallback: painted magenta / 沒有後備色的漸層：以洋紅色繪製 -->
+  <rect x="90" y="10" width="60" height="40" fill="url(#fade)"/>
+  <!-- gradient with fallback: painted in the fallback / 有後備色的漸層：以後備色繪製 -->
+  <rect x="170" y="10" width="60" height="40" fill="url(#fade) orange"/>
+  <!-- clip-path and filter: drawn without them / clip-path 與 filter:不套用而照畫 -->
+  <circle cx="40" cy="110" r="30" fill="#36c" clip-path="url(#half)"/>
+  <circle cx="120" cy="110" r="30" fill="#c63" filter="url(#blur)"/>
+  <!-- visible text: outlined / 可見文字：框出 -->
+  <text x="170" y="115" font-size="20" fill="black">Hello SVG</text>
+  <!-- invisible text, as KiCad writes it: nothing to report / KiCad 式的不可見文字：無須回報 -->
+  <text x="170" y="150" font-size="20" opacity="0">hidden</text>
+  <!-- raster image: outlined / 點陣影像：框出 -->
+  <image x="10" y="150" width="80" height="40" xlink:href="photo.png"/>
+</svg>

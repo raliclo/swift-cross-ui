@@ -52,7 +52,8 @@ extension AndroidBackend {
             true
         )!
 
-        let buffer = try! JavaClass<AndroidKit.ByteBuffer>().wrap(rgbaData)!
+        // copyPixelsFromBuffer copies as is into a premultiplied bitmap. / 原樣複製進預乘的 bitmap。
+        let buffer = try! JavaClass<AndroidKit.ByteBuffer>().wrap(ImagePixels.premultiplied(rgbaData))!
 
         bitmap.copyPixelsFromBuffer(buffer.as(JavaNioBuffer.self)!)
 

@@ -118,7 +118,7 @@ extension UIKitBackend {
         guard dataHasChanged else { return }
         let wrapper = imageView as! WrapperWidget<UIImageView>
         let ciImage = CIImage(
-            bitmapData: Data(rgbaData),
+            bitmapData: Data(ImagePixels.premultiplied(rgbaData)),  // CIImage reads premultiplied / 讀取預乘
             bytesPerRow: width * 4,
             size: CGSize(width: CGFloat(width), height: CGFloat(height)),
             format: .RGBA8,

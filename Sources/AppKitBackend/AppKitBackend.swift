@@ -1373,7 +1373,7 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         }
 
         let imageView = imageView as! NSImageView
-        var rgbaData = rgbaData
+        var rgbaData = ImagePixels.premultiplied(rgbaData)  // premultipliedLast below / 下方為預乘
         let context = CGContext(
             data: &rgbaData,
             width: width,

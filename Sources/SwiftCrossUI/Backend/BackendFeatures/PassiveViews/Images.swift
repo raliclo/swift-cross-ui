@@ -25,7 +25,13 @@ extension BackendFeatures {
         /// - Parameters:
         ///   - imageView: The image view to update.
         ///   - rgbaData: The pixel data, as rows of pixels concatenated into a
-        ///     flat array.
+        ///     flat array. Four bytes per pixel, R G B A, with straight (not
+        ///     premultiplied) alpha -- what `ImageFormats` decodes and what
+        ///     ``SVGDocument`` produces. A toolkit that takes premultiplied
+        ///     pixels must convert, e.g. with ``ImagePixels/premultiplied(_:)``;
+        ///     passing these bytes through unchanged brightens every
+        ///     translucent pixel. 每像素四個位元組 R G B A,alpha 未預乘；接受預乘
+        ///     像素的 toolkit 必須先轉換，否則每個半透明像素都會變亮。
         ///   - width: The width of the image in pixels. Should only be used to
         ///     interpret `rgbaData`, _not_ to set the size of the image on-screen.
         ///   - height: The height of the image in pixels. Should only be used to

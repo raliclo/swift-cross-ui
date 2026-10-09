@@ -385,7 +385,12 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .target(name: "AppKitBackend", condition: .when(platforms: [.macOS])),
-            ]
+                // Decodes the SVG golden PNGs. / 解碼 SVG 黃金參考 PNG。
+                .product(name: "ImageFormats", package: "swift-image-formats"),
+            ],
+            // SVG sources and reference PNGs, read by path from SVGTests.
+            // SVG 原始檔與參考 PNG,由 SVGTests 依路徑讀取。
+            exclude: ["SVGFixtures"]
         ),
         .target(name: "SwiftCrossUIMetadataSupport"),
         .target(

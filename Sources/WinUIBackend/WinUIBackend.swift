@@ -2329,6 +2329,22 @@ public final class WinUIBackend:
             if pixel & 0xFF00_0000 == 0 {
                 // If transparent, make the pixel black (this is the janky blending fix).
                 pixels[i] = pixel & 0xFF00_0000
+            } else if pixel >> 24 != 0xFF {
+                // Translucent. WriteableBitmap is premultiplied BGRA and these
+                // bytes are straight RGBA (see ImagePixels), so the colour is
+                // scaled by alpha as well as R and B being swapped; without it
+                // a translucent pixel is brightened (measured on AppKit; WinUI not run).
+                // 半透明。WriteableBitmap 是預乘 BGRA,傳入的是未預乘 RGBA(見 ImagePixels),
+                // 所以除了交換 R 與 B,顏色還要乘上 alpha;否則半透明像素會變亮(AppKit 實測;WinUI 未執行)。
+                let alpha = pixel >> 24
+                func scaled(_ channel: UInt32) -> UInt32 {
+                    let product = channel * alpha + 128
+                    return (product + (product >> 8)) >> 8
+                }
+                let red = scaled(pixel & 0xFF)
+                let green = scaled((pixel >> 8) & 0xFF)
+                let blue = scaled((pixel >> 16) & 0xFF)
+                pixels[i] = (alpha << 24) | (red << 16) | (green << 8) | blue
             } else {
                 // Swap R and B (RGBA to BGRA), keeping G and A in place.
                 pixels[i] =
