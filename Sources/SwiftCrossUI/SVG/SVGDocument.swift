@@ -294,9 +294,9 @@ struct SVGShape: Sendable {
     var transform: SVGTransform
     /// Fill colour with `fill-opacity` already applied; `nil` for none.
     /// 已套用 `fill-opacity` 的填充色；`nil` 表示無。
-    var fill: SVGColor?
+    var fill: SVGPaintValue?
     var fillRule: SVGFillRule
-    var stroke: SVGColor?
+    var stroke: SVGPaintValue?
     var strokeWidth: Double
     var lineCap: SVGLineCap
     var lineJoin: SVGLineJoin
@@ -377,7 +377,7 @@ enum SVGRenderer {
                     height: canvas.height)),
             mask.count == size
         {
-            canvas.fill(mask: mask, color: fill)
+            if let shader = fill.shader(device: device) { canvas.fill(mask: mask, shader: shader) }
             drew = true
         }
         if let stroke = node.stroke, node.strokeWidth > 0,
@@ -387,7 +387,7 @@ enum SVGRenderer {
                     height: canvas.height, strokeWidth: node.strokeWidth)),
             mask.count == size
         {
-            canvas.fill(mask: mask, color: stroke)
+            if let shader = stroke.shader(device: device) { canvas.fill(mask: mask, shader: shader) }
             drew = true
         }
         if !drew {
@@ -403,7 +403,9 @@ enum SVGRenderer {
 
         if let fill = shape.fill {
             let polygons = polylines.map { $0.points.map(device.apply) }
-            canvas.fill(polygons, rule: shape.fillRule, color: fill)
+            if let shader = fill.shader(device: device) {
+                canvas.fill(polygons, rule: shape.fillRule, shader: shader)
+            }
         }
         if let stroke = shape.stroke, shape.strokeWidth > 0 {
             var lines = polylines
@@ -414,7 +416,9 @@ enum SVGRenderer {
                 halfWidth: shape.strokeWidth / 2, cap: shape.lineCap, join: shape.lineJoin,
                 miterLimit: shape.miterLimit, tolerance: userTolerance)
             let polygons = stroker.stroke(lines).map { $0.map(device.apply) }
-            canvas.fill(polygons, rule: .nonzero, color: stroke)
+            if let shader = stroke.shader(device: device) {
+                canvas.fill(polygons, rule: .nonzero, shader: shader)
+            }
         }
     }
 

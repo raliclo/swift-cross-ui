@@ -13,6 +13,9 @@ final class SVGBuilder {
         /// the fallback colour when there is one, else in the marker colour.
         /// 塗料伺服器(漸層、圖樣)或斷掉的參照；有後備顏色時以其繪製，否則以標記色繪製。
         case unsupported(String, fallback: SVGColor?)
+        /// A gradient element; its fallback is used only if the reference breaks.
+        /// 漸層元素；後備色只在參照失效時使用。
+        case server(SVGXMLElement, fallback: SVGColor?)
     }
 
     struct Style {
@@ -87,7 +90,7 @@ final class SVGBuilder {
 
     private var diagnostics: [SVGDiagnostic] = []
     private var diagnosticIndex: [String: Int] = [:]
-    private var elementsByID: [String: SVGXMLElement] = [:]
+    var elementsByID: [String: SVGXMLElement] = [:]
     private var rules: [SVGStyleRule] = []
     private var viewportWidth = 300.0
     private var viewportHeight = 150.0
@@ -435,6 +438,9 @@ final class SVGBuilder {
             }
             let id = reference.hasPrefix("#") ? String(reference.dropFirst()) : reference
             if let target = elementsByID[id] {
+                if Self.gradientNames.contains(target.localName) {
+                    return .server(target, fallback: fallback)
+                }
                 return .unsupported("paint server <\(target.localName)> (\(reference))", fallback: fallback)
             }
             return .unsupported("paint reference \(reference) does not exist", fallback: fallback)
@@ -445,8 +451,11 @@ final class SVGBuilder {
     /// Resolves a paint to a colour with `opacity` applied, reporting
     /// anything it had to substitute.
     /// 把塗料解析成已套用 `opacity` 的顏色，並回報任何不得不替換的情形。
-    private func resolve(_ paint: Paint, opacity: Double, style: Style, element: SVGXMLElement)
-        -> SVGColor?
+    private func resolve(
+        _ paint: Paint, opacity: Double, style: Style, element: SVGXMLElement,
+        box: @autoclosure () -> SVGRect? = nil
+    )
+        -> SVGPaintValue?
     {
         let color: SVGColor
         switch paint {
@@ -456,12 +465,17 @@ final class SVGBuilder {
                 color = value
             case .currentColor:
                 color = style.color
+            case .server(let target, _):
+                guard opacity > 0, let gradient = gradient(target, box: box(), style: style) else {
+                    return nil
+                }
+                return .gradient(gradient, opacity: opacity)
             case .unsupported(let what, let fallback):
                 report(.unsupportedValue, element, what + (fallback == nil ? "" : "; fallback colour used"))
                 color = fallback ?? SVGColor.unsupportedMarker
         }
         let alpha = color.alpha * opacity
-        return alpha > 0 ? color.with(alpha: alpha) : nil
+        return alpha > 0 ? .color(color.with(alpha: alpha)) : nil
     }
 
     // MARK: Tree / 樹
@@ -645,8 +659,15 @@ final class SVGBuilder {
         }
         guard style.visible else { return [] }
 
-        let fill = name == "line" ? nil : resolve(style.fill, opacity: style.fillOpacity, style: style, element: element)
-        let stroke = resolve(style.stroke, opacity: style.strokeOpacity, style: style, element: element)
+        let fill =
+            name == "line"
+            ? nil
+            : resolve(
+                style.fill, opacity: style.fillOpacity, style: style, element: element,
+                box: Self.bounds(of: path))
+        let stroke = resolve(
+            style.stroke, opacity: style.strokeOpacity, style: style, element: element,
+            box: Self.bounds(of: path))
         if fill == nil && stroke == nil {
             return wrap([], style: style, element: element)
         }
@@ -862,10 +883,17 @@ final class SVGBuilder {
             isItalic: style.fontItalic,
             anchor: SVGTextAnchor(rawValue: element[attribute: "text-anchor"] ?? style.textAnchor)
                 ?? .start)
+        let textBox = SVGRect(x: left, y: top, width: width, height: size)
         let node = SVGTextNode(
             run: run, transform: transform.concatenating(.translate(x, y)),
-            fill: resolve(style.fill, opacity: style.fillOpacity, style: style, element: element),
-            stroke: resolve(style.stroke, opacity: style.strokeOpacity, style: style, element: element),
+            fill: Self.shifted(
+                resolve(
+                    style.fill, opacity: style.fillOpacity, style: style, element: element,
+                    box: textBox), x: x, y: y),
+            stroke: Self.shifted(
+                resolve(
+                    style.stroke, opacity: style.strokeOpacity, style: style, element: element,
+                    box: textBox), x: x, y: y),
             strokeWidth: style.strokeWidth, corners: corners)
         return wrap([.text(node)], style: style, element: element)
     }

@@ -118,8 +118,8 @@ struct SVGTextNode: Sendable {
     /// root viewBox space.
     /// 從文字空間(錨點在原點、基線在 x 軸上)到根 viewBox 空間。
     var transform: SVGTransform
-    var fill: SVGColor?
-    var stroke: SVGColor?
+    var fill: SVGPaintValue?
+    var stroke: SVGPaintValue?
     var strokeWidth: Double
     /// Where the magenta outline goes when no backend draws text, in root
     /// viewBox space.

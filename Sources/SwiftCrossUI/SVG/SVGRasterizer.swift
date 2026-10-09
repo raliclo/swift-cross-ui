@@ -61,6 +61,45 @@ struct SVGCanvas {
         }
     }
 
+    /// Fills `polygons` with a colour per pixel: a solid colour or a gradient.
+    /// 以逐像素的顏色(單色或漸層)填充 `polygons`。
+    mutating func fill(_ polygons: [[SVGPoint]], rule: SVGFillRule, shader: SVGShader) {
+        guard width > 0, height > 0,
+            let coverage = Self.coverage(of: polygons, rule: rule, width: width, height: height)
+        else { return }
+        for row in coverage.rowRange {
+            let rowOffset = (row - coverage.rowRange.lowerBound) * coverage.columns
+            for column in 0..<coverage.columns {
+                let amount = min(coverage.values[rowOffset + column], 1)
+                if amount <= 0 { continue }
+                let x = coverage.firstColumn + column
+                blend(shader.color(x: x, y: row), amount: amount, at: (row * width + x) * 4)
+            }
+        }
+    }
+
+    /// Fills through `mask` (one coverage byte per pixel) with a colour per pixel.
+    /// 經 `mask`(每像素一個覆蓋率位元組)以逐像素的顏色填充。
+    mutating func fill(mask: [UInt8], shader: SVGShader) {
+        guard mask.count == width * height else { return }
+        for pixel in 0..<(width * height) where mask[pixel] > 0 {
+            blend(
+                shader.color(x: pixel % width, y: pixel / width), amount: Float(mask[pixel]) / 255,
+                at: pixel * 4)
+        }
+    }
+
+    /// Source-over of a premultiplied colour at `amount` coverage.
+    /// 以 `amount` 覆蓋率對預乘顏色做 source-over。
+    private mutating func blend(_ color: SVGPremultiplied, amount: Float, at index: Int) {
+        guard color.alpha > 0 else { return }
+        let inverse = 1 - color.alpha * amount
+        pixels[index] = color.red * amount + pixels[index] * inverse
+        pixels[index + 1] = color.green * amount + pixels[index + 1] * inverse
+        pixels[index + 2] = color.blue * amount + pixels[index + 2] * inverse
+        pixels[index + 3] = color.alpha * amount + pixels[index + 3] * inverse
+    }
+
     /// Fills with `color` through `mask`: one coverage byte per pixel, top row
     /// first, as a backend's text renderer returns it. A mask of the wrong size
     /// draws nothing.

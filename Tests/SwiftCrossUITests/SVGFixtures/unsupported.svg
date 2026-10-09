@@ -12,9 +12,9 @@
   </defs>
   <!-- supported, for orientation / 受支援，作為對照 -->
   <rect x="10" y="10" width="60" height="40" fill="#4a4"/>
-  <!-- gradient without fallback: painted magenta / 沒有後備色的漸層：以洋紅色繪製 -->
+  <!-- gradient: drawn since 2026-10-10 / 漸層：自 2026-10-10 起會繪製 -->
   <rect x="90" y="10" width="60" height="40" fill="url(#fade)"/>
-  <!-- gradient with fallback: painted in the fallback / 有後備色的漸層：以後備色繪製 -->
+  <!-- gradient with a fallback: drawn too; the fallback is only for a broken reference / 有後備色的漸層：同樣繪製，後備色只用於參照失效時 -->
   <rect x="170" y="10" width="60" height="40" fill="url(#fade) orange"/>
   <!-- clip-path and filter: drawn without them / clip-path 與 filter:不套用而照畫 -->
   <circle cx="40" cy="110" r="30" fill="#36c" clip-path="url(#half)"/>

@@ -365,18 +365,23 @@ struct SVGTests {
     func diagnosticsAreReported() throws {
         let document = try SVGDocument(contentsOf: fixture("unsupported.svg"))
         let details = document.diagnostics.map(\.description)
-        #expect(details.contains { $0.contains("linearGradient") && !$0.contains("fallback") })
-        #expect(details.contains { $0.contains("linearGradient") && $0.contains("fallback colour used") })
+        // Gradients are drawn since 2026-10-10 (SVGPaintTests), so they are no longer listed.
+        // 漸層自 2026-10-10 起會被繪製(SVGPaintTests),因此不再列出。
         #expect(details.contains { $0.contains("clip-path") })
         #expect(details.contains { $0.contains("filter") })
         #expect(details.contains { $0.contains("text 'Hello SVG'") })
         #expect(details.contains { $0.contains("<image>") })
         #expect(!details.contains { $0.contains("hidden") })  // opacity="0" text is not a gap
-        #expect(document.diagnostics.count == 6)
+        #expect(document.diagnostics.count == 4)
 
         let image = document.rasterize(width: 320, height: 200)
         #expect(pixel(image, 1, 1) == [255, 0, 255, 255])  // corner flag
-        #expect(pixel(image, 120, 30) == [255, 0, 255, 255])  // gradient without fallback
+        // The red-to-blue gradient, with and without a fallback colour: red at the left edge,
+        // blue at the right. / 紅到藍的漸層(有無後備色皆然):左緣紅、右緣藍。
+        for left in [91, 171] {
+            #expect(pixel(image, left, 30)[0] > 220 && pixel(image, left, 30)[2] < 40)
+            #expect(pixel(image, left + 57, 30)[2] > 220 && pixel(image, left + 57, 30)[0] < 40)
+        }
         #expect(pixel(image, 10, 175) == [255, 0, 255, 255])  // <image> outline, left edge
         let clean = document.rasterize(width: 320, height: 200, showsUnsupportedMarkers: false)
         #expect(pixel(clean, 1, 1)[3] == 0)
