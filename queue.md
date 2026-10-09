@@ -368,6 +368,19 @@ UIKit's three slider `fatalError`s (the `#else` branch is tvOS only).
   made P78/P79/P81 fail on 2026-10-07 -- that output was discarded; the next
   occurrence will say.
 
+- [ ] **Android: everything a test app draws comes out at 92.5% brightness** (found
+  2026-10-09, SoftPCB-mac on P85). Every channel is multiplied by ~0.9255:
+  P85's SVG background #fffbe6 shows as (236,232,213), the decor view's white
+  (#ffffffff, set by setWindowBackground) shows as (236,236,236) -- the grey
+  "Android background" in every capture since at least 2026-10-05 -- and the
+  Material3 colorBackground (255,251,254) as (236,232,235). The status bar and
+  the system Settings app show true white, so the device is not dimmed.
+  Ruled out: the pixels (Android receives 255,251,230,255), any view with alpha
+  < 1, a foreground or a hardware layer (walked from the decor view), the
+  window's LayoutParams (no alpha, no DIM_BEHIND), SurfaceFlinger
+  (dimmingRatio 1.0; the two Dim layers are hidden), and screencap (the macOS
+  emulator window shows the same 236). Cause not found yet.
+
 ### Windows side (GTK and WinUI)
 
 - [x] **Five optional features declared by neither GTK nor WinUI:** `ContextMenus`,
