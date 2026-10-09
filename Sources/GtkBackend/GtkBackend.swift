@@ -4080,6 +4080,28 @@ public final class GtkBackend:
         }
 
         let imageView = imageView as! Gtk.Picture
+        let texture = Self.texture(fromStraightRGBA: rgbaData, width: width, height: height)
+        imageView.setPaintable(texture)
+    }
+
+    /// The texture `updateImageView` shows: the bytes as they come, no
+    /// premultiplying, because a `GdkPixbuf` with alpha is straight
+    /// (non-premultiplied) RGBA by definition -- the opposite of AppKit, UIKit,
+    /// Android and WinUI, which premultiply through `ImagePixels`. Measured
+    /// 2026-10-09 on macOS (GTK 4.24.1): GDK hands (200, 0, 0, 128) back as
+    /// premultiplied (100, 0, 0, 128), i.e. (227, 127, 127) over white; P84's
+    /// half-transparent rects read src x a + bg x (1 - a) on screen. See
+    /// `GtkImageAlphaTests`.
+    ///
+    /// `updateImageView` 顯示的 texture:位元組原樣交出、不預乘，因為帶 alpha 的 `GdkPixbuf` 依定義就是
+    /// 未預乘 RGBA——與經 `ImagePixels` 預乘的 AppKit、UIKit、Android、WinUI 相反。2026-10-09 於 macOS
+    /// (GTK 4.24.1)實測:GDK 把 (200, 0, 0, 128) 讀回為預乘的 (100, 0, 0, 128),即白底上的
+    /// (227, 127, 127);P84 的半透明矩形在畫面上量得 src x a + bg x (1 - a)。見 `GtkImageAlphaTests`。
+    static func texture(
+        fromStraightRGBA rgbaData: [UInt8],
+        width: Int,
+        height: Int
+    ) -> OpaquePointer {
         let buffer = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: rgbaData.count)
         memcpy(buffer.baseAddress!, rgbaData, rgbaData.count)
         let pixbuf = gdk_pixbuf_new_from_data(
@@ -4095,8 +4117,7 @@ public final class GtkBackend:
             },
             nil
         )
-        let texture = gdk_texture_new_for_pixbuf(pixbuf)!
-        imageView.setPaintable(texture)
+        return gdk_texture_new_for_pixbuf(pixbuf)!
     }
 
     // MARK: Controls

@@ -385,6 +385,12 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .target(name: "AppKitBackend", condition: .when(platforms: [.macOS])),
+                // GtkImageAlphaTests: how GDK reads updateImageView's bytes. macOS
+                // and Linux only -- both already need GTK for this package
+                // (testapp/install_tool_mac.zsh); a Windows host may not have it.
+                // GtkImageAlphaTests:GDK 如何讀 updateImageView 的位元組。只限 macOS 與 Linux——
+                // 兩者本來就需要 GTK 才能建置本套件；Windows 主機未必有。
+                .target(name: "GtkBackend", condition: .when(platforms: [.macOS, .linux])),
                 // Decodes the SVG golden PNGs. / 解碼 SVG 黃金參考 PNG。
                 .product(name: "ImageFormats", package: "swift-image-formats"),
             ],
