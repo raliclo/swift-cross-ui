@@ -42,6 +42,14 @@ extension AndroidBackend {
             textField.setOnSubmit(nil)
         }
         getTextStyle(from: environment).apply(to: textField)
+        // The placeholder in the current foreground at 30%, as UIKit's
+        // placeholderText follows the window's scheme. The theme's hint colour
+        // stayed light-theme grey under preferredColorScheme(.dark) and nearly
+        // vanished on black (P15-DARK, 2026-10-09).
+        // 佔位文字用目前前景色的 30%,如同 UIKit 的 placeholderText 跟著視窗的配色。主題的 hint 顏色在
+        // preferredColorScheme(.dark) 下仍是淺色主題的灰，在黑底上幾乎看不見(P15-DARK,2026-10-09)。
+        let foreground = environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
+        textField.setHintTextColor((foreground & 0x00FF_FFFF) | 0x4D00_0000)
     }
 
     public func updateTextField(

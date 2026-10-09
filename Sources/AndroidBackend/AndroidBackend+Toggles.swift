@@ -29,10 +29,16 @@ extension AndroidBackend {
     }
 
     public func createSwitch() -> Widget {
-        AndroidKit.Switch(
+        let switchWidget = AndroidKit.Switch(
             Self.activity,
             environment: Self.env
         )
+        // Shaped at creation, so the first measurement already has the pill's
+        // size; styled only in update, a checked switch was measured with the
+        // framework drawables and its thumb came out clipped (P15, 2026-10-09).
+        // 建立時就套上形狀，讓第一次量測就是膠囊的尺寸;只在 update 時套用，開啟的開關是以框架的圖量測的，滑塊被裁掉了(P15)。
+        helpers.styleSwitch(switchWidget.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true)
+        return switchWidget
     }
 
     private func updateCompoundButton(
@@ -101,6 +107,11 @@ extension AndroidBackend {
     ) {
         let switchWidget = switchWidget.as(AndroidKit.CompoundButton.self)!
         updateCompoundButton(switchWidget, environment: environment, onChange: onChange)
+        helpers.styleSwitch(
+            switchWidget,
+            environment.suggestedForegroundColor.resolve(in: environment).asColorInt(),
+            environment.isEnabled
+        )
     }
 
     public func setState(ofToggle toggle: Widget, to state: Bool) {

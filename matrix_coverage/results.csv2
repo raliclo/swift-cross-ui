@@ -1204,3 +1204,11 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P8,ok,n/a,screen,default,Re-compared from P6 on: aligned with iOS.
 2026-10-09,ios,uikit,P12,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-09,android,android,P12,ok,n/a,screen,default,Button-style toggles drawn as iOS draws them -- on: tint-filled with a white label; off: a borderless tint label -- and measured with their real label (was 'Tog'). Toggle section starts at the leading edge as on iOS.
+2026-10-09,ios,uikit,P13,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P13,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-09,ios,uikit,P14,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P14,ok,n/a,screen,default,iOS/Android comparison: aligned.
+2026-10-09,ios,uikit,P15,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P15,ok,n/a,screen,default,"Switch drawn as a 52x32 pill with a white disc, on = colorPrimary; the checked switch no longer reads as off."
+2026-10-09,ios,uikit,P15-DARK,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-09,android,android,P15-DARK,ok,n/a,screen,default,Under preferredColorScheme(.dark): the off switch track is visible (foreground at 18%) and the text-field placeholder follows the foreground at 30% -- both were light-theme colours and nearly invisible on black.

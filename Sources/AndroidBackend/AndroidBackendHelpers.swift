@@ -58,6 +58,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleToggleButton(_ button: AndroidKit.ToggleButton?)
 
+    /// Switch colours from the SwiftCrossUI scheme; see the Kotlin side.
+    @JavaMethod
+    func styleSwitch(_ switchView: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
+
     /// Label colours for a button-style toggle; see the Kotlin side.
     @JavaMethod
     func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool)

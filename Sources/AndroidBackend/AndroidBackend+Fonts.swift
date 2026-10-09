@@ -141,4 +141,7 @@ extension TextView {
 
     @JavaMethod
     open func setIncludeFontPadding(_ arg0: Bool)
+
+    @JavaMethod
+    open func setHintTextColor(_ arg0: Int32)
 }

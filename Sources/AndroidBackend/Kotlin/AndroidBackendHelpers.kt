@@ -215,6 +215,62 @@ class AndroidBackendHelpers {
         )
     }
 
+    // A Switch coloured from the SwiftCrossUI scheme rather than the activity
+    // theme: on is colorPrimary (track) with a white thumb; off is the current
+    // foreground at 30% (track) and 70% (thumb). Under preferredColorScheme(.dark)
+    // the light theme's off track was invisible on black and only a grey dot
+    // showed, where iOS draws a dark grey track (P15-DARK, 2026-10-09).
+    // 依 SwiftCrossUI 的配色而非 activity 主題替 Switch 上色：開時軌道是 colorPrimary、滑塊白色；關時軌道是目前前景色的 30%、
+    // 滑塊 70%。在 preferredColorScheme(.dark) 下，淺色主題的關閉軌道在黑底上看不見，只剩一個灰點，iOS 則畫出深灰的軌道。
+    fun styleSwitch(switchView: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
+        if (switchView !is android.widget.Switch) return
+        val key = "$foreground/$enabled"
+        if (switchStyles[switchView] == key) return
+        switchStyles[switchView] = key
+        val primary = themeColorOf(switchView.context, android.R.attr.colorPrimary)
+        val density = switchView.context.resources.displayMetrics.density
+        fun alpha(c: Int, a: Int) = (c and 0x00FFFFFF) or (a shl 24)
+        val fade = if (enabled) 1f else 0.38f
+        fun f(c: Int) = alpha(c, (((c ushr 24) and 0xFF) * fade).toInt())
+        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+        // Drawn shapes rather than tints: the framework track drawable carries
+        // its own transparency, so a tinted checked track came out pale and the
+        // white thumb on it read as "off" (P15), and the off track at 30% was
+        // still barely there on black (P15-DARK). A pill and a white disc, as
+        // iOS draws them; the off track is the foreground at 18% -- (46,46,46)
+        // on black against iOS's (57,57,61).
+        // 以畫出的形狀而非 tint:框架的軌道圖本身帶透明度，所以上色後的開啟軌道很淡，上面的白色滑塊讀起來像「關」(P15),
+        // 而 30% 的關閉軌道在黑底上仍幾乎看不見(P15-DARK)。改成與 iOS 相同的膠囊與白色圓盤;關閉軌道是前景色的 18%。
+        val track = android.graphics.drawable.GradientDrawable()
+        track.cornerRadius = 16 * density
+        track.setSize((52 * density).toInt(), (32 * density).toInt())
+        track.color = android.content.res.ColorStateList(
+            states, intArrayOf(f(primary), f(alpha(foreground, 0x2E)))
+        )
+        val disc = android.graphics.drawable.GradientDrawable()
+        disc.shape = android.graphics.drawable.GradientDrawable.OVAL
+        disc.setSize((24 * density).toInt(), (24 * density).toInt())
+        // A faint ring, so the white disc still has an edge on a white page --
+        // iOS gives its thumb a shadow for the same reason. 一圈很淡的邊，讓白色圓盤在白色頁面上仍看得出邊緣——iOS 為同樣理由給滑塊陰影。
+        disc.setStroke(maxOf(1, (0.5f * density).toInt()), 0x33000000)
+        disc.setColor(f(android.graphics.Color.WHITE))
+        // 4 dp round the 24 dp disc: the thumb stays 32 dp for the Switch's width
+        // arithmetic, while the disc sits inside the 28 dp track the Switch
+        // draws. With a 28 dp disc it overhung the track and, white on a light
+        // page, the checked switch looked bitten off (P15, measured: track
+        // 136x74 px, thumb 83x84 px past its right end).
+        // 24 dp 圓盤外留 4 dp:滑塊仍是 32 dp 供 Switch 計算寬度，圓盤則落在 Switch 畫出的 28 dp 軌道之內。用 28 dp 圓盤時它
+        // 超出軌道，在淺色頁面上白色的部分讓開啟的開關看起來像被咬掉一塊(P15 實測：軌道 136x74 px,滑塊 83x84 px 超出右端)。
+        val inset = (4 * density).toInt()
+        switchView.thumbTintList = null
+        switchView.trackTintList = null
+        switchView.thumbDrawable = android.graphics.drawable.InsetDrawable(disc, inset)
+        switchView.trackDrawable = track
+        switchView.switchMinWidth = (52 * density).toInt()
+    }
+
+    private val switchStyles = java.util.WeakHashMap<android.view.View, String>()
+
     private fun themeColorOf(context: android.content.Context, attr: Int): Int {
         val value = TypedValue()
         if (!context.theme.resolveAttribute(attr, value, true)) return 0
