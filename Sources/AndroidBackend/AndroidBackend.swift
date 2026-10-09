@@ -1261,17 +1261,28 @@ public final class AndroidBackend: BaseAppBackend {
         widget.measure(widthSpec, 0x3FFFFFFF as Int32)
         let width = Double(widget.getMeasuredWidth()) / environment.windowScaleFactor
         var height = Double(widget.getMeasuredHeight()) / environment.windowScaleFactor
-        let lineHeight = Double(widget.as(AndroidKit.TextView.self)!.getLineHeight())
-            / environment.windowScaleFactor
-        if let proposedHeight, lineHeight > 0, height > Double(proposedHeight) {
-            height = max(1, (Double(proposedHeight) / lineHeight).rounded(.down)) * lineHeight
-        }
-        // `.lineLimit`, as UIKitBackend applies it. 與 UIKitBackend 相同地套用 `.lineLimit`。
-        if let lineLimitSettings = environment.lineLimitSettings, lineHeight > 0 {
-            let limitedHeight = Double(max(lineLimitSettings.limit, 1)) * lineHeight
-            if limitedHeight < height || lineLimitSettings.reservesSpace {
-                height = limitedHeight
+        let measuring = widget.as(AndroidKit.TextView.self)!
+        let lineHeight = Double(measuring.getLineHeight()) / environment.windowScaleFactor
+        var lines = max(Int(measuring.getLineCount()), 1)
+        // Every line is one line height, the last included, as UIKitBackend sets
+        // it (minimumLineHeight = maximumLineHeight = the font's line height). A
+        // TextView leaves the spacing off its last line, so one line measured
+        // 20 dp where iOS gives 22, and a readout laid over a 22 dp view showed a
+        // strip of it underneath (P17).
+        // 每一行都是一個行高，最後一行也是，與 UIKitBackend 的設定相同(minimumLineHeight = maximumLineHeight = 字型行高)。
+        // TextView 的最後一行不帶行距，所以一行量出 20 dp,iOS 是 22;疊在 22 dp view 上的讀數底下因此露出一條(P17)。
+        if lineHeight > 0 {
+            if let proposedHeight, Double(lines) * lineHeight > Double(proposedHeight) {
+                lines = max(1, Int((Double(proposedHeight) / lineHeight).rounded(.down)))
             }
+            // `.lineLimit`, as UIKitBackend applies it. 與 UIKitBackend 相同地套用 `.lineLimit`。
+            if let lineLimitSettings = environment.lineLimitSettings {
+                let limit = max(lineLimitSettings.limit, 1)
+                if limit < lines || lineLimitSettings.reservesSpace {
+                    lines = limit
+                }
+            }
+            height = Double(lines) * lineHeight
         }
         let size = SIMD2(Int(width.rounded(.up)), Int(height.rounded(.up)))
         Self.textSizes[key] = size

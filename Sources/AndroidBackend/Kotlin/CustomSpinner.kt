@@ -113,11 +113,17 @@ class CustomSpinner(activity: Activity) : Spinner(activity, Spinner.MODE_DROPDOW
     }
 
     // SF Symbols' chevron.up.chevron.down at the label's size: two chevrons
-    // stacked, stroked in the label colour. SF Symbols 的 chevron.up.chevron.down,大小隨標籤：上下疊放的
-    // 兩個箭頭，以標籤色描邊。
-    private class Chevrons(color: Int, textSize: Float) : Drawable() {
-        private val width = (textSize * 0.55f).toInt()
-        private val height = (textSize * 0.8f).toInt()
+    // stacked, stroked in the label colour. The box is the image UIButton lays
+    // out, wider and taller than the strokes: iOS's picker with "S" selected
+    // measures 27 x 22 (P17, --debug), and this box makes the Android one the
+    // same; drawn only to the glyph it was 21 x 20, so a readout laid over it
+    // truncated to "p..." where iOS shows "pi...".
+    // SF Symbols 的 chevron.up.chevron.down,大小隨標籤：上下疊放的兩個箭頭，以標籤色描邊。外框是 UIButton
+    // 排版用的圖片框，比線條寬也比線條高:iOS 選了 "S" 的 picker 量出 27 x 22(P17,--debug),這個外框讓
+    // Android 的一樣大;只框到線條時是 21 x 20,疊在上面的讀數被截成 "p...",而 iOS 顯示 "pi..."。
+    private class Chevrons(color: Int, private val textSize: Float) : Drawable() {
+        private val width = (textSize * 0.86f).toInt()
+        private val height = (textSize * 1.28f).toInt()
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             style = Paint.Style.STROKE
@@ -132,13 +138,14 @@ class CustomSpinner(activity: Activity) : Spinner(activity, Spinner.MODE_DROPDOW
 
         override fun draw(canvas: Canvas) {
             val b = bounds
-            val inset = paint.strokeWidth
-            val left = b.left + inset
-            val right = b.right - inset
-            val mid = (left + right) / 2
-            val top = b.top + inset
-            val bottom = b.bottom - inset
-            val arm = (right - left) * 0.5f
+            val glyphWidth = textSize * 0.55f
+            val glyphHeight = textSize * 0.8f
+            val left = b.exactCenterX() - glyphWidth / 2
+            val right = b.exactCenterX() + glyphWidth / 2
+            val mid = b.exactCenterX()
+            val top = b.exactCenterY() - glyphHeight / 2
+            val bottom = b.exactCenterY() + glyphHeight / 2
+            val arm = glyphWidth * 0.5f
             val path = Path()
             path.moveTo(left, top + arm)
             path.lineTo(mid, top)

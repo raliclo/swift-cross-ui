@@ -1,7 +1,6 @@
 package dev.swiftcrossui.androidbackend
 
 import android.app.Activity
-import android.text.StaticLayout
 import android.text.TextUtils
 import android.widget.TextView
 
@@ -22,39 +21,18 @@ class FittedTextView(activity: Activity) : TextView(activity) {
         ellipsize = TextUtils.TruncateAt.END
     }
 
-    // Counted on a separate StaticLayout of the whole text, so the answer does
-    // not depend on the maxLines already set, and from each line's real bottom:
-    // the last line carries no line spacing, so two lines are shorter than two
-    // getLineHeight()s, and dividing by it dropped a line that fitted (P17's
-    // "picker: 90 x" lost its "48"). maxLines is only assigned when it changes,
-    // because assigning it requests another layout.
-    // 在另一個涵蓋整段文字的 StaticLayout 上計算，結果因此不受目前已設定的 maxLines 影響;並以每一行實際的底部
-    // 計算：最後一行不帶行距，所以兩行比兩個 getLineHeight() 矮，用它去除就少算了一行放得下的行(P17 的
-    // "picker: 90 x" 少了 "48")。maxLines 只在改變時才指派，因為指派它會要求再排一次版。
+    // Every line is one line height, as `size(of:whenDisplayedIn:)` measures
+    // it, so the lines that fit are the height divided by the line height.
+    // maxLines is only assigned when it changes, because assigning it requests
+    // another layout.
+    // 每一行都是一個行高，與 `size(of:whenDisplayedIn:)` 的量法相同，所以放得下的行數就是高度除以行高。maxLines
+    // 只在改變時才指派，因為指派它會要求再排一次版。
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
-        val widthMode = MeasureSpec.getMode(widthMeasureSpec)
-        if (heightMode != MeasureSpec.UNSPECIFIED && widthMode != MeasureSpec.UNSPECIFIED) {
-            val width = MeasureSpec.getSize(widthMeasureSpec) - compoundPaddingLeft - compoundPaddingRight
+        if (MeasureSpec.getMode(heightMeasureSpec) != MeasureSpec.UNSPECIFIED && lineHeight > 0) {
             val available = MeasureSpec.getSize(heightMeasureSpec) - compoundPaddingTop - compoundPaddingBottom
-            val content = text ?: ""
-            var fitting = Int.MAX_VALUE
-            if (width > 0 && content.isNotEmpty()) {
-                val full = StaticLayout.Builder.obtain(content, 0, content.length, paint, width)
-                    .setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
-                    .setIncludePad(includeFontPadding)
-                    .setBreakStrategy(breakStrategy)
-                    .setHyphenationFrequency(hyphenationFrequency)
-                    .build()
-                if (full.height > available + 2) {
-                    val descent = paint.fontMetricsInt.descent
-                    var count = 1
-                    while (count < full.lineCount && full.getLineBaseline(count) + descent <= available + 2) {
-                        count += 1
-                    }
-                    fitting = count
-                }
-            }
+            // Two pixels of slack: the height arrives rounded to whole dp.
+            // 兩個像素的餘裕：高度是以整數 dp 取整後送來的。
+            val fitting = maxOf(1, (available + 2) / lineHeight)
             if (fitting != maxLines) {
                 maxLines = fitting
             }
