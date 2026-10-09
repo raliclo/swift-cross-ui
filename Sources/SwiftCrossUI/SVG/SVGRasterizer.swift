@@ -61,6 +61,28 @@ struct SVGCanvas {
         }
     }
 
+    /// Fills with `color` through `mask`: one coverage byte per pixel, top row
+    /// first, as a backend's text renderer returns it. A mask of the wrong size
+    /// draws nothing.
+    /// 以 `color` 經 `mask` 填充：每像素一個覆蓋率位元組、最上面一列在前，即 backend 文字繪製器回傳的
+    /// 格式。尺寸不符的遮罩不會畫出任何東西。
+    mutating func fill(mask: [UInt8], color: SVGColor) {
+        guard color.alpha > 0, mask.count == width * height else { return }
+        let alpha = Float(color.alpha)
+        let red = Float(color.red) * alpha
+        let green = Float(color.green) * alpha
+        let blue = Float(color.blue) * alpha
+        for pixel in 0..<(width * height) where mask[pixel] > 0 {
+            let amount = Float(mask[pixel]) / 255
+            let index = pixel * 4
+            let inverse = 1 - alpha * amount
+            pixels[index] = red * amount + pixels[index] * inverse
+            pixels[index + 1] = green * amount + pixels[index + 1] * inverse
+            pixels[index + 2] = blue * amount + pixels[index + 2] * inverse
+            pixels[index + 3] = alpha * amount + pixels[index + 3] * inverse
+        }
+    }
+
     /// Composites `layer` over this canvas at `opacity` (group opacity).
     /// 以 `opacity`(群組不透明度)把 `layer` 合成到此畫布上。
     mutating func composite(_ layer: SVGCanvas, opacity: Double) {

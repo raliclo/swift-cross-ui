@@ -36,9 +36,30 @@
     right as it is (straight bytes into GdkPixbuf); `GtkImageAlphaTests` pins
     (200,0,0,128) -> premultiplied (100,0,0,128) = (227,127,127) over white,
     and on screen the 0.5 rects read src*a + bg*(1-a) on both images.
-  - [ ] **SVG not yet drawn:** visible `<text>` (needs a font shared by all
-    backends), gradients, patterns, clipPath/mask, filters, markers, `<image>`;
+  - [ ] **SVG not yet drawn:** gradients, patterns, clipPath/mask, filters,
+    markers, `<image>`;
     each is reported and outlined today.
+    - [x] **Visible `<text>`: drawn by each platform's own text engine**
+      (2026-10-09). The user chose this over bundling a font, for size: no font
+      file in the library, and every script the platform has fonts for draws,
+      Chinese included; the price is that text differs a little between
+      platforms. Core: `SVGBuilder` turns `<text>` into a text node (font-family,
+      font-weight, font-style, font-size, text-anchor, fill, stroke, transform,
+      whitespace collapsed); `rasterize(..., textMasker:)` asks for a coverage
+      mask per run (`SVGTextMaskRequest`) and composites it with the SVG's colour,
+      opacity and paint order. Backends: `BackendFeatures.SVGText` --
+      AppKit/UIKit through `SVGCoreTextMasker` (Core Text), Android through
+      `SVGTextMasker.kt` (Canvas, ALPHA_8), GTK through PangoCairo (A8; no
+      font-family means sans-serif, as on the others). Without a text renderer
+      the run stays outlined in magenta and listed as `textNeedsRenderer`.
+      Checked: SVGTextTests (7, with a fake masker and real Core Text incl.
+      "電"), all 34 SVG tests; P85 (new, nine numbered checks incl. Chinese,
+      rotation, 40% opacity and a box painted over text) passes on macOS,
+      GTK on macOS, the iOS simulator and the Android emulator.
+    - [ ] **WinUI: SVG text.** `BackendFeatures.SVGText` on WinUIBackend, e.g.
+      Win2D `CanvasRenderTarget` + `CanvasTextLayout` drawn white on a
+      transparent target and read back as alpha; then P85 on WinUI (and GTK on
+      Windows/WSL, which already has the PangoCairo path but has not been run).
 
 ## 2026-10-05 code review: gaps against the five-backend rule
 

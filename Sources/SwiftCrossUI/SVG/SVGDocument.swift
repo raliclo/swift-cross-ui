@@ -19,6 +19,10 @@ public struct SVGDiagnostic: Sendable, Hashable, CustomStringConvertible {
         /// An element this renderer does not draw, e.g. visible `<text>`, `<image>`.
         /// 本算繪器不繪製的元素，例如可見的 `<text>`、`<image>`。
         case unsupportedElement
+        /// Visible `<text>`: drawn by the backend's text renderer
+        /// (``BackendFeatures/SVGText``), outlined in magenta where there is none.
+        /// 可見的 `<text>`:由 backend 的文字繪製器(``BackendFeatures/SVGText``)繪製，沒有時以洋紅色框出。
+        case textNeedsRenderer
         /// An attribute or property it does not apply, e.g. `clip-path`, `filter`.
         /// 本算繪器不套用的屬性，例如 `clip-path`、`filter`。
         case unsupportedAttribute
@@ -180,12 +184,16 @@ public struct SVGDocument: Sendable, Equatable {
     ///
     /// - Parameter showsUnsupportedMarkers: Draw the magenta outlines and
     ///   corner flag for ``diagnostics``. ``Image`` always passes `true`.
+    /// - Parameter textMasker: Draws `<text>` (see ``SVGTextMaskRequest``);
+    ///   ``Image`` passes the backend's when it has ``BackendFeatures/SVGText``.
+    ///   Without one, text is outlined like anything else not drawn.
     ///
     /// 把文件點陣化成 `width` x `height` 像素，遵循其 `preserveAspectRatio`(預設為置中並等比縮放
     /// 至容納)。結果為未預乘 alpha、背景透明。`showsUnsupportedMarkers`:為 ``diagnostics`` 畫出
     /// 洋紅色外框與角落旗標；``Image`` 一律傳 `true`。
     public func rasterize(
-        width: Int, height: Int, showsUnsupportedMarkers: Bool = true
+        width: Int, height: Int, showsUnsupportedMarkers: Bool = true,
+        textMasker: SVGTextMasker? = nil
     ) -> ImageFormats.Image<RGBA> {
         let pixelWidth = max(0, width)
         let pixelHeight = max(0, height)
@@ -197,8 +205,14 @@ public struct SVGDocument: Sendable, Equatable {
             let viewport = storage.aspect.transform(
                 from: box, toWidth: Double(pixelWidth), height: Double(pixelHeight))
             var markers: [[SVGPoint]] = []
-            SVGRenderer.render(storage.nodes, into: &canvas, viewport: viewport, markers: &markers)
-            if showsUnsupportedMarkers && !storage.diagnostics.isEmpty {
+            SVGRenderer.render(
+                storage.nodes, into: &canvas, viewport: viewport, markers: &markers,
+                textMasker: textMasker)
+            // Drawn text is not a gap; anything else listed, or any text left undrawn, is.
+            // 已畫出的文字不算缺漏；其他被列出的項目，或任何沒畫出的文字，才算。
+            let undrawn =
+                !markers.isEmpty || storage.diagnostics.contains { $0.kind != .textNeedsRenderer }
+            if showsUnsupportedMarkers && undrawn {
                 SVGRenderer.drawMarkers(markers, into: &canvas)
             }
         }
@@ -300,6 +314,9 @@ indirect enum SVGRenderNode: Sendable {
     /// root viewBox space.
     /// 某個不支援之物原本會被畫出的位置：根 viewBox 空間中的四個角。
     case marker([SVGPoint])
+    /// A `<text>` run, drawn by the backend's text renderer when there is one.
+    /// 一段 `<text>`,有 backend 文字繪製器時由它繪製。
+    case text(SVGTextNode)
 }
 
 // MARK: - Rendering / 算繪
@@ -315,7 +332,7 @@ enum SVGRenderer {
 
     static func render(
         _ nodes: [SVGRenderNode], into canvas: inout SVGCanvas, viewport: SVGTransform,
-        markers: inout [[SVGPoint]]
+        markers: inout [[SVGPoint]], textMasker: SVGTextMasker? = nil
     ) {
         for node in nodes {
             switch node {
@@ -323,11 +340,58 @@ enum SVGRenderer {
                     draw(shape, into: &canvas, viewport: viewport)
                 case .group(let opacity, let children):
                     var layer = SVGCanvas(width: canvas.width, height: canvas.height)
-                    render(children, into: &layer, viewport: viewport, markers: &markers)
+                    render(
+                        children, into: &layer, viewport: viewport, markers: &markers,
+                        textMasker: textMasker)
                     canvas.composite(layer, opacity: opacity)
+                case .text(let node):
+                    drawText(
+                        node, into: &canvas, viewport: viewport, textMasker: textMasker,
+                        markers: &markers)
                 case .marker(let corners):
                     markers.append(corners.map { viewport.apply($0) })
             }
+        }
+    }
+
+    /// Draws `node` through the backend's text mask (fill, then stroke), or
+    /// records its outline when there is no text renderer or it drew nothing.
+    /// 經 backend 的文字遮罩繪製 `node`(先填色、再描邊);沒有文字繪製器或它什麼都沒畫時，記錄其外框。
+    static func drawText(
+        _ node: SVGTextNode, into canvas: inout SVGCanvas, viewport: SVGTransform,
+        textMasker: SVGTextMasker?, markers: inout [[SVGPoint]]
+    ) {
+        let device = viewport.concatenating(node.transform)
+        guard let textMasker, device.isInvertible else {
+            markers.append(node.corners.map { viewport.apply($0) })
+            return
+        }
+        let transform = SVGTextTransform(
+            a: device.a, b: device.b, c: device.c, d: device.d, tx: device.e, ty: device.f)
+        let size = canvas.width * canvas.height
+        var drew = false
+        if let fill = node.fill,
+            let mask = textMasker(
+                SVGTextMaskRequest(
+                    run: node.run, transform: transform, width: canvas.width,
+                    height: canvas.height)),
+            mask.count == size
+        {
+            canvas.fill(mask: mask, color: fill)
+            drew = true
+        }
+        if let stroke = node.stroke, node.strokeWidth > 0,
+            let mask = textMasker(
+                SVGTextMaskRequest(
+                    run: node.run, transform: transform, width: canvas.width,
+                    height: canvas.height, strokeWidth: node.strokeWidth)),
+            mask.count == size
+        {
+            canvas.fill(mask: mask, color: stroke)
+            drew = true
+        }
+        if !drew {
+            markers.append(node.corners.map { viewport.apply($0) })
         }
     }
 

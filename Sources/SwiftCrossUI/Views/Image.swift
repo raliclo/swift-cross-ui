@@ -199,7 +199,9 @@ extension Image: TypeSafeView {
                             : SVGDocument.looksLikeSVG(bytes)
                         if isSVG {
                             image = nil
-                            children.cachedSVG = Self.loadSVG(bytes, name: url.lastPathComponent)
+                            children.cachedSVG = Self.loadSVG(
+                                bytes, name: url.lastPathComponent,
+                                drawsText: backend is any BackendFeatures.SVGText)
                         } else if useFileExtension {
                             image = try? ImageFormats.Image<RGBA>.load(
                                 from: bytes,
@@ -215,7 +217,9 @@ extension Image: TypeSafeView {
                     image = sourceImage
                 case .svg(let document):
                     image = nil
-                    Self.report(document, name: "SVGDocument")
+                    Self.report(
+                        document, name: "SVGDocument",
+                        drawsText: backend is any BackendFeatures.SVGText)
                     children.cachedSVG = document
                 // Unreachable: the symbol branch above returned before this
                 // switch. Written as `nil` rather than a fatal error because
@@ -291,7 +295,8 @@ extension Image: TypeSafeView {
                     Int((Double(size.y) * scale).rounded()))
             if pixels.x > 0 && pixels.y > 0 {
                 if children.cachedImage == nil || children.svgRasterSize != pixels {
-                    children.cachedImage = children.raster(of: svg, pixels: pixels)
+                    children.cachedImage = children.raster(
+                        of: svg, pixels: pixels, textMasker: Self.textMasker(for: backend))
                     children.svgRasterSize = pixels
                     children.imageChanged = true
                 }
@@ -344,24 +349,38 @@ extension Image: TypeSafeView {
     /// Parses SVG bytes; a file that cannot be parsed becomes a visible
     /// placeholder rather than an empty view.
     /// 解析 SVG 位元組；無法解析的檔案會成為看得見的佔位圖，而不是空的 view。
-    static func loadSVG(_ bytes: [UInt8], name: String) -> SVGDocument {
+    /// The backend's text renderer as the ``SVGDocument/rasterize`` hook, or nil.
+    /// Rasterising happens in `commit`, on the main actor, which the closure asserts.
+    /// backend 的文字繪製器，作為 ``SVGDocument/rasterize`` 的掛鉤；沒有時為 nil。點陣化在 `commit`
+    /// 中、於主 actor 上進行，閉包會確認這一點。
+    static func textMasker<Backend: BaseAppBackend>(for backend: Backend) -> SVGTextMasker? {
+        guard let text = backend as? any BackendFeatures.SVGText else { return nil }
+        return { request in MainActor.assumeIsolated { text.svgTextMask(request) } }
+    }
+
+    static func loadSVG(_ bytes: [UInt8], name: String, drawsText: Bool = false) -> SVGDocument {
         let document: SVGDocument
         do {
             document = try SVGDocument(data: bytes)
         } catch {
             document = SVGDocument.unreadable(error)
         }
-        report(document, name: name)
+        report(document, name: name, drawsText: drawsText)
         return document
     }
 
     /// Logs what the renderer did not draw, once per load.
     /// 記錄算繪器沒有畫出的內容，每次載入一次。
-    static func report(_ document: SVGDocument, name: String) {
-        guard !document.diagnostics.isEmpty else { return }
-        let lines = document.diagnostics.map { "  \($0)" }.joined(separator: "\n")
+    /// With `drawsText`, text is not counted: the backend draws it.
+    /// 有 `drawsText` 時不計入文字：由 backend 繪製。
+    static func report(_ document: SVGDocument, name: String, drawsText: Bool = false) {
+        let diagnostics = document.diagnostics.filter {
+            !(drawsText && $0.kind == .textNeedsRenderer)
+        }
+        guard !diagnostics.isEmpty else { return }
+        let lines = diagnostics.map { "  \($0)" }.joined(separator: "\n")
         logger.warning(
-            "SVG \(name): \(document.diagnostics.count) unsupported item(s), outlined in magenta:\n\(lines)"
+            "SVG \(name): \(diagnostics.count) unsupported item(s), outlined in magenta:\n\(lines)"
         )
     }
 }
@@ -390,13 +409,15 @@ extension Image: TypeSafeView {
     var svgRasters: [(size: SIMD2<Int>, image: ImageFormats.Image<RGBA>)] = []
     static let svgRasterCacheLimit = 4
 
-    func raster(of document: SVGDocument, pixels: SIMD2<Int>) -> ImageFormats.Image<RGBA> {
+    func raster(of document: SVGDocument, pixels: SIMD2<Int>, textMasker: SVGTextMasker? = nil)
+        -> ImageFormats.Image<RGBA>
+    {
         if let index = svgRasters.firstIndex(where: { $0.size == pixels }) {
             let entry = svgRasters.remove(at: index)
             svgRasters.append(entry)
             return entry.image
         }
-        let image = document.rasterize(width: pixels.x, height: pixels.y)
+        let image = document.rasterize(width: pixels.x, height: pixels.y, textMasker: textMasker)
         svgRasters.append((pixels, image))
         if svgRasters.count > Self.svgRasterCacheLimit {
             svgRasters.removeFirst()

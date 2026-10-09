@@ -32,6 +32,9 @@ final class SVGBuilder {
         var visible = true
         var fontSize = 16.0
         var textAnchor = "start"
+        var fontFamilies: [String] = []
+        var fontBold = false
+        var fontItalic = false
         var markers = false
         // Not inherited. / 不繼承。
         var opacity = 1.0
@@ -59,6 +62,7 @@ final class SVGBuilder {
         "fill", "fill-opacity", "fill-rule", "stroke", "stroke-opacity", "stroke-width",
         "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "stroke-dasharray",
         "stroke-dashoffset", "color", "visibility", "font-size", "text-anchor", "opacity",
+        "font-family", "font-weight", "font-style",
         "display", "clip-path", "mask", "filter", "marker-start", "marker-mid", "marker-end",
         "marker",
     ]
@@ -69,7 +73,7 @@ final class SVGBuilder {
     ///
     /// 不影響本算繪器所畫內容的屬性，接受而不回報。文字相關屬性也在此，因為可見文字本身已整體回報。
     static let ignoredProperties: Set<String> = [
-        "font-family", "font-weight", "font-style", "font-variant", "font-stretch", "font",
+        "font-variant", "font-stretch", "font",
         "letter-spacing", "word-spacing", "text-decoration", "dominant-baseline",
         "alignment-baseline", "baseline-shift", "writing-mode", "direction", "unicode-bidi",
         "white-space", "line-height", "text-rendering", "shape-rendering", "image-rendering",
@@ -378,6 +382,17 @@ final class SVGBuilder {
                 }
             case "text-anchor":
                 style.textAnchor = value
+            case "font-family":
+                style.fontFamilies = Self.fontFamilies(value)
+            case "font-weight":
+                switch value {
+                    case "bold", "bolder": style.fontBold = true
+                    case "normal", "lighter": style.fontBold = false
+                    default:
+                        if let weight = Double(value) { style.fontBold = weight >= 600 } else { invalid() }
+                }
+            case "font-style":
+                style.fontItalic = value == "italic" || value == "oblique"
             case "clip-path":
                 style.clipPath = value == "none" ? nil : value
             case "mask":
@@ -521,6 +536,8 @@ final class SVGBuilder {
                     }
                 case .group(_, let children):
                     children.forEach(visit)
+                case .text(let node):
+                    node.corners.forEach(include)
                 case .marker(let corners):
                     corners.forEach(include)
             }
@@ -819,7 +836,9 @@ final class SVGBuilder {
         guard style.visible, style.opacity > 0, fillVisible || strokeVisible, !content.isEmpty else {
             return []
         }
-        report(.unsupportedElement, element, "text '\(content.prefix(40))' is not drawn")
+        report(
+            .textNeedsRenderer, element,
+            "text '\(content.prefix(40))' is drawn only by a backend text renderer")
         let x = SVGNumberScanner.numbers(in: element[attribute: "x"] ?? "0")?.first ?? 0
         let y = SVGNumberScanner.numbers(in: element[attribute: "y"] ?? "0")?.first ?? 0
         let size = style.fontSize
@@ -832,7 +851,32 @@ final class SVGBuilder {
             case "end": left = x - width
             default: left = x
         }
-        return [marker(x: left, y: y - size * 0.8, width: width, height: size, transform: transform)]
+        let top = y - size * 0.8
+        let corners = [
+            SVGPoint(left, top), SVGPoint(left + width, top), SVGPoint(left + width, top + size),
+            SVGPoint(left, top + size),
+        ].map(transform.apply)
+        let run = SVGTextRun(
+            text: content.split(whereSeparator: \.isWhitespace).joined(separator: " "),
+            fontFamilies: style.fontFamilies, fontSize: size, isBold: style.fontBold,
+            isItalic: style.fontItalic,
+            anchor: SVGTextAnchor(rawValue: element[attribute: "text-anchor"] ?? style.textAnchor)
+                ?? .start)
+        let node = SVGTextNode(
+            run: run, transform: transform.concatenating(.translate(x, y)),
+            fill: resolve(style.fill, opacity: style.fillOpacity, style: style, element: element),
+            stroke: resolve(style.stroke, opacity: style.strokeOpacity, style: style, element: element),
+            strokeWidth: style.strokeWidth, corners: corners)
+        return wrap([.text(node)], style: style, element: element)
+    }
+
+    /// `font-family` as a list, quotes removed, empty names dropped.
+    /// `font-family` 解析成清單，去除引號並略過空名稱。
+    static func fontFamilies(_ value: String) -> [String] {
+        value.split(separator: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+        }.filter { !$0.isEmpty }
     }
 
     private static func textContent(_ element: SVGXMLElement) -> String {
