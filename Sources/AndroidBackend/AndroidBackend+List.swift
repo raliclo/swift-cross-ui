@@ -151,7 +151,9 @@ extension AndroidBackend {
         // `.sidebar` 畫成 Material 的 navigation drawer(`setListSidebar`)。只在改變時呼叫：它會建立 drawable
         // 並解析主題屬性。
         let isSidebar = environment.backendListStyle == .sidebar
-        if (Self.listSidebarStates.value(for: selectableListView) ?? false) != isSidebar {
+        // Also on the first update (no state yet), so a default list gets its
+        // background too. 第一次更新(尚無狀態)時也套用，讓預設清單也拿到背景。
+        if Self.listSidebarStates.value(for: selectableListView) != isSidebar {
             helpers.setListSidebar(selectableListView.as(AndroidKit.ListView.self), isSidebar)
             Self.listSidebarStates.set(isSidebar, for: selectableListView)
         }

@@ -63,6 +63,32 @@ class CustomListAdapter : BaseAdapter() {
         notifyDataSetChanged()
     }
 
+    // The background a row without one of its own is drawn on (0 = none); see
+    // AndroidBackendHelpers.setListSidebar. Only rows this adapter painted are
+    // repainted or cleared, so an app's own `.background()` on a row stays.
+    // 沒有自己背景的列所畫的背景(0 = 無);見 AndroidBackendHelpers.setListSidebar。只重畫或清除本 adapter 畫過的列，
+    // 所以 app 在列上的 `.background()` 不會被動到。
+    private var rowBackground = 0
+    private val paintedRows = java.util.WeakHashMap<View, Boolean>()
+
+    fun setRowBackground(color: Int) {
+        if (rowBackground == color) return
+        rowBackground = color
+        notifyDataSetChanged()
+    }
+
+    private fun paintRow(view: View) {
+        val ours = paintedRows[view] == true
+        if (view.background != null && !ours) return
+        if (rowBackground == 0) {
+            if (ours) view.background = null
+            paintedRows.remove(view)
+        } else {
+            view.setBackgroundColor(rowBackground)
+            paintedRows[view] = true
+        }
+    }
+
     private fun sidebarOverlay(): StateListDrawable {
         val pill = android.graphics.drawable.GradientDrawable()
         pill.cornerRadius = 28 * density
@@ -189,6 +215,7 @@ class CustomListAdapter : BaseAdapter() {
         // state of whichever row was configured last.
         // 每一列各自一個 drawable，而非共用一個：StateListDrawable 會保有它自己的當前狀態，因此
         // 共用會使每一列都顯示「最後被設定的那一列」的狀態。
+        paintRow(view)
         val ours = overlayIsSidebar[view]
         if (view.foreground == null || (ours != null && ours != sidebar)) {
             view.foreground = if (sidebar) sidebarOverlay() else selectionOverlay()

@@ -250,8 +250,22 @@ class AndroidBackendHelpers {
             val accent = themeColor(android.R.attr.colorAccent)
             (listView.adapter as? dev.swiftcrossui.androidbackend.lists.CustomListAdapter)
                 ?.setSidebarStyle(true, (accent and 0x00FFFFFF) or 0x40000000, density)
+            (listView.adapter as? dev.swiftcrossui.androidbackend.lists.CustomListAdapter)
+                ?.setRowBackground(0)
         } else {
             listView.background = null
+            // Each row on the theme's window background, as UIKit draws a List's
+            // cells on the system background while the table itself stays
+            // clear: a transparent row put its default black text straight onto
+            // whatever the app painted behind the list, and P3's lists on
+            // `.background(Color.black)` showed no rows at all on Android while
+            // iOS showed white cells (2026-10-09). Rows, not the ListView: the
+            // empty space under the last row stays the app's, as on iOS.
+            // 每一列畫在主題的視窗背景上，如同 UIKit 把 List 的 cell 畫在系統背景上、表格本身維持透明：透明的列會把預設黑字
+            // 直接畫在 app 畫在清單後面的東西上,P3 在 `.background(Color.black)` 上的清單在 Android 一列都看不到，iOS 則是
+            // 白色 cell(2026-10-09)。加在列上而不是 ListView:最後一列下方的空白仍屬於 app,與 iOS 相同。
+            (listView.adapter as? dev.swiftcrossui.androidbackend.lists.CustomListAdapter)
+                ?.setRowBackground(themeColor(android.R.attr.colorBackground))
             val attrs = context.obtainStyledAttributes(intArrayOf(android.R.attr.listDivider))
             listView.divider = attrs.getDrawable(0)
             attrs.recycle()
