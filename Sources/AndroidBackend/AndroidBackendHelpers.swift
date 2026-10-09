@@ -62,6 +62,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func styleSwitch(_ switchView: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
 
+    /// `.checkbox` as UIKitBackend draws it; see the Kotlin side. 與 UIKitBackend 相同的 `.checkbox`;見 Kotlin 端。
+    @JavaMethod
+    func styleCheckbox(_ checkBox: AndroidKit.CompoundButton?, _ foreground: Int32, _ enabled: Bool)
+
     /// Label colours for a button-style toggle; see the Kotlin side.
     @JavaMethod
     func applyToggleButtonTextColors(_ button: AndroidKit.ToggleButton?, _ enabled: Bool)

@@ -183,7 +183,7 @@ class AndroidBackendHelpers {
         // 與 UIKit 畫按鈕樣式開關的方式相同(使用者,2026-10-09:Android 對齊 iOS):關是強調色的無框標籤，開是強調色填滿、
         // 白色標籤。先前那個上了色的灰色 Material 按鈕，在 iOS 的藍色填滿旁邊讀起來只是「偏紫的灰按鈕」(P12)。
         val filled = android.graphics.drawable.GradientDrawable()
-        filled.cornerRadius = 8 * density
+        filled.cornerRadius = 6 * density
         filled.setColor(primary)
         val background = android.graphics.drawable.StateListDrawable()
         background.addState(intArrayOf(android.R.attr.state_checked), filled)
@@ -192,8 +192,11 @@ class AndroidBackendHelpers {
         button.backgroundTintList = null
         button.stateListAnimator = null
         button.elevation = 0f
-        val pad = (8 * density).toInt()
-        button.setPadding(pad, pad / 2, pad, pad / 2)
+        // No inset at the sides and 6 dp above and below, as UIButton(type: .system),
+        // which ToggleWidget is: P21's "Enabled" sat 8 dp right of iOS's.
+        // 左右不內縮、上下 6 dp,與 ToggleWidget 所用的 UIButton(type: .system) 相同:P21 的 "Enabled" 比 iOS 的右移了 8 dp。
+        val pad = (6 * density).toInt()
+        button.setPadding(0, pad, 0, pad)
         button.minHeight = 0
         button.minimumHeight = 0
         button.minWidth = 0
@@ -227,49 +230,172 @@ class AndroidBackendHelpers {
         val key = "$foreground/$enabled"
         if (switchStyles[switchView] == key) return
         switchStyles[switchView] = key
-        val primary = themeColorOf(switchView.context, android.R.attr.colorPrimary)
         val density = switchView.context.resources.displayMetrics.density
         fun alpha(c: Int, a: Int) = (c and 0x00FFFFFF) or (a shl 24)
         val fade = if (enabled) 1f else 0.38f
         fun f(c: Int) = alpha(c, (((c ushr 24) and 0xFF) * fade).toInt())
         val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-        // Drawn shapes rather than tints: the framework track drawable carries
-        // its own transparency, so a tinted checked track came out pale and the
-        // white thumb on it read as "off" (P15), and the off track at 30% was
-        // still barely there on black (P15-DARK). A pill and a white disc, as
-        // iOS draws them; the off track is the foreground at 18% -- (46,46,46)
-        // on black against iOS's (57,57,61).
-        // 以畫出的形狀而非 tint:框架的軌道圖本身帶透明度，所以上色後的開啟軌道很淡，上面的白色滑塊讀起來像「關」(P15),
-        // 而 30% 的關閉軌道在黑底上仍幾乎看不見(P15-DARK)。改成與 iOS 相同的膠囊與白色圓盤;關閉軌道是前景色的 18%。
+        // UISwitch as iOS 26 draws it, measured on P21 (2026-10-10): a 63 x 28
+        // track, systemGreen when on (#34C759, #30D158 dark) and (120,120,128)
+        // at 44% when off -- 197 on white, about 52 on black -- with a 37 x 24
+        // white capsule 2 pt inside either end. Until then this drew the older
+        // 52 x 32 pill with a round thumb in colorPrimary.
+        // iOS 26 所畫的 UISwitch,於 P21 量測(2026-10-10):63 x 28 的軌道，開啟時為 systemGreen(#34C759,深色
+        // #30D158),關閉時為 44% 的 (120,120,128)——白底上 197、黑底上約 52——上面一個 37 x 24 的白色膠囊，距兩端各 2 pt。
+        // 在此之前畫的是舊版 52 x 32、colorPrimary 的膠囊與圓形滑塊。
+        val dark = android.graphics.Color.luminance(foreground) > 0.5f
+        val green = if (dark) 0xFF30D158.toInt() else 0xFF34C759.toInt()
+        val trackWidth = 63 * density
+        val trackHeight = 28 * density
         val track = android.graphics.drawable.GradientDrawable()
-        track.cornerRadius = 16 * density
-        track.setSize((52 * density).toInt(), (32 * density).toInt())
+        track.cornerRadius = trackHeight / 2
+        track.setSize(trackWidth.toInt(), trackHeight.toInt())
         track.color = android.content.res.ColorStateList(
-            states, intArrayOf(f(primary), f(alpha(foreground, 0x2E)))
+            states, intArrayOf(f(green), f(alpha(0xFF78787F.toInt(), 0x70)))
         )
-        val disc = android.graphics.drawable.GradientDrawable()
-        disc.shape = android.graphics.drawable.GradientDrawable.OVAL
-        disc.setSize((24 * density).toInt(), (24 * density).toInt())
-        // A faint ring, so the white disc still has an edge on a white page --
-        // iOS gives its thumb a shadow for the same reason. 一圈很淡的邊，讓白色圓盤在白色頁面上仍看得出邊緣——iOS 為同樣理由給滑塊陰影。
-        disc.setStroke(maxOf(1, (0.5f * density).toInt()), 0x33000000)
-        disc.setColor(f(android.graphics.Color.WHITE))
-        // 4 dp round the 24 dp disc: the thumb stays 32 dp for the Switch's width
-        // arithmetic, while the disc sits inside the 28 dp track the Switch
-        // draws. With a 28 dp disc it overhung the track and, white on a light
-        // page, the checked switch looked bitten off (P15, measured: track
-        // 136x74 px, thumb 83x84 px past its right end).
-        // 24 dp 圓盤外留 4 dp:滑塊仍是 32 dp 供 Switch 計算寬度，圓盤則落在 Switch 畫出的 28 dp 軌道之內。用 28 dp 圓盤時它
-        // 超出軌道，在淺色頁面上白色的部分讓開啟的開關看起來像被咬掉一塊(P15 實測：軌道 136x74 px,滑塊 83x84 px 超出右端)。
-        val inset = (4 * density).toInt()
         switchView.thumbTintList = null
         switchView.trackTintList = null
-        switchView.thumbDrawable = android.graphics.drawable.InsetDrawable(disc, inset)
+        switchView.thumbDrawable = SwitchCapsule(trackWidth, trackHeight, density, f(android.graphics.Color.WHITE))
         switchView.trackDrawable = track
-        switchView.switchMinWidth = (52 * density).toInt()
+        switchView.switchMinWidth = trackWidth.toInt()
+        switchView.switchPadding = 0
+    }
+
+    // The thumb. A Switch is as wide as two thumbs, so this one claims half the
+    // track -- keeping the switch 63 wide -- and draws the 37-wide capsule where
+    // iOS has it for the position it is at: 2 pt in from the left when off, 2 pt
+    // in from the right when on, and in proportion while it slides.
+    // 滑塊。Switch 的寬度是兩個滑塊寬，所以這個滑塊只佔軌道的一半——讓開關維持 63 寬——並依所在位置把 37 寬的膠囊畫在
+    // iOS 畫的地方：關閉時距左端 2 pt、開啟時距右端 2 pt,滑動途中按比例。
+    private class SwitchCapsule(
+        private val trackWidth: Float,
+        private val trackHeight: Float,
+        private val density: Float,
+        color: Int,
+    ) : android.graphics.drawable.Drawable() {
+        private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+        }
+        // A faint ring, so the white capsule still has an edge on a white page;
+        // iOS gives it a shadow for the same reason. 一圈很淡的邊，讓白色膠囊在白色頁面上仍看得出邊緣;iOS 為同樣理由給它陰影。
+        private val ring = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = 0x22000000
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 0.5f * density
+        }
+
+        override fun draw(canvas: android.graphics.Canvas) {
+            val b = bounds
+            val travel = trackWidth - b.width()
+            val fraction = if (travel > 0) (b.left / travel).coerceIn(0f, 1f) else 0f
+            val inset = 2 * density
+            val width = 37 * density
+            val height = 24 * density
+            val left = inset + fraction * (trackWidth - 2 * inset - width)
+            val top = b.exactCenterY() - height / 2
+            val rect = android.graphics.RectF(left, top, left + width, top + height)
+            canvas.drawRoundRect(rect, height / 2, height / 2, fill)
+            canvas.drawRoundRect(rect, height / 2, height / 2, ring)
+        }
+
+        override fun getIntrinsicWidth() = (trackWidth / 2).toInt()
+
+        override fun getIntrinsicHeight() = trackHeight.toInt()
+
+        override fun setAlpha(alpha: Int) {
+            fill.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+            fill.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
     }
 
     private val switchStyles = java.util.WeakHashMap<android.view.View, String>()
+
+    // `.checkbox` drawn as UIKitBackend's UIButtonCheckbox: a 30 pt square with
+    // 10 pt corners, secondarySystemFill ((120,120,128) at 16%) when off and
+    // systemBlue (#0088FF, #0091FF dark) with a checkmark in the foreground
+    // colour when on, the whole control at 40% when disabled. The framework
+    // CheckBox was Material's outlined box (P21, 2026-10-10).
+    // `.checkbox` 畫成 UIKitBackend 的 UIButtonCheckbox:30 pt 見方、圓角 10 pt,關閉時為 secondarySystemFill(16% 的
+    // (120,120,128)),開啟時為 systemBlue(#0088FF,深色 #0091FF)加上前景色的勾號，停用時整個控制項 40%。框架的
+    // CheckBox 是 Material 的外框方塊(P21,2026-10-10)。
+    fun styleCheckbox(checkBox: android.widget.CompoundButton, foreground: Int, enabled: Boolean) {
+        checkBox.alpha = if (enabled) 1f else 0.4f
+        val key = "$foreground"
+        if (checkboxStyles[checkBox] == key) return
+        checkboxStyles[checkBox] = key
+        val density = checkBox.context.resources.displayMetrics.density
+        val dark = android.graphics.Color.luminance(foreground) > 0.5f
+        val blue = if (dark) 0xFF0091FF.toInt() else 0xFF0088FF.toInt()
+        val faces = android.graphics.drawable.StateListDrawable()
+        faces.addState(intArrayOf(android.R.attr.state_checked), CheckboxFace(blue, foreground, density))
+        faces.addState(intArrayOf(), CheckboxFace(0x2978787F, 0, density))
+        checkBox.buttonTintList = null
+        checkBox.buttonDrawable = faces
+        checkBox.background = null
+        checkBox.setPadding(0, 0, 0, 0)
+        // 30 pt tall, the square's height: setButtonDrawable sets the minimum
+        // height from the drawable, and a 0 here left the view 20 dp with the
+        // square overhanging it. 高 30 pt,即方塊的高度:setButtonDrawable 會依圖示設定最小高度，此處設 0
+        // 讓 view 只有 20 dp,方塊超出它。
+        checkBox.minHeight = (30 * density).toInt()
+        checkBox.minimumHeight = (30 * density).toInt()
+        checkBox.minWidth = 0
+        checkBox.minimumWidth = 0
+    }
+
+    private val checkboxStyles = java.util.WeakHashMap<android.view.View, String>()
+
+    // One state of the checkbox: the rounded square, and SF Symbols' checkmark
+    // when `mark` is not 0. 核取方塊的一種狀態：圓角方塊,`mark` 不為 0 時再加上 SF Symbols 的勾號。
+    private class CheckboxFace(fill: Int, mark: Int, private val density: Float) :
+        android.graphics.drawable.Drawable() {
+        private val size = (30 * density).toInt()
+        private val fillPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = fill
+        }
+        private val markPaint = if (mark == 0) null else
+            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = mark
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = 2.2f * density
+                strokeCap = android.graphics.Paint.Cap.ROUND
+                strokeJoin = android.graphics.Paint.Join.ROUND
+            }
+
+        override fun draw(canvas: android.graphics.Canvas) {
+            val b = android.graphics.RectF(bounds)
+            canvas.drawRoundRect(b, 10 * density, 10 * density, fillPaint)
+            val paint = markPaint ?: return
+            val path = android.graphics.Path()
+            path.moveTo(b.left + b.width() * 0.29f, b.top + b.height() * 0.52f)
+            path.lineTo(b.left + b.width() * 0.43f, b.top + b.height() * 0.66f)
+            path.lineTo(b.left + b.width() * 0.71f, b.top + b.height() * 0.35f)
+            canvas.drawPath(path, paint)
+        }
+
+        override fun getIntrinsicWidth() = size
+
+        override fun getIntrinsicHeight() = size
+
+        override fun setAlpha(alpha: Int) {
+            fillPaint.alpha = alpha
+            markPaint?.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+            fillPaint.colorFilter = colorFilter
+            markPaint?.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+    }
 
     private fun themeColorOf(context: android.content.Context, attr: Int): Int {
         val value = TypedValue()

@@ -22,10 +22,14 @@ extension AndroidBackend {
     }
 
     public func createCheckbox() -> Widget {
-        AndroidKit.CheckBox(
+        let checkbox = AndroidKit.CheckBox(
             Self.activity,
             environment: Self.env
         )
+        // Shaped at creation, so the first measurement is the 30 pt square.
+        // 建立時就定形，讓第一次量測就是 30 pt 的方塊。
+        helpers.styleCheckbox(checkbox.as(AndroidKit.CompoundButton.self), Int32(bitPattern: 0xFF00_0000), true)
+        return checkbox
     }
 
     public func createSwitch() -> Widget {
@@ -98,6 +102,11 @@ extension AndroidBackend {
     ) {
         let checkboxWidget = checkboxWidget.as(AndroidKit.CompoundButton.self)!
         updateCompoundButton(checkboxWidget, environment: environment, onChange: onChange)
+        helpers.styleCheckbox(
+            checkboxWidget,
+            environment.suggestedForegroundColor.resolve(in: environment).asColorInt(),
+            environment.isEnabled
+        )
     }
 
     public func updateSwitch(
