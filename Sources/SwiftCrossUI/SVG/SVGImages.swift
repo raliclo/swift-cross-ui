@@ -40,6 +40,15 @@ struct SVGRasterImage: Sendable {
         self.transform = transform
     }
 
+    /// From pixels already premultiplied, e.g. a filtered layer.
+    /// 從已預乘的像素建立，例如濾鏡處理後的圖層。
+    init(width: Int, height: Int, premultiplied pixels: [Float], transform: SVGTransform) {
+        self.width = width
+        self.height = height
+        self.pixels = pixels
+        self.transform = transform
+    }
+
     /// Bilinear, edges clamped. / 雙線性，邊緣夾住。
     func color(at point: SVGPoint) -> SVGPremultiplied {
         let u = min(max(point.x - 0.5, 0), Double(width - 1))

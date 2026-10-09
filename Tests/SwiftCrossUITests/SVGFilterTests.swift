@@ -171,6 +171,18 @@ struct SVGFilterTests {
         #expect(pixel(empty, 5, 5)[3] == 0)
     }
 
+    @Test("Under a rotation the blur follows the element's axes")
+    func rotatedBlur() throws {
+        // "3 0" blurs along the element's x axis only; turned 90 degrees, that is
+        // vertical on screen. / "3 0" 只沿元素的 x 軸模糊；轉 90 度後在螢幕上是垂直的。
+        let image = try render(
+            40, 40,
+            #"<filter id="f" filterUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><feGaussianBlur stdDeviation="3 0"/></filter><rect x="15" y="15" width="10" height="10" fill="red" transform="rotate(90 20 20)" filter="url(#f)"/>"#)
+        #expect(pixel(image, 20, 12)[3] > 10)  // blurred above the top edge / 上緣之上有模糊
+        #expect(pixel(image, 12, 20)[3] == 0)  // nothing left of the left edge / 左緣之左沒有
+        #expect(pixel(image, 20, 20)[3] > 200)
+    }
+
     @Test("A working filter is not reported")
     func clean() throws {
         let document = try document(

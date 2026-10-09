@@ -115,8 +115,9 @@
       SourceAlpha; filter region and primitive subregions in either unit;
       color-interpolation-filters, linearRGB by default. A filter with any
       other primitive or input is not applied at all and stays reported and
-      outlined. Blur under rotation stays axis-aligned in device pixels (an
-      approximation). Checked: SVGFilterTests (13), all 96 SVG tests, the full
+      outlined. A rotated or skewed element is filtered along its own axes
+      (drawn in filter space and resampled back, SVGFilterTests.rotatedBlur).
+      Checked: SVGFilterTests (14), all 97 SVG tests, the full
       suite (200 + 14); P87 (new, nine cells, 0 diagnostics) on macOS.
   - [ ] **`Mesh3D.opacity`: translucent meshes** (2026-10-10), for SoftPCB's
     air box (a very light, highly transparent grey, the user's choice). Below 1

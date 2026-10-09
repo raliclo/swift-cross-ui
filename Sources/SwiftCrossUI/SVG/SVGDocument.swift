@@ -349,14 +349,24 @@ enum SVGRenderer {
                         textMasker: textMasker)
                     canvas.composite(layer, opacity: opacity)
                 case .layer(let effects, let children):
-                    var layer = SVGCanvas(width: canvas.width, height: canvas.height)
-                    render(
-                        children, into: &layer, viewport: viewport, markers: &markers,
-                        textMasker: textMasker)
                     // Filter first, then clip and mask, then opacity: SVG's order.
                     // 先濾鏡，再裁切與遮罩，最後不透明度：SVG 的順序。
-                    if let filter = effects.filter {
-                        layer = SVGFilterRenderer.apply(filter, to: layer, viewport: viewport)
+                    var layer: SVGCanvas
+                    if let filter = effects.filter,
+                        let rotated = SVGFilterRenderer.applyInFilterSpace(
+                            filter, children: children, width: canvas.width,
+                            height: canvas.height, viewport: viewport, markers: &markers,
+                            textMasker: textMasker)
+                    {
+                        layer = rotated
+                    } else {
+                        layer = SVGCanvas(width: canvas.width, height: canvas.height)
+                        render(
+                            children, into: &layer, viewport: viewport, markers: &markers,
+                            textMasker: textMasker)
+                        if let filter = effects.filter {
+                            layer = SVGFilterRenderer.apply(filter, to: layer, viewport: viewport)
+                        }
                     }
                     if let clip = effects.clip {
                         var coverage = SVGCanvas(width: canvas.width, height: canvas.height)

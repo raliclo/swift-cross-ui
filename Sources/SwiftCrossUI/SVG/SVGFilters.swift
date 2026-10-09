@@ -12,9 +12,11 @@ import Foundation
 // not applied at all and stays reported and outlined: a filter drawn half-way
 // looks deliberate, and a reader cannot tell which half is missing.
 //
-// Blur radii are scaled by the device transform's column lengths, so under a
-// rotation the blur stays axis-aligned in device pixels -- exact for scaling
-// and translation, an approximation for a rotated element.
+// The filter runs along the element's own axes. Where its user space is only
+// scaled and moved on screen, that is the device-pixel layer itself; where it
+// is rotated or skewed, the element is drawn in filter space first and the
+// result resampled back (`applyInFilterSpace`), so a blur of "4 0" blurs along
+// the element's x axis however it is turned.
 //
 // `filter`(2026-10-10):常用子集，依 SVG 的順序在元素的裁切、遮罩與不透明度之前，以裝置像素在元素的
 // 圖層上執行。
@@ -25,8 +27,9 @@ import Foundation
 // primitive 子區域；color-interpolation-filters,依 SVG 規定預設為 linearRGB。含有其他 primitive 或輸入
 // 的濾鏡完全不套用，並照舊回報與框出：只畫一半的濾鏡看起來像是刻意的，讀者分不出缺的是哪一半。
 //
-// 模糊半徑依裝置轉換的欄長縮放，因此旋轉時模糊在裝置像素中仍沿座標軸——縮放與平移時精確，旋轉的元素
-// 則是近似。
+// 濾鏡沿元素自己的座標軸執行。使用者空間在螢幕上只有縮放與平移時，那就是裝置像素圖層本身；有旋轉或斜切時，
+// 先把元素畫在濾鏡空間、再把結果重新取樣回來(`applyInFilterSpace`),因此 "4 0" 的模糊不論元素怎麼轉，
+// 都沿元素的 x 軸。
 
 /// A `<filter>`, resolved for one element. / 為一個元素解析好的 `<filter>`。
 struct SVGFilter: Sendable {
@@ -456,14 +459,78 @@ enum SVGFilterRenderer {
         return result
     }
 
+    /// For an element whose user space is rotated or skewed on screen: the
+    /// children drawn in filter space -- the user space's own axes, at device
+    /// resolution -- filtered there, and resampled back to device pixels, so a
+    /// blur or an offset follows the element's axes exactly. nil when the user
+    /// space is axis-aligned on screen, where filtering the device-pixel layer
+    /// directly is already exact and spares a resampling.
+    ///
+    /// 用於使用者空間在螢幕上旋轉或斜切的元素：子節點畫在濾鏡空間——使用者空間自己的座標軸、裝置解析度——
+    /// 在那裡執行濾鏡，再重新取樣回裝置像素，因此模糊與位移精確地沿元素的座標軸。使用者空間在螢幕上沿座標軸
+    /// 時為 nil:那時直接處理裝置像素圖層已經精確，也省掉一次重新取樣。
+    static func applyInFilterSpace(
+        _ filter: SVGFilter, children: [SVGRenderNode], width: Int, height: Int,
+        viewport: SVGTransform, markers: inout [[SVGPoint]], textMasker: SVGTextMasker?
+    ) -> SVGCanvas? {
+        let device = viewport.concatenating(filter.transform)
+        guard abs(device.b) > 1e-9 || abs(device.c) > 1e-9,
+            let toUser = filter.transform.inverted()
+        else { return nil }
+        let region = filter.region
+        let pixelsX = max((device.a * device.a + device.b * device.b).squareRoot(), 1e-6)
+        let pixelsY = max((device.c * device.c + device.d * device.d).squareRoot(), 1e-6)
+        var columns = max(1.0, (region.width * pixelsX).rounded(.up))
+        var rows = max(1.0, (region.height * pixelsY).rounded(.up))
+        if columns * rows > SVGPatternTile.pixelLimit {
+            let shrink = (SVGPatternTile.pixelLimit / (columns * rows)).squareRoot()
+            columns = max(1, (columns * shrink).rounded(.down))
+            rows = max(1, (rows * shrink).rounded(.down))
+        }
+        let toFilter = SVGTransform.scale(columns / region.width, rows / region.height)
+            .concatenating(.translate(-region.x, -region.y))
+        guard let fromFilter = toFilter.inverted() else { return nil }
+        let filterViewport = toFilter.concatenating(toUser)
+
+        var local = SVGCanvas(width: Int(columns), height: Int(rows))
+        var localMarkers: [[SVGPoint]] = []
+        SVGRenderer.render(
+            children, into: &local, viewport: filterViewport, markers: &localMarkers,
+            textMasker: textMasker)
+        // Markers come back in filter pixels; the caller keeps them in device pixels.
+        // 標記以濾鏡像素回來；呼叫端以裝置像素保存。
+        if let back = filterViewport.inverted() {
+            markers += localMarkers.map { $0.map { viewport.apply(back.apply($0)) } }
+        }
+        let filtered = apply(filter, to: local, viewport: filterViewport)
+
+        var path = SVGPath()
+        path.segments = [
+            .move(SVGPoint(region.x, region.y)), .line(SVGPoint(region.x + region.width, region.y)),
+            .line(SVGPoint(region.x + region.width, region.y + region.height)),
+            .line(SVGPoint(region.x, region.y + region.height)), .close,
+        ]
+        let picture = SVGRasterImage(
+            width: local.width, height: local.height, premultiplied: filtered.pixels,
+            transform: fromFilter)
+        let shape = SVGShape(
+            path: path, transform: filter.transform, fill: .image(picture), fillRule: .nonzero,
+            stroke: nil, strokeWidth: 0, lineCap: .butt, lineJoin: .miter, miterLimit: 4,
+            dashes: nil, dashOffset: 0)
+        var out = SVGCanvas(width: width, height: height)
+        SVGRenderer.draw(shape, into: &out, viewport: viewport)
+        return out
+    }
+
     // MARK: Colour space / 色彩空間
 
     static func toLinear(_ c: Float) -> Float {
-        c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        // Double: Android's C library has no Float pow overload. / Double:Android 的 C 函式庫沒有 Float 版的 pow。
+        c <= 0.04045 ? c / 12.92 : Float(pow((Double(c) + 0.055) / 1.055, 2.4))
     }
 
     static func toSRGB(_ c: Float) -> Float {
-        c <= 0.0031308 ? c * 12.92 : 1.055 * pow(c, 1 / 2.4) - 0.055
+        c <= 0.0031308 ? c * 12.92 : Float(1.055 * pow(Double(c), 1 / 2.4) - 0.055)
     }
 
     static func convert(_ buffer: Buffer, toLinear linear: Bool) -> [Float] {
