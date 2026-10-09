@@ -298,6 +298,12 @@ final class TableWidget: BaseViewWidget {
                 environment: environment,
                 defaultForegroundColor: .label
             )
+            // One line ending in an ellipsis. attributedString sets word wrapping
+            // in its paragraph style, which turns the label's own truncation off:
+            // P23's long header was cut at "tha" and ran into the next column.
+            // 一行，以刪節號結尾。attributedString 在段落樣式裡設了 word wrapping,會關掉 label 自己的截斷:
+            // P23 的長標題被切在 "tha",並且壓進下一欄。
+            label.lineBreakMode = .byTruncatingTail
             addSubview(label)
             return label
         }
@@ -394,7 +400,14 @@ final class TableWidget: BaseViewWidget {
 
 extension UIKitBackend: BackendFeatures.Tables {
     public func createTable() -> Widget {
-        TableWidget()
+        let table = TableWidget()
+        // Nothing draws outside the table's frame, as AndroidBackend's
+        // TableContainer already clips: rows that add up to more than the table
+        // was given were drawn over the paragraph below it (P23, 2026-10-10).
+        // 任何東西都不畫在表格範圍外，與 AndroidBackend 的 TableContainer 早已做到的裁切相同：加總超過表格
+        // 高度的列，原本畫到了表格下方的段落上(P23,2026-10-10)。
+        table.clipsToBounds = true
+        return table
     }
 
     public func setRowCount(ofTable table: Widget, to rows: Int) {

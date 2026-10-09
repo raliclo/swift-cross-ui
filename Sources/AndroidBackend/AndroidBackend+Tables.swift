@@ -22,18 +22,17 @@ import SwiftJava
 /// 每一段文字所走的路徑相同——因此表格的標題會從 environment 取得字型、配色與文字樣式，而本檔
 /// 不需要知道其中任何一項。
 extension AndroidBackend: BackendFeatures.Tables {
-    // AppKitBackend, GtkBackend and WinUIBackend all use 20 and 4.
-    // UIKitBackend uses -1 for both, which `Table.swift` reads through a `max`
-    // against the measured height, so it means "always take the measurement".
-    // Android measures its widgets too, but a phone's rows are not a desktop's,
-    // and a floor keeps a table of empty cells from collapsing to nothing.
+    // -1 for both, as UIKitBackend: `Table.swift` reads them through a `max`
+    // against the measured height, so a row is as tall as its tallest cell.
+    // The desktop backends use 20 and 4; with those the phone rows came out
+    // 32 dp here against 22 pt on iOS, and P23 showed half the rows iOS does
+    // (2026-10-10).
     //
-    // AppKitBackend、GtkBackend 與 WinUIBackend 都採用 20 與 4。UIKitBackend 兩者都用 -1，而
-    // `Table.swift` 是透過與量測高度取 `max` 來讀它的，因此它的意思是「一律採用量測值」。Android
-    // 同樣會量測自己的 widget，但手機的列高不等於桌面的列高，而一個下限可以避免「一張全是空 cell
-    // 的表格」塌縮成什麼都沒有。
-    public var defaultTableRowContentHeight: Int { 20 }
-    public var defaultTableCellVerticalPadding: Int { 4 }
+    // 兩者都是 -1,與 UIKitBackend 相同:`Table.swift` 透過與量測高度取 `max` 來讀它們，所以一列的高度就是
+    // 它最高的 cell。桌面 backend 用 20 與 4;用那兩個值時，這裡的手機列高是 32 dp,iOS 是 22 pt,P23 只顯示了
+    // iOS 一半的列數(2026-10-10)。
+    public var defaultTableRowContentHeight: Int { -1 }
+    public var defaultTableCellVerticalPadding: Int { -1 }
 
     public func createTable() -> Widget {
         let table = TableContainer(Self.activity, environment: Self.env)
