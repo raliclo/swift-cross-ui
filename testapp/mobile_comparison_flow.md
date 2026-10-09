@@ -13,6 +13,11 @@ findings, and a fix made long after its capture is checked against a picture
 of older code. One app at a time keeps every fix next to the capture that
 proves it.
 
+**Goal (user, 2026-10-09):** what Android shows should line up with iOS,
+alignment above all. iOS is the reference. A gap that needs a choice -- a
+behaviour change, files that would have to be re-measured -- is put to the user
+rather than settled here.
+
 ## Rules
 
 - **One platform at a time, one app at a time.** Never run the iOS and the
