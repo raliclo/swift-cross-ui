@@ -294,6 +294,29 @@ final class RootScrollHost: UIScrollView {
         // 平移,是從一個不包含它的 box 算出來的。
         content.layoutIfNeeded()
         let box = contentBounds(of: content)
+        // The app's root view frame -- the first descendant down the single-
+        // child chain that is not the window's size. Its edge includes any
+        // `.padding` the app wrote on its root, so an overflowing layout starts
+        // at the padding rather than at the first drawn pixel; without a padding
+        // it hugs the content and changes nothing (user, 2026-10-09: keep the
+        // padding when one is written, on iOS and Android alike).
+        // App 根 view 的外框——沿著單一子 view 的鏈往下，第一個尺寸不等於視窗的那一層。它的邊緣包含 app 在根上寫的任何
+        // `.padding`,所以溢出的版面從 padding 開始，而不是從第一個繪製的像素;沒寫 padding 時它緊貼內容，什麼都不改變
+        // (使用者,2026-10-09:有寫 padding 就保留,iOS 與 Android 相同)。
+        let rootFrame: CGRect? = {
+            var view: UIView = content
+            var origin = CGPoint.zero
+            while view.subviews.count == 1 {
+                let child = view.subviews[0]
+                origin.x += child.frame.minX
+                origin.y += child.frame.minY
+                if child.bounds.size != content.bounds.size {
+                    return CGRect(origin: origin, size: child.bounds.size)
+                }
+                view = child
+            }
+            return nil
+        }()
 
         switch mode {
             case .actualView:
@@ -345,8 +368,8 @@ final class RootScrollHost: UIScrollView {
                 //
                 // 捲動位置只在第一次拿到真正的 box 時放到內容的左上角一次,所以啟動時的樣子與原本完全相同。
                 let overflow = UIEdgeInsets(
-                    top: max(-box.minY, 0),
-                    left: max(-box.minX, 0),
+                    top: max(-min(box.minY, rootFrame?.minY ?? box.minY), 0),
+                    left: max(-min(box.minX, rootFrame?.minX ?? box.minX), 0),
                     bottom: 0,
                     right: 0
                 )

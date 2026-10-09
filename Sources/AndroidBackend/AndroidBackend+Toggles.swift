@@ -3,7 +3,14 @@ import AndroidKit
 
 // implements BackendFeatures.ToggleButtons & BackendFeatures.Checkboxes & BackendFeatures.Switches
 extension AndroidBackend {
-    public var requiresToggleSwitchSpacer: Bool { false }
+    // A spacer between the label and the switch, as UIKitBackend asks: the
+    // switch sits at the trailing edge of its row, where both iOS and Android
+    // settings rows put it. Without it P12's "Switch" row was label-plus-switch
+    // wide on Android, so its whole section centred instead of starting at the
+    // leading edge as on iOS (2026-10-09).
+    // 標籤與開關之間放一個 Spacer,與 UIKitBackend 相同：開關位於該列的結尾端，iOS 與 Android 的設定列都這樣放。少了它，
+    // P12 的「Switch」那一列在 Android 上只有標籤加開關那麼寬，整個區塊因而置中，而不是像 iOS 那樣從起始端開始(2026-10-09)。
+    public var requiresToggleSwitchSpacer: Bool { true }
 
     public func createToggle() -> Widget {
         let toggle = AndroidKit.ToggleButton(

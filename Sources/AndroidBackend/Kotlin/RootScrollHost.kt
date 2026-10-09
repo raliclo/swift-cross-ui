@@ -442,8 +442,27 @@ private class Stage(context: Context) : ViewGroup(context) {
         if (safe != null) {
             val inner = Rect()
             if (RootScrollHost.drawnBounds(safe, inner)) {
-                box.left = minOf(0, inner.left)
-                box.top = minOf(0, inner.top)
+                // And the app's root view frame, so a `.padding` written on the
+                // root is kept -- see UIKitBackend's RootScrollHost (`rootFrame`).
+                // 再加上 app 根 view 的外框，讓寫在根上的 `.padding` 被保留——見 UIKitBackend 的 RootScrollHost(`rootFrame`)。
+                var frameLeft = Int.MAX_VALUE
+                var frameTop = Int.MAX_VALUE
+                var v: View = safe
+                var ox = 0
+                var oy = 0
+                while (v is ViewGroup && v.childCount == 1) {
+                    val c = v.getChildAt(0)
+                    ox += c.x.toInt()
+                    oy += c.y.toInt()
+                    if (c.width != safe.width || c.height != safe.height) {
+                        frameLeft = ox
+                        frameTop = oy
+                        break
+                    }
+                    v = c
+                }
+                box.left = minOf(0, inner.left, frameLeft)
+                box.top = minOf(0, inner.top, frameTop)
             }
         }
 

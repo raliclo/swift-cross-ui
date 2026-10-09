@@ -1193,3 +1193,12 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-09,android,android,P6,ok,n/a,screen,default,"Now says up front that playback is unavailable (no ffmpeg on the device), as iOS does (user, 2026-10-09). Open: iOS starts this 996 pt layout about 40 pt left of the text, Android at the text -- the drawn-bounds rules still differ somewhere for this app."
 2026-10-09,ios,uikit,P6,ok,n/a,window,default,"Now starts at the text, as Android: a zero-area view (the empty #if os(Windows) slot) at the top row's left edge no longer counts toward where the root starts (user's decision). P2 re-captured on iOS: identical."
 2026-10-09,android,android,P6,ok,n/a,screen,default,Aligned with iOS: both start at the text.
+2026-10-09,ios,uikit,P6,ok,n/a,window,default,"Oversized root keeps the root .padding at its start (user, 2026-10-09); aligned with Android."
+2026-10-09,android,android,P6,ok,n/a,screen,default,"Oversized root keeps the root .padding at its start, as iOS; aligned."
+2026-10-09,ios,uikit,P9,ok,n/a,window,default,"Oversized root keeps the root .padding at its start (user, 2026-10-09); aligned with Android."
+2026-10-09,android,android,P9,ok,n/a,screen,default,"Oversized root keeps the root .padding at its start, as iOS; aligned."
+2026-10-09,ios,uikit,P11,ok,n/a,window,default,"Oversized root keeps the root .padding at its start (user, 2026-10-09); aligned with Android."
+2026-10-09,android,android,P11,ok,n/a,screen,default,"Oversized root keeps the root .padding at its start, as iOS; aligned."
+2026-10-09,android,android,P10,ok,n/a,screen,default,"Switch sits at the trailing edge of its row, as on iOS (requiresToggleSwitchSpacer = true)."
+2026-10-09,android,android,P7,ok,n/a,screen,default,Re-compared from P6 on: aligned with iOS.
+2026-10-09,android,android,P8,ok,n/a,screen,default,Re-compared from P6 on: aligned with iOS.
