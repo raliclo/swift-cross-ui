@@ -81,6 +81,28 @@ extension AppKitBackend: BackendFeatures.GeometricEffects {
         _ transform: SwiftCrossUI.AffineTransform,
         ofWidget widget: Widget
     ) {
+        // Remembered on the container, which sets it again after AppKit has thrown it away.
+        //
+        // A layer-backed view's layer geometry belongs to AppKit, and when Auto Layout gives the
+        // view a new frame the layer's transform goes back to identity. A view present from the
+        // first frame never showed this: it is committed again once it has its size, outside any
+        // AppKit layout pass, and that assignment stays. A view that appears later is committed
+        // once, while its bounds are still zero. Measured 2026-10-10 with P89 (five offset views
+        // in one overlay; only the one appearing after two seconds was drawn at the corner): its
+        // transform read 100,-160 after the commit and 0,0 once the frame became 97x16. SoftPCB's
+        // tab 9 had drawn a conditional label at the corner the same day.
+        //
+        // 記在容器上，容器在 AppKit 丟掉它之後重新設定。layer-backed view 的 layer 幾何屬於 AppKit：
+        // Auto Layout 給 view 新的 frame 時，layer 的 transform 會回到 identity。從第一幀就在的 view
+        // 從未顯露這件事——它有了大小之後會再 commit 一次，而且是在 AppKit 的版面流程之外，那次指派留得住。
+        // 之後才出現的 view 只 commit 一次，當時 bounds 還是零。2026-10-10 以 P89 量得(同一個 overlay 裡
+        // 五個加了 offset 的 view，只有兩秒後才出現的那一個畫在角落)：commit 之後它的 transform 是
+        // 100,-160，frame 變成 97×16 之後是 0,0。SoftPCB 的分頁 9 同一天就把一個條件式的標籤畫在角落。
+        (widget as? AppKitHitTestingContainer)?.geometricEffect = transform
+        Self.applyGeometricEffect(transform, to: widget)
+    }
+
+    static func applyGeometricEffect(_ transform: SwiftCrossUI.AffineTransform, to widget: NSView) {
         widget.wantsLayer = true
         guard let layer = widget.layer else { return }
 

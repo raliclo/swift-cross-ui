@@ -134,6 +134,40 @@ private enum AppKitHitTestingRegistry {
 /// 反而一致：那修正了第二個錯誤卻留下第一個，因此只有在本 container 恰好位於其 superview 原點時
 /// 才會是對的。
 final class AppKitHitTestingContainer: NSView {
+    /// The transform `setGeometricEffect` last gave this container; nil for one that carries no
+    /// effect. Setting it starts watching the frame, because a new frame is when AppKit resets the
+    /// layer's transform (see `setGeometricEffect`).
+    /// `setGeometricEffect` 最後給這個容器的 transform；沒有效果的容器為 nil。設定它會開始監看 frame，
+    /// 因為 AppKit 正是在給新 frame 時重設 layer 的 transform(見 `setGeometricEffect`)。
+    var geometricEffect: SwiftCrossUI.AffineTransform? {
+        didSet {
+            guard geometricEffect != nil, !watchesFrame else { return }
+            watchesFrame = true
+            postsFrameChangedNotifications = true
+            // Selector-based, so the registration goes away with the view. The notification rather
+            // than `setFrameSize`/`setFrameOrigin`/`layout()`: Auto Layout sets the frame by a path
+            // that calls none of the first two, measured 2026-10-10.
+            // 以 selector 註冊，view 釋放時一併移除。用通知而不是覆寫 `setFrameSize`／`setFrameOrigin`／
+            // `layout()`：Auto Layout 設定 frame 的路徑不經過前兩者(2026-10-10 實測)。
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(frameDidChange), name: NSView.frameDidChangeNotification,
+                object: self)
+        }
+    }
+    private var watchesFrame = false
+
+    /// On the next turn of the main queue, not here: this runs inside AppKit's layout pass, and a
+    /// transform assigned inside the pass is overwritten when the pass ends (measured 2026-10-10:
+    /// assigned here it read 0,0 a second later; assigned on the next turn it stayed).
+    /// 排到 main queue 的下一輪，而不是在這裡：這裡是在 AppKit 的版面流程之內，流程內指派的 transform
+    /// 會在流程結束時被覆寫(2026-10-10 實測：在這裡指派，一秒後讀到 0,0；排到下一輪指派則留得住)。
+    @objc private func frameDidChange(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let effect = self.geometricEffect else { return }
+            AppKitBackend.applyGeometricEffect(effect, to: self)
+        }
+    }
+
     /// Says where a point landed, when the debug features are on.
     ///
     /// A click that resolves to nothing and a click that lands beside a control

@@ -317,6 +317,50 @@ extension WinUIBackend: BackendFeatures.KeyEvents {
     }
 }
 
+// MARK: Pointer hover
+
+/// **Not yet compiled or run** (written on macOS, 2026-10-10, after the scroll target below; the
+/// Windows machine has to build it and drive P88 before the queue item closes).
+///
+/// The pointer's place comes from `PointerMoved` and the modifiers from the key state at that
+/// moment, read the way key events read them: Control is `.control` and the Windows key `.command`.
+/// An app that means "the platform's command key" has to accept `.control` here, as SoftPCB does.
+/// A modifier pressed while the pointer rests is reported at the next move, not at once -- the
+/// same limit as GtkBackend; only AppKitBackend reports it without a move.
+///
+/// **尚未編譯或執行**(2026-10-10 在 macOS 上照下方的捲動目標寫成；要等 Windows 那台建置並以 P88 驅動，
+/// queue 的項目才能關)。指標位置來自 `PointerMoved`，修飾鍵取當下的按鍵狀態，讀法與按鍵事件相同：Control 是
+/// `.control`、Windows 鍵是 `.command`。想表示「這個平台的 command 鍵」的 app 在這裡得接受 `.control`，
+/// SoftPCB 就是這樣。指標不動時按下修飾鍵，要到下一次移動才回報——與 GtkBackend 相同的限制，只有
+/// AppKitBackend 不必移動就回報。
+extension WinUIBackend: BackendFeatures.PointerHover {
+    public func createPointerHoverTarget(wrapping child: Widget) -> Widget {
+        let target = featureTarget(wrapping: child)
+        target.pointerMoved.addHandler { [weak target] _, args in
+            guard let target, let args, let action = target.onPointerHover,
+                let position = try? args.getCurrentPoint(target)?.position
+            else { return }
+            action(
+                .active(
+                    location: SIMD2(Double(position.x), Double(position.y)),
+                    modifiers: Self.currentModifiers()))
+        }
+        target.pointerExited.addHandler { [weak target] _, _ in
+            target?.onPointerHover?(.ended)
+        }
+        return target
+    }
+
+    public func updatePointerHoverTarget(
+        _ target: Widget,
+        environment: EnvironmentValues,
+        action: @escaping (PointerHoverPhase) -> Void
+    ) {
+        let target = target as! WinUIFeatureTarget
+        target.onPointerHover = environment.isEnabled ? action : nil
+    }
+}
+
 // MARK: Scroll gestures
 
 extension WinUIBackend: BackendFeatures.ScrollGestures {
@@ -460,4 +504,5 @@ final class WinUIFeatureTarget: WinUI.Canvas {
     var scrollEnabled = true
     var onScrollChange: ((ScrollGestureValue) -> Void)?
     var onScrollEnd: ((ScrollGestureValue) -> Void)?
+    var onPointerHover: ((PointerHoverPhase) -> Void)?
 }

@@ -25,11 +25,29 @@
   drags 1; iPad simulator hover 2 reports, ended, drags 1 and control
   drags 1 -- cmd is not checkable there, XCUITest hover carries no
   modifiers.
-  - [ ] **WinUI: `onContinuousHover`** (left for Windows). `PointerMoved` /
-    `PointerExited` on the container, modifiers from
-    `PointerRoutedEventArgs.KeyModifiers`, and a key-state change while
-    inside. Until then WinUI takes the degradation path. Then P88 with
-    `actions/win/` coordinates.
+  - [ ] **WinUI: `onContinuousHover` -- written, NOT compiled** (2026-10-10,
+    on macOS). `WinUIBackend+InputTargets.swift`: `PointerMoved` /
+    `PointerExited` on a `WinUIFeatureTarget`, modifiers from
+    `currentModifiers()` (Control is `.control`, so SoftPCB accepts either).
+    No report for a key pressed while the pointer rests, as GTK. Windows:
+    build it, then P88 with `actions/win/` coordinates; if it does not
+    compile, the fix or the removal is yours to make.
+- [x] **AppKit: `.offset` (any geometric effect) on a view that appears
+  later was not applied** (2026-10-10, found in SoftPCB's tab 9: a
+  conditional label drawn at the overlay's corner). When Auto Layout gives a
+  layer-backed view a new frame, AppKit puts its layer's transform back to
+  identity. A view present from the start is committed again once sized, so
+  it never showed; one that appears later is committed once, at zero size.
+  `AppKitHitTestingContainer` now keeps the transform and assigns it again
+  after each frame change, on the next turn of the main queue -- assigned
+  inside the layout pass it is overwritten again (measured: 100,-160 after
+  the commit, 0,0 once the frame was 97x16; `setFrameSize`/`setFrameOrigin`
+  overrides were not called by Auto Layout). P89 (new): five offset views
+  in one overlay, the one appearing after two seconds at the corner before
+  and on the line after; macOS only.
+  - [ ] **P89 on the other backends.** Whether UIKit, GTK, Android or WinUI
+    lose a geometric effect on a late view is not known; P89 has not been
+    run on any of them.
 
 ## 2026-10-09 SVG in Image (user request, priority one)
 
