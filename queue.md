@@ -46,7 +46,7 @@
   in one overlay, the one appearing after two seconds at the corner before
   and on the line after; macOS only.
   - [ ] **P89 on the other backends.** Run 2026-10-10 on this Mac: UIKit (iPhone
-    simulator), Android (emulator) and GTK (macOS, `TEST_BACKEND=gtk4`) all keep the
+    and iPad Pro 11-inch simulators), Android (emulator) and GTK (macOS, `TEST_BACKEND=gtk4`) all keep the
     effect on the late view -- A, B, C, D and the circle start on the red line in
     the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
     such machine here).
