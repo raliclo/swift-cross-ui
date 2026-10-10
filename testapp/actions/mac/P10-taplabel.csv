@@ -1,0 +1,8 @@
+action,x,y,origin,button,key,micros,note,platform
+sleep,,,,,,800000,let P10 render,macos
+taplabel,,,,,Click me,,Direct clicks 0 -> 1,macos
+sleep,,,,,,600000,,macos
+taplabel,,,,,Click me too,,Covered clicks 0 -> 1 through the transparent overlay,macos
+sleep,,,,,,600000,,macos
+taplabel,,,,,Hidden button,,Hidden clicks 0 -> 1 through the opaque allowsHitTesting(false) overlay,macos
+sleep,,,,,,800000,let the counters repaint,macos

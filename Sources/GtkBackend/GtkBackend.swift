@@ -2333,6 +2333,59 @@ public final class GtkBackend:
         // 是 GTK 實際繪製時所用的 buffer scale——而在 Windows 上，這正是它與 `GetDpiForWindow`
         // 產生分歧之處：125% 時 Windows 回報 1.25，GTK 卻是以 1 排版。在此把這個數字交出去，才
         // 使得一個動作檔在任何顯示縮放下都代表同一件事。詳見 InputEvent 的 WindowGeometry.scale。
+        // `taplabel`: the first mapped GtkLabel or GtkButton with that text, as the
+        // middle of it in the surface -- the widget's bounds in the window plus the
+        // surface transform, which is where client-side decoration puts the
+        // window inside its surface. Asked from the replay thread, answered on
+        // the GTK thread.
+        // `taplabel`:第一個已 map、文字相同的 GtkLabel 或 GtkButton,以它在 surface 中的中心表示——即 widget 在視窗內的
+        // 邊界加上 surface transform(client-side decoration 把視窗放在 surface 裡的位置)。由重放執行緒詢問、在 GTK 執行緒回答。
+        nonisolated(unsafe) let root = window.widgetPointer
+        ActionFileReplay.locateLabel = { [weak self] label in
+            guard let self else { return nil }
+            let done = DispatchSemaphore(value: 0)
+            nonisolated(unsafe) var place: (x: Double, y: Double)?
+            self.runInMainThread {
+                defer { done.signal() }
+                func find(_ widget: UnsafeMutablePointer<GtkWidget>) -> UnsafeMutablePointer<GtkWidget>? {
+                    guard gtk_widget_get_mapped(widget) != 0 else { return nil }
+                    let instance = UnsafeMutableRawPointer(widget)
+                        .assumingMemoryBound(to: GTypeInstance.self)
+                    if g_type_check_instance_is_a(instance, gtk_label_get_type()) != 0,
+                        let text = gtk_label_get_text(OpaquePointer(widget)),
+                        String(cString: text) == label
+                    {
+                        return widget
+                    }
+                    if g_type_check_instance_is_a(instance, gtk_button_get_type()) != 0,
+                        let text = gtk_button_get_label(
+                            UnsafeMutableRawPointer(widget).assumingMemoryBound(to: GtkButton.self)
+                        ),
+                        String(cString: text) == label
+                    {
+                        return widget
+                    }
+                    var child = gtk_widget_get_first_child(widget)
+                    while let current = child {
+                        if let found = find(current) { return found }
+                        child = gtk_widget_get_next_sibling(current)
+                    }
+                    return nil
+                }
+                guard let found = find(root) else { return }
+                var bounds = graphene_rect_t()
+                guard gtk_widget_compute_bounds(found, root, &bounds) != 0 else { return }
+                var offsetX = 0.0
+                var offsetY = 0.0
+                gtk_native_get_surface_transform(OpaquePointer(root), &offsetX, &offsetY)
+                place = (
+                    x: Double(bounds.origin.x + bounds.size.width / 2) + offsetX,
+                    y: Double(bounds.origin.y + bounds.size.height / 2) + offsetY
+                )
+            }
+            done.wait()
+            return place
+        }
         ActionFileReplay.replayIfRequested(
             layoutScale: Double(gtk_widget_get_scale_factor(window.widgetPointer))
         )

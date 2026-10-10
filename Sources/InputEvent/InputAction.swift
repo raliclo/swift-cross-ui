@@ -249,13 +249,16 @@ public enum InputAction: Equatable, Sendable {
     /// page moved under it (2026-10-02, 2026-10-10), the second time at a button
     /// with 12 of its points on screen. The iOS runner has had `taplabel` since
     /// 2026-10-02; AndroidSynthesiser finds the view in the activity's tree and
-    /// scrolls the root to it. The desktop synthesisers refuse it: they send
-    /// events to the system and have no view tree to search.
+    /// scrolls the root to it. The desktop synthesisers post events to the system
+    /// and know no views, so there the backend says where the text is
+    /// (``ActionFileReplay/locateLabel``, set by AppKitBackend and GtkBackend) and the
+    /// replay loop clicks that place. WinUIBackend sets no locator yet, and a
+    /// synthesiser asked directly refuses the verb with the reason.
     ///
     /// 點顯示這段文字的 view,不論它被排在哪裡；文字寫在 `key` 欄。座標是對某一個版面的主張:P10 的 Android 檔以位置瞄準
     /// 隱藏按鈕，八天內因頁面移動而重瞄了兩次(2026-10-02、2026-10-10),第二次瞄的按鈕只有 12 點在螢幕內。iOS runner 自
-    /// 2026-10-02 起就有 `taplabel`;AndroidSynthesiser 在 activity 的樹裡找出那個 view,並把根捲到它那裡。桌面合成器拒絕它:
-    /// 它們把事件送給系統，沒有可供搜尋的 view 樹。
+    /// 2026-10-02 起就有 `taplabel`;AndroidSynthesiser 在 activity 的樹裡找出那個 view,並把根捲到它那裡。桌面合成器把事件
+    /// 送給系統、不認識 view,所以由 backend 說出文字在哪裡(``ActionFileReplay/locateLabel``,AppKitBackend 與 GtkBackend 會設定),重放迴圈再點那個位置。WinUIBackend 尚未設定定位器；直接被要求的合成器會說明理由後拒絕。
     case tapLabel(String)
 }
 

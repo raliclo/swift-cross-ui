@@ -392,6 +392,24 @@ extension Synthesiser {
             if action.point?.origin == .popover {
                 geometry = try currentWindowGeometry()
             }
+            // `taplabel` where the backend can say where the text is: a click there.
+            // Without a locator the row goes to `perform`, which either handles it
+            // (Android) or refuses it with the reason.
+            // backend 說得出文字在哪裡時,`taplabel` 就是在那裡的一次點擊。沒有定位器時這一列交給 `perform`,
+            // 由它處理(Android)或說明理由後拒絕。
+            if case .tapLabel(let label) = action, let locate = ActionFileReplay.locateLabel {
+                guard let place = locate(label) else {
+                    throw SynthesiserError.unsupported(
+                        "taplabel: no shown view has the text \"\(label)\""
+                    )
+                }
+                ActionFileReplay.report("taplabel \"\(label)\" is at (\(place.x), \(place.y))")
+                try perform(
+                    .click(.left, at: Point(x: place.x, y: place.y, origin: .client)),
+                    in: try currentWindowGeometry()
+                )
+                continue
+            }
             try perform(action, in: geometry)
         }
     }

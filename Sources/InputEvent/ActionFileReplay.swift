@@ -34,6 +34,22 @@ public enum ActionFileReplay {
         return URL(fileURLWithPath: arguments[index + 1])
     }
 
+    /// Where the view showing a text is: the middle of it, in points from the
+    /// window's client origin, or `nil` when nothing shows it. Set by a backend
+    /// that can search its own view tree; called from the replay thread.
+    ///
+    /// This is what makes `taplabel` work on the desktop. The synthesisers there
+    /// post events to the system and know no views, so the row is turned into a
+    /// click at the place the backend reports (``Synthesiser/replay(_:in:)``).
+    /// AppKitBackend and GtkBackend set it (2026-10-10); AndroidSynthesiser
+    /// answers `taplabel` itself and the iOS runner does so through XCUITest.
+    ///
+    /// 顯示某段文字的 view 在哪裡：它的中心，以距視窗 client 原點的點數表示；沒有 view 顯示它時為 `nil`。由能搜尋自己
+    /// view 樹的 backend 設定；從重放執行緒呼叫。這就是讓 `taplabel` 在桌面上可用的東西：那裡的合成器把事件送給系統、
+    /// 不認識 view,所以這一列會被換成在 backend 回報之處的一次點擊(``Synthesiser/replay(_:in:)``)。AppKitBackend 與
+    /// GtkBackend 會設定它(2026-10-10);AndroidSynthesiser 自己回應 `taplabel`,iOS runner 則透過 XCUITest。
+    public nonisolated(unsafe) static var locateLabel: (@Sendable (String) -> (x: Double, y: Double)?)?
+
     private static let lock = NSLock()
     private nonisolated(unsafe) static var hasReplayed = false
 

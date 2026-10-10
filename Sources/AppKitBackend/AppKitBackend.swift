@@ -312,6 +312,36 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
             // Only ever fires for the first window, and only when -actionfile
             // was passed. See InputEvent's ActionFileReplay.
             // 僅對第一個視窗生效，且僅在有傳入 -actionfile 時。詳見 InputEvent 的 ActionFileReplay。
+            // `taplabel`: the first shown button or text field with that text in the
+            // key window, as the middle of it from the content view's top-left.
+            // `taplabel`:key 視窗中第一個顯示中、文字相同的按鈕或文字欄位，以它的中心相對於 content view 左上角表示。
+            ActionFileReplay.locateLabel = { label in
+                DispatchQueue.main.sync {
+                    MainActor.assumeIsolated {
+                        let window =
+                            NSApp.keyWindow ?? NSApp.mainWindow
+                            ?? NSApp.windows.first { $0.isVisible }
+                        guard let content = window?.contentView else { return nil }
+                        func find(_ view: NSView) -> NSView? {
+                            if view.isHidden { return nil }
+                            if let button = view as? NSButton, button.title == label {
+                                return button
+                            }
+                            if let field = view as? NSTextField, field.stringValue == label {
+                                return field
+                            }
+                            for subview in view.subviews.reversed() {
+                                if let found = find(subview) { return found }
+                            }
+                            return nil
+                        }
+                        guard let found = find(content) else { return nil }
+                        let frame = found.convert(found.bounds, to: content)
+                        let y = content.isFlipped ? frame.midY : content.bounds.height - frame.midY
+                        return (x: Double(frame.midX), y: Double(y))
+                    }
+                }
+            }
             ActionFileReplay.replayIfRequested()
 
         #endif
