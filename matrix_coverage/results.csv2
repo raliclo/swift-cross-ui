@@ -1282,3 +1282,6 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P42,ok,n/a,screen,default,Aligned with iOS; the English sentence wraps to two lines in SF and fits one in Roboto.
 2026-10-10,ios,uikit,P41,ok,n/a,window,default,"Reference, both halves: at launch, and scrolled 13 notches right (actions/ios/P41-scroll-to-the-calendar.csv) for the calendar and wheel cells."
 2026-10-10,android,android,P41,ok,n/a,screen,default,"Calendar and date wheels now drawn to UIDatePicker's measurements (InlineCalendarView 320x324, DateWheels 320x216); row pitches match iOS (322, 186). Interaction checked with the cells moved into the window: tap a day, drag day and month wheels, previous-month chevron. Cells past the window's default width take no touches on Android (pre-existing, not specific to pickers)."
+2026-10-10,ios,uikit,P89,ok,n/a,window,default,"After state: A, B, C, D and the circle all start on the red line; the late view D keeps its offset."
+2026-10-10,android,android,P89,ok,n/a,screen,default,After state: all five on the red line; the late view D keeps its offset.
+2026-10-10,macos,gtk4,P89,ok,n/a,window,default,TEST_BACKEND=gtk4 on macOS: all five on the red line; D keeps its offset. The 14x14 stroked Circle is drawn as a rounded square (queued).

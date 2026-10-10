@@ -45,9 +45,14 @@
   overrides were not called by Auto Layout). P89 (new): five offset views
   in one overlay, the one appearing after two seconds at the corner before
   and on the line after; macOS only.
-  - [ ] **P89 on the other backends.** Whether UIKit, GTK, Android or WinUI
-    lose a geometric effect on a late view is not known; P89 has not been
-    run on any of them.
+  - [ ] **P89 on the other backends.** Run 2026-10-10 on this Mac: UIKit (iPhone
+    simulator), Android (emulator) and GTK (macOS, `TEST_BACKEND=gtk4`) all keep the
+    effect on the late view -- A, B, C, D and the circle start on the red line in
+    the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
+    such machine here).
+  - [ ] **GTK draws P89's 14 x 14 stroked Circle as a rounded square** (macOS,
+    gtk4 4.24.1, p89-macos-gtk4-final-20261010-202735.png); a circle on AppKit,
+    UIKit and Android. Not looked into.
 
 ## 2026-10-09 SVG in Image (user request, priority one)
 
