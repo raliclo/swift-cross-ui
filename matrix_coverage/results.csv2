@@ -1254,3 +1254,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P28,ok,n/a,screen,default,Aligned with iOS; content 14 dp further right because it is centred and SF is wider than Roboto.
 2026-10-10,ios,uikit,P29,ok,n/a,window,default,Indeterminate progress bar now draws a sliding tint segment (drew nothing: updateProgressBar returned early without a value).
 2026-10-10,android,android,P29,ok,n/a,screen,default,"Progress bar drawn as UIProgressView .bar: 3 dp tint over a clear track, sliding segment when indeterminate (was the framework's thick yellow bar and grey barber-pole). Disabled text field / editor text at 30% like iOS (was black)."
+2026-10-10,ios,uikit,P30,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P30,ok,n/a,screen,default,Aligned with iOS. The first launch after a from-scratch rebuild drew under the status bar once; not reproduced on the second run.
