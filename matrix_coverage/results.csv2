@@ -1268,3 +1268,5 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P35,ok,n/a,screen,default,Aligned with iOS.
 2026-10-10,ios,uikit,P36,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P36,ok,n/a,screen,default,"Rounded text field 32 dp tall and enclosing its text (was 24 dp, border through the text); plain fields 20 dp. P31 re-run: unchanged look, typed 'abc'."
+2026-10-10,ios,uikit,P37,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P37,ok,n/a,screen,default,"CJK lines one line height each (last Chinese line was half clipped); wrapped Text as wide as its widest line. Remaining 10 pt of left offset is the fonts: Roboto fits one more word on line 3, so the centred column is wider."

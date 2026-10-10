@@ -1268,11 +1268,21 @@ public final class AndroidBackend: BaseAppBackend {
         // 它換行後的每一行:P17 的 "subject" 量出 160 x 64,iOS 是 159 x 22(2026-10-10)。之後由
         // FittedTextView 只畫放得下的行，並以刪節號結尾。
         widget.measure(widthSpec, 0x3FFFFFFF as Int32)
-        let width = Double(widget.getMeasuredWidth()) / environment.windowScaleFactor
+        var width = Double(widget.getMeasuredWidth()) / environment.windowScaleFactor
         var height = Double(widget.getMeasuredHeight()) / environment.windowScaleFactor
         let measuring = widget.as(AndroidKit.TextView.self)!
         let lineHeight = Double(measuring.getLineHeight()) / environment.windowScaleFactor
         var lines = max(Int(measuring.getLineCount()), 1)
+        // A wrapped Text is as wide as its widest line, as UIKit's boundingRect
+        // gives it; a TextView reports the whole width it was offered. P37's
+        // paragraph took all 724 dp of a 760 dp window where iOS took 702 pt, so
+        // the centred column sat 11 further left than on iOS (2026-10-10).
+        // 換行的 Text 與它最寬的一行一樣寬，與 UIKit 的 boundingRect 相同;TextView 回報的是給它的整個寬度。
+        // P37 的段落在 760 dp 的視窗裡佔滿 724 dp,iOS 是 702 pt,所以置中的那一欄比 iOS 偏左 11(2026-10-10)。
+        if lines > 1, let fitted = widget.as(FittedTextView.self) {
+            let widest = Double(fitted.widestLineWidth()) / environment.windowScaleFactor
+            if widest > 0 { width = min(width, widest) }
+        }
         // Every line is one line height, the last included, as UIKitBackend sets
         // it (minimumLineHeight = maximumLineHeight = the font's line height). A
         // TextView leaves the spacing off its last line, so one line measured

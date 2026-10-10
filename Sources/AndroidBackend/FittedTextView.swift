@@ -12,4 +12,7 @@ class FittedTextView: AndroidKit.TextView {
         activity: Activity?,
         environment: JNIEnvironment? = nil
     )
+
+    @JavaMethod
+    func widestLineWidth() -> Int32
 }

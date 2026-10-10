@@ -50,4 +50,18 @@ class FittedTextView(activity: Activity) : TextView(activity) {
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
+
+    // The widest wrapped line with the padding, in pixels; 0 with no layout.
+    // A wrapped TextView measures as wide as it was offered, where UIKit's
+    // boundingRect gives the widest line: `size(of:whenDisplayedIn:)` asks here.
+    // 換行後最寬的一行加上 padding,單位像素；沒有 layout 時為 0。換行的 TextView 量出來與給它的寬度一樣寬,
+    // 而 UIKit 的 boundingRect 給的是最寬的一行:`size(of:whenDisplayedIn:)` 來這裡問。
+    fun widestLineWidth(): Int {
+        val current = layout ?: return 0
+        var widest = 0f
+        for (line in 0 until current.lineCount) {
+            widest = maxOf(widest, current.getLineMax(line))
+        }
+        return Math.ceil(widest.toDouble()).toInt() + compoundPaddingLeft + compoundPaddingRight
+    }
 }
