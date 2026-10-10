@@ -1274,3 +1274,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P38,ok,n/a,screen,default,Aligned with iOS; the page itself is each platform's web engine.
 2026-10-10,ios,uikit,P39,ok,n/a,window,default,"Filters now computed on sRGB values (CIContext without a working colour space): saturation 0 of (0,158,254) is 131 (Rec.709 on gamma values; was 152 in linear light), brightness 0.4 lifts black to 103 (was 170)."
 2026-10-10,android,android,P39,ok,n/a,screen,default,"Layout aligned; saturation and brightness follow the same arithmetic as iOS now. The whole Android screen is x0.925 (white = 236), cause not found -- open."
+2026-10-10,ios,uikit,P40,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P40,ok,n/a,screen,default,"Aligned with iOS: scale, rotation and shear tiles match."
+2026-10-10,ios,uikit,P41,ok,n/a,window,default,iOS/Android comparison: reference (left 440 pt only; the calendar and wheel cells are off screen and were not captured).
+2026-10-10,android,android,P41,partial,n/a,screen,default,"Compact date/time fields now capsules like UIDatePicker's (Aug 24, 2025; 9:46 AM); .hourAndMinute no longer a dark rectangle; .graphical calendar now visible (was zero-height), 320x340 dp without the Material header; .wheel is wheels only, 216 dp. Not compared against iOS: the calendar and wheel cells themselves, and row heights still differ."

@@ -79,8 +79,14 @@ class WheelDatePicker(context: Context) : AbstractDatePicker(context) {
             action?.call()
         }
 
-        addView(dateView)
-        addView(timeView)
+        // The wheels alone, 216 high as UIDatePicker's: the Holo picker also shows a
+        // month calendar beside them and measured about 260 (P41, 2026-10-10).
+        // 只有滾輪，高 216,與 UIDatePicker 相同:Holo 的 picker 還會在旁邊顯示一個月曆，量出來約 260(P41,2026-10-10)。
+        @Suppress("DEPRECATION")
+        dateView.calendarViewShown = false
+        val wheelHeight = Math.round(216 * resources.displayMetrics.density)
+        addView(dateView, LayoutParams(LayoutParams.WRAP_CONTENT, wheelHeight))
+        addView(timeView, LayoutParams(LayoutParams.WRAP_CONTENT, wheelHeight))
     }
 
     /**
