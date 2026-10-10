@@ -1,0 +1,7 @@
+action,x,y,origin,button,key,micros,note,platform
+move,220,500,client,,,,park mid-screen,ios
+scroll,0,14,client,,,,scroll down,ios
+sleep,,,,,,600000,settle,ios
+move,400,120,client,,,,park right,ios
+scroll,13,0,client,,,,scroll right,ios
+sleep,,,,,,800000,settle,ios

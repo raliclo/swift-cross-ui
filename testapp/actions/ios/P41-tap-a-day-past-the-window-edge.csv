@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+move,400,180,client,,,,park,ios
+scroll,13,0,client,,,,scroll right thirteen notches,ios
+sleep,,,,,,800000,settle,ios
+click,230,387,client,left,,,tap day 12 in the calendar,ios
+sleep,,,,,,800000,settle,ios

@@ -127,11 +127,68 @@ class CustomContainer(val activity: Activity) : ViewGroup(activity) {
     // 拒收，而非吃掉。回傳 false 正是讓上層 ViewGroup 繼續往下一個子元件走的原因，而那就是
     // `allowsHitTesting(false)` 所承諾的全部；見 HitTesting.kt。在此處檢查而非標記每一個後代，
     // 是因為這是整棵子樹都必須經過的那一個呼叫。
+    // The child container a touch outside its bounds was handed to, until the
+    // gesture ends. 一次觸控落在其邊界之外、卻被交給它的那個子容器，直到手勢結束。
+    private var overflowTarget: View? = null
+
+    private fun forward(child: View, ev: MotionEvent): Boolean {
+        val copy = MotionEvent.obtain(ev)
+        copy.offsetLocation(scrollX - child.x, scrollY - child.y)
+        val handled = child.dispatchTouchEvent(copy)
+        copy.recycle()
+        return handled
+    }
+
+    // Also: content that overflows a container is touched where it is drawn.
+    // `clipChildren` is false here so that such content draws, but a ViewGroup
+    // only offers a touch to a child whose bounds hold the point, so a view
+    // laid out past its parent's edge was visible and dead: P41's second
+    // column, which starts beyond the window's default width, took no taps
+    // on Android while UIKitBackend's took them (2026-10-10). When no child
+    // claims an ACTION_DOWN the usual way, it is offered to each child
+    // container the point lies outside of, topmost first; that container
+    // does the same for its own children, and the one that takes it gets
+    // the rest of the gesture.
+    // 另外：溢出容器的內容，畫在哪裡就能在哪裡被觸碰。這裡的 `clipChildren` 是 false,所以這種內容畫得出來，但 ViewGroup
+    // 只把觸控交給邊界包含該點的子元件，所以排到父容器邊緣之外的 view 看得到卻點不到:P41 的第二欄起點在視窗預設寬度之外,
+    // 在 Android 上收不到點擊,UIKitBackend 的收得到(2026-10-10)。沒有子元件以一般方式接下 ACTION_DOWN 時，就把它交給
+    // 該點落在其外的每個子容器(最上層的先);那個容器對自己的子元件做同樣的事，接下的那個取得這次手勢的其餘事件。
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (HitTesting.isDisabled(this)) {
             return false
         }
-        return super.dispatchTouchEvent(ev)
+        val action = ev.actionMasked
+        if (action == MotionEvent.ACTION_DOWN) {
+            overflowTarget = null
+        }
+        overflowTarget?.let { target ->
+            val handled = forward(target, ev)
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                overflowTarget = null
+            }
+            return handled
+        }
+        if (super.dispatchTouchEvent(ev)) {
+            return true
+        }
+        if (action != MotionEvent.ACTION_DOWN || clipChildren) {
+            return false
+        }
+        for (i in childCount - 1 downTo 0) {
+            val child = getChildAt(i)
+            if (child !is CustomContainer || child.visibility != View.VISIBLE) continue
+            if (child.clipChildren || !child.matrix.isIdentity) continue
+            val x = ev.x + scrollX - child.x
+            val y = ev.y + scrollY - child.y
+            // Inside its bounds it has already been offered the touch above.
+            // 在它邊界內的話，上面已經交給過它了。
+            if (x >= 0 && y >= 0 && x < child.width && y < child.height) continue
+            if (forward(child, ev)) {
+                overflowTarget = child
+                return true
+            }
+        }
+        return false
     }
 
     // Android orders siblings by Z first and by child index second. SwiftCrossUI

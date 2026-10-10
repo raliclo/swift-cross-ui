@@ -1,0 +1,4 @@
+action,x,y,origin,button,key,micros,note,platform
+move,220,500,client,,,,park mid-screen,ios
+scroll,0,14,client,,,,scroll down fourteen notches,ios
+sleep,,,,,,800000,settle,ios

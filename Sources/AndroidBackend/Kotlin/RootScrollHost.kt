@@ -413,6 +413,65 @@ private class Stage(context: Context) : ViewGroup(context) {
         addView(view)
     }
 
+    // Whether this gesture went to content drawn outside the root's own bounds.
+    // 這次手勢是否交給了畫在根自身邊界之外的內容。
+    private var overflowing = false
+
+    // The event in the content's coordinates, or null when the point is inside its
+    // bounds (where the ordinary dispatch has already offered it).
+    // 換算到內容座標的事件；該點在其邊界內時為 null(一般的分派已經交給過它)。
+    private fun forContent(child: View, ev: MotionEvent, evenInside: Boolean): MotionEvent? {
+        val copy = MotionEvent.obtain(ev)
+        copy.offsetLocation((scrollX - child.left).toFloat(), (scrollY - child.top).toFloat())
+        if (!child.matrix.isIdentity) {
+            val inverse = android.graphics.Matrix()
+            child.matrix.invert(inverse)
+            copy.transform(inverse)
+        }
+        val inside =
+            copy.x >= 0 && copy.y >= 0 && copy.x < child.width && copy.y < child.height
+        if (inside && !evenInside) {
+            copy.recycle()
+            return null
+        }
+        return copy
+    }
+
+    // The root is laid out at the window's size and its content may be wider or taller;
+    // this view is sized to what is drawn, so the part past the root's edge is on screen
+    // and scrolls, but a ViewGroup offers a touch only inside a child's bounds. That part
+    // was visible and dead: P41's second column took no taps (2026-10-10). The root is
+    // offered such a touch here, and `CustomContainer.dispatchTouchEvent` carries it down.
+    // 根是依視窗尺寸排版的，內容可能更寬或更高；本 view 的尺寸是「畫出來的範圍」,所以超出根邊緣的部分在螢幕上、也能捲動,
+    // 但 ViewGroup 只在子元件邊界內才交付觸控。那一部分看得到卻點不到:P41 的第二欄收不到點擊(2026-10-10)。這裡把這種
+    // 觸控交給根，再由 `CustomContainer.dispatchTouchEvent` 往下帶。
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val action = ev.actionMasked
+        if (action == MotionEvent.ACTION_DOWN) {
+            overflowing = false
+        }
+        val child = content
+        if (overflowing && child != null) {
+            val copy = forContent(child, ev, true)!!
+            val handled = child.dispatchTouchEvent(copy)
+            copy.recycle()
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                overflowing = false
+            }
+            return handled
+        }
+        if (super.dispatchTouchEvent(ev)) {
+            return true
+        }
+        if (action != MotionEvent.ACTION_DOWN || child == null) {
+            return false
+        }
+        val copy = forContent(child, ev, false) ?: return false
+        overflowing = child.dispatchTouchEvent(copy)
+        copy.recycle()
+        return overflowing
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val child = content
         if (child == null) {

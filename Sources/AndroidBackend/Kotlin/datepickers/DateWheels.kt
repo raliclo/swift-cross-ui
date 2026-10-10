@@ -65,6 +65,8 @@ class DateWheels(context: Context) : LinearLayout(context) {
         setPadding(Math.round(9 * density), 0, 0, 0)
         month.align = Paint.Align.LEFT
         month.anchor = 18f
+        month.wraps = true
+        day.wraps = true
         day.anchor = 25f
         year.anchor = 51.5f
         month.items = DateFormatSymbols(locale).months.take(12)

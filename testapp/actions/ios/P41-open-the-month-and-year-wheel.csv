@@ -1,0 +1,6 @@
+action,x,y,origin,button,key,micros,note,platform
+move,400,180,client,,,,park,ios
+scroll,13,0,client,,,,scroll right,ios
+sleep,,,,,,800000,settle,ios
+click,180,241,client,left,,,tap the month title,ios
+sleep,,,,,,1200000,settle,ios

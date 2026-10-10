@@ -82,7 +82,7 @@ abstract class AbstractDatePicker(context: Context) : LinearLayout(context) {
         applyDate(value)
     }
 
-    fun setComponents(components: Int) {
+    open fun setComponents(components: Int) {
         require(components and COMPONENT_MASK == components)
         require(components != 0)
 

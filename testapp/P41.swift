@@ -58,6 +58,8 @@ struct P41RootView: View {
     @State var wheel = P41RootView.start
     @State var hourMinute = P41RootView.start
     @State var hourMinuteSecond = P41RootView.start
+    @State var wheelTime = P41RootView.start
+    @State var wheelDateTime = P41RootView.start
 
     // A fixed date rather than `Date()`, so two runs are comparable and a
     // screenshot does not change meaning overnight.
@@ -180,6 +182,31 @@ struct P41RootView: View {
                     )
                 #endif
             }
+
+            // The wheel style with a time in it (2026-10-10): the two rows above only
+            // ever asked the wheels for a date, so the time wheels were never on screen
+            // on any backend.
+            // 帶時間的 wheel 樣式(2026-10-10):上面兩列只向滾輪要過日期，所以時間滾輪在任何 backend 上都沒出現過。
+            #if !os(macOS)
+                HStack(spacing: 20) {
+                    P41Cell(
+                        label: ".wheel time",
+                        date: $wheelTime,
+                        style: .wheel,
+                        requires: .wheel,
+                        components: .hourAndMinute,
+                        format: "yyyy-MM-dd HH:mm"
+                    )
+                    P41Cell(
+                        label: ".wheel date+time",
+                        date: $wheelDateTime,
+                        style: .wheel,
+                        requires: .wheel,
+                        components: [.date, .hourAndMinute],
+                        format: "yyyy-MM-dd HH:mm"
+                    )
+                }
+            #endif
         }
         .padding(18)
         .onAppear {
