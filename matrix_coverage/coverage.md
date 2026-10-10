@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1301**
+**Runs recorded / 已記錄的執行筆數: 1309**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -80,10 +80,10 @@ zsh matrix_coverage/coverage.zsh
 | P41           | pass 2026-09-17              | pass 2026-10-07                | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P42           | pass 2026-09-16              | pass 2026-09-16                | no image 2026-09-07      | pass 2026-09-30              | pass 2026-10-10        | capture screen 2026-10-10 |              |
 | P43           | -                            | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
-| P44           | pass 2026-09-08              | -                              | no image 2026-09-07      | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-06           |              |
-| P45           | -                            | -                              | -                        | pass 2026-09-28              | pass 2026-09-29        | pass 2026-09-29           |              |
-| P46           | -                            | -                              | -                        | pass 2026-09-27              | misaimed 2026-09-27    | pass 2026-09-07           |              |
-| P47           | pass 2026-09-08              | pass 2026-09-08                | -                        | pass 2026-09-30              | -                      | -                         |              |
+| P44           | pass 2026-09-08              | -                              | no image 2026-09-07      | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
+| P45           | -                            | -                              | -                        | pass 2026-09-28              | pass 2026-10-10        | capture screen 2026-10-10 |              |
+| P46           | -                            | -                              | -                        | pass 2026-09-27              | pass 2026-10-10        | capture screen 2026-10-10 |              |
+| P47           | pass 2026-09-08              | pass 2026-09-08                | -                        | pass 2026-09-30              | pass 2026-10-10        | partial 2026-10-10        |              |
 | P48           | pass 2026-09-10              | pass 2026-09-10                | -                        | pass 2026-09-30              | -                      | -                         |              |
 | P49           | -                            | -                              | -                        | pass 2026-09-27              | -                      | -                         |              |
 | P50           | pass 2026-09-18              | pass 2026-09-18                | -                        | pass 2026-09-27              | pass 2026-09-28        | pass 2026-09-17           |              |

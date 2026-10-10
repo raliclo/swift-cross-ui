@@ -1301,3 +1301,11 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,ios,uikit,P90,ok,ok,window,default,"Reference: the three wheels captured in 22 regions (en_US en_GB de_DE fr_FR es_ES it_IT nl_NL sv_SE fi_FI pl_PL hu_HU ru_RU tr_TR pt_BR zh_TW zh_CN ja_JP ko_KR th_TH hi_IN he_IL ar_SA), each by taplabel on its button. UIDatePicker now takes the environment's locale."
 2026-10-10,android,android,P90,ok,ok,screen,default,"Same 22 regions against iOS, middle-row text edges measured in points from the wheel's left: every wheel within 6 except ar_SA's date wheel (10: Arabic glyph widths) and left edges of he_IL / ar_SA day text (10-14: word widths). Same columns, order and text in all 22 by eye on the paired captures checked (zh_TW ja_JP ko_KR ar_SA he_IL ru_RU th_TH)."
 2026-10-10,macos,appkit,P41,ok,n/a,window,default,After NSDatePicker takes the environment's locale: launches and draws as before (no update loop).
+2026-10-10,ios,uikit,P44,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,ios,uikit,P45,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,ios,uikit,P46,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,ios,uikit,P47,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P44,ok,n/a,screen,default,"Aligned with iOS: spill, clip and toggled cells the same; the two closing lines truncate at 388 on both (off the 411 dp screen on Android)."
+2026-10-10,android,android,P45,ok,n/a,screen,default,Aligned with iOS; the off mark is the font's own glyph on each.
+2026-10-10,android,android,P46,ok,n/a,screen,default,"Aligned with iOS: stepper, gauge, labeled content, disclosure group, link."
+2026-10-10,android,android,P47,partial,n/a,screen,default,"Grid and labels aligned; the symbols themselves are not: android.R drawables, about 14-16 dp, mostly filled, some grey, against SF Symbols' 18 pt outlines. Left for the user to decide (needs an icon set). First attempt failed with INSTALL_FAILED_INSUFFICIENT_STORAGE; 66 test apps uninstalled from the emulator, rerun passed."
