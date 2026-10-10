@@ -108,6 +108,8 @@ private enum P44Metrics {
     static let frameHeight = 60
     static let childWidth = 200
     static let childHeight = 100
+    static let spillX = (childWidth - frameWidth) / 2
+    static let spillY = (childHeight - frameHeight) / 2
 }
 
 struct P44RootView: View {
@@ -152,6 +154,14 @@ struct P44RootView: View {
                 P44Cell(label: "clipped()", clipped: true)
                 P44Cell(label: "toggled", clipped: clipThirdCell)
             }
+            // Room for what spills: the child is wider and taller than its frame and
+            // is centred on it, so it reaches spillX to either side and spillY above
+            // and below. Without the room it covered the labels, ran off the left
+            // edge and touched the text underneath (2026-10-10).
+            // 留給溢出的空間：子元件比它的框寬也比它高，並以框為中心，所以左右各伸出 spillX、上下各伸出 spillY。
+            // 沒有這些空間時它蓋住了標籤、超出左緣，並碰到下面的文字(2026-10-10)。
+            .padding(.horizontal, Double(P44Metrics.spillX))
+            .padding(.bottom, Double(P44Metrics.spillY + 8))
 
             Text(
                 "Cell 1 must spill, cell 2 must be cut to the frame, and one press "
@@ -162,6 +172,9 @@ struct P44RootView: View {
             Spacer()
         }
         .padding(16)
+        // Clear of the floating view-mode control at the top left, which otherwise
+        // sits on the title. 避開左上角浮動的檢視模式控制項，否則它會壓在標題上。
+        .padding(.top, 28)
         .onAppear {
             P44Diagnostics.renderComplete()
         }
@@ -196,7 +209,8 @@ struct P44Cell: View {
     var clipped: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
+        // The label stands clear of the spill above the frame. 標籤避開框上方溢出的部分。
+        VStack(spacing: P44Metrics.spillY + 8) {
             Text(label)
 
             P44Child()
