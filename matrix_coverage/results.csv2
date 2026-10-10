@@ -1313,3 +1313,11 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P44,ok,n/a,screen,default,Same layout as iOS after P44 was given room for the spill; nothing covered.
 2026-10-10,android,android,P47,ok,n/a,screen,default,"Symbols now Material Symbols Outlined weight 300 drawn as vectors in the label colour, 21 dp at 17-point text: all 36 are outlines of a stroke weight close to SF Symbols'. The artwork is Material's, so shapes differ in detail (battery upright, rotate, sync, save). Row pitch 48.9 dp against 47.8 pt."
 2026-10-11,android,android,P90,ok,ok,screen,default,"Recaptured on both platforms after P90 went to five buttons a row: all 44 captures show the three wheels at the same place (bar left x 54), none scrolled; differences against iOS unchanged (within 6 except ar_SA date 10 and the left ends of he_IL / ar_SA day text)."
+2026-10-11,ios,uikit,P48,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-11,ios,uikit,P49,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-11,ios,uikit,P50,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-11,ios,uikit,P51,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-11,android,android,P48,ok,n/a,screen,default,Aligned with iOS: the five grids place the same cells in the same lanes.
+2026-10-11,android,android,P49,ok,n/a,screen,default,Aligned with iOS. Status-bar clock and icons now dark on the light window (were white on white).
+2026-10-11,android,android,P50,ok,n/a,screen,default,"Navigation title now a bar under the status bar -- centred, semibold 17, 44 high -- as UIKit's; it was small grey text inside the status bar. Content laid out below it."
+2026-10-11,android,android,P51,ok,n/a,screen,default,"Aligned with iOS: LazyVGrid three columns, Grid 3x3 with the spanning row."

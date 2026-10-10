@@ -908,6 +908,43 @@ class AndroidBackendHelpers {
     fun setWindowBackground(activity: Activity, dark: Boolean) {
         val resource = if (dark) R.color.background_dark else R.color.background_light
         activity.window?.decorView?.setBackgroundColor(activity.getColor(resource))
+        // Dark icons in the status and navigation bars over a light window, light ones
+        // over a dark one. The bars are transparent (edge to edge), so the framework's
+        // default of light icons left the clock and battery white on white: nothing
+        // showed in the status bar of any light-scheme app (seen once the focus
+        // highlight that had greyed every screen was gone, 2026-10-11).
+        // 淺色視窗上的狀態列與導覽列用深色圖示，深色視窗上用淺色。這些列是透明的(edge to edge),框架預設的淺色圖示讓時鐘與
+        // 電池成了白底白字：任何淺色配色的 app,狀態列裡什麼都看不到(那層把每個畫面變灰的焦點高亮拿掉之後才看出來,2026-10-11)。
+        if (Build.VERSION.SDK_INT >= 30) {
+            val light =
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            activity.window?.insetsController?.setSystemBarsAppearance(if (dark) 0 else light, light)
+        }
+    }
+
+    // A navigation title as UIKit's navigation bar shows one: under the status bar,
+    // 44 high, centred, semibold 17 in the primary text colour. It was a bare
+    // TextView at the top of the window -- small grey text inside the status bar
+    // (P50, 2026-10-11).
+    // 導覽標題照 UIKit 導覽列的樣子：在狀態列下方、高 44、置中、半粗體 17、主要文字色。原本是視窗頂端一個未加樣式的
+    // TextView——狀態列裡的灰色小字(P50,2026-10-11)。
+    fun styleNavigationTitle(activity: Activity, label: android.widget.TextView) {
+        val density = activity.resources.displayMetrics.density
+        val top = Math.round(getSafeAreaTopInset(activity) * density)
+        label.gravity = android.view.Gravity.CENTER
+        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
+        label.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, 600, false)
+        label.maxLines = 1
+        label.ellipsize = android.text.TextUtils.TruncateAt.END
+        label.setPadding(Math.round(16 * density), top, Math.round(16 * density), 0)
+        label.minHeight = top + Math.round(44 * density)
+        val value = android.util.TypedValue()
+        if (activity.theme.resolveAttribute(android.R.attr.textColorPrimary, value, true)) {
+            label.setTextColor(
+                if (value.resourceId != 0) activity.getColor(value.resourceId) else value.data
+            )
+        }
     }
 
     fun setHitTesting(view: android.view.View, allowsHitTesting: Boolean) {

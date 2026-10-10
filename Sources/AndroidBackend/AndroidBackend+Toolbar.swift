@@ -48,7 +48,14 @@ extension AndroidBackend: BackendFeatures.Toolbars {
         title: String?
     ) {
         guard let stack = window.rootStack ?? Self.rootStack else { return }
+        let hadTitle = hasNavigationTitle(window)
         setNavigationTitle(title, in: stack)
+        if hadTitle != hasNavigationTitle(window) {
+            // The title's bar takes or gives back room: lay the window out again.
+            // 標題那一列佔用或讓出了空間：重新排版視窗。
+            updateInsets(ofWindow: window)
+            window.resizeHandler?(size(ofWindow: window))
+        }
 
         guard !items.isEmpty else {
             if let bar = Self.toolbar {
@@ -153,7 +160,12 @@ extension AndroidBackend: BackendFeatures.Toolbars {
         label.setText(Self.charSequence(from: title))
         label.setTag(JavaString(Self.navigationTitleTag, environment: Self.env)
             .as(JavaObject.self))
-        stack.addView(label, 0)
+        helpers.styleNavigationTitle(Self.activity, label)
+        stack.addView(
+            label, 0,
+            AndroidKit.LinearLayout.LayoutParams(-1, -2, environment: Self.env)
+                .as(AndroidKit.ViewGroup.LayoutParams.self)
+        )
     }
 
     /// Found by tag, not by position or by text.
@@ -168,7 +180,7 @@ extension AndroidBackend: BackendFeatures.Toolbars {
     /// 那一刻失效,而那正是這個查找唯一會執行的時機。
     private static let navigationTitleTag = "scui.navigationTitle"
 
-    private static func navigationTitleView(
+    static func navigationTitleView(
         in stack: AndroidKit.LinearLayout
     ) -> AndroidKit.TextView? {
         for index in 0..<stack.getChildCount() {

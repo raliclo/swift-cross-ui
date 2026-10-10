@@ -619,6 +619,11 @@ public final class AndroidBackend: BaseAppBackend {
         updateInsets(ofWindow: window)
     }
 
+    func hasNavigationTitle(_ window: Window) -> Bool {
+        guard let stack = window.rootStack ?? Self.rootStack else { return false }
+        return Self.navigationTitleView(in: stack) != nil
+    }
+
     func updateInsets(ofWindow window: Window) {
         guard let container = window.content else {
             logger.warning("Attempted to update insets of window without content")
@@ -629,7 +634,10 @@ public final class AndroidBackend: BaseAppBackend {
 
         let insetsActivity = activity(of: window) ?? Self.activity
         let leftInset = Int(helpers.getSafeAreaLeftInset(insetsActivity))
-        let topInset = Int(helpers.getSafeAreaTopInset(insetsActivity))
+        // A navigation title sits under the status bar and carries that inset itself.
+        // 導覽標題位於狀態列下方，自己帶著那段內縮。
+        let topInset =
+            hasNavigationTitle(window) ? 0 : Int(helpers.getSafeAreaTopInset(insetsActivity))
         let fullWindowSize = SIMD2(Int(matchParent), Int(matchParent))
         setSize(of: container, to: fullWindowSize)
         setPosition(ofChildAt: 0, in: container, to: SIMD2(leftInset, topInset))
@@ -661,7 +669,9 @@ public final class AndroidBackend: BaseAppBackend {
         // 之後的視窗在其 activity 存在前，以第一個視窗的尺寸量測：同一個螢幕，activity 一跑起來就會回報自己的尺寸。
         let sizeActivity = activity(of: window) ?? Self.activity
         let width = Int(helpers.getSafeWindowWidth(sizeActivity))
-        let height = Int(helpers.getSafeWindowHeight(sizeActivity))
+        // Less the navigation title's bar when there is one. 有導覽標題時扣掉它那一列。
+        let height =
+            Int(helpers.getSafeWindowHeight(sizeActivity)) - (hasNavigationTitle(window) ? 44 : 0)
         return SIMD2(Int(width), Int(height))
     }
 

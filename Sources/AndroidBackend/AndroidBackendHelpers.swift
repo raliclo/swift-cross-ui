@@ -95,6 +95,10 @@ class AndroidBackendHelpers: JavaObject {
     @JavaMethod
     func setWindowBackground(_ activity: Activity?, _ dark: Bool)
 
+    /// See AndroidBackendHelpers.kt. 見 AndroidBackendHelpers.kt。
+    @JavaMethod
+    func styleNavigationTitle(_ activity: Activity?, _ label: AndroidKit.TextView?)
+
     @JavaMethod
     func setHitTesting(_ view: AndroidKit.View?, _ allowsHitTesting: Bool)
 
