@@ -5,7 +5,24 @@ import SwiftJava
 // implements BackendFeatures.TextFields & BackendFeatures.SecureFields & BackendFeatures.TextEditors
 extension AndroidBackend {
     public func createTextField() -> Widget {
-        CustomEditText(activity: Self.activity, environment: Self.env)
+        let field = CustomEditText(activity: Self.activity, environment: Self.env)
+        Self.makePlain(field)
+        return field
+    }
+
+    /// `.automatic`/`.plain` from the start: no background, no inset, no
+    /// minimum height. The core measures a field (`computeLayout`) before it
+    /// applies the style (`commit`), so a field created with the theme's
+    /// underline was laid out 45 dp tall and kept that height after the style
+    /// removed it: P31 showed a strip of empty field under the text (2026-10-10).
+    /// 一開始就是 `.automatic`/`.plain`:沒有背景、沒有內縮、沒有最小高度。核心在套用樣式(`commit`)之前就量測
+    /// 欄位(`computeLayout`),所以帶著主題底線建立的欄位被排成 45 dp 高，樣式拿掉底線之後仍維持那個高度:P31 的文字
+    /// 底下留著一段空白欄位(2026-10-10)。
+    static func makePlain(_ field: CustomEditText) {
+        field.setBackground(nil)
+        field.setPadding(0, 0, 0, 0)
+        field.setMinHeight(0)
+        field.setMinimumHeight(0)
     }
 
     private func updateTextField(
@@ -165,9 +182,15 @@ extension AndroidBackend {
         in environment: EnvironmentValues
     ) {
         switch style {
-            case .automatic:
-                textField.restoreDefaultChrome()
-            case .plain:
+            // `.automatic` as `.plain`, as UIKitBackend maps both to
+            // `UITextField.BorderStyle.none`: an unstyled field on iOS has no
+            // border, and Android's theme underline with its inset put P31's
+            // field 4 dp right of iOS's and pushed the rows below it down
+            // (2026-10-10).
+            // `.automatic` 與 `.plain` 相同，如同 UIKitBackend 把兩者都對應到 `UITextField.BorderStyle.none`:
+            // iOS 上未加樣式的欄位沒有框線，而 Android 主題的底線與它的內縮讓 P31 的欄位比 iOS 右移 4 dp,
+            // 並把下方的列往下推(2026-10-10)。
+            case .automatic, .plain:
                 // The same pair `createTextEditor` uses, and for the same
                 // reason: with no background there is no drawable to supply an
                 // inset, and the theme's leftover padding would read as a
@@ -176,6 +199,10 @@ extension AndroidBackend {
                 // 內縮，而主題殘留的 padding 會看起來像一段莫名的縮排。
                 textField.setBackground(nil)
                 textField.setPadding(0, 0, 0, 0)
+                // And no minimum height: the theme's 48 dp kept a strip of empty
+                // field under the text (P31). 也不設最小高度：主題的 48 dp 讓文字底下留著一段空白欄位(P31)。
+                textField.setMinHeight(0)
+                textField.setMinimumHeight(0)
             case .roundedBorder, .squareBorder:
                 let density = textField.getResources().getDisplayMetrics().density
 
@@ -218,7 +245,9 @@ extension AndroidBackend {
     }
 
     public func createSecureField() -> Widget {
-        SecureEditText(activity: Self.activity, environment: Self.env)
+        let field = SecureEditText(activity: Self.activity, environment: Self.env)
+        Self.makePlain(field)
+        return field
     }
 
     public func updateSecureField(
@@ -247,8 +276,7 @@ extension AndroidBackend {
 
     public func createTextEditor() -> Widget {
         let editText = CustomEditText(activity: Self.activity, environment: Self.env)
-        editText.setBackground(nil)
-        editText.setPadding(0, 0, 0, 0)
+        Self.makePlain(editText)
         return editText
     }
 
