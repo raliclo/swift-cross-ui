@@ -50,6 +50,10 @@
     effect on the late view -- A, B, C, D and the circle start on the red line in
     the after state. Still not run: WinUI, and GTK on Linux/WSL and Windows (no
     such machine here).
+  - [ ] **`taplabel` refusal in Win32Synthesiser and XdotoolSynthesiser is written,
+    not compiled** (2026-10-10, from the Mac: one `case .tapLabel` each, throwing
+    `unsupported`). `InputAction` gained the case, so a Windows or Linux build that
+    fails on a non-exhaustive switch there is this.
   - [ ] **GTK draws P89's 14 x 14 stroked Circle as a rounded square** (macOS,
     gtk4 4.24.1, p89-macos-gtk4-final-20261010-202735.png); a circle on AppKit,
     UIKit and Android. Not looked into.
