@@ -115,7 +115,7 @@ extension AndroidBackend {
         // 因為 `SecureField` 不會設定 `backendTextFieldStyle`。其代價是每次更新多一次
         // `restoreDefaultChrome()`，且不改變任何東西；對一個本次工作未擴充的控制項而言，這正是
         // 正確的行為。
-        apply(environment.backendTextFieldStyle, to: editText, in: environment)
+        apply(environment.backendTextFieldStyle, to: editText, key: textField, in: environment)
     }
 
     /// Gives a `CustomEditText` one of the four ``BackendTextFieldStyle``
@@ -176,11 +176,55 @@ extension AndroidBackend {
     ///
     /// - Note: 未實際執行。撰寫本程式碼的 Windows 機器無法建置或執行此 backend，因此它是依據
     ///   AndroidKit 綁定所宣告的介面實作的，而非靠觀察其行為。
+    /// The style last applied to each field. 每個欄位上次套用的樣式。
+    @MainActor static let textFieldStyles = LastSet<String>()
+    @MainActor static var relayoutPending = false
+
+    /// Lays every window out again, as a size change does.
+    /// 讓每個視窗重新排版，如同尺寸改變時一樣。
+    func requestRelayout() {
+        // One pass for however many fields ask in the same commit.
+        // 同一次 commit 裡不論多少欄位要求，都只排一次。
+        if Self.relayoutPending { return }
+        Self.relayoutPending = true
+        runInMainThread { [self] in
+            Self.relayoutPending = false
+            for window in Self.windows.compactMap(\.window) {
+                window.resizeHandler?(size(ofWindow: window))
+            }
+        }
+    }
+
     private func apply(
         _ style: BackendTextFieldStyle,
         to textField: CustomEditText,
+        // The widget the core holds: `as` makes a new wrapper per call, which a `LastSet` cannot key on.
+        key: AnyObject,
         in environment: EnvironmentValues
     ) {
+        // Once per style and scheme: the arms below build drawables and set
+        // padding. 每種樣式與配色只做一次：下面的分支會建立 drawable 並設定 padding。
+        let styleKey = "\(style)|\(environment.colorScheme)"
+        let previous = Self.textFieldStyles.value(for: key)
+        if previous == styleKey { return }
+        Self.textFieldStyles.set(styleKey, for: key)
+        // A bordered field is taller than a plain one, and the core measured
+        // this field (computeLayout) before this ran (commit): without another
+        // layout P36's rounded field kept the plain 24 dp and its border cut
+        // through the text (2026-10-10). UIKitBackend got one by chance.
+        // The first application too: the font is set in the same commit, so a
+        // plain field was measured with the theme's font (24 dp, not 20 dp).
+        // 第一次套用也要：字型在同一次 commit 才設定，所以無框欄位是用主題的字型量的(24 dp 而非 20 dp)。
+        // 有框的欄位比無框的高，而核心在這裡執行(commit)之前就量了這個欄位(computeLayout):少了再一次排版,
+        // P36 的圓角欄位維持無框的 24 dp,框線切過文字(2026-10-10)。UIKitBackend 碰巧有得到一次。
+        let isBordered = style == .roundedBorder || style == .squareBorder
+        let wasBordered = previous.map {
+            $0.hasPrefix("\(BackendTextFieldStyle.roundedBorder)|")
+                || $0.hasPrefix("\(BackendTextFieldStyle.squareBorder)|")
+        } ?? false
+        defer {
+            if previous == nil || isBordered != wasBordered { requestRelayout() }
+        }
         switch style {
             // `.automatic` as `.plain`, as UIKitBackend maps both to
             // `UITextField.BorderStyle.none`: an unstyled field on iOS has no

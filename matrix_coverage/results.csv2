@@ -1264,3 +1264,7 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P33,ok,n/a,screen,default,Aligned with iOS.
 2026-10-10,ios,uikit,P34,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P34,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P35,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P35,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P36,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P36,ok,n/a,screen,default,"Rounded text field 32 dp tall and enclosing its text (was 24 dp, border through the text); plain fields 20 dp. P31 re-run: unchanged look, typed 'abc'."
