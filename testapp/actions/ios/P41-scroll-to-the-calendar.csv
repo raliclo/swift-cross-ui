@@ -3,5 +3,5 @@ action,x,y,origin,button,key,micros,note,platform
 # past the right edge of an iPhone, are on screen for the iOS/Android comparison.
 # P41:把頁面往右捲，讓起點在 iPhone 右緣之外的 .graphical 月曆與 .wheel 格子進入畫面，供 iOS/Android 比對。
 move,400,180,client,,,,park the finger on the title row near the right edge (no picker under it),ios
-scroll,8,0,client,,,,scroll right eight notches,ios
+scroll,13,0,client,,,,"scroll right thirteen notches (VERIFIED 2026-10-10: the whole calendar and all three wheels on screen, p41-ios-final-20261010-200445.png)",ios
 sleep,,,,,,800000,let momentum settle before the capture,ios
