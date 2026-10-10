@@ -1,5 +1,6 @@
 package dev.swiftcrossui.androidbackend
 
+import android.os.Build
 import android.app.Activity
 import android.text.TextUtils
 import android.widget.TextView
@@ -19,6 +20,16 @@ import android.widget.TextView
 class FittedTextView(activity: Activity) : TextView(activity) {
     init {
         ellipsize = TextUtils.TruncateAt.END
+        // Every line the same height whatever script it holds, as the size is
+        // measured (lines x line height) and as UIKit lays them out. A line of
+        // CJK text otherwise takes its fallback font's taller metrics: P37's
+        // three Chinese lines pushed the last one half out of the view
+        // (2026-10-10).
+        // 不論是哪種文字，每一行都一樣高，與尺寸的量法(行數 x 行高)以及 UIKit 的排法相同。否則一行中日韓文字會採用
+        // 後備字型較高的度量:P37 的三行中文把最後一行推出 view 一半(2026-10-10)。
+        if (Build.VERSION.SDK_INT >= 28) {
+            isFallbackLineSpacing = false
+        }
     }
 
     // Every line is one line height, as `size(of:whenDisplayedIn:)` measures
