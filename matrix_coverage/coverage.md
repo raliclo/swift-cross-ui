@@ -27,7 +27,7 @@ zsh matrix_coverage/coverage.zsh
 
 由 `results.csv2` 產生——請勿編輯本檔。
 
-**Runs recorded / 已記錄的執行筆數: 1312**
+**Runs recorded / 已記錄的執行筆數: 1313**
 
 | app<br>app    | windows_gtk4<br>Windows·gtk4 | windows_winui<br>Windows·WinUI | wsl<br>WSL               | macos_appkit<br>macOS·AppKit | ios_uikit<br>iOS·UIKit | android<br>Android        | note<br>備註 |
 |---------------|------------------------------|--------------------------------|--------------------------|------------------------------|------------------------|---------------------------|--------------|
@@ -122,4 +122,4 @@ zsh matrix_coverage/coverage.zsh
 | P83           | pass 2026-10-08              | pass 2026-10-08                | pass 2026-10-08          | pass 2026-10-08              | pass 2026-10-08        | capture screen 2026-10-09 |              |
 | P84           | -                            | -                              | -                        | pass 2026-10-09              | pass 2026-10-09        | capture screen 2026-10-09 |              |
 | P89           | -                            | -                              | -                        | -                            | pass 2026-10-10        | capture screen 2026-10-10 |              |
-| P90           | -                            | -                              | -                        | -                            | pass 2026-10-10        | capture screen 2026-10-10 |              |
+| P90           | -                            | -                              | -                        | -                            | pass 2026-10-10        | capture screen 2026-10-11 |              |
