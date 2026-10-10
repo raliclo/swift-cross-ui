@@ -57,7 +57,14 @@ extension AndroidBackend {
         removeAllChildren(of: symbolView)
 
         let child: Widget
-        if let resourceId = Self.drawableId(for: symbol, in: environment) {
+        // Material Symbols first; see MaterialSymbols.kt for why. 先用 Material Symbols;理由見 MaterialSymbols.kt。
+        let material = MaterialSymbolView(Self.activity, environment: Self.env)
+        if material.setSymbol(symbol.name) {
+            material.setColor(
+                environment.suggestedForegroundColor.resolve(in: environment).asColorInt()
+            )
+            child = material.as(Widget.self)!
+        } else if let resourceId = Self.drawableId(for: symbol, in: environment) {
             let imageView = AndroidKit.ImageView(Self.activity, environment: Self.env)
             imageView.setImageResource(resourceId)
             // The stock android.R drawables are grey artwork rather than
@@ -122,7 +129,7 @@ extension AndroidBackend {
         whenDisplayedIn widget: Widget,
         environment: EnvironmentValues
     ) -> SIMD2<Int> {
-        guard Self.drawableId(for: symbol, in: environment) != nil else {
+        guard Self.hasMaterialSymbol(symbol) || Self.drawableId(for: symbol, in: environment) != nil else {
             return size(
                 of: symbol.textFallback,
                 whenDisplayedIn: widget,
@@ -136,7 +143,13 @@ extension AndroidBackend {
         // layout system scales by windowScaleFactor on the way to the platform.
         // 正方形，尺寸為字型的點級，與 GtkBackend 相同——如此符號便與其旁邊的文字等高。此處是邏輯點
         // 而非像素：版面系統會在送往平台的途中依 windowScaleFactor 縮放。
-        let side = Int(environment.resolvedFont.pointSize.rounded(.awayFromZero))
+        // A Material symbol is drawn in a box a quarter larger than the font: its
+        // artwork leaves a margin inside the box, and at this size it is as tall
+        // as SF Symbols' beside the same text (about 18 at 17 points).
+        // Material 符號畫在比字型大四分之一的框裡：它的圖稿在框內留有邊距，在這個尺寸下與同一段文字旁的 SF Symbols 等高
+        // (17 點時約 18)。
+        let pointSize = environment.resolvedFont.pointSize
+        let side = Int((Self.hasMaterialSymbol(symbol) ? pointSize * 1.25 : pointSize).rounded(.awayFromZero))
         return SIMD2(side, side)
     }
 
@@ -152,6 +165,10 @@ extension AndroidBackend {
     /// `getIdentifier` 對未知名稱回傳 `0`，而 `0` 正是 `setImageResource` 會接受、卻什麼都不畫的那個
     /// 值——因此在此處、在唯一知道它意謂「不存在」的地方，把它對應為 `nil`，而不是讓它以一個看起來
     /// 可用的數字被四處傳遞。
+    static func hasMaterialSymbol(_ symbol: SystemSymbol) -> Bool {
+        (try? JavaClass<MaterialSymbols>(environment: Self.env))?.has(symbol.name) ?? false
+    }
+
     static func drawableId(
         for symbol: SystemSymbol,
         in environment: EnvironmentValues

@@ -35,10 +35,14 @@ struct P90App: App {
 
 struct P90View: View {
     static let regions: [[String]] = [
-        ["en_US", "en_GB", "de_DE", "fr_FR", "es_ES", "it_IT"],
-        ["nl_NL", "sv_SE", "fi_FI", "pl_PL", "hu_HU", "ru_RU"],
-        ["tr_TR", "pt_BR", "zh_TW", "zh_CN", "ja_JP", "ko_KR"],
-        ["th_TH", "hi_IN", "he_IL", "ar_SA"],
+        // Five to a row: six were wider than a 411 dp screen, so pressing one of the
+        // last two scrolled the page and the capture showed the wheels cut off.
+        // 一列五個：六個比 411 dp 的螢幕寬，按最後兩個時整頁會被捲動，擷圖裡的滾輪就被切掉。
+        ["en_US", "en_GB", "de_DE", "fr_FR", "es_ES"],
+        ["it_IT", "nl_NL", "sv_SE", "fi_FI", "pl_PL"],
+        ["hu_HU", "ru_RU", "tr_TR", "pt_BR", "zh_TW"],
+        ["zh_CN", "ja_JP", "ko_KR", "th_TH", "hi_IN"],
+        ["he_IL", "ar_SA"],
     ]
 
     static let start = Date(timeIntervalSince1970: 1_756_000_000)
@@ -75,5 +79,7 @@ struct P90View: View {
         }
         .environment(\.locale, Locale(identifier: region))
         .padding(8)
+        // Clear of the floating view-mode control at the top left. 避開左上角浮動的檢視模式控制項。
+        .padding(.top, 28)
     }
 }
