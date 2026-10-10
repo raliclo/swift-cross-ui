@@ -731,6 +731,13 @@ extension UIKitBackend: BackendFeatures.TapGestures {
 
             datePickerWidget.child.isEnabled = environment.isEnabled
             datePickerWidget.child.calendar = environment.calendar
+            // The region too: it decides the order of the wheel's columns, the text in
+            // them and whether there is an AM/PM column. Left unset, a picker under
+            // `.environment(\.locale, ...)` kept the device's region while
+            // AndroidBackend's followed the environment (P90, 2026-10-10).
+            // 地區也要：它決定滾輪欄位的順序、欄位裡的文字，以及有沒有上午／下午那一欄。不設的話,`.environment(\.locale, ...)`
+            // 底下的 picker 仍是裝置的地區，而 AndroidBackend 的會跟著 environment(P90,2026-10-10)。
+            datePickerWidget.child.locale = environment.locale
             datePickerWidget.child.timeZone = environment.timeZone
             datePickerWidget.child.minimumDate = range.lowerBound
             datePickerWidget.child.maximumDate = range.upperBound

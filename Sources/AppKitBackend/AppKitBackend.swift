@@ -1931,6 +1931,13 @@ public final class AppKitBackend: FullAppBackend, BackendFeatures.WindowLevels {
         datePicker.timeZone =
             environment.timeZone == .autoupdatingCurrent ? .current : environment.timeZone
 
+        // The region, as UIKitBackend and AndroidBackend take it from the environment
+        // (2026-10-10); only when it differs, for the reason below.
+        // 地區，與 UIKitBackend、AndroidBackend 一樣取自 environment(2026-10-10);只在不同時才設，理由見下。
+        if datePicker.locale?.identifier != environment.locale.identifier {
+            datePicker.locale = environment.locale
+        }
+
         // A couple properties cause infinite update loops if we assign to them on every update, so
         // check their values first.
         if datePicker.calendar != environment.calendar {
