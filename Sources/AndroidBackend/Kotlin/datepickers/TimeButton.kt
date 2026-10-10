@@ -36,7 +36,7 @@ class TimeButton(private val activity: FragmentActivity) : Button(activity) {
     init {
         dialogFragment.button = this
 
-        isAllCaps = false
+        styleAsPickerField(this)
 
         setOnClickListener { _ ->
             dialogFragment.show(activity.supportFragmentManager, DialogFragment.TAG)

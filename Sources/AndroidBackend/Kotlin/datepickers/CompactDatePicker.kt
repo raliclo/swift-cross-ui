@@ -18,7 +18,14 @@ class CompactDatePicker(activity: FragmentActivity) : AbstractDatePicker(activit
         dateView.action = childAction
         timeView.action = childAction
 
-        addView(dateView)
+        // 8 between the date and the time, as UIDatePicker spaces its two fields; on
+        // the date so that a time alone carries none. 日期與時間之間留 8,與 UIDatePicker 相同；設在日期上，只有時間時就不帶。
+        addView(
+            dateView,
+            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                marginEnd = Math.round(8 * resources.displayMetrics.density)
+            },
+        )
         addView(timeView)
     }
 

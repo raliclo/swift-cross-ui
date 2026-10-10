@@ -40,7 +40,7 @@ class DateButton(private val activity: FragmentActivity) : Button(activity) {
     init {
         dialogFragment.button = this
 
-        isAllCaps = false
+        styleAsPickerField(this)
 
         setOnClickListener { _ ->
             dialogFragment.show(activity.supportFragmentManager, DialogFragment.TAG)
@@ -62,7 +62,7 @@ class DateButton(private val activity: FragmentActivity) : Button(activity) {
 
         setText(
             calendar
-                .getDateTimeFormat(DateFormat.LONG, DateFormat.NONE, locale)
+                .getDateTimeFormat(DateFormat.MEDIUM, DateFormat.NONE, locale)
                 .format(calendar.time)
         )
     }
