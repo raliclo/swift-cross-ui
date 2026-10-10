@@ -69,6 +69,8 @@ class KeyEventContainer(context: Context) : ViewGroup(context) {
     init {
         isFocusable = true
         isFocusableInTouchMode = true
+        // See ShortcutHostLayout. 見 ShortcutHostLayout。
+        defaultFocusHighlightEnabled = false
         // Descendants keep their own focus; this container only takes it when nothing else wants
         // it. FOCUS_BEFORE_DESCENDANTS is the default and would put a text field behind us.
         // 後代保有它們自己的焦點;只有在沒有別的東西要它時,這個容器才拿走。

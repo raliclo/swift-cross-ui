@@ -82,6 +82,13 @@ class ShortcutHostLayout(context: Context) : LinearLayout(context) {
         // `KeyEventContainer` 基於同樣的理由使用同一組設定。
         isFocusable = true
         isFocusableInTouchMode = true
+        // No default focus highlight: this view is the whole window and takes focus
+        // at launch when the device is not in touch mode (adb, a keyboard), and the
+        // framework then washed every pixel of the app with 7.5% black -- white read
+        // 236 in every Android screenshot until the first touch (2026-10-10).
+        // 不要預設的焦點高亮：這個 view 就是整個視窗，裝置不在觸控模式(adb、鍵盤)時一啟動就取得焦點，框架便在 app 的
+        // 每個像素上蓋一層 7.5% 的黑——第一次觸碰之前，每張 Android 截圖裡的白都是 236(2026-10-10)。
+        defaultFocusHighlightEnabled = false
         // BEFORE, not AFTER, from 2026-10-02. AFTER made the window's DEFAULT
         // focus -- the one Android assigns on the first layout, which no
         // field asked for -- go to the first text field. The soft keyboard
