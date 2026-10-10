@@ -1258,3 +1258,9 @@ date,platform,backend,app,launch,replay,capture,renderer,note
 2026-10-10,android,android,P30,ok,n/a,screen,default,Aligned with iOS. The first launch after a from-scratch rebuild drew under the status bar once; not reproduced on the second run.
 2026-10-10,ios,uikit,P31,ok,n/a,window,default,iOS/Android comparison: reference.
 2026-10-10,android,android,P31,ok,n/a,screen,default,"Unstyled TextField drawn as UIKit's (.automatic = .plain = no border): no theme underline, flush left, 24 dp tall (was 45 dp, measured before the style removed the underline). Tapped and typed 'abc'."
+2026-10-10,ios,uikit,P32,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P32,ok,n/a,screen,default,"Aligned with iOS except the slider, left as Material's by the user's decision."
+2026-10-10,ios,uikit,P33,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P33,ok,n/a,screen,default,Aligned with iOS.
+2026-10-10,ios,uikit,P34,ok,n/a,window,default,iOS/Android comparison: reference.
+2026-10-10,android,android,P34,ok,n/a,screen,default,Aligned with iOS.
