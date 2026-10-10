@@ -22,7 +22,7 @@ import java.util.Locale
  *   date and time:  "Sun Aug 24" right-aligned at 138.5, hours at 178.5, minutes centred
  *                   on 227, AM/PM on 281.7
  *
- * With a 24-hour locale there is no AM/PM column. The day column holds three years either
+ * With a 24-hour locale there is no AM/PM column and the time alone is 09 centred on x 117.3 and 46 on x 192. The day column holds three years either
  * side of the value, inside the range, and is rebuilt around a value outside it.
  *
  * It replaces the Holo spinner TimePicker, which next to these wheels was three flat rows
@@ -99,7 +99,7 @@ class TimeWheels(context: Context) : FrameLayout(context) {
 
     private fun fill() {
         hour.items =
-            if (is24Hour) (0..23).map { it.toString() }
+            if (is24Hour) (0..23).map { "%02d".format(it) }
             else listOf(12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11).map { it.toString() }
         minute.items = (0..59).map { "%02d".format(it) }
         period.items = DateFormatSymbols(locale).amPmStrings.take(2)
@@ -118,11 +118,20 @@ class TimeWheels(context: Context) : FrameLayout(context) {
         day.visibility = GONE
         period.visibility = GONE
         if (showsDay) {
+            hour.align = Paint.Align.RIGHT
             place(day, 0f, 146f, 138.5f)
             place(hour, 146f, 190f, 178.5f)
             place(minute, 190f, 256f, 227f)
             if (!is24Hour) place(period, 256f, 320f, 281.7f)
+        } else if (is24Hour) {
+            // Two centred columns of two digits, as UIKit lays a 24-hour time out
+            // (en_GB, 2026-10-10): 09 on x 117.3, 46 on x 192.
+            // 兩欄置中的兩位數，與 UIKit 排 24 小時制時間的方式相同(en_GB,2026-10-10):09 在 x 117.3、46 在 x 192。
+            hour.align = Paint.Align.CENTER
+            place(hour, 80f, 155f, 117.3f)
+            place(minute, 155f, 230f, 192f)
         } else {
+            hour.align = Paint.Align.RIGHT
             place(hour, 40f, 106f, 96.5f)
             place(minute, 106f, 186f, 155f)
             if (!is24Hour) place(period, 186f, 260f, 216.7f)
