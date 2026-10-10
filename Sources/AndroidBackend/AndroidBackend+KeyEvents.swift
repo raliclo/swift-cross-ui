@@ -134,7 +134,7 @@ extension AndroidBackend: BackendFeatures.KeyEvents {
     /// app,問的是這組對照早已回答「不行」的問題。
     ///
     /// META——接在 Android 裝置上的 Apple 鍵盤上的 Command 鍵——基於同一理由也回報 `.command`。
-    private static func modifiers(fromMetaState metaState: Int32) -> EventModifiers {
+    static func modifiers(fromMetaState metaState: Int32) -> EventModifiers {
         /// `KeyEvent.META_SHIFT_ON`
         let shift: Int32 = 0x1
         /// `KeyEvent.META_ALT_ON`

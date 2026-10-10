@@ -1,0 +1,24 @@
+action,x,y,origin,button,key,micros,note,platform
+# P88: the pointer moves over the blue panel, Command is held and released, then a drag
+# crosses the panel. Expected in the final capture: "pointer" at the last move, "last with
+# cmd" where Command was held, "drags: 1". Coordinates are window-frame points; the panel
+# spans roughly x 16-376, y 96-336 with the title bar.
+# P88:指標移過藍色面板，按住再放開 Command,然後一次拖曳橫越面板。最後的擷圖應有：pointer 在最後一次
+# 移動處、"last with cmd" 在按住 Command 之處、"drags: 1"。
+move,150,200,frame,,,,into the panel,macos
+sleep,,,,,,300000,,macos
+move,160,205,frame,,,,,macos
+sleep,,,,,,300000,,macos
+keydown,,,,,command,,hold Command without moving,macos
+sleep,,,,,,400000,,macos
+move,170,210,frame,,,,move with Command held,macos
+sleep,,,,,,400000,,macos
+keyup,,,,,command,,,macos
+sleep,,,,,,300000,,macos
+mousedown,120,180,frame,left,,,start a drag on the panel,macos
+move,170,200,frame,,,,,macos
+move,220,230,frame,,,,,macos
+mouseup,220,230,frame,left,,,,macos
+sleep,,,,,,400000,,macos
+move,200,190,frame,,,,end inside the panel,macos
+sleep,,,,,,600000,,macos

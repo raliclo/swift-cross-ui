@@ -1,5 +1,36 @@
 # queue
 
+## 2026-10-10 onContinuousHover (for SoftPCB's Cmd node probe)
+
+- [x] **`View.onContinuousHover(perform:)` with modifiers** (Mac side).
+  SoftPCB tab 9 reads the nearest node's value while Command is held over
+  the 3D view, so the hover has to carry the pointer location *and* the held
+  modifiers, and has to report a modifier change without the pointer moving.
+  `PointerHoverPhase` (`.active(location:modifiers:)`, `.ended`; the name
+  avoids PortingKit's `HoverPhase`) and `BackendFeatures.PointerHover`.
+  A backend without the feature degrades to "never called" with a one-time
+  log, like `onKeyPress`, instead of `@CastBackend`'s fatalError.
+  AppKit: an `NSTrackingArea` (`.mouseMoved`, `.inVisibleRect`) on the
+  container itself -- no overlay view, so drags on the content still work --
+  plus a `flagsChanged` local monitor while the pointer is inside. UIKit:
+  `UIHoverGestureRecognizer` + `modifierFlags`. GTK: an
+  `EventControllerMotion` and `gtk_event_controller_get_current_event_state`.
+  Android: `PointerHoverContainer.kt` overriding `dispatchHoverEvent`.
+  Found on the way: `AppKitSynthesiser`'s HID mouse events carried no
+  modifier flags, and `AndroidSynthesiser`'s hover carried no meta state;
+  both now carry the held modifiers. P88 (new), every capture read:
+  macOS all lines including "seen (cmd)" on a Cmd press without moving;
+  GTK on macOS pointer, cmd and drag (no still-change report: GTK sends no
+  motion for a key alone); Android emulator pointer 182,58, cmd 152,88,
+  drags 1; iPad simulator hover 2 reports, ended, drags 1 and control
+  drags 1 -- cmd is not checkable there, XCUITest hover carries no
+  modifiers.
+  - [ ] **WinUI: `onContinuousHover`** (left for Windows). `PointerMoved` /
+    `PointerExited` on the container, modifiers from
+    `PointerRoutedEventArgs.KeyModifiers`, and a key-state change while
+    inside. Until then WinUI takes the degradation path. Then P88 with
+    `actions/win/` coordinates.
+
 ## 2026-10-09 SVG in Image (user request, priority one)
 
 - [x] **Image renders SVG with a pure-Swift renderer in the core** (Mac side).

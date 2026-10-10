@@ -230,7 +230,7 @@ final class KeyEventWidget: ContainerWidget {
         }
     }
 
-    private static func modifiers(from flags: UIKeyModifierFlags) -> EventModifiers {
+    static func modifiers(from flags: UIKeyModifierFlags) -> EventModifiers {
         var modifiers: EventModifiers = []
         if flags.contains(.command) { modifiers.insert(.command) }
         if flags.contains(.shift) { modifiers.insert(.shift) }

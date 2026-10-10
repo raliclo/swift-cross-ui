@@ -1,0 +1,23 @@
+action,x,y,origin,button,key,micros,note,platform
+# P88 on iOS: hover rows over the blue panel, Command held through one, then a drag.
+# Expected as on the other platforms: "pointer" at the last hover, "last with cmd" at the held one, "drags: 1".
+# iOS 上的 P88:在藍色面板上 hover,其中一次按住 Command,然後拖曳一次。
+sleep,,,,,,2500000,let P88 lay out,ios
+hover,150,200,client,,,,into the panel,ios
+sleep,,,,,,500000,,ios
+keydown,,,,,command,,hold Command,ios
+sleep,,,,,,300000,,ios
+hover,170,220,client,,,,hover with Command held,ios
+sleep,,,,,,500000,,ios
+keyup,,,,,command,,,ios
+sleep,,,,,,300000,,ios
+mousedown,100,300,client,left,,,drag on the panel,ios
+sleep,,,,,,400000,,ios
+mouseup,200,300,client,left,,,,ios
+sleep,,,,,,400000,,ios
+mousedown,100,385,client,left,,,control: drag on the green panel (no hover wrapper),ios
+sleep,,,,,,400000,,ios
+mouseup,200,385,client,left,,,,ios
+sleep,,,,,,400000,,ios
+hover,200,190,client,,,,end inside the panel,ios
+sleep,,,,,,1500000,let the readout redraw,ios

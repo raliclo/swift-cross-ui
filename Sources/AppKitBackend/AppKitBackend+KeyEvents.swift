@@ -171,7 +171,7 @@ final class NSKeyEventTarget: NSView {
         return true
     }
 
-    private static func modifiers(from flags: NSEvent.ModifierFlags) -> EventModifiers {
+    static func modifiers(from flags: NSEvent.ModifierFlags) -> EventModifiers {
         var modifiers: EventModifiers = []
         if flags.contains(.command) { modifiers.insert(.command) }
         if flags.contains(.shift) { modifiers.insert(.shift) }

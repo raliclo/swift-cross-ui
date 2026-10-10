@@ -1,0 +1,20 @@
+action,x,y,origin,button,key,micros,note,platform
+# P88 on Android: hover rows (a touch screen has no move), Command held through one hover,
+# then a drag. Expected: "pointer" at the last hover, "last with cmd" at the held one,
+# "drags: 1". The panel spans about x 18-377, y 131-371 points.
+# Android 上的 P88:用 hover 列(觸控螢幕沒有 move),其中一次 hover 按住 Command,然後拖曳一次。
+sleep,,,,,,2000000,let P88 lay out,android
+hover,150,200,,,,,into the panel,android
+sleep,,,,,,300000,,android
+keydown,,,,,command,,hold Command,android
+sleep,,,,,,300000,,android
+hover,170,220,,,,,hover with Command held,android
+sleep,,,,,,300000,,android
+keyup,,,,,command,,,android
+sleep,,,,,,300000,,android
+mousedown,100,300,,left,,,drag on the panel,android
+sleep,,,,,,400000,,android
+mouseup,200,300,,left,,,,android
+sleep,,,,,,400000,,android
+hover,200,190,,,,,end inside the panel,android
+sleep,,,,,,1200000,let the readout redraw,android

@@ -453,6 +453,10 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
         let position = try place(point, in: geometry, reveal: true)
         lastPoint = (Double(position.x), Double(position.y))
 
+        // The modifiers a keydown row holds, as a real pointer's hover carries them: a hover
+        // with Command held must say so (P88, 2026-10-10). / keydown 列按住的修飾鍵，與真實指標的 hover
+        // 一樣帶上：按住 Command 的 hover 必須說出來(P88,2026-10-10)。
+        let meta = heldModifiers
         let clock = try JavaClass<SystemClock>()
         let now = clock.uptimeMillis()
 
@@ -468,7 +472,7 @@ final class AndroidSynthesiser: Synthesiser, @unchecked Sendable {
                     motionClass.ACTION_HOVER_MOVE,
                     Float(position.x),
                     Float(position.y),
-                    Int32(0)
+                    meta
                 )
             else { return "no activity" }
 

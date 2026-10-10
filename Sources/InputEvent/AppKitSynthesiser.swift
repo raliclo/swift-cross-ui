@@ -1209,6 +1209,13 @@
             else {
                 throw SynthesiserError.unsupported("could not construct an HID \(type) event")
             }
+            // The modifiers a file holds down ride on the HID event too, as on a key event
+            // above: a GDK window reads them from the event, and a move with Command held
+            // otherwise reached it with none (P88, 2026-10-10).
+            // 動作檔按住的修飾鍵也帶在 HID 事件上，與上方的按鍵事件相同:GDK 視窗從事件讀取它們，否則按住
+            // Command 的移動送到它那裡時一個修飾鍵也沒有(P88,2026-10-10)。
+            let held = CGEventFlags(rawValue: UInt64(currentModifiers().rawValue))
+            event.flags = held
             // A GDK window needs the pointer to arrive before the press, and the
             // press to last: measured 2026-10-09 with P84, a bare HID down+up at
             // a GtkButton fired once in eight runs, while move, 150 ms, down,
@@ -1221,12 +1228,17 @@
             // 指標所在的 surface,沒有 pointer surface 的按壓被丟棄(未在 GDK 原始碼中確認)。因此 down 之前先移到同一點，並給兩者
             // 落地的時間。面板(非 GDK)不受影響。
             if Self.isGdkWindow(window), type == Self.downType(button) {
-                CGEvent(
+                // Explicit flags here too: an HID event without them takes the window
+                // server's, which a posted Command can leave set. / 這裡也明確設定旗標：沒有旗標的
+                // HID 事件會沿用視窗伺服器的，而投遞過的 Command 可能讓它留著。
+                let premove = CGEvent(
                     mouseEventSource: nil,
                     mouseType: .mouseMoved,
                     mouseCursorPosition: point,
                     mouseButton: cgButton
-                )?.post(tap: .cghidEventTap)
+                )
+                premove?.flags = held
+                premove?.post(tap: .cghidEventTap)
                 usleep(150_000)
             }
             event.post(tap: .cghidEventTap)
